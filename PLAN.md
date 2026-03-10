@@ -139,16 +139,20 @@ After updating this file, always push to headquarters (`SNOBOL4-plus/.github`).
 ## Outstanding Items
 
 ### P1 — Blocking
-- [ ] **SNOBOL4-dotnet**: `MathLibrary` and `FSharpLibrary` not in `Snobol4.sln` and not referenced by `TestSnobol4.csproj` — on a clean clone `dotnet test` will not build these DLLs and all LOAD tests that depend on them will fail with file-not-found. Add both to the solution and add `ProjectReference` entries to `TestSnobol4.csproj`.
+- [x] **SNOBOL4-dotnet**: `ErrorJump` field missing from `Executive.cs` — build failed entirely. Added `internal int ErrorJump` to `Executive` partial class. Build now clean (0 errors, 5 warnings). *(fixed 2026-03-09)*
+- [ ] **SNOBOL4-dotnet**: `MathLibrary` and `FSharpLibrary` not in `Snobol4.sln` and not referenced by `TestSnobol4.csproj` — on a clean clone `dotnet test` will not build these DLLs. Add both to solution and add `ProjectReference` entries to `TestSnobol4.csproj`.
 - [ ] Jeffrey accepts GitHub org invitation → promote jcooper0 to Owner at https://github.com/orgs/SNOBOL4-plus/people
 
 ### P2 — Important
-- [ ] **SNOBOL4-dotnet**: No CI (no GitHub Actions). F# workload (`dotnet workload install fsharp`) is required to build `FSharpLibrary` but is never installed by any automated step. Add a workflow that installs tooling, builds solution in correct order, and runs the full test suite.
-- [ ] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0` to match all other projects.
+- [ ] **SNOBOL4-dotnet**: 10 test failures after full build (1456 pass / 10 fail, total 1466):
+  - `Step6_InitFinalize_StatementLimitAborts` — SETEXIT/ErrorJump trap not firing on &STLIMIT exceeded; throws exception instead of branching.
+  - `Load_Area_StringArgCoercion`, `Load_Area_IntegerArgCoercion`, `Unload_Basic`, `Unload_ReloadAfterUnload`, `Load_Math_RealInRealOut`, `Load_Math_ThreeArgClamp`, `Load_FSharp_Hypot` (7 tests) — external library functions return real results as "49.0" not "49"; integer coercion of real return values not trimming .0.
+  - `Load_Area_FailureBranchBadClass`, `Load_Area_FailureBranchMissingFile` (2 tests) — LOAD() failure branch (:F) not taken on error; exception thrown instead.
+- [ ] **SNOBOL4-dotnet**: No CI. F# is included in .NET 10 SDK (no separate workload needed — confirmed). Add GitHub Actions workflow: build solution in order, run full test suite.
+- [ ] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0`.
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
 - [ ] **SNOBOL4-jvm Sprint 23E**: inline EVAL! in JVM codegen — eliminate arithmetic bottleneck
-- [ ] **SNOBOL4-dotnet**: production-readiness pass, remaining known failures
 - [ ] **SNOBOL4-python / SNOBOL4-csharp**: cross-validate pattern semantics against JVM
 - [ ] Build unified cross-platform test corpus
 
