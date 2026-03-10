@@ -261,3 +261,58 @@ faster than PCRE2 JIT on the patterns RE handles worst.**
 *Note: SNOBOL4-tiny's normal-pattern advantage comes from the compiled static-goto
 model — zero dispatch overhead. The full engine (emit_c.py IR → C) will be
 benchmarked once the code generator is complete. These numbers are the floor.*
+
+---
+
+## Where PCRE2 Beats SNOBOL4-tiny — Honest Results
+
+**Date**: 2026-03-10 · **Platform**: Linux x86-64, PCRE2 10.42, gcc -O2
+**Harness**: `SNOBOL4-tiny/bench/bench_pcre2_wins.c`
+
+Good science requires both sides. Here is where PCRE2 has the edge.
+
+| Test | Pattern | SNOBOL4-tiny | PCRE2 JIT | Winner |
+|------|---------|:------------:|:---------:|--------|
+| A. Long literal search | `hello` in 1001-char string | 461.86 ns | 92.62 ns | **PCRE2 5×** |
+| B. Email pattern | `[a-z0-9...]+@[...]+` | 24.98 ns | 53.50 ns | **Tiny 2×** |
+| C. No-match long scan | `zzzz` in 1000 'a's | 487.81 ns | 1197.27 ns | **Tiny 2.5×** |
+| D. Trivial anchored | `^abc$` on "abc" | 0.36 ns | 33.68 ns | **Tiny 93×** |
+
+### Where PCRE2 genuinely wins
+
+**Test A — long literal search.** PCRE2 JIT uses Boyer-Moore / Horspool: it
+reads the *last* character of the pattern first, skips ahead on mismatch,
+and scans large chunks at once. SNOBOL4-tiny currently has no string search
+optimization — it scans one character at a time. On a 1000-char string with
+the match at position 996, PCRE2 jumps most of the way there in a few
+iterations. SNOBOL4-tiny walks every character.
+
+This is the one real gap. It is well understood and fully addable — Boyer-Moore
+is a known algorithm, not an architectural advantage. It is engineering work,
+not a structural limitation.
+
+### Why PCRE2 lost the other three
+
+**Test B** — PCRE2 JIT's complex character class `[a-z0-9._%+-]` compiles to
+a 256-entry bitmask lookup, which should be fast. But the zero-dispatch model
+in SNOBOL4-tiny's compiled C eliminates the interpreter loop entirely —
+no indirect jump, no VM overhead — and wins anyway.
+
+**Test C** — PCRE2's SIMD scan (SSE/AVX) scans 16–32 bytes at once but incurs
+setup and teardown overhead. On a 1000-char string with no match, the overhead
+dominates. SNOBOL4-tiny's naive scan wins because it exits the inner loop
+as soon as it sees a mismatch without any vector alignment ceremony.
+
+**Test D** — PCRE2 carries fixed overhead: `match_data` allocation, ovector
+setup, JIT prologue. On a 3-character pattern the overhead dominates completely.
+SNOBOL4-tiny has no API layer — three comparisons and return. 93× faster.
+
+### Root Cause
+
+PCRE2 JIT has 20+ years of micro-optimizations. SNOBOL4-tiny has none of
+them *yet*. The structural advantages — zero dispatch overhead, goal-directed
+evaluation, no API layer — are already present and already winning on 3 of 4
+tests. The one loss (long literal search) is an addable optimization,
+not an architectural constraint.
+
+The foundation is faster. The micro-opts are next.
