@@ -303,3 +303,79 @@ The program that runs with probes is the same program that runs without them.
 *This is what Griswold put in the language. Forty years later, it is exactly
 what we need to close Sprint 20.*
 
+
+---
+
+## Pattern-Embedded COMM Calls — X . *F() and X $ *F()
+
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+### The Insight
+
+The capture nodes are COMM calls inside patterns.
+
+```snobol4
+        subject  SPAN('0123456789') . *comm()
+```
+
+`. *comm()` — conditional capture. When `SPAN` matches and the overall
+pattern commits, the captured span is passed to `comm()` as a side effect.
+`comm()` emits it to the trace stream. **Zero impact on the match result.**
+
+```snobol4
+        subject  SPAN('0123456789') $ *comm()
+```
+
+`$ *comm()` — immediate capture. Fires every time `SPAN` matches,
+even if downstream fails and backtracks. More events, earlier in execution.
+You see every attempt, not just the committed ones.
+
+### The Two Probes Compared
+
+| Probe | When it fires | Use for |
+|-------|--------------|---------|
+| `X . *comm()` | On commit only — once per successful match | Tracing what the program *decided* |
+| `X $ *comm()` | On every match of X — including backtracked paths | Tracing what the engine *tried* |
+
+Both have **zero semantic footprint**. The pattern match result is unchanged.
+The program behavior is identical. The probe is pure observation.
+
+### Combined With Null Concatenation
+
+Any expression can be probed by assigning through a watched variable:
+
+```snobol4
+        snoDebug = '' myVar        :(CONTINUE)
+```
+
+Any pattern node can be probed via capture:
+
+```snobol4
+        *snoExpr3  . *comm()       :(CONTINUE)
+```
+
+Any point in execution — statement, pattern, subpattern — is now reachable.
+These are not breakpoints. They are **zero-cost observation points** that
+can be dropped anywhere and removed without changing the program.
+
+### What This Means for the Monitor
+
+The COMM infrastructure is now complete:
+
+| Mechanism | Where | What it observes |
+|-----------|-------|-----------------|
+| `TRACE('&STNO','KEYWORD')` | Top of program | Every statement number |
+| `TRACE('var','VALUE')` | Top of program | Every assignment to named var |
+| `snoDebug = '' expr` | Anywhere in statements | Any expression value |
+| `pattern . *comm()` | Anywhere in patterns | Committed match spans |
+| `pattern $ *comm()` | Anywhere in patterns | All attempted match spans |
+
+**The entire execution is observable. Nothing is hidden.**
+
+A SNOBOL4 program with these probes in place is a self-documenting execution.
+The trace stream IS the program's understanding of what it is doing —
+expressed in the same language as the program itself.
+
+This is Griswold's gift: a language where the debugging infrastructure
+is part of the language semantics, not bolted on afterward.
+
