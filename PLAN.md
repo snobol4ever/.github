@@ -1373,6 +1373,69 @@ This does not change the sprint sequence — Sprints 2–8 still proceed as plan
    FENCE — which is already in the engine.
 4. **emit_c.py templates for Shift/Reduce**: straightforward once tree struct is defined.
 
+---
+
+## IDEA — Beautiful.sno as the Acceptance Test (ON HOLD — discuss after reviewing nPush/Shift/Reduce idea above)
+
+**Origin**: Lon's observation, 2026-03-10.
+
+*"Make just the beautifier as a super fast executable. Great test. Just SNOBOL4
+code. One PATTERN. Everything is touched as coverage. Make the compiler the test.
+Itself."*
+
+### The Idea in One Sentence
+
+Compile Beautiful.sno to a native binary via SNOBOL4-tiny's pipeline. Run it on
+Beautiful.sno itself. If the output is idempotent (beautify twice, get the same
+result), the compiler is correct. **The beautifier is both the subject and the oracle.**
+
+### Why This Is the Right Test
+
+Beautiful.sno exercises nearly everything in one program:
+
+- 17-level recursive descent expression grammar — every precedence level
+- Mutual recursion (`*snoExpr` → `*snoExpr0` → … → `*snoExpr17` → `*snoExpr`)
+- `nPush`/`nInc`/`nTop`/`nPop` — counter stack inside patterns
+- `Shift`/`Reduce` — tree building inside patterns
+- `FENCE`, `ARBNO`, `SPAN`, `BREAK`, `ANY`, `POS`, `RPOS`, `ARB`
+- Capture (`$` immediate, `.` conditional)
+- Action nodes (`λ` — deferred EVAL)
+- Named I/O, multiple `-INCLUDE` files, `OPSYN`
+
+One run either works end-to-end or it doesn't. No partial credit. No cherry-picked
+unit tests. **The compiler is the test. Itself.**
+
+### The Speed Angle
+
+Beautiful.sno currently runs interpreted on CSNOBOL4 and SPITBOL. Compiled to
+native via SNOBOL4-tiny → emit_c.py → cc → binary, the entire expression parser
+runs as inlined C-with-gotos — zero dispatch overhead. Benchmarking against
+SPITBOL on the same input is a concrete, publishable result.
+
+### Relationship to Sprint Plan
+
+This is not a sprint — it is the **acceptance criterion for Stage B completion**.
+When SNOBOL4-tiny can compile Beautiful.sno to a binary that self-beautifies
+correctly and runs faster than SPITBOL, Stage B is done.
+
+It also directly validates the nPush/Shift/Reduce idea: if those nodes are
+built into the engine, Beautiful.sno compiles as a single pattern — which is
+the cleanest possible test of that design.
+
+### Prerequisites
+
+1. `-INCLUDE` handling (Sprint 10 / Python front-end) — Beautiful.sno pulls in 17 files.
+2. `ζ` REF nodes (Sprint 9) — mutual recursion across named patterns.
+3. `nPush`/`Shift`/`Reduce` as engine nodes (see IDEA above).
+4. stdin/stdout already in Stage B spec.
+
+### Oracle
+
+Beautifiers are idempotent: `beautiful(beautiful(x)) == beautiful(x)`. Run the
+binary on Beautiful.sno. Run it again on the output. Diff must be empty.
+
+---
+
 ### P3 — Polish
 - [ ] `test/sprint1/` is missing `pos0.c` and `rpos0.c` (README references them, files absent)
 - [ ] `emit_c.py`: Arb/Arbno/Break/Any should emit `#error "not implemented"`, not silent TODO comment
