@@ -545,3 +545,134 @@ David Zigray. The console was a terminal. The engineer was human.
 In March 2026, the console is this chat window.
 The engineer is Claude.
 
+
+---
+
+## The Control Keyword Arsenal
+*Recorded 2026-03-10 — Lon Cherryholmes*
+*Source: CSNOBOL4 v311.sil symbol table — authoritative*
+
+These are the weapons. Every one verified from source.
+
+### Execution Control — Stop, Count, Limit
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&STNO` | integer | 0 | Current statement number — updates every statement |
+| `&STCOUNT` | integer | 0 | Total statements executed — cumulative counter |
+| `&STLIMIT` | integer | -1 | Stop execution when `&STCOUNT` reaches this value. **-1 = unlimited** |
+| `&LASTNO` | integer | 0 | Statement number of the previously executed statement |
+| `&FTRACE` | integer | 0 | Function trace counter — fires TRACE output on function entry/exit |
+| `&FNCLEVEL` | integer | 0 | Current function call depth |
+
+**The binary search weapon:**
+```snobol4
+        &STLIMIT = 500    :(CONTINUE)
+* Program halts after exactly 500 statements.
+* Binary search: 500 → 250 → 375 → ... → exact bug location in O(log N)
+```
+
+**The execution heartbeat:**
+```snobol4
+        TRACE('&STNO', 'KEYWORD')   :(CONTINUE)
+* Fires on every statement. The oracle stream. The binary must match it.
+```
+
+### Error and Diagnostic Control
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&ERRLIMIT` | integer | 0 | Max errors before abort. 0 = abort on first error |
+| `&ERRTYPE` | integer | 0 | Error type code of last error |
+| `&ERRTEXT` | string | '' | Error message text of last error |
+| `&ABEND` | integer | 0 | If nonzero, abnormal termination on error |
+| `&CODE` | integer | 0 | Return code — set by EXIT(), readable after run |
+| `&DUMP` | integer | 0 | If nonzero, dump variables on termination |
+| `&RTNTYPE` | string | '' | Return type of last function: 'RETURN', 'FRETURN', 'NRETURN' |
+
+### Trace Control
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&TRACE` | integer | 0 | Master trace switch. Nonzero enables TRACE() hooks |
+| `&FTRACE` | integer | 0 | Function trace: decrements on each call; fires when > 0 |
+
+**TRACE() call types** — the second argument to TRACE():
+```snobol4
+TRACE('&STNO',   'KEYWORD')   * fires on every statement
+TRACE('myVar',   'VALUE')     * fires when myVar is assigned
+TRACE('myFunc',  'CALL')      * fires on function entry
+TRACE('myFunc',  'RETURN')    * fires on function return
+TRACE('myFunc',  'FRETURN')   * fires on function failure return
+TRACE('myLabel', 'LABEL')     * fires when label is branched to
+```
+
+### Pattern and Match Control
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&ANCHOR` | integer | 0 | If nonzero, pattern match anchored at position 0 |
+| `&FULLSCAN` | integer | 0 | If nonzero, disables heuristic match optimizations |
+| `&MAXLNGTH` | integer | large | Maximum string length |
+| `&TRIM` | integer | 0 | If nonzero, trim trailing blanks from INPUT |
+
+### Position and File Tracking
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&LASTLINE` | integer | 0 | Line number in source file of last statement |
+| `&LASTFILE` | string | '' | Source file name of last statement |
+| `&LCASE` | string | 'abc...z' | Lowercase alphabet (for REPLACE) |
+| `&UCASE` | string | 'ABC...Z' | Uppercase alphabet (for REPLACE) |
+
+### Case and Compatibility
+
+| Keyword | Type | Default | What it does |
+|---------|------|---------|--------------|
+| `&CASE` | integer | 1 | Case folding: 0=fold to upper, 1=no fold (`-f` flag sets this) |
+
+---
+
+### The Monitor Arsenal — How These Work Together
+
+```
+&STLIMIT    →  binary search to the bug location: O(log N) iterations
+&STCOUNT    →  read after hang to know exactly how far execution got
+&STNO       →  per-statement heartbeat: oracle vs binary comparison
+&TRACE      →  master switch: one assignment arms the entire TRACE system
+&FTRACE     →  function-level trace: fires N times then stops (budget trace)
+&ERRLIMIT   →  set to 1 to abort on first error rather than trying to continue
+&ERRTYPE    →  read after failure to classify the error automatically
+&ERRTEXT    →  read after failure to get the human-readable error message
+&DUMP       →  set to 1 to get full variable dump on exit — snapshot of state
+&ANCHOR     →  force anchored match to isolate pattern behavior
+&FULLSCAN   →  disable optimizations to get canonical match behavior
+```
+
+### The Binary Search Protocol (Automated)
+
+```python
+# diff_monitor.py can automate this:
+lo, hi = 0, 10000
+while lo < hi:
+    mid = (lo + hi) // 2
+    run_with_stlimit(mid)         # set &STLIMIT = mid, run both
+    if first_diff_before(mid):    # diff appeared before mid
+        hi = mid
+    else:
+        lo = mid + 1
+# lo is now the exact &STCOUNT at which oracle and binary first diverge
+print(f"Bug at &STCOUNT = {lo}, &STNO = {stno_at(lo)}")
+```
+
+Thirteen iterations for a 6000-statement run. Each iteration is one recompile
+(no — no recompile needed, `&STLIMIT` is set at runtime). Thirteen runs.
+The bug is pinned to a single statement.
+
+---
+
+*Every keyword in this table is implemented in our runtime (`snobol4.c`)
+or needs to be. The ones marked as needed for the monitor are:*
+*`&STNO`, `&STCOUNT`, `&STLIMIT`, `&TRACE`, `&ERRTYPE`, `&ERRTEXT`.*
+*These are Sprint 20 runtime requirements, not polish.*
+
