@@ -119,8 +119,8 @@ Mission: **SNOBOL4 everywhere. SNOBOL4 now.**
 
 | Repo | Language | Status | Branch | Tests |
 |------|----------|--------|--------|-------|
-| [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | C# / .NET | Active | `main` | 1,466 passing / 0 failing |
-| [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Clojure / JVM | Active | `main` | 2,033 / 4,417 assertions / 0 failures |
+| [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | C# / .NET | Active | `main` | 1,607 passing / 0 failing |
+| [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Clojure / JVM | Active | `main` | 1,896 / 4,120 assertions / 0 failures |
 | [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python) | Python + C | Active | `main` | — |
 | [SNOBOL4-csharp](https://github.com/SNOBOL4-plus/SNOBOL4-csharp) | C# | Active | `main` | 263 passing |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | SNOBOL4 | Corpus | `main` | — |
@@ -287,7 +287,7 @@ pick up without re-explanation.
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
 - [ ] **SNOBOL4-jvm Sprint 23E**: inline EVAL! in JVM codegen — eliminate arithmetic bottleneck
-- [ ] **Snocone Step 2: expression parser** — `&&`, `||`, `~`, all comparison ops, `$`, `.`, precedence table. Steps 0 and 1 complete. See **Snocone Front-End Plan** section below.
+- [x] **Snocone Step 2: expression parser** — `&&`, `||`, `~`, all comparison ops, `$`, `.`, precedence table. Steps 0 and 1 complete. See **Snocone Front-End Plan** section below. *(JVM: grammar + emitter done, 49 tests green, commit `9cf0af3`. dotnet: shunting-yard, 35 tests, commit `63bd297`.)*
 - [ ] **SNOBOL4-python / SNOBOL4-csharp**: cross-validate pattern semantics against JVM
 - [ ] Build unified cross-platform test corpus
 - [ ] **Cross-engine coverage grid** — run the existing test suite against each engine and
@@ -361,7 +361,7 @@ Called from `compiler.clj` before `CODE!`. Returns the same IR maps.
 |------|------|--------|-----|
 | 0 | Corpus: add Snocone reference files to SNOBOL4-corpus | ✓ `ab5f629` | ✓ `ab5f629` |
 | 1 | Lexer: tokenize `.sc` correctly (identifiers, operators, strings, `#`) | ✓ `dfa0e5b` | ✓ `d1dec27` |
-| 2 | Expression parser: `&&`, `\|\|`, `~`, `==`, `<=`, `*deferred`, `$`, `.` | | |
+| 2 | Expression parser: `&&`, `\|\|`, `~`, `==`, `<=`, `*deferred`, `$`, `.` | ✓ dotnet `63bd297` | ✓ JVM `9cf0af3` |
 | 3 | `if/else` → label/goto pairs | | |
 | 4 | `while` / `do/while` → loop labels | | |
 | 5 | `for (e1, e2, e3)` → init/test/step labels | | |
@@ -419,6 +419,7 @@ Generated labels: `sc_1`, `sc_2`, etc. Never reused within a compilation unit.
 | 2026-03-10 | **Licence research**: Phil Budne README states Emmer-restricted no-redistribution on snocone sources. Confirmed: `regressive.org/snobol4/csnobol4/curr/` updated May 2025 still states the restriction. Mark Emmer GPL'd SPITBOL 360 (2001) and Macro SPITBOL (2009) but Snocone restriction stands. |
 | 2026-03-10 | **Corpus cleanup**: Removed `snocone.sc`, `snocone.sno`, `snocone.snobol4` (Emmer-restricted). Added Budne's 4 patch files (`README`, `snocone.sc.diff`, `snocone.sno.diff`, `Makefile`). Updated corpus README with three-party attribution + download instructions. SNOBOL4-corpus commit `b101a07`. |
 | 2026-03-10 | **Step 1 complete — Snocone lexer (both targets)**. `SnoconeLexer.cs` + 57 tests (`TestSnoconeLexer.cs`) in SNOBOL4-dotnet commit `dfa0e5b`. `snocone.clj` + equivalent tests (`test_snocone.clj`) in SNOBOL4-jvm commit `d1dec27`. Self-tokenization of `snocone.sc`: 5,526 tokens, 728 statements, 0 unknown. Bug fixed in Clojure tokenizer (spurious `seg` arg). Step 2 (expression parser) is next. |
+| 2026-03-10 | **Step 2 complete — Expression parser (both targets)**. dotnet: shunting-yard `SnoconeParser.cs` + 35 tests (`TestSnoconeParser.cs`), commit `63bd297`. JVM: instaparse PEG grammar (`snocone_grammar.clj`) + `insta/transform` emitter (`snocone_emitter.clj`) + 35 tests (`test_snocone_parser.clj`), all real snocone.sc expressions parse. Grammar fixes: real before integer in atom, capop excludes digit-following dot, juxtaposition concat (blank), `?` removed from unary ops, aref tag for `[...]`. `scan-number` OOM bug fixed (leading-dot infinite loop). JVM commit `9cf0af3`. Step 3 (`if/else`) is next. |
 
 ---
 ---
@@ -471,7 +472,7 @@ TABLE/ARRAY, GOTO-driven runtime, multi-stage compiler.
 
 **Repository**: https://github.com/SNOBOL4-plus/SNOBOL4-jvm
 **Test runner**: `lein test` (Leiningen 2.12.0, Java 21)
-**Baseline**: 2033 tests / 4417 assertions / 0 failures — commit `e697056` (2026-03-09)
+**Baseline**: 1,896 tests / 4,120 assertions / 0 failures — commit `9cf0af3` (2026-03-10)
 
 ---
 
@@ -487,6 +488,7 @@ TABLE/ARRAY, GOTO-driven runtime, multi-stage compiler.
 | 2026-03-08 (S25A–E) | — | -INCLUDE preprocessor, TERMINAL, CODE(), Named I/O channels, OPSYN. |
 | 2026-03-09 (s15) | **2033/4417/0** | All Sprint 25 confirmed. Stable baseline `e697056`. |
 | 2026-03-10 | **2033/4417/0** | Cross-engine benchmark pipeline (Step 6). Built SPITBOL (systm.c → ms) and CSNOBOL4 from source. arith_loop.sno at 1M iters: SPITBOL 20ms, CSNOBOL4 140ms, JVM uberjar 8486ms. Uberjar fixed via thin AOT launcher (main.clj) — zero requires, delegates to core at runtime. Preserves all Greek/symbol names in env/operators/engine_frame/match. commit `80c882e`. |
+| 2026-03-10 | **1896/4120/0** | Snocone Step 2 complete: instaparse PEG grammar + emitter + 35 tests. Test suite housekeeping: arithmetic exhaustive (188→20), cmp/strcmp exhaustive (66→18), 4 duplicate test names fixed. `scan-number` OOM bug fixed (leading-dot real infinite loop). Commits `e8ae21b`…`9cf0af3`. |
 
 ---
 
@@ -687,7 +689,7 @@ Full SNOBOL4/SPITBOL implementation in C# targeting .NET/MSIL. GOTO-driven runti
 
 **Repository**: https://github.com/SNOBOL4-plus/SNOBOL4-dotnet
 **Test runner**: `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`
-**Baseline**: 1,466 passing / 0 failing (2026-03-10, commit `3bce92c`)
+**Baseline**: 1,607 passing / 0 failing (2026-03-10, commit `63bd297`)
 
 ```bash
 cd SNOBOL4-dotnet
@@ -710,6 +712,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 | 2026-03-10 | Added then removed GitHub Actions CI workflow — was triggering unwanted email notifications. commit `d212c85`. |
 | 2026-03-10 | Documented `EnableWindowsTargeting=true` required for Linux builds (`Snobol4W` is Windows-only). Always pass `-p:EnableWindowsTargeting=true` to `dotnet build Snobol4.sln`. |
 | 2026-03-10 | Confirmed 1,466/0 baseline under .NET 10 locally (`dotnet test` runs in ~17s). |
+| 2026-03-10 | **Snocone Step 2 complete**: `SnoconeParser.cs` shunting-yard + 35 tests, 1607/0. commit `63bd297`. |
 
 ---
 
