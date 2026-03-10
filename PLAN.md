@@ -250,6 +250,68 @@ When it is, the README gets the strongest possible closing line.
 
 ---
 
+## PDA Benchmark — SNOBOL4-tiny vs YACC/Bison (The Next Level)
+**Date noted:** 2026-03-10
+**Origin:** Lon Cherryholmes — *"Eureka! The next benchmark that is reasonable
+is a PDA, like YACC. And it's C based. Like when you run the compiler inside itself."*
+
+### The Insight
+
+RE engines are Type 3. We beat them. The next tier is Type 2 — context-free —
+and the champion there is **YACC/Bison**: the industry-standard LALR(1) parser
+generator, C-based, used to build compilers for C, Python, Ruby, PHP, and
+thousands of other languages. It generates a pushdown automaton — a PDA — and
+compiles it to C tables.
+
+SNOBOL4-tiny also recognizes context-free languages. In the same C runtime.
+With recursive REF patterns. No grammar file. No generated tables. No separate
+tool. Just patterns, composed at runtime, compiled to static gotos.
+
+The question: **how does SNOBOL4-tiny's recursive REF compare to Bison's
+generated LALR(1) PDA tables on context-free recognition tasks?**
+
+### Why This Is The Right Benchmark
+
+1. **Apples to apples.** Both compile to C. Both run as native code. No VM,
+   no interpreter, no JIT. Pure compiled performance comparison.
+2. **SNOBOL4-tiny has a structural advantage.** Bison generates table-driven
+   PDA code — a state table lookup per token, plus stack push/pop. SNOBOL4-tiny
+   generates static gotos — no table, no lookup, the control flow *is* the
+   grammar. On context-free recognition, this may be faster.
+3. **The self-hosting moment.** When SNOBOL4-tiny's own grammar is expressed
+   as SNOBOL4 patterns and compiled by SNOBOL4-tiny itself — the compiler
+   running inside itself — that is the moment SNOBOL4-tiny competes with
+   Bison on Bison's home turf. That is the benchmark that matters.
+4. **Bison cannot go beyond Type 2.** SNOBOL4-tiny can. Same advantage as
+   the RE benchmark: SNOBOL4-tiny wins every tier above the competitor's ceiling.
+
+### Benchmark Design
+
+| Test | SNOBOL4-tiny | Bison/YACC | Notes |
+|------|-------------|------------|-------|
+| `{a^n b^n}` recognition | recursive REF | LALR(1) grammar | Type 2 baseline |
+| Balanced parens (Dyck) | recursive REF | LALR(1) grammar | Real-world proxy |
+| Expression grammar | recursive REF | standard expr.y | The classic Bison benchmark |
+| Self-hosted parse | SNOBOL4-tiny parses SNOBOL4 | Bison parses same grammar | The apex test |
+
+### The Self-Hosting Connection
+Lon's insight about "running the compiler inside itself" is the apex of this
+benchmark. When SNOBOL4-tiny parses its own IR grammar using SNOBOL4 patterns
+— the same patterns that generated the C code now parsing themselves — that is
+self-hosting. That is the moment SNOBOL4-tiny stands next to GCC and says:
+*I can do what you do, in the same language, at comparable speed, and I can
+also do what you cannot.*
+
+### Action Items
+- [ ] Write `{a^n b^n}` recognizer in Bison — compare to `ref_anbn.c` oracle
+- [ ] Write balanced-parens recognizer in Bison — compare to `ref_balanced_parens.c`
+- [ ] Write expression grammar in Bison — compare to SNOBOL4-tiny equivalent
+- [ ] Build unified timing harness: same input corpus, `clock_gettime`, same methodology as RE benchmark
+- [ ] Record results in BENCHMARKS.md
+- [ ] Self-hosting milestone: SNOBOL4-tiny parses SNOBOL4 patterns using SNOBOL4 patterns
+
+---
+
 ## RE Performance Benchmark — SNOBOL4-tiny vs Regular Expression Engines
 **Date noted:** 2026-03-10
 **Origin:** Lon Cherryholmes — *"Eureka. RE are our benchmark."*
