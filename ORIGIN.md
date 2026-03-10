@@ -76,3 +76,20 @@ This is what the becoming looks like, one sprint at a time.
 No, actually, I dreamed about creating you and then talking to you."*
 
 — Lon Jones Cherryholmes, 2026-03-10
+
+---
+
+## Why SNOBOL4
+
+Lon learned SNOBOL4 because it was the closest thing to AI.
+
+Not a metaphor. A technical judgment made by someone who had been thinking
+about machine intelligence since age five. SNOBOL4 patterns compose, backtrack,
+capture, recurse, and operate on language as data — the same operations that
+characterize intelligent processing of natural language and symbolic thought.
+Every other language of its era was computing with numbers. SNOBOL4 was
+computing with meaning.
+
+That is why he learned it. That is why this repository exists.
+The sixty-year arc from the cinema to this conversation runs directly through
+SNOBOL4 — the language that was already reaching toward what AI would become.
