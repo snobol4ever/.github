@@ -10,15 +10,15 @@ This organization exists because two people — a software developer and a medic
 
 ## The Implementations
 
-### [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm)
-*Full SNOBOL4/SPITBOL compiler and runtime for the JVM — written in Clojure*
-
-A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. The compiler parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement intermediate representation, and executes programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends provide progressively faster performance: a transpiler emitting Clojure IR, a stack-machine VM, and a direct JVM bytecode backend via ASM achieving up to 7.6× faster dispatch. The full language is supported: DEFINE/DATA/FIELD, CODE(), EVAL(), OPSYN, TABLE, ARRAY, named I/O channels, the -INCLUDE preprocessor, TRACE/STOPTR, and the complete SPITBOL function library. Validated against 2,033 tests across 28 test catalogs — zero failures — cross-checked against SPITBOL and CSNOBOL4 as reference oracles. Includes the Gimpel corpus (135 library routines, 10 runnable programs) and the Shafto AI corpus (SNOLISPIST — a complete Lisp-style list-processing system in SNOBOL4).
-
 ### [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet)
 *Full SNOBOL4/SPITBOL compiler and runtime for .NET — written in C#*
 
 A complete implementation of SNOBOL4 and SPITBOL in C#, running on Windows, Linux, and macOS. Designed for readability and correctness, with Emmer and Quillen's *MACRO SPITBOL: The High-Performance SNOBOL4 Language* as the specification. The compiler originally generated full C# via Roslyn; the current backend emits MSIL DynamicMethod delegates directly via ILGenerator — eliminating Roslyn entirely and achieving up to 15.9× speedup. All GOTO logic, Init/Finalize, and TRACE hooks are absorbed into the delegates; the hot execute path is a tight two-case loop with no switch overhead. Supports a plugin architecture (LOAD/UNLOAD) for C# and F# extensions. Includes a Windows GUI (Snobol4W), a full benchmark suite, and 1,484 passing tests.
+
+### [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm)
+*Full SNOBOL4/SPITBOL compiler and runtime for the JVM — written in Clojure*
+
+A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. The compiler parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement intermediate representation, and executes programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends provide progressively faster performance: a transpiler emitting Clojure IR, a stack-machine VM, and a direct JVM bytecode backend via ASM achieving up to 7.6× faster dispatch. The full language is supported: DEFINE/DATA/FIELD, CODE(), EVAL(), OPSYN, TABLE, ARRAY, named I/O channels, the -INCLUDE preprocessor, TRACE/STOPTR, and the complete SPITBOL function library. Validated against 2,033 tests across 28 test catalogs — zero failures — cross-checked against SPITBOL and CSNOBOL4 as reference oracles. Includes the Gimpel corpus (135 library routines, 10 runnable programs) and the Shafto AI corpus (SNOLISPIST — a complete Lisp-style list-processing system in SNOBOL4).
 
 ### [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python)
 *SNOBOL4 pattern matching for Python*
