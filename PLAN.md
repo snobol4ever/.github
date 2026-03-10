@@ -129,6 +129,97 @@ Mission: **SNOBOL4 everywhere. SNOBOL4 now.**
 
 ---
 
+## Automata Theory Oracles — The Bulletproof Test Strategy
+
+**Origin**: Lon Cherryholmes, 2026-03-10.
+*"We should use all the examples from Automata theory as great test cases.
+They mathematically prove things, which allows us to make the statement:
+it is bulletproof."*
+
+### The Idea
+
+Classical automata theory provides a rich set of languages with **mathematically
+proven properties** — membership, non-membership, closure, pumping lemma bounds.
+These make ideal oracles because:
+
+1. **The expected answer is not empirical — it is proven.**
+   `EVEN("xxxx") = match` is not a guess; it follows from the definition of
+   the even-length language over {x}. No reference engine needed. No SPITBOL
+   triangulation. The math is the oracle.
+
+2. **They cover the full Chomsky hierarchy.**
+   Regular, context-free, context-sensitive, and recursively enumerable languages
+   each stress-test different engine capabilities. A pattern engine that passes
+   the regular tier but fails the CF tier has a precisely locatable bug.
+
+3. **Edge cases are structurally guaranteed.**
+   The pumping lemma gives you exact boundary cases automatically: the string at
+   the pumping length boundary, one below, one above. No guessing what to test.
+
+4. **They are publishable claims.**
+   "SNOBOL4-tiny recognizes all strings in the language {x^2n | n ≥ 0} correctly"
+   is a mathematical statement about the engine, not just a test count. This is
+   the kind of claim that makes a compiler trustworthy.
+
+### Tier Map — Which Languages Test Which Mechanisms
+
+| Chomsky Tier | Language example | What it tests in the engine |
+|---|---|---|
+| **Regular** | `{x^n \| n even}` — EVEN/ODD | REF, mutual recursion, α/β/γ/ω wiring |
+| **Regular** | `a*b*` | ARBNO, Cat sequencing |
+| **Regular** | `(a\|b)*abb` | Alt backtracking, DFA simulation via patterns |
+| **Regular** | Σ* (any string) | ARB, RPOS(0) anchoring |
+| **Context-Free** | `{a^n b^n \| n ≥ 1}` | Recursive REF, counter via nPush/nInc/nPop |
+| **Context-Free** | `{ww^R \| w ∈ {a,b}*}` — palindromes | REF + backtracking depth |
+| **Context-Free** | Balanced parentheses | BAL node, or recursive REF |
+| **Context-Free** | Arithmetic expressions | CALC_PATTERN.h validation target |
+| **Context-Free** | Dyck language (nested brackets) | REF + nesting depth |
+| **Context-Sensitive** | `{a^n b^n c^n \| n ≥ 1}` | nPush counter stack + two passes |
+| **Non-regular proof** | Pumping lemma boundary cases | Exact boundary strings confirm engine doesn't over-accept |
+
+### Immediate Sprint 6 Connection
+
+The EVEN/ODD oracle (`test/sprint6/ref_even_odd.c`) is the **first automata theory
+oracle in the suite**. It proves:
+
+> *The engine correctly recognizes the regular language {x^2n | n ≥ 0}
+> via mutually recursive REF nodes, and correctly rejects all strings not
+> in this language.*
+
+This is not just "the test passes." It is a mathematical statement about
+what the compiled pattern computes.
+
+### Standing Instruction — Automata Oracles
+
+**Every sprint that introduces a new structural mechanism (REF, ARBNO, nPush,
+Shift/Reduce, BAL) must include at least one automata theory oracle** that
+mathematically characterizes the language the mechanism enables.
+
+Oracle format:
+1. State the language formally: `L = { w ∈ {a,b}* | ... }`
+2. State the mathematical property being tested (membership, closure, etc.)
+3. Include boundary cases derived from the pumping lemma or inductive definition
+4. The test is not "does it match" — it is "does it correctly decide membership"
+   for both positive and negative cases
+
+This discipline turns the test suite from a collection of passing cases into a
+**proof of computational completeness** for each mechanism tier.
+
+### Target Oracle Set (to be built incrementally)
+
+| Oracle file | Language | Tier | Sprint |
+|---|---|---|---|
+| `test/sprint6/ref_even_odd.c` | `{x^2n \| n≥0}` | Regular | ✓ Sprint 6 |
+| `test/sprint6/ref_astar_bstar.c` | `a*b*` | Regular | Sprint 6 |
+| `test/sprint8/arb_any_string.c` | `Σ*` | Regular | Sprint 8 |
+| `test/sprint9/arbno_abb.c` | `(a\|b)*abb` | Regular | Sprint 9 |
+| `test/sprint11/ref_anbn.c` | `{a^n b^n \| n≥1}` | Context-Free | Sprint 11 |
+| `test/sprint11/ref_palindrome.c` | `{ww^R}` | Context-Free | Sprint 11 |
+| `test/sprint11/ref_balanced_parens.c` | Dyck language | Context-Free | Sprint 11 |
+| `test/sprint15/counter_anbncn.c` | `{a^n b^n c^n}` | Context-Sensitive | Sprint 15 |
+
+---
+
 ## Quick Start — Each Repo
 
 ### SNOBOL4-dotnet
