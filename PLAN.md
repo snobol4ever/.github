@@ -287,6 +287,7 @@ pick up without re-explanation.
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
 - [ ] **SNOBOL4-jvm Sprint 23E**: inline EVAL! in JVM codegen — eliminate arithmetic bottleneck
+- [ ] **Snocone front-end** — implement Snocone compiler targeting SNOBOL4-dotnet and SNOBOL4-jvm IR directly. See **Snocone Front-End Plan** section below.
 - [ ] **SNOBOL4-python / SNOBOL4-csharp**: cross-validate pattern semantics against JVM
 - [ ] Build unified cross-platform test corpus
 - [ ] **Cross-engine coverage grid** — run the existing test suite against each engine and
@@ -309,6 +310,114 @@ pick up without re-explanation.
 - [ ] Write individual repo READMEs for all five repos
 - [ ] Delete four archived personal repos after April 10, 2026
 
+---
+
+---
+---
+
+# Snocone Front-End Plan
+
+## What This Is
+
+A clean, purpose-built Snocone compiler written from scratch — targeting our own
+IR directly, not generating intermediate SNOBOL4 text. No bootstrap required.
+Snocone (Andrew Koenig, AT&T Bell Labs, 1985) adds C-like syntactic sugar to
+SNOBOL4: `if/else`, `while`, `do/while`, `for`, `procedure`, `struct`, `&&`
+explicit concatenation, `#include`. Same semantics as SNOBOL4. Just better syntax.
+
+**Why:** SNOBOL4's goto-only control flow makes large programs hard to write and
+read. Snocone fixes the syntax without changing any semantics. Our compilers
+already handle the hard parts (patterns, backtracking, GOTO runtime). The
+Snocone front-end is just a parser that desugars into what we already emit.
+
+**Reference material**: `SNOBOL4-corpus/programs/snocone/`
+- `snocone.sc` — the original compiler written in Snocone (reference + test)
+- `snocone.snobol4` — compiled SNOBOL4 output (reference oracle)
+- `report.htm` / `report.md` — Andrew Koenig's spec (USENIX 1985)
+
+## Architecture
+
+```
+.sc source
+    → Lexer        → tokens
+    → Parser       → AST
+    → Code gen     → SNOBOL4 IR  (same IR both engines already consume)
+```
+
+The code generator is tiny because SNOBOL4 is tiny. Every Snocone control
+structure desugars to labels + gotos. `procedure` desugars to `DEFINE()` +
+label. `struct` desugars to `DATA()`. `&&` → blank concatenation.
+
+**For SNOBOL4-dotnet**: `SnoconeCompiler.cs` in `Snobol4.Common/Builder/`.
+Invoked before the existing lexer when source has `.sc` extension or `--snocone` flag.
+Output feeds directly into the existing `Lexer` → `Parser` → `Builder` pipeline.
+
+**For SNOBOL4-jvm**: `snocone.clj` in `src/snobol4clojure/`.
+Called from `compiler.clj` before `CODE!`. Returns the same IR maps.
+
+## Incremental Milestones
+
+| Step | What | Dotnet | JVM |
+|------|------|--------|-----|
+| 0 | Corpus: add Snocone reference files to SNOBOL4-corpus | — | — |
+| 1 | Lexer: tokenize `.sc` correctly (identifiers, operators, strings, `#`) | `SnoconeLexer.cs` | `snocone.clj` |
+| 2 | Expression parser: `&&`, `\|\|`, `~`, `==`, `<=`, `*deferred`, `$`, `.` | | |
+| 3 | `if/else` → label/goto pairs | | |
+| 4 | `while` / `do/while` → loop labels | | |
+| 5 | `for (e1, e2, e3)` → init/test/step labels | | |
+| 6 | `procedure` → `DEFINE()` + label + `:(RETURN)` | | |
+| 7 | `struct` → `DATA()` | | |
+| 8 | `#include` → file inclusion (reuse existing `-INCLUDE`) | | |
+| 9 | Self-test: compile `snocone.sc` and diff output against `snocone.snobol4` | | |
+
+Each step: write tests first, then implement, then confirm baseline still green.
+
+## Key Semantic Rules (from Koenig spec)
+
+- **Statement termination**: newline ends statement unless last token is an
+  operator or open bracket (then continues). Semicolon also ends statement.
+- **Concatenation**: `&&` (explicit) replaces blank (implicit). In generated
+  SNOBOL4, `&&` → blank.
+- **Comparison predicates**: `==`, `!=`, `<`, `>`, `<=`, `>=` → `EQ`, `NE`,
+  `LT`, `GT`, `LE`, `GE`. String comparisons: `:==:` etc → `LEQ` etc.
+- **`~`** (logical negation): if operand fails, `~` yields null; if succeeds, fails.
+  In SNOBOL4: wrap in `DIFFER()` / `IDENT()` as appropriate.
+- **`||`** (disjunction): left succeeds → value is left. Else value is right.
+  In SNOBOL4: pattern alternation `|`.
+- **`if (e) s1 else s2`** desugars to:
+  ```
+          e                    :F(sc_else_N)
+          [s1]                 :(sc_end_N)
+  sc_else_N [s2]
+  sc_end_N
+  ```
+- **`while (e) s`** desugars to:
+  ```
+  sc_top_N  e                  :F(sc_end_N)
+            [s]                :(sc_top_N)
+  sc_end_N
+  ```
+- **`procedure f(a,b; local c,d)`** desugars to:
+  ```
+          DEFINE('f(a,b)c,d')  :(f_end)
+  f       [body]               :(RETURN)
+  f_end
+  ```
+- **Labels**: all global (SNOBOL4 constraint). Generated labels use `sc_N`
+  prefix to avoid collisions. User labels pass through unchanged.
+
+## Label Generation
+
+Both implementations use a shared monotonic counter `sc_label_counter`.
+Generated labels: `sc_1`, `sc_2`, etc. Never reused within a compilation unit.
+
+## Session Log — Snocone
+
+| Date | What |
+|------|------|
+| 2026-03-10 | Plan written. Corpus population next. |
+
+---
 ---
 
 ## Key Decisions (Permanent)
