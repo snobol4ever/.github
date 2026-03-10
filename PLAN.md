@@ -338,6 +338,53 @@ most powerful real-world validation the project has.
 
 ---
 
+## Proebsting Optimization Pass — Copy Propagation + Branch Elimination
+**Paper**: "Simple Translation of Goal-Directed Evaluation" — Todd A. Proebsting, U of Arizona
+**Source**: ByrdBox.zip — test_icon.sno (1st pass: raw attribute grammar; 2nd pass: optimized)
+**Recorded**: 2026-03-10 by Lon
+
+### The Idea
+The four-port (start/resume/succeed/fail) translation generates correct code naively.
+It suffers from chains of goto-to-goto and branches-to-branches. Two standard passes
+fix this entirely:
+
+1. **Copy propagation** — `goto X; X: goto Y` → replace all jumps to X with jumps to Y
+2. **Branch elimination** — after propagation, unreachable labels and dead goto-only
+   blocks disappear; the code reads like hand-written nested loops
+
+Figure 1 of the paper is the raw four-port expansion of `5 > ((1 to 2) * (3 to 4))`.
+Figure 2 is the result after these two passes — it looks exactly like two for-loops.
+test_icon.sno shows the same transformation written in SNOBOL4 (both passes side by side).
+test_icon.c shows the final optimized C.
+
+### Where This Lives in emit_c.py
+Currently `FuncEmitter.generate_source()` emits raw four-port C with goto chains.
+The optimization pass runs *after* code generation on the emitted C text (or on an
+intermediate label→target map before text emission). The latter is cleaner.
+
+### Implementation Plan
+- [ ] Add `LabelGraph` to `emit_c.py`: maps each label to its single successor if the
+      block is a bare `goto X` (copy target)
+- [ ] `propagate_copies(graph)` — walk the label graph, resolve chains to final target
+- [ ] `eliminate_dead_labels(graph)` — remove labels with no remaining incoming jumps
+- [ ] Wire into `FuncEmitter.generate_source()` as a post-pass before string emission
+- [ ] Benchmark: expect the generated C to drop from ~40 ns to ~20 ns (approaching
+      hand-optimized Round 1 numbers)
+
+### Expected Outcome
+The optimized emit_c.py pipeline should produce code indistinguishable from the
+hand-simplified recognizers used in Round 1. This closes the gap between Round 1
+(hand, 5 ns) and Round 2 (pipeline, 34 ns). The publishable result will be:
+*"The SNOBOL4-tiny compiler generates code that beats PCRE2 JIT with zero manual
+optimization — just the Proebsting copy-propagation pass."*
+
+### Files
+- `bench/Simple Translation of Goal Directed Evaluation.pdf` — the paper
+- `bench/test_icon.sno` — 1st pass (raw) and 2nd pass (optimized) in SNOBOL4
+- `bench/test_icon.c` — final optimized C for the Icon example
+
+---
+
 ## RE Performance Benchmark — SNOBOL4-tiny vs Regular Expression Engines
 **Date noted:** 2026-03-10
 **Origin:** Lon Cherryholmes — *"Eureka. RE are our benchmark."*
