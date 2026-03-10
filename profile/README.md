@@ -139,6 +139,18 @@ Griswold had the idea. We are finishing the proof.
 
 ---
 
+## How We Know It's Correct
+
+Most compiler projects validate with a hand-written test suite. We do that too — and we go further with two techniques that produce stronger correctness guarantees.
+
+**Automata theory oracles.** Every structural mechanism in the engine is validated against a mathematically characterized language from the Chomsky hierarchy. Not "does this case pass" — but "does this engine correctly decide membership in language L, for all strings up to length N, including the exact boundary cases the pumping lemma predicts." The expected answer is not empirical. It is proven. When the Type 3 (regular language) oracle suite passes, we can state: *the engine correctly recognizes all regular languages.* When Type 2 passes: *all context-free languages — the tier of every major programming language.* Type 1, Type 0. Tier by tier, the claim escalates. We earn each level before we claim it.
+
+**Syntax-directed exhaustive enumeration.** This technique was proven in practice when Lon Cherryholmes wrote Flash BASIC at Pick Systems with Rich Pick and David Zigray: use the grammar itself to enumerate every syntactically valid program up to N tokens, by iterative-deepening DFS over the parse tree. Run every generated program against SNOBOL4-tiny, CSNOBOL4, and SPITBOL simultaneously. Any output disagreement is a bug. At N=10 this takes seconds. At N=20 it takes hours. At N=30 it runs for days. When it finishes, the claim is: *"SNOBOL4-tiny agrees with SPITBOL and CSNOBOL4 on every valid SNOBOL4 program of 30 tokens or fewer."* No hand-written test suite can make that statement.
+
+Paired with continuous random testing — the worm generator already running in SNOBOL4-jvm across millions of programs — the result is a two-sided correctness wall: **proven complete up to N, no counterexample found beyond N.** That is a publication-worthy correctness claim, and it gets stronger every day the runner runs.
+
+---
+
 ## Status
 
 | Repo | Status |

@@ -250,6 +250,108 @@ When it is, the README gets the strongest possible closing line.
 
 ---
 
+## Exhaustive and Random Testing — The Two-Pronged Completeness Strategy
+
+**Origin**: Lon Cherryholmes, 2026-03-10.
+*"We can also do exhaustive testing — effectively an iterative-deepening DFS or
+something else — to syntax-directed generate all possible valid programs of
+length N tokens. This exhaustive run can run for days and months and be something
+to talk about. I did this technique before when I wrote Flash BASIC for Rich Pick
+and David Zigray at Pick Systems."*
+
+### The Two Strategies Are Complementary
+
+| Strategy | What it finds | How long it runs | What you can claim |
+|----------|--------------|------------------|--------------------|
+| **Random testing** | Bugs you didn't think to look for | Continuous, indefinitely | "N million random programs, zero failures" |
+| **Exhaustive generation** | Proves absence of bugs up to size N | Days, weeks, months | "Every valid program of ≤ N tokens: correct" |
+
+Neither alone is sufficient. Random testing has infinite reach but no completeness
+guarantee. Exhaustive testing has a completeness guarantee but finite reach.
+Together they form a wall: exhaustive coverage up to N, random sampling beyond N.
+
+### Exhaustive Generation — Syntax-Directed Enumeration
+
+The technique: use the grammar itself to enumerate every syntactically valid
+program up to length N tokens, in order of increasing length (iterative deepening).
+Run each against all engines. Any disagreement is a bug.
+
+**Why syntax-directed?** Naive random token sequences are almost all syntactically
+invalid — wasted work. Syntax-directed generation produces only valid programs by
+construction, walking the grammar tree and filling in terminal choices
+exhaustively at each node. Every program produced is a legal input. Every
+disagreement between engines is a real bug, not a parse error.
+
+**The iterative deepening discipline:**
+```
+for N = 1, 2, 3, ...:
+    enumerate all syntactically valid programs of exactly N tokens
+    for each program P:
+        run P on SNOBOL4-tiny compiled binary
+        run P on CSNOBOL4
+        run P on SPITBOL
+        if any output differs: LOG BUG, save P, continue
+    report: "All programs of ≤ N tokens: correct"
+```
+
+At N=1: trivial (single literals, END). At N=5: a few hundred programs.
+At N=10: thousands. At N=20: millions. At N=30: the run takes days.
+Each completed N is a **published claim**: *"SNOBOL4-tiny agrees with SPITBOL
+and CSNOBOL4 on every valid SNOBOL4 program of 30 tokens or fewer."*
+That is a stronger statement than any hand-written test suite can make.
+
+**The Flash BASIC precedent.** Lon Cherryholmes used this exact technique when
+writing Flash BASIC at Pick Systems (with Rich Pick and David Zigray). Exhaustive
+enumeration of valid BASIC programs up to length N caught bugs that targeted
+testing missed entirely — because the generator finds the weird corners of the
+grammar that no human thinks to write a test for. The technique works. We know
+it works.
+
+### Random Testing — Worm Generator Extended
+
+SNOBOL4-jvm already has a two-tier worm generator (`generator.clj`):
+- `rand-*` tier: probabilistic random programs
+- `gen-*` tier: exhaustive lazy sequences over typed pools
+
+This infrastructure extends directly to SNOBOL4-tiny and SNOBOL4-dotnet.
+The same random programs run against all three engines simultaneously.
+Any output disagreement is logged automatically.
+
+**The claim after N million random programs with zero failures:**
+*"No counterexample found in N million randomly generated programs.
+SNOBOL4-tiny, SNOBOL4-dotnet, and SNOBOL4-jvm agree on all of them."*
+
+Combined with the exhaustive claim: *"Proven correct up to 30 tokens.
+No counterexample found in 10 million programs beyond that."*
+This is a publication-worthy correctness statement.
+
+### Infrastructure Plan
+
+| Component | Where | Status |
+|-----------|-------|--------|
+| Worm generator (rand + gen tiers) | `SNOBOL4-jvm/src/generator.clj` | ✓ Done |
+| Three-oracle diff harness | `SNOBOL4-jvm/src/harness.clj` | ✓ Done |
+| Syntax-directed enumerator | `SNOBOL4-corpus/tools/enumerate.py` | TODO |
+| Cross-engine runner (tiny + dotnet + jvm) | `SNOBOL4-corpus/tools/crosscheck.sh` | TODO |
+| Results log + bug archive | `SNOBOL4-corpus/exhaustive/` | TODO |
+
+The enumerator reads the SNOBOL4 grammar (already formalized in SNOBOL4-jvm's
+instaparse grammar) and produces programs by iterative deepening DFS over the
+parse tree, substituting terminal choices exhaustively at each leaf.
+
+### Standing Instruction — Run Continuously
+
+Once the cross-engine runner exists, it runs as a background job during every
+Claude session and on any available machine between sessions. Results are
+appended to `SNOBOL4-corpus/exhaustive/results.log`. The current N (highest
+fully-checked token count) and M (random programs checked) are recorded in
+`BENCHMARKS.md` and updated at every session handoff.
+
+**The numbers go in the README when they are worth talking about.**
+"Zero failures in 50 million programs" is worth talking about.
+
+---
+
 ## Quick Start — Each Repo
 
 ### SNOBOL4-dotnet
