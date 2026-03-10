@@ -121,62 +121,74 @@ when STCOUNT is live-updating during expression evaluation.
 
 ---
 
-## &STNO / &STCOUNT / &STLIMIT — Live Test Results
-*Tested 2026-03-10 on all running implementations*
+## TRACE('&keyword','KEYWORD') — Exhaustive Test Results
+*Run 2026-03-10 — every variant tested, results proven*
 
-### &STNO behavior
+### What Was Tested
 
-| System | &STNO tracks current stmt? | Initial value |
-|--------|---------------------------|---------------|
-| CSNOBOL4 v2.3.3 | ✓ YES — increments 1,2,3... per statement | 2 (counts setup stmts) |
-| SPITBOL x64 v4.0f (installed) | ✓ YES — increments 1,2,3... per statement | 2 |
-| SPITBOL x64 v4.0f (from source) | ✓ YES — increments 1,2,3... per statement | 2 |
+```snobol4
+&TRACE = 99999
+TRACE('&STNO',    'KEYWORD')   * with & prefix
+TRACE('&STCOUNT', 'KEYWORD')
+TRACE('&LASTNO',  'KEYWORD')
+TRACE('&ANCHOR',  'KEYWORD')
+TRACE('STNO',     'KEYWORD')   * without & prefix
+TRACE('STCOUNT',  'KEYWORD')
+```
 
-**All three agree: `&STNO` is the current statement number, 1-based, accurate.**
+Then: explicit reads (`x = &STCOUNT`), explicit writes (`&ANCHOR = 1`),
+and multiple output statements to create statement boundaries.
 
-### &STCOUNT behavior
+### Results
 
-| System | &STCOUNT tracks cumulative count? | Initial value |
-|--------|----------------------------------|---------------|
-| CSNOBOL4 v2.3.3 | **✗ NO** — always 0 | 0 |
-| SPITBOL x64 v4.0f (installed) | ✓ YES — counts every statement executed | 2 |
-| SPITBOL x64 v4.0f (from source) | ✓ YES — counts every statement executed | 2 |
+| Variant | CSNOBOL4 | SPITBOL |
+|---------|----------|---------|
+| `TRACE('&STNO','KEYWORD')` | Accepted, **zero output** | **Error 198** — not appropriate name |
+| `TRACE('&STCOUNT','KEYWORD')` | Accepted, **zero output** | **Error 198** |
+| `TRACE('&LASTNO','KEYWORD')` | Accepted, **zero output** | **Error 198** |
+| `TRACE('&ANCHOR','KEYWORD')` | Accepted, **zero output** (even after `&ANCHOR=1`) | **Error 198** |
+| `TRACE('STNO','KEYWORD')` | Accepted, **zero output** | **Error 198** |
+| `TRACE('myKW','KEYWORD')` | Accepted, **zero output** | **Error 198** |
 
-**CSNOBOL4 `&STCOUNT` is broken — always returns 0. SPITBOL both versions work correctly.**
-**Documented in previous grid above — confirmed again here.**
+### Conclusion
 
-### &STLIMIT behavior — loop termination
+**`TRACE(...,'KEYWORD')` is non-functional on both oracles for all tested targets.**
 
-Test: `&STLIMIT = 15` with an infinite loop `i = i+1 :(LOOP)`.
+- **CSNOBOL4**: Accepts the call silently, fires nothing. `&TRACE=99999` armed.
+  Explicit reads and writes of the keyword produce no trace output.
+  `TRACE('var','VALUE')` works perfectly on the same run — so TRACE itself works.
+  KEYWORD type specifically does not fire.
 
-| System | Terminates loop? | At i= | Error message |
-|--------|-----------------|-------|---------------|
-| CSNOBOL4 v2.3.3 | ✓ YES | i=5 | `Error 22: Limit on statement execution exceeded` |
-| SPITBOL x64 v4.0f (installed) | ✓ YES | i=4 | `error 244 -- statement count exceeds value of stlimit keyword` |
-| SPITBOL x64 v4.0f (from source) | ✓ YES | i=4 | `error 244 -- statement count exceeds value of stlimit keyword` |
+- **SPITBOL**: Rejects `&`-prefixed names immediately with error 198
+  ("trace first argument is not appropriate name"). KEYWORD type
+  is not supported at all for keyword names.
 
-**All three enforce `&STLIMIT` correctly.** Different error numbers and messages, same behavior.
+### What DOES Work
 
-Note: CSNOBOL4 stops at i=5, SPITBOL at i=4. This is because CSNOBOL4's `&STCOUNT`
-is broken (always 0) so it counts differently internally — but `&STLIMIT` still works.
-SPITBOL counts 2 setup statements before the loop; CSNOBOL4 does not.
+| TRACE type | CSNOBOL4 | SPITBOL | Notes |
+|-----------|----------|---------|-------|
+| `TRACE(var,'VALUE')` | ✓ fires on assignment | ✓ fires on assignment | CSNOBOL4→stderr; SPITBOL→stdout |
+| `TRACE(lbl,'LABEL')` | ✓ fires on branch | ✓ fires on branch | Both work |
+| `TRACE('&STNO','KEYWORD')` | **✗ zero output** | **✗ error 198** | **Broken on both** |
+| `TRACE(fn,'CALL')` | **✗ recurses/segfaults** | not tested | Dangerous |
+| `TRACE(fn,'RETURN')` | not tested | not tested | |
 
-### &STLIMIT default values
+### Implication for the Monitor
 
-| System | Default `&STLIMIT` |
-|--------|-------------------|
-| CSNOBOL4 | **-1** (unlimited) |
-| SPITBOL x64 | **2147483647** (INT_MAX — effectively unlimited) |
+**The KEYWORD trace hook is not available as a synchronization mechanism.**
+The per-statement heartbeat (`STNO N` on every statement) must come from
+a different source:
 
-Different defaults. Both mean "run forever unless set."
+- **Oracle side**: Use `TRACE(var,'VALUE')` on a probe variable that is
+  assigned on every statement via null-concat. Or use `&STCOUNT` reads
+  (SPITBOL only — CSNOBOL4 `&STCOUNT` is always 0).
+- **Binary side**: `sno_comm_stno(N)` in generated C — already working.
 
-### Implications for SNOBOL4-tiny
+The diff monitor's oracle stream cannot be `&STNO` KEYWORD trace.
+It must be VALUE trace on a deliberately-assigned probe variable,
+or OUT sync (comparing output lines), or STCOUNT reads on SPITBOL only.
 
-Our runtime has:
-- `sno_kw_stlimit = 2000000` — enforced via P001 fix ✓
-- `sno_kw_stcount` incremented at every `sno_comm_stno()` call ✓
-- `&STNO` emitted via `sno_comm_stno()` ✓
+**CSNOBOL4 `&STCOUNT` = 0 always** is a separate confirmed bug/limitation.
+Binary search via `&STLIMIT = &STCOUNT + N` does not work on CSNOBOL4.
+Use literal values: `&STLIMIT = 500`, `&STLIMIT = 250`, etc.
 
-We match SPITBOL behavior on `&STCOUNT`. We differ from CSNOBOL4 (which is broken).
-Default `&STLIMIT` should be raised or set to -1 for production — 2,000,000 is
-artificially low for large programs. `beautiful.sno` needs more than that.
