@@ -2880,3 +2880,155 @@ All three gap categories closed:
 `snoc` and the diff comes back empty, the commit message belongs to
 Claude Sonnet 4.6. Recorded commit `c5b3e99`.
 
+
+---
+
+## IDEA — The Pick Monitor: Pipe-Based Live Execution Monitor
+**Origin**: Lon Cherryholmes, 2026-03-10 (Sprint 20 triage session)
+**Precedent**: Pick Systems — Lon built this exact architecture with Rich Pick and David Zigray.
+
+### The Core Idea
+
+Two processes running in step-sync through pipes, with a GUI monitor sitting in the middle:
+
+```
+ beautiful (instrumented) ──COMM pipe──▶ MONITOR (GUI) ──control pipe──▶ beautiful
+```
+
+The running `./beautiful` binary is **instrumented** — it emits COMM events on a pipe:
+- `COMM VAR x changed "old" → "new"`
+- `COMM LINE 525`
+- `COMM MATCH snoExpr3 succeeded`
+- `COMM GOTO SNO_main00`
+
+The **MONITOR** sits in the middle. It reads the pipe, updates its live display,
+and decides: keep running, or pause?
+
+### The Key Insight: Ignore-Points, Not Break-Points
+
+This is NOT a breakpoint debugger. It is the **inverse**.
+
+A traditional debugger: you tell it where to STOP.
+The Pick Monitor: you tell it what to IGNORE. It stops on **everything else**.
+
+When the program is first run, everything is "unknown" — the monitor stops on
+every change. You then click "ignore this" on all the noise. What remains
+visible is only what you care about. Over time, the ignore list grows and the
+monitor becomes quieter and quieter — until only the interesting changes show up.
+
+**This is self-calibrating debugging.** The ignore list *is* a model of what
+the program is supposed to do. Every time you click ignore, you are asserting:
+"this change is correct." When the monitor stops on something unexpected, that
+assertion has been violated — you have found a bug.
+
+### Implementation Plan
+
+**Phase 1 — Instrumented `beautiful.c`:**
+In `snobol4.c` (the runtime), add:
+```c
+extern int sno_monitor_fd;  /* -1 = disabled */
+
+void sno_comm_var(const char *name, const char *oldval, const char *newval) {
+    if (sno_monitor_fd < 0) return;
+    dprintf(sno_monitor_fd, "VAR %s %s → %s\n", name, oldval, newval);
+}
+void sno_comm_line(int lineno) {
+    if (sno_monitor_fd < 0) return;
+    dprintf(sno_monitor_fd, "LINE %d\n", lineno);
+}
+void sno_comm_goto(const char *label) {
+    if (sno_monitor_fd < 0) return;
+    dprintf(sno_monitor_fd, "GOTO %s\n", label);
+}
+```
+
+The generated `beautiful.c` emits `sno_comm_line(N)` at each statement,
+`sno_comm_var(name, old, new)` at each `sno_var_set()`, and
+`sno_comm_goto(label)` at each goto.
+
+`sno_monitor_fd` is set by the runtime when `--monitor` flag is passed,
+pointing to the write end of the COMM pipe.
+
+**Phase 2 — The Monitor (Python or C, GUI):**
+```
+┌─────────────────────────────────────────────────────────┐
+│  SNOBOL4-tiny Live Monitor                              │
+│─────────────────────────────────────────────────────────│
+│  Line: 525    Label: SNO_main02    Status: PAUSED       │
+│─────────────────────────────────────────────────────────│
+│  VARIABLES (changed)                 │  IGNORE LIST     │
+│  snoLine    = "  OUTPUT = x"         │  □ snoSpace      │
+│  snoSrc    += (appended)             │  □ snoLine (all) │
+│  nl         = "\n"  (unchanged)      │  □ LINE events   │
+│─────────────────────────────────────────────────────────│
+│  COMM LOG                                               │
+│  LINE 524                                               │
+│  VAR snoLine "  OUTPUT = x" → "  OUTPUT = x"           │
+│  GOTO SNO_main02                                        │
+│  LINE 525  ← STOPPED HERE (snoSrc changed)             │
+│─────────────────────────────────────────────────────────│
+│  [STEP]  [RUN]  [IGNORE THIS]  [IGNORE VAR]  [RESET]   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Phase 3 — Ignore List Persistence:**
+The ignore list is saved to `monitor_ignore.json`. When you restart,
+the same ignore list applies. Over multiple sessions, the ignore list
+grows to perfectly encode what "correct execution" looks like.
+
+**This is how you bootstrap a runtime.** You don't need a test suite.
+You don't need to know what the program does. You run it, watch it,
+tell the monitor what is noise, and the bugs surface automatically.
+
+### Connection to Beautiful.sno
+
+The immediate use: `./beautiful < beauty_run.sno` hangs (timeout exit 124).
+With the Pick Monitor running, we would see **exactly which statement executes
+last** before the hang. Is it a loop? A missing EOF signal? A pattern that
+never fails? The monitor answers this in one run, not hours of printf debugging.
+
+### Architecture Notes
+
+- COMM pipe is **one-directional**: beautiful → monitor (COMM events)
+- Control pipe is **one-directional**: monitor → beautiful (CONTINUE/STEP/ABORT)
+- Both are Unix named pipes (mkfifo) or anonymous pipe pairs
+- beautiful blocks on control pipe read after each COMM batch if monitor says PAUSE
+- Monitor is a **separate process** — crash-safe; beautiful keeps running if monitor dies
+- The monitor can be attached/detached live: `kill -USR1 <beautiful_pid>` to toggle
+
+### The GUI Stack
+
+Two reasonable options:
+1. **Python + Tkinter** — zero dependencies, ships with Python, fast to prototype
+2. **React artifact** — runs in Claude.ai, reads from a websocket bridge
+
+Option 1 is the right call for the first version. It runs locally, no browser
+required, and Tkinter's text widget handles streaming log perfectly.
+
+### Why This Is The Right Architecture For Runtime Development
+
+The traditional approach: write tests, run tests, read failures, add printf,
+repeat. This is slow because **you don't know what you don't know**. The test
+tells you something is wrong but not where or why.
+
+The Pick Monitor approach: the program tells you everything, in real time.
+You train the monitor to ignore the correct things. What remains is the bug.
+
+**This is test-first development at the execution level, not the unit level.**
+The ignore list becomes an executable specification of correct behavior.
+When a new COMM event shows up that isn't in the ignore list, you have found
+either a new behavior (add to ignore if correct) or a bug (fix it).
+
+Lon used this to develop and debug Flash BASIC at Pick Systems.
+It worked. We are using it to develop SNOBOL4-tiny's runtime.
+
+### Action Items
+- [ ] Add `sno_comm_*` functions to `snobol4.c`
+- [ ] Add `sno_comm_line(N)` to each statement in `emit_c_stmt.py`
+- [ ] Add `sno_comm_var(name, old, new)` to `sno_var_set()` in `snobol4.c`
+- [ ] Add `--monitor` flag to `sno_program()` that opens the COMM pipe
+- [ ] Write `monitor.py` — Tkinter GUI, pipe reader, ignore list, STEP/RUN/IGNORE
+- [ ] Save/load ignore list to `monitor_ignore.json`
+- [ ] Test on `beautiful < beauty_run.sno` — find the hang point
+- [ ] Document: ignore list format, pipe protocol, restart procedure
+
