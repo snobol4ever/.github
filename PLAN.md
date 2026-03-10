@@ -218,6 +218,36 @@ This discipline turns the test suite from a collection of passing cases into a
 | `test/sprint11/ref_balanced_parens.c` | Dyck language | Context-Free | Sprint 11 |
 | `test/sprint15/counter_anbncn.c` | `{a^n b^n c^n}` | Context-Sensitive | Sprint 15 |
 
+### README Upgrade Protocol — Earn It Tier by Tier
+
+**Do not update the org profile README until the oracles exist and pass.**
+The README currently makes the architectural claim correctly — as a design
+statement. Upgrading it to a *proven* claim requires the test suite to back it.
+The upgrade happens in four ceremonies, one per tier:
+
+| When | What gets added to README |
+|------|--------------------------|
+| All Type 3 oracles pass | "SNOBOL4-tiny provably recognizes all regular languages (Type 3)" |
+| All Type 2 oracles pass | "...and all context-free languages (Type 2) — the tier of every major programming language" |
+| All Type 1 oracles pass | "...and context-sensitive languages (Type 1)" |
+| Type 0 proof complete | See note below |
+
+**The Type 0 rub.** Claiming Type 0 (unrestricted grammars — the tier of English,
+of natural language, of everything a Turing machine can compute) is qualitatively
+different from claiming Types 3, 2, and 1. Types 3–1 are claims about specific
+language *membership* — provable by the oracle test suite alone. Type 0 is a
+claim about *Turing completeness* of the engine itself, which requires a
+different kind of proof: encoding a universal Turing machine as a pattern, or
+demonstrating simulation of a known Type 0 formalism (Post correspondence,
+tag systems, etc.).
+
+The Natural Language Horizon section in the README is already the right framing
+for Type 0 — it describes what the engine *reaches toward*, not what has been
+proved. That framing stays until the Turing completeness proof is in hand.
+When it is, the README gets the strongest possible closing line.
+
+**This is the plan. Griswold had the idea. We are finishing the proof — tier by tier.**
+
 ---
 
 ## Quick Start — Each Repo
