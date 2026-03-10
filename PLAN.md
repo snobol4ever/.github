@@ -123,20 +123,40 @@ Used as submodule at `corpus/lon` in SNOBOL4-jvm and `corpus/` in SNOBOL4-dotnet
 
 ---
 
+## Standing Instruction — Problems Go in the Plan
+
+**Every time a problem is found, it is logged here before anything else.**
+Three priority levels:
+
+- **P1 — Blocking**: breaks the build, fails tests, or loses data. Fix immediately.
+- **P2 — Important**: correctness gap, portability risk, or CI gap. Fix soon.
+- **P3 — Polish**: dead code, naming, docs, nice-to-have. Fix when convenient.
+
+After updating this file, always push to headquarters (`SNOBOL4-plus/.github`).
+
+---
+
 ## Outstanding Items
 
-### Must Do
+### P1 — Blocking
+- [ ] **SNOBOL4-dotnet**: `MathLibrary` and `FSharpLibrary` not in `Snobol4.sln` and not referenced by `TestSnobol4.csproj` — on a clean clone `dotnet test` will not build these DLLs and all LOAD tests that depend on them will fail with file-not-found. Add both to the solution and add `ProjectReference` entries to `TestSnobol4.csproj`.
 - [ ] Jeffrey accepts GitHub org invitation → promote jcooper0 to Owner at https://github.com/orgs/SNOBOL4-plus/people
+
+### P2 — Important
+- [ ] **SNOBOL4-dotnet**: No CI (no GitHub Actions). F# workload (`dotnet workload install fsharp`) is required to build `FSharpLibrary` but is never installed by any automated step. Add a workflow that installs tooling, builds solution in correct order, and runs the full test suite.
+- [ ] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0` to match all other projects.
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
-- [ ] Write individual repo READMEs for all five repos
-- [ ] Delete four archived personal repos after April 10, 2026
-
-### Next Development Work
 - [ ] **SNOBOL4-jvm Sprint 23E**: inline EVAL! in JVM codegen — eliminate arithmetic bottleneck
 - [ ] **SNOBOL4-dotnet**: production-readiness pass, remaining known failures
 - [ ] **SNOBOL4-python / SNOBOL4-csharp**: cross-validate pattern semantics against JVM
-- [ ] Build unified cross-platform test corpus (see ASSESSMENTS.md)
+- [ ] Build unified cross-platform test corpus
+
+### P3 — Polish
+- [ ] **SNOBOL4-dotnet**: `WindowsDll` and `LinuxDll` in `SetupTests.cs` are declared but never used — dead variables, remove.
+- [ ] **SNOBOL4-dotnet**: `Test0.Test.cs` and `CTest_CODE0_NTest_CODE0.cs` contain hardcoded `C:\Users\jcooper\...` absolute paths — both are excluded from compilation but should be cleaned up or deleted.
+- [ ] Write individual repo READMEs for all five repos
+- [ ] Delete four archived personal repos after April 10, 2026
 
 ---
 
@@ -144,7 +164,7 @@ Used as submodule at `corpus/lon` in SNOBOL4-jvm and `corpus/` in SNOBOL4-dotnet
 
 1. **Canonical repos are in the org.** Personal repos are archived and will be deleted.
 2. **All default branches are `main`.**
-3. **SNOBOL4-jvm submodule** points to `SNOBOL4-plus/SNOBOL4`.
+3. **SNOBOL4-jvm submodule** points to `SNOBOL4-plus/SNOBOL4-corpus` (at `corpus/lon`). **SNOBOL4-dotnet submodule** points to `SNOBOL4-plus/SNOBOL4-corpus` (at `corpus`).
 4. **PyPI publishes from `SNOBOL4-plus/SNOBOL4-python`** via Trusted Publisher (OIDC, no token).
 5. **Jeffrey's authorship is preserved.** His commit history is intact throughout.
 6. **This file is the single plan for all repos.** There are no separate per-repo PLAN.md files.
