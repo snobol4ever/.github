@@ -3585,4 +3585,152 @@ only Level-3 bugs.
 |------|------|
 | 2026-03-10 | First version: levels defined by abstraction (wrong). Corrected by Lon: levels are defined by what source is *included* — main+bootstrap / main+pp+qq+bootstrap / main+pp+qq+INC. These are real subsets of the actual program, not synthetic tests. |
 | 2026-03-10 | **WE ARE AT THE GATE.** Three-level strategy written. P002 fixed. Pyramid ready to build. The MONITOR is the next thing — without it none of the levels can be proven. Build it now. |
+| 2026-03-10 | MONITOR build plan staged into increments — see § Monitor Build Plan below. |
 
+
+---
+---
+
+# Monitor Build Plan — Staged Increments
+
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+Build the monitor in four increments. Each increment is independently
+testable. Do not proceed to the next until the current one works.
+
+---
+
+## Increment 1 — Binary Heartbeat
+
+**What**: `sno_comm_stno(N)` emits one line to stderr when `SNO_MONITOR=1`.
+Nothing else. No oracle. No diff. Just: can we see the binary's heartbeat?
+
+**Implementation**:
+```c
+/* snobol4.c — sno_comm_stno already called at every statement */
+void sno_comm_stno(int64_t n) {
+    sno_kw_stcount++;
+    if (sno_kw_stlimit >= 0 && sno_kw_stcount > sno_kw_stlimit)
+        sno_abort("&STLIMIT exceeded");
+#ifdef SNO_MONITOR
+    fprintf(stderr, "STNO %lld\n", (long long)n);
+#endif
+}
+```
+
+**Test**: `SNO_MONITOR=1 ./level1 < input 2>trace.txt && head trace.txt`
+Expected: `STNO 1`, `STNO 2`, `STNO 3` ...
+
+**Done when**: trace file shows clean STNO stream, no crashes.
+
+---
+
+## Increment 2 — Variable Heartbeat
+
+**What**: `sno_comm_var(name, val)` emits `VAR name "value"` to stderr.
+Called from `sno_var_set()` when `SNO_MONITOR=1` and name is on the watchlist.
+The watchlist prevents the firehose — hundreds of internal vars thrashing.
+
+**Implementation**:
+```c
+void sno_comm_var(const char *name, SnoVal val) {
+#ifdef SNO_MONITOR
+    const char *watch = getenv("SNO_WATCH");
+    if (!watch) return;
+    /* only emit if name appears in comma-separated SNO_WATCH */
+    if (!strstr(watch, name)) return;
+    fprintf(stderr, "VAR %s \"%s\"\n", name, sno_to_str(val));
+#endif
+}
+```
+
+**Test**: `SNO_MONITOR=1 SNO_WATCH="OUTPUT" ./level1 < input 2>trace.txt`
+Expected: STNO lines interleaved with VAR OUTPUT lines at every assignment.
+
+**Done when**: watched variables appear in trace at correct STNOs.
+
+---
+
+## Increment 3 — Oracle Trace
+
+**What**: Arm the CSNOBOL4 oracle with `TRACE('&STNO','KEYWORD')`.
+Capture its stderr. Verify the format matches what the binary emits.
+
+**Implementation**: Three lines at the top of the Level 1 test program:
+```snobol4
+        &TRACE = 1
+        TRACE('&STNO','KEYWORD')
+```
+
+Run: `snobol4 -f level1.sno < input 2>oracle_trace.txt`
+
+CSNOBOL4 TRACE format: `** &STNO = N`
+Binary format: `STNO N`
+
+These do not match yet. The diff monitor needs to normalize both,
+OR the binary needs to match the oracle format exactly.
+**Decision**: normalize in `diff_monitor.py` — parse both formats,
+compare the N values. Keep both sides' native format.
+
+**Done when**: oracle trace captured, format documented, normalization
+strategy confirmed.
+
+---
+
+## Increment 4 — diff_monitor.py
+
+**What**: `tools/diff_monitor.py` reads oracle trace + binary trace,
+normalizes both to `STNO N` / `VAR name value`, steps lockstep,
+skips ignore list, stops at first real divergence.
+
+**Implementation** (~40 lines Python):
+```python
+# tools/diff_monitor.py
+import sys, json, re
+
+def parse_line(line):
+    # Oracle: "** &STNO = 42"  → ('STNO', '42')
+    # Binary: "STNO 42"        → ('STNO', '42')
+    # Oracle: "** snoLine = "foo"" → ('VAR', 'snoLine', 'foo')
+    # Binary: "VAR snoLine "foo""  → ('VAR', 'snoLine', 'foo')
+    ...
+
+oracle_file, binary_file, ignore_file = sys.argv[1], sys.argv[2], sys.argv[3]
+ignore = json.load(open(ignore_file)) if ignore_file else []
+
+for lineno, (o, b) in enumerate(zip(open(oracle_file), open(binary_file))):
+    oe, be = parse_line(o), parse_line(b)
+    if oe in ignore: continue
+    if oe != be:
+        print(f"FIRST DIFF at line {lineno}:")
+        print(f"  oracle: {o.strip()}")
+        print(f"  binary: {b.strip()}")
+        sys.exit(1)
+print("NO DIFF — traces match")
+```
+
+**Done when**: given two identical trace files → "NO DIFF".
+Given two files that differ at line N → reports exact line and values.
+
+---
+
+## Current Status
+
+| Increment | What | State |
+|-----------|------|-------|
+| 1 | Binary heartbeat — `sno_comm_stno` emits STNO stream | **NEXT** |
+| 2 | Variable heartbeat — `sno_comm_var` with watchlist | Not started |
+| 3 | Oracle trace — CSNOBOL4 TRACE armed, format documented | Not started |
+| 4 | `diff_monitor.py` — normalize + diff two streams | Not started |
+
+**All four increments done = MONITOR is operational.**
+**MONITOR operational = Level 1 can be proven.**
+**Level 1 proven = we are riding.**
+
+---
+
+## Session Log — Monitor Build Plan
+
+| Date | What |
+|------|------|
+| 2026-03-10 | Four increments planned. Increment 1 is next: binary STNO heartbeat. Simple, testable, independently verifiable without the oracle. |
