@@ -134,6 +134,14 @@ SNOBOL4-corpus/programs/sno/beauty.sno           ← the program itself
 
 ## 9. What To Do Next (update at every handoff)
 
+> **COURSE CORRECTION 2026-03-10**: We skipped to Level 3 (beautiful.c / Sprint 20)
+> before proving Level 1 and Level 2. The three-level strategy is now the plan.
+> See `PLAN.md` § The Three-Level Proof Strategy.
+>
+> **NEXT ACTION**: Build Level 1 test — no INC, no funcs, no statements.
+> Simple pattern + OUTPUT. Run oracle (CSNOBOL4). Run binary. Diff. Zero diffs = certified.
+> Also: commit `beauty_run.sno` to SNOBOL4-tiny repo.
+
 **SNOBOL4-tiny — Sprint 20 (CURRENT FOCUS):**
 1. Implement the Pick Monitor (`PLAN.md` § IDEA — The Pick Monitor)
    - Add `sno_comm_*` to `snobol4.c`

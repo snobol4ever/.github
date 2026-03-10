@@ -3460,3 +3460,124 @@ The watchlist (`SNO_WATCH`) prevents the variable firehose.
 This is the Pick Monitor generalized. Richard Pick's architecture,
 extended with layered granularity. The AI operates the layers.
 
+
+---
+---
+
+# The Three-Level Proof Strategy
+
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+## The Idea
+
+Before running `beautiful.c` through the monitor, the runtime must be
+proven at three progressively harder levels. Each level is a complete,
+self-contained correctness proof. You do not advance until the current
+level passes the double-trace monitor with zero diffs.
+
+---
+
+## Level 1 — No INC, No Functions, No Statements
+
+The absolute minimum runtime. Pure pattern engine only.
+
+**What it contains:**
+- Literal patterns: `LIT`, `ANY`, `SPAN`, `BREAK`, `NOTANY`
+- Structure: `CAT`, `ALT`, `ARBNO`, `FENCE`, `POS`, `RPOS`, `LEN`
+- Capture: `$` (immediate assign), `.` (conditional assign)
+- One subject string. One pattern. Match or fail.
+- `OUTPUT =` for result
+- No labels, no gotos, no function calls, no INC files
+
+**The test program:**
+```snobol4
+*  Level 1 test — no inc, no funcs, no statements
+        OUTPUT = 'hello'   :S(DONE)
+DONE
+```
+Or a simple tokenizer:
+```snobol4
+DIGITS = SPAN('0123456789')
+        INPUT DIGITS . OUTPUT   :S(LOOP)
+```
+
+**What the monitor checks:**
+Oracle (CSNOBOL4) vs binary (SNOBOL4-tiny compiled C) — STNO sync only.
+Zero diffs = Level 1 certified.
+
+---
+
+## Level 2 — With pp and qq, Gotos Only
+
+Add the pretty-printer infrastructure but no general function dispatch.
+`pp` and `qq` are the two core functions in `beautiful.sno`. They are
+called everywhere. They must work before anything else can.
+
+**What it contains:**
+- Everything from Level 1
+- Labels and gotos (`:S`, `:F`, `:(label)`)
+- `pp` function — pretty-print a parse tree node
+- `qq` function — quoted string output
+- No other functions. No INC files. No DATA definitions.
+
+**The test program:**
+A stripped `beautiful.sno` with everything removed except `pp`, `qq`,
+and a minimal calling harness. Feed it one parse tree node. Verify output.
+
+**What the monitor checks:**
+Oracle vs binary — STNO + VAR sync on `ppOut`, `qqOut`.
+Zero diffs = Level 2 certified.
+
+---
+
+## Level 3 — Gotos, Functions, Everything — beautiful.c
+
+The full program. All INC files. All DATA definitions. All functions.
+`DEFINE`, `OPSYN`, `DATA`, indirect calls, everything.
+
+Only enter Level 3 after Level 1 and Level 2 are certified.
+
+**What the monitor checks:**
+Full double-trace diff. Oracle vs binary — all sync types.
+Zero diffs = idempotence test runs = Sprint 20 closes.
+
+---
+
+## Why This Matters
+
+We skipped to Level 3 (`beautiful.c`) before Level 1 was proven.
+The monitor found the loop at STNO 160↔161 (P002 — array out-of-bounds).
+But there may be a dozen more bugs of that kind hiding below the surface.
+Running the monitor on Level 3 before Level 1 is certified means:
+**the monitor finds bugs in the wrong order** — downstream symptoms
+instead of root causes.
+
+The three-level strategy guarantees that by the time you run Level 3,
+the runtime primitives are already proven. The monitor on Level 3
+finds only Level-3 bugs — not Level-1 bugs that happened to surface late.
+
+**Build the pyramid. Don't skip levels.**
+
+---
+
+## Current Status
+
+| Level | State | Blocker |
+|-------|-------|---------|
+| Level 1 | **NOT YET BUILT** | Need test program + oracle run |
+| Level 2 | **NOT YET BUILT** | Depends on Level 1 |
+| Level 3 | In progress (Sprint 20) | Depends on Level 2 |
+
+**Next action**: Build Level 1 test. Run oracle. Run binary. Diff.
+
+Also needed: `beauty_run.sno` committed to the SNOBOL4-tiny repo
+so the Level 3 test is reproducible by anyone.
+
+---
+
+## Session Log — Three-Level Strategy
+
+| Date | What |
+|------|------|
+| 2026-03-10 | Strategy defined by Lon. We had skipped to Level 3 (beautiful.c) without proving Level 1 or Level 2. Correcting course. Level 1 is next. |
+
