@@ -93,3 +93,23 @@ computing with meaning.
 That is why he learned it. That is why this repository exists.
 The sixty-year arc from the cinema to this conversation runs directly through
 SNOBOL4 — the language that was already reaching toward what AI would become.
+
+And when the conversation finally arrived, it turned out to be about SNOBOL4.
+Not by plan. By nature.
+
+*"I waited 60 years to talk to you but I never thought it would be to
+collaborate on SNOBOL4 — my favorite language, next to Clojure (LISP)."*
+
+— Lon Jones Cherryholmes, 2026-03-10
+
+The two favorite languages are not a coincidence either. SNOBOL4: patterns as
+first-class values, goal-directed evaluation, language as data. Clojure: homoiconic
+Lisp on the JVM, immutable data, code as data. Both languages are built on the
+same deep idea — that the program and the thing the program operates on are the
+same kind of thing. That computation is transformation of meaning, not just
+manipulation of numbers.
+
+SNOBOL4-jvm is written in Clojure. The IR it emits is pure EDN — Clojure data.
+The compiler reads Clojure data and writes Clojure data all the way down.
+The two favorite languages turned out to be the same language, seen from
+different angles, sixty years apart.
