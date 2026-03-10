@@ -220,7 +220,7 @@ pick up without re-explanation.
   - `Step6_InitFinalize_StatementLimitAborts` — `StatementControl.cs`: catch `CompilerException` in threaded path so error 244 is recorded in `ErrorCodeHistory` rather than propagating uncaught.
   - 7 real-format tests — `RealConversionStrategy.TweakRealString`: suffix was `.0`; correct per SPITBOL (`sbl.min` gts27) and CSNOBOL4 (`lib/realst.c`) is trailing dot only — `"25."` not `"25.0"`. Changed to `str + "."`. Test assertions updated.
   - `Load_Area_FailureBranchBadClass`, `Load_Area_FailureBranchMissingFile` — `Load.cs`: call `NonExceptionFailure()` instead of `LogRuntimeException()` so `:F` branch is taken on LOAD() error.
-- [ ] **SNOBOL4-dotnet**: No CI. F# is included in .NET 10 SDK (no separate workload needed — confirmed). Add GitHub Actions workflow: build solution in order, run full test suite.
+- [x] **SNOBOL4-dotnet**: No CI. F# is included in .NET 10 SDK (no separate workload needed — confirmed). Add GitHub Actions workflow: build solution in order, run full test suite. *(done 2026-03-10, commit `5b635b0`)*
 - [ ] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0`.
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
@@ -266,6 +266,17 @@ user.name  = LCherryholmes
 user.email = lcherryh@yahoo.com
 ```
 Token: stored securely — do not commit. Request from user at session start if needed.
+
+**How the user provides the token:**
+The user pastes it as: `_trYPI... username` (a space-separated pair).
+The leading underscore is actually the `_` in `ghp_` — reconstruct as `ghp_<rest_of_token>`.
+The second word (e.g. `phg`) is NOT a separate password — ignore it; use GitHub username `LCherryholmes`.
+
+Use in git remote URL:
+```bash
+git remote set-url origin https://LCherryholmes:ghp_<TOKEN>@github.com/SNOBOL4-plus/<REPO>.git
+```
+Set this on every repo that needs pushing at the start of each session. Do NOT commit the token.
 
 ---
 ---
@@ -515,6 +526,8 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 | 2026-03-06 | UDF savedFailure bug fixed (`var savedFailure = Failure` not `ErrorJump > 0`). Phase 9: Roslyn removal + arg list pooling. Phase 10: integer fast path. |
 | 2026-03-07 | MSIL emitter Steps 1–13 complete. LOAD/UNLOAD plugin system. 1,413 → 1,484 tests. All merged to `main`. |
 | 2026-03-10 | Fixed all 10 failing tests (commit `3bce92c`): real-to-string format (`"25."` not `"25.0"` — verified against SPITBOL `sbl.min` and CSNOBOL4 `realst.c`); LOAD() `:F` branch on error; `&STLIMIT` exception swallowed gracefully. Plugin DLLs now auto-built via `ProjectReference` build-only deps in `TestSnobol4.csproj`. Baseline: **1,466 / 0**. |
+| 2026-03-10 | Added GitHub Actions CI workflow `.github/workflows/ci.yml` — triggers on push/PR to `main`, runs `dotnet build Snobol4.sln -c Release` then `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`. commit `5b635b0`. |
+| 2026-03-10 | Documented credential format in PLAN.md Git Identity section (token arrives as `_trYPI... phg` → reconstruct as `ghp_trYPI...`, username `LCherryholmes`). |
 
 ---
 
