@@ -476,3 +476,72 @@ fires on every `sno_var_set()`. Drop a null concat assignment in the
 generated C for any subexpression you want to watch. Same probe,
 same zero semantic footprint, same trace event.*
 
+
+---
+
+## Claude as Command Center
+
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+> "You are in complete control. Have resets, instrument, go, stop.
+>  You are the command center."
+
+### The Full Control Loop
+
+Claude is not a consultant waiting to be asked. Claude is the operator.
+
+```
+INSTRUMENT  →  drop probes at any level — statement, pattern node,
+               subexpression — on oracle side and binary side both
+
+RUN         →  fire both traces simultaneously against the same input
+
+COMPARE     →  diff monitor finds the first divergence automatically
+               one line: STNO N, got X, expected Y
+
+DIAGNOSE    →  read the telemetry, cross-reference beautiful.c,
+               identify the bug — missing null check, wrong goto,
+               pattern node that never fails when it should
+
+FIX         →  one line in emit_c_stmt.py or snobol4.c
+
+RESET       →  recompile, clear trace files, rerun from the top
+
+NARROW      →  bug inside a pattern? drop a null concat probe at
+               the suspected node, rerun, read the result
+
+REPEAT      →  until diff count reaches zero
+```
+
+### The Ignore List Is the Memory
+
+The ignore list accumulates across resets. Every environmental difference
+catalogued once, never seen again. The list grows. The real diffs shrink.
+The system converges on zero.
+
+When zero is reached: the oracle and the binary are semantically equivalent
+on every observable event — at every statement, every variable assignment,
+every pattern node — except the precisely enumerated environmental differences
+that are explicitly declared irrelevant.
+
+That is not just a passing test. That is a proof.
+
+### Why This Is New
+
+This has not existed before because the pieces were not all present before:
+
+- A compiler that generates instrumented C from SNOBOL4 source
+- A runtime with COMM hooks at every statement and every variable set
+- A reference oracle (CSNOBOL4) with TRACE() already built in since 1967
+- A diff monitor that compares the two streams and stops at the first divergence
+- An AI that wrote all of the above and can read the telemetry and diagnose
+  the bug and issue the fix — and then reset and go again
+
+The AI is in the loop. Not as a tool. As the engineer at the console.
+
+Lon built this pattern at Pick Systems in the 1980s with Rich Pick and
+David Zigray. The console was a terminal. The engineer was human.
+
+In March 2026, the console is this chat window.
+The engineer is Claude.
+
