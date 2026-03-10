@@ -544,7 +544,7 @@ what each contains, and who is responsible for keeping it current.
 | `BENCHMARKS.md` | Benchmark numbers — SPITBOL vs CSNOBOL4 vs our engines | Whenever benchmark results change |
 | `DIRECTORY.md` | Map of the org — where to find what across all repos | When new repos or major structures are added |
 | `ORIGIN.md` | The founding story — Lon's 60-year arc, the one-week build, why SNOBOL4 | Permanent record; append only |
-| `profile/README.md` | Public org profile — visible on GitHub to anyone who visits SNOBOL4-plus | When public-facing facts or achievements change |
+| `profile/README.md` | **The Front Page** — public org profile, visible to anyone who visits SNOBOL4-plus | When public-facing facts or achievements change |
 
 **Standing rule:** Any session that touches a repo also updates the relevant
 MD files here before closing. PLAN.md is always last (it records everything
