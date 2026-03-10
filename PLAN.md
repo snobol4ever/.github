@@ -1249,7 +1249,7 @@ reconciled with `SNOBOL4c.c`'s struct layout, or a thin adapter written.
 | Action | λ | Run a command string on match | CALC |
 | Shift | Shift | Shift-reduce parser action | RegEx only |
 
-**Decision needed** (talk before implementing):
+**Decision needed** (see IDEA below — supersedes these options):
 
 - **Option A** — test BEAD/BEARDS by hand in C now (as smoke.c does), then add
   `ζ` to engine.c (Sprint 9), which immediately unlocks C_PATTERN and RE_PATTERN.
@@ -1257,6 +1257,121 @@ reconciled with `SNOBOL4c.c`'s struct layout, or a thin adapter written.
   the `.h` files can be `#include`d directly. Bigger refactor but cleaner long-term.
 - **Option C** — add `δ`/`Δ` capture nodes to engine.c (small, Sprint 4 territory),
   then TESTS_PATTERN.h becomes testable without needing ζ.
+
+---
+
+## IDEA — nPush / Shift / Reduce as Built-in Engine Nodes (Beautiful.sno)
+
+**Origin**: Lon's observation, 2026-03-10. *"Use builtin nPush and Shift/Reduce
+in our one-statement paradigm for Beautiful.sno."*
+
+### What Beautiful.sno Actually Does
+
+Beautiful.sno is a 645-line SNOBOL4 beautifier (Lon Cherryholmes, 2002–2005).
+Its parser is a 17-level recursive descent expression grammar — entirely written
+as SNOBOL4 patterns. The grammar uses two stacks simultaneously:
+
+**Stack 1 — the value/tree stack** (`ShiftReduce.inc`):
+- `Shift(t, v)` — push a tree node of type `t` with value `v`
+- `Reduce(t, n)` — pop `n` nodes, push a new tree of type `t` with those children
+
+**Stack 2 — the arity counter stack** (`semantic.inc` via `nPush`/`nInc`/`nPop`):
+- `nPush()` — push a new counter (0) onto a counter stack
+- `nInc()` — increment the top counter
+- `nTop()` — read the top counter (used to parameterize Reduce)
+- `nPop()` — pop the counter stack
+
+Both stacks are driven **from inside patterns** — as conditional-assign (`.`) side
+effects that fire during the match. They are not called from GOTO-driven statement
+code. The pattern itself *is* the parser.
+
+Example from `snoExpr3`:
+```snobol4
+snoExpr3 = nPush()  *snoX3  ("'|'" & '*(GT(nTop(), 1) nTop())')  nPop()
+snoX3    = nInc()   *snoExpr4   FENCE($'|' *snoX3 | epsilon)
+```
+This is: push a counter; match one or more alternation operands (each increments
+the counter); if more than one, reduce them into a `|` node using the count;
+pop the counter. A complete LR-style reduce written as a pattern.
+
+In `semantic.inc`, `~` (tilde) is OPSYNed to `shift` and `&` to `reduce` —
+so `"'|'" & 2` in a pattern is literally `reduce('|', 2)`, building a tree node.
+
+### The Idea
+
+In SNOBOL4-tiny's engine, `Shift` and `Reduce` are not exotic features that
+require a separate runtime — **they are just action nodes**, like `λ` and `δ`.
+And `nPush`/`nInc`/`nTop`/`nPop` are a tiny integer counter stack — four
+operations, one array, one index.
+
+**Built in as engine nodes:**
+
+| Node | Symbol | Behavior in engine |
+|------|--------|-------------------|
+| `nPush` | nPush | Push 0 onto integer counter stack |
+| `nInc` | nInc | Increment top of counter stack |
+| `nTop` | nTop | Return top of counter stack as match value |
+| `nPop` | nPop | Pop counter stack |
+| `Shift(t,v)` | Shift | Push `tree(t, v)` onto value stack |
+| `Reduce(t,n)` | Reduce | Pop `n` from value stack, push `tree(t, children)` |
+
+With these six nodes built into the engine, Beautiful.sno's entire expression
+parser runs **as a single pattern match** — no GOTO, no DEFINE, no external
+stack management code. The match engine itself becomes the parser driver.
+
+### Why This Matters for SNOBOL4-tiny
+
+The sprint plan currently targets `emit_c.py` as the code generator — it emits
+C-with-gotos, one label block per node, wired together. That model handles `ζ`
+(REF), `δ`/`Δ` (capture), and `λ` (action) straightforwardly as additional
+node templates.
+
+`Shift` and `Reduce` fit the **same template model**:
+- `Shift`: on α (enter), execute `push_tree(t, captured_span)`; signal γ (success)
+- `Reduce`: on α, `n = eval(n_expr)`; pop n from stack; push new tree; signal γ
+- `nPush`/`nInc`/`nPop`/`nTop`: on α, perform counter stack operation; signal γ
+
+All are **deterministic leaf nodes** — they never backtrack. They fire once on
+entry and always succeed (or abort the match on stack underflow). This makes
+them simpler to emit than `Alt` or `Arb`.
+
+### What This Unlocks
+
+With `nPush`/`Shift`/`Reduce` as builtins:
+
+1. `RegEx_PATTERN.h` becomes fully runnable (it uses `Shift` and `Reduce` — 
+   currently the only `.h` file blocked solely by those two nodes).
+2. Beautiful.sno's expression grammar can be serialized to a
+   `BEAUTIFUL_EXPRESSION_PATTERN.h` and `#include`d in the seed kernel —
+   exactly the Sprint 11 bootstrap step, but now including the full parser with
+   tree-building, not just recognition.
+3. The one-statement paradigm is complete: **one pattern match, one subject string,
+   full parse tree on exit**. No interpreter loop needed to drive the parser.
+
+### Relationship to the Sprint Plan
+
+This does not change the sprint sequence — Sprints 2–8 still proceed as planned
+(CAT, ALT, ASSIGN, SPAN β, BREAK/ANY, ARB, ARBNO). It reframes Sprint 9+:
+
+| Sprint | Was | Now |
+|--------|-----|-----|
+| 9 | REF/ζ (named pattern reference) | REF/ζ — unchanged |
+| 10 | Python front-end parser | + nPush/nInc/nPop/nTop as engine nodes |
+| 11 | Beautiful.sno → PATTERN.h | + Shift/Reduce as engine nodes → full parse tree |
+| 12 | Stage B language | One-statement parse: subject → tree via single match |
+
+### Open Questions (before implementing)
+
+1. **Tree representation**: what does `tree(t, v, n, children)` look like in C?
+   Simplest: a tagged union struct. Already implied by Beautiful.sno's `DATA('tree(...)')`.
+2. **Counter stack size**: fixed array (e.g. depth 64) vs realloc'd. Given nesting
+   depth of SNOBOL4 expressions, 64 is ample.
+3. **Value stack sharing with Psi/Omega**: the value stack must survive backtracking
+   correctly. On backtrack into a `Shift`, should the push be undone? In Beautiful.sno
+   it is not — `Shift` commits. This means `Shift` is a **fencing action**: once fired,
+   the surrounding pattern cannot backtrack past it. This is the same semantics as
+   FENCE — which is already in the engine.
+4. **emit_c.py templates for Shift/Reduce**: straightforward once tree struct is defined.
 
 ### P3 — Polish
 - [ ] `test/sprint1/` is missing `pos0.c` and `rpos0.c` (README references them, files absent)
