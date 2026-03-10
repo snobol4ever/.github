@@ -4034,3 +4034,81 @@ The parser-based auto-instrumentation (Option C from the bootstrap problem secti
 - [ ] Find DEBUG.SPT — the original SNOBOL4+ version of the debugger
 
 ---
+
+---
+
+## Idea: SNOBOL4python Tree-Based Instrumentation Pipeline
+
+**Proposed by Lon, 2026-03-10. Write it down, don't lose it.**
+
+### The Idea
+
+Use `transl8r_SNOBOL4.py` (the SNOBOL4python compiler front-end) as a
+parse-to-tree stage. It already builds a complete, well-structured AST from
+any SNOBOL4 source. Walk that tree, inject instrumentation nodes at chosen
+points, then emit the instrumented source back to SNOBOL4 (or directly to C).
+
+The instrumented source can run under **any oracle** (CSNOBOL4, SPITBOL) or
+under our own runtime. Both sides produce an identical trace format. Diff the
+two traces line-by-line to find exactly where our runtime first diverges.
+
+### What to Instrument
+
+Tree walk, inject probes at:
+
+- **Statement entry** — emit `STNO N` before each statement
+- **Variable assignment** — emit `VAR name "value"` after each `=`
+- **Function call / return** — emit `CALL name` / `RET name "value"` / `FRET name`
+- **Pattern match result** — emit `MATCH label S` or `MATCH label F`
+- **Conditional expression result** — emit `COND LT/GT/EQ "value" S|F`
+
+Each probe is itself a SNOBOL4 statement (e.g. `OUTPUT = 'STNO ' &STNO`) so
+the instrumented source is valid SNOBOL4 and runs unchanged on any conforming
+implementation.
+
+### Why This Is Better Than printf-in-C
+
+| Current (printf in C) | Proposed (tree instrumentation) |
+|---|---|
+| Recompile to add/remove probes | Edit tree walk, regenerate once |
+| Only runs on our binary | Runs on oracle AND our binary |
+| Manual placement, easy to miss | Systematic — every node of a given type |
+| Non-apples comparison | Identical trace format on both sides |
+| Hard to target subtrees | Trivially scope to one function or pass |
+
+### Implementation Sketch
+
+```
+beauty_run.sno
+    │
+    ▼
+transl8r_SNOBOL4.py  (SNOBOL4python parser → AST)
+    │
+    ▼
+instrument_tree.py   (walk AST, inject probe nodes)
+    │
+    ├──▶ beauty_run_instrumented.sno  (emit back to SNOBOL4)
+    │         │
+    │         ├── oracle run  → trace_oracle.txt
+    │         └── tiny run    → trace_tiny.txt
+    │
+    └── diff trace_oracle.txt trace_tiny.txt
+              → first divergence = exact bug location
+```
+
+### File Locations
+
+- Front end: `/home/claude/work/ByrdBox/ByrdBox/transl8r_SNOBOL4.py`
+- SNOBOL4python: `from SNOBOL4python import ...` (PyPI package)
+- New file to write: `instrument_tree.py` (in SNOBOL4-tiny/src/tools/ or HQ/tools/)
+
+### Priority
+
+**P2 — Important.** Not blocking the current P003 fix, but directly useful once
+the binary produces any output and we need to find the first divergence point
+precisely. Also useful retroactively — run on beauty_run.sno now, compare
+oracle vs tiny STNO streams to find every discrepancy systematically.
+
+### Standing Note
+
+This idea belongs to Lon. Credit it in any commit that implements it.
