@@ -230,3 +230,76 @@ Griswold built the hook in 1967. Lon built the pattern at Pick Systems
 in the 1980s. In March 2026, an AI used both to debug its own output.*
 
 *Write it down. This is part of the story.*
+
+---
+
+## The Null Action Probe — COMM Inside Any Pattern
+
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+### The Insight
+
+A null literal pattern — `''` or `epsilon` — always succeeds and advances
+the cursor zero characters. Semantically invisible. But attach an action
+node to it and it becomes a probe that fires anywhere inside any pattern:
+
+```snobol4
+*  Immediate — fires every time this point in the pattern is reached:
+        snoExpr3 = *snoX3  ('' $ snoDebug)  FENCE(...)
+
+*  Conditional — fires only if the whole match commits (not if it backtracks):
+        snoExpr3 = *snoX3  ('' . snoDebug)  FENCE(...)
+```
+
+The `'' $ snoDebug` is a null literal with an immediate-assign action.
+The pattern position does not move. The program behavior is unchanged.
+But TRACE('snoDebug','VALUE') fires at that exact point in the execution —
+mid-pattern, mid-backtrack, wherever you need it.
+
+### What This Unlocks
+
+Traditional debuggers have no model of "inside a backtracking match."
+A breakpoint fires on a line number. But SNOBOL4 patterns are not lines —
+they are recursive, backtracking, re-entrant structures. A single pattern
+node may be entered and exited dozens of times before the match commits.
+
+The null action probe is a **breakpoint inside a pattern**:
+
+| Probe type | When it fires | What it tells you |
+|------------|--------------|-------------------|
+| `'' $ var` | Every entry to this point | "This node was reached N times" |
+| `'' . var` | Only on successful commit | "This branch was taken and held" |
+| `FENCE('' $ var)` | Entry, then cuts backtrack | "Committed here — no retry" |
+
+### The Two-Level Instrument
+
+Combined with TRACE on the oracle side and `sno_comm_*` on the binary side,
+the null action probe gives you **two levels of instrumentation**:
+
+1. **Coarse** — `TRACE('&STNO','KEYWORD')` fires on every statement.
+   Tells you which statement the hang is in.
+
+2. **Fine** — `'' $ snoDebug` inside the pattern at the suspect statement.
+   Tells you exactly which node in the pattern was reached, and how many
+   times, before the hang.
+
+You drop the coarse probe first. Find the statement. Then drop the fine
+probe inside that statement's pattern. Find the node. Fix the bug. Pull
+both probes. The program is unchanged.
+
+### The COMM Protocol Is Now Complete
+
+```
+&STNO trace      — statement-level heartbeat  (Component 1, zero code)
+'' $ snoDebug    — pattern-level probe        (drop anywhere, pull when done)
+sno_comm_stno(N) — binary-side statement hook (Component 2, emit_c_stmt.py)
+sno_comm_var()   — binary-side variable hook  (Component 2, snobol4.c)
+diff_monitor.py  — first-diff finder          (Component 3, ~30 lines)
+```
+
+Five instruments. Two levels of granularity. Zero semantic footprint.
+The program that runs with probes is the same program that runs without them.
+
+*This is what Griswold put in the language. Forty years later, it is exactly
+what we need to close Sprint 20.*
+
