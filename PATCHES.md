@@ -178,3 +178,56 @@ Our runtime had no failure sentinel distinct from null.
 - `smoke_gaps`: 40/40. No regressions.
 
 **Files changed**: `snobol4.h`, `snobol4.c`, `snobol4_pattern.c`
+
+---
+
+## P003 — Conditional Expression Failure Not Propagated as Statement Failure
+**Date**: 2026-03-10
+**Found by**: P002 fix breaking loop at STNO 161, exposing next loop at STNO 578-579
+**Symptom**: After P002, binary advances past statement 161 but loops at STNO 578↔579.
+`&STCOUNT` reaches 10,000,000+ with no output produced.
+
+**Source SNOBOL4** (beauty_run.sno line 578):
+```snobol4
+findRefs_0  n  =  LT(n, n(x)) n + 1  :F(FRETURN)
+```
+Semantics: if `LT(n, n(x))` fails (n >= n(x)), the entire statement fails → `FRETURN`.
+If LT succeeds, `n + 1` is the result, assigned to `n`, falls through to line 579.
+
+**Generated C** (beautiful.c statement 578):
+```c
+sno_var_set("n", SNO_STR_VAL(sno_concat(
+    sno_to_str((sno_lt(...) ? sno_var_get("n") : SNO_NULL_VAL)),
+    sno_to_str(sno_add(sno_var_get("n"), SNO_INT_VAL(1LL))))));
+goto _stmt_1060;  /* always falls through — :F(FRETURN) never fires */
+```
+The ternary `(sno_lt(...) ? n : NULL)` silently produces empty string on failure,
+then concatenates with `n+1`, producing `"1"`, `"2"`, etc. — a non-null string.
+The assignment always succeeds. The `:F(FRETURN)` branch is never taken.
+
+**Root Cause**: The emitter translates conditional SNOBOL4 expressions
+(functions that succeed/fail) into C ternary expressions that swallow failure.
+Failure of `LT(...)` → `SNO_NULL_VAL` in the ternary → concatenated away → lost.
+The statement-level `_ok` flag is never set to 0 because the emitter doesn't
+propagate function-call failure through expressions.
+
+**The Pattern**: This is pervasive. Any SNOBOL4 statement of the form:
+```snobol4
+var = F(...) expr  :F(label)
+```
+where `F` is a success/fail function (LT, GT, EQ, DIFFER, IDENT, etc.) used
+inside an expression — the failure is silently converted to empty string
+rather than failing the statement and branching to `:F(label)`.
+
+**Fix Required**: The emitter must generate code where function-call failure
+inside an expression propagates as statement failure. Options:
+1. Use `SNO_FAIL_VAL` as the ternary false-branch result, then check
+   `sno_is_fail` on the final expression result before assignment.
+2. Use `setjmp`/`longjmp` for failure propagation through expressions.
+3. Restructure emitter to generate if/goto chains instead of ternary expressions.
+
+Option 1 is the least invasive — extend the existing `SNO_FAIL` mechanism.
+Check `sno_is_fail(result)` before `sno_var_set`, branch to fail label if true.
+
+**Files to change**: `emit_c_stmt.py` (expression emission), `snobol4.c` (var_set check)
+**Status**: P1 — blocks all progress. Every loop in beautiful.sno uses this pattern.
