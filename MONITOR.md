@@ -954,3 +954,69 @@ These must exist for the double-trace monitor to work:
 These three together give the binary the same execution control vocabulary
 as CSNOBOL4 and SPITBOL.
 
+
+---
+
+## Current Monitor State — As Of 2026-03-10
+
+### The Two Sides
+
+**Oracle side** — two oracles available, NOT equivalent:
+
+| Oracle | Command | Result on beauty_run.sno | Stdout lines |
+|--------|---------|--------------------------|--------------|
+| CSNOBOL4 | `snobol4 -f -P256k beauty_run.sno < beauty_run.sno` | Exit 0 ✓ | **649 lines** |
+| SPITBOL | `spitbol beauty_run.sno < beauty_run.sno` | Exit 1 ✗ | 25 lines |
+
+SPITBOL fails at line 630 (`END`) with error 021 — "function called by name
+returned a value." SPITBOL does not handle `-INCLUDE` directives the same way.
+The 649-line CSNOBOL4 output is the authoritative oracle.
+**SPITBOL is not a usable oracle for beauty_run.sno.**
+
+**Binary side** — `./beautiful` (SNOBOL4-tiny):
+
+```
+SNO_MONITOR=1 timeout 5 ./beautiful < beauty_run.sno
+Exit: 124 (timeout)
+Trace lines: 333,415
+Last events: STNO 160 ↔ STNO 161, VAR i incrementing to 83,311+
+```
+
+Loop at STNO 160↔161. `i` increments forever. `sno_subscript_get2`
+returns a non-failing value for out-of-bounds `i` — P002, not yet fixed.
+
+### What the Monitor Can See Right Now
+
+| Sync type | Oracle side | Binary side | Diff possible? |
+|-----------|-------------|-------------|----------------|
+| STNO | ✗ (TRACE eats &STLIMIT) | ✓ streams to stderr | No — oracle STNO not armed |
+| VAR | ✗ not armed | ✓ all assignments visible | No |
+| OUT | ✓ 649 lines to stdout | ✗ 0 lines — hangs before output | **Yes — trivially: binary produces nothing** |
+| MATCH | ✗ | ✗ | No |
+
+**Current diff**: binary produces zero output lines. Oracle produces 649.
+That is the only comparison possible right now. The binary never reaches
+its first `OUTPUT =` statement.
+
+### What Must Be Fixed Before the Monitor Can Run a Meaningful Diff
+
+1. **P002** — `sno_subscript_get2` out-of-bounds must signal failure.
+   This unblocks the loop at STNO 160↔161 and lets execution advance.
+
+2. **INPUT wiring** — `sno_var_get("INPUT")` must call `sno_input_read()`.
+   Suspected secondary hang after P002 is fixed.
+
+3. Once binary produces output: arm OUT sync on both sides. Compare
+   first output line divergence. That is the next real diff.
+
+### SPITBOL vs CSNOBOL4 — Oracle Divergence Documented
+
+SPITBOL and CSNOBOL4 are **not equivalent** on beauty_run.sno:
+- CSNOBOL4 handles `-INCLUDE` as a preprocessor directive. ✓
+- SPITBOL does not process `-INCLUDE` — treats it as a label or fails. ✗
+- SPITBOL error 021 at line 630: "function called by name returned a value"
+  — a semantic difference in how indirect function calls are handled.
+
+**For this project: CSNOBOL4 is the sole authoritative oracle.**
+SPITBOL is a secondary reference for keyword behavior only.
+
