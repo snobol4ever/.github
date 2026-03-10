@@ -1,10 +1,8 @@
 # SNOBOL4-plus — Master Plan
 
-> **For a new Claude session**: Read this file first. This is the single plan
-> for the entire SNOBOL4-plus organization. All repos are developed together.
-> Clone all repos immediately (see **Session Start — Clone All Repos** below).
-> Then build CSNOBOL4 and SPITBOL (see **Session Start — Build Oracles**) — always.
-> Then run the test suites in the repos you are working on to confirm baselines.
+> **For a new Claude session**: Read `DIRECTORY.md` first — it tells you exactly
+> where to look for what. Then come back here for the section you need.
+> This file is the single source of truth for the entire SNOBOL4-plus organization.
 > The Tradeoff Prompt for SNOBOL4-jvm is at the bottom of that repo's section.
 
 ---
