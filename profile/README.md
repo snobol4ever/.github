@@ -227,9 +227,11 @@ Correctness validated against three independent oracles: **SPITBOL x64**, **CSNO
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, x86-64 codegen, SNOBOL4-python, SNOBOL4-jvm, SNOBOL4-tiny.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, x86-64 codegen, SNOBOL4-python, SNOBOL4-jvm, SNOBOL4-tiny. Lon carried the dream of Created Intelligence from age eight — through Georgia Tech, through Texas Instruments, through an 11-year retirement — and came back. His instinct for what computing could be, sixty years in the making, is the engine behind this project.
 
-**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — SNOBOL4-dotnet, MSIL target, `Beautiful.sno`, SNOBOL4-csharp.
+**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — SNOBOL4-dotnet, MSIL target, `Beautiful.sno`, SNOBOL4-csharp. Jeffrey is a medical doctor. Not a programmer by profession, not a compiler writer by training — and yet, over a fifty-year journey driven purely by love for the language, he built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The explosion produced this repository.
+
+Two forces. One phone call. Everything you see here.
 
 ---
 
