@@ -1360,18 +1360,36 @@ This does not change the sprint sequence — Sprints 2–8 still proceed as plan
 | 11 | Beautiful.sno → PATTERN.h | + Shift/Reduce as engine nodes → full parse tree |
 | 12 | Stage B language | One-statement parse: subject → tree via single match |
 
-### Open Questions (before implementing)
+### Open Questions — RESOLVED by reading the repos
 
-1. **Tree representation**: what does `tree(t, v, n, children)` look like in C?
-   Simplest: a tagged union struct. Already implied by Beautiful.sno's `DATA('tree(...)')`.
-2. **Counter stack size**: fixed array (e.g. depth 64) vs realloc'd. Given nesting
-   depth of SNOBOL4 expressions, 64 is ample.
-3. **Value stack sharing with Psi/Omega**: the value stack must survive backtracking
-   correctly. On backtrack into a `Shift`, should the push be undone? In Beautiful.sno
-   it is not — `Shift` commits. This means `Shift` is a **fencing action**: once fired,
-   the surrounding pattern cannot backtrack past it. This is the same semantics as
-   FENCE — which is already in the engine.
-4. **emit_c.py templates for Shift/Reduce**: straightforward once tree struct is defined.
+All questions answered by `SNOBOL4-csharp/src/SNOBOL4/ShiftReduce.cs`,
+`Core.cs`, `Tests_RE_Grammar.cs`, and `examples/parsetree.csx`.
+
+1. **Tree representation**: `List<object>` where `[0]` is the tag string and
+   `[1..]` are children. In C: a tagged struct with a `char *tag`, `int n`,
+   `void **children` — or simply reuse `Pattern`-style children array with a
+   string tag field. Already implied by `DATA('tree(...)')` in Beautiful.sno.
+   The C# implementation (`_Reduce`) wraps children into `new List<object> { tag, child... }`.
+
+2. **Counter stack size**: `List<int> istack` with `int itop` index in C#.
+   In C: a small fixed array (depth 64 is ample for any real grammar) or
+   `realloc`'d like Psi/Omega. `itop` starts at -1 (empty).
+
+3. **Backtrack behavior of Shift — RESOLVED**: All six nodes (`nPush`, `nInc`,
+   `nPop`, `Shift`, `Reduce`, `Pop`) use the **cstack (deferred-action queue)**
+   pattern. They push an `Action` onto `cstack` *before* yielding, and pop it
+   if backtracked into. The engine fires all surviving `cstack` actions only
+   after the whole match commits (`Engine.SEARCH` fires them in order after the
+   first successful yield). This means:
+   - **Shift does NOT commit on entry** — it is fully undoable on backtrack.
+   - The tree is built only when the entire match succeeds.
+   - This is **not** the same as FENCE — it is closer to conditional capture (`.`).
+   - In engine.c terms: these are `cstack` nodes — they register a deferred
+     action, yield success, and deregister on backtrack. The C analog is adding
+     a `deferred[]` array to `MatchState` / `State`.
+
+4. **emit_c.py templates**: straightforward once deferred-action array is in State.
+   Each node emits: push action pointer on α, yield success, pop on β.
 
 ---
 
@@ -1422,12 +1440,15 @@ It also directly validates the nPush/Shift/Reduce idea: if those nodes are
 built into the engine, Beautiful.sno compiles as a single pattern — which is
 the cleanest possible test of that design.
 
-### Prerequisites
+### Prerequisites — RESOLVED by reading the repos
 
 1. `-INCLUDE` handling (Sprint 10 / Python front-end) — Beautiful.sno pulls in 17 files.
-2. `ζ` REF nodes (Sprint 9) — mutual recursion across named patterns.
-3. `nPush`/`Shift`/`Reduce` as engine nodes (see IDEA above).
-4. stdin/stdout already in Stage B spec.
+2. `ζ` REF nodes (Sprint 9) — mutual recursion. Implemented in SNOBOL4-csharp as
+   `ζ(() => expr)` deferred lambda (`examples/recursive.csx`).
+3. `nPush`/`Shift`/`Reduce` as engine nodes — implemented and tested in SNOBOL4-csharp
+   (`ShiftReduce.cs`, `Tests_RE_Grammar.cs`). 29 parse/reject cases, tree shape verified.
+4. **cstack** deferred-action mechanism is the key (see nPush/Shift/Reduce IDEA).
+5. stdin/stdout already in Stage B spec.
 
 ### Oracle
 
