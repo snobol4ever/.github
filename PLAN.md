@@ -1086,27 +1086,62 @@ moderate = one day, hard = two days.
 `io` → `readwrite`. Tracing/debug (`omega`, `trace`, `tdump`, `xdump`) can be
 stubs that print nothing — they are not on the critical path for correct output.
 
+### Architecture Decisions (resolved 2026-03-10)
+
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| Memory model | **Boehm GC** | No ref-counting complexity. GC ptrs flow through SnoVal transparently. |
+| Tree children | **realloc'd dynamic array** | Audit: snoExprList, snoExpr3, snoParse are unbounded. Fixed max ruled out. |
+| cstack location | **Thread-local** | `__thread MatchState *sno_current_match`. Matches SNOBOL4-csharp `[ThreadStatic]`. |
+
+**Remaining open:**
+- Tracing modules (omega, trace, tdump, xdump) — stub or `#ifdef SNO_TRACE`?
+- SNOBOL4cython v2 repo destination
+- ByrdBox struct reconciliation timing
+- Sprint 2/3 oracle commit timing
+
 ### Key C Structs (shared across all modules)
 
 ```c
-/* sno_val.h — the universal value type */
+/* sno_val.h — universal value type; all ptrs GC-managed (Boehm) */
 typedef enum { SNO_NULL, SNO_STR, SNO_INT, SNO_REAL, SNO_TREE,
                SNO_PATTERN, SNO_ARRAY, SNO_TABLE } SnoType;
-typedef struct SnoVal { SnoType type; union { ... }; } SnoVal;
+typedef struct SnoVal { SnoType type; union {
+    char        *s;
+    long         i;
+    double       r;
+    struct Tree *t;
+    void        *p;
+}; } SnoVal;
 
-/* tree node — direct translation of DATA('tree(t,v,n,c)') */
+/* tree node — DATA('tree(t,v,n,c)')
+   realloc'd children: snoExprList/snoExpr3/snoParse are unbounded */
 typedef struct Tree {
-    char    *tag;       /* t: type string */
-    SnoVal   val;       /* v: leaf value */
-    int      n;         /* n: child count */
-    struct Tree **c;    /* c: children array */
+    char         *tag;
+    SnoVal        val;
+    int           n, cap;
+    struct Tree **c;
 } Tree;
 
-/* counter stack node — DATA('link_counter(next,value)') */
+/* counter stack — DATA('link_counter(next,value)') */
 typedef struct CounterNode { struct CounterNode *next; int value; } CounterNode;
 
-/* value stack node — DATA('link(next,value)') */
+/* value stack — DATA('link(next,value)') */
 typedef struct StackNode { struct StackNode *next; Tree *value; } StackNode;
+
+/* cstack: deferred commit actions for Shift/Reduce/nPush */
+typedef void (*CAction)(void *ctx);
+typedef struct CEntry { CAction fn; void *ctx; } CEntry;
+
+/* MatchState — thread-local current pointer */
+typedef struct MatchState {
+    const char *subject;
+    int         pos;
+    CEntry     *cstack; int cstack_n, cstack_cap;
+    int        *istack; int itop;
+    StackNode  *vstack;
+} MatchState;
+extern __thread MatchState *sno_current_match;
 ```
 
 ### Operator Inventory — Beautiful.sno (complete)
