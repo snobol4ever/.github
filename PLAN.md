@@ -183,6 +183,7 @@ Used as submodule at `corpus/lon` in SNOBOL4-jvm and `corpus/` in SNOBOL4-dotnet
 | 2026-03-10 | Org profile README written and published via `.github`. |
 | 2026-03-09 | `SNOBOL4` repo renamed to `SNOBOL4-corpus`. Restructured: content under `programs/`, 14 canonical benchmark programs added to `benchmarks/`. `SNOBOL4-jvm` submodule URL updated. `SNOBOL4-dotnet` gains `corpus/` submodule + `benchmarks/Program.cs` runner. |
 | 2026-03-10 | Cross-engine benchmark pipeline (Step 6). SPITBOL `systm.c` patched (ns→ms). CSNOBOL4 built from source. SNOBOL4-dotnet `Time.cs` fixed (ElapsedMilliseconds). `arith_loop.sno` updated to 1M iters + TIME() wrappers. SNOBOL4-jvm uberjar fixed: thin AOT launcher `main.clj` (zero requires, dynamic delegate). Results: SPITBOL 20ms, CSNOBOL4 140ms, JVM uberjar 8486ms. |
+| 2026-03-10 | **Architecture session + org profile README.** Deep review of ByrdBox.zip, SNOBOL4-tiny, and all org repos. Key articulation: Byrd Box as code generation strategy (zero dispatch vs SPITBOL's 3-instruction NEXT); Forth kernel analogy (exact, not metaphorical); natural language horizon (chomsky-hierarchy.sno, transl8r_english, WordNet, Penn Treebank in 5 lines); Beautiful.sno solves the bootstrap. Org profile README expanded and pushed to `.github` (commit `ddbf477`): added "The Discovery", "The Natural Language Horizon", SNOBOL4-tiny section with Forth table, "The Deeper Point" (Griswold/McCarthy). No code changes — documentation and architecture session only. |
 
 ---
 
@@ -307,7 +308,8 @@ pick up without re-explanation.
 - [ ] **Execution control triad: `&STCOUNT` / `&STLIMIT` / `&TRACE`** — These three keywords form a complete development and testing tool inherited from the original SIL design. `&STCOUNT` tells you exactly where execution is. `&STLIMIT` stops execution at a given statement count — killing infinite loops and enabling binary search to the exact statement where behavior diverges. `&TRACE` shows what is happening as it happens. Workflow: run the same program on CSNOBOL4, SPITBOL, and our engine; compare `&STCOUNT` at failure; binary search with `&STLIMIT` to isolate the diverging statement instantly without a debugger. CSNOBOL4 disables `&STCOUNT` incrementing by default (`&STLIMIT = -1`) as a 1990s speed optimization — on modern hardware the counter increment is essentially free. Our dotnet and JVM engines should keep `&STCOUNT` always enabled. Speed-disable is a low priority.
 - [ ] **SNOBOL4-dotnet**: `WindowsDll` and `LinuxDll` in `SetupTests.cs` are declared but never used — dead variables, remove.
 - [ ] **SNOBOL4-dotnet**: `Test0.Test.cs` and `CTest_CODE0_NTest_CODE0.cs` contain hardcoded `C:\Users\jcooper\...` absolute paths — both are excluded from compilation but should be cleaned up or deleted.
-- [ ] Write individual repo READMEs for all five repos
+- [x] Write org profile README — done 2026-03-10, commit `ddbf477`
+- [ ] Write individual repo READMEs for all five repos (org README updated; individual repo READMEs still needed)
 - [ ] Delete four archived personal repos after April 10, 2026
 
 ---
