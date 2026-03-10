@@ -2769,3 +2769,81 @@ Next session: read PLAN.md EMERGENCY HANDOFF section first.
 no verification that tests pass. Speed over completeness. Get it on the remote.
 
 ---
+
+---
+## Session Log Entry — 2026-03-10 (Sprint 20 Triage)
+
+### What Happened
+
+Sprint 20 triage: drove Beautiful.sno to idempotent self-beautification under CSNOBOL4.
+
+**Key discoveries (all documented in corpus commits):**
+
+1. **SPITBOL -f flag is wrong.** System labels (`end`, `return`, etc.) are stored lowercase in SPITBOL's assembly; case folding is required for them to match. `-f` (don't fold) breaks END detection. The correct SPITBOL invocation is `-b` only.
+
+2. **CSNOBOL4 requires `-f`** (disable folding) because `DATA('tree')` and `DEFINE('Tree')` are the same identifier under default case folding, causing infinite recursion in Tree(). With `-f` they are distinct.
+
+3. **CSNOBOL4 requires `-P 256k`** (pattern match stack). snoParse is a 17-level recursive grammar; default 8000 descriptors overflows.
+
+4. **semantic.inc duplicate labels** (SPITBOL only): two-arg DEFINE with trailing-underscore body labels (`shift_`, `reduce_` etc.) fixes the duplicate label error in SPITBOL.
+
+5. **beauty.sno visit/Visit collision**: beauty.sno's `visit` function collides with tree.inc's `Visit` under SPITBOL case folding. Fixed by renaming to `bVisit`.
+
+6. **Gen.inc GenTab bug** (idempotence blocker): When `pp_snoCall` splits a function call with `Gen('(' nl)`, the subsequent `GenTab()` started a non-empty buffer without embedding `$'$X'` (the continuation char placeholder). First content line after the split lacked the `+` continuation marker. Second pass failed to parse those lines. Fix: GenTab seeds empty buffer with `$'$X'` before appending spaces.
+
+**Result:**
+```
+snobol4 -f -P 256k beauty_run.sno < beauty_run.sno  → 649 lines, exit 0
+snobol4 -f -P 256k beauty_run.sno < pass1.txt        → 649 lines, exit 0
+diff pass1 pass2 → empty
+```
+
+Beauty.sno beautifies itself idempotently. Bootstrap closure on the SNOBOL4 side.
+
+**Commits (SNOBOL4-corpus):**
+- `2a38222` — Sprint 20 triage: beauty_run.sno + semantic.inc fixes
+- `60c230e` — Gen.inc GenTab fix — idempotence achieved
+
+**Sprint 20 status:** The SNOBOL4 oracle is now established. The acceptance test (`snoc` compiles Beautiful.sno → binary runs on itself → idempotent diff) still requires snoc to grow many language features. That work continues.
+
+---
+
+## Session Log Entry — 2026-03-10 (Sprint 20 Triage — continued, idempotence achieved)
+
+### This Session's Discoveries
+
+Building on the previous entry. The key breakthroughs:
+
+**The -f flag mystery resolved from SPITBOL source:**
+SPITBOL's system labels (`end`, `return`, `freturn`, `nreturn`) are stored
+as lowercase bytes in `sbl.asm`. Case folding (-F, the default) maps source
+`END` → `end` → matches. With `-f` (no fold), source `END` stays uppercase,
+never matches the lowercase table entry. `-f` silently breaks the language.
+The switch Lon intended was always just `-b` (suppress banner). No `-f`.
+
+**CSNOBOL4 -f is correct and required:**
+CSNOBOL4 folds to uppercase by default. `DATA('tree')` and `DEFINE('Tree')`
+become the same identifier `TREE` — DEFINE overwrites DATA, tree() calls
+Tree() which calls tree() which calls Tree()... stack overflow. With `-f`,
+`tree` and `Tree` are distinct. The `-f` switch is correct for CSNOBOL4.
+
+**GenTab bug — the idempotence blocker:**
+Found in Gen.inc. After `Gen('(' nl)` flushes a line, `GenTab()` filled
+the empty buffer with spaces without first embedding `$'$X'` (the continuation
+char placeholder). The first content line after a split function call printed
+without the `+` marker. Second-pass parse failed on that line.
+Fix: GenTab seeds empty buffer with `$'$X'` before appending spaces.
+
+**Final result:**
+```
+snobol4 -f -P256k beauty_run.sno < beauty_run.sno → 649 lines, exit 0
+snobol4 -f -P256k beauty_run.sno < pass1.txt      → 649 lines, exit 0  
+diff pass1 pass2 → empty
+```
+
+Beauty.sno self-beautifies idempotently. The SNOBOL4 oracle is established.
+
+**Commits:**
+- SNOBOL4-corpus `2a38222` — triage fixes (semantic.inc, beauty_run.sno)
+- SNOBOL4-corpus `60c230e` — Gen.inc GenTab fix
+
