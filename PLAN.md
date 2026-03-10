@@ -221,7 +221,7 @@ pick up without re-explanation.
   - 7 real-format tests — `RealConversionStrategy.TweakRealString`: suffix was `.0`; correct per SPITBOL (`sbl.min` gts27) and CSNOBOL4 (`lib/realst.c`) is trailing dot only — `"25."` not `"25.0"`. Changed to `str + "."`. Test assertions updated.
   - `Load_Area_FailureBranchBadClass`, `Load_Area_FailureBranchMissingFile` — `Load.cs`: call `NonExceptionFailure()` instead of `LogRuntimeException()` so `:F` branch is taken on LOAD() error.
 - [x] **SNOBOL4-dotnet**: No CI. F# is included in .NET 10 SDK (no separate workload needed — confirmed). Add GitHub Actions workflow: build solution in order, run full test suite. *(done 2026-03-10, commit `5b635b0`)*
-- [ ] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0`.
+- [x] **SNOBOL4-dotnet** `benchmarks/Benchmarks.csproj` targets `net8.0` — should be `net10.0`. *(fixed 2026-03-10, commit `defc478`)*
 - [ ] Verify SNOBOL4python 0.5.1 published to PyPI (check Actions tab)
 - [ ] Remove old PyPI Trusted Publisher (`LCherryholmes/SNOBOL4python`)
 - [ ] **SNOBOL4-jvm Sprint 23E**: inline EVAL! in JVM codegen — eliminate arithmetic bottleneck
@@ -527,6 +527,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 | 2026-03-07 | MSIL emitter Steps 1–13 complete. LOAD/UNLOAD plugin system. 1,413 → 1,484 tests. All merged to `main`. |
 | 2026-03-10 | Fixed all 10 failing tests (commit `3bce92c`): real-to-string format (`"25."` not `"25.0"` — verified against SPITBOL `sbl.min` and CSNOBOL4 `realst.c`); LOAD() `:F` branch on error; `&STLIMIT` exception swallowed gracefully. Plugin DLLs now auto-built via `ProjectReference` build-only deps in `TestSnobol4.csproj`. Baseline: **1,466 / 0**. |
 | 2026-03-10 | Added GitHub Actions CI workflow `.github/workflows/ci.yml` — triggers on push/PR to `main`, runs `dotnet build Snobol4.sln -c Release` then `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`. commit `5b635b0`. |
+| 2026-03-10 | Fixed `benchmarks/Benchmarks.csproj` `net8.0` → `net10.0` (net8 EOL Nov 2025, net10 is current LTS). commit `defc478`. |
 | 2026-03-10 | Documented credential format in PLAN.md Git Identity section (token arrives as `_trYPI... phg` → reconstruct as `ghp_trYPI...`, username `LCherryholmes`). |
 
 ---
