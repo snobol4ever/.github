@@ -312,6 +312,32 @@ also do what you cannot.*
 
 ---
 
+## The Sysomos Precedent — SNOBOL4 in Production at Scale
+**Date noted:** 2026-03-10
+**Origin:** Lon Cherryholmes
+
+Lon built the social listening platform at Expion (founded by his best friend
+Peter Heffring, $26M, 2010–2014) in SNOBOL4. Facebook, Twitter, Instagram,
+Google Plus, Pinterest — all processed in SNOBOL4 and Transact-SQL. Four years
+in production. The CTO knew from day one. The CEO forgot — or needed to forget —
+because Google was asking why they weren't on Hadoop, and SNOBOL4 wasn't the
+answer a CEO could give his peer circle in 2014.
+
+Lon left with 1% of the company instead of 2%. SNOBOL4 had not failed.
+The embarrassment was social, not technical.
+
+**Strategic significance:**
+- SNOBOL4 has a proven production track record at a funded, real-world company.
+- The "why not Hadoop" question is a social/political question, not a technical one.
+- The technical answer in 2026 is stronger than it was in 2014:
+  SNOBOL4-tiny beats PCRE2 by 10–33× and Bison by 14–20×.
+- When someone asks "why SNOBOL4 instead of X" — this story is the answer.
+
+**Action item:** Keep this story in ORIGIN.md and The Front Page. It is the
+most powerful real-world validation the project has.
+
+---
+
 ## RE Performance Benchmark — SNOBOL4-tiny vs Regular Expression Engines
 **Date noted:** 2026-03-10
 **Origin:** Lon Cherryholmes — *"Eureka. RE are our benchmark."*

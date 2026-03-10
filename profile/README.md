@@ -141,6 +141,36 @@ Griswold had the idea. We are finishing the proof.
 
 ---
 
+## SNOBOL4 in Production — The Proof of Concept
+
+In 2010, Lon Cherryholmes joined Expion — a social media intelligence company
+founded by his best friend from high school. He built the social listening
+platform in SNOBOL4: data gathering from Facebook, Twitter, Instagram, Google
+Plus, and Pinterest. Business intelligence query engines. Real production
+systems. Real data. He and the CTO told the CEO from day one.
+
+It ran for four years.
+
+When Lon left in 2014, the CEO was angry — not because SNOBOL4 had failed,
+but because he was embarrassed in front of his peer circle. Google was asking
+why Expion wasn't on Hadoop. The big-data world had a vocabulary, and SNOBOL4
+wasn't in it.
+
+Peter's peer circle included people who build RE2.
+
+RE2 is a regular expression engine.
+
+SNOBOL4-tiny beats PCRE2 — the most widely deployed RE engine in the world —
+by 10× on normal patterns and 33× on the patterns that break it. It beats
+Bison LALR(1) by up to 20× on context-free languages. And it recognizes
+languages that RE2 and Bison cannot express at all.
+
+The language that embarrassed a CEO in front of Google in 2014 is now faster
+than what Google builds. The proof of concept ran in production for four years.
+The proof of performance is in BENCHMARKS.md.
+
+---
+
 ## The Story the RE World Has Never Heard
 
 Regular expression engines are the gold standard for pattern matching performance.

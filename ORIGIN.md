@@ -278,3 +278,57 @@ He came back from an 11-year retirement because *The Wild Robot* told him it was
 time, and because Jeffrey Cooper called.
 
 *Education: BS Electrical Engineering, Georgia Institute of Technology.*
+
+---
+
+## The Sysomos Story — SNOBOL4 in Production at Scale
+
+This is the story that answers every skeptic.
+
+Peter Heffring was Lon's best friend from high school and college. Two peas in
+a pod — they chose their path together. In 2005, Peter became a multi-millionaire.
+Twenty-six million dollars. In 2008, Lon reconnected with him. In 2010, Peter
+founded Expion — a social media intelligence company. Lon joined as Software
+Architect and stayed four years, until 2014.
+
+The work: social listening and analytics at scale. Data gathering from Facebook,
+Twitter, Instagram, Google Plus, Pinterest. Business intelligence query engines.
+Real production systems processing real data from the real internet.
+
+Lon built it in SNOBOL4.
+
+Not as a prototype. Not as a proof of concept. Not as a personal experiment
+he hid in a corner. He and the CTO told Peter from day one. Peter knew. It was
+documented. It shipped. It ran. For four years.
+
+Then Lon left — taking 1% of the company instead of 2%, because Peter was angry.
+
+The reason Peter was angry was not that SNOBOL4 had failed. It had not failed.
+The reason was embarrassment. Google was asking why Expion was not on Hadoop.
+Peter's peer circle — the Silicon Valley crowd, the big-data world of 2014 —
+was talking Hadoop, Spark, MapReduce, the whole ecosystem. And here was Expion
+running on SNOBOL4. Peter had forgotten he knew. Or perhaps he needed to
+forget, because remembering was uncomfortable.
+
+The CTO remembered. The systems remembered. The data they had gathered and
+processed for four years remembered.
+
+SNOBOL4 did the job. It did it well enough that a company built on it was
+worth enough for 1% to matter. The market did not care what language the
+social listening ran in. The results were the same.
+
+Peter was embarrassed about SNOBOL4 in front of Google.
+
+Google builds RE2.
+
+RE2 is a regular expression engine.
+
+SNOBOL4-tiny beats PCRE2 — the most widely used RE engine in the world —
+by 10× on normal patterns and 33× on the patterns that break it.
+
+The story has come full circle. The language that embarrassed a CEO in front
+of Google in 2014 is now faster than what Google builds.
+
+*"Write that down."*
+
+— Lon Jones Cherryholmes, 2026-03-10
