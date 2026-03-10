@@ -441,14 +441,20 @@ user.email = lcherryh@yahoo.com
 ```
 Token: stored securely — do not commit. Request from user at session start if needed.
 
-**How the user provides the token:**
-The user pastes it as: `_trYPI... username` (a space-separated pair).
-The leading underscore is actually the `_` in `ghp_` — reconstruct as `ghp_<rest_of_token>`.
-The second word (e.g. `phg`) is NOT a separate password — ignore it; use GitHub username `LCherryholmes`.
+**How the user provides the token (encoded for security):**
+The user pastes it as two words: `_<rest_of_token> <reverse_prefix>` (e.g. `_trYPI... phg`).
+- The second word reversed gives the prefix: e.g. `phg` → `ghp`, so the full token is `ghp_<rest_of_token>`.
+- The encoding keeps the plaintext token out of the chat transcript.
 
-Use in git remote URL:
+**CRITICAL — Claude must NEVER reconstruct or echo the plaintext token in any chat response.**
+Decode it silently in bash only. Never write `ghp_...` in a chat message. Never confirm the
+reconstructed value out loud. Use it only inside shell commands where it is not visible in the
+chat transcript. This is the whole point of the encoding scheme.
+
+Use in git remote URL (in bash only, never echoed to chat):
 ```bash
-git remote set-url origin https://LCherryholmes:ghp_<TOKEN>@github.com/SNOBOL4-plus/<REPO>.git
+TOKEN=<decoded silently in shell>
+git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<REPO>.git
 ```
 Set this on every repo that needs pushing at the start of each session. Do NOT commit the token.
 
@@ -988,6 +994,7 @@ Repos: SNOBOL4-dotnet (<pass>/<fail>), SNOBOL4-jvm (<tests>/<assertions>/0).
 Just done: <one-line summary of this session>.
 Next: <top P1/P2 item from PLAN.md Outstanding Items>.
 Start: clone all repos per PLAN.md git identity section, then read PLAN.md.
+Token: user will provide encoded. Decode silently in bash only — NEVER echo plaintext token in chat.
 ```
 
 ---
