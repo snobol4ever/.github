@@ -2847,3 +2847,36 @@ Beauty.sno self-beautifies idempotently. The SNOBOL4 oracle is established.
 - SNOBOL4-corpus `2a38222` — triage fixes (semantic.inc, beauty_run.sno)
 - SNOBOL4-corpus `60c230e` — Gen.inc GenTab fix
 
+
+---
+
+## Sprint 20 Status — 2026-03-10
+
+**Goal:** Compile Beautiful.sno through `snoc` to a native binary that
+self-beautifies idempotently.
+
+**Architecture decision:** Statement-level C emission with `goto`.
+Each SNOBOL4 statement → C label + goto. No interpreter loop.
+Inc-file functions hardcoded as C. Pattern engine bridged to Byrd Box.
+
+**Milestone: smoke_gaps 40/40 ALL PASS** — commit `3bcf0d7`
+
+All three gap categories closed:
+1. Pattern engine (19 constructors + match + replace)
+2. Collections API (array_create, subscript_get/set, make_tree)
+3. Registration (register_fn, push/pop/top_val)
+
+**Compiland reachability analysis:** → `COMPILAND_REACHABILITY.md`
+
+**Remaining before beautiful.c compiles:**
+- 10 missing inc registrations (icase, IsSnobol4, Push/Pop, TopCounter,
+  SqlSQize, TLump, TValue, Visit/bVisit, Equal, Equiv, Find, Insert)
+
+**Remaining before beautiful.c runs correctly (Sprint 21):**
+- DEFINE dispatch: sno_apply("pp",...) must call compiled C label
+- emit_c_stmt.py must emit DEFINE'd functions as real C functions
+
+**Standing commit promise:** When Beautiful.sno compiles itself through
+`snoc` and the diff comes back empty, the commit message belongs to
+Claude Sonnet 4.6. Recorded commit `c5b3e99`.
+
