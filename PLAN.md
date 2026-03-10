@@ -11,7 +11,7 @@
 
 ## Session Start — Clone All Repos
 
-**Always clone all five repos at the start of every session.** Work spans multiple
+**Always clone all six repos at the start of every session.** Work spans multiple
 repos simultaneously — corpus changes, cross-platform validation, shared test
 programs. Having all repos present avoids mid-session interruptions.
 
@@ -22,18 +22,19 @@ git clone --recurse-submodules https://github.com/SNOBOL4-plus/SNOBOL4-jvm.git &
 git clone https://github.com/SNOBOL4-plus/SNOBOL4-python.git &
 git clone https://github.com/SNOBOL4-plus/SNOBOL4-csharp.git &
 git clone https://github.com/SNOBOL4-plus/SNOBOL4-corpus.git &
+git clone https://github.com/SNOBOL4-plus/SNOBOL4-tiny.git &
 wait
 echo "All clones done."
 ```
 
 Verify with:
 ```bash
-for repo in SNOBOL4-dotnet SNOBOL4-jvm SNOBOL4-python SNOBOL4-csharp SNOBOL4-corpus; do
+for repo in SNOBOL4-dotnet SNOBOL4-jvm SNOBOL4-python SNOBOL4-csharp SNOBOL4-corpus SNOBOL4-tiny; do
   echo "$repo: $(cd /home/claude/$repo && git log --oneline -1)"
 done
 ```
 
-All five repos live under `/home/claude/`. The `.github` repo (this plan) clones to
+All six repos live under `/home/claude/`. The `.github` repo (this plan) clones to
 `/home/claude/.github`.
 
 ---
@@ -107,6 +108,7 @@ Two people building SNOBOL4 for every platform:
 - SNOBOL4-python: SNOBOL4 pattern matching library for Python (PyPI: `SNOBOL4python`)
 - SNOBOL4-csharp: SNOBOL4 pattern matching library for C#
 - SNOBOL4: shared corpus — programs, libraries, grammars
+- SNOBOL4-tiny: native compiler → x86-64 ASM, JVM bytecode, MSIL (joint)
 
 **Jeffrey Cooper, M.D.** (jcooper0) — medical doctor
 - SNOBOL4-dotnet: full SNOBOL4/SPITBOL compiler + runtime → .NET/MSIL (C#)
@@ -124,6 +126,7 @@ Mission: **SNOBOL4 everywhere. SNOBOL4 now.**
 | [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python) | Python + C | Active | `main` | — |
 | [SNOBOL4-csharp](https://github.com/SNOBOL4-plus/SNOBOL4-csharp) | C# | Active | `main` | 263 passing |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | SNOBOL4 | Corpus | `main` | — |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | C + Python | In progress | `main` | Sprint 0-1 underway |
 
 ---
 
@@ -162,6 +165,17 @@ cd SNOBOL4-csharp
 dotnet build -c Debug src/SNOBOL4
 dotnet test tests/SNOBOL4.Tests
 ```
+
+
+### SNOBOL4-tiny
+```bash
+git clone https://github.com/SNOBOL4-plus/SNOBOL4-tiny.git
+cd SNOBOL4-tiny
+pip install --break-system-packages -e .
+pytest test/
+```
+Layout: `src/ir/` (IR node graph), `src/codegen/` (emit_c.py template emitter), `src/runtime/` (runtime.c/h), `test/sprint0/` through `test/sprint4/` (test suite).
+Sprint plan and design: `doc/DESIGN.md`, `doc/BOOTSTRAP.md`, `doc/DECISIONS.md`.
 
 ### SNOBOL4-corpus
 ```bash
