@@ -1215,8 +1215,48 @@ Omega entry — the backtrack stack is completely self-contained.
 - [ ] **Sprint 6 (BREAK + ANY)**: add C templates to emit_c.py. Straightforward — model on existing Span/Lit.
 - [ ] **Sprint 7 (ARB)**: non-deterministic generator. Template must try 0 chars first, then grow.
 - [ ] **Sprint 8 (ARBNO)**: use `snobol4c_module.c` ARBNO implementation as reference (see SNOBOL4cython section above — `yielded` flag is the key mechanism).
-- [ ] **Sprint 9 (REF cycle)**: IR graph with a cycle — two patterns referencing each other. Validates the graph IR design.
+- [ ] **Sprint 9 (REF / ζ)**: add `T_REF` to engine.c — named pattern reference and mutual recursion. This unblocks `C_PATTERN.h`, `RE_PATTERN.h`, `CALC_PATTERN.h`. See ByrdBox PATTERN.h inventory below.
 - [ ] **First benchmark**: after Sprint 4, run SPAN+ASSIGN against SPITBOL on a large input. Record in bench/README.md.
+
+---
+
+## ByrdBox PATTERN.h Inventory
+
+Seven pre-compiled static pattern trees live in `ByrdBox/ByrdBox/`. None have
+tests yet. They use `SNOBOL4c.c`'s `PATTERN` struct (field names `POS`, `σ`, `Π`,
+`Σ`, `ζ`, `δ`, `Δ`, `λ`, `FENCE`, `ARBNO`, `ANY`, `SPAN`, `ε`) — a different
+layout from `engine.h`'s `Pattern` struct (`T_POS`, `T_LITERAL`, `T_PI`, etc.).
+Before any `.h` file can be `#include`d into a test, either `engine.h` must be
+reconciled with `SNOBOL4c.c`'s struct layout, or a thin adapter written.
+
+| File | What it matches | Node types used | Testable now? |
+|------|----------------|-----------------|---------------|
+| `BEAD_PATTERN.h` | `(B\|R)(E\|EA)(D\|DS)` anchored | σ Π Σ POS RPOS | ✅ (by hand in C, like smoke.c) |
+| `BEARDS_PATTERN.h` | BEARDS / ROOSTS family | σ Π Σ POS RPOS | ✅ (by hand in C) |
+| `TESTS_PATTERN.h` | `identifier`, `real_number` | + FENCE ε δ (capture) | ⚠️ needs δ/capture in engine |
+| `C_PATTERN.h` | arithmetic expression recognizer | + ζ (recursion) | ❌ needs ζ (Sprint 9) |
+| `CALC_PATTERN.h` | calculator with eval | + ζ λ (action nodes) | ❌ needs ζ + λ |
+| `RE_PATTERN.h` | regex parser | + ζ ARBNO | ❌ needs ζ (Sprint 9) + ARBNO (Sprint 8) |
+| `RegEx_PATTERN.h` | regex parser with shift/reduce | + ζ Shift/Reduce | ❌ needs ζ + Shift (specialized) |
+
+**Node types not yet in engine.c:**
+
+| Node | Symbol | Meaning | Blocks |
+|------|--------|---------|--------|
+| REF | ζ | Named pattern reference / mutual recursion | C, CALC, RE, RegEx |
+| Capture (conditional) | δ | Assign span to named var on match commit | TESTS |
+| Capture (immediate) | Δ | Assign span to named var immediately | TESTS, CALC |
+| Action | λ | Run a command string on match | CALC |
+| Shift | Shift | Shift-reduce parser action | RegEx only |
+
+**Decision needed** (talk before implementing):
+
+- **Option A** — test BEAD/BEARDS by hand in C now (as smoke.c does), then add
+  `ζ` to engine.c (Sprint 9), which immediately unlocks C_PATTERN and RE_PATTERN.
+- **Option B** — reconcile engine.h with SNOBOL4c.c's PATTERN struct first, so
+  the `.h` files can be `#include`d directly. Bigger refactor but cleaner long-term.
+- **Option C** — add `δ`/`Δ` capture nodes to engine.c (small, Sprint 4 territory),
+  then TESTS_PATTERN.h becomes testable without needing ζ.
 
 ### P3 — Polish
 - [ ] `test/sprint1/` is missing `pos0.c` and `rpos0.c` (README references them, files absent)
