@@ -471,6 +471,26 @@ Used as submodule at `corpus/lon` in SNOBOL4-jvm and `corpus/` in SNOBOL4-dotnet
 
 ---
 
+## MD Files — What We Maintain
+
+The `.github` repository is headquarters. These are the live MD files,
+what each contains, and who is responsible for keeping it current.
+
+| File | Purpose | Updated when |
+|------|---------|--------------|
+| `PLAN.md` | Single source of truth — sprints, decisions, problems, session log, all standing instructions | Every session, before closing |
+| `ASSESSMENTS.md` | Test counts, gaps resolved, new gaps found, per-repo quality snapshot | Whenever test baselines change |
+| `BENCHMARKS.md` | Benchmark numbers — SPITBOL vs CSNOBOL4 vs our engines | Whenever benchmark results change |
+| `DIRECTORY.md` | Map of the org — where to find what across all repos | When new repos or major structures are added |
+| `ORIGIN.md` | The founding story — Lon's 60-year arc, the one-week build, why SNOBOL4 | Permanent record; append only |
+| `profile/README.md` | Public org profile — visible on GitHub to anyone who visits SNOBOL4-plus | When public-facing facts or achievements change |
+
+**Standing rule:** Any session that touches a repo also updates the relevant
+MD files here before closing. PLAN.md is always last (it records everything
+else). Push `.github` after every update.
+
+---
+
 ## Standing Instruction — Problems Go in the Plan
 
 **Every time a problem is found, it is logged here before anything else.**
