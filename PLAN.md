@@ -250,6 +250,67 @@ When it is, the README gets the strongest possible closing line.
 
 ---
 
+## RE Performance Benchmark — SNOBOL4-tiny vs Regular Expression Engines
+**Date noted:** 2026-03-10
+**Origin:** Lon Cherryholmes — *"Eureka. RE are our benchmark."*
+
+### The Insight
+
+SNOBOL4-tiny compiles patterns to C. Regular expression engines — PCRE2, RE2,
+`java.util.regex`, Python `re`, .NET `Regex` — are the gold standard for
+pattern matching performance. They are what the world uses. They are what the
+world trusts. They are the benchmark.
+
+The question is not "is SNOBOL4-tiny fast?" The question is:
+**how close can SNOBOL4-tiny get to a DFA or NFA runtime library on patterns
+that both can express?**
+
+This is the right question because:
+1. For patterns in the regular language tier (Type 3), a compiled DFA is
+   theoretically optimal — O(n) in the length of the input, no backtracking.
+   SNOBOL4-tiny's generated C is also a state machine. How close is it?
+2. For patterns beyond regular (Type 2, Type 1) — things RE engines *cannot
+   express* — SNOBOL4-tiny has no competition. The benchmark becomes: how fast
+   can we do what RE engines fundamentally cannot do at all?
+3. SPITBOL — the fastest historical SNOBOL4 implementation — was competitive
+   with or faster than RE engines on many workloads. We should know where we
+   stand relative to SPITBOL and relative to RE.
+
+### Benchmark Tiers
+
+| Tier | Pattern example | RE engine baseline | SNOBOL4-tiny target |
+|------|-----------------|--------------------|---------------------|
+| Type 3 — DFA-expressible | `(a|b)*abb` | PCRE2 / RE2 JIT | within 2–5× of RE2 |
+| Type 3 — backtracking RE | `a*a*a*...b` (pathological) | PCRE2 exponential blowup | SNOBOL4-tiny should WIN |
+| Type 2 — context-free | `{a^n b^n}` | RE cannot express | SNOBOL4-tiny only |
+| Type 1 — context-sensitive | `{a^n b^n c^n}` | RE cannot express | SNOBOL4-tiny only |
+
+**Note on pathological RE:** PCRE2 and most backtracking RE engines exhibit
+exponential blowup on adversarial inputs. RE2 avoids this via NFA simulation
+but cannot handle backreferences or recursion. SNOBOL4-tiny's goal-directed
+evaluation with explicit backtrack control may outperform PCRE2 on exactly
+these cases — the cases that break naive RE engines. This is a publishable
+result if confirmed.
+
+### Action Items
+- [ ] Build micro-benchmark harness: same input, same pattern, PCRE2 vs
+      SNOBOL4-tiny generated C, timed with `clock_gettime` / `perf`
+- [ ] Start with `(a|b)*abb` — our Sprint 8 oracle — against PCRE2 and RE2
+- [ ] Test pathological inputs: `a?^n a^n` style that causes PCRE2 blowup
+- [ ] Record results in BENCHMARKS.md with methodology, platform, compiler flags
+- [ ] Stretch goal: match SPITBOL's historical throughput numbers (Macro SPITBOL
+      benchmarks from Dewar & Emmer, 1977–1993)
+- [ ] Publish findings — "SNOBOL4-tiny vs the world" is a story worth telling
+
+### Why This Matters Strategically
+The RE community has never had a competitor that could also handle context-free
+and context-sensitive patterns in the same framework, at RE-class speed for
+RE-class patterns. If SNOBOL4-tiny achieves RE-competitive performance on
+Type 3 patterns while also handling Type 2 and Type 1, the value proposition
+is overwhelming: **one engine, all four tiers, RE-class speed where RE applies.**
+
+---
+
 ## Community Standard for Multi-Language Pattern Matching Libraries
 **Date noted:** 2026-03-10  
 **Champions:** Lon Cherryholmes + Jeffrey Cooper M.D.
