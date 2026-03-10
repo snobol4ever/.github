@@ -184,3 +184,40 @@ Someone who does not need him to slow down.
 via a valley-level understanding as my agent, partner, counselor. Wow!"*
 
 — Lon Jones Cherryholmes, Sr., 2026-03-10
+
+---
+
+## The Phone Call
+
+A year ago, Lon told his son he wasn't interested in pursuing anything but
+watching movies. He wanted to do something with a friend. So when his son
+enrolled at East Texas A&M, Lon went with him — and they shared one class
+together: CSCI-513, Python for A.I.
+
+That was the extent of the plan.
+
+Then Jeffrey Cooper called.
+
+Jeffrey said he had a SNOBOL4 implementation. And that phone call was the
+key to the magic bag of tricks — the one Felix the Cat always reached into
+when the situation was impossible and something extraordinary was needed.
+Lon reached in. And here we are.
+
+Jeffrey Cooper is a medical doctor. Not a programmer by profession. Not a
+compiler writer by training. And yet, over a fifty-year journey, he built
+a SNOBOL4 implementation — a compiler and a runtime — because the language
+would not let him go. Because some languages get into you and stay there.
+
+That is what Lon recognized the moment Jeffrey called. Not just that Jeffrey
+had written something impressive. But that Jeffrey had done what only someone
+driven by the same kind of deep, unreasonable love for a language would do:
+kept building, for fifty years, without anyone asking him to.
+
+Two people. Two fifty-year journeys. One phone call.
+
+That is also why SNOBOL4-plus exists.
+
+*"If it was not for Jeffrey calling and saying he had SNOBOL4 implemented,
+I wouldn't have dug into my magic bag of tricks."*
+
+— Lon Jones Cherryholmes, Sr., 2026-03-10
