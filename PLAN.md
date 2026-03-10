@@ -1219,31 +1219,52 @@ All operators used across `Beautiful.sno` + its 17 include files, exact count:
 
 Each sprint: one mechanism, one hand-written `.c` oracle, `emit_c.py` matches it.
 
-| Sprint | Mechanism | Oracle file | Status |
-|--------|-----------|-------------|--------|
-| 0 | α/β/γ/ω skeleton + runtime | `sprint0/null.c` | ✓ |
-| 1 | LIT, POS, RPOS | `sprint1/lit_hello.c` | ✓ |
-| 2 | **CAT** (Σ) — P→Q wiring | `sprint2/cat_pos_lit_rpos.c` | next |
-| 3 | **ALT** (Π) — choice point | `sprint3/alt_a_or_b.c` | |
-| 4 | **ASSIGN** — `$` immediate + `.` conditional capture | `sprint4/assign.c` | |
-| 5 | **SPAN β** — backtrack one char at a time | `sprint5/span_backtrack.c` | |
-| 6 | **BREAK, ANY, NOTANY** — complete char-set primitives | `sprint6/break_any.c` | |
-| 7 | **LEN, TAB, RTAB, REM** — position/length primitives | `sprint7/len_tab.c` | |
-| 8 | **ARB** — non-deterministic length | `sprint8/arb.c` | |
-| 9 | **ARBNO** — loop + yielded flag | `sprint9/arbno.c` | |
-| 10 | **REF** (ζ) — unevaluated `*name` ref, no cycles yet | `sprint10/ref_simple.c` | |
-| 11 | **Mutual REF** — cycles, forward refs | `sprint11/mutual_ref.c` | |
-| 12 | **@cursor** capture + `-INCLUDE` preprocessor | `sprint12/cursor.c` | |
-| 13 | **cstack** — deferred-action queue in State | `sprint13/cstack.c` | |
-| 14 | **Shift/Reduce** — tree build nodes via cstack | `sprint14/shift_reduce.c` | |
-| 15 | **nPush/nInc/nTop/nPop** — counter stack via cstack | `sprint15/counter_stack.c` | |
-| 16 | **Python front-end** — parse Beautiful.sno → IR | `sprint16/parser_test.py` | |
-| 17 | **Stage B runtime** — INPUT/OUTPUT/goto/END/`$name` | `sprint17/hello.sno` | |
-| 18 | **DEFINE/APPLY/DATA/ARRAY** — function + data layer | `sprint18/define_apply.sno` | |
-| 19 | **EVAL/OPSYN** — runtime metaprogramming | `sprint19/eval_opsyn.sno` | |
-| 20 | **Beautiful.sno runs** — self-beautify oracle test | `sprint20/beautiful_self.sh` | |
+Difficulty scale: ★ trivial (hours) · ★★ easy (day) · ★★★ moderate (2–3 days) · ★★★★ hard (week) · ★★★★★ very hard (week+, real design risk)
 
-**Sprint 20 is done when**: `./beautiful < Beautiful.sno | ./beautiful | diff - Beautiful.sno.golden` exits 0 and runs faster than SPITBOL on the same input.
+| Sprint | Mechanism | Oracle file | Difficulty | Why |
+|--------|-----------|-------------|------------|-----|
+| 0 | α/β/γ/ω skeleton + runtime | `sprint0/null.c` | ★ | ✓ done |
+| 1 | LIT, POS, RPOS | `sprint1/lit_hello.c` | ★ | ✓ done |
+| 2 | **CAT** (Σ) — P→Q wiring | `sprint2/cat_pos_lit_rpos.c` | ★ | Pure wiring, emit_c.py already has it; need oracle |
+| 3 | **ALT** (Π) — choice point | `sprint3/alt_a_or_b.c` | ★★ | Choice point logic, backtrack label; emit_c.py has it |
+| 4 | **ASSIGN** — `$` immediate + `.` conditional | `sprint4/assign.c` | ★★ | Two capture modes, conditional fires only on commit |
+| 5 | **SPAN β** — backtrack one char at a time | `sprint5/span_backtrack.c` | ★★ | β signal must give back one char; already in engine.c |
+| 6 | **BREAK, ANY, NOTANY** | `sprint6/break_any.c` | ★ | Char-set scan; model directly on SPAN/LIT templates |
+| 7 | **LEN, TAB, RTAB, REM** | `sprint7/len_tab.c` | ★ | Arithmetic on cursor; all deterministic, no backtrack |
+| 8 | **ARB** | `sprint8/arb.c` | ★★★ | Non-deterministic: tries 0 chars, grows on backtrack; depth array needed |
+| 9 | **ARBNO** | `sprint9/arbno.c` | ★★★★ | Hardest generator: yielded flag, Omega checkpoint, loop rewire; SNOBOL4cython is reference |
+| 10 | **REF** (ζ) — simple, no cycles | `sprint10/ref_simple.c` | ★★ | Named pattern lookup; emit_c.py already has Ref node |
+| 11 | **Mutual REF** — forward refs + cycles | `sprint11/mutual_ref.c` | ★★★ | Two-pass resolution: declare all names, then wire; cycle detection |
+| 12 | **@cursor** + `-INCLUDE` preprocessor | `sprint12/cursor.c` | ★★ | @var captures int pos; -INCLUDE is Python string substitution |
+| 13 | **cstack** — deferred-action queue in MatchState | `sprint13/cstack.c` | ★★★ | New field in MatchState; push/pop symmetry with backtrack; thread-local (decision: thread-local, 2026-03-10) |
+| 14 | **Shift/Reduce** — tree-build nodes via cstack | `sprint14/shift_reduce.c` | ★★★ | Tree struct + vstack; actions deferred until commit; SNOBOL4-csharp ShiftReduce.cs is reference |
+| 15 | **nPush/nInc/nTop/nPop** — counter stack via cstack | `sprint15/counter_stack.c` | ★★ | istack int array in MatchState; 4 ops, all deferred; counter.inc is direct translation |
+| 16 | **Python front-end** — parse Beautiful.sno → IR | `sprint16/parser_test.py` | ★★★★ | Full SNOBOL4 statement parser in Python: labels, patterns, assignments, gotos, -INCLUDE expansion |
+| 17 | **Stage B runtime** — INPUT/OUTPUT/goto/END/`$name` | `sprint17/hello.sno` | ★★★ | Emitted C needs stdin loop, indirect var table, conditional goto wiring |
+| 18 | **DEFINE/APPLY/DATA/ARRAY** | `sprint18/define_apply.sno` | ★★★★ | Function table, indirect call, user-defined struct layout, dynamic array; biggest runtime chunk |
+| 19 | **EVAL/OPSYN** | `sprint19/eval_opsyn.sno` | ★★★★★ | EVAL compiles a string to a pattern at runtime — needs mini-parser inside runtime; OPSYN rewires operator table |
+| 20 | **Beautiful.sno runs** — self-beautify oracle | `sprint20/beautiful_self.sh` | ★★ | Integration only; all mechanisms exist; idempotence diff + SPITBOL benchmark |
+
+**Sprint 20 acceptance**: `./beautiful < Beautiful.sno | ./beautiful | diff - Beautiful.sno.golden` exits 0, runtime faster than SPITBOL on same input.
+
+**The two genuine hard problems**: Sprint 9 (ARBNO — yielded flag + Omega checkpoint) and Sprint 19 (EVAL — runtime pattern compilation). Everything else is engineering, not invention. Sprint 16 (Python front-end) is hard in volume, not in concept.
+
+---
+
+### Architecture Decisions Log
+
+Decisions made in session 2026-03-10. Each is recorded permanently here.
+When we optimize later, return to this table to revisit — the original reasoning is preserved.
+
+| # | Question | Options offered | **Decision** | Rationale | Revisit when |
+|---|----------|----------------|-------------|-----------|--------------|
+| D1 | Memory model for SnoVal | malloc/free+refcount · Arena · **GC (Boehm)** · Stack+malloc | **Boehm GC** | No ref-counting complexity. GC ptrs flow through SnoVal transparently. No free() anywhere. | Optimization: if GC pause is measurable, consider arena for parse-only phase |
+| D2 | Tree children array | Fixed max · **realloc'd** · Linked list · malloc-per-node | **realloc'd dynamic array** | Audit proved unbounded arity: snoExprList (arg lists), snoExpr3 (alternation chains), snoParse (statement list). Fixed max ruled out by the language itself. | Never — unbounded is a language property, not an implementation choice |
+| D3 | cstack location | Inside MatchState · Global singleton · **Thread-local** · Ask later | **Thread-local** (`__thread MatchState *sno_current_match`) | Future-proof. Matches SNOBOL4-csharp `[ThreadStatic]` design exactly. | Optimization: if single-threaded perf matters, flatten to global and remove indirection |
+| D4 | Tracing modules (omega/trace/tdump/xdump) | Stub no-ops · Full impl · **#ifdef SNO_TRACE** · Ask later | **OPEN** | Not yet answered. | Answer before Sprint 13 |
+| D5 | SNOBOL4cython v2 repo destination | New org repo · Fold into SNOBOL4-python · Fold into SNOBOL4-tiny · Leave in zips | **OPEN** | Not yet answered. | Answer before end of session |
+| D6 | ByrdBox struct reconciliation timing | Before Sprint 20 · **After Sprint 20** · Never · Ask later | **OPEN** | Not yet answered. | Answer before Sprint 20 |
+| D7 | Sprint 2/3 oracle commit timing | Now · After conversation · Skip to runtime/counter.c | **OPEN** | Not yet answered. | Answer now |
 
 ---
 
