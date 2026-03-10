@@ -676,3 +676,104 @@ or needs to be. The ones marked as needed for the monitor are:*
 *`&STNO`, `&STCOUNT`, `&STLIMIT`, `&TRACE`, `&ERRTYPE`, `&ERRTEXT`.*
 *These are Sprint 20 runtime requirements, not polish.*
 
+
+---
+
+## Sync Taxonomy — Variable Syncs, LineNo Syncs, Varying Kinds
+*Recorded 2026-03-10 — Lon Cherryholmes*
+
+Not every event needs the same weight. The monitor supports multiple
+sync levels — you choose the granularity you need.
+
+### The Sync Types
+
+| Sync Type | Event | Frequency | Use when |
+|-----------|-------|-----------|----------|
+| **STNO sync** | `STNO <n>` | Every statement | Coarse location — find which statement diverges |
+| **VAR sync** | `VAR <name> <value>` | Every assignment to watched vars | Medium — track specific variable state |
+| **PROBE sync** | `PROBE <tag> <value>` | Null-concat probe fires | Fine — inside a pattern, inside an expression |
+| **OUT sync** | `OUT <text>` | Every OUTPUT write | Coarse result — did the output diverge? |
+| **MATCH sync** | `MATCH <patname> S/F` | Pattern succeed/fail | Medium — which pattern branch was taken |
+
+### How They Layer
+
+```
+STNO  ──────────────────────────────────────────  coarsest
+  │    every statement — finds the right region
+  │
+VAR   ──────────────────────────────────────────  medium
+  │    watched variables only — narrows within region
+  │
+PROBE ──────────────────────────────────────────  finest
+       null-concat inside any pattern node — sub-statement precision
+```
+
+Start with STNO only. Find the region. Add VAR syncs for the variables
+active in that region. If the bug is inside a pattern, add PROBE syncs
+at suspected nodes. Three passes at most — usually one.
+
+### Activating Each Type
+
+**STNO** — always on when monitor is enabled. One line per statement.
+Zero configuration.
+
+**VAR** — selective. Watchlist passed via environment:
+```bash
+SNO_MONITOR=1 SNO_WATCH="snoLine,snoSrc,snoOut" ./beautiful
+```
+Only watched variables emit VAR events. Everything else is silent.
+Prevents the firehose problem — hundreds of internal variables thrashing.
+
+**PROBE** — arm with null-concat anywhere in source or generated C:
+```snobol4
+*  Oracle side — arm a probe in the pattern:
+snoExpr3 = nPush()  (*snoX3 $ snoProbe)  nPop()
+           TRACE('snoProbe', 'VALUE')
+```
+```c
+/* Binary side — arm a probe in generated C: */
+sno_comm_var("PROBE_snoX3", sno_var_get("snoX3"));
+```
+
+**OUT** — always on. Every `sno_output_val()` call emits an OUT event.
+This is the ultimate ground truth: if OUT diverges, the bug is upstream.
+If OUT matches, the bug doesn't affect output (yet).
+
+**MATCH** — added to pattern wrappers. Each named pattern (pp, ss, etc.)
+emits MATCH on entry and exit with S (succeeded) or F (failed).
+
+### The Ignore List Per Sync Type
+
+```json
+{
+  "STNO":  [],
+  "VAR":   ["snoSpace", "snoAlphabet", "digits", "nul", "bs", "tab"],
+  "PROBE": [],
+  "OUT":   [],
+  "MATCH": []
+}
+```
+
+Calibration run on trivial input auto-populates VAR ignores.
+STNO, PROBE, OUT, MATCH rarely need ignoring — they are already selective.
+
+### The Protocol
+
+```
+Pass 1 — STNO only:
+  Find the statement number N where oracle and binary first diverge.
+  Cost: one run.
+
+Pass 2 — VAR sync on variables active near statement N:
+  Add SNO_WATCH="<vars near N>" to the run.
+  Find which variable first holds the wrong value.
+  Cost: one run.
+
+Pass 3 — PROBE sync inside the pattern that sets the wrong variable:
+  Drop a null-concat probe at the suspected pattern node.
+  See exactly where inside the pattern the divergence originates.
+  Cost: one run + one recompile (to add the probe).
+
+Total: 3 runs, 1 recompile. Bug located to sub-statement precision.
+```
+
