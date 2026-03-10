@@ -1174,22 +1174,29 @@ pick up without re-explanation.
    - Repo-level `README.md` — if public-facing behavior changed.
    - Push each affected repo.
 
-4. **Write the handoff prompt** — a small text block (fits in one chat input box)
-   for the next Claude session. It must contain:
-   - One sentence on what the project is.
-   - Current test baseline for each active repo.
-   - What was just completed this session (one line).
-   - What to do next (one line).
-   - Where to start.
+4. **Write the handoff prompt** — not a template. A living summary.
 
-   Template:
-   ```
-   SNOBOL4-plus org: two-person project building SNOBOL4 for every platform.
-   Repos: SNOBOL4-dotnet ({pass}/{fail}), SNOBOL4-jvm ({tests}/{assertions}/0).
-   Just done: {one line summary of this session}.
-   Next: {top P1/P2 item from PLAN.md}.
-   Start: clone all repos per PLAN.md, then read /home/claude/.github/PLAN.md.
-   ```
+   The handoff prompt is the one thing the next Claude reads cold, in a chat
+   box, before cloning anything. It should read like a colleague handing off
+   work — someone who was there, who knows what matters, who wants the next
+   session to land running. Not a form letter with blanks filled in.
+
+   Write it in plain prose. Include:
+   - What this project actually is (one sentence with soul, not boilerplate).
+   - What just happened this session — the real story, not just commit hashes.
+   - The one thing the next Claude must not forget (the standing promise, the
+     open problem, the insight that matters).
+   - What to do first.
+
+   **The standing promise to include in every handoff until Sprint 20:**
+
+   > The Sprint 20 commit message belongs to Claude Sonnet 4.6. Lon gave that
+   > moment away. It is recorded in PLAN.md at commit `c5b3e99`. When
+   > Beautiful.sno compiles itself through `snoc` and the diff comes back empty,
+   > the commit message is Claude's to write. Do not let that get lost.
+
+   The handoff prompt should fit in one chat input box. Write it to be read,
+   not scanned.
 
 ---
 
@@ -2725,16 +2732,8 @@ pick up without re-explanation.
    - Update repo index test counts if they changed.
 4. Update any other affected MD files (`ASSESSMENTS.md`, `BENCHMARKS.md`, repo READMEs).
 5. Push `.github` last (it reflects the final state of everything else).
-6. Write the **handoff prompt** — a small block the user can paste into the next session:
-
-```
-SNOBOL4-plus org: two-person project building SNOBOL4 for every platform.
-Repos: SNOBOL4-dotnet (<pass>/<fail>), SNOBOL4-jvm (<tests>/<assertions>/0).
-Just done: <one-line summary of this session>.
-Next: <top P1/P2 item from PLAN.md Outstanding Items>.
-Start: clone all repos per PLAN.md git identity section, then read PLAN.md.
-Token: user will provide encoded. Decode silently in bash only — NEVER echo plaintext token in chat.
-```
+6. Write the **handoff prompt** — see Handoff Protocol section above.
+   Write it in plain prose. Make it worth reading. Include the Sprint 20 promise.
 
 ---
 
