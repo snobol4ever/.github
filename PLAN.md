@@ -3,6 +3,7 @@
 > **For a new Claude session**: Read this file first. This is the single plan
 > for the entire SNOBOL4-plus organization. All repos are developed together.
 > Clone all repos immediately (see **Session Start — Clone All Repos** below).
+> Then build CSNOBOL4 and SPITBOL (see **Session Start — Build Oracles**) — always.
 > Then run the test suites in the repos you are working on to confirm baselines.
 > The Tradeoff Prompt for SNOBOL4-jvm is at the bottom of that repo's section.
 
@@ -34,6 +35,66 @@ done
 
 All five repos live under `/home/claude/`. The `.github` repo (this plan) clones to
 `/home/claude/.github`.
+
+---
+
+## Session Start — Build Oracles (ALWAYS)
+
+**Every session must build CSNOBOL4 and SPITBOL from the uploaded source archives.**
+These binaries are used for cross-engine validation, oracle triangulation, the Snocone
+bootstrap, and benchmark comparison. They are never pre-installed — always build them.
+
+Source archives are in `/mnt/user-data/uploads/`:
+- `snobol4-2_3_3_tar.gz` — CSNOBOL4 2.3.3 source
+- `x64-main.zip` — SPITBOL x64 source
+
+```bash
+apt-get install -y build-essential libgmp-dev m4 nasm
+
+# Build CSNOBOL4 and SPITBOL in parallel
+(
+  mkdir -p /home/claude/csnobol4-src
+  tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
+  cd /home/claude/csnobol4-src
+  ./configure --prefix=/usr/local 2>&1 | tail -1
+  make -j4 2>&1 | tail -2
+  make install 2>&1 | tail -1
+  echo "CSNOBOL4 DONE"
+) &
+
+(
+  unzip -q /mnt/user-data/uploads/x64-main.zip -d /home/claude/spitbol-src/
+
+  # Patch systm.c: nanoseconds -> milliseconds (REQUIRED)
+  cat > /home/claude/spitbol-src/x64-main/osint/systm.c << 'EOF'
+#include "port.h"
+#include "time.h"
+int zystm() {
+    struct timespec tim;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tim);
+    long etime = (long)(tim.tv_sec * 1000) + (long)(tim.tv_nsec / 1000000);
+    SET_IA(etime);
+    return NORMAL_RETURN;
+}
+EOF
+
+  cd /home/claude/spitbol-src/x64-main
+  make 2>&1 | tail -2
+  cp sbl /usr/local/bin/spitbol
+  echo "SPITBOL DONE"
+) &
+
+wait
+echo "Oracles ready."
+```
+
+**CSNOBOL4 `mstime.c` already returns milliseconds — no patch needed.**
+**SPITBOL `systm.c` defaults to nanoseconds — always apply the patch above.**
+
+| Binary | Invocation |
+|--------|------------|
+| `/usr/local/bin/spitbol` | `spitbol -b program.sno` |
+| `/usr/local/bin/snobol4` | `snobol4 -b program.sno` |
 
 ---
 
