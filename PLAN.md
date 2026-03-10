@@ -357,6 +357,17 @@ result if confirmed.
 ### Action Items
 - [ ] Build micro-benchmark harness: same input, same pattern, PCRE2 vs
       SNOBOL4-tiny generated C, timed with `clock_gettime` / `perf`
+- [ ] **IMPORTANT — Round 2 (honest benchmark):** Current bench uses hand-simplified
+      SNOBOL4-tiny recognizers (e.g. suffix check, counter loop). These are fast
+      because they are trivially optimized — not because the engine is being tested.
+      Round 2 must use `emit_c.py` IR → C pipeline for the SNOBOL4-tiny side,
+      so both Bison and SNOBOL4-tiny are given a grammar description and neither
+      side hand-optimizes. That is the publishable comparison.
+- [x] RE benchmark done: 11× normal, 37× pathological vs PCRE2 JIT
+- [x] PDA benchmark done: 9× {a^nb^n}, 20× Dyck vs Bison LALR(1)
+- [x] `bench/Makefile` — `make run` builds and runs both contests
+- [x] `bench/BENCHMARKS.md` — results, methodology, full picture table
+- [ ] README reserved for top-level only — no other file named README in any repo
 - [ ] Start with `(a|b)*abb` — our Sprint 8 oracle — against PCRE2 and RE2
 - [ ] Test pathological inputs: `a?^n a^n` style that causes PCRE2 blowup
 - [ ] Record results in BENCHMARKS.md with methodology, platform, compiler flags
