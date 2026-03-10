@@ -1035,6 +1035,80 @@ This is the primary output mechanism of the SNOBOL4tiny language.
 and runs faster than SPITBOL. Every sprint adds exactly one mechanism needed to
 reach that goal — nothing else. Easy first, recursion last.
 
+### The Bootstrap Strategy
+
+The `-INCLUDE` files are **not parsed** — they are compiled directly as C.
+Each `.inc` file maps cleanly to a C module. This is not a compromise; it is
+the right architecture. The SNOBOL4 source of those files exists as documentation
+and oracle. The C is the implementation.
+
+**Three tiers:**
+
+| Tier | What | How |
+|------|------|-----|
+| 1 | Pattern engine nodes | Hardcoded C in `engine.c` — already started |
+| 2 | Runtime library (the `.inc` files) | Hardcoded C in `runtime/` — one `.c` per `.inc` |
+| 3 | Beautiful.sno body | Compiled by `emit_c.py` from SNOBOL4 source |
+
+Tier 2 is written once and never regenerated. It is a permanent C library.
+Tier 3 is the proof that the compiler works.
+
+---
+
+### Tier 2 — Runtime Library: `.inc` → `.c` Mapping
+
+Each row is one C file to write. Complexity is honest: trivial = one afternoon,
+moderate = one day, hard = two days.
+
+| Inc file | C file | What it provides | Complexity |
+|----------|--------|-----------------|------------|
+| `global.inc` | `runtime/global.c` | char constants (nl, tab, bs, etc.), `digits` string | **trivial** |
+| `case.inc` | `runtime/case.c` | `lwr()`, `upr()`, `cap()`, `icase()` — string case | **trivial** |
+| `is.inc` | `runtime/is.c` | `IsSpitbol()` → 0, `IsSpitbol4()` → 1, `IsType()` | **trivial** |
+| `counter.inc` | `runtime/counter.c` | `PushCounter`, `IncCounter`, `DecCounter`, `TopCounter`, `PopCounter` — int linked list | **trivial** |
+| `stack.inc` | `runtime/stack.c` | `Push`, `Pop`, `Top` — value linked list (holds `Tree*`) | **trivial** |
+| `match.inc` | `runtime/match.c` | `match(subj,pat)` → run engine; `notmatch` → inverse | **trivial** |
+| `assign.inc` | `runtime/assign.c` | `assign(name,expr)` — indirect assignment via name | **moderate** |
+| `tree.inc` | `runtime/tree.c` | `tree` struct + `Append`, `Prepend`, `Insert`, `Remove`, `Equal`, `Equiv`, `Find`, `Visit` | **moderate** |
+| `Gen.inc` | `runtime/gen.c` | `Gen`, `GenTab`, `GenSetCont`, `IncLevel`, `DecLevel`, `SetLevel`, `GetLevel` — output buffer with indentation | **moderate** |
+| `ShiftReduce.inc` | `runtime/shiftreduce.c` | `Shift(t,v)`, `Reduce(t,n)` — build tree nodes, push/pop value stack | **moderate** |
+| `semantic.inc` | `runtime/semantic.c` | `shift(p,t)`, `reduce(t,n)` pattern-time wrappers; `nPush/nInc/nDec/nTop/nPop` counter patterns | **moderate** |
+| `Qize.inc` | `runtime/qize.c` | `Qize(s)` — quote a string as SNOBOL4 literal; `SQize`, `DQize`, `Intize` | **moderate** |
+| `TDump.inc` | `runtime/tdump.c` | `TDump(x)`, `TLump(x,len)`, `TValue(x)` — tree → string for debug | **moderate** |
+| `omega.inc` | `runtime/omega.c` | `TV`,`TW`,`TX`,`TY`,`TZ` — pattern instrumentation for tracing | **moderate** (tracing only, can stub) |
+| `trace.inc` | `runtime/trace.c` | `T8Trace`, `T8Pos` — trace output with line/col | **moderate** (can stub at first) |
+| `io.inc` | `runtime/io.c` | `input_`, `output_` — file I/O with options parsing | **moderate** |
+| `ReadWrite.inc` | `runtime/readwrite.c` | `Read(fileName)`, `Write(fileName,str)`, `LineMap` | **moderate** |
+| `XDump.inc` | `runtime/xdump.c` | `XDump(obj,nm)` — generic object dump for debug | **moderate** (debug only, can stub) |
+
+**Order to write them**: `global` → `case` → `is` → `counter` → `stack` →
+`tree` → `match` → `assign` → `shiftreduce` → `semantic` → `gen` → `qize` →
+`io` → `readwrite`. Tracing/debug (`omega`, `trace`, `tdump`, `xdump`) can be
+stubs that print nothing — they are not on the critical path for correct output.
+
+### Key C Structs (shared across all modules)
+
+```c
+/* sno_val.h — the universal value type */
+typedef enum { SNO_NULL, SNO_STR, SNO_INT, SNO_REAL, SNO_TREE,
+               SNO_PATTERN, SNO_ARRAY, SNO_TABLE } SnoType;
+typedef struct SnoVal { SnoType type; union { ... }; } SnoVal;
+
+/* tree node — direct translation of DATA('tree(t,v,n,c)') */
+typedef struct Tree {
+    char    *tag;       /* t: type string */
+    SnoVal   val;       /* v: leaf value */
+    int      n;         /* n: child count */
+    struct Tree **c;    /* c: children array */
+} Tree;
+
+/* counter stack node — DATA('link_counter(next,value)') */
+typedef struct CounterNode { struct CounterNode *next; int value; } CounterNode;
+
+/* value stack node — DATA('link(next,value)') */
+typedef struct StackNode { struct StackNode *next; Tree *value; } StackNode;
+```
+
 ### Operator Inventory — Beautiful.sno (complete)
 
 All operators used across `Beautiful.sno` + its 17 include files, exact count:
