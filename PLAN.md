@@ -490,6 +490,121 @@ All three are winnable. The architecture is the same. The emitter differs.
 
 ---
 
+## Sprint 16 — Bridge: Expressions.py → SNOBOL4
+**Recorded**: 2026-03-10
+
+The translation from `Expressions.py` to SNOBOL4 is mechanical and exact.
+Every Python generator function is a named SNOBOL4 pattern.
+Every `for _1 in σ("x"):` is a `Lit("x")` in `snoc` IR.
+Every nested `for` loop is a `Cat`. Sequential alternatives are `Alt`.
+The mutual recursion through `parse_term` → `parse_factor` → `parse_item`
+→ `parse_term` is `Ref` — already proven through Sprint 13.
+
+**Sprint 16 deliverable**: translate `parse_item()` and `parse_element()`
+from `Expressions.py` into SNOBOL4 patterns compilable by `snoc`.
+Oracle: the worm. Every expression `gen_term()` generates must parse
+identically in both the Python reference and the snoc-compiled SNOBOL4.
+
+**Sprint 17**: `parse_factor()` and `parse_term()` — adds recursion.
+**Sprint 18**: `evaluate()` — the full round-trip. Generate → parse → eval
+in pure SNOBOL4. Cross-check against Python reference. 580 cases, 0 failures.
+
+---
+
+## The Self-Hosting Milestone
+**Recorded**: 2026-03-10
+
+Once `snoc` compiles the expression evaluator (Sprint 18), the worm becomes
+a cross-check between two independent implementations of the same algorithm:
+
+1. Python: `Expressions.py` `evaluate(parse_expression(expr))`
+2. SNOBOL4: `snoc`-compiled evaluator running the same expr
+
+If both agree on all 580 worm cases — SNOBOL4-tiny has replaced its own
+reference implementation. The compiler compiles a program that the compiler's
+author wrote to test the compiler. That is the bootstrap moment.
+
+This is a publishable result. Not just "it runs Hello World." It runs a
+non-trivial recursive expression evaluator, cross-checked against an
+independent implementation, 580 cases, zero failures.
+
+---
+
+## The Worm — Second Head
+**Recorded**: 2026-03-10
+
+Currently the worm has one head: generate → parse → evaluate → no crash.
+It needs a second head to close the loop completely:
+
+1. Generate expression `e`
+2. Parse `e` → tree `T`
+3. Evaluate `T` → value `V`
+4. Reconstruct expression string `e2` from `T` (with correct parenthesisation)
+5. Parse `e2` → tree `T2`
+6. Evaluate `T2` → value `V2`
+7. Assert `V == V2`
+
+If step 7 fails: either `evaluate()` is wrong, or `reconstruct()` drops
+parens incorrectly. Either way — the worm found something real.
+
+**Implementation**: `tree_to_expr(tree)` must emit parens around every
+binary subexpression. The naive version (no parens) already found 30
+inconsistencies — all due to dropped parens changing precedence. The
+correct version proves `evaluate()` is associativity-consistent.
+
+---
+
+## Beautiful.sno — Sprint 20 Acceptance Test
+**Recorded**: 2026-03-10 (confirmed, previously noted)
+
+`Beautiful.sno` is a 17-level SNOBOL4 expression and statement parser
+written entirely in SNOBOL4 patterns. It lives in SNOBOL4-dotnet (authoritative)
+and SNOBOL4-corpus. It is the Sprint 20 acceptance test:
+
+`snoc` compiles `Beautiful.sno`. `Beautiful.sno` runs on itself.
+The output of `Beautiful.sno(Beautiful.sno)` is identical on both
+SPITBOL and `snoc`. That is bootstrap closure.
+
+Everything from Sprint 14 to Sprint 19 is preparation for this moment.
+
+---
+
+## JVM Benchmark — java.util.regex
+**Recorded**: 2026-03-10
+
+SNOBOL4-jvm exists. 1,896 tests / 4,120 assertions / 0 failures.
+It has never been benchmarked against `java.util.regex` or `RE2J`.
+
+The same story that was told for PCRE2 can be told for the JVM:
+- Normal patterns: SNOBOL4-jvm should be competitive
+- Pathological patterns: `java.util.regex` backtracks exponentially;
+  SNOBOL4-jvm does not
+
+**Deliverable**: a JVM benchmark equivalent to `bench/bench_round2.c`.
+`(a|b)*abb` and `{a^n b^n}` against `java.util.regex` and a Bison-equivalent
+Java parser. The headline: the same engine, the same architecture, the JVM tier.
+
+Jeffrey owns this one.
+
+---
+
+## FlatLoopEmitter — The Architecture Completion
+**Recorded**: 2026-03-10 (see also: Separate Backtrack Stack section)
+
+The FlatLoopEmitter is a new emitter class alongside FuncEmitter.
+It implements the separate backtrack stack + computed goto architecture.
+It is the path from Round 2 (33 ns) to Round 1 (5 ns).
+
+**Timing**: implement after Sprint 20 (Beautiful.sno acceptance test)
+OR in parallel if Jeffrey takes the language track while Lon takes
+the runtime track. The FuncEmitter stays as the correctness reference.
+The FlatLoopEmitter is the performance target.
+
+**Prerequisite**: Proebsting pass (done). Arena allocator (done).
+The FlatLoopEmitter builds on both.
+
+---
+
 ## Proebsting Optimization Pass — Copy Propagation + Branch Elimination
 **Paper**: "Simple Translation of Goal-Directed Evaluation" — Todd A. Proebsting, U of Arizona
 **Source**: ByrdBox.zip — test_icon.sno (1st pass: raw attribute grammar; 2nd pass: optimized)
