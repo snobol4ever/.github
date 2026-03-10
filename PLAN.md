@@ -53,7 +53,7 @@ cd SNOBOL4-jvm
 # Install Leiningen if needed
 lein test
 ```
-Reference oracles (build from source uploads in `/mnt/user-data/uploads/`):
+Reference oracles (build from source — see SNOBOL4-jvm PLAN.md for instructions):
 - `/usr/local/bin/spitbol` — SPITBOL v4.0f
 - `/usr/local/bin/snobol4` — CSNOBOL4 2.3.3
 
@@ -120,7 +120,7 @@ git clone https://github.com/SNOBOL4-plus/SNOBOL4.git
 2. **All default branches are `main`.**
 3. **SNOBOL4-jvm submodule** points to `SNOBOL4-plus/SNOBOL4` (not the personal repo).
 4. **PyPI publishes from `SNOBOL4-plus/SNOBOL4-python`** via Trusted Publisher (OIDC, no token).
-5. **Jeffrey's authorship is preserved.** His commit history is intact. His name leads in the org README.
+5. **Jeffrey's authorship is preserved.** His commit history is intact throughout.
 6. **PLAN.md files stay in individual repos** for repo-specific operational detail. This file tracks org-level state only.
 
 ---

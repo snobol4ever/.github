@@ -101,8 +101,8 @@ cross-platform compatibility across all implementations.
 ### Oracle Validation — SNOBOL4-jvm
 
 Three-oracle cross-check on every test:
-- **SPITBOL v4.0f** — primary oracle (built from `/mnt/user-data/uploads/x64-main.zip`)
-- **CSNOBOL4 2.3.3** — secondary oracle (built from `/mnt/user-data/uploads/snobol4-2.3.3.tar.gz`)
+- **SPITBOL v4.0f** — primary oracle (built from source)
+- **CSNOBOL4 2.3.3** — secondary oracle (built from source)
 - **SNOBOL4clojure** — our implementation
 
 Triangulation: both agree → use agreed output. Disagree → use SPITBOL, flag for review.
