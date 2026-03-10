@@ -122,9 +122,10 @@ Mission: **SNOBOL4 everywhere. SNOBOL4 now.**
 | [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | C# / .NET | Active | `main` | 1,607 passing / 0 failing |
 | [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Clojure / JVM | Active | `main` | 1,896 / 4,120 assertions / 0 failures |
 | [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python) | Python + C | Active | `main` | — |
+| [SNOBOL4-cpython](https://github.com/SNOBOL4-plus/SNOBOL4-cpython) | C (CPython ext) | Active | `main` | 70+ passing |
 | [SNOBOL4-csharp](https://github.com/SNOBOL4-plus/SNOBOL4-csharp) | C# | Active | `main` | 263 passing |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | SNOBOL4 | Corpus | `main` | — |
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | C + Python | In progress | `main` | Sprint 0-1 underway |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | C + Python | In progress | `main` | Sprints 0–3 done, 7 oracles |
 
 ---
 
@@ -165,6 +166,16 @@ dotnet test tests/SNOBOL4.Tests
 ```
 
 
+### SNOBOL4-cpython
+```bash
+git clone https://github.com/SNOBOL4-plus/SNOBOL4-cpython.git
+cd SNOBOL4-cpython
+pip install -e .
+python tests/test_bead.py
+```
+Layout: `src/snobol4c_module.c` (Byrd Box engine in C), `tests/test_bead.py` (70+ cases).
+Requires SNOBOL4-python installed. v1 (Arena) and v2 (per-node malloc) in git history.
+
 ### SNOBOL4-tiny
 ```bash
 git clone https://github.com/SNOBOL4-plus/SNOBOL4-tiny.git
@@ -172,7 +183,7 @@ cd SNOBOL4-tiny
 pip install --break-system-packages -e .
 pytest test/
 ```
-Layout: `src/ir/` (IR node graph), `src/codegen/` (emit_c.py template emitter), `src/runtime/` (runtime.c/h), `test/sprint0/` through `test/sprint4/` (test suite).
+Layout: `src/ir/` (IR node graph), `src/codegen/` (emit_c.py template emitter), `src/runtime/` (runtime.c/h), `test/sprint0/` through `test/sprint3/` (oracles, 7 passing).
 Sprint plan and design: `doc/DESIGN.md`, `doc/BOOTSTRAP.md`, `doc/DECISIONS.md`.
 
 ### SNOBOL4-corpus
@@ -1396,11 +1407,10 @@ Omega entry — the backtrack stack is completely self-contained.
    alternative to Phil Budne's SPIPAT (`sno4py`). No external dependency. Could
    replace or augment SPIPAT in SNOBOL4-python.
 
-**Where the code lives**: Uploaded as `SNOBOL4cython-v1.zip` and
-`SNOBOL4cython-v2.zip`. Not yet in any org repo.
-
-**Decision needed**: Add a `SNOBOL4-cython` repo to the org, or fold
-`snobol4c_module.c` into SNOBOL4-python as an alternative backend? See P2 item below.
+**Where the code lives**: `SNOBOL4-plus/SNOBOL4-cpython` — own org repo,
+reorganized with `src/`, `tests/`, `README.md`, `pyproject.toml`.
+v1 (Arena, commit `aaa5c57`) and v2 (per-node malloc, commit `330fd1f`) in git history.
+Decision resolved 2026-03-10 — see D5 in Architecture Decisions Log.
 
 ---
 
@@ -1420,16 +1430,17 @@ Omega entry — the backtrack stack is completely self-contained.
 
 ### P1 — Blocking
 - [x] **emit_c.py `MATCH_SUCCESS`/`MATCH_FAIL` bug**: labels were silent stubs — programs with no match looped forever. Fixed: now emit `return 0` / `return 1`. *(fixed 2026-03-10)*
-- [ ] **Sprint 2 (CAT)**: `emit_c.py` CAT emission works and tests compile. Need hand-written reference `.c` file (`test/sprint2/cat_pos_lit_rpos.c`) and diff against emitter output. Emitter-generated files are in `test/sprint2/` but hand-written oracle not yet committed.
-- [ ] **Sprint 3 (ALT)**: `emit_c.py` ALT emission works. Test `.c` files generated (`alt_first.c`, `alt_second.c`, `alt_fail.c`, `alt_three.c`). Need to commit them and verify all compile + exit correctly.
+- [x] **emit_c.py CAT beta infinite-loop bug**: nested CAT omega wired back to inner beta instead of outer omega — infinite loop on no-match. Fixed 2026-03-10: CAT beta now jumps to outer omega.
+- [x] **Sprint 2 (CAT)**: 3 oracles committed, all passing. *(done 2026-03-10, commit `909872d`)*
+- [x] **Sprint 3 (ALT)**: 4 oracles committed, all passing. *(done 2026-03-10, commit `909872d`)*
 - [ ] **Sprint 4 (ASSIGN)**: SPAN + `$ OUTPUT` end-to-end. First program that produces visible output from a pattern match.
 
 ### P2 — Important
-- [ ] **SNOBOL4cython → org decision**: `snobol4c_module.c` (v2, 721 lines) is a complete working Byrd Box engine in C with 70+ passing tests. Options: (a) new `SNOBOL4-cython` org repo, or (b) fold into SNOBOL4-python as alternative backend to SPIPAT. Source currently only in uploaded zips — needs to land in a repo before it can be lost.
+- [x] **SNOBOL4cython → org decision**: Resolved 2026-03-10. New repo `SNOBOL4-plus/SNOBOL4-cpython` — own org repo, reorganized with `src/`, `tests/`, `README.md`, `pyproject.toml`. v1 `aaa5c57` (Arena) and v2 `330fd1f` (per-node malloc) in git history. Future SPIPAT replacement candidate.
 - [ ] **Sprint 5 (SPAN β)**: test that SPAN gives back one character at a time when downstream backtracks. Write a test where SPAN + LIT forces backtracking.
 - [ ] **Sprint 6 (BREAK + ANY)**: add C templates to emit_c.py. Straightforward — model on existing Span/Lit.
 - [ ] **Sprint 7 (ARB)**: non-deterministic generator. Template must try 0 chars first, then grow.
-- [ ] **Sprint 8 (ARBNO)**: use `snobol4c_module.c` ARBNO implementation as reference (see SNOBOL4cython section above — `yielded` flag is the key mechanism).
+- [ ] **Sprint 8 (ARBNO)**: use SNOBOL4-cpython ARBNO implementation as reference (`yielded` flag is the key mechanism — see `src/snobol4c_module.c` in that repo).
 - [ ] **Sprint 9 (REF / ζ)**: add `T_REF` to engine.c — named pattern reference and mutual recursion. This unblocks `C_PATTERN.h`, `RE_PATTERN.h`, `CALC_PATTERN.h`. See ByrdBox PATTERN.h inventory below.
 - [ ] **First benchmark**: after Sprint 4, run SPAN+ASSIGN against SPITBOL on a large input. Record in bench/README.md.
 

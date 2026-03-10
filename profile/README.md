@@ -60,6 +60,11 @@ A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clo
 
 The full language is supported without compromise. Validated against **2,033 tests / 4,417 assertions / 0 failures**, cross-checked against SPITBOL v4.0f and CSNOBOL4 2.3.3 on over 1,500 systematic programs. Includes the complete Gimpel corpus and the Shafto AI corpus — Wang's theorem prover, an Augmented Transition Network compiler, the Kalah board game, all in SNOBOL4.
 
+### [SNOBOL4-cpython](https://github.com/SNOBOL4-plus/SNOBOL4-cpython)
+*CPython C extension: SNOBOL4 Byrd Box engine — the bridge between SNOBOL4-python and native C*
+
+A direct CPython C extension that accepts a `SNOBOL4python` pattern tree and runs it through the full Psi/Omega Byrd Box engine in C. No interpreter loop. No indirect dispatch. `match()`, `search()`, `fullmatch()` — returns `(start, end)` or `None`. The C engine in this repo is the proof-of-concept from which `engine.c` in SNOBOL4-tiny was extracted. Two historical versions are preserved as separate commits: v1 (Arena bump allocator) and v2 (per-node `malloc` + `PatternList` tracker). Long-term candidate to replace SPIPAT as the C backend for SNOBOL4-python with a SNOBOL4-plus-owned implementation.
+
 ### [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python)
 *SNOBOL4 pattern matching for Python — available on PyPI*
 
@@ -139,9 +144,10 @@ Griswold had the idea. We are finishing the proof.
 | Repo | Status |
 |------|--------|
 | [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python) | Active — v0.5.0, dual C/Python backend, on PyPI |
+| [SNOBOL4-cpython](https://github.com/SNOBOL4-plus/SNOBOL4-cpython) | Active — 70+ tests passing, v1+v2 history, candidate SPIPAT replacement |
 | [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | Active — 1,484 tests passing, Windows/Linux/macOS |
 | [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Active — 2,033 tests / 4,417 assertions / 0 failures |
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | In progress — Sprint 0–1 underway; Sprint 5 bootstrap target |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | In progress — Sprints 0–3 done; Sprint 4 (ASSIGN) next |
 
 Correctness validated against three independent oracles: **SPITBOL x64**, **CSNOBOL4 2.3.3**, and the sibling implementations within this org. The test corpus spans the Gimpel algorithm library, the Shafto AI corpus, and a shared corpus submodule covering the full language.
 

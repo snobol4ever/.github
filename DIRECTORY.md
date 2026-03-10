@@ -35,6 +35,7 @@
 | **SNOBOL4-tiny** — native compiler, Byrd Box | `PLAN.md` § SNOBOL4-tiny — Full Plan |
 | **Snocone** — C-like sugar front-end (both targets) | `PLAN.md` § Snocone Front-End Plan |
 | **SNOBOL4-python** — pattern library, PyPI | `PLAN.md` § SNOBOL4-python — Plan |
+| **SNOBOL4-cpython** — CPython C extension, Byrd Box engine | `PLAN.md` § Architecture Decisions Log (D5) |
 | **SNOBOL4-csharp** — pattern library, C# | `PLAN.md` § SNOBOL4-csharp — Plan |
 | **SNOBOL4-corpus** — shared programs + benchmarks | `PLAN.md` § SNOBOL4-corpus — Plan |
 
@@ -73,15 +74,17 @@
 |------|-------|-------------|
 | SNOBOL4-dotnet | 1,607 / 0 | `63bd297` |
 | SNOBOL4-jvm | 1,896 / 4,120 assertions / 0 | `9cf0af3` |
-| SNOBOL4-tiny | Sprint 0–1 done, Sprint 2 next | `74c66f7` |
+| SNOBOL4-cpython | 70+ / 0 | `330fd1f` |
+| SNOBOL4-tiny | Sprints 0–3 done, Sprint 4 next | `49d98b7` |
 
 ---
 
 ## 7. What To Do Next (update at every handoff)
 
-**SNOBOL4-tiny**: Sprint 2 — CAT node.
-Write `test/sprint2/cat_pos_lit_rpos.c` by hand, confirm compile+run,
-then drive from `emit_c.py` and diff. First auto-generated test.
+**SNOBOL4-tiny**: Sprint 4 — ASSIGN (`$` immediate + `.` conditional capture).
+Write `test/sprint4/assign.c` oracle, then drive from `emit_c.py`.
+
+**SNOBOL4-cpython**: New repo live at `SNOBOL4-plus/SNOBOL4-cpython`. No immediate work needed — preserved for future SPIPAT replacement work.
 
 **SNOBOL4-jvm / dotnet**: Snocone Step 3 — `if/else` → label/goto pairs (both targets).
 

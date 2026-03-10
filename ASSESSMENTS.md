@@ -13,7 +13,8 @@ cross-platform compatibility across all implementations.
 | SNOBOL4-jvm | 1,896 (4,120 assertions) | 0 | SPITBOL v4.0f, CSNOBOL4 2.3.3 | 2026-03-10 |
 | SNOBOL4-python | — | — | — | 2026-03-02 |
 | SNOBOL4-csharp | 263 | 0 | — | 2026-03-07 |
-| SNOBOL4-cython | 70+ (`test_bead.py`) | 0 | SNOBOL4python patterns | 2026-03-10 (not yet in org repo) |
+| SNOBOL4-cpython | 70+ (`tests/test_bead.py`) | 0 | SNOBOL4python patterns | 2026-03-10 — `SNOBOL4-plus/SNOBOL4-cpython` |
+| SNOBOL4-tiny | 7 oracles (Sprints 0–3) | 0 | emit_c.py hand-written oracles | 2026-03-10 |
 
 ---
 ---
