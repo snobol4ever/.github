@@ -415,7 +415,7 @@ Generated labels: `sc_1`, `sc_2`, etc. Never reused within a compilation unit.
 
 | Date | What |
 |------|------|
-| 2026-03-10 | Plan written. Corpus population next. |
+| 2026-03-10 | Plan written. Corpus populated: `snocone.sc`, `snocone.sno`, `snocone.snobol4`, Koenig spec, README added to `SNOBOL4-corpus/programs/snocone/`. commit `ab5f629`. Step 1 (lexer) is next. |
 
 ---
 ---
@@ -697,9 +697,10 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 | 2026-03-06 | UDF savedFailure bug fixed (`var savedFailure = Failure` not `ErrorJump > 0`). Phase 9: Roslyn removal + arg list pooling. Phase 10: integer fast path. |
 | 2026-03-07 | MSIL emitter Steps 1–13 complete. LOAD/UNLOAD plugin system. 1,413 → 1,484 tests. All merged to `main`. |
 | 2026-03-10 | Fixed all 10 failing tests (commit `3bce92c`): real-to-string format (`"25."` not `"25.0"` — verified against SPITBOL `sbl.min` and CSNOBOL4 `realst.c`); LOAD() `:F` branch on error; `&STLIMIT` exception swallowed gracefully. Plugin DLLs now auto-built via `ProjectReference` build-only deps in `TestSnobol4.csproj`. Baseline: **1,466 / 0**. |
-| 2026-03-10 | Added GitHub Actions CI workflow `.github/workflows/ci.yml` — triggers on push/PR to `main`, runs `dotnet build Snobol4.sln -c Release` then `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`. commit `5b635b0`. |
-| 2026-03-10 | Fixed `benchmarks/Benchmarks.csproj` `net8.0` → `net10.0` (net8 EOL Nov 2025, net10 is current LTS). commit `defc478`. |
-| 2026-03-10 | Documented credential format in PLAN.md Git Identity section (token arrives as `_trYPI... phg` → reconstruct as `ghp_trYPI...`, username `LCherryholmes`). |
+| 2026-03-10 | Fixed `benchmarks/Benchmarks.csproj` `net8.0` → `net10.0`. commit `defc478`. |
+| 2026-03-10 | Added then removed GitHub Actions CI workflow — was triggering unwanted email notifications. commit `d212c85`. |
+| 2026-03-10 | Documented `EnableWindowsTargeting=true` required for Linux builds (`Snobol4W` is Windows-only). Always pass `-p:EnableWindowsTargeting=true` to `dotnet build Snobol4.sln`. |
+| 2026-03-10 | Confirmed 1,466/0 baseline under .NET 10 locally (`dotnet test` runs in ~17s). |
 
 ---
 
