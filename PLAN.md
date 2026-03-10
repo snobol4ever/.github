@@ -432,6 +432,55 @@ delivers. Round 2 + arena + Proebsting + flat loop = Round 1.
 Implement after Sprint 14 (SNOBOL4 subset codegen) once the architecture
 is stable enough to support a runtime change of this magnitude.
 
+### Platform Considerations — JVM, .NET, and Native C
+
+The separate backtrack stack + flat loop is the **native C story**.
+JVM and .NET require different thinking.
+
+#### JVM (SNOBOL4-jvm — Clojure)
+- The JVM has no computed gotos (`goto *ptr`). The flat loop with
+  indirect dispatch requires a **tableswitch** or a **lookupswitch**
+  (Java bytecode) — which is the JVM's equivalent of a dispatch table.
+- The JIT compiler (HotSpot, GraalVM) does its own inlining, branch
+  prediction, and loop optimization — but only across methods it has
+  decided to inline. Keeping patterns as small methods and letting the
+  JIT inline them is often the right strategy, not fighting it.
+- The JVM has no arena allocator in the C sense. The analog is
+  **object pooling** or **ThreadLocal frame reuse** — pre-allocating
+  frame objects and resetting them between matches instead of GC'ing them.
+- GraalVM native-image is a path to native performance from Clojure code
+  if the JVM story hits a ceiling.
+
+#### .NET (SNOBOL4-dotnet — C#)
+- C# has no computed gotos either. The analog is a **switch dispatch loop**
+  on an enum state — which the JIT recognizes and optimizes well.
+- The .NET JIT (RyuJIT) does aggressive inlining across method boundaries
+  for small methods. The FuncEmitter model (one method per pattern) may
+  actually JIT well without structural changes.
+- C# `Span<T>` and `stackalloc` enable arena-style allocation on the
+  stack without GC pressure — this is the .NET analog of the C arena.
+- The .NET `System.Text.RegularExpressions` source-generated regex
+  (Roslyn-compiled) is the performance baseline to beat.
+
+#### The Shared IR Is the Key
+All three targets — native C, JVM, .NET — share the same IR
+(`src/ir/ir.py`). The optimization passes (Proebsting, eventually the
+flat loop emitter) run on the IR, not on the target code. Each platform
+gets the best code its runtime can execute:
+
+| Platform | Flat loop | Arena | Proebsting |
+|----------|:---------:|:-----:|:----------:|
+| Native C | ✓ (planned) | ✓ (done) | ✓ (done) |
+| JVM | tableswitch loop | object pool | ✓ (IR level) |
+| .NET | switch loop | stackalloc Span | ✓ (IR level) |
+
+The benchmark story for JVM and .NET is different from native C:
+- Native: beat PCRE2 JIT (already done at 2.3×)
+- JVM: beat `java.util.regex` and `RE2J`
+- .NET: beat `System.Text.RegularExpressions` source-generated
+
+All three are winnable. The architecture is the same. The emitter differs.
+
 ### Related
 - Proebsting pass (already in) — prerequisite: copy chains must be gone
   before the flat-loop model makes sense
