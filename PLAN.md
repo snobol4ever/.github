@@ -3567,10 +3567,15 @@ only Level-3 bugs.
 | Level 3 | + INC files | In progress (Sprint 20) | Depends on Level 2 |
 
 **Next actions**:
-1. Commit `beauty_run.sno` to SNOBOL4-tiny repo — Level 3 is not reproducible without it
-2. Extract Level 1 subset from `beautiful.sno` — bootstrap only, no pp/qq/INC
-3. Run oracle on Level 1. Run binary. Diff. Fix until zero.
-4. Add pp + qq → Level 2. Repeat.
+1. **BUILD THE MONITOR** — we are at the gate. This is the next thing.
+   - `sno_comm_stno(N)` emits `STNO N` to stderr when `SNO_MONITOR=1`
+   - `sno_comm_var(name, val)` emits `VAR name value` to stderr
+   - `tools/diff_monitor.py` reads two trace files, finds first divergence
+   - Oracle side: CSNOBOL4 with `TRACE('&STNO','KEYWORD')` armed
+2. Commit `beauty_run.sno` to SNOBOL4-tiny repo
+3. Extract Level 1 subset, run both sides, diff — first real monitor run
+4. Fix until zero diffs. Level 1 certified.
+5. Add pp + qq → Level 2. Repeat.
 
 ---
 
@@ -3579,4 +3584,5 @@ only Level-3 bugs.
 | Date | What |
 |------|------|
 | 2026-03-10 | First version: levels defined by abstraction (wrong). Corrected by Lon: levels are defined by what source is *included* — main+bootstrap / main+pp+qq+bootstrap / main+pp+qq+INC. These are real subsets of the actual program, not synthetic tests. |
+| 2026-03-10 | **WE ARE AT THE GATE.** Three-level strategy written. P002 fixed. Pyramid ready to build. The MONITOR is the next thing — without it none of the levels can be proven. Build it now. |
 
