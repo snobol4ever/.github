@@ -4154,3 +4154,50 @@ grep -n "SPAT_ASSIGN_COND" snobol4_pattern.c
 The match chain for `"START\n"` should succeed — `BREAK(" \t\n;")` consumes `START`,
 stores into `snoLabel`, continues at pos 5, epsilon path through alts, `\n` matches.
 Something in the materialise/store step is broken.
+
+---
+
+## Session Log Entry — 2026-03-11 (Session 4 — P1 SPAT_ASSIGN_COND fix)
+
+**Claude Sonnet 4.6**
+
+### What Happened
+
+Picked up P1 directly. Diagnosed `SPAT_ASSIGN_COND` materialise in `snobol4_pattern.c`:
+captures were recorded into `ctx->captures[]` but **never applied** — no code consumed
+the array after `engine_match()` returned. The TODO comment confirmed this was known but
+deferred.
+
+### Fix Implemented
+
+Added proper sub-match capture support to the engine:
+
+- **`engine.h`**: Added `T_CAPTURE = 43` node type; `CaptureFn` callback typedef;
+  `EngineOpts` struct; `engine_match_ex()` declaration.
+- **`engine.c`**: Added `cap_fn`, `cap_data`, `cap_start` fields to `State`; added
+  `T_CAPTURE` dispatch (PROCEED records cursor, SUCCESS fires callback, FAILURE/RECEDE
+  propagate); refactored `engine_match()` to delegate to `engine_match_ex()`.
+- **`snobol4_pattern.c`**: `SPAT_ASSIGN_COND`/`SPAT_ASSIGN_IMM` now emit a `T_CAPTURE`
+  node wrapping the child (instead of silently dropping captures); added
+  `capture_callback()` (fired by engine on T_CAPTURE SUCCESS) and `apply_captures()`
+  (writes captured spans to SNOBOL4 vars via `sno_var_set`); wired `try_match_at()`
+  and `sno_match_and_replace()` to use `engine_match_ex()`.
+
+Compiled clean. Committed: `883b802`.
+
+### Current State
+
+Output still 10 lines (oracle: 649). T_CAPTURE fires but `cap_start` / cursor offset
+arithmetic at SUCCESS time is under investigation — the `Z.cap_start` set in T_CAPTURE
+PROCEED vs. `Z.DELTA` at SUCCESS may have an off-by-one or scan_start adjustment issue.
+
+### Next Action (P1 continued)
+
+The targeted unit test (`BREAK(" \t\n;") . "x"` on `"START\n"`) failed to build due
+to an `invalid initializer` error in the test harness (`SNO_STR_VAL` used with a
+`const char *` literal in a compound literal). Fix the test, confirm `x == "START"`,
+then run the full beautiful binary with `SNO_PAT_DEBUG=1` and watch for `CAPTURE:` lines.
+
+If captures fire with wrong values, focus on `scan_start` offset in `capture_callback`:
+`cap->start = start + ctx->scan_start` — verify this is correct when engine_match_ex
+is called with `subject + start`.
