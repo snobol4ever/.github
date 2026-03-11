@@ -1034,3 +1034,79 @@ The corpus needs a `generated/` subdirectory for pinned generator
 outputs. Everything else (sno/, benchmarks/, gimpel/, test/) is
 hand-curated. The generator feeds the crosschecker directly — it does
 not need to land in the corpus first unless we want to pin it.
+
+### 2026-03-11 — Session 7 (Harness Sprint H1 continued — Architecture + Corpus)
+
+**Focus**: Harness architecture, corpus reorganization, strategic planning.
+No compiler code written this session.
+
+**Completed:**
+
+- **§8 Oracle Feature Grid** — rewritten with fully verified TRACE output
+  formats for all three runnable oracles (CSNOBOL4, SPITBOL, SNOBOL5).
+  Confirmed VALUE/CALL/RETURN/LABEL TRACE works on all three.
+
+- **§10 Top-down harness model** — documented: harness is a peer repo at
+  top level, engines are black boxes called as subprocesses. Output-level
+  crosscheck works today with zero engine changes.
+
+- **§11 Developer workflow** — Jeffrey can run `make test-harness` from
+  inside SNOBOL4-jvm. Calling convention documented. Open question on
+  in-process vs subprocess for JVM deferred.
+
+- **§12 Test code generation** — generator.clj (rand-program, gen-by-length)
+  and Expressions.py (rand_*/gen_* expression tiers) inventoried and
+  documented. Both migrated into SNOBOL4-harness/adapters/.
+
+- **§13 Corpus + generators as two feeds** — documented: corpus is curated
+  permanent collection; generators are infinite live tap. Both feed
+  crosscheck directly. Generator failures = bug reports. Passing generator
+  outputs → pinned in corpus/generated/.
+
+- **harness.clj refactored** — unified `run/triangulate/crosscheck` API,
+  engine registry with `:role :oracle/:target`, `targets` def (JVM +
+  dotnet only; tiny excluded). Commit `f6c10f8`.
+
+- **Crosscheck targets reduced to JVM + dotnet** — tiny excluded until
+  Sprint 20 T_CAPTURE blocker resolved.
+
+- **SNOBOL4-corpus reorganized** — new structure: `crosscheck/` by feature
+  (hello/arith/strings/patterns/capture/control/functions/arrays/code),
+  `programs/` (beauty/lon/dotnet/icon/gimpel), `generated/` placeholder.
+  Scattered .sno files from dotnet and tiny collected. Commit `8d58091`.
+
+- **gimpel.zip + aisnobol.zip** — Lon attempted to upload; I/O error on
+  uploads mount (session too long). Re-upload at start of next session.
+  These go into `corpus/programs/gimpel/` and `corpus/crosscheck/`.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-harness | `f6c10f8` | Unified harness API + engine registry |
+| SNOBOL4-harness | `54511e8` | Expressions.py added |
+| SNOBOL4-harness | `2774249` | All testing artifacts pulled in |
+| SNOBOL4-corpus | `8d58091` | Full corpus reorganization |
+| .github | `db71c6c` | §13 corpus+generators as two feeds |
+| .github | `c93702b` | §2 reduce targets to JVM+dotnet |
+| .github | `16bd73f` | §12 generator documentation |
+| .github | `874d993` | §11 developer workflow |
+| .github | `8ffbcfa` | §10 top-down harness model |
+| .github | `a558ac8` | §8 verified oracle grid |
+
+**Next session — immediate actions:**
+
+1. **Re-upload gimpel.zip and aisnobol.zip** — add to corpus/programs/gimpel/
+   and sort into crosscheck/ subdirs as appropriate.
+2. **Smoke test dotnet engine** — verify `dotnet run` produces clean stdout
+   from a simple .sno; confirm engine registry entry is correct.
+3. **Write crosscheck.py** — Python crosscheck runner: enumerates
+   `corpus/crosscheck/`, runs each program through oracles + JVM + dotnet,
+   reports pass/fail table. This is the first end-to-end harness run.
+4. **Sprint 20 T_CAPTURE** — resume when ready; blocker is
+   `cap_start`/`scan_start` offset arithmetic in `snobol4_pattern.c`.
+
+**Open questions carried forward:**
+- JVM: in-process vs subprocess for harness calling convention
+- gimpel/ and capture/ crosscheck subdirs still empty
+- monitor.py (three-process pipe monitor) not yet built
