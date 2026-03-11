@@ -129,6 +129,27 @@ echo "Oracles ready."
 **Note**: CSNOBOL4 `mstime.c` already returns milliseconds — no patch needed.
 **Note**: SPITBOL `systm.c` defaults to nanoseconds — always apply the patch above.
 
+**CSNOBOL4 TRACE patch** — required for `TRACE('STNO','KEYWORD')` to fire on every
+statement. Without it, the trace silently accepts the call but never emits output.
+Apply to both `snobol4.c` and `isnobol4.c` before building (4 lines total, 2 per file):
+
+```bash
+# In both snobol4.c and isnobol4.c, delete these two lines:
+#     if (!chk_break(0))
+#         goto L_INIT1;
+# They appear immediately before:
+#     if (!LOCAPT(ATPTR,TKEYL,STNOKY))
+
+sed -i '/if (!chk_break(0))/{N;/goto L_INIT1;/d}' \
+    /home/claude/csnobol4-src/snobol4.c \
+    /home/claude/csnobol4-src/isnobol4.c
+```
+
+Root cause: PLB113 edit gated the `&STNO` KEYWORD trace on `chk_break()`, which
+only returns nonzero after `BREAKPOINT(stmtno,1)` has been called. The v311.sil
+spec requires no such gate — if `&TRACE > 0` and `STNO` is in the keyword trace
+table, fire. `BREAKPOINT()` remains functional for debugger use.
+
 | Binary | Invocation |
 |--------|------------|
 | `/usr/local/bin/snobol4` | `snobol4 -f -P256k program.sno` |
