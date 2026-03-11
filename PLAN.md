@@ -1132,3 +1132,125 @@ No compiler code written this session.
 - JVM: in-process vs subprocess for harness calling convention
 - gimpel/ and capture/ crosscheck subdirs still empty
 - monitor.py (three-process pipe monitor) not yet built
+
+### 2026-03-11 — Session 10 (treebank.sno + claws5.sno + corpus/library idea)
+
+**Completed:**
+
+- **`treebank.sno`** — SNOBOL4 translation of Lon's `group`/`treebank`
+  SNOBOL4python patterns (assignment3.py, ENG 685). Recursive Penn Treebank
+  S-expression pretty-printer. Handles multi-line trees (blank-line paragraph
+  format). Recursive DEFINE: `parse_node(depth)` consumes from front of
+  `subject`, prints 2-spaces-per-level indented tree. Tested: 249 trees in
+  VBGinTASA.dat, zero parse errors. Key fix: use `SPAN(tagch)` not `NOTANY+BREAK`
+  for tags (NOTANY consumes first char, capture misses it).
+
+- **`claws5.sno`** — SNOBOL4 translation of Lon's `claws_info` SNOBOL4python
+  pattern. CLAWS5 POS-tagged corpus tokenizer. Output: `sentno TAB word TAB tag`.
+  Key bug found and fixed: sentence marker pattern must be `POS(0)`-anchored or
+  SPAN(digits) finds digits inside words (e.g. NN2) mid-buffer. Tested: 6469
+  tokens, zero errors on CLAWS5inTASA.dat.
+
+- **`programs/lon/eng685/`** added to corpus:
+  - `assignment3.py` — original Python source
+  - `CLAWS5inTASA.dat` — 989 lines, CLAWS5 tagged TASA sentences
+  - `VBGinTASA.dat` — 1977 lines, 249 Penn Treebank trees
+  - `README.md` — explains VBG categories, data file usage, omitted file
+  - `CLAWS7inTASA.dat` — **NOT included** (not referenced by assignment3.py;
+    same sentences, different/older tagset; add if CLAWS7 parser is written)
+
+- **Corpus commit**: `7b9c3d5` — treebank.sno, claws5.sno, eng685/ all in one.
+
+**Two new ideas recorded (see §14 below):**
+1. Scan all repo source + text files for embedded SNOBOL4 programs
+2. `corpus/library/` — SNOBOL4 standard library (community stdlib)
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-corpus | `7b9c3d5` | treebank.sno + claws5.sno + eng685/ data |
+
+---
+
+## 14. Two Ideas from Session 10
+
+### Idea 1 — Scan Repos for Embedded SNOBOL4 Programs
+
+**What**: Every repo (dotnet, jvm, tiny, harness, cpython, python, csharp) has
+source files, test fixtures, doc strings, README code blocks, and comments.
+Some of these contain embedded SNOBOL4 programs — inline in test strings,
+heredocs, markdown fences, Python triple-quoted strings, Clojure multiline
+strings, etc. These are a **gold mine** for the corpus.
+
+**Why it matters**: They are real programs that already run (the tests pass),
+they cover features the repo is actually testing, and they're already known-good
+against at least one oracle.
+
+**How**: Scan for `.sno`, `.spt`, `.sbl` files; heredocs/multiline strings
+containing `END` as a line; markdown ` ```snobol ` or ` ```snobol4 ` fences;
+Python triple-quoted strings containing `OUTPUT` / `INPUT` / `END`; Clojure
+`"..."` strings with `:(` or `:S(` patterns.
+
+**What to do with them**: Case by case —
+- Truly self-contained, deterministic output → extract to `crosscheck/`
+- Illustrative fragments (no output, no END) → extract to `programs/snippets/`
+- Large programs → extract to `programs/` with the appropriate subdirectory
+- Leave a comment in the source pointing to the corpus file
+
+**Status**: Scan not yet run. Do this one repo at a time.
+
+---
+
+### Idea 2 — `corpus/library/` — SNOBOL4 Standard Library
+
+**What**: A new top-level directory in SNOBOL4-corpus:
+
+```
+SNOBOL4-corpus/
+    library/          ← NEW: community stdlib
+        stack.sno     ← push/pop/peek/depth (4-5 functions, tightly coupled)
+        queue.sno
+        set.sno
+        string.sno    ← trim, split, join, pad, upper, lower, ...
+        math.sno      ← max, min, abs, gcd, lcm, ...
+        list.sno      ← SNOBOL4-style list (cons/car/cdr in TABLE)
+        regex.sno     ← higher-level pattern combinators
+        ...
+```
+
+**Why it's different from `programs/` and `crosscheck/`**:
+
+| Directory | Purpose | Usage |
+|-----------|---------|-------|
+| `crosscheck/` | Verifying engine behavior | Run by harness |
+| `programs/` | Real-world programs | Reference / browse |
+| `benchmarks/` | Performance measurement | Run by harness |
+| `library/` | **Reusable function libraries** | `-include` from user programs |
+
+**The key distinction**: library files are meant to be **included**, not run
+standalone. Like `#include <stdlib.h>` in C. You write:
+```
+-include 'library/stack.sno'
+```
+and then use `push`, `pop`, `peek` etc. in your program.
+
+**Design principles**:
+- One file per coherent function group (not necessarily one file per function)
+- `stack.sno` has push/pop/peek/depth — they're tightly coupled, ship together
+- Each file is `DEFINE`-only: no executable statements at top level, no `END`
+- Each file has a header comment listing every function it exports + signature
+- Files do not `include` each other (avoid circular deps and load-order issues)
+- Each function is tested in a corresponding `crosscheck/library/` test program
+
+**First candidates** (already exist in corpus or Lon's collection):
+- `stack.sno` — Lon has stack functions in multiple programs; extract + unify
+- `string.sno` — trim/pad/upper/lower appear repeatedly in corpus programs
+- `math.sno` — max/min/abs — trivial but commonly needed
+
+**Status**: Not yet started. High value for the community. Needs design review
+before first file is written — especially the include semantics and how crosscheck
+tests are structured for library files.
+
+**Note**: This is the SNOBOL4 community's missing stdlib. Griswold never
+standardized one. We can be the first to do it properly.
