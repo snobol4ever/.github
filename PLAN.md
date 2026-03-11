@@ -525,31 +525,54 @@ No code changes to any compiler this session.
 Quick reference — does the feature exist and minimally work across known oracles?
 SPITBOL-x32 is not testable in this container (kernel has 32-bit execution disabled).
 
+### TRACE keyword variant matrix
+
+The SPITBOL manual (v3.7) explicitly states: only `ERRTYPE`, `FNCLEVEL`, and `STCOUNT`
+may be traced with `'KEYWORD'` type. `&STNO` does not exist in SPITBOL — the equivalent
+is `&LASTNO`. The `&` prefix in the TRACE first argument is always wrong (error 198).
+
+| `TRACE(name,'KEYWORD')` | CSNOBOL4 | SPITBOL-x64 | SNOBOL5 | SPITBOL-x32 |
+|------------------------|:--------:|:-----------:|:-------:|:-----------:|
+| `'STNO'` | ✅ fires (patched) | ❌ error 198 | ❌ silent | ? |
+| `'&STNO'` | ❌ silent | ❌ error 198 | ❌ silent | ? |
+| `'STCOUNT'` | ✅ fires | ✅ fires | ✅ fires | ? |
+| `'&STCOUNT'` | ❌ silent | ❌ error 198 | ❌ silent | ? |
+| `'FNCLEVEL'` | ❌ silent | ❌ silent | ❌ silent | ? |
+| `'ERRTYPE'` | ❌ silent | ❌ silent | ❌ silent | ? |
+
+**Key finding**: SPITBOL has no `&STNO` keyword. Its equivalent is `&LASTNO` (statement
+number of the *previous* statement executed). SPITBOL `TRACE('STNO','KEYWORD')` fails
+with error 198 — it is not merely unimplemented, it is explicitly rejected.
+CSNOBOL4's `STNO` keyword trace fires on every statement (after the 4-line patch).
+
+### Full feature grid
+
 | Feature | CSNOBOL4 2.3.3 | SPITBOL-x64 | SPITBOL-x32 | SNOBOL5 |
 |---------|:--------------:|:-----------:|:-----------:|:-------:|
 | `CODE(str)` | ✅ | ✅ | ? | ✅ |
 | `EVAL(str)` | ✅ | ✅ | ? | ✅ |
-| `LOAD(proto,lib)` | ✅ dlopen | ❌ stubbed (EXTFUN=0) | ❌ stubbed (EXTFUN=0) | ❌ error 23 (obj too large) |
+| `LOAD(proto,lib)` | ✅ dlopen | ❌ stubbed (EXTFUN=0) | ❌ stubbed | ❌ error 23 (obj too large) |
 | `UNLOAD(name)` | ✅ | ✅ | ? | ✅ |
 | `LABELCODE(name)` | ✅ | ❌ undefined | ? | ❌ undefined |
 | `DATA(proto)` | ✅ | ✅ (lowercase name) | ? | ✅ |
 | `ARRAY()` / `TABLE()` | ✅ | ✅ | ? | ✅ |
 | `DEFINE()` / functions | ✅ | ✅ | ? | ✅ |
+| `&STNO` keyword | ✅ | ❌ no such keyword (`&LASTNO` instead) | ❌ | ? |
+| `&STCOUNT` keyword | ✅ | ✅ | ? | ✅ |
+| `&STLIMIT` keyword | ✅ | ✅ | ? | ✅ |
 | `TRACE('STNO','KEYWORD')` | ✅ (patched) | ❌ error 198 | ? | ❌ silent |
-| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | ? | ✅ (different format) |
-| `TRACE('X','VALUE')` | ✅ | ✅ | ? | ✅ (different format) |
+| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | ? | ✅ |
+| `TRACE(var,'VALUE')` | ✅ | ✅ | ? | ✅ |
 | Pattern matching | ✅ | ✅ | ? | ✅ |
 | `CODE()` execution `:<C>` | ✅ | ✅ | ? | ✅ |
 
 **Notes:**
-- SPITBOL-x64 `LOAD()`: `EXTFUN=0` in `port.h` — the dlopen plumbing exists in `sysld.c` but is compiled out
-- SPITBOL-x32: same `EXTFUN=0` situation; binary cannot run in this container (32-bit kernel support disabled)
-- SNOBOL5 `LOAD()`: fails with error 23 (object exceeds size limit) when loading large libs like libc; may work with small `.so` files
-- SNOBOL5 trace format: `    STATEMENT N: &VAR = V,TIME = T` — different from CSNOBOL4/SPITBOL format
-- SNOBOL5 `TRACE('STNO','KEYWORD')`: silently accepted, never fires — same symptom as pre-patch CSNOBOL4
-- SPITBOL `DATA()`: returns lowercase datatype name (`point` not `POINT`) — corpus tests must account for this
-- CSNOBOL4 `TRACE('STNO','KEYWORD')`: requires the 4-line patch to `isnobol4.c`/`snobol4.c` (see §4)
+- SPITBOL manual §10 lists valid KEYWORD trace targets as only: `ERRTYPE`, `FNCLEVEL`, `STCOUNT`
+- SPITBOL uses `&LASTNO` where CSNOBOL4 uses `&STNO` — different keyword name for same concept
+- `&` prefix in TRACE first arg is always wrong in SPITBOL (error 198); always without ampersand
+- SNOBOL5 trace format: `    STATEMENT N: &VAR = V,TIME = T` — different from CSNOBOL4/SPITBOL
+- SPITBOL `DATA()` returns lowercase type name — corpus tests must normalize case
+- CSNOBOL4 `TRACE('STNO','KEYWORD')` requires the 4-line patch to `isnobol4.c`/`snobol4.c` (see §4)
 
-**Harness implication**: CSNOBOL4 (patched) is the sole reliable statement-trace oracle.
-SPITBOL-x64 serves as output crosscheck. SNOBOL5 is a candidate third oracle for output
-crosscheck but its trace format and STNO gap make it unsuitable as a trace oracle.
+**Harness implication**: CSNOBOL4 (patched) is the sole reliable per-statement trace oracle.
+SPITBOL-x64 and SNOBOL5 are output crosscheck oracles only.
