@@ -517,3 +517,29 @@ No code changes to any compiler this session.
 
 *This file is the single operational briefing. Update §6 (Current Work) and §12
 (Session Log) at every HANDOFF. Everything else is stable.*
+
+---
+
+## 8. Oracle Feature Coverage
+
+Quick reference — does the feature exist and minimally work?
+
+| Feature | CSNOBOL4 2.3.3 | SPITBOL x64 | Notes |
+|---------|---------------|-------------|-------|
+| `CODE(str)` | ✅ returns CODE type | ✅ returns CODE type | Both compile string to code block |
+| `EVAL(str)` | ✅ returns value | ✅ returns value | Evaluates expression string |
+| `LABELCODE(name)` | ✅ returns CODE type | ❌ undefined function | CSNOBOL4 extension only |
+| `LOAD(proto,lib)` | ✅ dlopen works | ❌ error 142 — stubbed | EXTFUN=0 in SPITBOL; CSNOBOL4 uses dlopen |
+| `UNLOAD(name)` | ✅ fails gracefully | ✅ fails gracefully | Both handle unloading nonexistent fn |
+| `TRACE('STNO','KEYWORD')` | ✅ fires every stmt (patched) | ❌ error 198 — rejected | SPITBOL x64 rejects keyword trace on &STNO |
+| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | Both work |
+| `&STNO` / `&STCOUNT` | ✅ | ✅ | Both expose statement counters |
+| `ARRAY()` / `TABLE()` | ✅ | ✅ | |
+| `DEFINE()` / `FUNCTION` | ✅ | ✅ | |
+| `DATA()` / user datatypes | ✅ | ✅ | |
+| Pattern matching | ✅ | ✅ | |
+| `CODE()` execution `:<C>` | ✅ | ✅ | Indirect goto to code block |
+
+**Harness implication**: SPITBOL x64 cannot serve as the `TRACE('STNO','KEYWORD')`
+oracle. CSNOBOL4 (patched) is the sole statement-level trace oracle.
+SPITBOL x64 remains useful for output crosscheck on the same corpus programs.
