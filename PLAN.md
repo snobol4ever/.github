@@ -127,7 +127,8 @@ echo "Oracles ready."
 ```
 
 **Note**: CSNOBOL4 `mstime.c` already returns milliseconds — no patch needed.
-**Note**: SPITBOL `systm.c` defaults to nanoseconds — always apply the patch above.
+**Note**: SPITBOL x64 `systm.c` defaults to nanoseconds — always apply the patch above.
+**Note**: SPITBOL x32 `systm.c` already returns milliseconds via `times()`/`CLK_TCK` — no patch needed.
 
 **CSNOBOL4 TRACE patch** — required for `TRACE('STNO','KEYWORD')` to fire on every
 statement. Without it, the trace silently accepts the call but never emits output.
