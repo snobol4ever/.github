@@ -522,24 +522,34 @@ No code changes to any compiler this session.
 
 ## 8. Oracle Feature Coverage
 
-Quick reference — does the feature exist and minimally work?
+Quick reference — does the feature exist and minimally work across known oracles?
+SPITBOL-x32 is not testable in this container (kernel has 32-bit execution disabled).
 
-| Feature | CSNOBOL4 2.3.3 | SPITBOL x64 | Notes |
-|---------|---------------|-------------|-------|
-| `CODE(str)` | ✅ returns CODE type | ✅ returns CODE type | Both compile string to code block |
-| `EVAL(str)` | ✅ returns value | ✅ returns value | Evaluates expression string |
-| `LABELCODE(name)` | ✅ returns CODE type | ❌ undefined function | CSNOBOL4 extension only |
-| `LOAD(proto,lib)` | ✅ dlopen works | ❌ error 142 — stubbed | EXTFUN=0 in SPITBOL; CSNOBOL4 uses dlopen |
-| `UNLOAD(name)` | ✅ fails gracefully | ✅ fails gracefully | Both handle unloading nonexistent fn |
-| `TRACE('STNO','KEYWORD')` | ✅ fires every stmt (patched) | ❌ error 198 — rejected | SPITBOL x64 rejects keyword trace on &STNO |
-| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | Both work |
-| `&STNO` / `&STCOUNT` | ✅ | ✅ | Both expose statement counters |
-| `ARRAY()` / `TABLE()` | ✅ | ✅ | |
-| `DEFINE()` / `FUNCTION` | ✅ | ✅ | |
-| `DATA()` / user datatypes | ✅ | ✅ | |
-| Pattern matching | ✅ | ✅ | |
-| `CODE()` execution `:<C>` | ✅ | ✅ | Indirect goto to code block |
+| Feature | CSNOBOL4 2.3.3 | SPITBOL-x64 | SPITBOL-x32 | SNOBOL5 |
+|---------|:--------------:|:-----------:|:-----------:|:-------:|
+| `CODE(str)` | ✅ | ✅ | ? | ✅ |
+| `EVAL(str)` | ✅ | ✅ | ? | ✅ |
+| `LOAD(proto,lib)` | ✅ dlopen | ❌ stubbed (EXTFUN=0) | ❌ stubbed (EXTFUN=0) | ❌ error 23 (obj too large) |
+| `UNLOAD(name)` | ✅ | ✅ | ? | ✅ |
+| `LABELCODE(name)` | ✅ | ❌ undefined | ? | ❌ undefined |
+| `DATA(proto)` | ✅ | ✅ (lowercase name) | ? | ✅ |
+| `ARRAY()` / `TABLE()` | ✅ | ✅ | ? | ✅ |
+| `DEFINE()` / functions | ✅ | ✅ | ? | ✅ |
+| `TRACE('STNO','KEYWORD')` | ✅ (patched) | ❌ error 198 | ? | ❌ silent |
+| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | ? | ✅ (different format) |
+| `TRACE('X','VALUE')` | ✅ | ✅ | ? | ✅ (different format) |
+| Pattern matching | ✅ | ✅ | ? | ✅ |
+| `CODE()` execution `:<C>` | ✅ | ✅ | ? | ✅ |
 
-**Harness implication**: SPITBOL x64 cannot serve as the `TRACE('STNO','KEYWORD')`
-oracle. CSNOBOL4 (patched) is the sole statement-level trace oracle.
-SPITBOL x64 remains useful for output crosscheck on the same corpus programs.
+**Notes:**
+- SPITBOL-x64 `LOAD()`: `EXTFUN=0` in `port.h` — the dlopen plumbing exists in `sysld.c` but is compiled out
+- SPITBOL-x32: same `EXTFUN=0` situation; binary cannot run in this container (32-bit kernel support disabled)
+- SNOBOL5 `LOAD()`: fails with error 23 (object exceeds size limit) when loading large libs like libc; may work with small `.so` files
+- SNOBOL5 trace format: `    STATEMENT N: &VAR = V,TIME = T` — different from CSNOBOL4/SPITBOL format
+- SNOBOL5 `TRACE('STNO','KEYWORD')`: silently accepted, never fires — same symptom as pre-patch CSNOBOL4
+- SPITBOL `DATA()`: returns lowercase datatype name (`point` not `POINT`) — corpus tests must account for this
+- CSNOBOL4 `TRACE('STNO','KEYWORD')`: requires the 4-line patch to `isnobol4.c`/`snobol4.c` (see §4)
+
+**Harness implication**: CSNOBOL4 (patched) is the sole reliable statement-trace oracle.
+SPITBOL-x64 serves as output crosscheck. SNOBOL5 is a candidate third oracle for output
+crosscheck but its trace format and STNO gap make it unsuitable as a trace oracle.
