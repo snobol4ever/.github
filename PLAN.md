@@ -720,3 +720,82 @@ The harness crosscheck pipeline is:
 - SNOBOL4-harness: `8e10cbb` — probe.py committed, smoke-tested
 - SNOBOL4-plus/.github: sections 8 and 9 added, oracle grid complete
 - All other repos unchanged from Session 5
+
+---
+
+## 10. Harness Architecture — Top-Down Model
+
+**Decided 2026-03-11.**
+
+### The topology
+
+```
+SNOBOL4-plus/          ← Lon works here. This is the top.
+├── .github/           ← PLAN.md, this file. The control center.
+├── SNOBOL4-harness/   ← Test driver. Reaches DOWN into engines.
+├── SNOBOL4-corpus/    ← Programs. Shared by all.
+├── SNOBOL4-jvm/       ← Engine. Knows nothing about harness.
+├── SNOBOL4-dotnet/    ← Engine. Knows nothing about harness.
+└── SNOBOL4-tiny/      ← Engine. Knows nothing about harness.
+```
+
+The harness is a **peer repo at the top level**, not a submodule or library
+embedded inside each engine. It calls each engine as a **subprocess** —
+stdin/stdout — exactly like a user would. No engine imports harness code.
+No harness code lives inside any engine repo.
+
+### The calling convention (simple, already works)
+
+Each engine is callable today from the harness level:
+
+```bash
+# JVM
+cd SNOBOL4-jvm && lein run < program.sno
+
+# dotnet
+cd SNOBOL4-dotnet && dotnet run --project Snobol4 < program.sno
+
+# tiny
+./SNOBOL4-tiny/src/runtime/snobol4/beautiful < program.sno
+```
+
+The harness wraps these calls. Engines don't change. No API needed.
+
+### What this means for probe and monitor
+
+**Probe loop** — the harness prepends `&STLIMIT=N` and `&DUMP=2` to any
+`.sno` file and runs it through any oracle or engine binary. The engine
+is a black box. One subprocess per frame.
+
+**Monitor** — the harness launches three subprocesses connected by pipes:
+1. Oracle (CSNOBOL4 or SPITBOL) with `TRACE()` injected → pipe A
+2. Engine under test (jvm/dotnet/tiny) running same program → pipe B  
+3. Harness diff/sync process reading pipe A and pipe B in lockstep
+
+The engine under test does not need to implement TRACE. The oracle provides
+the ground-truth event stream. The engine provides its output stream.
+The harness compares them.
+
+### What we can test from up here today
+
+| Engine | Probe loop | Monitor (output diff) | Monitor (event stream) |
+|--------|:----------:|:---------------------:|:----------------------:|
+| CSNOBOL4 (oracle) | ✅ | ✅ ref | ✅ TRACE native |
+| SPITBOL-x64 (oracle) | ✅ | ✅ ref | ✅ TRACE native |
+| SNOBOL5 (oracle) | ✅ | ✅ ref | ✅ TRACE native |
+| SNOBOL4-jvm | ✅ via subprocess | ✅ diff vs oracle | ⚠ needs TRACE or step hook |
+| SNOBOL4-dotnet | ✅ via subprocess | ✅ diff vs oracle | ⚠ needs TRACE or step hook |
+| SNOBOL4-tiny | ✅ via subprocess | ✅ diff vs oracle | ⚠ SNO_MONITOR=1 exists |
+
+For output-level crosscheck (does this engine produce the same stdout as
+CSNOBOL4?), all three engines are testable from here today with no changes.
+
+For event-level monitor (does this engine execute the same statements in
+the same order?), the engine needs to emit a trace stream. SNOBOL4-tiny
+already has `SNO_MONITOR=1` → stderr. JVM has `run-to-step`. Dotnet TBD.
+
+### The open question — deferred
+
+How each engine exposes its internal state for event-level monitoring is
+an open question. It does not block output-level crosscheck, which works
+today. Decide when we get there.
