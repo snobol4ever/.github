@@ -4112,3 +4112,45 @@ oracle vs tiny STNO streams to find every discrepancy systematically.
 ### Standing Note
 
 This idea belongs to Lon. Credit it in any commit that implements it.
+
+---
+
+## Session Log Entry — 2026-03-10 (Session 3 — Continuity + Snapshot)
+
+**Claude Sonnet 4.6**
+
+### What Happened
+
+Session start from cold (no uploaded repos). User provided GitHub token and instructed
+to follow PLAN.md. Read PLAN.md from `.github`, DIRECTORY.md, HANDOFF_SESSION_2.md.
+Cloned all six repos per protocol. All repos verified clean against last-known commits.
+
+**No code was written this session.** This was a continuity/orientation session:
+reading the full plan, understanding the current failure point (`snoStmt` fails on
+`"START\n"`), confirming the oracles are intact.
+
+### Current State (unchanged from Session 2)
+
+- **SNOBOL4-tiny**: commit `8610016` — P003 WIP, DOT/~ fix in `_ExprParser.parse_concat`
+- **SNOBOL4-corpus**: commit `60c230e` — Gen.inc GenTab fix (idempotence oracle)
+- **SNOBOL4-dotnet**: commit `63bd297` — 1,607/0
+- **SNOBOL4-jvm**: commit `9cf0af3` — 1,896/0
+- **All repos**: clean, no uncommitted changes
+
+### Current Failure Point (from Session 2 handoff — unchanged)
+
+`STNO 619`: `snoSrc POS(0) *snoParse *snoSpace RPOS(0)` fails.  
+`sno_match_pattern(snoStmt, "START\n") = 0`.  
+Root cause: `SPAT_ASSIGN_COND` materialise in `snobol4_pattern.c` — suspect broken handling
+of `var` argument. See HANDOFF_SESSION_2.md § Why snoStmt fails on "START\n".
+
+### Next Action (P1)
+
+Fix `SPAT_ASSIGN_COND` in `snobol4_pattern.c`:
+```bash
+cd /home/claude/SNOBOL4-tiny/src/runtime/snobol4
+grep -n "SPAT_ASSIGN_COND" snobol4_pattern.c
+```
+The match chain for `"START\n"` should succeed — `BREAK(" \t\n;")` consumes `START`,
+stores into `snoLabel`, continues at pos 5, epsilon path through alts, `\n` matches.
+Something in the materialise/store step is broken.
