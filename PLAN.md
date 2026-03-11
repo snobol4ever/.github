@@ -576,3 +576,89 @@ CSNOBOL4's `STNO` keyword trace fires on every statement (after the 4-line patch
 
 **Harness implication**: CSNOBOL4 (patched) is the sole reliable per-statement trace oracle.
 SPITBOL-x64 and SNOBOL5 are output crosscheck oracles only.
+
+---
+
+## 9. Harness Cornerstone Techniques
+
+The SNOBOL4-harness is built on two fundamental testing techniques.
+Every other mechanism in the harness derives from these two.
+
+### Technique 1: Probe Testing
+
+Probe testing reads the interpreter's execution counters at strategic points
+to observe *where* execution is without altering control flow.
+
+**Keywords used:**
+- `&STNO` — current statement number (CSNOBOL4; SPITBOL equivalent is `&LASTNO`)
+- `&STCOUNT` — cumulative statements executed since program start
+- `&STLIMIT` — maximum statements before forced termination (used to cap runaway programs)
+
+**Mechanism:** The harness inserts probe statements into a copy of the subject
+program (or wraps it) that read `&STNO`/`&STCOUNT` at entry, exit, and branch
+points. Comparing counter snapshots across oracle runs confirms that the same
+execution paths are taken, regardless of implementation differences in timing or
+output formatting.
+
+**Oracle support:**
+
+| Keyword | CSNOBOL4 | SPITBOL-x64 | SNOBOL5 |
+|---------|:--------:|:-----------:|:-------:|
+| `&STNO` | ✅ | ❌ (use `&LASTNO`) | ? |
+| `&STCOUNT` | ✅ | ✅ | ✅ |
+| `&STLIMIT` | ✅ | ✅ | ✅ |
+
+---
+
+### Technique 2: Monitor Testing
+
+Monitor testing attaches `TRACE()` callbacks that fire automatically when
+variables change, functions are called or return, or labeled statements are
+reached. The monitor observes *what happened* during execution.
+
+**TRACE() types used:**
+
+| Call | Fires when |
+|------|-----------|
+| `TRACE('varname', 'VALUE')` | variable is assigned |
+| `TRACE('fnname', 'CALL')` | function is called |
+| `TRACE('fnname', 'RETURN')` | function returns |
+| `TRACE('fnname', 'FUNCTION')` | function called or returns |
+| `TRACE('label', 'LABEL')` | goto transfers to label |
+
+**Control keywords:**
+- `&TRACE` — countdown; each trace event decrements it; tracing stops at zero
+- `&FTRACE` — function-trace countdown (SPITBOL extension)
+
+**Oracle support for TRACE types:**
+
+| TRACE type | CSNOBOL4 | SPITBOL-x64 | SNOBOL5 |
+|-----------|:--------:|:-----------:|:-------:|
+| `'VALUE'` | ✅ | ✅ | ✅ |
+| `'CALL'` | ✅ | ✅ | ✅ |
+| `'RETURN'` | ✅ | ✅ | ✅ |
+| `'FUNCTION'` | ✅ | ✅ | ✅ |
+| `'LABEL'` | ✅ | ✅ | ✅ |
+| `'KEYWORD'`+`STCOUNT` | ✅ | ✅ | ✅ |
+| `'KEYWORD'`+`STNO` | ✅ (patched) | ❌ error 198 | ❌ silent |
+
+---
+
+### Why these two techniques are the cornerstone
+
+Probe testing gives **structural coverage**: did execution reach the right
+statements in the right order?
+
+Monitor testing gives **behavioral coverage**: did the right values flow through
+variables, functions, and control labels?
+
+Used together on the same subject program running under multiple oracles, they
+produce a crosscheck that is both cheap (no external test framework needed —
+pure SNOBOL4) and thorough (covers path, data, and control flow).
+
+The harness crosscheck pipeline is:
+1. Run subject program under CSNOBOL4 with probes → capture `&STNO`/`&STCOUNT` log
+2. Run subject program under CSNOBOL4 with monitors → capture TRACE log
+3. Run subject program under SPITBOL-x64 with monitors → capture TRACE log
+4. Diff probe logs across oracles; diff monitor logs across oracles
+5. Any divergence is a compatibility gap to document or fix in SNOBOL4+
