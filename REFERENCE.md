@@ -148,6 +148,123 @@ tab           \t (1 char)   \t   (C tab escape)
 
 ---
 
+# Linux SNOBOL/SPITBOL Binary Landscape
+
+## Available Implementations
+
+| System | Version | Linux x86-64 | Source | Binary | Get it |
+|--------|---------|:------------:|--------|--------|--------|
+| **CSNOBOL4** | 2.3.3 (Jan 2024) | ✅ | C (portable) | build from source or distro pkg | http://www.snobol4.org/csnobol4/curr/ |
+| **SPITBOL x64** | 4.0f | ✅ | MINIMAL + C + nasm | `./bin/sbl` pre-built in repo | https://github.com/spitbol/x64 |
+| **SPITBOL x32** | — | ❌ | MINIMAL + C | 32-bit ELF only — qemu-i386 segfaults | https://github.com/spitbol/x32 |
+| **SNOBOL5** | beta (Aug 2024) | ✅ | unknown | direct download binary | http://snobol5.org/ |
+| **SPITBOL 360** | historic | ❌ | IBM/360 ASM | IBM/360 only | https://github.com/spitbol/360 |
+| **SPITBOL NT** | 1.30.22 (Dec 2003) | ❌ | C + DOS extender | 32rtm, Wine can't run it | https://github.com/spitbol/windows-nt |
+
+**On this machine**: CSNOBOL4 2.3.3 at `/usr/local/bin/snobol4`, SPITBOL x64 4.0f at `/usr/local/bin/spitbol`.
+
+**SNOBOL5 note**: Oregon SNOBOL5 (Viktors Berstis) is an updated Minnesota SNOBOL4 — native x86-64 Linux binary, beta quality, binary-only (no GitHub source repo). Not yet evaluated as oracle.
+
+---
+
+## Build Requirements
+
+| System | Build deps | Build command | Time |
+|--------|-----------|---------------|------|
+| CSNOBOL4 | `gcc`, `make` | `./configure && make && make install` | ~1 min |
+| SPITBOL x64 | `gcc`, `nasm` | `make && ./sanity-check` | ~2 min |
+| SNOBOL5 | none (binary) | `chmod 555 /usr/bin/snobol5` | instant |
+
+---
+
+## Command-Line Switches Comparison
+
+### CSNOBOL4 (`snobol4 [options] file`)
+
+| Flag | Effect |
+|------|--------|
+| `-b` | Disable startup banner and termination output |
+| `-B` | Force banner and termination output |
+| `-c` | Disable case folding (identifiers stay mixed case) — same as `&CASE=1` |
+| `-d N` | Dynamic storage region: N descriptors (suffix `k`=×1024, `m`=×1048576) |
+| `-e` | Toggle running programs with compilation errors |
+| `-E` | (see `-e`) |
+| `-f` | Toggle case folding (same as `-c`) |
+| `-h` | Show help/usage + default sizes, exit |
+| `-I dir` | Add dir to include search path |
+| `-l [file]` | Enable listing output to file (default: stderr) |
+| `-M` | Treat remaining args as filenames (read until END) |
+| `-n` | Toggle execution after compilation (compile only) |
+| `-P N` | Pattern match stack: N descriptors (suffix `k`/`m`) |
+| `-r` | Toggle reading INPUT from post-END data in source file |
+| `-s` | Toggle SPITBOL extensions |
+| `-S N` | Interpreter stack: N descriptors |
+| `-t` | Toggle termination statistics |
+| `-u string` | Set HOST(0) return value |
+| `-U` | Disable stdio buffering |
+| `-v` | Show version and exit |
+| `-x` | No standard include search path (only `-I` dirs) |
+| `--` | End of option processing |
+
+**Invocation we use**: `snobol4 -f -P256k file.sno`
+(`-f` = disable case folding so identifiers are case-sensitive; `-P256k` = 256K pattern stack)
+
+---
+
+### SPITBOL x64 (`spitbol [options] file`)
+
+| Flag | Effect |
+|------|--------|
+| `-f` | Don't fold lower-case names to UPPER CASE (SNOBOL4 compatibility) |
+| `-F` | Force fold lower-case to UPPER CASE |
+| `-e` | Don't send error messages to terminal |
+| `-l` | Generate source listing |
+| `-c` | Generate compilation statistics |
+| `-x` | Generate execution statistics |
+| `-a` | Like `-lcx` (listing + both stats) |
+| `-p` | Long listing format (generates form feeds) |
+| `-z` | Use standard listing format |
+| `-h` | Write SPITBOL header to stdout |
+| `-n` | Suppress execution (compile only) |
+| `-b` | Run in batch mode — `&TRIM` and `&ANCHOR` default on |
+| `-mN` | Max size (words) of created object (default 8192) |
+| `-sN` | Max stack space in words (default 2048) |
+| `-iN` | Increment size for dynamic area growth (default 4096) |
+| `-dN` | Max allocated dynamic area in words (default 256K) |
+| `-u string` | String retrievable via `HOST(0)` |
+| `-o file` | Write listing/stats/dump to file; OUTPUT to stdout |
+
+**Invocation we use**: `spitbol -b file.sno`
+
+---
+
+### SNOBOL5 (`snobol5 [options] file`)
+
+Flags not yet fully documented here. Different from both CSNOBOL4 and SPITBOL — command-line syntax redesigned to be "nearly identical" on Windows and Linux. INPUT/OUTPUT functions use an extra parameter to separate filename from modifiers (FORTRAN formatting dropped). Not yet evaluated.
+
+---
+
+## Key Behavioral Differences (All Three)
+
+| Behavior | CSNOBOL4 | SPITBOL x64 | SNOBOL5 |
+|----------|----------|-------------|---------|
+| `&ANCHOR` default | 0 | **1** (v4.0+) | ? |
+| `&TRIM` default | 0 | **1** (v4.0+) | ? |
+| `&CASE` default | 0 (lower folds) | 0 (no fold, lower ok) | ? |
+| `&FULLSCAN` default | 0 | 1 | ? |
+| `&STCOUNT` | **broken — always 0** | increments correctly | ? |
+| `&STLIMIT` default | -1 (unlimited) | MAX_INT | ? |
+| `&MAXLNGTH` | 4G | 16M | ? |
+| TRACE output stream | stderr | **stdout** | ? |
+| `-INCLUDE` | ✅ | ✅ (different END handling) | ✅? |
+| BLOCKS extension | ✅ | ❌ | ? |
+| LOAD() plugin | ✅ | ❌ | ? |
+| Shebang `#!/...` | ✅ | ✅ | ? |
+| Implementation | C (interpreter) | MINIMAL+ASM (compiler) | ASM (compiler) |
+| Oracle fitness (beauty_run.sno) | ✅ **primary** | ❌ error 021 at END | untested |
+
+---
+
 # SPITBOL Landscape
 
 ## The Lineage
