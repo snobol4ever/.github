@@ -239,58 +239,89 @@ Total certified baseline: 22/22 PASS
 
 ---
 
-### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–22)
+### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–23)
 
 **Current blocker**: `Parse Error` on all non-comment input (e.g. `X = 5`).
-**Last commit**: SNOBOL4-tiny `3fe1b5b` (Session 22).
+**Last commit**: SNOBOL4-tiny `42dddce` (Session 23 — SUCCEED/CONCEDE rename, logic unchanged).
+
+**⚠ CRITICAL — CONTAINER OOM WARNING (Session 23):**
+The Python process that parses beauty.sno (1214 stmts) AND emits C in the same
+process OOM-kills the container repeatedly. **Always split into two steps:**
+1. Parse + emit → write `/tmp/beauty.c` to disk (Python process exits, memory freed)
+2. `gcc` the saved file in a separate shell call
+
+Never run parse+emit+gcc in a single Python subprocess call. The container cannot hold it.
+
+**⚠ CRITICAL — LEADING SPACE (Session 23, Lon's observation):**
+SNOBOL4 requires leading whitespace on non-label statements. `X = 5` with no leading
+space makes `X` a label and `= 5` the (erroneous) body. The test in PLAN.md step 4
+uses `printf 'X = 5\n'` — **no leading space — this is wrong input.**
+
+**The Parse Error from beauty_bin may be correct SNOBOL4 behaviour.**
+
+Test with properly indented input:
+```bash
+printf '    X = 5\n' | /tmp/beauty_bin
+```
+This must be verified FIRST before any further parser/emitter debugging.
 
 **Immediate next actions (in order):**
 
-1. Run Sprint 22 oracle first — must stay 22/22 before touching anything:
+1. Build oracle and install deps:
 ```bash
-cd /home/claude/SNOBOL4-tiny && python3 test/sprint22/oracle_sprint22.py
+apt-get install -y build-essential libgmp-dev m4 libgc-dev
+mkdir -p /home/claude/csnobol4-src
+tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
+cd /home/claude/csnobol4-src && ./configure --prefix=/usr/local 2>&1 | tail -1
+make xsnobol4 2>&1 | tail -1 && cp xsnobol4 /usr/local/bin/snobol4
 ```
 
-2. Verify AMP branch in `_ExprParser.parse_concat` has OPSYN-aware `_nk != 'IDENT'` check:
+2. Build beauty binary — TWO STEPS, never combined:
 ```bash
-grep -A 12 "if self.at.'AMP'." src/parser/sno_parser.py | head -15
-```
-Correct version peeks at next token: AMP+IDENT → `&KEYWORD` (parse as concat item);
-AMP+non-IDENT AND `_amp_is_reduce` → `reduce(left, right)`. Apply if missing.
-
-3. Verify `_is_pattern_expr` returns True for `snoExprList`:
-```bash
+# Step A: parse + emit only
+cd /home/claude/SNOBOL4-tiny
 python3 -c "
-import sys; sys.path.insert(0,'src')
-from parser.sno_parser import parse_file
-from codegen.emit_c_stmt import _is_pattern_expr
-prog = parse_file('../SNOBOL4-corpus/programs/beauty/beauty.sno',
-    include_dirs=['../SNOBOL4-corpus/programs/beauty','../SNOBOL4-corpus/programs/inc'])
-print(_is_pattern_expr(prog.stmts[843].replacement))
+import sys
+sys.path.insert(0,'src/codegen')
+sys.path.insert(0,'src/parser')
+sys.path.insert(0,'src/ir')
+from sno_parser import parse_file
+from emit_c_stmt import emit_program
+CORPUS='/home/claude/SNOBOL4-corpus'
+prog = parse_file(CORPUS+'/programs/beauty/beauty.sno',
+    include_dirs=[CORPUS+'/programs/beauty', CORPUS+'/programs/inc'])
+print(len(prog.stmts), 'stmts')
+open('/tmp/beauty.c','w').write(emit_program(prog))
+print('written')
 "
-```
-If False: add `'nPush','nPop','nInc'` to `_PAT_FNS` in `_is_pattern_expr`.
 
-4. Rebuild and test:
+# Step B: gcc only (separate shell call after Python exits)
+gcc -O0 -g -o /tmp/beauty_bin /tmp/beauty.c \
+    src/runtime/snobol4/snobol4.c \
+    src/runtime/snobol4/snobol4_inc.c \
+    src/runtime/snobol4/snobol4_pattern.c \
+    src/runtime/engine.c \
+    -Isrc/runtime/snobol4 -Isrc/runtime -lgc -lm -w
+echo "gcc exit: $?"
+```
+
+3. **Test with leading space first:**
 ```bash
-python3 -c "
-import sys,tempfile,subprocess,os; sys.path.insert(0,'src')
-from parser.sno_parser import parse_file
-from codegen.emit_c_stmt import emit_program
-prog=parse_file('../SNOBOL4-corpus/programs/beauty/beauty.sno',
-    include_dirs=['../SNOBOL4-corpus/programs/beauty','../SNOBOL4-corpus/programs/inc'])
-c=emit_program(prog)
-f=tempfile.NamedTemporaryFile(suffix='.c',mode='w',delete=False); f.write(c); f.close()
-r=subprocess.run(['gcc','-O0','-g','-o','/tmp/beauty_bin',f.name,
-    'src/runtime/snobol4/snobol4.c','src/runtime/snobol4/snobol4_inc.c',
-    'src/runtime/snobol4/snobol4_pattern.c','src/runtime/engine.c',
-    '-Isrc/runtime/snobol4','-Isrc/runtime','-lgc','-lm','-w'],capture_output=True,text=True)
-os.unlink(f.name); print('OK' if r.returncode==0 else r.stderr[:300])
-"
-printf 'X = 5\n' | /tmp/beauty_bin
+printf '    X = 5\n' | /tmp/beauty_bin
+```
+If this produces beautified output → the blocker was always just the test input.
+If still Parse Error → proceed to step 4.
+
+4. If still failing, test with full valid SNOBOL4 statement forms:
+```bash
+printf '        OUTPUT = '"'"'hello'"'"'\nEND\n' | /tmp/beauty_bin
+printf '        X = 5\n        OUTPUT = X\nEND\n' | /tmp/beauty_bin
 ```
 
-5. If still Parse Error: use `SNO_PAT_DEBUG=2` to trace where `snoStmt` fails on `    X = 5\n`.
+5. If still failing after correct input: use `SNO_PAT_DEBUG=2`:
+```bash
+SNO_PAT_DEBUG=2 bash -c "printf '    X = 5\n' | /tmp/beauty_bin" 2>&1 | head -50
+```
    Pattern chain: `snoParse → ARBNO(*snoCommand) → nInc() FENCE(*snoComment|*snoControl|*snoStmt... (nl|';'))`.
 
 **Key facts for Sprint 23 debugging:**
@@ -303,8 +334,8 @@ printf 'X = 5\n' | /tmp/beauty_bin
 - Comments (`* text`) parse and output correctly. Only stmt/control parsing is broken.
 - `ANY(&UCASE &LCASE)` at stmt ~877 correctly parsed as two keyword refs (not reduce). Verified.
 - BEAUTY: `/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno`
-- INC_DIRS: `['../SNOBOL4-corpus/programs/beauty', '../SNOBOL4-corpus/programs/inc']`
-- Build: `gcc -O0 -g -o /tmp/beauty_bin <c> src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_inc.c src/runtime/snobol4/snobol4_pattern.c src/runtime/engine.c -Isrc/runtime/snobol4 -Isrc/runtime -lgc -lm -w`
+- INC_DIRS: `['/home/claude/SNOBOL4-corpus/programs/beauty', '/home/claude/SNOBOL4-corpus/programs/inc']`
+- Four ports are now: PROCEED(α) / RECEDE(β) / SUCCEED(γ) / CONCEDE(ω) — commit `42dddce`
 
 **When diff is empty: Claude Sonnet 4.6 writes the commit message. Recorded at `c5b3e99`.**
 
@@ -2416,4 +2447,56 @@ byrd-box/          ← standalone: byrd_ir.py + lower.py + emit_c/jvm/msil backe
     └── Icon-everywhere/ ← Icon frontend → byrd-box → C/JVM/MSIL
 ```
 
-**The one-week clock starts the moment Sprint 23 ships.**
+### 2026-03-12 — Session 23 (Orientation + naming + vocabulary + handoff)
+
+**Focus**: Session orientation, source study, strategic naming decisions, nomenclature rename,
+Icon-everywhere eureka, emergency handoff. No Sprint 23 code progress — container OOM instability
+prevented beauty binary build throughout session.
+
+**Completed:**
+
+- **SNOBOL4ever** — org rename decision recorded in §1 with full procedure. Mission line updated.
+  README updated. Commits `b82553e` (.github).
+
+- **Four-port vocabulary rename** — SUCCESS→SUCCEED, FAILURE→CONCEDE across all source:
+  `engine.h`, `engine.c`, `snobol4.h`, `lower.py`, `emit_c_byrd.py`, `emit_jvm.py`, `emit_msil.py`.
+  Generated label names updated. Greek (α/β/γ/ω) unchanged. Commit `42dddce` (tiny).
+  The four ports are now: **PROCEED / RECEDE / SUCCEED / CONCEDE** — verbs, distinguished,
+  CONCEDE = normal pattern failure, RECEDE = parent-initiated undo. Commit `95ca711` (.github).
+
+- **Icon-everywhere eureka** — §17 written. Same Byrd Box IR, same three backends, new Icon
+  frontend. Transcript-as-playbook strategy documented. Commit `f5e90ba` (.github).
+
+- **OOM pattern identified** — parse+emit+gcc in one Python process kills container.
+  §6 updated with mandatory two-step build procedure and leading-space warning.
+
+- **Leading-space insight (Lon)** — SNOBOL4 requires leading whitespace on non-label statements.
+  All prior `printf 'X = 5\n'` tests used invalid input. `printf '    X = 5\n'` is correct.
+  This may be the entire Sprint 23 blocker. Must be tested first next session.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|-------|
+| SNOBOL4-tiny | `42dddce` | SUCCEED/CONCEDE rename — 7 files, 117 changes |
+| .github | `b82553e` | SNOBOL4ever naming + session 23 log |
+| .github | `f5e90ba` | Icon-everywhere §17 + README |
+| .github | `95ca711` | Four-port vocabulary PLAN.md + README |
+| .github | this | §6 OOM warning + leading-space fix + session 23 final |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `42dddce` | Sprint 22: 22/22 (baseline). Sprint 23: Parse Error (unverified with correct input). |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — FIRST action before anything else:**
+Build beauty binary (two steps, see §6), then test:
+```bash
+printf '    X = 5\n' | /tmp/beauty_bin
+```
+If that produces beautified output, Sprint 23 is essentially done. Run the full self-compilation immediately.
