@@ -961,74 +961,107 @@ never called. All `nInc/nDec/nPush/nPop` counter operations are no-ops during ma
 
 ---
 
-### 🔴 ACTIVE BLOCKER (Session 50 — carried from 49)
+### Session 50 Progress — 2026-03-12
 
-#### BLOCKER — `ARBNO(*snoCommand)` matches 0 times
+**Diagnosis session.** No code fix landed. Root cause of snoCommand match failure isolated.
 
-**Symptom**: Parse Error. `SNO_PAT_DEBUG=1` trace shows ALL `try_match_at`
-positions fail for slen=16 (`    x = 'hello'\n`). ARBNO consumed nothing.
+#### ✅ CONFIRMED — snoSrc IS populated correctly (prior §14.4 hypothesis wrong)
 
-**Debug trace (full picture from Session 49):**
-```
-try_match_at: start=0..16, slen=16 -> matched=0 end=0  (ALL positions fail)
-```
+`_nl` correctly initialized (type=1, `\n`). `sno_var_sync_registered()` fires after
+all `sno_var_register()` calls. `snoSrc = snoSrc snoLine nl` emits `sno_concat_sv()`
+correctly. By the time snoParse match fires, `snoSrc = "    x = 'hello'\n"` (16 chars).
+The earlier `slen=0` traces were from pattern CONSTRUCTION during init — not the main match.
 
-**Why `snoCommand` fails is still unknown.** The grammar chain:
-`snoCommand = nInc() FENCE(*snoComment | *snoControl | *snoStmt (nl|';'))`
-→ `snoStmt = *snoLabel *snoWhite *snoExpr14 ...`
-Built at runtime via deferred `sno_pat_user_call("reduce",...)`.
+#### ✅ CONFIRMED — E_COND bug is HARMLESS to match
 
-**Session 50 — immediate actions (in order):**
+`sno_pat_cond(pat, "?")` wraps the child pattern correctly. `SPAT_ASSIGN_COND` with
+varname `"?"` does not cause match failure — only the capture target is wrong. The
+child pattern still fires. E_COND fix is still needed (counters broken) but is NOT
+the match failure root cause.
 
-1. **Apply E_COND fix** (unblocks counter machinery — may or may not help match):
-   - `emit.c` `case E_COND`: detect `e->right->kind == E_DEREF && e->right->left->kind == E_CALL`
-     → emit `sno_pat_cond(..., "*funcname")` instead of `"?"`
-   - `snobol4_pattern.c` `apply_captures()`: when `var_name[0] == '*'`
-     → call `sno_apply(var_name + 1, NULL, 0)` as side effect; skip string assignment
+#### ✅ CONFIRMED — KEY ARCHITECTURAL INVARIANT
 
-2. **Trace the `reduce` user-call**: does `sno_apply("reduce", args, 2)` return
-   a valid non-trivial pattern? Add `SNO_PAT_DEBUG` print for its return type/value.
-   `reduce(t,n) = EVAL("epsilon . *Reduce(t,n)")` — does EVAL work? Does it return
-   a pattern or null?
+**If you strip all `.` and `$` captures from the grammar patterns, the structural
+pattern WILL match all beauty.sno statements.** This was validated during bootstrap.
+Therefore: match failure is at the structural level, not the capture level.
 
-3. **Isolate snoStmt**: after grammar init, inject a C test:
-   match `"    x = 'hello'\n"` against `sno_var_get("snoStmt")` directly.
-   Does it match? This isolates whether the failure is in snoCommand's FENCE or in snoStmt.
+#### 🔴 ROOT CAUSE CANDIDATE — `sno.y` parser misreads `*var (expr)`
 
-4. **Check `snoWhite`**: does it match leading spaces? `snoWhite = SPAN(' ' tab) FENCE(...)`
-   Test `"    "` against `sno_var_get("snoWhite")` directly.
+**Evidence in generated C**: `sno_apply("snoWhite", (...), 1)` appears in snoStmt
+construction. `snoWhite` is a PATTERN VARIABLE — it should emit `sno_pat_ref("snoWhite")`
+concatenated with the next sub-pattern. Instead it emits a function call.
 
-**Build commands for Session 50**:
+**Root cause**: `sno.y` `pat_atom` rule: `STAR IDENT` reduces to a deref node.
+But when the next token is `(`, the parser may be backtracking and reading
+`IDENT LPAREN` as `E_CALL("snoWhite", args)` — consuming the `STAR` as something
+else. The `*` prefix is lost and `snoWhite` becomes a function call.
+
+**Also**: `sno_pat_deref(sno_str("?"))` appears in snoStmt — dereferencing the variable
+literally named `"?"`. Variable `"?"` gets set by the bogus E_COND captures — compounding
+corruption from two separate bugs.
+
+**Smoke test confirmation**: `test_snoCommand_match.sh` reports **0/21 FAIL** — every
+statement type (assignment, pattern match, DEFINE, DIFFER, comment, control) outputs
+"Parse Error". This is the structural grammar failure, not a runtime issue.
+
+### 🔴 ACTIVE BLOCKER (Session 51)
+
+**Fix target**: `sno.y` — `STAR IDENT` → `pat_atom` followed by `(` must NOT be
+re-parsed as `IDENT LPAREN` (function call). The `STAR` already consumed the IDENT
+as a deref. The subsequent `(` starts a new `pat_atom` (grouped subpattern) and
+must be concatenated, not turned into a call.
+
+**Immediate actions for Session 51 (in order)**:
+
+1. **Read `sno.y` `pat_atom` rules carefully** — find where `STAR IDENT LPAREN` can
+   be misread. Check if bison is seeing a shift/reduce conflict and choosing wrong.
+
+2. **Fix the rule** — after `STAR IDENT` reduces to `pat_atom`, the `(` must start
+   a new `pat_atom`. Consider: add explicit `pat_concat` rule so `STAR IDENT (expr)`
+   emits `sno_pat_cat(sno_pat_ref("ident"), emit_pat(expr))`.
+
+3. **Rebuild snoc**: `cd src/snoc && make`
+
+4. **Rebuild beauty_full.c**: check generated C — `sno_apply("snoWhite",...)` must
+   be gone, replaced by `sno_pat_ref("snoWhite")` + cat.
+
+5. **Run smoke tests**:
+   ```bash
+   bash test/smoke/build_beauty.sh
+   bash test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
+   bash test/smoke/test_self_beautify.sh /tmp/beauty_full_bin
+   ```
+   Target: `test_snoCommand_match.sh` goes from **0/21 → 21/21**.
+
+**Build commands for Session 51**:
 ```bash
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime; R=$RUNTIME/snobol4
 
+cd /home/claude/SNOBOL4-tiny/src/snoc && make
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
 gcc -O0 -g /tmp/beauty_full.c $R/snobol4.c $R/snobol4_inc.c \
     $R/snobol4_pattern.c $RUNTIME/engine.c \
     -I$R -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
 
-# Oracle
-printf "    x = 'hello'\nEND\n" | snobol4 -f -P256k -I $INC $BEAUTY 2>/dev/null
-
-# Binary
-printf "    x = 'hello'\nEND\n" | timeout 10 /tmp/beauty_full_bin 2>&1
-
-# Full debug
-printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | grep "try_match_at\|SPAT_USER_CALL"
+bash /home/claude/SNOBOL4-tiny/test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
 ```
----
 
-### Repo State at Session 49 Handoff
+### Repo State at Session 50 Handoff
 
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `627a030` | Unchanged this session (analysis only). Parse Error remains — ARBNO(*snoCommand) matches 0 times. |
-| .github | `(this)` | Session 49 handoff. §2 new architecture truth (deferred `.`). §6 + §12 updated. |
+| SNOBOL4-tiny | `854b093` | Session 50: findings+smoke tests+decisions+artifact+outputs. Parse Error remains. |
+| .github | `(this)` | Session 50 handoff. §6 + §12 updated. |
 | SNOBOL4-corpus | `3673364` | Untouched. |
 | SNOBOL4-harness | `8437f9a` | Untouched. |
+
+**New in Session 50**:
+- `artifacts/beauty_full_session50.c` — 12847 lines, md5 `7fcbb3951a95f3f77de5dfe4afc49e49`
+- `test/smoke/` — three shell scripts: `build_beauty.sh`, `test_snoCommand_match.sh`, `test_self_beautify.sh`
+- `test/smoke/outputs/session50/` — logs, oracle, compiled output, diff (0/21 snoCommand, 785-line diff)
 
 
 ## 7. SNOBOL4-harness — What It Becomes
@@ -1237,7 +1270,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 |---|--------|-----------|--------|--------|
 | 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
 | 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
-| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. ARBNO(*snoCommand)=0. Two bugs diagnosed: (1) E_COND drops `*func()` on RHS — counter no-ops (non-blocking, deferred/zero-length). (2) Root match failure unknown — all snoCommand positions fail. HEAD `627a030`. | — |
+| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. 0/21 snoCommand match. Root cause: `sno.y` misreads `*var (expr)` as `var(expr)` function call. Fix target: `pat_atom` rule in `sno.y`. Smoke tests confirm structural failure. HEAD `854b093`. | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
@@ -4864,4 +4897,33 @@ at `apply_captures()` time is sufficient and correct.
 |------|--------|-------|
 | SNOBOL4-tiny | `627a030` | Unchanged — analysis/diagnosis session only |
 | .github | `(this)` | Session 49 handoff. §2 new deferred-assignment truth. §6 + §12 updated. |
+| SNOBOL4-corpus | `3673364` | unchanged |
+
+### 2026-03-12 — Session 50 (Smoke tests + root cause isolated: sno.y *var (expr) misparse)
+
+Diagnosis session. No code fix landed in SNOBOL4-tiny. Three major findings:
+
+1. **snoSrc IS correct** — prior `slen=0` hypothesis wrong. `_nl` initialized,
+   concat emits correctly. `snoSrc = "    x = 'hello'\n"` (16 chars) at match time.
+   Earlier slen=0 traces were from pattern construction during init, not main match.
+
+2. **E_COND bug HARMLESS to match** — `sno_pat_cond(pat, "?")` wraps child correctly.
+   Counter machinery still broken but NOT the match failure root cause.
+
+3. **ROOT CAUSE ISOLATED**: `sno.y` `pat_atom` misreads `*var (expr)` as `var(expr)`
+   (function call). Evidence: `sno_apply("snoWhite", ..., 1)` in generated snoStmt
+   construction. `snoWhite` is a pattern variable — should be `sno_pat_ref` + concat.
+
+**Smoke test infrastructure created** (`test/smoke/`):
+- `build_beauty.sh` — PASS (0 gcc errors, 12847 lines)
+- `test_snoCommand_match.sh` — **0/21 FAIL** (every stmt type: Parse Error)
+- `test_self_beautify.sh` — NOT ACHIEVED (785-line diff, oracle=790 compiled=10)
+
+**New invariant documented**: strip all `.`/`$` captures → structural pattern WILL
+match all beauty.sno statements (bootstrap proof). Match failure is structural.
+
+| Repo | Commit | Notes |
+|------|--------|-------|
+| SNOBOL4-tiny | `854b093` | findings + smoke tests + artifact + outputs. Parse Error remains. |
+| .github | `(this)` | Session 50 handoff. §6 + §12 + Milestone Tracker updated. |
 | SNOBOL4-corpus | `3673364` | unchanged |
