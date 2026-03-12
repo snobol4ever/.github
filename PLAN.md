@@ -678,6 +678,22 @@ After every push: `git log --oneline -1` to confirm the remote received it.
 5. **Update the Milestone Tracker below — mandatory, every session.**
 6. Push `.github` last.
 
+**⚠ NEVER TRIM THE SESSION LOG — Decision locked 2026-03-12, Session 30.**
+
+The idea of trimming §12 after 3–4 sessions was considered and immediately rejected.
+It is a terrible idea. Here is why, permanently recorded:
+
+- The session log is the **institutional memory of every wrong turn and root cause found**.
+  Without it, the next Claude re-diagnoses the same bug, re-applies the same wrong patch,
+  re-chases the same dead end. This has already happened (`:S(G1)` mis-diagnosis, Sprint 25).
+- Yes, everything is in GitHub history — but a new Claude **cannot retrieve git history
+  without a tool call and knowing exactly what to look for**. The live log is zero-friction,
+  instantly readable at session start. Git history is archaeology.
+- The log entries are lean by design (next-action detail stays in §6 only).
+  A 30-session log is maybe 200 lines. That is nothing. Keep it all.
+
+**The rule: §12 is append-only. Never delete. Never trim. Never summarize away.**
+
 The handoff prompt Lon gives the next Claude is exactly:
 > Clone https://github.com/SNOBOL4-plus/.github and read PLAN.md for instructions.
 
