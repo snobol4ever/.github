@@ -4496,3 +4496,43 @@ pattern after init, before the main loop starts.
 | SNOBOL4-corpus | `3673364` | unchanged |
 
 **⚠ Three runtime files modified but not committed — loop bugs not fully resolved yet.**
+
+### 2026-03-12 — Session 42 (Sprint 26: E_DEREF misparse + pattern builtin registration)
+**Focus**: All key pattern vars PATTERN at main00. Hang inside snoParse match remains.
+
+**Root causes found and fixed:**
+
+**Bug 1 — E_DEREF E_CALL misparse (emit.c)**
+- Continuation lines cause parser to greedily parse `*snoLabel\n+ (...)` as `*(snoLabel(...))`
+- Fixed in both emit_expr and emit_pat: `E_DEREF` with `E_CALL(nargs==1)` operand →
+  `sno_concat(pat_ref(varname), arg)` / `sno_pat_cat(pat_ref(varname), arg)`
+- Result: snoStmt=PATTERN ✓
+
+**Bug 2 — Pattern builtins not callable via sno_apply (snobol4.c)**
+- SPAN/BREAK/etc inside arglist parens tokenized as IDENT → emitted as `sno_apply("SPAN",...)` 
+- SPAN was not registered as a function → returned NULL → snoSpace stayed NULL
+- Fixed: added `_b_PAT_*` wrappers + registered all pattern builtins in sno_runtime_init
+- Result: snoSpace=PATTERN ✓
+
+**DUMP diagnostic toolkit confirmed working** — used to identify both bugs above.
+
+**Repo state at handoff:**
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `c6292e4` | CLEAN — both fixes committed |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| .github | needs push | Session log entry added |
+
+**Milestone tracker:**
+| # | Milestone | Status |
+|---|-----------|--------|
+| 0 | beauty_full_bin self-beautifies → diff empty | 🔴 hang in snoParse match |
+
+**Immediate next actions (Session 43):**
+1. Rebuild beauty_full_bin (snoc + gcc) — commit c6292e4 is clean HEAD
+2. Run DUMP to confirm all 5 key vars still PATTERN
+3. Diagnose hang: `snoParse` uses `ARBNO(*snoCommand)` — if `*snoCommand` can match
+   empty (epsilon), ARBNO loops forever. Check `sno_pat_arbno` in snobol4_pattern.c —
+   does it detect zero-progress and break? If not, add cycle detection.
+4. Key file: `src/runtime/snobol4/snobol4_pattern.c` — SPAT_ARBNO match logic
+5. Also check: `sno_match` itself — does it have a step limit or cycle guard?
