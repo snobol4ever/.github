@@ -204,7 +204,7 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-## 6. Current Work — Sprint 20 (SNOBOL4-tiny)
+## 6. Current Work — The Straight Sprint (Session 16 pivot)
 
 **Goal**: `snoc` compiles `Beautiful.sno` → native binary → self-beautifies idempotently.
 
@@ -1754,3 +1754,85 @@ DATA section of the box.
 - [x] Insight recorded (Session 16)
 - [ ] Sprint 21: proof of concept
 - [ ] Sprint 22: engine.c retired
+
+---
+
+## 16. The Straight Sprint — Session 16 Pivot
+
+### What Changed
+
+Study of `test_sno_1.c` vs `test_sno_2.c` revealed that **`test_sno_1.c`
+is already the correct model** — and `emit_c.py`'s `FlatEmitter` already
+generates that style.
+
+The entire `emit_c_stmt.py` + `snobol4.c` + `snobol4_pattern.c` +
+`engine.c` runtime was a **detour** — it built the `test_sno_2` model
+(separate C functions per pattern, heap allocation, GC, struct passing).
+
+The straight path:
+
+```
+sno_parser.py  →  ir.py  →  emit_c.py (grown)  →  test_sno_1 style C  →  binary
+```
+
+### What Survives
+
+| Component | Status | Reason |
+|-----------|--------|--------|
+| `sno_parser.py` | ✅ Keep | Solid. 1214 stmts, 0 parse failures. |
+| `ir.py` | ✅ Keep | Node types are right. Stmt/Program models good. |
+| `emit_c.py` `FlatEmitter` | ✅ **The foundation** | Already generates `test_sno_1` style. |
+| `emit_c.py` `FuncEmitter` | ⚠️  Retire | `test_sno_2` style — wrong model. |
+| `emit_c_stmt.py` | ❌ Retire | Built for the runtime. No longer the path. |
+| `snobol4.c` / `snobol4_pattern.c` / `engine.c` | ❌ Retire | Replaced by `test_sno_1` flat goto model. |
+| Sprints 14–20 test oracles | ⚠️  Review | Parser oracle (sprint20) keeps. Others may go. |
+
+### What `emit_c.py` Needs to Grow
+
+`FlatEmitter` handles: `Lit`, `Pos`, `Rpos`, `Len`, `Span`, `Cat`, `Alt`,
+`Assign`, `Arb`, `Arbno`, `Print`, `Ref`.
+
+Still needed for full SNOBOL4 statements:
+
+1. **Statement emission** — subject/pattern/replacement/goto structure.
+   Each SNOBOL4 statement becomes a labeled block in the flat function.
+2. **`Any` / `Break` / `Notany`** — missing from FlatEmitter.
+3. **Arithmetic / string ops** — `+`, `-`, `*`, `/`, `**`, concat.
+4. **Variables** — `Σ`/`Δ`/`Ω` are global; named vars are `static str_t`.
+5. **DEFINE'd functions** — become labeled sub-regions in the same flat
+   function (or separate flat functions for recursion), not `sno_uf_*`.
+6. **INPUT / OUTPUT** — already partly handled; needs full statement form.
+7. **GOTO** — unconditional/S/F branches map directly to `goto label;`.
+
+### The One-Function Target
+
+The output of the new `emit_c.py` for `beauty.sno` should look like
+`test_sno_1.c` — **one `snobol()` function** with:
+
+```c
+void snobol(const char *Σ, int Ω) {
+    int Δ = 0;
+
+    /* --- pattern boxes, each as labeled goto blocks --- */
+    str_t BREAK_snoLabel;
+    BREAK_snoLabel_α: ...
+    BREAK_snoLabel_β: ...
+
+    /* --- statements as labeled blocks --- */
+    SNO_START: ...
+    SNO_LOOP:  ...
+    SNO_END:   return;
+}
+```
+
+Locals declared inline at point of use. Labels are the only control flow.
+No heap. No GC. No runtime library beyond `printf`.
+
+### Sprint Plan
+
+1. **Now**: Add `Any`/`Break`/`Notany` to `FlatEmitter`. Commit.
+2. **Next**: Add statement emission (subject/pattern/replacement/goto).
+3. **Then**: Wire `sno_parser.py` → `ir.py` → `emit_c.py` for a simple
+   program (`echo lines`). Binary runs. Commit.
+4. **Goal**: `beautiful.sno` through the new pipeline. Binary
+   self-beautifies. `diff` empty. **That is the commit promise.**
