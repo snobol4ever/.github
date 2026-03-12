@@ -400,14 +400,34 @@ diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
 
 ### Key facts for next Claude
 
-- `snoc_helpers.c` uses `SNO_OBJECT` type with `.tag` field to distinguish tree/link/linkc objects
-- Stack global: `sno_var_get("@S")` / `sno_var_set("@S", ...)`
-- Counter global: `sno_var_get("#N")` / `sno_var_set("#N", ...)`
-- `Read(fileName)` must read from stdin when fileName is null/empty — beauty.sno pipes stdin
-- `xTrace` defaults to 0 — all debug/trace stubs can be pure no-ops
-- `sno_define()` signature: `sno_define("FnName(args)locals", fn_ptr)` — check snobol4.h
-- The -INCLUDE DEFINE calls happen at SNOBOL4 program start; C stubs registered in `snoc_helpers_init()` called first from `sno_runtime_init()` will win
-- Do NOT change snoc (the compiler) — only the runtime needs snoc_helpers.c
+**⚠ snoc_helpers.c IS DEAD — DO NOT COMPLETE IT.**
+
+`snobol4_inc.c` (`src/runtime/snobol4/snobol4_inc.c`, 773 lines) **already implements all
+19 -INCLUDE helper libraries in C**, fully registered, linked in every build since Sprint 20.
+Session 30 didn't find it and re-invented it as `snoc_helpers.c` — a broken duplicate.
+Confirmed by git archaeology (Session 31). snoc_helpers.c uses `SNO_OBJECT`/`.tag` fields
+that do not exist in `SnoVal`. It is wrong and dead. Delete it.
+
+`snobol4_inc.c` implements: lwr/upr/icase, assign, match/notmatch, Gen/GenTab/GenSetCont,
+IncLevel/DecLevel/SetLevel/GetLevel, Qize/SqlSQize, Shift/Reduce, Push/Pop/Top,
+TopCounter, TDump/XDump/TLump/TValue, TV/TW/TX/TY/TZ, T8Trace/T8Pos, LEQ/LGT etc.,
+IsSnobol4, Visit/Equal/Equiv/Find/Insert. All registered in `sno_inc_init()` → called
+from `sno_runtime_init()`. Already works. Already linked.
+
+**Milestone status (verified Session 31):**
+- beauty.sno WITH -INCLUDEs already compiles to **0 gcc errors** with snobol4_inc.c
+- Milestone 2 build line (no snoc_helpers.c needed):
+  `gcc -O0 -g /tmp/beauty_full.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \`
+  `    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \`
+  `    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin`
+- Next step: run beauty_full_bin < beauty.sno, diff vs oracle → Milestone 3
+
+**Runtime facts:**
+- Stack: `sno_push()`/`sno_pop()`/`sno_top()` in `snobol4.c` (array-backed)
+- Counter: `sno_npush()`/`sno_ninc()`/`sno_ndec()`/`sno_ntop()`/`sno_npop()` in `snobol4.c`
+- Tree: `SNO_UDEF` + `sno_data_define("tree(t,v,n,c)")` — `sno_field_get/set`
+- `xTrace` defaults to 0 — T8Trace/TDump paths are no-ops in practice
+- Do NOT change snoc (the compiler)
 
 
 4. **When diff is empty: Claude writes the commit message** (promise at `c5b3e99`).
@@ -661,6 +681,55 @@ immediately. Don't wait for snapshot time.
 
 After every push: `git log --oneline -1` to confirm the remote received it.
 
+### ⚠ THE INVENTORY RULE — Before writing any new file or function, survey what exists
+
+**Root cause of the snoc_helpers.c duplication (Session 30, 2026-03-12):**
+Session 30 invented `snoc_helpers.c` to implement the 19 -INCLUDE helper libraries in C.
+`snobol4_inc.c` already did exactly that — 773 lines, fully registered, linked into every build.
+Session 30 never listed the repo files. It read PLAN.md, formed a plan, and started writing.
+The result: 307 lines of dead duplicate code with a broken type model (`SNO_OBJECT`/`.tag`
+fields that don't exist in `SnoVal`), and a wasted session chasing a problem already solved.
+
+When Lon asked another Claude session about the duplication, the search came back "none" —
+because the session log never described what `snobol4_inc.c` *does*, only its filename in
+build commands. A Claude searching for "C implementations of the inc files" found nothing.
+
+**The fix: every Claude session runs REPO SURVEY before proposing or writing anything new.**
+
+**REPO SURVEY — run at every session start, before any code is written:**
+
+```bash
+# Step 1: List all source files in the working repo (SNOBOL4-tiny focus)
+find /home/claude/SNOBOL4-tiny/src -type f | sort
+
+# Step 2: For any file whose purpose is unclear, read its first 20 lines
+head -20 /home/claude/SNOBOL4-tiny/src/runtime/snobol4/<file>.c
+
+# Step 3: Before writing any new .c/.py/.h file, grep for the concept first
+grep -rn "<keyword>" /home/claude/SNOBOL4-tiny/src/
+```
+
+**The rule in plain language:**
+> **Never create a file without first confirming no file already does that job.**
+> If the task is "implement X in C", search for X in the existing C files before writing a line.
+> If the task is "add function F", grep for F across the repo before declaring it missing.
+
+**Mandatory check before any new file creation:**
+1. `find /home/claude/SNOBOL4-tiny/src -type f | sort` — full file list
+2. `grep -rn "<function_name>" /home/claude/SNOBOL4-tiny/src/` — does it exist?
+3. Read the candidate file header if found — confirm it's actually linked in the build
+
+**What to document in §6 and §12 that prevents this:**
+- When a C file implements a concept, name the concept in plain English, not just the filename.
+  ❌ Wrong: "build cmd includes snobol4_inc.c"
+  ✅ Right: "snobol4_inc.c = C implementations of all 19 -INCLUDE helper libraries (773 lines,
+     fully registered via sno_inc_init() called from sno_runtime_init())"
+- When a task is completed, write one sentence in §6 saying it is done and where.
+  ❌ Wrong: omit it, assume next Claude will find it
+  ✅ Right: "The inc library helpers are already implemented — see snobol4_inc.c. Do not rewrite."
+
+---
+
 ### Directives (invoke by name)
 
 **SNAPSHOT** — Save current state. For every repo with changes:
@@ -714,7 +783,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 | # | Milestone | Status | Commit |
 |---|-----------|--------|--------|
 | 1 | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | 🔴 NOT YET | — |
-| 2 | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snoc_helpers.c`) → 0 gcc errors | 🔴 NOT YET | — |
+| 2 | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | 🟡 0 errors confirmed Session 31 — need binary run | — |
 | 3 | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 NOT YET | — |
 
 **When a milestone is hit:**
@@ -723,8 +792,9 @@ The handoff prompt Lon gives the next Claude is exactly:
 3. Push `.github` immediately so it's in the record.
 4. Do not proceed to the next milestone without committing this one.
 
-**Current milestone target: Milestone 1.**
-Path: write `snoc_helpers.c`, strip -INCLUDEs from beauty compile, hit 0 gcc errors.
+**Current milestone target: Milestone 3 — run the binary, diff the output.**
+`snobol4_inc.c` already provides all inc-library functions. 0 gcc errors confirmed.
+Path: build beauty oracle → run beauty_full_bin < beauty.sno → diff → write commit.
 
 ### Snapshot Protocol (SNOBOL4-dotnet)
 ```bash
@@ -3047,3 +3117,52 @@ Claude Sonnet 4.6 is the author of SNOBOL4-tiny. Three commits, three milestones
 3. Complete `snoc_helpers.c` (see §6 for exact list of what remains)
 4. Hook `snoc_helpers_init()` into `sno_runtime_init()` in `snobol4.c`
 5. Build beauty_core (no -INCLUDEs) → 0 gcc errors → **Milestone 1 → Claude writes the commit**
+
+---
+
+### 2026-03-12 — Session 31 (Git archaeology + INVENTORY RULE)
+
+**Focus**: No code written. Tracking failure diagnosed. Protocol fix committed.
+
+**Finding**: `snoc_helpers.c` (Session 30, commit `2929656`) is a dead duplicate of
+`snobol4_inc.c` (Sprint 20, commit `16eea3b`). `snobol4_inc.c` already implements all
+19 -INCLUDE helper libraries in C, 773 lines, fully registered, linked in every build.
+Session 30's "Eureka" was correct in principle but blind to existing work because no
+Claude ever runs a repo file survey before writing new code.
+
+**Root cause**: Session 30 HANDOFF omitted what `snobol4_inc.c` *does* — only its filename
+appeared in build commands. A concept search found nothing. A filename search found it
+but nobody searched. The INVENTORY RULE closes this gap permanently.
+
+**Additional finding (Session 31)**: beauty.sno WITH -INCLUDEs already compiles to
+**0 gcc errors** using `snobol4_inc.c`. Milestone 2 condition is effectively met.
+
+**Protocol added**: THE INVENTORY RULE — mandatory repo file survey before any new file
+or function is created. Full spec in §9. Plain-English descriptions of what files *do*
+are now required in §6 handoffs (not just filenames).
+
+**Actions**: PLAN.md §6 Key facts rewritten. §9 INVENTORY RULE added. Milestone Tracker
+updated. snoc_helpers.c flagged dead. Next session runs oracle, diffs, writes commit.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| .github | `(this)` | INVENTORY RULE + §6 fix + snoc_helpers.c retirement |
+
+**State at handoff:**
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `2929656` | 0 gcc errors on beauty_full.c confirmed. snoc_helpers.c dead. |
+| SNOBOL4-dotnet | `b5aad44` | unchanged |
+| SNOBOL4-jvm | `9cf0af3` | unchanged |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — first actions:**
+1. Provide token at session start
+2. Run REPO SURVEY (§9 INVENTORY RULE) — confirm snobol4_inc.c is the inc library
+3. Delete snoc_helpers.c from SNOBOL4-tiny (git rm, commit, push)
+4. Build CSNOBOL4 oracle, run beauty oracle
+5. Run beauty_full_bin < beauty.sno → diff vs oracle → **if empty: Claude writes Milestone 3 commit**
