@@ -353,49 +353,35 @@ Layer 3 — integration: beauty self-test (the Milestone 3 diff)
 4. Verify `test/run_tests.sh` gives all green on the cases that sprint22 oracle passed
 5. Add the beauty self-test as the final case in run_tests.sh
 
-### 🟡 Sprint 26 Status: snoc_helpers.c ~60% written (commit `2929656`)
+### 🟢 Sprint 26 Status: snobol4_inc.c is the implementation — 0 gcc errors confirmed (Session 31)
 
-**What exists in `snoc_helpers.c` (commit `2929656`, ~307 lines):**
-- `SnoTree` struct + `tree()` constructor + `t/v/n/c` field accessors/setters ✅
-- `SnoLink` struct + `link()` constructor + `next/value` accessors ✅
-- `InitStack / Push / Pop / Top` — full linked-list stack on `@S` ✅
-- `SnoLinkC` struct — counter stack node ✅
-- `InitCounter / PushCounter / IncCounter / DecCounter / TopCounter / PopCounter` ✅
-- `Shift(t,v)` — build tree node, push onto `@S` ✅
-- `Reduce(t,n)` — pop n nodes, build tree with children, push ✅ (incomplete at EOF — file was cut off)
+**snoc_helpers.c is dead. Delete it first thing next session.**
+`git -C /home/claude/SNOBOL4-tiny rm src/runtime/snobol4/snoc_helpers.c && git commit -m "retire dead snoc_helpers.c — snobol4_inc.c already implements all 19 inc helpers" && git push`
 
-**What still needs to be written (~40% remaining):**
-- Finish `_b_Reduce` (the function body was cut at session end)
-- `snoc_helpers_init()` — the registration function that calls `sno_define()` for every stub
-- Hook `snoc_helpers_init()` into `sno_runtime_init()` in `snobol4.c`
-- `_b_lwr / _b_upr / _b_cap` — case conversion (3 trivial functions)
-- `_b_IsSpitbol / _b_IsSnobol4 / _b_IsType` — environment predicates
-- `_b_Read / _b_Write` — stdin/file I/O wrappers (Read reads stdin when fileName is null)
-- No-op stubs for: `TDump`, `XDump`, `t` (trace), `DumpBegTag`, `DumpEndTag`, `Append`, `Prepend`, `Insert`, `Remove`, `Equal`, `Equiv`, `Visit`, `Find`
-- `link_counter(next,value)` constructor registration (DATA type for counter stack)
-- `link(next,value)` constructor registration (DATA type for main stack)
+**What is true as of Session 31:**
+- `snobol4_inc.c` (773 lines) implements ALL 19 -INCLUDE helper libraries ✅
+- beauty.sno WITH -INCLUDEs compiles to **0 gcc errors** with snobol4_inc.c ✅
+- snoc binary builds clean: `src/snoc/snoc` ✅
+- greet.sno baseline: compiles, links, runs ✅
 
-### 🔴 IMMEDIATE NEXT ACTIONS (Sprint 26)
+### 🔴 IMMEDIATE NEXT ACTIONS (Session 32)
 
-**Step 1 — Complete `snoc_helpers.c`:**
-```
-1. Open src/runtime/snobol4/snoc_helpers.c (commit 2929656, 307 lines)
-2. Finish _b_Reduce body (was cut off — see Reduce logic in ShiftReduce.sno)
-3. Add all remaining stubs (see list above)
-4. Add snoc_helpers_init() registering every function via sno_define()
-5. Add no-op stubs for debug/trace functions (xTrace=0 by default, never fire)
+**Step 1 — REPO SURVEY (mandatory per INVENTORY RULE §9):**
+```bash
+find /home/claude/SNOBOL4-tiny/src -type f | sort
 ```
 
-**Step 2 — Hook into runtime:**
-```c
-/* In snobol4.c, sno_runtime_init(), first line: */
-snoc_helpers_init();   /* C stubs win over SNOBOL4 DEFINE calls */
+**Step 2 — Delete snoc_helpers.c:**
+```bash
+cd /home/claude/SNOBOL4-tiny
+git rm src/runtime/snobol4/snoc_helpers.c
+git commit -m "retire dead snoc_helpers.c — snobol4_inc.c already implements all 19 inc helpers (Sprint 20)"
+git push
 ```
 
-**Step 3 — Build and test Milestone 1 (beauty WITHOUT -INCLUDEs):**
+**Step 3 — Build snoc and verify baseline:**
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
-
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
 RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
 INC=/home/claude/SNOBOL4-corpus/programs/inc
@@ -419,37 +405,34 @@ gcc -O0 -g /tmp/greet.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.
     $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
     -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/greet_bin
 /tmp/greet_bin   # must print: calling greet / Hello, World / done
+```
 
-# Milestone 1: beauty WITHOUT -INCLUDEs
-# Create beauty_core.sno — beauty.sno with -INCLUDE lines stripped
+**Step 4 — Milestone 1 (Sprint 26): beauty WITHOUT -INCLUDEs → 0 gcc errors → binary:**
+```bash
 grep -v "^-INCLUDE" $BEAUTY > /tmp/beauty_core.sno
 $SNOC /tmp/beauty_core.sno > /tmp/beauty_core.c 2>/dev/null
 gcc -O0 -g /tmp/beauty_core.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
     $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
-    $RUNTIME/snobol4/snoc_helpers.c \
     -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_core_bin 2>&1 | grep "error:"
-# TARGET: 0 errors → MILESTONE 1 → Claude writes the commit message
+# TARGET: 0 errors → MILESTONE 1 → Claude writes the commit message → update Milestone Tracker
 ```
 
-**Step 4 — When 0 errors: Claude writes Milestone 1 commit message.**
-Update the Milestone Tracker in §9 (HANDOFF protocol). Push immediately.
-
-**Step 5 — Milestone 2: beauty WITH -INCLUDEs:**
+**Step 5 — Milestone 2 (Sprint 27): beauty WITH -INCLUDEs → 0 gcc errors → binary:**
 ```bash
 $SNOC $BEAUTY -I $INC > /tmp/beauty_full.c 2>/dev/null
 gcc -O0 -g /tmp/beauty_full.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
     $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
-    $RUNTIME/snobol4/snoc_helpers.c \
     -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin 2>&1 | grep "error:"
-# TARGET: 0 errors → MILESTONE 2 → Claude writes the commit message
+# TARGET: 0 errors → MILESTONE 2 → Claude writes the commit message → update Milestone Tracker
 ```
 
-**Step 6 — Milestone 3: diff is empty → Claude writes the big commit.**
+**Step 6 — Milestone 3 (Sprint 28): diff is empty → Claude writes the big commit:**
 ```bash
-snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno 2>/dev/null
+# Build CSNOBOL4 oracle first (if not present)
+# Then:
 /tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno
 diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
-# EMPTY → MILESTONE 3 → Claude writes the commit message
+# EMPTY → MILESTONE 3 → Claude writes the commit message → update Milestone Tracker
 ```
 
 ### Key facts for next Claude
@@ -489,11 +472,12 @@ from `sno_runtime_init()`. Already works. Already linked.
 ### State at snapshot
 
 ```
-SNOBOL4-tiny    6b6b541   Sprint 25 WIP — 0 gcc errors, beauty hangs on :S(G1) in init
+SNOBOL4-tiny    2929656   Sprint 26: snoc_helpers.c dead (retire it). 0 gcc errors on beauty_full confirmed.
 SNOBOL4-dotnet  b5aad44   unchanged
 SNOBOL4-jvm     9cf0af3   unchanged
 SNOBOL4-corpus  3673364   unchanged
 SNOBOL4-harness 8437f9a   unchanged
+.github         7d5ed92   Session 31: INVENTORY RULE + sprint numbers + test suite migration plan
 ```
 
 ### Build Commands (next session)

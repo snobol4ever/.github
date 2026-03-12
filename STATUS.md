@@ -12,7 +12,7 @@ Test baselines, conformance, known gaps, and performance benchmarks across all i
 | SNOBOL4-jvm | 1,896 (4,120 assertions) | 0 | 2026-03-10 `9cf0af3` |
 | SNOBOL4-csharp | 263 | 0 | 2026-03-07 |
 | SNOBOL4-cpython | 70+ | 0 | 2026-03-10 `330fd1f` |
-| SNOBOL4-tiny | 7 oracles (Sprints 0–3) | 0 | Sprint 20 in progress |
+| SNOBOL4-tiny | 22 oracles (Sprint 22 Python driver) | 0 | 2026-03-12 `2929656` — NOTE: Python driver tests old pipeline; C snoc pipeline at 0 gcc errors |
 
 **How to update**: run the test suite, paste the new count with date and commit hash.
 
