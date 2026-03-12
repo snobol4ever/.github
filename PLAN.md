@@ -415,6 +415,98 @@ The contract is: `epsilon` is ALWAYS `sno_pat_epsilon()`, always a PATTERN type,
 
 ---
 
+### ⚡ ARCHITECTURE TRUTH — CONDITIONAL ASSIGNMENT (`.`) IS DEFERRED / QUEUED (Session 49 — Lon's Eureka)
+
+**`pat . var` does NOT fire the assignment when the sub-pattern matches.**
+**It queues it. The assignment fires AFTER the entire top-level match SUCCEEDS.**
+**All queued `.` assignments fire left-to-right at that point.**
+
+This is a fundamental property of SNOBOL4 conditional assignment, distinct from immediate
+assignment (`$`).
+
+#### The two assignment operators in pattern context:
+
+| Operator | Name | Timing |
+|----------|------|--------|
+| `pat . var` | Conditional assignment | **Deferred**: queued when sub-pattern matches, fires only after entire match succeeds, left-to-right |
+| `pat $ var` | Immediate assignment | **Immediate**: fires the moment the sub-pattern matches (even if later backtracking cancels) |
+
+#### Why this matters for beauty.sno:
+
+`nInc_: nInc = epsilon . *IncCounter()` — the `. *IncCounter()` does NOT call
+`IncCounter()` at the moment `epsilon` matches. It queues an indirect assignment
+to `*IncCounter()`. **IncCounter() is called only after the full match succeeds.**
+
+This means:
+- All counter increments (`nInc`), decrements (`nDec`), push/pop operations that
+  use `.` are **deferred until match success**.
+- The counter stack state during an active match is from BEFORE the match started.
+- `TopCounter()` called during a match (e.g. in the `reduce` user call) reflects the
+  state before this match's `.` actions have fired.
+
+#### Implication for `SPAT_ASSIGN_COND` materialisation:
+
+`epsilon . *IncCounter()` in SNOBOL4 compiles to:
+```c
+sno_pat_assign_cond(sno_pat_epsilon(), SNO_STR_VAL("*IncCounter()"))
+```
+where the capture var is the **indirect reference** `*IncCounter()`.
+
+At match success, the deferred action must:
+1. Evaluate `*IncCounter()` — call `IncCounter()` to get the target variable name
+2. Assign the matched substring to that variable
+
+But for side-effect functions like `IncCounter()` where the REAL goal is just to
+call the function (not to capture a substring), the assignment is a vehicle for
+the side effect. `IncCounter = .dummy :(NRETURN)` — the function assigns `.dummy`
+(the empty pattern) to itself as a signal, then returns via NRETURN (success).
+
+#### What the runtime must do:
+
+When the capture var string starts with `*`, it is an **indirect deferred assignment**:
+- Strip the `*`
+- Call the named function (with no args, or eval the expression)
+- The call itself IS the side effect
+
+**Current status (Session 49):** `emit.c` `case E_COND` only handles `E_VAR` on the
+right side of `.`. When the right is `*funcall()` (E_DEREF of E_CALL), it falls back
+to `"?"` — silently dropping the call. This is a confirmed bug.
+
+**Fix required in `emit.c`:**
+```c
+case E_COND: {
+    // If right is E_DEREF of a call: emit as sno_pat_assign_cond with "*funcname" string
+    // so the runtime knows to call it indirectly at deferred-fire time.
+    if (e->right && e->right->kind == E_DEREF && e->right->left
+        && e->right->left->kind == E_CALL) {
+        // *f() → deferred indirect call
+        const char *fname = e->right->left->sval;
+        char buf[256]; snprintf(buf, sizeof(buf), "*%s", fname);
+        E("sno_pat_cond("); emit_pat(e->left); E(",\"%s\")", buf); break;
+    }
+    const char *varname = (e->right && e->right->kind==E_VAR)
+                          ? e->right->sval : "?";
+    E("sno_pat_cond("); emit_pat(e->left); E(",\"%s\")", varname); break;
+}
+```
+
+And in `snobol4_pattern.c` `apply_captures()`, when `var_name` starts with `*`:
+```c
+if (cap->var_name && cap->var_name[0] == '*') {
+    // Indirect: call the function as a side effect
+    sno_apply(cap->var_name + 1, NULL, 0);
+} else {
+    sno_var_set(cap->var_name, SNO_STR_VAL(text));
+}
+```
+
+**⚠ NOTE:** This bug makes `nInc`/`nDec`/`nPush`/`nPop` counter operations silent no-ops
+during matches. The counter machinery is completely broken until this is fixed.
+However, this is NOT the root cause of `snoCommand` returning 0 chars — the match
+failure is a separate issue (the FENCE alternatives all fail before counter state matters).
+
+---
+
 ### ⚡ ARCHITECTURE NOTE — beauty.sno EXPR GRAMMAR = 18-LEVEL PRATT TABLE (Session 45)
 
 **Lon's observation**: beauty.sno implements a Pratt/shunting-yard parser as a SNOBOL4
@@ -750,31 +842,47 @@ returned SNO_NULL_VAL. Every Push/Pop silently did nothing.
 
 ---
 
-### 🔴 ACTIVE BLOCKER (Session 49)
+### Session 49 Progress — 2026-03-12
+
+**Diagnosis**: Two bugs isolated. One confirmed (E_COND indirect RHS). Root cause of match failure still active.
+
+#### ✅ BUG DIAGNOSED (Session 49) — `E_COND` with `pat . *func()` silently drops the call
+
+**Root cause in `emit.c` `case E_COND`:**
+When the right-hand side of `.` is `*funcname()` (E_DEREF of E_CALL), the code
+falls back to `varname = "?"` — silently dropping the function call entirely.
+
+**SNOBOL4 semantics (Session 49 Eureka — see §2):** `.` is a **deferred** assignment.
+It queues the action; it fires only after the FULL match succeeds, left-to-right.
+When RHS is `*f()`, the action IS the call to `f()` — it is a side-effect vehicle.
+
+**Affected code**: `nInc_: nInc = epsilon . *IncCounter()` — `IncCounter()` is
+never called. All `nInc/nDec/nPush/nPop` counter operations are no-ops during matches.
+
+**Fix location**: `emit.c` `case E_COND` + `snobol4_pattern.c` `apply_captures()`
+(see §2 architecture truth for full fix code).
+
+**⚠ NOT the root cause of the match failure.** A second bug is still active.
+
+---
+
+### 🔴 ACTIVE BLOCKER (Session 50 — carried from 49)
 
 #### BLOCKER — `ARBNO(*snoCommand)` matches 0 times
 
-**Symptom**: Parse Error. `SNO_PAT_DEBUG=1` trace shows the full grammar fires
-deeply (many `SPAT_USER_CALL reduce/Reduce/nPush/nPop`) but
-`try_match_at: start=16 slen=16 → matched=0 end=0` — ARBNO consumed nothing.
-With input `    x = 'hello'\n` (16 chars), snoParse's `ARBNO(*snoCommand)`
-must match the assignment statement. It is not matching.
+**Symptom**: Parse Error. `SNO_PAT_DEBUG=1` trace shows ALL `try_match_at`
+positions fail for slen=16 (`    x = 'hello'\n`). ARBNO consumed nothing.
+
+**Debug trace (full picture from Session 49):**
+```
+try_match_at: start=0..16, slen=16 -> matched=0 end=0  (ALL positions fail)
+```
 
 **Investigation needed**: Why does `snoCommand` fail to match `    x = 'hello'\n`?
 The `snoCommand` pattern includes `snoStmt` → `snoLabel snoWhite snoExpr14...`
 The grammar chain is built at runtime via deferred `sno_pat_user_call("reduce",...)`.
 
-**Likely candidates**:
-1. `sno_pat_user_call("reduce", ...)` fires at match time, calls `reduce(t,n)`,
-   which calls `EVAL("epsilon . *Reduce(t,nTop())")`. The `sno_eval` parser
-   may not handle all patterns correctly — specifically `*Reduce(t,nTop())` where
-   `nTop()` is a function call inside `sno_eval`'s mini-parser.
-2. The `Reduce` function called from the pattern requires `Pop()` to return
-   tree nodes. Now that DATA()/Push/Pop are fixed, verify `tree("EXPRESSION",v,n,c)`
-   nodes are being created and `DATATYPE` returns the type name correctly.
-3. `snoWhite` / `snoSpace` patterns not matching leading whitespace.
-
-**Build commands for Session 49**:
+**Build commands for Session 50**:
 ```bash
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
 INC=/home/claude/SNOBOL4-corpus/programs/inc
@@ -791,17 +899,17 @@ printf "    x = 'hello'\nEND\n" | snobol4 -f -P256k -I $INC $BEAUTY 2>/dev/null
 
 # Test
 printf "    x = 'hello'\nEND\n" | timeout 10 /tmp/beauty_full_bin 2>&1
-printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | tail -40
+printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | grep "try_match_at"
 ```
 
 ---
 
-### Repo State at Session 48 Handoff
+### Repo State at Session 49 Handoff
 
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `627a030` | 4 bugs fixed this session. Parse Error remains — ARBNO(*snoCommand) matches 0 times. |
-| .github | `(this)` | Session 48 handoff. §6 + §12 updated. |
+| SNOBOL4-tiny | `627a030` | Unchanged this session (analysis only). Parse Error remains — ARBNO(*snoCommand) matches 0 times. |
+| .github | `(this)` | Session 49 handoff. §2 new architecture truth (deferred `.`). §6 + §12 updated. |
 | SNOBOL4-corpus | `3673364` | Untouched. |
 | SNOBOL4-harness | `8437f9a` | Untouched. |
 
@@ -4603,4 +4711,29 @@ deeply (many Reduce/nPush/nPop calls) but `ARBNO(*snoCommand)` matches 0 times:
 |------|--------|--------|
 | SNOBOL4-tiny | `627a030` | 3 critical bugs fixed. Parse Error remains — ARBNO(snoCommand) matches 0. |
 | .github | `(this)` | Session 48 full handoff. §6 + §12 updated. |
+| SNOBOL4-corpus | `3673364` | unchanged |
+
+### 2026-03-12 — Session 49 (Conditional assignment `.` deferred semantics — Lon's Eureka)
+
+**Key discovery**: `pat . var` in SNOBOL4 is a **deferred** assignment, not immediate.
+The assignment is queued when the sub-pattern matches, but fires only AFTER the entire
+top-level match SUCCEEDS, left-to-right. This is distinct from `$` (immediate assignment,
+fires at sub-pattern match time regardless of later backtracking).
+
+**Consequence for `nInc_: nInc = epsilon . *IncCounter()`:**
+- `*IncCounter()` is an indirect deferred assignment: `IncCounter()` is called as a
+  side-effect only after the full match succeeds.
+- `emit.c` `case E_COND` only handles `E_VAR` on the RHS. When RHS is `*func()` (E_DEREF
+  of E_CALL), it falls back to `"?"` — silently dropping the call.
+- All `nInc/nDec/nPush/nPop` counter operations are broken (no-ops) during matches.
+- Fix: detect E_DEREF of E_CALL on RHS, emit `"*funcname"` as capture var; in
+  `apply_captures()` check for leading `*` and call the function as side-effect.
+
+**Debug trace established**: `try_match_at: start=0..16, slen=16 -> matched=0 end=0`
+(all positions fail). Root cause of match failure still unresolved — second bug active.
+
+| Repo | Commit | Notes |
+|------|--------|-------|
+| SNOBOL4-tiny | `627a030` | Unchanged — analysis/diagnosis session only |
+| .github | `(this)` | Session 49 handoff. §2 new deferred-assignment truth. §6 + §12 updated. |
 | SNOBOL4-corpus | `3673364` | unchanged |
