@@ -208,13 +208,17 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ## 6. Current Work — The Byrd Box Ports (Session 17 Eureka pivot)
 
-### ✅ Test Baseline — All 29 C Tests Pass (Session 17)
+### ✅ Test Baseline — Sprint 22 Oracle: 22/22 PASS (Session 19)
 
 ```
 Sprint 0-13:  21/21 standalone (no runtime needed) — all PASS
 Sprint 1,2,4,5,engine: 8/8 when compiled with engine+runtime — all PASS
-Total: 29/29 PASS
+Sprint 22: 22/22 PASS — emit_c_stmt.py + snobol4.c runtime pipeline confirmed
+Total certified baseline: 22/22 PASS
 ```
+
+Sprint 23 IN PROGRESS: beauty.sno → beauty_bin. Still hitting Parse Error.
+Next blocker: snoParse pattern construction — see Session 19 log for full detail.
 
 Compile standalone tests:
 ```bash
@@ -1978,4 +1982,72 @@ Single IR lowering pass (`lower.py`) drives all three backends.
    First real `.sno` → C binary. Simple echo program.
 3. **Sprint 22 JVM/MSIL parallel**: Same first `.sno` through `emit_jvm.py` and `emit_msil.py`.
 4. Progress toward Sprint 23: `beauty.sno` self-hosts → **Claude writes the commit message**.
+
+---
+
+### 2026-03-12 — Session 19 (Sprint 22 complete + Sprint 23 WIP — beauty.sno debug)
+
+**Focus**: Sprint 22 oracle to green, then Sprint 23: `beauty.sno` compiles itself.
+
+**Sprint 22 — COMPLETED (22/22 oracle PASS)**
+
+Pipeline: `sno_parser.py → emit_c_stmt.py → gcc → binary`. End-to-end confirmed.
+`emit_c_stmt.py` + `snobol4.c` runtime = the working codegen path.
+
+Key runtime fix (Sprint 22): GT/LT/GE/LE/EQ/NE/INTEGER/REAL/SIZE registered as
+`SnoVal` builtins in `sno_runtime_init()`. Oracle commit: `2f98238`.
+
+**Sprint 23 — IN PROGRESS**
+
+Goal: `beauty_bin < beauty.sno > output.sno && diff output.sno beauty_gold.sno` = empty.
+
+**Root causes found and fixed (two commits, `c872ce6` and `0e4e0b2`):**
+
+1. **DIFFER/IDENT/HOST/ENDFILE/APPLY + string builtins** — not registered → `sno_apply()` returned `SNO_NULL_VAL` → `ppArgLoop` never exited (hang). Fixed: all registered in `sno_runtime_init()`.
+
+2. **nPush/nPop/nInc/nTop/nDec** — existed as C functions `sno_npush()` etc but NOT registered as callable SNOBOL4 functions. Used by `snoParse` pattern via `sno_pat_user_call("nPush",...)`. Fixed: added `_b_nPush` etc. wrappers and registered.
+
+3. **Tree field accessors n/t/v/c** — not registered. Used by `pp`/`ss` functions for tree node traversal. Fixed: added `_b_tree_n/t/v/c` via `sno_field_get()`.
+
+4. **assign_cond/assign_imm emitted wrong arg** — `emit_c_stmt.py` was emitting `sno_var_get("tab")` (the VALUE) as the capture target. `sno_pat_assign_cond()` needs the variable NAME as `SNO_STR_VAL("tab")`. Fixed in all three emit sites.
+
+5. **Missing include path** — beauty.sno needs `programs/inc/` for global.sno, is.sno, stack.sno, etc. Was not passed to parser → 534 stmts instead of 1214. Fixed: pass `include_dirs=['../SNOBOL4-corpus/programs/inc/']`.
+
+6. **&ALPHABET binary string** — `sno_alphabet[0] = '\0'` → `strlen()` = 0 → all `POS(n)` matches on `&ALPHABET` fail → `tab`, `nl`, etc. never set by `global.sno`. Fixed: pre-initialize all key character constants (tab/nl/cr/lf/ht/vt/ff/bs/fSlash/bSlash/semicolon) directly in `sno_runtime_init()`.
+
+**Current blocker — still Parse Error on `X = 5` input:**
+
+After all fixes, `beauty_bin < "X = 5\n"` reaches the `snoParse` match at stmt 790 but fails → `mainErr1` → "Parse Error".
+
+The `snoParse` pattern includes a sub-expression:
+```
+("'snoParse'" & 'nTop()')
+```
+In the generated C this becomes `sno_concat_sv(SNO_STR_VAL("'snoParse'"), SNO_STR_VAL("nTop()"))` — a string, not a pattern. The `&` in a pattern context is pattern-cat; `"'snoParse'"` is a string literal that matches the text `'snoParse'`; `'nTop()'` should be a conditional assignment `. nTop()`. This may be a parser IR issue — the pattern structure of snoParse itself needs investigation.
+
+**Next session — immediate actions:**
+
+1. Provide token at session start
+2. Inspect snoParse pattern IR from the parsed beauty.sno (stmt 877, L410-416). The `("'snoParse'" & 'nTop()')` fragment. Verify what the parser produces and what emit_c_stmt.py generates for it.
+3. If pattern structure is wrong, fix parser or emitter for that construct.
+4. Re-run `printf 'X = 5\n' | /tmp/beauty_bin` — should produce beautified `X = 5`.
+5. Run full beauty self-compilation. Diff. Write commit message.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `2f98238` | Sprint 22: end-to-end pipeline + numeric comparison builtins |
+| SNOBOL4-tiny | `c872ce6` | Sprint 23 WIP: register builtins/tree accessors; fix include path |
+| SNOBOL4-tiny | `0e4e0b2` | Sprint 23 WIP: pre-init char constants + assign_cond name fix |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `0e4e0b2` | Sprint 22: 22/22 PASS. Sprint 23 in progress. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
 
