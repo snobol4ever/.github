@@ -262,3 +262,59 @@ None. Architecture and planning only. New file: `.github/JCON.md`.
 | SNOBOL4-tiny | `655fa7b` | unchanged |
 | SNOBOL4-harness | `8437f9a` | unchanged |
 | .github | **this commit** | PLAN.md + JCON.md updated |
+
+---
+
+## Session 16
+
+### What Happened
+
+**Audit: are there any actual bugs blocking currently-passing tests?**
+
+Answer: No. Full test inventory run:
+
+- **C engine tests (sprints 0–13):** 25 pass, 0 genuinely fail. The 5 tests
+  returning `rc=1` are correctly named `_fail` — they test that a pattern
+  *doesn't* match. Exit 1 is the right answer.
+- **Engine smoke:** 10/10 assertions pass.
+- **Python oracle suites (sprints 14–19):** 5 suites, all green.
+- **Sprint 20 parser oracle:** 55/55 pass — but only after fixing a real bug.
+
+**Real bug found and fixed:** `sno_parser.py` / `parse_file` had no
+`include_dirs` parameter. `-INCLUDE` directives were resolved relative to the
+source file's directory only. `beauty.sno` lives in `programs/beauty/` but its
+includes are in `programs/inc/`. Result: all includes silently produced empty
+expansions, so the parser only saw 534 of 1214 statements and 113 of 311
+labels. The sprint20 oracle test had stale counts (1104/316) from before
+`inc/` was wired up.
+
+Fix: `tokenise()`, `parse_file()`, `parse_source()` all take `include_dirs`
+list. `emit_c_stmt.py` gains a `-I` flag (argparse). Oracle test updated to
+pass `inc/` dir and corrected counts (1214 stmts, 311 labels, 0 empties,
+all 15 spot-check labels present).
+
+**T_CAPTURE declared not a bug.** Isolation test confirmed T_CAPTURE works
+correctly: `BREAK(" \t\n;") . "snoLabel"` on `"START\n"` → `snoLabel="START"`,
+`match=1`. The beautiful.sno binary producing 10 lines is a bootstrap
+boundary — the compiled binary cannot self-host yet because `snoParse` /
+`snoCommand` / `pp_snoLabel` are complex runtime-built patterns that depend on
+full SNOBOL4 semantics. That is Sprint 20's work, not a bug in T_CAPTURE.
+T_CAPTURE is marked DONE. The bootstrap is the future.
+
+### Commits This Session
+
+| Repo | Commit | Message |
+|------|--------|---------|
+| SNOBOL4-tiny | `a802e45` | parser: -I include_dirs support; emit_c_stmt.py -I flag; oracle counts updated (1214/311) |
+| .github | this commit | SESSION_LOG + PLAN.md session 16 |
+
+### Repos At Session End
+
+| Repo | Commit | State |
+|------|--------|-------|
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-dotnet | `b5aad44` | unchanged |
+| SNOBOL4-jvm | `e002799` | unchanged |
+| SNOBOL4-tiny | `a802e45` | parser -I fix |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+| .github | **this commit** | SESSION_LOG + PLAN.md |
