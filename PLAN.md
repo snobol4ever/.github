@@ -2579,3 +2579,102 @@ snoc is the only SNOBOL4→C compiler in existence across all repos.
 | SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
 | SNOBOL4-corpus | `3673364` | unchanged |
 | SNOBOL4-harness | `8437f9a` | unchanged |
+
+### 2026-03-12 — Session 26 (snoc_runtime.h + emit.c symbol pass + hello world + execution model)
+
+**Focus**: Closed both Sprint 23 runtime blockers. Hello world end-to-end. Execution model
+architecture documented in SNOBOL4-tiny/PLAN.md.
+
+**Completed (commit `7f3af9c`):**
+
+1. **`snoc_runtime.h`** — new shim header at `src/runtime/snobol4/snoc_runtime.h`:
+   scalar constructors (`sno_int`, `sno_str`, `sno_real`), keyword access (`sno_kw`,
+   `sno_kw_set`), concat/alt/deref/indirect wrappers, array/table aliases (`sno_aref`,
+   `sno_aset`, `sno_index` as `#define` aliases), pattern aliases (`sno_pat_break`,
+   `sno_pat_any`, etc.), `SnoMatch` struct + `sno_match` + `sno_replace`,
+   `sno_init` → `sno_runtime_init()`, `sno_finish` → no-op.
+   Key: use `#ifndef SNOC_RUNTIME_H` guard (not `#pragma once`) to avoid double-include.
+
+2. **`emit.c` — symbol collection pre-pass**:
+   - `sym_table[4096]` deduplicating hash set of variable names
+   - `io_names[]` = `{"OUTPUT","INPUT","PUNCH","TERMINAL","TRACE",NULL}` — excluded from static locals
+   - `is_io_name()`, `sym_add()`, `collect_expr()`, `collect_stmt()`, `collect_symbols()`
+   - `emit_var_decls()` — emits `static SnoVal _name = {0};` for each collected symbol
+   - IO routing: `E_VAR` checks `is_io_name()` → emits `sno_var_get("OUTPUT")` / `sno_var_set()`
+   - Per-statement unique labels (`_SNO_NEXT_N`) via `cur_stmt_next_uid`
+   - uid-suffixed temporaries (`_ok%d`, `_s%d`, `_p%d`, `_m%d`) for flat-function scope
+   - `E_NULL` → `SNO_NULL_VAL` (not `SNO_NULL` which is the enum member)
+
+3. **`engine.c` is required** — `snobol4_pattern.c` calls `engine_match_ex()` which lives
+   in `src/runtime/engine.c`. Must be in gcc link line.
+
+4. **Hello world end-to-end** ✅:
+   ```bash
+   ./snoc /tmp/hello.sno > /tmp/hello.c
+   gcc -O0 -g /tmp/hello.c [runtime files] -lgc -lm -w -o /tmp/hello_bin
+   /tmp/hello_bin   # → hello
+   ```
+
+5. **SNOBOL4-tiny/PLAN.md created** — documents:
+   - Statement-level Byrd Box execution model (§6) — alpha/gamma/omega per statement
+   - Function-per-DEFINE architecture (§7) — Sprint 24 plan
+   - The commit promise (§8)
+   - Runtime build command reference (§9)
+   - Key file paths (§10)
+   - SNOBOL4 semantics quick reference (§11)
+
+6. **Execution model architecture** — Lon's insight confirmed and documented:
+   - Each SNOBOL4 statement IS a Byrd box: alpha (enter), gamma (success/S goto), omega (failure/F goto)
+   - SUCCESS and FAILURE are goto edges, not C exceptions — exactly as in test_icon.c / test_sno_1.c
+   - Statement-level granularity = Level 1 (baseline correctness)
+   - Function-per-DEFINE = Level 2 (Sprint 24, solves duplicate label crisis + enables C optimization)
+   - Future: one-C-function-per-port (test_icon-2.py model) as optional micro-optimization
+
+**Current blocker — duplicate C labels in beauty.sno:**
+
+beauty.sno generates 0 parse errors but **53 gcc errors** — all duplicate labels.
+`_L_pp____` and `_L_ss__` appear from multiple included files; `_SNO_RETURN_main`
+used but not defined. Root cause: all SNOBOL4 code (including all -include'd files)
+emits flat into one C `main()`. DEFINE'd function labels collide.
+
+**Sprint 24 fix**: emit each `DEFINE('fn(args)locals')` as a separate C function
+`SnoVal _sno_fn_pp(SnoVal *args, int nargs)`. Labels inside each C function are
+scoped — no more duplicates. `:(RETURN)` → `goto _SNO_RETURN_pp;`, `:(FRETURN)` →
+`goto _SNO_FRETURN_pp;`. Register each with `sno_define()` at start of `main()`.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `7f3af9c` | Sprint 23: snoc_runtime.h + emit.c symbol pass + hello world + PLAN.md |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `7f3af9c` | Sprint 22: 22/22 PASS. snoc: 1213 stmts, 0 parse errors. hello world ✅. 53 gcc errors on beauty.sno. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — immediate actions:**
+
+1. Provide token at session start
+2. **Sprint 24**: implement function-per-DEFINE in `emit.c`:
+   - Pre-pass: scan for `DEFINE('fn(args)locals')` calls, build fn_table
+   - `emit_fn_forwards()` — SnoVal _sno_fn_pp(SnoVal*, int); forward decls
+   - `emit_fn_body(fn)` — separate C function per DEFINE, labels scoped inside
+   - `emit_main()` — top-level statements + sno_define() registrations
+   - :(RETURN) → goto _SNO_RETURN_pp; :(FRETURN) → goto _SNO_FRETURN_pp;
+3. Test sequence: hello world still works → simple DEFINE test → beauty.sno
+4. Target: `gcc` on beauty_snoc.c with 0 errors
+5. Run beauty self-compilation. Diff. **Write the commit message.**
+
+**Key context:**
+- Build cmd: `gcc -O0 -g $C_FILE $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o $BIN`
+- `engine.c` is REQUIRED in link line (engine_match_ex lives there)
+- `snoc_runtime.h` is at `src/runtime/snobol4/snoc_runtime.h`
+- `emit.c` is at `src/snoc/emit.c`
+- SNOBOL4-tiny/PLAN.md has full Sprint 24 implementation plan
+- Org rename SNOBOL4-plus → SNOBOL4ever still pending (do at start of quiet session)
