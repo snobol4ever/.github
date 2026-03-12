@@ -1254,3 +1254,84 @@ tests are structured for library files.
 
 **Note**: This is the SNOBOL4 community's missing stdlib. Griswold never
 standardized one. We can be the first to do it properly.
+
+### 2026-03-11 — Session 11 (lib/ stdlib + .sno-everywhere rename)
+
+**Focus**: SNOBOL4-corpus standard library and file extension unification.
+No compiler code written this session.
+
+**Completed:**
+
+- **`lib/` standard library created** — four modules, all verified on csnobol4 + spitbol:
+  - `lib/stack.sno` — `stack_init/push/pop/peek/top/depth`; push uses NRETURN
+    for pattern side-effect use; pop supports value return and store-into-named-var
+  - `lib/case.sno` — `lwr/upr/cap/icase`; extracted and cleaned from `programs/inc/case.sno`
+  - `lib/math.sno` — `max/min/abs/sign/gcd/lcm`; two bugs fixed: gcd `DIFFER(b,0)`
+    vs `DIFFER(b)` (divide-by-zero on 0); lcm needs explicit parens `(a/g)*b`
+    (SNOBOL4 parses `a/gcd(a,b)*b` as `a/(gcd(a,b)*b)`)
+  - `lib/string.sno` — `lpad/rpad/ltrim/rtrim/trim/repeat/contains/startswith/endswith/index`
+  - Tests in `crosscheck/library/test_*.sno` — 0 errors on both oracles
+
+- **Extension convention researched and decided**:
+  - Internet-verified: Gimpel *Algorithms in SNOBOL4* (Catspaw dist.) uses
+    `.SNO` for complete programs, `.INC` for include files — this is the
+    closest thing to a community standard
+  - CSNOBOL4 include path: `SNOPATH` env var (colon-delimited, Unix),
+    falls back to `SNOLIB` (legacy, pre-1.5), then `-I DIR` flag
+  - Decision: **`.sno` for everything** — one extension, Python-style.
+    The `-include` directive in source already signals intent; the file
+    extension need not repeat it. `.inc` is generic (Pascal/PHP/NASM use it),
+    carries no SNOBOL4 signal. Gimpel's `.INC` was a DOS/mainframe compromise.
+
+- **Massive rename** — `69fcdda` — 399 files changed:
+  - All `.inc` / `.INC` / `.SNO` → `.sno` across entire corpus
+  - Collision resolution: `INFINIP.INC`+`INFINIP.SNO` → `INFINIP_lib.sno`+`INFINIP.sno`;
+    `RSEASON.INC`+`RSEASON.SNO` → `RSEASON_lib.sno`+`RSEASON.sno`
+  - All `-include 'foo.inc'` and `-INCLUDE "FOO.INC"` references updated to `.sno`
+  - Windows absolute paths (C:\\Users\\...) left untouched (already non-portable)
+  - Result: 464 `.sno` files, 0 `.inc` files in corpus
+
+- **`library/` → `lib/`** — short, Unix-conventional, unambiguous
+
+- **`README.md` rewritten** — full layout tree, Gimpel convention table,
+  SNOPATH/SNOLIB/UNIX include path docs, rules for each directory
+
+- **PLAN.md §14 Idea 2** — `library/` proposal now realized as `lib/`
+
+**Bugs found during lib/ development (worth remembering):**
+- `DIFFER(x)` tests if x differs from null — `DIFFER(0)` succeeds (0 ≠ null).
+  Use `DIFFER(x, 0)` to test numeric zero.
+- `a / f(a,b) * b` — SNOBOL4 may parse as `a / (f(a,b) * b)`. Always use
+  explicit parens: `(a / g) * b` where `g = f(a,b)`.
+- Variables named `_foo_` are illegal — identifiers must start with a letter.
+- `stack_top()` returns a NAME (`.field`) via NRETURN for pattern use, not a
+  value — add `stack_peek()` returning the value directly for normal use.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-corpus | `e7ed8b8` | lib/ stdlib — four modules + crosscheck tests |
+| SNOBOL4-corpus | `802a736` | library/ → lib/, .sno → .inc; README.md rewritten |
+| SNOBOL4-corpus | `69fcdda` | Massive rename: all .inc/.INC/.SNO → .sno, 399 files |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-corpus | `69fcdda` | lib/ 4/4 on csnobol4 + spitbol |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-tiny | `883b802` | Sprint 20 T_CAPTURE blocker (unchanged) |
+| SNOBOL4-harness | `f6c10f8` | unchanged |
+| .github | this commit | — |
+
+**Next session — immediate actions:**
+
+1. **Provide token at session start** — corpus push is now the first action
+2. **Write `crosscheck.py`** — Python runner: enumerate `crosscheck/`,
+   run each program through csnobol4 + spitbol, report pass/fail table
+3. **Add `.ref` files** to each crosscheck program for automated diffing
+4. **Sprint 20 T_CAPTURE** — resume `cap_start`/`scan_start` offset fix
+   in `snobol4_pattern.c`, commit `883b802` is the base
+
