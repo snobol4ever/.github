@@ -3538,3 +3538,28 @@ absorption stops; `Shift`/`Reduce` code remains accessible as runtime-owned thun
 | SNOBOL4-tiny | `9596466` | entry_label fix + artifacts/ |
 | .github | `693d9af`, `b39f029` | PLAN.md + README HQ updates |
 
+
+### 2026-03-12 — Session 34 (Orientation + repo survey + phantom FnDef plan)
+
+**Focus**: Session start. Full orientation per INVENTORY RULE: read PLAN.md, clone repos,
+survey actual git log and file state, verify understanding before writing any code.
+
+**What was verified this session:**
+
+- `SNOBOL4-tiny` HEAD = `9596466` — entry_label fix + artifacts. `emit.c` is 936 lines.
+- `.github` HEAD = `b68f9a6` — Session 33 handoff with phantom fix direction.
+- **Repo survey completed** (`find /home/claude/SNOBOL4-tiny/src -type f | sort`).
+- `snobol4_inc.c` registers: `Shift`, `Reduce`, `Push`, `Pop`, `bVisit`, `Visit`,
+  `TopCounter`, `InitCounter`, `PushCounter`, `IncCounter`, `DecCounter`, `PopCounter`,
+  `TopBegTag`, `TopEndTag`, and many more — all runtime-owned, all with source bodies
+  in the -INCLUDE stream.
+- Source bodies confirmed in inc files:
+  - `ShiftReduce.sno`: `Shift`/`ShiftEnd`, `Reduce`/`ReduceEnd`
+  - `counter.sno`: `InitCounter`/`PushCounter`/`IncCounter`/`DecCounter`/`PopCounter`/`TopCounter`/`CounterEnd`
+  - `stack.sno`: `InitStack`/`Push`/`Pop`/`Pop1`/`Top`/`StackEnd`
+  - `semantic.sno`: `shift_`/`reduce_`/`pop_`/`nPush_`/`nInc_`/`nDec_`/`nTop_`/`nPop_`/`semanticEnd`
+- These are all phantom candidates: known to `is_body_boundary()` so their source bodies
+  don't get absorbed into the wrong C function.
+
+**Plan confirmed**: Inject phantom FnDef entries for all runtime-owned functions
+whose source bodies appear in the expanded stream. Implementation is next.
