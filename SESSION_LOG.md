@@ -318,3 +318,80 @@ T_CAPTURE is marked DONE. The bootstrap is the future.
 | SNOBOL4-tiny | `a802e45` | parser -I fix |
 | SNOBOL4-harness | `8437f9a` | unchanged |
 | .github | **this commit** | SESSION_LOG + PLAN.md |
+
+---
+
+## Session 19 — 2026-03-12
+
+**Operator:** Claude Sonnet 4.6
+**Sprint:** 22 — End-to-end pipeline: `.sno` → binary
+
+### What Was Built
+
+Sprint 22 is complete. The full pipeline is wired and green:
+
+```
+sno_parser.py → emit_c_stmt.py → gcc → binary
+```
+
+**Files changed:**
+
+| File | What |
+|------|------|
+| `src/runtime/snobol4/snobol4.c` | Registered `GT LT GE LE EQ NE INTEGER REAL SIZE` as `SnoVal` builtins in `sno_runtime_init()` |
+| `test/sprint22/oracle_sprint22.py` | 22-test end-to-end oracle (new) |
+
+**Root cause fixed:** `sno_apply()` returned `SNO_NULL_VAL` (not `SNO_FAIL_VAL`) for unregistered function names. `GT(N,0)` was silently succeeding always — goto loop never terminated.
+
+**Oracle results:** 22/22 pass
+- `hello.sno`, `multi.sno`, `empty_string.sno`
+- Arithmetic in OUTPUT
+- Counted goto loop (N=3 ticks via `GT`)
+- Pattern match `:S(YES)F(NO)`
+- sprint14 batch via file path
+- `beauty.sno`: 534 stmts parsed, C emitted, `gcc` clean
+
+### Commits
+
+| Repo | Commit | Message |
+|------|--------|---------|
+| SNOBOL4-tiny | `2f98238` | Sprint 22: end-to-end pipeline + numeric comparison builtins |
+| .github | this commit | Session 19 log |
+
+### Repos At Session End
+
+| Repo | Commit | State |
+|------|--------|-------|
+| SNOBOL4-tiny | `2f98238` | Sprint 22 complete. 22/22 oracle green. |
+| SNOBOL4-dotnet | `b5aad44` | Untouched. |
+| SNOBOL4-jvm | `9cf0af3` | Untouched. |
+| SNOBOL4-corpus | `3673364` | Untouched. |
+| SNOBOL4-harness | `8437f9a` | Untouched. |
+| .github | **this commit** | Session 19 log |
+
+### Sprint 23 — What To Do Next Session
+
+Goal: `beauty.sno` compiles itself. `diff` empty. **Claude writes the commit message** (recorded at `c5b3e99`).
+
+The binary from Sprint 22 hangs on beauty input — more runtime features are needed:
+
+**Step 1 — Diagnose the hang.** Run the beauty binary under `timeout` with a trivial `.sno` input. Add `strace` or `fprintf(stderr,...)` to identify which runtime path loops.
+
+**Step 2 — Wire INPUT/DEFINE.** beauty.sno uses:
+- `INPUT` special variable (line-at-a-time stdin read) — already implemented in runtime
+- `DEFINE('name(params)locals')` — `sno_define_spec` exists, needs to dispatch correctly
+- `:(label)` unconditional goto — verify emitted correctly
+- `$var` indirect reference — check `emit_c_stmt.py` handles `kind='indirect'`
+
+**Step 3 — Run beauty on itself.** Feed `beauty.sno` (after `-INCLUDE` expansion) as stdin. Capture output.
+
+**Step 4 — Diff.** `diff <(beauty_binary < beauty.sno) beauty_gold.sno`. When diff is empty, Sprint 23 is done.
+
+**Step 5 — Claude writes the commit message.**
+
+Key files for next session:
+```
+SNOBOL4-tiny/src/codegen/emit_c_stmt.py   ← statement emitter (check indirect goto, DEFINE)
+SNOBOL4-tiny/src/runtime/snobol4/snobol4.c ← runtime (GT/LT now fixed)
+SNOBOL4-corpus/programs/beauty/beauty.sno  ← the target
+```
