@@ -475,7 +475,94 @@ Layer 3 — integration: beauty self-test (the Milestone 3 diff)
 - snoc binary builds clean: `src/snoc/snoc` ✅
 - greet.sno baseline: compiles, links, runs ✅
 
-### 🔴 IMMEDIATE NEXT ACTIONS (Session 33)
+### 🔴 IMMEDIATE NEXT ACTIONS (Session 38 — updated Session 37)
+
+**Active target**: Milestone 0 — `beauty_full_bin < beauty.sno` → 790 lines → diff empty.
+**Current state**: 9 output lines (7 comment header + "Internal Error" + "START").
+**Pending uncommitted fix**: EVAL/OPSYN/SORT registration in `snobol4.c` — apply first.
+
+**Step 0 — Commit the pending snobol4.c changes (EVAL/OPSYN/SORT registration):**
+The snobol4.c changes from Session 36 were NOT committed. Re-apply:
+```c
+// After _b_DATATYPE wrappers in snobol4.c:
+extern SnoVal sno_eval(SnoVal);
+extern SnoVal sno_opsyn(SnoVal, SnoVal, SnoVal);
+extern SnoVal sno_sort_fn(SnoVal);
+static SnoVal _b_EVAL(SnoVal *a, int n)  { return sno_eval(n>0?a[0]:SNO_NULL_VAL); }
+static SnoVal _b_OPSYN(SnoVal *a, int n) {
+    return sno_opsyn(n>0?a[0]:SNO_NULL_VAL,n>1?a[1]:SNO_NULL_VAL,n>2?a[2]:SNO_NULL_VAL); }
+static SnoVal _b_SORT(SnoVal *a, int n)  { return sno_sort_fn(n>0?a[0]:SNO_NULL_VAL); }
+// In sno_runtime_init():
+sno_register_fn("EVAL",  _b_EVAL,  1, 1);
+sno_register_fn("OPSYN", _b_OPSYN, 2, 3);
+sno_register_fn("SORT",  _b_SORT,  1, 1);
+```
+Commit immediately: `"Register EVAL/OPSYN/SORT as callable SNOBOL4 functions in runtime"`
+
+**Step 1 — Fix `*(expr)` in `_ev_term()` in `snobol4_pattern.c`:**
+`reduce('snoParse', *(GT(nTop(), 1) nTop()))` generates EVAL string containing `*(...)`.
+`_ev_term()` handles `*ident` and `*ident(args)` but not `*(expr)`.
+When `*` is followed by `(`, parse the parenthesized group as a concat of deferred terms:
+```c
+if (c == '*') {
+    e->pos++;
+    _ev_skip(e);
+    if (e->s[e->pos] == '(') {
+        e->pos++;  /* consume '(' */
+        SnoVal inner = _ev_expr(e);  /* parse inner as pattern expr */
+        _ev_skip(e);
+        if (e->s[e->pos] == ')') e->pos++;  /* consume ')' */
+        return inner;
+    }
+    /* existing *ident / *ident(args) handling */
+    ...
+}
+```
+In `*(GT(nTop(), 1) nTop())`: space-juxtaposition inside parens = pattern concat.
+`_ev_expr` will see `GT(nTop(),1)` then space then `nTop()` → two terms → pat_cat them.
+Commit: `"snobol4_pattern.c: _ev_term handles *(expr) — deferred grouped pattern"`
+
+**Step 2 — Trace whether Shift is ever called during input match:**
+After the above fixes, patch `_w_Shift` in `snobol4_inc.c`:
+```c
+static SnoVal _w_Shift(SnoVal *a, int n) {
+    fprintf(stderr, "[Shift called t=%s]\\n", n>0 ? sno_to_str(a[0]) : "null");
+    return sno_Shift(n>0?a[0]:SNO_NULL_VAL);
+}
+```
+If Shift is not called after the fixes: the `snoParse` pattern match is failing to reach
+the `*Shift(...)` deferred calls. Trace `sno_eval` to see what pattern is being built.
+
+**Step 3 — &STLIMIT probe if Step 2 shows no Shift calls:**
+Patch generated C main():
+```c
+sno_kw_set("STLIMIT", SNO_INT_VAL(200));   // stop after 200 statements
+sno_kw_set("DUMP", SNO_INT_VAL(2));        // dump all vars at termination
+```
+Rebuild. Run. Observe which variables are set after 200 stmts. Verify `snoParse` has
+a non-null pattern value. Verify `@S` has content after the first Shift.
+
+**Step 4 — Build commands (copy-paste):**
+```bash
+apt-get install -y build-essential flex bison libgc-dev
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+$SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
+gcc -O0 -g /tmp/beauty_full.c \
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
+
+timeout 10 /tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno 2>/dev/null
+wc -l /tmp/beauty_compiled.sno   # TARGET: 790
+```
+
+### 🔴 IMMEDIATE NEXT ACTIONS (Session 33 — superseded, kept for history)
 
 **Step 1 — REPO SURVEY (mandatory per INVENTORY RULE §9):**
 ```bash
@@ -1004,7 +1091,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 |---|--------|-----------|--------|--------|
 | 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
 | 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
-| 3 | **28** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 IN PROGRESS — flatten_str_expr fixed, INPUT debug next | — |
+| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 9/790 lines — reduce() works (45 calls), Shift never called, Internal Error at main02 | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
@@ -4014,3 +4101,197 @@ wc -l /tmp/beauty_compiled.sno   # Current: 9, TARGET: 790
 - **Active target**: Milestone 0 — beauty_full_bin self-beautifies → diff empty
 - Current: 9/790 lines. Pattern fix was the major unlock.
 - Next: fix "Internal Error" in startup initialization.
+
+---
+
+### 2026-03-12 — Session 36 (E_REDUCE fix + EVAL/OPSYN/SORT registration + Internal Error traced)
+
+**Focus**: Debug "Internal Error" at beauty startup. Two bugs fixed. Third bug exposed mid-session.
+
+**Root cause traced for "Internal Error":**
+
+`mainErr2` is hit during startup init — specifically during the construction of
+`snoParse` (the top-level pattern). The `snoParse` pattern uses `&` to call `reduce()`,
+e.g. `ARBNO(*snoCommand)  ('snoParse' & nTop())`. With the `E_REDUCE` fix, `&` now
+calls `reduce()` at runtime. `reduce(t,n)` is a SNOBOL4 user function (in semantic.sno,
+compiled into `_sno_fn_reduce`) that calls `EVAL("epsilon . *Reduce(" t ", " n ")")`.
+`EVAL` was not registered as a callable SNOBOL4 function → `sno_apply("EVAL",...)` returned
+FRETURN → reduce() failed → `DIFFER($'@S' = Pop())` at `main02` (the pattern match loop)
+found @S empty → `mainErr2` → "Internal Error".
+
+**Fix 1 — E_REDUCE added (committed `574e758`):**
+
+`sno.y`: `expr AMP term` → `binop(E_REDUCE,...)` instead of `E_CONCAT`.
+`snoc.h`: `E_REDUCE` added to `EKind` enum.
+`emit.c`:
+- `emit_expr` E_REDUCE → `sno_apply("reduce",(SnoVal[]){l,r},2)`
+- `emit_pat` E_REDUCE → `sno_var_as_pattern(sno_apply("reduce",...))`
+- `is_pat_node()` recognizes `E_REDUCE` as pattern context
+
+**Fix 2 — EVAL/OPSYN/SORT registered in runtime (NOT YET COMMITTED — snobol4.c WIP):**
+
+File-scope wrappers and registrations added to `snobol4.c` after `_b_DATATYPE` (~line 204):
+```c
+extern SnoVal sno_eval(SnoVal);
+extern SnoVal sno_opsyn(SnoVal, SnoVal, SnoVal);
+extern SnoVal sno_sort_fn(SnoVal);
+static SnoVal _b_EVAL(SnoVal *a, int n)  { return sno_eval(n>0?a[0]:SNO_NULL_VAL); }
+static SnoVal _b_OPSYN(SnoVal *a, int n) {
+    return sno_opsyn(n>0?a[0]:SNO_NULL_VAL,n>1?a[1]:SNO_NULL_VAL,n>2?a[2]:SNO_NULL_VAL); }
+static SnoVal _b_SORT(SnoVal *a, int n)  { return sno_sort_fn(n>0?a[0]:SNO_NULL_VAL); }
+// Registration in sno_runtime_init():
+sno_register_fn("EVAL",  _b_EVAL,  1, 1);
+sno_register_fn("OPSYN", _b_OPSYN, 2, 3);
+sno_register_fn("SORT",  _b_SORT,  1, 1);
+```
+
+**New bug exposed — `sno_eval` infinite loop on `*(expr)` syntax:**
+
+With EVAL registered, `reduce('snoParse', *(GT(nTop(), 1) nTop()))` calls:
+`EVAL("epsilon . *Reduce('snoParse', *(GT(nTop(), 1) nTop()))")`.
+
+`_ev_term()` in `snobol4_pattern.c` handles `*ident` and `*ident(args)` but NOT `*(expr)`.
+When it sees `*(GT(...) nTop())`, after reading `*` it calls `_ev_ident()` which returns
+NULL (next char is `(`). Returns `sno_pat_epsilon()`. The `(` is left unconsumed. The
+outer loop re-encounters it → infinite loop.
+
+**Session 36 ended mid-fix (snobol4.c NOT committed, snobol4_pattern.c fix NOT committed).**
+
+---
+
+### 2026-03-12 — Session 37 (Diagnostic design: &STLIMIT/&STCOUNT probe + TRACE machinery)
+
+**Focus**: Design the correct diagnostic approach before writing more fixes.
+No new code committed. Two major diagnostic techniques documented.
+
+**⚡ KEY DESIGN INSIGHT — SNOBOL4 native diagnostics available in beauty_full_bin**
+
+beauty.sno has TWO built-in diagnostic systems that compiled into beauty_full_bin
+and can be used as probes WITHOUT modifying the runtime or adding fprintf:
+
+---
+
+#### Technique 1: `xTrace` variable (beauty's internal trace flag)
+
+`xTrace` is a static SnoVal in the generated C (line 66: `static SnoVal _xTrace = {0}`).
+beauty.sno checks `GT(xTrace, 4)` before every diagnostic OUTPUT line (~80 trace sites).
+Setting `_xTrace = SNO_INT_VAL(6)` at the top of `main()` in the generated C enables
+all internal trace output through beauty's own OUTPUT assignments.
+
+**Limitation discovered**: beauty's trace OUTPUT goes to SNOBOL4 `OUTPUT` variable →
+`sno_output_val()` → `printf()` → stdout. This mixes with the compiled output stream.
+To use xTrace, redirect stdout to /dev/null and capture only stderr — but trace goes
+to stdout. Workaround: patch `sno_output_val` in the generated C to write to stderr
+when `_xTrace > 0`, or set `_xTrace` and accept mixed output.
+
+**Key trace levels** (verified from generated C):
+- `GT(xTrace, 4)` — emits stack ops: PushCounter/PopCounter/PushBegTag/PopBegTag/Push/Pop
+- `GT(xTrace, 5)` — emits detailed per-statement trace including T8Trace pattern events
+
+---
+
+#### Technique 2: `&STLIMIT` / `&STCOUNT` probe
+
+**Lon's technique**: inject `&STLIMIT=N` at program start to cap execution, then observe
+behavior at statement N. Used in combination with `&DUMP=2` (dump all variables at
+termination) to see program state at the cutoff point.
+
+In the compiled binary, this translates to:
+- `sno_kw_set("STLIMIT", SNO_INT_VAL(N))` at start of `main()`
+- The runtime already honors `&STLIMIT` via `sno_comm_stno()` (P001 fix, Session 2)
+
+**How to use it**: Patch the generated C to set STLIMIT to a small number, rebuild,
+run, observe how far the binary gets and what state it's in at termination.
+
+---
+
+#### Technique 3: SNOBOL4 TRACE() — label, var, func enter, func return
+
+**Lon's reminder**: SNOBOL4 has native `TRACE()` machinery. beauty.sno itself uses
+`T8Trace` for pattern-level tracing. The runtime has `TRACE(fn,'CALL')`,
+`TRACE(fn,'RETURN')`, `TRACE(label,'LABEL')`, `TRACE(var,'VALUE')`.
+
+In the compiled binary, these translate to callbacks registered via
+`sno_register_trace()` (if implemented) or through the `_T8Trace` mechanism
+in the generated C.
+
+**Verified in generated C**:
+- `_T8Trace` wrapper exists (line 184, line 374)
+- `sno_define("T8Trace()", _sno_fn_T8Trace)` registers it
+- Pattern `pat $ tz $ *T8Trace(lvl, name, tz, txOfs)` in generated code at line 4619
+
+**Practical diagnostic for next session**:
+
+1. **Function enter/return trace** — add `fprintf(stderr,...)` to `_sno_fn_reduce`,
+   `_sno_fn_shift`, `_sno_fn_refs`, `_sno_fn_Push`, `_sno_fn_Pop` entry points
+   by patching the generated C. (Already partially done — verified `reduce` IS called
+   45 times during startup init, then `main02` runs once, then `mainErr2`.)
+
+2. **STLIMIT probe** — set `&STLIMIT=50` and `&DUMP=2` to capture variable state
+   during the 50 startup statements. Shows exactly what @S, @B, @E contain at cutoff.
+
+3. **Direct label trace** — patch the generated C: at `_L_main02:`, `_L_mainErr2:`,
+   `_L_mainErr1:` add `fprintf(stderr, "[LABEL name @S.type=%d]\\n", ...)` to see
+   which error path fires and what @S contains.
+
+---
+
+#### Session 37 diagnostic results (from function-entry patching)
+
+Patched `_L_reduce_:`, `_L_main02:`, `_L_mainErr2:` with `fprintf(stderr,...)`.
+Built `beauty_fn_bin`. Ran with `timeout 3`. Results:
+
+```
+[ENTER reduce]  × 45   ← reduce() called 45 times during startup (building all grammar patterns)
+[main02]        × 1    ← main02 (pattern match loop) entered once
+[mainErr2]      × 1    ← immediately hits Internal Error path
+```
+
+**Conclusion**: `reduce()` IS working (45 calls, no loop). The infinite loop
+from Session 36 was a red herring (different binary version). The current binary
+with E_REDUCE + EVAL registered runs reduce 45 times cleanly, then fails at the
+first actual input match attempt.
+
+**Root cause now clearly**: Despite 45 reduce() calls during init, `Push` is never
+called. `DIFFER($'@S' = Pop())` at `main02` fails because @S is empty — the
+shift-reduce stack was never populated. Either:
+1. The patterns built by reduce() are not being matched against the input, OR
+2. `Shift` is being called but not pushing to the correct stack, OR
+3. The `snoParse` pattern itself is not being applied (the match fails immediately)
+
+**Next diagnostic**: Trace `_w_Shift` in `snobol4_inc.c` — add `fprintf(stderr,...)` 
+to `_w_Shift` to confirm whether Shift is ever called at all during the input match.
+Also verify `sno_apply("Shift",...)` routes to `_w_Shift` (registered via `sno_register_fn`).
+
+---
+
+#### Active bug state at Session 37 end
+
+**snobol4.c**: EVAL/OPSYN/SORT registration added — **NOT YET COMMITTED**
+**snobol4_pattern.c**: `*(expr)` fix for `_ev_term` — **NOT WRITTEN YET**
+**beauty_full_bin**: 9 output lines (header comments + "Internal Error" + "START")
+**Oracle target**: 790 lines
+**Next action**: Trace whether `Shift` (capital S, `snobol4_inc.c`) is called
+during the input match phase. If not, the pattern built by reduce() for snoParse
+is not invoking the deferred `*Shift(...)` calls.
+
+---
+
+#### ⚡ DIAGNOSTIC TOOLKIT SUMMARY (permanent reference)
+
+**For any future binary-produces-wrong-output debugging:**
+
+| Tool | How | What it shows |
+|------|-----|---------------|
+| xTrace | `_xTrace = SNO_INT_VAL(6)` in main() of generated C | beauty's stack/tag ops via OUTPUT |
+| &STLIMIT | `sno_kw_set("STLIMIT", SNO_INT_VAL(N))` in main() | caps execution at N stmts, shows state at cutoff |
+| Label trace | `fprintf(stderr,...)` at `_L_labelname:;` in generated C | confirms which code paths are reached |
+| Func enter | `fprintf(stderr,...)` at `_L_fnname_:;` or `_sno_fn_X` entry | confirms which functions are called |
+| Func return | `fprintf(stderr,...)` before each `return` in `_sno_fn_X` | shows return values |
+| Var trace | `fprintf(stderr, "var=%s\\n", sno_to_str(sno_get(_varname)))` | shows variable state at any point |
+| TRACE() builtin | `TRACE('fn','CALL')` / `TRACE(label,'LABEL')` in SNOBOL4 | native SNOBOL4 tracing (if runtime supports it) |
+
+**Scaling rule**: Start with label/func-enter traces (cheap, binary info). Add var
+traces only when you know WHICH variable is wrong. Use &STLIMIT for init-phase bugs
+where the program dies before reaching the interesting code.
+
