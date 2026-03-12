@@ -224,136 +224,146 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-## 6. Current Work — Sprint 24: function-per-DEFINE (Session 27 WIP)
+## 6. Current Work — Sprint 25: beauty.sno runs, `:S(G1)` hang fix next
 
 ### ✅ Certified Baseline
 - **22/22 PASS** (Sprint 22 oracle)
 - Hello world end-to-end: `OUTPUT = 'hello'` compiles, links, runs ✅
 - GREET function (simple DEFINE): compiles, links, runs ✅
-- **snoc commit**: `4b979b6` — WIP Sprint 24
+- beauty.sno → C: **0 gcc errors** ✅ (achieved Sprint 24, commit `2041948`)
+- GREET still passes after all Sprint 25 changes ✅
 
-### 🔴 Sprint 24 Status: 130 gcc errors remaining
+### ✅ Sprint 24 DONE — 130 → 0 gcc errors (commit `2041948`)
 
-**The blocker**: `cs()` name mangler produces collisions. SNOBOL4 labels like
-`pp_#`, `pp_+.`, `pp_-.` all map to `_pp__` — identical C labels within one
-function, causing duplicate-label gcc errors. The fix is a **label registry** —
-detect collisions and append a disambiguation suffix.
+### 🔴 Sprint 25 Status: beauty binary hangs on init (`:S(G1)` missing conditional)
 
-**What is working:**
-- Parser continues past `END` (function bodies after END are now parsed) ✅
-- Each DEFINE'd function emits as a separate C function ✅  
-- `:(RETURN)` / `:F(RETURN)` / `:S(RETURN)` route to `_SNO_RETURN_fn` ✅
-- `:(FRETURN)` / `:(NRETURN)` route to `_SNO_FRETURN_fn` ✅
-- `:(END)` routes to `_SNO_END` ✅
-- Multiple DEFINE's for same function name: last-definition wins ✅
-- Dead bodies (overridden definitions) excluded from main AND from emitted fn ✅
-- Per-function `setjmp` abort handler ✅
-- `sno_push/pop_abort_handler` in `snoc_runtime.h` ✅
+**What was fixed this session (Sprint 25):**
 
-**What remains (130 gcc errors):**
+| Fix | Commit | What |
+|-----|--------|------|
+| Body boundary rule | `9406ee6` | Any labeled statement = end of body (SIL flat-array model) |
+| Cross-scope goto | `c998a23` | Inside a C fn, goto to main-scope label → fallthrough |
+| Extra body boundary | `6b6b541` | fn-entry label or end_label also stops body traversal |
 
-| Category | Count | Fix |
-|----------|-------|-----|
-| Duplicate C labels from cs() collision | ~36 | **Label registry with disambiguation suffix** |
-| `_L_error` used but not defined | 2 | Treat `error` as special — emit `goto _SNO_FRETURN_fn` |
-| `_L__COMPUTED` used but not defined | 2 | Emit a computed-goto stub |
-| `_level`, `_i` undeclared | 4 | These are fn locals not in the DEFINE proto — add to global decls |
-| `redefinition of _upr` etc. | 4 | Function name var collision with another fn — namespace properly |
-| `_SNO_END` used but not defined | 1 | `:(END)` from inside a function that ended up in main |
-| Various `_L_xxx` used but not defined | ~10 | Local labels referenced but in wrong scope |
+**SIL/CSNOBOL4 execution model (Lon, 2026-03-12) — canonical:**
 
-### 🔴 IMMEDIATE NEXT ACTION — Label Registry
+CSNOBOL4's `CODE()` builds one flat node array in memory. A label is just an index.
+Execution runs sequentially and **runs off a cliff** at the next label. Body boundary =
+label-to-next-label, unconditionally. Any label stops the body — this is the ONLY rule.
+Documented in both `SNOBOL4-tiny/PLAN.md §12` and `§6` here.
 
-Fix `cs()` to produce unique labels. Replace the static buffer with a registry:
+**Current blocker — `:S(G1)` unconditional goto:**
 
+`global.sno` lines 160–161:
+```snobol
+G1  i = i + 1
+    $UTF_Array[i, 2] = UTF_Array[i, 1]  :S(G1)
+```
+The assignment `$UTF_Array[i,2] = UTF_Array[i,1] :S(G1)` means: assign on success,
+loop; on failure, fall through. The generated C emits `goto _L_G1` unconditionally
+— the `:S(G1)` condition is lost. This is an **emit_stmt bug**: assignment statements
+with success/failure gotos need conditional goto emission.
+
+**Root cause in `emit.c`**: The assignment statement's `stmt->go->onsuccess` branch
+is not being emitted conditionally. Instead, `goto _L_G1` fires always.
+
+**The fix**: In `emit_stmt` for assignment statements, when `s->go->onsuccess` is set:
 ```c
-/* Label registry: maps original SNOBOL4 label → unique C label */
-/* If "pp_#" and "pp_+." both map to "_pp__", second gets "_pp___2" etc. */
-#define LREG_MAX 8192
-typedef struct { char *orig; char *csafe; } LReg;
-static LReg lreg[LREG_MAX];
-static int  lreg_count = 0;
+// after the assignment, check result
+int _ok = !SNO_IS_FAIL(assigned_value);
+if (s->go->onsuccess) { if (_ok) { emit_goto(s->go->onsuccess); } }
+if (s->go->onfailure) { if (!_ok) { emit_goto(s->go->onfailure); } }
+// otherwise fall through to _SNO_NEXT_uid
+```
+Look at how `match` statements emit `:S`/`:F` conditionals — assignment should mirror that.
 
-static const char *cs_label(const char *s) {
-    /* Check if already registered */
-    for (int i=0; i<lreg_count; i++)
-        if (strcmp(lreg[i].orig, s)==0) return lreg[i].csafe;
-    /* Compute base C name */
-    char base[512]; int j=0;
-    base[j++]='_';
-    for (int i=0; s[i]&&j<508; i++) {
-        unsigned char c=(unsigned char)s[i];
-        base[j++] = (isalnum(c)||c=='_') ? (char)c : '_';
-    }
-    base[j]='\0';
-    /* Check for collision — find unique suffix */
-    char candidate[520];
-    strcpy(candidate, base);
-    int suffix=2;
-    int collision=1;
-    while (collision) {
-        collision=0;
-        for (int i=0; i<lreg_count; i++)
-            if (strcmp(lreg[i].csafe, candidate)==0) { collision=1; break; }
-        if (collision) snprintf(candidate, sizeof candidate, "%s_%d", base, suffix++);
-    }
-    lreg[lreg_count].orig  = strdup(s);
-    lreg[lreg_count].csafe = strdup(candidate);
-    lreg_count++;
-    return lreg[lreg_count-1].csafe;
-}
+### 🔴 IMMEDIATE NEXT ACTION
+
+1. **Fix `:S/:F` on assignment statements in `emit_stmt`** — look at how `STMT_MATCH`
+   emits `_ok` conditionals and apply the same pattern to `STMT_ASSIGN` (or whichever
+   statement type covers `$X = Y :S(label)`).
+
+2. **Rebuild and retest**:
+```bash
+apt-get install -y build-essential flex bison libgc-dev
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+$SNOC $BEAUTY -I $INC > /tmp/beauty_snoc.c 2>/dev/null
+gcc -O0 -g /tmp/beauty_snoc.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_bin 2>&1 | grep "error:"
+# Must be 0 errors
+
+printf '    X  =   5\n' | timeout 10 /tmp/beauty_bin
+# Expected oracle output: '    X  =  5' (beautified)
 ```
 
-Call `lreg_reset()` at the start of each function body emission. Labels within
-a function are scoped to that function — the registry resets per-function.
+3. **Oracle diff** — once beauty runs:
+```bash
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno 2>/dev/null
+/tmp/beauty_bin < $BEAUTY > /tmp/beauty_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
+```
+
+4. **When diff is empty: Claude writes the commit message** (promise at `c5b3e99`).
 
 ### State at snapshot
 
 ```
-SNOBOL4-tiny    4b979b6   WIP Sprint 24 — 130 gcc errors
+SNOBOL4-tiny    6b6b541   Sprint 25 WIP — 0 gcc errors, beauty hangs on :S(G1) in init
 SNOBOL4-dotnet  b5aad44   unchanged
 SNOBOL4-jvm     9cf0af3   unchanged
 SNOBOL4-corpus  3673364   unchanged
 SNOBOL4-harness 8437f9a   unchanged
 ```
 
-### Architecture Insights Captured This Session
-
-**§6 Execution Model (SNOBOL4-tiny/PLAN.md):**
-- Normal Byrd Box gotos handle success/failure/backtrack — zero exception overhead
-- `longjmp` is for **ABORT and bad things only** — FENCE bare, runtime errors, etc.
-- Per-statement `setjmp` catch boundary → line number diagnostics fall out for free:
-  `sno_abort_lineno = 45; if (setjmp(...)==0) { ... } else { fprintf(stderr, "line 45: ABORT\n"); }`
-
 ### Build Commands (next session)
 
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
-
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-# Verify hello world still works
-$SNOC /tmp/hello.sno > /tmp/hello.c
-gcc -O0 -g /tmp/hello.c \
-    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
-    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
-    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/hello_bin
-/tmp/hello_bin   # must print: hello
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
 
-# Count beauty.sno gcc errors (goal: 0)
+# Verify GREET still works
+cat > /tmp/greet.sno << 'EOF'
+    DEFINE('greet(name)')           :(greet_end)
+greet
+    OUTPUT = 'Hello, ' name         :(RETURN)
+greet_end
+    OUTPUT = 'calling greet'
+    greet('World')
+    OUTPUT = 'done'
+END
+EOF
+$SNOC /tmp/greet.sno > /tmp/greet.c
+gcc -O0 -g /tmp/greet.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/greet_bin 2>/dev/null
+/tmp/greet_bin   # must print: calling greet / Hello, World / done
+
+# beauty: compile + check errors
 $SNOC $BEAUTY -I $INC > /tmp/beauty_snoc.c 2>/dev/null
-gcc -O0 -g /tmp/beauty_snoc.c \
-    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+gcc -O0 -g /tmp/beauty_snoc.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
     $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
     -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_bin 2>&1 | grep "error:" | wc -l
-# Currently: 130. Goal: 0.
+# Must be 0
+
+# Oracle
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno 2>/dev/null
+/tmp/beauty_bin < $BEAUTY > /tmp/beauty_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
 ```
 
-**When gcc errors hit 0: run beauty.sno, diff against oracle, Claude writes commit.**
+**When diff is empty: Claude writes the commit message (promise at `c5b3e99`).**
 
 ---
 
@@ -2676,7 +2686,55 @@ scoped — no more duplicates. `:(RETURN)` → `goto _SNO_RETURN_pp;`, `:(FRETUR
 
 ---
 
-### 2026-03-12 — Session 27 (Architecture eureka + Sprint 24 WIP: function-per-DEFINE)
+### 2026-03-12 — Session 28 (Sprint 25: SIL execution model + body boundary + 0 gcc errors maintained)
+
+**Focus**: Session continued Sprint 24/25 work. SIL execution model documented.
+Body boundary bug found and fixed. Cross-scope goto bug found and fixed.
+Sprint 24 gcc error count confirmed at 0. Beauty binary hangs traced to `:S(G1)` bug.
+
+**Key insight (Lon, 2026-03-12):**
+CSNOBOL4 `CODE()` builds one flat node array in memory. A label is just an index.
+Execution runs off a cliff at the next label. Body boundary = label-to-next-label,
+unconditionally. ANY label stops the body. Documented in `SNOBOL4-tiny/PLAN.md §12`
+and `§6` here.
+
+**Fixes committed:**
+
+| Commit | What |
+|--------|------|
+| `9406ee6` | SIL model documented in PLAN.md + body boundary rewritten: any label = end of body |
+| `c998a23` | Cross-scope goto: inside a C function, goto to main-scope label → fallthrough |
+| `6b6b541` | Extra body stop: fn-entry label or end_label also terminates body traversal |
+
+**Binary test — where we are:**
+- 0 gcc errors ✅
+- GREET still ✅
+- beauty binary reaches init (UTF table build) then **hangs** in `G1` loop
+- Root cause: `$UTF_Array[i,2] = UTF_Array[i,1] :S(G1)` emits `goto _L_G1` unconditionally
+  — the `:S` condition is dropped. Assignment statements with `:S`/`:F` gotos need conditional emit.
+
+**Next session first action:** Fix `:S/:F` conditional emit for assignment statements in `emit_stmt`.
+Look at how `STMT_MATCH` emits `_ok` conditionals — apply same pattern to assignment.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `9406ee6` | SIL model + body boundary rewrite |
+| SNOBOL4-tiny | `c998a23` | Cross-scope goto fix |
+| SNOBOL4-tiny | `6b6b541` | Extra body boundary stop |
+| .github | this | §6 + §12 handoff |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `6b6b541` | 0 gcc errors ✅. hello ✅. GREET ✅. beauty hangs on :S(G1). |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
 
 **Architecture (no code yet for this):**
 - **Eureka (Lon)**: normal Byrd Box gotos handle ω/CONCEDE, :S/:F routing, backtrack — zero exception overhead. `longjmp` is for **ABORT and genuinely bad things only** (FENCE bare, runtime errors, divide-by-zero). Per-statement `setjmp` → line number diagnostics free.
