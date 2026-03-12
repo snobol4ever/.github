@@ -3685,3 +3685,31 @@ because the program never reached main00. pp and ss were never reached at all.
 Once the phantom fix lands and the binary produces output, pp/ss correctness will
 be verifiable for the first time.
 
+
+---
+
+## ⚡ RULE 5 — Session Start: Limit Git History Walk to 1-2 Hours
+
+**Recorded 2026-03-12, Session 34. Lon's optimization.**
+
+### The Problem
+The mandatory session-start `git log` was reading the entire commit history of both
+repos. On a long-lived project this consumes ~40% of context window before any real
+work begins. Wasteful and unnecessary.
+
+### The Fix
+At session start, ONLY read commits from the last 1-2 hours, not the full log.
+
+```bash
+# CORRECT — last 2 hours only
+git log --oneline --since="2 hours ago"
+
+# If that returns nothing (gap between sessions), extend to last 5 commits max
+git log --oneline -5
+```
+
+**RULE 5**: At session start, git log is bounded to `--since="2 hours ago"`.
+If that returns 0 commits, fall back to `git log --oneline -5` (five commits max).
+NEVER run bare `git log` or `git log --oneline` without a `--since` or `-N` limit.
+The goal is orientation, not archaeology. PLAN.md is the source of truth for history.
+
