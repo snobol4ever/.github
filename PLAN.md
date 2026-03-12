@@ -364,22 +364,14 @@ Layer 3 — integration: beauty self-test (the Milestone 3 diff)
 - snoc binary builds clean: `src/snoc/snoc` ✅
 - greet.sno baseline: compiles, links, runs ✅
 
-### 🔴 IMMEDIATE NEXT ACTIONS (Session 32)
+### 🔴 IMMEDIATE NEXT ACTIONS (Session 33)
 
 **Step 1 — REPO SURVEY (mandatory per INVENTORY RULE §9):**
 ```bash
 find /home/claude/SNOBOL4-tiny/src -type f | sort
 ```
 
-**Step 2 — Delete snoc_helpers.c:**
-```bash
-cd /home/claude/SNOBOL4-tiny
-git rm src/runtime/snobol4/snoc_helpers.c
-git commit -m "retire dead snoc_helpers.c — snobol4_inc.c already implements all 19 inc helpers (Sprint 20)"
-git push
-```
-
-**Step 3 — Build snoc and verify baseline:**
+**Step 2 — Rebuild everything (snoc + beauty_full_bin + oracle):**
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
@@ -3239,12 +3231,14 @@ updated. snoc_helpers.c flagged dead. Next session runs oracle, diffs, writes co
 **Current state**: beauty_full_bin still produces 0 lines of output.
 INPUT/OUTPUT smoke test pending as next action.
 
-**Repo commit this session:**
+**Repo commits this session:**
 
 | Repo | Commit | What |
 |------|--------|------|
-| SNOBOL4-tiny | `cc0c88b` | retire snoc_helpers.c (from prior session, pushed) |
-| emit.c | (local, not yet pushed) | flatten_str_expr fix — Read and other multi-line DEFINEs now detected |
+| SNOBOL4-tiny | `cc0c88b` | retire dead snoc_helpers.c |
+| SNOBOL4-tiny | `8c7949a` | flatten_str_expr — 162 functions detected, Read/Write/all multi-line DEFINEs now proper C functions |
+| .github | `5e4bc22` | Session 32: sno4now/sno4jvm/sno4net naming eureka + M1/M2 done |
+| .github | `4dab08a` | README rewrite: command names, Sprint 32 status, sno4.net rejected |
 
 ---
 
@@ -3322,3 +3316,91 @@ SNOBOL4 started as three characters. It's three characters again.
 But now it runs everywhere.
 
 ---
+
+---
+
+### Session 32 — Final State at HANDOFF
+
+**What was accomplished this session:**
+
+1. **snoc_helpers.c deleted** — `git rm`, committed `cc0c88b`, pushed. Dead duplicate gone.
+2. **Milestones 1 and 2 confirmed done** — beauty_core (no -INCLUDEs) → 0 gcc errors ✅ and beauty_full (WITH all -INCLUDEs via snobol4_inc.c) → 0 gcc errors ✅. Both verified this session.
+3. **`flatten_str_expr()` fix** — `stmt_define_proto()` in `emit.c` now handles E_CONCAT chains of string literals (multi-line DEFINE calls). Before: ~80 functions detected, `Read`/`Write`/most multi-line DEFINEs invisible to fn_table, their bodies emitting as flat code in main(). After: **162 functions detected**. `_sno_fn_Read` now a proper C function. `:F(FRETURN)` correctly used inside bodies. Committed `8c7949a`.
+4. **⚡ COMMAND NAME EUREKA** — `sno4now` / `sno4jvm` / `sno4net`. The Unix succession from `sno3` (1974). Recorded in PLAN.md and README. `sno4.net` considered and rejected (it's a URL). Committed to .github.
+5. **HQ README rewritten** — Command names prominent near top. Sprint 32 status. Succession table. `sno4.net` note. Committed `4dab08a`, pushed.
+6. **Snapshot protocol executed** — PLAN.md updated, Milestone Tracker updated, both repos pushed clean.
+
+**What is NOT done yet — Milestone 3:**
+
+`beauty_full_bin < beauty.sno` produces **0 lines of output**. The binary runs, exits 0, but is silent.
+
+**Last known investigation state:**
+- `flatten_str_expr` fix resolved the biggest known structural bug
+- Before the fix: `Read` body was flat in main(), executed on entry, INPUT(null) failed, goto _SNO_END before main00
+- After the fix: `Read` is a proper C function, body not in main
+- **But binary still silent** — investigation interrupted for handoff
+- Next debug step: smoke test INPUT/OUTPUT at the runtime level:
+  ```bash
+  echo "    OUTPUT = 'hello'" | /tmp/beauty_full_bin
+  ```
+  If that produces nothing, the runtime INPUT/OUTPUT handling is broken at a level below the DEFINE fix.
+  If that works, the silence is in beauty's logic (main00 not reached, or some init loop exiting early).
+
+**Build commands for Session 33:**
+```bash
+apt-get install -y build-essential flex bison libgc-dev
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+# Rebuild snoc
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+# Rebuild beauty_full_bin
+$SNOC $BEAUTY -I $INC > /tmp/beauty_full.c 2>/dev/null
+gcc -O0 -g /tmp/beauty_full.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
+
+# Rebuild oracle
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno 2>/dev/null
+
+# SMOKE TEST 1 — does OUTPUT work at all?
+echo "    OUTPUT = 'hello'" | /tmp/beauty_full_bin
+
+# SMOKE TEST 2 — does INPUT/OUTPUT loop work?
+printf "    OUTPUT = 'hello'\n" | /tmp/beauty_full_bin
+
+# MILESTONE 3 ATTEMPT
+/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
+# TARGET: empty diff → Claude writes the commit
+```
+
+**Repo state at handoff:**
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `8c7949a` | flatten_str_expr fix. 0 gcc errors. beauty_full_bin silent. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+| .github | `4dab08a` | README + PLAN.md: command names, Session 32 handoff |
+
+**Milestone Tracker at handoff:**
+
+| # | Milestone | Status | Commit |
+|---|-----------|--------|--------|
+| 1 | beauty_core → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
+| 2 | beauty_full WITH -INCLUDEs → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
+| 3 | beauty_full_bin self-beautifies → diff empty | 🔴 IN PROGRESS | — |
+
+**Key design facts recorded this session (permanent):**
+- `sno4now` = the native compiler deliverable (wraps snoc + gcc + run)
+- `sno4jvm` = the JVM backend deliverable
+- `sno4net` = the .NET backend deliverable
+- `sno4.net` = rejected, it's a URL, the shell hates dots in command names
+- The Unix succession: `sno3 (1974) → snobol4/spitbol → sno4now/sno4jvm/sno4net (2026)`
+
