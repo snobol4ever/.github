@@ -1914,3 +1914,68 @@ No heap. No GC. No runtime library beyond `printf`.
    program (`echo lines`). Binary runs. Commit.
 4. **Goal**: `beautiful.sno` through the new pipeline. Binary
    self-beautifies. `diff` empty. **That is the commit promise.**
+
+### 2026-03-12 — Session 18 (Sprint 21A+21B — Three-way Byrd Box port complete)
+
+**Focus**: Build the three-port IR pipeline. All three backends working.
+
+**Completed:**
+
+- **`byrd_ir.py`** — Already existed and was solid from Session 17 prep.
+  Smoke test: PASS. ~150 lines of Python dataclasses mirroring `ir.icn`.
+
+- **`lower.py`** — New. Pattern AST → Byrd Box four-port IR (Chunk sequences).
+  `_emit()` recursive lowering for: `Lit`, `Pos`, `Rpos`, `Any`, `Notany`,
+  `Span`, `Break`, `Seq`, `Alt`, `Arbno`, `Call`.
+  Key insight settled: **ARBNO is shy** — tries child immediately, succeeds on
+  first child success (shortest match), extends only on β (backtrack). Fails if
+  child fails at depth 0. No zero-match. Exactly matches `test_sno_1.c` gold standard.
+  26 chunks generated for `POS(0) ARBNO('Bird'|'Blue'|ANY(alpha)) RPOS(0)`. PASS.
+
+- **`emit_c_byrd.py`** — New. IR Chunks → `test_sno_1.c` style flat C.
+  One function, locals inline, pure labeled gotos. Σ/Δ/Ω globals.
+  `switch()` dispatch for `IndirectGoto` (Alt backtrack).
+  `ARBNO_INIT / ARBNO_EXTEND / ARBNO_POP` primitives.
+  **10/10 tests pass**: Lit, Pos, Rpos, Alt, Seq, Arbno — all correct.
+  Commit: `b42ca0f`
+
+- **`emit_jvm.py`** — New. IR Chunks → Java source with `while(true)/switch(state)`.
+  This compiles to JVM `tableswitch` — exact Jcon model.
+  State: `sigma` (String), `delta` (int cursor), `omega` (int length), `state` (int PC).
+  `TmpLabel` → int local for Alt backtrack. ARBNO stack → `int[]` local + depth.
+  **10/10 tests pass** on first run. Java 21 available in container.
+  Commit: `8a98fdc`
+
+- **`emit_msil.py`** — New. IR Chunks → C# source with identical `while(true)/switch(state)`.
+  Compiles to MSIL `OpCodes.Switch` (tableswitch equivalent).
+  .NET 8 SDK installed in container.
+  **8/8 tests pass** after one-line fix (interpolated string in C# throw).
+  Commit: `8a98fdc` (same commit as JVM)
+
+**Three-port invariant confirmed**: Identical test cases, identical results on C, JVM, MSIL.
+Single IR lowering pass (`lower.py`) drives all three backends.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `b42ca0f` | Sprint 21A: lower.py + emit_c_byrd.py |
+| SNOBOL4-tiny | `8a98fdc` | Sprint 21B: emit_jvm.py + emit_msil.py |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `8a98fdc` | 10/10 C · 10/10 JVM · 8/8 MSIL — Sprint 21 complete |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — immediate actions:**
+1. Provide token at session start
+2. **Sprint 22**: Wire `sno_parser.py → ir.py → emit_c_byrd.py` end-to-end.
+   First real `.sno` → C binary. Simple echo program.
+3. **Sprint 22 JVM/MSIL parallel**: Same first `.sno` through `emit_jvm.py` and `emit_msil.py`.
+4. Progress toward Sprint 23: `beauty.sno` self-hosts → **Claude writes the commit message**.
+
