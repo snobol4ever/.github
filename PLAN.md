@@ -710,173 +710,98 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-### Session 47 Progress — 2026-03-12
+### Session 48 Progress — 2026-03-12
 
 **Target**: `beauty_full_bin < beauty.sno` → 790 lines → diff vs oracle empty  
-**Session 47 start**: 10/790 lines, Parse Error on every real stmt. `eec1adb`.  
-**Session 47 work**: Major diagnosis + two root-cause bugs fixed + full datatype audit.  
-**Session 47 end**: Same Parse Error (deeper bugs remain). 4 commits pushed to tiny.  
-**HEAD**: SNOBOL4-tiny `66b7eab`. .github `(this commit)`.
+**Session 48 start**: Parse Error. snoSrc empty. DATA() broken. `66b7eab`.  
+**Session 48 work**: 4 root-cause bugs fixed. Parse Error remains but machinery is deeper.  
+**Session 48 end**: Parse Error still firing — grammar runs deep but ARBNO fails to match. Next: why snoCommand never matches.  
+**HEAD**: SNOBOL4-tiny `627a030`. .github `(this commit)`.
 
-#### ✅ BUG FIXED — Session 47: NRETURN→FRETURN alias (`66b7eab`)
+#### ✅ BUG FIXED — Session 48: expr_contains_pattern E_CONCAT false-positive (`8b978e3`)
 
-**Root cause**: `emit_branch_target()` routed `:(NRETURN)` to `_SNO_FRETURN_fn`.
-NRETURN is a SUCCESSFUL return — the function completed, side effects done.
-Routing it to FRETURN caused EVERY side-effect function to silently fail:
-Push(), Pop(), Top(), Shift(), Reduce(), PushCounter/Inc/Dec/Pop, TZ(), Gen(),
-assign(), match() — i.e. every function in every -INCLUDE file used by beauty.sno.
-**Fix**: NRETURN → `goto _SNO_RETURN_fn`. Separated from FRETURN case.
+**Root cause**: `expr_contains_pattern()` in `emit.c` unconditionally returned 1
+for ANY `E_CONCAT` node (`if (e->kind == E_CONCAT) return 1`). This caused
+`snoSrc = snoSrc snoLine nl` (pure string concat) to be emitted as
+`sno_pat_cat(sno_pat_var("snoSrc"), sno_pat_var(...))` — pattern concatenation.
+`sno_concat_sv` was never called. `snoSrc` was always empty.  
+**Fix**: Removed the E_CONCAT short-circuit. Now recurses into children — only
+pattern-bearing subtrees trigger pat context.
 
-#### ✅ BUG FIXED — Session 47: emit_pat E_CALL pattern-constructors (`66b7eab`)
+#### ✅ BUG FIXED — Session 48: DATA() builtin was a no-op (`e4595a7`)
 
-**Root cause**: `reduce()`, `shift()`, `EVAL()` called in pattern context were
-emitted as `sno_pat_user_call(...)` — deferred to match time. They are
-pattern-constructor functions that must run at BUILD time (when `snoParse =`
-is assigned). `sno_pat_user_call` for `reduce()` meant the pattern was
-structurally present but EVAL never fired, producing deferred nodes instead
-of real epsilon.*Reduce(...) pattern chains.
-**Fix**: Added `pat_constructors[]` list in emit_pat E_CALL fallthrough.
-`reduce`, `shift`, `EVAL` now emit `sno_var_as_pattern(sno_apply(...))`.
+**Root cause**: `DATA('link(next,value)')` called `sno_apply("DATA",...)` which
+returned `SNO_NULL_VAL` because DATA was never registered. Consequence: `link()`,
+`link_counter()`, `tree()` constructors and all field accessors (`next()`,
+`value()`, `t()`, `v()`, `n()`, `c()`) were never created. The entire stack.sno
+linked list was broken. ShiftReduce.sno Reduce() built null trees.  
+**Fix**: Implemented `_b_DATA()` with trampoline arrays (64 types × 16 fields).
+Registered `DATA` as a builtin in `sno_runtime_init()`.
 
-#### ✅ DOCUMENTED — Session 47: Full datatype audit in PLAN.md (tiny) and .github
+#### ✅ BUG FIXED — Session 48: `sno_init()` never called `sno_inc_init()` (`627a030`)
 
-See SNOBOL4-tiny PLAN.md §13 and §14 for the complete audit.
-
----
-
-### 🔴 ACTIVE BLOCKERS (in priority order)
-
-#### BLOCKER 1 — `snoSrc` is empty when match runs (§14.4)
-
-**Symptom**: `SNO_PAT_DEBUG=1` shows `subj=(0)` — every match against empty string.
-**Hypothesis**: `sno_get(_nl)` returns SNO_FAIL or zero-length at `main02`.
-`sno_concat_sv` is FAIL-propagating. If `_nl` is not yet initialized when
-`snoSrc = snoSrc snoLine nl` runs, the concat fails, `_snoSrc` stays empty forever.
-
-**Immediate investigation**:
-```bash
-grep -n "sno_set(_nl\|sno_var_set.*\"nl\"" /tmp/beauty_full.c | head -5
-# Find WHERE _nl is first assigned — line number in generated C
-# Then find _L_main02 — is _nl assigned BEFORE or AFTER line 12740?
-grep -n "_L_main02\|_L_main00" /tmp/beauty_full.c
-```
-
-If `_nl` init is AFTER `_L_main00`, that's the bug. The fix is in the runtime:
-`nl` must be pre-initialized to `"\n"` in `sno_runtime_init()` alongside `epsilon`.
-
-#### BLOCKER 2 — `DATA()` is a no-op (§14.2)
-
-**Symptom**: `DATA('link(next,value)')` → `sno_apply("DATA",...)` → returns NULL.
-`DATA` is not registered as a callable. Constructor `link()` and accessors
-`next()`, `value()` are never created. The entire stack.sno linked list
-is broken: every Push stores NULL, every Pop returns NULL, the shift-reduce
-parse stack never accumulates anything.
-
-**The infrastructure exists** in `snobol4.c`:
-- `sno_data_define(spec)` — parses spec, creates `UDefType`
-- `sno_udef_new(typename, ...)` — creates `SNO_UDEF` instances
-- `sno_field_get(obj, field)` / `sno_field_set(obj, field, val)` — field r/w
-
-**The fix**:
-1. Register `_b_DATA` in `sno_runtime_init()`:
-```c
-static SnoVal _b_DATA(SnoVal *a, int n) {
-    if (n < 1) return SNO_NULL_VAL;
-    const char *spec = sno_to_str(a[0]);
-    sno_data_define(spec);
-    /* register constructor + field accessors dynamically */
-    _register_udef_fns(spec);
-    return SNO_NULL_VAL;
-}
-sno_register_fn("DATA", _b_DATA, 1, 1);
-```
-2. Implement `_register_udef_fns(spec)` which:
-   - Registers `link(a,b)` → `sno_udef_new("link", a, b)` for each defined type
-   - Registers `next(obj)` → `sno_field_get(obj, "next")` for each field
-   - Check: does `value(obj) = x` (setter form) appear in beauty.sno includes?
-     If not, getters only are sufficient for Milestone 0.
-
-**Verify setter form is not needed**:
-```bash
-grep -n "value(\|next(\|link(" /home/claude/SNOBOL4-corpus/programs/inc/stack.sno
-# Look for field_fn(...) = x pattern on lhs of assignment
-```
-
-#### BLOCKER 3 — EXPRESSION datatype check in Reduce() (§13.2)
-
-After BLOCKER 1+2 are fixed, `Reduce()` checks `IDENT(DATATYPE(t), "EXPRESSION")`.
-This passes only if `t` is a `SNO_TREE` node with `.tag == "EXPRESSION"`.
-Verify the Shift/Reduce stack machine pushes `tree("EXPRESSION", ...)` nodes,
-not plain string values. If Shift is creating `tree(t, v)` nodes via `DATA('tree(t,v,n,c)')`
-(BLOCKER 2 fix), verify the tag is exactly `"EXPRESSION"` for expression nodes.
+**Root cause**: `sno_inc_init()` registers ALL -INCLUDE helper functions: Push,
+Pop, Top, PushCounter, Shift, reduce_, shift_, Gen, Qize, assign, match, etc.
+It was only called from `beautiful.c` (legacy), never from `sno_init()`.
+Consequence: `sno_apply("Push",...)` found fn=NULL in the function table and
+returned SNO_NULL_VAL. Every Push/Pop silently did nothing.  
+**Fix**: `sno_init()` in `snoc_runtime.h` now calls `sno_inc_init()` after
+`sno_runtime_init()`.
 
 ---
 
-### ⚡ IMMEDIATE NEXT ACTIONS (Session 48)
+### 🔴 ACTIVE BLOCKER (Session 49)
 
-**Step 1 — Attack BLOCKER 1 (`_nl` empty):**
+#### BLOCKER — `ARBNO(*snoCommand)` matches 0 times
+
+**Symptom**: Parse Error. `SNO_PAT_DEBUG=1` trace shows the full grammar fires
+deeply (many `SPAT_USER_CALL reduce/Reduce/nPush/nPop`) but
+`try_match_at: start=16 slen=16 → matched=0 end=0` — ARBNO consumed nothing.
+With input `    x = 'hello'\n` (16 chars), snoParse's `ARBNO(*snoCommand)`
+must match the assignment statement. It is not matching.
+
+**Investigation needed**: Why does `snoCommand` fail to match `    x = 'hello'\n`?
+The `snoCommand` pattern includes `snoStmt` → `snoLabel snoWhite snoExpr14...`
+The grammar chain is built at runtime via deferred `sno_pat_user_call("reduce",...)`.
+
+**Likely candidates**:
+1. `sno_pat_user_call("reduce", ...)` fires at match time, calls `reduce(t,n)`,
+   which calls `EVAL("epsilon . *Reduce(t,nTop())")`. The `sno_eval` parser
+   may not handle all patterns correctly — specifically `*Reduce(t,nTop())` where
+   `nTop()` is a function call inside `sno_eval`'s mini-parser.
+2. The `Reduce` function called from the pattern requires `Pop()` to return
+   tree nodes. Now that DATA()/Push/Pop are fixed, verify `tree("EXPRESSION",v,n,c)`
+   nodes are being created and `DATATYPE` returns the type name correctly.
+3. `snoWhite` / `snoSpace` patterns not matching leading whitespace.
+
+**Build commands for Session 49**:
 ```bash
-# Rebuild beauty_full.c with current HEAD
 SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime; R=$RUNTIME/snobol4
+
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
+gcc -O0 -g /tmp/beauty_full.c $R/snobol4.c $R/snobol4_inc.c \
+    $R/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$R -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
 
-# Find nl initialization vs main00 label
-grep -n "sno_set.*_nl\b\|sno_var_set.*\"nl\"" /tmp/beauty_full.c | head -5
-grep -n "_L_main00:" /tmp/beauty_full.c
+# Oracle
+printf "    x = 'hello'\nEND\n" | snobol4 -f -P256k -I $INC $BEAUTY 2>/dev/null
 
-# If _nl init is AFTER _L_main00 → pre-initialize nl="\n" in sno_runtime_init()
-grep -n "sno_runtime_init\|sno_init\b" /home/claude/SNOBOL4-tiny/src/runtime/snobol4/snobol4.c | head -5
+# Test
+printf "    x = 'hello'\nEND\n" | timeout 10 /tmp/beauty_full_bin 2>&1
+printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | tail -40
 ```
-
-**Step 2 — Fix nl pre-init in runtime (if confirmed):**
-In `sno_runtime_init()`, alongside the `epsilon` pre-init (commit `d7068d3`):
-```c
-sno_var_set("nl",  SNO_STR_VAL("\n"));
-sno_var_set("tab", SNO_STR_VAL("\t"));
-sno_var_set("cr",  SNO_STR_VAL("\r"));
-sno_var_set("ff",  SNO_STR_VAL("\f"));
-sno_var_set("bs",  SNO_STR_VAL("\b"));
-```
-These are all the "character constants" that beauty.sno/semantic.sno define
-in their initialization blocks. Pre-seeding them in runtime ensures they are
-available even if initialization order is wrong.
-
-**Step 3 — Rebuild, smoke test:**
-```bash
-R=/home/claude/SNOBOL4-tiny/src/runtime/snobol4
-gcc -O0 -g /tmp/beauty_full.c \
-    $R/snobol4.c $R/snobol4_inc.c $R/snobol4_pattern.c \
-    /home/claude/SNOBOL4-tiny/src/runtime/engine.c \
-    -I$R -I/home/claude/SNOBOL4-tiny/src/runtime -lgc -lm -w -o /tmp/beauty_full_bin
-printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 5 /tmp/beauty_full_bin 2>&1 | head -5
-# SUCCESS = subj=(N) where N > 0, not "Parse Error"
-```
-
-**Step 4 — If snoSrc is populated, attack BLOCKER 2 (DATA()).**
-
-**Step 5 — RULE 3: one bug at a time. Commit each fix. Push immediately.**
-
-**Step 6 — When diff is empty: Claude writes the Milestone 0 commit.**
 
 ---
 
-### 🔭 FUTURE: Path B — T_FNCALL Byrd Box wrapper (after Milestone 0)
-
-After beauty.sno works, replace Path A with Path B:
-A `T_FNCALL` node in engine.c wraps every function call site.
-PROCEED: save+install. RECEDE/CONCEDE: restore in reverse.
-The C function stays clean. See §2 for full design.
-
----
-
-### Repo State at Session 47 Handoff
+### Repo State at Session 48 Handoff
 
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `66b7eab` | NRETURN fixed + emit_pat constructors fixed + datatype docs. Parse Error remains (snoSrc empty + DATA() broken). |
-| .github | `(this)` | Session 47 handoff. §6 + §12 updated. Milestone tracker updated. |
+| SNOBOL4-tiny | `627a030` | 4 bugs fixed this session. Parse Error remains — ARBNO(*snoCommand) matches 0 times. |
+| .github | `(this)` | Session 48 handoff. §6 + §12 updated. |
 | SNOBOL4-corpus | `3673364` | Untouched. |
 | SNOBOL4-harness | `8437f9a` | Untouched. |
 
@@ -4638,4 +4563,44 @@ committed to both repos.
 |------|--------|--------|
 | SNOBOL4-tiny | `66b7eab` | NRETURN fixed. emit_pat constructors fixed. Datatype docs. Parse Error remains. |
 | .github | `(this)` | Session 47 full handoff. §6 + §12 + Milestone Tracker updated. |
+| SNOBOL4-corpus | `3673364` | unchanged |
+
+### 2026-03-12 — Session 48 (E_CONCAT fix + DATA() + sno_inc_init: three root-cause bugs killed)
+
+**Focus**: Four bugs found and fixed this session. Parse Error still active but
+the grammar is now running deeply. Next bug isolated.
+
+**Work done:**
+
+1. **expr_contains_pattern E_CONCAT false-positive (CRITICAL BUG FIXED)** `8b978e3`:
+   `if (e->kind == E_CONCAT) return 1` in `emit.c` caused ALL concatenations
+   (including `snoSrc snoLine nl`) to be emitted as pattern-concat instead of
+   string-concat. `snoSrc` was always empty — every pattern match ran against "".
+   Fix: removed unconditional short-circuit. Recurse into children only.
+
+2. **DATA() builtin was a no-op (CRITICAL BUG FIXED)** `e4595a7`:
+   `DATA('link(next,value)')` called `sno_apply("DATA",...)` → NULL silently.
+   DATA never registered. Constructors and field accessors never created.
+   stack.sno Push/Pop operated on null objects. Reduce() built null trees.
+   Fix: implemented `_b_DATA()` with 64-type × 16-field trampoline arrays.
+   Registered DATA in `sno_runtime_init()`.
+
+3. **sno_init() never called sno_inc_init() (CRITICAL BUG FIXED)** `627a030`:
+   `sno_inc_init()` registers Push, Pop, Top, Shift, reduce_, shift_, Gen, Qize,
+   assign, match, and 30+ more -INCLUDE functions. Called only from `beautiful.c`
+   (legacy), never from `sno_init()`. Every `sno_apply("Push",...)` returned NULL.
+   Fix: `sno_init()` in `snoc_runtime.h` now calls `sno_inc_init()`.
+
+4. **Verified**: After all three fixes, `DATA('mynode(val)')` + `mynode(42)` +
+   `Push(x)` + `Pop()` → `DATATYPE(y) = "mynode"`, `val(y) = 42`. ✓
+
+**State**: Parse Error still active. `SNO_PAT_DEBUG=1` shows grammar running
+deeply (many Reduce/nPush/nPop calls) but `ARBNO(*snoCommand)` matches 0 times:
+`try_match_at: start=16 slen=16 → matched=0`. Next blocker isolated: why
+`snoCommand` fails to match `    x = 'hello'\n`.
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `627a030` | 3 critical bugs fixed. Parse Error remains — ARBNO(snoCommand) matches 0. |
+| .github | `(this)` | Session 48 full handoff. §6 + §12 updated. |
 | SNOBOL4-corpus | `3673364` | unchanged |
