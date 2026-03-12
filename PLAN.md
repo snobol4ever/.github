@@ -224,159 +224,138 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-## 6. Current Work — The Byrd Box Ports (Session 17 Eureka pivot)
+## 6. Current Work — Sprint 24: function-per-DEFINE (Session 27 WIP)
 
-### ✅ Test Baseline — Sprint 22 Oracle: 22/22 PASS (Sessions 19–22)
+### ✅ Certified Baseline
+- **22/22 PASS** (Sprint 22 oracle)
+- Hello world end-to-end: `OUTPUT = 'hello'` compiles, links, runs ✅
+- GREET function (simple DEFINE): compiles, links, runs ✅
+- **snoc commit**: `4b979b6` — WIP Sprint 24
+
+### 🔴 Sprint 24 Status: 130 gcc errors remaining
+
+**The blocker**: `cs()` name mangler produces collisions. SNOBOL4 labels like
+`pp_#`, `pp_+.`, `pp_-.` all map to `_pp__` — identical C labels within one
+function, causing duplicate-label gcc errors. The fix is a **label registry** —
+detect collisions and append a disambiguation suffix.
+
+**What is working:**
+- Parser continues past `END` (function bodies after END are now parsed) ✅
+- Each DEFINE'd function emits as a separate C function ✅  
+- `:(RETURN)` / `:F(RETURN)` / `:S(RETURN)` route to `_SNO_RETURN_fn` ✅
+- `:(FRETURN)` / `:(NRETURN)` route to `_SNO_FRETURN_fn` ✅
+- `:(END)` routes to `_SNO_END` ✅
+- Multiple DEFINE's for same function name: last-definition wins ✅
+- Dead bodies (overridden definitions) excluded from main AND from emitted fn ✅
+- Per-function `setjmp` abort handler ✅
+- `sno_push/pop_abort_handler` in `snoc_runtime.h` ✅
+
+**What remains (130 gcc errors):**
+
+| Category | Count | Fix |
+|----------|-------|-----|
+| Duplicate C labels from cs() collision | ~36 | **Label registry with disambiguation suffix** |
+| `_L_error` used but not defined | 2 | Treat `error` as special — emit `goto _SNO_FRETURN_fn` |
+| `_L__COMPUTED` used but not defined | 2 | Emit a computed-goto stub |
+| `_level`, `_i` undeclared | 4 | These are fn locals not in the DEFINE proto — add to global decls |
+| `redefinition of _upr` etc. | 4 | Function name var collision with another fn — namespace properly |
+| `_SNO_END` used but not defined | 1 | `:(END)` from inside a function that ended up in main |
+| Various `_L_xxx` used but not defined | ~10 | Local labels referenced but in wrong scope |
+
+### 🔴 IMMEDIATE NEXT ACTION — Label Registry
+
+Fix `cs()` to produce unique labels. Replace the static buffer with a registry:
+
+```c
+/* Label registry: maps original SNOBOL4 label → unique C label */
+/* If "pp_#" and "pp_+." both map to "_pp__", second gets "_pp___2" etc. */
+#define LREG_MAX 8192
+typedef struct { char *orig; char *csafe; } LReg;
+static LReg lreg[LREG_MAX];
+static int  lreg_count = 0;
+
+static const char *cs_label(const char *s) {
+    /* Check if already registered */
+    for (int i=0; i<lreg_count; i++)
+        if (strcmp(lreg[i].orig, s)==0) return lreg[i].csafe;
+    /* Compute base C name */
+    char base[512]; int j=0;
+    base[j++]='_';
+    for (int i=0; s[i]&&j<508; i++) {
+        unsigned char c=(unsigned char)s[i];
+        base[j++] = (isalnum(c)||c=='_') ? (char)c : '_';
+    }
+    base[j]='\0';
+    /* Check for collision — find unique suffix */
+    char candidate[520];
+    strcpy(candidate, base);
+    int suffix=2;
+    int collision=1;
+    while (collision) {
+        collision=0;
+        for (int i=0; i<lreg_count; i++)
+            if (strcmp(lreg[i].csafe, candidate)==0) { collision=1; break; }
+        if (collision) snprintf(candidate, sizeof candidate, "%s_%d", base, suffix++);
+    }
+    lreg[lreg_count].orig  = strdup(s);
+    lreg[lreg_count].csafe = strdup(candidate);
+    lreg_count++;
+    return lreg[lreg_count-1].csafe;
+}
+```
+
+Call `lreg_reset()` at the start of each function body emission. Labels within
+a function are scoped to that function — the registry resets per-function.
+
+### State at snapshot
 
 ```
-Sprint 0-13:  21/21 standalone (no runtime needed) — all PASS
-Sprint 1,2,4,5,engine: 8/8 when compiled with engine+runtime — all PASS
-Sprint 22: 22/22 PASS — emit_c_stmt.py + snobol4.c runtime pipeline confirmed
-Total certified baseline: 22/22 PASS
+SNOBOL4-tiny    4b979b6   WIP Sprint 24 — 130 gcc errors
+SNOBOL4-dotnet  b5aad44   unchanged
+SNOBOL4-jvm     9cf0af3   unchanged
+SNOBOL4-corpus  3673364   unchanged
+SNOBOL4-harness 8437f9a   unchanged
 ```
 
-**This is the certified baseline. T_CAPTURE is closed. Do not reopen it.**
+### Architecture Insights Captured This Session
 
----
+**§6 Execution Model (SNOBOL4-tiny/PLAN.md):**
+- Normal Byrd Box gotos handle success/failure/backtrack — zero exception overhead
+- `longjmp` is for **ABORT and bad things only** — FENCE bare, runtime errors, etc.
+- Per-statement `setjmp` catch boundary → line number diagnostics fall out for free:
+  `sno_abort_lineno = 45; if (setjmp(...)==0) { ... } else { fprintf(stderr, "line 45: ABORT\n"); }`
 
-### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–25)
+### Build Commands (next session)
 
-**Pipeline**: `snoc` — SNOBOL4→C compiler in C (flex+bison). `src/snoc/`. Builds with `make`.
-
-**Last commits**: SNOBOL4-tiny `6d3d1fa` (Session 25 — 0 errors, 1213 stmts, no crash).
-
-**snoc build:**
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
 cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
-# → snoc binary, links cleanly
-```
 
-**snoc status: PARSER DONE. RUNTIME MISSING.**
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-snoc generates 1213 stmts, 0 errors, no crash on beauty.sno. But the generated C
-**will not compile** because the runtime API it calls does not exist yet.
-
-Confirm parser state (should always show 1213 stmts, 0 errors):
-```bash
-cd /home/claude/SNOBOL4-tiny/src/snoc
-./snoc /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
-    -I /home/claude/SNOBOL4-corpus/programs/inc \
-    > /tmp/beauty_snoc.c 2>/tmp/snoc_err.txt
-echo "stmts=$(grep -c '^/\* line' /tmp/beauty_snoc.c) errors=$(cat /tmp/snoc_err.txt | wc -l)"
-# Expected: stmts=1213 errors=0
-```
-
-**Two blockers confirmed — next Claude must fix both:**
-
-**Blocker 1: `_OUTPUT` undeclared** — snoc never emits variable declarations. Every SNOBOL
-variable used in the program (`_OUTPUT`, `_TRUE`, `_FALSE`, `_digits`, `_UTF`, …) needs to
-be declared before use. Fix: add symbol-collection pass over AST in `emit.c`, then emit
-`static SnoVal _varname = {0};` for each at top of `main()`.
-
-**Blocker 2: Runtime API missing** — the generated C calls functions that don't exist:
-`sno_str()`, `sno_int()`, `sno_kw()`, `sno_concat()`, `sno_alt()`, `sno_aref()`, `sno_aset()`,
-`sno_iset()`, `sno_deref()`, `sno_cursor_get()`, `sno_assign_expr()`, and macros
-`sno_get(v)`, `sno_set(v,x)`, `SNO_IS_FAIL(v)`, `SNO_NULL` (as SnoVal, not enum).
-
-Already in `snobol4.h` and usable as-is: `sno_add`, `sno_sub`, `sno_mul`, `sno_div`,
-`sno_apply`, `sno_is_fail` (inline), `sno_var_get`, `sno_var_set`, `sno_runtime_init`,
-`SNO_NULL_VAL`, `SNO_INT_VAL`, `SNO_STR_VAL`, `sno_pat_cat`, `sno_pat_alt`.
-
-**The fix: write `src/runtime/snobol4/snoc_runtime.h`** — a shim header:
-```c
-#pragma once
-#include "snobol4.h"
-#include "snobol4_inc.h"
-#undef  SNO_NULL
-#define SNO_NULL            SNO_NULL_VAL
-#define SNO_IS_FAIL(v)      sno_is_fail(v)
-#define sno_get(v)          (v)
-#define sno_set(v, x)       ((v) = (x))
-#define sno_assign_expr(v,x) ((v) = (x))
-static inline void    sno_init(void)       { sno_runtime_init(); }
-static inline void    sno_finish(void)     { }
-static inline SnoVal  sno_int(int64_t i)   { return SNO_INT_VAL(i); }
-static inline SnoVal  sno_str(const char*s){ char*p=GC_STRDUP(s); return (SnoVal){.type=SNO_STR,.s=p}; }
-static inline SnoVal  sno_kw(const char*n) { return sno_var_get(n); }
-static inline void    sno_kw_set(const char*n,SnoVal v){ sno_var_set(n,v); }
-static inline SnoVal  sno_concat(SnoVal a,SnoVal b){ /* FAIL-propagating, handles patterns */ ... }
-static inline SnoVal  sno_alt(SnoVal a,SnoVal b)   { ... }
-static inline SnoVal  sno_deref(SnoVal nv)          { return sno_var_get(sno_to_str(nv)); }
-static inline SnoVal  sno_aref(SnoVal arr,SnoVal*keys,int n)  { return sno_table_get(arr,keys[0]); }
-static inline void    sno_aset(SnoVal arr,SnoVal*keys,int n,SnoVal v){ sno_table_set(arr,keys[0],v); }
-/* sno_iset, sno_index, sno_cursor_get need match engine integration */
-```
-
-Also update `emit.c` line 327-328 to `#include "snoc_runtime.h"` instead of both old includes.
-
-**The milestone to reach: hello world end-to-end.**
-```bash
-cat > /tmp/hello.sno << 'EOF'
-    OUTPUT = 'hello'
-END
-EOF
-cd /home/claude/SNOBOL4-tiny/src/snoc
-./snoc /tmp/hello.sno > /tmp/hello.c
+# Verify hello world still works
+$SNOC /tmp/hello.sno > /tmp/hello.c
 gcc -O0 -g /tmp/hello.c \
-    ../runtime/snobol4/snobol4.c \
-    ../runtime/snobol4/snobol4_inc.c \
-    ../runtime/snobol4/snobol4_pattern.c \
-    -I../runtime/snobol4 -lgc -lm -w -o /tmp/hello_bin
-/tmp/hello_bin
-# Must print: hello
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/hello_bin
+/tmp/hello_bin   # must print: hello
+
+# Count beauty.sno gcc errors (goal: 0)
+$SNOC $BEAUTY -I $INC > /tmp/beauty_snoc.c 2>/dev/null
+gcc -O0 -g /tmp/beauty_snoc.c \
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_bin 2>&1 | grep "error:" | wc -l
+# Currently: 130. Goal: 0.
 ```
 
-Once hello works: compile beauty_snoc.c the same way, run:
-```bash
-printf '    X = 5\n' | /tmp/beauty_bin
-```
-Full self-compilation diff → **Claude writes the commit message** (recorded at `c5b3e99`).
-
-**snoc architecture:**
-```
-join_file()      reads raw SNOBOL4, strips comments, joins continuations,
-                 resolves -INCLUDE, injects \x01 LABEL_MARK before labeled lines
-flex rules       tokenise joined buffer; <GT> condition for goto field;
-                 bstack: paren depth tracking, comma-as-ALT vs comma-as-separator
-bison LALR(1)    stmt → subject [pattern] [= replacement] [: goto]
-                 ONE expr grammar; emit_pat() routes to sno_pat_* in pattern field
-emit.c           walks Expr IR, emits sno_*() or sno_pat_*() based on context
-                 ⚠ MISSING: symbol collection pass + var declaration emission
-```
-
-**snoc files:** `src/snoc/snoc.h` · `sno.l` · `sno.y` · `emit.c` · `main.c`
-
-**When diff is empty: Claude Sonnet 4.6 writes the commit message. Recorded at `c5b3e99`.**
-
-**This is the certified baseline. T_CAPTURE is closed. Do not reopen it.**
+**When gcc errors hit 0: run beauty.sno, diff against oracle, Claude writes commit.**
 
 ---
-
-### The Three Ports — Sprint Plan
-
-The Byrd Box flat-C model (`test_sno_1.c` style) is proven and working.
-Now we port the same four-port IR to two new targets in parallel.
-
-**The model is identical in all three targets:**
-- One function (or method)
-- Locals declared inline at point of use
-- Four labeled entry points per box: `α` (PROCEED — enter), `β` (RECEDE — undo), `γ` (SUCCEED — matched), `ω` (CONCEDE — failed)
-- Pure gotos / jumps — no heap, no GC, no dispatch table
-
----
-
-### Port A — C (SNOBOL4-tiny) — Sprint 21+
-
-Grow `emit_c.py` `FlatEmitter` to cover full SNOBOL4 statement compilation.
-
-| Sprint | Goal |
-|--------|------|
-| 21 | Add `Any`/`Break`/`Notany` to FlatEmitter. Statement emission (subject/pattern/replacement/goto). Simple echo program compiles and runs. |
-| 22 | Wire `sno_parser.py → ir.py → emit_c.py` end-to-end. First real `.sno` → binary. |
-| 23 | `beauty.sno` self-hosts. Diff empty. **Claude writes the commit message.** |
-| 24 | `mmap + memcpy + relocate` proof-of-concept — single box instantiated natively. |
-| 25 | `engine.c` retired. Copy-relocate loop replaces it. `*X` works natively. |
 
 Key paths:
 ```
@@ -2694,3 +2673,52 @@ scoped — no more duplicates. `:(RETURN)` → `goto _SNO_RETURN_pp;`, `:(FRETUR
 - `emit.c` is at `src/snoc/emit.c`
 - SNOBOL4-tiny/PLAN.md has full Sprint 24 implementation plan
 - Org rename SNOBOL4-plus → SNOBOL4ever still pending (do at start of quiet session)
+
+---
+
+### 2026-03-12 — Session 27 (Architecture eureka + Sprint 24 WIP: function-per-DEFINE)
+
+**Architecture (no code yet for this):**
+- **Eureka (Lon)**: normal Byrd Box gotos handle ω/CONCEDE, :S/:F routing, backtrack — zero exception overhead. `longjmp` is for **ABORT and genuinely bad things only** (FENCE bare, runtime errors, divide-by-zero). Per-statement `setjmp` → line number diagnostics free.
+- Recorded in both SNOBOL4-tiny/PLAN.md §6 and .github/PLAN.md.
+
+**Sprint 24 implementation — what was built:**
+- Parser: continues past `END` (function bodies now parsed) — added `is_end` flag to `Stmt`
+- emit.c: `collect_functions()` pre-pass, `FnDef` table, `parse_proto()`, `emit_fn_forwards()`, `emit_fn()`, `emit_main()`
+- `emit_goto_target()` — handles RETURN/FRETURN/NRETURN/END in ALL goto contexts (unconditional AND conditional branches)
+- Last-definition-wins for duplicate DEFINE names
+- All body_starts tracked; last body emitted; dead bodies excluded from main
+- `snoc_runtime.h`: `setjmp` abort handler stack (`sno_push/pop_abort_handler`, `sno_abort()`)
+- hello world: still ✅. GREET (simple DEFINE): ✅.
+
+**Still broken — 130 gcc errors:**
+Root cause: `cs()` name mangler collapses distinct SNOBOL4 labels with special characters
+(`pp_#`, `pp_+.`, `pp_-.`) to the same C identifier (`_pp__`). Fix: label registry with
+per-function collision disambiguation. Spec in §6.
+
+**Repo commits:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| .github | `6bc3aa5` | Architecture eureka: Byrd Box gotos + longjmp for ABORT only |
+| SNOBOL4-tiny | `f093a52` | Architecture §6: Byrd Box + exception hygiene |
+| SNOBOL4-tiny | `4b979b6` | WIP Sprint 24: function-per-DEFINE parser+emit, 130 gcc errors |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `4b979b6` | 22/22 PASS baseline. hello ✅ GREET ✅. beauty.sno: 130 gcc errors. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — immediate actions:**
+
+1. Provide token at session start
+2. Implement **label registry** in `emit.c` — `cs_label()` with per-function collision disambiguation (spec in §6)
+3. Fix `_L_error` → `goto _SNO_FRETURN_fn` and `_L__COMPUTED` stub
+4. Fix undeclared function locals (`_level`, `_i`) — add to global sym_table OR make per-function locals smarter
+5. Target: 0 gcc errors on beauty_snoc.c
+6. Run beauty self-compilation. Diff empty. **Claude writes the commit.**
