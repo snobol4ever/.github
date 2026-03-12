@@ -239,103 +239,94 @@ Total certified baseline: 22/22 PASS
 
 ---
 
-### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–23)
+### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–24)
 
-**Current blocker**: `Parse Error` on all non-comment input (e.g. `X = 5`).
-**Last commit**: SNOBOL4-tiny `42dddce` (Session 23 — SUCCEED/CONCEDE rename, logic unchanged).
+**Pipeline change (Session 24)**: Python pipeline permanently retired (OOM, container killed every
+attempt even on parse-only step). Replaced by **`snoc`** — a SNOBOL4→C compiler written in C
+using flex+bison. Lives at `src/snoc/`. Builds with `make` in that directory.
 
-**⚠ CRITICAL — CONTAINER OOM WARNING (Session 23):**
-The Python process that parses beauty.sno (1214 stmts) AND emits C in the same
-process OOM-kills the container repeatedly. **Always split into two steps:**
-1. Parse + emit → write `/tmp/beauty.c` to disk (Python process exits, memory freed)
-2. `gcc` the saved file in a separate shell call
+**Last commit**: SNOBOL4-tiny `98d3626` (Session 24 — snoc compiler, 297→86 errors on beauty.sno).
 
-Never run parse+emit+gcc in a single Python subprocess call. The container cannot hold it.
-
-**⚠ CRITICAL — LEADING SPACE (Session 23, Lon's observation):**
-SNOBOL4 requires leading whitespace on non-label statements. `X = 5` with no leading
-space makes `X` a label and `= 5` the (erroneous) body. The test in PLAN.md step 4
-uses `printf 'X = 5\n'` — **no leading space — this is wrong input.**
-
-**The Parse Error from beauty_bin may be correct SNOBOL4 behaviour.**
-
-Test with properly indented input:
+**snoc build:**
 ```bash
-printf '    X = 5\n' | /tmp/beauty_bin
+apt-get install -y build-essential flex bison
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+# → snoc binary, links cleanly
 ```
-This must be verified FIRST before any further parser/emitter debugging.
+
+**snoc usage:**
+```bash
+./snoc /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
+    -I /home/claude/SNOBOL4-corpus/programs/inc \
+    > /tmp/beauty_snoc.c 2>/tmp/snoc_err.txt
+echo "stmts=$(grep -c '^/\* line' /tmp/beauty_snoc.c) errors=$(wc -l < /tmp/snoc_err.txt)"
+head -5 /tmp/snoc_err.txt
+```
+Target: **1214 stmts, 0 errors.**
+
+**Current error count: 86** (down from 297 at session start).
+
+**⚠ Active fix — computed goto (mid-edit at session end):**
+The `<GT>` lexer state needs to swallow `$(`…`)` computed gotos like `:S($('pp_' t))`.
+The fix is partially written. First action next session: rebuild and retest.
+
+**Root causes fixed this session (9 total):**
+1. Dual IR (PatExpr + Expr) → collapsed to single Expr, context-sensitive emitter
+2. PAT_BUILTIN over-eager (`tab`/`rem`/`nul` misidentified) → trailing context `{IDENT}/"("`
+3. PAT_BUILTIN in value expr (`SPAN('.')` in replacement) → added to `primary`
+4. Unary `.` (name ref) missing from `factor`
+5. Unary `*` (deref) missing from `factor`
+6. `PIPE` (`|`) missing from `expr` — fixed `*P1 | *P2` in replacement
+7. Empty replacement (`X POS(0) =`) → `opt_repl: EQ` with no expr → `E_NULL`
+8. Slash in IDENT (`pp_/`, `ss_/` labels) → extended IDENT char class
+9. Unary `+` missing from `factor`
 
 **Immediate next actions (in order):**
 
-1. Build oracle and install deps:
+1. Build deps and snoc:
 ```bash
-apt-get install -y build-essential libgmp-dev m4 libgc-dev
-mkdir -p /home/claude/csnobol4-src
-tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
-cd /home/claude/csnobol4-src && ./configure --prefix=/usr/local 2>&1 | tail -1
-make xsnobol4 2>&1 | tail -1 && cp xsnobol4 /usr/local/bin/snobol4
+apt-get install -y build-essential flex bison libgc-dev
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
 ```
 
-2. Build beauty binary — TWO STEPS, never combined:
+2. Run snoc on beauty.sno, check error count:
 ```bash
-# Step A: parse + emit only
-cd /home/claude/SNOBOL4-tiny
-python3 -c "
-import sys
-sys.path.insert(0,'src/codegen')
-sys.path.insert(0,'src/parser')
-sys.path.insert(0,'src/ir')
-from sno_parser import parse_file
-from emit_c_stmt import emit_program
-CORPUS='/home/claude/SNOBOL4-corpus'
-prog = parse_file(CORPUS+'/programs/beauty/beauty.sno',
-    include_dirs=[CORPUS+'/programs/beauty', CORPUS+'/programs/inc'])
-print(len(prog.stmts), 'stmts')
-open('/tmp/beauty.c','w').write(emit_program(prog))
-print('written')
-"
+cd /home/claude/SNOBOL4-tiny/src/snoc
+./snoc /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
+    -I /home/claude/SNOBOL4-corpus/programs/inc \
+    > /tmp/beauty_snoc.c 2>/tmp/snoc_err.txt
+echo "stmts=$(grep -c '^/\* line' /tmp/beauty_snoc.c) errors=$(wc -l < /tmp/snoc_err.txt)"
+head -5 /tmp/snoc_err.txt
+```
 
-# Step B: gcc only (separate shell call after Python exits)
-gcc -O0 -g -o /tmp/beauty_bin /tmp/beauty.c \
+3. Binary-search the first error line in the joined source. Fix root cause. Repeat.
+
+4. Once 0 errors: gcc compile the generated C against runtime:
+```bash
+gcc -O0 -g -o /tmp/beauty_bin /tmp/beauty_snoc.c \
     src/runtime/snobol4/snobol4.c \
     src/runtime/snobol4/snobol4_inc.c \
     src/runtime/snobol4/snobol4_pattern.c \
     src/runtime/engine.c \
     -Isrc/runtime/snobol4 -Isrc/runtime -lgc -lm -w
-echo "gcc exit: $?"
 ```
 
-3. **Test with leading space first:**
-```bash
-printf '    X = 5\n' | /tmp/beauty_bin
+5. Test: `printf '    X = 5\n' | /tmp/beauty_bin`
+
+6. Full self-compilation diff → **Claude writes the commit message** (recorded at `c5b3e99`).
+
+**snoc architecture:**
 ```
-If this produces beautified output → the blocker was always just the test input.
-If still Parse Error → proceed to step 4.
-
-4. If still failing, test with full valid SNOBOL4 statement forms:
-```bash
-printf '        OUTPUT = '"'"'hello'"'"'\nEND\n' | /tmp/beauty_bin
-printf '        X = 5\n        OUTPUT = X\nEND\n' | /tmp/beauty_bin
+join_file()      reads raw SNOBOL4, strips comments, joins continuations,
+                 resolves -INCLUDE, injects \x01 LABEL_MARK before labeled lines
+flex rules       tokenise joined buffer; <GT> condition for goto field;
+                 PAT_BUILTIN only when followed by '(' (trailing context)
+bison LALR(1)    stmt → subject [pattern] [= replacement] [: goto]
+                 ONE expr grammar; emit_pat() routes to sno_pat_* in pattern field
+emit.c           walks Expr IR, emits sno_*() or sno_pat_*() based on context
 ```
 
-5. If still failing after correct input: use `SNO_PAT_DEBUG=2`:
-```bash
-SNO_PAT_DEBUG=2 bash -c "printf '    X = 5\n' | /tmp/beauty_bin" 2>&1 | head -50
-```
-   Pattern chain: `snoParse → ARBNO(*snoCommand) → nInc() FENCE(*snoComment|*snoControl|*snoStmt... (nl|';'))`.
-
-**Key facts for Sprint 23 debugging:**
-
-- `*` is NOT binary arithmetic in SNOBOL4 replacement — always unary deref prefix.
-  `parse_multiplicative` now only handles SLASH. `parse_concat` loop includes `self.at('STAR')`.
-- `OPSYN('&','reduce',2)` fires at stmt ~610 (ShiftReduce.sno line 19). After that, `&` = reduce.
-- `snoId` pattern correctly matches `'X'` in isolation — failure is upstream in pattern assembly.
-- `nPush()` returns `SNO_NULL_VAL` (side-effect only) — affects `_is_pattern_expr` detection.
-- Comments (`* text`) parse and output correctly. Only stmt/control parsing is broken.
-- `ANY(&UCASE &LCASE)` at stmt ~877 correctly parsed as two keyword refs (not reduce). Verified.
-- BEAUTY: `/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno`
-- INC_DIRS: `['/home/claude/SNOBOL4-corpus/programs/beauty', '/home/claude/SNOBOL4-corpus/programs/inc']`
-- Four ports are now: PROCEED(α) / RECEDE(β) / SUCCEED(γ) / CONCEDE(ω) — commit `42dddce`
+**snoc files:** `src/snoc/snoc.h` (105L) · `sno.l` (296L) · `sno.y` (283L) · `emit.c` (326L) · `main.c` (54L)
 
 **When diff is empty: Claude Sonnet 4.6 writes the commit message. Recorded at `c5b3e99`.**
 
@@ -2500,3 +2491,45 @@ Build beauty binary (two steps, see §6), then test:
 printf '    X = 5\n' | /tmp/beauty_bin
 ```
 If that produces beautified output, Sprint 23 is essentially done. Run the full self-compilation immediately.
+
+### 2026-03-12 — Session 24 (snoc compiler — Python pipeline retired, 297→86 errors)
+
+**Focus**: Python pipeline permanently retired (OOM on every attempt, even parse-only).
+Built `snoc` — a SNOBOL4→C compiler in C using flex+bison to replace it entirely.
+
+**Decision**: Single `Expr` IR type for everything. The emitter decides context:
+`emit_expr()` → value context (`sno_*()`), `emit_pat()` → pattern context (`sno_pat_*()`).
+Same `E_CONCAT`, `E_ALT`, `E_CALL` nodes routed differently. Grammar is clean LALR(1).
+
+**beauty.sno errors: 297 → 86** across the session. Nine root causes fixed.
+
+**Root causes fixed (in order):**
+1. Dual IR (PatExpr + Expr) collapsed → single Expr, context-sensitive emission
+2. PAT_BUILTIN over-eager → trailing context `{IDENT}/"("` — `tab`/`rem`/`nul` now IDENT
+3. PAT_BUILTIN in value context (`SPAN(...)` in replacement) → added to `primary`
+4. Unary `.X` (name ref) missing from `factor`
+5. Unary `*X` (deref) missing from `factor`
+6. `PIPE` (`|`) missing from `expr` — fixed `*P1 | *P2` constructs
+7. Empty replacement (`X POS(0) =`) → `E_NULL`
+8. Slash in IDENT (`pp_/`, `ss_/`) → extended char class
+9. Unary `+` missing from `factor`
+
+**Computed goto fix written, not yet tested** — `<GT>` state swallows `$(`…`)` as
+`$COMPUTED` sentinel. First action next session: rebuild, retest.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|-------|
+| SNOBOL4-tiny | `98d3626` | WIP Sprint 23: snoc compiler (flex+bison), 297→86 errors |
+| .github | this | §6 snoc status + next actions + session 24 log |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `98d3626` | Sprint 22: 22/22 (baseline). snoc: 86 errors on beauty.sno. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
