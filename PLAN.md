@@ -973,9 +973,30 @@ positions fail for slen=16 (`    x = 'hello'\n`). ARBNO consumed nothing.
 try_match_at: start=0..16, slen=16 -> matched=0 end=0  (ALL positions fail)
 ```
 
-**Investigation needed**: Why does `snoCommand` fail to match `    x = 'hello'\n`?
-The `snoCommand` pattern includes `snoStmt` → `snoLabel snoWhite snoExpr14...`
-The grammar chain is built at runtime via deferred `sno_pat_user_call("reduce",...)`.
+**Why `snoCommand` fails is still unknown.** The grammar chain:
+`snoCommand = nInc() FENCE(*snoComment | *snoControl | *snoStmt (nl|';'))`
+→ `snoStmt = *snoLabel *snoWhite *snoExpr14 ...`
+Built at runtime via deferred `sno_pat_user_call("reduce",...)`.
+
+**Session 50 — immediate actions (in order):**
+
+1. **Apply E_COND fix** (unblocks counter machinery — may or may not help match):
+   - `emit.c` `case E_COND`: detect `e->right->kind == E_DEREF && e->right->left->kind == E_CALL`
+     → emit `sno_pat_cond(..., "*funcname")` instead of `"?"`
+   - `snobol4_pattern.c` `apply_captures()`: when `var_name[0] == '*'`
+     → call `sno_apply(var_name + 1, NULL, 0)` as side effect; skip string assignment
+
+2. **Trace the `reduce` user-call**: does `sno_apply("reduce", args, 2)` return
+   a valid non-trivial pattern? Add `SNO_PAT_DEBUG` print for its return type/value.
+   `reduce(t,n) = EVAL("epsilon . *Reduce(t,n)")` — does EVAL work? Does it return
+   a pattern or null?
+
+3. **Isolate snoStmt**: after grammar init, inject a C test:
+   match `"    x = 'hello'\n"` against `sno_var_get("snoStmt")` directly.
+   Does it match? This isolates whether the failure is in snoCommand's FENCE or in snoStmt.
+
+4. **Check `snoWhite`**: does it match leading spaces? `snoWhite = SPAN(' ' tab) FENCE(...)`
+   Test `"    "` against `sno_var_get("snoWhite")` directly.
 
 **Build commands for Session 50**:
 ```bash
@@ -992,11 +1013,12 @@ gcc -O0 -g /tmp/beauty_full.c $R/snobol4.c $R/snobol4_inc.c \
 # Oracle
 printf "    x = 'hello'\nEND\n" | snobol4 -f -P256k -I $INC $BEAUTY 2>/dev/null
 
-# Test
+# Binary
 printf "    x = 'hello'\nEND\n" | timeout 10 /tmp/beauty_full_bin 2>&1
-printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | grep "try_match_at"
-```
 
+# Full debug
+printf "    x = 'hello'\nEND\n" | SNO_PAT_DEBUG=1 timeout 10 /tmp/beauty_full_bin 2>&1 | grep "try_match_at\|SPAT_USER_CALL"
+```
 ---
 
 ### Repo State at Session 49 Handoff
@@ -1215,7 +1237,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 |---|--------|-----------|--------|--------|
 | 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
 | 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
-| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error remains. NRETURN fixed (`66b7eab`). DATA() broken. snoSrc empty. Two root causes confirmed, fixes pending. | — |
+| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. ARBNO(*snoCommand)=0. Two bugs diagnosed: (1) E_COND drops `*func()` on RHS — counter no-ops (non-blocking, deferred/zero-length). (2) Root match failure unknown — all snoCommand positions fail. HEAD `627a030`. | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
