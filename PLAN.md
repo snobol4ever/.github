@@ -1686,3 +1686,71 @@ JVM/MSIL ports become Phase 1/2 after the native model is proven.
 ### Status
 - [x] Insight recorded (Session 16)
 - [ ] Sprint 21: mmap + copy + relocate proof of concept
+
+---
+
+## 15. The Allocation Problem Is Solved (Session 16, Lon)
+
+### What This Changes
+
+The locals-inside + copy-relocate model **eliminates heap allocation
+at match time entirely.** This is not an optimization. It is a
+architectural replacement of the current engine.
+
+### Current Engine (engine.c) — What Goes Away
+
+```c
+omega_push(&omega, &Z, &psi);   // explicit backtrack stack
+pattern_alloc(&ctx->pl);        // node allocation pool
+GC_MALLOC(...)                  // GC heap for captures
+MatchCtx, PatternList, EngineOpts, Z cursor struct
+```
+
+All of this exists because temporaries had nowhere to live except
+explicitly allocated structures passed around by pointer.
+
+### New Engine — What Replaces It
+
+```
+*X fires:
+  memcpy(new_text, box.text, box.text_len)   // copy code
+  memcpy(new_data, box.data, box.data_len)   // copy locals
+  relocate(new_text, delta)                  // fix jumps
+  jump to new_text[PROCEED]                  // enter
+
+Backtrack:
+  jump to original_box[RECEDE]               // original untouched
+  discard new_text + new_data                // LIFO — stack discipline
+```
+
+**No heap allocation.** The mmap region is the allocator. LIFO
+discipline matches backtracking exactly — when a branch fails you
+pop the copy, which is exactly what backtracking does anyway.
+
+**No GC.** Copies live and die with the match attempt. Region is
+reused or released. No garbage.
+
+**No omega/psi stacks.** Backtracking = return to the original box,
+which was never modified. The copy was the branch. Discard the copy.
+
+**No pattern_alloc pool.** The pattern IS the code. Already laid out
+in TEXT at compile time. Nothing to allocate.
+
+### engine.c Fate
+
+`engine.c` (500+ lines) is not patched — it is **replaced** by the
+copy-relocate loop. The four-port state machine becomes four entry
+points in the copied TEXT block. The Z cursor struct becomes the
+DATA section of the box.
+
+### Timeline Impact
+
+- Sprint 20: finish on current engine. Prove beautiful.sno compiles.
+- Sprint 21: write the copy-relocate proof of concept. Single box.
+- Sprint 22: retire engine.c. New engine = memcpy + relocation + jump.
+- Sprint 23+: full dynamic pattern matching on the new engine.
+
+### Status
+- [x] Insight recorded (Session 16)
+- [ ] Sprint 21: proof of concept
+- [ ] Sprint 22: engine.c retired
