@@ -270,10 +270,42 @@ sno_var_set("s", _saved_s);           // restore caller's value
 ```
 This must cover: normal RETURN, FRETURN, and the setjmp ABORT path.
 
+**⚡ CRITICAL ARCHITECTURE — TWO SEPARATE WORLDS (Session 44):**
+
+SNOBOL4-tiny has two completely separate execution worlds. They do NOT share
+backtracking or implicit restore. Know which world you are in at all times:
+
+```
+WORLD 1 — Pattern Engine (engine.c, sno_match())
+  ┌─────────────────────────────────────────────────────┐
+  │ Byrd Box: PROCEED / SUCCEED / RECEDE / CONCEDE      │
+  │ Backtracking is IMPLICIT — the engine walks back up │
+  │ the pattern tree automatically on failure.          │
+  │ NO save/restore needed — the Box handles it.        │
+  │ Lives entirely inside sno_match() / engine.c.       │
+  └─────────────────────────────────────────────────────┘
+
+WORLD 2 — DEFINE'd Functions (_sno_fn_X, called via sno_apply())
+  ┌─────────────────────────────────────────────────────┐
+  │ Separate C functions. Normal C call/return.         │
+  │ NO Byrd Box. NO implicit backtracking.              │
+  │ NO implicit restore of variable values.             │
+  │ Save/restore of hash values MUST be emitted         │
+  │ explicitly by emit.c — matching CSNOBOL4 DEFF8/     │
+  │ DEFF10 (entry: save+assign) and DEFF6 (exit:        │
+  │ restore in reverse order).                          │
+  └─────────────────────────────────────────────────────┘
+```
+
+Flattening DEFINE bodies into main() as goto blocks WOULD give implicit
+restore via Byrd Box backtracking — but breaks recursion. Separate C
+functions are correct; they just need explicit save/restore in emit.c.
+
 **What is working now (Session 44 partial fix):**
 - `sno_var_set` called for every assignment (is_fn_local guard removed).
 - `sno_var_register` + `sno_var_sync_registered` fix pre-init timing for nl/tab/etc.
 - Hash is always current for the active call frame — but caller's values are clobbered.
+- **Save/restore NOT YET IMPLEMENTED** — next fix required in emit.c.
 
 ---
 
