@@ -408,44 +408,112 @@ sno_parser.py → emit_c_stmt.py → gcc → binary
 
 This reframes the whole org: not "a SNOBOL4 compiler" but **a polyglot string-processing language platform** targeting every modern runtime, with multiple source dialects.
 
-### Active blocker (carried to Session 44)
-`snoParse` match fails on `"START\n"` — 9 lines out, target 790.
-Diagnosis complete (see Session 42). Next: fix the match failure.
+### What happened (continued — same session, later)
+
+**sno_pat_alt null fix — committed `356b952`:**
+
+Root cause of snoParse "Parse Error" was fully traced and fixed:
+
+- `snoCommand` ends with `(nl | ';')` where `nl` is uninitialized (beauty.sno doesn't include ss.sno)
+- `nl = ""` (SNO_NULL) — this should be epsilon, i.e. always succeed
+- `sno_pat_alt()` was **dropping** the null side: `if (!p->left) return right` → pattern became just `';'`
+- Every statement now required a literal semicolon terminator → ARBNO matched 0 snoCommands → Parse Error
+
+Fix in `snobol4_pattern.c`: promote SNO_NULL sides to `sno_pat_epsilon()` in `sno_pat_alt()`.
+Unit test confirmed: `sno_alt(null, ";")` now matches `""` and `"x"` correctly.
+
+**Fix is necessary but not sufficient — beauty still outputs 9 lines.**
+
+Further tracing via `SNO_PAT_DEBUG=1` shows ARBNO still yields 0 snoCommand iterations. The
+engine retries snoCommand at each cursor position (0,1,2,...) but all fail. Investigation ongoing:
+
+- snoLabel = `BREAK(' ' tab nl ';')` where tab="" nl="" → `BREAK(' ;')` on "START"
+- BREAK(' ;') fails — "START" contains no space or semicolon
+- BUT oracle handles "START" correctly with same nl=""
+- Hypothesis: oracle's snoParse matches "" vacuously (0 ARBNO iterations), then Pop()/Reduce
+  returns a non-null empty tree, `DIFFER(sno = Pop())` succeeds, and `pp(sno)` outputs the
+  original line. Our compiled Pop() may return SNO_NULL causing DIFFER to fail → Parse Error.
+
+**Active investigation at handoff:** Does our `Pop()` return non-null after snoParse with 0
+ARBNO iterations? Check `_sno_fn_nPush`/`_sno_fn_nPop`/`_sno_fn_Reduce` interaction.
 
 ### Commits this session
-None (orientation + design session).
+| Commit | Description |
+|--------|-------------|
+| `01d60da` | PLAN.md §0: SNOBOL4everywhere vision — 2D frontend×backend matrix |
+| `356b952` | snobol4_pattern.c: sno_pat_alt — treat SNO_NULL as epsilon |
 
 ### Repos at session end
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `9443425` | Unchanged |
-| .github | **this commit** | Session 43 log + vision |
+| SNOBOL4-tiny | `356b952` | sno_pat_alt fix committed. beauty still 9/790 lines. |
+| .github | **this commit** | Session 43 full log |
+| SNOBOL4-corpus | `3673364` | Untouched |
+| SNOBOL4-harness | `8437f9a` | Untouched |
 
 ---
 
-### Sprint 23 — What To Do Next Session
+### Session 44 — What To Do Next
 
-Goal: `beauty.sno` compiles itself. `diff` empty. **Claude writes the commit message** (recorded at `c5b3e99`).
+**Goal:** `beauty.sno` self-beautifies → diff empty → Claude writes milestone commit message.
 
-The binary from Sprint 22 hangs on beauty input — more runtime features are needed:
+**Immediate blocker:** beauty outputs 9 lines (target 790). `sno_pat_alt` null fix is in.
+snoParse still matches "" on every input line, causing Parse Error (or Internal Error).
 
-**Step 1 — Diagnose the hang.** Run the beauty binary under `timeout` with a trivial `.sno` input. Add `strace` or `fprintf(stderr,...)` to identify which runtime path loops.
+**Step 1 — Test Pop() after 0-iteration ARBNO.**
+Hypothesis: `Pop()` returns SNO_NULL when ARBNO matched 0 snoCommands. `DIFFER(sno = Pop())`
+then fails (DIFFER with null LHS succeeds only if RHS is also null — check SNOBOL4 semantics).
+If DIFFER fails, the statement gotos mainErr2 "Internal Error". If Parse Error is seen instead,
+the snoParse match itself is failing via RPOS(0).
 
-**Step 2 — Wire INPUT/DEFINE.** beauty.sno uses:
-- `INPUT` special variable (line-at-a-time stdin read) — already implemented in runtime
-- `DEFINE('name(params)locals')` — `sno_define_spec` exists, needs to dispatch correctly
-- `:(label)` unconditional goto — verify emitted correctly
-- `$var` indirect reference — check `emit_c_stmt.py` handles `kind='indirect'`
+Add fprintf to `_sno_fn_nPop` / `_sno_fn_Reduce` to see what they return for a trivial input.
 
-**Step 3 — Run beauty on itself.** Feed `beauty.sno` (after `-INCLUDE` expansion) as stdin. Capture output.
+**Step 2 — Check DIFFER(null) semantics.**
+In SNOBOL4, `DIFFER(x)` with one arg fails if x is null/uninitialized. `DIFFER(x, y)` with two
+args fails if x equals y. The beauty.sno code is: `DIFFER(sno = Pop())` — one-arg form.
+If Pop() returns null/uninitialized, DIFFER(null) **fails** → goto mainErr2 "Internal Error".
+But we see "Parse Error" (mainErr1), so snoParse match itself is failing, not Pop().
 
-**Step 4 — Diff.** `diff <(beauty_binary < beauty.sno) beauty_gold.sno`. When diff is empty, Sprint 23 is done.
+**Step 3 — Re-examine RPOS(0) failure.**
+Pattern: `POS(0) *snoParse *snoSpace RPOS(0)` on "START".
+snoParse = `nPush() ARBNO(*snoCommand) Reduce(...) nPop()`.
+If ARBNO matches 0 times, snoParse matches "" (pos 0 → pos 0). Then snoSpace (ARBNO of
+whitespace) matches "". Then RPOS(0) checks if cursor == len("START") == 5. Cursor is 0. Fails.
+→ Match fails → Parse Error. **This is the real issue.** snoParse matches at pos 0 but
+snoSpace + RPOS(0) can't advance to end. The oracle must be consuming "START" somehow.
 
-**Step 5 — Claude writes the commit message.**
+**Step 4 — Determine how oracle's snoStmt succeeds on "START".**
+The oracle must be going through snoStmt and consuming "START" with snoLabel. But BREAK(' ;')
+fails on "START". So either:
+- Oracle's snoLabel pattern is different (tab or nl contain something)
+- BREAK(' ;') in oracle matches empty string at pos 0 (different BREAK semantics for no-delimiter-found)
+- snoLabel uses BREAK with a different charset
 
-Key files for next session:
+Test in oracle: `'START' BREAK(' ;')   :S(PASS):F(FAIL)` — what does it return?
+
+**Key files:**
 ```
-SNOBOL4-tiny/src/codegen/emit_c_stmt.py   ← statement emitter (check indirect goto, DEFINE)
-SNOBOL4-tiny/src/runtime/snobol4/snobol4.c ← runtime (GT/LT now fixed)
-SNOBOL4-corpus/programs/beauty/beauty.sno  ← the target
+SNOBOL4-tiny/src/runtime/snobol4/snobol4_pattern.c  ← sno_pat_alt fix (356b952)
+SNOBOL4-tiny/src/runtime/snobol4/snobol4.c          ← Pop/Reduce/nPush built-ins
+SNOBOL4-corpus/programs/beauty/beauty.sno            ← target
+```
+
+**Build commands:**
+```bash
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+$SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
+gcc -O0 -g /tmp/beauty_full.c \
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
+
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno 2>/dev/null
+timeout 10 /tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno 2>/tmp/beauty_stderr.txt
+wc -l /tmp/beauty_compiled.sno  # TARGET: 790
 ```
