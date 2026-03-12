@@ -226,6 +226,15 @@ This means:
 - SPITBOL implements this differently (its own calling convention). If targeting
   SPITBOL semantics, revisit. For CSNOBOL4 compatibility: all vars hashed, always.
 
+**SPITBOL's model (from x64-main/bootstrap/sbl.asm — uploaded Session 44):**
+SPITBOL also has one flat global namespace of VRBLKs (Variable Blocks). Every
+variable is a VRBLK. BUT on DEFINE'd function call (bpf section):
+- **On call:** for each arg/local, PUSH the VRBLK's current `vrval` onto the stack,
+  then SET the VRBLK to the new arg value (or null for locals).
+- **On return (rtn):** for each arg/local, POP the saved old value back into the VRBLK.
+So SPITBOL variables are STILL global/natural — function calls temporarily shadow them
+via stack save/restore of the VRBLK entries. Same flat namespace, different call protocol.
+
 **What Session 40 got wrong:**
 - `is_fn_local(varname)` suppressed `sno_var_set` for declared params/locals.
 - This caused `i` in `Reduce` to be a pure C static, never in the hash table.
