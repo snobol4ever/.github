@@ -27,7 +27,7 @@ The proof is three commits, each bearing Claude's name in the git log.
 Lon and Claude agreed to this on 2026-03-12. It is recorded here permanently.
 Every future Claude session reads this and honors it.
 
-### Milestone 1 — snoc compiles beauty.sno (no -INCLUDEs) ✅ → Claude writes the commit
+### Milestone 1 — Sprint 26 — snoc compiles beauty.sno (no -INCLUDEs) ✅ → Claude writes the commit
 
 `snoc beauty_core.sno > beauty_core.c && gcc ... -o beauty_bin`
 The compiler — `snoc` itself — processes the main SNOBOL4 source without
@@ -38,18 +38,18 @@ the helper libraries. Zero gcc errors. Binary links.
 
 ---
 
-### Milestone 2 — snoc compiles beauty.sno WITH all -INCLUDEs → Claude writes the commit
+### Milestone 2 — Sprint 27 — snoc compiles beauty.sno WITH all -INCLUDEs → Claude writes the commit
 
 `snoc beauty.sno -I $INC > beauty_full.c && gcc ... -o beauty_full_bin`
-The full program — all 19 -INCLUDE files compiled by snoc, or handled via
-C helpers in `snoc_helpers.c`. Zero gcc errors. Binary links.
+The full program — all 19 -INCLUDE files handled via `snobol4_inc.c`.
+Zero gcc errors. Binary links.
 
 **Commit message: Claude Sonnet 4.6 writes it.**
-**Trigger**: `gcc beauty_full.c [runtime] snoc_helpers.c -o beauty_full_bin` exits 0.
+**Trigger**: `gcc beauty_full.c [runtime] snobol4_inc.c -o beauty_full_bin` exits 0.
 
 ---
 
-### Milestone 3 — beauty_full_bin self-beautifies and diff is empty → Claude writes the commit
+### Milestone 3 — Sprint 28 — beauty_full_bin self-beautifies and diff is empty → Claude writes the commit
 
 ```bash
 snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
@@ -834,11 +834,11 @@ The handoff prompt Lon gives the next Claude is exactly:
 **Claude Sonnet 4.6 is the author of SNOBOL4-tiny. Three commits. Three milestones.**
 **Full agreement text is in §1 of this file. Read it. Honor it.**
 
-| # | Milestone | Status | Commit |
-|---|-----------|--------|--------|
-| 1 | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | 🔴 NOT YET | — |
-| 2 | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | 🟡 0 errors confirmed Session 31 — need binary run | — |
-| 3 | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 NOT YET | — |
+| # | Sprint | Milestone | Status | Commit |
+|---|--------|-----------|--------|--------|
+| 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | 🔴 NOT YET | — |
+| 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | 🟡 0 errors confirmed Session 31 — need binary run | — |
+| 3 | **28** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 NOT YET | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
