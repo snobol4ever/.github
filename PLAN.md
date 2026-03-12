@@ -332,7 +332,7 @@ Now we port the same four-port IR to two new targets in parallel.
 **The model is identical in all three targets:**
 - One function (or method)
 - Locals declared inline at point of use
-- Four labeled entry points per box: `α` (start), `β` (resume), `γ` (succeed), `ω` (fail)
+- Four labeled entry points per box: `α` (PROCEED — enter), `β` (RECEDE — undo), `γ` (SUCCEED — matched), `ω` (CONCEDE — failed)
 - Pure gotos / jumps — no heap, no GC, no dispatch table
 
 ---
@@ -1728,7 +1728,7 @@ Box layout:
 │        captures, ports  │
 ├─────────────────────────┤
 │  CODE: PROCEED/SUCCEED/ │
-│        FAIL/RECEDE arms │
+│        CONCEDE/RECEDE   │
 └─────────────────────────┘
 ```
 

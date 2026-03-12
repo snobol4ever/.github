@@ -18,7 +18,7 @@ What we add to that tradition is SNOBOL4 on the JVM and on .NET — two ecosyste
 
 SNOBOL4's pattern engine is not a regex engine. It is a **universal grammar machine**.
 
-The same four-state **Byrd Box model** — α (enter), β (resume), γ (succeed), ω (fail) — describes SNOBOL4 pattern matching, Icon's goal-directed generators, Prolog unification and backtracking, and recursive-descent parsing at every level of the Chomsky hierarchy. Regular grammars, context-free grammars, context-sensitive grammars, unrestricted grammars — all expressible directly as SNOBOL4 patterns, with mutual recursion, backtracking, and capture. No yacc. No lex. No separate grammar formalism. The language *is* the grammar tool.
+The same four-state **Byrd Box model** — α (PROCEED — enter), β (RECEDE — undo), γ (SUCCEED — matched), ω (CONCEDE — failed) — describes SNOBOL4 pattern matching, Icon's goal-directed generators, Prolog unification and backtracking, and recursive-descent parsing at every level of the Chomsky hierarchy. Regular grammars, context-free grammars, context-sensitive grammars, unrestricted grammars — all expressible directly as SNOBOL4 patterns, with mutual recursion, backtracking, and capture. No yacc. No lex. No separate grammar formalism. The language *is* the grammar tool.
 
 This is what SNOBOL4 was always for. The humanities, the AI labs, the linguists who adopted it in the 1960s and 70s understood this intuitively. What was missing was speed, portability, and a modern platform story.
 
