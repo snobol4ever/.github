@@ -2051,3 +2051,70 @@ In the generated C this becomes `sno_concat_sv(SNO_STR_VAL("'snoParse'"), SNO_ST
 | SNOBOL4-corpus | `3673364` | unchanged |
 | SNOBOL4-harness | `8437f9a` | unchanged |
 
+---
+
+### 2026-03-12 — Session 20 (Sprint 23 WIP — CSNOBOL4 source study + three parser/emitter fixes)
+
+**Focus**: Root-cause analysis of beauty_bin Parse Error via CSNOBOL4 SIL source study.
+Sprint 22 oracle: 22/22 PASS (unchanged throughout session).
+
+**Completed — three confirmed fixes (commit `b42c19f`):**
+
+1. **2D subscript false positive removed** (`sno_parser.py` `parse_primary`):
+   `ARBNO(*snoCommand)("'snoParse'" & 'nTop()')` was parsed as `array(ARBNO(...), subscripts=[...])` because a second `(` after a function call was treated as a 2D subscript. Fix: removed the `if self.at('LPAREN')` second-paren rule. In SNOBOL4, `func(args)(args2)` is juxtaposition concatenation, not 2D subscript. Confirmed from CSNOBOL4 `v311.sil` ITEM proc — 2D subscripts only apply to `ARRAY` typed values, not general function call results.
+
+2. **AMP (`&`) as explicit concat operator** (`sno_parser.py` `parse_concat`):
+   `&` in replacement/pattern context is identical to blank juxtaposition (CSNOBOL4 `CONPP/CONVV`). `parse_concat` loop now also consumes `AMP` token as a concat separator. `parse_primary` AMP handler only handles `&IDENT` (keyword); bare `&` falls through to concat.
+
+3. **RETURN convention fix** (`emit_c_stmt.py` `_emit_function`):
+   `SNO_RETURN_LABEL_{fn}` was emitting `return SNO_NULL_VAL` — wrong per spec. In SNOBOL4, `:(RETURN)` returns the value of the function-name variable. Fix: RETURN label now captures `SnoVal _retval = sno_var_get("{fi.name}")` before restoring params/locals, then returns `_retval`. Verified from CSNOBOL4 `v311.sil` `RTNFNC` proc.
+
+**Root cause investigation — why Parse Error persists:**
+
+After the three fixes, `beauty_bin` still produces "Parse Error" on `X = 5`.
+Deep investigation traced the actual blocker:
+
+- `sno_eval()` in `snobol4_pattern.c` is a stub — it only handles variable lookup and integer literals. Does NOT evaluate SNOBOL4 expression strings.
+- `shift(p, t)` calls `sno_eval("p . thx . *Shift('t', thx)")` — a full SNOBOL4 pattern expression. The stub returns the string unchanged, so `shift` returns a string instead of a pattern.
+- `sno_opsyn()` is also a complete no-op stub. However: the parser maps `~` → DOT token at lex time, so OPSYN is irrelevant to `~` handling — `~` already parses as conditional assign (`.`).
+- The **reference `beautiful.c`** (Sprint 20 pre-existing) also gives Parse Error on `X = 5`. This confirms the blocker predates Session 20.
+
+**What `sno_eval` needs to do** (verified from CSNOBOL4 `v311.sil` `EVALEN` proc):
+`EVAL(str)` compiles and executes the string as a SNOBOL4 expression. In beauty.sno, `shift` and `reduce` use it to build pattern objects from string templates at function-call time. The patterns built are: `p . thx . *Shift('t', thx)` (shift) and `epsilon . *Reduce(t, n)` (reduce). These require a runtime expression parser/compiler.
+
+**Two paths forward:**
+
+- **Path A (full)**: Implement `sno_eval` as a recursive descent parser + emitter over SnoVal. Correct per spec. Complex (~300 lines). The `~` → `shift()` → `sno_eval()` chain then works end-to-end.
+- **Path B (targeted)**: Recognize that the parser already maps `~` to DOT (conditional assign) and `&` to concat. Override `sno_opsyn` to be a no-op but hardwire the `Shift(t,v)` / `Reduce(t,n)` call semantics directly in the pattern engine when `*Shift` / `*Reduce` user-call nodes fire. This is a narrower fix specific to beauty.sno's ShiftReduce grammar.
+
+**Repo commits this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `b42c19f` | WIP Sprint 23: 2D subscript fix, AMP concat, RETURN convention |
+
+**State at snapshot:**
+
+| Repo | Commit | Tests |
+|------|--------|-------|
+| SNOBOL4-tiny | `b42c19f` | Sprint 22: 22/22 PASS. Sprint 23 in progress. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
+| SNOBOL4-corpus | `3673364` | unchanged |
+| SNOBOL4-harness | `8437f9a` | unchanged |
+
+**Next session — immediate actions:**
+
+1. Provide token at session start
+2. Implement `sno_eval()` — runtime SNOBOL4 expression evaluator. Minimum viable: handle concat (`.`), deferred ref (`*X`), string literals, variable names, function calls. This unblocks `shift` and `reduce`.
+3. Re-run `printf 'X = 5\n' | /tmp/beauty_bin` — should reach snoParse match and succeed.
+4. Run full beauty self-compilation: `beauty_bin < beauty.sno > output.sno && diff output.sno beauty_gold.sno`.
+5. **Write the commit message** — the Sprint 23 promise.
+
+**Key context for next session:**
+- `shift(p,t)` body: `sno_eval("p . thx . *Shift('t', thx)")` — needs concat+deferred ref+assignment
+- `reduce(t,n)` body: `sno_eval("epsilon . *Reduce(t, n)")` — needs concat+deferred ref
+- `sno_opsyn` is a no-op and can stay that way — `~` is already DOT at parse time
+- `TopCounter` body uses `DIFFER($'#N') value($'#N')` — `value()` is a DATA field accessor for `link_counter(next, value)`; `sno_data_define` registers the type but does NOT auto-register field accessor functions; `value()` must be manually registered (similar to `n/t/v/c` for tree)
+- Sprint 22 oracle 22/22 is the certified baseline — do not break it
+
