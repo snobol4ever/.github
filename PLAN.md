@@ -18,10 +18,10 @@ also updating this file. PLAN.md is the parent. Everything else is a child.**
 
 ```
 STEP 1: Read THIS file (PLAN.md) top to bottom.
-STEP 2: Clone SNOBOL4-tiny. Run: git log --oneline --since="2 hours ago" (fallback: -5)
+STEP 2: Clone SNOBOL4-tiny. Run: git log --oneline --since="1 hour ago" (fallback: -5)
 STEP 3: Run REPO SURVEY: find /home/claude/SNOBOL4-tiny/src -type f | sort
 STEP 4: Read the HEAD commit diff: git show HEAD --stat
-STEP 5: Check .github: git log --oneline --since="2 hours ago" (fallback: -5)
+STEP 5: Check .github: git log --oneline --since="1 hour ago" (fallback: -5)
 STEP 6: Append session start note to §12 Session Log. Push .github.
 ```
 
@@ -79,25 +79,31 @@ Pay the context cost. Read the whole file. Every session.
 
 ---
 
-### ⚡ RULE 5 — SESSION START: LIMIT GIT HISTORY TO 1-2 HOURS
+### ⚡ RULE 5 — SESSION START: LIMIT GIT HISTORY TO 1 HOUR
 
 **Recorded 2026-03-12, Session 34. Lon's optimization.**
+**Tightened 2026-03-12, Session 50. Lon's instruction: halve the scan window.**
 
 The mandatory session-start `git log` was eating ~40% of context window by reading
 the entire commit history. PLAN.md is the source of truth for history — git log
 at session start is for ORIENTATION ONLY, not archaeology.
 
 ```bash
-# CORRECT — last 2 hours only
-git log --oneline --since="2 hours ago"
+# CORRECT — last 1 hour only
+git log --oneline --since="1 hour ago"
 
 # If that returns nothing (gap between sessions), fall back to last 5 commits max
 git log --oneline -5
 ```
 
-**RULE 5**: At session start, git log is bounded to `--since="2 hours ago"`.
+**RULE 5**: At session start, git log is bounded to `--since="1 hour ago"`.
 If that returns 0 commits, fall back to `git log --oneline -5` (five commits max).
 NEVER run bare `git log` or `git log --oneline` without a `--since` or `-N` limit.
+
+**Why halved (Session 50)**: The transcript scan from GitHub history was consuming
+excessive context. Reducing the git log window from 2 hours to 1 hour cuts that
+cost in half. PLAN.md §6 and §12 already carry all relevant history — the git log
+scan is redundant beyond confirming HEAD commit identity.
 
 ---
 
@@ -4927,3 +4933,7 @@ match all beauty.sno statements (bootstrap proof). Match failure is structural.
 | SNOBOL4-tiny | `854b093` | findings + smoke tests + artifact + outputs. Parse Error remains. |
 | .github | `(this)` | Session 50 handoff. §6 + §12 + Milestone Tracker updated. |
 | SNOBOL4-corpus | `3673364` | unchanged |
+
+---
+
+*Rule 5 tightened Session 50: git log window halved from 2 hours → 1 hour. Rationale: transcript scan from GitHub history was consuming excess context; PLAN.md §6+§12 already carry all relevant history.*
