@@ -357,6 +357,64 @@ Path B is architecturally superior. Path A is the immediate fix to unblock beaut
 
 ---
 
+### ⚡ ARCHITECTURE TRUTH — `epsilon` IS A RESERVED VARIABLE (Session 47 — Lon's contract)
+
+**`epsilon` is a SNOBOL4 variable name with a user contract: it is NEVER SET by user code.**
+
+This is Lon's explicit design decision, permanent and non-negotiable:
+
+```
+epsilon  ≡  the epsilon pattern (always succeeds, consumes zero characters)
+NULL     ≡  the empty string / uninitialized variable (SNOBOL4's universal null)
+```
+
+`NULL` is SNOBOL4's universal uninitialized value — the empty string sentinel.\
+`epsilon` was added specifically to distinguish the **epsilon pattern** from the\
+empty string `NULL`. They are different things:
+
+- `NULL` / `''` → empty string, not a pattern
+- `epsilon` → `sno_pat_epsilon()` — a pattern node that always succeeds with no match
+
+**The user contract:**
+> **I (Lon) will NEVER assign to `epsilon` in user SNOBOL4 code.**
+> `epsilon` is pre-initialized by the runtime to the epsilon pattern.
+> Any code that sees `epsilon` can rely on it being `sno_pat_epsilon()`.
+> This is the same contract as `NULL` — nobody assigns to NULL either.
+
+**Where `epsilon` appears in beauty.sno:**
+
+- Pattern alternatives: `FENCE(SPAN(digits) | epsilon)` — "match digits or nothing"
+- Grammar levels: `FENCE($'=' *snoExpr0 (\"'='\" & 2) | epsilon)` — "op or nothing"
+- reduce() calls: `EVAL(\"epsilon . *Reduce(t, n)\")` — epsilon as concat base
+
+In all these uses, `epsilon` is the SNOBOL4 name for the match-nothing pattern,
+exactly as `''` is the string that contains nothing.
+
+**What this means for the runtime:**
+
+`epsilon` MUST be pre-initialized in `sno_runtime_init()`:
+```c
+sno_var_set("epsilon", sno_pat_epsilon());
+```
+
+This is the same class as `nl`, `tab`, `cr`, etc. — pre-initialized character
+constants. `epsilon` is the pre-initialized pattern constant.
+
+**Check: is this done?**
+```bash
+grep -n "epsilon" /home/claude/SNOBOL4-tiny/src/runtime/snobol4/snobol4.c
+```
+If `sno_var_set("epsilon", ...)` is absent from `sno_runtime_init()`, that is a bug.\
+Add it immediately — it is required for beauty.sno to function correctly.
+
+**⚠ DO NOT treat `sno_var_get("epsilon")` returning SNO_NULL as epsilon-the-pattern.**\
+They are distinct. An uninitialized `epsilon` variable silently becomes epsilon-as-null,\
+which makes `sno_pat_alt(pat, null)` work (the alt code treats NULL as epsilon) —\
+but this is accidental correctness, not the contract.\
+The contract is: `epsilon` is ALWAYS `sno_pat_epsilon()`, always a PATTERN type, always set.
+
+---
+
 ### ⚡ ARCHITECTURE NOTE — beauty.sno EXPR GRAMMAR = 18-LEVEL PRATT TABLE (Session 45)
 
 **Lon's observation**: beauty.sno implements a Pratt/shunting-yard parser as a SNOBOL4
@@ -4493,3 +4551,32 @@ Earlier note claimed ~150 lines and only listed binary/unary. **Wrong.** The pri
 | # | Milestone | Status |
 |---|-----------|--------|
 | 0 | beauty_full_bin self-beautifies → diff empty | 🔴 Parse Error on every statement |
+
+### 2026-03-12 — Session 47 (epsilon contract — Lon's architectural decision)
+
+**Focus**: Lon stated the epsilon contract explicitly. Recorded as permanent architecture truth.
+
+**⚡ LON'S CONTRACT — `epsilon` is a reserved variable, never set by user code.**
+
+`epsilon` is the SNOBOL4 name for the always-succeeds zero-match pattern — exactly
+as `NULL` is the empty string sentinel. The user contract: nobody assigns to `epsilon`.
+The runtime pre-initializes it to `sno_pat_epsilon()`, same as `nl`, `tab`, `cr`.
+
+This distinction matters: `epsilon` (PATTERN type) vs `NULL`/`''` (empty string type).
+In beauty.sno, `epsilon` appears ~20 times — always as the match-nothing alternative
+in FENCE/ALT patterns. It MUST be `sno_pat_epsilon()` at runtime, not NULL.
+
+**Runtime action required**: `sno_var_set("epsilon", sno_pat_epsilon())` in `sno_runtime_init()`.
+This has likely been missing, causing `sno_var_as_pattern(null)` accidental behavior.
+
+Recorded in §2 ARCHITECTURE TRUTH block (epsilon contract section).
+
+**Note**: Session opened with SNOBOL4-tiny HEAD = `5453479` (T_VARREF node + VarResolveFn
+callback — committed by another session). Two more commits ahead of `eec1adb` baseline.
+Next action: check `E_REDUCE` in `emit_pat()` per §6, then fix `epsilon` pre-init.
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `5453479` | T_VARREF node committed by another session. Parse Error likely still active. |
+| .github | this push | Session 47: epsilon contract recorded in §2 |
+| SNOBOL4-corpus | `3673364` | unchanged |
