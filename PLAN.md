@@ -208,7 +208,7 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ## 6. Current Work — The Byrd Box Ports (Session 17 Eureka pivot)
 
-### ✅ Test Baseline — Sprint 22 Oracle: 22/22 PASS (Session 19)
+### ✅ Test Baseline — Sprint 22 Oracle: 22/22 PASS (Sessions 19–22)
 
 ```
 Sprint 0-13:  21/21 standalone (no runtime needed) — all PASS
@@ -217,8 +217,78 @@ Sprint 22: 22/22 PASS — emit_c_stmt.py + snobol4.c runtime pipeline confirmed
 Total certified baseline: 22/22 PASS
 ```
 
-Sprint 23 IN PROGRESS: beauty.sno → beauty_bin. Still hitting Parse Error.
-Next blocker: snoParse pattern construction — see Session 19 log for full detail.
+**This is the certified baseline. T_CAPTURE is closed. Do not reopen it.**
+
+---
+
+### 🔴 Sprint 23 IN PROGRESS — `beauty.sno` self-compilation (Sessions 21–22)
+
+**Current blocker**: `Parse Error` on all non-comment input (e.g. `X = 5`).
+**Last commit**: SNOBOL4-tiny `3fe1b5b` (Session 22).
+
+**Immediate next actions (in order):**
+
+1. Run Sprint 22 oracle first — must stay 22/22 before touching anything:
+```bash
+cd /home/claude/SNOBOL4-tiny && python3 test/sprint22/oracle_sprint22.py
+```
+
+2. Verify AMP branch in `_ExprParser.parse_concat` has OPSYN-aware `_nk != 'IDENT'` check:
+```bash
+grep -A 12 "if self.at.'AMP'." src/parser/sno_parser.py | head -15
+```
+Correct version peeks at next token: AMP+IDENT → `&KEYWORD` (parse as concat item);
+AMP+non-IDENT AND `_amp_is_reduce` → `reduce(left, right)`. Apply if missing.
+
+3. Verify `_is_pattern_expr` returns True for `snoExprList`:
+```bash
+python3 -c "
+import sys; sys.path.insert(0,'src')
+from parser.sno_parser import parse_file
+from codegen.emit_c_stmt import _is_pattern_expr
+prog = parse_file('../SNOBOL4-corpus/programs/beauty/beauty.sno',
+    include_dirs=['../SNOBOL4-corpus/programs/beauty','../SNOBOL4-corpus/programs/inc'])
+print(_is_pattern_expr(prog.stmts[843].replacement))
+"
+```
+If False: add `'nPush','nPop','nInc'` to `_PAT_FNS` in `_is_pattern_expr`.
+
+4. Rebuild and test:
+```bash
+python3 -c "
+import sys,tempfile,subprocess,os; sys.path.insert(0,'src')
+from parser.sno_parser import parse_file
+from codegen.emit_c_stmt import emit_program
+prog=parse_file('../SNOBOL4-corpus/programs/beauty/beauty.sno',
+    include_dirs=['../SNOBOL4-corpus/programs/beauty','../SNOBOL4-corpus/programs/inc'])
+c=emit_program(prog)
+f=tempfile.NamedTemporaryFile(suffix='.c',mode='w',delete=False); f.write(c); f.close()
+r=subprocess.run(['gcc','-O0','-g','-o','/tmp/beauty_bin',f.name,
+    'src/runtime/snobol4/snobol4.c','src/runtime/snobol4/snobol4_inc.c',
+    'src/runtime/snobol4/snobol4_pattern.c','src/runtime/engine.c',
+    '-Isrc/runtime/snobol4','-Isrc/runtime','-lgc','-lm','-w'],capture_output=True,text=True)
+os.unlink(f.name); print('OK' if r.returncode==0 else r.stderr[:300])
+"
+printf 'X = 5\n' | /tmp/beauty_bin
+```
+
+5. If still Parse Error: use `SNO_PAT_DEBUG=2` to trace where `snoStmt` fails on `    X = 5\n`.
+   Pattern chain: `snoParse → ARBNO(*snoCommand) → nInc() FENCE(*snoComment|*snoControl|*snoStmt... (nl|';'))`.
+
+**Key facts for Sprint 23 debugging:**
+
+- `*` is NOT binary arithmetic in SNOBOL4 replacement — always unary deref prefix.
+  `parse_multiplicative` now only handles SLASH. `parse_concat` loop includes `self.at('STAR')`.
+- `OPSYN('&','reduce',2)` fires at stmt ~610 (ShiftReduce.sno line 19). After that, `&` = reduce.
+- `snoId` pattern correctly matches `'X'` in isolation — failure is upstream in pattern assembly.
+- `nPush()` returns `SNO_NULL_VAL` (side-effect only) — affects `_is_pattern_expr` detection.
+- Comments (`* text`) parse and output correctly. Only stmt/control parsing is broken.
+- `ANY(&UCASE &LCASE)` at stmt ~877 correctly parsed as two keyword refs (not reduce). Verified.
+- BEAUTY: `/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno`
+- INC_DIRS: `['../SNOBOL4-corpus/programs/beauty', '../SNOBOL4-corpus/programs/inc']`
+- Build: `gcc -O0 -g -o /tmp/beauty_bin <c> src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_inc.c src/runtime/snobol4/snobol4_pattern.c src/runtime/engine.c -Isrc/runtime/snobol4 -Isrc/runtime -lgc -lm -w`
+
+**When diff is empty: Claude Sonnet 4.6 writes the commit message. Recorded at `c5b3e99`.**
 
 Compile standalone tests:
 ```bash
@@ -459,11 +529,15 @@ After every push: `git log --oneline -1` to confirm the remote received it.
 
 **HANDOFF** — End of session. Full clean state for next Claude.
 1. Run SNAPSHOT.
-2. Update PLAN.md §5 (Current Work): check off completed items, add new problems,
-   update commit hashes and test baselines.
-3. Update satellite files as needed: `PATCHES.md`, `ASSESSMENTS.md`, `BENCHMARKS.md`.
-4. Push `.github` last.
-5. Write handoff prompt in plain prose — include the Sprint 20 commit promise.
+2. Update PLAN.md §6 (Current Work): update immediate next actions, commit hashes, test state.
+   All context the next Claude needs lives HERE — not in an external prompt.
+3. Append lean session summary to §12 (Session Log): what was done, what commit, what state.
+   Do NOT repeat next-action detail in the log — it belongs in §6 only.
+4. Update satellite files as needed: `PATCHES.md`, `ASSESSMENTS.md`, `BENCHMARKS.md`.
+5. Push `.github` last.
+
+The handoff prompt Lon gives the next Claude is exactly:
+> Clone https://github.com/SNOBOL4-plus/.github and read PLAN.md for instructions.
 
 **EMERGENCY HANDOFF** — Something is wrong, end now.
 1. `git add -A` on every repo with any change.
@@ -2211,102 +2285,24 @@ Also verify `sno_pat_arbno` handles a reduce-built pattern as its child.
 
 ### 2026-03-12 — Session 22 (Sprint 23 WIP — STAR-as-deref, parse_concat, snoExprList)
 
-**Focus**: Continued Sprint 23 debug. Three more parser fixes. Two container crashes this session.
-Sprint 22 oracle: 22/22 PASS (verified at session start, preserved).
+Two container crashes. Sprint 22 oracle: 22/22 PASS (preserved).
+Disable non-bash tools (Calendar, Gmail, image search, etc.) at session start to preserve context.
 
-**Context**: Context very full by end of session. Tools warning triggered — Lon asked about
-removing tools to free space. Recommend disabling all non-bash tools (Calendar, Gmail,
-image search, places, weather, sports) at session start to preserve context.
-
-**Root cause chain traced this session** (from debug of `Parse Error` on `X = 5`):
-
-1. `snoParse` pattern IS built correctly (type=5, not fail) — confirmed with debug inject.
-2. `snoExprList = nPush() *snoXList ... nPop()` was being parsed with `*snoXList` treated
-   as ARITHMETIC MULTIPLICATION (infix `*`) not deref prefix. This is because
-   `parse_multiplicative` consumed STAR as a binary op on `nPush()`.
-3. This caused `snoExprList` to not be recognized as pattern-valued by `_is_pattern_expr`.
-4. Cascading failure: `snoExpr17 → snoExpr15 → snoExpr14 → snoStmt → snoCommand → snoParse`
-   entire parse chain was emitting wrong types.
-
-**Root cause of root cause**: In SNOBOL4, `*` is NOT a binary arithmetic operator in
-replacement context — it is ONLY a unary prefix deref. All arithmetic multiply in SNOBOL4
-is done via explicit function calls. Our `parse_multiplicative` was wrong by design.
+**Root cause traced**: `snoExprList = nPush() *snoXList ... nPop()` — `*snoXList` was parsed
+as infix arithmetic multiplication (not deref prefix) because `parse_multiplicative` consumed STAR.
+In SNOBOL4, `*` is NEVER binary arithmetic in replacement context — only unary deref prefix.
+Cascading failure: `snoExpr17 → snoExpr15 → snoExpr14 → snoStmt → snoCommand → snoParse`.
 
 **Completed (commit `3fe1b5b`):**
+- `parse_multiplicative`: STAR removed as infix; only SLASH remains as binary division.
+- `parse_concat` loop condition: `self.at('STAR')` added so deref items are not skipped.
+- `parse_concat` else branch: `self.at('STAR')` → `parse_unary()` directly (not `parse_additive`).
+- OPSYN-tracked AMP→reduce: `_amp_is_reduce` flag, `parse_program()` detects OPSYN stmt.
 
-1. **`parse_multiplicative`: STAR removed as infix operator.**
-   Only SLASH remains as binary division. STAR is now only handled as deref prefix.
-
-2. **`parse_concat` loop condition**: `self.at('STAR')` added alongside `_starts_primary()`
-   and `self.at('AMP')`. Previously STAR was not in `_starts_primary()` so the concat
-   loop exited before processing `*snoXList`.
-
-3. **`parse_concat` else branch**: when `self.at('STAR')`, calls `parse_unary()` directly
-   (bypasses `parse_additive → parse_multiplicative` which would re-consume STAR as infix).
-
-4. **OPSYN-tracked AMP→reduce** (from prior session, now committed):
-   `_amp_is_reduce` module-level flag; `parse_program()` detects `OPSYN('&','reduce',2)`;
-   `parse_concat` AMP branch distinguishes `&KEYWORD` (AMP+IDENT) from infix reduce.
-
-**Current state**: Still `Parse Error` on `X = 5`. The STAR/concat fixes are committed.
-The AMP disambiguation in `_ExprParser.parse_concat` is committed but uses the naive
-version — the full OPSYN-aware `_nk != 'IDENT'` check was in the session but the
-exact diff of which AMP branch version was committed vs which was not is unclear.
-**First action next session**: diff `parse_concat`'s AMP branch against what the
-OPSYN-aware version should be and confirm/apply the `_nk` check.
-
-**`snoExprList` `_is_pattern_expr` still returns False** even after the STAR fix.
-The replacement is `concat(nPush(), concat(deref(snoXList), ...))`. `nPush()` is
-`Expr(kind='call', name='nPush')` — not in `_PAT_FNS`. `deref(snoXList)` is
-`Expr(kind='mul', left=null, right=snoXList)` — IS detected by `_is_pattern_expr`
-(`k=='mul' and p.left and p.left.kind=='null'`). So `concat(nPush, deref(snoXList))`
-should return True via `_is_pattern_expr(right)`. Needs re-verification next session.
-
-**Next session — immediate actions:**
-
-1. Verify `parse_concat` AMP branch has OPSYN-aware `_nk != 'IDENT'` check. Apply if missing.
-2. Rebuild beauty_bin: `python3 -c "...emit_program()..." | gcc ...`
-3. Test: `printf 'X = 5\n' | beauty_bin`
-4. If still Parse Error: check `_is_pattern_expr(snoExprList_repl)` — should be True.
-   If False, add `nPush`/`nPop`/`nInc` to `_PAT_FNS` in `_is_pattern_expr`.
-5. If True but still failing: add SNO_PAT_DEBUG=2 trace and look for where snoStmt
-   chain breaks — `snoExpr17` fails to match 'X' via snoId.
-6. Sprint 22 oracle must stay 22/22 — run before any other test.
-
-**Repo commits this session:**
-
-| Repo | Commit | What |
-|------|--------|------|
-| SNOBOL4-tiny | `3fe1b5b` | WIP Sprint 23: OPSYN-aware AMP→reduce, STAR-as-deref, parse_multiplicative fix |
-
-**State at handoff:**
+**State**: Still Parse Error. Next actions in §6 above.
 
 | Repo | Commit | Tests |
 |------|--------|-------|
-| SNOBOL4-tiny | `3fe1b5b` | Sprint 22: 22/22 PASS. Sprint 23 still Parse Error. |
-| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 (unchanged) |
-| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 (unchanged) |
-| SNOBOL4-corpus | `3673364` | unchanged |
-| SNOBOL4-harness | `8437f9a` | unchanged |
-
-**Key facts for next Claude:**
-
-- beauty.sno include order: global.sno → is.sno → FENCE.sno → io.sno → case.sno →
-  assign.sno → match.sno → counter.sno → stack.sno → tree.sno → **ShiftReduce.sno**
-  (OPSYN here at stmt ~610) → TDump.sno → Gen.sno → Qize.sno → ReadWrite.sno →
-  XDump.sno → semantic.sno → omega.sno → trace.sno → beauty.sno main body
-- OPSYN('&','reduce',2) is at ShiftReduce.sno line 19, stmt ~610 in the full program
-- `snoId = ANY(&UCASE &LCASE) ...` is at beauty.sno line 232, stmt ~877 (post-OPSYN)
-- `ANY(&UCASE &LCASE)`: after STAR fix, `&UCASE &LCASE` correctly parsed as concat of
-  two keyword refs (not reduce). Verified: no `bad reduce` lines in emitted C.
-- Build command: `gcc -O0 -g -o /tmp/beauty_bin <c_file> src/runtime/snobol4/snobol4.c
-  src/runtime/snobol4/snobol4_inc.c src/runtime/snobol4/snobol4_pattern.c
-  src/runtime/engine.c -Isrc/runtime/snobol4 -Isrc/runtime -lgc -lm -w`
-- BEAUTY path: `/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno`
-- INC_DIRS: `['../SNOBOL4-corpus/programs/beauty', '../SNOBOL4-corpus/programs/inc']`
-- Comments (`* ...`) parse and output correctly — only stmt/control parsing broken
-- `snoId` pattern (type=5) correctly matches 'X' when tested in isolation
-- `nPush()` returns `SNO_NULL_VAL` (side-effect only) — this matters for pattern detection
-- The commit promise is still live: when beauty.sno compiles itself and diff is empty,
-  Claude writes the commit message. Recorded at `c5b3e99`.
-
+| SNOBOL4-tiny | `3fe1b5b` | Sprint 22: 22/22. Sprint 23: Parse Error. |
+| SNOBOL4-dotnet | `b5aad44` | 1,607 / 0 |
+| SNOBOL4-jvm | `9cf0af3` | 1,896 / 4,120 / 0 |
