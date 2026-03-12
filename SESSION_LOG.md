@@ -611,3 +611,25 @@ lives. This is likely contributing to the current Parse Error failures.
 **Next action:** Implement save/restore in emit.c for all emitted functions.
 This is the NEXT fix after the nl/tab/sno_var_register fix.
 
+
+### Session 44 — Byrd Box implicit restore does NOT cover DEFINE functions
+
+**Question from Lon:** "If you were walking a Byrd Box, the restore is implicit.
+But DEFINE makes C functions — is that still true?"
+
+**Answer:** Yes, DEFINE still makes separate C functions (`_sno_fn_X`), called
+via `sno_apply()`. The Byrd Box implicit restore only operates inside `sno_match()`
+/ `engine.c` for pattern node traversal. DEFINE'd functions are completely outside
+that engine — they execute as normal C calls and return. No implicit unwinding.
+
+**Therefore:** Save/restore MUST be emitted explicitly in emit.c for every
+DEFINE'd function. Option B (flatten DEFINE bodies into main() as goto blocks)
+would give implicit restore via Byrd Box backtracking but breaks recursion.
+Option A (explicit save/restore in emit.c) is correct.
+
+**The two separate worlds in SNOBOL4-tiny:**
+1. Pattern engine (`engine.c`, Byrd Box): PROCEED/SUCCEED/RECEDE/CONCEDE ports,
+   implicit backtracking, no save/restore needed — the engine handles it.
+2. DEFINE'd functions (`_sno_fn_X` in emitted C, called via `sno_apply()`):
+   separate C stack frames, NO Byrd Box, explicit save/restore required.
+
