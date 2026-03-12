@@ -633,3 +633,42 @@ Option A (explicit save/restore in emit.c) is correct.
 2. DEFINE'd functions (`_sno_fn_X` in emitted C, called via `sno_apply()`):
    separate C stack frames, NO Byrd Box, explicit save/restore required.
 
+
+### Session 44 — Byrd Box Wrapper Pattern for Function Save/Restore
+
+**Lon's insight:** "Maybe you can PASS the arguments through a Byrd Box and somehow
+communicate that to the function. It would not have to do so — the outside world
+wrapper does that for him."
+
+**The idea:** Instead of emitting save/restore INSIDE every `_sno_fn_X`, wrap the
+function CALL SITE in a Byrd Box node. The Box wrapper owns the save/restore
+contract. The C function stays clean — it just reads/writes vars normally.
+
+**How it would work:**
+
+```
+PROCEED into wrapper:
+  1. For each param/local name: old[i] = sno_var_get(name[i])   // save
+  2. sno_var_set(name[i], arg[i])                                // install args
+  3. sno_var_set(local[i], SNO_NULL_VAL)                         // install locals
+  4. Call _sno_fn_X(...) → result
+  5. SUCCEED (pass result up)
+
+RECEDE/CONCEDE into wrapper:
+  1. For each param/local in reverse: sno_var_set(name[i], old[i])  // restore
+  2. Propagate RECEDE/CONCEDE upward
+```
+
+**Why this is elegant:**
+- `_sno_fn_X` needs zero changes — no save/restore boilerplate inside it.
+- The wrapper is a single reusable Byrd Box node type: `T_FNCALL` or similar.
+- Save/restore is handled once, correctly, in the engine — where backtracking
+  already lives. It belongs there.
+- On pattern backtracking through a function call, the wrapper naturally restores
+  state — exactly matching CSNOBOL4 DEFF8/DEFF10/DEFF6 semantics but via the Box.
+
+**Current status:** Idea captured. Not yet implemented. Two implementation paths:
+  A. Emit save/restore explicitly inside each `_sno_fn_X` in emit.c (simpler, sooner).
+  B. Byrd Box wrapper node at call sites (cleaner, more correct for backtracking).
+Path B is architecturally superior. Path A is the immediate fix.
+

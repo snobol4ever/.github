@@ -299,7 +299,40 @@ WORLD 2 — DEFINE'd Functions (_sno_fn_X, called via sno_apply())
 
 Flattening DEFINE bodies into main() as goto blocks WOULD give implicit
 restore via Byrd Box backtracking — but breaks recursion. Separate C
-functions are correct; they just need explicit save/restore in emit.c.
+functions are correct; they just need explicit save/restore.
+
+**⚡ PREFERRED DESIGN — BYRD BOX WRAPPER AT CALL SITE (Session 44, Lon's idea):**
+
+Instead of emitting save/restore INSIDE every `_sno_fn_X`, wrap the function
+CALL SITE in a Byrd Box node. The wrapper owns the save/restore contract.
+The C function itself stays completely clean.
+
+```
+T_FNCALL wrapper node — PROCEED:
+  for i in params+locals:
+      old[i] = sno_var_get(name[i])     // save caller's value
+      sno_var_set(name[i], arg[i])       // install arg (or NULL for locals)
+  result = _sno_fn_X(args)
+  → SUCCEED
+
+T_FNCALL wrapper node — RECEDE/CONCEDE:
+  for i in reverse(params+locals):
+      sno_var_set(name[i], old[i])       // restore caller's value
+  → propagate RECEDE/CONCEDE
+```
+
+Why this is the right design:
+- `_sno_fn_X` needs zero save/restore boilerplate — stays clean.
+- Save/restore lives in the engine where backtracking already lives.
+- A single reusable wrapper node handles all DEFINE'd function calls.
+- On pattern backtracking THROUGH a function call, state is correctly
+  restored — matching CSNOBOL4 DEFF8/DEFF10/DEFF6 via the Box.
+- This is what "the outside world wrapper does it for him" means.
+
+**Two paths forward:**
+- **Path A (immediate):** emit explicit save/restore inside each `_sno_fn_X` in emit.c.
+- **Path B (correct):** T_FNCALL Byrd Box wrapper node at call sites in engine.c.
+Path B is architecturally superior. Path A is the immediate fix to unblock beauty.sno.
 
 **What is working now (Session 44 partial fix):**
 - `sno_var_set` called for every assignment (is_fn_local guard removed).
