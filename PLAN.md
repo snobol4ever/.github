@@ -3713,3 +3713,128 @@ If that returns 0 commits, fall back to `git log --oneline -5` (five commits max
 NEVER run bare `git log` or `git log --oneline` without a `--since` or `-N` limit.
 The goal is orientation, not archaeology. PLAN.md is the source of truth for history.
 
+
+---
+
+## ⚡ SESSION 34 HANDOFF — Current Bug: Shift vs shift (two DIFFERENT functions)
+
+**Recorded 2026-03-12, Session 34. Mid-session handoff.**
+
+### Current SNOBOL4-tiny HEAD: `377fb13`
+WIP commit — phantom FnDef injection in emit.c, build compiles (0 gcc errors), 
+but binary still produces 0 output lines (oracle = 790).
+
+### The Active Bug — Shift and shift are TWO DIFFERENT FUNCTIONS
+
+**Lon confirmed this.** SNOBOL4 is case-sensitive. These are distinct:
+
+- `Shift` (capital S) — from `ShiftReduce.sno`, runtime-registered in `snobol4_inc.c`.  
+  DEFINE has goto :(ShiftEnd). `collect_functions` finds it → fn[N] name=`Shift` end=`ShiftEnd`.
+- `shift` (lowercase s) — beauty.sno's OWN function, a completely different parser action.  
+  DEFINE has no goto → end_label=NULL.
+
+**Current generated C confirms both exist:**
+```
+line 342:  static SnoVal _sno_fn_Shift(...)   ← ShiftReduce.sno, emitted correctly
+line 364:  static SnoVal _sno_fn_shift(...)   ← beauty.sno's own, emitted correctly  
+line 8539: _L_Shift:;  ← IN main() — WRONG. This is a 3rd occurrence or the body_start
+                          for the wrong fn leaking into main.
+```
+
+Same pattern applies to `Reduce` vs `reduce`.
+
+### What next Claude must diagnose:
+
+Why is `_L_Shift` appearing at C line 8539 inside `main()` when `_sno_fn_Shift` was 
+already correctly emitted at C line 2402?
+
+Hypothesis: `stmt_in_fn_body()` walk for fn `Shift` claims body_starts[0] (the Shift
+label in ShiftReduce.sno) correctly — but there is a second Stmt node in the program
+with label `Shift` that is NOT captured by body_starts (nbody=1 means only 1 found).
+OR the walk terminates early (a label inside the Shift body triggers is_body_boundary 
+prematurely before reaching ShiftEnd).
+
+**Next debugging step:**
+1. Add debug print: for every stmt with label "Shift" (case-insensitive), print its 
+   source line number and whether stmt_is_in_any_fn_body() returns 1 or 0.
+2. Check is_body_boundary() — does any label between `Shift:` and `ShiftEnd` in 
+   ShiftReduce.sno trigger a false-positive boundary stop?
+
+### Build state
+```bash
+# Build snoc first:
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+# Test pipeline:
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+$SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
+gcc -O0 -g /tmp/beauty_full.c \
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
+
+/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno 2>/dev/null
+wc -l /tmp/beauty_compiled.sno   # TARGET: 790 lines (oracle output)
+```
+
+### Milestone context
+- **Milestone 3 target**: beauty_full_bin self-beautifies → diff vs oracle empty
+- Lon's priority: beautifier working FIRST. Bask in the glory. Compiler comes after.
+
+
+---
+
+## ⚡ SESSION 34 HANDOFF — Current Bug: Shift vs shift (two DIFFERENT functions)
+
+**Recorded 2026-03-12, Session 34. Mid-session handoff.**
+
+### Current SNOBOL4-tiny HEAD: `377fb13`
+WIP commit — phantom FnDef injection in emit.c, build compiles (0 gcc errors), 
+but binary still produces 0 output lines (oracle = 790).
+
+### The Active Bug — Shift and shift are TWO DIFFERENT FUNCTIONS
+
+**Lon confirmed this.** SNOBOL4 is case-sensitive. These are distinct:
+
+- `Shift` (capital S) — from `ShiftReduce.sno`, runtime-registered in `snobol4_inc.c`.  
+  DEFINE has goto :(ShiftEnd). `collect_functions` finds it → fn[N] name=`Shift` end=`ShiftEnd`.
+- `shift` (lowercase s) — beauty.sno's OWN function, a completely different parser action.  
+  DEFINE has no goto → end_label=NULL.
+
+**Current generated C confirms both exist:**
+```
+line 342:  static SnoVal _sno_fn_Shift(...)   ← ShiftReduce.sno, correct
+line 364:  static SnoVal _sno_fn_shift(...)   ← beauty.sno's own, correct
+line 8539: _L_Shift:;  ← IN main() — WRONG
+```
+
+Same pattern applies to `Reduce` vs `reduce`.
+
+### Root cause hypothesis
+`stmt_in_fn_body()` for fn `Shift` has nbody_starts=1 and correctly walks from the
+Shift label in ShiftReduce.sno forward to ShiftEnd. BUT: the `is_body_boundary()` 
+check on line 770 of emit.c uses `fn_table[i].name` = "shift" (lowercase) to exclude
+self-matches. Since the walking fn is "Shift" but name stored is "shift", the 
+case-insensitive compare may be causing the wrong fn's boundary to fire prematurely.
+
+**OR**: `collect_functions` dedup is using `strcasecmp` (not `strcmp`) somewhere,
+merging Shift and shift into one entry with the wrong name stored — causing the
+body_starts scan to miss one of the two Shift labels in the expanded stream.
+
+### Next Claude: DIAGNOSE with this one-liner first
+```bash
+$SNOC $BEAUTY -I $INC 2>/dev/null | grep -n "^_L_Shift\|^_L_shift\|_sno_fn_Shift\|_sno_fn_shift" 
+```
+Expected: _sno_fn_Shift and _sno_fn_shift as static fns. _L_Shift should NOT appear in main().
+
+Then check: `grep "found\|dedup\|already" emit.c` — the dedup logic in collect_functions.
+The strcmp vs strcasecmp question is the crux.
+
+### Milestone context
+- **Lon's priority order**: Beautifier (Milestone 3) FIRST. Bask in glory. Compiler later.
+- Milestone 3: beauty_full_bin self-beautifies → `diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno` empty
+
