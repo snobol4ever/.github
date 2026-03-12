@@ -3923,3 +3923,94 @@ wc -l /tmp/beauty_compiled.sno   # TARGET: 790
 ### Milestone context
 - **Active target**: Milestone 0 — beauty_full_bin self-beautifies → diff empty
 - Lon's order: beautifier FIRST. Bask. Compiler after.
+
+
+---
+
+## ⚡ SESSION 35 HANDOFF — Pattern-Stmt Fix Complete, New Blocker: "Internal Error" at startup
+
+**Recorded 2026-03-12, Session 35.**
+
+### Current SNOBOL4-tiny HEAD: `f4dfa92`
+**NOTE: This commit was NOT pushed (no GitHub auth in container). Lon must push manually.**
+
+Build: 0 gcc errors. beauty_full_bin: **0 → 9 output lines** (major progress).
+
+### What Session 35 Fixed
+
+**Root cause found and fixed: icase infinite recursion from misparsed pattern stmts.**
+
+The LALR(1) grammar absorbed PAT_BUILTIN calls (POS, LEN, SPAN, etc.) into the
+subject expression instead of starting the pattern. E.g.:
+- SNOBOL4: `str  POS(0) ANY(&UCASE &LCASE) . letter =   :F(icase1)`
+- Was emitted as: `sno_iset(sno_concat(str, POS(0), ANY(...)), _v)` ← WRONG
+- Now emitted as: `sno_match(&str, POS(0) ANY(..) . letter)` + `sno_replace` ← CORRECT
+
+**Four fixes in commit `f4dfa92`:**
+1. `sno.l`: PAT_BUILTIN only at `bstack_top==0` (not inside arglist parens)
+2. `emit.c`: `maybe_fix_pattern_stmt()` + `split_subject_pattern()` — post-parse
+   tree restructuring. Scans subject concat tree for first PAT_BUILTIN node,
+   splits it: left=subject, right=pattern.
+3. `emit.c`: `B1i`/`B1s`/`B1v` macros for proper type conversions (int64_t vs
+   const char* vs SnoVal for different PAT_BUILTIN argument types)
+4. `snobol4_pattern.c` + `snobol4.h`: added `sno_pat_call(name, arg)` for
+   user-defined pattern functions referenced in pattern context.
+
+### The New Blocker: "Internal Error" at line 8
+
+Beauty output (9 lines):
+```
+*---------  (7 comment header lines)
+Internal Error
+START
+```
+
+"Internal Error" is emitted by the beautifier itself — it hit an error condition
+during startup initialization (before processing any input lines). This happens
+during the initialization section of beauty.sno (lines ~50-450) where patterns,
+grammars, and data structures are set up.
+
+### Diagnostic approach for next Claude
+
+1. Find where beauty.sno outputs "Internal Error":
+```bash
+grep -n "Internal Error\|InternalError\|error.*Internal" \
+    /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno | head -5
+```
+
+2. Add runtime tracing to identify which statement triggers it:
+```c
+// In snobol4.c or engine.c, add a debug print when the string "Internal Error"
+// is about to be output to stdout
+```
+
+3. The "Internal Error" label is likely reached via a :F branch in the init section.
+   Some function call is failing that should succeed. Most likely candidates:
+   - Pattern compilation failures (icase, ARBNO, etc.)
+   - DATA definition failures
+   - Array initialization failures
+
+### Build commands (copy-paste ready)
+```bash
+apt-get install -y build-essential flex bison libgc-dev
+cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+$SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
+gcc -O0 -g /tmp/beauty_full.c \
+    $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
+
+/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno 2>/dev/null
+wc -l /tmp/beauty_compiled.sno   # Current: 9, TARGET: 790
+```
+
+### Milestone context
+- **Active target**: Milestone 0 — beauty_full_bin self-beautifies → diff empty
+- Current: 9/790 lines. Pattern fix was the major unlock.
+- Next: fix "Internal Error" in startup initialization.
