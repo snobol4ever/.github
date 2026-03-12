@@ -4398,3 +4398,101 @@ has two parsing gaps:
 | SNOBOL4-corpus | `3673364` | unchanged |
 | SNOBOL4-harness | `8437f9a` | unchanged |
 
+
+### 2026-03-12 — Session 40 (sno_var_set scope fix + DUMP/&DUMP diagnostic insight)
+
+**Focus**: Fixed the sno_set/sno_var_set desync bug properly. Three bugs found and fixed.
+Binary now reaches main input loop. Lon's key insight: **DUMP and &DUMP are the right
+diagnostic tools for this class of bug — we should have used them from the start.**
+
+---
+
+#### Bugs Fixed This Session
+
+**Bug 1 — sno_array_get2 no bounds check (snobol4.c)**
+- `SORT(UTF)` builds a 2D array. `UTF_Array[i,1]` in the G1 loop called `sno_array_get2`
+  which had NO bounds check — returned garbage past end, loop never exited.
+- Fix: added bounds check; returns `SNO_FAIL_VAL` when row/col out of range.
+- Also changed `if (!a) return SNO_NULL_VAL` → `SNO_FAIL_VAL` (NULL_VAL is not FAIL).
+
+**Bug 2 — SORT stub returned TABLE unchanged (snobol4_pattern.c)**
+- `SORT(table)` was a stub returning input unchanged.
+- `csnobol4` `SORT(T)` returns a 2D array `[i,1]=key, [i,2]=value` sorted by key.
+- Fix: implemented real `sno_sort_fn`: collect (key,val) pairs, insertion-sort by key,
+  build `SnoArray` with `lo=1, hi=n, ndim=2`, data = interleaved key/val.
+
+**Bug 3 — sno_var_set sync emitted for function locals (emit.c)**
+- The Session 39 fix emitted `sno_var_set(name, val)` after EVERY `sno_set()`.
+- Function locals (e.g., `i` in `Reduce`) are C statics in function scope — syncing them
+  to the global hash table polluted globals and caused Reduce's `i` loop to run 200k+
+  iterations (n was huge because `sno_var_get("i")` returned the polluted global).
+- Fix: added `cur_fn_def` pointer and `is_fn_local(varname)` helper in `emit.c`.
+  `sno_var_set` is only emitted when the variable is NOT a declared param/local of the
+  current function. Global variables assigned inside functions (like `snoParse` assigned
+  inside `UserDefs()`) ARE synced correctly because they're not in `fn->args/locals`.
+
+#### Architecture Note (permanent — add to §2)
+
+**The two-store problem is now correctly solved:**
+- C statics `_snoParse`, `_snoSrc` etc.: updated by `sno_set()` macro.
+- Hash table `sno_var_get/set()`: used by `SPAT_REF`, pattern captures, EVAL.
+- Rule: emit `sno_var_set(name, val)` after `sno_set()` IFF `!is_fn_local(name)`.
+- This correctly syncs globals (including globals assigned inside functions) while
+  leaving function locals isolated to their C stack frame.
+
+#### Lon's Diagnostic Insight — DUMP and &DUMP
+
+**THIS IS THE KEY DIAGNOSTIC TOOL WE SHOULD USE GOING FORWARD.**
+
+In SNOBOL4/CSNOBOL4:
+- `DUMP(1)` — dumps all variable names and values to stderr/output at that point.
+- `&DUMP = 1` — sets the DUMP keyword; auto-dumps on program termination (normal or abort).
+
+**Why this matters**: the current hang (main input loop) is a pattern match failure.
+`snoParse` is built but may be malformed. `DUMP(1)` or `&DUMP = 1` injected at key
+points in the generated C (or in a debug SNOBOL4 wrapper) would show exactly what
+`snoParse`, `snoCommand`, `snoSrc` etc. contain at the moment of failure — without
+needing to add dozens of `fprintf` calls or reverse-engineer the pattern structure.
+
+**How to use in our context:**
+1. In the runtime: `sno_apply("DUMP", (SnoVal[]){sno_int(1)}, 1)` — dumps all vars.
+2. In generated C: inject `sno_apply("DUMP", ...)` before the first `INPUT` read.
+3. `&DUMP` equivalent: `sno_kw_dump = 1` in the runtime, checked at program exit.
+4. For pattern inspection: `sno_pat_dump(val)` if we implement it — prints pattern tree.
+
+**Immediate action**: implement `DUMP` builtin in `snobol4_inc.c` that iterates
+`_var_buckets[]` and prints name=value pairs. Use it to verify `snoParse` is a valid
+pattern after init, before the main loop starts.
+
+#### Current State
+
+- Binary reaches main input loop (`_L_main00`) ✓
+- Hangs in the main processing loop (pattern match or subsequent processing)
+- `snoParse` is now synced to hash table via `sno_var_set` from `UserDefs()`
+- Root cause of current hang: unknown — next step is DUMP-based diagnosis
+
+#### Immediate Next Actions (Session 41)
+
+1. **Implement DUMP builtin** — iterate `_var_buckets[]`, print `name = sno_to_str(val)`.
+   Register as `sno_register_fn("DUMP", _b_DUMP, 1, 1)` in `snobol4.c`.
+
+2. **Inject DUMP call before main loop** — patch generated C to call DUMP(1) just before
+   `_L_main00:` — verify `snoParse` is present and is type `SNO_PATTERN`.
+
+3. **Add &STLIMIT cap** — inject `sno_kw_stlimit = 10000` before `_L_main00` to cap
+   execution and get a clean exit with DUMP output instead of a hang.
+
+4. **If snoParse is correct** — the hang is in downstream processing (Reduce, tree building,
+   Gen, etc.). Use `&DUMP` at exit + `&STLIMIT` to see what variables look like when it stops.
+
+5. **Commit the three bug fixes** (sno_array_get2, SORT, emit.c scope) once DUMP is working.
+
+#### Repo State at Handoff
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `669d72b` | emit.c + snobol4.c + snobol4_pattern.c modified, NOT committed |
+| .github | `b8aa8c3` | Session 40 entry added, NOT committed |
+| SNOBOL4-corpus | `3673364` | unchanged |
+
+**⚠ Three runtime files modified but not committed — loop bugs not fully resolved yet.**
