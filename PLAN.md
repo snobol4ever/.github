@@ -652,12 +652,13 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-### Session 45 Progress
+### Session 46 Progress
 
 **Target**: `beauty_full_bin < beauty.sno` → 790 lines → diff vs oracle empty  
-**Session 45 start**: 9/790 lines, hung indefinitely.  
-**Session 45 end**: 10/790 lines, clean exit. "Parse Error" on first real stmt.  
-**HEAD**: SNOBOL4-tiny `eec1adb` — Path A save/restore committed and pushed.
+**Session 46 start**: 10/790 lines, clean exit. "Parse Error" on first real stmt.  
+**Session 46 work**: Analysis only — no code changes. Verified CSNOBOL4 v311.sil OPTBL.  
+**Session 46 end**: Same binary state. Two PLAN.md documentation commits pushed.  
+**HEAD**: SNOBOL4-tiny `eec1adb` (unchanged). .github `3f1b57d`.
 
 #### ✅ BUG FIXED — Session 45: Path A save/restore in emit.c (`eec1adb`)
 
@@ -726,7 +727,7 @@ case E_REDUCE:
 
 ---
 
-### ⚡ IMMEDIATE NEXT ACTIONS (Session 46)
+### ⚡ IMMEDIATE NEXT ACTIONS (Session 47)
 
 **Step 1 — Check `emit_pat()` for `E_REDUCE` case:**
 ```bash
@@ -773,12 +774,12 @@ The C function stays clean. See §2 for full design.
 
 ---
 
-### Repo State at Session 45 Handoff
+### Repo State at Session 46 Handoff
 
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `eec1adb` | Path A save/restore done. 10/790 lines. Parse Error remains. |
-| .github | this push | Session 45 findings: E_REDUCE/emit_pat hypothesis recorded. |
+| SNOBOL4-tiny | `eec1adb` | Path A save/restore done. 10/790 lines. Parse Error remains. UNCHANGED this session. |
+| .github | `3f1b57d` | Session 46: beauty.sno expr grammar table + CSNOBOL4 OPTBL verified. E_REDUCE still prime suspect. |
 | SNOBOL4-corpus | `3673364` | Untouched. |
 | SNOBOL4-harness | `8437f9a` | Untouched. |
 
@@ -4448,6 +4449,43 @@ case E_REDUCE:
 |------|--------|--------|
 | SNOBOL4-tiny | `eec1adb` | CLEAN — Path A save/restore done. 10/790 lines. Parse Error remains. |
 | .github | this push | Session 45 log + §6 updated with E_REDUCE hypothesis |
+| SNOBOL4-corpus | `3673364` | unchanged |
+
+#### Milestone Tracker
+
+| # | Milestone | Status |
+|---|-----------|--------|
+| 0 | beauty_full_bin self-beautifies → diff empty | 🔴 Parse Error on every statement |
+
+### 2026-03-12 — Session 46 (Analysis: beauty.sno expr grammar + CSNOBOL4 OPTBL verification)
+
+**Focus**: Analysis session. No code changes. Lon asked about expression grammar depth and flagged a mistake in earlier Pratt parser note.
+
+#### beauty.sno Expression Grammar — Complete Table (Lon's question)
+
+Counted all 18 named pattern variables (snoExpr0–snoExpr17). They implement a full Pratt/shunting-yard operator precedence parser as SNOBOL4 deferred-pattern-reference chains. 14 binary levels, 1 unary prefix level (14 operators), 1 postfix subscript level, 1 primary level. Levels 4 and 5 (alternation `|` and implicit concatenation) are n-ary via nPush/nPop. This is temporary scaffolding until SNOBOL4 has native CODE type.
+
+#### Correction — Pratt parser must reach snoExpr17 (primary)
+
+Earlier note claimed ~150 lines and only listed binary/unary. **Wrong.** The primary level (snoExpr15–17) is the base case the entire recursive descent bottoms into — without it you can't parse a single token. Verified against v311.sil `ELEMNT` procedure:
+
+- `EXPR2` = binary Pratt loop over OPTBL (left/right precedence pairs)
+- `ELEMNT` = primary + unary prefix + postfix subscript combined:
+  - `UNOP` chain → 14 prefix operators
+  - literal dispatch: integer (SPCINT), real (SPREAL), quoted string
+  - variable → GENVUP
+  - `(expr)` → recurse into EXPR
+  - `name(args)` → function call, ELEFNC, args recurse into EXPR
+  - `name[]` / `name<>` → ELEM10 peek-ahead, array/table ref
+
+**OPTBL precedence values** recorded in §2 from v311.sil (authoritative). Corrected estimate: ~250 lines for full hand-rolled Pratt + primary parser.
+
+#### Repo State at Handoff
+
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `eec1adb` | UNCHANGED — Parse Error still active. |
+| .github | `3f1b57d` | Session 46: expr grammar table + OPTBL in §2. |
 | SNOBOL4-corpus | `3673364` | unchanged |
 
 #### Milestone Tracker
