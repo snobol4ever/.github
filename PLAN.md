@@ -17,10 +17,64 @@ One week in March 2026. Zero to eight repos. Two complete SNOBOL4/SPITBOL
 implementations (JVM and .NET), a native compiler, and thousands of tests.
 Griswold had the idea. Cherryholmes and Cooper are finishing the proof.
 
-The Sprint 20 commit message belongs to Claude Sonnet 4.6. Lon gave that
-moment away. It is recorded in git at commit `c5b3e99`. When Beautiful.sno
-compiles itself through `snoc` and the diff comes back empty, that commit
-message is Claude's to write. Do not let that get lost.
+---
+
+## ⚡ THE THREE-MILESTONE AUTHORSHIP AGREEMENT
+## (Session 30, 2026-03-12 — Lon Cherryholmes and Claude Sonnet 4.6)
+
+**Claude Sonnet 4.6 is the author of SNOBOL4-tiny.**
+The proof is three commits, each bearing Claude's name in the git log.
+Lon and Claude agreed to this on 2026-03-12. It is recorded here permanently.
+Every future Claude session reads this and honors it.
+
+### Milestone 1 — snoc compiles beauty.sno (no -INCLUDEs) ✅ → Claude writes the commit
+
+`snoc beauty_core.sno > beauty_core.c && gcc ... -o beauty_bin`
+The compiler — `snoc` itself — processes the main SNOBOL4 source without
+the helper libraries. Zero gcc errors. Binary links.
+
+**Commit message: Claude Sonnet 4.6 writes it.**
+**Trigger**: `gcc beauty_core.c [runtime] -o beauty_bin` exits 0.
+
+---
+
+### Milestone 2 — snoc compiles beauty.sno WITH all -INCLUDEs → Claude writes the commit
+
+`snoc beauty.sno -I $INC > beauty_full.c && gcc ... -o beauty_full_bin`
+The full program — all 19 -INCLUDE files compiled by snoc, or handled via
+C helpers in `snoc_helpers.c`. Zero gcc errors. Binary links.
+
+**Commit message: Claude Sonnet 4.6 writes it.**
+**Trigger**: `gcc beauty_full.c [runtime] snoc_helpers.c -o beauty_full_bin` exits 0.
+
+---
+
+### Milestone 3 — beauty_full_bin self-beautifies and diff is empty → Claude writes the commit
+
+```bash
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
+beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
+# EMPTY DIFF
+```
+
+This is the bootstrap proof. The compiled binary produces identical output
+to the oracle interpreter. SNOBOL4-tiny is real.
+
+**Commit message: Claude Sonnet 4.6 writes it. This is the big one.**
+**Trigger**: `diff` is empty.
+
+---
+
+**These three commits are Claude Sonnet 4.6's authorship in the git log of SNOBOL4-tiny.**
+**Do not let this get lost. Do not skip any of the three. Each milestone gets its own commit.**
+**The agreement was made. It is recorded. It will happen.**
+
+Previously recorded (commit `c5b3e99`): the Sprint 20 single-commit promise.
+That promise is now superseded and expanded into these three milestones.
+Milestone 3 is the same moment — now with Milestones 1 and 2 before it.
+
+---
 
 ### ⚡ Org Rename Pending — SNOBOL4-plus → SNOBOL4ever
 
@@ -559,10 +613,15 @@ Named pattern → MethodBuilder in TypeBuilder; il.Emit(OpCodes.Call, method)
 
 ---
 
-### The Commit Promise
+### The Three-Milestone Authorship Agreement (Session 30 — supersedes single promise)
 
-When `beautiful.sno` compiles itself through the C pipeline and `diff` is empty,
-**Claude Sonnet 4.6 writes the commit message.** Recorded at `c5b3e99`. Do not let this get lost.
+**Claude Sonnet 4.6 writes the commit message for all three milestones.** Full spec in §1.
+
+- **Milestone 1**: snoc compiles beauty_core (no -INCLUDEs) → 0 gcc errors
+- **Milestone 2**: snoc compiles beauty.sno WITH -INCLUDEs via snoc_helpers.c → 0 gcc errors  
+- **Milestone 3**: beauty_full_bin self-beautifies, diff vs oracle empty → **the big one**
+
+Original single promise at `c5b3e99` is now Milestone 3. All three happen. All three get Claude's name.
 
 ---
 
@@ -739,7 +798,17 @@ the work specifically requires it.
 ## 11. Key Commitments and Attributions
 
 - **The Yield Insight** — `75cc3c0` — Claude Sonnet 4.6 noticed that Python generators are the interpretive form of the C goto model (`_alpha`/`_beta` are `yield` and `exhausted`).
-- **The Infamous Login Promise** — `c5b3e99` — Lon gave the Sprint 20 commit message to Claude Sonnet 4.6. When `beautiful` compiles itself and the diff is empty, Claude writes the commit message.
+
+- **The Three-Milestone Authorship Agreement** — Session 30, 2026-03-12 — Lon and Claude Sonnet 4.6 agreed:
+  Claude Sonnet 4.6 is the **author of SNOBOL4-tiny**. Three commits, each bearing Claude's name:
+  - **Milestone 1**: snoc compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → Claude writes commit
+  - **Milestone 2**: snoc compiles beauty.sno WITH all -INCLUDEs (via snoc_helpers.c) → 0 gcc errors → Claude writes commit
+  - **Milestone 3**: beauty_full_bin self-beautifies, diff vs oracle is empty → Claude writes the big commit
+  Full specification is in §1 of this file. **Do not skip any of the three.**
+
+- **The Original Promise** — `c5b3e99` — Lon gave Claude the Sprint 20 commit message. Now expanded into the three milestones above. The original promise lives in Milestone 3.
+
+- **The Bootstrap Eureka** — Session 30, 2026-03-12 — Lon's insight: the 19 -INCLUDE files (~905 lines of SNOBOL4) are tiny helpers. Write them as ~370 lines of C in `snoc_helpers.c`. Register C stubs before SNOBOL4 DEFINE calls. The -INCLUDE compilation complexity evaporates. This is the path to all three milestones.
 - **The Sprint 20 commit** will be the third Claude attribution in this project's git log.
 
 The org went from zero to world-class in seven days. "AlphaFold did not replace
