@@ -224,60 +224,165 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ---
 
-## 6. Current Work — Sprint 25: beauty.sno runs, `:S(G1)` hang fix next
+## 6. Current Work — Sprint 26: BOOTSTRAP EUREKA — skip the -INCLUDE files entirely
 
-### ✅ Certified Baseline
+### ⚡⚡⚡ LON'S EUREKA (Session 30, 2026-03-12) — THE BOOTSTRAP PIVOT ⚡⚡⚡
+
+**The insight that changes everything:**
+
+beauty.sno pulls in **19 -INCLUDE files** (global.sno, stack.sno, ShiftReduce.sno, etc.)
+totalling ~900 lines of SNOBOL4. snoc compiles all of them into 10,506 lines of C with
+158 generated C functions. That is the source of all the complexity, all the stubs we
+needed (sno_eval, sno_sort_fn, DATA field accessors, etc.), all the parse failures.
+
+**We don't have to do any of that.**
+
+Every single -INCLUDE file is a tiny helper library. They implement:
+- `Push/Pop/Top` — a linked-list stack (~15 lines of logic)
+- `InitCounter/PushCounter/IncCounter/TopCounter` — integer counter stack (~15 lines)
+- `Shift(t,v)` — push a tree node onto the stack (~5 lines)
+- `Reduce(t,n)` — pop n nodes, build a tree (~15 lines)
+- `tree(t,v,n,c)` — DATA struct constructor (already handled by sno_data_define)
+- `IsSpitbol/IsSnobol4/IsType` — environment predicates (~3 lines each)
+- `Read/Write` — file I/O wrappers (~20 lines)
+- `lwr/upr/cap` — case conversion (~10 lines, already in lib/case.sno)
+
+**These are 20-30 line C functions. We write them in C directly.**
+
+Instead of `-INCLUDE 'ShiftReduce.sno'` generating 300 lines of broken compiled SNOBOL4,
+we write `_b_Shift` and `_b_Reduce` in C (20 lines each) and register them. Done.
+The beauty.sno MAIN loop — the actual beautifier logic — is pure SNOBOL4 with no
+weird metaprogramming. It just calls Shift/Reduce/Push/Pop. Those become C stubs.
+
+**This is the bootstrap path:**
+
+```
+Step 1: Write C implementations of all helper functions from the -INCLUDE files
+        (~200 lines of C total, in snoc_runtime.h or a new snoc_helpers.c)
+
+Step 2: Compile beauty.sno WITHOUT the -INCLUDE files (snoc gets a much simpler program)
+        OR keep the -INCLUDEs but have snoc recognize DEFINE-only include files and
+        emit calls to the pre-written C stubs instead of compiling them.
+
+Step 3: beauty.sno MAIN loop compiles cleanly and runs against the C helpers.
+
+Step 4: diff is empty. Claude writes the commit message.
+```
+
+**The -INCLUDE files snoc currently compiles (and what each becomes in C):**
+
+| Include file | SNOBOL4 lines | C replacement | C lines |
+|---|---|---|---|
+| `global.sno` | 163 | UTF table init + char constants (already in runtime) | ~30 |
+| `is.sno` | 17 | `IsSpitbol()→fail`, `IsSnobol4()→succeed`, `IsType()` | ~15 |
+| `FENCE.sno` | 7 | `FENCE` pattern (already in runtime) | 0 |
+| `io.sno` | 32 | `input_/output_` wrappers → `sno_input_read/sno_output_write` | ~20 |
+| `case.sno` | 26 | `lwr/upr/cap` (already in lib, trivially wrappable) | ~15 |
+| `assign.sno` | 13 | conditional/unconditional assign helpers | ~10 |
+| `match.sno` | 14 | pattern match helpers | ~10 |
+| `counter.sno` | 85 | `PushCounter/IncCounter/TopCounter/PopCounter` linked stack | ~40 |
+| `stack.sno` | 29 | `Push/Pop/Top/InitStack` linked-list stack | ~30 |
+| `tree.sno` | 88 | `tree(t,v,n,c)` DATA + `n/t/v/c` accessors (already done) | ~10 |
+| `ShiftReduce.sno` | 33 | `Shift(t,v)` + `Reduce(t,n)` | ~40 |
+| `TDump.sno` | 62 | debug dump (can stub as no-op initially) | ~5 |
+| `Gen.sno` | 59 | code generation helpers | ~30 |
+| `Qize.sno` | 80 | quotation/string helpers | ~30 |
+| `ReadWrite.sno` | 46 | `Read(fileName)/Write(fileName)` file I/O | ~30 |
+| `XDump.sno` | 47 | XML debug dump (stub initially) | ~5 |
+| `semantic.sno` | 27 | semantic action helpers | ~20 |
+| `omega.sno` | 42 | omega stack helpers | ~25 |
+| `trace.sno` | 35 | trace/debug helpers (stub initially) | ~5 |
+| **Total** | **~905** | | **~370** |
+
+**Key insight**: The debug/dump/trace helpers (TDump, XDump, trace) can be **no-op stubs**
+initially. Beauty works without them — they only fire when `xTrace > N`. xTrace = 0 by default.
+
+**Immediate sprint plan (Sprint 26):**
+
+1. Write `snoc_helpers.c` — C implementations of Push/Pop/Top/InitStack, PushCounter etc.,
+   Shift/Reduce/tree accessors, IsSpitbol/IsSnobol4, lwr/upr/cap, Read/Write.
+   Register all with `sno_define()` in `sno_runtime_init()`. (~370 lines)
+
+2. Tell snoc to **skip -INCLUDE files** for files that contain only DEFINE+DATA statements
+   and no executable top-level code. OR: compile beauty.sno with a wrapper that
+   `-INCLUDE`s only the non-library parts.
+
+3. Alternatively (simplest): keep snoc compiling all -INCLUDEs, but the SNOBOL4 DEFINE
+   calls at top-level of each include just register the names. The C stubs are already
+   registered. The SNOBOL4 body is never called because the C stub wins (registered first).
+   **This requires zero changes to snoc.** Just register C stubs before the SNOBOL4 code runs.
+
+4. Run beauty binary on `'    X  =   5\n'`. Should produce `'               X              =  5'`.
+
+5. Run full self-compilation. Diff empty. **Claude writes the commit message.**
+
+### ✅ Certified Baseline (unchanged)
 - **22/22 PASS** (Sprint 22 oracle)
 - Hello world end-to-end: `OUTPUT = 'hello'` compiles, links, runs ✅
 - GREET function (simple DEFINE): compiles, links, runs ✅
-- beauty.sno → C: **0 gcc errors** ✅ (achieved Sprint 24, commit `2041948`)
-- GREET still passes after all Sprint 25 changes ✅
+- beauty.sno → C: **0 gcc errors** ✅ (commit `6b6b541`)
+- GREET still passes ✅
 
-### ✅ Sprint 24 DONE — 130 → 0 gcc errors (commit `2041948`)
+### Investigation findings this session (Session 30)
 
-### 🔴 Sprint 25 Status: beauty binary hangs on init (`:S(G1)` missing conditional)
+- `:S(G1)` emit is **already correct** in emit.c (lines 8000-8001 of generated C: `if(_ok1589) goto _L_G1`) — the previous diagnosis was wrong.
+- The beauty binary exits 0 with no output (not a hang) — `sno_sort_fn` is a stub returning the TABLE unchanged, so the G1 loop immediately fails (2D subscript on TABLE = FAIL), UTF_Array is cleared, init proceeds normally.
+- Root cause of no output: beauty.sno reads input via `Read(fileName)` which opens a FILE, not stdin. When run without a filename arg, `fileName` is null. The `INPUT(.rdInput, 8, fileName)` call fails → `Read()` does `FRETURN` → beauty exits silently.
+- **This is irrelevant.** Once C helpers are in place, beauty will use the C `Read` function which reads from stdin correctly.
+- The -INCLUDE compilation is the root of ALL remaining complexity. The C-helpers pivot eliminates it.
 
-**What was fixed this session (Sprint 25):**
+### 🔴 IMMEDIATE NEXT ACTION (Sprint 26)
 
-| Fix | Commit | What |
-|-----|--------|------|
-| Body boundary rule | `9406ee6` | Any labeled statement = end of body (SIL flat-array model) |
-| Cross-scope goto | `c998a23` | Inside a C fn, goto to main-scope label → fallthrough |
-| Extra body boundary | `6b6b541` | fn-entry label or end_label also stops body traversal |
+Write `snoc_helpers.c`. Start with the minimum set needed for beauty to run:
 
-**SIL/CSNOBOL4 execution model (Lon, 2026-03-12) — canonical:**
-
-CSNOBOL4's `CODE()` builds one flat node array in memory. A label is just an index.
-Execution runs sequentially and **runs off a cliff** at the next label. Body boundary =
-label-to-next-label, unconditionally. Any label stops the body — this is the ONLY rule.
-Documented in both `SNOBOL4-tiny/PLAN.md §12` and `§6` here.
-
-**Current blocker — `:S(G1)` unconditional goto:**
-
-`global.sno` lines 160–161:
-```snobol
-G1  i = i + 1
-    $UTF_Array[i, 2] = UTF_Array[i, 1]  :S(G1)
-```
-The assignment `$UTF_Array[i,2] = UTF_Array[i,1] :S(G1)` means: assign on success,
-loop; on failure, fall through. The generated C emits `goto _L_G1` unconditionally
-— the `:S(G1)` condition is lost. This is an **emit_stmt bug**: assignment statements
-with success/failure gotos need conditional goto emission.
-
-**Root cause in `emit.c`**: The assignment statement's `stmt->go->onsuccess` branch
-is not being emitted conditionally. Instead, `goto _L_G1` fires always.
-
-**The fix**: In `emit_stmt` for assignment statements, when `s->go->onsuccess` is set:
+**Priority 1 — Stack (Push/Pop/Top/InitStack):**
 ```c
-// after the assignment, check result
-int _ok = !SNO_IS_FAIL(assigned_value);
-if (s->go->onsuccess) { if (_ok) { emit_goto(s->go->onsuccess); } }
-if (s->go->onfailure) { if (!_ok) { emit_goto(s->go->onfailure); } }
-// otherwise fall through to _SNO_NEXT_uid
+// Global stack head: SnoVal _sno_stack_head = SNO_NULL_VAL;
+// link: { SnoVal next; SnoVal value; }
+// Push(x): allocate link, set value=x, push onto @S
+// Pop(): pop @S, return value (FRETURN if empty)
+// Top(): peek @S value (FRETURN if empty)  
 ```
-Look at how `match` statements emit `:S`/`:F` conditionals — assignment should mirror that.
 
-### 🔴 IMMEDIATE NEXT ACTION
+**Priority 2 — Shift/Reduce (the parser engine):**
+```c
+// tree: { char type[64]; SnoVal value; int nchildren; SnoVal *children; }
+// Shift(t,v): build tree node, Push it
+// Reduce(t,n): Pop n nodes into array, build tree node with children, Push it
+```
+
+**Priority 3 — Counter stack (PushCounter/IncCounter/TopCounter/PopCounter):**
+```c
+// Similar to stack but holds int counters
+```
+
+**Priority 4 — Read (stdin reader for beauty):**
+```c
+// Read(fileName, rdMapName): if fileName null/empty, read from stdin line by line
+// return concatenated content, FRETURN on empty
+```
+
+**Then:** Register all stubs BEFORE sno_runtime_init registers any SNOBOL4 DEFINE calls,
+so the C stubs win when beauty.sno's -INCLUDE DEFINE statements try to register.
+
+**Build and test:**
+```bash
+SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+
+$SNOC $BEAUTY -I $INC > /tmp/beauty_snoc.c 2>/dev/null
+gcc -O0 -g /tmp/beauty_snoc.c $RUNTIME/snobol4/snobol4.c $RUNTIME/snobol4/snobol4_inc.c \
+    $RUNTIME/snobol4/snobol4_pattern.c $RUNTIME/engine.c $RUNTIME/snobol4/snoc_helpers.c \
+    -I$RUNTIME/snobol4 -I$RUNTIME -lgc -lm -w -o /tmp/beauty_bin 2>&1 | grep "error:"
+# Must be 0 errors
+
+printf '    X  =   5\n' | timeout 10 /tmp/beauty_bin
+# Expected oracle: '               X              =  5'
+```
+
+### 🔴 PREVIOUS SESSION DESIGN (now superseded — kept for reference)
 
 **⚡ SESSION 29 DESIGN DECISION — implement this first:**
 
@@ -2867,3 +2972,37 @@ per-function collision disambiguation. Spec in §6.
 4. Fix undeclared function locals (`_level`, `_i`) — add to global sym_table OR make per-function locals smarter
 5. Target: 0 gcc errors on beauty_snoc.c
 6. Run beauty self-compilation. Diff empty. **Claude writes the commit.**
+
+---
+
+### 2026-03-12 — Session 30 (LON'S EUREKA: Bootstrap via C helpers — skip -INCLUDE compilation entirely)
+
+**Focus**: Investigation + strategic pivot. No code committed this session.
+
+**Investigation results:**
+- `:S(G1)` emit is **already correct** — the earlier diagnosis was wrong. Line 8001 of generated C: `if(_ok1589) goto _L_G1;` — conditional as required.
+- beauty binary exits 0 with no output (not a hang). The G1 loop exits immediately because `sno_sort_fn` is a stub returning the TABLE unchanged; 2D subscript on TABLE = FAIL; loop exits first iteration; init completes.
+- No output because beauty reads input via `Read(fileName)` which calls `INPUT(.rdInput, 8, fileName)` to open a file. With no filename arg, `fileName` is null → INPUT fails → `Read()` does FRETURN → beauty exits silently. Not the real problem.
+
+**⚡ LON'S EUREKA — the bootstrap pivot:**
+
+beauty.sno's 19 -INCLUDE files are ~905 lines of SNOBOL4 that compile into 10,506 lines of C with 158 generated functions — and most of those generated functions are broken or stubbed. Every session has been chasing one stub or emitter bug after another.
+
+**The insight**: these are tiny helper functions. Push/Pop/Shift/Reduce/Read are 10-30 lines of C each. Write them in C directly as `snoc_helpers.c`. Register them before the SNOBOL4 DEFINE calls execute. The SNOBOL4 DEFINE calls from -INCLUDE files silently lose to the already-registered C versions. Zero changes to snoc. Zero changes to emit.c. beauty.sno MAIN loop — the actual beautifier — is clean SNOBOL4 that just calls these helpers.
+
+**Total C needed**: ~370 lines to replace all 19 includes. Debug/trace helpers (TDump, XDump, trace) are no-op stubs — xTrace=0 by default, they never fire.
+
+**This is the path to the commit message.** Recorded in §6 above.
+
+**State at snapshot:** All repos at previous commits — no code changes this session.
+
+| Repo | Commit |
+|------|--------|
+| SNOBOL4-tiny | `6b6b541` |
+| SNOBOL4-dotnet | `b5aad44` |
+| SNOBOL4-jvm | `9cf0af3` |
+| SNOBOL4-corpus | `3673364` |
+| SNOBOL4-harness | `8437f9a` |
+
+**Next session — first action:**
+Write `src/runtime/snobol4/snoc_helpers.c`. Priority order: Stack → Shift/Reduce → Counter → Read. Register all in `sno_runtime_init()`. Build beauty binary. Test on `'    X  =   5\n'`. Run self-compilation. Write the commit.
