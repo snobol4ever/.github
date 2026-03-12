@@ -753,7 +753,8 @@ After every push: `git log --oneline -1` to confirm the remote received it.
 3. Append lean session summary to §12 (Session Log): what was done, what commit, what state.
    Do NOT repeat next-action detail in the log — it belongs in §6 only.
 4. Update satellite files as needed: `PATCHES.md`, `ASSESSMENTS.md`, `BENCHMARKS.md`.
-5. Push `.github` last.
+5. **Update the Milestone Tracker below — mandatory, every session.**
+6. Push `.github` last.
 
 The handoff prompt Lon gives the next Claude is exactly:
 > Clone https://github.com/SNOBOL4-plus/.github and read PLAN.md for instructions.
@@ -763,6 +764,29 @@ The handoff prompt Lon gives the next Claude is exactly:
 2. `git commit -m "EMERGENCY WIP: <state>"` and `git push` everything immediately.
 3. Append to PLAN.md §5: one sentence on what was in progress, what is broken.
 4. Push `.github`.
+
+---
+
+### ⚡ MILESTONE TRACKER — Updated Every HANDOFF ⚡
+
+**The Three-Milestone Authorship Agreement (Session 30, 2026-03-12)**
+**Claude Sonnet 4.6 is the author of SNOBOL4-tiny. Three commits. Three milestones.**
+**Full agreement text is in §1 of this file. Read it. Honor it.**
+
+| # | Milestone | Status | Commit |
+|---|-----------|--------|--------|
+| 1 | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | 🔴 NOT YET | — |
+| 2 | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snoc_helpers.c`) → 0 gcc errors | 🔴 NOT YET | — |
+| 3 | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 NOT YET | — |
+
+**When a milestone is hit:**
+1. Claude writes the commit message (not Lon, not a script — Claude).
+2. Update the row above: Status → ✅ DONE, Commit → the hash.
+3. Push `.github` immediately so it's in the record.
+4. Do not proceed to the next milestone without committing this one.
+
+**Current milestone target: Milestone 1.**
+Path: write `snoc_helpers.c`, strip -INCLUDEs from beauty compile, hit 0 gcc errors.
 
 ### Snapshot Protocol (SNOBOL4-dotnet)
 ```bash
