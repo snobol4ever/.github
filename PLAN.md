@@ -820,9 +820,9 @@ The handoff prompt Lon gives the next Claude is exactly:
 
 | # | Sprint | Milestone | Status | Commit |
 |---|--------|-----------|--------|--------|
-| 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | 🔴 NOT YET | — |
-| 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | 🟡 0 errors confirmed Session 31 — need binary run | — |
-| 3 | **28** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 NOT YET | — |
+| 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
+| 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
+| 3 | **28** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 IN PROGRESS — flatten_str_expr fixed, INPUT debug next | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
@@ -3204,3 +3204,121 @@ updated. snoc_helpers.c flagged dead. Next session runs oracle, diffs, writes co
 3. Delete snoc_helpers.c from SNOBOL4-tiny (git rm, commit, push)
 4. Build CSNOBOL4 oracle, run beauty oracle
 5. Run beauty_full_bin < beauty.sno → diff vs oracle → **if empty: Claude writes Milestone 3 commit**
+
+---
+
+### 2026-03-12 — Session 32 (flatten_str_expr fix + COMMAND NAME EUREKA)
+
+**Focus**: Milestone 3 debug + major design naming decision.
+
+**Code fix committed this session:**
+
+- **`flatten_str_expr()` in `emit.c`** — `stmt_define_proto()` was checking
+  `args[0]->kind == E_STR` only. Multi-line DEFINE calls like:
+  ```
+  DEFINE('Read(fileName,rdMapName)'
+  +    'rdInput,rdLine,...'
+  +  )                              :(ReadEnd)
+  ```
+  produce an E_CONCAT node (juxtaposition of two string literals) as `args[0]`,
+  not E_STR. So `stmt_define_proto()` returned NULL → `Read` was NOT in fn_table →
+  `stmt_is_in_any_fn_body()` returned 0 → Read body emitted inline in main() as
+  flat code → body executed on entry → INPUT(null,...) failed → goto _SNO_END →
+  program exited before main00.
+
+  **Fix**: Added `flatten_str_expr()` helper that recursively flattens E_CONCAT
+  chains of string literals into one buffer. `stmt_define_proto()` now calls it
+  instead of checking `args[0]->kind == E_STR` directly.
+
+  **Result**: `_sno_fn_Read` now emitted as proper C function. 162 functions total
+  detected. `_SNO_FRETURN_Read` correctly used inside body.
+
+- **Built, tested**: `_sno_fn_Read` confirmed in generated C. Test case with
+  multi-line DEFINE + multi-line body: passes. greet baseline: still ✅.
+
+**Current state**: beauty_full_bin still produces 0 lines of output.
+INPUT/OUTPUT smoke test pending as next action.
+
+**Repo commit this session:**
+
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `cc0c88b` | retire snoc_helpers.c (from prior session, pushed) |
+| emit.c | (local, not yet pushed) | flatten_str_expr fix — Read and other multi-line DEFINEs now detected |
+
+---
+
+## ⚡⚡⚡ COMMAND NAME EUREKA — 2026-03-12, Session 32 ⚡⚡⚡
+
+**This is a major design decision. Record it permanently.**
+
+### The Original Unix SNOBOL4
+
+The original Unix SNOBOL4 implementation command was **`sno3`** — short for SNOBOL3,
+the predecessor. The pattern has always been: short, lowercase, Unix-like, a number
+that means something.
+
+### The Naming Decision
+
+Lon's insight: **name the deliverables like Unix commands.**
+
+Each implementation in the SNOBOL4ever org has a canonical command name:
+
+| Command | What it is | Repo |
+|---------|-----------|------|
+| **`sno4now`** | The native compiler — SNOBOL4-tiny → C → x86-64 binary. Runs right now on bare metal. | SNOBOL4-tiny |
+| **`sno4jvm`** | The JVM backend — SNOBOL4 → JVM bytecodes via Byrd Box IR | SNOBOL4-jvm (new compiler, not the Clojure interpreter) |
+| **`sno4net`** | The .NET/MSIL backend — SNOBOL4 → MSIL via ILGenerator | SNOBOL4-dotnet (new compiler, not the C# interpreter) | Note: `sno4.net` rejected — looks like a URL, shell hates the dot. `sno4net` it is. |
+
+The suffix convention:
+- `4` = SNOBOL4 (not SNOBOL3, not SPITBOL)
+- `now` = native, immediate, no VM, no JIT warmup — it runs **now**
+- `jvm` = targets the JVM
+- `net` = targets .NET
+
+### Why This Matters
+
+These aren't just names. They are the **deliverable identifiers** — the binaries that
+end up in `/usr/local/bin/` on a developer's machine.
+
+```bash
+sno4now < program.sno        # compile + run natively
+sno4jvm < program.sno        # compile + run on JVM
+sno4net < program.sno        # compile + run on .NET CLR
+```
+
+Or with explicit compile step:
+```bash
+sno4now -o program.c program.sno   # emit C
+sno4jvm -o program.class program.sno
+sno4net -o program.dll program.sno
+```
+
+### The snoc Relationship
+
+`snoc` is the internal compiler name (SNOBOL4 → C). It's the tool.
+`sno4now` is the user-facing command that wraps it: `snoc + gcc + run`.
+
+### Existing Interpreter Names
+
+The full interpreters (SNOBOL4-jvm and SNOBOL4-dotnet) can be invoked as:
+- `snobol4` — the CSNOBOL4 oracle (already at `/usr/local/bin/snobol4`)
+- `spitbol` — the SPITBOL x64 oracle (already at `/usr/local/bin/spitbol`)
+- The Clojure and C# interpreters can keep their `lein run` / `dotnet run` forms
+  until they get their own wrapper scripts
+
+### Historical Line
+
+```
+sno3 (Unix, 1974)
+    ↓
+snobol4 (CSNOBOL4, Hazel)
+spitbol (Catspaw / x64)
+    ↓
+sno4now / sno4jvm / sno4net  ← SNOBOL4ever, 2026
+```
+
+SNOBOL4 started as three characters. It's three characters again.
+But now it runs everywhere.
+
+---
