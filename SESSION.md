@@ -12,84 +12,134 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-full-diff` (4 of 4 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `6665384` — EMERGENCY WIP: LexMark save/restore — concat fixed but parse_expr0 restore breaks pattern parse |
+| **HEAD** | `17526bb` — EMERGENCY WIP: parse_expr4 LexMark fix — | alternation works, segfault on SPAN(&UCASE &LCASE) = replacement stmt |
 
 ## Last Thing That Happened
 
-**Root cause of concat truncation found and partially fixed.**
+**Two parser bugs fixed this session, one new segfault found.**
 
-All binary op levels in parse.c (`parse_lbin`, `parse_rbin`, `parse_expr12`,
-`parse_expr13`, `parse_expr3`, `parse_expr0`) were calling `skip_ws()` after
-consuming WS for lookahead. `skip_ws` calls `lex_peek` which calls `raw_next`,
-advancing `lx->pos` past the next token. When the next token wasn't the expected
-operator and the level "put WS back" via synthetic peek injection, `pos` was already
-past that token. Each level stacked this drift — 8 levels deep meant pos=EOF by the
-time `parse_expr4`'s concat loop fired. `'a' 'b' 'c'` compiled to just `"a"`.
+### Fix 1 — parse_expr0 LexMark revert ✅
+`parse_expr0` had LexMark restore incorrectly applied. Reverted to synthetic T_WS
+injection (exact code from previous SESSION.md). This was the intended one-liner fix.
 
-**Fix applied:** Added `LexMark` (pos+peek+peeked save/restore) to `lex.h`. Fixed
-all lookahead sites: `parse_lbin`, `parse_rbin`, `parse_expr12`, `parse_expr13`,
-`parse_expr3`. Basic concat `'a' 'b' 'c'` now emits `concat(concat("a","b"),"c")`.
+### Fix 2 — parse_expr4 | alternation bug ✅
+Root cause found and fixed. `parse_expr4` (concat level) called `skip_ws()` after
+consuming WS for lookahead. `skip_ws` advanced `lx->pos` past the next token (e.g. `|`).
+Then synthetic T_WS injection put WS back in the peek slot — but `pos` was already past
+the `|`. `parse_expr3`'s `|` loop then saw the synthetic WS, consumed it, and then saw
+ANOTHER real WS (the one before `|`), not T_PIPE — so it restored and gave up.
 
-**Regression introduced:** Also applied `LexMark` to `parse_expr0`, which was wrong.
-`parse_expr0` is called inside `parse_arglist` and pattern contexts. Its restore
-fires when WS is followed by anything other than `=` or `?` — which is legal in
-those contexts (e.g., before `,` or `)`). Result: all 21 smoke tests fail with
-`Parse Error`. `beauty_full_bin < beauty.sno` outputs only 10 lines then Parse Error.
+**Fix:** Replace `lex_next(lx); skip_ws(lx);` in parse_expr4 with `LexMark mc` +
+`lex_next(lx)` + `lex_restore(lx, mc)` on non-concat-start. Now `| alternation`
+and `FENCE(*a | *b | *c)` both emit correctly.
+
+**Verified:**
+- `*a | *b | *c` → `sno_pat_alt(sno_pat_alt(ref(a),ref(b)),ref(c))` ✓
+- `'a' 'b' 'c'` → `concat(concat("a","b"),"c")` ✓
+- `FENCE(*a | *b | *c)` → `sno_pat_fence_p(sno_pat_alt(...))` ✓
+
+### New segfault — replacement statement with builtin call ❌
+`sno2c` segfaults (exit 139) on replacement statements where the pattern contains
+a builtin with a complex argument. Isolated minimal reproducer:
+
+```snobol4
+               X POS(0) SPAN(&UCASE &LCASE) =
+END
+```
+
+These work fine:
+- `X 'hello' =` ✓
+- `X LEN(1) =` ✓
+- `X POS(0) =` ✓
+- `X = POS(0) SPAN(&UCASE &LCASE)` (assignment, not replacement) ✓
+- `X POS(0) SPAN(&UCASE &LCASE)` (match without replacement) ✓
+
+So: pattern with function-call builtin inside a **replacement** stmt (`pat =`) crashes.
+The `=` at the end of a pattern match statement means "replace matched portion with
+empty string." This is parsed differently from assignment. Likely the replacement
+parser is calling into parse_expr0/parse_expr4 in a state where the LexMark
+interacts badly with something.
+
+**Affected files from is.sno (and likely others):**
+```
+is.sno line 15:  types  POS(0) SPAN(&UCASE &LCASE) . type (',' | RPOS(0)) =
+io.sno — also crashes
+case.sno — also crashes
+```
 
 ## One Next Action
 
-**Remove LexMark from `parse_expr0` only.** `parse_expr0` is NOT a lookahead site
-like the others — it handles top-level `=` and `?` which `parse_body_field` already
-handles explicitly at the statement level. The WS+non-op case in `parse_expr0` should
-just put WS back via the old synthetic injection (or simply not consume it at all),
-NOT restore the full LexMark.
+**Find and fix the replacement-statement segfault in sno2c.**
 
-```c
-// In parse_expr0 — REVERT to old behavior:
-static Expr *parse_expr0(Lex *lx) {
-    Expr *l = parse_expr2(lx);
-    if (!l) return NULL;
-    if (lex_peek(lx).kind != T_WS) return l;
-    lex_next(lx);  // consume WS tentatively
-    TokKind k = lex_peek(lx).kind;
-    if (k == T_EQ) {
-        lex_next(lx); skip_ws(lx);
-        Expr *r = parse_expr0(lx);
-        return binop(E_ASSIGN, l, r);
-    }
-    if (k == T_QMARK) {
-        lex_next(lx); skip_ws(lx);
-        Expr *r = parse_expr0(lx);
-        return binop(E_COND, l, r);
-    }
-    // Put WS back — but do NOT use LexMark (would restore past real token)
-    // Instead: inject synthetic T_WS. pos is only one peek ahead here
-    // because we did NOT call skip_ws after lex_next(WS).
-    lx->peek = (Token){T_WS, NULL, 0, 0, lx->lineno};
-    lx->peeked = 1;
-    return l;
-}
+Start here:
+```bash
+cat > /tmp/test_segfault.sno << 'EOF'
+               X POS(0) SPAN(&UCASE &LCASE) =
+END
+EOF
+# Run under gdb or add ulimit to get stack trace
+ulimit -c unlimited
+cd /home/claude/SNOBOL4-tiny
+src/sno2c/sno2c /tmp/test_segfault.sno
+# or:
+gdb -batch -ex run -ex bt src/sno2c/sno2c --args src/sno2c/sno2c /tmp/test_segfault.sno
 ```
 
-This is safe because `parse_expr0` only peeks ONE token ahead (no `skip_ws` call),
-so the synthetic T_WS injection only loses one position step — and `pos` is only
-past the ONE token we peeked (not cascaded through 8 levels).
+Likely cause: the replacement `=` in `parse_body_field` is calling `parse_expr0`
+to parse the replacement value (empty in this case). `parse_expr0` sees WS then
+something, calls into `parse_expr4`, which with LexMark now restores state — but
+in some combination with the arglist parsing of `SPAN(...)`, this creates a cycle.
 
-After reverting parse_expr0:
-1. Rebuild sno2c
-2. Run smoke tests → should be 21/21 again
-3. Recompile beauty.sno, rebuild binary
-4. Run diff against oracle
+Check `parse_body_field` in parse.c for how replacement is handled. Look for any
+path where parse_expr0 or parse_expr4 could be re-entered with the same lex state.
+
+After fix:
+1. `make -C src/sno2c`
+2. Verify `X POS(0) SPAN(&UCASE &LCASE) =` no longer crashes
+3. Run smoke tests → 21/21
+4. Recompile beauty.sno + rebuild binary
+5. Run smoke tests on binary
+6. Diff vs oracle
+
+## New Direction — 100-Test Suite
+
+**Agreed with Lon this session:** Before pushing on beauty.sno, build a proper
+100-test suite (one program per SNOBOL4 feature). Designed and documented at:
+
+  `/mnt/user-data/outputs/TEST_SUITE_100.md` — but this is local only.
+
+The full design is in SESSIONS_ARCHIVE.md (append it there). Key structure:
+
+```
+test/sno/
+  001_output_string_literal.sno   through   100_full_smoke.sno
+  run_all.sh
+  expected/001.out ... 100.out
+```
+
+Six milestone gates: G-A (001–008) through G-F (001–100), then M-BEAUTY-FULL.
+Each test is ~5-10 lines, diff'd against CSNOBOL4. Living suite — add tests as
+bugs are found.
+
+**Start Group A (001–008) after segfault is fixed.**
 
 ## Rebuild Commands
 
 ```bash
 cd /home/claude/SNOBOL4-tiny
 
+# Deps (if fresh container)
+apt-get install -y libgc-dev m4
+cd /home/claude && tar xzf /path/to/snobol4-2_3_3_tar.gz ...
+# OR: snobol4 already at /home/claude/snobol4-2.3.3/bin/snobol4
+
 # Rebuild sno2c
 make -C src/sno2c
 
-# Smoke test
+# Segfault test
+src/sno2c/sno2c /tmp/test_segfault.sno   # should not crash after fix
+
+# Smoke test (needs binary)
 bash test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
 
 # Recompile beauty.sno
@@ -107,7 +157,7 @@ gcc -O0 -g /tmp/beauty_full.c \
     -o /tmp/beauty_full_bin
 
 # Oracle
-SNO=/home/claude/snobol4-2.3.3/snobol4
+SNO=/home/claude/snobol4-2.3.3/bin/snobol4
 $SNO -f -P256k -I /home/claude/SNOBOL4-corpus/programs/inc \
     /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
     < /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
@@ -121,13 +171,13 @@ diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
 
 | Date | What changed | Why |
 |------|-------------|-----|
-| 2026-03-13 | EMERGENCY: LexMark fixes concat but parse_expr0 breaks patterns | context full |
+| 2026-03-13 | 100-test suite designed — G-A through G-F gates before M-BEAUTY-FULL | Lon: need lampposts on the road |
+| 2026-03-13 | parse_expr4 | bug fixed — LexMark replaces skip_ws+synthetic injection | Double-WS caused | to be swallowed |
+| 2026-03-13 | parse_expr0 LexMark reverted — synthetic T_WS injection restored | context full last session |
 | 2026-03-13 | Sprint 3 (`beauty-runtime`) complete — clean exit | first run worked |
 | 2026-03-13 | Sprint 2 (`smoke-tests`) complete — 21/21 | hand-rolled lex/parse works |
 | 2026-03-13 | `snoc` renamed `sno2c`; src/snoc → src/sno2c | name reflects function |
 | 2026-03-13 | hand-rolled lex.c + parse.c replace flex/bison | grammar confirmed LALR(1) |
-| 2026-03-13 | Sprint 1 (`space-token`) PIVOTED, dumb-lexer rewrite begun | architecture fix |
-| 2026-03-13 | Sprint 1 (`space-token`) complete → Sprint 2 (`smoke-tests`) active | 0 conflicts |
-| 2026-03-13 | M-REBUS fired → `rebus-roundtrip` sprint complete, bf86b4b | Rebus milestone done |
+| 2026-03-13 | M-REBUS fired → `rebus-roundtrip` sprint complete | Rebus milestone done |
 | 2026-03-12 | Bison/Flex → `hand-rolled-parser` decision | Session 53: LALR(1) unfixable (139 RR) |
 | 2026-03-12 | M-BEAUTY-FULL inserted before M-COMPILED-SELF | Lon's priority: beautifier first |

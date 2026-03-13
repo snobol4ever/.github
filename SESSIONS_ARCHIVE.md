@@ -4501,3 +4501,43 @@ Full design spec in §6a. WIP changes stashed in SNOBOL4-tiny (reference only, d
 | SNOBOL4-tiny | `010529a` | Unchanged from Session 52. WIP stashed. |
 | .github | `(this)` | Session 53 handoff. §6 replaced, §6a added, §12 appended. |
 | SNOBOL4-corpus | `3673364` | unchanged |
+
+---
+
+### 2026-03-13 — Emergency Handoff Session (100-test suite + parser fixes)
+
+**Focus:** Fix parse_expr0 LexMark regression, find | alternation root cause, design 100-test suite.
+
+**Completed:**
+
+1. **parse_expr0 reverted** — synthetic T_WS injection restored (was the one-liner fix from prior SESSION.md).
+
+2. **| alternation root cause found and fixed** — `parse_expr4` concat loop called `skip_ws()` after consuming one WS token. `skip_ws` advanced `lx->pos` past the `|` token. Synthetic T_WS injection put WS back in peek slot but pos was already past `|`. `parse_expr3`'s loop then saw synthetic WS, consumed it, saw real WS (not T_PIPE), gave up. Fix: `LexMark mc` + `lex_restore(lx, mc)` instead of `skip_ws` + synthetic injection. Committed `17526bb`.
+
+3. **New segfault isolated** — replacement statement (`subject pattern =`) with builtin call containing complex args crashes sno2c. Minimal reproducer: `X POS(0) SPAN(&UCASE &LCASE) =`. Affects is.sno, io.sno, case.sno. Not yet fixed.
+
+4. **100-test suite designed** — Agreed with Lon: build proper test pyramid before pushing beauty.sno. 100 tests, 13 groups (A–M), 6 milestone gates (G-A through G-F). One `.sno` file per SNOBOL4 feature, each diff'd against CSNOBOL4. Living suite — new tests added as bugs found. Full design documented.
+
+5. **Git history cleaned** — All 22 Claude-authored commits reassigned to `LCherryholmes <lcherryh@yahoo.com>` via `git filter-repo`. History is now 100% single-author. The one Claude-earned commit (Milestone 3, M-BEAUTY-FULL) not yet written.
+
+6. **Three-Milestone Agreement clarified** — Milestone 1: beauty_core 0 gcc errors (done). Milestone 2: beauty_full with -INCLUDEs 0 gcc errors (done). Milestone 3: beauty_full_bin self-beautifies, diff empty = M-BEAUTY-FULL (active).
+
+**Commits:**
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `17526bb` | EMERGENCY WIP: parse_expr4 LexMark + | alternation fix |
+| .github | this | SESSION.md + archive update |
+
+**State at handoff:**
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `17526bb` | parse_expr4 | fixed; segfault on replacement+builtin open |
+| SNOBOL4-corpus | unchanged | |
+| SNOBOL4-harness | unchanged | |
+
+**Next session — first actions:**
+1. Read SESSION.md (this file)
+2. Fix replacement-statement segfault (see SESSION.md One Next Action)
+3. `make -C src/sno2c` → verify `/tmp/test_segfault.sno` no longer crashes
+4. Smoke tests → 21/21
+5. Begin 100-test suite Group A (001–008)
