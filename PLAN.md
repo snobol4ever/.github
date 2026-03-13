@@ -899,22 +899,32 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 ## 6. Current Work — ⚡ PRIORITY SHIFT: Rebus Lexer/Parser (TR 84-9) ⚡
 
 ### ⚡ 2026-03-13 — Lon has declared REBUS the current focus and priority. ⚡
-### Sprint 26 (Milestone 0 / beauty.sno) is PAUSED. Resume after Rebus parser is clean.
+### Sprint 26 (Milestone 0 / beauty.sno) is PAUSED. Resume after Rebus emitter is working.
 
-**Current task:** Implement a complete Rebus (SNOBOL4/Icon hybrid, Griswold TR 84-9)
-lexer and parser in `SNOBOL4-tiny/src/rebus/`. No IL or emitter yet — language
-processing 101. Flex lexer + Bison grammar + AST + pretty-printer.
+**Current task:** Implement `src/rebus/rebus_emit.c` — the SNOBOL4 text emitter.
+Lexer + parser + AST are complete and all 3 test files parse cleanly. Next step
+is to walk the AST and emit valid SNOBOL4 source. Full translation rules in §6b.
 
-**Status as of 2026-03-13 Session (Claude Sonnet 4.6):**
-- `src/rebus/`: rebus.l, rebus.y, rebus.h, rebus_print.c, rebus_main.c, Makefile
-- `test/rebus/`: word_count.reb, binary_trees.reb, syntax_exercise.reb
-- word_count.reb: ✅ PASS
-- binary_trees.reb: ✅ PASS
-- syntax_exercise.reb: ❌ 5 errors (all: control-struct `}` → next stmt missing `;`)
-- **One bug remaining:** `}` must re-enter `needs_semi` — suppressed before else/do/then
-  by the `next_is_continuation()` line-scan lookahead. One lexer edit away from 3/3.
+**SNOBOL4-tiny HEAD:** `bceaa24` (generated artifacts untracked)
+**Last substantive commit:** `01e5d30` feat: Rebus lexer/parser — all 3 tests pass
 
-**When all 3 test files pass:** commit clean (not wip), push, then resume Sprint 26.
+**Immediate next actions (in order):**
+1. Write `src/rebus/rebus_emit.c` — SNOBOL4 emitter. Steps R3–R12 per §6b.
+   - Start with expressions (R3): walk `RExpr` tree, emit SNOBOL4 text.
+   - Then assignments (R4): `:=` → `=`, `:=:` → `:=:`, `+:=` → `= x + y`, etc.
+   - Then control structures (R5–R8): label counter + loop stack (see §6b).
+   - Then function/record decls (R9) and exit/next/return (R10).
+   - Then pattern stmts (R11).
+2. Add oracle `.sno` files to `SNOBOL4-corpus/programs/rebus/` for round-trip test.
+3. Round-trip test (R12): `.reb` → `.sno` → run under CSNOBOL4 → diff vs oracle.
+4. JVM port (R13): `rebus_lexer.clj` / `rebus_grammar.clj` / `rebus_emitter.clj`
+5. .NET port (R14): `RebusLexer.cs` / `RebusParser.cs` / `RebusEmitter.cs`
+
+**Key files to read at session start:**
+- `src/rebus/rebus.h` — full AST (RExpr/RStmt/RDecl/RProgram, all node kinds)
+- `src/rebus/rebus_print.c` — pretty-printer (model for the emitter structure)
+- `§6b` below — complete translation rules and implementation notes
+
 **Full Rebus roadmap:** See §6b below.
 
 ### ⚡ READ §2 FIRST — ARCHITECTURE TRUTH (Natural Variables + Two Worlds + T_FNCALL) ⚡
@@ -1411,7 +1421,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 |---|--------|-----------|--------|--------|
 | 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
 | 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
-| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. 0/21 snoCommand match. Root cause: LALR(1) state merging in Bison — unfixable without redesign. **Architectural pivot decided Session 53: replace Bison/Flex with hand-rolled recursive-descent parser (lex.c + parse.c). See §6a.** HEAD `010529a`. | — |
+| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 PAUSED — Rebus priority. Last HEAD `010529a`. Architectural pivot decided Session 53: replace Bison/Flex with hand-rolled recursive-descent parser (lex.c + parse.c). See §6a. | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
@@ -1786,6 +1796,14 @@ exactly: corpus-first, shared test files, per-platform emitter, SNOBOL4 text as 
 3. JVM: `rebus_lexer.clj` / `rebus_grammar.clj` / `rebus_emitter.clj` (Step R13)
 4. .NET: `RebusLexer.cs` / `RebusParser.cs` / `RebusEmitter.cs` (Step R14)
 5. Resume Sprint 26 (Milestone 0 — beauty.sno self-beautify) in parallel
+
+### 2026-03-13 — Handoff (Claude Sonnet 4.6)
+
+Rebus parser sprint complete (`01e5d30`). All 3 test files green.
+Generated artifacts untracked (`bceaa24`). §6b Rebus roadmap written and
+pushed to HQ (`6446cd9`). §6 updated with precise next actions.
+SNOBOL4-tiny clean. No other repos touched this session.
+Next: `rebus_emit.c` — SNOBOL4 text emitter, steps R3–R12.
 
 ---
 
