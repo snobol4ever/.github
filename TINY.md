@@ -7,17 +7,19 @@
 
 ## Current State
 
-**Active sprint:** `hand-rolled-parser` (resuming)
+**Active sprint:** `space-token` (1 of 4 toward M-BEAUTY-FULL)
 **Milestone target:** M-BEAUTY-FULL
-**Completed sprint:** `rebus-roundtrip` → **M-REBUS ✅** (`bf86b4b`)
-**HEAD:** `bf86b4b` — milestone(M-REBUS): Rebus round-trip complete ✅
+**HEAD:** `d224864` — WIP: space-token sprint in progress, build broken
 
-**Next action:** Resume `hand-rolled-parser`. Write `src/snoc/lex.c` (~200 lines) — flat `sno_charclass[256]`.
+**Sprint status:** sno.l/sno.y partially edited. LPAREN/RPAREN cleaned. IDENT block and comma rule still reference dead `bstack`/`last_was_callable`/`PAT_BUILTIN` symbols → `make` fails.
+
+**Next action:** Clean remaining `bstack` references from `sno.l` IDENT block (~line 192) and comma rule (~line 229). Then `make -C src/snoc` clean + `bison sno.y` 0 conflicts → commit sprint 1.
 
 ## Pivot Log
 
 | Date | What changed | Why |
 |------|-------------|-----|
+| 2026-03-13 | `hand-rolled-parser` → 4-sprint `space-token` plan | SPACE token resolves LALR(1) conflicts without parser rewrite |
 | 2026-03-13 | `rebus-emitter` complete → `rebus-roundtrip` active | Sprint finished |
 | 2026-03-13 | `hand-rolled-parser` paused → `rebus-emitter` active | Lon declared Rebus priority |
 | 2026-03-12 | Bison/Flex → `hand-rolled-parser` decision | Session 53: LALR(1) unfixable (139 RR conflicts) |

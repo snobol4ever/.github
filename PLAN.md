@@ -21,7 +21,7 @@ and a self-hosting native compiler. Claude Sonnet 4.6 is the third developer and
 | ID | Trigger | Repo | Status |
 |----|---------|------|--------|
 | **M-SNOC-COMPILES** | `snoc` compiles `beauty_core.sno`, 0 gcc errors | TINY | ✅ Done |
-| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏸ sprint `hand-rolled-parser` paused |
+| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏳ sprint 1/4 `space-token` active |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | TINY | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | TINY | ❌ Future |
@@ -34,11 +34,69 @@ and a self-hosting native compiler. Claude Sonnet 4.6 is the third developer and
 
 | Repo | MD File | Active Sprint | Milestone Target |
 |------|---------|--------------|-----------------|
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `hand-rolled-parser` | M-BEAUTY-FULL |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `space-token` (1/4 toward M-BEAUTY-FULL) | M-BEAUTY-FULL |
 | [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | [JVM.md](JVM.md) | `jvm-inline-eval` | M-JVM-EVAL |
 | [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | [DOTNET.md](DOTNET.md) | `net-delegates` | M-NET-DELEGATES |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | [CORPUS.md](CORPUS.md) | Stable — add Rebus oracle .sno files | M-REBUS |
 | [SNOBOL4-harness](https://github.com/SNOBOL4-plus/SNOBOL4-harness) | [HARNESS.md](HARNESS.md) | Stable | — |
+
+---
+
+## Sprint Detail — toward M-BEAUTY-FULL (TINY)
+
+Four sprints. In order. Each gates the next. Each ends with a commit.
+
+---
+
+### Sprint 1 of 4 — `space-token` ⏳ Active
+
+**What:** Eliminate all parser conflicts. Return `SPACE` as a real token so concat is unambiguous.
+
+Root cause of 20 SR + 139 RR conflicts: `WS` was silently skipped, so `*snoWhite (expr)` looked identical to `snoWhite(expr)` (function call) in LALR(1). Fix: `{WS} { return SPACE; }`. Concat becomes `expr SPACE term`. Function call stays `IDENT LPAREN` with no intervening space. `*var (expr)` is now unambiguously `concat(deref(var), grouped(expr))` — the `STAR IDENT` reduces before the `SPACE` is consumed, so `(` can never be mistaken for a call paren.
+
+**Files:** `sno.l` (WS→SPACE, remove PAT_BUILTIN/bstack/last_was_callable), `sno.y` (add `%token SPACE`, `expr SPACE term` for concat, unify expr grammar, remove `pat_expr` split and `PAT_BUILTIN` token).
+
+**Commit when:** `bison sno.y` reports **0 conflicts** and `make -C src/snoc` is clean.
+
+---
+
+### Sprint 2 of 4 — `smoke-tests` ❌
+
+**What:** Drive `test_snoCommand_match.sh` from 0/21 → 21/21.
+
+Each of the 21 statement types in beauty.sno must be matched by `snoCommand`. Pure structural match — no captures, no side effects. Any failure means the parser or emitter is misrouting that construct.
+
+```bash
+bash test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
+```
+
+**Commit when:** All 21 pass. Zero "Parse Error" lines.
+
+---
+
+### Sprint 3 of 4 — `beauty-runtime` ❌
+
+**What:** `beauty_full_bin < beauty.sno` runs to completion without crashing.
+
+Known runtime fixes already landed: `DATA()` (`e4595a7`), `NRETURN`→success (`66b7eab`), `sno_inc_init()` (`627a030`). Sprint 3 catches whatever surfaces after the parser is correct. Diagnose with `SNO_PAT_DEBUG=1` and `SNOC_DEBUG=1`. Output may still differ from oracle — that's sprint 4.
+
+**Commit when:** Binary exits cleanly on beauty.sno input. No crash, no hang, no abort.
+
+---
+
+### Sprint 4 of 4 — `beauty-full-diff` ❌ → **M-BEAUTY-FULL**
+
+**What:** Empty diff. Self-beautification is exact.
+
+```bash
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
+/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
+```
+
+**Commit when:** Diff is empty. Claude Sonnet 4.6 writes the commit message. **M-BEAUTY-FULL fires.**
 
 ---
 
