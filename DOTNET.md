@@ -7,14 +7,19 @@
 
 ## Current State
 
-**Active sprint:** Step 14 — eliminate `Instruction[]`, store `Func<Executive, int>[]` directly  
-**Milestone target:** MNET  
+**Active sprint:** `net-delegates`  
+**Milestone target:** M-NET-DELEGATES  
 **HEAD:** `63bd297`  
-**Test baseline:** 1,607 passing / 0 failing  
-**Test runner:** `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`
+**Test baseline:** 1,607 passing / 0 failing
 
-**Next action:** Implement Step 14 in `ThreadedCodeCompiler.cs` — replace `Instruction[]`
-storage with direct `Func<Executive, int>[]`. No intermediate instruction objects.
+**Next action:** Implement `net-delegates` in `ThreadedCodeCompiler.cs` — replace
+`Instruction[]` storage with direct `Func<Executive, int>[]`. No intermediate instruction objects.
+
+## Pivot Log
+
+| Date | What changed | Why |
+|------|-------------|-----|
+| 2026-03-10 | `net-delegates` declared active | Steps 1–13 complete, Step 14 next |
 
 ---
 
@@ -36,41 +41,42 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **MNET** | Step 14 complete — `Instruction[]` eliminated, pure delegate dispatch | ❌ Active |
-| **MNET2** | Snocone self-test: compile `snocone.sc`, diff oracle (Step 9) | ❌ Future |
+| **M-NET-DELEGATES** | `Instruction[]` eliminated — pure `Func<Executive,int>[]` dispatch | ❌ Active |
+| **M-NET-SNOCONE** | Snocone self-test: compile `snocone.sc`, diff oracle | ❌ Future |
 
 ---
 
 ## Sprint Map
 
-### Sprints toward MNET (active track — MSIL emitter)
+### Active: toward M-NET-DELEGATES
 
-| Step | What | Status |
-|------|------|--------|
-| Steps 1–5 | Scaffolding, expression emission, var reads/writes, operator coverage | ✅ |
-| Steps 6–10 | Init/Finalize inline, delegate signature, fall-through/direct/conditional gotos | ✅ |
-| Steps 11–13 | Indirect gotos, collapse execute loop, TRACE hooks | ✅ |
-| **Step 14** | **Eliminate `Instruction[]` — store `Func<Executive, int>[]` directly** | **← active** |
+| Sprint | What | Status |
+|--------|------|--------|
+| `net-msil-scaffold` | Scaffolding, expression emission, var reads/writes | ✅ |
+| `net-msil-operators` | Operator coverage, init/finalize inline | ✅ |
+| `net-msil-gotos` | Fall-through, direct, conditional, indirect gotos | ✅ |
+| `net-msil-collapse` | Collapse execute loop, TRACE hooks | ✅ |
+| **`net-delegates`** | **Eliminate `Instruction[]` → `Func<Executive,int>[]` directly** | **← active** |
 
-### Sprints toward MNET2 (Snocone)
+### Toward M-NET-SNOCONE (Snocone)
 
-| Step | What | Status |
-|------|------|--------|
-| Step 0 | Corpus reference files | ✅ `ab5f629` |
-| Step 1 | Lexer | ✅ `dfa0e5b` |
-| Step 2 | Expression parser — shunting-yard, 35 tests | ✅ `63bd297` |
-| Steps 3–8 | Control structures | ❌ |
-| Step 9 | Self-test → **MNET2 triggers** | ❌ |
+| Sprint | What | Status |
+|--------|------|--------|
+| `net-snocone-corpus` | Corpus reference files | ✅ `ab5f629` |
+| `net-snocone-lexer` | Lexer | ✅ `dfa0e5b` |
+| `net-snocone-expr` | Expression parser — shunting-yard, 35 tests | ✅ `63bd297` |
+| `net-snocone-control` | Control structures | ❌ |
+| `net-snocone-selftest` | Compile `snocone.sc`, diff oracle → **M-NET-SNOCONE** | ❌ |
 
-### Completed foundation sprints
+### Completed foundation
 
-| Milestone | Tests | Date |
-|-----------|------:|------|
-| Roslyn baseline | 1,271 | 2026-03-05 |
-| Threaded execution (15.9× speedup on Roman) | 1,386 | 2026-03-05 |
-| MSIL emitter Steps 1–13 | 1,484 | 2026-03-07 |
-| LOAD/UNLOAD plugin system | 1,466 | 2026-03-07 |
-| Snocone Step 2 | **1,607** | 2026-03-10 `63bd297` |
+| Sprint | What | Tests |
+|--------|------|------:|
+| `net-roslyn-baseline` | Roslyn baseline | 1,271 |
+| `net-threaded-exec` | Threaded execution (15.9× speedup on Roman) | 1,386 |
+| `net-msil-steps-1-13` | MSIL emitter Steps 1–13 | 1,484 |
+| `net-load-unload` | LOAD/UNLOAD plugin system | 1,466 |
+| `net-snocone-expr` | Current baseline | **1,607** |
 
 ---
 
@@ -91,8 +97,8 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release
 Snobol4.Common/
   Builder/
     Builder.cs                  compile pipeline
-    BuilderEmitMsil.cs          MSIL delegate JIT (Steps 1–14)
-    ThreadedCodeCompiler.cs     emits Instruction[] → Step 14 eliminates this
+    BuilderEmitMsil.cs          MSIL delegate JIT
+    ThreadedCodeCompiler.cs     emits Instruction[] → net-delegates eliminates this
     Token.cs                    Token.Type enum + Token class
   Runtime/Execution/
     ThreadedExecuteLoop.cs      main dispatch loop

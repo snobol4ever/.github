@@ -7,14 +7,19 @@
 
 ## Current State
 
-**Active sprint:** Sprint 23E — inline EVAL! in JVM codegen  
-**Milestone target:** MJVM  
+**Active sprint:** `jvm-inline-eval`  
+**Milestone target:** M-JVM-EVAL  
 **HEAD:** `9cf0af3`  
-**Test baseline:** 1,896 tests / 4,120 assertions / 0 failures  
-**Test runner:** `lein test`
+**Test baseline:** 1,896 tests / 4,120 assertions / 0 failures
 
 **Next action:** Implement inline EVAL! in `jvm_codegen.clj` — emit arithmetic/assign/cmp
 directly into JVM bytecode instead of calling back into the interpreter.
+
+## Pivot Log
+
+| Date | What changed | Why |
+|------|-------------|-----|
+| 2026-03-12 | `jvm-inline-eval` declared active | Sprint 23D complete, 23E next |
 
 ---
 
@@ -23,7 +28,7 @@ directly into JVM bytecode instead of calling back into the interpreter.
 ```bash
 cd SNOBOL4-jvm
 git log --oneline --since="1 hour ago"   # fallback: -5
-lein test                                 # confirm baseline 1896/4120/0
+lein test                                 # confirm 1896/4120/0
 git show HEAD --stat
 ```
 
@@ -33,44 +38,43 @@ git show HEAD --stat
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **MJVM** | Sprint 23E inline EVAL! complete — arithmetic no longer bottleneck | ❌ Active |
-| **MJVM2** | Snocone self-test: compile `snocone.sc`, diff oracle (Step 9) | ❌ Future |
+| **M-JVM-EVAL** | Inline EVAL! complete — arithmetic no longer calls interpreter | ❌ Active |
+| **M-JVM-SNOCONE** | Snocone self-test: compile `snocone.sc`, diff oracle | ❌ Future |
 
 ---
 
 ## Sprint Map
 
-### Sprints toward MJVM (active track)
+### Active: toward M-JVM-EVAL
 
 | Sprint | What | Status |
 |--------|------|--------|
-| Sprint 23A | EDN cache — 22× per-program | ✅ `b30f383` |
-| Sprint 23B | Transpiler: SNOBOL4 IR → Clojure `loop/case` — 3.5–6× | ✅ `4ed6b7e` |
-| Sprint 23C | Stack VM: flat bytecode, 7 opcodes — 2–6× | ✅ `d9e4203` |
-| Sprint 23D | JVM bytecode gen: ASM `.class`, DynamicClassLoader — 7.6× | ✅ `c185893` |
-| **Sprint 23E** | **Inline EVAL! — emit arith/assign/cmp directly into JVM bytecode** | **← active** |
-| Sprint 23F | Compiled pattern engine — compile pattern objects to Java methods | ❌ Planned |
+| `jvm-edn-cache` | EDN cache — 22× per-program | ✅ `b30f383` |
+| `jvm-transpiler` | SNOBOL4 IR → Clojure `loop/case` — 3.5–6× | ✅ `4ed6b7e` |
+| `jvm-stack-vm` | Flat bytecode stack VM, 7 opcodes — 2–6× | ✅ `d9e4203` |
+| `jvm-bytecode` | ASM `.class` gen, DynamicClassLoader — 7.6× | ✅ `c185893` |
+| **`jvm-inline-eval`** | **Emit arith/assign/cmp directly into JVM bytecode** | **← active** |
+| `jvm-pattern-engine` | Compile pattern objects to Java methods | ❌ Planned |
 
-### Sprints toward MJVM2 (Snocone)
+### Toward M-JVM-SNOCONE (Snocone)
 
 | Sprint | What | Status |
 |--------|------|--------|
-| Snocone Step 0 | Corpus reference files | ✅ `ab5f629` |
-| Snocone Step 1 | Lexer | ✅ `d1dec27` |
-| Snocone Step 2 | Expression parser (`&&`, `\|\|`, `~`, `$`, `.`) | ✅ `9cf0af3` |
-| Snocone Step 3 | `if/else` → label/goto | ❌ |
-| Snocone Steps 4–8 | `while`, `for`, `procedure`, `struct`, `#include` | ❌ |
-| Snocone Step 9 | Self-test: compile `snocone.sc`, diff oracle → **MJVM2 triggers** | ❌ |
+| `jvm-snocone-corpus` | Corpus reference files | ✅ `ab5f629` |
+| `jvm-snocone-lexer` | Lexer | ✅ `d1dec27` |
+| `jvm-snocone-expr` | Expression parser (`&&`, `\|\|`, `~`, `$`, `.`) | ✅ `9cf0af3` |
+| `jvm-snocone-control` | `if/else`, `while`, `for`, `procedure`, `struct`, `#include` | ❌ |
+| `jvm-snocone-selftest` | Compile `snocone.sc`, diff oracle → **M-JVM-SNOCONE** | ❌ |
 
-### Completed foundation sprints
+### Completed foundation
 
 | Sprint | What | Baseline |
 |--------|------|---------|
-| Sprint 13 | Baseline | 220 / 548 / 0 |
-| Sprint 18B | Pattern engine complete | 1,488 / 3,249 / 0 |
-| Sprint 19 | Variable shadowing fix | 2,017 / 4,375 / 0 |
-| Sprint 25E | -INCLUDE, TERMINAL, CODE(), Named I/O, OPSYN | 2,033 / 4,417 / 0 |
-| Snocone Step 2 | Current baseline | **1,896 / 4,120 / 0** |
+| `jvm-baseline` | Interpreter baseline | 220 / 548 / 0 |
+| `jvm-pattern-engine-v1` | Pattern engine complete | 1,488 / 3,249 / 0 |
+| `jvm-var-shadow` | Variable shadowing fix | 2,017 / 4,375 / 0 |
+| `jvm-include-io` | -INCLUDE, TERMINAL, CODE(), Named I/O, OPSYN | 2,033 / 4,417 / 0 |
+| `jvm-snocone-expr` | Current baseline | **1,896 / 4,120 / 0** |
 
 ---
 
@@ -80,22 +84,21 @@ git show HEAD --stat
 |---|-------|--------|
 | 1 | CAPTURE-COND (`.`) assigns immediately — deferred-assign not built | Open |
 | 2 | ANY(multi-arg) inside EVAL string — ClassCastException | Open |
-| 3 | Sprint 23E — inline EVAL! in JVM codegen | **Active** |
 
 ---
 
 ## Design Decisions (Immutable)
 
-1. **ALL UPPERCASE keywords.**
-2. **Single-file engine.** `match.clj` is one `loop/case`. Cannot be split.
-3. **Immutable-by-default, mutable-by-atom.** TABLE and ARRAY use `atom`.
-4. **Label/body whitespace contract.** Labels flush-left, bodies indented.
-5. **INVOKE is the single dispatch point.** Add both lowercase and uppercase entries.
-6. **nil means failure; epsilon means empty string.**
-7. **`clojure.core/=` inside `operators.clj`.** Bare `=` builds IR lists.
-8. **INVOKE args are pre-evaluated.** Never call `EVAL!` on args inside INVOKE.
-9. **Two-tier generator discipline.** `rand-*` probabilistic. `gen-*` exhaustive lazy.
-10. **Two-strategy debugging.** (a) run a probe; (b) read CSNOBOL4/SPITBOL source. Never speculate.
+1. ALL UPPERCASE keywords.
+2. Single-file engine. `match.clj` is one `loop/case`. Cannot be split.
+3. Immutable-by-default, mutable-by-atom. TABLE and ARRAY use `atom`.
+4. Label/body whitespace contract. Labels flush-left, bodies indented.
+5. INVOKE is the single dispatch point. Add both lowercase and uppercase entries.
+6. nil means failure; epsilon means empty string.
+7. `clojure.core/=` inside `operators.clj`. Bare `=` builds IR lists.
+8. INVOKE args are pre-evaluated. Never call `EVAL!` on args inside INVOKE.
+9. Two-tier generator discipline. `rand-*` probabilistic. `gen-*` exhaustive lazy.
+10. Two-strategy debugging. (a) run a probe; (b) read CSNOBOL4/SPITBOL source. Never speculate.
 
 ---
 
