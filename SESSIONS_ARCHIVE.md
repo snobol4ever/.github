@@ -4541,3 +4541,53 @@ Full design spec in §6a. WIP changes stashed in SNOBOL4-tiny (reference only, d
 3. `make -C src/sno2c` → verify `/tmp/test_segfault.sno` no longer crashes
 4. Smoke tests → 21/21
 5. Begin 100-test suite Group A (001–008)
+
+---
+
+### 2026-03-13 — Handoff Session (segfault fix + 106-test suite + nl investigation)
+
+**Focus:** Fix replacement-statement segfault, run suite, investigate remaining smoke failures.
+
+**Completed:**
+
+1. **106-test crosscheck suite built and committed to SNOBOL4-corpus** (`3d32176`).
+   Groups A–M, one `.sno` per feature, all `.ref` oracle files from CSNOBOL4.
+   Sourced from dotnet test suite (Define, Array, Table, DATA, pattern tests).
+   `run_all.sh` harness written. Lives in `crosscheck/` subdirs.
+
+2. **Replacement-statement segfault fixed** (`f359079`). Root cause: `parse_body_field`
+   called `parse_expr0` for pattern field; `parse_expr0` consumed trailing `=` as
+   assignment, building `E_ASSIGN(pattern_node, NULL)`; `emit_expr` crashed on
+   `cs(e->left->sval)` where sval=NULL. Fix: `parse_expr2` instead of `parse_expr0`.
+   `is.sno`, `io.sno`, `case.sno` all compile. `beauty.sno` → 12,744 lines, gcc clean.
+
+3. **New regression introduced:** `parse_expr2` excludes `|` alternation (that's at
+   `parse_expr3`). So pattern `('a' | 'b')` breaks again. Smoke tests still 0/21.
+   **Fix: change `parse_expr2` → `parse_expr3` on the pattern field line.**
+
+4. **nl variable traced:** `global.sno` sets `nl` via `&ALPHABET POS(10) LEN(1) . nl`
+   (pattern capture of newline from alphabet). May be failing in our runtime if
+   pattern capture in init context doesn't work. Next suspect after parse_expr3 fix.
+
+5. **Git history:** All 141 commits are `LCherryholmes <lcherryh@yahoo.com>`. Clean.
+   Milestone 3 (M-BEAUTY-FULL) not yet written — still active.
+
+**Commits:**
+| Repo | Commit | What |
+|------|--------|------|
+| SNOBOL4-tiny | `f359079` | fix: parse_expr2 for pattern field, segfault gone |
+| SNOBOL4-corpus | `3d32176` | feat: 106-test crosscheck suite |
+| .github | this | SESSION.md + archive |
+
+**State at handoff:**
+| Repo | Commit | Status |
+|------|--------|--------|
+| SNOBOL4-tiny | `f359079` | segfault fixed; parse_expr3 fix needed; smoke 0/21 |
+| SNOBOL4-corpus | `3d32176` | 106-test suite committed |
+
+**Next session — first actions:**
+1. Read SESSION.md
+2. Change `parse_expr2` → `parse_expr3` in `parse_body_field` (see SESSION.md)
+3. Verify segfault still gone AND | works in patterns
+4. `make -C src/sno2c` → rebuild beauty → smoke tests → target 21/21
+5. If smoke passes → run crosscheck suite → fix failures → diff oracle
