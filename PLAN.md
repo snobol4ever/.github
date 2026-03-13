@@ -900,175 +900,163 @@ git remote set-url origin https://LCherryholmes:$TOKEN@github.com/SNOBOL4-plus/<
 
 ### ⚡ READ §2 FIRST — ARCHITECTURE TRUTH (Natural Variables + Two Worlds + T_FNCALL) ⚡
 ### ⚡ READ §1 — Three-Milestone Authorship Agreement. Claude writes three commits. ⚡
+### ⚡ READ §6a — ARCHITECTURAL DECISION: Hand-Rolled Parser (Session 53) ⚡
 
 ---
 
-### Session 48 Progress — 2026-03-12
+## 6a. ARCHITECTURAL DECISION — Replace Bison with Hand-Rolled Recursive-Descent Parser
 
-**Target**: `beauty_full_bin < beauty.sno` → 790 lines → diff vs oracle empty  
-**Session 48 start**: Parse Error. snoSrc empty. DATA() broken. `66b7eab`.  
-**Session 48 work**: 4 root-cause bugs fixed. Parse Error remains but machinery is deeper.  
-**Session 48 end**: Parse Error still firing — grammar runs deep but ARBNO fails to match. Next: why snoCommand never matches.  
-**HEAD**: SNOBOL4-tiny `627a030`. .github `(this commit)`.
+**Decided: Session 53, 2026-03-12. Lon Cherryholmes and Claude Sonnet 4.6.**
 
-#### ✅ BUG FIXED — Session 48: expr_contains_pattern E_CONCAT false-positive (`8b978e3`)
+### The Problem With Bison (Root Cause, Fully Diagnosed)
 
-**Root cause**: `expr_contains_pattern()` in `emit.c` unconditionally returned 1
-for ANY `E_CONCAT` node (`if (e->kind == E_CONCAT) return 1`). This caused
-`snoSrc = snoSrc snoLine nl` (pure string concat) to be emitted as
-`sno_pat_cat(sno_pat_var("snoSrc"), sno_pat_var(...))` — pattern concatenation.
-`sno_concat_sv` was never called. `snoSrc` was always empty.  
-**Fix**: Removed the E_CONCAT short-circuit. Now recurses into children — only
-pattern-bearing subtrees trigger pat context.
+Sessions 50–53 were consumed by a single class of bug: **`*var (continuation_line)`
+is misparsed as a function call `var(args)` instead of a deref concatenated with a
+grouped pattern**. We fixed the outer-level case (bstack_top==0) in Session 51 via
+`%prec UDEREF`. But the inner-level case — `*snoWhite (...)` inside `FENCE(...)` or
+any other nested paren — remained broken through Session 53.
 
-#### ✅ BUG FIXED — Session 48: DATA() builtin was a no-op (`e4595a7`)
+**The root cause is LALR(1) state merging.** Bison's generated parser merges the
+state for `STAR IDENT .` (pat_atom: deref) with the state for `IDENT .` (primary:
+start of function call). When lookahead is LPAREN, **bison always shifts** because
+LPAREN has no declared precedence and shift beats reduce by default. `%prec UDEREF`
+gives the rule a precedence, but LPAREN's precedence is undefined — so shift still wins.
 
-**Root cause**: `DATA('link(next,value)')` called `sno_apply("DATA",...)` which
-returned `SNO_NULL_VAL` because DATA was never registered. Consequence: `link()`,
-`link_counter()`, `tree()` constructors and all field accessors (`next()`,
-`value()`, `t()`, `v()`, `n()`, `c()`) were never created. The entire stack.sno
-linked list was broken. ShiftReduce.sno Reduce() built null trees.  
-**Fix**: Implemented `_b_DATA()` with trampoline arrays (64 types × 16 fields).
-Registered `DATA` as a builtin in `sno_runtime_init()`.
+The cascading consequences:
 
-#### ✅ BUG FIXED — Session 48: `sno_init()` never called `sno_inc_init()` (`627a030`)
+1. **`pat_arglist` approach (Session 53)**: We added a `pat_arglist` rule using `pat_expr`
+   instead of `expr` for PAT_BUILTIN calls. This worked for `FENCE(...)` at the outer
+   level. But inside `FENCE(epsilon ~ '' *snoWhite (bar))`, the `epsilon ~ '' *snoWhite`
+   fragment was still parsed via value grammar as `E_MUL(E_COND(epsilon,''), E_CALL(snoWhite,bar))`.
+   The E_MUL path in `emit_pat` didn't handle `E_CALL` on the right — it fell through to
+   `sno_pat_deref(sno_apply("snoWhite",...))`.
 
-**Root cause**: `sno_inc_init()` registers ALL -INCLUDE helper functions: Push,
-Pop, Top, PushCounter, Shift, reduce_, shift_, Gen, Qize, assign, match, etc.
-It was only called from `beautiful.c` (legacy), never from `sno_init()`.
-Consequence: `sno_apply("Push",...)` found fn=NULL in the function table and
-returned SNO_NULL_VAL. Every Push/Pop silently did nothing.  
-**Fix**: `sno_init()` in `snoc_runtime.h` now calls `sno_inc_init()` after
-`sno_runtime_init()`.
+2. **`emit_pat E_MUL` fix (Session 53)**: We patched the E_MUL handler to detect
+   `E_CALL(!is_defined_function)` on the right and emit `sno_pat_cat(sno_pat_ref(...), ...)`.
+   This eliminated the last `sno_apply("snoWhite",...)` from the test case. But then we
+   discovered the fix broke `LEN(5)` — PAT_BUILTIN in value context needs `arglist`
+   (value exprs), not `pat_arglist`.
 
----
+3. **Per-builtin split**: FENCE/ARBNO need pat_arglist. LEN/POS/TAB/SPAN/etc. need arglist.
+   Encoding this split in Bison requires more grammar rules and more conflicts. The conflict
+   count at Session 53 end: 20 SR + 139 RR. These are not benign warnings — they are active
+   wrong-parse events.
 
-### Session 49 Progress — 2026-03-12
+### Why Bison Is the Wrong Tool Here
 
-**Diagnosis**: Two bugs isolated. One confirmed (E_COND indirect RHS). Root cause of match failure still active.
+SNOBOL4's grammar is **context-sensitive** in ways that LALR(1) cannot represent cleanly:
 
-#### ✅ BUG DIAGNOSED (Session 49) — `E_COND` with `pat . *func()` silently drops the call
+- Whether `*foo (bar)` means deref+grouped-pat or deref(funcall) depends on whether
+  you are in pattern position or value position. Pattern position is determined by
+  whether the enclosing builtin is a pattern-builder (FENCE, ARBNO) or a value-function
+  (LEN, POS). This is **semantic context, not syntactic lookahead**.
 
-**Root cause in `emit.c` `case E_COND`:**
-When the right-hand side of `.` is `*funcname()` (E_DEREF of E_CALL), the code
-falls back to `varname = "?"` — silently dropping the function call entirely.
+- The lexer's `bstack_top` hack (tracking grouping vs function-call parens) and the
+  PAT_BUILTIN token (only at bstack_top==0) are both compensating for what a hand-rolled
+  parser would handle as natural state variables.
 
-**SNOBOL4 semantics (Session 49 Eureka — see §2):** `.` is a **deferred** assignment.
-It queues the action; it fires only after the FULL match succeeds, left-to-right.
-When RHS is `*f()`, the action IS the call to `f()` — it is a side-effect vehicle.
+- Fixing one conflict creates another. The conflict count has stayed in the 140-160 RR
+  range for 10+ sessions. Every grammar patch creates a new wrong-parse case elsewhere.
 
-**Affected code**: `nInc_: nInc = epsilon . *IncCounter()` — `IncCounter()` is
-never called. All `nInc/nDec/nPush/nPop` counter operations are no-ops during matches.
+### The Decision
 
-**Fix location**: `emit.c` `case E_COND` + `snobol4_pattern.c` `apply_captures()`
-(see §2 architecture truth for full fix code).
+**Replace `sno.y` + `sno.l` (Bison/Flex) with a hand-rolled recursive-descent parser
+written in C.** Keep the same AST node types (`Expr`, `EKind`, `Stmt`, `FnDef`) and
+keep `emit.c` unchanged. Only the front-end (lexer + parser) changes.
 
-**⚠ NOT the root cause of the match failure.** A second bug is still active.
+**Rationale**:
+- A recursive-descent parser carries **explicit context** — `parse_pat_expr()` vs
+  `parse_expr()` are different functions. No state merging. No shift/reduce conflicts.
+  `*foo (bar)` in `parse_pat_expr()` is unambiguously deref+concat.
+- The grammar is already well-understood after 53 sessions of debugging. Writing it
+  down as recursive-descent functions is straightforward — no new design work needed.
+- Eliminates the entire class of LALR(1) state-merge bugs permanently.
+- Simpler build: no bison, no flex, just `gcc snoc.c -o snoc` (or similar).
 
----
+### What to Keep, What to Replace
 
-### Session 50 Progress — 2026-03-12
+**KEEP** (unchanged):
+- `src/snoc/emit.c` — all code generation logic
+- `src/snoc/snoc.h` — AST node types (`EKind` enum, `Expr`, `Stmt`, `FnDef`, `AL`)
+- `src/snoc/main.c` — entry point (minor changes: call new parser init)
+- All of `src/runtime/` — engine.c, snobol4.c, snobol4_pattern.c, snobol4_inc.c — untouched
 
-**Diagnosis session.** No code fix landed. Root cause of snoCommand match failure isolated.
+**REPLACE**:
+- `src/snoc/sno.y` → `src/snoc/parse.c` (recursive-descent parser)
+- `src/snoc/sno.l` → `src/snoc/lex.c` (hand-rolled lexer)
+- `src/snoc/Makefile` — remove bison/flex dependencies
 
-#### ✅ CONFIRMED — snoSrc IS populated correctly (prior §14.4 hypothesis wrong)
+**The stash** `WIP Session 53: partial Bison fixes (DO NOT APPLY — pivot to hand-rolled RD parser)`
+contains the partial emit.c fixes. These patches are REFERENCE MATERIAL only — they
+document the AST misparse signatures that the new parser must never produce. Do not
+apply the stash. Do not merge it. Read it for insight, then discard.
 
-`_nl` correctly initialized (type=1, `\n`). `sno_var_sync_registered()` fires after
-all `sno_var_register()` calls. `snoSrc = snoSrc snoLine nl` emits `sno_concat_sv()`
-correctly. By the time snoParse match fires, `snoSrc = "    x = 'hello'\n"` (16 chars).
-The earlier `slen=0` traces were from pattern CONSTRUCTION during init — not the main match.
+### Hand-Rolled Parser: Design Sketch
 
-#### ✅ CONFIRMED — E_COND bug is HARMLESS to match
+**Lexer** (`src/snoc/lex.c`):
+- Token struct: `{ TokKind kind; char *sval; long ival; double dval; int lineno; }`
+- TokKind enum: IDENT, STR, INT, REAL, KEYWORD, PAT_BUILTIN, LABEL, END_LABEL,
+  STAR, SLASH, PLUS, MINUS, CARET, LPAREN, RPAREN, LBRACKET, RBRACKET,
+  EQ, COLON, PIPE, DOT, DOLLAR, AMP, COMMA, AT, NEWLINE, HASH, TILDE,
+  SGOTO, FGOTO, END_OF_FILE
+- `next_token()` — reads one token, handles continuation lines (leading `+`)
+- `peek_token()` / `consume_token()` — 1-token lookahead
+- No bstack hack needed — the parser carries context explicitly
+- PAT_BUILTIN: still a useful distinction (FENCE/ARBNO/LEN/POS/etc.) — keep the
+  `is_pat_builtin()` check but in the lexer (not bison-token-category)
 
-`sno_pat_cond(pat, "?")` wraps the child pattern correctly. `SPAT_ASSIGN_COND` with
-varname `"?"` does not cause match failure — only the capture target is wrong. The
-child pattern still fires. E_COND fix is still needed (counters broken) but is NOT
-the match failure root cause.
+**Parser** (`src/snoc/parse.c`):
+- `parse_program()` → list of Stmts
+- `parse_stmt()` → Stmt (label + subject + optional pattern + optional replacement + goto)
+- `parse_expr()` → Expr (value grammar: arithmetic, string concat, function calls)
+- `parse_pat_expr()` → Expr (pattern grammar: alt, cat, cap, atom — returns pat nodes)
+- `parse_pat_atom(context)` → the key function:
+  - `STAR IDENT` → always E_DEREF(E_VAR(ident)), regardless of what follows
+  - `IDENT LPAREN` → in pat context: `E_CALL(ident, pat_arglist)` if ident is a
+    known pat-context function, else deref+concat
+  - `PAT_BUILTIN LPAREN` → E_CALL with pat_arglist for FENCE/ARBNO, value arglist for LEN/POS/etc.
+  - `LPAREN pat_expr RPAREN` → grouped pattern
+- `parse_pat_cat()` → right-recursive concat via loop, not left-recursive rule
+- The subject/pattern split in a statement: after parsing subject expr, check if next
+  token starts a pat_expr (PAT_BUILTIN, STAR, LPAREN, STR, or IDENT known as pat var) —
+  if so, parse as pattern; else it's part of the replacement.
 
-#### ✅ CONFIRMED — KEY ARCHITECTURAL INVARIANT
+**Key invariant to encode**:
+- `STAR IDENT` in `parse_pat_atom()` is ALWAYS E_DEREF(E_VAR). Period. No lookahead check.
+  The caller (`parse_pat_cat`) just calls `parse_pat_atom()` again for the next token.
+  `*foo (bar)` = concat(deref(foo), grouped(bar)). This is just two sequential calls.
 
-**If you strip all `.` and `$` captures from the grammar patterns, the structural
-pattern WILL match all beauty.sno statements.** This was validated during bootstrap.
-Therefore: match failure is at the structural level, not the capture level.
+### Implementation Order for Next Session
 
-#### 🔴 ROOT CAUSE CANDIDATE — `sno.y` parser misreads `*var (expr)`
+1. **Write `src/snoc/lex.c`** — hand-rolled lexer. Continuation lines, string literals,
+   integer/real parsing, keyword detection, PAT_BUILTIN detection, LABEL detection.
+   ~200 lines. Test: `snoc --lex beauty.sno` dumps token stream, verify against known input.
 
-**Evidence in generated C**: `sno_apply("snoWhite", (...), 1)` appears in snoStmt
-construction. `snoWhite` is a PATTERN VARIABLE — it should emit `sno_pat_ref("snoWhite")`
-concatenated with the next sub-pattern. Instead it emits a function call.
+2. **Write `src/snoc/parse.c`** — recursive-descent parser. Start with statement structure,
+   then expressions, then patterns. ~500 lines.
+   Test: `snoc --ast beauty.sno` dumps AST, compare key nodes against known-good output.
 
-**Root cause**: `sno.y` `pat_atom` rule: `STAR IDENT` reduces to a deref node.
-But when the next token is `(`, the parser may be backtracking and reading
-`IDENT LPAREN` as `E_CALL("snoWhite", args)` — consuming the `STAR` as something
-else. The `*` prefix is lost and `snoWhite` becomes a function call.
+3. **Update `src/snoc/Makefile`** — remove bison/flex, add lex.c + parse.c.
 
-**Also**: `sno_pat_deref(sno_str("?"))` appears in snoStmt — dereferencing the variable
-literally named `"?"`. Variable `"?"` gets set by the bogus E_COND captures — compounding
-corruption from two separate bugs.
+4. **Build snoc** → compile beauty.sno → check `sno_apply("snoWhite",...)` count = 0.
 
-**Smoke test confirmation**: `test_snoCommand_match.sh` reports **0/21 FAIL** — every
-statement type (assignment, pattern match, DEFINE, DIFFER, comment, control) outputs
-"Parse Error". This is the structural grammar failure, not a runtime issue.
+5. **Run smoke tests**: target 0/21 → 21/21 on `test_snoCommand_match.sh`.
 
-### 🔴 ACTIVE BLOCKER (Session 51)
+6. **Commit**: `"Replace Bison/Flex with hand-rolled recursive-descent parser (lex.c + parse.c)"`
 
-**Fix target**: `sno.y` — `STAR IDENT` → `pat_atom` followed by `(` must NOT be
-re-parsed as `IDENT LPAREN` (function call). The `STAR` already consumed the IDENT
-as a deref. The subsequent `(` starts a new `pat_atom` (grouped subpattern) and
-must be concatenated, not turned into a call.
-
-**Immediate actions for Session 51 (in order)**:
-
-1. **Read `sno.y` `pat_atom` rules carefully** — find where `STAR IDENT LPAREN` can
-   be misread. Check if bison is seeing a shift/reduce conflict and choosing wrong.
-
-2. **Fix the rule** — after `STAR IDENT` reduces to `pat_atom`, the `(` must start
-   a new `pat_atom`. Consider: add explicit `pat_concat` rule so `STAR IDENT (expr)`
-   emits `sno_pat_cat(sno_pat_ref("ident"), emit_pat(expr))`.
-
-3. **Rebuild snoc**: `cd src/snoc && make`
-
-4. **Rebuild beauty_full.c**: check generated C — `sno_apply("snoWhite",...)` must
-   be gone, replaced by `sno_pat_ref("snoWhite")` + cat.
-
-5. **Run smoke tests**:
-   ```bash
-   bash test/smoke/build_beauty.sh
-   bash test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
-   bash test/smoke/test_self_beautify.sh /tmp/beauty_full_bin
-   ```
-   Target: `test_snoCommand_match.sh` goes from **0/21 → 21/21**.
-
-**Build commands for Session 51**:
-```bash
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime; R=$RUNTIME/snobol4
-
-cd /home/claude/SNOBOL4-tiny/src/snoc && make
-$SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
-gcc -O0 -g /tmp/beauty_full.c $R/snobol4.c $R/snobol4_inc.c \
-    $R/snobol4_pattern.c $RUNTIME/engine.c \
-    -I$R -I$RUNTIME -lgc -lm -w -o /tmp/beauty_full_bin
-
-bash /home/claude/SNOBOL4-tiny/test/smoke/test_snoCommand_match.sh /tmp/beauty_full_bin
-```
-
-### Repo State at Session 50 Handoff
+### Repo State at Session 53 Handoff
 
 | Repo | Commit | State |
 |------|--------|-------|
-| SNOBOL4-tiny | `854b093` | Session 50: findings+smoke tests+decisions+artifact+outputs. Parse Error remains. |
-| .github | `(this)` | Session 50 handoff. §6 + §12 updated. |
+| SNOBOL4-tiny | `010529a` | 4 engine fixes. sno.y/emit.c WIP stashed. Parser pivot NOT YET started. |
+| .github | `(this)` | Session 53 handoff. §6 + §6a + §12 updated. Architectural decision recorded. |
 | SNOBOL4-corpus | `3673364` | Untouched. |
 | SNOBOL4-harness | `8437f9a` | Untouched. |
 
-**New in Session 50**:
-- `artifacts/beauty_full_session50.c` — 12847 lines, md5 `7fcbb3951a95f3f77de5dfe4afc49e49`
-- `test/smoke/` — three shell scripts: `build_beauty.sh`, `test_snoCommand_match.sh`, `test_self_beautify.sh`
-- `test/smoke/outputs/session50/` — logs, oracle, compiled output, diff (0/21 snoCommand, 785-line diff)
-
+**Stash in SNOBOL4-tiny** (reference only, do not apply):
+`WIP Session 53: partial Bison fixes (DO NOT APPLY — pivot to hand-rolled RD parser)`
+Contains: partial pat_arglist grammar changes + emit.c E_MUL/E_DEREF fixes + debug prints.
+These document the exact misparse signatures. Read with `git stash show -p`.
 
 ## 7. SNOBOL4-harness — What It Becomes
 
@@ -1276,7 +1264,7 @@ The handoff prompt Lon gives the next Claude is exactly:
 |---|--------|-----------|--------|--------|
 | 1 | **26** | `snoc` compiles beauty.sno (no -INCLUDEs) → 0 gcc errors → binary links | ✅ DONE Session 32 | `cc0c88b` |
 | 2 | **27** | `snoc` compiles beauty.sno WITH -INCLUDEs (via `snobol4_inc.c`) → 0 gcc errors | ✅ DONE Session 32 | `cc0c88b` |
-| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. 0/21 snoCommand match. Root cause: `sno.y` misreads `*var (expr)` as `var(expr)` function call. Fix target: `pat_atom` rule in `sno.y`. Smoke tests confirm structural failure. HEAD `854b093`. | — |
+| 0 | **26** | `beauty_full_bin` self-beautifies → `diff` vs oracle is **empty** | 🔴 Parse Error. 0/21 snoCommand match. Root cause: LALR(1) state merging in Bison — unfixable without redesign. **Architectural pivot decided Session 53: replace Bison/Flex with hand-rolled recursive-descent parser (lex.c + parse.c). See §6a.** HEAD `010529a`. | — |
 
 **When a milestone is hit:**
 1. Claude writes the commit message (not Lon, not a script — Claude).
@@ -4937,3 +4925,36 @@ match all beauty.sno statements (bootstrap proof). Match failure is structural.
 ---
 
 *Rule 5 tightened Session 50: git log window halved from 2 hours → 1 hour. Rationale: transcript scan from GitHub history was consuming excess context; PLAN.md §6+§12 already carry all relevant history.*
+
+### 2026-03-12 — Session 53 (Root cause fully diagnosed; architectural pivot to hand-rolled parser)
+
+**Deep diagnosis of the LALR(1) misparse bug. Architectural decision made: replace Bison/Flex.**
+
+Three sessions (51–53) were consumed by `*snoWhite (continuation)` misparsed as a function call.
+Session 53 traced it to its bottom:
+
+1. **Outer level (bstack_top=0)**: `%prec UDEREF` fix from Session 51 works. `*snoWhite` at
+   statement level correctly emits `sno_pat_ref("snoWhite")`.
+
+2. **Inner level (inside FENCE/ARBNO args)**: `bstack_top>0` → PAT_BUILTIN token NOT returned
+   → arglist uses `expr` (value grammar) → `*snoWhite (bar)` parsed as `E_MUL(E_COND, E_CALL(snoWhite,bar))`
+   or `E_DEREF(E_CALL(snoWhite,bar))` depending on context. Both wrong.
+
+3. **Attempted fixes**: `pat_arglist` rule (uses `pat_expr` instead of `expr` for PAT_BUILTIN args),
+   explicit `pat_cat STAR IDENT LPAREN pat_expr RPAREN` rule, `emit_pat E_MUL` handler for
+   `E_CALL(!is_defined_function)` on right. Each fix partially worked but created new breakage
+   (e.g., `LEN(5)` parse error when `primary: PAT_BUILTIN LPAREN arglist` was changed to `pat_arglist`).
+
+4. **Root cause confirmed**: LALR(1) state merging is fundamental — cannot be fixed by adding
+   grammar rules or precedence declarations without creating new conflicts elsewhere. The conflict
+   count (20 SR + 139 RR) represents active wrong-parse events, not warnings.
+
+**Decision (Lon + Claude, Session 53)**: Replace `sno.y`/`sno.l` with a hand-rolled
+recursive-descent parser (`lex.c` + `parse.c`). Keep `emit.c`, `snoc.h`, `main.c`, all runtime.
+Full design spec in §6a. WIP changes stashed in SNOBOL4-tiny (reference only, do not apply).
+
+| Repo | Commit | Notes |
+|------|--------|-------|
+| SNOBOL4-tiny | `010529a` | Unchanged from Session 52. WIP stashed. |
+| .github | `(this)` | Session 53 handoff. §6 replaced, §6a added, §12 appended. |
+| SNOBOL4-corpus | `3673364` | unchanged |
