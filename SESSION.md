@@ -155,6 +155,23 @@ Our runtime may not be executing this correctly (it's in init code, not a functi
 IF parse_expr3 fix doesn't fully resolve smoke tests, the nl init is the next suspect.
 Check: does `snoSrc = snoSrc snoLine nl` produce a non-empty string in our binary?
 
+## Artifacts Protocol (do this every session sno2c changes)
+
+After any sno2c fix, regenerate and commit beauty_full.c to artifacts/:
+```bash
+cd /home/claude/SNOBOL4-tiny
+src/sno2c/sno2c \
+  /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
+  -I /home/claude/SNOBOL4-corpus/programs/inc \
+  > artifacts/beauty_full_session_<slug>.c
+wc -l artifacts/beauty_full_session_<slug>.c
+# Update artifacts/README.md, then:
+git add artifacts/
+git commit -m "artifact: beauty_full_session_<slug>.c — <N> lines, <what changed>"
+```
+
+---
+
 ## Rebuild Commands
 
 ```bash

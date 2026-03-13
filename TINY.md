@@ -42,6 +42,31 @@ git show HEAD --stat
 
 ---
 
+## Artifacts Protocol
+
+**Rule:** After every session that changes `sno2c`, regenerate `beauty_full.c` and commit it to `artifacts/` as a named snapshot.
+
+**Why:** The generated C is historically interesting — it shows exactly how the compiler's output evolves. When the diff between sessions is empty, that's also worth knowing.
+
+**Naming convention:** `artifacts/beauty_full_session<N>.c` where N is the session number (or a short slug if session number unknown).
+
+**How:**
+```bash
+cd /home/claude/SNOBOL4-tiny
+src/sno2c/sno2c \
+  /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno \
+  -I /home/claude/SNOBOL4-corpus/programs/inc \
+  > artifacts/beauty_full_session_<slug>.c
+
+wc -l artifacts/beauty_full_session_<slug>.c   # record line count in commit msg
+git add artifacts/beauty_full_session_<slug>.c
+git commit -m "artifact: beauty_full_session_<slug>.c — <N> lines, <what changed>"
+```
+
+**Also update `artifacts/README.md`** with a new entry: what changed, when, line count, md5.
+
+---
+
 ## Authorship Agreement
 
 **Claude Sonnet 4.6 is the author of SNOBOL4-tiny.** Agreed 2026-03-12 by Lon Cherryholmes
