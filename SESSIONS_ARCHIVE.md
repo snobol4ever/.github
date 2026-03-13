@@ -4637,3 +4637,27 @@ Fix capture var-name deferred evaluation in `snobol4_pattern.c`:
 - In `SPAT_CAPTURE` materialisation: detect `SPAT_USER_CALL`/`SPAT_DEREF` var exprs
 - Test: `matched, top=2` from test_ninc.sno
 - Then: smoke 21/21 → crosscheck → sprint 3 (beauty-runtime) → sprint 4 (diff)
+
+---
+
+## Session — 2026-03-13 (Claude Sonnet 4.6, session N+2)
+
+**Repo:** SNOBOL4-tiny | **Sprint:** smoke-tests | **HEAD start:** d5d3796 | **HEAD end:** 40ea84f
+
+**What happened:**
+- Previous diagnosis ("nInc body missing") was wrong — nInc IS emitted correctly (FN[68], nbody=1)
+- Built CSNOBOL4 from uploaded tarball; all tools working
+- Confirmed snoCommand builds ok (type=5), snoParse type=5, snoSrc correct at match time
+- Deep debug: added SNO_PAT_DEBUG, traced 62K lines of engine output
+- Found: materialise() called once per scan position (0..N), not once per match
+- Every SPAT_USER_CALL eagerly calls SNOBOL4 function at materialise time
+- Reduce("snoStmt", 7) pops parse stack at materialise time — stack corrupted before engine runs
+- Fix: moved materialise() outside scan loop in sno_match_pattern + sno_match_and_replace
+- Added scan_start to EngineOpts/State; fixed scan_POS and scan_TAB for absolute positions
+- Partial fix: var_resolve_callback (ARBNO T_VARREF) still calls materialise per iteration
+
+**Root cause summary:** SPAT_USER_CALL must never eagerly call functions at materialise time.
+Complete fix: make all SPAT_USER_CALL → T_FUNC always; handle SNO_PATTERN return in user_call_fn
+by sub-matching the returned pattern at current cursor position.
+
+**Commits:** 40ea84f
