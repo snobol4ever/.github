@@ -17,7 +17,7 @@
 - `snoc` renamed `sno2c` (SNOBOL4 to C); directory `src/snoc` → `src/sno2c`
 - `beauty_full_bin` builds clean from 12,292 lines of generated C
 
-**Next action:** Sprint 3 (`beauty-runtime`): `beauty_full_bin < beauty.sno` exits cleanly.
+**Next action:** Sprint 4 (`beauty-full-diff`): diagnose line-wrap differences. Oracle=790 lines, compiled=801. Root cause: column-stop alignment in `ppStop[1..4]` / `Gen()` / `GetLevel()`. 19 lines differ in indentation only; remaining diffs are line-wrap column positions.
 
 ## Pivot Log
 
@@ -78,8 +78,8 @@ and Claude Sonnet 4.6. When any milestone trigger fires, Claude writes the commi
 |--------|------|--------|
 | `hand-rolled-parser` | Replace Bison/Flex with `lex.c` + `parse.c` | ⏸ Paused |
 | `smoke-tests` | 0/21 → 21/21 on `test_snoCommand_match.sh` | ✅ `8f68962` |
-| `beauty-runtime` | binary exits cleanly on beauty.sno input | ⏳ Active |
-| `beauty-full-diff` | `beauty_full_bin` diff empty → **M-BEAUTY-FULL** | ❌ |
+| `beauty-runtime` | binary exits cleanly on beauty.sno input | ✅ Done |
+| `beauty-full-diff` | `beauty_full_bin` diff empty → **M-BEAUTY-FULL** | ⏳ Active |
 
 ### Toward M-COMPILED-SELF
 
