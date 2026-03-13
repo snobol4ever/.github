@@ -16,16 +16,17 @@
 
 ## Last Thing That Happened
 
-Complete HQ reorganization across two sessions:
-- Per-repo MD structure (TINY, JVM, DOTNET, CORPUS, HARNESS)
-- Two-level milestone/sprint system with named milestones (M-REBUS, M-BEAUTY-FULL, etc.)
-- Sprint slugs everywhere (`rebus-emitter`, `hand-rolled-parser`, `jvm-inline-eval`, `net-delegates`)
-- Pivot logs in SESSION.md and each repo MD
-- SESSION.md made fully self-contained (four fields — no need to open repo MD to start)
-- Pun fixed: SNOBOL4everywhere/SNOBOL4now/SNOBOL4ever — the 4 means "for"
-- Last commit: `d4219d9` on .github
+HQ branding/rename session — no code written. SNOBOL4-tiny repo unchanged at `01e5d30`.
 
-No code was written this session. SNOBOL4-tiny repo is unchanged at `01e5d30`.
+Decisions made:
+- Org rename: `SNOBOL4-plus` → `snobol4ever` (approved, not yet executed on GitHub)
+- Naming rules locked: marketing=nodash lowercase, repo=one-dash lowercase, cli=sno4 prefix
+- Full name grid settled for all repos (see RENAME.md)
+- `SNOBOL4-cpython` renamed `snobol4-artifact` (signals: experimental, do not depend on)
+- Brand text: `SNOBOL4ever` → `snobol4ever`, `SNOBOL4now` → `snobol4now`, etc.
+- RENAME.md created in .github — 8-phase execution plan, locked naming rules, name grid
+- ONE OPEN QUESTION: native kernel name — `snobol4-tiny` (Ant-Man: small source/binary, universe power) vs `snobol4-all` (does everything). Lon attached to `tiny`. Decide before executing Phase 4 of RENAME.md.
+- Last .github commit: `dae46cb`
 
 ## One Next Action
 
@@ -37,6 +38,7 @@ Model the structure on `rebus_print.c`. Full translation rules in TINY.md §Rebu
 
 | Date | What changed | Why |
 |------|-------------|-----|
+| 2026-03-13 | Branding/rename session — RENAME.md created, naming rules locked | Lon pivot before public launch |
 | 2026-03-13 | `hand-rolled-parser` paused → `rebus-emitter` active | Lon declared Rebus priority |
 | 2026-03-12 | Bison/Flex → `hand-rolled-parser` decision | Session 53: LALR(1) unfixable (139 RR conflicts) |
 | 2026-03-12 | M-BEAUTY-FULL inserted before M-COMPILED-SELF | Lon's priority: beautifier first |

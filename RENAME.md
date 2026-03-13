@@ -194,6 +194,7 @@ curl -I https://github.com/SNOBOL4-plus/SNOBOL4-tiny
 | item | question | owner |
 |------|----------|-------|
 | `snoc` vs `sno4all` | `snoc` = internal build tool, `sno4all` = user command. Confirm. | Lon |
+| `snobol4-all` vs `snobol4-tiny` | `tiny` (Ant-Man: small source, small binary, universe-level power) vs `all` (does everything). Both are true. Decide before executing Phase 4. Affects all cells in name grid for native kernel row. | Lon |
 | PyPI `snobol4artifact` | Is SNOBOL4-cpython currently on PyPI? If yes, new package needed. | Lon |
 | NuGet casing | `Snobol4.Dotnet` namespace — coordinate on C# convention exception. | Jeffrey |
 | `SESSIONS_ARCHIVE.md` | Header note only. Do not rewrite history. | Lon |
