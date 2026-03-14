@@ -4950,3 +4950,26 @@ var_set("nl", strv(captured_string));
 ### Next session
 Fix `emit_imm` do_assign (non-OUTPUT branch) to call `var_set(varname, strv(...))`.
 See SESSION.md ONE NEXT ACTION.
+
+---
+
+## Session 63 — 2026-03-14
+
+**Repo:** SNOBOL4-tiny | **Sprint:** pattern-block | **Commit:** `6467ff2`
+
+**Work done:**
+
+CSNOBOL4 2.3.3 built from source (snobol4-2_3_3_tar.gz upload). Full SNOBOL4 language semantics absorbed from CSNOBOL4 docs.
+
+Diagnosed the session-62 segfault (previously misidentified as NULL pointer from ~ fix): actual cause was stack overflow in match_pattern_at (engine.c interpreter), triggered by mutual recursion Parse→Command→Parse on real input. Root cause: core grammar patterns (Parse, Command, Stmt, Label, Control, Comment, Compiland) were assigned inside DEFINE function bodies and skipped by the named-pattern compilation pass.
+
+Three fixes in emit.c + emit_byrd.c:
+1. **Scan DEFINE fn bodies for named-pattern assignments** — removed `stmt_is_in_any_fn_body` guard from pre-registration and emission passes. Parse, Command, Stmt, Label, Control, Comment, Compiland now compiled to Byrd boxes.
+2. **expr_contains_pattern recurse into E_IMM/E_COND** — `Function = SPAN(...) $ tx $ *match(...)` has pattern buried under E_IMM chain. Function, BuiltinVar, SpecialNm, ProtKwd, UnprotKwd now compiled.
+3. **Pass 0a pre-registration before emit_fn** — *PatName inside DEFINE bodies (e.g. *SpecialNm in ss()) resolved to interpreter fallback because registry was empty when emit_fn ran. Moved pre-registration + typedecl/fwdecl emission to before emit_fn calls. Added NamedPat.emitted flag to prevent duplicate emission.
+
+**Result:** 112 → 196 compiled named pattern functions. match_pattern_at calls: 82 → 33 (all bch/qqdlm dynamic locals — correct fallback).
+
+**New crash pinned:** pat_Expr infinite recursion. beauty.sno `Expr17 = FENCE(nPush() $'(' *Expr ...)`. Parser produces E_IMM(left=nPush(), right=E_STR("(")). emit_imm treats nPush() as the child pattern — nPush() succeeds with zero cursor advance, *Expr is called, infinite recursion. Fix: emit_imm must detect side-effect E_CALL children (nPush/nInc/nPop) and emit them inline without pattern gating.
+
+**Artifact:** `artifacts/trampoline_session63/beauty_tramp_session63.c` — 26514 lines, md5 c565e55dba5be8504d4679a95d58e3c8, 0 gcc errors.
