@@ -10,100 +10,89 @@
 | Field | Value |
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
-| **Sprint** | `stmt-fn` (sprint 2/9 toward M-BEAUTY-FULL) |
-| **Milestone** | M-STMT-FN |
-| **HEAD** | `fb4915e — feat: M-TRAMPOLINE — block_fn_t + trampoline loop proven (session 56)` |
+| **Sprint** | `block-fn` (sprint 3/9 toward M-BEAUTY-FULL) |
+| **Milestone** | M-BLOCK-FN |
+| **HEAD** | `4a6db69 — feat(stmt-fn): M-STMT-FN — trampoline emitter wired into sno2c` |
 
 ---
 
-## M-TRAMPOLINE FIRED — Session 56 (2026-03-14)
+## M-STMT-FN FIRED — Session 56 (2026-03-14)
 
-Three hand-written proof-of-concept files committed at `fb4915e`:
+Commit `4a6db69`. Three tests pass through trampoline emitter:
+- `hello_tramp.c` — `OUTPUT = 'hello, stmt-fn'` ✅
+- `branch_tramp.c` — loop + S/F routing ✅
+- `fn_tramp.c` — `DEFINE('DOUBLE(X)')` + call ✅
+- `beauty_tramp_session56.c` — 19907 lines, **0 gcc errors** ✅
 
-- `src/sno2c/trampoline.h` — `block_fn_t = void*(*)(void)`, `trampoline_run()`, macros
-- `src/sno2c/trampoline_hello.c` — two stmts, one block ✅
-- `src/sno2c/trampoline_branches.c` — S/F routing, loop-back, labeled blocks ✅
-- `src/sno2c/trampoline_pattern.c` — snobol4.c runtime integrated, literal pattern S/F ✅
+Artifacts in `artifacts/trampoline_session56/`.
 
-Architecture validated:
-- Every stmt = C fn returning `block_fn_t`
-- Labeled stmt → new block
-- S/F goto → return different block addresses
-- Trampoline IS the engine: `while (pc) pc = (block_fn_t)pc()`
+## Architecture (read PLAN.md fully before coding)
 
-Also this session: CSNOBOL4 built and installed at `/home/claude/snobol4-install/bin/snobol4`
-(from the snobol4-2_3_3_tar.gz upload). SNOBOL4 syntax/semantics verified hands-on.
+Block-fn + trampoline model. Every SNOBOL4 stmt → C fn returning `block_fn_t`.
+Trampoline: `while (pc) pc = pc()` — no interpreter, no engine.c ever.
 
----
+## ONE NEXT ACTION — Sprint `block-fn`
 
-## Architecture (from PLAN.md — read it fully before coding)
+**What:** Proper label reachability analysis so blocks are grouped correctly.
 
-**Block-fn + trampoline model** (decided Session 55 with Lon):
+**The current problem:** `emit_trampoline_program()` opens `block_START` at
+the first stmt and closes it at the first labeled stmt — but doesn't handle:
+- Unlabeled stmts that follow a labeled stmt (should be in the labeled block,
+  not stranded outside)
+- The last block never being closed if no END stmt is found in the loop
+- Multiple labeled stmts in sequence (each needs its own block)
 
-Every SNOBOL4 statement → `stmt_N()` C function returning `block_fn_t`.
-Statements grouped into `block_L()` by label reachability.
-Trampoline: `while (pc) pc = pc()` — no interpreter, no engine.c, ever.
-GOTO/`*X`/EVAL/CODE all = `block_fn_t` calls.
-TCC for runtime CODE()/EVAL() (after M-BEAUTY-FULL).
+**The fix:** Two-pass with explicit open/close tracking:
 
-## ONE NEXT ACTION — Sprint `stmt-fn`
+Pass 1 (already done): emit `stmt_N()` functions, record `sid_uid[]`.
 
-Wire `emit.c` to emit `stmt_N()` functions instead of inline code.
-Each stmt becomes its own C function returning `block_fn_t`.
-
-### What to build
-
-In `src/sno2c/emit.c`:
-
-1. Change output preamble to `#include "trampoline.h"` (alongside runtime headers)
-
-2. Add a new `emit_stmt_fn()` that wraps each statement as:
+Pass 2 (fix): track `cur_block_open` properly:
 ```c
-static void *stmt_N(void) {
-    /* subject eval, pattern match, replacement */
-    /* α ... γ: return block_SLABEL; */
-    /* ω: return block_FLABEL; */
-}
+// current_block = NULL means block_START is open
+// When we see a labeled stmt: close current block → return block_LABEL
+//                             open new block named LABEL
+// At END: close current block → return block_END
 ```
 
-3. Group stmts into `block_L()` functions by label reachability:
-```c
-static void *block_L42(void) {
-    void *next;
-    next = stmt_42(); if (next != (void*)block_L43) return next;
-    next = stmt_43(); if (next != (void*)block_L44) return next;
-    return block_L44;
-}
-```
+Current `emit_trampoline_program` block logic has a bug:
+- `cur_block_label` starts NULL but never gets set before the first label
+- After first label closes START, subsequent labels don't close their blocks
 
-4. Emit `main()` as:
-```c
-int main(void) {
-    runtime_init();
-    trampoline_run(block_START);
-    return 0;
-}
-```
-
-### Test sequence
-
+**Test sequence:**
 ```bash
 cd /home/claude/SNOBOL4-tiny/src/sno2c && make
 
-# Step 1: hello world
-echo "    OUTPUT = 'hello'" > /tmp/t.sno && echo "END" >> /tmp/t.sno
-./sno2c /tmp/t.sno > /tmp/t.c
-gcc -O0 -I. -I../runtime/snobol4 /tmp/t.c ../runtime/snobol4/snobol4.c \
-    ../runtime/snobol4/snobol4_inc.c ../runtime/snobol4/snobol4_pattern.c \
-    ../runtime/engine.c -lgc -lm -w -o /tmp/t_bin && /tmp/t_bin
-# expect: hello
+# Step 1: beauty_tramp_session56.c runs without crashing
+R=/home/claude/SNOBOL4-tiny/src/runtime
+gcc -O0 -I. -I$R -I$R/snobol4 \
+    artifacts/trampoline_session56/beauty_tramp_session56.c \
+    $R/snobol4/snobol4.c $R/snobol4/snobol4_inc.c \
+    $R/snobol4/snobol4_pattern.c $R/engine_stub.c \
+    -lgc -lm -w -o /tmp/beauty_tramp_bin
 
-# Step 2: S/F branch
-# Step 3: beauty.sno → C → compile (0 errors) → run (may still fail semantically)
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+/tmp/beauty_tramp_bin < $BEAUTY > /tmp/beauty_tramp_out.sno 2>&1 | head -5
+
+# Step 2: compare with oracle
+snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_tramp_out.sno | head -20
 ```
 
-### Commit when
-hello world compiles and runs through the new stmt-fn emitter. M-STMT-FN fires.
+**Commit when:** diff is empty → M-BEAUTY-FULL fires.
+(Block-fn reachability fix may be all that's needed — the Byrd box
+pattern match engine is already working, functions already emitted.)
+
+---
+
+## Artifact convention (from PLAN.md)
+
+Every session touching sno2c or emit*.c:
+1. `sno2c -trampoline -I$INC beauty.sno > artifacts/beauty_tramp_sessionN.c`
+2. Record md5, line count, gcc errors in `artifacts/README.md` (or per-session README)
+3. Commit with `artifact: beauty_tramp_sessionN.c — <status>`
+
+Also commit interesting test .sno + generated .c pairs in `artifacts/trampoline_sessionN/`.
 
 ---
 
@@ -128,12 +117,10 @@ cd SNOBOL4-tiny/src/sno2c && make
 
 ---
 
-## CRITICAL Rules (no exceptions)
+## CRITICAL Rules
 
 - **NEVER write the token into any file**
-- **NEVER link engine.c in beauty_full_bin** — engine_stub.c only (for compiled path)
-  - NOTE: trampoline POC tests use engine.c — that's fine (they're tests, not beauty_full_bin)
-- **NEVER touch old emit_byrd.c struct-passing code** — superseded
+- **NEVER link engine.c in beauty_full_bin** — engine_stub.c only
 - Read PLAN.md fully before coding
 
 ---
@@ -142,6 +129,6 @@ cd SNOBOL4-tiny/src/sno2c && make
 
 | Date | What changed | Why |
 |------|-------------|-----|
-| 2026-03-14 | **PIVOT: block-fn + trampoline model** | complete architecture rethink with Lon |
-| 2026-03-14 | M-TRAMPOLINE fired `fb4915e` | trampoline.h + 3 POC files proven |
-| 2026-03-14 | CSNOBOL4 built from snobol4-2_3_3_tar.gz | reference interpreter available |
+| 2026-03-14 | PIVOT: block-fn + trampoline model | complete rethink with Lon |
+| 2026-03-14 | M-TRAMPOLINE fired `fb4915e` | trampoline.h + 3 POC files |
+| 2026-03-14 | M-STMT-FN fired `4a6db69` | trampoline emitter in sno2c, beauty 0 errors |
