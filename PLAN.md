@@ -8,6 +8,52 @@ and a self-hosting native compiler. Claude Sonnet 4.6 is the third developer and
 
 ---
 
+## Architectural Note — The sno_pat_* Stopgap (recorded 2026-03-13)
+
+**The `sno_pat_*` / `engine.c` interpreter is a stopgap. It is not the destination.**
+
+### How we got here
+
+The original Python pipeline (`emit_c_byrd.py` + `lower.py`) generated proper compiled
+Byrd boxes — labeled goto C with explicit α/β/γ/ω ports wired statically per pattern node.
+This is the correct target architecture, proven by `bench/test_icon.sno` (Proebsting's
+`5 > ((1 to 2) * (3 to 4))` implemented as SNOBOL4 labeled statements) and the 28
+hand-written oracle C files in `test/sprint0–22`.
+
+When the compiler was rewritten from Python to C (`sno2c`), there was no C equivalent
+of `lower.py` yet. Rather than block progress, `sno_pat_*` + `engine.c` was introduced
+as a bridge: `emit.c` emits `sno_pat_cat()` / `sno_pat_user_call()` / etc. calls that
+build a pattern tree at runtime, which `engine.c` then interprets via a `type<<2|signal`
+dispatch switch. The Byrd boxes are implicit in that dispatch table — not generated.
+
+### What the destination looks like
+
+For a pattern like `snoCommand`, the compiled output should be static labeled C:
+
+```c
+snoCommand_alpha:   /* nInc() */  goto nInc_alpha;
+nInc_gamma:                       goto FENCE_alpha;
+FENCE_alpha:        ...
+snoCommand_omega:   return empty;
+```
+
+No tree. No dispatch table. No interpreter. Direct gotos, all wiring resolved at
+compile time by a C port of `lower.py`.
+
+### The path forward (after M-BEAUTY-FULL)
+
+Add a new sprint `compiled-byrd-boxes` between M-BEAUTY-FULL and M-COMPILED-SELF:
+- Write `src/sno2c/emit_byrd.c` — C port of `lower.py` + `emit_c_byrd.py`
+- Replace `emit_pat()` in `emit.c` with calls to `emit_byrd.c`
+- Drop `engine.c` + `snobol4_pattern.c` from the compiled binary path entirely
+- `sno_pat_*` API becomes interpreter-only (EVAL, dynamic patterns)
+
+**Do not lose `engine.c` or `snobol4_pattern.c`.** They remain correct and necessary
+for dynamic patterns (EVAL, runtime-constructed patterns). The compiled path bypasses
+them; the interpreter path keeps them.
+
+---
+
 ## Two Levels
 
 **Milestones** are proof points — trigger conditions, not time estimates. When the trigger fires, Claude writes the commit.
@@ -23,6 +69,7 @@ and a self-hosting native compiler. Claude Sonnet 4.6 is the third developer and
 | **M-SNOC-COMPILES** | `snoc` compiles `beauty_core.sno`, 0 gcc errors | TINY | ✅ Done |
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏳ sprint 2/4 `smoke-tests` active |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
+| **M-COMPILED-BYRD** | `sno2c` emits labeled goto Byrd boxes — `engine.c` not linked | TINY | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | TINY | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | TINY | ❌ Future |
 | **M-JVM-EVAL** | JVM inline EVAL! complete (sprint `jvm-inline-eval`) | JVM | ❌ |
