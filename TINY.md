@@ -231,6 +231,32 @@ lookahead. `*foo (bar)` = concat(deref(foo), grouped(bar)). Two sequential calls
 
 ---
 
+## Architecture: Byrd Box — Canonical Model (Session 16, permanent)
+
+**Every pattern literal is a self-contained Byrd box with two sections:**
+
+```
+DATA section:  locals, cursor saves, captures — one slot per box instance
+TEXT section:  α/β/γ/ω labeled gotos — static, shared across instances
+```
+
+**`*X` (dynamic reference) at match time:**
+1. Copy X's box block (data + code)
+2. Relocate — patch internal jump offsets in the copy
+3. The copy IS the new instance — its own independent locals
+
+No heap alloc beyond the copy. No GC involvement. No engine. ~20 lines of `mmap + memcpy + relocate`.
+
+**Implications for sno2c:**
+- Pattern assignment → emit named static Byrd box (data layout + labeled goto code)
+- `*varname` in pattern → emit box-copy + relocate at match time
+- `emit_pat()` / `pat_cat()` / `pat_arbno()` / `pat_ref()` → **eliminated from compiled path**
+- `engine.c` / `snobol4_pattern.c` → interpreter only (EVAL runtime). Never linked in beauty_full_bin.
+
+**Reference:** SESSIONS_ARCHIVE.md Session 16 "Key insight from Lon" + "New Model: Locals Inside the Box"
+
+---
+
 ## Architecture: Two Worlds
 
 | World | Type | Failure | Entry |

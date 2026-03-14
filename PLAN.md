@@ -45,57 +45,53 @@ https://github.com/settings/tokens**
 **Lon's explicit requirement: every pattern in beauty_full_bin must be compiled Byrd boxes.
 engine.c must not be linked. engine_stub.c only. No interpreter path in the compiled binary.**
 
-### What this means concretely:
+### Canonical Architecture — Box Layout (decided Session 16, recorded SESSIONS_ARCHIVE.md)
 
-`snoParse`, `snoCommand`, `snoLabel`, `snoStmt`, `snoComment`, `snoControl` — ALL of them —
-must be emitted as static labeled-goto C by `sno2c`/`emit_byrd.c`. NOT as `pat_cat()`/
-`pat_arbno()`/`pat_ref()` runtime tree construction calls. NOT matched via `*varname` →
-`match_pattern_at()` → `engine.c`.
+Every pattern literal is compiled to a self-contained Byrd box:
 
-The destination for `snoCommand` is:
-```c
-snoCommand_alpha:   /* nInc() */  goto nInc_alpha;
-nInc_gamma:                       goto FENCE_alpha;
-FENCE_alpha:        ...
-snoCommand_omega:   return empty;
 ```
-No tree. No dispatch. No interpreter. Pure gotos.
+Box layout:
+┌─────────────────────────┐
+│  DATA: cursor, locals,  │
+│        captures, ports  │
+├─────────────────────────┤
+│  CODE: α/β/γ/ω gotos   │
+└─────────────────────────┘
+```
 
-### What is BLOCKED until this is done:
+Boxes laid out linearly in memory:
+```
+DATA section:  [ box0.data | box1.data | box2.data | ... ]
+TEXT section:  [ box0.code | box1.code | box2.code | ... ]
+```
 
-- M-BEAUTY-FULL is blocked. Do not chase engine.c bugs. That is the smoke-test trap again.
-- Do not link engine.c in beauty_full_bin for ANY reason.
-- Do not add match_pattern_at() calls as a workaround.
-- E_DEREF (*snoParse, *snoCommand etc.) must be eliminated by inlining the pattern at compile time.
+### *X (Dynamic Reference) Semantics
 
-### The milestone ordering correction (2026-03-14):
+When `*X` fires at match time:
+1. **Copy** the box block for X — both data and code sections
+2. **Relocate** the code — patch internal jump offsets
+3. The copy gets its own independent locals — that IS the new instance
 
-PLAN.md previously said `compiled-byrd-boxes` comes AFTER M-BEAUTY-FULL. **That is wrong.**
-M-BEAUTY-FULL is BLOCKED by engine.c being broken for *snoParse. The correct order is:
+No heap. No GC. No engine. ~20 lines of `mmap + memcpy + relocate`.
+Code duplication is intentional — each instantiation is independent, cache-hot.
 
-1. `compiled-byrd-boxes` sprint — inline ALL pattern variables as static Byrd boxes → engine_stub.c only
-2. M-BEAUTY-FULL fires — beauty_full_bin self-beautifies, diff empty
+### What this means for sno2c / emit_byrd.c
 
-### How to inline pattern variables:
-
-Pattern variables like `snoParse = pat_arbno(*snoCommand)` are assigned in the SNOBOL4
-source. `sno2c` sees the assignment. Instead of emitting `pat_arbno(pat_ref("snoCommand"))`,
-it must emit the full static Byrd box C for that pattern — with the ARBNO α/β/γ/ω wiring
-and the snoCommand sub-pattern inlined recursively.
-
-`E_DEREF` (*varname) in a pattern context = look up the variable's pattern value at compile
-time and inline its Byrd box. Not a runtime call.
+- Every pattern assignment (`snoParse = ARBNO(*snoCommand)...`) → emit static Byrd box with named data+code layout
+- Every `*varname` in a pattern → emit box-copy + relocate at match time
+- `emit_pat()` generating `pat_cat()`/`pat_arbno()`/`pat_ref()` → **eliminated entirely**
+- `snobol4_pattern.c` → interpreter only (EVAL). Not in compiled path.
+- `engine.c` → interpreter only (EVAL). Not in compiled path.
 
 ### Every session: verify engine.c is NOT in the build command for beauty_full_bin.
 
-The correct build uses engine_stub.c:
 ```bash
 gcc -O0 -g -I $R/snobol4 -I $R \
     beauty_full.c $R/snobol4/snobol4.c \
     $R/snobol4/snobol4_inc.c \
     $R/engine_stub.c -lgc -lm -o beauty_full_bin
 ```
-If you find yourself typing `engine.c` instead of `engine_stub.c` — STOP. You are in the trap.
+If you find yourself typing `engine.c` — STOP. You are in the trap.
 
 ---
 
