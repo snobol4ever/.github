@@ -5008,3 +5008,45 @@ Three fixes in emit.c + emit_byrd.c:
 1. Fix E_DEREF read in emit.c (~line 292) and emit_cnode.c build_expr
 2. Rebuild + verify `$name = r` → `DATATYPE=tree`
 3. Full diff run, fix remaining issues toward M-BEAUTY-FULL
+
+## Session 78 — 2026-03-14
+
+**Repo:** SNOBOL4-tiny | **Sprint:** beauty-first | **Milestone:** M-BEAUTY-FULL
+
+### Critical failure — disorientation post-design-pivot
+
+Lon returned from a major design pivot to find Claude completely lost. Root cause analysis:
+
+**TINY.md was 19 sessions stale** — frozen at session 58 (`6d09bfa`), while HEAD was `203b7cb`.
+All work from sessions 59–77 (struct-passing, named patterns in DEFINE bodies, E_DEREF fixes,
+3-column format, CNode IR, pat_lit fix) was invisible to a new Claude reading TINY.md.
+
+**SESSION.md had wrong build command** — listed `engine.c` despite M-COMPILED-BYRD (`560c56a`)
+dropping it 18+ sessions ago. New Claude immediately went down the wrong path.
+
+**No verification step** — session start checklist did not include "verify SESSION.md HEAD
+matches actual git HEAD." Staleness was undetectable without that check.
+
+### What was fixed this session
+
+1. **emit_cnode.c build_expr E_DEREF** — fixed to check `!e->left` first, use `e->right` for `$expr`
+2. **Binary** — compiles 0 errors with engine_stub.c. 122 match_pattern_at (dynamic refs, correct).
+3. **TINY.md** — rewritten from scratch, current with HEAD 203b7cb, full history of sessions 59–77,
+   correct build command (engine_stub.c), oracle path, next action.
+4. **SESSION.md** — rewritten: correct build command, session 79 priority, no engine.c.
+5. **PLAN.md** — Session Start now includes HEAD verification step with stale-doc warning.
+   Session End now explicitly requires TINY.md update with ⚠️ staleness warning.
+
+### Active bug (NOT YET FIXED — session 79 job)
+
+`emit.c` emit_expr E_DEREF (~line 292) still reads `e->left` (NULL for `$expr`).
+Grammar: `DOLLAR unary_expr → binop(E_DEREF, NULL, $2)` — operand in `e->right`.
+Fix: check `!e->left` first, use `e->right`. Mirror the emit_cnode.c fix.
+Effect: `$'@S'` reads as NULL → Push/Pop chain broken → pat_Parse fails → Parse Error.
+
+### Next session (79)
+
+1. Fix emit.c emit_expr E_DEREF
+2. Rebuild, regenerate, recompile
+3. Run diff against committed oracle (test/smoke/outputs/session50/beauty_oracle.sno)
+4. Fix remaining diff lines → M-BEAUTY-FULL

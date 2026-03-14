@@ -592,11 +592,17 @@ Time's up or something broke. Speed over completeness.
 
 ```
 1. Read SESSION.md — fully self-contained. Repo, sprint, last thing, next action.
-2. git log --oneline --since="1 hour ago"  (fallback: -5)
-3. find src -type f | sort
-4. git show HEAD --stat
-5. If you need depth: read the repo's MD file.
+2. git log --oneline -5
+3. VERIFY: SESSION.md HEAD matches actual git HEAD.
+   If they differ — SESSION.md is stale. Read SESSIONS_ARCHIVE.md recent entries
+   and TINY.md before touching any code. Do not proceed until oriented.
+4. find src -type f | sort
+5. git show HEAD --stat
+6. If you need depth: read the repo's MD file (TINY.md).
 ```
+
+⚠️ STALE DOC TRAP: TINY.md and SESSION.md must be updated at HANDOFF every session.
+If SESSION.md HEAD ≠ git HEAD, stop and reorient before any work.
 
 ## Session End (every session, no exceptions)
 
@@ -604,8 +610,11 @@ Time's up or something broke. Speed over completeness.
 1. Run ARTIFACT CHECK (see ARTIFACT RULE above) — compare md5, commit if changed.
 2. Update artifacts/README.md — session N, date, md5, line count, compile status, active bug.
 3. Update SESSION.md — all four fields + Pivot Log.
-4. git add -A && git commit && git push on every touched repo.
-5. Push .github last.
+4. Update TINY.md Current State — HEAD, sprint, symptom, next action, build command.
+   ⚠️ TINY.md staleness caused a full session of disorientation (session 78).
+   TINY.md must reflect actual HEAD and actual next action. No exceptions.
+5. git add -A && git commit && git push on every touched repo.
+6. Push .github last.
 ```
 
 ---

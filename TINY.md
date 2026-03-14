@@ -7,24 +7,42 @@
 
 ## Current State
 
-**Active sprint:** `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL)
+**Active sprint:** `beauty-first` — fix $expr bug → M-BEAUTY-FULL
 **Milestone target:** M-BEAUTY-FULL
-**HEAD:** `6d09bfa` — fix(emit_byrd): E_COND/E_IMM accept E_STR varname + sanitize special chars
+**HEAD:** `203b7cb` — artifact: beauty_tramp_session77.c — pat_lit fix; $expr deref bug identified
 
-**Status:** Binary compiles (gcc 0 errors), runs exit 0. Parse Error on first real
-statement — all non-comment input fails. Root cause: all named pattern functions
-(`pat_Stmt`, `pat_Label`, `pat_Command`, etc.) use `static` local variables.
-Static locals are shared across all invocations — re-entrant calls stomp saved
-cursors. Fix is Technique 1 struct-passing (see PLAN.md).
+**Completed since session 58 (do NOT re-implement):**
+- Session 59 `a3ea9ef`: Technique 1 struct-passing in emit_byrd.c — all pat_Xxx use pat_Xxx_t structs, calloc on entry==0
+- Session 63 `6467ff2`: DEFINE fn bodies scanned for named patterns — Parse/Command/Stmt/Label etc. now compiled Byrd boxes. 82→33 match_pattern_at calls.
+- Session 64 `09e5a5d`+`613b333`: E_DEREF varname checks right child first. $'lit' fix. byrd_cs() C-static sync. 33→9 match_pattern_at.
+- Sessions 65–76: quote-strip, computed goto, 3-column format (`d5b9c3c`), CNode IR M-CNODE (`ac54bd2`), pat_lit strv() fix (`0113d90`)
+- Session 77: pat_lit strv() bug fixed. Binary compiles 0 errors. 122 match_pattern_at remain (all dynamic refs — correct/expected). Parse Error active.
+- Session 78 (this session): emit_cnode.c build_expr E_DEREF fixed — checks !e->left first.
 
-Session 58 corpus changes:
-- beauty.sno: snoXXX → XXX (42 names) — beautifier bootstrap: oracle now self-referential
-- S4_expression.sno → expression.sno: same rename + Windows paths fixed, beautified
+**Current symptom:** Binary outputs 8-line comment header then `Parse Error`.
+`pat_Parse` fails on `Src`. Root cause: `$'@S'` read emits `deref(NULL_VAL)` → Push/Pop chain broken.
 
-**Next action:** Implement Technique 1 struct-passing in `emit_byrd.c`.
-Every `pat_Xxx` gets a `pat_Xxx_t` struct. All `decl_add()` locals → struct fields.
-Child `*Y` calls use `z->Y_z` pointer field. `calloc` on entry==0, reuse on entry==1.
-See SESSION.md ONE NEXT ACTION for full spec.
+**Active bug — emit.c emit_expr E_DEREF NOT YET FIXED:**
+Grammar: `DOLLAR unary_expr → binop(E_DEREF, NULL, $2)` — operand in `e->right`, left=NULL.
+`emit.c` ~line 292 still reads `e->left` → `deref(NULL_VAL)`.
+Fix: `Expr *op = e->left ? e->left : e->right; E("deref("); emit_expr(op); E(")")`
+
+**Build command (engine_stub.c — NOT engine.c — dropped at M-COMPILED-BYRD `560c56a`):**
+```bash
+cd /home/claude/SNOBOL4-tiny
+RT=src/runtime
+INC=SNOBOL4-corpus/programs/inc
+BEAUTY=SNOBOL4-corpus/programs/beauty/beauty.sno
+src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
+gcc -O0 -g /tmp/beauty_tramp.c \
+    $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
+    $RT/snobol4/snobol4_pattern.c $RT/engine_stub.c \
+    -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w \
+    -o /tmp/beauty_tramp_bin
+```
+
+**Oracle:** `test/smoke/outputs/session50/beauty_oracle.sno` (790 lines, committed).
+No csnobol4 needed unless oracle needs refresh.
 
 ---
 
