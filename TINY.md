@@ -7,18 +7,20 @@
 
 ## Current State
 
-**Active sprint:** `compiled-byrd-boxes` (2/4 toward M-BEAUTY-FULL)
-**Milestone target:** M-COMPILED-BYRD → M-BEAUTY-FULL
-**HEAD:** `cb3f97e` — feat(emit_byrd): compiled Byrd box emitter — LIT/SEQ/ALT/ARBNO/POS/RPOS/LEN/ANY/NOTANY/SPAN/BREAK/ARB/REM/FENCE/IMM/COND
+**Active sprint:** `compiled-byrd-boxes-full` (3/4 toward M-BEAUTY-FULL)
+**Milestone target:** M-BEAUTY-FULL
+**HEAD:** `35bc142` — artifact: beauty_full_session54.c (arch-only session, no code changes)
 
-**Status:** `emit_byrd.c` written and committed. NOT YET wired into `emit.c`.
+**Status:** Architecture fully documented. Implementation of `byrd_emit_named_pattern` not yet started.
 
-Sprint0-5 oracles: 15/15 pass (oracle .c files, runtime unchanged).
-sno2c builds clean. Smoke test passes.
+Session 54 decisions recorded in HQ:
+- TWO TECHNIQUES for *X: Technique 1 (C target: struct+calloc) NOW; Technique 2 (mmap+memcpy+relocate) AFTER M-BEAUTY-FULL
+- Statement execution model: per-stmt setjmp, glob-sequence optimization, non-Gimpel DEFINE
+- ALL BYRD BOXES rule: engine.c never in beauty_full_bin — engine_stub.c only
+- Sprint pivot confirmed: compiled-byrd-boxes-full (not beauty-runtime)
 
-**Next action:** Wire `byrd_emit_pattern()` into `emit_stmt()` pattern-match case
-in `src/sno2c/emit.c`, replacing `sno_match()` + `emit_pat()` with direct
-Byrd box emission. Then sprint0-22 validation → M-COMPILED-BYRD.
+**Next action:** Implement `byrd_emit_named_pattern(varname, expr, out)` in `src/sno2c/emit_byrd.c`.
+See SESSION.md for full spec. Key oracle references: `test/sprint9/ref_anbn.c`, `test/sprint10/ref_palindrome.c`.
 
 ---
 
