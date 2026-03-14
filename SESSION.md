@@ -12,66 +12,69 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `ac725e8 — artifact: beauty_tramp_session65.c — 28382 lines, 0 gcc errors, Internal Error active` |
+| **HEAD** | `f05d3c4 — fix(parse+emit_byrd): ~ operator now emits E_COND+Shift — 7 Shifts fire for START` |
 
 ---
 
-## State at handoff (session 65)
+## State at handoff (session 66)
 
 Commits this session:
-- `bc8a520` — fix(emit_byrd): E_VAR in pattern context → implicit deref, not epsilon
-- `70e5d89` — fix(emit_byrd): ~ operator emits Shift() call for tree-stack pushes
-- `ac725e8` — artifact: beauty_tramp_session65.c
+- `f05d3c4` — fix(parse+emit_byrd): ~ operator now emits E_COND+Shift — 7 Shifts fire for START
 
 **Progress this session:**
-- Confirmed Src is correctly set to `"X = 1\n"` — Hypothesis A from S64 was wrong
-- Root cause of infinite loop found: `E_VAR` in pattern context emitted epsilon → `nl` terminator in pat_Command silently skipped → ARBNO looped forever matching "X " repeatedly
-- **Fix 1:** E_VAR now emits proper deref logic (match_pattern_at for string vars, direct call for compiled named pats). match_pattern_at: 9→122. Infinite loop gone.
-- Root cause of Internal Error found: `~` (E_COND) only assigned to variable but never called `Shift()` → Reduce('Stmt',7) popped from empty value stack
-- **Fix 2:** emit_imm gains `do_shift` param; emit_cond passes 1 → 48 Shift() calls now emitted
-- **Current symptom:** `START\n` → Internal Error; `X = 1\n` → Parse Error; `* comment\n` → passes ✓
+- Traced Internal Error all the way to root: `parse_expr13` was doing `(void)r` — discarding the `~ 'tag'` right-hand side entirely. No E_COND nodes were built for Label/Stmt/Goto/Comment/Control patterns. Zero Shift() calls fired.
+- **Fix 1 (parse.c):** `l = binop(E_COND, l, r)` — binary `~` now builds E_COND node with tag as right child.
+- **Fix 2 (emit_byrd.c):** `skip_cstatic |= do_shift` — tag strings (`'Label'`, `'comment'`, `''`) never emit invalid C statics like `_comment = STR_VAL(...)`.
+- **Confirmed:** `* comment\n` → passes cleanly. `START\n` → 7 Shifts fire via `_sno_fn_Shift`, `Reduce('Stmt',7)` fires — but still "Internal Error".
+- `X = 1\n` → Parse Error (separate issue, not regressed).
 
 ---
 
-## Root cause of current failure — Internal Error on START
+## Root cause of current failure — Internal Error on START (post-fix)
 
-`START\n` parses as: label="START", epsilon*4 arm → Stmt γ at cur=5, nl matches → pat_Command γ, Reduce('Stmt',7). But Shift() calls now exist — still getting Internal Error. Possibilities:
+7 Shifts fire. `_sno_fn_Shift` is called correctly. `Reduce('Stmt',7)` fires.
+But `sno = Pop()` still returns FAIL → `DIFFER(sno)` succeeds → `mainErr2`.
 
-**Hypothesis A (most likely): Shift count mismatch — not exactly 7 pushes fire for the label-only path**
+**The stack is `push()`/`pop()` via the SNOBOL4 linked-list `$'@S'` in `stack.sno`.**
+`_sno_fn_Shift` calls `_sno_fn_Push(s)` which calls `Push` the SNOBOL4 function,
+which does `$'@S' = link($'@S', x)`. `_sno_fn_Reduce` calls `_sno_fn_Pop()`.
 
-Count `~` operators on the label-only path through Stmt:
-```
-*Label → Label = BREAK(...)~'Label'          ← 1 Shift('Label', 'START')
-| epsilon~'' epsilon~'' epsilon~'' epsilon~'' ← 4 Shifts (inner group)
-FENCE(*Goto | epsilon~'' epsilon~'')          ← 2 Shifts (goto section)
-```
-= 7 total. But *Label uses E_COND internally — does `~'Label'` fire Shift? Check if `Label = BREAK(...)~'Label'` in the *named pattern* emits Shift when called via E_DEREF.
+**Hypothesis A (most likely): `$'@S'` indirect variable not working.**
+`Push` does `$'@S' = link(...)` — this is an indirect assignment through a
+string-valued variable name `'@S'`. If `var_set`/`var_get` for indirect names
+`$'@S'` is broken, Push silently fails and `$'@S'` stays null. Pop then hits
+`DIFFER($'@S') :F(FRETURN)` and returns FRETURN.
 
-**Hypothesis B: Shift() aply() is calling the wrong function**
-`aply("Shift", args, 2)` may call the C-registered `_w_Shift` which calls snobol4_inc.c `Shift()` — that calls `push_val(tree(t,v))`. But the user-defined SNOBOL4 `Shift` function from ShiftReduce.sno is a different code path. Check which one `aply("Shift",...)` resolves to.
+**Hypothesis B: `link()` DATA type not constructed correctly.**
+`DATA('link(next,value)')` must be defined before `Push` runs.
+`_sno_fn_InitStack` exists but is never called in the trampoline execution.
+`stack.sno` has `DATA('link(next,value)') :(StackEnd)` — this runs as a
+statement when the inc file is processed. Check if the trampoline emits that
+DATA() call.
 
-**Hypothesis C: X=1 → Parse Error means pat_Stmt still failing**
-Even with E_VAR fix, `*Expr14` on "= 1\n" (after label "X") still fails → FENCE arm1 (`epsilon~'' *White '='~'=' *White *Expr`) needs to fire. But `*Expr14` must first succeed (or be optional). Re-examine whether the outer `*White *Expr14` arm is truly optional when Expr14 fails.
+**Hypothesis C: `_sno_fn_Push` args wiring.**
+`Push(x)` takes one arg. `_sno_fn_Shift` calls `aply("Push", {s}, 1)`.
+Inside `_sno_fn_Push`, `_args[0]` should be `s`. Verify arg binding.
 
 ---
 
 ## ONE NEXT ACTION
 
 ```bash
-# 1. Confirm which Shift is being called and that it pushes to the right stack:
-grep -n "_w_Shift\|register_fn.*Shift\|define.*Shift" \
-  /home/claude/SNOBOL4-tiny/src/runtime/snobol4/snobol4*.c | head -10
+# Add single targeted debug to _sno_fn_Push in generated C:
+# Find its definition and add fprintf before/after $'@S' assignment
 
-# 2. Add debug to count stack depth before/after Shift and before Reduce:
-#    In generated C, find pat_Label's ~'Label' Shift call and pat_Stmt's
-#    epsilon~'' Shift calls — add fprintf(stderr,"SHIFT fired\n") before each
-#    Then before Reduce('Stmt',7) add: fprintf(stderr,"REDUCE depth=%d\n", val_stack_depth())
+grep -n "_sno_fn_Push\b" /tmp/beauty_tramp_s67_clean.c | head -5
+# Then sed-patch one fprintf at entry of _sno_fn_Push to print arg value
+# and one after the $'@S' = link() line to print new @S value
 
-# 3. Check if val_stack_depth() exists or needs to be added to snobol4.h
-
-# 4. For X=1 Parse Error: add debug inside pat_Stmt to trace which FENCE arm fires
-#    and whether epsilon~'' is being reached after Expr14 fails
+# Also check if DATA('link(next,value)') is emitted in the trampoline:
+grep -n "link\|data_define\|DATA.*link" /tmp/beauty_tramp_s67_clean.c | head -10
 ```
+
+**Expected:** If `DATA('link(...)')` is missing, `link()` constructor returns
+FAIL, `$'@S' = FAIL` silently no-ops, stack stays null. Fix: ensure the
+`DATA('link(next,value)')` statement from stack.sno is emitted in the trampoline.
 
 ---
 
@@ -80,11 +83,10 @@ grep -n "_w_Shift\|register_fn.*Shift\|define.*Shift" \
 ```bash
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
-N=66   # increment from last session
-mkdir -p artifacts/trampoline_session$N
-./src/sno2c/sno2c -trampoline -I$INC $BEAUTY > artifacts/trampoline_session$N/beauty_tramp_session$N.c
-md5sum artifacts/trampoline_session$N/beauty_tramp_session$N.c
-wc -l  artifacts/trampoline_session$N/beauty_tramp_session$N.c
+N=68   # increment from last session
+src/sno2c/sno2c -trampoline -I$INC $BEAUTY > artifacts/beauty_tramp_session$N.c
+md5sum artifacts/beauty_tramp_session$N.c
+wc -l  artifacts/beauty_tramp_session$N.c
 ```
 
 ---
@@ -94,16 +96,17 @@ wc -l  artifacts/trampoline_session$N/beauty_tramp_session$N.c
 ```bash
 apt-get install -y m4 libgc-dev
 TOKEN=TOKEN_SEE_LON
-git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-tiny
-git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-corpus
-git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/.github
-cd SNOBOL4-tiny && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/claude/SNOBOL4-tiny
+git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-corpus /home/claude/SNOBOL4-corpus
+git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/.github /home/claude/snobol4-github
+cd /home/claude/SNOBOL4-tiny
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 cd src/sno2c && make
 ```
 
 ---
 
-## Build command (session 65 baseline)
+## Build command (session 66 baseline)
 
 ```bash
 INC=/home/claude/SNOBOL4-corpus/programs/inc
@@ -117,6 +120,8 @@ gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
     $RT/snobol4/snobol4_pattern.c $RT/engine.c \
     -lgc -lm -w -o /tmp/beauty_tramp_bin
 printf 'START\n' | /tmp/beauty_tramp_bin
+printf '* comment\n' | /tmp/beauty_tramp_bin
+printf 'X = 1\n' | /tmp/beauty_tramp_bin
 ```
 
 ---
@@ -124,7 +129,7 @@ printf 'START\n' | /tmp/beauty_tramp_bin
 ## CRITICAL Rules (no exceptions)
 
 - **NEVER write the token into any file**
-- **NEVER link engine.c in beauty_full_bin** — engine_stub.c only (beauty_tramp_bin still uses engine.c for dynamic fallbacks — that's ok for now)
+- **NEVER link engine.c in beauty_full_bin** — engine_stub.c only (beauty_tramp_bin still uses engine.c — ok for now)
 - Read PLAN.md fully before coding
 
 ---
@@ -148,4 +153,5 @@ printf 'START\n' | /tmp/beauty_tramp_bin
 | 2026-03-14 | Compile named pats from fn bodies `6467ff2` | 196 compiled pats |
 | 2026-03-14 | E_DEREF + sideeffect + C-static `09e5a5d` `5e90712` | 33→9 match_pattern_at |
 | 2026-03-15 | E_VAR implicit deref `bc8a520` | infinite ARBNO loop eliminated |
-| 2026-03-15 | ~ emits Shift() `70e5d89` | 48 Shift calls; Internal Error persists |
+| 2026-03-15 | ~ emits Shift() `70e5d89` | 48 Shift calls wired; Internal Error persisted |
+| 2026-03-15 | parse_expr13 E_COND fix `f05d3c4` | 7 Shifts now fire for START; * comment passes |
