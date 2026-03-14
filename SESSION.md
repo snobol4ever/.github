@@ -12,7 +12,7 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-runtime` (sprint 3/4 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `8c6d166` — fix(emit_byrd): emit_charset_cexpr — runtime charset for BREAK/SPAN/ANY/NOTANY |
+| **HEAD** | `3ea9815` — refactor: strip sno_/SNO_ prefix — P4-style collision renames throughout |
 
 ---
 
@@ -20,74 +20,73 @@
 
 Binary compiles clean, exits 0. Output is 10 lines: header comments + "Parse Error" + "START".
 
-### What was done this session (committed at `8c6d166`):
+### What was done this session (committed at `3ea9815`):
 
-**emit_charset_cexpr added to emit_byrd.c** — BREAK/SPAN/ANY/NOTANY were emitting
-empty charset `""` for E_VAR, E_KEYWORD, E_CONCAT args. Fixed with runtime
-`sno_to_str(sno_var_get(...))` and `sno_concat_sv(...)` expressions.
-E_KEYWORD and E_DEREF cases also added. snoc_runtime.h macro collision
-handled via `sno_concat_sv` with `SNO_STR_VAL` wrappers.
+**Complete prefix eradication** — `sno_` and `SNO_` stripped from all ~10,000 occurrences
+across 40 files. P4/P5 misspelling technique used for collisions:
 
-**T_FUNC wiring confirmed working** — `deferred_call_fn` fires for nPush/reduce/nPop.
-Engine dispatch is correct. Struct layout is correct.
+| Old | New | Reason |
+|-----|-----|--------|
+| `sno_int` | `vint` | C keyword |
+| `sno_div` | `dyvide` | stdlib `div()` |
+| `sno_pow` | `powr` | math.h `pow()` |
+| `sno_exit` | `xit` | stdlib `exit()` |
+| `sno_abort` | `abrt` | stdlib `abort()` |
+| `sno_dup` | `dupl` | unistd.h `dup()` |
+| `str` | `strv` | str* family / future |
+| `match` | `mtch` | POSIX regmatch_t / future |
+| `apply` | `aply` | C++ compat headers |
+| `eval` | `evl` | future math/scripting |
+| `concat` | `ccat` | future C string lib |
+| `index` | `indx` | POSIX index() |
+| `replace` | `replc` | future C string lib |
+| `init` | `ini` | any lib's init |
+| `enter` | `entr` | curses.h |
+| `register` | `registr` | deprecated C keyword |
 
-### Root cause of Parse Error — traced precisely:
+File renames: `snoc_runtime.h → runtime_shim.h`, `snoc.h → sno2c.h`.
+`snoc → sno2c` throughout. Binary output unchanged.
+
+### Root cause of Parse Error — traced precisely (carried from prior session):
 
 The main loop matches: `POS(0) *snoParse *snoSpace RPOS(0)` on each input line.
 
 On `"START\n"` (first line, 6 chars):
 1. `POS(0)` — passes (cursor=0)
-2. `*snoParse` — `sno_match_pattern_at` called, engine returns `matched=1 end=0` (zero-width, ARBNO matched zero commands)
+2. `*snoParse` — `mtch_pattern_at` called, engine returns `matched=1 end=0` (zero-width, ARBNO matched zero commands)
 3. Cursor stays at 0
 4. `*snoSpace` — epsilon branch, cursor stays 0
 5. `RPOS(0)` — `cursor(0) != slen(6)` → **FAILS** → Parse Error
 
-`snoParse` matches zero commands because `snoCommand = nInc() FENCE(snoComment | snoControl | snoStmt)` fails on `"START\n"`. Specifically:
+**Key debug finding:** ENGINE_ENTRY slen=6 fires, returns matched=1 end=0 — but
+**T_BREAK trace never fires**. The engine exits SUCCEED before reaching the BREAK node.
+This means the ARBNO in `*snoParse` takes the zero-iteration epsilon branch without
+even attempting snoCommand.
 
-- `snoStmt = *snoLabel ...` calls `sno_match_pattern_at(snoLabel, "START\n", 6, 0)`
-- `snoLabel = BREAK(' ' tab nl ';') ~ 'snoLabel'` — runs through **interpreter path** (sno_pat_break), not compiled Byrd boxes
-- `sno_match_pattern_at` → `try_match_at` → `engine_match_ex` returns `matched=1 end=0`
-- BREAK on `"START\n"` at position 0 should scan S,T,A,R,T and stop at `\n` → end=5
-- Instead it returns end=0 — **zero-width BREAK match**
-
-**Hypothesis**: The charset for `snoLabel`'s BREAK is being built as empty string at runtime.
-`snoLabel = BREAK(' ' tab nl ';')` — `tab` and `nl` are variables. At the time `snoLabel`
-is materialized, `tab` = `"\t"` and `nl` = `"\n"` (set in sno_inc_init). The charset should
-be `" \t\n;"`. If `sno_to_str(sno_concat_sv(...))` returns `""` or `" ;"` (missing tab/nl),
-BREAK would match zero chars on `'S'` because `'S'` is not in `" ;"` — but it's also not
-a break char, so BREAK should scan forward. Wait — BREAK stops BEFORE a charset char.
-If charset is `" ;"` only, `'S','T','A','R','T'` are all not in charset, `'\n'` is also
-not in charset → BREAK scans to end of string and **fails** (never finds a break char).
-End of string = slen, BREAK fails → returns -1 via `sno_match_pattern_at` returning -1.
-
-Actually re-reading `scan_BREAK`:
+**snoLabel's BREAK charset** (line ~16190 of generated C):
 ```c
-while (z->delta < z->OMEGA) {
-    for (const char *c = z->PI->chars; *c; c++)
-        if (*z->sigma == *c) return true;  // found break char
-    z->sigma++; z->delta++;
-}
-return false;  // never found break char → BREAK fails
+SnoVal _v2173 = pat_cat(
+    pat_break(to_strv(ccat_sv(ccat_sv(ccat_sv(strv(" "),get(_tab)),get(_nl)),strv(";")))),
+    pat_lit("snoLabel")
+);
 ```
-If charset is `" ;"` (no `\n`), BREAK scans all 6 chars of "START\n" without finding
-a char in `" ;"`, returns false → BREAK fails → engine reports `matched=0`. But
-`try_match_at` showed `matched=1 end=0`. Contradiction.
+The charset `to_strv(ccat_sv(...))` is evaluated at module init time via `get(_tab)`
+and `get(_nl)`. If those vars aren't set yet when snoLabel is initialized, charset
+may be incomplete.
 
-**Revised hypothesis**: BREAK is NOT failing — it's matching zero chars (end=0).
-That means at position 0, `'S'` IS immediately in the charset — so BREAK stops
-immediately at 0 chars. This would happen if charset contains `'S'`... which it
-wouldn't. OR: the match is epsilon-branching before BREAK. OR the engine sees BREAK
-as a zero-width match for another reason.
+**But the deeper issue:** ARBNO takes epsilon on "START\n" meaning snoCommand itself
+fails before BREAK is ever reached. The engine exits SUCCEED=1 with end=0 from the
+ARBNO epsilon path.
 
 ---
 
-## ONE NEXT ACTION — trace BREAK inside engine on snoLabel
+## ONE NEXT ACTION — confirm ARBNO epsilon, then trace snoCommand failure
 
 ```bash
 cd /home/claude/SNOBOL4-tiny
 apt-get install -y m4 libgc-dev
-git config --global user.name "LCherryholmes"
-git config --global user.email "lcherryh@yahoo.com"
+git config user.name "LCherryholmes"
+git config user.email "lcherryh@yahoo.com"
 TOKEN=TOKEN_SEE_LON
 git clone https://$TOKEN@github.com/SNOBOL4-plus/SNOBOL4-tiny.git
 git clone https://$TOKEN@github.com/SNOBOL4-plus/SNOBOL4-corpus.git
@@ -109,32 +108,20 @@ gcc -O0 -g -I $R/snobol4 -I $R \
     /tmp/beauty_full.c $R/snobol4/snobol4.c \
     $R/snobol4/snobol4_inc.c $R/snobol4/snobol4_pattern.c \
     $R/engine.c -lgc -lm -o /tmp/beauty_full_bin
-
-SNO_PAT_DEBUG=1 timeout 5 /tmp/beauty_full_bin \
-    < $BEAUTY > /dev/null 2>/tmp/pat_debug.txt
-grep "engine_match_ex\|ENGINE_ENTRY\|BREAK\|T_BREAK\|try_match" /tmp/pat_debug.txt | head -40
 ```
 
-The engine.c T_BREAK dispatch (`case T_BREAK<<2|PROCEED`) adds debug at slen<=8.
-Check if slen=6 ENGINE_ENTRY appears AND what T_BREAK does. Add explicit trace:
-
+Add to engine.c `T_ARBNO<<2|PROCEED` case:
 ```c
-// In engine.c, case T_BREAK<<2|PROCEED — add after the existing debug block:
-case T_BREAK<<2|PROCEED:
-    fprintf(stderr, "T_BREAK: delta=%d OMEGA=%d chars='%s'\n",
-            Z.delta, Z.OMEGA, Z.PI->chars ? Z.PI->chars : "(null)");
-    if (scan_BREAK(&Z)) { ...
+fprintf(stderr, "ARBNO: ctx=%d delta=%d OMEGA=%d yielded=%d\n",
+        Z.ctx, Z.delta, Z.OMEGA, Z.yielded);
 ```
 
-**If chars is "(null)" or ""** → snoLabel's BREAK pattern node has empty/null charset
-→ `sno_pat_break()` in snobol4_pattern.c is not setting `chars` correctly when the
-charset value involves variable concat at materialise time.
+Run: `PAT_DEBUG=1 timeout 5 /tmp/beauty_full_bin < $BEAUTY > /dev/null 2>/tmp/dbg.txt`
+Look for ARBNO lines where OMEGA=6 (slen of "START\n").
 
-**If chars is correct** → look at why scan_BREAK returns false/true with that charset
-on subject `"START\n"`.
-
-The fix will be in `snobol4_pattern.c` `materialise()` case `SPAT_BREAK` — it calls
-`sno_to_str()` on the charset SnoVal. Verify the SnoVal being passed is correct.
+If ARBNO ctx=0 epsilon → snoCommand is failing on "START\n".
+Then trace: which of `snoComment | snoControl | snoStmt` fails and why.
+snoStmt = `*snoLabel ...` — is the inner ARBNO also epsilon-branching?
 
 ---
 
@@ -151,8 +138,8 @@ The fix will be in `snobol4_pattern.c` `materialise()` case `SPAT_BREAK` — it 
 ## Container State (clone fresh each session)
 
     apt-get install -y m4 libgc-dev
-    git config --global user.name "LCherryholmes"
-    git config --global user.email "lcherryh@yahoo.com"
+    git config user.name "LCherryholmes"
+    git config user.email "lcherryh@yahoo.com"
     TOKEN=TOKEN_SEE_LON
     git clone https://$TOKEN@github.com/SNOBOL4-plus/SNOBOL4-tiny.git
     git clone https://$TOKEN@github.com/SNOBOL4-plus/SNOBOL4-corpus.git
@@ -175,7 +162,7 @@ The fix will be in `snobol4_pattern.c` `materialise()` case `SPAT_BREAK` — it 
 | 2026-03-14 | M-PYTHON-UNIFIED retired → M-BYRD-SPEC (HQ 0959202) | Python was scaffold, not destination |
 | 2026-03-14 | JCON lessons recorded in MISC.md (HQ a120be6) | bounded flag, temp liveness, jvm guidance |
 | 2026-03-15 | fn_seen[] + byrd_fn_scope_reset() — cross-pattern decl dedup | static redecl errors in Gen/Qize |
-| 2026-03-15 | E_DEREF implemented with sno_match_pattern_at() | beauty uses *varname ~100x |
+| 2026-03-15 | E_DEREF implemented with mtch_pattern_at() | beauty uses *varname ~100x |
 | 2026-03-14 | binary links and exits 0 (91d097c) | 3 gcc bugs fixed |
 | 2026-03-15 | M-COMPILED-BYRD fired (560c56a) | engine_stub.c + ALL OK |
 | 2026-03-15 | uid continuity fix (735c456) | duplicate labels across multiple patterns |
@@ -184,3 +171,4 @@ The fix will be in `snobol4_pattern.c` `materialise()` case `SPAT_BREAK` — it 
 | 2026-03-13 | emit_byrd.c written committed (cb3f97e) | C port of Python pipeline complete |
 | 2026-03-16 | parse_lbin T_STAR fix + E_DEREF varname + E_REDUCE + SPAT_USER_CALL→T_FUNC (2379052) | *snoParse was E_MUL; USER_CALL fired at materialise not match time |
 | 2026-03-16 | emit_charset_cexpr — BREAK/SPAN/ANY/NOTANY runtime charset (8c6d166) | E_VAR/E_KEYWORD/E_CONCAT args produced empty cs="" |
+| 2026-03-16 | Strip sno_/SNO_ prefix, P4-style collision renames, snoc→sno2c (3ea9815) | readability — prefixes too long |
