@@ -5065,3 +5065,56 @@ Effect: `$'@S'` reads as NULL → Push/Pop chain broken → pat_Parse fails → 
 - References: ini.sno (corpus), assignment3.py (ENG 685, Lon Cherryholmes)
 
 **Session 79 opens with:** Fix emit.c emit_expr E_DEREF ~line 292. One line. Then diff.
+
+---
+
+## Session 85 — 2026-03-14
+
+**Repo:** SNOBOL4-tiny  
+**Sprint:** `beauty-first`  
+**HEAD start:** `eec84e7` | **HEAD end:** `8676bd9`
+
+### What happened
+
+**Agreement breach resolved.** Session 84 broke the beauty_core/beauty_full
+agreement by switching to real includes mid-session. Session 85 confirmed
+`inc_stubs/` intact (19 stubs), beauty_core_bin builds clean.
+
+**M-BEAUTY-CORE / M-BEAUTY-FULL split written into HQ.**
+PLAN.md, TINY.md, SESSION.md updated. Two-phase agreement is now a hard
+architectural rule, not just a session note.
+
+**Session 84 rename audit — full accounting.**
+40+ renames verified clean. One bug found: `ARRAY_VAL` macro used `.a`
+instead of `.arr` after `.a → .arr` union rename. Dormant but fixed.
+Full audit written to PLAN.md.
+
+**P4 misspelling technique fully undone.**
+ALLCAPS_fn suffix is its own namespace — misspellings no longer needed.
+18 names restored: APPLY_fn, CONCAT_fn, STRCONCAT_fn, REPLACE_fn, EVAL_fn,
+DIVIDE_fn, POWER_fn, ENTER_fn, EXIT_fn, ABORT_fn, INDEX_fn, MATCH_fn,
+STRVAL_fn, INTVAL_fn, INIT_fn, STRDUP_fn. Build clean throughout.
+
+Also fixed: SNOBOL4 registration strings that had picked up `_fn` suffix
+from Session 84 rename (`"SIZE"`, `"DUPL"`, `"TRIM"`, `"SUBSTR"`, `"DATA"`,
+`"FAIL"`, `"DEFINE"`).
+
+**Debug trace work.** Stripped bare traces, added single `FIELD_GET_fn` trace.
+Result: trace never fires on simple input — stmt_205 unreachable because
+`Parse Error` fires first. Parse Error is the real blocker.
+
+**Parse Error on `-INCLUDE` lines identified as the active bug.**
+`pat_Control` compiled correctly but Parse Error fires before tree walk.
+Hypothesis: FENCE in `Command`, or leading-space issue. Not yet fixed.
+
+### Commits
+- `9f20b71` — fix(runtime): ARRAY_VAL .a → .arr; strip debug traces; FIELD_GET_fn trace
+- `8676bd9` — refactor: restore proper English names — undo P4 misspelling technique
+
+### HQ commits
+- `c1d16a5` — arch: split M-BEAUTY-FULL into M-BEAUTY-CORE + M-BEAUTY-FULL
+- `a315340` — audit: Session 85 full rename verification — ARRAY_VAL bug found+fixed
+
+### Active bug for Session 86
+Parse Error on `-INCLUDE 'global.sno'` — first non-comment line of beauty.sno.
+`pat_Control` should match but may not be reached. See SESSION.md for diagnosis plan.

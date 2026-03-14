@@ -10,39 +10,50 @@
 | Field | Value |
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
-| **Sprint** | `beauty-first` — fix runtime bugs → M-BEAUTY-FULL |
+| **Sprint** | `beauty-first` — fix Parse Error on `-INCLUDE` → M-BEAUTY-CORE |
 | **Milestone** | M-BEAUTY-CORE (stubs first) → M-BEAUTY-FULL (real inc, second) |
-| **HEAD** | `eec84e7` — EMERGENCY WIP: SIL naming rename + beauty_core stub build clean |
+| **HEAD** | `8676bd9` — refactor: restore proper English names — undo P4 misspelling technique |
 
 ---
 
-## ⚡ SESSION 85 FIRST PRIORITY
+## ⚡ SESSION 86 FIRST ACTION
 
-### The agreement — beauty_core FIRST, beauty_full SECOND
+### Active bug: Parse Error on `-INCLUDE` lines
 
-beauty_core = beauty.sno compiled with `-I src/runtime/inc_stubs` (19 comment-only stub .sno files).
-The stubs mean zero SNOBOL4 inc code is compiled in. `snobol4_inc.c` provides C implementations.
-beauty_full = beauty.sno compiled with `-I SNOBOL4-corpus/programs/inc` (real inc files).
+beauty_core_bin outputs comment header lines correctly, then hits `Parse Error`
+at the first `-INCLUDE 'global.sno'` line.
 
-**Do NOT switch to beauty_full until beauty_core works end-to-end.**
+`Command` pattern tries: `*Comment` → `*Control` → `*Stmt`  
+`Control = '-' BREAK(nl ';')` — should match `-INCLUDE 'global.sno'`  
+`pat_Control` is compiled correctly in generated C.
 
-### The one bug to fix:
-`aply("c", {x}, 1)` on a tree node returns `DT_S` (string) not `DT_A` (array).
+**Root cause suspected:** `pat_Control` calls `BREAK` with charset built dynamically:
+```c
+CONCAT_fn(STRVAL(VARVAL_fn(NV_GET_fn("nl"))), STRVAL(";"))
+```
+`nl` is pre-initialized in `SNO_INIT_fn` — but `VARVAL_fn(NV_GET_fn("nl"))` returns
+the string value of `nl`, which is `\n` (char 10). The BREAK charset is `"\n;"`.
 
-**Debug traces are still live in snobol4.c and snobol4_pattern.c — remove them first.**
+**The real question:** is `pat_Control` even being reached and tried, or is the
+FENCE in `Command` failing before it gets there? The `-INCLUDE` line starts at
+column 0 (no leading space). `pat_Comment` tries `*` — fails. `pat_Control` tries
+`-` — should succeed. But does `pat_Stmt` upstream require a leading space?
 
-Root cause: still undiagnosed despite multiple sessions.
-`MAKE_TREE_fn` fires correctly — tree nodes ARE being built.
-`APLY_fn("c", ...)` fires — `_b_tree_c` fn pointer is non-NULL.
-But the return value has `.v == DT_S` instead of `.v == DT_A`.
+**Session 86 first action:**
+1. Add a single `fprintf(stderr, "trying Control on: %.20s\n", _subj_np + _cur_np)`
+   at `_Control_α:` in snobol4_pattern.c — NO, wrong place. Add it in the
+   generated code by patching `pat_Control` directly in `/tmp/beauty_core.c`
+   (don't touch source — just test the hypothesis fast).
+2. Run: `printf " -INCLUDE 'x'\n" | /tmp/beauty_core_bin`
+   Note the LEADING SPACE — test input always needs leading space.
+3. If Control matches with leading space but not without → the issue is that
+   `-INCLUDE` lines have no leading space in beauty.sno input, but the subject
+   line fed to the pattern has the newline stripped and cursor starts at 0.
+4. Check `mainErr1` in beauty.sno — what triggers it? Line 796 in beauty.sno.
 
-**Session 85 first action:**
-1. Strip debug traces from `_b_tree_c` and `MAKE_TREE_fn`
-2. Add ONE trace inside `FIELD_GET_fn` to print `obj.v` and the returned field's `.v`
-3. Build beauty_core_bin and run `printf " OUTPUT = 'hello'\n" | /tmp/beauty_core_bin`
-4. Read the trace — is `obj.v == DT_DATA`? Is `fields[3].v == DT_A`?
-5. If fields[3].v is already DT_S at storage time → bug is in `DATCON_fn` / `udef_new`
-6. If fields[3].v is DT_A but return is DT_S → bug is in `FIELD_GET_fn`
+**Oracle:** `test/smoke/outputs/session50/beauty_oracle.sno`
+Oracle shows `-INCLUDE` lines ARE output — so csnobol4 handles them fine.
+The first line after comments in oracle is `START` then `-INCLUDE` lines.
 
 ---
 
@@ -58,88 +69,84 @@ RT=src/runtime
 STUBS=src/runtime/inc_stubs
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-# beauty_core (stubs — USE THIS)
+# beauty_core (stubs — USE THIS, DO NOT switch to beauty_full)
 src/sno2c/sno2c -trampoline -I$STUBS $BEAUTY > /tmp/beauty_core.c
 gcc -O0 -g /tmp/beauty_core.c \
     $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
     $RT/snobol4/snobol4_pattern.c $RT/engine_stub.c \
     -I$RT/snobol4 -I$RT -Isrc/sno2c \
     -lgc -lm -w -o /tmp/beauty_core_bin
-
-# beauty_full (real includes — DO NOT USE until beauty_core works)
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
-gcc -O0 -g /tmp/beauty_tramp.c \
-    $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
-    $RT/snobol4/snobol4_pattern.c $RT/engine_stub.c \
-    -I$RT/snobol4 -I$RT -Isrc/sno2c \
-    -lgc -lm -w -o /tmp/beauty_tramp_bin
 ```
 
-⚠️ engine_stub.c — NOT engine.c
-⚠️ Test input MUST have leading space: `printf " OUTPUT = 'hello'\n"` not `echo`
-⚠️ Use beauty_core_bin (stubs) until _c field bug is fixed
+⚠️ engine_stub.c — NOT engine.c  
+⚠️ Test input MUST have leading space: `printf " stmt\n"` not `echo "stmt"`  
+⚠️ beauty_core (stubs) FIRST — beauty_full (real inc) only after M-BEAUTY-CORE fires  
 
 Oracle: `test/smoke/outputs/session50/beauty_oracle.sno`
 
 ---
 
-## What was done this session (Session 84)
+## What was done this session (Session 85)
 
-### Massive SIL naming rename — mechanical, zero semantic change
+### Agreement breach resolved
+Session 84 broke the beauty_core/beauty_full agreement. Session 85 confirmed
+`inc_stubs/` is intact (19 stubs), both binaries build clean.
 
-| Old | New | Notes |
-|-----|-----|-------|
-| `SnoVal` | `DESCR_t` | SIL descriptor |
-| `SnoType` enum | `DTYPE_t` enum | SIL type field |
-| enum values `SSTR`, `SINT` etc | `DT_S`, `DT_I` etc | DT_ prefix avoids C collisions |
-| `SNULL` | `DT_SNUL` | |
-| `SFAIL` | `DT_FAIL` | |
-| `UDEF` | `DT_DATA` | user DATA types start at 100 |
-| `.type` field | `.v` field | SIL v-field |
-| `SPAT_LIT` | `XCHR` | SIL X-codes throughout |
-| `SPAT_ARBNO` | `XARBN` | |
-| `SPAT_ASSIGN_COND` | `XNME` | |
-| all functions | `FUNC_fn` suffix | e.g. `APLY_fn`, `PUSH_fn`, `NV_GET_fn` |
-| all typedefs | `TYPE_t` suffix | e.g. `DESCR_t`, `PATND_t`, `ARBLK_t` |
-| `E_MUL` | `E_MPY` | SIL MPY proc |
-| `E_ALT` | `E_OR` | SIL OR proc |
-| `E_COND` | `E_NAM` | SIL NAM proc |
-| `E_IMM` | `E_DOL` | SIL DOL proc |
-| `E_CALL` | `E_FNC` | |
+### Rename audit — Session 84 SIL rename verified
+Full word-for-word audit of 40+ renames. All clean. One bug found and fixed:
+`ARRAY_VAL` macro used `.a` instead of `.arr` — dormant (never called), fixed.
+Full audit written to HQ PLAN.md.
 
-### Build fixes applied
-- `cs_alloc`: emit `block%s` not `block_%s` — avoids double-underscore on labels starting with `_`
-- `parse.c`: `$'literal'` goto → `$COMPUTED:'literal'` — computed goto path
-- `trampoline.h`: `sno_computed_goto` + `_BlockEntry_t` + `_block_label_table`
-- `emit.c`: emit `_block_label_table[]` at file scope before `main()`
-- `emit.c`: emit forward decls + stubs for undefined goto target labels (e.g. `err`)
-- `emit.c`: `tramp_collect_labels` skips function-body labels
-- `snobol4_pattern.c`: removed `TREE_VAL`/`.t` member, use `FIELD_GET_fn` through `DATINST_t`
-- `src/runtime/inc_stubs/`: 19 comment-only stub `.sno` files for beauty_core build
+### M-BEAUTY-CORE / M-BEAUTY-FULL split written into HQ
+PLAN.md, TINY.md, SESSION.md all updated. The two-phase agreement is now
+a hard architectural rule in HQ, not just a session note.
 
-### Current state
-- beauty_core_bin: **builds clean, 0 errors** ✓
-- beauty_full_bin: **builds clean, 0 errors** ✓  
-- Both output `OUTPUT` for input ` OUTPUT = 'hello'` — truncated (active bug)
-- Debug traces still live in snobol4.c/_b_tree_c and snobol4_pattern.c/MAKE_TREE_fn
+### P4 misspelling technique fully undone
+ALLCAPS_fn suffix provides its own namespace — misspellings no longer needed.
+18 names restored to proper English:
+
+| Old | New |
+|-----|-----|
+| APLY_fn | APPLY_fn |
+| CONC_fn | CONCAT_fn |
+| ccat (char*) | STRCONCAT_fn |
+| RPLACE_fn | REPLACE_fn |
+| evl | EVAL_fn |
+| divyde | DIVIDE_fn |
+| powr | POWER_fn |
+| entr | ENTER_fn |
+| xit | EXIT_fn |
+| abrt | ABORT_fn |
+| indx | INDEX_fn |
+| replc | REPLACE_fn |
+| mtch | MATCH_fn |
+| strv | STRVAL_fn |
+| vint | INTVAL_fn |
+| ccat | CONCAT_fn |
+| dupl (char*) | STRDUP_fn |
+| ini | INIT_fn |
+
+Also fixed: SNOBOL4 registration strings that had picked up `_fn` suffix
+from Session 84 rename: `"SIZE"`, `"DUPL"`, `"TRIM"`, `"SUBSTR"`, `"DATA"`,
+`"FAIL"`, `"DEFINE"`.
+
+### Debug traces
+Stripped bare debug traces from `_b_tree_c`, `APLY_fn(c)`, `MAKE_TREE_fn`.
+Single trace added in `FIELD_GET_fn` — result: trace never fires on simple
+input, meaning stmt_205 (which calls `APPLY_fn("c",...)`) is never reached.
+Parse Error fires before the tree walk. Fix Parse Error first.
 
 ---
 
-## Active bug: `aply("c", {x}, 1)` returns DT_S not DT_A
-
-**Symptom:** pp_Stmt outputs only the label. `_c` set in pp_Stmt has `.v == DT_S`.
-`indx(get(_c), {vint(2)}, 1)` returns DT_FAIL → ppSubj/ppPatrn/ppRepl never set.
+## Active bug: Parse Error on `-INCLUDE` lines (see SESSION 86 FIRST ACTION above)
 
 **What is known:**
-- `MAKE_TREE_fn` fires with `children.v=4` (= `DT_A` — ARRAY) ✓ tree IS built with array
-- `APLY_fn("c", ...)` fires — fn pointer is valid (not NULL)
-- `_b_tree_c` calls `FIELD_GET_fn(a[0], "c")`
-- `FIELD_GET_fn` returns `obj.u->fields[3]` raw — no coercion
-- `data_define("tree(t,v,n,c)")` in `runtime_init` is called THEN `register_fn("c", _b_tree_c)` overrides
-
-**The mystery:** fields[3] should be the array stored by MAKE_TREE_fn — but returned value is DT_S.
-Next step: trace FIELD_GET_fn to print `obj.v`, `fields[3].v` directly.
+- `pat_Control` is compiled correctly: matches `-` then `BREAK(nl ';')`
+- `pat_Control` IS in the generated code at line ~8960
+- Simple ` OUTPUT = 'hello'` input works fine (output: `OUTPUT`)
+- `-INCLUDE 'global.sno'` triggers Parse Error
+- Oracle shows `-INCLUDE` lines should pass through as-is
+- The FIELD_GET_fn / _c field bug is SECONDARY — unreachable until parsing works
 
 ---
 
@@ -163,3 +170,4 @@ Next step: trace FIELD_GET_fn to print `obj.v`, `fields[3].v` directly.
 | 2026-03-14 | Session 84 SIL rename | DESCR_t/DTYPE_t/XKIND_t/_fn/_t throughout |
 | 2026-03-14 | Session 84 build fixes | cs_alloc, computed goto, label table, inc_stubs |
 | 2026-03-14 | Session 84 HALT | broke beauty_core/beauty_full agreement — reverted to stubs |
+| 2026-03-14 | Session 85 cleanup | agreement breach resolved, rename audit, P4 undo, M-BEAUTY-CORE split |

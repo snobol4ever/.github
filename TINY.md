@@ -7,9 +7,9 @@
 
 ## Current State
 
-**Active sprint:** `beauty-first` — fix `_c` field DT_S bug → M-BEAUTY-CORE → M-BEAUTY-FULL
+**Active sprint:** `beauty-first` — fix Parse Error on `-INCLUDE` → M-BEAUTY-CORE → M-BEAUTY-FULL
 **Milestone target:** M-BEAUTY-CORE (stubs first), then M-BEAUTY-FULL (real inc)
-**HEAD:** `b20329f` — fix(emit_cnode): build_expr E_DEREF — use e->right for $expr
+**HEAD:** `8676bd9` — refactor: restore proper English names — undo P4 misspelling technique
 
 **Completed since session 58 (do NOT re-implement):**
 - Session 59 `a3ea9ef`: Technique 1 struct-passing in emit_byrd.c — all pat_Xxx use pat_Xxx_t structs, calloc on entry==0
