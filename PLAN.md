@@ -457,8 +457,9 @@ glob-sequence are optimizations and diagnostics improvements.
 | **M-COMPILED-BYRD** | `sno2c` emits labeled goto Byrd boxes — `engine.c` not linked | TINY | ✅ Done `560c56a` |
 | **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ✅ Done `ac54bd2` |
 | **M-BYRD-SPEC** | Language-agnostic written spec of four-port Byrd box lowering rules — all backends (C, JVM, MSIL) implement independently against it | HQ | ❌ |
+| **M-SNO2C-SNO** | `sno2c.sno` compiled by C `sno2c` produces working binary — beauty.sno diff empty | TINY | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | TINY | ❌ |
-| **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | TINY | ❌ Future |
+| **M-BOOTSTRAP** | `sno2c.sno` compiled by `sno2c_stage1` matches `sno2c_stage2` output — self-hosting | TINY | ❌ |
 | **M-JVM-EVAL** | JVM inline EVAL! complete (sprint `jvm-inline-eval`) | JVM | ❌ |
 | **M-NET-DELEGATES** | .NET `Instruction[]` eliminated (sprint `net-delegates`) | DOTNET | ❌ |
 
@@ -985,9 +986,37 @@ typedef struct {
 | `beauty-full-diff` | beauty.sno self-beautifies through compiled binary | M-BEAUTY-FULL |
 | `code-eval` | `CODE()` + `EVAL()` via TCC in-process compile, `-ltcc` | M-CODE-EVAL |
 | `compiled-self-diff` | Compiled binary self-beautifies | M-COMPILED-SELF |
-| `bootstrap` | `sno2c` compiles itself | M-BOOTSTRAP |
+| `sno2c-sno-lex` | Write `sno2c.sno` lexer — tokenizes SNOBOL4 source, validate against `lex.c` output on all corpus files | — |
+| `sno2c-sno-parse` | Write `sno2c.sno` parser — builds same Expr/Stmt AST, validate against `parse.c` output | — |
+| `sno2c-sno-emit` | Write `sno2c.sno` emitter — walks AST, produces same C output as `emit.c`+`emit_byrd.c`+`emit_cnode.c` | — |
+| `sno2c-sno-compiles` | `sno2c.sno` compiled by C `sno2c` produces working binary — runs on `beauty.sno`, diff empty vs oracle | M-SNO2C-SNO |
+| `bootstrap-stage1` | Compile `sno2c.sno` using C `sno2c` → `sno2c_stage1` binary | — |
+| `bootstrap-stage2` | Compile `sno2c.sno` using `sno2c_stage1` → `sno2c_stage2` binary | — |
+| `bootstrap-verify` | Compare `sno2c_stage1` vs `sno2c_stage2` output on `beauty.sno` — if identical: **M-BOOTSTRAP fires** | **M-BOOTSTRAP** |
 
 ---
+
+## Bootstrap Architecture — M-BOOTSTRAP (decided session 78)
+
+**Strategy:** Classic two-stage bootstrap. `sno2c` front-end rewritten in SNOBOL4.
+C runtime stays in C permanently — correct and expected (GCC's runtime is also C).
+
+**Stage 0 — already exists:** C `sno2c` compiles SNOBOL4 → C. This is the bootstrap compiler.
+
+**Stage 1:** Compile `sno2c.sno` using C `sno2c` → `sno2c_stage1` binary.
+
+**Stage 2:** Compile `sno2c.sno` using `sno2c_stage1` → `sno2c_stage2` binary.
+
+**Verification:** Compare C output of `sno2c_stage1` vs `sno2c_stage2` on `beauty.sno`. If identical → **M-BOOTSTRAP fires.**
+
+**What stays in C forever:** `snobol4.c`, `snobol4_inc.c`, `snobol4_pattern.c`, `engine_stub.c`, `trampoline.h`
+
+**What moves to SNOBOL4 (`sno2c.sno`):** Lexer (`lex.c`), Parser (`parse.c`), Emitter (`emit.c` + `emit_byrd.c` + `emit_cnode.c`)
+
+**`CODE()`/`EVAL()` via TCC:** Not required for M-BOOTSTRAP. Separate sprint after.
+
+**No input from Lon required** — architecture fully specified. Each sprint has a clear trigger. Validation is output diff vs oracle at every stage.
+
 
 ### Optimization (deferred — after M-BEAUTY-FULL)
 
