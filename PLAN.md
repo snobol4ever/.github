@@ -177,30 +177,58 @@ If you find yourself typing `engine.c` — STOP. You are in the trap.
 
 ---
 
-## ⛔ ARTIFACT RULE — SNAPSHOT beauty_full.c EVERY SESSION (mandatory, no exceptions)
+## ⛔ ARTIFACT RULE — SNAPSHOT GENERATED C EVERY SESSION (mandatory, no exceptions)
 
 **Claude failed to store artifacts/beauty_full_sessionN.c for multiple sessions (52→53 gap
 spanned the sno_/SNO_ prefix eradication AND M-COMPILED-BYRD). This must never happen again.**
 
-### The rule:
+### Which artifact to capture (depends on active sprint):
+
+| Active sprint / output | Artifact filename | Generate command |
+|------------------------|-------------------|------------------|
+| `beauty_full` path | `beauty_full_sessionN.c` | `sno2c -I $INC $BEAUTY > artifacts/beauty_full_sessionN.c` |
+| `beauty_tramp` path | `beauty_tramp_sessionN.c` | `sno2c -trampoline -I $INC $BEAUTY > artifacts/beauty_tramp_sessionN.c` |
+
+Capture whichever file(s) the session actually produced/modified. When both are in play, capture both.
+
+### The rule — IF CHANGED:
 
 At the END of every session that touches `sno2c` or `emit*.c` or `runtime/`:
-1. Run `sno2c -I $INC $BEAUTY > artifacts/beauty_full_sessionN.c` where N = last session number + 1
-2. Record md5, line count, compile status, active bug in `artifacts/README.md`
-3. Commit artifacts/ with message `artifact: beauty_full_sessionN.c — <one-line status>`
+1. Generate the artifact to `/tmp/beauty_*_candidate.c`
+2. **Compare md5 against the last committed artifact** — if DIFFERENT, commit the new one
+3. If SAME md5 — still update `artifacts/README.md` with a "no change" note, commit README only
+4. Commit artifacts/ with message `artifact: beauty_tramp_sessionN.c — <one-line status>`
 
-**Do this even if nothing changed** — the artifact confirms the compiler still produces
-the same output. A matching md5 is useful data. A missing snapshot is a gap in the record.
+**Check-before-commit protocol (run every session end):**
+```bash
+# Generate candidate
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNO2C=/home/claude/SNOBOL4-tiny/src/sno2c
+$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp_candidate.c
+
+# Find last artifact and compare
+LAST=$(ls /home/claude/SNOBOL4-tiny/artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1)
+if [ -n "$LAST" ] && md5sum -c <(md5sum "$LAST" | sed "s|$LAST|/tmp/beauty_tramp_candidate.c|") 2>/dev/null; then
+    echo "ARTIFACT UNCHANGED — update README.md only"
+else
+    N=$(( $(ls /home/claude/SNOBOL4-tiny/artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1 | grep -o '[0-9]*' | tail -1) + 1 ))
+    cp /tmp/beauty_tramp_candidate.c /home/claude/SNOBOL4-tiny/artifacts/beauty_tramp_session${N}.c
+    echo "NEW ARTIFACT: beauty_tramp_session${N}.c"
+fi
+```
 
 ### When to increment N:
-- Look at the last `beauty_full_sessionN.c` filename in `artifacts/` and add 1.
+- Look at the last `beauty_*_sessionN.c` filename in `artifacts/` and add 1.
 - If unsure, check `git log --oneline -- artifacts/` for the last session number used.
 
 ### What to write in README.md:
+- Session number + date
 - What changed since last artifact (commits, fixes)
 - Line count + md5
 - Compile status (0 errors / N warnings)
 - Active bug / current symptom
+- Whether artifact changed from previous (CHANGED / UNCHANGED)
 
 ---
 
@@ -567,6 +595,16 @@ Time's up or something broke. Speed over completeness.
 3. find src -type f | sort
 4. git show HEAD --stat
 5. If you need depth: read the repo's MD file.
+```
+
+## Session End (every session, no exceptions)
+
+```
+1. Run ARTIFACT CHECK (see ARTIFACT RULE above) — compare md5, commit if changed.
+2. Update artifacts/README.md — session N, date, md5, line count, compile status, active bug.
+3. Update SESSION.md — all four fields + Pivot Log.
+4. git add -A && git commit && git push on every touched repo.
+5. Push .github last.
 ```
 
 ---
