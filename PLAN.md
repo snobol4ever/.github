@@ -455,6 +455,7 @@ glob-sequence are optimizations and diagnostics improvements.
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏳ sprint 3/4 `beauty-runtime` next |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
 | **M-COMPILED-BYRD** | `sno2c` emits labeled goto Byrd boxes — `engine.c` not linked | TINY | ✅ Done `560c56a` |
+| **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ❌ |
 | **M-BYRD-SPEC** | Language-agnostic written spec of four-port Byrd box lowering rules — all backends (C, JVM, MSIL) implement independently against it | HQ | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | TINY | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | TINY | ❌ Future |
@@ -1118,6 +1119,97 @@ never returns normally. Linking visibility: expose the port table as a global
 **Status:** Concept only. Not implemented. Hmm — interesting but nonstandard.
 
 ---
+
+---
+
+## M-CNODE — C Expression IR + Pretty-Printer (Session 75, 2026-03-15)
+
+**The problem:** `emit_expr` and `emit_pat` are streaming printers — they make
+irrevocable formatting decisions as they recurse, with no lookahead. Every long-line
+fix (emit_chain_pretty etc.) is a local heuristic. A depth-2 `concat_sv(A, B)` where
+A and B are each long `aply(...)` calls stays on one line because the chain depth is
+only 2 — the printer doesn't know how wide the whole expression is.
+
+**The solution:** Same model as beauty.sno's pp/qq split.
+- **Build phase** (`build_expr`/`build_pat`): walks Expr* tree, produces CNode IR. No output.
+- **Measure phase** (`cn_flat_width`): measures flat width of any subtree. This is the "qq" lookahead.
+- **Print phase** (`pp_cnode`): walks CNode tree. At each CALL node, measures flat width. If it fits on the current line → inline. Otherwise → multiline with indent. This is "pp".
+
+**Scope boundary:** CNode covers expression trees only. Structural lines (PLG/PS/PG,
+labels, gotos) stay as-is. Seam: `E("SnoVal _v%d = ", u)` then `pp_cnode(build_expr(e))`
+then `E(";\n")`. Clean cut.
+
+### CNode IR definition
+
+```c
+typedef enum {
+    CN_RAW,    // literal text atom: "NULL_VAL", "strv(", "," etc.
+    CN_CALL,   // fn(arg, arg, ...): fn_name + CNode*[] args
+    CN_SEQ,    // two adjacent nodes: left then right
+} CNodeKind;
+
+typedef struct CNode {
+    CNodeKind    kind;
+    const char  *text;      // CN_RAW: literal; CN_CALL: function name
+    struct CNode **args;    // CN_CALL: argument subtrees
+    int           nargs;
+    struct CNode *left, *right; // CN_SEQ: left then right
+} CNode;
+```
+
+### pp/qq rules
+
+```c
+// "qq" — flat width of subtree, or INT_MAX if > limit (early exit)
+int cn_flat_width(CNode *n, int limit);
+
+// "pp" — pretty-print to FILE*, returns column after last char written
+// col     = current column (chars already on this line)
+// indent  = additional indent for wrapped args (4)
+// maxcol  = line width budget (120)
+int pp_cnode(CNode *n, FILE *fp, int col, int indent, int maxcol);
+```
+
+`pp_cnode` rule for CN_CALL:
+- Compute `w = cn_flat_width(n, maxcol - col)`
+- If `col + w <= maxcol`: emit flat — `fn(arg0,arg1,...)`
+- Else: emit multiline — `fn(\n` + each arg indented on its own line + `)`
+- Args that are themselves CN_CALL recurse with `col = indent_col`
+
+### Sprint map
+
+| Sprint | What | Gates |
+|--------|------|-------|
+| `cnode-build` | `build_expr` + `build_pat` — CNode tree from Expr* | `flat_print(build_expr(e))` matches current `emit_expr(e)` output exactly (diff=0) |
+| `cnode-measure` | `cn_flat_width(n, limit)` with early exit | Correct + fast |
+| `cnode-pp` | `pp_cnode` — inline if fits, multiline if not | Valid C, zero expression lines > 120 chars |
+| `cnode-wire` | Replace `emit_expr`/`emit_pat` calls with `pp_cnode(build_expr(...))` | `beauty_tramp_bin` compiles + passes smoke tests. **M-CNODE fires.** |
+
+### Implementation notes
+
+- CNode arena allocator (bump allocator, freed after each statement) — no GC pressure
+- `flat_print` helper for sprint 1 validation: writes CNode to char buffer, compared against old `emit_expr` output
+- `cn_flat_width` prunes at `limit` — returns `INT_MAX` once exceeded, no wasted work
+- `pp_cnode` tracks `col` through CN_SEQ nodes, passes updated col to siblings
+- File: `src/sno2c/emit_cnode.c` + `src/sno2c/emit_cnode.h`
+
+### What this fixes
+
+Before: `SnoVal _v34 = concat_sv(aply("REPLACE",...,3),aply("REPLACE",...,3));` — 340 chars
+
+After:
+```c
+SnoVal _v34 =
+    concat_sv(
+        aply("REPLACE", (SnoVal[]){
+            aply("SUBSTR", (SnoVal[]){get(_cap), vint(1), vint(1)}, 3),
+            kw("LCASE"), kw("UCASE")}, 3),
+        aply("REPLACE", (SnoVal[]){
+            aply("SUBSTR", (SnoVal[]){get(_cap), vint(2)}, 2),
+            kw("UCASE"), kw("LCASE")}, 3));
+```
+
+**Status:** Planned. Begin with sprint `cnode-build` next session.
 
 ---
 
