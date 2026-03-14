@@ -10,7 +10,7 @@
 | Field | Value |
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
-| **Sprint** | `beauty-runtime` (sprint 3/4 toward M-BEAUTY-FULL) |
+| **Sprint** | `compiled-byrd-boxes-full` (sprint 3/4 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
 | **HEAD** | `ace2883 — refactor: dyvide → divyde
 
@@ -80,7 +80,29 @@ ARBNO epsilon path.
 
 ---
 
-## ONE NEXT ACTION — confirm ARBNO epsilon, then trace snoCommand failure
+## ONE NEXT ACTION — inline ALL pattern variables as static Byrd boxes
+
+**Sprint: `compiled-byrd-boxes-full`**
+
+Goal: zero `pat_cat`/`pat_arbno`/`pat_ref` in beauty_full.c init section.
+engine_stub.c only. No engine.c. No match_pattern_at().
+
+Pattern variables like `snoParse`, `snoCommand`, `snoLabel` are assigned in the
+SNOBOL4 source. sno2c sees the assignment AST. Instead of emitting runtime tree
+construction, emit_byrd.c must emit the full static labeled-goto Byrd box C inline.
+
+**E_DEREF (*varname) in pattern context** = look up the variable's assigned pattern
+at compile time in the AST, inline its Byrd box. Not a runtime call.
+
+Steps:
+1. In emit.c: when emitting a pattern assignment `X = <pattern>`, call emit_byrd
+   to emit the static Byrd box for that pattern AND register the label root so
+   E_DEREF of X can jump to it directly.
+2. In emit_byrd.c E_DEREF: replace match_pattern_at() call with direct goto to
+   the inlined pattern's alpha label.
+3. Remove pat_cat/pat_arbno/pat_ref/pat_ref from emitted init code entirely.
+4. Build with engine_stub.c. Verify zero linker errors.
+5. Run on beauty.sno — chase crashes, not engine bugs.
 
 ```bash
 cd /home/claude/SNOBOL4-tiny
@@ -171,4 +193,4 @@ snoStmt = `*snoLabel ...` — is the inner ARBNO also epsilon-branching?
 | 2026-03-13 | emit_byrd.c written committed (cb3f97e) | C port of Python pipeline complete |
 | 2026-03-16 | parse_lbin T_STAR fix + E_DEREF varname + E_REDUCE + SPAT_USER_CALL→T_FUNC (2379052) | *snoParse was E_MUL; USER_CALL fired at materialise not match time |
 | 2026-03-16 | emit_charset_cexpr — BREAK/SPAN/ANY/NOTANY runtime charset (8c6d166) | E_VAR/E_KEYWORD/E_CONCAT args produced empty cs="" |
-| 2026-03-16 | Strip sno_/SNO_ prefix, P4-style collision renames, snoc→sno2c (3ea9815) | readability — prefixes too long |
+| 2026-03-14 | `beauty-runtime` → `compiled-byrd-boxes-full` — engine.c must not be linked, all patterns must be static Byrd boxes, milestone ordering corrected | Same smoke-test trap: chasing engine.c interpreter bugs that don't matter |

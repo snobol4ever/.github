@@ -40,6 +40,65 @@ https://github.com/settings/tokens**
 
 ---
 
+## ⛔ ALL BYRD BOXES — engine.c MUST NOT BE LINKED IN beauty_full_bin (mandatory, no exceptions)
+
+**Lon's explicit requirement: every pattern in beauty_full_bin must be compiled Byrd boxes.
+engine.c must not be linked. engine_stub.c only. No interpreter path in the compiled binary.**
+
+### What this means concretely:
+
+`snoParse`, `snoCommand`, `snoLabel`, `snoStmt`, `snoComment`, `snoControl` — ALL of them —
+must be emitted as static labeled-goto C by `sno2c`/`emit_byrd.c`. NOT as `pat_cat()`/
+`pat_arbno()`/`pat_ref()` runtime tree construction calls. NOT matched via `*varname` →
+`match_pattern_at()` → `engine.c`.
+
+The destination for `snoCommand` is:
+```c
+snoCommand_alpha:   /* nInc() */  goto nInc_alpha;
+nInc_gamma:                       goto FENCE_alpha;
+FENCE_alpha:        ...
+snoCommand_omega:   return empty;
+```
+No tree. No dispatch. No interpreter. Pure gotos.
+
+### What is BLOCKED until this is done:
+
+- M-BEAUTY-FULL is blocked. Do not chase engine.c bugs. That is the smoke-test trap again.
+- Do not link engine.c in beauty_full_bin for ANY reason.
+- Do not add match_pattern_at() calls as a workaround.
+- E_DEREF (*snoParse, *snoCommand etc.) must be eliminated by inlining the pattern at compile time.
+
+### The milestone ordering correction (2026-03-14):
+
+PLAN.md previously said `compiled-byrd-boxes` comes AFTER M-BEAUTY-FULL. **That is wrong.**
+M-BEAUTY-FULL is BLOCKED by engine.c being broken for *snoParse. The correct order is:
+
+1. `compiled-byrd-boxes` sprint — inline ALL pattern variables as static Byrd boxes → engine_stub.c only
+2. M-BEAUTY-FULL fires — beauty_full_bin self-beautifies, diff empty
+
+### How to inline pattern variables:
+
+Pattern variables like `snoParse = pat_arbno(*snoCommand)` are assigned in the SNOBOL4
+source. `sno2c` sees the assignment. Instead of emitting `pat_arbno(pat_ref("snoCommand"))`,
+it must emit the full static Byrd box C for that pattern — with the ARBNO α/β/γ/ω wiring
+and the snoCommand sub-pattern inlined recursively.
+
+`E_DEREF` (*varname) in a pattern context = look up the variable's pattern value at compile
+time and inline its Byrd box. Not a runtime call.
+
+### Every session: verify engine.c is NOT in the build command for beauty_full_bin.
+
+The correct build uses engine_stub.c:
+```bash
+gcc -O0 -g -I $R/snobol4 -I $R \
+    beauty_full.c $R/snobol4/snobol4.c \
+    $R/snobol4/snobol4_inc.c \
+    $R/engine_stub.c -lgc -lm -o beauty_full_bin
+```
+If you find yourself typing `engine.c` instead of `engine_stub.c` — STOP. You are in the trap.
+
+---
+
 ## ⛔ ARTIFACT RULE — SNAPSHOT beauty_full.c EVERY SESSION (mandatory, no exceptions)
 
 **Claude failed to store artifacts/beauty_full_sessionN.c for multiple sessions (52→53 gap
@@ -233,13 +292,20 @@ already proved correctness at 609/609 worm cases. `emit_byrd.c` is a C port of t
 
 ---
 
-### Sprint 3 of 4 — `beauty-runtime` ⏳ Active
+### Sprint 3 of 4 — `compiled-byrd-boxes-full` ⏳ Active (REPLACES beauty-runtime)
 
-**What:** `beauty_full_bin < beauty.sno` runs to completion without crashing.
-Now using compiled Byrd boxes, not the interpreter. Sprint 3 catches runtime issues
-in `snobol4.c` / `snobol4_inc.c` that surface when beauty actually runs.
+**What:** Inline ALL pattern variables as static Byrd boxes. engine.c dropped entirely.
+engine_stub.c only. No `pat_cat()`/`pat_arbno()`/`pat_ref()` in the init section of
+beauty_full.c. No `match_pattern_at()` calls. No E_DEREF runtime dispatch.
 
-**Commit when:** Binary exits cleanly on beauty.sno input. No crash, no hang, no abort.
+`snoParse`, `snoCommand`, `snoLabel`, `snoStmt`, `snoComment`, `snoControl` — all
+emitted as labeled-goto C by emit_byrd.c. ARBNO wiring static.
+
+**Why beauty-runtime was wrong:** Chased engine.c interpreter bugs — same smoke-test
+trap. engine.c is broken for *snoParse. Fixing it is the wrong path.
+
+**Commit when:** beauty_full.c has zero pat_cat/pat_arbno/pat_ref in init section.
+Binary links with engine_stub.c only. Runs on beauty.sno input without crash.
 
 ---
 
