@@ -11,7 +11,7 @@
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-first` — fix runtime bugs → M-BEAUTY-FULL |
-| **Milestone** | M-BEAUTY-FULL |
+| **Milestone** | M-BEAUTY-CORE (stubs first) → M-BEAUTY-FULL (real inc, second) |
 | **HEAD** | `eec84e7` — EMERGENCY WIP: SIL naming rename + beauty_core stub build clean |
 
 ---

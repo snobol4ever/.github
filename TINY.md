@@ -7,8 +7,8 @@
 
 ## Current State
 
-**Active sprint:** `beauty-first` — fix $expr bug → M-BEAUTY-FULL
-**Milestone target:** M-BEAUTY-FULL
+**Active sprint:** `beauty-first` — fix `_c` field DT_S bug → M-BEAUTY-CORE → M-BEAUTY-FULL
+**Milestone target:** M-BEAUTY-CORE (stubs first), then M-BEAUTY-FULL (real inc)
 **HEAD:** `b20329f` — fix(emit_cnode): build_expr E_DEREF — use e->right for $expr
 
 **Completed since session 58 (do NOT re-implement):**
@@ -95,7 +95,8 @@ and Claude Sonnet 4.6. When any milestone trigger fires, Claude writes the commi
 |----|---------|--------|
 | **M-SNOC-COMPILES** | `snoc` compiles `beauty_core.sno`, 0 gcc errors | ✅ Done |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | ✅ Done `bf86b4b` |
-| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | ❌ **Active** |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`, no INCLUDE code) | ❌ **Active** |
+| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`, real INCLUDE files) — only after M-BEAUTY-CORE | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | ❌ Future |
 
@@ -112,14 +113,17 @@ and Claude Sonnet 4.6. When any milestone trigger fires, Claude writes the commi
 | `rebus-emitter` | Walk AST, emit SNOBOL4 text (R3–R11) | ✅ `9cde7f4` |
 | **`rebus-roundtrip`** | **`.reb` → `.sno` → CSNOBOL4 → diff oracle → M-REBUS** | ✅ `bf86b4b` |
 
-### Paused: toward M-BEAUTY-FULL
+### Paused: toward M-BEAUTY-CORE then M-BEAUTY-FULL
+
+**The agreement (no exceptions):** beauty_core (stubs) first. beauty_full (real inc) only after M-BEAUTY-CORE fires.
 
 | Sprint | What | Status |
 |--------|------|--------|
 | `hand-rolled-parser` | Replace Bison/Flex with `lex.c` + `parse.c` | ⏸ Paused |
 | `smoke-tests` | 0/21 → 21/21 on `test_snoCommand_match.sh` | ✅ `8f68962` |
 | `beauty-runtime` | binary exits cleanly on beauty.sno input | ✅ Done |
-| `beauty-full-diff` | `beauty_full_bin` diff empty → **M-BEAUTY-FULL** | ⏳ Active |
+| `beauty-core-diff` | `beauty_core_bin` (stubs) diff empty → **M-BEAUTY-CORE** | ⏳ Active |
+| `beauty-full-diff` | `beauty_full_bin` (real inc) diff empty → **M-BEAUTY-FULL** — only after M-BEAUTY-CORE | ❌ |
 
 ### Toward M-COMPILED-SELF
 

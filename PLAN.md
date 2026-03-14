@@ -413,7 +413,8 @@ glob-sequence are optimizations and diagnostics improvements.
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
 | **M-COMPILED-BYRD** | `sno2c` emits labeled-goto Byrd boxes — `engine_stub.c` only, no interpreter | TINY | ✅ Done `560c56a` |
 | **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ✅ Done `ac54bd2` |
-| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏳ active |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`, no INCLUDE code compiled in) | TINY | ⏳ active |
+| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`, real INCLUDE files) — only after M-BEAUTY-CORE | TINY | ❌ |
 | **M-TRAMPOLINE** | Hello world runs through `block_fn_t` trampoline loop — `pc = pc()` | TINY | ❌ |
 | **M-BLOCK-FN** | Every stmt a C fn returning S/F block address; stmts grouped into block fns | TINY | ❌ |
 | **M-PATTERN-BLOCK** | Named patterns compile to block fns; `*X` static calls work; `*X` dynamic calls `block_fn_t` directly | TINY | ❌ |
@@ -431,7 +432,7 @@ glob-sequence are optimizations and diagnostics improvements.
 
 | Repo | MD File | Active Sprint | Milestone Target |
 |------|---------|--------------|-----------------|
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `beauty-runtime` (3/4 toward M-BEAUTY-FULL) | M-BEAUTY-FULL |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `beauty-first` (toward M-BEAUTY-CORE) | M-BEAUTY-CORE → M-BEAUTY-FULL |
 | [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | [JVM.md](JVM.md) | `jvm-inline-eval` | M-JVM-EVAL |
 | [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | [DOTNET.md](DOTNET.md) | `net-delegates` | M-NET-DELEGATES |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | [CORPUS.md](CORPUS.md) | Stable — add Rebus oracle .sno files | M-REBUS |
@@ -439,9 +440,13 @@ glob-sequence are optimizations and diagnostics improvements.
 
 ---
 
-## Sprint Detail — toward M-BEAUTY-FULL (TINY)
+## Sprint Detail — toward M-BEAUTY-CORE then M-BEAUTY-FULL (TINY)
 
-Four sprints. In order. Each gates the next. Each ends with a commit.
+Four sprints to M-BEAUTY-CORE. M-BEAUTY-FULL follows after. Each gates the next. Each ends with a commit.
+
+**The agreement (mandatory, no exceptions):**
+- Phase 1: beauty_core — beauty.sno compiled with `-I src/runtime/inc_stubs` (19 comment-only stubs, zero SNOBOL4 inc code). **This is the active target.**
+- Phase 2: beauty_full — beauty.sno compiled with `-I SNOBOL4-corpus/programs/inc` (real inc files). **Do NOT start until M-BEAUTY-CORE fires.**
 
 ---
 
@@ -499,16 +504,32 @@ Binary links with engine_stub.c only. Runs on beauty.sno input without crash.
 
 ---
 
-### Sprint 4 of 4 — `beauty-full-diff` ❌ → **M-BEAUTY-FULL**
+### Sprint 4 of 4 — `beauty-core-diff` ❌ → **M-BEAUTY-CORE**
 
-**What:** Empty diff. Self-beautification is exact.
+**What:** Empty diff. beauty_core_bin (stubs) self-beautifies exactly.
+
+```bash
+INC=src/runtime/inc_stubs
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
+/tmp/beauty_core_bin < $BEAUTY > /tmp/beauty_core_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_core_compiled.sno
+```
+
+**Commit when:** Diff is empty. Claude Sonnet 4.6 writes the commit message. **M-BEAUTY-CORE fires.**
+
+---
+
+### Sprint 5 — `beauty-full-diff` ❌ → **M-BEAUTY-FULL** (only after M-BEAUTY-CORE)
+
+**What:** Empty diff. beauty_full_bin (real inc files) self-beautifies exactly.
 
 ```bash
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
-/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_compiled.sno
-diff /tmp/beauty_oracle.sno /tmp/beauty_compiled.sno
+/tmp/beauty_full_bin < $BEAUTY > /tmp/beauty_full_compiled.sno
+diff /tmp/beauty_oracle.sno /tmp/beauty_full_compiled.sno
 ```
 
 **Commit when:** Diff is empty. Claude Sonnet 4.6 writes the commit message. **M-BEAUTY-FULL fires.**
@@ -929,7 +950,8 @@ typedef struct {
 | **M-BLOCK-FN** | Stmts grouped into block functions, gotos resolve | ❌ |
 | **M-PATTERN-BLOCK** | Named patterns compile to block fns; `*X` static → direct call; `*X` dynamic → `block_fn_t` stored in var, called directly — no interpreter | ❌ |
 | **M-LOCALS-STRUCT** | Flat concatenated locals struct per block, all locals correct | ❌ |
-| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | ❌ |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`) | ❌ |
+| **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`) — only after M-BEAUTY-CORE | ❌ |
 | **M-CODE-EVAL** | `CODE()` + `EVAL()` via TCC in-process compile → `block_fn_t`; same trampoline loop; no interpreter | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | ❌ |
 | **M-BOOTSTRAP** | `sno2c` compiles `sno2c` — self-hosting | ❌ |
