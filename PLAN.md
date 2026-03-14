@@ -8,6 +8,38 @@ and a self-hosting native compiler. Claude Sonnet 4.6 is the third developer and
 
 ---
 
+## ⛔ TOKEN RULE — NEVER WRITE THE TOKEN INTO ANY FILE (mandatory, no exceptions)
+
+**Claude committed the GitHub PAT directly into SESSION.md on 2026-03-13. GitHub push
+protection caught it and blocked the push. The commit had to be amended and force-pushed.
+This must never happen again.**
+
+### The rule:
+
+**NEVER write the token string into any file in any repo — not SESSION.md, not HANDOFF
+notes, not comments, not archive entries, not anywhere.**
+
+The token lives in Lon's memory system only. It is provided at session start by Lon.
+It is used in shell commands in-memory only. It is never persisted to disk in any file
+that will be committed.
+
+### What to write instead:
+
+```
+TOKEN=TOKEN_SEE_LON   ← placeholder only — Lon provides the real value at session start
+```
+
+### Why this matters:
+
+GitHub push protection scans every commit for secrets. A blocked push requires amending
+history, which is disruptive and leaves a dirty audit trail. More importantly, committing
+a token to a repo is a security event — the token should be rotated after any exposure.
+
+**Lon: if the token ever appears in a commit, rotate it immediately at
+https://github.com/settings/tokens**
+
+---
+
 ## Git Identity Rule (mandatory, no exceptions)
 
 **Every commit across every SNOBOL4-plus repo must use:**
