@@ -4805,3 +4805,75 @@ snoCommand failure path.
 
 Sprint 3/4 `beauty-runtime`: ARBNO epsilon trace → snoCommand failure path.
 SESSION.md has full One Next Action.
+
+## Session 56 — 2026-03-14 (Claude Sonnet 4.6)
+
+**Sprint:** `trampoline` → `stmt-fn` (sprints 1+2 of 9 toward M-BEAUTY-FULL)
+
+**Milestones fired:**
+- M-TRAMPOLINE `fb4915e` — `trampoline.h` + 3 POC programs
+- M-STMT-FN `4a6db69` — `-trampoline` flag wired into `sno2c`
+
+**What was built:**
+
+`trampoline.h`:
+- `block_fn_t = void*(*)(void)` — the recursive trampoline type
+- `trampoline_run(start)`: `while(pc) pc = (block_fn_t)pc()`
+- `BLOCK_FN`/`STMT_FN` macros, ABORT handler chain (cold path)
+
+Three hand-written POC programs in `src/sno2c/`:
+- `trampoline_hello.c` ✅ `hello, trampoline`
+- `trampoline_branches.c` ✅ `1 2 3 done` (S/F routing, loop-back)
+- `trampoline_pattern.c` ✅ runtime integrated, literal pattern S/F
+
+`emit.c` + `main.c` changes:
+- `trampoline_mode` flag set by `-trampoline` CLI arg
+- `emit_goto_target()`: `return block_X` instead of `goto _L_X`
+- `emit_goto()`: `return (void*)_tramp_next_N` for fall-through
+- `emit_trampoline_program()`: stmt_N() + block_L() + trampoline main()
+- DEFINE'd fns: emit via existing `emit_fn()` with `trampoline_mode=0`
+
+Also: CSNOBOL4 built from `snobol4-2_3_3_tar.gz`, SNOBOL4 syntax verified hands-on.
+
+**Artifacts committed** `artifacts/trampoline_session56/`:
+- `hello_tramp.c` 71L ✅, `branch_tramp.c` 150L ✅, `fn_tramp.c` 125L ✅
+- `beauty_tramp_session56.c` 19907L, md5 `a85b29a9`, **0 gcc errors** ✅
+- Binary runs: outputs 10 lines then exits (block grouping bug — see below)
+
+**Active bug:**
+
+`block_START` absorbs ALL main-level stmts into one giant sequential block.
+The block-splitting logic in `emit_trampoline_program` Pass 2 has a logic
+error — after the first labeled stmt closes `block_START` and opens a new
+block, subsequent labeled stmts don't correctly open their own blocks.
+
+Root cause in `emit_trampoline_program` (src/sno2c/emit.c):
+```c
+// BROKEN: cur_block_label never updates after first label
+if (s->label && sid > 1) {
+    E("    return block_%s;\n}\n\n", cs_label(s->label));
+    in_first_block = 0;
+    E("static void *block_%s(void) {\n", cs_label(s->label));
+}
+// All subsequent labeled stmts also hit this — but block is already open
+// and we open another block_START equivalent or nothing
+```
+
+Fix (two lines in Pass 2):
+```c
+if (s->label && block_open) {
+    E("    return block_%s;\n}\n\n", cs_label(s->label));  // close current
+    block_open = 0;
+}
+if (!block_open) {
+    E("static void *block_%s(void) {\n",
+      s->label ? cs_label(s->label) : "START");
+    block_open = 1;
+}
+```
+
+**Next session opens:**
+
+Sprint `block-fn` (3/9). Fix Pass 2 block logic → regenerate beauty_tramp.c →
+recompile → run → diff oracle. If diff empty: M-BEAUTY-FULL fires.
+SESSION.md has full One Next Action.
