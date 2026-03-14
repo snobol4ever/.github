@@ -12,152 +12,133 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `50ef58f — fix(emit+trampoline): DATA tree/link startup + trampoline_stno for &STLIMIT` |
+| **HEAD** | `27325b6 — fix(emit_byrd+runtime): ARBNO beta npush restore + nhas_frame()` |
 
 ---
 
-## State at handoff (session 68)
+## State at handoff (session 69)
 
 Commits this session:
-- `50ef58f` — fix(emit+trampoline): DATA tree/link startup + trampoline_stno for &STLIMIT
+- `6abfdf6` — fix(emit_byrd): nPush beta → omega not gamma
+- `27325b6` — fix(emit_byrd+runtime): ARBNO beta npush restore + nhas_frame()
 
-**CSNOBOL4 2.3.3 now installed at `/usr/local/bin/snobol4`** — oracle available every session.
-Build: upload `snobol4-2_3_3_tar.gz`, extract, `./configure && make && make install`.
-Or re-download: `snobol4` is Phil Budne's CSNOBOL4B 2.3.3.
+**CSNOBOL4 2.3.3 installed at `/usr/local/bin/snobol4`** — oracle available.
+(Fresh container: upload snobol4-2_3_3_tar.gz, `./configure && make -j$(nproc) && make install`)
 
-### Fix 4 — emit.c: DATA('tree') and DATA('link') in dead code
-`DATA('tree(t,v,n,c)')` from `tree.sno` was swallowed into `_sno_fn_Top` body
-by the StackEnd boundary walk — never executed at startup. `tree()` constructor
-unregistered → `Reduce('Parse', 0)` called `tree(...)` → got NULL_VAL → `Push(NULL_VAL)`
-→ `Pop()` returned null → `DIFFER(sno = Pop())` failed → **Internal Error**.
+### Fix 6 — emit_byrd.c: nPush beta → omega
+nPush beta was wired to gamma (→ ARBNO alpha = depth reset).
+Every Parse beta re-entry reset ARBNO depth=-1 → infinite zero-iteration loop.
+Fix: `PLG(beta, omega)` — nPush has no alternatives on backtrack.
+Result: `X = 1` infinite loop eliminated. Oracle match: `Parse Error\nX = 1`.
 
-Fix: emit `aply("DATA",{STR_VAL("tree(t,v,n,c)")},1)` and
-`aply("DATA",{STR_VAL("link(next,value)")},1)` explicitly in `main()` before
-`trampoline_run()`. Root cause (fn-body-walk swallowing tree.sno init) not yet fixed
-in the emitter — tracked as a known issue.
+### Fix 7 — ARBNO beta: conditional npush via nhas_frame()
+After alpha-path `nPush→ARBNO(0)→Reduce(Parse,0)→nPop()`, `_ntop=-1`.
+On ARBNO beta extension, `nInc()` inside Command was no-op (no frame).
+Fix: emit `if (!nhas_frame()) npush();` at ARBNO beta entry.
+Added `nhas_frame()` to `snobol4.c` + `snobol4.h`.
+Result: `ntop()` now correctly returns N after N Commands.
 
-### Fix 5 — trampoline.h + emit.c: &STLIMIT / &STCOUNT wired
-`trampoline_stno(lineno)` now emitted at top of every stmt_N.
-`trampoline.h` externs `kw_stlimit`/`kw_stcount` from `snobol4.c`.
-Set `kw_stlimit` via constructor object to impose statement limit for hang diagnosis.
+### Remaining bug — @S stack pollution from premature Reduce(Parse,0)
 
-### Test results (session 68)
-| Input | Compiled binary | Oracle (CSNOBOL4) |
-|-------|----------------|-------------------|
-| `* comment` | ✅ `* comment` | ✅ same |
-| `START` | ✅ silent exit | ✅ silent exit |
-| `X = 1` | ❌ infinite loop at stmt lineno=107 | ✅ `Parse Error` |
+**Root cause (identified, not yet fixed):**
 
-### X = 1 hang — diagnosed to stmt lineno=107
-With `kw_stlimit=100`, the binary hits `** &STLIMIT exceeded at statement 107
-(&STCOUNT=101 &STLIMIT=100)`. Spins at lineno=107 — tight infinite backtrack loop.
-Multiple source files have line 107; need to identify which one is the hot loop.
+ARBNO zero-match alpha path fires `Reduce(Parse,0)` immediately,
+pushing a zero-child Parse tree onto `$'@S'` BEFORE any Command runs.
+When ARBNO then extends via beta and Command runs:
+- `Shift("Label","START")` pushes Label tree → `$'@S'` = [Label, zero-Parse]
+- `Reduce('Stmt',7)` pops 7 items → gets [Label, zero-Parse, 5×null]
+  The zero-Parse tree is CONSUMED as a Stmt child → wrong tree structure.
+- `Reduce('Parse',1)` pops 1 item → gets the corrupted Stmt tree.
+- `pp_Stmt` gets wrong children → outputs nothing (START case) or Parse Error.
+
+**The fix needed:**
+The `$'@S'` tree stack must be checkpointed at ARBNO entry and restored
+before each extension attempt — so the zero-match Reduce side effects are
+undone when ARBNO tries more iterations.
+
+**Where to fix:**
+In `emit_arbno()` in `emit_byrd.c`:
+1. At ARBNO alpha entry: save `$'@S'` pointer to a local variable.
+2. At ARBNO beta entry (before extending): restore `$'@S'` to the saved value,
+   discarding any trees pushed by the previous shorter match.
+
+This is analogous to how CSNOBOL4 handles generator frame checkpointing.
+The save/restore uses `var_get("@S")` and `var_set("@S", saved)`.
+
+**Pseudo-code for emit_arbno fix:**
+```c
+/* alpha: save @S, then zero-match → gamma */
+PL(alpha, gamma, "%s_saved_stk = var_get(\"@S\"); %s = -1;", uid, depth_var);
+
+/* beta: restore @S to saved, then extend */
+PLG(beta, NULL);
+PS(NULL, "var_set(\"@S\", %s_saved_stk);", uid);  // undo previous match's pushes
+PS(NULL, "if (!nhas_frame()) npush();");
+PS(omega, "if (++%s >= 64)", depth_var);
+PS(child_α, "%s[%s] = %s;", stack_var, depth_var, cursor);
+```
+
+The `%s_saved_stk` needs to be declared as a `SnoVal` in the struct
+(via `decl_add`).
+
+---
+
+## Test results (session 69)
+
+| Input | Compiled | Oracle | Status |
+|-------|----------|--------|--------|
+| `* comment` | `* comment` | `* comment` | ✅ MATCH |
+| `START` | (empty) | `START` | ❌ @S pollution |
+| `X = 1` | `Parse Error\nX = 1` | `Parse Error\nX = 1` | ✅ MATCH |
+| `label OUTPUT = "hello"` | `Parse Error\n...` | beautified | ❌ @S pollution |
 
 ---
 
 ## ONE NEXT ACTION
 
-```bash
-# Step 1: Identify the looping statement
-grep -n "stno(107)" /tmp/beauty_tramp.c | head -20
-# Each hit is a different included file's line 107.
-# To find which one is hot, add a counter:
-cat > /tmp/stlimit_10.c << 'EOF'
-#include <stdint.h>
-extern int64_t kw_stlimit;
-__attribute__((constructor)) static void set_limit(void) { kw_stlimit = 10; }
-EOF
-# Compile with that, run X=1, look at the stno value — will be 107.
-# Then grep for context around each line 3 hits of stno(107):
-grep -n "trampoline_stno(107)" /tmp/beauty_tramp.c
-# Read 20 lines before each hit to find which stmt/block function it's in.
-# The one that's inside a pattern-matching loop (Command, Space, Parse)
-# is the infinite-backtrack culprit.
+Fix `emit_arbno()` in `emit_byrd.c` to checkpoint/restore `$'@S'` at ARBNO boundaries:
 
-# Step 2: Oracle confirms X = 1 → Parse Error (not a hang):
+```bash
+# 1. Edit src/sno2c/emit_byrd.c — function emit_arbno()
+# 2. Add SnoVal decl for saved stack pointer:
+#    decl_add("SnoVal %s_saved_stk", uid_str);  // where uid_str = sprintf of uid
+# 3. At alpha entry: save @S before zero-match fires
+# 4. At beta entry: restore @S before each extension attempt
+# 5. Rebuild:
+cd /tmp/snobol4-tiny/src/sno2c && make
 INC=/tmp/snobol4-corpus/programs/inc
 BEAUTY=/tmp/snobol4-corpus/programs/beauty/beauty.sno
-printf 'X = 1\n' | snobol4 -f -P256k -I $INC $BEAUTY
-# Expected: Parse Error\nX = 1
-
-# Step 3: Once identified, check what beauty.sno's pattern does at that
-# line — likely Space or Command failing to backtrack to omega correctly.
-# The fix will be in emit_byrd.c or the pattern wiring for that node type.
+RT=/tmp/snobol4-tiny/src/runtime; SNO2C=/tmp/snobol4-tiny/src/sno2c
+$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
+gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
+    /tmp/beauty_tramp.c $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
+    $RT/snobol4/snobol4_pattern.c $RT/engine.c -lgc -lm -w -o /tmp/beauty_tramp_bin
+# 6. Test:
+printf '* comment\n' | /tmp/beauty_tramp_bin   # expect: * comment
+printf 'START\n'     | /tmp/beauty_tramp_bin   # expect: START
+printf 'X = 1\n'     | /tmp/beauty_tramp_bin   # expect: Parse Error\nX = 1
+printf 'label          OUTPUT         =  "hello"\n' | /tmp/beauty_tramp_bin
+# oracle: printf 'label          OUTPUT         =  "hello"\n' | snobol4 -f -P256k -I$INC $BEAUTY
 ```
+
+---
+
+## Artifact convention
+
+Session 69 artifact: `artifacts/beauty_tramp_session69.c`
+- Lines: 29932
+- MD5:   c8beae48e8e072de513f15ac25eb41a4
+- Compile: 0 errors
+- Tests: comment ✅  START ❌(empty)  X=1 ✅  label=hello ❌
+
+Next artifact: `beauty_tramp_session70.c`
 
 ---
 
 ## Build command
 
 ```bash
-# CSNOBOL4 oracle (installed):
-INC=/tmp/snobol4-corpus/programs/inc
-BEAUTY=/tmp/snobol4-corpus/programs/beauty/beauty.sno
-printf 'INPUT\n' | snobol4 -f -P256k -I $INC $BEAUTY
-
-# Compiled binary:
-R=/home/claude/SNOBOL4-tiny   # adjust to container path
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
-RT=$R/src/runtime
-SNO2C=$R/src/sno2c
-cd $SNO2C && make
-$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
-gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
-    /tmp/beauty_tramp.c \
-    $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
-    $RT/snobol4/snobol4_pattern.c $RT/engine.c \
-    -lgc -lm -w -o /tmp/beauty_tramp_bin
-printf '* comment\n' | /tmp/beauty_tramp_bin
-printf 'START\n'     | /tmp/beauty_tramp_bin
-printf 'X = 1\n'     | timeout 5 /tmp/beauty_tramp_bin
-```
-
----
-
-## STLIMIT hang diagnosis helper
-
-```bash
-# Build with statement limit to catch infinite loops:
-cat > /tmp/stlimit.c << 'EOF'
-#include <stdint.h>
-extern int64_t kw_stlimit;
-__attribute__((constructor)) static void set_limit(void) { kw_stlimit = 200; }
-EOF
-RT=$R/src/runtime; SNO2C=$R/src/sno2c
-gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
-    /tmp/beauty_tramp.c /tmp/stlimit.c \
-    $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
-    $RT/snobol4/snobol4_pattern.c $RT/engine.c \
-    -lgc -lm -w -o /tmp/beauty_tramp_limited
-printf 'X = 1\n' | /tmp/beauty_tramp_limited 2>&1
-# Reports: ** &STLIMIT exceeded at statement NNN
-# Then: grep -n "trampoline_stno(NNN)" /tmp/beauty_tramp.c
-# Read context around each hit to find the loop.
-```
-
----
-
-## Artifact convention (mandatory every session touching sno2c/emit*.c)
-
-Session 68 artifact: `artifacts/beauty_tramp_session68.c`
-- Lines: 29926
-- MD5:   3e070e50a1936983f91f1d5064ece1de
-- Compile: 0 errors
-- Tests: comment ✅  START ✅  X=1 ❌ (infinite loop at stmt 107)
-
-Next artifact: `beauty_tramp_session69.c`
-
----
-
-## Container Setup (fresh session)
-
-```bash
 apt-get install -y m4 libgc-dev
-# CSNOBOL4 — upload snobol4-2_3_3_tar.gz then:
-tar xzf snobol4-2_3_3_tar.gz && cd snobol4-2.3.3
-./configure --prefix=/usr/local && make -j$(nproc) && make install
-cd /tmp
 TOKEN=TOKEN_SEE_LON
 git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/claude/SNOBOL4-tiny
 git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-corpus /home/claude/SNOBOL4-corpus
@@ -165,6 +146,14 @@ git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/.github /home/
 cd /home/claude/SNOBOL4-tiny
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 cd src/sno2c && make
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+RT=/home/claude/SNOBOL4-tiny/src/runtime
+SNO2C=/home/claude/SNOBOL4-tiny/src/sno2c
+$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
+gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
+    /tmp/beauty_tramp.c $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
+    $RT/snobol4/snobol4_pattern.c $RT/engine.c -lgc -lm -w -o /tmp/beauty_tramp_bin
 ```
 
 ---
@@ -172,9 +161,8 @@ cd src/sno2c && make
 ## CRITICAL Rules (no exceptions)
 
 - **NEVER write the token into any file**
-- **NEVER link engine.c in beauty_full_bin** — engine_stub.c only (beauty_tramp_bin still uses engine.c — ok for now)
+- **NEVER link engine.c in beauty_full_bin** (beauty_tramp_bin uses engine.c — ok for now)
 - **ALWAYS run `git config user.name/email` after every clone**
-- Read PLAN.md fully before coding
 
 ---
 
@@ -184,20 +172,8 @@ cd src/sno2c && make
 |------|-------------|-----|
 | 2026-03-14 | PIVOT: block-fn + trampoline model | complete rethink with Lon |
 | 2026-03-14 | M-TRAMPOLINE fired `fb4915e` | trampoline.h + 3 POC files |
-| 2026-03-14 | M-STMT-FN fired `4a6db69` | trampoline emitter in sno2c, beauty 0 gcc errors |
-| 2026-03-14 | block grouping bug fixed `98ec305` | first_block flag |
-| 2026-03-14 | pattern-block sprint `373d939` | 112 named pat fns, 0 gcc errors |
-| 2026-03-14 | E_COND/E_IMM E_STR fix `6d09bfa` | binary compiles, runs, fails on static re-entrancy |
-| 2026-03-14 | beauty.sno snoXXX→XXX `d504d80` | oracle now self-referential |
-| 2026-03-14 | Technique 1 struct-passing `a3ea9ef` | re-entrancy fixed, 0 gcc errors |
-| 2026-03-14 | emit_imm var_set fix `dc8ad4b` | bare labels pass |
-| 2026-03-14 | Greek watermark α/β/γ/ω `f74a384` | Lon's branding |
-| 2026-03-14 | Three-column pretty layout `e00f851` | Lon's watermark layout |
-| 2026-03-14 | Binary ~ fix + wrap fix `06f4715` | START clean, X=1 segfaults |
-| 2026-03-14 | Compile named pats from fn bodies `6467ff2` | 196 compiled pats |
-| 2026-03-14 | E_DEREF + sideeffect + C-static `09e5a5d` `5e90712` | 33→9 match_pattern_at |
-| 2026-03-15 | E_VAR implicit deref `bc8a520` | infinite ARBNO loop eliminated |
-| 2026-03-15 | ~ emits Shift() `70e5d89` | 48 Shift calls wired; Internal Error persisted |
-| 2026-03-15 | parse_expr13 E_COND fix `f05d3c4` | 7 Shifts now fire for START; * comment passes |
-| 2026-03-15 | nl/tab init + nTop() fix + nPush β `5d0e584` | 3 bugs fixed; untested — container crashed |
-| 2026-03-15 | DATA tree/link startup + &STLIMIT `50ef58f` | START passes; X=1 loops at stmt 107 |
+| 2026-03-14 | M-STMT-FN fired `4a6db69` | trampoline emitter, beauty 0 gcc errors |
+| 2026-03-14 | M-COMPILED-BYRD fired `560c56a` | engine.c dropped from compiled path |
+| 2026-03-15 | DATA tree/link startup + &STLIMIT `50ef58f` | START passes; X=1 loops |
+| 2026-03-15 | nPush β→ω `6abfdf6` | X=1 infinite loop eliminated |
+| 2026-03-15 | ARBNO beta nhas_frame `27325b6` | ntop counts correctly; @S pollution remains |
