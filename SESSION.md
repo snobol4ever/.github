@@ -12,78 +12,53 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `6d09bfa — fix(emit_byrd): E_COND/E_IMM accept E_STR varname + sanitize special chars` |
+| **HEAD** | `dc8ad4b — artifact: beauty_tramp_session59.c — 27483 lines, 0 gcc errors, bare-label bug` |
 
 ---
 
-## State at handoff (session 58)
+## State at handoff (session 59)
 
 Commits this session:
-- `6d09bfa` (TINY) — E_COND/E_IMM E_STR varname fix + sanitize special chars ✅
-- `9efd628` (CORPUS) — restore full 801-line beauty.sno after truncated re-beautify ✅
-- `d504d80` (CORPUS) — rename snoXXX → XXX (42 names, 207 lines) ✅
-- `596cc5f` (CORPUS) — S4_expression.sno → expression.sno, same rename + fix Windows paths ✅
+- `a3ea9ef` (TINY) — Technique 1 struct-passing: fix static re-entrancy bug ✅
+- `dc8ad4b` (TINY) — artifact: beauty_tramp_session59.c ✅
 
-Also: beauty.sno self-beautified itself into its own canonical form — the oracle
-for M-BEAUTY-FULL is now self-referential. The compiled binary must produce what
-the interpreter already agreed was beautiful. The interpreter itself currently
-cannot fully beautify beauty.sno (truncates at Parse Error) — M-BEAUTY-FULL is
-the moment the compiled binary surpasses the interpreter.
+**Technique 1 fully implemented.** All named pattern functions now allocate a
+heap struct (`pat_X_t`) on entry==0, thread it through re-entry (entry==1).
+All locals live in the struct via `#define field z->field` aliases. Child frame
+pointers (`deref_N_z`) embedded in parent struct for E_DEREF calls. gcc 0 errors.
 
-**Current state:** Binary compiles (gcc 0 errors), runs exit 0, outputs comments only.
-Parse Error on first real statement (START, X=1, anything non-comment).
+**Current state:** Binary runs. Simple statements pass (`X = 1`, `* comment`).
+Bare label lines fail (`START` → Parse Error).
 
-**Root cause pinned:** `pat_Stmt` and all named pattern functions use `static` local
-variables. Static locals are shared across all calls — re-entrant calls (e.g.
-`*Stmt` inside `*Command` inside `*Parse`) stomp each other's saved cursors.
-This is the fundamental re-entrancy bug. The E_COND fix was correct and did unblock
-the previous blocker — the new blocker is the static locals issue.
+**Root cause pinned:** `emit_imm` (the `$ capture` operator) stores the captured
+span into a local `str_t var_nl` inside the named pattern function body, but
+**never calls `var_set("nl", ...)`**. So `var_get("nl")` returns empty in
+`pat_Label`'s `BREAK(' ' tab nl ';')`, causing bare labels to fail.
+
+Verified: `nl` is set by `global.sno` line 6:
+```
+&ALPHABET  POS(10) LEN(1) . nl
+```
+This is a `$ capture` (`. nl`) — it hits `emit_imm`. The do_assign block writes
+`var_nl.ptr / var_nl.len` (local str_t) but never `var_set("nl", ...)`.
 
 ---
 
-## ONE NEXT ACTION — Fix static re-entrancy in named pattern functions
+## ONE NEXT ACTION — Fix emit_imm to call var_set after capture
 
-**The bug:** Every `pat_Xxx` function declares its locals as `static`:
-```c
-static int64_t deref_589_saved_cur;   // ← shared across ALL calls to pat_Stmt
-```
-When `pat_Stmt` calls `pat_Label` which calls back into `pat_Stmt` (or any
-re-entrant path), the inner call overwrites the outer call's saved cursor.
-
-**The fix — Technique 1 (struct-passing) from PLAN.md:**
-
-Each named pattern function gets a locals struct. The struct is heap-allocated
-on first call (entry==0) and threaded through re-entry (entry==1).
+In `src/sno2c/emit_byrd.c`, `emit_imm`, the `do_assign` non-OUTPUT branch
+(around line 970–985 after the struct-passing rewrite):
 
 ```c
-typedef struct pat_Stmt_t {
-    int64_t deref_589_saved_cur;
-    int64_t deref_593_saved_cur;
-    /* ... all locals ... */
-} pat_Stmt_t;
-
-static SnoVal pat_Stmt(pat_Stmt_t **zz, const char *_subj, int64_t _slen,
-                       int64_t *_cur_ptr, int _entry) {
-    if (_entry == 0) { *zz = calloc(1, sizeof(pat_Stmt_t)); }
-    pat_Stmt_t *z = *zz;
-    /* use z->deref_589_saved_cur instead of static deref_589_saved_cur */
-    ...
-}
+/* do_assign: write span into variable */
+B("%s:\n", do_assign);
+// ADD THIS — push captured value into SNOBOL4 variable table:
+B("    { int64_t _len = %s - %s;\n", cursor, start_var);
+B("      char *_os = malloc(_len + 1);\n");
+B("      memcpy(_os, %s + %s, _len); _os[_len] = 0;\n", subj, start_var);
+B("      var_set(\"%s\", strv(_os)); free(_os); }\n", varname);
+// KEEP or remove the str_t local (str_t is used if varname != OUTPUT)
 ```
-
-Child pattern calls embed a pointer field in the parent struct:
-```c
-typedef struct pat_Stmt_t {
-    ...
-    struct pat_Label_t *Label_z;   /* child frame for *Label */
-} pat_Stmt_t;
-```
-
-**Where to make the change:** `src/sno2c/emit_byrd.c`
-- `byrd_emit_named_pattern()` — emit the struct typedef + function signature
-- `emit_imm` / `emit_cond` — use `z->varname` instead of `static str_t var_xxx`
-- `byrd_emit` E_DEREF case — call `pat_X(&z->X_z, subj, slen, cur, entry)`
-- All `decl_add()` calls — collect into struct fields, not static locals
 
 **Test after fix:**
 ```bash
@@ -101,7 +76,8 @@ gcc -O0 -g -I. -I$R -I$R/snobol4 /tmp/beauty_tramp.c \
     -lgc -lm -w -o /tmp/beauty_tramp_bin
 echo "gcc exit: $?"
 
-printf 'X = 1\n' | /tmp/beauty_tramp_bin   # expect: X = 1
+printf 'START\n' | /tmp/beauty_tramp_bin        # expect: START
+printf 'X = 1\n' | /tmp/beauty_tramp_bin        # expect: X = 1
 
 /tmp/beauty_tramp_bin < $BEAUTY > /tmp/beauty_tramp_out.sno
 $SNO -f -P256k -I$INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
@@ -166,4 +142,5 @@ cd SNOBOL4-tiny/src/sno2c && make
 | 2026-03-14 | E_COND/E_IMM E_STR fix `6d09bfa` | binary compiles, runs, fails on static re-entrancy |
 | 2026-03-14 | beauty.sno snoXXX→XXX `d504d80` + beautifier bootstrap | oracle now self-referential |
 | 2026-03-14 | S4_expression.sno→expression.sno `596cc5f` | same rename + jcooper paths fixed |
-| 2026-03-14 | Next blocker: static locals in pat_Xxx | re-entrant calls stomp saved cursors |
+| 2026-03-14 | Technique 1 struct-passing `a3ea9ef` | re-entrancy fixed, 0 gcc errors, X=1 passes |
+| 2026-03-14 | Next blocker: emit_imm missing var_set | var_get("nl") returns empty, bare labels fail |

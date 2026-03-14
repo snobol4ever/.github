@@ -4916,3 +4916,37 @@ variables — shared across all invocations — re-entrant calls stomp saved cur
 
 ### Next session
 Implement Technique 1 struct-passing in `emit_byrd.c`. See SESSION.md ONE NEXT ACTION.
+
+---
+
+## Session 59 — 2026-03-14
+
+### Commits
+- `a3ea9ef` (TINY) — feat(emit_byrd): Technique 1 struct-passing — fix static re-entrancy bug
+- `dc8ad4b` (TINY) — artifact: beauty_tramp_session59.c — 27483 lines, 0 gcc errors
+
+### What fired
+Technique 1 struct-passing fully implemented in `emit_byrd.c`:
+- `decl_buf` rewritten: `in_named_pat` flag, `child_decl_buf`, `#define`/`#undef` helpers
+- `decl_field_name` fixed for array fields (`int64_t foo[64]`)
+- `byrd_emit_named_typedecls` — emits `typedef struct pat_X_t pat_X_t;` before fwdecls
+- `byrd_emit_named_fwdecls` — new signature `pat_X(..., pat_X_t **, int)`
+- E_DEREF: child frame pointer field in parent struct, bare field name in call site
+- `byrd_emit_named_pattern`: struct typedef + `calloc` on entry==0 + `#define`/`#undef`
+
+gcc 0 errors. `X = 1` and `* comment` pass. `START` (bare label) fails.
+
+### Root cause of current blocker
+`emit_imm` (`. varname` capture) stores span into local `str_t var_nl` inside
+the named pattern body but never calls `var_set("nl", ...)`. So `var_get("nl")`
+returns empty when `pat_Label`'s `BREAK(' ' tab nl ';')` runs — bare labels fail.
+
+Source: `global.sno` line 6: `&ALPHABET POS(10) LEN(1) . nl` — this is a
+`$ capture` emitted by `emit_imm`. The do_assign block must add:
+```c
+var_set("nl", strv(captured_string));
+```
+
+### Next session
+Fix `emit_imm` do_assign (non-OUTPUT branch) to call `var_set(varname, strv(...))`.
+See SESSION.md ONE NEXT ACTION.
