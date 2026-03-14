@@ -5050,3 +5050,18 @@ Effect: `$'@S'` reads as NULL → Push/Pop chain broken → pat_Parse fails → 
 2. Rebuild, regenerate, recompile
 3. Run diff against committed oracle (test/smoke/outputs/session50/beauty_oracle.sno)
 4. Fix remaining diff lines → M-BEAUTY-FULL
+
+### Session 78 — Addendum (HANDOFF)
+
+**Final HEAD:** `9785f5b` (TINY artifact) / `b20329f` (emit_cnode fix)
+
+**Artifact:** beauty_tramp_session78.c — 31776 lines, md5=5046a4b6f8a751ea92a67d271c1c05a2, CHANGED
+
+**Bootstrap plan added to PLAN.md (`7a9826a`):**
+- Architecture B (final primitive): compiler.sno = beauty.sno + replace pp(sno) with compile(sno)
+- compile(sno) reads Shift/Reduce tree, emits C Byrd boxes. One new function.
+- Architecture A (sprinkle): future work — inline actions in pattern like ini.sno. Hard but elegant.
+- Sprint map: compiler-pattern → sno2c-sno-compiles (M-SNO2C-SNO) → stage1 → stage2 → verify (M-BOOTSTRAP)
+- References: ini.sno (corpus), assignment3.py (ENG 685, Lon Cherryholmes)
+
+**Session 79 opens with:** Fix emit.c emit_expr E_DEREF ~line 292. One line. Then diff.

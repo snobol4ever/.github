@@ -9,7 +9,7 @@
 
 **Active sprint:** `beauty-first` — fix $expr bug → M-BEAUTY-FULL
 **Milestone target:** M-BEAUTY-FULL
-**HEAD:** `203b7cb` — artifact: beauty_tramp_session77.c — pat_lit fix; $expr deref bug identified
+**HEAD:** `b20329f` — fix(emit_cnode): build_expr E_DEREF — use e->right for $expr
 
 **Completed since session 58 (do NOT re-implement):**
 - Session 59 `a3ea9ef`: Technique 1 struct-passing in emit_byrd.c — all pat_Xxx use pat_Xxx_t structs, calloc on entry==0
@@ -17,7 +17,7 @@
 - Session 64 `09e5a5d`+`613b333`: E_DEREF varname checks right child first. $'lit' fix. byrd_cs() C-static sync. 33→9 match_pattern_at.
 - Sessions 65–76: quote-strip, computed goto, 3-column format (`d5b9c3c`), CNode IR M-CNODE (`ac54bd2`), pat_lit strv() fix (`0113d90`)
 - Session 77: pat_lit strv() bug fixed. Binary compiles 0 errors. 122 match_pattern_at remain (all dynamic refs — correct/expected). Parse Error active.
-- Session 78 (this session): emit_cnode.c build_expr E_DEREF fixed — checks !e->left first.
+- Session 78 `b20329f`: emit_cnode.c build_expr E_DEREF fixed. TINY.md/SESSION.md rewritten. Bootstrap plan written (7 sprints → M-BOOTSTRAP). Architecture B (final primitive) recorded.
 
 **Current symptom:** Binary outputs 8-line comment header then `Parse Error`.
 `pat_Parse` fails on `Src`. Root cause: `$'@S'` read emits `deref(NULL_VAL)` → Push/Pop chain broken.

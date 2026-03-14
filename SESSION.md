@@ -12,7 +12,7 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-first` — fix emit.c E_DEREF → M-BEAUTY-FULL |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `203b7cb` — artifact: beauty_tramp_session77.c |
+| **HEAD** | `b20329f` — fix(emit_cnode): build_expr E_DEREF — use e->right for $expr |
 
 ---
 
