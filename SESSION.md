@@ -12,7 +12,142 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `c5d5c2b — fix(emit+parse): computed goto inline dispatch` |
+| **HEAD** | `5837bf1 — fix(emit_byrd+emit): quote-strip fixes` |
+
+---
+
+## State at handoff (session 73)
+
+Two fixes committed and pushed (`5837bf1`). Artifact `beauty_tramp_session73.c` committed.
+HQ PLAN.md updated with 3-column format requirement, save/restore Byrd box requirement,
+and active `c` field bug.
+
+**CSNOBOL4 2.3.3 NOT pre-installed** — must build from tarball at session start.
+Tarball is at `/mnt/user-data/uploads/snobol4-2_3_3_tar.gz` (uploaded by Lon).
+Install: `cd /tmp && tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz && cd snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
+Then oracle is at `/usr/local/bin/snobol4`.
+
+---
+
+## Bug: START produces empty output — NEW ROOT CAUSE
+
+### Symptom
+| Input | Compiled | Oracle | Status |
+|-------|----------|--------|--------|
+| `* comment` | `* comment` | `* comment` | ✅ |
+| `START` | *(empty)* | `START` | ❌ |
+| `X = 1` | `Parse Error\nX = 1` | `Parse Error\nX = 1` | ✅ |
+
+### What was fixed this session (5837bf1)
+1. `emit_byrd.c` `emit_simple_val` E_STR: strips outer single-quote pair from sval.
+   `STR_VAL("'Stmt'")` → `STR_VAL("Stmt")`. Root: `"'Stmt'"` double-quoted SNOBOL4 source
+   stores `'Stmt'` as sval; inner quotes are delimiters, not content.
+2. `emit.c` computed-goto dispatch: strips ALL quote chars from `_cg_raw` into `_cg_buf`
+   before the strcmp chain. Handles `pp_'Stmt'` → `pp_Stmt`.
+3. `runtime/snobol4_pattern.c` `evl()`: returns bare string for quoted literals
+   (`EVAL("'Stmt'")` → `"Stmt"`). Not the root cause of START but correct fix.
+
+### Current root cause — `c` field returns SSTR not ARRAY
+
+**Trace confirms:**
+- `Reduce("Stmt", 7)` fires with bare `t_arg=|Stmt|` ✅ (quote-strip fix working)
+- `tree("Stmt", NULL, 7, c_array)` stores correctly — `t_stored=|Stmt|` ✅
+- `pp(sno)` called with Parse node (UDEF type=9, t=|Parse|) ✅
+- `pp_Parse` dispatches correctly ✅ (quote-strip fix working)
+- `pp_Parse` loops: `indx(get(_c), {vint(1)}, 1)` returns **SFAIL** (type=10)
+- `c.type=1` (SSTR) — the `c` field accessor returns a string, not the array
+
+**Next action — exactly one step:**
+
+```bash
+# Step 1: check field_get for UDEF array-valued fields
+grep -n "field_get\|UDEF\|u->fields\|u->vals" src/runtime/snobol4/snobol4.c | head -30
+
+# Step 2: check if indx is registered as a builtin
+grep -n "register_fn.*indx\|\"indx\"" src/runtime/snobol4/snobol4.c
+
+# Step 3: check how c[i] compiles in generated C — it may use a different call path
+grep -n "indx\b" /tmp/beauty_tramp.c | head -10
+```
+
+The fix is likely one of:
+- (a) `field_get` for ARRAY-valued UDEF fields serializes to string — fix to return ARRAY directly
+- (b) `indx()` is not registered as a builtin — register it or use the correct accessor
+- (c) `c[i]` in SNOBOL4 compiles to something other than `aply("indx", {c, i}, 2)`
+
+---
+
+## Build command
+
+```bash
+# Install oracle (ONCE per container)
+cd /tmp && tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz
+cd /tmp/snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install
+apt-get install -y m4 libgc-dev
+
+# Clone repos
+TOKEN=TOKEN_SEE_LON
+git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/claude/SNOBOL4-tiny
+git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-corpus /home/claude/SNOBOL4-corpus
+git -C /home/claude/SNOBOL4-tiny config user.name "LCherryholmes"
+git -C /home/claude/SNOBOL4-tiny config user.email "lcherryh@yahoo.com"
+
+# Build sno2c
+cd /home/claude/SNOBOL4-tiny/src/sno2c && make
+
+# Generate + compile beauty_tramp_bin
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+RT=/home/claude/SNOBOL4-tiny/src/runtime
+SNO2C=/home/claude/SNOBOL4-tiny/src/sno2c
+$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
+gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
+    /tmp/beauty_tramp.c $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
+    $RT/snobol4/snobol4_pattern.c $RT/engine.c -lgc -lm -w -o /tmp/beauty_tramp_bin
+
+# Test
+printf '* comment\n' | /tmp/beauty_tramp_bin
+printf 'START\n'     | /tmp/beauty_tramp_bin   # should output: START  (currently: empty)
+printf 'X = 1\n'     | /tmp/beauty_tramp_bin
+
+# Oracle self-beautify
+/usr/local/bin/snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > /tmp/oracle_out.sno
+/tmp/beauty_tramp_bin < $BEAUTY > /tmp/compiled_out.sno
+diff /tmp/oracle_out.sno /tmp/compiled_out.sno | head -40
+```
+
+---
+
+## Artifact convention
+
+Last artifact: `beauty_tramp_session73.c`
+Next artifact: `beauty_tramp_session74.c` (commit after START bug is fixed)
+Current generated C: 30108 lines, md5 `95c6eb104a1ab7cf5c8415c9fbbf9245`
+**Artifact matches session73.c — no change needed at next session start unless sno2c changes.**
+
+---
+
+## CRITICAL Rules
+
+- **NEVER write the token into any file**
+- **NEVER link engine.c in beauty_full_bin**
+- **ALWAYS run `git config user.name/email` after every clone**
+
+---
+
+## Pivot Log
+
+| Date | What changed | Why |
+|------|-------------|-----|
+| 2026-03-14 | PIVOT: block-fn + trampoline model | complete rethink with Lon |
+| 2026-03-15 | DATA tree/link startup `50ef58f` | START passes; X=1 loops |
+| 2026-03-15 | nPush β→ω `6abfdf6` | X=1 infinite loop eliminated |
+| 2026-03-15 | ARBNO beta nhas_frame `27325b6` | ntop counts correctly |
+| 2026-03-15 | @S checkpoint ARBNO `emit_arbno` | @S stack pollution fixed |
+| 2026-03-15 | @S checkpoint per-stmt `emit.c` | per-stmt @S save/restore |
+| 2026-03-15 | computed goto infrastructure `e8f9e5d` | $COMPUTED:expr preserved; dispatch TODO |
+| 2026-03-15 | computed goto inline dispatch `c5d5c2b` | $COMPUTED now dispatches correctly |
+| 2026-03-15 | quote-strip fixes `5837bf1` | STR_VAL strips single-quotes; _cg strips quotes; evl() fixed |
 
 ---
 

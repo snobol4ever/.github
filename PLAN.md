@@ -1118,3 +1118,126 @@ never returns normally. Linking visibility: expose the port table as a global
 **Status:** Concept only. Not implemented. Hmm — interesting but nonstandard.
 
 ---
+
+---
+
+## Three-Column Format — ALL Generated Code (Session 73, 2026-03-15)
+
+**Lon's requirement:** The entire generated C file must use the 3-column Byrd box layout —
+not just pattern blocks. The current `emit.c` uses raw `E(...)` fprintf for all statement
+code (label setup, trampoline blocks, function bodies). This must be replaced.
+
+### Column layout (same as emit_byrd.c patterns):
+
+```
+Col 1  Label   display  0..17   (4-space indent + label + ":" + pad)
+Col 2  Stmt    display 18..59   (C statement body)
+Col 3  Goto    display 60+      (goto target)
+```
+
+### Mapping from current emit.c output to 3-column:
+
+| Current emit.c output | 3-column form |
+|------------------------|---------------|
+| `_L_pp:;` + `goto _SNO_NEXT_794;` | `PLG("_L_pp", "_SNO_NEXT_794")` |
+| `SnoVal _v795 = ...;` + `goto _SNO_NEXT_794;` | `PL("", "_SNO_NEXT_794", "SnoVal _v795 = ...;")` |
+| `_L_pp_Parse:;` + `goto _L_pp_0;` | `PLG("_L_pp_Parse", "_L_pp_0")` |
+| label + no stmt + goto | `PLG(col1, col3)` — two-section, skip middle |
+| `if(_ok) goto X; if(!_ok) goto Y;` | `PS("X", "if(_ok)")` + `PS("Y", "if(!_ok)")` |
+
+### Two-section emits (label + goto, no middle):
+
+These are valid 3-column lines — col 1 has the label, col 2 is blank, col 3 has the goto.
+Example: `_L_pp_Parse:` dispatches immediately to `:(pp_0)` with no action.
+Use `PLG(label, goto_target)` — exactly like pattern alpha/beta port wires.
+
+### Implementation plan:
+
+1. Move `pretty_line()` + `COL_*` constants + `PLG`/`PL`/`PS`/`PG` macros to a shared
+   header `emit_pretty.h` — included by both `emit.c` and `emit_byrd.c`.
+2. Replace all `E("label:;\n")` + `E("goto X;\n")` pairs in `emit.c` with `PLG`/`PL`/`PS`.
+3. The `_ok%d`/`!_ok%d` conditional blocks become PS lines with goto in col 3.
+4. The `trampoline_stno(N)` call folds into col 2 or drops entirely (it's a debug hook).
+
+**Priority:** After M-BEAUTY-FULL (START bug fix first). This is a cosmetic/readability
+improvement — correct output matters more. But Lon wants it before M-COMPILED-SELF.
+
+---
+
+## Save/Restore via Byrd Box for DEFINE Functions (Session 73, 2026-03-15)
+
+**Lon's requirement:** The save/restore of caller locals when entering/exiting a SNOBOL4
+DEFINE'd function must be structured as a Byrd box — not as ad-hoc C preamble/postamble.
+
+### Current (wrong) pattern in emit.c:
+
+```c
+static SnoVal _sno_fn_pp(SnoVal *_args, int _nargs) {
+    SnoVal _saved__x = var_get("x");   /* save */
+    SnoVal _saved__t = var_get("t");   /* save */
+    ...
+    /* function body as flat gotos */
+    ...
+_SNO_RETURN_pp:
+    var_set("x", _saved__x);           /* restore */
+    var_set("t", _saved__t);           /* restore */
+    return _pp;
+}
+```
+
+### Required (correct) pattern — save/restore AS Byrd box ports:
+
+The function entry (α) saves caller locals. The function exit (γ/ω) restores them.
+This is the natural Byrd box structure:
+
+```
+fn_pp_α:   save caller x,t,n,c,i,v into fn_pp_saved_*    goto fn_body_α
+fn_body_α: ... function body labeled gotos ...
+fn_pp_γ:   restore caller x,t,n,c,i,v from fn_pp_saved_* goto caller_γ
+fn_pp_ω:   restore caller x,t,n,c,i,v from fn_pp_saved_* goto caller_ω
+```
+
+The save/restore lives in the α and γ/ω ports — not in C function preamble.
+This makes the control flow uniform with all other Byrd boxes and makes the
+generated code readable in 3-column format like everything else.
+
+**Why it matters:** With C-local shadowing (current approach), recursive calls work
+correctly at the C level but the save/restore is invisible in the generated code —
+it looks like magic C-scope behavior rather than explicit SNOBOL4 semantics.
+The Byrd box form makes the α/γ/ω ports explicit and readable.
+
+**Implementation:** In `emit.c` `emit_fn()`, replace the preamble/postamble save/restore
+with PLG/PL lines for α (save) and γ/ω (restore). The saved values go into a struct
+(same as Technique 1 in PLAN.md) rather than C locals with var_get/var_set.
+
+**Priority:** Sprint after 3-column format. Prerequisite for M-COMPILED-SELF.
+
+---
+
+## Active Bug: `c` field of tree node returns SSTR not ARRAY (Session 73)
+
+**Symptom:** `indx(get(_c), {vint(1)}, 1)` inside `pp_Parse` returns SFAIL (type=10).
+`c.type=1` (SSTR) — the `c` field accessor on a UDEF tree node returns a string, not
+the array of children.
+
+**Root cause traced:**
+- `Reduce("Stmt", 7)` correctly calls `tree("Stmt", NULL, 7, c_array)`
+- The `c` field is stored as an ARRAY in the UDEF node
+- But `aply("c", {node}, 1)` → `field_get(node, "c")` returns SSTR
+
+**Next session — Step 1:** Check `field_get` for UDEF nodes — does it serialize the
+array to string? Check `_b_tree_c` in snobol4.c and `field_get` for ARRAY-valued fields.
+
+**Next session — Step 2:** Check `indx()` — it's called as `aply("indx", {c, vint(1)}, 2)`
+in generated code. But `indx` may not be registered as a builtin. Verify:
+```bash
+grep -n "register_fn.*indx\|\"indx\"" src/runtime/snobol4/snobol4.c
+```
+
+**Next session — Step 3:** The correct access pattern for a DATA-defined array field
+may be `aply("c", {node}, 1)` followed by `aply("indx", {c_array, idx}, 2)` — or
+it may need direct UDEF field indexing `c[i]` which compiles differently. Check how
+beauty.sno's `c[i]` (subscript notation on a UDEF field) compiles in the generated C.
+
+**Commit when fixed:** `fix(runtime): UDEF array field access — c[i] on tree nodes`
+
