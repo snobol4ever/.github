@@ -95,7 +95,7 @@ and Claude Sonnet 4.6. When any milestone trigger fires, Claude writes the commi
 |----|---------|--------|
 | **M-SNOC-COMPILES** | `snoc` compiles `beauty_core.sno`, 0 gcc errors | ✅ Done |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | ✅ Done `bf86b4b` |
-| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`, no INCLUDE code) | ❌ **Active** |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_mock`, no INCLUDE code) | ❌ **Active** |
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`, real INCLUDE files) — only after M-BEAUTY-CORE | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | ❌ Future |

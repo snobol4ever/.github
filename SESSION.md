@@ -66,7 +66,7 @@ apt-get install -y libgc-dev
 make -C src/sno2c
 
 RT=src/runtime
-STUBS=src/runtime/inc_stubs
+STUBS=src/runtime/inc_mock
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 
 # beauty_core (stubs — USE THIS, DO NOT switch to beauty_full)
@@ -90,7 +90,7 @@ Oracle: `test/smoke/outputs/session50/beauty_oracle.sno`
 
 ### Agreement breach resolved
 Session 84 broke the beauty_core/beauty_full agreement. Session 85 confirmed
-`inc_stubs/` is intact (19 stubs), both binaries build clean.
+`inc_mock/` is intact (19 stubs), both binaries build clean.
 
 ### Rename audit — Session 84 SIL rename verified
 Full word-for-word audit of 40+ renames. All clean. One bug found and fixed:
@@ -168,6 +168,6 @@ Parse Error fires before the tree walk. Fix Parse Error first.
 | 2026-03-14 | Session 80 runtime fixes | engine_stub T_FUNC/T_CAPTURE etc |
 | 2026-03-14 | Session 83 diagnosis | _c = data_define overwrites _b_tree_c (later disproved) |
 | 2026-03-14 | Session 84 SIL rename | DESCR_t/DTYPE_t/XKIND_t/_fn/_t throughout |
-| 2026-03-14 | Session 84 build fixes | cs_alloc, computed goto, label table, inc_stubs |
+| 2026-03-14 | Session 84 build fixes | cs_alloc, computed goto, label table, inc_mock |
 | 2026-03-14 | Session 84 HALT | broke beauty_core/beauty_full agreement — reverted to stubs |
 | 2026-03-14 | Session 85 cleanup | agreement breach resolved, rename audit, P4 undo, M-BEAUTY-CORE split |

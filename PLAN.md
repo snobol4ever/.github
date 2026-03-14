@@ -413,7 +413,7 @@ glob-sequence are optimizations and diagnostics improvements.
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
 | **M-COMPILED-BYRD** | `sno2c` emits labeled-goto Byrd boxes — `engine_stub.c` only, no interpreter | TINY | ✅ Done `560c56a` |
 | **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ✅ Done `ac54bd2` |
-| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`, no INCLUDE code compiled in) | TINY | ⏳ active |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_mock`, no INCLUDE code compiled in) | TINY | ⏳ active |
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`, real INCLUDE files) — only after M-BEAUTY-CORE | TINY | ❌ |
 | **M-TRAMPOLINE** | Hello world runs through `block_fn_t` trampoline loop — `pc = pc()` | TINY | ❌ |
 | **M-BLOCK-FN** | Every stmt a C fn returning S/F block address; stmts grouped into block fns | TINY | ❌ |
@@ -445,7 +445,7 @@ glob-sequence are optimizations and diagnostics improvements.
 Four sprints to M-BEAUTY-CORE. M-BEAUTY-FULL follows after. Each gates the next. Each ends with a commit.
 
 **The agreement (mandatory, no exceptions):**
-- Phase 1: beauty_core — beauty.sno compiled with `-I src/runtime/inc_stubs` (19 comment-only stubs, zero SNOBOL4 inc code). **This is the active target.**
+- Phase 1: beauty_core — beauty.sno compiled with `-I src/runtime/inc_mock` (19 comment-only stubs, zero SNOBOL4 inc code). **This is the active target.**
 - Phase 2: beauty_full — beauty.sno compiled with `-I SNOBOL4-corpus/programs/inc` (real inc files). **Do NOT start until M-BEAUTY-CORE fires.**
 
 ---
@@ -509,7 +509,7 @@ Binary links with engine_stub.c only. Runs on beauty.sno input without crash.
 **What:** Empty diff. beauty_core_bin (stubs) self-beautifies exactly.
 
 ```bash
-INC=src/runtime/inc_stubs
+INC=src/runtime/inc_mock
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 snobol4 -f -P256k -I $INC $BEAUTY < $BEAUTY > /tmp/beauty_oracle.sno
 /tmp/beauty_core_bin < $BEAUTY > /tmp/beauty_core_compiled.sno
@@ -950,7 +950,7 @@ typedef struct {
 | **M-BLOCK-FN** | Stmts grouped into block functions, gotos resolve | ❌ |
 | **M-PATTERN-BLOCK** | Named patterns compile to block fns; `*X` static → direct call; `*X` dynamic → `block_fn_t` stored in var, called directly — no interpreter | ❌ |
 | **M-LOCALS-STRUCT** | Flat concatenated locals struct per block, all locals correct | ❌ |
-| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_stubs`) | ❌ |
+| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_mock`) | ❌ |
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`) — only after M-BEAUTY-CORE | ❌ |
 | **M-CODE-EVAL** | `CODE()` + `EVAL()` via TCC in-process compile → `block_fn_t`; same trampoline loop; no interpreter | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | ❌ |

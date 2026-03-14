@@ -5078,7 +5078,7 @@ Effect: `$'@S'` reads as NULL → Push/Pop chain broken → pat_Parse fails → 
 
 **Agreement breach resolved.** Session 84 broke the beauty_core/beauty_full
 agreement by switching to real includes mid-session. Session 85 confirmed
-`inc_stubs/` intact (19 stubs), beauty_core_bin builds clean.
+`inc_mock/` intact (19 stubs), beauty_core_bin builds clean.
 
 **M-BEAUTY-CORE / M-BEAUTY-FULL split written into HQ.**
 PLAN.md, TINY.md, SESSION.md updated. Two-phase agreement is now a hard
