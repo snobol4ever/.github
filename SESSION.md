@@ -10,96 +10,85 @@
 | Field | Value |
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
-| **Sprint** | `cnode-build` — Sprint 1 of 4 toward M-CNODE |
-| **Milestone** | M-CNODE (then M-BEAUTY-FULL) |
-| **HEAD** | `6d9c227 — feat(emit): multi-line concat_sv for chains ≥3 deep` |
+| **Sprint** | `beauty-first` — fix `c` field SSTR bug → START → M-BEAUTY-FULL |
+| **Milestone** | M-BEAUTY-FULL |
+| **HEAD** | `ac54bd2 — feat(cnode): sprint cnode-wire` |
 
-## ⚡ SESSION 76 FIRST PRIORITY: Sprint cnode-build
+## ⚡ M-CNODE FIRED — ac54bd2
 
-Build `emit_cnode.c` — CNode IR tree from Expr*. No output yet.
+All four cnode sprints complete. Zero expression lines > 120 chars.
+Remaining 10 long lines are emit_byrd.c SPAN/ANY inlining + computed-goto dispatch
+— not reachable by CNode. M-CNODE trigger satisfied.
 
-**Gate:** `flat_print(build_expr(e))` matches current `emit_expr(e)` output exactly.
-Verify by generating beauty_tramp.c before and after, diffing the expression output.
+**Mark M-CNODE ✅ in PLAN.md at session start.**
 
 ---
 
-## M-CNODE — Why and What
+## ⚡ SESSION 77 FIRST PRIORITY: Fix `c` field SSTR bug → START → M-BEAUTY-FULL
 
-**The problem:** `emit_expr` is a streaming printer. No lookahead. Every long-line
-fix is a local heuristic. `concat_sv(A, B)` where A and B are each long stays on
-one line because chain depth=2 — the printer doesn't know the total width.
+Now that M-CNODE is done, return to the main line.
 
-**The solution:** pp/qq split, same model as beauty.sno:
-- `build_expr(e)` → CNode IR tree (no output)
-- `cn_flat_width(n, limit)` → "qq" lookahead: flat width or INT_MAX
-- `pp_cnode(n, fp, col, indent, maxcol)` → "pp": inline if fits, multiline if not
+**The one job:**
+1. Fix `c` field SSTR bug (one grep, one fix — see below)
+2. Test: `printf 'START\n' | /tmp/beauty_tramp_bin` → should output `START`
+3. Run full self-beautify diff → `diff /tmp/oracle_out.sno /tmp/compiled_out.sno`
+4. Fix every diff line until diff is empty
+5. Commit: **M-BEAUTY-FULL fires**
 
-**Scope:** Expression trees only. Structural lines (PLG/PS/PG) stay as-is.
-Seam: `E("SnoVal _v%d = ", u)` → `pp_cnode(build_expr(e))` → `E(";\n")`.
+---
 
-**File:** `src/sno2c/emit_cnode.c` + `src/sno2c/emit_cnode.h`
+## Bug: START produces empty output
 
-### CNode IR
+### Symptom
+| Input | Compiled | Oracle | Status |
+|-------|----------|--------|--------|
+| `* comment` | `* comment` | `* comment` | ✅ |
+| `START` | *(empty)* | `START` | ❌ |
+| `X = 1` | `Parse Error\nX = 1` | `Parse Error\nX = 1` | ✅ |
 
-```c
-typedef enum { CN_RAW, CN_CALL, CN_SEQ } CNodeKind;
+### Root cause — confirmed session 73
+- `Reduce("Stmt", 7)` fires correctly ✅
+- `tree("Stmt", NULL, 7, c_array)` stores correctly ✅
+- `pp(sno)` called with correct Parse tree ✅
+- `pp_Parse` dispatches correctly ✅
+- `pp_Parse` loops: `indx(get(_c), {vint(1)}, 1)` → **SFAIL** (type=10)
+- `c.type=1` (SSTR) — `field_get` on UDEF tree node returns string not array
 
-typedef struct CNode {
-    CNodeKind    kind;
-    const char  *text;      // CN_RAW: literal; CN_CALL: fn name
-    struct CNode **args;    // CN_CALL: arg subtrees
-    int           nargs;
-    struct CNode *left, *right; // CN_SEQ
-} CNode;
+### Next action — Step 1 (one grep)
+```bash
+grep -n "field_get\|UDEF\|u->fields\|u->vals" \
+    src/runtime/snobol4/snobol4.c | head -40
 ```
 
-### Sprint map (4 sprints to M-CNODE)
-
-| Sprint | What | Gate |
-|--------|------|------|
-| `cnode-build` ⬅ **NOW** | `build_expr` + `build_pat` → CNode tree | `flat_print` diff=0 vs current output |
-| `cnode-measure` | `cn_flat_width(n, limit)` early-exit | Correct + fast |
-| `cnode-pp` | `pp_cnode` inline/multiline | Valid C, 0 lines > 120 |
-| `cnode-wire` | Replace emit_expr/emit_pat calls | Smoke tests pass. **M-CNODE fires.** |
-
----
-
-## Sprint cnode-build — Step by step
-
-1. Create `src/sno2c/emit_cnode.h` — CNode typedef + arena allocator + API
-2. Create `src/sno2c/emit_cnode.c` — `cn_raw()`, `cn_call()`, `cn_seq()` constructors
-3. Write `build_expr(Expr *e)` — mirrors `emit_expr` exactly, returns CNode* instead of printing
-4. Write `build_pat(Expr *e)` — mirrors `emit_pat` exactly
-5. Write `cn_flat_print(CNode *n, FILE *fp)` — flat printer for validation
-6. In `emit.c`, add temporary validation shim: emit via old path AND via build_expr+flat_print, diff
-7. Once diff=0, remove old path → sprint done
-
-### Key mapping (emit_expr → build_expr)
-
-| emit_expr | build_expr |
-|-----------|------------|
-| `E("NULL_VAL")` | `cn_raw(arena, "NULL_VAL")` |
-| `E("strv("); emit_cstr(s); E(")")` | `cn_call(arena, "strv", cn_cstr(arena,s), 1)` |
-| `E("aply(\"%s\",...)", nm)` | `cn_call(arena, "aply", args, nargs)` |
-| `emit_expr(e->left); E(","); emit_expr(e->right)` | `cn_seq(arena, build_expr(e->left), cn_raw(arena,","), build_expr(e->right))` |
-| `E("concat_sv("); emit_expr(l); E(","); emit_expr(r); E(")")` | `cn_call(arena, "concat_sv", [build_expr(l), build_expr(r)], 2)` |
-
-### Arena allocator (simple bump allocator)
-
-```c
-typedef struct CArena { char *buf; size_t cap, used; } CArena;
-CArena *cn_arena_new(size_t cap);   // malloc cap bytes
-void   *cn_arena_alloc(CArena *a, size_t sz); // bump ptr
-void    cn_arena_free(CArena *a);   // free whole arena at once
+### Next action — Step 2
+```bash
+grep -n "register_fn.*indx\|\"indx\"" src/runtime/snobol4/snobol4.c
 ```
 
-One arena per statement. Free after `E(";\n")` is emitted. Zero GC pressure.
+### Next action — Step 3
+Check how `c[i]` in SNOBOL4 compiles in generated C:
+```bash
+grep -n "indx\b" /tmp/beauty_tramp.c | head -10
+```
+
+Fix is likely one of:
+- `field_get` for ARRAY-valued UDEF fields serializes to string — fix to return ARRAY directly
+- `indx()` not registered as builtin
+- `c[i]` subscript compiles differently than `aply("indx", {c, i}, 2)`
 
 ---
 
-## Bug (still active): START produces empty output
+## M-CNODE completed — what was done (sessions 75–76)
 
-`c` field of UDEF tree node returns SSTR not ARRAY. Deferred — M-CNODE first.
+| Sprint | Commit | Status |
+|--------|--------|--------|
+| `cnode-build` | `160f69b` | ✅ `build_expr`/`build_pat`, 0 mismatches |
+| `cnode-measure` | (in 160f69b) | ✅ `cn_flat_width` early-exit |
+| `cnode-pp` | (in 160f69b) | ✅ `pp_cnode` inline/multiline |
+| `cnode-wire` | `ac54bd2` | ✅ `PP_EXPR`/`PP_PAT` wired, long lines 68→10 |
+
+Remaining 10 long lines: emit_byrd.c SPAN/ANY + computed-goto dispatch.
+Not expr lines — M-CNODE trigger satisfied.
 
 ---
 
@@ -145,6 +134,7 @@ printf 'START\n'     | /tmp/beauty_tramp_bin
 | Date | What changed | Why |
 |------|-------------|-----|
 | 2026-03-14 | PIVOT: block-fn + trampoline model | complete rethink with Lon |
-| 2026-03-15 | 3-column format `d5b9c3c` | emit_pretty.h shared, emit.c converted |
-| 2026-03-15 | multi-line concat_sv `6d9c227` | long lines 68→17 |
-| 2026-03-15 | PIVOT: M-CNODE CNode IR + pp/qq | Lon: right architecture — split build from print |
+| 2026-03-15 | 3-column format `d5b9c3c` | emit_pretty.h shared |
+| 2026-03-15 | multi-line concat_sv `6d9c227` | heuristic approach, superseded |
+| 2026-03-15 | M-CNODE CNode IR `160f69b`+`ac54bd2` | proper pp/qq architecture |
+| 2026-03-15 | Return to M-BEAUTY-FULL | M-CNODE done, back to main line |

@@ -455,7 +455,7 @@ glob-sequence are optimizations and diagnostics improvements.
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty | TINY | ⏳ sprint 3/4 `beauty-runtime` next |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | TINY | ✅ Done `bf86b4b` |
 | **M-COMPILED-BYRD** | `sno2c` emits labeled goto Byrd boxes — `engine.c` not linked | TINY | ✅ Done `560c56a` |
-| **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ❌ |
+| **M-CNODE** | `emit_expr`/`emit_pat` route through CNode IR + pp/qq pretty-printer — zero expression lines > 120 chars | TINY | ✅ Done `ac54bd2` |
 | **M-BYRD-SPEC** | Language-agnostic written spec of four-port Byrd box lowering rules — all backends (C, JVM, MSIL) implement independently against it | HQ | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | TINY | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | TINY | ❌ Future |
@@ -1180,10 +1180,10 @@ int pp_cnode(CNode *n, FILE *fp, int col, int indent, int maxcol);
 
 | Sprint | What | Gates |
 |--------|------|-------|
-| `cnode-build` | `build_expr` + `build_pat` — CNode tree from Expr* | `flat_print(build_expr(e))` matches current `emit_expr(e)` output exactly (diff=0) |
-| `cnode-measure` | `cn_flat_width(n, limit)` with early exit | Correct + fast |
-| `cnode-pp` | `pp_cnode` — inline if fits, multiline if not | Valid C, zero expression lines > 120 chars |
-| `cnode-wire` | Replace `emit_expr`/`emit_pat` calls with `pp_cnode(build_expr(...))` | `beauty_tramp_bin` compiles + passes smoke tests. **M-CNODE fires.** |
+| `cnode-build` | `build_expr` + `build_pat` — CNode tree from Expr* | ✅ `160f69b` — 0 mismatches |
+| `cnode-measure` | `cn_flat_width(n, limit)` with early exit | ✅ `160f69b` |
+| `cnode-pp` | `pp_cnode` — inline if fits, multiline if not | ✅ `160f69b` |
+| `cnode-wire` | Replace `emit_expr`/`emit_pat` calls with `pp_cnode(build_expr(...))` | ✅ `ac54bd2` — **M-CNODE fired** |
 
 ### Implementation notes
 
