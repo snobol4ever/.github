@@ -12,126 +12,148 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `pattern-block` (sprint 4/9 toward M-BEAUTY-FULL) |
 | **Milestone** | M-BEAUTY-FULL |
-| **HEAD** | `27325b6 — fix(emit_byrd+runtime): ARBNO beta npush restore + nhas_frame()` |
+| **HEAD** | `e8f9e5d — feat(parse+emit): computed goto infrastructure` |
 
 ---
 
-## State at handoff (session 69)
+## State at handoff (session 70)
 
 Commits this session:
-- `6abfdf6` — fix(emit_byrd): nPush beta → omega not gamma
-- `27325b6` — fix(emit_byrd+runtime): ARBNO beta npush restore + nhas_frame()
+- `e8f9e5d` — feat(parse+emit): computed goto infrastructure — $COMPUTED:expr preserved
 
-**CSNOBOL4 2.3.3 installed at `/usr/local/bin/snobol4`** — oracle available.
-(Fresh container: upload snobol4-2_3_3_tar.gz, `./configure && make -j$(nproc) && make install`)
+**CSNOBOL4 2.3.3 at `/usr/local/bin/snobol4`** — oracle available.
 
-### Fix 6 — emit_byrd.c: nPush beta → omega
-nPush beta was wired to gamma (→ ARBNO alpha = depth reset).
-Every Parse beta re-entry reset ARBNO depth=-1 → infinite zero-iteration loop.
-Fix: `PLG(beta, omega)` — nPush has no alternatives on backtrack.
-Result: `X = 1` infinite loop eliminated. Oracle match: `Parse Error\nX = 1`.
+### Root cause of START/label failures — CONFIRMED
 
-### Fix 7 — ARBNO beta: conditional npush via nhas_frame()
-After alpha-path `nPush→ARBNO(0)→Reduce(Parse,0)→nPop()`, `_ntop=-1`.
-On ARBNO beta extension, `nInc()` inside Command was no-op (no frame).
-Fix: emit `if (!nhas_frame()) npush();` at ARBNO beta entry.
-Added `nhas_frame()` to `snobol4.c` + `snobol4.h`.
-Result: `ntop()` now correctly returns N after N Commands.
+`$('pp_' t)` computed goto in `pp()` (beauty.sno line 433) was silently
+discarded. The parser stored `$COMPUTED` (discarding the expression), and
+the emitter emitted fall-through to the next statement. Result: `pp()` always
+dispatched to `pp_Parse` regardless of tree type. All Stmt/Label/Comment trees
+were pretty-printed as Parse trees → wrong or no output.
 
-### Remaining bug — @S stack pollution from premature Reduce(Parse,0)
+### What was fixed this session
 
-**Root cause (identified, not yet fixed):**
+- `parse.c`: `parse_goto_label` now stores `$COMPUTED:expr_text` instead
+  of discarding. `parse_expr_from_str()` added as public API.
+- `sno2c.h`: `parse_expr_from_str` declared.
+- `emit.c`: trampoline-mode `$COMPUTED:expr` handler calls `sno_computed_goto()`
+  (not yet implemented). Classic fn-body mode: expr text preserved but
+  dispatch still falls through (scope problem with tramp_labels/fn_table).
 
-ARBNO zero-match alpha path fires `Reduce(Parse,0)` immediately,
-pushing a zero-child Parse tree onto `$'@S'` BEFORE any Command runs.
-When ARBNO then extends via beta and Command runs:
-- `Shift("Label","START")` pushes Label tree → `$'@S'` = [Label, zero-Parse]
-- `Reduce('Stmt',7)` pops 7 items → gets [Label, zero-Parse, 5×null]
-  The zero-Parse tree is CONSUMED as a Stmt child → wrong tree structure.
-- `Reduce('Parse',1)` pops 1 item → gets the corrupted Stmt tree.
-- `pp_Stmt` gets wrong children → outputs nothing (START case) or Parse Error.
+### What is NOT yet fixed
 
-**The fix needed:**
-The `$'@S'` tree stack must be checkpointed at ARBNO entry and restored
-before each extension attempt — so the zero-match Reduce side effects are
-undone when ARBNO tries more iterations.
-
-**Where to fix:**
-In `emit_arbno()` in `emit_byrd.c`:
-1. At ARBNO alpha entry: save `$'@S'` pointer to a local variable.
-2. At ARBNO beta entry (before extending): restore `$'@S'` to the saved value,
-   discarding any trees pushed by the previous shorter match.
-
-This is analogous to how CSNOBOL4 handles generator frame checkpointing.
-The save/restore uses `var_get("@S")` and `var_set("@S", saved)`.
-
-**Pseudo-code for emit_arbno fix:**
-```c
-/* alpha: save @S, then zero-match → gamma */
-PL(alpha, gamma, "%s_saved_stk = var_get(\"@S\"); %s = -1;", uid, depth_var);
-
-/* beta: restore @S to saved, then extend */
-PLG(beta, NULL);
-PS(NULL, "var_set(\"@S\", %s_saved_stk);", uid);  // undo previous match's pushes
-PS(NULL, "if (!nhas_frame()) npush();");
-PS(omega, "if (++%s >= 64)", depth_var);
-PS(child_α, "%s[%s] = %s;", stack_var, depth_var, cursor);
-```
-
-The `%s_saved_stk` needs to be declared as a `SnoVal` in the struct
-(via `decl_add`).
+The computed goto dispatch for `pp()` still emits fall-through because:
+- `pp()` is a SNOBOL4 function compiled in "classic" mode (inside `_sno_fn_pp`)
+- `emit_goto_target` in classic mode can't access `tramp_labels`/`fn_table`
+  (those are local to `snoc_emit`)
+- The trampoline-mode handler is correct but `pp()` doesn't use trampoline
 
 ---
 
-## Test results (session 69)
+## ONE NEXT ACTION — Session 71
+
+Implement `sno_computed_goto_classic()` as a generated C function emitted
+in `emit_trampoline_main()` (or `emit_fn_forwards()`) after all labels
+are known. Strategy:
+
+**Step 1**: In `emit.c`, after emitting all fn forward declarations
+(around line 1560 where `emit_fn_forwards()` runs), emit a static
+dispatch table and lookup function:
+
+```c
+/* In snoc_emit(), after emit_fn_forwards(): */
+E("/* --- computed goto dispatch table --- */\n");
+E("static void* sno_computed_goto_classic(const char *lbl) {\n");
+E("    if (!lbl) return NULL;\n");
+/* Emit one line per known label */
+for (int i = 0; i < fn_count; i++) {
+    /* Emit all body labels of each function */
+    for (int b = 0; b < fn_table[i].nbody_starts; b++) {
+        for (Stmt *s = fn_table[i].body_starts[b]; s; s = s->next) {
+            if (s->label && !s->is_end)
+                E("    if (strcmp(lbl,\"%s\")==0) return &&_L%s;\n",
+                  s->label, cs_label(s->label));
+        }
+    }
+}
+/* Also trampoline labels */
+for (int i = 0; i < tramp_nlabels; i++)
+    E("    if (strcmp(lbl,\"%s\")==0) return (void*)block_%s;\n",
+      tramp_labels[i], cs_label(tramp_labels[i]));
+E("    return NULL;\n}\n\n");
+```
+
+BUT `&&label` (GCC label-as-value) only works within the same function.
+Since `_L_pp_Parse` etc. are inside `_sno_fn_pp`, the dispatch table
+must be INSIDE `_sno_fn_pp`, not a standalone function.
+
+**Correct approach**: Emit the dispatch INLINE at the computed goto site.
+In `emit_goto_target` (classic mode), when label starts with `$COMPUTED:`,
+pass the expression to a new helper `emit_computed_goto_inline(expr, fn)`.
+This helper iterates all labels known to be inside function `fn`'s body
+and emits:
+
+```c
+{ const char *_cg = to_str(EXPR);
+  if (strcmp(_cg,"pp_Parse")==0)  goto _L_pp_Parse;
+  else if (strcmp(_cg,"pp_Stmt")==0)   goto _L_pp_Stmt;
+  ... (all labels in fn's body)
+  /* fallthrough */ }
+```
+
+The labels in `fn`'s body are available: `fn_table[i].body_starts[b]->label`
+for all b and all subsequent stmts. The function name `fn` is passed to
+`emit_goto_target`. Use `stmt_in_fn_body(s, fn)` to find all labels.
+
+**Key labels needed for pp**: pp_Parse, pp_Stmt, pp_Stmt5, pp_Stmt7,
+pp_Stmt9, pp_BuiltinVar, pp_Function, pp_Id, pp_Integer, pp_Label,
+pp_ProtKwd, pp_Real, pp_SpecialNm, pp_String, pp_UnprotKwd, pp_Comment,
+pp_Control, pp_ExprList, pp_,, pp_0, pp_1, pp_Goto, etc.
+
+**Implementation in emit.c:**
+```c
+/* In emit_goto_target, classic mode, $COMPUTED: branch: */
+static void emit_computed_goto_inline(const char *expr_src, const char *fn) {
+    Expr *ce = parse_expr_from_str(expr_src);
+    if (!ce) return;
+    E("{ const char *_cg = to_str(");
+    emit_expr(ce);
+    E(");\n");
+    /* collect all labels reachable in this function */
+    for (int i = 0; i < fn_count; i++) {
+        if (fn && strcasecmp(fn_table[i].name, fn) != 0) continue;
+        for (int b = 0; b < fn_table[i].nbody_starts; b++) {
+            for (Stmt *s = fn_table[i].body_starts[b]; s; s = s->next) {
+                if (s->is_end) break;
+                if (is_body_boundary(s->label, fn_table[i].name)) break;
+                if (s->label)
+                    E("  if (strcmp(_cg,\"%s\")==0) goto _L%s;\n",
+                      s->label, cs_label(s->label));
+            }
+        }
+    }
+    E("  (void)_cg; /* no match — fall through */\n}\n");
+}
+```
+
+Then in the classic-mode `$COMPUTED:` branch:
+```c
+if (expr_src && *expr_src) {
+    emit_computed_goto_inline(expr_src, fn);
+    return;
+}
+```
+
+---
+
+## Test results (session 70)
 
 | Input | Compiled | Oracle | Status |
 |-------|----------|--------|--------|
 | `* comment` | `* comment` | `* comment` | ✅ MATCH |
-| `START` | (empty) | `START` | ❌ @S pollution |
+| `START` | (empty) | `START` | ❌ computed goto |
 | `X = 1` | `Parse Error\nX = 1` | `Parse Error\nX = 1` | ✅ MATCH |
-| `label OUTPUT = "hello"` | `Parse Error\n...` | beautified | ❌ @S pollution |
-
----
-
-## ONE NEXT ACTION
-
-Fix `emit_arbno()` in `emit_byrd.c` to checkpoint/restore `$'@S'` at ARBNO boundaries:
-
-```bash
-# 1. Edit src/sno2c/emit_byrd.c — function emit_arbno()
-# 2. Add SnoVal decl for saved stack pointer:
-#    decl_add("SnoVal %s_saved_stk", uid_str);  // where uid_str = sprintf of uid
-# 3. At alpha entry: save @S before zero-match fires
-# 4. At beta entry: restore @S before each extension attempt
-# 5. Rebuild:
-cd /tmp/snobol4-tiny/src/sno2c && make
-INC=/tmp/snobol4-corpus/programs/inc
-BEAUTY=/tmp/snobol4-corpus/programs/beauty/beauty.sno
-RT=/tmp/snobol4-tiny/src/runtime; SNO2C=/tmp/snobol4-tiny/src/sno2c
-$SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
-gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
-    /tmp/beauty_tramp.c $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
-    $RT/snobol4/snobol4_pattern.c $RT/engine.c -lgc -lm -w -o /tmp/beauty_tramp_bin
-# 6. Test:
-printf '* comment\n' | /tmp/beauty_tramp_bin   # expect: * comment
-printf 'START\n'     | /tmp/beauty_tramp_bin   # expect: START
-printf 'X = 1\n'     | /tmp/beauty_tramp_bin   # expect: Parse Error\nX = 1
-printf 'label          OUTPUT         =  "hello"\n' | /tmp/beauty_tramp_bin
-# oracle: printf 'label          OUTPUT         =  "hello"\n' | snobol4 -f -P256k -I$INC $BEAUTY
-```
-
----
-
-## Artifact convention
-
-Session 69 artifact: `artifacts/beauty_tramp_session69.c`
-- Lines: 29932
-- MD5:   c8beae48e8e072de513f15ac25eb41a4
-- Compile: 0 errors
-- Tests: comment ✅  START ❌(empty)  X=1 ✅  label=hello ❌
-
-Next artifact: `beauty_tramp_session70.c`
+| `label OUTPUT = "hello"` | `Parse Error\n...` | beautified | ❌ computed goto |
 
 ---
 
@@ -142,10 +164,9 @@ apt-get install -y m4 libgc-dev
 TOKEN=TOKEN_SEE_LON
 git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/claude/SNOBOL4-tiny
 git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/SNOBOL4-corpus /home/claude/SNOBOL4-corpus
-git clone https://x-access-token:${TOKEN}@github.com/SNOBOL4-plus/.github /home/claude/snobol4-hq
-cd /home/claude/SNOBOL4-tiny
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-cd src/sno2c && make
+git -C /home/claude/SNOBOL4-tiny config user.name "LCherryholmes"
+git -C /home/claude/SNOBOL4-tiny config user.email "lcherryh@yahoo.com"
+cd /home/claude/SNOBOL4-tiny/src/sno2c && make
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 RT=/home/claude/SNOBOL4-tiny/src/runtime
@@ -154,14 +175,23 @@ $SNO2C/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
 gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
     /tmp/beauty_tramp.c $RT/snobol4/snobol4.c $RT/snobol4/snobol4_inc.c \
     $RT/snobol4/snobol4_pattern.c $RT/engine.c -lgc -lm -w -o /tmp/beauty_tramp_bin
+printf '* comment\n' | /tmp/beauty_tramp_bin
+printf 'START\n'     | /tmp/beauty_tramp_bin
+printf 'X = 1\n'     | /tmp/beauty_tramp_bin
 ```
 
 ---
 
-## CRITICAL Rules (no exceptions)
+## Artifact convention
+
+Next artifact: `beauty_tramp_session70.c` (generate after computed goto works)
+
+---
+
+## CRITICAL Rules
 
 - **NEVER write the token into any file**
-- **NEVER link engine.c in beauty_full_bin** (beauty_tramp_bin uses engine.c — ok for now)
+- **NEVER link engine.c in beauty_full_bin**
 - **ALWAYS run `git config user.name/email` after every clone**
 
 ---
@@ -171,9 +201,9 @@ gcc -O0 -g -I$SNO2C -I$RT -I$RT/snobol4 \
 | Date | What changed | Why |
 |------|-------------|-----|
 | 2026-03-14 | PIVOT: block-fn + trampoline model | complete rethink with Lon |
-| 2026-03-14 | M-TRAMPOLINE fired `fb4915e` | trampoline.h + 3 POC files |
-| 2026-03-14 | M-STMT-FN fired `4a6db69` | trampoline emitter, beauty 0 gcc errors |
-| 2026-03-14 | M-COMPILED-BYRD fired `560c56a` | engine.c dropped from compiled path |
-| 2026-03-15 | DATA tree/link startup + &STLIMIT `50ef58f` | START passes; X=1 loops |
+| 2026-03-15 | DATA tree/link startup `50ef58f` | START passes; X=1 loops |
 | 2026-03-15 | nPush β→ω `6abfdf6` | X=1 infinite loop eliminated |
-| 2026-03-15 | ARBNO beta nhas_frame `27325b6` | ntop counts correctly; @S pollution remains |
+| 2026-03-15 | ARBNO beta nhas_frame `27325b6` | ntop counts correctly |
+| 2026-03-15 | @S checkpoint ARBNO `emit_arbno` | @S stack pollution fixed |
+| 2026-03-15 | @S checkpoint per-stmt `emit.c` | per-stmt @S save/restore |
+| 2026-03-15 | computed goto infrastructure `e8f9e5d` | $COMPUTED:expr preserved; dispatch TODO |
