@@ -841,12 +841,47 @@ as a linked library (`libtcc`). Add to build: `-ltcc`.
 
 ---
 
-### EVAL() — Simpler than CODE
+### EVAL() — Unifies with CODE (Lon Cherryholmes, 2026-03-14)
 
-`EVAL(str)` evaluates a SNOBOL4 expression (not a statement sequence).
-Compile str to a single degenerate stmt_fn — subject is empty, pattern is
-the expression, no replacement. Call it, read the γ return value.
-Same TCC path as CODE but the generated C is a single stmt function.
+**Key insight: EVAL can eval a PATTERN.**
+
+`EVAL('SPAN(''0-9'') . X')` does not produce a value — it produces a
+**block function**. A pattern IS a block function. EVAL returns a
+`block_fn_t` that the caller uses as `*X`.
+
+This means EVAL and CODE are **the same mechanism**:
+
+| Call | String contains | Compile produces | Returns |
+|------|----------------|-----------------|---------|
+| `EVAL(str)` | expression | degenerate stmt fn | value via γ |
+| `EVAL(str)` | pattern | pattern block fn | `block_fn_t` for use as `*X` |
+| `CODE(str)` | statements | block fn sequence | entry `block_fn_t` |
+
+All three paths: compile str via TCC → get address → return it.
+The **type of what comes back** tells you what it is.
+The **mechanism** is identical in all three cases.
+
+EVAL is not simpler than CODE — it IS CODE. The distinction is only
+in what the string contains, not in how it is compiled or executed.
+
+```c
+/* EVAL/CODE unified implementation */
+block_fn_t sno_eval_or_code(const char *snobol4_src) {
+    char *c_src = sno2c_compile_string(snobol4_src);  /* any snobol4 */
+    TCCState *s = tcc_new();
+    tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+    tcc_compile_string(s, c_src);
+    tcc_relocate(s, TCC_RELOCATE_AUTO);
+    /* What comes back depends on what src contained:
+     *   expression → block_EVAL_value (degenerate stmt)
+     *   pattern    → block_EVAL_pattern (pattern block fn)
+     *   statements → block_CODE_entry (stmt sequence)   */
+    return tcc_get_symbol(s, "block_EVAL_entry");
+}
+```
+
+The trampoline calls it like any other `block_fn_t`. No special cases.
+No interpreter. The same one loop handles everything.
 
 ---
 
