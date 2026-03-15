@@ -1,8 +1,10 @@
 # SNOBOL4ever
 
-**SNOBOL4 everywhere. SNOBOL4 for all. SNOBOL4 for now. SNOBOL4 forever.**
+**snobol4all. snobol4now. snobol4ever.**
 
-`snobol4now` · `snobol4ever`
+*SNOBOL for all. SNOBOL for now. SNOBOL forever.*
+
+`snobol4all` · `snobol4now` · `snobol4ever`
 
 ---
 
@@ -67,7 +69,7 @@ The org is a **compiler matrix**. Two dimensions. Every cell is a working implem
 
 The mission: fill the matrix. Every cell represents a community of programmers who can now use SNOBOL4's pattern model natively on their platform — without porting, without FFI, without compromise.
 
-`snobol4now` · `snobol4ever`
+`snobol4all` · `snobol4now` · `snobol4ever`
 
 ---
 
@@ -76,9 +78,9 @@ The mission: fill the matrix. Every cell represents a community of programmers w
 ### [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet)
 *Full SNOBOL4/SPITBOL compiler and runtime for .NET — written in C# — Windows, Linux, macOS*
 
-Jeffrey Cooper set out to build a SNOBOL4 implementation that was readable, correct, and faithful to Emmer and Quillen's *MACRO SPITBOL* manual as the specification. He succeeded. SNOBOL4-dotnet runs on Windows, Linux, and macOS — the first full SNOBOL4/SPITBOL implementation to do so on .NET.
+Jeffrey Cooper set out to build a SNOBOL4 implementation that was readable, correct, and faithful to Emmer and Quillen's *MACRO SPITBOL* manual as the specification. He succeeded. Jeffrey built the original Roslyn-based compiler and the complete runtime — SNOBOL4-dotnet runs on Windows, Linux, and macOS, the first full SNOBOL4/SPITBOL implementation to do so on .NET.
 
-The original backend generated C# via Roslyn. The current backend emits MSIL `DynamicMethod` delegates directly via `ILGenerator` — no Roslyn, no intermediate C# source, no startup overhead. All GOTO logic, Init/Finalize, and TRACE hooks are compiled directly into the delegates. The result: **up to 15.9× faster** than the Roslyn baseline on short programs. A plugin architecture allows C# and F# extensions to be loaded at runtime. A Windows GUI ships alongside the command-line runner. **1,484 tests passing.**
+Lon Cherryholmes then took the MSIL path: replacing Roslyn with direct `ILGenerator` emission of `DynamicMethod` delegates — no intermediate C# source, no startup overhead. All GOTO logic, Init/Finalize, and TRACE hooks compiled directly into the delegates. The result: **up to 15.9× faster** than the Roslyn baseline on short programs. A plugin architecture allows C# and F# extensions to be loaded at runtime. A Windows GUI ships alongside the command-line runner. **1,607 tests passing.**
 
 SNOBOL4-dotnet is also the home of `Beautiful.sno` — a complete 17-level SNOBOL4 expression and statement parser written entirely as SNOBOL4 patterns. This single file turns out to solve the bootstrap problem for the entire platform: serialize its patterns to C struct declarations, include them in the seed kernel, and SNOBOL4-tiny parses SNOBOL4 source using SNOBOL4 patterns from Sprint 5 onward.
 
@@ -299,9 +301,11 @@ Correctness validated against three independent oracles: **SPITBOL x64**, **CSNO
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, x86-64 codegen, SNOBOL4-python, SNOBOL4-jvm, SNOBOL4-tiny. Lon carried the dream of Created Intelligence from age eight — through Georgia Tech, through Texas Instruments, through an 11-year retirement — and came back. His instinct for what computing could be, sixty years in the making, is the engine behind this project.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, MSIL speedup (SNOBOL4-dotnet), x86-64 codegen, SNOBOL4-python, SNOBOL4-jvm, SNOBOL4-tiny (co-author). Lon carried the dream of Created Intelligence from age eight — through Georgia Tech, through Texas Instruments, through an 11-year retirement — and came back. His instinct for what computing could be, sixty years in the making, is the engine behind this project.
 
-**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — SNOBOL4-dotnet, MSIL target, `Beautiful.sno`, SNOBOL4-csharp. Jeffrey is a medical doctor. Not a programmer by profession, not a compiler writer by training — and yet, over a fifty-year journey driven purely by love for the language, he built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The explosion produced this repository.
+**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — SNOBOL4-dotnet (Roslyn compiler and complete runtime), `Beautiful.sno`, SNOBOL4-csharp. Jeffrey is a medical doctor. Not a programmer by profession, not a compiler writer by training — and yet, over a fifty-year journey driven purely by love for the language, he built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The explosion produced this repository.
+
+**Claude Sonnet 4.6** — SNOBOL4-tiny (co-author). The third developer. Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed. When any milestone fires, Claude writes the commit message.
 
 Two forces. One phone call. Everything you see here.
 
@@ -324,6 +328,10 @@ feeding the same pipeline.
 
 One week built SNOBOL4-everywhere. The transcript of that week is the architectural
 playbook for Icon-everywhere. The clock starts the moment `beauty.sno` compiles itself.
+
+snobol4all. snobol4now. snobol4ever.
+
+*SNOBOL for all. SNOBOL for now. SNOBOL forever.*
 
 ---
 
