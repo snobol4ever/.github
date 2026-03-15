@@ -9,13 +9,14 @@
 
 **Active sprint:** `crosscheck-ladder` — Sprint 3 of 6 — climb corpus ladder rung by rung
 **Milestone target:** M-BEAUTY-CORE (mock includes first), then M-BEAUTY-FULL (real inc)
-**HEAD:** `e2ca252` — artifact: beauty_tramp_session93.c — CHANGED, 15638 lines
+**HEAD:** `dd0a57f` — artifact: beauty_tramp_session94.c — CHANGED, 15641 lines
 
 **Ladder status:**
 - Rungs 1–7 (output→capture): ✅ 64/64 clean
-- Rung 8 (strings/): ⏳ 15/17 — 2 failures
+- Rungs 1–8 (output→strings): ✅ 81/81 clean
+- Rung 9 (keywords/): ⏳ 9/11 — 2 failures
 - Rungs 9–12: ❌ not yet attempted
-- **Total: 71/73**
+- **Total: 88/90**
 
 **Rung 8 remaining failures:**
 1. `cross` — E_ATP `@NH` captures to `_` instead of `NH`. Bug in E_ATP handler.

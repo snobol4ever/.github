@@ -5,40 +5,82 @@
 | **Repo** | SNOBOL4-tiny |
 | **Sprint** | `crosscheck-ladder` — Sprint 3 of 6 toward M-BEAUTY-CORE |
 | **Milestone** | M-BEAUTY-CORE (mock includes first) → M-BEAUTY-FULL (real inc, second) |
-| **HEAD** | `e2ca252` — artifact: beauty_tramp_session93.c — CHANGED, 15638 lines |
+| **HEAD** | `dd0a57f` — artifact: beauty_tramp_session94.c — CHANGED, 15641 lines |
 
 ---
 
-## ⚡ SESSION 94 FIRST ACTION — Fix E_ATP bug, finish rung 8, start rung 9
+## ⚡ SESSION 95 FIRST ACTION — Fix 082_keyword_stcount and 100_roman_numeral, then rung 10
 
-### Bug 1: E_ATP capturing to `_` instead of varname
+### Bug 1: 082_keyword_stcount — &STNO off-by-one
 
-`@NH ANY(V) . CROSS` — `@NH` should capture cursor into `NH`.
-E_ATP handler in emit_byrd.c uses `pat->right->sval` but the parse
-stores the variable in `pat->right` (as an E_VART). Check parse.c
-line 235: `case T_AT: uk=E_ATP; break;` — E_ATP is unary, so the
-operand is `pat->right`. But the handler has:
+Test: `GT(&STNO, 1) :S(YES)F(NO)` after 2 assignments.
+&STNO is mapped to `kw_stcount` in NV_GET_fn. `trampoline_stno(n)` increments
+`kw_stcount` at the TOP of each stmt. At the GT statement (stmt 3, line 4 of source),
+`kw_stcount` has been incremented 3 times → value is 3. GT(3, 1) should succeed.
+But test still outputs "wrong" — so GT is failing. Check: does `kw_stcount` start at 0
+or 1? Is it incremented BEFORE or AFTER the GT reads it?
+
+Debug:
+```bash
+cat > /tmp/stno_debug.sno << 'EOF2'
+      X = 1
+      X = 2
+      OUTPUT = &STNO
+EOF2
+cd /home/claude/SNOBOL4-tiny && src/sno2c/sno2c -trampoline /tmp/stno_debug.sno > /tmp/t.c 2>/dev/null
+gcc -O0 -g /tmp/t.c src/runtime/snobol4/snobol4.c src/runtime/snobol4/mock_includes.c \
+    src/runtime/snobol4/snobol4_pattern.c src/runtime/mock_engine.c \
+    -Isrc/runtime/snobol4 -Isrc/runtime -Isrc/sno2c -lgc -lm -w -o /tmp/tb 2>/dev/null
+timeout 3 /tmp/tb
+```
+Expected: 3 (or 4 if stcount incremented before OUTPUT line too).
+Actually expected for GT(&STNO,1): STNO at that point should be >=2.
+
+### Bug 2: 100_roman_numeral — block_roman_end undefined
+
+Root cause: `roman_end` is a top-level label on a stmt that is inside the
+function-body stmt range. Pass 2 block walker emits blocks for top-level stmts
+but the range [roman: ... roman_end] is in the function body — those stmts are
+skipped in Pass 2. So `block_roman_end` is forward-declared (line 16) and
+in the label table (line 555) but never defined as a block function.
+
+Fix location: `src/sno2c/emit.c` Pass 2 block walker (~line 1982).
+The walker skips function-body stmts. After the walker loop, we need to
+emit block stubs for any labeled stmt that has a label, appeared in Pass 1,
+but whose block was never opened/closed in Pass 2.
+
+Track which labels got block functions defined. For any label in the
+forward-decl list that was NOT defined, emit:
+```c
+static void *block_roman_end(void) {
+    { void *_r = stmt_1(); if (_r != _tramp_next_73) return _r; }
+    ... (stmts in this block) ...
+    return block_END;
+}
+```
+
+Actually simpler: in the Pass 2 loop, DON'T skip function-body stmts for
+block grouping — just emit them as their own blocks. The function body stmts
+already have their C function (`_sno_fn_roman`) generated separately; the
+block grouping just needs to wrap the top-level flow labels.
+
+Simplest fix: track a set `emitted_block_labels`. After Pass 2, for any
+label in `tramp_labels[]` that is NOT in `emitted_block_labels` AND is NOT
+already covered by the undefined-stub loop, emit a proper block:
 
 ```c
-const char *varname = (pat->right && pat->right->sval) ? pat->right->sval : "_";
+// after the block walker loop, before "undefined label stubs":
+for each label L in tramp_labels that was NOT emitted as a block:
+    find the stmt S with s->label == L
+    E("static void *block%s(void) {\n", cs_label(L));
+    E("    { void *_r = stmt_%d();\n", sid_of(S));
+    E("      if (_r != _tramp_next_%d) return _r; }\n", uid_of(S));
+    // find following unlabeled stmts...
+    E("    return block_END;\n}\n\n");
 ```
 
-The bug is that `pat->right` is the child expression node (E_VART with sval="NH"),
-so `pat->right->sval` SHOULD be "NH". But generated code shows `NV_SET_fn("_", ...)`.
-
-Debug: add fprintf(stderr, "E_ATP varname=%s\n", varname) in the E_ATP case and
-rerun cross. Also check parse.c line 424 — E_ATP may be parsed differently
-(left-unary vs right-unary).
-
-```bash
-grep -n "E_ATP\|T_AT" src/sno2c/parse.c | head -20
-```
-
-### Bug 2: word4 — BREAKX not implemented
-
-`BREAKX(cs)` — like BREAK but fails if no non-cs chars present (stricter).
-Add to emit_byrd.c E_FNC handlers: BREAKX(cs) — same as BREAK but adds
-check that cursor advanced at least 1 char (delta > 0).
+Check emit.c around lines 1858-1870 (forward decl loop) and 2022-2030
+(undefined stub loop) for the full label tracking logic.
 
 ### Build commands
 ```bash
@@ -49,8 +91,7 @@ make -C src/sno2c
 
 RT=src/runtime
 CORPUS=/home/claude/SNOBOL4-corpus/crosscheck
-
-bash /tmp/run_rung.sh $RT $CORPUS strings    # should be 15/17 baseline
+bash /tmp/run_rung.sh $RT $CORPUS keywords    # target: 11/11
 ```
 
 ### run_rung.sh (recreate if container is fresh)
@@ -63,10 +104,10 @@ for sno in $CORPUS/$RUNG/*.sno; do
     ref="${sno%.sno}.ref"
     inp="${sno%.sno}.input"
     [ -f "$ref" ] || continue
-    src/sno2c/sno2c -trampoline "$sno" > /tmp/t.c 2>/dev/null
+    /home/claude/SNOBOL4-tiny/src/sno2c/sno2c -trampoline "$sno" > /tmp/t.c 2>/dev/null
     gcc -O0 -g /tmp/t.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
         $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
-        -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/tbin 2>/dev/null
+        -I$RT/snobol4 -I$RT -I/home/claude/SNOBOL4-tiny/src/sno2c -lgc -lm -w -o /tmp/tbin 2>/dev/null
     if [ -f "$inp" ]; then
         got=$(timeout 5 /tmp/tbin < "$inp" 2>/dev/null || true)
     else
@@ -77,7 +118,7 @@ for sno in $CORPUS/$RUNG/*.sno; do
         echo "PASS $name"; pass=$((pass+1))
     else
         echo "FAIL $name"
-        diff <(echo "$exp") <(echo "$got") | head -4 | sed 's/^/  /'
+        diff <(echo "$exp") <(echo "$got") | head -6 | sed 's/^/  /'
         fail=$((fail+1))
     fi
 done
@@ -85,16 +126,9 @@ echo "--- $RUNG: $pass pass, $fail fail ---"
 SCRIPT
 ```
 
-### Oracle note
-The `.ref` files ARE the oracle — pre-generated from CSNOBOL4.
-No need to build SPITBOL or CSNOBOL4. Never run them live.
-Two executables compared:
-1. `sno2c -trampoline foo.sno` → gcc → binary (with optional `.input` on stdin)
-2. `cat foo.ref` — static ground truth
-
 ---
 
-## Crosscheck ladder status (Session 93)
+## Crosscheck ladder status (Session 94)
 
 | Rung | Dir | Tests | Status |
 |------|-----|-------|--------|
@@ -105,43 +139,30 @@ Two executables compared:
 | 5 control | control_new/ | 7 | ✅ 7/7 |
 | 6 patterns | patterns/ | 20 | ✅ 20/20 |
 | 7 capture | capture/ | 7 | ✅ 7/7 |
-| 8 strings | strings/ | 17 | ⏳ 15/17 — 2 failures |
-| 9 keywords | keywords/ | 11 | ❌ not started |
-| 10 functions | functions/ | 8 | ❌ |
+| 8 strings | strings/ | 17 | ✅ 17/17 |
+| 9 keywords | keywords/ | 11 | ⏳ 9/11 — 2 failures |
+| 10 functions | functions/ | 8 | ❌ not started |
 | 11 data | data/ | 6 | ❌ |
 | 12 beauty.sno | TBD | TBD | ❌ |
 
-**Total so far: 71/73 pass**
+**Total so far: 88/90 pass**
 
-Rung 8 remaining failures:
-- `cross` — E_ATP `@NH` captures to `_` instead of `NH`
-- `word4` — BREAKX not implemented
-
----
-
-## Benchmarks — sno2c vs SPITBOL/CSNOBOL4
-
-Benchmarks live in `SNOBOL4-corpus/benchmarks/`.
-Run with: `sno2c -trampoline bench.sno` → gcc -O2 → binary (no stdin).
-Reference numbers in `SNOBOL4-corpus/BENCHMARKS.md`.
-**Do NOT build SPITBOL or CSNOBOL4** — use ref numbers from BENCHMARKS.md.
-
-arith_loop, var_access, string_concat, string_manip all compile and run.
-All produce correct integer output (coerce_numeric fix landed this session).
-TIME() returns 0 (no real timer implementation yet — acceptable).
+Rung 9 remaining failures:
+- `082_keyword_stcount` — &STNO reads kw_stcount but GT still fails
+- `100_roman_numeral` — block_roman_end not defined in Pass 2 block walker
 
 ---
 
-## Fixes made this session (Session 93)
+## Fixes made this session (Session 94)
 
 | Fix | File | What |
 |-----|------|------|
-| ? stmt operator | parse.c | S ? P and S  ?  P both parse; = after ? allowed |
-| E_NAM cond capture | emit_byrd.c | deferred via pending-cond list; flushed at _byrd_ok and _PAT_γ |
-| Null replacement | emit.c | X pat = deletes match; has_eq+NULL replacement emits splice |
-| E_ATP stub | emit_byrd.c | @VAR emits NV_SET of cursor as int — bug: → _ not varname |
-| coerce_numeric | snobol4.c | integer-string args in arith coerced to DT_I; null → 0 |
-| run_rung.sh | /tmp | pipes .input file to binary when present |
+| E_ATP varname | emit_byrd.c | use pat->left->sval (unary @ via unop uses left, not right) |
+| E_ATP beta | emit_byrd.c | beta → omega (was beta → gamma, infinite backtrack loop) |
+| DIFFER | snobol4.c | returns NULVCL on success (predicate), not first arg |
+| BREAKX | emit_byrd.c | emit_breakx from SPITBOL p_bkx/s_bkx: beta advances 1 past cs-char |
+| kw_anchor in ARB | emit_byrd.c | ARB beta checks kw_anchor — if set, beta → omega |
+| Keywords wired | snobol4.c | &STCOUNT/&STNO/&STLIMIT/&ANCHOR/&TRIM/&FULLSCAN in NV_GET/SET |
 
 ---
 
@@ -171,3 +192,4 @@ TIME() returns 0 (no real timer implementation yet — acceptable).
 | 2026-03-15 | Session 91 | Rung 6 20/20; bare builtins as E_VART; dynamic POS/TAB args |
 | 2026-03-15 | Session 92 | Rung 7 7/7; SNO_MSTART; null replace; pat_is_anchored POS(0) only |
 | 2026-03-15 | Session 93 | Rung 8 15/17; ? op; E_NAM cond; coerce_numeric; E_ATP stub |
+| 2026-03-15 | Session 94 | Rung 8 17/17; Rung 9 9/11; E_ATP fix; DIFFER fix; BREAKX; keywords |
