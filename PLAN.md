@@ -12,7 +12,7 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `41b03d4` |
+| **HEAD** | `2678d03` |
 | **Next action** | Build beauty_full_bin → write 101_comment test → run run_beauty.sh |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
