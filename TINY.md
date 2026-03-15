@@ -7,42 +7,45 @@
 
 ## Current State
 
-**Active sprint:** `beauty-first` — fix Parse Error on `-INCLUDE` → M-BEAUTY-CORE → M-BEAUTY-FULL
-**Milestone target:** M-BEAUTY-CORE (stubs first), then M-BEAUTY-FULL (real inc)
-**HEAD:** `8676bd9` — refactor: restore proper English names — undo P4 misspelling technique
+**Active sprint:** `beauty-first` — fix ntop leak → M-BEAUTY-CORE → M-BEAUTY-FULL
+**Milestone target:** M-BEAUTY-CORE (mock includes first), then M-BEAUTY-FULL (real inc)
+**HEAD:** `ba93890` — WIP: fix decl_flush static→local; ntop=1 after pp bug active
 
 **Completed since session 58 (do NOT re-implement):**
 - Session 59 `a3ea9ef`: Technique 1 struct-passing in emit_byrd.c — all pat_Xxx use pat_Xxx_t structs, calloc on entry==0
 - Session 63 `6467ff2`: DEFINE fn bodies scanned for named patterns — Parse/Command/Stmt/Label etc. now compiled Byrd boxes. 82→33 match_pattern_at calls.
 - Session 64 `09e5a5d`+`613b333`: E_DEREF varname checks right child first. $'lit' fix. byrd_cs() C-static sync. 33→9 match_pattern_at.
 - Sessions 65–76: quote-strip, computed goto, 3-column format (`d5b9c3c`), CNode IR M-CNODE (`ac54bd2`), pat_lit strv() fix (`0113d90`)
-- Session 77: pat_lit strv() bug fixed. Binary compiles 0 errors. 122 match_pattern_at remain (all dynamic refs — correct/expected). Parse Error active.
-- Session 78 `b20329f`: emit_cnode.c build_expr E_DEREF fixed. TINY.md/SESSION.md rewritten. Bootstrap plan written (7 sprints → M-BOOTSTRAP). Architecture B (final primitive) recorded.
+- Session 77: pat_lit strv() bug fixed. Binary compiles 0 errors. 122 match_pattern_at remain (all dynamic refs — correct/expected).
+- Session 78 `b20329f`: emit_cnode.c build_expr E_DEREF fixed. TINY.md/SESSION.md rewritten. Bootstrap plan written.
+- Session 87 `ba93890`: decl_flush static→local fix. ntop leak identified. Renames: inc_stubs→inc_mock, snobol4_inc→mock_includes.
 
-**Current symptom:** Binary outputs 8-line comment header then `Parse Error`.
-`pat_Parse` fails on `Src`. Root cause: `$'@S'` read emits `deref(NULL_VAL)` → Push/Pop chain broken.
+**Current symptom:** Two statements in sequence → infinite loop then Parse Error.
+Root cause: `nInc()` fires at start of every `*Command` attempt (including failed
+terminating attempt). Not reversed on failure. Accumulates across pp recursion.
+`ntop=1` at second `*Parse` call → corrupt nstack.
 
-**Active bug — emit.c emit_expr E_DEREF NOT YET FIXED:**
-Grammar: `DOLLAR unary_expr → binop(E_DEREF, NULL, $2)` — operand in `e->right`, left=NULL.
-`emit.c` ~line 292 still reads `e->left` → `deref(NULL_VAL)`.
-Fix: `Expr *op = e->left ? e->left : e->right; E("deref("); emit_expr(op); E(")")`
+**Active bug — nInc not reversed on Command failure:**
+`Command = nInc() FENCE(...)` — if FENCE fails, Command fails, but nInc already fired.
+ARBNO's terminating attempt (the one that stops the loop) always leaks one nInc.
+Fix: emit nInc only after a FENCE branch succeeds, OR save/restore _ntop on Command entry/exit.
 
-**Build command (engine_stub.c — NOT engine.c — dropped at M-COMPILED-BYRD `560c56a`):**
+**Build command (engine_stub.c — NOT engine.c):**
 ```bash
-cd /home/claude/SNOBOL4-tiny
+cd /home/claude/repos/SNOBOL4-tiny
 RT=src/runtime
-INC=SNOBOL4-corpus/programs/inc
-BEAUTY=SNOBOL4-corpus/programs/beauty/beauty.sno
-src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp.c
-gcc -O0 -g /tmp/beauty_tramp.c \
+STUBS=src/runtime/inc_mock
+BEAUTY=/home/claude/repos/SNOBOL4-corpus/programs/beauty/beauty.sno
+src/sno2c/sno2c -trampoline -I$STUBS $BEAUTY > /tmp/beauty_core.c
+gcc -O0 -g /tmp/beauty_core.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/engine_stub.c \
     -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w \
-    -o /tmp/beauty_tramp_bin
+    -o /tmp/beauty_core_bin
 ```
 
 **Oracle:** `test/smoke/outputs/session50/beauty_oracle.sno` (790 lines, committed).
-No csnobol4 needed unless oracle needs refresh.
+csnobol4 2.3.3 source at `/mnt/user-data/uploads/snobol4-2_3_3_tar.gz` if needed.
 
 ---
 
