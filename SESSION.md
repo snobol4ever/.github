@@ -10,7 +10,7 @@
 | Field | Value |
 |-------|-------|
 | **Repo** | SNOBOL4-tiny |
-| **Sprint** | `crosscheck-ladder` — corpus ladder rung by rung toward M-BEAUTY-CORE |
+| **Sprint** | `crosscheck-ladder` — Sprint 3 of 6 toward M-BEAUTY-CORE; corpus ladder rung by rung |
 | **Milestone** | M-BEAUTY-CORE (mock includes first) → M-BEAUTY-FULL (real inc, second) |
 | **HEAD** | `29c0a4b` — fix(emit_byrd): nInc beta emits NDEC_fn() — compensate on backtrack |
 

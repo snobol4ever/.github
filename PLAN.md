@@ -432,7 +432,7 @@ glob-sequence are optimizations and diagnostics improvements.
 
 | Repo | MD File | Active Sprint | Milestone Target |
 |------|---------|--------------|-----------------|
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `beauty-first` (toward M-BEAUTY-CORE) | M-BEAUTY-CORE → M-BEAUTY-FULL |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | [TINY.md](TINY.md) | `crosscheck-ladder` (Sprint 3 of 6 — rung-by-rung toward M-BEAUTY-CORE) | M-BEAUTY-CORE → M-BEAUTY-FULL |
 | [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | [JVM.md](JVM.md) | `jvm-inline-eval` | M-JVM-EVAL |
 | [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | [DOTNET.md](DOTNET.md) | `net-delegates` | M-NET-DELEGATES |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | [CORPUS.md](CORPUS.md) | Stable — add Rebus oracle .sno files | M-REBUS |
@@ -471,7 +471,7 @@ Rung 12: beauty.sno   — small inputs (1 tok → 20 tok → full source)
 
 ## Sprint Detail — toward M-BEAUTY-CORE then M-BEAUTY-FULL (TINY)
 
-Four sprints to M-BEAUTY-CORE. M-BEAUTY-FULL follows after. Each gates the next. Each ends with a commit.
+Six sprints to M-BEAUTY-CORE. M-BEAUTY-FULL follows after. Each gates the next. Each ends with a commit.
 
 **The agreement (mandatory, no exceptions):**
 - Phase 1: beauty_core — beauty.sno compiled with `-I src/runtime/inc_mock` (19 comment-only stubs, zero SNOBOL4 inc code). **This is the active target.**
@@ -479,7 +479,7 @@ Four sprints to M-BEAUTY-CORE. M-BEAUTY-FULL follows after. Each gates the next.
 
 ---
 
-### Sprint 1 of 4 — `space-token` ✅ Complete `3581830`
+### Sprint 1 of 6 — `space-token` ✅ Complete `3581830`
 
 **What:** Eliminate all parser conflicts. Return `_` (whitespace) as a real token so concat is unambiguous.
 
@@ -489,7 +489,7 @@ Root cause of 20 SR + 139 RR conflicts: `WS` was silently skipped. Fix: `{WS} { 
 
 ---
 
-### Sprint 2 of 4 — `compiled-byrd-boxes` ✅ Complete `560c56a`
+### Sprint 2 of 6 — `compiled-byrd-boxes` ✅ Complete `560c56a`
 
 **What:** `sno2c` emits labeled-goto Byrd box C. Validated against sprint0–22 oracles.
 `engine.c` dropped from compiled binary path via `engine_stub.c`.
@@ -516,7 +516,54 @@ already proved correctness at 609/609 worm cases. `emit_byrd.c` is a C port of t
 
 ---
 
-### Sprint 3 of 4 — `compiled-byrd-boxes-full` ⏳ Active (REPLACES beauty-runtime)
+### Sprint 3 of 6 — `crosscheck-ladder` ⏳ Active
+
+**What:** Climb the corpus ladder rung by rung — tiny programs first, beauty.sno last.
+This is the primary path to M-BEAUTY-CORE. 100–1000 tests gate every compiler fix.
+No rung is skipped. No beauty.sno run is attempted until rung 11 passes completely.
+
+**Why this sprint exists (Session 90 decision):**
+Attacking beauty.sno directly burned sessions 80–89 chasing bugs that only manifested
+in large programs. The ladder forces each language feature to be provably correct
+before the next is added. beauty.sno is rung 12 — it is the destination, not the test.
+
+**Corpus today:** 117 tests across 15 rungs in SNOBOL4-corpus/crosscheck/.
+Rung 12 (beauty.sno) tests will be added incrementally as earlier rungs pass.
+Target: 100–1000 tests total before M-BEAUTY-CORE fires.
+
+**Rungs and current corpus dirs:**
+
+```
+Rung 1:  output        (8 tests)   — OUTPUT = 'hello'
+Rung 2:  assign        (8 tests)   — X = 'foo', null assign
+Rung 3:  concat        (6 tests)   — OUTPUT = 'a' 'b'
+Rung 4:  arith_new     (8 tests)   — OUTPUT = 1 + 2
+Rung 5:  control_new   (7 tests)   — goto, :S(), :F()
+Rung 6:  patterns      (20 tests)  — LIT, ANY, SPAN, ARB, ARBNO, POS, RPOS
+Rung 7:  capture       (7 tests)   — . and $ operators
+Rung 8:  strings       (17 tests)  — SIZE, SUBSTR, REPLACE, DUPL
+Rung 9:  keywords      (11 tests)  — IDENT, DIFFER, GT/LT/EQ, DATATYPE
+Rung 10: functions     (8 tests)   — DEFINE, RETURN, FRETURN, recursion
+Rung 11: data          (6 tests)   — ARRAY, TABLE, DATA types
+Rung 12: beauty.sno   (TBD)        — small inputs → full source
+```
+
+**Rule:** Stop at first failing rung. Fix the compiler. Retest. Move up. Never skip.
+
+**Runner:** `test/crosscheck/run_crosscheck.sh` (STOP_ON_FAIL=0 for full report, 1 for stop-at-first).
+Fix corpus path with: `CORPUS=/path/to/SNOBOL4-corpus/crosscheck bash test/crosscheck/run_crosscheck.sh`
+
+**Commit cadence:** One commit per rung that reaches 100% pass. Message: `test(crosscheck): rung N complete — X/X pass`.
+
+**Session 89 status:** output 7/8, assign 7/8. Two known bugs:
+- `SIZE(&ALPHABET)` returns 0 instead of 256 (output/006)
+- null assign `X =` does not clear variable (assign/012)
+
+**Commit when:** All rungs 1–11 pass 100%. Rung 12 beauty.sno tests pass. → Gates Sprint 4.
+
+---
+
+### Sprint 4 of 6 — `compiled-byrd-boxes-full` ❌ (gates on Sprint 3 rung 11)
 
 **What:** Inline ALL pattern variables as static Byrd boxes. engine.c dropped entirely.
 engine_stub.c only. No `pat_cat()`/`pat_arbno()`/`pat_ref()` in the init section of
@@ -533,7 +580,7 @@ Binary links with engine_stub.c only. Runs on beauty.sno input without crash.
 
 ---
 
-### Sprint 4 of 4 — `beauty-core-diff` ❌ → **M-BEAUTY-CORE**
+### Sprint 5 of 6 — `beauty-core-diff` ❌ → **M-BEAUTY-CORE**
 
 **What:** Empty diff. beauty_core_bin (stubs) self-beautifies exactly.
 
@@ -549,7 +596,7 @@ diff /tmp/beauty_oracle.sno /tmp/beauty_core_compiled.sno
 
 ---
 
-### Sprint 5 — `beauty-full-diff` ❌ → **M-BEAUTY-FULL** (only after M-BEAUTY-CORE)
+### Sprint 6 — `beauty-full-diff` ❌ → **M-BEAUTY-FULL** (only after M-BEAUTY-CORE)
 
 **What:** Empty diff. beauty_full_bin (real inc files) self-beautifies exactly.
 
