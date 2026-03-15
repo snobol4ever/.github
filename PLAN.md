@@ -1,7 +1,7 @@
 # SNOBOL4ever — HQ
 
-SNOBOL4/SPITBOL compilers: one shared frontend (beauty.sno → compiler.sno),
-three backends (C native, JVM, .NET). Self-hosting goal: sno2c compiles sno2c.
+SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
+Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 **Team:** Lon Jones Cherryholmes (arch), Jeffrey Cooper M.D. (DOTNET), Claude Sonnet 4.6 (TINY author).
 
 ---
@@ -16,7 +16,23 @@ three backends (C native, JVM, .NET). Self-hosting goal: sno2c compiles sno2c.
 | **Next action** | Build beauty_full_bin → write 101_comment test → run run_beauty.sh |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
-**Working on TINY → [TINY.md](TINY.md) · JVM → [JVM.md](JVM.md) · .NET → [DOTNET.md](DOTNET.md)**
+**Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
+
+---
+
+## Product Matrix (frontend × backend)
+
+| Frontend | TINY-C | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
+|----------|:------:|:--------:|:--------:|:--------:|:---:|:------:|
+| SNOBOL4/SPITBOL | ⏳ | — | — | — | ⏳ | ⏳ |
+| Snocone | — | — | — | — | ⏳ | ⏳ |
+| Rebus | ✅ | — | — | — | — | — |
+| Tiny-ICON | — | — | — | — | — | — |
+| Tiny-Prolog | — | — | — | — | — | — |
+| C# | — | — | — | — | — | — |
+| Clojure-EDN | — | — | — | — | ✅ | — |
+
+✅ done · ⏳ active/in-progress · — planned/future
 
 ---
 
@@ -35,38 +51,38 @@ three backends (C native, JVM, .NET). Self-hosting goal: sno2c compiles sno2c.
 | M-SNO2C-SNO | sno2c.sno compiled by C sno2c | TINY | ❌ |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | TINY | ❌ |
 | M-JVM-EVAL | JVM inline EVAL! | JVM | ❌ |
+| M-JVM-SNOCONE | Snocone self-test on JVM | JVM | ❌ |
 | M-NET-DELEGATES | .NET Instruction[] eliminated | DOTNET | ❌ |
+| M-NET-SNOCONE | Snocone self-test on .NET | DOTNET | ❌ |
 
 ---
 
-## Platform Map
+## L3 Reference Index
 
-| Platform | L2 doc | Sprint | Milestone |
-|----------|--------|--------|-----------|
-| C native | [TINY.md](TINY.md) | `beauty-crosscheck` | M-BEAUTY-CORE |
-| JVM/Clojure | [JVM.md](JVM.md) | `jvm-inline-eval` | M-JVM-EVAL |
-| .NET/C# | [DOTNET.md](DOTNET.md) | `net-delegates` | M-NET-DELEGATES |
-| Corpus | [CORPUS.md](CORPUS.md) | Stable | — |
-| Harness | [HARNESS.md](HARNESS.md) | Stable | — |
-
----
-
-## L3 Reference — read only what you need
-
-| Concern | File |
-|---------|------|
-| beauty.sno: TDD protocol, rung 12, probe/monitor/triangulate scripts | [FRONTEND-BEAUTY.md](FRONTEND-BEAUTY.md) |
-| sno2c: lex/parse/emit, SIL naming, CNode, artifacts, bootstrap | [FRONTEND-SNO2C.md](FRONTEND-SNO2C.md) |
-| Rebus: language rules, translation table, round-trip | [FRONTEND-REBUS.md](FRONTEND-REBUS.md) |
-| C backend: Byrd box techniques, block functions, setjmp, arch decisions | [BACKEND-C.md](BACKEND-C.md) |
-| JVM backend: design decisions, file map, open issues | [BACKEND-JVM.md](BACKEND-JVM.md) |
-| .NET backend: solution layout, open issues, performance | [BACKEND-NET.md](BACKEND-NET.md) |
-| Shared arch: Byrd box concept, oracle hierarchy, corpus ladder | [ARCH.md](ARCH.md) |
-| Testing: four paradigms, corpus ladder protocol | [TESTING.md](TESTING.md) |
+| Read when you need… | File |
+|--------------------|------|
+| **Frontends** | |
+| SNOBOL4/SPITBOL: beauty.sno, TDD protocol, rung 12, probe/monitor/triangulate | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) |
+| Snocone: status, corpus, sprint sequence | [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) |
+| Rebus: TR 84-9 §5 rules, round-trip protocol | [FRONTEND-REBUS.md](FRONTEND-REBUS.md) |
+| Tiny-ICON: Byrd box connection, JCON reference | [FRONTEND-ICON.md](FRONTEND-ICON.md) |
+| Tiny-Prolog: SLD resolution / Byrd box mapping | [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md) |
+| C# frontend (DOTNET only) | [FRONTEND-CSHARP.md](FRONTEND-CSHARP.md) |
+| Clojure-EDN frontend (JVM only) | [FRONTEND-CLOJURE.md](FRONTEND-CLOJURE.md) |
+| **Backends** | |
+| C native: Byrd box techniques, block functions, setjmp, arch decisions | [BACKEND-C.md](BACKEND-C.md) |
+| x64 ASM: Technique 2 mmap+memcpy+relocate | [BACKEND-X64.md](BACKEND-X64.md) |
+| .NET MSIL: solution layout, open issues, performance | [BACKEND-NET.md](BACKEND-NET.md) |
+| JVM bytecodes: design laws, file map, open issues | [BACKEND-JVM.md](BACKEND-JVM.md) |
+| **Implementation** | |
+| sno2c compiler internals: lex/parse/emit, SIL naming, CNode, artifacts | [IMPL-SNO2C.md](IMPL-SNO2C.md) |
+| **Shared** | |
+| Byrd box concept, oracle hierarchy, corpus ladder | [ARCH.md](ARCH.md) |
+| Four testing paradigms, corpus ladder protocol | [TESTING.md](TESTING.md) |
 | Mandatory rules: token, identity, artifacts, hierarchy | [RULES.md](RULES.md) |
 | Session history | [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md) |
 | Runtime patches | [PATCHES.md](PATCHES.md) |
-| Background, JCON, keyword tables | [MISC.md](MISC.md) |
+| Background, JCON reference, keyword tables | [MISC.md](MISC.md) |
 
 ---
 
