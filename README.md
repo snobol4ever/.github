@@ -1,6 +1,6 @@
 # SNOBOL4ever
 
-**snobol4now. snobol4ever.**
+**snobol for all. snobol for now. snobol forever.**
 
 ---
 
