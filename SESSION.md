@@ -74,6 +74,27 @@ Oracle: `test/smoke/outputs/session50/beauty_oracle.sno`
 
 ---
 
+## What was done this session (Session 88)
+
+### Bug 2 fixed: nInc beta now emits NDEC_fn() (commit 29c0a4b)
+- Root cause confirmed: `cat_l_534_α: NINC_fn()` fired on every Command attempt,
+  including the failing termination attempt by ARBNO. No compensation on beta.
+- Fix: one line in `emit_byrd.c` — `PL(beta, omega, "NDEC_fn();")` replaces `PLG(beta, omega)`
+- Generated code confirmed: `cat_l_534_β: NDEC_fn(); goto _Command_ω;`
+
+### Smoke test run: 2/21 pass
+- PASS: comment line, control line
+- FAIL: all Stmt-type inputs — subject token output ~64 times, then Parse Error
+- This is a **pre-existing structural bug** now clearly visible via smoke test
+- ARBNO loop iterates ~64 times per statement, each matching only a token fragment
+
+### -INCLUDE diagnostic (ruled out)
+- Removing all -INCLUDE lines from beauty.sno input made no difference
+- Parse Error still hits on `START` (first non-comment line)
+- -INCLUDE lines (Control pattern) parse correctly — confirmed by smoke test
+
+---
+
 ## What was done this session (Session 87)
 
 ### Renames
