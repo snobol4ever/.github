@@ -12,7 +12,7 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `2678d03` — artifact session101, authorship + tagline fixes
+**HEAD:** `d6e4654` — artifact session102, matrix audit
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
