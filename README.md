@@ -2,7 +2,7 @@
 
 **snobol4all. snobol4now. snobol4ever.**
 
-*snobol for all. snobol for now. snobol forever.*
+*SNOBOL for all. SNOBOL for now. SNOBOL forever.*
 
 ---
 
@@ -221,7 +221,7 @@ The Byrd Box IR we built for SNOBOL4ever is the bridge. The same four ports. The
 
 snobol4all. snobol4now. snobol4ever.
 
-*snobol for all. snobol for now. snobol forever.*
+*SNOBOL for all. SNOBOL for now. SNOBOL forever.*
 
 ---
 
