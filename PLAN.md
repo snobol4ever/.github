@@ -12,8 +12,8 @@ three backends (C native, JVM, .NET). Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `4bd9050` |
-| **Next action** | Build beauty_full_bin → write 101_comment test → run run_beauty.sh |
+| **HEAD** | `08eabba` |
+| **Next action** | Build beauty_full_bin → write 101_comment test → run run_beauty.sh → Sprint A |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **If working on TINY → read [TINY.md](TINY.md)**

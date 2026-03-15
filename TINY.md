@@ -11,12 +11,12 @@ Self-hosting proof: `beauty.sno` beautifies itself through the compiled binary.
 ## Current State
 
 **Sprint:** `beauty-crosscheck` — Sprint A of 4 — rung 12 crosscheck tests
-**HEAD:** `4bd9050` — clean baseline, 106/106 rungs 1–11 passing
+**HEAD:** `08eabba` — artifact session99, HQ pyramid restructure
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Ladder status:**
 - Rungs 1–11: ✅ 106/106 — Sprint 3 complete (Session 95)
-- Rung 12 (beauty.sno): ❌ not started — Sprint A begins Session 99
+- Rung 12 (beauty.sno): ❌ not started — Sprint A begins Session 100
 
 **Next action:**
 1. Build beauty_full_bin (commands below)
@@ -146,7 +146,8 @@ Rung 12 test progression: 101_comment → 102_output → 103_assign → 104_labe
 | 96–97 | Sprint 4 compiler internals | Retired — not test-driven, no failing test to guide it |
 | 97 | Pivot: test-driven only | No compiler work without a failing test |
 | 98 | HQ refactor, four-paradigm TDD plan, CSNOBOL4 built | Plan before code |
-| 99 | Sprint A begins | Rung 12, beauty_full_bin, first crosscheck test |
+| 99 | HQ pyramid restructure | L1/L2/L3 hierarchy, SESSION.md eliminated, PLAN.md=3.3KB index |
+| 100 | Sprint A begins | Rung 12, beauty_full_bin, first crosscheck test |
 
 ---
 
