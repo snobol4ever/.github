@@ -7,35 +7,23 @@
 
 ## Current State
 
-**Active sprint:** `crosscheck-ladder` — Sprint 3 of 6 — climb corpus ladder rung by rung
-**Milestone target:** M-BEAUTY-CORE (mock includes first), then M-BEAUTY-FULL (real inc)
-**HEAD:** `dd0a57f` — artifact: beauty_tramp_session94.c — CHANGED, 15641 lines
+**Active sprint:** `beauty-crosscheck` — Sprint A of 4 — rung 12 crosscheck tests
+**Milestone target:** M-BEAUTY-CORE → M-BEAUTY-FULL
+**HEAD:** `4bd9050` — Revert WIP push_val (back to clean 668ce4f baseline)
 
 **Ladder status:**
-- Rungs 1–7 (output→capture): ✅ 64/64 clean
-- Rungs 1–8 (output→strings): ✅ 81/81 clean
-- Rung 9 (keywords/): ⏳ 9/11 — 2 failures
-- Rungs 9–12: ❌ not yet attempted
-- **Total: 88/90**
+- Rungs 1–11: ✅ **106/106** — Sprint 3 complete (Session 95)
+- Rung 12 (beauty.sno): ❌ not yet started — Sprint A begins Session 99
 
-**Rung 8 remaining failures:**
-1. `cross` — E_ATP `@NH` captures to `_` instead of `NH`. Bug in E_ATP handler.
-   Check: `grep -n "E_ATP\|T_AT" src/sno2c/parse.c | head -20`
-2. `word4` — BREAKX not implemented in emit_byrd.c E_FNC handlers
+**Next action (Session 99):**
+1. `apt-get install -y libgc-dev && make -C src/sno2c`
+2. Verify 106/106: `STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh`
+3. Build beauty_full_bin (see SESSION.md for exact gcc command)
+4. Create SNOBOL4-corpus/crosscheck/beauty/, write 101_comment test
+5. Write test/crosscheck/run_beauty.sh (pre-compiled binary runner)
+6. Run test → PASS: add 102, 103... / FAIL: probe.py (Paradigm 2)
 
-**Session 93 fixes landed:**
-- ? operator in statement position: S ? P and S  ?  P (space-sep) both parse
-- E_NAM conditional capture: deferred via pending-cond list; flushed at _byrd_ok and _PAT_gamma
-- Null replacement X pat =: splice with empty string deletes matched region
-- E_ATP stub: @VAR emits NV_SET of cursor as integer (bug: → _ not varname, fix next session)
-- coerce_numeric: integer-string args coerced to DT_I in add/sub/mul; null → 0
-- run_rung.sh: pipes .input file when present
-
-**Next action session 94:**
-1. Fix E_ATP varname bug → cross passes
-2. Implement BREAKX → word4 passes
-3. Rung 8 complete 17/17 → commit
-4. Start rung 9 keywords (11 tests)
+**Four-paradigm TDD plan:** See TESTING.md in HQ (.github repo).
 
 **Build:**
 ```bash
