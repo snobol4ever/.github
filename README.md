@@ -85,21 +85,30 @@ And now we are building [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-t
 
 Jeffrey Cooper set out to build a SNOBOL4 implementation that was readable, correct, and faithful to Emmer and Quillen's *MACRO SPITBOL* manual as the specification. He succeeded. SNOBOL4-dotnet runs on Windows, Linux, and macOS — the first full SNOBOL4/SPITBOL implementation to do so on .NET.
 
-The original backend generated C# via Roslyn. The current backend emits MSIL `DynamicMethod` delegates directly via `ILGenerator` — no Roslyn, no intermediate C# source, no startup overhead. All GOTO logic, Init/Finalize, and TRACE hooks are compiled directly into the delegates. The result: **up to 15.9× faster** than the Roslyn baseline on short programs. A plugin architecture allows C# and F# extensions to be loaded at runtime. A Windows GUI ships alongside the command-line runner. **1,484 tests passing.**
+The original backend generated C# via Roslyn. The current backend emits MSIL `DynamicMethod` delegates directly via `ILGenerator` — no Roslyn, no intermediate C# source, no startup overhead. All GOTO logic, Init/Finalize, and TRACE hooks are compiled directly into the delegates. The result: **up to 15.9× faster** than the Roslyn baseline on short programs. A plugin architecture allows C# and F# extensions to be loaded at runtime. A Windows GUI ships alongside the command-line runner. **1,607 tests passing.**
+
+**Frontends:** SNOBOL4/SPITBOL · Snocone · Rebus · C#
+**Backend:** .NET MSIL
 
 ### [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm)
 *Full SNOBOL4/SPITBOL compiler and runtime for the JVM — written in Clojure — any platform Java runs on*
 
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. The compiler parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement intermediate representation, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: a transpiler emitting Clojure IR (3.5–6×), a stack-machine VM (2–6×), and a direct JVM bytecode backend via ASM that generates `.class` files loaded with `DynamicClassLoader` — achieving **up to 7.6× faster** dispatch with the JVM JIT. With the EDN compilation cache, repeated programs run 22× faster than a cold compile.
 
-Validated against **2,033 tests / 4,417 assertions / 0 failures**, cross-checked against SPITBOL v4.0f and CSNOBOL4 2.3.3 on over 1,500 systematic programs. Includes the complete Gimpel corpus and the Shafto AI corpus.
+Validated against **1,896 tests / 4,120 assertions / 0 failures**, cross-checked against SPITBOL v4.0f and CSNOBOL4 2.3.3 on over 1,500 systematic programs. Includes the complete Gimpel corpus and the Shafto AI corpus.
+
+**Frontends:** SNOBOL4/SPITBOL · Snocone · Rebus · Clojure-EDN
+**Backend:** JVM bytecodes
 
 ### [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny)
 *`sno4now` — the native SNOBOL4 compiler. Also the source of `sno4jvm` and `sno4net`.*
 
 The compiler. Every expression — pattern or arithmetic — compiles to inlined α/β/γ/ω gotos with no runtime dispatch. Stackless. Goal-directed like Icon. Built on the Forth kernel discipline: eight irreducible primitive nodes in C, everything else derived and written in SNOBOL4 itself.
 
-**Sprint 32 status**: `snoc` (the SNOBOL4→C compiler) compiles `beauty.sno` — a complete self-beautifying SNOBOL4 formatter — with zero gcc errors, including all 19 `-INCLUDE` helper libraries. The compiled binary is being driven to self-hosting. Milestone 3 (bootstrap proof: compiled binary output matches oracle output, diff is empty) is one bug away.
+**Current status:** `sno2c` (the SNOBOL4→C compiler) passes 106/106 crosscheck tests across rungs 1–11 of the corpus ladder. Sprint A (`beauty-crosscheck`) is active — driving `beauty_full_bin` to self-beautify correctly, rung 12.
+
+**Frontends:** SNOBOL4/SPITBOL · Snocone · Rebus · Tiny-ICON · Tiny-Prolog
+**Backends:** C · x64 ASM · .NET MSIL · JVM bytecodes
 
 ### [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python)
 *SNOBOL4 pattern matching for Python — available on PyPI*
@@ -179,14 +188,14 @@ These are mathematical statements about what the engine computes, not test count
 
 | Repo | Status |
 |------|--------|
-| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | **Sprint 32** — `snoc` compiles `beauty.sno` (0 gcc errors, all 19 -INCLUDEs). Bootstrap proof (Milestone 3) in progress. |
-| [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Active — 2,033 tests / 4,417 assertions / 0 failures |
-| [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | Active — 1,484 tests passing, Windows/Linux/macOS |
+| [SNOBOL4-tiny](https://github.com/SNOBOL4-plus/SNOBOL4-tiny) | **Sprint A** — 106/106 crosscheck tests, rung 12 (beauty.sno self-beautification) active |
+| [SNOBOL4-jvm](https://github.com/SNOBOL4-plus/SNOBOL4-jvm) | Active — 1,896 tests / 4,120 assertions / 0 failures |
+| [SNOBOL4-dotnet](https://github.com/SNOBOL4-plus/SNOBOL4-dotnet) | Active — 1,607 tests passing, Windows/Linux/macOS |
 | [SNOBOL4-python](https://github.com/SNOBOL4-plus/SNOBOL4-python) | Active — v0.5.0, dual C/Python backend, on PyPI |
 | [SNOBOL4-cpython](https://github.com/SNOBOL4-plus/SNOBOL4-cpython) | Active — 70+ tests passing |
 | [SNOBOL4-csharp](https://github.com/SNOBOL4-plus/SNOBOL4-csharp) | Active — C# pattern library |
 | [SNOBOL4-corpus](https://github.com/SNOBOL4-plus/SNOBOL4-corpus) | Active — shared corpus, Gimpel + Shafto + oracle suite |
-| [.github](https://github.com/SNOBOL4-plus/.github) | Active — PLAN.md master roadmap |
+| [.github](https://github.com/SNOBOL4-plus/.github) | Active — HQ, PLAN.md master roadmap |
 
 ---
 
@@ -208,7 +217,7 @@ Icon already has an implementation for C (the Arizona reference) and for the JVM
 
 The Byrd Box IR we built for SNOBOL4ever is the bridge. The same four ports. The same `byrd_ir.py`. The same `emit_jvm.py` and `emit_msil.py` backends. A new Icon frontend feeding the same pipeline.
 
-snobol4ever runs everywhere. The clock starts the moment `beauty.sno` compiles itself.
+snobol for all. snobol for now. snobol forever.
 
 ---
 
