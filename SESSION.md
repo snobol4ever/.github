@@ -54,10 +54,9 @@ apt-get install -y libgc-dev
 make -C src/sno2c
 
 RT=src/runtime
-STUBS=src/runtime/inc_mock
 BEAUTY=/home/claude/repos/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-src/sno2c/sno2c -trampoline -I$STUBS $BEAUTY > /tmp/beauty_core.c
+src/sno2c/sno2c -trampoline $BEAUTY > /tmp/beauty_core.c
 gcc -O0 -g /tmp/beauty_core.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
@@ -68,7 +67,6 @@ gcc -O0 -g /tmp/beauty_core.c \
 ⚠️ mock_engine.c — NOT engine.c
 ⚠️ beauty_core (mock includes) FIRST — beauty_full (real inc) only after M-BEAUTY-CORE
 ⚠️ NEVER write the token into any file
-⚠️ inc_mock/ contains comment-only .sno stubs — sno2c reads them at compile time, binary never sees INCLUDE at runtime
 
 Oracle: `test/smoke/outputs/session50/beauty_oracle.sno`
 
@@ -98,7 +96,6 @@ Oracle: `test/smoke/outputs/session50/beauty_oracle.sno`
 ## What was done this session (Session 87)
 
 ### Renames
-- `src/runtime/inc_stubs/` → `src/runtime/inc_mock/`
 - `src/runtime/snobol4/snobol4_inc.c/.h` → `mock_includes.c/.h`
 - All references updated in both repos
 
@@ -143,7 +140,6 @@ Command succeeding, not unconditional at Command entry.
 - **ALWAYS run `git config user.name/email` after every clone**
 - **beauty_core (mock includes) FIRST — beauty_full (real inc) SECOND**
 - **beauty.sno is NEVER modified — it is syntactically perfect**
-- **-INCLUDE is compile-time (sno2c -I inc_mock) — NOT a runtime concern**
 
 ---
 
@@ -155,10 +151,8 @@ Command succeeding, not unconditional at Command entry.
 | 2026-03-14 | Session 80 runtime fixes | mock_engine T_FUNC/T_CAPTURE etc |
 | 2026-03-14 | Session 83 diagnosis | _c = data_define overwrites _b_tree_c (later disproved) |
 | 2026-03-14 | Session 84 SIL rename | DESCR_t/DTYPE_t/XKIND_t/_fn/_t throughout |
-| 2026-03-14 | Session 84 build fixes | cs_alloc, computed goto, label table, inc_mock |
 | 2026-03-14 | Session 84 HALT | broke beauty_core/beauty_full agreement — reverted to stubs |
 | 2026-03-14 | Session 85 cleanup | agreement breach resolved, rename audit, P4 undo, M-BEAUTY-CORE split |
-| 2026-03-14 | Session 87 renames | inc_stubs→inc_mock, snobol4_inc→mock_includes |
 | 2026-03-14 | Session 87 bug fix | decl_flush static→local (stale frame corruption) |
 | 2026-03-14 | Session 87 bug found | ntop leak in ARBNO(*Command) nInc not reversed on fail |
 
@@ -194,10 +188,8 @@ times, then fails. Root cause not yet identified — session 89 work.
 | 2026-03-14 | Session 80 runtime fixes | mock_engine T_FUNC/T_CAPTURE etc |
 | 2026-03-14 | Session 83 diagnosis | _c = data_define overwrites _b_tree_c (later disproved) |
 | 2026-03-14 | Session 84 SIL rename | DESCR_t/DTYPE_t/XKIND_t/_fn/_t throughout |
-| 2026-03-14 | Session 84 build fixes | cs_alloc, computed goto, label table, inc_mock |
 | 2026-03-14 | Session 84 HALT | broke beauty_core/beauty_full agreement — reverted to stubs |
 | 2026-03-14 | Session 85 cleanup | agreement breach resolved, rename audit, P4 undo, M-BEAUTY-CORE split |
-| 2026-03-14 | Session 87 renames | inc_stubs→inc_mock, snobol4_inc→mock_includes |
 | 2026-03-14 | Session 87 bug fix | decl_flush static→local (stale frame corruption) |
 | 2026-03-14 | Session 87 bug found | ntop leak in ARBNO(*Command) nInc not reversed on fail |
 | 2026-03-14 | Session 88 bug fix | nInc beta now emits NDEC_fn() — ntop leak resolved |

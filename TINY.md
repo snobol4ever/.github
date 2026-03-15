@@ -18,7 +18,6 @@
 - Sessions 65–76: quote-strip, computed goto, 3-column format (`d5b9c3c`), CNode IR M-CNODE (`ac54bd2`), pat_lit strv() fix (`0113d90`)
 - Session 77: pat_lit strv() bug fixed. Binary compiles 0 errors. 122 match_pattern_at remain (all dynamic refs — correct/expected).
 - Session 78 `b20329f`: emit_cnode.c build_expr E_DEREF fixed. TINY.md/SESSION.md rewritten. Bootstrap plan written.
-- Session 87 `ba93890`: decl_flush static→local fix. ntop leak identified. Renames: inc_stubs→inc_mock, snobol4_inc→mock_includes.
 
 **Current symptom:** Two statements in sequence → infinite loop then Parse Error.
 Root cause: `nInc()` fires at start of every `*Command` attempt (including failed
@@ -34,9 +33,8 @@ Fix: emit nInc only after a FENCE branch succeeds, OR save/restore _ntop on Comm
 ```bash
 cd /home/claude/repos/SNOBOL4-tiny
 RT=src/runtime
-STUBS=src/runtime/inc_mock
 BEAUTY=/home/claude/repos/SNOBOL4-corpus/programs/beauty/beauty.sno
-src/sno2c/sno2c -trampoline -I$STUBS $BEAUTY > /tmp/beauty_core.c
+src/sno2c/sno2c -trampoline $BEAUTY > /tmp/beauty_core.c
 gcc -O0 -g /tmp/beauty_core.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
@@ -98,7 +96,6 @@ and Claude Sonnet 4.6. When any milestone trigger fires, Claude writes the commi
 |----|---------|--------|
 | **M-SNOC-COMPILES** | `snoc` compiles `beauty_core.sno`, 0 gcc errors | ✅ Done |
 | **M-REBUS** | Rebus round-trip: `.reb` → `.sno` → CSNOBOL4 → diff oracle | ✅ Done `bf86b4b` |
-| **M-BEAUTY-CORE** | `beauty_core_bin` self-beautifies — diff empty (`-I inc_mock`, no INCLUDE code) | ❌ **Active** |
 | **M-BEAUTY-FULL** | `beauty_full_bin` self-beautifies — diff empty (`-I inc/`, real INCLUDE files) — only after M-BEAUTY-CORE | ❌ |
 | **M-COMPILED-SELF** | Compiled binary self-beautifies — diff empty | ❌ |
 | **M-BOOTSTRAP** | `snoc` compiles `snoc` (self-hosting) | ❌ Future |
