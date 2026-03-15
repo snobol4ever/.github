@@ -1,16 +1,16 @@
-# RULES.md — Mandatory Rules (no exceptions)
+# RULES.md — Mandatory Rules (L3)
 
-Violations are disruptive. Every rule here was created because something went wrong.
+Every rule here exists because a violation caused real damage.
 
 ---
 
 ## ⛔ TOKEN — Never write the token into any file
 
-The GitHub PAT was committed to SESSION.md on 2026-03-13. GitHub push protection
+The GitHub PAT was committed to a file on 2026-03-13. GitHub push protection
 blocked the push. History had to be rewritten. **Never again.**
 
-- Token lives in Lon's memory only. Provided at session start. Used in-memory only.
-- Write `TOKEN=TOKEN_SEE_LON` as placeholder in any file that needs to reference it.
+- Token lives in Lon's memory only. Provided at session start. Used in shell only, never on disk.
+- Write `TOKEN=TOKEN_SEE_LON` as placeholder in any file that references it.
 - If token appears in a commit: rotate immediately at https://github.com/settings/tokens
 
 ## ⛔ GIT IDENTITY — Every commit in every repo
@@ -19,54 +19,68 @@ blocked the push. History had to be rewritten. **Never again.**
 git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
 ```
-Run immediately after every clone, before any commit. No exceptions.
+Run immediately after every clone, before any commit. No exceptions across all repos:
+SNOBOL4-tiny, SNOBOL4-corpus, SNOBOL4-harness, SNOBOL4-jvm, SNOBOL4-dotnet, .github.
 
 ## ⛔ BYRD BOXES — mock_engine.c only, no interpreter
 
 Every pattern in beauty_full_bin is a compiled Byrd box.
-`mock_engine.c` is the only engine file linked. `engine.c` is superseded.
-If a build uses engine.c, something is wrong — stop and diagnose.
+`mock_engine.c` is the only engine file linked. `engine.c` is fully superseded.
+If a build links engine.c: stop and diagnose — something is wrong.
 
 ## ⛔ ARTIFACTS — Snapshot generated C every session
 
-At end of every session that touches sno2c or emit*.c or runtime/:
+At end of every session that touches sno2c, emit*.c, or runtime/:
 ```bash
 INC=/home/claude/SNOBOL4-corpus/programs/inc
 BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp_candidate.c
 LAST=$(ls artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1)
-# If md5 differs: cp /tmp/beauty_tramp_candidate.c artifacts/beauty_tramp_sessionN.c
-# If same md5: update artifacts/README.md with "no change" note only
+# Compare md5:
+md5sum $LAST /tmp/beauty_tramp_candidate.c
+# If CHANGED: cp /tmp/beauty_tramp_candidate.c artifacts/beauty_tramp_sessionN.c
+# If SAME: update artifacts/README.md with "no change" note only
 ```
-README.md must record: session N, date, md5, line count, compile status, active bug.
+artifacts/README.md must record: session N, date, md5, line count, compile status, active bug.
 
 ## ⛔ TEST INVARIANT — 106/106 rungs 1–11 before any work
 
 ```bash
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
 ```
-If not 106/106: fix before touching anything else. Regressions are bugs.
+If not 106/106: fix the regression before touching anything else. Regressions are bugs.
 
-## ⛔ PLAN.md — 4096 bytes max, index only
+## ⛔ HQ HIERARCHY — edit downstream files, not PLAN.md
 
-PLAN.md is the top-level index. It points to downstream files.
-When Lon says "update HQ" or "update the plan": update the downstream file
-(TINY.md, TESTING.md, ARCH.md, etc.), not PLAN.md.
-PLAN.md gets edited only when: org-level milestones change, active repo/sprint changes,
-or the file index needs a new entry.
+```
+L1: PLAN.md        ← index only, ~3KB max. Never add content here.
+L2: TINY/JVM/DOTNET/CORPUS/HARNESS.md  ← platform state, sprints, build commands
+L3: ARCH/TESTING/RULES/SESSIONS_ARCHIVE/PATCHES/MISC.md  ← deep reference
+```
+When Lon says "update HQ" or "update the plan": identify which L2 or L3 file owns
+that content, and update that file. PLAN.md changes only when: milestone status changes,
+active repo/sprint changes, or the platform map needs a new entry.
 
 ## Session Lifecycle
 
-**Start:** Read SESSION.md. `git log --oneline -3`. Verify SESSION.md HEAD = git HEAD.
-If stale: read SESSIONS_ARCHIVE.md recent entries before touching code.
+**Start:**
+1. Read PLAN.md — know what repo/sprint/HEAD/next-action without reading anything else.
+2. Read the active platform MD (TINY.md etc.) — get build commands and invariant.
+3. `git log --oneline -3` — verify HEAD matches platform MD. If stale: read SESSIONS_ARCHIVE.md.
+4. Run invariant check. If failing: fix before any other work.
 
-**End:** Artifact check → update artifacts/README.md → update SESSION.md (all 4 fields)
-→ update active repo MD (TINY.md etc.) → `git add -A && git commit && git push` all repos
-→ push .github last.
+**End:**
+1. Run artifact check (see ARTIFACTS rule above).
+2. Update platform MD — HEAD, sprint status, next action, pivot log entry if anything shifted.
+3. Update PLAN.md milestone dashboard if a milestone fired.
+4. `git add -A && git commit && git push` every touched repo.
+5. Push .github last.
 
 **SNAPSHOT:** `git add -A && git commit -m "WIP: <what>" && git push` every touched repo.
 
-**HANDOFF:** SNAPSHOT first → update SESSION.md → update repo MD → push .github.
+**HANDOFF:** run SNAPSHOT, then update platform MD and PLAN.md, then push .github.
 
-**EMERGENCY:** `git add -A && git commit -m "EMERGENCY WIP: <state>"` every repo →
-push all → one line in SESSION.md Pivot Log.
+**EMERGENCY:** `git add -A && git commit -m "EMERGENCY WIP: <state>"` every touched repo →
+push all → one-line pivot log entry in platform MD.
+
+**SWITCH REPO:** run HANDOFF on current repo first, then read the new platform MD.
