@@ -9,24 +9,45 @@
 
 **Active sprint:** `crosscheck-ladder` — Sprint 3 of 6 — climb corpus ladder rung by rung
 **Milestone target:** M-BEAUTY-CORE (mock includes first), then M-BEAUTY-FULL (real inc)
-**HEAD:** `7d72722` — fix(crosscheck): rungs 1-5 all pass — 37/37
+**HEAD:** `4e0831d` — fix(emit_byrd): bare builtin patterns + dynamic POS/RPOS/TAB/RTAB args
 
 **Ladder status:**
 - Rungs 1–5 (output, assign, concat, arith_new, control_new): ✅ 37/37
-- Rung 6 (patterns/): ⏳ next — 20 tests
+- Rung 6 (patterns/): ✅ 20/20
+- Rung 7 (capture/): ⏳ 4/7 — 3 failures remaining
+- Rungs 8–12: ❌ not yet attempted
+- **Total: 61/64**
 
-**Session 90 fixes:**
-- &ALPHABET registered in NV; SIZE returns 256 via pointer identity check
-- POWER_fn: int**int returns integer result
-- REMDR builtin implemented and registered
-- E_MNS (unary minus): emit_cnode.c + emit.c used e->right (NULL) — fixed to e->left
-- null assign (X =): STMT_t.has_eq flag added; emits NV_SET_fn(var, NULVCL)
-- -INCLUDE is now a noop in lexer — no file opened, no error
-- inc_mock/ directory deleted (19 comment-only stubs — no longer needed)
-- engine_stub.c renamed to mock_engine.c
+**Session 91 fixes:**
+- Bare zero-arg builtin patterns (REM, ARB, FAIL, SUCCEED, FENCE, ABORT) used as bare
+  names (E_VART) in pattern position now route to correct emitters instead of variable
+  dereference path. Fixes 048_pat_rem, 057_pat_fail_builtin.
+- POS/RPOS/TAB/RTAB with non-literal args: emit `to_int(NV_GET_fn("var"))` dynamically.
+  Added emit_pos_expr/rpos_expr/tab_expr/rtab_expr variants + forward decls.
 
-**Next action:** Run rung 6 patterns — `$CORPUS/patterns/*.sno` (20 tests).
-Stop at first failure. Fix compiler. Retest. Move up.
+**Rung 7 remaining failures — next action:**
+
+1. **061_capture_in_arbno** — `X POS(N) 'a' . V` with N incrementing.
+   Dynamic POS(N) is now correct. Still outputs only 2 of 3 'a'. Likely off-by-one:
+   POS(N) checks `cursor != N` but after match cursor has advanced; loop increments N
+   but N may lag. Debug: print N and cursor each iteration.
+
+2. **062_capture_replacement** — `X 'world' = 'there'` produces `there` not `hello there`.
+   **Root cause diagnosed:** `_mstart` is set to 0 *before* the ARB prefix scan runs.
+   When ARB advances cursor to find `world`, `_mstart` stays 0, so replacement splices
+   from start-of-subject. Fix: `_mstart` must be captured *after* ARB succeeds, at the
+   ARB→user-pattern seam. Implementation plan in SESSIONS_ARCHIVE entry below.
+
+3. **063_capture_null_replace** — `X ' world' =` produces `hello world` not `hello`.
+   Same `_mstart` bug as 062.
+
+**Fix plan for _mstart (062/063):**
+In `emit.c`, the `!pat_is_anchored` branch builds `scan_pat = ARB ++ user_pat`.
+Insert a synthetic `E_FNC "SNO_MSTART"` node between them:
+`scan_pat = ARB ++ SNO_MSTART ++ user_pat`
+In `emit_byrd.c`, handle `"SNO_MSTART"` as zero-width: alpha→emit `_mstartN = _curN` then goto gamma; beta→goto omega.
+Remove the upfront `E("_mstart%d = _cur%d;\n")` from emit.c.
+The `_mstartN` variable name must be threaded through or stored as a global per-statement.
 
 **Build command (mock_engine.c — NOT engine.c):**
 ```bash

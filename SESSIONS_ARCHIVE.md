@@ -5118,3 +5118,59 @@ Hypothesis: FENCE in `Command`, or leading-space issue. Not yet fixed.
 ### Active bug for Session 86
 Parse Error on `-INCLUDE 'global.sno'` — first non-comment line of beauty.sno.
 `pat_Control` should match but may not be reached. See SESSION.md for diagnosis plan.
+
+---
+
+## Session 91 — 2026-03-15
+
+**Repo:** SNOBOL4-tiny  
+**Sprint:** crosscheck-ladder (Sprint 3 of 6)  
+**HEAD at end:** `4e0831d`
+
+### What happened
+
+Continued crosscheck ladder from rung 6.
+
+**Rung 6 (patterns) — 20/20 ✅**
+
+Two bugs fixed:
+
+1. **Bare zero-arg builtin patterns as E_VART** — `REM`, `ARB`, `FAIL`, `SUCCEED`,
+   `FENCE`, `ABORT` appearing without parentheses in pattern position were parsed as
+   `E_VART` (variable name) and routed to the variable-dereference path instead of
+   their builtin emitters. Fixed in `emit_byrd.c` `E_VART` case: upfront `strcasecmp`
+   block dispatches to the same emitters as the `E_FNC` path before `named_pat_lookup`.
+   Fixes 048_pat_rem and 057_pat_fail_builtin.
+
+2. **Dynamic POS/RPOS/TAB/RTAB args** — all four emitters only handled `E_ILIT` args,
+   falling back to 0 for any variable. Added `emit_pos_expr`, `emit_rpos_expr`,
+   `emit_tab_expr`, `emit_rtab_expr` variants that emit `to_int(NV_GET_fn("var"))` as
+   runtime C expression. Call sites updated to dispatch on `E_ILIT` vs. other.
+
+**Rung 7 (capture) — 4/7 ⏳**
+
+Three remaining failures:
+
+- **061** — `POS(N)` loop with N incrementing: dynamic POS now emits correctly but
+  still outputs 2 of 3 expected lines. Likely: ARB scan resets cursor to 0 each
+  statement; POS(2) requires cursor==2 but ARB must advance there first. Check ARB
+  behavior when subject-start matches a literal that isn't at pos 0.
+
+- **062/063** — Pattern replacement `_mstart` bug: `_mstart = _cur` is emitted at
+  cursor=0 before the ARB prefix scan. ARB advances cursor to find the match but
+  `_mstart` stays 0. Replacement then splices from start-of-subject instead of
+  start-of-match. Fix: insert synthetic `E_FNC "SNO_MSTART"` node between ARB and
+  user pattern; set `mstart->ival = u` (statement uid) in emit.c; handle in
+  emit_byrd.c as zero-width capture `_mstartN = cursor` at alpha→gamma.
+  Remove upfront `_mstart = _cur` line from emit.c.
+
+### Generative oracle plan (recorded)
+
+After rungs 1–11 pass: generate tiny SNOBOL4 programs from length 0 upward
+(0 tokens, 1 token, 2 tokens…). Claude generates candidates, Lon cherry-picks
+keepers into corpus. Grows the test suite systematically from first principles.
+
+### Artifact
+
+beauty_tramp_session79.c — 15452 lines, md5=e0ebfbf38e866f92e28a999db182a6a2  
+CHANGED from session78 (md5=5046a4b6f8a751ea92a67d271c1c05a2)
