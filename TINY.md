@@ -12,14 +12,17 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `d6e4654` — artifact session102, matrix audit
+**HEAD:** `c9067d0` — session103/104: E_NAM ~ fix, E_FNC fallback fix, artifact session104
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. Build beauty_full_bin (commands below)
-2. Write `SNOBOL4-corpus/crosscheck/beauty/101_comment.input` + generate `.ref`
-3. Write `test/crosscheck/run_beauty.sh`
-4. Run → PASS: add 102, 103... / FAIL: probe.py (Paradigm 2)
+1. Build beauty_full_bin (commands below) — verify 106/106
+2. **Active bug:** Named pattern RHS truncation in `byrd_emit_named_pattern()`
+   - `Function = SPAN(...) $ tx $ *match(Functions, TxInList)` compiles to SPAN-only
+   - `$ tx` and `$ *match(...)` are dropped — pat_Function succeeds for any identifier
+   - Diagnose: read `emit.c` around line 1939, trace how replacement AST is passed
+   - Fix: ensure full concatenation AST reaches `byrd_emit_named_pattern()`
+3. Once pat_Function correctly gatekeeps, run beauty crosscheck — expect 102+ to pass
 
 ---
 
@@ -137,3 +140,4 @@ git add -A && git commit && git push
 | 98–99 | HQ restructure (L1/L2/L3 pyramid) | Plan before code |
 | 100 | HQ: frontend×backend split | One file per concern |
 | 101 | Sprint A begins | Rung 12, beauty_full_bin, first crosscheck test (Session 101) |
+| 103–104 | E_NAM~/Shift fix; E_FNC fallback fix | 101_comment PASS; 102+ blocked by named-pattern RHS truncation in byrd_emit_named_pattern |
