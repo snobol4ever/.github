@@ -10,14 +10,20 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | SNOBOL4-corpus + SNOBOL4-tiny |
-| **Sprint** | `diag1-corpus` ✅ done session122 → resume `bug7-micro` next |
+| **Active repo** | SNOBOL4-jvm → SNOBOL4-dotnet → SNOBOL4-corpus |
+| **Sprint** | `diag1-jvm-dotnet` — run 35-test diag1 suite on JVM and DOTNET, fix failures, fire M-DIAG1 |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `198249c` session121: micro0 + micro1 skeleton committed |
-| **HEAD CORPUS** | pending commit — diag1 suite 35/35, ready to push with token |
-| **HEAD HQ** | `0ad8403` session122: flat() Gray/White rules |
-| **Next action** | Session 123 step 1: push corpus diag1 suite (need token). Step 2: resume bug7-micro — run micro1_concat oracle vs compiled, diff, fix emit_byrd.c |
+| **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 |
+| **HEAD HQ** | this commit |
+| **Next action** | Session 123: run `crosscheck/rung{2,3,4,8,9,10,11}/` against SNOBOL4-jvm. Fix failures. Then SNOBOL4-dotnet. All 35/35 both → M-DIAG1 fires. Then bug7-micro. |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
+
+**Priority order (pivot session122):**
+1. **M-DIAG1** — diag1 suite 35/35 on JVM + DOTNET
+2. **M-BEAUTY-CORE** — bug7-micro, fix emit_byrd.c, 140_self
+3. **M-FLAT** — flat() emitter, Gray/White bypass
+4. **M-BEAUTY-FULL** → **M-BOOTSTRAP**
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
 
