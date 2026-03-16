@@ -12,8 +12,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `d6e4654` |
-| **Next action** | Build beauty_full_bin → write 101_comment test → run run_beauty.sh |
+| **HEAD** | `session106` |
+| **Next action** | Diagnose 102_output blank → read inc/assign.sno → fix pp() assignment case |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**

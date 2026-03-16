@@ -12,22 +12,18 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `100eb50` — session105: $ left-assoc parse fix + E_DOL chain emitter (compile error pending)
+**HEAD:** `session106` — E_DOL computed-right label dup fixed; 4x crosscheck speedup; 101 PASS, 102 FAIL
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. Build beauty_full_bin (commands below) — verify 106/106
-2. **Active bug:** E_DOL computed-right label duplication in `emit_byrd.c`
-   - Two fixes applied this session but label dup remains:
-     (a) `parse_expr12` changed right→left associative for `$`/`.` ✅
-     (b) E_DOL case: computed-right path emits left then right as concat-chain ✅
-   - Current error: `dolc_N_rb` defined twice — once by E_INDR via raw B(), once by PLG(mid_b, l_lb)
-   - Fix needed: use separate `l_lb` (left beta, PLG-defined) and `l_rb` (right beta, B-defined),
-     then wire `l_rb → l_lb` with raw `B("%s: goto %s;\n", l_rb, l_lb)`
-   - The Python replace failed last session because exact string didn't match — read the block
-     with `sed -n 'NNN,MMMp'` first, then apply carefully
-3. After label dup fixed: rebuild, run run_beauty.sh — expect 102_output to pass
-3. Once pat_Function correctly gatekeeps, run beauty crosscheck — expect 102+ to pass
+1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` produces blank line
+   - Same failure for any assignment (FOO, OUTPUT, etc.)
+   - beauty.sno line 14: `-INCLUDE 'assign.sno'`
+   - pp() walk is called but outputs empty for assignment nodes
+   - Diagnose: read `SNOBOL4-corpus/programs/inc/assign.sno`
+   - Find which Shift/Reduce tree node assignment emits, find pp() case for it
+   - Probe with `--debug` or print statements in mock_engine if needed
+2. After 102_output PASS: write 103_assign.input/.ref, continue rung 12 ladder
 
 ---
 
@@ -147,3 +143,4 @@ git add -A && git commit && git push
 | 101 | Sprint A begins | Rung 12, beauty_full_bin, first crosscheck test (Session 101) |
 | 103–104 | E_NAM~/Shift fix; E_FNC fallback fix | 101_comment PASS; 102+ blocked by named-pattern RHS truncation in byrd_emit_named_pattern |
 | 105 | $ left-assoc parse fix + E_DOL chain emitter | Parser correct; emitter label-dup compile error blocks 102+ |
+| 106 | E_DOL label-dup fixed (emit_seq pattern); 4x crosscheck speedup | 101 PASS; 102_output FAIL — assignment node blank in pp() |
