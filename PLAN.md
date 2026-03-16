@@ -11,12 +11,57 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
-| **Sprint** | `bug7-micro` — skeleton-build PATTERN isolation → fix emit_byrd.c |
-| **HEAD** | `07d4b14` EMERGENCY WIP session116 |
-| **Next action** | Run skeleton ladder (skeleton→+counter→+value→full) against oracle; first divergence pins exact FENCE arm; fix emit_byrd.c; run crosscheck ladder 104→105→109→140 |
+| **Sprint** | `bug7-micro` — skeleton ladder → diff → fix emit_byrd.c |
+| **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
+| **HEAD HARNESS** | `198249c` session121: micro0 + micro1 skeleton committed |
+| **HEAD HQ** | this commit |
+| **Next action** | Session 122 step 1: run micro1_concat oracle vs compiled, get diff, fix |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
+
+---
+
+## Session 122 — Exact Next Steps
+
+```bash
+# 0. Verify invariant
+cd /home/claude/SNOBOL4-tiny
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+
+# 1. Oracle trace — micro1_concat (input 'N + 1', triggers Bug7)
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+snobol4 -f -I$INC \
+    /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno \
+    > /tmp/micro1_oracle_out.txt 2>/tmp/micro1_oracle_trace.txt
+cat /tmp/micro1_oracle_trace.txt   # C-level SEQ#### lines on stderr
+
+# 2. Compile micro1 and run
+src/sno2c/sno2c -trampoline -I$INC \
+    /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno > /tmp/micro1.c
+RT=src/runtime
+gcc -O0 -g /tmp/micro1.c \
+    $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
+    $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/micro1_bin
+/tmp/micro1_bin > /tmp/micro1_compiled_out.txt 2>/tmp/micro1_compiled_trace.txt
+cat /tmp/micro1_compiled_trace.txt
+
+# 3. Diff — first divergence = bug location
+diff /tmp/micro1_oracle_trace.txt /tmp/micro1_compiled_trace.txt
+
+# 4. Fix emit_byrd.c at identified location, rebuild beauty_full_bin_trace
+# 5. Run crosscheck ladder: 104->105->109->120->130->140
+```
+
+### What micro0 told us (session121)
+
+- Oracle `N`: NPUSH→NINC→NPUSH→NPOP→REDUCE→NPOP, MATCH ✅
+- Compiled `N` C-trace: same sequence — **Bug7 does NOT fire on bare `N`**
+- SNOBOL4-level traced fns (tNPush_ etc.) NOT dispatched in compiled binary
+  (pattern-context `'' . *userFn()` not yet supported in mock engine)
+- **C-level NPUSH_fn/NPOP_fn instrumentation IS the ground truth for tracing**
+- micro1 (`N + 1`) is the minimal input to trigger the ghost frame
 
 ---
 
@@ -29,118 +74,126 @@ two stacks simultaneously during the match:
 
 **Counter stack** — tracks children per syntactic level:
 ```
-nPush()                  push 0       entering a level (Parse, Expr3, Expr4, Expr15, Expr17, ExprList)
-nInc()                   top++        one more child at this level (X3, X4, XList, Command)
+nPush()                  push 0       entering a level
+nInc()                   top++        one more child recognized
 Reduce(type, ntop())     read count   build tree node — fires BEFORE nPop
 nPop()                   pop          exit the level — fires AFTER Reduce
 ```
 
-**Value stack** — the tree nodes:
+**Value stack:**
 ```
-shift(type, val)         push one leaf    (lowercase — the primitive worker; ~ is opsyn)
-reduce(type, n)          pop n leaves, push one internal node  (& is opsyn)
-```
-
-Note: uppercase `Shift`/`Reduce` are the SNOBOL4 functions from ShiftReduce.sno that
-call the lowercase primitives. The compiled binary instruments the lowercase C workers
-directly. Oracle tracing wraps the lowercase SNOBOL4 functions.
-
-**Invariant:** every `nPush()` must have exactly one matching `nPop()` on EVERY
-exit path — success (γ) AND failure (ω). Missing `nPop` on any FENCE backtrack
-path leaves a ghost frame that displaces all subsequent `nInc` calls.
-
-### Bug7 — Active (confirmed session120)
-
-`Expr17` (beauty.sno line 347):
-```
-FENCE(
-   nPush() $'(' *Expr (...) $')' nPop()   ← arm 1: nPush fires, $'(' fails → nPop SKIPPED
-|  *Function ... ("'Call'" & 2)
-|  *Id      ... ("'Call'" & 2)
-|  *Id ~ 'Id'                             ← taken for bare identifiers
-|  ...
-)
-```
-`Expr15` (line 343) same issue:
-```
-FENCE(nPush() *Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon)
-         ↑ fires     ↑ fails when no '['       ↑ SKIPPED, epsilon taken
+shift(p,t)   pattern constructor — builds p . thx . *Shift('t', thx)
+reduce(t,n)  pattern constructor — builds '' . *Reduce(t,n)
+Shift(t,v)   match-time worker — push leaf node (called via *Shift(...))
+Reduce(t,n)  match-time worker — pop n nodes, push internal node
+~ is opsyn for shift (set in semantic.sno)
+& is opsyn for reduce (set in semantic.sno)
 ```
 
-**Fix:** in `emit_byrd.c`, for every `FENCE(nPush() ... nPop() | ...)`:
-emit `NPOP_fn()` on the backtrack/failure exit of the nPush arm, before
-jumping to the next alternative or returning ω.
+**Invariant:** every `nPush()` must have exactly one `nPop()` on EVERY exit path —
+success (γ) AND failure (ω). Missing `nPop` on FENCE backtrack = ghost frame.
 
-### Skeleton-Build Diagnostic Protocol (NEW — replaces Bomb Protocol)
+### Bug7 — Active
 
-Build minimal SNOBOL4 test programs, each a strict superset of the previous.
-Diff each level's trace (oracle CSNOBOL4 vs compiled binary) immediately.
-**First divergence at a given level pins the exact pattern node.**
+`Expr17` arm1: `FENCE(nPush() $'(' *Expr ... nPop() | *Id ~ 'Id' | ...)`
+→ nPush fires, `$'('` fails, FENCE backtracks to arm2 — **nPop SKIPPED**
 
-**All 5 instrumented primitives** share a single `SEQ####` counter:
+`Expr15`: `FENCE(nPush() *Expr16 (...) nPop() | '')`
+→ same issue when no `[` follows
+
+**Fix location:** `emit_byrd.c` — emit `NPOP_fn()` on ω path of nPush arm
+before jumping to next FENCE alternative.
+
+### Skeleton-Build Diagnostic Protocol (PRIMARY)
+
+Build minimal SNOBOL4 test programs, each a strict superset of previous.
+Diff oracle (CSNOBOL4) vs compiled (beauty_full_bin_trace) stderr traces.
+**First diverging SEQ#### line = exact bug node.**
+
+**All 5 instrumented primitives share `int _nseq` counter:**
 ```
-SEQ0001 NPUSH depth=N top=N
-SEQ0002 NINC  depth=N top=N
-SEQ0003 NPOP  depth=N top=N
-SEQ0004 SHIFT type=T val='V'
-SEQ0005 REDUCE type=T n=N
+SEQ0001 NPUSH depth=N top=N    <- snobol4.c NPUSH_fn
+SEQ0002 NINC  depth=N top=N    <- snobol4.c NINC_fn
+SEQ0003 NPOP  depth=N top=N    <- snobol4.c NPOP_fn
+SEQ0004 SHIFT type=T val='V'   <- mock_includes.c Shift()
+SEQ0005 REDUCE type=T n=N      <- mock_includes.c Reduce()
 ```
-Counter is global across nPush/nInc/nPop (snobol4.c) and shift/reduce (mock_includes.c)
-via `extern int _nseq`. First line of diff = exact bug location.
 
-**Level 0 — Pure skeleton:** PATTERN structure only, all workers replaced by
-tracing no-ops. Verifies pattern control flow (FENCE/ARBNO/etc.) is correct.
-
-**Level 1 — +counter workers:** Add real nPush/nInc/nPop logic with tracing.
-Counter stack depth/top printed each event. First divergence here = counter imbalance.
-
-**Level 2 — +value workers:** Add real shift/reduce with tracing.
-First divergence here = value stack mismatch.
-
-**Level 3 — Full:** Run full beauty_full_bin on 109_multi.input.
-All 5 primitives traced. 94 compiled lines vs oracle lines — first diff = bug.
-
-**Test inputs (smallest first):**
+**Skeleton ladder (harness/skeleton/):**
 ```
-N              ← bare Id, exercises Expr17 arm 4 only
-N + 1          ← concat, exercises Expr4/X4 + Expr17
-GT(N,3)        ← call, exercises Expr17 arm 2/3
-(N + 1)        ← grouped, exercises Expr17 arm 1 (the nPush arm)
-109_multi      ← full 5-line program
+micro0_skeleton.sno   input='N'      Bug7 does NOT fire — baseline ✅
+micro1_concat.sno     input='N + 1'  Bug7 FIRES here — TODO session122
+micro2_call.sno       input='GT(N,3)' Expr17 arm2/3 (call form)  TODO
+micro3_grouped.sno    input='(N+1)'  Expr17 arm1 full path        TODO
+micro4_full.sno       109_multi.input full 5-line program          TODO
 ```
+
+### In-PATTERN Bomb Technique (NEW — session121)
+
+You can place diagnostic calls **directly inside a PATTERN** at any edge
+using `'' . *fn()` immediate side-effect syntax. The function fires
+**exactly when the match engine reaches that point**, including on backtrack paths.
+
+```snobol4
+* Sequence stamp at any pattern edge — no wrapper needed
+        DEFINE('seq_(label)', 'seq_B')          :(seq_End)
+seq_B   seqN = seqN + 1
+        OUTPUT = 'SEQ' LPAD(seqN,4,'0') ' ' label
+        seq_ = .dummy                           :(NRETURN)
+seq_End
+
+* Embed at FENCE edges to see exactly which path fires:
+        Expr17 = FENCE(
++                   '' . *seq_('E17_arm1_enter')
++                   nPush()
++                   $'('
++                   '' . *seq_('E17_arm1_after_paren')   <- never fires if ( fails
++                   nPop()
++                |  '' . *seq_('E17_arm2_enter')         <- fires on backtrack
++                   *Id ~ 'Id'
++                )
+```
+
+**The `'' . *seq_('E17_arm1_after_paren')` line will NEVER appear in oracle
+trace for input `N` — because `$'('` fails before reaching it.**
+**But `'' . *seq_('E17_arm2_enter')` WILL appear — confirming the backtrack path.**
+
+This technique gives surgical visibility into any FENCE arm transition without
+modifying the pattern logic. Works in both CSNOBOL4 oracle and compiled binary.
+
+**Bomb variant** — abort on wrong state:
+```snobol4
+        DEFINE('assertDepth(expected)', 'assertB') :(assertEnd)
+assertB EQ(_ntop, expected)                        :S(RETURN)
+        OUTPUT = '*** BOMB depth=' _ntop ' expected=' expected
+        &STLIMIT = 0                               * force abort
+assertEnd
+```
+Place `'' . *assertDepth(1)` immediately after `nPush()` in arm1 to confirm
+depth is correct before `$'('` runs.
 
 ### Crosscheck ladder (one at a time, never skip)
 
 ```
-104_label   → 105_goto → 109_multi → 120_real_prog → 130_inc_file → 140_self
+104_label → 105_goto → 109_multi → 120_real_prog → 130_inc_file → 140_self
 ```
 `140_self` PASS → **M-BEAUTY-CORE fires**.
 
-### Diagnostic tools
+### Other diagnostic tools
 
-1. **Skeleton-build trace diff** (PRIMARY — NEW): skeleton → +counter → +value → full.
-   First SEQ line divergence = exact bug node in emit_byrd.c.
-
-2. **&STLIMIT binary search** (note: `&STCOUNT` is broken in CSNOBOL4, always 0).
-
-3. **TRACE:** `TRACE('pp','CALL')` etc. for call/return tracing.
-   Gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE')`.
-
-4. **DUMP():** full variable dump at any point.
+- **&STLIMIT binary search** (`&STCOUNT` broken in CSNOBOL4 — always 0)
+- **TRACE:** `TRACE('var','VALUE')` works; `TRACE(...,'KEYWORD')` does NOT
+- **DUMP():** full variable dump at any point
 
 ---
 
-## Product Matrix (frontend × backend)
+## Product Matrix
 
 | Frontend | TINY-C | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
 |----------|:------:|:--------:|:--------:|:--------:|:---:|:------:|
 | SNOBOL4/SPITBOL | ⏳ | — | — | — | ⏳ | ⏳ |
 | Snocone | — | — | — | — | ⏳ | — |
 | Rebus | ✅ | — | — | — | — | — |
-| Tiny-ICON | — | — | — | — | — | — |
-| Tiny-Prolog | — | — | — | — | — | — |
-| C# | — | — | — | — | — | — |
-| Clojure-EDN | — | — | — | — | ✅ | — |
 
 ✅ done · ⏳ active/in-progress · — planned/future
 
@@ -154,17 +207,11 @@ GT(N,3)        ← call, exercises Expr17 arm 2/3
 | M-REBUS | Rebus round-trip diff empty | TINY | ✅ `bf86b4b` |
 | M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | TINY | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | TINY | ✅ `ac54bd2` |
-| **M-STACK-TRACE** | oracle_stack.txt == compiled_stack.txt for all rung-12 inputs | TINY | ✅ session119 |
+| **M-STACK-TRACE** | oracle == compiled stack trace, rung-12 inputs | TINY | ✅ session119 |
 | **M-BEAUTY-CORE** | beauty_full_bin self-beautifies (mock stubs) | TINY | ❌ |
 | **M-BEAUTY-FULL** | beauty_full_bin self-beautifies (real -I inc/) | TINY | ❌ |
-| M-CODE-EVAL | CODE()+EVAL() via TCC → block_fn_t | TINY | ❌ |
-| M-BYRD-SPEC | Language-agnostic Byrd box spec, all backends | HQ | ❌ |
-| M-SNO2C-SNO | sno2c.sno compiled by C sno2c | TINY | ❌ |
+| M-CODE-EVAL | CODE()+EVAL() via TCC | TINY | ❌ |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | TINY | ❌ |
-| M-JVM-EVAL | JVM inline EVAL! | JVM | ❌ |
-| M-JVM-SNOCONE | Snocone self-test on JVM | JVM | ❌ |
-| M-NET-DELEGATES | .NET Instruction[] eliminated | DOTNET | ❌ |
-| M-NET-SNOCONE | Snocone self-test on .NET | DOTNET | ❌ |
 
 ---
 
@@ -172,29 +219,13 @@ GT(N,3)        ← call, exercises Expr17 arm 2/3
 
 | Read when you need… | File |
 |--------------------|------|
-| **Frontends** | |
-| SNOBOL4/SPITBOL: beauty.sno two-stack engine, full PATTERN map, TDD protocol, rung 12, diagnostic tools | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) |
-| Snocone: status, corpus, sprint sequence | [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) |
-| Rebus: TR 84-9 §5 rules, round-trip protocol | [FRONTEND-REBUS.md](FRONTEND-REBUS.md) |
-| Tiny-ICON: Byrd box connection, JCON reference | [FRONTEND-ICON.md](FRONTEND-ICON.md) |
-| Tiny-Prolog: SLD resolution / Byrd box mapping | [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md) |
-| C# frontend (DOTNET only) | [FRONTEND-CSHARP.md](FRONTEND-CSHARP.md) |
-| Clojure-EDN frontend (JVM only) | [FRONTEND-CLOJURE.md](FRONTEND-CLOJURE.md) |
-| **Backends** | |
-| C native: Byrd box techniques, block functions, setjmp, arch decisions | [BACKEND-C.md](BACKEND-C.md) |
-| x64 ASM: Technique 2 mmap+memcpy+relocate | [BACKEND-X64.md](BACKEND-X64.md) |
-| .NET MSIL: solution layout, open issues, performance | [BACKEND-NET.md](BACKEND-NET.md) |
-| JVM bytecodes: design laws, file map, open issues | [BACKEND-JVM.md](BACKEND-JVM.md) |
-| **Implementation** | |
-| sno2c compiler internals: lex/parse/emit, SIL naming, CNode, artifacts | [IMPL-SNO2C.md](IMPL-SNO2C.md) |
-| **Shared** | |
-| Byrd box concept, oracle hierarchy, corpus ladder | [ARCH.md](ARCH.md) |
-| Four testing paradigms, corpus ladder protocol | [TESTING.md](TESTING.md) |
-| Mandatory rules: token, identity, artifacts, hierarchy | [RULES.md](RULES.md) |
+| SNOBOL4/SPITBOL: two-stack engine, PATTERN map, TDD, diagnostics | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) |
+| sno2c compiler internals | [IMPL-SNO2C.md](IMPL-SNO2C.md) |
+| C backend: Byrd boxes, block functions | [BACKEND-C.md](BACKEND-C.md) |
+| Testing paradigms, corpus ladder | [TESTING.md](TESTING.md) |
+| Rules: token, identity, artifacts | [RULES.md](RULES.md) |
 | Session history | [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md) |
-| Runtime patches | [PATCHES.md](PATCHES.md) |
-| Background, JCON reference, keyword tables | [MISC.md](MISC.md) |
 
 ---
 
-*PLAN.md = L1 index only. ~3KB max. Edit L2/L3 files, not this one.*
+*PLAN.md = L1 index only. Edit L2/L3 files, not this one.*
