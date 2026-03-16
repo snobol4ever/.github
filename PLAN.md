@@ -10,24 +10,24 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | SNOBOL4-tiny |
-| **Sprint** | `monitor-scaffold` — build monitor runner, wire TRACE double-diff harness, Sprint M1 |
+| **Active repo** | SNOBOL4-harness |
+| **Sprint** | `oracle-verify` — install all oracles, verify keyword grid in TESTING.md live |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
-| **HEAD HARNESS** | `198249c` session121: micro0 + micro1 skeleton committed |
+| **HEAD HARNESS** | `51d360c` session124: keyword/TRACE tables consolidated into TESTING.md |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
 | **HEAD HQ** | this commit |
-| **Next action** | Session 124: Sprint M1 — write run_monitor.sh + inject_traces.py, one passing test end-to-end, commit to harness |
-| **Invariant** | 106/106 rungs 1–11 must pass before any work |
+| **Next action** | Session 124: `oracle-verify` — build CSNOBOL4 + SPITBOL-x64, find/test SNOBOL5, run verify.sno on each, fill all `?` cells in TESTING.md keyword grid |
+| **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
-**Priority order (pivot session123):**
-1. **M-MONITOR** — 152 corpus diag tests: oracle_trace == compiled_trace, zero diffs. 8 sprints M1–M8.
-2. **M-DIAG1** — diag1 suite 35/35 SNOBOL4-tiny vs CSNOBOL4 .ref oracle (subsumes into M-MONITOR)
-3. **M-BEAUTY-CORE** — bug7-micro, fix emit_byrd.c, 140_self
-4. **M-FLAT** — flat() emitter, Gray/White bypass
+**Priority order (pivot session124):**
+1. **oracle-verify** — build all oracles, verify every cell in the keyword grid, fill `?` cells, confirm each oracle has ≥1 working probe counter — BLOCKS M-MONITOR sprint M1
+2. **M-MONITOR** Sprint M1 (`monitor-scaffold`) — run_monitor.sh + inject_traces.py, one passing test end-to-end
+3. **M-DIAG1** — 35/35 SNOBOL4-tiny vs CSNOBOL4 .ref oracle (subsumes into M-MONITOR)
+4. **M-BEAUTY-CORE** — bug7-micro, fix emit_byrd.c, 140_self
 5. **M-BEAUTY-FULL** → **M-BOOTSTRAP**
 
-**Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
-**Monitor design: [MONITOR.md](MONITOR.md)**
+**Read the active L2 doc: [HARNESS.md](HARNESS.md) · [TINY.md](TINY.md)**
+**Oracle grid: [TESTING.md — Oracle Keyword & TRACE Reference](TESTING.md)**
 
 ---
 

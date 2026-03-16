@@ -93,6 +93,89 @@ Tests live in `SNOBOL4-corpus/crosscheck/beauty/`:
 Test progression: 101_comment → 102_output → 103_assign → 104_label → 105_goto →
 109_multi → 120_real_prog → 130_inc_file → 140_self (M-BEAUTY-CORE).
 
+## Sprint: `oracle-verify` — Verify the Keyword Grid (Session 124)
+
+**Goal:** Every `?` and every unverified cell in the keyword grid below becomes ✅ or ❌, confirmed by live test. Every oracle must have ≥1 working probe statement counter.
+
+**Deliverables:**
+1. CSNOBOL4 built from source (tarball already uploaded)
+2. SPITBOL x64 built from source (needs `x64-main.zip` upload)
+3. SNOBOL5 located, installed if available, or documented as unavailable
+4. `oracles/verify.sno` — single test program that probes all keywords and emits a result line per keyword
+5. All `?` cells in the grid below replaced with live-tested ✅ or ❌
+6. `&STEXEC` tested on CSNOBOL4 as substitute for broken `&STCOUNT`
+7. SNOBOL5 probe counter situation resolved: `&STNO`, `&LASTNO`, or neither?
+8. Commit to SNOBOL4-harness with updated grid
+
+**verify.sno — probe program:**
+```snobol4
+*       verify.sno — oracle keyword verification
+*       Run: snobol4 -f verify.sno  (or spitbol -b, or snobol5)
+*       Each line of output: KEYWORD = value  OR  KEYWORD = FAIL
+
+        &STLIMIT = 100000
+
+*       &STCOUNT
+        X = &STCOUNT
+        OUTPUT = '&STCOUNT = ' X
+
+*       &STEXEC (CSNOBOL4 extension)
+        X = &STEXEC                                         :F(NO_STEXEC)
+        OUTPUT = '&STEXEC = ' X                             :(DONE_STEXEC)
+NO_STEXEC
+        OUTPUT = '&STEXEC = FAIL'
+DONE_STEXEC
+
+*       &STNO
+        X = &STNO                                           :F(NO_STNO)
+        OUTPUT = '&STNO = ' X                               :(DONE_STNO)
+NO_STNO
+        OUTPUT = '&STNO = FAIL'
+DONE_STNO
+
+*       &LASTNO
+        X = &LASTNO                                         :F(NO_LASTNO)
+        OUTPUT = '&LASTNO = ' X                             :(DONE_LASTNO)
+NO_LASTNO
+        OUTPUT = '&LASTNO = FAIL'
+DONE_LASTNO
+
+*       &DUMP=2 — tested by checking &DUMP is writable
+        &DUMP = 2
+        OUTPUT = '&DUMP = ' &DUMP
+
+*       &ANCHOR, &TRIM, &FULLSCAN defaults
+        OUTPUT = '&ANCHOR = ' &ANCHOR
+        OUTPUT = '&TRIM = ' &TRIM
+        OUTPUT = '&FULLSCAN = ' &FULLSCAN
+
+        END
+```
+
+**Pass condition:** every keyword row in the grid has a live result. No `?` remaining. Each oracle has ≥1 cell in {`&STCOUNT`, `&STEXEC`, `&STNO`, `&LASTNO`} that returns a non-zero-always value.
+
+**Build steps** (see `oracles/csnobol4/BUILD.md` and `oracles/spitbol/BUILD.md`):
+```bash
+# CSNOBOL4 — tarball already at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz
+apt-get install -y build-essential libgmp-dev m4
+mkdir -p /home/claude/csnobol4-src
+tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
+cd /home/claude/csnobol4-src
+sed -i '/if (!chk_break(0))/{N;/goto L_INIT1;/d}' snobol4.c isnobol4.c
+./configure --prefix=/usr/local && make -j4 && make install
+
+# SPITBOL x64 — needs x64-main.zip uploaded by Lon
+apt-get install -y nasm
+unzip -q /mnt/user-data/uploads/x64-main.zip -d /home/claude/spitbol-src/
+# apply systm.c patch from oracles/spitbol/BUILD.md
+cd /home/claude/spitbol-src/x64-main && make && cp sbl /usr/local/bin/spitbol
+
+# SNOBOL5 — check availability
+apt-cache search snobol5 || wget https://snobol5.sourceforge.net/...   # TBD
+```
+
+---
+
 ## Oracle Keyword & TRACE Reference
 
 Every cell proven by live test on 2026-03-10. SPITBOL-x32 not runnable in container (32-bit execution disabled) — values inferred from source.
@@ -103,6 +186,7 @@ Every cell proven by live test on 2026-03-10. SPITBOL-x32 not runnable in contai
 |---------|:--------:|:-----------:|:-----------:|:-------:|---------------------|
 | `&STLIMIT` | ✅ -1 (unlimited) | ✅ MAX_INT | ✅ (inferred) | ✅ | ✅ primary probe/abort tool |
 | `&STCOUNT` | ❌ **always 0** | ✅ increments | ✅ (inferred) | ✅ | ⚠️ use `&STEXEC` or avoid on CSNOBOL4 |
+| `&STEXEC` | ❓ unverified | ❌ (CSNOBOL4-only) | ❌ | ❌ | ⚠️ CSNOBOL4-only if it works — needs live test |
 | `&STNO` | ✅ | ❌ | ❌ | ? | ❌ CSNOBOL4-only; use `&LASTNO` elsewhere |
 | `&LASTNO` | ❌ | ✅ | ✅ (inferred) | ? | ❌ not portable either; avoid |
 | `&DUMP=2` fires at `&STLIMIT` | ✅ | ✅ | ? | ✅ | ✅ safe to use |
