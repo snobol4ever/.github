@@ -343,19 +343,35 @@ measurement to decide inline vs multiline layout.
 
 ### Style B — Flat token stream (pp/ss BYPASS)
 
-Every token separated by exactly one space. No indentation. No padding.
+Tokens separated by a space **only where required**. No indentation. No padding.
 Label is just the first token on its line. No column alignment at all.
 Fast, deterministic, zero recursion — does NOT call `pp` or `ss`.
 
+Spacing is governed by the **Gray/White** classification already defined in
+beauty.sno (see `Gray` and `White` pattern variables):
+
+- **White** tokens (identifiers, literals, keywords) — require a separating
+  space from any adjacent white token.
+- **Gray** tokens (operators, punctuation: `(` `)` `,` `:` `=` etc.) — attach
+  directly to their neighbor with no space required.
+
+So `ident(a,'p')` not `ident( a , 'p' )` — parens and commas are gray.
+But `a b d` not `abd` — adjacent identifiers are white and must be separated.
+
 ```
-lfunc ident( a , 'p' ) :s( e001 )
-output = 'FAIL 1012/001: arg a should be p' :( end )
-e001 ident( b , 'q' ) :s( e002 )
+lfunc ident(a,'p') :s(e001)
+output = 'FAIL 1012/001: arg a should be p' :(end)
+e001 ident(b,'q') :s(e002)
 ```
 
-Implemented by a new `flat(x)` emitter that walks the same parse tree nodes
-but emits each token followed by a single space, with no width measurement,
-no CNode IR, no multiline logic. One pass, O(n) in token count.
+Implemented by a new `flat(x)` emitter that walks the same parse tree nodes,
+applies Gray/White rules at each token boundary, and emits a space only where
+required. No width measurement, no CNode IR, no multiline logic.
+One pass, O(n) in token count.
+
+**CRITICAL:** `flat()` must import or replicate the exact same Gray/White
+definitions from beauty.sno — not approximate them. Any divergence produces
+output that does not round-trip correctly through the parser.
 
 **Use case:** generated C through the sno2c emitter and beautifier pipeline —
 where machine-readable regularity matters more than human column alignment.
