@@ -5717,3 +5717,46 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 | 2026-03-16 | oracle-verify sprint inserted before monitor-scaffold | keyword grid had unverified cells and wrong data |
 | 2026-03-16 | HQ reorganized Goal→Milestone→Sprint→Step | PLAN.md had grown L3 content; structure was inconsistent |
 | 2026-03-16 | 4 backends not 3 | C and x64 are distinct backends |
+
+### 2026-03-16 — Session 126 (Emergency Handoff — context ~95% full)
+
+**Claude Sonnet 4.6**
+
+#### What happened this session
+
+1. **Cloned repos:** `.github`, `SNOBOL4-corpus`, `SNOBOL4-harness` — all git identities set (LCherryholmes / lcherryh@yahoo.com).
+2. **Read RULES.md and PLAN.md** — session lifecycle followed.
+3. **&STCOUNT correction sweep:** Found that HARNESS.md (×2), MONITOR.md (×2), FRONTEND-SNOBOL4.md, and TESTING.md still carried the stale "always 0" claim. TESTING.md and SESSIONS_ARCHIVE already had the correction. Fixed all stale files. Committed: `ab12de7`.
+4. **Pivot:** Active repo switched from SNOBOL4-harness (`monitor-scaffold` M1) → SNOBOL4-jvm (`jvm-inline-eval`). PLAN.md NOW block and JVM.md pivot log updated. Committed: `e8f14b1`.
+5. **Emergency handoff** triggered at ~95% context.
+
+#### State at handoff
+
+- **Active repo:** SNOBOL4-jvm
+- **Active sprint:** `jvm-inline-eval`
+- **Active milestone:** M-JVM-EVAL — inline EVAL!, arithmetic no longer calls interpreter
+- **HEAD JVM:** `9cf0af3` (jvm-snocone-expr complete) — **not advanced this session**
+- **HEAD HQ:** `e8f14b1` session126 pivot + &STCOUNT fixes
+- **Invariant:** 106/106 (not re-run this session — no TINY work done)
+
+#### Next session start
+
+```bash
+# 1. Read PLAN.md — active repo is SNOBOL4-jvm, sprint jvm-inline-eval
+# 2. Read RULES.md
+# 3. Read JVM.md — build commands, sprint detail
+# 4. cd SNOBOL4-jvm
+#    git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+#    git log --oneline -3   # verify HEAD = 9cf0af3
+#    lein test               # confirm 1896/4120/0
+# 5. Implement inline EVAL! in jvm_codegen.clj
+#    Emit arith/assign/cmp directly into JVM bytecode
+#    lein test after each change — keep 1896/4120/0
+#    Commit when M-JVM-EVAL trigger fires
+```
+
+#### Pivot log entry
+
+| Date | What | Why |
+|------|------|-----|
+| 2026-03-16 | Session 126 emergency handoff | Context window ~95% full |
