@@ -114,17 +114,6 @@ No action needed — our model is correct and preferable.
 
 **SNOBOL5 notes:** 64-bit ints/strings. `&CASE` → Error 7 (unknown). `CODE()` broken. OPSYN single-char only. Not a drop-in oracle.
 
-**Key behavioral differences:**
-
-| Behavior | CSNOBOL4 | SPITBOL x64 |
-|----------|----------|-------------|
-| `&ANCHOR` default | 0 | **1** |
-| `&TRIM` default | 0 | **1** |
-| `&STCOUNT` | **broken — always 0** | increments correctly |
-| `&STLIMIT` default | -1 (unlimited) | MAX_INT |
-| TRACE output | stderr | **stdout** |
-| `TRACE(...,'KEYWORD')` | non-functional | error 198 |
-
 ---
 
 ## String Escape Reference
@@ -144,19 +133,48 @@ newline       \n (1 char)   \n   (C newline escape)
 
 ---
 
-## SNOBOL4 Keyword Reference
+## SNOBOL4 Keyword & TRACE Reference
 
-Every cell proven by live test on 2026-03-10 against CSNOBOL4 and SPITBOL.
+Every cell proven by live test on 2026-03-10. SPITBOL-x32 not runnable in container (32-bit execution disabled) — values inferred from source.
 
-| Keyword | CSNOBOL4 | SPITBOL | Notes |
-|---------|----------|---------|-------|
-| `&STCOUNT` | **always 0** | increments ✓ | CSNOBOL4 broken |
-| `&STLIMIT` | -1 (unlimited) | MAX_INT | Both R/W |
-| `&ANCHOR` | 0 | **1** | SPITBOL default differs |
-| `&TRIM` | 0 | **1** | SPITBOL default differs |
-| `&FULLSCAN` | 0 | 1 | SPITBOL default differs |
-| `&CASE` | 0 even with -f | 0 | `-f` ≠ `&CASE=1` in CSNOBOL4 |
-| `&MAXLNGTH` | 4G | 16M | All three differ |
+### Keywords
+
+| Keyword | CSNOBOL4 | SPITBOL-x64 | SPITBOL-x32 | SNOBOL5 | Use for portability |
+|---------|:--------:|:-----------:|:-----------:|:-------:|---------------------|
+| `&STLIMIT` | ✅ -1 (unlimited) | ✅ MAX_INT | ✅ (inferred) | ✅ | ✅ primary probe/abort tool |
+| `&STCOUNT` | ❌ **always 0** | ✅ increments | ✅ (inferred) | ✅ | ⚠️ use `&STEXEC` or avoid on CSNOBOL4 |
+| `&STNO` | ✅ | ❌ | ❌ | ? | ❌ CSNOBOL4-only; use `&LASTNO` elsewhere |
+| `&LASTNO` | ❌ | ✅ | ✅ (inferred) | ? | ❌ not portable either; avoid |
+| `&DUMP=2` fires at `&STLIMIT` | ✅ | ✅ | ? | ✅ | ✅ safe to use |
+| `&ANCHOR` default | 0 | **1** | **1** | ? | ⚠️ set explicitly — defaults differ |
+| `&TRIM` default | 0 | **1** | **1** | ? | ⚠️ set explicitly — defaults differ |
+| `&FULLSCAN` default | 0 | 1 | 1 | ? | ⚠️ set explicitly |
+| `&CASE` | 0 even with `-f` | 0 | 0 | ? | `-f` ≠ `&CASE=1` in CSNOBOL4 |
+| `&MAXLNGTH` | 4G | 16M | 16M | 64-bit | ⚠️ all differ |
+| TRACE output stream | stderr | **stdout** | stdout | stderr | ⚠️ redirect per oracle |
+
+### TRACE types
+
+| TRACE call | CSNOBOL4 | SPITBOL-x64 | SPITBOL-x32 | SNOBOL5 | Use for portability |
+|-----------|:--------:|:-----------:|:-----------:|:-------:|---------------------|
+| `TRACE(var,'VALUE')` | ✅ | ✅ | ✅ (inferred) | ✅ | ✅ primary monitor tool |
+| `TRACE(fn,'CALL')` | ✅ | ✅ | ✅ (inferred) | ✅ | ✅ |
+| `TRACE(fn,'RETURN')` | ✅ | ✅ | ✅ (inferred) | ✅ | ✅ |
+| `TRACE(fn,'FUNCTION')` | ✅ | ✅ | ✅ (inferred) | ✅ | ✅ |
+| `TRACE(label,'LABEL')` | ✅ | ✅ | ✅ (inferred) | ✅ | ✅ |
+| `TRACE('STCOUNT','KEYWORD')` | ✅ | ✅ | ? | ✅ | ✅ portable per-statement trace |
+| `TRACE('STNO','KEYWORD')` | ✅ at `BREAKPOINT(n,1)` stmts only | ❌ error 198 | ❌ | ❌ silent | ❌ CSNOBOL4-only, avoid |
+| `TRACE(...,'KEYWORD')` (general) | non-functional | error 198 | error 198 | ? | ❌ never use |
+
+### TRACE output format
+
+| Oracle | Format |
+|--------|--------|
+| CSNOBOL4 | `file:LINE stmt N: EVENT, time = T.` |
+| SPITBOL-x64 | `****N*******  event` |
+| SNOBOL5 | `    STATEMENT N: EVENT,TIME = T` |
+
+Monitor pipe reader must normalize per oracle — all carry statement number and event description.
 
 ---
 
