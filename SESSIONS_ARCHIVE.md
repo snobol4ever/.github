@@ -5250,3 +5250,138 @@ misaligning the 7-child Stmt tree.
 ### Next action
 Fix `emit_byrd.c` E_DEREF(E_FNC) case: emit `APPLY_fn(fname, args, n)` and use
 result as pattern, instead of `NV_GET_fn(fname)`.
+
+---
+
+## Session 111 — 2026-03-16
+
+**HEAD:** `d72606a` (chore: delete stale artifact snapshots)
+**Sprint:** `beauty-crosscheck` — Sprint A — rung 12
+**Status:** 102_output still FAIL
+
+### Work done
+
+**Housekeeping**
+- Deleted 31 stale artifact `.c` snapshots (sessions 50–105). Kept `beauty_tramp_session106.c`.
+- Cleaned stale refs in `PLAN.md` and `test/smoke/outputs/session50/README.md`.
+
+**Deep diagnosis of Bug3 — pp_Stmt drops subject**
+
+Built Shift/Reduce trace infrastructure. Confirmed with hard probe data:
+
+**Symptom:** `    OUTPUT = 'hello'` → `                              'hello'`
+Subject (OUTPUT) and `=` missing from output.
+
+**Confirmed parse tree IS correct** (standalone Reduce/Shift test):
+```
+child[1]: Label=""   child[2]: Function=OUTPUT   child[3]: ""(empty pattern)
+child[4]: =          child[5]: String='hello'    child[6]: ..   child[7]: |
+```
+
+**Confirmed stack at `Reduce("Stmt",7)` is WRONG — depth=10, expected=8:**
+```
+[Reduce] t=Parse   n=0   ntop=0  depth_before=0   → depth=1  (Parse sentinel)
+[Shift]  t=Label   v=             depth=2
+[Shift]  t=Function v=OUTPUT      depth=3
+[Shift]  t=         v=            depth=4   (empty pattern)
+[Shift]  t==        v==           depth=5
+[Shift]  t=String  v='hello'      depth=6
+[Reduce] t=..  ntop=0  depth_before=6  → depth=7   ← SPURIOUS +1
+[Reduce] t=|   ntop=0  depth_before=7  → depth=8   ← SPURIOUS +1
+[Shift]  t=    v=                 depth=9    (goto1 epsilon)
+[Shift]  t=    v=                 depth=10   (goto2 epsilon)
+[Reduce] t=Stmt  n=7  depth_before=10
+```
+
+**Root cause identified:** `Reduce("..", ntop())` and `Reduce("|", ntop())` in
+`pat_Expr4`/`pat_Expr3` fire with `ntop()=0` instead of `ntop()=1`.
+This means `count=0`, so each Reduce pops 0 and pushes 1 — inflating the stack by +1 each.
+
+**Why ntop()=0:** The `NPUSH_fn()` in `pat_Expr4`/`pat_Expr3` only fires on the
+FORWARD entry path (`_entry_np==0`, via `cat_l_161_α`). On BACKTRACK or via
+FENCE re-entry, `cat_r_160_α` (which contains the Reduce) is reached **without**
+`NPUSH_fn()` having fired. So `_ntop == -1` (or the previous frame) when
+`ntop()` is called, returning 0.
+
+**Fix attempted (wrong):** Emit `EVAL_fn(STRVAL("*(GT(nTop(),1) nTop())"))` — EVAL_fn
+is a pattern evaluator, not numeric. Rolled back.
+
+**Fix attempted (wrong):** Emit `INTVAL(ntop())` for any `E_QLIT` containing `"nTop()"`.
+This is correct for cases where NPUSH fires, but doesn't fix the structural issue:
+NPUSH is skipped on non-forward entry paths.
+
+**True fix needed — two parts:**
+
+1. **`emit_byrd.c` — structural fix for `nPush() *X (tag & n) nPop()` pattern:**
+   The `E_OPSYN &` emit at `cat_r_N_α` is reachable from backtrack paths that
+   skip `cat_l_N_α` (where `NPUSH_fn()` lives). Fix options:
+   - **Option A:** Move `NPUSH_fn()` to fire before both forward AND backtrack
+     entries into the X sub-pattern (i.e., emit it at the top of the enclosing
+     cat, not inside `cat_l_N_α`).
+   - **Option B:** In `emit_simple_val` for `E_QLIT` containing `"nTop()"`,
+     emit `INTVAL(NHAS_FRAME_fn() ? ntop() : 0)` — this is still wrong since
+     ntop()=0 when no frame.
+   - **Option C (correct):** The `nPush()`/`nPop()` pattern in beauty.sno maps to
+     `cat_l_N_α: NPUSH / cat_r_N_α: Reduce / cat_r_(N-1)_α: NPOP`. The NPUSH
+     must be moved OUT of `cat_l_N_α` into the parent `cat_l_(N-1)_α` so it
+     fires unconditionally before any entry into the inner cat. This requires
+     changing how `emit_byrd.c` emits `E_OPSYN` when the left child is
+     `nPush()` — detect this and hoist the push.
+
+2. **`emit_simple_val` — the `E_QLIT "*(GT(nTop(),1) nTop())"` case:**
+   Once NPUSH fires correctly, `ntop()` will return 1 for a single-item expression.
+   The existing `INTVAL(ntop())` fix in `emit_simple_val` is then correct.
+   The `*(GT(nTop(),1) nTop())` expression means "use ntop() as count" —
+   `INTVAL(ntop())` is the right translation.
+
+**Fix location: `src/sno2c/emit_byrd.c`**
+- `emit_simple_val` E_QLIT: already fixed correctly (`strcasestr("nTop()")` → `INTVAL(ntop())`).
+- The `E_OPSYN &` case (line ~2108): needs to detect when the enclosing concat's
+  left arm begins with `nPush()` and ensure the NPUSH fires at the cat level,
+  not buried inside `cat_l_N_α`.
+
+**Concretely:** In the generated `pat_Expr4`:
+```
+cat_l_161_α:  NPUSH_fn();   goto cat_r_161_α;   ← NPUSH only on forward entry
+cat_l_161_β:                goto _Expr4_ω;
+cat_r_161_α:  pat_X4(...)   ...
+cat_r_160_α:  Reduce("..", ntop())               ← ntop()=0 on backtrack path
+```
+Should be:
+```
+cat_l_160_α:  NPUSH_fn();   goto cat_l_161_α;   ← NPUSH at outer cat level
+cat_l_161_α:                goto cat_r_161_α;
+cat_l_161_β:  NPOP_fn();    goto _Expr4_ω;       ← NPOP on failure path
+...
+cat_r_160_α:  Reduce("..", ntop())               ← ntop()=1 now correct
+cat_r_159_α:  NPOP_fn();    goto _Expr4_γ;
+```
+
+### State of `emit_byrd.c`
+
+The `emit_simple_val` E_QLIT fix (`strcasestr("nTop()")` → `INTVAL(ntop())`) is
+already committed in `src/sno2c/emit_byrd.c`. The structural NPUSH hoisting fix
+is NOT yet done.
+
+`beauty_full.c` has `INTVAL(ntop())` patched in for the 3 Reduce sites (lines
+5083, 5628, 5785). The NPUSH structural fix must be applied in `emit_byrd.c`
+and `beauty_full.c` regenerated (or patched manually).
+
+### Next action
+
+Open `src/sno2c/emit_byrd.c` at the `E_OPSYN &` case (line ~2108).
+The enclosing pattern for `Expr3`/`Expr4` is:
+```
+nPush() . *X3 . ("'|'" & '*(GT(nTop(),1) nTop())') . nPop()
+```
+In the Byrd box emission, `nPush()` is emitted as the LEFT side of an outer cat.
+The `E_FNC nPush` in `emit_simple_val` already emits `INTVAL((NINC_fn(),ntop()))` —
+but that's for when nPush appears as the n-argument, not as a cat child.
+
+Find where `E_FNC "nPush"` is emitted as a CAT child (not as E_OPSYN operand)
+in `emit_byrd.c` — that's where the `NPUSH_fn()` label is generated. Ensure
+`NPUSH_fn()` also fires on the beta (backtrack) entry of that cat node, not
+only on the alpha (forward) entry.
+
+### 106/106 invariant
+Rungs 1–11 still pass 106/106 (not re-run this session, no changes to those paths).
