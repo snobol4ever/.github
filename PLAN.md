@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
-| **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `session116` |
-| **Next action** | Fix pending_npush_uid nested-CAT propagation in emit_byrd.c; regenerate beauty_full.c; verify 101-105 PASS |
+| **Sprint** | `stack-trace` — dual-stack instrumentation and oracle comparison |
+| **HEAD** | `session116` (session117–118 = diagnosis + plan, no commit) |
+| **Next action** | Instrument beauty.sno nPush/nInc/nPop/Shift/Reduce; diff oracle vs compiled traces; find imbalance; fix emit_byrd.c |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
@@ -25,7 +25,7 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | Frontend | TINY-C | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
 |----------|:------:|:--------:|:--------:|:--------:|:---:|:------:|
 | SNOBOL4/SPITBOL | ⏳ | — | — | — | ⏳ | ⏳ |
-| Snocone | — | — | — | — | ⏳ | ⏳ |
+| Snocone | — | — | — | — | ⏳ | — |
 | Rebus | ✅ | — | — | — | — | — |
 | Tiny-ICON | — | — | — | — | — | — |
 | Tiny-Prolog | — | — | — | — | — | — |
@@ -44,6 +44,7 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | M-REBUS | Rebus round-trip diff empty | TINY | ✅ `bf86b4b` |
 | M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | TINY | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | TINY | ✅ `ac54bd2` |
+| **M-STACK-TRACE** | oracle_stack.txt == compiled_stack.txt for all rung-12 inputs | TINY | ❌ |
 | **M-BEAUTY-CORE** | beauty_full_bin self-beautifies (mock stubs) | TINY | ❌ |
 | **M-BEAUTY-FULL** | beauty_full_bin self-beautifies (real -I inc/) | TINY | ❌ |
 | M-CODE-EVAL | CODE()+EVAL() via TCC → block_fn_t | TINY | ❌ |
@@ -62,7 +63,7 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | Read when you need… | File |
 |--------------------|------|
 | **Frontends** | |
-| SNOBOL4/SPITBOL: beauty.sno, TDD protocol, rung 12, probe/monitor/triangulate | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) |
+| SNOBOL4/SPITBOL: beauty.sno two-stack engine, TDD protocol, rung 12, probe/monitor/triangulate | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) |
 | Snocone: status, corpus, sprint sequence | [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) |
 | Rebus: TR 84-9 §5 rules, round-trip protocol | [FRONTEND-REBUS.md](FRONTEND-REBUS.md) |
 | Tiny-ICON: Byrd box connection, JCON reference | [FRONTEND-ICON.md](FRONTEND-ICON.md) |

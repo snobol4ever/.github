@@ -11,79 +11,55 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session116` (session117 = diagnosis only, no new commit) — Bug5/6 emit_byrd.c port WIP; 101-103 PASS from regenerated C; beauty_full_bin still from WIP (101-105 PASS)
-**Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
+**Sprint:** `stack-trace` — dual-stack instrumentation and oracle comparison
+**HEAD:** `session116` (session117 = diagnosis only, no commit; session118 = this plan)
+**Milestone:** M-STACK-TRACE → M-BEAUTY-CORE
 
 **Next action:**
-1. **Find the nPush/nPop imbalance in pat_Expr sub-patterns (Bug5 root cause).**
+1. **Instrument beauty.sno** — replace nPush/nInc/nPop/Shift/Reduce with tracing
+   wrappers. Run under CSNOBOL4 → `oracle_stack.txt`. This is ground truth.
+2. **Instrument the compiled runtime** — add fprintf traces to NPUSH_fn/NPOP_fn/
+   NINC_fn/Shift_fn/Reduce_fn in snobol4.c / mock_engine.c. Rebuild beauty_full_bin.
+3. **Diff the two traces** for input `104_label.input` (LOOP X = X 1).
+   First diverging line = exact location of the nPush/nPop imbalance.
+4. **Binary search emit_byrd.c** between last-matching event and first-diverging
+   event. Find the γ exit path of pat_Expr4/X4 that calls nPush without nPop.
+5. **Fix emit_byrd.c.** Ensure nPop fires on ALL exit paths (γ and ω).
+6. **Regenerate beauty_full.c**, rebuild, verify 104+105 PASS.
+7. **Port complete** → M-STACK-TRACE fires.
+8. Continue ladder: 109_multi → 120_real_prog → 130_inc_file → 140_self → M-BEAUTY-CORE.
 
-   **Confirmed symptom (session117 dual-stack trace):**
-   For `X 1` (two concat atoms), counter stack trace shows:
-   ```
-   NPUSH idx=6   ExprList frame
-   NINC  idx=6 count=1   atom X
-   NPUSH idx=7   ← spurious — from inside pat_Expr parsing X
-   NPUSH idx=8   ← another spurious
-   NPOP  idx=8
-   NPOP  idx=7
-                 ← second NINC fires at wrong level — idx=6 stays at 1
-                 ← ntop()=1, guard (>1) skips Reduce(..,2)
-   ```
-   A sub-pattern of `pat_Expr` (likely `pat_Expr4` or `pat_X4`) calls `nPush()`
-   and does NOT call `nPop()` before returning γ (success). This leaves an extra
-   frame on the counter stack, displacing subsequent NINC calls.
+**Confirmed symptom (session117 dual-stack trace):**
+For `X 1` (two concat atoms), counter stack trace shows:
+```
+NPUSH idx=6   ExprList frame
+NINC  idx=6 count=1   atom X
+NPUSH idx=7   ← spurious — from inside pat_Expr parsing X
+NPUSH idx=8   ← another spurious
+NPOP  idx=8
+NPOP  idx=7
+              ← second NINC fires at wrong level — idx=6 stays at 1
+              ← ntop()=1, guard (>1) skips Reduce(..,2)
+```
 
-   **Diagnostic:** Diff `beauty_full_wip.c` (session115, passes 104/105) against
-   `beauty_full_baseline.c` (session116 regenerated, fails) in the `pat_Expr4`/
-   `pat_X4` nPush/nPop region. The hand-patch will show exactly what is missing.
+**Root cause:** a sub-pattern of `pat_Expr` (likely `pat_Expr4` or `pat_X4`) calls
+`nPush()` and does NOT call `nPop()` before returning γ (success). This leaves an
+extra frame on the counter stack, displacing subsequent NINC calls.
 
-   **Then fix in `emit_byrd.c`:** ensure the emitted nPop() fires on ALL exit
-   paths (γ and ω) of the Expr4/X4 pattern, not just some of them.
+**Reduce comes before nPop.** The correct sequence:
+```
+nPush → ... nInc ... nInc ... Reduce(type, ntop()) → nPop
+```
+ntop() must be read INSIDE Reduce. nPop discards the frame AFTER.
 
-2. After imbalance fixed: verify 104+105 PASS from regenerated C.
-3. Port complete → copy `beauty_full_new.c` → `beauty_full.c`, rebuild `beauty_full_bin`.
-4. Continue ladder: 109_multi → 120_real_prog → 130_inc_file → 140_self → M-BEAUTY-CORE.
+**Do NOT touch `_saved_frame` or `pending_npush_uid`** until imbalance is fixed.
 
-   **Do NOT touch `_saved_frame` or `pending_npush_uid`** until imbalance is fixed.
+**Bug6a — FIXED in WIP (session115):** `:` lookahead guard in pat_X4 cat_r_168.
+**Bug6b — FIXED in WIP (session115):** NV_SET_fn for Brackets/SorF; CONCAT_fn Reduce type.
+**Bug5 — FIXED in WIP (session114); emit_byrd.c port IN PROGRESS (session116).**
+**Bugs 3/4 — FIXED `4c2ad68`.**
 
-   **Bug6a — FIXED in WIP (session115):** `:` lookahead guard in pat_X4 cat_r_168.
-   **Bug6b — FIXED in WIP (session115):** NV_SET_fn for Brackets/SorF; CONCAT_fn Reduce type.
-   **Bug5 — FIXED in WIP (session114); emit_byrd.c port IN PROGRESS (session116).**
-   **Bugs 3/4 — FIXED `4c2ad68`.**
-
-   **Bug6a — spurious `Reduce(.., 2)` for `1 :(END)`:** `pat_X4`/`FENCE(*White *X4)` is consuming the
-   space before `:(END)` and treating it as a second concat atom. The goto token `:(END)` should be left
-   for `pat_Goto` in `pat_Stmt`. Probe shows `Reduce(..,2)` fires for `[1, END]` where `END` should be
-   the goto target, not a subject expression atom. Diagnose whether `pat_Expr5..Expr14` rejects `:(END)`
-   at the `:` character or whether `pat_Stmt`'s subject/goto split has a precedence bug.
-
-   **Bug6b — `Reduce(*(':' Brackets), 1)` instead of `Reduce(:(), 1)`:** The goto Reduce type uses the
-   literal string `*(':' Brackets)` instead of evaluating it. In beauty.sno: `("*(':' Brackets)" & 1)` —
-   the string is an unevaluated SNOBOL4 expression that should be EVALed. Fix in `emit_byrd.c`: when
-   `E_OPSYN &` has an `E_QLIT` type whose value starts with `*`, emit EVAL call not STRVAL.
-
-   **Probe trace (oracle vs ours):**
-   ```
-   Oracle:  Shift(Integer,1) Shift(SpecialNm,END) Reduce(:(),1) Shift(,) Reduce(Stmt,7)
-   Ours:    Shift(..) Reduce(..,2) Shift(..) Reduce(*(':' Brackets),1) Reduce(Stmt,7)
-   ```
-
-   **Prior bugs resolved:**
-
-   **Bug5 — FIXED `3f5bfda` (session114):** `ntop()` frame displacement in `pat_Parse`/`pat_Compiland`/
-   `pat_Command`. Nested `NPUSH` calls from `pat_Expr4/X4/Expr16` displaced `_ntop` above Parse-level
-   frame. Fix: save `NTOP_INDEX_fn()` at both NPUSH sites in Parse/Compiland into `z->_saved_frame` +
-   `_command_pending_parent_frame`; Command reads frame at init; `NINC_fn()→NINC_AT_fn(_cmd_parent_frame)`;
-   `Reduce(Parse,ntop())→Reduce(Parse,NSTACK_AT_fn(_parse_frame))`.
-   New runtime symbols: `_command_pending_parent_frame` (snobol4.c/h).
-   Fix in `beauty_full_wip.c` only — `emit_byrd.c` NOT yet updated.
-
-   **Bug3 — FIXED `4c2ad68`:** emit_seq NPUSH backtrack omission.
-   **Bug4 — FIXED `4c2ad68`:** emit_imm literal-tok `$'('` guard + stack rollback.
-
-2. After 105_goto PASS: continue ladder (109_multi → 120_real_prog → 130_inc_file → 140_self).
-3. After WIP passes all rung-12 tests: port all saved-frame fixes to `emit_byrd.c`, recompile, verify.
+---
 
 ## Frontend × Backend Frontier
 
@@ -145,6 +121,7 @@ git add -A && git commit && git push
 | M-REBUS | Rebus round-trip diff empty | ✅ `bf86b4b` |
 | M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | ✅ `ac54bd2` |
+| **M-STACK-TRACE** | oracle_stack.txt == compiled_stack.txt for all rung-12 inputs | ❌ |
 | **M-BEAUTY-CORE** | beauty_full_bin self-beautifies (mock stubs) | ❌ |
 | **M-BEAUTY-FULL** | beauty_full_bin self-beautifies (real -I inc/) | ❌ |
 | M-CODE-EVAL | CODE()+EVAL() via TCC → block_fn_t | ❌ |
@@ -160,7 +137,8 @@ git add -A && git commit && git push
 
 | Sprint | Paradigm | Trigger | Status |
 |--------|----------|---------|--------|
-| `beauty-crosscheck` | Crosscheck | beauty/140_self → **M-BEAUTY-CORE** | ⏳ A |
+| `stack-trace` | Dual-stack instrumentation | oracle == compiled stack trace → **M-STACK-TRACE** | ⏳ NOW |
+| `beauty-crosscheck` | Crosscheck — diff vs oracle | beauty/140_self → **M-BEAUTY-CORE** | ❌ gates on M-STACK-TRACE |
 | `beauty-probe` | Probe | All failures diagnosed | ❌ B |
 | `beauty-monitor` | Monitor | Trace streams match | ❌ C |
 | `beauty-triangulate` | Triangulate | Empty diff → **M-BEAUTY-FULL** | ❌ D |
@@ -213,3 +191,4 @@ git add -A && git commit && git push
 | 115 | Bug6a FIXED: `:` lookahead guard in pat_X4 cat_r_168. Bug6b FIXED: NV_SET_fn for Brackets/SorF in pat_Target/SGoto/FGoto; CONCAT_fn Reduce type; suppressed output_str+cond_OUTPUT in all pat_ gammas (23 sites). 101–105 PASS, 106/106. WIP only — emit_byrd.c port pending | EMERGENCY WIP — commit next session |
 | 116 | emit_byrd.c port attempt: snobol4.h NTOP_INDEX/NSTACK_AT decls; pending_npush_uid + _pending_parent_frame globals; Bug5 saved-frame in emit_seq+E_FNC nPush; Bug6a colon guard in *X4 deref; Bug6b CONCAT_fn in E_OPSYN; output_str suppression gated on suppress_output_in_named_pat(); _parent_frame field in all named pat structs. 101-103 PASS from regen; 104-105 FAIL — pending_npush_uid not surviving nested CAT levels | EMERGENCY WIP — pending_npush_uid fix next session |
 | 117 | Diagnosis: 104/105 fail because Reduce(..,2) never fires — ntop()=1 at ExprList level instead of 2. Dual-stack trace confirmed: spurious NPUSH idx=7/8 inside pat_Expr displaces counter stack so second NINC fires at wrong level. Root cause: nPush/nPop imbalance in pat_Expr4/X4 sub-pattern. Option A (parameter threading) attempted and backed out — correct diagnosis but wrong fix target. All files restored to session116 state. | Diagnosis only — no commit |
+| 118 | Pivot: stack-trace sprint. Understand two-stack engine model fully. Instrument both oracle and compiled binary. Use diff to find exact imbalance location, not inference. New milestone M-STACK-TRACE gates on beauty-crosscheck. HQ updated. | Plan only — no commit |
