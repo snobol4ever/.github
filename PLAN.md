@@ -12,8 +12,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `session114` |
-| **Next action** | Diagnose + fix 105_goto FAIL (Bug6a spurious concat, Bug6b unevaluated goto type) |
+| **HEAD** | `session115` |
+| **Next action** | Port Bug6 WIP fixes to emit_byrd.c; regenerate beauty_full.c; 109_multi |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**

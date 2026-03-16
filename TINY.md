@@ -12,11 +12,12 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session114` — `3f5bfda` — Bug5 fully fixed (saved-frame for Parse/Compiland/Command); 101/102/103/104 PASS, 105_goto FAIL
+**HEAD:** `session115` — Bug6 fully fixed; 101–105 PASS, 106/106 rung 1–11 PASS
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. **Active bug: Bug6 — 105_goto FAIL** — `X = 1       :(END)` → wrong output
+1. Port Bug6 WIP patches to `emit_byrd.c`, regenerate `beauty_full.c`, verify 5/5 still PASS.
+2. Continue ladder: 109_multi → 120_real_prog → 130_inc_file → 140_self → M-BEAUTY-CORE.
 
    **Bug6a — spurious `Reduce(.., 2)` for `1 :(END)`:** `pat_X4`/`FENCE(*White *X4)` is consuming the
    space before `:(END)` and treating it as a second concat atom. The goto token `:(END)` should be left
@@ -176,3 +177,4 @@ git add -A && git commit && git push
 | 112 | Bug3 FIXED (emit_seq NPUSH on backtrack); Bug4 FIXED (emit_imm literal-tok $'(' guard + stack rollback via STACK_DEPTH_fn) | 101/102/103 PASS; 104_label FAIL — next |
 | 113 | Bug5 diagnosed: ntop() frame displacement by nested NPUSH; NINC_AT_fn + saved-frame fix in beauty_full.c; Reduce("..",2) fires; pp_.. crash unresolved | EMERGENCY WIP 7c17ffa |
 | 114 | Bug5 FIXED: saved-frame pattern extended to pat_Parse/pat_Compiland/pat_Command; _command_pending_parent_frame global; Reduce(Parse,1) correct; 104_label PASS. Bug6 diagnosed: Bug6a spurious Reduce(..,2) for goto token; Bug6b unevaluated goto type string | EMERGENCY WIP 3f5bfda |
+| 115 | Bug6a FIXED: `:` lookahead guard in pat_X4 cat_r_168. Bug6b FIXED: NV_SET_fn for Brackets/SorF in pat_Target/SGoto/FGoto; CONCAT_fn Reduce type; suppressed output_str+cond_OUTPUT in all pat_ gammas (23 sites). 101–105 PASS, 106/106. WIP only — emit_byrd.c port pending | EMERGENCY WIP — commit next session |
