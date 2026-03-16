@@ -12,20 +12,42 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session107` — Shift(t,v) value fix; debug removed; root cause of 102_output fully diagnosed
+**HEAD:** `session108` — E_INDR(E_FNC) fix in emit_byrd.c; bug2 diagnosed (pat_ExprList epsilon)
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
 1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` produces `'hello'` only (no subject, no `=`)
-   - **Root cause CONFIRMED:** `*match(List, TxInList)` in `pat_Function`/`pat_BuiltinVar` compiled
-     as `NV_GET_fn("match")` — arguments dropped. `match_pattern_at(NULVCL,...)` succeeds vacuously.
-     Both patterns pass validation; `pat_Function` wins (tried first in Expr17).
-     `OUTPUT` → `Function` → spurious `Reduce('ExprList',0)` + `Reduce('Call',2)` misaligns
-     the 7-child Stmt tree: c[2]='=' c[3]=String instead of c[2]=Subject c[4]='='.
-   - **Fix location:** `emit_byrd.c` — `E_DEREF(E_FNC(...))` case.
-     When a deref wraps an E_FNC inside a pattern, emit a runtime `APPLY_fn` call
-     using the result as the pattern, NOT `NV_GET_fn(fname)`.
-   - Consult `emit_byrd.c` around `E_DEREF`/`E_FNC` emission; cross-ref `v311.sil` APLY/FNCEX.
+
+   **Bug 1 — E_INDR(E_FNC) — FIXED in emit_byrd.c (session108, commit 7988492)**
+   - `*match(List, TxInList)` was compiled as `NV_GET_fn("match")` — args dropped.
+   - Fix: new branch in `E_INDR` case before `named_pat_lookup`: when `pat->left->kind == E_FNC
+     && pat->left->nargs > 0`, emit `APPLY_fn(fname, args, nargs)` and pass result to
+     `match_pattern_at`. Correct SNOBOL4 semantics for `*f(a,b)`.
+   - `beauty_full.c` manually patched (5 occurrences, all `NV_GET_fn("match")` →
+     `APPLY_fn("match", [List,TxInList], 2)` with `IS_FAIL_fn` guard).
+   - **Corpus needed to regenerate beauty_full.c from source.**
+
+   **Bug 2 — pat_ExprList matches epsilon without '(' — NOT YET FIXED**
+   - Debug trace (Shift/Reduce prints added temporarily to mock_includes.c):
+     ```
+     [Shift] t=Function v=OUTPUT
+     [Reduce] type=ExprList n=0     ← spurious: no '(' in input
+     [Reduce] type=Call n=2         ← spurious: consumes Function+ExprList slots
+     ```
+   - `OUTPUT` is still classified as `Function` and `pat_ExprList` matches epsilon.
+   - Root cause: in `pat_Expr17`, the function-call rule is
+     `Function '(' ExprList ')'`. After `pat_Function` succeeds, `pat_ExprList`
+     is tried — it has an epsilon alternative (ARBNO of zero Exprs) that matches
+     immediately without consuming `(`. The `'('` literal should be tested BEFORE
+     `pat_ExprList`, but in the generated code `pat_ExprList` is reached first.
+   - **Fix location:** `beauty_full.c` lines ~8195–8220 (cat_r_382_α block):
+     the `'('` literal match must precede `pat_ExprList`, OR `pat_ExprList` must
+     not match epsilon in this context. Inspect `pat_ExprList` at line 5051 to
+     confirm it accepts zero-length, then find where the `'('`/`')'` literals are
+     matched in the function-call rule — they may be in an outer `FENCE(...)` that
+     the compiled code doesn't enforce correctly.
+   - Cross-ref: beauty.sno `snoExpr17` function-call arm; `pat_ExprList` at line 5051.
+
 2. After 102_output PASS: write 103_assign.input/.ref, continue rung 12 ladder
 
 ---
@@ -147,4 +169,5 @@ git add -A && git commit && git push
 | 103–104 | E_NAM~/Shift fix; E_FNC fallback fix | 101_comment PASS; 102+ blocked by named-pattern RHS truncation in byrd_emit_named_pattern |
 | 105 | $ left-assoc parse fix + E_DOL chain emitter | Parser correct; emitter label-dup compile error blocks 102+ |
 | 106 | E_DOL label-dup fixed (emit_seq pattern); 4x crosscheck speedup | 101 PASS; 102_output FAIL — assignment node blank in pp() |
+| 108 | E_INDR(E_FNC) fix in emit_byrd.c; beauty_full.c patched; bug2 diagnosed: pat_ExprList epsilon | 102_output still FAIL — bug2 is pat_ExprList matching epsilon without '(' |
 | 107 | Shift(t,v) value fix; FIELD_GET debug removed; root cause diagnosed | 106/106 pass; 102 still FAIL — E_DEREF(E_FNC) in emit_byrd.c drops args |

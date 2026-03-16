@@ -12,8 +12,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
 | **Sprint** | `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests |
-| **HEAD** | `session107` |
-| **Next action** | Fix E_DEREF(E_FNC) in emit_byrd.c — drops args, causes Function/BuiltinVar misclassification |
+| **HEAD** | `session108` |
+| **Next action** | Fix pat_ExprList epsilon-match in beauty_full.c — `'('` must precede ExprList in function-call rule (lines ~8195–8220); cross-ref `pat_ExprList` line 5051 |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
