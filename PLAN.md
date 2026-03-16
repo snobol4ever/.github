@@ -10,12 +10,12 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | SNOBOL4-tiny |
-| **Sprint** | `bug7-micro` — skeleton ladder → diff → fix emit_byrd.c |
+| **Active repo** | SNOBOL4-corpus + SNOBOL4-tiny |
+| **Sprint** | `diag1-corpus` committed → resume `bug7-micro` next |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `198249c` session121: micro0 + micro1 skeleton committed |
 | **HEAD HQ** | this commit |
-| **Next action** | Session 122 step 1: run micro1_concat oracle vs compiled, get diff, fix |
+| **Next action** | 1. Commit diag1 suite to SNOBOL4-corpus. 2. Resume session122 bug7-micro: run micro1_concat oracle vs compiled, get diff, fix emit_byrd.c |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
@@ -208,6 +208,7 @@ depth is correct before `$'('` runs.
 | M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | TINY | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | TINY | ✅ `ac54bd2` |
 | **M-STACK-TRACE** | oracle == compiled stack trace, rung-12 inputs | TINY | ✅ session119 |
+| **M-DIAG1** | 35-test diag1 suite 35/35 PASS on all backends | CORPUS | ⏳ session122 |
 | **M-BEAUTY-CORE** | beauty_full_bin self-beautifies (mock stubs) | TINY | ❌ |
 | **M-BEAUTY-FULL** | beauty_full_bin self-beautifies (real -I inc/) | TINY | ❌ |
 | M-CODE-EVAL | CODE()+EVAL() via TCC | TINY | ❌ |

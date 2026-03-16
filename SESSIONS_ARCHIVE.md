@@ -5646,3 +5646,79 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 # Then fix Bug7 in emit_byrd.c — see TINY.md §Bug7
 # Then: 104_label → 105_goto → 109_multi → 120_real_prog → 130_inc_file → 140_self
 ```
+
+## Session 122 — 2026-03-16
+
+### Pivot: diag1-corpus sprint
+
+Session opened intending bug7-micro work. Pivoted to add the M-DIAG1 test suite
+to SNOBOL4-corpus before resuming compiler work.
+
+**What was done:**
+- Studied CSNOBOL4 2.3.3 source, built and installed CSNOBOL4 locally
+- Decomposed Phil Budne's diag1.sno into 35 topic-named, rung-organized tests
+- Wrote all 35 `.sno` files from scratch — logic derived not verbatim
+- Naming: topic-first (e.g. `912_num_pred`, `1013_func_nreturn`), not diag-prefixed
+- Debugged and fixed: `differ() :s` → `differ() :f` inversion (99 sites), DEFINE/DATA
+  prototype spaces, NRETURN lvalue `:f` → `:s` for the lvalue-assign assertion
+- Generated all 35 `.ref` oracle outputs from real CSNOBOL4 2.3.3
+- **Final result: 35/35 PASS under CSNOBOL4 2.3.3**
+- Updated CORPUS.md, TESTING.md, PLAN.md (M-DIAG1 milestone + pivot)
+
+### Rung coverage added
+
+| Rung | Files | Assertions |
+|------|------:|----------:|
+| 2 (indirect) | 3 | 5 |
+| 3 (concat) | 3 | 8 |
+| 4 (arith) | 5 | 21 |
+| 8 (strings) | 3 | 10 |
+| 9 (predicates) | 5 | 34 |
+| 10 (functions) | 9 | 31 |
+| 11 (data structures) | 7 | 43 |
+| **Total** | **35** | **152** |
+
+### Repos at session end
+
+| Repo | State |
+|------|-------|
+| SNOBOL4-corpus | diag1 suite ready to commit — `crosscheck/rung{2,3,4,8,9,10,11}/` |
+| SNOBOL4-tiny | Unchanged — `07d4b14` EMERGENCY WIP session116 |
+| .github | CORPUS.md, TESTING.md, PLAN.md updated |
+
+### Next action for session 123
+
+```bash
+# 0. Commit diag1 suite to SNOBOL4-corpus
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+cp -r /tmp/diag1_corpus/rung* /home/claude/SNOBOL4-corpus/crosscheck/
+cd /home/claude/SNOBOL4-corpus
+git add crosscheck/ && git commit -m "session122: M-DIAG1 — 35 tests, 152 assertions, rungs 2-11"
+git push
+
+# 1. Resume bug7-micro in SNOBOL4-tiny
+cd /home/claude/SNOBOL4-tiny
+git log --oneline -3                         # verify 07d4b14
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh  # must be 106/106
+
+# 2. Oracle trace — micro1_concat (triggers Bug7)
+INC=/home/claude/SNOBOL4-corpus/programs/inc
+snobol4 -f -I$INC /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno \
+    > /tmp/micro1_oracle_out.txt 2>/tmp/micro1_oracle_trace.txt
+
+# 3. Compile micro1 and run
+src/sno2c/sno2c -trampoline -I$INC \
+    /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno > /tmp/micro1.c
+RT=src/runtime
+gcc -O0 -g /tmp/micro1.c \
+    $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
+    $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/micro1_bin
+/tmp/micro1_bin > /tmp/micro1_compiled_out.txt 2>/tmp/micro1_compiled_trace.txt
+
+# 4. First divergence = bug location
+diff /tmp/micro1_oracle_trace.txt /tmp/micro1_compiled_trace.txt
+
+# 5. Fix emit_byrd.c — emit NPOP_fn() on ω path of nPush FENCE arm
+# 6. Crosscheck ladder: 104 → 105 → 109 → 120 → 130 → 140_self → M-BEAUTY-CORE
+```

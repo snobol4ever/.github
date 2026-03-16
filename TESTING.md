@@ -73,6 +73,7 @@ Note: SPITBOL excluded from full beauty.sno (error 021 at END). CSNOBOL4 is prim
 
 | Sprint | Paradigm | Milestone trigger |
 |--------|----------|------------------|
+| `diag1-corpus` | Crosscheck | 35/35 PASS all backends → **M-DIAG1** |
 | `beauty-crosscheck` | Crosscheck | beauty/140_self passes → **M-BEAUTY-CORE** |
 | `beauty-probe` | Probe | All crosscheck failures diagnosed + fixed |
 | `beauty-monitor` | Monitor | Trace streams match all test inputs |
