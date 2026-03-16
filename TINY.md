@@ -12,17 +12,20 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session106` — E_DOL computed-right label dup fixed; 4x crosscheck speedup; 101 PASS, 102 FAIL
+**HEAD:** `session107` — Shift(t,v) value fix; debug removed; root cause of 102_output fully diagnosed
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` produces blank line
-   - Same failure for any assignment (FOO, OUTPUT, etc.)
-   - beauty.sno line 14: `-INCLUDE 'assign.sno'`
-   - pp() walk is called but outputs empty for assignment nodes
-   - Diagnose: read `SNOBOL4-corpus/programs/inc/assign.sno`
-   - Find which Shift/Reduce tree node assignment emits, find pp() case for it
-   - Probe with `--debug` or print statements in mock_engine if needed
+1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` produces `'hello'` only (no subject, no `=`)
+   - **Root cause CONFIRMED:** `*match(List, TxInList)` in `pat_Function`/`pat_BuiltinVar` compiled
+     as `NV_GET_fn("match")` — arguments dropped. `match_pattern_at(NULVCL,...)` succeeds vacuously.
+     Both patterns pass validation; `pat_Function` wins (tried first in Expr17).
+     `OUTPUT` → `Function` → spurious `Reduce('ExprList',0)` + `Reduce('Call',2)` misaligns
+     the 7-child Stmt tree: c[2]='=' c[3]=String instead of c[2]=Subject c[4]='='.
+   - **Fix location:** `emit_byrd.c` — `E_DEREF(E_FNC(...))` case.
+     When a deref wraps an E_FNC inside a pattern, emit a runtime `APPLY_fn` call
+     using the result as the pattern, NOT `NV_GET_fn(fname)`.
+   - Consult `emit_byrd.c` around `E_DEREF`/`E_FNC` emission; cross-ref `v311.sil` APLY/FNCEX.
 2. After 102_output PASS: write 103_assign.input/.ref, continue rung 12 ladder
 
 ---
@@ -144,3 +147,4 @@ git add -A && git commit && git push
 | 103–104 | E_NAM~/Shift fix; E_FNC fallback fix | 101_comment PASS; 102+ blocked by named-pattern RHS truncation in byrd_emit_named_pattern |
 | 105 | $ left-assoc parse fix + E_DOL chain emitter | Parser correct; emitter label-dup compile error blocks 102+ |
 | 106 | E_DOL label-dup fixed (emit_seq pattern); 4x crosscheck speedup | 101 PASS; 102_output FAIL — assignment node blank in pp() |
+| 107 | Shift(t,v) value fix; FIELD_GET debug removed; root cause diagnosed | 106/106 pass; 102 still FAIL — E_DEREF(E_FNC) in emit_byrd.c drops args |

@@ -5214,3 +5214,39 @@ CHANGED from session78 (md5=5046a4b6f8a751ea92a67d271c1c05a2)
 Two executables compared:
 1. `sno2c -trampoline foo.sno` → gcc → binary run with optional `.input`
 2. `cat foo.ref` — static ground truth pre-generated from CSNOBOL4
+
+---
+
+## Session 107
+
+**HEAD in:** `session106` c4e7ffd  **HEAD out:** `session107`
+**Sprint:** `beauty-crosscheck` Sprint A  **106/106 crosscheck pass maintained**
+
+### Work done
+
+**Fix 1 — Shift(t,v) value was dropped (mock_includes.c + .h)**
+- `_w_Shift` only forwarded `a[0]`; `Shift()` hardcoded `STRVAL("")` as value
+- Fixed: `Shift(t_arg, v_arg)` now passes v_arg to `MAKE_TREE_fn`
+- `_w_Shift` now passes `a[1]`; header updated
+- Effect: `tree('=', '=')`, `tree('BuiltinVar','OUTPUT')` etc. now carry correct values
+
+**Fix 2 — Remove stale FIELD_GET_fn debug fprintf (snobol4.c)**
+- Two `fprintf(stderr,...)` left from prior session removed
+
+**Diagnosis — true root cause of 102_output FAIL**
+
+Traced with Shift/Reduce debug prints. Stmt tree children were:
+`c[1]='' c[2]='=' c[3]=String('hello') c[4]='..' c[5]='|' ...`
+instead of:
+`c[1]=Label c[2]=BuiltinVar(OUTPUT) c[3]='' c[4]='=' c[5]=String('hello') ...`
+
+Cause: `*match(List, TxInList)` inside `pat_Function`/`pat_BuiltinVar` compiled as
+`NV_GET_fn("match")` — the E_FNC arguments are dropped by `emit_byrd.c` E_DEREF case.
+`match_pattern_at(NULVCL,...)` succeeds vacuously → both patterns pass validation.
+`pat_Function` is tried first in Expr17 → `OUTPUT` → `Function`.
+Spurious `Reduce('ExprList',0)` + `Reduce('Call',2)` consumes 2 stack slots,
+misaligning the 7-child Stmt tree.
+
+### Next action
+Fix `emit_byrd.c` E_DEREF(E_FNC) case: emit `APPLY_fn(fname, args, n)` and use
+result as pattern, instead of `NV_GET_fn(fname)`.
