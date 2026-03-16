@@ -75,12 +75,27 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | `net-corpus-rungs` | Run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures | 106/106 green |
 | `net-diag1` | Run diag1 35-test suite (from SNOBOL4-corpus) against DOTNET; fix all failures | 35/35 green |
 | `net-feature-audit` | Compare DOTNET feature coverage vs CSNOBOL4 ref: keywords, data types, built-ins, I/O, CODE()/EVAL() stubs | zero open gaps |
+| `net-save-dll` | Wire `-w` (WriteDll) into the threaded execution path; save compiled MSIL to DLL with source extension replaced by `.dll` (see notes below) | `-w file.sno` produces `file.dll`; `snobol4 file.dll` runs it directly |
 | `net-load-unload` | Implement LOAD() and UNLOAD() per Macro SPITBOL Manual Appendix D (see reference below) | LOAD/UNLOAD pass corpus tests |
 | `net-feature-fill` | Implement any remaining missing features identified by audit (one sub-sprint per gap) | audit clean |
 | `net-benchmark-scaffold` | Wire DOTNET into harness benchmark pipeline; collect DOTNET timing column | pipeline green |
 | `net-benchmark-publish` | Run full benchmark grid (DOTNET vs CSNOBOL4 vs SPITBOL vs TINY); publish results in HARNESS.md | grid published |
 
-**M-NET-POLISH fires when:** `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-load-unload` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅
+**M-NET-POLISH fires when:** `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll` ✅ + `net-load-unload` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅
+
+### -w / WriteDll Notes (sprint `net-save-dll`)
+
+**Behaviour spec (from Jeff Cooper, 2026-03-16):**
+- `snobol4 -w file.sno` — compile as normal, then save the compiled MSIL assembly to disk
+- Output filename: source filename with extension replaced by `.dll` (e.g. `file.sno` → `file.dll`, `file.spt` → `file.dll`)
+- Works on Windows and other platforms
+- **Already implemented:** `snobol4 file.dll` on the command line — `MainConsole.cs` detects `.dll` extension, skips all build steps, calls `RunDll()` directly ✅
+
+**Current gap (found 2026-03-16):**
+- `BuilderOptions.WriteDll` flag exists; `-w` sets it in `CommandLine.cs` ✅
+- `WriteDll` is only checked inside `CSharpCompile.cs / CreateAssembly()` — the **Roslyn/legacy path only**
+- `BuildMain()` runs the **threaded path** (`ThreadedCodeCompiler`) by default; `CreateAssembly()` is never called → `-w` is currently a **no-op** on the active code path
+- Fix: after `tc.Compile()` in `BuildMain()`, if `BuildOptions.WriteDll`, persist the in-memory assembly to the `.dll` output file using `AssemblyLoadContext` save or Roslyn `Emit()` to `FileStream`
 
 ### LOAD / UNLOAD Reference
 
@@ -103,3 +118,4 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-10 | `net-delegates` declared active | Steps 1–13 complete, Step 14 next |
 | 2026-03-16 | M-NET-POLISH added: 6 sprints (corpus → diag1 → feature-audit → feature-fill → benchmark-scaffold → benchmark-publish) | Explicit milestone to get DOTNET fully tested, full-featured, and benchmarked before bootstrap |
 | 2026-03-16 | `net-load-unload` sprint added to M-NET-POLISH; Macro SPITBOL Manual located at github.com/spitbol/x32 docs/spitbol-manual.pdf (Appendix D) | LOAD/UNLOAD per spec is a required feature for full SPITBOL compliance |
+| 2026-03-16 | `net-save-dll` sprint added to M-NET-POLISH; `-w` WriteDll diagnosed as no-op on active threaded path — only wired in dead Roslyn path (CSharpCompile.cs/CreateAssembly); DLL load path (file.dll on cmdline) already works in MainConsole.cs | Fix needed: persist threaded assembly to disk after tc.Compile() when WriteDll=true |
