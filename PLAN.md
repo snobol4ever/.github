@@ -10,16 +10,17 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | SNOBOL4-harness |
-| **Sprint** | `monitor-scaffold` — Sprint M1, build monitor runner + inject_traces.py |
+| **Active repo** | SNOBOL4-jvm |
+| **Sprint** | `jvm-inline-eval` — polish M-JVM-EVAL, emit arith/assign/cmp into JVM bytecode |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD HQ** | `4034dc7` session125: M-NET-POLISH added; net-save-dll + net-load-unload sprints; -w gap diagnosed |
-| **Next action** | Sprint M1 — write run_monitor.sh + inject_traces.py, one passing test end-to-end, commit harness |
+| **HEAD JVM** | `9cf0af3` jvm-snocone-expr complete |
+| **HEAD HQ** | `ab12de7` session126: fix stale &STCOUNT claims across all MD files |
+| **Next action** | `jvm-inline-eval` — implement inline EVAL! in jvm_codegen.clj, lein test confirm 1896/4120/0 |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
-**Read the active L2 doc: [HARNESS.md](HARNESS.md) · [TINY.md](TINY.md)**
+**Read the active L2 doc: [JVM.md](JVM.md)**
 
 ---
 

@@ -69,3 +69,4 @@ lein test               # confirm 1896/4120/0
 | Date | What | Why |
 |------|------|-----|
 | 2026-03-12 | `jvm-inline-eval` declared active | Sprint 23D complete, 23E next |
+| 2026-03-16 | Pivot from HARNESS `monitor-scaffold` to JVM `jvm-inline-eval` | Polish current M-JVM-EVAL milestone; harness M1 parked |
