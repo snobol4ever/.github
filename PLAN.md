@@ -94,6 +94,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 |----|---------|--------|
 | M-NET-DELEGATES | Instruction[] → pure Func<Executive,int>[] dispatch | ❌ Sprint `net-delegates` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
+| **M-NET-POLISH** | 106/106 corpus rungs pass, diag1 35/35, benchmark grid published | ❌ see DOTNET.md |
 | M-NET-BOOTSTRAP | snobol4-dotnet compiles itself | ❌ |
 
 ### Shared (all products)
