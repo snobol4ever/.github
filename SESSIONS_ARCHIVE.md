@@ -933,7 +933,7 @@ Next: `rebus_emit.c` — SNOBOL4 text emitter, steps R3–R12.
 
 ## 8. Oracle Feature Coverage
 
-→ **Consolidated into [MISC.md — SNOBOL4 Keyword & TRACE Reference](MISC.md)**. All keyword, TRACE type, output format, and oracle role tables live there.
+→ **Consolidated into [TESTING.md — Oracle Keyword & TRACE Reference](TESTING.md)**. All keyword, TRACE type, output format, oracle index, and build instructions live there. Live-verified 2026-03-16 against CSNOBOL4, SPITBOL x64, SNOBOL5.
 
 ---
 
