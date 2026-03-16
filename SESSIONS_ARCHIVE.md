@@ -5760,3 +5760,63 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 | Date | What | Why |
 |------|------|-----|
 | 2026-03-16 | Session 126 emergency handoff | Context window ~95% full |
+
+---
+
+## Session 127 — 2026-03-16
+
+**Repo:** SNOBOL4-dotnet
+**Sprint at start:** `net-delegates` (pivoted from JVM `jvm-inline-eval`)
+**Sprint at end:** `net-gap-prototype` (first of four corpus-gap sprints)
+**HEAD at end:** `7aacf01` DOTNET · `12a4dea` HQ
+
+### What happened
+
+- Read RULES.md, PLAN.md, JVM.md, DOTNET.md per session-start protocol
+- Pivoted active repo JVM → DOTNET per Lon's direction; updated HQ
+- Cloned SNOBOL4-dotnet, SNOBOL4-corpus, SNOBOL4-harness; extracted snobol4-2.3.3 tarball
+- Installed .NET 10 SDK via official script; confirmed baseline build 0 errors / 1607 tests pass
+- Audited SNOBOL4-corpus (152 crosscheck programs) vs Jeff's test suite — zero corpus coverage found
+- Injected 12 C# corpus test files (~116 test methods) following Jeff's exact coding style:
+  - `SetupScript("-b", s)` + `IdentifierTable` assertions (Style A — simple programs)
+  - `RunGetOutput` + PASS/FAIL filter (Style B — rung self-verifying programs)
+- Discovered 4 real DOTNET feature gaps via failing corpus tests; marked 12 [Ignore]
+- Final baseline: 1732/1744 passed, 12 [Ignore]
+- Defined M-NET-CORPUS-GAPS milestone with 4 fix sprints
+
+### DOTNET vs CSNOBOL4 differences documented
+- `&ALPHABET` = 255 (DOTNET) vs 256 (CSNOBOL4) — NUL excluded
+- `DATATYPE()` returns lowercase for builtins (`'string'`, `'integer'`, `'real'`), uppercase for user types (`'NODE'`)
+- `&UCASE` / `&LCASE` size = 58 (includes extended Unicode letters), not 26
+
+### Four corpus-gap sprints (M-NET-CORPUS-GAPS)
+
+| Sprint | Gap | [Ignore] count |
+|--------|-----|----------------|
+| **`net-gap-prototype`** ← active | `PROTOTYPE()` not implemented | 3 (1110, 1112, 1113) |
+| `net-gap-freturn` | `FRETURN`/`NRETURN` in threaded path | 2 (1013, 1014) |
+| `net-gap-value-indirect` | `VALUE()` by name + `$.var` indirect | 3 (1115, 1116, rung2-210) |
+| `net-gap-eval-opsyn` | `EVAL`/`*expr`, `OPSYN`, `ARG`/`LOCAL`/`APPLY` | 7 (1010–1018) |
+
+### Commits this session
+- `7aacf01` SNOBOL4-dotnet — corpus test injection, 12 files, ~116 methods
+- `28647e2` HQ — pivot JVM→DOTNET
+- `12a4dea` HQ — M-NET-CORPUS-GAPS milestone + 4 sprints + handoff
+
+### Next session start
+```bash
+cd SNOBOL4-dotnet
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+export PATH=/usr/local/dotnet-sdk:$PATH
+git log --oneline -3   # expect 7aacf01
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744, 12 [Ignore]
+# Sprint: net-gap-prototype — implement PROTOTYPE() builtin
+# File: Snobol4.Common/Runtime/Functions/ — add Prototype.cs
+# Trigger: remove [Ignore] on 1110/1112/1113, all pass
+```
+
+#### Pivot log entry
+
+| Date | What | Why |
+|------|------|-----|
+| 2026-03-16 | Session 127 emergency handoff | Context window ~80% full |
