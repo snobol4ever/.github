@@ -12,42 +12,40 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session116` — Bug5/6 emit_byrd.c port WIP; 101-103 PASS from regenerated C; beauty_full_bin still from WIP (101-105 PASS)
+**HEAD:** `session116` (session117 = diagnosis only, no new commit) — Bug5/6 emit_byrd.c port WIP; 101-103 PASS from regenerated C; beauty_full_bin still from WIP (101-105 PASS)
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. Fix `pending_npush_uid` propagation through nested CAT levels to reach E_OPSYN.
+1. **Find the nPush/nPop imbalance in pat_Expr sub-patterns (Bug5 root cause).**
 
-   **Root cause:** `emit_seq(nPush(), CAT(ARBNO, CAT(E_OPSYN, nPop)))` — `pending_npush_uid`
-   is set at the outermost `emit_seq` but the inner nested `emit_seq` calls do not preserve
-   it. By the time the innermost `emit_seq` calls `byrd_emit(right=E_OPSYN)`, the uid has
-   either been reset or was never passed down.
+   **Confirmed symptom (session117 dual-stack trace):**
+   For `X 1` (two concat atoms), counter stack trace shows:
+   ```
+   NPUSH idx=6   ExprList frame
+   NINC  idx=6 count=1   atom X
+   NPUSH idx=7   ← spurious — from inside pat_Expr parsing X
+   NPUSH idx=8   ← another spurious
+   NPOP  idx=8
+   NPOP  idx=7
+                 ← second NINC fires at wrong level — idx=6 stays at 1
+                 ← ntop()=1, guard (>1) skips Reduce(..,2)
+   ```
+   A sub-pattern of `pat_Expr` (likely `pat_Expr4` or `pat_X4`) calls `nPush()`
+   and does NOT call `nPop()` before returning γ (success). This leaves an extra
+   frame on the counter stack, displacing subsequent NINC calls.
 
-   **Fix options:**
-   - **Option A (simplest):** Don't use a global at all. Instead, detect `E_OPSYN` as a
-     descendant of the nPush CAT in `emit_seq` itself (pre-scan right subtree for E_OPSYN),
-     and pass the uid as an argument directly to `byrd_emit`. Requires adding `int npush_uid`
-     parameter to `byrd_emit` signature.
-   - **Option B:** Keep the global but make it "sticky" — only reset it when E_OPSYN
-     consumes it. The current reset-in-nPush-emit_seq fires AFTER the entire right subtree
-     is recursed (including E_OPSYN), so if E_OPSYN consumed it correctly, the final reset
-     is harmless. The issue is that `pending_npush_uid` is being **reset to -1** by the
-     nPush emit_seq reset BEFORE byrd_emit(right) finishes — NO, the reset is AFTER.
-     Re-check: is E_OPSYN actually being called with sf_uid==-1? Add a debug fprintf.
+   **Diagnostic:** Diff `beauty_full_wip.c` (session115, passes 104/105) against
+   `beauty_full_baseline.c` (session116 regenerated, fails) in the `pat_Expr4`/
+   `pat_X4` nPush/nPop region. The hand-patch will show exactly what is missing.
 
-   **Diagnostic:** Add `fprintf(stderr, "E_OPSYN: sf_uid=%d\\n", sf_uid)` to E_OPSYN case,
-   regenerate, run on 104_label.input and check stderr. If sf_uid is always -1, the uid
-   is being cleared before E_OPSYN fires. If sf_uid has a value, the NSTACK_AT path has
-   a different bug.
+   **Then fix in `emit_byrd.c`:** ensure the emitted nPop() fires on ALL exit
+   paths (γ and ω) of the Expr4/X4 pattern, not just some of them.
 
-   **Option A detail:** Add `int _npush_uid` parameter to `byrd_emit` and all callers.
-   In `emit_seq`, when left=nPush(), pass `uid` as `_npush_uid` to `byrd_emit(right)`.
-   Each intermediate `emit_seq` forwards `_npush_uid` to `byrd_emit(right)`. E_OPSYN
-   reads `_npush_uid` directly from its parameter — no global needed.
-
-2. After Bug5 fixed: verify 104+105 PASS from regenerated `beauty_full.c`.
+2. After imbalance fixed: verify 104+105 PASS from regenerated C.
 3. Port complete → copy `beauty_full_new.c` → `beauty_full.c`, rebuild `beauty_full_bin`.
 4. Continue ladder: 109_multi → 120_real_prog → 130_inc_file → 140_self → M-BEAUTY-CORE.
+
+   **Do NOT touch `_saved_frame` or `pending_npush_uid`** until imbalance is fixed.
 
    **Bug6a — FIXED in WIP (session115):** `:` lookahead guard in pat_X4 cat_r_168.
    **Bug6b — FIXED in WIP (session115):** NV_SET_fn for Brackets/SorF; CONCAT_fn Reduce type.
@@ -214,3 +212,4 @@ git add -A && git commit && git push
 | 114 | Bug5 FIXED: saved-frame pattern extended to pat_Parse/pat_Compiland/pat_Command; _command_pending_parent_frame global; Reduce(Parse,1) correct; 104_label PASS. Bug6 diagnosed: Bug6a spurious Reduce(..,2) for goto token; Bug6b unevaluated goto type string | EMERGENCY WIP 3f5bfda |
 | 115 | Bug6a FIXED: `:` lookahead guard in pat_X4 cat_r_168. Bug6b FIXED: NV_SET_fn for Brackets/SorF in pat_Target/SGoto/FGoto; CONCAT_fn Reduce type; suppressed output_str+cond_OUTPUT in all pat_ gammas (23 sites). 101–105 PASS, 106/106. WIP only — emit_byrd.c port pending | EMERGENCY WIP — commit next session |
 | 116 | emit_byrd.c port attempt: snobol4.h NTOP_INDEX/NSTACK_AT decls; pending_npush_uid + _pending_parent_frame globals; Bug5 saved-frame in emit_seq+E_FNC nPush; Bug6a colon guard in *X4 deref; Bug6b CONCAT_fn in E_OPSYN; output_str suppression gated on suppress_output_in_named_pat(); _parent_frame field in all named pat structs. 101-103 PASS from regen; 104-105 FAIL — pending_npush_uid not surviving nested CAT levels | EMERGENCY WIP — pending_npush_uid fix next session |
+| 117 | Diagnosis: 104/105 fail because Reduce(..,2) never fires — ntop()=1 at ExprList level instead of 2. Dual-stack trace confirmed: spurious NPUSH idx=7/8 inside pat_Expr displaces counter stack so second NINC fires at wrong level. Root cause: nPush/nPop imbalance in pat_Expr4/X4 sub-pattern. Option A (parameter threading) attempted and backed out — correct diagnosis but wrong fix target. All files restored to session116 state. | Diagnosis only — no commit |

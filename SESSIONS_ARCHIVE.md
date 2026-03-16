@@ -5385,3 +5385,91 @@ only on the alpha (forward) entry.
 
 ### 106/106 invariant
 Rungs 1–11 still pass 106/106 (not re-run this session, no changes to those paths).
+
+---
+
+## Session 117
+
+**HEAD:** `session116` (no new commit — diagnosis session, files restored to clean state)
+**Branch:** main
+
+### What was done
+
+Full diagnosis of the 104_label / 105_goto failure from regenerated C.
+
+**Key finding — the symptom:**
+Oracle trace for 104_label:
+```
+Reduce(.., 2)   ← fires correctly for concat "X 1"
+Reduce(Stmt, 7)
+Reduce(Parse, 1)
+```
+Baseline (session116 regenerated) trace:
+```
+← Reduce(.., 2) MISSING
+Reduce(Stmt, 7)
+Reduce(Parse, 1)
+```
+`Reduce("..", 2)` never fires because `ntop()` returns 1 (not 2) at that point,
+and the `if (ntop() > 1)` guard in E_OPSYN skips the Reduce entirely.
+
+**Counter stack dual-trace (NPUSH/NINC/NPOP instrumented in snobol4.c):**
+
+For passing 103_assign (single atom `'foo'`):
+```
+NPUSH idx=6   ExprList frame
+NINC  idx=6 count=1   one atom
+NPOP  idx=6   done — count=1, guard (>1) correctly skips Reduce
+```
+
+For failing 104_label (two concat atoms `X 1`):
+```
+NPUSH idx=6   ExprList frame
+NINC  idx=6 count=1   atom X counted
+NPUSH idx=7   ← spurious — from inside pat_Expr parsing X
+NPUSH idx=8   ← another spurious push
+NPOP  idx=8
+NPOP  idx=7
+              ← second atom "1" never NINC'd at idx=6
+              ← ntop() at idx=6 = 1, guard fails, Reduce(..,2) skipped
+```
+
+**Root cause:** A sub-pattern of `pat_Expr` (likely `pat_Expr4` or `pat_X4`)
+calls `nPush()` as part of its own pattern and does NOT pop before returning
+to the ExprList level. This displaces `_ntop` from 6 to 7/8. When the second
+atom `1` is parsed, `NINC_fn()` fires at the wrong level (idx=7 or 8, not 6).
+By the time those inner frames are popped, idx=6 still has count=1.
+
+**This is a nPush/nPop imbalance in the Expr sub-patterns** — not an
+`E_OPSYN`/`_saved_frame` problem. The `_saved_frame_N` mechanism was a
+workaround for this imbalance. The real fix is to find which `pat_Expr*`
+pattern leaves an extra nPush frame when it returns successfully.
+
+**Attempted (and backed out):** Option A — thread `npush_uid` as parameter
+through `byrd_emit`/`emit_seq`. This correctly identified that `E_OPSYN` was
+receiving `sf_uid=-1`, but the root cause is the counter stack imbalance, not
+the uid propagation. All changes backed out, emit_byrd.c restored to session116
+backup, snobol4.c restored to clean state.
+
+### Next action
+
+1. **Find the unbalanced nPush in Expr sub-patterns.** In the dual-trace output,
+   the spurious `NPUSH idx=7` fires immediately after `Shift(BuiltinVar,'X')` —
+   that's inside `pat_Expr` or `pat_X4` parsing the first atom. Add pattern-name
+   labels to NPUSH trace to identify which named pattern is responsible.
+
+2. **Check beauty.sno Expr4/X4 pattern.** These patterns contain:
+   `nPush() ... (type & '*(GT(nTop(),1) nTop())') nPop()`
+   Verify that `nPop()` always fires before the pattern returns γ (success).
+   If `nPop()` is missing on the γ path, that's the imbalance.
+
+3. **The session115 WIP binary passes 104/105.** Diff `beauty_full_wip.c`
+   (hand-patched, passes) against `beauty_full_baseline.c` (regenerated, fails)
+   around the `pat_Expr4`/`pat_X4` nPush/nPop region to see exactly what the
+   hand-patch did differently.
+
+4. **Do NOT touch `_saved_frame` or `pending_npush_uid`** until the imbalance
+   is found and fixed. Those are downstream symptoms.
+
+### 106/106 invariant
+Rungs 1–11 not re-run (no changes to those paths). Session116 state preserved.
