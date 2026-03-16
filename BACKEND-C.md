@@ -48,22 +48,23 @@ Child frame for `*Y` = pointer field in parent struct (size known at compile tim
 calloc on entry==0. beta dispatch on entry==1.
 
 ```c
-typedef struct pat_snoParse_t {
+typedef struct pat_Parse_t {
     int64_t  saved_7;
     int      arbno_depth;
     int64_t  arbno_stack[64];
-    struct pat_snoCommand_t *snoCommand_z;
-} pat_snoParse_t;
+    struct pat_Command_t *Command_z;
+} pat_Parse_t;
 
-static SnoVal pat_snoParse(pat_snoParse_t **zz, int entry) {
-    pat_snoParse_t *z = *zz;
-    if (entry == 0) { z = *zz = calloc(1, sizeof(*z)); goto snoParse_alpha; }
-    if (entry == 1) { goto snoParse_beta; }
-    snoParse_alpha: ...Byrd box labeled gotos...
-    snoParse_gamma: return matched_val;
-    snoParse_omega: return FAIL_VAL;
+static SnoVal pat_Parse(pat_Parse_t **zz, int entry) {
+    pat_Parse_t *z = *zz;
+    if (entry == 0) { z = *zz = calloc(1, sizeof(*z)); goto Parse_alpha; }
+    if (entry == 1) { goto Parse_beta; }
+    Parse_alpha: ...Byrd box labeled gotos...
+    Parse_gamma: return matched_val;
+    Parse_omega: return FAIL_VAL;
 }
 ```
+*(Pattern names match beauty.sno: `Parse`, `Command`, `Stmt`, `Label`, `Expr14`, `Goto`.)*
 
 ### Technique 2 — mmap + memcpy + relocate (FUTURE — ASM/native, post-BOOTSTRAP)
 

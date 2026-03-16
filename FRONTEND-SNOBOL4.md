@@ -34,13 +34,19 @@ snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
 diff oracle.sno compiled.sno   # empty = frontend correct on this backend
 ```
 
-Key functions in beauty.sno:
-- `snoParse` — top-level: `Src POS(0) *Parse *Space RPOS(0) → pp(sno)`
-- `snoCommand` — ARBNO pattern matching one token
-- `snoStmt` — one full statement  
-- `snoLabel` — optional label
-- `pp(sno)` — walk Shift/Reduce tree, emit beautified output
-- `qq(sno)` — measure flat width (lookahead for line-break decisions)
+Key patterns/functions in beauty.sno (verified from corpus source):
+- `Parse` / `Compiland` — top-level: `nPush() ARBNO(*Command) ("'Parse'" & nTop()) nPop()`
+- `Command` — `nInc()` then FENCE(*Comment | *Control | *Stmt); one statement or directive
+- `Stmt` — full statement: `*Label (*White *Expr14 FENCE(...) | ...) FENCE(*Goto | ...) *Gray`
+- `Label` — `BREAK(' ' tab nl ';') ~ 'Label'`
+- `Expr14` — subject expression (leftmost expr in a statement)
+- `Goto` — `*Gray ':' *Gray FENCE(*Target ... | *SorF *Target ... | ...)`
+- `pp(x)` — walk Shift/Reduce tree, emit beautified output
+- `ss(x,len)` — measure flat width (lookahead for line-break decisions; called by pp)
+
+**Seven Stmt children** (from Stmt pattern structure): Label, Expr14 (subject),
+pattern-slot, `=` indicator, Expr (replacement), goto1, goto2.
+`nInc()` called per Command; `nPush()`/`nPop()` bracket Parse/Compiland.
 
 Includes 19 helper libraries via `-INCLUDE` from `SNOBOL4-corpus/programs/inc/`.
 
@@ -88,7 +94,7 @@ Generate oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN.input > NNN.ref`
 python3 /home/claude/SNOBOL4-harness/probe/probe.py \
     --oracle csnobol4 --max 200 failing.sno
 ```
-Probe targets: `pp`, `snoCommand`, `snoLabel`, `qq`, `pp_Parse`.
+Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.
 TRACE gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE')`.
 `&STCOUNT` broken in CSNOBOL4 (always 0) — use `&STLIMIT` binary search.
 
@@ -99,9 +105,8 @@ TRACE gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE'
 Prepend to beauty.sno:
 ```snobol4
         TRACE('pp','CALL')    TRACE('pp','RETURN')
-        TRACE('qq','CALL')    TRACE('qq','RETURN')
-        TRACE('pp_Parse','CALL')  TRACE('snoCommand','CALL')
-        TRACE('snoLine','VALUE')  TRACE('snoSrc','VALUE')
+        TRACE('ss','CALL')    TRACE('ss','RETURN')
+        TRACE('pp_Parse','CALL')  TRACE('Command','CALL')
 ```
 ```bash
 snobol4 -f -P256k -I$INC beauty_trace.sno < input.sno 2>oracle_trace.txt
@@ -125,8 +130,8 @@ Two oracles agree, compiled differs → our bug. Oracles disagree → check Gimp
 
 ## compiler.sno (post-M-BEAUTY-FULL bootstrap path)
 
-`compiler.sno` = `beauty.sno` + `compile(sno)` replacing `pp(sno)`.
-Same parse tree, same grammar. Final action emits C Byrd boxes instead of SNOBOL4.
+`compiler.sno` = `beauty.sno` + `compile(x)` replacing `pp(x)`.
+Same parse tree, same grammar (`Parse`/`Compiland`/`Stmt`/`Command`). Final action emits C Byrd boxes instead of SNOBOL4.
 Proof: M-BEAUTY-FULL proves tree correct; `compile()` just walks it differently.
 
 Architecture A (future): sprinkle emit actions into pattern alternations via
