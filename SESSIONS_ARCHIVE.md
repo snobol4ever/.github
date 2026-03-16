@@ -5643,3 +5643,77 @@ diff /tmp/micro1_oracle_trace.txt /tmp/micro1_compiled_trace.txt
 # 5. Fix emit_byrd.c — emit NPOP_fn() on ω path of nPush FENCE arm
 # 6. Crosscheck ladder: 104 → 105 → 109 → 120 → 130 → 140_self → M-BEAUTY-CORE
 ```
+
+---
+
+## Session 124 — 2026-03-16
+
+**Handoff commit:** `8ea343a`
+
+### What happened
+
+**oracle-verify sprint — COMPLETE:**
+- Built CSNOBOL4 2.3.3 from source (tarball, with STNO patch)
+- Built SPITBOL x64 4.0f from source (x64-main.zip, with systm.c patch)
+- Installed SNOBOL5 beta 2024-08-29 (prebuilt binary, `https://snobol5.org/snobol5`)
+- Ran `verify.sno` against all three oracles — live results:
+
+| Keyword | CSNOBOL4 | SPITBOL-x64 | SNOBOL5 |
+|---------|:--------:|:-----------:|:-------:|
+| `&STCOUNT` | ✅ increments | ✅ | ✅ |
+| `&STNO` | ✅ | ✅ | ✅ |
+| `&LASTNO` | ✅ | ✅ | ✅ |
+| `&STEXEC` | ✅ | ❌ error 251 | ❌ |
+| `&TRIM` default | 0 | **1** | 0 |
+| `&FULLSCAN` default | 0 | **1** | 0 |
+
+**Critical correction:** Prior HQ said `&STCOUNT` always 0 on CSNOBOL4 — **wrong**. Verified working. Prior HQ said `&STNO` CSNOBOL4-only — **wrong**. Works on all three.
+
+**HQ reorganization — COMPLETE:**
+- PLAN.md stripped to true L1: Goals + 4D Matrix + Milestone Dashboard + index. 245→137 lines.
+- Goal→Milestone→Sprint→Step hierarchy defined and written into RULES.md
+- M-BEAUTY-CORE sprint content moved from PLAN.md → TINY.md (where it belongs)
+- In-PATTERN Bomb Technique + SEQ#### counter format restored to TINY.md (were lost in move, caught and fixed)
+- 4 backends (C, x64, JVM, .NET) — C and x64 are distinct. PLAN.md corrected.
+- M-BOOTSTRAP milestone added to JVM.md and DOTNET.md (was TINY-only before)
+- Shared milestones (M-FEATURE-MATRIX, M-BENCHMARK-MATRIX) added to dashboard
+- Oracle index (URLs, GitHub, authors, build instructions) consolidated into TESTING.md
+- Keyword/TRACE grid consolidated into TESTING.md — one place for all oracle reference
+- SESSIONS_ARCHIVE §8 pointer updated to TESTING.md
+
+**Oracles installed at:**
+- `snobol4` → `/usr/local/bin/snobol4` (built from `/mnt/user-data/uploads/snobol4-2_3_3_tar.gz`)
+- `spitbol` → `/usr/local/bin/spitbol` (built from `/mnt/user-data/uploads/x64-main.zip`)
+- `snobol5` → `/usr/local/bin/snobol5` (wget from `https://snobol5.org/snobol5`)
+
+### Next session start
+
+```bash
+# 1. Read PLAN.md — active sprint is monitor-scaffold M1
+# 2. Read RULES.md
+# 3. Read HARNESS.md + TINY.md
+
+# 4. Verify SNOBOL4-tiny invariant
+cd /home/claude/SNOBOL4-tiny
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+apt-get install -y libgc-dev && make -C src/sno2c
+mkdir -p /home/SNOBOL4-corpus
+ln -sf /home/claude/SNOBOL4-corpus/crosscheck /home/SNOBOL4-corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+
+# 5. Sprint M1 — write these three files in SNOBOL4-harness:
+#    monitor/run_monitor.sh       — single-test TRACE diff runner
+#    monitor/inject_traces.py     — auto-inject TRACE registrations
+#    monitor/run_monitor_suite.sh — loop runner
+# Run on crosscheck/output/001_output_string_literal.sno
+# Oracle vs compiled — confirm empty diff → Sprint M1 DONE
+# Then begin Sprint M2: assign/ + concat/ (14 tests)
+```
+
+### Pivot log
+
+| Date | What | Why |
+|------|------|-----|
+| 2026-03-16 | oracle-verify sprint inserted before monitor-scaffold | keyword grid had unverified cells and wrong data |
+| 2026-03-16 | HQ reorganized Goal→Milestone→Sprint→Step | PLAN.md had grown L3 content; structure was inconsistent |
+| 2026-03-16 | 4 backends not 3 | C and x64 are distinct backends |

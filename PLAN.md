@@ -15,8 +15,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD HQ** | this commit |
-| **Next action** | Sprint M1 — write run_monitor.sh + inject_traces.py, one passing test end-to-end |
+| **HEAD HQ** | `8ea343a` session124: reorganized Goal→Milestone→Sprint→Step; lost data restored |
+| **Next action** | Sprint M1 — write run_monitor.sh + inject_traces.py, one passing test end-to-end, commit harness |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [HARNESS.md](HARNESS.md) · [TINY.md](TINY.md)**
