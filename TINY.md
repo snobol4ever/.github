@@ -12,11 +12,30 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `beauty-crosscheck` — Sprint A — rung 12 crosscheck tests
-**HEAD:** `session108` — E_INDR(E_FNC) fix in emit_byrd.c; bug2 diagnosed (pat_ExprList epsilon)
+**HEAD:** `session109` — bug2 '(' guards in beauty_full.c (both Function+Id arms); doc fixes in .github
 **Milestone:** M-BEAUTY-CORE → M-BEAUTY-FULL
 
 **Next action:**
-1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` produces `'hello'` only (no subject, no `=`)
+1. **Active bug:** 102_output FAIL — `OUTPUT = 'hello'` still produces `'hello'` only
+
+   **Bug 1 — E_INDR(E_FNC) — FIXED in emit_byrd.c (session108, commit 7988492)**
+
+   **Bug 2 — pat_ExprList epsilon — GUARDS IN PLACE, 102 still FAIL (session109)**
+   - Two `'('` guards added to `beauty_full.c`: `cat_r_382_α` (Function arm) and
+     `cat_r_389_α` (Id arm). Each does `pop_val()` + cursor restore + skips arm.
+   - 102_output still fails: OUTPUT still not appearing as subject.
+   - Root cause not yet resolved: after both arms skip, `alt_r_364` tries
+     `pat_BuiltinVar` — but OUTPUT is in `Functions` list, not `BuiltinVars`.
+     Falls through all arms; only string literal `'hello'` parsed.
+   - **Fix location:** find the bare-Function Shift arm in `pat_Expr17` below
+     `alt_r_364`. It must exist (beauty.sno `Expr14`/`Expr17` has a bare-identifier
+     alternative). Verify it is reachable after the guards, and that it produces
+     `Shift("Function","OUTPUT")` → correct Stmt subject slot.
+   - **Key insight:** `Expr14` (subject position) in `Stmt` is NOT `Expr17` directly —
+     check what `pat_Expr14` calls and whether it has its own bare-token arm
+     independent of the function-call arms in `pat_Expr17`.
+   - Cross-ref: `beauty.sno` lines ~360-400 (`Stmt` pattern); `beauty_full.c`
+     `pat_Expr14` entry point.
 
    **Bug 1 — E_INDR(E_FNC) — FIXED in emit_byrd.c (session108, commit 7988492)**
    - `*match(List, TxInList)` was compiled as `NV_GET_fn("match")` — args dropped.
@@ -170,4 +189,5 @@ git add -A && git commit && git push
 | 105 | $ left-assoc parse fix + E_DOL chain emitter | Parser correct; emitter label-dup compile error blocks 102+ |
 | 106 | E_DOL label-dup fixed (emit_seq pattern); 4x crosscheck speedup | 101 PASS; 102_output FAIL — assignment node blank in pp() |
 | 108 | E_INDR(E_FNC) fix in emit_byrd.c; beauty_full.c patched; bug2 diagnosed: pat_ExprList epsilon | 102_output still FAIL — bug2 is pat_ExprList matching epsilon without '(' |
+| 109 | bug2 '(' guards added (both Function+Id arms); pop_val()+skip; doc sno* names fixed in .github | 102_output still FAIL — OUTPUT not reaching subject slot; bare-Function arm not yet found |
 | 107 | Shift(t,v) value fix; FIELD_GET debug removed; root cause diagnosed | 106/106 pass; 102 still FAIL — E_DEREF(E_FNC) in emit_byrd.c drops args |
