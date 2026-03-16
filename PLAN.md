@@ -211,6 +211,7 @@ depth is correct before `$'('` runs.
 | **M-DIAG1** | 35-test diag1 suite 35/35 PASS on all backends | CORPUS | ⏳ session122 |
 | **M-BEAUTY-CORE** | beauty_full_bin self-beautifies (mock stubs) | TINY | ❌ |
 | **M-BEAUTY-FULL** | beauty_full_bin self-beautifies (real -I inc/) | TINY | ❌ |
+| **M-FLAT** | flat() emitter wired; style switch bypasses pp/ss; Style B verified | TINY | ❌ |
 | M-CODE-EVAL | CODE()+EVAL() via TCC | TINY | ❌ |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | TINY | ❌ |
 

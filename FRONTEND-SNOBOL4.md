@@ -317,3 +317,60 @@ Proof: M-BEAUTY-FULL proves tree correct; `compile()` just walks it differently.
 
 Architecture A (future): sprinkle emit actions into pattern alternations via
 `epsilon . *action(...)` — like `iniParse` in `programs/inc/ini.sno`. Post-M-BOOTSTRAP.
+
+---
+
+## Beautifier Output Styles (session122)
+
+beauty.sno has a **style switch** controlling how the parsed tree is emitted.
+Two styles are defined. Both operate on the same parse tree — the switch
+selects which emitter walks it.
+
+### Style A — Ruler-aligned three columns (current pp/ss path)
+
+Three fixed-position columns across every line: label, action, goto.
+The widest entry in each column sets the ruler; all lines pad to it.
+Colons line up vertically. Subjects line up vertically. Readable at a glance.
+
+```
+lfunc   ident( a , 'p' )                               :s( e001 )
+        output = 'FAIL 1012/001: arg a should be p'    :( end )
+e001    ident( b , 'q' )                               :s( e002 )
+```
+
+Implemented by `pp(x)` and `ss(x,len)` — tree walk with CNode IR width
+measurement to decide inline vs multiline layout.
+
+### Style B — Flat token stream (pp/ss BYPASS)
+
+Every token separated by exactly one space. No indentation. No padding.
+Label is just the first token on its line. No column alignment at all.
+Fast, deterministic, zero recursion — does NOT call `pp` or `ss`.
+
+```
+lfunc ident( a , 'p' ) :s( e001 )
+output = 'FAIL 1012/001: arg a should be p' :( end )
+e001 ident( b , 'q' ) :s( e002 )
+```
+
+Implemented by a new `flat(x)` emitter that walks the same parse tree nodes
+but emits each token followed by a single space, with no width measurement,
+no CNode IR, no multiline logic. One pass, O(n) in token count.
+
+**Use case:** generated C through the sno2c emitter and beautifier pipeline —
+where machine-readable regularity matters more than human column alignment.
+Also useful as a canonical normalized form for diffing and testing.
+
+### Switch
+
+```snobol4
+*       &STYLE = 0  →  Style A (ruler columns, pp/ss)
+*       &STYLE = 1  →  Style B (flat tokens, flat() bypass)
+        eq( &style , 1 ) :s( use_flat )
+        pp( tree ) :( done )
+use_flat flat( tree )
+done
+```
+
+M-FLAT milestone: `flat()` implemented, style switch wired, Style B output
+verified against hand-tokenized oracle for all rung 1–11 crosscheck inputs.
