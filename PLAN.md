@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-tiny |
-| **Sprint** | `bug7-bomb` — counter-bomb → fix emit_byrd.c → crosscheck ladder |
+| **Sprint** | `bug7-micro` — skeleton-build PATTERN isolation → fix emit_byrd.c |
 | **HEAD** | `07d4b14` EMERGENCY WIP session116 |
-| **Next action** | Execute Bug7 Bomb Protocol (Pass1 count, Pass2 backtrace) → fix → 104→105→109→140 |
+| **Next action** | Run skeleton ladder (skeleton→+counter→+value→full) against oracle; first divergence pins exact FENCE arm; fix emit_byrd.c; run crosscheck ladder 104→105→109→140 |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work |
 
 **Read the active L2 doc: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
@@ -37,13 +37,17 @@ nPop()                   pop          exit the level — fires AFTER Reduce
 
 **Value stack** — the tree nodes:
 ```
-Shift(type, val)         push one leaf
-Reduce(type, n)          pop n leaves, push one internal node
+shift(type, val)         push one leaf    (lowercase — the primitive worker; ~ is opsyn)
+reduce(type, n)          pop n leaves, push one internal node  (& is opsyn)
 ```
 
+Note: uppercase `Shift`/`Reduce` are the SNOBOL4 functions from ShiftReduce.sno that
+call the lowercase primitives. The compiled binary instruments the lowercase C workers
+directly. Oracle tracing wraps the lowercase SNOBOL4 functions.
+
 **Invariant:** every `nPush()` must have exactly one matching `nPop()` on EVERY
-exit path — success (γ) AND failure (ω). Missing `nPop` on γ leaves a ghost frame
-that displaces all subsequent `nInc` calls to the wrong level.
+exit path — success (γ) AND failure (ω). Missing `nPop` on any FENCE backtrack
+path leaves a ghost frame that displaces all subsequent `nInc` calls.
 
 ### Bug7 — Active (confirmed session120)
 
@@ -67,6 +71,44 @@ FENCE(nPush() *Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon)
 emit `NPOP_fn()` on the backtrack/failure exit of the nPush arm, before
 jumping to the next alternative or returning ω.
 
+### Skeleton-Build Diagnostic Protocol (NEW — replaces Bomb Protocol)
+
+Build minimal SNOBOL4 test programs, each a strict superset of the previous.
+Diff each level's trace (oracle CSNOBOL4 vs compiled binary) immediately.
+**First divergence at a given level pins the exact pattern node.**
+
+**All 5 instrumented primitives** share a single `SEQ####` counter:
+```
+SEQ0001 NPUSH depth=N top=N
+SEQ0002 NINC  depth=N top=N
+SEQ0003 NPOP  depth=N top=N
+SEQ0004 SHIFT type=T val='V'
+SEQ0005 REDUCE type=T n=N
+```
+Counter is global across nPush/nInc/nPop (snobol4.c) and shift/reduce (mock_includes.c)
+via `extern int _nseq`. First line of diff = exact bug location.
+
+**Level 0 — Pure skeleton:** PATTERN structure only, all workers replaced by
+tracing no-ops. Verifies pattern control flow (FENCE/ARBNO/etc.) is correct.
+
+**Level 1 — +counter workers:** Add real nPush/nInc/nPop logic with tracing.
+Counter stack depth/top printed each event. First divergence here = counter imbalance.
+
+**Level 2 — +value workers:** Add real shift/reduce with tracing.
+First divergence here = value stack mismatch.
+
+**Level 3 — Full:** Run full beauty_full_bin on 109_multi.input.
+All 5 primitives traced. 94 compiled lines vs oracle lines — first diff = bug.
+
+**Test inputs (smallest first):**
+```
+N              ← bare Id, exercises Expr17 arm 4 only
+N + 1          ← concat, exercises Expr4/X4 + Expr17
+GT(N,3)        ← call, exercises Expr17 arm 2/3
+(N + 1)        ← grouped, exercises Expr17 arm 1 (the nPush arm)
+109_multi      ← full 5-line program
+```
+
 ### Crosscheck ladder (one at a time, never skip)
 
 ```
@@ -74,24 +116,17 @@ jumping to the next alternative or returning ω.
 ```
 `140_self` PASS → **M-BEAUTY-CORE fires**.
 
-### Diagnostic tools when a test fails
+### Diagnostic tools
 
-1. **Counter-stack trace:** instrument `NPUSH_fn`/`NPOP_fn`/`NINC_fn` in
-   `snobol4.c` with `fprintf(stderr,...)`. Run oracle `beauty_trace.sno`
-   under CSNOBOL4. Diff first divergence = exact location.
+1. **Skeleton-build trace diff** (PRIMARY — NEW): skeleton → +counter → +value → full.
+   First SEQ line divergence = exact bug node in emit_byrd.c.
 
-2. **SNOBOL4 microscope:** `beauty_micro.sno` — PATTERN skeleton only
-   (Parse/Compiland/Command/Stmt/Label/Expr through Expr17/ExprList/XList/X3/X4/Expr16)
-   with nPush/nInc/nPop replaced by tracing wrappers that OUTPUT depth+top.
-   Run under CSNOBOL4 for ground truth.
+2. **&STLIMIT binary search** (note: `&STCOUNT` is broken in CSNOBOL4, always 0).
 
-3. **&STLIMIT binary search** (note: `&STCOUNT` is broken in CSNOBOL4, always 0).
-   Use `&STLIMIT = N` to abort at statement N; binary-search for first wrong state.
-
-4. **TRACE:** `TRACE('pp','CALL')` etc. for call/return tracing.
+3. **TRACE:** `TRACE('pp','CALL')` etc. for call/return tracing.
    Gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE')`.
 
-5. **DUMP():** full variable dump at any point.
+4. **DUMP():** full variable dump at any point.
 
 ---
 
