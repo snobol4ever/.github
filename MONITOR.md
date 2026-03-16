@@ -50,7 +50,7 @@ All events go to stderr. Format matches CSNOBOL4 TRACE output exactly:
 
 **CSNOBOL4 gotchas (confirmed from FRONTEND-SNOBOL4.md):**
 - `TRACE(...,'KEYWORD')` does NOT work in CSNOBOL4 — never use it
-- `&STCOUNT` is always 0 in CSNOBOL4 — never rely on it
+- `&STCOUNT` increments correctly on CSNOBOL4 (verified 2026-03-16 — prior "always 0" claim was wrong)
 - `TRACE('var','VALUE')` works correctly — primary tool
 
 ---
@@ -203,7 +203,7 @@ function found. No manual trace header per test.
 
 **Tests:** `crosscheck/keywords/*.sno`
 
-**Note:** `082_keyword_stcount.sno` — &STCOUNT broken in CSNOBOL4 (always 0).
+**Note:** `082_keyword_stcount.sno` — &STCOUNT increments correctly on CSNOBOL4 (verified 2026-03-16 — prior "always 0" claim was wrong).
 Skip or special-case this test.
 
 **Pass condition:** `run_monitor_suite.sh keywords/` → 10/10 empty diffs (stcount skipped).

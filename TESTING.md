@@ -125,7 +125,7 @@ Step-by-step build: `SNOBOL4-harness/oracles/csnobol4/BUILD.md` · `SNOBOL4-harn
 3. SNOBOL5 located, installed if available, or documented as unavailable
 4. `oracles/verify.sno` — single test program that probes all keywords and emits a result line per keyword
 5. All `?` cells in the grid below replaced with live-tested ✅ or ❌
-6. `&STEXEC` tested on CSNOBOL4 as substitute for broken `&STCOUNT`
+6. `&STEXEC` tested on CSNOBOL4 as alternative to `&STCOUNT` (both work; `&STEXEC` is CSNOBOL4-only, `&STCOUNT` is portable)
 7. SNOBOL5 probe counter situation resolved: `&STNO`, `&LASTNO`, or neither?
 8. Commit to SNOBOL4-harness with updated grid
 

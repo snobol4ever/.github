@@ -277,7 +277,7 @@ python3 /home/claude/SNOBOL4-harness/probe/probe.py \
 ```
 Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.
 TRACE gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE')`.
-`&STCOUNT` broken in CSNOBOL4 (always 0) — use `&STLIMIT` binary search.
+`&STCOUNT` increments correctly on CSNOBOL4 (verified 2026-03-16 — prior "always 0" claim was wrong).
 
 ---
 
