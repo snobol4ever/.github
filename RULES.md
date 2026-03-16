@@ -13,7 +13,7 @@ On 2026-03-16 the token was reconstructed and displayed in plain text in chat. S
 - Token lives in Lon's memory only. Provided at session start. Used in shell only, never on disk.
 - **Never reconstruct, quote, echo, or display the token in chat** — not even to confirm format. Acknowledge receipt silently and move on.
 - Write `TOKEN=TOKEN_SEE_LON` as placeholder in any file that references it.
-- If token appears in a commit: rotate immediately at https://github.com/settings/tokens
+- If token appears in a commit: notify Lon immediately. Token rotation and history rewriting are Lon's decisions only — Claude never rotates the token.
 
 ## ⛔ GIT IDENTITY — Every commit in every repo
 
