@@ -5577,3 +5577,27 @@ nPush/nPop imbalance in pat_Expr4/X4 found and fixed in emit_byrd.c.
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
 bash test/crosscheck/run_beauty.sh                       # 104 → 105 → 109 → 120 → 130 → 140
 ```
+
+## Session 118/119 — Addendum (FINAL HANDOFF)
+
+**Context window ~95% at close.**
+
+### Pending task for session 120
+Create `BEAUTY-ENGINE.md` (new L3 file):
+- Extract the two-stack engine writeup from FRONTEND-SNOBOL4.md §"How beauty.sno Works"
+- Read the doc created in the parallel chat (unknown filename — check git log for recently added MDs)
+- Compare both against the expert understanding developed this session
+- Reconcile into a single authoritative reference
+- Add to L3 Reference Index in PLAN.md
+
+### Key understanding established this session (do not lose)
+beauty.sno is a pattern-driven tree builder. One big PATTERN matches all source.
+Immediate assignments ($) fire mid-match to maintain two stacks:
+
+**Counter stack:** nPush (enter level) → nInc (child recognized) →
+Reduce(type, ntop()) (build tree, reads count) → nPop (discard frame, AFTER Reduce).
+
+**Value stack:** Shift(type, val) pushes leaves. Reduce(type, n) pops n, pushes tree node.
+
+**The invariant:** every nPush has exactly one nPop on EVERY exit path (γ and ω).
+Missing nPop on γ = ghost frame = displaced nInc = wrong child count = wrong Reduce.
