@@ -10,17 +10,17 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | snobol4dotnet |
-| **Sprint** | `net-ext-xnblk` — XNBLK opaque persistent state: C function allocates/returns state block; xndta[] private storage; .NET per-entry Dictionary equivalent |
-| **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
+| **Active repo** | snobol4x |
+| **Sprint** | `asm-backend` — Sprint A0: x64 ASM backend skeleton, null program |
+| **HEAD TINY** | `f509126` session144: rename housekeeping |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
 | **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
-| **HEAD DOTNET** | `348b3ed` session144: M-NET-EXT-NOCONV fires — noconv build+test fixes |
+| **HEAD DOTNET** | `b397b17` session143: net-ext-noconv Steps 1–6 complete |
 | **HEAD HQ** | (this commit) session144 |
-| **Next action** | `net-ext-xnblk` Step 1: add `XnBlkData`/`FirstCall` to `NativeEntry`; allocate pinned `long[]` xndta buffer on first call |
-| **Invariant** | `dotnet test` → 1862/1865 before any dotnet work |
+| **Next action** | Sprint A0: create `emit_byrd_asm.c`, `-asm` flag, null.s → exit 0 → M-ASM-HELLO |
+| **Invariant** | `dotnet test` → 1856/1857 before any dotnet work · `106/106` crosscheck before any snobol4x work |
 
-**Read the active L2 doc: [DOTNET.md](DOTNET.md)**
+**Read the active L2 doc: [TINY.md](TINY.md)**
 
 ---
 
@@ -73,12 +73,16 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | ✅ `ac54bd2` |
 | M-STACK-TRACE | oracle == compiled stack trace, rung-12 inputs | ✅ session119 |
-| **M-MONITOR** | 152 corpus tests: oracle_trace == compiled_trace, zero diffs | ⏳ Sprint M1 |
-| **M-DIAG1** | 35/35 diag1 suite TINY vs CSNOBOL4 oracle | ⏳ via M-MONITOR |
-| M-BEAUTY-CORE | beauty_full_bin self-beautifies (mock stubs) | ❌ |
-| M-BEAUTY-FULL | beauty_full_bin self-beautifies (real -I inc/) | ❌ |
-| M-FLAT | flat() emitter wired, Style B verified | ❌ |
-| M-CODE-EVAL | CODE()+EVAL() via TCC | ❌ |
+| **M-ASM-HELLO** | null.s assembles+links+runs → exit 0 | ⏳ Sprint A0 |
+| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ❌ Sprint A1 |
+| **M-ASM-SEQ** | SEQ/POS/RPOS crosscheck PASS | ❌ Sprint A2–A3 |
+| **M-ASM-ALT** | ALT crosscheck PASS | ❌ Sprint A4 |
+| **M-ASM-ARBNO** | ARBNO crosscheck PASS | ❌ Sprint A5 |
+| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ Sprint A6 |
+| **M-ASM-ASSIGN** | $ capture PASS | ❌ Sprint A7 |
+| **M-ASM-NAMED** | Named patterns flat labels PASS | ❌ Sprint A8 |
+| **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ❌ Sprint A9 |
+| **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM | ❌ Sprint A10 |
 | **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
 
 ### JVM (snobol4jvm)
@@ -98,7 +102,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 | ✅ `21dceac` |
 | **M-NET-SAVE-DLL** | `-w file.sno` → `file.dll` (threaded assembly); `snobol4 file.dll` runs it; RunDll() updated | ❌ Sprint `net-save-dll` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, async/cancellation, IExternalLibrary fast path, any IL language (F#/VB/C++) | ✅ `1e9ad33` session140 |
-| **M-NET-EXT-NOCONV** | SPITBOL noconv pass-through: ARRAY/TABLE/PDBLK passed unconverted; C block struct mirror in libsnobol4_rt.h; IExternalLibrary traversal API | ✅ `348b3ed` session144 |
+| **M-NET-EXT-NOCONV** | SPITBOL noconv pass-through: ARRAY/TABLE/PDBLK passed unconverted; C block struct mirror in libsnobol4_rt.h; IExternalLibrary traversal API | ❌ Sprint `net-ext-noconv` |
 | **M-NET-EXT-XNBLK** | XNBLK opaque persistent state: C function allocates/returns state block; xndta[] private storage; .NET per-entry Dictionary equivalent | ❌ Sprint `net-ext-xnblk` |
 | **M-NET-EXT-CREATE** | Foreign creates SNO objects: libsnobol4_rt alloc helpers for C-ABI; .NET IExternalLibrary already capable — C-side tests | ❌ Sprint `net-ext-create` |
 | **M-NET-VB** | VB.NET fixture + tests: string/long/double returns, null→fail, static, multi-load, UNLOAD | ✅ `234f24a` session142 |

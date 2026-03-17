@@ -11,17 +11,34 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `monitor-scaffold` — Sprint M1, build monitor runner + inject_traces.py
-**HEAD:** `8761bc1` session121: 5-primitive SEQ counter instrumented
-**Milestone:** M-MONITOR → M-BEAUTY-CORE → M-BOOTSTRAP
+**Sprint:** `asm-backend` — Sprint A0, x64 ASM backend for sno2c
+**HEAD:** `f509126` session144: rename housekeeping (no code change)
+**Milestone:** M-ASM-HELLO → M-ASM-CROSSCHECK → M-ASM-BEAUTY
 
-**Next steps (Sprint M1):**
-1. Verify 106/106 invariant.
-2. Write `snobol4harness/monitor/run_monitor.sh` — single-test TRACE diff runner.
-3. Write `snobol4harness/monitor/inject_traces.py` — auto-inject TRACE registrations.
-4. Run on `crosscheck/output/001_output_string_literal.sno` — confirm empty diff.
-5. Write `snobol4harness/monitor/run_monitor_suite.sh` — loop runner.
-6. Commit harness → Sprint M1 done → begin Sprint M2.
+**PIVOT (session144):** Abandoned `monitor-scaffold` / `bug7-bomb` in favor of x64 ASM backend.
+Rationale: C backend has a fundamental structural problem — named patterns require C functions
+with reentrant structs, three-level scoping (`z->field`, `#define`/`#undef`), and `calloc` per
+call. x64 ASM eliminates all of this: α/β/γ/ω become real ASM labels, all variables live flat
+in `.bss`, named patterns are plain labels with a 2-way `jmp` dispatch. One scope. No structs.
+
+**Architecture (session144):**
+```
+Frontend (lex/parse)     →     IR (Byrd Box)     →     Backend (emit/interpret)
+
+SNOBOL4 reader                                          C emitter       ← existing, keep
+Rebus reader              α/β/γ/ω four-port IR          x64 ASM emitter ← NEW PIVOT TARGET
+Snocone reader            (byrd_ir.py / emit_byrd.c)    Interpreter     ← future debug tool
+Icon reader
+Prolog reader
+```
+5 frontends × 3 backends = 15 combinations. One IR. One compiler driver.
+
+**Next steps (Sprint A0):**
+1. Create `src/sno2c/emit_byrd_asm.c` — skeleton, mirrors emit_byrd.c structure.
+2. Add `-asm` flag to `main.c` selecting ASM backend, output `.s` file.
+3. NASM syntax, x64 Linux ELF64.
+4. Emit null program: assemble (`nasm -f elf64`), link (`ld`), run → exit 0.
+5. **M-ASM-HELLO fires** → begin Sprint A1 (LIT node).
 
 ---
 
@@ -29,69 +46,59 @@ snobol4x: multiple frontends, multiple backends.
 
 | Milestone | Trigger | Status | Sprint |
 |-----------|---------|--------|--------|
-| **M-MONITOR** | 152 corpus tests: oracle_trace == compiled_trace | ⏳ | M1–M8 in [MONITOR.md](MONITOR.md) |
-| **M-DIAG1** | 35/35 diag1 suite TINY vs CSNOBOL4 oracle | ⏳ | via M-MONITOR |
-| M-BEAUTY-CORE | beauty_full_bin self-beautifies (mock stubs) | ❌ | see below |
-| M-BEAUTY-FULL | beauty_full_bin self-beautifies (real -I inc/) | ❌ | after M-BEAUTY-CORE |
-| M-FLAT | flat() emitter wired, Style B verified | ❌ | after M-BEAUTY-FULL |
-| M-CODE-EVAL | CODE()+EVAL() via TCC | ❌ | — |
+| **M-ASM-HELLO** | null.s assembles, links, runs → exit 0 | ⏳ | A0 |
+| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ❌ | A1 |
+| **M-ASM-SEQ** | SEQ/POS/RPOS: cat_pos_lit_rpos.s PASS | ❌ | A2–A3 |
+| **M-ASM-ALT** | ALT: alt_first/second/fail PASS | ❌ | A4 |
+| **M-ASM-ARBNO** | ARBNO: arbno_match/empty/fail PASS | ❌ | A5 |
+| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ | A6 |
+| **M-ASM-ASSIGN** | $ capture: assign_lit/digits PASS | ❌ | A7 |
+| **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ❌ | A8 |
+| **M-ASM-CROSSCHECK** | 106/106 crosscheck via ASM backend | ❌ | A9 |
+| **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM backend | ❌ | A10 |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | ❌ | final goal |
 
 
 
-**Background:** Dual-stack trace diff on `109_multi.input` found first divergence at trace line 2:
-- Oracle line 1: `NPUSH depth=1 top=0` ← last matching event (start point)
-- Oracle line 2: `NINC  depth=1 top=1` ← expected next event
-- Compiled line 2: `NPUSH depth=2 top=0` ← spurious second NPUSH (end point = bug)
+**ASM backend design (session144):**
 
-The spurious NPUSH fires between trace line 1 and line 2. The bomb protocol finds exactly which emitted C label fires it.
+Why ASM solves the C structural problem:
+- C named patterns require functions with reentrant structs (`pat_X_t *z`), `calloc` per call,
+  three-level scoping (`z->field` + `#define`/`#undef` aliases), and `open_memstream` two-pass
+  declaration collection. Bug5/Bug6/Bug7 all trace back to this complexity.
+- x64 ASM: α/β/γ/ω become real labels. All variables are flat `.bss` qwords declared once at
+  top of file. Named patterns are plain labels with a 2-instruction entry dispatch. One scope.
+  No structs. No malloc. No scoping tricks.
 
-**Pass 1 — Count bomb**
+**Sprint detail:**
 
-In `snobol4.c`, add a global counter to `NPUSH_fn()`:
-```c
-static int _npush_count = 0;
-void NPUSH_fn(void) {
-    _npush_count++;
-    fprintf(stderr, "NPUSH #%d depth=%d top=0
-", _npush_count, _ntop+1);
-    /* ... existing code ... */
-}
+| Sprint | What | Key oracle |
+|--------|------|-----------|
+| A0 | Skeleton + `-asm` flag + null program | `test/sprint0/null.s` |
+| A1 | LIT node — inline byte compare | `test/sprint1/lit_hello.s` |
+| A2 | POS / RPOS — pure compare, no save | `test/sprint2/pos0_rpos0.s` |
+| A3 | SEQ (CAT) — wire α/β/γ/ω between nodes | `test/sprint2/cat_pos_lit_rpos.s` |
+| A4 | ALT — left/right arms + backtrack | `test/sprint3/alt_*.s` |
+| A5 | ARBNO — depth counter + cursor stack in `.bss` | `test/sprint5/arbno_*.s` |
+| A6 | Charset: ANY/NOTANY/SPAN/BREAK — inline scan | corpus rungs |
+| A7 | $ capture — span into flat `.bss` buffer | `test/sprint4/assign_*.s` |
+| A8 | Named patterns — flat labels, 2-way jmp dispatch | `test/sprint6/ref_*.s` |
+| A9 | Full crosscheck 106/106 via ASM backend | crosscheck suite |
+| A10 | beauty.sno → ASM → self-beautify | M-ASM-BEAUTY |
+
+**Build commands (ASM backend):**
+```bash
+cd /home/claude/snobol4x
+# Install NASM once:
+apt-get install -y nasm
+# Compile a .sno to .s:
+src/sno2c/sno2c -asm myprog.sno > myprog.s
+# Assemble + link:
+nasm -f elf64 myprog.s -o myprog.o
+ld myprog.o src/runtime/snobol4/snobol4_asm.o -o myprog
+# Run:
+./myprog
 ```
-Also add at program exit (or at first OUTPUT):
-```c
-fprintf(stderr, "TOTAL NPUSH calls: %d
-", _npush_count);
-```
-Run: `./beauty_full_bin < 109_multi.input 2>pass1.txt`
-Read pass1.txt — identify which call number is the spurious one (call #2 from trace diff).
-
-**Pass 2 — Limit bomb**
-
-Set `bomb_limit = 2` (the spurious call number from Pass 1).
-When `_npush_count == bomb_limit`, dump everything:
-```c
-if (_npush_count == bomb_limit) {
-    fprintf(stderr, "=== BOMB at NPUSH #%d ===
-", bomb_limit);
-    fprintf(stderr, "  _ntop=%d
-", _ntop);
-    for (int i = 0; i <= _ntop; i++)
-        fprintf(stderr, "  _nstack[%d]=%d
-", i, _nstack[i]);
-    /* print C call stack */
-    void *bt[32]; int n = backtrace(bt, 32);
-    backtrace_symbols_fd(bt, n, 2);
-    fprintf(stderr, "=== END BOMB ===
-");
-}
-```
-Run: `./beauty_full_bin < 109_multi.input 2>pass2.txt`
-The backtrace in pass2.txt shows exactly which C label in `beauty_full.c` fired the spurious NPUSH.
-Map that label back to the emit_byrd.c node that generated it.
-That node is missing an `NPOP_fn()` emit on its failure/ω path.
-
-**Fix:** Add `NPOP_fn()` emit at the identified ω path in `emit_byrd.c`. Rebuild. Rerun trace diff — line 2 must now match. Run crosscheck.
 
 
 ---
@@ -337,6 +344,7 @@ git add -A && git commit && git push
 
 | Sessions | What | Why |
 |----------|------|-----|
+| 144 | **PIVOT: x64 ASM backend** — abandon monitor-scaffold/bug7-bomb | C backend has structural flaw: named patterns require reentrant C functions, `pat_X_t` structs, `calloc`, three-level scoping. ASM eliminates all of it: α/β/γ/ω = real labels, all vars flat `.bss`, named patterns = labels + 2-way jmp. One scope. Sprint plan A0–A10 documented in NOW. |
 | 80–89 | Attacked beauty.sno directly | Burned — needed smaller test cases first |
 | 89 | Pivot: corpus ladder | Prove each feature before moving up |
 | 95 | 106/106 rungs 1–11 | Foundation solid |
