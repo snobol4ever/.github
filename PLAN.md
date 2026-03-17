@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `asm-backend` — Sprint A5: ARBNO node → M-ASM-ARBNO |
-| **TINY HEAD** | `426da47` session146: M-ASM-LIT + M-ASM-SEQ ✅; session147 M-ASM-ALT ✅ pending push |
-| **TINY next** | Sprint A4: ALT node → M-ASM-ALT |
+| **TINY sprint** | `asm-backend` — Sprint A7: ASM harness → emitter crosscheck |
+| **TINY HEAD** | `a114bcf` session147: M-ASM-ALT + M-ASM-ARBNO + M-ASM-CHARSET ✅; emit_byrd_asm.c real emitter |
+| **TINY next** | Sprint A7: snobol4_asm_harness.c + body-only emitter + first crosscheck pass |
 | **DOTNET sprint** | `net-load-xn` — M-NET-XN: SPITBOL x32 C-ABI parity (xn1st, xncbp, xnsave) |
 | **DOTNET HEAD** | `b821d4d` session145: M-NET-EXT-XNBLK ✅ |
 | **DOTNET next** | net-ext-create Step 1: C-ABI EXTERNAL return type → ExternalVar wrapper |
@@ -81,8 +81,8 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-LIT** | LIT node: lit_hello.s PASS | ✅ session146 |
 | **M-ASM-SEQ** | SEQ/POS/RPOS crosscheck PASS | ✅ session146 |
 | **M-ASM-ALT** | ALT crosscheck PASS | ✅ session147 |
-| **M-ASM-ARBNO** | ARBNO crosscheck PASS | ❌ Sprint A5 |
-| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ Sprint A6 |
+| **M-ASM-ARBNO** | ARBNO crosscheck PASS | ✅ session147 |
+| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ✅ session147 |
 | **M-ASM-ASSIGN** | $ capture PASS | ❌ Sprint A7 |
 | **M-ASM-NAMED** | Named patterns flat labels PASS | ❌ Sprint A8 |
 | **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ❌ Sprint A9 |

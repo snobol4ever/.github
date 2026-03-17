@@ -6512,3 +6512,33 @@ Full sprint specs written into DOTNET.md including step-by-step breakdown, C str
 7. ALT wiring: left-ω → right-α; right-ω → outer-ω; left-β (backtrack) → right-β
 8. Fire M-ASM-ALT when all three diff clean
 9. `git pull --rebase origin main` before pushing .github
+
+## Session 147 — 2026-03-17
+
+**Milestones fired:** M-ASM-ALT ✅ · M-ASM-ARBNO ✅ · M-ASM-CHARSET ✅
+
+**Work done:**
+- Read PLAN.md, RULES.md, TINY.md; cloned corpus + harness with token; 106/106 invariant ✅
+- Read Proebsting "Simple Translation of Goal-Directed Evaluation" — direct foundation for Byrd Box α/β/γ/ω wiring; §4.5 ifstmt = ALT/FENCE model
+- Read v311.sil ARBN/EARB/ARBF (ARBNO), ANYC/NNYC/SPNC/BRKC (CHARSET)
+
+**M-ASM-ALT (`5f74d68`):** alt_first.s (cat→arm1), alt_second.s (dog→arm2), alt_fail.s (fish→fail).
+ALT wiring: α saves cursor_at_alt; left_ω restores+jumps right_α; both γ→alt_γ; right_ω→alt_ω.
+
+**M-ASM-ARBNO (`eb80e2d`):** arbno_match.s (aaa/ARBNO('a')→aaa), arbno_empty.s (aaa/ARBNO('x')→fail), arbno_alt.s (abba/ARBNO('a'|'b')→abba).
+ARBNO design: flat .bss cursor stack 64 slots + depth counter; α pushes+succeeds immediately; β pops+tries one rep; zero-advance guard (v311.sil ONAR); rep_success pushes+re-succeeds.
+
+**M-ASM-CHARSET (`a114bcf`):** any_vowel.s (e), notany_consonant.s (h), span_digits.s (12345), break_space.s (hello). All PASS.
+
+**emit_byrd_asm.c — real recursive emitter written:**
+Implements LIT/SEQ/ALT/POS/RPOS/ARBNO node dispatch. Generates correct NASM Byrd box code from IR. Issue identified: emitter currently generates standalone `.s` with hardcoded subject; needs `snobol4_asm_harness.c` to connect to crosscheck (body-only output + extern symbols).
+
+**Lon's observation this session:** "I am not seeing the asm emitter increase" — correctly identified that oracles prove wiring but emitter wasn't advancing. Addressed by writing real emit_byrd_asm.c.
+
+**Next session start:**
+1. Read PLAN.md + RULES.md + TINY.md (especially ⚠ CRITICAL NEXT ACTION block)
+2. 106/106 invariant check
+3. Sprint A7: write `src/runtime/asm/snobol4_asm_harness.c`
+4. Update emit_byrd_asm.c: body-only output, extern cursor/subject_len/subject_data symbols
+5. Wire crosscheck: `sno2c -asm` + nasm + gcc harness → first pattern crosscheck pass
+6. Target: crosscheck patterns/038_pat_literal PASS

@@ -11,9 +11,33 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — Sprint A5, ARBNO node
-**HEAD:** `426da47` session146 (session147 work pending commit)
-**Milestone:** M-ASM-ALT ✅ session147 → **M-ASM-ARBNO** next → M-ASM-CROSSCHECK → M-ASM-BEAUTY
+**Sprint:** `asm-backend` — Sprint A7: ASM harness + emitter crosscheck
+**HEAD:** `a114bcf` session147
+**Milestone:** M-ASM-CHARSET ✅ session147 → **M-ASM-ASSIGN** next → M-ASM-CROSSCHECK → M-ASM-BEAUTY
+
+**⚠ CRITICAL NEXT ACTION — read before touching emit_byrd_asm.c:**
+
+The hand-written oracles (LIT/SEQ/ALT/ARBNO/CHARSET) prove wiring is correct.
+`emit_byrd_asm.c` now has a real recursive emitter (LIT/SEQ/ALT/POS/RPOS/ARBNO nodes)
+that generates correct NASM Byrd box code — but NOT yet connected to crosscheck
+because the generated `.s` hardcodes subject while crosscheck needs runtime-supplied subject.
+
+**The missing piece: `snobol4_asm_harness.c`**
+
+Thin C harness that:
+1. Reads subject from stdin
+2. Initialises cursor=0, subject_len
+3. Jumps to root_alpha (extern ASM label)
+4. match_success → print span, exit 0; match_fail → exit 1
+
+Emitter generates Byrd box body only (no _start). Harness supplies _start/subject/IO.
+Link: nasm pattern.s -o pattern.o && gcc pattern.o harness.o -o test_bin
+
+**Sprint A7 steps:**
+1. Write src/runtime/asm/snobol4_asm_harness.c
+2. Update emit_byrd_asm.c: body-only output, extern cursor/subject symbols
+3. Wire crosscheck: sno2c -asm foo.sno > foo.s && nasm foo.s && gcc foo.o harness.o -o foo
+4. First target: crosscheck patterns/038_pat_literal PASS → M-ASM-ASSIGN
 
 **PIVOT (session144):** Abandoned `monitor-scaffold` / `bug7-bomb` in favor of x64 ASM backend.
 Rationale: C backend has a fundamental structural problem — named patterns require C functions
@@ -50,8 +74,8 @@ Prolog reader
 | **M-ASM-LIT** | LIT node: lit_hello.s PASS | ✅ session146 | A1 |
 | **M-ASM-SEQ** | SEQ/POS/RPOS: cat_pos_lit_rpos.s PASS | ✅ session146 | A2–A3 |
 | **M-ASM-ALT** | ALT: alt_first/second/fail PASS | ✅ session147 | A4 |
-| **M-ASM-ARBNO** | ARBNO: arbno_match/empty/fail PASS | ❌ | A5 |
-| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ | A6 |
+| **M-ASM-ARBNO** | ARBNO: arbno_match/empty/fail PASS | ✅ session147 | A5 |
+| **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ✅ session147 | A6 |
 | **M-ASM-ASSIGN** | $ capture: assign_lit/digits PASS | ❌ | A7 |
 | **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ❌ | A8 |
 | **M-ASM-CROSSCHECK** | 106/106 crosscheck via ASM backend | ❌ | A9 |
@@ -344,7 +368,8 @@ git add -A && git commit && git push
 
 | Sessions | What | Why |
 |----------|------|-----|
-| 147 | **M-ASM-ALT fires** — three oracles: `alt_first.s` (cat→first arm), `alt_second.s` (dog→second arm after left fail), `alt_fail.s` (fish→both fail, exit 1). ALT wiring: α saves `cursor_at_alt`; `left_ω` restores+jumps `right_α`; both γ→`alt_γ`; `right_ω`→`alt_ω`. Proebsting §4.5 compile-time wiring. All PASS. Next: Sprint A5 (ARBNO). | |
+| 147 | **M-ASM-ALT + M-ASM-ARBNO + M-ASM-CHARSET fire; emit_byrd_asm.c real emitter written.** ALT: alt_first/second/fail. ARBNO: arbno_match/empty/alt (cursor stack 64 slots, zero-advance guard, v311.sil ARBN/EARB). CHARSET: any_vowel/notany_consonant/span_digits/break_space — all PASS. emit_byrd_asm.c: real recursive LIT/SEQ/ALT/POS/RPOS/ARBNO emitter — generates correct NASM but needs harness to connect to crosscheck (subject currently hardcoded). Next: Sprint A7 — snobol4_asm_harness.c + body-only emitter + first crosscheck pass. HEAD a114bcf. | |
+| 147 | **M-ASM-ALT + M-ASM-ARBNO fire** — ALT: three oracles (alt_first/second/fail). ARBNO: three oracles (arbno_match "aaa", arbno_empty "aaa" vs 'x' → fail, arbno_alt "abba" vs ARBNO('a'\|'b')). ARBNO design: flat .bss cursor stack 64 slots + depth counter; α pushes+succeeds; β pops+tries one rep; zero-advance guard; rep_success pushes+re-succeeds. Proebsting §4.5 for ALT; v311.sil ARBN/EARB/ARBF for ARBNO. All PASS. Next: Sprint A6 (CHARSET). | |
 | 146 | **M-ASM-LIT fires** — `lit_hello.s` hand-written: α/β/γ/ω real NASM labels, cursor+saved_cursor flat .bss qwords, repe cmpsb compare. Assembles, links, runs → `hello\n` exit 0. Diff vs oracle CLEAN. `artifacts/asm/null.s` + `artifacts/asm/lit_hello.s` placed in artifacts/asm/. HQ updated. No push per Lon. Next: Sprint A2 (POS/RPOS). |
 | 145 | **M-ASM-HELLO fires** — `emit_byrd_asm.c` created, `-asm` flag added to `main.c`+`Makefile`, `null.s` assembles+links+runs → exit 0. 106/106 crosscheck clean. Next: Sprint A1 (LIT node). | Sprint A0 complete. |
 | 144 | **PIVOT: x64 ASM backend** — abandon monitor-scaffold/bug7-bomb | C backend has structural flaw: named patterns require reentrant C functions, `pat_X_t` structs, `calloc`, three-level scoping. ASM eliminates all of it: α/β/γ/ω = real labels, all vars flat `.bss`, named patterns = labels + 2-way jmp. One scope. Sprint plan A0–A10 documented in NOW. |
