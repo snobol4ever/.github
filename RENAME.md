@@ -23,7 +23,7 @@ One-time rename execution plan. Eight phases, strict order. Do not reorder — s
 | **ORG** | | | | | |
 | organization | `snobol4ever` | `github.com/snobol4ever` | — | — | — |
 | **COMPILERS** | | | | | |
-| native kernel | `snobol4all` | `snobol4-all` | `sno4all` | — | `snobol4all.c` / `snoc` (internal) |
+| native kernel | `snobol4x` | `snobol4x` | `sno4x` | — | `snobol4x.c` / `snoc` (internal) |
 | jvm backend | `snobol4jvm` | `snobol4-jvm` | `sno4jvm` | Maven: `snobol4/jvm` | `snobol4.jvm` |
 | .net backend | `snobol4dotnet` | `snobol4-dotnet` | `sno4net` | NuGet: `snobol4dotnet` | `Snobol4.Dotnet` ¹ |
 | **PATTERN LIBRARIES** | | | | | |
@@ -47,14 +47,14 @@ Edit all `.md` files. **Do not push yet.**
 
 | find | replace |
 |------|---------|
-| `github.com/SNOBOL4-plus/SNOBOL4-tiny` | `github.com/snobol4ever/snobol4-all` |
-| `github.com/SNOBOL4-plus/SNOBOL4-jvm` | `github.com/snobol4ever/snobol4-jvm` |
-| `github.com/SNOBOL4-plus/SNOBOL4-dotnet` | `github.com/snobol4ever/snobol4-dotnet` |
-| `github.com/SNOBOL4-plus/SNOBOL4-corpus` | `github.com/snobol4ever/snobol4-corpus` |
-| `github.com/SNOBOL4-plus/SNOBOL4-harness` | `github.com/snobol4ever/snobol4-harness` |
-| `github.com/SNOBOL4-plus/SNOBOL4-python` | `github.com/snobol4ever/snobol4-python` |
-| `github.com/SNOBOL4-plus/SNOBOL4-cpython` | `github.com/snobol4ever/snobol4-artifact` |
-| `github.com/SNOBOL4-plus/SNOBOL4-csharp` | `github.com/snobol4ever/snobol4-csharp` |
+| `github.com/SNOBOL4-plus/SNOBOL4-tiny` | `github.com/snobol4ever/snobol4x` |
+| `github.com/SNOBOL4-plus/SNOBOL4-jvm` | `github.com/snobol4ever/snobol4jvm` |
+| `github.com/SNOBOL4-plus/SNOBOL4-dotnet` | `github.com/snobol4ever/snobol4dotnet` |
+| `github.com/SNOBOL4-plus/SNOBOL4-corpus` | `github.com/snobol4ever/snobol4corpus` |
+| `github.com/SNOBOL4-plus/SNOBOL4-harness` | `github.com/snobol4ever/snobol4harness` |
+| `github.com/SNOBOL4-plus/SNOBOL4-python` | `github.com/snobol4ever/snobol4python` |
+| `github.com/SNOBOL4-plus/SNOBOL4-cpython` | `github.com/snobol4ever/snobol4artifact` |
+| `github.com/SNOBOL4-plus/SNOBOL4-csharp` | `github.com/snobol4ever/snobol4csharp` |
 | `github.com/SNOBOL4-plus/.github` | `github.com/snobol4ever/.github` |
 
 ### Brand text substitutions
@@ -63,13 +63,13 @@ Edit all `.md` files. **Do not push yet.**
 |------|---------|
 | `SNOBOL4ever` | `snobol4ever` |
 | `SNOBOL4now` | `snobol4now` |
-| `SNOBOL4-tiny` (repo refs) | `snobol4-all` |
-| `SNOBOL4-jvm` (repo refs) | `snobol4-jvm` |
-| `SNOBOL4-dotnet` (repo refs) | `snobol4-dotnet` |
-| `SNOBOL4-corpus` (repo refs) | `snobol4-corpus` |
-| `SNOBOL4-cpython` (repo refs) | `snobol4-artifact` |
-| `SNOBOL4-python` (repo refs) | `snobol4-python` |
-| `SNOBOL4-csharp` (repo refs) | `snobol4-csharp` |
+| `SNOBOL4-tiny` (repo refs) | `snobol4x` |
+| `SNOBOL4-jvm` (repo refs) | `snobol4jvm` |
+| `SNOBOL4-dotnet` (repo refs) | `snobol4dotnet` |
+| `SNOBOL4-corpus` (repo refs) | `snobol4corpus` |
+| `SNOBOL4-cpython` (repo refs) | `snobol4artifact` |
+| `SNOBOL4-python` (repo refs) | `snobol4python` |
+| `SNOBOL4-csharp` (repo refs) | `snobol4csharp` |
 | `SNOBOL4-plus` (org refs) | `snobol4ever` |
 
 ### Files to touch
@@ -111,14 +111,14 @@ Settings → General → Repository name, one at a time:
 
 | from | to |
 |------|----|
-| `SNOBOL4-tiny` | `snobol4-all` |
-| `SNOBOL4-jvm` | `snobol4-jvm` |
-| `SNOBOL4-dotnet` | `snobol4-dotnet` |
-| `SNOBOL4-corpus` | `snobol4-corpus` |
-| `SNOBOL4-harness` | `snobol4-harness` |
-| `SNOBOL4-python` | `snobol4-python` |
-| `SNOBOL4-cpython` | `snobol4-artifact` |
-| `SNOBOL4-csharp` | `snobol4-csharp` |
+| `SNOBOL4-tiny` | `snobol4x` |
+| `SNOBOL4-jvm` | `snobol4jvm` |
+| `SNOBOL4-dotnet` | `snobol4dotnet` |
+| `SNOBOL4-corpus` | `snobol4corpus` |
+| `SNOBOL4-harness` | `snobol4harness` |
+| `SNOBOL4-python` | `snobol4python` |
+| `SNOBOL4-cpython` | `snobol4artifact` |
+| `SNOBOL4-csharp` | `snobol4csharp` |
 | `.github` | `.github` (unchanged — GitHub requires this name) |
 
 ---
@@ -128,14 +128,14 @@ Settings → General → Repository name, one at a time:
 Run in each cloned repo on every machine:
 
 ```bash
-git remote set-url origin https://github.com/snobol4ever/snobol4-all
-git remote set-url origin https://github.com/snobol4ever/snobol4-jvm
-git remote set-url origin https://github.com/snobol4ever/snobol4-dotnet
-git remote set-url origin https://github.com/snobol4ever/snobol4-corpus
-git remote set-url origin https://github.com/snobol4ever/snobol4-harness
-git remote set-url origin https://github.com/snobol4ever/snobol4-python
-git remote set-url origin https://github.com/snobol4ever/snobol4-artifact
-git remote set-url origin https://github.com/snobol4ever/snobol4-csharp
+git remote set-url origin https://github.com/snobol4ever/snobol4x
+git remote set-url origin https://github.com/snobol4ever/snobol4jvm
+git remote set-url origin https://github.com/snobol4ever/snobol4dotnet
+git remote set-url origin https://github.com/snobol4ever/snobol4corpus
+git remote set-url origin https://github.com/snobol4ever/snobol4harness
+git remote set-url origin https://github.com/snobol4ever/snobol4python
+git remote set-url origin https://github.com/snobol4ever/snobol4artifact
+git remote set-url origin https://github.com/snobol4ever/snobol4csharp
 git remote set-url origin https://github.com/snobol4ever/.github
 ```
 
@@ -158,7 +158,7 @@ For each repo, audit and update:
 - `README.md`, `INSTALL.md`, `CONTRIBUTING.md` in each repo root
 - CI/CD config (`.github/workflows`) referencing old org or repo names
 
-**`snobol4-all` internal note:** `snoc` stays as the internal compiler binary name. `sno4all` is the user-facing command. Do not rename `snoc`.
+**`snobol4x` internal note:** `snoc` stays as the internal compiler binary name. `sno4x` is the user-facing command. Do not rename `snoc`.
 
 Commit each repo:
 ```bash
@@ -183,7 +183,7 @@ grep -ri "SNOBOL4-plus" . --include="*.cs"   # expect: empty
 Check redirects (GitHub grace period is generous but not infinite):
 ```bash
 curl -I https://github.com/SNOBOL4-plus/SNOBOL4-tiny
-# expect: 301 Moved Permanently → github.com/snobol4ever/snobol4-all
+# expect: 301 Moved Permanently → github.com/snobol4ever/snobol4x
 ```
 
 ---
@@ -192,8 +192,8 @@ curl -I https://github.com/SNOBOL4-plus/SNOBOL4-tiny
 
 | item | question | owner |
 |------|----------|-------|
-| `snoc` vs `sno4all` | `snoc` = internal build tool, `sno4all` = user command. Confirm. | Lon |
-| `snobol4-all` vs `snobol4-tiny` | `tiny` (Ant-Man: small source, small binary, universe-level power) vs `all` (does everything). Both are true. Decide before executing Phase 4. Affects all cells in name grid for native kernel row. | Lon |
+| `snoc` vs `sno4x` | `snoc` = internal build tool, `sno4x` = user command. Confirm. | Lon |
+| `snobol4x` naming | ✅ Decided 2026-03-17. `snobol4x` replaces `snobol4all` and `snobol4tiny`. Fast, cross-platform, no ceiling implied. | Lon |
 | PyPI `snobol4artifact` | Is SNOBOL4-cpython currently on PyPI? If yes, new package needed. | Lon |
 | NuGet casing | `Snobol4.Dotnet` namespace — coordinate on C# convention exception. | Jeffrey |
 | `SESSIONS_ARCHIVE.md` | Header note only. Do not rewrite history. | Lon |
