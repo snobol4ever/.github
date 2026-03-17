@@ -13,8 +13,13 @@
 **HEAD:** `c43580d`
 **Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ → **M-NET-SAVE-DLL** → M-NET-LOAD-DOTNET → M-NET-XN track
 
-**Next action:** `net-save-dll` Step 1 — after `tc.Compile()` in `BuildMain()`, if `BuildOptions.WriteDll`, persist the in-memory threaded assembly to disk as `<sourcename>.dll`; update `RunDll()` to load threaded format.
-**After net-save-dll:** finish `net-load-dotnet` Steps 7+8 (SnobolVar return coercions + F# DU coercion), then `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
+**Next action:** `net-save-dll-1` Step 1 — `SaveDll()`: embed source text + compiler options in a `PersistedAssemblyBuilder` DLL with sentinel type `Snobol4ThreadedDll`; wire call into `BuildMain()` after `PopulateMainMetadata()`.
+**After net-save-dll track:** finish `net-load-dotnet` Steps 7+8 (SnobolVar return coercions + F# DU coercion), then `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
+
+**net-save-dll split (3 sprints — session138):**
+- `net-save-dll-1` — `SaveDll()`: source embedding + PersistedAssemblyBuilder DLL write ← **active**
+- `net-save-dll-2` — `RunDll()` threaded detection: extract source, re-compile pipeline, ExecuteLoop(0)
+- `net-save-dll-3` — Tests: WriteDll_HelloWorld, WriteDll_Variables, WriteDll_OutputMatchesDirect; invariant ≥1802+3
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -116,28 +121,59 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | `net-corpus-rungs` | Run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures | 106/106 green |
 | `net-diag1` | Run diag1 35-test suite (from snobol4corpus) against DOTNET; fix all failures | 35/35 green |
 | `net-feature-audit` | Compare DOTNET feature coverage vs CSNOBOL4 ref: keywords, data types, built-ins, I/O, CODE()/EVAL() stubs | zero open gaps |
-| `net-save-dll` | Wire `-w` (WriteDll) into the threaded execution path; save compiled MSIL to DLL with source extension replaced by `.dll` (see notes below) | `-w file.sno` produces `file.dll`; `snobol4 file.dll` runs it directly |
+| `net-save-dll-1` | `SaveDll()`: embed source text + options in `PersistedAssemblyBuilder` DLL with sentinel type `Snobol4ThreadedDll`; wire into `BuildMain()` after `PopulateMainMetadata()` | DLL file exists, is valid .NET assembly, contains `Snobol4ThreadedDll` sentinel |
+| `net-save-dll-2` | `RunDll()` threaded detection: detect `Snobol4ThreadedDll` sentinel, extract `__source__` + `__filename__` + `__options__`, re-run full compile pipeline (lex→parse→emit→compile), call `ExecuteLoop(0)` | `snobol4 file.dll` produces identical output to `snobol4 file.sno` |
+| `net-save-dll-3` | Tests: `WriteDll_HelloWorld`, `WriteDll_Variables`, `WriteDll_OutputMatchesDirect`; invariant stays ≥1802+3 | all green, full invariant passes |
 | `net-load-spitbol` | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB (see spec below) | M-NET-LOAD-SPITBOL fires |
 | `net-feature-fill` | Implement any remaining missing features identified by audit (one sub-sprint per gap) | audit clean |
 | `net-benchmark-scaffold` | Wire DOTNET into harness benchmark pipeline; collect DOTNET timing column | pipeline green |
 | `net-benchmark-publish` | Run full benchmark grid (DOTNET vs CSNOBOL4 vs SPITBOL vs TINY); publish results in HARNESS.md | grid published |
 | **`net-build-prereqs`** | Document and validate all build prerequisites: BUILDING.md (SDK version, C toolchain for native libs, platform matrix); `.gitignore` audit for build outputs; CI prereq check on clean clone | BUILDING.md present; CI green on clean clone |
 
-**M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅ + `net-build-prereqs` ✅
+**M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll-3` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅ + `net-build-prereqs` ✅
 
-### -w / WriteDll Notes (sprint `net-save-dll`)
+### net-save-dll Track — M-NET-SAVE-DLL (3 sprints)
 
 **Behaviour spec (from Jeff Cooper, 2026-03-16):**
-- `snobol4 -w file.sno` — compile as normal, then save the compiled MSIL assembly to disk
-- Output filename: source filename with extension replaced by `.dll` (e.g. `file.sno` → `file.dll`, `file.spt` → `file.dll`)
+- `snobol4 -w file.sno` — compile as normal, then save the compiled assembly to disk
+- Output filename: source filename with extension replaced by `.dll` (e.g. `file.sno` → `file.dll`)
 - Works on Windows and other platforms
-- **Already implemented:** `snobol4 file.dll` on the command line — `MainConsole.cs` detects `.dll` extension, skips all build steps, calls `RunDll()` directly ✅
+- **Already implemented:** `snobol4 file.dll` on command line — `MainConsole.cs` detects `.dll` extension, calls `RunDll()` directly ✅
 
-**Current gap (found 2026-03-16):**
-- `BuilderOptions.WriteDll` flag exists; `-w` sets it in `CommandLine.cs` ✅
-- `WriteDll` is only checked inside `CSharpCompile.cs / CreateAssembly()` — the **Roslyn/legacy path only**
-- `BuildMain()` runs the **threaded path** (`ThreadedCodeCompiler`) by default; `CreateAssembly()` is never called → `-w` is currently a **no-op** on the active code path
-- Fix: after `tc.Compile()` in `BuildMain()`, if `BuildOptions.WriteDll`, persist the in-memory assembly to the `.dll` output file using `AssemblyLoadContext` save or Roslyn `Emit()` to `FileStream`
+**Design (session138):**
+DLL format uses `PersistedAssemblyBuilder` with a sentinel type `Snobol4ThreadedDll` containing three static literal string fields:
+- `__source__` — the original SNOBOL4 source text, reconstructed from `SourceLine.Text` joined with `\n`
+- `__filename__` — the logical source filename (for error messages / `FilesToCompile[0]`)
+- `__options__` — semicolon-separated compiler option flags (CaseFolding, etc.)
+
+On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.ReadCodeInString()` → run full lex/parse/emit/compile pipeline → `ExecuteLoop(0)`. MsilDelegates are re-JIT'd transparently. No custom binary format for `Instruction[]` needed.
+
+**Why re-compile on load (not serialize Instruction[]):**
+`MsilDelegates` are live `DynamicMethod`-based `Func<Executive,int>` delegates — not serializable. Re-compiling from embedded source is fast (no I/O, no file system) and produces identical results. The DLL is a verified, self-contained source container.
+
+**sprint `net-save-dll-1` — SaveDll():**
+1. Reconstruct source text: `string.Join("\n", Code.SourceLines.Select(l => l.Text))`
+2. Compute output path: `Path.ChangeExtension(FilesToCompile[0], ".dll")`
+3. Use `PersistedAssemblyBuilder` to define `Snobol4ThreadedDll` with the three literal fields
+4. Define stub `public int Run(Executive x)` method (RunDll detects sentinel and bypasses it)
+5. `pab.Save(FileStream)` to output path
+6. Wire: in `BuildMain()`, after `PopulateMainMetadata()`, if `BuildOptions.WriteDll`: call `SaveDll()`
+
+**sprint `net-save-dll-2` — RunDll() threaded detection:**
+1. Load DLL via tracked `AssemblyLoadContext`
+2. Detect `Snobol4ThreadedDll` sentinel type → threaded path
+3. Extract `__source__`, `__filename__`, `__options__` from literal fields
+4. Configure `Builder`: set `FilesToCompile[0]` to `__filename__`, apply `__options__`
+5. Feed source: `Code.ReadCodeInString(__source__, __filename__)`
+6. Run pipeline: `Lex()` → `Parse()` → `ResolveSlots()` → `EmitMsilForAllStatements()` → `tc.Compile()` → `CompileStarFunctions()` → `PopulateMainMetadata()` → `ComputeThreadIsMsilOnly()`
+7. `Execute.ExecuteLoop(0)`
+
+**sprint `net-save-dll-3` — Tests:**
+- `WriteDll_HelloWorld`: `-w` on `OUTPUT = 'hello world'` → DLL exists; RunDll → captures `hello world`
+- `WriteDll_Variables`: program using variables/arithmetic → DLL round-trip output matches direct run
+- `WriteDll_OutputMatchesDirect`: parametric test — compile+run vs save-dll+rundll → outputs identical
+
+**M-NET-SAVE-DLL fires when:** `net-save-dll-3` ✅ — all 3 tests pass, invariant ≥1805.
 
 ### net-load-spitbol Sprint — M-NET-LOAD-SPITBOL
 
@@ -296,6 +332,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-17 | **`net-build-prereqs` sprint added** — BUILDING.md, .gitignore audit, native lib build script, prebuilt fallback, CI prereq check; added to M-NET-POLISH sprint map and fire condition |
 | 2026-03-17 | **`net-load-dotnet` Steps 4–6 ✅** — Step 4: DllSharedContexts ref-count by path (5 tests); Step 5: Task/Task<T> blocking-await adapter, AsyncDoubler/Greeter/VoidWorker fixtures (4 tests); Step 6: IExternalLibrary fast-path explicit tests (2 tests); 1802/1803; HEAD `38d43b0` | session137 |
 | 2026-03-17 | **chore: Roslyn dead code removed** — CSharpCompile.cs + CodeGenerator.cs deleted; UseThreadedExecution removed; 3 CodeAnalysis NuGet deps stripped; 1802/1803; HEAD `c43580d` | session137 |
+| 2026-03-17 | **`net-save-dll` split into 3 sprints** — `net-save-dll-1` (SaveDll write), `net-save-dll-2` (RunDll threaded detection + re-compile), `net-save-dll-3` (tests); design: embed source text in PersistedAssemblyBuilder DLL with sentinel type `Snobol4ThreadedDll`; re-JIT MsilDelegates on load (DynamicMethod not serializable); previous session's partial work not committed — clean slate at c43580d | session138 |
 | 2026-03-17 | **PIVOT: `net-load-dotnet` → `net-save-dll`** — Steps 7+8 deferred (SnobolVar return coercions, F# DU coercion); `net-save-dll` promoted ahead per Lon; `M-NET-SAVE-DLL` milestone added | session137 |
 | 2026-03-17 | **`M-NET-SAVE-DLL` milestone created** — `-w` WriteDll confirmed no-op on threaded path (only in dead Roslyn CSharpCompile.cs); `RunDll()` kept — it's the read side, needs update in net-save-dll to handle threaded format | session137 |
 | 2026-03-17 | **SNOLIB env-var race fixed** — `[DoNotParallelize]` on LoadSpecTests; `GC.Collect()` after ALC unload in Unload.cs; HEAD `a47fb84`; 1777/1778 stable | parallel test runner set SNOLIB="" racing SnolibSearch_FindsLib |

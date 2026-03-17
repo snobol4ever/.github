@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | snobol4dotnet |
-| **Sprint** | `net-save-dll` — wire `-w` WriteDll into threaded path; persist compiled assembly to disk; update RunDll() for threaded format |
+| **Sprint** | `net-save-dll-1` — SaveDll(): embed source text in PersistedAssemblyBuilder DLL with sentinel type Snobol4ThreadedDll; wire into BuildMain() |
 | **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
 | **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
 | **HEAD DOTNET** | `c43580d` session137: chore: remove dead Roslyn path |
-| **HEAD HQ** | (this commit) session137 emergency handoff |
-| **Next action** | `net-save-dll` Step 1: after `tc.Compile()` in `BuildMain()`, if `WriteDll`, persist threaded assembly to `<sourcename>.dll`; update `RunDll()` to load threaded format |
+| **HEAD HQ** | (this commit) session138 |
+| **Next action** | `net-save-dll-1`: implement `SaveDll()` in `BuilderSaveDll.cs` partial; use `PersistedAssemblyBuilder` to write sentinel DLL; wire call in `BuildMain()` after `PopulateMainMetadata()` |
 | **Invariant** | `dotnet test` → 1802/1803 before any dotnet work |
 
 **Read the active L2 doc: [DOTNET.md](DOTNET.md)**
