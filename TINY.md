@@ -11,22 +11,46 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — Sprint A8: Named patterns flat labels
-**HEAD:** `20f81a5` session148
-**Milestone:** M-ASM-ASSIGN ✅ session148 → **M-ASM-NAMED** next → M-ASM-CROSSCHECK → M-ASM-BEAUTY
+**Sprint:** `asm-backend` — Sprint A9: full crosscheck 106/106 via ASM backend
+**HEAD:** `de085e1` session148
+**Milestone:** M-ASM-NAMED ✅ session148 → **M-ASM-CROSSCHECK** next → M-ASM-BEAUTY
 
-**M-ASM-ASSIGN fired session148:**
-- `assign_lit.s`: `POS(0) LIT("hello") $ CAP RPOS(0)` → `hello\n` PASS ✅
-- `assign_digits.s`: `SPAN("0123456789") $ NUM` unanchored on `"abc123def"` → `123\n` PASS ✅
-- `emit_byrd_asm.c`: `emit_asm_assign()` added; `E_DOL` + `E_NAM` wired in `emit_asm_node`
-- DOL Byrd box: α saves `entry_cursor`; child_γ → `rep movsb` into flat `.bss` cap_buf; no rollback (`$` forward-only, v311.sil ENMI)
-- 106/106 crosscheck invariant confirmed
+**M-ASM-NAMED fired session148:**
+- `ref_astar_bstar.s`: ASTAR=ARBNO("a"), BSTAR=ARBNO("b") on "aaabb" → `aaabb\n` PASS ✅
+- `anbn.s`: 4 sequential named-pattern call sites (2×A_BLOCK + 2×B_BLOCK) on "aabb" → `aabb\n` PASS ✅
+- `emit_byrd_asm.c`: `AsmNamedPat` registry + `asm_scan_named_patterns()` pre-pass + `emit_asm_named_ref()` call-site + `emit_asm_named_def()` body emitter; `E_VART` wired in `emit_asm_node`
+- Named pattern calling convention: Proebsting §4.5 gate — caller stores γ/ω absolute addresses into `pat_NAME_ret_gamma/omega` (.bss qwords), then `jmp pat_NAME_alpha/beta`; body ends `jmp [pat_NAME_ret_gamma/omega]`. No call stack.
+- 106/106 crosscheck invariant confirmed; end-to-end `.sno → sno2c -asm → nasm → ld → run` verified
 
-**Sprint A8 next action — Named patterns:**
-1. Write `artifacts/asm/ref_astar_bstar.s` hand oracle — named refs `A_STAR` + `B_STAR`
-2. Write `artifacts/asm/anbn.s` — `a^n b^n` via two named patterns
-3. Implement `asm_emit_named()` in `emit_byrd_asm.c`: flat labels + 2-way `jmp` dispatch
-4. Both oracles PASS → M-ASM-NAMED fires
+**⚠ CRITICAL NEXT ACTION — Sprint A9 (M-ASM-CROSSCHECK):**
+
+The crosscheck corpus (`crosscheck/patterns/038_pat_literal.sno` etc.) are full SNOBOL4 programs using `OUTPUT`, variables, `:S(YES)F(NO)` gotos — **not** standalone pattern tests. The ASM backend currently only handles pattern-match nodes; it cannot yet compile full SNOBOL4 statements.
+
+**Sprint A9 is therefore scoped differently than A0–A8:**
+
+The path to M-ASM-CROSSCHECK is NOT "run existing crosscheck suite via -asm" — those tests require the full runtime (OUTPUT, goto, variables). Instead:
+
+**Sprint A9 plan — ASM crosscheck harness:**
+1. Write `src/runtime/asm/snobol4_asm_harness.c` — thin C harness:
+   - Reads subject string from `argv[1]` (or stdin)
+   - Declares `extern` symbols: `cursor`, `subject_data`, `subject_len_val`, `match_success`, `match_fail`
+   - Provides `_start`-equivalent in C: initialises slots, calls `root_alpha` via function pointer or inline asm `jmp`
+   - On `match_success`: prints matched span `subject[0..cursor]` to stdout, exit 0
+   - On `match_fail`: exit 1
+2. Update emitter: body-only mode (no `_start`, no `match_success/fail`) — extern the cursor/subject symbols
+3. New crosscheck driver: for each `crosscheck/capture/*.sno` and `crosscheck/patterns/*.sno`, extract the pattern + subject, compile body-only `.s`, link with harness, run, diff
+4. First target: `038_pat_literal` via harness PASS → grow to 106/106
+
+**Key insight from corpus survey (session148):**
+- `crosscheck/patterns/` has `038_pat_literal.sno` through `047_pat_rtab.sno` — pure pattern tests
+- `crosscheck/capture/` has `058_capture_dot_immediate.sno` through `062_capture_replacement.sno`
+- These are the natural first targets for ASM crosscheck since they exercise only pattern nodes
+
+**Sprint A9 steps:**
+1. `snobol4_asm_harness.c` — subject from argv[1], `extern` ASM symbols, C `_start`
+2. `emit_byrd_asm.c` body-only mode: `-asm-body` flag, no `_start`/`match_success`/`match_fail`, emit `global root_alpha, root_beta` + `extern cursor, subject_data, subject_len_val`
+3. `test/crosscheck/run_crosscheck_asm.sh` — new driver extracting pattern+subject from `.sno`, compiling+linking with harness, diffing output
+4. `038_pat_literal` PASS → iterate to all patterns/ + capture/ rungs → M-ASM-CROSSCHECK
 
 **PIVOT (session144):** Abandoned `monitor-scaffold` / `bug7-bomb` in favor of x64 ASM backend.
 Rationale: C backend has a fundamental structural problem — named patterns require C functions
@@ -66,7 +90,7 @@ Prolog reader
 | **M-ASM-ARBNO** | ARBNO: arbno_match/empty/fail PASS | ✅ session147 | A5 |
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ✅ session147 | A6 |
 | **M-ASM-ASSIGN** | $ capture: assign_lit/digits PASS | ✅ session148 | A7 |
-| **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ❌ | A8 |
+| **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ✅ session148 | A8 |
 | **M-ASM-CROSSCHECK** | 106/106 crosscheck via ASM backend | ❌ | A9 |
 | **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM backend | ❌ | A10 |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | ❌ | final goal |
@@ -357,7 +381,7 @@ git add -A && git commit && git push
 
 | Sessions | What | Why |
 |----------|------|-----|
-| 148 | **M-ASM-ASSIGN fires.** `assign_lit.s`: POS(0) LIT("hello") $ CAP RPOS(0) → `hello\n` PASS. `assign_digits.s`: SPAN("0123456789") $ NUM unanchored on "abc123def" → `123\n` PASS. `emit_asm_assign()` added to emit_byrd_asm.c — DOL Byrd box: α saves entry_cursor; child_γ → rep movsb span into flat .bss cap_buf + cap_len; child_ω propagates no-assign ($ forward-only, v311.sil ENMI). E_DOL + E_NAM wired in emit_asm_node. Emitter output assembles clean; 106/106 invariant holds. HEAD 20f81a5. Next: Sprint A8 named patterns. | |
+| 148 | **M-ASM-ASSIGN + M-ASM-NAMED fire.** ASSIGN: assign_lit.s (LIT $ capture) + assign_digits.s (SPAN $ capture unanchored) PASS; emit_asm_assign() DOL Byrd box from v311.sil ENMI; E_DOL+E_NAM wired. NAMED: ref_astar_bstar.s (ASTAR=ARBNO("a"), BSTAR=ARBNO("b") on "aaabb") + anbn.s (4 sequential named-pattern call sites on "aabb") PASS; AsmNamedPat registry + asm_scan_named_patterns() pre-pass + emit_asm_named_ref() call-site + emit_asm_named_def() body emitter; E_VART wired; Proebsting §4.5 gate convention (pat_NAME_ret_gamma/omega .bss indirect-jmp, no call stack). End-to-end .sno→sno2c -asm→nasm→ld→run verified. 106/106 invariant holds. HEAD de085e1. Next: Sprint A9 — snobol4_asm_harness.c + body-only emitter + ASM crosscheck driver. | |
 | 147 | **M-ASM-ALT + M-ASM-ARBNO + M-ASM-CHARSET fire; emit_byrd_asm.c real emitter written.** ALT: alt_first/second/fail. ARBNO: arbno_match/empty/alt (cursor stack 64 slots, zero-advance guard, v311.sil ARBN/EARB). CHARSET: any_vowel/notany_consonant/span_digits/break_space — all PASS. emit_byrd_asm.c: real recursive LIT/SEQ/ALT/POS/RPOS/ARBNO emitter — generates correct NASM but needs harness to connect to crosscheck (subject currently hardcoded). Next: Sprint A7 — snobol4_asm_harness.c + body-only emitter + first crosscheck pass. HEAD a114bcf. | |
 | 147 | **M-ASM-ALT + M-ASM-ARBNO fire** — ALT: three oracles (alt_first/second/fail). ARBNO: three oracles (arbno_match "aaa", arbno_empty "aaa" vs 'x' → fail, arbno_alt "abba" vs ARBNO('a'\|'b')). ARBNO design: flat .bss cursor stack 64 slots + depth counter; α pushes+succeeds; β pops+tries one rep; zero-advance guard; rep_success pushes+re-succeeds. Proebsting §4.5 for ALT; v311.sil ARBN/EARB/ARBF for ARBNO. All PASS. Next: Sprint A6 (CHARSET). | |
 | 146 | **M-ASM-LIT fires** — `lit_hello.s` hand-written: α/β/γ/ω real NASM labels, cursor+saved_cursor flat .bss qwords, repe cmpsb compare. Assembles, links, runs → `hello\n` exit 0. Diff vs oracle CLEAN. `artifacts/asm/null.s` + `artifacts/asm/lit_hello.s` placed in artifacts/asm/. HQ updated. No push per Lon. Next: Sprint A2 (POS/RPOS). |
