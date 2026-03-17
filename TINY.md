@@ -333,6 +333,18 @@ gcc -O0 -g beauty_full.c \
 
 ## Session End
 
+⛔ **ARTIFACTS FIRST — before any HQ update:**
+```bash
+# 1. Archive any new .s files that fired a milestone:
+#    cp <generated>.s snobol4x/artifacts/asm/<name>.s
+#    Update artifacts/README.md with entry (status, milestone, assemble cmd, design notes)
+#    git add artifacts/ && git commit -m "sessionN: archive <sprint> oracle .s files"
+#
+# 2. Then update TINY.md HEAD, sprint status, next action
+# 3. Then update PLAN.md milestone dashboard
+# 4. Push all repos, .github last
+```
+
 ```bash
 # Artifact check — see IMPL-SNO2C.md §Artifact Snapshot Protocol
 # Update this file: HEAD, frontier table, next action, pivot log
