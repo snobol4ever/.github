@@ -9,12 +9,12 @@
 
 ## NOW
 
-**Sprint:** `net-load-spitbol` ✅ → `net-load-dotnet` ← active
-**HEAD:** `8bbd573`
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · **M-NET-LOAD-SPITBOL ✅** → M-NET-LOAD-DOTNET → M-NET-XN track
+**Sprint:** `net-load-dotnet` Steps 1–6 ✅ → **`net-save-dll`** ← active (PIVOT session137)
+**HEAD:** `c43580d`
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ → **M-NET-SAVE-DLL** → M-NET-LOAD-DOTNET → M-NET-XN track
 
-**Next action:** `net-load-dotnet` Step 4 — ref-count `ActiveContexts` by DLL path for multi-function support; `UNLOAD` decrements, unloads assembly at zero.
-**After net-load-dotnet:** `net-load-xn` (xn1st + xncbp + xnsave parity with SPITBOL x32), then `net-corpus-rungs` → M-NET-POLISH track.
+**Next action:** `net-save-dll` Step 1 — after `tc.Compile()` in `BuildMain()`, if `BuildOptions.WriteDll`, persist the in-memory threaded assembly to disk as `<sourcename>.dll`; update `RunDll()` to load threaded format.
+**After net-save-dll:** finish `net-load-dotnet` Steps 7+8 (SnobolVar return coercions + F# DU coercion), then `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -53,6 +53,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744 (12 
 | **M-NET-CORPUS-GAPS** | All 12 corpus [Ignore] tests pass — PROTOTYPE, FRETURN/NRETURN, VALUE, EVAL/OPSYN | ❌ Sprint `net-gap-prototype` active |
 | **M-NET-DELEGATES** | Instruction[] eliminated — pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
 | **M-NET-LOAD-SPITBOL** | ✅`21dceac` LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
+| **M-NET-SAVE-DLL** | `-w file.sno` produces `file.dll` (threaded assembly persisted to disk); `snobol4 file.dll` runs it; `RunDll()` updated for threaded format | ❌ Sprint `net-save-dll` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
@@ -293,7 +294,10 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-16 | `net-gap-value-indirect` ✅ — 1115+1116+210 pass; 1738/1744; HEAD `a99f1d3` | VALUE() builtin; DATA fields shadow builtins polymorphically; $.var SPITBOL-safe; BAL protected per is.sno discriminator |
 | 2026-03-17 | `net-gap-eval-opsyn` ✅ — 1743/1744; 5 [Ignore] removed (1010/1011/1016/1017/1018); Define.cs: argumentCount bug (locals→parameters), redefinition guard (user funcs allowed), string entry label arg, returnVarName from definition.FunctionName; Opsyn.cs: UserFunctionTable copy preserving original FunctionName for alias return var resolution; 1012 semicolons genuine parser gap left [Ignore] | session131 |
 | 2026-03-17 | **`net-build-prereqs` sprint added** — BUILDING.md, .gitignore audit, native lib build script, prebuilt fallback, CI prereq check; added to M-NET-POLISH sprint map and fire condition |
-| 2026-03-17 | **`net-load-dotnet` Steps 2+3 ✅** — auto-prototype via reflection (`LoadDotNetPath` reflection branch: single-method discovery + `::MethodName` explicit binding); `ReflectLibrary` test fixture (no IExternalLibrary); `DotNetReflectContexts` dict keyed by FNAME for UNLOAD; 14 new tests; 1791/1792; HEAD `8bbd573`; 0 warnings 0 errors (chore commit `1196692`) |
+| 2026-03-17 | **`net-load-dotnet` Steps 4–6 ✅** — Step 4: DllSharedContexts ref-count by path (5 tests); Step 5: Task/Task<T> blocking-await adapter, AsyncDoubler/Greeter/VoidWorker fixtures (4 tests); Step 6: IExternalLibrary fast-path explicit tests (2 tests); 1802/1803; HEAD `38d43b0` | session137 |
+| 2026-03-17 | **chore: Roslyn dead code removed** — CSharpCompile.cs + CodeGenerator.cs deleted; UseThreadedExecution removed; 3 CodeAnalysis NuGet deps stripped; 1802/1803; HEAD `c43580d` | session137 |
+| 2026-03-17 | **PIVOT: `net-load-dotnet` → `net-save-dll`** — Steps 7+8 deferred (SnobolVar return coercions, F# DU coercion); `net-save-dll` promoted ahead per Lon; `M-NET-SAVE-DLL` milestone added | session137 |
+| 2026-03-17 | **`M-NET-SAVE-DLL` milestone created** — `-w` WriteDll confirmed no-op on threaded path (only in dead Roslyn CSharpCompile.cs); `RunDll()` kept — it's the read side, needs update in net-save-dll to handle threaded format | session137 |
 | 2026-03-17 | **SNOLIB env-var race fixed** — `[DoNotParallelize]` on LoadSpecTests; `GC.Collect()` after ALC unload in Unload.cs; HEAD `a47fb84`; 1777/1778 stable | parallel test runner set SNOLIB="" racing SnolibSearch_FindsLib |
 | 2026-03-17 | **`net-load-xn` sprint created** — SPITBOL x32 parity gaps: `xn1st` first-call flag (thread-local + libsnobol4_rt shim), `xncbp` shutdown callback (ProcessExit hook), `xnsave` double-fire guard; M-NET-XN milestone added; inserted before `net-corpus-rungs` in M-NET-POLISH track | analysis of spitbol/x32 osint/syslinux.c |
 | 2026-03-16 | **M-NET-LOAD-SPITBOL** created — existing LOAD/UNLOAD uses .NET-native IExternalLibrary API; SPITBOL spec requires prototype string s1 `'FNAME(T1..Tn)Tr'`, filename s2, UNLOAD(fname) by function name; 5 spec gaps + .NET extensions layer defined; sprint `net-load-spitbol` added to M-NET-POLISH | spec read from Macro SPITBOL Manual v3.7 Appendix F + Ch19 |

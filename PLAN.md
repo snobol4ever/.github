@@ -11,14 +11,14 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | snobol4dotnet |
-| **Sprint** | `net-load-dotnet` — .NET extension layer: auto-prototype via reflection, multi-function, IExternalLibrary fast path, async, any IL language |
+| **Sprint** | `net-save-dll` — wire `-w` WriteDll into threaded path; persist compiled assembly to disk; update RunDll() for threaded format |
 | **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
 | **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
-| **HEAD DOTNET** | `d109967` session136: license stomp reverted — MIT restored; code HEAD is `8bbd573` |
-| **HEAD HQ** | (this commit) session136 emergency handoff |
-| **Next action** | `net-load-dotnet` Step 4: ref-count `ActiveContexts` by DLL path; UNLOAD decrements, unloads at zero |
-| **Invariant** | `dotnet test` → 1791/1792 before any dotnet work |
+| **HEAD DOTNET** | `c43580d` session137: chore: remove dead Roslyn path |
+| **HEAD HQ** | (this commit) session137 emergency handoff |
+| **Next action** | `net-save-dll` Step 1: after `tc.Compile()` in `BuildMain()`, if `WriteDll`, persist threaded assembly to `<sourcename>.dll`; update `RunDll()` to load threaded format |
+| **Invariant** | `dotnet test` → 1802/1803 before any dotnet work |
 
 **Read the active L2 doc: [DOTNET.md](DOTNET.md)**
 
@@ -96,6 +96,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-NET-CORPUS-GAPS** | 12 corpus [Ignore] tests pass — PROTOTYPE/FRETURN/VALUE/EVAL | ✅ `e21e944` session131 — 11/12; 1012 semicolons separate gap |
 | M-NET-DELEGATES | Instruction[] → pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
 | **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 | ✅ `21dceac` |
+| **M-NET-SAVE-DLL** | `-w file.sno` → `file.dll` (threaded assembly); `snobol4 file.dll` runs it; RunDll() updated | ❌ Sprint `net-save-dll` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, async/cancellation, IExternalLibrary fast path, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
