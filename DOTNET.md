@@ -13,10 +13,18 @@
 **HEAD:** `d0ffaa2` (net-corpus-rungs: SPITBOL oracle — DATATYPE lowercase, UCASE/LCASE 26 ASCII, @N direct write; 105/106 crosscheck; 1873/1876)
 **Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ · M-NET-EXT-NOCONV ✅ · M-NET-EXT-XNBLK ✅ · M-NET-EXT-CREATE ✅ · **M-NET-XN ✅** → **`net-corpus-rungs`** ← active
 
-**Next action:** Fix `@N` first-position bug — `S ? @P 'N'` gives P=0 instead of P=1; mid-pattern `@` works correctly (verified Q=2 for `'SN' @Q 'OB'`); first-node `@` fires at cursor=0 on first attempt, assigns 0, but cursor=1 retry does not overwrite — investigate Scanner outer loop vs AST cache; once fixed → 106/106 crosscheck → M-NET-CORPUS-RUNGS fires → M-NET-POLISH track.
+**Next action:** Fix `@N` AST cache poisoning — root cause isolated session150: `Pattern.StartNode` (mutable cached field on Pattern object) overwritten between NEXTH loop iterations; 2nd `PatternMatch` call for same pattern resolves `_ast.StartNode` to `any` node, skipping `@` entirely; fix: guard write-back in `BuildFromPattern`: `if (rootPattern.StartNode == null) { rootPattern.Ast = _nodes; rootPattern.StartNode = _startNode; }` — prevents second Build from overwriting with wrong start node. SPITBOL confirmed 0-based cursor: `S?@P'N'`→P=1 (cursor=0 fails, p_una bumps to 1, cursor=1 fires `@` → P=1 succeeds). `cross.ref` is correct SPITBOL output. Once fixed → 106/106 crosscheck → M-NET-CORPUS-RUNGS fires → M-NET-POLISH track.
 **Sprint order after net-vb-fixture:** `net-ext-noconv` → `net-ext-xnblk` → `net-ext-create` → `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
 
 **SPITBOL oracle rule (established session149):** When CSNOBOL4 and SPITBOL MINIMAL diverge, SPITBOL MINIMAL wins. Reference: sbl.min in snobol4ever/spitbol-x64 (uploaded this session).
+
+**net-corpus-rungs session150 progress:**
+- Confirmed SPITBOL `@N` is 0-based cursor: `sbl` (x64-main.zip) gives `S?@P'N'`→P=1, `'SN'@Q'OB'`→Q=2
+- `p_cas` in sbl.asm: `mti wb` (raw cursor register); cursor starts 0; `p_una` increments before each retry → first successful `@` always ≥1
+- Debug trace: AtSign.Scan fires only once (cursor=0); 2nd PatternMatch call on same pattern starts at `any` — Pattern.StartNode cache poisoned between loop iterations
+- `Pattern.StartNode`/`Pattern.Ast` are mutable fields written by `BuildFromPattern`; second Build call overwrites with wrong node
+- Fix: guard write-back with null-check so cache is set once and never overwritten
+- Invariant: 1870/1876 0 failed (6 skipped — unchanged from session149)
 
 **net-corpus-rungs session149 progress:**
 - Crosscheck harness `run_crosscheck_dotnet.sh`: feeds `.input` files via stdin, captures stderr (program output), diffs vs `.ref`
@@ -450,6 +458,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 ---
 
 ## Pivot Log
+| 2026-03-17 | **net-corpus-rungs session150** — @N root cause isolated: Pattern.StartNode cache poisoned; BuildFromPattern writes StartNode back to Pattern object; 2nd PatternMatch call on same pattern (NEXTH loop) rebuilds AST, StartNode overwritten with wrong node; AtSign.Scan skipped on cursor≥1 retries; fix: null-guard write-back; SPITBOL oracle confirmed 0-based via sbl binary (x64-main.zip); invariant 1870/1876 0 failed | session150 |
 | 2026-03-17 | **net-corpus-rungs session149** — SPITBOL oracle established: DATATYPE builtins lowercase (scint/scstr/screa all dtc lowercase in sbl.min); user DATA types ToLowerInvariant (flstg at sdat1); &UCASE/&LCASE = exactly 26 ASCII letters (dac 26 in sbl.min); @N rewired to write directly to IdentifierTable (Assign() corrupts SystemStack inside scanner); 5 test assertions updated; corpus 081.ref updated; crosscheck harness feeds .input via stdin; 105/106 rungs pass; cross (@N first-position) open; invariant 1873/1876 0 failed | session149 |
 | 2026-03-17 | **M-NET-PERF milestone created** — `net-perf-analysis` sprint: BenchmarkDotNet scaffold, dotnet-trace profile, hot-path candidates (Convert, FunctionTable lookup, SystemStack pressure, pattern inner loop), ≥1 hotfix required, regression gate 1873/1876; inserted before net-benchmark-publish in M-NET-POLISH track | session148 |
 | 2026-03-17 | **M-NET-XN ✅ fires** — session148: two-pointer snobol4_rt_register(get_ctx, set_cb); RtSetCallback stores CallbackPtr in NativeEntry; FireNativeCallback/FireAllNativeCallbacks; ProcessExit hook; UNLOAD fires callback before NativeLibrary.Free; snobol4_register_callback() in libsnobol4_rt.so; xn_register_callback/xn_callback_count/xn_reset_callback_count in libspitbol_xn.so; 4 tests (xn1st, unload, process-exit, double-fire-guard); invariant 1873/1876 0 failed; pivot to net-corpus-rungs |

@@ -6591,3 +6591,41 @@ Implements LIT/SEQ/ALT/POS/RPOS/ARBNO node dispatch. Generates correct NASM Byrd
 - Invariant: 1873/1876, 0 failed ✅
 
 **Next session start:** Read PLAN.md + RULES.md + DOTNET.md. Run invariant. Fix @N first-position bug in `CursorAssignmentPattern.cs` — add debug trace or step through Scanner outer loop to see why cursor=1 retry's write doesn't persist. Then rerun crosscheck → 106/106 → M-NET-CORPUS-RUNGS fires → update PLAN.md milestone dashboard → move to M-NET-POLISH track.
+
+---
+
+## Session 150 — 2026-03-17 — DOTNET @N root cause
+
+**Repo:** snobol4dotnet · **Sprint:** net-corpus-rungs · **HEAD:** d0ffaa2 (unchanged — no fix landed)
+
+**Goal:** Fix @N first-position bug (105/106 crosscheck, `cross` failing).
+
+**What we did:**
+- Cloned snobol4dotnet, snobol4corpus, snobol4harness; set git identity; installed .NET 10 SDK
+- Confirmed invariant: 1870/1876, 0 failed
+- Ran `cross.sno` via snobol4dotnet binary: output has no indentation (NH=0 always)
+- Confirmed SPITBOL oracle via x64-main.zip `sbl` binary: `S?@P'N'`→P=1, `'SN'@Q'OB'`→Q=2
+- Read `p_cas` in sbl.asm: cursor register `wb` is 0-based; `p_una` increments before each unanchored retry; first successful `@` always ≥1
+- Confirmed .ref is correct SPITBOL output (not CSNOBOL4)
+- Added debug trace to AtSign.Scan: fires only ONCE at cursor=0; never fires for cursor=1
+- Added debug trace to Scanner outer loop: `PatternMatch` called twice per `?` statement; 2nd call has `startNode=any` instead of `@`
+- Root cause: `Pattern.StartNode` is a mutable field written by `AbstractSyntaxTree.BuildFromPattern` (`rootPattern.StartNode = _startNode`); 2nd PatternMatch call (2nd NEXTH loop iteration) triggers `Build` again; cache path reads stale/wrong `rootPattern.StartNode`; `@` node skipped; cursor=0 write P=0 is the only write that sticks
+- Debug traces removed; invariant still 1870/1876 clean
+
+**Root cause (precise):** `BuildFromPattern` writes `rootPattern.StartNode = _startNode` unconditionally. Between NEXTH iterations, a 2nd Build on the same Pattern object (or a shared sub-Pattern) overwrites `StartNode` to a non-start node. `AtSign.Scan` is never reached on cursor≥1 retries.
+
+**Fix for next session:**
+```csharp
+// In AbstractSyntaxTree.BuildFromPattern, change:
+rootPattern.Ast = _nodes;
+rootPattern.StartNode = _startNode;
+// To:
+if (rootPattern.StartNode == null)
+{
+    rootPattern.Ast = _nodes;
+    rootPattern.StartNode = _startNode;
+}
+```
+This prevents any subsequent Build from overwriting the correct cached start node.
+
+**After fix:** rebuild → run `cross.sno` → verify output matches .ref → run invariant → run crosscheck → 106/106 → M-NET-CORPUS-RUNGS fires → update PLAN.md dashboard → pivot to M-NET-POLISH track.
