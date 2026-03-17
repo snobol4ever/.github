@@ -6269,3 +6269,52 @@ See Session 134 for full next-session start instructions.
 2. Confirm HEAD dotnet: `8bbd573` (the actual code HEAD, before the license commit/revert noise)
 3. Run invariant: `dotnet test` → confirm 1791/1792
 4. Resume `net-load-dotnet` Step 4
+
+## Session 137 — 2026-03-17 — Rename Phase 1 + Emergency Handoff
+
+**No code work.** Naming decisions finalized, Phase 1 MD sweep complete.
+
+### Work done
+
+**Naming decisions locked:**
+- `SNOBOL4-tiny` → `snobol4x` (native kernel — fast, cross-platform, no ceiling)
+- `SNOBOL4-cpython` → `snobol4artifact` (confirmed)
+- All other repos: drop dash, lowercase (e.g. `SNOBOL4-jvm` → `snobol4jvm`)
+- Org: `SNOBOL4-plus` → `snobol4ever`
+
+**RENAME.md updated** (`ad8b7c0`) — all mappings reflect final decisions, open items resolved.
+
+**Phase 1 complete** (`ea8ac6d`) — 24 MD files swept in `.github`:
+- All `SNOBOL4-plus` → `snobol4ever`
+- All `SNOBOL4-tiny` → `snobol4x`
+- All `SNOBOL4-jvm` → `snobol4jvm`
+- All `SNOBOL4-dotnet` → `snobol4dotnet`
+- All `SNOBOL4-python` → `snobol4python`
+- All `SNOBOL4-csharp` → `snobol4csharp`
+- All `SNOBOL4-cpython` → `snobol4artifact`
+- All `SNOBOL4-corpus` → `snobol4corpus`
+- All `SNOBOL4-harness` → `snobol4harness`
+- SESSIONS_ARCHIVE.md: header note prepended only (no find/replace)
+- RENAME.md: not swept (is the mapping table itself)
+
+**profile/README.md license line** fixed earlier this session (`3ef72d5`).
+
+### HEADs at end of session
+- `.github`: `ea8ac6d`
+- All other repos: unchanged from session 136
+
+### Rename phases remaining
+- **Phase 2** — already done (commit above is the Phase 2 commit)
+- **Phase 3** — Lon renames GitHub org `SNOBOL4-plus` → `snobol4ever` in GitHub Settings
+- **Phase 4** — Lon renames each repo in GitHub Settings (9 renames per table in RENAME.md)
+- **Phase 5** — Update all local git remotes (Lon + Jeffrey, on every machine)
+- **Phase 6** — Push `.github` with new remote URL
+- **Phase 7** — Sweep source files in each individual repo (README, build files, comments)
+- **Phase 8** — Verify
+
+### Next session start
+1. Read RULES.md → PLAN.md → RENAME.md
+2. Confirm Phase 3+4 done by Lon (org + repo renames on GitHub)
+3. If done: update remotes, push, then sweep individual repos (Phase 7)
+4. If not done: wait — do not sweep individual repos until GitHub renames are complete
+5. Active code sprint unchanged: `net-load-dotnet` Step 4 in snobol4dotnet
