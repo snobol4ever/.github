@@ -6153,3 +6153,57 @@ User functions registered with wrong arg count. Fixed.
 6. DOTNET crosscheck runner does not yet exist — needs to be created in `test/crosscheck/run_crosscheck.sh` using `dotnet run` or the compiled binary
 7. Corpus crosscheck runner is at `SNOBOL4-corpus/crosscheck/run_all.sh` (TINY-specific); use it as reference for DOTNET adapter
 8. Existing corpus C# test suite: 136/137 pass (1 skip) — these cover rungs 2–11 via injected methods; the crosscheck adapter is a separate shell-level test for portability and CSNOBOL4 oracle diff
+
+## Session 134 — 2026-03-17 — SNOBOL4-dotnet — EMERGENCY HANDOFF
+
+**Repos touched:** SNOBOL4-dotnet, .github
+**HEAD DOTNET start:** `baeaa52` (M-NET-DELEGATES ✅)
+**HEAD DOTNET end:** `21dceac` (M-NET-LOAD-SPITBOL ✅) — pushed
+**HEAD HQ end:** `1fe65ec` — pushed
+**Tests:** 1750/1751 → 1777/1778 (+27)
+
+### Work done
+
+**Pivot: `net-corpus-rungs` → `net-load-spitbol`** (Lon directive)
+
+**`net-load-spitbol` ✅ COMPLETE — all 6 steps:**
+
+1. `ParsePrototype(s1)` — parses `'FNAME(T1..Tn)Tr'`; errors 139 (missing `(`), 140 (empty fname), 141 (missing `)`)
+2. `LoadExternalFunction()` dispatcher — `s1` contains `(` → spec path; path-like → existing `.NET-native` path
+3. `LoadSpecPath()` — `NativeLibrary.Load`, SNOLIB env-var search with platform-native extension probing (`.so`/`.dll`/`.dylib`), idempotent load, `NativeContexts` keyed by folded FNAME
+4. `CallNativeFunction()` — unsafe `delegate*` dispatch table: 81 cases covering all `retSig(I/R/S) × argSig(I/R/S) × arity(0-3)` combinations; arg coercion per ArgTypes; `Marshal.FreeHGlobal` cleanup. **Bug found+fixed:** `PredicateSuccess()` was pushing an extra `StringVar(true)` after the result, corrupting the stack and causing error 212 in assignment. Fix: `Failure = false` only.
+5. `UnloadExternalFunction()` — UNLOAD(fname) natural-variable-name check → error 201 before lookup; `NativeLibrary.Free`; removes from `NativeContexts` + `FunctionTable`; falls through to `.NET-native` path-based UNLOAD for backward compat
+6. SNOLIB search — `SnolibSearch()` + `ResolveLibraryPath()` with platform-native extension probing
+
+**Test library:** `CustomFunction/SpitbolCLib/spitbol_math.c` → `libspitbol_math.so`
+- exports: `spl_add(II)I`, `spl_scale(RR)R`, `spl_negate(R)R`, `spl_strlen(S)I`, `spl_reverse`
+
+**`LoadSpecTests.cs` — 27 new tests:**
+- A: Prototype parser unit tests (errors 139/140/141, all type combos)
+- B: Dispatcher routing (prototype-string vs path-like)
+- C: Spec path lifecycle (load, fail, idempotent)
+- D: UNLOAD(fname) (success, idempotent, reload)
+- E: SNOLIB search (finds lib, fails empty)
+- F: Error 201 on non-natural-var name
+- G: 3 regression tests (.NET-native Area/Math/FSharp unaffected)
+- H: Native call marshal (INTEGER/REAL return × arity, arg coercion)
+
+**Note: SNOBOL object lifecycle (ARRAY/TABLE/DATA create/read/write/destroy) via IExternalLibrary** — belongs in `net-load-dotnet` Step 7, not `net-load-spitbol`. Recorded in DOTNET.md Step 7 description and pivot log.
+
+**`AllowUnsafeBlocks` enabled** in `Snobol4.Common.csproj` (needed for `delegate*` function pointers).
+
+### Files changed (DOTNET)
+- `Snobol4.Common/Runtime/Functions/FunctionControl/Load.cs` — full rewrite: prototype parser, dispatcher, spec path, `InvokeNative` dispatch table, SNOLIB search, `.NET-native` path preserved
+- `Snobol4.Common/Runtime/Functions/FunctionControl/Unload.cs` — UNLOAD(fname) spec path + natural-var check + `.NET-native` fallthrough
+- `Snobol4.Common/Snobol4.Common.csproj` — `AllowUnsafeBlocks=true`
+- `CustomFunction/SpitbolCLib/spitbol_math.c` + `libspitbol_math.so` — C test library
+- `TestSnobol4/Function/FunctionControl/LoadSpecTests.cs` — 27 new tests
+
+### Next session start
+1. Read RULES.md → PLAN.md → DOTNET.md
+2. Confirm HEAD: `21dceac` · Invariant: `dotnet test` → 1777/1778
+3. Install .NET 10: `bash /home/claude/SNOBOL4-dotnet/dotnet-install.sh --channel 10.0 --install-dir /home/claude/.dotnet && export PATH=$PATH:/home/claude/.dotnet`
+4. Active sprint: `net-load-dotnet`
+5. Step 1: s1 dispatcher already routes path-like to `LoadDotNetPath` — verify routing, then Step 2: auto-prototype via reflection (`ClassName` → discover methods → `FunctionTableEntry`)
+6. Existing 27 `.NET-native` tests (Area/Math/FSharp) MUST stay green throughout
+7. SNOBOL object lifecycle tests (ARRAY/TABLE/DATA) → Step 7 acceptance tests
