@@ -10,10 +10,10 @@
 ## NOW
 
 **Sprint:** `net-delegates` ← active
-**HEAD:** `dc5d132`
+**HEAD:** `118e41b`
 **Milestone:** M-NET-CORPUS-GAPS ✅ · `net-alphabet` ✅ → M-NET-DELEGATES track
 
-**Next action:** `net-delegates` Step 14 — migrate `Instruction[]` dispatch → `Func<Executive,int>[]` in `ThreadedCodeCompiler.cs` / `ThreadedExecuteLoop.cs`.
+**Next action:** `net-delegates` Step 16 — audit remaining `ThreadIsMsilOnly=false` programs (angle-bracket gotos, CODE/EVAL); decide elimination strategy or declare M-NET-DELEGATES met.
 **After net-delegates:** `net-corpus-rungs` → M-NET-POLISH track.
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
@@ -160,6 +160,8 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-16 | `net-gap-freturn` ✅ — 1013+1014 pass; 1735/1744; HEAD `2fd79cd` | Bug 1: FunctionPrototypePattern [^)]+→[^)]* (empty param list); Bug 2: Assign() NameVar.Pointer dereference for lvalue |
 | 2026-03-16 | `net-gap-value-indirect` ✅ — 1115+1116+210 pass; 1738/1744; HEAD `a99f1d3` | VALUE() builtin; DATA fields shadow builtins polymorphically; $.var SPITBOL-safe; BAL protected per is.sno discriminator |
 | 2026-03-17 | `net-gap-eval-opsyn` ✅ — 1743/1744; 5 [Ignore] removed (1010/1011/1016/1017/1018); Define.cs: argumentCount bug (locals→parameters), redefinition guard (user funcs allowed), string entry label arg, returnVarName from definition.FunctionName; Opsyn.cs: UserFunctionTable copy preserving original FunctionName for alias return var resolution; 1012 semicolons genuine parser gap left [Ignore] | session131 |
+| 2026-03-16 | `net-delegates` Step 14 ✅ — re-enabled MSIL fast path (removed `false &&` from ThreadedExecuteLoop.cs); Step12 MsilOnly tests confirm path taken; HEAD `89a2855` | diagnostic disable no longer needed |
+| 2026-03-16 | `net-delegates` Step 15 ✅ — `R_PAREN_FUNCTION` stack guard (Pop crash fix); Step15 MsilOnly coverage tests (arith_loop, pattern_match, TABLE stack safety); 1746/1747; HEAD `118e41b` | defensive fix for mismatched function token pairs |
 | 2026-03-16 | `net-alphabet` ✅ — `&ALPHABET` SIZE 255→256; `Range(0,256)`; tests 006/097/Alphabet_001 tightened to `AreEqual(256)`; 1743/1744; HEAD `dc5d132` | both oracles agree SIZE==256 |
 | 2026-03-17 | M-NET-CORPUS-GAPS ✅ fired (11/12 [Ignore] removed; 1743/1744); pivot to `net-alphabet` then `net-delegates` | session131 |
 | 2026-03-16 | `net-gap-value-indirect` now active | next corpus-gap sprint |

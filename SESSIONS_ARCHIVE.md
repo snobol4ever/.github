@@ -6066,3 +6066,32 @@ User functions registered with wrong arg count. Fixed.
 4. Active sprint: `net-delegates` Step 14 — migrate `Instruction[]` → `Func<Executive,int>[]`
 5. Read `ThreadedCodeCompiler.cs` + `ThreadedExecuteLoop.cs` to locate Step 14 entry point
 6. .NET 10 SDK: `bash /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/local/dotnet10 && export PATH=/usr/local/dotnet10:$PATH`
+
+---
+
+## Session 132 continued — 2026-03-16
+
+**Repo:** SNOBOL4-dotnet
+**Sprint:** `net-delegates` Steps 14 → 15
+**HEAD at end:** `118e41b` DOTNET
+
+### What happened
+
+- Confirmed both dc5d132 (net-alphabet) and 89a2855 (Step14) were on origin after fetch.
+- **Step 14 ✅ `89a2855`** — re-enabled MSIL fast path by removing `false &&` from `ThreadedExecuteLoop.cs` line 50. `ThreadIsMsilOnly` Step12 tests (3/3) confirm fast path is genuinely taken. 1743/1744 holds.
+- Ran BenchmarkSuite2 quick run — absolute timings slower than DOTNET.md Phase 10 numbers (different machine); fast path is live and correct regardless.
+- **Diagnostic crash found** — `Stack empty` in `EmitSingleToken` at `R_PAREN_FUNCTION` Pop. Occurred when a program with `TABLE()` / `DEFINE()` was compiled. Root cause: defensive guard missing on `pendingFunctionNames.Pop()`.
+- **Step 15 ✅ `118e41b`** — added `if (pendingFunctionNames.Count == 0) return false;` guard before Pop in `R_PAREN_FUNCTION` case. Added 3 Step15 test methods: `Step15_RParen_StackGuard_NoExceptionOnMismatch`, `Step15_MsilOnly_ArithLoop`, `Step15_MsilOnly_PatternMatch`. Score: 1746/1747.
+- Updated DOTNET.md, PLAN.md, SESSIONS_ARCHIVE. Pushed HQ.
+
+### Files changed (DOTNET)
+- `Snobol4.Common/Builder/BuilderEmitMsil.cs` — `R_PAREN_FUNCTION`: stack-empty guard
+- `TestSnobol4/MsilEmitterTests.cs` — Step15 tests (3 methods)
+
+### Next session start
+1. Read RULES.md, PLAN.md, DOTNET.md
+2. Confirm HEAD: `118e41b` · Invariant: `dotnet test` → 1746/1747
+3. Install .NET 10: `bash /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/local/dotnet10 && export PATH=/usr/local/dotnet10:$PATH`
+4. Sprint: `net-delegates` Step 16
+5. Step 16 goal: audit which corpus/benchmark programs still have `ThreadIsMsilOnly=false`; identify which opcodes remain in thread (angle-bracket gotos most likely); decide whether to cover them in MSIL emitter or declare M-NET-DELEGATES met with current coverage
+6. M-NET-DELEGATES trigger: "Instruction[] eliminated — pure Func<Executive,int>[] dispatch" — assess if this means 100% programs or the hot-path programs only

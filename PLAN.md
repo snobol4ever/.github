@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-delegates` — migrate `Instruction[]` → `Func<Executive,int>[]` dispatch (Step 14) |
+| **Sprint** | `net-delegates` — Step 16 next: audit `ThreadIsMsilOnly=false` programs |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD DOTNET** | `dc5d132` net-alphabet ✅: 1743/1744; &ALPHABET SIZE 256 |
-| **HEAD HQ** | (this commit) session132: net-alphabet ✅; net-delegates active |
-| **Next action** | `net-delegates` Step 14: migrate `Instruction[]` → `Func<Executive,int>[]` in ThreadedCodeCompiler/ThreadedExecuteLoop |
+| **HEAD DOTNET** | `118e41b` net-delegates Steps 14–15 ✅: 1746/1747 |
+| **HEAD HQ** | (this commit) session132 continued: Steps 14–15 ✅; Step 16 next |
+| **Next action** | `net-delegates` Step 16: audit `ThreadIsMsilOnly=false` programs; decide elimination or declare M-NET-DELEGATES |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [JVM.md](JVM.md)**
