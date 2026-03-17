@@ -11,16 +11,16 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-corpus-rungs` — run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures |
+| **Sprint** | `net-load-spitbol` — LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD DOTNET** | `baeaa52` net-delegates Step16 ✅: 1750/1751; M-NET-DELEGATES ✅ |
-| **HEAD HQ** | (this commit) M-NET-DELEGATES ✅; pivot to net-corpus-rungs |
-| **Next action** | `net-corpus-rungs`: run crosscheck harness against DOTNET, fix all failures toward M-NET-POLISH |
+| **HEAD DOTNET** | `21dceac` net-load-spitbol ✅: 1777/1778; M-NET-LOAD-SPITBOL ✅ |
+| **HEAD HQ** | (this commit) M-NET-LOAD-SPITBOL ✅; pivot to net-load-dotnet |
+| **Next action** | `net-load-dotnet` Step 1: s1 form dispatcher routes path-like s1 to .NET extension layer |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
-**Read the active L2 doc: [JVM.md](JVM.md)**
+**Read the active L2 doc: [DOTNET.md](DOTNET.md)**
 
 ---
 
@@ -95,7 +95,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 |----|---------|--------|
 | **M-NET-CORPUS-GAPS** | 12 corpus [Ignore] tests pass — PROTOTYPE/FRETURN/VALUE/EVAL | ✅ `e21e944` session131 — 11/12; 1012 semicolons separate gap |
 | M-NET-DELEGATES | Instruction[] → pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
-| **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 | ❌ Sprint `net-load-spitbol` |
+| **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 | ✅ `21dceac` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, async/cancellation, IExternalLibrary fast path, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | **M-NET-POLISH** | 106/106 corpus rungs pass, diag1 35/35, benchmark grid published | ❌ see DOTNET.md |

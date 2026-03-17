@@ -9,12 +9,12 @@
 
 ## NOW
 
-**Sprint:** `net-corpus-rungs` ← next
-**HEAD:** `baeaa52`
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · **M-NET-DELEGATES ✅** → M-NET-POLISH track
+**Sprint:** `net-load-spitbol` ✅ → `net-load-dotnet` ← next
+**HEAD:** `21dceac`
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · **M-NET-LOAD-SPITBOL ✅** → M-NET-LOAD-DOTNET track
 
-**Next action:** `net-corpus-rungs` — run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures.
-**After net-corpus-rungs:** `net-diag1` → M-NET-POLISH track.
+**Next action:** `net-load-dotnet` Step 1 — s1 form dispatcher routes path-like s1 to .NET extension layer.
+**After net-load-dotnet:** resume `net-corpus-rungs` → M-NET-POLISH track.
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -52,7 +52,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744 (12 
 |----|---------|--------|
 | **M-NET-CORPUS-GAPS** | All 12 corpus [Ignore] tests pass — PROTOTYPE, FRETURN/NRETURN, VALUE, EVAL/OPSYN | ❌ Sprint `net-gap-prototype` active |
 | **M-NET-DELEGATES** | Instruction[] eliminated — pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
-| **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
+| **M-NET-LOAD-SPITBOL** | ✅`21dceac` LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
 | M-NET-BOOTSTRAP | snobol4-dotnet compiles itself | ❌ |
@@ -206,7 +206,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | **Cancellation** | `UNLOAD` on a running async function | Issues `CancellationToken` to the function; function is responsible for honoring it. |
 | **Any IL language** | F#, VB.NET, C++/CLI, any .NET language | Any assembly whose entry point satisfies the agreed signature is loadable. F# `option<T>` and discriminated unions coerced to SNOBOL4 types (None → fail, Some → value). |
 | **Static methods** | `LOAD('Assembly.dll', 'Namespace.Class::StaticMethod')` | No instance created; `PluginLoadContext` still handles isolation and unload. |
-| **Native DOTNET return types** | Method returns `SnobolVar`, `Pattern`, `Table`, `Array` | Direct return of internal DOTNET types — zero-copy, no coercion overhead. |
+| **Native DOTNET return types** | Method returns `SnobolVar`, `Pattern`, `Table`, `Array` | Direct return of internal DOTNET types — zero-copy, no coercion overhead. IExternalLibrary fast path (Step 6) gives full Executive access; functions can create, read, write, and destroy ARRAY/TABLE/DATA objects directly via ArrayVar/TableVar/ProgramDefinedDataVar. Comprehensive object-lifecycle tests (MakeArray/ArraySet/ArrayGet/ArraySum/ArrayClear, MakeTable/TablePut/TableGet/TableKeys/TableWipe, MakePoint/PointX/PointY/PointMove/PointReset) belong here as Step 7 acceptance tests. |
 | **SNOLIB .NET search** | `SNOLIB` env var also searched for `.dll` assemblies | Consistent search semantics across C-ABI and .NET libraries. |
 
 #### Sprint steps
@@ -252,6 +252,9 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-17 | `net-gap-eval-opsyn` ✅ — 1743/1744; 5 [Ignore] removed (1010/1011/1016/1017/1018); Define.cs: argumentCount bug (locals→parameters), redefinition guard (user funcs allowed), string entry label arg, returnVarName from definition.FunctionName; Opsyn.cs: UserFunctionTable copy preserving original FunctionName for alias return var resolution; 1012 semicolons genuine parser gap left [Ignore] | session131 |
 | 2026-03-16 | **M-NET-LOAD-SPITBOL** created — existing LOAD/UNLOAD uses .NET-native IExternalLibrary API; SPITBOL spec requires prototype string s1 `'FNAME(T1..Tn)Tr'`, filename s2, UNLOAD(fname) by function name; 5 spec gaps + .NET extensions layer defined; sprint `net-load-spitbol` added to M-NET-POLISH | spec read from Macro SPITBOL Manual v3.7 Appendix F + Ch19 |
 | 2026-03-16 | `net-delegates` Step 16 ✅ — absorb angle-bracket gotos into delegates; EmitMixedConditionalGotoIL for mixed :S<VAR>F(LABEL) cases; fix savedFailure init before skip branch; 1750/1751; HEAD `baeaa52` | audit showed GotoIndirectCode was intentionally left in thread — wired existing indirectGotoExpr path to absorb all cases |
+| 2026-03-17 | **`net-load-spitbol` ✅** — ParsePrototype (errors 139-141); dispatcher; NativeLibrary.Load + SNOLIB search; InvokeNative unsafe dispatch table (retSig×argSig×arity 0-3); UNLOAD(fname) natural-var check; 27 tests; 1777/1778; HEAD `21dceac` | Bug: PredicateSuccess() pushed extra StringVar causing error 212 in assignment; fixed: push result + Failure=false only |
+| 2026-03-17 | SNOBOL object lifecycle tests (ARRAY/TABLE/DATA create/read/write/destroy via IExternalLibrary) assigned to `net-load-dotnet` Step 7 — not `net-load-spitbol`; native C-ABI returns scalars only; IExternalLibrary fast path owns rich-object creation | session clarity |
+| 2026-03-16 | **PIVOT: `net-corpus-rungs` → `net-load-spitbol`** — Lon directed pivot; LOAD/UNLOAD spec compliance takes priority; `net-corpus-rungs` resumes after `net-load-dotnet` | SPITBOL compliance milestone gating |
 | 2026-03-16 | **M-NET-DELEGATES ✅** fired — all thread opcodes are CallMsil/Halt for static programs; CODE() runtime append recomputes ThreadIsMsilOnly correctly; pivot to `net-corpus-rungs` | Step16 complete |
 | 2026-03-16 | `net-delegates` Step 15 ✅ — `R_PAREN_FUNCTION` stack guard (Pop crash fix); Step15 MsilOnly coverage tests (arith_loop, pattern_match, TABLE stack safety); 1746/1747; HEAD `118e41b` | defensive fix for mismatched function token pairs |
 | 2026-03-16 | `net-alphabet` ✅ — `&ALPHABET` SIZE 255→256; `Range(0,256)`; tests 006/097/Alphabet_001 tightened to `AreEqual(256)`; 1743/1744; HEAD `dc5d132` | both oracles agree SIZE==256 |
