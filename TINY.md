@@ -11,9 +11,9 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — Sprint A1, LIT node
-**HEAD:** `5a6861e` session145: M-ASM-HELLO — null.s → exit 0
-**Milestone:** M-ASM-LIT → M-ASM-CROSSCHECK → M-ASM-BEAUTY
+**Sprint:** `asm-backend` — Sprint A2, POS/RPOS nodes
+**HEAD:** `5a6861e` session145 (local work session146 — no push yet per Lon)
+**Milestone:** M-ASM-LIT ✅ session146 → **M-ASM-SEQ** next → M-ASM-CROSSCHECK → M-ASM-BEAUTY
 
 **PIVOT (session144):** Abandoned `monitor-scaffold` / `bug7-bomb` in favor of x64 ASM backend.
 Rationale: C backend has a fundamental structural problem — named patterns require C functions
@@ -47,8 +47,8 @@ Prolog reader
 | Milestone | Trigger | Status | Sprint |
 |-----------|---------|--------|--------|
 | **M-ASM-HELLO** | null.s assembles, links, runs → exit 0 | ✅ session145 | A0 |
-| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ❌ | A1 |
-| **M-ASM-SEQ** | SEQ/POS/RPOS: cat_pos_lit_rpos.s PASS | ❌ | A2–A3 |
+| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ✅ session146 | A1 |
+| **M-ASM-SEQ** | SEQ/POS/RPOS: cat_pos_lit_rpos.s PASS | ✅ session146 | A2–A3 |
 | **M-ASM-ALT** | ALT: alt_first/second/fail PASS | ❌ | A4 |
 | **M-ASM-ARBNO** | ARBNO: arbno_match/empty/fail PASS | ❌ | A5 |
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ | A6 |
@@ -344,6 +344,7 @@ git add -A && git commit && git push
 
 | Sessions | What | Why |
 |----------|------|-----|
+| 146 | **M-ASM-LIT fires** — `lit_hello.s` hand-written: α/β/γ/ω real NASM labels, cursor+saved_cursor flat .bss qwords, repe cmpsb compare. Assembles, links, runs → `hello\n` exit 0. Diff vs oracle CLEAN. `artifacts/asm/null.s` + `artifacts/asm/lit_hello.s` placed in artifacts/asm/. HQ updated. No push per Lon. Next: Sprint A2 (POS/RPOS). |
 | 145 | **M-ASM-HELLO fires** — `emit_byrd_asm.c` created, `-asm` flag added to `main.c`+`Makefile`, `null.s` assembles+links+runs → exit 0. 106/106 crosscheck clean. Next: Sprint A1 (LIT node). | Sprint A0 complete. |
 | 144 | **PIVOT: x64 ASM backend** — abandon monitor-scaffold/bug7-bomb | C backend has structural flaw: named patterns require reentrant C functions, `pat_X_t` structs, `calloc`, three-level scoping. ASM eliminates all of it: α/β/γ/ω = real labels, all vars flat `.bss`, named patterns = labels + 2-way jmp. One scope. Sprint plan A0–A10 documented in NOW. |
 | 80–89 | Attacked beauty.sno directly | Burned — needed smaller test cases first |

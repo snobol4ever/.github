@@ -10,17 +10,21 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | snobol4x |
-| **Sprint** | `asm-backend` — Sprint A0: x64 ASM backend skeleton, null program |
-| **HEAD TINY** | `5a6861e` session145: M-ASM-HELLO — null.s → exit 0 |
-| **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
-| **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
-| **HEAD DOTNET** | `b397b17` session143: net-ext-noconv Steps 1–6 complete |
-| **HEAD HQ** | (this commit) session144 |
-| **Next action** | Sprint A1: LIT node — inline byte compare, emit lit_hello.s → M-ASM-LIT |
-| **Invariant** | `dotnet test` → 1856/1857 before any dotnet work · `106/106` crosscheck before any snobol4x work |
+| **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
+| **TINY sprint** | `asm-backend` — Sprint A2/A3: POS/RPOS + CAT → M-ASM-SEQ |
+| **TINY HEAD** | `5a6861e` session145 (local A1–A3 work session146, no push yet) |
+| **TINY next** | Sprint A4: ALT node → M-ASM-ALT |
+| **DOTNET sprint** | `net-ext-noconv` Steps 1–6 complete → Step 7 next |
+| **DOTNET HEAD** | `b397b17` session143 |
+| **DOTNET next** | Continue net-ext-noconv per DOTNET.md |
+| **HEAD HARNESS** | `9fed541` session136 |
+| **HEAD CORPUS** | `9c00acd` session136 |
+| **HEAD HQ** | (this commit) session146 |
+| **Invariant TINY** | `106/106` crosscheck before any snobol4x work |
+| **Invariant DOTNET** | `dotnet test` → 1856/1857 before any dotnet work |
+| **⚠ Concurrent push** | `git pull --rebase origin main` before every .github push — see RULES.md |
 
-**Read the active L2 doc: [TINY.md](TINY.md)**
+**Read the active L2 docs: [TINY.md](TINY.md) (TINY chat) · [DOTNET.md](DOTNET.md) (DOTNET chat)**
 
 ---
 
@@ -74,8 +78,8 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-CNODE | CNode IR, zero lines >120 chars | ✅ `ac54bd2` |
 | M-STACK-TRACE | oracle == compiled stack trace, rung-12 inputs | ✅ session119 |
 | **M-ASM-HELLO** | null.s assembles+links+runs → exit 0 | ✅ session145 |
-| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ❌ Sprint A1 |
-| **M-ASM-SEQ** | SEQ/POS/RPOS crosscheck PASS | ❌ Sprint A2–A3 |
+| **M-ASM-LIT** | LIT node: lit_hello.s PASS | ✅ session146 |
+| **M-ASM-SEQ** | SEQ/POS/RPOS crosscheck PASS | ✅ session146 |
 | **M-ASM-ALT** | ALT crosscheck PASS | ❌ Sprint A4 |
 | **M-ASM-ARBNO** | ARBNO crosscheck PASS | ❌ Sprint A5 |
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ Sprint A6 |
