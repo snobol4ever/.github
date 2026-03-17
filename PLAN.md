@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-gap-prototype` — implement PROTOTYPE() builtin, first of four corpus-gap sprints |
+| **Sprint** | `net-alphabet` — fix &ALPHABET SIZE 255→256; then `net-gap-freturn` |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
 | **HEAD DOTNET** | `5f35dad` net-gap-prototype: PROTOTYPE() CSNOBOL4 format, 1733/1744 |
-| **HEAD HQ** | `ab12de7` session126: fix stale &STCOUNT claims across all MD files |
-| **Next action** | `net-gap-freturn` — fix FRETURN/NRETURN in threaded path; then `net-alphabet` (&ALPHABET 255→256) |
+| **HEAD HQ** | `(see git)` session128: oracle verification, net-alphabet sprint, session archive |
+| **Next action** | `net-alphabet`: fix &ALPHABET 255→256 (both oracles agree); then `net-gap-freturn` |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [JVM.md](JVM.md)**

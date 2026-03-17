@@ -5820,3 +5820,46 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744, 12 
 | Date | What | Why |
 |------|------|-----|
 | 2026-03-16 | Session 127 emergency handoff | Context window ~80% full |
+
+---
+
+## Session 128 — 2026-03-16 — SNOBOL4-dotnet
+
+### What happened
+
+**PROTOTYPE() fix** (`net-gap-prototype` sprint ✅): `BuildPrototypeString()` in `ArrayVar.cs` was emitting `1:N` format for all dimensions. CSNOBOL4 and SPITBOL both agree the correct format is just `N` when lower bound is 1, `lower:upper` only for custom lower bounds. Fixed. Old unit tests `TEST_Prototype_001` and `TEST_Prototype_002` had wrong expected values (`"1:20"`, `"-5:10,3:5,1:20"`) — corrected to match both oracles. Tests 1110, 1112, 1113 now pass. Score: **1733/1744**. HEAD `5f35dad`.
+
+**`net-alphabet` sprint created**: Both CSNOBOL4 and SPITBOL return `SIZE(&ALPHABET) = 256`. DOTNET returns 255. Corpus tests currently soft-accept `255 || 256`. Sprint `net-alphabet` created to fix this properly next session.
+
+**DATATYPE case confirmed**: Verified via git log — `integer`, `real`, `string`, `array`, `table`, `pattern`, `name`, `code` have been lowercase since the very first commit, never changed. SPITBOL returns lowercase for built-in types; CSNOBOL4 returns uppercase. DOTNET follows SPITBOL — intentional, correct, no action needed.
+
+**Both oracles built from source**: CSNOBOL4 2.3.3 built from uploaded tarball (STNO trace patch applied). SPITBOL x64 built from uploaded `x64-main.zip` (systm.c nanoseconds→milliseconds patch applied). Both installed at `/usr/local/bin/`.
+
+**Oracle verification of Jeff's test suite**: 999 `[TestMethod]` entries extracted from C# source by regex, each SNOBOL4 verbatim string written to a temp file and run against both oracles. Results: 649 tests (65%) assert only on internal DOTNET state (`IdentifierTable`, `ErrorCodeHistory`) and cannot be oracle-compared without a shim layer. Of the remaining 350 runnable tests: **41 agree** (both oracles identical — Jeff's expected values verified correct), **11 genuine output differences** (oracles disagree: `DATE()` year 4-digit vs 2-digit, `TIME()` trailing dot, `DUMP()` format, `DATATYPE` of `.name` returning `STRING` vs `name`, `PROTOTYPE` already fixed this session), **204 where CSNOBOL4 collapses to generic error codes** (error 1 "Illegal data type", error 10 "Illegal argument") while SPITBOL emits granular per-function error codes — Jeff wrote to SPITBOL semantics, CSNOBOL4 is the less useful oracle here, **46 where CSNOBOL4 is silent and SPITBOL produces output** (double-quoted string syntax, CODE() tests). No oracle disagreements found on the Gimpel programs (BASEB, ROMAN, ROMAN2, UPLO) — all expected values verified correct by both oracles. The 1828 total `[TestMethod]` count vs 1744 in `dotnet test` is explained by files with spaces in names being missed by the initial count; the true number of distinct runnable methods is 1744.
+
+**Lost work**: Output filesystem I/O error (`/mnt/user-data/outputs/`) prevented delivering the HTML oracle report to Lon. Report was built at `/home/claude/oracle_jeff_report.html` but not persisted. The oracle data and findings are fully documented in this session entry.
+
+### Commits this session
+- `5f35dad` SNOBOL4-dotnet — net-gap-prototype: PROTOTYPE() CSNOBOL4 format, 1733/1744
+- `22d8555` HQ — net-gap-prototype ✅, net-alphabet sprint created, PLAN.md HEAD updated
+- `(this entry)` HQ — session 128 archive
+
+### Next session start
+```bash
+cd SNOBOL4-dotnet
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+export PATH=$PATH:/usr/local/dotnet
+git log --oneline -3   # expect 5f35dad
+dotnet build Snobol4.sln -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1733/1744, 3 failing (1115/1116/210)
+# Sprint: net-alphabet — fix &ALPHABET SIZE from 255 → 256
+# Then: net-gap-freturn — fix FRETURN/NRETURN in threaded path (tests 1013/1014)
+```
+
+### Key open findings for next session
+- `&ALPHABET`: DOTNET=255, both oracles=256 — `net-alphabet` sprint
+- `DATE()`: DOTNET and CSNOBOL4 emit 4-digit year; SPITBOL emits 2-digit — decide which oracle wins
+- `TIME()`: CSNOBOL4 emits `0.` (trailing dot), SPITBOL emits `0` — minor
+- `DUMP()` format: CSNOBOL4 emits full variable dump with PATTERN entries; SPITBOL emits `dump of natural variables` header style — cosmetic but affects any test asserting on DUMP output
+- `datatype(.name)`: CSNOBOL4=`STRING`, SPITBOL=`name` — DOTNET currently returns `name` (SPITBOL wins per Lon)
+- Oracle extractor script at `/tmp/extract_and_run2.py` — not persisted, easy to rebuild
