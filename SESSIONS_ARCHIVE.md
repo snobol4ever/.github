@@ -6542,3 +6542,31 @@ Implements LIT/SEQ/ALT/POS/RPOS/ARBNO node dispatch. Generates correct NASM Byrd
 4. Update emit_byrd_asm.c: body-only output, extern cursor/subject_len/subject_data symbols
 5. Wire crosscheck: `sno2c -asm` + nasm + gcc harness → first pattern crosscheck pass
 6. Target: crosscheck patterns/038_pat_literal PASS
+
+## Session 148 — 2026-03-17
+
+**Repo:** snobol4dotnet · **Sprint:** `net-load-xn` → M-NET-XN ✅ · then M-NET-PERF milestone created
+
+**M-NET-XN (`26e2144`):** SPITBOL x32 C-ABI parity complete.
+- `snobol4_rt_register` upgraded to two-pointer protocol: `(get_context_fn, set_callback_fn)` — backward-compatible
+- `snobol4_register_callback(fp)` exported from `libsnobol4_rt.so` — C libraries arm their xncbp shutdown hook
+- `RtSetCallback` .NET delegate stores fp into `NativeEntry.CallbackPtr`
+- `NativeEntry.CallbackFired` double-fire guard (xnsave)
+- `FireNativeCallback` / `FireAllNativeCallbacks` helpers
+- `ProcessExit` hook wired in `Executive` constructor → `FireAllNativeCallbacks`
+- `Unload.cs` calls `FireNativeCallback` before `NativeLibrary.Free`
+- `spitbol_xn.c` extended: `xn_register_callback`, `xn_callback_count`, `xn_reset_callback_count`; rebuilt `.so` files
+- `LoadXnTests.cs`: 4 tests — xn1st counter, callback-on-UNLOAD, callback-on-ProcessExit, double-fire guard; `[DoNotParallelize]`
+- Invariant: **1873/1876** (0 failed, 3 pre-existing skips)
+
+**M-NET-PERF milestone created (`e96fe29`):** `net-perf-analysis` sprint plan.
+- 8 steps: baseline wall-clock → BenchmarkDotNet scaffold → dotnet-trace profile → hotfix A (Convert fast path) → hotfix B (FunctionTable cached fold key) → hotfix C (SystemStack pre-alloc) → regression gate → publish
+- Hot-path candidates: `Var.Convert`, `FunctionTable` fold+lookup, `SystemStack` `List<Var>`, pattern inner loop, string concat GC pressure
+- Inserted between `net-benchmark-scaffold` and `net-benchmark-publish` in M-NET-POLISH track
+- M-NET-POLISH fire condition updated to include `net-perf-analysis` ✅
+
+**Next session start:**
+1. Read PLAN.md + RULES.md + DOTNET.md
+2. Run `dotnet test` — confirm 1873/1876 invariant
+3. Sprint `net-corpus-rungs`: run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures
+4. See DOTNET.md `net-corpus-rungs` sprint for detail
