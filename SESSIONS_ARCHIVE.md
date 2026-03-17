@@ -1,3 +1,5 @@
+> Org renamed SNOBOL4-plus → snobol4ever, repos renamed March 2026. Historical entries use old names.
+
 # SESSION_LOG.md — SNOBOL4-plus Full Session History
 
 > **Append-only.** Every session gets one entry at the bottom.

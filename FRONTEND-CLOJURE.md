@@ -1,6 +1,6 @@
 # FRONTEND-CLOJURE.md — Clojure-EDN Frontend (L3)
 
-Clojure-EDN is the native frontend for SNOBOL4-jvm.
+Clojure-EDN is the native frontend for snobol4jvm.
 Allows expressing SNOBOL4 programs as Clojure EDN data structures,
 consumed directly by the JVM runtime without a separate parse step.
 

@@ -27,8 +27,8 @@ frontend is correct on that backend.
 
 **Self-beautification oracle test:**
 ```bash
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+INC=/home/claude/snobol4corpus/programs/inc
+BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
 snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
 <backend-binary> < $BEAUTY > compiled.sno
 diff oracle.sno compiled.sno   # empty = frontend correct on this backend
@@ -206,11 +206,11 @@ must call `nPop()` on failure before falling to the next alternative.
 
 ## Rung 12 Test Format (TINY crosscheck)
 
-Tests in `SNOBOL4-corpus/crosscheck/beauty/`:
+Tests in `snobol4corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet piped into beauty_full_bin
 - `NNN_name.ref` — oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
 
-Runner: `SNOBOL4-tiny/test/crosscheck/run_beauty.sh` (pre-compiled binary).
+Runner: `snobol4x/test/crosscheck/run_beauty.sh` (pre-compiled binary).
 
 Test progression (one at a time, never skip):
 ```
@@ -272,7 +272,7 @@ Given first divergence line N in the diff:
 ## Probe Script (Paradigm 2)
 
 ```bash
-python3 /home/claude/SNOBOL4-harness/probe/probe.py \
+python3 /home/claude/snobol4harness/probe/probe.py \
     --oracle csnobol4 --max 200 failing.sno
 ```
 Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.

@@ -1,6 +1,6 @@
 # BACKEND-X64.md — x64 Assembly Backend (L3)
 
-x64 ASM is a planned backend for SNOBOL4-tiny.
+x64 ASM is a planned backend for snobol4x.
 Target: native x86-64 machine code via Byrd Box Technique 2 (mmap+memcpy+relocate).
 
 *Session state → TINY.md. C backend (current) → BACKEND-C.md.*

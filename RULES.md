@@ -22,7 +22,7 @@ git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
 ```
 Run immediately after every clone, before any commit. No exceptions across all repos:
-SNOBOL4-tiny, SNOBOL4-corpus, SNOBOL4-harness, SNOBOL4-jvm, SNOBOL4-dotnet, .github.
+snobol4x, snobol4corpus, snobol4harness, snobol4jvm, snobol4dotnet, .github.
 
 ## ⛔ BYRD BOXES — mock_engine.c only, no interpreter
 
@@ -34,8 +34,8 @@ If a build links engine.c: stop and diagnose — something is wrong.
 
 At end of every session that touches sno2c, emit*.c, or runtime/:
 ```bash
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+INC=/home/claude/snobol4corpus/programs/inc
+BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp_candidate.c
 LAST=$(ls artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1)
 # Compare md5:

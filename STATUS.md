@@ -1,4 +1,4 @@
-# SNOBOL4-plus — Status
+# snobol4ever — Status
 
 Test baselines, conformance, known gaps, and performance benchmarks across all implementations.
 
@@ -8,17 +8,17 @@ Test baselines, conformance, known gaps, and performance benchmarks across all i
 
 | Repo | Tests | Failures | Last Confirmed |
 |------|------:|--------:|----------------|
-| SNOBOL4-dotnet | 1,607 | 0 | 2026-03-10 `63bd297` |
-| SNOBOL4-jvm | 1,896 (4,120 assertions) | 0 | 2026-03-10 `9cf0af3` |
-| SNOBOL4-csharp | 263 | 0 | 2026-03-07 |
-| SNOBOL4-cpython | 70+ | 0 | 2026-03-10 `330fd1f` |
-| SNOBOL4-tiny | crosscheck ladder: output 7/8, assign 7/8 | 2 | 2026-03-15 `29c0a4b` — corpus ladder methodology adopted Session 89; null-assign + &ALPHABET bugs active |
+| snobol4dotnet | 1,607 | 0 | 2026-03-10 `63bd297` |
+| snobol4jvm | 1,896 (4,120 assertions) | 0 | 2026-03-10 `9cf0af3` |
+| snobol4csharp | 263 | 0 | 2026-03-07 |
+| snobol4artifact | 70+ | 0 | 2026-03-10 `330fd1f` |
+| snobol4x | crosscheck ladder: output 7/8, assign 7/8 | 2 | 2026-03-15 `29c0a4b` — corpus ladder methodology adopted Session 89; null-assign + &ALPHABET bugs active |
 
 **How to update**: run the test suite, paste the new count with date and commit hash.
 
 ---
 
-## SNOBOL4-dotnet
+## snobol4dotnet
 
 **Runner**: `dotnet test TestSnobol4/TestSnobol4.csproj -c Release`
 
@@ -59,7 +59,7 @@ Test baselines, conformance, known gaps, and performance benchmarks across all i
 
 ---
 
-## SNOBOL4-jvm
+## snobol4jvm
 
 **Runner**: `lein test`
 
@@ -90,7 +90,7 @@ Full arithmetic, string ops, pattern engine (all primitives), ARBNO, FENCE, BAL,
 
 ---
 
-## SNOBOL4-csharp
+## snobol4csharp
 
 **Runner**: `dotnet test tests/SNOBOL4.Tests` — 263 / 0
 
@@ -136,7 +136,7 @@ Both full implementations (dotnet, jvm) target Emmer & Quillen's *MACRO SPITBOL*
 
 ---
 
-## Benchmarks — SNOBOL4-tiny vs Competitors
+## Benchmarks — snobol4x vs Competitors
 
 ### vs PCRE2 JIT — Pattern Matching
 
@@ -146,30 +146,30 @@ Both full implementations (dotnet, jvm) target Emmer & Quillen's *MACRO SPITBOL*
 
 | Engine | ns/match | vs PCRE2 |
 |--------|:--------:|:--------:|
-| SNOBOL4-tiny Round 1 (hand-optimized) | **5.49 ns** | **10×** |
-| SNOBOL4-tiny Round 2 (pipeline + arena + Proebsting) | **33 ns** | **2.3×** |
+| snobol4x Round 1 (hand-optimized) | **5.49 ns** | **10×** |
+| snobol4x Round 2 (pipeline + arena + Proebsting) | **33 ns** | **2.3×** |
 | PCRE2 JIT | 55–78 ns | baseline |
 
 **Test 2 — Pathological: `(a+)+b` on all-`a` strings**
 
-PCRE2 explores exponentially many backtrack paths. SNOBOL4-tiny detects failure structurally.
+PCRE2 explores exponentially many backtrack paths. snobol4x detects failure structurally.
 
-| Length | SNOBOL4-tiny | PCRE2 JIT | Tiny faster |
+| Length | snobol4x | PCRE2 JIT | Tiny faster |
 |--------|:------------:|:---------:|:-----------:|
 | 10–28 chars | 0.7–3.3 ns | 21–23 ns | **7–33×** |
 
-**Where PCRE2 wins**: long literal search (Boyer-Moore). SNOBOL4-tiny scans char-by-char — `hello` in a 1000-char string: tiny 462 ns, PCRE2 93 ns. **Addable optimization, not architectural.**
+**Where PCRE2 wins**: long literal search (Boyer-Moore). snobol4x scans char-by-char — `hello` in a 1000-char string: tiny 462 ns, PCRE2 93 ns. **Addable optimization, not architectural.**
 
 ### vs Bison LALR(1) — Context-Free Parsing
 
 **Date**: 2026-03-10 · Platform: Linux x86-64, Bison 3.8.2, gcc -O2, 2M iterations
 
-| Test | SNOBOL4-tiny | Bison | Faster by |
+| Test | snobol4x | Bison | Faster by |
 |------|:------------:|:-----:|:---------:|
 | `{a^n b^n}` recognition | **11.54 ns** | 158.45 ns | **14×** |
 | Dyck language (balanced parens) | **7.50 ns** | 113.89 ns | **15×** |
 
-**Bison ceiling: Type 2. SNOBOL4-tiny has no ceiling.**
+**Bison ceiling: Type 2. snobol4x has no ceiling.**
 
 ### The Full Picture
 
@@ -177,10 +177,10 @@ PCRE2 explores exponentially many backtrack paths. SNOBOL4-tiny detects failure 
 |------------|------|:------------:|:-----------------------:|-------------------|
 | PCRE2 JIT | Regular (Type 3) | **10×** faster | **2.3×** faster | Type 3 only |
 | Bison LALR(1) | Context-Free (Type 2) | **14–15×** faster | **1.6–1.7×** faster | Type 2 only |
-| *(none)* | Context-Sensitive (Type 1) | — | SNOBOL4-tiny only | — |
-| *(none)* | Turing (Type 0) | — | SNOBOL4-tiny only | — |
+| *(none)* | Context-Sensitive (Type 1) | — | snobol4x only | — |
+| *(none)* | Turing (Type 0) | — | snobol4x only | — |
 
-### Optimization Milestones (SNOBOL4-tiny)
+### Optimization Milestones (snobol4x)
 
 | Milestone | Result | Commit |
 |-----------|--------|--------|
@@ -190,7 +190,7 @@ PCRE2 explores exponentially many backtrack paths. SNOBOL4-tiny detects failure 
 
 ---
 
-## Benchmarks — SNOBOL4-dotnet
+## Benchmarks — snobol4dotnet
 
 **Platform**: Linux / .NET 10 / Release · **Date**: 2026-03-07
 
@@ -208,7 +208,7 @@ PCRE2 explores exponentially many backtrack paths. SNOBOL4-tiny detects failure 
 
 ---
 
-## Benchmarks — SNOBOL4-jvm
+## Benchmarks — snobol4jvm
 
 **Platform**: Linux / OpenJDK 21 / Leiningen 2.12.0 · **Date**: 2026-03-09
 

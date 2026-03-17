@@ -12,8 +12,8 @@ No bisecting. No bombing. No chasing. You see it instantly.
 |----|---------|------|
 | **M-MONITOR** | All 152 corpus diag tests: oracle_trace == compiled_trace for every test | TINY |
 
-**What fires it:** for every `.sno` in `SNOBOL4-corpus/crosscheck/`, run both
-CSNOBOL4 and the SNOBOL4-tiny compiled binary with full TRACE active.
+**What fires it:** for every `.sno` in `snobol4corpus/crosscheck/`, run both
+CSNOBOL4 and the snobol4x compiled binary with full TRACE active.
 Every test must produce identical trace streams. Zero diffs.
 
 ---
@@ -69,8 +69,8 @@ All events go to stderr. Format matches CSNOBOL4 TRACE output exactly:
 ```
 
 **Deliverables:**
-1. `SNOBOL4-harness/monitor/run_monitor.sh` — single-test runner
-2. `SNOBOL4-harness/monitor/run_monitor_suite.sh` — runs all corpus tests
+1. `snobol4harness/monitor/run_monitor.sh` — single-test runner
+2. `snobol4harness/monitor/run_monitor_suite.sh` — runs all corpus tests
 3. One passing test end-to-end (001_output_string_literal.sno)
 
 **How it works:**
@@ -218,8 +218,8 @@ Skip or special-case this test.
 
 **Run:**
 ```bash
-bash SNOBOL4-harness/monitor/run_monitor_suite.sh \
-    /home/claude/SNOBOL4-corpus/crosscheck \
+bash snobol4harness/monitor/run_monitor_suite.sh \
+    /home/claude/snobol4corpus/crosscheck \
     snobol4 \
     ./snobol4-tiny-bin \
     2>monitor_results.txt
@@ -281,7 +281,7 @@ Reports PASS/FAIL count. Stops on first FAIL and prints the diverging trace line
 4. **Fix** — in `emit_byrd.c` or runtime
 5. **Verify** — rerun monitor on that test → PASS
 6. **Invariant** — confirm 106/106 still holds
-7. **Commit** — both SNOBOL4-tiny and harness
+7. **Commit** — both snobol4x and harness
 8. **Next test** — repeat until sprint group is all PASS
 
 ---

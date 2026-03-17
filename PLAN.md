@@ -1,4 +1,4 @@
-# SNOBOL4ever — HQ
+# snobol4ever — HQ
 
 SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
@@ -10,7 +10,7 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 | | |
 |-|-|
-| **Active repo** | SNOBOL4-dotnet |
+| **Active repo** | snobol4dotnet |
 | **Sprint** | `net-load-dotnet` — .NET extension layer: auto-prototype via reflection, multi-function, IExternalLibrary fast path, async, any IL language |
 | **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
@@ -64,7 +64,7 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 One row per milestone. Milestones fire when their trigger condition is true.
 Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md).
 
-### TINY (SNOBOL4-tiny)
+### TINY (snobol4x)
 
 | ID | Trigger | Status |
 |----|---------|--------|
@@ -81,7 +81,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-CODE-EVAL | CODE()+EVAL() via TCC | ❌ |
 | **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
 
-### JVM (SNOBOL4-jvm)
+### JVM (snobol4jvm)
 
 | ID | Trigger | Status |
 |----|---------|--------|
@@ -89,7 +89,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-JVM-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | M-JVM-BOOTSTRAP | snobol4-jvm compiles itself | ❌ |
 
-### DOTNET (SNOBOL4-dotnet)
+### DOTNET (snobol4dotnet)
 
 | ID | Trigger | Status |
 |----|---------|--------|
@@ -115,11 +115,11 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 
 | File | What |
 |------|------|
-| [TINY.md](TINY.md) | SNOBOL4-tiny — HEAD, build, active sprint + steps, milestone map, pivot log |
-| [JVM.md](JVM.md) | SNOBOL4-jvm — HEAD, lein commands, active sprint + steps, pivot log |
-| [DOTNET.md](DOTNET.md) | SNOBOL4-dotnet — HEAD, dotnet commands, active sprint + steps, pivot log |
-| [HARNESS.md](HARNESS.md) | SNOBOL4-harness — oracle builds, probe, monitor, benchmarks |
-| [CORPUS.md](CORPUS.md) | SNOBOL4-corpus — layout, update protocol |
+| [TINY.md](TINY.md) | snobol4x — HEAD, build, active sprint + steps, milestone map, pivot log |
+| [JVM.md](JVM.md) | snobol4jvm — HEAD, lein commands, active sprint + steps, pivot log |
+| [DOTNET.md](DOTNET.md) | snobol4dotnet — HEAD, dotnet commands, active sprint + steps, pivot log |
+| [HARNESS.md](HARNESS.md) | snobol4harness — oracle builds, probe, monitor, benchmarks |
+| [CORPUS.md](CORPUS.md) | snobol4corpus — layout, update protocol |
 
 ## L3 — Reference (read when you need deep detail)
 

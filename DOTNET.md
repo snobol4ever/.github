@@ -1,4 +1,4 @@
-# DOTNET.md — SNOBOL4-dotnet (L2)
+# DOTNET.md — snobol4dotnet (L2)
 
 .NET/C# backend: SNOBOL4 → MSIL via GOTO-driven threaded bytecode runtime.
 
@@ -34,7 +34,7 @@
 ## Session Start
 
 ```bash
-cd SNOBOL4-dotnet
+cd snobol4dotnet
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 export PATH=$PATH:/usr/local/dotnet
 git log --oneline -3   # verify HEAD
@@ -113,7 +113,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | `net-load-dotnet` | .NET extension layer on top of spec base: reflection, multi-function, IExternalLibrary fast path, async, cancellation, any IL language (see spec below) | M-NET-LOAD-DOTNET fires |
 | `net-load-xn` | SPITBOL x32 C-ABI parity: xn1st first-call flag via thread-local + libsnobol4_rt shim; xncbp shutdown callback registration + ProcessExit hook; xnsave double-fire guard | M-NET-XN fires |
 | `net-corpus-rungs` | Run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures | 106/106 green |
-| `net-diag1` | Run diag1 35-test suite (from SNOBOL4-corpus) against DOTNET; fix all failures | 35/35 green |
+| `net-diag1` | Run diag1 35-test suite (from snobol4corpus) against DOTNET; fix all failures | 35/35 green |
 | `net-feature-audit` | Compare DOTNET feature coverage vs CSNOBOL4 ref: keywords, data types, built-ins, I/O, CODE()/EVAL() stubs | zero open gaps |
 | `net-save-dll` | Wire `-w` (WriteDll) into the threaded execution path; save compiled MSIL to DLL with source extension replaced by `.dll` (see notes below) | `-w file.sno` produces `file.dll`; `snobol4 file.dll` runs it directly |
 | `net-load-spitbol` | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB (see spec below) | M-NET-LOAD-SPITBOL fires |
@@ -307,5 +307,5 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-17 | M-NET-CORPUS-GAPS ✅ fired (11/12 [Ignore] removed; 1743/1744); pivot to `net-alphabet` then `net-delegates` | session131 |
 | 2026-03-16 | `net-gap-value-indirect` now active | next corpus-gap sprint |
 | 2026-03-16 | `net-gap-freturn` now active | next corpus-gap sprint |
-| 2026-03-16 | Corpus test injection: 12 files, ~116 test methods from SNOBOL4-corpus crosscheck; 12 [Ignore] gaps mapped to 4 fix sprints under M-NET-CORPUS-GAPS; HEAD `7aacf01` | Lon: inject corpus tests following Jeff's style |
+| 2026-03-16 | Corpus test injection: 12 files, ~116 test methods from snobol4corpus crosscheck; 12 [Ignore] gaps mapped to 4 fix sprints under M-NET-CORPUS-GAPS; HEAD `7aacf01` | Lon: inject corpus tests following Jeff's style |
 | 2026-03-16 | `net-save-dll` sprint added to M-NET-POLISH; `-w` WriteDll diagnosed as no-op on active threaded path — only wired in dead Roslyn path (CSharpCompile.cs/CreateAssembly); DLL load path (file.dll on cmdline) already works in MainConsole.cs | Fix needed: persist threaded assembly to disk after tc.Compile() when WriteDll=true |

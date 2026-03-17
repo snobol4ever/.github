@@ -8,7 +8,7 @@ Non-operational content. Read when you need context, architecture background, or
 
 Lon Jones Cherryholmes has known since age eight that he wanted to build Created Intelligence — not artificial intelligence, that name was always wrong. Something you build, from understanding, with intention. He carried that from *The Honeymoon Machine* (1961) and *2001* through Georgia Tech, Texas Instruments, an 11-year retirement, and back. In one week in March 2026, the conversation he'd been waiting sixty years to have produced this repository.
 
-Jeffrey Cooper, M.D., is a medical doctor who spent fifty years building a SNOBOL4 implementation purely out of love for the language. When he called Lon to say he had one, two fifty-year journeys collided. The explosion produced SNOBOL4-plus.
+Jeffrey Cooper, M.D., is a medical doctor who spent fifty years building a SNOBOL4 implementation purely out of love for the language. When he called Lon to say he had one, two fifty-year journeys collided. The explosion produced snobol4ever.
 
 Two forces. One phone call. Everything you see here.
 
@@ -20,13 +20,13 @@ SNOBOL4's pattern engine is not a regex engine. It is a universal grammar machin
 
 The same four-state **Byrd Box model** — α (PROCEED), β (RECEDE), γ (SUCCEED), ω (CONCEDE) — describes SNOBOL4 pattern matching, Icon's goal-directed generators, Prolog unification, and recursive-descent parsing at every level of the Chomsky hierarchy. All four tiers: regular, context-free, context-sensitive, Turing-complete — expressible directly as SNOBOL4 patterns, with mutual recursion, backtracking, and capture. No yacc. No lex. No separate grammar formalism.
 
-The key insight in SNOBOL4-tiny: the Byrd Box model is not just an execution model — it is a **code generation strategy**. Compile those four states to static gotos and you get goal-directed backtracking evaluation with zero dispatch overhead.
+The key insight in snobol4x: the Byrd Box model is not just an execution model — it is a **code generation strategy**. Compile those four states to static gotos and you get goal-directed backtracking evaluation with zero dispatch overhead.
 
 ---
 
 ## JCON — Architecture Reference
 
-Jcon (Gregg Townsend + Todd Proebsting, University of Arizona, 1999) is an Icon → JVM bytecode compiler built on the Byrd Box model. It is the exact artifact promised in Proebsting's 1996 paper and the blueprint for SNOBOL4-jvm's JVM backend.
+Jcon (Gregg Townsend + Todd Proebsting, University of Arizona, 1999) is an Icon → JVM bytecode compiler built on the Byrd Box model. It is the exact artifact promised in Proebsting's 1996 paper and the blueprint for snobol4jvm's JVM backend.
 
 **Source:** https://github.com/proebsting/jcon (public domain)  
 **Paper:** https://www2.cs.arizona.edu/icon/jcon/impl.pdf
@@ -93,7 +93,7 @@ alpha/beta ports. This is cleaner for SNOBOL4 because the subject is a first-cla
 value (not a global), and it maps naturally to how `sno_match_pattern_at()` works.
 No action needed — our model is correct and preferable.
 
-**6. What SNOBOL4-jvm should take from JCON**
+**6. What snobol4jvm should take from JCON**
 
 - The `bc_*` global table structure in `gen_bc.icn` for tracking labels, tmps,
   strings, reals, csets across a function
@@ -135,4 +135,4 @@ newline       \n (1 char)   \n   (C newline escape)
 
 ## What's Next: Icon-everywhere
 
-SNOBOL4 and Icon share a bloodline — Griswold invented both. The Byrd Box IR built for SNOBOL4ever is the bridge. Same four ports. Same `byrd_ir.py`. New Icon frontend feeding the same pipeline. snobol4ever runs everywhere. The clock starts the moment `beauty.sno` compiles itself.
+SNOBOL4 and Icon share a bloodline — Griswold invented both. The Byrd Box IR built for snobol4ever is the bridge. Same four ports. Same `byrd_ir.py`. New Icon frontend feeding the same pipeline. snobol4ever runs everywhere. The clock starts the moment `beauty.sno` compiles itself.

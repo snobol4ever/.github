@@ -1,6 +1,6 @@
-# TINY.md — SNOBOL4-tiny (L2)
+# TINY.md — snobol4x (L2)
 
-SNOBOL4-tiny: multiple frontends, multiple backends.
+snobol4x: multiple frontends, multiple backends.
 **Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.** When any milestone fires, Claude writes the commit.
 
 → Frontends: [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) · [FRONTEND-REBUS.md](FRONTEND-REBUS.md) · [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) · [FRONTEND-ICON.md](FRONTEND-ICON.md) · [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
@@ -17,10 +17,10 @@ SNOBOL4-tiny: multiple frontends, multiple backends.
 
 **Next steps (Sprint M1):**
 1. Verify 106/106 invariant.
-2. Write `SNOBOL4-harness/monitor/run_monitor.sh` — single-test TRACE diff runner.
-3. Write `SNOBOL4-harness/monitor/inject_traces.py` — auto-inject TRACE registrations.
+2. Write `snobol4harness/monitor/run_monitor.sh` — single-test TRACE diff runner.
+3. Write `snobol4harness/monitor/inject_traces.py` — auto-inject TRACE registrations.
 4. Run on `crosscheck/output/001_output_string_literal.sno` — confirm empty diff.
-5. Write `SNOBOL4-harness/monitor/run_monitor_suite.sh` — loop runner.
+5. Write `snobol4harness/monitor/run_monitor_suite.sh` — loop runner.
 6. Commit harness → Sprint M1 done → begin Sprint M2.
 
 ---
@@ -246,14 +246,14 @@ depth is correct before `$'('` runs.
 ## Session Start
 
 ```bash
-cd /home/claude/SNOBOL4-tiny
+cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD matches above
 
 apt-get install -y libgc-dev && make -C src/sno2c
 
-mkdir -p /home/SNOBOL4-corpus
-ln -sf /home/claude/SNOBOL4-corpus/crosscheck /home/SNOBOL4-corpus/crosscheck
+mkdir -p /home/snobol4corpus
+ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 ```
 
@@ -261,8 +261,8 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 
 ```bash
 RT=src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+INC=/home/claude/snobol4corpus/programs/inc
+BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
@@ -364,4 +364,4 @@ git add -A && git commit && git push
 | 121 | Dual-stack trace infra built: oracle (patched counter.sno→TERMINAL) + compiled (fprintf in NPUSH/NINC/NPOP). 109_multi.input trace diff: first divergence line 2 — oracle NINC, compiled spurious NPUSH. Bug7 Bomb Protocol designed (Pass1 count, Pass2 limit+backtrace). emit_imm NPOP-on-fail drafted but emit_seq Expr15 fix caused double-pop regression on 105_goto. All WIP reverted. Bomb protocol is next. | Bomb protocol ready — awaiting next session |
 | 120 | beauty.sno PATTERN read in full (lines 293–419). Bug7 confirmed: Expr17 FENCE arm 1 calls nPush() then $'(' fails — nPop() never called on ω path. Expr15 FENCE arm same issue. Fix target: emit_byrd.c FENCE backtrack path. HQ updated with full pattern structure. ~55% context at session start. | Plan only — awaiting instruction |
 | 122 | Pivot: diag1-corpus sprint before bug7-micro. 35 tests 152 assertions rungs 2–11, 35/35 PASS CSNOBOL4 2.3.3. M-FLAT documented (flat() Gray/White bypass of pp/ss). HQ updated. Context ~94% at close. | diag1 corpus ready to commit with token; bug7-micro is next |
-| 122b | PIVOT: M-DIAG1 now top priority. Run diag1 35-test suite on JVM + DOTNET. Fix failures. Fire M-DIAG1. Then bug7-micro. Priority order: M-DIAG1 → M-BEAUTY-CORE → M-FLAT → M-BEAUTY-FULL → M-BOOTSTRAP. | New session opens on SNOBOL4-jvm |
+| 122b | PIVOT: M-DIAG1 now top priority. Run diag1 35-test suite on JVM + DOTNET. Fix failures. Fire M-DIAG1. Then bug7-micro. Priority order: M-DIAG1 → M-BEAUTY-CORE → M-FLAT → M-BEAUTY-FULL → M-BOOTSTRAP. | New session opens on snobol4jvm |

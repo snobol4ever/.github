@@ -1,6 +1,6 @@
 # FRONTEND-ICON.md — Tiny-ICON Frontend (L3)
 
-Tiny-ICON is a planned frontend for SNOBOL4-tiny only.
+Tiny-ICON is a planned frontend for snobol4x only.
 SNOBOL4 and Icon share a bloodline — Griswold invented both.
 The Byrd Box IR is the bridge: same four ports (α/β/γ/ω), new Icon frontend
 feeding the same TINY pipeline. Goal-directed generators map directly to Byrd boxes.

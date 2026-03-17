@@ -1,5 +1,5 @@
 # PATCHES.md — Runtime Patches and Fixes Log
-## SNOBOL4-tiny Sprint 20+
+## snobol4x Sprint 20+
 
 > **What this file is**: Every time we patch the runtime (`snobol4.c`,
 > `snobol4.h`, `emit_c_stmt.py`, `mock_includes.c`, `snobol4_pattern.c`)
@@ -331,7 +331,7 @@ The SNOBOL4 `*` operator is overloaded: arithmetic multiply OR pattern deferred-
 
 ### Trace infrastructure (built this session, NOT committed to repo)
 
-**Oracle trace:** copy `/home/claude/SNOBOL4-corpus/programs/inc/counter.sno` to `/tmp/inc_trace/counter.sno` with `PushCounter/IncCounter/PopCounter` shadowed to write `NPUSH/NINC/NPOP depth=N top=N` to `TERMINAL`. Run:
+**Oracle trace:** copy `/home/claude/snobol4corpus/programs/inc/counter.sno` to `/tmp/inc_trace/counter.sno` with `PushCounter/IncCounter/PopCounter` shadowed to write `NPUSH/NINC/NPOP depth=N top=N` to `TERMINAL`. Run:
 ```bash
 INC=/tmp/inc_trace
 snobol4 -f -P256k -I$INC $BEAUTY < input > /dev/null 2>oracle_stack.txt

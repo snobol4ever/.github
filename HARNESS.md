@@ -1,13 +1,13 @@
-# HARNESS.md — SNOBOL4-harness
+# HARNESS.md — snobol4harness
 
-**Repo:** https://github.com/SNOBOL4-plus/SNOBOL4-harness  
+**Repo:** https://github.com/snobol4ever/snobol4harness  
 **What it is:** Double-trace monitor, cross-engine oracle harness, benchmark pipeline.
 
 ---
 
 ## Current State
 
-**Active priority:** Stable. Used as diagnostic tool when debugging SNOBOL4-tiny.
+**Active priority:** Stable. Used as diagnostic tool when debugging snobol4x.
 
 ---
 
@@ -55,13 +55,13 @@ Never skip ahead. A failure at rung 4 (arith) means rungs 5–12 are meaningless
 Use `TRACE('varname','VALUE')` on a probe variable instead.
 `&STCOUNT` broken in CSNOBOL4 (always 0) — use `&STLIMIT` values for binary search.
 
-### Corpus lives in SNOBOL4-corpus
+### Corpus lives in snobol4corpus
 
 Every repo uses the same corpus. Test programs are never duplicated into engine repos.
-The corpus crosscheck runner lives in `SNOBOL4-corpus/crosscheck/run_all.sh`.
+The corpus crosscheck runner lives in `snobol4corpus/crosscheck/run_all.sh`.
 The per-engine adapter lives in `test/crosscheck/run_crosscheck.sh` in each repo.
 
-### Current crosscheck results (SNOBOL4-tiny, Session 89, `29c0a4b`)
+### Current crosscheck results (snobol4x, Session 89, `29c0a4b`)
 
 ```
 output:   7/8  — FAIL: SIZE(&ALPHABET) returns 0 instead of 256
@@ -114,6 +114,6 @@ Times include ~15ms process-spawn overhead for SPITBOL/CSNOBOL4 — subtract for
 
 **Key results (2026-03-10):**
 
-vs PCRE2 JIT — `(a|b)*abb`: SNOBOL4-tiny **2.3×** faster (33 ns vs 78 ns)  
-vs PCRE2 JIT — `(a+)+b` pathological: SNOBOL4-tiny **7–33×** faster (0.7 ns vs 21 ns)  
-vs Bison LALR(1) — `{a^n b^n}`: SNOBOL4-tiny **1.6×** faster (44 ns vs 72 ns)
+vs PCRE2 JIT — `(a|b)*abb`: snobol4x **2.3×** faster (33 ns vs 78 ns)  
+vs PCRE2 JIT — `(a+)+b` pathological: snobol4x **7–33×** faster (0.7 ns vs 21 ns)  
+vs Bison LALR(1) — `{a^n b^n}`: snobol4x **1.6×** faster (44 ns vs 72 ns)

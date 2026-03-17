@@ -1,6 +1,6 @@
-# CORPUS.md — SNOBOL4-corpus
+# CORPUS.md — snobol4corpus
 
-**Repo:** https://github.com/SNOBOL4-plus/SNOBOL4-corpus  
+**Repo:** https://github.com/snobol4ever/snobol4corpus  
 **What it is:** Single source of truth for all `.sno`, `.inc`, and `.spt` files. Shared by all three platforms. No per-platform duplicates.
 
 ---
@@ -68,9 +68,9 @@ All 35 files verified 35/35 PASS under CSNOBOL4 2.3.3.
 
 ## How Each Repo Uses This
 
-- **SNOBOL4-jvm:** submodule at `corpus/lon`
-- **SNOBOL4-dotnet:** submodule at `corpus`
-- **SNOBOL4-tiny:** referenced via `$INC` path for `-INCLUDE` files
+- **snobol4jvm:** submodule at `corpus/lon`
+- **snobol4dotnet:** submodule at `corpus`
+- **snobol4x:** referenced via `$INC` path for `-INCLUDE` files
 
 ## Update Protocol
 

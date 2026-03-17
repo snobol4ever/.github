@@ -1,4 +1,4 @@
-# JVM.md — SNOBOL4-jvm (L2)
+# JVM.md — snobol4jvm (L2)
 
 JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
@@ -21,7 +21,7 @@ directly into JVM bytecode instead of calling back into the interpreter.
 ## Session Start
 
 ```bash
-cd SNOBOL4-jvm
+cd snobol4jvm
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD
 lein test               # confirm 1896/4120/0

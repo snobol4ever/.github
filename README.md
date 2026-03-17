@@ -1,8 +1,8 @@
-# SNOBOL4ever — HQ
+# snobol4ever — HQ
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-Developer documentation for the SNOBOL4ever project.
+Developer documentation for the snobol4ever project.
 Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 ---
@@ -17,11 +17,11 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [TINY.md](TINY.md) | SNOBOL4-tiny — HEAD, build commands, sprint, frontier table, pivot log |
-| [JVM.md](JVM.md) | SNOBOL4-jvm — HEAD, lein commands, sprint, pivot log |
-| [DOTNET.md](DOTNET.md) | SNOBOL4-dotnet — HEAD, dotnet commands, sprint, pivot log |
-| [CORPUS.md](CORPUS.md) | SNOBOL4-corpus — layout, update protocol |
-| [HARNESS.md](HARNESS.md) | SNOBOL4-harness — oracles, probe, benchmarks |
+| [TINY.md](TINY.md) | snobol4x — HEAD, build commands, sprint, frontier table, pivot log |
+| [JVM.md](JVM.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
+| [DOTNET.md](DOTNET.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
+| [CORPUS.md](CORPUS.md) | snobol4corpus — layout, update protocol |
+| [HARNESS.md](HARNESS.md) | snobol4harness — oracles, probe, benchmarks |
 
 ## L3 — Frontends (one per input language)
 
@@ -54,6 +54,6 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 | [RULES.md](RULES.md) | Mandatory rules — token, identity, artifacts, hierarchy |
 | [PATCHES.md](PATCHES.md) | Runtime patch audit trail |
 | [MISC.md](MISC.md) | Background, JCON reference, keyword tables |
-| [RENAME.md](RENAME.md) | One-time rename plan (SNOBOL4-plus → snobol4ever) |
+| [RENAME.md](RENAME.md) | One-time rename plan (snobol4ever → snobol4ever) |
 | [STATUS.md](STATUS.md) | Live test counts and benchmarks |
 | [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md) | Full session history — append-only |
