@@ -6354,3 +6354,93 @@ See Session 134 for full next-session start instructions.
    - Wire coercion in `CallReflectFunction`: detect `FSharpOption<T>` via reflection, unwrap or call `NonExceptionFailure()`; detect F# DU, map cases to StringVar/IntegerVar
    - Tests: option success branch, option failure branch, DU → string, mixed F# + C# same program
    - M-NET-LOAD-DOTNET fires when all Step 9 (tests) pass + spec path unaffected + F# library loads and executes correctly
+
+---
+
+## Sessions 141–143 — snobol4dotnet
+
+### Session 141 — EMERGENCY WIP net-vb-fixture
+
+**Date:** 2026-03-17
+**Repo:** snobol4dotnet
+**Sprint:** `net-vb-fixture` (new)
+
+#### Work done
+- Created `CustomFunction/VbLibrary/VbLibrary.vb` — 5 VB.NET classes: Reverser (auto-prototype), Arithmetic (Factorial/Sum explicit), Geometry (CircleArea), Predicate (NonEmptyOrFail null→fail), Formatter (static Format)
+- Created `CustomFunction/VbLibrary/VbLibrary.vbproj` — net10.0, wired into Snobol4.sln
+- Created `TestSnobol4/Function/FunctionControl/VbLibraryTests.cs` — 10 tests covering all reflect-path scenarios (A–G)
+- Added `SetupTests.VbLibraryPath`
+- Build: clean, 0 errors, 0 warnings
+- Tests: NOT yet run (EMERGENCY — context limit hit)
+- M-NET-VB milestone created in DOTNET.md + PLAN.md
+
+#### HEADs
+- `snobol4dotnet`: `6528e77` (EMERGENCY WIP)
+- `.github`: `288dc3b`
+
+---
+
+### Session 142 — M-NET-VB fired
+
+**Date:** 2026-03-17
+**Repo:** snobol4dotnet
+**Sprint:** `net-vb-fixture` → complete
+
+#### Work done
+Three bugs diagnosed and fixed:
+
+1. **Double-namespace bug** — `<RootNamespace>VbLibrary</RootNamespace>` in vbproj caused VB to emit types as `VbLibrary.VbLibrary.*` instead of `VbLibrary.*`. Fix: cleared `<RootNamespace>` to empty string. Confirmed via probe tool against exported type list.
+
+2. **Path-based UNLOAD gap** — `UNLOAD(dll_path)` fell through to `ActiveContexts` (IExternalLibrary path), never reaching `DotNetReflectContexts`. Fix: added sweep of DotNetReflectContexts in `Unload.cs` before the `ActiveContexts` check, removing all fnames registered from that DLL path.
+
+3. **Test design mismatch** — Post-UNLOAD call raises error 22 (undefined function — fatal), not `:F` predicate. Test updated to assert `ErrorCodeHistory[0] == 22`.
+
+#### Test result
+10/10 VB tests green. Full suite: 1856/1857 (was 1846/1847, +10).
+
+#### HEADs
+- `snobol4dotnet`: `234f24a`
+- `.github`: `49ad6b0`
+
+---
+
+### Session 143 — SPITBOL blocks32.h analysis + 3 ext sprints
+
+**Date:** 2026-03-17
+**Repo:** .github (HQ only — no code changes)
+**Sprint:** planning
+
+#### Work done
+Full read of `spitbol/x32 osint/blocks32.h` and `osint.h`. Mapped complete SPITBOL external function surface against current DOTNET coverage.
+
+**Two scenarios from SPITBOL spec identified:**
+- **Scenario A** (SNO → foreign): SNOBOL4 creates ARRAY/TABLE/PDBLK, passes unconverted (`noconv=0` in `eftar[]`) to C or .NET function. C function walks the block using struct layouts; .NET uses traversal API.
+- **Scenario B** (foreign → SNO): foreign function allocates a new SNOBOL4 object (ARBLK/VCBLK/TBBLK/SCBLK) and returns it. .NET IExternalLibrary path already works (Step 7 / ExecutiveObjectApi). C-ABI path needs `snobol4_alloc_*` helpers in libsnobol4_rt.
+
+**Three new milestones and sprints added:**
+
+| Milestone | Sprint | What |
+|-----------|--------|------|
+| M-NET-EXT-NOCONV | `net-ext-noconv` | noconv args: ARRAY/TABLE/PDBLK pass-through; C block struct mirror; .NET traversal API |
+| M-NET-EXT-XNBLK | `net-ext-xnblk` | XNBLK persistent opaque state; xndta[]; first_call flag |
+| M-NET-EXT-CREATE | `net-ext-create` | Foreign creates SNO objects; libsnobol4_rt alloc helpers; .NET already works |
+
+Inserted before `net-load-xn`. M-NET-POLISH fire condition updated (now 11 conditions).
+
+Full sprint specs written into DOTNET.md including step-by-step breakdown, C struct mirrors, fixture library designs, and test lists.
+
+#### HEADs
+- `snobol4dotnet`: `234f24a` (unchanged)
+- `.github`: `8f3b7da`
+
+#### Next session start
+1. Read RULES.md → PLAN.md → DOTNET.md
+2. Clone snobol4dotnet, set git identity, verify HEAD = `234f24a`
+3. Run invariant: `dotnet test` → 1856/1857
+4. Start `net-ext-noconv` Step 1: add `noconv` (type 0) to prototype parser in `Load.cs`
+   - `eftar[]` type code 0 = pass arg unconverted (raw block pointer / live SnobolVar)
+   - Step 2: C-ABI marshal: pin SnobolVar data, pass raw pointer for ARRAY/TABLE/PDBLK args
+   - Step 3: `ExecutiveObjectApi` traversal API: `TraverseArray`, `TraverseTable`, `GetDataFields`
+   - Step 4: `CustomFunction/SpitbolNoconvLib/spitbol_noconv.c` fixture
+   - Step 5: `CustomFunction/NoconvDotNetLibrary/` IExternalLibrary fixture
+   - Step 6: `ExtNoconvTests.cs` — 6 tests covering both sides
