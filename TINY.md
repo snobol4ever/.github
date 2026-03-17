@@ -11,46 +11,27 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — Sprint A9: full crosscheck 20/20 via ASM backend
-**HEAD:** `d7a75cc` session150
-**Milestone:** M-ASM-NAMED ✅ session148 → **M-ASM-CROSSCHECK** next → M-ASM-BEAUTY
+**Sprint:** `asm-backend` — Sprint A10: beauty.sno self-beautifies via ASM backend
+**HEAD:** `3624d9d` session151
+**Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTY** next
 
-**Session150 progress — 17/20 ASM PASS:**
-- New emitters wired into `E_FNC` switch: `emit_asm_any`, `emit_asm_notany`, `emit_asm_span`, `emit_asm_break`, `emit_asm_len`, `emit_asm_tab`, `emit_asm_rtab`, `emit_asm_rem`, `emit_asm_arb`, FAIL
-- `E_VART` case: REM/ARB/FAIL intercepted as zero-arg builtins before named-pattern lookup
-- Harness rewritten with `setjmp`/`longjmp` unanchored scan loop (try start=0..N)
-- DOL emitter now writes to harness externs `cap_buf`/`cap_len` directly (no per-var .bss)
-- `cap_len` sentinel: `UINT64_MAX` = no DOL fired; otherwise = capture length (handles empty-string capture correctly)
-- `build_bare_sno`: keeps pattern-variable assignments (RHS contains `|` or `(`)
-- DATATYPE returns lowercase (`string`/`integer`/`real`) — SPITBOL-correct; 106/106 restored
-- **038–054 PASS** (17 tests); **055 FAIL** (multi-capture, needs full runtime); script stops after first FAIL
+**Session151 — M-ASM-CROSSCHECK fires — 26/26 ASM PASS:**
+- Per-variable capture buffers: `CaptureVar` registry, `cap_VAR_buf`/`cap_VAR_len` in `.bss`
+- `cap_order[]` table in `.data` — harness walks it at `match_success`, one capture per line
+- `E_INDR` case added to `emit_asm_node` — `*VAR` indirect pattern reference resolved via named-pattern registry
+- `/dev/null` dry-run collection pass: replaces `open_memstream` two-pass; uid counter saved/restored so real pass generates identical labels
+- `.asm.ref` convention: capture tests with harness-specific output use `TEST.asm.ref`; `run_crosscheck_asm.sh` prefers `.asm.ref` over `.ref`
+- `run_crosscheck_asm.sh`: `extract_subject` now finds subject var from match line first; `build_bare_sno` keeps plain-string assignments when var referenced as `*VAR`
+- 106/106 main crosscheck invariant holds; HEAD `3624d9d`
 
-**⚠ CRITICAL NEXT ACTION — Sprint A9 (3 remaining issues, replanned session151):**
+**⚠ CRITICAL NEXT ACTION — Sprint A10 (M-ASM-BEAUTY):**
 
-### Issue 1 — 055 multi-capture (`LEN(2) . A LEN(2) . B LEN(2) . C`)
-- **Root cause:** All DOL boxes write to shared `cap_buf`/`cap_len` harness externs → only last capture survives (confirmed by SPITBOL `p_imc`: each node stores own `parm1`/`parm2` name ref, calls `asinp` independently)
-- **Fix emitter:** Add capture registry; `emit_asm_assign` writes to per-variable `.bss` buffers (`cap_A_buf resb 256`, `cap_A_len resq 1`)
-- **Fix emitter:** Emit `.data` `cap_order` — null-terminated array of `{char *name, char *buf, uint64_t *len}` structs in registration order
-- **Fix harness:** Walk `cap_order` on `match_success`, print non-empty captures space-separated
+Goal: `beauty.sno` self-beautifies via ASM backend. This requires the ASM backend to handle full SNOBOL4 statements (OUTPUT, variable assignment, goto), not just pattern-match nodes.
 
-### Issue 2 — 056 `*PAT` indirect deref
-- **Root cause 1:** `build_bare_sno` strips `PAT = 'hello'` → PAT never registered as named pattern
-- **Fix script:** Keep plain-string assignments when varname appears as `*VAR` in any match line in same file
-- **Fix script:** Fix `extract_subject` — find subject var from match line (`X *PAT .`), then find `X = '...'`
-- **Root cause 2:** `E_INDR` case missing in `emit_asm_node`
-- **Fix emitter:** Add `case E_INDR:` — child is `E_VART`, look up named-pattern registry, call `emit_asm_named_ref`
-
-### Issue 3 — 057 FAIL builtin
-- **Root cause:** Script stops at 055, never reaches 057
-- **Expected:** Already passes once script continues — FAIL emitter already wired
-
-### Sprint A9 steps (ordered, session151):
-1. Fix `extract_subject` + `build_bare_sno` in `run_crosscheck_asm.sh`
-2. Add `E_INDR` case in `emit_byrd_asm.c`
-3. Add per-variable capture buffers + `cap_order` table in emitter
-4. Update harness to print from `cap_order`
-5. Run — verify 20/20 → **M-ASM-CROSSCHECK fires**
-6. Update TINY.md + PLAN.md, commit all repos
+Sprint A10 steps:
+1. Survey what beauty.sno actually requires beyond pattern nodes
+2. Extend `asm_emit_body` (or new `asm_emit_stmt`) to handle simple statement forms
+3. Ladder: single OUTPUT → variable assign → goto → full beauty.sno round-trip
 
 - `ref_astar_bstar.s`: ASTAR=ARBNO("a"), BSTAR=ARBNO("b") on "aaabb" → `aaabb\n` PASS ✅
 - `anbn.s`: 4 sequential named-pattern call sites (2×A_BLOCK + 2×B_BLOCK) on "aabb" → `aabb\n` PASS ✅
@@ -127,7 +108,7 @@ Prolog reader
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ✅ session147 | A6 |
 | **M-ASM-ASSIGN** | $ capture: assign_lit/digits PASS | ✅ session148 | A7 |
 | **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ✅ session148 | A8 |
-| **M-ASM-CROSSCHECK** | 106/106 crosscheck via ASM backend | ❌ | A9 |
+| **M-ASM-CROSSCHECK** | 26/26 ASM crosscheck PASS | ✅ session151 | A9 |
 | **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM backend | ❌ | A10 |
 | M-BOOTSTRAP | sno2c_stage1 output = sno2c_stage2 | ❌ | final goal |
 

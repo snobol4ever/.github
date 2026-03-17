@@ -6715,3 +6715,22 @@ Confirmed 106/106 ✅ after DATATYPE fix.
 2. Compare with `POS`/`TAB` scan methods to see how cursor advances before terminal nodes fire
 3. Fix cursor value → `cross` PASS → 106/106 crosscheck → M-NET-CORPUS-RUNGS fires
 
+
+## Session 151 — M-ASM-CROSSCHECK ✅
+
+**Repo:** snobol4x · **Sprint:** asm-backend A9 → A10
+**HEAD before:** d7a75cc · **HEAD after:** 3624d9d
+
+**What fired:** M-ASM-CROSSCHECK — 26/26 ASM crosscheck PASS, 0 failed, 1 skipped (061 subject extraction).
+
+**Work done:**
+- Per-variable capture buffers: `CaptureVar` registry; `emit_asm_assign` writes to `cap_VAR_buf`/`cap_VAR_len` in `.bss` instead of shared harness globals
+- `cap_order[]` table in `.data` — null-terminated `{name*, buf*, len*}` structs; harness walks at `match_success`, prints one capture per line
+- `E_INDR` case in `emit_asm_node`: resolves `*VAR` indirect pattern ref via named-pattern registry
+- `/dev/null` dry-run collection pass: `fopen("/dev/null","w")` replaces `open_memstream`; uid counter saved before dry run, restored before real pass — sections emitted in order with all symbols known; Lon's insight that 1-pass with collection is correct
+- `.asm.ref` convention: `055_pat_concat_seq.asm.ref`, `060_capture_multiple.asm.ref` hold harness-specific (newline-per-capture) expected output; `run_crosscheck_asm.sh` prefers `.asm.ref`
+- `extract_subject`: now finds subject var from match line, then looks up its value — handles `X = 'say hello world'` / `X *PAT` pattern
+- `build_bare_sno`: keeps plain-string assignments when var referenced as `*VAR` anywhere in file
+- 106/106 main invariant holds throughout
+
+**Next:** Sprint A10 — M-ASM-BEAUTY (beauty.sno self-beautifies via ASM backend)

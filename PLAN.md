@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `asm-backend` — Sprint A9: ASM crosscheck 17/20 → 20/20 |
-| **TINY HEAD** | `d7a75cc` session150: 17/20 ASM PASS; ANY/NOTANY/SPAN/BREAK/LEN/TAB/RTAB/REM/ARB/FAIL emitters; setjmp scan loop; DATATYPE lowercase fix |
-| **TINY next** | Sprint A9: fix extract_subject multi-assignment, skip 055/060 multi-capture, fix 056 *var deref → 20/20 → M-ASM-CROSSCHECK |
+| **TINY sprint** | `asm-backend` — Sprint A10: M-ASM-BEAUTY |
+| **TINY HEAD** | `3624d9d` session151: M-ASM-CROSSCHECK ✅ 26/26 ASM PASS; per-var cap bufs; E_INDR; /dev/null dry-run; .asm.ref convention; 106/106 |
+| **TINY next** | Sprint A10: beauty.sno self-beautifies via ASM backend → M-ASM-BEAUTY |
 | **DOTNET sprint** | `net-corpus-rungs` — 106/106 crosscheck rungs 1–11 against DOTNET |
 | **DOTNET HEAD** | `26e2144` session148: M-NET-XN ✅ |
 | **DOTNET next** | net-corpus-rungs: run crosscheck, fix all failures |
@@ -85,7 +85,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ✅ session147 |
 | **M-ASM-ASSIGN** | $ capture PASS | ✅ session148 |
 | **M-ASM-NAMED** | Named patterns flat labels PASS | ✅ session148 |
-| **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ❌ Sprint A9 |
+| **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ✅ session151 |
 | **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM | ❌ Sprint A10 |
 | **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
 
