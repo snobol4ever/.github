@@ -62,7 +62,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1832/1833 (1 [
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ✅ `1e9ad33` session140 |
 | **M-NET-EXT-NOCONV** | SPITBOL `noconv` pass-through: ARRAY/TABLE/PDBLK passed unconverted to C and .NET functions; C block struct mirror in libsnobol4_rt.h; IExternalLibrary traversal API | ✅ `348b3ed` session144 — 1862/1865; 3 skipped (2 C-ABI pin [Ignore], 1 pre-existing 1012) |
 | **M-NET-EXT-XNBLK** | External opaque state block (XNBLK): C function allocates and returns persistent opaque data; subsequent calls receive the same block back; `xndta[]` private storage; .NET path: per-entry state Dictionary | ✅ `b821d4d` session145 — 1865/1868; 3 skipped (2 C-ABI pin [Ignore], 1 pre-existing 1012) |
-| **M-NET-EXT-CREATE** | Foreign function creates and returns SNOBOL4 objects: C-ABI path uses `snobol4_alloc_array/table` shim from libsnobol4_rt; .NET IExternalLibrary path already capable via ExecutiveObjectApi (Step 7) — needs C-side tests | ❌ Sprint `net-ext-create` |
+| **M-NET-EXT-CREATE** | Foreign function creates and returns SNOBOL4 objects: ExternalVar; EXTERNAL retSig X; spitbol_create.c; 4 tests | ✅ `6dfae0e` session145 — 1869/1872 |
 | **M-NET-VB** | VB.NET fixture library + tests prove reflect path works from VB.NET: string/long/double returns, null→fail, static methods, multi-load, UNLOAD | ✅ `234f24a` session142 — 10/10; 1856/1857 |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
@@ -400,6 +400,8 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 ---
 
 ## Pivot Log
+| 2026-03-17 | **M-NET-EXT-CREATE ✅ fires** — session145: ExternalVar; EXTERNAL=>X retSig; spitbol_create.c; 4 tests; invariant 1869/1872 0 failed; pivot to net-load-xn |
+
 | 2026-03-17 | **M-NET-EXT-XNBLK ✅ fires** — session145: cloned + built + ran full suite; 3/3 xnblk tests pass (Xnblk_Counter_Increments, Xnblk_FirstCall_FlagWorks, Xnblk_DotNet_StatefulLibrary); invariant 1865/1868 0 failed; EMERGENCY WIP `b821d4d` verified clean; pivot to `net-ext-create` |
 | 2026-03-17 | **EMERGENCY WIP: net-ext-xnblk Steps 1-5** — NativeEntry xndta/FirstCall; libsnobol4_rt.so; IStatefulExternalLibrary; 3 tests; dotnet test NOT run — context limit | HEAD b821d4d |
 

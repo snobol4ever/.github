@@ -14,14 +14,14 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | **TINY sprint** | `asm-backend` — Sprint A4: ALT node → M-ASM-ALT |
 | **TINY HEAD** | `426da47` session146: M-ASM-LIT + M-ASM-SEQ ✅ |
 | **TINY next** | Sprint A4: ALT node → M-ASM-ALT |
-| **DOTNET sprint** | `net-ext-create` — M-NET-EXT-CREATE: foreign function creates SNOBOL4 objects |
+| **DOTNET sprint** | `net-load-xn` — M-NET-XN: SPITBOL x32 C-ABI parity (xn1st, xncbp, xnsave) |
 | **DOTNET HEAD** | `b821d4d` session145: M-NET-EXT-XNBLK ✅ |
 | **DOTNET next** | net-ext-create Step 1: C-ABI EXTERNAL return type → ExternalVar wrapper |
 | **HEAD HARNESS** | `9fed541` session136 |
 | **HEAD CORPUS** | `9c00acd` session136 |
 | **HEAD HQ** | (this commit) session146 |
 | **Invariant TINY** | `106/106` crosscheck before any snobol4x work |
-| **Invariant DOTNET** | `dotnet test` → 1865/1868 before any dotnet work |
+| **Invariant DOTNET** | `dotnet test` → 1869/1872 before any dotnet work |
 | **⚠ Concurrent push** | `git pull --rebase origin main` before every .github push — see RULES.md |
 
 **Read the active L2 docs: [TINY.md](TINY.md) (TINY chat) · [DOTNET.md](DOTNET.md) (DOTNET chat)**
@@ -108,7 +108,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, async/cancellation, IExternalLibrary fast path, any IL language (F#/VB/C++) | ✅ `1e9ad33` session140 |
 | **M-NET-EXT-NOCONV** | SPITBOL noconv pass-through: ARRAY/TABLE/PDBLK passed unconverted; C block struct mirror in libsnobol4_rt.h; IExternalLibrary traversal API | ❌ Sprint `net-ext-noconv` |
 | **M-NET-EXT-XNBLK** | XNBLK opaque persistent state: C function allocates/returns state block; xndta[] private storage; .NET per-entry Dictionary equivalent | ✅ `b821d4d` session145 |
-| **M-NET-EXT-CREATE** | Foreign creates SNO objects: libsnobol4_rt alloc helpers for C-ABI; .NET IExternalLibrary already capable — C-side tests | ❌ Sprint `net-ext-create` |
+| **M-NET-EXT-CREATE** | Foreign creates SNO objects: libsnobol4_rt alloc helpers for C-ABI; .NET IExternalLibrary already capable — C-side tests | ✅ `6dfae0e` session145 |
 | **M-NET-VB** | VB.NET fixture + tests: string/long/double returns, null→fail, static, multi-load, UNLOAD | ✅ `234f24a` session142 |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
