@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-load-spitbol` — LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 |
+| **Sprint** | `net-load-dotnet` — .NET extension layer: auto-prototype via reflection, multi-function, IExternalLibrary fast path, async, any IL language |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD DOTNET** | `21dceac` net-load-spitbol ✅: 1777/1778; M-NET-LOAD-SPITBOL ✅ |
-| **HEAD HQ** | (this commit) M-NET-LOAD-SPITBOL ✅; pivot to net-load-dotnet |
-| **Next action** | `net-load-dotnet` Step 1: s1 form dispatcher routes path-like s1 to .NET extension layer |
+| **HEAD DOTNET** | `a47fb84` fix: SNOLIB env-var race + GC.Collect after ALC unload; 1777/1778 |
+| **HEAD HQ** | (this commit) net-load-xn sprint + M-NET-XN milestone added |
+| **Next action** | `net-load-dotnet` Step 2: auto-prototype via reflection — reflect ClassName, find callable methods, build FunctionTableEntry |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [DOTNET.md](DOTNET.md)**
@@ -97,6 +97,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-NET-DELEGATES | Instruction[] → pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
 | **M-NET-LOAD-SPITBOL** | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB, Error 202 | ✅ `21dceac` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, async/cancellation, IExternalLibrary fast path, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
+| **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | **M-NET-POLISH** | 106/106 corpus rungs pass, diag1 35/35, benchmark grid published | ❌ see DOTNET.md |
 | M-NET-BOOTSTRAP | snobol4-dotnet compiles itself | ❌ |

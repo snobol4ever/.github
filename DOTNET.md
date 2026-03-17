@@ -9,12 +9,12 @@
 
 ## NOW
 
-**Sprint:** `net-load-spitbol` ✅ → `net-load-dotnet` ← next
-**HEAD:** `21dceac`
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · **M-NET-LOAD-SPITBOL ✅** → M-NET-LOAD-DOTNET track
+**Sprint:** `net-load-spitbol` ✅ → `net-load-dotnet` ← next (then `net-load-xn`)
+**HEAD:** `a47fb84`
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · **M-NET-LOAD-SPITBOL ✅** → M-NET-LOAD-DOTNET → M-NET-XN track
 
-**Next action:** `net-load-dotnet` Step 1 — s1 form dispatcher routes path-like s1 to .NET extension layer.
-**After net-load-dotnet:** resume `net-corpus-rungs` → M-NET-POLISH track.
+**Next action:** `net-load-dotnet` Step 2 — auto-prototype via reflection: reflect ClassName, find callable methods, build FunctionTableEntry.
+**After net-load-dotnet:** `net-load-xn` (xn1st + xncbp + xnsave parity with SPITBOL x32), then `net-corpus-rungs` → M-NET-POLISH track.
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -54,6 +54,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744 (12 
 | **M-NET-DELEGATES** | Instruction[] eliminated — pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
 | **M-NET-LOAD-SPITBOL** | ✅`21dceac` LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
+| **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
 | M-NET-BOOTSTRAP | snobol4-dotnet compiles itself | ❌ |
 
@@ -109,17 +110,18 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 
 | Sprint | What | Trigger |
 |--------|------|---------|
+| `net-load-dotnet` | .NET extension layer on top of spec base: reflection, multi-function, IExternalLibrary fast path, async, cancellation, any IL language (see spec below) | M-NET-LOAD-DOTNET fires |
+| `net-load-xn` | SPITBOL x32 C-ABI parity: xn1st first-call flag via thread-local + libsnobol4_rt shim; xncbp shutdown callback registration + ProcessExit hook; xnsave double-fire guard | M-NET-XN fires |
 | `net-corpus-rungs` | Run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures | 106/106 green |
 | `net-diag1` | Run diag1 35-test suite (from SNOBOL4-corpus) against DOTNET; fix all failures | 35/35 green |
 | `net-feature-audit` | Compare DOTNET feature coverage vs CSNOBOL4 ref: keywords, data types, built-ins, I/O, CODE()/EVAL() stubs | zero open gaps |
 | `net-save-dll` | Wire `-w` (WriteDll) into the threaded execution path; save compiled MSIL to DLL with source extension replaced by `.dll` (see notes below) | `-w file.sno` produces `file.dll`; `snobol4 file.dll` runs it directly |
 | `net-load-spitbol` | LOAD/UNLOAD spec-compliant: prototype string, UNLOAD(fname), type coercion, SNOLIB (see spec below) | M-NET-LOAD-SPITBOL fires |
-| `net-load-dotnet` | .NET extension layer on top of spec base: reflection, multi-function, IExternalLibrary fast path, async, cancellation, any IL language (see spec below) | M-NET-LOAD-DOTNET fires |
 | `net-feature-fill` | Implement any remaining missing features identified by audit (one sub-sprint per gap) | audit clean |
 | `net-benchmark-scaffold` | Wire DOTNET into harness benchmark pipeline; collect DOTNET timing column | pipeline green |
 | `net-benchmark-publish` | Run full benchmark grid (DOTNET vs CSNOBOL4 vs SPITBOL vs TINY); publish results in HARNESS.md | grid published |
 
-**M-NET-POLISH fires when:** `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll` ✅ + `net-load-unload` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅
+**M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅
 
 ### -w / WriteDll Notes (sprint `net-save-dll`)
 
@@ -223,6 +225,26 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 
 **M-NET-LOAD-DOTNET fires when:** all extension tests pass + spec-compliant path unaffected + F# library loads and executes correctly + async cancellation via UNLOAD works.
 
+---
+
+### net-load-xn Sprint — M-NET-XN
+
+**Goal:** Full C-ABI parity with SPITBOL x32's external function machinery — first-call detection (`xn1st`), shutdown callbacks (`xncbp`), and double-fire guard (`xnsave`). External C libraries that rely on these SPITBOL conventions work correctly on DOTNET without modification.
+
+**Source reference:** `spitbol/x32` → `osint/syslinux.c` (`loadef`, `callef`, `unldef`, `nextef`) + `osint/sysld.c` + `osint/sysul.c`.
+
+#### Sprint steps
+
+1. **`xn1st` thread-local** — Add `[ThreadStatic] private static int _xn1st` to `Executive`. In `CallNativeFunction`: set `_xn1st = entry.FirstCall ? 1 : 0` before dispatch; flip `entry.FirstCall = false` after first call. Add `bool FirstCall = true` to `NativeEntry`.
+2. **`libsnobol4_rt` shim** — New `CustomFunction/Snobol4Rt/snobol4_rt.c`: exports `long snobol4_xn1st(void)` (reads thread-local via exported setter), `void snobol4_register_callback(void* fp)` (stores into current NativeEntry). Build as `libsnobol4_rt.so` in project native assets. Add `[ThreadStatic] private static NativeEntry? _currentNativeEntry` set in `CallNativeFunction` around dispatch.
+3. **`xncbp` shutdown callback** — Add `IntPtr CallbackPtr = IntPtr.Zero` to `NativeEntry`. `snobol4_register_callback` stores into `_currentNativeEntry.CallbackPtr`. In `UnloadExternalFunction` (spec path): if `CallbackPtr != Zero` and not already fired, invoke via `delegate* unmanaged[Cdecl]<void>`, set fired flag. Hook `AppDomain.CurrentDomain.ProcessExit` in Executive constructor: iterate `NativeContexts`, fire any unfired callbacks, then free handles.
+4. **`xnsave` double-fire guard** — Add `bool CallbackFired = false` to `NativeEntry`. Both UNLOAD and ProcessExit check-and-set before firing — prevents double callback if UNLOAD called then process exits.
+5. **Corpus tests** — `TestSnobol4/Function/FunctionControl/LoadXnTests.cs`: first-call detection (counter init only on xn1st==1), callback-on-unload (writes sentinel file), callback-on-exit (AppDomain hook fires), double-fire guard (callback body increments a counter — assert count==1 after UNLOAD+exit). `CustomFunction/SpitbolXnLib/libspitbol_xn.c` — test C library.
+
+**M-NET-XN fires when:** all Step 5 tests pass + `libsnobol4_rt.so` and `libspitbol_xn.so` built and checked in + 1777/1778 + new tests green.
+
+---
+
 ### LOAD / UNLOAD Reference (original)
 
 **Spec source:** *Macro SPITBOL Manual* by Mark B. Emmer and Edward K. Quillen (Catspaw, Inc.)
@@ -250,6 +272,8 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-16 | `net-gap-freturn` ✅ — 1013+1014 pass; 1735/1744; HEAD `2fd79cd` | Bug 1: FunctionPrototypePattern [^)]+→[^)]* (empty param list); Bug 2: Assign() NameVar.Pointer dereference for lvalue |
 | 2026-03-16 | `net-gap-value-indirect` ✅ — 1115+1116+210 pass; 1738/1744; HEAD `a99f1d3` | VALUE() builtin; DATA fields shadow builtins polymorphically; $.var SPITBOL-safe; BAL protected per is.sno discriminator |
 | 2026-03-17 | `net-gap-eval-opsyn` ✅ — 1743/1744; 5 [Ignore] removed (1010/1011/1016/1017/1018); Define.cs: argumentCount bug (locals→parameters), redefinition guard (user funcs allowed), string entry label arg, returnVarName from definition.FunctionName; Opsyn.cs: UserFunctionTable copy preserving original FunctionName for alias return var resolution; 1012 semicolons genuine parser gap left [Ignore] | session131 |
+| 2026-03-17 | **SNOLIB env-var race fixed** — `[DoNotParallelize]` on LoadSpecTests; `GC.Collect()` after ALC unload in Unload.cs; HEAD `a47fb84`; 1777/1778 stable | parallel test runner set SNOLIB="" racing SnolibSearch_FindsLib |
+| 2026-03-17 | **`net-load-xn` sprint created** — SPITBOL x32 parity gaps: `xn1st` first-call flag (thread-local + libsnobol4_rt shim), `xncbp` shutdown callback (ProcessExit hook), `xnsave` double-fire guard; M-NET-XN milestone added; inserted before `net-corpus-rungs` in M-NET-POLISH track | analysis of spitbol/x32 osint/syslinux.c |
 | 2026-03-16 | **M-NET-LOAD-SPITBOL** created — existing LOAD/UNLOAD uses .NET-native IExternalLibrary API; SPITBOL spec requires prototype string s1 `'FNAME(T1..Tn)Tr'`, filename s2, UNLOAD(fname) by function name; 5 spec gaps + .NET extensions layer defined; sprint `net-load-spitbol` added to M-NET-POLISH | spec read from Macro SPITBOL Manual v3.7 Appendix F + Ch19 |
 | 2026-03-16 | `net-delegates` Step 16 ✅ — absorb angle-bracket gotos into delegates; EmitMixedConditionalGotoIL for mixed :S<VAR>F(LABEL) cases; fix savedFailure init before skip branch; 1750/1751; HEAD `baeaa52` | audit showed GotoIndirectCode was intentionally left in thread — wired existing indirectGotoExpr path to absorb all cases |
 | 2026-03-17 | **`net-load-spitbol` ✅** — ParsePrototype (errors 139-141); dispatcher; NativeLibrary.Load + SNOLIB search; InvokeNative unsafe dispatch table (retSig×argSig×arity 0-3); UNLOAD(fname) natural-var check; 27 tests; 1777/1778; HEAD `21dceac` | Bug: PredicateSuccess() pushed extra StringVar causing error 212 in assignment; fixed: push result + Failure=false only |
