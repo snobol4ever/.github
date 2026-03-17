@@ -11,14 +11,14 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | snobol4dotnet |
-| **Sprint** | `net-save-dll-1` — SaveDll(): embed source text in PersistedAssemblyBuilder DLL with sentinel type Snobol4ThreadedDll; wire into BuildMain() |
+| **Sprint** | `net-load-dotnet` Steps 7+8 — SnobolVar/Pattern/Table/Array return coercions + F# DU coercion layer |
 | **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
 | **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
-| **HEAD DOTNET** | `c43580d` session137: chore: remove dead Roslyn path |
+| **HEAD DOTNET** | `cca773a` session138: net-save-dll-1/2/3 complete; M-NET-SAVE-DLL ✅ |
 | **HEAD HQ** | (this commit) session138 |
-| **Next action** | `net-save-dll-1`: implement `SaveDll()` in `BuilderSaveDll.cs` partial; use `PersistedAssemblyBuilder` to write sentinel DLL; wire call in `BuildMain()` after `PopulateMainMetadata()` |
-| **Invariant** | `dotnet test` → 1802/1803 before any dotnet work |
+| **Next action** | `net-load-dotnet` Step 7: SnobolVar/Pattern/Table/Array return coercions via IExternalLibrary fast path; object lifecycle tests (MakeArray/ArraySet/ArrayGet etc.) |
+| **Invariant** | `dotnet test` → 1805/1806 before any dotnet work |
 
 **Read the active L2 doc: [DOTNET.md](DOTNET.md)**
 

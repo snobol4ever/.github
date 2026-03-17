@@ -9,17 +9,17 @@
 
 ## NOW
 
-**Sprint:** `net-load-dotnet` Steps 1–6 ✅ → **`net-save-dll`** ← active (PIVOT session137)
-**HEAD:** `c43580d`
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ → **M-NET-SAVE-DLL** → M-NET-LOAD-DOTNET → M-NET-XN track
+**Sprint:** `net-save-dll-1/2/3` ✅ → **`net-load-dotnet` Steps 7+8** ← active
+**HEAD:** `cca773a`
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · **M-NET-SAVE-DLL ✅** → M-NET-LOAD-DOTNET → M-NET-XN track
 
-**Next action:** `net-save-dll-1` Step 1 — `SaveDll()`: embed source text + compiler options in a `PersistedAssemblyBuilder` DLL with sentinel type `Snobol4ThreadedDll`; wire call into `BuildMain()` after `PopulateMainMetadata()`.
-**After net-save-dll track:** finish `net-load-dotnet` Steps 7+8 (SnobolVar return coercions + F# DU coercion), then `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
+**Next action:** `net-load-dotnet` Step 7 — SnobolVar/Pattern/Table/Array return coercions via IExternalLibrary fast path; object lifecycle tests (MakeArray/ArraySet/ArrayGet/ArraySum/ArrayClear, MakeTable/TablePut/TableGet/TableKeys/TableWipe, MakePoint/PointX/PointY/PointMove/PointReset).
+**After net-load-dotnet:** `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
 
-**net-save-dll split (3 sprints — session138):**
-- `net-save-dll-1` — `SaveDll()`: source embedding + PersistedAssemblyBuilder DLL write ← **active**
-- `net-save-dll-2` — `RunDll()` threaded detection: extract source, re-compile pipeline, ExecuteLoop(0)
-- `net-save-dll-3` — Tests: WriteDll_HelloWorld, WriteDll_Variables, WriteDll_OutputMatchesDirect; invariant ≥1802+3
+**net-save-dll split (3 sprints — session138) ✅:**
+- `net-save-dll-1` — `SaveDll()`: PersistedAssemblyBuilder DLL with Snobol4ThreadedDll sentinel + source embedding ✅
+- `net-save-dll-2` — `RunDll()` threaded detection: extract source, re-compile pipeline, ExecuteLoop(0) ✅
+- `net-save-dll-3` — Tests: WriteDll_HelloWorld_DllExists, WriteDll_HelloWorld_RunProducesOutput, WriteDll_OutputMatchesDirect; 1805/1806 ✅
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -58,7 +58,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1732/1744 (12 
 | **M-NET-CORPUS-GAPS** | All 12 corpus [Ignore] tests pass — PROTOTYPE, FRETURN/NRETURN, VALUE, EVAL/OPSYN | ❌ Sprint `net-gap-prototype` active |
 | **M-NET-DELEGATES** | Instruction[] eliminated — pure Func<Executive,int>[] dispatch | ✅ `baeaa52` |
 | **M-NET-LOAD-SPITBOL** | ✅`21dceac` LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
-| **M-NET-SAVE-DLL** | `-w file.sno` produces `file.dll` (threaded assembly persisted to disk); `snobol4 file.dll` runs it; `RunDll()` updated for threaded format | ❌ Sprint `net-save-dll` |
+| **M-NET-SAVE-DLL** | `-w file.sno` produces `file.dll` (threaded assembly persisted to disk); `snobol4 file.dll` runs it; `RunDll()` updated for threaded format | ✅ `cca773a` session138 — PersistedAssemblyBuilder sentinel DLL; 3 tests; 1805/1806 |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ❌ Sprint `net-load-dotnet` |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
@@ -332,6 +332,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 | 2026-03-17 | **`net-build-prereqs` sprint added** — BUILDING.md, .gitignore audit, native lib build script, prebuilt fallback, CI prereq check; added to M-NET-POLISH sprint map and fire condition |
 | 2026-03-17 | **`net-load-dotnet` Steps 4–6 ✅** — Step 4: DllSharedContexts ref-count by path (5 tests); Step 5: Task/Task<T> blocking-await adapter, AsyncDoubler/Greeter/VoidWorker fixtures (4 tests); Step 6: IExternalLibrary fast-path explicit tests (2 tests); 1802/1803; HEAD `38d43b0` | session137 |
 | 2026-03-17 | **chore: Roslyn dead code removed** — CSharpCompile.cs + CodeGenerator.cs deleted; UseThreadedExecution removed; 3 CodeAnalysis NuGet deps stripped; 1802/1803; HEAD `c43580d` | session137 |
+| 2026-03-17 | **`net-save-dll-1/2/3` ✅ — M-NET-SAVE-DLL fires** — `BuilderSaveDll.cs`: `SaveDll()` uses `PersistedAssemblyBuilder` to embed source text in sentinel DLL (`Snobol4ThreadedDll.__source__`); `TryRunThreadedDll()` detects sentinel, re-JITs `MsilDelegates` from embedded source; `RunDll()` routes threaded vs legacy; 3 tests (HelloWorld, RunProducesOutput, OutputMatchesDirect); 1805/1806; HEAD `cca773a` | session138 |
 | 2026-03-17 | **`net-save-dll` split into 3 sprints** — `net-save-dll-1` (SaveDll write), `net-save-dll-2` (RunDll threaded detection + re-compile), `net-save-dll-3` (tests); design: embed source text in PersistedAssemblyBuilder DLL with sentinel type `Snobol4ThreadedDll`; re-JIT MsilDelegates on load (DynamicMethod not serializable); previous session's partial work not committed — clean slate at c43580d | session138 |
 | 2026-03-17 | **PIVOT: `net-load-dotnet` → `net-save-dll`** — Steps 7+8 deferred (SnobolVar return coercions, F# DU coercion); `net-save-dll` promoted ahead per Lon; `M-NET-SAVE-DLL` milestone added | session137 |
 | 2026-03-17 | **`M-NET-SAVE-DLL` milestone created** — `-w` WriteDll confirmed no-op on threaded path (only in dead Roslyn CSharpCompile.cs); `RunDll()` kept — it's the read side, needs update in net-save-dll to handle threaded format | session137 |
