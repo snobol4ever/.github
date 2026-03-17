@@ -6570,3 +6570,24 @@ Implements LIT/SEQ/ALT/POS/RPOS/ARBNO node dispatch. Generates correct NASM Byrd
 2. Run `dotnet test` — confirm 1873/1876 invariant
 3. Sprint `net-corpus-rungs`: run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures
 4. See DOTNET.md `net-corpus-rungs` sprint for detail
+
+## Session 149 — 2026-03-17 — DOTNET net-corpus-rungs (Claude Sonnet 4.6)
+
+**Repo:** snobol4dotnet · **Sprint:** net-corpus-rungs · **HEAD start:** 26e2144 · **HEAD end:** d0ffaa2
+
+**SPITBOL oracle established:** When CSNOBOL4 and SPITBOL MINIMAL diverge, SPITBOL MINIMAL wins. Reference: sbl.min (x64-main.zip uploaded by Lon).
+
+**Work done:**
+- Cloned .github, snobol4corpus, snobol4harness, snobol4dotnet; installed .NET 10 SDK; verified invariant 1873/1876 ✅
+- Built crosscheck harness `run_crosscheck_dotnet.sh`: runs .sno files through DOTNET binary, feeds .input via stdin, captures stderr (program output), diffs vs .ref
+- Initial run: 95/106. Identified 4 bug classes.
+- Fixed harness: stdin redirect for .input files → word1-4 + wordcount pass → 100/106
+- Fixed &UCASE/&LCASE: hard-coded to 26 ASCII letters per sbl.min `dac 26 / dtc /abc.../` — removed extended Latin chars from CurrentCulture loop
+- Fixed DATATYPE user types: `GetDataType` returns `.ToLowerInvariant()` — SPITBOL `flstg` at `sdat1` folds type name to lowercase before storing in dfnam
+- DATATYPE builtins (string/integer/real): already lowercase in DOTNET — correct per SPITBOL; updated 5 test assertions and corpus 081.ref that asserted wrong CSNOBOL4 uppercase values
+- Fixed @N (`CursorAssignmentPattern`): rewired to write directly to `IdentifierTable[symbol]` instead of calling `Assign()` which pushes/pops SystemStack inside the scanner, corrupting state. Mid-pattern @N now works (Q=2 for 'SN' @Q 'OB' ✅).
+- Remaining bug: `@N` when @ is the **first node** in a pattern — cursor=0 assigned on first attempt, cursor=1 retry does not overwrite. Symptom: `S ? @P 'N'` → P=0 (should be 1). Root cause not yet isolated: Scanner outer loop resets CursorPosition correctly; suspicion is AST cache or ClearAlternates interaction.
+- Crosscheck: 105/106. Only `cross` failing (uses @N first-position).
+- Invariant: 1873/1876, 0 failed ✅
+
+**Next session start:** Read PLAN.md + RULES.md + DOTNET.md. Run invariant. Fix @N first-position bug in `CursorAssignmentPattern.cs` — add debug trace or step through Scanner outer loop to see why cursor=1 retry's write doesn't persist. Then rerun crosscheck → 106/106 → M-NET-CORPUS-RUNGS fires → update PLAN.md milestone dashboard → move to M-NET-POLISH track.
