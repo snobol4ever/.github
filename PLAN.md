@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-gap-value-indirect` — VALUE() by name; `$.var` indirect syntax (1115, 1116, 210) |
+| **Sprint** | `net-alphabet` — fix `&ALPHABET` SIZE 255→256 |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD DOTNET** | `a99f1d3` net-gap-value-indirect: VALUE()+$.var, 1738/1744 |
-| **HEAD HQ** | `e622c62` DOTNET.md: net-gap-freturn complete; net-gap-value-indirect active |
-| **Next action** | `net-gap-eval-opsyn`: EVAL unevaluated expr, OPSYN alias, alternate DEFINE entry, ARG/LOCAL/APPLY (1010–1012, 1015–1018) |
+| **HEAD DOTNET** | `e21e944` net-gap-eval-opsyn ✅: 1743/1744 |
+| **HEAD HQ** | (this commit) session131: net-gap-eval-opsyn complete; M-NET-CORPUS-GAPS ✅ |
+| **Next action** | `net-alphabet`: add 0x00 to &ALPHABET init → SIZE 256; then resume `net-delegates` |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [JVM.md](JVM.md)**
@@ -93,7 +93,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-NET-CORPUS-GAPS** | 12 corpus [Ignore] tests pass — PROTOTYPE/FRETURN/VALUE/EVAL | ❌ Sprint `net-gap-prototype` |
+| **M-NET-CORPUS-GAPS** | 12 corpus [Ignore] tests pass — PROTOTYPE/FRETURN/VALUE/EVAL | ✅ `e21e944` session131 — 11/12; 1012 semicolons separate gap |
 | M-NET-DELEGATES | Instruction[] → pure Func<Executive,int>[] dispatch | ❌ Sprint `net-delegates` |
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | **M-NET-POLISH** | 106/106 corpus rungs pass, diag1 35/35, benchmark grid published | ❌ see DOTNET.md |

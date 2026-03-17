@@ -5980,3 +5980,58 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1735/1744, 9 s
 3. Run invariant: `dotnet test TestSnobol4/... -c Release -p:EnableWindowsTargeting=true` → must be 1738/1744
 4. 6 [Ignore] tests: 1010, 1011, 1012, 1015, 1016, 1017, 1018 (net-gap-eval-opsyn)
 5. Gaps: EVAL with *expr unevaluated, OPSYN alias, alternate DEFINE entry, ARG/LOCAL/APPLY
+
+---
+
+## Session 131 — SNOBOL4-dotnet — 2026-03-17
+
+**Repo:** SNOBOL4-dotnet
+**Sprint:** `net-gap-eval-opsyn` ✅ complete
+**Baseline:** 1738/1744 (6 [Ignore])
+**Result:** 1743/1744 (1 [Ignore] — 1012 semicolons, genuine parser gap)
+**HEAD:** `e21e944`
+
+### What happened
+
+Session start: cloned all repos (.github, SNOBOL4-corpus, SNOBOL4-harness, SNOBOL4-dotnet, SNOBOL4-tiny, SNOBOL4-jvm). Installed .NET 10 (project targets net10.0). Confirmed baseline 1738/1744.
+
+Discovered 5 of the 6 [Ignore] tests had stale tags — their implementations were already present or nearly complete:
+- 1015 (OPSYN operator alias): already passing — tag was stale
+- 1016 (EVAL / *expr unevaluated): already passing — tag was stale
+- 1017 (ARG/LOCAL introspection): implementation complete — tag stale
+- 1018 (APPLY): implementation complete — tag stale
+
+Two genuine bugs for 1010 and 1011:
+
+**Bug 1 — Define.cs: `argumentCount = locals.Count` (should be `parameters.Count`)**
+User functions registered with wrong arg count. Fixed.
+
+**Bug 2 — Define.cs: redefinition guard blocked ALL redefinition**
+`FunctionTable[name] is not null → error 248`. Should only block `IsProtected` system functions. Fixed.
+
+**Bug 3 — Define.cs: string second arg not accepted as entry label**
+`define('f(n)', 'label')` failed — only `.label` (NameVar) was accepted. Fixed: string arg used directly as label name.
+
+**Bug 4 — Define.cs: return variable name used alias not original**
+`ExecuteProgramDefinedFunction` used `arguments[^1]` (alias name) to look up return variable. OPSYN alias `facto` → `fact`: body writes to `fact`, not `facto`. Fixed: use `definition.FunctionName` as `returnVarName`.
+
+**Bug 5 — Opsyn.cs: OPSYN alias didn't copy UserFunctionTableEntry**
+`FunctionTable` got new entry for alias but `UserFunctionTable` had no entry → NullRef in `ExecuteProgramDefinedFunction`. Fixed: copy entry under alias name, preserving original `FunctionName` so return var resolves correctly.
+
+**PredicateSuccess() return value for DEFINE:** Confirmed empirically that DEFINE returns null (predicate), NOT the function name. Test 1011 uses `differ(define(...)) :f(label)` as a goto — DIFFER fails (null) → jumps to label. Reverted an incorrect attempt to return function name.
+
+### Milestones
+- **M-NET-CORPUS-GAPS** ✅ fired — 11/12 [Ignore] removed; 1743/1744. 1012 (semicolon separator) is a separate genuine parser gap, not counted against this milestone.
+
+### Files changed
+- `Snobol4.Common/Runtime/Functions/FunctionControl/Define.cs` — argumentCount bug; redefinition guard; string entry label; returnVarName
+- `Snobol4.Common/Runtime/Functions/FunctionControl/Opsyn.cs` — UserFunctionTable copy for alias
+- `TestSnobol4/Corpus/Rung10_Functions.cs` — [Ignore] removed from 1010, 1011, 1016, 1017, 1018
+
+### Next session start
+1. Read RULES.md, PLAN.md, DOTNET.md
+2. Confirm HEAD: `e21e944`
+3. Run invariant: `dotnet test TestSnobol4/... -c Release -p:EnableWindowsTargeting=true` → must be 1743/1744
+4. Active sprint: `net-alphabet` — add 0x00 to &ALPHABET init → SIZE 256
+5. After net-alphabet: resume `net-delegates`
+6. .NET 10 SDK: install with `/tmp/dotnet-install.sh --channel 10.0 --install-dir /home/claude/.dotnet`
