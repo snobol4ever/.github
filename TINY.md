@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A10: beauty.sno self-beautifies via ASM backend
-**HEAD:** `3624d9d` session151
+**HEAD:** `14a071b` session151
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTY** next
 
 **Session151 — M-ASM-CROSSCHECK fires — 26/26 ASM PASS:**
