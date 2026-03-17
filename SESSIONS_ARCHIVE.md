@@ -6471,3 +6471,44 @@ Full sprint specs written into DOTNET.md including step-by-step breakdown, C str
 - `FunctionTable` keys must match `FoldCase()` → uppercase (not lowercase literals)
 
 **Next:** `net-ext-xnblk` Step 1 — `XnBlkData`/`FirstCall` on `NativeEntry`; pinned `long[]` xndta buffer.
+
+## Session 146 — 2026-03-17
+
+**Repo:** snobol4x · **HEAD in:** `5a6861e` · **HEAD out:** `426da47`
+**Also touched:** .github (`b53e152` — concurrent-push rule + unified NOW block)
+
+**Goal:** Sprint A1 (LIT), A2 (POS/RPOS), A3 (CAT) — hand-written x64 ASM artifacts; fire M-ASM-LIT + M-ASM-SEQ. Introduce parallel-session concurrent-push protocol.
+
+**What happened:**
+- Read PLAN.md / RULES.md / TINY.md / BACKEND-X64.md at session start
+- Studied CSNOBOL4 v311.sil: FENCE (FNCE/FNCFCL/FNCFFN), ARBNO (ARBN/ARBF/EARB/ONAR), p_str (repe cmpsb), STCOUNT/STLIMIT implementation
+- Studied Macro SPITBOL x64 bootstrap/sbl.asm: p_str, p_fen, p_alt, register conventions (rsi=xl, rdi=xr, rsp=xs, rax=w0, rcx=wa, rbx=wb, rdx=wc)
+- Extracted x64-main.zip upload (Macro SPITBOL V4.0f source)
+- 106/106 invariant verified clean
+- Hand-wrote and tested four ASM artifacts (all NASM x64 ELF64, standalone, no C runtime):
+  - `artifacts/asm/null.s` — Sprint A0 archive (M-ASM-HELLO, session145)
+  - `artifacts/asm/lit_hello.s` — LIT node: bounds check + repe cmpsb + α/β/γ/ω labels + flat .bss cursor/saved_cursor → "hello\n" exit 0. Diff vs oracle CLEAN. **M-ASM-LIT ✅**
+  - `artifacts/asm/pos0_rpos0.s` — POS(0) RPOS(0) CAT-wired: pure cursor compares, empty subject → exit 0
+  - `artifacts/asm/cat_pos_lit_rpos.s` — POS(0) LIT("hello") RPOS(0) + ASSIGN: full three-node CAT with correct γ→α and ω→β wiring → "hello\n" exit 0. Diff vs oracle CLEAN. **M-ASM-SEQ ✅**
+- Added `⛔ ASM ARTIFACTS` rule to RULES.md (naming convention, folder, entry format)
+- Added `⛔ CONCURRENT SESSIONS` rule to RULES.md (`git pull --rebase origin main` before every .github push)
+- Restructured PLAN.md NOW block into per-platform rows (TINY / DOTNET separate lines) to prevent concurrent edit collision
+- Concurrent collision happened live (DOTNET chat had pushed M-NET-EXT-XNBLK simultaneously) — resolved by hand merge, demonstrating the protocol works
+- artifacts/README.md updated with session146 ASM entries
+- TINY.md: M-ASM-LIT ✅, M-ASM-SEQ ✅, NOW/sprint/pivot log updated
+- PLAN.md: both milestones fired, NOW block unified
+
+**Milestones fired:**
+- M-ASM-LIT ✅ session146
+- M-ASM-SEQ ✅ session146
+
+**Next session must:**
+1. Read PLAN.md → RULES.md → TINY.md (step 6: read artifacts/asm/ to orient)
+2. `git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"`
+3. Verify HEAD = `426da47`
+4. Run 106/106 invariant
+5. Sprint A4: ALT node — write `artifacts/asm/alt_first.s`, `alt_second.s`, `alt_fail.s`
+6. Oracle is `test/sprint3/alt_first.c`, `alt_second.c`, `alt_fail.c`
+7. ALT wiring: left-ω → right-α; right-ω → outer-ω; left-β (backtrack) → right-β
+8. Fire M-ASM-ALT when all three diff clean
+9. `git pull --rebase origin main` before pushing .github
