@@ -6629,3 +6629,62 @@ if (rootPattern.StartNode == null)
 This prevents any subsequent Build from overwriting the correct cached start node.
 
 **After fix:** rebuild → run `cross.sno` → verify output matches .ref → run invariant → run crosscheck → 106/106 → M-NET-CORPUS-RUNGS fires → update PLAN.md dashboard → pivot to M-NET-POLISH track.
+
+---
+
+### Session 150 — Sprint A9: 17/20 ASM crosscheck PASS
+
+**Repo:** snobol4x **HEAD:** d7a75cc
+
+**What happened:**
+
+#### 106/106 invariant — DATATYPE lowercase fix
+- `datatype()` in `snobol4.c` was returning `"STRING"/"INTEGER"/"REAL"` (uppercase)
+- corpus `081_builtin_datatype.ref` was updated by DOTNET session to expect lowercase (SPITBOL-correct)
+- Fixed `datatype()` to return `"string"/"integer"/"real"` — `CONVERT()` already uses `strcasecmp` so no regression
+- 106/106 ✅ restored
+
+#### Sprint A9 — new emitters
+Added to `emit_byrd_asm.c` and wired into `E_FNC` switch:
+- `emit_asm_any(charset)` — scan charset, match 1 char IN set
+- `emit_asm_notany(charset)` — scan charset, match 1 char NOT in set
+- `emit_asm_span(charset)` — match longest run IN set (min 1)
+- `emit_asm_break(charset)` — match up to (not including) char in set
+- `emit_asm_len(n)` — match exactly N chars
+- `emit_asm_tab(n)` — advance cursor to column N
+- `emit_asm_rtab(n)` — leave N chars from right
+- `emit_asm_rem()` — match rest of string
+- `emit_asm_arb()` — match 0 chars first, grow on backtrack (flat .bss arb_start/arb_step)
+- FAIL — always jmp omega
+
+**E_VART fix:** REM/ARB/FAIL appear as `E_VART` (no parens) not `E_FNC`. Intercept them in the E_VART case before named-pattern lookup.
+
+#### Harness rewrite — setjmp/longjmp scan loop
+- Old harness: single `jmp root_alpha`, both `match_success` and `match_fail` called `exit()` — anchored only
+- New harness: `for start=0..subject_len: cursor=start; if setjmp==JMP_FAIL continue; run_pattern()`
+- `match_fail` calls `longjmp(scan_env, JMP_FAIL)` — returns to loop, tries next start
+- `match_success` calls `exit(0)` as before
+- `cap_len` sentinel: initialized to `UINT64_MAX` each iteration; DOL writes real length (may be 0 for empty-string capture); `match_success` distinguishes "no capture" from "empty capture"
+
+#### DOL emitter fix
+- DOL was writing to per-variable `.bss` slots (`cap_V_N_buf`/`cap_V_N_len`) — harness globals `cap_buf`/`cap_len` never written
+- Fixed: DOL now writes directly to `cap_buf`/`cap_len` (harness externs) — no per-var .bss needed
+
+#### build_bare_sno fix
+- Was stripping all `VAR = expr` lines — dropped pattern-variable assignments like `P = ('a'|'b'|'c')`
+- Fixed: keep assignments whose RHS contains `|` or `(` (pattern expressions); strip plain string/number assignments
+
+#### Results
+- **038–054 PASS** (17/20 ASM crosscheck tests)
+- **055 FAIL** — multi-capture `OUTPUT = A ' ' B ' ' C` needs full runtime
+- Script stops after 055 (first failure) — 056–064 not yet run
+
+#### 106/106 invariant
+Confirmed 106/106 ✅ after DATATYPE fix.
+
+**Next session start:**
+1. Fix `extract_subject` in `run_crosscheck_asm.sh` — grabs first `VAR='string'` assignment; for 056 gets `PAT='hello'` instead of `X='say hello world'`. Fix: find the subject variable from the match line (`X PAT . V` → subject is `X`), then find `X = '...'` assignment.
+2. Add skip list: 055 (multi-capture), 060 (multi-capture), 061 (loop), 062–063 (replacement) — these need full runtime.
+3. Wire `E_INDR` in `emit_asm_node`: `*PAT` → `E_INDR(E_VART("PAT"))` → call `pat_PAT_alpha/beta` via named-pattern ref.
+4. Verify 057 (FAIL match/no-match) and 058 (single capture) pass.
+5. Run 20/20 → **M-ASM-CROSSCHECK fires**.
