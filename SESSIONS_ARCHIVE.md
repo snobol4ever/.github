@@ -6035,3 +6035,34 @@ User functions registered with wrong arg count. Fixed.
 4. Active sprint: `net-alphabet` — add 0x00 to &ALPHABET init → SIZE 256
 5. After net-alphabet: resume `net-delegates`
 6. .NET 10 SDK: install with `/tmp/dotnet-install.sh --channel 10.0 --install-dir /home/claude/.dotnet`
+
+---
+
+## Session 132 — 2026-03-16
+
+**Repo:** SNOBOL4-dotnet
+**Sprint at start:** `net-alphabet`
+**Sprint at end:** `net-delegates` (Step 14 next)
+**HEAD at end:** `dc5d132` DOTNET · (this commit) HQ
+
+### What happened
+
+- Read RULES.md, PLAN.md, DOTNET.md per session-start protocol
+- Confirmed HEAD `e21e944`, baseline 1743/1744 ✅
+- **`net-alphabet` ✅** — `Executive.cs:314` `Range(0,255)` → `Range(0,256)`; NUL (0x00) now included. Three tests updated to assert exactly 256: `TEST_Alphabet_001` (pre-existing unit test), `TEST_Corpus_006` (corpus basic), `TEST_Corpus_097` (corpus keywords). The pre-existing test had `255` hardcoded — corrected to match both oracles. Score held at 1743/1744.
+- Committed `dc5d132`, pushed to remote.
+- Updated DOTNET.md NOW block + sprint map + pivot log. Updated PLAN.md NOW block.
+
+### Files changed
+- `Snobol4.Common/Runtime/Execution/Executive.cs` — `Range(0,255)` → `Range(0,256)`
+- `TestSnobol4/Function/Operator/Unary/Keyword (&).cs` — `TEST_Alphabet_001`: assert 256
+- `TestSnobol4/Corpus/SimpleOutput_Basic.cs` — `TEST_Corpus_006`: tighten to `AreEqual(256L,...)`
+- `TestSnobol4/Corpus/SimpleOutput_CaptureKeywords.cs` — `TEST_Corpus_097`: tighten to `AreEqual(256L,...)`
+
+### Next session start
+1. Read RULES.md, PLAN.md, DOTNET.md
+2. Confirm HEAD: `dc5d132`
+3. Run invariant: `dotnet test TestSnobol4/TestSnobol4.csproj -c Release` → must be 1743/1744
+4. Active sprint: `net-delegates` Step 14 — migrate `Instruction[]` → `Func<Executive,int>[]`
+5. Read `ThreadedCodeCompiler.cs` + `ThreadedExecuteLoop.cs` to locate Step 14 entry point
+6. .NET 10 SDK: `bash /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/local/dotnet10 && export PATH=/usr/local/dotnet10:$PATH`

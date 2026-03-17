@@ -9,12 +9,12 @@
 
 ## NOW
 
-**Sprint:** `net-alphabet` ← active
-**HEAD:** `e21e944`
-**Milestone:** M-NET-CORPUS-GAPS ✅ (11/12 [Ignore] removed; 1743/1744; 1012 semicolons is separate gap) → resume M-NET-DELEGATES
+**Sprint:** `net-delegates` ← active
+**HEAD:** `dc5d132`
+**Milestone:** M-NET-CORPUS-GAPS ✅ · `net-alphabet` ✅ → M-NET-DELEGATES track
 
-**Next action:** `net-alphabet` — fix `&ALPHABET` SIZE 255→256 to match both oracles (add 0x00 to alphabet init).
-**After net-alphabet:** resume `net-delegates` → M-NET-POLISH track.
+**Next action:** `net-delegates` Step 14 — migrate `Instruction[]` dispatch → `Func<Executive,int>[]` in `ThreadedCodeCompiler.cs` / `ThreadedExecuteLoop.cs`.
+**After net-delegates:** `net-corpus-rungs` → M-NET-POLISH track.
 
 **Downstream (M-NET-POLISH sprints, in order after M-NET-DELEGATES):**
 `net-corpus-rungs` → `net-diag1` → `net-feature-audit` → `net-save-dll` → `net-load-unload` → `net-feature-fill` → `net-benchmark-scaffold` → `net-benchmark-publish`
@@ -78,7 +78,7 @@ its [Ignore] tags and confirms `dotnet test` passes the newly enabled tests.
 
 | Sprint | What | Files affected | Trigger |
 |--------|------|----------------|---------|
-| **`net-alphabet`** | Fix `&ALPHABET` to contain 256 chars (0x00–0xFF) matching both SPITBOL and CSNOBOL4; update corpus tests to assert 256 exactly instead of `255 \|\| 256` | keyword init; `SimpleOutput_Basic.cs` test 006; `SimpleOutput_CaptureKeywords.cs` test 097 | `SIZE(&ALPHABET) == 256`; corpus assertions tightened |
+| **`net-alphabet`** | Fix `&ALPHABET` to contain 256 chars (0x00–0xFF) matching both SPITBOL and CSNOBOL4; update corpus tests to assert 256 exactly instead of `255 \|\| 256` | keyword init; `SimpleOutput_Basic.cs` test 006; `SimpleOutput_CaptureKeywords.cs` test 097 | ✅ `dc5d132` — `Range(0,256)`; Alphabet_001 + 006 + 097 assert 256 exactly |
 
 **Known gap (found 2026-03-16):** DOTNET `&ALPHABET` has 255 chars (0x01–0xFF); both oracles return 256. Corpus tests currently accept 255 or 256 (deliberately loosened). Fix: include 0x00 or adjust init to match the 256-char oracle string.
 
@@ -160,6 +160,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | 2026-03-16 | `net-gap-freturn` ✅ — 1013+1014 pass; 1735/1744; HEAD `2fd79cd` | Bug 1: FunctionPrototypePattern [^)]+→[^)]* (empty param list); Bug 2: Assign() NameVar.Pointer dereference for lvalue |
 | 2026-03-16 | `net-gap-value-indirect` ✅ — 1115+1116+210 pass; 1738/1744; HEAD `a99f1d3` | VALUE() builtin; DATA fields shadow builtins polymorphically; $.var SPITBOL-safe; BAL protected per is.sno discriminator |
 | 2026-03-17 | `net-gap-eval-opsyn` ✅ — 1743/1744; 5 [Ignore] removed (1010/1011/1016/1017/1018); Define.cs: argumentCount bug (locals→parameters), redefinition guard (user funcs allowed), string entry label arg, returnVarName from definition.FunctionName; Opsyn.cs: UserFunctionTable copy preserving original FunctionName for alias return var resolution; 1012 semicolons genuine parser gap left [Ignore] | session131 |
+| 2026-03-16 | `net-alphabet` ✅ — `&ALPHABET` SIZE 255→256; `Range(0,256)`; tests 006/097/Alphabet_001 tightened to `AreEqual(256)`; 1743/1744; HEAD `dc5d132` | both oracles agree SIZE==256 |
 | 2026-03-17 | M-NET-CORPUS-GAPS ✅ fired (11/12 [Ignore] removed; 1743/1744); pivot to `net-alphabet` then `net-delegates` | session131 |
 | 2026-03-16 | `net-gap-value-indirect` now active | next corpus-gap sprint |
 | 2026-03-16 | `net-gap-freturn` now active | next corpus-gap sprint |

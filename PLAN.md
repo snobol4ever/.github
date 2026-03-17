@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repo** | SNOBOL4-dotnet |
-| **Sprint** | `net-alphabet` — fix `&ALPHABET` SIZE 255→256 |
+| **Sprint** | `net-delegates` — migrate `Instruction[]` → `Func<Executive,int>[]` dispatch (Step 14) |
 | **HEAD TINY** | `8761bc1` session121: 5-primitive SEQ counter instrumented |
 | **HEAD HARNESS** | `0bf728b` session124: oracle-verify complete — keyword grid live-verified |
 | **HEAD CORPUS** | `82907ff` session122: M-DIAG1 suite committed 35/35 CSNOBOL4 oracle |
-| **HEAD DOTNET** | `e21e944` net-gap-eval-opsyn ✅: 1743/1744 |
-| **HEAD HQ** | (this commit) session131: net-gap-eval-opsyn complete; M-NET-CORPUS-GAPS ✅ |
-| **Next action** | `net-alphabet`: add 0x00 to &ALPHABET init → SIZE 256; then resume `net-delegates` |
+| **HEAD DOTNET** | `dc5d132` net-alphabet ✅: 1743/1744; &ALPHABET SIZE 256 |
+| **HEAD HQ** | (this commit) session132: net-alphabet ✅; net-delegates active |
+| **Next action** | `net-delegates` Step 14: migrate `Instruction[]` → `Func<Executive,int>[]` in ThreadedCodeCompiler/ThreadedExecuteLoop |
 | **Invariant** | 106/106 rungs 1–11 must pass before any work on SNOBOL4-tiny |
 
 **Read the active L2 doc: [JVM.md](JVM.md)**
