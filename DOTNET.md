@@ -9,12 +9,12 @@
 
 ## NOW
 
-**Sprint:** **`net-load-xn`** ← active
+**Sprint:** **`net-ext-noconv`** ← active (new — inserted before net-load-xn)
 **HEAD:** `234f24a`
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ → **M-NET-XN** ← active
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ → **M-NET-EXT-NOCONV** ← active
 
-**Next action:** Begin `net-load-xn` — Step 1: `xn1st` thread-local in Executive; Step 2: `libsnobol4_rt` shim (`snobol4_xn1st`, `snobol4_register_callback`); Step 3: `xncbp` shutdown callback; Step 4: `xnsave` double-fire guard; Step 5: tests in `LoadXnTests.cs`.
-**After net-vb-fixture:** `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
+**Next action:** Begin `net-ext-noconv` Step 1: implement `noconv` (type 0) in prototype parser; Step 2: marshal ARRAY/TABLE/PDBLK as opaque handles through C-ABI path; Step 3: IExternalLibrary traversal API; Step 4: tests (SNO passes ARRAY/TABLE/PDBLK to C and .NET functions that traverse them).
+**Sprint order after net-vb-fixture:** `net-ext-noconv` → `net-ext-xnblk` → `net-ext-create` → `net-load-xn` → `net-corpus-rungs` → M-NET-POLISH track.
 
 **net-save-dll split (3 sprints — session138) ✅:**
 - `net-save-dll-1` — `SaveDll()`: PersistedAssemblyBuilder DLL with Snobol4ThreadedDll sentinel + source embedding ✅
@@ -60,6 +60,9 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1832/1833 (1 [
 | **M-NET-LOAD-SPITBOL** | ✅`21dceac` LOAD/UNLOAD spec-compliant: prototype string s1, filename s2, UNLOAD(fname), INTEGER/REAL/STRING/FILE/EXTERNAL coercion, SNOLIB search, Error 202 | ❌ Sprint `net-load-spitbol` |
 | **M-NET-SAVE-DLL** | `-w file.sno` produces `file.dll` (threaded assembly persisted to disk); `snobol4 file.dll` runs it; `RunDll()` updated for threaded format | ✅ `cca773a` session138 — PersistedAssemblyBuilder sentinel DLL; 3 tests; 1805/1806 |
 | **M-NET-LOAD-DOTNET** | Full .NET extension layer: auto-prototype via reflection, multi-function assemblies, IExternalLibrary fast path, async functions, cancellation, any IL language (F#/VB/C++) | ✅ `1e9ad33` session140 |
+| **M-NET-EXT-NOCONV** | SPITBOL `noconv` (type 0) args: pass ARRAY/TABLE/PDBLK unconverted to C and .NET functions; C function receives raw block pointer; .NET IExternalLibrary receives SnobolVar directly; traversal API | ❌ Sprint `net-ext-noconv` |
+| **M-NET-EXT-XNBLK** | External opaque state block (XNBLK): C function allocates and returns persistent opaque data; subsequent calls receive the same block back; `xndta[]` private storage; .NET path: per-entry state Dictionary | ❌ Sprint `net-ext-xnblk` |
+| **M-NET-EXT-CREATE** | Foreign function creates and returns SNOBOL4 objects: C-ABI path uses `snobol4_alloc_array/table` shim from libsnobol4_rt; .NET IExternalLibrary path already capable via ExecutiveObjectApi (Step 7) — needs C-side tests | ❌ Sprint `net-ext-create` |
 | **M-NET-VB** | VB.NET fixture library + tests prove reflect path works from VB.NET: string/long/double returns, null→fail, static methods, multi-load, UNLOAD | ✅ `234f24a` session142 — 10/10; 1856/1857 |
 | **M-NET-XN** | SPITBOL x32 C-ABI parity: xn1st first-call flag, xncbp shutdown callback, xnsave double-fire guard; libsnobol4_rt.so helper shim | ❌ Sprint `net-load-xn` |
 | **M-NET-POLISH** | 106/106 corpus rungs pass · diag1 35/35 · benchmark grid published | ❌ |
@@ -118,6 +121,9 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | Sprint | What | Trigger |
 |--------|------|---------|
 | `net-load-dotnet` | .NET extension layer on top of spec base: reflection, multi-function, IExternalLibrary fast path, async, cancellation, any IL language (see spec below) | M-NET-LOAD-DOTNET fires |
+| `net-ext-noconv` | SPITBOL `noconv` pass-through: ARRAY/TABLE/PDBLK passed unconverted to functions; C-ABI pointer marshaling; .NET traversal API; tests both sides | M-NET-EXT-NOCONV fires |
+| `net-ext-xnblk` | XNBLK opaque state: C function returns persistent opaque block; same block returned on subsequent calls; `xndta[]` private storage; .NET per-entry Dictionary equivalent | M-NET-EXT-XNBLK fires |
+| `net-ext-create` | Foreign creates SNO objects: `snobol4_alloc_array/table` in libsnobol4_rt shim for C-ABI; .NET IExternalLibrary already capable — add C-side tests | M-NET-EXT-CREATE fires |
 | `net-load-xn` | SPITBOL x32 C-ABI parity: xn1st first-call flag via thread-local + libsnobol4_rt shim; xncbp shutdown callback registration + ProcessExit hook; xnsave double-fire guard | M-NET-XN fires |
 | `net-corpus-rungs` | Run 106/106 crosscheck rungs 1–11 against DOTNET; fix all failures | 106/106 green |
 | `net-diag1` | Run diag1 35-test suite (from snobol4corpus) against DOTNET; fix all failures | 35/35 green |
@@ -131,7 +137,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | `net-benchmark-publish` | Run full benchmark grid (DOTNET vs CSNOBOL4 vs SPITBOL vs TINY); publish results in HARNESS.md | grid published |
 | **`net-build-prereqs`** | Document and validate all build prerequisites: BUILDING.md (SDK version, C toolchain for native libs, platform matrix); `.gitignore` audit for build outputs; CI prereq check on clean clone | BUILDING.md present; CI green on clean clone |
 
-**M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll-3` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅ + `net-build-prereqs` ✅
+**M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-ext-noconv` ✅ + `net-ext-xnblk` ✅ + `net-ext-create` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll-3` ✅ + `net-feature-fill` ✅ + `net-benchmark-publish` ✅ + `net-build-prereqs` ✅
 
 ### net-save-dll Track — M-NET-SAVE-DLL (3 sprints)
 
@@ -266,7 +272,83 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 
 ---
 
-### net-load-xn Sprint — M-NET-XN
+### net-ext-noconv Sprint — M-NET-EXT-NOCONV
+
+**Goal:** A SNOBOL4 program can pass ARRAY, TABLE, or user-defined DATA objects unconverted to a LOAD'd function. The function receives the object, traverses its fields, and reads values. This is Scenario A from the SPITBOL external function spec: the host language gets a raw block pointer (C-ABI) or a live SnobolVar reference (.NET).
+
+**Source reference:** `spitbol/x32` → `osint/blocks32.h` — ARBLK, TBBLK, PDBLK structures; `eftar[]` type code `noconv=0`.
+
+#### Sprint steps
+
+1. **Prototype parser** — `noconv` (type code 0) in `eftar[]`. Any arg declared without a type keyword (or explicitly as `NOCONV`) stays unconverted. Parser already handles `INTEGER`/`REAL`/`STRING`/`FILE`; add `noconv` fallthrough for unknown/empty type tokens.
+2. **C-ABI marshal** — In `CallNativeFunction`: for `noconv` args, pin the underlying `SnobolVar` data and pass its raw pointer (ARBLK/TBBLK/PDBLK layout). Provide a `SnobolBlock` C struct mirror in `libsnobol4_rt.h` for C authors to include: `icblk`, `rcblk`, `scblk`, `arblk1`, `vcblk`, `tbblk`, `teblk`, `pdblk` — type-word + fields only, no heap allocator dependency.
+3. **IExternalLibrary traversal API** — In `ExecutiveObjectApi`: add `TraverseArray(ArrayVar, Action<int,Var>)`, `TraverseTable(TableVar, Action<Var,Var>)`, `GetDataFields(ProgramDefinedDataVar)` → `IReadOnlyList<Var>`. These let a .NET IExternalLibrary function walk a SNOBOL4 object passed as an argument.
+4. **Fixture C library** — `CustomFunction/SpitbolNoconvLib/spitbol_noconv.c`: `long snc_array_len(void *arblk)` (reads `arlen`/`ardim`), `long snc_array_get_int(void *arblk, long i)` (reads `arvls[i]` as integer), `char* snc_table_first_key(void *tbblk)` (walks hash buckets, returns first SCBLK string pointer), `long snc_pdblk_field(void *pdblk, long i)` (reads field i as integer).
+5. **Fixture .NET library** — `CustomFunction/NoconvDotNetLibrary/NoconvLib.cs` implementing `IExternalLibrary`: `Init(Executive)`, then `Traverser` function that uses `TraverseArray` to sum all integer elements and return the sum; `TableInspector` that uses `TraverseTable` to count key-value pairs.
+6. **Tests** — `TestSnobol4/Function/FunctionControl/ExtNoconvTests.cs`:
+   - `Noconv_CLib_ArrayLen`: `a = ARRAY(5); a[1]='x'...` → C function reads length 5
+   - `Noconv_CLib_ArrayGetInt`: pass integer array → C reads element [2]
+   - `Noconv_CLib_TableFirstKey`: pass TABLE with one entry → C reads key string
+   - `Noconv_DotNet_ArraySum`: pass integer array → .NET sums elements
+   - `Noconv_DotNet_TableCount`: pass TABLE → .NET counts entries
+   - `Noconv_DotNet_DataFields`: pass user DATA type → .NET reads field values
+
+**M-NET-EXT-NOCONV fires when:** all Step 6 tests pass + libspitbol_noconv.so built and checked in + full suite invariant passes.
+
+---
+
+### net-ext-xnblk Sprint — M-NET-EXT-XNBLK
+
+**Goal:** A C external function can allocate, return, and subsequently receive a persistent opaque data block (XNBLK). This is the standard SPITBOL mechanism for stateful external functions — the function gets `xndta[]` private storage on first call and receives the same block on every subsequent call.
+
+**Source reference:** `blocks32.h` → `struct xnblk`, `xnu.xndta[]`; `first_call` / `reload_call` macros; `struct efblk.efcod` → pointer to xnblk.
+
+#### Sprint steps
+
+1. **NativeEntry xnblk slot** — Add `IntPtr XnBlkData = IntPtr.Zero` and `bool FirstCall = true` to `NativeEntry`. Allocate a pinned `long[]` buffer (32 longs = 256 bytes) as the `xndta` array on first call.
+2. **libsnobol4_rt xnblk API** — Add to `snobol4_rt.c`: `long* snobol4_xndta(void)` returns pointer to current NativeEntry's xndta buffer; `int snobol4_first_call(void)` returns 1 on first-ever call (maps to `xn1st`); `int snobol4_reload_call(void)` returns 1 on first call after save/reload (always 0 on DOTNET — no save/reload yet).
+3. **Fixture C library** — `CustomFunction/SpitbolXnLib/spitbol_xn.c` (reuse from net-load-xn plan): `long xn_counter(void)` — on first call initializes `xndta[0]=0`; on each call increments and returns `xndta[0]`. Proves persistent state across calls.
+4. **.NET per-entry state** — `DotNetReflectEntry` gets `Dictionary<string,object> PrivateState`. `IExternalLibrary` fast path already has `Init(Executive)` — document that `Init` is called once and the instance is retained (already true). Add `IStatefulExternalLibrary` optional interface with `OnFirstCall(Executive)` called exactly once.
+5. **Tests** — `TestSnobol4/Function/FunctionControl/ExtXnblkTests.cs`:
+   - `Xnblk_Counter_Increments`: call `XnCounter` 5 times, assert returns 1,2,3,4,5
+   - `Xnblk_FirstCall_FlagWorks`: `snobol4_first_call()` returns 1 on call 1, 0 on call 2
+   - `Xnblk_DotNet_StatefulLibrary`: .NET stateful library accumulates sum across 3 calls
+
+**M-NET-EXT-XNBLK fires when:** all Step 5 tests pass + libspitbol_xn.so built + invariant passes.
+
+---
+
+### net-ext-create Sprint — M-NET-EXT-CREATE
+
+**Goal:** A foreign function (C or .NET) can allocate and return a new SNOBOL4 object — ARRAY, TABLE, or STRING — to the calling SNOBOL4 program. This is Scenario B: the foreign function *creates* the object and SNOBOL4 receives and uses it.
+
+**Source reference:** `blocks32.h` ARBLK/VCBLK/TBBLK/SCBLK return; SPITBOL allocates new blocks via `MINIMAL_ALLOC`; external functions return a pointer to the new block in the result area.
+
+#### Sprint steps
+
+1. **C-ABI return of opaque block** — In `CallNativeFunction`: if return type is `EXTERNAL`, treat the return value as a pointer to a block (XNBLK/XRBLK layout). Wrap in `ExternalVar` (opaque SnobolVar subclass holding the pointer). The block is then passable back to C functions as `noconv` arg.
+2. **libsnobol4_rt allocation helpers** — Add to `snobol4_rt.c`:
+   - `void* snobol4_alloc_string(const char* s, long len)` — allocates SCBLK, copies string
+   - `void* snobol4_alloc_array(long n)` — allocates VCBLK of n elements, fills with null strings
+   - `void* snobol4_array_set_int(void* vcblk, long i, long val)` — sets element i to ICBLK(val)
+   - `void* snobol4_array_set_str(void* vcblk, long i, const char* s)` — sets element i to SCBLK
+   These call back into Executive via a registered function pointer set up during LOAD.
+3. **.NET IExternalLibrary return** — Already works: return `ArrayVar`/`TableVar`/`StringVar` from `Execute()`. Add explicit tests documenting this as the canonical Scenario B path for .NET.
+4. **Fixture C library** — `CustomFunction/SpitbolCreateLib/spitbol_create.c`:
+   - `void* create_int_array(long n)` — allocates array [1..n] of integers
+   - `void* create_string(const char* prefix, long n)` — allocates SCBLK "prefix+n"
+5. **Tests** — `TestSnobol4/Function/FunctionControl/ExtCreateTests.cs`:
+   - `Create_CLib_IntArray_Indexable`: C creates array [10,20,30] → SNO asserts `a[2] = 20`
+   - `Create_CLib_String_Usable`: C creates "hello-42" → SNO pattern-matches it
+   - `Create_DotNet_ArrayReturn`: .NET creates `ArrayVar(3)`, fills [7,8,9] → SNO indexes it
+   - `Create_DotNet_TableReturn`: .NET creates `TableVar`, sets `t["x"]=42` → SNO reads `t["x"]`
+   - `Create_DotNet_StringReturn`: .NET returns `StringVar("built")` → SNO uses it in concat
+
+**M-NET-EXT-CREATE fires when:** all Step 5 tests pass + libspitbol_create.so built + invariant passes.
+
+---
+
+
 
 **Goal:** Full C-ABI parity with SPITBOL x32's external function machinery — first-call detection (`xn1st`), shutdown callbacks (`xncbp`), and double-fire guard (`xnsave`). External C libraries that rely on these SPITBOL conventions work correctly on DOTNET without modification.
 
@@ -333,6 +415,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 | 2026-03-17 | **`net-build-prereqs` sprint added** — BUILDING.md, .gitignore audit, native lib build script, prebuilt fallback, CI prereq check; added to M-NET-POLISH sprint map and fire condition |
 | 2026-03-17 | **`net-load-dotnet` Steps 4–6 ✅** — Step 4: DllSharedContexts ref-count by path (5 tests); Step 5: Task/Task<T> blocking-await adapter, AsyncDoubler/Greeter/VoidWorker fixtures (4 tests); Step 6: IExternalLibrary fast-path explicit tests (2 tests); 1802/1803; HEAD `38d43b0` | session137 |
 | 2026-03-17 | **chore: Roslyn dead code removed** — CSharpCompile.cs + CodeGenerator.cs deleted; UseThreadedExecution removed; 3 CodeAnalysis NuGet deps stripped; 1802/1803; HEAD `c43580d` | session137 |
+| 2026-03-17 | **3 ext sprints + milestones created** — M-NET-EXT-NOCONV (`net-ext-noconv`): noconv args, ARRAY/TABLE/PDBLK pass-through, C block struct mirror, IExternalLibrary traversal API; M-NET-EXT-XNBLK (`net-ext-xnblk`): XNBLK opaque persistent state, xndta[], first_call flag; M-NET-EXT-CREATE (`net-ext-create`): foreign creates SNO objects, libsnobol4_rt alloc helpers, .NET IExternalLibrary return already works; inserted before net-load-xn; M-NET-POLISH fire condition updated; source: blocks32.h analysis | session143 |
 | 2026-03-17 | **M-NET-VB ✅ fired** — `net-vb-fixture` complete; 10/10 VB.NET tests green; 1856/1857; HEAD `234f24a`; root causes: double-namespace from `RootNamespace=VbLibrary` in vbproj (cleared); path-based UNLOAD didn't sweep DotNetReflectContexts (fixed); error 22 is fatal not :F (test updated); pivot to `net-load-xn` | session142 |
 | 2026-03-17 | **EMERGENCY WIP: `net-vb-fixture`** — VbLibrary.vb (Reverser/Arithmetic/Geometry/Predicate/Formatter); VbLibraryTests.cs (10 tests); sln wired; build clean; tests NOT yet run; HEAD `6528e77` | session141 — context limit |
 | 2026-03-17 | **`net-vb-fixture` sprint + M-NET-VB milestone created** — VB.NET is 3rd IL language; reflect path handles it without special coercion; pivot from `net-load-xn` | session141 |
