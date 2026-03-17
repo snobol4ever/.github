@@ -1,5 +1,7 @@
 # SNOBOL4ever — HQ
 
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+
 Developer documentation for the SNOBOL4ever project.
 Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
