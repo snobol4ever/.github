@@ -15,10 +15,10 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | **HEAD TINY** | `cf27329` session136: AGPL-3.0 LICENSE + badge added |
 | **HEAD HARNESS** | `9fed541` session136: MIT badge added to README |
 | **HEAD CORPUS** | `9c00acd` session136: CC0 badge + NOTICE added |
-| **HEAD DOTNET** | `cca773a` session138: net-save-dll-1/2/3 complete; M-NET-SAVE-DLL ✅ |
-| **HEAD HQ** | (this commit) session138 |
-| **Next action** | `net-load-dotnet` Step 7: SnobolVar/Pattern/Table/Array return coercions via IExternalLibrary fast path; object lifecycle tests (MakeArray/ArraySet/ArrayGet etc.) |
-| **Invariant** | `dotnet test` → 1805/1806 before any dotnet work |
+| **HEAD DOTNET** | `6edc653` session139: net-load-dotnet Step 7 ✅ |
+| **HEAD HQ** | (this commit) session139 |
+| **Next action** | `net-load-dotnet` Step 8: F# option/DU coercion layer — `option<T>` → fail/value, discriminated unions → SnobolVar; F# library loads and executes correctly |
+| **Invariant** | `dotnet test` → 1832/1833 before any dotnet work |
 
 **Read the active L2 doc: [DOTNET.md](DOTNET.md)**
 
