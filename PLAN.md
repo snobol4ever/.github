@@ -11,8 +11,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `asm-backend` — Sprint A4: ALT node → M-ASM-ALT |
-| **TINY HEAD** | `426da47` session146: M-ASM-LIT + M-ASM-SEQ ✅ |
+| **TINY sprint** | `asm-backend` — Sprint A5: ARBNO node → M-ASM-ARBNO |
+| **TINY HEAD** | `426da47` session146: M-ASM-LIT + M-ASM-SEQ ✅; session147 M-ASM-ALT ✅ pending push |
 | **TINY next** | Sprint A4: ALT node → M-ASM-ALT |
 | **DOTNET sprint** | `net-load-xn` — M-NET-XN: SPITBOL x32 C-ABI parity (xn1st, xncbp, xnsave) |
 | **DOTNET HEAD** | `b821d4d` session145: M-NET-EXT-XNBLK ✅ |
@@ -80,7 +80,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-HELLO** | null.s assembles+links+runs → exit 0 | ✅ session145 |
 | **M-ASM-LIT** | LIT node: lit_hello.s PASS | ✅ session146 |
 | **M-ASM-SEQ** | SEQ/POS/RPOS crosscheck PASS | ✅ session146 |
-| **M-ASM-ALT** | ALT crosscheck PASS | ❌ Sprint A4 |
+| **M-ASM-ALT** | ALT crosscheck PASS | ✅ session147 |
 | **M-ASM-ARBNO** | ARBNO crosscheck PASS | ❌ Sprint A5 |
 | **M-ASM-CHARSET** | ANY/NOTANY/SPAN/BREAK PASS | ❌ Sprint A6 |
 | **M-ASM-ASSIGN** | $ capture PASS | ❌ Sprint A7 |
