@@ -6954,3 +6954,21 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 - **Invariants:** 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
 - **Sprint:** A14 M-ASM-BEAUTIFUL (active)
 - **Next:** Collapse raw mov/STORE_ARG32/APPLY_FN_N sequences in main body into high-level macros
+
+---
+
+## Session168
+
+- **Date:** 2026-03-18
+- **Repo:** snobol4x `d872625`
+- **Sprint:** A14 M-ASM-BEAUTIFUL (active)
+- **Work:**
+  - Macro renames in `snobol4_asm.mac`: `IS_FAIL_BRANCH`→`FAIL_BR`, `IS_FAIL_BRANCH16`→`FAIL_BR16`, `SETUP_SUBJECT_FROM16`→`SUBJ_FROM16`. All back-compat `%define` aliases preserved.
+  - `CALL2_SS`→`CONC2`, `CALL2_SN`→`CONC2_N`; `ALT2`/`ALT2_N` aliases added (same expansion, caller passes different fn label). Back-compat `%define`s preserved.
+  - `COL2_W=12`, `COL_CMT=72` added to `emit_byrd_asm.c`. `ALFC` comment column now uses `COL_CMT` symbolically.
+  - `CONC2_N`/`CONC2` fast paths in `E_OR`/`E_CONC`: fires when left=`E_QLIT`+right=`E_NULV`/null (→`CONC2_N`) or left=`E_QLIT`+right=`E_QLIT` (→`CONC2`). 7 sites hit.
+  - Three emit sites renamed in emitter: `FAIL_BR`, `FAIL_BR16`, `SUBJ_FROM16`.
+  - Dominant remaining shape: `CONCAT(E_QLIT, E_VART)` — ~300 verbose sites. Needs `CONC2_SV` macro + fast path next session.
+- **Artifact:** `artifacts/asm/beauty_prog_session168.s` — 12689 lines (−56), nasm clean
+- **Invariants:** 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+- **Next session start:** `d872625`; add `CONC2_SV`/`ALT2_SV` (QLIT+VART), then `CONC2_VN`/`CONC2_VV` for further coverage

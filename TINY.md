@@ -12,10 +12,74 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
-**HEAD:** `8e5e9cb` session167
+**HEAD:** `d872625` session168
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTIFUL** (A14, active)
 
-**Session167 — ASSIGN_INT/STR, CALL1_INT/STR macros; emit_sep_major/minor separators:**
+**Session168 — FAIL_BR/FAIL_BR16/SUBJ_FROM16 renames; CONC2/ALT2 macros; COL2_W=12; CONC2_N/CONC2 fast paths:**
+- `IS_FAIL_BRANCH` → `FAIL_BR` (14→7 chars); `IS_FAIL_BRANCH16` → `FAIL_BR16` (16→8 chars)
+- `SETUP_SUBJECT_FROM16` → `SUBJ_FROM16` (20→11 chars)
+- `CALL2_SS` → `CONC2`, `CALL2_SN` → `CONC2_N`; `ALT2`/`ALT2_N` aliases added (same expansion)
+- All back-compat `%define` aliases preserved — existing `.s` files still assemble
+- `COL2_W=12`, `COL_CMT=72` defined in `emit_byrd_asm.c`; `ALFC` comment column uses `COL_CMT`
+- `CONC2_N`/`CONC2` fast paths in `E_OR`/`E_CONC` for `QLIT+NULV` and `QLIT+QLIT` children (7 sites)
+- Three emit sites updated: `FAIL_BR`, `FAIL_BR16`, `SUBJ_FROM16`
+- beauty_prog_session168.s: 12689 lines (down 56 from session167), assembles clean
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+
+**⚠ CRITICAL NEXT ACTION — Session169:**
+
+The dominant `CONCAT(E_QLIT, E_VART)` shape — string literal left, variable right — accounts for the bulk of the ~409 remaining verbose blocks (each 10 lines). Add `CONC2_SV` macro and fast path:
+
+**Macro** (`snobol4_asm.mac`):
+```nasm
+; CONC2_SV fn, strlab, varlab  — fn(str_literal, variable) → [rbp-32/24]
+%macro CONC2_SV 3
+    sub     rsp, 32
+    lea     rdi, [rel %2]
+    call    stmt_strval
+    mov     [rsp], rax
+    mov     [rsp+8], rdx
+    lea     rdi, [rel %3]
+    call    stmt_get
+    mov     [rsp+16], rax
+    mov     [rsp+24], rdx
+    lea     rdi, [rel %1]
+    mov     rsi, rsp
+    mov     rdx, 2
+    call    stmt_apply
+    add     rsp, 32
+    mov     [rbp-32], rax
+    mov     [rbp-24], rdx
+%endmacro
+%define ALT2_SV CONC2_SV
+```
+
+**Emitter** (`emit_byrd_asm.c`, `E_OR`/`E_CONC` case, after existing fast paths):
+```c
+int right_is_var = e->right && e->right->kind == E_VART;
+if (left_is_str && right_is_var && rbp_off == -32) {
+    const char *mac_sv = (e->kind == E_OR) ? "ALT2_SV " : "CONC2_SV";
+    const char *slab = prog_str_intern(e->left->sval);
+    const char *vlab = prog_str_intern(e->right->sval);
+    A("    %s %s, %s, %s\n", mac_sv, fnlab, slab, vlab);
+    return 1;
+}
+```
+
+Also add `CONC2_VN` (variable left, NULVCL right) and `CONC2_VV` (two variables) for further coverage.
+
+**Session169 start commands:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = d872625
+
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
 - `ASSIGN_INT var, n, fail_lbl` — collapses LOAD_INT + IS_FAIL_BRANCH + SET_VAR (6 lines → 1)
 - `ASSIGN_STR var, s, fail_lbl` — collapses LOAD_STR + IS_FAIL_BRANCH + SET_VAR (6 lines → 1)
 - `CALL1_INT fn, n` — collapses sub rsp + LOAD_INT + STORE_ARG32 + APPLY_FN_N + add rsp + mov-pair (9 lines → 1)
