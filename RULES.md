@@ -116,7 +116,15 @@ L3: ARCH/TESTING/MONITOR/RULES/SESSIONS_ARCHIVE/PATCHES/MISC.md  ← deep refere
 When Lon says "update HQ": identify which level owns that content and update there.
 PLAN.md changes only when: milestone status changes, NOW block changes, or 4D matrix cell flips.
 
-## Session Lifecycle
+## ⛔ PUSH — Handoff is not complete until git push succeeds
+
+**Never say "handoff complete", "session done", or any equivalent until `git push` output confirms success on every touched repo.**
+
+A committed-but-not-pushed session lives only on a throwaway container. It is a lost session.
+
+If the token has not been provided: say explicitly "I cannot push — please provide the token before this session closes." Do not declare the session done. Do not move on.
+
+This rule has no exceptions.
 
 **Start:**
 1. Read PLAN.md — know what repo/sprint/HEAD/next-action without reading anything else.
