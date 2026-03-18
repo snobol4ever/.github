@@ -130,12 +130,16 @@ PLAN.md changes only when: milestone status changes, NOW block changes, or 4D ma
 1. Run artifact check (see ARTIFACTS rule above).
 2. Update platform MD — HEAD, sprint status, next action, pivot log entry if anything shifted.
 3. Update PLAN.md milestone dashboard if a milestone fired.
-4. `git add -A && git commit && git push` every touched repo.
-5. Push .github last.
+4. `git add -A && git commit && git push` every touched repo (not .github yet).
+5. `git pull --rebase origin main` on .github.
+6. Append session entry to SESSIONS_ARCHIVE.md — what happened, state at handoff, next session start block.
+7. `git add -A && git commit -m "sessionN: TINY.md + SESSIONS_ARCHIVE — <summary>" && git push` .github.
+
+Steps 5–7 are automatic. No prompting needed. Claude does not wait to be asked.
 
 **SNAPSHOT:** `git add -A && git commit -m "WIP: <what>" && git push` every touched repo.
 
-**HANDOFF:** run SNAPSHOT, then update platform MD and PLAN.md, then push .github.
+**HANDOFF:** run SNAPSHOT, then update platform MD and PLAN.md, then append SESSIONS_ARCHIVE, then push .github.
 
 **EMERGENCY:** `git add -A && git commit -m "EMERGENCY WIP: <state>"` every touched repo →
 push all → one-line pivot log entry in platform MD.
