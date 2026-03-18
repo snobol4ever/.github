@@ -12,25 +12,29 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
-**HEAD:** `a361318` session159
+**HEAD:** `d55ee76` session160
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → M-ASM-BEAUTY (A10, blocked 102-109) → **M-ASM-BEAUTIFUL** (A14, active)
 
-**Session159 — PIVOT to M-ASM-BEAUTIFUL; macro-driven ASM body:**
-- E_OR/E_CONC: added _b_PAT_ALT/_b_PAT_CONCAT to snobol4.c; registered "ALT"/"CONCAT"
-- emit_byrd_asm.c: case E_OR/E_CONC in prog_emit_expr → APPLY_FN_N("ALT"/"CONCAT", 2)
-- beauty test 101_comment PASS via ASM backend ✅
-- snobol4_asm.mac: STORE_ARG32/16, LOAD_NULVCL/32, APPLY_FN_0/N, SET_CAPTURE,
-  IS_FAIL_BRANCH/16, LOAD_VAR, SETUP_SUBJECT_FROM16 added
-- prog_emit_expr + asm_emit_program: raw lea/mov/call replaced with macro calls throughout
-- beauty_prog_session159.s archived (18220 lines, assembles clean)
+**Session160 — M-ASM-BEAUTIFUL: all pattern port macros landed:**
+- All primitive emitters replaced with one macro call per port:
+  LIT_ALPHA/LIT_BETA, SPAN_ALPHA/SPAN_BETA, BREAK_ALPHA/BREAK_BETA,
+  ANY_ALPHA/ANY_BETA, NOTANY_ALPHA/NOTANY_BETA, POS_ALPHA/POS_BETA,
+  RPOS_ALPHA/RPOS_BETA, LEN_ALPHA/LEN_BETA, TAB_ALPHA/TAB_BETA,
+  RTAB_ALPHA/RTAB_BETA, REM_ALPHA/REM_BETA, SEQ_ALPHA/SEQ_BETA,
+  ALT_SAVE_CURSOR/ALT_RESTORE_CURSOR, STORE_RESULT/SAVE_DESCR
+- snobol4_asm.mac extended with all port macros (811 lines)
+- emit_byrd_asm.c: all raw instruction sequences replaced; each port = 1 emitted line
+- Body-only (-asm-body) now emits `%include "snobol4_asm.mac"`
+- run_crosscheck_asm.sh: nasm -I src/runtime/asm/ added
+- beauty_prog_session160.s: 16421 lines (was 18220 — 1799 eliminated), assembles clean
 - 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
 
-**⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL) — SESSION START:**
+**⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL):**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = a361318
+git log --oneline -3   # verify HEAD = d55ee76
 
 apt-get install -y libgc-dev nasm
 make -C src/sno2c
@@ -42,40 +46,7 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 ```
 
-**M-ASM-BEAUTIFUL state after session159:**
-
-The body of `beauty_prog.s` is now macro-driven for the primary statement patterns.
-Remaining work to fire M-ASM-BEAUTIFUL:
-
-1. **Review beauty_prog_session159.s** — open `artifacts/asm/beauty_prog_session159.s`
-   side-by-side with the C backend output. Identify any remaining raw register lines
-   that should become named macros (likely: post-call result-stores `mov [rbp%+d], rax/rdx`).
-
-2. **Add STORE_RESULT macro** if needed:
-   ```nasm
-   %macro STORE_RESULT 1   ; store rax/rdx into [rbp+offset]/[rbp+offset+8]
-       mov     [rbp + %1], rax
-       mov     [rbp + %1 + 8], rdx
-   %endmacro
-   ```
-   Then replace `mov [rbp%+d], rax / mov [rbp%+d], rdx` pairs in `prog_emit_expr`
-   with `A("    STORE_RESULT %d\n", rbp_off)`.
-
-3. **Label readability** — M-ASM-READABLE (A11) called for expanding special chars
-   in label names (e.g. `pp_>=` → `_L_pp_GT_EQ_N`). This is also part of beauty.
-   See `prog_label_nasm()` in `emit_byrd_asm.c`.
-
-4. **Rebuild + invariants** — 106/106 and 26/26 must hold after every change.
-
-5. **Artifact snapshot:**
-   ```bash
-   INC=/home/claude/snobol4corpus/programs/inc
-   BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
-   src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog_sessionN.s
-   nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog_sessionN.s -o /dev/null
-   ```
-
-6. **M-ASM-BEAUTIFUL fires** when Lon reads `beauty_prog_sessionN.s` and declares it beautiful.
+**M-ASM-BEAUTIFUL fires** when Lon reads `beauty_prog_session160.s` and declares it beautiful.
 
 **Session158 — M-ASM-BEAUTY progress — 101_comment PASS:**
 - `section .text` before named pattern bodies (was `.data` → segfault → **root cause**)
