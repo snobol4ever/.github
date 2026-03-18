@@ -51,23 +51,27 @@ Every pattern in beauty_full_bin is a compiled Byrd box.
 `mock_engine.c` is the only engine file linked. `engine.c` is fully superseded.
 If a build links engine.c: stop and diagnose — something is wrong.
 
-## ⛔ ASM ARTIFACTS — One canonical file per artifact
+## ⛔ ARTIFACTS — One canonical file per artifact, four folders
 
-Git history is the archive. No numbered session copies (`foo_sessionN.s`).
+Git history is the archive. No numbered session copies (`foo_sessionN.ext`).
 Overwrite the canonical file and commit. `git log -p` shows the evolution.
 
-**Canonical files:**
-- `artifacts/asm/beauty_prog.s` — beauty.sno via `-asm`; update every session that changes `emit_byrd_asm.c` or `.mac`
-- `artifacts/asm/null.s`, `lit_hello.s`, `alt_*.s`, etc. — one file per test fixture; update when the node type changes
-
-**Update beauty_prog.s:**
-```bash
-src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog.s
-nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null   # confirm clean
-git add artifacts/asm/beauty_prog.s artifacts/README.md && git commit -m "sessionN: artifacts — beauty_prog.s updated (reason)"
+```
+artifacts/
+  asm/    — x64 NASM output (.s)       beauty_prog.s + fixture files
+  c/      — C backend output (.c)       beauty_prog.c + trampoline fixtures
+  jvm/    — JVM bytecode (future)
+  net/    — .NET MSIL (future)
 ```
 
-**Never create** `beauty_prog_sessionN.s` or any other numbered copy.
+**Update beauty_prog.s (every session touching emit_byrd_asm.c or .mac):**
+```bash
+src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog.s
+nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null
+git add artifacts/asm/beauty_prog.s && git commit -m "sessionN: artifacts — beauty_prog.s updated (reason)"
+```
+
+**Never create** `foo_sessionN.ext`. Overwrite `foo.ext` and commit.
 
 ## ⛔ ARTIFACTS — Snapshot generated C every session
 
