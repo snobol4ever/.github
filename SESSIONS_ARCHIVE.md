@@ -6783,3 +6783,75 @@ Confirmed 106/106 ✅ after DATATYPE fix.
 3. **`cross` @N cursor bug** — 105/106; `AtSign.Scan` receives correct `scan.CursorPosition` per Scanner.cs code; root cause may be in how `PatternMatch` is called from the `?` operator — investigate `CursorAssignment (@).cs` call site and NEXTH loop
 4. **net-benchmark-publish** — after M-NET-PERF; full grid DOTNET vs CSNOBOL4 vs SPITBOL
 5. **M-NET-POLISH** — fires when all conditions met (net-perf-analysis + net-benchmark-publish remaining)
+
+---
+
+## Sessions 160–163 — Sprint A14: M-ASM-BEAUTIFUL (TINY/snobol4x)
+
+**Sessions:** 160, 161, 162, 163  
+**Dates:** 2026-03-18  
+**Repos touched:** snobol4x, .github
+
+### What happened
+
+Four consecutive sessions driving the x64 ASM backend to the M-ASM-BEAUTIFUL milestone.
+Inspired by `test_sno_1.c` — a C DFA state machine where each Byrd box state is one line:
+`label:  action  ; comment` — four columns, exactly matching the Byrd box four-port model.
+
+**Session 160 — Port macros:**
+All pattern node ports replaced with named macros: LIT_ALPHA/LIT_BETA, SPAN_ALPHA/SPAN_BETA,
+BREAK_ALPHA/BREAK_BETA, ANY_ALPHA/ANY_BETA, NOTANY_ALPHA/NOTANY_BETA, POS/RPOS/LEN/TAB/RTAB/REM,
+SEQ_ALPHA/SEQ_BETA, ALT_SAVE_CURSOR/ALT_RESTORE_CURSOR, STORE_RESULT/SAVE_DESCR.
+Body-only (-asm-body) now emits `%include`. Crosscheck script gets `-I src/runtime/asm/`.
+16421 lines. HEAD `d55ee76`.
+
+**Session 161 — One line per state:**
+Added `ALF(lbl, fmt, ...)` helper — label and instruction on the same line.
+40 `asmL()+A()` and `asmL()+asmJ()` pairs folded into single `ALF()` calls.
+`seq_l26_alpha:  LIT_ALPHA lit_str_6, 2, ...` — one line per port.
+15883 lines. HEAD `0f7f20b`.
+
+**Session 162 — Three/four columns:**
+Added `ALFC(lbl, comment, fmt, ...)` — folds preceding comment onto the instruction line.
+`seq_l26_alpha:  LIT_ALPHA lit_str_6, 2, ...  ; LIT α` — label, action, target, comment.
+ALT emitter uses ALT_SAVE_CURSOR/ALT_RESTORE_CURSOR macros.
+14950 lines. HEAD `6ed79c5`.
+
+**Session 163 — DOL/ALT combined macros, four-column complete:**
+DOL_SAVE (3 raw instructions → 1 line), DOL_CAPTURE (9 raw instructions → 1 line),
+ALT_ALPHA (absorbs trailing jmp), ALT_OMEGA (absorbs trailing jmp).
+All `\n\n` double-newlines removed (45 instances). Every state is one line throughout.
+14448 lines (down 3772 from session159's 18220). HEAD `88653f6`.
+
+### Commits
+
+| Repo | Commit | What |
+|------|--------|------|
+| snobol4x | `d55ee76` | session160: port macros |
+| snobol4x | `0f7f20b` | session161: ALF one line per state |
+| snobol4x | `6ed79c5` | session162: ALFC three/four columns |
+| snobol4x | `88653f6` | session163: DOL/ALT macros, four-column complete |
+| .github  | `b8cf7f8`, `5f396f0`, `86ae7cf`, `cb8171f`, `bf6431e` | HQ updates sessions 160–163 |
+
+### State at handoff
+
+- HEAD snobol4x: `88653f6`
+- 106/106 C crosscheck PASS
+- 26/26 ASM crosscheck PASS
+- `artifacts/asm/beauty_prog_session163.s` — 14448 lines, assembles clean
+- **M-ASM-BEAUTIFUL fires when Lon reads beauty_prog_session163.s and declares it beautiful**
+
+### Next session start
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 88653f6
+apt-get install -y libgc-dev nasm
+make -C src/sno2c
+mkdir -p /home/snobol4corpus
+ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
