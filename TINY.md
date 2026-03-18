@@ -25,13 +25,57 @@ snobol4x: multiple frontends, multiple backends.
 - beauty_prog_session159.s archived (18220 lines, assembles clean)
 - 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
 
-**⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL):**
-beauty_prog.s body is now macro-driven for simple cases (GET_VAR, LOAD_STR,
-LOAD_INT, SET_VAR, IS_FAIL_BRANCH, APPLY_FN_N, SET_CAPTURE, SETUP_SUBJECT_FROM16).
-Remaining raw `mov [rbp%+d]` result-stores after APPLY_FN_N/E_FNC are structural glue.
-Next: Lon reviews beauty_prog_session159.s. If more macro coverage needed, add
-STORE_RESULT macro for the post-call result-save pattern. M-ASM-BEAUTIFUL fires
-when Lon reads it and declares it beautiful.
+**⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL) — SESSION START:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = a361318
+
+apt-get install -y libgc-dev nasm
+make -C src/sno2c
+
+mkdir -p /home/snobol4corpus
+ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**M-ASM-BEAUTIFUL state after session159:**
+
+The body of `beauty_prog.s` is now macro-driven for the primary statement patterns.
+Remaining work to fire M-ASM-BEAUTIFUL:
+
+1. **Review beauty_prog_session159.s** — open `artifacts/asm/beauty_prog_session159.s`
+   side-by-side with the C backend output. Identify any remaining raw register lines
+   that should become named macros (likely: post-call result-stores `mov [rbp%+d], rax/rdx`).
+
+2. **Add STORE_RESULT macro** if needed:
+   ```nasm
+   %macro STORE_RESULT 1   ; store rax/rdx into [rbp+offset]/[rbp+offset+8]
+       mov     [rbp + %1], rax
+       mov     [rbp + %1 + 8], rdx
+   %endmacro
+   ```
+   Then replace `mov [rbp%+d], rax / mov [rbp%+d], rdx` pairs in `prog_emit_expr`
+   with `A("    STORE_RESULT %d\n", rbp_off)`.
+
+3. **Label readability** — M-ASM-READABLE (A11) called for expanding special chars
+   in label names (e.g. `pp_>=` → `_L_pp_GT_EQ_N`). This is also part of beauty.
+   See `prog_label_nasm()` in `emit_byrd_asm.c`.
+
+4. **Rebuild + invariants** — 106/106 and 26/26 must hold after every change.
+
+5. **Artifact snapshot:**
+   ```bash
+   INC=/home/claude/snobol4corpus/programs/inc
+   BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+   src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog_sessionN.s
+   nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog_sessionN.s -o /dev/null
+   ```
+
+6. **M-ASM-BEAUTIFUL fires** when Lon reads `beauty_prog_sessionN.s` and declares it beautiful.
 
 **Session158 — M-ASM-BEAUTY progress — 101_comment PASS:**
 - `section .text` before named pattern bodies (was `.data` → segfault → **root cause**)
