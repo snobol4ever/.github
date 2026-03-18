@@ -6945,3 +6945,12 @@ gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harn
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 ```
+
+## Session 166
+- **HEAD before:** `10184a0` (session165)
+- **HEAD after:** `03dece0`
+- **Work:** STMT_SEP shifted to column 28 (instruction column). Was `"    STMT_SEP"` (4-space indent); now `"%*sSTMT_SEP", COL_W, ""` (28-space pad). One-line fix in emit_byrd_asm.c line 1979.
+- **Artifact:** `artifacts/asm/beauty_prog_session166.s` — 13664 lines, nasm clean
+- **Invariants:** 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+- **Sprint:** A14 M-ASM-BEAUTIFUL (active)
+- **Next:** Collapse raw mov/STORE_ARG32/APPLY_FN_N sequences in main body into high-level macros

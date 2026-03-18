@@ -12,8 +12,32 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
-**HEAD:** `db80921` session164 → **session165 pending push**
+**HEAD:** `03dece0` session166
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTIFUL** (A14, active)
+
+**Session166 — STMT_SEP at column 28:**
+- `STMT_SEP` was emitted with 4-space indent; now emits at col 28 (instruction column)
+- Fix: `A("\n    STMT_SEP\n")` → `A("\n%*sSTMT_SEP\n", COL_W, "")`
+- beauty_prog_session166.s: 13664 lines, assembles clean, STMT_SEP aligned throughout
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+
+**⚠ CRITICAL NEXT ACTION — Session167:**
+
+Continue M-ASM-BEAUTIFUL: collapse raw `mov [rbp-32],rax` / `STORE_ARG32` / `APPLY_FN_N` sequences in `main` body into high-level macros. Pattern in generated .s:
+```nasm
+                            sub     rsp, 16
+                            LOAD_STR    S_6
+                            mov     [rbp-32], rax
+                            mov     [rbp-24], rdx
+                            STORE_ARG32 0
+                            APPLY_FN_N  S_5, 1
+                            add     rsp, 16
+                            mov     [rbp-32], rax
+                            mov     [rbp-24], rdx
+                            IS_FAIL_BRANCH  L_sn_3
+                            SET_VAR     S_4
+```
+Target: one macro call per logical operation. Also: `LOAD_INT x` / `mov [rbp-32],rax` / `mov [rbp-24],rdx` / `IS_FAIL_BRANCH` / `SET_VAR` should collapse to `ASSIGN_INT var, x, next`.
 
 **Session165 — inline column alignment (COL_W=28):**
 - Added `out_col` tracker + `oc_char()`/`oc_str()`/`emit_to_col()` in emit_byrd_asm.c
@@ -30,7 +54,7 @@ snobol4x: multiple frontends, multiple backends.
 
 Lon reviews `beauty_prog_session165.s` → M-ASM-BEAUTIFUL fires, OR next step toward decoupled emitter/beautifier (separate concerns as done for C backend).
 
-**Session165 start commands:**
+**Session167 start commands:**
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
