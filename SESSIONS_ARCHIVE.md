@@ -7104,3 +7104,40 @@ Priority fixes:
   2. NASM_FAIL P_X_ret_gamma — named pattern return slot not declared for inline patterns
   3. NASM_FAIL P_1_α_saved — ALT cursor save slot missing in statement context
 Then: build snobol4harness/monitor/ runner for ASM backend (Sprint M1)
+
+**session177 addendum — M-ASM-SAMPLES; fixture regeneration; push discipline:**
+
+- 19 fixture .s files regenerated with beautiful ASM output (post M-ASM-BEAUTIFUL/READABLE)
+- 4 hand-written fixtures kept pending bug fixes: stmt_assign, lit_hello, ref_astar_bstar, anbn
+- M-ASM-SAMPLES milestone added: roman.s + wordcount.s pass via ASM backend
+- roman.s placeholder: assembles+links, output wrong (arithmetic/array bugs)
+- wordcount.s placeholder: NASM_FAIL P_X_ret_gamma (named pattern return slot bug)
+- RULES.md: PUSH rule added — handoff not complete until git push succeeds
+- Final HEAD: e21f3bf
+
+**Next session start commands:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = e21f3bf
+
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+RT=src/runtime
+gcc -O0 -g -c $RT/snobol4/snobol4.c -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/snobol4.o
+gcc -O0 -g -c $RT/snobol4/mock_includes.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/mock_includes.o
+gcc -O0 -g -c $RT/snobol4/snobol4_pattern.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/snobol4_pattern.o
+gcc -O0 -g -c $RT/mock_engine.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/mock_engine.o
+gcc -O0 -g -c $RT/asm/snobol4_stmt_rt.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/stmt_rt.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Active sprint: asm-backend — fix corpus tests (47/113), then M-MONITOR**
+Priority:
+  1. Arithmetic 023-029 (7 tests) — stmt_apply for add/sub/mul/div/exp/neg returning empty
+  2. NASM_FAIL P_X_ret_gamma (9 tests) — named pattern return slot not declared inline
+  3. NASM_FAIL P_1_α_saved (6 tests) — ALT cursor save slot missing in statement context
+  Fixes 2+3 also unblock wordcount.s and complete M-ASM-SAMPLES with roman.s
+  Then: Sprint M1 — build snobol4harness/monitor/ for ASM backend
