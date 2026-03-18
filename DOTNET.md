@@ -10,10 +10,10 @@
 ## NOW
 
 **Sprint:** **`net-perf-analysis`** ← active (hotfixes landed; re-run + publish pending)
-**HEAD:** `c4ebfbe` session156: hotfixes A+B+C+D + profile_session156.md
-**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ · M-NET-EXT-NOCONV ✅ · M-NET-EXT-XNBLK ✅ · M-NET-EXT-CREATE ✅ · **M-NET-XN ✅** · **M-NET-DIAG1 ✅**
+**HEAD:** `a029cae` session156: WIP rebuilt .so; hotfixes A+B+C+D; BUILDING.md; build_native.sh
+**Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ · M-NET-EXT-NOCONV ✅ · M-NET-EXT-XNBLK ✅ · M-NET-EXT-CREATE ✅ · **M-NET-XN ✅** · **M-NET-DIAG1 ✅** · **net-build-prereqs ✅**
 
-**Next action:** Run `dotnet test` (1873/1876 gate) → re-run BenchmarkSuite2 → compare vs baseline.md → publish `## Performance` in DOTNET.md → M-NET-PERF fires.
+**Next action:** `dotnet test` (1873/1876 gate) → re-run BenchmarkSuite2 → confirm hotfix wins → M-NET-PERF fires. Then: `cross` @N cursor bug (105/106 → 106/106) → M-NET-CORPUS-RUNGS → net-benchmark-publish.
 
 **SPITBOL oracle rule (established session149):** When CSNOBOL4 and SPITBOL MINIMAL diverge, SPITBOL MINIMAL wins. Reference: sbl.min in snobol4ever/spitbol-x64 (uploaded this session).
 

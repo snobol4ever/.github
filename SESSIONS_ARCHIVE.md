@@ -6734,3 +6734,52 @@ Confirmed 106/106 ✅ after DATATYPE fix.
 - 106/106 main invariant holds throughout
 
 **Next:** Sprint A10 — M-ASM-BEAUTY (beauty.sno self-beautifies via ASM backend)
+
+---
+
+## session156 — 2026-03-17 — DOTNET chat
+
+**Repos touched:** snobol4dotnet · snobol4harness · snobol4corpus · .github
+**Context at handoff:** ~90%
+
+### What was done
+
+**net-benchmark-scaffold ✅** (completing session155 partial):
+- `adapters/tiny/run.sh` — TINY engine stub (exits 2 gracefully if sno2c absent)
+- `adapters/jvm/run.sh` — JVM engine stub (uberjar or lein, exits 2 if absent)
+- `crosscheck/bench.sh` — cross-engine wall-clock timing grid
+- `snobol4harness/README.md` + `LAYOUT.md` — "No code yet" replaced with real status
+- `snobol4corpus/BENCHMARKS.md` — session154 DOTNET wall-clock baseline appended; date/version updated
+- snobol4x left untouched (Lon working there)
+
+**net-perf-analysis (partial)** — hotfixes landed; re-run blocked (no dotnet in container):
+- **Hotfix A** — `IntegerConversionStrategy`: INTEGER→INTEGER fast path (zero allocation); `CurrentCulture`→`InvariantCulture` in STRING/PATTERN/NAME
+- **Hotfix B** — `RealConversionStrategy`: `CurrentCulture`→`InvariantCulture` in STRING cases
+- **Hotfix C** — `Function.cs`: reuse `_reusableArgList` — eliminates one `List<Var>` alloc per user function call (MsilHelpers already did this; Function.cs did not)
+- **Hotfix D** — `SystemStack.ExtractArguments`: O(n²) `Insert(0,...)` → O(n) `Add`+`Reverse`
+- `perf/profile_session156.md` — hot path analysis + rationale for each fix
+
+**net-build-prereqs ✅**:
+- `BUILDING.md` — prerequisites, platform matrix, quickstart, native libs table, benchmark instructions
+- `build_native.sh` — rebuilds all 6 `.so` from source; tested clean with gcc in container
+- `CustomFunction/libsnobol4_rt.so` — was untracked; now committed
+- `.gitignore` audit — clean (no bin/obj tracked; BDN artifacts already covered)
+
+**DOTNET.md** — Performance section added; Session Start test count corrected (1873/1876); net-build-prereqs ✅ in sprint map
+
+### Commits
+
+| Repo | Commits | What |
+|------|---------|------|
+| snobol4harness | `151ac1d`, `2ea486f` | tiny+jvm stubs; bench.sh |
+| snobol4corpus | `6f16bb9` | BENCHMARKS.md session154 baseline |
+| snobol4dotnet | `e0e81d3`, `c4ebfbe`, `1a3b3d3`, `a029cae` | hotfixes A–D; profile doc; BUILDING.md; build_native.sh; .so rebuild |
+| .github | `4d92a8c`, `5808f61`, `c1b7227`, (this commit) | DOTNET.md + PLAN.md progressive updates |
+
+### Open / next session
+
+1. **`dotnet test`** — must confirm 1873/1876 with hotfixes A–D (changes are correctness-neutral but untested in container)
+2. **BenchmarkSuite2 re-run** — compare vs baseline.md; confirm measurable win; **M-NET-PERF fires**
+3. **`cross` @N cursor bug** — 105/106; `AtSign.Scan` receives correct `scan.CursorPosition` per Scanner.cs code; root cause may be in how `PatternMatch` is called from the `?` operator — investigate `CursorAssignment (@).cs` call site and NEXTH loop
+4. **net-benchmark-publish** — after M-NET-PERF; full grid DOTNET vs CSNOBOL4 vs SPITBOL
+5. **M-NET-POLISH** — fires when all conditions met (net-perf-analysis + net-benchmark-publish remaining)
