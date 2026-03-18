@@ -6855,3 +6855,50 @@ gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harn
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 ```
+
+---
+
+## Session 164 — Sprint A14: M-ASM-BEAUTIFUL label-fold (TINY/snobol4x)
+
+**Date:** 2026-03-18  
+**Repos touched:** snobol4x, .github
+
+### What happened
+
+Implemented pending-label mechanism so labels fold onto their first instruction.
+Rule: label on own line only when two labels are consecutive.
+`L_sn_0:  GET_VAR S_457` — one line per state throughout program body.
+13664 lines (down 4556 from session159's 18220). 106/106, 26/26.
+
+**Design discussed but NOT implemented:** inline column-alignment (COL_W=28).
+Lon directed: no post-processing pass. Track column position inline like beauty.sno
+pp/ss combo. `out_col` counter + `emit_to_col(28)` before every instruction.
+Label ≥ COL_W → newline then `emit_to_col(28)`.
+
+### Commits
+
+| Repo | Commit | What |
+|------|--------|------|
+| snobol4x | `db80921` | session164: pending-label fold; 13664-line beauty_prog_session164.s |
+| .github  | `cb1be27`, `cd15c60` | HQ session164 + column-alignment design note |
+
+### State at handoff
+
+- HEAD snobol4x: `db80921`
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+- Next: session165 — inline column alignment via out_col tracker
+
+### Session 165 start
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = db80921
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus
+ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+# Then read beauty.sno for pp/ss column-tracking pattern before writing any code
+```
