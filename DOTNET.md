@@ -9,11 +9,11 @@
 
 ## NOW
 
-**Sprint:** **`net-benchmark-scaffold`** ← active
-**HEAD:** `d8f11f9` (net-feature-fill: BAL/ARB/FAIL error 42 not 209; 1873/1876)
+**Sprint:** **`net-benchmark-scaffold`** ← active (baseline done; next: net-perf-analysis)
+**HEAD:** `4c32ee7` (net-benchmark-scaffold: perf/baseline.md — BenchmarkSuite2 baseline session154)
 **Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ · M-NET-EXT-NOCONV ✅ · M-NET-EXT-XNBLK ✅ · M-NET-EXT-CREATE ✅ · **M-NET-XN ✅** · **M-NET-DIAG1 ✅**
 
-**Next action:** `net-benchmark-scaffold` — wire DOTNET into harness benchmark pipeline; collect DOTNET timing column. Pick 3 corpus programs (string-heavy, arithmetic-heavy, pattern-heavy); record wall-clock baseline; add BenchmarkDotNet project. `net-corpus-rungs` cross/@N deferred.
+**Next action:** `net-perf-analysis` — BenchmarkSuite2 baseline recorded in `perf/baseline.md`; harness dotnet adapter stubs committed to snobol4harness. Hot candidates: `Var.Convert` fast-path (VarAccess 98ms/6MB), FunctionTable fold+lookup (Fibonacci 237ms), SystemStack List pressure (MixedWorkload 220ms/14MB). `IndirectDispatch_500` error 22 known gap.
 
 **SPITBOL oracle rule (established session149):** When CSNOBOL4 and SPITBOL MINIMAL diverge, SPITBOL MINIMAL wins. Reference: sbl.min in snobol4ever/spitbol-x64 (uploaded this session).
 
@@ -457,6 +457,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 ---
 
 ## Pivot Log
+| 2026-03-17 | **net-benchmark-scaffold session154** — BenchmarkSuite2 already existed with 17 benchmarks (Roman/ArithLoop/StringPattern/Fibonacci/StringManip + bottleneck isolation + CODE/EVAL); ran baseline: Fibonacci_18 237ms/12MB, VarAccess_2000 98ms/6MB, MixedWorkload_200 221ms/14MB; recorded in `perf/baseline.md` `4c32ee7`; dotnet adapter stubs added to snobol4harness; pivot to net-perf-analysis | session154 |
 | 2026-03-17 | **net-feature-fill ✅ session153** — BAL/ARB/FAIL/FENCE/NULL/REM/SUCCEED: isKeyword=false,isReadOnly=true; error 42 not 209 on assignment; AssignReplace checks !IsKeyword&&IsReadOnly before keyword block; `d8f11f9`; 1873/1876; pivot to net-benchmark-scaffold | session153 |
 | 2026-03-17 | **net-feature-audit ✅ session153** — lle/LLE symbol name bug fixed (was "lge", `25cb1c5`); full audit: all SPITBOL builtins + keywords present; CODE()/EVAL() fully implemented; one remaining gap: BAL read-only protection (blocks `bal = 'string'`); pivot to net-feature-fill | session153 |
 | 2026-03-17 | **net-diag1 ✅ session153** — 35/35 diag1 rungs pass via `dotnet test`; 210 (indirect_ref) and 1113 (table) confirmed passing — both covered by session152 b86954d fix; 34/35 pass + 1 skip (1012 semicolons, known gap); invariant 1873/1876 0 failed; pivot to net-feature-audit | session153 |
