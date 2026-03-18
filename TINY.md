@@ -848,7 +848,46 @@ The emit pass just prints them in three-column format. No logic in the emit pass
 | 122 | Pivot: diag1-corpus sprint before bug7-micro. 35 tests 152 assertions rungs 2–11, 35/35 PASS CSNOBOL4 2.3.3. M-FLAT documented (flat() Gray/White bypass of pp/ss). HQ updated. Context ~94% at close. | diag1 corpus ready to commit with token; bug7-micro is next |
 | 122b | PIVOT: M-DIAG1 now top priority. Run diag1 35-test suite on JVM + DOTNET. Fix failures. Fire M-DIAG1. Then bug7-micro. Priority order: M-DIAG1 → M-BEAUTY-CORE → M-FLAT → M-BEAUTY-FULL → M-BOOTSTRAP. | New session opens on snobol4jvm |
 
-**Session179 — arithmetic ops, named-pattern fix, label rename, artifacts reorg:**
+**Session180 — CAT/SEQ naming; CAT2 macros; scan retry; path revert; 056 fix:**
+- Naming decision: E_CONC value-context → **CAT** (string concat); E_CONC pattern-context → **SEQ** (already). E_OR → **ALT**. `CAT2_SS/SV/VS/VV/VN/SN` macros added to `snobol4_asm.mac` — call `stmt_concat` directly (not `stmt_apply("CONCAT")`).
+- `expr_is_pattern_expr`: E_CONC now requires a pattern fn call — pure literal concat `'a' 'b'` is VALUE not pattern. E_OR always remains a pattern.
+- `E_CONC` in `prog_emit_expr` now routes to `CAT2_*` macros; E_OR still uses `ALT2_*`.
+- All 6 concat tests now pass (017–022).
+- Unanchored scan retry loop added to Case 2 pattern statement emission: `scan_start_N` bss slot, `scan_retry_N` label, advance+retry on omega. 056 program-mode fixed.
+- **Regression introduced**: scan retry omega exits via `jg next_lbl` instead of `jg tgt_f` — `034_goto_failure`, `057_pat_fail_builtin`, `098_keyword_anchor` now fail. **Fix is one line — `jg next_lbl` → `jg <tgt_f label>`** in the omega block.
+- `/home/socrates` path experiment reverted — all repos back to `/home/claude`. All pushed.
+- Corpus: **75 PASS** (up from 64 session179). 106/106 C ✅. 26/26 ASM ✅.
+- HEAD: `ee4b118`
+
+**⚠ CRITICAL NEXT ACTION — Session181:**
+
+1. **Fix scan retry omega** (one line): in `asm_emit_program` Case 2 omega block, the `jg next_lbl` must jump to `tgt_f` (or fall through correctly to `emit_jmp(tgt_f)`). Current code:
+   ```c
+   A("    jg      %s\n", next_lbl);   /* BUG: should reach tgt_f */
+   A("    mov     [%s], rax\n", scan_start);
+   A("    jmp     %s\n", scan_retry);
+   emit_jmp(tgt_f, next_lbl);
+   ```
+   Fix: change `jg next_lbl` → `jg <tgt_f_label>` where tgt_f_label is the resolved F-target. Use `emit_jmp` helper or inline the label. Then `034_goto_failure`, `057`, `098_keyword_anchor` should recover. Target: **78+ PASS**.
+
+2. **Update beauty_prog.s artifact** per RULES.md (session touched emit_byrd_asm.c).
+
+3. **Run corpus/bench** as requested.
+
+**Session181 start commands:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = ee4b118
+
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Session180 — arithmetic ops, named-pattern fix, label rename, artifacts reorg:**
 - `E_ADD/E_SUB/E_MPY/E_DIV/E_EXPOP/E_MNS` cases added to `prog_emit_expr` in `emit_byrd_asm.c`
 - `add/sub/mul/DIVIDE_fn/POWER_fn/neg` registered as builtins in `SNO_INIT_fn` (`snobol4.c`)
 - `E_MNS` operand fixed: `e->left` not `e->right` (unop() convention)
