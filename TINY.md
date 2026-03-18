@@ -11,9 +11,27 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — Sprint A10: beauty.sno self-beautifies via ASM backend
-**HEAD:** `6bc70be` session158
-**Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTY** next
+**Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
+**HEAD:** `a361318` session159
+**Milestone:** M-ASM-CROSSCHECK ✅ session151 → M-ASM-BEAUTY (A10, blocked 102-109) → **M-ASM-BEAUTIFUL** (A14, active)
+
+**Session159 — PIVOT to M-ASM-BEAUTIFUL; macro-driven ASM body:**
+- E_OR/E_CONC: added _b_PAT_ALT/_b_PAT_CONCAT to snobol4.c; registered "ALT"/"CONCAT"
+- emit_byrd_asm.c: case E_OR/E_CONC in prog_emit_expr → APPLY_FN_N("ALT"/"CONCAT", 2)
+- beauty test 101_comment PASS via ASM backend ✅
+- snobol4_asm.mac: STORE_ARG32/16, LOAD_NULVCL/32, APPLY_FN_0/N, SET_CAPTURE,
+  IS_FAIL_BRANCH/16, LOAD_VAR, SETUP_SUBJECT_FROM16 added
+- prog_emit_expr + asm_emit_program: raw lea/mov/call replaced with macro calls throughout
+- beauty_prog_session159.s archived (18220 lines, assembles clean)
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+
+**⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL):**
+beauty_prog.s body is now macro-driven for simple cases (GET_VAR, LOAD_STR,
+LOAD_INT, SET_VAR, IS_FAIL_BRANCH, APPLY_FN_N, SET_CAPTURE, SETUP_SUBJECT_FROM16).
+Remaining raw `mov [rbp%+d]` result-stores after APPLY_FN_N/E_FNC are structural glue.
+Next: Lon reviews beauty_prog_session159.s. If more macro coverage needed, add
+STORE_RESULT macro for the post-call result-save pattern. M-ASM-BEAUTIFUL fires
+when Lon reads it and declares it beautiful.
 
 **Session158 — M-ASM-BEAUTY progress — 101_comment PASS:**
 - `section .text` before named pattern bodies (was `.data` → segfault → **root cause**)
@@ -523,7 +541,8 @@ The emit pass just prints them in three-column format. No logic in the emit pass
 
 | Sessions | What | Why |
 |----------|------|-----|
-| 151 | **Sprint A9 replanned — 3 issues diagnosed, sprint steps written.** Multi-capture (055): per-variable cap buffers + cap_order table in emitter + harness walk. E_INDR (056): add case + fix build_bare_sno to keep *VAR-referenced plain assigns + fix extract_subject to use subject var from match line. FAIL/057: already wired, unblocked once script continues past 055. SPITBOL p_imc studied for canonical multi-capture semantics. HQ updated. |
+| 159 | **PIVOT: M-ASM-BEAUTIFUL (A14) activated.** E_OR/E_CONC → ALT/CONCAT builtins registered; test 101 PASS. snobol4_asm.mac extended with STORE_ARG32/16, LOAD_NULVCL, APPLY_FN_0/N, SET_CAPTURE, IS_FAIL_BRANCH/16, SETUP_SUBJECT_FROM16. prog_emit_expr + asm_emit_program raw register sequences replaced with macro calls throughout. beauty_prog_session159.s archived (18220 lines, nasm clean). 106/106 26/26. HEAD a361318. | Lon requested M-ASM-BEAUTIFUL pivot. M-ASM-BEAUTY (102-109 Parse Error) deferred. |
+| 158 | **M-ASM-BEAUTY progress — 101_comment PASS:** section .text fix; stack align; E_FNC/Case1-SF/capture; 106/106 26/26. Root cause of 102-109: E_OR/E_CONC → NULVCL. | — 3 issues diagnosed, sprint steps written.** Multi-capture (055): per-variable cap buffers + cap_order table in emitter + harness walk. E_INDR (056): add case + fix build_bare_sno to keep *VAR-referenced plain assigns + fix extract_subject to use subject var from match line. FAIL/057: already wired, unblocked once script continues past 055. SPITBOL p_imc studied for canonical multi-capture semantics. HQ updated. |
 | 150 | **Sprint A9 — 17/20 ASM crosscheck PASS.** New emitters: ANY/NOTANY/SPAN/BREAK/LEN/TAB/RTAB/REM/ARB/FAIL all wired into E_FNC switch. E_VART: REM/ARB/FAIL intercepted as zero-arg builtins. Harness rewritten with setjmp/longjmp unanchored scan loop. DOL writes to harness cap_buf/cap_len externs. cap_len sentinel UINT64_MAX distinguishes no-capture from empty-string capture. build_bare_sno keeps pattern-variable assignments. DATATYPE lowercase fix (106/106). 038–054 PASS. 055 fails (multi-capture). Script stops early at first FAIL — next session fix extract_subject + skip multi-capture + wire E_INDR. HEAD d7a75cc. | |
 | 149 | **Sprint A9 begun.** `snobol4_asm_harness.c`: flat `subject_data[65536]` array (preserves `lea rsi,[rel subject_data]` semantics), `match_success`/`match_fail` as C `noreturn` functions, inline `jmp root_alpha`. `-asm-body` flag: `asm_emit_body()` emits `global root_alpha,root_beta` + `extern cursor,subject_data,subject_len_val,match_success,match_fail`. `run_crosscheck_asm.sh`: extracts subject, builds bare `.sno`, sno2c→nasm→gcc→run, capture tests diff stdout vs `.ref`, match/no-match tests check exit code. **038_pat_literal PASS** end-to-end. Next: wire `emit_asm_any/span/break/notany/tab/rtab/len/rem/arb` into `E_FNC` switch. 106/106 holds. HEAD a7c324e. | |
 | 148 | **M-ASM-ASSIGN + M-ASM-NAMED fire.** ASSIGN: assign_lit.s (LIT $ capture) + assign_digits.s (SPAN $ capture unanchored) PASS; emit_asm_assign() DOL Byrd box from v311.sil ENMI; E_DOL+E_NAM wired. NAMED: ref_astar_bstar.s (ASTAR=ARBNO("a"), BSTAR=ARBNO("b") on "aaabb") + anbn.s (4 sequential named-pattern call sites on "aabb") PASS; AsmNamedPat registry + asm_scan_named_patterns() pre-pass + emit_asm_named_ref() call-site + emit_asm_named_def() body emitter; E_VART wired; Proebsting §4.5 gate convention (pat_NAME_ret_gamma/omega .bss indirect-jmp, no call stack). End-to-end .sno→sno2c -asm→nasm→ld→run verified. 106/106 invariant holds. HEAD de085e1. Next: Sprint A9 — snobol4_asm_harness.c + body-only emitter + ASM crosscheck driver. | |

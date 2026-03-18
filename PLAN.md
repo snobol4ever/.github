@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `asm-backend` — Sprint A10: M-ASM-BEAUTY |
-| **TINY HEAD** | `6bc70be` session158: M-ASM-BEAUTY 101_comment PASS; section .text fix (named bodies); stack align; E_FNC/Case1-SF/capture; 106/106 26/26 |
-| **TINY next** | Sprint A10: beauty.sno self-beautifies via ASM backend → M-ASM-BEAUTY |
+| **TINY sprint** | `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159) |
+| **TINY HEAD** | `a361318` session159: PIVOT M-ASM-BEAUTIFUL; macro-driven ASM body; E_OR/E_CONC/ALT/CONCAT; 101 PASS; 106/106 26/26 |
+| **TINY next** | Lon reviews beauty_prog_session159.s → M-ASM-BEAUTIFUL fires |
 | **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
 | **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
 | **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
