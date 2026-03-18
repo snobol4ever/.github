@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
-**HEAD:** `19e4fe6` session171
+**HEAD:** `bc7a707` session174
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTIFUL** (A14, active)
 
 **Session168 — FAIL_BR/FAIL_BR16/SUBJ_FROM16 renames; CONC2/ALT2 macros; COL2_W=12; CONC2_N/CONC2 fast paths:**
@@ -42,6 +42,31 @@ snobol4x: multiple frontends, multiple backends.
 - `SEP_W` 80 → 120; separator lines now 120 chars (Cherryholmes standard)
 - Four-column layout retained as-is per Lon's decision
 - 12689 lines, 106/106 26/26
+
+**Session174 — CALL1_VAR + integer-arg fast paths; 12594→11594 lines:**
+- `CALL1_VAR fn, varlab` macro + emitter fast path: 1-arg calls with E_VART arg (100 cases) → single macro
+- `CONC2_VI/IV/II/NI/SI/IS` + `*16` variants: 2-arg calls with integer-literal args → macros
+- `CONC2_NN` macro added (NULVCL+NULVCL)
+- 77 verbose `sub rsp,32` blocks → 15; all 15 have genuinely complex children (E_IDX/E_SUB/E_FNC/E_NAM)
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+- beauty_prog_session174.s: 11594 lines (−1000 from session173), NASM clean
+
+**⚠ CRITICAL NEXT ACTION — Session175:**
+
+The 15 remaining verbose blocks all have complex children (confirmed by debug probe: a0kind/a1kind ∈ {E_IDX=20, E_SUB=9, E_FNC=18, E_NAM=16}). These cannot use atom fast paths.
+
+**Generic fallback path explanation:**
+The `prog_emit_expr` generic fallback fires when no fast path matches. It allocates an N-slot args array on the stack (`sub rsp, N*16`), then for each arg calls `prog_emit_expr(arg, rbp_off)` recursively — which stores the result into `[rbp-32/24]`, then `STORE_ARG32 k` copies it into `[rsp + k*16]`. After all args: `APPLY_FN_N fn, N` calls the function, `add rsp, N*16` restores the stack, then `STORE_RESULT` / `mov [rbp±n]` saves rax/rdx.
+
+The problem: when a complex child is evaluated, `prog_emit_expr` recurses and overwrites `[rbp-32/24]`. If that child is itself an `APPLY_FN_N` call, it issues another `sub rsp,32` — nested `sub rsp` is what we see in the output. The result-temp strategy breaks this cycle:
+
+**Result-temp strategy:**
+1. Declare `.bss` scratch pair: `conc_tmp0_rax resq 1` / `conc_tmp0_rdx resq 1`
+2. For each complex child: evaluate it normally (gets result in `[rbp-32/24]`), then `mov rax,[rbp-32]; mov [conc_tmp0_rax],rax` etc. to save into scratch
+3. Then build the args array using `mov rax,[conc_tmp0_rax]` → `mov [rsp],rax` etc.
+4. One scratch pair per nesting depth suffices since children are evaluated sequentially
+
+Implementation in `prog_emit_expr` E_FNC generic path: detect when any arg is complex, emit scratch `.bss` declarations in the `.bss` section header pass, then use save/restore around each complex arg evaluation.
 
 **Session173 — col3 alignment; no fourth column; sep→label fold:**
 - col3: operands now at COL_W+COL2_W=40 — A() scans opcode end, pads to col 40 before operands

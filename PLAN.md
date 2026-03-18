@@ -12,8 +12,8 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
 | **TINY sprint** | `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159) |
-| **TINY HEAD** | `5fb426c` session173: col3 align; no 4th col; sep→label fold; 12594 lines; 106/106 26/26 |
-| **TINY next** | CONC2 result-temp strategy for nested expr trees (529 remaining verbose blocks); or CONC3 3-arg macro survey |
+| **TINY HEAD** | `bc7a707` session174: CALL1_VAR + CONC2_VI/IV/II/NI/SI/IS(*16); 11594 lines; 77→15 verbose blocks; 106/106 26/26 |
+| **TINY next** | Result-temp strategy for 15 remaining verbose blocks (all complex children: E_IDX/E_SUB/E_FNC — need scratch .bss pair); then M-ASM-BEAUTIFUL eval |
 | **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
 | **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
 | **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
