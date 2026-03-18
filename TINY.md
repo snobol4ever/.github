@@ -145,6 +145,10 @@ Why ASM solves the C structural problem:
 | A8 | Named patterns — flat labels, 2-way jmp dispatch | `test/sprint6/ref_*.s` |
 | A9 | Full crosscheck 106/106 via ASM backend | crosscheck suite |
 | A10 | beauty.sno → ASM → self-beautify | M-ASM-BEAUTY |
+| A11 | Label named expansion: pp_>= → L_pp_GT_EQ_N | M-ASM-READABLE |
+| A12 | NASM macro library snobol4_asm.mac; emit uses macros; 3-column .s | M-ASM-MACROS |
+| A13 | ASM IR phase (CNode-equivalent); separate tree walk from emit | M-ASM-IR |
+| A14 | Generated .s as readable as generated .c | M-ASM-BEAUTIFUL |
 
 **Build commands (ASM backend):**
 ```bash
@@ -397,6 +401,87 @@ git add -A && git commit && git push
 | `trampoline` · `stmt-fn` · `block-fn` · `pattern-block` | M-BEAUTY-FULL |
 | `code-eval` (TCC) · `compiler-pattern` (compiler.sno) | M-BEAUTY-FULL |
 | `bootstrap-stage1` · `bootstrap-stage2` | M-SNO2C-SNO |
+
+### Sprint A12 — M-ASM-MACROS
+
+**Goal:** Generated `.s` is readable. Every emitted line follows:
+
+```
+LABEL          ACTION          GOTO
+```
+
+Three columns. No exceptions. The LABEL is a Byrd box port or SNOBOL4 label.
+The ACTION is a NASM macro. The GOTO is the succeed or fail target — a label, never a raw address.
+
+**NASM macro library: `src/runtime/asm/snobol4_asm.mac`**
+
+One macro per Byrd box primitive. Each macro expands to whatever register
+shuffling is needed, but the call site is always one readable line:
+
+```nasm
+; Pattern nodes — one line each:
+P_12_α         SPAN            letter_cs,   P_12_γ,  P_12_ω
+P_14_α         LIT             "hello",     P_14_γ,  P_14_ω
+P_16_α         SEQ             P_14, P_12,  P_16_γ,  P_16_ω
+P_18_α         ALT             P_14, P_16,  P_18_γ,  P_18_ω
+P_20_α         DOL             ppTokName,   P_20_γ,  P_20_ω
+
+; Statement — subject, match, replace, goto:
+L_LOOP         SUBJECT         ppLine
+               MATCH_PAT       P_16,        L_WRITE, L_END
+L_WRITE        REPLACE         ppOut,       ppLine
+               GOTO                         L_LOOP
+```
+
+Parallel C output for comparison:
+
+```c
+L_LOOP:   subj = GET("ppLine");
+          if (MATCH(P_16, subj)) { SET("ppOut", subj); goto L_WRITE; }
+          goto L_END;
+L_WRITE:  SET("ppLine", GET("ppOut"));
+          goto L_LOOP;
+```
+
+**Sprint A12 steps:**
+1. Write `src/runtime/asm/snobol4_asm.mac` — macros for LIT/SPAN/SEQ/ALT/ALT/DOL/ARBNO/ANY/NOTANY/BREAK/POS/RPOS/REM/ARB/SUBJECT/MATCH_PAT/REPLACE/GOTO/GOTO_S/GOTO_F
+2. Change `emit_byrd_asm.c` to `%include "snobol4_asm.mac"` at top of every `.s`
+3. Change every `A("    mov rax...")` emission to `A("  MACRO_NAME  args")` 
+4. Verify beauty_prog.s assembles clean with macros expanded
+5. Diff generated .s before/after — three-column structure visible throughout
+6. **M-ASM-MACROS fires** when beauty_prog.s is fully macro-driven and assembles
+
+### Sprint A13 — M-ASM-IR
+
+**Goal:** Separate the tree walk from code generation. Same architecture as C backend's CNode IR.
+
+The ASM emitter currently does parse → emit in one pass. This makes it hard to:
+- Inject comments and separators
+- Optimise label names
+- Share structure between C and ASM emitters
+
+**Architecture:**
+```
+Parse → EXPR_t/STMT_t → [ASM IR walk] → AsmNode tree → [ASM emit] → .s file
+```
+
+The AsmNode tree is a list of `(label, macro_name, args[], goto_s, goto_f)` tuples.
+The emit pass just prints them in three-column format. No logic in the emit pass.
+
+**Sprint A13 steps:**
+1. Define `AsmNode` struct: `{char *label; char *macro; char **args; int nargs; char *gs; char *gf;}`
+2. Write `asm_ir_build(Program*)` → `AsmNode[]` — the tree walk, no emission
+3. Write `asm_ir_emit(AsmNode[])` — pure pretty-printer, three columns
+4. Replace current `asm_emit_program()` with `asm_ir_build()` + `asm_ir_emit()`
+5. **M-ASM-IR fires** when beauty_prog.s generates identically via the new path
+
+### Sprint A14 — M-ASM-BEAUTIFUL
+
+**Goal:** beauty_prog.s is as readable as beauty_full.c. A human can follow the SNOBOL4 logic by reading the `.s` file directly.
+
+**Trigger:** Open beauty_prog.s and beauty_full.c side by side. Every SNOBOL4 statement is recognisable in both. The Byrd box four ports are visible as α/β/γ/ω. Statement boundaries are clear. No raw register names in the body — only macro calls.
+
+**M-ASM-BEAUTIFUL fires** when Lon reads beauty_prog.s and says it is beautiful.
 
 ### Completed
 

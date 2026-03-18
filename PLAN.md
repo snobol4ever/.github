@@ -102,6 +102,9 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ✅ session151 |
 | **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM | ❌ Sprint A10 |
 | **M-ASM-READABLE** | Label scheme: alnum-base + named-expansion for special chars (pp_>= → pp_GT_EQ_N); replaces current alnum-collapse | ❌ post M-ASM-BEAUTY |
+| **M-ASM-MACROS** | NASM macro library `snobol4_asm.mac` — every emitted line is `LABEL  MACRO(args)  GOTO`. LIT/SPAN/SEQ/ALT/DOL/SUBJECT/MATCH/REPLACE/GOTO. Three-column .s matches three-column .c. | ❌ Sprint A12 |
+| **M-ASM-IR** | ASM IR phase: AsmNode tree between parse and emit. Same architecture as CNode. Separates tree walk from pretty-print. One IR, two emitters (C + ASM). | ❌ Sprint A13 |
+| **M-ASM-BEAUTIFUL** | beauty_prog.s as readable as beauty_full.c. Lon reads it and declares it beautiful. | ❌ Sprint A14 |
 | **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
 
 ### JVM (snobol4jvm)
