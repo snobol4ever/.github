@@ -12,8 +12,30 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A10: beauty.sno self-beautifies via ASM backend
-**HEAD:** `0d87aa1` session156
+**HEAD:** `6bc70be` session158
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTY** next
+
+**Session158 — M-ASM-BEAUTY progress — 101_comment PASS:**
+- `section .text` before named pattern bodies (was `.data` → segfault → **root cause**)
+- Stack alignment: `sub rsp,56` (6 pushes + 56 = 112, 112%16=0 ✅)
+- `PROG_END`: explicit pops (not `leave`)
+- `E_FNC` → `stmt_apply()` in `prog_emit_expr`
+- Case 1 S/F dispatch: expression-only stmts with `:F(label)` now check `is_fail`
+- `stmt_set_capture()`: DOL/NAM captures materialised into SNOBOL4 variables
+- Pattern capture: `X *PAT . V` → `V='bc'` PASS ✅
+- **101_comment PASS ✅** — 102-109 `Parse Error`
+- Root cause of Parse Error: `E_OR`/`E_CONC` → NULVCL for named pattern assignments
+
+**⚠ CRITICAL NEXT ACTION — Sprint A10 (M-ASM-BEAUTY):**
+
+**102-109 fail with `Parse Error`** — beauty's `*Parse` named pattern is assigned
+using `E_OR` (alternation `|`) and `E_CONC` (concatenation) expressions.
+These are currently fallback → NULVCL in `prog_emit_expr`.
+Fix: register `pat_alt()` and `pat_concat()` as callable functions `ALT`/`CONCAT`,
+add `E_OR` and `E_CONC` cases to `prog_emit_expr` that call `stmt_apply()`.
+
+**File:** `src/sno2c/emit_byrd_asm.c` — `prog_emit_expr()` switch
+**File:** `src/runtime/snobol4/snobol4.c` — add `_b_PAT_ALT`, `_b_PAT_CONCAT`, register
 
 **Session151 — M-ASM-CROSSCHECK fires — 26/26 ASM PASS:**
 - Per-variable capture buffers: `CaptureVar` registry, `cap_VAR_buf`/`cap_VAR_len` in `.bss`
