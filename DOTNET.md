@@ -9,11 +9,11 @@
 
 ## NOW
 
-**Sprint:** **`net-benchmark-scaffold`** ← active (INCOMPLETE — scope is cross-repo)
-**HEAD:** `dead219` (net-benchmark-scaffold: crosscheck.sh + run_crosscheck_dotnet.sh — snobol4harness session155)
+**Sprint:** **`net-benchmark-scaffold`** ✅ session156
+**HEAD:** `2ea486f` (snobol4harness) · `4c32ee7` (snobol4dotnet) · `6f16bb9` (snobol4corpus)
 **Milestone:** M-NET-CORPUS-GAPS ✅ · M-NET-ALPHABET ✅ · M-NET-DELEGATES ✅ · M-NET-LOAD-SPITBOL ✅ · M-NET-SAVE-DLL ✅ · M-NET-LOAD-DOTNET ✅ · M-NET-VB ✅ · M-NET-EXT-NOCONV ✅ · M-NET-EXT-XNBLK ✅ · M-NET-EXT-CREATE ✅ · **M-NET-XN ✅** · **M-NET-DIAG1 ✅**
 
-**Next action:** Fix CORPUS default in run_crosscheck_dotnet.sh; wire tiny/jvm run.sh stubs; update harness README; publish timing grid.
+**Next sprint:** `net-perf-analysis` → M-NET-PERF: profile hot paths, land ≥1 measurable win, publish regression baseline.
 
 **SPITBOL oracle rule (established session149):** When CSNOBOL4 and SPITBOL MINIMAL diverge, SPITBOL MINIMAL wins. Reference: sbl.min in snobol4ever/spitbol-x64 (uploaded this session).
 
@@ -457,6 +457,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 ---
 
 ## Pivot Log
+| 2026-03-17 | **net-benchmark-scaffold ✅ session156** — tiny/jvm run.sh stubs; README+LAYOUT real status; bench.sh cross-engine timing grid; BENCHMARKS.md DOTNET session154 wall-clock baseline appended; snobol4x left untouched (Lon working there); sprint complete; next: net-perf-analysis | session156 |
 | 2026-03-17 | **net-benchmark-scaffold partial ✅ session155** — crosscheck.sh (engine-agnostic, adapters/<engine>/run.sh convention) + run_crosscheck_dotnet.sh (CORPUS env var) + run.sh fix (DOTNET quirk: program output→stderr, CWD→stdout; -b flag; 2>&1 1>/dev/null) committed to snobol4harness `dead219`; crosscheck confirmed working (105/106, `cross` @N cursor known gap); next: fix CORPUS default path in run_crosscheck_dotnet.sh, wire tiny/jvm adapters, update harness README | session155 |
 | 2026-03-17 | **EMERGENCY HANDOFF session154** — net-benchmark-scaffold INCOMPLETE. Ran BenchmarkSuite2 baseline (perf/baseline.md `4c32ee7`). Wrote adapter stubs to snobol4harness. Discovered: true sprint scope is cross-repo. snobol4harness README still says "No code yet"; crosscheck.sh is TBD; run_crosscheck_dotnet.sh built session149 never committed; JVM harness.clj partially migrated; snobol4x has ad-hoc runner. **True sprint**: write real crosscheck.sh + bench.sh in snobol4harness; thin adapters/<engine>/run.sh for dotnet/tiny/jvm; commit run_crosscheck_dotnet.sh; reconcile all runners. Context 92% — cannot finish. Sprint definition updated in sprint map. Next session: clone all 4 repos (snobol4harness, snobol4dotnet, snobol4x, snobol4jvm), read DOTNET.md, build crosscheck.sh. | session154 |
 | 2026-03-17 | **net-feature-fill ✅ session153** — BAL/ARB/FAIL/FENCE/NULL/REM/SUCCEED: isKeyword=false,isReadOnly=true; error 42 not 209 on assignment; AssignReplace checks !IsKeyword&&IsReadOnly before keyword block; `d8f11f9`; 1873/1876; pivot to net-benchmark-scaffold | session153 |
