@@ -7141,3 +7141,63 @@ Priority:
   3. NASM_FAIL P_1_α_saved (6 tests) — ALT cursor save slot missing in statement context
   Fixes 2+3 also unblock wordcount.s and complete M-ASM-SAMPLES with roman.s
   Then: Sprint M1 — build snobol4harness/monitor/ for ASM backend
+
+---
+
+## Session 178 — artifact history restoration + Greek regression fix (TINY/snobol4x)
+
+**Date:** 2026-03-18
+**Repos touched:** snobol4x, .github
+
+### What happened
+
+**Greek regression fix:**
+Named-pattern port labels were using spelled-out `P_%s_alpha`/`P_%s_beta`/`P_%s_ret_gamma`/`P_%s_ret_omega` instead of Greek `P_%s_α`/`P_%s_β`/`P_%s_ret_γ`/`P_%s_ret_ω`. Anonymous inline patterns (lines 2523–2526) already correctly used Greek; named patterns (lines 1337–1340) did not. Fixed in `emit_byrd_asm.c`. beauty_prog.s regenerated and committed. 106/106 26/26.
+
+**Artifact history restoration:**
+Session177 collapsed all numbered session artifacts to canonical files but only made one commit per canonical file, losing the per-session evolution history. All history was recoverable from git (deleted files are not gone until gc). Replayed full history onto canonical paths with original commit dates:
+
+- `artifacts/asm/beauty_prog.s` — 25 commits (sessions 154–178)
+- `artifacts/c/beauty_prog.c` — 33 commits (sessions 50–116, trampoline_session57–65)
+- `artifacts/c/trampoline_hello.c` / `trampoline_branch.c` / `trampoline_fn.c` — 1 commit each (session56)
+
+### Commits
+
+| Repo | Range | What |
+|------|-------|------|
+| snobol4x | `cc49ad6` | Greek fix: named-pattern port labels |
+| snobol4x | `ebfb372..6112dd5` | beauty_prog.s history replay (23 commits, sessions 154–176) |
+| snobol4x | `0c2e750..a3ac46c` | beauty_prog.c + trampoline fixtures history replay (34 commits) |
+
+### State at handoff
+
+- HEAD snobol4x: `a3ac46c`
+- 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
+- Active sprint: `asm-backend` — fix corpus tests (47/113), then M-MONITOR
+- Next: arithmetic fixes (023–029, 7 tests), then NASM_FAIL root causes
+
+### Session 179 start
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = a3ac46c
+
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+RT=src/runtime
+gcc -O0 -g -c $RT/snobol4/snobol4.c -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/snobol4.o
+gcc -O0 -g -c $RT/snobol4/mock_includes.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/mock_includes.o
+gcc -O0 -g -c $RT/snobol4/snobol4_pattern.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/snobol4_pattern.o
+gcc -O0 -g -c $RT/mock_engine.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/mock_engine.o
+gcc -O0 -g -c $RT/asm/snobol4_stmt_rt.c -I$RT/snobol4 -I$RT -Isrc/sno2c -w -o /tmp/stmt_rt.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Active sprint: asm-backend — fix corpus tests (47/113), then M-MONITOR**
+Priority:
+  1. Arithmetic 023-029 (7 tests) — prog_emit_expr for E_ADD/E_SUB/E_MPY/E_DIV/E_EXP/E_NEG returning empty
+  2. NASM_FAIL P_X_ret_γ (9 tests) — named pattern return slot not declared for inline patterns
+  3. NASM_FAIL P_1_α_saved (6 tests) — ALT cursor save slot missing in statement context
