@@ -7201,3 +7201,9 @@ Priority:
   1. Arithmetic 023-029 (7 tests) — prog_emit_expr for E_ADD/E_SUB/E_MPY/E_DIV/E_EXP/E_NEG returning empty
   2. NASM_FAIL P_X_ret_γ (9 tests) — named pattern return slot not declared for inline patterns
   3. NASM_FAIL P_1_α_saved (6 tests) — ALT cursor save slot missing in statement context
+
+### Session 178 addendum — beauty_prog.s artifact correction
+
+After history replay, artifact check revealed beauty_prog.s still had old spelled-out
+`_alpha`/`_beta`/`_gamma`/`_omega` names from the history-replay commits.
+Regenerated and committed with Greek fix applied. Final HEAD: `6260084`.
