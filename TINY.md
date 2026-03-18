@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — fix corpus tests → M-MONITOR (ASM)
-**HEAD:** `e21f3bf` session177
+**HEAD:** `77c5834` session177
 **Milestone:** M-ASM-READABLE ✅ session176 → M-ASM-IR ⏸ deferred → **fix corpus tests + M-MONITOR**
 
 **Session168 — FAIL_BR/FAIL_BR16/SUBJ_FROM16 renames; CONC2/ALT2 macros; COL2_W=12; CONC2_N/CONC2 fast paths:**
