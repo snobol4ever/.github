@@ -6980,3 +6980,30 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 - **Invariants:** 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS.
 - **HEAD:** `48a67b3`
 - **Next:** Session170 — CONC2_SV fast path (QLIT+VART dominant shape, ~551 verbose blocks remaining).
+
+## Session170
+- **Change:** REF/DOL/ARBNO block-header comments moved to col2 on label line via new `asmLC(lbl, comment)` helper.
+  Format: `alpha: ; REF(PatName)` / `alpha: ; DOL(var $  var)` / `alpha: ; ARBNO` — then instructions follow clean.
+- **ALFC empty-label guard:** suppresses bare `:` when label arg is `""`.
+- **beauty_prog_session170.s:** 12689 lines, NASM clean, archived.
+- **Invariants:** 106/106 C PASS, 26/26 ASM PASS.
+- **HEAD:** `5dfda90`
+- **Next:** CONC2_SV/VS/VN/VV fast paths (session171).
+
+## Session171
+- **Change:** `CONC2_SV/VS/VN/VV` + `ALT2_SV/VS/VN/VV` macros in `snobol4_asm.mac`; six new fast paths in `emit_byrd_asm.c` E_OR/E_CONC — all two-atom arg shapes now covered.
+- **Lines:** 12689 → 12444 (−245). 529 verbose `sub rsp,32` blocks remain.
+- **Diagnosis:** All remaining verbose blocks have at least one non-atomic child (`E_CONC`/`E_OR`/`E_FNC`). Atom fast-paths exhausted. Next: result-temp strategy or CONC3 survey.
+- **Invariants:** 106/106 C PASS, 26/26 ASM PASS.
+- **HEAD:** `19e4fe6`
+- **Next session start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 19e4fe6
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```

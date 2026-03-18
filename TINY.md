@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — Sprint A14: M-ASM-BEAUTIFUL (PIVOT session159)
-**HEAD:** `48a67b3` session169
+**HEAD:** `19e4fe6` session171
 **Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-BEAUTIFUL** (A14, active)
 
 **Session168 — FAIL_BR/FAIL_BR16/SUBJ_FROM16 renames; CONC2/ALT2 macros; COL2_W=12; CONC2_N/CONC2 fast paths:**
@@ -26,12 +26,36 @@ snobol4x: multiple frontends, multiple backends.
 - beauty_prog_session168.s: 12689 lines (down 56 from session167), assembles clean
 - 106/106 C crosscheck PASS, 26/26 ASM crosscheck PASS
 
-**Session169 — SEP_W 80→120 (Cherryholmes standard):**
-- `SEP_W` changed from 80 to 120 in `emit_byrd_asm.c`; separator lines (`; ===...` / `; ---...`) now 120 chars wide
-- beauty_prog_session169.s: 12689 lines, NASM clean, 106/106 26/26
-- Four-column layout (label/macro/operands/comment) retained as-is per Lon's decision
+**Session171 — CONC2_SV/VS/VN/VV fast paths; 12444 lines:**
+- `CONC2_SV/VS/VN/VV` + `ALT2_SV/VS/VN/VV` macros added to `snobol4_asm.mac`
+- Six new fast paths in `emit_byrd_asm.c` E_OR/E_CONC — all two-atom shapes now covered
+- 12689 → 12444 lines (−245); 529 verbose `sub rsp,32` blocks remain (nested expr trees)
+- 106/106 26/26
 
-**⚠ CRITICAL NEXT ACTION — Session170:**
+**Session170 — REF/DOL/ARBNO block-header comments to col2 on label line:**
+- `asmLC(lbl, comment)` helper: emits `label: ; comment\n` with no instruction
+- Three standalone `A("\n; ...")` sites (REF/DOL/ARBNO) converted to `asmLC` on alpha label
+- `ALFC` empty-label guard: suppresses bare `:` when label is `""`
+- 12689 lines unchanged, NASM clean, 106/106 26/26
+
+**Session169 — SEP_W 80→120:**
+- `SEP_W` 80 → 120; separator lines now 120 chars (Cherryholmes standard)
+- Four-column layout retained as-is per Lon's decision
+- 12689 lines, 106/106 26/26
+
+**⚠ CRITICAL NEXT ACTION — Session172:**
+
+Remaining 529 verbose `sub rsp,32` blocks are nested expression trees — left or right child is `E_CONC`/`E_OR`/`E_FNC`, not an atom. Atom fast-paths are exhausted. Next structural move: **result-temp strategy**.
+
+Evaluate complex child into a `.bss` scratch pair (`conc_tmp_rax`, `conc_tmp_rdx`), then collapse with new macros:
+- `CONC2_TV fn, tmplab, varlab` — fn(pre-computed-temp, variable)
+- `CONC2_VT fn, varlab, tmplab` — fn(variable, pre-computed-temp)
+- `CONC2_TS fn, tmplab, strlab` — fn(pre-computed-temp, str)
+- `CONC2_TN fn, tmplab`         — fn(pre-computed-temp, NULVCL)
+
+Emitter change: in `E_OR`/`E_CONC` generic path, detect when left/right is a simple atom vs complex; for complex-left+atom-right patterns, emit `sub rsp,32` + inline-evaluate-left + `STORE_ARG32 0` + macro for right half.
+
+Alternatively: survey the 230 double-sub (nested) cases — these may all be `CONCAT(CONCAT(atom,atom), atom)` and collapsible with a `CONC3` 3-arg macro.
 
 The dominant `CONCAT(E_QLIT, E_VART)` shape — string literal left, variable right — accounts for the bulk of the ~409 remaining verbose blocks (each 10 lines). Add `CONC2_SV` macro and fast path:
 
