@@ -173,12 +173,12 @@ Also add `CONC2_VN` (variable left, NULVCL right) and `CONC2_VV` (two variables)
 
 **Session169 start commands:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = d872625
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -216,11 +216,11 @@ Lon reviews `beauty_prog_session165.s` → M-ASM-BEAUTIFUL fires, OR next step t
 
 **Session167 start commands:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -282,7 +282,7 @@ Lon reviews `artifacts/asm/beauty_prog_session161.s` → M-ASM-BEAUTIFUL fires.
 **⚠ CRITICAL NEXT ACTION — Sprint A14 (M-ASM-BEAUTIFUL):**
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = 0f7f20b
 
@@ -290,7 +290,7 @@ apt-get install -y libgc-dev nasm
 make -C src/sno2c
 
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -458,7 +458,7 @@ Why ASM solves the C structural problem:
 
 **Build commands (ASM backend):**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 # Install NASM once:
 apt-get install -y nasm
 # Compile a .sno to .s:
@@ -623,14 +623,14 @@ depth is correct before `$'('` runs.
 ## Session Start (session168)
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = 8e5e9cb
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
 
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -640,8 +640,8 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 
 ```bash
 RT=src/runtime
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/socrates/snobol4corpus/programs/inc
+BEAUTY=/home/socrates/snobol4corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \

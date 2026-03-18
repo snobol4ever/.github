@@ -41,7 +41,7 @@ What: run program N times at &STLIMIT=1..N with &DUMP=2. Show what changed each 
 Catches: exactly WHERE divergence first appears — which variable, which statement.
 Tool: `snobol4harness/probe/probe.py`
 ```bash
-python3 /home/claude/snobol4harness/probe/probe.py --oracle csnobol4 --max 200 failing.sno
+python3 /home/socrates/snobol4harness/probe/probe.py --oracle csnobol4 --max 200 failing.sno
 ```
 When to use: Paradigm 1 finds failure → Paradigm 2 locates statement.
 
@@ -180,17 +180,17 @@ DONE_LASTNO
 ```bash
 # CSNOBOL4 — tarball already at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz
 apt-get install -y build-essential libgmp-dev m4
-mkdir -p /home/claude/csnobol4-src
-tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
-cd /home/claude/csnobol4-src
+mkdir -p /home/socrates/csnobol4-src
+tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/socrates/csnobol4-src/ --strip-components=1
+cd /home/socrates/csnobol4-src
 sed -i '/if (!chk_break(0))/{N;/goto L_INIT1;/d}' snobol4.c isnobol4.c
 ./configure --prefix=/usr/local && make -j4 && make install
 
 # SPITBOL x64 — needs x64-main.zip uploaded by Lon
 apt-get install -y nasm
-unzip -q /mnt/user-data/uploads/x64-main.zip -d /home/claude/spitbol-src/
+unzip -q /mnt/user-data/uploads/x64-main.zip -d /home/socrates/spitbol-src/
 # apply systm.c patch from oracles/spitbol/BUILD.md
-cd /home/claude/spitbol-src/x64-main && make && cp sbl /usr/local/bin/spitbol
+cd /home/socrates/spitbol-src/x64-main && make && cp sbl /usr/local/bin/spitbol
 
 # SNOBOL5 — prebuilt binary, no build required
 wget -O /usr/local/bin/snobol5 https://snobol5.org/snobol5
@@ -253,16 +253,16 @@ Monitor pipe reader must normalize per oracle — all carry statement number and
 ## Session Start Checklist
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 apt-get install -y libgc-dev && make -C src/sno2c
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106 before any work
 
 # Build beauty_full_bin
-RT=src/runtime; INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+RT=src/runtime; INC=/home/socrates/snobol4corpus/programs/inc
+BEAUTY=/home/socrates/snobol4corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \

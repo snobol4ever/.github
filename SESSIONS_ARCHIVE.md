@@ -502,12 +502,12 @@ SNOBOL4-corpus/programs/beauty/beauty.sno            ← target
 
 **Build commands:**
 ```bash
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNOC=/home/socrates/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/socrates/SNOBOL4-tiny/src/runtime
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+cd /home/socrates/SNOBOL4-tiny/src/snoc && make clean && make
 
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
 gcc -O0 -g /tmp/beauty_full.c \
@@ -1819,7 +1819,7 @@ but Sprint 20 (Beautiful.sno self-hosting) remains the immediate priority.
 **Repos affected**: `SNOBOL4-tiny` (Phase 0 IR + emit_jvm.py + emit_msil.py added here),
 potentially new repos `SNOBOL4-jvm-byrd` and `SNOBOL4-msil-byrd` — TBD with Lon.
 
-**Jcon cloned to** `/home/claude/jcon` — available for reference every session
+**Jcon cloned to** `/home/socrates/jcon` — available for reference every session
 (re-clone from `github.com/proebsting/jcon`).
 
 **See `JCON.md` (new satellite) for full Jcon architecture notes.**
@@ -3265,13 +3265,13 @@ But now it runs everywhere.
 **Build commands for Session 33:**
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNOC=/home/socrates/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/socrates/SNOBOL4-tiny/src/runtime
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 
 # Rebuild snoc
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+cd /home/socrates/SNOBOL4-tiny/src/snoc && make clean && make
 
 # Rebuild beauty_full_bin
 $SNOC $BEAUTY -I $INC > /tmp/beauty_full.c 2>/dev/null
@@ -3385,7 +3385,7 @@ survey actual git log and file state, verify understanding before writing any co
 
 - `SNOBOL4-tiny` HEAD = `9596466` — entry_label fix + artifacts. `emit.c` is 936 lines.
 - `.github` HEAD = `b68f9a6` — Session 33 handoff with phantom fix direction.
-- **Repo survey completed** (`find /home/claude/SNOBOL4-tiny/src -type f | sort`).
+- **Repo survey completed** (`find /home/socrates/SNOBOL4-tiny/src -type f | sort`).
 - `mock_includes.c` registers: `Shift`, `Reduce`, `Push`, `Pop`, `bVisit`, `Visit`,
   `TopCounter`, `InitCounter`, `PushCounter`, `IncCounter`, `DecCounter`, `PopCounter`,
   `TopBegTag`, `TopEndTag`, and many more — all runtime-owned, all with source bodies
@@ -3495,13 +3495,13 @@ prematurely before reaching ShiftEnd).
 ### Build state
 ```bash
 # Build snoc first:
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+cd /home/socrates/SNOBOL4-tiny/src/snoc && make clean && make
 
 # Test pipeline:
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNOC=/home/socrates/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/socrates/SNOBOL4-tiny/src/runtime
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
 gcc -O0 -g /tmp/beauty_full.c \
@@ -3629,12 +3629,12 @@ is stopping the walk prematurely.
 ### Build commands (copy-paste ready)
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNOC=/home/socrates/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/socrates/SNOBOL4-tiny/src/runtime
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+cd /home/socrates/SNOBOL4-tiny/src/snoc && make clean && make
 
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
 gcc -O0 -g /tmp/beauty_full.c \
@@ -3701,7 +3701,7 @@ grammars, and data structures are set up.
 1. Find where beauty.sno outputs "Internal Error":
 ```bash
 grep -n "Internal Error\|InternalError\|error.*Internal" \
-    /home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno | head -5
+    /home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno | head -5
 ```
 
 2. Add runtime tracing to identify which statement triggers it:
@@ -3719,12 +3719,12 @@ grep -n "Internal Error\|InternalError\|error.*Internal" \
 ### Build commands (copy-paste ready)
 ```bash
 apt-get install -y build-essential flex bison libgc-dev
-cd /home/claude/SNOBOL4-tiny/src/snoc && make clean && make
+cd /home/socrates/SNOBOL4-tiny/src/snoc && make clean && make
 
-SNOC=/home/claude/SNOBOL4-tiny/src/snoc/snoc
-RUNTIME=/home/claude/SNOBOL4-tiny/src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+SNOC=/home/socrates/SNOBOL4-tiny/src/snoc/snoc
+RUNTIME=/home/socrates/SNOBOL4-tiny/src/runtime
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 
 $SNOC $BEAUTY -I $INC 2>/dev/null > /tmp/beauty_full.c
 gcc -O0 -g /tmp/beauty_full.c \
@@ -4171,7 +4171,7 @@ containing semantic actions, making snoParse structurally present but semantical
 
 **Check at session start:**
 ```bash
-grep -n "E_REDUCE" /home/claude/SNOBOL4-tiny/src/snoc/emit.c
+grep -n "E_REDUCE" /home/socrates/SNOBOL4-tiny/src/snoc/emit.c
 ```
 
 Look for `case E_REDUCE:` inside `emit_pat()`. If absent, add:
@@ -5452,13 +5452,13 @@ Committed `57a4d00`. Push pending (needs token at next session start).
 ### Next action (session 119 start)
 ```bash
 # 1. Push .github
-cd /home/claude/.github
+cd /home/socrates/.github
 git push https://TOKEN@github.com/SNOBOL4-plus/.github main
 
 # 2. Clone and set up SNOBOL4-tiny
-git clone https://TOKEN@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/claude/SNOBOL4-tiny
-git clone https://TOKEN@github.com/SNOBOL4-plus/corpus /home/claude/SNOBOL4-corpus
-cd /home/claude/SNOBOL4-tiny
+git clone https://TOKEN@github.com/SNOBOL4-plus/SNOBOL4-tiny /home/socrates/SNOBOL4-tiny
+git clone https://TOKEN@github.com/SNOBOL4-plus/corpus /home/socrates/SNOBOL4-corpus
+cd /home/socrates/SNOBOL4-tiny
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 
 # 3. Run invariant
@@ -5466,8 +5466,8 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 
 # 4. Build beauty_full_bin (session116 state)
 RT=src/runtime
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-BEAUTY=/home/claude/SNOBOL4-corpus/programs/beauty/beauty.sno
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+BEAUTY=/home/socrates/SNOBOL4-corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
@@ -5563,7 +5563,7 @@ Same: `nPush()` fires, `*Expr16` fails (no `[`), `epsilon` taken, `nPop()` skipp
 
 ### Next action for session 121
 ```bash
-cd /home/claude/SNOBOL4-tiny
+cd /home/socrates/SNOBOL4-tiny
 git log --oneline -3                          # verify 07d4b14
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 # Then fix Bug7 in emit_byrd.c — see TINY.md §Bug7
@@ -5614,24 +5614,24 @@ to SNOBOL4-corpus before resuming compiler work.
 ```bash
 # 0. Commit diag1 suite to SNOBOL4-corpus
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-cp -r /tmp/diag1_corpus/rung* /home/claude/SNOBOL4-corpus/crosscheck/
-cd /home/claude/SNOBOL4-corpus
+cp -r /tmp/diag1_corpus/rung* /home/socrates/SNOBOL4-corpus/crosscheck/
+cd /home/socrates/SNOBOL4-corpus
 git add crosscheck/ && git commit -m "session122: M-DIAG1 — 35 tests, 152 assertions, rungs 2-11"
 git push
 
 # 1. Resume bug7-micro in SNOBOL4-tiny
-cd /home/claude/SNOBOL4-tiny
+cd /home/socrates/SNOBOL4-tiny
 git log --oneline -3                         # verify 07d4b14
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh  # must be 106/106
 
 # 2. Oracle trace — micro1_concat (triggers Bug7)
-INC=/home/claude/SNOBOL4-corpus/programs/inc
-snobol4 -f -I$INC /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno \
+INC=/home/socrates/SNOBOL4-corpus/programs/inc
+snobol4 -f -I$INC /home/socrates/SNOBOL4-harness/skeleton/micro1_concat.sno \
     > /tmp/micro1_oracle_out.txt 2>/tmp/micro1_oracle_trace.txt
 
 # 3. Compile micro1 and run
 src/sno2c/sno2c -trampoline -I$INC \
-    /home/claude/SNOBOL4-harness/skeleton/micro1_concat.sno > /tmp/micro1.c
+    /home/socrates/SNOBOL4-harness/skeleton/micro1_concat.sno > /tmp/micro1.c
 RT=src/runtime
 gcc -O0 -g /tmp/micro1.c \
     $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
@@ -5696,11 +5696,11 @@ diff /tmp/micro1_oracle_trace.txt /tmp/micro1_compiled_trace.txt
 # 3. Read HARNESS.md + TINY.md
 
 # 4. Verify SNOBOL4-tiny invariant
-cd /home/claude/SNOBOL4-tiny
+cd /home/socrates/SNOBOL4-tiny
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 apt-get install -y libgc-dev && make -C src/sno2c
 mkdir -p /home/SNOBOL4-corpus
-ln -sf /home/claude/SNOBOL4-corpus/crosscheck /home/SNOBOL4-corpus/crosscheck
+ln -sf /home/socrates/SNOBOL4-corpus/crosscheck /home/SNOBOL4-corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 
 # 5. Sprint M1 — write these three files in SNOBOL4-harness:
@@ -5917,7 +5917,7 @@ When caller does `ref_a() = 26`, `leftVar` is that NameVar. Code used
 ```bash
 cd SNOBOL4-dotnet
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-export PATH=$PATH:/home/claude/.dotnet   # .NET 10 installed here — NOT /usr/local/dotnet
+export PATH=$PATH:/home/socrates/.dotnet   # .NET 10 installed here — NOT /usr/local/dotnet
 git log --oneline -3   # expect 2fd79cd
 dotnet build Snobol4.sln -c Release -p:EnableWindowsTargeting=true
 dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1735/1744, 9 skipped, 0 failed
@@ -5927,7 +5927,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1735/1744, 9 s
 ```
 
 ### Key findings for next session
-- .NET SDK is **10.0.201** installed at `/home/claude/.dotnet` — project targets net10.0
+- .NET SDK is **10.0.201** installed at `/home/socrates/.dotnet` — project targets net10.0
 - `net-gap-value-indirect` tests:
   - 1115: `VALUE('b')` returns value of variable named `'b'` — VALUE() not implemented
   - 1116: same VALUE() gap plus DATA type overlap
@@ -6036,7 +6036,7 @@ User functions registered with wrong arg count. Fixed.
 3. Run invariant: `dotnet test TestSnobol4/... -c Release -p:EnableWindowsTargeting=true` → must be 1743/1744
 4. Active sprint: `net-alphabet` — add 0x00 to &ALPHABET init → SIZE 256
 5. After net-alphabet: resume `net-delegates`
-6. .NET 10 SDK: install with `/tmp/dotnet-install.sh --channel 10.0 --install-dir /home/claude/.dotnet`
+6. .NET 10 SDK: install with `/tmp/dotnet-install.sh --channel 10.0 --install-dir /home/socrates/.dotnet`
 
 ---
 
@@ -6204,7 +6204,7 @@ User functions registered with wrong arg count. Fixed.
 ### Next session start
 1. Read RULES.md → PLAN.md → DOTNET.md
 2. Confirm HEAD: `21dceac` · Invariant: `dotnet test` → 1777/1778
-3. Install .NET 10: `bash /home/claude/SNOBOL4-dotnet/dotnet-install.sh --channel 10.0 --install-dir /home/claude/.dotnet && export PATH=$PATH:/home/claude/.dotnet`
+3. Install .NET 10: `bash /home/socrates/SNOBOL4-dotnet/dotnet-install.sh --channel 10.0 --install-dir /home/socrates/.dotnet && export PATH=$PATH:/home/socrates/.dotnet`
 4. Active sprint: `net-load-dotnet`
 5. Step 1: s1 dispatcher already routes path-like to `LoadDotNetPath` — verify routing, then Step 2: auto-prototype via reflection (`ClassName` → discover methods → `FunctionTableEntry`)
 6. Existing 27 `.NET-native` tests (Area/Math/FSharp) MUST stay green throughout
@@ -6844,13 +6844,13 @@ All `\n\n` double-newlines removed (45 instances). Every state is one line throu
 ### Next session start
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = 88653f6
 apt-get install -y libgc-dev nasm
 make -C src/sno2c
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -6891,12 +6891,12 @@ Label ≥ COL_W → newline then `emit_to_col(28)`.
 ### Session 165 start
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = db80921
 apt-get install -y libgc-dev nasm && make -C src/sno2c
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -6935,12 +6935,12 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 ### Session 166 start
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = 10184a0
 apt-get install -y libgc-dev nasm && make -C src/sno2c
 mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -6998,11 +6998,11 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 - **HEAD:** `19e4fe6`
 - **Next session start:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = 19e4fe6
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -7032,12 +7032,12 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 
 **Next session start commands:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = e0371fe
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
@@ -7081,12 +7081,12 @@ See TINY.md §Sprint A13 for full spec.
 
 **Next session start commands:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = c768f7c
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 # Build runtime objects for full-program ASM tests:
 RT=src/runtime
@@ -7117,12 +7117,12 @@ Then: build snobol4harness/monitor/ runner for ASM backend (Sprint M1)
 
 **Next session start commands:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = e21f3bf
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 RT=src/runtime
 gcc -O0 -g -c $RT/snobol4/snobol4.c -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/snobol4.o
@@ -7179,12 +7179,12 @@ Session177 collapsed all numbered session artifacts to canonical files but only 
 ### Session 179 start
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = a3ac46c
 
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 RT=src/runtime
 gcc -O0 -g -c $RT/snobol4/snobol4.c -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o /tmp/snobol4.o
@@ -7229,10 +7229,10 @@ Regenerated and committed with Greek fix applied. Final HEAD: `6260084`.
 
 **Next session start:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/socrates/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 apt-get install -y libgc-dev nasm && make -C src/sno2c
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/snobol4corpus && ln -sf /home/socrates/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
 bash test/crosscheck/run_crosscheck_asm.sh               # fix 056 → 26/26 first

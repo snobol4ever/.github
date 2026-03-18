@@ -27,8 +27,8 @@ frontend is correct on that backend.
 
 **Self-beautification oracle test:**
 ```bash
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/socrates/snobol4corpus/programs/inc
+BEAUTY=/home/socrates/snobol4corpus/programs/beauty/beauty.sno
 snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
 <backend-binary> < $BEAUTY > compiled.sno
 diff oracle.sno compiled.sno   # empty = frontend correct on this backend
@@ -272,7 +272,7 @@ Given first divergence line N in the diff:
 ## Probe Script (Paradigm 2)
 
 ```bash
-python3 /home/claude/snobol4harness/probe/probe.py \
+python3 /home/socrates/snobol4harness/probe/probe.py \
     --oracle csnobol4 --max 200 failing.sno
 ```
 Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.

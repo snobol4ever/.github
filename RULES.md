@@ -23,7 +23,7 @@ Two chats may work simultaneously on different repos (e.g. snobol4x + snobol4dot
 Both will push .github. They WILL collide unless every chat does:
 
 ```bash
-cd /home/claude/.github
+cd /home/socrates/.github
 git pull --rebase origin main   # always, immediately before push
 git push
 ```
@@ -79,8 +79,8 @@ git add artifacts/asm/beauty_prog.s && git commit -m "sessionN: artifacts — be
 
 At end of every session that touches sno2c, emit*.c, or runtime/:
 ```bash
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/socrates/snobol4corpus/programs/inc
+BEAUTY=/home/socrates/snobol4corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp_candidate.c
 LAST=$(ls artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1)
 # Compare md5:
