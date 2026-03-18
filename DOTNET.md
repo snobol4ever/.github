@@ -60,10 +60,38 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 export PATH=$PATH:/usr/local/dotnet
 git log --oneline -3   # verify HEAD
 dotnet build Snobol4.sln -c Release -p:EnableWindowsTargeting=true
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release   # confirm 1832/1833 (1 [Ignore])
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true  # confirm 1873/1876
 ```
 
 **CRITICAL:** Always pass `-p:EnableWindowsTargeting=true` on Linux builds.
+
+---
+
+## Performance
+
+**Baseline (session154, HEAD `d8f11f9`, before hotfixes):**
+
+| Benchmark | Mean | Alloc/run |
+|-----------|-----:|----------:|
+| ArithLoop_1000 | 41.6ms | 1662 KB |
+| VarAccess_2000 | 98.0ms | 6282 KB |
+| Fibonacci_18 | 237.4ms | 11853 KB |
+| MixedWorkload_200 | 220.6ms | 13930 KB |
+| FuncCallOverhead_3000 | 19.0ms | 877 KB |
+
+**Hotfixes landed (session156, HEAD `e0e81d3`):**
+
+| Fix | What | Expected win |
+|-----|------|-------------|
+| A — IntegerConversionStrategy | INTEGER→INTEGER fast path: zero allocation; InvariantCulture | ↓ alloc in VarAccess/ArithLoop |
+| B — RealConversionStrategy | InvariantCulture in STRING cases | correctness + minor speed |
+| C — Function.cs | Reuse `_reusableArgList` — no per-call List alloc | ↓ alloc in Fibonacci/FuncCall |
+| D — SystemStack.ExtractArguments | O(n²) Insert(0) → O(n) Add+Reverse | ↓ time in multi-arg calls |
+
+**Post-hotfix numbers:** pending `dotnet test` + BenchmarkSuite2 re-run on machine with SDK.
+See `perf/baseline.md` and `perf/profile_session156.md` for full detail.
+
+**M-NET-PERF fires when:** re-run confirms ≥1 measurable win + 1873/1876 green.
 
 ---
 
@@ -153,7 +181,7 @@ Three tracks run in sequence: corpus coverage first, feature gaps second, benchm
 | `net-benchmark-scaffold` | **Cross-repo harness sprint** (touches snobol4harness, snobol4dotnet, snobol4x, snobol4jvm). snobol4harness gets real `crosscheck.sh` + `bench.sh` callable from any dir; each engine gets a thin `adapters/<engine>/run.sh`; dotnet gets `run_crosscheck_dotnet.sh` committed (was built session149, never landed); cross-engine timing grid produced. snobol4harness README "No code yet" becomes real code. | `crosscheck.sh` runs all engines vs corpus; DOTNET timing column in grid |
 | `net-perf-analysis` | Profile hot paths; land ≥1 measurable win; publish regression baseline | M-NET-PERF fires |
 | `net-benchmark-publish` | Run full benchmark grid (DOTNET vs CSNOBOL4 vs SPITBOL vs TINY); publish results in HARNESS.md | grid published |
-| **`net-build-prereqs`** | Document and validate all build prerequisites: BUILDING.md (SDK version, C toolchain for native libs, platform matrix); `.gitignore` audit for build outputs; CI prereq check on clean clone | BUILDING.md present; CI green on clean clone |
+| **`net-build-prereqs`** | Document and validate all build prerequisites: BUILDING.md (SDK version, C toolchain for native libs, platform matrix); `.gitignore` audit for build outputs; CI prereq check on clean clone | ✅ `1a3b3d3` session156 — BUILDING.md; build_native.sh; libsnobol4_rt.so tracked; .gitignore clean |
 
 **M-NET-POLISH fires when:** `net-load-dotnet` ✅ + `net-ext-noconv` ✅ + `net-ext-xnblk` ✅ + `net-ext-create` ✅ + `net-load-xn` ✅ + `net-corpus-rungs` ✅ + `net-diag1` ✅ + `net-save-dll-3` ✅ + `net-feature-fill` ✅ + `net-perf-analysis` ✅ + `net-benchmark-publish` ✅ + `net-build-prereqs` ✅
 
@@ -457,6 +485,7 @@ On load (`RunDll`): detect sentinel → extract fields → feed source to `Code.
 ---
 
 ## Pivot Log
+| 2026-03-17 | **net-build-prereqs ✅ session156** — BUILDING.md (.NET SDK ≥10, gcc optional, platform matrix, quickstart, native libs table); build_native.sh (rebuilds all 6 .so, tested clean); CustomFunction/libsnobol4_rt.so tracked; .gitignore audit clean (no bin/obj tracked; BDN artifacts already covered); `1a3b3d3` | session156 |
 | 2026-03-17 | **net-perf-analysis partial session156** — hotfixes A+B+C+D landed: INTEGER identity fast path (no alloc), CurrentCulture→InvariantCulture (Integer+Real), Function.cs reuses _reusableArgList, SystemStack.ExtractArguments O(n²)→O(n); profile_session156.md committed; `c4ebfbe`; dotnet test + BenchmarkSuite2 re-run pending (no dotnet in container) | session156 |
 | 2026-03-17 | **net-benchmark-scaffold ✅ session156** — tiny/jvm run.sh stubs; README+LAYOUT real status; bench.sh cross-engine timing grid; BENCHMARKS.md DOTNET session154 wall-clock baseline appended; snobol4x left untouched (Lon working there); sprint complete; next: net-perf-analysis | session156 |
 | 2026-03-17 | **net-benchmark-scaffold partial ✅ session155** — crosscheck.sh (engine-agnostic, adapters/<engine>/run.sh convention) + run_crosscheck_dotnet.sh (CORPUS env var) + run.sh fix (DOTNET quirk: program output→stderr, CWD→stdout; -b flag; 2>&1 1>/dev/null) committed to snobol4harness `dead219`; crosscheck confirmed working (105/106, `cross` @N cursor known gap); next: fix CORPUS default path in run_crosscheck_dotnet.sh, wire tiny/jvm adapters, update harness README | session155 |
