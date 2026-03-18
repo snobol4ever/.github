@@ -7007,3 +7007,42 @@ gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harn
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 ```
+
+---
+
+## Session175–176 (Claude Sonnet 4.6)
+
+**Repos touched:** snobol4x, .github
+
+**session175 — M-ASM-BEAUTIFUL fires (`7d6add6`):**
+- `emit_instr()` helper added to emit_byrd_asm.c — centralises opcode/col3 split
+- Three paths fixed: `asmLB()`, `ALFC` macro, `A()` pending-label fold
+- 901 misaligned instruction lines → 0. Every line: opcode@col28, operands@col40
+- Lon declares beauty_prog.s beautiful. M-ASM-BEAUTIFUL ✅
+- beauty_prog_session175.s archived (11654 lines, NASM clean)
+
+**session176 — M-ASM-READABLE fires (`e0371fe`):**
+- `asm_expand_name()` — 24-entry special-char expansion table
+- `_` kept literal passthrough (readability); uid suffix on collision only (0 in beauty.sno)
+- Bijection analysis: expanding `_`→`US` would be fully injective but destroys readability
+  for normal names like `he_is_on_the_way`. M-ASM-READABLE-A spec adopted.
+- All sanitisers updated: `asm_safe_name()`, `cap_vars`, DOL safe-name
+- beauty_prog_session176.s archived (11656 lines, NASM clean)
+- 106/106 C crosscheck PASS; 26/26 ASM crosscheck PASS
+
+**Next session start commands:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = e0371fe
+
+apt-get install -y libgc-dev nasm && make -C src/sno2c
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Active sprint: M-ASM-IR (Sprint A13)**
+AsmNode tree between parse and emit. Same architecture as CNode.
+See TINY.md §Sprint A13 for full spec.
