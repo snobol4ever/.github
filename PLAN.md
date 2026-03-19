@@ -13,11 +13,11 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
 | **TINY sprint** | `snocone-frontend` — SC0 lexer → M-SNOC-LEX (frontend session) · `asm-backend` corpus fixes (backend session) |
 | **TINY HEAD** | `583c5a5` session182 |
-| **TINY next** | Frontend: SC4-ASM DEFINE calling convention → M-SNOC-ASM-CF → SC5-ASM corpus → SC6-ASM self |
+| **TINY next** | Frontend: SC6-ASM self → M-SNOC-ASM-SELF |
 | **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
 | **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
 | **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
-| **HEAD TINY** | `0371fad` session188 |
+| **HEAD TINY** | `d8901b4` session189 |
 | **HEAD CORPUS** | `9c00acd` session136 |
 | **HEAD HQ** | (this commit) session146 |
 | **Invariant TINY** | `106/106` crosscheck before any snobol4x work |
@@ -117,7 +117,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-SNOC-LOWER** | sc_lower.c: Snocone AST → EXPR_t/STMT_t wired | ✅ `2c71fc1` session185 |
 | **M-SNOC-ASM-HELLO** | `-sc -asm`: `OUTPUT='hello'` → assembles + runs → `hello` | ✅ `9148a77` session187 |
 | **M-SNOC-ASM-CF** | DEFINE calling convention; `double(5)` → 10 via `-sc -asm` | ✅ `0371fad` session188 |
-| **M-SNOC-ASM-CORPUS** | SC corpus 10-rung all PASS via `-sc -asm` | ❌ Sprint SC5-ASM |
+| **M-SNOC-ASM-CORPUS** | SC corpus 10-rung all PASS via `-sc -asm` | ✅ `d8901b4` session189 |
 | **M-SNOC-ASM-SELF** | snocone.sc compiles itself via `-sc -asm`; diff oracle empty | ❌ Sprint SC6-ASM |
 | **M-SNOC-EMIT** | `-sc` flag in sno2c; `OUTPUT = 'hello'` .sc → C binary PASS | ❌ (deferred — C backend) |
 | **M-SNOC-CORPUS** | SC corpus 10-rung all PASS (C backend) | ❌ Sprint SC4 (deferred) |

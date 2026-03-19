@@ -11,9 +11,18 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-R8 — M-ASM-R8 (strings: SIZE/SUBSTR/REPLACE/DUPL) · `snocone-frontend` SC5-ASM — SC corpus via -sc -asm
-**HEAD:** `6248aab` session190
-**Milestone:** M-ASM-R7 ✅ session190
+**Sprint:** `asm-backend` A-R8 — M-ASM-R8 (strings: SIZE/SUBSTR/REPLACE/DUPL) · `snocone-frontend` SC6-ASM — snocone.sc self-compile
+**HEAD:** `d8901b4` session189 (frontend) / `6248aab` session190 (backend)
+**Milestone:** M-ASM-R7 ✅ session190 · **M-SNOC-ASM-CORPUS** ✅ session189
+
+**Session189 (frontend) — M-SNOC-ASM-CORPUS: SC corpus 10/10 PASS via -sc -asm:**
+- `SC_KW_THEN` added to `sc_lex.h` enum (appended after `SC_UNKNOWN` — safe, no shift) + keyword table + `sc_kind_name`
+- `sc_cf.c` if-handler: consume optional `then` keyword; then-body compiled via `compile_expr_clause(SC_KW_ELSE)` to stop before else on same line
+- `sc_cf.c` while/for handlers: consume optional `do` keyword before body
+- `sc_lower.c`: `SC_OR` (||) → `E_CONC` (string concat), not `E_OR` (pattern alt)
+- SC corpus `test/frontend/snocone/sc_asm_corpus/`: 10 `.sc` + `.ref` pairs + `run_sc_asm_corpus.sh` runner
+- SC1 literals ✅ SC2 assign ✅ SC3 arith ✅ SC4 control ✅ SC5 while ✅ SC6 for ✅ SC7 procedure ✅ SC8 strings ✅ SC9 multiproc ✅ SC10 wordcount ✅
+- 106/106 C ✅
 
 **Session190 (backend) — M-ASM-R7: POS(var)/RPOS(var) variable-arg fix; 7/7 capture:**
 - `stmt_pos_var(varname, cursor)` in `snobol4_stmt_rt.c`: fetch var via `NV_GET_fn`, coerce to int via `to_int()`, return 1 if `cursor==n`
@@ -34,7 +43,7 @@ Sprint A-R8 — strings/ — SIZE/SUBSTR/REPLACE/DUPL
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 6248aab
+git log --oneline -3   # verify HEAD = d8901b4
 apt-get install -y libgc-dev nasm && make -C src
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
@@ -43,6 +52,27 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings
 # baseline: see how many pass; fix failures; M-ASM-R8 fires at 100%
+```
+
+**⚠ CRITICAL NEXT ACTION — Session191 (frontend):**
+
+Sprint SC6-ASM — M-SNOC-ASM-SELF: `snocone.sc` compiles itself via `-sc -asm`
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = d8901b4
+apt-get install -y libgc-dev nasm && make -C src
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+# Verify SC corpus still 10/10:
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh   # must be 10/10
+# Then attempt snocone.sc self-compile:
+# locate snocone.sc in snobol4jvm or snobol4dotnet repo
+# ./sno2c -sc -asm snocone.sc > snocone.s
+# nasm -f elf64 -Isrc/runtime/asm/ snocone.s -o snocone.o
+# gcc -no-pie snocone.o ... -o snocone_bin
+# ./snocone_bin < snocone.sc > snocone_out.sc
+# diff snocone_out.sc <oracle>  → empty = M-SNOC-ASM-SELF fires
 ```
 
 **Session188 (frontend) — M-SNOC-ASM-CF: DEFINE calling convention; user-defined procedures via Byrd-box:**

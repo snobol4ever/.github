@@ -7626,3 +7626,42 @@ gcc -no-pie /tmp/sc_fn.o src/runtime/asm/snobol4_stmt_rt.c \
     -lgc -lm -w -no-pie -o /tmp/sc_fn_bin && /tmp/sc_fn_bin
 # expected: 10
 ```
+
+---
+
+## Session189 — frontend: M-SNOC-ASM-CORPUS; backend: M-ASM-R5/R6/R7
+
+**Date:** 2026-03-19  **Repo:** snobol4x  **HEAD at close:** `d8901b4`
+
+### What happened (frontend session — this chat)
+Sprint SC5-ASM: built and passed SC corpus 10-rung suite via `-sc -asm`.
+
+**Bugs found and fixed:**
+- `SC_KW_THEN` missing from lexer — `then` was tokenized as `SC_IDENT`, causing the if-then-else body to consume `then OUTPUT='big' else OUTPUT='small'` as a single expression. Fix: appended `SC_KW_THEN` after `SC_UNKNOWN` in enum (safe — no shift), added to keyword table and `sc_kind_name`.
+- `else` consumed by then-body: `compile_expr_clause` stops at NEWLINE but not at `else` on same line. Fix: if-handler compiles then-body via `compile_expr_clause(SC_KW_ELSE)` for single-statement bodies.
+- `do` keyword not consumed: while/for handlers called `do_body` directly without consuming optional `do`. Fix: added `if (cur->kind == SC_KW_DO) advance()` before `do_body` in both.
+- `SC_OR` (||) mapped to `E_OR` (pattern alternation) in `sc_lower.c`. In Snocone, `||` is string concatenation. Fix: `SC_OR` → `E_CONC`.
+- Incremental build bug: enum change caused stale `.o` files to produce wrong output. Always `make -C src clean && make -C src` after enum changes.
+
+**SC corpus created:** `test/frontend/snocone/sc_asm_corpus/` — 10 `.sc` + `.ref` pairs + `run_sc_asm_corpus.sh` runner. All 10 PASS.
+
+### What happened (backend sessions — other chats)
+- Session189 backend: M-ASM-R5 (control :S/:F), M-ASM-R6 (splice replacement). sno2c binary conflict resolved.
+- Session190 backend: M-ASM-R7 — POS(var)/RPOS(var) variable-arg fix; 7/7 capture PASS.
+
+### State at handoff
+- snobol4x HEAD: `d8901b4`
+- 106/106 C ✅  10/10 SC corpus ✅
+- M-SNOC-ASM-CORPUS ✅ — all 10 SC rungs pass via `-sc -asm`
+- Next frontend sprint: SC6-ASM — M-SNOC-ASM-SELF (snocone.sc self-compile)
+- Next backend sprint: A-R8 — strings/ SIZE/SUBSTR/REPLACE/DUPL
+
+### Next session start (frontend)
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = d8901b4
+apt-get install -y libgc-dev nasm && make -C src clean && make -C src
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # must be 10/10
+```
