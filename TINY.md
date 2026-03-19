@@ -12,8 +12,8 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` — fix corpus tests → M-MONITOR (ASM)
-**HEAD:** `f4f2475` session182
-**Milestone:** M-REORG ✅ session181 → fix corpus tests (75→113) + M-MONITOR
+**HEAD:** `23fadaf` session182
+**Milestone:** M-REORG ✅ session181 → fix corpus tests (79→106) + M-MONITOR
 
 **Session181 — M-REORG: full repo reorganisation + scan-retry omega fix:**
 - `src/frontend/snobol4/` ← lex, parse, sno.l/y, sno2c.h (from src/sno2c/)
