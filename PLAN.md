@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` A-SAMPLES — roman/wordcount | `617631c` B-199 | M-ASM-SAMPLES |
+| **TINY backend** | `asm-backend` M-DROP-MOCK-ENGINE — remove mock_engine from ASM link path | `617631c` B-199 | M-DROP-MOCK-ENGINE |
 | **TINY JVM** | `jvm-backend` J4 — Byrd box patterns: LIT/SEQ/ALT/ARBNO | `f24fb97` J-198 | M-JVM-PATTERN |
 | **TINY NET** | `net-backend` N-R2 — goto :S/:F + E_FNC builtins | `efc3772` N-197 | M-NET-GOTO |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |

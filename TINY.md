@@ -25,7 +25,7 @@ snobol4x: multiple frontends, multiple backends.
 
 **⚠ CRITICAL NEXT ACTION — Session B-200 (backend):**
 
-Sprint A-SAMPLES — diagnose roman.sno segfault → M-ASM-SAMPLES
+Sprint M-DROP-MOCK-ENGINE — remove `mock_engine.c` from ASM program link path
 
 ```bash
 cd /home/claude/snobol4x
@@ -37,33 +37,23 @@ gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harn
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 
-# Diagnose roman segfault:
-PROGS=/home/claude/snobol4corpus/benchmarks
-./sno2c -asm $PROGS/roman.sno > /tmp/roman.s
-nasm -f elf64 -I src/runtime/asm/ /tmp/roman.s -o /tmp/roman.o
+# Step 1: audit what engine_match callers exist
+grep -rn "engine_match\|engine_match_ex" src/ test/
 
-WORK=$(mktemp -d)
-RT=src/runtime
-for f in stmt_rt snobol4 mock_includes snobol4_pattern mock_engine; do
-  src=$RT/$(echo $f | sed 's/stmt_rt/asm\/snobol4_stmt_rt/;s/snobol4$/snobol4\/snobol4/;s/mock_includes/mock\/mock_includes/;s/snobol4_pattern/snobol4\/snobol4_pattern/;s/mock_engine/mock\/mock_engine/').c
-  gcc -O0 -g -c "$src" -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -w -o $WORK/$f.o
-done
-gcc -no-pie /tmp/roman.o $WORK/stmt_rt.o $WORK/snobol4.o $WORK/mock_includes.o \
-    $WORK/snobol4_pattern.o $WORK/mock_engine.o -lgc -lm -w -no-pie -g -o /tmp/roman_bin_g
+# Step 2: rewrite snobol4_asm_harness.c to not call engine_match
+# The harness run_pattern() calls engine_match — replace with direct
+# jmp to root_alpha (already done for program-mode; replicate here)
 
-# Check if REPLACE is registered:
-grep -n "REPLACE\|TIME\b" src/runtime/snobol4/snobol4.c | head -20
-# If not registered → add to SNO_INIT_fn; TIME may need a stub
+# Step 3: remove mock_engine.o from run_crosscheck_asm.sh link line
 
-# Run with GDB or valgrind to find crash address:
-# valgrind --error-exitcode=1 /tmp/roman_bin_g 2>&1 | head -30
+# Step 4: verify 26/26 still passes without mock_engine.o
+bash test/crosscheck/run_crosscheck_asm.sh
+
+# Step 5: verify 106/106 still passes
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
+
+# M-DROP-MOCK-ENGINE fires when both pass without mock_engine.o in ASM link
 ```
-
-**Suspected root causes of segfault (in priority order):**
-1. `REPLACE` builtin not registered in `SNO_INIT_fn` → `stmt_apply("REPLACE",...)` returns FAILDESCR → crash on deref
-2. `TIME()` builtin not registered → same
-3. Stack overflow in `ROMAN` recursion (100,000 iterations) — but recursion is shallow per call, unlikely
-4. `&STLIMIT = 1000000000` — may overflow integer representation
 
 - **Fix 1 — E_IDX read** (091/092/093): `A<i>`/`T['k']` → new `stmt_aref(arr,key)` shim wrapping `_aref_impl`; `E_IDX` case added to `prog_emit_expr`; evaluates arr→[rbp-16/8], key→[rbp-32/24], calls `stmt_aref` via SysV regs.
 - **Fix 2 — E_IDX write** (091/092/093): `A<i>=val`/`T['k']=val` → new `stmt_aset(arr,key,val)` shim; `has_eq`+`E_IDX` path pushes arr+key onto C stack, evaluates RHS, loads all args into SysV regs, calls `stmt_aset`, pops.
