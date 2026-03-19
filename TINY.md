@@ -11,9 +11,9 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-R8 — M-ASM-R8 (strings: 15/17, fix word1+cross) · `snocone-frontend` SC6-ASM — snocone.sc self-compile
-**HEAD:** `454c226` session191
-**Milestone:** M-ASM-R7 ✅ session190 · M-SNOC-ASM-CORPUS ✅ session189
+**Sprint:** `sc-corpus-ladder` SC-CORPUS-1 — hand-convert hello/output/assign/arith SNOBOL4 → Snocone `.sc` via `-sc -asm`
+**HEAD:** `94d0c13` session191 (merged frontend+backend)
+**Milestone:** M-ASM-R7 ✅ session190 · M-SNOC-ASM-CORPUS ✅ session189 · M-ASM-R8 🔶 session191 (16/17; cross/E_AT pending)
 
 **Session191 (backend) — Sprint A-R8 partial: 15/17 strings/ PASS:**
 
@@ -25,26 +25,26 @@ Fixes: `STORE_RESULT16` (E_FNC rbp_off==-16 slot mismatch → 075 PASS); `stmt_s
 - `word1`: PAT now registered as named pattern. First ARB match ok. Second retry: outer scan_start doesn't advance after named-pat γ fires — scan loop exits instead of retrying.
 - `cross`: `HC ? @NH ANY(V) . CROSS = '*'` — AT_ALPHA fires but ANY_ALPHA_VAR in named-pat body may not see correct `subject_data`/`cursor` globals.
 
-**⚠ CRITICAL NEXT ACTION — Session192 (backend):**
+**⚠ CRITICAL NEXT ACTION — Session192:**
 
-Sprint A-R8 completion — fix word1 + cross → M-ASM-R8
+Sprint SC-CORPUS-1 — hand-convert hello/ + output/ + assign/ + arith/ to Snocone `.sc` → M-SC-CORPUS-R1
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 454c226
+git log --oneline -3   # verify HEAD = 94d0c13
 apt-get install -y libgc-dev nasm && make -C src
-mknod /dev/null c 1 3 && chmod 666 /dev/null   # /dev/null was missing — recreate if needed
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
-gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+git clone https://github.com/snobol4ever/snobol4corpus /home/snobol4corpus 2>/dev/null || (cd /home/snobol4corpus && git pull)
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
-CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings
-# expected: 15/17 (word1 second match + cross failing)
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # must be 10/10
+# Sprint SC-CORPUS-1:
+# 1. Create test/crosscheck/sc_corpus/{hello,output,assign,arith}/ in snobol4x
+# 2. Hand-convert each .sno → .sc, copy .ref unchanged
+# 3. Add run_sc_corpus_rung.sh driver
+# 4. All 4 rungs PASS → M-SC-CORPUS-R1 fires
+# 5. Commit snobol4x; update .github
 ```
-
-**word1 fix:** After named-pat γ fires → scan_start must advance and retry. Check `P_2_γ` path: it currently jumps to `Ln_2` → `GOTO_ALWAYS L_SNO_END`. The `:LOOP` goto is missing — the program never loops back. Fix: verify the pattern-match stmt success path jumps to `:S(LOOP)` not END.
 
 **cross fix:** Compile cross, run `printf "AB\nBC\n" | ./cross_bin`. Confirm AT_ALPHA fires (add stderr debug to `stmt_at_capture`). Check ANY_ALPHA_VAR macro: `subj` arg must be the global `subject_data` label, not a stale pointer. Named-pattern body shares globals — confirm `cursor` and `subject_data` are the same symbols used in the body.
 

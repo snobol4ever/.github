@@ -128,6 +128,12 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-IR** | ASM IR phase: AsmNode tree between parse and emit. Same architecture as CNode. Separates tree walk from pretty-print. One IR, two emitters (C + ASM). | ⏸ DEFERRED — ASM and C backends may need different IR shapes. Revisit after both reach feature parity. Premature unification risks blocking ASM progress. |
 | **M-ASM-BEAUTIFUL** | beauty_prog.s as readable as beauty_full.c. Lon reads it and declares it beautiful. | ✅ `7d6add6` session175 |
 | **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
+| **M-SC-CORPUS-R1** | hello/output/assign/arith all PASS via `-sc -asm` | ❌ Sprint SC-CORPUS-1 |
+| **M-SC-CORPUS-R2** | control/control_new all PASS via `-sc -asm` | ❌ |
+| **M-SC-CORPUS-R3** | patterns/capture all PASS via `-sc -asm` | ❌ |
+| **M-SC-CORPUS-R4** | strings/ all PASS via `-sc -asm` | ❌ |
+| **M-SC-CORPUS-R5** | keywords/functions/data all PASS via `-sc -asm` | ❌ |
+| **M-SC-CORPUS-FULL** | 106/106 SC equivalent of SNOBOL4 crosscheck | ❌ |
 
 ### JVM (snobol4jvm)
 

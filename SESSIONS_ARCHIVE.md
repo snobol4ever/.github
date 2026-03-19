@@ -7665,3 +7665,45 @@ apt-get install -y libgc-dev nasm && make -C src clean && make -C src
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # must be 10/10
 ```
+
+---
+
+## Session191 — M-ASM-R8 16/17 strings; SC corpus ladder strategy
+
+**Date:** 2026-03-19  **Repo:** snobol4x  **HEAD at close:** `94d0c13`
+
+### What happened
+
+**Strategy pivot:** After discussion with Lon, M-SNOC-ASM-SELF deferred. New current goal: SC corpus ladder — hand-convert all 106 SNOBOL4 crosscheck `.sno` tests to Snocone `.sc`, building a systematic test ladder. M-SC-CORPUS-R1 through M-SC-CORPUS-FULL added to PLAN.md.
+
+**Backend fixes (7 bugs in emit_byrd_asm.c):**
+- `FAIL_BR16 → FAIL_BR` — wrong rbp slot after STORE_RESULT. Fixes 075_builtin_integer_test.
+- Skip LHS subject eval for `has_eq + VART/KW` — eliminates spurious GET_VAR before assignments.
+- `BREAK/SPAN/ANY_ALPHA_VAR` macros + `stmt_break/span/any_var` runtime — variable-charset patterns. Fixes wordcount.
+- `BREAKX_ALPHA` + `stmt_breakx_lit` — BREAKX builtin. Fixes word4.
+- `E_DOL/E_NAM` added as pattern indicators in `expr_has_pattern_fn` — PAT = "the" ARB . OUTPUT now recognized as named pattern. Fixes word1 PAT resolution.
+- Pattern gamma `tgt_s ? tgt_s : tgt_u` — unconditional goto used on success.
+- Pattern omega `tgt_f ? tgt_f : tgt_u` — unconditional goto used on scan exhaustion. Fixes word1 loop.
+- strings/ rung: 12 → 16/17 PASS. cross remains (E_AT cursor capture, node kind 21, unimplemented).
+
+**Merge conflict resolution:** Concurrent backend session had overlapping changes to emit_byrd_asm.c, snobol4_asm.mac, snobol4_stmt_rt.c. Resolved by taking remote's cleaner helper-function approach for var-charset dispatches while preserving our critical control-flow fixes. Restored session189 frontend files (sc_cf.c, sc_lower.c) that remote had inadvertently reverted.
+
+### State at handoff
+- snobol4x HEAD: `94d0c13`
+- 106/106 C ✅  26/26 ASM ✅  10/10 SC corpus ✅  16/17 strings ✅
+- M-ASM-R8 🔶 (16/17 — cross/E_AT pending)
+- Next sprint: SC-CORPUS-1 — convert hello/output/assign/arith to Snocone
+
+### Next session start
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 94d0c13
+apt-get install -y libgc-dev nasm && make -C src
+git clone https://github.com/snobol4ever/snobol4corpus /home/snobol4corpus 2>/dev/null || (cd /home/snobol4corpus && git pull)
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # 10/10
+# Sprint SC-CORPUS-1: create test/crosscheck/sc_corpus/ + run_sc_corpus_rung.sh
+# Convert hello/ output/ assign/ arith/ .sno → .sc
+```
