@@ -11,11 +11,46 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` — fix corpus tests → M-MONITOR (ASM)
-**HEAD:** `23fadaf` session182
-**Milestone:** M-REORG ✅ session181 → fix corpus tests (79→106) + M-MONITOR
+**Sprint:** `snocone-frontend` SC1 — sc_parse.c
+**HEAD:** `573575e` session183
+**Milestone:** M-SNOC-LEX ✅ session183 → begin Sprint SC1 (sc_parse.c)
 
-**Session181 — M-REORG: full repo reorganisation + scan-retry omega fix:**
+**Session183 — M-SNOC-LEX: sc_lex.h + sc_lex.c + test; 187/187 PASS:**
+- `src/frontend/snocone/sc_lex.h` — ScKind enum (48 kinds), ScToken, ScTokenArray, API
+- `src/frontend/snocone/sc_lex.c` — tokenizer: # comment strip, continuation detection,
+  semicolon split, longest-match 4→1 char operator table, keyword reclassification,
+  integer/real/string/ident scanning. Direct port of snobol4jvm snocone.clj +
+  snobol4dotnet SnoconeLexer.cs (both consulted — C# was the closest model to C)
+- `test/frontend/snocone/sc_lex_test.c` — 187 assertions mirroring C# TestSnoconeLexer.cs:
+  helpers, literals, all 12 keywords, all operators (longest-match), punctuation,
+  statement boundaries, semicolons, line numbers, 12 E2E snippets
+- M-SNOC-LEX trigger: `OUTPUT = 'hello'` → IDENT ASSIGN STRING NEWLINE EOF PASS
+- 106/106 C crosscheck invariant unaffected; 26/26 ASM unaffected
+
+**⚠ CRITICAL NEXT ACTION — Session184 (frontend session):**
+
+Sprint SC1 — M-SNOC-PARSE: `src/frontend/snocone/sc_parse.c`
+
+Recursive-descent parser consuming `ScToken[]` from sc_lex.
+Produces `ScNode` AST. Port from snobol4jvm `snocone.clj` `parse-expression` +
+snobol4dotnet `SnoconeParser.cs`.
+
+Files:
+- `src/frontend/snocone/sc_parse.h` — ScNode kinds + struct + `sc_parse()` API
+- `src/frontend/snocone/sc_parse.c` — recursive descent: expr (shunting-yard from
+  Clojure parse-expression), stmt, if/while/do/for/procedure/struct/goto/return/block
+- `test/frontend/snocone/sc_parse_test.c` — mirrors TestSnoconeParser.cs
+
+Quick-check trigger (M-SNOC-PARSE):
+```bash
+gcc -I src/frontend/snocone -o /tmp/sc_parse_test \
+    test/frontend/snocone/sc_parse_test.c \
+    src/frontend/snocone/sc_lex.c src/frontend/snocone/sc_parse.c
+/tmp/sc_parse_test
+# PASS → M-SNOC-PARSE fires → begin Sprint SC2
+```
+
+
 - `src/frontend/snobol4/` ← lex, parse, sno.l/y, sno2c.h (from src/sno2c/)
 - `src/frontend/rebus/` ← rebus frontend (from src/rebus/)
 - `src/frontend/icon/` ← Python parser prototypes (from src/parser/)

@@ -7292,3 +7292,46 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 - JVM tests oracle: `/home/claude/snobol4jvm/test/SNOBOL4clojure/test_snocone.clj`
 - Snocone spec: `snobol4corpus/programs/snocone/report.md`
 - Uploaded sources: `SNOCONE/snocone.sc`, `SNOCONE/snocone.sno`, `SNOCONE/snocone.snobol4`
+
+---
+
+## Session183 — frontend session — M-SNOC-LEX
+
+**Date:** 2026-03-18
+**Repo:** snobol4x
+**Sprint:** snocone-frontend SC0
+**HEAD before:** `23fadaf` session182
+**HEAD after:** `573575e` session183
+
+**What happened:**
+- Cloned snobol4jvm and snobol4dotnet to read all three Snocone implementations
+  (Clojure snocone.clj, C# SnoconeLexer.cs, and canonical snocone.sc source from upload)
+- Wrote `src/frontend/snocone/sc_lex.h` — 48-kind ScKind enum, ScToken, ScTokenArray, API
+- Wrote `src/frontend/snocone/sc_lex.c` — full tokenizer: comment strip, continuation
+  detection (18 chars), semicolon split, 4→1 char longest-match op table, keyword
+  reclassification, integer/real/string/ident scanning
+- Wrote `test/frontend/snocone/sc_lex_test.c` — 187 assertions mirroring C# TestSnoconeLexer.cs
+- **M-SNOC-LEX fires** — 187/187 PASS
+- 106/106 C crosscheck unaffected; 26/26 ASM unaffected
+
+**State at handoff:**
+- snobol4x HEAD `573575e` pushed ✅
+- Frontend session next: Sprint SC1 — sc_parse.c (recursive-descent, ScNode AST)
+- Backend session (other chat) next: corpus fixes 79→106
+
+**Session184 start (frontend):**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 573575e
+
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+
+# Then read SnoconeParser.cs from snobol4dotnet for Sprint SC1
+cat /home/claude/snobol4dotnet/Snobol4.Common/Builder/SnoconeParser.cs
+# Begin sc_parse.h + sc_parse.c
+```
