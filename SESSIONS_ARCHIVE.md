@@ -7494,3 +7494,38 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 #              expected: hello
 # M-SNOC-EMIT fires → begin Sprint SC4
 ```
+
+---
+
+## Session 187 — 2026-03-18
+
+**Repo:** snobol4x · **Sprint:** snocone-frontend SC4-ASM · **HEAD in:** `d01fb57` · **HEAD out:** `9148a77`
+
+**Pivot:** Snocone frontend now targets ASM backend (`-sc -asm`), not C. User direction: "make milestones and sprints for ASM not C backend."
+
+**What happened:**
+- Diagnosed full pipeline: `sc_parse` is expression-only (shunting-yard), control-flow keywords skipped. `sc_lower` stubs out `SC_KW_IF`/`WHILE`/`FOR`/`PROCEDURE`/etc. No control-flow lowering existed.
+- Verified M-SNOC-ASM-HELLO already fires: `OUTPUT='hello'` via `-sc -asm` assembles + runs correctly (ASM backend handles missing `is_end` gracefully — emits `L_SNO_END` at end of stmt list).
+- Wrote `src/frontend/snocone/sc_cf.c` + `sc_cf.h` (704 lines) — full control-flow lowering pass modeled on `snocone.sc` `dostmt()`: walks flat `ScToken[]`, handles if/while/do/for/goto/procedure/return/freturn/nreturn/{}, emits labeled STMT_t nodes with go fields.
+- Wired `-sc -asm` → `sc_cf_compile()` in `main.c`; `-sc` alone still uses expression-only `sc_compile()`.
+- **Passing:** hello ✅, arithmetic ✅, while ✅, if/else ✅, for ✅, 106/106 ✅
+- **Blocked:** User-defined procedures — DEFINE calling convention (named-pattern dispatch per session183 design) not yet implemented. `double(5)` returns empty.
+
+**New milestone map:**
+- M-SNOC-ASM-HELLO ✅ session187
+- M-SNOC-ASM-CF ❌ Sprint SC4-ASM (DEFINE calling convention)
+- M-SNOC-ASM-CORPUS ❌ Sprint SC5-ASM
+- M-SNOC-ASM-SELF ❌ Sprint SC6-ASM
+
+**Next session start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 9148a77
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+# Then implement DEFINE calling convention in emit_byrd_asm.c + sc_cf.c
+# Quick-check: ./sno2c -sc -asm /tmp/sc_fn.sc | nasm+gcc → /tmp/sc_fn_bin → 10
+# M-SNOC-ASM-CF fires → begin Sprint SC5-ASM
+```
