@@ -11,42 +11,50 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `sc-corpus-ladder` SC-CORPUS-1 — hand-convert hello/output/assign/arith SNOBOL4 → Snocone `.sc` via `-sc -asm`
-**HEAD:** `94d0c13` session191 (merged frontend+backend)
-**Milestone:** M-ASM-R7 ✅ session190 · M-SNOC-ASM-CORPUS ✅ session189 · M-ASM-R8 🔶 session191 (16/17; cross/E_AT pending)
+**Sprint:** `sc-corpus-ladder` SC-CORPUS-2 — control/ + control_new/ Snocone `.sc` → M-SC-CORPUS-R2
+**HEAD:** `4a0997d` session192 (frontend)
+**Milestone:** M-SC-CORPUS-R1 ✅ session192 · M-ASM-R7 ✅ session190 · M-SNOC-ASM-CORPUS ✅ session189 · M-ASM-R8 🔶 session191 (16/17; cross/E_AT pending)
 
-**Session191 (backend) — Sprint A-R8 partial: 15/17 strings/ PASS:**
+**Session192 (frontend) — M-SC-CORPUS-R1: SC corpus hello/output/assign 20/20 PASS:**
 
-Fixes: `STORE_RESULT16` (E_FNC rbp_off==-16 slot mismatch → 075 PASS); `stmt_span_var/break_var/any_var/notany_var` (charset from variable); BREAK zero-advance allowed; `stmt_breakx_var/lit` (BREAKX, word4 PASS, wordcount PASS); `stmt_at_capture` / `AT_ALPHA`/`AT_BETA` / `E_ATP` case; `expr_has_pattern_fn` recognises E_NAM/E_DOL; `E_VART` in emit_asm_node gets asm_str_var fallback; ANY E_VART dispatch fixed. word1: first match PASS, second ARB retry still failing. 106/106 C ✅ 26/26 ASM ✅
+- `test/crosscheck/sc_corpus/hello/` — 4 .sc + .ref (hello, empty_string, multi, literals)
+- `test/crosscheck/sc_corpus/output/` — 8 .sc + .ref (001-008)
+- `test/crosscheck/sc_corpus/assign/` — 8 .sc + .ref (009-016)
+- `test/crosscheck/run_sc_corpus_rung.sh` — new rung runner (mirrors run_crosscheck_asm_rung.sh)
+- `emit_byrd_asm.c` E_INDR fix: Snocone puts operand in `->left`; SNOBOL4 in `->right`; accept either (`right ? right : left`). Fixes 014/015 indirect assign via `-sc -asm`.
+- 106/106 C ✅  26/26 ASM ✅  10/10 SC ✅  **20/20 SC-CORPUS-R1 ✅**
+- **M-SC-CORPUS-R1 fires**
 
-**Still failing (2/17):** `word1` (ARB second-match in named-pat), `cross` (ANY_VAR in named-pat body)
+**⚠ CRITICAL NEXT ACTION — Session193:**
 
-**Root causes:**
-- `word1`: PAT now registered as named pattern. First ARB match ok. Second retry: outer scan_start doesn't advance after named-pat γ fires — scan loop exits instead of retrying.
-- `cross`: `HC ? @NH ANY(V) . CROSS = '*'` — AT_ALPHA fires but ANY_ALPHA_VAR in named-pat body may not see correct `subject_data`/`cursor` globals.
-
-**⚠ CRITICAL NEXT ACTION — Session192:**
-
-Sprint SC-CORPUS-1 — hand-convert hello/ + output/ + assign/ + arith/ to Snocone `.sc` → M-SC-CORPUS-R1
+Sprint SC-CORPUS-2 — hand-convert control/ + control_new/ SNOBOL4 → Snocone `.sc` → M-SC-CORPUS-R2
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 94d0c13
+git log --oneline -3   # verify HEAD = 4a0997d
 apt-get install -y libgc-dev nasm && make -C src
-git clone https://github.com/snobol4ever/snobol4corpus /home/snobol4corpus 2>/dev/null || (cd /home/snobol4corpus && git pull)
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
-bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
-bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # must be 10/10
-# Sprint SC-CORPUS-1:
-# 1. Create test/crosscheck/sc_corpus/{hello,output,assign,arith}/ in snobol4x
-# 2. Hand-convert each .sno → .sc, copy .ref unchanged
-# 3. Add run_sc_corpus_rung.sh driver
-# 4. All 4 rungs PASS → M-SC-CORPUS-R1 fires
-# 5. Commit snobol4x; update .github
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # 10/10
+bash test/crosscheck/run_sc_corpus_rung.sh \
+    test/crosscheck/sc_corpus/hello \
+    test/crosscheck/sc_corpus/output \
+    test/crosscheck/sc_corpus/assign   # 20/20
+# Sprint SC-CORPUS-2:
+# ls /home/claude/snobol4corpus/crosscheck/control/
+# ls /home/claude/snobol4corpus/crosscheck/control_new/
+# Hand-convert each .sno → .sc into test/crosscheck/sc_corpus/control/ and control_new/
+# Key Snocone translations:
+#   SNOBOL4 goto :S(L)F(L) → if/unless/while in Snocone (or explicit goto)
+#   SNOBOL4 labels → procedure or inline label (Snocone has goto keyword)
+#   :F(END) → if cond then ... (goal-directed)
+# Add control/ + control_new/ dirs, run runner, fix failures
+# All PASS → M-SC-CORPUS-R2 fires → commit + update .github
 ```
 
-**cross fix:** Compile cross, run `printf "AB\nBC\n" | ./cross_bin`. Confirm AT_ALPHA fires (add stderr debug to `stmt_at_capture`). Check ANY_ALPHA_VAR macro: `subj` arg must be the global `subject_data` label, not a stale pointer. Named-pattern body shares globals — confirm `cursor` and `subject_data` are the same symbols used in the body.
+**cross fix (backend, still pending):** Compile cross, run `printf "AB\nBC\n" | ./cross_bin`. Confirm AT_ALPHA fires. Check ANY_ALPHA_VAR macro: `subj` arg must be global `subject_data`. Named-pattern body shares globals — confirm `cursor` and `subject_data` are same symbols.
 
 **Session189 (frontend) — M-SNOC-ASM-CORPUS: SC corpus 10/10 PASS via -sc -asm:**
 - `SC_KW_THEN` added to `sc_lex.h` enum (appended after `SC_UNKNOWN` — safe, no shift) + keyword table + `sc_kind_name`

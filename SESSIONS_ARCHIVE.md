@@ -7707,3 +7707,35 @@ bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # 10/10
 # Sprint SC-CORPUS-1: create test/crosscheck/sc_corpus/ + run_sc_corpus_rung.sh
 # Convert hello/ output/ assign/ arith/ .sno → .sc
 ```
+
+---
+
+## Session 192 — frontend — M-SC-CORPUS-R1
+
+**What happened:**
+- Sprint SC-CORPUS-1 completed: hand-converted hello/ + output/ + assign/ SNOBOL4 corpus → Snocone `.sc`
+- Created `test/crosscheck/sc_corpus/{hello,output,assign}/` — 20 `.sc` + `.ref` pairs
+- Created `test/crosscheck/run_sc_corpus_rung.sh` — new rung runner mirroring `run_crosscheck_asm_rung.sh` but for `-sc -asm` pipeline
+- Fixed `emit_byrd_asm.c` E_INDR LHS bug: Snocone `sc_lower.c` puts operand in `->left`, SNOBOL4 parser in `->right`; now uses `right ? right : left` fallback — fixes 014/015 indirect assign via `-sc -asm`
+- **M-SC-CORPUS-R1 fires** — 20/20 PASS
+- 106/106 C ✅  26/26 ASM ✅  10/10 SC ✅
+- Commit: `4a0997d`
+
+**State at handoff:** All invariants green. snobol4x pushed.
+
+**Next session start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # expect 4a0997d
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # 10/10
+bash test/crosscheck/run_sc_corpus_rung.sh \
+    test/crosscheck/sc_corpus/hello \
+    test/crosscheck/sc_corpus/output \
+    test/crosscheck/sc_corpus/assign   # 20/20
+# Sprint SC-CORPUS-2: control/ + control_new/ → M-SC-CORPUS-R2
+```
