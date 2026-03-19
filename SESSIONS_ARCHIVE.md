@@ -7566,3 +7566,63 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
     $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith
 # expected: 23/28 — then fix 014/015 + coerce_numeric → target 26/28
 ```
+
+---
+
+## Session188 — frontend: M-SNOC-ASM-CF; backend: M-ASM-R1/R2/R4
+
+**Date:** 2026-03-19  **Repo:** snobol4x  **HEAD at close:** `0371fad`
+
+### What happened (frontend session — this chat)
+Sprint SC4-ASM: implemented full DEFINE calling convention for user-defined Snocone procedures in the x64 ASM backend.
+
+**Design:** User functions are Byrd-box named patterns with `is_fn=1`. The α port saves old param variable values into `.bss` save slots, loads call-site args from `.bss` arg slots, and jumps to the function body label. The γ/ω ports restore param vars from save slots and indirect-jmp via `ret_γ`/`ret_ω`. Call-site stores γ/ω landing addresses, fills arg slots, jumps to `fn_alpha`. Return value convention: sc_cf emits `fname = expr` before RETURN, so `GET_VAR fname` at the γ landing retrieves the result.
+
+**Changes to `emit_byrd_asm.c`:**
+- `AsmNamedPat`: +`is_fn`, `nparams`, `param_names[8][64]`, `body_label[128]`
+- `parse_define_str()`: parses `"fname(a,b,...)"` DEFINE string
+- `asm_scan_named_patterns()`: detects `E_FNC("DEFINE", E_QLIT(...))` stmts, registers as `is_fn=1`
+- `emit_asm_named_def()`: `is_fn=1` path emits α/γ/ω
+- `prog_emit_expr()` E_FNC: detects user fns via `asm_named_lookup`, emits call-site
+- `emit_jmp()`/`prog_emit_goto()`: RETURN→`jmp [fn_ret_γ]` when `current_fn != NULL`
+- `current_fn` tracker in prog emit loop (set on fn-entry label, cleared on `.END` label)
+- DEFINE stmts skipped in prog emit loop
+- Merge conflict with backend session resolved: combined DEFINE skip + upstream E_INDR/E_DOL guard
+
+**Tests:** `double(5)→10` ✅, `add3(1,2,3)→6` ✅, `cube(3)→27` (nested calls) ✅, 106/106 ✅
+
+### What happened (backend session — other chat)
+- Fix A: indirect `$` LHS — E_INDR || E_DOL in has_eq handler
+- Fix B: `coerce_numeric("")` returns 0 integer
+- Fix C: `OUTPUT =` null RHS emits blank line correctly
+- M-ASM-R1 ✅ M-ASM-R2 ✅ M-ASM-R4 ✅ — 26/28 rung PASS
+
+### State at handoff
+- snobol4x HEAD: `0371fad`
+- 106/106 C ✅  26/26 ASM ✅  26/28 rung ✅
+- M-SNOC-ASM-CF ✅ — DEFINE calling convention complete
+- Next frontend sprint: SC5-ASM — SC corpus 10-rung all PASS via `-sc -asm`
+- Next backend sprint: A-R5 — control flow goto/:S/:F
+
+### Next session start
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 0371fad
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+# Frontend: test SC corpus via -sc -asm
+cat > /tmp/sc_fn.sc << 'SCEOF'
+procedure double(x) { return x + x }
+OUTPUT = double(5)
+SCEOF
+./sno2c -sc -asm /tmp/sc_fn.sc > /tmp/sc_fn.s
+nasm -f elf64 -Isrc/runtime/asm/ /tmp/sc_fn.s -o /tmp/sc_fn.o
+gcc -no-pie /tmp/sc_fn.o src/runtime/asm/snobol4_stmt_rt.c \
+    src/runtime/snobol4/snobol4.c src/runtime/mock/mock_includes.c \
+    src/runtime/snobol4/snobol4_pattern.c src/runtime/mock/mock_engine.c \
+    -Isrc/runtime/snobol4 -Isrc/runtime -Isrc/frontend/snobol4 \
+    -lgc -lm -w -no-pie -o /tmp/sc_fn_bin && /tmp/sc_fn_bin
+# expected: 10
+```

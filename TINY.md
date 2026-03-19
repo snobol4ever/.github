@@ -11,11 +11,22 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-R5 — control flow (goto/:S/:F)
-**HEAD:** `f161ae4` session188
-**Milestone:** M-ASM-R1 ✅ session188 · M-ASM-R2 ✅ session188 · M-ASM-R4 ✅ session188 → **M-ASM-R5** active
+**Sprint:** `asm-backend` A-R5 — control flow (goto/:S/:F) · `snocone-frontend` SC5-ASM — SC corpus via -sc -asm
+**HEAD:** `0371fad` session188
+**Milestone:** M-ASM-R1 ✅ session188 · M-ASM-R2 ✅ session188 · M-ASM-R4 ✅ session188 · **M-SNOC-ASM-CF** ✅ session188
 
-**Session188 — M-ASM-R1/R2/R4: indirect-$ fix; coerce_numeric; OUTPUT= blank line; 26/28 PASS:**
+**Session188 (frontend) — M-SNOC-ASM-CF: DEFINE calling convention; user-defined procedures via Byrd-box:**
+- Extended `AsmNamedPat` with `is_fn`, `nparams`, `param_names[]`, `body_label` fields
+- `asm_scan_named_patterns` detects `DEFINE('fname(args)')` stmts from sc_cf, registers as `is_fn=1`
+- `emit_asm_named_def` emits α port (save params, load args from .bss arg slots, jmp body) + γ/ω (restore params, indirect-jmp via ret_ slots)
+- Call-site in `prog_emit_expr` E_FNC: detects user fns, stores args → arg slots, sets ret addrs, jmps α, retrieves result via `GET_VAR fname`
+- `emit_jmp`/`prog_emit_goto` route RETURN→`jmp [fn_ret_γ]` when `current_fn != NULL`
+- `current_fn` tracker set/cleared as fn body labels entered/exited in prog emit loop
+- DEFINE stmts skipped in prog emit loop (compile-time registration only)
+- **Tests:** `double(5)→10` ✅, `add3(1,2,3)→6` ✅, `cube(3)→27` (nested calls) ✅
+- 106/106 C ✅
+
+**Session188 (backend) — M-ASM-R1/R2/R4: indirect-$ fix; coerce_numeric; OUTPUT= blank line; 26/28 PASS:**
 - Fix A — indirect `$` LHS (014/015): parser produces `E_INDR` (right=operand) for `$X` in
   subject position, not `E_DOL`. Emitter `has_eq` handler now matches `E_INDR || E_DOL`;
   extracts name from `e->right` for E_INDR. Guard skips spurious `prog_emit_expr(subject,-16)`.
@@ -25,6 +36,37 @@ snobol4x: multiple frontends, multiple backends.
 - Remaining: fileinfo (INPUT loop + :F branch → R8), triplet (DUPL/REMDR → R8)
 - Artifacts: beauty_prog.s updated, NASM clean
 - 106/106 C ✅  26/26 ASM ✅  26/28 rung ✅
+
+**⚠ CRITICAL NEXT ACTION — Session189:**
+
+**Frontend session — Sprint SC5-ASM: SC corpus 10-rung via `-sc -asm`**
+
+Build the SC corpus test suite and drive to M-SNOC-ASM-CORPUS (all 10 rungs PASS).
+
+Quick-check trigger (M-SNOC-ASM-CORPUS):
+```bash
+cd /home/claude/snobol4x && make -C src
+# SC1: literals
+cat > /tmp/sc1.sc << 'EOF'
+OUTPUT = 'hello'
+EOF
+./sno2c -sc -asm /tmp/sc1.sc > /tmp/sc1.s && nasm -f elf64 -Isrc/runtime/asm/ /tmp/sc1.s -o /tmp/sc1.o \
+  && gcc -no-pie /tmp/sc1.o src/runtime/asm/snobol4_stmt_rt.c src/runtime/snobol4/snobol4.c \
+     src/runtime/mock/mock_includes.c src/runtime/snobol4/snobol4_pattern.c \
+     src/runtime/mock/mock_engine.c -Isrc/runtime/snobol4 -Isrc/runtime \
+     -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/sc1_bin && /tmp/sc1_bin
+# expected: hello
+```
+
+Session start commands:
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 0371fad
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+```
 
 **Session187 — corpus ladder infrastructure + R1-R4 fixes; 23/28 PASS:**
 - `test/crosscheck/run_crosscheck_asm_rung.sh` — new per-rung ASM corpus driver
