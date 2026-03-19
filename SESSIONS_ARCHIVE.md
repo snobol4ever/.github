@@ -7537,3 +7537,32 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
     $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith
 # expected: 23/28
 ```
+
+---
+
+## Session187 — asm-backend sprint A-R1; corpus ladder infrastructure; 23/28 PASS
+
+**Date:** 2026-03-18  **Repo:** snobol4x  **HEAD at close:** `ba178d7`
+
+### What happened
+- Diagnosed missing corpus ladder for ASM backend — pattern tests (26/26) passed but full program tests never built. Added M-ASM-R1 through M-ASM-R11 + M-ASM-SAMPLES to PLAN.md + TINY.md.
+- Wrote `test/crosscheck/run_crosscheck_asm_rung.sh` — per-rung ASM corpus driver.
+- Fixed `E_FLIT`: `prog_flt_intern/emit_data`, `LOAD_REAL` macro, `stmt_realval()` shim.
+- Fixed null-RHS `X =`: `ASSIGN_NULL` macro, `stmt_set_null()` shim.
+- Added `SET_VAR_INDIR` + `stmt_set_indirect()` for indirect `$` LHS (014/015 still failing — needs diagnosis).
+- M-ASM-R3 fires: concat/ 6/6 ✅. Result: 21→**23/28 PASS** R1–R4. 106/106 ✅ 26/26 ✅.
+
+### Next session start
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = ba178d7
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
+    $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith
+# expected: 23/28 — then fix 014/015 + coerce_numeric → target 26/28
+```
