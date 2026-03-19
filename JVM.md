@@ -10,8 +10,14 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 ## NOW
 
 **Sprint:** `jvm-backend` J5 — capture rung: . and $ capture → M-JVM-CAPTURE
-**HEAD:** `189f9f2` J-199
+**HEAD:** `09a3f4d` J-200
 **Milestone:** M-JVM-LIT ✅ session195 · M-JVM-ASSIGN ✅ session197 · M-JVM-GOTO ✅ J-198 · M-JVM-PATTERN ✅ J-199
+
+**J-200 — Two capture bugs fixed; greek-label rename + M-JVM-CAPTURE next:**
+- Bug 1 fixed: pattern success fell into fail block (no :S → must goto next_lbl)
+- Bug 2 fixed: loc_cap_base 9→10; slot 9 dedicated as loc_retry_save
+- MANDATORY next session: rename all Jasmin port labels to α/β/γ/ω suffixes
+- All 9 capture/ tests still FAIL pending full fix next session
 
 **J-199 — Sprint J4 complete:**
 - `jvm_emit_pat_node()` — full recursive Byrd box pattern emitter
