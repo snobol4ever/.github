@@ -8188,69 +8188,6 @@ done
 - Deleted stale `src/backend/jvm/README.md` + `src/backend/net/README.md`
 - 106/106 C ✅  26/26 ASM ✅
 
-## Session N-199 — M-NET-ASSIGN + M-NET-GOTO fire; 33/38 PASS
-
-**Sprint:** `net-backend` N-R2 → N-R3
-**HEAD:** `4ef8446` N-199
-**Date:** 2026-03-19
-
-### Milestones fired
-- **M-NET-ASSIGN** ✅ `4ef8446`
-- **M-NET-GOTO** ✅ `4ef8446`
-
-### What was done
-- **Fix 1 — E_FNC args root cause**: all E_FNC builtins (GT/LT/GE/LE/EQ/NE/IDENT/DIFFER/SIZE) were using `e->left`/`e->right` which are NULL for SNOBOL4 function calls — parser stores args in `e->args[]`. Fixed to `e->args[0]`/`e->args[1]` with nargs guards. Unblocked all loop/goto/comparison tests. Score: 17→30/38.
-- **DATATYPE()**: `sno_datatype(string)` helper via Double.TryParse → "integer"/"real"/"string".
-- **Lexical comparators LGT/LLT/LGE/LLE/LEQ/LNE**: `sno_lgt` etc via `String.Compare(a,b,StringComparison.Ordinal)`.
-- **&STNO**: `kw_stno` static field; incremented before each statement; `E_KW` STNO loads it.
-- Score: 33/38 across hello+output+assign+control_new+keywords
-- Remaining failures: 014/015 (indirect `$`, deferred N-R3), 097/098 (pattern keywords, N-R4), 100 (L_RETURN label gap)
-- Suite runtime: ~13s
-- Invariants: 106/106 C ✅  26/26 ASM ✅
-
-### Next
-N-200 — Sprint N-R3: Byrd box pattern emission in CIL → M-NET-PATTERN
-
-## Session N-200 — M-NET-PATTERN fires; 51/58 PASS; 18/20 patterns
-
-**Sprint:** `net-backend` N-R3 → N-R4
-**HEAD:** `7f66297` N-200
-**Date:** 2026-03-19
-
-### Milestone fired
-- **M-NET-PATTERN** ✅ `7f66297`
-
-### What was done
-- **`net_emit_pat_node`**: full recursive Byrd box pattern emitter in CIL, ported from JVM backend. Nodes: E_QLIT/E_CONC/E_OR/E_NAM/E_DOL/E_VART/E_FNC(ARBNO/ANY/NOTANY/SPAN/BREAK/LEN/POS/RPOS/TAB/RTAB/REM/ARB/FAIL/SUCCEED/FENCE/ABORT).
-- **Two-pool locals**: int32 slots V_6..V_19 (cursor saves, counters); string slots V_20..V_29 (charset, char, literal). Fixes CIL type-safety InvalidProgramException from stloc.s into wrong-typed slot.
-- **`kw_anchor` field**: static string field, init "0"; scan-start retry loop checks it.
-- 18/20 patterns PASS; 2 deferred: 053 (pattern-in-var), 056 (*var indirect)
-- 51/58 total; suite runtime ~17s
-- Invariants: 106/106 C ✅ · 26/26 ASM ✅
-
-### Next
-N-201 — Sprint N-R4: capture/ + strings/ → M-NET-CAPTURE
-
-### Next session start block (N-201)
-```bash
-cd /home/claude/snobol4x
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-# TOKEN via git remote set-url — see Lon
-git log --oneline -3   # verify HEAD = 7f66297 N-200
-apt-get install -y libgc-dev nasm mono-complete && make -C src
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
-gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
-bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
-CORPUS=/home/claude/snobol4corpus/crosscheck
-bash test/crosscheck/run_crosscheck_net_rung.sh \
-    $CORPUS/hello $CORPUS/output $CORPUS/assign \
-    $CORPUS/control_new $CORPUS/keywords $CORPUS/patterns
-# current: 51/58; then baseline capture/ and strings/:
-bash test/crosscheck/run_crosscheck_net_rung.sh $CORPUS/capture $CORPUS/strings
-# fix failures → M-NET-CAPTURE fires at capture/ 100%
-```
-
 ## Session B-201 — A-SAMPLES: wordcount PASS; roman segfault root-caused
 
 **Sprint:** `asm-backend` A-SAMPLES
@@ -8343,42 +8280,30 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 - Next session: implement 6-line fix in `emit_asm_named_def` → test → M-ASM-RECUR → M-ASM-SAMPLES
 - 106/106 C ✅ · 26/26 ASM ✅ · HEAD 71c86d3 B-201 (no new commit this session)
 
-## Session J-202 — M-JVM-R1: 22/22 rungs 1–4 PASS
+## Session B-202 — M-ASM-RECUR partial: per-invocation stack frames
 
-**Date:** 2026-03-19
-**HEAD at start:** `62c668f` J-201
-**HEAD at end:** `2b1d6a9` J-202
-**Branch:** main
+**HEAD after:** `0c1b997` B-202
+**Invariants:** 106/106 C ✅ · 26/26 ASM ✅
+**Functions rung:** 7/8 (087_define_freturn still failing)
 
-### What happened
+**Work done:**
+Four fixes for recursive user functions in `emit_byrd_asm.c`:
+1. `emit_asm_named_def` is_fn α: `push rbp / mov rbp,rsp / sub rsp,56` — own frame per invocation
+2. `emit_asm_named_def` is_fn γ/ω: `add rsp,56 / pop rbp` before `jmp [ret_slot]`
+3. `emit_jmp` + `prog_emit_goto`: RETURN/FRETURN route through `fn_NAME_gamma/omega` not `[ret_slot]` directly
+4. `prog_label_id`: RETURN/FRETURN/END never registered as stub labels
+5. Scan-retry omega: local trampoline when `scan_fail_tgt` is RETURN/FRETURN inside fn body
+6. Architectural docs updated: ARCH.md §Technique 2 + §Near-Term Bridge, BACKEND-X64.md rewritten
 
-**EQ/NE/LT/GT/LE/GE numeric comparison builtins:**
-Were falling through to "unrecognised stub → ldc ''". Now emit `dcmpl` + conditional branch. Return `""` (empty string) on success (SNOBOL4 predicates return null string, not their args). Return `aconst_null` on failure.
+**Architecture captured (Lon's insight):**
+CODE shared/RX, DATA per-invocation. Byrd boxes running forward = save. Running backward = restore.
+Current stack-frame bridge is correct bridge to Technique 2 post-M-BOOTSTRAP.
+Do not optimize early. See ARCH.md and BACKEND-X64.md.
 
-**Null-RHS failure propagation for OUTPUT and VAR assignments:**
-When RHS expression returns null (predicate failed), the statement must fail silently — not store null to a variable or print "null". Implemented null checks with skip-labels for both OUTPUT and VAR paths. When no explicit `:F`, falls through to next statement.
-
-**INPUT nested in arithmetic — VerifyError fix:**
-`CHARS = CHARS + SIZE(INPUT) :F(DONE)` was jumping to `:F` mid-expression with a partial double (2 slots) on the JVM operand stack → VerifyError "0 != 2". Fixed by pre-hoisting: `expr_contains_input()` detects INPUT in the RHS tree; if found and nested (not direct top-level INPUT), reads INPUT into local slot 5 *before* any expression evaluation begins, null-checks there at stack depth 0, then expression uses `aload 5` instead of calling `sno_input_read()` again.
-
-### Results
-- Rungs 1–4: **22/22 PASS** — M-JVM-R1 ✅
-- Rungs 5–7: **26/28** (pre-existing failures only: expr_eval sno2c error, 053_pat_alt_commit)
-
-### State at handoff
-- snobol4x pushed at `2b1d6a9`
-- PLAN.md: M-JVM-R1 ✅, JVM row → J-R2 sprint
-- JVM.md: NOW block updated
-
-### Next session start block (J-203)
-```bash
-cd /home/claude/snobol4x
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 2b1d6a9
-apt-get install -y libgc-dev nasm default-jdk && make -C src
-CORPUS=/home/claude/snobol4corpus/crosscheck
-bash test/crosscheck/run_crosscheck_jvm_rung.sh \
-  $CORPUS/control $CORPUS/patterns $CORPUS/capture 2>&1 | tail -5
-# 26/28 expected baseline — if clean, M-JVM-R2 fires immediately
-# Next: rungs 8-9 (strings/ keywords/)
-```
+**Remaining for B-203:**
+- 087_define_freturn: `GT(x,0) :S(RETURN)F(FRETURN)` — Case 2 predicate stmt inside fn body.
+  S/F goto silently dropped. Find Case 2 emit path, verify `emit_jmp(tgt_s/tgt_f)` is called
+  while `current_fn != NULL`. Fix → 8/8 functions.
+- roman_mini gives wrong value (no crash) — likely same Case 2 issue on the RETURN path.
+- After 8/8: run full roman.sno, diff vs oracle → M-ASM-RECUR fires.
+- Regenerate beauty_prog.s, commit, push.

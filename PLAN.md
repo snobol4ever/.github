@@ -14,9 +14,9 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` A-RECUR — fix recursive fn frame (push rbp/mov rbp,rsp at α; add rsp/pop rbp at γ/ω) → M-ASM-RECUR → M-ASM-SAMPLES | `71c86d3` B-201 | M-ASM-RECUR |
-| **TINY JVM** | `jvm-backend` J-R2 — rungs 5–7: control/patterns/capture | `2b1d6a9` J-202 | M-JVM-R2 |
-| **TINY NET** | `net-backend` N-R4 — capture/ strings/ rungs | `7f66297` N-200 | M-NET-CAPTURE |
+| **TINY backend** | `asm-backend` A-RECUR — Case 2 predicate RETURN/FRETURN fix → 8/8 functions → M-ASM-RECUR → roman.sno PASS | `0c1b997` B-202 | M-ASM-RECUR |
+| **TINY JVM** | `jvm-backend` J-R1 — corpus ladder rungs 1–4 | `62c668f` J-201 | M-JVM-R1 |
+| **TINY NET** | `net-backend` N-R2 — verify goto/:S/:F + E_FNC results | `b15164e` N-198 | M-NET-GOTO |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` D-156 | M-NET-PERF |
 
@@ -155,7 +155,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-JVM-GOTO** | :S(X)F(Y) branching correct | ✅ J-198 |
 | **M-JVM-PATTERN** | Byrd boxes in JVM — LIT/SEQ/ALT/ARBNO | ✅ J-199 |
 | **M-JVM-CAPTURE** | . and $ capture correct | ✅ `62c668f` J-201 |
-| **M-JVM-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ✅ `2b1d6a9` J-202 |
+| **M-JVM-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ❌ Sprint J-R1 |
 | **M-JVM-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ❌ Sprint J-R2 |
 | **M-JVM-R3** | strings/ keywords/ — Rungs 8–9 PASS | ❌ Sprint J-R3 |
 | **M-JVM-R4** | functions/ data/ — Rungs 10–11 PASS | ❌ Sprint J-R4 |
@@ -169,9 +169,9 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 |----|---------|--------|
 | **M-NET-HELLO** | `sno2c -net null.sno > null.il && ilasm null.il && mono null.exe` → exit 0 | ✅ session195 |
 | **M-NET-LIT** | `OUTPUT = 'hello'` → `hello` via NET backend | ✅ `efc3772` N-197 |
-| **M-NET-ASSIGN** | Variable assign + arith correct | ✅ `4ef8446` N-199 |
-| **M-NET-GOTO** | :S(X)F(Y) branching correct | ✅ `4ef8446` N-199 |
-| **M-NET-PATTERN** | Byrd boxes in CIL — LIT/SEQ/ALT/ARBNO | ✅ `7f66297` N-200 |
+| **M-NET-ASSIGN** | Variable assign + arith correct | ❌ Sprint N-R2 |
+| **M-NET-GOTO** | :S(X)F(Y) branching correct | ❌ Sprint N-R3 |
+| **M-NET-PATTERN** | Byrd boxes in CIL — LIT/SEQ/ALT/ARBNO | ❌ Sprint N-R4 |
 | **M-NET-CAPTURE** | . and $ capture correct | ❌ Sprint N-R5 |
 | **M-NET-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ❌ Sprint N-R1 |
 | **M-NET-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ❌ Sprint N-R2 |

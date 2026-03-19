@@ -11,13 +11,180 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-SAMPLES — roman.sno + wordcount.sno PASS
-**HEAD:** `3f2c8b9` B-201
+**Sprint:** `asm-backend` A-RECUR — fix recursive fn frame → M-ASM-RECUR → M-ASM-SAMPLES
+**HEAD:** `71c86d3` B-201
 **Milestone:** M-DROP-MOCK-ENGINE ✅ B-200 · M-ASM-R11 ✅ session198 · M-ASM-R10 ✅ session197
 
-**Session B-202 (backend) — M-ASM-RECUR: fix recursive function frames:**
+**Session B-203 (backend) — M-ASM-RECUR: fix Case 2 predicate RETURN/FRETURN**
 
-**⚠ CRITICAL NEXT ACTION — Session B-202:**
+**HEAD:** `0c1b997` B-202
+**Status:** 106/106 C ✅ · 26/26 ASM ✅ · functions 7/8 (087 fails) · roman_mini no crash but wrong value
+
+**Root cause of 087_define_freturn + roman_mini wrong value:**
+`GT(x,0) :S(RETURN)F(FRETURN)` is a Case 2 statement — predicate only, no subject/pattern.
+The S/F goto targets are silently dropped in the Case 2 emit path.
+`emit_jmp(tgt_s, ...)` and `emit_jmp(tgt_f, ...)` should be called with `current_fn != NULL`
+so they route through `fn_NAME_gamma/omega`. Find where Case 2 S/F is emitted and verify.
+
+**Session B-203 start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 0c1b997 B-202
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Step 1 — diagnose 087:**
+```bash
+cd /home/claude/snobol4x && RT=src/runtime
+./sno2c -asm /home/claude/snobol4corpus/crosscheck/functions/087_define_freturn.sno > /tmp/t087.s
+grep -n "L_ispos_1\|RETURN\|FRETURN\|fn_ispos\|emit_jmp" /tmp/t087.s | head -30
+# Expected: jmp fn_ispos_gamma and jmp fn_ispos_omega in the body
+# Actual: those lines are likely missing — Case 2 path drops them
+```
+
+**Step 2 — find Case 2 emit path in emit_byrd_asm.c:**
+Search for the predicate-only statement handler (no s->pattern, has s->subject + s->go).
+Verify `emit_jmp(tgt_s, next_lbl)` and `emit_jmp(tgt_f, next_lbl)` are called.
+With `prog_label_id` fix, RETURN/FRETURN now return -1 — check if any `id_s < 0` guard
+is silently skipping the emit. The fix should be simple once the guard is found.
+
+**Step 3 — after fix, full validation:**
+```bash
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions  # must be 8/8
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Step 4 — roman.sno full test → M-ASM-RECUR:**
+```bash
+PROGS=/home/claude/snobol4corpus/programs && RT=src/runtime
+./sno2c -asm $PROGS/roman/roman.sno > artifacts/asm/samples/roman.s
+nasm -f elf64 -I $RT/asm/ artifacts/asm/samples/roman.s -o /tmp/roman.o
+gcc -no-pie /tmp/roman.o $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
+    $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/roman_bin
+timeout 10 /tmp/roman_bin < $PROGS/roman/roman.input > /tmp/roman_out.txt
+diff /tmp/roman_out.txt $PROGS/roman/roman.ref && echo "ROMAN PASS — M-ASM-RECUR fires"
+```
+
+**Step 5 — artifact + commit:**
+```bash
+INC=/home/claude/snobol4corpus/programs/inc
+./sno2c -asm -I$INC /home/claude/snobol4corpus/programs/beauty/beauty.sno > artifacts/asm/beauty_prog.s
+nasm -f elf64 -Isrc/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null  # must be clean
+git add -A && git commit -m "B-203: M-ASM-RECUR — recursive functions correct; roman.sno PASS"
+# Update PLAN.md M-ASM-RECUR → ✅, update NOW table HEAD, push
+```
+
+**Architecture note (B-202, Lon):** The long-term fix is Technique 2 (BACKEND-X64.md) —
+CODE shared/RX, DATA per-invocation via memcpy, stackless, gates on M-BOOTSTRAP.
+The near-term fix below uses the C stack as a cheap DATA allocator. Same correctness.
+Do NOT skip ahead. Optimization hurts when done too early. Debug static first.
+See ARCH.md §Near-Term Bridge and §Technique 2 for the full picture.
+
+**Root cause:** One global `rbp` frame for the entire program. `[rbp-8/16/32/48]` are
+shared globals. Recursive `jmp P_ROMAN_α` runs in the SAME frame as the caller.
+Inner call overwrites the outer call's locals. `rbp` corrupted → segfault.
+
+**Fix (3 lines at α, 2 lines each at γ/ω) in `emit_asm_named_def()`, `is_fn` branch:**
+
+```c
+/* α: */
+asmL(np->alpha_lbl);
+A("    push    rbp\n");
+A("    mov     rbp, rsp\n");
+A("    sub     rsp, 56\n");
+/* ... existing: load args, jmp body ... */
+
+/* γ: */
+asmL(gamma_lbl);
+A("    add     rsp, 56\n");
+A("    pop     rbp\n");
+A("    jmp     [%s]\n", np->ret_gamma);
+
+/* ω: */
+asmL(omega_lbl);
+A("    add     rsp, 56\n");
+A("    pop     rbp\n");
+A("    jmp     [%s]\n", np->ret_omega);
+```
+
+Call sites: **no change** — stack push/pop param save/restore already correct (session197).
+
+**Session B-202 start:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 71c86d3 B-201
+apt-get install -y libgc-dev nasm gdb && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Step 1 — apply fix to `src/backend/x64/emit_byrd_asm.c`:**
+In `emit_asm_named_def()`, `is_fn` branch, at `asmL(np->alpha_lbl);`:
+insert `push rbp / mov rbp,rsp / sub rsp,56` after the label.
+At `asmL(gamma_lbl);`: body becomes `add rsp,56 / pop rbp / jmp [ret_gamma]`.
+At `asmL(omega_lbl);`: body becomes `add rsp,56 / pop rbp / jmp [ret_omega]`.
+Then `make -C src`.
+
+**Step 2 — smoke test:**
+```bash
+cat > /tmp/roman_mini.sno << 'EOF'
+    &TRIM = 1
+    DEFINE('ROMAN(N)T')                 :(ROMAN_END)
+ROMAN   N   RPOS(1)  LEN(1) . T  =         :F(RETURN)
+    '0,1I,2II,3III,4IV,5V,6VI,7VII,8VIII,9IX,'
++   T   BREAK(',') . T                  :F(FRETURN)
+    ROMAN = ROMAN(N) T
++                                       :S(RETURN)F(FRETURN)
+ROMAN_END
+    R = ROMAN('12')
+    OUTPUT = "result: " R
+END
+EOF
+RT=src/runtime
+./sno2c -asm /tmp/roman_mini.sno > /tmp/roman_mini.s
+nasm -f elf64 -I $RT/asm/ /tmp/roman_mini.s -o /tmp/roman_mini.o
+gcc -no-pie /tmp/roman_mini.o $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
+    $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/roman_mini_bin
+timeout 5 /tmp/roman_mini_bin
+# expected: result: XII
+```
+
+**Step 3 — full invariants + functions rung:**
+```bash
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions  # 8/8
+```
+
+**Step 4 — M-ASM-RECUR → M-ASM-SAMPLES:**
+```bash
+PROGS=/home/claude/snobol4corpus/programs
+RT=src/runtime
+./sno2c -asm $PROGS/roman/roman.sno > artifacts/asm/samples/roman.s
+nasm -f elf64 -I $RT/asm/ artifacts/asm/samples/roman.s -o /tmp/roman.o
+gcc -no-pie /tmp/roman.o $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
+    $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/roman_bin
+timeout 10 /tmp/roman_bin < $PROGS/roman/roman.input > /tmp/roman_out.txt
+diff /tmp/roman_out.txt $PROGS/roman/roman.ref && echo "ROMAN PASS" || echo "ROMAN FAIL"
+# M-ASM-RECUR fires → regenerate beauty_prog.s artifact → commit B-202
+# Then: wordcount already passes (B-201) → M-ASM-SAMPLES fires → commit
+```
+
 
 Sprint A-RECUR — fix recursive function segfault → M-ASM-RECUR → M-ASM-SAMPLES
 
