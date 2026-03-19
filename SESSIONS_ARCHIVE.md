@@ -8188,6 +8188,29 @@ done
 - Deleted stale `src/backend/jvm/README.md` + `src/backend/net/README.md`
 - 106/106 C ✅  26/26 ASM ✅
 
+## Session N-199 — M-NET-ASSIGN + M-NET-GOTO fire; 33/38 PASS
+
+**Sprint:** `net-backend` N-R2 → N-R3
+**HEAD:** `4ef8446` N-199
+**Date:** 2026-03-19
+
+### Milestones fired
+- **M-NET-ASSIGN** ✅ `4ef8446`
+- **M-NET-GOTO** ✅ `4ef8446`
+
+### What was done
+- **Fix 1 — E_FNC args root cause**: all E_FNC builtins (GT/LT/GE/LE/EQ/NE/IDENT/DIFFER/SIZE) were using `e->left`/`e->right` which are NULL for SNOBOL4 function calls — parser stores args in `e->args[]`. Fixed to `e->args[0]`/`e->args[1]` with nargs guards. Unblocked all loop/goto/comparison tests. Score: 17→30/38.
+- **DATATYPE()**: `sno_datatype(string)` helper via Double.TryParse → "integer"/"real"/"string".
+- **Lexical comparators LGT/LLT/LGE/LLE/LEQ/LNE**: `sno_lgt` etc via `String.Compare(a,b,StringComparison.Ordinal)`.
+- **&STNO**: `kw_stno` static field; incremented before each statement; `E_KW` STNO loads it.
+- Score: 33/38 across hello+output+assign+control_new+keywords
+- Remaining failures: 014/015 (indirect `$`, deferred N-R3), 097/098 (pattern keywords, N-R4), 100 (L_RETURN label gap)
+- Suite runtime: ~13s
+- Invariants: 106/106 C ✅  26/26 ASM ✅
+
+### Next
+N-200 — Sprint N-R3: Byrd box pattern emission in CIL → M-NET-PATTERN
+
 ## Session B-201 — A-SAMPLES: wordcount PASS; roman segfault root-caused
 
 **Sprint:** `asm-backend` A-SAMPLES

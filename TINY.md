@@ -468,6 +468,37 @@ done
 - output/ 7/8 (006_keyword_alphabet needs E_KW) · assign/ 6/8 (014/015 indirect $ = N-R3+) · arith/ 0/2 (loops+INPUT = N-R3+)
 - 106/106 C ✅  26/26 ASM ✅  commit `efc3772` N-197
 
+**N-199 (net) — M-NET-ASSIGN + M-NET-GOTO fire; 33/38 control_new+keywords PASS:**
+
+- **Fix 1 — E_FNC args**: `e->left`/`e->right` were NULL for SNOBOL4 function calls (parser stores args in `e->args[]`). Fixed all builtins: GT/LT/GE/LE/EQ/NE/IDENT/DIFFER/SIZE now emit `e->args[0]`/`e->args[1]`. Unblocked all loop and comparison tests.
+- **Fix 2 — DATATYPE()**: `sno_datatype(string)` helper — TryParse → integer/real/string.
+- **Fix 3 — Lexical comparators**: `sno_lgt/llt/lge/lle/leq/lne` via `String.Compare(a,b,StringComparison.Ordinal)`.
+- **Fix 4 — &STNO**: `kw_stno` static field; incremented before each statement in `net_emit_stmts`; `E_KW` STNO case loads `ldsfld kw_stno`.
+- 33/38 hello+output+assign+control_new+keywords PASS (4 deferred: 014/015 indirect `$`, 097/098 pattern keywords, 100 `L_RETURN` label gap)
+- **M-NET-ASSIGN fires** `4ef8446` N-199
+- **M-NET-GOTO fires** `4ef8446` N-199
+- Suite runtime: ~13s (parallel ilasm + serial mono)
+- Invariants: 106/106 C ✅ · 26/26 ASM ✅
+
+**⚠ CRITICAL NEXT ACTION — N-200 (net):**
+
+Sprint N-R3 — Byrd boxes in CIL: LIT/SEQ/ALT/ARBNO pattern nodes → M-NET-PATTERN
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 4ef8446 N-199
+apt-get install -y libgc-dev nasm mono-complete && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_net_rung.sh $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/control_new $CORPUS/keywords
+# current: 33/38; target: implement pattern Byrd boxes in emit_byrd_net.c
+# Start with patterns/ rung baseline — see what ilasm/mono errors arise
+bash test/crosscheck/run_crosscheck_net_rung.sh $CORPUS/patterns
+```
+
 **N-198 (net) — rename net_emit.c→emit_byrd_net.c; N-R2 E_FNC builtins + goto/:S/:F:**
 
 - `src/backend/net/net_emit.c` renamed to `emit_byrd_net.c` — matches `emit_byrd_asm.c`/`emit_byrd_jvm.c` convention
