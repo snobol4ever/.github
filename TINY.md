@@ -11,9 +11,39 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-R7 — M-ASM-R7 (fix POS(var)) · `snocone-frontend` SC5-ASM — SC corpus via -sc -asm
-**HEAD:** `6f72fa3` session189
-**Milestone:** M-ASM-R1 ✅ session188 · M-ASM-R2 ✅ session188 · M-ASM-R4 ✅ session188 · **M-SNOC-ASM-CF** ✅ session188
+**Sprint:** `asm-backend` A-R8 — M-ASM-R8 (strings: SIZE/SUBSTR/REPLACE/DUPL) · `snocone-frontend` SC5-ASM — SC corpus via -sc -asm
+**HEAD:** `6248aab` session190
+**Milestone:** M-ASM-R7 ✅ session190
+
+**Session190 (backend) — M-ASM-R7: POS(var)/RPOS(var) variable-arg fix; 7/7 capture:**
+- `stmt_pos_var(varname, cursor)` in `snobol4_stmt_rt.c`: fetch var via `NV_GET_fn`, coerce to int via `to_int()`, return 1 if `cursor==n`
+- `stmt_rpos_var(varname, cursor, subj_len)`: RPOS variant
+- `POS_ALPHA_VAR varlab, cursor, gamma, omega` macro in `snobol4_asm.mac`: `lea rdi,[rel varlab]`; `mov rsi,[cursor]`; `call stmt_pos_var`; `test eax,eax`; branch
+- `RPOS_ALPHA_VAR` macro: adds `mov rdx,[subj_len]` arg
+- `emit_asm_pos_var()` / `emit_asm_rpos_var()` helpers in `emit_byrd_asm.c`
+- POS/RPOS E_FNC dispatch: detect `E_VART` arg → var path; `E_ILIT` → literal path (unchanged)
+- `extern stmt_pos_var, stmt_rpos_var` added to generated `.s` header
+- `061_capture_in_arbno`: `POS(N)` where N is variable now PASS
+- **M-ASM-R7 fires: 7/7 capture/ PASS**
+- 106/106 C ✅  26/26 ASM ✅
+
+**⚠ CRITICAL NEXT ACTION — Session191 (backend):**
+
+Sprint A-R8 — strings/ — SIZE/SUBSTR/REPLACE/DUPL
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 6248aab
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings
+# baseline: see how many pass; fix failures; M-ASM-R8 fires at 100%
+```
 
 **Session188 (frontend) — M-SNOC-ASM-CF: DEFINE calling convention; user-defined procedures via Byrd-box:**
 - Extended `AsmNamedPat` with `is_fn`, `nparams`, `param_names[]`, `body_label` fields
@@ -709,7 +739,7 @@ Prolog reader
 | **M-ASM-R4** | arith/ — 2 tests PASS | ❌ | A-R4 |
 | **M-ASM-R5** | control/ + control_new/ PASS | ❌ | A-R5 |
 | **M-ASM-R6** | patterns/ program-mode 20 tests PASS | ❌ | A-R6 |
-| **M-ASM-R7** | capture/ — 7 tests PASS | ❌ | A-R7 |
+| **M-ASM-R7** | capture/ — 7 tests PASS | ✅ session190 | A-R7 |
 | **M-ASM-R8** | strings/ — 17 tests PASS | ❌ | A-R8 |
 | **M-ASM-R9** | keywords/ — 11 tests PASS | ❌ | A-R9 |
 | **M-ASM-R10** | functions/ — DEFINE/RETURN/recursion PASS | ❌ | A-R10 |
