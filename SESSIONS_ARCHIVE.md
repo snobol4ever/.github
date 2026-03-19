@@ -8222,3 +8222,41 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh              # must be 26/26
 # Then: diagnose roman segfault per TINY.md root-cause hypothesis
 ```
+
+## Session J-201 — M-JVM-CAPTURE: 7/7 capture/ PASS
+
+**Date:** 2026-03-19
+**HEAD at start:** `09a3f4d` J-200
+**HEAD at end:** `62c668f` J-201
+**Branch:** main
+
+### What happened
+
+Orientation: cloned all repos, built, set git identity, ran capture/ baseline — found 3/7 already passing from J-200 fixes.
+
+**Bug 1 fixed — Test 064 (`:F`-only pattern: success fell into fail block):**
+When a pattern match has `:F(label)` but no `:S`, the `Jpat_success:` label had no jump past `Jpat_fail:`, so success execution fell into the fail goto. Fixed by emitting `goto Jpat_after` before the fail block and a `Jpat_after:` label after it — only when `:F` is present without `:S`.
+
+**Bug 2 fixed — Tests 062/063 (subject replacement `= rhs` was a TODO stub):**
+Implemented the full StringBuilder rebuild: `subject[0..cursor_start] + replacement + subject[cursor..end]`. `cursor_start` comes from `loc_retry_save` (slot 9, saved at each retry attempt). Empty replacement (`=` with no rhs) correctly deletes the matched region. Result stored back via `sno_var_put` for the subject variable.
+
+### Results
+- capture/: **7/7 PASS** — M-JVM-CAPTURE ✅
+- Rungs 1–7 combined: 46/50 (pre-existing failures: fileinfo, triplet, expr_eval, 053_pat_alt_commit)
+
+### State at handoff
+- snobol4x pushed at `62c668f`
+- artifacts/jvm/hello_prog.j updated
+- PLAN.md: M-JVM-CAPTURE ✅, JVM row → J-R1 sprint
+- JVM.md: NOW block updated, next action block set
+
+### Next session start block
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 62c668f
+apt-get install -y libgc-dev nasm default-jdk && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith 2>&1 | tail -5
+```
