@@ -12,8 +12,24 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `snocone-frontend` SC3 — sc driver wiring
-**HEAD:** `2c71fc1` session185
-**Milestone:** M-SNOC-LOWER ✅ session185 → begin Sprint SC3 (driver wiring)
+**HEAD:** `d01fb57` session186
+**Milestone:** M-SNOC-LOWER ✅ session185 → Sprint SC3 in progress (driver partial)
+
+**Session186 — Sprint SC3 partial: sc_driver.h/c + main.c -sc wiring + Makefile; 106/106:**
+- `src/frontend/snocone/sc_driver.h` — `sc_compile(source, filename) → Program*` API
+- `src/frontend/snocone/sc_driver.c` — full pipeline: sc_lex → per-stmt sc_parse → sc_lower;
+  ported directly from proven `pipeline()` helper in `sc_lower_test.c` (50/50 PASS session185)
+- `src/driver/main.c` — `-sc` flag + `.sc` auto-detect via `ends_with()`; `read_all()` reads
+  FILE* into heap buffer; Snocone path: `read_all → sc_compile → snoc_emit/asm_emit`;
+  SNOBOL4 path unchanged
+- `src/Makefile` — `FRONTEND_SNOCONE` block: `sc_lex.c sc_parse.c sc_lower.c sc_driver.c`;
+  added to SRCS; `-I frontend/snocone` added to CFLAGS
+- Build: zero errors/warnings (all 4 new objects + main.o recompile clean)
+- 106/106 C crosscheck invariant unaffected
+- BLOCKED: M-SNOC-EMIT not yet fired — `snoc_emit` generates no epilogue
+  (`_SNO_END:` / `finish()` / `return 0;`) for Snocone path. SNOBOL4 frontend
+  appends implicit END STMT_t; `sc_lower` does not. Fix: append synthetic END
+  STMT_t in `sc_driver.c` after `sc_lower()` returns.
 
 **Session185 — M-SNOC-LOWER: sc_lower.h + sc_lower.c + test; 50/50 PASS:**
 - `src/frontend/snocone/sc_lower.h` — ScLowerResult (prog + nerrors), sc_lower() API,
@@ -36,25 +52,35 @@ snobol4x: multiple frontends, multiple backends.
 - M-SNOC-LOWER trigger: OUTPUT = 'hello' lowers to assignment STMT_t with E_QLIT rhs PASS
 - 106/106 C crosscheck invariant unaffected
 
-**⚠ CRITICAL NEXT ACTION — Session186 (frontend session):**
+**⚠ CRITICAL NEXT ACTION — Session187 (frontend session):**
 
-Sprint SC3 — M-SNOC-EMIT: wire `-sc` flag in `src/driver/main.c`
+Sprint SC3 — M-SNOC-EMIT: fix program epilogue for Snocone path
 
-When input filename ends `.sc`, run the Snocone pipeline:
-  `sc_lex → sc_parse (per-stmt) → sc_lower → snoc_emit`
+**What's done (session186):**
+- `src/frontend/snocone/sc_driver.h` + `sc_driver.c` — `sc_compile()` pipeline: sc_lex → per-stmt sc_parse → sc_lower; ported from proven pipeline() helper (50/50 PASS)
+- `src/driver/main.c` — `-sc` flag + `.sc` auto-detect; `read_all()`; routes through `sc_compile()` then existing `snoc_emit`/`asm_emit`
+- `src/Makefile` — `FRONTEND_SNOCONE` block; `sc_lower.c` + `sc_driver.c` in SRCS; `-I frontend/snocone` in CFLAGS
+- Build clean, 106/106 ✅
 
-The per-stmt split logic is already proven in `sc_lower_test.c` pipeline() helper —
-port that into a `sc_compile(FILE *in, const char *filename, Program **out)` function,
-or inline it in main.c behind the `-sc` / `.sc` detection.
+**Blocking issue:** `snoc_emit` generates no program epilogue (`_SNO_END:` / `finish()` / `return 0;`) for the Snocone path. The SNOBOL4 parser appends an implicit `END` STMT_t; `sc_lower` does not.
 
-Files to create/modify:
-- `src/frontend/snocone/sc_driver.h` + `sc_driver.c` — `sc_compile(src, filename)` →
-  Program*: reads whole file into buffer, calls sc_lex → per-stmt sc_parse → sc_lower
-- `src/driver/main.c` — detect `.sc` suffix or `-sc` flag → call sc_driver instead of
-  snoc_parse; pass resulting Program to existing snoc_emit path unchanged
-- `src/Makefile` — add sc_lower.c + sc_driver.c to FRONTEND_SNOCONE sources
+**Fix — in `sc_driver.c`, after `sc_lower()` returns:**
+```c
+/* Append synthetic END statement so snoc_emit closes main() correctly */
+static void prog_append_end(Program *prog) {
+    STMT_t *end = calloc(1, sizeof(STMT_t));
+    end->kind   = S_END;   /* or whatever the END sentinel kind is */
+    end->lineno = 0;
+    if (prog->tail) prog->tail->next = end;
+    else            prog->head = end;
+    prog->tail  = end;
+    prog->nstmts++;
+}
+```
 
-Quick-check trigger (M-SNOC-EMIT):
+Check the actual STMT_t kind constant for END in `sno2c.h` / `emit.c` — search for `S_END` or `"END"` handling in `snoc_emit`. The SNOBOL4 parser adds it via `snoc_parse` → check `parse.c` for how it appends the END node.
+
+After the fix, the M-SNOC-EMIT quick-check trigger must pass:
 ```bash
 cd /home/claude/snobol4x
 make -C src
@@ -62,8 +88,8 @@ echo "OUTPUT = 'hello'" > /tmp/t.sc
 INC=/home/claude/snobol4corpus/programs/inc
 RT=src/runtime
 ./sno2c -sc /tmp/t.sc > /tmp/t.c
-gcc /tmp/t.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
-    $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
+gcc /tmp/t.c $RT/snobol4/snobol4.c $RT/mock/mock_includes.c \
+    $RT/snobol4/snobol4_pattern.c $RT/mock/mock_engine.c \
     -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -o /tmp/t_bin
 /tmp/t_bin
 # expected output: hello
@@ -74,7 +100,7 @@ Session start commands:
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 2c71fc1
+git log --oneline -3   # verify HEAD = d01fb57
 apt-get install -y libgc-dev nasm && make -C src
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
