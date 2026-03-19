@@ -11,9 +11,96 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `snocone-frontend` SC4-ASM — control-flow lowering
-**HEAD:** `9148a77` session187
-**Milestone:** M-SNOC-ASM-HELLO ✅ session187 → Sprint SC4-ASM in progress
+**Sprint:** `asm-backend` A-R1 — corpus ladder rung 1
+**HEAD:** `ba178d7` session187
+**Milestone:** M-ASM-CROSSCHECK ✅ session151 → **M-ASM-R1** active
+
+**Session187 — corpus ladder infrastructure + R1-R4 fixes; 23/28 PASS:**
+- `test/crosscheck/run_crosscheck_asm_rung.sh` — new per-rung ASM corpus driver
+- Baseline R1–R4: 21/28 → after fixes: **23/28 PASS**
+- Fixed: `E_FLIT` real literals (`003_output_real_literal` ✅), null-RHS `X =` (`012_assign_null` ✅)
+- Added: `LOAD_REAL`/`ASSIGN_NULL`/`SET_VAR_INDIR` macros; `stmt_realval`/`stmt_set_null`/`stmt_set_indirect` shims
+- M-ASM-R3 (concat/ 6/6) ✅ — fires this session
+- Remaining failures: `014`/`015` indirect-`$` (E_DOL LHS path not reached), `literals` (coerce_numeric bug), `fileinfo`/`triplet` (deferred R8)
+- Artifacts: beauty_prog.s + roman.s + wordcount.s updated, all NASM-clean
+- 106/106 C ✅  26/26 ASM ✅
+
+**⚠ CRITICAL NEXT ACTION — Session188 (backend session):**
+
+Sprint A-R1/R2 — fix 3 remaining R1–R4 issues:
+
+**Fix A — indirect `$` LHS (`014`/`015`):** E_DOL subject path was added to emitter
+but not firing. Diagnose: generate .s for 014, check what subject node kind is.
+```bash
+cd /home/claude/snobol4x
+./sno2c -asm /home/claude/snobol4corpus/crosscheck/assign/014_assign_indirect_dollar.sno > /tmp/014.s
+grep -A5 "SET_VAR_INDIR\|E_DOL\|indirect" /tmp/014.s | head -20
+# If not present: parser puts $'X' as E_INDR not E_DOL — check parse tree
+```
+
+**Fix B — `literals` coerce_numeric:** `'' + 1` returns real `0.` instead of int `0`.
+Root cause: `coerce_numeric` on empty string `""` calls `atof("")=0.0` → DT_R instead of INTVAL(0).
+Fix in `snobol4.c`: in `coerce_numeric`, if string is empty/whitespace → return INTVAL(0).
+```c
+/* snobol4.c coerce_numeric — before atof/atoll dispatch */
+if (!s || !*s) return INTVAL(0);   /* empty string → integer 0 */
+```
+
+**Quick-check target after fixes:**
+```bash
+cd /home/claude/snobol4x && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
+    $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith 2>&1
+# target: 26/28 PASS (fileinfo + triplet deferred R8)
+# M-ASM-R1 fires (hello+output clean), M-ASM-R2 fires (assign clean)
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must stay 106/106
+```
+
+**Session start commands:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = ba178d7
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
+    $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith
+# expected: 23/28 (session187 baseline)
+```
+
+**⚠ CRITICAL NEXT ACTION — Session187 continued (backend session):**
+
+Sprint A-R1 — fix three root causes to clear R1+R2:
+
+**Fix 1 — E_FLIT (real literals):** add `case E_FLIT:` to `prog_emit_expr` in
+`emit_byrd_asm.c`. Add `stmt_realval(double)` to `snobol4_stmt_rt.c`.
+Add `LOAD_REAL` macro to `snobol4_asm.mac`.
+
+**Fix 2 — null RHS (`X =`):** `X =` parses as `has_eq=1`, replacement=`E_NULV` or NULL.
+The `ASSIGN_STR` fast path is taken with empty sval → writes garbage.
+Fix: detect NULL/E_NULV replacement → emit `ASSIGN_NULL varlab` macro.
+Add `ASSIGN_NULL var` macro to `snobol4_asm.mac` that calls `stmt_set(name, NULVCL)`.
+
+**Fix 3 — indirect `$` LHS (`$'X'=`, `$V=`):** subject is `E_DOL(E_QLIT)` or `E_DOL(E_VART)`.
+Currently the `has_eq` path only handles `E_VART`/`E_KW` subjects.
+Add `E_DOL` subject case: eval inner expr → get string name → call `stmt_set_indirect`.
+Add `stmt_set_indirect(DESCR_t name_val, DESCR_t val)` to `snobol4_stmt_rt.c`.
+Add `SET_VAR_INDIR` macro.
+
+Quick-check after fixes:
+```bash
+cd /home/claude/snobol4x && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
+    $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith 2>&1
+# target: 26/28 PASS (fileinfo + triplet deferred to R8)
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh  # must stay 106/106
+```
 
 **Session186 — Sprint SC3 partial: sc_driver.h/c + main.c -sc wiring + Makefile; 106/106:**
 - `src/frontend/snocone/sc_driver.h` — `sc_compile(source, filename) → Program*` API
@@ -52,64 +139,59 @@ snobol4x: multiple frontends, multiple backends.
 - M-SNOC-LOWER trigger: OUTPUT = 'hello' lowers to assignment STMT_t with E_QLIT rhs PASS
 - 106/106 C crosscheck invariant unaffected
 
-**⚠ CRITICAL NEXT ACTION — Session188 (frontend session):**
+**⚠ CRITICAL NEXT ACTION — Session187 (frontend session):**
 
-Sprint SC4-ASM — M-SNOC-ASM-CF: user-defined procedure (DEFINE) calling convention
+Sprint SC3 — M-SNOC-EMIT: fix program epilogue for Snocone path
 
-**What's done (session187):**
-- Pivot: Snocone frontend now targets **ASM backend** (`-sc -asm`), not C backend
-- `src/frontend/snocone/sc_cf.c` + `sc_cf.h` — 704-line control-flow lowering pass:
-  - Walks flat `ScToken[]` stream from `sc_lex()`
-  - Handles `if`/`while`/`do`/`for`/`goto`/`procedure`/`return`/`freturn`/`nreturn`/`{}`
-  - Emits labeled SNOBOL4 STMT_t nodes with `go->onsuccess`/`onfailure`/`uncond` fields
-  - Modeled on `snocone.sc` `nclause()`/`dostmt()`/`funct()`
-- `src/driver/main.c` — `-sc -asm` routes through `sc_cf_compile()`; `-sc` alone (C) still uses `sc_compile()`
-- **Passing:** hello ✅, arithmetic ✅, while ✅, if/else ✅, for ✅, 106/106 ✅
+**What's done (session186):**
+- `src/frontend/snocone/sc_driver.h` + `sc_driver.c` — `sc_compile()` pipeline: sc_lex → per-stmt sc_parse → sc_lower; ported from proven pipeline() helper (50/50 PASS)
+- `src/driver/main.c` — `-sc` flag + `.sc` auto-detect; `read_all()`; routes through `sc_compile()` then existing `snoc_emit`/`asm_emit`
+- `src/Makefile` — `FRONTEND_SNOCONE` block; `sc_lower.c` + `sc_driver.c` in SRCS; `-I frontend/snocone` in CFLAGS
+- Build clean, 106/106 ✅
 
-**Blocking issue:** User-defined procedures (`procedure double(x) { return x+x }`) emit
-DEFINE correctly but the ASM backend calls them via `CALL1_INT S_double, 5` (builtin path).
-User functions must be DEFINE-registered named patterns per session183 design:
-- `AsmNamedPat` entries with `is_fn=1`, `nparams`, `arg_slots`, `save_slots`
-- α port: bind args (`NV_SET_fn`), save old param vars, jump to body
-- γ/ω ports: restore param vars; RETURN → `jmp [ret_γ]`
-- Call site: store γ/ω addrs into `pat_fn_ret_gamma/omega`, push args, `jmp pat_fn_alpha`
+**Blocking issue:** `snoc_emit` generates no program epilogue (`_SNO_END:` / `finish()` / `return 0;`) for the Snocone path. The SNOBOL4 parser appends an implicit `END` STMT_t; `sc_lower` does not.
 
-**Also:** DEFINE call is emitted inside the program body (after goto-around label) but should
-be treated as a startup-time call (first thing in `main`). The ASM backend already handles
-named pattern registration via `asm_scan_named_patterns()` pre-pass — extend it to recognize
-`sc_cf`-generated DEFINE stmts.
-
-**Quick-check trigger (M-SNOC-ASM-CF):**
-```bash
-cd /home/claude/snobol4x && make -C src
-cat > /tmp/sc_fn.sc << 'EOF'
-procedure double(x) {
-    return x + x
+**Fix — in `sc_driver.c`, after `sc_lower()` returns:**
+```c
+/* Append synthetic END statement so snoc_emit closes main() correctly */
+static void prog_append_end(Program *prog) {
+    STMT_t *end = calloc(1, sizeof(STMT_t));
+    end->kind   = S_END;   /* or whatever the END sentinel kind is */
+    end->lineno = 0;
+    if (prog->tail) prog->tail->next = end;
+    else            prog->head = end;
+    prog->tail  = end;
+    prog->nstmts++;
 }
-OUTPUT = double(5)
-EOF
-./sno2c -sc -asm /tmp/sc_fn.sc > /tmp/sc_fn.s
-nasm -f elf64 -Isrc/runtime/asm/ /tmp/sc_fn.s -o /tmp/sc_fn.o
-gcc -no-pie /tmp/sc_fn.o src/runtime/asm/snobol4_stmt_rt.c \
-    src/runtime/snobol4/snobol4.c src/runtime/mock/mock_includes.c \
-    src/runtime/snobol4/snobol4_pattern.c src/runtime/mock/mock_engine.c \
-    -Isrc/runtime/snobol4 -Isrc/runtime -Isrc/frontend/snobol4 \
-    -lgc -lm -w -no-pie -o /tmp/sc_fn_bin
-/tmp/sc_fn_bin
-# expected: 10
-# PASS → M-SNOC-ASM-CF fires → begin Sprint SC5-ASM (SC corpus)
+```
+
+Check the actual STMT_t kind constant for END in `sno2c.h` / `emit.c` — search for `S_END` or `"END"` handling in `snoc_emit`. The SNOBOL4 parser adds it via `snoc_parse` → check `parse.c` for how it appends the END node.
+
+After the fix, the M-SNOC-EMIT quick-check trigger must pass:
+```bash
+cd /home/claude/snobol4x
+make -C src
+echo "OUTPUT = 'hello'" > /tmp/t.sc
+INC=/home/claude/snobol4corpus/programs/inc
+RT=src/runtime
+./sno2c -sc /tmp/t.sc > /tmp/t.c
+gcc /tmp/t.c $RT/snobol4/snobol4.c $RT/mock/mock_includes.c \
+    $RT/snobol4/snobol4_pattern.c $RT/mock/mock_engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -o /tmp/t_bin
+/tmp/t_bin
+# expected output: hello
+# PASS → M-SNOC-EMIT fires → begin Sprint SC4
 ```
 
 Session start commands:
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 9148a77
+git log --oneline -3   # verify HEAD = d01fb57
 apt-get install -y libgc-dev nasm && make -C src
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 ```
-
 
 **Session183 — M-SNOC-LEX: sc_lex.h + sc_lex.c + test; 187/187 PASS:**
 - `src/frontend/snocone/sc_lex.h` — ScKind enum (48 kinds), ScToken, ScTokenArray, API
@@ -574,6 +656,18 @@ Prolog reader
 | **M-ASM-ASSIGN** | $ capture: assign_lit/digits PASS | ✅ session148 | A7 |
 | **M-ASM-NAMED** | Named patterns: ref_astar_bstar/anbn PASS | ✅ session148 | A8 |
 | **M-ASM-CROSSCHECK** | 26/26 ASM crosscheck PASS | ✅ session151 | A9 |
+| **M-ASM-R1** | hello/ + output/ — 12 tests PASS via run_crosscheck_asm_rung.sh | ❌ | A-R1 |
+| **M-ASM-R2** | assign/ — 8 tests PASS | ❌ | A-R2 |
+| **M-ASM-R3** | concat/ — 6 tests PASS | ✅ session187 | A-R3 |
+| **M-ASM-R4** | arith/ — 2 tests PASS | ❌ | A-R4 |
+| **M-ASM-R5** | control/ + control_new/ PASS | ❌ | A-R5 |
+| **M-ASM-R6** | patterns/ program-mode 20 tests PASS | ❌ | A-R6 |
+| **M-ASM-R7** | capture/ — 7 tests PASS | ❌ | A-R7 |
+| **M-ASM-R8** | strings/ — 17 tests PASS | ❌ | A-R8 |
+| **M-ASM-R9** | keywords/ — 11 tests PASS | ❌ | A-R9 |
+| **M-ASM-R10** | functions/ — DEFINE/RETURN/recursion PASS | ❌ | A-R10 |
+| **M-ASM-R11** | data/ — ARRAY/TABLE/DATA PASS | ❌ | A-R11 |
+| **M-ASM-SAMPLES** | roman.sno + wordcount.sno PASS | ❌ | A-S1 |
 | **M-ASM-BEAUTY** | beauty.sno self-beautifies via ASM backend | ❌ | A10 |
 | **M-ASM-READABLE** | Label names: special-char expansion (pp_>= → S_pp_GT_EQ); _ literal passthrough; uid on collision only. Original bijection spec revised — expanding _ destroys readability for normal names. M-ASM-READABLE-A. | ✅ `e0371fe` session176 | A11 |
 | **M-ASM-BEAUTIFUL** | beauty_prog.s as readable as beauty_full.c. Lon reads it and declares it beautiful. | ✅ `7d6add6` session175 | A14 |

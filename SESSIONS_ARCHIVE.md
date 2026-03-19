@@ -7497,35 +7497,43 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 
 ---
 
-## Session 187 — 2026-03-18
+## Session187 — asm-backend sprint A-R1; corpus ladder infrastructure; 23/28 PASS
 
-**Repo:** snobol4x · **Sprint:** snocone-frontend SC4-ASM · **HEAD in:** `d01fb57` · **HEAD out:** `9148a77`
+**Date:** 2026-03-18
+**Repo:** snobol4x
+**HEAD at close:** `ba178d7`
+**Branch:** main
 
-**Pivot:** Snocone frontend now targets ASM backend (`-sc -asm`), not C. User direction: "make milestones and sprints for ASM not C backend."
+### What happened
+- Diagnosed missing corpus ladder for ASM backend — pattern tests (26/26) passed but full program tests (rungs 1–11) were never built. Ladder was in TESTING.md but skipped.
+- Added M-ASM-R1 through M-ASM-R11 + M-ASM-SAMPLES milestones to PLAN.md and TINY.md.
+- Wrote `test/crosscheck/run_crosscheck_asm_rung.sh` — per-rung ASM corpus driver.
+- Measured baseline R1–R4: 21/28 PASS. Three root causes identified.
+- Fixed `E_FLIT` (real literals): added `prog_flt_intern()`/`prog_flt_emit_data()`, `LOAD_REAL` macro, `stmt_realval()` shim.
+- Fixed null-RHS (`X =`): added `ASSIGN_NULL` macro, `stmt_set_null()` shim, emitter null-RHS path.
+- Added `SET_VAR_INDIR` macro + `stmt_set_indirect()` shim for indirect `$` LHS (014/015 still failing — E_DOL path not reached, needs diagnosis).
+- M-ASM-R3 fires: concat/ 6/6 PASS.
+- After fixes: **23/28 PASS** (R1–R4). Remaining: 014/015 indirect-$ + `literals` coerce_numeric + fileinfo/triplet (deferred R8).
+- Artifacts updated: beauty_prog.s + roman.s + wordcount.s — all NASM-clean.
+- 106/106 C ✅  26/26 ASM ✅
 
-**What happened:**
-- Diagnosed full pipeline: `sc_parse` is expression-only (shunting-yard), control-flow keywords skipped. `sc_lower` stubs out `SC_KW_IF`/`WHILE`/`FOR`/`PROCEDURE`/etc. No control-flow lowering existed.
-- Verified M-SNOC-ASM-HELLO already fires: `OUTPUT='hello'` via `-sc -asm` assembles + runs correctly (ASM backend handles missing `is_end` gracefully — emits `L_SNO_END` at end of stmt list).
-- Wrote `src/frontend/snocone/sc_cf.c` + `sc_cf.h` (704 lines) — full control-flow lowering pass modeled on `snocone.sc` `dostmt()`: walks flat `ScToken[]`, handles if/while/do/for/goto/procedure/return/freturn/nreturn/{}, emits labeled STMT_t nodes with go fields.
-- Wired `-sc -asm` → `sc_cf_compile()` in `main.c`; `-sc` alone still uses expression-only `sc_compile()`.
-- **Passing:** hello ✅, arithmetic ✅, while ✅, if/else ✅, for ✅, 106/106 ✅
-- **Blocked:** User-defined procedures — DEFINE calling convention (named-pattern dispatch per session183 design) not yet implemented. `double(5)` returns empty.
+### State at handoff
+- 23/28 R1–R4 PASS
+- 014/015 failing: E_DOL subject path added to emitter but not firing — needs parse-tree diagnosis
+- `literals` failing: `coerce_numeric("")` returns DT_R instead of INTVAL(0) — fix in snobol4.c
 
-**New milestone map:**
-- M-SNOC-ASM-HELLO ✅ session187
-- M-SNOC-ASM-CF ❌ Sprint SC4-ASM (DEFINE calling convention)
-- M-SNOC-ASM-CORPUS ❌ Sprint SC5-ASM
-- M-SNOC-ASM-SELF ❌ Sprint SC6-ASM
-
-**Next session start:**
+### Next session start
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 9148a77
+git log --oneline -3   # verify HEAD = ba178d7
 apt-get install -y libgc-dev nasm && make -C src
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
-# Then implement DEFINE calling convention in emit_byrd_asm.c + sc_cf.c
-# Quick-check: ./sno2c -sc -asm /tmp/sc_fn.sc | nasm+gcc → /tmp/sc_fn_bin → 10
-# M-SNOC-ASM-CF fires → begin Sprint SC5-ASM
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh \
+    $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith
+# expected: 23/28
 ```

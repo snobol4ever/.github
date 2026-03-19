@@ -100,6 +100,17 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-ASSIGN** | $ capture PASS | ✅ session148 |
 | **M-ASM-NAMED** | Named patterns flat labels PASS | ✅ session148 |
 | **M-ASM-CROSSCHECK** | 106/106 via ASM backend | ✅ session151 |
+| **M-ASM-R1** | hello/ + output/ — 12 tests PASS via run_crosscheck_asm_rung.sh | ❌ Sprint A-R1 |
+| **M-ASM-R2** | assign/ — 8 tests PASS | ❌ Sprint A-R2 |
+| **M-ASM-R3** | concat/ — 6 tests PASS | ✅ session187 |
+| **M-ASM-R4** | arith/ — 2 tests PASS | ❌ Sprint A-R4 |
+| **M-ASM-R5** | control/ + control_new/ — goto/:S/:F PASS | ❌ Sprint A-R5 |
+| **M-ASM-R6** | patterns/ — 20 program-mode pattern tests PASS | ❌ Sprint A-R6 |
+| **M-ASM-R7** | capture/ — 7 tests PASS | ❌ Sprint A-R7 |
+| **M-ASM-R8** | strings/ — SIZE/SUBSTR/REPLACE/DUPL PASS | ❌ Sprint A-R8 |
+| **M-ASM-R9** | keywords/ — IDENT/DIFFER/GT/LT/EQ/DATATYPE PASS | ❌ Sprint A-R9 |
+| **M-ASM-R10** | functions/ — DEFINE/RETURN/FRETURN/recursion PASS | ❌ Sprint A-R10 |
+| **M-ASM-R11** | data/ — ARRAY/TABLE/DATA PASS | ❌ Sprint A-R11 |
 | **M-ASM-SAMPLES** | roman.sno and wordcount.sno pass via ASM backend; artifacts/asm/roman.s and artifacts/asm/wordcount.s committed and assembling clean | ❌ |
 | **M-SNOC-LEX** | sc_lex.c: all Snocone tokens; `OUTPUT = 'hello'` → 3 tokens PASS | ✅ `573575e` session183 |
 | **M-SNOC-PARSE** | sc_parse.c: full stmt grammar; SC corpus exprs + control flow PASS | ✅ `5e20058` session184 |
