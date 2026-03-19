@@ -12,20 +12,21 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` A-SAMPLES — roman.sno + wordcount.sno PASS
-**HEAD:** `617631c` B-199 (no new commit — diagnosis session)
-**Milestone:** M-ASM-R11 ✅ session198 · M-ASM-R10 ✅ session197 · M-ASM-R9 ✅ session193
+**HEAD:** `06df4cb` B-200
+**Milestone:** M-DROP-MOCK-ENGINE ✅ B-200 · M-ASM-R11 ✅ session198 · M-ASM-R10 ✅ session197
 
-**Session B-199 (backend) — A-SAMPLES diagnosis; M-DROP-MOCK-ENGINE milestone created:**
+**Session B-200 (backend) — M-DROP-MOCK-ENGINE fires:**
 
-- Environment verified: 106/106 C ✅ · 26/26 ASM ✅ · HEAD `617631c` confirmed
-- `roman.sno` compiles clean via `-asm`, assembles clean via NASM, links successfully against stmt_rt + snobol4 + mock runtime
-- **Segfaults at runtime** — root cause not yet diagnosed; likely `REPLACE` or `TIME` builtins not registered, or stack issue in recursive ROMAN function
-- Studied `mock_engine.c` / `mock_includes.c` — identified that `engine_match`/`engine_match_ex` are **never called by compiled programs**; they are legacy scaffolding from pattern-only harness (sprints A0–A8)
-- **M-DROP-MOCK-ENGINE** milestone created: remove `mock_engine.c` from ASM link path; migrate 26-test harness to full `.sno` format; `mock_engine.c` is a red-flag false dependency
+- `mock_engine.c` was never called by compiled ASM programs; `snobol4_pattern.c` calls `engine_match_ex` which `engine.c` (real engine) satisfies directly
+- `run_crosscheck_asm_rung.sh` + `run_crosscheck_asm_prog.sh`: replaced `mock_engine.c` → `engine.c` in compile+link lines
+- `emit_byrd_asm.c`: updated generated `.s` link-recipe comment to `engine.o`
+- `artifacts/asm/beauty_prog.s`: regenerated (16297 lines, NASM clean)
+- 106/106 C ✅ · 26/26 ASM ✅ · Full rung suite: 94/97 (3 pre-existing failures: fileinfo/triplet/expr_eval — unrelated to this change)
+- **M-DROP-MOCK-ENGINE fires** `06df4cb`
 
-**⚠ CRITICAL NEXT ACTION — Session B-200 (backend):**
+**⚠ CRITICAL NEXT ACTION — Session B-201 (backend):**
 
-Sprint M-DROP-MOCK-ENGINE — remove `mock_engine.c` from ASM program link path
+Sprint A-SAMPLES — roman.sno + wordcount.sno PASS → M-ASM-SAMPLES
 
 ```bash
 cd /home/claude/snobol4x

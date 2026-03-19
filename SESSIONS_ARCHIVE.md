@@ -8150,3 +8150,20 @@ for sno in $CDIR/*.sno; do
   [ "$got" = "$exp" ] && echo "PASS $base" || echo "FAIL $base | exp=$(echo $exp|head -1) | got=$(echo $got|head -1)"
 done
 ```
+
+## Session B-200 — M-DROP-MOCK-ENGINE: remove mock_engine.c from ASM link path
+
+**HEAD before:** `617631c` (B-199) **HEAD after:** `06df4cb`
+**Milestone fired:** M-DROP-MOCK-ENGINE
+
+**Root cause finding:** `mock_engine.c` was never called by compiled ASM programs. `snobol4_pattern.c` calls `engine_match_ex` which `src/runtime/engine/engine.c` satisfies directly. `mock_engine.c` was legacy scaffolding from the pattern-only harness era (sprints A0–A8) that crept into the full-program link path.
+
+**Changes:**
+- `test/crosscheck/run_crosscheck_asm_rung.sh`: `mock_engine.c` → `engine.c` in compile+LINK_OBJS
+- `test/crosscheck/run_crosscheck_asm_prog.sh`: same
+- `src/backend/x64/emit_byrd_asm.c`: updated generated `.s` link-recipe comment header
+- `artifacts/asm/beauty_prog.s`: regenerated (16297 lines, NASM clean)
+
+**Verified:** 106/106 C ✅ · 26/26 ASM ✅ · Full rung 94/97 (3 pre-existing failures fileinfo/triplet/expr_eval unchanged)
+
+**Note:** `mock_engine.c` remains in the C backend link path (`run_crosscheck.sh`) where it belongs for the interpreter-based pattern engine.
