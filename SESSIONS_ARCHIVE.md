@@ -7883,3 +7883,15 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
 bash test/crosscheck/run_crosscheck_asm.sh               # 26/26
 # Sprint N-R1: implement OUTPUT='hello' in net_emit.c
 ```
+
+## Session196 — N-R1 net_emit.c full emitter; hello/multi/empty_string PASS
+
+**What happened:**
+- Rewrote net_emit.c: two-pass var scan, variable field declarations, .cctor init, full expr emitter (E_QLIT/ILIT/FLIT/NULV/VART/CONC/ADD/SUB/MPY/DIV/MNS), assignment + OUTPUT stmt handling, stub path fixed to nop
+- hello ✅ empty_string ✅ multi ✅ / literals FAIL (null RHS + real format + pure-label stmt)
+- 106/106 C ✅ 26/26 ASM ✅
+- Merged concurrent session194 ASM work (binary conflict resolved by rebuild)
+
+**State at handoff:** `a9b3da9` pushed to snobol4x/main
+
+**Next:** Fix literals root causes (see session197 CRITICAL NEXT ACTION above) → M-NET-LIT → M-NET-R1

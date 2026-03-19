@@ -95,6 +95,66 @@ if (s->subject->sval && strcasecmp(s->subject->sval, "DEFINE") == 0) {
 ```
 After fix: re-run `$CORPUS/functions` — expect most/all to PASS, then fix residuals.
 
+**Session196 (net) — N-R1 net_emit.c full emitter; hello/multi/empty_string PASS:**
+
+- `net_emit.c` rewritten: two-pass (scan vars → emit); variable registry + `.field static string` per SNOBOL4 var; `.cctor()` initialises all vars to `""`; `net_emit_expr()` handles E_QLIT/E_ILIT/E_FLIT/E_NULV/E_VART/E_CONC/E_ADD/E_SUB/E_MPY/E_DIV/E_MNS; `net_emit_one_stmt()` handles `has_eq` assignments + OUTPUT; stub path fixed to `nop` only (was emitting spurious `Console.WriteLine`)
+- hello/ rung: **hello ✅  empty_string ✅  multi ✅**  literals FAIL (root cause: START-label pure-label stmt; `OUTPUT =` null RHS needs E_NULV path; real literal format `1.` vs `1`)
+- 106/106 C ✅  26/26 ASM ✅
+
+**⚠ CRITICAL NEXT ACTION — Session197 (net):**
+
+Sprint N-R1 continued — fix literals FAIL → M-NET-LIT fires
+
+Root causes in `net_emit.c`:
+1. **Pure-label stmt** (`START` label, no subject/has_eq): stub path emits `nop` ✅ (fixed this session) — verify no extra output
+2. **`OUTPUT =` null RHS** (`s->replacement == NULL || s->replacement->kind == E_NULV`): must emit blank line → `ldstr "" + Console.WriteLine` — currently falls through to stub
+3. **Real literal format**: SNOBOL4 prints `1.` for `1.0`; C `%g` prints `1` — use `"%.6g"` or detect integer-valued doubles
+4. **`'' + ''`** concat: `String.Concat("","")` → `""` then `Console.WriteLine` → blank line ✅ should work
+5. **`'' + 1`** concat: left=E_NULV, right=E_ILIT — `E_NULV` pushes `""`, E_ILIT pushes `"1"`, concat → `"1"` ✅
+
+Fix 2 in `net_emit_one_stmt`: detect null/E_NULV replacement → emit `ldstr "" + Console.WriteLine` for OUTPUT:
+```c
+if (is_out) {
+    EXPR_t *rhs = s->replacement;
+    if (!rhs || rhs->kind == E_NULV) {
+        N("    ldstr      \"\"\n");
+    } else {
+        net_emit_expr(rhs);
+    }
+    N("    call       void [mscorlib]System.Console::WriteLine(string)\n");
+}
+```
+
+Fix 3: real literal format — SNOBOL4 `1.0` prints as `1.`, not `1`:
+```c
+case E_FLIT: {
+    char buf[64];
+    double v = e->dval;
+    if (v == (long)v) snprintf(buf,sizeof buf,"%ld.", (long)v);
+    else snprintf(buf,sizeof buf,"%g", v);
+    net_ldstr(buf); break;
+}
+```
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = a9b3da9
+apt-get install -y libgc-dev nasm mono-complete && make -C src
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh               # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+# Run hello rung:
+for f in $CORPUS/hello/*.sno; do
+  ref="${f%.sno}.ref"
+  ./sno2c -net "$f" > /tmp/t.il && ilasm /tmp/t.il /output:/tmp/t.exe >/dev/null 2>&1
+  actual=$(mono /tmp/t.exe 2>/dev/null)
+  [ "$actual" = "$(cat $ref)" ] && echo "PASS $(basename $f)" || echo "FAIL $(basename $f)"
+done
+# Fix literals → all 4 hello PASS → M-NET-LIT fires
+# Then run output/ assign/ arith/ rungs → M-NET-R1
+```
+
 **Session195 (net) — M-NET-HELLO: NET backend scaffold; Sprint N-R0 complete:**
 
 - `src/backend/net/net_emit.c` — new emitter (mirrors `emit_byrd_jvm.c` structure); three-column CIL layout; `net_set_classname()`; `net_emit_header/main_open/main_close/footer()`; stmt label walker (stubs, N-R1+ fills body)
