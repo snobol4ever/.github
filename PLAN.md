@@ -11,9 +11,9 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `asm-backend` A-R10 — functions/ (backend session) · `sc-corpus-ladder` SC-CORPUS-2 — control/ (frontend session) |
-| **TINY HEAD** | `018d913` session193 |
-| **TINY next** | Backend: A-R10 functions/ → A-R11 data/ (gates SC-CORPUS-R5 → M-SNOC-ASM-SELF) · Frontend: SC-CORPUS-R2 control/ |
+| **TINY sprint** | `asm-backend` A-R10 — functions/ (backend session) · `jvm-backend` J0 — scaffold (JVM session) · `sc-corpus-ladder` SC-CORPUS-2 — control/ (frontend session) |
+| **TINY HEAD** | `b430ceb` session194 |
+| **TINY next** | Backend: A-R10 functions/ → M-ASM-R10 · JVM: J1 OUTPUT='hello' → M-JVM-LIT |
 | **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
 | **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
 | **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
@@ -142,6 +142,24 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-JVM-EVAL | Inline EVAL! — arithmetic no longer calls interpreter | ❌ Sprint `jvm-inline-eval` |
 | M-JVM-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | M-JVM-BOOTSTRAP | snobol4-jvm compiles itself | ❌ |
+
+### JVM backend — snobol4x TINY (emit_byrd_jvm.c)
+
+| ID | Trigger | Status |
+|----|---------|--------|
+| **M-JVM-HELLO** | null.sno → .class → java null → exit 0 | ✅ session194 |
+| **M-JVM-LIT** | OUTPUT = 'hello' correct via JVM backend | ❌ Sprint J1 |
+| **M-JVM-ASSIGN** | Variable assign + arith correct | ❌ Sprint J2 |
+| **M-JVM-GOTO** | :S(X)F(Y) branching correct | ❌ Sprint J3 |
+| **M-JVM-PATTERN** | Byrd boxes in JVM — LIT/SEQ/ALT/ARBNO | ❌ Sprint J4 |
+| **M-JVM-CAPTURE** | . and $ capture correct | ❌ Sprint J5 |
+| **M-JVM-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ❌ Sprint J-R1 |
+| **M-JVM-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ❌ Sprint J-R2 |
+| **M-JVM-R3** | strings/ keywords/ — Rungs 8–9 PASS | ❌ Sprint J-R3 |
+| **M-JVM-R4** | functions/ data/ — Rungs 10–11 PASS | ❌ Sprint J-R4 |
+| **M-JVM-CROSSCHECK** | 106/106 corpus PASS via JVM backend | ❌ Sprint J-R5 |
+| **M-JVM-SAMPLES** | roman.sno + wordcount.sno PASS | ❌ Sprint J-S1 |
+| **M-JVM-BEAUTY** | beauty.sno self-beautifies via JVM backend | ❌ Sprint J10 |
 
 ### DOTNET (snobol4dotnet)
 

@@ -7789,53 +7789,38 @@ make -C src clean && make -C src 2>&1 | grep "warning:" | sort -u  # ~20 in emit
 
 ---
 
-## Session193 (backend) — M-ASM-R9: keywords/ 10/10 PASS
+## Session 194 — JVM backend Sprint J0: M-JVM-HELLO ✅
+
+**Date:** 2026-03-19
+**Repos touched:** snobol4x · .github
+**HEAD snobol4x:** `b430ceb` session194
+**HEAD .github:** (this commit)
 
 **What happened:**
-- Cloned repos fresh; hit build break: `ASM_NAMED_NAMELEN` used in `AsmNamedPat` struct before its `#define` — already fixed in concurrent session192-warnings (`d7bef4c`).
-- Diagnosed `082_keyword_stcount` failure: `&STCOUNT`/`&STNO` always returned 0.
-  - Root cause A: ASM backend never called `comm_stno()` per statement. Fix: emit `mov edi, <lineno>` + `call comm_stno` at top of every statement in `asm_emit_program()`; add `extern comm_stno` to `.s` header.
-  - Root cause B: `comm_stno()` in `snobol4.c` only incremented `kw_stcount` inside `if (kw_stlimit >= 0)` — default `kw_stlimit = -1` meant counter never incremented. Fixed to always increment; only enforce limit when set.
-- `100_roman_numeral`: requires `ARRAY()` — genuinely A-R11 data/ scope, misplaced in keywords/. Tagged with `.xfail` in snobol4corpus. Added `.xfail` protocol to `run_crosscheck_asm_rung.sh` (mirrors session192c SC runner protocol).
-- Rebase conflict with `d7bef4c` (session192-warnings pushed while this session worked): binary `sno2c` conflict resolved by taking origin; `emit_byrd_asm.c` comm_stno changes re-applied on top of warnings-session reorganization.
-- **Snocone blocking analysis**: M-ASM-R10 (functions/) + M-ASM-R11 (data/) are prerequisites for M-SC-CORPUS-R5 → M-SC-CORPUS-FULL → M-SNOC-ASM-SELF. PLAN.md `TINY next` updated to reflect correct order. Backend must complete R10+R11 before frontend can reach self-compile milestone.
-- Artifacts regenerated (beauty_prog.s, roman.s, wordcount.s — all updated with comm_stno calls).
-- 106/106 C ✅  26/26 ASM ✅  keywords/ 10/10 PASS 1 XFAIL ✅
-
-**Milestones fired:** M-ASM-R9 ✅
+- Oriented on snobol4x JVM backend slot (src/backend/jvm/ — empty README only)
+- Confirmed Jasmin 2.4 toolchain works (java 21 present)
+- Wrote HQ plan: PLAN.md milestones M-JVM-HELLO→M-JVM-BEAUTY, BACKEND-JVM.md full design
+- Sprint J0: created emit_byrd_jvm.c skeleton (217 lines), added jasmin.jar, wired -jvm flag in main.c + Makefile
+- Pipeline verified: null.sno → .j → Null_test.class → java exit 0
+- 106/106 C crosscheck invariant unaffected
+- **M-JVM-HELLO fires** `b430ceb`
 
 **State at handoff:**
-- snobol4x HEAD: `018d913` pushed ✅
-- snobol4corpus HEAD: `60b19f2` pushed ✅ (100_roman_numeral.xfail)
+- snobol4x committed but NOT YET PUSHED (push authentication failed — token needed)
+- .github committed but NOT YET PUSHED
 
-**Next session start (backend — A-R10 functions/):**
+**Session 195 start:**
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 018d913
+git log --oneline -3   # expect b430ceb
+# Push snobol4x first (token required):
+git push origin main
+# Then build + verify invariant:
 apt-get install -y libgc-dev nasm && make -C src
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
-gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
-bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
-CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions
-# baseline → fix → M-ASM-R10 fires
+mkdir -p /home/snobol4corpus && ln -s /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck 2>/dev/null; true
+# Clone corpus if missing: git clone https://github.com/snobol4ever/snobol4corpus
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
+# Then Sprint J1: OUTPUT = 'hello' → M-JVM-LIT
+# Edit src/backend/jvm/emit_byrd_jvm.c jvm_emit() to walk STMT_t and emit OUTPUT
 ```
-
----
-
-## Session193 addendum — A-R10 baseline + handoff
-
-**A-R10 baseline (functions/ 0/8):** All 8 tests segfault / produce empty output.
-Root cause diagnosed: DEFINE stmt emitter does `asmL(next_lbl); continue` but
-drops `tgt_u` uncond goto — execution falls into function body at startup.
-Fix: one line in the DEFINE skip block (see TINY.md A-R10 diagnosis).
-Context too full to implement safely; diagnosis committed to TINY.md.
-
-**Full handoff state:**
-- snobol4x `018d913` ✅ pushed
-- snobol4corpus `60b19f2` ✅ pushed
-- .github this commit ✅
-- 106/106 C · 26/26 ASM · keywords/ 10/10 PASS all green
-- Next: Session194 applies one-line DEFINE-goto fix → functions/ → M-ASM-R10
