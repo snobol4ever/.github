@@ -12,8 +12,89 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `asm-backend` A-SAMPLES — roman.sno + wordcount.sno PASS
-**HEAD:** `06df4cb` B-200
+**HEAD:** `3f2c8b9` B-201
 **Milestone:** M-DROP-MOCK-ENGINE ✅ B-200 · M-ASM-R11 ✅ session198 · M-ASM-R10 ✅ session197
+
+**Session B-201 (backend) — wordcount PASS; roman segfault root-caused:**
+
+- **wordcount.sno** — assembles, links, runs correctly: `14 words` vs ref ✅
+- **roman.sno** — assembles and links cleanly; segfaults at runtime
+- **Root cause of roman segfault (diagnosed, not yet fixed):**
+  - `rbp` is corrupted to a stack address (`0x1` or similar) at crash
+  - Crash occurs inside `stmt_set` called from `P_ROMAN_α` with corrupt `rdi` (name = stack addr, not `"N"`)
+  - GDB watchpoint: `rbp` changes from `0x...4378` to `0x...4310` inside `stmt_set` itself (that's normal frame setup); the *pre-corruption* of `rdi` happens before the `lea rdi, [rel S_N]` in `P_ROMAN_α` is reached — meaning `rbp` is trashed before `P_ROMAN_α` is even entered in the second recursive call
+  - Likely cause: the ucall save/restore pushes (4 qwords = 32 bytes) interact with the pattern-match scan loop's `[rbp-8/16]` subject slot. When the ROMAN body re-enters its own pattern statements, `GET_VAR` and `SUBJ_FROM16` write to `[rbp-16/8]` which the ucall then pushes — but the INNER call's `GET_VAR` runs **before** the outer call's push saves the value, overwriting the subject slot.
+  - Precise suspect: at `Ln_3`, `GET_VAR S_N` writes `[rbp-16]=N.type, [rbp-8]=N.ptr`, then pushes them. But `SUBJ_FROM16` in `L_ROMAN_1` also uses `[rbp-16]` — subject descriptor. If `jmp P_ROMAN_α` is reached while `[rbp-16/8]` still holds the subject descriptor from the OUTER call's pattern match (not N), then the ucall pushes the subject, not N.
+  - **Next session fix:** Add gdb breakpoint at `Ln_3` push sequence, print `[rbp-8/16]` values and verify they are N's descriptor, not the subject descriptor. If wrong: the `GET_VAR S_N` before the push is being skipped or overwritten by an intermediate `SUBJ_FROM16`.
+- **artifacts/asm/samples/roman.s** — first generation, NASM-clean, committed
+- **artifacts/asm/samples/wordcount.s** — first generation, NASM-clean, committed  
+- 106/106 C ✅ · 26/26 ASM ✅
+
+**⚠ CRITICAL NEXT ACTION — Session B-202 (backend):**
+
+Sprint A-SAMPLES — fix roman.sno recursive function segfault → M-ASM-SAMPLES
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 3f2c8b9 B-201
+apt-get install -y libgc-dev nasm gdb && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+
+# Reproduce crash with mini roman:
+cat > /tmp/roman_mini.sno << 'EOF'
+    &TRIM = 1
+    DEFINE('ROMAN(N)T')                 :(ROMAN_END)
+ROMAN   N   RPOS(1)  LEN(1) . T  =         :F(RETURN)
+    '0,1I,'
++   T   BREAK(',') . T                  :F(FRETURN)
+    ROMAN = ROMAN(N) T
++                                       :S(RETURN)F(FRETURN)
+ROMAN_END
+    R = ROMAN('12')
+    OUTPUT = "result: " R
+END
+EOF
+
+RT=src/runtime
+./sno2c -asm /tmp/roman_mini.sno > /tmp/roman_mini.s
+nasm -f elf64 -I $RT/asm/ /tmp/roman_mini.s -o /tmp/roman_mini.o
+gcc -no-pie -g /tmp/roman_mini.o $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
+    $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/roman_mini_bin
+
+# Diagnose: at Ln_3 push sequence, what is [rbp-16]/[rbp-8]?
+# Is it N's value or the subject descriptor?
+# Ln_3 is at the `push qword [rbp-8]` after `GET_VAR S_N`
+# The pattern match just completed (P_4_γ fired), setting T.
+# Before the push: [rbp-16] should be N (from GET_VAR), NOT the subject slot.
+# Suspect: SUBJ_FROM16 at L_ROMAN_1 sets [rbp-16/8] = subject descriptor.
+# Then GET_VAR S_N overwrites [rbp-16/8] with N. That's correct.
+# But: does the pattern γ path write to [rbp-16/8] before Ln_4?
+
+# Key investigation: grep for writes to [rbp-16] or [rbp-8] between
+# scan_retry_4 and Ln_4 in the generated .s:
+grep -n "rbp-16\|rbp-8\|rbp-24\|rbp-32" /tmp/roman_mini.s | head -40
+```
+
+**Root cause hypothesis to verify (B-202):**
+
+The push at Ln_3 saves `[rbp-8]/[rbp-16]`. The value in `[rbp-8]` at that point is whatever the last instruction wrote there. Tracing backwards:
+1. `GET_VAR S_N` → writes `[rbp-16]=N.type, [rbp-8]=N.ptr` ✓
+2. But `GET_VAR` expands to `call stmt_get` which returns DESCR via `rax:rdx` then `mov [rbp-16],rax / mov [rbp-8],rdx`
+
+If `stmt_get("N")` itself calls deeper into the runtime which disturbs `[rbp-16/8]` — no, it's a simple lookup.
+
+**More likely:** the problem is in the *second* recursion of ROMAN. On the *first* call from main (ucall1, `ROMAN('12')`), `P_ROMAN_α` sets N='12', body runs, hits `Ln_3`, does `GET_VAR S_N` → `[rbp-16]='1'` type, `[rbp-8]` ptr. Pushes correctly. Recurses (ucall0, `ROMAN('1')`). Inner returns via `ucall0_ret_g`. Pops. Calls `stmt_set("N", ...)` to restore N. Then `GET_VAR S_ROMAN` → **overwrites `[rbp-16/8]` with ROMAN's return value**. This is fine for the inner call flow.
+
+**But then the outer ucall1 returns to `ucall1_ret_g`** which does the same pop sequence for ucall1's frame. At that point `[rbp-16/8]` contains ROMAN's return value from the inner call — and ucall1_ret_g pops into `rsi/rdx` (old N value from ucall1's push). So ucall1 correctly restores N='12'. But `[rbp-16/8]` now contains whatever `GET_VAR S_ROMAN` + subsequent concat left there, not the 'result' value the outer function stored. That should be fine since ucall1_ret_g re-reads `GET_VAR S_ROMAN`.
+
+**The real issue may be simpler:** the crash is a stack overflow. ROMAN('12') → ROMAN('1') → ROMAN('') → pattern fails → RETURN. But ROMAN('1') recurses at `ROMAN(N)` where N='1', and `'1'` has 1 digit, so the inner call strips the last char (`RPOS(1) LEN(1) . T = `) leaving N='', then hits line 2 pattern which also fails (N='' can't match T BREAK(',') . T), takes :FRETURN. That bubbles up. So max recursion depth for ROMAN('12') is 2 levels — should not overflow.
+
+**Actual fix to try:** Add `comm_stno` call tracking and use `&STCOUNT` to count steps, set `&STLIMIT = 100`. If it terminates (via STLIMIT), the logic is correct but something else is wrong. If it segfaults before STLIMIT, the stack is corrupted before even 100 statements.
 
 **Session B-200 (backend) — M-DROP-MOCK-ENGINE fires:**
 

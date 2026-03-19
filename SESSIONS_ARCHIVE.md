@@ -8187,3 +8187,38 @@ done
 - Added `snobol4harness/adapters/tiny_net/run.sh` — plugs into `crosscheck.sh --engine tiny_net`
 - Deleted stale `src/backend/jvm/README.md` + `src/backend/net/README.md`
 - 106/106 C ✅  26/26 ASM ✅
+
+## Session B-201 — A-SAMPLES: wordcount PASS; roman segfault root-caused
+
+**Sprint:** `asm-backend` A-SAMPLES
+**HEAD before:** `6fff292` B-200 (alias `06df4cb` per PLAN)
+**HEAD after:** `3f2c8b9` B-201
+
+**What happened:**
+- Read PLAN.md, TINY.md, RULES.md. Cloned snobol4x + snobol4corpus + snobol4harness. Verified 106/106 C + 26/26 ASM invariants.
+- Read roman.sno and wordcount.sno. Learned SNOBOL4 syntax from PDF (Griswold Rebus + Proebsting Byrd box papers).
+- **wordcount.sno** → `sno2c -asm` → NASM → link → run: produces `14 words` matching ref exactly. **PASS ✅**
+- **roman.sno** → assembles and links cleanly → **SEGFAULT** at runtime.
+- Diagnosis session: GDB watchpoint reveals `rbp` is corrupted. `rdi` passed to `stmt_set` inside `P_ROMAN_α` is a stack address, not `"N"` label. Crash on second (recursive) invocation of ROMAN.
+- Tried alignment fix (push rbx / and rsp,-16 in P_ROMAN_α) — reverted: broke ASM crosscheck and wasn't the right cause.
+- **Root cause:** not yet definitively fixed. Leading hypothesis: ucall save/restore interacts with rbp-relative subject slot. The recursive function body re-uses main's single stack frame (`rbp` fixed), and `[rbp-16/8]` is shared between subject descriptor and temporary results. Need one more investigation step.
+- Committed `artifacts/asm/samples/roman.s` and `artifacts/asm/samples/wordcount.s` (first generation, both NASM-clean).
+- 106/106 C ✅ · 26/26 ASM ✅ at handoff.
+
+**State at handoff:**
+- emit_byrd_asm.c: **unchanged** from B-200 (alignment experiment reverted)
+- roman segfault: diagnosed but not fixed
+- wordcount: fully working
+
+**Next session start block (B-202):**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 3f2c8b9 B-201
+apt-get install -y libgc-dev nasm gdb && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh              # must be 26/26
+# Then: diagnose roman segfault per TINY.md root-cause hypothesis
+```

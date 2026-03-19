@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` A-SAMPLES — roman.sno + wordcount.sno PASS | `06df4cb` B-200 | M-ASM-SAMPLES |
+| **TINY backend** | `asm-backend` A-SAMPLES — roman.sno + wordcount.sno PASS | `3f2c8b9` B-201 | M-ASM-SAMPLES |
 | **TINY JVM** | `jvm-backend` J5 — capture rung: . and $ capture | `09a3f4d` J-200 | M-JVM-CAPTURE |
 | **TINY NET** | `net-backend` N-R2 — verify goto/:S/:F + E_FNC results | `b15164e` N-198 | M-NET-GOTO |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |
