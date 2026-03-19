@@ -8,29 +8,21 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 
 ## ⚡ NOW
 
-| | |
-|-|-|
-| **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-<<<<<<< Updated upstream
-| **TINY sprint** | `asm-backend` A-R10 — functions/ (backend session) · `jvm-backend` J2 — variable assign (JVM session) · `net-backend` N-R1 — OUTPUT='hello' (NET session) · `sc-corpus-ladder` SC-CORPUS-2 — control/ (frontend session) |
-| **TINY HEAD** | `3cddca5` session194 |
-| **TINY next** | Backend: A-R10 functions/ → M-ASM-R10 · JVM: J2 variable assign → M-JVM-ASSIGN · NET: N-R1 OUTPUT='hello' → M-NET-LIT |
-=======
-| **TINY sprint** | `asm-backend` A-R11 — data/ (backend session) · `jvm-backend` J1 — OUTPUT='hello' (JVM session) · `net-backend` N-R1 — OUTPUT='hello' (NET session) · `sc-corpus-ladder` SC-CORPUS-2 — control/ (frontend session) |
-| **TINY HEAD** | `06af4ec` session197 |
-| **TINY next** | Backend: A-R11 data/ → M-ASM-R11 · JVM: J1 OUTPUT='hello' → M-JVM-LIT · NET: N-R1 OUTPUT='hello' → M-NET-LIT |
->>>>>>> Stashed changes
-| **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
-| **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
-| **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
-| **HEAD TINY** | `9f784fa` session192 |
-| **HEAD CORPUS** | `9c00acd` session136 |
-| **HEAD HQ** | (this commit) session146 |
-| **Invariant TINY** | `106/106` crosscheck before any snobol4x work |
-| **Invariant DOTNET** | `dotnet test` → 1869/1872 before any dotnet work |
-| **⚠ Concurrent push** | `git pull --rebase origin main` before every .github push — see RULES.md |
+Each concurrent session owns exactly one row. Update only your row on every push. Never touch another session's row. `git pull --rebase` before every push — see RULES.md.
 
-**Read the active L2 docs: [TINY.md](TINY.md) (TINY chat) · [DOTNET.md](DOTNET.md) (DOTNET chat)**
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **TINY backend** | `asm-backend` A-R11 — data/ | `d832a86` session197 | M-ASM-R11 |
+| **TINY JVM** | `jvm-backend` J2 — variable assign | `23765b1` session195 | M-JVM-ASSIGN |
+| **TINY NET** | `net-backend` N-R1 — OUTPUT='hello' | `23765b1` session196 | M-NET-LIT |
+| **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` session192 | M-SC-CORPUS-R2 |
+| **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` session156 | M-NET-PERF |
+
+**Invariants (check before any work):**
+- TINY: `106/106` C crosscheck · `26/26` ASM crosscheck
+- DOTNET: `dotnet test` → 1869/1872 before any dotnet work
+
+**Read the active L2 docs: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
 
 ---
 
