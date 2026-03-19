@@ -7739,3 +7739,15 @@ bash test/crosscheck/run_sc_corpus_rung.sh \
     test/crosscheck/sc_corpus/assign   # 20/20
 # Sprint SC-CORPUS-2: control/ + control_new/ → M-SC-CORPUS-R2
 ```
+
+---
+
+## Session 192b — warning cleanup
+
+**What happened:**
+- Fixed all compiler warnings in `emit_byrd_asm.c` — zero warnings now
+- `-Waddress`: ALFC macro `(lbl) && *(lbl)` → `*(lbl)` (array addr always non-null)
+- `-Wrestrict`: cap_vars + asm_named snprintf self-alias — copy `->safe` to stack temp first
+- `-Wformat-truncation`: `LBUF` 128→320, `ASM_NAMED_NAMELEN` 128→320; all struct fields + locals updated
+- 106/106 C ✅  26/26 ASM ✅  20/20 SC-CORPUS ✅  artifacts unchanged
+- Commit: `64ce79a`
