@@ -8086,3 +8086,67 @@ done; rm -rf $TMPD
 - roman.sno segfault unresolved — next session diagnoses via GDB/valgrind + checks REPLACE/TIME registration
 
 **Next session start block:** See TINY.md ⚠ CRITICAL NEXT ACTION — Session B-200
+## Session J-199 — JVM backend: Sprint J4 complete, M-JVM-PATTERN ✅
+
+**Date:** 2026-03-19
+**HEAD at start:** `f24fb97` J-198
+**HEAD at end:** `189f9f2` J-199
+**Branch:** `jvm-backend`
+
+### What happened
+
+Implemented the full Byrd box pattern engine in `emit_byrd_jvm.c`.
+
+**`jvm_emit_pat_node()`** — new recursive static function (≈880 lines added):
+- **LIT** (`E_QLIT`): `String.regionMatches(cursor, lit, 0, len)` → advance cursor
+- **SEQ** (`E_CONC`): left γ feeds right α; non-backtracking for J4
+- **ALT** (`E_OR`): save cursor local, try left, restore + try right on failure
+- **E_NAM** (`.`): save cursor before child, `substring(before, after)` → `sno_var_put`
+- **E_DOL** (`$`): same as E_NAM (immediate assign = conditional assign for J4)
+- **E_INDR** (`*VAR`): push literal varname string, one `sno_indr_get` lookup, regionMatches
+- **ARBNO**: greedy loop (try child repeatedly until fail or no-advance)
+- **ANY/NOTANY**: `charAt` → `valueOf` → `contains` on charset string
+- **SPAN**: consume longest run (≥1) in charset
+- **BREAK**: consume until char in charset appears
+- **LEN/POS/RPOS/TAB/RTAB/REM**: cursor arithmetic
+- **FAIL/ABORT**: jump to `jvm_cur_pat_abort_label` (past retry loop, to `:F`)
+- **E_VART builtins**: REM/FAIL/ARB/SUCCEED/FENCE/ABORT dispatched as zero-arg patterns
+
+**Bug fixed:** `go->uncond` never emitted — `:(END)` and `:(label)` were silently dropped.
+Fixed in label-only path and all 4 `onsuccess` sites via Python regex patch.
+
+**`jvm_cur_pat_abort_label`**: module-level label set per statement so FAIL jumps
+past the cursor-retry loop directly to the overall statement failure label.
+
+**Results:** 19/20 patterns/ rung PASS. Only 053 fails (pattern-valued variable
+`P = ('a'|'b'|'c')` requires pattern object store — deferred to J5+).
+
+**M-JVM-PATTERN fires ✅**
+
+### State at handoff
+
+- snobol4x HEAD: `189f9f2` (pushed)
+- 19/20 patterns/ PASS
+- J3 smoke: 5/5 still passing
+- `artifacts/jvm/hello_prog.j` updated and assembles clean
+
+### Next session start (J-200)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 189f9f2
+apt-get install -y libgc-dev nasm default-jdk && make -C src
+# Sprint J5: capture/ rung → M-JVM-CAPTURE
+# E_NAM/E_DOL already emitted; investigate what capture/ tests actually test
+JASMIN=src/backend/jvm/jasmin.jar
+CDIR=/home/claude/snobol4corpus/crosscheck/capture
+for sno in $CDIR/*.sno; do
+  base=$(basename $sno .sno); ref=$CDIR/${base}.ref; TMPD=$(mktemp -d)
+  ./sno2c -jvm "$sno" > $TMPD/p.j 2>/dev/null
+  java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
+  cls=$(ls $TMPD/*.class 2>/dev/null | head -1 | xargs basename 2>/dev/null | sed 's/.class//')
+  got=$(java -cp $TMPD $cls 2>/dev/null); exp=$(cat "$ref" 2>/dev/null); rm -rf $TMPD
+  [ "$got" = "$exp" ] && echo "PASS $base" || echo "FAIL $base | exp=$(echo $exp|head -1) | got=$(echo $got|head -1)"
+done
+```

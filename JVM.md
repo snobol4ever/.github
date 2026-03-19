@@ -9,49 +9,41 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J4 — Byrd boxes in JVM: LIT/SEQ/ALT/ARBNO → M-JVM-PATTERN
-**HEAD:** `f24fb97` J-198
-**Milestone:** M-JVM-LIT ✅ session195 · M-JVM-ASSIGN ✅ session197 · M-JVM-GOTO ✅ J-198
+**Sprint:** `jvm-backend` J5 — capture rung: . and $ capture → M-JVM-CAPTURE
+**HEAD:** `189f9f2` J-199
+**Milestone:** M-JVM-LIT ✅ session195 · M-JVM-ASSIGN ✅ session197 · M-JVM-GOTO ✅ J-198 · M-JVM-PATTERN ✅ J-199
 
-**J-198 — Sprint J3 complete:**
-- INPUT: `sno_input_read()` via lazy `BufferedReader`; null on EOF → `:F`
-- `:F` goto wiring: pop-before-jump pattern (clean stack for JVM verifier)
-- `SIZE`/`DUPL`/`REMDR`/`IDENT`/`DIFFER` added to `E_FNC` dispatch
-- `sno_input_br` field in class header; stack limit 6 in `sno_input_read`
-- 6/6 J3 smoke tests pass: size/dupl/remdr/goto_s/goto_f/input_loop
-- M-JVM-GOTO fires ✅
+**J-199 — Sprint J4 complete:**
+- `jvm_emit_pat_node()` — full recursive Byrd box pattern emitter
+- LIT/SEQ(E_CONC)/ALT(E_OR)/ARBNO(greedy)/E_NAM(.)/E_DOL($)/E_INDR(*VAR)
+- ANY/NOTANY/SPAN/BREAK/LEN/POS/RPOS/TAB/RTAB/REM/FAIL/SUCCEED/FENCE/ABORT
+- `go->uncond` fix: `:(label)` unconditional gotos now emit in all stmt cases
+- `jvm_cur_pat_abort_label`: FAIL jumps past retry loop to overall :F
+- 19/20 patterns/ PASS (053 deferred: pattern-valued variable needs object store)
+- M-JVM-PATTERN ✅
 
-**⚠ CRITICAL NEXT ACTION — Session J-199 (JVM):**
+**⚠ CRITICAL NEXT ACTION — Session J-200 (JVM):**
 
-Sprint J4 — Byrd box pattern engine in JVM bytecode
-
-Root work:
-1. **LIT node**: `jvm_emit_byrd_lit()` — match literal string at cursor, advance, branch :S/:F
-2. **SEQ node**: sequential composition — LIT followed by LIT etc.
-3. **ALT node**: alternation — try left, on fail try right
-4. **ARBNO node**: Kleene star — repeat until fail, then proceed
-5. **Subject/cursor setup**: load subject string into local, cursor = 0
-6. Milestone: `M-JVM-PATTERN` = patterns/ rung PASS
+Sprint J5 — capture/ rung PASS → M-JVM-CAPTURE
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = f24fb97
-apt-get install -y libgc-dev nasm && make -C src
-# Run J3 smoke tests to confirm baseline:
-TMPD=$(mktemp -d); JASMIN=src/backend/jvm/jasmin.jar
-for t in size_test dupl_test remdr_test goto_s goto_f; do
-  ./sno2c -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
+git log --oneline -3   # verify HEAD = 189f9f2
+apt-get install -y libgc-dev nasm default-jdk && make -C src
+# J4 patterns baseline (expect 19/20):
+JASMIN=src/backend/jvm/jasmin.jar; PDIR=/home/claude/snobol4corpus/crosscheck/patterns
+pass=0; fail=0
+for sno in $PDIR/*.sno; do
+  base=$(basename $sno .sno); ref=$PDIR/${base}.ref; TMPD=$(mktemp -d)
+  ./sno2c -jvm "$sno" > $TMPD/p.j 2>/dev/null
   java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
-  cls=$(ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//')
-  echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"
-  rm -f $TMPD/*.class
-done
-printf 'alpha\nbeta\ngamma' | java -cp $TMPD $(./sno2c -jvm test/jvm_j3/input_test.sno > $TMPD/p.j && java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null && ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//') 2>/dev/null || echo "input: run manually"
-rm -rf $TMPD
-# Then implement J4: Byrd box pattern emitter
+  cls=$(ls $TMPD/*.class 2>/dev/null | head -1 | xargs basename 2>/dev/null | sed 's/.class//')
+  got=$(java -cp $TMPD $cls 2>/dev/null); exp=$(cat "$ref" 2>/dev/null); rm -rf $TMPD
+  [ "$got" = "$exp" ] && pass=$((pass+1)) || echo "FAIL $base"
+done; echo "patterns: $pass PASS $fail FAIL"
+# Then run capture/ rung and fix failures
 ```
-
 ---
 
 ## Session Start

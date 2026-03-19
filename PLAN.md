@@ -15,7 +15,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-backend` M-DROP-MOCK-ENGINE — remove mock_engine from ASM link path | `617631c` B-199 | M-DROP-MOCK-ENGINE |
-| **TINY JVM** | `jvm-backend` J4 — Byrd box patterns: LIT/SEQ/ALT/ARBNO | `f24fb97` J-198 | M-JVM-PATTERN |
+| **TINY JVM** | `jvm-backend` J5 — capture rung: . and $ capture | `189f9f2` J-199 | M-JVM-CAPTURE |
 | **TINY NET** | `net-backend` N-R2 — goto :S/:F + E_FNC builtins | `efc3772` N-197 | M-NET-GOTO |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` D-156 | M-NET-PERF |
@@ -152,7 +152,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-JVM-LIT** | OUTPUT = 'hello' correct via JVM backend | ✅ session195 |
 | **M-JVM-ASSIGN** | Variable assign + arith correct | ✅ session197 |
 | **M-JVM-GOTO** | :S(X)F(Y) branching correct | ✅ J-198 |
-| **M-JVM-PATTERN** | Byrd boxes in JVM — LIT/SEQ/ALT/ARBNO | ❌ Sprint J4 |
+| **M-JVM-PATTERN** | Byrd boxes in JVM — LIT/SEQ/ALT/ARBNO | ✅ J-199 |
 | **M-JVM-CAPTURE** | . and $ capture correct | ❌ Sprint J5 |
 | **M-JVM-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ❌ Sprint J-R1 |
 | **M-JVM-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ❌ Sprint J-R2 |
