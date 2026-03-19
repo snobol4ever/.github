@@ -7968,3 +7968,37 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/data
 # Sprint A-R11: data/ — ARRAY/TABLE/DATA
 ```
+
+---
+
+## session197 (J-197) — JVM Sprint J2: HashMap var store, E_KW, E_INDR, indirect assign → M-JVM-ASSIGN ✅
+
+**Date:** 2026-03-19
+**Repo:** snobol4x · HEAD after: `0362994`
+**Milestone fired:** M-JVM-ASSIGN ✅
+
+**What happened:**
+- Diagnosed J2 baseline: assign/ 5/8 (014/015 indirect FAIL), arith/ 0/2 (need :F+INPUT)
+- Root cause 014/015: `sno_indr_set()` wrote to HashMap but `E_VART` read from static field — out of sync
+- Fix: made HashMap authoritative — all E_VART reads go through `sno_indr_get(name)`
+- Added E_KW case in expr emitter → `sno_kw_get(name)` helper (ALPHABET/TRIM/ANCHOR)
+- Added E_INDR case in expr emitter → `sno_indr_get(name)`
+- Case 1 VAR assign → `sno_var_put(name,val)`; KW assign → `sno_kw_set()`
+- Case 3: E_INDR subject ($var=val) → `sno_indr_set()`
+- New static fields: `sno_vars Ljava/util/HashMap;`, `sno_kw_TRIM I`, `sno_kw_ANCHOR I`
+- Results: hello/ 4/4 · output/ 7/8 · assign/ 7/8 (014/015 ✅) · concat/ 6/6
+- 106/106 C invariant PASS throughout
+
+**Next session start block:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 0362994
+apt-get install -y libgc-dev nasm && make -C src
+ln -sfn /home/claude/snobol4corpus /home/snobol4corpus
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat
+# Sprint J3: :S/:F goto wiring + INPUT + SIZE/DUPL/REMDR → M-JVM-GOTO
+```

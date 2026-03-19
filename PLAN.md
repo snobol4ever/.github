@@ -15,7 +15,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-backend` A-R11 — data/ | `d832a86` B-197 | M-ASM-R11 |
-| **TINY JVM** | `jvm-backend` J2 — variable assign | `23765b1` J-195 | M-JVM-ASSIGN |
+| **TINY JVM** | `jvm-backend` J3 — :S/:F + INPUT + built-ins | `0362994` J-197 | M-JVM-GOTO |
 | **TINY NET** | `net-backend` N-R1 — OUTPUT='hello' | `23765b1` N-196 | M-NET-LIT |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` D-156 | M-NET-PERF |
@@ -149,7 +149,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 |----|---------|--------|
 | **M-JVM-HELLO** | null.sno → .class → java null → exit 0 | ✅ session194 |
 | **M-JVM-LIT** | OUTPUT = 'hello' correct via JVM backend | ✅ session195 |
-| **M-JVM-ASSIGN** | Variable assign + arith correct | ❌ Sprint J2 |
+| **M-JVM-ASSIGN** | Variable assign + arith correct | ✅ session197 |
 | **M-JVM-GOTO** | :S(X)F(Y) branching correct | ❌ Sprint J3 |
 | **M-JVM-PATTERN** | Byrd boxes in JVM — LIT/SEQ/ALT/ARBNO | ❌ Sprint J4 |
 | **M-JVM-CAPTURE** | . and $ capture correct | ❌ Sprint J5 |
