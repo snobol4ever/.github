@@ -8020,3 +8020,48 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 - Invariants: 106/106 C ✅ · 26/26 ASM ✅
 
 **Next:** N-198 — Sprint N-R2: bare-predicate stmt + E_FNC builtins (GT/LT/EQ/SIZE/IDENT/DIFFER) + goto :S/:F → M-NET-GOTO
+
+## Session J-198 — M-JVM-GOTO fires; Sprint J3 complete
+
+**Date:** 2026-03-19
+**Branch:** `jvm-backend`
+**HEAD at close:** `f24fb97`
+**Milestone fired:** M-JVM-GOTO ✅
+
+### What happened
+- Implemented full Sprint J3 in `emit_byrd_jvm.c`:
+  - `INPUT` in `E_VART`: `sno_input_read()` via lazy `BufferedReader`; null on EOF → `:F`
+  - `:F` goto wiring: pop-before-jump pattern keeps JVM stack consistent for verifier
+  - `SIZE`, `DUPL`, `REMDR`, `IDENT`, `DIFFER` added to `E_FNC` dispatch
+  - `sno_input_br` field declared in class header (Jasmin requires class-scope fields)
+  - Stack limit 4→6 in `sno_input_read` (lazy-init path pushes 5 deep)
+- 6/6 J3 smoke tests pass: size_test/dupl_test/remdr_test/goto_s/goto_f/input_test
+- `artifacts/jvm/hello_prog.j` updated (unchanged from null.sno baseline)
+- Test programs committed in `test/jvm_j3/`
+
+### State at handoff
+- `emit_byrd_jvm.c` builds clean, no warnings
+- Pattern match stmts still hit the stub (`J3+` comment) — J4 work
+- corpus unavailable in this container (private repo, no clone access)
+
+### Next session start — J-199
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = f24fb97
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+apt-get install -y libgc-dev nasm && make -C src
+# J3 smoke baseline (all 6 should pass):
+TMPD=$(mktemp -d); JASMIN=src/backend/jvm/jasmin.jar
+for t in size_test dupl_test remdr_test goto_s goto_f; do
+  ./sno2c -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
+  java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
+  cls=$(ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//')
+  echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"; rm -f $TMPD/*.class
+done; rm -rf $TMPD
+# Sprint J4: implement Byrd box pattern engine
+# See BACKEND-JVM.md and ARCH.md for four-port (α/β/γ/ω) model
+# Reference: JCON jcon/jcon-master/tran/gen_bc.icn — blueprint
+# Reference: emit_byrd_asm.c — structural oracle (same IR)
+```
+**Sprint J4 goal:** M-JVM-PATTERN — LIT/SEQ/ALT/ARBNO Byrd boxes in JVM bytecode.

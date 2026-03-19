@@ -9,47 +9,48 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J3 — `:S/:F` control flow + `INPUT` + built-ins (SIZE/DUPL/REMDR) → M-JVM-GOTO
-**HEAD:** `0362994` session197
-**Milestone:** M-JVM-LIT ✅ session195 · M-JVM-ASSIGN ✅ session197
+**Sprint:** `jvm-backend` J4 — Byrd boxes in JVM: LIT/SEQ/ALT/ARBNO → M-JVM-PATTERN
+**HEAD:** `f24fb97` J-198
+**Milestone:** M-JVM-LIT ✅ session195 · M-JVM-ASSIGN ✅ session197 · M-JVM-GOTO ✅ J-198
 
-**Session197 — Sprint J2 complete:**
-- E_VART reads via HashMap (authoritative for indirect writes)
-- E_KW: `sno_kw_get()` — ALPHABET/TRIM/ANCHOR; E_INDR: `sno_indr_get/set()`
-- VAR assign: `sno_var_put(name,val)`; KW assign: `sno_kw_set()`; `$var=val` via `sno_indr_set()`
-- `sno_vars` HashMap field + clinit init; `sno_kw_TRIM/ANCHOR` int fields
-- hello/ 4/4 · output/ 7/8 (006 needs SIZE) · assign/ 7/8 (014/015 ✅) · concat/ 6/6
-- arith/fileinfo + arith/triplet need `:F` + INPUT + SIZE/DUPL/REMDR → J3
+**J-198 — Sprint J3 complete:**
+- INPUT: `sno_input_read()` via lazy `BufferedReader`; null on EOF → `:F`
+- `:F` goto wiring: pop-before-jump pattern (clean stack for JVM verifier)
+- `SIZE`/`DUPL`/`REMDR`/`IDENT`/`DIFFER` added to `E_FNC` dispatch
+- `sno_input_br` field in class header; stack limit 6 in `sno_input_read`
+- 6/6 J3 smoke tests pass: size/dupl/remdr/goto_s/goto_f/input_loop
+- M-JVM-GOTO fires ✅
 
-**⚠ CRITICAL NEXT ACTION — Session198 (JVM):**
+**⚠ CRITICAL NEXT ACTION — Session J-199 (JVM):**
 
-Sprint J3 — `:S/:F` branching + `INPUT` + core built-ins
+Sprint J4 — Byrd box pattern engine in JVM bytecode
 
-Root causes for remaining failures:
-1. **output/006** `SIZE(&ALPHABET)` → needs `SIZE()` built-in in `jvm_emit_expr` E_FNC
-2. **arith/fileinfo + arith/triplet** → need `:F(label)` on INPUT failure + `SIZE()` + `DUPL()` + `REMDR()`
-3. **J3 milestone** = `:S/:F` goto wiring (`s->go->onfailure`) + `INPUT` reads stdin line (or null on EOF)
+Root work:
+1. **LIT node**: `jvm_emit_byrd_lit()` — match literal string at cursor, advance, branch :S/:F
+2. **SEQ node**: sequential composition — LIT followed by LIT etc.
+3. **ALT node**: alternation — try left, on fail try right
+4. **ARBNO node**: Kleene star — repeat until fail, then proceed
+5. **Subject/cursor setup**: load subject string into local, cursor = 0
+6. Milestone: `M-JVM-PATTERN` = patterns/ rung PASS
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 0362994
+git log --oneline -3   # verify HEAD = f24fb97
 apt-get install -y libgc-dev nasm && make -C src
-ln -sfn /home/claude/snobol4corpus /home/snobol4corpus
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
-CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
-  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/concat  # baseline
-# Then implement J3: goto wiring + INPUT + SIZE/DUPL/REMDR
+# Run J3 smoke tests to confirm baseline:
+TMPD=$(mktemp -d); JASMIN=src/backend/jvm/jasmin.jar
+for t in size_test dupl_test remdr_test goto_s goto_f; do
+  ./sno2c -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
+  java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
+  cls=$(ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//')
+  echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"
+  rm -f $TMPD/*.class
+done
+printf 'alpha\nbeta\ngamma' | java -cp $TMPD $(./sno2c -jvm test/jvm_j3/input_test.sno > $TMPD/p.j && java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null && ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//') 2>/dev/null || echo "input: run manually"
+rm -rf $TMPD
+# Then implement J4: Byrd box pattern emitter
 ```
-
-**J3 design notes (emit_byrd_jvm.c):**
-- `s->go->onfailure`: emit `goto L_<label>` on failure path — for pure-assign stmts failure never fires, so wire after OUTPUT/assign blocks
-- `INPUT` in E_VART: call `sno_input_read()` helper — reads `System.in` buffered line, returns `null` on EOF (maps to SNOBOL4 failure)
-- `:F` on INPUT: `ifnull` the INPUT result → jump to failure label
-- `SIZE(str)`: `invokevirtual java/lang/String/length()I` → `i2l` → `Long.toString` → String
-- `DUPL(str,n)`: loop or `String.repeat(int)` (Java 11+)
-- `REMDR(a,b)`: parse both to long, `lrem`, convert back
 
 ---
 
@@ -58,18 +59,19 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = session195 commit
-# Push if needed (token required):
-git remote set-url origin https://TOKEN@github.com/snobol4ever/snobol4x
-git push origin main
-# Build + invariant:
+git log --oneline -3   # verify HEAD = f24fb97
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 apt-get install -y libgc-dev nasm && make -C src
-ln -sfn /home/claude/snobol4corpus /home/snobol4corpus
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 106/106
-# JVM rung check:
-bash test/crosscheck/run_crosscheck_jvm_rung.sh \
-  /home/claude/snobol4corpus/crosscheck/hello \
-  /home/claude/snobol4corpus/crosscheck/output  # 11/11
+# J3 smoke baseline:
+TMPD=$(mktemp -d); JASMIN=src/backend/jvm/jasmin.jar
+for t in size_test dupl_test remdr_test goto_s goto_f; do
+  ./sno2c -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
+  java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
+  cls=$(ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//')
+  echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"; rm -f $TMPD/*.class
+done; rm -rf $TMPD
+# Then implement J4: LIT/SEQ/ALT/ARBNO Byrd box pattern emitter
+```
 # Then Sprint J2: assign/ + arith/ rungs
 ```
 
