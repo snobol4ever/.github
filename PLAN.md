@@ -11,13 +11,13 @@ Shared frontends. Multiple backends. Self-hosting goal: sno2c compiles sno2c.
 | | |
 |-|-|
 | **Active repos** | `snobol4x` (TINY) · `snobol4dotnet` (DOTNET) |
-| **TINY sprint** | `snocone-frontend` — SC0 lexer → M-SNOC-LEX (frontend session) · `asm-backend` corpus fixes (backend session) |
-| **TINY HEAD** | `583c5a5` session182 |
+| **TINY sprint** | `asm-backend` A-R9 — keywords/ (backend session) · `sc-corpus-ladder` SC-CORPUS-2 — control/ (frontend session) |
+| **TINY HEAD** | `9f784fa` session192 |
 | **TINY next** | Frontend: SC6-ASM self → M-SNOC-ASM-SELF |
 | **DOTNET sprint** | `net-perf-analysis` — hotfixes landed; dotnet test + BenchmarkSuite2 re-run needed |
 | **DOTNET HEAD** | `a029cae` session156: hotfixes A–D; BUILDING.md; build_native.sh; net-build-prereqs ✅ |
 | **DOTNET next** | `dotnet test` 1873/1876 → BenchmarkSuite2 re-run → M-NET-PERF → `cross` @N fix → net-benchmark-publish |
-| **HEAD TINY** | `64ce79a` session192b |
+| **HEAD TINY** | `9f784fa` session192 |
 | **HEAD CORPUS** | `9c00acd` session136 |
 | **HEAD HQ** | (this commit) session146 |
 | **Invariant TINY** | `106/106` crosscheck before any snobol4x work |
@@ -107,7 +107,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-R5** | control/ + control_new/ — goto/:S/:F PASS | ✅ session189 |
 | **M-ASM-R6** | patterns/ — 20 program-mode pattern tests PASS | ✅ session189 |
 | **M-ASM-R7** | capture/ — 7 tests PASS | ✅ session190 |
-| **M-ASM-R8** | strings/ — SIZE/SUBSTR/REPLACE/DUPL PASS | ⏳ session191 15/17 |
+| **M-ASM-R8** | strings/ — SIZE/SUBSTR/REPLACE/DUPL PASS | ✅ session192 |
 | **M-ASM-R9** | keywords/ — IDENT/DIFFER/GT/LT/EQ/DATATYPE PASS | ❌ Sprint A-R9 |
 | **M-ASM-R10** | functions/ — DEFINE/RETURN/FRETURN/recursion PASS | ❌ Sprint A-R10 |
 | **M-ASM-R11** | data/ — ARRAY/TABLE/DATA PASS | ❌ Sprint A-R11 |

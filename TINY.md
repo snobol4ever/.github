@@ -11,50 +11,42 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `sc-corpus-ladder` SC-CORPUS-2 — control/ + control_new/ Snocone `.sc` → M-SC-CORPUS-R2
-**HEAD:** `4a0997d` session192 (frontend)
-**Milestone:** M-SC-CORPUS-R1 ✅ session192 · M-ASM-R7 ✅ session190 · M-SNOC-ASM-CORPUS ✅ session189 · M-ASM-R8 🔶 session191 (16/17; cross/E_AT pending)
+**Sprint:** `asm-backend` A-R9 — keywords/ — IDENT/DIFFER/GT/LT/EQ/DATATYPE
+**HEAD:** `9f784fa` session192 (backend)
+**Milestone:** M-ASM-R8 ✅ session192 · M-SC-CORPUS-R1 ✅ session192 (frontend) · M-ASM-R7 ✅ session190
 
-**Session192 (frontend) — M-SC-CORPUS-R1: SC corpus hello/output/assign 20/20 PASS:**
+**Session192 (backend) — M-ASM-R8: strings 17/17 PASS; 7 root-cause fixes:**
 
-- `test/crosscheck/sc_corpus/hello/` — 4 .sc + .ref (hello, empty_string, multi, literals)
-- `test/crosscheck/sc_corpus/output/` — 8 .sc + .ref (001-008)
-- `test/crosscheck/sc_corpus/assign/` — 8 .sc + .ref (009-016)
-- `test/crosscheck/run_sc_corpus_rung.sh` — new rung runner (mirrors run_crosscheck_asm_rung.sh)
-- `emit_byrd_asm.c` E_INDR fix: Snocone puts operand in `->left`; SNOBOL4 in `->right`; accept either (`right ? right : left`). Fixes 014/015 indirect assign via `-sc -asm`.
-- 106/106 C ✅  26/26 ASM ✅  10/10 SC ✅  **20/20 SC-CORPUS-R1 ✅**
-- **M-SC-CORPUS-R1 fires**
+- **Fix 1** — Case 2 gamma/omega: `emit_jmp(tgt_s, next_lbl)` → `emit_jmp(tgt_s ? tgt_s : tgt_u, next_lbl)` in both gamma and omega paths. `:(LOOP)` unconditional goto was silently discarded. Fixes word1/2/3/4.
+- **Fix 2** — E_VART unresolved: emit `LIT_VAR_ALPHA/BETA` via `stmt_match_var` instead of hard-fail ω. Variables used bare in pattern context (e.g. `CROSS`) now match against their runtime string value. Fixes cross NEXTH/NEXTV.
+- **Fix 3** — `snobol4_asm.mac`: added `LIT_VAR_ALPHA varlab, saved, cursor, gamma, omega` and `LIT_VAR_BETA saved, cursor, omega` macros (call `stmt_match_var`).
+- **Fix 4** — E_ATP `@VAR`: varname was `pat->sval` (NULL/empty); correct is `pat->left->sval` (parser builds `unop(E_ATP, E_VART("NH"))`). `@NH`/`@NV` were emitting empty label `S_26`. Fixes cross position capture.
+- **Fix 5** — Per-stmt capture filter in gamma: `cap_vars[]` is global across all stmts + named-pat bodies. Gamma loop now pre-walks the statement's pattern tree (following E_VART named-pat refs) to collect only captures reachable from this statement. Eliminates spurious `SET_CAPTURE` from other stmts polluting unrelated gammas.
+- **Fix 6** — `stmt_concat` propagates FAILDESCR: `DIFFER(C,'#') CONCAT rest` now correctly fails when C='#'. Was calling `VARVAL_fn(FAILDESCR)` → `""` and silently succeeding.
+- **Fix 7** — `OUTPUT =` null RHS: `LOAD_NULVCL` (writes rbp-16/8) → `LOAD_NULVCL32` (writes rbp-32/24). `SET_OUTPUT` reads rbp-32/24; mismatch was printing stale prior result as blank line.
+- 106/106 C ✅  26/26 ASM ✅  **17/17 strings ✅  M-ASM-R8 fires**
 
-**⚠ CRITICAL NEXT ACTION — Session193:**
+**⚠ CRITICAL NEXT ACTION — Session193 (backend):**
 
-Sprint SC-CORPUS-2 — hand-convert control/ + control_new/ SNOBOL4 → Snocone `.sc` → M-SC-CORPUS-R2
+Sprint A-R9 — keywords/ — IDENT/DIFFER/GT/LT/EQ/DATATYPE
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 4a0997d
+git log --oneline -3   # verify HEAD = 9f784fa
 apt-get install -y libgc-dev nasm && make -C src
+mknod /dev/null c 1 3 && chmod 666 /dev/null   # recreate if missing
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
-bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
-bash test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh  # 10/10
-bash test/crosscheck/run_sc_corpus_rung.sh \
-    test/crosscheck/sc_corpus/hello \
-    test/crosscheck/sc_corpus/output \
-    test/crosscheck/sc_corpus/assign   # 20/20
-# Sprint SC-CORPUS-2:
-# ls /home/claude/snobol4corpus/crosscheck/control/
-# ls /home/claude/snobol4corpus/crosscheck/control_new/
-# Hand-convert each .sno → .sc into test/crosscheck/sc_corpus/control/ and control_new/
-# Key Snocone translations:
-#   SNOBOL4 goto :S(L)F(L) → if/unless/while in Snocone (or explicit goto)
-#   SNOBOL4 labels → procedure or inline label (Snocone has goto keyword)
-#   :F(END) → if cond then ... (goal-directed)
-# Add control/ + control_new/ dirs, run runner, fix failures
-# All PASS → M-SC-CORPUS-R2 fires → commit + update .github
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings   # must be 17/17
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/keywords
+# baseline: see how many pass; fix failures; M-ASM-R9 fires at 100%
 ```
 
-**cross fix (backend, still pending):** Compile cross, run `printf "AB\nBC\n" | ./cross_bin`. Confirm AT_ALPHA fires. Check ANY_ALPHA_VAR macro: `subj` arg must be global `subject_data`. Named-pattern body shares globals — confirm `cursor` and `subject_data` are same symbols.
+**Architecture note — backend/frontend split:** Both SNOBOL4 (`-asm`) and Snocone (`-sc -asm`) frontends produce `Program*` and call the same `asm_emit_program()`. Backend session touches only `src/backend/x64/emit_byrd_asm.c`, `src/runtime/asm/snobol4_asm.mac`, `src/runtime/asm/snobol4_stmt_rt.c`. Frontend session touches only `src/frontend/snocone/sc_*.c`. Only conflict surface is `sno2c` binary — resolve by `make -C src` after rebase.
 
 **Session189 (frontend) — M-SNOC-ASM-CORPUS: SC corpus 10/10 PASS via -sc -asm:**
 - `SC_KW_THEN` added to `sc_lex.h` enum (appended after `SC_UNKNOWN` — safe, no shift) + keyword table + `sc_kind_name`
