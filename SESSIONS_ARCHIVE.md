@@ -8167,3 +8167,23 @@ done
 **Verified:** 106/106 C ✅ · 26/26 ASM ✅ · Full rung 94/97 (3 pre-existing failures fileinfo/triplet/expr_eval unchanged)
 
 **Note:** `mock_engine.c` remains in the C backend link path (`run_crosscheck.sh`) where it belongs for the interpreter-based pattern engine.
+
+## Session N-198 — NET backend: rename + N-R2 E_FNC builtins + goto
+
+**Sprint:** `net-backend` N-R2
+**HEAD:** `4445d48`
+**Date:** 2026-03-19
+
+### What was done
+
+- Renamed `net_emit.c` → `emit_byrd_net.c` to match `emit_byrd_asm.c`/`emit_byrd_jvm.c` convention
+- Added E_FNC builtins: `sno_gt/lt/ge/le/eq/ne` (int32 helpers), `sno_ident/differ`, `sno_size`
+- Added `sno_litmatch` (String.Contains) for basic literal pattern match
+- Added `sno_alphabet()` helper for `&ALPHABET`
+- Implemented Case 2 bare-predicate stmt (`GT(N,5) :S(DONE)`)
+- Implemented Case 3 basic literal pattern match (`X 'hello' :S(Y)F(N)`)
+- Added `test/crosscheck/run_crosscheck_net_rung.sh` with md5 cache + timeout
+- Added `test/crosscheck/run_crosscheck_net.sh` — harness wrapper calling `adapters/tiny_net/run.sh`
+- Added `snobol4harness/adapters/tiny_net/run.sh` — plugs into `crosscheck.sh --engine tiny_net`
+- Deleted stale `src/backend/jvm/README.md` + `src/backend/net/README.md`
+- 106/106 C ✅  26/26 ASM ✅

@@ -268,57 +268,44 @@ done
 - output/ 7/8 (006_keyword_alphabet needs E_KW) · assign/ 6/8 (014/015 indirect $ = N-R3+) · arith/ 0/2 (loops+INPUT = N-R3+)
 - 106/106 C ✅  26/26 ASM ✅  commit `efc3772` N-197
 
-**⚠ CRITICAL NEXT ACTION — N-198 (net):**
+**N-198 (net) — rename net_emit.c→emit_byrd_net.c; N-R2 E_FNC builtins + goto/:S/:F:**
 
-Sprint N-R2 — goto :S/:F/:uncond + E_FNC builtins (GT/LT/EQ/GE/LE/NE/IDENT/DIFFER/SIZE) → M-NET-GOTO
+- `src/backend/net/net_emit.c` renamed to `emit_byrd_net.c` — matches `emit_byrd_asm.c`/`emit_byrd_jvm.c` convention
+- `src/Makefile` + `src/driver/main.c` updated to reference new filename
+- **E_FNC builtins** added to `net_emit_expr`: `GT/LT/GE/LE/EQ/NE` → `sno_gt/lt/ge/le/eq/ne` helpers returning int32 1/0; `IDENT/DIFFER` → `sno_ident/differ`; `SIZE` → `sno_size`
+- **`&ALPHABET`** in `E_KW`: `sno_alphabet()` helper emits 256-char string via `char[]` loop
+- **Case 2 bare-predicate stmt** in `net_emit_one_stmt`: `GT(N,5) :S(DONE)` — eval subject, pop result, branch on local 0
+- **Case 3 literal pattern match**: `X 'hello' :S(Y)F(N)` — `sno_litmatch(subj,pat)` via `String.Contains`
+- **`run_crosscheck_net_rung.sh`** added to `test/crosscheck/` — md5-cached ilasm + `timeout 5` per run
+- **`snobol4harness/adapters/tiny_net/run.sh`** added — plugs into `crosscheck.sh --engine tiny_net`
+- Stale `src/backend/jvm/README.md` + `src/backend/net/README.md` deleted (docs live in .github)
+- 106/106 C ✅  commit `b15164e` N-198
 
-Root causes of remaining output/ + control_new/ failures:
-1. **Bare-predicate stmt** (`GT(N,5) :S(DONE)` — no `has_eq`, subject=E_FNC, goto): hits `nop` stub in `net_emit_one_stmt`. Need: eval subject expr, check success flag, branch.
-2. **E_FNC builtins** in `net_emit_expr`: `GT/LT/EQ/GE/LE/NE` — numeric compare, return value or fail. `IDENT/DIFFER` — string compare. `SIZE` — string length. Each must: leave result string on stack and set success flag (local 0).
-3. **E_KW &ALPHABET**: 256-char string of all bytes 0–255. Emit as `ldstr` with the literal string, or call a helper.
+**⚠ CRITICAL NEXT ACTION — N-199 (net):**
 
-Fix strategy for `net_emit_one_stmt` — bare predicate case:
-```c
-/* Case 2: bare expression predicate — subject only, no has_eq, no pattern */
-if (!s->has_eq && s->subject && !s->pattern) {
-    net_emit_expr(s->subject);   /* leaves string on stack + sets local 0 */
-    /* pop the string result (not assigned anywhere) */
-    N("    pop\n");
-    if (tgt_u) net_emit_goto(tgt_u, next_lbl);
-    else {
-        if (tgt_s) net_emit_branch_success(tgt_s);
-        if (tgt_f) net_emit_branch_fail(tgt_f);
-    }
-    return;
-}
-```
+Sprint N-R2 continued — verify control_new/ and keywords/ pass; fix &ALPHABET (currently returns 0, needs SIZE=256); fix remaining assign/ failures; fire M-NET-GOTO.
 
-Fix strategy for `net_emit_expr` E_FNC — numeric comparisons emit as:
-```c
-case E_FNC:
-    if (strcasecmp(e->sval, "GT") == 0 || strcasecmp(e->sval, "LT") == 0 ...) {
-        /* eval both args as doubles, compare, set local 0, leave right arg on stack */
-        net_emit_expr(arg0); net_emit_expr(arg1);
-        N("    call string %s::sno_gt(string,string)\n", net_classname);
-        /* sno_gt: parse both, compare; if true: stloc 0 = 1, return right arg string */
-        /*         if false: stloc 0 = 0, return "" */
-    }
-```
-
-Emit sno_gt/lt/eq/ge/le/ne as helper methods alongside sno_add etc. Success flag local 0 must be set inside helper or via return convention. Simplest: helper returns "" on fail, non-empty on success — then `net_emit_branch_success/fail` uses `ldloc.0` already set by stloc.0 inside helper.
+Known remaining failures from N-197 baseline:
+1. **006_output_keyword_alphabet**: `&ALPHABET` SIZE should be 256, `sno_alphabet()` helper exists but `SIZE(&ALPHABET)` returns `sno_size(sno_alphabet())` → should work; verify `sno_size` returns string length not 0
+2. **014/015 indirect `$`**: deferred to N-R3
+3. **arith/ fileinfo/triplet**: needs INPUT loop — deferred
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = efc3772 N-197
+git log --oneline -3   # verify HEAD = b15164e N-198
 apt-get install -y libgc-dev nasm mono-complete && make -C src
 mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
-# hello/ must be 4/4:
-for f in $CORPUS/hello/*.sno; do ref="${f%.sno}.ref"; ./sno2c -net "$f" > /tmp/t.il 2>/dev/null && ilasm /tmp/t.il /output:/tmp/t.exe >/dev/null 2>&1; actual=$(mono /tmp/t.exe 2>/dev/null); expected=$(cat "$ref"); [ "$actual" = "$expected" ] && echo "PASS $(basename $f)" || echo "FAIL $(basename $f)"; done
-# Then implement E_FNC builtins + bare-predicate stmt → run control_new/ → M-NET-GOTO
+# Run NET rungs via harness:
+cd /home/claude/snobol4harness
+TINY_REPO=/home/claude/snobol4x bash crosscheck/crosscheck.sh --engine tiny_net 2>&1
+# OR per-rung:
+cd /home/claude/snobol4x
+bash test/crosscheck/run_crosscheck_net_rung.sh $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/control_new $CORPUS/keywords
+# Fix failures → M-NET-GOTO fires when :S/:F branching confirmed correct
 ```
 
 **⚠ CRITICAL NEXT ACTION — Session196 (net):**
