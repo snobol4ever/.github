@@ -308,3 +308,25 @@ backend doesn't handle the construct yet):
 
 **Net effect:** frontend and backend sessions never conflict on source files.
 The `.xfail` file is the contract between them.
+
+## ⛔ NEW FILES — Any file created for the project belongs in a repo immediately
+
+On 2026-03-19 (B-205): claws5.sno and treebank.sno were written to the container
+filesystem and not committed. They were nearly lost. The session had to be extended
+to recover them.
+
+**The rule:** Creating a project file and committing it to the correct repo are the
+same act. There is no such thing as a project file that lives only on the container.
+
+- `.sno` program for ENG685/corpus → `snobol4corpus` → commit + push immediately
+- `.s` ASM artifact → `snobol4x/artifacts/asm/` → commit + push
+- `.c` C artifact → `snobol4x/artifacts/c/` → commit + push
+- Any other project output → find its repo → commit + push
+
+**The test:** Before closing any session, ask: "Did I create any files this session?"
+If yes: are they all in a repo? If not: `git add -A` will catch them.
+
+`git add -A` is not just about modified files. The `-A` exists precisely to catch
+new files you might have forgotten. Run it. Every time. On every touched repo.
+
+**A file on the container that is not in a repo does not exist.**
