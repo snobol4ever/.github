@@ -11,12 +11,40 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-RUNG8 — M-ASM-RUNG8: rung8/ REPLACE/SIZE/DUPL 3/3 PASS via ASM backend
-**HEAD:** `8bae0fe` B-204 (after N-201/J-203 commits by other sessions)
-**Milestone:** M-ASM-RECUR ✅ B-204 · M-ASM-SAMPLES ✅ B-204
+**Sprint:** `asm-backend` A-RUNG8 — next: M-ASM-RUNG8/9/10/11 → M-ASM-LIBRARY → M-ENG685-CLAWS → M-ENG685-TREEBANK → M-ASM-BEAUTY
+**HEAD:** `266c866` B-204 (snobol4x unchanged B-205)**Milestone:** M-ASM-RECUR ✅ B-204 · M-ASM-SAMPLES ✅ B-204
 **Milestone order:** M-ASM-RUNG8 → M-ASM-RUNG9 → M-ASM-RUNG10 → M-ASM-RUNG11 → M-ASM-LIBRARY → M-ENG685-CLAWS → M-ENG685-TREEBANK → M-ASM-BEAUTY
 
+<<<<<<< HEAD
 **Session B-205 (backend) — M-ASM-RUNG8: rung8/ REPLACE/SIZE/DUPL assertion harness 3/3 PASS**
+=======
+**Session B-205 summary — ENG685 programs + milestone roadmap:**
+claws5.sno working (6469 tokens). treebank.sno uses lib/stack.sno; open bug: pre-assign
+BRKSET = ' ' NL '()' before using in BREAK(). PLAN.md 9 new milestones pushed 09a3a17.
+snobol4corpus pushed 6849508. RULES.md §PUSH violated — declared handoff before pushing corpus.
+
+**⚠ CRITICAL NEXT ACTION — Session B-206 (backend):**
+
+Fix treebank.sno BRKSET bug, generate .ref oracles, commit+push corpus. Then M-ASM-RUNG8.
+
+```bash
+cd /home/claude/snobol4corpus
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull
+# Fix treebank.sno gm(): add  BRKSET = ' ' NL '()'  then use  BREAK(BRKSET)  not  BREAK(SPCNL '()')
+# Run both programs, diff against CSNOBOL4, commit .ref oracles, git add -A && git commit && git push
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 266c866 B-204
+apt-get install -y libgc-dev nasm && make -C src
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung8  # M-ASM-RUNG8
+```
+
+**Session B-205 (backend) — M-ASM-BEAUTY: beauty.sno compiles and self-beautifies**
+>>>>>>> b7be1b7 (B-205: TINY.md + SESSIONS_ARCHIVE — ENG685 claws5/treebank; next M-ASM-RUNG8)
 
 **HEAD:** `8bae0fe` (latest main — verify with `git log --oneline -3`)
 **Status:** 106/106 C ✅ · 26/26 ASM ✅ · 8/8 functions ✅ · roman.sno ✅ · wordcount.sno ✅
