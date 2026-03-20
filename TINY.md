@@ -11,14 +11,56 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` A-RECUR — fix recursive fn frame → M-ASM-RECUR → M-ASM-SAMPLES
-**HEAD:** `71c86d3` B-201
-**Milestone:** M-DROP-MOCK-ENGINE ✅ B-200 · M-ASM-R11 ✅ session198 · M-ASM-R10 ✅ session197
+**Sprint:** `asm-backend` A-BEAUTY — M-ASM-BEAUTY: beauty.sno self-beautifies via ASM backend
+**HEAD:** `266c866` B-204
+**Milestone:** M-ASM-RECUR ✅ B-204 · M-ASM-SAMPLES ✅ B-204
 
-**Session B-203 (backend) — M-ASM-RECUR: fix Case 2 predicate RETURN/FRETURN**
+**Session B-205 (backend) — M-ASM-BEAUTY: beauty.sno compiles and self-beautifies**
 
-**HEAD:** `0c1b997` B-202
-**Status:** 106/106 C ✅ · 26/26 ASM ✅ · functions 7/8 (087 fails) · roman_mini no crash but wrong value
+**HEAD:** `266c866` B-204
+**Status:** 106/106 C ✅ · 26/26 ASM ✅ · 8/8 functions ✅ · roman.sno ✅ · wordcount.sno ✅
+**Session B-204 summary — M-ASM-RECUR + M-ASM-SAMPLES fire:**
+
+Three root causes fixed:
+1. **Case 2 predicate S/F dispatch** (B-203): `GT(x,0) :S(RETURN)F(FRETURN)` — guard `(id_s>=0||id_f>=0)` was false for RETURN/FRETURN (prog_label_id returns -1 for special targets). Added `is_special_goto()` check. 8/8 functions.
+2. **Local variable save/restore** at call sites: `DEFINE('ROMAN(N)T')` — T was not pushed/popped around recursive calls. Added `nlocals` field + `local_names[]` to `AsmNamedPat`; extended `parse_define_str` to parse locals after `)` in prototype; added locals push/pop to call-site γ/ω restore.
+3. **Function retval + locals cleared at α entry**: SNOBOL4 resets function name variable and all locals to null at every call. Added `stmt_set(fname, NULVCL)` and `stmt_set(local_i, NULVCL)` in α prologue after loading params.
+
+**⚠ CRITICAL NEXT ACTION — Session B-205 (backend):**
+
+Sprint A-BEAUTY — M-ASM-BEAUTY: beauty.sno self-beautifies
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git log --oneline -3   # verify HEAD = 266c866 B-204
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions  # must be 8/8
+
+# Attempt beauty.sno self-beautify:
+INC=/home/claude/snobol4corpus/programs/inc
+BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+RT=src/runtime
+./sno2c -asm -I$INC $BEAUTY > /tmp/beauty_asm.s
+nasm -f elf64 -I $RT/asm/ /tmp/beauty_asm.s -o /tmp/beauty_asm.o
+gcc -no-pie /tmp/beauty_asm.o $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
+    $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -no-pie -o /tmp/beauty_asm_bin
+echo "INPUT = beauty.sno" | timeout 30 /tmp/beauty_asm_bin < $BEAUTY > /tmp/beauty_out.txt
+# diff against C-backend output → M-ASM-BEAUTY fires when diff is empty
+./sno2c -I$INC $BEAUTY > /tmp/beauty_c.c
+gcc /tmp/beauty_c.c $RT/snobol4/snobol4.c $RT/mock/mock_includes.c \
+    $RT/snobol4/snobol4_pattern.c $RT/engine/engine.c \
+    -I$RT/snobol4 -I$RT -Isrc/frontend/snobol4 -lgc -lm -w -o /tmp/beauty_c_bin
+timeout 30 /tmp/beauty_c_bin < $BEAUTY > /tmp/beauty_c_out.txt
+diff /tmp/beauty_out.txt /tmp/beauty_c_out.txt && echo "M-ASM-BEAUTY fires"
+```
+
 
 **Root cause of 087_define_freturn + roman_mini wrong value:**
 `GT(x,0) :S(RETURN)F(FRETURN)` is a Case 2 statement — predicate only, no subject/pattern.
