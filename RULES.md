@@ -212,6 +212,15 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
 ```
 If not 106/106: fix the regression before touching anything else. Regressions are bugs.
 
+## ⛔ MILESTONE ORDER — TINY.md sprint must match PLAN.md dashboard order
+
+**The sprint in TINY.md NOW must always be the next ❌ milestone in PLAN.md's milestone dashboard, in sequence.**
+
+- PLAN.md is the authoritative source of milestone order. Never skip ahead.
+- When writing the "CRITICAL NEXT ACTION" block at the end of a session, look up the next ❌ in PLAN.md — do not invent or reorder.
+- If TINY.md NOW and PLAN.md dashboard disagree: PLAN.md wins. Fix TINY.md.
+- This rule exists because B-204 wrote M-ASM-BEAUTY as next sprint, skipping RUNG8/9/10/11 and LIBRARY and ENG685 entirely.
+
 ## ⛔ HQ HIERARCHY — edit downstream files, not PLAN.md
 
 **Structural model:**
