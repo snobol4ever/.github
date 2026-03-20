@@ -122,6 +122,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ENG685-CLAWS** | claws5.sno — CLAWS5 POS corpus tokenizer; uses lib/stack.sno; .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 |
 | **M-ENG685-TREEBANK** | treebank.sno — Penn Treebank S-expr parser; uses lib/stack.sno (same pattern as beauty.sno); .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 |
 | **M-DROP-MOCK-ENGINE** | `mock_engine.c` removed from ASM program link path; 26-test harness suite migrated to full `.sno` format or harness rewritten to not call `engine_match`; 26/26 + 106/106 hold without linking `mock_engine.o` in ASM path | ✅ `06df4cb` B-200 |
+| **M-FLAT-NARY** | Parser: `E_CONC` and `E_OR` emitted as flat n-ary nodes (`args[]`, no `left`/`right`); all backends (C, ASM, NET) updated to iterate `args[0..nargs-1]`; 106/106 C + 26/26 ASM hold | ❌ Sprint F-FLAT-NARY (frontend session) |
 | **M-SNOC-LEX** | sc_lex.c: all Snocone tokens; `OUTPUT = 'hello'` → 3 tokens PASS | ✅ `573575e` session183 |
 | **M-SNOC-PARSE** | sc_parse.c: full stmt grammar; SC corpus exprs + control flow PASS | ✅ `5e20058` session184 |
 | **M-SNOC-LOWER** | sc_lower.c: Snocone AST → EXPR_t/STMT_t wired | ✅ `2c71fc1` session185 |

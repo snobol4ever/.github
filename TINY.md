@@ -1705,6 +1705,46 @@ Prolog reader
 
 ---
 
+## Sprint F-FLAT-NARY — M-FLAT-NARY (frontend session owns this)
+
+**Goal:** Flatten `E_CONC` and `E_OR` to true n-ary nodes (`args[]` only, no `left`/`right`).
+Update all backends that walk these nodes: C (`emit_byrd.c`), ASM (`emit_byrd_asm.c`), NET (`emit_byrd_net.c`).
+JVM stays untouched (its session owns it separately).
+
+**Why:** N-202 NET session (N-203) added n-ary-aware pattern emit for NET but left the parser
+producing binary trees. The frontend session finishes the job: parser emits n-ary, all non-JVM
+backends consume `args[]`.
+
+**Steps:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+
+# 1. parse.c — add naryop() helper, flatten E_CONC (parse_expr4) and E_OR (parse_expr3)
+#    naryop() sets args[]/nargs ONLY — no left/right.
+
+# 2. emit_byrd.c (C backend) — update E_CONC and E_OR in both expr and pattern contexts
+#    to iterate args[0..nargs-1] instead of left/right recursion.
+
+# 3. emit_byrd_asm.c (ASM backend) — update E_CONC/E_OR dispatch:
+#    E_CONC: fold args[] right-to-left via emit_asm_seq(args[i], args[i+1], ...)
+#    E_OR:   fold args[] left-to-right via emit_asm_alt(args[i], args[i+1], ...)
+
+# 4. emit_byrd_net.c (NET backend) — already updated in N-203 to use args[] with
+#    binary left/right fallback. Remove the fallback once parser is clean.
+
+# 5. Verify:
+make -C src
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+```
+
+**Fires when:** 106/106 C + 26/26 ASM pass with pure n-ary nodes (no left/right on E_CONC/E_OR).
+
+---
+
 ## Milestone Map
 
 | Milestone | Trigger | Status | Sprint |
