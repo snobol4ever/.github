@@ -8790,3 +8790,47 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 # Fix cross: implement E_ATP in jvm_emit_pat_node — capture cursor as integer
 # Then remove their xfail files, verify 90+/92, commit, push
 ```
+
+## Session B-208 — treebank.sno rewritten; treebank.ref oracle committed
+
+**Sprint:** `asm-backend` · **Repos touched:** snobol4corpus · **snobol4x HEAD unchanged:** `266c866` B-204
+
+### What fired
+- treebank.ref oracle committed (`eb088b9`) — 31369 lines from VBGinTASA.dat via CSNOBOL4
+
+### treebank.sno complete rewrite
+
+Previous version used a wrong Stack+Counter two-structure approach.
+New version uses five functions over a single `DATA('cell(hd,tl)')` Gimpel cons-cell:
+
+- `do_push_list(v)` — `stk = cell(cell(v,), stk)`
+- `do_push_item(v)` — `hd(stk) = cell(v, hd(stk))`
+- `do_pop_list()` — count LIFO chain, reverse into ARRAY, prepend onto parent
+- `do_pop_final(v)` — count LIFO chain, reverse into ARRAY, assign to `$v`
+
+`group()` is a recursive DEFINE function with locals `(tag, wrd)` — the SNOBOL4
+equivalent of Python `λ` closure. Patterns share global scope; only DEFINE locals
+give each recursive invocation its own bindings.
+
+Key lessons:
+1. `epsilon . *fn()` requires NRETURN + `.dummy` — correct idiom but insufficient
+   here because `tag`/`wrd` are globals clobbered by recursive group calls.
+2. `$` (immediate) capture is needed before any pattern function sees the value.
+3. Outer sentence loop must be explicit labeled goto — ARBNO does not undo
+   side-effects on backtrack, corrupting the cons-cell stack.
+
+Tested on CSNOBOL4: simple `(NP (DT the) (NN dog))`, two sentences, deep nesting.
+
+### Next session start (B-209)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung8  # → M-ASM-RUNG8
+```

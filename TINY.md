@@ -36,7 +36,7 @@ Outer sentence loop is an explicit labeled goto loop (not ARBNO) to prevent side
 corruption from failed ARBNO backtrack iterations.
 
 Tested on CSNOBOL4: `(NP (DT the) (NN dog))`, two sentences, deeply nested `(S ...)` —
-all produce correct indented S-expression output. Corpus HEAD: `ae6ad8a`.
+all produce correct indented S-expression output. Corpus HEAD: `eb088b9` (treebank.ref oracle committed).
 
 **⚠ CRITICAL NEXT ACTION — Session B-209 (backend):**
 
