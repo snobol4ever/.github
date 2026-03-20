@@ -9340,3 +9340,15 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 - Invariants held throughout: 106/106 C · 26/26 ASM
 
 **Commits:** `b8570ce` (first pass) → `52baf6e` (complete strip, no prefix on any private static)
+## Session D-160 (addendum) — semicolon separator root cause diagnosed
+
+**What was found after main fix:**
+- The one remaining `[Ignore]` corpus test is `TEST_Corpus_1012_func_locals` — uses semicolon
+  statement separator: `a = 'aa' ; b = 'bb' ; d = 'dd'`
+- `SourceCode.SplitLineByDelimiter` correctly splits on `;` → sub-lines are `a = 'aa'`, ` b = 'bb'`, ` d = 'dd'`
+- Bug: `Lexer.FindLexeme` state 2 (LABEL) fires for **every** sub-line. Sub-line ` b = 'bb'`
+  starts with `b` which matches the label regex → `b` registered as label, `= 'bb'` fails to parse
+- `SourceLine.LineCountSubLine` already tracks sub-line index (1-based). Fix: in state case 2,
+  add `if (sourceLine.LineCountSubLine > 1) { skip label, advance to state 3 }` guard
+- File: `Snobol4.Common/Builder/Lexer.cs`, state `case 2:` block
+- After fix: remove `[Ignore]` from `TEST_Corpus_1012_func_locals` → 1877/1877 → diag1 35/35

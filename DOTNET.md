@@ -11,7 +11,7 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `net-polish` — confirm 106/106 → M-NET-CORPUS-RUNGS → M-NET-POLISH
+**Sprint:** `net-polish` — confirm 106/106 → M-NET-CORPUS-RUNGS → fix semicolon → M-NET-POLISH
 **HEAD:** `8a713cb` D-160
 **Invariant:** `dotnet test` → 1873/1876 (3 C-ABI skipped) before any work
 **Milestone:** M-NET-CORPUS-RUNGS ❌ → fix shipped D-160; pending dotnet test confirmation
@@ -25,8 +25,17 @@ export PATH=$PATH:/usr/local/dotnet
 git log --oneline -3   # verify HEAD = 8a713cb D-160
 dotnet build Snobol4.sln -c Release -p:EnableWindowsTargeting=true
 dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
-# Expect: 1876/1876 (3 skipped) — cross test now passes
-# If confirmed: fire M-NET-CORPUS-RUNGS ✅ → begin M-NET-POLISH (diag1 35/35 + benchmark grid)
+# Expect: 1876/1876 (3 C-ABI skipped) → fire M-NET-CORPUS-RUNGS ✅
+
+# Step 2: fix semicolon statement separator (one remaining [Ignore] in corpus)
+# Root cause: Lexer state 2 (LABEL) fires for every sub-line from SplitLineByDelimiter.
+# Sub-lines beyond the first (LineCountSubLine > 1) cannot have labels — but 'b = bb'
+# starts with 'b' which matches the label pattern, so 'b' gets registered as a label
+# and '= bb' fails to parse as a statement body.
+# Fix: in Lexer.FindLexeme case 2, skip label extraction when sourceLine.LineCountSubLine > 1
+# File: Snobol4.Common/Builder/Lexer.cs
+# After fix: remove [Ignore] from TEST_Corpus_1012_func_locals → dotnet test → diag1 35/35
+# → publish benchmark grid → M-NET-POLISH ✅
 ```
 
 **CRITICAL:** Always pass `-p:EnableWindowsTargeting=true` on Linux builds.
@@ -36,9 +45,9 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 ## Last Session Summary
 
 **Session D-160 — PosPattern/RPosPattern Clone() swap fixed:**
-- Root cause: `PosPattern.Clone()` returned `RPosPattern`; `RPosPattern.Clone()` returned `PosPattern`
-- Pure copy-paste bug — triggered `cross` corpus test failure (POS/RPOS inverted on Clone)
+- Root cause of `cross` 105/106: `PosPattern.Clone()` returned `RPosPattern`; `RPosPattern.Clone()` returned `PosPattern` — copy-paste swap
 - Fix: 4 lines across 2 files; `8a713cb` pushed; dotnet test pending SDK in next session
+- Also diagnosed semicolon separator [Ignore]: Lexer labels sub-lines; fix is LineCountSubLine > 1 guard
 
 **Session D-159 — M-NET-PERF fires:**
 - BenchmarkSuite2 re-run; ≥1 alloc win confirmed; libspitbol_xn.so rebuilt; 1873/1876 ✅
