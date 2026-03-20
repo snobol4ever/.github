@@ -1,0 +1,94 @@
+Concept	Canon	C (emit_byrd.c)	ASM (emit_byrd_asm.c)	JVM (emit_byrd_jvm.c)	NET (emit_byrd_net.c)	Status	Notes
+OUTPUT FILE*	out	out	out	out	out	done	
+Output fn	A/B/J/N	B()	A()	J()	N()	done	intentional per PLAN — keep as-is
+Column tracker	col	—	col	—	col	done	present only where target needs column tracking
+Label buffer size	LBUF	LBUF	LBUF	—	—	add	add to JVM/NET
+Name length limit	NAME_LEN	NAME_LEN=320	NAME_LEN=320	NAME_LEN=128	NAME_LEN=128	rename	values differ — unify to 320
+Max vars	MAX_VARS	—	MAX_VARS	MAX_VARS	MAX_VARS	done	absent in C (lives in emit.c)
+Max named pats	NAMED_PAT_MAX	NAMED_PAT_MAX=128	NAMED_PAT_MAX=64	NAMED_PAT_MAX=64	NAMED_PAT_MAX=64	rename	values differ — unify to 128
+Max fn count	FN_MAX	—	—	FN_MAX	FN_MAX	rename	JVM=JVM_FN_MAX_FWD; NET=NET_FN_MAX
+Max fn args	FN_ARGMAX	—	FN_ARGMAX=8	FN_ARGMAX=32	FN_ARGMAX=16	rename	ASM=MAX_PARAMS; JVM=JVM_ARG_MAX_FWD; NET=NET_FN_ARGMAX
+Max data types	DATA_MAX	—	—	DATA_MAX	—	rename	JVM=JVM_DATA_MAX
+Max lits	MAX_LITS	—	MAX_LITS	—	—	done	ASM only
+Max strs	MAX_STRS	—	MAX_STRS	—	—	done	ASM only
+Max floats	MAX_FLTS	—	MAX_FLTS	—	—	done	ASM only
+Max labels	MAX_LABELS	—	MAX_LABELS	—	—	done	ASM only
+Max cap vars	MAX_CAP_VARS	—	MAX_CAP_VARS	—	—	done	ASM only
+UID counter	uid_ctr	uid_ctr	uid_ctr	uid_ctr	uid_ctr	rename	NET currently: pat_uid_early
+UID function	next_uid()	next_uid()	next_uid()	next_uid()	next_uid()	rename	JVM/NET currently inline uid_ctr++/pat_uid++
+Call-site UID counter	call_uid_ctr	—	call_uid_ctr	—	—	done	ASM only
+Call-site UID fn	call_uid()	—	call_uid()	—	—	done	ASM only
+Var array	vars[]	—	vars[]	vars[]	vars[]	done	absent in C (lives in emit.c)
+Var count	nvar	—	nvar	nvar	nvar	done	absent in C
+Var register fn	var_register()	—	var_register()	var_register()	var_register()	done	absent in C
+Var reset fn	var_reset()	—	var_reset()	var_reset()	var_reset()	add	JVM/NET currently missing
+Collect vars prog	collect_vars()	—	—	collect_vars()	collect_vars()	rename	NET currently: scan_prog_vars()
+Collect vars expr	collect_vars_expr()	—	—	collect_vars_expr()	collect_vars_expr()	rename	NET currently: scan_expr_vars()
+NamedPat struct	NamedPat	NamedPat	NamedPat	NamedPat	NamedPat	done	
+Named pat array	named_pats[]	named_pats[]	named_pats[]	named_pats[]	named_pats[]	done	
+Named pat count	named_pat_count	named_pat_count	named_pat_count	named_pat_count	named_pat_count	done	
+Named pat register	named_pat_register()	named_pat_register()	named_pat_register()	named_pat_register()	named_pat_register()	done	
+Named pat lookup	named_pat_lookup()	named_pat_lookup()	named_pat_lookup()	named_pat_lookup()	named_pat_lookup()	done	
+Named pat reset	named_pat_reset()	named_pat_reset()	named_pat_reset()	named_pat_reset()	named_pat_reset()	rename	C currently: byrd_named_pat_reset()
+Scan named pats	scan_named_patterns()	scan_named_patterns()	scan_named_patterns()	scan_named_patterns()	scan_named_patterns()	rename	C currently: byrd_preregister_named_pattern()
+FnDef struct	FnDef	—	—	FnDef	FnDef	rename	JVM struct tag currently: JvmFnDef_s (typedef already FnDef)
+Fn table array	fn_table[]	—	—	fn_table[]	fn_table[]	done	
+Fn count	fn_count	—	—	fn_count	fn_count	done	
+Current fn ptr	cur_fn	—	cur_fn	cur_fn	cur_fn	done	
+Find fn	find_fn()	—	—	find_fn()	find_fn()	done	
+Parse prototype	parse_proto()	—	—	parse_proto()	parse_proto()	done	
+Collect fn defs	collect_fndefs()	—	—	collect_fndefs()	collect_fndefs()	rename	JVM: collect_functions(); NET: scan_fndefs()
+Stmt belongs to fn	stmt_in_fn()	—	—	stmt_in_fn()	stmt_in_fn()	rename	NET currently: stmt_in_any_fn()
+Flatten str expr	flatten_str()	—	—	flatten_str()	flatten_str()	done	
+Emit one fn body	emit_fn_method()	—	—	emit_fn_method()	emit_fn_method()	done	
+Emit all fn bodies	emit_fn_methods()	—	—	emit_fn_methods()	emit_fn_methods()	extract	JVM currently inlined in jvm_emit()
+DataType struct	DataType	—	—	DataType	—	done	JVM only so far
+Data type array	data_types[]	—	—	data_types[]	—	done	JVM only so far
+Data type count	data_type_count	—	—	data_type_count	—	done	JVM only so far
+Find data type	find_data_type()	—	—	find_data_type()	—	done	JVM only so far
+Find data field	find_data_field()	—	—	find_data_field()	—	done	JVM only so far
+Classname buffer	classname[]	—	—	classname[]	classname[]	done	
+Set classname	set_classname()	—	—	set_classname()	set_classname()	done	
+Field name fn	field_name()	—	—	field_name()	field_name()	done	
+Escape string	escape_string()	escape_string()	—	escape_string()	—	rename	C currently: emit_cstr()
+Has pattern fn pred	expr_has_pat_fn()	—	expr_has_pat_fn()	expr_has_pat_fn()	expr_has_pat_fn()	done	
+Is pattern expr pred	expr_is_pattern_expr()	—	expr_is_pattern_expr()	expr_is_pattern_expr()	expr_is_pattern_expr()	done	
+Expr emitter	emit_expr()	emit_expr()	emit_expr()	emit_expr()	emit_expr()	rename	ASM currently: prog_emit_expr(); C lives in emit.c
+Pat node dispatch	emit_pat_node()	emit_pat_node()	emit_pat_node()	emit_pat_node()	emit_pat_node()	done	
+SEQ node emitter	emit_seq()	emit_seq()	emit_seq()	emit_seq()	emit_seq()	extract	JVM/NET currently inlined in emit_pat_node()
+ALT node emitter	emit_alt()	emit_alt()	emit_alt()	emit_alt()	emit_alt()	extract	JVM/NET currently inlined in emit_pat_node()
+ARBNO node emitter	emit_arbno()	emit_arbno()	emit_arbno()	emit_arbno()	emit_arbno()	extract	JVM/NET currently inlined in emit_pat_node()
+LIT node emitter	emit_lit()	emit_lit()	emit_lit()	emit_lit()	emit_lit()	rename	ASM currently: emit_asm_lit(); JVM/NET inlined
+ANY node emitter	emit_any()	emit_any()	emit_any()	emit_any()	emit_any()	rename	ASM currently: emit_asm_any(); JVM/NET inlined
+NOTANY node emitter	emit_notany()	emit_notany()	emit_notany()	emit_notany()	emit_notany()	rename	ASM currently: emit_asm_notany(); JVM/NET inlined
+SPAN node emitter	emit_span()	emit_span()	emit_span()	emit_span()	emit_span()	rename	ASM currently: emit_asm_span(); JVM/NET inlined
+BREAK node emitter	emit_break()	emit_break()	emit_break()	emit_break()	emit_break()	rename	ASM currently: emit_asm_break(); JVM/NET inlined
+BREAKX node emitter	emit_breakx()	emit_breakx()	emit_breakx()	emit_breakx()	emit_breakx()	rename	ASM currently: emit_asm_breakx_lit(); JVM/NET inlined
+ARB node emitter	emit_arb()	emit_arb()	emit_arb()	emit_arb()	emit_arb()	rename	ASM currently: emit_asm_arb(); JVM/NET inlined
+REM node emitter	emit_rem()	emit_rem()	emit_rem()	emit_rem()	emit_rem()	rename	ASM currently: emit_asm_rem(); JVM/NET inlined
+LEN node emitter	emit_len()	emit_len()	emit_len()	emit_len()	emit_len()	rename	ASM currently: emit_asm_len(); JVM/NET inlined
+TAB node emitter	emit_tab()	emit_tab()	emit_tab()	emit_tab()	emit_tab()	rename	ASM currently: emit_asm_tab(); JVM/NET inlined
+RTAB node emitter	emit_rtab()	emit_rtab()	emit_rtab()	emit_rtab()	emit_rtab()	rename	ASM currently: emit_asm_rtab(); JVM/NET inlined
+POS node emitter	emit_pos()	emit_pos()	emit_pos()	emit_pos()	emit_pos()	rename	ASM currently: emit_asm_pos(); JVM/NET inlined
+RPOS node emitter	emit_rpos()	emit_rpos()	emit_rpos()	emit_rpos()	emit_rpos()	rename	ASM currently: emit_asm_rpos(); JVM/NET inlined
+FENCE node emitter	emit_fence()	emit_fence()	emit_fence()	emit_fence()	emit_fence()	extract	ASM/JVM/NET currently inlined; C has it
+SUCCEED node emitter	emit_succeed()	emit_succeed()	emit_succeed()	emit_succeed()	emit_succeed()	extract	ASM/JVM/NET currently inlined; C has it
+FAIL node emitter	emit_fail()	emit_fail()	emit_fail()	emit_fail()	emit_fail()	rename	C currently: emit_fail_node() — drop _node suffix
+ABORT node emitter	emit_abort()	emit_abort()	emit_abort()	emit_abort()	emit_abort()	rename	C currently: emit_abort_node() — drop _node suffix
+IMM assign emitter	emit_imm()	emit_imm()	emit_imm()	emit_imm()	emit_imm()	rename	ASM currently: emit_asm_assign(); JVM/NET inlined
+Cond assign emitter	emit_cond()	emit_cond()	emit_cond()	emit_cond()	emit_cond()	extract	ASM/JVM/NET currently inlined; C has it
+Named pat ref emitter	emit_named_ref()	—	emit_named_ref()	emit_named_ref()	emit_named_ref()	rename	ASM currently: emit_asm_named_ref(); JVM/NET inlined
+Named pat def emitter	emit_named_def()	—	emit_named_def()	emit_named_def()	emit_named_def()	rename	ASM currently: emit_asm_named_def(); JVM/NET inlined
+Goto emitter	emit_goto()	—	emit_goto()	emit_goto()	emit_goto()	done	
+Stmt emitter	emit_stmt()	emit_stmt()	emit_stmt()	emit_stmt()	emit_stmt()	rename	ASM currently: emit_body(); C in emit.c
+Emit all stmts	emit_stmts()	—	—	emit_stmts()	emit_stmts()	extract	JVM currently inlined in jvm_emit()
+Emit program loop	emit_program()	—	emit_program()	emit_program()	emit_program()	extract	JVM/NET currently inlined in x_emit()
+Emit header	emit_header()	—	—	emit_header()	emit_header()	done	absent in ASM/C — target-specific
+Emit footer	emit_footer()	—	—	emit_footer()	emit_footer()	add	JVM currently absent
+Emit main open	emit_main_open()	—	—	emit_main_open()	emit_main_open()	done	absent in ASM/C — target-specific
+Emit main close	emit_main_close()	—	—	emit_main_close()	emit_main_close()	done	absent in ASM/C — target-specific
+Label fmt helper	label_fmt()	label_fmt()	label_fmt()	label_fmt()	label_fmt()	extract	ASM/JVM/NET currently inline snprintf; C has it
+String intern	str_intern()	—	str_intern()	—	—	done	ASM only
+Lit intern	lit_intern()	—	lit_intern()	—	—	done	ASM only
+Lit emit data	lit_emit_data()	—	lit_emit_data()	—	—	done	ASM only
+Top-level entry	x_emit()	c_emit()	asm_emit()	jvm_emit()	net_emit()	done	intentional per PLAN — keep as-is

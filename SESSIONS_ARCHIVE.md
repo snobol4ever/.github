@@ -9382,3 +9382,35 @@ cd /home/claude/snobol4x && git checkout asm-backend && git pull --rebase origin
 # Task: add Greek port suffixes to JVM emit_pat_node labels, then NET
 # Then: generated-code naming pass per Lon's direction
 ```
+
+## Session B-217 — M-EMITTER-NAMING audit; EMITTER_NAME_GRID.tsv produced
+
+**Branch:** asm-backend  
+**HEAD at start:** 646e7dd B-216  
+**HEAD at end:** 646e7dd (no source changes this session)
+
+**What happened:**
+- Cloned snobol4corpus (repo was missing from container). Verified invariants: 106/106 C + 26/26 ASM hold.
+- Full symbol audit of all four emitter source files (emit_byrd.c, emit_byrd_asm.c, emit_byrd_jvm.c, emit_byrd_net.c): every #define, typedef, static variable, static function.
+- Produced EMITTER_NAME_GRID.tsv — 94 rows, 7 columns (Concept, Canon, C, ASM, JVM, NET, Status, Notes). This file is the authoritative naming law for M-EMITTER-NAMING. It replaces any summary or handoff note.
+- Status column values: done / rename / extract / add.
+- One source edit was made to emit_byrd_asm.c mid-session (emit_asm_seq→emit_seq etc.) but was discussed and stopped — net effect: no source changes committed.
+- M-EMITTER-NAMING remains ⚠ WIP.
+
+**State at handoff:**
+- EMITTER_NAME_GRID.tsv committed to .github
+- All invariants hold at 646e7dd
+- Next session B-218: read EMITTER_NAME_GRID.tsv, work Status=rename rows first, then extract, then add
+
+**Next session start block:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git checkout asm-backend && git pull --rebase origin asm-backend
+cat /home/claude/.github/EMITTER_NAME_GRID.tsv   # THE NAMING LAW — read before touching anything
+apt-get install -y libgc-dev nasm && make -C src
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh
+```
