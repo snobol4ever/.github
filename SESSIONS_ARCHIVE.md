@@ -9286,3 +9286,13 @@ git push origin asm-backend
 **State at handoff:** HEAD `fd09e01` B-215 on asm-backend. 106/106 C · 26/26 ASM.
 
 **Next session B-216:** M-ASM-RUNG8 — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend.
+
+## Session B-215 addendum — M-EMITTER-NAMING audit correction
+
+End-of-session audit revealed M-EMITTER-NAMING was prematurely marked ✅. The C backend rename (snoc_emit→c_emit, sym_table→vars, sym_count→nvar, E()→C()) was completed in B-215, but ASM/NET/JVM static internals were NOT renamed despite B-214 claiming so. Remaining work for B-216:
+
+- **ASM:** asm_out→out, bss_slots→vars, bss_count→nvar, bss_add→var_register, asm_uid()→uid(), asm_named[]→named_pats[], emit_asm_node→emit_pat_node
+- **JVM:** jvm_out→out, jvm_vars[]→vars[], jvm_nvar→nvar, JvmNamedPat→NamedPat, jvm_named_pats[]→named_pats[], JvmFnDef→FnDef, JvmDataType→DataType, jvm_emit_pat_node→emit_pat_node, jvm_emit_stmt→emit_stmt
+- **NET:** net_out→out, net_vars[]→vars[], net_nvar→nvar, NetNamedPat→NamedPat, net_named_pats[]→named_pats[], net_named_pat_register→named_pat_register, net_emit_one_stmt→emit_stmt
+
+PLAN.md NOW row and M-EMITTER-NAMING milestone reverted to ❌. TINY.md corrected.

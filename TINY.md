@@ -12,9 +12,9 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-216 — M-ASM-RUNG8: REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend
+**Sprint:** `asm-backend` B-216 — M-EMITTER-NAMING: strip remaining per-backend prefixes from ASM/NET/JVM static internals
 **HEAD:** `fd09e01` B-215
-**Milestone:** M-EMITTER-NAMING ✅ `fd09e01` B-215 — all four emitters unified; next: M-ASM-RUNG8
+**Milestone:** M-EMITTER-NAMING ❌ — C backend done (B-215); ASM/NET/JVM static internals still prefixed
 **Invariants:** 106/106 C · 26/26 ASM
 
 **⚠ CRITICAL NEXT ACTION — Session B-216:**
@@ -29,21 +29,48 @@ CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh  # must be 26/26
 
-# M-ASM-RUNG8: rung8/ — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend
-# Run rung8 tests:
-bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings rung8
-# Diagnose failures, fix emit_byrd_asm.c, regenerate artifacts, 106/106+26/26, commit
+# M-EMITTER-NAMING remaining work — strip per-backend prefixes:
+#
+# ASM (emit_byrd_asm.c):
+#   asm_out       → out
+#   bss_slots[]   → vars[]  (bss_count→nvar, bss_add→var_register, bss_reset→var_reset)
+#   asm_uid_ctr   → uid_ctr, asm_uid()→uid()
+#   asm_named[]   → named_pats[]  (asm_named_count→named_pat_count, etc.)
+#   emit_asm_node → emit_pat_node
+#
+# JVM (emit_byrd_jvm.c):
+#   jvm_out            → out
+#   jvm_vars[]         → vars[]  (jvm_nvar→nvar, jvm_var_register→var_register)
+#   JvmNamedPat        → NamedPat
+#   jvm_named_pats[]   → named_pats[]  (jvm_named_pat_count→named_pat_count, etc.)
+#   JvmFnDef           → FnDef
+#   JvmDataType        → DataType
+#   jvm_emit_pat_node  → emit_pat_node
+#   jvm_emit_stmt      → emit_stmt
+#
+# NET (emit_byrd_net.c):
+#   net_out              → out
+#   net_vars[]           → vars[]  (net_nvar→nvar)
+#   NetNamedPat          → NamedPat
+#   net_named_pats[]     → named_pats[]  (net_named_pat_count→named_pat_count, etc.)
+#   net_named_pat_register → named_pat_register
+#   net_emit_one_stmt    → emit_stmt
+#
+# After each file: make -C src, 106/106+26/26, then regenerate artifacts.
+# Commit: "B-216: M-EMITTER-NAMING — ASM/NET/JVM static internals prefix strip complete"
 ```
 
 ---
 
 ## Last Two Session Summaries
 
-**Session B-215 — Segfault fixed; M-EMITTER-NAMING ✅ complete; artifacts updated:**
-- Root cause of beauty_prog.s divergence: triple-push bug in cap-var tree-walk (emit_byrd_asm.c lines 4004-4007) — explicit children[0]/[1] pushes without nchildren guard + n-ary loop → segfault on programs with -I includes. Fix: removed redundant explicit pushes.
-- All three artifacts regenerated and assembled clean. C backend rename: snoc_emit→c_emit, sym_table→vars, sym_count→nvar, E()→C(). M-EMITTER-NAMING ✅ fired. HEAD fd09e01.
+**Session B-215 — Segfault fixed; C backend renamed; M-EMITTER-NAMING still ❌:**
+- Segfault root cause: triple-push bug in cap-var tree-walk (`emit_byrd_asm.c` ~line 4004) — unguarded `e->children[0]` on leaf nodes. Fix: removed redundant explicit pushes, kept n-ary loop only.
+- All three artifacts (beauty/roman/wordcount) regenerated and assemble clean. Committed `6f96ff7`.
+- C backend rename complete: `snoc_emit→c_emit`, `sym_table→vars`, `sym_count→nvar`, `E()→C()`. Committed `fd09e01`.
+- **Audit at session end revealed M-EMITTER-NAMING is NOT complete**: ASM/NET/JVM static internals still carry per-backend prefixes (asm_out, bss_slots, bss_count, asm_uid, net_out, net_vars, NetNamedPat, jvm_out, JvmNamedPat, jvm_named_pats, etc.). The rename was only partially executed in B-214. PLAN.md corrected.
 
-**Session B-214 — M-EMITTER-NAMING Option B: ASM+NET+JVM prefix strip complete; beauty_prog.s diverged:**
+**Session B-214 — M-EMITTER-NAMING Option B planned; ASM/NET/JVM rename attempted but incomplete:**
 - Full naming audit across all 4 backends. Decision: Option B — drop per-backend prefix from all `static` internal names; file scope handles collision; identical names enable instant cross-backend correlation.
 - ASM: `bss_slots→vars`, `bss_count→nvar`, `bss_add→var_register`, `asm_named→named_pats`, `asm_uid→uid`, `emit_asm_node→emit_pat_node`, `asm_emit_body→emit_stmt`, `asm_out→out`, etc.
 - NET: `NetNamedPat→NamedPat`, `NetFnDef→FnDef`, `net_vars→vars`, `net_emit_one_stmt→emit_stmt`, `net_out→out`, etc.
