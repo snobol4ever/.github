@@ -8951,3 +8951,69 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 # Fix word1: trace named-pattern ARB deferred-commit path in INPUT loop
 # Fix cross: null-check in E_CONC value-context StringBuilder loop
 ```
+
+## Session N-204 — NET backend: DEFINE/RETURN/FRETURN, indirect assign, named patterns — 92/110
+
+**Session type:** TINY NET backend
+**HEAD on entry:** `0872f3d` N-203
+**HEAD on exit:** `0f9d12b` N-204
+
+**Baseline on entry:** 83/110 (after DLL rebuild)
+
+**Work done:**
+
+1. **Migrated all stale `left`/`right`/`args`/`nargs` to accessor macros** throughout `emit_byrd_net.c`. `scan_expr_vars` now walks all n-ary children.
+
+2. **Named pattern registry** (`net_named_pat_lookup` + `net_scan_named_patterns`): when `P = 'a' | 'b' | 'c'` and `X P . V` is used, the structural pattern tree is inline-expanded at the use site instead of loading placeholder string. Fixed `053_pat_alt_commit`. **+1 test.**
+
+3. **`sno_vars` Dictionary + `net_indr_get`/`net_indr_set`** added to emitted class header. `net_indr_set` stores in Dictionary AND updates static field via reflection (BindingFlags=56). Fixed `014`/`015` indirect assignment. **+2 tests.**
+
+4. **DEFINE/RETURN/FRETURN** — full implementation:
+   - `NetFnDef` struct + `net_parse_proto` + `net_scan_fndefs`
+   - `net_emit_fn_method` emits each function as static CIL method
+   - `net_emit_stmts` skips fn-body statements (new `in_fn_body[]` bitmask)
+   - `net_emit_goto` routes RETURN/FRETURN to `Nfn{i}_return/freturn` labels
+   - `E_FNC` expr emitter dispatches user function calls to `net_fn_NAME`
+   - fn name/args/locals registered as SNOBOL4 vars in `net_scan_fndefs`
+   - RETURN path reads retval from static field (`ldsfld`) not Dictionary
+   - 7/8 function tests pass. **+7 tests → 92/110.**
+
+**Still failing (18 tests):**
+- `087_define_freturn` — FRETURN via `:S(RETURN)F(FRETURN)` emits `brfalse L_FRETURN` (literal label) instead of `brfalse Nfn0_freturn`. Root cause: `net_emit_branch_fail`/`net_emit_branch_success` bypass the RETURN/FRETURN interception in `net_emit_goto`. **One-line fix.**
+- `026_arith_divide`, `027_arith_exponent` — pre-existing integer division semantics
+- `056_pat_star_deref` — `*VAR` pattern deref not implemented
+- `091`–`096` — ARRAY/TABLE/DATA not implemented
+- `098_keyword_anchor` — &ANCHOR
+- `100_roman_numeral` — depends on functions (should pass once 087 fixed)
+- `cross`, `word1–4`, `wordcount` — depend on functions
+
+**Next session N-205 start block:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y mono-complete 2>/dev/null | tail -1
+make -C src
+mkdir -p /tmp/snobol4x_net_cache
+ilasm src/runtime/net/snobol4run.il /dll /output:/tmp/snobol4x_net_cache/snobol4run.dll
+ilasm src/runtime/net/snobol4lib.il /dll /output:/tmp/snobol4x_net_cache/snobol4lib.dll
+# Baseline: 92/110
+TINY_REPO=/home/claude/snobol4x NET_CACHE=/tmp/snobol4x_net_cache \
+  CORPUS=/home/claude/snobol4corpus/crosscheck \
+  HARNESS_REPO=/home/claude/snobol4harness \
+  STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_net.sh
+```
+
+**Priority for N-205:**
+
+1. **Fix `087_define_freturn` (1 line):** In `net_emit_branch_success` and `net_emit_branch_fail`, check if `net_cur_fn != NULL` and target is RETURN/FRETURN — emit `brtrue`/`brfalse Nfn{i}_return/freturn` instead of `L_RETURN`/`L_FRETURN`. Find these functions around line 618 in `emit_byrd_net.c`. This should unlock `100_roman_numeral` and the word/cross samples too (~7 more tests).
+
+2. **`056_pat_star_deref`** — `*VAR` pattern: load var's value and use as named pattern inline (same mechanism as named pattern registry but dynamic). Check how the C backend handles `E_INDR` in pattern context.
+
+3. **`098_keyword_anchor`** — &ANCHOR assignment. Check how it's handled; likely just needs `net_indr_set`/static field update in the &ANCHOR keyword case.
+
+4. **ARRAY/TABLE/DATA (091–096)** — 6 tests. Mirror JVM backend's HashMap-of-HashMaps approach for ARRAY/TABLE. DATA types need a simple type registry + field accessor functions.
+
+**Key file:** `src/backend/net/emit_byrd_net.c`  
+**Key reference:** `src/backend/jvm/emit_byrd_jvm.c` for all unimplemented features.
