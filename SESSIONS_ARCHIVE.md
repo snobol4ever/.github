@@ -8344,3 +8344,46 @@ apt-get install -y libgc-dev nasm default-jdk && make -C src
 CORPUS=/home/claude/snobol4corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh $CORPUS/functions $CORPUS/data 2>&1 | tail -5
 ```
+
+---
+
+## Session B-204 — M-ASM-RECUR + M-ASM-SAMPLES
+
+**Token:** B-204
+**Milestones fired:** M-ASM-RECUR ✅ · M-ASM-SAMPLES ✅
+**HEAD at close:** `5cab9e3` (after rebase; commit content = `266c866` B-204)
+**Invariants:** 106/106 C ✅ · 26/26 ASM ✅ · 8/8 functions ✅
+
+**What was done:**
+
+Three root causes in recursive SNOBOL4 functions fixed:
+
+1. **Case 2 predicate S/F dispatch (B-203, this session):** `GT(x,0) :S(RETURN)F(FRETURN)` — the guard `(id_s>=0||id_f>=0)` was false for RETURN/FRETURN because `prog_label_id()` returns -1 for special targets. Extended guard with `is_special_goto()` check. 8/8 functions pass.
+
+2. **Local variable save/restore at call sites:** `DEFINE('ROMAN(N)T')` — `T` (declared local after `)` in prototype) was not saved/restored around recursive calls, causing the inner call to overwrite the outer call's `T`. Added `nlocals`/`local_names[]` to `AsmNamedPat`; extended `parse_define_str` to parse locals; added locals push (reverse order, after params) and pop (forward order, before params) at every call site.
+
+3. **Function retval + locals cleared at α entry:** SNOBOL4 semantics require the function name variable (return value) and all declared locals to be null at every call entry. Added `stmt_set(fname, NULVCL)` and `stmt_set(local_i, NULVCL)` in the α prologue after loading params.
+
+- `roman.sno` (benchmark, 100k iterations): `MDCCLXXVI` ✅
+- `wordcount.sno`: diff empty ✅
+- `artifacts/asm/samples/roman.s` + `wordcount.s` committed, NASM clean
+- `artifacts/asm/beauty_prog.s` regenerated, NASM clean
+
+**State at handoff:**
+Sprint A-BEAUTY active: beauty.sno self-beautify via ASM backend → M-ASM-BEAUTY
+
+**Next session start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git log --oneline -3  # expect 5cab9e3 (B-204 rebased)
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/functions  # 8/8
+# Then attempt beauty.sno self-beautify — see TINY.md Session B-205 block
+```
