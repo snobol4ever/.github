@@ -369,3 +369,48 @@ If yes: are they all in a repo? If not: `git add -A` will catch them.
 new files you might have forgotten. Run it. Every time. On every touched repo.
 
 **A file on the container that is not in a repo does not exist.**
+
+## ⛔ REPO PATHS — Canonical clone locations (use these, never symlinks)
+
+All repos are cloned into `/home/claude/` as siblings:
+
+```
+/home/claude/snobol4x/          ← compiler + backends
+/home/claude/snobol4corpus/     ← test corpus
+/home/claude/snobol4harness/    ← harness
+/home/claude/snobol4jvm/        ← JVM/Clojure backend
+/home/claude/.github/           ← HQ docs
+```
+
+Derived canonical paths — **always set these env vars before running any test script:**
+
+```bash
+export CORPUS=/home/claude/snobol4corpus/crosscheck
+export INC=/home/claude/snobol4corpus/programs/inc
+export BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+export ROMAN=/home/claude/snobol4corpus/benchmarks/roman.sno
+export WORDCOUNT=/home/claude/snobol4corpus/crosscheck/strings/wordcount.sno
+```
+
+**Never create symlinks. Ever. For any reason.**
+**Never patch scripts to hardcode paths.** Set the env vars. That is the correct and
+only fix.
+
+Scripts and their path behavior — always pass CORPUS= when the default is wrong:
+
+| Script | Default CORPUS | Needs CORPUS= ? |
+|--------|---------------|-----------------|
+| `snobol4x/test/crosscheck/run_crosscheck.sh` | derived via `$TINY/../..` → `/home/snobol4corpus` | **YES** |
+| `snobol4x/test/crosscheck/run_crosscheck_asm.sh` | `/home/snobol4corpus/crosscheck` | **YES** |
+| `snobol4x/test/crosscheck/run_crosscheck_asm_corpus.sh` | `/home/claude/snobol4corpus/crosscheck` | no |
+| `snobol4x/test/crosscheck/run_crosscheck_asm_prog.sh` | `/home/claude/snobol4corpus/crosscheck/beauty` | no |
+| `snobol4x/test/crosscheck/run_crosscheck_asm_rung.sh` | args passed explicitly | no |
+| `snobol4x/test/crosscheck/run_crosscheck_jvm_rung.sh` | args passed explicitly | no |
+| `snobol4x/test/crosscheck/run_crosscheck_net.sh` | `/home/claude/snobol4corpus/crosscheck` | no |
+| `snobol4harness/crosscheck/crosscheck.sh` | `$HOME/snobol4corpus/crosscheck` = `/root/...` | **YES** |
+| `snobol4harness/crosscheck/bench.sh` | `$HOME/snobol4corpus` = `/root/...` | **YES** |
+| `snobol4harness/adapters/tiny/run.sh` | derives from `$TINY_REPO` — set that var | **YES** |
+| `snobol4harness/adapters/dotnet/run_crosscheck_dotnet.sh` | `$HOME/snobol4corpus/crosscheck` = `/root/...` | **YES** |
+
+All scripts that support `${CORPUS:-...}` honor `CORPUS=` as an env override.
+All scripts that take explicit dir args (jvm_rung, asm_rung) — pass full paths directly.

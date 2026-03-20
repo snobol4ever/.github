@@ -9176,3 +9176,20 @@ bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
 
 **Invariants at handoff:** 106/106 C · 26/26 ASM  
 **Next session B-214:** naming audit — entry points, var registries, named-pat registries, uid functions, output macros across all 4 emitters → M-EMITTER-NAMING fires
+
+## Session J-209 — M-JVM-SAMPLES sprint: root cause found, partial fix
+
+**State at handoff:** `29a8f59` on `main` · Sprint J-S1 · M-JVM-SAMPLES in progress
+
+**What happened:**
+- Cloned all repos fresh; set git identity; installed deps; built sno2c
+- Fixed RULES.md: added canonical repo paths section (`/home/claude/snobol4corpus` etc.), symlink prohibition (absolute), env-var-only path override policy, full table of all scripts and their CORPUS defaults
+- Fixed `run_crosscheck.sh` to honor `CORPUS=` env override (was unconditionally derived)
+- Confirmed invariants: 102/106 C (4 pre-existing: 091/092/093/100) · 26/26 ASM · 89/92 JVM active
+- **Root cause of roman.sno failure diagnosed:** `jvm_emit_goto` did not handle `RETURN`/`FRETURN`/`NRETURN` when `jvm_cur_fn==NULL` (main body) — emitted `goto L_RETURN` with no definition. Fix: route to `goto L_END`. Additionally, six code paths bypass `jvm_emit_goto` entirely via `snprintf(flbl,"L_%s",onfailure)`. Two fixed (pattern-fail block). Four remain.
+- Committed `29a8f59`: `jvm_emit_goto` fix + two pattern-fail-path fixes
+
+**Remaining work for J-210:**
+Fix 4 remaining `L_%s` bypass sites in `emit_byrd_jvm.c` (~lines 2116, 2264, 2320, 2359) → roman.sno PASS → wordcount.sno PASS → M-JVM-SAMPLES ✅
+
+**Next session start:** See CRITICAL NEXT ACTION in JVM.md
