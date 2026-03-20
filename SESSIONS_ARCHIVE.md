@@ -9068,3 +9068,38 @@ Diagnosed and fixed two root causes blocking rung9 and rung11.
 **Next session J-209:**
 Sprint J-S1 — M-JVM-SAMPLES: roman.sno + wordcount.sno PASS via JVM backend.
 Start block in JVM.md CRITICAL NEXT ACTION.
+
+## Session B-211 — PROTOTYPE + ITEM + VALUE + array default-fill; HQ L2 size discipline
+
+**What happened:**
+- Added `_b_PROTOTYPE(arr)` → returns dimension string e.g. `"3"` or `"2,3"` for 2D.
+- Fixed `_b_ARRAY` second arg (default fill value was silently ignored; now fills all slots).
+- Added `_b_ITEM(arr, i1[, i2...])` → programmatic subscript via `array_get`/`array_get2`/`table_get`.
+- Added `_b_VALUE(varname)` → returns current value of named SNOBOL4 variable via `NV_GET_fn`.
+- All three registered in `SNO_INIT_fn`.
+- Added ITEM lvalue emitter path in `emit_byrd_asm.c` — **broken**: register loads duplicated. Needs rewrite to exactly mirror E_IDX write path.
+- rung11: 0/7 → 2/7. Invariants: 100/106 C ✅ · 26/26 ASM ✅.
+- beauty.sno still segfaults (pre-existing deep recursion in `prog_emit_expr`).
+- Also this session: slimmed TINY.md 155KB→4KB, DOTNET.md 57KB→3KB; added `⛔ L2 DOC SIZE` rule to RULES.md with 10KB hard limit and explicit replace-not-append instruction.
+
+**Root cause of L2 bloat:** RULES.md End protocol said "update platform MD" with no instruction to delete old content. Sessions prepended new blocks and left old ones, accumulating 60 sessions of history in TINY.md.
+
+**State at handoff:** HEAD `15e818b` B-211. snobol4x pushed. .github pushed.
+
+**Next session B-212 start block:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # 100/106
+bash test/crosscheck/run_crosscheck_asm.sh              # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11  # 2/7
+# Fix ITEM lvalue emitter: rewrite the B-211 block in emit_byrd_asm.c to mirror
+# the E_IDX write path exactly (push arr, push key, eval RHS, load regs from stack, call stmt_aset)
+# Also add ITEM to the has_eq prescan skip guard (~line 3653)
+```
+

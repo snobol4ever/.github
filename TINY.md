@@ -12,12 +12,12 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-211 — M-ASM-RUNG11: PROTOTYPE + array default-fill + item() + beauty.sno depth guard
-**HEAD:** `3133497` B-210
-**Milestone:** M-ASM-RUNG9 ✅ 5/5 · M-ASM-RUNG10 ✅ 8/8 · M-ASM-RUNG11 ❌ (0/7 → in progress B-211)
+**Sprint:** `asm-backend` B-212 — M-ASM-RUNG11: fix ITEM lvalue emitter + PROTOTYPE/VALUE verification
+**HEAD:** `15e818b` B-211
+**Milestone:** M-ASM-RUNG11 ❌ (2/7 — ITEM lvalue emitter path broken; PROTOTYPE/VALUE need verification)
 **Invariants:** 100/106 C · 26/26 ASM
 
-**⚠ CRITICAL NEXT ACTION — Session B-211:**
+**⚠ CRITICAL NEXT ACTION — Session B-212:**
 
 ```bash
 cd /home/claude/snobol4x
@@ -29,29 +29,42 @@ gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harn
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 100/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
-# Step 1: PROTOTYPE + default-fill + item() + VALUE added to snobol4.c (B-211 in progress)
-# Step 2: fix ITEM lvalue emitter path in emit_byrd_asm.c (item(arr,i)=val)
-# Step 3: re-run rung11 → target 7/7 → M-ASM-RUNG11 fires
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11
-# Step 4: fix beauty.sno segfault — add recursion depth guard in prog_emit_expr
-# Step 5: regenerate artifacts/asm/beauty_prog.s
-# Step 6: commit + update PLAN.md + append to SESSIONS_ARCHIVE.md + push
+# current: 2/7 — see B-211 summary for root causes
+
+# Step 1: fix ITEM lvalue emitter in emit_byrd_asm.c
+#   The B-211 ITEM lvalue block has duplicated register loads — rewrite it
+#   to exactly mirror the E_IDX write path (lines ~3757-3822): push arr,
+#   push key, eval RHS into [rbp-32/24], then load regs from stack and call stmt_aset.
+#   Also skip prescan for ITEM lvalue (add to the has_eq guard list at ~line 3653).
+
+# Step 2: verify PROTOTYPE works (1110/005, 1112/002, 1113/005)
+# Step 3: verify VALUE works (1115/005, 1116/002)
+# Step 4: re-run rung11 → target 7/7 → M-ASM-RUNG11 fires
+
+# Step 5: fix beauty.sno segfault — add recursion depth guard in prog_emit_expr
+#   Search for the deepest call chain on beauty.sno line 788 (APPLY_FN_N S_AL truncated)
+#   Add: static int emit_depth = 0; if (++emit_depth > 500) { --emit_depth; return 0; }
+
+# Step 6: regenerate artifacts/asm/beauty_prog.s (once segfault fixed)
+# Step 7: commit + update PLAN.md + append SESSIONS_ARCHIVE + push
 ```
 
 ---
 
 ## Last Two Session Summaries
 
-**Session B-210 — M-ASM-RUNG9 fires:**
-- Bug A (LGT NULVCL): `inc_init()` re-registered LGT/LLT/LGE/LLE/LEQ/LNE with `_w_*` wrappers overwriting `SNO_INIT_fn`'s correct `_b_*` versions. Fix: removed 6 duplicate `register_fn` calls from `inc_init()`. rung9 5/5 ✅.
-- Bug C (rung11 E_IDX read): `prog_emit_expr(key, -16)` clobbered array descriptor. Fix: push arr before key eval. Tests 1110/001–004 pass.
-- Remaining rung11 blockers going into B-211: PROTOTYPE not registered; `_b_ARRAY` default-fill ignored; `item()` not registered; VALUE needs verification.
-- beauty.sno segfault: pre-existing deep recursion in `prog_emit_expr` — depth guard needed.
+**Session B-211 — PROTOTYPE + ITEM + VALUE + array default-fill (partial):**
+- Added `_b_PROTOTYPE`, `_b_ITEM`, `_b_VALUE` to `snobol4.c` and registered in `SNO_INIT_fn`.
+- Fixed `_b_ARRAY` default-fill (second arg was ignored; now fills all slots).
+- Added ITEM lvalue emitter path in `emit_byrd_asm.c` — but register loads are duplicated/wrong; needs rewrite to mirror E_IDX write path exactly.
+- Also: slimmed TINY.md (155KB→4KB) and DOTNET.md (57KB→3KB); added L2 size discipline rule to RULES.md.
+- rung11: 0/7 → 2/7. Invariants: 100/106 C ✅ · 26/26 ASM ✅. HEAD `15e818b`.
 
-**Session B-209 — 7 root-cause fixes:**
-- `expr_has_pattern_fn` whitelist; `_func_hash` case-insensitive; `E_KW` emitter uppercase; CONC2 fast-path guard; E_IDX read/write children[0]/[1] fix; prescan OOB + null guard.
-- Runtime: LGT/LLT/LGE/LLE/LEQ/LNE registered in SNO_INIT_fn.
-- Result: rung8 2/3 · rung9 4/5 · 100/106 C ✅ · 26/26 ASM ✅.
+**Session B-210 — M-ASM-RUNG9 fires:**
+- Bug A: `inc_init()` duplicate LGT/LLT/LGE/LLE/LEQ/LNE registrations removed. rung9 5/5 ✅.
+- Bug C: E_IDX read fix — push arr before key eval to avoid clobber. 1110/001–004 pass.
+- Remaining rung11 blockers: PROTOTYPE/item()/default-fill/VALUE (addressed in B-211).
 
 ---
 
@@ -59,10 +72,10 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11
 
 | ID | Status | Notes |
 |----|--------|-------|
-| M-ASM-RUNG11 | ❌ 0/7 | PROTOTYPE + default-fill + item() + VALUE — B-211 |
+| M-ASM-RUNG11 | ❌ 2/7 | ITEM lvalue emitter fix + PROTOTYPE/VALUE verify — B-212 |
 | M-ASM-LIBRARY | ❌ | Gates on RUNG11 |
 | M-SC-CORPUS-R2 | ❌ | do_procedure body emission fix (sc_cf.c) — F-211 |
-| M-JVM-CROSSCHECK | ❌ | 88/92; word1/cross remain — J-207 |
+| M-JVM-CROSSCHECK | ❌ | 89/92 (J-208 progress) |
 | M-NET-R1 | ❌ | Sprint N-204 in progress |
 
 Full milestone history → [PLAN.md](PLAN.md)
@@ -73,9 +86,9 @@ Full milestone history → [PLAN.md](PLAN.md)
 
 | Session | Branch | Focus |
 |---------|--------|-------|
-| B-211 | `asm-backend` | M-ASM-RUNG11 |
+| B-212 | `asm-backend` | M-ASM-RUNG11 |
 | F-210 | `main` | M-SC-CORPUS-R2 |
-| J-207 | `jvm-backend` | M-JVM-CROSSCHECK |
+| J-208 | `jvm-backend` | M-JVM-CROSSCHECK (89/92) |
 | N-204 | `net-backend` | M-NET-R1 |
 | D-156 | `net-perf-analysis` | M-NET-PERF |
 
