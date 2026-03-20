@@ -9130,3 +9130,30 @@ Root cause: `seq_omega` is a `const char *` pointing to `net_arb_incr_label[]` s
 which gets cleared (`[0]='\\0'`) before the SEQ loop finishes. Fix: copy to local buffer.
 
 **Invariants: 100/106 C ✅ · 26/26 ASM ✅**
+
+## Session B-212 — PIVOT to M-EMITTER-NAMING; E_INDR flat-tree fix
+
+**Branch:** `asm-backend` → pushed to `main`
+**HEAD at handoff:** `6d3cba9`
+**Invariants: 102/106 C ✅ · 26/26 ASM ✅**
+
+**What happened:**
+- Lon directed pivot from M-ASM-RUNG11 to new milestone M-EMITTER-NAMING: cross-emitter consistency of variable names, function names, and file names across all 4 emitters (C, ASM, JVM, NET).
+- Diagnosed root cause of 6 C backend failures: `emit.c` E_INDR handling used stale binary-tree sentinel (`!children[0]` / `children[1]`) from pre-M-FLAT-NARY. New flat n-ary tree puts operand in `children[0]` for both `$X` and `*X`.
+- Fixed `emit_expr` E_INDR case and `iset()` lvalue case. 100/106 → 102/106 C (014/015 indirect assign now PASS).
+- HQ updated: PLAN.md M-FLAT-NARY marked ⚠ (C backend was not fully fixed), M-EMITTER-NAMING added with full trigger spec.
+- 4 C failures remain: 091/092 array, 093 table, 100 roman — likely E_IDX lvalue or array runtime issue.
+- Naming audit not yet started.
+
+**Next session B-213 start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase origin HEAD:main
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 102/106
+bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
+# Then: diagnose 091 array_create_access — likely E_IDX lvalue in emit.c
+```
