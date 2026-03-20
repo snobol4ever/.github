@@ -11,10 +11,66 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `sc-corpus-r2` F-210 — fix sc_cf.c do_procedure → M-SC-CORPUS-R2
-**HEAD:** `6495074` F-210 (main — M-FLAT-NARY merged)
-**Milestone:** M-FLAT-NARY ✅ F-209/F-210 merged · M-ASM-RECUR ✅ B-204 · M-ASM-SAMPLES ✅ B-204
-**Milestone order:** M-SC-CORPUS-R2 → M-SC-CORPUS-R3 → M-SC-CORPUS-R4 → M-SC-CORPUS-R5 → M-SC-CORPUS-FULL
+**Sprint:** `asm-backend` B-210 — fix LGT stmt_apply ordering; rung11 re-run; beauty.sno crash
+**HEAD:** `ec655ff` B-209
+**Milestone:** M-ASM-RUNG8 ❌ (2/3 — 810_replace &alphabet pre-existing runtime limit) · M-ASM-RUNG9 ❌ (4/5 — LGT lookup ordering bug)
+**Milestone order:** M-ASM-RUNG8 → M-ASM-RUNG9 → M-ASM-RUNG10 → M-ASM-RUNG11 → M-ASM-LIBRARY
+
+**Session B-209 summary — 7 root-cause fixes; invariants hold:**
+
+Seven bugs fixed in `emit_byrd_asm.c` and `snobol4.c`:
+
+1. **`expr_has_pattern_fn` whitelist** — was returning 1 for ANY E_FNC; now only returns 1 for known pattern builtins (ARBNO/SPAN/BREAK/etc). Value functions (REPLACE, SIZE, DIFFER, LGT) no longer generate phantom named-pattern bodies with "UNIMPLEMENTED" stubs.
+
+2. **`_func_hash` case-insensitive** — hash now uppercases each char via `toupper()`. Fixes `stmt_apply("replace",...)` returning NULVCL because lowercase "replace" hashed to a different bucket than uppercase "REPLACE" registration. Unblocked rung8 SIZE/DUPL.
+
+3. **`E_KW` emitter uppercase** — keywords emitted as "ALPHABET" not "alphabet" so `stmt_get` finds them. Fixes `&alphabet` / `&anchor` lookups.
+
+4. **CONC2 fast-path guard** — `CONC2_*` macros (which call `stmt_concat`) now only fire for CONCAT/ALT calls. All other 2-arg functions (LGT, DIFFER, GT, etc.) fall through to `APPLY_FN_N`. Previously `lgt('abc','xyz')` emitted `CONC2 S_lgt, S_abc, S_xyz` — wrong.
+
+5. **`E_IDX` read fix** — `children[0]` was used twice (arr AND key both evaluated from children[0]). Fixed: `children[0]`→arr, `children[1]`→key. Also fixed arg order to `stmt_aref`: arr→`[rbp-32/24]`→rdi:rsi, key→`[rbp-16/8]`→rdx:rcx. Added `nchildren>=2` guard.
+
+6. **`E_IDX` write fix** — same `children[1]` fix in the `has_eq + E_IDX` path. Same `nchildren>=2` guard.
+
+7. **prescan OOB + `prog_str_intern` null guard** — `e->children[1]` access guarded by `nchildren>1`; `prog_str_intern(NULL)` now safe.
+
+**Runtime additions:** `LGT/LLT/LGE/LLE/LEQ/LNE` lexical string comparators added to `snobol4.c` and registered in `SNO_INIT_fn`.
+
+**Rung results after B-209:**
+- rung8: 2/3 (810_replace assertion 002 uses &alphabet binary string — pre-existing runtime strlen limitation)
+- rung9: 4/5 (914_lgt fails — LGT registered but stmt_apply("lgt",...) returns NULVCL; root cause: _func_init ordering TBD)
+- rung10: 0/9 (not yet investigated this session)
+- rung11: 0/7 (E_IDX fix applied but not re-run to confirm; diagnose next session)
+
+**Outstanding root causes for B-210:**
+
+**Bug A — LGT lookup returns NULVCL:** Direct C test confirms `stmt_apply("lgt",args,2)` returns `v=0` (NULVCL) after `stmt_init()`, but `stmt_apply("LGT",args,2)` also returns `v=0`. Yet the `_b_LGT` wrapper is registered in `SNO_INIT_fn`. Hypothesis: `_func_init()` is called from `register_fn` and clears the table, then subsequent `register_fn` calls should populate it — but something is re-initializing. Check: does `NV_SYNC_fn` (called from `stmt_init`) also call `_func_init` and reset the table? Alternatively: `_func_init_done` is being reset somewhere. Add `fprintf(stderr, "registering LGT\n")` in `SNO_INIT_fn` to confirm registration fires.
+
+**Bug B — sno2c segfault on beauty.sno:** Crashes at line 788 generating `APPLY_FN_N S_AL` (truncated). Pre-existing at HEAD — CONC2 fast path was silently handling the expression; now generic path is taken and hits stack overflow from deep recursive `prog_emit_expr` calls. Fix: add recursion depth limit to `prog_emit_expr`, or identify the specific expression in beauty.sno that triggers deep recursion and handle it in the generic fallback.
+
+**Bug C — rung11 arrays:** E_IDX fix applied; need to rebuild and re-run to confirm. If still failing, diagnose what `a<1>` emits and whether `stmt_aref` is being called correctly.
+
+**⚠ CRITICAL NEXT ACTION — Session B-210:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /snobol4corpus/crosscheck /home/snobol4corpus/crosscheck 2>/dev/null || true
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 100/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/snobol4corpus/crosscheck
+# Step 1: confirm rung11 improvement
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11
+# Step 2: debug LGT — add fprintf to SNO_INIT_fn around register_fn("LGT",...)
+#          and to APPLY_fn to see if lookup fires
+# Step 3: once LGT works, rung9 should be 5/5 → M-ASM-RUNG9
+# Step 4: fix beauty.sno segfault in sno2c (stack depth guard in prog_emit_expr)
+# Step 5: regenerate artifacts/asm/beauty_prog.s clean
+# Step 6: rung8 3/3 requires binary-safe REPLACE (strlen → explicit length tracking)
+# Step 7: M-ASM-RUNG8 + M-ASM-RUNG9 fire → begin rung10
+```
 
 **Session F-209 summary — M-FLAT-NARY complete:**
 
