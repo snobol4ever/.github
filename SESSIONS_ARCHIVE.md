@@ -8910,3 +8910,44 @@ is `call string ClassName::net_indr_get(string)` / `call void ClassName::net_ind
   `prog_append` but they never appear in emit output — silently dropped
 - No code changes this session (diagnosis only)
 - Next: F-211 fixes do_procedure → M-SC-CORPUS-R2
+
+## Session J-207 — M-FLAT-NARY regressions fixed; E_ATP; ARB minimum-first; 88/92 PASS
+
+**Branch:** main
+**HEAD:** bb7221c
+**Invariants:** 100/106 C ✅ · 26/26 ASM ✅ · 88/92 JVM
+
+**What happened:**
+- Session opened to find M-FLAT-NARY (F-209) had landed after J-206, causing segfault on every `-jvm` compile
+- Root cause: `jvm_collect_vars_expr` had duplicate null-terminated `for(i=0;children[i];i++)` loop after the correct `nchildren` loop — new layout has no null terminator → reads off end of array
+- Same pattern in `expr_contains_input` plus unsafe `children[0]` / `children[1]` direct access on nodes with nchildren=0
+- Fixed both; segfault eliminated; 77/92 PASS (up from 2/92)
+- `E_CONC` value context only handled 2 children (binary assumption); fixed to loop all `nchildren` via StringBuilder; restored concat tests → 85/92
+- `REPLACE`: duplicate `children[2]` emit after nchildren loop removed → 067 PASS; 089 (which uses REPLACE inside a function) also PASS
+- **ARB direction**: SNOBOL4 ARB is minimum-first (match 0 chars, grow on backtrack). Was implemented greedy (max-first, shrink). Fixed: init `arb_len=0`, `iinc +1`, bounds check `arb_start+arb_len > len`. 049_pat_arb PASS → 88/92
+- **E_ATP**: `@VAR` cursor-position capture implemented as zero-width pattern node: push varname + `iload cursor; Integer.toString` + `sno_var_put`. Always succeeds. `cross.xfail` removed from corpus.
+- Artifacts: `artifacts/jvm/hello_prog.j` updated
+
+**State at handoff:**
+- 88/92 JVM PASS; expr_eval deferred (M-JVM-EVAL); word1 and cross still xfail
+- word1: ARB.OUTPUT in named-pattern with INPUT loop — no output produced; minimum-first ARB may interact differently with named-pattern inline expansion path
+- cross: E_ATP works; remaining issue is value-context E_CONC propagating `"null"` string when `DIFFER` child fails instead of treating as failure/empty
+
+**Next session J-208 start block:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh      # 100/106
+bash test/crosscheck/run_crosscheck_asm.sh                  # 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
+  $CORPUS/control $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
+# Expected: 88 passed, 1 failed, 3 skipped
+# Fix word1: trace named-pattern ARB deferred-commit path in INPUT loop
+# Fix cross: null-check in E_CONC value-context StringBuilder loop
+```

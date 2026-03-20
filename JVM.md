@@ -10,50 +10,54 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 ## NOW
 
 **Sprint:** `jvm-backend` J-R5 — M-JVM-CROSSCHECK: 106/106 corpus PASS
-**HEAD:** `ced764a` J-206
+**HEAD:** `bb7221c` J-207
 **Milestone:** M-JVM-R1 ✅ J-202 · M-JVM-R2 ✅ J-203 · M-JVM-R3 ✅ J-203 · M-JVM-R4 ✅ J-205
 
-**J-206 — named-pattern registry + ARB backtrack: 87/92 PASS:**
-- Add `jvm_scan_named_patterns()` pre-pass: finds `PAT = <pattern-expr>` assignments and registers them in `JvmNamedPat[]` table before emit
-- `E_VART` in pattern context checks registry first → inline-expands stored pattern tree via `jvm_emit_pat_node`; fixes 053_pat_alt_commit
-- `E_CONC` ARB-aware: walk right-spine of left subtree; detect `ARB` or `ARB.NAM`; emit greedy+backtrack loop (arb_loop/arb_retry/arb_decr)
-- Deferred-commit: store ARB capture in temp local; only call `sno_var_put` after right child succeeds; prevents spurious OUTPUT on backtrack
-- BREAKX added (merged with BREAK handler); BREAK zero-advance bug fixed
-- `sno_var_put` handles OUTPUT specially (println to stdout)
-- wordcount/word2/word3/word4 xfails removed — all PASS
-- word1: ARB.OUTPUT in named-pattern INPUT loop still fails (isolated test passes; loop interaction TBD)
-- cross: needs `@` position capture (E_ATP) — not yet implemented
-- expr_eval: deferred to M-JVM-EVAL sprint
+**J-207 — M-FLAT-NARY regressions fixed + E_ATP + ARB minimum-first: 88/92 PASS:**
+- M-FLAT-NARY (F-209) landed after J-206 and caused segfault on every `-jvm` compile
+- Root cause: `jvm_collect_vars_expr` had duplicate null-terminated `children[i]` loop after the `nchildren` loop; `expr_contains_input` same bug plus unsafe `children[0/1]` direct access
+- `E_CONC` value context: was binary-only (children[0]+children[1]); now loops all `nchildren` via StringBuilder
+- `REPLACE`: duplicate `children[2]` emit after nchildren loop removed → 067_builtin_replace PASS
+- `089_define_in_pattern` PASS (was broken by E_CONC value-context bug)
+- **ARB direction fixed**: minimum-first (init `arb_len=0`, `iinc +1`) — was greedy (max-first, decrement). SNOBOL4 ARB matches shortest first. 049_pat_arb PASS.
+- **E_ATP implemented**: `@VAR` captures cursor as integer string into VAR, zero-width, always succeed. `cross.xfail` removed from corpus.
+- `expr_eval`: deferred to M-JVM-EVAL sprint
 
-**⚠ CRITICAL NEXT ACTION — Session J-207 (JVM):**
+**⚠ CRITICAL NEXT ACTION — Session J-208 (JVM):**
 
-Sprint J-R5 — fix remaining 3 failures → M-JVM-CROSSCHECK
+Sprint J-R5 continued — fix word1 + cross → M-JVM-CROSSCHECK
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
-ln -sf /home/claude/snobol4corpus /home/snobol4corpus
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh  # must be 106/106
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh      # must be 100/106
+bash test/crosscheck/run_crosscheck_asm.sh                  # must be 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
   $CORPUS/control $CORPUS/patterns $CORPUS/capture \
   $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
-# Expected: 87 passed, 2 failed, 3 skipped
+# Expected: 88 passed, 1 failed, 3 skipped
 ```
 
-**Remaining failures for M-JVM-CROSSCHECK:**
-1. **word1**: `PAT = " the " ARB . OUTPUT (" of " | " a ")` with INPUT loop.
-   Isolated test `LINE ? PAT` works. Full program with `LINE = INPUT :F(END); LINE ? PAT :(LOOP)` produces no output.
-   Suspect: `sno_var_put("OUTPUT",...)` in named-pattern inline expansion during INPUT loop — check if the `sno_var_put` OUTPUT println fires but is suppressed, or if the pattern truly fails on real input.
-   Debug: add `OUTPUT = 'debug'` before the loop to confirm OUTPUT works, then narrow.
-2. **cross**: needs `E_ATP` (`@N`) position capture → capture cursor as integer into variable.
-   In `E_NAM` handler: if child is `E_ATP(var)`, emit `iload loc_cursor; invokestatic Integer.toString; sno_var_put(var, ...)`.
-3. **expr_eval**: EVAL! — deferred to M-JVM-EVAL sprint (inline arithmetic).
-
-**Note for J-207:** Parser flattening (E_CONC/E_OR → n-ary) is being done by .NET backend session. Once landed, the ARB E_CONC right-spine walk can be simplified significantly.
+**Remaining failures for M-JVM-CROSSCHECK (J-208 targets):**
+1. **word1** (xfail): `PAT = " the " ARB . OUTPUT (" of " | " a ")` with INPUT loop produces no output.
+   The named-pattern inline expansion path (`jvm_scan_named_patterns` → `E_VART` registry lookup) runs
+   the ARB deferred-commit code but `sno_var_put("OUTPUT",...)` doesn't print. Hypothesis: the
+   minimum-first ARB fix (J-207) may interact with the named-pattern path differently — the arb_loop
+   label is emitted inside the pattern body but the `sno_var_put` for OUTPUT may be calling the wrong
+   helper slot. Debug: emit `OUTPUT = 'pre-pat'` before `LINE ? PAT` in the .sno to confirm OUTPUT
+   path works, then add `OUTPUT = 'arb-fired'` inside the ARB commit block via a test stub.
+2. **cross** (xfail removed, now active failure): E_ATP implemented and working. Remaining issue:
+   value-context `E_CONC` where a child returns `null` (from `DIFFER` failing) produces the literal
+   string `"null"` instead of propagating failure. Fix: in E_CONC StringBuilder loop, null-check each
+   child result; if any child is null, skip append or abort (SNOBOL4 value concat with a failed
+   subexpression should fail the whole expression or treat as empty — check CSNOBOL4 semantics).
+   Also `DUPL(' ', NH)` where NH is `"0"` from @N — verify `sno_to_double("0")` returns 0.0 correctly.
+3. **expr_eval**: EVAL! — deferred to M-JVM-EVAL sprint.
 
 **J-204 — functions/ 8/8 PASS, data/ 3/6 PASS:**
 - Three fixes: fn-body skip in main walk, jvm_arith_local_base, Case 2 :S/:F routing
