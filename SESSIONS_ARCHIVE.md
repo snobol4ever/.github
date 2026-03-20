@@ -8657,3 +8657,25 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/control $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
   $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
 ```
+
+---
+
+## B-206 (backend) — claws5.sno + treebank.sno rewritten as true ARBNO patterns
+
+**snobol4x HEAD:** `266c866` B-204 (unchanged — no snobol4x changes this session)
+**snobol4corpus HEAD:** `89b2b72`
+
+**What happened:**
+Read assignment3.py (ENG 685 VBG exercise) and SNOBOL4python library (_backend_pure.py,
+SNOBOL4functions.py). Understood the two patterns in full:
+- `claws_info`: POS(0) + ARBNO over CLAWS5 `word_TAG` tokens and `N_CRD :_PUN` sentence markers
+- `treebank`: POS(0) + ARBNO of `group`; `group` is self-referencing via *group (= Python ζ(lambda: group))
+
+Both programs completely rewritten. Old versions were imperative (consume-loop / recursive descent).
+New versions: one named pattern variable each, 99% structural match to Python original.
+Stack and Counter inlined directly — no -include. Corpus pushed `89b2b72`.
+
+**Next session (B-207):**
+1. Generate .ref oracles for claws5.sno + treebank.sno using CSNOBOL4
+2. Commit oracles to snobol4corpus
+3. Run M-ASM-RUNG8 (rung8/ REPLACE/SIZE/DUPL — 3 tests, 0/3 currently)

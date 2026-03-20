@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` A-SAMPLES done — M-ASM-RECUR ✅ M-ASM-SAMPLES ✅ → next: M-ASM-RUNG8/9/10/11 → M-ASM-LIBRARY → M-ENG685-CLAWS → M-ENG685-TREEBANK → M-ASM-BEAUTY | `5cab9e3` B-204 | M-ASM-RUNG8 |
+| **TINY backend** | `asm-backend` B-206 — claws5.sno + treebank.sno rewritten as true ARBNO patterns (Python 99% mirror); corpus pushed 89b2b72 → next: .ref oracles → M-ASM-RUNG8/9/10/11 → M-ASM-LIBRARY → M-ENG685-CLAWS → M-ENG685-TREEBANK → M-ASM-BEAUTY | `266c866` B-206 | M-ASM-RUNG8 |
 | **TINY JVM** | `jvm-backend` J-R4 complete — 14/14 PASS; next: J-R5 crosscheck 106/106 | `876eb4b` J-205 | M-JVM-CROSSCHECK |
 | **TINY NET** | `net-backend` N-201 — Snobol4Lib/Snobol4Run DLL split; 51/58 NET baseline | `8bae0fe` N-201 | M-NET-CAPTURE |
 | **TINY frontend** | `sc-corpus-ladder` SC-CORPUS-2 — control/ | `23765b1` F-192 | M-SC-CORPUS-R2 |

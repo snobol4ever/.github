@@ -15,36 +15,42 @@ snobol4x: multiple frontends, multiple backends.
 **HEAD:** `266c866` B-204 (snobol4x unchanged B-205)**Milestone:** M-ASM-RECUR ✅ B-204 · M-ASM-SAMPLES ✅ B-204
 **Milestone order:** M-ASM-RUNG8 → M-ASM-RUNG9 → M-ASM-RUNG10 → M-ASM-RUNG11 → M-ASM-LIBRARY → M-ENG685-CLAWS → M-ENG685-TREEBANK → M-ASM-BEAUTY
 
-<<<<<<< HEAD
-**Session B-205 (backend) — M-ASM-RUNG8: rung8/ REPLACE/SIZE/DUPL assertion harness 3/3 PASS**
-=======
-**Session B-205 summary — ENG685 programs + milestone roadmap:**
-claws5.sno working (6469 tokens). treebank.sno uses lib/stack.sno; open bug: pre-assign
-BRKSET = ' ' NL '()' before using in BREAK(). PLAN.md 9 new milestones pushed 09a3a17.
-snobol4corpus pushed 6849508. RULES.md §PUSH violated — declared handoff before pushing corpus.
+**Session B-206 summary — claws5.sno + treebank.sno rewritten as true ARBNO patterns:**
 
-**⚠ CRITICAL NEXT ACTION — Session B-206 (backend):**
+Both programs completely rewritten. Old versions used imperative consume-loops and recursive
+descent. New versions: single named pattern variable each, mirroring Python assignment3.py 99%.
+claws5 uses `ARBNO((sent_arm | tok_arm) ' ')` anchored with POS(0)/RPOS(0). treebank uses
+`group` self-referencing via `*group` (= Python ζ(lambda: group)) inside ARBNO. Stack and
+Counter inlined directly — no -include. snobol4corpus pushed `89b2b72`.
 
-Fix treebank.sno BRKSET bug, generate .ref oracles, commit+push corpus. Then M-ASM-RUNG8.
+**⚠ CRITICAL NEXT ACTION — Session B-207 (backend):**
+
+Generate .ref oracles for claws5.sno and treebank.sno using CSNOBOL4, commit to corpus.
+Then M-ASM-RUNG8.
 
 ```bash
 cd /home/claude/snobol4corpus
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git pull
-# Fix treebank.sno gm(): add  BRKSET = ' ' NL '()'  then use  BREAK(BRKSET)  not  BREAK(SPCNL '()')
-# Run both programs, diff against CSNOBOL4, commit .ref oracles, git add -A && git commit && git push
+# Build CSNOBOL4 if needed:
+cd /home/claude/snobol4-2.3.3 && make -j4
+SNO=/home/claude/snobol4-2.3.3/snobol4
+PROGS=/home/claude/snobol4corpus/programs/lon/sno
+# Run claws5 against CLAWS5inTASA.dat, capture oracle:
+$SNO $PROGS/claws5.sno < CLAWS5inTASA.dat > $PROGS/claws5.ref
+# Run treebank against VBGinTASA.dat, capture oracle:
+$SNO $PROGS/treebank.sno < VBGinTASA.dat > $PROGS/treebank.ref
+git add -A && git commit -m "B-207: claws5.ref + treebank.ref oracles" && git push
+# Then M-ASM-RUNG8:
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 266c866 B-204
+git log --oneline -3   # verify HEAD = 266c866 B-204 (snobol4x unchanged)
 apt-get install -y libgc-dev nasm && make -C src
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # 106/106
 bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung8  # M-ASM-RUNG8
 ```
-
-**Session B-205 (backend) — M-ASM-BEAUTY: beauty.sno compiles and self-beautifies**
->>>>>>> b7be1b7 (B-205: TINY.md + SESSIONS_ARCHIVE — ENG685 claws5/treebank; next M-ASM-RUNG8)
 
 **HEAD:** `8bae0fe` (latest main — verify with `git log --oneline -3`)
 **Status:** 106/106 C ✅ · 26/26 ASM ✅ · 8/8 functions ✅ · roman.sno ✅ · wordcount.sno ✅
