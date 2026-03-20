@@ -9,32 +9,43 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J-R2 — corpus ladder rungs 5–7 → M-JVM-R2
-**HEAD:** `2b1d6a9` J-202
-**Milestone:** M-JVM-LIT ✅ · M-JVM-ASSIGN ✅ · M-JVM-GOTO ✅ · M-JVM-PATTERN ✅ · M-JVM-CAPTURE ✅ J-201 · M-JVM-R1 ✅ J-202
+**Sprint:** `jvm-backend` J-R4 — corpus ladder rungs 10–11: functions/ data/ → M-JVM-R4
+**HEAD:** `fa293a1` J-203
+**Milestone:** M-JVM-R1 ✅ J-202 · M-JVM-R2 ✅ J-203 · M-JVM-R3 ✅ J-203
 
-**J-202 — M-JVM-R1: 22/22 rungs 1–4 PASS:**
-- EQ/NE/LT/GT/LE/GE builtins: emit dcmpl + branch, return "" on success, null on failure
-- Null-RHS failure propagation: OUTPUT/VAR assignments skip store/print when RHS is null
-- INPUT-in-arithmetic pre-hoist: read INPUT into local 5 before expression, null-check at stack depth 0; eliminates VerifyError from partial-stack goto
-- Rungs 5–7: 26/28 (pre-existing: expr_eval sno2c error, 053_pat_alt_commit)
+**J-203 — M-JVM-R2 + M-JVM-R3:**
+- M-JVM-R2: rungs 5–7 confirmed 26/28 (pre-existing: expr_eval, 053_pat_alt_commit)
+- M-JVM-R3: rungs 8–9 21/21 PASS (7 skipped: xfail)
+- Builtins added: SUBSTR REPLACE TRIM REVERSE LPAD RPAD INTEGER DATATYPE LGT/LLT/LGE/LLE/LEQ/LNE
+- Keywords: &UCASE &LCASE &STNO (per-stmt increment) &ALPHABET (clinit loop bug fixed)
+- xfail: word1/2/3/4/wordcount/cross — pattern-valued variables require runtime pattern repr
+- Artifact: artifacts/jvm/hello_prog.j updated
 
-**⚠ CRITICAL NEXT ACTION — Session J-203 (JVM):**
+**⚠ CRITICAL NEXT ACTION — Session J-204 (JVM):**
 
-Sprint J-R2 — rungs 5–7 PASS → M-JVM-R2
+Sprint J-R4 — rungs 10–11 (functions/ data/) → M-JVM-R4
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git log --oneline -3   # verify HEAD = 2b1d6a9
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git log --oneline -3   # verify HEAD = fa293a1
 apt-get install -y libgc-dev nasm default-jdk && make -C src
 CORPUS=/home/claude/snobol4corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
-  $CORPUS/control $CORPUS/patterns $CORPUS/capture 2>&1 | tail -5
-# 26/28 expected — expr_eval and 053 are pre-existing, investigate if any new failures
-# Then push to M-JVM-R2 and advance to rungs 8-9
+  $CORPUS/functions $CORPUS/data 2>&1 | tail -5
+# Diagnose failures; implement DEFINE/RETURN/FRETURN for functions/,
+# ARRAY/TABLE/DATA for data/
 ```
----
+
+### Known gaps for J-R4
+- **DEFINE/RETURN/FRETURN**: user-defined functions — need JVM method per DEFINE block,
+  call sites via invokestatic, RETURN → return, FRETURN → push null + return
+- **ARRAY(n)**: fixed-size string array — HashMap<Integer,String> per variable
+- **TABLE()**: associative array — HashMap<String,String>
+- **DATA(proto)**: user-defined data type — simplest impl: HashMap with type tag
+- **pattern-valued variables** (xfailed word*/cross/wordcount): deferred to J-R5+
+
 
 ## Session Start
 

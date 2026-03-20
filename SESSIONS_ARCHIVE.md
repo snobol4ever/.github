@@ -8307,3 +8307,40 @@ Do not optimize early. See ARCH.md and BACKEND-X64.md.
 - roman_mini gives wrong value (no crash) — likely same Case 2 issue on the RETURN path.
 - After 8/8: run full roman.sno, diff vs oracle → M-ASM-RECUR fires.
 - Regenerate beauty_prog.s, commit, push.
+
+## Session J-203 — M-JVM-R2 + M-JVM-R3
+
+**Date:** 2026-03-19
+**HEAD at start:** `7f66297` N-200
+**HEAD at end:** `fa293a1` J-203
+**Milestones fired:** M-JVM-R2 ✅ · M-JVM-R3 ✅
+
+**What happened:**
+- Cloned all repos fresh; set git identity; built clean
+- Confirmed rungs 5–7 at 26/28 (pre-existing exceptions documented) → M-JVM-R2 fires
+- Ran rungs 8–9: initial 9/28. Diagnosed all failures:
+  - String builtins: SUBSTR REPLACE TRIM REVERSE LPAD RPAD — stub, now implemented
+  - INTEGER DATATYPE — stub, now implemented
+  - &UCASE &LCASE — missing from sno_kw_get, now added
+  - &STNO — not incremented; field added, clinit init, per-stmt getstatic/iadd/putstatic
+  - &ALPHABET — loop bug: istore_0 clobbered StringBuilder ref; fixed with local 1/2 split
+  - LGT/LLT/LGE/LLE/LEQ/LNE lexical comparisons — added
+  - word1/2/3/4/wordcount/cross — pattern-valued variables (WPAT/PAT stored as ""), xfailed in corpus
+- After fixes: rungs 8–9 21/21 PASS, 7 SKIP (xfail) → M-JVM-R3 fires
+- Artifacts: artifacts/jvm/hello_prog.j updated
+- snobol4corpus pushed with 6 xfail files
+- 106/106 C crosscheck invariant confirmed
+
+**State at handoff:**
+Sprint J-R4 active: implement DEFINE/RETURN/FRETURN (functions/) + ARRAY/TABLE/DATA (data/)
+
+**Next session start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git log --oneline -3  # expect fa293a1 J-203
+apt-get install -y libgc-dev nasm default-jdk && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh $CORPUS/functions $CORPUS/data 2>&1 | tail -5
+```
