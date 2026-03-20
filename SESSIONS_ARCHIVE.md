@@ -9270,3 +9270,19 @@ git push origin asm-backend
 - .github rebased onto B-214 commit (239f421) cleanly.
 
 **Next session J-210:** verify roman.sno diff==empty → wordcount.sno → artifacts/jvm/ update → M-JVM-SAMPLES ✅
+
+## Session B-215 — Segfault fixed; M-EMITTER-NAMING ✅ complete
+
+**Root cause of beauty_prog.s divergence:** Triple-push bug in cap-var tree-walk (`emit_byrd_asm.c` ~line 4004): two explicit `children[0]`/`children[1]` pushes (without `nchildren > 0` guard) plus an n-ary loop — leaf nodes with `nchildren==0` caused unconditional `e->children[0]` access → segfault on programs with `-I` includes (roman.sno, beauty.sno). Simple programs (hello, single functions) worked fine.
+
+**Fix:** Removed two redundant explicit pushes; kept only the safe n-ary loop. One-line fix: `emit_byrd_asm.c` lines 4004–4007 collapsed to 4004–4005.
+
+**Artifacts:** beauty/roman/wordcount regenerated, all assemble clean with nasm -f elf64. Committed `6f96ff7`.
+
+**M-EMITTER-NAMING C backend rename:** `snoc_emit→c_emit`, `sym_table→vars`, `sym_count→nvar`, `E()→C()` in emit.c, sno2c.h, main.c. Build clean. 106/106 C + 26/26 ASM. Committed `fd09e01`. Pushed to asm-backend.
+
+**M-EMITTER-NAMING ✅** fired. All four emitters (C, ASM, JVM, NET) now use consistent internal names.
+
+**State at handoff:** HEAD `fd09e01` B-215 on asm-backend. 106/106 C · 26/26 ASM.
+
+**Next session B-216:** M-ASM-RUNG8 — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend.

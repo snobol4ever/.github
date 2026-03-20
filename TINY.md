@@ -12,12 +12,12 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-215 — M-EMITTER-NAMING: fix beauty_prog.s → commit ASM+NET+JVM → C backend rename
-**HEAD:** `7d7f9e8` B-213 (working tree has ASM+NET+JVM renamed, NOT YET COMMITTED)
-**Milestone:** M-EMITTER-NAMING ❌ — Option B rename done on ASM/NET/JVM; beauty_prog.s artifact diverged (blocker); C backend rename pending
-**Invariants:** 106/106 C · 26/26 ASM (working tree)
+**Sprint:** `asm-backend` B-216 — M-ASM-RUNG8: REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend
+**HEAD:** `fd09e01` B-215
+**Milestone:** M-EMITTER-NAMING ✅ `fd09e01` B-215 — all four emitters unified; next: M-ASM-RUNG8
+**Invariants:** 106/106 C · 26/26 ASM
 
-**⚠ CRITICAL NEXT ACTION — Session B-215:**
+**⚠ CRITICAL NEXT ACTION — Session B-216:**
 
 ```bash
 cd /home/claude/snobol4x
@@ -25,31 +25,23 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 git pull --rebase origin asm-backend
 apt-get install -y libgc-dev nasm && make -C src
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
-bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh  # must be 26/26
 
-# STEP 1 — Diagnose beauty_prog.s divergence (missing ret_γ/ret_ω .bss slots):
-INC=/home/claude/snobol4corpus/lib
-./sno2c -asm -I$INC /home/claude/snobol4corpus/programs/beauty/beauty.sno > /tmp/new_beauty.s
-diff artifacts/asm/beauty_prog.s /tmp/new_beauty.s | head -40
-# Suspect: Python uid→u rename over-replaced in scan/register path
-# Check: grep -n "ret_γ\|ret_ω\|np->ret_gamma\|np->ret_omega" src/backend/x64/emit_byrd_asm.c
-
-# STEP 2 — After fix, commit all three backends:
-# git add src/backend/x64/emit_byrd_asm.c src/backend/net/emit_byrd_net.c \
-#          src/backend/jvm/emit_byrd_jvm.c artifacts/asm/beauty_prog.s
-# git commit -m "B-215: M-EMITTER-NAMING — Option B prefix strip: ASM+NET+JVM unified"
-# git push origin asm-backend
-
-# STEP 3 — C backend rename (see SESSIONS_ARCHIVE.md B-214 for full plan):
-# Merge emit.c + emit_byrd.c → emit_byrd_c.c
-# snoc_emit→c_emit, E()→C(), sym_table→vars, sym_count→nvar, byrd_*→unprefixed
-# Update driver/main.c + Makefile → 106/106 + 26/26 → M-EMITTER-NAMING fires
+# M-ASM-RUNG8: rung8/ — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend
+# Run rung8 tests:
+bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/strings rung8
+# Diagnose failures, fix emit_byrd_asm.c, regenerate artifacts, 106/106+26/26, commit
 ```
 
 ---
 
 ## Last Two Session Summaries
+
+**Session B-215 — Segfault fixed; M-EMITTER-NAMING ✅ complete; artifacts updated:**
+- Root cause of beauty_prog.s divergence: triple-push bug in cap-var tree-walk (emit_byrd_asm.c lines 4004-4007) — explicit children[0]/[1] pushes without nchildren guard + n-ary loop → segfault on programs with -I includes. Fix: removed redundant explicit pushes.
+- All three artifacts regenerated and assembled clean. C backend rename: snoc_emit→c_emit, sym_table→vars, sym_count→nvar, E()→C(). M-EMITTER-NAMING ✅ fired. HEAD fd09e01.
 
 **Session B-214 — M-EMITTER-NAMING Option B: ASM+NET+JVM prefix strip complete; beauty_prog.s diverged:**
 - Full naming audit across all 4 backends. Decision: Option B — drop per-backend prefix from all `static` internal names; file scope handles collision; identical names enable instant cross-backend correlation.
