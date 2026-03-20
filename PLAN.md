@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-backend` B-211 — PROTOTYPE + ITEM + VALUE + array default-fill added to snobol4.c. rung11 2/7. ITEM lvalue emitter path broken (duplicate register loads) — needs rewrite to mirror E_IDX write path. beauty.sno segfault pre-existing. 100/106 C + 26/26 ASM hold. → next: fix ITEM lvalue emitter → M-ASM-RUNG11 | `15e818b` B-211 | M-ASM-RUNG11 |
 | **TINY JVM** | `jvm-backend` J-208 — M-JVM-CROSSCHECK ✅; E_CONC null-prop + DIFFER returns "" + OUTPUT routing + INPUT :F stack fix; 89/92 active PASS; next: M-JVM-SAMPLES | `a063ed9` J-208 | M-JVM-SAMPLES |
-| **TINY NET** | `net-backend` N-204 — DEFINE/RETURN/FRETURN(7/8) + indirect assign + named patterns — 92/110; next: fix FRETURN branch (:S/:F routing) → M-NET-R1 | `0f9d12b` N-204 | M-NET-R1 |
+| **TINY NET** | `net-backend` N-205 — INPUT/ARB/KW fixes: INPUT reads stdin, &ANCHOR wired, E_NAM/E_DOL OUTPUT capture, ARB min-first WIP (SEQ-ARB omega bug); 74/82 pass; next: fix ARB backtrack omega wiring in SEQ → word1-4/cross PASS → M-NET-R1 | `a30365b` N-205 | M-NET-R1 |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` D-156 | M-NET-PERF |
 

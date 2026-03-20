@@ -9103,3 +9103,30 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11  #
 # Also add ITEM to the has_eq prescan skip guard (~line 3653)
 ```
 
+
+## Session N-205 — INPUT/ARB/KW/E_NAM fixes; 74/82 NET
+
+**HEAD:** `a30365b` · **Branch:** `main` · **Date:** 2026-03-20
+
+**Work done:**
+
+Seven fixes to `emit_byrd_net.c` + `snobol4run.il`:
+
+1. **`net_is_input()` helper** — INPUT excluded from static field registration (like OUTPUT).
+2. **`snobol4run.il` `sno_input()`** — now returns `null` on EOF (not `""`); callers check null.
+3. **`net_cur_stmt_fail_label`** — static set by Case 1 stmt emitter so `net_emit_expr` can inline-branch on INPUT EOF.
+4. **INPUT in `net_emit_expr`** — `E_VART` INPUT → `call sno_input()`; null check; set flag=0; branch to fail or push `""` to maintain stack depth; `Ninp_ok` label joins both paths.
+5. **E_KW subject assignment** — `&ANCHOR = expr` → `stsfld kw_anchor`; `&TRIM` → pop (ignored); unknown KW → pop.
+6. **E_NAM/E_DOL capture targets** — `scan_expr_vars` registers `E_NAM`/`E_DOL` sval as fields (except OUTPUT/INPUT).
+7. **E_NAM/E_DOL OUTPUT target** — when capture target is OUTPUT, emit `Console.WriteLine` instead of `stsfld`.
+8. **ARB minimum-first** — ARB tries 0..N chars in a loop; stores `net_arb_incr_label` for SEQ to use.
+9. **SEQ-ARB omega wiring** — SEQ detects ARB child and overrides `seq_omega` with `arb_incr` for subsequent children.
+
+**Score: 74/82** (was 55/58 before strings/capture rungs added).
+`098_keyword_anchor` ✅. All capture tests ✅. Most strings ✅.
+
+**Outstanding bug:** `word1`/`word2`/`word3`/`word4`/`wordcount`/`cross` — ARB backtrack broken.
+Root cause: `seq_omega` is a `const char *` pointing to `net_arb_incr_label[]` static buffer,
+which gets cleared (`[0]='\\0'`) before the SEQ loop finishes. Fix: copy to local buffer.
+
+**Invariants: 100/106 C ✅ · 26/26 ASM ✅**

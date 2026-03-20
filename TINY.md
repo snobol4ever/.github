@@ -76,7 +76,7 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11
 | M-ASM-LIBRARY | ❌ | Gates on RUNG11 |
 | M-SC-CORPUS-R2 | ❌ | do_procedure body emission fix (sc_cf.c) — F-211 |
 | M-JVM-CROSSCHECK | ❌ | 89/92 (J-208 progress) |
-| M-NET-R1 | ❌ | Sprint N-204 in progress |
+| M-NET-R1 | ❌ | 74/82 NET — ARB backtrack SEQ-omega bug (N-205 WIP) |
 
 Full milestone history → [PLAN.md](PLAN.md)
 
@@ -89,7 +89,7 @@ Full milestone history → [PLAN.md](PLAN.md)
 | B-212 | `asm-backend` | M-ASM-RUNG11 |
 | F-210 | `main` | M-SC-CORPUS-R2 |
 | J-208 | `jvm-backend` | M-JVM-CROSSCHECK (89/92) |
-| N-204 | `net-backend` | M-NET-R1 |
+| N-205 | `net-backend` | M-NET-R1 — fix ARB SEQ-omega ptr bug → word1-4/cross |
 | D-156 | `net-perf-analysis` | M-NET-PERF |
 
 Per RULES.md: `git pull --rebase` before every push. Update only your row in PLAN.md NOW table.
