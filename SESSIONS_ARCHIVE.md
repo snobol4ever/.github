@@ -9040,3 +9040,31 @@ Diagnosed and fixed two root causes blocking rung9 and rung11.
 - beauty.sno segfault fix (recursion depth guard)
 
 **Next session B-211:** PROTOTYPE + array default-fill + item() → M-ASM-RUNG11
+
+## Session J-208 — M-JVM-CROSSCHECK fired; 89/92 active PASS
+
+**Date:** 2026-03-20
+**HEAD at close:** `a063ed9` J-208
+**Branch:** main (jvm-backend work merged to main)
+
+**What happened:**
+- Diagnosed and fixed 5 bugs in `emit_byrd_jvm.c`:
+  1. **E_CONC null propagation**: `StringBuilder.append(null)` was printing literal `"null"` when a child expression (e.g. `DIFFER`) returned null. Fixed: null-check each child before append; null child pops partial state and returns null to propagate failure.
+  2. **VerifyError in cross**: `H = INPUT :F(END)` used `dup; ifnull L_END` leaving 1 item on stack at `L_END`. Other paths reached `L_END` with 0 items. Fixed: `ifnonnull+pop+goto` pattern so all :F paths leave stack empty at target.
+  3. **DIFFER return value**: was returning first argument on success; CSNOBOL4 verified via `snobol4-2.3.3` source — DIFFER is a predicate returning `""` on success. Fixed: `ldc ""` instead of re-emitting child[0].
+  4. **OUTPUT `:S` goto placement**: was emitted unconditionally after both success and fail labels, causing fail path to jump to `:S` target. Fixed: moved inside success branch only.
+  5. **OUTPUT unconditional goto on fail path**: `:(LOOP)` with null expression was falling through to END instead of looping. Fixed: uncond goto emitted after both success and fail labels.
+- Built CSNOBOL4 2.3.3 from uploaded source to verify DIFFER/EQ/IDENT semantics.
+- `cross` PASS (was xfail J-206, active failure J-207).
+- `triplet` PASS (regression from fix #4, resolved by fix #5).
+
+**State at handoff:**
+- 100/106 C crosscheck (6 pre-existing) ✅
+- 26/26 ASM crosscheck ✅
+- **89/92 JVM active**: 89 PASS, 1 FAIL (`expr_eval` — deferred M-JVM-EVAL), 2 SKIP (`word1` xfail, `100_roman_numeral` xfail)
+- **M-JVM-CROSSCHECK ✅ fired**
+- Artifact: `artifacts/jvm/hello_prog.j` updated
+
+**Next session J-209:**
+Sprint J-S1 — M-JVM-SAMPLES: roman.sno + wordcount.sno PASS via JVM backend.
+Start block in JVM.md CRITICAL NEXT ACTION.

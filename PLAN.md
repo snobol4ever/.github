@@ -15,7 +15,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-backend` B-210 — M-ASM-RUNG9 fires: LGT fix (inc_init re-registered _w_LGT overwriting _b_LGT FAILDESCR); E_IDX read fix (push/pop array around key eval). rung9 5/5 ✅. rung11 0/7→partial (tests 1-4 of 1110 pass; PROTOTYPE + item() + default-fill needed). beauty.sno segfault pre-existing. 100/106 C + 26/26 ASM hold. → next: PROTOTYPE, array default-fill, item(), beauty.sno depth guard → M-ASM-RUNG11 | `3133497` B-210 | M-ASM-RUNG11 |
-| **TINY JVM** | `jvm-backend` J-207 — M-FLAT-NARY regressions fixed (segfault, E_CONC n-ary, REPLACE dup-emit); ARB minimum-first; E_ATP implemented; 88/92 PASS; word1/cross remain | `bb7221c` J-207 | M-JVM-CROSSCHECK |
+| **TINY JVM** | `jvm-backend` J-208 — M-JVM-CROSSCHECK ✅; E_CONC null-prop + DIFFER returns "" + OUTPUT routing + INPUT :F stack fix; 89/92 active PASS; next: M-JVM-SAMPLES | `a063ed9` J-208 | M-JVM-SAMPLES |
 | **TINY NET** | `net-backend` N-204 — DEFINE/RETURN/FRETURN(7/8) + indirect assign + named patterns — 92/110; next: fix FRETURN branch (:S/:F routing) → M-NET-R1 | `0f9d12b` N-204 | M-NET-R1 |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-perf-analysis` — dotnet test + BenchmarkSuite2 re-run | `a029cae` D-156 | M-NET-PERF |
@@ -168,7 +168,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-JVM-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ✅ `fa293a1` J-203 |
 | **M-JVM-R3** | strings/ keywords/ — Rungs 8–9 PASS | ✅ `fa293a1` J-203 |
 | **M-JVM-R4** | functions/ data/ — Rungs 10–11 PASS | ✅ `876eb4b` J-205 |
-| **M-JVM-CROSSCHECK** | 106/106 corpus PASS via JVM backend | ❌ Sprint J-R5 |
+| **M-JVM-CROSSCHECK** | 106/106 corpus PASS via JVM backend | ✅ `a063ed9` J-208 |
 | **M-JVM-SAMPLES** | roman.sno + wordcount.sno PASS | ❌ Sprint J-S1 |
 | **M-JVM-BEAUTY** | beauty.sno self-beautifies via JVM backend | ❌ Sprint J10 |
 

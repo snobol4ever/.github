@@ -9,23 +9,21 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J-R5 — M-JVM-CROSSCHECK: 106/106 corpus PASS
-**HEAD:** `bb7221c` J-207
-**Milestone:** M-JVM-R1 ✅ J-202 · M-JVM-R2 ✅ J-203 · M-JVM-R3 ✅ J-203 · M-JVM-R4 ✅ J-205
+**Sprint:** `jvm-backend` J-S1 — M-JVM-SAMPLES: roman.sno + wordcount.sno PASS via JVM backend
+**HEAD:** `a063ed9` J-208
+**Milestone:** M-JVM-R1 ✅ J-202 · M-JVM-R2 ✅ J-203 · M-JVM-R3 ✅ J-203 · M-JVM-R4 ✅ J-205 · **M-JVM-CROSSCHECK ✅ J-208**
 
-**J-207 — M-FLAT-NARY regressions fixed + E_ATP + ARB minimum-first: 88/92 PASS:**
-- M-FLAT-NARY (F-209) landed after J-206 and caused segfault on every `-jvm` compile
-- Root cause: `jvm_collect_vars_expr` had duplicate null-terminated `children[i]` loop after the `nchildren` loop; `expr_contains_input` same bug plus unsafe `children[0/1]` direct access
-- `E_CONC` value context: was binary-only (children[0]+children[1]); now loops all `nchildren` via StringBuilder
-- `REPLACE`: duplicate `children[2]` emit after nchildren loop removed → 067_builtin_replace PASS
-- `089_define_in_pattern` PASS (was broken by E_CONC value-context bug)
-- **ARB direction fixed**: minimum-first (init `arb_len=0`, `iinc +1`) — was greedy (max-first, decrement). SNOBOL4 ARB matches shortest first. 049_pat_arb PASS.
-- **E_ATP implemented**: `@VAR` captures cursor as integer string into VAR, zero-width, always succeed. `cross.xfail` removed from corpus.
-- `expr_eval`: deferred to M-JVM-EVAL sprint
+**J-208 — M-JVM-CROSSCHECK ✅ — cross + triplet PASS; 89/92 active:**
+- **E_CONC null propagation**: each child null-checked before append; null child aborts concat, returns null (VerifyError from INPUT :F stack mismatch also fixed — `ifnull` → `ifnonnull+pop+goto`)
+- **DIFFER returns `""` on success**: CSNOBOL4 predicate semantics verified — not first arg. Fixes `cross` indentation.
+- **OUTPUT `:S` goto placement**: moved inside success path only; was firing after fail label causing wrong fallthrough
+- **OUTPUT uncond goto on fail path**: `:(LOOP)` now fires even when OUTPUT expression is null — fixes `triplet` loop termination
+- `cross`: PASS. `triplet`: PASS. `expr_eval`: deferred M-JVM-EVAL. `word1`: remains xfail.
+- Invariants held: 100/106 C + 26/26 ASM + 89/92 JVM active
 
-**⚠ CRITICAL NEXT ACTION — Session J-208 (JVM):**
+**⚠ CRITICAL NEXT ACTION — Session J-209 (JVM):**
 
-Sprint J-R5 continued — fix word1 + cross → M-JVM-CROSSCHECK
+Sprint J-S1 — M-JVM-SAMPLES: roman.sno + wordcount.sno PASS via JVM backend
 
 ```bash
 cd /home/claude/snobol4x
@@ -39,25 +37,20 @@ CORPUS=/home/claude/snobol4corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
   $CORPUS/control $CORPUS/patterns $CORPUS/capture \
-  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
-# Expected: 88 passed, 1 failed, 3 skipped
+  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -3
+# Expected: 89 passed, 1 failed (expr_eval), 2 skipped
+# Then run roman.sno and wordcount.sno via -jvm backend
+JASMIN=/home/claude/snobol4x/src/backend/jvm/jasmin.jar
+TMPD=$(mktemp -d)
+./sno2c -jvm /home/claude/snobol4corpus/benchmarks/roman.sno > $TMPD/roman.j
+java -jar $JASMIN $TMPD/roman.j -d $TMPD/ 2>/dev/null
+echo "1 2 3 4 5 10 14 40 90 1999" | tr ' ' '\n' | java -cp $TMPD Roman 2>/dev/null | grep -v Picked
 ```
 
-**Remaining failures for M-JVM-CROSSCHECK (J-208 targets):**
-1. **word1** (xfail): `PAT = " the " ARB . OUTPUT (" of " | " a ")` with INPUT loop produces no output.
-   The named-pattern inline expansion path (`jvm_scan_named_patterns` → `E_VART` registry lookup) runs
-   the ARB deferred-commit code but `sno_var_put("OUTPUT",...)` doesn't print. Hypothesis: the
-   minimum-first ARB fix (J-207) may interact with the named-pattern path differently — the arb_loop
-   label is emitted inside the pattern body but the `sno_var_put` for OUTPUT may be calling the wrong
-   helper slot. Debug: emit `OUTPUT = 'pre-pat'` before `LINE ? PAT` in the .sno to confirm OUTPUT
-   path works, then add `OUTPUT = 'arb-fired'` inside the ARB commit block via a test stub.
-2. **cross** (xfail removed, now active failure): E_ATP implemented and working. Remaining issue:
-   value-context `E_CONC` where a child returns `null` (from `DIFFER` failing) produces the literal
-   string `"null"` instead of propagating failure. Fix: in E_CONC StringBuilder loop, null-check each
-   child result; if any child is null, skip append or abort (SNOBOL4 value concat with a failed
-   subexpression should fail the whole expression or treat as empty — check CSNOBOL4 semantics).
-   Also `DUPL(' ', NH)` where NH is `"0"` from @N — verify `sno_to_double("0")` returns 0.0 correctly.
-3. **expr_eval**: EVAL! — deferred to M-JVM-EVAL sprint.
+**M-JVM-SAMPLES targets:**
+1. **roman.sno** — Roman numeral converter (uses ARRAY, recursion, pattern matching)
+2. **wordcount.sno** — Word frequency counter (uses TABLE, pattern matching, sorting)
+Both must produce output matching their `.ref` oracles in `snobol4corpus/benchmarks/`.
 
 **J-204 — functions/ 8/8 PASS, data/ 3/6 PASS:**
 - Three fixes: fn-body skip in main walk, jvm_arith_local_base, Case 2 :S/:F routing
