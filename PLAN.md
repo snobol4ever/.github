@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-213 — M-EMITTER-NAMING. E_INDR flat-tree fix landed (102/106 C). 4 remain: 091/092 array, 093 table, 100 roman. Naming audit next. 26/26 ASM hold. → next: fix remaining C failures + naming audit → M-EMITTER-NAMING | `6d3cba9` B-212 | M-EMITTER-NAMING |
+| **TINY backend** | `asm-backend` B-214 — M-EMITTER-NAMING. 106/106 C restored (E_IDX/E_INDR flat-tree fixes + emit_assign_target rewritten to use build_expr like other backends). Naming audit next. → next: naming audit → M-EMITTER-NAMING | `7d7f9e8` B-213 | M-EMITTER-NAMING |
 | **TINY JVM** | `jvm-backend` J-208 — M-JVM-CROSSCHECK ✅; E_CONC null-prop + DIFFER returns "" + OUTPUT routing + INPUT :F stack fix; 89/92 active PASS; next: M-JVM-SAMPLES | `a063ed9` J-208 | M-JVM-SAMPLES |
 | **TINY NET** | `net-backend` N-205 — INPUT/ARB/KW fixes: INPUT reads stdin, &ANCHOR wired, E_NAM/E_DOL OUTPUT capture, ARB min-first WIP (SEQ-ARB omega bug); 74/82 pass; next: fix ARB backtrack omega wiring in SEQ → word1-4/cross PASS → M-NET-R1 | `a30365b` N-205 | M-NET-R1 |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |

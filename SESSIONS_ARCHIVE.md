@@ -9157,3 +9157,22 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 102/106
 bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
 # Then: diagnose 091 array_create_access — likely E_IDX lvalue in emit.c
 ```
+
+## Session B-213 — 106/106 C restored; E_IDX/E_INDR flat-tree fixes; scripts relative paths
+
+**Date:** 2026-03-20  
+**Branch:** asm-backend  
+**HEAD at end:** 7d7f9e8
+
+**What happened:**
+- Diagnosed 4 C failures (091/092 array, 093 table, 100 roman) introduced by M-FLAT-NARY (b4a8c3e). Root cause: emit_cnode.c E_IDX built subscript array starting from children[0] (the array expr) instead of children[1], so keys[0] received the array descriptor instead of the index. Also emit_assign_target used dead emit_expr() path instead of build_expr.
+- Fixed emit_cnode.c E_IDX read path: children[0]=array, children[1..n-1]=subscripts, count=nchildren-1.
+- Rewrote emit_assign_target in emit.c to use PP_EXPR/build_expr throughout — consistent with single-emitter pattern of ASM/JVM/NET backends. Eliminates dead emit_expr() calls in lvalue path.
+- Fixed E_IDX lvalue: same children[] layout correction.
+- Fixed E_INDR lvalue: dropped stale children[1] fallback, always children[0].
+- All test/crosscheck/*.sh: replaced hardcoded /home/claude/ and /home/snobol4corpus paths with $TINY/../snobol4corpus relative paths. Removed /home/snobol4corpus directory entirely. No symlinks anywhere.
+- Updated TINY.md startup block: clone corpus to ../snobol4corpus (sibling of snobol4x).
+- artifacts/asm/samples/roman.s regenerated.
+
+**Invariants at handoff:** 106/106 C · 26/26 ASM  
+**Next session B-214:** naming audit — entry points, var registries, named-pat registries, uid functions, output macros across all 4 emitters → M-EMITTER-NAMING fires

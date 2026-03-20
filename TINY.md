@@ -12,54 +12,47 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-213 — M-EMITTER-NAMING: fix remaining 4 C backend failures + naming audit
-**HEAD:** `6d3cba9` B-212
-**Milestone:** M-EMITTER-NAMING ❌ — 102/106 C (4 remain: 091/092 array, 093 table, 100 roman); naming audit not yet started
-**Invariants:** 102/106 C · 26/26 ASM
+**Sprint:** `asm-backend` B-214 — M-EMITTER-NAMING: naming audit (step 2)
+**HEAD:** `7d7f9e8` B-213
+**Milestone:** M-EMITTER-NAMING ❌ — 106/106 C ✅ restored; naming audit not yet started
+**Invariants:** 106/106 C · 26/26 ASM
 
-**⚠ CRITICAL NEXT ACTION — Session B-213:**
+**⚠ CRITICAL NEXT ACTION — Session B-214:**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git pull --rebase origin HEAD:main
+git pull --rebase origin asm-backend
 apt-get install -y libgc-dev nasm && make -C src
-mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+git clone https://github.com/snobol4ever/snobol4corpus ../snobol4corpus 2>/dev/null || true
 gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 102/106
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106
 bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
 
-# Step 1: diagnose remaining 4 C failures: 091/092 array, 093 table, 100 roman
-#   ./sno2c <test>.sno > /tmp/t.c && compile and run, diff vs .ref
-#   Likely root: E_IDX lvalue (array subscript assign) still uses old children[] layout
-
-# Step 2: fix emit.c E_IDX and any other stale children[1] references
-
-# Step 3: naming audit — compare across all 4 emitters:
+# Naming audit — compare across all 4 emitters:
 #   - Entry points: c_emit? / asm_emit? / jvm_emit ✓ / net_emit ✓
 #   - Variable registries: jvm_var_register/net_var_register — C/ASM equivalent?
 #   - Named-pat registries: jvm_named_pat_register/net_named_pat_register — C/ASM equiv?
 #   - UID functions: asm_uid/jvm_pat_node_uid/net_pat_uid_early — normalize to *_uid()
 #   - Output macros: A()/J()/N()/B() — document or rename
-
-# Step 4: 106/106 C + 26/26 ASM → M-EMITTER-NAMING fires
+# → 106/106 C + 26/26 ASM hold → M-EMITTER-NAMING fires
 ```
 
 ---
 
 ## Last Two Session Summaries
 
-**Session B-212 — PIVOT to M-EMITTER-NAMING; E_INDR flat-tree fix:**
-- Diagnosed C backend emit.c: E_INDR used stale `!children[0]` / `children[1]` sentinel from old binary tree (pre-M-FLAT-NARY). New tree: both `$X` and `*X` use `children[0]=operand`.
-- Fixed `emit_expr` E_INDR case and `iset()` lvalue case in emit.c.
-- 100/106 → 102/106 C (014/015 indirect assign now PASS). 4 remain: array/table/roman.
-- Milestone pivoted from M-ASM-RUNG11 to M-EMITTER-NAMING per Lon direction.
-- HQ updated: PLAN.md M-FLAT-NARY marked ⚠, M-EMITTER-NAMING added. HEAD `6d3cba9`.
+**Session B-213 — 106/106 C restored; E_IDX/E_INDR flat-tree fixes; scripts relative paths:**
+- Root cause: emit_cnode.c E_IDX included children[0] (array) in subscript keys AND as first arg — so keys[0] was the array descriptor not the index. Fixed: children[0]=array, children[1..]=subscripts.
+- emit_assign_target rewritten to use PP_EXPR/build_expr throughout (same single-emitter pattern as ASM/JVM/NET) — eliminates dead emit_expr() calls in lvalue path.
+- E_INDR lvalue: dropped stale children[1] fallback.
+- All test/crosscheck/*.sh scripts: hardcoded /home/ paths → $TINY/../snobol4corpus relative. No symlinks.
+- 106/106 C + 26/26 ASM. HEAD 7d7f9e8.
 
-**Session B-211 — PROTOTYPE + ITEM + VALUE + array default-fill (partial):**
-- Added `_b_PROTOTYPE`, `_b_ITEM`, `_b_VALUE` to `snobol4.c`. Fixed `_b_ARRAY` default-fill.
-- ITEM lvalue emitter added but broken (duplicate register loads). rung11: 2/7.
-- Invariants: 100/106 C · 26/26 ASM. HEAD `15e818b`.
+**Session B-212 — PIVOT to M-EMITTER-NAMING; E_INDR flat-tree fix:**
+- Fixed emit.c E_INDR: stale children[0]/children[1] sentinel from pre-M-FLAT-NARY binary tree.
+- 100/106 → 102/106 C (014/015 indirect assign PASS). 4 remain: array/table/roman.
+- HEAD 6d3cba9.
 
 ---
 
