@@ -134,7 +134,7 @@ Full milestone history → [PLAN.md](PLAN.md)
 | B-212 | `asm-backend` | M-ASM-RUNG11 |
 | F-210 | `main` | M-SC-CORPUS-R2 |
 | J-208 | `jvm-backend` | M-JVM-CROSSCHECK (89/92) |
-| N-205 | `net-backend` | M-NET-R1 — fix ARB SEQ-omega ptr bug → word1-4/cross |
+| N-206 | `net-backend` | M-NET-CROSSCHECK — 102/110; ARRAY/TABLE/DATA + roman next |
 | D-156 | `net-perf-analysis` | M-NET-PERF |
 
 Per RULES.md: `git pull --rebase` before every push. Update only your row in PLAN.md NOW table.

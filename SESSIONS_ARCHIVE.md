@@ -9469,27 +9469,33 @@ CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh # 26/26
 # Sprint: M-ASM-RUNG8 — rung8/ REPLACE/SIZE/DUPL 3/3 PASS via ASM
 ```
 
-## Session B-223 handoff — M-EMITTER-NAMING closed, artifacts clean
+## Session N-206 — NET crosscheck 94→102/110; SEQ-ARB omega fix; deferred NAM(ARB) capture
 
-**Branch:** asm-backend | **HEAD at close:** `be4a978`
+**Branch:** net-backend | **HEAD at close:** `02d1f9b`
 
-**What happened this session:**
-- Verified M-EMITTER-NAMING completion: C backend uses same EXPR_t/STMT_t input tree as all three other backends. CNode (emit_cnode.c) is a C-only output formatter, not a second program IR — appropriate.
-- Confirmed JVM/NET segfaults on pattern input are pre-existing (not regressions from B-220/B-221/B-222).
-- Artifact check: beauty/roman/wordcount .s files verified, hello_prog.j artifact removed (was stale), committed `be4a978`.
-- 100/106 C (6 pre-existing) + 26/26 ASM hold.
+**What happened:**
+- **SEQ-ARB omega dangling-ptr fix**: `seq_omega = net_arb_incr_label` was a pointer into a global char buffer that was zeroed after capture. Fix: `snprintf(seq_omega_buf, ...)` on each ARB update, `seq_omega` points to local buffer. Fixes word2, word3.
+- **Deferred NAM(ARB) capture**: `ARB . OUTPUT` was firing `Console.WriteLine` on every backtrack candidate. SEQ emitter pre-scans for `NAM(ARB,...)` children; tentative capture to temp string slot; last child gamma → `lbl_dc` which commits all slots then branches to true outer gamma. word1 ✅.
+- **`sno_div` integer semantics**: both operands `Int64.TryParse` → truncating integer division. Float fallback for mixed/real. Fixes 026.
+- **`sno_pow` + `E_EXPOP`**: `Math.Pow` helper in `snobol4lib.il`; `case E_EXPOP` in `net_emit_expr`. Fixes 027.
+- **`E_INDR` in pattern context**: `*VAR` — `ldsfld` variable value, match as literal. Fixes 056.
+- **`E_ATP` (`@N`)**: cursor-position capture, zero-width success. Added `case E_ATP` to `net_emit_pat_node`.
+- **`BREAKX`**: like BREAK but requires progress (cursor != save). Added to `E_FNC` handler.
+- **FRETURN branch fix**: `net_emit_branch_success/fail` now check `net_cur_fn` and map RETURN/FRETURN to `net_fn_return_lbl`/`net_fn_freturn_lbl`. Was emitting undefined `L_FRETURN`. Fixes 087.
+- **102/110 pass** (+8). 8 remain: cross, 091–096 ARRAY/TABLE/DATA, 100 roman.
 
-**State at handoff:** M-EMITTER-NAMING ✅. Next sprint: M-ASM-RUNG8.
-
-**Next session start block (B-223):**
+**Next session start block:**
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git pull --rebase origin asm-backend
-apt-get install -y libgc-dev nasm && make -C src
-CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh    # 100/106
-CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh # 26/26
-# Sprint M-ASM-RUNG8: rung8/ REPLACE/SIZE/DUPL 3/3 PASS via ASM
-ls /home/claude/snobol4corpus/crosscheck/strings/
+git fetch origin && git checkout net-backend
+apt-get install -y libgc-dev nasm mono-complete && make -C src
+cd src/runtime/net && ilasm snobol4lib.il /output:snobol4lib.dll /dll && cd /home/claude/snobol4x
+rm -rf /tmp/snobol4x_net_cache && mkdir /tmp/snobol4x_net_cache
+cp src/runtime/net/snobol4lib.dll src/runtime/net/snobol4run.dll /tmp/snobol4x_net_cache/
+CORPUS=/home/claude/snobol4corpus/crosscheck HARNESS_REPO=/home/claude/snobol4harness NET_CACHE=/tmp/snobol4x_net_cache \
+  bash test/crosscheck/run_crosscheck_net.sh   # 102/110
+# Next: implement ARRAY/TABLE/DATA
+# snobol4lib.il: sno_array_new/get/set backed by static Dictionary<string,List<string>>
+# emit_byrd_net.c: E_IDX lvalue+rvalue; ARRAY/TABLE/DATA in E_FNC
 ```

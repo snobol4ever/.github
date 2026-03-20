@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-backend` B-222 — M-EMITTER-NAMING ✅ DONE: B-220 JVM Greek labels, B-221 NET Greek labels, B-222 local var alignment all complete | `be4a978` B-222 | M-ASM-RUNG8 |
 | **TINY JVM** | `jvm-backend` J-209 — M-JVM-SAMPLES: all 6 L_%s bypass sites fixed (`50950aa`); B-214 naming rename (jvm_emit_stmt→emit_stmt etc.) NOT YET committed on asm-backend conflicts with J-209 fixes — B-215 must merge both; roman.sno assembly clean, run result pending | `50950aa` J-209 | M-JVM-SAMPLES |
-| **TINY NET** | `net-backend` N-205 — INPUT/ARB/KW fixes: INPUT reads stdin, &ANCHOR wired, E_NAM/E_DOL OUTPUT capture, ARB min-first WIP (SEQ-ARB omega bug); 74/82 pass; next: fix ARB backtrack omega wiring in SEQ → word1-4/cross PASS → M-NET-R1 | `a30365b` N-205 | M-NET-R1 |
+| **TINY NET** | `net-backend` N-206 — 102/110: SEQ-ARB omega fix; deferred NAM(ARB) capture (word1–4 ✅); sno_div integer/sno_pow; E_EXPOP/E_INDR/E_ATP/BREAKX/FRETURN fix; 8 remain: cross/@N, 091–096 ARRAY/TABLE/DATA, 100 roman; next: ARRAY/TABLE/DATA runtime + E_IDX → M-NET-CROSSCHECK | `02d1f9b` N-206 | M-NET-CROSSCHECK |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
 | **DOTNET** | `net-polish` D-160 — PosPattern/RPosPattern Clone() swap fixed; confirm 106/106 | `8a713cb` D-160 | M-NET-CORPUS-RUNGS |
 
@@ -179,14 +179,14 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 |----|---------|--------|
 | **M-NET-HELLO** | `sno2c -net null.sno > null.il && ilasm null.il && mono null.exe` → exit 0 | ✅ session195 |
 | **M-NET-LIT** | `OUTPUT = 'hello'` → `hello` via NET backend | ✅ `efc3772` N-197 |
-| **M-NET-ASSIGN** | Variable assign + arith correct | ❌ Sprint N-R2 |
-| **M-NET-GOTO** | :S(X)F(Y) branching correct | ❌ Sprint N-R3 |
-| **M-NET-PATTERN** | Byrd boxes in CIL — LIT/SEQ/ALT/ARBNO | ❌ Sprint N-R4 |
+| **M-NET-ASSIGN** | Variable assign + arith correct | ✅ `02d1f9b` N-206 |
+| **M-NET-GOTO** | :S(X)F(Y) branching correct | ✅ `02d1f9b` N-206 |
+| **M-NET-PATTERN** | Byrd boxes in CIL — LIT/SEQ/ALT/ARBNO | ✅ `02d1f9b` N-206 |
 | **M-NET-CAPTURE** | . and $ capture correct | ✅ `590509b` N-202 |
-| **M-NET-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ❌ Sprint N-R1 |
-| **M-NET-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ❌ Sprint N-R2 |
-| **M-NET-R3** | strings/ keywords/ — Rungs 8–9 PASS | ❌ Sprint N-R3 |
-| **M-NET-R4** | functions/ data/ — Rungs 10–11 PASS | ❌ Sprint N-R4 |
+| **M-NET-R1** | hello/ output/ assign/ arith/ — Rungs 1–4 PASS | ✅ `02d1f9b` N-206 |
+| **M-NET-R2** | control/ patterns/ capture/ — Rungs 5–7 PASS | ✅ `02d1f9b` N-206 |
+| **M-NET-R3** | strings/ keywords/ — Rungs 8–9 PASS | ✅ `02d1f9b` N-206 |
+| **M-NET-R4** | functions/ data/ — Rungs 10–11 PASS | ❌ Sprint N-R4 — 8 remain: ARRAY/TABLE/DATA + roman |
 | **M-NET-CROSSCHECK** | 106/106 corpus PASS via NET backend | ❌ Sprint N-R5 |
 | **M-NET-SAMPLES** | roman.sno + wordcount.sno PASS | ❌ Sprint N-S1 |
 | **M-NET-BEAUTY** | beauty.sno self-beautifies via NET backend | ❌ Sprint N-10 |
