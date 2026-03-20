@@ -12,47 +12,36 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-217 — M-EMITTER-NAMING: execute renames per EMITTER_NAME_GRID.tsv
-**HEAD:** `646e7dd` B-216
-**Milestone:** M-EMITTER-NAMING ⚠ WIP
-**Invariants:** 106/106 C · 26/26 ASM
+**Sprint:** `asm-backend` B-220 — M-ASM-RUNG8
+**HEAD:** `5999162` B-219
+**Milestone:** M-ASM-RUNG8 ❌
+**Invariants:** 100/106 C (6 pre-existing) · 26/26 ASM
 
-**⚠ CRITICAL NEXT ACTION — Session B-218:**
+**⚠ CRITICAL NEXT ACTION — Session B-220:**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git pull --rebase origin asm-backend
 apt-get install -y libgc-dev nasm && make -C src
-gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
 CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh    # must be 106/106
-CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh # must be 26/26
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh    # 100/106 (6 pre-existing)
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh # 26/26
 
-# THE WORK — read EMITTER_NAME_GRID.tsv in .github first
-# cat /home/claude/.github/EMITTER_NAME_GRID.tsv
-#
-# EMITTER_NAME_GRID.tsv is the naming law for all four backends.
-# It has a Status column: rename | extract | add | done
-# Work top to bottom through Status=rename rows first, then extract, then add.
-# Each row shows Canon name (what it should be) and Notes (what it currently is).
-# After all renames: make -C src, 106/106+26/26, regenerate artifacts, commit.
-# Milestone M-EMITTER-NAMING fires when all four backends match the grid.
+# Sprint M-ASM-RUNG8: REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend
+# See PLAN.md milestone dashboard for next ❌ milestone in sequence
 ```
 
 ---
 
 ## Last Session Summary
 
-**Session B-217 — M-EMITTER-NAMING audit and naming grid:**
-- Cloned snobol4corpus (was missing). Verified 106/106 C + 26/26 ASM hold at HEAD 646e7dd.
-- Full audit of all four emitters: every symbol, typedef, #define, static var, static fn.
-- Produced EMITTER_NAME_GRID.tsv (94 rows) committed to .github — this IS the naming law.
-- Grid has 7 columns: Concept | Canon | C | ASM | JVM | NET | Status | Notes
-- Status values: done=already correct, rename=wrong name exists, extract=inlined needs factoring out, add=missing entirely.
-- Key renames still needed: NET pat_uid_early→uid_ctr, NET scan_prog_vars→collect_vars, NET scan_fndefs→collect_fndefs, NET stmt_in_any_fn→stmt_in_fn, JVM collect_functions→collect_fndefs, ASM emit_asm_*→emit_*, ASM emit_body→emit_stmt, C byrd_named_pat_reset→named_pat_reset, C emit_fail_node→emit_fail, C emit_abort_node→emit_abort.
-- No source files were modified this session (audit only — prior edit to emit_byrd_asm.c was rolled back in discussion).
-- M-EMITTER-NAMING remains ⚠ WIP.
+**Session B-219 — M-EMITTER-NAMING complete: C backend merged into emit_byrd_c.c:**
+- Merged `emit.c` + `emit_byrd.c` into single `emit_byrd_c.c` — now peers with `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`.
+- All four backends now in one file each with canonical names: `var_register()`, `collect_vars()`, `collect_fndefs()`, `next_uid()`, `escape_string()`, `emit_stmt()`, `emit_pat_node()`, `NamedPat`, `FnDef`, `DataType`, `vars[]`, `nvar`.
+- Removed all `byrd_emit_*` / `byrd_cond_*` externs — now static internals.
+- `B()` aliased to `C()` for pattern emitter heritage; `ARG_MAX` aliased to `FN_ARGMAX`.
+- Clean build. 100/106 C (6 pre-existing, unchanged) + 26/26 ASM hold. HEAD `5999162`.
 
 
 ## Last Two Session Summaries

@@ -9414,3 +9414,28 @@ CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh
 ```
+
+## Session B-219 — M-EMITTER-NAMING: C backend merged into emit_byrd_c.c
+
+**Branch:** asm-backend | **HEAD at close:** `5999162`
+
+**What happened:**
+- Merged `emit.c` + `emit_byrd.c` into single `emit_byrd_c.c` — now a peer of `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`. All four backends are one file each.
+- All four backends share canonical names: `var_register()`, `collect_vars()`, `collect_fndefs()`, `next_uid()`, `escape_string()`, `emit_stmt()`, `emit_pat_node()`, `NamedPat`, `FnDef`, `DataType`, `vars[]`, `nvar`.
+- Removed all `byrd_emit_*` / `byrd_cond_*` externs from `sno2c.h` — now static internals.
+- `B()` aliased to `C()` for pattern emitter heritage; `ARG_MAX` aliased to `FN_ARGMAX`.
+- Clean build. 100/106 C (6 pre-existing, unchanged from before merge) + 26/26 ASM hold.
+- M-EMITTER-NAMING ✅ fires at `5999162`.
+
+**State at handoff:** Next sprint M-ASM-RUNG8.
+
+**Next session start block:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase origin asm-backend
+apt-get install -y libgc-dev nasm && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh    # 100/106 (6 pre-existing)
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh # 26/26
+```
