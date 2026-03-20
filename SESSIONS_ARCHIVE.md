@@ -8734,3 +8734,59 @@ done
 # Sprint N-R1: hello/output/assign/arith all PASS -> M-NET-R1
 # Fix: 082 stcount (&STNO read in expr), arith INPUT loops, indirect $
 ```
+
+## Session J-206 — named-pattern registry, ARB backtrack, BREAKX
+
+**Date:** 2026-03-19
+**HEAD at start:** `876eb4b` J-205
+**HEAD at end:** `ced764a` J-206
+**Branch:** `jvm-backend`
+
+### What happened
+
+Sprint J-R5 (M-JVM-CROSSCHECK): advanced JVM corpus from 83/92 → 87/92 PASS.
+
+**Key changes to `src/backend/jvm/emit_byrd_jvm.c`:**
+
+1. **Named-pattern registry** — `jvm_scan_named_patterns()` pre-pass walks the program and registers all `VAR = <pattern-expr>` assignments into `JvmNamedPat[]`. The `E_VART` handler in `jvm_emit_pat_node` checks the registry first; if found, inline-expands the stored pattern tree. Fixes 053_pat_alt_commit (PAT = ('a'|'b'|'c')).
+
+2. **ARB backtracking in E_CONC** — Walk right-spine of `pat->left`; if trailing node is ARB or E_NAM(ARB, V), emit a greedy+backtrack loop: start with `arb_len = len - cursor` (greedy), retry with `arb_len--` on right-child failure. Fixes word2/word3/word4.
+
+3. **Deferred-commit capture** — ARB.V stores span in a temp local; only calls `sno_var_put` after right child succeeds via `lbl_arb_commit`. Prevents spurious OUTPUT on each backtrack attempt.
+
+4. **BREAKX** — Merged with BREAK handler (`is_breakx` flag). Both succeed with zero advance (BREAK semantics corrected — zero advance is valid when already at a break char).
+
+5. **sno_var_put OUTPUT** — Helper method now checks `name.equalsIgnoreCase("OUTPUT")` and calls `println` to stdout instead of storing in HashMap.
+
+**Corpus xfails updated** (snobol4corpus):
+- Removed: wordcount, word2, word3, word4 (now PASS)
+- Updated: word1 (INPUT loop issue), cross (E_ATP not implemented)
+
+**CSNOBOL4 / JCON study:** Reviewed CSNOBOL4 PATVAL function and SIL proc design. JCON uses vClosure/Resume() model for Icon generators — not directly applicable but confirms suspension model. Byrd box four-port (α/β/γ/ω) architecture confirmed in ARCH.md.
+
+**Parser flattening:** NOT done this session (scope too broad). Recommended to .NET session — benefits all backends.
+
+### State at handoff
+
+- 106/106 C crosscheck ✅
+- 87/92 JVM crosscheck (2 fail, 3 skip)
+- Remaining for M-JVM-CROSSCHECK: word1 (INPUT loop), cross (E_ATP), expr_eval (M-JVM-EVAL)
+
+### Next session start block
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
+ln -sf /home/claude/snobol4corpus /home/snobol4corpus
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
+  $CORPUS/control $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
+# Fix word1: debug sno_var_put OUTPUT in INPUT loop; check if pattern fires at all
+# Fix cross: implement E_ATP in jvm_emit_pat_node — capture cursor as integer
+# Then remove their xfail files, verify 90+/92, commit, push
+```

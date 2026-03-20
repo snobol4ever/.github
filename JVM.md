@@ -9,9 +9,51 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J-R4 — corpus ladder rungs 10–11: functions/ data/ → M-JVM-R4
-**HEAD:** `876eb4b` J-205
+**Sprint:** `jvm-backend` J-R5 — M-JVM-CROSSCHECK: 106/106 corpus PASS
+**HEAD:** `ced764a` J-206
 **Milestone:** M-JVM-R1 ✅ J-202 · M-JVM-R2 ✅ J-203 · M-JVM-R3 ✅ J-203 · M-JVM-R4 ✅ J-205
+
+**J-206 — named-pattern registry + ARB backtrack: 87/92 PASS:**
+- Add `jvm_scan_named_patterns()` pre-pass: finds `PAT = <pattern-expr>` assignments and registers them in `JvmNamedPat[]` table before emit
+- `E_VART` in pattern context checks registry first → inline-expands stored pattern tree via `jvm_emit_pat_node`; fixes 053_pat_alt_commit
+- `E_CONC` ARB-aware: walk right-spine of left subtree; detect `ARB` or `ARB.NAM`; emit greedy+backtrack loop (arb_loop/arb_retry/arb_decr)
+- Deferred-commit: store ARB capture in temp local; only call `sno_var_put` after right child succeeds; prevents spurious OUTPUT on backtrack
+- BREAKX added (merged with BREAK handler); BREAK zero-advance bug fixed
+- `sno_var_put` handles OUTPUT specially (println to stdout)
+- wordcount/word2/word3/word4 xfails removed — all PASS
+- word1: ARB.OUTPUT in named-pattern INPUT loop still fails (isolated test passes; loop interaction TBD)
+- cross: needs `@` position capture (E_ATP) — not yet implemented
+- expr_eval: deferred to M-JVM-EVAL sprint
+
+**⚠ CRITICAL NEXT ACTION — Session J-207 (JVM):**
+
+Sprint J-R5 — fix remaining 3 failures → M-JVM-CROSSCHECK
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
+ln -sf /home/claude/snobol4corpus /home/snobol4corpus
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh  # must be 106/106
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
+  $CORPUS/control $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -5
+# Expected: 87 passed, 2 failed, 3 skipped
+```
+
+**Remaining failures for M-JVM-CROSSCHECK:**
+1. **word1**: `PAT = " the " ARB . OUTPUT (" of " | " a ")` with INPUT loop.
+   Isolated test `LINE ? PAT` works. Full program with `LINE = INPUT :F(END); LINE ? PAT :(LOOP)` produces no output.
+   Suspect: `sno_var_put("OUTPUT",...)` in named-pattern inline expansion during INPUT loop — check if the `sno_var_put` OUTPUT println fires but is suppressed, or if the pattern truly fails on real input.
+   Debug: add `OUTPUT = 'debug'` before the loop to confirm OUTPUT works, then narrow.
+2. **cross**: needs `E_ATP` (`@N`) position capture → capture cursor as integer into variable.
+   In `E_NAM` handler: if child is `E_ATP(var)`, emit `iload loc_cursor; invokestatic Integer.toString; sno_var_put(var, ...)`.
+3. **expr_eval**: EVAL! — deferred to M-JVM-EVAL sprint (inline arithmetic).
+
+**Note for J-207:** Parser flattening (E_CONC/E_OR → n-ary) is being done by .NET backend session. Once landed, the ARB E_CONC right-spine walk can be simplified significantly.
 
 **J-204 — functions/ 8/8 PASS, data/ 3/6 PASS:**
 - Three fixes: fn-body skip in main walk, jvm_arith_local_base, Case 2 :S/:F routing
