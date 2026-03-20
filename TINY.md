@@ -11,10 +11,57 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-210 — fix LGT stmt_apply ordering; rung11 re-run; beauty.sno crash
-**HEAD:** `ec655ff` B-209
-**Milestone:** M-ASM-RUNG8 ❌ (2/3 — 810_replace &alphabet pre-existing runtime limit) · M-ASM-RUNG9 ❌ (4/5 — LGT lookup ordering bug)
+**Sprint:** `asm-backend` B-211 — M-ASM-RUNG11: PROTOTYPE + array default-fill + item() + beauty.sno depth guard
+**HEAD:** `3133497` B-210
+**Milestone:** M-ASM-RUNG8 ❌ (2/3 pre-existing) · M-ASM-RUNG9 ✅ 5/5 · M-ASM-RUNG11 ❌ (0/7 — PROTOTYPE/item()/default-fill needed)
 **Milestone order:** M-ASM-RUNG8 → M-ASM-RUNG9 → M-ASM-RUNG10 → M-ASM-RUNG11 → M-ASM-LIBRARY
+
+**⚠ CRITICAL NEXT ACTION — Session B-211:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y libgc-dev nasm && make -C src
+mkdir -p /home/snobol4corpus && ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+gcc -c src/runtime/asm/snobol4_asm_harness.c -o src/runtime/asm/snobol4_asm_harness.o
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh        # must be 100/106
+bash test/crosscheck/run_crosscheck_asm.sh                   # must be 26/26
+CORPUS=/home/claude/snobol4corpus/crosscheck
+# Step 1: add PROTOTYPE to snobol4.c + register in SNO_INIT_fn
+# Step 2: implement _b_ARRAY default-fill (second arg)
+# Step 3: register item() in snobol4.c
+# Step 4: re-run rung11 → target 7/7 → M-ASM-RUNG11 fires
+STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung11
+# Step 5: fix beauty.sno segfault (recursion depth guard in prog_emit_expr)
+# Step 6: regenerate artifacts/asm/beauty_prog.s + roman.s + wordcount.s
+# Step 7: commit + update PLAN.md/SESSIONS_ARCHIVE + push
+```
+
+**Session B-210 summary — M-ASM-RUNG9 fires; two root-cause fixes:**
+
+**Bug A (LGT NULVCL) — FIXED:** `inc_init()` in `mock_includes.c` re-registered
+`LGT/LLT/LGE/LLE/LEQ/LNE` with `_w_*` wrappers returning NULVCL on failure,
+overwriting `SNO_INIT_fn`'s correct FAILDESCR-returning `_b_*` versions.
+Fix: removed 6 duplicate `register_fn` calls from `inc_init()`.
+Result: rung9 **5/5 ✅ — M-ASM-RUNG9 fires.**
+
+**Bug C (rung11 E_IDX read) — FIXED:** `prog_emit_expr(key, -16)` called `LOAD_INT`
+which always writes `[rbp-32/24]` first regardless of `rbp_off`, clobbering the
+array descriptor saved there. Fix: push array descriptor onto C stack before key
+eval, pop into `rdi:rsi` after. Tests 001-004 of 1110 now pass.
+
+**Remaining rung11 blockers:**
+- `PROTOTYPE` function not registered (hits at 1110/005, 1112/002, 1113/005)
+- `_b_ARRAY` default-fill (second arg ignored — `array(3,10)` gives no fill)
+- `item()` function not registered (1114/001)
+- `value()` needs verification for 1115/1116 DATA tests
+
+**beauty.sno segfault:** pre-existing, unrelated to this session's changes.
+Root cause: deep recursion in `prog_emit_expr` for complex expressions.
+Fix: add recursion depth counter/guard — B-211.
+
+**Invariants:** 100/106 C ✅ · 26/26 ASM ✅
 
 **Session B-209 summary — 7 root-cause fixes; invariants hold:**
 

@@ -9017,3 +9017,26 @@ TINY_REPO=/home/claude/snobol4x NET_CACHE=/tmp/snobol4x_net_cache \
 
 **Key file:** `src/backend/net/emit_byrd_net.c`  
 **Key reference:** `src/backend/jvm/emit_byrd_jvm.c` for all unimplemented features.
+
+## Session B-210 — M-ASM-RUNG9; LGT fix; E_IDX read fix
+
+**HEAD:** `3133497` (was `ec655ff` B-209)
+**Invariants:** 100/106 C ✅ · 26/26 ASM ✅
+
+**What happened:**
+
+Diagnosed and fixed two root causes blocking rung9 and rung11.
+
+**Bug A — LGT returned NULVCL instead of FAILDESCR:**
+`inc_init()` in `src/runtime/mock/mock_includes.c` called `register_fn("LGT", _w_LGT, ...)` etc. for all six lexical comparators, overwriting the correct `_b_LGT` etc. registered earlier by `SNO_INIT_fn()` in `snobol4.c`. The `_w_*` wrappers call the old `LGT(a,b)` C function which returns NULVCL on failure instead of FAILDESCR. Removed 6 duplicate registrations. **M-ASM-RUNG9 fires: rung9 5/5.**
+
+**Bug C — E_IDX read clobbered array descriptor:**
+`prog_emit_expr(e->children[1], -16)` for the key causes `LOAD_INT` to write `[rbp-32/24]` regardless of the `-16` rbp_off, destroying the array descriptor left there by `prog_emit_expr(e->children[0], -32)`. Fixed by pushing array descriptor to C stack before key eval, popping into rdi:rsi after. Tests 001-004 of 1110_array_1d now pass.
+
+**Still needed for M-ASM-RUNG11:**
+- `PROTOTYPE` function (not registered)
+- `_b_ARRAY` default-fill (second arg ignored)
+- `item()` function
+- beauty.sno segfault fix (recursion depth guard)
+
+**Next session B-211:** PROTOTYPE + array default-fill + item() → M-ASM-RUNG11

@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-209 — 7 root-cause fixes: expr_has_pattern_fn whitelist; _func_hash case-insensitive; E_KW uppercase; CONC2 guard (CONCAT/ALT only); E_IDX children[1] fix + arg order; prescan OOB guard; prog_str_intern null guard; LGT/LLT/LGE/LLE/LEQ/LNE added. rung8 2/3, rung9 4/5. LGT stmt_apply returns NULVCL despite registration (ordering bug, next session). rung11 E_IDX fix applied, needs re-run. sno2c segfault on beauty.sno pre-existing (CONC2 was masking it). 100/106 C + 26/26 ASM hold. → next: fix LGT lookup ordering, rung11 re-run, beauty.sno crash → M-ASM-RUNG8 | `ec655ff` B-209 | M-ASM-RUNG8 |
+| **TINY backend** | `asm-backend` B-210 — M-ASM-RUNG9 fires: LGT fix (inc_init re-registered _w_LGT overwriting _b_LGT FAILDESCR); E_IDX read fix (push/pop array around key eval). rung9 5/5 ✅. rung11 0/7→partial (tests 1-4 of 1110 pass; PROTOTYPE + item() + default-fill needed). beauty.sno segfault pre-existing. 100/106 C + 26/26 ASM hold. → next: PROTOTYPE, array default-fill, item(), beauty.sno depth guard → M-ASM-RUNG11 | `3133497` B-210 | M-ASM-RUNG11 |
 | **TINY JVM** | `jvm-backend` J-207 — M-FLAT-NARY regressions fixed (segfault, E_CONC n-ary, REPLACE dup-emit); ARB minimum-first; E_ATP implemented; 88/92 PASS; word1/cross remain | `bb7221c` J-207 | M-JVM-CROSSCHECK |
 | **TINY NET** | `net-backend` N-204 — DEFINE/RETURN/FRETURN(7/8) + indirect assign + named patterns — 92/110; next: fix FRETURN branch (:S/:F routing) → M-NET-R1 | `0f9d12b` N-204 | M-NET-R1 |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
@@ -114,7 +114,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-RECUR** | Recursive SNOBOL4 functions correct via ASM backend — roman.sno segfault fixed; each function invocation gets its own frame (push rbp/mov rbp,rsp/sub rsp,56 at α; add rsp,56/pop rbp at γ/ω); call sites use .bss uid slots not stack pushes; 26/26 + 106/106 hold | ✅ `266c866` B-204 |
 | **M-ASM-SAMPLES** | roman.sno and wordcount.sno pass via ASM backend; artifacts/asm/roman.s and artifacts/asm/wordcount.s committed and assembling clean | ✅ `266c866` B-204 |
 | **M-ASM-RUNG8** | rung8/ — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend | ❌ Sprint A-RUNG8 |
-| **M-ASM-RUNG9** | rung9/ — CONVERT/DATATYPE/INTEGER/LGT/numeric predicates 5/5 PASS via ASM backend | ❌ Sprint A-RUNG9 |
+| **M-ASM-RUNG9** | rung9/ — CONVERT/DATATYPE/INTEGER/LGT/numeric predicates 5/5 PASS via ASM backend | ✅ `3133497` B-210 |
 | **M-ASM-RUNG10** | rung10/ — DEFINE/recursion/locals/NRETURN/FRETURN/APPLY 9/9 PASS via ASM backend | ❌ Sprint A-RUNG10 |
 | **M-ASM-RUNG11** | rung11/ — ARRAY/TABLE/DATA types 7/7 PASS via ASM backend | ❌ Sprint A-RUNG11 |
 | **M-ASM-LIBRARY** | library/ crosscheck tests PASS via ASM backend; -include resolved correctly | ❌ Sprint A-LIBRARY |
