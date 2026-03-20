@@ -8834,3 +8834,65 @@ bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
 CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung8  # → M-ASM-RUNG8
 ```
+
+## Session N-203 — NET backend: n-ary pattern emit + M-FLAT-NARY milestone
+
+**Session type:** TINY NET backend
+**HEAD on entry:** `590509b` N-202
+**HEAD on exit:** `0872f3d` N-203
+
+**Baseline:** 82/110 PASS, 28 FAIL (full corpus run confirmed).
+
+**Work done:**
+
+1. **Diagnosed all 28 failures:**
+   - `014`, `015` — indirect assignment (`$expr = val`) — `E_INDR` subject not handled in Case 1
+   - `083`–`090` — DEFINE/RETURN/FRETURN — completely absent in `emit_byrd_net.c`
+   - `091`–`096` — ARRAY/TABLE/DATA — not implemented
+   - `098` — `&ANCHOR` keyword
+   - `100` — roman_numeral (requires functions)
+   - `cross`, `word1–4`, `wordcount` — sample programs (require functions)
+
+2. **NET pattern emitter — n-ary E_CONC / E_OR** (`emit_byrd_net.c`):
+   - Updated both `E_CONC` (sequence) and `E_OR` (alternation) in pattern context to iterate `args[0..nargs-1]`
+   - Binary `left`/`right` fallback retained pending `M-FLAT-NARY`
+   - Updated expr-context `E_CONC` similarly
+
+3. **M-FLAT-NARY milestone created** (`PLAN.md` + `TINY.md`):
+   - Full sprint block written for frontend session
+   - Covers: `parse.c` `naryop()`, flatten `E_CONC`/`E_OR`; C/ASM/NET backends updated; JVM untouched
+
+**Not completed (next session N-204):**
+- `$expr = val` indirect assignment (Case 1 `E_INDR` subject)
+- DEFINE / RETURN / FRETURN (functions) — biggest gap, 14 tests
+- ARRAY / TABLE / DATA — 6 tests
+- `&ANCHOR` — 1 test
+
+**Next session N-204 start block:**
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase
+apt-get install -y libgc-dev mono-complete && make -C src
+mkdir -p /tmp/snobol4x_net_cache
+ilasm src/runtime/net/snobol4run.il /dll /output:/tmp/snobol4x_net_cache/snobol4run.dll
+ilasm src/runtime/net/snobol4lib.il /dll /output:/tmp/snobol4x_net_cache/snobol4lib.dll
+TINY_REPO=/home/claude/snobol4x NET_CACHE=/tmp/snobol4x_net_cache \
+  CORPUS=/home/claude/snobol4corpus/crosscheck \
+  HARNESS_REPO=/home/claude/snobol4harness \
+  STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck_net.sh   # baseline: 82/110
+```
+
+**Priority order for N-204:**
+1. Fix `$expr = val` (2 tests, easy) — add `E_INDR` case in `net_emit_one_stmt` Case 1;
+   needs `sno_vars` Dictionary + `net_indr_get`/`net_indr_set` helpers emitted per-class
+2. Implement DEFINE/RETURN/FRETURN (14 tests) — mirror JVM backend's `JvmFnDef` scan +
+   `jvm_emit_fn_method` in CIL; use `sno_vars` Dictionary for arg/local save-restore
+3. ARRAY/TABLE/DATA (6 tests)
+4. `&ANCHOR` (1 test)
+
+**Key reference:** `src/backend/jvm/emit_byrd_jvm.c` is the structural oracle for functions —
+`JvmFnDef`, `jvm_parse_proto`, `jvm_emit_fn_method`, `sno_vars` HashMap → translate to
+CIL `Dictionary<string,string>`. The JVM uses `invokestatic sno_indr_get/set`; NET equivalent
+is `call string ClassName::net_indr_get(string)` / `call void ClassName::net_indr_set(string,string)`.
