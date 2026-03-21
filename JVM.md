@@ -10,7 +10,7 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 ## NOW
 
 **Sprint:** `jvm-backend` J-212 — M-JVM-BEAUTY continued: fix cross-scope goto (out-of-fn label → freturn)
-**HEAD:** `628bd0d` J-211
+**HEAD:** `d4012e0` J-211
 **Milestone:** M-JVM-SAMPLES ✅ J-210 · M-JVM-BEAUTY ❌ (1 Jasmin error remaining)
 
 **J-211 — M-JVM-BEAUTY WIP — 3 fixes, 1 error remaining:**
