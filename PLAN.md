@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-237 — t2-impl | `c6a6544` B-237 | M-MERGE-3WAY |
+| **TINY backend** | `asm-t2` B-239 — t2-impl | `425921a` B-239 | M-T2-RUNTIME |
 | **TINY NET** | `net-backend` N-209 — clean slate | `2c417d7` N-209 | TBD |
 | **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
@@ -197,7 +197,7 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-X64-FULL** | S1–S4 fired; SPITBOL confirmed 5-way monitor participant | snobol4ever/x64 | ✅ `4fcb0e1` B-233 |
 | **M-MONITOR-IPC-5WAY** | all 5 participants (CSNOBOL4+SPITBOL+ASM+JVM+NET) write trace to per-participant FIFO; `run_monitor.sh` parallel launch + collector; hello PASS all 5; zero stderr/stdout blending | snobol4x | ✅ `064bb59` B-236 |
 | **M-MONITOR-IPC-TIMEOUT** | `monitor_collect.py` per-participant watchdog: FIFO silence > T seconds → TIMEOUT report with last trace event + participant kill; infinite loop detected automatically | snobol4x | ✅ `c6a6544` B-237 |
-| **M-MERGE-3WAY** | `asm-backend` + `jvm-backend` + `net-backend` merged into `main` via staged merge-staging branch; all invariants hold after merge; fresh fan-out tags cut (`v-post-merge`); three new per-backend branches from tag | snobol4x | ❌ |
+| **M-MERGE-3WAY** | `asm-backend` + `jvm-backend` + `net-backend` merged into `main` via staged merge-staging branch; all invariants hold after merge; fresh fan-out tags cut (`v-post-merge`); three new per-backend branches from tag | snobol4x | ✅ `425921a` B-239 |
 | **M-T2-RUNTIME** | `src/runtime/asm/t2_alloc.c`: `t2_alloc(size)` → mmap RW; `t2_free(ptr,size)` → munmap; `t2_mprotect_rx/rw` toggle; unit test passes | snobol4x | ❌ |
 | **M-T2-RELOC** | `src/runtime/asm/t2_reloc.c`: `t2_relocate(text,len,delta,table,n)` patches relative jumps + absolute DATA refs; unit test with synthetic table passes | snobol4x | ❌ |
 | **M-T2-EMIT-TABLE** | `emit_byrd_asm.c` emits per-box relocation table as NASM data: `box_N_reloc_table` lists (offset, kind) for every relative ref and DATA ref; null.sno assembles clean | snobol4x | ❌ |

@@ -13,8 +13,8 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `t2-impl` — Technique 2 dynamic allocation + relocation
-**HEAD:** `c6a6544` B-237 (asm-backend) · x64: `4fcb0e1` B-233
-**Milestone:** M-MONITOR-4DEMO → M-MONITOR-CORPUS9 → M-MERGE-3WAY → **M-T2-RUNTIME (pivot target)**
+**HEAD:** `425921a` B-239 (asm-t2) · x64: `4fcb0e1` B-233
+**Milestone:** M-MERGE-3WAY ✅ → **M-T2-RUNTIME (pivot target)**
 **Invariants:** 97/106 ASM corpus (9 known failures fixed by T2 — no manual patches)
 
 **⚠ CRITICAL NEXT ACTION — Session B-238:**
@@ -56,6 +56,14 @@ bash test/monitor/run_monitor.sh $PROG/claws5/claws5.sno || true  # document cou
 
 ## Last Session Summary
 
+**Session B-239 (2026-03-21) — M-MERGE-3WAY fired:**
+- Created merge-staging from asm-backend (c6a6544 B-237)
+- Merged net-backend (N-209): 3 conflicts resolved — took net-backend JVM+NET emitters + crosscheck path fix
+- Merged main (J-212): 1 artifact conflict (hello_prog.j) resolved
+- ASM invariant: 97/106 ✅ · NET invariant: 110/110 ✅
+- Pushed main → 425921a; cut v-post-merge tag; fanned out asm-t2/jvm-t2/net-t2 branches
+- M-MERGE-3WAY ✅
+
 **Session B-238 (2026-03-21) — PIVOT: Technique 2 planned; milestones + HQ updated:**
 - Designed 3-way merge strategy (staged, asm-backend base, jvm then net)
 - Identified M-BOOTSTRAP prerequisite as unnecessary — `emit_byrd_asm.c` can emit
@@ -70,17 +78,15 @@ bash test/monitor/run_monitor.sh $PROG/claws5/claws5.sno || true  # document cou
 
 | ID | Status |
 |----|--------|
-| M-MONITOR-4DEMO | ❌ next to fire |
-| M-MONITOR-CORPUS9 | ❌ (may be superseded by T2) |
-| M-MERGE-3WAY | ❌ |
-| M-T2-RUNTIME | ❌ |
+| M-MERGE-3WAY | ✅ `425921a` B-239 |
+| M-T2-RUNTIME | ❌ next to fire |
 | M-T2-RELOC | ❌ |
 
 ## Concurrent Sessions
 
 | Session | Branch | Focus |
 |---------|--------|-------|
-| B-next | `asm-backend` | M-MONITOR-4DEMO → M-MERGE-3WAY → M-T2-RUNTIME |
-| J-next | `jvm-backend` | TBD |
-| N-next | `net-backend` | TBD |
+| B-next | `asm-t2` | M-T2-RUNTIME → M-T2-RELOC → M-T2-EMIT-TABLE |
+| J-next | `jvm-t2` | TBD |
+| N-next | `net-t2` | TBD |
 | F-next | `main` | TBD |
