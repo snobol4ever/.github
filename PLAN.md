@@ -18,7 +18,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY JVM** | `jvm-backend` J-209 — M-JVM-SAMPLES: all 6 L_%s bypass sites fixed (`50950aa`); B-214 naming rename (jvm_emit_stmt→emit_stmt etc.) NOT YET committed on asm-backend conflicts with J-209 fixes — B-215 must merge both; roman.sno assembly clean, run result pending | `50950aa` J-209 | M-JVM-SAMPLES |
 | **TINY NET** | `net-backend` N-206 — 102/110: SEQ-ARB omega fix; deferred NAM(ARB) capture (word1–4 ✅); sno_div integer/sno_pow; E_EXPOP/E_INDR/E_ATP/BREAKX/FRETURN fix; 8 remain: cross/@N, 091–096 ARRAY/TABLE/DATA, 100 roman; next: ARRAY/TABLE/DATA runtime + E_IDX → M-NET-CROSSCHECK | `02d1f9b` N-206 | M-NET-CROSSCHECK |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
-| **DOTNET** | `net-polish` D-160 — PosPattern/RPosPattern Clone() swap fixed; confirm 106/106 | `8a713cb` D-160 | M-NET-CORPUS-RUNGS |
+| **DOTNET** | `net-spitbol-switches` D-162 — 11 new SPITBOL switches: -d -e -g -i -m -p -s -t -y -z -N=file; k/m suffix parser; ApplyStartupOptions wires -e/-m; 26 tests authored; commit pending dotnet build | `0d4b2ee` D-161 | M-NET-SPITBOL-SWITCHES |
 
 **Invariants (check before any work):**
 - TINY: `100/106` C crosscheck (6 pre-existing) · `26/26` ASM crosscheck
@@ -208,6 +208,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | M-NET-SNOCONE | Snocone self-test: compile snocone.sc, diff oracle | ❌ |
 | **M-NET-PERF** | Performance profiling: hot-path report, ≥1 measurable win landed, regression baseline published | ✅ `e8a5fec` D-159 |
 | **M-NET-POLISH** | 106/106 corpus rungs pass, diag1 35/35, benchmark grid published | ❌ see DOTNET.md |
+| **M-NET-SPITBOL-SWITCHES** | All SPITBOL CLI switches implemented: -d -e -g -i -m -p -s -t -y -z -N=file; k/m suffix parser; BuilderOptions fields; ApplyStartupOptions wires -e/-m at startup; 26 unit tests in TestSpitbolSwitches PASS; DisplayManual updated | ❌ Sprint `net-spitbol-switches` |
 | M-NET-BOOTSTRAP | snobol4-dotnet compiles itself | ❌ |
 
 ### Shared (all products)
