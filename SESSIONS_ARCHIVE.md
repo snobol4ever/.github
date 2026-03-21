@@ -10349,3 +10349,36 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 # 5. Run: bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno
 # 6. Fire M-MONITOR-IPC-5WAY → push → update PLAN.md + TINY.md + SESSIONS_ARCHIVE
 ```
+
+## Session B-234 — 2026-03-21 — monitor-ipc fixes + JVM monitor infrastructure
+
+**Branch:** `asm-backend` · **Pushed:** `9a94aaa`
+
+**What happened:**
+Built all tooling from scratch (CSNOBOL4 2.3.3 from upload, bootsbl from x64, sno2c from src, mono/ilasm/nasm installed). Diagnosed and fixed 5 bugs blocking M-MONITOR-IPC-5WAY:
+
+1. `run_monitor.sh`: `set -euo pipefail` → `set -uo pipefail` (FIFO EOF was killing script)
+2. `run_monitor.sh`: SPITBOL step missing `MONITOR_SO=$X64_DIR/monitor_ipc_spitbol.so`
+3. `inject_traces.py`: UTF-8 `→` in `MONITOR_PREAMBLE` (3-byte sequence kills SPITBOL ASCII parser)
+4. `inject_traces.py`: `&TRACE = 999999999` → `16000000` (SPITBOL hard limit is 2^24 = 16777216)
+5. `inject_traces.py`: `VALUE(MONN)` → `$MONN` (SPITBOL has no `VALUE()` builtin; `$` is portable to both)
+
+Verified isolation: CSNOBOL4 `VALUE OUTPUT = hello` ✅, SPITBOL `VALUE output = hello` ✅ (lowercase handled by normalize), ASM ✅.
+
+Added JVM monitor infrastructure to `emit_byrd_jvm.c`:
+- `.field static sno_monitor_out Ljava/io/PrintStream;`
+- `clinit`: open `MONITOR_FIFO` env var as autoFlush FileOutputStream/PrintStream. Used `astore_0/aload_0` pattern — `dup_x1` on uninitialised refs fails JVM verifier.
+- `sno_var_put`: calls `sno_monitor_write(name, val)` for both OUTPUT and HashMap paths.
+- `sno_monitor_write`: new static helper — builds `VAR name "val"` string using `bipush 34 + Character.toString(C)` to avoid embedding `"` in Jasmin `ldc` strings; stores PS in `astore_2` to avoid stack confusion after StringBuilder chain.
+
+**Root cause of remaining JVM silence:** The `OUTPUT = expr` statement has a fast path in `main()` that emits `getstatic sno_stdout → swap → invokevirtual println` directly, bypassing `sno_var_put` entirely. `sno_monitor_write` is never called for OUTPUT via this path.
+
+**State at handoff:**
+- JVM: writes trace for regular variables but not OUTPUT (fast path bypass)
+- NET: no monitor infrastructure yet
+- M-MONITOR-IPC-5WAY: not fired
+
+**Next session (B-235):**
+1. Fix JVM OUTPUT fast path: add `dup` before `swap+println` so val stays on stack, then `ldc "OUTPUT" + invokestatic sno_monitor_write` after println
+2. Add monitor to NET emitter (`emit_byrd_net.c`)
+3. Run full `bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno` → fire M-MONITOR-IPC-5WAY
