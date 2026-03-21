@@ -10425,3 +10425,52 @@ git push
 - M-README-CSHARP-DRAFT ❌
 - M-README-PROFILE-VERIFIED ❌
 - M-README-PROFILE-FINAL ❌ (the gate to groups.io post)
+
+## Session README-1 (2026-03-21) — M-README-DOTNET-DRAFT ✅
+
+**Repos touched:** snobol4ever/.github · snobol4ever/snobol4dotnet
+**Commit (dotnet):** `aeac61e` — new public README live; Jeff's original → `README.jeff.md`
+**Commit (.github):** `6e978af` — DOTNET_README_DRAFT.md added to HQ (superseded by aeac61e)
+
+**What happened:**
+- Fresh session; cloned `.github` HQ; read PLAN.md, STATUS.md, ARCH.md, MISC.md, SESSIONS_ARCHIVE.md, DOTNET.md, BACKEND-NET.md, MONITOR.md, TINY.md
+- Identified next README milestone: M-README-DOTNET-DRAFT (first ❌ in README Milestones table)
+- Wrote full snobol4dotnet README covering: architecture (Roslyn → threaded code → MSIL delegate JIT), 13.7× benchmark headline, plugin system (LOAD/UNLOAD, C-ABI, XNBLK, .NET assembly, VB.NET), test suite history (1,271 → 1,911), conformance target, Snocone frontend, build instructions, quick example
+- Cloned snobol4dotnet; installed new README.md; backed up Jeff's original as README.jeff.md; removed stale README.md.backup
+- Pushed to snobol4dotnet main; updated PLAN.md milestone dashboard
+- Context window at ~60% at handoff
+
+**State at handoff:**
+- snobol4dotnet HEAD: `aeac61e` main
+- M-README-DOTNET-DRAFT: ✅ fired
+- M-README-DOTNET-VERIFIED: ❌ — next README session
+
+**Next session start (M-README-DOTNET-VERIFIED):**
+```bash
+# Clone dotnet repo fresh
+git clone https://github.com/snobol4ever/snobol4dotnet
+cd snobol4dotnet
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+export PATH=/usr/local/dotnet10:$PATH
+
+# 1. Run test suite — confirm actual count matches README claim (1,911 / 1,913)
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+
+# 2. Scan source — verify every README claim against C# code:
+#    - ThreadedExecuteLoop.cs (dispatch model)
+#    - BuilderEmitMsil.cs (MSIL delegate JIT)
+#    - Scanner.cs + AbstractSyntaxTreeNode.cs (pattern engine)
+#    - Builder.cs (pipeline stages)
+#    - Plugin system: LOAD/UNLOAD, XNBLK, VB.NET fixture
+#    - SnoconeParser.cs (Snocone Step 2)
+#    - SpitbolSwitchTests.cs (26 CLI switch tests)
+
+# 3. Run crosscheck to confirm 79/80 (or better if @N bug fixed)
+# DOTNET_REPO=/home/claude/snobol4dotnet CORPUS=/home/claude/snobol4corpus/crosscheck \
+# DOTNET_ROOT=/usr/local/dotnet10 \
+# bash /home/claude/snobol4harness/adapters/dotnet/run_crosscheck_dotnet.sh
+
+# 4. Correct any claims that don't match source
+# 5. Coordinate with Jeff Cooper before pushing
+# 6. Commit and push — M-README-DOTNET-VERIFIED fires
+```

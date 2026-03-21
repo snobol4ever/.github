@@ -21,6 +21,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
+| **README** | `main` — M-README-DOTNET-DRAFT ✅ | `aeac61e` snobol4dotnet | M-README-DOTNET-VERIFIED (next session) |
 
 **Invariants (check before any work):**
 - TINY: `97/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · 9 known failures: 022, 055, 064, cross, word1-4, wordcount
@@ -299,7 +300,7 @@ All four fire → GRIDS.md is publication-ready for community presentation.
 | **M-README-JVM-VERIFIED** | snobol4jvm README verified against Clojure source; every claim confirmed | snobol4jvm | ❌ |
 | **M-README-X-DRAFT** | snobol4x README updated: 15×3 frontend/backend matrix, corpus status per backend, build instructions, Byrd Box explanation | snobol4x | ✅ F-211b |
 | **M-README-X-VERIFIED** | snobol4x README verified against C source; every claim confirmed | snobol4x | ❌ |
-| **M-README-DOTNET-DRAFT** | snobol4dotnet README: backup Jeff's original as README.jeff.md; new README written with current numbers and structure | snobol4dotnet | ❌ |
+| **M-README-DOTNET-DRAFT** | snobol4dotnet README: backup Jeff's original as README.jeff.md; new README written with current numbers and structure | snobol4dotnet | ✅ `aeac61e` |
 | **M-README-DOTNET-VERIFIED** | snobol4dotnet README verified against C# source; coordinated with Jeff Cooper | snobol4dotnet | ❌ |
 | **M-README-PYTHON-DRAFT** | snobol4python README light polish: verify version, test counts, backend description | snobol4python | ❌ |
 | **M-README-CSHARP-DRAFT** | snobol4csharp README light polish: already solid; verify test counts and status | snobol4csharp | ❌ |
