@@ -1,5 +1,21 @@
 > Org renamed SNOBOL4-plus → snobol4ever, repos renamed March 2026. Historical entries use old names.
 
+## B-236 (2026-03-21) — M-MONITOR-IPC-5WAY ✅
+
+**Branch:** asm-backend · **Commit:** `064bb59`
+
+**Work done:**
+- Restored full NET emitter (N-209 base) on asm-backend; applied 6 monitor patches
+- Fixed 3 NET mono runtime bugs: FIFO-seek (FileStream+StreamWriter), AutoFlush
+  (StreamWriter not TextWriter), quote escape (\u0022 not \")
+- normalize_trace.py: RE_ASM_VAR accepts \u0022; name.upper() case-fold; STNO
+  gating absent→past_init=True for JVM/NET streams
+- tracepoints.conf: removed IGNORE OUTPUT .* (was eating CSNOBOL4 events)
+- precheck.sh: new 30-check pre-flight script; 30/30 PASS before milestone
+
+**Milestone fired:** M-MONITOR-IPC-5WAY — all 5 participants PASS hello
+
+
 ## Session README-3 (2026-03-21) — M-README-X-VERIFIED ✅
 
 **Repo:** snobol4ever/snobol4x · **Branch:** main · **Commit:** `5837806`

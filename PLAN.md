@@ -195,7 +195,7 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-X64-S3** | UNLOAD lifecycle; reload; double-unload safe | snobol4ever/x64 | ✅ `7193a51` B-233 |
 | **M-X64-S4** | SNOLIB search; STRING ABI; monitor_ipc_spitbol.so LOAD confirmed in SPITBOL | snobol4ever/x64 | ✅ `4fcb0e1` B-233 |
 | **M-X64-FULL** | S1–S4 fired; SPITBOL confirmed 5-way monitor participant | snobol4ever/x64 | ✅ `4fcb0e1` B-233 |
-| **M-MONITOR-IPC-5WAY** | all 5 participants (CSNOBOL4+SPITBOL+ASM+JVM+NET) write trace to per-participant FIFO; `run_monitor.sh` parallel launch + collector; hello PASS all 5; zero stderr/stdout blending | snobol4x | ❌ |
+| **M-MONITOR-IPC-5WAY** | all 5 participants (CSNOBOL4+SPITBOL+ASM+JVM+NET) write trace to per-participant FIFO; `run_monitor.sh` parallel launch + collector; hello PASS all 5; zero stderr/stdout blending | snobol4x | ✅ `064bb59` B-236 |
 | **M-MONITOR-IPC-TIMEOUT** | `monitor_collect.py` per-participant watchdog: FIFO silence > T seconds → TIMEOUT report with last trace event + participant kill; infinite loop detected automatically | snobol4x | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants; claws5 divergence count documented | snobol4x | ❌ |
 | **M-MONITOR-CORPUS9** | Run the 9 known ASM failures (022, 055, 064, cross, word1-4, wordcount) through the 5-way monitor; first diverging trace line identifies each bug exactly; fixes bring ASM corpus to 106/106 | snobol4x | ❌ |

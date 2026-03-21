@@ -12,9 +12,9 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `monitor-ipc` — M-MONITOR-IPC-5WAY: NET segfault fix + JVM trace empty fix + 5-way fire
-**HEAD:** `080a834` B-235 (asm-backend) · x64: `4fcb0e1` B-233
-**Milestone:** M-MONITOR-IPC-5WAY (next to fire)
+**Sprint:** `monitor-ipc` — M-MONITOR-IPC-TIMEOUT: per-participant watchdog + 4demo next
+**HEAD:** `064bb59` B-236 (asm-backend) · x64: `4fcb0e1` B-233
+**Milestone:** M-MONITOR-IPC-TIMEOUT (next to fire)
 **Invariants:** 97/106 ASM corpus (9 known failures: 022, 055, 064, cross, word1-4, wordcount)
 
 **⚠ CRITICAL NEXT ACTION — Session B-236:**
@@ -68,6 +68,23 @@ bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno
 
 ## Last Session Summary
 
+**Session B-236 (2026-03-21) — M-MONITOR-IPC-5WAY fires: NET emitter + normalize fixes:**
+- **NET emitter restored**: replaced asm-backend stub with full N-209 emitter; applied 6
+  monitor patches (sno_monitor_out field, .cctor FIFO open, net_monitor_write helper,
+  OUTPUT+VAR sites)
+- **FIFO-seek fix**: `StreamWriter(path,append=true)` throws on FIFOs (no seek support);
+  replaced with `FileStream(path,Open,Write)` + `StreamWriter(Stream)` — no seek
+- **AutoFlush fix**: `TextWriter::set_AutoFlush` not on base class in mono; use
+  `StreamWriter::set_AutoFlush`
+- **Quote escape fix**: `ldstr """` invalid in mono ilasm; use `ldstr "\u0022"`
+- **normalize_trace.py**: `RE_ASM_VAR` accepts `\u0022`; `name.upper()` folds
+  SPITBOL lowercase vs CSNOBOL4 uppercase; STNO gating: absent STNO → `past_init=True`
+  (JVM/NET emit no STNO line)
+- **tracepoints.conf**: removed `IGNORE OUTPUT .*` (was stripping CSNOBOL4 events)
+- **precheck.sh**: new 30-check pre-flight (tools/files/sno2c/null-smokes/IPC-smokes)
+- **Result**: `run_monitor.sh hello_monitor.sno` → PASS [asm] PASS [jvm] PASS [net]
+- **M-MONITOR-IPC-5WAY fires** ✅ `064bb59`
+
 **Session B-235 (2026-03-21) — NET emitter monitor scaffold + harness fixes; ASM PASS:**
 - **JVM OUTPUT fast-path fix** (`emit_byrd_jvm.c`): added `dup` before `getstatic/swap/println`
   at `Lout_ok_N` so val survives println → `sno_monitor_write("OUTPUT", val)` fires
@@ -91,7 +108,7 @@ bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno
 | M-MONITOR-IPC-SO | monitor_ipc.so; CSNOBOL4 LOAD() confirmed | ✅ `8bf1c0c` B-229 |
 | M-MONITOR-IPC-CSN | CSNOBOL4 trace via FIFO; hello PASS | ✅ `6eebdc3` B-229 |
 | **M-X64-S1–S4 + M-X64-FULL** | SPITBOL confirmed monitor participant | ✅ `4fcb0e1` B-233 |
-| **M-MONITOR-IPC-5WAY** | all 5 via FIFO; hello PASS all 5 | ❌ next — JVM OUTPUT path + NET |
+| **M-MONITOR-IPC-5WAY** | all 5 via FIFO; hello PASS all 5 | ✅ `064bb59` B-236 |
 | M-MONITOR-IPC-TIMEOUT | watchdog: FIFO silence → kill + report | ❌ |
 | M-MONITOR-4DEMO | roman+wordcount+treebank all 5 | ❌ |
 
