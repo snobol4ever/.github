@@ -10201,3 +10201,14 @@ make bootsbl
 - 9 known failures documented: 022 (concat slot aliasing), 055 (same), 064 (L_unk_ undef label),
   cross/word1-4/wordcount (runtime issues) — not regressions, pre-existing
 - Invariant updated everywhere: PLAN.md, TINY.md, MONITOR.md, RULES.md → 97/106 ASM corpus
+
+## Session B-230 addendum 2 — M-X64-FULL milestone + sprint plan (2026-03-21)
+
+- Cloned snobol4dotnet; found ~1900 lines of LOAD/UNLOAD tests in LoadSpecTests/LoadTests/LoadXnTests/LoadObjectLifecycleTests/LoadAutoPrototypeTests
+- Key test oracle: LoadSpecTests.cs — prototype parser, marshal (INTEGER/REAL/STRING), UNLOAD lifecycle, SNOLIB search, errors 139/140/141
+- Replaced M-X64-LOAD (single milestone) with M-X64-S1 through M-X64-FULL (5-sprint chain)
+- Sprint plan written in BACKEND-X64.md §M-X64-FULL
+- M-X64-S1 is next to fire (B-231): fix remaining syslinux.c compile errors → make bootsbl
+- B-230 partial fix: xnhand→xndta[0], xnpfn→xndta[1] already applied to snobol4ever/x64
+- M-MONITOR-CORPUS9 added: use 5-way monitor to diagnose + fix 9 ASM corpus failures
+- Next session: **B-231** — work in snobol4ever/x64, target M-X64-S1

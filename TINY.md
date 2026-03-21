@@ -14,29 +14,29 @@ snobol4x: multiple frontends, multiple backends.
 
 **Sprint:** `monitor-ipc` — wire 5-way FIFO IPC; SPITBOL + JVM + NET participants
 **HEAD:** `6eebdc3` B-229 (asm-backend)
-**Milestone:** M-MONITOR-IPC-5WAY (next to fire)
+**Milestone:** M-X64-S1 (next to fire)
 **Invariants:** 97/106 ASM corpus (9 known failures: 022, 055, 064, cross, word1-4, wordcount)
 
-**⚠ CRITICAL NEXT ACTION — Session B-230:**
+**⚠ CRITICAL NEXT ACTION — Session B-231:**
 
 ```bash
-cd /home/claude/snobol4x
+# Repo: snobol4ever/x64  (NOT snobol4x)
+cd /home/claude/x64
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git checkout asm-backend && git pull --rebase origin asm-backend
+git pull --rebase origin main
 
-export CORPUS=/home/claude/snobol4corpus/crosscheck
-CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm_corpus.sh  # 97/106
-
-# Goal: M-MONITOR-IPC-5WAY
-# Step 1: check if spitbol binary available; if not, build from /home/claude/spitbol-x64/
-# Step 2: verify SPITBOL uses same monitor_ipc.so ABI (dlopen/LOAD — confirmed in B-228 research)
-# Step 3: add SPITBOL participant to run_monitor.sh
-#   - SPITBOL sends TRACE to stdout, not stderr — redirect stdout → FIFO
-#   - Or: SPITBOL also supports LOAD() → use monitor_ipc.so directly
-# Step 4: add JVM participant (sno2c -jvm → jasmin → java)
-# Step 5: add NET participant (sno2c -net → ilasm → mono)
-# Step 6: hello PASS all 5 participants → M-MONITOR-IPC-5WAY fires
-# Full design → MONITOR.md §IPC Architecture §run_monitor.sh
+# Goal: M-X64-S1 — syslinux.c compiles clean; make bootsbl succeeds
+# Context: syslinux.c callef/loadef/nextef/unldef use missing struct ef fields
+#   xnhand → xndta[0], xnpfn → xndta[1] (already fixed in B-230)
+#   Remaining errors: MINIMAL_ALOST/ALOCS/ALLOC macros, TYPET, MINFRAME, ARGPUSHSIZE
+#   mword declared as int in port.h but used as long — fix to long/word
+# Step 1: audit all compile errors from: make bootsbl 2>&1 | grep error:
+# Step 2: fix each macro/type mismatch in syslinux.c and port.h
+# Step 3: make bootsbl succeeds → M-X64-S1 fires
+# Step 4: write minimal SpitbolCLib (spl_add/spl_strlen) — matches snobol4dotnet fixture
+# Step 5: LOAD('spl_add(INTEGER,INTEGER)INTEGER','libspl.so') → spl_add(3,4)=7 → M-X64-S2
+# Tests: snobol4dotnet/TestSnobol4/Function/FunctionControl/LoadSpecTests.cs as oracle
+# Full sprint design → BACKEND-X64.md §M-X64-FULL
 ```
 
 ## Last Session Summary
@@ -54,7 +54,11 @@ CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm_corpus.sh  # 97/106
 |----|---------|--------|
 | M-MONITOR-IPC-SO | monitor_ipc.so built; MON_OPEN/MON_SEND/MON_CLOSE; CSNOBOL4 LOAD() confirmed | ✅ `8bf1c0c` B-229 |
 | M-MONITOR-IPC-CSN | inject_traces.py IPC preamble; CSNOBOL4 trace via FIFO; hello PASS | ✅ `6eebdc3` B-229 |
-| **M-X64-LOAD** | snobol4ever/x64: `make bootsbl` clean; LOAD()/UNLOAD() end-to-end; SPITBOL test suite passes | ❌ |
+| **M-X64-S1** | syslinux.c compiles clean; `make bootsbl` succeeds | ❌ |
+| **M-X64-S2** | LOAD end-to-end; spl_add(3,4)=7 | ❌ |
+| **M-X64-S3** | UNLOAD lifecycle; reload; double-unload safe | ❌ |
+| **M-X64-S4** | SNOLIB; errors 139/140/141; monitor_ipc.so in SPITBOL | ❌ |
+| **M-X64-FULL** | S1–S4 done; SPITBOL = monitor participant | ❌ |
 | M-MONITOR-IPC-5WAY | all 5 participants via FIFO; hello PASS all 5; no stderr/stdout blending | ❌ |
 | M-MONITOR-IPC-TIMEOUT | monitor_collect.py watchdog: FIFO silence > T sec → kill + report | ❌ |
 | M-MONITOR-4DEMO | roman+wordcount+treebank pass all 5 | ❌ |
@@ -68,7 +72,7 @@ Full milestone history → [PLAN.md](PLAN.md) · Beauty detail → [BEAUTY.md](B
 | Session | Branch | Focus |
 |---------|--------|-------|
 | B-229 | `asm-backend` | monitor-ipc — IPC-SO + IPC-CSN ✅ done |
-| x64-fork | `snobol4ever/x64 main` | LOAD() fix — forked spitbol/x64, fixed sysld.c + Makefile; M-X64-LOAD defined |
+| x64-fork | `snobol4ever/x64 main` | M-X64-S1: fix syslinux.c xndta fields; make bootsbl |
 | J-next | `jvm-backend` | TBD |
 | N-next | `net-backend` | TBD |
 | F-next | `main` | TBD |
