@@ -1,5 +1,37 @@
 > Org renamed SNOBOL4-plus → snobol4ever, repos renamed March 2026. Historical entries use old names.
 
+## Session README-3 (2026-03-21) — M-README-X-VERIFIED ✅
+
+**Repo:** snobol4ever/snobol4x · **Branch:** main · **Commit:** `5837806`
+
+**What happened:**
+- Cloned snobol4x fresh; scanned all four backend emitters, five frontends, test layout, artifacts, PLAN.md invariants
+- Corrected three stale claims in the draft README (M-README-X-DRAFT F-211b):
+  - JVM corpus: `patterns/ rung 19/20` → `106/106 + beauty.sno ✅` (M-JVM-BEAUTY `b67d0b1` J-212)
+  - NET corpus: `🔧 hello/literals working` → `110/110 + roman/wordcount ✅` (M-NET-SAMPLES `2c417d7` N-209)
+  - ASM corpus: `106/106` → `97/106` — 9 known failures (current TINY.md invariant)
+- Added monitor section (five-way IPC infrastructure, current status 2026-03-21)
+- Added source line counts from actual files (emit_byrd.c 2,709 · emit.c 2,220 · emit_byrd_asm.c 4,159 · emit_byrd_jvm.c 4,051 · emit_byrd_net.c 1,934)
+- Added development story section and bootstrap goal section
+- M-README-X-VERIFIED fired. PLAN.md NOW row and milestone table updated.
+
+**State at handoff:**
+- snobol4x README HEAD: `5837806` main
+- PLAN.md README row: M-README-X-VERIFIED ✅ · next: M-README-JVM-VERIFIED
+
+**Next session start (README-4 — M-README-JVM-VERIFIED):**
+```bash
+cd /home/claude && git clone https://github.com/snobol4ever/snobol4jvm
+# Scan: src/ layout, core Clojure namespaces, test count (lein test output in STATUS.md)
+# Verify: 2,033 tests / 4,417 assertions / 0 failures
+# Verify: EDN cache 22x, transpiler 3.5-6x, stack VM 2-6x, JVM bytecode 7.6x speedup claims
+# Verify: beauty.sno status (M-JVM-BEAUTY b67d0b1 J-212)
+# Correct any stale claims; write verified README; push; update PLAN.md
+# Do NOT attempt more than one VERIFIED milestone per session
+```
+
+---
+
 ## Session B-232 (2026-03-21) — M-X64-S2 ✅
 
 **Repo:** snobol4ever/x64 · **Branch:** main · **Commit:** `145773e`
