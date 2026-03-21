@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-222 — M-EMITTER-NAMING ✅ DONE: B-220 JVM Greek labels, B-221 NET Greek labels, B-222 local var alignment all complete | `be4a978` B-222 | M-ASM-RUNG8 |
+| **TINY backend** | `asm-backend` B-223 — M-ASM-RUNG8 ✅ DONE: DESCR_t slen, BSTRVAL, binary REPLACE/SIZE fix; 3/3 rung8 PASS | `1d0a983` B-223 | M-ASM-RUNG10 |
 | **TINY JVM** | `jvm-backend` J-209 — M-JVM-SAMPLES: all 6 L_%s bypass sites fixed (`50950aa`); B-214 naming rename (jvm_emit_stmt→emit_stmt etc.) NOT YET committed on asm-backend conflicts with J-209 fixes — B-215 must merge both; roman.sno assembly clean, run result pending | `50950aa` J-209 | M-JVM-SAMPLES |
 | **TINY NET** | `net-backend` N-206 — 102/110: SEQ-ARB omega fix; deferred NAM(ARB) capture (word1–4 ✅); sno_div integer/sno_pow; E_EXPOP/E_INDR/E_ATP/BREAKX/FRETURN fix; 8 remain: cross/@N, 091–096 ARRAY/TABLE/DATA, 100 roman; next: ARRAY/TABLE/DATA runtime + E_IDX → M-NET-CROSSCHECK | `02d1f9b` N-206 | M-NET-CROSSCHECK |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |
@@ -113,7 +113,7 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-R11** | data/ — ARRAY/TABLE/DATA PASS | ✅ session198 |
 | **M-ASM-RECUR** | Recursive SNOBOL4 functions correct via ASM backend — roman.sno segfault fixed; each function invocation gets its own frame (push rbp/mov rbp,rsp/sub rsp,56 at α; add rsp,56/pop rbp at γ/ω); call sites use .bss uid slots not stack pushes; 26/26 + 106/106 hold | ✅ `266c866` B-204 |
 | **M-ASM-SAMPLES** | roman.sno and wordcount.sno pass via ASM backend; artifacts/asm/roman.s and artifacts/asm/wordcount.s committed and assembling clean | ✅ `266c866` B-204 |
-| **M-ASM-RUNG8** | rung8/ — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend | ❌ Sprint A-RUNG8 |
+| **M-ASM-RUNG8** | rung8/ — REPLACE/SIZE/DUPL assertion harness 3/3 PASS via ASM backend | ✅ `1d0a983` B-223 |
 | **M-ASM-RUNG9** | rung9/ — CONVERT/DATATYPE/INTEGER/LGT/numeric predicates 5/5 PASS via ASM backend | ✅ `3133497` B-210 |
 | **M-ASM-RUNG10** | rung10/ — DEFINE/recursion/locals/NRETURN/FRETURN/APPLY 9/9 PASS via ASM backend | ❌ Sprint A-RUNG10 |
 | **M-ASM-RUNG11** | rung11/ — ARRAY/TABLE/DATA types 7/7 PASS via ASM backend | ❌ Sprint A-RUNG11 |

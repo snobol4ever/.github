@@ -107,11 +107,11 @@ Goal: same concept = same name in all four backends. Names should be readable En
 
 ## Last Session Summary
 
-**Session B-220/B-221/B-222 — M-EMITTER-NAMING ✅ complete:**
-- B-220: JVM generated labels now use α/β/γ/ω — `Jn%d_lit_γ`, `Jpat%d_β`, `Jfn%d_ω` etc (65 sites).
-- B-221: NET generated labels now use α/β/γ/ω — `Nn%d_nam_γ`, `Npat%d_β`, `Nfn%d_ω` etc (22 sites).
-- B-222: Local variable alignment across all four backends — `cursor_before`, `subj_len`, `cursor`, `cap_slot`, `gamma_lbl`, `retry_lbl`, `success_lbl`, `fail_lbl`, `entry_lbl`, `end_lbl`, `mid_lbl`, `right_lbl` etc. ASM `subj_len_sym→subj_len_label` (symbol string) + `subj_len` (int), `stmt→s` in emit_stmt.
-- 100/106 C (6 pre-existing) + 26/26 ASM hold. HEAD `69b52b8`.
+**Session B-223 — M-ASM-RUNG8 ✅ complete:**
+- Root cause: &ALPHABET is a 256-byte binary string with NUL at index 0; NUL-terminated char* representation broke REPLACE/SIZE.
+- Fix: added `uint32_t slen` to DESCR_t padding (struct stays 16 bytes, zero ABI change); `BSTRVAL(s,len)` macro; `descr_slen()` helper.
+- NV_SET_fn("ALPHABET") now uses BSTRVAL(alphabet,256). _b_SIZE uses slen for binary strings. REPLACE_fn uses descr_slen() + binary_mode preserves NUL bytes for positional alignment.
+- 810_replace 3/3, 811_size 3/3, 812_dupl 3/3. Invariants: 100/106 C + 26/26 ASM hold. HEAD `1d0a983`.
 
 ## Active Milestones (next 5)
 
