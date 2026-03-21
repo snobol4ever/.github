@@ -10212,3 +10212,43 @@ make bootsbl
 - B-230 partial fix: xnhand→xndta[0], xnpfn→xndta[1] already applied to snobol4ever/x64
 - M-MONITOR-CORPUS9 added: use 5-way monitor to diagnose + fix 9 ASM corpus failures
 - Next session: **B-231** — work in snobol4ever/x64, target M-X64-S1
+
+## Session B-230 — Full handoff summary (2026-03-21)
+
+**Milestones fired:** none (HQ + infrastructure work only)
+
+**Work done:**
+1. **Invariant upgraded** — retired 26-test pattern-only `run_crosscheck_asm.sh`; promoted `run_crosscheck_asm_corpus.sh` (106 tests, all rungs) as sole invariant. Baseline: **97/106 ASM**. 9 known failures documented: 022, 055, 064, cross, word1–4, wordcount.
+2. **C crosscheck retired** — removed from all invariant refs (PLAN.md, TINY.md, MONITOR.md, RULES.md). C backend left in the dust.
+3. **M-MONITOR-CORPUS9 added** — use completed 5-way monitor to diagnose+fix all 9 ASM failures → 106/106. Sits after M-MONITOR-4DEMO in dashboard.
+4. **M-X64-LOAD → M-X64-FULL 5-sprint chain** — S1: bootsbl compiles; S2: LOAD end-to-end; S3: UNLOAD lifecycle; S4: SNOLIB+errors+monitor_ipc; S5/FULL: test suite + PR. Test oracle: snobol4dotnet LoadSpecTests.cs (~1900 lines).
+5. **snobol4ever/x64 partial fix** — `xnhand`→`xndta[0]`, `xnpfn`→`xndta[1]` in syslinux.c. Pushed `6d4a68e`. Remaining errors: MINIMAL_ALOST/ALOCS/ALLOC macros, TYPET, MINFRAME, ARGPUSHSIZE, MP_OFF arity — all in syslinux.c/sysex.c.
+6. **9 ASM failures diagnosed** — 022/055: concat slot aliasing (single `conc_tmp0` clobbered by recursion); 064: `L_unk_` undefined label; cross/word1-4/wordcount: runtime issues. Fix deferred to M-MONITOR-CORPUS9.
+
+**State at handoff:**
+- snobol4x `asm-backend` HEAD: `6eebdc3` B-229 — **unchanged**
+- snobol4ever/x64 HEAD: `6d4a68e` B-230 — partial syslinux.c fix
+- HQ HEAD: `61cb61f` B-230
+
+**Next session: B-231** — work in `snobol4ever/x64`, target **M-X64-S1**
+
+**B-231 start block:**
+```bash
+cd /home/claude/x64
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase origin main
+
+# Audit remaining compile errors:
+make bootsbl 2>&1 | grep "error:" | grep -v "Wno-"
+
+# Fix in order:
+# 1. sysex.c MP_OFF macro arity (line 40)
+# 2. syslinux.c MINIMAL_ALOST/ALOCS/ALLOC → GC_malloc / direct alloc
+# 3. syslinux.c TYPET → use x64 equivalent or remove save/restore path
+# 4. syslinux.c MINFRAME / ARGPUSHSIZE → x64 ABI constants
+# 5. port.h mword int/long mismatch
+# Goal: make bootsbl exits 0 → M-X64-S1 fires
+# Then write SpitbolCLib (spl_add etc.) → M-X64-S2
+# Oracle: snobol4dotnet/TestSnobol4/Function/FunctionControl/LoadSpecTests.cs
+# Full sprint plan: BACKEND-X64.md §M-X64-FULL
+```
