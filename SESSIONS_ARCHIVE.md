@@ -9499,3 +9499,47 @@ CORPUS=/home/claude/snobol4corpus/crosscheck HARNESS_REPO=/home/claude/snobol4ha
 # snobol4lib.il: sno_array_new/get/set backed by static Dictionary<string,List<string>>
 # emit_byrd_net.c: E_IDX lvalue+rvalue; ARRAY/TABLE/DATA in E_FNC
 ```
+
+---
+
+## Session D-162 — SPITBOL switches (snobol4dotnet)
+
+**Date:** 2026-03-20
+**Repo:** snobol4dotnet, .github
+**Sprint:** `net-spitbol-switches`
+**Branch:** main
+
+### Work done
+
+Read SPITBOL manual Chapter 13 (command line options, pages 161–165). Identified 11 switches present in SPITBOL spec but missing from snobol4dotnet. Implemented all of them.
+
+**Files changed:**
+
+| File | What |
+|------|------|
+| `Snobol4.Common/Builder/BuilderOptions.cs` | 11 new properties: `ErrorsToStdout`, `LinesPerPage(60)`, `PageWidth(120)`, `PrinterListing`, `FormFeedListing`, `HeapMaxBytes(64m)`, `HeapIncrementBytes(128k)`, `MaxObjectBytes(4m)`, `StackSizeBytes(32k)`, `WriteSpx`, `ChannelFiles` |
+| `Snobol4.Common/Builder/CommandLine.cs` | Full `ArgumentSwitch` rewrite: 3-char `-cs` prefix before 2-char dispatch; `TryParseNumericArg` (k/m upper+lower, `=`/`:` separator); `ExtractStringArg`; channel `-N=file` integer detection; all 11 switches; updated `DisplayManual()` |
+| `Snobol4.Common/Builder/Builder.cs` | `ApplyStartupOptions(Executive)` — wires `-e` (Console.SetError→Out) and `-m` (seeds exec.AmpMaxLength); called from `BuildMain`, `BuildMainCompileOnly`, `RunDll` |
+| `TestSnobol4/TestCommandLine/TestSpitbolSwitches/SpitbolSwitchTests.cs` | 26 unit tests: every new switch, defaults, k/m suffixes, channel association, `-a` combination |
+
+**Milestone created:** `M-NET-SPITBOL-SWITCHES` — added to PLAN.md and DOTNET.md.
+
+### Commits
+
+| Repo | Commit | What |
+|------|--------|------|
+| snobol4dotnet | `8feb139` | D-162: SPITBOL switches — -d -e -g -i -m -p -s -t -y -z -N=file; k/m parser; 26 tests |
+| .github | `3949328` | D-162: M-NET-SPITBOL-SWITCHES milestone added; DOTNET NOW/sprint/milestones updated |
+
+### Next session start (D-163)
+
+```bash
+cd snobol4dotnet
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+export PATH=$PATH:/usr/local/dotnet
+git log --oneline -3   # verify HEAD = 8feb139 D-162
+dotnet build Snobol4.sln -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+# Expect: 1874/1876 baseline + 26 new SpitbolSwitchTests → ~1900/1902
+# → fire M-NET-SPITBOL-SWITCHES ✅ → update PLAN.md dashboard → push
+```
