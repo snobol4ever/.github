@@ -10474,3 +10474,44 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # 5. Coordinate with Jeff Cooper before pushing
 # 6. Commit and push — M-README-DOTNET-VERIFIED fires
 ```
+
+## Session README-2 (2026-03-21) — M-README-DOTNET-VERIFIED ✅
+
+**Repos touched:** snobol4ever/.github · snobol4ever/snobol4dotnet
+**Commit (dotnet):** `e8b22cb` — CONJ→CONCAT correction; 79/80 corpus count removed
+**Commit (.github):** pending push
+
+**What happened:**
+- Fresh session; cloned .github HQ; read PLAN.md, STATUS.md, ARCH.md, MISC.md, TINY.md, BEAUTY.md, SESSIONS_ARCHIVE.md
+- Identified next milestone: M-README-DOTNET-VERIFIED (first ❌ after M-README-DOTNET-DRAFT)
+- Cloned snobol4dotnet fresh; mapped full repo structure (160 test files, 28 pattern classes)
+- Source verification findings:
+  - CONJ listed in README patterns table → NOT in source. Executive.cs has CONCAT (two-arg pattern concat). Fixed.
+  - 79/80 corpus claim → unverified (STATUS.md has no dotnet corpus count; dotnet test infrastructure not available). Replaced with known-gap description.
+  - All other claims confirmed: ThreadedExecuteLoop.cs dispatch, BuilderEmitMsil.cs Func<> JIT, 28 pattern files, BREAKX/REM/BAL/FENCE/ABORT all in Executive.cs, LOAD/UNLOAD in Load.cs+Unload.cs+CustomFunction/, 1,911 count matches D-163, Snocone confirmed, SPITBOL switches confirmed.
+- Context window ~70% at handoff
+
+**State at handoff:**
+- snobol4dotnet HEAD: `e8b22cb` main (push pending credentials)
+- M-README-DOTNET-VERIFIED: ✅ fired
+- M-README-X-VERIFIED: ❌ next README session
+
+**Next session start (M-README-X-VERIFIED):**
+```bash
+# Clone snobol4x fresh
+git clone https://github.com/snobol4ever/snobol4x
+cd snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+
+# 1. Read current README.md — identify every factual claim
+# 2. Scan source files most relevant to README claims:
+#    - src/frontend/snobol4/sno2c.c (parser, AST)
+#    - src/backend/c/emit_byrd.c (C backend)
+#    - src/backend/x64/emit_byrd_asm.c (ASM backend)
+#    - src/backend/jvm/emit_byrd_jvm.c (JVM backend)
+#    - src/backend/net/emit_byrd_net.c (NET backend)
+#    - test/ directory structure (corpus count, crosscheck)
+# 3. Verify: frontend count, backend count, corpus pass counts, benchmark claims
+# 4. Correct any claims that don't match source
+# 5. Commit and push
+```
