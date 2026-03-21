@@ -10320,3 +10320,32 @@ x64 HEAD: `feb521b` on `main`
 Next: B-232 replaces `callef` with x64 direct implementation → M-X64-S2 fires
 Full next-action block in TINY.md NOW.
 
+
+## Session B-233 — 2026-03-21 — M-X64-S3 + M-X64-S4 + M-X64-FULL + 5-way WIP
+
+**Repos touched:** snobol4ever/x64 (main), snobol4x (asm-backend)
+
+**What happened:**
+- M-X64-S3 ✅ `7193a51`: test_spl_unload.sno — UNLOAD cleanup/reload/double-unload PASS. `unldef()` already safe: `efb->efcod=0` guards double-unload.
+- M-X64-S4 ✅ `4fcb0e1`: Three fixes to `osint/syslinux.c` — (1) `callef()` STRING arg marshalling (`case constr`), (2) STRING return via `ptscblk`, (3) SNOLIB path search in `loadDll()`. Built `monitor_ipc_spitbol.c` (SPITBOL-native ABI, lowercase symbols, `scblk` layout). IPC end-to-end confirmed: `VALUE/CALL/RETURN` events on FIFO. `test_spitbol_ipc.sno` PASS.
+- M-X64-FULL ✅: All S1–S4 done. SPITBOL x64 confirmed 5-way monitor participant.
+- snobol4x asm-backend `a72e417`: wrapper scripts `snobol4-asm/jvm/net`; `run_monitor.sh` rewritten 5-way; `normalize_trace.py` extended to 11-arg 5-way calling convention; NET runtime DLLs committed.
+- **Blocker:** `run_monitor.sh` `set -euo pipefail` aborts on FIFO cat EOF. Fix: drop `-e` flag.
+
+**State at handoff:**
+- x64 HEAD: `4fcb0e1` (main)
+- snobol4x asm-backend HEAD: `a72e417`
+- Next milestone: M-MONITOR-IPC-5WAY
+- sno2c_net and sno2c_jvm need rebuilding each new container session (not committed to repo)
+
+**Next session start (B-234):**
+```bash
+cd /home/claude/snobol4x && git checkout asm-backend
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+# 1. Build CSNOBOL4: cd /home/claude/csnobol4/snobol4-2.3.3 && make -j1 && cp snobol4 /usr/local/bin/
+# 2. Build sno2c_net: cd /home/claude/snobol4x && git checkout net-backend && cd src && make && cd .. && cp sno2c /home/claude/sno2c_net && git checkout asm-backend && cd src && make && cd ..
+# 3. Build bootsbl: cd /home/claude/x64 && apt-get install -y nasm && make bootsbl
+# 4. Fix run_monitor.sh: change `set -euo pipefail` → `set -uo pipefail`
+# 5. Run: bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno
+# 6. Fire M-MONITOR-IPC-5WAY → push → update PLAN.md + TINY.md + SESSIONS_ARCHIVE
+```

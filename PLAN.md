@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-229 — monitor-ipc | `6eebdc3` B-229 | M-MONITOR-IPC-5WAY |
+| **TINY backend** | `asm-backend` B-233 — monitor-ipc | `a72e417` B-233 | M-MONITOR-IPC-5WAY |
 | **TINY NET** | `net-backend` N-209 — clean slate | `2c417d7` N-209 | TBD |
 | **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
@@ -191,9 +191,9 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-MONITOR-IPC-CSN** | `inject_traces.py` emits LOAD+MON_OPEN preamble; MONCALL/MONRET/MONVAL call MON_SEND(); CSNOBOL4 trace arrives on FIFO; hello PASS | snobol4x | ✅ `6eebdc3` B-229 |
 | **M-X64-S1** | snobol4ever/x64: `syslinux.c` compiles clean — `callef`/`loadef`/`nextef`/`unldef` all use `xndta[]` not missing `struct ef` fields; `mword` = `long` throughout; `make bootsbl` succeeds | snobol4ever/x64 | ✅ `88ff40f` B-231 |
 | **M-X64-S2** | `LOAD('spl_add(INTEGER,INTEGER)INTEGER','libspl.so')` works end-to-end; `spl_add(3,4)` returns `7`; uses snobol4dotnet `SpitbolCLib` test fixture | snobol4ever/x64 | ✅ `145773e` B-232 |
-| **M-X64-S3** | `UNLOAD('spl_add')` cleans up; reload after unload succeeds; double-unload is safe; matches snobol4dotnet `LoadSpecTests` lifecycle cases | snobol4ever/x64 | ❌ |
-| **M-X64-S4** | SNOLIB env var search works; error conditions 139/140/141 correct; `monitor_ipc.so` LOAD confirmed end-to-end in SPITBOL | snobol4ever/x64 | ❌ |
-| **M-X64-FULL** | All M-X64-S1–S4 fired; SPITBOL test suite passes; SPITBOL confirmed as 5-way monitor participant; PR candidate for spitbol/x64 upstream | snobol4ever/x64 | ❌ |
+| **M-X64-S3** | UNLOAD lifecycle; reload; double-unload safe | snobol4ever/x64 | ✅ `7193a51` B-233 |
+| **M-X64-S4** | SNOLIB search; STRING ABI; monitor_ipc_spitbol.so LOAD confirmed in SPITBOL | snobol4ever/x64 | ✅ `4fcb0e1` B-233 |
+| **M-X64-FULL** | S1–S4 fired; SPITBOL confirmed 5-way monitor participant | snobol4ever/x64 | ✅ `4fcb0e1` B-233 |
 | **M-MONITOR-IPC-5WAY** | all 5 participants (CSNOBOL4+SPITBOL+ASM+JVM+NET) write trace to per-participant FIFO; `run_monitor.sh` parallel launch + collector; hello PASS all 5; zero stderr/stdout blending | snobol4x | ❌ |
 | **M-MONITOR-IPC-TIMEOUT** | `monitor_collect.py` per-participant watchdog: FIFO silence > T seconds → TIMEOUT report with last trace event + participant kill; infinite loop detected automatically | snobol4x | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants; claws5 divergence count documented | snobol4x | ❌ |

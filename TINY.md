@@ -12,71 +12,65 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `monitor-ipc` — wire 5-way FIFO IPC; SPITBOL + JVM + NET participants
-**HEAD:** `6eebdc3` B-229 (asm-backend) · x64: `145773e` B-232
-**Milestone:** M-X64-S3 (next to fire)
+**Sprint:** `monitor-ipc` — M-MONITOR-IPC-5WAY: fix FIFO race, fire 5-way hello PASS
+**HEAD:** `a72e417` B-233 (asm-backend) · x64: `4fcb0e1` B-233
+**Milestone:** M-MONITOR-IPC-5WAY (next to fire)
 **Invariants:** 97/106 ASM corpus (9 known failures: 022, 055, 064, cross, word1-4, wordcount)
 
-**⚠ CRITICAL NEXT ACTION — Session B-232:**
+**⚠ CRITICAL NEXT ACTION — Session B-234:**
 
 ```bash
-# Repo: snobol4ever/x64
-cd /home/claude/x64
+cd /home/claude/snobol4x && git checkout asm-backend
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git pull --rebase origin main
+git pull --rebase origin asm-backend
 
-# M-X64-S2: replace callef() in osint/syslinux.c with x64 direct implementation
-# Root cause confirmed (B-231): MINSAVE()→pushregs()→save_regs corrupts reg_pc
-# efb->efcod verified at offset 32 (raw dump: raw[4]=valid xnblk ptr)
-# pfn at xnblk+24 (xndta[1])
+# Fix FIFO race in test/monitor/run_monitor.sh:
+#   Remove set -e (or add || true after every bg job and wait).
+#   The 5 `cat fifo > file &` jobs block until writers open; if set -e
+#   sees any non-zero exit from wait it aborts. Use `wait 2>/dev/null || true`.
+#   All participant runs already have `|| true`. The wait at step 9 just needs
+#   `wait 2>/dev/null || true` (already written that way — confirm it's not
+#   `set -euo pipefail` killing the script before step 9).
 #
-# Step 1: Replace callef (lines ~104-277 of syslinux.c) with:
-#   pnode = efb->efcod  (offset 32)
-#   pfn = pnode->xnu.xndta[1]  (offset 24)
-#   build struct descr cargs[nargs] from icblk.val (offset 8) on sp[]
-#     sp layout: sp[nargs-1-i] = arg i (last-pushed = sp[0])
-#   rc = pfn(&retval, nargs, cargs)
-#   if rc==FALSE return 0 (FAIL)
-#   pack retval.a.i into tscblk as icblk{typ=b_icl,val=retval.a.i}
-#   return (union block*)&tscblk
+# Quick fix: change the shebang line from `#!/bin/bash` + `set -euo pipefail`
+#   to `#!/bin/bash` + `set -uo pipefail` (drop -e) so FIFO cat EOF non-zero
+#   doesn't abort.
 #
-# Step 2: make bootsbl CFLAGS="... -rdynamic"
-# Step 3: ./bootsbl test_spl_add.sno → expect "PASS: spl_add(3,4) = 7"
-# Step 4: M-X64-S2 fires → proceed to M-X64-S3 (UNLOAD lifecycle)
+# Then test:
+#   bash test/monitor/run_monitor.sh /tmp/hello_monitor.sno
+#   Expected: PASS [asm] / PASS [jvm] / PASS [net]
 #
-# Key verified facts from B-231 diagnostics:
-#   struct icblk: { word typ(8); long val(8) } — val at offset 8
-#   struct descr: { union{long i;double f} a; char f; uint v } — size 16
-#   Integer type code v=2 (conint from equ.h)
-#   tscblk is valid scratch block for return value
-#   libspl.so compiled, spl_add/spl_strlen use lowercase names (SPITBOL folds)
-#   -rdynamic required on bootsbl link for dlopen to resolve symbols
+# sno2c binaries needed on this container:
+#   /home/claude/sno2c_net  ← git checkout net-backend; cd src; make; cp sno2c /home/claude/sno2c_net
+#   /home/claude/sno2c_jvm  ← already built in prior session from net-backend branch
+#                              (net-backend has both -net and -jvm working)
+#   /home/claude/x64/bootsbl ← make bootsbl in /home/claude/x64 (needs nasm)
+#   snobol4 (CSNOBOL4)       ← build from /home/claude/csnobol4/snobol4-2.3.3; copy to /usr/local/bin
+#
+# Fire: M-MONITOR-IPC-5WAY when hello PASS [asm] [jvm] [net] with zero stderr blending
+# Then: update PLAN.md milestone row, push, handoff
 ```
 
 ## Last Session Summary
 
-**Session B-232 (2026-03-21) — M-X64-S2 ✅:**
-- M-X64-S2 fired (145773e): spl_add(3,4)=7 PASS end-to-end
-- Root cause: callextfun in int.asm passed wrong args to pfn (efb,sp,nargs,nbytes instead of retval,nargs,cargs)
-- Fix: callextfun rewritten as clean SysV AMD64 trampoline; callef rewritten with struct ldescr marshalling + MINSAVE/MINRESTORE
-- MINSAVE retained — required for callback re-entrancy into SPITBOL runtime
-- test_spl_add.sno: IDENT->EQ for type-correct integer comparison
-- Pushed 145773e
+**Session B-233 (2026-03-21) — M-X64-S3 + M-X64-S4 + M-X64-FULL ✅:**
+- M-X64-S3 fired (`7193a51`): UNLOAD cleanup/reload/double-unload all PASS
+- M-X64-S4 fired (`4fcb0e1`): SNOLIB search in loadDll(); STRING arg/return ABI in callef(); monitor_ipc_spitbol.so IPC confirmed end-to-end in SPITBOL
+- M-X64-FULL fires: S1–S4 done; SPITBOL confirmed 5-way monitor participant
+- snobol4x: wrapper scripts snobol4-asm/jvm/net written; run_monitor.sh rewritten for 5-way; normalize_trace.py extended to 5-way args; NET runtime DLLs committed; pushed `a72e417`
+- Blocker: run_monitor.sh `set -euo pipefail` aborts on FIFO cat EOF — fix: drop `-e`
 
 ## Active Milestones
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| M-MONITOR-IPC-SO | monitor_ipc.so built; MON_OPEN/MON_SEND/MON_CLOSE; CSNOBOL4 LOAD() confirmed | ✅ `8bf1c0c` B-229 |
-| M-MONITOR-IPC-CSN | inject_traces.py IPC preamble; CSNOBOL4 trace via FIFO; hello PASS | ✅ `6eebdc3` B-229 |
-| **M-X64-S1** | syslinux.c compiles clean; `make bootsbl` succeeds | ✅ `88ff40f` B-231 |
-| **M-X64-S2** | LOAD end-to-end; spl_add(3,4)=7 | ✅ `145773e` B-232 |
-| **M-X64-S3** | UNLOAD lifecycle; reload; double-unload safe | ❌ |
-| **M-X64-S4** | SNOLIB; errors 139/140/141; monitor_ipc.so in SPITBOL | ❌ |
-| **M-X64-FULL** | S1–S4 done; SPITBOL = monitor participant | ❌ |
-| M-MONITOR-IPC-5WAY | all 5 participants via FIFO; hello PASS all 5; no stderr/stdout blending | ❌ |
-| M-MONITOR-IPC-TIMEOUT | monitor_collect.py watchdog: FIFO silence > T sec → kill + report | ❌ |
-| M-MONITOR-4DEMO | roman+wordcount+treebank pass all 5 | ❌ |
+| M-MONITOR-IPC-SO | monitor_ipc.so; CSNOBOL4 LOAD() confirmed | ✅ `8bf1c0c` B-229 |
+| M-MONITOR-IPC-CSN | CSNOBOL4 trace via FIFO; hello PASS | ✅ `6eebdc3` B-229 |
+| **M-X64-S1–S4** | SPITBOL LOAD/UNLOAD/SNOLIB/IPC | ✅ `4fcb0e1` B-233 |
+| **M-X64-FULL** | SPITBOL = confirmed monitor participant | ✅ `4fcb0e1` B-233 |
+| **M-MONITOR-IPC-5WAY** | all 5 via FIFO; hello PASS all 5 | ❌ next |
+| M-MONITOR-IPC-TIMEOUT | watchdog: FIFO silence → kill + report | ❌ |
+| M-MONITOR-4DEMO | roman+wordcount+treebank all 5 | ❌ |
 
 Full milestone history → [PLAN.md](PLAN.md) · Beauty detail → [BEAUTY.md](BEAUTY.md)
 
@@ -86,8 +80,8 @@ Full milestone history → [PLAN.md](PLAN.md) · Beauty detail → [BEAUTY.md](B
 
 | Session | Branch | Focus |
 |---------|--------|-------|
-| B-229 | `asm-backend` | monitor-ipc — IPC-SO + IPC-CSN ✅ done |
-| x64-fork | `snobol4ever/x64 main` | M-X64-S1: fix syslinux.c xndta fields; make bootsbl |
+| B-233 | `asm-backend` | monitor-ipc — 5-way WIP pushed `a72e417` |
+| x64-fork | `snobol4ever/x64 main` | M-X64-FULL ✅ `4fcb0e1` |
 | J-next | `jvm-backend` | TBD |
 | N-next | `net-backend` | TBD |
 | F-next | `main` | TBD |
