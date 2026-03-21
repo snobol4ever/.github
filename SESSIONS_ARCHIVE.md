@@ -9883,3 +9883,33 @@ CORPUS=/home/claude/snobol4corpus/crosscheck TINY_REPO=/home/claude/snobol4x \
 # Expect: 110 PASS, 1 FAIL (210_indirect_ref)
 # Fix: edit src/runtime/net/snobol4lib.il — net_indr_get: add reflection fallback after Dictionary miss
 # OR edit emit_byrd_net.c net_emit_header net_indr_get method body```
+
+## Session B-226 — artifacts expansion + JVM segfault fix
+
+**Branch:** `asm-backend` **HEAD:** `0c34da0`
+
+**Accomplished:**
+- Added `artifacts/asm/samples/treebank.s` (2402 lines, assembles clean) and `artifacts/asm/samples/claws5.s` (1808 lines, ~95% — 3 undefined β labels from NRETURN functions missing β port emit).
+- RULES.md updated: artifact section expanded from "Three" to "Four" canonical tracked samples; full table with status column; treebank + claws5 added to regeneration script.
+- PLAN.md ARTIFACT REMINDER updated to five-row table. M-ENG685 milestone rows annotated with artifact commit status.
+- **JVM segfault fixed:** `emit_byrd_jvm.c` line 3741 — function parameter `FILE *out` shadowed global `FILE *out`, making `out = out` a no-op self-assignment. Global was never set → NULL → segfault on first write. Fix: renamed parameter to `jvm_out`, assigned `out = jvm_out`. Committed `0c34da0`.
+- Quick-checked all 5 sample programs on JVM after fix: beauty ✅ assembles+runs; wordcount ✅ assembles+runs (`3 words` correct); roman ❌ `L_RETURN` undefined; treebank ❌ `L_FRETURN` undefined; claws5 ❌ `L_StackEnd` undefined.
+- NET backend untestable in this environment (no mono/ilasm).
+- **6 new milestones filed:** M-ASM-TREEBANK, M-ASM-CLAWS5, M-JVM-ROMAN, M-JVM-TREEBANK, M-JVM-CLAWS5, M-NET-TREEBANK, M-NET-CLAWS5.
+- **Invariants held:** 100/106 C crosscheck · 26/26 ASM crosscheck (build clean throughout).
+
+**Key diagnostics for next session:**
+- JVM roman/treebank: `L_RETURN` / `L_FRETURN` not defined in Jasmin output — RETURN/FRETURN special-goto routing in `emit_byrd_jvm.c` emits a jump target that is never defined as a label. Same class of bug as ASM NRETURN.
+- JVM claws5: `L_StackEnd` undefined — an included-file label (`stack.sno` StackEnd) not resolved across include boundary in JVM emitter.
+- ASM claws5/NRETURN: β port never emitted for NRETURN-returning functions — fixing NRETURN in M-ASM-RUNG10 will cure this too.
+
+**Next session B-227 start:**
+```bash
+cd /home/claude/snobol4x && git checkout asm-backend && git pull --rebase
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+apt-get install -y libgc-dev nasm && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh        # 100/106
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
+bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10              # 4/9 WIP
+```

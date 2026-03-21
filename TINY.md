@@ -12,32 +12,31 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `asm-backend` B-225 — M-ASM-RUNG10 (4/9 PASS → WIP)
-**HEAD:** `284d6cc` B-225
+**Sprint:** `asm-backend` B-226 — artifacts + JVM fix (complete); M-ASM-RUNG10 4/9 WIP
+**HEAD:** `0c34da0` B-226
 **Milestone:** M-ASM-RUNG10 ❌ (4/9: 1012+1014+1015+1018 PASS)
 **Invariants:** 100/106 C (6 pre-existing) · 26/26 ASM
 
-**⚠ CRITICAL NEXT ACTION — Session B-226:**
+**⚠ CRITICAL NEXT ACTION — Session B-227:**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git pull --rebase origin asm-backend
 apt-get install -y libgc-dev nasm && make -C src
-cd src/runtime/asm && gcc -g -O0 -c snobol4_asm_harness.c -o snobol4_asm_harness.o && cd /home/claude/snobol4x
 CORPUS=/home/claude/snobol4corpus/crosscheck
 STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh    # 100/106
-CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh                # 26/26
-bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10           # 4/9 PASS
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh               # 26/26
+bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10          # 4/9 PASS
 ```
 
 **Remaining 5 failures — known root causes:**
 
-1. **1013_func_nreturn** — Route NRETURN → `fn_NAME_gamma` (not omega) in `resolve_special_goto` in `emit_byrd_asm.c` (~line 3357). One-line fix: change the NRETURN branch from `fn_NAME_omega` to `fn_NAME_gamma`.
+1. **1013_func_nreturn** — Route NRETURN → `fn_NAME_gamma` (not omega) in `emit_jmp` in `emit_byrd_asm.c` (~line 3285). One-line fix: change the NRETURN branch from `fn_NAME_omega` to `fn_NAME_gamma`.
 
 2. **1017_arg_local** — `_b_ARG`/`_b_LOCAL` are now in snobol4.c and registered (B-225). Still need: in `emit_byrd_asm.c` after `PROG_INIT`, iterate all `named_pats[]` with `is_fn==1` and emit `lea rdi, [rel spec_str] ; xor esi, esi ; call DEFINE_fn` for each. Put spec strings in `.rodata` section.
 
-3. **1016_eval** — In `snobol4_pattern.c` `EVAL_fn` (~line 1277): add `DT_P` branch before the `DT_S` check. Serialize pattern node to string then call `_ev_expr`, or call `_ev_expr` on a reconstructed source string.
+3. **1016_eval** — In `snobol4_pattern.c` `EVAL_fn` (~line 1277): add `DT_P` branch before the `DT_S` check.
 
 4. **1010/1011** — APPLY_fn(fn==NULL) → NULVCL. Deferred to B-227 (trampoline complexity).
 
@@ -50,13 +49,12 @@ bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10           # 4/9 P
 
 ## Last Session Summary
 
-**Session B-225 — M-ASM-RUNG10 WIP (4/9, diagnosis + ARG/LOCAL foundation):**
-- Diagnosed all 5 remaining rung10 failures with precise root causes.
-- Added `_b_ARG` / `_b_LOCAL` to `snobol4.c` (after FNCBLK_t, forward decls + registrations). Builds clean. 100/106 C · 26/26 ASM hold.
-- NRETURN: one-line fix in resolve_special_goto (→ gamma not omega).
-- EVAL: DT_P branch needed in EVAL_fn.
-- 1017: also needs DEFINE_fn emit at PROG_INIT in emitter.
-- 1010/1011 deferred to B-227. HEAD `284d6cc`.
+**Session B-226 — artifacts expansion + JVM segfault fix:**
+- Added `treebank.s` (clean) and `claws5.s` (~95%) to `artifacts/asm/samples/`. RULES.md + PLAN.md updated to track 5 artifacts.
+- Fixed JVM segfault: `FILE *out` parameter shadowed global in `jvm_emit()` — `out = out` was a no-op. Renamed param to `jvm_out`. Committed `0c34da0`.
+- Quick-checked all 5 samples on JVM: beauty ✅, wordcount ✅, roman/treebank/claws5 ❌ (undefined jump labels — RETURN/FRETURN routing bug in JVM emitter).
+- Filed 7 new milestones: M-ASM-TREEBANK, M-ASM-CLAWS5, M-JVM-ROMAN, M-JVM-TREEBANK, M-JVM-CLAWS5, M-NET-TREEBANK, M-NET-CLAWS5.
+- Invariants held: 100/106 C · 26/26 ASM. HEAD `0c34da0`.
 
 
 ## Active Milestones (next 5)
