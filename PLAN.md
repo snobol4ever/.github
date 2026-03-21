@@ -30,15 +30,19 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 ## ⛔ ARTIFACT REMINDER — VISIBLE EVERY SESSION
 
-**Every session that changes `emit_byrd_asm.c` or any `.sno` → `.s` path MUST:**
+**Every session that changes `emit_byrd_asm.c` or any `.sno` → `.s` path MUST regenerate all tracked artifacts:**
 
-1. `src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog.s`
-2. `nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null` — confirm clean
-3. `git add artifacts/asm/beauty_prog.s && git commit`
+| Artifact | Assembles clean? |
+|----------|-----------------|
+| `artifacts/asm/beauty_prog.s` | ✅ required |
+| `artifacts/asm/samples/roman.s` | ✅ required |
+| `artifacts/asm/samples/wordcount.s` | ✅ required |
+| `artifacts/asm/samples/treebank.s` | ✅ required |
+| `artifacts/asm/samples/claws5.s` | ⚠️ ~95% — track error count (3 undefined β labels: NRETURN functions) |
+
+See RULES.md §ASM ARTIFACTS for the full regeneration script.
 
 **One canonical file per artifact. Never create `beauty_prog_sessionN.s`. Git history is the archive.**
-
-See also: RULES.md §ASM ARTIFACTS
 
 ---
 
@@ -118,8 +122,8 @@ Sprint detail lives in the active platform L2 doc (TINY.md / JVM.md / DOTNET.md)
 | **M-ASM-RUNG10** | rung10/ — DEFINE/recursion/locals/NRETURN/FRETURN/APPLY 9/9 PASS via ASM backend | ❌ Sprint A-RUNG10 |
 | **M-ASM-RUNG11** | rung11/ — ARRAY/TABLE/DATA types 7/7 PASS via ASM backend | ❌ Sprint A-RUNG11 |
 | **M-ASM-LIBRARY** | library/ crosscheck tests PASS via ASM backend; -include resolved correctly | ❌ Sprint A-LIBRARY |
-| **M-ENG685-TREEBANK-SNO** | treebank.sno correct via CSNOBOL4: nPush/nInc/nPop + Shift/Reduce + group self-ref via *group; POS(0)/RPOS(0) anchored; prints indented tree; .ref oracle committed | ❌ Sprint B-ENG685-SNO |
-| **M-ENG685-CLAWS** | claws5.sno — CLAWS5 POS corpus tokenizer; uses lib/stack.sno; .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 |
+| **M-ENG685-TREEBANK-SNO** | treebank.sno correct via CSNOBOL4: nPush/nInc/nPop + Shift/Reduce + group self-ref via *group; POS(0)/RPOS(0) anchored; prints indented tree; .ref oracle committed | ❌ Sprint B-ENG685-SNO — `artifacts/asm/samples/treebank.s` ✅ committed, assembles clean |
+| **M-ENG685-CLAWS** | claws5.sno — CLAWS5 POS corpus tokenizer; uses lib/stack.sno; .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 — `artifacts/asm/samples/claws5.s` ⚠️ committed, ~95%: 3 undefined β labels (NRETURN fns) |
 | **M-ENG685-TREEBANK** | treebank.sno — Penn Treebank S-expr parser; uses lib/stack.sno (same pattern as beauty.sno); .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 |
 | **M-DROP-MOCK-ENGINE** | `mock_engine.c` removed from ASM program link path; 26-test harness suite migrated to full `.sno` format or harness rewritten to not call `engine_match`; 26/26 + 106/106 hold without linking `mock_engine.o` in ASM path | ✅ `06df4cb` B-200 |
 | **M-FLAT-NARY** | Parser: `E_CONC` and `E_OR` emitted as flat n-ary nodes (`args[]`, no `left`/`right`); ASM+JVM+NET updated; C backend `emit.c` E_INDR/iset children[1]→children[0] bugs remain (6 failures: 014/015 indirect assign, 091/092/093 array/table, 100 roman) — fixed in M-EMITTER-NAMING | ⚠ `6495074` F-209 |

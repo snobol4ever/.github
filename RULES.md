@@ -82,32 +82,49 @@ Every pattern in beauty_full_bin is a compiled Byrd box.
 `mock_engine.c` is the only engine file linked. `engine.c` is fully superseded.
 If a build links engine.c: stop and diagnose — something is wrong.
 
-## ⛔ ARTIFACTS — Three canonical ASM samples tracked every session
+## ⛔ ARTIFACTS — Four canonical ASM samples tracked every session
 
-Every session that changes `emit_byrd_asm.c`, `snobol4_asm.mac`, or any `.sno → .s` path MUST regenerate all three canonical ASM artifacts and check if they changed. **Update only if changed — do not commit unchanged files.**
+Every session that changes `emit_byrd_asm.c`, `snobol4_asm.mac`, or any `.sno → .s` path MUST regenerate all four canonical ASM artifacts and check if they changed. **Update only if changed — do not commit unchanged files.**
+
+| Artifact | Source | Status |
+|----------|--------|--------|
+| `artifacts/asm/beauty_prog.s` | `programs/beauty/beauty.sno` | ✅ assembles clean |
+| `artifacts/asm/samples/roman.s` | `benchmarks/roman.sno` | ✅ assembles clean |
+| `artifacts/asm/samples/wordcount.s` | `crosscheck/strings/wordcount.sno` | ✅ assembles clean |
+| `artifacts/asm/samples/treebank.s` | `programs/lon/sno/treebank.sno` | ✅ assembles clean |
+| `artifacts/asm/samples/claws5.s` | `programs/lon/sno/claws5.sno` | ⚠️ ~95%: 3 undefined β labels (`P_do_mem_init_β`, `P_do_new_sent_β`, `P_do_add_tok_β`) — NRETURN functions missing β port emit; tracked for progress |
 
 ```bash
 INC=/home/claude/snobol4corpus/programs/inc
 BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
 ROMAN=/home/claude/snobol4corpus/benchmarks/roman.sno
 WORDCOUNT=/home/claude/snobol4corpus/crosscheck/strings/wordcount.sno
+TREEBANK=/home/claude/snobol4corpus/programs/lon/sno/treebank.sno
+CLAWS5=/home/claude/snobol4corpus/programs/lon/sno/claws5.sno
 
-src/sno2c/sno2c -asm -I$INC $BEAUTY   > /tmp/beauty_new.s
-src/sno2c/sno2c -asm -I$INC $ROMAN    > /tmp/roman_new.s
-src/sno2c/sno2c -asm -I$INC $WORDCOUNT > /tmp/wordcount_new.s
+./sno2c -asm -I$INC $BEAUTY    > /tmp/beauty_new.s
+./sno2c -asm -I$INC $ROMAN     > /tmp/roman_new.s
+./sno2c -asm -I$INC $WORDCOUNT > /tmp/wordcount_new.s
+./sno2c -asm -I$INC $TREEBANK  > /tmp/treebank_new.s
+./sno2c -asm -I$INC $CLAWS5    > /tmp/claws5_new.s
 
-# Verify all three assemble with zero warnings/errors
-nasm -f elf64 -I src/runtime/asm/ /tmp/beauty_new.s   -o /dev/null
-nasm -f elf64 -I src/runtime/asm/ /tmp/roman_new.s    -o /dev/null
+# Verify the clean four assemble with zero warnings/errors
+nasm -f elf64 -I src/runtime/asm/ /tmp/beauty_new.s    -o /dev/null
+nasm -f elf64 -I src/runtime/asm/ /tmp/roman_new.s     -o /dev/null
 nasm -f elf64 -I src/runtime/asm/ /tmp/wordcount_new.s -o /dev/null
+nasm -f elf64 -I src/runtime/asm/ /tmp/treebank_new.s  -o /dev/null
+# claws5: track error count for progress (goal: 0 errors)
+nasm -f elf64 -I src/runtime/asm/ /tmp/claws5_new.s    -o /dev/null 2>&1 | grep -c error || true
 
 # Copy only if changed
-diff -q /tmp/beauty_new.s   artifacts/asm/beauty_prog.s          || cp /tmp/beauty_new.s   artifacts/asm/beauty_prog.s
-diff -q /tmp/roman_new.s    artifacts/asm/samples/roman.s        || cp /tmp/roman_new.s    artifacts/asm/samples/roman.s
-diff -q /tmp/wordcount_new.s artifacts/asm/samples/wordcount.s   || cp /tmp/wordcount_new.s artifacts/asm/samples/wordcount.s
+diff -q /tmp/beauty_new.s    artifacts/asm/beauty_prog.s             || cp /tmp/beauty_new.s    artifacts/asm/beauty_prog.s
+diff -q /tmp/roman_new.s     artifacts/asm/samples/roman.s           || cp /tmp/roman_new.s     artifacts/asm/samples/roman.s
+diff -q /tmp/wordcount_new.s artifacts/asm/samples/wordcount.s       || cp /tmp/wordcount_new.s artifacts/asm/samples/wordcount.s
+diff -q /tmp/treebank_new.s  artifacts/asm/samples/treebank.s        || cp /tmp/treebank_new.s  artifacts/asm/samples/treebank.s
+diff -q /tmp/claws5_new.s    artifacts/asm/samples/claws5.s          || cp /tmp/claws5_new.s    artifacts/asm/samples/claws5.s
 
-git add artifacts/asm/beauty_prog.s artifacts/asm/samples/roman.s artifacts/asm/samples/wordcount.s
-git diff --cached --quiet || git commit -m "sessionN: artifacts — beauty/roman/wordcount updated"
+git add artifacts/asm/beauty_prog.s artifacts/asm/samples/roman.s artifacts/asm/samples/wordcount.s artifacts/asm/samples/treebank.s artifacts/asm/samples/claws5.s
+git diff --cached --quiet || git commit -m "sessionN: artifacts — beauty/roman/wordcount/treebank/claws5 updated"
 ```
 
 **Never commit unchanged artifacts — git history is the archive, not noise.**
