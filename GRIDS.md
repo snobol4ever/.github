@@ -165,3 +165,125 @@
 
 *GRIDS.md is a stub. All `—` cells require M-GRID-BENCH, M-GRID-CORPUS, and M-GRID-COMPAT to fire.*
 *These milestones are defined in PLAN.md.*
+
+---
+
+## Grid 4 — Language Reference (functions, keywords, switches)
+
+> **STATUS: STUB — all cells require M-GRID-REFERENCE to fire.**
+> This is the fine-grained complement to Grid 3.
+> Grid 3 groups features by category. Grid 4 lists every individual builtin,
+> keyword, and CLI switch, with a quality rating per engine.
+>
+> Rating scale:
+> - `✅` fully supported, oracle-correct
+> - `⚠` supported but diverges from oracle in known edge cases (note appended)
+> - `🔧` partial — basic cases work, known gaps
+> - `❌` not implemented
+> - `—` not applicable to this engine
+
+### Builtin Functions (~50)
+
+| Function | CSNOBOL4 | SPITBOL | dotnet | jvm | x-net | x-jvm | x-asm |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| APPLY(fn, args…) | ✅ | ✅ | — | — | — | — | — |
+| ARRAY(dims, fill) | ✅ | ✅ | — | — | — | — | — |
+| CHAR(n) | ✅ | ✅ | — | — | — | — | — |
+| CODE(source) | ✅ | ✅ | — | — | — | — | — |
+| CONVERT(val, type) | ✅ | ✅ | — | — | — | — | — |
+| COPY(val) | ✅ | ✅ | — | — | — | — | — |
+| DATA('type(fields)') | ✅ | ✅ | — | — | — | — | — |
+| DATATYPE(val) | ✅ | ⚠ lowercase builtins | — | — | — | — | — |
+| DATE() | ✅ | ✅ | — | — | — | — | — |
+| DEFINE('proto', 'entry') | ✅ | ✅ | — | — | — | — | — |
+| DIFFER(a, b) | ✅ | ✅ | — | — | — | — | — |
+| DUMP(n) | ✅ | ✅ | — | — | — | — | — |
+| DUPL(s, n) | ✅ | ✅ | — | — | — | — | — |
+| EQ(a, b) | ✅ | ✅ | — | — | — | — | — |
+| EVAL(expr) | ✅ | ✅ | — | — | — | — | — |
+| FIELD(type, n) | ✅ | ✅ | — | — | — | — | — |
+| GE(a, b) | ✅ | ✅ | — | — | — | — | — |
+| GT(a, b) | ✅ | ✅ | — | — | — | — | — |
+| HOST(n, …) | ✅ | ✅ | — | — | — | — | — |
+| IDENT(a, b) | ✅ | ✅ | — | — | — | — | — |
+| INPUT(var, ch, file) | ✅ | ✅ | — | — | — | — | — |
+| INTEGER(val) | ✅ | ✅ | — | — | — | — | — |
+| ITEM(arr, i…) | ✅ | ✅ | — | — | — | — | — |
+| LE(a, b) | ✅ | ✅ | — | — | — | — | — |
+| LGT(a, b) | ✅ | ✅ | — | — | — | — | — |
+| LOAD('proto', 'lib') | ✅ | ✅ | — | — | — | — | — |
+| LOCAL(fn, n) | ✅ | ✅ | — | — | — | — | — |
+| LPAD(s, n, fill) | ✅ | ✅ | — | — | — | — | — |
+| LTRIM(s) | ✅ | ✅ | — | — | — | — | — |
+| LT(a, b) | ✅ | ✅ | — | — | — | — | — |
+| NE(a, b) | ✅ | ✅ | — | — | — | — | — |
+| OPSYN(new, old, n) | ✅ | ✅ | — | — | — | — | — |
+| OUTPUT(var, ch, file) | ✅ | ✅ | — | — | — | — | — |
+| REAL(val) | ✅ | ✅ | — | — | — | — | — |
+| REMDR(a, b) | ✅ | ✅ | — | — | — | — | — |
+| REPLACE(s, from, to) | ✅ | ✅ | — | — | — | — | — |
+| REVERSE(s) | ✅ | ✅ | — | — | — | — | — |
+| RPAD(s, n, fill) | ✅ | ✅ | — | — | — | — | — |
+| RTRIM(s) | ✅ | ✅ | — | — | — | — | — |
+| SETEXIT('label') | ✅ | ✅ | — | — | — | — | — |
+| SIZE(s) | ✅ | ✅ | — | — | — | — | — |
+| STOPTR(var, type) | ✅ | ✅ | — | — | — | — | — |
+| SUBSTR(s, i, n) | ✅ | ✅ | — | — | — | — | — |
+| TABLE(size, fill) | ✅ | ✅ | — | — | — | — | — |
+| TERMINAL | ✅ | ✅ | — | — | — | — | — |
+| TIME() | ✅ | ✅ | — | — | — | — | — |
+| TRACE(var, type) | ✅ | ✅ | — | — | — | — | — |
+| TRIM(s) | ✅ | ✅ | — | — | — | — | — |
+| UNLOAD(fn) | ✅ | ✅ | — | — | — | — | — |
+
+### Keywords (~30)
+
+| Keyword | CSNOBOL4 | SPITBOL | dotnet | jvm | x-net | x-jvm | x-asm |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| &ALPHABET | ✅ | ✅ | — | — | — | — | — |
+| &ANCHOR | ✅ | ✅ | — | — | — | — | — |
+| &CODE | ✅ | ✅ | — | — | — | — | — |
+| &DUMP | ✅ | ✅ | — | — | — | — | — |
+| &ERRLIMIT | ✅ | ✅ | — | — | — | — | — |
+| &ERRTEXT | ✅ | ✅ | — | — | — | — | — |
+| &ERRTYPE | ✅ | ✅ | — | — | — | — | — |
+| &FTRACE | ✅ | ✅ | — | — | — | — | — |
+| &FULLSCAN | ✅ | ✅ | — | — | — | — | — |
+| &INPUT | ✅ | ✅ | — | — | — | — | — |
+| &LCASE | ✅ | ⚠ 26 ASCII only | — | — | — | — | — |
+| &LASTNO | ✅ | ✅ | — | — | — | — | — |
+| &MAXLNGTH | ✅ | ✅ | — | — | — | — | — |
+| &OUTPUT | ✅ | ✅ | — | — | — | — | — |
+| &STCOUNT | ✅ | ✅ | — | — | — | — | — |
+| &STLIMIT | ✅ | ✅ | — | — | — | — | — |
+| &SUBJECT | ✅ | ✅ | — | — | — | — | — |
+| &TRACE | ✅ | ✅ | — | — | — | — | — |
+| &TRIM | ✅ | ✅ | — | — | — | — | — |
+| &UCASE | ✅ | ⚠ 26 ASCII only | — | — | — | — | — |
+
+### CLI Switches
+
+> Switch sets differ per engine. Only switches meaningful across engines are listed here.
+> Engine-specific switches (e.g. dotnet -w save-dll, SPITBOL -b) are documented in individual repo READMEs.
+
+| Switch / behaviour | CSNOBOL4 | SPITBOL | dotnet | jvm | x-net | x-jvm | x-asm |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Run a .sno file | ✅ | ✅ | — | — | — | — | — |
+| -f (don't fold to uppercase) | ✅ | ✅ | — | — | — | — | — |
+| -F (fold to uppercase, default) | ✅ | ✅ | — | — | — | — | — |
+| -b (suppress sign-on) | — | ✅ | — | — | — | — | — |
+| -l (show listing) | ✅ | ✅ | — | — | — | — | — |
+| -n (compile only, no execution) | ✅ | ✅ | — | — | — | — | — |
+| -I dir (-include search path) | ✅ | ✅ | — | — | — | — | — |
+| -P n (stack/heap size) | ✅ | — | — | — | — | — | — |
+| -r (INPUT reads lines after END) | ✅ | ✅ | — | — | — | — | — |
+| -w (write save/dll file) | — | ✅ | — | — | — | — | — |
+| -x (execution statistics) | ✅ | ✅ | — | — | — | — | — |
+| Save file / .dll reload | — | ✅ | — | — | — | — | — |
+| SNOLIB / SNOPATH env var | ✅ | ✅ | — | — | — | — | — |
+
+---
+
+*Grid 4 is a stub. All `—` cells require M-GRID-REFERENCE to fire.*
+*Milestone definition: every `—` cell replaced by ✅/⚠/🔧/❌ from actual test runs via snobol4harness.*
+*The CSNOBOL4 and SPITBOL columns are pre-filled from documentation and known behaviour; verify against oracle before publishing.*

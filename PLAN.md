@@ -253,3 +253,76 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 ---
 
 *PLAN.md = L1 index only. Never add sprint content here. Milestone fires → update dashboard. Sprint changes → update platform L2 doc.*
+
+---
+
+## Grid Milestones — Community Presentation Layer
+
+> These milestones gate the public presentation of comparison data.
+> No grid cell is published until the milestone for that grid has fired.
+> All runs go through snobol4harness against snobol4corpus.
+> Oracle: CSNOBOL4 2.3.3 (`snobol4 -f -P256k -I$INC file.sno`)
+> Machine spec must be recorded at time of run (CPU, RAM, OS, date).
+
+| ID | Trigger | Grid | Status |
+|----|---------|------|--------|
+| **M-GRID-BENCH** | All 7 engine columns of Grid 1 filled from actual timed runs via snobol4harness; PCRE2 JIT and Bison LALR(1) baselines documented with build flags and version; machine spec recorded | Benchmarks | ❌ |
+| **M-GRID-CORPUS** | All 7 engine columns of Grid 2 filled; every engine run against full snobol4corpus crosscheck ladder (106 programs, 12 rungs including beauty.sno); pass/fail counts from actual runs, not from memory | Corpus ladder | ❌ |
+| **M-GRID-COMPAT** | Grid 3 feature/compat matrix: all `—` cells replaced with ✅/⚠/🔧/❌ from actual test runs; known CSNOBOL4 vs SPITBOL divergences verified and annotated | Feature/compat | ❌ |
+| **M-GRID-REFERENCE** | Grid 4 language reference: every builtin function, keyword, and CLI switch verified per engine; quality rating (✅/⚠/🔧/❌) from actual test runs; edge cases documented inline | Functions/keywords/switches | ❌ |
+
+### Grid milestone dependencies
+
+```
+M-GRID-CORPUS   ←  requires all 7 engines buildable and runnable on same machine
+M-GRID-BENCH    ←  requires same; also requires PCRE2 JIT and Bison installed
+M-GRID-COMPAT   ←  requires M-GRID-CORPUS (corpus must pass before compat details matter)
+M-GRID-REFERENCE ← requires M-GRID-COMPAT (coarse compat verified before fine-grained)
+```
+
+All four fire → GRIDS.md is publication-ready for community presentation.
+
+---
+
+## README Milestones — Per-Repo Documentation
+
+> These milestones track the state of each repo's public README.
+> "Draft" = written but not yet source-verified against actual repo code.
+> "Verified" = a dedicated session has scanned the source and corrected every claim.
+> Source verification is a separate session per repo — each will consume significant context.
+
+| ID | Repo | Trigger | Status |
+|----|------|---------|--------|
+| **M-README-PROFILE-DRAFT** | profile/README.md rewritten: correct attributions (Byrd/Proebsting/Emmer/Budne/Koenig), updated test counts, softened benchmark claims, community tone, beauty.sno/compiler.sno bootstrap gates explicit | snobol4ever/.github | ✅ `88e8f17` F-211 |
+| **M-README-PROFILE-VERIFIED** | profile/README.md verified against all repo READMEs and source; every number, claim, and attribution confirmed correct | snobol4ever/.github | ❌ |
+| **M-README-JVM-DRAFT** | snobol4jvm README written: architecture, pipeline stages, performance numbers, corpus status, build instructions | snobol4jvm | ❌ |
+| **M-README-JVM-VERIFIED** | snobol4jvm README verified against Clojure source; every claim confirmed | snobol4jvm | ❌ |
+| **M-README-X-DRAFT** | snobol4x README updated: 15×3 frontend/backend matrix, corpus status per backend, build instructions, Byrd Box explanation | snobol4x | ❌ |
+| **M-README-X-VERIFIED** | snobol4x README verified against C source; every claim confirmed | snobol4x | ❌ |
+| **M-README-DOTNET-DRAFT** | snobol4dotnet README: backup Jeff's original as README.jeff.md; new README written with current numbers and structure | snobol4dotnet | ❌ |
+| **M-README-DOTNET-VERIFIED** | snobol4dotnet README verified against C# source; coordinated with Jeff Cooper | snobol4dotnet | ❌ |
+| **M-README-PYTHON-DRAFT** | snobol4python README light polish: verify version, test counts, backend description | snobol4python | ❌ |
+| **M-README-CSHARP-DRAFT** | snobol4csharp README light polish: already solid; verify test counts and status | snobol4csharp | ❌ |
+
+### README session plan
+
+Each "VERIFIED" milestone is a dedicated session that:
+1. Clones the repo fresh
+2. Scans every source file relevant to README claims
+3. Runs the test suite to confirm counts
+4. Corrects any claims that don't match source
+5. Commits and pushes
+
+Do not attempt more than one VERIFIED milestone per session — source scanning consumes most of the context window.
+
+Order recommendation: JVM first (empty README, highest urgency), then snobol4x, then dotnet (coordinate with Jeff), then python/csharp (light touch).
+
+---
+
+## GRIDS.md Location Note
+
+GRIDS.md lives in snobol4ever/.github (this repo) at the top level.
+It is linked from profile/README.md as `../GRIDS.md` — this resolves correctly
+when viewed on GitHub as the org's profile page reads from .github/profile/.
+If GitHub does not resolve the relative link correctly, move GRIDS.md to
+.github/profile/GRIDS.md and update the link.
