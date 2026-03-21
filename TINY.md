@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `monitor-scaffold` — build five-way sync-step monitor infrastructure
+**Sprint:** `monitor-scaffold` — build two-way sync-step monitor (CSNOBOL4 + ASM)
 **HEAD:** `7f44985` B-226 (asm-backend) · `b67d0b1` J-212 (jvm-backend) · `2c417d7` N-209 (net-backend) · `6495074` F-210 (main)
 **Milestone:** M-MONITOR-SCAFFOLD (next to fire)
 **Invariants:** 100/106 C (6 pre-existing) · 26/26 ASM
@@ -35,50 +35,57 @@ CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh                  # 26/
 # Build sno2c
 apt-get install -y libgc-dev && make -C src/sno2c
 
-# Sprint goal: create these four files
+# Sprint goal: create these files
 mkdir -p test/monitor
-# 1. test/monitor/tracepoints.conf      — default include/exclude/ignore rules
+# 1. test/monitor/tracepoints.conf      — INCLUDE/EXCLUDE/IGNORE rules (regex-based)
 # 2. test/monitor/inject_traces.py      — reads .sno + conf -> instrumented .sno
-# 3. test/monitor/run_monitor.sh        — CSNOBOL4 only for M1; 5-way for M2
-# 4. test/monitor/normalize_trace.py   — ignore-points + SPITBOL format normalization
+# 3. test/monitor/run_monitor.sh        — CSNOBOL4 + ASM only for M-MONITOR-SCAFFOLD
+# 4. test/monitor/normalize_trace.py   — ignore-points; SPITBOL normalization (M-MONITOR-3WAY)
 
 # M-MONITOR-SCAFFOLD pass condition:
 SNO=/home/claude/snobol4corpus/crosscheck/hello/001_output_string_literal.sno
 bash test/monitor/run_monitor.sh $SNO
-# Must exit 0, CSNOBOL4 trace stream non-empty
+# Must exit 0; CSNOBOL4 and ASM trace streams non-empty and matching
 ```
 
 **Step-by-step:**
-1. Write `tracepoints.conf` — INCLUDE `*` functions, INCLUDE OUTPUT, EXCLUDE &RANDOM/&TIME/&DATE; IGNORE &TERMINAL tty pattern, IGNORE DATATYPE case
-2. Write `inject_traces.py` — scan DEFINE( for functions, scan LHS `=` for variables, prepend TRACE() calls
-3. Write `run_monitor.sh` — inject → run CSNOBOL4 → capture stderr → report PASS/FAIL
+1. Write `tracepoints.conf` — INCLUDE `*` (functions + vars), EXCLUDE &RANDOM/&TIME/&DATE; IGNORE &TERMINAL tty pattern, IGNORE DATATYPE case
+2. Write `inject_traces.py` — scan DEFINE( for functions (CALL+RETURN), scan LHS `=` for vars (VALUE); apply regex INCLUDE/EXCLUDE; inject TRACE() calls
+3. Write `run_monitor.sh` — inject → run CSNOBOL4 → run ASM → diff streams → PASS/FAIL
 4. Test on `001_output_string_literal.sno` → PASS
 5. Commit → M-MONITOR-SCAFFOLD fires → update PLAN.md dashboard
-6. Continue to Sprint M2: add SPITBOL + 3 backends + `normalize_trace.py`
+6. Continue to M-MONITOR-3WAY: add SPITBOL + `normalize_trace.py`
+7. Then M-MONITOR-5WAY: add JVM + NET
+8. Then M-MONITOR-4DEMO: demo programs
+9. Then M-BEAUTY-* series: 19 subsystem drivers → M-BEAUTIFY-BOOTSTRAP
 
-**Full sprint plan → [MONITOR.md](MONITOR.md)**
+**Full monitor plan → [MONITOR.md](MONITOR.md) · Beauty subsystem plan → [BEAUTY.md](BEAUTY.md)**
 
 ## Last Session Summary
 
-**Session (strategize-2, 2026-03-21) — Five-way monitor plan + milestones:**
-- Defined five-way sync-step monitor: CSNOBOL4 + SPITBOL + ASM + JVM + NET
-- Named trace-points (observe, never stop) and ignore-points (known-diff suppression)
-- Defined M-BEAUTIFY-BOOTSTRAP: beauty.sno reads beauty.sno, all backends = oracle = input
-- Rewrote MONITOR.md (L3): participants, trace/ignore-point config, 4-sprint plan M1-M4
-- Added 4 milestones + 1 dream milestone (M-MONITOR-GUI) to PLAN.md dashboard
-- Monitor infrastructure lives in snobol4x/test/monitor/ first, moves to harness later
-- No code changes. No invariant runs needed (strategy session only).
+**Session (strategize-3, 2026-03-21) — Full monitor + beauty piecemeal plan:**
+- Refined tracepoints.conf: regex-based INCLUDE/EXCLUDE, four trace kinds (VALUE/CALL/RETURN/LABEL), scope qualifiers (name / func/var)
+- Ignore-points: suppress known-diff patterns without stopping execution
+- Monitor participant sequence: start 2-way (CSNOBOL4+ASM), grow to 3-way (+SPITBOL), then 5-way (+JVM+NET) — separate milestones M-MONITOR-SCAFFOLD → M-MONITOR-3WAY → M-MONITOR-5WAY
+- Beauty piecemeal: 19 per-include-file drivers in snobol4x/test/beauty/, Gimpel corpus as semantic cross-validation; one M-BEAUTY-* milestone per include file
+- New doc: BEAUTY.md (L3) — driver format, 19-milestone map, dependency order, Gimpel cross-refs, EXCLUDE noise-reduction protocol
+- Updated MONITOR.md: regex trace-point design, Sprint M4 rewritten as 19-sprint beauty-subsystems series
+- Updated PLAN.md: M-MONITOR-5WAY split into SCAFFOLD→3WAY→5WAY; 19 M-BEAUTY-* milestones added; BEAUTY.md in L3 table
+- No code changes. No invariant runs (strategy session only).
 
 ## Active Milestones
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| M-MONITOR-SCAFFOLD | test/monitor/ exists; one test vs CSNOBOL4 passes | ❌ |
-| M-MONITOR-5WAY | All 5 participants wired; one test passes all 5 | ❌ |
-| M-MONITOR-4DEMO | roman+wordcount+treebank pass all 5 participants | ❌ |
+| M-MONITOR-SCAFFOLD | test/monitor/ exists; CSNOBOL4 + ASM; one test passes | ❌ |
+| M-MONITOR-3WAY | + SPITBOL; normalize_trace.py; one test passes all 3 | ❌ |
+| M-MONITOR-5WAY | + JVM + NET; one test passes all 5 | ❌ |
+| M-MONITOR-4DEMO | roman+wordcount+treebank pass all 5 | ❌ |
+| M-BEAUTY-GLOBAL | global.sno driver passes | ❌ |
+| M-BEAUTY-IS … M-BEAUTY-TRACE | 18 more subsystem drivers | ❌ |
 | M-BEAUTIFY-BOOTSTRAP | beauty.sno fixed point on all 3 backends | ❌ |
 
-Full milestone history → [PLAN.md](PLAN.md)
+Full milestone history → [PLAN.md](PLAN.md) · Beauty detail → [BEAUTY.md](BEAUTY.md)
 
 ---
 

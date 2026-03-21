@@ -186,11 +186,31 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 
 | ID | Trigger | Repo | Status |
 |----|---------|------|--------|
-| **M-MONITOR-SCAFFOLD** | `snobol4x/test/monitor/` exists: `inject_traces.py` + `run_monitor.sh` + `run_monitor_suite.sh` + `tracepoints.conf`; single test runs end-to-end against CSNOBOL4 oracle only | snobol4x | ❌ |
-| **M-MONITOR-5WAY** | All 5 participants wired: CSNOBOL4 + SPITBOL + ASM + JVM + NET each produce a trace stream for one test; streams captured and diffed | snobol4x | ❌ |
-| **M-MONITOR-4DEMO** | 4 working demo programs (roman, wordcount, treebank, claws5) produce identical trace streams across all 5 participants; monitor proves itself on known-good programs | snobol4x | ❌ |
-| **M-BEAUTIFY-BOOTSTRAP** | `beauty.sno` reads `beauty.sno`, all 3 compiled backends produce output byte-for-byte identical to CSNOBOL4 oracle AND identical to `beauty.sno` input; fixed point reached | snobol4x | ❌ |
-| **M-MONITOR-GUI** | 🌙 *Dream milestone* — HTML/React monitor GUI: left pane = source with trace-point annotations; right pane = matrix of trace-point values with one column per participant (CSNOBOL4 · SPITBOL · one backend); rows sync-step in lockstep; diverging cells highlighted; ignore-points shown in muted color; single-backend mode for visual clarity | snobol4x | 💭 |
+| **M-MONITOR-SCAFFOLD** | `snobol4x/test/monitor/` exists: `inject_traces.py` + `run_monitor.sh` + `tracepoints.conf`; CSNOBOL4 + ASM; single test passes | snobol4x | ❌ |
+| **M-MONITOR-3WAY** | CSNOBOL4 + SPITBOL + ASM wired; `normalize_trace.py` handles SPITBOL format; one test passes all 3 | snobol4x | ❌ |
+| **M-MONITOR-5WAY** | All 5 participants: CSNOBOL4 + SPITBOL + ASM + JVM + NET; one test passes all 5 | snobol4x | ❌ |
+| **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants; claws5 divergence count documented | snobol4x | ❌ |
+| **M-BEAUTY-GLOBAL** | global.sno driver passes ASM via monitor | snobol4x | ❌ |
+| **M-BEAUTY-IS** | is.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-FENCE** | FENCE.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-IO** | io.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-CASE** | case.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-ASSIGN** | assign.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-MATCH** | match.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-COUNTER** | counter.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-STACK** | stack.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-TREE** | tree.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-SR** | ShiftReduce.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-TDUMP** | TDump.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-GEN** | Gen.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-QIZE** | Qize.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-READWRITE** | ReadWrite.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-XDUMP** | XDump.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-SEMANTIC** | semantic.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-OMEGA** | omega.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTY-TRACE** | trace.sno driver passes | snobol4x | ❌ |
+| **M-BEAUTIFY-BOOTSTRAP** | All 19 M-BEAUTY-* fire; `beauty.sno` reads itself; all 3 backends = oracle = input; fixed point | snobol4x | ❌ |
+| **M-MONITOR-GUI** | 🌙 *Dream* — HTML/React monitor GUI: source + trace matrix, diverging cells highlighted | snobol4x | 💭 |
 
 ---
 
@@ -209,7 +229,8 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | File | What |
 |------|------|
 | [TESTING.md](TESTING.md) | Four paradigms, corpus ladder, oracle index, keyword/TRACE grid |
-| [MONITOR.md](MONITOR.md) | M-MONITOR design: TRACE double-diff, 8 sprints M1–M8 |
+| [MONITOR.md](MONITOR.md) | M-MONITOR design: TRACE double-diff, sprints M1–M5, beauty piecemeal approach |
+| [BEAUTY.md](BEAUTY.md) | beauty.sno subsystem test plan: 19 drivers, milestone map, driver format, Gimpel cross-refs |
 | [ARCH.md](ARCH.md) | Byrd Box model, shared architecture concepts |
 | [IMPL-SNO2C.md](IMPL-SNO2C.md) | sno2c compiler internals |
 | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) | SNOBOL4/SPITBOL frontend, beauty.sno |

@@ -10003,3 +10003,40 @@ mkdir -p test/monitor
 # Write tracepoints.conf, inject_traces.py, run_monitor.sh per MONITOR.md Sprint M1
 # Target: run_monitor.sh on crosscheck/hello/001_output_string_literal.sno exits 0
 ```
+
+## Session (strategize-3, 2026-03-21) — Full monitor + beauty piecemeal plan
+
+**Date:** 2026-03-21
+**Work done:**
+- Refined tracepoints.conf design: regex-based INCLUDE/EXCLUDE rules; four trace kinds (VALUE/CALL/RETURN/LABEL); scope qualifiers (bare name / func/var / {global}/var planned)
+- Ignore-points: suppress known-diff patterns (tty, DATATYPE case, &STNO) without stopping execution; appear in both streams but don't count as divergence
+- Monitor participant sequence redesigned: start 2-way (CSNOBOL4+ASM) → 3-way (+SPITBOL) → 5-way (+JVM+NET); three separate milestones instead of one jump to 5-way
+- Beauty piecemeal strategy: 19 per-include-file test drivers in snobol4x/test/beauty/; Gimpel corpus (145 programs) as semantic cross-validation and driver inspiration; one M-BEAUTY-* milestone per include file in dependency order
+- EXCLUDE noise-reduction protocol: as each subsystem milestone fires, add EXCLUDE rules to tracepoints.conf to suppress proven-clean variables, keeping trace stream focused on the subsystem under test
+- New doc: BEAUTY.md (L3) — full 19-subsystem plan, driver format, dependency graph, milestone table, Gimpel cross-refs
+- Updated MONITOR.md: regex trace-point design in tracepoints section; Sprint M4 rewritten as 19-sprint beauty-subsystems series leading to M-BEAUTIFY-BOOTSTRAP
+- Updated PLAN.md: SCAFFOLD→3WAY→5WAY milestone sequence; 19 M-BEAUTY-* milestones added; BEAUTY.md in L3 table
+- Updated TINY.md: NOW block reflects new plan; full active milestone list; session summary
+- No code changes. No invariant runs (strategy session only).
+
+**State at handoff:**
+- BEAUTY.md: new L3 doc committed ✅
+- MONITOR.md: trace-point design updated; Sprint M4 rewritten ✅
+- PLAN.md: 24 active milestones (SCAFFOLD+3WAY+5WAY+4DEMO+19 BEAUTY+BOOTSTRAP+GUI) ✅
+- TINY.md: NOW block and active milestones updated ✅
+- snobol4x: no changes — invariants last known 100/106 C · 26/26 ASM
+
+**Next session start block (B-227):**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git checkout asm-backend && git pull --rebase origin asm-backend
+export CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh   # must be 100/106
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh               # must be 26/26
+apt-get install -y libgc-dev && make -C src/sno2c
+mkdir -p test/monitor
+# Write tracepoints.conf, inject_traces.py, run_monitor.sh per MONITOR.md Sprint M1
+# Target: run_monitor.sh on crosscheck/hello/001_output_string_literal.sno exits 0
+# Two participants only: CSNOBOL4 + ASM
+```

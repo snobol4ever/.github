@@ -42,10 +42,16 @@ identical to the input. A fixed point.
 A trace-point is an observation hook. The program keeps running.
 The event appears in the stream. **Not a breakpoint — never stops execution.**
 
+Four kinds of trace-points, all configurable:
+- **VALUE** — fires on every assignment to a variable: `TRACE(var,'VALUE')`
+- **CALL** — fires on function entry: `TRACE(fn,'CALL')`
+- **RETURN** — fires on function exit (normal): `TRACE(fn,'RETURN')`
+- **LABEL** — fires when a label is reached: `TRACE(label,'LABEL')`
+
 Configured in `tracepoints.conf` (or per-test override files).
 
 ```
-# tracepoints.conf — default rules
+# tracepoints.conf — default rules (maximally inclusive)
 INCLUDE  *            # all DEFINE'd functions: CALL + RETURN
 INCLUDE  OUTPUT       # VALUE trace on OUTPUT
 INCLUDE  *            # all variables found on LHS of =: VALUE trace
@@ -53,6 +59,28 @@ EXCLUDE  &RANDOM      # non-deterministic — always exclude
 EXCLUDE  &TIME        # wall-clock — always exclude
 EXCLUDE  &DATE        # wall-clock — always exclude
 ```
+
+**INCLUDE/EXCLUDE use regular expressions** matching variable and function names.
+Scope qualifiers narrow the match:
+- `name` — matches any variable or function named `name` anywhere
+- `func/var` — matches variable `var` only inside function `func`
+- (planned) `{global}/var` — matches module-scope global `var` only
+
+**Noise reduction as subsystems are proven clean:**
+As each beauty subsystem milestone fires (see BEAUTY.md), add EXCLUDE rules
+to suppress that subsystem's variables and functions from the trace stream.
+This keeps the stream focused on the subsystem under test.
+
+```
+# Example: after M-BEAUTY-STACK fires, suppress stack internals
+EXCLUDE  @S           # stack link variable — proven clean
+EXCLUDE  InitStack    # proven clean
+EXCLUDE  Push         # proven clean
+EXCLUDE  Pop          # proven clean
+EXCLUDE  Top          # proven clean
+```
+
+Per-test overrides: place a `<testname>.tracepoints` file alongside the `.sno`.
 
 ### Ignore-Points
 An ignore-point fires when a trace-point value *differs* between participants
@@ -70,8 +98,6 @@ IGNORE  &STNO         *              # statement numbers may differ by dialect
 1. Prepends `TRACE(var,'VALUE')` calls for all included variables
 2. Prepends `TRACE(fn,'CALL')` + `TRACE(fn,'RETURN')` for all DEFINE'd functions
 3. Emits ignore-rule table consumed by `normalize_trace.py` when diffing streams
-
-Per-test overrides: place a `<testname>.tracepoints` file alongside the `.sno`.
 
 ---
 
@@ -220,20 +246,41 @@ claws5 divergence count documented. 100/106 C + 26/26 ASM invariants hold.
 
 ---
 
-### Sprint M4 — monitor-beauty
+### Sprint M4 — beauty-subsystems (19 sprints)
 
-**Goal:** Run `beauty.sno` through the monitor. Fix each divergence using
-agreeing backends as the reference. Reach the Beautify Bootstrap Point.
+**Goal:** Prove each of beauty.sno's 19 `-INCLUDE` subsystems correct in isolation
+before attempting full self-beautification. Each subsystem gets its own test driver
+and monitor run. Full plan → **[BEAUTY.md](BEAUTY.md)**.
 
-**Protocol per divergence:**
-1. `run_monitor.sh demo/beauty.sno` — note first diverging trace line per backend
-2. Identify variable/function/label that diverged first
-3. Check: do any two backends agree? Those two specify the correct behavior
-4. Fix the diverging emitter (`emit_byrd_asm.c`, `emit_byrd_jvm.c`, `net_emit.c`)
-5. Rerun monitor — confirm divergence gone
-6. Confirm 100/106 C + 26/26 ASM invariants still hold
-7. Repeat until all three backends produce empty diffs vs oracle
-8. Run bootstrap check — all four diffs empty
+**Strategy:**
+- One driver per subsystem: a small `.sno` that `-INCLUDE`s only that file
+  (plus dependencies) and exercises all DEFINE'd functions
+- Drivers live in `snobol4x/test/beauty/<subsystem>/driver.sno`
+- Gimpel corpus (145 programs) provides semantic cross-validation
+- Monitor runs each driver: CSNOBOL4 oracle + ASM (expanding to JVM+NET as
+  M-MONITOR-5WAY is reached)
+- As each subsystem passes, EXCLUDE rules are added to `tracepoints.conf`
+  to suppress proven-clean variables from future trace streams
+
+**19 sub-milestones in dependency order** (full table in BEAUTY.md):
+M-BEAUTY-GLOBAL → M-BEAUTY-IS → M-BEAUTY-FENCE → M-BEAUTY-IO →
+M-BEAUTY-CASE → M-BEAUTY-ASSIGN → M-BEAUTY-MATCH → M-BEAUTY-COUNTER →
+M-BEAUTY-STACK → M-BEAUTY-TREE → M-BEAUTY-SR → M-BEAUTY-TDUMP →
+M-BEAUTY-GEN → M-BEAUTY-QIZE → M-BEAUTY-READWRITE → M-BEAUTY-XDUMP →
+M-BEAUTY-SEMANTIC → M-BEAUTY-OMEGA → M-BEAUTY-TRACE
+
+**Protocol per divergence (same as before):**
+1. `run_monitor.sh test/beauty/<sub>/driver.sno` — note first diverging trace line
+2. Check: do any two backends agree? Those two specify the correct behavior
+3. Fix the diverging emitter
+4. Rerun — confirm divergence gone; invariants hold
+5. Repeat until driver passes all backends vs oracle
+6. Add EXCLUDE rules for this subsystem's proven-clean variables
+
+**After all 19 fire → Sprint M5:**
+Run `beauty.sno` self-beautification through the monitor. At this point all
+subsystems are proven correct individually; full-program divergences are
+integration bugs only. Fix until all four diffs are empty.
 
 **Fires:** M-BEAUTIFY-BOOTSTRAP
 
