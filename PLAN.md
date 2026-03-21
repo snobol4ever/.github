@@ -326,3 +326,53 @@ It is linked from profile/README.md as `../GRIDS.md` — this resolves correctly
 when viewed on GitHub as the org's profile page reads from .github/profile/.
 If GitHub does not resolve the relative link correctly, move GRIDS.md to
 .github/profile/GRIDS.md and update the link.
+
+---
+
+## Final Integration Milestone — Profile README v2
+
+| ID | Trigger | Status |
+|----|---------|--------|
+| **M-README-PROFILE-FINAL** | profile/README.md updated a second time, after all of the following have fired: M-README-JVM-VERIFIED, M-README-X-VERIFIED, M-README-DOTNET-VERIFIED, M-README-PYTHON-DRAFT, M-README-CSHARP-DRAFT, M-GRID-BENCH, M-GRID-CORPUS, M-GRID-COMPAT, M-GRID-REFERENCE. At that point every number, every claim, every repo description, every benchmark figure, and every feature statement in the profile README is backed by verified source-scanned repo READMEs and actual harness runs. This is the version that goes to the SNOBOL4/SPITBOL community on groups.io and to the broader world. | ❌ |
+
+### What M-README-PROFILE-FINAL incorporates
+
+- Updated test counts from all repos (pulled from their verified READMEs)
+- Updated corpus ladder results from M-GRID-CORPUS (real numbers, all 7 engines)
+- Benchmark table from M-GRID-BENCH (real numbers, community-verifiable)
+- Feature/compat summary from M-GRID-COMPAT and M-GRID-REFERENCE
+- Any architectural changes that occurred during the bootstrap sprints
+  (beauty.sno status, compiler.sno status, new milestones fired)
+- Final tone review for the SNOBOL4/SPITBOL community audience
+  (Phil Budne, Andrew Koenig, Mark Emmer, Cheyenne Wills, groups.io)
+- Any corrections surfaced during source verification sessions
+
+### Dependency chain (complete picture)
+
+```
+clone repos → scan source → verify READMEs
+     │
+     ├─ M-README-JVM-VERIFIED
+     ├─ M-README-X-VERIFIED
+     ├─ M-README-DOTNET-VERIFIED      ← coordinate with Jeff Cooper
+     ├─ M-README-PYTHON-DRAFT
+     └─ M-README-CSHARP-DRAFT
+                │
+                ▼
+     run harness → fill grids
+     │
+     ├─ M-GRID-CORPUS
+     ├─ M-GRID-BENCH
+     ├─ M-GRID-COMPAT
+     └─ M-GRID-REFERENCE
+                │
+                ▼
+     M-README-PROFILE-FINAL  ←  the version that goes public
+                │
+                ▼
+     post to groups.io SNOBOL4 + SPITBOL lists
+     post to Hacker News / broader world
+```
+
+This milestone is the gate between internal development and public community presentation.
+Do not post to groups.io before it fires.
