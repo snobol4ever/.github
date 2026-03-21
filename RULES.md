@@ -208,6 +208,28 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh
 ```
 If not 106/106: fix the regression before touching anything else. Regressions are bugs.
 
+## ⛔ SHARED RUNTIME INVARIANT — NET crosscheck when touching src/runtime/snobol4/
+
+The files under `src/runtime/snobol4/` (`snobol4.c`, `snobol4_pattern.c`, etc.) are
+linked by **all four backends** — C, ASM, JVM, and NET. Changes there can silently
+break JVM or NET even when the C and ASM crosschecks pass. This has happened.
+
+**Rule:** Any session that modifies any file under `src/runtime/snobol4/` MUST also
+run the NET crosscheck before pushing:
+
+```bash
+cd /home/claude/snobol4x
+bash test/crosscheck/run_crosscheck_net.sh   # must not regress vs last known NET baseline
+```
+
+If the NET baseline is unknown, record the current count before your change and
+confirm it does not drop after. A drop is a regression — fix it before pushing.
+
+JVM is best-effort (requires jasmin + JVM runtime, may not be present). NET is
+mandatory because `mono`/`ilasm` are available on standard containers.
+
+This rule applies regardless of which session type (B/J/N/F/D) is doing the work.
+
 ## ⛔ MILESTONE ORDER — TINY.md sprint must match PLAN.md dashboard order
 
 **The sprint in TINY.md NOW must always be the next ❌ milestone in PLAN.md's milestone dashboard, in sequence.**
