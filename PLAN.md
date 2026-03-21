@@ -14,7 +14,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-225 — M-ASM-RUNG10 WIP: 4/9 PASS (1012+1014+1015+1018); remaining: 1013 NRETURN (route→gamma), 1016 EVAL (DT_P branch), 1017 ARG/LOCAL (emit DEFINE_fn at PROG_INIT), 1010/1011 trampoline (B-227) | `284d6cc` B-225 | M-ASM-RUNG10 |
+| **TINY backend** | `asm-backend` B-226 — demo/ created (5 programs + data + inc/); JVM segfault fixed (FILE *out shadowing); 7 new milestones (ASM/JVM/NET treebank/claws5/roman); M-ASM-RUNG10 4/9 WIP | `7f44985` B-226 | M-ASM-RUNG10 |
 | **TINY NET** | `net-backend` N-209 — M-NET-SAMPLES ✅ DONE; harness reveals 210_indirect_ref FAIL: Dictionary/stsfld desync from N-209 direct-stsfld fix; M-NET-INDR created | `2c417d7` N-209 | M-NET-INDR |
 | **TINY JVM** | `jvm-backend` J-212 — M-JVM-BEAUTY ✅ DONE: cross-scope :F(error) from fn → freturn; beauty.j 0 errors | `b67d0b1` J-212 | M-JVM-EVAL |
 | **TINY frontend** | `main` F-210 — M-FLAT-NARY ✅ merged to main; sc7_procedure/sc9_multiproc FAIL diagnosed: do_procedure body stmts not appearing in output; next: fix sc_cf.c do_procedure → M-SC-CORPUS-R2 | `6495074` F-210 | M-SC-CORPUS-R2 |

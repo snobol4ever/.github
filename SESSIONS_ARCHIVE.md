@@ -9913,3 +9913,35 @@ STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh        # 10
 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh                   # 26/26
 bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10              # 4/9 WIP
 ```
+
+## Session B-226 (continued) — demo/ + handoff
+
+**Addendum to B-226 (same session, continuation):**
+
+- Created `demo/` in snobol4x root — single source of truth for all 5 demo programs.
+  Contents: roman.sno, wordcount.sno, beauty.sno, expression.sno, treebank.sno, claws5.sno,
+  wordcount.input, treebank.ref, CLAWS5inTASA.dat, inc/ (6 shared includes), README.md.
+- Updated 5 shell scripts to use `INC=$TINY/demo/inc` and `BEAUTY=$REPO/demo/beauty.sno`:
+  run_crosscheck_asm_prog.sh, run_crosscheck_asm_rung.sh, run_crosscheck_jvm_rung.sh,
+  test_self_beautify.sh, test_snoCommand_match.sh.
+- RULES.md §ARTIFACTS and PLAN.md §ARTIFACT REMINDER now reference `demo/` as source.
+- snobol4x HEAD `7f44985`. .github HEAD `d5eaa0c` (will be updated this push).
+
+**State at handoff:** snobol4x `asm-backend` HEAD `7f44985` B-226. 100/106 C · 26/26 ASM. M-ASM-RUNG10 4/9.
+
+**Next session B-227 start:**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git checkout asm-backend && git pull --rebase origin asm-backend
+apt-get install -y libgc-dev nasm && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh    # 100/106
+CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh               # 26/26
+bash test/crosscheck/run_crosscheck_asm_rung.sh $CORPUS/rung10          # 4/9 WIP
+# Then fix in order:
+# 1. emit_byrd_asm.c ~3285: NRETURN branch → fn_NAME_gamma (not omega)
+# 2. emit_byrd_asm.c PROG_INIT: emit DEFINE_fn calls for all is_fn named_pats
+# 3. snobol4_pattern.c EVAL_fn ~1277: add DT_P branch before DT_S check
+# 4. Defer 1010/1011 to B-228
+```
