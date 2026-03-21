@@ -10152,3 +10152,31 @@ CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh               # must b
 **State at handoff:** `6eebdc3` on `asm-backend`. Next: M-MONITOR-IPC-5WAY — add SPITBOL + JVM + NET participants.
 
 **Next session start block:** See TINY.md §CRITICAL NEXT ACTION.
+
+## Session x64-fork (2026-03-21) — snobol4ever/x64 fork + LOAD() fix
+
+**Work done:**
+- Uploaded and extracted CSNOBOL4 2.3.3 tarball and spitbol/x64 source zip
+- Researched LOAD/UNLOAD across CSNOBOL4, snobol4dotnet, and spitbol/x64
+- Confirmed spitbol/x64 has LOAD() scaffold (s_lod in sbl.asm) but disabled via EXTFUN=0 and broken sysld.c
+- Noted open upstream issue #35 ("Progress on LOAD(s1,s2)") — maintainer CheyenneWills has it on todo list
+- Forked spitbol/x64 → snobol4ever/x64 via GitHub API
+- Fixed three bugs: (1) Makefile: -DEXTFUN=1 + -ldl; (2) sysld.c: complete rewrite of zysld() using loadDll()+loadef() from syslinux.c, correct scblk field names (len/str), correct types (word); (3) README.md: updated Known Limitations
+- Compile-checked sysld.c clean; pushed commit 7d88d40 to snobol4ever/x64 main
+- Defined milestone M-X64-LOAD: full end-to-end test (make bootsbl, LOAD/UNLOAD smoke test, SPITBOL test suite, PR candidate)
+- Added M-X64-LOAD to PLAN.md milestone dashboard (before M-MONITOR-IPC-5WAY)
+- snobol4ever/x32 already existed as a fork of spitbol/x32 — no action needed
+
+**State at handoff:** snobol4ever/x64 at `7d88d40`. Fix compiles; not yet built or run end-to-end. M-X64-LOAD is next work item for this fork.
+
+**Next session for M-X64-LOAD:**
+```bash
+cd /home/claude/snobol4ever-x64   # or re-clone snobol4ever/x64
+# Install nasm, build bootsbl
+make bootsbl
+# Write a tiny test .so (int addone(int) { return x+1; })
+# gcc -shared -fPIC -o libaddone.so addone.c
+# Write hello.sbl calling LOAD('addone(integer):integer','./libaddone.so') then OUTPUT = addone(41)
+# Run: ./bootsbl hello.sbl  — expect: 42
+# On success: M-X64-LOAD fires; open PR to spitbol/x64 referencing issue #35
+```

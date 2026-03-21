@@ -55,6 +55,7 @@ CORPUS=$CORPUS bash test/crosscheck/run_crosscheck_asm.sh               # 26/26
 |----|---------|--------|
 | M-MONITOR-IPC-SO | monitor_ipc.so built; MON_OPEN/MON_SEND/MON_CLOSE; CSNOBOL4 LOAD() confirmed | ✅ `8bf1c0c` B-229 |
 | M-MONITOR-IPC-CSN | inject_traces.py IPC preamble; CSNOBOL4 trace via FIFO; hello PASS | ✅ `6eebdc3` B-229 |
+| **M-X64-LOAD** | snobol4ever/x64: `make bootsbl` clean; LOAD()/UNLOAD() end-to-end; SPITBOL test suite passes | ❌ |
 | M-MONITOR-IPC-5WAY | all 5 participants via FIFO; hello PASS all 5; no stderr/stdout blending | ❌ |
 | M-MONITOR-IPC-TIMEOUT | monitor_collect.py watchdog: FIFO silence > T sec → kill + report | ❌ |
 | M-MONITOR-4DEMO | roman+wordcount+treebank pass all 5 | ❌ |
@@ -68,6 +69,7 @@ Full milestone history → [PLAN.md](PLAN.md) · Beauty detail → [BEAUTY.md](B
 | Session | Branch | Focus |
 |---------|--------|-------|
 | B-229 | `asm-backend` | monitor-ipc — IPC-SO + IPC-CSN ✅ done |
+| x64-fork | `snobol4ever/x64 main` | LOAD() fix — forked spitbol/x64, fixed sysld.c + Makefile; M-X64-LOAD defined |
 | J-next | `jvm-backend` | TBD |
 | N-next | `net-backend` | TBD |
 | F-next | `main` | TBD |

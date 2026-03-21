@@ -189,6 +189,7 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-MONITOR-SCAFFOLD** | `test/monitor/` exists: `inject_traces.py` + `run_monitor.sh` + `tracepoints.conf`; CSNOBOL4 + ASM; single test passes | snobol4x | ✅ `19e26ca` B-227 |
 | **M-MONITOR-IPC-SO** | `monitor_ipc.c` → `monitor_ipc.so`; MON_OPEN/MON_SEND/MON_CLOSE; CSNOBOL4 LOAD() confirmed; no stderr output | snobol4x | ✅ `8bf1c0c` B-229 |
 | **M-MONITOR-IPC-CSN** | `inject_traces.py` emits LOAD+MON_OPEN preamble; MONCALL/MONRET/MONVAL call MON_SEND(); CSNOBOL4 trace arrives on FIFO; hello PASS | snobol4x | ✅ `6eebdc3` B-229 |
+| **M-X64-LOAD** | snobol4ever/x64 fork: `make bootsbl` succeeds; `LOAD('f(integer):integer','libf.so')` works end-to-end; `UNLOAD(f)` cleans up; SPITBOL's own test suite passes; PR candidate ready for spitbol/x64 upstream | snobol4ever/x64 | ❌ |
 | **M-MONITOR-IPC-5WAY** | all 5 participants (CSNOBOL4+SPITBOL+ASM+JVM+NET) write trace to per-participant FIFO; `run_monitor.sh` parallel launch + collector; hello PASS all 5; zero stderr/stdout blending | snobol4x | ❌ |
 | **M-MONITOR-IPC-TIMEOUT** | `monitor_collect.py` per-participant watchdog: FIFO silence > T seconds → TIMEOUT report with last trace event + participant kill; infinite loop detected automatically | snobol4x | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants; claws5 divergence count documented | snobol4x | ❌ |
