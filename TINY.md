@@ -17,7 +17,37 @@ snobol4x: multiple frontends, multiple backends.
 **Milestone:** M-MONITOR-4DEMO (next to fire)
 **Invariants:** 97/106 ASM corpus (9 known failures: 022, 055, 064, cross, word1-4, wordcount)
 
-**⚠ CRITICAL NEXT ACTION — Session B-236:**
+**⚠ CRITICAL NEXT ACTION — Session B-238:**
+
+```bash
+cd /home/claude/snobol4x && git checkout asm-backend
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase origin asm-backend   # HEAD should be c6a6544 B-237
+
+# ALL TOOLS VERIFIED INSTALLED: snobol4, bootsbl, mono, ilasm, nasm, libgc-dev, java
+# Run precheck first — confirms all 30 checks PASS before any work
+export PATH=$PATH:/usr/local/bin:/home/claude/x64
+export X64_DIR=/home/claude/x64
+bash test/monitor/precheck.sh
+
+# GOAL: M-MONITOR-4DEMO — roman + wordcount + treebank PASS all 5 participants
+INC=/home/claude/snobol4corpus/programs/inc
+PROG=/home/claude/snobol4corpus/programs
+
+# Fire each demo through 5-way monitor:
+bash test/monitor/run_monitor.sh $PROG/roman/roman.sno
+bash test/monitor/run_monitor.sh $PROG/wordcount/wordcount.sno
+bash test/monitor/run_monitor.sh $PROG/treebank/treebank.sno
+
+# For claws5: run and document divergence count (known 3 undef beta labels in ASM)
+bash test/monitor/run_monitor.sh $PROG/claws5/claws5.sno || true
+
+# Each failure: read first FAIL diff line → that is the exact bug location.
+# Two agreeing backends specify the fix. Fix emit_byrd_asm.c / emit_byrd_jvm.c /
+# emit_byrd_net.c as appropriate. Rebuild with: cd src && make -j4
+
+# On success: update PLAN.md M-MONITOR-4DEMO → ✅, commit as B-238, push.
+```
 
 ```bash
 cd /home/claude/snobol4x && git checkout asm-backend

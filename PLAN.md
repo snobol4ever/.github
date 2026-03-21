@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-backend` B-235 — monitor-ipc | `080a834` B-235 | M-MONITOR-IPC-5WAY |
+| **TINY backend** | `asm-backend` B-237 — monitor-4demo | `c6a6544` B-237 | M-MONITOR-4DEMO |
 | **TINY NET** | `net-backend` N-209 — clean slate | `2c417d7` N-209 | TBD |
 | **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
