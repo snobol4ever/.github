@@ -10854,3 +10854,41 @@ export PROG=/home/claude/snobol4corpus/programs
 bash test/monitor/precheck.sh
 bash test/monitor/run_monitor.sh $PROG/roman/roman.sno
 ```
+
+## Session B-238 addendum — milestone reorder
+
+After initial pivot commit, Lon directed reorder of PLAN.md milestone sequence.
+New order: M-MERGE-3WAY → M-T2-* (10 milestones) → M-MONITOR-4DEMO → M-MONITOR-CORPUS9 → M-BEAUTY-*.
+Commit: `c63b5b1` — PLAN.md NOW table row updated to show M-MERGE-3WAY as next milestone.
+
+**Definitive next-session start block (B-239):**
+
+```bash
+# 1. Orient
+cd /home/claude/snobol4x && git checkout asm-backend
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git pull --rebase origin asm-backend   # expect c6a6544 B-237
+cd /home/claude/.github && git pull --rebase origin main  # expect c63b5b1 B-238
+
+# 2. Tools
+export PATH=$PATH:/usr/local/bin:/home/claude/x64
+export INC=/home/claude/snobol4corpus/programs/inc
+
+# 3. Invariant check
+cd /home/claude/snobol4x
+bash test/monitor/precheck.sh          # expect 28+/30
+CORPUS=/home/claude/snobol4corpus/crosscheck \
+    bash test/crosscheck/run_crosscheck_asm_corpus.sh 2>&1 | tail -3
+# expect 97/106 (9 known failures)
+
+# 4. Sprint: M-MERGE-3WAY
+# Staged merge: asm-backend base → merge jvm-backend → merge net-backend → PR main
+git fetch origin jvm-backend net-backend
+git checkout -b merge-staging origin/asm-backend
+# Read PLAN.md merge strategy before touching anything
+# Diff shared files first:
+git diff asm-backend..origin/jvm-backend -- src/runtime/snobol4/snobol4.c
+git diff asm-backend..origin/net-backend -- src/runtime/snobol4/snobol4.c
+git diff asm-backend..origin/jvm-backend -- test/monitor/run_monitor.sh
+# Then merge, resolve, check invariants, PR main
+```
