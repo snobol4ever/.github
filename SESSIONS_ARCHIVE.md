@@ -10634,3 +10634,91 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 **State at handoff:**
 - HQ HEAD: to be committed this session
 - Next README session: M-DEEP-SCAN-JVM (one repo per session — start with snobol4jvm)
+
+## Session README-6 (2026-03-21) — Handoff
+
+**Repo:** snobol4ever/.github · **Branch:** main
+
+**Session summary (README-4 through README-6):**
+This session wrote and pushed three READMEs (snobol4jvm, snobol4python, snobol4csharp),
+added the M-README-DEEP-SCAN milestone chain, put M-README-PROFILE-FINAL on hold,
+and updated PLAN.md + SESSIONS_ARCHIVE throughout.
+
+**Context window at handoff: ~85–90%. Fresh session required.**
+
+**Complete milestone status at handoff:**
+
+README milestones:
+- M-README-PROFILE-DRAFT    ✅ `88e8f17` F-211
+- M-README-PROFILE-VERIFIED ❌ (superseded by M-README-DEEP-SCAN chain)
+- M-README-JVM-DRAFT        ✅ `e4626cb`
+- M-README-JVM-VERIFIED     ✅ `08d5752` README-4
+- M-README-X-DRAFT          ✅ F-211b
+- M-README-X-VERIFIED       ✅ `5837806` README-3
+- M-README-DOTNET-DRAFT     ✅ `aeac61e`
+- M-README-DOTNET-VERIFIED  ✅ `e8b22cb` README-2
+- M-README-PYTHON-DRAFT     ✅ `0990cae` README-4
+- M-README-CSHARP-DRAFT     ✅ `00846d3` README-4
+- M-README-DEEP-SCAN        ❌ ← NEXT (see below)
+- M-README-PROFILE-FINAL    ❌ ON HOLD
+
+Deep scan milestones (all ❌ — none started):
+- M-DEEP-SCAN-JVM     ← start here
+- M-DEEP-SCAN-X
+- M-DEEP-SCAN-DOTNET
+- M-DEEP-SCAN-PYTHON
+- M-DEEP-SCAN-CSHARP
+
+**NEXT SESSION START BLOCK (M-DEEP-SCAN-JVM):**
+
+```bash
+# Fresh session — start here
+cd /home/claude
+git clone https://TOKEN@github.com/snobol4ever/.github.git
+cat .github/PLAN.md          # read Deep Scan + Benchmark Milestone section
+cat .github/JVM.md           # read current JVM sprint state
+
+git clone https://TOKEN@github.com/snobol4ever/snobol4jvm.git
+cd snobol4jvm
+
+# Walk every source file:
+find src -name "*.clj" | sort | xargs wc -l
+find test -name "*.clj" | sort | xargs wc -l
+
+# Read key files in full:
+# src/snobol4/match.clj        ← Byrd Box engine
+# src/snobol4/grammar.clj      ← instaparse PEG grammar
+# src/snobol4/jvm_codegen.clj  ← Stage 4 JVM bytecode
+# src/snobol4/transpiler.clj   ← Stage 2 transpiler
+# src/snobol4/runtime.clj      ← Stage 1 interpreter
+# src/snobol4/primitives.clj   ← pattern primitives
+
+# Run test suite — confirm 1,896 / 4,120 / 0:
+lein test 2>&1 | tail -5
+
+# Run benchmarks — record wall-clock numbers with machine spec:
+# (find or write benchmark harness — check project.clj for :bench alias)
+lein bench 2>&1   # or equivalent
+
+# After scanning:
+# 1. Add source line count table to README.md
+# 2. Add verified benchmark table with machine spec (CPU, RAM, OS, date)
+# 3. Correct any README claims that don't match actual source
+# 4. git add README.md && git commit -m "README: M-DEEP-SCAN-JVM — full source scan + benchmarks"
+# 5. git push
+# 6. Update PLAN.md: M-DEEP-SCAN-JVM ✅ with commit hash
+# 7. Update SESSIONS_ARCHIVE.md
+# 8. git push HQ
+
+# One repo per session. Do NOT attempt M-DEEP-SCAN-X in the same session.
+```
+
+**Key facts for next session (do not re-derive):**
+- snobol4jvm baseline: 1,896 tests / 4,120 assertions / 0 failures (Snocone Step 2, `9cf0af3`)
+- beauty.sno: M-JVM-BEAUTY ✅ `b67d0b1` J-212 — byte-for-byte oracle match
+- Four backends: interpreter → transpiler (3.5–6×) → stack VM (2–6×) → JVM bytecode (7.6×)
+- EDN cache: 22× per-program speedup; cold-start combined ~190×
+- Known gaps: CAPTURE-COND deferred assign; ANY(multi-arg) in EVAL; Sprint 23E inline EVAL!
+- File map: match.clj · primitives.clj · patterns.clj · grammar.clj · emitter.clj
+           operators.clj · runtime.clj · jvm_codegen.clj · transpiler.clj · vm.clj
+- Design laws: 10 immutable laws in BACKEND-JVM.md — read before touching match.clj
