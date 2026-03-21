@@ -12,7 +12,7 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 ## NOW
 
 **Sprint:** `net-polish` — 106/106 corpus rungs + diag1 35/35 + benchmark grid → M-NET-POLISH
-**HEAD:** `8feb139` D-162
+**HEAD:** `dbdcba7` D-163
 **Invariant:** `dotnet test` → 1911/1913 (2 skipped) before any work
 **Milestone:** M-NET-SPITBOL-SWITCHES ✅ fired D-163
 
@@ -47,10 +47,10 @@ See TESTING.md for corpus ladder and HARNESS.md for crosscheck scripts.
 
 ## Last Session Summary
 
-**Session D-163 — M-NET-SPITBOL-SWITCHES confirmed:**
-- Installed .NET 10 SDK (repo targets net10.0)
-- `dotnet build` → 0 errors; `dotnet test` → 1911/1913 (2 skipped) — all 26 SpitbolSwitchTests PASS
+**Session D-163 — M-NET-SPITBOL-SWITCHES confirmed + warnings eliminated:**
+- Installed .NET 10 SDK; `dotnet build` → 0 errors; `dotnet test` → 1911/1913 — 26 SpitbolSwitchTests PASS
 - M-NET-SPITBOL-SWITCHES ✅ fired; PLAN.md + DOTNET.md updated
+- Fixed all compiler warnings: CS0114 `override` on `ExternalVar.Equals(Var?)`; CS8602 null-guards in `Load.cs` and `ExtXnblkTests.cs`; 1911/1913 invariant confirmed clean
 
 **Session D-162 — SPITBOL switches authored:**
 - 11 new BuilderOptions properties; CommandLine.cs rewrite with k/m suffix parser

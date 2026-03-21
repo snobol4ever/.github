@@ -9690,3 +9690,11 @@ git log --oneline -3   # expect 8feb139 D-162
 dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
 # expect 1911/1913 — then begin net-polish
 ```
+
+## Session D-163 (continued) — warning fixes
+
+- CS0114: `ExternalVar.Equals(Var?)` → added `override` keyword
+- CS8602: `Load.cs` foreach loop — null-guard `original` with `if (original is null) continue`
+- CS8602: `ExtXnblkTests.cs` — same null-guard pattern + `!` null-forgiving on three `FunctionTable[fnKey]!.Handler(...)` invocations
+- Build: 0 errors, 0 warnings; `dotnet test` → 1911/1913 invariant holds
+- Committed `dbdcba7` D-163
