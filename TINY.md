@@ -13,8 +13,8 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `t2-impl` — Technique 2 dynamic allocation + relocation
-**HEAD:** `b992be8` B-239 (asm-t2) · x64: `4fcb0e1` B-233
-**Milestone:** M-MERGE-3WAY ✅ · M-T2-RUNTIME ✅ · M-T2-RELOC ✅ → **M-T2-EMIT-TABLE (next)**
+**HEAD:** `06e1bdc` B-239 (asm-t2) · x64: `4fcb0e1` B-233
+**Milestone:** M-MERGE-3WAY ✅ · M-T2-RUNTIME ✅ · M-T2-RELOC ✅ · M-T2-EMIT-TABLE ✅ → **M-T2-EMIT-SPLIT (next)**
 **Invariants:** 97/106 ASM corpus (9 known failures fixed by T2 — no manual patches)
 
 **⚠ CRITICAL NEXT ACTION — Session B-238:**
@@ -81,8 +81,8 @@ bash test/monitor/run_monitor.sh $PROG/claws5/claws5.sno || true  # document cou
 | M-MERGE-3WAY   | ✅ `425921a` B-239 |
 | M-T2-RUNTIME   | ✅ `ab2254f` B-239 |
 | M-T2-RELOC     | ✅ `b992be8` B-239 |
-| M-T2-EMIT-TABLE | ❌ next to fire |
-| M-T2-EMIT-SPLIT | ❌ |
+| M-T2-EMIT-TABLE | ✅ `06e1bdc` B-239 |
+| M-T2-EMIT-SPLIT | ❌ next to fire |
 
 ## Concurrent Sessions
 
