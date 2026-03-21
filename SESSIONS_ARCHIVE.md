@@ -9698,3 +9698,35 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 - CS8602: `ExtXnblkTests.cs` — same null-guard pattern + `!` null-forgiving on three `FunctionTable[fnKey]!.Handler(...)` invocations
 - Build: 0 errors, 0 warnings; `dotnet test` → 1911/1913 invariant holds
 - Committed `dbdcba7` D-163
+
+## Session D-164 — @N bug diagnosed
+
+**Date:** 2026-03-20
+**HEAD at start/end:** `dbdcba7` D-163 (no new commits — diagnosis only)
+
+**What happened:**
+- Ran dotnet crosscheck harness: 79/80 — only `strings/cross` fails
+- `cross.sno` uses `HC ? @NH ANY(V) . CROSS = '*'` — NH always 0 instead of cursor position
+- Reproduced: `X ? @N ANY('B')` on 'AB' gives N=0 (should be 1)
+- `@N` between literals works: `'X' @N ANY('Y')` gives N=1 ✓ 
+- `AtSign.Scan` confirmed correct: write/readback sentinel verified `IdentifierTable["N"]=cursor`
+- But `DUMP` after statement shows `N=0` — something overwrites after `AtSign.Scan`
+- No rollback mechanism in pattern engine; no trace/sync side-effects found
+- Key clue: `IdentifierTable["N"]` itself = 0 in DUMP, not just VarSlotArray
+- **Next session:** read `CheckGotoFailure` (ThreadedExecuteLoop line 214) and full statement opcode sequence to find the overwrite
+
+**State at handoff:**
+- `dotnet test` → 1911/1913 ✓; `CursorAssignmentPattern.cs` clean (sentinel reverted)
+- Crosscheck: 79/80 (cross fails); diag1/benchmark not yet run
+- No uncommitted changes in snobol4dotnet
+
+**Next session start (D-165):**
+```bash
+cd /home/claude/snobol4dotnet
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+export PATH=/usr/local/dotnet10:$PATH
+git log --oneline -3   # expect dbdcba7 D-163
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+# 1911/1913 — then read ThreadedExecuteLoop.cs line 214 (CheckGotoFailure)
+# find @N overwrite → fix → cross PASS → 80/80 → diag1 → benchmark → M-NET-POLISH
+```

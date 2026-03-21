@@ -11,26 +11,39 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `net-polish` — 106/106 corpus rungs + diag1 35/35 + benchmark grid → M-NET-POLISH
+**Sprint:** `net-polish` — fix `@N` bug → 80/80 crosscheck → diag1 35/35 → benchmark grid → M-NET-POLISH
 **HEAD:** `dbdcba7` D-163
 **Invariant:** `dotnet test` → 1911/1913 (2 skipped) before any work
 **Milestone:** M-NET-SPITBOL-SWITCHES ✅ fired D-163
 
-**⚠ CRITICAL NEXT ACTION — Session D-164:**
+**⚠ CRITICAL NEXT ACTION — Session D-165:**
 
 ```bash
 cd /home/claude/snobol4dotnet
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-export PATH=/usr/local/dotnet10:$PATH   # .NET 10 required
-git log --oneline -3   # verify HEAD = 8feb139 D-162
+export PATH=/usr/local/dotnet10:$PATH
+git log --oneline -3   # verify HEAD = dbdcba7 D-163
 dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
-# Expect: 1911/1913 invariant holds
-# Sprint: M-NET-POLISH — run corpus crosscheck, diag1, benchmark grid
-#   CORPUS=/home/claude/snobol4corpus/crosscheck
-#   bash /home/claude/snobol4harness/adapters/dotnet/run_crosscheck_dotnet.sh
+# Expect 1911/1913 — then fix @N bug
+
+# @N BUG — diagnosed D-164:
+# `X ? @N ANY('B')` gives N=0 when match is at cursor > 0.
+# AtSign.Scan writes IdentifierTable["N"]=cursor correctly (verified by sentinel),
+# but DUMP shows N=0 after statement. Something overwrites N after AtSign.Scan.
+# Suspects: CheckGotoFailure opcode or statement post-match cleanup.
+# Start: read ThreadedExecuteLoop.cs line 214+ (CheckGotoFailure),
+#        read full opcode sequence for a pattern-match statement in Parser.cs,
+#        find what writes IdentifierTable["N"]=0 after AtSign.Scan writes cursor.
+# Fix → cross test PASS → 80/80 crosscheck → diag1 → benchmark → M-NET-POLISH.
+
+# Crosscheck command:
+# DOTNET_REPO=/home/claude/snobol4dotnet CORPUS=/home/claude/snobol4corpus/crosscheck \
+# DOTNET_ROOT=/usr/local/dotnet10 \
+# bash /home/claude/snobol4harness/adapters/dotnet/run_crosscheck_dotnet.sh
+# Currently: 79/80 (1 fail: strings/cross — @N bug)
 ```
 
-**CRITICAL:** Always pass `-p:EnableWindowsTargeting=true` on Linux builds. .NET 10 SDK at `/usr/local/dotnet10`.
+**CRITICAL:** .NET 10 SDK at `/usr/local/dotnet10`. Always `-p:EnableWindowsTargeting=true`.
 
 ---
 
@@ -47,10 +60,9 @@ See TESTING.md for corpus ladder and HARNESS.md for crosscheck scripts.
 
 ## Last Session Summary
 
-**Session D-163 — M-NET-SPITBOL-SWITCHES confirmed + warnings eliminated:**
-- Installed .NET 10 SDK; `dotnet build` → 0 errors; `dotnet test` → 1911/1913 — 26 SpitbolSwitchTests PASS
-- M-NET-SPITBOL-SWITCHES ✅ fired; PLAN.md + DOTNET.md updated
-- Fixed all compiler warnings: CS0114 `override` on `ExternalVar.Equals(Var?)`; CS8602 null-guards in `Load.cs` and `ExtXnblkTests.cs`; 1911/1913 invariant confirmed clean
+**Session D-164 — @N bug diagnosed (cross test, 79/80 crosscheck):**
+- Ran crosscheck: 79/80 — only failure is `strings/cross` (`@N` cursor capture = 0 when should be > 0)
+- Diagnosed: `X ? @N ANY('B')` — `AtSign.Scan` writes `IdentifierTable["N"]=cursor` correctly (write/readback verified), but `DUMP` shows N=0 after statement. Something overwrites N after `AtSign.Scan`. Suspects: `CheckGotoFailure` or statement post-match cleanup in `ThreadedExecuteLoop`. No code changes committed.
 
 **Session D-162 — SPITBOL switches authored:**
 - 11 new BuilderOptions properties; CommandLine.cs rewrite with k/m suffix parser
