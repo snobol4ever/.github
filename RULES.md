@@ -164,32 +164,27 @@ git diff --cached --quiet || git commit -m "sessionN: artifacts/net — hello_pr
 
 ## ⛔ ARTIFACTS — JVM canonical samples tracked every session
 
-Every session that changes `emit_byrd_jvm.c` or any `.sno → .j` path MUST regenerate
-the canonical JVM artifacts and check if they changed. **Update only if changed.**
+Every session that changes `emit_byrd_jvm.c` or any `.sno → .j` path MUST run:
 
 ```bash
-cd /home/claude/snobol4x
-NULL_SNO=test/crosscheck/null.sno
-
-./sno2c -jvm $NULL_SNO > /tmp/null_new.j
-
-# Verify assembles (requires jasmin.jar — skip verify until J1)
-mkdir -p artifacts/jvm/samples
-diff -q /tmp/null_new.j artifacts/jvm/hello_prog.j 2>/dev/null \
-    || cp /tmp/null_new.j artifacts/jvm/hello_prog.j
-
-git add artifacts/jvm/
-git diff --cached --quiet || git commit -m "sessionN: artifacts/jvm — hello_prog.j updated"
+bash /home/claude/snobol4x/test/crosscheck/jvm_artifact_check.sh
 ```
 
-**Update beauty_prog.s (every session touching emit_byrd_asm.c or .mac):**
-```bash
-src/sno2c/sno2c -asm -I$INC $BEAUTY > artifacts/asm/beauty_prog.s
-nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null
-git add artifacts/asm/beauty_prog.s && git commit -m "sessionN: artifacts — beauty_prog.s updated (reason)"
-```
+This script regenerates all three canonical JVM artifacts, verifies they assemble
+clean, diffs against committed versions, copies and stages any that changed, then
+exits nonzero if anything was updated (forcing you to include the artifacts in
+your commit). It exits 0 only when all artifacts are already current.
 
-**Never create** `foo_sessionN.ext`. Overwrite `foo.ext` and commit.
+**The script IS the rule. Run it. If it exits nonzero: add the staged files to
+your commit before pushing. Never commit emit_byrd_jvm.c changes without running
+this script first.**
+
+Canonical artifacts tracked:
+```
+artifacts/jvm/hello_prog.j          ← null.sno (simplest program)
+artifacts/jvm/samples/roman.j       ← roman.sno benchmark
+artifacts/jvm/samples/wordcount.j   ← wordcount.sno strings test
+```
 
 ## ⛔ ARTIFACTS — Snapshot generated C every session
 

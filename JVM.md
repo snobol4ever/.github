@@ -73,6 +73,12 @@ java -jar src/backend/jvm/jasmin.jar $TMPD/beauty.j -d $TMPD/ 2>&1 | grep -iv "g
 #   JI("goto", glbl);   <- existing line
 ```
 
+After any `emit_byrd_jvm.c` change, run the mandatory artifact check:
+```bash
+bash test/crosscheck/jvm_artifact_check.sh
+# exits nonzero if artifacts changed → add staged files to your commit
+```
+
 **J-204 — functions/ 8/8 PASS, data/ 3/6 PASS:**
 - Three fixes: fn-body skip in main walk, jvm_arith_local_base, Case 2 :S/:F routing
 - functions/ 083–090: all 8 PASS (DEFINE/RETURN/FRETURN/recursion/entry-label/pattern)
