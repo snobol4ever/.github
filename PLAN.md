@@ -30,7 +30,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
-| **README v2 sprint** | `main` — 10 grids defined + Grid 10 (G-KEYWORD standalone) added to GRIDS.md (2026-03-22); active scope: dotnet+jvm+x/ASM+profile; python/csharp DEFERRED | — | M-README-V2-DOTNET / M-README-V2-JVM / M-README-V2-X / M-PROFILE-V2 |
+| **README v2 sprint** | `main` — 10 grids defined + Grid 10 (G-KEYWORD standalone) added to GRIDS.md (2026-03-22); active scope: dotnet+jvm+x/ASM+profile; python/csharp DEFERRED | `06e16eb` R-1 | M-FEAT-X |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅

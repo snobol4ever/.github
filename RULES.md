@@ -31,6 +31,7 @@ namespace only.
 | TINY NET backend   | `N` | N-195, N-196 | **TINY NET** row |
 | TINY frontend (SC) | `F` | F-192, F-193 | **TINY frontend** row |
 | DOTNET             | `D` | D-156, D-157 | **DOTNET** row |
+| README             | `R` | R-1, R-2    | **README** row |
 
 **Rules:**
 - Commit messages: `B-198: M-ASM-R11 — data/ PASS`

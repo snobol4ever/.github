@@ -11527,3 +11527,38 @@ bash setup.sh   # confirm 106/106
 - Clone snobol4x, run `bash setup.sh`, set up /home/claude/x64 symlinks
 - Check MONITOR_SO env var reaches snobol4 subprocess: add `echo $MONITOR_SO` debug to script
 - Fix LOAD path, run hello sync, fire M-MONITOR-SYNC
+
+## Session R-1 — README SESSION: session trigger defined; G-VOLUME all three repos (2026-03-22)
+
+**Trigger:** "playing with README grids/tables" (and "playing with grid for README")
+
+**Work done:**
+
+1. **Diagnosed missing README SESSION trigger** — PLAN.md only had MONITOR SESSION and BUG SESSION defined. README SESSION was never named, causing drift to stub work instead of real wc-l + numbers + grids.
+
+2. **Added README SESSION trigger** to PLAN.md (3-row trigger table) and RULES.md (§README SESSION with 7 rules: one repo per session, ordering, what to do for M-VOL/M-FEAT/M-README-V2/M-PROFILE-V2).
+
+3. **Fixed G-VOLUME categories** — original spec used implementation-specific names (Frontend/parser, IR/lowering, Backend-C, Backend-x64-ASM) that only describe snobol4x. Replaced with logical-function categories comparable across all three repos (C, Clojure, C#): Parser/lexer · Code emitter · Pattern engine · Runtime/builtins · Driver/CLI · Extensions/plugins · Tests · Benchmarks · Docs.
+
+4. **Fixed Grid 7 stubs** in GRIDS.md — all three repo tables now have identical rows using the new categories.
+
+5. **Added `R` prefix** to RULES.md session number table.
+
+6. **Added Grid 10** (G-KEYWORD standalone) to GRIDS.md — completes the 10-grid taxonomy.
+
+7. **Fired M-VOL-X, M-VOL-JVM, M-VOL-DOTNET** — real wc-l numbers generated and committed to all three repo READMEs and to Grid 7 in GRIDS.md.
+
+**Numbers generated:**
+- snobol4x: 54 src files, 31,090 lines. Code emitter 55.6% (4 backends).
+- snobol4jvm: 28 src files, 7,220 lines. Runtime/builtins 29.6%.
+- snobol4dotnet: 272 src files, 22,212 lines. Runtime/builtins 53.7%.
+
+**State at handoff:** M-VOL-X ✅ M-VOL-JVM ✅ M-VOL-DOTNET ✅. All pushed.
+
+**Next session start block (R-2):**
+- Trigger: "playing with README" or "playing with grids"
+- Read PLAN.md — next ❌ is M-FEAT-X
+- Clone snobol4x; read source statically (no runs needed)
+- Fill G-FEATURE table: ✅/⚠/🔧/❌ for all 20 feature rows
+- Commit to snobol4x README and Grid 8 in GRIDS.md
+- Fire M-FEAT-X in PLAN.md, push all
