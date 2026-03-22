@@ -22,7 +22,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
-| **README v2 sprint** | `main` — 10 grids defined, PLAN+GRIDS updated (2026-03-22) | — | M-VOL-* / M-FEAT-* / M-GRID-STARTUP / M-GRID-OPERATOR |
+| **README v2 sprint** | `main` — 10 grids defined, PLAN+GRIDS updated (2026-03-22); active scope: dotnet+jvm+x/ASM+profile; python/csharp DEFERRED | — | M-README-V2-DOTNET / M-README-V2-JVM / M-README-V2-X / M-PROFILE-V2 |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
@@ -354,8 +354,8 @@ M-README-DEEP-SCAN is the prerequisite: a dedicated session per repo that goes d
 | **M-DEEP-SCAN-JVM** | snobol4jvm | Full source scan: every `.clj` file, all docstrings, grammar rules, emitter logic, test names; benchmark suite run (`lein bench` or equivalent); all README claims re-verified or corrected against actual source | snobol4jvm | ❌ |
 | **M-DEEP-SCAN-X** | snobol4x | Full source scan: all `.c`/`.h` files in frontend/ ir/ backend/ driver/ runtime/; all comments and doc blocks; benchmark suite run (crosscheck + perf harness); ASM/JVM/NET corpus numbers re-verified | snobol4x | ❌ |
 | **M-DEEP-SCAN-DOTNET** | snobol4dotnet | Full source scan: all `.cs` files, XML doc comments, test names; benchmark suite run (`dotnet run --project benchmarks`); MSIL emitter steps verified; coordinate with Jeff Cooper | snobol4dotnet | ❌ |
-| **M-DEEP-SCAN-PYTHON** | snobol4python | Full source scan: all `.py` and `.c` extension files, docstrings, test names; benchmark run (C extension vs pure-Python timing); v0.5.0 API surface verified | snobol4python | ❌ |
-| **M-DEEP-SCAN-CSHARP** | snobol4csharp | Full source scan: all `.cs` files, XML doc comments, test names; benchmark run (pattern match timing on Porter/Treebank/CLAWS5 corpora); delegate-capture API surface verified | snobol4csharp | ❌ |
+| **M-DEEP-SCAN-PYTHON** | snobol4python | Full source scan: all `.py` and `.c` extension files, docstrings, test names; benchmark run (C extension vs pure-Python timing); v0.5.0 API surface verified | snobol4python | ⏸ DEFERRED |
+| **M-DEEP-SCAN-CSHARP** | snobol4csharp | Full source scan: all `.cs` files, XML doc comments, test names; benchmark run (pattern match timing on Porter/Treebank/CLAWS5 corpora); delegate-capture API surface verified | snobol4csharp | ⏸ DEFERRED |
 | **M-README-DEEP-SCAN** | all | All five M-DEEP-SCAN-* milestones fired; every README in the org reflects actual source — line counts, function names, benchmark numbers, known gaps — not summaries from HQ docs | all repos | ❌ |
 
 ### What each M-DEEP-SCAN-* session does
@@ -584,21 +584,21 @@ Rating per row: ✅ complete · ⚠ partial · 🔧 skeleton · ❌ missing · �
 | **M-VOL-X** | G-VOLUME table for snobol4x generated and committed | snobol4x | source scan | ❌ |
 | **M-VOL-JVM** | G-VOLUME table for snobol4jvm generated and committed | snobol4jvm | source scan | ❌ |
 | **M-VOL-DOTNET** | G-VOLUME table for snobol4dotnet generated and committed | snobol4dotnet | source scan | ❌ |
-| **M-VOL-PYTHON** | G-VOLUME table for snobol4python generated and committed | snobol4python | source scan | ❌ |
-| **M-VOL-CSHARP** | G-VOLUME table for snobol4csharp generated and committed | snobol4csharp | source scan | ❌ |
+| **M-VOL-PYTHON** | G-VOLUME table for snobol4python generated and committed | snobol4python | source scan | ⏸ DEFERRED |
+| **M-VOL-CSHARP** | G-VOLUME table for snobol4csharp generated and committed | snobol4csharp | source scan | ⏸ DEFERRED |
 | **M-FEAT-X** | G-FEATURE table for snobol4x written and committed | snobol4x | M-DEEP-SCAN-X | ❌ |
 | **M-FEAT-JVM** | G-FEATURE table for snobol4jvm written and committed | snobol4jvm | M-DEEP-SCAN-JVM | ❌ |
 | **M-FEAT-DOTNET** | G-FEATURE table for snobol4dotnet written and committed | snobol4dotnet | M-DEEP-SCAN-DOTNET | ❌ |
-| **M-FEAT-PYTHON** | G-FEATURE table for snobol4python written and committed | snobol4python | M-DEEP-SCAN-PYTHON | ❌ |
-| **M-FEAT-CSHARP** | G-FEATURE table for snobol4csharp written and committed | snobol4csharp | M-DEEP-SCAN-CSHARP | ❌ |
+| **M-FEAT-PYTHON** | G-FEATURE table for snobol4python written and committed | snobol4python | M-DEEP-SCAN-PYTHON | ⏸ DEFERRED |
+| **M-FEAT-CSHARP** | G-FEATURE table for snobol4csharp written and committed | snobol4csharp | M-DEEP-SCAN-CSHARP | ⏸ DEFERRED |
 | **M-GRID-STARTUP** | G-STARTUP cold/warm table filled for all 7 engines; machine spec recorded | snobol4ever/.github | all engines buildable | ❌ |
 | **M-GRID-OPERATOR** | G-OPERATOR table filled; SNOBOL5 column from docs; all 7 engine columns from runs | snobol4ever/.github | M-GRID-COMPAT | ❌ |
 | **M-GRID-SWITCH-FULL** | G-SWITCH table extended with all engine-specific switches beyond the stub in GRIDS.md Grid 4 | snobol4ever/.github | M-DEEP-SCAN-* (all) | ❌ |
 | **M-README-V2-X** | snobol4x README v2: G-BENCH, G-STARTUP, G-CORPUS, G-COMPAT, G-BUILTIN, G-KEYWORD, G-SWITCH, G-OPERATOR, G-VOLUME, G-FEATURE — all filled, source-verified | snobol4x | M-FEAT-X, M-VOL-X, M-GRID-* | ❌ |
 | **M-README-V2-JVM** | snobol4jvm README v2: same 10 grids, source-verified | snobol4jvm | M-FEAT-JVM, M-VOL-JVM, M-GRID-* | ❌ |
 | **M-README-V2-DOTNET** | snobol4dotnet README v2: same 10 grids, source-verified; coordinate Jeff | snobol4dotnet | M-FEAT-DOTNET, M-VOL-DOTNET, M-GRID-* | ❌ |
-| **M-README-V2-PYTHON** | snobol4python README v2: same 10 grids (engine columns applicable); source-verified | snobol4python | M-FEAT-PYTHON, M-VOL-PYTHON, M-GRID-* | ❌ |
-| **M-README-V2-CSHARP** | snobol4csharp README v2: same 10 grids (engine columns applicable); source-verified | snobol4csharp | M-FEAT-CSHARP, M-VOL-CSHARP, M-GRID-* | ❌ |
+| **M-README-V2-PYTHON** | snobol4python README v2: same 10 grids (engine columns applicable); source-verified | snobol4python | M-FEAT-PYTHON, M-VOL-PYTHON, M-GRID-* | ⏸ DEFERRED |
+| **M-README-V2-CSHARP** | snobol4csharp README v2: same 10 grids (engine columns applicable); source-verified | snobol4csharp | M-FEAT-CSHARP, M-VOL-CSHARP, M-GRID-* | ⏸ DEFERRED |
 | **M-PROFILE-V2** | org profile/README.md v2: one-level rollup of all 10 grids across all repos; every number backed by M-README-V2-* | snobol4ever/.github | M-README-V2-* (all five) | ❌ |
 
 ---
@@ -606,7 +606,8 @@ Rating per row: ✅ complete · ⚠ partial · 🔧 skeleton · ❌ missing · �
 ### README v2 Sprint Plan
 
 Each repo README gets its own dedicated session (context window fills fast with source scans).
-Order: snobol4x first (most complete, ASM backend proven), then jvm, dotnet (Jeff), python, csharp.
+Order: snobol4x first (most complete, ASM backend proven), then jvm, dotnet (Jeff), then profile README rollup.
+**snobol4python and snobol4csharp are DEFERRED** — their M-VOL, M-FEAT, M-DEEP-SCAN, and M-README-V2 milestones are out of scope for this sprint. Profile README v2 will roll up only the three active engines (dotnet, jvm, x/ASM) plus reference columns (CSNOBOL4, SPITBOL, SNOBOL5).
 
 **Per-repo session checklist:**
 1. Clone repo fresh; read every source file

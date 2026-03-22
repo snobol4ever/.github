@@ -88,10 +88,14 @@ pip install SNOBOL4python
 
 Full SNOBOL4 pattern vocabulary as a Python library. Dual backend: C extension wrapping Phil Budne's SPIPAT engine (7–11× faster) and a pure-Python fallback. Shift-reduce parser stack for building ASTs inside patterns. v0.5.0.
 
+*(README v2 grid sprint: DEFERRED — M-VOL-PYTHON, M-FEAT-PYTHON, M-README-V2-PYTHON out of scope for current sprint.)*
+
 ### [snobol4csharp](https://github.com/snobol4ever/snobol4csharp)
 *SNOBOL4 pattern matching for C# — Jeffrey Cooper*
 
 A C# port of the snobol4python pattern engine. Patterns are first-class objects with full backtracking. Captures use plain C# delegates. Full primitive vocabulary, recursive patterns via `ζ`, cursor capture, regex bridge, and shift-reduce parse-tree stack. Validated against the Porter Stemmer (23,531-word corpus), Penn Treebank parser, CLAWS5 NLP corpus parser, and a SNOBOL4 source code parser.
+
+*(README v2 grid sprint: DEFERRED — M-VOL-CSHARP, M-FEAT-CSHARP, M-README-V2-CSHARP out of scope for current sprint.)*
 
 ### [snobol4artifact](https://github.com/snobol4ever/snobol4artifact)
 *CPython C extension: SNOBOL4 Byrd Box engine*
