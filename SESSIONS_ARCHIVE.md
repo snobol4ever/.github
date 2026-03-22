@@ -10933,3 +10933,29 @@ export CORPUS=/home/claude/snobol4corpus/crosscheck
 export INC=/home/claude/snobol4corpus/programs/inc
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
 ```
+
+## Session B-242 — M-MACRO-BOX complete ✅ (2026-03-21)
+
+**Branch:** asm-t2  **Commit:** b606884  **HEAD before:** 1ceb92f B-241
+
+**What happened:**
+- ARB_α/ARB_β macros added to snobol4_asm.mac; emit_arb() 8 raw lines replaced with 2 macro calls
+- FN_α_INIT/FN_γ/FN_ω/FN_SET_PARAM/FN_CLEAR_VAR macros added; emit_named_def() function path cleaned
+- NAMED_PAT_γ/NAMED_PAT_ω macros; non-function named pattern trampolines cleaned
+- Greek renaming: all 55 _ALPHA/_BETA/_GAMMA/_OMEGA macro names → _α/_β/_γ/_ω (both files)
+- Comment pass: 121 lines in .mac + 30 lines in emitter updated to Greek
+- bref() gap: DOL_SAVE/DOL_CAPTURE entry_cur+cap_len fixed; 12 continuation-line saved args fixed
+- 5 artifacts regenerated from demo/: beauty/roman/wordcount/treebank all 0 NASM errors; claws5=3 (known)
+- Corpus: 96/106 — 9 known failures + 053 runtime; all word1-4/wordcount now runtime (not NASM) fails
+- M-MACRO-BOX ✅ fired (correcting premature B-241 fire — B-241 was incomplete)
+
+**State at handoff:** M-MACRO-BOX ✅. Next: M-T2-INVOKE (B-243).
+
+**Next session start block:**
+```bash
+cd /home/claude/snobol4x && git checkout asm-t2
+git pull --rebase origin asm-t2   # expect b606884 B-242
+export CORPUS=/home/claude/snobol4corpus/crosscheck
+export INC=/home/claude/snobol4corpus/programs/inc
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
+```
