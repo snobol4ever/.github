@@ -27,7 +27,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-255 — M-MONITOR-SYNC ✅ hello PASS all 5 sync; trace-registration set in snobol4.c; TRACE/STOPTR builtins added | `2652a51` B-255 | M-MONITOR-4DEMO |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-212 — M-PROLOG-LOWER ✅ 25/25 tests PASS | `90be832` F-212 | M-PROLOG-EMIT-NODES |
+| **TINY frontend** | `main` F-212 — M-PROLOG-EMIT-NODES ✅ clean build | `b8312ed` F-212 | M-PROLOG-HELLO |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
@@ -266,7 +266,7 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-EMIT-NODES** | New `case PL_*` branches in `emit_byrd_asm.c` for all 10 node types. Acceptance: null clause assembles without error. | ❌ |
+| **M-PROLOG-EMIT-NODES** | New `case PL_*` branches in `emit_byrd_asm.c` for all 10 node types. Acceptance: null clause assembles without error. | ✅ `b8312ed` F-212 |
 | **M-PROLOG-HELLO** | `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly. First end-to-end Prolog program. 4D matrix: Prolog×TINY-C ✅ | ❌ |
 
 **Sprint 3 — Deterministic programs (no backtracking)**

@@ -11833,3 +11833,31 @@ INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
 
 ### Next
 - **M-PROLOG-EMIT-NODES**: new `case PL_*` branches in `emit_byrd_asm.c`; null clause assembles
+
+## Session F-212 (continued) — M-PROLOG-EMIT-NODES + handoff
+
+**Branch:** main  **HEAD:** b8312ed
+
+### Work done
+- `emit_byrd_asm.c`: E_CHOICE dispatch guard in emit_program() main loop;
+  `emit_prolog_choice()` + `emit_prolog_clause()` + `pl_safe()` appended;
+  Byrd box α/β/γ/ω scaffold with global labels, env frame alloc,
+  trail-mark/unwind comments, head-arg stubs, body-goal stubs, E_CUT
+  seals β, γ→jmp rdx, ω→jmp rcx. make: zero errors.
+
+### Milestone fired
+- **M-PROLOG-EMIT-NODES** ✅ `b8312ed`
+
+### State for next session (F-213)
+- Next milestone: **M-PROLOG-HELLO**
+  `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly.
+  Requires:
+  1. Wire `-pl` flag in `src/driver/main.c` (add `pl_mode`, call
+     `prolog_parse()` + `prolog_lower()`, pass Program* to `asm_emit()`)
+  2. Update `src/Makefile` FRONTEND_PROLOG sources
+  3. Implement `prolog_runtime.c` with `write/1` + `nl/0` builtins stub
+     (or call existing `comm_output` runtime)
+  4. Replace head-unify stubs with real `unify()` calls in emitter
+  5. Test: `echo ':- initialization(main). main :- write(hello), nl.' | sno2c -pl -asm | nasm ... && ./a.out` prints `hello`
+- Existing tests still all pass (5/5 unify, 23/23 parse, 25/25 lower)
+- sno2c build: zero errors
