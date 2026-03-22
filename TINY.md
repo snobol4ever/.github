@@ -12,29 +12,32 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — MONITOR sprint; 4 bug milestones filed blocking M-MONITOR-4DEMO
-**HEAD:** `e2c4fb5` B-249 (main)
-**Milestone:** M-MON-BUG-NET-TIMEOUT next (blocks M-MONITOR-4DEMO)
+**Sprint:** `main` — MONITOR sync-step redesign; M-MONITOR-SYNC in progress
+**HEAD:** `e2c4fb5` B-249 (main) — no commit yet this session
+**Milestone:** M-MONITOR-SYNC (sync-step barrier protocol replacing async M-MONITOR-IPC-5WAY)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-251 (M-MON-BUG-NET-TIMEOUT):**
+**⚡ CRITICAL NEXT ACTION — Session B-251 (M-MONITOR-SYNC):**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
 git pull --rebase origin main
-bash setup.sh   # confirm 106/106
 
-# Fix: src/backend/net/emit_byrd_net.c — net_mon_var()
-# Replace open-per-call StreamWriter with static-open pattern (mirrors JVM sno_mon_init/sno_mon_fd):
-#   1. Add static field: V_net_mon_fd (StreamWriter, initially null)
-#   2. Add net_mon_init() — opens MONITOR_FIFO once, stores in V_net_mon_fd
-#   3. net_mon_var() — checks V_net_mon_fd != null, writes, does NOT close
-#   4. Wire net_mon_init() call at main() entry (after existing init block)
-# Then: MONITOR_TIMEOUT=30 bash test/monitor/run_monitor.sh \
-#   /home/claude/snobol4corpus/crosscheck/strings/wordcount.sno
-# NET must not timeout. Fire M-MON-BUG-NET-TIMEOUT when PASS.
+# Sync-step IPC already written this session:
+#   test/monitor/monitor_ipc_sync.c  — MON_OPEN(evt,ack), MON_SEND blocks on ack read
+#   test/monitor/monitor_ipc_sync.so — built OK
+#   test/monitor/monitor_sync.py     — barrier controller
+#   test/monitor/run_monitor_sync.sh — harness
+#   test/monitor/inject_traces.py    — preamble updated for two-arg MON_OPEN
+#   test/beauty/global/driver.sno    — first beauty driver (oracle: 20 PASSes)
+#   test/beauty/global/driver.ref    — oracle reference output
+#
+# NEXT: get run_monitor_sync.sh working end-to-end on hello or global driver
+# SPITBOL needs monitor_ipc_spitbol_sync.so (same two-arg ABI)
+# ASM/JVM/NET backends need MONITOR_ACK_FIFO env var wired into comm_var / sno_mon_init
+# Fire M-MONITOR-SYNC when hello PASS all 5 sync-step
 ```
 
 ## Last Session Summary

@@ -146,29 +146,40 @@ prevent truly runaway programs from filling the FIFO. Set `&STLIMIT = 5000000` i
 not the trace FIFO) and exit — the FIFO closes, the collector sees EOF, marks that
 participant done. Belt and suspenders.
 
-### run_monitor.sh — parallel launch
+### ⚠️ M-MONITOR-IPC-5WAY WAS IMPLEMENTED WRONG — ASYNC NOT SYNC-STEP
 
-```bash
-mkfifo $TMP/mon_{csn,spl,asm,jvm,net}.fifo
-# start collector: reads all 5 FIFOs → 5 .norm files; kills hung participants
-python3 monitor_collect.py --timeout 10 \
-    --pids csn:$CSN_PID,spl:$SPL_PID,asm:$ASM_PID,jvm:$JVM_PID,net:$NET_PID \
-    $TMP/mon_csn.fifo $TMP/mon_spl.fifo $TMP/mon_asm.fifo \
-    $TMP/mon_jvm.fifo $TMP/mon_net.fifo &
-COLLECTOR=$!
+The B-236 implementation used async parallel FIFOs: all 5 ran at full speed,
+a passive collector logged traces, divergences found by post-hoc diff.
+This does NOT stop participants at the exact moment of first divergence.
 
-MONITOR_FIFO=$TMP/mon_csn.fifo MONITOR_SO=./monitor_ipc.so \
-    snobol4 ... $TMP/instr.sno & CSN_PID=$!
-MONITOR_FIFO=$TMP/mon_spl.fifo MONITOR_SO=./monitor_ipc.so \
-    spitbol  ... $TMP/instr.sno & SPL_PID=$!
-MONITOR_FIFO=$TMP/mon_asm.fifo ./snobol4-asm $SNO & ASM_PID=$!
-MONITOR_FIFO=$TMP/mon_jvm.fifo ./snobol4-jvm $SNO & JVM_PID=$!
-MONITOR_FIFO=$TMP/mon_net.fifo ./snobol4-net $SNO & NET_PID=$!
-wait $COLLECTOR
-```
+**M-MONITOR-SYNC** replaces it with the correct sync-step barrier protocol.
 
-All 5 run in parallel. No sequential dependency. No stream blending. Hung participants
-are killed automatically with a precise last-seen trace event as the bug marker.
+### Sync-Step Barrier Protocol (M-MONITOR-SYNC)
+
+**Two FIFOs per participant:**
+- `<n>.evt` — participant writes events, controller reads
+- `<n>.ack` — controller writes `G`/`S`, participant blocks reading
+
+**Per trace event:**
+1. Participant writes `"KIND body\n"` to `<n>.evt`
+2. Participant **blocks** on `read()` from `<n>.ack`
+3. Controller reads one event from each of all 5 `*.evt` FIFOs
+4. Consensus rule applied — oracle = CSNOBOL4 (participant 0)
+5. Controller writes `G` (go) or `S` (stop) to each `*.ack`
+6. `G` → `MON_SEND` returns, participant continues
+   `S` → `MON_SEND` returns FAIL, participant branches `:F(END)`
+
+**On divergence:** `S` to all, exact diverging event printed, all 5 stop immediately.
+**On infinite loop:** participant never writes next event → per-participant timeout fires.
+
+**Files:**
+- `test/monitor/monitor_ipc_sync.c` — `MON_OPEN(evt,ack)` two-arg, `MON_SEND` blocks on ack
+- `test/monitor/monitor_ipc_sync.so` — built from above
+- `test/monitor/monitor_sync.py` — barrier controller: read×5, compare, send G/S
+- `test/monitor/run_monitor_sync.sh` — 10 FIFOs, launch controller then 5 participants
+- `test/monitor/inject_traces.py` — preamble: `MON_OPEN(STRING,STRING)STRING`, reads `MONITOR_ACK_FIFO`
+
+**Env vars:** `MONITOR_FIFO` (evt), `MONITOR_ACK_FIFO` (ack), `MONITOR_SO`
 
 ---
 
