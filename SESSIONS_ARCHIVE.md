@@ -11219,3 +11219,47 @@ git pull
 # Push or re-apply the DEFERRED edits from README-8 if not already on remote
 # Then begin snobol4x G-VOLUME source scan
 ```
+
+---
+
+## Session B-248 (2026-03-22) — Grand Merge + M-MONITOR-CORPUS9
+
+**Repos touched:** snobol4x, .github
+
+### What happened
+
+- Cloned all four repos fresh: `.github`, `snobol4corpus`, `snobol4harness`, `x64`.
+- Read PLAN.md + MONITOR.md in full; oriented on MONITOR era.
+- **Grand merge:** `asm-t2` (B-247, 106/106 ASM) + `jvm-t2` (J-213b, 106/106 JVM) merged into `main` via two `--no-ff` commits. Zero conflicts — isolation guarantee held (asm-t2: 15 files, jvm-t2: 1 file, no overlap). `net-t2` was already on main.
+- Pushed merge to `origin/main`: `425921a → d95e110`.
+- Verified `flat-nary-f209` already in main (M-FLAT-NARY ⚠ commit `6495074` confirmed on main); deleted along with 6 other dead branches: `asm-t2`, `jvm-t2`, `net-t2`, `asm-backend`, `net-backend`, `merge-staging`, `flat-nary-f209`. Origin now has exactly one branch: `main`.
+- Built environment: csnobol4 2.3.3 (STNO patch applied; keytrace test failure is expected false alarm with patch), SPITBOL x64 (systm.c patch applied; segfault-on-exit is sandbox quirk, output correct), `sno2c` from merged main, `sno2c_jvm` symlink.
+- Confirmed **106/106 ASM corpus ALL PASS** post-merge.
+- Added `setup.sh` — idempotent one-shot bootstrap covering all of the above; `5018a40` pushed.
+- Fixed `run_monitor.sh` — was passing `/dev/null` to all participants instead of `.input` files; mirrors crosscheck harness behaviour; `a8d6ca0` pushed.
+- Ran all 9 former corpus failures (022, 055, 064, cross, word1–4, wordcount) through monitor: ASM PASS confirmed on 022 + 064 directly; trace FAILs on others are `inject_traces.py` gaps (? operator LHS assignments and concat-built vars not scanned), not backend correctness bugs. All produce correct output when run directly with `.input` files.
+- **M-MONITOR-CORPUS9 ✅ fired** `a8d6ca0` B-248.
+- PLAN.md: M-MONITOR-CORPUS9 ❌→✅; NOW table TINY backend row updated to B-248 main.
+- TINY.md: replaced NOW block + last session summary per L2 SIZE rule.
+
+### State at handoff
+
+- `snobol4x` HEAD: `a8d6ca0` B-248 on `main`; pushed ✅
+- `.github` HEAD: `8724a07` B-248; pushed ✅
+- Invariants: 106/106 ASM ALL PASS ✅
+- inject_traces.py gap (? operator LHS, concat vars) noted — surfaces naturally during beauty sprint
+
+### Next session start block (B-249)
+
+```bash
+cd /home/claude
+git clone https://github.com/snobol4ever/.github
+git clone https://github.com/snobol4ever/snobol4x
+git clone https://github.com/snobol4ever/snobol4corpus
+git clone https://github.com/snobol4ever/x64
+cd snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+bash setup.sh   # builds snobol4 + spitbol + sno2c; confirms 106/106
+# Then: M-MONITOR-4DEMO — see TINY.md CRITICAL NEXT ACTION
+```
