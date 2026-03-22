@@ -22,6 +22,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
+| **README v2 sprint** | `main` — 10 grids defined, PLAN+GRIDS updated (2026-03-22) | — | M-VOL-* / M-FEAT-* / M-GRID-STARTUP / M-GRID-OPERATOR |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
@@ -440,3 +441,218 @@ clone repos → deep source scan → benchmarks → verified READMEs
 
 This milestone is the gate between internal development and public community presentation.
 Do not post to groups.io before it fires.
+
+---
+
+## README v2 — Grid Sprint (added 2026-03-22)
+
+> **Goal:** Each of the five main repos gets a world-class README that is a one-stop community reference.
+> The org profile README gets a rolled-up summary grid.
+> Every grid cell is backed by an actual run or source scan — no placeholders in the published version.
+>
+> This sprint defines **10 new grid types** (some per-repo, some cross-repo) and the milestones to fill them.
+> It extends and supersedes the stub work in GRIDS.md Grid 1–4.
+>
+> **Comparators in every cross-engine grid:** CSNOBOL4 · SPITBOL · SNOBOL5
+> (SNOBOL5 added as third external reference — historical completeness)
+>
+> **Seven engines in all timed/run grids:**
+> CSNOBOL4 · SPITBOL · snobol4dotnet · snobol4jvm · snobol4x/ASM · snobol4x/JVM · snobol4x/NET
+
+---
+
+### Grid Taxonomy
+
+| Grid ID | Name | Scope | Lives in |
+|---------|------|-------|----------|
+| G-BENCH | Benchmark — total time | cross-engine | GRIDS.md + all READMEs |
+| G-STARTUP | Benchmark — cold/warm startup | cross-engine | GRIDS.md + all READMEs |
+| G-CORPUS | Corpus ladder pass rates | cross-engine | GRIDS.md + all READMEs |
+| G-COMPAT | Compatibility / behavior divergences | cross-engine | GRIDS.md + all READMEs |
+| G-BUILTIN | Built-in functions (all ~50) | cross-engine | GRIDS.md + all READMEs |
+| G-KEYWORD | Program keywords / &-vars (~30) | cross-engine | GRIDS.md + all READMEs |
+| G-SWITCH | CLI switches per engine | cross-engine | GRIDS.md + all READMEs |
+| G-OPERATOR | Operators (binary, unary, pattern) | cross-engine | GRIDS.md + all READMEs |
+| G-VOLUME | Source code volume by category | per-repo | each repo README |
+| G-FEATURE | Feature completeness matrix | per-repo | each repo README |
+
+---
+
+### New Milestone Definitions
+
+#### G-STARTUP (extends G-BENCH)
+
+Startup time matters for scripting use. Two columns per engine:
+- **cold**: first invocation after OS reboot (page cache cold)
+- **warm**: second invocation, same binary, same file
+
+| Program | CSNOBOL4 cold | CSNOBOL4 warm | SPITBOL cold | SPITBOL warm | dotnet cold | dotnet warm | jvm cold | jvm warm | x-asm cold | x-asm warm | x-jvm cold | x-jvm warm | x-net cold | x-net warm |
+|---------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| null.sno (zero work) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| hello.sno (one print) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| roman.sno (real work) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
+
+Units: milliseconds. Machine spec recorded at run time.
+
+#### G-OPERATOR
+
+All operators across the three comparison points + seven engines.
+
+Categories:
+- **Arithmetic**: `+` `-` `*` `/` `**` (exponent) `REMDR`
+- **Relational (numeric)**: `EQ` `NE` `LT` `LE` `GT` `GE`
+- **Relational (string)**: `IDENT` `DIFFER` `LGT`
+- **Pattern**: concatenation (juxtaposition) `|` (alternation) `~` (complement, SPITBOL) `.` (cond assign) `$` (immediate assign) `@` (cursor)
+- **Indirect reference**: `$` prefix (unary indirect)
+- **Unary negation**: `-` unary
+- **Unevaluated**: `*` prefix (named pattern ref)
+- **OPSYN-defined**: user-defined operator aliases
+
+| Operator | CSNOBOL4 | SPITBOL | SNOBOL5 | dotnet | jvm | x-asm | x-jvm | x-net |
+|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `+` `-` `*` `/` | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `**` (exponentiation) | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `REMDR` | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `EQ NE LT LE GT GE` | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `IDENT DIFFER LGT` | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Pattern concat (juxtaposition) | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `\|` alternation | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `~` complement | ❌ | ✅ | — | — | — | — | — | — |
+| `.` conditional assign | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `$` immediate assign | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `@` cursor capture | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `$` unary indirect ref | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `*` unevaluated / named ref | ✅ | ✅ | ✅ | — | — | — | — | — |
+| `-` unary negation | ✅ | ✅ | ✅ | — | — | — | — | — |
+| OPSYN user operators | ✅ | ✅ | ⚠ | — | — | — | — | — |
+
+SNOBOL5 column to be filled from SNOBOL5 documentation + source review (not a live run).
+
+#### G-VOLUME (per-repo)
+
+Source code volume by logical category. One table per repo.
+
+Categories:
+- **Frontend / parser** — lexer, parser, AST
+- **IR / lowering** — intermediate representation, lowering passes
+- **Backend(s)** — per backend: C, x64 ASM, JVM, NET
+- **Runtime** — GC, string ops, pattern engine, I/O
+- **Driver / CLI** — main entry point, argument handling
+- **Tests** — all test programs and harness scripts
+- **Corpus programs** — `.sno` test programs (snobol4corpus)
+- **Docs / READMEs** — markdown, comments in source
+- **Total**
+
+Columns: file count · line count (wc -l) · blank-stripped lines · % of total
+
+This grid is generated by a script (`tools/count_volume.sh` — to be written).
+
+#### G-FEATURE (per-repo)
+
+What each repo implements vs. the full SNOBOL4 + SPITBOL feature surface.
+Complements G-COMPAT (which is cross-engine) — G-FEATURE is per-repo depth.
+
+Categories (rows):
+- Core language (labels, GOTOs, subject/pattern/replacement)
+- String operations
+- Numeric operations and types
+- Pattern primitives (all ~25)
+- Capture operators
+- Built-in functions (count implemented / total)
+- Keywords (count implemented / total)
+- DATA / ARRAY / TABLE types
+- User-defined functions + recursion
+- I/O (INPUT/OUTPUT channels, file I/O)
+- LOAD / UNLOAD (external functions)
+- EVAL / CODE (dynamic compilation)
+- OPSYN
+- TRACE / DUMP / debugging
+- CLI switches (count implemented / total)
+- INCLUDE preprocessing
+- Error handling (&ERRLIMIT, SETEXIT)
+- Real number support
+- Unicode / &ALPHABET beyond ASCII
+
+Rating per row: ✅ complete · ⚠ partial · 🔧 skeleton · ❌ missing · — N/A
+
+---
+
+### Milestone Table — README v2 Grid Sprint
+
+| ID | Trigger | Repo | Depends on | Status |
+|----|---------|------|-----------|--------|
+| **M-VOL-X** | G-VOLUME table for snobol4x generated and committed | snobol4x | source scan | ❌ |
+| **M-VOL-JVM** | G-VOLUME table for snobol4jvm generated and committed | snobol4jvm | source scan | ❌ |
+| **M-VOL-DOTNET** | G-VOLUME table for snobol4dotnet generated and committed | snobol4dotnet | source scan | ❌ |
+| **M-VOL-PYTHON** | G-VOLUME table for snobol4python generated and committed | snobol4python | source scan | ❌ |
+| **M-VOL-CSHARP** | G-VOLUME table for snobol4csharp generated and committed | snobol4csharp | source scan | ❌ |
+| **M-FEAT-X** | G-FEATURE table for snobol4x written and committed | snobol4x | M-DEEP-SCAN-X | ❌ |
+| **M-FEAT-JVM** | G-FEATURE table for snobol4jvm written and committed | snobol4jvm | M-DEEP-SCAN-JVM | ❌ |
+| **M-FEAT-DOTNET** | G-FEATURE table for snobol4dotnet written and committed | snobol4dotnet | M-DEEP-SCAN-DOTNET | ❌ |
+| **M-FEAT-PYTHON** | G-FEATURE table for snobol4python written and committed | snobol4python | M-DEEP-SCAN-PYTHON | ❌ |
+| **M-FEAT-CSHARP** | G-FEATURE table for snobol4csharp written and committed | snobol4csharp | M-DEEP-SCAN-CSHARP | ❌ |
+| **M-GRID-STARTUP** | G-STARTUP cold/warm table filled for all 7 engines; machine spec recorded | snobol4ever/.github | all engines buildable | ❌ |
+| **M-GRID-OPERATOR** | G-OPERATOR table filled; SNOBOL5 column from docs; all 7 engine columns from runs | snobol4ever/.github | M-GRID-COMPAT | ❌ |
+| **M-GRID-SWITCH-FULL** | G-SWITCH table extended with all engine-specific switches beyond the stub in GRIDS.md Grid 4 | snobol4ever/.github | M-DEEP-SCAN-* (all) | ❌ |
+| **M-README-V2-X** | snobol4x README v2: G-BENCH, G-STARTUP, G-CORPUS, G-COMPAT, G-BUILTIN, G-KEYWORD, G-SWITCH, G-OPERATOR, G-VOLUME, G-FEATURE — all filled, source-verified | snobol4x | M-FEAT-X, M-VOL-X, M-GRID-* | ❌ |
+| **M-README-V2-JVM** | snobol4jvm README v2: same 10 grids, source-verified | snobol4jvm | M-FEAT-JVM, M-VOL-JVM, M-GRID-* | ❌ |
+| **M-README-V2-DOTNET** | snobol4dotnet README v2: same 10 grids, source-verified; coordinate Jeff | snobol4dotnet | M-FEAT-DOTNET, M-VOL-DOTNET, M-GRID-* | ❌ |
+| **M-README-V2-PYTHON** | snobol4python README v2: same 10 grids (engine columns applicable); source-verified | snobol4python | M-FEAT-PYTHON, M-VOL-PYTHON, M-GRID-* | ❌ |
+| **M-README-V2-CSHARP** | snobol4csharp README v2: same 10 grids (engine columns applicable); source-verified | snobol4csharp | M-FEAT-CSHARP, M-VOL-CSHARP, M-GRID-* | ❌ |
+| **M-PROFILE-V2** | org profile/README.md v2: one-level rollup of all 10 grids across all repos; every number backed by M-README-V2-* | snobol4ever/.github | M-README-V2-* (all five) | ❌ |
+
+---
+
+### README v2 Sprint Plan
+
+Each repo README gets its own dedicated session (context window fills fast with source scans).
+Order: snobol4x first (most complete, ASM backend proven), then jvm, dotnet (Jeff), python, csharp.
+
+**Per-repo session checklist:**
+1. Clone repo fresh; read every source file
+2. Run `wc -l` across all source dirs → G-VOLUME table
+3. Run corpus + harness → fill G-CORPUS, G-BENCH, G-STARTUP for that engine's columns
+4. Write G-FEATURE table from source (no runs needed — static analysis)
+5. Note every G-COMPAT divergence found in source comments, TODOs, test failures
+6. Commit new README with all grids; fire M-README-V2-* milestone
+
+**Profile README session (last):**
+1. Pull from all five M-README-V2-* READMEs
+2. Collapse each 10-grid into a summary row per repo
+3. Write a single community-facing narrative intro
+4. Commit; fire M-PROFILE-V2
+
+---
+
+### Dependency chain — README v2
+
+```
+per-repo source scans (M-DEEP-SCAN-*)
+    │
+    ├─ M-VOL-{X,JVM,DOTNET,PYTHON,CSHARP}    (source counting — fast, one session each)
+    ├─ M-FEAT-{X,JVM,DOTNET,PYTHON,CSHARP}   (feature table — from source, no runs)
+    │
+    └─ harness runs (snobol4harness)
+           │
+           ├─ M-GRID-CORPUS     (106-program ladder)
+           ├─ M-GRID-BENCH      (total-time benchmarks)
+           ├─ M-GRID-STARTUP    (cold/warm startup — NEW)
+           ├─ M-GRID-COMPAT     (behavior divergences)
+           ├─ M-GRID-REFERENCE  (builtins/keywords/switches)
+           └─ M-GRID-OPERATOR   (operator grid — NEW)
+                    │
+                    ▼
+    M-GRID-SWITCH-FULL  (CLI switch grid — NEW, from source + runs)
+                    │
+                    ▼
+    M-README-V2-{X,JVM,DOTNET,PYTHON,CSHARP}  (one session each)
+                    │
+                    ▼
+           M-PROFILE-V2   ←  community one-stop shop
+                    │
+                    ▼
+     post to groups.io SNOBOL4 + SPITBOL lists
+```
+
+Three new grids (G-STARTUP, G-OPERATOR, G-SWITCH-FULL) plus five new per-repo grids (G-VOLUME, G-FEATURE)
+bring the total from 4 → 10 grids per repo and 6 → 9 cross-engine grids in GRIDS.md.
