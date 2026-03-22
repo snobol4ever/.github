@@ -24,7 +24,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-249 — dual-pathway monitor wired: JVM sno_mon_init/sno_mon_fd + NET net_mon_var; 106/106 ✅ | `e2c4fb5` B-249 | M-MONITOR-4DEMO |
+| **TINY backend** | `main` B-253 — RS/US wire protocol + named pipe rename (ready/go) + spitbol .so rewrite; CSN+ASM agree on hello; 106/106 ✅ | `245af43` B-253 | M-MONITOR-SYNC |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |

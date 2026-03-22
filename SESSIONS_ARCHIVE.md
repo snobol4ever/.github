@@ -69,6 +69,47 @@
 ```bash
 cd /home/claude && git clone https://github.com/snobol4ever/snobol4jvm
 # Scan: src/ layout, core Clojure namespaces, test count (lein test output in STATUS.md)
+
+## Session B-253 — RS/US wire protocol + named pipe rename + spitbol .so rewrite (2026-03-22)
+
+**Milestone:** M-MONITOR-SYNC (in progress — one step from firing)
+**Branch:** `main` · **Commit:** `245af43` snobol4x · `8d00b9f` snobol4x64
+**Invariant:** 106/106 ASM corpus ✅ ALL PASS
+
+### Work done
+
+**RS/US delimiter wire protocol** replaces all newline-delimited text framing:
+- Format: `KIND \x1E name \x1F value \x1E`
+- `\x1E` (RS 0x1E) = record terminator; `\x1F` (US 0x1F) = name/value separator
+- Newlines in values pass through unescaped — deterministic, zero-ambiguity
+- Applies to: `monitor_ipc_sync.c` (writev), `snobol4.c` comm_var (mon_send/writev),
+  JVM `sno_mon_var` (bipush 30/31), NET `net_mon_var` (ldc.i4 30/31),
+  `inject_traces.py` (CHAR(31) in SNOBOL4), `monitor_sync.py` (two-pass RS reader)
+
+**Named pipe rename** (semantic clarity) across all 7 files:
+- `.evt` → `.ready` (participant signals it has a trace event)
+- `.ack` → `.go` (controller signals participant may proceed)
+- `MONITOR_FIFO` → `MONITOR_READY_PIPE`
+- `MONITOR_ACK_FIFO` → `MONITOR_GO_PIPE`
+
+**FIFO open deadlock fix:** go-pipe: participant `O_RDONLY|O_NONBLOCK` then clear;
+controller `O_RDWR` — canonical Linux solution (O_WRONLY|O_NONBLOCK → ENXIO if no reader).
+CSN + ASM now reach READY and agree on hello: `VALUE OUTPUT = HELLO WORLD`.
+
+**`monitor_ipc_spitbol.c` full rewrite** (snobol4x64 repo):
+- Two-arg `MON_OPEN(ready_path, go_path)`
+- RS/US `mon_send` via writev
+- Sync-step ack: blocks on go pipe after each write
+- Uppercase `MON_OPEN/MON_SEND/MON_CLOSE` aliases — SPITBOL `zysld.c` passes
+  function name verbatim from LOAD prototype (no case conversion)
+- LOAD error 142 persists — needs `strace` diagnosis in B-254
+
+### Status
+- CSN + ASM: agree on hello ✅
+- SPL: LOAD error 142 — B-254 first action
+- JVM + NET: untested standalone
+- M-MONITOR-SYNC: one strace session away
+
 # Verify: 2,033 tests / 4,417 assertions / 0 failures
 # Verify: EDN cache 22x, transpiler 3.5-6x, stack VM 2-6x, JVM bytecode 7.6x speedup claims
 # Verify: beauty.sno status (M-JVM-BEAUTY b67d0b1 J-212)
