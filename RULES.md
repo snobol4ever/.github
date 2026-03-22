@@ -351,13 +351,7 @@ push all → one-line pivot log entry in platform MD.
 
 **SWITCH REPO:** run HANDOFF on current repo first, then read the new platform MD.
 
-## ⛔ BUG SESSION — "playing with fixing bugs from bug reports"
-
-When Lon opens a session with this phrase, the session owns exactly one bug milestone — the first ❌ `M-MON-BUG-*` in the PLAN.md dashboard.
-
-- Fix only that bug. If the fix reveals another bug: file a new milestone, stop, handoff.
-- When displaying trace output: **last 100 lines only** (`tail -100`) — never dump a raw full trace in chat.
-- One milestone per session. No exceptions.
+**BUG SESSION** — Lon opens with "playing with fixing bugs from bug reports": target is the first ❌ `M-MON-BUG-*` in PLAN.md. Fix only that bug. If the fix reveals another bug: file a new milestone and stop — one milestone per session. When displaying trace output: last 100 lines only (`tail -100`) — never dump a raw full trace in chat.
 
 ## ⛔ FRONTEND/BACKEND SEPARATION — emitter gaps queue via .xfail
 
