@@ -24,7 +24,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-253 — RS/US wire protocol + named pipe rename (ready/go) + spitbol .so rewrite; CSN+ASM agree on hello; 106/106 ✅ | `245af43` B-253 | M-MONITOR-SYNC |
+| **TINY backend** | `main` B-254 — sync-step fixes (JVM VerifyError, NET invalid IL, monitor_sync.py uppercase, drop -f, sno2c -F/-f); cycling 4-5 monitor→fix rounds to fire M-MONITOR-SYNC; cycle 1 done: ASM pre-init TAB divergence being fixed | `e3d2bdb` B-254 | M-MONITOR-SYNC |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
