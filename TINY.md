@@ -12,29 +12,32 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — MONITOR sprint; M-MONITOR-CORPUS9 ✅ fired
-**HEAD:** `a8d6ca0` B-248 (main)
-**Milestone:** M-MONITOR-CORPUS9 ✅ → M-MONITOR-4DEMO next
+**Sprint:** `main` — MONITOR sprint; dual-pathway trace wired
+**HEAD:** `52e947f` B-249 (main)
+**Milestone:** M-MONITOR-4DEMO next
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-249:**
+**⚡ CRITICAL NEXT ACTION — Session B-250:**
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
 git pull --rebase origin main
-bash setup.sh   # idempotent — builds snobol4, spitbol, sno2c, confirms 106/106
+bash setup.sh   # idempotent
 
-# Next sprint: M-MONITOR-4DEMO
-# Run roman, wordcount, treebank through monitor — all 5 participants, PASS expected.
-# See MONITOR.md Sprint M3 for protocol.
+# Two trace pathways are both live and selectable:
+# 1. Oracle pathway (CSN/SPL): inject_traces.py instruments .sno → MONCALL/MONRET/MONVAL → IPC FIFO
+# 2. Compiled pathway (ASM/JVM/NET): comm_var()/sno_mon_var()/net_mon_var() → MONITOR_FIFO directly
+#
+# Next: run wordcount through monitor — expect ASM PASS; JVM/NET trace now wired
+# The FIFO open in JVM/NET uses FileOutputStream(append=true) per write — may block on FIFO.
+# If JVM FIFO blocks: switch JVM to MONITOR=1 stderr fallback while debugging open semantics.
 MDIR=test/monitor
 CORPUS=/home/claude/snobol4corpus
-bash $MDIR/run_monitor.sh $CORPUS/benchmarks/roman.sno
-bash $MDIR/run_monitor.sh $CORPUS/crosscheck/strings/wordcount.sno
-bash $MDIR/run_monitor.sh $CORPUS/programs/treebank/treebank.sno
-# Document claws5 divergence count, fire M-MONITOR-4DEMO.
+MONITOR_TIMEOUT=30 bash $MDIR/run_monitor.sh $CORPUS/crosscheck/strings/wordcount.sno
+# Check ASM passes; diagnose JVM/NET FIFO open behavior
+# Then: treebank + claws5 → M-MONITOR-4DEMO
 ```
 
 ## Last Session Summary

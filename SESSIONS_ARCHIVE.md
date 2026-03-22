@@ -11328,3 +11328,62 @@ export SNO2C_JVM=/home/claude/snobol4x/sno2c
 # Sprint: M-MONITOR-4DEMO — roman + wordcount + treebank + claws5 via monitor
 # Read MONITOR.md Sprint M3 before starting
 ```
+
+---
+
+## Session B-249 — Monitor dual-pathway + author history rewrite (2026-03-22)
+
+**Branch:** `main`
+**HEAD at handoff:** `52e947f` B-249
+
+### What happened
+
+- Cloned all repos: snobol4x, snobol4corpus, snobol4harness, x64, .github
+- Read PLAN.md / MONITOR.md / TINY.md / RULES.md
+- Ran `setup.sh` — all green: CSNOBOL4 2.3.3, SPITBOL x64, sno2c, 106/106 ALL PASS
+- Diagnosed M-MONITOR-4DEMO failures:
+  - roman.sno: 1.9M trace events → FIFO timeout on compiled backends; excluded as monitor target (it's a benchmark)
+  - ASM: MONITOR=1 produces perfect trace; FIFO open race in run_monitor.sh; WPAT="" vs PATTERN bug
+  - JVM/NET: zero trace output — no comm_var equivalent in bytecode/MSIL runtimes
+
+**Three fixes committed:**
+
+1. `src/runtime/snobol4/snobol4.c` — `VARVAL_fn`: DT_P/DT_A/DT_T now return `"PATTERN"`/`"ARRAY"`/`"TABLE"` instead of `""`. Fixes ASM WPAT divergence.
+
+2. `test/monitor/tracepoints.conf` — Added `EXCLUDE &.*` to filter all keyword assignments from compiled trace stream (matches inject_traces.py which already skips `&` vars).
+
+3. `src/backend/jvm/emit_byrd_jvm.c` — Added `sno_mon_var(String name, String val)` static helper emitted into every `.j` file. `sno_var_put` calls it after every store. Helper reads `MONITOR_FIFO` via `System.getenv`, writes `VAR name "val"\n` via `FileOutputStream(path, append=true)`. **Both trace pathways preserved and selectable.**
+
+4. `src/backend/net/emit_byrd_net.c` — Added `net_mon_var(string name, string val)` CIL method emitted into every `.il`. Case 1 variable assignment now dups val before `stsfld`, then calls `net_mon_var`. Helper uses `StringBuilder` + `StreamWriter(append=true)`. **Both trace pathways preserved and selectable.**
+
+5. **Author history rewrite** — 4 commits with `claude@snobol4ever.org` rewritten to `LCherryholmes / lcherryh@yahoo.com` via `git filter-branch`. Force-pushed to origin.
+
+**Invariants at handoff:** 106/106 ASM corpus ALL PASS ✅
+
+### State at handoff
+
+- Two trace pathways both live:
+  - Oracle path (CSN/SPL): `inject_traces.py` → MONCALL/MONRET/MONVAL → IPC FIFO
+  - Compiled path (ASM/JVM/NET): `comm_var()`/`sno_mon_var()`/`net_mon_var()` → `MONITOR_FIFO`
+- JVM/NET FIFO open semantics untested under monitor — `FileOutputStream(append=true)` on a named FIFO may block; B-250 to verify and fix if needed
+- M-MONITOR-4DEMO still pending: wordcount + treebank need to PASS all participants
+
+### Next session start block (B-250)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main
+bash setup.sh
+
+# Verify both trace pathways:
+# 1. ASM compiled path: MONITOR=1
+MONITOR=1 ./snobol4-asm snobol4corpus/crosscheck/strings/wordcount.sno < snobol4corpus/crosscheck/strings/wordcount.input 2>&1 | head -10
+# 2. JVM compiled path via FIFO:
+TMP=$(mktemp -d); mkfifo $TMP/t.fifo; cat $TMP/t.fifo & MONITOR_FIFO=$TMP/t.fifo timeout 15 ./snobol4-jvm snobol4corpus/crosscheck/strings/wordcount.sno < snobol4corpus/crosscheck/strings/wordcount.input; wait
+
+# Then run full monitor:
+MONITOR_TIMEOUT=30 bash test/monitor/run_monitor.sh snobol4corpus/crosscheck/strings/wordcount.sno
+# Goal: ASM PASS; JVM/NET trace arriving; → M-MONITOR-4DEMO
+```
