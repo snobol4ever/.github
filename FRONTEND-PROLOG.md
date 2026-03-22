@@ -1,7 +1,7 @@
 # FRONTEND-PROLOG.md — Tiny-Prolog Frontend (L3)
 
 Tiny-Prolog is a frontend for snobol4x targeting the x64 ASM backend first,
-then C and JVM/NET once the design is proven.
+then C once the design is proven.
 
 *Session state → TINY.md. Milestone dashboard → PLAN.md §Prolog Frontend.*
 
@@ -10,12 +10,9 @@ then C and JVM/NET once the design is proven.
 ## Design Philosophy
 
 Prolog is a first-class citizen of the IR — not a guest of SNOBOL4.
-New term nodes, new clause nodes, new unification primitive. The emitter
-gets new `case` branches that lower to Byrd box (α/β/γ/ω) sequences.
-The backends (x64, C, JVM, NET) see only Byrd box output — same as today.
-
-**No kludge to SNOBOL4 primitives.** Whatever Prolog needs, it gets as a
-native node type with native lowering rules.
+New node types are introduced only where existing ones do not match semantics.
+The emitter gets new `case` branches that lower to Byrd box (α/β/γ/ω) sequences.
+The backends see only Byrd box output — same as today.
 
 ---
 
@@ -46,18 +43,45 @@ Cut (`!`) maps to FENCE: β becomes unreachable. No new mechanism needed.
 - Cut: `!`
 - Lists: `[H|T]` notation, `[a,b,c]` sugar
 - Builtins: `write/1`, `writeln/1`, `nl/0`, `read/1`
-- Meta: `call/1`, `call/N` (N≤4)
-- Term inspection: `functor/3`, `arg/3`, `=../2` (univ)
-- Type tests: `atom/1`, `integer/1`, `float/1`, `var/1`, `nonvar/1`, `compound/1`
 - Control: `true/0`, `fail/0`, `halt/0`, `halt/1`
+- Term inspection: `functor/3`, `arg/3`, `=../2`
+- Type tests: `atom/1`, `integer/1`, `var/1`, `nonvar/1`, `compound/1`
+- `:- initialization(main)` directive
 
-**Deferred (post-corpus):**
-- `assert/retract` (dynamic DB)
-- `setof/3`, `bagof/3`, `findall/3`
-- `module/2`
-- Constraint logic (CLP)
-- DCG notation
-- Exception handling (`throw/catch`)
+**Deferred:** `assert/retract`, `setof/bagof/findall`, modules, CLP, DCG, exceptions.
+
+---
+
+## IR Node Reuse vs New
+
+Reuse existing EXPR_t/EKind nodes where semantics match exactly.
+Introduce new kinds only where they do not.
+
+### Reused (from sno2c.h EKind)
+
+| Existing node | Prolog use | Match? |
+|---------------|-----------|--------|
+| `E_QLIT` | atom literals `'foo'`, string args | ✅ exact |
+| `E_ILIT` | integer literals `42` | ✅ exact |
+| `E_FLIT` | float literals `3.14` | ✅ exact |
+| `E_VART` | Prolog variables `X`, `Foo` | ✅ exact — same concept |
+| `E_FNC`  | body goals `foo(X,Y)`, builtins `write(X)` | ✅ exact — call with named functor + args |
+| `E_ADD/E_SUB/E_MPY/E_DIV` | `is/2` arithmetic subexpressions | ✅ exact |
+
+### New node kinds (genuine semantic additions)
+
+| New node | Why new | Cannot reuse |
+|----------|---------|--------------|
+| `E_UNIFY` | Unification `=/2` — binds variables, needs trail, ω on failure | No existing node binds with trail + backtrack |
+| `E_CLAUSE` | One Horn clause — head + body[] + EnvLayout | No stmt-level equivalent |
+| `E_CHOICE` | All clauses for one functor/arity — α/β chain | No existing multi-clause node |
+| `E_CUT` | Seals β of enclosing choice point | No FENCE equivalent at expr level |
+| `E_TRAIL_MARK` | Save trail.top into env slot | Pure runtime bookkeeping — no equivalent |
+| `E_TRAIL_UNWIND` | Restore trail to saved mark | Pure runtime bookkeeping — no equivalent |
+
+That is 6 new node kinds — not 10. `E_TERM_LOAD/STORE` and `E_IS` from the earlier
+design are subsumed by `E_VART` (load) + `E_UNIFY` (store with trail) + `E_FNC`
+for `is/2` dispatching to existing arithmetic nodes.
 
 ---
 
@@ -92,93 +116,79 @@ typedef struct Term {
 } Term;
 ```
 
-List `[H|T]` sugar: lowered to `compound{ functor='.', arity=2, args=[H,T] }`.
-Nil `[]`: `atom_id` for the empty-list atom.
+List `[H|T]` lowered to `compound{ functor='.', arity=2, args=[H,T] }`.
+Nil `[]` is an atom.
 
 ---
 
 ## Environment Frame (per-invocation DATA block)
 
-Each clause gets a compile-time `EnvLayout` — a fixed-size array of `Term*` slots,
-one per distinct variable. The env frame IS the T2 DATA block for Prolog clauses:
-
 ```c
 typedef struct EnvLayout {
-    int   n_vars;           /* number of distinct variables in clause  */
-    int   n_args;           /* arity of the head predicate             */
-    int   trail_mark_slot;  /* slot index reserved for trail mark      */
+    int   n_vars;           /* distinct variables in clause    */
+    int   n_args;           /* arity of head predicate         */
+    int   trail_mark_slot;  /* reserved slot for trail mark    */
 } EnvLayout;
 ```
 
-At runtime, `r12` points at the live env frame (T2 convention). Variable slot `k`
-is at `[r12 + k*8]`.
+`r12` points at live env frame (T2 convention). Slot `k` at `[r12 + k*8]`.
 
 ---
 
 ## Trail
 
-One global trail per execution. The ω port unwinds to the mark saved at clause entry.
-
 ```c
 typedef struct Trail {
-    Term  ***stack;    /* array of pointers to bound Term* slots */
+    Term  ***stack;    /* pointers to bound Term* slots */
     int      top;
     int      capacity;
 } Trail;
 
-void trail_push(Trail *t, Term **slot);    /* called on every binding */
-void trail_unwind(Trail *t, int mark);     /* called at ω port        */
+void trail_push(Trail *t, Term **slot);
+void trail_unwind(Trail *t, int mark);
 ```
-
-LIFO discipline matches backtracking exactly. No GC needed.
-
----
-
-## New IR Node Types
-
-These live between the Prolog parser and the Byrd box emitter.
-The backends never see them — fully lowered before emission.
-
-| Node | Meaning |
-|------|---------|
-| `PL_CLAUSE(head, body[])` | One Prolog clause |
-| `PL_CHOICE(clauses[])` | All clauses for one functor/arity |
-| `PL_CALL(functor, arity, args[])` | Body goal — call another predicate |
-| `PL_UNIFY(t1, t2)` | Unification; ω on failure |
-| `PL_CUT` | Commit — seal β of enclosing choice |
-| `PL_TRAIL_MARK` | Save trail top into env frame slot |
-| `PL_TRAIL_UNWIND` | Restore trail to saved mark |
-| `PL_TERM_LOAD(slot)` | Load variable from env frame |
-| `PL_TERM_STORE(slot)` | Store binding + push trail |
-| `PL_IS(slot, arith_expr)` | Arithmetic eval; bind; ω if non-numeric |
 
 ---
 
 ## Byrd Box Wiring — Clause Selection
 
-For `foo/1` with two clauses, the emitter lays out:
+For `foo/1` with two clauses:
 
 ```
 P_FOO_α:
-    PL_TRAIL_MARK              ; save trail.top into env[trail_mark_slot]
-    PL_UNIFY(env[0], ATOM_a)   ; try clause 1 head; failure → P_FOO_β
+    E_TRAIL_MARK               ; save trail.top
+    E_UNIFY(env[0], ATOM_a)    ; try clause 1 head; failure -> P_FOO_β
     <body of clause 1>
     jmp [ret_γ]
 
 P_FOO_β:
-    PL_TRAIL_UNWIND            ; undo bindings from clause 1 attempt
-    PL_TRAIL_MARK              ; fresh mark for clause 2
-    PL_UNIFY(env[0], ATOM_b)   ; try clause 2 head; failure → P_FOO_ω
+    E_TRAIL_UNWIND             ; undo clause 1 bindings
+    E_TRAIL_MARK               ; fresh mark
+    E_UNIFY(env[0], ATOM_b)    ; try clause 2 head; failure -> P_FOO_ω
     <body of clause 2>
     jmp [ret_γ]
 
 P_FOO_ω:
-    PL_TRAIL_UNWIND
+    E_TRAIL_UNWIND
     jmp [ret_ω]
 ```
 
-Cut (`!`) seals the β slot so it jumps directly to ω — exactly how FENCE works
-in the pattern engine. No new mechanism needed.
+Cut seals the β slot → ω. Exactly FENCE semantics.
+
+---
+
+## Closed-World Negation (puzzle pattern)
+
+```prolog
+hasHeardOf(fuller, daw) :- !, fail.
+hasHeardOf(_, _).
+```
+
+Compiles as two `E_CLAUSE` nodes under one `E_CHOICE`. The `!` in clause 1
+emits `E_CUT` which seals β. On matching `(fuller, daw)`, head unifies,
+cut fires, then `fail/0` (an `E_FNC` to the builtin) forces ω.
+The catch-all clause 2 is only reachable when clause 1's head fails to unify.
+No `\+` needed — simpler to compile than negation-as-failure.
 
 ---
 
@@ -187,43 +197,48 @@ in the pattern engine. No new mechanism needed.
 ```
 src/frontend/prolog/
     pl_lex.c          Hand-rolled lexer
-    pl_parse.c        Hand-rolled recursive-descent parser -> ClauseAST
-    pl_lower.c        ClauseAST -> PL_* IR nodes; variable slot assignment
-    pl_emit.c         PL_* nodes -> Byrd box a/b/g/w emission
+    pl_parse.c        Recursive-descent parser -> ClauseAST
+    pl_lower.c        ClauseAST -> E_CLAUSE/E_CHOICE/E_UNIFY/E_CUT/... nodes
+    pl_emit.c         New E_* nodes -> Byrd box α/β/γ/ω emission
     pl_unify.c        Runtime unify() + trail_push/unwind
     pl_atom.c         Atom interning table
     pl_builtin.c      write/nl/read/functor/arg/=.. etc.
     term.h            TERM_t definition
-    pl_ir.h           PL_* node type definitions
     pl_runtime.h      Trail, EnvLayout, entry-point declarations
-```
 
-Build: `-pl` flag selects this frontend. Composes with `-asm`/`-c`/`-jvm`/`-net`.
+test/frontend/prolog/corpus/
+    README.md
+    rung01_hello/ .. rung09_builtins/   (stubs, filled as milestones fire)
+    rung10_programs/                    (Lon's word-puzzle solvers -- committed)
+        puzzle_01.pro   bank positions Brown/Jones/Smith
+        puzzle_02.pro   trades Clark/Daw/Fuller
+        puzzle_05.pro   bank chess Brown/Clark/Jones/Smith (WIP)
+        puzzle_06.pro   occupations Clark/Jones/Morgan/Smith
+        puzzles.pro     stubs for puzzles 3-20
+```
 
 ---
 
-## Driver Flags
+## Driver Flag
 
 ```
 snobol4x -pl -asm  foo.pl    ->  foo.s   (x64 NASM)
-snobol4x -pl -c    foo.pl    ->  foo.c   (C backend)
+snobol4x -pl -c    foo.pl    ->  foo.c   (C backend, later)
 ```
 
 ---
 
 ## Corpus — Prolog Ladder
 
-Mirrors the SNOBOL4 10-rung ladder. Acceptance test for each milestone.
-
 ```
 Rung 1:  hello       write('hello'), nl.
-Rung 2:  facts       deterministic fact lookup, no backtracking
+Rung 2:  facts       deterministic fact lookup
 Rung 3:  unify       head unification, compound terms
 Rung 4:  arith       is/2, integer arithmetic
-Rung 5:  backtrack   member/2 — first backtracking program
+Rung 5:  backtrack   member/2 — first backtracking
 Rung 6:  lists       append/3, length/2, reverse/2
-Rung 7:  cut         cut in member/2 and deterministic predicates
+Rung 7:  cut         differ/N, closed-world negation via !, fail
 Rung 8:  recursion   fibonacci/2, factorial/2
-Rung 9:  builtins    write/read/functor/arg/=..
-Rung 10: programs    word puzzle solver (Lon's programs)
+Rung 9:  builtins    functor/3, arg/3, =../2, type tests
+Rung 10: programs    Lon's word-puzzle constraint solvers
 ```
