@@ -13,11 +13,11 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-MONITOR-4DEMO in progress
-**HEAD:** `f7c4143` B-256 (main)
-**Milestone:** M-MONITOR-4DEMO — roman + wordcount + treebank PASS all 5; claws5 divergence count documented
+**HEAD:** `832c236` B-257 (main)
+**Milestone:** M-MONITOR-4DEMO — next blocker: M-MON-BUG-ASM-WPAT (PATTERNPATTERN vs PATTERN)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-257 (M-MONITOR-4DEMO: diagnose treebank ASM/NET step-0 timeout):**
+**⚡ CRITICAL NEXT ACTION — Session B-258 (M-MON-BUG-ASM-WPAT: fix PATTERNPATTERN stringification):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -36,40 +36,37 @@ INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=15 bash test/monitor/run_monitor_sync.sh \
   /home/claude/snobol4corpus/crosscheck/hello/hello.sno
 
-# Diagnose treebank ASM timeout at step 0:
-# Manually compile+link+run ASM treebank with small input to check it produces output:
-TMP=$(mktemp -d)
-RT=src/runtime
-./sno2c -asm -I/home/claude/snobol4corpus/programs/inc demo/treebank.sno > $TMP/tb.s
-for src in $RT/asm/snobol4_stmt_rt.c $RT/snobol4/snobol4.c \
-           $RT/mock/mock_includes.c $RT/snobol4/snobol4_pattern.c \
-           $RT/engine/engine.c; do
-  gcc -O0 -g -c $src -I$RT/snobol4 -I$RT -I src/frontend/snobol4 -w \
-    -o $TMP/$(basename $src .c).o 2>/dev/null
-done
-nasm -f elf64 -I$RT/asm/ $TMP/tb.s -o $TMP/tb.o 2>/dev/null
-gcc -no-pie $TMP/tb.o $TMP/snobol4_stmt_rt.o $TMP/snobol4.o \
-  $TMP/mock_includes.o $TMP/snobol4_pattern.o $TMP/engine.o \
-  -lgc -lm -o $TMP/tb_asm
-echo "(S (NP (DT The) (NN cat)) (VP (VBZ sits)))" | \
-  MONITOR_READY_PIPE="" MONITOR_GO_PIPE="" $TMP/tb_asm 2>&1 | head -10
-
-# Then run wordcount monitor (known to work for CSN/SPL):
+# Run wordcount monitor — diverges at step 3 WPAT:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=30 bash test/monitor/run_monitor_sync.sh demo/wordcount.sno
+
+# The ASM WPAT bug: VALUE WPAT = 'PATTERNPATTERN' instead of 'PATTERN'
+# Fix location: comm_var() in src/runtime/snobol4/snobol4.c
+# When val.type == DT_PATTERN, stringification calls CONVERT($var,'STRING')
+# which walks the pattern tree and concatenates child type names instead of
+# returning the single string 'PATTERN'.
+# Fix: in comm_var(), detect DT_PATTERN type and return literal "PATTERN"
+# rather than calling the general string conversion path.
+grep -n "DT_PATTERN\|comm_var\|PATTERN" src/runtime/snobol4/snobol4.c | head -20
 ```
 
 ## Last Session Summary
 
-**Session B-256 (2026-03-22) — M-MON-BUG-NET-TIMEOUT ✅:**
-- Root cause: mono's `ilasm` rejects `swap` opcode entirely — every real NET program failed to compile
-- Fix: `emit_byrd_net.c` — replace `dup`+`stsfld`+`ldstr`+`swap` with `dup`+`stloc V_mon_val`+`stsfld`+`ldstr`+`ldloc V_mon_val`; add `string V_mon_val` to `.locals init` in `main()` and function bodies
-- 110/110 NET corpus PASS after fix — no regressions
-- `run_monitor_sync.sh` patched: `-I"$INC"` added to all three `sno2c` invocations (needed for -INCLUDE programs like treebank)
-- `demo/treebank.input` created (1-line S-expression sample)
-- wordcount monitor run: NET now participates; divergence at step 3 — M-MON-BUG-JVM-WPAT and M-MON-BUG-SPL-EMPTY confirmed live
-- treebank monitor: ASM and NET still timeout at step 0 even after INC fix — needs diagnosis next session
-- Commits: `1e9f361` (swap fix), `f7c4143` (INC + treebank.input)
+**Session B-257 (2026-03-22) — M-MONITOR-4DEMO partial:**
+- Root cause of treebank step-0 timeout: three layered bugs found and fixed
+- Bug 1: `FAIL_BR` emitter bug — assignment with unconditional goto `:(LABEL)` + NRETURN fn:
+  `FAIL_BR` jumped to next statement instead of goto target. Fixed in 5 assignment cases
+  (VART/KW general path, E_INDR indirect, E_IDX array, field-set, item-set). All emit
+  `has_u_only` stub routing NRETURN failure to `tgt_u`. 106/106 corpus ALL PASS after fix.
+- Bug 2: `demo/treebank.sno` program: pre-built `WBRKS = '( )' NL` before `word` pattern
+  (inline concat inside NOTANY/BREAK fails in ASM). DATATYPE checks made case-insensitive.
+  ASM treebank now produces correct output vs oracle.
+- Bug 3: `run_monitor_sync.sh`: ASM/NET were compiling original `$SNO` not `$TMP/instr.sno`
+  (no TRACE() calls → zero events → step-0 timeout). Also: `blk_alloc.c`/`blk_reloc.c`
+  missing from ASM link. Both fixed. ASM now participates in treebank monitor.
+- Status after fix: wordcount diverges at step 3 (M-MON-BUG-ASM-WPAT: PATTERNPATTERN);
+  treebank NET still step-0 timeout (NET deferred per command decision).
+- Commits: `832c236` B-257
 
 **Session B-255 (2026-03-22) — M-MONITOR-SYNC ✅:**
 - Added trace-registration hash set (64-slot open-addressed, `trace_set[]`) to snobol4.c

@@ -24,7 +24,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-256 — M-MON-BUG-NET-TIMEOUT ✅ swap→stloc/ldloc; 110/110 NET PASS; wordcount: SPL/JVM WPAT bugs confirmed; treebank ASM/NET step-0 timeout (diagnosis needed) | `f7c4143` B-256 | M-MONITOR-4DEMO |
+| **TINY backend** | `main` B-257 — emitter fix: FAIL_BR+unconditional-goto (5 sites); treebank.sno fixed (WBRKS pre-build + DATATYPE case); run_monitor_sync.sh fixed (instr.sno for ASM/NET, blk_alloc link); ASM treebank PASS; wordcount shows M-MON-BUG-ASM-WPAT; NET step-0 timeout deferred | `832c236` B-257 | M-MONITOR-4DEMO (next: fix M-MON-BUG-ASM-WPAT) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-212 — M-PROLOG-EMIT-NODES ✅ clean build | `b8312ed` F-212 | M-PROLOG-HELLO |
