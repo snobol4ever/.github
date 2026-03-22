@@ -16,7 +16,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `asm-t2` B-245 — T2 codename removed | `66b7148` B-245 | M-T2-CORPUS |
+| **TINY backend** | `asm-t2` B-246 — bref pool; E_CONC left-fold; named-pat r12; 99/106 | `9790efe` B-246 | M-T2-CORPUS |
 | **TINY NET** | `net-backend` N-209 — clean slate | `2c417d7` N-209 | TBD |
 | **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |

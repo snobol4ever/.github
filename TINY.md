@@ -13,30 +13,49 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `t2-impl` — M-T2-CORPUS
-**HEAD:** `66b7148` B-245 (asm-t2)
+**HEAD:** `9790efe` B-246 (asm-t2)
 **Milestone:** M-T2-RECUR ✅ → M-T2-CORPUS (next)
-**Invariants:** 96/106 ASM corpus (9 known failures + 053 runtime)
+**Invariants:** 99/106 ASM corpus (064 NASM_FAIL + word1-4/cross/wordcount)
 
-**⚡ CRITICAL NEXT ACTION — Session B-245:**
+**⚡ CRITICAL NEXT ACTION — Session B-247:**
 
 ```bash
 cd /home/claude/snobol4x && git checkout asm-t2
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git pull --rebase origin asm-t2   # HEAD should be B-244
+git pull --rebase origin asm-t2   # HEAD should be B-246
 export INC=/home/claude/snobol4corpus/programs/inc
 export CORPUS=/home/claude/snobol4corpus/crosscheck
 
 # Invariant check first:
-bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 99/106
 
-# M-T2-CORPUS: 106/106 ASM corpus under T2 — 9 known failures fixed by construction.
-# The 9 known failures are: 022, 055, 064, cross, word1-4, wordcount.
-# Investigate each: run individually with STOP_ON_FAIL=1 FILTER=022 to get actual error.
-# Goal: no per-bug patches — T2 per-invocation DATA should fix them by construction.
-# Then run: bash test/crosscheck/run_crosscheck_asm_corpus.sh  # expect 106/106
+# Remaining failures:
+# - 064_capture_conditional: NASM_FAIL — investigate generated .s
+# - word1-4, cross, wordcount: runtime exit 0 (no output)
+#   ROOT CAUSE KNOWN: ? operator (no-replacement match) does not advance
+#   scan_start on gamma — only applies when s->has_eq == 0 AND pure ? match.
+#   The scan_start advance fix in B-246 was reverted because it unconditionally
+#   applied to all match stmts, regressing inline patterns.
+#   Correct fix: find the flag that distinguishes ? from = in STMT_t, apply
+#   scan_start advance only to ? stmts (no subject reassignment).
 ```
 
 ## Last Session Summary
+
+**Session B-246 (2026-03-22) — bref pool, E_CONC left-fold, named-pat r12; 99/106:**
+- `bref()`/`bref2()`: rotating pool of 8 buffers — single static `_bref_buf` caused
+  `ARB_α r12+32, r12+32` (both args aliased) when two `bref()` calls in one `A()` format
+- n-ary `E_CONC`: replaced right-fold with inline left-fold (push/pop per child);
+  avoids slot aliasing at arbitrary concat depth
+- 2-child `E_CONC` generic fallback: push/pop instead of `conc_tmp0` (.bss slot
+  clobbered by recursive right-side evaluation)
+- `emit_named_ref`: `lea r12, [rel box_NAME_data_template]` before α and β jumps
+  for non-function named patterns — fixes r12 undefined on entry to pattern body
+- Fixed: 022_concat_multipart, 055_pat_concat_seq, 053_pat_alt_commit
+- 99/106 corpus (up from 96); `9790efe` B-246 pushed
+- Diagnosed word1-4/cross/wordcount: ? operator gamma path never advances scan_start
+  (only APPLY_REPL_SPLICE does); fix attempted but reverted (regressed 26 tests);
+  correct fix needs flag distinguishing ? stmt from = stmt in STMT_t
 
 **Session B-245 (2026-03-21) — T2 codename removed from all source:**
 - `t2_alloc/t2_free/t2_mprotect_*` → `blk_alloc/blk_free/blk_mprotect_*`

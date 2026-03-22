@@ -11014,3 +11014,21 @@ export CORPUS=/home/claude/snobol4corpus/crosscheck
 export INC=/home/claude/snobol4corpus/programs/inc
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
 ```
+
+## B-246 (2026-03-22) — bref pool, E_CONC left-fold, named-pat r12; 99/106
+
+**Branch:** asm-t2 · **Commit:** `9790efe`
+
+**Fixes:**
+- `bref()`/`bref2()`: rotating pool of 8 buffers — single `_bref_buf` caused ARB slot aliasing
+- n-ary E_CONC: inline left-fold (push/pop per child) — no right-fold recursion, no slot aliasing
+- 2-child E_CONC generic fallback: push/pop instead of `conc_tmp0` .bss global
+- `emit_named_ref`: emit `lea r12, [rel box_NAME_data_template]` at α and β for non-function named patterns
+
+**Tests fixed:** 022_concat_multipart, 055_pat_concat_seq, 053_pat_alt_commit → 99/106
+
+**Diagnosed (not yet fixed):** word1-4/cross/wordcount — ? operator gamma path never advances
+`scan_start_N`; only `APPLY_REPL_SPLICE` does. Fix must distinguish ? stmt from = stmt in STMT_t.
+Attempted fix reverted — unconditional advance regressed 26 passing inline pattern tests.
+
+**Note on codename:** "T2 / Technique 2" → renamed to "block-local DATA" / blk_* in B-245.
