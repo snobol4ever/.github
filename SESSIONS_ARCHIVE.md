@@ -11791,3 +11791,27 @@ INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   /home/claude/snobol4corpus/crosscheck/hello/hello.sno
 # Then run demos: roman, wordcount, treebank, claws5
 ```
+
+## Session F-212 — Prolog frontend Sprint 1: M-PROLOG-TERM
+
+**Branch:** main  **HEAD:** d297e0c
+
+### Work done
+- `src/frontend/prolog/term.h`: TERM_t with TermTag (ATOM/VAR/COMPOUND/INT/FLOAT/REF);
+  `saved_slot` field outside the union so var_slot survives bind(); `term_deref()`;
+  constructors; extern well-known atom IDs (ATOM_DOT/NIL/TRUE/FAIL/CUT)
+- `src/frontend/prolog/pl_atom.h` + `pl_atom.c`: open-addressing hash intern table
+  (FNV-1a, power-of-two, load ≤ 0.5); flat id→name array; `pl_atom_init()` seeds
+  five well-known atoms; `term_new_*` constructors live here
+- `src/frontend/prolog/pl_runtime.h`: Trail (Term* stack), EnvLayout, `unify()` +
+  `trail_*` declarations
+- `src/frontend/prolog/pl_unify.c`: Robinson unification (no occurs-check); `bind()`
+  records Term* on trail; `trail_push/unwind` using Term* stack convention
+- `src/frontend/prolog/pl_unify_test.c`: acceptance criterion — `unify(f(X,a), f(b,Y))`
+  → X=b, Y=a; `trail_unwind` restores both; **5/5 PASS**
+
+### Milestone fired
+- **M-PROLOG-TERM** ✅ `d297e0c`
+
+### Next
+- **M-PROLOG-PARSE**: `pl_lex.c` + `pl_parse.c` — tokeniser + recursive-descent parser → ClauseAST

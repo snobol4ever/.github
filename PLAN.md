@@ -27,7 +27,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-255 — M-MONITOR-SYNC ✅ hello PASS all 5 sync; trace-registration set in snobol4.c; TRACE/STOPTR builtins added | `2652a51` B-255 | M-MONITOR-4DEMO |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-210 — Prolog frontend sprint begins | `6495074` F-210 | M-PROLOG-TERM |
+| **TINY frontend** | `main` F-212 — M-PROLOG-TERM ✅ 5/5 unit tests PASS | `d297e0c` F-212 | M-PROLOG-PARSE |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
@@ -258,7 +258,7 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-TERM** | `term.h` + `pl_atom.c` + `pl_unify.c`: TERM_t, atom interning, unify() + trail. Unit test: `unify(f(X,a), f(b,Y))` → X=b, Y=a; trail_unwind restores both. | ❌ |
+| **M-PROLOG-TERM** | `term.h` + `pl_atom.c` + `pl_unify.c`: TERM_t, atom interning, unify() + trail. Unit test: `unify(f(X,a), f(b,Y))` → X=b, Y=a; trail_unwind restores both. | ✅ `d297e0c` F-212 |
 | **M-PROLOG-PARSE** | `pl_lex.c` + `pl_parse.c`: tokeniser + recursive-descent parser → ClauseAST. Acceptance: 20-clause `.pl` file parses without error; pretty-print round-trip. | ❌ |
 | **M-PROLOG-LOWER** | `pl_lower.c`: ClauseAST → PL_* IR nodes; variable slot assignment per clause; EnvLayout computed. Acceptance: IR pretty-prints correctly for all 10 corpus rungs. | ❌ |
 
