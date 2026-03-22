@@ -479,5 +479,52 @@ Warm numbers show steady-state scripting cost.
 
 ---
 
-*GRIDS.md updated 2026-03-22. Grids 5–9 added for README v2 sprint.*
+## Grid 10 — Program Keywords / &-variables (full, all engines)
+
+> **STATUS: STUB — requires M-GRID-REFERENCE to fire.**
+> Complete list of all SNOBOL4/SPITBOL program keywords (&-variables).
+> Standalone grid split from Grid 4 for the README v2 sprint.
+> Three comparison columns (CSNOBOL4 · SPITBOL · SNOBOL5) + seven engine columns.
+> Rating: `✅` fully supported · `⚠` partial or diverges from oracle · `🔧` skeleton · `❌` not implemented · `—` N/A
+> SNOBOL5 column filled from documentation, not live runs.
+
+| Keyword | Read/Write | CSNOBOL4 | SPITBOL | SNOBOL5 | dotnet | jvm | x-asm | x-jvm | x-net |
+|---------|:----------:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| &ALPHABET | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &ANCHOR | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &CODE | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &DUMP | R/W | ✅ | ✅ | — | — | — | — | — | — |
+| &ERRLIMIT | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &ERRTEXT | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &ERRTYPE | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &FTRACE | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &FULLSCAN | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &INPUT | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &LCASE | R | ✅ | ⚠ 26 ASCII | ✅ | — | — | — | — | — |
+| &LASTNO | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &MAXLNGTH | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &OUTPUT | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &STCOUNT | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &STLIMIT | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &SUBJECT | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &TRACE | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &TRIM | R/W | ✅ | ✅ | ✅ | — | — | — | — | — |
+| &UCASE | R | ✅ | ⚠ 26 ASCII | ✅ | — | — | — | — | — |
+| &ABEND (SPITBOL ext.) | R/W | ❌ | ✅ | — | — | — | — | — | — |
+| &CASE (SPITBOL ext.) | R/W | ❌ | ✅ | — | — | — | — | — | — |
+| &LINE (SPITBOL ext.) | R | — | ✅ | — | — | — | — | — | — |
+| &FILE (SPITBOL ext.) | R | — | ✅ | — | — | — | — | — | — |
+| &NARGS (SPITBOL ext.) | R | — | ✅ | — | — | — | — | — | — |
+| &VERSION | R | ✅ | ✅ | ✅ | — | — | — | — | — |
+
+**Notes:**
+- CSNOBOL4 and SPITBOL columns pre-filled from documentation; verify against oracle at M-GRID-REFERENCE.
+- SNOBOL5 column from SNOBOL5 language reference; no live run.
+- SPITBOL extensions (`&ABEND`, `&CASE`, `&LINE`, `&FILE`, `&NARGS`) are SPITBOL-only; not in CSNOBOL4 by design.
+- `&LCASE` / `&UCASE` divergence: CSNOBOL4 uses full locale alphabet; SPITBOL uses exactly the 26 ASCII letters.
+- `&TRIM` semantics: trailing blanks stripped from INPUT when non-zero.
+
+---
+
+*GRIDS.md updated 2026-03-22. Grids 5–9 added for README v2 sprint. Grid 10 added to complete the 10-grid taxonomy.*
 *All `—` cells require their respective milestones (see PLAN.md §README v2 — Grid Sprint).*
