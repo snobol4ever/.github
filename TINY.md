@@ -12,8 +12,8 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — MONITOR sprint; dual-pathway trace wired
-**HEAD:** `52e947f` B-249 (main)
+**Sprint:** `main` — MONITOR sprint; dual-pathway trace fully wired
+**HEAD:** `e2c4fb5` B-249 (main)
 **Milestone:** M-MONITOR-4DEMO next
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
@@ -24,21 +24,38 @@ cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
 git pull --rebase origin main
-bash setup.sh   # idempotent
+bash setup.sh   # idempotent — rebuilds sno2c, confirms 106/106
 
-# Two trace pathways are both live and selectable:
-# 1. Oracle pathway (CSN/SPL): inject_traces.py instruments .sno → MONCALL/MONRET/MONVAL → IPC FIFO
-# 2. Compiled pathway (ASM/JVM/NET): comm_var()/sno_mon_var()/net_mon_var() → MONITOR_FIFO directly
-#
-# Next: run wordcount through monitor — expect ASM PASS; JVM/NET trace now wired
-# The FIFO open in JVM/NET uses FileOutputStream(append=true) per write — may block on FIFO.
-# If JVM FIFO blocks: switch JVM to MONITOR=1 stderr fallback while debugging open semantics.
+# OPEN QUESTION: does sno2c have a -trace switch for instrumentation?
+# Check: ./sno2c 2>&1 | head -20
+# If not, the two pathways are:
+#   1. Oracle (CSN/SPL): inject_traces.py instruments .sno → IPC FIFO
+#   2. Compiled (ASM/JVM/NET): comm_var/sno_mon_var/net_mon_var → MONITOR_FIFO directly
+#      JVM: sno_mon_init() opens FIFO once at main() entry (FileOutputStream, blocks until
+#           monitor_collect.py has read side open — correct; run_monitor.sh handles this)
+#      NET: net_mon_var() opens+writes+closes per-call (may need same static-open fix as JVM)
+#      ASM: MONITOR_FIFO env var → comm_var() → dprintf(monitor_fd, ...) — already works
+
+# Sprint M-MONITOR-4DEMO — run wordcount + treebank through 5-way monitor:
 MDIR=test/monitor
 CORPUS=/home/claude/snobol4corpus
 MONITOR_TIMEOUT=30 bash $MDIR/run_monitor.sh $CORPUS/crosscheck/strings/wordcount.sno
-# Check ASM passes; diagnose JVM/NET FIFO open behavior
-# Then: treebank + claws5 → M-MONITOR-4DEMO
+# Expected: ASM PASS (VARVAL_fn fix + &.* exclude); JVM trace arriving via sno_mon_fd; NET TBD
+# If NET still times out: apply same sno_mon_init static-open pattern to emit_byrd_net.c
+# Then treebank, claws5 → fire M-MONITOR-4DEMO
 ```
+
+## Last Session Summary
+
+**Session B-249 (2026-03-22) — monitor dual-pathway + author history rewrite:**
+- Cloned all repos, ran setup.sh — 106/106 ALL PASS from the start
+- Diagnosed M-MONITOR-4DEMO failures: roman too heavy (1.9M events), JVM/NET had zero trace
+- Fixed VARVAL_fn: DT_P/A/T → "PATTERN"/"ARRAY"/"TABLE" (ASM WPAT divergence)
+- Added EXCLUDE &.* to tracepoints.conf (keyword filter for compiled path)
+- JVM: added sno_mon_fd static field + sno_mon_init() (opens FIFO once at main entry) + sno_mon_var() (writes per-var to cached fd)
+- NET: added net_mon_var() CIL method + wired into Case 1 assignment (dup+stsfld+call)
+- Rewrote 4 commits: claude@snobol4ever.org → LCherryholmes/lcherryh@yahoo.com via filter-branch; force-pushed
+- 106/106 ALL PASS confirmed at handoff
 
 ## Last Session Summary
 

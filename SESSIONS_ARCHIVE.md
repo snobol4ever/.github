@@ -11387,3 +11387,37 @@ TMP=$(mktemp -d); mkfifo $TMP/t.fifo; cat $TMP/t.fifo & MONITOR_FIFO=$TMP/t.fifo
 MONITOR_TIMEOUT=30 bash test/monitor/run_monitor.sh snobol4corpus/crosscheck/strings/wordcount.sno
 # Goal: ASM PASS; JVM/NET trace arriving; → M-MONITOR-4DEMO
 ```
+
+---
+
+## Session B-249 (cont.) — Emergency handoff addendum (2026-03-22)
+
+**HEAD at final push:** `e2c4fb5` B-249
+
+Late-session additions after B-249 archive entry was written:
+
+- JVM monitor redesigned: `sno_mon_fd` static field declared in header; `sno_mon_init()` static method opens `MONITOR_FIFO` as `FileOutputStream` (blocking open — correct, monitor_collect.py has read side open before participants launch); called at start of `main()`; `sno_mon_var()` reads cached fd. Per-write open/close eliminated.
+- NET `net_mon_var`: clean StringBuilder + StreamWriter(append=true) per-call. May need same static-open treatment as JVM if FIFO blocking is an issue — B-250 to verify.
+- 106/106 confirmed after all changes. Pushed `e2c4fb5`.
+- OPEN: does `sno2c` have a `-trace` switch for compile-time instrumentation injection? Check `./sno2c 2>&1` at B-250 start.
+
+### Next session start block (B-250)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main
+bash setup.sh
+
+# Check sno2c for -trace switch:
+./sno2c 2>&1 | head -20
+
+# Sprint M-MONITOR-4DEMO:
+MONITOR_TIMEOUT=30 bash test/monitor/run_monitor.sh \
+    /home/claude/snobol4corpus/crosscheck/strings/wordcount.sno
+# ASM: expect PASS (VARVAL_fn + &.* exclude fixed)
+# JVM: expect trace via sno_mon_fd (static-open pattern)
+# NET: verify or fix static-open if per-call StreamWriter blocks
+# Then treebank + claws5 → fire M-MONITOR-4DEMO
+```
