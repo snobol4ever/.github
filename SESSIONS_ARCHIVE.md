@@ -11511,3 +11511,19 @@ bash setup.sh   # confirm 106/106
 #   test/beauty/global/driver.sno
 # Fire M-MONITOR-SYNC when hello (or global driver) PASS all 5 sync-step
 ```
+
+## Session B-252 — M-MONITOR-SYNC wiring (2026-03-22)
+
+**Work done:**
+- JVM emitter: `sno_mon_ack_fd` static InputStream field; `sno_mon_init` opens MONITOR_ACK_FIFO; `sno_mon_var` writes event then blocks reading ack — 'G'=continue, other=System.exit(0)
+- NET emitter: `net_mon_sw`/`net_mon_ack` static fields; new `net_mon_init()` opens both FIFOs at startup (called from main); `net_mon_var` rewritten — static StreamWriter, no per-call open, reads ack after flush
+- `run_monitor_sync.sh`: fixed FIFO-open deadlock by launching all 5 participants before controller
+- `monitor_ipc_sync.so` rebuilt clean
+- 106/106 corpus PASS
+
+**State at handoff:** LOAD error 142 — `monitor_ipc_sync.so` not found in CSNOBOL4 subprocess. Path mechanism via HOST(4,'MONITOR_SO') confirmed working in isolation; likely env export issue in shell script. One debug step away from M-MONITOR-SYNC.
+
+**Next session start block:**
+- Clone snobol4x, run `bash setup.sh`, set up /home/claude/x64 symlinks
+- Check MONITOR_SO env var reaches snobol4 subprocess: add `echo $MONITOR_SO` debug to script
+- Fix LOAD path, run hello sync, fire M-MONITOR-SYNC
