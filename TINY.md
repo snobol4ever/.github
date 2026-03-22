@@ -12,37 +12,41 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `t2-impl` — M-T2-CORPUS
-**HEAD:** `9790efe` B-246 (asm-t2)
-**Milestone:** M-T2-RECUR ✅ → M-T2-CORPUS (next)
-**Invariants:** 99/106 ASM corpus (064 NASM_FAIL + word1-4/cross/wordcount)
+**Sprint:** `asm-t2` — M-T2-FULL
+**HEAD:** `50a1ad0` B-247 (asm-t2)
+**Milestone:** M-T2-CORPUS ✅ → M-T2-FULL (next)
+**Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-247:**
+**⚡ CRITICAL NEXT ACTION — Session B-248:**
 
 ```bash
 cd /home/claude/snobol4x && git checkout asm-t2
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git pull --rebase origin asm-t2   # HEAD should be B-246
+git pull --rebase origin asm-t2   # HEAD should be B-247
 export INC=/home/claude/snobol4corpus/programs/inc
 export CORPUS=/home/claude/snobol4corpus/crosscheck
 
 # Invariant check first:
-bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 99/106
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 106/106
 
-# Remaining failures:
-# - 064_capture_conditional: NASM_FAIL — investigate generated .s
-# - word1-4, cross, wordcount: runtime exit 0 (no output)
-#   ROOT CAUSE KNOWN: ? operator (no-replacement match) does not advance
-#   scan_start on gamma — only applies when s->has_eq == 0 AND pure ? match.
-#   The scan_start advance fix in B-246 was reverted because it unconditionally
-#   applied to all match stmts, regressing inline patterns.
-#   Correct fix: find the flag that distinguishes ? from = in STMT_t, apply
-#   scan_start advance only to ? stmts (no subject reassignment).
+# M-T2-FULL trigger: read BACKEND-X64.md for definition
 ```
 
 ## Last Session Summary
 
-**Session B-246 (2026-03-22) — bref pool, E_CONC left-fold, named-pat r12; 99/106:**
+**Session B-247 (2026-03-22) — M-T2-CORPUS: 106/106 ALL PASS:**
+- Fix 1: `scan_start` advance moved before `SET_CAPTURE` loop in gamma path for `?` stmts.
+  `SET_CAPTURE` calls `stmt_set_capture` (C ABI), trashing `rax`; advance was emitted after,
+  so `scan_start` got garbage and `?` matches never advanced position → infinite output.
+- Fix 2: `fail_target` for all 5 assignment branches (E_VART/KW, E_DOL/INDR, E_IDX, E_FNC
+  field, E_FNC ITEM) now checks `is_special_goto(tgt_f)` in addition to `id_f >= 0`.
+  `:F(END)` was silently falling through to next statement (END not in label registry).
+- Fix 3: omega scan_fail for pure-pattern `:F(END)` stmts emitted `L_unk_-1` (invalid NASM
+  label). Fix: when `scan_fail_tgt` is a special goto and no trampoline needed, use
+  `L_SNO_END` directly. Resolves 064_capture_conditional NASM_FAIL.
+- Harness: `run_crosscheck_asm_corpus.sh` now feeds `.input` to stdin; `/dev/null` otherwise.
+  Previous behaviour blocked on terminal read → misreported as timeout/`[runtime exit 0]`.
+- `50a1ad0` B-247 pushed; artifacts regenerated (claws5: 3 undef β labels unchanged).
 - `bref()`/`bref2()`: rotating pool of 8 buffers — single static `_bref_buf` caused
   `ARB_α r12+32, r12+32` (both args aliased) when two `bref()` calls in one `A()` format
 - n-ary `E_CONC`: replaced right-fold with inline left-fold (push/pop per child);
@@ -72,7 +76,7 @@ bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 99/106
 |----|--------|
 | M-T2-INVOKE     | ✅ `1cf8a0a` B-243 |
 | M-T2-RECUR      | ✅ `1cf8a0a` B-244 |
-| M-T2-CORPUS     | ❌ next |
+| M-T2-CORPUS     | ✅ `50a1ad0` B-247 |
 | M-T2-FULL       | ❌ |
 
 ## Concurrent Sessions
