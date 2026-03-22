@@ -11736,3 +11736,58 @@ Target: **M-PROLOG-TERM**
 - Pure C, no codegen, no new EKind values yet
 - Build: add `src/frontend/prolog/` to Makefile
 - Acceptance: unit test passes, 106/106 corpus still holds
+
+## Session B-255 — M-MONITOR-SYNC ✅ (2026-03-22)
+
+**Milestone fired:** M-MONITOR-SYNC — hello PASS all 5 sync
+**HEAD before:** `e3d2bdb` B-254  **HEAD after:** `2652a51` B-255
+**Branch:** main
+
+### What happened
+
+Picked up from B-254 which had the sync barrier wired but comm_var() firing on all
+variable assignments — causing ASM to diverge from oracle on pre-init constants.
+
+**Cycle 1:** Run monitor → DIVERGENCE: ASM emits `VALUE TAB='\t'` at step 1.
+Added `monitor_ready` flag; set to 1 after pre-init block. Gated comm_var() on it.
+
+**Cycle 2:** Run monitor → DIVERGENCE: ASM emits `VALUE DIGITS='0123456789'` at step 1.
+Root cause: comm_var() fires on ALL assignments; CSNOBOL4 TRACE only fires for
+explicitly TRACE-registered variables. comm_var() is the wrong design — it's too broad.
+
+**Fix:** Added trace-registration hash set to snobol4.c:
+- `trace_set[64]` — open-addressed hash set of registered variable names
+- `trace_register/trace_unregister/trace_registered` helpers (djb2 hash)
+- `comm_var()` now gates on `trace_registered(name)`
+- `_b_TRACE` builtin: `TRACE(varname,'VALUE')` registers name
+- `_b_STOPTR` builtin: `STOPTR(varname)` removes name
+- `register_fn("TRACE", _b_TRACE, 1, 4)` and `register_fn("STOPTR", _b_STOPTR, 1, 2)`
+
+Also discovered `mono`/`ilasm` not installed in fresh containers → NET never sent step 0.
+Fixed: `apt-get install -y mono-complete` (added to TINY.md next-session block).
+
+**Cycle 3:** Run monitor → **PASS — all 5 participants reached END after 2 steps** ✅
+
+### State at handoff
+
+- 106/106 ASM corpus ALL PASS ✅
+- M-MONITOR-SYNC ✅ fired
+- Next: M-MONITOR-4DEMO — run roman/wordcount/treebank/claws5 through 5-way sync monitor
+
+### Next session start block (B-256)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main
+bash setup.sh
+apt-get install -y mono-complete
+gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
+gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so /home/claude/x64/monitor_ipc_spitbol.c
+# Verify hello still PASS all 5:
+INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
+  MONITOR_TIMEOUT=15 bash test/monitor/run_monitor_sync.sh \
+  /home/claude/snobol4corpus/crosscheck/hello/hello.sno
+# Then run demos: roman, wordcount, treebank, claws5
+```

@@ -12,12 +12,12 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — M-MONITOR-SYNC in progress
-**HEAD:** `e3d2bdb` B-254 (main)
-**Milestone:** M-MONITOR-SYNC — sync-step barrier protocol; hello PASS all 5 sync = fire
+**Sprint:** `main` — M-MONITOR-4DEMO in progress
+**HEAD:** `2652a51` B-255 (main)
+**Milestone:** M-MONITOR-4DEMO — roman + wordcount + treebank PASS all 5; claws5 divergence count documented
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-255 (M-MONITOR-SYNC: cycle through divergences):**
+**⚡ CRITICAL NEXT ACTION — Session B-256 (M-MONITOR-4DEMO: run demos through monitor):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -27,45 +27,50 @@ git pull --rebase origin main
 
 # Setup (if fresh container) — tarball at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz:
 bash setup.sh
-ln -sf /home/claude/snobol4x/sno2c /home/claude/sno2c_net
-cd /home/claude/x64 && make 2>&1 | tail -3
-[ -e /home/claude/x64/bootsbl ] || ln -sf /home/claude/x64/sbl /home/claude/x64/bootsbl
-gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so \
-    /home/claude/x64/monitor_ipc_spitbol.c
+apt-get install -y mono-complete   # needed for NET participant
 gcc -shared -fPIC -O2 -Wall \
     -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
+gcc -shared -fPIC -O2 -Wall \
+    -o /home/claude/x64/monitor_ipc_spitbol.so \
+    /home/claude/x64/monitor_ipc_spitbol.c
 
-# State at B-254 handoff:
-#   5-way sync barrier working — all 5 connect and step together
-#   Remaining divergence: ASM emits VALUE TAB='\t' at step 1 (pre-init constant)
-#   Fix needed: gate comm_var() in snobol4.c to skip pre-init constants
-#   (tab, ht, nl, lf, cr, ff, vt, bs, nul, epsilon, fSlash, bSlash, semicolon, UCASE, LCASE)
-
-# Cycle protocol (repeat until hello PASS all 5):
-# 1. Run monitor:
+# Run demo programs through 5-way sync monitor:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=15 bash test/monitor/run_monitor_sync.sh \
   /home/claude/snobol4corpus/crosscheck/hello/hello.sno
-# 2. Read first DIVERGENCE line → identify which participant + variable
-# 3. Fix → rebuild → repeat
+
+# Then roman, wordcount, treebank, claws5:
+for prog in roman wordcount treebank; do
+  INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
+    MONITOR_TIMEOUT=30 bash test/monitor/run_monitor_sync.sh \
+    /home/claude/snobol4corpus/benchmarks/${prog}.sno
+done
+# Note: demo programs may need STDIN; check run_monitor_sync.sh STDIN_SRC handling
+# Note: 4 bug milestones still open (M-MON-BUG-*) — file them as found, fix in BUG SESSIONs
 ```
 
 ## Last Session Summary
 
-**Session B-252 (2026-03-22) — M-MONITOR-SYNC wiring:**
-- JVM: added `sno_mon_ack_fd` static field; `sno_mon_init` opens both MONITOR_FIFO+MONITOR_ACK_FIFO; `sno_mon_var` blocks on ack after each write, exits on non-G
-- NET: added `net_mon_sw`/`net_mon_ack` static fields; `net_mon_init()` new method (static-open both FIFOs, called from main); `net_mon_var` rewritten (no per-call StreamWriter, reads ack)
-- `run_monitor_sync.sh`: fixed launch-order deadlock — participants start first, then controller opens FIFOs
-- Remaining: LOAD error 142 on `monitor_ipc_sync.so` path — needs one more debug step
+**Session B-255 (2026-03-22) — M-MONITOR-SYNC ✅:**
+- Added trace-registration hash set (64-slot open-addressed, `trace_set[]`) to snobol4.c
+- `trace_register/trace_unregister/trace_registered` helpers using djb2 hash
+- `comm_var()` now gates on `trace_registered(name)` — only sends events for variables explicitly registered via `TRACE(name,'VALUE')`; pre-init variables (tab/digits/etc.) silently skipped
+- `_b_TRACE` builtin: `TRACE(varname,'VALUE')` registers name; other types accepted but no-op
+- `_b_STOPTR` builtin: removes name from trace set
+- Registered both with `register_fn` (TRACE 1-4 args, STOPTR 1-2 args)
+- `monitor_ready` flag retained as secondary pre-init guard
+- Result: hello **PASS all 5 sync** (csn/spl/asm/jvm/net agree at every step, 2 steps)
+- SPL segfault is known sandbox artifact — harmless, SPITBOL still participates correctly
+- mono installed via apt (needed for NET participant in fresh containers)
 - 106/106 ALL PASS unchanged
 
 ## Active Milestones
 
 | ID | Status |
 |----|--------|
-| M-MONITOR-SYNC     | ❌ one step away — LOAD path fix + hello PASS |
-| M-MONITOR-4DEMO    | ❌ blocked on M-MONITOR-SYNC + 4 bug milestones |
-| M-MON-BUG-NET-TIMEOUT | ❌ (resolved by static-open in B-252) |
+| M-MONITOR-SYNC     | ✅ `2652a51` B-255 |
+| M-MONITOR-4DEMO    | ❌ **NEXT** — run roman/wordcount/treebank/claws5 through 5-way sync monitor |
+| M-MON-BUG-NET-TIMEOUT | ❌ |
 | M-MON-BUG-SPL-EMPTY   | ❌ |
 | M-MON-BUG-ASM-WPAT    | ❌ |
 | M-MON-BUG-JVM-WPAT    | ❌ |
