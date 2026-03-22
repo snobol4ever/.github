@@ -353,6 +353,8 @@ push all → one-line pivot log entry in platform MD.
 
 **BUG SESSION** — Lon opens with "playing with fixing bugs from bug reports": target is the first ❌ `M-MON-BUG-*` in PLAN.md. Fix only that bug. If the fix reveals another bug: file a new milestone and stop — one milestone per session. When displaying trace output: last 100 lines only (`tail -100`) — never dump a raw full trace in chat.
 
+**MONITOR SESSION** — Lon opens with "playing with MONITOR": goal is **finding and reporting divergences**, NOT fixing them. Run the monitor against the current sprint target (read PLAN.md → active M-MONITOR-* milestone). Observe, document, and report what each participant does. File new M-MON-BUG-* milestones for any divergences found. Fixing is a separate BUG SESSION. Never conflate "find bugs" with "fix bugs".
+
 ## ⛔ FRONTEND/BACKEND SEPARATION — emitter gaps queue via .xfail
 
 The frontend session (snocone) and backend session (ASM emitter) share the same repo

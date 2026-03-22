@@ -14,6 +14,8 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 **Isolation guarantee:** No session ever works on two same frontends or two same backends. Each session owns one frontend OR one backend. Rebases on common code go smoothly because of this isolation.
 
+**Session trigger key:** "playing with MONITOR" = MONITOR SESSION (find+report divergences, no fixing). "playing with fixing bugs from bug reports" = BUG SESSION (fix first ❌ M-MON-BUG-*). See RULES.md §MONITOR SESSION and §BUG SESSION.
+
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **TINY backend** | `main` B-249 — dual-pathway monitor wired: JVM sno_mon_init/sno_mon_fd + NET net_mon_var; 106/106 ✅ | `e2c4fb5` B-249 | M-MONITOR-4DEMO |
