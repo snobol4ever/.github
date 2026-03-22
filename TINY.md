@@ -13,7 +13,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `t2-impl` — M-T2-CORPUS
-**HEAD:** `1cf8a0a` B-244 (asm-t2)
+**HEAD:** `66b7148` B-245 (asm-t2)
 **Milestone:** M-T2-RECUR ✅ → M-T2-CORPUS (next)
 **Invariants:** 96/106 ASM corpus (9 known failures + 053 runtime)
 
@@ -38,14 +38,14 @@ bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
 
 ## Last Session Summary
 
-**Session B-244 (2026-03-21) — M-T2-RECUR ✅ (milestone-fire, no code changes):**
-- Verified recursive SNOBOL4 functions correct under T2: `ROMAN('1776')` → `MDCCLXXVI` ✅
-- Two simultaneous live DATA blocks confirmed: inner recursive call gets fresh r12, outer r12 saved/restored on C stack by call site push/pop protocol
-- `FACT(5)` → `120` ✅; simple recursion also clean
-- `demo/roman.sno` (100k loop) times out due to `&STLIMIT` statement-step budget, not correctness — T2 per-invocation overhead is negligible (<1ms for 10k iters)
-- stack-frame bridge (`push rbp` in fn_α) already removed since B-239
-- Note: "T2 / Technique 2" is a weak codename — the concept is **per-invocation DATA blocks** (CODE shared, DATA per-invocation); worth renaming in a future session
-- 96/106 invariant holds; no commits needed; PLAN.md + TINY.md updated
+**Session B-245 (2026-03-21) — T2 codename removed from all source:**
+- `t2_alloc/t2_free/t2_mprotect_*` → `blk_alloc/blk_free/blk_mprotect_*`
+- `t2_relocate/t2_reloc_kind/t2_reloc_entry/T2_RELOC_*` → `blk_relocate/blk_reloc_kind/blk_reloc_entry/BLK_RELOC_*`
+- `emit_t2_reloc_tables()` → `emit_blk_reloc_tables()`
+- Files: `t2_alloc.c/h` → `blk_alloc.c/h`; `t2_reloc.c/h` → `blk_reloc.c/h` (old files deleted)
+- `test/t2/` → `test/blk/`; test files renamed
+- All "T2:" / "Technique 2" comments scrubbed; section headers → "BOX RELOCATION TABLES" / "BOX DATA TEMPLATES"
+- 96/106 invariant holds; `66b7148` B-245 pushed
 
 ## Active Milestones
 

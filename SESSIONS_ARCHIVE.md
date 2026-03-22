@@ -10986,3 +10986,31 @@ export CORPUS=/home/claude/snobol4corpus/crosscheck
 export INC=/home/claude/snobol4corpus/programs/inc
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
 ```
+
+## Session B-245 — T2 codename removed from source
+
+**Date:** 2026-03-21
+**Branch:** `asm-t2`
+**Commit:** `66b7148`
+
+**Work done:**
+- Renamed all `t2_*` API symbols → `blk_*` throughout source
+- `t2_alloc/t2_free/t2_mprotect_rx/rw` → `blk_alloc/blk_free/blk_mprotect_rx/rw`
+- `t2_relocate/t2_reloc_kind/t2_reloc_entry/T2_RELOC_*` → `blk_relocate/blk_reloc_kind/blk_reloc_entry/BLK_RELOC_*`
+- `emit_t2_reloc_tables()` → `emit_blk_reloc_tables()`
+- Files: `src/runtime/asm/t2_alloc.c/h` → `blk_alloc.c/h`; `t2_reloc.c/h` → `blk_reloc.c/h`
+- `test/t2/` → `test/blk/`
+- All "T2:" / "Technique 2" comments scrubbed from emit_byrd_asm.c, snobol4_asm.mac, blk_alloc.c/h, blk_reloc.c/h
+- Section headers: "T2 RELOCATION TABLES" → "BOX RELOCATION TABLES"; "T2 DATA TEMPLATES" → "BOX DATA TEMPLATES"
+- Updated: `snobol4-asm` driver, `run_crosscheck_asm_corpus.sh`
+- 96/106 invariant holds
+
+**Next session B-246:** M-T2-CORPUS — investigate and fix 9 known failures
+
+```bash
+cd /home/claude/snobol4x && git checkout asm-t2
+git pull --rebase origin asm-t2   # expect 66b7148 B-245
+export CORPUS=/home/claude/snobol4corpus/crosscheck
+export INC=/home/claude/snobol4corpus/programs/inc
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 96/106
+```
