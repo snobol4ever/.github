@@ -11445,3 +11445,69 @@ MONITOR_TIMEOUT=30 bash test/monitor/run_monitor.sh \
 **State at handoff:** 106/106 ALL PASS. No source changes. PLAN.md + TINY.md + SESSIONS_ARCHIVE updated.
 
 **Next session (B-251):** Fix M-MON-BUG-NET-TIMEOUT — static-open pattern for net_mon_var in emit_byrd_net.c.
+
+## Session B-251 — M-MONITOR-SYNC scaffold (2026-03-22)
+
+**Goal:** Begin beauty subsystem milestone chain via 5-way sync-step monitor.
+
+**Key finding:** M-MONITOR-IPC-5WAY (B-236) was implemented wrong — async parallel
+FIFO logger, not sync-step barrier. Participants ran to completion independently;
+divergences found by post-hoc diff only. This never matched the stated design
+("first line where any participant diverges = exact moment of bug").
+
+**Work done:**
+- Diagnosed async-vs-sync flaw; updated MONITOR.md and PLAN.md (M-MONITOR-IPC-5WAY
+  marked ⚠️ wrong implementation; M-MONITOR-SYNC new milestone added ❌)
+- Wrote `test/monitor/monitor_ipc_sync.c` — two-arg `MON_OPEN(evt,ack)`, `MON_SEND`
+  writes event then blocks `read()` on ack FIFO; `G`=go, `S`=stop
+- Built `monitor_ipc_sync.so` — confirmed compiles clean
+- Wrote `test/monitor/monitor_sync.py` — barrier controller: reads one event from
+  each of 5 evt FIFOs, applies consensus rule (oracle=CSN), sends G/S to each ack FIFO;
+  prints exact diverging event on first mismatch; all 5 stop immediately
+- Wrote `test/monitor/run_monitor_sync.sh` — harness: creates 10 FIFOs (5 evt + 5 ack),
+  launches controller (polls for READY), launches all 5 participants
+- Updated `test/monitor/inject_traces.py` preamble: `MON_OPEN(STRING,STRING)STRING`,
+  reads `MONITOR_ACK_FIFO` env var, passes both paths to MON_OPEN
+- Wired `snobol4.c`: added `monitor_ack_fd`, opens `MONITOR_ACK_FIFO` at init,
+  `comm_var()` blocks on ack read after each dprintf, exits on `S` or read error
+- Created `test/beauty/global/driver.sno` + `driver.ref` (20 PASSes, oracle confirmed)
+
+**NOT done — for B-252:**
+- JVM `sno_mon_init`/`sno_mon_var`: add `sno_mon_ack_fd` static InputStream field,
+  open from `MONITOR_ACK_FIFO`, read 1 byte after each write in `sno_mon_var`
+- NET `net_mon_var`: add static StreamReader for ack FIFO, same pattern
+- Build `monitor_ipc_spitbol_sync.so` for SPITBOL (same two-arg ABI as monitor_ipc_sync.c,
+  SPITBOL-compatible lret_t ABI)
+- Fire M-MONITOR-SYNC: hello PASS all 5 sync-step
+
+**State at handoff:**
+- snobol4x HEAD: `6c5eee4` B-251
+- .github HEAD: `3f5f857` B-251
+- 106/106 ASM corpus invariant: unchanged (no emitter changes this session)
+- M-MONITOR-SYNC: ❌ scaffold committed, wiring incomplete
+
+**Next session start block (B-252):**
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main
+bash setup.sh   # confirm 106/106
+
+# Wire JVM ack: emit_byrd_jvm.c
+#   1. Add .field static sno_mon_ack_fd Ljava/io/InputStream; 
+#   2. In sno_mon_init: after opening evt FIFO, read MONITOR_ACK_FIFO env var,
+#      open as FileInputStream, store in sno_mon_ack_fd
+#   3. In sno_mon_var: after write([B)V, getstatic sno_mon_ack_fd,
+#      ifnull Lsmv_done, invokevirtual InputStream/read()I,
+#      iconst 83 (='S'), if_icmpeq → invokestatic System/exit(I)V
+# Wire NET ack: emit_byrd_net.c
+#   1. Add static StreamReader V_net_mon_ack (initially null)
+#   2. In net_mon_init: open MONITOR_ACK_FIFO as StreamReader
+#   3. In net_mon_var: after Flush(), read 1 char from V_net_mon_ack,
+#      if 'S' → call Environment.Exit(0)
+# Build monitor_ipc_spitbol_sync.so from monitor_ipc_sync.c with SPITBOL ABI
+# Test: INC=demo/inc MONITOR_TIMEOUT=10 bash test/monitor/run_monitor_sync.sh \
+#   test/beauty/global/driver.sno
+# Fire M-MONITOR-SYNC when hello (or global driver) PASS all 5 sync-step
+```
