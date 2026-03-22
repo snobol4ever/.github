@@ -9,42 +9,36 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-backend` J-213 — M-JVM-BEAUTY: beauty.j assembles clean ✅; next: beauty runtime (VerifyError in sno_userfn_ss)
-**HEAD:** `b67d0b1` J-212
-**Milestone:** M-JVM-BEAUTY ✅ Jasmin clean · Next: M-JVM-EVAL
+**Sprint:** `jvm-t2` J-213 — M-T2-JVM ✅
+**HEAD:** `fa30808` J-213
+**Milestone:** M-T2-JVM ✅ → M-T2-FULL (waiting on M-T2-NET)
 
-**J-212 — M-JVM-BEAUTY DONE:**
-- Fix: cross-scope goto in `jvm_emit_goto()` — if target label not in current fn body range, route to `Jfn%d_freturn`
-- `beauty.j` now assembles with 0 errors (was: "L_error has not been added to the code")
-- Invariants: 102/106 C · 89/92 JVM (unchanged) · JVM artifacts unchanged
+**J-213 — M-T2-JVM DONE (2026-03-22):**
+- Fix: `E_DIV` in `emit_byrd_jvm.c` — integer/integer operands now use `ldiv` not `ddiv`
+- Added runtime branch: `sno_is_integer()` called on both operands; integer path:
+  `Long.parseLong` → `ldiv` → `jvm_l2sno`; float path: existing `ddiv` flow unchanged
+- Fixes `026_arith_divide`: `OUTPUT = 10 / 4` → `2` (was `2.5`)
+- 106-corpus (output/assign/concat/arith_new/control_new/patterns/capture/strings/functions/data/keywords):
+  **104 passed, 0 failed, 2 xfailed — ALL PASS** ✅
+- `fa30808` J-213 pushed to `jvm-t2`
 
-**⚠ CRITICAL NEXT ACTION — Session J-213 (JVM):**
+**⚡ CRITICAL NEXT ACTION — Session J-214 (JVM):**
 
-M-JVM-BEAUTY Jasmin fired. Remaining: beauty runtime — VerifyError in sno_userfn_ss.
+M-T2-FULL requires M-T2-NET to also fire (N-session). JVM side is done.
+Next JVM work: M-JVM-EVAL (inline EVAL! — arithmetic no longer calls interpreter).
 
 ```bash
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
-git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
+git checkout jvm-t2 && git pull
+apt-get install -y libgc-dev nasm default-jdk && make -C src
 CORPUS=/home/claude/snobol4corpus/crosscheck
-STOP_ON_FAIL=0 CORPUS=$CORPUS bash test/crosscheck/run_crosscheck.sh 2>&1 | tail -2   # 102/106
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
-  $CORPUS/hello $CORPUS/output $CORPUS/assign $CORPUS/arith \
-  $CORPUS/control $CORPUS/patterns $CORPUS/capture \
-  $CORPUS/strings $CORPUS/keywords $CORPUS/functions $CORPUS/data 2>&1 | tail -2
-# Expected: 89/92
-
-# Confirm beauty.j still assembles clean:
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
-TMPD=/tmp/beauty_jvm && mkdir -p $TMPD
-./sno2c -jvm -I$INC $BEAUTY > $TMPD/beauty.j
-java -jar src/backend/jvm/jasmin.jar $TMPD/beauty.j -d $TMPD/ 2>&1 | grep -iv "generated\|picked"
-# Expected: (no errors)
-
-# Next issue: VerifyError "Register 7 contains wrong type" in sno_userfn_ss
-# Investigate: grep sno_userfn_ss beauty.j — check .limit locals, istore/astore conflicts
+  $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
+  $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/functions $CORPUS/data $CORPUS/keywords 2>&1 | tail -3
+# Expected: 104 passed, 0 failed, 2 skipped — ALL PASS
 ```
 
 After any `emit_byrd_jvm.c` change, run the mandatory artifact check:

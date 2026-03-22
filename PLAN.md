@@ -18,7 +18,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 |---------|--------|------|----------------|
 | **TINY backend** | `asm-t2` B-247 — 106/106 ALL PASS; M-T2-CORPUS ✅ | `50a1ad0` B-247 | M-T2-FULL |
 | **TINY NET** | `net-backend` N-209 — clean slate | `2c417d7` N-209 | TBD |
-| **TINY JVM** | `jvm-backend` J-212 — clean slate | `b67d0b1` J-212 | TBD |
+| **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ | `fa30808` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-210 — clean slate | `6495074` F-210 | TBD |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
@@ -206,7 +206,7 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-T2-INVOKE** | `emit_byrd_asm.c` emits T2 call-sites: `t2_alloc` + `memcpy TEXT` + `t2_relocate` + `memcpy DATA` + `mov r12,new_data` + `jmp new_text_α`; γ/ω emit `t2_free`; corpus rungs 1–9 still pass | snobol4x | ✅ `1cf8a0a` B-243 |
 | **M-T2-RECUR** | Recursive SNOBOL4 functions correct under T2: two simultaneous live DATA blocks, one shared CODE; roman.sno correct; stack-frame bridge (`push rbp`) removed | snobol4x | ✅ `1cf8a0a` B-244 |
 | **M-T2-CORPUS** | 106/106 ASM corpus under T2 — 9 known failures fixed by construction; no per-bug patches | snobol4x | ❌ |
-| **M-T2-JVM** | JVM backend T2-correct: per-invocation objects on JVM heap (natural); 106/106 JVM corpus clean | snobol4x | ❌ |
+| **M-T2-JVM** | JVM backend T2-correct: per-invocation objects on JVM heap (natural); 106/106 JVM corpus clean | snobol4x | ✅ `fa30808` J-213 |
 | **M-T2-NET** | NET backend T2-correct: per-invocation objects on CLR heap; 110/110 NET corpus clean | snobol4x | ❌ |
 | **M-T2-FULL** | All three backends T2-correct; `v-post-t2` tag cut; MONITOR sprint resumes from clean base | snobol4x | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants; claws5 divergence count documented | snobol4x | ❌ |

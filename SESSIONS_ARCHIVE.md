@@ -11083,3 +11083,46 @@ export CORPUS=/home/claude/snobol4corpus/crosscheck
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # expect 106/106 ALL PASS
 # Then: cat /home/claude/.github/BACKEND-X64.md for M-T2-FULL definition
 ```
+
+## Session J-213 — 2026-03-22 — M-T2-JVM ✅
+
+**Branch:** `jvm-t2`
+**HEAD at close:** `fa30808`
+**Milestone fired:** M-T2-JVM
+
+### What happened
+
+- Cloned snobol4x, checked out `jvm-t2` (at `425921a` B-239 merge base).
+- Ran 106-corpus JVM baseline: 103 passed, 1 failed, 2 xfailed.
+  - Failure: `026_arith_divide` — `OUTPUT = 10 / 4` produced `2.5` instead of `2`.
+  - Root cause: `E_DIV` in `emit_byrd_jvm.c` converted both operands to `double` and
+    emitted `ddiv`. SNOBOL4 integer/integer division must truncate.
+- Fix: for `E_DIV` only, emit both operands as string locals, call `sno_is_integer()`
+  on each (helper already existed), branch: integer path uses `Long.parseLong` → `ldiv`
+  → `jvm_l2sno`; float path uses existing `sno_to_double` → `ddiv` flow.
+- 106-corpus after fix: **104 passed, 0 failed, 2 xfailed (ALL PASS)** ✅
+- 2 xfails are pre-existing legitimate defers:
+  - `word1`: ARB pattern in INPUT loop (J-206 deferred)
+  - `100_roman_numeral`: requires ARRAY() (data/ scope)
+
+### State at handoff
+
+- `jvm-t2` at `fa30808` J-213, pushed.
+- M-T2-JVM ✅ fired. M-T2-FULL blocked on M-T2-NET (N-session).
+- Next JVM session (J-214): pick up M-JVM-EVAL or wait for M-T2-NET to unblock M-T2-FULL.
+
+### Next session start block (J-214)
+
+```bash
+cd /home/claude/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git checkout jvm-t2 && git pull
+apt-get install -y libgc-dev nasm default-jdk && make -C src
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
+  $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/functions $CORPUS/data $CORPUS/keywords 2>&1 | tail -3
+# Expected: 104 passed, 0 failed, 2 skipped — ALL PASS
+```
