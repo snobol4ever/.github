@@ -11126,3 +11126,26 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/strings $CORPUS/functions $CORPUS/data $CORPUS/keywords 2>&1 | tail -3
 # Expected: 104 passed, 0 failed, 2 skipped — ALL PASS
 ```
+
+## Session J-213b — 2026-03-22 — 106/106 truly clean (xfails eliminated)
+
+**Branch:** `jvm-t2`
+**HEAD at close:** `8178b5c`
+
+### What happened
+
+Investigation of the 2 xfails revealed they were both fixable:
+
+**word1 (pattern unconditional goto):**
+- `LINE ? PAT :(LOOP)` — unconditional :(LOOP) was only wired to the success
+  path (`lbl_success`). The failure path (`lbl_fail`) had no `uncond` check,
+  so pattern mismatch fell through to END instead of looping.
+- Fix: `lbl_fail` block in pattern stmt emitter now checks `s->go->uncond`
+  first (same as `lbl_success`), emits `goto uncond` when present.
+- Result: word1 outputs `cat\nhouse` correctly.
+
+**100_roman_numeral (stale xfail):**
+- Already passed — ARRAY() support was complete. Xfail was never cleaned up.
+
+Both `.xfail` files removed from snobol4corpus (`ab4b821`).
+106/106 ALL PASS, 0 skipped. M-T2-JVM is truly clean.

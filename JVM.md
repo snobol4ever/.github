@@ -10,7 +10,7 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 ## NOW
 
 **Sprint:** `jvm-t2` J-213 — M-T2-JVM ✅
-**HEAD:** `fa30808` J-213
+**HEAD:** `8178b5c` J-213
 **Milestone:** M-T2-JVM ✅ → M-T2-FULL (waiting on M-T2-NET)
 
 **J-213 — M-T2-JVM DONE (2026-03-22):**
@@ -19,8 +19,9 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
   `Long.parseLong` → `ldiv` → `jvm_l2sno`; float path: existing `ddiv` flow unchanged
 - Fixes `026_arith_divide`: `OUTPUT = 10 / 4` → `2` (was `2.5`)
 - 106-corpus (output/assign/concat/arith_new/control_new/patterns/capture/strings/functions/data/keywords):
-  **104 passed, 0 failed, 2 xfailed — ALL PASS** ✅
-- `fa30808` J-213 pushed to `jvm-t2`
+  **106 passed, 0 failed, 0 skipped — ALL PASS** ✅
+- Two bugs fixed; xfails removed from snobol4corpus
+- `8178b5c` J-213 pushed to `jvm-t2`
 
 **⚡ CRITICAL NEXT ACTION — Session J-214 (JVM):**
 
@@ -38,7 +39,7 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
   $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
   $CORPUS/strings $CORPUS/functions $CORPUS/data $CORPUS/keywords 2>&1 | tail -3
-# Expected: 104 passed, 0 failed, 2 skipped — ALL PASS
+# Expected: 106 passed, 0 failed, 0 skipped — ALL PASS
 ```
 
 After any `emit_byrd_jvm.c` change, run the mandatory artifact check:
