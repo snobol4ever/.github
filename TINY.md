@@ -14,10 +14,11 @@ snobol4x: multiple frontends, multiple backends.
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
 **HEAD:** `7e925fd` B-261 (main)
-**Milestone:** M-BEAUTY-IS ❌ — NEXT
+**Milestone:** M-BEAUTY-FENCE ❌ — NEXT (M-BEAUTY-IS ⏸ deferred)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
+**Compatibility policy:** snobol4x targets SPITBOL semantics. When CSNOBOL4 and SPITBOL disagree, snobol4x follows SPITBOL. CSNOBOL4 is reference only.
 
-**⚡ CRITICAL NEXT ACTION — Session B-262 (M-BEAUTY-IS, BEAUTY SESSION):**
+**⚡ CRITICAL NEXT ACTION — Session B-262 (M-BEAUTY-FENCE, BEAUTY SESSION):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -30,15 +31,15 @@ bash setup.sh
 gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
 gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so /home/claude/x64/monitor_ipc_spitbol.c
 
-# Run monitor for next subsystem:
+# Run monitor for fence subsystem:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
-  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh is
-# → fix any divergence, repeat until exit 0
+  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh fence
+# → fix any ASM divergence vs SPITBOL, repeat until exit 0
 
 # Confirm corpus invariant
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
 
-# Fire M-BEAUTY-IS — commit snobol4x, update TINY.md, push .github
+# Fire M-BEAUTY-FENCE — commit snobol4x, update TINY.md, push .github
 ```
 
 Trigger phrase for beauty sprint: **"playing with beauty"**
@@ -137,8 +138,8 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | M-MON-BUG-ASM-DATATYPE-CASE | ❌ — open bug (treebank STK case); beauty sprint proceeds in parallel |
 | M-MON-BUG-JVM-WPAT    | ❌ |
 | **M-BEAUTY-GLOBAL**   | ✅ `7e925fd` B-261 |
-| **M-BEAUTY-IS**       | ❌ **NEXT (beauty sprint)** |
-| M-BEAUTY-FENCE     | ❌ |
+| **M-BEAUTY-IS**       | ⏸ DEFERRED — .NAME/NAME semantics (SPITBOL compat, fix post-bootstrap) |
+| **M-BEAUTY-FENCE**    | ❌ **NEXT (beauty sprint)** |
 | M-BEAUTY-IO        | ❌ |
 | M-BEAUTY-CASE      | ❌ |
 | M-BEAUTY-ASSIGN    | ❌ |
