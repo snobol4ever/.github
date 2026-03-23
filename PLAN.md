@@ -29,7 +29,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-220 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅. Fix: base-relative continuation encoding in emit_byrd_asm.c replaces flat STRIDE division. Each clause has compile-time base[ci]; dispatch = linear jge scan; γ returns base[ci]+sub_cs+1 (body) or base[ci]+1 (fact). Sentinel ω-check for all-fact last clause. M-PROLOG-BETA+R5+R1 fire. | `caa3ed8` F-220 | M-PROLOG-R6 |
+| **TINY frontend** | `main` F-221 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅ rung06 ✅ rung07 ✅. Fixes: (1) cut E_CUT redirects next_clause→omega after _cut=1 so fail/0 exits correctly; (2) if-then-else user-call condition emits pl_<pred>_r call + js else_lbl; (3) sequential body ucalls: only last call uses base-relative sub_cs, earlier calls always fresh (xor edx). M-PROLOG-R6+R7 fire. Open: rung08 sub_cs propagation across sequential recursive calls (fib→factorial); rung09 NASM FAIL (undiagnosed). | `692a9ff` F-221 | M-PROLOG-R8 |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-3 — M-ICON-PROC WIP `5cf9295`: param/local fixes done; t01_add_proc PASS; t02_fact+t03_locals FAIL — BSS _val slots global not per-invocation; recursive calls overwrite parent node vals; fix = stack-allocate node temps | `5cf9295` | M-ICON-PROC (fix BSS recursion bug) |
@@ -291,13 +291,13 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 |----|---------|--------|
 | **M-PROLOG-BETA** | β port fires on clause failure: two-clause predicate retries clause 2 when clause 1 head fails. Single small test PASS. This is the first live backtrack via Byrd box β wiring. | ✅ `caa3ed8` F-220 |
 | **M-PROLOG-R5** | `member/2` with full backtracking. `rung05_backtrack` PASS: `a b c` printed correctly. | ✅ `caa3ed8` F-220 |
-| **M-PROLOG-R6** | `append/3`, `length/2`, `reverse/2`. `rung06_lists` PASS. | ❌ |
+| **M-PROLOG-R6** | `append/3`, `length/2`, `reverse/2`. `rung06_lists` PASS. | ✅ `692a9ff` F-221 |
 
 **Sprint 5 — Cut + recursion (one session)**
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-CUT** | `!` seals β → ω (FENCE semantics). `differ/2` closed-world negation PASS. `rung07_cut` PASS. | ❌ |
+| **M-PROLOG-CUT** | `!` seals β → ω (FENCE semantics). `differ/2` closed-world negation PASS. `rung07_cut` PASS. | ✅ `692a9ff` F-221 |
 | **M-PROLOG-RECUR** | `fibonacci/2`, `factorial/2` via recursion. T2 per-invocation DATA blocks correct. `rung08_recursion` PASS. | ❌ |
 
 **Sprint 6 — Builtins + programs**

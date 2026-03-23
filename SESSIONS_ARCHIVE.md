@@ -12509,3 +12509,55 @@ Session B-265 — M-BEAUTY-CASE (BEAUTY SESSION)
 HEAD: 6fd01aa B-264
 Action: Fix ANY_α_SLOT; verify icase PATTERN; run 3-way monitor 9/9; fire M-BEAUTY-CASE
 ```
+
+## Session F-221 — Prolog frontend: M-PROLOG-R6 + M-PROLOG-R7
+
+**Date:** 2026-03-23
+**Branch:** main
+**Commit:** 692a9ff
+**Milestones fired:** M-PROLOG-R6 ✅, M-PROLOG-R7 ✅
+
+### What was done
+
+Three fixes to `emit_prolog_clause_block` in `src/backend/x64/emit_byrd_asm.c`:
+
+**Fix 1 — Cut correctness:**
+`E_CUT` was setting `_cut=1` but leaving `next_clause` pointing to the next
+clause's α, so `fail/0` after `!` jumped to the next clause instead of ω.
+Fix: after setting `_cut=1`, `snprintf(next_clause, ..., omega_lbl)`.
+Now `differ(X,X) :- !, fail.` correctly routes all failures to ω.
+
+**Fix 2 — If-then-else user-call condition:**
+`(differ(a,b) -> write(yes) ; write(no))` had `differ(a,b)` as condition but
+the emitter only handled numeric comparisons and `=/2`. Added fallthrough case:
+when `cond` is any `E_FNC` with `sval`, emit `call pl_<pred>_r` + `js else_lbl`
+on failure (eax < 0). Fixes rung07 which uses `differ` as if-then-else cond.
+
+**Fix 3 — Sequential body user-calls (ucall_seq):**
+With multiple user-calls in a body (e.g. `main :- fib(6,F), ..., factorial(3,G)`),
+the first call's return value (large sub_cs) was stored into `[rbp-32]`, poisoning
+the second call's `sub_cs = [rbp-32] - (base+1)` which could skip past all clauses.
+Fix: track `ucall_seq` counter; only the LAST user-call uses base-relative sub_cs.
+Earlier calls use `xor edx,edx` (always fresh). This is semantically correct
+because intermediate goals in a deterministic chain are non-resumable.
+
+### Corpus results
+- Rungs 01–07: PASS ✅
+- Rung 08 (recursion): FAIL — `fib(6,F)` → `factorial(3,G)` still fails;
+  sub_cs propagation from deep recursive `fib` return into `main`'s `[rbp-32]`
+  still corrupts `factorial` call. ucall_seq fix applies only within a single
+  predicate; cross-predicate [rbp-32] contamination is the remaining issue.
+- Rung 09 (builtins): NASM FAIL — undiagnosed, open for F-222.
+
+### Open for F-222
+1. **M-PROLOG-R8:** Fix `[rbp-32]` contamination for sequential recursive calls.
+   Root cause: after `fib(6,F)` returns, `[rbp-32]` in `main` holds fib's deep
+   sub_cs. When `factorial(3,G)` is called, `is_last_ucall=true` in main means
+   it STILL reads `[rbp-32]` for sub_cs. Fix: for multi-ucall clauses, the
+   `[rbp-32]` slot must be reset to 0 (fresh) at each bsucc label before the
+   next call, OR use separate per-call slots. Simplest: at each `bsuccN` label
+   (N < last), emit `mov dword [rbp-32], 0` to zero the continuation slot.
+2. **M-PROLOG-R9:** Diagnose rung09 NASM error (builtins: functor/3, arg/3, =../2).
+
+### Next session trigger
+"playing with Prolog frontend" → Session F-222, next milestone M-PROLOG-R8.
