@@ -29,7 +29,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-217 — rung01_hello ✅ rung02_facts ✅ rung03_unify ✅ rung04_arith ✅. Fixes: E_UNIFY body dispatch, compound term construction (term_new_compound), is/2+EMIT_CMP label naming, if-then-else (->), arithmetic nodes in emit_pl_term_load, retry loop trail_unwind ordering. rung05 FAIL: two bugs identified — start arg rcx vs rdx mismatch, head unif per-arg jmp bypasses subsequent args | `1dd7cff` F-219 | M-PROLOG-R1 |
+| **TINY frontend** | `main` F-220 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅. Fix: base-relative continuation encoding in emit_byrd_asm.c replaces flat STRIDE division. Each clause has compile-time base[ci]; dispatch = linear jge scan; γ returns base[ci]+sub_cs+1 (body) or base[ci]+1 (fact). Sentinel ω-check for all-fact last clause. M-PROLOG-BETA+R5+R1 fire. | `caa3ed8` F-220 | M-PROLOG-R6 |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-0 — JCON deep analysis complete; icon-master tcode.c surveyed (bytecode emitter, useful for AST node names only); ByrdBox golden C reference confirmed; oracle build prerequisite (M-ICON-ORACLE) added; FRONTEND-ICON.md updated with all findings | `ea83ffd` | M-ICON-ORACLE |
@@ -289,8 +289,8 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-BETA** | β port fires on clause failure: two-clause predicate retries clause 2 when clause 1 head fails. Single small test PASS. This is the first live backtrack via Byrd box β wiring. | ❌ |
-| **M-PROLOG-R5** | `member/2` with full backtracking. `rung05_backtrack` PASS: `a b c` printed correctly. | ❌ |
+| **M-PROLOG-BETA** | β port fires on clause failure: two-clause predicate retries clause 2 when clause 1 head fails. Single small test PASS. This is the first live backtrack via Byrd box β wiring. | ✅ `caa3ed8` F-220 |
+| **M-PROLOG-R5** | `member/2` with full backtracking. `rung05_backtrack` PASS: `a b c` printed correctly. | ✅ `caa3ed8` F-220 |
 | **M-PROLOG-R6** | `append/3`, `length/2`, `reverse/2`. `rung06_lists` PASS. | ❌ |
 
 **Sprint 5 — Cut + recursion (one session)**
