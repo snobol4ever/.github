@@ -12638,3 +12638,60 @@ Fix for I-6: replace `call icn_PROC` with `lea rax,[after]; mov [icn_PROC_caller
 
 ### Next session trigger
 "I'm playing with ICON" → Session I-6, fix suspend calling convention → M-ICON-SUSPEND.
+
+## Session F-224 — Greek-letter consistency pass (2026-03-23)
+
+**Date:** 2026-03-23
+**Commits:** `b0b190c` (snobol4x main), `04fd40f` (.github main)
+**Milestones fired:** none (naming/consistency pass only)
+
+### Work done
+
+Pure naming consistency pass — no functional changes to Prolog logic or any other feature.
+
+Renamed all spelled-out greek port names to unicode symbols across three emitter files,
+aligning the Prolog frontend with the convention already established in all NASM macros,
+the C backend, and the SNOBOL4 ASM emitter:
+
+| Port | Before | After |
+|------|--------|-------|
+| proceed | `alpha` | `α` |
+| recede  | `beta`  | `β` |
+| concede | `gamma` | `γ` |
+| fail    | `omega` | `ω` |
+
+**Files changed:**
+- `src/backend/x64/emit_byrd_asm.c` — ~340 instances
+- `src/backend/c/emit_byrd_c.c` — ~461 instances
+- `src/frontend/prolog/prolog_emit.c` — ~50 instances
+
+**Compound identifiers renamed:** `ret_gamma`→`ret_γ`, `alpha_lbl`→`α_lbl`,
+`pat_alpha`→`pat_α`, `inner_gamma`→`inner_γ`, `dol_gamma`→`dol_γ`,
+`gamma_lbl`→`γ_lbl`, `omega_lbl`→`ω_lbl`, etc.
+
+**Prolog NASM label format strings renamed to canonical port names:**
+- `pl_NAME_c%d_bfail%d` → `pl_NAME_c%d_β%d`
+- `pl_NAME_c%d_bsucc%d` → `pl_NAME_c%d_γ%d`
+- `pl_NAME_c%d_ucres%d` → `pl_NAME_c%d_α%d`
+- `pl_NAME_c%d_hfail%d` → `pl_NAME_c%d_hω%d`
+- `pl_NAME_c%d_hok%d`   → `pl_NAME_c%d_hγ%d`
+
+**Head-unif local clarified:** `β_lbl` → `hω_lbl` (holds head-ω label, not a β port).
+
+**One ASCII exception preserved:** generated NASM `.bss` symbol names
+(e.g. `root_α_saved`) — NASM cannot use unicode in identifiers.
+
+**Build:** `make` clean, zero errors.
+
+**Process fix:** RULES.md updated with new root-cause entry (F-224) for the
+false-completion failure mode — declaring "Handoff complete" after a push that
+silently failed. Mandatory response when push fails for any reason is now
+explicit: stop, ask for token, push, verify, then write the summary.
+
+### State at handoff
+
+F-223 fix4 (`trail_unwind` in `bfailN`) is committed but untested — carried forward.
+Next session picks up at M-PROLOG-R10: test mini cross-product, then puzzle solvers.
+
+### Next session trigger
+"playing with Prolog frontend" → Session F-225, M-PROLOG-R10.
