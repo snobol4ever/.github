@@ -12378,3 +12378,59 @@ done
 # 3. Test rung05 PASS → fire M-PROLOG-R1 (rungs 1–5 passing = Sprint 3+4 complete)
 # 4. Then continue rungs 6–9 for M-PROLOG-CORPUS
 ```
+
+## Session F-218/F-219 — Frame layout, ABI, alignment; rung01-04+06+08 PASS
+
+**Commit:** `1dd7cff` snobol4x main
+**Milestones progress:** rung01✅ rung02✅ rung03✅ rung04✅ rung06✅ rung08✅ (rung05/07 still open)
+
+**Root causes fixed (9 interconnected bugs):**
+
+1. **emit_prolog_main ABI** — init predicate call was `rdi=trail, rsi=0`. Correct: `rdi=NULL, rsi=trail, rdx=0`. Root cause of all output being silently lost.
+
+2. **start register** — `argregs[arity+1]` for arity=2 gives `rcx` (index 3). Correct ABI: start always in `rdx` (index 2). Fixed `start_reg_idx = 2`.
+
+3. **Head unification fall-through** — per-arg `jmp body` after each unify success meant arg[1] was dead code. Changed to `jnz hok{i}` fall-through.
+
+4. **Anonymous `_` (slot=-1)** — loaded `[rbp-8]` (trail mark int). Now calls `term_new_var(-1)`.
+
+5. **Frame layout collision** — var slot formula `(k+2)*8` put slot 0 at `[rbp-16]` and slot 1 at `[rbp-24]` = args_ptr. Changed to `(k+5)*8`, vars start at `[rbp-40]`. Frame size `32+n` → `40+n`.
+
+6. **Stack alignment** — `sub rsp, N*8` for N=1 gives 8-byte offset, misaligning stack before `call`. Added `ALIGN16()` macro; all args-array allocations use it.
+
+7. **Head arg register clobber** — `args[i]` held in rdi, then `emit_pl_term_load` for compound terms called `term_new_var`/`term_new_compound` clobbering rdi. Fixed: save to `pl_head_args[i]` static array first.
+
+8. **_cs counter collision** — `[rbp-36]` overlapped with var slot 0 qword at `[rbp-40]`. Moved to `[rbp-32]` (reuses `start` slot after entry dispatch).
+
+9. **ALIGN16 macro** added for 16-byte stack alignment.
+
+**Still open (rung05 / rung07):**
+
+- **rung05 deep backtracking**: body goal user calls always use `start=0`. To get the 3rd member solution, the recursive `member(X,T)` call in clause 1's body needs to be resumable — when it fails (returns -1), the caller must retry with `start=returned_clause_idx+1`. The `;/2` retry loop handles this for the top-level call but not for body sub-goals. Fix: in body goal emitter, when a user call succeeds with clause_idx N, save N to a local and on retry pass N+1 as start.
+
+- **rung07 cut/negation**: `differ(fuller,daw) :- !, fail.` — the cut seals β but the `_cut` flag check before the omega port isn't actually jumping to omega. Need to verify `_cut` flag check is emitted at the omega port.
+
+**Next session start block (F-220):**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x /home/claude/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github /home/claude/.github
+apt-get install -y nasm
+cd /home/claude/snobol4x/src && make
+
+# Verify baseline (rung01-04+06+08 PASS, rung05+07 FAIL):
+for r in rung0{1,2,3,4,5,6,7,8}*; do
+  dir=test/frontend/prolog/corpus/$r
+  pro=$(ls $dir/*.pro | head -1); exp=$(ls $dir/*.expected | head -1)
+  ./sno2c -pl -asm $pro -o /tmp/t.s 2>/dev/null
+  nasm -f elf64 /tmp/t.s -o /tmp/t.o 2>/dev/null
+  gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_atom.o src/frontend/prolog/prolog_unify.o src/frontend/prolog/prolog_builtin.o -o /tmp/t_pl 2>/dev/null
+  actual=$(timeout 5 /tmp/t_pl 2>/dev/null)
+  [ "$actual" = "$(cat $exp)" ] && echo "$r: PASS" || echo "$r: FAIL"
+done
+
+# F-220 work: fix rung05 deep backtracking in body goals
+# In emit_prolog_clause_block, for E_FNC user calls:
+#   - After successful call returns clause_idx N, save to frame slot
+#   - In bfail path (retry), pass saved_idx+1 as start instead of 0
+#   - This enables depth-first backtracking through recursive predicates
+```

@@ -29,7 +29,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-217 — rung01_hello ✅ rung02_facts ✅ rung03_unify ✅ rung04_arith ✅. Fixes: E_UNIFY body dispatch, compound term construction (term_new_compound), is/2+EMIT_CMP label naming, if-then-else (->), arithmetic nodes in emit_pl_term_load, retry loop trail_unwind ordering. rung05 FAIL: two bugs identified — start arg rcx vs rdx mismatch, head unif per-arg jmp bypasses subsequent args | `45c467f` F-217 | M-PROLOG-R1 |
+| **TINY frontend** | `main` F-217 — rung01_hello ✅ rung02_facts ✅ rung03_unify ✅ rung04_arith ✅. Fixes: E_UNIFY body dispatch, compound term construction (term_new_compound), is/2+EMIT_CMP label naming, if-then-else (->), arithmetic nodes in emit_pl_term_load, retry loop trail_unwind ordering. rung05 FAIL: two bugs identified — start arg rcx vs rdx mismatch, head unif per-arg jmp bypasses subsequent args | `1dd7cff` F-219 | M-PROLOG-R1 |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-0 — plan written, no code yet | — | M-ICON-LEX |
