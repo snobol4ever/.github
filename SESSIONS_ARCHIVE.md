@@ -12750,3 +12750,219 @@ bash setup.sh
 ```
 
 Fix bugs 1+2 in `emit_byrd_asm.c`, rebuild, run 3-way monitor for TDump, confirm 106/106, commit B-270: M-BEAUTY-TDUMP ✅.
+
+---
+<!-- Archived from PLAN.md 2026-03-23 -->
+## §21 — Session B-264 (2026-03-23): M-BEAUTY-CASE — 4 fixes, 1 open (ANY_α_SLOT)
+
+### Fixes applied
+
+| # | Bug | File | Fix |
+|---|-----|------|-----|
+| 1 | `snobol4-asm` missing `-I"$INC"` → -INCLUDE fails silently | `snobol4-asm` | Add `-I"$INC"` to sno2c call |
+| 2 | `LOAD_NULVCL` stores DT_S=1 not DT_SNUL=0; doesn't set rax/rdx | `snobol4_asm.mac` | `xor eax/edx` then store |
+| 3 | `LOAD_NULVCL32` same bug | `snobol4_asm.mac` | same |
+| 4 | `ANY(&UCASE &LCASE)` → E_CONC arg → emitted as `ANY("")` | `emit_byrd_asm.c` | emit_expr into temp .bss slot |
+
+### §21.1 — Remaining open bug: ANY_α_SLOT needed
+
+After fix 4, the emitter generates:
+```nasm
+any_expr_tmp_2_t resq 1   ; .bss: type field of evaluated charset DESCR_t
+any_expr_tmp_2_p resq 1   ; .bss: ptr field
+mov [rel any_expr_tmp_2_t], rax  ; store charset type at match-setup time
+mov [rel any_expr_tmp_2_p], rdx  ; store charset ptr
+; ... then ANY_α_VAR any_expr_tmp_2, ...
+```
+
+But `ANY_α_VAR` expands to `ANY_α_VAR varlab, ...` which calls `stmt_get(varlab)` → `NV_GET_fn("any_expr_tmp_2")`. That name is not in the SNOBOL4 variable table — it's just a .bss label. So charset lookup fails and ANY still doesn't match.
+
+**Fix needed in B-265:**
+
+Add `ANY_α_SLOT` macro to `snobol4_asm.mac`:
+```nasm
+; ANY_α_SLOT typelab, ptrlab, saved, cursor, subj, subj_len, gamma, omega
+; Reads charset directly from .bss type+ptr labels (no NV_GET_fn).
+%macro ANY_α_SLOT 8
+    mov     rax, [rel %1]     ; type
+    mov     rdx, [rel %2]     ; ptr
+    ; build a DESCR_t on stack and call the engine's any_match_descr helper
+    ; (or inline the charset-string extraction logic)
+    ...
+%endmacro
+```
+
+And in `emit_byrd_asm.c` ANY expr branch, emit `ANY_α_SLOT tmplab_t, tmplab_p, ...` instead of `ANY_α_VAR tmplab`.
+
+### §21.2 — Next session action (B-265)
+
+1. `bash setup.sh`
+2. Add `ANY_α_SLOT` macro to `snobol4_asm.mac` that reads charset from two .bss labels directly
+3. Update `emit_byrd_asm.c` ANY expr branch: emit `ANY_α_SLOT` instead of `ANY_α_VAR`
+4. Test: `INC=demo/inc ./snobol4-asm /tmp/icase_test.sno` → must print PATTERN
+5. Run 3-way monitor: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh case` → 9/9 PASS
+6. Confirm `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → 106/106
+7. Commit `B-265: M-BEAUTY-CASE ✅`, update PLAN.md dashboard + TINY.md, push both repos
+
+
+---
+
+## §22 — Session Handoff F-223 (2026-03-23): Prolog builtins done, rung10 wiring WIP
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **TINY frontend** | `main` F-223 — M-PROLOG-BUILTINS ✅: rung09 PASS (functor/3 arg/3 =../2 type-tests); multi-ucall E2.fail→E1.resume wiring in progress for rung10; BSS link fix (subject_data stubs); bsucc xor-edx fix; fail/0 retry fix; trail_unwind-before-retry fix applied — **needs test next session** | `e24e962`+WIP | M-PROLOG-R10 |
+
+### Milestone fires this session
+- **M-PROLOG-BUILTINS** ✅ — `rung09_builtins` PASS
+
+### What was built (F-223)
+Four fixes to `src/backend/x64/emit_byrd_asm.c`:
+
+1. **BSS stubs** in `emit_pl_header`: added `global cursor, subject_data, subject_len_val`
+   with `resq`/`resb` declarations so Prolog binaries link against `stmt_rt.c`.
+
+2. **`xor edx,edx` at `bsucc`**: when ucall N succeeds and falls through to ucall N+1,
+   `edx` must be zeroed so ucall N+1 starts fresh (sub_cs=0).
+
+3. **`fail/0` retry**: `fail` now emits `mov edx,[rbp-UCALL_SLOT(N-1)]; jmp ucresN-1`
+   when there are pending ucalls, instead of `trail_unwind; jmp next_clause`.
+
+4. **`trail_unwind` in `bfailN`**: before jumping to `ucres(N-1)`, unwind trail to
+   clause mark so bindings from the failed subtree are cleared.
+
+### Open: mini cross-product test still prints only `red-red`
+Fix 4 was applied at end of session but not tested (context exhausted).
+Root question: does `trail_unwind` correctly reset Term* bindings so that
+`ucres0` re-calling `color(X)` sees X as unbound? See snobol4x PLAN.md §24.
+
+### Next session (F-224) trigger phrase
+**"playing with Prolog frontend"** → F-224 session → pick up at snobol4x PLAN.md §24.
+
+## §23 — Session Handoff F-224 (2026-03-23): Greek-letter consistency pass ✅
+
+### What was done
+
+Pure naming consistency pass — no functional changes to Prolog logic.
+
+Renamed all spelled-out greek port names to unicode symbols across three files:
+- `src/backend/x64/emit_byrd_asm.c` (~340 instances)
+- `src/backend/c/emit_byrd_c.c` (~461 instances)
+- `src/frontend/prolog/prolog_emit.c` (~50 instances)
+
+**Rule now enforced everywhere:** C identifiers and NASM label suffixes use α/β/γ/ω only.
+Single ASCII exception: generated NASM `.bss` symbol names (NASM cannot use unicode).
+
+Prolog clause-block NASM labels renamed to canonical port names:
+- `bfail%d` → `β%d` (body call β port)
+- `bsucc%d` → `γ%d` (body call γ port)
+- `ucres%d` → `α%d` (resume / α entry)
+- `hfail%d` → `hω%d` (head unification ω)
+- `hok%d`   → `hγ%d` (head unification γ)
+
+Head-unif local `β_lbl` renamed `hω_lbl` (it holds a `hω` label, not a β port).
+Build: `make` clean, zero errors. Committed `b0b190c` to snobol4x main.
+
+**Process fix:** Previous session reported "HANDOFF COMPLETE" before confirming push
+succeeded. Push had silently failed (no credentials). Rule added below.
+
+### Next session trigger phrase
+**"playing with Prolog frontend"** → F-225 → pick up at `snobol4x PLAN.md §25`.
+
+## §22-update — F-225 handoff (2026-03-23): multi-ucall backtracking WIP
+
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **TINY frontend** | `main` F-225 — per-ucall trail marks added; mini 9/9 PASS ✅; rung10 still broken (N>2 ucall fail/0 retry — αN mark taken on resume too, over-unwinds); see snobol4x PLAN.md §26 | `b0b190c` (uncommitted changes) | M-PROLOG-R10 |
+
+**Trigger:** `"playing with Prolog frontend"` → F-226 → snobol4x PLAN.md §26
+
+## §27 — Session Handoff F-226 (2026-03-23): βN unwind — 2-ucall fixed, 1-ucall regressed
+
+### Session F-226 summary
+
+**Context:** F-226 attacked M-PROLOG-R10 (Lon's word puzzles). The §26 bug was:
+`αN` took a fresh trail mark on *every* entry including resume, causing over-unwinding.
+
+**Three fixes applied to `emit_byrd_asm.c`** (all uncommitted, base `b0b190c`):
+
+1. **Fix 1 (KEEP):** Guard at `αN` — `test edx,edx / jnz .skip_mark` — take mark only on fresh entry
+2. **Fix 2 (REVERT):** `βN` unwinds to `UCALL_MARK_OFFSET(N-1)` instead of own mark — fixes 2-ucall but breaks recursive predicates
+3. **Fix 3:** Same as fix 2, naming pass
+
+**Results:**
+- ✅ 2-ucall mini (`color(X),color(Y)`) → 9/9
+- ✅ puzzle_01, puzzle_05, puzzle_06 PASS
+- ✅ rung01–04, rung07, rung09 PASS
+- ❌ rung05 (member backtrack), rung06 (lists), rung08 (recursion) — REGRESSED
+
+### True fix for F-227
+
+Move trail mark emission from `αN` to **`γ_{N-1}` time** — captured *after* ucall N-1
+has bound its variable. Then `βN` always unwinds to its own mark (correctly frees X),
+and no skip-mark guard is needed.
+
+```
+γ_{N-1}:
+    [emit trail mark → UCALL_MARK_OFFSET(N)]   ← NEW position
+    xor edx, edx
+αN:
+    [NO mark here]
+    push args, call pl_foo_r
+    js βN
+    ...
+βN:
+    unwind to UCALL_MARK_OFFSET(N)  ← own mark, set at γ_{N-1} = after X was bound
+    mov edx, UCALL_SLOT(N-1)
+    jmp αN-1
+```
+
+**Trigger:** `"playing with Prolog frontend"` → F-227 → snobol4x PLAN.md §27
+
+---
+<!-- Archived from FRONTEND-ICON.md 2026-03-23 -->
+## §I-6 — Session Handoff (2026-03-23): M-ICON-PROC ✅ M-ICON-SUSPEND ✅
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **ICON frontend** | `main` I-6 — M-ICON-PROC ✅ M-ICON-SUSPEND ✅: jmp co-routine; resume label ordering; proc_done icn_failed=1; generator detection. 10/10 PASS. | `d736059` I-6 | M-ICON-CORPUS-R2 |
+
+### Four bugs fixed
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| SEGV on resume | `proc_sret` bare `ret` tears down frame | `icn_PROC_caller_ret` BSS slot; generator procs use `jmp [rel caller_ret]` throughout |
+| Infinite loop of 1 | `Ldef(resume_here)` before body emit → fallthrough into INT 1 sub-node | Emit body nodes first, then `Ldef(resume_here); Jmp(ba)` |
+| Extra final value | `proc_done` didn't set `icn_failed=1` | Added `mov byte [rel icn_failed], 1` at proc_done |
+| Recursive fact SEGV | Single global `caller_ret` clobbered by recursive calls | `has_suspend()` walker + `user_proc_is_gen[]`; only generator procs use jmp convention |
+
+### Also done
+- Oracle built from icon-master 9.5.20b (Configure name=linux && make)
+- 851 IPL `.icn` files archived → snobol4corpus `programs/icon/ipl/`
+
+### Next session (I-7) trigger phrase
+**"playing with ICON"** → I-7 → M-ICON-CORPUS-R2 (arithmetic generators, relational filtering)
+
+---
+
+## §I-7 — Session Handoff (2026-03-23): M-ICON-CORPUS-R2 ✅
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅: 5/5 rung02_arith_gen. Total 15/15. | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+
+### Corpus added: rung02_arith_gen
+
+| Test | Program | Oracle output |
+|------|---------|--------------|
+| t01_range | `every write(1 to 5)` | 1 2 3 4 5 |
+| t02_relfilter | `every write((1 to 6) > 3)` | 3 3 3 (right operand returned) |
+| t03_nested_add | `every write((1 to 3) + (1 to 3))` | all 9 sums |
+| t04_nested_filter | `every write((1 to 3)+(1 to 3) > 4)` | 4 4 4 |
+| t05_paper_mul | `every write(5 > ((1 to 2)*(3 to 4)))` | 3 4 |
+
+### Next session (I-8) trigger phrase
+**"playing with ICON"** → I-8 → M-ICON-CORPUS-R3 (user procedures + user-defined generators)
