@@ -18,22 +18,21 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-6 — M-ICON-PROC ✅ M-ICON-SUSPEND ✅: jmp co-routine fix; resume label ordering; proc_done icn_failed=1; generator detection. rung01 6/6 ✅ rung02 3/3 ✅ rung03 1/1 ✅. Oracle built (icon-master 9.5.20b). IPL archived → snobol4corpus. | `d736059` I-6 | M-ICON-CORPUS-R2 |
+| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅: rung02_arith_gen 5/5 PASS. Total 15/15. | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 
-### Next session checklist (I-7)
+### Next session checklist (I-8)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
 git clone https://github.com/snobol4ever/.github
-# Read FRONTEND-ICON.md §NOW — write rung02_arith_gen corpus, fire M-ICON-CORPUS-R2
+# Read FRONTEND-ICON.md §NOW — write rung03_user_gen corpus, fire M-ICON-CORPUS-R3
 # Oracle: build icon-master (Configure name=linux && make)
-# Tests live in: test/frontend/icon/corpus/rung02_arith_gen/
+# Tests live in: test/frontend/icon/corpus/rung03_user_gen/
 ```
 
-**M-ICON-CORPUS-R2 spec:** arithmetic generators, relational filtering.
-Programs use `every`, `to`, relational ops (`<` `>` `=`), nested generators.
-Note: Icon relational ops return the **right operand** on success (not a boolean).
-Oracle truth must be verified with `icont`/`iconx` — do not assume expected output.
+**M-ICON-CORPUS-R3 spec:** user procedures with return; user-defined generators with suspend.
+Programs use `procedure`/`end`, `suspend`, `every` calling user generators.
+rung03_suspend already has t01_gen (upto/4) — R3 adds more complex generator patterns.
 
 ---
 
@@ -121,7 +120,7 @@ for now.
 | **M-ICON-CORPUS-R1** | Rung 1: all paper examples pass; oracle = `icont`+`iconx` from icon-master | M-ICON-EMIT-EVERY | ✅ 6/6 I-2 |
 | **M-ICON-PROC** | `procedure`/`end`, `local`, `return`, `fail`, call expressions | M-ICON-CORPUS-R1 | ✅ `d736059` I-6 |
 | **M-ICON-SUSPEND** | `suspend E` inside procedure = user-defined generator | M-ICON-PROC | ✅ `d736059` I-6 |
-| **M-ICON-CORPUS-R2** | Rung 2: arithmetic generators, relational filtering | M-ICON-SUSPEND | ❌ |
+| **M-ICON-CORPUS-R2** | Rung 2: arithmetic generators, relational filtering | M-ICON-SUSPEND | ✅ `54031a5` I-7 |
 | **M-ICON-CORPUS-R3** | Rung 3: user procedures with return; user-defined generators | M-ICON-CORPUS-R2 | ❌ |
 | **M-ICON-STRING** | `ICN_STR`, `\|\|` concat via `CAT2_*` macros | M-ICON-CORPUS-R3 | ❌ |
 | **M-ICON-SCAN** | `E ? E` string scanning; explicit cursor threading | M-ICON-STRING | ❌ |
@@ -698,3 +697,25 @@ explicit `;` everywhere. Confirmed deliberate deviation. Corpus programs need pa
 
 ### Next session (I-7) trigger phrase
 **"playing with ICON"** → I-7 → M-ICON-CORPUS-R2 (arithmetic generators, relational filtering)
+
+---
+
+## §I-7 — Session Handoff (2026-03-23): M-ICON-CORPUS-R2 ✅
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅: 5/5 rung02_arith_gen. Total 15/15. | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+
+### Corpus added: rung02_arith_gen
+
+| Test | Program | Oracle output |
+|------|---------|--------------|
+| t01_range | `every write(1 to 5)` | 1 2 3 4 5 |
+| t02_relfilter | `every write((1 to 6) > 3)` | 3 3 3 (right operand returned) |
+| t03_nested_add | `every write((1 to 3) + (1 to 3))` | all 9 sums |
+| t04_nested_filter | `every write((1 to 3)+(1 to 3) > 4)` | 4 4 4 |
+| t05_paper_mul | `every write(5 > ((1 to 2)*(3 to 4)))` | 3 4 |
+
+### Next session (I-8) trigger phrase
+**"playing with ICON"** → I-8 → M-ICON-CORPUS-R3 (user procedures + user-defined generators)

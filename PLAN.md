@@ -32,7 +32,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY frontend** | `main` F-226 — 2-ucall mini PASS ✅ (color(X),color(Y)→9/9); puzzle_01/05/06 PASS; βN unwind fix partial: rung05/06/08 regressed; root cause documented §27; uncommitted WIP on `b0b190c` | `b0b190c` F-224 (WIP) | M-PROLOG-R10 |
 | **DOTNET** | `main` D-164 — Jeff's branch merged: ErrorJump→OnErrorGoto, StartTimer(), DetectConfiguration(), Griswold tests (7), VbLibrary+FSharpOptionLibrary wired, LOAD :F semantics correct; **1903/1903 pass 0 fail on Linux** | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
-| **ICON frontend** | `main` I-6 — M-ICON-PROC ✅ M-ICON-SUSPEND ✅: (1) jmp-based co-routine per generator proc (icn_PROC_caller_ret BSS slot); (2) emit_suspend resume label ordering fix; (3) proc_done sets icn_failed=1; (4) generator detection — has_suspend() walker, call/ret kept for normal procs. rung01 6/6 ✅ rung02 3/3 ✅ rung03 1/1 ✅. IPL 851 .icn files → snobol4corpus programs/icon/ipl/. | `d736059` I-6 | M-ICON-CORPUS-R2 |
+| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅: rung02_arith_gen 5/5 PASS (range, relational filter, nested add, nested filter, paper mul). Total corpus 15/15. | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
