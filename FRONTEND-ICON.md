@@ -18,7 +18,30 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-0 — JCON deep analysis complete: irgen.icn 38 procedures surveyed, deltas documented, bounded flag strategy, ICN_AND delta, Rung 1 runtime requirements confirmed zero-new-functions; icon-master/tcode.c traverse() surveyed — bytecode emitter, useful only for AST node names; golden C reference test_icon.c confirms α/β/ω/γ label structure; oracle build prerequisite added as M-ICON-ORACLE | `ea83ffd` | M-ICON-ORACLE |
+| **ICON frontend** | `main` I-1 — M-ICON-ORACLE ✅ `d364a14`; scaffold headers committed; Rung 1 corpus 6/6 oracle PASS; **next session starts here** | `d364a14` | M-ICON-LEX |
+
+### Next session checklist (I-1)
+
+```bash
+git clone https://github.com/snobol4ever/snobol4x
+git clone https://github.com/snobol4ever/.github
+bash /home/claude/snobol4x/setup.sh
+# icon-master already built at /home/claude/icon-master (or rebuild from zip)
+# Read FRONTEND-ICON.md — start at M-ICON-LEX
+```
+
+**M-ICON-LEX acceptance criteria:**
+1. `icon_lex.c` + `icon_lex_test.c` compiled and all unit tests pass
+2. Tests cover: all keywords, all operators, integer/real/string/cset literals, ident, EOF, error token
+3. Specifically tokenizes every token that appears in the 6 Rung 1 corpus programs
+4. No auto-semicolon insertion (explicit `;` only)
+
+**Key files for next session:**
+- `src/frontend/icon/icon_lex.h` — interface already defined (do not change)
+- `src/frontend/icon/icon_ast.h` — AST already defined (do not change)
+- `src/frontend/prolog/prolog_lex.c` — structural template for hand-rolled lexer
+- `test/frontend/icon/corpus/rung01_paper/` — the 6 corpus programs to tokenize
+- `ByrdBox/test_icon.c` — golden C reference (use as sanity check)
 
 ---
 
