@@ -13,12 +13,12 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `822c58f` B-261 (main)
-**Milestone:** M-BEAUTY-IO ❌ — NEXT (M-BEAUTY-IS ⏸ deferred; M-BEAUTY-FENCE ✅)
+**HEAD:** `a862b01` B-261 (main)
+**Milestone:** M-BEAUTY-CASE ❌ — NEXT (M-BEAUTY-IS ⏸ deferred; M-BEAUTY-FENCE ✅; M-BEAUTY-IO ✅)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 **Compatibility policy:** snobol4x implements all SPITBOL extensions (internal builtins + command-line switches identical to SPITBOL). For semantic edge cases where CSNOBOL4 and SPITBOL differ, snobol4x follows CSNOBOL4 behavior. Key exception: DATATYPE() returns UPPERCASE (CSNOBOL4 convention) not lowercase (SPITBOL).
 
-**⚡ CRITICAL NEXT ACTION — Session B-262 (M-BEAUTY-IO, BEAUTY SESSION):**
+**⚡ CRITICAL NEXT ACTION — Session B-262 (M-BEAUTY-CASE, BEAUTY SESSION):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -33,13 +33,13 @@ gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so /home/cla
 
 # Run monitor for fence subsystem:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
-  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh io
+  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh case
 # → fix any ASM divergence vs SPITBOL, repeat until exit 0
 
 # Confirm corpus invariant
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
 
-# Fire M-BEAUTY-IO — commit snobol4x, update TINY.md, push .github
+# Fire M-BEAUTY-CASE — commit snobol4x, update TINY.md, push .github
 ```
 
 Trigger phrase for beauty sprint: **"playing with beauty"**
@@ -146,8 +146,9 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | **M-BEAUTY-GLOBAL**   | ✅ `7e925fd` B-261 |
 | **M-BEAUTY-IS**       | ⏸ DEFERRED — .NAME/NAME semantics (SPITBOL compat, fix post-bootstrap) |
 | **M-BEAUTY-FENCE**    | ✅ `822c58f` B-261 |
-| **M-BEAUTY-IO**       | ❌ **NEXT (beauty sprint)** |
-| M-BEAUTY-CASE      | ❌ |
+| **M-BEAUTY-IO**       | ✅ `a862b01` B-261 |
+| **M-BEAUTY-CASE**     | ❌ **NEXT (beauty sprint)** |
+
 | M-BEAUTY-ASSIGN    | ❌ |
 | M-BEAUTY-MATCH     | ❌ |
 | M-BEAUTY-COUNTER   | ❌ |
