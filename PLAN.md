@@ -26,7 +26,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
+| **TINY backend** | `main` B-269 — M-BEAUTY-SR ✅: ShiftReduce 3-way PASS; tree.sno adds DATA('tree'); M-BEAUTY-TDUMP in progress (DOL cpat bss bug in emit_byrd_asm.c — fix in B-270) | `163c952` B-269 | M-BEAUTY-TDUMP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-226 — 2-ucall mini PASS ✅ (color(X),color(Y)→9/9); puzzle_01/05/06 PASS; βN unwind fix partial: rung05/06/08 regressed; root cause documented §27; uncommitted WIP on `b0b190c` | `b0b190c` F-224 (WIP) | M-PROLOG-R10 |
@@ -230,17 +230,17 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 | **M-MON-BUG-ASM-WPAT** | ASM VARVAL_fn: SEQ-of-two-patterns variable stringifies as PATTERNPATTERN instead of PATTERN; fix comm_var type reporting so VALUE WPAT = PATTERN matches oracle | snobol4x | ✅ `a4a27ab` B-258 |
 | **M-MON-BUG-ASM-DATATYPE-CASE** | ASM DATA type name returned lowercase (e.g. 'cell') instead of uppercase ('CELL'); treebank diverges at step 10 STK='cell' vs oracle 'CELL'; fix datatype() or DATA constructor to uppercase type names | snobol4x | ❌ |
 | **M-MON-BUG-JVM-WPAT** | JVM sno_mon_var: pattern datatype not handled in type-name path, emits empty string; fix so VALUE WPAT = PATTERN matches oracle | snobol4x | ❌ |
-| **M-BEAUTY-GLOBAL** | `test/beauty/global/driver.sno` exercises all character constants + &ALPHABET extractions from `global.sno`; driver passes 3-way monitor (CSNOBOL4+SPITBOL+ASM) with zero divergence; `run_beauty_subsystem.sh global` exits 0 | snobol4x | ❌ |
+| **M-BEAUTY-GLOBAL** | `test/beauty/global/driver.sno` exercises all character constants + &ALPHABET extractions from `global.sno`; driver passes 3-way monitor (CSNOBOL4+SPITBOL+ASM) with zero divergence; `run_beauty_subsystem.sh global` exits 0 | snobol4x | ✅ `7e925fd` B-261 |
 | **M-BEAUTY-IS** | `test/beauty/is/driver.sno` exercises IsSnobol4()/IsSpitbol() from `is.sno`; 3-way PASS; depends on M-BEAUTY-GLOBAL | snobol4x | ✅ `be215bb` B-262 |
-| **M-BEAUTY-FENCE** | `test/beauty/FENCE/driver.sno` exercises FENCE primitive wrapper from `FENCE.sno`; 3-way PASS; depends on M-BEAUTY-IS | snobol4x | ❌ |
-| **M-BEAUTY-IO** | `test/beauty/io/driver.sno` exercises INPUT/OUTPUT OPSYN channels from `io.sno`; 3-way PASS; depends on M-BEAUTY-FENCE | snobol4x | ❌ |
-| **M-BEAUTY-CASE** | `test/beauty/case/driver.sno` exercises UpperCase/LowerCase/ToUpper/ToLower from `case.sno`; 3-way PASS; depends on M-BEAUTY-GLOBAL | snobol4x | ❌ |
-| **M-BEAUTY-ASSIGN** | `test/beauty/assign/driver.sno` exercises assign(name,expression) conditional assignment from `assign.sno`; 3-way PASS | snobol4x | ❌ |
-| **M-BEAUTY-MATCH** | `test/beauty/match/driver.sno` exercises match()/notmatch() from `match.sno`; 3-way PASS | snobol4x | ❌ |
-| **M-BEAUTY-COUNTER** | `test/beauty/counter/driver.sno` exercises Init/Push/Inc/Dec/Top/Pop counter stack from `counter.sno`; 3-way PASS | snobol4x | ❌ |
-| **M-BEAUTY-STACK** | `test/beauty/stack/driver.sno` exercises Init/Push/Pop/Top value stack from `stack.sno`; 3-way PASS | snobol4x | ❌ |
-| **M-BEAUTY-TREE** | `test/beauty/tree/driver.sno` exercises DATA tree(t,v,n,c): Append/Prepend/Insert/Remove from `tree.sno`; 3-way PASS; depends on M-BEAUTY-STACK | snobol4x | ❌ |
-| **M-BEAUTY-SR** | `test/beauty/ShiftReduce/driver.sno` exercises Shift(t,v)/Reduce(t,n) tree builder from `ShiftReduce.sno`; 3-way PASS; depends on M-BEAUTY-TREE + M-BEAUTY-COUNTER | snobol4x | ❌ |
+| **M-BEAUTY-FENCE** | `test/beauty/FENCE/driver.sno` exercises FENCE primitive wrapper from `FENCE.sno`; 3-way PASS; depends on M-BEAUTY-IS | snobol4x | ✅ `822c58f` B-261 |
+| **M-BEAUTY-IO** | `test/beauty/io/driver.sno` exercises INPUT/OUTPUT OPSYN channels from `io.sno`; 3-way PASS; depends on M-BEAUTY-FENCE | snobol4x | ✅ `a862b01` B-261 |
+| **M-BEAUTY-CASE** | `test/beauty/case/driver.sno` exercises UpperCase/LowerCase/ToUpper/ToLower from `case.sno`; 3-way PASS; depends on M-BEAUTY-GLOBAL | snobol4x | ✅ `82d5815` B-263 |
+| **M-BEAUTY-ASSIGN** | `test/beauty/assign/driver.sno` exercises assign(name,expression) conditional assignment from `assign.sno`; 3-way PASS | snobol4x | ✅ `9e50b20` B-264 |
+| **M-BEAUTY-MATCH** | `test/beauty/match/driver.sno` exercises match()/notmatch() from `match.sno`; 3-way PASS | snobol4x | ✅ `5cf53ff` B-265 |
+| **M-BEAUTY-COUNTER** | `test/beauty/counter/driver.sno` exercises Init/Push/Inc/Dec/Top/Pop counter stack from `counter.sno`; 3-way PASS | snobol4x | ✅ `a64ae21` B-266 |
+| **M-BEAUTY-STACK** | `test/beauty/stack/driver.sno` exercises Init/Push/Pop/Top value stack from `stack.sno`; 3-way PASS | snobol4x | ✅ `c09c33a` B-267 |
+| **M-BEAUTY-TREE** | `test/beauty/tree/driver.sno` exercises DATA tree(t,v,n,c): Append/Prepend/Insert/Remove from `tree.sno`; 3-way PASS; depends on M-BEAUTY-STACK | snobol4x | ✅ `ed72c0f` B-268 |
+| **M-BEAUTY-SR** | `test/beauty/ShiftReduce/driver.sno` exercises Shift(t,v)/Reduce(t,n) tree builder from `ShiftReduce.sno`; 3-way PASS; depends on M-BEAUTY-TREE + M-BEAUTY-COUNTER | snobol4x | ✅ `163c952` B-269 |
 | **M-BEAUTY-TDUMP** | `test/beauty/TDump/driver.sno` exercises TLump/TDump tree pretty-printer from `TDump.sno`; 3-way PASS; depends on M-BEAUTY-TREE | snobol4x | ❌ |
 | **M-BEAUTY-GEN** | `test/beauty/Gen/driver.sno` exercises Gen/GenLine code generation output from `Gen.sno`; 3-way PASS; depends on M-BEAUTY-IO | snobol4x | ❌ |
 | **M-BEAUTY-QIZE** | `test/beauty/Qize/driver.sno` exercises Qize/DeQize quoting/unquoting from `Qize.sno`; 3-way PASS; depends on M-BEAUTY-GLOBAL | snobol4x | ❌ |

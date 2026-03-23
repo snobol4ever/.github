@@ -12695,3 +12695,34 @@ Next session picks up at M-PROLOG-R10: test mini cross-product, then puzzle solv
 
 ### Next session trigger
 "playing with Prolog frontend" → Session F-225, M-PROLOG-R10.
+
+## Session B-269 — M-BEAUTY-SR ✅ + M-BEAUTY-TDUMP in progress (2026-03-23)
+
+**Trigger:** "playing with BEAUTY"
+**Branch:** main
+**Commit:** `163c952` snobol4x
+
+### Milestones fired
+- **M-BEAUTY-SR ✅** — Shift(t,v)/Reduce(t,n) tree builder, 3-way PASS (CSNOBOL4+SPITBOL+ASM), 5/5 tests
+
+### What was built
+1. `demo/inc/ShiftReduce.sno` — installed from snobol4corpus/programs/include/ShiftReduce.inc
+2. `demo/inc/tree.sno` — added `DATA('tree(t,v,n,c)')` alongside existing `DATA('treeNode')` for ShiftReduce compatibility
+3. `test/beauty/ShiftReduce/driver.sno` — 5 tests: Shift leaf, Reduce(2), Reduce(0) epsilon, Shift empty-v, Reduce(3) order
+4. `test/beauty/ShiftReduce/driver.ref` — oracle 5/5 PASS
+5. `test/beauty/ShiftReduce/tracepoints.conf`
+6. 106/106 ASM corpus ALL PASS confirmed
+
+### M-BEAUTY-TDUMP in progress
+- `demo/inc/Gen.sno` — installed from corpus (Gen/IncLevel/DecLevel/GetLevel/GenTab/GenSetCont)
+- `demo/inc/TDump.sno` — installed from corpus (TValue/TDump/TLump)
+- `test/beauty/TDump/driver.sno` — 5 tests written + oracle ref saved
+- **Open bug:** DOL-box CALL_PAT slots (`cpat97`, `cpat99`, `cpat101`) lack `.bss resq` declarations in generated ASM. Emitter emits `r12`-relative DATA for these slots but `CALL_PAT_α` macro uses absolute `.bss` labels. Fix needed in `emit_byrd_asm.c` — DOL box emitter must emit `.bss resq 1` for each `cpat_N_t/p/saved` when inside a function T2 block.
+- **Key finding:** `NULL *IDENT(n(x))` in TDump.inc always fails for `tree()` objects where `n=''` — CSNOBOL4 treats `*expr` returning `''` as pattern failure. All nodes go through `TLump0`. Leaf renders as `(TypeName)`. Driver tests updated to match actual oracle behavior.
+
+### Next session: B-270 — "playing with BEAUTY"
+1. Fix `emit_byrd_asm.c` DOL box CALL_PAT bss declarations
+2. Rebuild, run ASM on TDump driver → 7 lines matching driver.ref
+3. 3-way monitor: `bash test/beauty/run_beauty_subsystem.sh TDump`
+4. Confirm 106/106 corpus
+5. Commit B-270: M-BEAUTY-TDUMP ✅

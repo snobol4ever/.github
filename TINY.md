@@ -13,8 +13,8 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `6fd01aa` B-264 (main)
-**Milestone:** M-BEAUTY-CASE ❌ — IN PROGRESS (4 fixes applied, 1 open)
+**HEAD:** `163c952` B-269 (main)
+**Milestone:** M-BEAUTY-TDUMP ❌ — IN PROGRESS (Gen.sno+TDump.sno installed; driver+ref done; ASM DOL cpat bss bug open)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 **Compatibility policy:** snobol4x follows CSNOBOL4 behavior. DATATYPE() returns UPPERCASE.
 
