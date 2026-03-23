@@ -307,6 +307,24 @@ evaluation — same four-port model. If JCON source is ever examined,
 look at how it wires the β port in its conjunction evaluation — likely
 directly analogous to the emit_body fix above.
 
+### Session F-214 notes (added 2026-03-22)
+
+**Wrong sandbox — reverted.** F-214 spent context debugging backtracking in `prolog_emit.c` (the C emitter). This was the wrong path. Key findings:
+
+- Rungs 1–4 already PASS via `-pl` C emitter (confirmed this session).
+- Rung 5 (backtrack/member) fails because the C emitter's resumable `_r` function loses inner `_cs` state across stack frame returns. Fixing this requires a continuation-passing redesign of `pl_emit.c` — not worth it.
+- **The correct path is `-pl -asm`**: wire through `emit_byrd_asm.c` which already has four-port Byrd box stubs (`emit_prolog_choice`, `emit_prolog_clause`, α/β/γ/ω labels). Backtracking is free — β port wires to next clause α, ω port signals exhaustion. No `_cs` state needed.
+- The blocker: `driver/main.c` line 144 hardcodes `pl_emit(prog, out)` regardless of `asm_mode`. One-line fix.
+- All changes to `prolog_emit.c` were stashed and reverted. Repo is clean at `3ce6673`.
+
+**Next session (F-215): M-PROLOG-WIRE-ASM**
+
+1. In `driver/main.c`, replace the hardcoded `pl_emit(prog, out)` with the `asm_mode` branch (call `asm_emit` when `-asm` is set).
+2. Link `prolog_atom.c`, `prolog_unify.c`, `prolog_builtin.c` into the ASM binary (add to `Makefile` runtime link or emit inline calls).
+3. Test: `sno2c -pl -asm null.pl -o null.s && nasm -f elf64 null.s && ld ... && ./a.out` → exit 0.
+4. Then `hello.pl` → M-PROLOG-HELLO fires.
+5. Rungs 1–5: Byrd box β port handles backtracking automatically — no C emitter `_cs` hack needed.
+
 ### Recommendation for F-213
 
 1. `cd snobol4x && make -C src` — rebuild with emit_body fix

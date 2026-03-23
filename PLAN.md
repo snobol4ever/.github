@@ -28,7 +28,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-213 — emit_body retry loop; 8/9 corpus PASS; rung05 recursive backtrack needs ASM pivot | `ae253e2` F-213 | M-PROLOG-HELLO (via -asm) |
+| **TINY frontend** | `main` F-214 — diagnosis: C emitter backtracking dead-end; correct path is `-pl -asm` through `emit_byrd_asm.c` Byrd box stubs (already scaffolded); driver wiring needed | `ae253e2` F-213 | M-PROLOG-WIRE-ASM → M-PROLOG-HELLO |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
@@ -269,7 +269,8 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 | ID | Trigger | Status |
 |----|---------|--------|
 | **M-PROLOG-EMIT-NODES** | New `case PL_*` branches in `emit_byrd_asm.c` for all 10 node types. Acceptance: null clause assembles without error. | ✅ `b8312ed` F-212 |
-| **M-PROLOG-HELLO** | `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly. First end-to-end Prolog program. 4D matrix: Prolog×TINY-C ✅ | ❌ |
+| **M-PROLOG-WIRE-ASM** | Wire `-pl -asm` through `emit_byrd_asm.c`: in `driver/main.c` line 144, replace `pl_emit(prog, out)` with `asm_emit(prog, out)` when `asm_mode` is set. Add runtime glue: `pl_atom_init`, `trail_init`, `pl_write` linked into ASM binary. Acceptance: `null.pl` (empty program) assembles and exits 0. | ❌ |
+| **M-PROLOG-HELLO** | `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly. First end-to-end Prolog program. 4D matrix: Prolog×TINY-x64 ✅ | ❌ |
 
 **Sprint 3 — Deterministic programs (no backtracking)**
 

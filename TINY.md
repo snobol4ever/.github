@@ -170,4 +170,4 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | Session | Branch | Focus |
 |---------|--------|-------|
 | B-next | `main` | M-MONITOR-4DEMO finish |
-| F-213  | `main` | M-PROLOG-EMIT retry loop — rungs 2,5 backtracking; then rung 10 puzzles |
+| F-214  | `main` | Diagnosis session — C emitter backtracking wrong path; next: M-PROLOG-WIRE-ASM (wire -pl -asm through emit_byrd_asm.c) |
