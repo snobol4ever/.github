@@ -13,10 +13,48 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `6255a71` B-270 (main) — no snobol4x source change for TDUMP (driver+ref already committed B-269)
-**Milestone:** M-BEAUTY-GEN ❌ — next; depends on M-BEAUTY-IO (✅); exercises Gen/GenLine code generation output from Gen.sno
+**HEAD:** `33e5f7f` B-271 (main)
+**Milestone:** M-BEAUTY-READWRITE ❌ — next; depends on M-BEAUTY-IO (✅); exercises Read/Write/LineMap buffered I/O from ReadWrite.sno
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 **Compatibility policy:** snobol4x follows CSNOBOL4 behavior. DATATYPE() returns UPPERCASE.
+
+**⚡ CRITICAL NEXT ACTION — Session B-272 (M-BEAUTY-READWRITE, BEAUTY SESSION):**
+
+```bash
+cd /home/claude/beauty-project/snobol4x   # or: git clone snobol4ever/snobol4x
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main   # HEAD should be 33e5f7f B-271
+
+# Setup (if fresh container):
+bash setup.sh
+gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
+gcc -shared -fPIC -O2 -Wall -o /home/claude/beauty-project/x64/monitor_ipc_spitbol.so \
+    /home/claude/beauty-project/x64/monitor_ipc_spitbol.c
+
+# ALL 19 INCLUDES NOW IN demo/inc/ — use INC=demo/inc for all beauty drivers
+
+# Write + run M-BEAUTY-READWRITE:
+mkdir -p test/beauty/ReadWrite
+# Write driver exercising Read/Write/LineMap from ReadWrite.sno
+# Oracle: snobol4 -f -P256k -Idemo/inc test/beauty/ReadWrite/driver.sno > driver.ref
+# Monitor: INC=demo/inc X64_DIR=/home/claude/beauty-project/x64 MONITOR_TIMEOUT=30 \
+#          bash test/beauty/run_beauty_subsystem.sh ReadWrite
+
+# Then continue in order:
+#   M-BEAUTY-XDUMP   — XDump extended variable dump (depends M-BEAUTY-TDUMP ✅)
+#   M-BEAUTY-SEMANTIC — semantic action helpers (depends M-BEAUTY-SR ✅ + M-BEAUTY-GEN ✅)
+#   M-BEAUTY-OMEGA   — omega pattern helpers (depends M-BEAUTY-SEMANTIC)
+#   M-BEAUTY-TRACE   — xTrace control + trace output (no hard deps)
+# All 5 remaining → M-BEAUTIFY-BOOTSTRAP sprint begins
+
+# After each PASS: confirm corpus invariant
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
+
+# Fire milestones — commit snobol4x, update PLAN.md + TINY.md, push both repos
+```
+Trigger phrase for beauty sprint: **"playing with beauty"**
+Full developer cycle → BEAUTY.md · RULES.md §BEAUTY SESSION
 
 **⚡ CRITICAL NEXT ACTION — Session B-265 (M-BEAUTY-CASE, BEAUTY SESSION):**
 
@@ -56,20 +94,13 @@ Full developer cycle → BEAUTY.md · RULES.md §BEAUTY SESSION
 
 ## Last Session Summary
 
-**Session B-271 (2026-03-23) — M-BEAUTY-TDUMP ✅ — 3-way PASS, zero divergence:**
-- Root cause of earlier CSNOBOL4 failure: INC path was `/home/claude/snobol4corpus/programs/inc` (corpus location) instead of `demo/inc` (beauty includes location). `global.sno`, `Gen.sno`, `TDump.sno` all live in `snobol4x/demo/inc/`.
-- No source code changes required — driver + ref already correct from B-269.
-- CSNOBOL4 oracle: 7 lines match ref exactly. 3-way monitor: 1 step, 0 divergence. ALL PASS.
-- 106/106 ASM corpus invariant confirmed.
-- Previously-noted 2 open bugs (ANY(&UCASE &LCASE) charset quoting + STLIMIT loop) did NOT manifest in the 5-step TDump driver — driver exercises leaf/node TLump + TDump only, not the multi-line code generation path.
-- Next: M-BEAUTY-GEN — `test/beauty/Gen/driver.sno` exercises Gen/GenLine code generation output from `Gen.sno`; depends on M-BEAUTY-IO (✅).
+**Session B-271 (2026-03-23) — M-BEAUTY-TDUMP ✅ + M-BEAUTY-GEN ✅ + M-BEAUTY-QIZE ✅ + BREAK/SPAN(expr) fix:**
+- **M-BEAUTY-TDUMP**: INC path fix (`demo/inc` not `snobol4corpus/programs/inc`). No source changes. 3-way PASS, 1 step.
+- **M-BEAUTY-GEN**: New driver — 7 tests covering IncLevel/DecLevel/SetLevel/GetLevel/Gen buffering+flush. 3-way PASS, 1 step.
+- **BREAK/SPAN(expr) bug fix**: `BREAK(sq dq)` / `SPAN(expr)` with E_CONC arg silently emitted empty charset. Fix: `stmt_break_ptr` + `stmt_span_ptr` in snobol4_stmt_rt.c; `BREAK_α_PTR`/`SPAN_α_PTR` macros in snobol4_asm.mac; BREAK/SPAN E_CONC branches in emit_byrd_asm.c now dispatch via PTR path. All 19 beauty includes added to demo/inc/.
+- **M-BEAUTY-QIZE**: 5-test driver. 3-way PASS, 11 steps, 0 divergence.
+- 106/106 corpus ALL PASS. snobol4x HEAD: `33e5f7f` B-271.
 
-
-- Fix 1: `snobol4-asm` was not passing `-I"$INC"` to `sno2c` — `-INCLUDE` silently failed, program produced no output.
-- Fix 2+3: `LOAD_NULVCL` / `LOAD_NULVCL32` used `DT_S=1` instead of `DT_SNUL=0`, and didn't set rax/rdx — function variable clear slots got garbage type tags.
-- Fix 4: `emit_byrd_asm.c` ANY(expr) — `ANY(&UCASE &LCASE)` (E_CONC arg) was silently compiled as `ANY("")`. Added emit_expr into temp .bss slot + ANY_α_VAR dispatch.
-- Open: `ANY_α_VAR` calls `NV_GET_fn(varname)` which doesn't find temp labels — needs `ANY_α_SLOT` macro reading charset directly from .bss type+ptr. Root cause of `icase` returning STRING. Fix in B-265.
-- snobol4x commit: `6fd01aa` B-264
 
 **Session F-214 (2026-03-22) — M-PROLOG-HELLO ✅ — Prolog x64 ASM backend first working program:**
 - Wired `-pl -asm` in `main.c` to call new `asm_emit_prolog()` instead of `pl_emit()`.
@@ -148,10 +179,9 @@ Full developer cycle → BEAUTY.md · RULES.md §BEAUTY SESSION
 | M-BEAUTY-STACK     | ❌ |
 | M-BEAUTY-TREE      | ❌ |
 | M-BEAUTY-SR        | ❌ |
-| M-BEAUTY-TDUMP     | ✅ `6255a71` B-271 |
-| M-BEAUTY-GEN       | ❌ |
-| M-BEAUTY-QIZE      | ❌ |
-| M-BEAUTY-READWRITE | ❌ |
+| M-BEAUTY-GEN       | ✅ `50313ae` B-271 |
+| M-BEAUTY-QIZE      | ✅ `33e5f7f` B-271 |
+| M-BEAUTY-READWRITE | ❌ **NEXT** |
 | M-BEAUTY-XDUMP     | ❌ |
 | M-BEAUTY-SEMANTIC  | ❌ |
 | M-BEAUTY-OMEGA     | ❌ |
