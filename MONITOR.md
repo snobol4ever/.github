@@ -27,21 +27,23 @@ identical to the input. A fixed point.
 
 | # | Participant | Role | TRACE stream |
 |---|-------------|------|-------------|
-| 1 | SPITBOL x64 4.0f | **Primary oracle** | stdout |
-| 2 | CSNOBOL4 2.3.3 | Reference (secondary) | stderr |
+| 1 | CSNOBOL4 2.3.3 | **Primary oracle** | stderr |
+| 2 | SPITBOL x64 4.0f | Secondary reference | stdout |
 | 3 | snobol4x ASM backend | Compiled target | stderr |
 | 4 | snobol4x JVM backend | Compiled target | stderr |
 | 5 | snobol4x NET backend | Compiled target | stderr |
 
-**Compatibility target: snobol4x behaves like SPITBOL.**
-When CSNOBOL4 and SPITBOL disagree on a semantic edge case, snobol4x follows SPITBOL.
-CSNOBOL4 remains a useful reference but is not the correctness authority.
+**Compatibility target: snobol4x implements SPITBOL extensions with CSNOBOL4 semantics.**
+- All SPITBOL internal builtins and extensions are implemented.
+- Command-line switches are identical to SPITBOL.
+- For semantic edge cases where CSNOBOL4 and SPITBOL differ, snobol4x follows **CSNOBOL4**.
+- Key rule: `DATATYPE()` returns **UPPERCASE** (CSNOBOL4 convention), not lowercase (SPITBOL).
 
 **Consensus rule:**
-- SPITBOL and CSNOBOL4 agree, one backend diverges → our bug; SPITBOL is the fix target.
-- SPITBOL and CSNOBOL4 agree, all backends diverge the same way → systematic emitter bug.
-- SPITBOL and CSNOBOL4 disagree → snobol4x follows SPITBOL; CSNOBOL4 divergence is expected.
-- Two backends agree with SPITBOL, one diverges → the two agreeing backends specify the fix.
+- CSNOBOL4 and SPITBOL agree, one backend diverges → our bug; CSNOBOL4 is the fix target.
+- CSNOBOL4 and SPITBOL agree, all backends diverge the same way → systematic emitter bug.
+- CSNOBOL4 and SPITBOL disagree → snobol4x follows CSNOBOL4; SPITBOL divergence is expected.
+- Two backends agree with CSNOBOL4, one diverges → the two agreeing backends specify the fix.
 
 **SPITBOL stream quirk:** SPITBOL sends TRACE to stdout, all others to stderr.
 **IPC solution:** All participants use LOAD'd `monitor_ipc.so` — see §IPC Architecture below.

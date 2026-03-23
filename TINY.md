@@ -16,7 +16,7 @@ snobol4x: multiple frontends, multiple backends.
 **HEAD:** `7e925fd` B-261 (main)
 **Milestone:** M-BEAUTY-FENCE ❌ — NEXT (M-BEAUTY-IS ⏸ deferred)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
-**Compatibility policy:** snobol4x targets SPITBOL semantics. When CSNOBOL4 and SPITBOL disagree, snobol4x follows SPITBOL. CSNOBOL4 is reference only.
+**Compatibility policy:** snobol4x implements all SPITBOL extensions (internal builtins + command-line switches identical to SPITBOL). For semantic edge cases where CSNOBOL4 and SPITBOL differ, snobol4x follows CSNOBOL4 behavior. Key exception: DATATYPE() returns UPPERCASE (CSNOBOL4 convention) not lowercase (SPITBOL).
 
 **⚡ CRITICAL NEXT ACTION — Session B-262 (M-BEAUTY-FENCE, BEAUTY SESSION):**
 
