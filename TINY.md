@@ -13,8 +13,8 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `163c952` B-269 (main)
-**Milestone:** M-BEAUTY-TDUMP ❌ — IN PROGRESS (Gen.sno+TDump.sno installed; driver+ref done; ASM DOL cpat bss bug open)
+**HEAD:** `3251cd4` B-269 (main)
+**Milestone:** M-BEAUTY-TDUMP ❌ — IN PROGRESS; flat_bss_register fix applied; 2 open: (1) ANY(&UCASE &LCASE) inside box emits quoted type, (2) STLIMIT exceeded in Gen/TDump multi-line path
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 **Compatibility policy:** snobol4x follows CSNOBOL4 behavior. DATATYPE() returns UPPERCASE.
 

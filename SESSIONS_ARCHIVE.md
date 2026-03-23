@@ -12726,3 +12726,27 @@ Next session picks up at M-PROLOG-R10: test mini cross-product, then puzzle solv
 3. 3-way monitor: `bash test/beauty/run_beauty_subsystem.sh TDump`
 4. Confirm 106/106 corpus
 5. Commit B-270: M-BEAUTY-TDUMP ✅
+
+## Session B-269 addendum — handoff push (2026-03-23)
+
+snobol4x HEAD updated to `3251cd4`. Two bugs remain for B-270:
+
+**Bug 1 — ANY charset quoting inside box:** `ANY(&UCASE &LCASE)` in TLump0/TDump0
+returns quoted type `"Name"` instead of `Name`. The `SPAN(digits &UCASE '_' &LCASE) | epsilon`
+charset expression is not being evaluated correctly inside a T2 function box.
+Fix: same `ANY_α_SLOT` / `flat_bss_register` pattern used for CALL_PAT.
+
+**Bug 2 — STLIMIT in Gen/TDump multi-line:** TDump of internal node hits &STLIMIT=1M.
+Likely infinite loop in `Gen` buffer loop or `TDump3` child iteration.
+Diagnosis: add `OUTPUT = GT(&STCOUNT, 990000) 'near limit at stmt ' &STCOUNT` guard.
+
+### Next session: B-270 — "playing with BEAUTY"
+
+```
+cd /home/claude/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
+git pull --rebase origin main   # HEAD should be 3251cd4 B-269
+bash setup.sh
+```
+
+Fix bugs 1+2 in `emit_byrd_asm.c`, rebuild, run 3-way monitor for TDump, confirm 106/106, commit B-270: M-BEAUTY-TDUMP ✅.

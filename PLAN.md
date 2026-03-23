@@ -26,7 +26,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-269 — M-BEAUTY-SR ✅: ShiftReduce 3-way PASS; tree.sno adds DATA('tree'); M-BEAUTY-TDUMP in progress (DOL cpat bss bug in emit_byrd_asm.c — fix in B-270) | `163c952` B-269 | M-BEAUTY-TDUMP |
+| **TINY backend** | `main` B-269 — M-BEAUTY-SR ✅ `163c952`; M-BEAUTY-TDUMP partial `3251cd4`: Gen.sno+TDump.sno installed, driver+ref, flat_bss_register fix; 2 bugs open: ANY(&UCASE &LCASE) quoting + STLIMIT loop in Gen | `3251cd4` B-269 | M-BEAUTY-TDUMP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-226 — 2-ucall mini PASS ✅ (color(X),color(Y)→9/9); puzzle_01/05/06 PASS; βN unwind fix partial: rung05/06/08 regressed; root cause documented §27; uncommitted WIP on `b0b190c` | `b0b190c` F-224 (WIP) | M-PROLOG-R10 |
