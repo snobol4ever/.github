@@ -17,7 +17,7 @@ snobol4x: multiple frontends, multiple backends.
 **Milestone:** M-MON-BUG-ASM-WPAT ✅ — **PIVOT**: next is M-BEAUTY-GLOBAL (beauty sprint begins)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-259 (M-BEAUTY-GLOBAL, BEAUTY SESSION):**
+**⚡ CRITICAL NEXT ACTION — Session B-260 (M-BEAUTY-GLOBAL, BEAUTY SESSION):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -34,18 +34,30 @@ gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so /home/cla
 INC=/home/claude/snobol4corpus/programs/inc \
   snobol4 -f -P256k -I$INC test/beauty/global/driver.sno > test/beauty/global/driver.ref
 
-# Run 3-way monitor on global driver:
+# Full developer cycle — repeat until monitor exits 0:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=30 bash test/monitor/run_monitor_3way.sh test/beauty/global/driver.sno
+# → first diverging trace line names the bug; fix it; rebuild; re-run
 
-# If PASS → fire M-BEAUTY-GLOBAL, commit, push snobol4x + .github
-# If DIVERGE → file M-MON-BUG-*, do NOT fix in this session
+# When monitor exits 0: confirm corpus invariant
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
+
+# Fire M-BEAUTY-GLOBAL — commit snobol4x, update PLAN.md + TINY.md, push .github
 ```
 
 Trigger phrase for beauty sprint: **"playing with beauty"**
-Full subsystem plan and driver format → BEAUTY.md
+Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSION
 
 ## Last Session Summary
+
+**Session B-259 (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session:**
+- No snobol4x source changes. All work in .github (PLAN.md, RULES.md, TINY.md, BEAUTY.md, MONITOR.md).
+- Added trigger phrase "playing with beauty" → BEAUTY SESSION to PLAN.md trigger table.
+- Expanded all 20 M-BEAUTY-* + M-BEAUTIFY-BOOTSTRAP milestone rows with full trigger descriptions.
+- Rewrote BEAUTY SESSION rules: full developer cycle (find+fix in one session, not split across sessions).
+- Clarified MONITOR SESSION = infrastructure only; BEAUTY SESSION = uses the monitor to fix bugs.
+- Added developer cycle diagram to MONITOR.md. Updated BEAUTY.md harness section with fix-loop script.
+- .github commit: `6dbb5ed` B-259
 
 **Session B-258 (2026-03-22) — M-MON-BUG-ASM-WPAT ✅ + 3-way monitor + corpus DATATYPE fixes:**
 - Root cause: `stmt_concat()` in `snobol4_stmt_rt.c` lacked pattern case. `BREAK(WORD) SPAN(WORD)`
