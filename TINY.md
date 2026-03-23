@@ -46,21 +46,23 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 
 ## Last Session Summary
 
-**Session B-262 (2026-03-22) — M-BEAUTY-FENCE ✅ + SPITBOL segfault fixed:**
-- SPITBOL segfault-on-exit: nextef() SET_WA(type) → SET_WA(scanp); blkln needs block ptr in wa. Added blksize==0 guard. Committed to snobol4ever/x64 as 2d4554a.
-- P_FENCE_β not defined: user functions (is_fn=1) emitted α and fn_γ/fn_ω but not β. Call sites reference β for backtrack. Fixed: emit beta_lbl as standalone stub after fn_ω → ret_omega.
-- M-BEAUTY-FENCE monitor: PASS (1 step). 106/106 ALL PASS.
-- snobol4x commit: `822c58f` B-262
-
-**Session B-262 (2026-03-22) — M-BEAUTY-GLOBAL ✅ — fix -INCLUDE and ;* inline comments:**
-- Root cause hunt: SET_CAPTURE=0 for driver.sno with -I flag.
-- Discovered sno2c has TWO frontend implementations: sno.l/sno.y (flex/bison, unused) and lex.c/parse.c (active).
-- Bug 1: lex.c join_file() had -INCLUDE as intentional no-op ("library functions in mock_includes.c"). Fixed: call open_include(iname, fname, out) to recursively inline included SNOBOL4 source.
-- Bug 2: global.sno uses ';* comment' end-of-line syntax. FLUSH() semicolon-split pushed '* null character' as second SnoLine → parse error "expected operand after unary operator" on every &ALPHABET line. Fixed: in semicolon-split loop, if next_src after ';' starts with '*' or is empty, set next_len=-1 (treat as end-of-statement comment, not multi-stmt separator).
-- After both fixes: 19 SET_CAPTURE in driver.sno output, 0 parse errors.
-- M-BEAUTY-GLOBAL monitor: PASS — all 3 participants agree at every step (21 steps).
-- 106/106 ALL PASS after fixes.
-- snobol4x commit: `7e925fd` B-262
+**Session F-214 (2026-03-22) — M-PROLOG-HELLO ✅ — Prolog x64 ASM backend first working program:**
+- Wired `-pl -asm` in `main.c` to call new `asm_emit_prolog()` instead of `pl_emit()`.
+- Replaced stub `emit_prolog_choice` with full implementation in `emit_byrd_asm.c`:
+  - `emit_prolog_program()`: Prolog header (externs: unify, trail_*, term_new_*, pl_write, putchar, exit)
+  - `emit_prolog_choice()`: resumable `_r` function with `cmp/je` clause dispatch on `start`
+  - `emit_prolog_clause_block()`: α port, trail mark, head unify via `unify()` call, body goals, γ return
+  - `emit_pl_term_load()`: atom→`lea [rel ATOM_LABEL]`, var→`[rbp-slot]`, int→`term_new_int`
+  - `emit_pl_atom_data_v2()`: correct 24-byte Term structs (.data); `pl_rt_init()` fixes atom_ids at runtime
+  - `emit_prolog_main()`: `main` calls `prolog_atom_init` + `trail_init` + `pl_rt_init` + init predicate
+  - Body builtins handled inline: write/1→pl_write, nl/0→putchar(10), halt→exit, true/fail, writeln, =/2, ;/2, ,/2
+- `prolog_unify.c`: added `trail_mark_fn()` non-inline wrapper (static inline not linkable from ASM).
+- Fixed frame size bug: `sub rsp, 32` (not 16) — slots: mark(8)+cut(8)+args_ptr(8)+start(8).
+- Fixed calling convention for arity-0: `rdi`=Trail*, `rsi`=start (not rdi=NULL, rsi=Trail*).
+- Fixed atom struct size: 24 bytes (tag+saved_slot+union) not 16.
+- **VERIFIED**: `hello.pro` → `hello` via `-pl -asm` pipeline end-to-end. M-PROLOG-HELLO ✅
+- OPEN BUG blocking M-PROLOG-R1: call sites use `pl_NAME_ARITY_r` but predicates defined as `pl_NAME_sl_ARITY_r`. Fix: pass `"functor/arity"` through `pl_safe()` at every call site; drop `_%d` suffix. Grep: `pl_%s_%d_r` in `emit_byrd_asm.c`.
+- snobol4x commit: `082141e` F-214
 
 **Session B-260 (2026-03-23) — M-BEAUTY-GLOBAL partial — binary string NUL-safety:**
 - Built CSNOBOL4 2.3.3 from tarball. Cloned snobol4corpus. Confirmed 106/106 ASM ALL PASS.
@@ -142,12 +144,11 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | M-MON-BUG-ASM-WPAT    | ✅ `a4a27ab` B-258 |
 | M-MON-BUG-ASM-DATATYPE-CASE | ❌ — open bug (treebank STK case); beauty sprint proceeds in parallel |
 | M-MON-BUG-JVM-WPAT    | ❌ |
-| **M-BEAUTY-GLOBAL**   | ✅ `7e925fd` B-262 |
-| **M-BEAUTY-IS**       | ⏸ DEFERRED — .NAME/NAME semantics (SPITBOL compat, fix post-bootstrap) |
-| **M-BEAUTY-FENCE**    | ✅ `822c58f` B-262 |
-| **M-BEAUTY-IO**       | ✅ `a862b01` B-262 |
-| **M-BEAUTY-CASE**     | ❌ **NEXT (beauty sprint)** |
-
+| **M-BEAUTY-GLOBAL**   | ❌ partial — M-MON-BUG-ASM-CAPTURE-INCLUDE blocker |
+| M-BEAUTY-IS        | ❌ |
+| M-BEAUTY-FENCE     | ❌ |
+| M-BEAUTY-IO        | ❌ |
+| M-BEAUTY-CASE      | ❌ |
 | M-BEAUTY-ASSIGN    | ❌ |
 | M-BEAUTY-MATCH     | ❌ |
 | M-BEAUTY-COUNTER   | ❌ |
@@ -163,24 +164,15 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | M-BEAUTY-OMEGA     | ❌ |
 | M-BEAUTY-TRACE     | ❌ |
 | M-BEAUTIFY-BOOTSTRAP | ❌ |
-| **M-PROLOG-WIRE-ASM** | ❌ — NEXT (F-session): wire `-pl -asm` through `emit_byrd_asm.c`; one line in `driver/main.c` + runtime link |
-| M-PROLOG-HELLO     | ❌ |
-| M-PROLOG-WRITE     | ❌ |
-| M-PROLOG-FACTS     | ❌ |
-| M-PROLOG-UNIFY     | ❌ |
-| M-PROLOG-ARITH     | ❌ |
-| M-PROLOG-BETA      | ❌ |
+| M-PROLOG-HELLO     | ✅ `082141e` F-214 |
+| **M-PROLOG-R1**    | ❌ **NEXT (F-215)** — fix pl_safe call-site naming; rung02+rung05 |
+| M-PROLOG-R3        | ❌ |
+| M-PROLOG-R4        | ❌ |
 | M-PROLOG-R5        | ❌ |
-| M-PROLOG-R6        | ❌ |
-| M-PROLOG-CUT       | ❌ |
-| M-PROLOG-RECUR     | ❌ |
-| M-PROLOG-BUILTINS  | ❌ |
-| M-PROLOG-R10       | ❌ |
-| M-PROLOG-CORPUS    | ❌ |
 
 ## Concurrent Sessions
 
 | Session | Branch | Focus |
 |---------|--------|-------|
-| B-next | `main` | M-MONITOR-4DEMO finish |
-| F-214  | `main` | Diagnosis session — C emitter backtracking wrong path; next: M-PROLOG-WIRE-ASM (wire -pl -asm through emit_byrd_asm.c) |
+| B-next | `main` | M-BEAUTY-GLOBAL finish (M-MON-BUG-ASM-CAPTURE-INCLUDE) |
+| F-215  | `main` | M-PROLOG-R1 — fix pl_safe call site naming, run rung02+rung05 |

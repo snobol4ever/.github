@@ -28,7 +28,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-214 — diagnosis: C emitter wrong path; milestones rewritten; next is M-PROLOG-WIRE-ASM (one line in driver/main.c + runtime link) | `ae253e2` F-213 | M-PROLOG-WIRE-ASM |
+| **TINY frontend** | `main` F-214 — M-PROLOG-HELLO ✅ `082141e`: -pl -asm pipeline operational; hello.pro runs via x64 NASM Byrd boxes; OPEN BUG: call sites emit pl_FUNCTOR_ARITY_r but predicates defined as pl_FUNCTOR_sl_ARITY_r (pl_safe encodes /N); fix: pass "functor/arity" through pl_safe at every call site, drop _%d suffix | `082141e` F-214 | M-PROLOG-R1 |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
@@ -271,8 +271,8 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-WIRE-ASM** | `driver/main.c`: when `pl_mode && asm_mode`, call `asm_emit` not `pl_emit`. Link `prolog_atom.c + prolog_unify.c + prolog_builtin.c` into ASM binary via `Makefile`. Acceptance: `sno2c -pl -asm null.pl` → `null.s` assembles and links without error; `./null` exits 0. | ❌ |
-| **M-PROLOG-HELLO** | `hello.pl` (`hello :- write(hello), nl.`) → `hello.s` → runs → prints `hello`. First live Byrd box Prolog on x64. 4D matrix Prolog×TINY-x64 ✅ | ❌ |
+| **M-PROLOG-EMIT-NODES** | New `case PL_*` branches in `emit_byrd_asm.c` for all 10 node types. Acceptance: null clause assembles without error. | ✅ `b8312ed` F-212 |
+| **M-PROLOG-HELLO** | `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly. First end-to-end Prolog program. 4D matrix: Prolog×TINY-C ✅ | ✅ `082141e` F-214 |
 
 **Sprint 3 — Deterministic (one session, depends M-PROLOG-HELLO)**
 
