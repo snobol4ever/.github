@@ -28,7 +28,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-214 — diagnosis: C emitter backtracking dead-end; correct path is `-pl -asm` through `emit_byrd_asm.c` Byrd box stubs (already scaffolded); driver wiring needed | `ae253e2` F-213 | M-PROLOG-WIRE-ASM → M-PROLOG-HELLO |
+| **TINY frontend** | `main` F-214 — diagnosis: C emitter wrong path; milestones rewritten; next is M-PROLOG-WIRE-ASM (one line in driver/main.c + runtime link) | `ae253e2` F-213 | M-PROLOG-WIRE-ASM |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
@@ -256,51 +256,55 @@ Sprint detail and runner design → [MONITOR.md](MONITOR.md)
 
 Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
-**Sprint 1 — Foundation (no codegen)**
+**Key insight (F-214):** Byrd invented the four-port box *for Prolog*. Backtracking is structural — β wires to next clause α, ω signals exhaustion. No continuation state needed. Work in `-pl -asm` through `emit_byrd_asm.c`, not the C emitter.
+
+**Sprint 1 — Foundation (done)**
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-TERM** | `term.h` + `pl_atom.c` + `pl_unify.c`: TERM_t, atom interning, unify() + trail. Unit test: `unify(f(X,a), f(b,Y))` → X=b, Y=a; trail_unwind restores both. | ✅ `d297e0c` F-212 |
-| **M-PROLOG-PARSE** | `pl_lex.c` + `pl_parse.c`: tokeniser + recursive-descent parser → ClauseAST. Acceptance: 20-clause `.pl` file parses without error; pretty-print round-trip. | ✅ `2f1d73a` F-212 |
-| **M-PROLOG-LOWER** | `pl_lower.c`: ClauseAST → PL_* IR nodes; variable slot assignment per clause; EnvLayout computed. Acceptance: IR pretty-prints correctly for all 10 corpus rungs. | ✅ `90be832` F-212 |
+| **M-PROLOG-TERM** | `term.h` + `pl_atom.c` + `pl_unify.c`: TERM_t, atom interning, unify() + trail. | ✅ `d297e0c` F-212 |
+| **M-PROLOG-PARSE** | `pl_lex.c` + `pl_parse.c`: tokeniser + parser → ClauseAST. | ✅ `2f1d73a` F-212 |
+| **M-PROLOG-LOWER** | `pl_lower.c`: ClauseAST → PL_* IR nodes; EnvLayout computed. | ✅ `90be832` F-212 |
+| **M-PROLOG-EMIT-NODES** | `case PL_*` branches in `emit_byrd_asm.c` for all node types. | ✅ `b8312ed` F-212 |
 
-**Sprint 2 — First emission (x64 ASM backend)**
-
-| ID | Trigger | Status |
-|----|---------|--------|
-| **M-PROLOG-EMIT-NODES** | New `case PL_*` branches in `emit_byrd_asm.c` for all 10 node types. Acceptance: null clause assembles without error. | ✅ `b8312ed` F-212 |
-| **M-PROLOG-WIRE-ASM** | Wire `-pl -asm` through `emit_byrd_asm.c`: in `driver/main.c` line 144, replace `pl_emit(prog, out)` with `asm_emit(prog, out)` when `asm_mode` is set. Add runtime glue: `pl_atom_init`, `trail_init`, `pl_write` linked into ASM binary. Acceptance: `null.pl` (empty program) assembles and exits 0. | ❌ |
-| **M-PROLOG-HELLO** | `hello :- write('hello'), nl.` compiles via `-pl -asm` and runs correctly. First end-to-end Prolog program. 4D matrix: Prolog×TINY-x64 ✅ | ❌ |
-
-**Sprint 3 — Deterministic programs (no backtracking)**
+**Sprint 2 — Wire and smoke (one session)**
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-R1** | Corpus Rung 1 (hello) + Rung 2 (facts): deterministic lookup, no backtracking. | ❌ |
-| **M-PROLOG-R3** | Corpus Rung 3 (unify): head unification with compound terms. | ❌ |
-| **M-PROLOG-R4** | Corpus Rung 4 (arith): `is/2` + comparison operators. `fibonacci(10,X)` via accumulator. | ❌ |
+| **M-PROLOG-WIRE-ASM** | `driver/main.c`: when `pl_mode && asm_mode`, call `asm_emit` not `pl_emit`. Link `prolog_atom.c + prolog_unify.c + prolog_builtin.c` into ASM binary via `Makefile`. Acceptance: `sno2c -pl -asm null.pl` → `null.s` assembles and links without error; `./null` exits 0. | ❌ |
+| **M-PROLOG-HELLO** | `hello.pl` (`hello :- write(hello), nl.`) → `hello.s` → runs → prints `hello`. First live Byrd box Prolog on x64. 4D matrix Prolog×TINY-x64 ✅ | ❌ |
 
-**Sprint 4 — Backtracking**
-
-| ID | Trigger | Status |
-|----|---------|--------|
-| **M-PROLOG-R5** | Corpus Rung 5 (backtrack): `member/2` correct; multiple solutions on backtracking. β port wiring proven. | ❌ |
-| **M-PROLOG-R6** | Corpus Rung 6 (lists): `append/3`, `length/2`, `reverse/2` all correct. | ❌ |
-| **M-PROLOG-R7** | Corpus Rung 7 (cut): `!` correct; seals β. `member_det/2` deterministic after cut. | ❌ |
-
-**Sprint 5 — Recursion + builtins**
+**Sprint 3 — Deterministic (one session, depends M-PROLOG-HELLO)**
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-R8** | Corpus Rung 8 (recursion): `fibonacci/2`, `factorial/2` via explicit recursion. T2 multi-invocation correct. | ❌ |
-| **M-PROLOG-R9** | Corpus Rung 9 (builtins): `functor/3`, `arg/3`, `=../2`, type tests. | ❌ |
+| **M-PROLOG-WRITE** | `write/1` and `nl/0` builtins callable from ASM: emit `call pl_write` / `call pl_nl` with correct SysV ABI. Acceptance: `rung01_hello` PASS. | ❌ |
+| **M-PROLOG-FACTS** | Fact lookup with deterministic head unification. `rung02_facts` PASS. One clause, no body, no backtracking. | ❌ |
+| **M-PROLOG-UNIFY** | Compound head unification (`foo(X, bar(X))`). `rung03_unify` PASS. | ❌ |
+| **M-PROLOG-ARITH** | `is/2` + integer comparison in body. `rung04_arith` PASS. | ❌ |
 
-**Sprint 6 — Programs**
+**Sprint 4 — Backtracking (one session, depends M-PROLOG-ARITH)**
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| **M-PROLOG-R10** | Corpus Rung 10: Lon's word-puzzle solver programs run correctly. | ❌ |
-| **M-PROLOG-CORPUS** | Full 10-rung Prolog ladder all PASS. 4D matrix: Prolog×TINY-x64 ✅ | ❌ |
+| **M-PROLOG-BETA** | β port fires on clause failure: two-clause predicate retries clause 2 when clause 1 head fails. Single small test PASS. This is the first live backtrack via Byrd box β wiring. | ❌ |
+| **M-PROLOG-R5** | `member/2` with full backtracking. `rung05_backtrack` PASS: `a b c` printed correctly. | ❌ |
+| **M-PROLOG-R6** | `append/3`, `length/2`, `reverse/2`. `rung06_lists` PASS. | ❌ |
+
+**Sprint 5 — Cut + recursion (one session)**
+
+| ID | Trigger | Status |
+|----|---------|--------|
+| **M-PROLOG-CUT** | `!` seals β → ω (FENCE semantics). `differ/2` closed-world negation PASS. `rung07_cut` PASS. | ❌ |
+| **M-PROLOG-RECUR** | `fibonacci/2`, `factorial/2` via recursion. T2 per-invocation DATA blocks correct. `rung08_recursion` PASS. | ❌ |
+
+**Sprint 6 — Builtins + programs**
+
+| ID | Trigger | Status |
+|----|---------|--------|
+| **M-PROLOG-BUILTINS** | `functor/3`, `arg/3`, `=../2`, type tests. `rung09_builtins` PASS. | ❌ |
+| **M-PROLOG-R10** | Lon's word-puzzle solvers (puzzle_01, puzzle_02, puzzle_06). `rung10_programs` PASS. | ❌ |
+| **M-PROLOG-CORPUS** | All 10 rungs PASS via `-pl -asm`. 4D matrix Prolog×TINY-x64 complete. | ❌ |
 
 ---
 

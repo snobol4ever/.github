@@ -164,6 +164,20 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | M-BEAUTY-OMEGA     | ❌ |
 | M-BEAUTY-TRACE     | ❌ |
 | M-BEAUTIFY-BOOTSTRAP | ❌ |
+| **M-PROLOG-WIRE-ASM** | ❌ — NEXT (F-session): wire `-pl -asm` through `emit_byrd_asm.c`; one line in `driver/main.c` + runtime link |
+| M-PROLOG-HELLO     | ❌ |
+| M-PROLOG-WRITE     | ❌ |
+| M-PROLOG-FACTS     | ❌ |
+| M-PROLOG-UNIFY     | ❌ |
+| M-PROLOG-ARITH     | ❌ |
+| M-PROLOG-BETA      | ❌ |
+| M-PROLOG-R5        | ❌ |
+| M-PROLOG-R6        | ❌ |
+| M-PROLOG-CUT       | ❌ |
+| M-PROLOG-RECUR     | ❌ |
+| M-PROLOG-BUILTINS  | ❌ |
+| M-PROLOG-R10       | ❌ |
+| M-PROLOG-CORPUS    | ❌ |
 
 ## Concurrent Sessions
 
