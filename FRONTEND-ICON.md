@@ -18,63 +18,22 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-5 — rung01 6/6 PASS ✅ rung02 3/3 PASS ✅; ICN_WHILE + ICN_SUSPEND scaffold; rung03 t01_gen FAIL: suspend yields 1 then SEGV on resume — call/ret tears down frame | `0b8b6c7` I-5 | Fix suspend calling convention → M-ICON-SUSPEND |
+| **ICON frontend** | `main` I-6 — M-ICON-PROC ✅ M-ICON-SUSPEND ✅: jmp co-routine fix; resume label ordering; proc_done icn_failed=1; generator detection. rung01 6/6 ✅ rung02 3/3 ✅ rung03 1/1 ✅. Oracle built (icon-master 9.5.20b). IPL archived → snobol4corpus. | `d736059` I-6 | M-ICON-CORPUS-R2 |
 
-### Next session checklist (I-6)
+### Next session checklist (I-7)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
 git clone https://github.com/snobol4ever/.github
-# Read FRONTEND-ICON.md §NOW — fix suspend calling convention, fire M-ICON-SUSPEND
+# Read FRONTEND-ICON.md §NOW — write rung02_arith_gen corpus, fire M-ICON-CORPUS-R2
+# Oracle: build icon-master (Configure name=linux && make)
+# Tests live in: test/frontend/icon/corpus/rung02_arith_gen/
 ```
 
-**OPEN BUG — suspend calling convention (fix first):**
-
-Root cause: `emit_suspend` yields via `proc_sret` (bare `ret`). The proc entry does
-`push rbp; mov rbp,rsp; sub rsp,N`. When suspend yields via bare `ret`, the caller
-gets the return address but the stack is NOT restored — `rsp` is still at `rbp-N`.
-On the next β-resume `jmp [icn_suspend_resume]` jumps back into the live proc frame
-correctly, BUT on every subsequent `call icn_PROC` from do_call another frame gets
-stacked. Second/third resumes corrupt stack alignment.
-
-**Fix — jmp-based co-routine calling convention:**
-
-Replace `call icn_PROC` / `ret` with direct `jmp`, keeping the frame permanently alive:
-
-1. **Per-proc BSS slot:** `icn_PROC_caller_ret: resq 1`
-
-2. **Call site α (first call):** instead of `call icn_PROC`:
-   ```nasm
-   lea  rax, [rel icon_N_after_call]
-   mov  [rel icn_PROC_caller_ret], rax
-   jmp  icn_PROC
-   icon_N_after_call:
-   ```
-
-3. **`proc_sret` (suspend yield):**
-   ```nasm
-   icn_PROC_sret:
-       jmp [rel icn_PROC_caller_ret]   ; frame stays live, rsp/rbp unchanged
-   ```
-
-4. **`proc_ret` / `proc_done` (normal return/fail):**
-   ```nasm
-   icn_PROC_ret:
-       add rsp, N
-       pop rbp
-       jmp [rel icn_PROC_caller_ret]   ; not ret — use stored return address
-   ```
-
-5. **Call site β:** unchanged — `icn_suspended` check + `jmp [icn_suspend_resume]`
-
-6. **`icn_emit_file` changes:**
-   - Declare `icn_PROC_caller_ret: resq 1` in BSS for each non-main proc
-   - Proc entry: unchanged (`push rbp; mov rbp,rsp; sub rsp,N; pop args`)
-   - Replace `Ldef(em,proc_ret); ... E(em,"    pop rbp\n    ret\n")` with jmp variant
-   - Replace `Ldef(em,proc_sret); E(em,"    ret\n")` with jmp variant
-   - Replace `E(em,"    call    icn_%s\n",fname)` with lea+mov+jmp trampoline
-
-Acceptance: `rung03/t01_gen` → `1\n2\n3\n4`. Then M-ICON-SUSPEND fires.
+**M-ICON-CORPUS-R2 spec:** arithmetic generators, relational filtering.
+Programs use `every`, `to`, relational ops (`<` `>` `=`), nested generators.
+Note: Icon relational ops return the **right operand** on success (not a boolean).
+Oracle truth must be verified with `icont`/`iconx` — do not assume expected output.
 
 ---
 
@@ -160,8 +119,8 @@ for now.
 | **M-ICON-EMIT-IF** | `if`/`then`/`else` with indirect goto `gate` temp (paper §4.5) | M-ICON-EMIT-REL | ✅ I-2 |
 | **M-ICON-EMIT-EVERY** | `every E do E` drives generator to exhaustion | M-ICON-EMIT-IF | ✅ I-2 |
 | **M-ICON-CORPUS-R1** | Rung 1: all paper examples pass; oracle = `icont`+`iconx` from icon-master | M-ICON-EMIT-EVERY | ✅ 6/6 I-2 |
-| **M-ICON-PROC** | `procedure`/`end`, `local`, `return`, `fail`, call expressions | M-ICON-CORPUS-R1 | ❌ |
-| **M-ICON-SUSPEND** | `suspend E` inside procedure = user-defined generator | M-ICON-PROC | ❌ |
+| **M-ICON-PROC** | `procedure`/`end`, `local`, `return`, `fail`, call expressions | M-ICON-CORPUS-R1 | ✅ `d736059` I-6 |
+| **M-ICON-SUSPEND** | `suspend E` inside procedure = user-defined generator | M-ICON-PROC | ✅ `d736059` I-6 |
 | **M-ICON-CORPUS-R2** | Rung 2: arithmetic generators, relational filtering | M-ICON-SUSPEND | ❌ |
 | **M-ICON-CORPUS-R3** | Rung 3: user procedures with return; user-defined generators | M-ICON-CORPUS-R2 | ❌ |
 | **M-ICON-STRING** | `ICN_STR`, `\|\|` concat via `CAT2_*` macros | M-ICON-CORPUS-R3 | ❌ |
@@ -714,3 +673,28 @@ echo "every write(1 to 5);" > /tmp/t.icn
 icont's lexer (`yylex.h` + `lextab.h`) inserts virtual `;` on newlines when
 last token ∈ `lex_ender_set`. This is standard Icon. **We reject this** —
 explicit `;` everywhere. Confirmed deliberate deviation. Corpus programs need patching.
+
+---
+
+## §I-6 — Session Handoff (2026-03-23): M-ICON-PROC ✅ M-ICON-SUSPEND ✅
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **ICON frontend** | `main` I-6 — M-ICON-PROC ✅ M-ICON-SUSPEND ✅: jmp co-routine; resume label ordering; proc_done icn_failed=1; generator detection. 10/10 PASS. | `d736059` I-6 | M-ICON-CORPUS-R2 |
+
+### Four bugs fixed
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| SEGV on resume | `proc_sret` bare `ret` tears down frame | `icn_PROC_caller_ret` BSS slot; generator procs use `jmp [rel caller_ret]` throughout |
+| Infinite loop of 1 | `Ldef(resume_here)` before body emit → fallthrough into INT 1 sub-node | Emit body nodes first, then `Ldef(resume_here); Jmp(ba)` |
+| Extra final value | `proc_done` didn't set `icn_failed=1` | Added `mov byte [rel icn_failed], 1` at proc_done |
+| Recursive fact SEGV | Single global `caller_ret` clobbered by recursive calls | `has_suspend()` walker + `user_proc_is_gen[]`; only generator procs use jmp convention |
+
+### Also done
+- Oracle built from icon-master 9.5.20b (Configure name=linux && make)
+- 851 IPL `.icn` files archived → snobol4corpus `programs/icon/ipl/`
+
+### Next session (I-7) trigger phrase
+**"playing with ICON"** → I-7 → M-ICON-CORPUS-R2 (arithmetic generators, relational filtering)
