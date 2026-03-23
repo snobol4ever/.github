@@ -29,7 +29,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-224 — greek consistency pass (α/β/γ/ω everywhere in emitters); F-223 fix4 trail_unwind in bfailN; build clean; M-PROLOG-R10 pending mini cross-product test | `b0b190c` F-224 | M-PROLOG-R10 |
+| **TINY frontend** | `main` F-226 — 2-ucall mini PASS ✅ (color(X),color(Y)→9/9); puzzle_01/05/06 PASS; βN unwind fix partial: rung05/06/08 regressed; root cause documented §27; uncommitted WIP on `b0b190c` | `b0b190c` F-224 (WIP) | M-PROLOG-R10 |
 | **DOTNET** | `main` D-164 — Jeff's branch merged: ErrorJump→OnErrorGoto, StartTimer(), DetectConfiguration(), Griswold tests (7), VbLibrary+FSharpOptionLibrary wired, LOAD :F semantics correct; **1903/1903 pass 0 fail on Linux** | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-5 — rung01 6/6 PASS ✅ rung02 3/3 PASS ✅: (1) binop β left_is_value fix — generator-left goes directly to rb; (2) emit_to e2_seen+e1cur fix — nested TO SEGV resolved; (3) ICN_WHILE added; (4) ICN_SUSPEND scaffold: icn_suspended flag, proc_sret bare-ret, call-site β checks flag before jmp [icn_suspend_resume]. rung03 t01_gen outputs 1 only — suspend SEGV on resume: call/ret convention tears down frame; need jmp-based co-routine. | `0b8b6c7` I-5 | M-ICON-SUSPEND (fix suspend calling convention: jmp not call/ret) |
@@ -918,3 +918,45 @@ succeeded. Push had silently failed (no credentials). Rule added below.
 | **TINY frontend** | `main` F-225 — per-ucall trail marks added; mini 9/9 PASS ✅; rung10 still broken (N>2 ucall fail/0 retry — αN mark taken on resume too, over-unwinds); see snobol4x PLAN.md §26 | `b0b190c` (uncommitted changes) | M-PROLOG-R10 |
 
 **Trigger:** `"playing with Prolog frontend"` → F-226 → snobol4x PLAN.md §26
+
+## §27 — Session Handoff F-226 (2026-03-23): βN unwind — 2-ucall fixed, 1-ucall regressed
+
+### Session F-226 summary
+
+**Context:** F-226 attacked M-PROLOG-R10 (Lon's word puzzles). The §26 bug was:
+`αN` took a fresh trail mark on *every* entry including resume, causing over-unwinding.
+
+**Three fixes applied to `emit_byrd_asm.c`** (all uncommitted, base `b0b190c`):
+
+1. **Fix 1 (KEEP):** Guard at `αN` — `test edx,edx / jnz .skip_mark` — take mark only on fresh entry
+2. **Fix 2 (REVERT):** `βN` unwinds to `UCALL_MARK_OFFSET(N-1)` instead of own mark — fixes 2-ucall but breaks recursive predicates
+3. **Fix 3:** Same as fix 2, naming pass
+
+**Results:**
+- ✅ 2-ucall mini (`color(X),color(Y)`) → 9/9
+- ✅ puzzle_01, puzzle_05, puzzle_06 PASS
+- ✅ rung01–04, rung07, rung09 PASS
+- ❌ rung05 (member backtrack), rung06 (lists), rung08 (recursion) — REGRESSED
+
+### True fix for F-227
+
+Move trail mark emission from `αN` to **`γ_{N-1}` time** — captured *after* ucall N-1
+has bound its variable. Then `βN` always unwinds to its own mark (correctly frees X),
+and no skip-mark guard is needed.
+
+```
+γ_{N-1}:
+    [emit trail mark → UCALL_MARK_OFFSET(N)]   ← NEW position
+    xor edx, edx
+αN:
+    [NO mark here]
+    push args, call pl_foo_r
+    js βN
+    ...
+βN:
+    unwind to UCALL_MARK_OFFSET(N)  ← own mark, set at γ_{N-1} = after X was bound
+    mov edx, UCALL_SLOT(N-1)
+    jmp αN-1
+```
+
+**Trigger:** `"playing with Prolog frontend"` → F-227 → snobol4x PLAN.md §27
