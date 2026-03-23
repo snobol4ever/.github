@@ -12097,3 +12097,15 @@ INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=45 bash test/monitor/run_monitor_3way.sh demo/treebank.sno
 grep -n "_b_DATA\|type->name\|DT_DATA" src/runtime/snobol4/snobol4.c | head -15
 ```
+
+## Session B-258 addendum — snobol4corpus DATATYPE normalization (2026-03-22)
+
+Fixed 3 corpus tests to normalize `DATATYPE()` output via `REPLACE(DATATYPE(x),&LCASE,&UCASE)`
+so `.ref` files are stable across CSNOBOL4 (uppercase), SPITBOL (lowercase, -f/-F switches),
+and snobol4x ASM (lowercase). Only `DATATYPE()` return values coerced — user variable
+values and field values untouched. Commit `05b809d` snobol4corpus.
+
+- `081_builtin_datatype`: STRING/INTEGER/REAL — all engines match ✅
+- `096_data_datatype_check`: NODE/hello — all engines match ✅  
+- `1115_data_basic`: DATATYPE comparison normalized; pre-existing value() bug (e005) separate
+106/106 ASM corpus still ALL PASS after corpus update.
