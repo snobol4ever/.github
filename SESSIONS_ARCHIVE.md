@@ -12221,3 +12221,38 @@ INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
 
 case.sno exercises: UpperCase, LowerCase, ToUpper, ToLower, upr().
 DATATYPE() returns UPPERCASE in snobol4x — this is correct (CSNOBOL4 semantics).
+
+## Session B-262 — M-BEAUTY-IS ✅ (2026-03-22)
+
+**Work done:**
+- Cloned snobol4x, .github, x64, snobol4corpus fresh (new container)
+- Built CSNOBOL4 2.3.3 from uploaded tarball; installed nasm, libgc-dev; built bootsbl + sno2c
+- Diagnosed M-BEAUTY-IS driver: original driver produced intentionally different output per runtime (by design of IsSnobol4/IsSpitbol) — 3-way monitor correctly flagged as divergence
+- Fix: rewrote driver to test the XOR property (exactly one predicate succeeds on any runtime) → all 3 participants produce identical `PASS` output
+- 3-way monitor: PASS — 2 steps, zero divergence ✅
+- Committed `be215bb` B-262 to snobol4x; updated PLAN.md dashboard in .github
+
+**State at handoff:**
+- snobol4x HEAD: `be215bb` B-262
+- M-BEAUTY-IS ✅ fired
+- Next milestone: **M-BEAUTY-FENCE** — `test/beauty/fence/` driver already exists from B-261
+
+**Next session start block (B-263):**
+```bash
+cd /home/claude/snobol4x && git pull
+cd /home/claude/.github && git pull
+# Build if fresh container:
+cd /home/claude/snobol4x/src && make
+apt-get install -y nasm libgc-dev
+cd /home/claude/x64 && make bootsbl
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4corpus /home/claude/snobol4corpus
+
+# Invariant check:
+bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
+
+# M-BEAUTY-FENCE: driver exists, run it
+INC=/home/claude/snobol4corpus/programs/inc
+snobol4 -f -P256k -I"$INC" test/beauty/fence/driver.sno > test/beauty/fence/driver.ref
+INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
+  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh fence
+```

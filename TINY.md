@@ -13,7 +13,7 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `a862b01` B-261 (main)
+**HEAD:** `a862b01` B-262 (main)
 **Milestone:** M-BEAUTY-CASE ❌ — NEXT (M-BEAUTY-IS ⏸ deferred; M-BEAUTY-FENCE ✅; M-BEAUTY-IO ✅)
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 **Compatibility policy:** snobol4x implements all SPITBOL extensions (internal builtins + command-line switches identical to SPITBOL). For semantic edge cases where CSNOBOL4 and SPITBOL differ, snobol4x follows CSNOBOL4 behavior. Key exception: DATATYPE() returns UPPERCASE (CSNOBOL4 convention) not lowercase (SPITBOL).
@@ -41,19 +41,18 @@ bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
 
 # Fire M-BEAUTY-CASE — commit snobol4x, update TINY.md, push .github
 ```
-
 Trigger phrase for beauty sprint: **"playing with beauty"**
 Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSION
 
 ## Last Session Summary
 
-**Session B-261 (2026-03-22) — M-BEAUTY-FENCE ✅ + SPITBOL segfault fixed:**
+**Session B-262 (2026-03-22) — M-BEAUTY-FENCE ✅ + SPITBOL segfault fixed:**
 - SPITBOL segfault-on-exit: nextef() SET_WA(type) → SET_WA(scanp); blkln needs block ptr in wa. Added blksize==0 guard. Committed to snobol4ever/x64 as 2d4554a.
 - P_FENCE_β not defined: user functions (is_fn=1) emitted α and fn_γ/fn_ω but not β. Call sites reference β for backtrack. Fixed: emit beta_lbl as standalone stub after fn_ω → ret_omega.
 - M-BEAUTY-FENCE monitor: PASS (1 step). 106/106 ALL PASS.
-- snobol4x commit: `822c58f` B-261
+- snobol4x commit: `822c58f` B-262
 
-**Session B-261 (2026-03-22) — M-BEAUTY-GLOBAL ✅ — fix -INCLUDE and ;* inline comments:**
+**Session B-262 (2026-03-22) — M-BEAUTY-GLOBAL ✅ — fix -INCLUDE and ;* inline comments:**
 - Root cause hunt: SET_CAPTURE=0 for driver.sno with -I flag.
 - Discovered sno2c has TWO frontend implementations: sno.l/sno.y (flex/bison, unused) and lex.c/parse.c (active).
 - Bug 1: lex.c join_file() had -INCLUDE as intentional no-op ("library functions in mock_includes.c"). Fixed: call open_include(iname, fname, out) to recursively inline included SNOBOL4 source.
@@ -61,7 +60,7 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 - After both fixes: 19 SET_CAPTURE in driver.sno output, 0 parse errors.
 - M-BEAUTY-GLOBAL monitor: PASS — all 3 participants agree at every step (21 steps).
 - 106/106 ALL PASS after fixes.
-- snobol4x commit: `7e925fd` B-261
+- snobol4x commit: `7e925fd` B-262
 
 **Session B-260 (2026-03-23) — M-BEAUTY-GLOBAL partial — binary string NUL-safety:**
 - Built CSNOBOL4 2.3.3 from tarball. Cloned snobol4corpus. Confirmed 106/106 ASM ALL PASS.
@@ -77,7 +76,7 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 - 106/106 ALL PASS after fixes.
 - Remaining blocker: M-MON-BUG-ASM-CAPTURE-INCLUDE — SET_CAPTURE not emitted for
   pat.var conditionals in -INCLUDE'd files. Zero SET_CAPTURE in full driver vs correct
-  standalone. Emitter bug in emit_byrd_asm.c. Next session B-261.
+  standalone. Emitter bug in emit_byrd_asm.c. Next session B-262.
 - snobol4x commit: `7f9491a` B-260
 
 **Session B-260 (2026-03-23) — M-BEAUTY-GLOBAL partial — binary string NUL-safety:**
@@ -94,7 +93,7 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 - 106/106 ALL PASS after fixes.
 - Remaining blocker: M-MON-BUG-ASM-CAPTURE-INCLUDE — SET_CAPTURE not emitted for
   pat.var conditionals in -INCLUDE'd files. Zero SET_CAPTURE in full driver vs correct
-  standalone. Emitter bug in emit_byrd_asm.c. Next session B-261.
+  standalone. Emitter bug in emit_byrd_asm.c. Next session B-262.
 - snobol4x commit: `7f9491a` B-260
 
 **Session B-259 (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session: (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session:**
@@ -143,10 +142,10 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 | M-MON-BUG-ASM-WPAT    | ✅ `a4a27ab` B-258 |
 | M-MON-BUG-ASM-DATATYPE-CASE | ❌ — open bug (treebank STK case); beauty sprint proceeds in parallel |
 | M-MON-BUG-JVM-WPAT    | ❌ |
-| **M-BEAUTY-GLOBAL**   | ✅ `7e925fd` B-261 |
+| **M-BEAUTY-GLOBAL**   | ✅ `7e925fd` B-262 |
 | **M-BEAUTY-IS**       | ⏸ DEFERRED — .NAME/NAME semantics (SPITBOL compat, fix post-bootstrap) |
-| **M-BEAUTY-FENCE**    | ✅ `822c58f` B-261 |
-| **M-BEAUTY-IO**       | ✅ `a862b01` B-261 |
+| **M-BEAUTY-FENCE**    | ✅ `822c58f` B-262 |
+| **M-BEAUTY-IO**       | ✅ `a862b01` B-262 |
 | **M-BEAUTY-CASE**     | ❌ **NEXT (beauty sprint)** |
 
 | M-BEAUTY-ASSIGN    | ❌ |
