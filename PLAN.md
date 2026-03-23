@@ -29,7 +29,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY backend** | `main` B-258 — M-MON-BUG-ASM-WPAT ✅: stmt_concat pattern SEQ fix (pat_cat); run_monitor_3way.sh (csn+spl+asm); wordcount ASM AGREE; treebank diverges step 10 STK='cell' vs 'CELL' → M-MON-BUG-ASM-DATATYPE-CASE open; **PIVOT: beauty subsystem testing begins (M-BEAUTY-* sprint)** | `a4a27ab` B-258 | M-BEAUTY-GLOBAL (beauty sprint) |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-221 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅ rung06 ✅ rung07 ✅. Fixes: (1) cut E_CUT redirects next_clause→omega after _cut=1 so fail/0 exits correctly; (2) if-then-else user-call condition emits pl_<pred>_r call + js else_lbl; (3) sequential body ucalls: only last call uses base-relative sub_cs, earlier calls always fresh (xor edx). M-PROLOG-R6+R7 fire. Open: rung08 sub_cs propagation across sequential recursive calls (fib→factorial); rung09 NASM FAIL (undiagnosed). | `692a9ff` F-221 | M-PROLOG-R8 |
+| **TINY frontend** | `main` F-222 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅ rung06 ✅ rung07 ✅ rung08 ✅. Fix: [rbp-32] dual-use bug — start was overwritten by each ucall return, corrupting last-ucall sub_cs dispatch in multi-ucall bodies. New [rbp-16]=sub_cs_acc slot keeps start read-only. M-PROLOG-R8+M-PROLOG-RECUR fire. Open: rung09 NASM FAIL (undiagnosed). | `ff1a492` F-222 | M-PROLOG-BUILTINS |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-4 — M-ICON-PROC ✅ `54248fe`: BSS _val→hw stack push/pop + frame slots; rung02 t01/t02/t03 PASS (add=7, fact=120, sum_to=15); rung01 t02/t05/t06 regress (binop β wiring conflict: generator-left vs value-left — needs bounded flag); t03_nested_to SEGV | `54248fe` | M-ICON-SUSPEND (after rung01 regression fix) |
@@ -298,7 +298,7 @@ Design doc → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 | ID | Trigger | Status |
 |----|---------|--------|
 | **M-PROLOG-CUT** | `!` seals β → ω (FENCE semantics). `differ/2` closed-world negation PASS. `rung07_cut` PASS. | ✅ `692a9ff` F-221 |
-| **M-PROLOG-RECUR** | `fibonacci/2`, `factorial/2` via recursion. T2 per-invocation DATA blocks correct. `rung08_recursion` PASS. | ❌ |
+| **M-PROLOG-RECUR** | `fibonacci/2`, `factorial/2` via recursion. T2 per-invocation DATA blocks correct. `rung08_recursion` PASS. | ✅ `ff1a492` F-222 |
 
 **Sprint 6 — Builtins + programs**
 
