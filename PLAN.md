@@ -22,6 +22,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | "playing with fixing bugs" | BUG SESSION | First ❌ M-MON-BUG-* milestone — one bug only |
 | "playing with beauty" | BEAUTY SESSION | Next ❌ M-BEAUTY-* milestone in dependency order — write driver, run monitor (CSNOBOL4+ASM 3-way), file M-MON-BUG-* for any divergences found, fire milestone when PASS |
 | "playing with README" or "playing with grids" | README SESSION | Next ❌ M-VOL-* then M-FEAT-* then M-README-V2-* in order — run `wc -l`, generate real numbers, fill Grid 7/8 in repo README, commit to that repo |
+| "I'm playing with ICON" | ICON SESSION | Next ❌ M-ICON-* milestone in order — see FRONTEND-ICON.md |
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
@@ -31,6 +32,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY frontend** | `main` F-217 — rung01_hello ✅ rung02_facts ✅ rung03_unify ✅ rung04_arith ✅. Fixes: E_UNIFY body dispatch, compound term construction (term_new_compound), is/2+EMIT_CMP label naming, if-then-else (->), arithmetic nodes in emit_pl_term_load, retry loop trail_unwind ordering. rung05 FAIL: two bugs identified — start arg rcx vs rdx mismatch, head unif per-arg jmp bypasses subsequent args | `45c467f` F-217 | M-PROLOG-R1 |
 | **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
+| **ICON frontend** | `main` I-0 — plan written, no code yet | — | M-ICON-LEX |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
@@ -80,7 +82,7 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | SNOBOL4/SPITBOL | ⏳ | — | ⏳ | — | ⏳ | ⏳ |
 | Snocone | — | — | — | — | ⏳ | ⏳ |
 | Rebus | ✅ | — | — | — | — | — |
-| Icon | — | — | — | — | — | — |
+| Icon | ⏳ | — | — | — | — | — |
 | Prolog | ⏳ | ⏳ | — | — | — | — |
 | C#/Clojure | — | — | — | — | — | — |
 
@@ -650,6 +652,33 @@ Categories (rows):
 - Unicode / &ALPHABET beyond ASCII
 
 Rating per row: ✅ complete · ⚠ partial · 🔧 skeleton · ❌ missing · — N/A
+
+---
+
+### Milestone Table — ICON Frontend (snobol4x)
+
+**Trigger phrase:** `"I'm playing with ICON"` → session type ICON, prefix `I`
+**Full spec:** FRONTEND-ICON.md
+
+| ID | Trigger | Depends on | Status |
+|----|---------|-----------|--------|
+| **M-ICON-LEX** | `icon_lex.c` tokenizes all Tier 0 tokens; unit test 100% pass | — | ❌ |
+| **M-ICON-PARSE-LIT** | Parser produces correct AST for all Proebsting §2 paper examples | M-ICON-LEX | ❌ |
+| **M-ICON-EMIT-LIT** | Byrd box for `ICN_INT` matches paper §4.1 exactly | M-ICON-PARSE-LIT | ❌ |
+| **M-ICON-EMIT-TO** | `to` generator; `every write(1 to 5);` → `1..5` | M-ICON-EMIT-LIT | ❌ |
+| **M-ICON-EMIT-ARITH** | `+` `*` `-` `/` binary ops via existing `E_ADD/MPY/SUB/DIV` | M-ICON-EMIT-TO | ❌ |
+| **M-ICON-EMIT-REL** | `<` `>` `=` `~=` relational with goal-directed retry | M-ICON-EMIT-ARITH | ❌ |
+| **M-ICON-EMIT-IF** | `if`/`then`/`else` with indirect goto `gate` temp (paper §4.5) | M-ICON-EMIT-REL | ❌ |
+| **M-ICON-EMIT-EVERY** | `every E do E` drives generator to exhaustion | M-ICON-EMIT-IF | ❌ |
+| **M-ICON-CORPUS-R1** | Rung 1: all paper examples pass; oracle = icon-master icont+iconx | M-ICON-EMIT-EVERY | ❌ |
+| **M-ICON-PROC** | `procedure`/`end`, `local`, `return`, `fail`, call expressions | M-ICON-CORPUS-R1 | ❌ |
+| **M-ICON-SUSPEND** | `suspend E` inside procedure = user-defined generator | M-ICON-PROC | ❌ |
+| **M-ICON-CORPUS-R2** | Rung 2: arithmetic generators, relational filtering | M-ICON-SUSPEND | ❌ |
+| **M-ICON-CORPUS-R3** | Rung 3: user procedures with return; user-defined generators | M-ICON-CORPUS-R2 | ❌ |
+| **M-ICON-STRING** | `ICN_STR`, `\|\|` concat via `CAT2_*` macros | M-ICON-CORPUS-R3 | ❌ |
+| **M-ICON-SCAN** | `E ? E` string scanning; explicit cursor threading | M-ICON-STRING | ❌ |
+| **M-ICON-CSET** | Cset literals; `upto`→`BREAK`, `many`→`SPAN`, membership→`ANY` | M-ICON-SCAN | ❌ |
+| **M-ICON-CORPUS-R4** | Rung 4: string operations and scanning | M-ICON-CSET | ❌ |
 
 ---
 
