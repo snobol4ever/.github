@@ -18,31 +18,55 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-1 — M-ICON-LEX ✅ `d1697ac`; 103/103 PASS; **next session starts here** | `d1697ac` | M-ICON-PARSE-LIT |
+| **ICON frontend** | `main` I-2 — M-ICON-CORPUS-R1 ✅ `1c299e3`; full Rung 1 pipeline; 6/6 PASS | `1c299e3` | M-ICON-PROC |
 
-### Next session checklist (I-2)
+### Next session checklist (I-3)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
 git clone https://github.com/snobol4ever/.github
-# Read FRONTEND-ICON.md — start at M-ICON-PARSE-LIT
+bash /home/claude/snobol4x/setup.sh
+# Read FRONTEND-ICON.md §NOW — start at M-ICON-PROC emitter fix
 ```
 
-**M-ICON-PARSE-LIT acceptance criteria:**
-1. `icon_parse.c` + `icon_parse_test.c` compiled and all unit tests pass
-2. Parser produces correct AST for all Proebsting §2 paper examples (Rung 1 corpus)
-3. Specifically: `ICN_INT`, `ICN_TO`, `ICN_MUL`, `ICN_LT`, `ICN_GT`, `ICN_EVERY`, `ICN_CALL`, `ICN_PROC`
-4. `icn_node_dump()` implemented in `icon_ast.c` for test verification
+**M-ICON-PROC: emitter fix (I-3 first task)**
 
-**Key files for next session:**
-- `src/frontend/icon/icon_lex.h` + `icon_lex.c` — lexer (done ✅)
-- `src/frontend/icon/icon_ast.h` — AST already defined (do not change enum)
-- `src/frontend/icon/icon_parse.h` — parser API already defined
-- `src/frontend/prolog/prolog_parse.c` — structural template for recursive-descent
-- `test/frontend/icon/corpus/rung01_paper/*.icn` — the 6 corpus programs to parse
-- `FRONTEND-ICON.md §Deep JCON Analysis` — precedence and wiring reference
+Parser now correct — `icon_parse.c`:
+- `proc->val.ival` = nparams
+- `proc->children[1..nparams]` = param ICN_VAR nodes
+- `proc->children[nparams+1..]` = body stmts
+- `ICN_GLOBAL` node returned for `local` decls (children = local name ICN_VARs)
+
+Emitter `icn_emit_file` (~line 695 emission loop) needs:
+1. Read `np = (int)proc->val.ival`; register params into local table slots 0..np-1
+2. Scan stmts for `ICN_GLOBAL` nodes; register their children as additional locals
+3. Frame size = `8*(np + nlocals + 1)` rounded to 16
+4. At proc entry after frame setup: call `icn_pop` np times (reverse slot order):
+   ```c
+   for (int pi = np-1; pi >= 0; pi--) {
+       E(em,"    call    icn_pop\n");
+       E(em,"    mov     [rbp%+d], rax\n", slot_offset(pi));
+   }
+   ```
+5. Stmt loop: iterate `children[1+np..]`, skip `ICN_GLOBAL` nodes
+
+**M-ICON-PROC acceptance criteria:**
+Write `test/frontend/icon/corpus/rung02/`:
+- `t01_add_proc.icn`: `procedure add(x,y)` called from main — tests param passing
+- `t02_fact.icn`: recursive factorial — tests recursion + return
+- `t03_locals.icn`: procedure with `local` vars — tests local frame slots
+
+**M-ICON-SUSPEND (follows immediately):**
+- `suspend E` = yield value, resume on β; needs saved resume address per activation
+- For Rung 3: implement as a global resume-label slot (single active generator at a time)
+- Write `test/frontend/icon/corpus/rung03/t01_gen.icn`
+
+**Key files:**
+- `src/frontend/icon/icon_emit.c` lines ~670-760 (`icn_emit_file` emission loop)
+- `src/frontend/icon/icon_parse.c` — already correct, do not change
 
 ---
+
 
 ## Why Icon fits the Byrd Box model
 
@@ -115,16 +139,16 @@ for now.
 
 | ID | Trigger | Depends on | Status |
 |----|---------|-----------|--------|
-| **M-ICON-ORACLE** | `icont` + `iconx` built from icon-master; `every write(1 to 5);` → `1\n2\n3\n4\n5` confirmed; `icon-master/bin/icont` and `iconx` committed to path | — | ❌ |
-| **M-ICON-LEX** | `icon_lex.c` tokenizes all Tier 0 tokens; `icon_lex_test.c` 100% pass | M-ICON-ORACLE | ✅ `d1697ac` I-1 |
-| **M-ICON-PARSE-LIT** | Parser produces correct AST for all Proebsting §2 paper examples | M-ICON-LEX | ❌ |
-| **M-ICON-EMIT-LIT** | Byrd box for `ICN_INT` matches paper §4.1 exactly | M-ICON-PARSE-LIT | ❌ |
-| **M-ICON-EMIT-TO** | `to` generator; `every write(1 to 5);` → `1..5` | M-ICON-EMIT-LIT | ❌ |
-| **M-ICON-EMIT-ARITH** | `+` `*` `-` `/` binary ops via existing `E_ADD/MPY/SUB/DIV` | M-ICON-EMIT-TO | ❌ |
-| **M-ICON-EMIT-REL** | `<` `>` `=` `~=` relational with goal-directed retry | M-ICON-EMIT-ARITH | ❌ |
-| **M-ICON-EMIT-IF** | `if`/`then`/`else` with indirect goto `gate` temp (paper §4.5) | M-ICON-EMIT-REL | ❌ |
-| **M-ICON-EMIT-EVERY** | `every E do E` drives generator to exhaustion | M-ICON-EMIT-IF | ❌ |
-| **M-ICON-CORPUS-R1** | Rung 1: all paper examples pass; oracle = `icont`+`iconx` from icon-master | M-ICON-EMIT-EVERY | ❌ |
+| **M-ICON-ORACLE** | `icont` + `iconx` built from icon-master; `every write(1 to 5);` → `1\n2\n3\n4\n5` confirmed; `icon-master/bin/icont` and `iconx` committed to path | — | ✅ `d364a14` |
+| **M-ICON-LEX** | `icon_lex.c` tokenizes all Tier 0 tokens; `icon_lex_test.c` 100% pass | M-ICON-ORACLE | ✅ 108/108 I-2 |
+| **M-ICON-PARSE-LIT** | Parser produces correct AST for all Proebsting §2 paper examples | M-ICON-LEX | ✅ 21/21 I-2 |
+| **M-ICON-EMIT-LIT** | Byrd box for `ICN_INT` matches paper §4.1 exactly | M-ICON-PARSE-LIT | ✅ I-2 |
+| **M-ICON-EMIT-TO** | `to` generator; `every write(1 to 5);` → `1..5` | M-ICON-EMIT-LIT | ✅ I-2 |
+| **M-ICON-EMIT-ARITH** | `+` `*` `-` `/` binary ops via existing `E_ADD/MPY/SUB/DIV` | M-ICON-EMIT-TO | ✅ I-2 |
+| **M-ICON-EMIT-REL** | `<` `>` `=` `~=` relational with goal-directed retry | M-ICON-EMIT-ARITH | ✅ I-2 |
+| **M-ICON-EMIT-IF** | `if`/`then`/`else` with indirect goto `gate` temp (paper §4.5) | M-ICON-EMIT-REL | ✅ I-2 |
+| **M-ICON-EMIT-EVERY** | `every E do E` drives generator to exhaustion | M-ICON-EMIT-IF | ✅ I-2 |
+| **M-ICON-CORPUS-R1** | Rung 1: all paper examples pass; oracle = `icont`+`iconx` from icon-master | M-ICON-EMIT-EVERY | ✅ 6/6 I-2 |
 | **M-ICON-PROC** | `procedure`/`end`, `local`, `return`, `fail`, call expressions | M-ICON-CORPUS-R1 | ❌ |
 | **M-ICON-SUSPEND** | `suspend E` inside procedure = user-defined generator | M-ICON-PROC | ❌ |
 | **M-ICON-CORPUS-R2** | Rung 2: arithmetic generators, relational filtering | M-ICON-SUSPEND | ❌ |

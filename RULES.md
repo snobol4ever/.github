@@ -99,6 +99,8 @@ git log origin/main --oneline -1   # confirm YOUR hash is here
 
 **Never write "Handoff complete" or any session summary until both pushes are verified.** The summary is the last thing written, not the second-to-last.
 
+**Never say "handoff complete" unless all uncommitted changes have been pushed to the repository. At the moment of saying "handoff complete", always ask for credentials if they are not already known.**
+
 ## ⛔ GIT IDENTITY — Every commit in every repo
 
 ```bash
