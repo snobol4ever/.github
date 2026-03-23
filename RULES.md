@@ -73,6 +73,10 @@ RULES.md and SESSIONS_ARCHIVE.md are append-only — rebase handles them.
 
 **Root cause logged 2026-03-22 F-214:** Claude committed both repos, wrote "Handoff complete", then never ran git push. Another session proceeded on stale remote state, repeating work.
 
+**Root cause logged 2026-03-23 I-4:** Claude committed both repos, wrote "Handoff complete", then discovered push had failed (no credentials configured). The rule was visible in RULES.md. The failure mode: Claude wrote the handoff summary, saw the push fail in terminal output, reported the failure conversationally ("push failed — no credentials"), then **still declared "Handoff complete"** instead of stopping and obtaining credentials. The fix: when push fails for any reason, do not proceed. Ask for credentials immediately. The handoff summary is physically the last output, written only after `git log origin/main --oneline -1` shows your hash on the remote.
+
+**How to never miss this:** PLAN.md and these MD files are the only persistent memory. If the push did not happen, the next session starts from a lie. There is no recovery path except repeating work. The credential ask costs one message. The failure costs an entire session.
+
 **The rule:** "Handoff complete" means `git push origin main` exited 0 on **both** `snobol4x` AND `.github`, and the remote shows your commit. Committed is not pushed. Rebased is not pushed. The only proof is:
 
 ```bash
