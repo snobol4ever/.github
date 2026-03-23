@@ -845,3 +845,38 @@ And in `emit_byrd_asm.c` ANY expr branch, emit `ANY_α_SLOT tmplab_t, tmplab_p, 
 6. Confirm `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → 106/106
 7. Commit `B-265: M-BEAUTY-CASE ✅`, update PLAN.md dashboard + TINY.md, push both repos
 
+
+---
+
+## §22 — Session Handoff F-223 (2026-03-23): Prolog builtins done, rung10 wiring WIP
+
+### Dashboard update
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **TINY frontend** | `main` F-223 — M-PROLOG-BUILTINS ✅: rung09 PASS (functor/3 arg/3 =../2 type-tests); multi-ucall E2.fail→E1.resume wiring in progress for rung10; BSS link fix (subject_data stubs); bsucc xor-edx fix; fail/0 retry fix; trail_unwind-before-retry fix applied — **needs test next session** | `e24e962`+WIP | M-PROLOG-R10 |
+
+### Milestone fires this session
+- **M-PROLOG-BUILTINS** ✅ — `rung09_builtins` PASS
+
+### What was built (F-223)
+Four fixes to `src/backend/x64/emit_byrd_asm.c`:
+
+1. **BSS stubs** in `emit_pl_header`: added `global cursor, subject_data, subject_len_val`
+   with `resq`/`resb` declarations so Prolog binaries link against `stmt_rt.c`.
+
+2. **`xor edx,edx` at `bsucc`**: when ucall N succeeds and falls through to ucall N+1,
+   `edx` must be zeroed so ucall N+1 starts fresh (sub_cs=0).
+
+3. **`fail/0` retry**: `fail` now emits `mov edx,[rbp-UCALL_SLOT(N-1)]; jmp ucresN-1`
+   when there are pending ucalls, instead of `trail_unwind; jmp next_clause`.
+
+4. **`trail_unwind` in `bfailN`**: before jumping to `ucres(N-1)`, unwind trail to
+   clause mark so bindings from the failed subtree are cleared.
+
+### Open: mini cross-product test still prints only `red-red`
+Fix 4 was applied at end of session but not tested (context exhausted).
+Root question: does `trail_unwind` correctly reset Term* bindings so that
+`ucres0` re-calling `color(X)` sees X as unbound? See snobol4x PLAN.md §24.
+
+### Next session (F-224) trigger phrase
+**"playing with Prolog frontend"** → F-224 session → pick up at snobol4x PLAN.md §24.
