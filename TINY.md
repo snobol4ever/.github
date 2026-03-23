@@ -13,11 +13,11 @@ snobol4x: multiple frontends, multiple backends.
 ## NOW
 
 **Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `a4a27ab` B-258 (main)
-**Milestone:** M-MON-BUG-ASM-WPAT ✅ — **PIVOT**: next is M-BEAUTY-GLOBAL (beauty sprint begins)
+**HEAD:** `7f9491a` B-260 (main)
+**Milestone:** M-BEAUTY-GLOBAL ❌ — partial; blocker M-MON-BUG-ASM-CAPTURE-INCLUDE
 **Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-260 (M-BEAUTY-GLOBAL, BEAUTY SESSION):**
+**⚡ CRITICAL NEXT ACTION — Session B-261 (M-BEAUTY-GLOBAL finish, BEAUTY SESSION):**
 
 ```bash
 cd /home/claude/snobol4x
@@ -30,19 +30,25 @@ bash setup.sh
 gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
 gcc -shared -fPIC -O2 -Wall -o /home/claude/x64/monitor_ipc_spitbol.so /home/claude/x64/monitor_ipc_spitbol.c
 
-# Generate oracle ref for global driver:
-INC=/home/claude/snobol4corpus/programs/inc \
-  snobol4 -f -P256k -I$INC test/beauty/global/driver.sno > test/beauty/global/driver.ref
+# THE BUG: M-MON-BUG-ASM-CAPTURE-INCLUDE
+# SET_CAPTURE not emitted for pat.var conditionals in -INCLUDE'd files.
+# Reproduce:
+INC=/home/claude/snobol4corpus/programs/inc
+./sno2c -asm -I"$INC" test/beauty/global/driver.sno 2>/dev/null | grep -c SET_CAPTURE
+# → 0  (WRONG — should be ~12 for all &ALPHABET captures)
+./sno2c -asm /home/claude/snobol4corpus/programs/inc/global.sno 2>/dev/null | grep -c SET_CAPTURE
+# → compare: is it also 0 standalone?
+# Fix in: src/backend/x64/emit_byrd_asm.c  (pat.var conditional assignment)
 
-# Full developer cycle — repeat until monitor exits 0:
+# After fix — run monitor:
 INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
-  MONITOR_TIMEOUT=30 bash test/monitor/run_monitor_3way.sh test/beauty/global/driver.sno
-# → first diverging trace line names the bug; fix it; rebuild; re-run
+  MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh global
+# → repeat fix loop until monitor exits 0
 
-# When monitor exits 0: confirm corpus invariant
+# Confirm corpus invariant
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
 
-# Fire M-BEAUTY-GLOBAL — commit snobol4x, update PLAN.md + TINY.md, push .github
+# Fire M-BEAUTY-GLOBAL — commit snobol4x, update TINY.md, push .github
 ```
 
 Trigger phrase for beauty sprint: **"playing with beauty"**
@@ -50,7 +56,41 @@ Full developer cycle and subsystem plan → BEAUTY.md · RULES.md §BEAUTY SESSI
 
 ## Last Session Summary
 
-**Session B-259 (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session:**
+**Session B-260 (2026-03-23) — M-BEAUTY-GLOBAL partial — binary string NUL-safety:**
+- Built CSNOBOL4 2.3.3 from tarball. Cloned snobol4corpus. Confirmed 106/106 ASM ALL PASS.
+- Built monitor_ipc_sync.so + monitor_ipc_spitbol.so.
+- Created test/beauty/run_beauty_subsystem.sh harness.
+- Fixed run_monitor_3way.sh: SNOLIB includes INC path (cd "$INC") so SPITBOL finds -INCLUDE files.
+- 3-way monitor fired: DIVERGENCE at step 1 — ASM skipped PASS: nul (CSNOBOL4+SPITBOL agreed).
+- Root cause chain (4 bugs, all fixed):
+  1. apply_captures (snobol4_pattern.c): STRVAL → BSTRVAL(text, len) — preserves slen
+  2. stmt_set_capture (snobol4_stmt_rt.c): STRVAL → BSTRVAL(s, len)
+  3. stmt_setup_subject (snobol4_stmt_rt.c): strlen(&ALPHABET)=0 → descr_slen()
+  4. BCHAR_fn: STRVAL → BSTRVAL(buf,1); ident(): strcmp → memcmp+descr_slen
+- 106/106 ALL PASS after fixes.
+- Remaining blocker: M-MON-BUG-ASM-CAPTURE-INCLUDE — SET_CAPTURE not emitted for
+  pat.var conditionals in -INCLUDE'd files. Zero SET_CAPTURE in full driver vs correct
+  standalone. Emitter bug in emit_byrd_asm.c. Next session B-261.
+- snobol4x commit: `7f9491a` B-260
+
+**Session B-260 (2026-03-23) — M-BEAUTY-GLOBAL partial — binary string NUL-safety:**
+- Built CSNOBOL4 2.3.3 from tarball. Cloned snobol4corpus. Confirmed 106/106 ASM ALL PASS.
+- Built monitor_ipc_sync.so + monitor_ipc_spitbol.so.
+- Created test/beauty/run_beauty_subsystem.sh harness.
+- Fixed run_monitor_3way.sh: SNOLIB includes INC path (cd "$INC") so SPITBOL finds -INCLUDE files.
+- 3-way monitor fired: DIVERGENCE at step 1 — ASM skipped PASS: nul (CSNOBOL4+SPITBOL agreed).
+- Root cause chain (4 bugs, all fixed):
+  1. apply_captures (snobol4_pattern.c): STRVAL → BSTRVAL(text, len) — preserves slen
+  2. stmt_set_capture (snobol4_stmt_rt.c): STRVAL → BSTRVAL(s, len)
+  3. stmt_setup_subject (snobol4_stmt_rt.c): strlen(&ALPHABET)=0 → descr_slen()
+  4. BCHAR_fn: STRVAL → BSTRVAL(buf,1); ident(): strcmp → memcmp+descr_slen
+- 106/106 ALL PASS after fixes.
+- Remaining blocker: M-MON-BUG-ASM-CAPTURE-INCLUDE — SET_CAPTURE not emitted for
+  pat.var conditionals in -INCLUDE'd files. Zero SET_CAPTURE in full driver vs correct
+  standalone. Emitter bug in emit_byrd_asm.c. Next session B-261.
+- snobol4x commit: `7f9491a` B-260
+
+**Session B-259 (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session: (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session:**
 - No snobol4x source changes. All work in .github (PLAN.md, RULES.md, TINY.md, BEAUTY.md, MONITOR.md).
 - Added trigger phrase "playing with beauty" → BEAUTY SESSION to PLAN.md trigger table.
 - Expanded all 20 M-BEAUTY-* + M-BEAUTIFY-BOOTSTRAP milestone rows with full trigger descriptions.
