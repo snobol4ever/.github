@@ -675,3 +675,85 @@ explicit `;` everywhere. Confirmed deliberate deviation. Corpus programs need pa
 
 ---
 
+
+---
+
+## §NOW — I-8 Pre-session Bug Brief
+
+**State:** I-7 pushed clean (`54031a5`). 15/15 corpus passing. Next: M-ICON-CORPUS-R3.
+
+**Bug to fix first (blocks R3):** `every write(upto(3) + 10)` → empty output.
+
+### Root cause (fully diagnosed in lost I-8 session)
+
+When a generator proc is the **left child of a binop**, two things are wrong:
+
+1. **`left_is_value=1` for `ICN_CALL`** (line ~599 of `icon_emit.c`).  
+   On binop β, `left_is_value=1` causes it to jump to `la` (re-calls the proc from scratch) instead of `lb` (resumes the suspended generator).  
+   **Fix:** exclude generator procs from `left_is_value`. Change the condition so `ICN_CALL` is only `left_is_value=1` when `!user_proc_is_gen[proc_index]`.
+
+2. **Stack corruption via live generator frame.**  
+   The jmp-based co-routine keeps the generator's frame live on the hardware stack. The caller's subsequent `push`/`pop` arithmetic (for the right child INT, for `lstore`, etc.) happens while that live frame sits below rsp — but rsp isn't reset to the caller's frame top after `after_call`. When `main` does `add rsp, N; pop rbp; ret`, rsp is wrong → corruption.  
+   **Fix:** save caller's `rsp` into a per-call BSS slot (`icn_NNN_saved_rsp: resq 1`) immediately before `jmp icn_PROC`. Restore it at `after_call` entry AND at the top of the β resume path (before `jmp [icn_suspend_resume]`). Both return paths come through `after_call` so the restore there covers the suspend→yield path; the β path needs its own restore before the resume jump.
+
+### Exact lines to change in `icon_emit.c`
+
+**Fix 1 — `left_is_value` (around line 598):**
+```c
+// BEFORE:
+int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
+                     left_child->kind == ICN_STR || left_child->kind == ICN_CALL);
+// AFTER:
+int left_call_is_gen = 0;
+if (left_child->kind == ICN_CALL && left_child->nchildren >= 1) {
+    const char *fn = left_child->sval; /* fname */
+    for (int k = 0; k < n_user_procs; k++)
+        if (strcmp(user_procs[k], fn) == 0) { left_call_is_gen = user_proc_is_gen[k]; break; }
+}
+int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
+                     left_child->kind == ICN_STR ||
+                     (left_child->kind == ICN_CALL && !left_call_is_gen));
+```
+
+**Fix 2 — rsp save/restore in `emit_call` (around line 500):**
+```c
+// Declare BSS slot
+char saved_rsp[64]; snprintf(saved_rsp, sizeof saved_rsp, "icn_%d_saved_rsp", id);
+bss_declare(saved_rsp);
+
+// Before jmp icn_PROC (at docall):
+E(em,"    mov     [rel %s], rsp\n", saved_rsp);
+E(em,"    lea     rax, [rel %s]\n", after_call);
+E(em,"    mov     [rel %s], rax\n", caller_ret);
+E(em,"    jmp     icn_%s\n", fname);
+
+// At after_call entry — FIRST instruction:
+Ldef(em, after_call);
+E(em,"    mov     rsp, [rel %s]\n", saved_rsp);   // ← ADD THIS
+// ... then existing icn_failed check etc.
+
+// At β resume path — before jmp [icn_suspend_resume]:
+E(em,"    mov     [rel %s], rsp\n", saved_rsp);   // ← refresh before resume
+E(em,"    mov     byte [rel icn_suspended], 0\n");
+E(em,"    jmp     [rel icn_suspend_resume]\n");
+```
+
+### R3 test programs (write these after fixing the bug)
+
+All verified against oracle in lost session:
+
+| file | program | expected |
+|------|---------|----------|
+| `t01_return.icn` | `procedure add(a,b); return a+b; end` `write(add(3,4))` | `7` |
+| `t02_gen_arith.icn` | `procedure gen(n); local i; i:=1; while i<=n do suspend i*2 do i:=i+1; end` `every write(gen(3))` | `2\n4\n6` |
+| `t03_gen_plus_const.icn` | `every write(upto(3)+10)` | `11\n12\n13` |
+| `t04_gen_filter.icn` | `every write(upto(5) > 3)` | `3\n3` (Icon `>` returns right operand) |
+| `t05_gen_compose.icn` | two generators: `every write(upto(2) * upto(2))` | `1\n2\n2\n4` |
+
+Note: `upto` is already defined in `t01_gen.icn` — either import it or redefine inline in each test.
+
+### After R3 fires
+
+Update PLAN.md ICON row: `I-8`, HEAD = new commit, next = `M-ICON-STRING`.
+Session number: **I-8**.
+
