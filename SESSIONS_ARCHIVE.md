@@ -12561,3 +12561,47 @@ because intermediate goals in a deterministic chain are non-resumable.
 
 ### Next session trigger
 "playing with Prolog frontend" → Session F-222, next milestone M-PROLOG-R8.
+
+## D-164 — 2026-03-23 (Claude Sonnet 4.6)
+
+**Session type:** DOTNET integration
+**Branch:** `snobol4dotnet:integrate/jeffrey`
+**HEAD:** `b303652`
+
+### Work done
+
+Integrated Jeff Cooper's 10 commits from `merge/jeffrey-plus-msil` into a clean `integrate/jeffrey` branch. Carefully cherry-picked all substantive changes, excluded binary blobs and accidental files, fixed build regressions, and drove the Linux test suite from 1889 pass / 22 fail → **1903 pass / 0 fail**.
+
+### What was taken
+- `ErrorJump` → `OnErrorGoto` rename (MsilHelpers.cs, ThreadedExecuteLoop.cs)
+- `StartTimer()` replacing `_timerExecute.Restart()` in Builder.cs
+- Statistics formatting: `h:m:s.μ` format, aligned columns (Statistics.cs, Banner.cs)
+- `DetectConfiguration()` in SetupTests.cs — auto-detects Debug/Release build path on Windows
+- `System.StringComparison` namespace fix in SetupTests.cs
+- `EnableWindowsTargeting` in Snobol4W.csproj
+- `CustomFunction/FSharpLibrary.fs` — fallback copy for machines without F# installed
+- `TestSnobol4/Griswold/RemoveLine.cs` — 7 new tests from Griswold's book, all passing
+- `LoadTests.cs` — structural fixes: UNLOAD syntax, [Ignore] on Windows-native-only tests
+- `README.md` updates
+- Deletions of stale files: AST.csv, ATS1.csv, Corrigenda.md, RecordTest.txt, Snobol Functions.xlsx, Snobol4.Common.zip, Snobol4W.zip, dotnet-install.sh, dotnet-install-install.sh
+
+### What was excluded / corrected
+- `"25.0"` / `"49.0"` / `"16.0"` assertions **reverted to `"25."` etc.** — SNOBOL4 spec prohibits trailing zeros in real number string representation; proved via CSNOBOL4 oracle, SPITBOL manual p.27, and MINIMAL source v37.min
+- `packages-microsoft-prod.deb` × 2 — Linux installer binaries, not source
+- `README.md.backup` — Windows editor artifact
+- Dead Roslyn `else` branch in Builder.cs that Jeff's branch reintroduced (GenerateCSharpCode was already removed from main)
+- Stray top-level `FSharpLibrary/` directory (Jeff added and deleted in same batch)
+
+### Build fixes required
+- `AreaLibrary.csproj`: restored full `<Compile Remove>` subdirectory exclusion list (Jeff's version replaced it, causing duplicate AssemblyInfo errors)
+- `TestSnobol4.csproj`: added `FSharpOptionLibrary` and `VbLibrary` to ProjectReference list — both build cleanly on Linux, were simply missing from the build graph, causing 13 + 9 test failures
+- `LoadTests.cs` Load_Area failure-branch tests: corrected to check `result == "failed"` per SNOBOL4 spec (LOAD failure is silent :F, no error code recorded)
+
+### .gitignore
+Extended to block: `*.deb`, `*.zip`, `*.nettrace`, `README.md.backup`, `dotnet-install*.sh`, scratch CSV/text files
+
+### Final numbers
+- Baseline main: 1889 pass / 22 fail / 2 skip
+- integrate/jeffrey: **1903 pass / 0 fail / 2 skip**
+- New tests: +7 Griswold (all green)
+- [Ignore] correctly applied to 8 Windows-native-only tests

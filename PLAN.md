@@ -30,14 +30,14 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-222 — rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ✅ rung06 ✅ rung07 ✅ rung08 ✅ rung09 ✅. Fixes: (1) [rbp-32] dual-use bug in multi-ucall bodies → sub_cs_acc at [rbp-16]; (2) M-PROLOG-BUILTINS: functor/3 arg/3 =../2 type-tests in body+if-then-else; (3) NASM atom string escape fix (newlines in write('\\n')); (4) frame extended for per-ucall sub_cs slots (rung10 prep). M-PROLOG-RECUR+M-PROLOG-BUILTINS fire. Open: rung10 puzzles assemble, run silent — E2.fail→E1.resume wiring needed (F-223). | `e24e962` F-222 | M-PROLOG-R10 |
-| **DOTNET** | `net-polish` D-163 — clean slate | `8feb139` D-163 | TBD |
+| **DOTNET** | `net-polish` D-164 — Jeff's branch integrated: ErrorJump→OnErrorGoto, StartTimer(), DetectConfiguration(), Griswold tests (7), VbLibrary+FSharpOptionLibrary wired, LOAD :F semantics correct; 1903/1903 pass 0 fail on Linux; branch `integrate/jeffrey` pushed, awaiting merge | `b303652` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN (next) |
 | **ICON frontend** | `main` I-4 — M-ICON-PROC ✅ `54248fe`: BSS _val→hw stack push/pop + frame slots; rung02 t01/t02/t03 PASS (add=7, fact=120, sum_to=15); rung01 t02/t05/t06 regress (binop β wiring conflict: generator-left vs value-left — needs bounded flag); t03_nested_to SEGV | `54248fe` | M-ICON-SUSPEND (after rung01 regression fix) |
 | **README v2 sprint** | `main` R-2 — PIVOT: snobol4x M-FEAT-X deferred (partial, 12/20 pass); 20 feature test programs written to snobol4x/test/feat/; M-FEAT-* and M-GRID-REFERENCE MERGED (same work — see below); next: M-FEAT-JVM on snobol4jvm | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
-- DOTNET: `dotnet test` → 1873/1876 before any dotnet work
+- DOTNET: `dotnet test` → 1903/1903 (integrate/jeffrey, Linux); 0 failures
 
 **Read the active L2 docs: [TINY.md](TINY.md) · [JVM.md](JVM.md) · [DOTNET.md](DOTNET.md)**
 
