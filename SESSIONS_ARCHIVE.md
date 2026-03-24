@@ -295,3 +295,17 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 - Second bug: `icn_suspend_id` not cleared at `proc_done`; second call to same generator jumped to beta. Fixed: clear `icn_suspended` + `icn_suspend_id` at `proc_done`
 - Result: 5/5 rung03 PASS (t01_gen, t02_return, t03_fail, t04_gen_filter, t05_gen_compose)
 - rung01 5/6 (t06_paper_expr pre-existing VerifyError — not a regression), rung02 8/8 clean
+
+## PJ-15 — 2026-03-24 (emergency handoff at ~95% context)
+
+**Trigger:** "playing with Prolog frontend for snobol4x with JVM backend"
+**HEAD in:** `fabd377` (PJ-14)
+**HEAD out:** `0df7b38` (PJ-15, already on remote snobol4x)
+
+**Work done:**
+- Rungs 01-09 PASS confirmed on entry
+- Fixed `call_omega` bug: `local_cs` for exhausted inner call was not reset to 0 before jumping to enclosing beta, causing infinite loop when e.g. `differ` was exhausted and `item(Y)` retried
+- Fix: `iconst_0 / istore local_cs` before `goto lbl_ω` at `call_omega` label in `pj_emit_body` — committed `0df7b38` to snobol4x
+- Identified remaining bug: two-clause `fail/retry` pattern (`p :- ..., fail. p.`) loops forever because `fail/0` in last body position receives `lbl_ω=clause_beta` instead of `lbl_pred_ω`, so exhausting clause 0 restarts it instead of advancing to clause 1
+
+**Next session PJ-16:** Fix `fail/0`→`lbl_pred_ω` wiring in `pj_emit_clause`/`pj_emit_body`. See §NOW CRITICAL NEXT ACTION.

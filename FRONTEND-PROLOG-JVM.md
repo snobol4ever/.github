@@ -19,7 +19,61 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-14 — .limit locals fix + ;/2 retry fix; rungs 01-09 PASS; nested ucall bug diagnosed | `fabd377` PJ-14 | M-PJ-CORPUS-R10 |
+| **Prolog JVM** | `main` PJ-15 — call_omega local_cs reset fix; rungs 01-09 PASS; two-clause fail/retry loop still open | `0df7b38` PJ-15 | M-PJ-CORPUS-R10 |
+
+### CRITICAL NEXT ACTION (PJ-16)
+
+**Bug: two-clause fail/retry predicate (`p :- ..., fail. p.`) loops forever.**
+
+Reproducer (`/tmp/min3.pro`):
+```prolog
+:- initialization(main).
+item(a). item(b).
+differ(X, X) :- !, fail.
+differ(_, _).
+main :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
+main.
+```
+Expected: `a-b\nb-a` then exit 0. Actual: infinite output, loops forever.
+
+**Root cause:** `fail/0` in `pj_emit_goal` does `JI("goto", lbl_ω)`. When `fail` is the last body goal of clause 0, `lbl_ω` at that point is the **clause beta** (retry clause 0), not `lbl_pred_ω` (advance to clause 1). So exhausting clause 0 restarts it instead of falling to clause 1.
+
+**Fix:** In `pj_emit_body`, when the last goal is `fail/0` (or any deterministic builtin that always fails), its omega should be `lbl_pred_ω` (or `lbl_outer_ω`), not the clause-level beta. Alternatively: ensure `lbl_ω` passed to the last goal in a clause body is `lbl_pred_ω` when there are no more goals after it.
+
+The call site is in `pj_emit_clause` (around line 1870–2020): the body is emitted via `pj_emit_body(..., lbl_ω=clause_beta, lbl_outer_ω=pred_omega, ...)`. The `fail` goal receives `lbl_ω=clause_beta` which re-enters the clause — wrong. It should receive `lbl_pred_ω` directly, since there is nothing to retry in this clause after fail.
+
+**Bootstrap PJ-16:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+# Baseline: rungs 01-09 PASS
+for rung in rung01_hello/hello rung02_facts/facts rung03_unify/unify rung04_arith/arith rung05_backtrack/backtrack rung06_lists/lists rung07_cut/cut rung08_recursion/recursion rung09_builtins/builtins; do
+  base=$(basename $rung); cls=$(echo "$base" | sed 's/.*/\u&/')
+  ./sno2c -pl -jvm test/frontend/prolog/corpus/$rung.pro -o /tmp/${cls}.j
+  java -jar src/backend/jvm/jasmin.jar /tmp/${cls}.j -d /tmp 2>/dev/null
+  result=$(timeout 5 java -cp /tmp $cls 2>/dev/null)
+  expected=$(cat test/frontend/prolog/corpus/$rung.expected)
+  [ "$result" = "$expected" ] && echo "$rung: PASS" || echo "$rung: FAIL"
+done
+# Test the fail/retry reproducer:
+cat > /tmp/min3.pro << 'PROEOF'
+:- initialization(main).
+item(a). item(b).
+differ(X, X) :- !, fail.
+differ(_, _).
+main :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
+main.
+PROEOF
+./sno2c -pl -jvm /tmp/min3.pro -o /tmp/Min3.j
+java -jar src/backend/jvm/jasmin.jar /tmp/Min3.j -d /tmp
+timeout 3 java -cp /tmp Min3   # should print a-b, b-a then exit 0
+# Fix in: src/frontend/prolog/prolog_emit_jvm.c
+# Look at pj_emit_clause ~line 1870-2020 — where lbl_ω is passed to pj_emit_body
+# The clause body's lbl_ω (beta) is correct for backtrackable goals but wrong
+# for the last goal when it is fail/0 (or any always-failing goal).
+```
 
 ### CRITICAL NEXT ACTION (PJ-15)
 
