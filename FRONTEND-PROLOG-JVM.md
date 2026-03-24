@@ -19,28 +19,31 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-9 — fix var-slot mismatch + non-linear head + pj_term_str; rungs 01-05 PASS | `5ae73e3` PJ-9 | M-PJ-LISTS |
+| **Prolog JVM** | `main` PJ-10 — fix jvm_arg_for_slot first-occurrence bug; rungs 01-05 PASS | `64d350a` PJ-10 | M-PJ-LISTS |
 
-### CRITICAL NEXT ACTION (PJ-10)
+### CRITICAL NEXT ACTION (PJ-11)
 
-**rung06 `lists` silent failure — `pj_term_str` list path not triggering.**
-`append([],[b,c],L)` now succeeds (base-case non-linear fix worked) but `write(L)` prints `_` instead of `[b,c]`. The list-detection path in `pj_term_str` checks `arraylength == 4` (arity-2 compound) but `[b,c]` is `.`(b,`.`(c,[])) — the outer cell has length 4, so the check should match. Suspect: the `pts_list_close` label is reachable from two paths (proper-nil tail and improper-tail fallthrough) with mismatched locals state — check Jasmin output for `pj_term_str` list section around `pts_list_close`.
+**rung06 `lists` still silent — two bugs, one fixed, one remaining.**
 
-Three bugs fixed in PJ-9 (see commit `5ae73e3`):
-1. `jvm_arg_for_slot[]` replaces `is_direct_arg` slot==ai check — fixes `append([H|T],L,[H|R])` clause
-2. Non-linear head unification via `seen_at[]` — fixes `append([],L,L)` base case
-3. `pj_term_str` replaces old `pj_write` — handles compound/list recursively (list path has remaining bug)
+**Bug 1 FIXED (PJ-10, commit `64d350a`):** `jvm_arg_for_slot[]` recorded LAST occurrence of a var slot across head args, not first. In `append([],L,L)` the scan overwrote `jvm_arg_for_slot[0]=1` with `jvm_arg_for_slot[0]=2`, so var cell loaded from arg2 instead of arg1. The second non-linear unify became `pj_unify(arg2,arg2)` — a self-unify no-op. arg1 `[c,d]` was never bound into `L`. Fix: `if (jvm_arg_for_slot[ht->ival] < 0)` guard — first occurrence wins.
 
-**Bootstrap PJ-10:**
+**Bug 2 REMAINING:** After fix, `java Lists` still exits 0 with no output. `append` unification is now correct. The remaining issue: `write(L)` calls `pj_write(local4)` where `local4` is the `L` var cell (now a `"ref"` cell pointing at the result after unification). `pj_term_str` calls `pj_deref` at the top — this correctly follows the ref chain to the bound compound `.(a,.(b,.(c,.(d,[]))))`. The list-detection path (functor `"."`, arraylength==4) should then trigger. **Suspected cause:** `main` itself is silently failing — not a `pj_term_str` bug but a `main` body goal failure before `write` is reached. The `p_append_3` call in `main` returns null (ω) despite the fix. Need to confirm the fix actually compiled into the binary being tested — recheck by regenerating `.j` and inspecting `p_append_3_clause0` to confirm `aload 1` (not `aload 2`) is used for the var slot.
+
+**Bootstrap PJ-11:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
 make -C snobol4x/src
-# Confirm baseline: rungs 01-05 PASS
-# Debug: ./sno2c -pl -jvm /tmp/ap_base.pro -o /tmp/apb.j && javap -c /tmp/Lists.class | grep -A 50 pj_term_str
-# Look at pts_list_close — fix locals/stack issue there
-# Then test rung06: ./sno2c -pl -jvm test/frontend/prolog/corpus/rung06_lists/lists.pro -o /tmp/l.j
+# Confirm baseline: rungs 01-05 PASS (should be clean at 64d350a)
+# Regenerate and inspect:
+./sno2c -pl -jvm test/frontend/prolog/corpus/rung06_lists/lists.pro -o /tmp/l.j
+grep -A 5 "p_append_3_clause0:" /tmp/l.j   # must show aload 1 for var slot
+java -jar src/backend/jvm/jasmin.jar /tmp/l.j -d /tmp
+java -cp /tmp Lists
+# If still silent: add debug write before append call to confirm main entry,
+# then step through append call to find where it returns null.
+# Minimal repro: append([],[c,d],L), write(L), nl  — isolate base case.
 ```
 
 ## Milestone Table
