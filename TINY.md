@@ -9,30 +9,44 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-277 (BEAUTY) · F-223 (Prolog) concurrent
-**HEAD:** `bd9d6e3` B-277 (snobol4x) / `468c507` B-277 (.github)
-**B-session:** M-BEAUTY-TRACE ❌ — next subsystem after omega ✅
-**F-session:** M-PROLOG-CORPUS ❌ — rung05 encoding fix attempted, reverted clean; see F-CRITICAL below
+**Sprint:** `main` — B-278 (BEAUTY) · F-223 (Prolog) concurrent
+**HEAD:** `8e01e2a` B-278 (snobol4x) / `.github` pending
+**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — CSNOBOL4 fixed point ✅; ASM _saved labels next
+**F-session:** M-PROLOG-CORPUS ❌ — rung05 encoding fix attempted, reverted clean
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-277 (M-BEAUTY-TRACE):**
+**⚡ CRITICAL NEXT ACTION — B-279 (M-BEAUTIFY-BOOTSTRAP continued):**
 
 ```
-NEXT: INC=demo/inc bash test/beauty/run_beauty_subsystem.sh trace
+CSNOBOL4 ORACLE: FIXED POINT ✅
+  beauty.sno reads itself → 784-line canonical form
+  oracle(oracle(beauty.sno)) == oracle(beauty.sno)
+  demo/beauty.sno updated to canonical form. Committed 8e01e2a.
 
-If test/beauty/trace/ does not exist:
-  1. Write test/beauty/trace/driver.sno — exercises T8Trace/T8Pos/xTrace
-  2. Generate oracle: INC=demo/inc snobol4 -f -P256k -Idemo/inc driver.sno > driver.ref
-  3. Write tracepoints.conf with scan-visible DEFINE stubs for T8Trace/T8Pos
-  4. Run 3-way monitor — fix any ASM divergences
-  5. On PASS: corpus check (106/106), commit B-277: M-BEAUTY-TRACE ✅, push
+BUG FIXED in demo/beauty.sno:
+  Goto pattern used *SorF (indirect). After :F(X) match, SorF='F' string.
+  Next stmt's *SorF matched literal 'F' only → ':' consumed, 'S(label)' left
+  → Parse Error on any stmt following :F(...) goto.
+  Fix: replaced *SorF with (*SGoto | *FGoto) inline in Goto.
 
-PATTERN from B-276 (omega):
-  - scan-visible DEFINE stubs needed for functions in -INCLUDE'd files
-  - tracepoints.conf: INCLUDE ^FnName$ (anchored), EXCLUDE local vars
-  - Binary E_ATP (pat @var) now fixed in emit_byrd_asm.c — no related bug expected
+ASM BACKEND: ❌ NASM errors — seq_l69_α_saved + litvar71_saved undefined
+  Root: emit_byrd_asm.c emits LIT_α1/LIT_VAR_α macros that reference
+  a `_saved` .bss label, but that label is never declared in the output.
+  File: artifacts/asm/beauty_prog.s line 7482.
+  Context: seq_l69 is inside ioCmdDlmtPat2 pattern — LIT node in a SEQ.
 
-After trace: M-BEAUTIFY-BOOTSTRAP sprint begins.
+NEXT SESSION MUST DO:
+  1. Find _saved label generation in emit_byrd_asm.c
+     grep -n "_saved\|LIT_α\|bss.*saved" src/backend/x64/emit_byrd_asm.c
+  2. Find what declares _saved labels in working .s files (roman.s etc.)
+     grep "_saved" artifacts/asm/samples/roman.s | head -5
+  3. Fix emit_byrd_asm.c to emit the _saved .bss declaration for each LIT node
+  4. nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null
+     → must show 0 errors
+  5. Build beauty_asm_bin (see run_crosscheck_asm_prog.sh for link cmd)
+  6. Run: beauty_asm_bin < demo/beauty.sno → diff against oracle → PASS
+  7. Run SPITBOL: spitbol -I demo/inc demo/beauty.sno < demo/beauty.sno
+  8. 3-way diff: CSNOBOL4 == SPITBOL == ASM → commit B-279: M-BEAUTIFY-BOOTSTRAP ✅
 ```
 
 **⚡ F-CRITICAL NEXT ACTION — F-224 (M-PROLOG-CORPUS):**
@@ -40,41 +54,31 @@ After trace: M-BEAUTIFY-BOOTSTRAP sprint begins.
 ```
 BUG: rung05 backtrack FAIL — prints a\nb instead of a\nb\nc.
 ROOT CAUSE: prolog_emit.c emit_body last-goal user-call branch (~line 692).
-  PG(γ) returns clause_idx (e.g. 1). Caller increments to 2. switch(2) hits
-  default → ω. Inner _cs lost. On retry _cs resets to 0, re-finds b not c.
+  PG(γ) returns clause_idx. Caller increments. switch hits default → ω.
+  Inner _cs lost. On retry _cs resets to 0, re-finds b not c.
 
-F-223 ATTEMPTED: encoding scheme (ci + nc*_lcs - 1 in γ, default: decode → retry).
-  Got a\nb but env reset in case 1: preamble corrupted third solution.
-  Reverted prolog_emit.c to b4507dc — repo clean at b4507dc.
-
-RECOMMENDED FIX — inner_cs out-param (cleanest, no encoding):
+RECOMMENDED FIX — inner_cs out-param:
   Change _r signature: int pl_F_r(args, Trail*, int _start, int *_ics_out)
-  In emit_body last-goal branch: after _cr = pl_F_r(..., _lcs, &_ics);
-    *_ics_out = _ics; goto γ;   ← γ returns ci as before
-  In emit_choice: _r functions get extra int* param.
-  Caller retry loop: pass &_ics, on retry call with _start=ci and _ics pre-set.
-  The _r function uses *_ics_out as initial _lcs when _start==ci via hoisted var.
+  After _cr = pl_F_r(..., _lcs, &_ics): *_ics_out = _ics; goto γ;
+  Caller retry: pass &_ics, on retry call with _start=ci, _ics pre-set.
 
 After fix: run all 10 rungs → M-PROLOG-CORPUS fires.
-Then: M-PZ-14 → M-PZ-17 → ... in order.
 ```
 
 ---
 
 ## Last Two Sessions (3 lines each)
 
-**F-223 (2026-03-24) — rung05 fix attempted, reverted clean:**
-Tried encoding scheme: ci+nc*_lcs-1 in γ labels, default: decode → retry label. Got a\nb but third solution corrupted by env reset in case 1: preamble. Reverted prolog_emit.c to b4507dc — repo clean, no new snobol4x commit.
+**B-278 (2026-03-24) — Goto/*SorF bug found and fixed; CSNOBOL4 fixed point:**
+FGoto left SorF='F' (string); next *SorF matched only 'F', eating ':' bare. Fixed by inlining (*SGoto|*FGoto) in Goto. beauty.sno now self-beautifies to fixed point 784 lines. ASM: seq_l69_α_saved undefined — _saved .bss label not emitted. HEAD `8e01e2a`.
 
-**F-222 (2026-03-23) — puzzle stubs + milestones; no source fix:**
-Split puzzles.pro into 16 stub files puzzle_03..20. Added M-PZ-03..20 milestones. Updated FRONTEND-PROLOG.md sprint plan. HEAD `b4507dc`.
+**B-277 (2026-03-24) — M-BEAUTY-TRACE ✅ all 19 subsystems done:**
+T8Trace/T8Pos helpers pass 3-way monitor; 9 tests PASS (CSNOBOL4+SPITBOL+ASM). GE(t8MaxLine,621) guard, DATATYPE case portability, TABLE var exclusion. Commit `22e291c`.
 
 ---
 
 ## Beauty Subsystem Status
 
 See [BEAUTY.md](BEAUTY.md) for full sequence. Summary:
-- ✅ 1–16: global/is/FENCE/io/case/assign/match/counter/stack/tree/SR/TDump/Gen/Qize/ReadWrite/XDump
-- ✅ 17: semantic
-- ✅ 18: omega
-- ❌ 19: trace ← **now**
+- ✅ 1–19: ALL subsystems PASS (global/is/FENCE/io/case/assign/match/counter/stack/tree/SR/TDump/Gen/Qize/ReadWrite/XDump/semantic/omega/trace)
+- ❌ M-BEAUTIFY-BOOTSTRAP: CSNOBOL4 ✅ · ASM ❌ (_saved labels) · SPITBOL untested

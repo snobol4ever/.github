@@ -15139,3 +15139,24 @@ Statement: `                 ppLn           POS(0) ANY('*-')  :S(ppAutoR)`
 4. Add `-jvm` flag to `icon_driver.c`
 5. Test: `t01_to5.icn` → `1\n2\n3\n4\n5` via JVM
 6. Fire M-IJ-SCAFFOLD + M-IJ-HELLO
+## Session B-278 — 2026-03-24 — Goto/*SorF fix; CSNOBOL4 fixed point
+
+**Goal:** M-BEAUTIFY-BOOTSTRAP — beauty.sno reads and writes itself.
+
+**Bug found:** `Goto` pattern used `*SorF` (indirect ref). After any `:F(X)` match,
+`FGoto` side-effected `SorF='F'` (string). Next stmt's `*SorF` matched only literal
+`'F'`, silently consuming `':'` as a bare empty-goto, leaving `'S(label)'` unparsed.
+Result: Parse Error on any pattern-match stmt following a `:F(...)` goto.
+
+**Fix:** Replaced `*SorF` with `(*SGoto | *FGoto)` inline in `Goto` pattern
+(2 occurrences). Each match reinitializes `SorF` freshly. `SorF` value still available
+for code-gen expressions after match. No other files changed.
+
+**Result:** `beauty.sno` beautifies itself to 784-line canonical form.
+`oracle(oracle(beauty.sno)) == oracle(beauty.sno)` — true fixed point ✅.
+Updated `demo/beauty.sno` to canonical form. Updated `artifacts/asm/beauty_prog.s`.
+
+**ASM backend:** NASM errors on `seq_l69_α_saved` + `litvar71_saved` — `.bss` save
+labels not emitted by `emit_byrd_asm.c` for LIT/LIT_VAR nodes. Next session target.
+
+**Commits:** `8e01e2a` snobol4x
