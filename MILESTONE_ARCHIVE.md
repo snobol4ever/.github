@@ -195,3 +195,4 @@ Append-only. Do not edit existing entries.
 
 | **M-PJ-SCAFFOLD** | `prolog_emit_jvm.c` + driver wire; null.pl exits 0 | ✅ PJ-1 2026-03-24 `f7390c6` |
 | **M-PJ-HELLO** | hello.pl → JVM → "hello" | ✅ PJ-1 2026-03-24 `f7390c6` |
+| **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ PJ-7 `c6a8bda` |
