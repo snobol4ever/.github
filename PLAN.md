@@ -15,7 +15,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **TINY backend** | `main` B-277 — M-BEAUTY-TRACE ❌ | `bd9d6e3` B-277 | M-BEAUTY-TRACE |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
-| **TINY frontend** | `main` F-222 — 16 puzzle stubs committed (M-PZ-03..20); rung05 fix pending | `b4507dc` F-222 | M-PROLOG-CORPUS |
+| **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-9 — two icon_emit.c patches documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |

@@ -15056,3 +15056,9 @@ Key design insight: TZ/TY/TV/TW build patterns containing `$ *assign(...)` side-
 **Milestones fired:** none
 
 **Next session F-223:** Fix `emit_body` last-goal user-call branch (~line 692) — encode inner `_cs` into return value. Add `default:` case in `emit_choice`. Run all 10 rungs → M-PROLOG-CORPUS. Then begin M-PZ-14 (easiest puzzle stub).
+
+## Session F-223 — 2026-03-24 — rung05 fix attempted, reverted
+
+**Goal:** Fix rung05 backtrack bug (member/2 prints a\nb not a\nb\nc). Fire M-PROLOG-CORPUS.
+**Result:** Encoding scheme partially worked (a\nb printed) but env reset in `case ci:` preamble corrupted third solution. Reverted `prolog_emit.c` to clean. No new commit. Repo at `b4507dc`.
+**Next:** F-224 — try transparent pass-through or inner_cs out-param approach per TINY.md CRITICAL.
