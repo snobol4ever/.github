@@ -159,6 +159,7 @@ Append-only. Do not edit existing entries.
 | M-PROLOG-R6 | append/3, length/2, reverse/2 PASS | ✅ `692a9ff` F-221 |
 | M-PROLOG-CUT | ! seals β→ω; rung07 PASS | ✅ `692a9ff` F-221 |
 | M-PROLOG-RECUR | fibonacci/2, factorial/2 PASS | ✅ `ff1a492` F-222 |
+| M-PROLOG-BUILTINS | functor/3, arg/3, =../2, type tests — rung09 EXACT MATCH | ✅ (confirmed this session) |
 
 ## ICON Frontend — Completed (through R2)
 

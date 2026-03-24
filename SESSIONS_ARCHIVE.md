@@ -14933,3 +14933,26 @@ bash /home/claude/snobol4x/setup.sh
 **State at handoff:** snobol4x `54031a5` unchanged. .github updated with I-9 patches.
 
 **Next session (I-10):** Apply both patches from FRONTEND-ICON.md §NOW, rebuild, test t01_gen, write 5 R3 tests, fire M-ICON-CORPUS-R3.
+## Session F-223 — 2026-03-23 — M-PROLOG-BUILTINS ✅ + rung10 puzzle progress
+
+**Repos touched:** snobol4x, .github
+**Branch:** main
+
+**Work done:**
+
+- Removed stale M-PROLOG-WIRE-ASM from PLAN.md NOW table and flagged as implied-complete in FRONTEND-PROLOG.md (F-217 rungs 1–4 PASS via ASM proved wire already done).
+- Confirmed M-PROLOG-BUILTINS (rung09): `functor/3`, `arg/3`, `=../2`, if-then-else, type tests (`atom/1`, `integer/1`, `var/1`, `nonvar/1`, `compound/1`) — all already wired in `prolog_emit.c` and `prolog_builtin.c`. `builtins.pro` → EXACT MATCH vs `builtins.expected`. Archived.
+- Fixed **atom name C-string escaping bug** in `prolog_emit.c`: atoms containing `\n`, `\t`, `\r`, or other control chars were emitted as raw bytes into C string literals, causing gcc compile errors. Added `emit_c_string()` helper; patched all three `prolog_atom_intern` emission sites (E_QLIT escape loop, E_FNC arity==0, E_FNC compound functor in `term_new_compound`).
+- Ran rung10 word puzzles:
+  - `puzzle_01.pro` (bank: Brown/Jones/Smith) → **`Cashier=smith Manager=brown Teller=jones`** ✅
+  - `puzzle_06.pro` (occupations: Clark/Jones/Morgan/Smith) → **`Clark=druggist Jones=grocer Morgan=butcher Smith=policeman`** ✅
+  - `puzzle_02.pro` (trades: Clark/Daw/Fuller) → outputs correct winner line but **keeps generating extra candidates** — `doesEarnMore/2` transitive clause cut interaction not pruning correctly.
+
+**Milestones fired:** M-PROLOG-BUILTINS ✅ (archived)
+
+**Next session (F-224): M-PROLOG-R10**
+
+1. Debug `puzzle_02.pro` — `doesEarnMore(X,Y) :- earnsMore(Y,X), !, fail.` should cut after disproving but extra permutations escape. Add `write` tracing to `doesEarnMore` to see which clause is firing when it shouldn't. Likely: β-port retry is re-entering after the cut-sealed clause.
+2. Once puzzle_02 passes, run `puzzle_05.pro` (WIP — constraints partially commented).
+3. If all 4 puzzles pass → M-PROLOG-R10 ✅ → update PLAN.md → fire M-PROLOG-CORPUS sweep.
+4. Trigger phrase: `"playing with Prolog frontend"` → F-session → M-PROLOG-R10.

@@ -317,7 +317,7 @@ directly analogous to the emit_body fix above.
 - The blocker: `driver/main.c` line 144 hardcodes `pl_emit(prog, out)` regardless of `asm_mode`. One-line fix.
 - All changes to `prolog_emit.c` were stashed and reverted. Repo is clean at `3ce6673`.
 
-**Next session (F-215): M-PROLOG-WIRE-ASM**
+**M-PROLOG-WIRE-ASM — completed (implied by F-217 rungs 1–4 PASS via ASM path)**
 
 1. In `driver/main.c`, replace the hardcoded `pl_emit(prog, out)` with the `asm_mode` branch (call `asm_emit` when `-asm` is set).
 2. Link `prolog_atom.c`, `prolog_unify.c`, `prolog_builtin.c` into the ASM binary (add to `Makefile` runtime link or emit inline calls).
