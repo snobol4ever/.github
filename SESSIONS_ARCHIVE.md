@@ -194,3 +194,24 @@ triggers OFNE check on the stored function-result pattern.
 **Fix:** Added three parameters to `pj_emit_body`: `cut_cs_seal` (`base[nclauses]`), `cs_local_for_cut` (JVM local holding predicate's `cs`), and `lbl_pred_ω` (predicate-level omega label). When `E_CUT` fires: (1) `ldc base[nclauses]; istore cs_local` seals β so next dispatch hits omega, (2) remaining body goals emit with `lbl_ω = lbl_pred_ω` so failure after cut skips all clauses. Same seal added to `pj_emit_goal` E_CUT branch.
 
 **Next:** PJ-13 → M-PJ-RECUR (rung08: fibonacci/2, factorial/2)
+
+---
+
+## B-286 — 2026-03-24
+
+**Milestone:** 4 bug milestones resolved; D-001–D-005 arch decisions recorded  
+**Commit:** `d8f1fe2` snobol4x main  
+**Result:** 19/19 beauty subsystems PASS; 106/106 corpus invariant holds; SPITBOL-primary architecture declared
+
+**Arch decisions (DECISIONS.md created):**
+- D-001: SPITBOL is the primary compat target. CSNOBOL4 FENCE difference disqualifies it as full target.
+- D-002: DATATYPE() returns UPPERCASE always (traditional SNOBOL4 spec). SPITBOL lowercase is ignore-point.
+- D-003: Test suite case-insensitive on DATATYPE output. normalize_trace.py and run_beauty_subsystem.sh normalise before diff.
+- D-004: .NAME is a third dialect — snobol4x emits DT_N (type=9). Observable behaviour matches SPITBOL (DIFFER succeeds, IDENT fails). Monitor ignore-point covers DT_N vs DT_S.
+- D-005: Monitor swapped — SPITBOL is participant 0 (primary oracle). CSNOBOL4 is secondary.
+
+**Bug fix:** Single line in `emit_byrd_asm.c`: arg staging loop now always passes `rbp_off=-32` to `emit_expr` (was `-(rbp_off < 0 ? -rbp_off : 32)`). When a function call appears in subject position (rbp_off=-16), the old code caused E_VART to emit `GET_VAR→rbp-16/8` while `STORE_ARG32` reads `rbp-32/24` — stale data. Fix resolves four milestones: M-BUG-IS-DIALECT, M-BUG-SEMANTIC-NTYPE, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER.
+
+**Files changed:** `src/backend/x64/emit_byrd_asm.c`, `test/monitor/run_monitor_3way.sh`, `test/monitor/tracepoints.conf`, `test/beauty/run_beauty_subsystem.sh`. HQ: `DECISIONS.md` (new), `ARCH.md`, `MONITOR.md`, `TINY.md`, `PLAN.md`.
+
+**Still open:** M-BUG-BOOTSTRAP-PARSE — beauty_asm outputs 10-line header + `Parse Error` on first non-comment line. Oracle (SPITBOL) = 784 lines. Next session B-287 investigates the ARBNO/parser loop in bootstrap path.

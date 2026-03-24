@@ -150,12 +150,43 @@ corpus in snobol4corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 
 ---
 
+## Compatibility Target — SPITBOL (D-001)
+
+**snobol4x targets SPITBOL** as its primary compatibility reference. See DECISIONS.md D-001.
+
+- All SPITBOL language extensions supported (HOST, LOAD, OPSYN, CLEAR, indirect calls, etc.)
+- Command-line switches match SPITBOL identically
+- CSNOBOL4 is a monitor participant but not authoritative when it diverges from SPITBOL
+- FENCE semantic difference in CSNOBOL4 disqualifies it as full target
+
 ## Oracle Hierarchy
 
 | Oracle | Role | Status |
 |--------|------|--------|
-| CSNOBOL4 2.3.3 | Primary — `snobol4 -f -P256k -I$INC file.sno` | ✅ installed |
-| SPITBOL x64 4.0f | Secondary — `spitbol -b file.sno` | install if needed |
+| SPITBOL x64 4.0f | **Primary** — `spitbol -b file.sno` | ✅ installed |
+| CSNOBOL4 2.3.3 | Secondary participant — `snobol4 -f -P256k -I$INC file.sno` | ✅ installed |
 
-SPITBOL disqualified for full beauty.sno (error 021 at END — indirect function call
-semantic difference). Use CSNOBOL4 as primary for beauty tests.
+## Dialect Notes — Known Semantic Differences (D-001, D-002, D-004)
+
+### DATATYPE() return case
+| Implementation | `DATATYPE(pattern_val)` |
+|----------------|------------------------|
+| CSNOBOL4 | `"PATTERN"` (uppercase) |
+| SPITBOL | `"pattern"` (lowercase) |
+| **snobol4x** | `"PATTERN"` (uppercase — traditional spec, D-002) |
+
+Monitor ignore-point: case differences in DATATYPE output are normalised. Tests are case-insensitive.
+
+### .NAME (unary dot) semantics — three dialects (D-004)
+| Implementation | `.NAME` inside fn body | `DIFFER(.NAME,'NAME')` |
+|----------------|------------------------|------------------------|
+| CSNOBOL4 | DT_S `"NAME"` | Fails |
+| SPITBOL | DT_S `"name"` | Succeeds |
+| **snobol4x** | DT_N ptr→`"NAME"` | Succeeds (type mismatch) |
+
+snobol4x is a **third dialect** — matches SPITBOL's observable behaviour (IsSpitbol
+passes, IsSnobol4 fails) via a different internal mechanism. Monitor ignore-point covers
+DT_N vs DT_S differences. See DECISIONS.md D-004.
+
+### FENCE semantics
+CSNOBOL4 has a known FENCE difference. snobol4x follows SPITBOL FENCE semantics.

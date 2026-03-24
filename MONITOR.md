@@ -27,23 +27,25 @@ identical to the input. A fixed point.
 
 | # | Participant | Role | TRACE stream |
 |---|-------------|------|-------------|
-| 1 | CSNOBOL4 2.3.3 | **Primary oracle** | stderr |
-| 2 | SPITBOL x64 4.0f | Secondary reference | stdout |
+| 1 | SPITBOL x64 4.0f | **Primary oracle** (D-005) | stdout |
+| 2 | CSNOBOL4 2.3.3 | Secondary reference | stderr |
 | 3 | snobol4x ASM backend | Compiled target | stderr |
 | 4 | snobol4x JVM backend | Compiled target | stderr |
 | 5 | snobol4x NET backend | Compiled target | stderr |
 
-**Compatibility target: snobol4x implements SPITBOL extensions with CSNOBOL4 semantics.**
-- All SPITBOL internal builtins and extensions are implemented.
-- Command-line switches are identical to SPITBOL.
-- For semantic edge cases where CSNOBOL4 and SPITBOL differ, snobol4x follows **CSNOBOL4**.
-- Key rule: `DATATYPE()` returns **UPPERCASE** (CSNOBOL4 convention), not lowercase (SPITBOL).
+**Compatibility target: snobol4x implements SPITBOL. SPITBOL is the primary oracle. (D-001)**
+- All SPITBOL extensions, switches, HOST() semantics are matched.
+- `DATATYPE()` returns **UPPERCASE** (snobol4x convention, D-002). SPITBOL lowercase is an ignore-point.
+- `.NAME` is a third dialect matching SPITBOL *observable* behaviour. See D-004.
+- CSNOBOL4 quirks (FENCE semantics, DATATYPE case) do not drive fixes.
 
-**Consensus rule:**
-- CSNOBOL4 and SPITBOL agree, one backend diverges → our bug; CSNOBOL4 is the fix target.
-- CSNOBOL4 and SPITBOL agree, all backends diverge the same way → systematic emitter bug.
-- CSNOBOL4 and SPITBOL disagree → snobol4x follows CSNOBOL4; SPITBOL divergence is expected.
-- Two backends agree with CSNOBOL4, one diverges → the two agreeing backends specify the fix.
+**Consensus rules (updated D-005):**
+- SPITBOL and snobol4x agree, CSNOBOL4 diverges → known CSNOBOL4 quirk; not our bug.
+- SPITBOL and CSNOBOL4 agree, snobol4x diverges → our bug; fix to match SPITBOL.
+- SPITBOL and CSNOBOL4 disagree, snobol4x matches SPITBOL → correct.
+- SPITBOL and CSNOBOL4 disagree, snobol4x matches neither → our bug; fix to SPITBOL.
+- DATATYPE case differences → ignore-point always (D-002).
+- `.NAME` DT_N vs DT_S differences → ignore-point (D-004).
 
 **SPITBOL stream quirk:** SPITBOL sends TRACE to stdout, all others to stderr.
 **IPC solution:** All participants use LOAD'd `monitor_ipc.so` — see §IPC Architecture below.

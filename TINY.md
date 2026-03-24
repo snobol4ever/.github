@@ -9,20 +9,25 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-285 (BEAUTY accounting)
-**HEAD:** `deae788` B-284 (snobol4x)
-**B-session:** Full accounting done. 5 bug milestones filed. Next: fix is → semantic → TDump → Gen → bootstrap.
+**Sprint:** `main` — B-286 (arch decisions D-001–D-005 + 4-bug fix)
+**HEAD:** commit pending push (snobol4x)
+**B-session:** SPITBOL-primary target declared. 4 bugs fixed by one patch. 19/19 beauty PASS. Bootstrap Parse Error open.
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-286:**
+**⚡ CRITICAL NEXT ACTION — B-287:**
 
-Fix M-BUG-IS-DIALECT first — likely same root as M-BUG-SEMANTIC-NTYPE. Both IsSnobol4+IsSpitbol true in ASM; nPush/nInc/nPop report STRING not PATTERN.
+Fix M-BUG-BOOTSTRAP-PARSE: beauty_asm outputs 10-line header then `Parse Error` on first non-comment line.
+Oracle (SPITBOL) produces 784 lines. Investigate the parser/ARBNO loop in the bootstrap path.
 
-Beauty subsystem standalone ASM (B-285 re-run): 15/19 PASS.
-- PASS: global fence io case assign match counter stack tree ShiftReduce Qize ReadWrite XDump omega trace
-- FAIL: is TDump Gen semantic → milestones M-BUG-IS-DIALECT M-BUG-TDUMP-TLUMP M-BUG-GEN-BUFFER M-BUG-SEMANTIC-NTYPE
-
-Bootstrap: beauty_asm outputs 10-line header + `Parse Error` (oracle=784 lines) → milestone M-BUG-BOOTSTRAP-PARSE.
+**B-286 summary:**
+- D-001: SPITBOL is primary compat target (CSNOBOL4 FENCE issue disqualifies it).
+- D-002: DATATYPE() = UPPERCASE always. SPITBOL lowercase is an ignore-point.
+- D-003: Test suite case-insensitive on DATATYPE output.
+- D-004: .NAME = third dialect (DT_N). Matches SPITBOL observable behaviour.
+- D-005: Monitor swapped — SPITBOL is participant 0 (primary oracle).
+- Single-line fix in emit_byrd_asm.c (arg staging always -32): resolves M-BUG-IS-DIALECT,
+  M-BUG-SEMANTIC-NTYPE, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER. 19/19 beauty PASS.
+- DECISIONS.md created in .github.
 C backend: ☠️ DEAD — removed from matrix. 99/106, sno2c fails on word*/pat_alt_commit. Not maintained.
 
 ---
