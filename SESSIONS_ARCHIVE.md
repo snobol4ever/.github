@@ -342,3 +342,18 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 - Rungs 01–09: 9/9 PASS. No regressions. min3: `a-b\nb-a` ✅
 
 **Next:** PJ-17 — M-PJ-CORPUS-R10 (rung10 puzzle stubs). Puzzles 01/02/05/06 already pass swipl oracle. Start with M-PZ-14 (easiest per FRONTEND-PROLOG.md ordering).
+
+## IJ-10 — 2026-03-24
+
+**Session:** Icon JVM · `main` · HEAD `992a3a5`
+**Milestone:** (none fired — M-IJ-SCAN open)
+
+**Work done:**
+- Diagnosed session routing error: "playing with ICON frontend with JVM backend" incorrectly triggered I-session (x64 ASM) instead of IJ-session. Root cause: FRONTEND-ICON.md trigger phrase lacked JVM exclusion; FRONTEND-ICON-JVM.md trigger too narrow.
+- Fixed both trigger phrases in HQ; added disambiguation note to RULES.md §SESSION NUMBERS.
+- Reverted incorrect ASM work (icon_emit.c / icon_runtime.c changes from wrong session).
+- Clarified FRONTEND-ICON-JVM.md header: icon_emit_jvm.c is JVM backend emission, not frontend parsing.
+- Created rung05_scan corpus: 5 tests (t01–t05) covering &subject read, scan from var, restore after scan, concat subject, nested scan. Committed `992a3a5` to snobol4x.
+- Full M-IJ-SCAN implementation plan documented in FRONTEND-ICON-JVM.md §IJ-10 findings (static fields, &subject keyword, ij_emit_scan four-port wiring, dispatch case, run_rung05.sh).
+
+**Next:** IJ-11 — implement ij_emit_scan, &subject keyword, icn_subject/icn_pos globals, fire M-IJ-SCAN.

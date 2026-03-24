@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-9 — M-IJ-CORPUS-R3 ✅ + M-IJ-STRING ✅; 19/19 rung01-03 + 5/5 rung04 clean | `9932df5` IJ-9 | M-IJ-SCAN |
+| **Icon JVM** | `main` IJ-10 — rung05_scan corpus written; ij_emit_scan not yet implemented | `992a3a5` IJ-10 | M-IJ-SCAN |
 
-### Next session checklist (IJ-10)
+### Next session checklist (IJ-11)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -33,10 +33,62 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# rung01 6/6 + rung02 8/8 + rung03 5/5 + rung04 5/5 confirmed PASS (IJ-9)
-# Implement M-IJ-SCAN: ICN_SCAN E ? E — string scanning, explicit cursor threading
-# See JCON-ANALYSIS.md §E ? body for wiring pattern
+# Confirm rung01-04 24/24 still PASS before touching code
+# Implement M-IJ-SCAN: ij_emit_scan in icon_emit_jvm.c
+# See §IJ-10 findings below for full implementation plan
 ```
+
+### IJ-10 findings — M-IJ-SCAN implementation plan
+
+**Corpus:** `test/frontend/icon/corpus/rung05_scan/` — 5 tests committed `992a3a5`.
+
+**What to implement in `icon_emit_jvm.c`:**
+
+1. **Two global static fields** — declare once in `ij_emit_file` prologue:
+   - `icn_subject` (`Ljava/lang/String;`) — current scan subject, init `""`
+   - `icn_pos` (`I`) — current scan position, init `0`
+
+2. **`&subject` keyword** — in `ij_emit_var`, if `n->val.sval` is `"&subject"`:
+   `getstatic icn_subject` → String on stack → `ports.γ`. No push needed (String ref).
+
+3. **`ij_emit_scan(n, ports, oα, oβ)`** — four-port wiring per JCON `ir_a_Scan` / JCON-ANALYSIS §`E ? body`:
+   ```
+   Allocate static fields: old_subject_N, old_pos_N  (save/restore slots)
+
+   α:
+     → expr.α
+
+   expr.γ (new subject on stack as String ref):
+     putstatic old_subject_N ← getstatic icn_subject  (save old)
+     putstatic old_pos_N     ← getstatic icn_pos       (save old)
+     putstatic icn_subject   ← new subject String
+     putstatic icn_pos       ← iconst_0                (reset pos)
+     → body.α
+
+   expr.ω:
+     → ports.ω   (scan expr failed → whole scan fails)
+
+   body.γ:
+     getstatic old_subject_N → putstatic icn_subject   (restore)
+     getstatic old_pos_N     → putstatic icn_pos
+     → ports.γ
+
+   body.ω:
+     getstatic old_subject_N → putstatic icn_subject   (restore)
+     getstatic old_pos_N     → putstatic icn_pos
+     → expr.β   (retry expr — expr is one-shot string, so this → ports.ω)
+
+   β:
+     getstatic old_subject_N → putstatic icn_subject
+     getstatic old_pos_N     → putstatic icn_pos
+     → body.β
+   ```
+
+4. **`case ICN_SCAN:` in dispatch** — `ij_emit_scan(n,ports,oα,oβ); break;`
+
+5. **Write `run_rung05.sh`** mirroring `run_rung03.sh` — 5 tests, JVM oracle.
+
+**Note on expr convention:** `ICN_STR` / `ICN_CONCAT` leave String ref on JVM stack at `expr.γ`. `ICN_VAR` (string-typed) also leaves String ref via `getstatic`. So at `expr.γ` we always have a String ref on stack — `putstatic icn_subject` consumes it cleanly.
 
 ### IJ-9 findings — suspend/resume architecture fix
 
