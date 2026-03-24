@@ -206,3 +206,4 @@ Append-only. Do not edit existing entries.
 | **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | ✅ B-283 2026-03-24 |
 | **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | ✅ B-283 2026-03-24 |
 | **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ PJ-7 `c6a8bda` |
+| **M-PJ-LISTS** | Rung 6: `append/3`, `length/2`, `reverse/2` | ✅ PJ-11 `e3c30ab` |

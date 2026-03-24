@@ -167,3 +167,16 @@ triggers OFNE check on the stored function-result pattern.
 
 ### Invariants
 - Rungs 01-05 JVM: PASS ✅
+
+## PJ-11 — 2026-03-24
+
+**Repo:** snobol4x `main` · **HEAD:** `e3c30ab`
+**Milestone:** M-PJ-LISTS ✅
+
+**Work done:**
+- Diagnosed rung06 silent-fail (Bug 2, listed as open in PJ-10 handoff)
+- Root cause: `init_cs = cs - base[ci]` goes negative when `alphafail` routes from clause `ci-1` to clause `ci` without updating `cs` (e.g. cs=0, base[1]=1 → init_cs=-1). The body ucall receives cs=-1, dispatch hits omega immediately.
+- Fix: `dup/ifge/pop/iconst_0` clamp at each clause α entry in `pj_emit_choice` (`prolog_emit_jvm.c`).
+- Rungs 01–06 all PASS. No regressions.
+
+**Next:** PJ-12 → M-PJ-CUT (rung07 cut/differ). See FRONTEND-PROLOG-JVM.md §NOW for bootstrap and cut design notes.
