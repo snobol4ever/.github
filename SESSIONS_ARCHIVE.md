@@ -214,3 +214,24 @@ Key design insight: TZ/TY/TV/TW build patterns containing `$ *assign(...)` side-
 **Goal:** Fix rung05 backtrack bug (member/2 prints a\nb not a\nb\nc). Fire M-PROLOG-CORPUS.
 **Result:** Encoding scheme partially worked (a\nb printed) but env reset in `case ci:` preamble corrupted third solution. Reverted `prolog_emit.c` to clean. No new commit. Repo at `b4507dc`.
 **Next:** F-224 — try transparent pass-through or inner_cs out-param approach per TINY.md CRITICAL.
+
+## Session I-10 — 2026-03-24 — SESSIONS_ARCHIVE pruning + context/handoff
+
+**HEAD at start:** `54031a5` I-7 (no snobol4x changes)
+**HEAD at end:** `54031a5` I-7 (no snobol4x changes)
+
+**Work done:**
+- Cloned both repos fresh. Read PLAN.md, FRONTEND-ICON.md §NOW, icon_emit.c (1105 lines), t01_gen.icn + expected, generated and inspected full ASM output for t01_gen.
+- Confirmed I-9 bug analysis is correct: rsp corruption on jmp-trampoline resume. The generated ASM path is correct logically, but β at `icon_14_b` jumps into upto's body with main's rsp.
+- Fix 1 (left_is_value) and Fix 2 (rsp save/restore) from FRONTEND-ICON.md §NOW are the correct patches. Context window reached ~70% before apply+test cycle could begin.
+- Pruned SESSIONS_ARCHIVE.md: 782 KB / 15,064 lines → 15 KB / 216 lines (98% reduction). Retained preamble + stub notice + 10 most recent sessions. Committed `1c17c07` on .github.
+- Updated PLAN.md NOW table ICON row (I-9 → I-10) and FRONTEND-ICON.md §NOW checklist (I-10 → I-11).
+
+**No snobol4x commit this session** — fixes not yet applied. Repo at `54031a5`.
+
+**Next session (I-11):**
+1. Clone both repos
+2. Read FRONTEND-ICON.md §NOW — both exact patches are there, copy-paste into icon_emit.c
+3. Rebuild icon_driver
+4. Test t01_gen → must output `1\n2\n3\n4` with no segfault
+5. Write 5 R3 corpus tests, run full suite, fire M-ICON-CORPUS-R3

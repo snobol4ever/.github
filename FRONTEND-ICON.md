@@ -18,9 +18,9 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-9 — two fixes identified, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+| **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 
-### Next session checklist (I-10)
+### Next session checklist (I-11)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
