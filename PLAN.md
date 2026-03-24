@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-275 — M-BEAUTY-XDUMP ✅ | `6522e98` B-275 | M-BEAUTY-SEMANTIC |
+| **TINY backend** | `main` B-275 — M-BEAUTY-SEMANTIC ❌ | `fe86477` B-275 | M-BEAUTY-SEMANTIC |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-215 — prolog_emit dead _mark fix ✅ | `978398a` F-215 | M-PROLOG-WIRE-ASM |

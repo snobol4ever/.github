@@ -14889,3 +14889,31 @@ bash /home/claude/snobol4x/setup.sh
 **Milestones fired:** none
 
 **Next session (F-216):** M-PROLOG-WIRE-ASM — get `-pl -asm` producing working x64. Steps: verify `asm_emit_prolog` entry point wires correctly end-to-end, test `null.pl` → exit 0, then `hello.pl` → fire M-PROLOG-HELLO, climb rung ladder via Byrd box β port.
+
+## Session B-274 — 2026-03-23 — M-BEAUTY-READWRITE ✅
+
+**Repos touched:** snobol4x, .github
+**Commits:** `eeeb5ad` (snobol4x), `a829b11` (.github)
+
+**Root cause fixed:** `scan_named_patterns()` in `emit_byrd_asm.c` checked `children[0]->kind == E_QLIT` for DEFINE detection. Multi-line DEFINE via continuation (`+`) produces `E_CONC(E_QLIT, E_QLIT)` — silently skipping `Read` registration. Added `expr_flatten_str()` DFS helper to flatten E_CONC trees; `Read` now registered as user fn; `fn_Read_γ/ω` emitted; FRETURN routes to `fn_Read_ω` not `L_SNO_END`. 8/8 ASM PASS. 106/106 corpus.
+
+**Milestones fired:** M-BEAUTY-READWRITE ✅
+
+**Next:** M-BEAUTY-XDUMP — debug 2D subscript + PROTOTYPE + integer key type in SORT.
+
+## Session B-275 — 2026-03-23 — M-BEAUTY-XDUMP ✅ + semantic driver
+
+**Repos touched:** snobol4x, .github
+**Commits:** `fa0eee9` sno2c+runtime, `fe86477` semantic driver (.github `2a04df2`)
+
+**Fixes:**
+- `stmt_aref2/aset2`: 2D subscript `arr[i,j]` was ignoring 2nd index; new shims in `snobol4_stmt_rt.c`; `E_IDX` emitter updated for `nchildren>=3`
+- `PROTOTYPE`: was returning bare count `"1"`; now returns `"lo:hi"` matching CSNOBOL4
+- `table_set_descr` + `TBPAIR_t.key_descr`: integer keys preserved through SORT
+- `sort_fn`: stores `key_descr` in col 1 so `DATATYPE(objKey)` returns `'INTEGER'` correctly
+
+**Semantic subsystem:** driver+ref committed (`fe86477`); 8/8 CSN PASS; ASM segfaults on `DATA('link_counter(next,value)')` + `$'#N'` indirect variable — B-276 blocker.
+
+**Milestones fired:** M-BEAUTY-XDUMP ✅
+
+**Next (B-276):** Fix ASM segfault in DATA/indirect var; `DEFDAT_fn`/`NV_GET_fn`/`NV_SET_fn` in `snobol4.c`; fire M-BEAUTY-SEMANTIC ✅; advance to M-BEAUTY-OMEGA.

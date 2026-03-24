@@ -1,236 +1,51 @@
 # TINY.md — snobol4x (L2)
 
 snobol4x: multiple frontends, multiple backends.
-**Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.** When any milestone fires, Claude writes the commit.
+**Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.**
 
-→ Frontends: [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) · [FRONTEND-REBUS.md](FRONTEND-REBUS.md) · [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) · [FRONTEND-ICON.md](FRONTEND-ICON.md) · [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
-→ Backends: [BACKEND-C.md](BACKEND-C.md) · [BACKEND-X64.md](BACKEND-X64.md) · [BACKEND-NET.md](BACKEND-NET.md) · [BACKEND-JVM.md](BACKEND-JVM.md)
-→ Compiler: [IMPL-SNO2C.md](IMPL-SNO2C.md) · Testing: [TESTING.md](TESTING.md) · Rules: [RULES.md](RULES.md) · Monitor: [MONITOR.md](MONITOR.md)
-→ Full session history: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
+→ Rules: [RULES.md](RULES.md) · Beauty plan: [BEAUTY.md](BEAUTY.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
 
 ## NOW
 
-**Sprint:** `main` — M-BEAUTY-* sprint (beauty.sno subsystem testing via monitor)
-**HEAD:** `cb03ddc` B-274 (main)
-**Milestone:** M-BEAUTY-READWRITE ❌ — in progress; CSNOBOL4 8/8 PASS; ASM 7/8 (test 4 Read FRETURN failing); SPITBOL known M-MON-BUG-SPL-EMPTY timeout
-**Invariants:** 106/106 ASM corpus ALL PASS ✅ · 110/110 NET corpus ALL PASS ✅
-**Compatibility policy:** snobol4x follows CSNOBOL4 behavior. DATATYPE() returns UPPERCASE.
+**Sprint:** `main` — M-BEAUTY-* sprint
+**HEAD:** `fe86477` B-275 (main)
+**Milestone:** M-BEAUTY-SEMANTIC ❌ — driver+ref ready (8/8 CSN); ASM segfaults on DATA/`$'#N'`
+**Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — Session B-275 (M-BEAUTY-READWRITE, BEAUTY SESSION):**
-
-```bash
-cd /home/claude/beauty-project/snobol4x   # or: git clone snobol4ever/snobol4x + snobol4ever/.github + snobol4ever/x64
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
-git pull --rebase origin main   # HEAD should be cb03ddc B-274
-
-# Also clone snobol4corpus sibling:
-git clone https://github.com/snobol4ever/snobol4corpus ../snobol4corpus
-
-# Setup (if fresh container — build CSNOBOL4 from uploaded tarball snobol4-2_3_3_tar.gz):
-# tar xzf snobol4-2_3_3_tar.gz && cd snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j4 && make install
-bash setup.sh   # must end 106/106 ALL PASS
-
-# BUG TO FIX — test 4 (Read FRETURN on bad path) fails in ASM:
-# Read('/nonexistent/path/file.txt') calls INPUT(.rdInput, 8, fname'[-m10 -l131072]')
-# _b_INPUT should return FAILDESCR when fopen fails → :F(FRETURN)
-# Hypothesis: OPSYN chain input_→io→APPLY(io,name,channel,options,fileName) passes
-# 4 args to _b_INPUT. n>=4 branch uses a[3] as fname. Check a[3] value in io chain:
-# io.sno sets fileName via pattern match on arg3; may strip opts differently.
-# Debug: add fprintf(stderr,...) in _b_INPUT to print fname, n, fopen result.
-# Fix confirmed → cd src && make
-
-# Then run 8/8:
-INC=demo/inc bash test/beauty/run_beauty_subsystem.sh ReadWrite
-# SPITBOL will timeout (M-MON-BUG-SPL-EMPTY — known open bug).
-# PRECEDENT: check SESSIONS_ARCHIVE for how prior milestones handled SPL timeout.
-# If 2-way (CSN+ASM) is acceptable per project precedent → fire milestone.
-
-# Fire milestone:
-git commit -m "B-275: M-BEAUTY-READWRITE ✅"
-# Update PLAN.md TINY backend row → M-BEAUTY-XDUMP, update TINY.md NOW
-# git pull --rebase .github && push both repos
-```
-Trigger phrase for beauty sprint: **"playing with beauty"**
+**⚡ CRITICAL NEXT ACTION — B-276 (M-BEAUTY-SEMANTIC):**
 
 ```bash
-cd /home/claude/beauty-project/snobol4x   # or: git clone snobol4ever/snobol4x
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
-git pull --rebase origin main   # HEAD should be 33e5f7f B-271
+cd /home/claude/snobol4ever
+# bootstrap: see snobol4x/PLAN.md §START (clones + setup.sh → 106/106)
 
-# Setup (if fresh container):
-bash setup.sh
-gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
-gcc -shared -fPIC -O2 -Wall -o /home/claude/beauty-project/x64/monitor_ipc_spitbol.so \
-    /home/claude/beauty-project/x64/monitor_ipc_spitbol.c
+# BUG: ASM segfaults on semantic/driver.sno
+# Root cause: DATA('link_counter(next,value)') + $'#N' indirect computed variable
+# Fix target: snobol4.c — DEFDAT_fn / NV_GET_fn / NV_SET_fn for DATA object values
+# Debug: compile semantic/driver.sno via -asm, run under ASAN/gdb, find crash site
 
-# ALL 19 INCLUDES NOW IN demo/inc/ — use INC=demo/inc for all beauty drivers
-
-# Write + run M-BEAUTY-READWRITE:
-mkdir -p test/beauty/ReadWrite
-# Write driver exercising Read/Write/LineMap from ReadWrite.sno
-# Oracle: snobol4 -f -P256k -Idemo/inc test/beauty/ReadWrite/driver.sno > driver.ref
-# Monitor: INC=demo/inc X64_DIR=/home/claude/beauty-project/x64 MONITOR_TIMEOUT=30 \
-#          bash test/beauty/run_beauty_subsystem.sh ReadWrite
-
-# Then continue in order:
-#   M-BEAUTY-XDUMP   — XDump extended variable dump (depends M-BEAUTY-TDUMP ✅)
-#   M-BEAUTY-SEMANTIC — semantic action helpers (depends M-BEAUTY-SR ✅ + M-BEAUTY-GEN ✅)
-#   M-BEAUTY-OMEGA   — omega pattern helpers (depends M-BEAUTY-SEMANTIC)
-#   M-BEAUTY-TRACE   — xTrace control + trace output (no hard deps)
-# All 5 remaining → M-BEAUTIFY-BOOTSTRAP sprint begins
-
-# After each PASS: confirm corpus invariant
-bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
-
-# Fire milestones — commit snobol4x, update PLAN.md + TINY.md, push both repos
+INC=snobol4x/demo/inc bash snobol4x/test/beauty/run_beauty_subsystem.sh semantic
+# → 8/8 PASS → commit "B-276: M-BEAUTY-SEMANTIC ✅" → advance to M-BEAUTY-OMEGA
+# omega.sno: write driver → oracle → fix ASM → commit
 ```
-Trigger phrase for beauty sprint: **"playing with beauty"**
-Full developer cycle → BEAUTY.md · RULES.md §BEAUTY SESSION
 
-**⚡ CRITICAL NEXT ACTION — Session B-265 (M-BEAUTY-CASE, BEAUTY SESSION):**
+---
 
-```bash
-cd /home/claude/snobol4-project/snobol4x   # or: git clone snobol4ever/snobol4x
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git
-git pull --rebase origin main   # HEAD should be 6fd01aa B-264
+## Last Two Sessions (3 lines each)
 
-# Setup (if fresh container):
-bash setup.sh
-gcc -shared -fPIC -O2 -Wall -o test/monitor/monitor_ipc_sync.so test/monitor/monitor_ipc_sync.c
-gcc -shared -fPIC -O2 -Wall -o /home/claude/snobol4-project/x64/monitor_ipc_spitbol.so     /home/claude/snobol4-project/x64/monitor_ipc_spitbol.c
+**B-275 (2026-03-23) — M-BEAUTY-XDUMP ✅:**
+`stmt_aref2/aset2` (2D subscripts); `PROTOTYPE` now returns `lo:hi`; `table_set_descr` preserves integer key type through SORT; `expr_flatten_str` for multi-line DEFINE. Semantic driver+ref committed; ASM segfault on DATA/`$'#N'` is B-276 blocker. HEAD `fe86477`.
 
-# THE ONE REMAINING BUG (read §21 below before coding):
-# ANY(&UCASE &LCASE) emits temp slot via emit_expr → any_expr_tmp_N_t/p .bss labels.
-# But ANY_α_VAR calls NV_GET_fn(varname) which doesn't know temp labels.
-# Fix: add ANY_α_SLOT macro to snobol4_asm.mac that reads charset directly from
-# two absolute .bss addresses (type ptr + str ptr) rather than via NV_GET_fn.
-# Then in emit_byrd_asm.c ANY expr branch: emit ANY_α_SLOT tmplab_t, tmplab_p, ...
-# instead of registering a fake variable and calling emit_any_var.
+**B-274 (2026-03-23) — M-BEAUTY-READWRITE ✅:**
+`expr_flatten_str()` — multi-line DEFINE (E_CONC spec) was silently skipping `Read` as user fn; `fn_Read_γ/ω` now emitted; FRETURN routes correctly. 8/8 ASM PASS. HEAD `eeeb5ad`.
 
-# After fix — test icase:
-INC=demo/inc ./snobol4-asm /tmp/icase_test.sno   # must print PATTERN
+---
 
-# Then 3-way monitor:
-INC=demo/inc X64_DIR=/home/claude/snobol4-project/x64   MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh case
-# → 9/9 PASS → fire M-BEAUTY-CASE
+## Beauty Subsystem Status
 
-# Confirm corpus invariant
-bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
-
-# Fire M-BEAUTY-CASE — commit snobol4x, update TINY.md + PLAN.md, push both repos
-```
-Trigger phrase for beauty sprint: **"playing with beauty"**
-Full developer cycle → BEAUTY.md · RULES.md §BEAUTY SESSION
-
-## Last Session Summary
-
-**Session B-271 (2026-03-23) — M-BEAUTY-TDUMP ✅ + M-BEAUTY-GEN ✅ + M-BEAUTY-QIZE ✅ + BREAK/SPAN(expr) fix:**
-- **M-BEAUTY-TDUMP**: INC path fix (`demo/inc` not `snobol4corpus/programs/inc`). No source changes. 3-way PASS, 1 step.
-- **M-BEAUTY-GEN**: New driver — 7 tests covering IncLevel/DecLevel/SetLevel/GetLevel/Gen buffering+flush. 3-way PASS, 1 step.
-- **BREAK/SPAN(expr) bug fix**: `BREAK(sq dq)` / `SPAN(expr)` with E_CONC arg silently emitted empty charset. Fix: `stmt_break_ptr` + `stmt_span_ptr` in snobol4_stmt_rt.c; `BREAK_α_PTR`/`SPAN_α_PTR` macros in snobol4_asm.mac; BREAK/SPAN E_CONC branches in emit_byrd_asm.c now dispatch via PTR path. All 19 beauty includes added to demo/inc/.
-- **M-BEAUTY-QIZE**: 5-test driver. 3-way PASS, 11 steps, 0 divergence.
-- 106/106 corpus ALL PASS. snobol4x HEAD: `33e5f7f` B-271.
-
-
-**Session F-214 (2026-03-22) — M-PROLOG-HELLO ✅ — Prolog x64 ASM backend first working program:**
-- Wired `-pl -asm` in `main.c` to call new `asm_emit_prolog()` instead of `pl_emit()`.
-- Replaced stub `emit_prolog_choice` with full implementation in `emit_byrd_asm.c`:
-  - `emit_prolog_program()`: Prolog header (externs: unify, trail_*, term_new_*, pl_write, putchar, exit)
-  - `emit_prolog_choice()`: resumable `_r` function with `cmp/je` clause dispatch on `start`
-  - `emit_prolog_clause_block()`: α port, trail mark, head unify via `unify()` call, body goals, γ return
-  - `emit_pl_term_load()`: atom→`lea [rel ATOM_LABEL]`, var→`[rbp-slot]`, int→`term_new_int`
-  - `emit_pl_atom_data_v2()`: correct 24-byte Term structs (.data); `pl_rt_init()` fixes atom_ids at runtime
-  - `emit_prolog_main()`: `main` calls `prolog_atom_init` + `trail_init` + `pl_rt_init` + init predicate
-  - Body builtins handled inline: write/1→pl_write, nl/0→putchar(10), halt→exit, true/fail, writeln, =/2, ;/2, ,/2
-- `prolog_unify.c`: added `trail_mark_fn()` non-inline wrapper (static inline not linkable from ASM).
-- Fixed frame size bug: `sub rsp, 32` (not 16) — slots: mark(8)+cut(8)+args_ptr(8)+start(8).
-- Fixed calling convention for arity-0: `rdi`=Trail*, `rsi`=start (not rdi=NULL, rsi=Trail*).
-- Fixed atom struct size: 24 bytes (tag+saved_slot+union) not 16.
-- **VERIFIED**: `hello.pro` → `hello` via `-pl -asm` pipeline end-to-end. M-PROLOG-HELLO ✅
-- OPEN BUG blocking M-PROLOG-R1: call sites use `pl_NAME_ARITY_r` but predicates defined as `pl_NAME_sl_ARITY_r`. Fix: pass `"functor/arity"` through `pl_safe()` at every call site; drop `_%d` suffix. Grep: `pl_%s_%d_r` in `emit_byrd_asm.c`.
-- snobol4x commit: `082141e` F-214
-
-
-
-**Session B-259 (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session: (2026-03-23) — PIVOT: beauty sprint; HQ doc-only session:**
-- No snobol4x source changes. All work in .github (PLAN.md, RULES.md, TINY.md, BEAUTY.md, MONITOR.md).
-- Added trigger phrase "playing with beauty" → BEAUTY SESSION to PLAN.md trigger table.
-- Expanded all 20 M-BEAUTY-* + M-BEAUTIFY-BOOTSTRAP milestone rows with full trigger descriptions.
-- Rewrote BEAUTY SESSION rules: full developer cycle (find+fix in one session, not split across sessions).
-- Clarified MONITOR SESSION = infrastructure only; BEAUTY SESSION = uses the monitor to fix bugs.
-- Added developer cycle diagram to MONITOR.md. Updated BEAUTY.md harness section with fix-loop script.
-- .github commit: `6dbb5ed` B-259
-
-**Session B-258 (2026-03-22) — M-MON-BUG-ASM-WPAT ✅ + 3-way monitor + corpus DATATYPE fixes:**
-- Root cause: `stmt_concat()` in `snobol4_stmt_rt.c` lacked pattern case. `BREAK(WORD) SPAN(WORD)`
-  passed both `DT_P` operands through `VARVAL_fn()` → `"PATTERN"` each → concatenated →
-  `"PATTERNPATTERN"`. Fix: `if (a.v == DT_P || b.v == DT_P) return pat_cat(pa, pb)` guard,
-  promoting string operands to `pat_lit()`. Mirrors identical guard in `snobol4.c`.
-- Added `test/monitor/run_monitor_3way.sh` — 3-way variant (csn+spl+asm), JVM/NET excluded.
-- 3-way results: hello PASS ✅; wordcount ASM AGREE ✅; treebank diverges step 10
-  `STK='cell'` vs `'CELL'` — filed M-MON-BUG-ASM-DATATYPE-CASE; claws5 spl segfault (known).
-- snobol4corpus: fixed 3 tests to normalize `DATATYPE()` via `REPLACE(x,&LCASE,&UCASE)` —
-  `081_builtin_datatype`, `096_data_datatype_check`, `1115_data_basic`. Only `DATATYPE()`
-  return values coerced; user field values untouched. Stable across CSNOBOL4/SPITBOL(-f/-F)/ASM.
-- 106/106 ALL PASS. Commits: `a4a27ab` B-258 (snobol4x), `05b809d` (snobol4corpus)
-
-**Session B-255 (2026-03-22) — M-MONITOR-SYNC ✅:**
-- Added trace-registration hash set (64-slot open-addressed, `trace_set[]`) to snobol4.c
-- `trace_register/trace_unregister/trace_registered` helpers using djb2 hash
-- `comm_var()` now gates on `trace_registered(name)` — only sends events for variables explicitly registered via `TRACE(name,'VALUE')`; pre-init variables (tab/digits/etc.) silently skipped
-- `_b_TRACE` builtin: `TRACE(varname,'VALUE')` registers name; other types accepted but no-op
-- `_b_STOPTR` builtin: removes name from trace set
-- Registered both with `register_fn` (TRACE 1-4 args, STOPTR 1-2 args)
-- `monitor_ready` flag retained as secondary pre-init guard
-- Result: hello **PASS all 5 sync** (csn/spl/asm/jvm/net agree at every step, 2 steps)
-- SPL segfault is known sandbox artifact — harmless, SPITBOL still participates correctly
-- mono installed via apt (needed for NET participant in fresh containers)
-- 106/106 ALL PASS unchanged
-
-## Active Milestones
-
-| ID | Status |
-|----|--------|
-| M-MONITOR-SYNC     | ✅ `2652a51` B-255 |
-| M-MON-BUG-NET-TIMEOUT | ✅ `1e9f361` B-256 |
-| M-MONITOR-4DEMO    | ❌ — wordcount ASM AGREE ✅; treebank blocks on M-MON-BUG-ASM-DATATYPE-CASE; claws5 spl segfault (known) |
-| M-MON-BUG-SPL-EMPTY   | ❌ |
-| M-MON-BUG-ASM-WPAT    | ✅ `a4a27ab` B-258 |
-| M-MON-BUG-ASM-DATATYPE-CASE | ❌ — open bug (treebank STK case); beauty sprint proceeds in parallel |
-| M-MON-BUG-JVM-WPAT    | ❌ |
-| **M-BEAUTY-GLOBAL**   | ❌ partial — M-MON-BUG-ASM-CAPTURE-INCLUDE blocker |
-| M-BEAUTY-IS        | ❌ |
-| M-BEAUTY-FENCE     | ❌ |
-| M-BEAUTY-IO        | ❌ |
-| M-BEAUTY-CASE      | ❌ |
-| M-BEAUTY-ASSIGN    | ❌ |
-| M-BEAUTY-MATCH     | ❌ |
-| M-BEAUTY-COUNTER   | ❌ |
-| M-BEAUTY-STACK     | ❌ |
-| M-BEAUTY-TREE      | ❌ |
-| M-BEAUTY-SR        | ❌ |
-| M-BEAUTY-GEN       | ✅ `50313ae` B-271 |
-| M-BEAUTY-QIZE      | ✅ `33e5f7f` B-271 |
-| M-BEAUTY-READWRITE | ❌ **NEXT** |
-| M-BEAUTY-XDUMP     | ❌ |
-| M-BEAUTY-SEMANTIC  | ❌ |
-| M-BEAUTY-OMEGA     | ❌ |
-| M-BEAUTY-TRACE     | ❌ |
-| M-BEAUTIFY-BOOTSTRAP | ❌ |
-| M-PROLOG-HELLO     | ✅ `082141e` F-214 |
-| **M-PROLOG-R1**    | ❌ **NEXT (F-215)** — fix pl_safe call-site naming; rung02+rung05 |
-| M-PROLOG-R3        | ❌ |
-| M-PROLOG-R4        | ❌ |
-| M-PROLOG-R5        | ❌ |
-
-## Concurrent Sessions
-
-| Session | Branch | Focus |
-|---------|--------|-------|
-| B-next | `main` | M-BEAUTY-GLOBAL finish (M-MON-BUG-ASM-CAPTURE-INCLUDE) |
-| F-215  | `main` | M-PROLOG-R1 — fix pl_safe call site naming, run rung02+rung05 |
+See [BEAUTY.md](BEAUTY.md) for full sequence. Summary:
+- ✅ 1–16: global/is/FENCE/io/case/assign/match/counter/stack/tree/SR/TDump/Gen/Qize/ReadWrite/XDump
+- ❌ 17: semantic ← **now**
+- ❌ 18: omega
+- ❌ 19: trace

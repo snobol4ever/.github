@@ -86,6 +86,15 @@ git log origin/main --oneline -1   # must show YOUR commit hash
 **Mandatory final sequence — do this in order, verify each step:**
 
 ```bash
+# 0. REWRITE TINY.md (never append — replace entirely)
+#    Open TINY.md. Delete ALL old CRITICAL NEXT ACTION blocks. Delete summaries
+#    older than 2 sessions. Write one new CRITICAL NEXT ACTION block. Write
+#    at most 2 session summaries (3 lines each). Then gate:
+wc -c /home/claude/.github/TINY.md    # MUST be under 10240 — fix before proceeding
+wc -c /home/claude/.github/JVM.md     # MUST be under 10240
+wc -c /home/claude/.github/DOTNET.md  # MUST be under 10240
+# If ANY file exceeds 10240: STOP. Trim it. Re-check. Do not push until all pass.
+
 # 1. snobol4x
 cd /home/claude/snobol4x
 git pull --rebase origin main
@@ -302,40 +311,39 @@ This rule applies regardless of which session type (B/J/N/F/D) is doing the work
 
 **L2 docs (TINY.md, JVM.md, DOTNET.md) have a hard size limit of 10 KB.**
 
-TINY.md ballooned from ~5 KB to 155 KB because each session *prepended* a new
-"CRITICAL NEXT ACTION" block without deleting the previous one. DOTNET.md hit
-57 KB the same way. This is the failure mode: "update" interpreted as "add to top."
+**Root cause (recurring):** Each session *appends* a new CRITICAL NEXT ACTION block without deleting the previous one. TINY.md hit 155 KB this way; DOTNET.md hit 57 KB; TINY.md hit 13.9 KB again in B-275 despite this rule existing. The failure mode is that the `wc -c` check was listed *after* the commit steps, making it easy to skip. The fix: `wc -c` is now **step 0** in the mandatory final sequence — a blocking gate before any commit.
 
-**The rule:** When writing the end-of-session "CRITICAL NEXT ACTION" and summary:
-1. **DELETE** the previous session's "CRITICAL NEXT ACTION" block entirely.
-2. **DELETE** the previous session's summary — or keep at most the last TWO summaries.
-3. **REPLACE** the NOW section — do not prepend to it.
-4. Session history → **SESSIONS_ARCHIVE.md only**. Never accumulate in L2.
-5. Sprint plans for **completed** sprints → delete from L2. They are in SESSIONS_ARCHIVE.
-6. Root cause notes for **fixed** bugs → delete from L2. They are in SESSIONS_ARCHIVE.
+**The rule:** When writing the end-of-session CRITICAL NEXT ACTION and summary:
+1. **REWRITE** TINY.md from scratch — do not open it and append. Open it, select all, replace.
+2. **ONE** CRITICAL NEXT ACTION block. Delete all previous ones.
+3. **TWO** session summaries maximum, 3 lines each. Delete older ones.
+4. **REPLACE** the NOW section — do not prepend to it.
+5. Session history → **SESSIONS_ARCHIVE.md only**. Never accumulate in L2.
+6. Sprint plans for **completed** sprints → delete from L2. They are in SESSIONS_ARCHIVE.
+7. Root cause notes for **fixed** bugs → delete from L2. They are in SESSIONS_ARCHIVE.
 
-**Check before every push:**
+**Hard gate — runs as step 0 of mandatory final sequence (see §HANDOFF):**
 ```bash
 wc -c /home/claude/.github/TINY.md      # must be under 10240
 wc -c /home/claude/.github/JVM.md       # must be under 10240
 wc -c /home/claude/.github/DOTNET.md    # must be under 10240
 ```
-If any L2 doc exceeds 10 KB: trim it before pushing. No exceptions.
+If any L2 doc exceeds 10 KB: **STOP. Trim it. Re-check. Do not commit until all pass.**
 
-**What belongs in L2:**
+**What belongs in L2 (total target: under 3 KB):**
 - Current HEAD + branch + session number
-- Current sprint name + 3–5 concrete next steps (the CRITICAL NEXT ACTION block)
-- Last 1–2 session summaries (3–5 lines each) for continuity
-- Active milestone status table (next 5 milestones only)
-- Concurrent session table
+- ONE CRITICAL NEXT ACTION block (5–10 lines of bash)
+- Last 2 session summaries (3 lines each)
+- Beauty subsystem status (one-liner per remaining subsystem)
 - Pointers to L3 docs
 
 **What does NOT belong in L2:**
-- Completed sprint plans
-- Fixed bug root causes
-- Architecture notes (→ ARCH.md or BACKEND-X64.md)
-- Old CRITICAL NEXT ACTION blocks
-- Session summaries older than 2 sessions (→ SESSIONS_ARCHIVE.md)
+- Completed sprint plans → SESSIONS_ARCHIVE.md
+- Fixed bug root causes → SESSIONS_ARCHIVE.md
+- Architecture notes → ARCH.md or BACKEND-X64.md
+- Old CRITICAL NEXT ACTION blocks (any block older than the current session)
+- Session summaries older than 2 sessions → SESSIONS_ARCHIVE.md
+- Full Active Milestones table → PLAN.md dashboard only
 
 ## ⛔ HQ HIERARCHY — edit downstream files, not PLAN.md
 
