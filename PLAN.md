@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-277 — M-BEAUTY-TRACE ❌ | `bd9d6e3` B-277 | M-BEAUTY-TRACE |
+| **TINY backend** | `main` B-278 — M-BEAUTIFY-BOOTSTRAP ❌ | `e7fc3a2` B-278 | M-BEAUTIFY-BOOTSTRAP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
@@ -74,8 +74,8 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-BEAUTY-READWRITE** | ReadLine/WriteLine buffered I/O 3-way PASS | ✅ |
 | **M-BEAUTY-XDUMP** | XDump extended variable dump 3-way PASS | ✅ |
 | **M-BEAUTY-SEMANTIC** | semantic action helpers 3-way PASS | ✅ |
-| **M-BEAUTY-OMEGA** | omega pattern helpers 3-way PASS | ❌ ← now (SPITBOL+SO crash: strip UTF-8 from driver comments) |
-| **M-BEAUTY-TRACE** | xTrace control + trace output 3-way PASS | ❌ |
+| **M-BEAUTY-OMEGA** | omega pattern helpers 3-way PASS | ✅ |
+| **M-BEAUTY-TRACE** | xTrace control + trace output 3-way PASS | ✅ |
 | **M-BEAUTIFY-BOOTSTRAP** | beauty.sno reads + writes itself; fixed point | ❌ |
 | **M-MONITOR-GUI** | 🌙 HTML/React monitor GUI — diverging cells highlighted | 💭 |
 

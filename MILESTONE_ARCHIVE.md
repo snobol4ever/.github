@@ -190,3 +190,5 @@ Append-only. Do not edit existing entries.
 
 | **M-BEAUTY-XDUMP** | XDump extended variable dump 3-way PASS | ✅ B-275 `fa0eee9` |
 | **M-BEAUTY-SEMANTIC** | semantic action helpers 3-way PASS | ✅ B-276 `f721492` |
+
+| **M-BEAUTY-TRACE** | xTrace control + trace output 3-way PASS | ✅ B-277 `22e291c` 2026-03-24 |
