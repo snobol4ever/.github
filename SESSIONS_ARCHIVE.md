@@ -151,3 +151,19 @@ triggers OFNE check on the stored function-result pattern.
 (1) Cloned snobol4harness + snobol4corpus; built CSNOBOL4 2.3.3 from tarball; confirmed 106/106 ASM corpus ALL PASS; C backend marked ☠️ DEAD (99/106, not maintained).
 (2) Re-ran all 19 beauty subsystem drivers standalone through ASM: 15/19 PASS. Regressions found: is, TDump, Gen, semantic FAIL. Filed M-BUG-IS-DIALECT, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER, M-BUG-SEMANTIC-NTYPE.
 (3) Bootstrap trial: beauty_asm produces 10-line header + Parse Error vs oracle 784 lines. Filed M-BUG-BOOTSTRAP-PARSE. HQ updated. No snobol4x code changes this session.
+---
+
+## PJ-10 — 2026-03-24
+
+**Branch:** `main` | **HEAD at close:** `64d350a`
+
+### What was done
+- Read PLAN.md, FRONTEND-PROLOG-JVM.md, BACKEND-JVM-PROLOG.md, FRONTEND-PROLOG.md, RULES.md
+- Ingested JCON source (jcon-master.zip) for reference on closure/resume patterns
+- Diagnosed rung06 silent failure: traced `jvm_arg_for_slot[]` bug — second pass over head args overwrote slot→argindex mapping with LAST occurrence not FIRST. In `append([],L,L)`, slot 0 was mapped to arg2 instead of arg1; non-linear unify became `pj_unify(arg2,arg2)` — no-op. arg1 (`[c,d]`) never bound.
+- **Fix applied:** Added `if (jvm_arg_for_slot[ht->ival] < 0)` guard at `prolog_emit_jvm.c` line 1454. First occurrence wins.
+- Confirmed rungs 01-05 still PASS after fix.
+- **Remaining:** rung06 still silent after fix — `append` call returns null (ω) at runtime. Second bug open for PJ-11. Suspected: `main` fails before reaching `write`. Minimal repro (`append([],[c,d],L)`) needed to isolate.
+
+### Invariants
+- Rungs 01-05 JVM: PASS ✅
