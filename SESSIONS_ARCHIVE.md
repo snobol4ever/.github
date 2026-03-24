@@ -15382,7 +15382,6 @@ The assign and recursive-call emitters still have stack-across-label violations.
 
 **Open for IJ-5:** Bug 3 (rung01 VerifyError in write(long)), then M-IJ-CORPUS-R2.
 
-<<<<<<< Updated upstream
 ## Session PJ-5 — 2026-03-24 — M-PJ-BACKTRACK (in progress)
 
 **Sprint:** `main` PJ-5
@@ -15433,7 +15432,6 @@ cd snobol4x && make -C src
 
 ### Open for IJ-6
 Fix VerifyError: emit `lconst_0; lstore N` for all long slots before suspend_id dispatch so verifier sees consistent types at `icn_upto_beta` join point. See FRONTEND-ICON-JVM.md §IJ-5 findings for full strategy.
-=======
 ## Session B-282 — 2026-03-24 — 3 runtime bugs fixed; 8 beauty subsystems PASS
 
 **State at start:** HEAD `a732d3b` B-281. beauty_asm exits 0, 10/784 lines, Parse Error at main02. 106/106 corpus PASS.
@@ -15459,4 +15457,3 @@ Fix VerifyError: emit `lconst_0; lstore N` for all long slots before suspend_id 
 3. Run `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → must be 106/106
 4. Fix match driver (rewrite to not use TxInList), regenerate ref, run monitor
 5. Continue remaining subsystems in dependency order
->>>>>>> Stashed changes
