@@ -19,9 +19,54 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-13 — M-PJ-RECUR ✅ + M-PJ-BUILTINS ✅; rungs 01-09 PASS | `5197730` PJ-13 | M-PJ-CORPUS-R10 |
+| **Prolog JVM** | `main` PJ-14 — .limit locals fix + ;/2 retry fix; rungs 01-09 PASS; nested ucall bug diagnosed | `fabd377` PJ-14 | M-PJ-CORPUS-R10 |
 
-### CRITICAL NEXT ACTION (PJ-12)
+### CRITICAL NEXT ACTION (PJ-15)
+
+**Bug: nested user calls — inner call exhaustion wires to predicate ω instead of enclosing call β.**
+
+Reproducer (`/tmp/minimal2.pro`):
+```prolog
+:- initialization(main). main :- test ; true.
+item(a). item(b).
+differ(X, X) :- !, fail.
+differ(_, _).
+test :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
+```
+Expected (swipl): `a-b\nb-a`. JVM: silent (no output, exits 0).
+
+**Root cause:** In `pj_emit_body` line ~1665:
+```c
+J("%s:\n", call_ω);
+JI("goto", lbl_outer_ω);   /* BUG: should retry enclosing call */
+```
+When `differ` (call7) is exhausted, `call7_omega → lbl_outer_omega → p_test_0_omega` (predicate fail). It should instead go to `call6_beta` (retry `item(Y)`). The correct wire is `call7_omega → call6_beta`.
+
+`lbl_outer_ω` is the *predicate's* omega (skip to next clause). `lbl_ω` at the point of call7 emission is `call6_beta`. So the fix seems to be `goto lbl_ω` instead of `goto lbl_outer_ω`. **But:** changing to `lbl_ω` caused an infinite loop in PJ-14 testing — `call7_beta` retried `differ` which always fails (no more solutions), so it looped back to `call6_beta` without decrementing the cs. The cs for `differ` was stuck and `item(Y)` kept binding to `b` while `differ(b,b)` kept failing → `call6_beta` → `item(Y)` again → same binding → infinite loop.
+
+**The actual fix needed:** When `call7_omega` fires (differ exhausted for the current X,Y binding), we need to advance `item(Y)`'s cs (retry item(Y) for a new Y), not retry `differ` with the same Y. This means `call7_omega` should reset `local_cs_7 = 0` (fresh differ) AND then goto `call6_beta` (which unwinds and retries item(Y)). The `local_cs` for `differ` must be reset to 0 before the beta jump, otherwise the next call to `differ` starts from an exhausted state.
+
+**Bootstrap PJ-15:**
+```bash
+git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+# Confirm baseline: rungs 01-09 PASS (see bootstrap in §NOW above)
+# Then: test minimal2
+cat > /tmp/minimal2.pro << 'EOF'
+:- initialization(main). main :- test ; true.
+item(a). item(b).
+differ(X, X) :- !, fail.
+differ(_, _).
+test :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
+EOF
+./sno2c -pl -jvm /tmp/minimal2.pro -o /tmp/Minimal2.j
+java -jar src/backend/jvm/jasmin.jar /tmp/Minimal2.j -d /tmp
+timeout 3 java -cp /tmp Minimal2  # should print a-b\nb-a
+# Fix: prolog_emit_jvm.c pj_emit_body, the call_ω label emission (~line 1665)
+# Approach: on call_omega, reset local_cs to 0, then goto lbl_ω (enclosing beta)
+```
 
 **Rung 08 `recursion`: `fibonacci/2`, `factorial/2`.**
 

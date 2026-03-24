@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-13 — M-PJ-RECUR ✅ + M-PJ-BUILTINS ✅; rungs 01-09 PASS | `5197730` PJ-13 | M-PJ-CORPUS-R10 |
+| **Prolog JVM** | `main` PJ-14 — .limit locals fix + ;/2 retry fix; rungs 01-09 PASS; nested ucall bug diagnosed | `fabd377` PJ-14 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-8 — no code; RULES.md ICON/IJ disambiguation fix (b21617a); context exhausted | `a3d4a55` IJ-7 | M-IJ-CORPUS-R3 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
