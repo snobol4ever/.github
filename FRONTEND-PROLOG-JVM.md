@@ -18,7 +18,44 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-1 — M-PJ-SCAFFOLD ✅ M-PJ-HELLO ✅ | `f7390c6` PJ-1 | M-PJ-FACTS |
+| **Prolog JVM** | `main` PJ-2 — Proebsting retry loop; ,/2 ;/2 — rung02 prints `brown` only | `7b6af68` PJ-2 | M-PJ-FACTS (fix retry) |
+
+### Session PJ-2 summary (2026-03-24)
+
+- Added `pj_is_user_call()` — mirrors `is_user_call()` in prolog_emit.c
+- Added `pj_emit_body()` — Proebsting E2.fail→E1.resume retry loop for user calls
+  - Allocates 3 JVM locals per user call: trail_cm, cs, rv
+  - γ return from predicate is now `Object[1]{Integer(ci)}` so caller can advance cs
+  - Suffix goals wired with ω=retry_lbl
+- `pj_emit_goal`: added `,/2` (flatten + pj_emit_body), `;/2` (disjunction), `->/2` (if-then)
+- `.limit locals` bumped +32 for retry loop temps
+- **Bug remaining:** rung02 `facts.pro` prints `brown` only instead of `brown/jones/smith`
+  - Retry loop structure is correct (verified in generated Jasmin)
+  - Trail unwind on retry reverts X to unbound ✓
+  - Person/1 clause1 (jones) should unify on cs=1 — not happening
+  - **Root cause hypothesis:** `p_person_1` head unification uses `aload 0` (arg0 = X cell ref).
+    After `pj_trail_unwind` restores X to `["var", null]`, clause1 tries to unify X with `atom(jones)`.
+    `pj_unify` checks if arg0 is a var with null slot — but `pj_trail_unwind` sets `arr[1]=null`
+    via `aastore` after `checkcast [Object[]` on the trailed cell. The trailed cell IS the X array.
+    Hypothesis: `pj_trail_unwind` pops the array ref, sets `[1]=null`, but does NOT reset `[0]` back
+    to `"var"` — so after binding to `brown`, `[0]` becomes `"ref"`. After unwind, `[1]=null` but
+    `[0]` is still `"ref"`. So `pj_deref` sees `tag="ref", value=null` → infinite loop or wrong result.
+  - **Fix for PJ-3:** `pj_trail_unwind` must restore BOTH slots: `arr[0]="var"`, `arr[1]=null`.
+
+### Next session checklist (PJ-3)
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x/src && make
+# Read FRONTEND-PROLOG-JVM.md §NOW — start here
+# Fix pj_trail_unwind: restore arr[0]="var" AND arr[1]=null (not just arr[1]=null)
+# In prolog_emit_jvm.c, find pj_trail_unwind method emission (~line 130)
+# After: arr[1] = null  →  also add: arr[0] = "var"
+# Test: rung02 → brown/jones/smith → M-PJ-FACTS fires
+# Then attempt rung03 (unify) → M-PJ-UNIFY
+```
 
 ### Session PJ-1 summary (2026-03-24)
 

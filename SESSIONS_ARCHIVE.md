@@ -15180,3 +15180,19 @@ labels not emitted by `emit_byrd_asm.c` for LIT/LIT_VAR nodes. Next session targ
 
 ### Next
 **M-PJ-FACTS** — rung02 deterministic fact lookup. See FRONTEND-PROLOG-JVM.md §NOW.
+
+## Session PJ-2 — Prolog JVM — 2026-03-24
+
+**Goal:** M-PJ-FACTS (rung02 facts.pro via -pl -jvm)
+**HEAD in:** f7390c6 (PJ-1) **HEAD out:** 7b6af68 (PJ-2)
+
+**Completed:**
+- pj_emit_body(): Proebsting E2.fail→E1.resume retry loop for backtrackable user calls
+- pj_emit_goal: ,/2 conjunction (flatten + pj_emit_body), ;/2 disjunction, ->/2 if-then
+- pj_is_user_call(): builtin exclusion list
+- Gamma return now Object[1]{Integer(ci)} so caller advances cs for retry
+- .limit locals bumped +32 for retry loop temps
+
+**Not completed:** M-PJ-FACTS — rung02 prints `brown` only
+**Root cause identified:** pj_trail_unwind restores arr[1]=null but leaves arr[0]="ref" (was "var"). pj_deref then sees tag="ref"/value=null on second call, fails to unify correctly.
+**Fix:** In pj_trail_unwind emission, also restore arr[0]="var" before arr[1]=null.
