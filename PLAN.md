@@ -18,7 +18,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **TINY frontend** | `main` F-227 | `d2457bd` F-227 | M-PROLOG-R10 |
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
-| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅ 15/15 corpus | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+| **ICON frontend** | `main` I-8 — diagnosis: 3 bugs in icon_emit.c found (is_gen=0, left_is_value, rsp); no commit | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**

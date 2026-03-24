@@ -18,21 +18,122 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-7 — M-ICON-CORPUS-R2 ✅: rung02_arith_gen 5/5 PASS. Total 15/15. | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+| **ICON frontend** | `main` I-8 — diagnosis complete, no commit yet | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 
-### Next session checklist (I-8)
+### Next session checklist (I-9)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
 git clone https://github.com/snobol4ever/.github
-# Read FRONTEND-ICON.md §NOW — write rung03_user_gen corpus, fire M-ICON-CORPUS-R3
-# Oracle: build icon-master (Configure name=linux && make)
-# Tests live in: test/frontend/icon/corpus/rung03_user_gen/
+# Read FRONTEND-ICON.md §NOW
+# Fix is_gen detection bug in icon_emit.c (see §I-8 Bug Diagnosis below)
+# Then fix left_is_value and rsp save/restore
+# Then write R3 corpus and fire M-ICON-CORPUS-R3
 ```
 
 **M-ICON-CORPUS-R3 spec:** user procedures with return; user-defined generators with suspend.
-Programs use `procedure`/`end`, `suspend`, `every` calling user generators.
-rung03_suspend already has t01_gen (upto/4) — R3 adds more complex generator patterns.
+rung03_suspend already has t01_gen (upto/4). R3 adds t01_return through t05_gen_compose.
+
+---
+
+## §I-8 Bug Diagnosis — Three bugs, fix in order
+
+**State:** I-7 pushed clean (`54031a5`). 15/15 corpus passing. I-8 was diagnosis only — no commits.
+
+**Symptom:** `every write(upto(4))` (rung03_suspend/t01_gen.icn) → segfault.
+
+### Bug 0 (PRIMARY — fix first): `is_gen=0` for `upto` — wrong call convention emitted
+
+`emit_call` emits `call icn_upto` instead of `jmp icn_upto` because `is_gen=0` at call-site.
+Evidence: generated ASM has `call icn_upto` at docall and `icn_upto_sret: ret` (not `jmp [caller_ret]`).
+The `icn_upto_caller_ret` BSS slot is absent — confirming Pass 1 registration set `is_gen=0`.
+
+**Root cause:** `has_suspend()` walks the AST but `while i <= n do suspend i do i := i + 1`
+nests `ICN_SUSPEND` inside the `do` clause of an `ICN_WHILE`. Verify that `has_suspend`
+recurses into all children including the body/do subtree. Check what `ICN_WHILE`'s child
+layout is in `icon_parse.c` — the `do` body may be child[2] and `has_suspend` may only
+scan child[0] (condition) and child[1] (body), missing child[2] if the while-do has
+three children. Print child counts in a debug build to confirm.
+
+**Fix:** Ensure `has_suspend` walks ALL children unconditionally — it already does
+`for(int i=0;i<n->nchildren;i++)` so the recursion is correct. The real question is
+whether the parser attaches the `do` body as a child of `ICN_WHILE` or of `ICN_SUSPEND`.
+Read `icon_parse.c` around line 420 and 493 — whichever parses `while E do suspend E do E`.
+If the outer `do` body (`i := i + 1`) is a sibling statement rather than a child of
+`ICN_SUSPEND`, `has_suspend` on the proc body finds `ICN_SUSPEND` correctly. If instead
+the parser wraps the whole `while ... do ...` differently, `ICN_SUSPEND` may not appear
+in the subtree that `has_suspend` scans in Pass 1. Add a `fprintf(stderr,...)` to
+`register_user_proc` to print `is_gen` for each proc — that will confirm whether the
+scan finds it or not.
+
+**Shortcut fix (guaranteed correct):** After fixing, verify with:
+```bash
+./icon_driver test/frontend/icon/corpus/rung03_suspend/t01_gen.icn | grep "jmp.*icn_upto\|call.*icn_upto"
+# Must show: jmp     icn_upto   (not call)
+# Must show: icn_upto_caller_ret: resq 1  in BSS section
+```
+
+### Bug 1: `left_is_value=1` for generator ICN_CALL (blocks t03/t05)
+
+After Bug 0 is fixed, `upto(3)+10` will still fail. In `emit_binop` (~line 598):
+```c
+// BEFORE:
+int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
+                     left_child->kind == ICN_STR || left_child->kind == ICN_CALL);
+// AFTER:
+int left_call_is_gen = 0;
+if (left_child->kind == ICN_CALL && left_child->nchildren >= 1) {
+    const char *fn = left_child->children[0]->val.sval;
+    for (int k = 0; k < user_proc_count; k++)
+        if (strcmp(user_procs[k], fn) == 0) { left_call_is_gen = user_proc_is_gen[k]; break; }
+}
+int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
+                     left_child->kind == ICN_STR ||
+                     (left_child->kind == ICN_CALL && !left_call_is_gen));
+```
+
+### Bug 2: Stack corruption — rsp not restored after generator jmp (blocks all gen tests)
+
+After `jmp icn_upto` + suspend yield + `jmp [caller_ret]` back to `after_call`,
+the hardware stack pointer is inside upto's live frame. Main's subsequent push/pop
+corrupts rsp. Fix in `emit_call` is_gen docall block:
+
+```c
+// Declare BSS slot per call-site
+char saved_rsp[64]; snprintf(saved_rsp, sizeof saved_rsp, "icn_%d_saved_rsp", id);
+bss_declare(saved_rsp);
+
+// At docall — BEFORE jmp icn_PROC:
+E(em,"    mov     [rel %s], rsp\n", saved_rsp);
+E(em,"    lea     rax, [rel %s]\n", after_call);
+E(em,"    mov     [rel %s], rax\n", caller_ret);
+E(em,"    jmp     icn_%s\n", fname);
+
+// At after_call — FIRST instruction (before icn_failed check):
+Ldef(em, after_call);
+E(em,"    mov     rsp, [rel %s]\n", saved_rsp);   // ← restore caller rsp
+
+// At β resume path (icon_NNN_b) — before jmp [icn_suspend_resume]:
+E(em,"    mov     [rel %s], rsp\n", saved_rsp);   // ← refresh saved_rsp for next resume
+E(em,"    mov     byte [rel icn_suspended], 0\n");
+E(em,"    jmp     [rel icn_suspend_resume]\n");
+```
+
+### R3 test programs (write after all three bugs fixed)
+
+| file | program | expected |
+|------|---------|----------|
+| `t01_return.icn` | `procedure add(a,b); return a+b; end` · `write(add(3,4))` | `7` |
+| `t02_gen_arith.icn` | `procedure gen(n); local i; i:=1; while i<=n do suspend i*2 do i:=i+1; end` · `every write(gen(3))` | `2\n4\n6` |
+| `t03_gen_plus_const.icn` | `every write(upto(3)+10)` (upto defined above main) | `11\n12\n13` |
+| `t04_gen_filter.icn` | `every write(upto(5) > 3)` | `3\n3` |
+| `t05_gen_compose.icn` | `every write(upto(2) * upto(2))` | `1\n2\n2\n4` |
+
+### After R3 fires
+
+Update PLAN.md ICON row: `I-9`, HEAD = new commit, next = `M-ICON-STRING`.
+Move M-ICON-CORPUS-R3 row to MILESTONE_ARCHIVE.md.
+Session number: **I-9**.
 
 ---
 
