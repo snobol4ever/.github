@@ -15000,3 +15000,11 @@ Key design insight: TZ/TY/TV/TW build patterns containing `$ *assign(...)` side-
 3. If clean: run full 3-way monitor → commit B-276: M-BEAUTY-OMEGA ✅
 4. If still crashes: bisect by adding tests one at a time to find exact trigger
 5. Advance PLAN.md to M-BEAUTY-TRACE (19th and final subsystem)
+
+## Session F-219 — 2026-03-23 — puzzle_02.pro missing earnsMore fact
+
+**Bug fixed:** `earnsMore(fuller, daw)` was absent from puzzle_02.pro. The puzzle states the plumber (fuller) earns more than the painter (daw), establishing the chain fuller > daw > clark. Only `earnsMore(daw, clark)` was present; `doesEarnMore(fuller, daw)` could never succeed; WINNER never printed.
+**Fix:** Added `earnsMore(fuller, daw).` to puzzle_02.pro.
+**Result:** WINNER prints for `Carpenter:clark Painter:daw Plumber:fuller`. puzzle_01, puzzle_02, puzzle_06 all PASS.
+**Commit:** `0c2119a` snobol4x · HEAD `0c2119a`
+**Next:** F-220 — puzzle_05 constraints (uncomment + implement \+ if needed) to fire M-PROLOG-R10.
