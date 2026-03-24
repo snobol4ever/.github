@@ -15485,3 +15485,16 @@ Fix VerifyError: emit `lconst_0; lstore N` for all long slots before suspend_id 
 **Next action B-284:** Add fprintf to XDSAR materialise case — print `sp->kind` and child pointers when `XDSAR("Command")` is resolved. Verify the PATND_t from `spat_of(NV_GET_fn("Command"))` has real children. If NULL: emit-time must call `snobol4_register_pat(varname, patnd)` to store a proper PATND_t in the variable table for patterns assigned from pattern expressions.
 
 **Invariants:** 106/106 ✅
+## PJ-7 — Prolog JVM
+
+**HEAD:** `c6a8bda` · **Branch:** `main`
+
+**Completed:** M-PJ-BACKTRACK ✅ — rung05 `member/2` outputs `a\nb\nc\n` correctly.
+
+**Fix:** γ formula in `pj_emit_choice` changed from `base[ci] + sub_cs_out + 1` to `base[ci] + init_cs + 1`. Using `sub_cs_out` (the γ returned by inner recursive call) caused the outer predicate to skip cs values — `member/2` over `[a,b,c]` jumped from cs=1 (b) to cs=3, bypassing cs=2 (c). Using `init_cs` (the cs value this clause was entered with, minus base[ci]) correctly increments by 1 on each retry.
+
+**Greek naming:** C local vars and comments now use α/β/γ/ω throughout `prolog_emit_jvm.c`. Generated Jasmin label strings use ASCII spellings (`alpha`, `beta`, `gamma`, `omega`) due to Jasmin identifier constraint. No Greek in external linkage.
+
+**Corpus:** rung01 ✅ rung02 ❌ (pre-existing infinite loop, unrelated) rung03 ✅ rung04 ✅ rung05 ✅
+
+**Next:** PJ-8 — diagnose rung02 infinite loop, then M-PJ-LISTS (rung06).

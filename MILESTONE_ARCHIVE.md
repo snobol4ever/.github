@@ -205,3 +205,4 @@ Append-only. Do not edit existing entries.
 | **M-BEAUTY-READWRITE** | ReadWrite.sno — buffered I/O correct | ✅ B-283 2026-03-24 |
 | **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | ✅ B-283 2026-03-24 |
 | **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | ✅ B-283 2026-03-24 |
+| **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ PJ-7 `c6a8bda` |
