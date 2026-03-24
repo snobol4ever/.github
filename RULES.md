@@ -28,6 +28,13 @@ Format: `PREFIX-NNN` where NNN increments within that namespace only.
 
 Each session increments only its own counter. Commit messages: `PJ-5: M-PJ-BACKTRACK — fix suffix_fail`.
 
+**⚠ ICON vs IJ DISAMBIGUATION — common source of error:**
+- `"ICON frontend"` alone = I-session (x64 ASM backend, `icon_emit.c`)
+- `"ICON frontend with JVM backend"` = IJ-session (`icon_emit_jvm.c`, Jasmin)
+- `"Icon JVM"` = IJ-session
+- The phrase "JVM backend" is the deciding signal. When in doubt: check which emitter file is active. `icon_emit.c` → I. `icon_emit_jvm.c` → IJ.
+- **HQ MD files are the only reliable memory.** Always read the relevant L3 doc (FRONTEND-ICON.md vs FRONTEND-ICON-JVM.md) to confirm session type before doing any work.
+
 ---
 
 ## ⛔ CONCURRENT SESSIONS — Rebase before every .github push
