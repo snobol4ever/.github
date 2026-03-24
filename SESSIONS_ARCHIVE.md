@@ -264,6 +264,10 @@ IJ-8: instrument → find exact branch → fix → fire M-IJ-CORPUS-R3
 
 ---
 
+**B-287 (2026-03-24) — E_STAR pat_ref fix; bootstrap CALL_PAT gap diagnosed; 106/106:**
+(1) Setup: CSNOBOL4 built from tarball, SPITBOL prebuilt verified, snobol4corpus cloned, 106/106 confirmed. Reproduced Parse Error: beauty_asm outputs 10 lines then "Parse Error" on "START\n".
+(2) Root cause 1: E_STAR in emit_expr value-context called stmt_get() (snapshots var at assignment time). "Parse = nPush() ARBNO(*Command)..." ran before Command was assigned → ARBNO(null) built permanently broken pattern. Fix: emit pat_ref() instead → XDSAR deferred lookup. Commit `843b9f3`.
+(3) Root cause 2 (open): CALL_PAT_α is one-shot match_pattern_at — no backtracking bridge from outer compiled Byrd-box into inner engine. ARBNO(*Command) matches 0 iterations (correct); outer RPOS(0) then fails; engine never receives RECEDE to try 1+ iterations. Fix requires T_VARREF integration (B-288).
 ## IJ-8 — 2026-03-24
 
 **No code written.** Session consumed by context overhead (jcon-master + full repo read) and session-type misidentification (I vs IJ confusion).

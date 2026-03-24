@@ -9,15 +9,14 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-286 (arch decisions D-001–D-005 + 4-bug fix)
-**HEAD:** commit pending push (snobol4x)
-**B-session:** SPITBOL-primary target declared. 4 bugs fixed by one patch. 19/19 beauty PASS. Bootstrap Parse Error open.
+**Sprint:** `main` — B-287 (E_STAR fix + bootstrap diagnosis)
+**HEAD:** `843b9f3` B-287
+**B-session:** E_STAR value-context bug fixed (pat_ref not stmt_get). Bootstrap still fails: ARBNO takes 0 iters, outer RPOS(0) fails, no backtracking bridge from CALL_PAT_α into engine. Architectural fix needed.
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-287:**
+**⚡ CRITICAL NEXT ACTION — B-288:**
 
-Fix M-BUG-BOOTSTRAP-PARSE: beauty_asm outputs 10-line header then `Parse Error` on first non-comment line.
-Oracle (SPITBOL) produces 784 lines. Investigate the parser/ARBNO loop in the bootstrap path.
+Fix M-BUG-BOOTSTRAP-PARSE (continued): CALL_PAT_α is one-shot — no RECEDE signal reaches engine when outer compiled pattern fails after *Parse. ARBNO(*Command) matches 0 iters; downstream RPOS(0) fails; engine never retries with 1+ iters. Fix: integrate *Parse via T_VARREF node driven by outer engine, not isolated match_pattern_at. See B-287 commit for full analysis.
 
 **B-286 summary:**
 - D-001: SPITBOL is primary compat target (CSNOBOL4 FENCE issue disqualifies it).

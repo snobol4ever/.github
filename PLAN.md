@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-286 — D-001–D-005 arch; 19/19 beauty ✅; bootstrap Parse Error open | `d8f1fe2` B-286 | M-BEAUTIFY-BOOTSTRAP |
+| **TINY backend** | `main` B-287 — E_STAR fix; bootstrap CALL_PAT backtracking gap open | `843b9f3` B-287 | M-BEAUTIFY-BOOTSTRAP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
