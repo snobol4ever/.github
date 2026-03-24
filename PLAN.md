@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-274 — M-BEAUTY-READWRITE ❌ | `cb03ddc` B-274 | M-BEAUTY-READWRITE |
+| **TINY backend** | `main` B-274 — M-BEAUTY-READWRITE ✅ | `eeeb5ad` B-274 | M-BEAUTY-XDUMP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-215 — prolog_emit dead _mark fix ✅ | `978398a` F-215 | M-PROLOG-WIRE-ASM |
@@ -71,8 +71,8 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-MON-BUG-ASM-DATATYPE-CASE** | ASM DATA type name lowercase; fix to uppercase | ❌ |
 | **M-MON-BUG-JVM-WPAT** | JVM pattern datatype emits empty string; fix | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants | ❌ |
-| **M-BEAUTY-READWRITE** | ReadLine/WriteLine buffered I/O 3-way PASS | ❌ ← now |
-| **M-BEAUTY-XDUMP** | XDump extended variable dump 3-way PASS | ❌ |
+| **M-BEAUTY-READWRITE** | ReadLine/WriteLine buffered I/O 3-way PASS | ✅ |
+| **M-BEAUTY-XDUMP** | XDump extended variable dump 3-way PASS | ❌ ← now |
 | **M-BEAUTY-SEMANTIC** | semantic action helpers 3-way PASS | ❌ |
 | **M-BEAUTY-OMEGA** | omega pattern helpers 3-way PASS | ❌ |
 | **M-BEAUTY-TRACE** | xTrace control + trace output 3-way PASS | ❌ |
