@@ -33,6 +33,7 @@ namespace only.
 | DOTNET             | `D` | D-156, D-157 | **DOTNET** row |
 | README             | `R` | R-1, R-2    | **README** row |
 | ICON frontend      | `I` | I-1, I-2    | **ICON frontend** row |
+| Prolog JVM frontend | `PJ` | PJ-1, PJ-2  | **Prolog JVM** row |
 
 **Rules:**
 - Commit messages: `B-198: M-ASM-R11 — data/ PASS`
