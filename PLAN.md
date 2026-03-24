@@ -18,7 +18,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
-| **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned 782KB→15KB; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+| **ICON frontend** | `main` I-10 — HQ pruned (SESSIONS_ARCHIVE 812KB→2.8KB; JCON-ANALYSIS.md extracted); I-9 patches pending | `d66bc06` I-10 | M-ICON-CORPUS-R3 |
 | **Prolog JVM** | `main` PJ-8 — rung02 PASS ✅ rung05 PASS ✅; omega guard fix in clause dispatch | `d36f0ed` PJ-8 | M-PJ-LISTS |
 | **Icon JVM** | `main` IJ-6 — Fix1+Fix2+Fix3+Fix2b applied; VerifyErrors dead; no-output bug for IJ-7 | `a3d4a55` IJ-6 | M-IJ-CORPUS-R3 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |

@@ -67,3 +67,20 @@ Binary `E_ATP` in value context emitted wrong OPSYN dispatch. Fixed `expr_has_pa
 ---
 
 *(Entries before N-248 pruned 2026-03-24. Full history in git log.)*
+
+---
+
+## I-10 — ICON frontend housekeeping — 2026-03-24
+
+**HEAD in:** `54031a5` I-7 | **HEAD out:** `d66bc06` I-10
+**Branch:** `main` (.github only — snobol4x untouched)
+
+**Work done:**
+- SESSIONS_ARCHIVE.md: gutted 812KB → 2.8KB. Kept 5 most recent entries + scaffold header. Pruned note added.
+- JCON-ANALYSIS.md: new file — full JCON irgen.icn + icon-master/tcode.c + ByrdBox analysis extracted from FRONTEND-ICON.md.
+- FRONTEND-ICON.md: 25KB → 10.6KB. JCON analysis sections removed; replaced with pointer to JCON-ANALYSIS.md.
+- PLAN.md NOW table ICON frontend row updated to I-10 / `d66bc06`.
+
+**I-9 patches NOT yet applied** — icon_emit.c Fix 1 (left_call_is_gen) + Fix 2 (saved_rsp) still pending for I-11.
+
+**Next:** I-11 — apply I-9 patches, rebuild, confirm t01_gen → `1\n2\n3\n4`, write R3 corpus, fire M-ICON-CORPUS-R3.

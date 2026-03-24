@@ -18,14 +18,14 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
+| **ICON frontend** | `main` I-10 — HQ docs pruned (SESSIONS_ARCHIVE 812KB→2.8KB, JCON analysis extracted to JCON-ANALYSIS.md); I-9 patches not yet applied | `d66bc06` I-10 | M-ICON-CORPUS-R3 |
 
 ### Next session checklist (I-11)
 
 ```bash
 git clone https://github.com/snobol4ever/snobol4x
 git clone https://github.com/snobol4ever/.github
-# Read FRONTEND-ICON.md §NOW — two exact patches below, apply both
+# Read FRONTEND-ICON.md §NOW — apply I-9 patches below (Fix 1 + Fix 2 to icon_emit.c)
 # Rebuild icon_driver, test t01_gen → must output 1\n2\n3\n4
 # Write R3 corpus (5 tests), run full suite, fire M-ICON-CORPUS-R3
 ```
