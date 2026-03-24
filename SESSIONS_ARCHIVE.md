@@ -15112,3 +15112,30 @@ Statement: `                 ppLn           POS(0) ANY('*-')  :S(ppAutoR)`
 **Milestones fired:** B-277 M-BEAUTY-TRACE ✅
 
 **Next session B-279:** Fix Command nInc-before-FENCE; iterate until beauty.sno self-parse reaches 801/801 lines fixed-point; run ASM/SPITBOL; commit M-BEAUTIFY-BOOTSTRAP ✅.
+
+## Session IJ-1 (2026-03-24) — Icon JVM frontend planning + HQ update
+
+**Branch:** main · **Repos:** snobol4x (read-only), .github
+
+**Context:** ~80% at handoff. Started as ICON ASM session (I-11), pivoted twice on Lon's instruction: first to Prolog JVM (PJ-1), then to Icon JVM (IJ-1). Both plans written and pushed.
+
+**Work done:**
+
+**PJ-1 — Prolog JVM plan** (commit `03988e1`):
+- Created `FRONTEND-PROLOG-JVM.md` — term encoding (Object[] boxed), Jasmin wiring, trail helpers, 11 milestones, 8 sprints
+- PLAN.md: PJ row + milestone section + L3 index; RULES.md: PJ prefix; FRONTEND-PROLOG.md: `-pl -jvm` flag
+
+**IJ-1 — Icon JVM plan** (commit `92513ba`):
+- Created `FRONTEND-ICON-JVM.md` — value rep (long/String), `icn_failed`/`icn_suspended` static fields, `to` generator in Jasmin (inline counter §4.4), suspend/resume via tableswitch integer-ID encoding, 11 milestones across 4 sprints, oracle harness
+- PLAN.md: IJ row + milestone section + L3 index; RULES.md: IJ prefix
+- Key design: `suspend` resume = tableswitch on site ID → no raw pointers on JVM; mirrors JCON `gen_bc.icn`
+
+**Milestones fired:** none (planning session)
+
+**Next session IJ-2:**
+1. Clone repos, `apt-get install default-jdk nasm libgc-dev`, `make -C src`
+2. Read `FRONTEND-ICON-JVM.md §NOW`
+3. Create `src/frontend/icon/icon_emit_jvm.c`: copy J()/JI()/JL()/JC() helpers, class header, `ij_emit_int/to/every/call(write)`
+4. Add `-jvm` flag to `icon_driver.c`
+5. Test: `t01_to5.icn` → `1\n2\n3\n4\n5` via JVM
+6. Fire M-IJ-SCAFFOLD + M-IJ-HELLO
