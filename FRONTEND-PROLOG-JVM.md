@@ -19,7 +19,7 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-18 — M-PJ-PZ08+PZ09 swipl PASS; JVM blocked on M-PJ-NEQ | `fcdd57c` PJ-18 | M-PJ-NEQ |
+| **Prolog JVM** | `main` PJ-19 — M-PJ-PZ10 ✅ swipl; JVM blocked on M-PJ-NEQ | `27de835` PJ-19 | M-PJ-NEQ |
 
 ### CRITICAL NEXT ACTION (PJ-19)
 
@@ -167,6 +167,7 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ✅ |
 | **M-PJ-PZ08** | puzzle_08 real Prolog search — swipl PASS | ✅ |
 | **M-PJ-PZ09** | puzzle_09 real Prolog search — swipl PASS | ✅ |
+| **M-PJ-PZ10** | puzzle_10 real Prolog search — swipl PASS | ✅ |
 | **M-PJ-NEQ** | `\=/2` emit missing in `pj_emit_goal` — JVM crashes with NoSuchMethodError | ❌ |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.

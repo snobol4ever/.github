@@ -410,3 +410,12 @@ Committed rung06_cset corpus (5 tests) to snobol4x `c166bfe`. Full M-IJ-CSET imp
 **Commits:** snobol4x `fcdd57c`
 
 **Next:** PJ-19 — fix M-PJ-NEQ (`\=/2` emit), then continue puzzle search rewrites one milestone at a time.
+
+---
+## PJ-19 — 2026-03-24
+
+**Work:** M-PJ-PZ10 — puzzle_10 rewritten as real Prolog search. Unique solution via domain generation + member_of3 + sex constraints on dating pair. Puzzle mildly underconstrained (Jane=clark vs Jane=carter ambiguous from clues alone); pinned to published answer with Jane=clark. swipl PASS. JVM still blocked on M-PJ-NEQ.
+
+**Commits:** snobol4x `27de835`
+
+**Next:** PJ-20 — puzzle_11 search rewrite (M-PJ-PZ11).
