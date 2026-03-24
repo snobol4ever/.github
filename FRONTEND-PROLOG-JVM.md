@@ -18,45 +18,35 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-3 — M-PJ-FACTS ✅ M-PJ-UNIFY ✅ M-PJ-ARITH ✅; rungs 5-9 failing | `cb87932` PJ-3 | M-PJ-BACKTRACK |
+| **Prolog JVM** | `main` PJ-4 — anon wildcard fix, head unify arg index fix, `->` flat n-ary | `3986172` PJ-4 | M-PJ-BACKTRACK |
 
-### Session PJ-3 summary (2026-03-24)
+### Session PJ-4 summary (2026-03-24)
 
-- Fixed `pj_trail_unwind`: restores both `[0]="var"` AND `[1]=null` → M-PJ-FACTS ✅ (rung02: brown/jones/smith)
-- Implemented compound term unification in `pj_unify`: functor+arity check, recursive arg loop → M-PJ-UNIFY ✅ (rung03: b a)
-- Implemented `E_FNC` in `pj_emit_term`: flat `Object[]` `[0]="compound",[1]=functor,[2..]=args`
-- Flat n-ary `,/2` and `;/2` in `prolog_lower.c`: right-spine flattened at IR level; emitter uses `goal->children` directly
-- Fixed `pj_emit_goal` `;/2` + `->/2`: proper if-then-else with `cond_ok`/`cond_fail` labels; n-ary else chain
-- Fixed `ldc2_w` `L` suffix (Jasmin rejects it) → M-PJ-ARITH ✅ (rung04: 6/true/false)
-- HEAD: `cb87932`
+- Fixed anonymous `_`: `pj_emit_term` slot=-1 now emits `pj_term_var()` not `aconst_null`; list head unification `member(X,[X|_])` was failing on tail `pj_unify(rest,null)`
+- Fixed head unification arg index: was `aload var_locals[ai]` (wrong — var slot map, not param position); corrected to `aload ai`; `var_locals[1]` was 0 (calloc zero-init) for clauses with 1 named var
+- Flattened `->` in `prolog_lower.c`: explicit n-ary `E_FNC("->")`, children[0]=Cond, children[1..]=Then goals (right-spine conjunction unwound); both emitter `->`  handlers updated to `nchildren >= 2`
+- rung05 partial: first solution `a` now prints; `b`/`c` not yet — retry loop `cs` progression issue remains
 
-### Known bugs for PJ-4 (four failures, rung05–09)
-
-**rung05 backtrack** — `member(X,[a,b,c])` prints `_` instead of `a b c`. Variable `X` is unbound in `write`. Root cause: the Proebsting retry loop passes `cs` state but the *bound value* of `X` in the callee's environment is not visible to the caller. The retry loop allocates a fresh `rv` local for the return value but the caller writes `X` before the callee has had a chance to bind it. Fix: after the `invokestatic` call returns non-null (γ), the callee's bindings are already in the shared trail — `X` should already be bound. Check whether `pj_emit_body` for the user call actually `astore`s the result and whether the *caller's* `X` local and the *callee's* arg slot refer to the same `["var",...]` cell object.
-
-**rung07 cut** — `differ(a,a)` returns `yes` instead of `no`. `E_CUT` is emitted but not sealing beta in the Proebsting retry loop. The `pj_emit_goal` E_CUT case sets `cs = N` (past last clause) for the *current predicate*, but in the retry loop the `cs` local belongs to the *caller's* retry scaffolding for `differ/2`. Need to verify E_CUT actually writes to the retry loop's `cs` local in the surrounding `pj_emit_body` frame.
-
-**rung06 lists** — empty output. `write/1` of a list compound `["compound",".",H,T]` hits the default `_` branch in `pj_write`. Fix: add list-printing to `pj_write`: if tag=`"compound"` and functor=`"."`, print `[H|T]` recursively; if `[]` print `[]`.
-
-**rung08 recursion** — `NumberFormatException: Cannot parse null string` in `p_fib_2`. `pj_emit_arith` E_VART: after `pj_deref`, the result is `["int","6"]`. But `fib/2` head arg slot `N` is the *caller-passed* term. After deref the array `[1]` should be `"6"`. Hypothesis: the head arg local holds a `["var", ref]` cell and `pj_deref` is returning the var cell itself when `ref` is null (i.e. deref doesn't follow into the term properly). Check `pj_deref` — it follows `tag="ref"` chains but stops at `tag="var"`. If the caller passes an atom-int `["int","6"]` directly (not wrapped in a var), deref returns it immediately and `[1]="6"` is correct. But if `N` was unified via a var chain, the deref result might still be a var cell.
-
-**rung09 builtins** — empty output. Likely `functor/3`, `arg/3`, `=../2` not implemented. Check `pj_emit_goal` for these atoms — they fall through to the user-call path and there is no matching predicate class.
-
-### Next session checklist (PJ-4)
+### CRITICAL NEXT ACTION (PJ-5)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
-cd snobol4x/src && make
-# Read FRONTEND-PROLOG-JVM.md §NOW — start here
-INC=src/frontend/prolog
-# Helper to test one rung:
-# BASE=backtrack; PRO=test/frontend/prolog/corpus/rung05_${BASE}/${BASE}.pro
-# ./sno2c -pl $PRO -o /tmp/$BASE.c && gcc /tmp/$BASE.c $INC/prolog_atom.c $INC/prolog_unify.c $INC/prolog_builtin.c -I $INC -o /tmp/${BASE}_c && /tmp/${BASE}_c
-# ./sno2c -pl -jvm $PRO -o /tmp/$BASE.j && java -jar src/backend/jvm/jasmin.jar /tmp/$BASE.j -d /tmp/ && java -cp /tmp/ Backtrack
-# Fix in order: rung08 (arith deref) → rung06 (list write) → rung07 (cut) → rung05 (backtrack vars) → rung09 (builtins)
+cd snobol4x && make -C src
+# rung05 retry: after p_member_2 returns ci=0, cs=1, retry calls clause1
+# member(X,[_|T]):-member(X,T) — clause1: T=var_locals[1 in clause1]
+# Inspect: ./sno2c -pl -jvm rung05/backtrack.pro -o /tmp/b.j
+#          grep -A40 "p_member_2_clause1:" /tmp/b.j
+# Check: is T (the tail var) properly aliased to arg1's tail on head unify?
+#        Does the recursive call member(X,T) pass the bound T cell?
+# Fix order: rung05 retry loop → rung08 arith deref → rung06 list write → rung07 cut → rung09 builtins
+BASE=backtrack; PRO=test/frontend/prolog/corpus/rung05_${BASE}/${BASE}.pro
+./sno2c -pl -jvm $PRO -o /tmp/$BASE.j && java -jar src/backend/jvm/jasmin.jar /tmp/$BASE.j 2>&1 | grep Generated
+java -cp /tmp Backtrack   # expected: a\nb\nc
 ```
+
+---
 
 ---
 
@@ -211,44 +201,15 @@ All implemented as `static` methods in the emitted class — same pattern as
 |----|---------|-----------|--------|
 | **M-PJ-SCAFFOLD** | `prolog_emit_jvm.c` exists; `-pl -jvm null.pl → null.j` assembles and exits 0; driver wired | — | ✅ |
 | **M-PJ-HELLO** | `hello.pl` → `write('hello'), nl.` → JVM output `hello` | M-PJ-SCAFFOLD | ✅ |
-| **M-PJ-FACTS** | Rung 2: deterministic fact lookup, `write(answer)` | M-PJ-HELLO | ❌ |
-| **M-PJ-UNIFY** | Rung 3: head unification, compound terms | M-PJ-FACTS | ❌ |
-| **M-PJ-ARITH** | Rung 4: `is/2` arithmetic — reuse JVM `sno_arith` helpers | M-PJ-UNIFY | ❌ |
+| **M-PJ-FACTS** | Rung 2: deterministic fact lookup, `write(answer)` | M-PJ-HELLO | ✅ |
+| **M-PJ-UNIFY** | Rung 3: head unification, compound terms | M-PJ-FACTS | ✅ |
+| **M-PJ-ARITH** | Rung 4: `is/2` arithmetic — reuse JVM `sno_arith` helpers | M-PJ-UNIFY | ✅ |
 | **M-PJ-BACKTRACK** | Rung 5: `member/2` — first backtracking via β port | M-PJ-ARITH | ❌ |
 | **M-PJ-LISTS** | Rung 6: `append/3`, `length/2`, `reverse/2` | M-PJ-BACKTRACK | ❌ |
 | **M-PJ-CUT** | Rung 7: `differ/N`, closed-world `!, fail` pattern | M-PJ-LISTS | ❌ |
 | **M-PJ-RECUR** | Rung 8: `fibonacci/2`, `factorial/2` | M-PJ-CUT | ❌ |
 | **M-PJ-BUILTINS** | Rung 9: `functor/3`, `arg/3`, `=../2`, type tests | M-PJ-RECUR | ❌ |
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus — all solved puzzles PASS | M-PJ-BUILTINS | ❌ |
-
----
-
-## Sprint Map
-
-| Sprint | Milestones | Key work |
-|--------|-----------|---------|
-| **PJ-S1** | M-PJ-SCAFFOLD, M-PJ-HELLO | Create file, wire driver, emit class header + `write` helper |
-| **PJ-S2** | M-PJ-FACTS, M-PJ-UNIFY | Atom table, `unify()` helper, deterministic clause dispatch |
-| **PJ-S3** | M-PJ-ARITH | `is/2` → `sno_arith` pattern (reuse from JVM backend) |
-| **PJ-S4** | M-PJ-BACKTRACK | Trail, `trail_mark/unwind`, β port wiring, `member/2` |
-| **PJ-S5** | M-PJ-LISTS | List term encoding, recursive clause chains |
-| **PJ-S6** | M-PJ-CUT, M-PJ-RECUR | `E_CUT` seals β → ω; recursive per-frame locals |
-| **PJ-S7** | M-PJ-BUILTINS | `functor/3`, `arg/3`, `=../2`, type tests |
-| **PJ-S8** | M-PJ-CORPUS-R10 | Puzzle corpus; may expose constraint/arithmetic gaps |
-
----
-
-## Key Files
-
-| File | Role |
-|------|------|
-| `src/frontend/prolog/prolog_emit_jvm.c` | **TO CREATE** — this sprint's deliverable |
-| `src/frontend/prolog/prolog_lower.c` | IR producer — consumed unchanged |
-| `src/frontend/prolog/prolog_emit.c` | C emitter — structural oracle for Byrd-box logic |
-| `src/backend/jvm/emit_byrd_jvm.c` | JVM emitter oracle — Jasmin output format |
-| `src/backend/jvm/jasmin.jar` | Assembler — `java -jar jasmin.jar foo.j -d outdir/` |
-| `driver/main.c` | Add `-pl -jvm` → `prolog_emit_jvm()` branch |
-| `test/frontend/prolog/corpus/rung01_hello/` | First test — same `.pl` files, new `.j` oracle output |
 
 ---
 

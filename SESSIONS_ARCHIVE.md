@@ -15320,3 +15320,19 @@ The assign and recursive-call emitters still have stack-across-label violations.
 - 106/106 ASM corpus ALL PASS confirmed.
 
 **Next:** Diagnose Parse Error — `Src POS(0) *Parse *Space RPOS(0)` fails. Use monitor to compare Src/Parse values CSNOBOL4 vs ASM. HEAD `a4f44a3`.
+
+## Session PJ-4 — 2026-03-24
+
+**Trigger:** "playing with Prolog frontend for snobol4x with JVM backend"
+**HEAD at start:** cb87932 (PJ-3)  **HEAD at end:** 3986172 (PJ-4)
+**Milestone:** M-PJ-BACKTRACK ❌ (still) — rung05 partial: first solution `a` prints, `b`/`c` not yet
+
+**Bugs fixed this session:**
+1. Anonymous `_` wildcard: `pj_emit_term` E_VART slot=-1 emitted `aconst_null`; changed to `pj_term_var()`. `member(X,[X|_])` clause0 head unify was failing because `pj_unify(rest_of_list, null)` → false.
+2. Head unification arg index: used `aload var_locals[ai]` instead of `aload ai`. `var_locals[1]` was 0 (calloc zero-init) for clauses with only 1 named var — so arg1 (the list) loaded as JVM local 0 (= X).
+3. `->` IR flattened to n-ary in `prolog_lower.c`: children[0]=Cond, children[1..]=Then goals (right-spine conjunction unwound). Both emitter `->` handlers updated to consume `nchildren >= 2`.
+4. `;`/`,` already flat n-ary from PJ-3; `->` now matches.
+
+**State at handoff:** rung05 retry: `cs` advances to 1 after first solution but `b`/`c` not emitted. Next session inspects `p_member_2_clause1` — whether `T` (tail var in `member(X,[_|T])`) is properly bound and passed to recursive `member(X,T)`.
+
+**Next session bootstrap:** See FRONTEND-PROLOG-JVM.md §CRITICAL NEXT ACTION (PJ-5)
