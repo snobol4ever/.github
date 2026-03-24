@@ -19,28 +19,28 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-8 — rung02 PASS ✅ rung05 PASS ✅; omega guard fix in clause dispatch | `d36f0ed` PJ-8 | M-PJ-LISTS |
+| **Prolog JVM** | `main` PJ-9 — fix var-slot mismatch + non-linear head + pj_term_str; rungs 01-05 PASS | `5ae73e3` PJ-9 | M-PJ-LISTS |
 
-### CRITICAL NEXT ACTION (PJ-9)
+### CRITICAL NEXT ACTION (PJ-10)
 
-**rung06 `lists` silent failure** — `append/3` with compound head `[H|R]` in third arg fails silently (exit 1, no output, no JVM exception). Predicate:
-```prolog
-append([H|T], L, [H|R]) :- append(T, L, R).
-```
-Third arg `[H|R]` is compound `.`(H, R) where R is a fresh var created in the head. Suspect: `pj_emit_unify_expr` for `E_COMPOUND` doesn't correctly handle output vars (vars that appear only in the compound, bound via unification). Check `pj_emit_unify` for compound case with fresh var slots.
+**rung06 `lists` silent failure — `pj_term_str` list path not triggering.**
+`append([],[b,c],L)` now succeeds (base-case non-linear fix worked) but `write(L)` prints `_` instead of `[b,c]`. The list-detection path in `pj_term_str` checks `arraylength == 4` (arity-2 compound) but `[b,c]` is `.`(b,`.`(c,[])) — the outer cell has length 4, so the check should match. Suspect: the `pts_list_close` label is reachable from two paths (proper-nil tail and improper-tail fallthrough) with mismatched locals state — check Jasmin output for `pj_term_str` list section around `pts_list_close`.
 
-**rung02 fix (PJ-8)** — `base[nclauses]` was uninitialized. Fixed: `base[nclauses] = base[nclauses-1] + 1`; omega guard emitted only when last clause has no body user-calls.
+Three bugs fixed in PJ-9 (see commit `5ae73e3`):
+1. `jvm_arg_for_slot[]` replaces `is_direct_arg` slot==ai check — fixes `append([H|T],L,[H|R])` clause
+2. Non-linear head unification via `seen_at[]` — fixes `append([],L,L)` base case
+3. `pj_term_str` replaces old `pj_write` — handles compound/list recursively (list path has remaining bug)
 
-**Bootstrap PJ-9:**
+**Bootstrap PJ-10:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
 make -C snobol4x/src
-# Confirm baseline: rungs 01–05 PASS, rung06 fails silently
-./sno2c -pl -jvm test/frontend/prolog/corpus/rung05_backtrack/backtrack.pro -o /tmp/bt.j
-java -jar src/backend/jvm/jasmin.jar /tmp/bt.j -d /tmp/ && timeout 5 java -cp /tmp Backtrack
-# Expected: a\nb\nc
+# Confirm baseline: rungs 01-05 PASS
+# Debug: ./sno2c -pl -jvm /tmp/ap_base.pro -o /tmp/apb.j && javap -c /tmp/Lists.class | grep -A 50 pj_term_str
+# Look at pts_list_close — fix locals/stack issue there
+# Then test rung06: ./sno2c -pl -jvm test/frontend/prolog/corpus/rung06_lists/lists.pro -o /tmp/l.j
 ```
 
 ## Milestone Table

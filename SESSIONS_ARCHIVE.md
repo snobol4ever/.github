@@ -69,18 +69,30 @@ Binary `E_ATP` in value context emitted wrong OPSYN dispatch. Fixed `expr_has_pa
 *(Entries before N-248 pruned 2026-03-24. Full history in git log.)*
 
 ---
+## PJ-9 — Prolog JVM (2026-03-24)
 
-## I-10 — ICON frontend housekeeping — 2026-03-24
+**HEAD:** `5ae73e3`  **Branch:** `main`  **Milestone:** M-PJ-LISTS (❌ not yet — blocked on pj_term_str list path)
 
-**HEAD in:** `54031a5` I-7 | **HEAD out:** `d66bc06` I-10
-**Branch:** `main` (.github only — snobol4x untouched)
+### Work done
+Three bugs fixed in `prolog_emit_jvm.c`:
 
-**Work done:**
-- SESSIONS_ARCHIVE.md: gutted 812KB → 2.8KB. Kept 5 most recent entries + scaffold header. Pruned note added.
-- JCON-ANALYSIS.md: new file — full JCON irgen.icn + icon-master/tcode.c + ByrdBox analysis extracted from FRONTEND-ICON.md.
-- FRONTEND-ICON.md: 25KB → 10.6KB. JCON analysis sections removed; replaced with pointer to JCON-ANALYSIS.md.
-- PLAN.md NOW table ICON frontend row updated to I-10 / `d66bc06`.
+**1. `is_direct_arg` var-slot mismatch (root cause)**
+Old check `slot == ai` failed for any clause where var order differs from arg order.
+`append([H|T], L, [H|R])`: L=slot2, arg-pos=1 → `2≠1` → fresh var instead of incoming arg.
+Fix: `jvm_arg_for_slot[]` built by scanning head `E_VART` nodes, mapping slot→JVM local correctly.
 
-**I-9 patches NOT yet applied** — icon_emit.c Fix 1 (left_call_is_gen) + Fix 2 (saved_rsp) still pending for I-11.
+**2. Non-linear head unification**
+Old code skipped all `E_VART` head terms. `append([],L,L)`: L appears at arg-pos 1 and 2 — second occurrence must unify arg2 with `var_locals[slot0]` to enforce arg1==arg2.
+Fix: `seen_at[]` tracks first-claim arg; subsequent occurrences emit explicit `pj_unify`.
 
-**Next:** I-11 — apply I-9 patches, rebuild, confirm t01_gen → `1\n2\n3\n4`, write R3 corpus, fire M-ICON-CORPUS-R3.
+**3. `pj_write` compound/list support**
+Old `pj_write` printed `_` for any compound term.
+New `pj_term_str` handles atom/int/float/compound/list recursively. Lists → `[a,b,c]` notation.
+JVM VerifyError fixed by storing `StringBuilder` in local (not leaving on stack across `ifeq` branch).
+
+### Status at handoff
+- Rungs 01-05: PASS ✅
+- Rung 06: FAIL — `write([b,c])` prints `_`; list path in `pj_term_str` not triggering. Suspect `pts_list_close` stack/locals issue. `append([],[b,c],L)` base case now succeeds (non-linear fix worked).
+
+### For PJ-10
+Inspect generated `pj_term_str` Jasmin around `pts_list_close` — two paths merge there with potentially different local states. Fix list printing, then rung06 should pass for `append`. `length` and `reverse` may need further debugging.
