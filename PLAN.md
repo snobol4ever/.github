@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-284 — ppAs1/ppAS1 dup label ✅; *upr(tx)→EVAL ✅; ARBNO(*Command) error 021 open | `deae788` B-284 | M-BEAUTIFY-BOOTSTRAP |
+| **TINY backend** | `main` B-285 — full accounting: 106/106 ASM ✅; beauty 15/19 (is/TDump/Gen/semantic FAIL); bootstrap Parse Error after header | `deae788` B-284 | M-BEAUTIFY-BOOTSTRAP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
@@ -40,22 +40,23 @@ Each concurrent session owns exactly one row. Update only your row on every push
 ## 4D Matrix
 
 ```
-Products:   TINY (native C/x64) · JVM (Clojure→bytecode) · DOTNET (C#→MSIL)
+Products:   TINY (native x64) · JVM (Clojure→bytecode) · DOTNET (C#→MSIL)
 Frontends:  SNOBOL4 · Snocone · Rebus · Icon · Prolog · C#/Clojure
-Backends:   C (portable) · x64 ASM (native) · JVM bytecode · .NET MSIL
+Backends:   x64 ASM (native) · JVM bytecode · .NET MSIL
+            [C backend: ☠️ DEAD — 99/106, sno2c failures on word*/pat_alt_commit; not maintained]
 Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 ```
 
-| Frontend | TINY-C | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
-|----------|:------:|:--------:|:--------:|:--------:|:---:|:------:|
-| SNOBOL4/SPITBOL | ⏳ | — | ⏳ | — | ⏳ | ⏳ |
-| Snocone | — | — | — | — | ⏳ | ⏳ |
-| Rebus | ✅ | — | — | — | — | — |
-| Icon | ⏳ | — | — | — | — | — |
-| Prolog | ⏳ | ⏳ | — | — | ⏳ | — |
-| C#/Clojure | — | — | — | — | — | — |
+| Frontend | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
+|----------|:--------:|:--------:|:--------:|:---:|:------:|
+| SNOBOL4/SPITBOL | ⏳ | ⏳ | — | ⏳ | ⏳ |
+| Snocone | — | — | — | ⏳ | ⏳ |
+| Rebus | — | — | — | — | — |
+| Icon | — | — | — | — | — |
+| Prolog | ⏳ | — | — | ⏳ | — |
+| C#/Clojure | — | — | — | — | — |
 
-✅ done · ⏳ active · — planned
+✅ done · ⏳ active · — planned · ☠️ dead
 
 ---
 
@@ -68,6 +69,11 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 
 | ID | Trigger | Status |
 |----|---------|--------|
+| **M-BUG-IS-DIALECT** | `is` driver: both IsSnobol4+IsSpitbol succeed in ASM — dialect detection broken | ❌ |
+| **M-BUG-TDUMP-TLUMP** | `TDump` driver: TLump returns `.` instead of tree string — DATATYPE/field dispatch | ❌ |
+| **M-BUG-GEN-BUFFER** | `Gen` driver: buffered output emits `]` then crashes at step 5 — Gen buffer flush | ❌ |
+| **M-BUG-SEMANTIC-NTYPE** | `semantic` driver: nPush/nInc/nPop return PATTERN but DATATYPE reports STRING in ASM | ❌ |
+| **M-BUG-BOOTSTRAP-PARSE** | beauty bootstrap: ASM outputs `Parse Error` after 10-line header; INCLUDE expansion fails | ❌ |
 | **M-SNO2C-FOLD** | sno2c lexer folds identifiers to uppercase; `-F`/`-f` switches | ❌ |
 | **M-MON-BUG-SPL-EMPTY** | SPITBOL trace empty for treebank/claws5 — diagnose + fix | ❌ |
 | **M-MON-BUG-ASM-DATATYPE-CASE** | ASM DATA type name lowercase; fix to uppercase | ❌ |

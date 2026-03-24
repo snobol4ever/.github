@@ -9,48 +9,21 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-283 (BEAUTY)
-**HEAD:** `23c0261` B-283 (snobol4x)
-**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — all 19 subsystems ✅; bootstrap fails: ARBNO(*Command) takes 0 iterations when *Parse materialised via CALL_PAT_α path
+**Sprint:** `main` — B-285 (BEAUTY accounting)
+**HEAD:** `deae788` B-284 (snobol4x)
+**B-session:** Full accounting done. 5 bug milestones filed. Next: fix is → semantic → TDump → Gen → bootstrap.
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-284:**
+**⚡ CRITICAL NEXT ACTION — B-286:**
 
-```bash
-cd /home/claude/snobol4x
-# Root cause: beauty.sno assigns Parse = nPush() ARBNO(*Command) nPop()
-# When *Parse is used in pattern position (stmt line 773), it goes through
-# CALL_PAT_α → stmt_match_descr → match_pattern_at → materialise (C runtime).
-# Inside ARBNO, *Command is XDSAR("Command"). NV_GET_fn("Command") returns DT_P,
-# but Command's DT_P PATND_t was built by the ASM Byrd-box emitter at compile time
-# using pat_* C constructors. The XDSAR materialise path calls spat_of(v) to get
-# the PATND_t — but the ASM runtime may not store a real PATND_t in Command at all;
-# it may store a sentinel DT_P with p==NULL (no PATND_t tree).
-#
-# DIAGNOSTIC: Add fprintf to XDSAR case in materialise() to print the resolved
-# DT_P pointer and its kind. Run beauty_asm with PAT_DEBUG=1 on simple input.
-#
-# EXPECTED FIX: When scan_named_patterns registers Command as a named pattern (Byrd box),
-# it must also call NV_SET_fn("Command", spat_val(patnd_for_Command)) so that
-# NV_GET_fn("Command") from the C runtime materialise path gets a real PATND_t.
-# Check emit_byrd_asm.c: does it call NV_SET for named patterns? If not, add it.
+Fix M-BUG-IS-DIALECT first — likely same root as M-BUG-SEMANTIC-NTYPE. Both IsSnobol4+IsSpitbol true in ASM; nPush/nInc/nPop report STRING not PATTERN.
 
-# Verify after fix:
-WORK=$(mktemp -d /tmp/beau_XXXXXX); RT=src/runtime; INC=demo/inc
-for f in asm/snobol4_stmt_rt.c snobol4/snobol4.c mock/mock_includes.c \
-          snobol4/snobol4_pattern.c engine/engine.c asm/blk_alloc.c asm/blk_reloc.c; do
-  gcc -O0 -g -c "$RT/$f" -I"$RT/snobol4" -I"$RT" -I"$RT/asm" \
-      -Isrc/frontend/snobol4 -w -o "$WORK/$(basename $f .c).o"
-done
-./sno2c -asm -I"$INC" demo/beauty.sno > "$WORK/prog.s"
-nasm -f elf64 -Isrc/runtime/asm/ "$WORK/prog.s" -o "$WORK/prog.o"
-gcc -no-pie "$WORK"/*.o -lgc -lm -o "$WORK/beauty_asm"
-snobol4 -f -P256k -Idemo/inc demo/beauty.sno < demo/beauty.sno > /tmp/oracle.sno
-"$WORK/beauty_asm" < demo/beauty.sno > /tmp/asm_out.sno 2>/tmp/asm_err.txt
-diff /tmp/oracle.sno /tmp/asm_out.sno | head -30
-```
+Beauty subsystem standalone ASM (B-285 re-run): 15/19 PASS.
+- PASS: global fence io case assign match counter stack tree ShiftReduce Qize ReadWrite XDump omega trace
+- FAIL: is TDump Gen semantic → milestones M-BUG-IS-DIALECT M-BUG-TDUMP-TLUMP M-BUG-GEN-BUFFER M-BUG-SEMANTIC-NTYPE
 
-**All 19 subsystems PASS after B-283:** global ✅ is ✅ fence ✅ io ✅ case ✅ assign ✅ match ✅ counter ✅ stack ✅ tree ✅ ShiftReduce ✅ TDump ✅ Gen ✅ Qize ✅ ReadWrite ✅ XDump ✅ semantic ✅ omega ✅ trace ✅
+Bootstrap: beauty_asm outputs 10-line header + `Parse Error` (oracle=784 lines) → milestone M-BUG-BOOTSTRAP-PARSE.
+C backend: ☠️ DEAD — removed from matrix. 99/106, sno2c fails on word*/pat_alt_commit. Not maintained.
 
 ---
 

@@ -145,3 +145,9 @@ a variable whose value was built using `reduce_()` — and SPITBOL's `*` derefer
 triggers OFNE check on the stored function-result pattern.
 
 **Invariants:** 106/106 ✅
+
+## B-285 — 2026-03-24 — BEAUTY accounting — full test sweep before bootstrap
+
+(1) Cloned snobol4harness + snobol4corpus; built CSNOBOL4 2.3.3 from tarball; confirmed 106/106 ASM corpus ALL PASS; C backend marked ☠️ DEAD (99/106, not maintained).
+(2) Re-ran all 19 beauty subsystem drivers standalone through ASM: 15/19 PASS. Regressions found: is, TDump, Gen, semantic FAIL. Filed M-BUG-IS-DIALECT, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER, M-BUG-SEMANTIC-NTYPE.
+(3) Bootstrap trial: beauty_asm produces 10-line header + Parse Error vs oracle 784 lines. Filed M-BUG-BOOTSTRAP-PARSE. HQ updated. No snobol4x code changes this session.
