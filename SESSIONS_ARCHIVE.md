@@ -309,3 +309,21 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 - Identified remaining bug: two-clause `fail/retry` pattern (`p :- ..., fail. p.`) loops forever because `fail/0` in last body position receives `lbl_ω=clause_beta` instead of `lbl_pred_ω`, so exhausting clause 0 restarts it instead of advancing to clause 1
 
 **Next session PJ-16:** Fix `fail/0`→`lbl_pred_ω` wiring in `pj_emit_clause`/`pj_emit_body`. See §NOW CRITICAL NEXT ACTION.
+
+## IJ-9 (continued) — M-IJ-STRING — 2026-03-24
+
+**Milestone:** M-IJ-STRING ✅
+**HEAD:** `9932df5` snobol4x main
+
+**Work done:**
+- Added `'A'`-typed String static fields (`icn_pv_PROC_VAR Ljava/lang/String;`) alongside existing J/I types
+- `ij_get_str_field` / `ij_put_str_field` helpers; `ij_declare_static_str`
+- `ij_expr_is_string(n)` type predicate: ICN_STR, ICN_CONCAT, write(str), ICN_ASSIGN(str rhs), ICN_VAR (lookup table)
+- `ij_emit_concat` — funcs-set Byrd-box wiring with String relay static fields; `String.concat` compute
+- Pre-pass in `ij_emit_proc` to register string-typed vars before reverse emit loop (ordering fix)
+- `sdrain` fixed: `pop` for String result, `pop2` for long — resolves VerifyError
+- `ij_emit_assign` and `ij_emit_var` updated for String vs long branching
+- **Bonus:** t06_paper_expr (rung01) previously failing VerifyError now passes — 19/19 rung01-03 clean
+- Created rung04_string corpus: t01_str_lit, t02_concat, t03_str_var, t04_multi_str, t05_concat_chain
+- Result: 5/5 rung04 PASS; total corpus 24/24 PASS
+- Next: M-IJ-SCAN (`E ? E` string scanning)

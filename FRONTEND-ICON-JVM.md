@@ -18,7 +18,7 @@ assembled by `jasmin.jar` into `.class` files.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-9 — M-IJ-CORPUS-R3 ✅ named vars→static fields; clear suspend_id on done; 5/5 rung03 PASS | `54c301b` IJ-9 | M-IJ-STRING |
+| **Icon JVM** | `main` IJ-9 — M-IJ-CORPUS-R3 ✅ + M-IJ-STRING ✅; 19/19 rung01-03 + 5/5 rung04 clean | `9932df5` IJ-9 | M-IJ-SCAN |
 
 ### Next session checklist (IJ-10)
 
@@ -32,9 +32,9 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# rung02 8/8 + rung03 5/5 confirmed PASS (IJ-9)
-# Implement M-IJ-STRING: ICN_STR ldc push + || via invokevirtual String.concat
-# Then add rung04 string corpus tests, fire M-IJ-STRING
+# rung01 6/6 + rung02 8/8 + rung03 5/5 + rung04 5/5 confirmed PASS (IJ-9)
+# Implement M-IJ-SCAN: ICN_SCAN E ? E — string scanning, explicit cursor threading
+# See JCON-ANALYSIS.md §E ? body for wiring pattern
 ```
 
 ### IJ-9 findings — suspend/resume architecture fix

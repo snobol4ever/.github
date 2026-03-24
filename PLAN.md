@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-15 — call_omega local_cs reset fix; rungs 01-09 PASS; two-clause fail/retry loop still open | `0df7b38` PJ-15 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-9 — M-IJ-CORPUS-R3 ✅ named vars→static fields; clear suspend_id on done; 5/5 rung03 PASS | `54c301b` IJ-9 | M-IJ-STRING |
+| **Icon JVM** | `main` IJ-9 — M-IJ-CORPUS-R3 ✅ + M-IJ-STRING ✅; 19/19 rung01-03 + 5/5 rung04 clean | `9932df5` IJ-9 | M-IJ-SCAN |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
@@ -117,11 +117,11 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-SCAFFOLD** | `icon_emit_jvm.c` exists; `-jvm null.icn → null.j` assembles + exits 0 | ✅ |
 | **M-IJ-HELLO** | `every write(1 to 5);` → JVM `1\n2\n3\n4\n5` | ✅ |
 | **M-IJ-CORPUS-R1** | All 6 rung01 tests PASS vs ASM oracle | ✅ |
-| **M-IJ-PROC** | rung02_proc: user procedures + locals | ❌ |
+| **M-IJ-PROC** | rung02_proc: user procedures + locals | ✅ |
 | **M-IJ-CORPUS-R2** | rung02 arith_gen 5/5 + proc 3/3 PASS | ✅ |
-| **M-IJ-SUSPEND** | `suspend E` generators via tableswitch resume | ❌ |
-| **M-IJ-CORPUS-R3** | rung03_suspend PASS | ❌ |
-| **M-IJ-STRING** | `ICN_STR`, `\|\|` concat | ❌ |
+| **M-IJ-SUSPEND** | `suspend E` generators via tableswitch resume | ✅ |
+| **M-IJ-CORPUS-R3** | rung03_suspend PASS | ✅ |
+| **M-IJ-STRING** | `ICN_STR`, `\|\|` concat | ✅ |
 | **M-IJ-SCAN** | `E ? E` string scanning | ❌ |
 | **M-IJ-CSET** | Cset literals → BREAK/SPAN/ANY | ❌ |
 | **M-IJ-CORPUS-R4** | Rung 4: string ops + scanning PASS | ❌ |
