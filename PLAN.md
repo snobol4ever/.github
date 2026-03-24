@@ -19,8 +19,8 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned 782KB→15KB; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
-| **Prolog JVM** | `main` PJ-5 — Fix1+Fix3 applied; rung05 `a` only — trail unwind bug remains | `8f60b6f` PJ-5 | M-PJ-BACKTRACK |
-| **Icon JVM** | `main` IJ-5 — rung01 6/6 + rung02 14/14 PASS; rung03 VerifyError slot-type open | `e590c4f` IJ-5 | M-IJ-CORPUS-R3 |
+| **Prolog JVM** | `main` PJ-6 — Fix2+Fix3b applied; rung05 a,b only — γ formula wrong (use init_cs not sub_cs_out); β must→ω | `0fb717c` PJ-6 | M-PJ-BACKTRACK |
+| **Icon JVM** | `main` IJ-4 — Bug1 fix (binop/relop local slots); α/β/γ/ω port names; warnings clean | `254045e` IJ-4 | M-IJ-CORPUS-R2 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
