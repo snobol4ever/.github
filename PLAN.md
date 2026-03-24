@@ -21,7 +21,8 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-17 — puzzle_07 search done; puzzle_08 multi-solution bug open; 03 dedup open | `e568687` PJ-17 | — |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
-| **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
+| **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
+| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅; rung06_cset corpus committed; ij_emit_cset/any/many/upto open | `c166bfe` IJ-11 | M-IJ-CSET || **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅

@@ -397,3 +397,8 @@ Wrote all 20 rung10 puzzle .pro files. All 20 pass swipl oracle and JVM backend.
 puzzle_07 rewritten as proper search — swipl PASS, HEAD e568687.
 puzzle_08 attempted — still produces multiple solutions; reverted to hardcoded write. Root cause: `\+` over `posOf/6` with unbound vars doesn't prune correctly in search. Needs posOf restructured so positions are bound before gender checks fire. Next session: fix puzzle_08 first, then 09-13, 15, 18-20.
 puzzle_03 has proper search but produces duplicates — needs single-solution cut or once/1.
+---
+
+## IJ-11 addendum — 2026-03-24 (rung06 corpus)
+
+Committed rung06_cset corpus (5 tests) to snobol4x `c166bfe`. Full M-IJ-CSET implementation plan written to FRONTEND-ICON-JVM.md §IJ-11 findings. Plan covers: ICN_CSET as String (trivial), any/many/upto as built-in calls using icn_subject/icn_pos, upto generator via direct goto-loop (no tableswitch), cset-var assignment via existing pre-pass type inference. IJ-12 is a clean-start session: build, confirm 29/29, implement per plan, fire M-IJ-CSET.

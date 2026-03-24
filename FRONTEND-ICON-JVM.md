@@ -19,7 +19,7 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
+| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅; rung06_cset corpus committed; ij_emit_cset/any/many/upto open | `c166bfe` IJ-11 | M-IJ-CSET |
 
 ### Next session checklist (IJ-12)
 
@@ -34,8 +34,88 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
 # Confirm rung01-05 29/29 still PASS before touching code
-# Implement M-IJ-CSET: cset literals → BREAK/SPAN/ANY
+# Implement M-IJ-CSET per §IJ-11 findings below
 ```
+
+### IJ-11 findings — M-IJ-CSET implementation plan
+
+**Corpus:** `test/frontend/icon/corpus/rung06_cset/` — 5 tests committed `c166bfe`.
+
+```
+t01_any_basic.icn     "apple" ? write(any('aeiou'))          → 2
+t02_any_fail.icn      "xyz" ? any('aeiou') fails, write(0)   → 0
+t03_many_basic.icn    "aaabcd" ? write(many('abc'))           → 6
+t04_upto_basic.icn    every ("hello world" ? write(upto(' ')))→ 6
+t05_cset_var.icn      vowels:='aeiou'; "icon"?write(any(v))  → 2
+```
+
+**Position convention:** `icn_pos` is 0-based (reset to 0 on scan entry). Icon positions are 1-based.
+`any`/`many`/`upto` return the new 1-based position *after* the match — i.e. `icn_pos + 2` after consuming one char, etc.
+`write()` prints this as a long integer.
+
+**What to implement in `icon_emit_jvm.c`:**
+
+**1. `ICN_CSET` in dispatch and helpers** — cset literal is just a typed string:
+- `ij_emit_str` already handles `ICN_STR`; add `case ICN_CSET:` → call same `ij_emit_str` (cset chars as ldc String)
+- `ij_expr_is_string`: add `case ICN_CSET: return 1;`
+
+**2. `any(cs)` in `ij_emit_call`** — single char match, one-shot (no resume):
+```
+; cs String on stack from arg eval → astore scratch_cs
+; get icn_subject.length() → if icn_pos >= length → FAIL
+; icn_subject.charAt(icn_pos) → (char)
+; scratch_cs.indexOf(ch) >= 0?  → if < 0 → FAIL
+; push (icn_pos + 2) as long   [new 1-based pos]
+; iinc icn_pos 1               [advance icn_pos]  -- via putstatic
+; → ports.γ
+```
+Use `java/lang/String/indexOf(I)I` with the char as int.
+Use `java/lang/String/length()I` for bounds check.
+Use `java/lang/String/charAt(I)C` to get the char.
+
+**3. `many(cs)` in `ij_emit_call`** — span chars while in cset:
+```
+; astore scratch_cs
+; if icn_pos >= subject.length() → FAIL
+; if scratch_cs.indexOf(subject.charAt(icn_pos)) < 0 → FAIL (must match at least one)
+; loop: while icn_pos < length && cs.indexOf(charAt(icn_pos)) >= 0: icn_pos++
+; push (icn_pos + 1) as long   [new 1-based pos]
+; → ports.γ
+```
+Implement loop with JVM branch instructions (goto/ifeq/etc).
+
+**4. `upto(cs)` in `ij_emit_call`** — generator, yields each pos where char in cset:
+Use the suspend/resume pattern via per-call static field `icn_upto_pos_N`:
+```
+α:  astore scratch_cs; goto check_N
+check_N:
+    if icn_pos >= length → FAIL
+    cs.indexOf(subject.charAt(icn_pos)) < 0? → icn_pos++; goto check_N
+    ; found match at icn_pos
+    push (icn_pos + 1) as long
+    iinc icn_pos 1
+    → ports.γ
+β:  goto check_N   ; simply re-enter the scan loop from current icn_pos
+```
+Note: unlike suspend/resume for procedures, `upto` resumes by re-entering the scan
+loop which naturally reads the updated `icn_pos`. No tableswitch needed — just a
+direct `goto check_N` from β.
+
+**5. `run_rung06.sh`** — mirror `run_rung05.sh`, 5 tests.
+
+**6. Cset variable assignment** — t05 uses `vowels := 'aeiou'`. Since `ICN_CSET` is
+a String, the pre-pass type inference (`ij_expr_is_string`) will see the RHS as a
+String and declare the var's static field as type 'A'. `ij_emit_assign` already handles
+String-typed RHS. Should work automatically once `ICN_CSET` returns 1 from `ij_expr_is_string`.
+
+**Key concern:** `any`/`many`/`upto` need the cset arg as a String on the JVM stack.
+The arg is emitted via `ij_emit_expr` — for `ICN_CSET` or `ICN_STR` that leaves a
+String ref. For `ICN_VAR` pointing to a String-typed var, `ij_emit_var` leaves a
+String ref. Both cases work cleanly.
+
+**`write(any(cs))`** — `any` returns a long (the new position). So `ij_expr_is_string`
+for `ICN_CALL("any",...)` must return 0 (long). Same for `many` and `upto`.
+`write()` will use `println(J)` path. Correct.
 
 ### IJ-11 findings — M-IJ-SCAN implementation (done)
 
