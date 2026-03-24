@@ -26,7 +26,7 @@ Session numbers use per-type prefixes (see RULES.md §SESSION NUMBERS): B=backen
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-273 — M-BEAUTY-READWRITE partial: binary E_ATP `pat @x` fix committed `695ce11` (corpus 106/106 ✅); steps 1–5 PASS; step 6 blocked on `_b_INPUT n==3` (filename embedded in opts string → returns NULVCL not FAILDESCR). Fix documented in snobol4x PLAN.md §30. HEAD `da79fbf`. | `da79fbf` B-273 | M-BEAUTY-READWRITE |
+| **TINY backend** | `main` B-274 — M-BEAUTY-READWRITE in progress: `_b_INPUT` n==3 fixed (bad path now returns FAILDESCR); `_b_OUTPUT` n==3 fix needed; steps 1–5 PASS. snobol4x PLAN.md is now lean (61 lines). Session history → `.github/SESSIONS_ARCHIVE.md`. | `da79fbf` B-274 | M-BEAUTY-READWRITE |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-227 — 5 emitter fixes: γ-time trail mark, βN own-mark unwind, rbx stable args base, edx survives arg-build, collision guard. M8 member(a,[a,b,c]) ✅. One fix left: bi→ucall_seq label unification. snobol4x HEAD `d2457bd`. | `d2457bd` F-227 | M-PROLOG-R10 |

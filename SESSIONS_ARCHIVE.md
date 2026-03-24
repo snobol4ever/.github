@@ -13344,3 +13344,1492 @@ per-repo source scans (M-DEEP-SCAN-*)
 Three new grids (G-STARTUP, G-OPERATOR, G-SWITCH-FULL) plus five new per-repo grids (G-VOLUME, G-FEATURE)
 bring the total from 4 → 10 grids per repo and 6 → 9 cross-engine grids in GRIDS.md.
 
+## §18 — Session 51 Handoff (2026-03-22)
+
+### Work completed this session
+
+- **`datatype()` uppercase fix** — `snobol4.c`: all return values changed to
+  uppercase (`"STRING"`, `"INTEGER"`, `"REAL"`, `"PATTERN"`, `"ARRAY"`,
+  `"TABLE"`, `"CODE"`, `"DATA"`). Matches SNOBOL4 spec and existing unit tests.
+  Commit pending (staged, not yet pushed — stash present in working tree).
+
+- **`M-BEAUTY-CASE` driver + ref created** — `test/beauty/case/driver.sno`
+  and `driver.ref` (9 lines, all PASS). CSNOBOL4 oracle confirmed 9/9 PASS.
+  Files exist on disk, not yet committed.
+
+- **PLAN.md §START written** — session bootstrap checklist, beauty subsystem
+  table, current milestone pointer. Committed `a309d6c`, pushed to `origin/main`
+  after rebase (`a4ae121`).
+
+### Active bug: `M-BEAUTY-CASE` ASM diverges at step 1
+
+```
+DIVERGENCE at step 1:
+  oracle [csn]: VALUE OUTPUT = 'PASS: lwr(HELLO) = hello'
+  FAIL   [asm]: VALUE OUTPUT = 'FAIL: lwr(HELLO)'
+```
+
+`lwr` calls `REPLACE(lwr, &UCASE, &LCASE)`. The ASM emitter generates
+`lea rdi, [rel S_UCASE]; call stmt_get` — passing the bare string `"UCASE"`
+(no `&` prefix) to `stmt_get`. `stmt_get` only strips `&` when the first char
+IS `&`; for bare `"UCASE"` it calls `NV_GET_fn("UCASE")` which hits the hash
+table. `UCASE` IS registered at init via `NV_SET_fn("UCASE", STRVAL(ucase))`.
+
+**Root cause not yet confirmed.** Hypothesis: the monitor's `inject_traces.py`
+adds `TRACE` calls that interact with `UCASE`/`LCASE` initialization order,
+OR the emitter passes `stmt_get` the wrong variable name for keyword args.
+
+### Next session action plan
+
+1. `bash setup.sh`
+2. Add a one-line debug print to `stmt_get` in `snobol4_stmt_rt.c`:
+   ```c
+   fprintf(stderr, "stmt_get(%s) -> type=%d val=%s\n",
+           name, v.v, VARVAL_fn(v));
+   ```
+3. Build + run case driver through monitor, capture stderr from ASM participant
+4. Confirm whether `stmt_get("UCASE")` returns the 26-char uppercase alphabet
+   or something else (empty, NULL, etc.)
+5. Fix the root cause, rebuild, rerun monitor
+6. On 9/9 PASS: commit `B-263: M-BEAUTY-CASE ✅`, update §START table
+7. Advance to `M-BEAUTY-ASSIGN`
+
+### Files needing commit (next session)
+
+- `src/runtime/snobol4/snobol4.c` — datatype() uppercase fix
+- `test/beauty/case/driver.sno` — case subsystem driver
+- `test/beauty/case/driver.ref` — oracle reference output
+- `PLAN.md` — this session note
+
+
+---
+
+## §19 — Session 51+ Handoff (2026-03-23): M-BEAUTY-CASE progress + static pattern architecture
+
+### Work completed this session
+
+**Three bugs fixed — steps 1–6 of case driver now pass in 3-way monitor:**
+
+| Bug | Location | Fix |
+|-----|----------|-----|
+| `FN_CLEAR_VAR` clobbered param when fn name == param name (`lwr(lwr)`) | `emit_byrd_asm.c` α-entry emission | Skip `FN_CLEAR_VAR` for retval var when it matches a param name |
+| `GET_VAR` (return value capture) placed AFTER param restore, overwriting result | `emit_byrd_asm.c` ucall gamma return | Move `GET_VAR fnlab` before the param restore loop |
+| 2-arg `SUBSTR(s,i)` returning empty string | `snobol4.c` `_b_SUBSTR` | Handle `n<3` with large length; register min arity=2 |
+
+**Steps 7–8 (`icase`) still fail.** Root cause identified but not yet fixed.
+
+### §19.1 — Root cause of `icase` failure: static pattern architecture bug
+
+`icase` builds a runtime pattern by accumulating `upr(letter) | lwr(letter)` alternations. This fails because of a fundamental architectural problem in the ASM emitter's treatment of pattern expressions.
+
+**Current (broken) behavior:**
+
+When the emitter sees `p = upr('h') | lwr('H')`, it detects `E_OR` and registers `p` as a *named pattern box* — compiling a static Byrd-box with hardcoded α/β/γ/ω labels. But since the arms (`upr('h')`, `lwr('h')`) are ucall expressions unknown at compile time, their pattern nodes are emitted as `; UNIMPLEMENTED → ω` stubs that always fail.
+
+**The correct architecture (per Lon, session 51+):**
+
+> Every pattern sub-expression — `'H' | 'h'`, `ANY(&UCASE)`, `LEN(1)`, etc. — should be compiled to a static anonymous Byrd-box fragment at compile time, independent of which variable it gets assigned to. The variable name is just a reference; the compiled node is not tied to it.
+
+Concretely:
+
+1. **Static pattern literals and combinators** (`'a' | 'b'`, `ANY(str)`, `LEN(n)`, etc.) are compiled to anonymous boxes with generated unique names (`pat_anon_N_α` etc.). These exist unconditionally — they don't depend on which variable (if any) holds the result.
+
+2. **Runtime pattern values** — the result of functions like `upr(x) | lwr(x)` where the arms are computed at runtime — are stored in SNOBOL4 variables as `DT_P` descriptors. The match `'subj' p` must dispatch dynamically via the variable's runtime value.
+
+3. **`stmt_match_var` currently does string match only** — it calls `VARVAL_fn()` and does `memcmp`. It must be upgraded to: if the variable holds `DT_P`, dispatch through the pattern engine; otherwise do string literal match.
+
+4. **`E_VART` in `emit_pat_node`** — the fallback for unknown variables currently uses `LIT_VAR_α` (string match). It must check whether the variable is known to hold a pattern at compile time (registered named pattern) and emit a pattern-dispatch call if so; otherwise use `LIT_VAR_α` for string vars.
+
+**The immediate fix needed for `icase`:**
+
+`stmt_match_var` (in `snobol4_stmt_rt.c`) must handle `DT_P` variables:
+
+```c
+int stmt_match_var(const char *varname) {
+    DESCR_t val = NV_GET_fn(varname);
+    if (val.v == DT_P) {
+        /* Runtime pattern — dispatch through engine */
+        return engine_match_pattern(val, subject_data, subject_len_val, &cursor);
+    }
+    /* String literal match (existing behavior) */
+    const char *s = VARVAL_fn(val);
+    ...
+}
+```
+
+And `expr_is_pattern_expr` for `E_OR` should NOT register a named-pattern box unless both children are themselves compile-time pattern expressions. When arms contain ucalls (like `upr(x)`), the assignment is a runtime value — use `LIT_VAR` / `stmt_match_var` dispatch at match time.
+
+**The partial fix already applied:**
+```c
+// emit_byrd_asm.c expr_is_pattern_expr:
+if (e->kind == E_OR) return expr_has_pattern_fn(e);  // was: return 1
+```
+This prevents broken static boxes for `upr('h') | lwr('H')`. But without the `stmt_match_var` DT_P upgrade, the match still fails (falls back to string match against `VARVAL_fn(DT_P)` = `"PATTERN"`).
+
+### §19.2 — Next session action plan
+
+1. `bash setup.sh`
+2. Upgrade `stmt_match_var` in `snobol4_stmt_rt.c` to dispatch DT_P variables through the pattern engine
+3. Verify `icase` test passes: `INC=demo/inc ./sno2c -asm ... && nasm ... && gcc ... && ./prog_asm`
+4. Run full 3-way monitor: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh case`
+5. On 9/9 PASS: commit all fixes + `B-263: M-BEAUTY-CASE ✅`, update §START table
+6. Advance to `M-BEAUTY-ASSIGN`
+
+### §19.3 — Files changed this session (need commit)
+
+- `src/backend/x64/emit_byrd_asm.c` — 3 fixes: FN_CLEAR_VAR param skip, GET_VAR before restore, expr_is_pattern_expr E_OR fix
+- `src/runtime/snobol4/snobol4.c` — 2-arg SUBSTR fix + datatype() uppercase fix
+- `test/beauty/case/driver.sno` — case subsystem driver
+- `test/beauty/case/driver.ref` — oracle reference (9 lines)
+- `PLAN.md` — this session note
+
+
+---
+
+## §20 — Session Handoff (2026-03-23 late): M-BEAUTY-CASE icase deep diagnosis
+
+### Work completed this session
+
+**`stmt_match_var` upgraded (DT_P dispatch):**
+- `snobol4_stmt_rt.c`: `stmt_match_var` now checks `val.v == DT_P` first, dispatches through `match_pattern_at()` instead of string memcmp
+- New `stmt_match_descr(uint64_t vtype, void *vptr)`: same logic, takes pre-evaluated DESCR_t fields — for function-call results in pattern position
+- New `CALL_PAT_α/β` macros in `snobol4_asm.mac`: evaluate function call result → call `stmt_match_descr`
+- `emit_pat_node` E_FNC fallback: replaced `UNIMPLEMENTED → ω` with `emit_expr + CALL_PAT_α/β`
+- Forward declaration for `emit_expr` added before `emit_pat_node`
+
+**Result:** `CALL_PAT_α` is correctly emitted for `icase('hello')` in pattern position. But `icase` still returns STRING not PATTERN.
+
+### §20.1 — Root cause of icase returning STRING
+
+`icase('hello')` returns STRING. Manual trace confirms:
+
+1. `&epsilon` is initialized as DT_P (pattern) in the global variable table
+2. Inside the `icase` function, retval `icase` is initialized to NULVCL by `FN_CLEAR_VAR`
+3. The icase body does `icase = icase (upr(letter) | lwr(letter))` — concat NULVCL with DT_P
+4. `stmt_concat(NULVCL, DT_P)` should produce DT_P (pattern cat) ✓ — but icase returns STRING
+
+**The actual problem:** `icase` is registered as a named-pattern box (from `scan_named_patterns`). When the body assigns `SET_VAR S_icase`, the emitter may be generating code that sets the global SNOBOL4 variable `icase` (correct), but the function's RETURN path reads the return value via `GET_VAR S_icase` — which fetches the global variable. The global `icase` IS being set correctly. But the ucall return path for the **inner icase call** (the self-recursive `:(icase)` loop back) re-evaluates `GET_VAR S_icase` before restoring the caller's saved value of `str/letter/character`. This should be fine...
+
+**More likely:** the `icase` variable is also a named-pattern box (`P_icase_α` defined). The `scan_named_patterns` call registers `icase` as a named pattern because `icase = epsilon (upr(letter) | lwr(letter))` — its body contains an E_OR (since `expr_is_pattern_expr` for `E_OR` was `return 1` before our fix). Even with our fix (`return expr_has_pattern_fn(e)`), the E_OR inside the function body sees `upr(letter) | lwr(letter)` — `expr_has_pattern_fn` returns 0 for ucalls, so E_OR returns 0 now. But the outer assignment `icase = epsilon concat_with_alt` — the concat may still trigger named-pattern registration.
+
+**Actually the most likely cause:** the `icase` function's assignment statement `icase = icase (upr(letter)|lwr(letter))` hits the subject-replacement path (left-hand side is the subject `icase`), not a plain variable assignment. In SNOBOL4, `icase = VALUE` with no pattern is an assignment. But the parser sees the function variable `icase` as the subject and the expression as both pattern AND replacement. The emitter may be misclassifying this as a pattern match statement rather than a value assignment.
+
+### §20.2 — Next session action plan
+
+1. `bash setup.sh`
+2. Add a debug print to `stmt_set("icase", v)` to confirm what value is being stored at each loop iteration
+3. Verify whether `stmt_concat` is actually being called and what it returns for `(NULVCL, DT_P)` inputs
+4. Check whether the issue is: (a) concat not called / wrong codepath, (b) concat returns STRING incorrectly, or (c) GET_VAR at return time fetches wrong value
+5. Once `icase('hello')` returns DT_P, the `CALL_PAT_α` dispatch should handle the match
+6. Run 9/9, commit `B-263: M-BEAUTY-CASE ✅`, advance to `M-BEAUTY-ASSIGN`
+
+### §20.3 — Files changed (all need commit)
+
+- `src/backend/x64/emit_byrd_asm.c` — forward decl, CALL_PAT emission, expr_is_pattern_expr E_OR fix, GET_VAR before restore, FN_CLEAR_VAR param skip
+- `src/runtime/asm/snobol4_stmt_rt.c` — stmt_match_var DT_P, stmt_match_descr new
+- `src/runtime/asm/snobol4_asm.mac` — CALL_PAT_α/β macros
+- `src/runtime/snobol4/snobol4.c` — SUBSTR 2-arg fix, datatype() uppercase fix
+- `PLAN.md` — this session note
+
+
+---
+
+## §21 — Session Handoff (2026-03-23): M-BEAUTY-CASE icase root cause fully traced
+
+### Work completed this session
+
+**INC path fix:** `INC=demo/inc` (not `/home/claude/snobol4corpus/programs/inc`).
+CSNOBOL4 oracle: 9/9 PASS confirmed.
+
+**Bug fixed — S_ duplicate label (NASM error):**
+`emit_byrd_asm.c` ANY runtime-expr branch called `var_register(str_intern(tmplab))`
+which emitted both `S_any_expr_tmp_N resq 1` (BSS via var_register) AND
+`S_any_expr_tmp_N db ...` (string literal via str_intern) — NASM duplicate label.
+
+Fix: replaced `var_register` + `emit_any_var` with new `ANY_α_PTR` / `ANY_β_PTR`
+macros that take raw BSS slots `any_expr_tmp_N_t/_p` and call `stmt_any_ptr(vtype,vptr,...)`.
+- `src/backend/x64/emit_byrd_asm.c` — ANY runtime-expr branch rewritten
+- `src/runtime/asm/snobol4_stmt_rt.c` — `stmt_any_ptr()` added
+- `src/runtime/asm/snobol4_asm.mac` — `ANY_α_PTR` / `ANY_β_PTR` macros added
+- extern `stmt_any_ptr` added to generated `.s` preamble
+
+**Result:** Steps 1–6 and 9 now PASS in ASM. Steps 7–8 (icase) still fail.
+
+**Committed:** `715b300` — "B-264 partial: ANY_α_PTR, stmt_any_ptr, icase debug tracing"
+
+---
+
+### §21.1 — icase root cause: `any_expr_tmp` BSS slots receive zero at match time
+
+**Debug trace confirms:**
+
+```
+[stmt_any_ptr] vtype=0 cs='' cursor=0 subj[cur]='h'
+```
+
+`vtype=0` (DT_SNUL) — the `any_expr_tmp_64_t/_p` BSS slots are **zero** when
+`ANY_α_PTR` reads them. The `stmt_concat(&UCASE, &LCASE)` result is not
+reaching the slots.
+
+**Why the slots are zero — the section-switch bug:**
+
+The emitter writes:
+```asm
+                        ; ... (inside icase function body, .text section)
+DOL_SAVE    dol_entry_letter, cursor, dol63_child_α
+seq_r62_β:  jmp dol63_child_β
+
+section .bss                        ; ← MID-CODE SECTION SWITCH
+any_expr_tmp_64_t resq 1
+any_expr_tmp_64_p resq 1
+section .text                       ; ← SWITCH BACK
+
+            lea rdi, [rel S_UCASE]
+            call stmt_get
+            ...
+            call stmt_concat
+            mov [rel any_expr_tmp_64_t], rax    ; store result
+            mov [rel any_expr_tmp_64_p], rdx
+dol63_child_α:  ANY_α_PTR any_expr_tmp_64_t, ...
+```
+
+**The `section .bss` / `section .text` switch in the middle of the text
+section is the culprit.** The eval code (`lea rdi, [rel S_UCASE] ... call
+stmt_concat ... mov [rel any_expr_tmp_64_t], rax`) is emitted in the
+**fall-through path before `dol63_child_α`**. On the first scan attempt
+this executes correctly. But on **retry** (scan advances cursor, jumps
+back to scan_retry which goes to `dol63_child_α` directly), the eval is
+skipped — `rax`/`rdx` from the previous `stmt_concat` are stale on the
+stack, not in the BSS slots (wait — they ARE stored to BSS on first pass).
+
+Actually re-examining: the BSS slots ARE written on first fall-through.
+On retry the jump goes to `dol63_child_α` which reads BSS — those slots
+should have the value from first time. BUT `vtype=0` means the first
+fall-through itself produced zero.
+
+**Most likely real cause:** `stmt_concat` is called with `&UCASE`/`&LCASE`
+values that are themselves zero/null at the time of the call. The keywords
+`UCASE` and `LCASE` may not be initialized yet in the ASM runtime's variable
+table when the icase function body first executes.
+
+The debug `[stmt_get UCASE]` trace was never printed — meaning `stmt_get`
+was NOT called for `UCASE`/`LCASE`. This means `emit_expr` for the
+`&UCASE &LCASE` concat is NOT going through `stmt_get`. It is likely emitting
+a direct `GET_VAR S_UCASE` (register-based load into `[rbp-32/24]`) rather
+than `call stmt_get`. The `GET_VAR` macro reads from the BSS slot
+`S_UCASE resq 1` — which is the ASM's own BSS copy of the variable, not the
+C runtime's `NV_GET_fn("UCASE")`. If the ASM BSS slot for UCASE is never
+written (because `init_keywords()` writes to `NV_SET_fn("UCASE")` but does
+NOT write to the ASM's `S_UCASE resq 1`), it stays zero.
+
+**This is the same class of bug as the old snoSrc initialization issue (§14.4).**
+The C runtime initializes variables via `NV_SET_fn`, but the ASM backend reads
+them via `GET_VAR S_UCASE` (direct BSS). These two storage locations are NOT
+the same — `NV_SET_fn` writes to the C hash table; `GET_VAR` reads the ASM
+BSS slot. They are synchronized only when the ASM does `SET_VAR` (which calls
+`stmt_set` → `NV_SET_fn`) or when something calls `NV_SET_fn(UCASE, ...)` AND
+the ASM has a corresponding `stmt_get("UCASE")` call that reads it back.
+
+**Concrete verification needed (next session step 2):**
+```bash
+# In generated prog.s, check what GET_VAR S_UCASE emits:
+grep -n "S_UCASE\|UCASE" /tmp/.../prog.s | head -20
+# If GET_VAR reads [rel S_UCASE] (BSS), and S_UCASE is never written
+# by the ASM (only by C init), it will always be zero.
+```
+
+---
+
+### §21.2 — The GET_VAR vs NV_GET_fn duality
+
+The ASM backend has TWO variable storage locations:
+1. **ASM BSS** (`S_varname resq 1`) — read by `GET_VAR`, written by `SET_VAR`
+2. **C hash table** — read/written by `NV_GET_fn`/`NV_SET_fn`
+
+`stmt_get(name)` calls `NV_GET_fn` → C hash. But `GET_VAR S_name` reads
+ASM BSS directly.
+
+Keywords like `&UCASE`, `&LCASE`, `&STLIMIT` are initialized in `snobol4.c`
+`init_keywords()` via `NV_SET_fn("UCASE", ...)`. They are NEVER written to
+the ASM BSS slots `S_UCASE resq 1`.
+
+When `emit_expr` sees `E_KEYWORD("UCASE")` it emits `GET_VAR S_UCASE` —
+reading the ASM BSS slot, which is always zero.
+
+The fix has two options:
+
+**Option A — emit `call stmt_get` for keyword expressions in emit_expr:**
+Replace `GET_VAR S_KEYWORD` with `lea rdi, [rel S_KEYWORD_str]; call stmt_get`
+for E_KEYWORD nodes. This routes through `NV_GET_fn` where the C runtime has
+the value. This is correct and already works for `ANY(&UCASE)` when the arg
+is `E_VART("UCASE")` (which uses `emit_any_var` → `ANY_α_VAR` → `stmt_any_var`
+→ `NV_GET_fn`).
+
+**Option B — sync ASM BSS from C hash at init:**
+After `sno_init()` / `SNO_INIT_fn()`, explicitly copy keyword values from
+the C hash to ASM BSS. Fragile — requires knowing all keyword names.
+
+**Option A is correct.** The bug is in `emit_expr` for `E_KEYWORD` — it should
+emit a `stmt_get` call rather than a direct BSS read.
+
+---
+
+### §21.3 — Next session action plan (START HERE)
+
+```bash
+bash setup.sh   # always first
+```
+
+**Step 1 — Clean up debug instrumentation:**
+Remove `SNO_CALLDEBUG` fprintf blocks from `snobol4_stmt_rt.c`:
+- `stmt_get` UCASE/LCASE debug
+- `stmt_set` icase debug
+- `stmt_any_ptr` debug
+- `stmt_apply` ALT debug
+- `stmt_match_descr` debug
+Keep `stmt_any_ptr` function itself (it's real, not debug).
+
+**Step 2 — Fix `emit_expr` E_KEYWORD to use `stmt_get`:**
+In `emit_byrd_asm.c`, find the `E_KEYWORD` case in `emit_expr`. Currently it
+likely emits `GET_VAR S_KEYWORD`. Change it to:
+```c
+case E_KEYWORD: {
+    const char *klab = str_intern(pat->sval);  /* S_UCASE etc */
+    A("    lea     rdi, [rel %s]\n", klab);
+    A("    call    stmt_get\n");
+    A("    mov     [rbp-%d], rax\n", slot);
+    A("    mov     [rbp-%d], rdx\n", slot-8);
+    break;
+}
+```
+This routes keyword reads through `NV_GET_fn` which has the C-runtime values.
+
+**Step 3 — Rebuild and verify:**
+```bash
+cd /home/claude/beauty-project/snobol4x/src && make
+TMP=$(mktemp -d)
+RT=src/runtime; INC=demo/inc
+# [build as before]
+"$TMP/prog_asm"
+# Expect: 9/9 PASS
+```
+
+**Step 4 — Run 3-way monitor:**
+```bash
+INC=demo/inc bash test/beauty/run_beauty_subsystem.sh case
+# Expect: 9/9, all 3 participants agree
+```
+
+**Step 5 — On 9/9 PASS:**
+```bash
+git add src/backend/x64/emit_byrd_asm.c src/runtime/asm/snobol4_stmt_rt.c \
+        src/runtime/asm/snobol4_asm.mac test/beauty/case/driver.sno \
+        test/beauty/case/driver.ref PLAN.md
+git commit -m "B-263: M-BEAUTY-CASE ✅"
+git push
+```
+Then update §START table: `case → ✅`, advance to `M-BEAUTY-ASSIGN`.
+
+---
+
+### §21.4 — Files changed, pending commit (already committed as 715b300)
+
+| File | Change |
+|------|--------|
+| `src/backend/x64/emit_byrd_asm.c` | ANY runtime-expr → ANY_α_PTR; extern stmt_any_ptr; forward decl |
+| `src/runtime/asm/snobol4_stmt_rt.c` | stmt_any_ptr(); stmt_match_descr DT_P; debug traces (remove next session) |
+| `src/runtime/asm/snobol4_asm.mac` | ANY_α_PTR / ANY_β_PTR macros |
+
+### §21.5 — Current test status
+
+| Step | Test | ASM |
+|------|------|-----|
+| 1 | lwr(HELLO) = hello | ✅ |
+| 2 | lwr(world) = world | ✅ |
+| 3 | upr(hello) = HELLO | ✅ |
+| 4 | upr(WORLD) = WORLD | ✅ |
+| 5 | cap(hELLO) = Hello | ✅ |
+| 6 | cap(WORLD) = World | ✅ |
+| 7 | icase(hello) matches Hello | ❌ E_KEYWORD GET_VAR zero |
+| 8 | icase(world) matches WORLD | ❌ same |
+| 9 | lwr(upr(MiXeD)) roundtrip | ✅ |
+
+
+---
+
+## §22 — Session Handoff (2026-03-23 emergency): icase BSS slot overwrite confirmed
+
+### §START update
+**Current milestone:** `M-BEAUTY-CASE` — steps 1–6, 9 ✅ ASM; steps 7–8 ❌
+
+### Root cause CONFIRMED this session
+
+`stmt_concat` receives `a.v=1 b.v=1` (both DT_S strings) — concat itself is
+NOT failing. The return value IS a valid 52-char string in rax:rdx.
+
+**The actual bug: `any_expr_tmp_N` BSS slots declared mid-function via
+inline `section .bss / section .text` switch get overwritten.**
+
+The `section .bss` switch mid-`.text` emits the resq slots correctly, but
+the `icase` function is RECURSIVE — each recursive call re-enters the Byrd
+box, re-executes `stmt_concat`, and `mov [rel any_expr_tmp_2_t], rax`
+writes to the same slot. On the recursive call, the icase ucall stack frame
+reuse means the slot is written N times but read at the wrong iteration.
+More critically: `DOL_SAVE` and other Byrd-box machinery uses `[rbp-32/24]`
+stack slots that ALIAS with the emit_expr output slot — overwriting rax/rdx
+before the `mov [rel any_expr_tmp_2_t]` store takes effect, OR the recursive
+icase ucall trashes the slot between store and read.
+
+### THE FIX (implement first thing next session)
+
+**Move `any_expr_tmp_N` BSS declarations to the file-level BSS block.**
+
+In `emit_byrd_asm.c`, the ANY runtime-expr branch (around line 1549):
+
+```c
+// CURRENT (broken): inline section switch mid-function
+A("section .bss\n");
+A("%s resq 1\n", tlab);
+A("%s resq 1\n", plab);
+A("section .text\n");
+
+// FIX: add to a deferred BSS list, emit later at file-level BSS section
+deferred_bss_add(tlab);   // emits "tlab resq 1" in global BSS block
+deferred_bss_add(plab);
+// remove the section .bss / section .text lines entirely
+```
+
+The deferred BSS infrastructure already exists (`var_register` does this for
+SNOBOL4 variables). Either reuse `var_register` with a non-string tag, or add
+a parallel `bss_slot_register(name)` that emits `name resq 1` in the global
+`.bss` section only (no string literal, no `S_` prefix).
+
+**Implementation steps:**
+
+1. Add `static char bss_slots[MAX_BSS][LBUF]; static int bss_slot_count=0;`
+   and `static void bss_slot_register(const char *name)` to the emitter.
+2. In the ANY runtime-expr branch, replace the inline section switch with
+   `bss_slot_register(tlab); bss_slot_register(plab);`
+3. In `emit_bss_section()` (wherever global BSS is emitted), call
+   `for (int i=0;i<bss_slot_count;i++) A("%s resq 1\n", bss_slots[i]);`
+4. Rebuild: `cd src && make`
+5. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh case`
+6. Expect 9/9. If so, remove debug `fprintf` from `stmt_concat`, commit.
+
+### Files with uncommitted debug traces (clean up before commit)
+
+- `src/runtime/asm/snobol4_stmt_rt.c` — `stmt_concat` fprintf (debug only, remove)
+- `src/backend/x64/emit_byrd_asm.c` — any changes from this session
+
+### Commit sequence on 9/9 pass
+
+```bash
+# Remove debug trace from stmt_concat first
+# Then:
+git add src/backend/x64/emit_byrd_asm.c \
+        src/runtime/asm/snobol4_stmt_rt.c \
+        src/runtime/asm/snobol4_asm.mac \
+        test/beauty/case/driver.sno \
+        test/beauty/case/driver.ref \
+        PLAN.md
+git commit -m "B-263: M-BEAUTY-CASE ✅"
+git push
+```
+
+Update §START: `case → ✅`, next milestone `M-BEAUTY-ASSIGN`.
+
+### Test status going into next session
+
+| Step | Test | ASM |
+|------|------|-----|
+| 1 | lwr(HELLO) = hello | ✅ |
+| 2 | lwr(world) = world | ✅ |
+| 3 | upr(hello) = HELLO | ✅ |
+| 4 | upr(WORLD) = WORLD | ✅ |
+| 5 | cap(hELLO) = Hello | ✅ |
+| 6 | cap(WORLD) = World | ✅ |
+| 7 | icase(hello) matches Hello | ❌ BSS slot overwrite (fix above) |
+| 8 | icase(world) matches WORLD | ❌ same |
+| 9 | lwr(upr(MiXeD)) roundtrip | ✅ |
+
+
+---
+
+## §23 — Session Handoff (2026-03-23): M-BEAUTY-COUNTER blocked on DATA() field-setter
+
+### §START update
+**Completed this session:**
+- B-265: M-BEAUTY-MATCH ✅ (7/7, per-subsystem tracepoints.conf pattern established)
+- B-264: M-BEAUTY-ASSIGN ✅ (7/7, committed prior session)
+
+**Current milestone:** `M-BEAUTY-COUNTER` — blocked on DATA() field-setter l-value
+
+### Divergence at step 1
+
+```
+oracle [csn]: VALUE DUMMY = ''
+FAIL   [asm]: VALUE OUTPUT = 'FAIL: 1 push/inc/top'
+AGREE  [spl]: VALUE DUMMY = ''
+```
+
+`IncCounter` body: `value($'#N') = value($'#N') + 1`
+This is a **field accessor as l-value** — `value(obj) = newval`.
+The ASM emitter generates a function call for `value($'#N')` on the LHS,
+which is not handled as an assignment target. Per §14.3, this requires
+compiler recognition: emit `sno_field_set(obj, "value", rhs)` directly.
+
+### Root cause: emit_assign_target doesn't handle E_FNC on LHS
+
+In `emit_byrd_asm.c`, the assignment emitter (`emit_stmt_assign` or equivalent)
+handles LHS targets: `E_VAR`, `E_DEREF`, `E_ARRAY`, `E_KEYWORD`.
+It does NOT handle `E_FNC` (function call) as an l-value.
+
+`value($'#N') = expr` parses as `E_FNC("value", [E_DEREF("$'#N'")])` on the LHS.
+The emitter must recognize this pattern and emit a field-set call.
+
+### The fix
+
+In `emit_byrd_asm.c` assignment target handling, add `E_FNC` case:
+
+```c
+case E_FNC: {
+    /* Field accessor as l-value: fieldFn(obj) = rhs
+     * Emit: stmt_field_set(obj_descr, "fieldname", rhs_descr) */
+    const char *fname = target->sval;  /* "value", "next", etc. */
+    EXPR_t *obj_arg = target->nchildren > 0 ? target->children[0] : NULL;
+    if (!fname || !obj_arg) goto fallback_assign;
+    /* Evaluate rhs into [rbp-32/rbp-24] */
+    emit_expr(rhs, -32);
+    /* Evaluate obj into temp */
+    emit_expr(obj_arg, -48);  /* use deeper slot */
+    A("    lea     rdi, [rel %s]\n", str_intern(fname));  /* field name */
+    A("    mov     rsi, [rbp-48]\n");  /* obj type */
+    A("    mov     rdx, [rbp-40]\n");  /* obj ptr */
+    A("    mov     rcx, [rbp-32]\n");  /* val type */
+    A("    mov     r8,  [rbp-24]\n");  /* val ptr */
+    A("    call    stmt_field_set\n");
+    break;
+}
+```
+
+And add `stmt_field_set` to `snobol4_stmt_rt.c`:
+
+```c
+void stmt_field_set(const char *fname, DESCR_t obj, DESCR_t val) {
+    /* Find the field index in the object's UDefType */
+    if (obj.v != DT_UDEF || !obj.ptr) return;
+    UDefInst *inst = (UDefInst*)obj.ptr;
+    UDefType *t = inst->type;
+    for (int i = 0; i < t->nfields; i++) {
+        if (strcmp(t->fields[i], fname) == 0) {
+            inst->fields[i] = val;
+            return;
+        }
+    }
+}
+```
+
+Also need `stmt_field_get(const char *fname, DESCR_t obj)` for the getter side
+(already mostly works via `stmt_apply("value", &obj, 1)` → `_facc_fns[slot]`).
+
+### Also needed: DATA() field accessor getter via stmt_apply
+
+`value($'#N')` on the RHS should call `stmt_apply("value", &obj, 1)` which
+routes through `_facc_fns[slot]` → `sno_field_get(obj, "value")`.
+This SHOULD work if `_b_DATA` registered the accessor correctly.
+Verify with a debug trace before fixing the setter.
+
+### Next session action plan
+
+1. `bash setup.sh`
+2. Add `stmt_field_set` to `snobol4_stmt_rt.c`
+3. Add `extern stmt_field_set` to ASM preamble emitter
+4. Add `E_FNC` case to `emit_assign_target` in `emit_byrd_asm.c`
+5. Rebuild: `cd src && make`
+6. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh counter`
+7. On 5/5 PASS: commit `B-266: M-BEAUTY-COUNTER ✅`, advance to `M-BEAUTY-STACK`
+
+### Files created (need commit)
+- `demo/inc/counter.sno`
+- `test/beauty/counter/driver.sno`
+- `test/beauty/counter/driver.ref`
+- `PLAN.md`
+
+
+---
+
+## §24 — Session Handoff (2026-03-23): M-BEAUTY-COUNTER ✅ → M-BEAUTY-STACK
+
+### Completed this session
+
+**B-266: M-BEAUTY-COUNTER ✅** — commit `a64ae21`, pushed to `origin/main`.
+3-way monitor: PASS — 15/15 steps, all 3 participants agree.
+
+### Bugs fixed (7 total across multiple sub-sessions)
+
+| # | File | Bug | Fix |
+|---|------|-----|-----|
+| 1 | `emit_byrd_asm.c` | `$X` in value/arg context (`E_INDR`) fell to `default:` → NULVCL | Added `case E_INDR` in `emit_expr` calling `stmt_get_indirect` |
+| 2 | `snobol4_stmt_rt.c` | `stmt_get_indirect` didn't exist | Added: looks up variable named by `name_val` via `NV_GET_fn` |
+| 3 | `emit_byrd_asm.c` | `E_INDR` wrote result to wrong slot when `rbp_off==-16` | Use temp stack frame (`sub rsp,16`) + write to correct slot |
+| 4 | `snobol4_stmt_rt.c` | `stmt_concat("", INTEGER)` returned STRING | Empty-string identity: `la==0 → return b`, `lb==0 → return a` |
+| 5 | `emit_byrd_asm.c` | `NRETURN` routed to `fn_ω` (failure) not `fn_γ` (success) | Fixed in `emit_jmp` + `prog_emit_goto` |
+| 6 | `snobol4/snobol4.c` | `HOST(4, name)` returned NULVCL — monitor env vars unreadable | Added `selector==4 && n>=2 → getenv(envname)` |
+| 7 | `emit_byrd_asm.c` | NRETURN retval not dereferenced as NAME — caller got name string not named value | `uses_nreturn` field in `NamedPat`; scan pass sets it; ucall gamma return calls `stmt_get_indirect` when set |
+
+### Monitor technique note
+
+The 3-way sync monitor proved essential: each divergence printed the exact step, the oracle value, and the ASM value. This made root-cause identification deterministic rather than exploratory. Recommended: continue using monitor-first debugging for all remaining milestones.
+
+### Current milestone: `M-BEAUTY-STACK`
+
+**Status:** `demo/inc/stack.sno` exists. `test/beauty/stack/` does NOT exist — needs driver + ref.
+
+`stack.sno` key behaviors to test:
+- `InitStack()` — clears `$'@S'`
+- `Push(x)` — pushes onto linked list; uses NRETURN with `.value($'@S')` or `.dummy`
+- `Pop(var)` — pops and assigns to `var` via `$var = value($'@S')`; NRETURN path
+- `Top()` — returns `.value($'@S')` via NRETURN
+
+**Known hard cases:**
+- `Push` has two NRETURN paths: `Push = IDENT(x) .value($'@S') :S(NRETURN)` and `Push = DIFFER(x) .dummy :(NRETURN)`. The first path's NAME is a **field getter call** `.value($'@S')` — this is `E_NAM(E_FNC("value", [E_INDR("@S")]))`. Our current NRETURN deref does `stmt_get_indirect(GET_VAR("Push"))` — but `GET_VAR("Push")` will be the string `"value($'@S')"` or similar, which won't indirect correctly. This may need special handling.
+- `Pop(var)` — `$var = value($'@S')` with a parameter as the indirect target. Tests `E_INDR` in LHS assignment with a variable holding the target name.
+- `Top()` — `Top = .value($'@S') :(NRETURN)` — same field-getter NAME issue as Push.
+
+### Next session action plan
+
+```bash
+bash /home/claude/snobol4x/setup.sh
+
+# Step 1: Create driver and ref
+mkdir -p test/beauty/stack
+
+cat > demo/inc/stack.sno  # verify it exists (already does)
+
+# Write test/beauty/stack/driver.sno covering:
+#   1. push 3 integers, top = 3rd
+#   2. pop returns value
+#   3. pop with var — assigns through param
+#   4. nested push/pop
+#   5. empty stack — Pop fails, Top fails
+
+# Step 2: Run oracle to generate ref
+INC=demo/inc snobol4 -f -P256k -I demo/inc test/beauty/stack/driver.sno > test/beauty/stack/driver.ref
+
+# Step 3: Run monitor
+INC=demo/inc bash test/beauty/run_beauty_subsystem.sh stack
+
+# Step 4: On PASS commit B-267: M-BEAUTY-STACK ✅, advance M-BEAUTY-TREE
+```
+
+### §START table update
+
+| # | Subsystem | Status |
+|---|-----------|--------|
+| 1 | global | ✅ |
+| 2 | is | ✅ |
+| 3 | FENCE | ✅ |
+| 4 | io | ✅ |
+| 5 | case | ✅ |
+| 6 | assign | ✅ |
+| 7 | match | ✅ |
+| 8 | counter | ✅ |
+| 9 | **stack** | ← next |
+| 10 | tree | |
+| 11 | ShiftReduce | |
+| 12 | TDump | |
+| 13 | Gen | |
+| 14 | Qize | |
+| 15 | ReadWrite | |
+| 16 | XDump | |
+| 17 | semantic | |
+| 18 | omega | |
+
+
+---
+
+## §24 — Session Handoff F-223 (2026-03-23): M-PROLOG-BUILTINS ✅ — rung10 multi-ucall wiring WIP
+
+### §START update
+**Completed this session:**
+- M-PROLOG-BUILTINS ✅ — `rung09_builtins` PASS (`functor/3`, `arg/3`, `=../2`, type tests)
+- Link fix: added `subject_data`, `subject_len_val`, `cursor` BSS stubs to `emit_pl_header()` so Prolog binaries link against `stmt_rt.c` cleanly
+
+**Current milestone:** `M-PROLOG-R10` — rung10 puzzle solvers blocked on multi-ucall backtracking
+
+### Three fixes applied to `src/backend/x64/emit_byrd_asm.c`
+
+| # | Fix | Location | Status |
+|---|-----|----------|--------|
+| 1 | BSS stubs (`subject_data` etc.) in `emit_pl_header` | ~line 4868 | ✅ working |
+| 2 | `xor edx,edx` at `bsucc` label (next ucall starts fresh) | ~line 5784 | ✅ in |
+| 3 | `fail/0` retries innermost ucall via `jmp ucresN` | ~line 5141 | ✅ in |
+| 4 | `trail_unwind` before E2.fail→E1.resume retry in `bfailN` | ~line 5773 | ✅ in — **needs test** |
+
+### Root cause of rung10 silence (diagnosed)
+
+`fail/0` in puzzle bodies triggers E2.fail→E1.resume correctly (fix 3), but `bfailN`
+jumping to `ucres(N-1)` did NOT unwind trail — so previously unified variables (e.g.
+`Cashier=smith`) remained bound when the outer generator was retried. Fix 4 adds
+`trail_unwind` to the clause mark `[rbp-8]` before each inter-ucall retry.
+
+### Next session action plan (F-224)
+
+1. `bash setup.sh`
+2. `cd src && make` (fix 4 already in — verify clean build)
+3. Test mini cross-product:
+```prolog
+% /tmp/mini.pro
+:- initialization(main).
+color(red). color(green). color(blue).
+main :- color(X), color(Y), write(X), write('-'), write(Y), nl, fail.
+main.
+```
+Expected: 9 lines `red-red` through `blue-blue`.
+If only `red-red`: trail_unwind in bfailN may be over-unwinding — check that
+`term_new_var` slots at `[rbp-56/64]` are re-allocated after unwind (they are
+Term* pointers, not bindings — unwind only clears the trail, the slot pointers
+themselves survive). If vars are still bound after unwind, the issue is that
+`ucresN` reuses the OLD Term* (already unified) rather than allocating a fresh one.
+**Key question:** does `ucres0` need to call `term_new_var` again on retry, or does
+`trail_unwind` correctly reset the existing Term* to unbound? Check `trail_unwind`
+in `prolog_unify.c` — it should set `*slot = NULL` or `term->tag = TT_VAR` for
+each trailed binding.
+
+4. If mini PASS: create `.expected` files and run rung10 puzzles:
+```bash
+bash /tmp/run_prolog_rung.sh test/frontend/prolog/corpus/rung10_programs
+```
+Expected outputs (from README.md):
+- `puzzle_01`: `Cashier=smith Manager=brown Teller=jones`
+- `puzzle_02`: `Carpenter=clark Painter=daw Plumber=fuller`
+- `puzzle_06`: `Clark=druggist Jones=grocer Morgan=butcher Smith=policeman`
+
+5. On rung10 PASS: run rungs 01–09 regression check, then:
+```bash
+git add src/backend/x64/emit_byrd_asm.c PLAN.md
+git commit -m "F-223: M-PROLOG-BUILTINS ✅ M-PROLOG-R10 ✅ M-PROLOG-CORPUS ✅"
+git push
+```
+Then push HQ PLAN.md update to snobol4ever/.github.
+
+6. Update HQ PLAN.md dashboard row:
+```
+| **TINY frontend** | F-223 — M-PROLOG-BUILTINS ✅ M-PROLOG-R10 ✅ M-PROLOG-CORPUS ✅ ... | HEAD | M-BEAUTY-COUNTER |
+```
+Fire milestones: M-PROLOG-BUILTINS ✅ M-PROLOG-R10 ✅ M-PROLOG-CORPUS ✅
+
+### Files changed (uncommitted)
+- `src/backend/x64/emit_byrd_asm.c` — fixes 1–4 above
+
+### Invariant check before commit
+- Run `bash test/crosscheck/run_crosscheck_asm_rung.sh` on a few SNOBOL4 rungs to
+  confirm SNOBOL4 backend not regressed by BSS stub addition
+
+---
+
+## §25 — Session Handoff F-224 (2026-03-23): Greek-letter consistency pass ✅
+
+### What was done this session
+
+**No functional code changed.** Pure naming consistency pass across three emitter files to align the Prolog frontend with the rest of the codebase.
+
+**Files changed:**
+
+| File | Changes |
+|------|---------|
+| `src/backend/x64/emit_byrd_asm.c` | ~340 spellings renamed |
+| `src/backend/c/emit_byrd_c.c` | ~461 spellings renamed |
+| `src/frontend/prolog/prolog_emit.c` | ~50 spellings renamed |
+
+**Naming rules now enforced consistently:**
+
+| Port | C identifier | NASM label suffix | Comment |
+|------|-------------|-------------------|---------|
+| proceed | `α` | `_α` | normal entry |
+| recede  | `β` | `_β` | re-entry after backtrack |
+| concede | `γ` | `_γ` | success exit |
+| fail    | `ω` | `_ω` | failure exit |
+
+**Renamed categories:**
+- All C function parameter names: `alpha`→`α`, `beta`→`β`, `gamma`→`γ`, `omega`→`ω`
+- All compound locals: `ret_gamma`→`ret_γ`, `alpha_lbl`→`α_lbl`, `pat_alpha`→`pat_α`, `inner_gamma`→`inner_γ`, `dol_gamma`→`dol_γ`, `gamma_lbl`→`γ_lbl`, `omega_lbl`→`ω_lbl`, etc.
+- Prolog NASM label format strings: `bfail%d`→`β%d`, `bsucc%d`→`γ%d`, `ucres%d`→`α%d`, `hfail%d`→`hω%d`, `hok%d`→`hγ%d`
+- Head-unif local var renamed `β_lbl`→`hω_lbl` (holds `hω` label, not a `β` port)
+- All comment references to generated label shapes updated to match
+- `alphabet` and `alphanumeric` preserved throughout
+
+**One legitimate ASCII exception:** `root_α_saved` — a generated NASM `.bss` symbol; NASM cannot use unicode in identifiers.
+
+**Build result:** `make` clean, zero errors. (`nasm` installed this session for future test runs.)
+
+### §START update
+
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **TINY frontend** | `main` F-224 — greek consistency pass; zero functional changes; build clean | `e24e962`+WIP (uncommitted) | M-PROLOG-R10 |
+
+### Uncommitted state
+
+Fix 4 from F-223 (`trail_unwind` in `bfailN`) plus the greek rename are both uncommitted.  
+Commit together after rung10 passes:
+
+```
+git add src/backend/x64/emit_byrd_asm.c src/frontend/prolog/prolog_emit.c src/backend/c/emit_byrd_c.c PLAN.md
+git commit -m "F-224: greek-letter consistency pass (α/β/γ/ω everywhere); F-223 fix4 trail_unwind in bfailN"
+```
+
+### Next session action plan (F-225)
+
+1. `bash setup.sh`
+2. `cd src && make` — verify clean build
+3. Test mini cross-product (same as §24 plan):
+
+```prolog
+% /tmp/mini.pro
+:- initialization(main).
+color(red). color(green). color(blue).
+main :- color(X), color(Y), write(X), write('-'), write(Y), nl, fail.
+main.
+```
+
+Expected: 9 lines `red-red` through `blue-blue`.
+
+If only `red-red`: trail_unwind in `bfailN` may be over-unwinding.
+Key question: does `ucresN` need to re-call `term_new_var` on retry, or does
+`trail_unwind` correctly reset existing `Term*` to unbound?
+Check `prolog_unify.c` — `trail_unwind` must set `term->tag = TT_VAR` for each
+trailed binding (not just clear the trail stack entry).
+
+4. If mini passes → run rung10:
+
+```bash
+for d in test/frontend/prolog/corpus/rung10_programs/*.pro; do
+    base=$(basename $d .pro)
+    out=$(./sno2c -pl -asm "$d" -o /tmp/pl_$base.s 2>/dev/null \
+          && nasm -f elf64 /tmp/pl_$base.s -o /tmp/pl_$base.o \
+          && gcc /tmp/pl_$base.o ... -o /tmp/pl_$base \
+          && /tmp/pl_$base)
+    echo "$base: $out"
+done
+```
+
+Expected:
+- `puzzle_01`: `Cashier=smith Manager=brown Teller=jones`
+- `puzzle_02`: `Carpenter=clark Painter=daw Plumber=fuller`
+- `puzzle_06`: `Clark=druggist Jones=grocer Morgan=butcher Smith=policeman`
+
+5. On rung10 PASS: run rung01–09 regression, then commit and push both repos.
+
+### Next session trigger phrase
+**"playing with Prolog frontend"** → F-225 session → pick up at snobol4x PLAN.md §25.
+
+## §26 — Session Handoff F-225 (2026-03-23): per-ucall trail marks — mini PASS, rung10 WIP
+
+### What was built (F-225)
+
+**Root cause found and partially fixed** for multi-ucall backtracking with `fail/0`.
+
+**Bug:** `fail/0` retried the innermost ucall (color(Y)) by jumping to `αN` with the saved
+`sub_cs`, but did not unwind Y's bindings first. Y remained bound, so color(Y) saw a bound
+variable and found no further solutions, exhausting immediately and retrying color(X) instead.
+
+**Diagnostic trace:** Added inline `printf` instrumentation showing `color(Y) returned eax=1`
+on every retry — confirming Y was re-called with sub_cs=1 but returning -1 (exhausted)
+because Y was still bound to red.
+
+### Fixes applied to `src/backend/x64/emit_byrd_asm.c`
+
+| # | Change | Location |
+|---|--------|----------|
+| 1 | `VAR_SLOT_OFFSET(k)` now uses `(5+max_ucalls+max_ucalls+k)*8` — adds room for mark slots | `emit_prolog_clause_block` macro defs |
+| 2 | `UCALL_MARK_OFFSET(bi)` new macro: `(5+max_ucalls+bi)*8` — per-ucall trail mark slot | `emit_prolog_clause_block` macro defs |
+| 3 | Frame size: `40 + max_ucalls*8 + max_ucalls*8 + max_vars*8` | `emit_prolog_choice` |
+| 4 | At each `αN` label: emit `trail_mark_fn` + store in `UCALL_MARK_OFFSET(N)` | `emit_prolog_clause_block` ucall block |
+| 5 | `fail/0`: unwind to `UCALL_MARK_OFFSET(ucall_seq-1)` not `[rbp-8]` | `fail/0` branch |
+| 6 | `emit_pl_term_load`: var offset updated to `(5+pl_cur_max_ucalls+pl_cur_max_ucalls+slot)*8` | `emit_pl_term_load` |
+| 7 | Var allocation store: updated to `(5+max_ucalls+max_ucalls+k)*8` | `emit_prolog_clause_block` |
+
+### Test results
+
+- **Mini cross-product PASS ✅:** `color(X), color(Y), write(X), write('-'), write(Y), nl, fail` → 9 lines (`red-red` through `blue-blue`). All correct.
+- **Rung10 puzzle_01:** No output — `person(C), person(M), differ(C,M)` with 3 ucalls still broken
+- **Rung10 puzzle_02:** Blank lines (write issue?)
+- **Rung10 puzzle_06:** No output
+
+### Remaining bug: N>2 ucall chains with fail/0
+
+The 2-ucall case (color(X), color(Y)) now works. The 3-ucall case
+(`person(Cashier), person(Manager), differ(C,M)`) does not.
+
+Simplified test: `person(C), person(M), differ(C,M), write(C-M), nl, fail.`
+Expected 6 lines (all ordered pairs with C≠M). Actual: 2 lines (jones-brown, smith-brown).
+
+**Hypothesis:** `fail/0` retry of ucall 2 (differ) unwinds to `UCALL_MARK_OFFSET(1)`.
+This correctly unbinds Manager. But then it jumps to `α1` (person(Manager)) with
+`sub_cs=[rbp-UCALL_SLOT_OFFSET(1)]`. After person(M) exhausts (β1), it unwinds to clause
+mark `[rbp-8]` and retries ucall 0 (person(Cashier)) — but `[rbp-8]` is the CLAUSE mark
+which also unbinds Cashier. This part should be correct.
+
+The issue may be that `UCALL_MARK_OFFSET(1)` for the differ retry doesn't unwind
+Manager's binding fully, OR that `α1`'s trail mark (taken at α1 entry) is being re-taken
+on the retry path with the wrong trail state.
+
+**Key question for F-226:** Does taking a new trail mark at `αN` on every entry (including
+retries) cause the mark to be set AFTER unwind — meaning `UCALL_MARK_OFFSET(1)` captures
+a mark of 0 on retry, so unwind(0) clears everything including Cashier?
+
+**Proposed fix for F-226:** The per-ucall trail mark should only be taken on **fresh entry**
+(when `edx==0`), not on resume. Add a guard:
+```nasm
+pl_main_sl_0_c0_α1:
+    test    edx, edx
+    jnz     .skip_mark           ; resume path — mark already set
+    lea     rdi, [rel pl_trail]
+    call    trail_mark_fn
+    mov     [rbp - UCALL_MARK_OFFSET(1)], eax
+.skip_mark:
+```
+Or alternatively: take the mark BEFORE the `αN` label (at γ_{N-1} time), so it captures
+the trail state after ucall N-1 has bound its variables.
+
+### Uncommitted state
+
+All changes are in `src/backend/x64/emit_byrd_asm.c` only, not committed.
+F-223 greek pass (`b0b190c`) is the last clean commit.
+
+**Do NOT commit the current state** — rung09 corpus must still pass, need to verify.
+
+### Next session action plan (F-226)
+
+1. `bash setup.sh` (installs deps, builds sno2c)
+2. Read snobol4x PLAN.md §26 (this section)
+3. Fix the `αN` trail mark to only fire on fresh entry (`edx==0`), not resume
+4. Test mini cross-product → must stay 9/9
+5. Test `person(C), person(M), differ(C,M)` 3-ucall case → must give 6 pairs
+6. Run rung09 corpus to confirm no regression (rungs 1–9 must still PASS)
+7. Run rung10 puzzles
+8. If PASS: commit `F-226: M-PROLOG-R10 ✅`, update dashboard, push both repos
+
+### Trigger phrase for next session
+**"playing with Prolog frontend"** → F-226 → pick up at snobol4x PLAN.md §26.
+
+## §27 — Session Handoff F-226 (2026-03-23): βN unwind fix — 2-ucall PASS, regressions in 1-ucall
+
+### What was built (F-226)
+
+Three fixes applied to `src/backend/x64/emit_byrd_asm.c` (all uncommitted — last clean commit is `b0b190c` F-224):
+
+| # | Fix | Location | Status |
+|---|-----|----------|--------|
+| 1 | Guard trail mark at αN: `test edx,edx / jnz .skip_mark` — only take fresh mark on first entry, not resume | αN label emission | ✅ correct |
+| 2 | βN unwind (N>0): unwind to `UCALL_MARK_OFFSET(N-1)` not `UCALL_MARK_OFFSET(N)` | β handler `ucall_seq>0` branch | ⚠ causes regression |
+| 3 | (same as fix 2, iterative rename) | same | ⚠ same regression |
+
+### Test results
+
+- ✅ Mini 2-ucall `color(X), color(Y), write(X-Y), fail` → 9/9 correct
+- ✅ puzzle_01: `Cashier=smith Manager=brown Teller=jones`
+- ✅ puzzle_05: correct (multiple solutions printed)
+- ✅ puzzle_06: `Clark=druggist Jones=grocer Morgan=butcher Smith=policeman`
+- ✅ rung01–04, rung07, rung09 still PASS
+- ❌ rung05 (backtrack/member): prints `a b b b b...` instead of `a b c`
+- ❌ rung06 (lists): length/2 prints too many repeated values
+- ❌ rung08 (recursion/fib): crash/empty output
+- 💥 puzzle_02: segfault (complex cut+multi-clause body — separate issue, pre-existing)
+
+### Root cause analysis
+
+Fix 2 (`βN` unwinds to `UCALL_MARK_OFFSET(N-1)`) is **correct for the 2-ucall flat case**
+(`color(X), color(Y)`) but **wrong for recursive predicates** (`member/2`).
+
+In `member(X,[H|T]) :- member(X,T)`, the recursive call is itself a ucall. When inner
+`member` backtracks (its βN fires), it unwinds to the outer clause's `UCALL_MARK_OFFSET(0)`
+— wiping bindings it shouldn't touch at that level.
+
+### The real fix needed (F-227)
+
+The invariant that must hold:
+
+> **βN should unwind to `UCALL_MARK_OFFSET(N)` (its own mark), NOT `UCALL_MARK_OFFSET(N-1)`.**
+> 
+> The skip-mark guard (fix 1) is correct. But the REASON βN was broken before fix 1 was
+> different: it was unwinding to `[rbp-8]` (the CLAUSE mark), which wiped ALL ucalls.
+> Fix 1 alone (skip-mark guard on αN) is the right approach — revert fix 2.
+
+**Correct logic:**
+- `αN` takes mark on fresh entry only (`edx==0`) ← Fix 1, KEEP
+- `βN` unwinds to **`UCALL_MARK_OFFSET(N)`** (own mark) ← REVERT fix 2 back to this
+- `βN` then jumps to `αN-1` with `edx = saved sub_cs of ucall N-1`
+- `αN-1` runs with `edx≠0` → skips taking a new mark (correct — mark already set from first entry)
+- But X is now still bound from its last value! That's the original bug.
+
+**Why X stays bound:** `αN-1`'s mark was taken when X was first bound. `βN` unwinds to
+`UCALL_MARK_OFFSET(N)` — Y's mark — which only undoes Y's bindings. X's binding (taken
+*before* Y's mark) is not unwound.
+
+**True fix**: The trail mark for ucall N must be taken **after ucall N-1 has bound its variable**
+— i.e., at γ_{N-1} time (after ucall N-1 succeeds), not at αN time (before args are pushed).
+
+Concretely: move the trail mark emission from the `αN` label to the `γ_{N-1}` label:
+
+```c
+// At γ_{N-1} (after ucall N-1 succeeds, before ucall N starts):
+A("    lea     rdi, [rel pl_trail]\\n");
+A("    call    trail_mark_fn\\n");
+A("    mov     [rbp - %d], eax   ; mark for ucall %d (taken after ucall %d bound its var)\\n",
+  UCALL_MARK_OFFSET(ucall_seq), ucall_seq, ucall_seq-1);
+A("pl_%s_c%d_γ%d:\\n", pred_safe, idx, bi-1);
+```
+
+Then `βN` always unwinds to its own mark (correctly undoes X's binding from N-1's last success),
+and `αN-1`'s skip-mark guard can be removed (marks are now taken at γ time, not α time).
+
+### Next session action plan (F-227)
+
+1. `bash setup.sh` (or just `cd src && make`)
+2. Read snobol4x PLAN.md §27 (this section)
+3. **Revert fix 2**: change `βN` unwind back to `UCALL_MARK_OFFSET(ucall_seq)` (own mark)
+4. **Move trail mark to γ_{N-1} time**: emit mark just BEFORE the `γ_{N-1}` label
+5. **Remove the `edx==0` skip-mark guard at αN** (fix 1 no longer needed if marks are at γ time)
+6. Test mini cross-product → 9/9
+7. Test 3-ucall `person(C),person(M),differ(C,M)` → 6 pairs
+8. Run rungs 01–09 → all PASS
+9. Run rung10 puzzles → puzzle_01, puzzle_05, puzzle_06 PASS
+10. Commit `F-227: M-PROLOG-R10 ✅` if all pass, update dashboards, push both repos
+
+### Trigger phrase for next session
+**"playing with Prolog frontend"** → F-227 → snobol4x PLAN.md §27
+
+---
+
+## §28 — Session Handoff B-270 (2026-03-23): M-BEAUTY-STACK 3-way PASS ✅
+
+### Work completed this session
+
+- **M-BEAUTY-STACK 3-way PASS confirmed** — CSN + SPL + ASM, 8 sync steps, 0 divergences.
+- **Monitor infrastructure fix:** `X64_DIR` defaulted to `/home/claude/x64` (missing).
+  SPITBOL IPC hung at step 0 with error 142 (LOAD failed — wrong `.so` path).
+  Fix: `ln -sfn /home/claude/beauty-project/x64 /home/claude/x64`
+  This symlink must be created at session start whenever x64 is cloned to a non-default path.
+  **Add to setup.sh or session bootstrap.**
+- **§START table updated:** `stack → ✅`, current milestone `M-BEAUTY-TREE` (already ✅ at `ed72c0f`).
+  Effective next milestone: **M-BEAUTY-TDUMP** (per HQ PLAN.md `3251cd4`).
+
+### PLAN.md §START update
+
+**Current milestone:** `M-BEAUTY-TDUMP` — 2 bugs open from B-269:
+1. `ANY(&UCASE &LCASE)` charset quoting — SPITBOL and CSNOBOL4 handle `&UCASE &LCASE` literal concat differently
+2. `STLIMIT` loop in `Gen.sno` — Gen loops indefinitely without STLIMIT guard
+
+### Next session action plan (B-271)
+
+```bash
+ln -sfn /home/claude/beauty-project/x64 /home/claude/x64   # if needed
+bash /home/claude/beauty-project/snobol4x/setup.sh
+```
+
+1. Read snobol4x PLAN.md §28 (this section) + `test/beauty/TDump/` for current state
+2. Fix bug 1: `ANY(&UCASE &LCASE)` quoting in `emit_byrd_asm.c`
+3. Fix bug 2: `STLIMIT` loop guard in `Gen.sno`
+4. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh TDump`
+5. On PASS: commit `B-271: M-BEAUTY-TDUMP ✅`, update §START → `M-BEAUTY-GEN`
+
+### Trigger phrase
+**"playing with beauty"** → B-271 → snobol4x PLAN.md §28, milestone `M-BEAUTY-TDUMP`
+
+---
+
+## §29 — Session Handoff B-272 (2026-03-23): M-BEAUTY-READWRITE @-capture bug
+
+### Work completed this session
+
+- **B-272 partial:** `test/beauty/ReadWrite/driver.sno` + `driver.ref` created (8 tests, 8/8 CSNOBOL4 PASS)
+- 3-way monitor: DIVERGENCE at step 1 — `lm[0]=2` (ASM) vs `lm[0]=1` (oracle)
+- Root cause **fully traced to `@x` cursor-capture returning empty in ASM backend**
+
+### §29.1 — Root cause: `@var` captures empty string instead of cursor integer
+
+Minimal reproduction:
+
+```snobol4
+DEFINE('LM3(s)')  :(LM3End)
+LM3   o = 0
+LM3_3 s POS(0) BREAK(nl) nl @x =   :F(LM3_9)
+      OUTPUT = 'x=' x ' o=' o
+      o = o + x                     :(LM3_3)
+LM3_9                               :(RETURN)
+LM3End
+      LM3('hi' nl 'bye' nl)
+```
+
+- **CSNOBOL4:** `x=3 o_before=0` / `o_after=3` / `x=4 o_before=3` / `o_after=7` ✅
+- **ASM:** `x= o_before=0` / `o_after=0` ❌ — `x` is empty, `o` never advances
+
+`@x` in SNOBOL4 captures the **current cursor position** (an integer) into `x`.
+The ASM `AT_α` macro apparently sets the cursor variable slot but does NOT call
+`stmt_set(varname, cursor_as_integer)` so `x` remains NULVCL.
+
+### §29.2 — Fix location
+
+In `src/backend/x64/emit_byrd_asm.c`, find the emitter for `E_AT` nodes (the `@var`
+cursor-position capture). The pattern node likely emits `AT_α S_varname, cursor, ...`
+but the `AT_α` macro in `snobol4_asm.mac` may not store the cursor value as an
+integer into the variable.
+
+**Check `AT_α` in `src/runtime/asm/snobol4_asm.mac`:**
+
+```bash
+grep -n "macro AT_α\|AT_α\b" src/runtime/asm/snobol4_asm.mac | head -10
+```
+
+Expected: `AT_α` should emit something like:
+```asm
+mov  rdi, cursor_val        ; integer cursor position
+call stmt_intval            ; make SnoVal integer
+lea  rdi, [rel S_varname]
+mov  rsi, rax               ; type
+mov  rdx, rdx               ; ptr
+call stmt_set               ; store into variable
+```
+
+If it only sets `[cursor]` (the global scan position) without storing into the
+SNOBOL4 variable, that is the bug.
+
+### §29.3 — Next session action plan (B-273)
+
+```bash
+ln -sfn /home/claude/beauty_project/x64 /home/claude/x64
+bash /home/claude/beauty_project/snobol4x/setup.sh
+```
+
+1. Find `AT_α` macro and `E_AT` emit in `emit_byrd_asm.c`
+2. Confirm `AT_α` does NOT call `stmt_set` for the capture variable
+3. Fix: after setting cursor, also `stmt_set(varname, integer(cursor))`
+4. Rebuild: `cd src && make`
+5. Run minimal test: `LM3('hi' nl 'bye' nl)` → expect `x=3 o_after=3`
+6. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh ReadWrite`
+7. On 8/8 PASS: `git commit -m "B-272: M-BEAUTY-READWRITE ✅"`, push
+8. Update HQ PLAN.md row: `M-BEAUTY-READWRITE → ✅`, next `M-BEAUTY-XDUMP`
+9. Run `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → must stay 106/106
+
+### §29.4 — Files committed this session
+
+- `test/beauty/ReadWrite/driver.sno` — 8-test driver
+- `test/beauty/ReadWrite/driver.ref` — oracle reference (8 lines)
+- `PLAN.md` — this handoff note
+
+### §29.5 — Test status going into B-273
+
+| Step | Test | ASM |
+|------|------|-----|
+| 1 | LineMap[0]=1 | ❌ returns 2 (lmOfs never advances → lmLineNo=2 at second lmMap[0] write) |
+| 2 | LineMap offset 6 = line 2 | ❌ (lmOfs stays 0) |
+| 3 | LineMap offset 11 = line 3 | ❌ |
+| 4 | Read FRETURN bad path | ? (untested past step 1) |
+| 5 | Write FRETURN bad path | ? |
+| 6 | LineMap empty string | ? |
+| 7 | LineMap single word | ? |
+| 8 | LineMap 2-line second offset | ? |
+
+### Trigger phrase for next session
+**"playing with beauty"** → B-273 → snobol4x PLAN.md §29, milestone `M-BEAUTY-READWRITE`
+
+
+---
+
+## §28 — Session Handoff F-227 (2026-03-23): Five fixes in, label mismatch found
+
+### Work completed this session
+
+Five bugs fixed in `src/backend/x64/emit_byrd_asm.c` (uncommitted, one file changed):
+
+| Fix | What | Why |
+|-----|------|-----|
+| **γ-time trail mark** | Mark for ucall N moved from αN entry to BEFORE γN label | αN re-entered on resume — re-marking over-unwinds prior variables |
+| **βN owns its mark** | βN unwinds to `UCALL_MARK_OFFSET(ucall_seq)` not `[rbp-8]` | Clause mark wipes ALL bindings; own mark wipes only this ucall's |
+| **rbx stable base** | Args array indexed via `[rbx+N]` after `mov rbx, rsp` | `emit_pl_term_load` shifts rsp internally for nested compounds |
+| **edx survives arg-build** | `mov edx, [rbp - UCALL_SLOT_OFFSET(N)]` after arg-building | `term_new_compound` clobbers rdx (C ABI) |
+| **Collision guard** | Only emit next-ucall mark when `ucall_seq+1 < max_ucalls` | `UCALL_MARK_OFFSET(max_ucalls)` == `VAR_SLOT_OFFSET(0)` otherwise |
+
+Also: clause entry now stores mark at `UCALL_MARK_OFFSET(0)` when `max_ucalls > 0` so β0 has a valid slot.
+
+### Test results
+
+- M7 (clean build): ✅ zero errors
+- M8 (`member(a,[a,b,c])`): ✅ prints `found_a`
+- M9 (`color(X),color(Y)` 9/9): ❌ NASM label errors
+
+### Root cause of M9 failure — `bi` vs `ucall_seq` label mismatch
+
+`γN` and `βN` labels are named with `bi` (body goal index — counts ALL goals including builtins).
+`αN` labels and `jmp` targets use `ucall_seq` (counts only USER-CALL goals).
+
+When builtins appear between user calls, `bi` and `ucall_seq` diverge:
+- ucall 0 at bi=0 → emits `α0`, `β0`, `γ0`
+- ucall 1 at bi=3 (after write/nl/write) → emits `α1`, `β1` (using ucall_seq=1) but `γ3` (using bi=3)
+- `β1` jumps to `α1` ✅ but `γ1` jumps to `α3` ❌ (doesn't exist)
+
+### The one-line fix needed for F-228
+
+In `emit_byrd_asm.c`, the γN label emission (one place):
+
+```c
+// CURRENT (broken):
+A("pl_%s_c%d_γ%d:\n", pred_safe, idx, bi);
+
+// FIX: use ucall_seq, not bi
+A("pl_%s_c%d_γ%d:\n", pred_safe, idx, ucall_seq);
+```
+
+Same fix for the `jmp pl_%s_c%d_γ%d` reference just above it (the success jump to γN).
+Also check `snprintf(last_β_lbl, ...)` — it uses `bi` for `β%d`, must match `ucall_seq`.
+
+### §START update for F-228
+
+1. `bash setup.sh`
+2. In `src/backend/x64/emit_byrd_asm.c`, grep for `γ%d.*bi` and `β%d.*bi` — change all to `ucall_seq`
+3. Build: `cd src && make`
+4. Test M8: `member(a,[a,b,c])` → `found_a` ✅
+5. Test M9: `color(X),color(Y)` → 9 lines ✅
+6. Run rungs 01–09 (regression check)
+7. Run rung10 puzzles (puzzle_01, puzzle_05, puzzle_06)
+8. On all pass: commit `F-227: trail-mark timing + rbx/edx arg fixes; bi→ucall_seq label unification`
+9. Update HQ PLAN.md dashboard row + fire M-PROLOG-R10 ✅ M-PROLOG-CORPUS ✅
+
+### Trigger phrase
+**"playing with Prolog frontend"** → F-228 → snobol4x PLAN.md §28
+## §28 — Session Handoff B-270 (2026-03-23): M-BEAUTY-STACK 3-way PASS ✅
+
+### Work completed this session
+
+- **M-BEAUTY-STACK 3-way PASS confirmed** — CSN + SPL + ASM, 8 sync steps, 0 divergences.
+- **Monitor infrastructure fix:** `X64_DIR` defaulted to `/home/claude/x64` (missing).
+  SPITBOL IPC hung at step 0 with error 142 (LOAD failed — wrong `.so` path).
+  Fix: `ln -sfn /home/claude/beauty-project/x64 /home/claude/x64`
+  This symlink must be created at session start whenever x64 is cloned to a non-default path.
+  **Add to setup.sh or session bootstrap.**
+- **§START table updated:** `stack → ✅`, current milestone `M-BEAUTY-TREE` (already ✅ at `ed72c0f`).
+  Effective next milestone: **M-BEAUTY-TDUMP** (per HQ PLAN.md `3251cd4`).
+
+### PLAN.md §START update
+
+**Current milestone:** `M-BEAUTY-TDUMP` — 2 bugs open from B-269:
+1. `ANY(&UCASE &LCASE)` charset quoting — SPITBOL and CSNOBOL4 handle `&UCASE &LCASE` literal concat differently
+2. `STLIMIT` loop in `Gen.sno` — Gen loops indefinitely without STLIMIT guard
+
+### Next session action plan (B-271)
+
+```bash
+ln -sfn /home/claude/beauty-project/x64 /home/claude/x64   # if needed
+bash /home/claude/beauty-project/snobol4x/setup.sh
+```
+
+1. Read snobol4x PLAN.md §28 (this section) + `test/beauty/TDump/` for current state
+2. Fix bug 1: `ANY(&UCASE &LCASE)` quoting in `emit_byrd_asm.c`
+3. Fix bug 2: `STLIMIT` loop guard in `Gen.sno`
+4. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh TDump`
+5. On PASS: commit `B-271: M-BEAUTY-TDUMP ✅`, update §START → `M-BEAUTY-GEN`
+
+### Trigger phrase
+**"playing with beauty"** → B-271 → snobol4x PLAN.md §28, milestone `M-BEAUTY-TDUMP`
+
+---
+
+## §29 — Session Handoff B-272 (2026-03-23): M-BEAUTY-READWRITE @-capture bug
+
+### Work completed this session
+
+- **B-272 partial:** `test/beauty/ReadWrite/driver.sno` + `driver.ref` created (8 tests, 8/8 CSNOBOL4 PASS)
+- 3-way monitor: DIVERGENCE at step 1 — `lm[0]=2` (ASM) vs `lm[0]=1` (oracle)
+- Root cause **fully traced to `@x` cursor-capture returning empty in ASM backend**
+
+### §29.1 — Root cause: `@var` captures empty string instead of cursor integer
+
+Minimal reproduction:
+
+```snobol4
+DEFINE('LM3(s)')  :(LM3End)
+LM3   o = 0
+LM3_3 s POS(0) BREAK(nl) nl @x =   :F(LM3_9)
+      OUTPUT = 'x=' x ' o=' o
+      o = o + x                     :(LM3_3)
+LM3_9                               :(RETURN)
+LM3End
+      LM3('hi' nl 'bye' nl)
+```
+
+- **CSNOBOL4:** `x=3 o_before=0` / `o_after=3` / `x=4 o_before=3` / `o_after=7` ✅
+- **ASM:** `x= o_before=0` / `o_after=0` ❌ — `x` is empty, `o` never advances
+
+`@x` in SNOBOL4 captures the **current cursor position** (an integer) into `x`.
+The ASM `AT_α` macro apparently sets the cursor variable slot but does NOT call
+`stmt_set(varname, cursor_as_integer)` so `x` remains NULVCL.
+
+### §29.2 — Fix location
+
+In `src/backend/x64/emit_byrd_asm.c`, find the emitter for `E_AT` nodes (the `@var`
+cursor-position capture). The pattern node likely emits `AT_α S_varname, cursor, ...`
+but the `AT_α` macro in `snobol4_asm.mac` may not store the cursor value as an
+integer into the variable.
+
+**Check `AT_α` in `src/runtime/asm/snobol4_asm.mac`:**
+
+```bash
+grep -n "macro AT_α\|AT_α\b" src/runtime/asm/snobol4_asm.mac | head -10
+```
+
+Expected: `AT_α` should emit something like:
+```asm
+mov  rdi, cursor_val        ; integer cursor position
+call stmt_intval            ; make SnoVal integer
+lea  rdi, [rel S_varname]
+mov  rsi, rax               ; type
+mov  rdx, rdx               ; ptr
+call stmt_set               ; store into variable
+```
+
+If it only sets `[cursor]` (the global scan position) without storing into the
+SNOBOL4 variable, that is the bug.
+
+### §29.3 — Next session action plan (B-273)
+
+```bash
+ln -sfn /home/claude/beauty_project/x64 /home/claude/x64
+bash /home/claude/beauty_project/snobol4x/setup.sh
+```
+
+1. Find `AT_α` macro and `E_AT` emit in `emit_byrd_asm.c`
+2. Confirm `AT_α` does NOT call `stmt_set` for the capture variable
+3. Fix: after setting cursor, also `stmt_set(varname, integer(cursor))`
+4. Rebuild: `cd src && make`
+5. Run minimal test: `LM3('hi' nl 'bye' nl)` → expect `x=3 o_after=3`
+6. Run: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh ReadWrite`
+7. On 8/8 PASS: `git commit -m "B-272: M-BEAUTY-READWRITE ✅"`, push
+8. Update HQ PLAN.md row: `M-BEAUTY-READWRITE → ✅`, next `M-BEAUTY-XDUMP`
+9. Run `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → must stay 106/106
+
+### §29.4 — Files committed this session
+
+- `test/beauty/ReadWrite/driver.sno` — 8-test driver
+- `test/beauty/ReadWrite/driver.ref` — oracle reference (8 lines)
+- `PLAN.md` — this handoff note
+
+### §29.5 — Test status going into B-273
+
+| Step | Test | ASM |
+|------|------|-----|
+| 1 | LineMap[0]=1 | ❌ returns 2 (lmOfs never advances → lmLineNo=2 at second lmMap[0] write) |
+| 2 | LineMap offset 6 = line 2 | ❌ (lmOfs stays 0) |
+| 3 | LineMap offset 11 = line 3 | ❌ |
+| 4 | Read FRETURN bad path | ? (untested past step 1) |
+| 5 | Write FRETURN bad path | ? |
+| 6 | LineMap empty string | ? |
+| 7 | LineMap single word | ? |
+| 8 | LineMap 2-line second offset | ? |
+
+### Trigger phrase for next session
+**"playing with beauty"** → B-273 → snobol4x PLAN.md §29, milestone `M-BEAUTY-READWRITE`
+
+---
+
+## §30 — Session Handoff B-273 (2026-03-23): M-BEAUTY-READWRITE partial ✅ steps 1–5 pass
+
+### Work completed this session
+
+**B-273 partial commit `695ce11`:** Fix binary `E_ATP` (pat `@x`) cursor capture.
+
+**Bug fixed — `emit_byrd_asm.c` `E_ATP` binary case:**
+`@` is a binary operator at `parse_expr5` (via `parse_lbin`), producing
+`E_ATP(child_pat, E_VART("varname"))`.  Old code grabbed `children[0]->sval`
+(the sub-pattern's name, e.g. `"LEN"`, `"POS"`) instead of `children[1]->sval`
+(the capture variable).
+
+Fix: when `nchildren >= 2`, wire the child sub-pattern through `cap_γ/cap_ω`
+and emit `AT_α` with `children[1]->sval`. Unary `@x` (nchildren == 1) unchanged.
+
+This fixes `ReadWrite.sno` `LineMap()`:
+```snobol4
+str POS(0) BREAK(nl) nl @xOfs =   →  AT_α S_xOfs  (was AT_α S_POS)
+```
+
+**Corpus invariant: 106/106 ALL PASS ✅.**
+
+**3-way monitor result after fix:** Steps 1–5 PASS, step 6 (test 4) diverges.
+
+### §30.1 — Remaining blocker: `_b_INPUT` ignores filename when `n == 3`
+
+**The call:** `INPUT(.rdInput, 8, fileName '[-m10 -l131072]')` — 3 args total.
+
+**Current `_b_INPUT`:**
+```c
+const char *fname = (n >= 4) ? VARVAL_fn(a[3]) : NULL;
+if (!fname || !fname[0]) { ... return NULVCL; }   // ← n=3 falls here, returns success!
+```
+
+With `n=3`, `fname=NULL` → returns `NULVCL` (success) instead of opening the file.
+So `INPUT(.rdInput, 8, '/bad/path [-opts]')` always "succeeds" and `:F(FRETURN)` never fires.
+
+**The SNOBOL4 INPUT association syntax:**
+- 4-arg form: `INPUT(varname, channel, options, filename)` — classic
+- 3-arg form: `INPUT(varname, channel, filename_with_options)` — CSNOBOL4 extension
+  where the 3rd arg is `filename '[-opts]'` (filename concatenated with options in `[...]`)
+
+**The fix (implement next session):**
+
+In `snobol4.c` `_b_INPUT`, handle `n == 3` by extracting the filename from `a[2]`:
+
+```c
+static DESCR_t _b_INPUT(DESCR_t *a, int n) {
+    const char *fname = NULL;
+    char fname_buf[4096];
+    if (n >= 4) {
+        fname = VARVAL_fn(a[3]);
+    } else if (n >= 3) {
+        /* 3-arg form: a[2] = "filename[-opts]" or "filename [-opts]"
+         * Extract filename = everything before '[' (trimmed) */
+        const char *opts_str = VARVAL_fn(a[2]);
+        if (opts_str && opts_str[0]) {
+            const char *bracket = strchr(opts_str, '[');
+            if (bracket) {
+                size_t len = bracket - opts_str;
+                /* trim trailing whitespace */
+                while (len > 0 && opts_str[len-1] == ' ') len--;
+                if (len > 0 && len < sizeof(fname_buf)) {
+                    memcpy(fname_buf, opts_str, len);
+                    fname_buf[len] = '\0';
+                    fname = fname_buf;
+                }
+            } else {
+                fname = opts_str;   /* no options bracket — whole string is filename */
+            }
+        }
+    }
+    if (!fname || !fname[0]) {
+        if (_input_fp && _input_fp != stdin) fclose(_input_fp);
+        _input_fp = stdin;
+        return NULVCL;
+    }
+    FILE *f = fopen(fname, "r");
+    if (!f) return FAILDESCR;
+    if (_input_fp && _input_fp != stdin) fclose(_input_fp);
+    _input_fp = f;
+    return NULVCL;
+}
+```
+
+Same fix needed for `_b_OUTPUT` if `Write.sno` uses the same 3-arg pattern.
+
+### §30.2 — Next session action plan (B-274)
+
+```bash
+ln -sfn /home/claude/beauty-project/x64 /home/claude/x64  # if needed
+bash /home/claude/snobol4x/setup.sh
+```
+
+1. Read snobol4x PLAN.md §30 (this section)
+2. Fix `_b_INPUT` in `src/runtime/snobol4/snobol4.c` — handle `n==3` (extract filename from opts)
+3. Check `_b_OUTPUT` — apply same `n==3` pattern if `Write.sno` uses same syntax
+4. Rebuild: `cd src && make`
+5. Run unit test: `snobol4 /tmp/test_input_fail.sno` → PASS; compile+run via ASM → PASS
+6. Run 3-way monitor: `INC=demo/inc bash test/beauty/run_beauty_subsystem.sh ReadWrite`
