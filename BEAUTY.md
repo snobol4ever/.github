@@ -67,7 +67,7 @@ backends come online per M-MONITOR-5WAY).
 | **M-BEAUTY-READWRITE** | ReadWrite.sno — buffered I/O correct | IO | ❌ |
 | **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | TDUMP | ❌ |
 | **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | SR, GEN | ❌ |
-| **M-BEAUTY-OMEGA** | omega.sno — omega patterns correct | SEMANTIC | ❌ |
+| **M-BEAUTY-OMEGA** | omega.sno — omega patterns correct | SEMANTIC | ✅ |
 | **M-BEAUTY-TRACE** | trace.sno — trace helpers correct | — | ❌ |
 
 **All 19 fire → M-BEAUTIFY-BOOTSTRAP sprint begins.**
