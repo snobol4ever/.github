@@ -15021,3 +15021,19 @@ Key design insight: TZ/TY/TV/TW build patterns containing `$ *assign(...)` side-
 **Milestones fired:** none
 
 **Fix for F-222:** In `emit_body` last-goal user-call branch (line ~692), instead of `PG(γ)`, emit `*_tr = _trail; return %d + _cs%d - 1;` (clause_idx + inner _cs offset). Add `default:` case in `emit_choice` switch to re-enter last clause's retry loop with `_start - nclauses` as inner _cs. This makes all 10 rungs PASS and fires M-PROLOG-CORPUS.
+
+---
+
+## Session F-222 (2026-03-23) — Puzzle stubs + milestone planning
+
+**Work done:**
+- Split `puzzles.pro` into 16 individual stub files: `puzzle_03.pro` through `puzzle_20.pro` (skipping 01, 02, 05, 06 which are already solved). Each stub contains the full problem text as comments and a `main` that prints `'puzzleNN: stub\n'`.
+- Added 16 milestones M-PZ-03..M-PZ-20 to PLAN.md, ordered easy→hard by problem structure.
+- Updated FRONTEND-PROLOG.md with full puzzle sprint table, difficulty rationale, and complete source layout.
+- No source code changes. rung05 backtrack bug still open — fix described in TINY.md CRITICAL NEXT ACTION.
+
+**Repos touched:** snobol4x (`b4507dc`), .github (`ce9d83b`)
+
+**Milestones fired:** none
+
+**Next session F-223:** Fix `emit_body` last-goal user-call branch (~line 692) — encode inner `_cs` into return value. Add `default:` case in `emit_choice`. Run all 10 rungs → M-PROLOG-CORPUS. Then begin M-PZ-14 (easiest puzzle stub).
