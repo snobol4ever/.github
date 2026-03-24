@@ -9,44 +9,42 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-278 (BEAUTY) · F-223 (Prolog) concurrent
-**HEAD:** `8e01e2a` B-278 (snobol4x) / `.github` pending
-**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — CSNOBOL4 fixed point ✅; ASM _saved labels next
+**Sprint:** `main` — B-279 (BEAUTY) · F-223 (Prolog) concurrent
+**HEAD:** `4bc319c` B-279 (snobol4x)
+**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — CSNOBOL4 ✅; ASM nasm 0 errors ✅; runtime segfault ❌
 **F-session:** M-PROLOG-CORPUS ❌ — rung05 encoding fix attempted, reverted clean
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-279 (M-BEAUTIFY-BOOTSTRAP continued):**
+**⚡ CRITICAL NEXT ACTION — B-280 (M-BEAUTIFY-BOOTSTRAP continued):**
 
-```
-CSNOBOL4 ORACLE: FIXED POINT ✅
-  beauty.sno reads itself → 784-line canonical form
-  oracle(oracle(beauty.sno)) == oracle(beauty.sno)
-  demo/beauty.sno updated to canonical form. Committed 8e01e2a.
+```bash
+cd /home/claude/snobol4x
 
-BUG FIXED in demo/beauty.sno:
-  Goto pattern used *SorF (indirect). After :F(X) match, SorF='F' string.
-  Next stmt's *SorF matched literal 'F' only → ':' consumed, 'S(label)' left
-  → Parse Error on any stmt following :F(...) goto.
-  Fix: replaced *SorF with (*SGoto | *FGoto) inline in Goto.
+# 1. Rebuild (emit_byrd_asm.c already fixed — 3 bugs patched in B-279)
+cd src && make -j$(nproc) && cd ..
 
-ASM BACKEND: ❌ NASM errors — seq_l69_α_saved + litvar71_saved undefined
-  Root: emit_byrd_asm.c emits LIT_α1/LIT_VAR_α macros that reference
-  a `_saved` .bss label, but that label is never declared in the output.
-  File: artifacts/asm/beauty_prog.s line 7482.
-  Context: seq_l69 is inside ioCmdDlmtPat2 pattern — LIT node in a SEQ.
+# 2. Build beauty ASM binary
+WORK=$(mktemp -d /tmp/beau_XXXXXX); RT=src/runtime; INC=demo/inc
+for f in asm/snobol4_stmt_rt.c snobol4/snobol4.c mock/mock_includes.c \
+          snobol4/snobol4_pattern.c engine/engine.c; do
+  base=$(basename $f .c)
+  gcc -O0 -g -c "$RT/$f" -I"$RT/snobol4" -I"$RT" -Isrc/frontend/snobol4 -w -o "$WORK/$base.o"
+done
+gcc -O0 -g -c "$RT/asm/blk_alloc.c" -I"$RT/asm" -w -o "$WORK/blk_alloc.o"
+gcc -O0 -g -c "$RT/asm/blk_reloc.c" -I"$RT/asm" -w -o "$WORK/blk_reloc.o"
+./sno2c -asm -I"$INC" demo/beauty.sno > "$WORK/prog.s"
+nasm -f elf64 -I"$RT/asm/" "$WORK/prog.s" -o "$WORK/prog.o"
+gcc -no-pie "$WORK"/prog.o "$WORK"/*.o -lgc -lm -o "$WORK/beauty_asm"
+echo "build: $?"
 
-NEXT SESSION MUST DO:
-  1. Find _saved label generation in emit_byrd_asm.c
-     grep -n "_saved\|LIT_α\|bss.*saved" src/backend/x64/emit_byrd_asm.c
-  2. Find what declares _saved labels in working .s files (roman.s etc.)
-     grep "_saved" artifacts/asm/samples/roman.s | head -5
-  3. Fix emit_byrd_asm.c to emit the _saved .bss declaration for each LIT node
-  4. nasm -f elf64 -I src/runtime/asm/ artifacts/asm/beauty_prog.s -o /dev/null
-     → must show 0 errors
-  5. Build beauty_asm_bin (see run_crosscheck_asm_prog.sh for link cmd)
-  6. Run: beauty_asm_bin < demo/beauty.sno → diff against oracle → PASS
-  7. Run SPITBOL: spitbol -I demo/inc demo/beauty.sno < demo/beauty.sno
-  8. 3-way diff: CSNOBOL4 == SPITBOL == ASM → commit B-279: M-BEAUTIFY-BOOTSTRAP ✅
+# 3. Run and diff against oracle
+INC=demo/inc snobol4 -f -P256k -Idemo/inc demo/beauty.sno < demo/beauty.sno > /tmp/oracle.sno
+"$WORK/beauty_asm" < demo/beauty.sno > /tmp/asm_out.sno 2>/tmp/asm_err.txt
+echo "ASM exit: $?"; wc -l /tmp/asm_out.sno
+diff /tmp/oracle.sno /tmp/asm_out.sno | head -20
+
+# 4. Debug segfault with gdb if needed
+# gdb -batch -ex run -ex bt "$WORK/beauty_asm" < demo/beauty.sno 2>&1 | tail -30
 ```
 
 **⚡ F-CRITICAL NEXT ACTION — F-224 (M-PROLOG-CORPUS):**
@@ -69,11 +67,11 @@ After fix: run all 10 rungs → M-PROLOG-CORPUS fires.
 
 ## Last Two Sessions (3 lines each)
 
+**B-279 (2026-03-24) — ASM nasm errors fixed; binary assembles+links; runtime segfault next:**
+3 bugs in emit_byrd_asm.c: (1) fn-body pattern BSS slots routed into per-box DATA via box_ctx; (2) ANY/SPAN/BREAK expr-tmp tlab/plab use flat_bss_register (direct label required by macros); (3) MAX_VARS 512→2048. Result: 0 nasm undefined symbols. Segfault on runtime run. HEAD `4bc319c`.
+
 **B-278 (2026-03-24) — Goto/*SorF bug found and fixed; CSNOBOL4 fixed point:**
 FGoto left SorF='F' (string); next *SorF matched only 'F', eating ':' bare. Fixed by inlining (*SGoto|*FGoto) in Goto. beauty.sno now self-beautifies to fixed point 784 lines. ASM: seq_l69_α_saved undefined — _saved .bss label not emitted. HEAD `8e01e2a`.
-
-**B-277 (2026-03-24) — M-BEAUTY-TRACE ✅ all 19 subsystems done:**
-T8Trace/T8Pos helpers pass 3-way monitor; 9 tests PASS (CSNOBOL4+SPITBOL+ASM). GE(t8MaxLine,621) guard, DATATYPE case portability, TABLE var exclusion. Commit `22e291c`.
 
 ---
 
@@ -81,4 +79,4 @@ T8Trace/T8Pos helpers pass 3-way monitor; 9 tests PASS (CSNOBOL4+SPITBOL+ASM). G
 
 See [BEAUTY.md](BEAUTY.md) for full sequence. Summary:
 - ✅ 1–19: ALL subsystems PASS (global/is/FENCE/io/case/assign/match/counter/stack/tree/SR/TDump/Gen/Qize/ReadWrite/XDump/semantic/omega/trace)
-- ❌ M-BEAUTIFY-BOOTSTRAP: CSNOBOL4 ✅ · ASM ❌ (_saved labels) · SPITBOL untested
+- ❌ M-BEAUTIFY-BOOTSTRAP: CSNOBOL4 ✅ · ASM nasm 0 errors ✅ · ASM runtime segfault ❌ · SPITBOL untested

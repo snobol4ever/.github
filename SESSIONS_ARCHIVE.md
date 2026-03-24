@@ -15196,3 +15196,40 @@ labels not emitted by `emit_byrd_asm.c` for LIT/LIT_VAR nodes. Next session targ
 **Not completed:** M-PJ-FACTS — rung02 prints `brown` only
 **Root cause identified:** pj_trail_unwind restores arr[1]=null but leaves arr[0]="ref" (was "var"). pj_deref then sees tag="ref"/value=null on second call, fails to unify correctly.
 **Fix:** In pj_trail_unwind emission, also restore arr[0]="var" before arr[1]=null.
+
+## Session B-279 — 2026-03-24 — ASM nasm errors fixed; runtime segfault next
+
+**Goal:** M-BEAUTIFY-BOOTSTRAP — fix ASM backend so beauty.sno assembles, links, and runs.
+
+**Three bugs fixed in `emit_byrd_asm.c`:**
+
+**Bug 1 — Function-body pattern sub-node BSS routing:**
+Pass 3 dry-run iterated all `prog->head` statements but used generic `P_%d_α` labels for ALL
+stmts including those inside DEFINE'd function bodies. Sub-node slots (`seq_lN_α_saved`,
+`dol_entry_*`, `litvarN_saved`, etc.) were registered under the wrong names, then when the
+real pass ran, `var_register` tried to add them to flat `.bss` after the section was already
+emitted — silently dropped. Fix: Pass 3 now tracks `cur_fn` and calls `box_ctx_begin/end`
+around `emit_pat_node` for function-body statements. Real emit pass patched to match.
+
+**Bug 2 — ANY/SPAN/BREAK expr-tmp slots must be flat BSS:**
+`any_expr_tmp_N_t/p`, `spn_expr_tmp_N_t/p`, `brk_expr_tmp_N_t/p` were registered via
+`var_register` — inside `box_ctx_begin`, they went into per-box DATA and got `r12+N`
+addresses. But `SPAN_α_PTR`/`ANY_α_PTR`/`BREAK_α_PTR` macros reference them as direct
+BSS labels (not via `bref()`). Changed to `flat_bss_register` for those slots only.
+
+**Bug 3 — MAX_VARS 512 overflow:**
+`beauty.sno` generates 808 flat `.bss resq 1` entries. The old 512-cap silently dropped
+slots 513+, leaving `cpat319_saved`, `cpat321_*`, and similar undefined. Raised to 2048.
+
+**Result:** `nasm` reports 0 "symbol not defined" errors. Binary assembles and links. Runtime
+produces a segfault — next session target.
+
+**State at handoff:**
+- `emit_byrd_asm.c` patched (3 bugs)
+- `nasm` clean on `beauty.sno`-generated `.s`
+- Binary at `$WORK/beauty_asm` (ephemeral container — next session rebuilds from scratch)
+- Segfault location unknown — `gdb -batch -ex run -ex bt` is first step
+
+**Commits:** `d7025cf`, `4bc319c` snobol4x
+
+**Next session B-280:** Run `gdb` on beauty_asm to locate segfault. Fix. Diff ASM vs oracle. Fire M-BEAUTIFY-BOOTSTRAP.
