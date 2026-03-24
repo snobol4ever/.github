@@ -96,3 +96,52 @@ JVM VerifyError fixed by storing `StringBuilder` in local (not leaving on stack 
 
 ### For PJ-10
 Inspect generated `pj_term_str` Jasmin around `pts_list_close` — two paths merge there with potentially different local states. Fix list printing, then rung06 should pass for `append`. `length` and `reverse` may need further debugging.
+
+---
+
+## B-284 — 2026-03-24 — BEAUTY — M-BEAUTIFY-BOOTSTRAP two SPITBOL bugs fixed; ARBNO(*Command) open
+
+**Session:** B-284 · **Branch:** main · **HEAD:** `deae788`
+
+**Milestones fired:** none (M-BEAUTIFY-BOOTSTRAP in progress)
+
+**Bugs fixed in demo/beauty.sno:**
+
+1. **ppAs1/ppAS1 duplicate label → error 217**
+   SPITBOL default `-F` (case-fold) treats `ppAS1` (insertion-sort loop, line 176)
+   and `ppAs1` (stop-calc branch, line 199) as the same label.
+   Fix: renamed `ppAs1` → `ppAstop1` at lines 196 and 199.
+   Note: SPITBOL `-f` (case-sensitive) is a documented broken flag in x64 v4.0f —
+   with fold off, `END` is not found (internals stay lowercase). Cannot use as workaround.
+   CSNOBOL4 fixed point re-confirmed after rename.
+
+2. **`*upr(tx)` call-by-name returns value → error 021**
+   `TxInList = (POS(0) | ' ') *upr(tx) (' ' | RPOS(0))`
+   `upr()` returns a string via `RETURN`; SPITBOL fires error 021 when a
+   value-returning function is called by name (`*` prefix in pattern context).
+   Fix: replaced with `EVAL('upr(tx)')` — deferred evaluation in value context.
+   CSNOBOL4 fixed point confirmed after fix.
+
+**Remaining SPITBOL error 021:**
+- Root cause pinpointed to `ARBNO(*Command)` by binary search.
+- Simple patterns (nPush/nPop, ARBNO('x'), nPush+ARBNO('x')+nPop) all OK.
+- `ARBNO(*Command)` alone triggers error 021.
+- `Command` pattern contains: `nInc() FENCE(*Comment ~ 'Comment' (...) nl | *Control | *Stmt (...))`
+- `~` is OPSYN'd to `shift(2-arg)`; `Shift()` returns `.dummy` via `NRETURN` — should be OK.
+- The `("'Comment'" & 1)` uses `&` OPSYN'd to `reduce(2-arg)`; `reduce_` returns pattern via `RETURN` — value context, should be OK.
+- Error fires at `END` (line 784) after 760–777 stmts; SETEXIT cannot catch error 021 (it's `erb` = fatal bypass).
+- Input: any statement-containing block triggers it. Pure comments do not.
+
+**Next action B-285:**
+Examine `*Stmt` path inside `Command`: `*Stmt ("'Stmt'" & 7) (nl | ';')`.
+`Stmt = *Label (*White *Expr14 FENCE(...)) FENCE(*Goto | ...)`.
+`*Label`, `*Goto`, `*Expr14` are all name-calls on PATTERN variables — not functions.
+Suspect: one of the `("'X'" & N)` reduce calls inside Stmt/Expr actually calls
+`reduce_()` in a name context inadvertently. Check whether OPSYN'd `&` when used
+inside an already-deferred pattern (inside `*Stmt` which is inside `ARBNO(*Command)`)
+causes SPITBOL to treat the `&`/reduce call as a name-call rather than value-call.
+Alternatively: `*Stmt` may be a SPITBOL-incompatible deferred pattern reference to
+a variable whose value was built using `reduce_()` — and SPITBOL's `*` dereference
+triggers OFNE check on the stored function-result pattern.
+
+**Invariants:** 106/106 ✅
