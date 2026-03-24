@@ -19,7 +19,7 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-12 — M-PJ-CUT ✅ cut/fail sealed β; rungs 01-07 PASS | `bf20b73` PJ-12 | M-PJ-RECUR |
+| **Prolog JVM** | `main` PJ-13 — M-PJ-RECUR ✅ + M-PJ-BUILTINS ✅; rungs 01-09 PASS | `5197730` PJ-13 | M-PJ-CORPUS-R10 |
 
 ### CRITICAL NEXT ACTION (PJ-12)
 
@@ -63,8 +63,8 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ |
 | **M-PJ-LISTS** | Rung 6: `append/3`, `length/2`, `reverse/2` | ✅ |
 | **M-PJ-CUT** | Rung 7: `differ/N`, closed-world `!, fail` | ✅ |
-| **M-PJ-RECUR** | Rung 8: `fibonacci/2`, `factorial/2` | ❌ |
-| **M-PJ-BUILTINS** | Rung 9: `functor/3`, `arg/3`, `=../2`, type tests | ❌ |
+| **M-PJ-RECUR** | Rung 8: `fibonacci/2`, `factorial/2` | ✅ |
+| **M-PJ-BUILTINS** | Rung 9: `functor/3`, `arg/3`, `=../2`, type tests | ✅ |
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ❌ |
 
 ---

@@ -207,3 +207,5 @@ Append-only. Do not edit existing entries.
 | **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | ✅ B-283 2026-03-24 |
 | **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ PJ-7 `c6a8bda` |
 | **M-PJ-LISTS** | Rung 6: `append/3`, `length/2`, `reverse/2` | ✅ PJ-11 `e3c30ab` |
+| **M-PJ-RECUR** | Rung 8: `fibonacci/2`, `factorial/2` | ✅ PJ-13 |
+| **M-PJ-BUILTINS** | Rung 9: `functor/3`, `arg/3`, `=../2`, type tests | ✅ PJ-13 |

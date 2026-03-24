@@ -215,3 +215,19 @@ triggers OFNE check on the stored function-result pattern.
 **Files changed:** `src/backend/x64/emit_byrd_asm.c`, `test/monitor/run_monitor_3way.sh`, `test/monitor/tracepoints.conf`, `test/beauty/run_beauty_subsystem.sh`. HQ: `DECISIONS.md` (new), `ARCH.md`, `MONITOR.md`, `TINY.md`, `PLAN.md`.
 
 **Still open:** M-BUG-BOOTSTRAP-PARSE — beauty_asm outputs 10-line header + `Parse Error` on first non-comment line. Oracle (SPITBOL) = 784 lines. Next session B-287 investigates the ARBNO/parser loop in bootstrap path.
+
+## PJ-13 (2026-03-24) — M-PJ-RECUR + M-PJ-BUILTINS
+
+**Rungs fired:** 08 (recursion), 09 (builtins)
+**HEAD:** `5197730`
+**Rungs 01-09:** ALL PASS via `-pl -jvm`
+
+### rung08 — fib/2, factorial/2
+PASS on first try. PJ-12 multi-ucall body wiring was already correct.
+
+### rung09 — functor/3, arg/3, =../2, type tests
+Added to `pj_emit_goal`: `functor/3`, `arg/3`, `=../2` (via new `pj_term_to_list` runtime helper), type tests (`atom/1` `integer/1` `float/1` `compound/1` `var/1` `nonvar/1` `atomic/1` `is_list/1`), `\+/1`, `==/2`, `\==/2`.
+Key bug: JVM VerifyError "inconsistent stack height" — `dup`+branch patterns left stack unbalanced at join points. Fix: all branch targets entered with empty stack (re-emit term at each path).
+
+### Next: M-PJ-CORPUS-R10
+Test puzzle_01–06 (already solved) via -pl -jvm. Then tackle stubs per FRONTEND-PROLOG.md ordering (M-PZ-14 first). Note: `mod` missing from prolog_lower.c arith table — needed before integer-search puzzles.
