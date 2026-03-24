@@ -15457,3 +15457,31 @@ Fix VerifyError: emit `lconst_0; lstore N` for all long slots before suspend_id 
 3. Run `bash test/crosscheck/run_crosscheck_asm_corpus.sh` → must be 106/106
 4. Fix match driver (rewrite to not use TxInList), regenerate ref, run monitor
 5. Continue remaining subsystems in dependency order
+
+---
+
+## B-283 — 2026-03-24 — BEAUTY — All 19 subsystems ✅; M-BEAUTIFY-BOOTSTRAP ARBNO bug
+
+**Session:** B-283 · **Branch:** main · **HEAD:** `23c0261`
+
+**Milestones fired:**
+- M-BEAUTY-MATCH ✅ (match driver rewritten; 9 pattern-based tests; 3-way PASS 12 steps)
+- M-BEAUTY-TREE ✅ · M-BEAUTY-SR ✅ · M-BEAUTY-TDUMP ✅ · M-BEAUTY-GEN ✅
+- M-BEAUTY-QIZE ✅ · M-BEAUTY-READWRITE ✅ · M-BEAUTY-XDUMP ✅ · M-BEAUTY-SEMANTIC ✅
+
+**All 19 beauty subsystems now PASS.**
+
+**Bugs fixed:**
+1. `test/beauty/match/driver.sno` — rewritten: was passing TABLE+undefined `TxInList` to `match()`; now uses string+pattern tests mirroring actual beauty.sno usage.
+2. `emit_byrd_asm.c` FAIL pattern α-port: missing `jmp ω` after `asmL(α)` — added.
+3. `mock_includes.c` — registered `nPush`, `nInc`, `nPop`, `nTop` C wrappers so `deferred_call_fn → APPLY_fn` dispatches correctly instead of hitting `fn==NULL` silent NULVCL.
+
+**M-BEAUTIFY-BOOTSTRAP status:**
+- Oracle fixed-point confirmed ✅ (CSNOBOL4: beauty.sno→beauty.sno, 784 lines identical)
+- beauty_asm produces 10 lines (Parse Error on all input)
+- Root cause: `*Parse` in `Src POS(0) *Parse *Space RPOS(0)` uses `CALL_PAT_α → match_pattern_at → materialise`. Inside `ARBNO(*Command)`, `XDSAR("Command")` resolves via `NV_GET_fn` → DT_P, but `spat_of(v)` likely returns a PATND_t with NULL children (ASM-emitted named patterns store DT_P sentinels not real PATND_t trees).
+- nPush/nInc/nPop/nTop wrappers registered; T_FUNC fires correctly; ARBNO still takes 0 iterations.
+
+**Next action B-284:** Add fprintf to XDSAR materialise case — print `sp->kind` and child pointers when `XDSAR("Command")` is resolved. Verify the PATND_t from `spat_of(NV_GET_fn("Command"))` has real children. If NULL: emit-time must call `snobol4_register_pat(varname, patnd)` to store a proper PATND_t in the variable table for patterns assigned from pattern expressions.
+
+**Invariants:** 106/106 ✅

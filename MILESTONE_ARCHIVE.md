@@ -195,3 +195,13 @@ Append-only. Do not edit existing entries.
 
 | **M-PJ-SCAFFOLD** | `prolog_emit_jvm.c` + driver wire; null.pl exits 0 | ✅ PJ-1 2026-03-24 `f7390c6` |
 | **M-PJ-HELLO** | hello.pl → JVM → "hello" | ✅ PJ-1 2026-03-24 `f7390c6` |
+
+| **M-BEAUTY-MATCH** | match.sno — match/notmatch correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-TREE** | tree.sno — tree DATA type correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-SR** | ShiftReduce.sno — Shift/Reduce correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-TDUMP** | TDump.sno — tree dump correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-GEN** | Gen.sno — code generation correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-QIZE** | Qize.sno — quoting/unquoting correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-READWRITE** | ReadWrite.sno — buffered I/O correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | ✅ B-283 2026-03-24 |
+| **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | ✅ B-283 2026-03-24 |

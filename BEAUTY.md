@@ -56,17 +56,17 @@ backends come online per M-MONITOR-5WAY).
 | **M-BEAUTY-IO** | io.sno — INPUT/OUTPUT OPSYN correct | FENCE | ✅ |
 | **M-BEAUTY-CASE** | case.sno — case conversion correct | GLOBAL | ✅ |
 | **M-BEAUTY-ASSIGN** | assign.sno — conditional assignment correct | — | ✅ |
-| **M-BEAUTY-MATCH** | match.sno — match/notmatch correct | — | ❌ |
+| **M-BEAUTY-MATCH** | match.sno — match/notmatch correct | — | ✅ |
 | **M-BEAUTY-COUNTER** | counter.sno — counter stack correct | — | ✅ |
 | **M-BEAUTY-STACK** | stack.sno — value stack correct | — | ✅ |
-| **M-BEAUTY-TREE** | tree.sno — tree DATA type correct | STACK | ❌ |
-| **M-BEAUTY-SR** | ShiftReduce.sno — Shift/Reduce correct | TREE, COUNTER | ❌ |
-| **M-BEAUTY-TDUMP** | TDump.sno — tree dump correct | TREE | ❌ |
-| **M-BEAUTY-GEN** | Gen.sno — code generation correct | IO | ❌ |
-| **M-BEAUTY-QIZE** | Qize.sno — quoting/unquoting correct | GLOBAL | ❌ |
-| **M-BEAUTY-READWRITE** | ReadWrite.sno — buffered I/O correct | IO | ❌ |
-| **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | TDUMP | ❌ |
-| **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | SR, GEN | ❌ |
+| **M-BEAUTY-TREE** | tree.sno — tree DATA type correct | STACK | ✅ |
+| **M-BEAUTY-SR** | ShiftReduce.sno — Shift/Reduce correct | TREE, COUNTER | ✅ |
+| **M-BEAUTY-TDUMP** | TDump.sno — tree dump correct | TREE | ✅ |
+| **M-BEAUTY-GEN** | Gen.sno — code generation correct | IO | ✅ |
+| **M-BEAUTY-QIZE** | Qize.sno — quoting/unquoting correct | GLOBAL | ✅ |
+| **M-BEAUTY-READWRITE** | ReadWrite.sno — buffered I/O correct | IO | ✅ |
+| **M-BEAUTY-XDUMP** | XDump.sno — extended dump correct | TDUMP | ✅ |
+| **M-BEAUTY-SEMANTIC** | semantic.sno — semantic actions correct | SR, GEN | ✅ |
 | **M-BEAUTY-OMEGA** | omega.sno — omega patterns correct | SEMANTIC | ✅ |
 | **M-BEAUTY-TRACE** | trace.sno — trace helpers correct | — | ✅ |
 

@@ -9,27 +9,33 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-282 (BEAUTY)
-**HEAD:** `c16c575` B-282 (snobol4x)
-**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — 3 bugs fixed; M-BEAUTY-GLOBAL ✅ M-BEAUTY-IS ✅ M-BEAUTY-ASSIGN ✅; match driver has pre-existing TxInList bug
-**Invariants:** 106/106 ASM corpus ALL PASS ✅ · claws5 now 0 nasm errors ✅
+**Sprint:** `main` — B-283 (BEAUTY)
+**HEAD:** `23c0261` B-283 (snobol4x)
+**B-session:** M-BEAUTIFY-BOOTSTRAP ❌ — all 19 subsystems ✅; bootstrap fails: ARBNO(*Command) takes 0 iterations when *Parse materialised via CALL_PAT_α path
+**Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-283:**
+**⚡ CRITICAL NEXT ACTION — B-284:**
 
 ```bash
 cd /home/claude/snobol4x
+# Root cause: beauty.sno assigns Parse = nPush() ARBNO(*Command) nPop()
+# When *Parse is used in pattern position (stmt line 773), it goes through
+# CALL_PAT_α → stmt_match_descr → match_pattern_at → materialise (C runtime).
+# Inside ARBNO, *Command is XDSAR("Command"). NV_GET_fn("Command") returns DT_P,
+# but Command's DT_P PATND_t was built by the ASM Byrd-box emitter at compile time
+# using pat_* C constructors. The XDSAR materialise path calls spat_of(v) to get
+# the PATND_t — but the ASM runtime may not store a real PATND_t in Command at all;
+# it may store a sentinel DT_P with p==NULL (no PATND_t tree).
+#
+# DIAGNOSTIC: Add fprintf to XDSAR case in materialise() to print the resolved
+# DT_P pointer and its kind. Run beauty_asm with PAT_DEBUG=1 on simple input.
+#
+# EXPECTED FIX: When scan_named_patterns registers Command as a named pattern (Byrd box),
+# it must also call NV_SET_fn("Command", spat_val(patnd_for_Command)) so that
+# NV_GET_fn("Command") from the C runtime materialise path gets a real PATND_t.
+# Check emit_byrd_asm.c: does it call NV_SET for named patterns? If not, add it.
 
-# 1. Fix match driver — TxInList undefined (in beauty.sno, not inc/).
-#    Rewrite test/beauty/match/driver.sno to use a simple string+pattern test.
-#    Regenerate ref: snobol4 -f -P256k -Idemo/inc test/beauty/match/driver.sno > test/beauty/match/driver.ref
-
-# 2. Run monitor for remaining subsystems in dependency order:
-for sub in match tree ShiftReduce TDump Gen Qize ReadWrite XDump semantic; do
-  INC=demo/inc X64_DIR=/home/claude/x64 MONITOR_TIMEOUT=60 \
-    bash test/beauty/run_beauty_subsystem.sh $sub
-done
-
-# 3. After all 19 PASS → run beauty bootstrap:
+# Verify after fix:
 WORK=$(mktemp -d /tmp/beau_XXXXXX); RT=src/runtime; INC=demo/inc
 for f in asm/snobol4_stmt_rt.c snobol4/snobol4.c mock/mock_includes.c \
           snobol4/snobol4_pattern.c engine/engine.c asm/blk_alloc.c asm/blk_reloc.c; do
@@ -44,18 +50,17 @@ snobol4 -f -P256k -Idemo/inc demo/beauty.sno < demo/beauty.sno > /tmp/oracle.sno
 diff /tmp/oracle.sno /tmp/asm_out.sno | head -30
 ```
 
-**Subsystems PASSING after B-282:** global ✅ is ✅ fence ✅ io ✅ case ✅ assign ✅ counter ✅ stack ✅
-**Subsystems NOT YET RUN:** match (driver bug) tree ShiftReduce TDump Gen Qize ReadWrite XDump semantic omega trace
+**All 19 subsystems PASS after B-283:** global ✅ is ✅ fence ✅ io ✅ case ✅ assign ✅ match ✅ counter ✅ stack ✅ tree ✅ ShiftReduce ✅ TDump ✅ Gen ✅ Qize ✅ ReadWrite ✅ XDump ✅ semantic ✅ omega ✅ trace ✅
 
 ---
 
 ## Last Two Sessions (3 lines each)
 
-**B-282 (2026-03-24) — 3 bugs fixed; M-BEAUTY-GLOBAL/IS/ASSIGN PASS; 106/106:**
-(1) stmt_match_descr: FAILDESCR coerced to empty string matched everywhere; fix IS_FAIL_fn guard.
-(2) stmt_setup_subject: stale subject_len_val on early FAILDESCR return; fix zero before return.
-(3) E_NAM: emitted DT_S(1) not DT_N(9); stmt_nreturn_deref updated. HEAD `c16c575`.
+**B-283 (2026-03-24) — M-BEAUTY-MATCH ✅ + all 19 subsystems ✅; bootstrap ARBNO bug found; 106/106:**
+(1) Rewrote match driver (TxInList→pattern-based); fixed FAIL α-port missing jmp ω; added nPush/nInc/nPop/nTop C wrappers in mock_includes.c.
+(2) All 19 subsystems now PASS 3-way monitor. M-BEAUTY-MATCH ✅ (12 steps).
+(3) M-BEAUTIFY-BOOTSTRAP: ARBNO(*Command) takes 0 iterations via CALL_PAT_α path — XDSAR("Command") likely gets DT_P with NULL PATND_t. HEAD `23c0261`.
 
-**B-281 (2026-03-24) — E_STAR split from E_INDR; beauty_asm exit 0; 10/784 lines:**
-emit_byrd_asm.c: *VAR runtime DT_P dispatch fixed; binary exits 0; Parse Error at main02 remains.
-HEAD `a732d3b` B-281.
+**B-282 (2026-03-24) — 3 bugs fixed; M-BEAUTY-GLOBAL/IS/ASSIGN PASS; 106/106:**
+(1) stmt_match_descr FAILDESCR guard; stmt_setup_subject stale subject_len_val; E_NAM DT_N fix.
+(2) M-BEAUTY-GLOBAL ✅ M-BEAUTY-IS ✅ M-BEAUTY-ASSIGN ✅. HEAD `c16c575`.
