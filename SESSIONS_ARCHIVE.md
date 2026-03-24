@@ -419,3 +419,21 @@ Committed rung06_cset corpus (5 tests) to snobol4x `c166bfe`. Full M-IJ-CSET imp
 **Commits:** snobol4x `27de835`
 
 **Next:** PJ-20 — puzzle_11 search rewrite (M-PJ-PZ11).
+
+## IJ-12 — 2026-03-24
+
+**Milestone:** M-IJ-CSET ✅
+
+**Work done:**
+- `ICN_CSET` dispatch: reuses `ij_emit_str` (cset literal = ldc String); `ij_expr_is_string` returns 1 for ICN_CSET.
+- `any(cs)` built-in in `ij_emit_call`: evaluates cs, calls `icn_builtin_any(cs,subj,pos)→long`, advances `icn_pos`. Guarded `!ij_is_user_proc`.
+- `many(cs)` built-in: same pattern, calls `icn_builtin_many`.
+- `upto(cs)` built-in generator: saves cs in `icn_upto_cs_N`; α/β both enter step label; calls `icn_builtin_upto_step`; sets `icn_pos=result` on match.
+- Three static helper methods emitted in `ij_emit_file` (gated on `icn_subject` in statics).
+- **ICN_AND fix (bonus)**: was emitting right-to-left causing `ccb[i-1]=""` bug; fixed to left-to-right with relay trampolines that drain child result (pop/pop2) before entering next child's α.
+- **User-proc guard**: prevents `any`/`many`/`upto` builtins from shadowing user procs with same names.
+- `run_rung06.sh` committed.
+- **rung06: 5/5 PASS. rung01-05: 29/29 still clean. Total: 34/34.**
+- HEAD: `369f2bf` on `main`.
+
+**Next:** IJ-13 — M-IJ-CORPUS-R4 fires immediately (rung04+05+06=15/15 already PASS). Declare it, then plan next milestone.

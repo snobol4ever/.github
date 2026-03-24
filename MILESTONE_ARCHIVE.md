@@ -213,5 +213,6 @@ Append-only. Do not edit existing entries.
 | **M-IJ-CORPUS-R3** | `54c301b` IJ-9 | rung03 suspend generators PASS; named vars→static fields; clear suspend_id on done |
 | **M-IJ-STRING** | `9932df5` IJ-9 | ICN_STR + || concat; String static fields; pop/pop2 drain; pre-pass type inference; 5/5 rung04 + t06 bonus fix |
 | **M-IJ-SCAN** | `7d68a85` IJ-11 | ij_emit_scan four-port Byrd-box; &subject keyword; icn_subject/icn_pos globals; <clinit> init; ij_expr_is_string ICN_SCAN+&subject; 5/5 rung05 PASS; rung01-04 24/24 clean |
+| **M-IJ-CSET** | `369f2bf` IJ-12 | ICN_CSET=ij_emit_str; any/many/upto builtins via static helpers; ICN_AND left-to-right relay drain fix; user-proc guard; 5/5 rung06 PASS; 34/34 total |
 
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ✅ PJ-17 `e14bed2` |

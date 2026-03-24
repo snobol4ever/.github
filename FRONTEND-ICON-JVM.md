@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅; rung06_cset corpus committed; ij_emit_cset/any/many/upto open | `c166bfe` IJ-11 | M-IJ-CSET |
+| **Icon JVM** | `main` IJ-12 — M-IJ-CSET ✅ 5/5 rung06 PASS; 34/34 total | `369f2bf` IJ-12 | M-IJ-CORPUS-R4 |
 
-### Next session checklist (IJ-12)
+### Next session checklist (IJ-13)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -33,9 +33,53 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# Confirm rung01-05 29/29 still PASS before touching code
-# Implement M-IJ-CSET per §IJ-11 findings below
+# Confirm rung01-06 34/34 still PASS before touching code
+# Implement M-IJ-CORPUS-R4 per §IJ-12 findings below
 ```
+
+### IJ-12 findings — M-IJ-CORPUS-R4 plan
+
+**Status:** rung01-06 = 34/34 PASS. Rung06 IS rung4-level content (string ops + scan + cset).
+M-IJ-CORPUS-R4 fires when rung04+rung05+rung06 all pass — they do. Confirm against ASM oracle.
+
+**What fires M-IJ-CORPUS-R4:**
+Run all of rung04_string (5), rung05_scan (5), rung06_cset (5) and confirm PASS vs ASM oracle.
+The JVM results already match expected files which were derived from ASM oracle output.
+Therefore **M-IJ-CORPUS-R4 fires immediately** — no new code needed.
+
+**IJ-13 checklist:**
+1. Build driver, confirm 34/34 baseline
+2. Declare M-IJ-CORPUS-R4 ✅ (rung04+05+06 = 15/15 PASS)
+3. Plan next milestone (M-IJ-CORPUS-R5 or string builtins per PLAN.md)
+
+### IJ-12 findings — M-IJ-CSET implementation (done)
+
+**34/34 total PASS (rung01-06). All prior rungs clean.**
+
+**What was implemented in `icon_emit_jvm.c`:**
+
+1. **`ICN_CSET` dispatch** — `case ICN_CSET: ij_emit_str(...)` (cset literal = ldc String)
+   `ij_expr_is_string`: `case ICN_CSET: return 1`
+
+2. **`any(cs)` built-in** in `ij_emit_call` — guarded `!ij_is_user_proc(fname)`:
+   Evaluates cs arg (String), calls `icn_builtin_any(cs, subj, pos) → long` (-1=fail).
+   On success: advances `icn_pos`, pushes new 1-based pos as long → ports.γ.
+
+3. **`many(cs)` built-in** — same pattern, calls `icn_builtin_many`.
+
+4. **`upto(cs)` built-in** — generator: saves cs in per-call static field `icn_upto_cs_N`.
+   α saves cs, β re-enters step. Step calls `icn_builtin_upto_step(cs,subj,pos) → long`.
+   On match: sets `icn_pos = result` (0-based), yields result as long → ports.γ.
+
+5. **Static helpers emitted in `ij_emit_file`** (gated on `icn_subject` in statics):
+   `icn_builtin_any`, `icn_builtin_many`, `icn_builtin_upto_step` — all pure Jasmin.
+
+6. **ICN_AND fix (bonus)**: relay trampolines now emit `pop`/`pop2` to drain child[i]'s
+   result before entering child[i+1].α — fixes VerifyError on `&` with any() lhs.
+   Also fixed emit order: left-to-right so `ccb[i-1]` is populated when child[i] needs it.
+
+7. **User-proc name collision guard**: `!ij_is_user_proc(fname)` on all three builtins
+   prevents shadowing user procs named `any`/`many`/`upto` (rung03 t01_gen uses `upto`).
 
 ### IJ-11 findings — M-IJ-CSET implementation plan
 

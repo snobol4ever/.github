@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **Prolog JVM** | `main` PJ-19 — M-PJ-PZ10 ✅ swipl; JVM still blocked on M-PJ-NEQ | `27de835` PJ-19 | M-PJ-NEQ |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅; rung06_cset corpus committed; ij_emit_cset/any/many/upto open | `c166bfe` IJ-11 | M-IJ-CSET || **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
+| **Icon JVM** | `main` IJ-12 — M-IJ-CSET ✅ 5/5 rung06 PASS; 34/34 total | `369f2bf` IJ-12 | M-IJ-CORPUS-R4 || **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
@@ -136,8 +136,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-CORPUS-R3** | rung03_suspend PASS | ✅ |
 | **M-IJ-STRING** | `ICN_STR`, `\|\|` concat | ✅ |
 | **M-IJ-SCAN** | `E ? E` string scanning | ✅ |
-| **M-IJ-CSET** | Cset literals → BREAK/SPAN/ANY | ❌ **NEXT** |
-| **M-IJ-CORPUS-R4** | Rung 4: string ops + scanning PASS | ❌ |
+| **M-IJ-CSET** | Cset literals → BREAK/SPAN/ANY | ✅ |
+| **M-IJ-CORPUS-R4** | Rung 4: string ops + scanning PASS | ❌ **NEXT** |
 
 Full sprint detail → [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md)
 
