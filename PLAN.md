@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned 782KB→15KB; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
 | **Prolog JVM** | `main` PJ-4 — M-PJ-FACTS ✅ M-PJ-UNIFY ✅ M-PJ-ARITH ✅ | `3986172` PJ-4 | M-PJ-BACKTRACK |
-| **Icon JVM** | `main` IJ-3 — pop2 fix at ICN_EVERY gbfwd (Bug2 fixed); Bug1 binop static fields clobber recursion diagnosed; 12/14 rung02 | `5170ebc` IJ-3 | M-IJ-CORPUS-R2 |
+| **Icon JVM** | `main` IJ-4 — Bug1 fix (binop/relop local slots); α/β/γ/ω port names; warnings clean | `254045e` IJ-4 | M-IJ-CORPUS-R2 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**

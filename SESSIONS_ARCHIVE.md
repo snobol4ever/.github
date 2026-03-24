@@ -15336,3 +15336,22 @@ The assign and recursive-call emitters still have stack-across-label violations.
 **State at handoff:** rung05 retry: `cs` advances to 1 after first solution but `b`/`c` not emitted. Next session inspects `p_member_2_clause1` — whether `T` (tail var in `member(X,[_|T])`) is properly bound and passed to recursive `member(X,T)`.
 
 **Next session bootstrap:** See FRONTEND-PROLOG-JVM.md §CRITICAL NEXT ACTION (PJ-5)
+
+---
+## IJ-4 — Icon JVM — 2026-03-24
+
+**HEAD before:** `5170ebc`  **HEAD after:** `254045e`
+
+**Done:**
+- Bug 1 fixed: `ij_emit_binop` and `ij_emit_relop` replaced class-global static fields
+  (`icn_N_lc/rc/bf`) with `ij_locals_alloc_tmp()` local slots. Recursion (e.g. `fact(5)`)
+  no longer clobbers operand staging across call frames.
+- Greek port names throughout: `IjPorts.γ`/`.ω`, `lbl_α()`/`lbl_β()`, `oα`/`oβ` in C source;
+  generated NASM labels `icon_N_α`/`icon_N_β`; generated Jasmin labels `icn_N_α`/`icn_N_β`.
+  NASM 2.x and Jasmin both accept UTF-8 in non-exported labels.
+- Zero warnings with `-Wall -Wextra`: removed unused `ij_jmp_if_ok`, widened snprintf buffers,
+  widened suspend noval buffers.
+- Confirmed pre-existing Bug 3: rung01 JVM VerifyError `Unable to pop operand off an empty
+  stack` in `write(long)` path — present before IJ-4, not caused by IJ-4 changes.
+
+**Open for IJ-5:** Bug 3 (rung01 VerifyError in write(long)), then M-IJ-CORPUS-R2.
