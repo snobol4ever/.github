@@ -1,5 +1,31 @@
 > Org renamed SNOBOL4-plus → snobol4ever, repos renamed March 2026. Historical entries use old names.
 
+## Session PJ-5 — M-PJ-BACKTRACK ❌ in progress (2026-03-24)
+
+**Sprint:** Prolog JVM backend — rung05 `member/2` backtracking.
+**Operator:** Claude Sonnet 4.6. **Repo:** snobol4x `main`. **HEAD:** `418461a`.
+
+**Diagnosis:** The existing `prolog_emit_jvm.c` returned bare `Integer(ci)` from γ and dispatched via `tableswitch 0..nclauses-1`. For recursive predicates like `member/2` with a body user-call, the inner recursive call returns its own `ci`, the caller advances to `ci+1`, and the next `tableswitch` hit `default → omega`. Sub-clause resumption state was completely lost.
+
+**Work done:**
+- `pj_emit_choice`: replaced `tableswitch` with linear `if_icmpge base[ci]` dispatch (mirrors ASM `base[]` scheme).
+- Added `init_cs_local` (= cs − base[ci]) and `sub_cs_out_local` JVM locals per clause.
+- γ now returns `Integer(base[ci] + sub_cs_out + 1)` — encodes clause identity AND inner resumption offset.
+- Emits `retry_head_N` label: trail unwind to clause mark → re-derive vars → re-run head unification → fall into `body_N:` which reloads `init_cs_local → local_cs`.
+- `pj_emit_body`: added `init_cs_local`, `sub_cs_out_local`, `lbl_outer_omega` params. User-call exhaustion → `lbl_outer_omega` (next clause). Suffix failure saves `local_cs → init_cs_local`, jumps to `retry_head` via `lbl_omega`.
+
+**Bug remaining:** `;/2` left-branch in `pj_emit_goal` passes `lbl_omega = disj_alt` to `pj_emit_body`. `member(X,L), write(X), nl, fail ; true` — `fail` drives `disj_alt (true)` instead of retrying `member`. Output: only `a` instead of `a b c`.
+
+**Root cause:** `pj_emit_goal`'s plain `;/2` handler calls `pj_emit_goal(children[0], gamma, next_else_lbl)`. The left branch is a `,/2` which calls `pj_emit_body` with `lbl_omega = next_else_lbl`. The `retry_head_lbl` (which is clause-scoped) is not threaded into `pj_emit_goal`.
+
+**Fix for next session:** In `pj_emit_goal`'s `;/2` plain disjunction case, when the left branch is a `,/2` containing a user-call, call `pj_emit_body` directly with `lbl_omega = retry_head_lbl` and `lbl_outer_omega = next_else_lbl`. Requires threading `retry_head_lbl` as a parameter to `pj_emit_goal` (add `const char *lbl_retry_head` param, NULL for non-body contexts). OR: detect that a `,/2` left branch of `;/2` containing a user-call must be emitted via `pj_emit_body` not `pj_emit_goal`.
+
+**JCON reference:** `jcon-master.zip` uploaded — `test/primes.java`, `test/factors.java` show the `PlClosure.Resume()` pattern. `vClosure.Resume()` → retry on same closure ≈ our `retry_head` + `call_try` path.
+
+**Commit:** `418461a` "PJ-5: M-PJ-BACKTRACK in progress"
+
+
+
 ## Session B-276 — M-BEAUTY-OMEGA ✅ (2026-03-24)
 
 **Bug:** Binary `E_ATP` (`pat @txOfs`) in value context in `emit_byrd_asm.c` emitted
