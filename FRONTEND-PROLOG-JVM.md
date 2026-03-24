@@ -19,13 +19,14 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
+| **Prolog JVM** | `main` PJ-17 — M-PJ-CORPUS-R10 ✅ all 20 rung10 puzzles swipl+JVM 20/20 | `722aeff` PJ-17 | — |
 
-### CRITICAL NEXT ACTION (PJ-17)
+### CRITICAL NEXT ACTION (PJ-18)
 
-**Next milestone: M-PJ-CORPUS-R10 — Lon's rung10 puzzle corpus PASS.**
+**M-PJ-CORPUS-R10 ✅ COMPLETE — all 20 rung10 puzzles pass swipl oracle and JVM backend 20/20.**
 
-Rungs 01-09 clean. min3 reproducer (`item/differ/fail` pattern) fixed. Puzzles 01, 05, 06 already pass. Next step: run all rung10 puzzles, identify which stubs/failing cases remain, implement.
+All rungs 01–09 clean. All 20 rung10 puzzles solved and committed at `722aeff`.
+Next milestone: TBD — see PLAN.md.
 
 **Bootstrap PJ-17:**
 ```bash
@@ -144,7 +145,7 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-CUT** | Rung 7: `differ/N`, closed-world `!, fail` | ✅ |
 | **M-PJ-RECUR** | Rung 8: `fibonacci/2`, `factorial/2` | ✅ |
 | **M-PJ-BUILTINS** | Rung 9: `functor/3`, `arg/3`, `=../2`, type tests | ✅ |
-| **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ❌ |
+| **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ✅ |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 
