@@ -19,7 +19,7 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-17 — M-PJ-CORPUS-R10 ✅ all 20 rung10 puzzles swipl+JVM 20/20 | `722aeff` PJ-17 | — |
+| **Prolog JVM** | `main` PJ-17 — puzzle_07 search PASS; puzzle_08 multi-solution open; M-PJ-R10-SEARCH in progress | `e568687` PJ-17 | — |
 
 ### CRITICAL NEXT ACTION (PJ-18)
 

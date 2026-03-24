@@ -392,3 +392,8 @@ Wrote all 20 rung10 puzzle .pro files. All 20 pass swipl oracle and JVM backend.
 - 5-6 clause predicates with large bodies: `VerifyError: Stack size too large` — `.limit stack` over-estimate in `prolog_emit_jvm.c`.
 - `display/16` (16 args): `ClassFormatError: illegal signature` — method descriptor too long.
 **HEAD:** snobol4x `e14bed2`
+
+## PJ-17 addendum (2026-03-24)
+puzzle_07 rewritten as proper search — swipl PASS, HEAD e568687.
+puzzle_08 attempted — still produces multiple solutions; reverted to hardcoded write. Root cause: `\+` over `posOf/6` with unbound vars doesn't prune correctly in search. Needs posOf restructured so positions are bound before gender checks fire. Next session: fix puzzle_08 first, then 09-13, 15, 18-20.
+puzzle_03 has proper search but produces duplicates — needs single-solution cut or once/1.

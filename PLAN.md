@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-17 — M-PJ-CORPUS-R10 ✅ all 20 rung10 puzzles 20/20 | `722aeff` PJ-17 | — |
+| **Prolog JVM** | `main` PJ-17 — puzzle_07 search done; puzzle_08 multi-solution bug open; 03 dedup open | `e568687` PJ-17 | — |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
