@@ -18,228 +18,65 @@ assembled by `jasmin.jar` into `.class` files.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-2 — ICN_ALT + ICN_AND flattened to n-ary; emit_and wired in ASM+JVM; 12/14 rung02 pass | `8874da8` IJ-2 | M-IJ-CORPUS-R2 |
+| **Icon JVM** | `main` IJ-3 — pop2 fix at ICN_EVERY gbfwd (Bug 2 partial); Bug 1 diagnosed, not yet fixed; 12/14 rung02 | `5170ebc` IJ-3 | M-IJ-CORPUS-R2 |
 
-### Next session checklist (IJ-3)
+### Next session checklist (IJ-4)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
-make -C snobol4x/src
-# Build icon_driver (see FRONTEND-ICON-JVM.md §Key Files for gcc cmd)
+cd snobol4x/src/frontend/icon
+gcc -Wall -g -O0 -I. icon_driver.c icon_lex.c icon_parse.c icon_ast.c \
+    icon_emit.c icon_emit_jvm.c icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# Start at t02_fact (recursion): icn_retval clobbered on recursive call
-#   Fix: before invokestatic icn_fact, save icn_retval into a fresh local slot,
-#        restore after return — see ij_emit_call in icon_emit_jvm.c
-# Then t03_locals: `local` decl slots not allocated past param slots
-#   Fix: in ij_emit_proc, count `local` children and offset slot_base
-# Run corpus: target 14/14 rung02 → fire M-IJ-CORPUS-R2
+# Fix Bug 1 (t02_fact) in icon_emit_jvm.c — see IJ-3 findings below
+# Verify t03_locals now passes after IJ-3 pop2 fix
+# Run full corpus: target 14/14 rung02 → fire M-IJ-CORPUS-R2
 ```
 
-### IJ-2 findings — two open bugs for IJ-3
+### IJ-3 findings — one fix applied, one bug open for IJ-4
 
-**Bug 1 — t02_fact recursion gives `1` instead of `120`:**
-`icn_retval` is a single static field. Recursive `fact(n-1)` overwrites it before
-the caller reads it. Fix: in `ij_emit_call`, before `invokestatic`, save
-`icn_retval` to a fresh JVM local slot (`lstore N`); after the call, restore
-(`lload N → putstatic icn_retval`). Allocate the save slot via `ij_alloc_local()`.
+**Bug 2 — t03_locals VerifyError `Inconsistent stack height 4 != 2` — FIXED in IJ-3 (5170ebc):**
+Root cause: `ICN_EVERY`'s `gbfwd` label was used as `ports.succeed` for the
+generator. Generator (e.g. ICN_TO) pushes a `long` then jumps to `gbfwd`.
+`gbfwd` also reachable from zero-stack paths → verifier rejects. Fix applied in
+`ij_emit_every`: `JL(gbfwd); JI("pop2",""); JGoto(gb);` — drain before β retry.
+Also `bstart` (body entry) now has `pop2` before `JGoto(ba)`.
 
-**Bug 2 — t03_locals gives empty output:**
-`local total` declaration is parsed but slot assignment in `ij_emit_proc` only
-allocates slots for params (`slot = 2*i` for i in 0..nparams-1). Locals
-start at `nparams` but the slot base isn't offset. Fix: after param slots,
-scan proc children for `ICN_LOCAL` nodes and assign `2*(nparams+local_idx)`.
+**Bug 1 — t02_fact recursion gives `1` instead of `120` — OPEN for IJ-4:**
+Root cause (CONFIRMED by reading generated .j): `ij_emit_binop` and
+`ij_emit_relop` allocate static fields `icn_N_lc`, `icn_N_rc`, `icn_N_bf`
+for operand staging. These are class-global. In a recursive call chain like
+`fact(5) → fact(4) → ... → fact(0)`, each level's `icn_1_lc`/`icn_1_rc`
+fields are clobbered by the deeper call before the outer multiply executes.
+Result: all multiplications see the same overwritten values → returns 1.
 
----
-
-## Why JVM — Design Rationale
-
-The x64 ASM backend emits Byrd-box four-port code as NASM labels + `jmp`.
-The JVM backend is structurally identical — labels become Jasmin `label:` targets,
-`jmp` becomes Jasmin `goto`. The four-port wiring (α/β/γ/ω) is unchanged.
-
-### Oracles
-
-| Oracle | Role |
-|--------|------|
-| `icon_emit.c` (x64 ASM, 49KB) | Byrd-box wiring per ICN node — authoritative logic |
-| `emit_byrd_jvm.c` (187KB) | Jasmin output format, helpers, class skeleton — copy directly |
-| `jcon-master/` (uploaded zip) | JCON's `gen_bc.icn` — Icon→JVM IR blueprint |
-
-Key principle: `icon_emit_jvm.c` = `icon_emit.c` logic + `emit_byrd_jvm.c` output format.
-Wherever the ASM emitter emits `E(em, "    jmp  %s\n", lbl)`,
-the JVM emitter emits `J("    goto %s\n", lbl)`.
-
-### Differences from SNOBOL4 JVM backend
-
-| Aspect | SNOBOL4 JVM | Icon JVM |
-|--------|-------------|----------|
-| Value type | `java/lang/String` | `java/lang/Long` (ints) + `java/lang/String` (strings) |
-| Control flow | `:S/:F` goto via `ifnull` | four-port α/β/γ/ω labels + `goto` |
-| Generators | not applicable | β port resumes suspended generator via local flag |
-| Variables | static String fields | JVM locals (one `long` slot per variable) |
-| Suspension | not applicable | `icn_suspended` byte flag + resume address static field |
-
-### Similarities (reuse directly from `emit_byrd_jvm.c`)
-
-- Jasmin file skeleton: `.class public`, `.super java/lang/Object`, `.method public static main`
-- Output helpers: `J()`, `JI()`, `JL()`, `JC()` — copy verbatim (10 lines each)
-- `jvm_safe_name()` identifier sanitizer → rename `ij_safe_name()`
-- `jasmin.jar` assembler invocation — identical
-- Static helper methods emitted inline in the class
-
----
-
-## Value Representation on JVM
-
-Icon integers → JVM `long` (primitive, stored in local variable slots).
-Icon strings → `java/lang/String`.
-Goal-directed success/failure → boolean via a static `icn_failed` byte field
-(mirrors ASM backend's `byte [rel icn_failed]`).
-
-```jasmin
-.field static icn_failed B          ; 0 = success, 1 = failure
-.field static icn_suspended B       ; 0 = not suspended, 1 = suspended
-.field static icn_suspend_resume J  ; resume address (method handle trick — see below)
-```
-
-For the JVM, "resume address" cannot be a raw pointer. Instead, use a
-**suspend state integer**: each `ICN_SUSPEND` site gets a unique integer ID;
-the β port does a `tableswitch` on the ID to jump to the right resume label.
-This is the standard JVM coroutine encoding (mirrors JCON's approach in `gen_bc.icn`).
-
----
-
-## Label Conventions (parallel to ASM)
-
-| Concept | ASM label | JVM label |
-|---------|-----------|-----------|
-| Node α | `icon_N_a` | `icn_N_a` |
-| Node β | `icon_N_b` | `icn_N_b` |
-| Node γ (success) | `icon_N_g` | `icn_N_g` |
-| Node ω (fail) | `icon_N_w` | `icn_N_w` |
-| Extra (to.code) | `icon_N_code` | `icn_N_code` |
-| Procedure entry | `icn_procname` | `icn_procname` (Jasmin label) |
-| Procedure done | `icn_procname_done` | `icn_procname_done` |
-
----
-
-## Design — `icon_emit_jvm.c`
-
-### File structure
-
+**Fix for IJ-4 (precise):**
+In `ij_emit_binop`, replace the three static-field declarations with local slots:
 ```c
-/* icon_emit_jvm.c — IcnNode AST → Jasmin text emitter
- *
- * Consumes the same IcnNode* AST as icon_emit.c.
- * Emits Jasmin assembler (.j) text.
- * Assembled by: java -jar jasmin.jar foo.j -d outdir/
- *
- * Oracles:
- *   icon_emit.c        — Byrd-box wiring logic (copy four-port per node)
- *   emit_byrd_jvm.c    — Jasmin output format and helpers
- */
+// REMOVE these three lines:
+ij_declare_static(lc_field);
+ij_declare_static(rc_field);
+ij_declare_static_int(bf_field);
 
-// Output helpers: J(), JI(), JL(), JC()         — copied from emit_byrd_jvm.c
-// Safe name:      ij_safe_name()                 — adapted from jvm_safe_name()
-
-// Sections (parallel to icon_emit.c):
-//   ij_emit_file_header()    — .class, .super, .method main, static fields
-//   ij_emit_runtime_helpers()— icn_write_int/str(), icn_failed field ops
-//   ij_emit_proc()           — procedure: prologue + body + epilogue
-//   ij_emit_expr()           — dispatch per IcnKind → four-port wiring
-//   ij_emit_to()             — ICN_TO: inline counter (paper §4.4)
-//   ij_emit_every()          — ICN_EVERY: pump generator to exhaustion
-//   ij_emit_if()             — ICN_IF: indirect goto gate (paper §4.5)
-//   ij_emit_call()           — ICN_CALL: user procedure + generator suspend
-//   ij_emit_suspend()        — ICN_SUSPEND: yield + tableswitch resume
-//   ij_emit_file()           — entry point: emit full .j file
+// REPLACE with local slot allocations:
+int lc_slot = ij_locals_alloc_tmp();   // long: JVM slots slot_jvm(lc_slot), slot_jvm(lc_slot)+1
+int rc_slot = ij_locals_alloc_tmp();   // long
+int bf_slot = ij_locals_alloc_tmp();   // used as int — lstore/lload, cast to int as needed
+                                        // OR: alloc separately and use istore/iload slot_jvm(bf_slot)
 ```
-
-### `to` generator — inline counter in Jasmin
-
-```jasmin
-; every write(1 to 5);  →  ICN_EVERY( ICN_CALL(write, ICN_TO(1,5)) )
-; Node 3 = ICN_TO.  Locals: slot 0 = to_I (long), slot 1 = to_limit (long)
-icn_3_a:                        ; α — evaluate bounds, init counter
-    ldc2_w 1
-    lstore 0                    ; to_I = 1
-    ldc2_w 5
-    lstore 1                    ; to_limit = 5
-icn_3_code:                     ; check and yield
-    lload 0
-    lload 1
-    lcmp
-    ifgt icn_3_w                ; to_I > to_limit → fail
-    lload 0                     ; push to_I as value
-    ; (pass to parent γ — write call, which pops and prints)
-    goto icn_3_g
-icn_3_b:                        ; β — resume: increment and loop
-    lload 0
-    ldc2_w 1
-    ladd
-    lstore 0
-    goto icn_3_code
-icn_3_w:                        ; ω — exhausted
-    getstatic  ThisClass/icn_failed B
-    ; already set by convention — just goto parent ω
-    goto <parent_omega>
-icn_3_g:                        ; γ — success, value in slot 0
-    goto <parent_gamma>
-```
-
-### Suspend/resume via tableswitch
-
-Each `ICN_SUSPEND` (user-defined generator) gets a unique ID `S`.
-The procedure's β entry does:
-
-```jasmin
-proc_beta:
-    getstatic ThisClass/icn_suspend_id I   ; which suspend point?
-    tableswitch 1 ... N
-        icn_S1_resume
-        icn_S2_resume
-        ...
-    default: proc_omega
-```
-
-On `suspend E`: push value, store suspend ID, `goto proc_gamma`.
-On β resume: tableswitch dispatches to correct `icn_SN_resume` label.
-
-This encodes the ASM backend's `[rel icn_suspend_resume]` indirect jmp
-in pure JVM bytecode without raw pointers.
+Then replace every `ij_put_long(lc_field)` with `J("    lstore %d\n", slot_jvm(lc_slot))`,
+`ij_get_long(lc_field)` with `J("    lload %d\n", slot_jvm(lc_slot))`, etc.
+For `bf_field` (int): use `J("    istore %d\n", slot_jvm(bf_slot))` /
+`J("    iload %d\n", slot_jvm(bf_slot))`.
+Apply the same change in `ij_emit_relop` for `lc_field`/`rc_field`.
+Note: `ij_locals_alloc_tmp()` increments `ij_nlocals` — call these AFTER params
+and locals are registered (they already are, since binop emit happens during body
+emit, after proc setup). The `.limit locals` directive already has padding (+10).
 
 ---
 
-## Milestone Table
-
-| ID | Trigger | Depends on | Status |
-|----|---------|-----------|--------|
-| **M-IJ-SCAFFOLD** | `icon_emit_jvm.c` exists; `-jvm null.icn → null.j` assembles and exits 0; `-jvm` flag in driver | — | ❌ |
-| **M-IJ-HELLO** | `every write(1 to 5);` → JVM output `1\n2\n3\n4\n5` (rung01 t01) | M-IJ-SCAFFOLD | ❌ |
-| **M-IJ-CORPUS-R1** | All 6 rung01 tests PASS vs ASM oracle | M-IJ-HELLO | ❌ |
-| **M-IJ-PROC** | rung02_proc: user procedures with `return`, local variables | M-IJ-CORPUS-R1 | ❌ |
-| **M-IJ-CORPUS-R2** | All rung02 tests PASS (arith_gen 5/5 + proc 3/3) | M-IJ-PROC | ❌ |
-| **M-IJ-SUSPEND** | `suspend E` user-defined generators via tableswitch resume | M-IJ-CORPUS-R2 | ❌ |
-| **M-IJ-CORPUS-R3** | rung03_suspend: all tests PASS | M-IJ-SUSPEND | ❌ |
-| **M-IJ-STRING** | `ICN_STR`, `\|\|` concat; string locals as `java/lang/String` slots | M-IJ-CORPUS-R3 | ❌ |
-| **M-IJ-SCAN** | `E ? E` string scanning; cursor threading via static fields | M-IJ-STRING | ❌ |
-| **M-IJ-CSET** | Cset literals; `upto`→BREAK, `many`→SPAN, membership→ANY | M-IJ-SCAN | ❌ |
-| **M-IJ-CORPUS-R4** | Rung 4: string operations and scanning PASS | M-IJ-CSET | ❌ |
-
----
-
-## Sprint Map
-
-| Sprint | Milestones | Key work |
-|--------|-----------|---------|
-| **IJ-S1** | M-IJ-SCAFFOLD, M-IJ-HELLO, M-IJ-CORPUS-R1 | Class skeleton, `icn_failed` field, `to` generator, `every`, arithmetic, relational, `if` |
-| **IJ-S2** | M-IJ-PROC, M-IJ-CORPUS-R2 | Procedure call/return, local variable slots, `while`/`until` loops |
-| **IJ-S3** | M-IJ-SUSPEND, M-IJ-CORPUS-R3 | `suspend` + tableswitch resume encoding |
-| **IJ-S4** | M-IJ-STRING, M-IJ-SCAN, M-IJ-CSET, M-IJ-CORPUS-R4 | String type, concat, scanning, csets |
-
----
 
 ## Key Files
 

@@ -19,13 +19,8 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-10 — SESSIONS_ARCHIVE pruned 782KB→15KB; fixes documented, not yet applied | `54031a5` I-7 | M-ICON-CORPUS-R3 |
-<<<<<<< HEAD
 | **Prolog JVM** | `main` PJ-3 — M-PJ-FACTS ✅ M-PJ-UNIFY ✅ M-PJ-ARITH ✅ | `cb87932` PJ-3 | M-PJ-BACKTRACK |
-| **Icon JVM** | `main` IJ-1 — M-IJ-SCAFFOLD ✅ M-IJ-HELLO ✅ M-IJ-CORPUS-R1 ✅; rung02 12/14; fact/locals open | `ee2810b` IJ-1 | M-IJ-CORPUS-R2 |
-=======
-| **Prolog JVM** | `main` PJ-2 — Proebsting retry; ,/2 ;/2 — rung02 `brown` only; trail_unwind fix needed | `7b6af68` PJ-2 | M-PJ-FACTS |
-| **Icon JVM** | `main` IJ-2 — ICN_ALT+ICN_AND n-ary flat; emit_and wired ASM+JVM; 12/14 rung02 pass | `8874da8` IJ-2 | M-IJ-CORPUS-R2 |
->>>>>>> e3a2db3 (IJ-2 handoff: update PLAN NOW, FRONTEND-ICON-JVM §NOW, SESSIONS_ARCHIVE)
+| **Icon JVM** | `main` IJ-3 — pop2 fix at ICN_EVERY gbfwd (Bug2 fixed); Bug1 binop static fields clobber recursion diagnosed; 12/14 rung02 | `5170ebc` IJ-3 | M-IJ-CORPUS-R2 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
@@ -78,11 +73,6 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-MON-BUG-ASM-DATATYPE-CASE** | ASM DATA type name lowercase; fix to uppercase | ❌ |
 | **M-MON-BUG-JVM-WPAT** | JVM pattern datatype emits empty string; fix | ❌ |
 | **M-MONITOR-4DEMO** | roman + wordcount + treebank pass all 5 participants | ❌ |
-| **M-BEAUTY-READWRITE** | ReadLine/WriteLine buffered I/O 3-way PASS | ✅ |
-| **M-BEAUTY-XDUMP** | XDump extended variable dump 3-way PASS | ✅ |
-| **M-BEAUTY-SEMANTIC** | semantic action helpers 3-way PASS | ✅ |
-| **M-BEAUTY-OMEGA** | omega pattern helpers 3-way PASS | ✅ |
-| **M-BEAUTY-TRACE** | xTrace control + trace output 3-way PASS | ✅ |
 | **M-BEAUTIFY-BOOTSTRAP** | beauty.sno reads + writes itself; fixed point | ❌ |
 | **M-MONITOR-GUI** | 🌙 HTML/React monitor GUI — diverging cells highlighted | 💭 |
 
@@ -93,22 +83,6 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-PROLOG-BUILTINS** | `functor/3`, `arg/3`, `=../2`, type tests — rung09 PASS | ✅ |
 | **M-PROLOG-R10** | Lon's word-puzzle solvers — rung10 PASS | ✅ |
 | **M-PROLOG-CORPUS** | All 10 rungs PASS via `-pl -asm` | ❌ |
-| **M-PZ-14** | puzzle_14.pro — golf scores, wives (easiest) | ❌ |
-| **M-PZ-17** | puzzle_17.pro — Country Club dance pairings | ❌ |
-| **M-PZ-15** | puzzle_15.pro — Vernon/Wilson/Yates offices + secretaries | ❌ |
-| **M-PZ-16** | puzzle_16.pro — train crew roles + family relations | ❌ |
-| **M-PZ-20** | puzzle_20.pro — pullman car readers + literary fields | ❌ |
-| **M-PZ-13** | puzzle_13.pro — murder case: 6 men × 6 roles | ❌ |
-| **M-PZ-18** | puzzle_18.pro — shopping day scheduling (temporal) | ❌ |
-| **M-PZ-19** | puzzle_19.pro — office floors + professions (arithmetic) | ❌ |
-| **M-PZ-04** | puzzle_04.pro — Milford occupations + salary chain | ❌ |
-| **M-PZ-09** | puzzle_09.pro — Empire Dept Store 5×5 positions | ❌ |
-| **M-PZ-08** | puzzle_08.pro — Dept Store positions (gender/marriage clues) | ❌ |
-| **M-PZ-11** | puzzle_11.pro — Smith family positions (family relations) | ❌ |
-| **M-PZ-07** | puzzle_07.pro — Brown/Clark/Jones/Smith (4-attribute ordering) | ❌ |
-| **M-PZ-10** | puzzle_10.pro — five J-names + surnames (indirect clues) | ❌ |
-| **M-PZ-03** | puzzle_03.pro — triple engagement party (age + sum constraints) | ❌ |
-| **M-PZ-12** | puzzle_12.pro — Stillwater teachers (hardest: 6×6 + temporal) | ❌ |
 
 Full sprint detail → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 
