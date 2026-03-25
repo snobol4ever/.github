@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-20 -- M-PJ-PZ11 swipl PASS; JVM still blocked on M-PJ-NEQ | `9b44115` PJ-20 | M-PJ-NEQ |
+| **Prolog JVM** | `main` PJ-21 — M-PJ-NEQ ✅ \=/2 emit fixed; puzzle_08+09 JVM PASS | `d6d2266` PJ-21 | M-PJ-STACK-LIMIT |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-13 — M-IJ-CORPUS-R4 ✅; rung07 4/5 (t03_to_by VerifyError open) | `6174c9f` IJ-13 | M-IJ-CORPUS-R5 || **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
@@ -103,7 +103,7 @@ Full sprint detail → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 | **M-PJ-PZ09** | puzzle_09 real search — swipl PASS | ✅ |
 | **M-PJ-PZ10** | puzzle_10 real search — swipl PASS | ✅ |
 | **M-PJ-PZ11** | puzzle_11 real search — swipl PASS | ✅ |
-| **M-PJ-NEQ** | `\=/2` missing from `pj_emit_goal` — add emit with trail-save/unwind | ❌ |
+| **M-PJ-NEQ** | `\=/2` missing from `pj_emit_goal` — add emit with trail-save/unwind | ✅ |
 | **M-PJ-STACK-LIMIT** | Fix `.limit stack` over-estimate in `prolog_emit_jvm.c` — eliminate VerifyError on 5+ clause predicates | ❌ |
 | **M-PJ-DISJ-ARITH** | Fix `(A;B;C)` inline disjunction silent failure in arithmetic body in JVM emitter | ❌ |
 | **M-PJ-ARITY-CAP** | Fix `ClassFormatError` on high-arity predicates (display/16) — pack args or cap arity | ❌ |

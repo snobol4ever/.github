@@ -217,3 +217,4 @@ Append-only. Do not edit existing entries.
 | **M-IJ-CORPUS-R4** | `6174c9f` IJ-13 | rung04+05+06=15/15 PASS; ICN_NOT/NEG/SEQ/SNE/SLT/SLE/SGT/SGE added; every-drain fix; 34/34 total |
 
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ✅ PJ-17 `e14bed2` |
+| **M-PJ-NEQ** | `\=/2` emit added to `pj_emit_goal` — probe-unify+trail-unwind+inverted-branch; `pj_count_neq` added to locals budget; puzzle_08+09 JVM PASS | ✅ PJ-21 |

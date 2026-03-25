@@ -469,3 +469,16 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 2. Confirm `sno2c -jvm beauty.sno` completes without segfault
 3. Assemble with jasmin.jar, run beauty, diff vs oracle
 4. Work through 19 JVM subsystem milestones (M-JVM-BEAUTY-*)
+
+## PJ-21 — 2026-03-24
+
+**Milestone fired:** M-PJ-NEQ ✅
+
+**Work done:**
+- Added `int *next_local` to `pj_emit_goal` signature (fwd decl + defn); updated all 7 call sites in `pj_emit_body`.
+- Inserted `\=/2` emit block after `\==` block: save trail mark to fresh scratch local, call `pj_unify` as probe, `istore` boolean result, `pj_trail_unwind`, `iload` result, branch inverted.
+- Added `pj_count_neq` helper; folded `2 * max_neq` into `.limit locals` formula to fix `VerifyError: Illegal local variable number` on `all_diff5` (10 `\=` calls).
+- Results: 9/9 rungs PASS (no regression), puzzle_08 PASS, puzzle_09 PASS, 19/21 rung10 PASS (03+11 pre-existing).
+- Commit: `d6d2266` on snobol4x main.
+
+**Next:** M-PJ-STACK-LIMIT — `.limit stack 16` hard-code needs fix for deep predicates.
