@@ -1443,3 +1443,26 @@ Root cause: `pj_emit_arith()` has no case for `mod` — falls to `default: lcons
 - rung23: 4/5 PASS (t01✅ t02✅ t03✅ t04✅ t05❌)
 
 **Remaining bug (IJ-36):** `key(T)` generator α re-snapshot. `every` drives generator via α (not β) on each iteration → `ktr` re-snapshots keySet, resets kidx=0 → only first key yielded repeatedly. Fix: add `icn_N_kinit I` static; α checks kinit and jumps to kchk if set; ktr sets kinit=1 on first entry.
+
+## PJ-49 — M-PJ-ATOM-BUILTINS WIP (5/5 rung11, 4/5 rung12)
+
+**HEAD:** `7e31f3a` | **Date:** 2026-03-25
+
+**Work done:**
+
+- **Fix 1 — Deleted spurious `JI("pop","")` in `pj_atom_chars_2` forward path** (line ~997). This was the bug documented in PJ-48.
+- **Fix 2 — Deleted stray `invokestatic pj_atom_name` call** immediately above the `aload_2` in the same forward path. This was the *actual* VerifyError cause: it executed on an empty stack (after `ifne` consumed the boolean, stack was empty). The `pop` removal alone was not sufficient.
+- **Fix 3 — Added atom builtins to `pj_is_user_call` whitelist** in `prolog_emit_jvm.c`. `atom_length`, `atom_concat`, `atom_chars`, `atom_codes`, `char_code`, `number_chars`, `number_codes`, `upcase_atom`, `downcase_atom`, `between`, `findall` were missing — causing them to be treated as user-defined predicates (`p_atom_length_2` etc.) instead of routing to builtin dispatch in `pj_emit_goal`.
+
+**Score:** 5/5 rung11 ✅. 4/5 rung12 — `atom_codes` reverse path still failing.
+
+**Remaining bug — `atom_codes` reverse path ClassCastException:**
+`java.lang.String cannot be cast to java.lang.Long` at `pj_int_val` called from `pj_code_list_to_string`. The nil-check in `colts_loop` uses `iconst_1 aaload` (index 1) — this may be checking the wrong slot. Compare to `pj_char_list_to_string` (which passes) to find the correct nil-check index. Also verify head element is loaded with the correct index (`iconst_2` vs `iconst_1`).
+
+**Context window at handoff: ~98%.**
+
+**Next session (PJ-50):**
+1. Diff `pj_code_list_to_string` vs `pj_char_list_to_string` nil-check index — fix to match working version.
+2. Build, `5/5 rung12` → **M-PJ-ATOM-BUILTINS ✅**.
+3. `20/20 puzzle corpus` confirm.
+4. Commit snobol4x, update §NOW + milestone table FRONTEND-PROLOG-JVM.md, update PLAN.md, push .github.

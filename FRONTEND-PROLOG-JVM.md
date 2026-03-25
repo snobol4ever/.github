@@ -19,31 +19,21 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-48 — M-PJ-ATOM-BUILTINS WIP; rung12 corpus+helpers landed; 1 stack bug in pj_atom_chars_2 forward path | `da9cfb7` PJ-48 | M-PJ-ATOM-BUILTINS → M-PJ-ASSERTZ |
+| **Prolog JVM** | `main` PJ-49 — 5/5 rung11 ✅; 4/5 rung12; pj_is_user_call whitelist fixed; atom_codes reverse ClassCastException WIP | `7e31f3a` PJ-49 | M-PJ-ATOM-BUILTINS |
 
-### CRITICAL NEXT ACTION (PJ-49)
+### CRITICAL NEXT ACTION (PJ-50)
 
 **Baseline: 5/5 rung11 PASS. 20/20 puzzle corpus PASS. snobol4x HEAD `da9cfb7`.**
 
 **Next milestone: M-PJ-ATOM-BUILTINS — fix one stack bug, then green rung12**
 
-**THE BUG:** `pj_atom_chars_2` forward path has a spurious `pop` instruction.
-In `prolog_emit_jvm.c` around line ~997, the forward (atom→chars) path is:
+**THE BUG:** `pj_code_list_to_string` reverse path — `atom_codes(A, [104,101,...])` crashes with ClassCastException: String cannot be cast to Long.
 
-```
-; After ifne ac2_reverse (branch check consumes nothing extra):
-; Stack at this point: empty (ifne consumed the boolean, left nothing)
-; BUG: next two lines are wrong:
-    pop                   ← SPURIOUS — nothing to pop, causes VerifyError
-    aload_2               ← correct reload of deref'd term
-; Fix: DELETE the pop line. Keep aload_2.
-```
+Root cause: the nil-check in the `colts_loop` uses `iconst_1 aaload` (index 1 = head slot) and compares to `"[]"`. For nil term `{"[]"}`, index 0 is `"[]"` (tag) but index 1 doesn't exist → ArrayIndexOutOfBoundsException or wrong value. Check `pj_char_list_to_string` (which works) to see how it checks nil — likely uses `iconst_0 aaload` (the tag). Fix `pj_code_list_to_string` nil-check to use `iconst_0` + also verify head is at index 1 vs 2.
 
-**Exact fix in `prolog_emit_jvm.c`** — find the `pj_atom_chars_2` method body and delete the `JI("pop", "");` line that precedes the second `JI("aload_2", "");` in the forward path.
+Also: head element load uses `iconst_2 aaload` — verify list structure `{".", head, tail}` has head at [1] or [2]. Match to `pj_char_list_to_string` which passes.
 
-Search: `grep -n "pop\|ac2_reverse\|aload_2" src/frontend/prolog/prolog_emit_jvm.c | grep -A3 "ac2_reverse"`
-
-After fix: `make -C src`, then run rung12 sweep, expect 5/5. Confirm 20/20 puzzles intact.
+Fix: `make -C src`, then `5/5 rung12` → **M-PJ-ATOM-BUILTINS ✅**. Then 20/20 puzzle sweep. Commit + push per protocol.
 
 **Bootstrap PJ-49:**
 ```bash
