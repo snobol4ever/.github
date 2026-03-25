@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-35 — cutgamma_CI emitted + lbl_cutγ threaded; 17/20; beta-retry bypass diagnosed | `1a1cf3f` PJ-35 | M-PJ-CUT-UCALL: {-1} sentinel + caller cs-check |
+| **Prolog JVM** | `main` PJ-36 — 18/20; puzzle_11 PASS; cutgamma={base[N]}, any_has_cut guard; puzzle_18 shallow-scan miss | `1f904e8` PJ-36 | M-PJ-CUT-UCALL: recursive any_has_cut scan |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-21 — M-IJ-CORPUS-R12 ✅ string relops + ICN_SIZE (*s) + ij_expr_is_string(ICN_IF) fix; 64/64 PASS | `be2af59` IJ-21 | M-IJ-CORPUS-R13 |

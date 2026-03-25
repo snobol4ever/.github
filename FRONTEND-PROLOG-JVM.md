@@ -19,53 +19,64 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-35 — M-PJ-CUT-UCALL partial; cutgamma_CI + lbl_cutγ threaded; 17/20 (beta-retry bypass diagnosed) | `1a1cf3f` PJ-35 | M-PJ-CUT-UCALL: emit {-1} sentinel from cutgamma, check in caller ucall loop |
+| **Prolog JVM** | `main` PJ-36 — 18/20 PASS; puzzle_11 ✅; cutgamma={base[N]}, any_has_cut guard; puzzle_18 shallow-scan miss | `1f904e8` PJ-36 | M-PJ-CUT-UCALL: recursive any_has_cut scan fixes puzzle_18 |
 
-### CRITICAL NEXT ACTION (PJ-36)
+### CRITICAL NEXT ACTION (PJ-37)
 
-**JVM baseline: 17/20 PASS. Remaining failures:**
+**JVM baseline: 18/20 PASS. Remaining failures:**
 
-1. **puzzle_11, 18** — answer printed TWICE. Root cause **further refined** in PJ-35:
-   - `cutgamma_CI` labels now emitted; cut path jumps there (returning null). ✅
-   - But `call14_beta` in the **caller** fires when the *body after ages_ok* fails (`fail` goal).
-     It retries ages_ok with the cs stored from gamma (first solution). ages_ok re-enters
-     clause0 with `init_cs=stored_cs`, resumes the inner ucall continuation **past the `!`** → second answer.
-   - **Fix:** Make `cutgamma` return `{-1}` (distinct sentinel, not null). In `pj_emit_body`
-     ucall block: after extracting the returned cs integer, check `if cs == -1 → goto call_ω`
-     (treat as exhausted, skip retry). The caller's beta loop then never re-enters the predicate.
-   - Work sites: (a) cutgamma block in `pj_emit_clause` — change `aconst_null/areturn` to
-     `iconst_1/anewarray/.../ldc -1/.../areturn`; (b) ucall suffix in `pj_emit_body` (~line 1784)
-     after `istore local_cs`: add `iload local_cs; ldc -1; if_icmpeq <call_ω_label>`.
+1. **puzzle_18** — answer printed TWICE. Root cause diagnosed in PJ-36:
+   - `differ(X,X) :- !, fail.` has cut in clause 0; `differ(_,_).` is the last clause (pure fact).
+   - `last_has_ucall=0` for `differ/2`, so the `>=` range guard IS emitted — cutgamma → `{base[2]}`
+     → caller retries with `cs=base[2]` → range guard fires → omega. Structurally correct.
+   - BUT: the double-output comes from an **outer predicate** (likely `puzzle/0` or a helper) where
+     the `any_has_cut` sentinel guard is NOT being emitted because the cut scan is **shallow** —
+     it only checks top-level body goals, missing cuts nested inside `E_FNC ","` conjunction nodes
+     in the lowered IR.
+   - Verify: `grep "if_icmpeq" /tmp/Puzzle_18.j` returns nothing — confirms no sentinel guard fired.
+   - **Fix:** Make `any_has_cut` scan recursive. Add a helper `pj_body_has_cut(EXPR_t *g)` that
+     walks into `E_FNC ","` and `E_FNC ";"` children recursively, returning 1 if any child is `E_CUT`.
+     Use this helper in the all-clauses scan in `pj_emit_predicate`.
 
 2. **puzzle_03** — over-generates. Open: M-PJ-DISPLAY-BT.
 
-**Changes landed PJ-35:**
-- `prolog_emit_jvm.c`: `cutgamma_CI` labels emitted after each `gamma_CI` (returning null).
-- `lbl_cutγ` parameter added to `pj_emit_body` and `pj_emit_goal`; threaded through all calls.
-- Cut path (`E_CUT`) in both functions jumps to `lbl_cutγ`. Build clean. 17/20 unchanged.
+**Changes landed PJ-36:**
+- `cutgamma_CI` returns `{base[nclauses]}` (not null, not -1).
+- `any_has_cut` flag: shallow scan of all clauses' direct body goals for `E_CUT`.
+- `if_icmpeq base[nclauses] → omega` guard emitted for predicates where `last_has_ucall && any_has_cut`.
+- puzzle_11 ✅ PASS. puzzle_18 still FAIL (shallow scan misses nested cut). 18/20.
 
-**Bootstrap PJ-36:**
+**Bootstrap PJ-37:**
 ```bash
 git clone https://ghp_TOKEN@github.com/snobol4ever/snobol4x
 git clone https://ghp_TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src && cd snobol4x
-# Confirm baseline: 17/20 PASS (puzzle_03, 11, 18 fail)
+# Confirm 18/20: puzzle_03 and puzzle_18 fail
 for i in $(seq -f "%02g" 1 20); do
-  PUZZLE=puzzle_${i}; CLS=Puzzle_${i}
-  ./sno2c -pl -jvm test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro -o /tmp/${CLS}.j 2>/dev/null
-  java -jar src/backend/jvm/jasmin.jar /tmp/${CLS}.j -d /tmp 2>/dev/null
-  JVM=$(timeout 15 java -cp /tmp ${CLS} 2>/dev/null)
-  ORACLE=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro 2>/dev/null)
-  [ "$JVM" = "$ORACLE" ] && echo "${PUZZLE}: PASS" || echo "${PUZZLE}: FAIL"
+  P=puzzle_${i}; C=Puzzle_${i}
+  ./sno2c -pl -jvm test/frontend/prolog/corpus/rung10_programs/${P}.pro -o /tmp/${C}.j 2>/dev/null
+  java -jar src/backend/jvm/jasmin.jar /tmp/${C}.j -d /tmp 2>/dev/null
+  J=$(timeout 15 java -cp /tmp ${C} 2>/dev/null)
+  O=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${P}.pro 2>/dev/null)
+  [ "$J" = "$O" ] && echo "${P}: PASS" || echo "${P}: FAIL"
 done
-# Tackle M-PJ-CUT-UCALL:
-# Step 1 — grep cutgamma block in prolog_emit_jvm.c, change aconst_null to {-1} sentinel:
-grep -n "cutgamma port\|aconst_null.*areturn\|cutgamma" src/frontend/prolog/prolog_emit_jvm.c | head -10
-# Step 2 — in pj_emit_body ucall suffix after "istore %d local_cs" (~line 1784):
-#   emit: iload local_cs; ldc -1; if_icmpeq call_omega_label
-#   (need to pass call_omega label name into that emit site)
-grep -n "istore.*local_cs\|call_omega\|call.*omega" src/frontend/prolog/prolog_emit_jvm.c | head -20
+# Verify no if_icmpeq guard in puzzle_18: grep "if_icmpeq" /tmp/Puzzle_18.j  (should be empty)
+# Fix: in prolog_emit_jvm.c, add helper before pj_emit_predicate:
+#   static int pj_body_has_cut(EXPR_t *g) {
+#     if (!g) return 0;
+#     if (g->kind == E_CUT) return 1;
+#     if (g->kind == E_FNC) {
+#       for (int i=0;i<g->nchildren;i++) if (pj_body_has_cut(g->children[i])) return 1;
+#     }
+#     return 0;
+#   }
+# Then replace the any_has_cut inner loop:
+#   for (int bi2 = 0; bi2 < nb2 && !any_has_cut; bi2++) {
+#     if (pj_body_has_cut(cl->children[nv2 + bi2])) any_has_cut = 1;
+#   }
+# Build, rerun sweep, expect puzzle_18 PASS -> 19/20
+grep -n "any_has_cut\|pj_body_has_cut" src/frontend/prolog/prolog_emit_jvm.c
 ```
 
 **Bootstrap PJ-23:**
