@@ -340,7 +340,7 @@ Milestones are ordered from easiest to hardest based on problem structure:
 | **M-PZ-17** | puzzle_17.pro | Country Club dance pairings | ✅ real search — swipl PASS; JVM PASS |
 | **M-PZ-15** | puzzle_15.pro | Vernon/Wilson/Yates offices + secretaries | ✅ real search — swipl PASS |
 | **M-PZ-16** | puzzle_16.pro | Train crew relations | ✅ real search — swipl PASS |
-| **M-PZ-20** | puzzle_20.pro | Pullman car readers | ❌ hardcoded write stub — needs real search |
+| **M-PZ-20** | puzzle_20.pro | Pullman car readers | ✅ real search — 4 valid solutions, swipl PASS (stub was wrong) |
 | **M-PZ-13** | puzzle_13.pro | Murder case roles | ✅ real search — swipl PASS |
 | **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ✅ real search — swipl PASS |
 | **M-PZ-19** | puzzle_19.pro | Office floors + professions | ✅ real search — swipl PASS |
