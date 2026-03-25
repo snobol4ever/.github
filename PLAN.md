@@ -12,17 +12,17 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-1 — ALL SESSIONS FROZEN — see GRAND_MASTER_REORG.md | `pre-reorg-freeze` | M-G0-FREEZE ❌ NEXT |
-| **TINY backend** | [FROZEN] `main` B-292 — 106/106 | `acbc71e` B-292 | resume post-reorg |
-| **TINY NET** | [FROZEN] `net-t2` N-248 — M-T2-NET ✅ 110/110 | `425921a` N-248 | resume post-reorg |
-| **TINY JVM** | [FROZEN] `main` J-216 — STLIMIT ✅; 2D E_ARY WIP | `a74ccd8` J-216 | resume post-reorg |
-| **TINY frontend** | [FROZEN] `main` F-223 — rung05 reverted clean | `b4507dc` F-223 | resume post-reorg |
-| **DOTNET** | [FROZEN] `main` D-164 — 1903/1903 | `e1e4d9e` D-164 | resume post-reorg |
-| **README** | [FROZEN] `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` | resume post-reorg |
-| **ICON frontend** | [FROZEN] `main` I-11 — rung03 5/5 PASS | `bab5664` I-11 | resume post-reorg |
-| **Prolog JVM** | `main` PJ-43 — **20/20** confirmed; M-PJ-DISPLAY-BT root cause diagnosed — display/6 gamma cs re-enters gn retry on external fail-loop; minimal reproducer isolated | `38e4c39` PJ-43 | M-PJ-DISPLAY-BT: fix gamma cs pack — see PJ-44 bootstrap in FRONTEND-PROLOG-JVM.md |
-| **Icon JVM** | [FROZEN] `main` IJ-29 — M-IJ-CORPUS-R20 ✅ 104/104 PASS | `7f8e3a2` IJ-29 | resume post-reorg |
-| **README v2 sprint** | [FROZEN] `main` R-2 | TBD R-2 | resume post-reorg |
+| **⚠ GRAND MASTER REORG** | G-1 — plan published; concurrent work continues normally — see GRAND_MASTER_REORG.md | `8fec586` G-1 | M-G0-FREEZE (Lon schedules) |
+| **TINY backend** | `main` B-292 — JVM nchildren segfault fixed; L_io_end missing-label diagnosed; 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
+| **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
+| **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT fields+init+set+get+tick ✅ VERIFIED (10K loop terminates); 2D E_ARY subscript WIP | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT → M-JVM-BEAUTY-GLOBAL |
+| **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
+| **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
+| **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
+| **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
+| **Prolog JVM** | `main` PJ-43 — **20/20** confirmed; M-PJ-DISPLAY-BT root cause diagnosed — display/6 gamma cs re-enters gn retry on external fail-loop; minimal reproducer isolated | `38e4c39` PJ-43 | M-PJ-DISPLAY-BT |
+| **Icon JVM** | `main` IJ-29 — M-IJ-CORPUS-R20 ✅ ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | `7f8e3a2` IJ-29 | M-IJ-CORPUS-R21 |
+| **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
