@@ -1039,3 +1039,20 @@ Then M-SCRIPTEN-DEMO2 immediately after.
 **HEAD at handoff:** `fc01c40` on origin/main
 **Next:** Begin M-PJ-PZ-ALL-JVM (clear puzzle_18 NAF bug, puzzle_03 over-gen),
 then M-PJ-FINDALL as first enhancement sprint.
+
+## IJ-28 — 2026-03-25
+
+**Milestone:** M-IJ-CORPUS-R19 ✅
+**HEAD:** `2574281` (snobol4x main)
+**Result:** 99/99 PASS (rung01–19)
+
+**What fired:** ICN_POW (exponentiation `^`) + real `to-by` generator support.
+
+**Key changes:**
+- `icon_parse.c`: `parse_pow()` right-associative `^` at precedence above `*`
+- `icon_emit_jvm.c`: `ij_emit_pow` via `Math.pow(DD)D`; D-field helpers; `ij_emit_to_by` real mode (`is_dbl` flag); `ij_emit_neg` `dneg` for real; `ij_expr_is_real` extended for `ICN_POW/NEG/TO_BY/TO`
+- rung19 corpus: 5/5 PASS
+
+**Root cause caught mid-session:** `-1.0` literal (unary neg of real) hit `lneg` → VerifyError. Fixed by `ij_expr_is_real(ICN_NEG)` + `dneg` in `ij_emit_neg`.
+
+**Next:** M-IJ-CORPUS-R20 — ICN_SEQ_EXPR (`;` sequence), string section `s[i:j]`, or `ICN_CASE`.

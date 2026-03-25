@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-27 — M-IJ-CORPUS-R18 ✅ real relops (dcmpl/dcmpg + l2d + ICN_ALT realness); 94/94 PASS | `f976057` IJ-27 | M-IJ-CORPUS-R19 |
+| **Icon JVM** | `main` IJ-28 — M-IJ-CORPUS-R19 ✅ ICN_POW (^) + real to-by (dneg fix); 99/99 PASS | `2574281` IJ-28 | M-IJ-CORPUS-R20 |
 
-### Next session checklist (IJ-28)
+### Next session checklist (IJ-29)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -32,10 +32,34 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 94/94 PASS (rungs 01-18) before touching code
-# Next: M-IJ-CORPUS-R19 — candidates: lists/tables, co-expressions, multi-file,
-# or deeper real arithmetic (real to-by, real subscript). Consult JCON-ANALYSIS.md.
+# Confirm 99/99 PASS (rungs 01-19) before touching code
+# Next: M-IJ-CORPUS-R20 — candidates: ICN_SEQ_EXPR (E;F sequence expressions),
+# string section s[i:j], ICN_CASE, or deeper pow chains. Consult JCON-ANALYSIS.md.
 ```
+
+### IJ-28 findings — M-IJ-CORPUS-R19 ✅
+
+**99/99 PASS (rung01–19).** HEAD `2574281`.
+
+**Changes in `icon_parse.c`:**
+
+1. **`parse_pow()`** — new level between `parse_unary` and `parse_mul`. Right-associative (recursive). Handles `TK_CARET` → `ICN_POW` node.  `parse_mul` now calls `parse_pow` instead of `parse_unary`.
+
+**Changes in `icon_emit_jvm.c`:**
+
+1. **Double field helpers** — `ij_declare_static_real`, `ij_get_real_field`, `ij_put_real_field` (type `D`).
+
+2. **`ij_emit_pow`** — evaluates both operands via standard funcs-set relay pattern; promotes each to `D` via `l2d` if not already real; stores both in `D` static fields; calls `invokestatic java/lang/Math/pow(DD)D`; result is `D` at ports.γ. One-shot (β → ω).
+
+3. **`ij_emit_to_by` real support** — `is_dbl` flag: any operand real → use `D` fields + `dadd`/`dcmpl`/`dcmpg`/`dconst_0` instead of long equivalents. Promoted via `l2d` at relay if mixed.
+
+4. **`ij_emit_neg` real support** — emits `dneg` if child is real, `lneg` otherwise. Fixes VerifyError on `-1.0` literal as step operand.
+
+5. **`ij_expr_is_real` extensions** — `ICN_POW` (always D), `ICN_NEG` (delegates to child), `ICN_TO_BY` (any of 3 children), `ICN_TO` (either bound).
+
+6. **Dispatch** — `case ICN_POW: ij_emit_pow(...)` added.
+
+**rung19_pow_toby corpus (5 tests):** integer pow `2^10`→1024.0; real pow `2.0^0.5`→√2; real to-by `1.0 to 2.0 by 0.5`→1.0 1.5 2.0; negative-step `3.0 to 1.0 by -1.0`→3.0 2.0 1.0; pow with var `x^2` (x=3.0)→9.0.
 
 ### IJ-27 findings — M-IJ-CORPUS-R18 ✅
 
