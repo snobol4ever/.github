@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-288 — E_VART CALL_PAT + DATA slot zeroing; *Parse scan-retry still fails | `358184a` B-288 | M-BEAUTIFY-BOOTSTRAP |
+| **TINY backend** | `main` B-289 — buffer limits, FENCE, mock_includes removed, r12 save/restore; beauty Parse Error: r12 clobber in nested named-pat calls | `0378dad` B-289 | M-BEAUTIFY-BOOTSTRAP |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |

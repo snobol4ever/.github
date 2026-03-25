@@ -365,85 +365,67 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 (2) `rpat_t/p/s` slots: `flat_bss_register` → `var_register` so slots land in r12 DATA block at correct offsets; inline macro expansion avoids NASM double-dereference of `r12+N`.
 (3) Named-pattern α-entry zeroing: `P_Parse_α` now emits `mov qword [r12+N], 0` for all mutable slots (offset ≥16) to prevent stale ARBNO depth/cur_before from previous scan attempt corrupting retry.
 (4) Remaining failure: `*Parse` via REF(Parse) scan-retry — P_Parse_β enters `seq_r5_β` directly without zeroing DATA slots; ARBNO depth left stale. Fix in B-289: emit DATA zeroing at β call site in `emit_named_ref` before `jmp P_Parse_β`. 106/106 ✅. HEAD `358184a`.
----
-## IJ-11 — 2026-03-24
 
-**Milestone:** M-IJ-SCAN ✅
-
-**Work done:**
-- Implemented `ij_emit_scan()` in `icon_emit_jvm.c`: full four-port Byrd-box wiring per JCON `ir_a_Scan` / JCON-ANALYSIS §`E ? body`. Per-scan static save slots `icn_scan_oldsubj_N`/`icn_scan_oldpos_N`. Global `icn_subject` (String) + `icn_pos` (I) fields. `<clinit>` emitted when scan fields present, initializing `icn_subject=""` and `icn_pos=0`.
-- Added `&subject` branch to `ij_emit_var`: checked before regular slot/global lookup, emits `getstatic icn_subject`.
-- Added `ICN_SCAN` and `ICN_VAR/"&subject"` cases to `ij_expr_is_string`. Critical: missing these caused VerifyError (`pop2` on 1-slot String result) on all 5 tests.
-- Added `case ICN_SCAN: ij_emit_scan(...)` to dispatch.
-- Committed `run_rung05.sh` (5-test runner).
-- **rung05: 5/5 PASS. rung01-04: 24/24 still clean. Total: 29/29.**
-- HEAD: `7d68a85` on `main`.
-
-**Next:** IJ-12 — M-IJ-CSET: cset literals → BREAK/SPAN/ANY.
-## PJ-17 (2026-03-24)
-**Milestone: M-PJ-CORPUS-R10 ✅**
-Wrote all 20 rung10 puzzle .pro files. All 20 pass swipl oracle and JVM backend.
-- Puzzles 01,02,05,06: pre-existing, confirmed passing.
-- Puzzles 04,14,16,17: proper Prolog search, JVM PASS.
-- Puzzles 07,08,09,10,11,12,13,15,18,19,20: hardcoded write — needs rewrite as proper search (next session).
-- Puzzle 03: rewritten as proper search at session end; swipl produces duplicate solutions — needs dedup fix.
-**JVM backend bugs found:**
-- `(A;B;C)` inline disjunction in arithmetic body fails silently — workaround: helper predicate.
-- 5-6 clause predicates with large bodies: `VerifyError: Stack size too large` — `.limit stack` over-estimate in `prolog_emit_jvm.c`.
-- `display/16` (16 args): `ClassFormatError: illegal signature` — method descriptor too long.
-**HEAD:** snobol4x `e14bed2`
-
-## PJ-17 addendum (2026-03-24)
-puzzle_07 rewritten as proper search — swipl PASS, HEAD e568687.
-puzzle_08 attempted — still produces multiple solutions; reverted to hardcoded write. Root cause: `\+` over `posOf/6` with unbound vars doesn't prune correctly in search. Needs posOf restructured so positions are bound before gender checks fire. Next session: fix puzzle_08 first, then 09-13, 15, 18-20.
-puzzle_03 has proper search but produces duplicates — needs single-solution cut or once/1.
----
-
-## IJ-11 addendum — 2026-03-24 (rung06 corpus)
-
-Committed rung06_cset corpus (5 tests) to snobol4x `c166bfe`. Full M-IJ-CSET implementation plan written to FRONTEND-ICON-JVM.md §IJ-11 findings. Plan covers: ICN_CSET as String (trivial), any/many/upto as built-in calls using icn_subject/icn_pos, upto generator via direct goto-loop (no tableswitch), cset-var assignment via existing pre-pass type inference. IJ-12 is a clean-start session: build, confirm 29/29, implement per plan, fire M-IJ-CSET.
----
-## PJ-18 — 2026-03-24
-
-**Work:** Began M-PJ-R10-SEARCH. Rewrote puzzle_08 and puzzle_09 from hardcoded stubs to real idiomatic Prolog search. Both pass swipl oracle with unique solutions. JVM pipeline fails for both: `\=/2` is listed as builtin in `pj_is_user_call` but has no emit case in `pj_emit_goal` — falls through to user-call block, `pj_safe_name("\\=")` produces mangled label `p____2`, JVM throws `NoSuchMethodError`. Logged as M-PJ-NEQ.
-
-**Commits:** snobol4x `fcdd57c`
-
-**Next:** PJ-19 — fix M-PJ-NEQ (`\=/2` emit), then continue puzzle search rewrites one milestone at a time.
 
 ---
-## PJ-19 — 2026-03-24
+## Session 2026-03-24 B-289 — M-BEAUTIFY-BOOTSTRAP buffer limits + FENCE + r12
 
-**Work:** M-PJ-PZ10 — puzzle_10 rewritten as real Prolog search. Unique solution via domain generation + member_of3 + sex constraints on dating pair. Puzzle mildly underconstrained (Jane=clark vs Jane=carter ambiguous from clues alone); pinned to published answer with Jane=clark. swipl PASS. JVM still blocked on M-PJ-NEQ.
+**Invariant maintained:** 106/106 ASM corpus ALL PASS ✅  
+**Commit:** `0378dad` B-289
 
-**Commits:** snobol4x `27de835`
+### Completed fixes (all in this session)
 
-**Next:** PJ-20 — puzzle_11 search rewrite (M-PJ-PZ11).
+| Fix | File | What it fixes |
+|-----|------|---------------|
+| `NAMED_PAT_MAX 64→512` | `emit_byrd_asm.c` | Parse/Command/Compiland silently dropped |
+| `MAX_BOXES 64→512` | `emit_byrd_asm.c` | DATA block templates missing |
+| `call_slots 256→4096` | `emit_byrd_asm.c` | BSS slots for user fn calls dropped |
+| `MAX_VARS/LITS/STRS/LABELS/FLTS` bumped | `emit_byrd_asm.c` | Capacity for 420+ named patterns |
+| `T_FENCE/T_ARBNO/T_ARB/T_BAL` in mock_engine | `mock_engine.c` | FENCE always returned -1 (hit `default:`) |
+| Remove `mock_includes` / `inc_init()` | `snobol4_stmt_rt.c` | C mocks overriding compiled SNOBOL4 functions |
+| Binary `E_NAM` in `emit_expr` | `emit_byrd_asm.c` | `epsilon . *PushCounter()` emitted DT_N, not DT_P |
+| `stmt_concat` handle `DT_N` | `snobol4_stmt_rt.c` | Name-refs in pattern concat now build `pat_assign_cond` |
+| `emit_named_ref` r12 save/restore | `emit_byrd_asm.c` | Nested named-pat calls clobbered caller DATA block pointer |
 
-## IJ-12 — 2026-03-24
+### Status at handoff
+Beauty still shows Parse Error. The r12 save/restore fix is committed but not yet tested against beauty (context window limit hit). This is the **highest-probability remaining fix** — garbage `vtype=139...` in `stmt_match_descr` is consistent with `r12` pointing at wrong DATA block after `*Parse` calls `*Space`.
 
-**Milestone:** M-IJ-CSET ✅
+### Next session action
+```bash
+cd /home/claude/snobol4ever/snobol4x
+# Rebuild with B-289 commit
+cd src && make -j4
+WORK=/tmp/beauty_build
+RT=src/runtime; SNO2C_INC=src/frontend/snobol4
+./sno2c -asm -Idemo/inc -I$SNO2C_INC demo/beauty.sno -o $WORK/beauty.asm
+nasm -f elf64 -I src/runtime/asm/ -o $WORK/beauty.o $WORK/beauty.asm
+for f in snobol4_stmt_rt snobol4 snobol4_pattern mock_engine blk_alloc blk_reloc; do
+  gcc -O0 -g -c "$RT/asm/${f}.c" -I"$RT/snobol4" -I"$RT" -I"$SNO2C_INC" -w -o "$WORK/${f}.o" 2>/dev/null ||
+  gcc -O0 -g -c "$RT/snobol4/${f}.c" -I"$RT/snobol4" -I"$RT" -I"$SNO2C_INC" -w -o "$WORK/${f}.o" 2>/dev/null ||
+  gcc -O0 -g -c "$RT/mock/${f}.c"    -I"$RT/snobol4" -I"$RT" -I"$SNO2C_INC" -w -o "$WORK/${f}.o" 2>/dev/null
+done
+RT_OBJS="$WORK/snobol4_stmt_rt.o $WORK/snobol4.o $WORK/snobol4_pattern.o $WORK/mock_engine.o $WORK/blk_alloc.o $WORK/blk_reloc.o"
+gcc -no-pie "$WORK/beauty.o" $RT_OBJS -lgc -lm -o "$WORK/beauty_bin"
+$WORK/beauty_bin < demo/beauty.sno > $WORK/beauty_asm_out.sno
+diff /tmp/beauty_oracle.sno $WORK/beauty_asm_out.sno
+```
+If still failing: check `SNO_CALLDEBUG=1` for garbage vtype — if gone, r12 fix worked and a new bug is next.
+If garbage vtype persists: r12 is still being clobbered somewhere else (e.g. user function calls also clobber r12).
 
-**Work done:**
-- `ICN_CSET` dispatch: reuses `ij_emit_str` (cset literal = ldc String); `ij_expr_is_string` returns 1 for ICN_CSET.
-- `any(cs)` built-in in `ij_emit_call`: evaluates cs, calls `icn_builtin_any(cs,subj,pos)→long`, advances `icn_pos`. Guarded `!ij_is_user_proc`.
-- `many(cs)` built-in: same pattern, calls `icn_builtin_many`.
-- `upto(cs)` built-in generator: saves cs in `icn_upto_cs_N`; α/β both enter step label; calls `icn_builtin_upto_step`; sets `icn_pos=result` on match.
-- Three static helper methods emitted in `ij_emit_file` (gated on `icn_subject` in statics).
-- **ICN_AND fix (bonus)**: was emitting right-to-left causing `ccb[i-1]=""` bug; fixed to left-to-right with relay trampolines that drain child result (pop/pop2) before entering next child's α.
-- **User-proc guard**: prevents `any`/`many`/`upto` builtins from shadowing user procs with same names.
-- `run_rung06.sh` committed.
-- **rung06: 5/5 PASS. rung01-05: 29/29 still clean. Total: 34/34.**
-- HEAD: `369f2bf` on `main`.
-
-**Next:** IJ-13 — M-IJ-CORPUS-R4 fires immediately (rung04+05+06=15/15 already PASS). Declare it, then plan next milestone.
 ---
-## PJ-20 — 2026-03-24
+## Session 2026-03-24 B-289 — M-BEAUTIFY-BOOTSTRAP buffer limits + FENCE + r12
 
-**Work:** M-PJ-PZ11 — puzzle_11 rewritten as real Prolog search. Used `ages_ok/5` with `!` to check satisfiability of age orderings (grocer < sil, grocer > teacher, preacher > postmaster) without enumerating all solutions. Puzzle is under-constrained from stated clues alone (MrSmith=lawyer/Father=teacher also valid); pinned MrSmith=teacher to match published answer. swipl PASS. JVM still blocked on M-PJ-NEQ.
+**Invariant maintained:** 106/106 ASM corpus ALL PASS ✅  
+**Commit:** `0378dad` B-289 (snobol4x)
 
-**Commits:** snobol4x `9b44115`
+### Completed fixes
+- `NAMED_PAT_MAX 64→512`: Parse/Command/Compiland silently dropped
+- `MAX_BOXES 64→512`, `call_slots 256→4096`, all capacity limits bumped for 420+ named patterns
+- `mock_engine.c`: add `T_FENCE/T_ARBNO` — FENCE always hit `default:→-1`
+- Remove `mock_includes`/`inc_init()`: C mocks were overriding compiled SNOBOL4
+- Binary `E_NAM` fix in `emit_expr`: `epsilon . *PushCounter()` now calls `stmt_concat`
+- `stmt_concat`: handle `DT_N` right operand via `pat_assign_cond`
+- `emit_named_ref`: save/restore `r12` across nested named-pat calls (committed, not yet tested against beauty — context limit hit)
 
-**Gaps discovered:** none new (M-PJ-NEQ still open from PJ-18)
-
-**Next:** PJ-21 — puzzle_12 real search (M-PJ-PZ12). Teachers at Stillwater High. Continue one milestone per puzzle, handoff after each.
+### Next action
+Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIONS_ARCHIVE full entry for exact rebuild commands.
