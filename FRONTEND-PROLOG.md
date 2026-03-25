@@ -351,7 +351,7 @@ Milestones are ordered from easiest to hardest based on problem structure:
 | **M-PZ-07** | puzzle_07.pro | Brown/Clark/Jones/Smith professions | ✅ real search — swipl PASS; JVM PASS |
 | **M-PZ-10** | puzzle_10.pro | Five J-names + last names | ✅ real search — swipl PASS; JVM PASS |
 | **M-PZ-03** | puzzle_03.pro | Triple engagement party | ✅ real search — swipl PASS; JVM 20L (over-generates) |
-| **M-PZ-12** | puzzle_12.pro | Stillwater High teachers | ❌ hardcoded write stub — needs real search |
+| **M-PZ-12** | puzzle_12.pro | Stillwater High teachers | ✅ real search — swipl PASS |
 
 Each milestone trigger: the puzzle file prints the correct solution and exits 0 via swipl.
 
