@@ -174,13 +174,14 @@ the emit pass. Generated labels are always `L<id>_<port>` (JVM/.NET) or
 
 ## Migration Strategy
 
-**All concurrent development halts** for the duration of the Grand Master Reorg.
-The NOW table in PLAN.md is frozen at current HEADs. No B/J/N/F/D/I/PJ/IJ sessions
-during reorg. Test suite (`106/106` ASM corpus + `1903/1903` DOTNET) must be green
-at the end of every milestone. Any regression → rollback, diagnose, fix before continuing.
+**Concurrent development continues normally until Lon gives the word to begin execution.**
+When execution is scheduled, all sessions will be paused for the duration of the reorg.
+Until then, every session row in PLAN.md remains active and unblocked.
 
-The migration is **purely mechanical** at each step — no new features, no bug fixes,
-no behavior changes. If a step introduces a regression, it is reverted entirely.
+When execution begins: the reorg is **purely mechanical** at each step — no new features,
+no bug fixes, no behavior changes. If a step introduces a regression, it is reverted
+entirely. The test suite (`106/106` ASM corpus + `1903/1903` DOTNET) must be green
+at the end of every milestone. Any regression → rollback, diagnose, fix before continuing.
 
 Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
