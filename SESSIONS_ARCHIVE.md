@@ -604,3 +604,20 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 
 **Milestone:** M-IJ-CORPUS-R8 — corpus committed ✅; emitter implementation deferred to IJ-16.
 **Next:** IJ-16 implements find/match/tab/move in `ij_emit_call` + static helpers → fires M-IJ-CORPUS-R8.
+
+---
+## PJ-24 — 2026-03-24
+
+**Fixes landed (snobol4x a77555c):**
+1. `\+` trail corruption: save mark before inner goal, unwind on both inner_ok and inner_fail paths. Mirrors `\=/2` pattern.
+2. Body-fail trail corruption: added `bodyfail_N` trampoline per clause in `pj_emit_choice`. Body goal failure now unwinds clause trail before jumping to next clause. `lbl_outer_ω` (ucall exhaustion) bypasses trampoline to avoid double-unwind.
+
+**Baseline:** 9/9 rungs PASS throughout.
+
+**puzzle_03:** logic search correct (12/12 assignments match swipl). `display/6` over-generation remains open as M-PJ-DISPLAY-BT.
+
+**HQ updates:**
+- Added 20 puzzle milestones M-PZ-03..20 to PLAN.md (all ❌, write+swipl verify).
+- FRONTEND-PROLOG-JVM.md §NOW updated with PJ-25 bootstrap.
+
+**Next session (PJ-25):** Start M-PZ-14 (golf scores, easiest puzzle). Write solution, verify swipl, fire milestone. Then proceed through milestone list in order.

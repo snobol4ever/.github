@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-24 — \\+ trail + body-fail trail fixed; puzzle_03 logic OK; display over-generates | `a77555c` PJ-24 | M-PJ-DISPLAY-BT |
+| **Prolog JVM** | `main` PJ-24 — two trail fixes landed; 20 puzzle milestones added to PLAN.md | `a77555c` PJ-24 | M-PZ-14 |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-15 — rung08 corpus committed; find/match/tab/move emitter pending | `6f11821` IJ-15 | M-IJ-CORPUS-R8 |
