@@ -336,22 +336,22 @@ Milestones are ordered from easiest to hardest based on problem structure:
 
 | ID | File | Puzzle | Status |
 |----|------|--------|--------|
-| **M-PZ-14** | puzzle_14.pro | Golf scores (Bill/Ed/Tom wives) | ✅ swipl PASS + JVM PASS |
-| **M-PZ-17** | puzzle_17.pro | Country Club dance pairings | ❌ |
-| **M-PZ-15** | puzzle_15.pro | Vernon/Wilson/Yates offices + secretaries | ❌ |
-| **M-PZ-16** | puzzle_16.pro | Train crew relations | ❌ |
-| **M-PZ-20** | puzzle_20.pro | Pullman car readers | ❌ |
-| **M-PZ-13** | puzzle_13.pro | Murder case roles | ❌ |
-| **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ❌ |
-| **M-PZ-19** | puzzle_19.pro | Office floors + professions | ❌ |
-| **M-PZ-04** | puzzle_04.pro | Milford occupations + salaries | ❌ |
-| **M-PZ-09** | puzzle_09.pro | Empire Dept Store positions | ❌ |
-| **M-PZ-08** | puzzle_08.pro | Dept Store positions (Ames/Brown/Conroy…) | ❌ |
-| **M-PZ-11** | puzzle_11.pro | Smith family positions | ❌ |
-| **M-PZ-07** | puzzle_07.pro | Brown/Clark/Jones/Smith professions | ❌ |
-| **M-PZ-10** | puzzle_10.pro | Five J-names + last names | ❌ |
-| **M-PZ-03** | puzzle_03.pro | Triple engagement party | ❌ |
-| **M-PZ-12** | puzzle_12.pro | Stillwater High teachers | ❌ |
+| **M-PZ-14** | puzzle_14.pro | Golf scores (Bill/Ed/Tom wives) | ✅ real search — swipl PASS + JVM PASS |
+| **M-PZ-17** | puzzle_17.pro | Country Club dance pairings | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-15** | puzzle_15.pro | Vernon/Wilson/Yates offices + secretaries | ✅ real search — swipl PASS |
+| **M-PZ-16** | puzzle_16.pro | Train crew relations | ✅ real search — swipl PASS |
+| **M-PZ-20** | puzzle_20.pro | Pullman car readers | ❌ hardcoded write stub — needs real search |
+| **M-PZ-13** | puzzle_13.pro | Murder case roles | ❌ hardcoded write stub — needs real search |
+| **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ❌ hardcoded write stub — needs real search |
+| **M-PZ-19** | puzzle_19.pro | Office floors + professions | ❌ hardcoded write stub — needs real search |
+| **M-PZ-04** | puzzle_04.pro | Milford occupations + salaries | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-09** | puzzle_09.pro | Empire Dept Store positions | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-08** | puzzle_08.pro | Dept Store positions (Ames/Brown/Conroy…) | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-11** | puzzle_11.pro | Smith family positions | ✅ real search — swipl PASS; JVM 2L (over-generates) |
+| **M-PZ-07** | puzzle_07.pro | Brown/Clark/Jones/Smith professions | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-10** | puzzle_10.pro | Five J-names + last names | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-03** | puzzle_03.pro | Triple engagement party | ✅ real search — swipl PASS; JVM 20L (over-generates) |
+| **M-PZ-12** | puzzle_12.pro | Stillwater High teachers | ❌ hardcoded write stub — needs real search |
 
 Each milestone trigger: the puzzle file prints the correct solution and exits 0 via swipl.
 

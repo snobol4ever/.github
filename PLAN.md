@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-25 — M-PZ-14 ✅; 16/19 puzzles JVM PASS; puzzle_03+11 over-generate | `9b40c88` PJ-25 | M-PZ-15 |
+| **Prolog JVM** | `main` PJ-26 — M-PZ-15 ✅ M-PZ-16 ✅; real search swipl PASS both | `eb70554` PJ-26 | M-PZ-12 |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-15 — rung08 corpus committed; find/match/tab/move emitter pending | `6f11821` IJ-15 | M-IJ-CORPUS-R8 |
@@ -101,8 +101,8 @@ Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl
 | **M-PZ-12** | Stillwater High — 6 teachers × 6 subjects + father/roommate clues | ❌ |
 | **M-PZ-13** | Murder case — Clayton/Forbes/Graham/Holgate/McFee/Warren × 6 roles | ❌ |
 | **M-PZ-14** | Golf scores — Bill/Ed/Tom wives, two couples same total, Ed's wife beats Bill's | ✅ |
-| **M-PZ-15** | Vernon/Wilson/Yates — architect/doctor/lawyer + 3 secretaries, floor ordering | ❌ |
-| **M-PZ-16** | Train crew Art/John/Pete/Tom — brakeman/conductor/engineer/fireman + family | ❌ |
+| **M-PZ-15** | Vernon/Wilson/Yates — architect/doctor/lawyer + 3 secretaries, floor ordering | ✅ |
+| **M-PZ-16** | Train crew Art/John/Pete/Tom — brakeman/conductor/engineer/fireman + family | ✅ |
 | **M-PZ-17** | Country Club dance — Ed/Frank/George/Harry wives, dance exchange snapshot | ❌ |
 | **M-PZ-18** | Luncyville shopping — Abbott/Briggs/Culver/Denny, day constraints per store | ❌ |
 | **M-PZ-19** | Office floors — Allen/Brady/McCoy/Smith, floor arithmetic constraints | ❌ |
