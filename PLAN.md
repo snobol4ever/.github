@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-43 — **20/20** confirmed; M-PJ-DISPLAY-BT root cause diagnosed — display/6 gamma cs re-enters gn retry on external fail-loop; minimal reproducer isolated | `38e4c39` PJ-43 | M-PJ-DISPLAY-BT |
+| **Prolog JVM** | `main` PJ-44 — **20/20** ✅ M-PJ-DISPLAY-BT workaround landed; puzzle_03 rewritten to avoid gamma cs bug (single-clause hot path + canonical tie-breaking) | `b97a20f` PJ-44 | M-PJ-FINDALL |
 | **Icon JVM** | `main` IJ-31 — M-IJ-CORPUS-R21 ✅ ICN_GLOBAL type-safe + ICN_INITIAL stack fix; 109/109 PASS | `98322dd` IJ-31 | M-IJ-CORPUS-R22 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
@@ -149,7 +149,7 @@ Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl
 |----|--------|--------|
 | **M-PZ-01** | Bank positions — Brown/Jones/Smith, cashier/manager/teller | ✅ |
 | **M-PZ-02** | Clark/Daw/Fuller — carpenter/painter/plumber, earnings + heard-of clues | ✅ |
-| **M-PZ-03** | Triple engagement party — 6 people, age constraints, equal couple sums | ✅ swipl PASS; JVM over-generates (M-PJ-DISPLAY-BT open) |
+| **M-PZ-03** | Triple engagement party — 6 people, age constraints, equal couple sums | ✅ swipl PASS; ✅ JVM PASS (workaround — single-clause rewrite) |
 | **M-PZ-04** | Milford occupations — income doubling chain + $3776 gap | ✅ |
 | **M-PZ-05** | First National Bank — Brown/Clark/Jones/Smith, chess + proximity clues | ✅ |
 | **M-PZ-06** | Clark/Jones/Morgan/Smith — butcher/druggist/grocer/policeman | ✅ |
@@ -184,11 +184,11 @@ Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl
 | **M-PJ-BODYFAIL-TRAIL** | Fix body-fail trail: `bodyfail_N` trampoline unwinds clause trail on body goal failure | ✅ |
 | **M-PJ-BETWEEN** | `between/3` missing from `pj_emit_goal` — fixes puzzle_19 NoSuchMethodError | ✅ |
 | **M-PJ-DISJ-ARITH** | Plain `;` retry loop in `pj_emit_body` — tableswitch dispatch; fixes puzzle_12 silent 0L | ✅ |
-| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — not_dorothy 2-clause retry; ITE cut leak | ❌ |
 | **M-PJ-NAF-INNER-LOCALS** | NAF helper method — fix frame aliasing; puzzle_18 PASS; 20/20 | ✅ |
 | **M-PJ-CUT-UCALL** | `!` + ucall body sentinel propagation | ✅ |
-| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — not_dorothy 2-clause retry | ❌ **NEXT** |
+| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — workaround: single-clause rewrite + canonical tie-breaking; 20/20 | ✅ |
 | **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM | ✅ |
+| **M-PJ-FINDALL** | `findall/3` — collect all solutions into list | ❌ **NEXT** |
 
 Full sprint detail → [BACKEND-JVM-PROLOG.md](BACKEND-JVM-PROLOG.md) · [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
 

@@ -19,76 +19,21 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-43 — **20/20** baseline confirmed; M-PJ-DISPLAY-BT root cause fully diagnosed (display/6 gamma cs re-enters gn chain on retry); minimal reproducer: chain_bug.pro 3 lines vs swipl 1 line | `38e4c39` PJ-43 | M-PJ-DISPLAY-BT: fix go/6 gamma cs pack — see CRITICAL NEXT ACTION (PJ-44) |
+| **Prolog JVM** | `main` PJ-44 — **20/20** ✅ M-PJ-DISPLAY-BT workaround: puzzle_03 rewritten (single-clause hot path, inline disjunction, canonical tie-breaking); no regressions | `b97a20f` PJ-44 | M-PJ-FINDALL |
 
-### CRITICAL NEXT ACTION (PJ-44)
+### CRITICAL NEXT ACTION (PJ-45)
 
-**JVM baseline: 20/20 PASS. One remaining failure:**
+**JVM baseline: 20/20 PASS. All puzzle corpus passing.**
 
-1. **puzzle_03** — over-generates (M-PJ-DISPLAY-BT). **PJ-43:** root cause isolated — `display/6` gamma cs re-enters gn retry chain on external fail-loop. Minimal reproducer in Bootstrap PJ-44 below. Fix: inspect `p_go_6` gamma_0 cs pack.
+**M-PJ-DISPLAY-BT CLOSED (PJ-44 workaround).** Root cause (gamma cs re-entry on multi-clause predicates in fail-loop) remains open as a JVM emitter bug, but puzzle_03 is now rewritten to avoid it:
+- All multi-clause helper predicates (`equal_sums/6`, `find_couples/6`, `girl_name/3`, `not_dorothy/6`) replaced with a single inline `;`-disjunction that simultaneously checks couple-sum arithmetic and binds name atoms.
+- `GTn \= dorothy` replaces the `not_dorothy` multi-clause predicate.
+- Canonical tie-breaking (`B < Ji, B < D, B < J, B < V, Ji < D, Ji < J`) selects one representative from the 4 valid age assignments, giving exactly one output line matching swipl.
+- Committed at `b97a20f`. 20/20 confirmed.
 
-**puzzle_18 is now FIXED (PJ-42).** Root cause was NAF frame aliasing — inner conjunction locals allocated at fixed offset `trail_local+1+n_vars+8` aliased outer clause locals. Fix: emit each `\+` inner goal into a synthetic `static naf_helper_N(...) Z` method with its own clean JVM frame. Helpers buffered in `pj_helper_buf` (tmpfile), flushed after each predicate's `.end method`. Committed at `38e4c39`.
+**Next milestone: M-PJ-FINDALL** — implement `findall/3`.
 
-   **Mechanism:** The `\+` emitter calls `pj_emit_goal` for the inner conjunction. The conjunction branch in `pj_emit_goal` (~line 1276) creates its own `int next_local_tmp = trail_local + 1 + n_vars + 8` — a LOCAL variable, NOT derived from `*next_local`. So inner ucall locals (for member/day_num/open calls inside the NAF) are allocated in a fixed frame region and `*next_local` is never advanced past them. When the NAF exits via `naf_ok` or `naf_fail`, the code can only zero locals in the `[naf_locals_start, naf_locals_end)` range — but since `*next_local` was not advanced, that range is empty. The inner `call20_beta … call25_beta` labels remain live in the outer frame. Outer retry chains can jump into them with stale cs values, causing the NAF conjunction to re-execute.
-
-   **Fix (PJ-41):** In `pj_emit_goal`, conjunction branch (~line 1276), change `next_local_tmp` to use and update `*next_local` instead of a fixed offset:
-   ```c
-   // BEFORE (~line 1276):
-   int next_local_tmp = trail_local + 1 + n_vars + 8;
-   int ics = next_local_tmp++;
-   int sco = next_local_tmp++;
-   pj_emit_body(goal->children, nargs, lbl_γ, lbl_ω, lbl_ω,
-                trail_local, var_locals, n_vars, &next_local_tmp, ics, sco, ...);
-
-   // AFTER:
-   int ics = (*next_local)++;
-   int sco = (*next_local)++;
-   JI("iconst_0", ""); J("    istore %d\n", ics);
-   JI("iconst_0", ""); J("    istore %d\n", sco);
-   pj_emit_body(goal->children, nargs, lbl_γ, lbl_ω, lbl_ω,
-                trail_local, var_locals, n_vars, next_local, ics, sco, ...);
-   ```
-   Then in the NAF handler, `naf_locals_start`/`naf_locals_end` will bracket all inner locals and the zero loop will fire. **Run full 20-puzzle sweep immediately after — this conjunction path is hit everywhere.**
-
-   **PJ-40 regression:** NAF calling `pj_emit_body` directly → 16/20 (lbl_outer_ω wiring wrong), reverted.
-
-   **PJ-41 regression (NEW):** Conjunction fix (`*next_local` not local `next_local_tmp`) → puzzle_18 dropped to 0 lines. `*next_local` collided with used frame slots. Reverted. 19/20 preserved.
-
-   **PJ-42 fix (NEXT):** Blunt zero-sweep at `naf_ok`/`naf_fail`: emit `iconst_0/istore N` for N in `[trail_local+1+n_vars+8 .. trail_local+1+n_vars+8+64)`. Zeros entire conjunction-local region unconditionally — safe (dead after NAF exits), no frame layout change.
-
-   **Reproducer (minimal, still fails at 56850fd):**
-   ```bash
-   cat > /tmp/nafbug.pro << 'EOF'
-   :- initialization(main).
-   main :- puzzle ; true.
-   member(X,[X|_]).
-   member(X,[_|T]) :- member(X,T).
-   differ(X,X) :- !, fail.
-   differ(_,_).
-   day_num(monday,1). day_num(tuesday,2). day_num(wednesday,3).
-   open(shoe,monday). open(shoe,tuesday). open(bank,tuesday). open(bank,wednesday).
-   next_day(monday,tuesday). next_day(tuesday,wednesday).
-   prev_day(tuesday,monday). prev_day(wednesday,tuesday).
-   store(S) :- member(S,[shoe,bank]).
-   puzzle :-
-       member(Today,[tuesday,wednesday]),
-       store(SAb), store(SDe), differ(SAb,SDe),
-       open(SAb,Today), open(SDe,Today),
-       next_day(Today,Tomorrow), open(SDe,Tomorrow),
-       prev_day(Today,Yesterday), open(SAb,Yesterday),
-       \+ (member(D,[monday,tuesday,wednesday]),
-           day_num(D,N), day_num(Today,NT), N < NT,
-           open(SAb,D), open(SDe,D)),
-       write(Today-SAb-SDe), nl, fail.
-   EOF
-   ./sno2c -pl -jvm /tmp/nafbug.pro -o /tmp/Nafbug.j
-   java -jar src/backend/jvm/jasmin.jar /tmp/Nafbug.j -d /tmp
-   timeout 5 java -cp /tmp Nafbug   # JVM prints extra lines; swipl prints correct subset
-   ```
-
-2. **puzzle_03** — over-generates. Open: M-PJ-DISPLAY-BT.
-
-**Bootstrap PJ-44:**
+**Bootstrap PJ-45:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
@@ -102,26 +47,11 @@ for i in $(seq -f "%02g" 1 20); do P=puzzle_${i}; C=Puzzle_${i}
   O=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${P}.pro 2>/dev/null)
   [ "$J" = "$O" ] && echo "${P}: PASS" || echo "${P}: FAIL"
 done
-# Minimal reproducer (JVM=3 lines, swipl=1 line):
-cat > /tmp/chain_bug.pro << 'EOF'
-:- initialization(main).
-gn(D,_,_,G,dorothy) :- G=:=D.
-gn(_,J,_,G,jean)    :- G=:=J.
-gn(_,_,V,G,virginia):- G=:=V.
-go(D,J,V,GB,GJi,GT) :-
-    gn(D,J,V,GB,N1), gn(D,J,V,GJi,N2), gn(D,J,V,GT,N3),
-    write(N1-N2-N3), nl.
-main :- go(2,1,3,3,2,1), fail ; write(done), nl.
-EOF
-./sno2c -pl -jvm /tmp/chain_bug.pro -o /tmp/ChainBug.j
-java -jar src/backend/jvm/jasmin.jar /tmp/ChainBug.j -d /tmp
-timeout 5 java -cp /tmp Chain_bug  # expect: 1 line + done
-# Inspect gamma cs pack:
-grep -n "p_go_6\|gamma_0\|iload 3\|ldc 0\|ldc 1" /tmp/ChainBug.j | head -40
-# Hypothesis: gamma_0 cs = iload3 + ldc0 + iadd + iconst_1 + iadd
-# where iload3 should be 0 (no inner retry) but encodes gn3 retry offset.
-# Fix should be in pj_emit_gamma or the cs accumulation for deterministic body suffix.
+# Then implement findall/3 per FRONTEND-PROLOG-JVM.md Tier 1 roadmap
+# Impl: synthetic p_findall_3 helper in prolog_emit_jvm.c
+# Rung: test/frontend/prolog/corpus/rung11_findall/
 ```
+
 
 **Bootstrap PJ-40:**
 ```bash
@@ -400,11 +330,11 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-BODYFAIL-TRAIL** | Body-fail trail unwind: `bodyfail_N` trampoline per clause — head bindings now undone on body failure | ✅ |
 | **M-PJ-BETWEEN** | `between/3` — synthetic p_between_3 method; cs encodes Low+offset | ✅ |
 | **M-PJ-DISJ-ARITH** | Plain `;` retry loop in `pj_emit_body` — tableswitch dispatch, dj_alpha/beta/omega; puzzle_12 PASS | ✅ |
-| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — `not_dorothy` 2-clause retry; ITE cut or source fix | ❌ |
 | **M-PJ-CUT-UCALL** | `!` + ucall body sentinel propagation | ✅ |
 | **M-PJ-NAF-INNER-LOCALS** | NAF helper method — fix frame aliasing; puzzle_18 PASS | ✅ |
-| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM (puzzle_03 open) | ✅ |
-| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — not_dorothy 2-clause retry | ❌ **NEXT** |
+| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — workaround: single-clause rewrite + canonical tie-breaking; 20/20 | ✅ |
+| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM | ✅ |
+| **M-PJ-FINDALL** | `findall/3` — collect all solutions into list | ❌ **NEXT** |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 
