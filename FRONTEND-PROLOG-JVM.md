@@ -19,15 +19,30 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-21 — M-PJ-NEQ ✅ \=/2 emit fixed; puzzle_08+09 JVM PASS | `d6d2266` PJ-21 | M-PJ-STACK-LIMIT |
+| **Prolog JVM** | `main` PJ-22 — M-PJ-STACK-LIMIT ✅ dynamic .limit stack; 9/9 rungs + 19/21 puzzles PASS | `cb0b4d0` PJ-22 | M-PJ-DISJ-ARITH |
 
-### CRITICAL NEXT ACTION (PJ-21)
+### CRITICAL NEXT ACTION (PJ-23)
 
-**Milestone: M-PJ-STACK-LIMIT — fix `.limit stack 16` hard-code in `pj_emit_predicate`.**
+**Milestone: M-PJ-DISJ-ARITH — fix `(A;B;C)` inline disjunction silent failure in arithmetic body.**
 
-Current: stack limit is always 16. Deep term construction or long conjunctions can exceed this → `VerifyError` on 5+ clause predicates. puzzle_03 and puzzle_11 still fail; likely related.
-Fix: increase to 32 (safe conservative), or add a pre-pass walker that counts max depth per clause body.
-After fix: re-run full rung10 sweep and check if puzzle_03 / puzzle_11 improve.
+Confirmed failing: puzzle_03 (silent output) and puzzle_11 (double-print).
+
+**puzzle_03 root cause:** uses `differ6/6` with `=\=/2` (15 arithmetic inequalities) and `not_dorothy` with a 6-arm `( ; )` disjunction containing `->`. The `(;)` emitter in `pj_emit_goal` may misfire when arms contain `->` soft-cut. JVM emits but produces no output — the disjunction either always fails or short-circuits wrongly.
+
+**puzzle_11 root cause:** double-print — solution found twice. `ages_ok` contains a `!` inside a body called from `puzzle`. The `!` seals β for `ages_ok` but the enclosing `puzzle` body continues to backtrack through `all_diff5`, re-binding the position variables and re-finding the same solution. Likely `cut_cs_seal` not propagating correctly across the `ages_ok` call boundary.
+
+**Approach:** write a minimal reproducer for each, confirm swipl vs JVM divergence, then fix `pj_emit_goal` disjunction/cut wiring.
+
+**Bootstrap PJ-23:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+# Confirm baseline: 9/9 rungs PASS, 19/21 rung10 PASS (03+11 still fail)
+# Then: write minimal repro for (A;B;C) with -> arms, confirm swipl vs JVM
+# Fix pj_emit_goal disjunction handling, re-run puzzle_03
+```
 
 **Bootstrap PJ-18:**
 ```bash
@@ -163,6 +178,7 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-PZ10** | puzzle_10 real Prolog search — swipl PASS | ✅ |
 | **M-PJ-PZ11** | puzzle_11 real Prolog search — swipl PASS | ✅ |
 | **M-PJ-NEQ** | `\=/2` emit missing in `pj_emit_goal` — JVM crashes with NoSuchMethodError | ✅ |
+| **M-PJ-STACK-LIMIT** | Dynamic `.limit stack` via term depth walker — fixes VerifyError on deep compound terms | ✅ |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 

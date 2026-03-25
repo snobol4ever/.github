@@ -482,3 +482,21 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - Commit: `d6d2266` on snobol4x main.
 
 **Next:** M-PJ-STACK-LIMIT — `.limit stack 16` hard-code needs fix for deep predicates.
+
+## PJ-22 — 2026-03-24
+
+**Milestone fired:** M-PJ-STACK-LIMIT ✅
+
+**Work done:**
+- Added `pj_term_stack_depth(EXPR_t*)` — recursive walker computing max JVM stack slots to construct a term (4 slots/nesting level: array-ref + dup + index + child).
+- Added `pj_clause_stack_needed` — walks clause body goals + head args, takes max across all term arguments.
+- Replaced hardcoded `.limit stack 16` with `max(16, computed_max)` per predicate in `pj_emit_predicate`.
+- Verified: 8-level deep compound term now works (was `VerifyError: Stack size too large`).
+- Results: 9/9 rungs PASS (no regression), 19/21 rung10 PASS (puzzle_03 + puzzle_11 pre-existing, different bugs).
+- Commit: `cb0b4d0` on snobol4x main.
+
+**Diagnosis of remaining failures:**
+- puzzle_11 double-print: `!` inside `ages_ok` not sealing β in enclosing `puzzle` conjunction — `cut_cs_seal` not propagating across user-call boundary. → M-PJ-DISJ-ARITH or new milestone.
+- puzzle_03 silent: 6-arm `(;)` with `->` in `not_dorothy` + `=\=/2` in `differ6` — disjunction emitter misfires. → M-PJ-DISJ-ARITH.
+
+**Next:** M-PJ-DISJ-ARITH — write minimal repros, fix `pj_emit_goal` disjunction/cut wiring.
