@@ -19,31 +19,35 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-34 — M-PJ-DISJ-ARITH ✅ plain disj retry loop; puzzle_12 PASS; 17/20 | `453d969` PJ-34 | M-PJ-CUT-UCALL (puzzle_11/18 double-output) |
+| **Prolog JVM** | `main` PJ-35 — M-PJ-CUT-UCALL partial; cutgamma_CI + lbl_cutγ threaded; 17/20 (beta-retry bypass diagnosed) | `1a1cf3f` PJ-35 | M-PJ-CUT-UCALL: emit {-1} sentinel from cutgamma, check in caller ucall loop |
 
-### CRITICAL NEXT ACTION (PJ-35)
+### CRITICAL NEXT ACTION (PJ-36)
 
 **JVM baseline: 17/20 PASS. Remaining failures:**
 
-1. **puzzle_11, 18** — answer printed TWICE. Root cause fully diagnosed:
-   - `!` fires inside a predicate (`ages_ok`) whose last clause has a body ucall.
-   - Omega guard `if_icmpge omega` is **omitted** when `last_has_ucall=1` (PJ-16 design).
-   - Without the guard, caller retries with cs=1, re-enters clause0, clamps `init_cs=1`, inner ucall resumes mid-stream → duplicate answer.
-   - **Fix:** Add `p_NAME_ARITY_cutgamma_CI` label that returns `{base[nclauses]}` as cs. The `!` body path jumps to `cutgamma` instead of `gamma_CI`. Caller sees exhaustion sentinel on first retry → `call_omega` immediately.
-   - In `prolog_emit_jvm.c` at `pj_emit_clause`: after each `gamma_CI` block, emit `cutgamma_CI` returning `base[nclauses]`. In `pj_emit_body`/`pj_emit_goal` cut branch: `goto cutgamma_CI` instead of `goto gamma_CI`.
-   - New milestone: **M-PJ-CUT-UCALL**
+1. **puzzle_11, 18** — answer printed TWICE. Root cause **further refined** in PJ-35:
+   - `cutgamma_CI` labels now emitted; cut path jumps there (returning null). ✅
+   - But `call14_beta` in the **caller** fires when the *body after ages_ok* fails (`fail` goal).
+     It retries ages_ok with the cs stored from gamma (first solution). ages_ok re-enters
+     clause0 with `init_cs=stored_cs`, resumes the inner ucall continuation **past the `!`** → second answer.
+   - **Fix:** Make `cutgamma` return `{-1}` (distinct sentinel, not null). In `pj_emit_body`
+     ucall block: after extracting the returned cs integer, check `if cs == -1 → goto call_ω`
+     (treat as exhausted, skip retry). The caller's beta loop then never re-enters the predicate.
+   - Work sites: (a) cutgamma block in `pj_emit_clause` — change `aconst_null/areturn` to
+     `iconst_1/anewarray/.../ldc -1/.../areturn`; (b) ucall suffix in `pj_emit_body` (~line 1784)
+     after `istore local_cs`: add `iload local_cs; ldc -1; if_icmpeq <call_ω_label>`.
 
-2. **puzzle_03** — over-generates (56L vs 12L). `equal_sums`/`find_couples` multi-clause backtrack. Open: M-PJ-DISPLAY-BT.
+2. **puzzle_03** — over-generates. Open: M-PJ-DISPLAY-BT.
 
-**Changes landed PJ-34:**
-- `prolog_emit_jvm.c`: plain `;` retry loop in `pj_emit_body` — tableswitch dispatch, `dj_alpha`/`dj_beta`/`dj_omega`, trail save/unwind per arm.
-- `pj_count_disj_locals()` recursive — accounts for ucall locals inside disjunction arms. Fixes VerifyError regression on puzzle_16.
-- puzzle_12 ✅ (was silent 0L). puzzle_16 regression fixed. 16→17/20.
+**Changes landed PJ-35:**
+- `prolog_emit_jvm.c`: `cutgamma_CI` labels emitted after each `gamma_CI` (returning null).
+- `lbl_cutγ` parameter added to `pj_emit_body` and `pj_emit_goal`; threaded through all calls.
+- Cut path (`E_CUT`) in both functions jumps to `lbl_cutγ`. Build clean. 17/20 unchanged.
 
-**Bootstrap PJ-35:**
+**Bootstrap PJ-36:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+git clone https://ghp_TOKEN@github.com/snobol4ever/snobol4x
+git clone https://ghp_TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src && cd snobol4x
 # Confirm baseline: 17/20 PASS (puzzle_03, 11, 18 fail)
@@ -55,11 +59,13 @@ for i in $(seq -f "%02g" 1 20); do
   ORACLE=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro 2>/dev/null)
   [ "$JVM" = "$ORACLE" ] && echo "${PUZZLE}: PASS" || echo "${PUZZLE}: FAIL"
 done
-# Then tackle M-PJ-CUT-UCALL:
-# In prolog_emit_jvm.c, find pj_emit_clause gamma label emission (~line 2368)
-# Add cutgamma_CI label returning base[nclauses] sentinel
-# Wire cut path in pj_emit_body/pj_emit_goal to jump to cutgamma_CI
-grep -n "gamma_\|cut_cs_seal\|ldc.*cut" src/frontend/prolog/prolog_emit_jvm.c | head -20
+# Tackle M-PJ-CUT-UCALL:
+# Step 1 — grep cutgamma block in prolog_emit_jvm.c, change aconst_null to {-1} sentinel:
+grep -n "cutgamma port\|aconst_null.*areturn\|cutgamma" src/frontend/prolog/prolog_emit_jvm.c | head -10
+# Step 2 — in pj_emit_body ucall suffix after "istore %d local_cs" (~line 1784):
+#   emit: iload local_cs; ldc -1; if_icmpeq call_omega_label
+#   (need to pass call_omega label name into that emit site)
+grep -n "istore.*local_cs\|call_omega\|call.*omega" src/frontend/prolog/prolog_emit_jvm.c | head -20
 ```
 
 **Bootstrap PJ-23:**
