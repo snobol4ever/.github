@@ -710,3 +710,16 @@ END
 
 **HEAD at handoff:** snobol4x `251ae11`, .github `750893e`
 **Next:** PJ-32 — fix M-PJ-BETWEEN (add between/3 to pj_emit_goal), then M-PJ-ITE-CUT, then M-PJ-DISJ-ARITH.
+
+---
+
+## PJ-32 — M-PJ-BETWEEN
+
+**Date:** 2026-03-24
+**Milestone:** M-PJ-BETWEEN ✅
+**Result:** 16/20 puzzles PASS (puzzle_19 fixed).
+
+**Fix:** `between/3` emitted as synthetic static method `p_between_3(Low, High, Var, cs)` injected before user predicates. `cs` encodes offset from Low. Standard user-call retry loop handles all backtracking. Inline loop approach failed: JVM frame restart on predicate re-entry reset `local_cur`; `init_cs` offset approach collided with `cs >= nclauses` exhaustion guard.
+
+**HEAD at handoff:** snobol4x `5ae0d24`, .github `b0f28cd`
+**Next:** PJ-33 — M-PJ-ITE-CUT (puzzles 03, 11, 18 over-generate). Fix: in `;/2` ITE emission, after `cond_ok`, seal enclosing β with `ldc cut_cs_seal; istore cs_local_for_cut` before emitting Then goals. Then M-PJ-DISJ-ARITH (puzzle_12).
