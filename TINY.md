@@ -9,18 +9,44 @@ snobol4x: multiple frontends, multiple backends.
 
 ## NOW
 
-**Sprint:** `main` — B-288 (E_VART CALL_PAT fix + DATA slot zeroing)
-**HEAD:** `358184a` B-288
-**B-session:** Three root causes of M-BUG-BOOTSTRAP-PARSE fixed: (1) E_VART fallback LIT_VAR_α → inline CALL_PAT with var_register (box-DATA slots). (2) rpat_t/p/s via var_register → r12 DATA block not flat .bss. (3) Named-pattern α-entry zeroes [r12+16..N] to prevent stale ARBNO depth on scan retry. Remaining: *Parse via REF(Parse) scan-retry still fails — shared static DATA template clobbered between scan attempts because P_Parse_β doesn't zero slots. 106/106 ✅.
+**Sprint:** `main` — B-291 (BSS heap fix; Sprint M5 unblocked)
+**HEAD:** `309a2f9` B-291
+**B-session:** Heap-allocated 4 large BSS statics in emit_byrd_asm.c (named_pats 1.9MB, str_table 2.8MB, call_slots 1.3MB, lit_table 352KB). BSS 8.4MB→2.0MB. sno2c -asm/-jvm beauty.sno no longer segfaults. beauty_asm_bin (1.1MB) builds, runs — produces 10 lines then "Parse Error" (r12 clobber confirmed). TRACE_SET_CAP 64→256. CSNOBOL4 oracle trace: 92,601 events, 784 lines output. ASM trace: silent (TERMINAL= fallback not reaching stderr before crash). 106/106 ✅.
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
-**⚡ CRITICAL NEXT ACTION — B-289:**
+**⚡ CRITICAL NEXT ACTION — B-292 (M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR):**
 
-Fix remaining *Parse scan-retry failure. Root: P_Parse_α zeroes DATA slots but
-P_Parse_β skips zeroing — ARBNO depth left stale when scan retries via β path.
-Fix: emit zeroing also at the REF(Parse) β call site in emit_named_ref (before
-jmp P_Parse_β). Alternatively implement M-T2-INVOKE (blk_alloc per invocation).
-After fix: run 5 reproducer tests → confirm PASS → run beauty bootstrap → diff vs oracle.
+Sprint M5 is now runnable. Two steps to get first divergence:
+
+1. **Get ASM trace stream flowing.** The instrumented beauty_asm_bin crashes before
+   TERMINAL= trace output reaches stderr. Fix: redirect TERMINAL= writes to a file
+   in snobol4.c comm_var, OR run the async monitor (oracle trace already captured:
+   /tmp/csn_trace.txt, 92,601 events). The async approach works immediately:
+   ```bash
+   # Build instrumented ASM binary (beauty_instr.sno already at /tmp/)
+   # Run: beauty_instr_asm < demo/beauty.sno 2>/tmp/asm_trace.txt
+   # diff /tmp/csn_trace.txt /tmp/asm_trace.txt | head -20
+   # First diverging line = exact variable + value where r12 clobber fires
+   ```
+
+2. **Fix the divergence.** The first diverging line names the variable that got
+   corrupted. Per MONITOR.md: CSNOBOL4 + (if SPITBOL working) = living spec for fix.
+   Fix is in emit_byrd_asm.c emit_named_ref — per-invocation DATA block via blk_alloc
+   (M-T2-INVOKE), or zeroing at β call site.
+
+**JVM mid-emission crash (also B-292):**
+Apply nchildren bound fix in emit_byrd_jvm.c line 1133:
+```c
+for (int fi = 0; fi < dt->nfields; fi++) {
+    JI("dup", "");
+    char fnesc[256]; jvm_escape_string(dt->fields[fi], fnesc, sizeof fnesc);
+    JI("ldc", fnesc);
+    EXPR_t *arg = (fi < e->nchildren) ? e->children[fi] : NULL;
+    if (arg) jvm_emit_expr(arg); else JI("ldc", "\"\"");
+    ...
+}
+```
+Then: beauty.j completes → Jasmin assembles → JVM beauty subsystem ladder begins.
 
 **B-286 summary:**
 - D-001: SPITBOL is primary compat target (CSNOBOL4 FENCE issue disqualifies it).

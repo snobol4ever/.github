@@ -552,3 +552,37 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 2. Call inner goal via `pj_emit_goal` as now.
 3. On `inner_ok`: emit `iload naf_mark; invokestatic pj_trail_unwind(I)V`, then `goto lbl_ω`.
 4. On `inner_fail`: emit `iload naf_mark; invokestatic pj_trail_unwind(I)V`, then `goto lbl_γ`.
+
+---
+
+## B-291 — 2026-03-25 — BSS heap fix; Sprint M5 unblocked
+
+**Session type:** TINY backend (B-session)
+**HEAD on entry:** `05f36ae` B-290
+**HEAD on exit:** `309a2f9` B-291
+**Branch:** main
+
+**What happened:**
+- Setup: cloned .github, snobol4x, x64 (SPITBOL), snobol4corpus. Built CSNOBOL4 2.3.3 from tarball (STNO-patched). Ran setup.sh → 106/106 ALL PASS.
+- Root cause of sno2c segfault on beauty.sno diagnosed: total BSS 8.4MB > 8MB stack limit. Binary loads, BSS mapped, process crashes before main() runs.
+- Fix: heap-allocated 4 large statics in emit_byrd_asm.c using calloc-on-first-use pattern (identical to existing box_data pattern):
+  - named_pats[512] → pointer, -1856KB BSS
+  - str_table[8192] → pointer, -2752KB BSS
+  - call_slots[4096][320] → pointer, -1280KB BSS
+  - lit_table[1024] → pointer, -352KB BSS
+  - BSS: 8.4MB → 2.0MB. 106/106 corpus still ALL PASS.
+- sno2c -asm beauty.sno → 70,840 lines of ASM. beauty_asm_bin built (1.1MB), runs, outputs 10 lines then "Parse Error" (r12 DATA-block clobber, expected per M-BUG-BOOTSTRAP-PARSE).
+- sno2c -jvm beauty.sno → 18,348 lines of Jasmin, then mid-emission segfault. GDB confirmed: e=0x21 (garbage pointer) in jvm_emit_expr for DATA constructor field[2] of tree(t,v,n,c). Root cause: emit loop iterates dt->nfields but e->nchildren may be smaller; out-of-bounds children[] access. Fix: use (fi < e->nchildren) bound. Not yet applied — context limit.
+- TRACE_SET_CAP 64→256 in snobol4.c (beauty.sno injects 107 TRACE registrations).
+- Sprint M5 attempted: inject_traces.py on beauty.sno → 107 TRACE registrations. CSNOBOL4 oracle run: 92,601 trace events, 784 lines output. ASM trace: silent (TERMINAL= fallback; crash occurs before trace stream flows). Async diff approach identified as immediate next step.
+- SPITBOL monitor IPC times out at step 0 (M-MON-BUG-SPL-EMPTY, pre-existing).
+
+**Milestones fired:** none (M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR created, not yet fired)
+
+**Invariants on exit:** 106/106 ALL PASS ✅
+
+**Next session (B-292):**
+1. Fix JVM mid-emission crash: `if (fi < e->nchildren)` bound in emit_byrd_jvm.c line 1133
+2. Get ASM trace stream: redirect TERMINAL= output in comm_var OR just diff csn_trace.txt vs asm_trace.txt async
+3. First diverging trace line names the r12 clobber site → fix emit_named_ref
+4. Fire M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR

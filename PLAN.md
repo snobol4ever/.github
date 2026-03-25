@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY backend** | `main` B-290 — r12 fix, box_data heap; PIVOT to JVM beauty bootstrap | `05f36ae` B-290 | M-BEAUTIFY-BOOTSTRAP-JVM |
+| **TINY backend** | `main` B-291 — BSS heap fix (8.4MB→2MB); beauty_asm_bin runs; Sprint M5 unblocked | `309a2f9` B-291 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `jvm-t2` J-213 — M-T2-JVM ✅ 106/106 clean | `8178b5c` J-213 | M-T2-FULL |
 | **TINY frontend** | `main` F-223 — rung05 encoding fix attempted, reverted clean; see TINY.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
@@ -76,6 +76,7 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-BUG-GEN-BUFFER** | `Gen` driver fix — same root fix (B-286) | ✅ |
 | **M-BUG-SEMANTIC-NTYPE** | `semantic` driver fix — same root fix (B-286) | ✅ |
 | **M-BUG-BOOTSTRAP-PARSE** | beauty bootstrap: *Parse scan-retry fails — shared static DATA template; ARBNO depth stale across scan attempts. E_VART+DATA slot zeroing fixed (B-288). Remaining: M-T2-INVOKE or scan-reset fix. | ❌ |
+| **M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR** | Run monitor on beauty.sno (Sprint M5): get ASM trace stream flowing, find first divergence, fix r12 DATA-block clobber. Prerequisites: BSS fix ✅ (B-291), TRACE_SET_CAP 256 ✅ (B-291). Remaining: TERMINAL= trace capture to file; diff CSN(92601 events) vs ASM; first diverging line names the r12 clobber site. | ❌ **NEXT** |
 | **M-SNO2C-FOLD** | sno2c lexer folds identifiers to uppercase; `-F`/`-f` switches | ❌ |
 | **M-MON-BUG-SPL-EMPTY** | SPITBOL trace empty for treebank/claws5 — diagnose + fix | ❌ |
 | **M-MON-BUG-ASM-DATATYPE-CASE** | ASM DATA type name lowercase; fix to uppercase | ❌ |
