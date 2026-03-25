@@ -384,3 +384,149 @@ make -C snobol4x/src
 ---
 
 *FRONTEND-PROLOG-JVM.md = L3. ~3KB sprint content max. Archive ✅ milestones to MILESTONE_ARCHIVE.md on session end.*
+
+---
+
+## Tiny-Prolog Enhancement Roadmap — ISO Gap Closure
+
+Incremental plan to close the gap between Tiny-Prolog and SWI-Prolog,
+one feature at a time, each as a standalone milestone/sprint.
+Ordered by impact: features that unblock the most real programs first.
+Each milestone is one PJ-session or less.
+
+**Oracle for all new rungs:** `swipl -q -g halt -t main file.pro`
+**Test location:** `test/frontend/prolog/corpus/rung11_*/` onward
+**Implementation:** `prolog_emit_jvm.c` (emit) + `prolog_builtin.c` (runtime helpers)
+
+---
+
+### Tier 1 — High Impact
+
+#### M-PJ-FINDALL
+`findall(Template, Goal, List)` — collect all solutions to Goal into List.
+Never fails (empty List if no solutions). Most-used Prolog aggregation primitive.
+Unblocks Scripten Demo #2 `get_persons()`/`get_jobs()` returning proper lists.
+Required for `bagof`/`setof` later.
+**Impl:** Drive backtracking internally in a loop, accumulate results, rebuild
+Prolog list. Synthetic `p_findall_3` helper in `prolog_emit_jvm.c`.
+**Rung:** `rung11_findall/` — basic collect, filtered collect, empty result.
+**Sprint:** 1 session.
+
+#### M-PJ-ATOM-BUILTINS
+`atom_chars/2`, `atom_codes/2`, `atom_length/2`, `atom_concat/2`,
+`char_code/2`, `number_chars/2`, `number_codes/2`,
+`upcase_atom/2`, `downcase_atom/2`.
+Both directions where reversible. All are JVM String operations.
+**Rung:** `rung12_atom_builtins/`
+**Sprint:** 1 session. Purely additive to builtin dispatch.
+
+#### M-PJ-RETRACT
+`retract/1`, `retractall/1`, `asserta/1`, `abolish/1`.
+(We have `assertz` — this completes the dynamic DB set.)
+`retract` is backtrackable. Requires mutable per-predicate clause list
+alongside compiled static methods. Deleted entries skipped by dispatch loop.
+**Rung:** `rung13_assert_retract/` — assert, query, retract, verify gone.
+**Sprint:** 1–2 sessions.
+
+#### M-PJ-SORT
+`sort/2`, `msort/2`, `keysort/2`, `predsort/3`.
+Deterministic output ordering for all programs. `sort` removes duplicates,
+`msort` preserves. Standard term ordering: vars < numbers < atoms < compounds.
+JVM `Collections.sort` + Prolog list reconstruction.
+**Rung:** `rung14_sort/`
+**Sprint:** 1 session. Purely additive.
+
+---
+
+### Tier 2 — Medium Impact
+
+#### M-PJ-SUCC-PLUS
+`succ/2`, `plus/3` — reversible arithmetic.
+`succ(X,3)` → `X=2`. `plus(2,Y,5)` → `Y=3`. Two trivial builtins.
+**Rung:** `rung15_succ_plus/`
+**Sprint:** 30 minutes.
+
+#### M-PJ-FORMAT
+`format/1`, `format/2`, `format(atom(A),Fmt,Args)`.
+Directives: `~w` `~a` `~d` `~n` `~t` `~|`. `format(atom(A),...)` captures to atom.
+**Rung:** `rung16_format/`
+**Sprint:** 1 session.
+
+#### M-PJ-STRING-OPS
+`string_concat/3`, `string_length/2`, `string_to_atom/2`,
+`string_codes/2`, `string_chars/2`, `sub_string/5`, `split_string/4`.
+SWI distinguishes double-quoted strings from atoms. JVM String maps naturally.
+**Rung:** `rung17_strings/`
+**Sprint:** 1 session.
+
+#### M-PJ-AGGREGATE
+`bagof/3`, `setof/3`.
+`bagof` fails on empty (unlike `findall`). `^/2` existential quantification.
+`setof` = bagof + sort + dedup.
+**Depends on:** M-PJ-FINDALL, M-PJ-SORT.
+**Rung:** `rung18_aggregate/`
+**Sprint:** 1 session.
+
+#### M-PJ-COPY-TERM
+`copy_term/2` — deep copy with fresh variables.
+Required for meta-programming clause templates, correct `findall`, DCG expansion.
+Walk term structure, allocate fresh variable slots, rebuild compound terms.
+**Rung:** `rung19_copy_term/`
+**Sprint:** 1 session.
+
+#### M-PJ-EXCEPTIONS
+`catch/3`, `throw/1`, ISO error terms (`type_error/2`, `instantiation_error/0`,
+`existence_error/2`).
+JVM exceptions map naturally: `throw` → Java throw, `catch` → try/catch.
+Also retrofit builtins to throw ISO errors instead of silent fail.
+**Rung:** `rung20_exceptions/`
+**Sprint:** 1–2 sessions.
+
+#### M-PJ-NUMBER-OPS
+Extended `is/2` arithmetic: `truncate/1`, `round/1`, `ceiling/1`, `floor/1`,
+`abs/1`, `sign/1`, `max/2`, `min/2`, `gcd/2`, `sqrt/1`, trig functions.
+All trivial JVM Math calls. Add cases to `is/2` evaluator.
+**Rung:** `rung21_arith_extended/`
+**Sprint:** 1 session.
+
+---
+
+### Tier 3 — Future / Nice to Have
+
+#### M-PJ-DCG (no sprint assigned)
+Definite Clause Grammars — `-->` notation, `phrase/2`, `phrase/3`.
+DCG rules compile to regular Prolog clauses with hidden difference-list args.
+Elegant phrase-level parsing to complement SNOBOL4 character-level patterns.
+**Why deferred:** SNOBOL4 already does parsing better for Scripten use cases.
+DCG requires a source-rewrite pre-pass before the normal lowering pipeline —
+non-trivial. Revisit after all Tier 1 + Tier 2 milestones complete.
+**Depends on:** M-PJ-COPY-TERM (DCG expansion uses copy_term internally).
+
+---
+
+### Enhancement Milestone Summary
+
+| ID | Feature | Tier | Depends on | Status |
+|----|---------|------|-----------|--------|
+| **M-PJ-FINDALL** | `findall/3` | 1 | — | ❌ |
+| **M-PJ-ATOM-BUILTINS** | atom_chars/length/concat etc. | 1 | — | ❌ |
+| **M-PJ-RETRACT** | `retract/1`, `retractall/1`, `asserta/1` | 1 | — | ❌ |
+| **M-PJ-SORT** | `sort/2`, `msort/2`, `keysort/2` | 1 | — | ❌ |
+| **M-PJ-SUCC-PLUS** | `succ/2`, `plus/3` | 2 | — | ❌ |
+| **M-PJ-FORMAT** | `format/1`, `format/2` | 2 | — | ❌ |
+| **M-PJ-STRING-OPS** | `split_string/4`, `string_concat/3` etc. | 2 | — | ❌ |
+| **M-PJ-AGGREGATE** | `bagof/3`, `setof/3` | 2 | FINDALL + SORT | ❌ |
+| **M-PJ-COPY-TERM** | `copy_term/2` | 2 | — | ❌ |
+| **M-PJ-EXCEPTIONS** | `catch/3`, `throw/1` | 2 | — | ❌ |
+| **M-PJ-NUMBER-OPS** | Extended `is/2` (trig, round, abs...) | 2 | — | ❌ |
+| **M-PJ-DCG** | DCG `-->`, `phrase/2` | 3 | COPY-TERM | 💭 |
+
+**Recommended sprint order:**
+M-PJ-PZ-ALL-JVM (clear existing bugs) →
+M-PJ-FINDALL → M-PJ-ATOM-BUILTINS → M-PJ-SORT → M-PJ-SUCC-PLUS →
+M-PJ-RETRACT → M-PJ-FORMAT → M-PJ-STRING-OPS → M-PJ-AGGREGATE →
+M-PJ-COPY-TERM → M-PJ-EXCEPTIONS → M-PJ-NUMBER-OPS → M-PJ-DCG (someday).
+
+**Rung numbering:** `test/frontend/prolog/corpus/rung11_findall/`
+through `rung21_arith_extended/`. Each rung: 3–5 tests, `.pro` + `.expected`.
+
