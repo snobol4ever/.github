@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-13 — M-IJ-CORPUS-R4 ✅; rung07 4/5; t03_to_by VerifyError open | `6174c9f` IJ-13 | M-IJ-CORPUS-R5 |
+| **Icon JVM** | `main` IJ-14 — M-IJ-CORPUS-R5 ✅ 39/39 rung01-07 PASS | `6780ab9` IJ-14 | M-IJ-CORPUS-R8 |
 
-### Next session checklist (IJ-14)
+### Next session checklist (IJ-15)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -33,9 +33,32 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# Confirm rung01-06 34/34 still PASS before touching code
-# Fix t03_to_by VerifyError per §IJ-13 findings → fire M-IJ-CORPUS-R5
+# Confirm rung01-07 39/39 still PASS before touching code
+# Create rung08 corpus + implement next Icon feature → fire M-IJ-CORPUS-R8
 ```
+
+### IJ-14 findings — M-IJ-CORPUS-R5 ✅ (done)
+
+**39/39 PASS rung01–07. .bytecode changed 50.0 → 45.0 globally.**
+
+**Two bugs fixed in `ij_emit_to_by` (`6780ab9`):**
+
+1. **Backward branches** — old code had `adv → chkp/chkn` (backward jump), triggering
+   JVM 21 StackMapTable VerifyError. Rewrote α to chain E1→E2→E3 via forward relay labels,
+   then `goto check`. β does `I += step; goto check`. `check` is placed *after* both α and β
+   in the instruction stream — all jumps forward, no StackMapTable needed.
+
+2. **Double conditional on single `lcmp` result** — `lcmp; ifgt ckp; iflt ckn` is invalid:
+   `ifgt` consumes the int, leaving `iflt` with empty stack → old verifier "unable to pop
+   operand off empty stack". Fixed by emitting two separate `getstatic/lconst_0/lcmp`
+   sequences, one per conditional branch.
+
+3. **`.bytecode 45.0`** — switched from 50.0 (Java 6, requires StackMapTable) to 45.0
+   (Java 1.1 old type-inference verifier). The 50.0 comment "no StackMapTable required"
+   was wrong. 45.0 uses the old verifier which tolerates backward branches and does not
+   require StackMapTable frames.
+
+**`run_rung07.sh`** committed alongside the fix.
 
 ### IJ-13 findings — t03_to_by VerifyError fix plan
 

@@ -20,9 +20,9 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-22 — M-PJ-STACK-LIMIT ✅ dynamic .limit stack; deep terms fixed | `cb0b4d0` PJ-22 | M-PJ-DISJ-ARITH |
-| **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-13 — M-IJ-CORPUS-R4 ✅; rung07 4/5 (t03_to_by VerifyError open) | `6174c9f` IJ-13 | M-IJ-CORPUS-R5 || **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
+| **Icon JVM** | `main` IJ-14 — M-IJ-CORPUS-R5 ✅ 39/39 rung01-07 PASS | `6780ab9` IJ-14 | M-IJ-CORPUS-R8 |
+| **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
 - TINY: `106/106` ASM corpus (`run_crosscheck_asm_corpus.sh`) · ALL PASS ✅
@@ -139,7 +139,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-SCAN** | `E ? E` string scanning | ✅ |
 | **M-IJ-CSET** | Cset literals → BREAK/SPAN/ANY | ✅ |
 | **M-IJ-CORPUS-R4** | Rung 4: string ops + scanning PASS | ✅ |
-| **M-IJ-CORPUS-R5** | Rung 5: not/neg/to-by/str-relops all PASS | ❌ **NEXT** |
+| **M-IJ-CORPUS-R5** | Rung 5: not/neg/to-by/str-relops all PASS | ✅ |
+| **M-IJ-CORPUS-R8** | Rung 8: next rung corpus PASS | ❌ **NEXT** |
 
 Full sprint detail → [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md)
 

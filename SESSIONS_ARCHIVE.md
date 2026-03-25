@@ -500,3 +500,30 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - puzzle_03 silent: 6-arm `(;)` with `->` in `not_dorothy` + `=\=/2` in `differ6` — disjunction emitter misfires. → M-PJ-DISJ-ARITH.
 
 **Next:** M-PJ-DISJ-ARITH — write minimal repros, fix `pj_emit_goal` disjunction/cut wiring.
+
+---
+
+## IJ-14 — 2026-03-24
+
+**Trigger:** "playing with snobol4x JVM backend for ICON frontend"
+**Goal:** M-IJ-CORPUS-R5 — fix t03_to_by VerifyError, rung07 5/5 PASS
+
+**What was done:**
+
+Rewrote `ij_emit_to_by` in `icon_emit_jvm.c` to fix two bugs:
+
+1. **Backward branches:** Old `adv → chkp/chkn` backward jump triggered JVM 21
+   StackMapTable VerifyError. Rewrote with α→check and β→check as forward jumps;
+   `check` label placed after β in instruction stream.
+
+2. **Double conditional on single `lcmp`:** `lcmp; ifgt; iflt` stack underflow — `ifgt`
+   consumes the int, `iflt` finds empty stack. Fixed with two separate lcmp sequences.
+
+3. **`.bytecode 45.0`:** Switched from 50.0 (Java 6) to 45.0 (Java 1.1 old verifier).
+   The 50.0 "no StackMapTable" comment was wrong.
+
+**Added:** `test/frontend/icon/run_rung07.sh`
+
+**Result:** 39/39 PASS rung01-07. M-IJ-CORPUS-R5 ✅. Commit `6780ab9`.
+
+**Next:** M-IJ-CORPUS-R8 — create rung08 corpus, implement next Icon feature.

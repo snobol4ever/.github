@@ -219,3 +219,4 @@ Append-only. Do not edit existing entries.
 | **M-PJ-CORPUS-R10** | Rung 10: Lon's puzzle corpus PASS | ✅ PJ-17 `e14bed2` |
 | **M-PJ-NEQ** | `\=/2` emit added to `pj_emit_goal` — probe-unify+trail-unwind+inverted-branch; `pj_count_neq` added to locals budget; puzzle_08+09 JVM PASS | ✅ PJ-21 |
 | **M-PJ-STACK-LIMIT** | Dynamic `.limit stack` via `pj_term_stack_depth`+`pj_clause_stack_needed` pre-pass; replaces hardcoded 16; fixes VerifyError on deep compound terms | ✅ PJ-22 |
+| **M-IJ-CORPUS-R5** | `6780ab9` IJ-14 | rung07_control 5/5 PASS; ij_emit_to_by rewritten: forward-only jumps, two lcmp ops; .bytecode 45.0; 39/39 rung01-07 PASS |
