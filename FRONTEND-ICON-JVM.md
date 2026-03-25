@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-15 — rung08 corpus committed; emitter work pending | `6f11821` IJ-15 | M-IJ-CORPUS-R8 |
+| **Icon JVM** | `main` IJ-16 — M-IJ-CORPUS-R8 ✅ find/match/tab/move; 44/44 PASS | `be1be82` IJ-16 | M-IJ-CSET |
 
-### Next session checklist (IJ-16)
+### Next session checklist (IJ-17)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -33,9 +33,29 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
 # Read FRONTEND-ICON-JVM.md §NOW
-# Confirm rung01-07 39/39 still PASS before touching code
-# Implement find/match/tab/move in ij_emit_call + static helpers → fire M-IJ-CORPUS-R8
+# Confirm rung01-08 44/44 still PASS before touching code
+# Next: M-IJ-CSET — cset literals, BREAK/SPAN/ANY for rung09+
 ```
+
+### IJ-16 findings — M-IJ-CORPUS-R8 ✅ (done)
+
+**44/44 PASS rung01–08.**
+
+Four string builtins implemented in `icon_emit_jvm.c` (`be1be82`):
+
+1. **`find(s1,s2)` generator** — static fields `icn_find_s1_N`, `icn_find_s2_N`, `icn_find_pos_N` per call-site. α evals both args, stores, resets pos=0 → check. β reloads pos unchanged (1-based last result = correct 0-based start for next `indexOf`). `icn_builtin_find(s1,s2,pos)` calls `s2.indexOf(s1,pos)`, returns `idx+1` or `-1L`.
+
+2. **`match(s)` one-shot** — `icn_builtin_match(s,subj,pos)` calls `subj.startsWith(s,pos)`, returns `pos+len(s)+1` (1-based new pos) or `-1L`. Caller updates `icn_pos = result-1` (0-based).
+
+3. **`tab(n)` one-shot String** — `icn_builtin_tab_str(n,subj,pos)` returns `subj.substring(pos,n-1)` and updates `icn_pos = n-1` via `putstatic` from inside helper; returns `null` on bounds failure. Caller does `ifnonnull` check.
+
+4. **`move(n)` one-shot String** — `icn_builtin_move_str(n,subj,pos)` returns `subj.substring(pos,pos+n)`, updates `icn_pos = pos+n`, returns `null` on bounds failure.
+
+5. **`ij_expr_is_string`** — added `"tab"` and `"move"` → return 1 (prevents `pop2` VerifyError on statement-level drain).
+
+6. **`need_scan_builtins` guard** — also fires on `icn_find_s1_N` statics so standalone `find` (no scan context) still emits helpers.
+
+**Key: `tab`/`move` helpers update `icn_pos` via `putstatic ClassName/icn_pos I` directly — clean since helpers are static methods of the same class.**
 
 ### IJ-15 findings — rung08 corpus designed (in progress)
 

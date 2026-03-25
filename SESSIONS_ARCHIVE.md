@@ -621,3 +621,13 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 - FRONTEND-PROLOG-JVM.md §NOW updated with PJ-25 bootstrap.
 
 **Next session (PJ-25):** Start M-PZ-14 (golf scores, easiest puzzle). Write solution, verify swipl, fire milestone. Then proceed through milestone list in order.
+
+## IJ-16 — Icon JVM session
+
+**Date:** 2026-03-24  **HEAD:** `be1be82`  **Milestone:** M-IJ-CORPUS-R8 ✅
+
+Implemented `find`/`match`/`tab`/`move` string builtins in `icon_emit_jvm.c`.
+All four use static helper methods (same pattern as `any`/`many`/`upto`).
+`tab`/`move` return String (null on failure); `ij_expr_is_string` updated.
+`need_scan_builtins` guard extended to detect `icn_find_s1_N` statics.
+44/44 rung01-08 PASS. Baseline rung01-07 39/39 unchanged.
