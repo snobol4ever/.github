@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **Prolog JVM** | `main` PJ-38 — 19/20; MAX_VALUE sentinel + call-site guard landed; puzzle_18 root cause: lbl_cutγ NULL in callers without own cut | `13f4db6` PJ-38 | M-PJ-CUT-UCALL: route cutgamma to call_ω when lbl_cutγ NULL |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-22 — M-IJ-CORPUS-R13 ✅ ICN_ALT β-resume gate + string type fixes; 69/69 PASS | `a569adf` IJ-22 | M-IJ-CORPUS-R14 |
+| **Icon JVM** | `main` IJ-23 — M-IJ-CORPUS-R14 ✅ ICN_LIMIT (E \ N) limitation operator; 74/74 PASS | `9021c4e` IJ-23 | M-IJ-CORPUS-R15 |
 
 | **Icon JVM** | `main` IJ-17 — M-IJ-CORPUS-R9 ✅ until/repeat; 49/49 PASS | `60cf799` IJ-17 | M-IJ-CORPUS-R10 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
@@ -172,7 +172,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-CORPUS-R11** | Rung 11: `||:=` string augop + `!E` bang generator | ✅ |
 | **M-IJ-CORPUS-R12** | Rung 12: string relops + ICN_SIZE (*s) + ij_expr_is_string(ICN_IF) fix; 64/64 PASS | ✅ |
 | **M-IJ-CORPUS-R13** | Rung 13: ICN_ALT β-resume gate (indirect-goto per JCON §4.5); enables `every s ||:=("a"\|"b"\|"c")` | ✅ |
-| **M-IJ-CORPUS-R14** | Rung 14: ICN_LIMIT (`E \ N`) limitation operator | ❌ **NEXT** |
+| **M-IJ-CORPUS-R14** | Rung 14: ICN_LIMIT (`E \ N`) limitation operator | ✅ |
+| **M-IJ-CORPUS-R15** | Rung 15: next corpus rung | ❌ **NEXT** |
 
 | **M-IJ-CORPUS-R10** | Rung 10: next rung corpus PASS | ❌ **NEXT** |
 

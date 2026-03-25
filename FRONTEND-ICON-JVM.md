@@ -19,9 +19,42 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-22 — M-IJ-CORPUS-R13 ✅ ICN_ALT β-resume gate + two ij_expr_is_string fixes; 69/69 PASS | `a569adf` IJ-22 | M-IJ-CORPUS-R14 |
+| **Icon JVM** | `main` IJ-23 — M-IJ-CORPUS-R14 ✅ ICN_LIMIT (E \ N) limitation operator; 74/74 PASS | `9021c4e` IJ-23 | M-IJ-CORPUS-R15 |
 
-### Next session checklist (IJ-23)
+### Next session checklist (IJ-24)
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x
+gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+# Confirm 74/74 PASS (rungs 01-14) before touching code
+# Next: M-IJ-CORPUS-R15 — design next rung; check icon_ast.h for remaining
+#   unemitted node kinds; candidates: string subscripting, list/table structures,
+#   or any ICN constructs falling through to UNIMPL in the dispatch switch.
+```
+
+### IJ-23 findings — M-IJ-CORPUS-R14 ✅
+
+**74/74 PASS (rung01–14).** HEAD `9021c4e`.
+
+**`ij_emit_limit` in `icon_emit_jvm.c`:**
+
+`ICN_LIMIT` (E \ N): per-site statics `icn_N_limit_count J` and `icn_N_limit_max J`.
+
+- α: eval N child (bounded, one-shot) → store max; reset count=0 → E.α via `n_relay`
+- `e_gamma` relay: E yielded → store to `icn_N_limit_val`; check count >= max → if yes goto E.β (exhaust); else count++; reload value → ports.γ
+- β: check count >= max → ports.ω if exhausted; else → E.β (**no increment** — only γ path increments, because only γ actually delivers a value to the caller)
+
+**Key bug fixed during development:** initial β incremented counter before re-driving E.β, causing off-by-one (N=3 yielded only 2 values). Fix: β never increments.
+
+**`ij_expr_is_string`:** added `case ICN_LIMIT:` delegates to child[0] type.
+
+**rung14_limit corpus (5 tests):** `(1 to 10)\3`→1 2 3; `(1|2|3|4|5)\2`→1 2; `(1 to 5)\0`→"done"; `(1 to 3)\10`→1 2 3; `("a"|"b"|"c")\2`→a b.
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
