@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` R-2 | `00846d3` | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-48 — M-PJ-ATOM-BUILTINS WIP; rung12 corpus+helpers landed; 1 stack bug in pj_atom_chars_2 forward path | `da9cfb7` PJ-48 | M-PJ-ATOM-BUILTINS |
-| **Icon JVM** | `main` IJ-34 — M-IJ-TABLE WIP; 114/114 PASS | `ca94be1` IJ-34 | M-IJ-TABLE |
+| **Icon JVM** | `main` IJ-35 — M-IJ-TABLE 4/5; Bug1+Bug2 fixed; Bug3 key α re-snapshot | `6e41be2` IJ-35 | M-IJ-TABLE |
 | **README v2** | `main` R-2 | TBD | M-FEAT-JVM |
 
 **Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)

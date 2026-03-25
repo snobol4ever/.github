@@ -1429,3 +1429,17 @@ Root cause: `pj_emit_arith()` has no case for `mod` — falls to `default: lcons
 **Score:** 0/5 rung12 (all VerifyError). Context window ~90% — emergency handoff. 5/5 rung11 and 20/20 puzzles confirmed at session start before any edits.
 
 **Next session (PJ-49):** Delete the spurious `pop`. Build. Run rung12 → expect 5/5. Confirm 20/20 puzzles. If all green: fire M-PJ-ATOM-BUILTINS ✅, move to M-PJ-RETRACT or M-PJ-SORT.
+
+## IJ-35 — 2026-03-25
+
+**Trigger:** "playing with snobol4x JVM backend for ICON frontend" continuation.
+**HEAD start:** `ca94be1` (IJ-34). **HEAD end:** `6e41be2`.
+**Baseline confirmed:** rung22 5/5 PASS (runner set -e was swallowing results — tests were passing all along). rung23 2/5 at start.
+
+**Accomplished:**
+- Bug 1 FIXED (t[k]:=v VerifyError): Early-exit at top of `ij_emit_assign` detects `ICN_ASSIGN(ICN_SUBSCRIPT(T,k), v)` before any generic emit. Clean chain: eval v→box+save; eval k→toString+save; load T,k_str,v_obj; HashMap.put; pop; load v_long→γ. Dead old mid-relay path removed.
+- Bug 2 FIXED (table default returns 0): Naming convention `{varfld}_dflt`. Pre-pass pre-declares field. `table()` emitter sets `ij_pending_tdflt`. Assign store copies dflt to `{varfld}_dflt`. Subscript null-branch loads by convention name. No compile-time map needed.
+- `ij_expr_is_table` extended: insert/delete now recognized as table-returning in ICN_CALL, fixing pop2→pop drain VerifyError for those builtins.
+- rung23: 4/5 PASS (t01✅ t02✅ t03✅ t04✅ t05❌)
+
+**Remaining bug (IJ-36):** `key(T)` generator α re-snapshot. `every` drives generator via α (not β) on each iteration → `ktr` re-snapshots keySet, resets kidx=0 → only first key yielded repeatedly. Fix: add `icn_N_kinit I` static; α checks kinit and jumps to kchk if set; ktr sets kinit=1 on first entry.
