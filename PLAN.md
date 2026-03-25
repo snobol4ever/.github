@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **Prolog JVM** | `main` PJ-39b — 19/20; E_SUB/ADD/MPY/DIV fixed in pj_emit_term (write(X-Y) was null); puzzle_18 double-print persists | `56850fd` PJ-39b | M-PJ-CUT-UCALL: fix puzzle_18 double-print |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-25 — M-IJ-CORPUS-R16 ✅ ICN_SUBSCRIPT s[i] + if-cond String drain fix; 84/84 PASS | `dff0f03` IJ-25 | M-IJ-CORPUS-R17 |
+| **Icon JVM** | `main` IJ-26 — M-IJ-CORPUS-R17 ✅ real arith (dadd/dmul) + integer()/real()/string(); 89/89 PASS | `f10ea77` IJ-26 | M-IJ-CORPUS-R18 |
 
 | **Icon JVM** | `main` IJ-17 — M-IJ-CORPUS-R9 ✅ until/repeat; 49/49 PASS | `60cf799` IJ-17 | M-IJ-CORPUS-R10 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
@@ -175,7 +175,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-CORPUS-R14** | Rung 14: ICN_LIMIT (`E \ N`) limitation operator | ✅ |
 | **M-IJ-CORPUS-R15** | Rung 15: ICN_REAL, ICN_SWAP (:=:), ICN_LCONCAT (|||) | ✅ |
 | **M-IJ-CORPUS-R16** | Rung 16: ICN_SUBSCRIPT s[i] + if-cond String drain fix | ✅ |
-| **M-IJ-CORPUS-R17** | Rung 17: next corpus rung | ❌ **NEXT** |
+| **M-IJ-CORPUS-R17** | Rung 17: real arith (dadd/dmul), integer()/real()/string() builtins | ✅ |
+| **M-IJ-CORPUS-R18** | Rung 18: next corpus rung | ❌ **NEXT** |
 
 | **M-IJ-CORPUS-R10** | Rung 10: next rung corpus PASS | ❌ **NEXT** |
 

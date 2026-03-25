@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-25 — M-IJ-CORPUS-R16 ✅ ICN_SUBSCRIPT s[i] + if-cond String drain fix; 84/84 PASS | `dff0f03` IJ-25 | M-IJ-CORPUS-R17 |
+| **Icon JVM** | `main` IJ-26 — M-IJ-CORPUS-R17 ✅ real arith + integer()/real()/string(); 89/89 PASS | `f10ea77` IJ-26 | M-IJ-CORPUS-R18 |
 
-### Next session checklist (IJ-26)
+### Next session checklist (IJ-27)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -32,11 +32,30 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 84/84 PASS (rungs 01-16) before touching code
-# Next: M-IJ-CORPUS-R17 — design next rung.
-# Remaining reachable unimplemented: ICN_FIELD (r.f, needs record support — skip).
-# Practical: real arithmetic (dadd/dsub/dmul/ddiv), deeper generator patterns.
+# Confirm 89/89 PASS (rungs 01-17) before touching code
+# Next: M-IJ-CORPUS-R18 — candidates: real relops (< > = on doubles),
+# mixed int/real expressions, or multi-procedure programs with real args.
 ```
+
+### IJ-26 findings — M-IJ-CORPUS-R17 ✅
+
+**89/89 PASS (rung01–17).** HEAD `f10ea77`.
+
+**Changes in `icon_emit_jvm.c`:**
+
+1. **`ij_emit_binop` double support** — detects `ij_expr_is_real` on either operand; uses `dstore`/`dload`/`dadd`/`dsub`/`dmul`/`ddiv`/`drem` instead of long ops. Promotes long operand with `l2d` when mixing types.
+
+2. **`ij_expr_is_real` extended** — now recurses into binop children and recognises `real()` call. Enables type propagation through expressions like `x * y + z`.
+
+3. **`integer(x)` builtin** — `d2l` for double→long; `Long.parseLong` for String→long; identity for long.
+
+4. **`real(x)` builtin** — `l2d` for long→double; `Double.parseDouble` for String→double; identity for double.
+
+5. **`string(x)` builtin** — `Long.toString(J)` for long; `Double.toString(D)` for double; identity for String. Added to `ij_expr_is_string`.
+
+6. **`ldc2_w` decimal fix** — `%g` format for `2.0` produces `"2"` → Jasmin parses as int. Fix: append `.0` when formatted value has no decimal point or exponent.
+
+**rung17_real_arith corpus (5 tests):** real add, real mul with literals, integer()/string() conversions, real() from int.
 
 ### IJ-25 findings — M-IJ-CORPUS-R16 ✅
 
