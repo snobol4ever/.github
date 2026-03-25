@@ -1179,3 +1179,17 @@ Full diagnosis and bootstrap in FRONTEND-PROLOG-JVM.md §NOW (CRITICAL NEXT ACTI
 **Verified:** 20/20 PASS on full puzzle sweep. No regressions.
 
 **Next:** M-PJ-FINDALL — implement `findall/3` (Tier 1 roadmap).
+
+### IJ-31 (`98322dd`) — M-IJ-CORPUS-R21 ✅
+**Score: 109/109 PASS.**
+- Bug 1 (t02 NoSuchFieldError): Pass 0 pre-declared globals as `J`; proc scanner added them to `ij_locals`. Fix: `ij_global_names[]` registry + `ij_register_global()`/`ij_is_global()`; Pass 0 registers names only; proc scanner guards with `!ij_is_global()`.
+- Bug 2 (t03/t04 VerifyError stack height 2≠4): `ij_emit_initial` wired body.γ→run without draining body result. Fix: body.γ→`icn_N_init_drain` (pop/pop2 string-aware) then run; both run+skip push exactly one `lconst_0` → height 2.
+
+### IJ-32 (`ae9e611`) — M-IJ-LISTS scaffold (WIP, handoff)
+**Score: 109/109 PASS (baseline preserved).**
+- `ICN_MAKELIST` enum + `icn_kind_name` case.
+- `parse_primary`: `[e1,e2,...]` → `ICN_MAKELIST` node.
+- Statics type tags `'L'` (ArrayList) + `'O'` (Object); `.field` emitter extended.
+- ArrayList + Object static field helpers added.
+- `ij_emit_makelist`: new ArrayList + box each element + add; dispatch wired.
+- Remaining: list builtins (`push/put/get/pop/pull/list`), `ij_emit_bang` list branch, `ij_emit_size` list branch, rung22 corpus.

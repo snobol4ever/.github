@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-44 — **20/20** ✅ M-PJ-DISPLAY-BT workaround landed; puzzle_03 rewritten to avoid gamma cs bug (single-clause hot path + canonical tie-breaking) | `b97a20f` PJ-44 | M-PJ-FINDALL |
-| **Icon JVM** | `main` IJ-31 — M-IJ-CORPUS-R21 ✅ ICN_GLOBAL type-safe + ICN_INITIAL stack fix; 109/109 PASS | `98322dd` IJ-31 | M-IJ-CORPUS-R22 |
+| **Icon JVM** | `main` IJ-32 WIP — M-IJ-LISTS scaffold: ICN_MAKELIST + ArrayList infra; 109/109 baseline | `ae9e611` IJ-32 | M-IJ-LISTS |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
 
 **Invariants (check before any work):**
@@ -248,7 +248,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-CORPUS-R19** | Rung 19: ICN_POW (^) + real to-by generator; parse_pow + dneg fix | ✅ |
 | **M-IJ-CORPUS-R20** | Rung 20: ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | ✅ |
 | **M-IJ-CORPUS-R21** | Rung 21: ICN_GLOBAL type-safe + ICN_INITIAL stack fix; 5/5 rung21 PASS; 109/109 total | ✅ |
-| **M-IJ-CORPUS-R22** | Rung 22: next corpus rung | ❌ **NEXT** |
+| **M-IJ-LISTS** | List constructor [e1..en], push/put/get/pop/pull, !L, *L; rung22 corpus PASS | ❌ **NEXT** |
+| **M-IJ-CORPUS-R22** | Rung 22: lists corpus (fires with M-IJ-LISTS) | ❌ |
 
 | **M-IJ-CORPUS-R10** | Rung 10: next rung corpus PASS | ❌ **NEXT** |
 

@@ -19,11 +19,11 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-31 — M-IJ-CORPUS-R21 ✅ ICN_GLOBAL type-safe + ICN_INITIAL stack fix; 109/109 PASS | `98322dd` IJ-31 | M-IJ-CORPUS-R22 |
+| **Icon JVM** | `main` IJ-32 WIP — M-IJ-LISTS scaffold; ICN_MAKELIST + ArrayList infra committed; 109/109 baseline | `ae9e611` IJ-32 | M-IJ-LISTS |
 
 **⚠ Grand Master Reorg plan published — sessions continue normally. See GRAND_MASTER_REORG.md.**
 
-### Next session checklist (IJ-32)
+### Next session checklist (IJ-33)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -34,10 +34,28 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 109/109 PASS (rungs 01-21) before touching code
-# Next: M-IJ-CORPUS-R22 — design rung22 corpus; see Roadmap §Tier 1 for candidates
-# Recommended: M-IJ-LISTS (list constructor, push/put/get/pop, !L, *L)
+# Confirm 109/109 PASS (rungs 01-21) baseline before touching code
+# IJ-32 scaffold in place: ICN_MAKELIST, ArrayList statics infra, dispatch wired
+# Complete M-IJ-LISTS:
+# 1. List builtins in ij_emit_call (before "user procedure call" comment ~line 1223):
+#    push(L,v)→L.add(0,box(v))  put(L,v)→L.add(box(v))
+#    get(L)/pop(L)→L.remove(0)→unbox  pull(L)→L.remove(size-1)→unbox
+#    list(n)→new ArrayList() (ignore n for now, Icon list(n) creates empty list)
+# 2. ij_emit_bang list branch: statics type 'L' check;
+#    per-site icn_N_bang_idx I; α stores list+resets idx; check: idx>=size→ω;
+#    get(idx)→unbox→long→γ; idx++; β→check
+# 3. ij_emit_size list branch: ArrayList.size()→i2l
+# 4. Write rung22_lists/ 5 tests, confirm 114/114, commit+push
 ```
+
+### IJ-32 findings — M-IJ-LISTS scaffold (WIP, HEAD ae9e611)
+
+**109/109 PASS baseline preserved.**
+
+Infrastructure in `icon_emit_jvm.c`: type tags `'L'`/`'O'`; `.field` emitter extended; ArrayList + Object field helpers; `ij_emit_makelist` (box+add each child); `ICN_MAKELIST` dispatch. AST+parser: `ICN_MAKELIST` enum + parse rule for `[e1,e2,...]`.
+
+Remaining: list builtins, bang/size list branches, rung22 corpus.
+
 
 ### IJ-31 findings — M-IJ-CORPUS-R21 ✅
 
