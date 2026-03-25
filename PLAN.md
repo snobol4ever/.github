@@ -53,7 +53,7 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 ## Milestone Dashboard
 
 ### Grand Master Reorg — all ❌ — detail → [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md)
-Phases 0–8 · 54 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (Lon schedules)**
+Phases 0–8 · ~80 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (Lon schedules)**
 
 ### Scripten Demo — detail → [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md)
 `M-SCRIPTEN-DEMO` ❌ **NEXT** · `M-SCRIPTEN-DEMO2` ❌

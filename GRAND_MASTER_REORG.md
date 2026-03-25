@@ -1,5 +1,6 @@
 # GRAND MASTER REORGANIZATION — snobol4ever
 *2026-03-25 — authored by Claude Sonnet 4.6 in consultation with the project record*
+*2026-03-25 — milestones decomposed for incremental safety by Claude Sonnet 4.6 (G-6 session)*
 
 ---
 
@@ -213,7 +214,8 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G1-IR-HEADER** | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Keep `sno2c.h` intact — add `#include "ir/ir.h"` at top. All existing code still compiles. | `make -j4` clean; 106/106 |
+| **M-G1-IR-HEADER-DEF** | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean; no `-Werror` violations |
+| **M-G1-IR-HEADER-WIRE** | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean; 106/106 ASM; 106/106 JVM; 110/110 NET |
 | **M-G1-IR-PRINT** | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: print a known IR, check output |
 | **M-G1-IR-VERIFY** | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | `make debug` passes verify on all corpus programs |
 
@@ -231,25 +233,73 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | **M-G2-MOVE-ICON-JVM** | `git mv src/frontend/icon/icon_emit_jvm.c src/backend/jvm/emit_jvm_icon.c`. Update references. No content changes. | Icon JVM corpus 99/99 |
 | **M-G2-MOVE-PROLOG-JVM** | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Prolog JVM 20/20 |
 | **M-G2-MOVE-ICON-ASM** | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Icon ASM rung03 5/5 |
-| **M-G2-MOVE-PROLOG-ASM** | ⚠ FILE SPLIT — not a `git mv`. The Prolog ASM emitter is currently embedded in the tail of `emit_x64.c`. Extract it into `src/backend/x64/emit_x64_prolog.c`. Either `#include` it from `emit_x64.c` or add as a separate compilation unit in the Makefile. Do this last within Phase 2 — all clean `git mv` moves above must be verified green first. | Prolog ASM rungs 1–9 PASS |
+| **M-G2-MOVE-PROLOG-ASM-a** | ⚠ FILE SPLIT step 1 — create `src/backend/x64/emit_x64_prolog.c` as an empty stub and `#include` it from the **tail** of `emit_x64.c`. Prolog code still physically lives in `emit_x64.c` at this step. Add stub to Makefile if needed. | 106/106 ASM; Prolog ASM rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
+| **M-G2-MOVE-PROLOG-ASM-b** | ⚠ FILE SPLIT step 2 — physically move Prolog ASM emitter code from `emit_x64.c` into `emit_x64_prolog.c`. Remove from `emit_x64.c`. The `#include` from step (a) stays. | 106/106 ASM; Prolog ASM rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
 
 After M-G2: the file layout matches the target architecture. Every emitter sits
-in the backend directory that owns it. **M-G2-MOVE-PROLOG-ASM must be last** —
-it is a file split, not a rename, and carries the most risk within this phase.
+in the backend directory that owns it. **M-G2-MOVE-PROLOG-ASM-a/b must be last** —
+they are a file split, not a rename, and carry the most risk within this phase.
 
 ---
 
-### Phase 3 — Naming Unification (one emitter at a time)
+### Phase 3 — Naming Unification (one opcode group at a time)
 
-Each sub-milestone touches **one emitter only**. No cross-emitter changes in one commit.
-The naming law (see above) is applied mechanically: search-replace C variable names,
-rename generated label patterns, update comments. No logic changes.
+Each sub-milestone touches **one emitter, one opcode group only**. No cross-emitter
+changes in one commit. The naming law (see above) is applied mechanically:
+search-replace C variable names, rename generated label patterns, update comments.
+No logic changes. Old-style names may coexist with new-style names across groups
+within the same file — the file is fully conformant only after all sub-milestones
+for that emitter are done.
+
+**Rule:** after every sub-milestone, the full corpus for that backend must pass.
+A regression is immediately localizable to the one opcode group just touched.
+
+#### emit_x64.c
+
+| ID | Opcode group | What changes | Verify |
+|----|-------------|-------------|--------|
+| **M-G3-NAME-X64-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | Local vars → `lbl_alpha/beta/gamma/omega`; functions → `emit_x64_<Kind>` | 106/106 |
+| **M-G3-NAME-X64-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
+| **M-G3-NAME-X64-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 106/106 |
+| **M-G3-NAME-X64-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
+| **M-G3-NAME-X64-LOAD** | `E_VART`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
+| **M-G3-NAME-X64-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same; macros confirmed as `E()`/`EI()`/`EL()` | 106/106 |
+| **M-G3-NAME-X64-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 106/106 |
+| **M-G3-NAME-X64-REMAINING** | All remaining kinds in `emit_x64.c` | Same; confirm no non-conforming names remain | 106/106 |
+
+#### emit_jvm.c
+
+| ID | Opcode group | What changes | Verify |
+|----|-------------|-------------|--------|
+| **M-G3-NAME-JVM-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `J()`/`JI()`/`JL()` confirmed; functions → `emit_jvm_<Kind>` | 106/106 |
+| **M-G3-NAME-JVM-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
+| **M-G3-NAME-JVM-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 106/106 |
+| **M-G3-NAME-JVM-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
+| **M-G3-NAME-JVM-LOAD** | `E_VART`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
+| **M-G3-NAME-JVM-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 106/106 |
+| **M-G3-NAME-JVM-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 106/106 |
+| **M-G3-NAME-JVM-REMAINING** | All remaining kinds in `emit_jvm.c` | Same; confirm no non-conforming names remain | 106/106 |
+
+#### emit_net.c
+
+| ID | Opcode group | What changes | Verify |
+|----|-------------|-------------|--------|
+| **M-G3-NAME-NET-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `N()`/`NI()`/`NL()` confirmed or renamed; functions → `emit_net_<Kind>` | 110/110 NET |
+| **M-G3-NAME-NET-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 110/110 NET |
+| **M-G3-NAME-NET-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 110/110 NET |
+| **M-G3-NAME-NET-CURSOR** | `E_POS`, `E_RPOS` | Same | 110/110 NET |
+| **M-G3-NAME-NET-LOAD** | `E_VART`, `E_ILIT`, `E_FLIT` | Same | 110/110 NET |
+| **M-G3-NAME-NET-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 110/110 NET |
+| **M-G3-NAME-NET-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 110/110 NET |
+| **M-G3-NAME-NET-REMAINING** | All remaining kinds in `emit_net.c` | Same; confirm no non-conforming names remain | 110/110 NET |
+
+#### emit_wasm.c, emit_jvm_icon.c, emit_jvm_prolog.c, emit_x64_icon.c
+
+These files are either new (WASM) or smaller. A single milestone per file is
+acceptable here since diffs are bounded and reviewable.
 
 | ID | File | What changes | Verify |
 |----|------|-------------|--------|
-| **M-G3-NAME-X64** | `emit_x64.c` | Local variables → `lbl_alpha/beta/gamma/omega`; macros confirmed as `E()`/`EI()`/`EL()`; functions → `emit_x64_<Kind>` | 106/106 |
-| **M-G3-NAME-JVM** | `emit_jvm.c` | Same; `J()`/`JI()`/`JL()` confirmed; functions → `emit_jvm_<Kind>` | 106/106 |
-| **M-G3-NAME-NET** | `emit_net.c` | Same; `N()`/`NI()`/`NL()` confirmed or renamed; functions → `emit_net_<Kind>` | 110/110 NET |
 | **M-G3-NAME-WASM** | `emit_wasm.c` | Establish naming law from scratch: `W()`/`WI()`/`WL()`, `lbl_alpha/beta/gamma/omega`, `emit_wasm_<Kind>`. WASM uses `br_table` for tableswitch (maps to JVM pattern). | Builds clean |
 | **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific; shared node handlers → `emit_jvm_<Kind>` | Icon JVM 99/99 |
 | **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific; shared → `emit_jvm_<Kind>` | Prolog JVM 20/20 |
@@ -290,8 +340,15 @@ Each backend provides its own `emit_fn_t` callback. The wiring is written once.
 | **M-G4-SHARED-ARITH** | `E_ADD/SUB/MPY/DIV/MOD` | Same. | All |
 | **M-G4-SHARED-ASSIGN** | `E_ASSIGN` | Same. | All |
 | **M-G4-SHARED-IDX** | `E_IDX` | Same. | All |
-| **M-G4-SHARED-ICON** | `E_TO`, `E_TO_BY`, `E_SUSPEND`, `E_ALT_GEN`, `E_BANG`, `E_LIMIT`, `E_SCAN` | Extract Icon wiring shared between `emit_x64_icon.c` and `emit_jvm_icon.c`. | Icon ASM + JVM |
-| **M-G4-SHARED-PROLOG** | `E_UNIFY`, `E_CLAUSE`, `E_CHOICE`, `E_CUT`, `E_TRAIL_*` | Extract Prolog wiring shared between ASM and JVM. | Prolog ASM + JVM |
+| **M-G4-SHARED-ICON-TO** | `E_TO`, `E_TO_BY` | Extract Icon generator wiring shared between `emit_x64_icon.c` and `emit_jvm_icon.c`. | Icon ASM + JVM |
+| **M-G4-SHARED-ICON-SUSPEND** | `E_SUSPEND` | Same. Suspend/resume wiring isolated from other generators. | Icon ASM + JVM |
+| **M-G4-SHARED-ICON-ALT** | `E_ALT_GEN` | Same. | Icon ASM + JVM |
+| **M-G4-SHARED-ICON-BANG** | `E_BANG`, `E_SCAN` | Same. SCAN involves subject save/restore — verify both backends independently. | Icon ASM + JVM |
+| **M-G4-SHARED-ICON-LIMIT** | `E_LIMIT` | Same. | Icon ASM + JVM |
+| **M-G4-SHARED-PROLOG-UNIFY** | `E_UNIFY` | Extract Prolog unification wiring shared between ASM and JVM. | Prolog ASM + JVM |
+| **M-G4-SHARED-PROLOG-CLAUSE** | `E_CLAUSE`, `E_CHOICE` | Same. Head-matching and predicate dispatch wiring. | Prolog ASM + JVM |
+| **M-G4-SHARED-PROLOG-CUT** | `E_CUT` | Same. FENCE/cut sealing logic. | Prolog ASM + JVM |
+| **M-G4-SHARED-PROLOG-TRAIL** | `E_TRAIL_MARK`, `E_TRAIL_UNWIND` | Same. Trail save/restore is the most backend-sensitive Prolog operation — isolated last. | Prolog ASM + JVM |
 
 ---
 
@@ -301,13 +358,22 @@ Each frontend's `lower.c` must produce only canonical `EXPR_t` nodes from the
 unified `ir.h` enum. Any frontend-local node types that duplicate an existing
 shared kind are replaced.
 
+**Rule:** audit and fix are always separate milestones. The audit produces a doc
+listing gaps. The fix resolves them one gap at a time. No gap is fixed without
+first being documented.
+
 | ID | Frontend | Action | Verify |
 |----|----------|--------|--------|
-| **M-G5-LOWER-SNOBOL4** | snobol4 | Audit `parse.c` / `lower.c` — confirm all output nodes are in unified enum. Document any gaps. | 106/106 |
-| **M-G5-LOWER-SNOCONE** | snocone | Same audit. Lower → unified IR. | Snocone corpus PASS |
-| **M-G5-LOWER-ICON** | icon | `IcnNode` kinds mapped to unified enum or kept as typed frontend extension with explicit bridge. | Icon ASM rung03 5/5 |
-| **M-G5-LOWER-PROLOG** | prolog | `E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*` already in unified enum (Phase 1). Confirm. | Prolog JVM 20/20 |
-| **M-G5-LOWER-REBUS** | rebus | Audit `rebus_emit.c` — map Rebus AST nodes to unified enum. | Rebus corpus PASS |
+| **M-G5-LOWER-SNOBOL4-AUDIT** | snobol4 | Audit `parse.c` / `lower.c` — list every node kind produced. Cross-reference to unified enum. Produce `doc/IR_LOWER_SNOBOL4.md` with gap table. No code changes. | File exists |
+| **M-G5-LOWER-SNOBOL4-FIX** | snobol4 | For each gap in `doc/IR_LOWER_SNOBOL4.md`: add missing kind to enum (if absent), wire bridge in `lower.c`. One commit per gap. | 106/106 after each gap fixed |
+| **M-G5-LOWER-ICON-AUDIT** | icon | Audit `IcnNode` kinds — map each to unified enum or flag as frontend-local extension. Produce `doc/IR_LOWER_ICON.md`. No code changes. | File exists |
+| **M-G5-LOWER-ICON-FIX** | icon | For each gap: add kind or wire explicit bridge. One commit per gap. | Icon ASM rung03 5/5 after each gap |
+| **M-G5-LOWER-PROLOG-AUDIT** | prolog | Confirm `E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*` are all in unified enum (Phase 1). Produce `doc/IR_LOWER_PROLOG.md` — expected to be short. | File exists |
+| **M-G5-LOWER-PROLOG-FIX** | prolog | Fix any gaps found. (Expected: none.) | Prolog JVM 20/20 |
+| **M-G5-LOWER-SNOCONE-AUDIT** | snocone | Audit lowered form — map to unified enum. Produce `doc/IR_LOWER_SNOCONE.md`. | File exists |
+| **M-G5-LOWER-SNOCONE-FIX** | snocone | Fix gaps. One commit per gap. | Snocone corpus PASS after each gap |
+| **M-G5-LOWER-REBUS-AUDIT** | rebus | Audit `rebus_emit.c` — map Rebus AST nodes to unified enum. Produce `doc/IR_LOWER_REBUS.md`. | File exists |
+| **M-G5-LOWER-REBUS-FIX** | rebus | Fix gaps. One commit per gap. | Rebus corpus PASS after each gap |
 
 ---
 
@@ -382,32 +448,40 @@ No logic changes.
 M-G0-FREEZE
     ├── M-G0-AUDIT
     └── M-G0-IR-AUDIT
-            └── M-G1-IR-HEADER
-                    ├── M-G1-IR-PRINT
-                    └── M-G1-IR-VERIFY
-                            └── M-G2-DIRS
-                                    └── M-G2-MOVE-* (×7, sequential)
-                                            └── M-G3-NAME-* (×6, sequential)
-                                                    └── M-G4-SHARED-* (×9, sequential)
-                                                            └── M-G5-LOWER-* (×5, sequential)
-                                                                    └── M-G6-* (×7, parallel)
-                                                                            └── M-G7-STYLE-DOC
-                                                                                    └── M-G7-STYLE-*
-                                                                                            └── M-G7-UNFREEZE
-                                                                                                    └── M-G8-HOME (design decisions, parallel)
-                                                                                                    └── M-G8-DEPTH
-                                                                                                    └── M-G8-ORACLE
-                                                                                                    └── M-G8-GRAMMAR
-                                                                                                            └── M-G8-ENUM-CORE
-                                                                                                                    └── M-G8-EMIT-SNO
-                                                                                                                            └── M-G8-RUNNER
-                                                                                                                                    └── M-G8-SNOBOL4-N10
-                                                                                                                                            └── M-G8-SNOBOL4-N25
-                                                                                                                                                    └── M-G8-ICON-GRAMMAR
-                                                                                                                                                            └── M-G8-ICON-N25
-                                                                                                                                                                    └── M-G8-PROLOG-GRAMMAR
-                                                                                                                                                                            └── M-G8-PROLOG-N25
-                                                                                                                                                                                    └── M-G8-CI
+            └── M-G1-IR-HEADER-DEF
+                    └── M-G1-IR-HEADER-WIRE
+                            ├── M-G1-IR-PRINT
+                            └── M-G1-IR-VERIFY
+                                    └── M-G2-DIRS
+                                            └── M-G2-MOVE-* (×7, sequential)
+                                                    └── M-G2-MOVE-PROLOG-ASM-a
+                                                            └── M-G2-MOVE-PROLOG-ASM-b
+                                                                    └── M-G3-NAME-X64-* (×8, sequential)
+                                                                    └── M-G3-NAME-JVM-* (×8, sequential)
+                                                                    └── M-G3-NAME-NET-* (×8, sequential)
+                                                                    └── M-G3-NAME-WASM / JVM-ICON / JVM-PROLOG / X64-ICON
+                                                                            └── M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (sequential)
+                                                                                    └── M-G4-SHARED-ICON-TO → SUSPEND → ALT → BANG → LIMIT (sequential)
+                                                                                    └── M-G4-SHARED-PROLOG-UNIFY → CLAUSE → CUT → TRAIL (sequential)
+                                                                                            └── M-G5-LOWER-*-AUDIT → M-G5-LOWER-*-FIX (per frontend, sequential)
+                                                                                                    └── M-G6-* (×10, parallel)
+                                                                                                            └── M-G7-STYLE-DOC
+                                                                                                                    └── M-G7-STYLE-*
+                                                                                                                            └── M-G7-UNFREEZE
+                                                                                                                                    └── M-G8-HOME (design decisions, parallel)
+                                                                                                                                    └── M-G8-DEPTH
+                                                                                                                                    └── M-G8-ORACLE
+                                                                                                                                    └── M-G8-GRAMMAR
+                                                                                                                                            └── M-G8-ENUM-CORE
+                                                                                                                                                    └── M-G8-EMIT-SNO
+                                                                                                                                                            └── M-G8-RUNNER
+                                                                                                                                                                    └── M-G8-SNOBOL4-N10
+                                                                                                                                                                            └── M-G8-SNOBOL4-N25
+                                                                                                                                                                                    └── M-G8-ICON-GRAMMAR
+                                                                                                                                                                                            └── M-G8-ICON-N25
+                                                                                                                                                                                                    └── M-G8-PROLOG-GRAMMAR
+                                                                                                                                                                                                            └── M-G8-PROLOG-N25
+                                                                                                                                                                                                                    └── M-G8-CI
 ```
 
 ---
@@ -436,31 +510,40 @@ M-G0-FREEZE
 
 | ID | Phase | Status |
 |----|-------|--------|
-| M-G0-FREEZE       | 0 — Baseline  | ❌ NEXT |
-| M-G0-AUDIT        | 0 — Baseline  | ❌ |
-| M-G0-IR-AUDIT     | 0 — Baseline  | ❌ |
-| M-G1-IR-HEADER    | 1 — IR        | ❌ |
-| M-G1-IR-PRINT     | 1 — IR        | ❌ |
-| M-G1-IR-VERIFY    | 1 — IR        | ❌ |
-| M-G2-DIRS         | 2 — Folders   | ❌ |
-| M-G2-MOVE-* (×7)  | 2 — Folders   | ❌ |
-| M-G3-NAME-* (×6)  | 3 — Names     | ❌ |
-| M-G4-SHARED-* (×9)| 4 — Wiring    | ❌ |
-| M-G5-LOWER-* (×5) | 5 — Frontends | ❌ |
-| M-G6-* (×10)      | 6 — Matrix    | ❌ |
-| M-G7-UNFREEZE     | 7 — Style     | ❌ |
-| M-G8-HOME         | 8 — GenTest: where does enumerator live? | ❌ |
-| M-G8-DEPTH        | 8 — GenTest: token-count vs IR-node depth bound? | ❌ |
-| M-G8-ORACLE       | 8 — GenTest: differential vs reference-cache oracle? | ❌ |
-| M-G8-GRAMMAR      | 8 — GenTest: first language + fragment + BNF | ❌ |
-| M-G8-ENUM-CORE    | 8 — GenTest: enumerate.py core | ❌ |
-| M-G8-EMIT-SNO     | 8 — GenTest: IR tree → .sno serializer | ❌ |
-| M-G8-RUNNER       | 8 — GenTest: full pipeline + Monitor hook | ❌ |
-| M-G8-SNOBOL4-N10  | 8 — GenTest: SNOBOL4 pattern N=10 clean | ❌ |
-| M-G8-SNOBOL4-N25  | 8 — GenTest: SNOBOL4 pattern N=25 clean | ❌ |
-| M-G8-ICON-N25     | 8 — GenTest: Icon generators N=25 clean | ❌ |
-| M-G8-PROLOG-N25   | 8 — GenTest: Prolog clause bodies N=25 clean | ❌ |
-| M-G8-CI           | 8 — GenTest: N=10 slice wired into CI | ❌ |
+| M-G0-FREEZE             | 0 — Baseline  | ❌ NEXT |
+| M-G0-AUDIT              | 0 — Baseline  | ❌ |
+| M-G0-IR-AUDIT           | 0 — Baseline  | ❌ |
+| M-G1-IR-HEADER-DEF      | 1 — IR        | ❌ |
+| M-G1-IR-HEADER-WIRE     | 1 — IR        | ❌ |
+| M-G1-IR-PRINT           | 1 — IR        | ❌ |
+| M-G1-IR-VERIFY          | 1 — IR        | ❌ |
+| M-G2-DIRS               | 2 — Folders   | ❌ |
+| M-G2-MOVE-* (×7)        | 2 — Folders   | ❌ |
+| M-G2-MOVE-PROLOG-ASM-a  | 2 — Folders   | ❌ |
+| M-G2-MOVE-PROLOG-ASM-b  | 2 — Folders   | ❌ |
+| M-G3-NAME-X64-* (×8)    | 3 — Names     | ❌ |
+| M-G3-NAME-JVM-* (×8)    | 3 — Names     | ❌ |
+| M-G3-NAME-NET-* (×8)    | 3 — Names     | ❌ |
+| M-G3-NAME-WASM/ICON/PRO (×4) | 3 — Names | ❌ |
+| M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (×7) | 4 — Wiring | ❌ |
+| M-G4-SHARED-ICON-* (×5) | 4 — Wiring    | ❌ |
+| M-G4-SHARED-PROLOG-* (×4) | 4 — Wiring  | ❌ |
+| M-G5-LOWER-*-AUDIT (×5) | 5 — Frontends | ❌ |
+| M-G5-LOWER-*-FIX (×5)   | 5 — Frontends | ❌ |
+| M-G6-* (×10)            | 6 — Matrix    | ❌ |
+| M-G7-UNFREEZE           | 7 — Style     | ❌ |
+| M-G8-HOME               | 8 — GenTest: where does enumerator live? | ❌ |
+| M-G8-DEPTH              | 8 — GenTest: token-count vs IR-node depth bound? | ❌ |
+| M-G8-ORACLE             | 8 — GenTest: differential vs reference-cache oracle? | ❌ |
+| M-G8-GRAMMAR            | 8 — GenTest: first language + fragment + BNF | ❌ |
+| M-G8-ENUM-CORE          | 8 — GenTest: enumerate.py core | ❌ |
+| M-G8-EMIT-SNO           | 8 — GenTest: IR tree → .sno serializer | ❌ |
+| M-G8-RUNNER             | 8 — GenTest: full pipeline + Monitor hook | ❌ |
+| M-G8-SNOBOL4-N10        | 8 — GenTest: SNOBOL4 pattern N=10 clean | ❌ |
+| M-G8-SNOBOL4-N25        | 8 — GenTest: SNOBOL4 pattern N=25 clean | ❌ |
+| M-G8-ICON-N25           | 8 — GenTest: Icon generators N=25 clean | ❌ |
+| M-G8-PROLOG-N25         | 8 — GenTest: Prolog clause bodies N=25 clean | ❌ |
+| M-G8-CI                 | 8 — GenTest: N=10 slice wired into CI | ❌ |
 ```
 
 ---
