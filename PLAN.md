@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-23 — root cause found: `\+` multi-arg silently fails; ITE emitter confirmed OK | `cb0b4d0` PJ-22 | M-PJ-DISJ-ARITH |
+| **Prolog JVM** | `main` PJ-24 — \\+ trail + body-fail trail fixed; puzzle_03 logic OK; display over-generates | `a77555c` PJ-24 | M-PJ-DISPLAY-BT |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-14 — M-IJ-CORPUS-R5 ✅ 39/39 rung01-07 PASS | `6780ab9` IJ-14 | M-IJ-CORPUS-R8 |
@@ -107,6 +107,9 @@ Full sprint detail → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
 | **M-PJ-PZ11** | puzzle_11 real search — swipl PASS | ✅ |
 | **M-PJ-NEQ** | `\=/2` missing from `pj_emit_goal` — add emit with trail-save/unwind | ✅ |
 | **M-PJ-STACK-LIMIT** | Fix `.limit stack` over-estimate in `prolog_emit_jvm.c` — eliminate VerifyError on 5+ clause predicates | ✅ |
+| **M-PJ-NAF-TRAIL** | Fix `\+` trail corruption — save/unwind on both inner paths | ✅ |
+| **M-PJ-BODYFAIL-TRAIL** | Fix body-fail trail: `bodyfail_N` trampoline unwinds clause trail on body goal failure | ✅ |
+| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — not_dorothy 2-clause retry | ❌ |
 | **M-PJ-DISJ-ARITH** | Fix `(A;B;C)` inline disjunction silent failure in arithmetic body in JVM emitter | ❌ |
 | **M-PJ-ARITY-CAP** | Fix `ClassFormatError` on high-arity predicates (display/16) — pack args or cap arity | ❌ |
 

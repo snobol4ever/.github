@@ -19,40 +19,45 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-23 — M-PJ-DISJ-ARITH in progress; root cause found: `\+` on multi-arg user calls fails silently | `cb0b4d0` PJ-22 (no new commit — diagnosis only) | M-PJ-DISJ-ARITH |
+| **Prolog JVM** | `main` PJ-24 — two trail bugs fixed; puzzle_03 logic OK; display/6 over-generates | `a77555c` PJ-24 | M-PJ-DISPLAY-BT |
 
-### CRITICAL NEXT ACTION (PJ-24)
+### CRITICAL NEXT ACTION (PJ-25)
 
-**Milestone: M-PJ-DISJ-ARITH — two bugs confirmed, one root-caused.**
+**Milestone: M-PJ-DISPLAY-BT — puzzle_03 display/6 over-generation.**
 
-**puzzle_03 TRUE root cause (PJ-23 finding):**
-- The `(;)` ITE emitter is NOT the bug — tested exhaustively, works correctly.
-- The actual bug is `\+` on **multi-argument user predicate calls** silently failing.
-- `not_dorothy/6` clause 1: `\+ partner_is(T, D, D, J, V, B, Ji)` — `partner_is` always fails, so `\+` should succeed. JVM silently fails instead.
-- Confirmed: `\+ always_fail` (0-arg) works. `\+ pred_with_args(...)` (multi-arg) fails silently.
-- Bug is in `pj_emit_goal` `\+` handler (line ~1374 in `prolog_emit_jvm.c`): it calls `pj_emit_goal` on the inner goal with `inner_ok`/`inner_fail` labels. For multi-arg user calls the user-call path (line ~1614) pushes args then `iconst_0` + `invokestatic` — the return value is an `Object[]` or null. `ifnull` jumps to `lbl_ω` (here: `inner_fail` for `\+`). But the issue is that `pj_emit_goal` for a user call is a **deterministic single-call** — it uses `iconst_0` as the cs argument. Inside `\+`, we need to trail-save, call the predicate, unwind the trail on any path, then route success→lbl_ω and failure→lbl_γ. The trail is NOT being saved/unwound in the `\+` wrapper — any bindings made by the inner call (even if it ultimately fails) pollute the environment.
-- **Fix:** In the `\+` handler, save trail mark before calling inner goal, unwind trail on both `inner_ok` and `inner_fail` paths before routing to `lbl_ω`/`lbl_γ`.
+**PJ-24 fixes landed (commit a77555c):**
+1. `\+` trail: save mark before inner goal, unwind on both paths. Mirrored `\=/2` pattern.
+2. Body-fail trail: added `bodyfail_N` trampoline per clause in `pj_emit_choice`. When body goal fails (`dg_omega`), now unwinds clause trail before jumping to next clause. `lbl_outer_ω` (ucall exhaustion) still goes directly to next clause to avoid double-unwind.
 
-**puzzle_11 root cause (unchanged from PJ-22):** double-print — `!` inside `ages_ok` seals `ages_ok`'s own β but `puzzle`'s backtrack through `all_diff5` finds a second valid age-assignment. Fix: add `!` after `ages_ok(...)` call in `puzzle` body, or fix cut propagation across call boundary.
+**puzzle_03 current state:**
+- Logic search: 12/12 assignments match swipl ✅
+- `display/6` over-generates: 56 JVM lines vs 12 oracle lines.
+- Root cause: `display/6` is called from `puzzle/0` as `display(...), fail`. The `fail` backtracks into `display`, which retries `find_couples` (6 clauses). For most inputs `find_couples` has exactly 1 solution, so `display` exhausts and its `call_ω` fires. `call_ω` routes to `lbl_ω` of the enclosing `pj_emit_body` call — which is `call_β` of `not_dorothy` (the previous user-call). This causes `not_dorothy` to be retried: it has 2 clauses (clause1: `\+`, clause2: ITE), both succeed for valid inputs → double display per assignment.
+- **Fix direction:** `not_dorothy` should be deterministic — its two clauses are redundant (both encode the same constraint). The puzzle source should use `once(not_dorothy(...))` or `not_dorothy` should have a `!` after the ITE clause. Alternatively, fix the puzzle to use a single-clause `not_dorothy`. The JVM emitter is correct; the puzzle source has unintended choice points.
+- **Confirm:** `swipl` also produces 12 lines for puzzle_03 (same trace), meaning swipl somehow avoids the double-execution. Check if swipl's ITE (`->`) cuts the choice point in clause2, preventing retry of `not_dorothy`. If so, the JVM ITE emitter may not be cutting correctly.
 
-**Bootstrap PJ-24:**
+**Bootstrap PJ-25:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-apt-get install -y default-jdk nasm libgc-dev swi-prolog
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
-# Confirm baseline: 9/9 rungs PASS, puzzle_03+11 still FAIL
-# Minimal repro for \+ bug:
-cat > /tmp/negtest_args.pro << 'EOF'
+# Confirm baseline: 9/9 rungs PASS
+# Test: does not_dorothy generate 1 or 2 solutions under backtrack?
+cat > /tmp/nd_bt.pro << 'EOF2'
 :- initialization(main).
-main :- \+ always_fail(1,2,3), write(ok), write('\n').
-always_fail(_,_,_) :- fail.
-EOF
-# swipl → "ok"; JVM → silent (the bug)
-# Fix: prolog_emit_jvm.c \+ handler ~line 1369
-# Add trail_mark before pj_emit_goal call, unwind on inner_ok AND inner_fail
-# Then re-run puzzle_03 — should pass
-# Then tackle puzzle_11 cut fix
+not_dorothy(T,D,J,V,B,Ji) :- \+ partner_is(T,D,D,J,V,B,Ji).
+partner_is(T,D,D,_,_,_,_) :- T+D=:=T+D, fail.
+not_dorothy(T,D,J,V,B,Ji) :-
+    ( B+D=:=Ji+J,Ji+J=:=T+V->G_T=V ; B+D=:=Ji+V,Ji+V=:=T+J->G_T=J
+    ; B+J=:=Ji+D,Ji+D=:=T+V->G_T=V ; B+J=:=Ji+V,Ji+V=:=T+D->G_T=D
+    ; B+V=:=Ji+D,Ji+D=:=T+J->G_T=J ; B+V=:=Ji+J,Ji+J=:=T+D->G_T=D
+    ; fail ), G_T=\=D.
+main :- not_dorothy(5,2,6,3,1,4), write(ok), write('\n'), fail ; true.
+EOF2
+# swipl: 1 line "ok". JVM: should also be 1. If 2, ITE cut is leaking.
+# If not_dorothy gives 2 JVM solutions: fix ITE -> cut in pj_emit_goal
+# puzzle_11: add to next session after puzzle_03 PASS
 ```
 
 **Bootstrap PJ-23:**
@@ -201,6 +206,9 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-PZ11** | puzzle_11 real Prolog search — swipl PASS | ✅ |
 | **M-PJ-NEQ** | `\=/2` emit missing in `pj_emit_goal` — JVM crashes with NoSuchMethodError | ✅ |
 | **M-PJ-STACK-LIMIT** | Dynamic `.limit stack` via term depth walker — fixes VerifyError on deep compound terms | ✅ |
+| **M-PJ-NAF-TRAIL** | `\+` trail: save mark before inner goal, unwind both paths — multi-arg user calls in `\+` | ✅ |
+| **M-PJ-BODYFAIL-TRAIL** | Body-fail trail unwind: `bodyfail_N` trampoline per clause — head bindings now undone on body failure | ✅ |
+| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — `not_dorothy` 2-clause retry; ITE cut or source fix | ❌ **NEXT** |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 
