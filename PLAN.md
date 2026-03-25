@@ -13,6 +13,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-1 — plan published; concurrent work continues normally — see GRAND_MASTER_REORG.md | `8fec586` G-1 | M-G0-FREEZE (Lon schedules) |
+| **Scripten Demo** | SD-0 — not started | — | M-SCRIPTEN-DEMO |
 | **TINY backend** | `main` B-292 — JVM nchildren segfault fixed; L_io_end missing-label diagnosed; 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — M-T2-NET ✅ 110/110 clean | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT fields+init+set+get+tick ✅ VERIFIED (10K loop terminates); 2D E_ARY subscript WIP | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT → M-JVM-BEAUTY-GLOBAL |
@@ -131,6 +132,25 @@ See [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md) for full plan. **Concurrent d
 | **M-G8-CI** | 8 — GenTest: N=10 slice in CI, < 5 min | ❌ |
 
 Full plan → [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md)
+
+---
+
+### Scripten Demo — Active
+
+**Session trigger phrase:** `"playing with Scripten demo"`
+**L3 docs:** [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md) · [SCRIPTEN_DEMO2.md](SCRIPTEN_DEMO2.md)
+**Prerequisites:** IJ rung03 ✅ (`suspend` working) · PJ 20/20 ✅ · snobol4x JVM backend on `main`
+
+| ID | Description | Status |
+|----|-------------|--------|
+| **M-SCRIPTEN-DEMO** | Demo #1 — Family Tree: SNOBOL4 parses CSV, Prolog infers relationships, Icon formats report. `run_demo.sh` clean, output matches `family.expected`. | ❌ **NEXT** |
+| **M-SCRIPTEN-DEMO2** | Demo #2 — Puzzle Solver: SNOBOL4 reads S-expressions, Prolog stores constraints, Icon searches with `suspend`. `run_demo2.sh` clean, puzzle1 unique solution confirmed. | ❌ |
+
+**Dependency:** M-SCRIPTEN-DEMO must fire before M-SCRIPTEN-DEMO2 — splitter and funny linkage infrastructure are shared and built once.
+
+Full specs → [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md) · [SCRIPTEN_DEMO2.md](SCRIPTEN_DEMO2.md)
+
+---
 
 > Completed milestones → [MILESTONE_ARCHIVE.md](MILESTONE_ARCHIVE.md)
 > One row per **active or future** milestone. ✅ rows move to archive on session end.

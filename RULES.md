@@ -26,6 +26,7 @@ Format: `PREFIX-NNN` where NNN increments within that namespace only.
 | ICON frontend | `I` | **ICON frontend** row |
 | Prolog JVM | `PJ` | **Prolog JVM** row |
 | Icon JVM | `IJ` | **Icon JVM** row |
+| Scripten Demo | `SD` | **Scripten Demo** row |
 
 Each session increments only its own counter. Commit messages: `PJ-5: M-PJ-BACKTRACK — fix suffix_fail`.
 
