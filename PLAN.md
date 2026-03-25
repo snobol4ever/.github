@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-6 — PLAN.md slim + L4 trim in progress | `8fec586` G-1 | M-G0-FREEZE (Lon schedules) |
+| **⚠ GRAND MASTER REORG** | G-6 — doc infra complete: PLAN slim, L4 trim, §BUILD/§TEST, handoff fixed | `aa75c37` G-6 | M-G0-FREEZE (Lon schedules) |
 | **Scripten Demo** | SD-0 — not started | — | M-SCRIPTEN-DEMO |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
