@@ -713,39 +713,24 @@ END
 
 ---
 
-## PJ-32 — M-PJ-BETWEEN
+## J-214 — M-JVM-BEAUTY-GLOBAL in progress
 
-**Date:** 2026-03-24
-**Milestone:** M-PJ-BETWEEN ✅
-**Result:** 16/20 puzzles PASS (puzzle_19 fixed).
-
-**Fix:** `between/3` emitted as synthetic static method `p_between_3(Low, High, Var, cs)` injected before user predicates. `cs` encodes offset from Low. Standard user-call retry loop handles all backtracking. Inline loop approach failed: JVM frame restart on predicate re-entry reset `local_cur`; `init_cs` offset approach collided with `cs >= nclauses` exhaustion guard.
-
-**HEAD at handoff:** snobol4x `5ae0d24`, .github `b0f28cd`
-**Next:** PJ-33 — M-PJ-ITE-CUT (puzzles 03, 11, 18 over-generate). Fix: in `;/2` ITE emission, after `cond_ok`, seal enclosing β with `ldc cut_cs_seal; istore cs_local_for_cut` before emitting Then goals. Then M-PJ-DISJ-ARITH (puzzle_12).
-
-## IJ-18 — 2026-03-24
-
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend" + JCON oracle zip
-**Work:** M-IJ-CORPUS-R10 — augmented assignment, break, next emitters + rung10 corpus
-**Changes:** `icon_emit_jvm.c` — loop label stack + 3 new emitters; rung10_augop corpus (5 tests); run_rung10.sh
-**Result:** 54/54 rung01–10 PASS. HEAD `8f98dea` on main.
-**Next:** M-IJ-CORPUS-R11 — rung11 corpus; candidates: `!E` (bang/list-generator), `||:=` (string augop), nested break via compound-stmt parser fix.
-
----
-
-## IJ-19 — design session (no code changes) — 2026-03-24
-
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend" + JCON oracle zip
-**HEAD in/out:** `8f98dea` (unchanged — no code changes)
+**Session:** J-214
+**Branch:** main
+**Repos:** snobol4x + .github
 
 **Work done:**
-- Re-confirmed 54/54 PASS with correct `-jvm` harness (rung01–04 old scripts used ASM invocation).
-- Read JCON-ANALYSIS.md, FRONTEND-ICON-JVM.md, icon_emit_jvm.c fully.
-- Confirmed `TK_AUGCONCAT=35`, `TK_BANG=39`, `ICN_BANG` parsed but not emitted.
-- Designed complete rung11 implementation plan (see FRONTEND-ICON-JVM.md §NOW IJ-20 checklist).
+- PIVOT 2026-03-24: launched M-BEAUTIFY-BOOTSTRAP-JVM (all 19 JVM beauty milestones, per BEAUTY.md)
+- Cloned snobol4corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, sno2c, Java 21, jasmin.jar, monitor_ipc.so)
+- Found and fixed 5 JVM emitter bugs in `emit_byrd_jvm.c`:
+  1. **jvm_named_pats BSS overflow** — `static JvmNamedPat[64]` on BSS → heap `calloc(512)` with lazy init in reset+register+lookup
+  2. **Jasmin label scoping** — `L_<label>:` definitions and `goto L_<label>` cross-method references; Jasmin labels are method-local. Fix: qualify as `Lf<fnidx>_<label>` at all 3 emission sites (computed-goto scan, direct-goto, label-definition)
+  3. **sno_array_get false non-null** — returned `""` on key-not-found; caused `:S(G1)` in global.sno UTF loop to fire unconditionally → infinite loop. Fix: return `null` on miss
+  4. **SORT unimplemented** — fell to `default: ldc ""` stub; `UTF_Array = SORT(UTF)` set UTF_Array to `""`. Fix: full `sno_sort()` Jasmin method using `TreeMap` for sorted key iteration, builds 2D array with `[row,1]=key [row,2]=val` and `__rows__` sentinel
+  5. **sno_array_counter field** — referenced in early sno_sort draft but never declared. Fix: removed; switched to `identityHashCode` pattern matching `sno_array_new`
+- global driver: `sno2c -jvm` compile ✅, Jasmin assemble ✅, runtime test not completed at handoff (context window ~75%)
 
-**Milestones fired:** none
+**Milestones fired:** none (M-JVM-BEAUTY-GLOBAL in progress)
 
 **Next:** IJ-20 — implement M-IJ-CORPUS-R11: `||:=` (augop case 35 str path) + `!E` (ICN_BANG new generator) + 5-test rung11 corpus + run_rung11.sh
 
@@ -787,3 +772,6 @@ END
 **Known open issue:** `ICN_ALT` β-resume gate not implemented — `every s ||:= ("a"|"b"|"c")` loops. Tracked as M-IJ-CORPUS-R12 item.
 
 **Next:** IJ-21 — M-IJ-CORPUS-R12: ALT gate fix + string relops + size(*s)
+
+**HEAD at handoff:** snobol4x `ff3e05c` J-214, .github (pending push)
+**Next:** J-215 — run global driver to completion; fix remaining runtime divergences; fire M-JVM-BEAUTY-GLOBAL; proceed to M-JVM-BEAUTY-IS

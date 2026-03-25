@@ -53,15 +53,6 @@ Each session edits only its own row in PLAN.md NOW and its own L3 docs. **Never 
 
 A committed-but-not-pushed session lives only on a throwaway container — it is a lost session. Never say "handoff complete" until `git log origin/main --oneline -1` shows your commit hash on the remote. If push fails for any reason: fix it. Ask for credentials if needed. Do not declare done and move on.
 
-**Per-milestone handoff (mandatory after EVERY milestone fires):**
-1. Commit + push the working repo (snobol4x or snobol4jvm etc.) immediately.
-2. Update the L3 sprint doc §NOW + milestone table (mark ✅, update NEXT).
-3. Update PLAN.md NOW row (HEAD hash, sprint ID, next milestone).
-4. Move the fired milestone row to MILESTONE_ARCHIVE.md.
-5. `git pull --rebase origin main` on .github, then commit + push .github.
-6. Append session entry to SESSIONS_ARCHIVE.md.
-7. **Declare handoff to Lon before continuing to next milestone.**
-
 End-of-session checklist (in order):
 1. Update platform MD (TINY.md / FRONTEND-PROLOG-JVM.md / etc.) — HEAD, sprint status, §NOW next action.
 2. Update PLAN.md NOW table row (your row only).

@@ -9,24 +9,42 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 ## NOW
 
-**Sprint:** `jvm-t2` J-213 — M-T2-JVM ✅
-**HEAD:** `8178b5c` J-213
-**Milestone:** M-T2-JVM ✅ → M-T2-FULL (waiting on M-T2-NET)
+**Sprint:** `main` J-214 — M-JVM-BEAUTY-GLOBAL (first of 19 JVM beauty milestones)
+**HEAD:** `ff3e05c` J-214
+**Milestone:** M-JVM-BEAUTY-GLOBAL ❌ in progress
 
-**J-213 — M-T2-JVM DONE (2026-03-22):**
-- Fix: `E_DIV` in `emit_byrd_jvm.c` — integer/integer operands now use `ldiv` not `ddiv`
-- Added runtime branch: `sno_is_integer()` called on both operands; integer path:
-  `Long.parseLong` → `ldiv` → `jvm_l2sno`; float path: existing `ddiv` flow unchanged
-- Fixes `026_arith_divide`: `OUTPUT = 10 / 4` → `2` (was `2.5`)
-- 106-corpus (output/assign/concat/arith_new/control_new/patterns/capture/strings/functions/data/keywords):
-  **106 passed, 0 failed, 0 skipped — ALL PASS** ✅
-- Two bugs fixed; xfails removed from snobol4corpus
-- `8178b5c` J-213 pushed to `jvm-t2`
+**J-214 — M-JVM-BEAUTY-GLOBAL in progress (2026-03-24):**
+- PIVOT: M-BEAUTIFY-BOOTSTRAP-JVM launched (BEAUTY.md updated 2026-03-24)
+- 5 JVM emitter bugs found and fixed in `emit_byrd_jvm.c`:
+  1. `jvm_named_pats` static BSS[64] → heap `calloc(512)` (mirrors `box_data`)
+  2. Jasmin label scoping: `L_<label>` not method-local → `Lf<fnidx>_<label>` in functions
+  3. `sno_array_get` returned `""` on miss → `:S` never failed → infinite loop; now returns `null`
+  4. `SORT` builtin unimplemented (fell to `default: ldc ""`); full `sno_sort()` Jasmin method added (TreeMap → sorted 2D array `[row,1]=key [row,2]=val`)
+  5. `sno_array_counter` field referenced but not declared; removed, using `identityHashCode` pattern
+- global driver: compile ✅ assemble ✅ — runtime test incomplete at handoff
 
-**⚡ CRITICAL NEXT ACTION — Session J-214 (JVM):**
+**⚡ CRITICAL NEXT ACTION — Session J-215 (JVM):**
 
-M-T2-FULL requires M-T2-NET to also fire (N-session). JVM side is done.
-Next JVM work: M-JVM-EVAL (inline EVAL! — arithmetic no longer calls interpreter).
+Continue M-JVM-BEAUTY-GLOBAL. Run global driver to completion:
+
+```bash
+cd /home/claude/snobol4ever/snobol4x
+git config user.name "Claude J-215" && git config user.email "J@snobol4ever.dev"
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git checkout main && git pull
+apt-get install -y default-jdk libgc-dev nasm
+cd src && make -j4
+
+# Run global driver
+INC=demo/inc
+./sno2c -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
+mkdir -p /tmp/cls_global
+java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_global /tmp/drv_global.j
+timeout 15 java -cp /tmp/cls_global Driver > /tmp/jvm_global_out.txt 2>&1
+diff test/beauty/global/driver.ref /tmp/jvm_global_out.txt
+# Fix divergences, repeat until diff clean
+# Then fire M-JVM-BEAUTY-GLOBAL and move to M-JVM-BEAUTY-IS
+```
 
 ```bash
 cd /home/claude/snobol4x

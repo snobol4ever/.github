@@ -59,6 +59,10 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
 
 **Known open issue (not blocking):** `every s ||:= ("a"|"b"|"c")` loops infinitely — `ICN_ALT` β-resume always routes to outermost β (restarts from second alternative). The indirect-goto gate needed per JCON §4.5 is not yet implemented. Corpus test t02 uses sequential `||:=` instead. Tracked as rung12 item.
 
+| **Icon JVM** | `main` IJ-17 — M-IJ-CORPUS-R9 ✅ until/repeat; 49/49 PASS | `60cf799` IJ-17 | M-IJ-CORPUS-R10 |
+
+### Next session checklist (IJ-18)
+
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
@@ -68,61 +72,11 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 54/54 rung01-10 PASS (use JVM harness, not old ASM harness for rung01-04):
-#   JASMIN=src/backend/jvm/jasmin.jar; T=$(mktemp -d)
-#   for rung in rung01_paper rung02_arith_gen rung02_proc rung03_suspend rung04_string ...; do
-#     for icn in test/frontend/icon/corpus/$rung/*.icn; do
-#       /tmp/icon_driver -jvm $icn -o $T/t.j; java -jar $JASMIN $T/t.j -d $T/
-#       cls=$(grep '\.class' $T/t.j|awk '{print $NF}'); java -cp $T/ $cls; done; done
-# M-IJ-CORPUS-R11 implementation plan (IJ-19 design):
-#   1. ||:= (string augop): in ij_emit_augop add case 35: store rhs String to tmp_fld (str),
-#      getstatic lhs str field, getstatic tmp_fld, invokevirtual String.concat, dup, putstatic lhs, goto γ
-#      Use ij_declare_static_str/ij_get_str_field/ij_put_str_field. Lhs var detection: check
-#      ij_expr_is_string(lhs) or look at aug_kind==35 to use str path instead of long path.
-#   2. !E (bang/ICN_BANG): new ij_emit_bang(). For strings: per-call static int icn_N_bang_pos.
-#      α: eval E → String in icn_N_bang_str; reset pos=0; goto check.
-#      check: if pos >= strlen → ω; else charAt(pos) → single-char String; pos++; goto γ.
-#      β: goto check (advance already done at γ, or increment at β entry).
-#      Add case ICN_BANG in dispatch. Add "bang" to ij_expr_is_string → return 1 (char = String).
-#   3. Write run_rung11.sh mirroring run_rung10.sh. 5 tests:
-#      t01_augconcat: s ||:= "x" accumulator
-#      t02_augconcat_loop: every s ||:= ...
-#      t03_bang_str: every write(!s) for short string
-#      t04_bang_every: collect bang results
-#      t05_augconcat_chain: multiple ||:= in sequence
+# Read FRONTEND-ICON-JVM.md §NOW
+# Confirm 49/49 rung01-09 PASS before touching code
+# Next: M-IJ-CORPUS-R10 — design rung10 corpus; candidates: augmented assign (:=+), break, next, bang(!E)
+# Note: repeat body-drain slot-collision bug exists (pre-existing in while too) — track separately
 ```
-
-### IJ-19 findings — design session (no code changes)
-
-**54/54 PASS re-confirmed** with correct JVM harness. Root cause of apparent rung01–04 failures: old harness scripts (`run_rung01.sh` etc.) invoke `icon_driver foo.icn` without `-jvm`, emitting x64 ASM text. The JVM emitter is clean on all 54 tests when invoked as `-jvm`.
-
-**Rung11 design complete (see IJ-20 checklist above).** Two items:
-1. `||:=` — `ij_emit_augop` case 35: swap long path for String path using existing `ij_get/put_str_field` + `String.concat`.
-2. `!E` (ICN_BANG) — new `ij_emit_bang`: per-site static `icn_N_bang_str`(String) + `icn_N_bang_pos`(int); `charAt(pos)` → single-char String; pos++ at γ; β → recheck. Add to dispatch + `ij_expr_is_string`.
-
-**Key facts for IJ-20:**
-- `TK_AUGCONCAT = 35` (confirmed by compiling icon_lex.h)
-- `TK_BANG = 39`; `ICN_BANG` node parsed in `icon_parse.c:224` — children[0] is the operand
-- `ij_get_str_field` / `ij_put_str_field` / `ij_declare_static_str` all available
-- `icn_builtin_charAt` does not yet exist — emit inline: `invokevirtual java/lang/String/substring(II)Ljava/lang/String;` with `(pos, pos+1)` args
-
-### IJ-18 findings — M-IJ-CORPUS-R10 ✅ (done)
-
-**54/54 PASS rung01–10.**
-
-Three new emitters in `icon_emit_jvm.c` (`8f98dea`):
-
-1. **Loop label stack** — `ij_loop_push(exit, next)` / `ij_loop_pop()` (depth-32 static arrays). All four loop emitters (`while`/`until`/`repeat`/`every`) push before emitting body, pop after. `break` → `ij_loop_break_target()` = enclosing loop `ports.ω`. `next` → `ij_loop_next_target()` = cond re-eval (`ca`) for while/until, `loop_top` for repeat/every.
-
-2. **`ij_emit_break`** — both α and β jump to `ij_loop_break_target()`. One-shot, never resumes.
-
-3. **`ij_emit_next`** — both α and β jump to `ij_loop_next_target()`.
-
-4. **`ij_emit_augop`** — eval RHS → store to per-site static temp `icn_N_augtemp J`; getstatic LHS; getstatic temp; apply `ladd`/`lsub`/`lmul`/`ldiv`/`lrem` per `node->val.ival` (TK_AUGPLUS=30..TK_AUGMOD=34); `dup2`; putstatic LHS back; `goto ports.γ`. Works for local and global vars.
-
-**rung10_augop corpus** — 5 tests: `+=`, `*=`, accumulator via `every +=`, `/:=`, `-=`+`%=`.
-
-**Note:** `break` inside `if-then` inside loop body hits a parser limitation — `if` is not accepted as a sub-expression inside `(...)`. The loop stack infrastructure is correct; corpus tests use augop patterns. Break/next as standalone loop-exit statements require compound-statement syntax (not yet in parser).
 
 ### IJ-17 findings — M-IJ-CORPUS-R9 ✅ (done)
 
