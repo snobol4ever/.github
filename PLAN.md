@@ -43,19 +43,19 @@ Each concurrent session owns exactly one row. Update only your row on every push
 ```
 Products:   TINY (native x64) · JVM (Clojure→bytecode) · DOTNET (C#→MSIL)
 Frontends:  SNOBOL4 · Snocone · Rebus · Icon · Prolog · C#/Clojure
-Backends:   x64 ASM (native) · JVM bytecode · .NET MSIL
+Backends:   x64 ASM (native) · JVM bytecode · .NET MSIL · WebAssembly (.wat)
             [C backend: ☠️ DEAD — 99/106, sno2c failures on word*/pat_alt_commit; not maintained]
 Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 ```
 
-| Frontend | TINY-x64 | TINY-NET | TINY-JVM | JVM | DOTNET |
-|----------|:--------:|:--------:|:--------:|:---:|:------:|
-| SNOBOL4/SPITBOL | ⏳ | ⏳ | — | ⏳ | ⏳ |
-| Snocone | — | — | — | ⏳ | ⏳ |
-| Rebus | — | — | — | — | — |
-| Icon | — | — | — | — | — |
-| Prolog | ⏳ | — | — | ⏳ | — |
-| C#/Clojure | — | — | — | — | — |
+| Frontend | TINY-x64 | TINY-NET | TINY-JVM | TINY-WASM | JVM | DOTNET |
+|----------|:--------:|:--------:|:--------:|:---------:|:---:|:------:|
+| SNOBOL4/SPITBOL | ⏳ | ⏳ | — | — | ⏳ | ⏳ |
+| Snocone | — | — | — | — | ⏳ | ⏳ |
+| Rebus | — | — | — | — | — | — |
+| Icon | — | — | — | — | — | — |
+| Prolog | ⏳ | — | — | — | ⏳ | — |
+| C#/Clojure | — | — | — | — | — | — |
 
 ✅ done · ⏳ active · — planned · ☠️ dead
 
@@ -109,7 +109,10 @@ See [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md) for full plan. **Concurrent d
 | **M-G6-SNOCONE-NET** | 6 — Matrix: Snocone → .NET corpus PASS | ❌ |
 | **M-G6-REBUS-JVM** | 6 — Matrix: Rebus → JVM PASS | ❌ |
 | **M-G6-REBUS-NET** | 6 — Matrix: Rebus → .NET PASS | ❌ |
-| **M-G6-SCRIPTEN-ALL** | 6 — Matrix: Scripten → all 3 backends rung01 PASS | ❌ |
+| **M-G6-SNOBOL4-WASM** | 6 — Matrix: SNOBOL4 → WASM hello PASS | ❌ |
+| **M-G6-ICON-WASM** | 6 — Matrix: Icon → WASM rung01 PASS | ❌ |
+| **M-G6-PROLOG-WASM** | 6 — Matrix: Prolog → WASM rung01 PASS | ❌ |
+| **M-G6-SCRIPTEN-ALL** | 6 — Matrix: Scripten → all 4 backends rung01 PASS | ❌ |
 | **M-G7-STYLE-DOC** | 7 — Style: `doc/STYLE.md` written | ❌ |
 | **M-G7-STYLE-BACKENDS** | 7 — Style: all backend files conform | ❌ |
 | **M-G7-STYLE-FRONTENDS** | 7 — Style: all frontend files conform | ❌ |

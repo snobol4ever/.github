@@ -61,6 +61,9 @@ snobol4x/
       net/
         emit_net.c    ← THE .NET emitter (consumes IR)
         emit_net.h
+      wasm/
+        emit_wasm.c   ← THE WebAssembly emitter (consumes IR)
+        emit_wasm.h
     runtime/
       asm/            (unchanged)
       jvm/            (unchanged)
@@ -217,6 +220,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | **M-G2-MOVE-ASM** | `git mv src/backend/x64/emit_byrd_asm.c src/backend/x64/emit_x64.c`. Update `#include` and `Makefile` references. No content changes. | 106/106 |
 | **M-G2-MOVE-JVM** | `git mv src/backend/jvm/emit_byrd_jvm.c src/backend/jvm/emit_jvm.c`. Update references. No content changes. | 106/106 |
 | **M-G2-MOVE-NET** | `git mv src/backend/net/emit_byrd_net.c src/backend/net/emit_net.c`. Update references. No content changes. | DOTNET 1903/1903 |
+| **M-G2-SCAFFOLD-WASM** | Create `src/backend/wasm/emit_wasm.c` — skeleton only: file header, empty `emit_wasm()` entry point, no IR handling yet. Add to Makefile. | Builds clean |
 | **M-G2-MOVE-ICON-JVM** | `git mv src/frontend/icon/icon_emit_jvm.c src/backend/jvm/emit_jvm_icon.c`. Update references. No content changes. | Icon JVM corpus 99/99 |
 | **M-G2-MOVE-PROLOG-JVM** | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Prolog JVM 20/20 |
 | **M-G2-MOVE-ICON-ASM** | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Icon ASM rung03 5/5 |
@@ -239,6 +243,7 @@ rename generated label patterns, update comments. No logic changes.
 | **M-G3-NAME-X64** | `emit_x64.c` | Local variables → `lbl_alpha/beta/gamma/omega`; macros confirmed as `E()`/`EI()`/`EL()`; functions → `emit_x64_<Kind>` | 106/106 |
 | **M-G3-NAME-JVM** | `emit_jvm.c` | Same; `J()`/`JI()`/`JL()` confirmed; functions → `emit_jvm_<Kind>` | 106/106 |
 | **M-G3-NAME-NET** | `emit_net.c` | Same; `N()`/`NI()`/`NL()` confirmed or renamed; functions → `emit_net_<Kind>` | DOTNET 1903/1903 |
+| **M-G3-NAME-WASM** | `emit_wasm.c` | Establish naming law from scratch: `W()`/`WI()`/`WL()`, `lbl_alpha/beta/gamma/omega`, `emit_wasm_<Kind>`. WASM uses `br_table` for tableswitch (maps to JVM pattern). | Builds clean |
 | **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific; shared node handlers → `emit_jvm_<Kind>` | Icon JVM 99/99 |
 | **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific; shared → `emit_jvm_<Kind>` | Prolog JVM 20/20 |
 | **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific; shared → `emit_x64_<Kind>` | Icon ASM rung03 5/5 |
@@ -313,7 +318,10 @@ No new emitter code for shared node kinds. Priority order:
 | **M-G6-SNOCONE-NET** | Snocone → .NET | M-G5-LOWER-SNOCONE | Snocone NET corpus PASS |
 | **M-G6-REBUS-JVM** | Rebus → JVM | M-G5-LOWER-REBUS | Rebus JVM PASS |
 | **M-G6-REBUS-NET** | Rebus → .NET | M-G5-LOWER-REBUS | Rebus NET PASS |
-| **M-G6-SCRIPTEN-ALL** | Scripten → all 3 | M-G5 complete | Scripten rung01 all 3 PASS |
+| **M-G6-SNOBOL4-WASM** | SNOBOL4 → WASM | M-G4-SHARED-CONC + M-G2-SCAFFOLD-WASM | hello.sno → .wat → wasmtime PASS |
+| **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON + M-G5-LOWER-ICON | Icon WASM rung01 PASS |
+| **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG | Prolog WASM rung01 PASS |
+| **M-G6-SCRIPTEN-ALL** | Scripten → all 4 backends | M-G5 complete | Scripten rung01 all 4 PASS |
 
 ---
 
