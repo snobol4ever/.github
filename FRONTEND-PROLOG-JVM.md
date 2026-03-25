@@ -19,13 +19,13 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-42 — **20/20** M-PJ-NAF-INNER-LOCALS ✅; puzzle_03 still open (M-PJ-DISPLAY-BT) | `38e4c39` PJ-42 | M-PJ-DISPLAY-BT: fix puzzle_03 over-generation |
+| **Prolog JVM** | `main` PJ-43 — **20/20** baseline confirmed; M-PJ-DISPLAY-BT root cause fully diagnosed (display/6 gamma cs re-enters gn chain on retry); minimal reproducer: chain_bug.pro 3 lines vs swipl 1 line | `38e4c39` PJ-43 | M-PJ-DISPLAY-BT: fix go/6 gamma cs pack — see CRITICAL NEXT ACTION (PJ-44) |
 
-### CRITICAL NEXT ACTION (PJ-43)
+### CRITICAL NEXT ACTION (PJ-44)
 
 **JVM baseline: 20/20 PASS. One remaining failure:**
 
-1. **puzzle_03** — over-generates (pre-existing open issue M-PJ-DISPLAY-BT).
+1. **puzzle_03** — over-generates (M-PJ-DISPLAY-BT). **PJ-43:** root cause isolated — `display/6` gamma cs re-enters gn retry chain on external fail-loop. Minimal reproducer in Bootstrap PJ-44 below. Fix: inspect `p_go_6` gamma_0 cs pack.
 
 **puzzle_18 is now FIXED (PJ-42).** Root cause was NAF frame aliasing — inner conjunction locals allocated at fixed offset `trail_local+1+n_vars+8` aliased outer clause locals. Fix: emit each `\+` inner goal into a synthetic `static naf_helper_N(...) Z` method with its own clean JVM frame. Helpers buffered in `pj_helper_buf` (tmpfile), flushed after each predicate's `.end method`. Committed at `38e4c39`.
 
@@ -87,6 +87,41 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
    ```
 
 2. **puzzle_03** — over-generates. Open: M-PJ-DISPLAY-BT.
+
+**Bootstrap PJ-44:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src && cd snobol4x
+# Confirm 20/20:
+for i in $(seq -f "%02g" 1 20); do P=puzzle_${i}; C=Puzzle_${i}
+  ./sno2c -pl -jvm test/frontend/prolog/corpus/rung10_programs/${P}.pro -o /tmp/${C}.j 2>/dev/null
+  java -jar src/backend/jvm/jasmin.jar /tmp/${C}.j -d /tmp 2>/dev/null
+  J=$(timeout 15 java -cp /tmp ${C} 2>/dev/null)
+  O=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${P}.pro 2>/dev/null)
+  [ "$J" = "$O" ] && echo "${P}: PASS" || echo "${P}: FAIL"
+done
+# Minimal reproducer (JVM=3 lines, swipl=1 line):
+cat > /tmp/chain_bug.pro << 'EOF'
+:- initialization(main).
+gn(D,_,_,G,dorothy) :- G=:=D.
+gn(_,J,_,G,jean)    :- G=:=J.
+gn(_,_,V,G,virginia):- G=:=V.
+go(D,J,V,GB,GJi,GT) :-
+    gn(D,J,V,GB,N1), gn(D,J,V,GJi,N2), gn(D,J,V,GT,N3),
+    write(N1-N2-N3), nl.
+main :- go(2,1,3,3,2,1), fail ; write(done), nl.
+EOF
+./sno2c -pl -jvm /tmp/chain_bug.pro -o /tmp/ChainBug.j
+java -jar src/backend/jvm/jasmin.jar /tmp/ChainBug.j -d /tmp
+timeout 5 java -cp /tmp Chain_bug  # expect: 1 line + done
+# Inspect gamma cs pack:
+grep -n "p_go_6\|gamma_0\|iload 3\|ldc 0\|ldc 1" /tmp/ChainBug.j | head -40
+# Hypothesis: gamma_0 cs = iload3 + ldc0 + iadd + iconst_1 + iadd
+# where iload3 should be 0 (no inner retry) but encodes gn3 retry offset.
+# Fix should be in pj_emit_gamma or the cs accumulation for deterministic body suffix.
+```
 
 **Bootstrap PJ-40:**
 ```bash
