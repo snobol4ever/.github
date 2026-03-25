@@ -19,9 +19,11 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-29 — M-IJ-CORPUS-R20 ✅ ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | `7f8e3a2` IJ-29 | M-IJ-CORPUS-R21 |
+| **Icon JVM** | `main` IJ-30 WIP — M-IJ-CORPUS-R21 ❌ ICN_GLOBAL+ICN_INITIAL 2 bugs open; 104/104 baseline intact | `a6808a7` IJ-30 | M-IJ-CORPUS-R21 |
 
-### Next session checklist (IJ-30)
+**⚠ ALL SESSIONS FROZEN — Grand Master Reorg in progress. See GRAND_MASTER_REORG.md.**
+
+### Next session checklist (IJ-31, post-reorg)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -32,10 +34,42 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 104/104 PASS (rungs 01-20) before touching code
-# Next: M-IJ-CORPUS-R21 — candidates: ICN_CASE (case E of {...}),
-# ICN_GLOBAL (global vars + initial clause), or Tier-1 M-IJ-LISTS.
-# Consult JCON-ANALYSIS.md and FRONTEND-ICON-JVM.md §Enhancement Milestone Summary.
+# Confirm 104/104 PASS (rungs 01-20) — rung21 is WIP, expect failures
+# Fix bug 1 and bug 2 below, then run rung21 to 5/5 PASS → M-IJ-CORPUS-R21 fires
+```
+
+### IJ-30 WIP — M-IJ-CORPUS-R21 ❌ (2 bugs, fix before firing)
+
+**Corpus:** `test/frontend/icon/corpus/rung21_global_initial/` — 5 tests.
+**t01** (long global) ✅ **t05** (multi long global) ✅ — global long vars work.
+**t02** (string global) ❌ **t03** (initial clause) ❌ **t04** (global+initial) ❌
+
+**Bug 1 — t02 `NoSuchFieldError: icn_gvar_greeting` as String:**
+Root cause: Pass 0 in `ij_emit_file` calls `ij_declare_static(gname)` (type `J`) for every top-level global before proc emission. Later `ij_declare_static_str` finds the name already registered and skips re-declaration, so the `.field` line is `J` but `putstatic` uses String descriptor → runtime field mismatch.
+**Fix:** Remove `ij_declare_static(gname)` from Pass 0. Instead, track global names in a separate `char ij_global_names[MAX][64]` + `int ij_nglobals` set. Add `ij_is_global(name)` predicate. Modify `ij_locals_find` (or its call sites in assign/var emit) to return -1 for names in the global set — this is already the fallback path that uses `icn_gvar_*`. Type is then inferred naturally on first assignment, same as local vars. No pre-declaration needed.
+
+**Bug 2 — t03/t04 `VerifyError: Inconsistent stack height 2 != 4`:**
+Root cause: `ij_emit_initial` emits `lconst_0; goto ports.γ` on both the skip-path and after-body-path. But the body child (e.g. `x := x+1`) already leaves a `long` (2 slots) at its `ports.γ` = `run` label. So run-path stack = 2 (from body) + 2 (lconst_0) = 4. Skip-path stack = 0 + 2 (lconst_0) = 2. Mismatch.
+**Fix:** In `ij_emit_initial`, do NOT push `lconst_0`. The body child's γ already leaves a value; just `goto ports.γ` from `run`. For the skip path (flag already set), emit `lconst_0; goto ports.γ` — OR better: make the whole `initial` block a no-op at statement level by having both paths emit `lconst_0` but drain the body result first. Cleanest fix: wire body's γ to a drain label that does `pop2` (or `pop` if string) then `goto ports.γ` with `lconst_0`; skip path also pushes `lconst_0`. This keeps both paths at stack-height 2 at ports.γ.
+
+**Concrete fix for Bug 2:**
+```c
+/* in ij_emit_initial, replace the body wiring: */
+char body_drain[64];
+snprintf(body_drain, sizeof body_drain, "icn_%d_init_drain", id);
+IjPorts cp;
+strncpy(cp.γ, body_drain, 63);   /* body success → drain its value */
+strncpy(cp.ω, run, 63);           /* body fail → run (same as success) */
+char ca[64], cb[64]; ij_emit_expr(n->children[0], cp, ca, cb);
+JGoto(ca);
+JL(body_drain);
+int bstr = (n->nchildren >= 1) ? ij_expr_is_string(n->children[0]) : 0;
+JI(bstr ? "pop" : "pop2", "");   /* drain body result */
+JL(run);
+/* both run and skip now fall through to: */
+JI("lconst_0", ""); JGoto(ports.γ);
+JL(skip);
+JI("lconst_0", ""); JGoto(ports.γ);
 ```
 
 ### IJ-29 findings — M-IJ-CORPUS-R20 ✅

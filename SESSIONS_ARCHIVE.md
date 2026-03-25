@@ -1112,3 +1112,27 @@ completely, inventory existing milestones that overlap, then write the full plan
 **Emitter:** `ij_emit_section` — JCON `ir_a_Sectionop` 3-operand pattern; per-site statics for str/lo/hi; 1-based→0-based with positive/negative/zero handling; hi clamped to length; `String.substring(II)`. `ij_emit_seq_expr` — clone of ICN_AND relay-label wiring; drains intermediates (pop/pop2 string-aware); last child flows to ports.γ/ω.
 
 **Corpus:** rung20_section_seqexpr — 5 tests, 5/5 PASS first run. No regressions (104/104 total).
+
+---
+
+## IJ-30 — M-IJ-CORPUS-R21 WIP (session ended at context limit)
+
+**Date:** 2026-03-25  **HEAD:** `a6808a7`  **Status:** WIP — 2 bugs open
+
+**Baseline:** 104/104 PASS throughout. Rung21 corpus written (5 tests).
+
+**What was built:**
+- `ICN_INITIAL` added to AST enum + kind_name
+- `ICN_GLOBAL` top-level parse fixed: names now collected into ICN_GLOBAL node (was silently discarded)
+- `ICN_INITIAL` parse added in parse_stmt: `initial stmt;` → `ICN_INITIAL(body)`
+- `ij_emit_file` Pass 0: pre-declares top-level globals as `icn_gvar_*` fields
+- `ij_emit_initial`: per-proc `icn_init_PROC I` flag gate
+- `ICN_GLOBAL` dispatch: declares `icn_gvar_*`, emits no-op statement
+- `ICN_INITIAL` dispatch: wired to `ij_emit_initial`
+- `rung21_global_initial/` corpus: 5 tests; t01/t05 PASS, t02/t03/t04 FAIL
+
+**Bug 1 (t02):** `NoSuchFieldError` for String global — pre-pass locks type to `J`. Fix: remove pre-declaration from Pass 0; track names in separate global-name set only.
+
+**Bug 2 (t03/t04):** `VerifyError` inconsistent stack height on `initial` clause — skip path stack=2, body path stack=4. Fix: drain body result before `lconst_0` push (see §NOW for concrete patch).
+
+**NOTE:** All sessions FROZEN — Grand Master Reorg in progress. Resume IJ-31 post-reorg.
