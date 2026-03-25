@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-40 — 19/20; puzzle_18 NAF inner-locals leak diagnosed; fix in pj_emit_goal conjunction branch (use *next_local not local tmp) — see FRONTEND-PROLOG-JVM.md §CRITICAL | `56850fd` PJ-39b | M-PJ-NAF-INNER-LOCALS |
+| **Prolog JVM** | `main` PJ-42 — **20/20** M-PJ-NAF-INNER-LOCALS ✅ puzzle_18 PASS; puzzle_03 still open | `38e4c39` PJ-42 | M-PJ-DISPLAY-BT |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-28 — M-IJ-CORPUS-R19 ✅ ICN_POW (^) + real to-by (dneg fix); 99/99 PASS | `2574281` IJ-28 | M-IJ-CORPUS-R20 |
@@ -131,8 +131,10 @@ Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl
 | **M-PJ-BETWEEN** | `between/3` missing from `pj_emit_goal` — fixes puzzle_19 NoSuchMethodError | ✅ |
 | **M-PJ-DISJ-ARITH** | Plain `;` retry loop in `pj_emit_body` — tableswitch dispatch; fixes puzzle_12 silent 0L | ✅ |
 | **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — not_dorothy 2-clause retry; ITE cut leak | ❌ |
-| **M-PJ-CUT-UCALL** | `!` + ucall body: cut-gamma returns base[nclauses] sentinel — fixes puzzle_11/18 double-output | ❌ **NEXT** |
-| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM — requires M-PJ-CUT-UCALL + M-PJ-DISPLAY-BT | ❌ |
+| **M-PJ-NAF-INNER-LOCALS** | NAF helper method — fix frame aliasing; puzzle_18 PASS; 20/20 | ✅ |
+| **M-PJ-CUT-UCALL** | `!` + ucall body sentinel propagation | ✅ |
+| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — not_dorothy 2-clause retry | ❌ **NEXT** |
+| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM | ✅ |
 
 Full sprint detail → [BACKEND-JVM-PROLOG.md](BACKEND-JVM-PROLOG.md) · [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
 

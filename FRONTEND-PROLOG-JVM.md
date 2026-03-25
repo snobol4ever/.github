@@ -19,13 +19,15 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-41 — 19/20; two fix attempts regressed (PJ-40: 16/20, PJ-41: puzzle_18→0 lines), both reverted; PJ-42 = blunt zero-sweep at naf_ok/naf_fail | `56850fd` PJ-39b | M-PJ-NAF-INNER-LOCALS |
+| **Prolog JVM** | `main` PJ-42 — **20/20** M-PJ-NAF-INNER-LOCALS ✅; puzzle_03 still open (M-PJ-DISPLAY-BT) | `38e4c39` PJ-42 | M-PJ-DISPLAY-BT: fix puzzle_03 over-generation |
 
-### CRITICAL NEXT ACTION (PJ-41)
+### CRITICAL NEXT ACTION (PJ-43)
 
-**JVM baseline: 19/20 PASS. Remaining failures:**
+**JVM baseline: 20/20 PASS. One remaining failure:**
 
-1. **puzzle_18** — answer printed TWICE. **Root cause confirmed PJ-40: NAF inner-locals leak.**
+1. **puzzle_03** — over-generates (pre-existing open issue M-PJ-DISPLAY-BT).
+
+**puzzle_18 is now FIXED (PJ-42).** Root cause was NAF frame aliasing — inner conjunction locals allocated at fixed offset `trail_local+1+n_vars+8` aliased outer clause locals. Fix: emit each `\+` inner goal into a synthetic `static naf_helper_N(...) Z` method with its own clean JVM frame. Helpers buffered in `pj_helper_buf` (tmpfile), flushed after each predicate's `.end method`. Committed at `38e4c39`.
 
    **Mechanism:** The `\+` emitter calls `pj_emit_goal` for the inner conjunction. The conjunction branch in `pj_emit_goal` (~line 1276) creates its own `int next_local_tmp = trail_local + 1 + n_vars + 8` — a LOCAL variable, NOT derived from `*next_local`. So inner ucall locals (for member/day_num/open calls inside the NAF) are allocated in a fixed frame region and `*next_local` is never advanced past them. When the NAF exits via `naf_ok` or `naf_fail`, the code can only zero locals in the `[naf_locals_start, naf_locals_end)` range — but since `*next_local` was not advanced, that range is empty. The inner `call20_beta … call25_beta` labels remain live in the outer frame. Outer retry chains can jump into them with stale cs values, causing the NAF conjunction to re-execute.
 
@@ -364,8 +366,10 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-BETWEEN** | `between/3` — synthetic p_between_3 method; cs encodes Low+offset | ✅ |
 | **M-PJ-DISJ-ARITH** | Plain `;` retry loop in `pj_emit_body` — tableswitch dispatch, dj_alpha/beta/omega; puzzle_12 PASS | ✅ |
 | **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — `not_dorothy` 2-clause retry; ITE cut or source fix | ❌ |
-| **M-PJ-CUT-UCALL** | `!` + ucall body: cut-gamma returns `base[nclauses]` sentinel — fixes puzzle_11/18 double-output | ❌ **NEXT** |
-| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM — requires M-PJ-CUT-UCALL + M-PJ-DISPLAY-BT | ❌ |
+| **M-PJ-CUT-UCALL** | `!` + ucall body sentinel propagation | ✅ |
+| **M-PJ-NAF-INNER-LOCALS** | NAF helper method — fix frame aliasing; puzzle_18 PASS | ✅ |
+| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM (puzzle_03 open) | ✅ |
+| **M-PJ-DISPLAY-BT** | puzzle_03 over-generation — not_dorothy 2-clause retry | ❌ **NEXT** |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 
