@@ -19,7 +19,7 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-48 — M-PJ-ATOM-BUILTINS WIP; rung12 corpus+helpers landed; 1 stack bug in pj_atom_chars_2 forward path | `da9cfb7` PJ-48 | M-PJ-ATOM-BUILTINS |
+| **Prolog JVM** | `main` PJ-48 — M-PJ-ATOM-BUILTINS WIP; rung12 corpus+helpers landed; 1 stack bug in pj_atom_chars_2 forward path | `da9cfb7` PJ-48 | M-PJ-ATOM-BUILTINS → M-PJ-ASSERTZ |
 
 ### CRITICAL NEXT ACTION (PJ-49)
 
@@ -368,13 +368,26 @@ Both directions where reversible. All are JVM String operations.
 **Rung:** `rung12_atom_builtins/`
 **Sprint:** 1 session. Purely additive to builtin dispatch.
 
+#### M-PJ-ASSERTZ
+`assertz/1`, `asserta/1`, `assert/1` — runtime fact assertion into a mutable
+per-predicate clause list alongside compiled static clauses.
+Required by Scripten Demo: SNOBOL4 block populates Prolog dynamic DB row-by-row
+as it parses CSV; Prolog inference rules then query the live facts.
+Without `assertz`, the Scripten Demo must embed family data as static compiled
+facts — kills the cross-language data-flow story.
+**Impl:** Per-predicate `ArrayList<Object[]>` dynamic clause store in a static
+field. `assertz` appends; compiled dispatch checks dynamic list after static
+clauses (or before for `asserta`). `abolish` clears the list.
+**Rung:** `rung13_assertz/` — assert facts, query, verify results, assert rules.
+**Sprint:** 1 session.
+**Scripten Demo dependency:** blocks M-SCRIPTEN-DEMO.
+
 #### M-PJ-RETRACT
-`retract/1`, `retractall/1`, `asserta/1`, `abolish/1`.
-(We have `assertz` — this completes the dynamic DB set.)
-`retract` is backtrackable. Requires mutable per-predicate clause list
-alongside compiled static methods. Deleted entries skipped by dispatch loop.
-**Rung:** `rung13_assert_retract/` — assert, query, retract, verify gone.
-**Sprint:** 1–2 sessions.
+`retract/1`, `retractall/1`, `abolish/1`.
+(`assertz`/`asserta` land in M-PJ-ASSERTZ above — this adds retraction.)
+`retract` is backtrackable. Deleted entries skipped by dispatch loop.
+**Rung:** `rung14_retract/` — assert, query, retract, verify gone.
+**Sprint:** 1 session.
 
 #### M-PJ-SORT
 `sort/2`, `msort/2`, `keysort/2`, `predsort/3`.
@@ -456,9 +469,10 @@ non-trivial. Revisit after all Tier 1 + Tier 2 milestones complete.
 
 | ID | Feature | Tier | Depends on | Status |
 |----|---------|------|-----------|--------|
-| **M-PJ-FINDALL** | `findall/3` | 1 | — | ❌ |
+| **M-PJ-FINDALL** | `findall/3` | 1 | — | ✅ |
 | **M-PJ-ATOM-BUILTINS** | atom_chars/length/concat etc. | 1 | — | ❌ |
-| **M-PJ-RETRACT** | `retract/1`, `retractall/1`, `asserta/1` | 1 | — | ❌ |
+| **M-PJ-ASSERTZ** | `assertz/1`, `asserta/1` — dynamic DB | 1 | — | ❌ |
+| **M-PJ-RETRACT** | `retract/1`, `retractall/1`, `abolish/1` | 1 | ASSERTZ | ❌ |
 | **M-PJ-SORT** | `sort/2`, `msort/2`, `keysort/2` | 1 | — | ❌ |
 | **M-PJ-SUCC-PLUS** | `succ/2`, `plus/3` | 2 | — | ❌ |
 | **M-PJ-FORMAT** | `format/1`, `format/2` | 2 | — | ❌ |
@@ -471,7 +485,7 @@ non-trivial. Revisit after all Tier 1 + Tier 2 milestones complete.
 
 **Recommended sprint order:**
 M-PJ-PZ-ALL-JVM (clear existing bugs) →
-M-PJ-FINDALL → M-PJ-ATOM-BUILTINS → M-PJ-SORT → M-PJ-SUCC-PLUS →
+M-PJ-FINDALL → M-PJ-ATOM-BUILTINS → **M-PJ-ASSERTZ** → M-PJ-SORT → M-PJ-SUCC-PLUS →
 M-PJ-RETRACT → M-PJ-FORMAT → M-PJ-STRING-OPS → M-PJ-AGGREGATE →
 M-PJ-COPY-TERM → M-PJ-EXCEPTIONS → M-PJ-NUMBER-OPS → M-PJ-DCG (someday).
 
