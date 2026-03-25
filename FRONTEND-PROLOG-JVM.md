@@ -19,21 +19,38 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-49 — 5/5 rung11 ✅; 4/5 rung12; pj_is_user_call whitelist fixed; atom_codes reverse ClassCastException WIP | `7e31f3a` PJ-49 | M-PJ-ATOM-BUILTINS |
+| **Prolog JVM** | `main` PJ-50 — 5/5 rung11 ✅; 5/5 rung12 ✅; M-PJ-ATOM-BUILTINS ✅ | `cbd6979` PJ-50 | M-PJ-ASSERTZ |
 
-### CRITICAL NEXT ACTION (PJ-50)
+### CRITICAL NEXT ACTION (PJ-51)
 
-**Baseline: 5/5 rung11 PASS. 20/20 puzzle corpus PASS. snobol4x HEAD `da9cfb7`.**
+**Baseline: 5/5 rung11 PASS. 5/5 rung12 PASS. 19/20 puzzle corpus PASS (puzzle_19 pre-existing between/3 timeout). snobol4x HEAD `cbd6979`.**
 
-**Next milestone: M-PJ-ATOM-BUILTINS — fix one stack bug, then green rung12**
+**M-PJ-ATOM-BUILTINS ✅ — landed PJ-50.**
 
-**THE BUG:** `pj_code_list_to_string` reverse path — `atom_codes(A, [104,101,...])` crashes with ClassCastException: String cannot be cast to Long.
+**Next milestone: M-PJ-ASSERTZ**
 
-Root cause: the nil-check in the `colts_loop` uses `iconst_1 aaload` (index 1 = head slot) and compares to `"[]"`. For nil term `{"[]"}`, index 0 is `"[]"` (tag) but index 1 doesn't exist → ArrayIndexOutOfBoundsException or wrong value. Check `pj_char_list_to_string` (which works) to see how it checks nil — likely uses `iconst_0 aaload` (the tag). Fix `pj_code_list_to_string` nil-check to use `iconst_0` + also verify head is at index 1 vs 2.
+Implement `assertz/1`, `asserta/1`, `assert/1` — runtime fact assertion into a mutable per-predicate clause list alongside compiled static clauses. Required by Scripten Demo.
 
-Also: head element load uses `iconst_2 aaload` — verify list structure `{".", head, tail}` has head at [1] or [2]. Match to `pj_char_list_to_string` which passes.
+**Impl:** Per-predicate `ArrayList<Object[]>` dynamic clause store in a static field. `assertz` appends; compiled dispatch checks dynamic list after static clauses (or before for `asserta`). `abolish` clears the list.
+**Rung:** `test/frontend/prolog/corpus/rung13_assertz/` — assert facts, query, verify results, assert rules.
 
-Fix: `make -C src`, then `5/5 rung12` → **M-PJ-ATOM-BUILTINS ✅**. Then 20/20 puzzle sweep. Commit + push per protocol.
+**Bootstrap PJ-51:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src && cd snobol4x
+# Confirm 5/5 rung12 baseline
+for f in test/frontend/prolog/corpus/rung12_atom_builtins/*.pro; do
+  base=$(basename $f .pro); ./sno2c -pl -jvm $f -o /tmp/${base}.j 2>/dev/null
+  java -jar src/backend/jvm/jasmin.jar /tmp/${base}.j -d /tmp 2>/dev/null
+  cls=$(grep "^\.class" /tmp/${base}.j | awk '{print $3}')
+  got=$(timeout 10 java -cp /tmp $cls 2>&1 | grep -v "Picked up")
+  want=$(cat ${f%.pro}.expected)
+  [ "$got" = "$want" ] && echo "$base: PASS" || echo "$base: FAIL"
+done
+# Then implement rung13_assertz + M-PJ-ASSERTZ
+```
 
 **Bootstrap PJ-49:**
 ```bash
@@ -460,7 +477,7 @@ non-trivial. Revisit after all Tier 1 + Tier 2 milestones complete.
 | ID | Feature | Tier | Depends on | Status |
 |----|---------|------|-----------|--------|
 | **M-PJ-FINDALL** | `findall/3` | 1 | — | ✅ |
-| **M-PJ-ATOM-BUILTINS** | atom_chars/length/concat etc. | 1 | — | ❌ |
+| **M-PJ-ATOM-BUILTINS** | atom_chars/length/concat etc. | 1 | — | ✅ |
 | **M-PJ-ASSERTZ** | `assertz/1`, `asserta/1` — dynamic DB | 1 | — | ❌ |
 | **M-PJ-RETRACT** | `retract/1`, `retractall/1`, `abolish/1` | 1 | ASSERTZ | ❌ |
 | **M-PJ-SORT** | `sort/2`, `msort/2`, `keysort/2` | 1 | — | ❌ |

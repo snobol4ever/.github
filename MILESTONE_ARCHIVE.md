@@ -245,3 +245,9 @@ Append-only. Do not edit existing entries.
 **Fired:** PJ-47 | **Date:** 2026-03-25 | **HEAD:** `62b3fa0`
 
 Implemented `pj_emit_findall_builtin()` with synthetic helpers `pj_copy_term`, `pj_eval_arith`, `pj_call_goal`, `pj_reflect_call`, `p_findall_3`. Three-session effort (PJ-45/46/47): scaffold + loop (PJ-45), conjunction cs threading + gamma sub_cs_out (PJ-46), E_FNC mod/rem// in `pj_emit_arith` (PJ-47). 5/5 rung11 PASS. 20/20 puzzles intact.
+
+## M-PJ-ATOM-BUILTINS — atom_chars/codes/length/concat/char_code/number_chars/codes/upcase/downcase
+
+**Fired:** PJ-50 | **Date:** 2026-03-25 | **HEAD:** `cbd6979`
+
+Root bug: `pj_term_int` stores long as `String` via `Long.toString()` at slot [1], but `pj_int_val` was doing `checkcast Long → longValue()` and `pj_atom_name` INT branch had the same mismatch → `ClassCastException: String cannot be cast to Long` on `atom_codes` reverse path. Fixed both to `checkcast String → parseLong`, consistent with arithmetic path. Also fixed `pj_atom_name` INT branch to return String directly without Long boxing/unboxing round-trip. All 9 builtins implemented in PJ-48/49 were already correct; only the runtime helper was broken. 5/5 rung12 PASS. 5/5 rung11 PASS. 19/20 puzzle corpus (puzzle_19 pre-existing between/3 performance issue, not a regression).
