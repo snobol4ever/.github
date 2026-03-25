@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-27 — M-PZ-12 ✅ real search swipl PASS | `f1cda69` PJ-27 | M-PZ-13 |
+| **Prolog JVM** | `main` PJ-28 — M-PZ-13 ✅ real search swipl PASS | `f6cc7c1` PJ-28 | M-PZ-18 |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-16 — M-IJ-CORPUS-R8 ✅ find/match/tab/move; 44/44 PASS | `be1be82` IJ-16 | M-IJ-CSET |
@@ -99,7 +99,7 @@ Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl
 | **M-PZ-10** | Five J-names — Father/Son banquet + naming convention + friendship | ❌ |
 | **M-PZ-11** | Smith family — grocer/lawyer/postmaster/preacher/teacher + blood relations | ❌ |
 | **M-PZ-12** | Stillwater High — 6 teachers × 6 subjects + father/roommate clues | ✅ |
-| **M-PZ-13** | Murder case — Clayton/Forbes/Graham/Holgate/McFee/Warren × 6 roles | ❌ |
+| **M-PZ-13** | Murder case — Clayton/Forbes/Graham/Holgate/McFee/Warren × 6 roles | ✅ |
 | **M-PZ-14** | Golf scores — Bill/Ed/Tom wives, two couples same total, Ed's wife beats Bill's | ✅ |
 | **M-PZ-15** | Vernon/Wilson/Yates — architect/doctor/lawyer + 3 secretaries, floor ordering | ✅ |
 | **M-PZ-16** | Train crew Art/John/Pete/Tom — brakeman/conductor/engineer/fireman + family | ✅ |
