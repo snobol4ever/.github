@@ -89,14 +89,15 @@ The Byrd-box four-port model (α/β/γ/ω) is emitted as labels + gotos — neve
 | **L2** | `TINY.md`, `JVM.md`, `DOTNET.md` | 10KB | Your platform session — HEAD, build, §NOW sprint |
 | **L3** | `RULES.md`, `ARCH.md` | 10KB | Every session — invariant, never changes session-to-session |
 | **L4** | `FRONTEND-*.md`, `BACKEND-*.md`, `MONITOR.md`, `TESTING.md`, `BEAUTY.md`, `GRAND_MASTER_REORG.md`, `SCRIPTEN_DEMO*.md`, `PATCHES.md` | No hard limit | **Your pipeline or topic only** — read the one(s) matching your session type, no others |
-| **L5** | `SESSIONS_ARCHIVE.md`, `MILESTONE_ARCHIVE.md` | Unlimited | Post-session append only — never read at session start |
+| **L5** | `SESSIONS_ARCHIVE.md`, `MILESTONE_ARCHIVE.md` | Unlimited | `tail -80 SESSIONS_ARCHIVE.md` = step 1 of session start. Full read: never. Append only. |
 
 **The session start protocol:**
-1. Read L1 (`PLAN.md`) — find your NOW row and next milestone
-2. Read L3 (`RULES.md` + `ARCH.md`) — if first session on this area; skip if familiar
-3. Read your L2 doc — if your session type has one
-4. Read your L4 doc(s) — the one file matching your frontend×backend or topic
-5. Do not read any other L4 docs. Do not read L5.
+1. `tail -80 SESSIONS_ARCHIVE.md` — find your session type's last entry; this is the handoff. Do this FIRST, before anything else.
+2. Read L1 (`PLAN.md`) — NOW table + your next milestone ID only
+3. Read L3 (`RULES.md` + `ARCH.md`) — skip if familiar
+4. Read your L2 doc — if your session type has one
+5. Read your L4 doc — the ONE file matching your frontend×backend or topic
+6. Do not read any other L4 docs. Do not read GRAND_MASTER_REORG.md, TESTING.md, or MONITOR.md unless your milestone explicitly requires it.
 
 **L4 owns all sprint content.** Session state, §NOW, §CRITICAL NEXT ACTION, step-by-step plans — all go in the L4 doc. Never in L1 or L3.
 
