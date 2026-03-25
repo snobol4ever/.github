@@ -336,7 +336,7 @@ Milestones are ordered from easiest to hardest based on problem structure:
 
 | ID | File | Puzzle | Status |
 |----|------|--------|--------|
-| **M-PZ-14** | puzzle_14.pro | Golf scores (Bill/Ed/Tom wives) | ❌ |
+| **M-PZ-14** | puzzle_14.pro | Golf scores (Bill/Ed/Tom wives) | ✅ swipl PASS + JVM PASS |
 | **M-PZ-17** | puzzle_17.pro | Country Club dance pairings | ❌ |
 | **M-PZ-15** | puzzle_15.pro | Vernon/Wilson/Yates offices + secretaries | ❌ |
 | **M-PZ-16** | puzzle_16.pro | Train crew relations | ❌ |
