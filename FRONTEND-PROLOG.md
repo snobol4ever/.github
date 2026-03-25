@@ -342,7 +342,7 @@ Milestones are ordered from easiest to hardest based on problem structure:
 | **M-PZ-16** | puzzle_16.pro | Train crew relations | ✅ real search — swipl PASS |
 | **M-PZ-20** | puzzle_20.pro | Pullman car readers | ❌ hardcoded write stub — needs real search |
 | **M-PZ-13** | puzzle_13.pro | Murder case roles | ✅ real search — swipl PASS |
-| **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ❌ hardcoded write stub — needs real search |
+| **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ✅ real search — swipl PASS |
 | **M-PZ-19** | puzzle_19.pro | Office floors + professions | ❌ hardcoded write stub — needs real search |
 | **M-PZ-04** | puzzle_04.pro | Milford occupations + salaries | ✅ real search — swipl PASS; JVM PASS |
 | **M-PZ-09** | puzzle_09.pro | Empire Dept Store positions | ✅ real search — swipl PASS; JVM PASS |
