@@ -1239,3 +1239,35 @@ The five-level hierarchy is defined but NOT YET ENFORCED by the doc structure. T
 - Verify PLAN.md stays under 3KB after the restructure.
 
 **Session start for next G-session:** Read PLAN.md + RULES.md + ARCH.md + this SESSIONS_ARCHIVE entry. Do NOT read GRAND_MASTER_REORG.md until you need Phase details. Do NOT read TESTING.md or MONITOR.md at session start.
+
+---
+
+## G-6 — Doc Bloat + Handoff Fix Session
+
+**Date:** 2026-03-25  **Commits:** afc4748 (PLAN+RULES), e4ed875 (L4 trim)
+
+**Root cause diagnosed:** G-5 wrote the handoff mandate in SESSIONS_ARCHIVE.md but RULES.md listed L5 as "never read at session start." Every subsequent session (including this one at first) skipped the handoff and re-read GRAND_MASTER_REORG.md from scratch instead. Classic amnesia loop.
+
+**What was fixed:**
+
+1. **RULES.md** — session-start protocol now has `tail -80 SESSIONS_ARCHIVE.md` as step 1, explicitly before PLAN.md. L5 row updated: "`tail -80` = step 1 of every session." GRAND_MASTER_REORG.md, TESTING.md, MONITOR.md explicitly called out as NOT cold-start reads.
+
+2. **PLAN.md** — 19KB → 5KB. Removed: completed milestone rows (puzzle corpus 20×✅, Icon JVM rung table 25×✅, TINY backend sprint steps). Milestone dashboard now one line per group with pointer to L4 doc. 4D Matrix prose trimmed. NOW table rows trimmed to essentials.
+
+3. **FRONTEND-ICON-JVM.md** — 54KB → 16KB. Removed IJ-7 through IJ-31 session findings (37KB of history). §NOW + IJ-33 checklist + Key Files + Enhancement Roadmap remain.
+
+4. **FRONTEND-PROLOG-JVM.md** — 26KB → 22KB. Removed PJ-15 historical CRITICAL NEXT ACTION block. PJ-45 §NOW remains intact.
+
+5. **FRONTEND-ICON.md** — 10KB → 8KB. Removed I-9 patch instructions (already applied at I-10).
+
+**What is still NOT done (next G-session mandate):**
+
+- PLAN.md is 5KB, still above the 3KB target. The NOW table alone is ~1.5KB for 12 rows. To hit 3KB hard, either: (a) accept 5KB as the practical floor for this project's complexity, or (b) move DOTNET/README/Scripten rows to a PLAN-INACTIVE.md stub and only show rows with work in the last 2 sessions.
+
+- L4 docs still lack explicit `§BUILD` and `§TEST` sections with the 3 commands. Sessions still have to grep for build commands. This is the G-5 mandate that was NOT done in G-6.
+
+- TESTING.md (12KB) and MONITOR.md (19KB) are still listed in the Doc Index without a strong "do not cold-read" warning. Next G-session should either: add the 3 pipeline-specific test commands to each L4 doc's §TEST section, or add a bold warning in the Doc Index.
+
+- Several L4 docs are missing entirely: no dedicated doc for Snocone sessions, no BACKEND-NET.md for N-sessions (TINY.md covers it but is 15KB). If a Snocone or NET session starts, it has no L4 home.
+
+**Session start for next G-session:** `tail -80 SESSIONS_ARCHIVE.md` → read this entry → PLAN.md NOW table → RULES.md → then tackle the "still NOT done" list above. Do NOT read GRAND_MASTER_REORG.md unless a G-milestone phase detail is needed.
