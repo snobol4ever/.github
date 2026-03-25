@@ -446,3 +446,26 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - HEAD: `6174c9f` on `main`.
 
 **IJ-14 fix:** Rewrite ij_emit_to_by using forward-only α/β dispatch (same pattern as ij_emit_to) — α evaluates start/end/step and yields first value; β advances and re-checks. No backward branch. Full plan in FRONTEND-ICON-JVM.md §IJ-13 findings.
+---
+## Session 2026-03-24 B-290 — JVM pivot + r12/box_data fixes
+
+**Invariant:** 106/106 ASM corpus ALL PASS ✅  
+**Commit:** `05f36ae` B-290 (snobol4x main)
+
+### Fixes landed
+- `emit_named_ref`: r12 save slot now uses `flat_bss_register` (was `var_register` → landed in box DATA block → NASM undefined symbol)
+- `box_data[MAX_BOXES]` heap-allocated via `calloc` — was 20MB static BSS, caused `sno2c -jvm beauty.sno` segfault mid-output
+- `MAX_BOX_DATA_VARS` reverted 512→128 (max actual usage is 53 vars/box)
+
+### PIVOT: JVM Beauty Bootstrap
+- ASM bootstrap blocked on systemic r12 clobber in nested named-pattern calls (requires M-T2-INVOKE)
+- JVM backend avoids the issue entirely (JVM stack frames, no r12)
+- Created `M-BEAUTIFY-BOOTSTRAP-JVM` milestone in PLAN.md
+- Added full JVM milestone track (19 subsystems) to BEAUTY.md
+- `sno2c -jvm beauty.sno` still segfaults — `named_pats[512]` (~1.5MB static) is next fix
+
+### Next session (J-prefix, jvm-t2 branch OR main)
+1. Heap-allocate `named_pats[]` in `emit_byrd_asm.c` (same pattern as `box_data`)
+2. Confirm `sno2c -jvm beauty.sno` completes without segfault
+3. Assemble with jasmin.jar, run beauty, diff vs oracle
+4. Work through 19 JVM subsystem milestones (M-JVM-BEAUTY-*)

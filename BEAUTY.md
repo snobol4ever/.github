@@ -201,3 +201,90 @@ oracle AND identical to `beauty.sno` input. Fixed point.
 ---
 
 *BEAUTY.md = L3. Sprint content lives here. Milestone rows live in PLAN.md.*
+
+---
+
+## JVM Milestone Map — M-BEAUTIFY-BOOTSTRAP-JVM
+
+**Trigger:** PIVOT 2026-03-24 — pursue beauty.sno bootstrap on JVM backend in parallel.
+**Why JVM:** ASM bootstrap blocked on r12 DATA-block clobber in nested named-pattern calls
+(systemic, requires M-T2-INVOKE per-invocation DATA blocks). JVM backend uses JVM stack
+for call frames — no r12 issue. JVM 106/106 corpus passes on `jvm-t2` branch.
+
+**Strategy:** Mirror the 19 ASM subsystem milestones exactly, but for JVM.
+Each milestone fires when its driver passes: CSNOBOL4 oracle + JVM backend.
+Use existing drivers in `test/beauty/` — just add JVM run to the harness.
+
+**JVM invocation:**
+```bash
+cd /home/claude/snobol4ever/snobol4x
+# Compile SNOBOL4 → Jasmin assembly
+./sno2c -jvm -Idemo/inc -I./src/frontend/snobol4 <file.sno> -o /tmp/out.j
+# Assemble Jasmin → .class
+java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/out.j
+# Run
+java -cp /tmp/cls <ClassName>
+```
+
+**First blocker to fix:** `sno2c -jvm beauty.sno` segfaults — `named_pats[512]` static
+array is ~1.5MB + other large statics. Fix: heap-allocate `named_pats` same as `box_data`.
+After that fix, run `sno2c -jvm beauty.sno` cleanly, then assemble + run.
+
+| ID | Subsystem | ASM Status | JVM Status |
+|----|-----------|:----------:|:----------:|
+| **M-JVM-BEAUTY-GLOBAL** | global.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-IS** | is.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-FENCE** | FENCE.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-IO** | io.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-CASE** | case.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-ASSIGN** | assign.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-MATCH** | match.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-COUNTER** | counter.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-STACK** | stack.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-TREE** | tree.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-SR** | ShiftReduce.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-TDUMP** | TDump.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-GEN** | Gen.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-QIZE** | Qize.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-READWRITE** | ReadWrite.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-XDUMP** | XDump.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-SEMANTIC** | semantic.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-OMEGA** | omega.sno | ✅ | ❌ |
+| **M-JVM-BEAUTY-TRACE** | trace.sno | ✅ | ❌ |
+
+**All 19 JVM fire → M-BEAUTIFY-BOOTSTRAP-JVM sprint begins.**
+
+### JVM session startup checklist
+```bash
+cd /home/claude/snobol4ever/snobol4x
+git checkout jvm-t2 && git pull
+# OR stay on main if JVM work merged there
+apt-get install -y default-jdk
+cd src && make -j4
+# Confirm JVM corpus
+CORPUS=/home/claude/snobol4corpus/crosscheck
+bash test/crosscheck/run_crosscheck_jvm_rung.sh \
+  $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
+  $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
+  $CORPUS/strings $CORPUS/functions $CORPUS/data $CORPUS/keywords 2>&1 | tail -3
+# Expected: 106 passed
+
+# Fix segfault first:
+# In emit_byrd_asm.c: heap-allocate named_pats[] same as box_data[]
+# Then: ./sno2c -jvm -Idemo/inc demo/beauty.sno -o /tmp/beauty.j
+# Then: java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/beauty.j
+# Then: java -cp /tmp/cls Beauty < demo/beauty.sno > /tmp/beauty_jvm_out.sno
+# Then: diff /tmp/beauty_oracle.sno /tmp/beauty_jvm_out.sno
+```
+
+### Fix loop for each subsystem (JVM)
+```bash
+# Run existing ASM driver through JVM backend
+DRIVER=test/beauty/<sub>/driver.sno
+./sno2c -jvm -Idemo/inc $DRIVER -o /tmp/drv.j
+java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/drv.j
+java -cp /tmp/cls Driver > /tmp/jvm_out.txt
+diff test/beauty/<sub>/driver.ref /tmp/jvm_out.txt
+# Fix divergence in emit_byrd_jvm.c or runtime
+# Repeat until diff is clean
+```
