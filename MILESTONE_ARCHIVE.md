@@ -228,3 +228,5 @@ Append-only. Do not edit existing entries.
 | **M-IJ-CORPUS-R11** | Rung 11: `||:=` string augop + `!E` bang generator + rung11 5/5; 59/59 total | ✅ IJ-20 `cab96d2` |
 | **M-IJ-CORPUS-R12** | Rung 12: string relops (SEQ/SNE/SLT/SLE/SGT/SGE) + ICN_SIZE (`*s`) + ij_expr_is_string(ICN_IF) VerifyError fix; 64/64 total | ✅ IJ-21 `be2af59` |
 
+| **M-IJ-CORPUS-R13** | Rung 13: ICN_ALT β-resume indirect-goto gate + ICN_ALT string type + concat left_is_value fix; 69/69 total | ✅ IJ-22 `a569adf` |
+

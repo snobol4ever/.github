@@ -842,3 +842,20 @@ END
 - B3: 2D E_ARY subscript emits single-dim key — WIP, next session
 
 **Next session J-217:** Read `emit_byrd_asm.c` lines 3530-3570 for correct E_ARY nchildren layout → fix 2D key in `emit_byrd_jvm.c` → global driver PASS → fire M-JVM-STLIMIT-STCOUNT + M-JVM-BEAUTY-GLOBAL.
+
+---
+
+## IJ-22 — Icon JVM — M-IJ-CORPUS-R13 ✅ (2026-03-25)
+
+**HEAD before:** `be2af59` (IJ-21)
+**HEAD after:** `a569adf` (IJ-22)
+**Result:** M-IJ-CORPUS-R13 ✅ — 69/69 PASS (rung01–13)
+
+**Work done:**
+- Rewrote `ij_emit_alt` with per-site `icn_N_alt_gate I` static field + tableswitch β dispatch. Matches JCON `ir_a_Alt` (MoveLabel + IndirectGoto). Fixes infinite loop in `every s ||:= ("a"|"b"|"c")`.
+- Added `ICN_ALT` case to `ij_expr_is_string` → delegates to `children[0]`. Fixes VerifyError on `every write("a"|"b"|"c")`.
+- Fixed `ij_emit_concat` `left_is_value` to exclude `ICN_ALT` (generator, not one-shot). Fixes `every write(("a"|"b") || ("x"|"y"))` truncating after 2/4 results.
+- Created `rung13_alt` corpus (5 tests) + `run_rung13.sh`.
+- Updated PLAN.md, FRONTEND-ICON-JVM.md §NOW, MILESTONE_ARCHIVE.md.
+
+**Next session IJ-23:** M-IJ-CORPUS-R14 — ICN_LIMIT (`E \ N`).

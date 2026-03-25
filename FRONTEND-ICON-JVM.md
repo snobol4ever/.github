@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-21 — M-IJ-CORPUS-R12 ✅ string relops + ICN_SIZE (*s) + ij_expr_is_string(ICN_IF) fix; 64/64 PASS | `be2af59` IJ-21 | M-IJ-CORPUS-R13 |
+| **Icon JVM** | `main` IJ-22 — M-IJ-CORPUS-R13 ✅ ICN_ALT β-resume gate + two ij_expr_is_string fixes; 69/69 PASS | `a569adf` IJ-22 | M-IJ-CORPUS-R14 |
 
-### Next session checklist (IJ-22)
+### Next session checklist (IJ-23)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -32,19 +32,27 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 64/64 PASS (rungs 01-12) before touching code
-# Next: M-IJ-CORPUS-R13 — ICN_ALT β-resume indirect-goto gate (JCON §4.5 | wiring):
-#   Problem: every s ||:= ("a"|"b"|"c") loops infinitely — ICN_ALT β always routes
-#   to outermost β, restarting from first alternative.
-#   Fix: add icn_N_alt_gate static int field per alt site.
-#     α: gate=0, goto E1.α
-#     E1.γ: gate=1 (MoveLabel), goto ports.γ
-#     E2.γ: gate=2 (MoveLabel), goto ports.γ
-#     ...En.γ: gate=n, goto ports.γ
-#     β: IndirectGoto(gate) → iload gate → tableswitch → E1.β / E2.β / ... / En.β
-#   This matches JCON irgen.icn ir_a_Alt + JCON-ANALYSIS.md §'| value alternation'.
-#   Corpus test: every s ||:= ("a"|"b"|"c"); write(s) → "abc"
+# Confirm 69/69 PASS (rungs 01-13) before touching code
+# Next: M-IJ-CORPUS-R14 — ICN_LIMIT (E \ N) limitation operator
+#   JCON-ANALYSIS §'E \ N': limit N evaluated first (always bounded); counter starts 0.
+#   Resume: if counter >= N_val → goto limit.resume (exhaust); counter++; goto expr.resume.
+#   Per-site statics: icn_N_limit_count I, icn_N_limit_max J.
+#   Corpus tests: (1 to 10) \ 3 → 1 2 3; every write((1|2|3|4|5) \ 2) → 1 2
 ```
+
+### IJ-22 findings — M-IJ-CORPUS-R13 ✅
+
+**69/69 PASS (rung01–13).** HEAD `a569adf`.
+
+**Three changes in `icon_emit_jvm.c`:**
+
+1. **`ij_emit_alt` rewrite** — per-site `icn_N_alt_gate I` static field. α: `gate=0 → E1.α`. Each `Ei.γ`: `gate=i → ports.γ`. β: `iload gate → tableswitch 1 N → E1.β/.../En.β`. Matches JCON `ir_a_Alt` + JCON-ANALYSIS §`| value alternation`. Root bug: old `β → E1.β` hardwire caused infinite loop in `every s ||:= ("a"|"b"|"c")`.
+
+2. **`ij_expr_is_string(ICN_ALT)`** — new case, returns `ij_expr_is_string(children[0])`. Without it: `every write("a"|"b"|"c")` emitted `lstore` for a String ref → VerifyError (`Expecting to find long on stack`).
+
+3. **`ij_emit_concat` `left_is_value` fix** — `ICN_ALT` excluded from one-shot flag (`left_is_value = ij_expr_is_string(lchild) && lchild->kind != ICN_ALT`). `ICN_ALT` is a generator; treating it as one-shot made `every write(("a"|"b") || ("x"|"y"))` stop after 2/4 results.
+
+**rung13_alt corpus:** 5 tests — t01 `every write("a"|"b"|"c")`, t02 `every s ||:= ("a"|"b"|"c")`, t03 int alt, t04 nested alt in concat, t05 alt filtered by relop.
 
 ### IJ-21 findings — M-IJ-CORPUS-R12 ✅
 
