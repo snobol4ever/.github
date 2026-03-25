@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 pass 0 fail on Linux | `e1e4d9e` D-164 | TBD |
 | **README** | `main` — M-README-CSHARP-DRAFT ✅ | `00846d3` snobol4csharp | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp fix + 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-39 — 19/20; lbl_cutγ NULL guard landed; puzzle_18 root cause re-diagnosed: trail bug in 2-member+differ+disjunction arm | `dc0f606` PJ-39 | M-PJ-CUT-UCALL: fix trail corruption in nested ucall + disjunction |
+| **Prolog JVM** | `main` PJ-39b — 19/20; E_SUB/ADD/MPY/DIV fixed in pj_emit_term (write(X-Y) was null); puzzle_18 double-print persists | `56850fd` PJ-39b | M-PJ-CUT-UCALL: fix puzzle_18 double-print |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
 | **Icon JVM** | `main` IJ-23 — M-IJ-CORPUS-R14 ✅ ICN_LIMIT (E \ N) limitation operator; 74/74 PASS | `9021c4e` IJ-23 | M-IJ-CORPUS-R15 |

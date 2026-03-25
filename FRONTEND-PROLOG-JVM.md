@@ -19,19 +19,15 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-39 — 19/20; lbl_cutγ NULL guard landed (cut_dest = lbl_cutγ ?: call_ω); puzzle_18 root cause re-diagnosed as trail bug in 2-member+differ+disjunction arm | `dc0f606` PJ-39 | M-PJ-CUT-UCALL: fix trail corruption in nested ucall + disjunction |
+| **Prolog JVM** | `main` PJ-39b — 19/20; E_SUB/ADD/MPY/DIV fixed in pj_emit_term; puzzle_18 double-print persists — root cause still under investigation | `56850fd` PJ-39b | M-PJ-CUT-UCALL: fix puzzle_18 double-print |
 
 ### CRITICAL NEXT ACTION (PJ-40)
 
 **JVM baseline: 19/20 PASS. Remaining failures:**
 
-1. **puzzle_18** — answer printed TWICE. PJ-39 landed the `cut_dest` NULL guard. Root cause re-diagnosed in PJ-39: the double-print is NOT a cutgamma propagation issue. It is a **trail management bug** in nested ucall + disjunction context. Reproducer:
-   ```prolog
-   main :- member(X,[a,b]), member(Y,[a,b]), differ(X,Y), write(X-Y), nl, fail ; true.
-   ```
-   JVM outputs `_\n_\n` (unbound vars) instead of `a-b\nb-a`. Single member works fine. Two members + differ inside a disjunction arm corrupts bindings. Trail mark for `dj_β` is saved before the disjunction opens; when the differ-call `call_ω` path fires, something unwinds the trail too early — X and Y appear unbound at write time. Simpler case `member(X,[a,b]), differ(X,b), write(X), nl, fail ; true` works correctly (outputs `a`). The bug requires TWO member calls before differ.
+1. **puzzle_18** — answer printed TWICE. PJ-39b fixed write(X-Y) null output (E_SUB in term position). The double-print itself persists. Root cause: `puzzle/0` executes display twice inside its single clause. Likely cause: `main/0`'s `:- initialization(main)` or the JVM entry point calls `p_main_0` twice, OR the disjunction `puzzle ; true` retries after `dj_arm_done` fires. Next step: `grep "p_main_0\|initialization" /tmp/Puzzle_18.j` — check if main is invoked multiple times in the `.j` preamble.
 
-   **Fix approach (PJ-40):** Add trace to generated `.j` for the two-member+differ case. Check: (1) is `dj_β` firing before write? (2) is the trail mark `local_tmark` saved at the right point? (3) does `call_ω` for differ route to `dj_β` via `lbl_ω`, unwinding before write fires?
+   **Fix approach (PJ-40):** Inspect generated Puzzle_18.j entry point / static initializer. Verify `p_main_0` is called exactly once. If called twice, fix the initialization block emitter. If called once, trace why `display` fires twice inside puzzle's single execution.
 
 2. **puzzle_03** — over-generates. Open: M-PJ-DISPLAY-BT.
 
