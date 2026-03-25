@@ -19,43 +19,47 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-31 — all 20 puzzles tracked; JVM baseline 15/20 PASS; 3 emitter bugs identified | `750893e` PJ-31 | M-PJ-BETWEEN |
+| **Prolog JVM** | `main` PJ-34 — M-PJ-DISJ-ARITH ✅ plain disj retry loop; puzzle_12 PASS; 17/20 | `453d969` PJ-34 | M-PJ-CUT-UCALL (puzzle_11/18 double-output) |
 
-### CRITICAL NEXT ACTION (PJ-32)
+### CRITICAL NEXT ACTION (PJ-35)
 
-**JVM baseline: 15/20 PASS. 5 failures, 3 root causes:**
+**JVM baseline: 17/20 PASS. Remaining failures:**
 
-1. **puzzle_19** — `NoSuchMethodError: p_between_3` — `between/3` not emitted in `pj_emit_goal`.
-   - Fix: add `between/3` case to `pj_emit_goal` in `prolog_emit_jvm.c`.
-   - Emit as: generate integer range via loop with backtrack point (β port).
-   - Milestone: **M-PJ-BETWEEN**
+1. **puzzle_11, 18** — answer printed TWICE. Root cause fully diagnosed:
+   - `!` fires inside a predicate (`ages_ok`) whose last clause has a body ucall.
+   - Omega guard `if_icmpge omega` is **omitted** when `last_has_ucall=1` (PJ-16 design).
+   - Without the guard, caller retries with cs=1, re-enters clause0, clamps `init_cs=1`, inner ucall resumes mid-stream → duplicate answer.
+   - **Fix:** Add `p_NAME_ARITY_cutgamma_CI` label that returns `{base[nclauses]}` as cs. The `!` body path jumps to `cutgamma` instead of `gamma_CI`. Caller sees exhaustion sentinel on first retry → `call_omega` immediately.
+   - In `prolog_emit_jvm.c` at `pj_emit_clause`: after each `gamma_CI` block, emit `cutgamma_CI` returning `base[nclauses]`. In `pj_emit_body`/`pj_emit_goal` cut branch: `goto cutgamma_CI` instead of `goto gamma_CI`.
+   - New milestone: **M-PJ-CUT-UCALL**
 
-2. **puzzle_03, 11, 18** — over-generate (ITE `->` does not cut enclosing clause choice point).
-   - swipl cuts the choice point after ITE succeeds; JVM emitter does not.
-   - Fix: in `pj_emit_goal` ITE branch, after the then-branch succeeds, seal the enclosing clause β (like a cut).
-   - Milestone: **M-PJ-ITE-CUT**
+2. **puzzle_03** — over-generates (56L vs 12L). `equal_sums`/`find_couples` multi-clause backtrack. Open: M-PJ-DISPLAY-BT.
 
-3. **puzzle_12** — silent 0L; likely inline disjunction `(SCo=math ; SCo=history)` failing silently.
-   - Milestone: **M-PJ-DISJ-ARITH** (already open)
+**Changes landed PJ-34:**
+- `prolog_emit_jvm.c`: plain `;` retry loop in `pj_emit_body` — tableswitch dispatch, `dj_alpha`/`dj_beta`/`dj_omega`, trail save/unwind per arm.
+- `pj_count_disj_locals()` recursive — accounts for ucall locals inside disjunction arms. Fixes VerifyError regression on puzzle_16.
+- puzzle_12 ✅ (was silent 0L). puzzle_16 regression fixed. 16→17/20.
 
-**Bootstrap PJ-32:**
+**Bootstrap PJ-35:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
-cd snobol4x
-# Confirm baseline: 15/20 PASS
+make -C snobol4x/src && cd snobol4x
+# Confirm baseline: 17/20 PASS (puzzle_03, 11, 18 fail)
 for i in $(seq -f "%02g" 1 20); do
   PUZZLE=puzzle_${i}; CLS=Puzzle_${i}
-  ORACLE=$(timeout 5 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro 2>/dev/null)
   ./sno2c -pl -jvm test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro -o /tmp/${CLS}.j 2>/dev/null
   java -jar src/backend/jvm/jasmin.jar /tmp/${CLS}.j -d /tmp 2>/dev/null
-  JVM=$(timeout 10 java -cp /tmp ${CLS} 2>/dev/null)
+  JVM=$(timeout 15 java -cp /tmp ${CLS} 2>/dev/null)
+  ORACLE=$(timeout 15 swipl -q -g halt -t main test/frontend/prolog/corpus/rung10_programs/${PUZZLE}.pro 2>/dev/null)
   [ "$JVM" = "$ORACLE" ] && echo "${PUZZLE}: PASS" || echo "${PUZZLE}: FAIL"
 done
-# Start with M-PJ-BETWEEN (puzzle_19): add between/3 to pj_emit_goal in prolog_emit_jvm.c
-grep -n "between\|M-PJ-BETWEEN" src/frontend/prolog/prolog_emit_jvm.c | head -10
+# Then tackle M-PJ-CUT-UCALL:
+# In prolog_emit_jvm.c, find pj_emit_clause gamma label emission (~line 2368)
+# Add cutgamma_CI label returning base[nclauses] sentinel
+# Wire cut path in pj_emit_body/pj_emit_goal to jump to cutgamma_CI
+grep -n "gamma_\|cut_cs_seal\|ldc.*cut" src/frontend/prolog/prolog_emit_jvm.c | head -20
 ```
 
 **Bootstrap PJ-23:**
@@ -206,7 +210,11 @@ Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (se
 | **M-PJ-STACK-LIMIT** | Dynamic `.limit stack` via term depth walker — fixes VerifyError on deep compound terms | ✅ |
 | **M-PJ-NAF-TRAIL** | `\+` trail: save mark before inner goal, unwind both paths — multi-arg user calls in `\+` | ✅ |
 | **M-PJ-BODYFAIL-TRAIL** | Body-fail trail unwind: `bodyfail_N` trampoline per clause — head bindings now undone on body failure | ✅ |
-| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — `not_dorothy` 2-clause retry; ITE cut or source fix | ❌ **NEXT** |
+| **M-PJ-BETWEEN** | `between/3` — synthetic p_between_3 method; cs encodes Low+offset | ✅ |
+| **M-PJ-DISJ-ARITH** | Plain `;` retry loop in `pj_emit_body` — tableswitch dispatch, dj_alpha/beta/omega; puzzle_12 PASS | ✅ |
+| **M-PJ-DISPLAY-BT** | puzzle_03 display/6 over-generation — `not_dorothy` 2-clause retry; ITE cut or source fix | ❌ |
+| **M-PJ-CUT-UCALL** | `!` + ucall body: cut-gamma returns `base[nclauses]` sentinel — fixes puzzle_11/18 double-output | ❌ **NEXT** |
+| **M-PJ-PZ-ALL-JVM** | All 20 puzzle solutions pass JVM — requires M-PJ-CUT-UCALL + M-PJ-DISPLAY-BT | ❌ |
 
 **PJ-16 fix note:** True root cause of the `fail/retry` infinite loop was `pj_emit_clause` passing `α_retry_lbl` as `lbl_ω` to `pj_emit_body`. When the outermost body user-call exhausted, `call_ω` jumped to `α_retry_lbl` (clause head-retry), re-running the body from cs=0 forever. Fix: pass `ω_lbl` (next-clause dispatch) as `lbl_ω` to the top-level `pj_emit_body` call. Nested calls unaffected — they receive `call_β` from their own recursive emit site. `pj_is_always_fail()` helper also added for future use.
 
