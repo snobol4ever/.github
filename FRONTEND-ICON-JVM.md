@@ -23,6 +23,27 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 **⚠ Grand Master Reorg plan published — sessions continue normally. See GRAND_MASTER_REORG.md.**
 
+## §BUILD
+```bash
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x && gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c \
+    src/frontend/icon/icon_lex.c src/frontend/icon/icon_parse.c \
+    src/frontend/icon/icon_ast.c src/frontend/icon/icon_emit.c \
+    src/frontend/icon/icon_emit_jvm.c src/frontend/icon/icon_runtime.c \
+    -o /tmp/icon_driver
+```
+
+## §TEST
+```bash
+# Full corpus (rungs 01–21, should show 109/109):
+bash test/frontend/icon/run_corpus_jvm.sh /tmp/icon_driver
+# Single rung quick check:
+bash test/frontend/icon/run_rung_jvm.sh /tmp/icon_driver 21
+# Oracle diff for one file:
+diff <(icon_driver foo.icn -o /tmp/t.asm -run 2>/dev/null) \
+     <(icon_driver -jvm foo.icn -o /tmp/t.j && java -jar src/backend/jvm/jasmin.jar /tmp/t.j -d /tmp && java -cp /tmp FooClass 2>/dev/null)
+```
+
 ### Next session checklist (IJ-33)
 
 ```bash

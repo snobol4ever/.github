@@ -21,6 +21,24 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 |---------|--------|------|----------------|
 | **Prolog JVM** | `main` PJ-44 — **20/20** ✅ M-PJ-DISPLAY-BT workaround: puzzle_03 rewritten (single-clause hot path, inline disjunction, canonical tie-breaking); no regressions | `b97a20f` PJ-44 | M-PJ-FINDALL |
 
+## §BUILD
+```bash
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x && make -C src
+```
+
+## §TEST
+```bash
+# Full puzzle corpus (should show 20/20):
+for i in $(seq -f "%02g" 1 20); do P=puzzle_${i}; C=Puzzle_${i}
+  /tmp/prolog_driver -jvm test/frontend/prolog/corpus/${P}.pro -o /tmp/${C}.j
+  java -jar src/backend/jvm/jasmin.jar /tmp/${C}.j -d /tmp && java -cp /tmp ${C}
+done
+# Single puzzle quick check:
+make -C src && /tmp/prolog_driver -jvm test/frontend/prolog/corpus/puzzle_01.pro -o /tmp/P.j \
+  && java -jar src/backend/jvm/jasmin.jar /tmp/P.j -d /tmp && java -cp /tmp Puzzle_01
+```
+
 ### CRITICAL NEXT ACTION (PJ-45)
 
 **JVM baseline: 20/20 PASS. All puzzle corpus passing.**

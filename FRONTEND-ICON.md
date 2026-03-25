@@ -20,6 +20,19 @@ feeding the same TINY pipeline. Goal-directed generators map directly to Byrd bo
 |---------|--------|------|----------------|
 | **ICON frontend** | `main` I-11 — M-ICON-CORPUS-R3 ✅ rbp save/restore fix; 5/5 rung03 PASS | `bab5664` I-11 | M-ICON-STRING |
 
+## §BUILD
+```bash
+cd snobol4x && bash setup.sh   # installs nasm, libgc-dev, builds everything
+```
+
+## §TEST
+```bash
+# Confirm rung01-03 baseline (15/15):
+bash test/frontend/icon/run_rung01.sh && bash test/frontend/icon/run_rung02.sh && bash test/frontend/icon/run_rung03.sh
+# Single rung:
+bash test/frontend/icon/run_rung03.sh
+```
+
 ### Next session checklist (I-12)
 
 ```bash

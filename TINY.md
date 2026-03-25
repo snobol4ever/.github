@@ -14,6 +14,21 @@ snobol4x: multiple frontends, multiple backends.
 **B-session:** Fixed JVM segfault: fi < e->nchildren guard in DATA ctor loop (emit_byrd_jvm.c:1156). beauty.sno now emits 872K-line beauty.j without crash. Jasmin still fails: `L_io_end has not been added to the code`. Root cause fully diagnosed (see CRITICAL NEXT ACTION). 106/106 ✅.
 **Invariants:** 106/106 ASM corpus ALL PASS ✅
 
+## §BUILD
+```bash
+cd snobol4x && bash setup.sh   # installs deps, builds all drivers
+```
+
+## §TEST
+```bash
+# ASM corpus (must be 106/106 before any work):
+bash run_crosscheck_asm_corpus.sh
+# JVM corpus:
+bash run_crosscheck_jvm_rung.sh
+# NET corpus:
+bash run_crosscheck_net.sh   # must be 110/110
+```
+
 **⚡ CRITICAL NEXT ACTION — B-293 (L_io_end missing-label fix):**
 
 **Root cause diagnosed:** `jvm_emit_fn_method` for `output_` (fn5) sweeps source statements until it hits `fn->end_label`. `output_->end_label` is NULL (DEFINE has no goto, next stmt also has no goto). So body scan runs unbounded — absorbs `io_end` label, emitting it as `Lf5_io_end` inside the output_ method instead of `L_io_end` in main(). Meanwhile `goto L_io_end` in main() references the unseen label → Jasmin error.
