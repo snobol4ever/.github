@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-6 — doc infra complete: PLAN slim, L4 trim, §BUILD/§TEST, handoff fixed | `aa75c37` G-6 | M-G0-FREEZE (Lon schedules) |
+| **⚠ GRAND MASTER REORG** | G-6 — milestone decomposition complete; ~80 milestones; dual-subset principle documented | `1ee99b5` G-6 | M-G0-FREEZE (Lon schedules) |
 | **Scripten Demo** | SD-0 — not started | — | M-SCRIPTEN-DEMO |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
@@ -53,7 +53,7 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 ## Milestone Dashboard
 
 ### Grand Master Reorg — all ❌ — detail → [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md)
-Phases 0–8 · 54 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (Lon schedules)**
+Phases 0–8 · ~80 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (Lon schedules)**
 
 ### Scripten Demo — detail → [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md)
 `M-SCRIPTEN-DEMO` ❌ **NEXT** · `M-SCRIPTEN-DEMO2` ❌

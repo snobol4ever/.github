@@ -1352,3 +1352,33 @@ Implemented full list infrastructure: `ij_expr_is_list()`, pre-pass type registr
 3. `key(T)` generator: blocked by Bug 1 (t05 uses t[k]:=v)
 
 **Next session (IJ-35):** Fix Bug 1 first (rewrite top of ij_emit_assign for SUBSCRIPT LHS), then Bug 2 (per-var _dflt static), verify 5/5 rung23 → 119/119 total → M-IJ-TABLE ✅.
+## G-6 continuation — milestone decomposition for incremental safety
+
+**HEAD:** `1ee99b5` | **Date:** 2026-03-25
+
+**Work done this session:**
+
+Scrutinized the entire GRAND_MASTER_REORG.md plan for chunk size and incremental safety. Applied the dual-subset principle throughout: old and new code coexist within a file across opcode partitions; every intermediate state is independently verifiable; regressions are immediately localizable.
+
+**Changes committed to GRAND_MASTER_REORG.md + PLAN.md (`1ee99b5`):**
+
+1. **Phase 1** — `M-G1-IR-HEADER` split into `M-G1-IR-HEADER-DEF` (create `ir.h`, compile standalone, no includes yet) + `M-G1-IR-HEADER-WIRE` (add `#include` to `sno2c.h`, fix exhaustive-switch fallout). Isolates the moment new enum kinds first touch existing code.
+
+2. **Phase 2** — `M-G2-MOVE-PROLOG-ASM` split into `-a` (create stub + `#include` from `emit_x64.c`, Prolog code still physically in place, 106/106) + `-b` (physically move code into stub, 106/106). Two green checkpoints for the riskiest Phase 2 step.
+
+3. **Phase 3** — Each of `emit_x64.c`, `emit_jvm.c`, `emit_net.c` decomposed into 8 opcode-group sub-milestones: CORE (`E_QLIT/CONC/OR`) → ITERATE (`E_ARB/ARBNO`) → CAPTURE (`E_DOT/DOLLAR`) → CURSOR (`E_POS/RPOS`) → LOAD (`E_VART/ILIT/FLIT`) → ARITH → ASSIGN → REMAINING. Old/new naming coexist within a file between groups throughout. Smaller files (WASM, ICON, PROLOG) remain single milestones. 6 milestones → ~28.
+
+4. **Phase 4** — `M-G4-SHARED-ICON` (was 7 kinds in one milestone) split into 5 per-kind milestones (TO/TO_BY → SUSPEND → ALT_GEN → BANG/SCAN → LIMIT). `M-G4-SHARED-PROLOG` (was 5 kinds) split into 4 (UNIFY → CLAUSE/CHOICE → CUT → TRAIL). TRAIL isolated last — most backend-sensitive Prolog operation.
+
+5. **Phase 5** — Every frontend now has explicit AUDIT milestone (doc only, no code) + FIX milestone(s) (one commit per gap). No gap fixed without being documented first. 5 milestones → 10.
+
+6. **Dependency graph** updated throughout. **PLAN.md dashboard** updated with new milestone IDs and ~80 total count.
+
+**Also covered (no commits):**
+- 2FA / PAT auth: confirmed PAT-based git auth is unaffected by GitHub 2FA. Token gates browser login only. PAT expiry is the thing to watch — check Developer settings for expiration date.
+- Context window reached ~85% — handoff triggered per protocol.
+
+**Next G-session mandate:**
+- Wait for Lon's signal to execute **M-G0-FREEZE** — tag `pre-reorg-freeze` on snobol4x, record 106/106 ASM + JVM, 110/110 NET.
+- After freeze: M-G0-AUDIT (all 5 emitters → `doc/EMITTER_AUDIT.md`) and M-G0-IR-AUDIT (all 5 frontend IRs → `doc/IR_AUDIT.md`) can proceed in parallel.
+- Do NOT read GRAND_MASTER_REORG.md cold — use `tail -80 SESSIONS_ARCHIVE.md` to find this entry, then read PLAN.md NOW table, then GRAND_MASTER_REORG.md Phase 0 section only.
