@@ -35,71 +35,8 @@ bash /home/claude/snobol4x/setup.sh
 **M-ICON-CORPUS-R3 spec:** user procedures with return; user-defined generators with suspend.
 rung03_suspend already has t01_gen (upto/4). R3 adds t01_return through t05_gen_compose.
 
-### I-9 findings — exact patches for icon_emit.c (apply first thing I-10)
 
-**Fix 1 — `left_is_value` (~line 598 of icon_emit.c):**
-
-Replace:
-```c
-IcnNode *left_child = n->children[0];
-int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
-                     left_child->kind == ICN_STR || left_child->kind == ICN_CALL);
-```
-With:
-```c
-IcnNode *left_child = n->children[0];
-int left_call_is_gen = 0;
-if (left_child->kind == ICN_CALL && left_child->nchildren >= 1) {
-    const char *fn = left_child->children[0]->val.sval;
-    for (int k = 0; k < user_proc_count; k++)
-        if (strcmp(user_procs[k], fn) == 0) { left_call_is_gen = user_proc_is_gen[k]; break; }
-}
-int left_is_value = (left_child->kind == ICN_VAR || left_child->kind == ICN_INT ||
-                     left_child->kind == ICN_STR ||
-                     (left_child->kind == ICN_CALL && !left_call_is_gen));
-```
-
-**Fix 2 — rsp save/restore in `emit_call` is_gen docall block (~line 498):**
-
-In the `if(is_gen){` docall block, declare a `saved_rsp` BSS slot and save/restore around the jmp trampoline. The β resume path also needs a save before jumping back in. Full patch:
-
-```c
-if(is_gen){
-    char after_call[64]; snprintf(after_call,sizeof after_call,"icon_%d_after_call",id);
-    char caller_ret[80]; snprintf(caller_ret,sizeof caller_ret,"icn_%s_caller_ret",fname);
-    char saved_rsp[64]; snprintf(saved_rsp,sizeof saved_rsp,"icn_%d_saved_rsp",id);
-    bss_declare(saved_rsp);
-    E(em,"    mov     byte [rel icn_suspended], 0\n");
-    E(em,"    mov     [rel %s], rsp\n", saved_rsp);
-    E(em,"    lea     rax, [rel %s]\n", after_call);
-    E(em,"    mov     [rel %s], rax\n", caller_ret);
-    E(em,"    jmp     icn_%s\n", fname);
-    Ldef(em,after_call);
-    E(em,"    mov     rsp, [rel %s]\n", saved_rsp);   // ← restore before icn_failed check
-    // ... rest unchanged (movzx icn_failed, etc.)
-```
-
-And in the β path (`Ldef(em,b)` / `if(is_gen)` block, ~line 485), reconstruct the saved_rsp name from `id` and save before jumping:
-
-```c
-/* β: resume if suspended */
-Ldef(em,b);
-if(is_gen){
-    char saved_rsp_b[64]; snprintf(saved_rsp_b,sizeof saved_rsp_b,"icn_%d_saved_rsp",id);
-    E(em,"    ; call β — resume if suspended, fail otherwise\n");
-    E(em,"    movzx   rax, byte [rel icn_suspended]\n");
-    E(em,"    test    rax, rax\n");
-    E(em,"    jz      %s\n", ports.fail);
-    E(em,"    mov     [rel %s], rsp\n", saved_rsp_b);  // ← save before resuming
-    E(em,"    mov     byte [rel icn_suspended], 0\n");
-    E(em,"    jmp     [rel icn_suspend_resume]\n");
-```
-
-**Key insight:** The `saved_rsp_b` in the β block and `saved_rsp` in the docall block use the same BSS slot name (`icn_%d_saved_rsp` with the same `id`). The β save updates it so that after the next yield→`after_call`, `mov rsp, [saved_rsp]` restores correctly again. Both must use the same `id` — which they do since `id` is the node ID assigned to this ICN_CALL.
-
----
-
-
+*(I-9 session findings removed — patches applied, see SESSIONS_ARCHIVE.md)*
 
 ## Why Icon fits the Byrd Box model
 

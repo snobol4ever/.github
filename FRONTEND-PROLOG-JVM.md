@@ -230,80 +230,8 @@ done
 # Then tackle remaining stub puzzles starting with M-PZ-14 (easiest per FRONTEND-PROLOG.md)
 ```
 
-### CRITICAL NEXT ACTION (PJ-15)
 
-**Bug: nested user calls — inner call exhaustion wires to predicate ω instead of enclosing call β.**
-
-Reproducer (`/tmp/minimal2.pro`):
-```prolog
-:- initialization(main). main :- test ; true.
-item(a). item(b).
-differ(X, X) :- !, fail.
-differ(_, _).
-test :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
-```
-Expected (swipl): `a-b\nb-a`. JVM: silent (no output, exits 0).
-
-**Root cause:** In `pj_emit_body` line ~1665:
-```c
-J("%s:\n", call_ω);
-JI("goto", lbl_outer_ω);   /* BUG: should retry enclosing call */
-```
-When `differ` (call7) is exhausted, `call7_omega → lbl_outer_omega → p_test_0_omega` (predicate fail). It should instead go to `call6_beta` (retry `item(Y)`). The correct wire is `call7_omega → call6_beta`.
-
-`lbl_outer_ω` is the *predicate's* omega (skip to next clause). `lbl_ω` at the point of call7 emission is `call6_beta`. So the fix seems to be `goto lbl_ω` instead of `goto lbl_outer_ω`. **But:** changing to `lbl_ω` caused an infinite loop in PJ-14 testing — `call7_beta` retried `differ` which always fails (no more solutions), so it looped back to `call6_beta` without decrementing the cs. The cs for `differ` was stuck and `item(Y)` kept binding to `b` while `differ(b,b)` kept failing → `call6_beta` → `item(Y)` again → same binding → infinite loop.
-
-**The actual fix needed:** When `call7_omega` fires (differ exhausted for the current X,Y binding), we need to advance `item(Y)`'s cs (retry item(Y) for a new Y), not retry `differ` with the same Y. This means `call7_omega` should reset `local_cs_7 = 0` (fresh differ) AND then goto `call6_beta` (which unwinds and retries item(Y)). The `local_cs` for `differ` must be reset to 0 before the beta jump, otherwise the next call to `differ` starts from an exhausted state.
-
-**Bootstrap PJ-15:**
-```bash
-git clone https://TOKEN@github.com/snobol4ever/snobol4x
-git clone https://TOKEN@github.com/snobol4ever/.github
-apt-get install -y default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
-# Confirm baseline: rungs 01-09 PASS (see bootstrap in §NOW above)
-# Then: test minimal2
-cat > /tmp/minimal2.pro << 'EOF'
-:- initialization(main). main :- test ; true.
-item(a). item(b).
-differ(X, X) :- !, fail.
-differ(_, _).
-test :- item(X), item(Y), differ(X, Y), write(X), write('-'), write(Y), write('\n'), fail.
-EOF
-./sno2c -pl -jvm /tmp/minimal2.pro -o /tmp/Minimal2.j
-java -jar src/backend/jvm/jasmin.jar /tmp/Minimal2.j -d /tmp
-timeout 3 java -cp /tmp Minimal2  # should print a-b\nb-a
-# Fix: prolog_emit_jvm.c pj_emit_body, the call_ω label emission (~line 1665)
-# Approach: on call_omega, reset local_cs to 0, then goto lbl_ω (enclosing beta)
-```
-
-**Rung 08 `recursion`: `fibonacci/2`, `factorial/2`.**
-
-**Bootstrap PJ-13:**
-```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-apt-get install -y default-jdk nasm libgc-dev
-make -C snobol4x/src
-# Confirm baseline: rungs 01-07 PASS
-for rung in rung01_hello/hello rung02_facts/facts rung03_unify/unify rung04_arith/arith rung05_backtrack/backtrack rung06_lists/lists rung07_cut/cut; do
-  base=$(basename $rung); cls=$(echo $base | sed 's/./\u&/')
-  ./sno2c -pl -jvm test/frontend/prolog/corpus/$rung.pro -o /tmp/${cls}.j
-  java -jar src/backend/jvm/jasmin.jar /tmp/${cls}.j -d /tmp 2>/dev/null
-  result=$(timeout 5 java -cp /tmp $cls 2>/dev/null)
-  expected=$(cat test/frontend/prolog/corpus/$rung.expected)
-  [ "$result" = "$expected" ] && echo "$rung: PASS" || echo "$rung: FAIL"
-done
-# Then tackle rung08:
-cat test/frontend/prolog/corpus/rung08_recursion/recursion.pro
-./sno2c -pl -jvm test/frontend/prolog/corpus/rung08_recursion/recursion.pro -o /tmp/Recursion.j
-java -jar src/backend/jvm/jasmin.jar /tmp/Recursion.j -d /tmp && timeout 5 java -cp /tmp Recursion
-```
-
-**PJ-12 fix summary (for context):**
-Cut (`!`) in `pj_emit_body` now: (1) stores `base[nclauses]` into `cs_local` (seals β so next dispatch → omega), (2) continues emitting remaining body goals with `lbl_ω = lbl_pred_ω` (predicate omega, skipping all clauses). Three parameters added to `pj_emit_body`: `cut_cs_seal`, `cs_local_for_cut`, `lbl_pred_ω`. The `pj_emit_goal` cut branch does the same seal + `goto lbl_γ`.
-
----
+*(PJ-15 historical CRITICAL NEXT ACTION and earlier session findings removed — see SESSIONS_ARCHIVE.md)*
 
 ## Milestone Table
 
