@@ -85,31 +85,28 @@ Matrix:     Feature matrix (correctness) · Benchmark matrix (performance)
 | **M-BEAUTIFY-BOOTSTRAP** | beauty.sno reads + writes itself; fixed point | ❌ |
 | **M-MONITOR-GUI** | 🌙 HTML/React monitor GUI — diverging cells highlighted | 💭 |
 
-### Prolog Frontend — Active
+### Prolog Frontend — Puzzle Corpus
 
-| ID | Trigger | Status |
-|----|---------|--------|
-| **M-PROLOG-BUILTINS** | `functor/3`, `arg/3`, `=../2`, type tests — rung09 PASS | ✅ |
-| **M-PROLOG-R10** | Lon's word-puzzle solvers — rung10 PASS | ✅ |
-| **M-PZ-03** | puzzle_03 — triple engagement party — swipl PASS | ✅ |
-| **M-PZ-04** | puzzle_04 — Milford occupations — swipl PASS | ✅ |
-| **M-PZ-07** | puzzle_07 — Brown/Clark/Jones/Smith professions — swipl PASS | ✅ |
-| **M-PZ-08** | puzzle_08 — dept store Ames/Brown/Conroy — swipl PASS | ✅ |
-| **M-PZ-09** | puzzle_09 — Empire dept store — swipl PASS | ✅ |
-| **M-PZ-10** | puzzle_10 — five J-names — swipl PASS | ✅ |
-| **M-PZ-11** | puzzle_11 — Smith family — swipl PASS | ✅ |
-| **M-PZ-12** | puzzle_12 — Stillwater High teachers — swipl PASS | ✅ |
-| **M-PZ-13** | puzzle_13 — murder case — swipl PASS | ✅ |
-| **M-PZ-14** | puzzle_14 — golf scores — swipl PASS | ✅ |
-| **M-PZ-15** | puzzle_15 — Vernon/Wilson/Yates — swipl PASS | ✅ |
-| **M-PZ-16** | puzzle_16 — train crew — swipl PASS | ✅ |
-| **M-PZ-17** | puzzle_17 — Country Club dance — swipl PASS | ✅ |
-| **M-PZ-18** | puzzle_18 — shopping day — swipl PASS | ✅ |
-| **M-PZ-19** | puzzle_19 — office floors — swipl PASS | ✅ |
-| **M-PZ-20** | puzzle_20 — Pullman car readers — swipl PASS | ✅ |
-| **M-PROLOG-CORPUS** | All 10 rungs PASS via `-pl -asm` | ❌ |
+Each milestone: write solution in puzzle_NN.pro, verify correct answer via swipl.
 
-Full sprint detail → [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md)
+| ID | Puzzle | Status |
+|----|--------|--------|
+| **M-PZ-03** | Triple engagement party — 6 people, age constraints, equal couple sums | ❌ |
+| **M-PZ-04** | Milford occupations — income doubling chain + $3776 gap | ❌ |
+| **M-PZ-07** | Brown/Clark/Jones/Smith — age/golf/income/conservatism ordering | ❌ |
+| **M-PZ-08** | Dept store Ames/Brown/Conroy/Davis/Evans — roommate/bachelor/marriage clues | ❌ |
+| **M-PZ-09** | Empire dept store Allen/Bennett/Clark/Davis/Ewing — lunch hours + cribbage | ❌ |
+| **M-PZ-10** | Five J-names — Father/Son banquet + naming convention + friendship | ❌ |
+| **M-PZ-11** | Smith family — grocer/lawyer/postmaster/preacher/teacher + blood relations | ❌ |
+| **M-PZ-12** | Stillwater High — 6 teachers × 6 subjects + father/roommate clues | ❌ |
+| **M-PZ-13** | Murder case — Clayton/Forbes/Graham/Holgate/McFee/Warren × 6 roles | ❌ |
+| **M-PZ-14** | Golf scores — Bill/Ed/Tom wives, two couples same total, Ed's wife beats Bill's | ❌ |
+| **M-PZ-15** | Vernon/Wilson/Yates — architect/doctor/lawyer + 3 secretaries, floor ordering | ❌ |
+| **M-PZ-16** | Train crew Art/John/Pete/Tom — brakeman/conductor/engineer/fireman + family | ❌ |
+| **M-PZ-17** | Country Club dance — Ed/Frank/George/Harry wives, dance exchange snapshot | ❌ |
+| **M-PZ-18** | Luncyville shopping — Abbott/Briggs/Culver/Denny, day constraints per store | ❌ |
+| **M-PZ-19** | Office floors — Allen/Brady/McCoy/Smith, floor arithmetic constraints | ❌ |
+| **M-PZ-20** | Pullman car — Adams/Brown/Clark/Davis, 4 fields, book exchange constraints | ❌ |
 
 ### Prolog JVM — Active
 
