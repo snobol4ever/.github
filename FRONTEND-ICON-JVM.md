@@ -19,9 +19,9 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-28 — M-IJ-CORPUS-R19 ✅ ICN_POW (^) + real to-by (dneg fix); 99/99 PASS | `2574281` IJ-28 | M-IJ-CORPUS-R20 |
+| **Icon JVM** | `main` IJ-29 — M-IJ-CORPUS-R20 ✅ ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | `7f8e3a2` IJ-29 | M-IJ-CORPUS-R21 |
 
-### Next session checklist (IJ-29)
+### Next session checklist (IJ-30)
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
@@ -32,10 +32,41 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-# Confirm 99/99 PASS (rungs 01-19) before touching code
-# Next: M-IJ-CORPUS-R20 — candidates: ICN_SEQ_EXPR (E;F sequence expressions),
-# string section s[i:j], ICN_CASE, or deeper pow chains. Consult JCON-ANALYSIS.md.
+# Confirm 104/104 PASS (rungs 01-20) before touching code
+# Next: M-IJ-CORPUS-R21 — candidates: ICN_CASE (case E of {...}),
+# ICN_GLOBAL (global vars + initial clause), or Tier-1 M-IJ-LISTS.
+# Consult JCON-ANALYSIS.md and FRONTEND-ICON-JVM.md §Enhancement Milestone Summary.
 ```
+
+### IJ-29 findings — M-IJ-CORPUS-R20 ✅
+
+**104/104 PASS (rung01–20).** HEAD `7f8e3a2`.
+
+**Changes in `icon_ast.h`:**
+
+1. **`ICN_SECTION`** — new enum value (after `ICN_SUBSCRIPT`): `E[i:j]` string section, 3 children: str, lo, hi.
+
+**Changes in `icon_ast.c`:**
+
+1. **`icn_kind_name`** — `case ICN_SECTION: return "SECTION"`.
+
+**Changes in `icon_parse.c`:**
+
+1. **Subscript rule extended** — after parsing `s[idx`, if next token is `:` advance and parse hi → `ICN_SECTION(str, lo, hi)`; else `ICN_SUBSCRIPT(str, idx)` as before.
+
+2. **Paren rule extended** — after parsing first expr inside `(`, if next token is `;` collect additional exprs separated by `;` → `ICN_SEQ_EXPR(E1..En)`. Trailing `;` before `)` allowed.
+
+**Changes in `icon_emit_jvm.c`:**
+
+1. **`ij_emit_section`** — 3-operand JCON `ir_a_Sectionop` pattern. Eval str→lo→hi via per-site statics `icn_N_sec_s/lo/hi`. 1-based→0-based conversion for both bounds: positive `i→i-1`, negative `i→length+i`, zero hi treated as 0 (produces empty). Clamps hi to length. Calls `String.substring(lo_0based, hi_0based)`. One-shot (β→ω). Result is String.
+
+2. **`ij_emit_seq_expr`** — identical relay-label wiring to `ICN_AND`/`ir_conjunction`. Drain intermediates via `pop`/`pop2` (string-aware), last child's γ/ω flow to `ports.γ/ω`. β→last child's β.
+
+3. **`ij_expr_is_string`** — `ICN_SECTION→1`; `ICN_SEQ_EXPR` delegates to last child.
+
+4. **Dispatch** — `case ICN_SECTION` and `case ICN_SEQ_EXPR` added.
+
+**rung20_section_seqexpr corpus (5 tests):** `"hello"[1:4]`→hel; `s[i:j]` with vars→bcd; `s[1:6]`→hello; `(1;2;3)`→3; seq with side-effecting assigns→2.
 
 ### IJ-28 findings — M-IJ-CORPUS-R19 ✅
 

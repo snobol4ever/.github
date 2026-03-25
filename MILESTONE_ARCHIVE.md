@@ -235,3 +235,5 @@ Append-only. Do not edit existing entries.
 | **M-IJ-CORPUS-R16** | Rung 16: ICN_SUBSCRIPT s[i] + ij_emit_if drain pop/pop2 fix; 84/84 total | ✅ IJ-25 `dff0f03` |
 | **M-IJ-CORPUS-R17** | Rung 17: real arith (dadd/dmul), integer()/real()/string() builtins, ldc2_w decimal fix; 89/89 total | ✅ IJ-26 `f10ea77` |
 | **M-IJ-CORPUS-R18** | Rung 18: real relops (dcmpl/dcmpg + l2d promotion), ICN_ALT realness; 94/94 total | ✅ IJ-27 `f976057` |
+| **M-IJ-CORPUS-R19** | Rung 19: ICN_POW (^) via Math.pow + real to-by (dneg fix, is_dbl flag); 99/99 total | ✅ IJ-28 `2574281` |
+| **M-IJ-CORPUS-R20** | Rung 20: ICN_SECTION s[i:j] (3-operand, 1-based→0-based, clamp) + ICN_SEQ_EXPR (E;F drain relay); 104/104 total | ✅ IJ-29 `7f8e3a2` |

@@ -1098,3 +1098,17 @@ then M-PJ-FINDALL as first enhancement sprint.
 **HEAD at handoff:** `7d6f964` on origin/main
 **Next:** Start fresh session for GRAND_MASTER_REORG.md — read all 5 emitters
 completely, inventory existing milestones that overlap, then write the full plan.
+
+---
+
+## IJ-29 — M-IJ-CORPUS-R20 ✅
+
+**Date:** 2026-03-25  **HEAD:** `7f8e3a2`  **PASS:** 104/104
+
+**Features:** ICN_SECTION (`s[i:j]`) + ICN_SEQ_EXPR (`(E1;E2;...En)`)
+
+**Parser:** Subscript rule extended to detect `:` after first index → ICN_SECTION(str,lo,hi). Paren rule extended to collect `;`-separated exprs → ICN_SEQ_EXPR.
+
+**Emitter:** `ij_emit_section` — JCON `ir_a_Sectionop` 3-operand pattern; per-site statics for str/lo/hi; 1-based→0-based with positive/negative/zero handling; hi clamped to length; `String.substring(II)`. `ij_emit_seq_expr` — clone of ICN_AND relay-label wiring; drains intermediates (pop/pop2 string-aware); last child flows to ports.γ/ω.
+
+**Corpus:** rung20_section_seqexpr — 5 tests, 5/5 PASS first run. No regressions (104/104 total).

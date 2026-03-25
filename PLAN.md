@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **Prolog JVM** | `main` PJ-42 — **20/20** M-PJ-NAF-INNER-LOCALS ✅ puzzle_18 PASS; puzzle_03 still open | `38e4c39` PJ-42 | M-PJ-DISPLAY-BT |
 | **Icon JVM** | `main` IJ-11 — M-IJ-SCAN ✅ 5/5 rung05 PASS | `7d68a85` IJ-11 | M-IJ-CSET |
 | **Prolog JVM** | `main` PJ-16 — two-clause fail/retry fix; rungs 01-09 PASS | `f575016` PJ-16 | M-PJ-CORPUS-R10 |
-| **Icon JVM** | `main` IJ-28 — M-IJ-CORPUS-R19 ✅ ICN_POW (^) + real to-by (dneg fix); 99/99 PASS | `2574281` IJ-28 | M-IJ-CORPUS-R20 |
+| **Icon JVM** | `main` IJ-29 — M-IJ-CORPUS-R20 ✅ ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | `7f8e3a2` IJ-29 | M-IJ-CORPUS-R21 |
 
 | **Icon JVM** | `main` IJ-17 — M-IJ-CORPUS-R9 ✅ until/repeat; 49/49 PASS | `60cf799` IJ-17 | M-IJ-CORPUS-R10 |
 | **README v2 sprint** | `main` R-2 | TBD R-2 | M-FEAT-JVM |
@@ -180,7 +180,8 @@ Full sprint detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
 | **M-IJ-CORPUS-R17** | Rung 17: real arith (dadd/dmul), integer()/real()/string() builtins | ✅ |
 | **M-IJ-CORPUS-R18** | Rung 18: real relops (dcmpl/dcmpg), mixed int/real, ICN_ALT realness | ✅ |
 | **M-IJ-CORPUS-R19** | Rung 19: ICN_POW (^) + real to-by generator; parse_pow + dneg fix | ✅ |
-| **M-IJ-CORPUS-R20** | Rung 20: next corpus rung | ❌ **NEXT** |
+| **M-IJ-CORPUS-R20** | Rung 20: ICN_SECTION s[i:j] + ICN_SEQ_EXPR (E;F); 104/104 PASS | ✅ |
+| **M-IJ-CORPUS-R21** | Rung 21: next corpus rung | ❌ **NEXT** |
 
 | **M-IJ-CORPUS-R10** | Rung 10: next rung corpus PASS | ❌ **NEXT** |
 
