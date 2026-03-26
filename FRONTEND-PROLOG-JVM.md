@@ -19,15 +19,15 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-68 — M-PJ-AGGREGATE ✅ 5/5 rung27 | `e8edd82` PJ-68 | M-PJ-NEXT |
+| **Prolog JVM** | `main` PJ-69 — M-PJ-EXCEPTIONS ✅ 5/5 rung28 | `a48be16` PJ-69 | M-PJ-NUMBER-OPS |
 
-### CRITICAL NEXT ACTION (PJ-69)
+### CRITICAL NEXT ACTION (PJ-70)
 
-**Baseline: 5/5 rung27 ✅, 5/5 rung26 ✅, rung11–rung27 all green. snobol4x HEAD `e8edd82`.**
+**Baseline: 5/5 rung28 ✅, 5/5 rung27 ✅, rung11–rung28 all green. snobol4x HEAD `a48be16`.**
 
-**Next milestone: next queued milestone after M-PJ-AGGREGATE.**
+**Next milestone: M-PJ-NUMBER-OPS — next after M-PJ-EXCEPTIONS in sprint order.**
 
-**Bootstrap PJ-69:**
+**Bootstrap PJ-70:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
@@ -77,6 +77,7 @@ make -C snobol4x/src
 | **M-PJ-TERM-STRING** | `term_to_atom/2`, `term_string/2` (forward); rung25 3/3 | ✅ |
 | **M-PJ-COPY-TERM** | `copy_term/2`, `string_to_atom/2`, `atomic_list_concat/2,3`, `concat_atom/2`; rung26 5/5 | ✅ |
 | **M-PJ-AGGREGATE** | `aggregate_all/3` (count/sum/max/min/bag/set), `nb_setval/2`, `nb_getval/2`, `succ_or_zero/2`; rung27 5/5 | ✅ |
+| **M-PJ-EXCEPTIONS** | `catch/3`, `throw/1` — ISO exception machinery; rung28 5/5 | ✅ |
 
 ---
 
