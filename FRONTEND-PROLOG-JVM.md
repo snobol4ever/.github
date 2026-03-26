@@ -19,23 +19,23 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-59 — M-PJ-FORMAT ✅ 5/5 rung19 | `07c8710` PJ-59 | M-PJ-NUMBER-VARS |
+| **Prolog JVM** | `main` PJ-60 — M-PJ-NUMBER-VARS ✅ 5/5 rung20 | `aa761e5` PJ-60 | M-PJ-CHAR-TYPE |
 
-### CRITICAL NEXT ACTION (PJ-60)
+### CRITICAL NEXT ACTION (PJ-61)
 
-**Baseline: 5/5 rung11–rung19 ✅. snobol4x HEAD `07c8710`.**
+**Baseline: 5/5 rung11–rung20 ✅. snobol4x HEAD `aa761e5`.**
 
-**Next milestone: M-PJ-NUMBER-VARS — implement `numbervars/3` or next queued milestone.**
+**Next milestone: M-PJ-CHAR-TYPE — implement `char_type/2` (alpha, alnum, digit, space, upper, lower, to_upper, to_lower) or next queued milestone.**
 
-**Bootstrap PJ-60:**
+**Bootstrap PJ-61:**
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
 git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 # Read §NOW above. Implement next milestone.
-# Confirm rung11–rung19 no regressions
-# Commit snobol4x, update §NOW + PLAN.md + SESSIONS_ARCHIVE.md, push both repos
+# Confirm rung11–rung20 no regressions
+# Commit snobol4x, update §NOW + PLAN.md, push both repos
 ```
 
 ## Milestone Table
@@ -71,7 +71,7 @@ make -C snobol4x/src
 | **M-PJ-SORT** | `sort/2`, `msort/2` — insertion sort, optional dedup | ✅ |
 | **M-PJ-SUCC-PLUS** | `succ/2`, `plus/3` — successor/addition builtins | ✅ |
 | **M-PJ-FORMAT** | `format/1`, `format/2` — ~w ~a ~n ~d ~i directives | ✅ |
-| **M-PJ-ABOLISH** | `abolish/1` — remove entire predicate from DB | ✅ |
+| **M-PJ-NUMBER-VARS** | `numbervars/3` — name unbound vars as A,B,...Z,A1,...; `$VAR` write support | ✅ |
 
 ---
 
