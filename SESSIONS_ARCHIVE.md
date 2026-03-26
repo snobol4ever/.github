@@ -1856,3 +1856,36 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~78%.**
 
 **Next session (PJ-59):** M-PJ-FORMAT — `format/1`, `format/2`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+## SD-2 — 2026-03-26
+
+**HEAD start:** `c6ef225` (SD-1) → **HEAD end:** `a5f01c8` (WIP, not M-SCRIPTEN-DEMO)
+
+**Goal:** Fix VerifyError blocking `java ScriptenFamily < family.csv`.
+
+**Work done:**
+
+**Bootstrap:** Cloned `snobol4x`, `.github`, `x64`, `snobol4corpus`. Installed `nasm`, `libgc-dev`. Built `sno2c` (`make -j4` clean). Built `icon_driver_jvm` directly from source.
+
+**Pipeline unblocked to assembly:** Renamed emitter outputs (`FamilyProlog.j` → `Family_prolog.j` etc.) to match inject_linkage.py expectations. All 4 classes assemble clean.
+
+**VerifyError 1 — "Register pair 64 contains wrong type" — FIXED:**
+- Root cause: `slot_jvm(n) = 2*n` maps logical slots to JVM long-pair slots. `bf_slot` (cmp, `istore`), `lo_slot`/`hi_slot` (section, `istore`), String-ref scratch (strrelop, `astore`) all used `slot_jvm()` — causing `istore 64` / `astore 64` to alias `lstore 64` from a sibling relop node's `lc_slot`. The zero-init `lconst_0; lstore 64` then conflicted at CF join points.
+- Fix: new `ij_alloc_int_scratch()` allocates raw JVM slots at `2*MAX_LOCALS + 20 + n` (= slots 84+), entirely above the long-pair region. All 8 int/ref scratch sites migrated: `bf_slot`, `lo_slot`, `hi_slot`, `len_slot`, `idx_slot`, `n_slot`, `nread_slot`, and String-ref scratch in `ij_emit_strrelop` and write/integer/real builtins.
+- Zero-init updated: `lconst_0/lstore` for slots 0–62 (long-pairs), `iconst_0/istore` for slots 84+ (int scratch). No overlap.
+
+**VerifyError 2 — "Expecting to find long on stack" — OPEN:**
+- Different error — progress. Slot-type conflict is gone.
+- Zero-init and slot regions are correct (verified by inspection).
+- Pure stack-discipline issue: something leaves a non-long on the operand stack at a label boundary where a long is expected.
+- Most likely location: `ij_emit_section` `lo_relay` / `hi_relay` — these do `l2i` (converting long→int) then `istore lo_slot`, but a control-flow join point upstream may see inconsistent stack depths/types.
+- Next action: `javap -c Family_icon.class | grep -n .` to get bytecode offsets, find the byte offset from the VerifyError message detail, cross-reference to `.j` label, fix in `icon_emit_jvm.c`.
+
+**Context window at handoff: ~92%.**
+
+**Next session (SD-3):**
+1. `javap -c -p Family_icon.class` — find exact byte offset of stack error in `icn_main`
+2. Cross-reference to `.j` file label — identify which relay/relay-join has wrong stack type
+3. Fix in `icon_emit_jvm.c` (likely `ij_emit_section` lo/hi relay, or a sec→cmp hand-off)
+4. Rebuild → run → if clean: write `family.expected`, `scripten_split.py`, `run_demo.sh`, `README.md`
+5. `run_demo.sh` diff clean → commit `SD-3: M-SCRIPTEN-DEMO ✅` → update NOW table in PLAN.md
