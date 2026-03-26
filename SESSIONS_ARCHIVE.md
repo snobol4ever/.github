@@ -2673,3 +2673,43 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 
 Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-57. Fix Stream A (parse gaps) first to maximize compile coverage, then Stream B (backend bugs) to get passes.
 
+
+---
+
+## IJ-57 — Icon JVM — Stream A parse fixes (2026-03-26)
+
+**HEAD:** `14400a9`  **rung01–35:** 153/153 PASS  **rung36:** 0/51 (was 0/51, same count but completely different failure mode)
+
+### Work done
+
+**Lexer (`icon_lex.c` / `icon_lex.h`):**
+- `++` → `TK_PLUSPLUS` (cset union), `--` → `TK_MINUSMINUS` (cset diff), `**` → `TK_STARSTAR` (cset inter)
+- `=:=` → `TK_AUGEQ` (augmented numeric `=`); `==:=` → `TK_AUGSEQ` (augmented string `==`)
+- `.NN` leading-dot float literals: `.` + digit backs up and calls `scan_number`
+- `scan_number`: fractional-part condition relaxed to handle leading-dot entry
+
+**Parser (`icon_parse.c`):**
+- Forward declaration added for `parse_block_or_expr`
+- `parse_unary`: added `+E` (ICN_POS), `?E` (ICN_RANDOM), `~E` (ICN_COMPLEMENT)
+- `parse_cset` (new layer between `parse_add` and `parse_concat`): `E++E`, `E--E`, `E**E`, `E!E` binary list-invoke
+- `parse_postfix`: `s[i+:n]` → ICN_SECTION_PLUS, `s[i-:n]` → ICN_SECTION_MINUS
+- `parse_assign`: scan RHS now uses `parse_block_or_expr` (fixes `"str" ? { ... }`)
+- `parse_expr`: restored broken TK_RETURN handler; added `if`/`every`/`while`/`until`/`repeat` as expression-context constructs (fixes `line ? if { ... } then ...`)
+- `parse_primary`: `TK_LBRACE` → `parse_block_or_expr` (compound block as expression)
+- `parse_stmt` TK_INITIAL: now uses `parse_block_or_expr` + `match(TK_SEMICOL)` (fixes `initial { ... }` and keeps `initial x := 0;` working)
+- `is_augop`: extended with `TK_AUGEQ`, `TK_AUGSEQ`
+
+**AST (`icon_ast.h`):**
+- Added: `ICN_POS`, `ICN_RANDOM`, `ICN_COMPLEMENT`, `ICN_CSET_UNION`, `ICN_CSET_DIFF`, `ICN_CSET_INTER`, `ICN_BANG_BINARY`, `ICN_SECTION_PLUS`, `ICN_SECTION_MINUS`
+
+### Rung36 status change
+- **Before IJ-57:** 38 compile errors, ~13 reach JVM, 0 pass
+- **After IJ-57:** 0 compile errors, all 51 non-xfail tests compile and reach JVM, 0 pass
+- **Failure mode now:** `VerifyError: Unable to pop operand off an empty stack` — new node kinds hit emitter `default:` branch which emits `goto ω` with no stack value
+
+### Regressions caught and fixed
+- `initial x := 0;` regression (rung21/rung25): fixed by `match(TK_SEMICOL)` after `parse_block_or_expr` in initial handler
+
+### Next session
+
+Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-58. Add emit stubs for all 9 new node kinds in `icon_emit_jvm.c` to eliminate VerifyError. Then fix Stream B content bugs to get passes.
