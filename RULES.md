@@ -147,4 +147,10 @@ When the frontend produces an IR node the backend cannot yet emit, do not add a 
 
 ---
 
+## ⛔ SCRIP DEMO PROGRAMS ARE THE SPEC — Never rewrite to cover compiler limits
+
+The `.md` source blocks in `demo/scrip/demoN/` are the specification. They define what the compilers must handle. If a demo fails, the bug is in the compiler (sno2c, icon_driver, JVM emitter, Prolog emitter) — never in the demo source. Do not simplify, restructure, or otherwise modify a demo block to work around a compiler limitation. Fix the product. Root cause: SD-27 session nearly rewrote roman.md Icon block to avoid list subscript VerifyError in icon_emit_jvm.c.
+
+---
+
 *RULES.md = L3 reference. ~10 rules, each ≤10 lines. No session playbooks. No artifact status tables. No war stories beyond one-line root-cause citations.*
