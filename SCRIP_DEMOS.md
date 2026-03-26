@@ -65,8 +65,8 @@ Each `M-SD-N` fires when:
 | Milestone | Status |
 |-----------|--------|
 | M-SD-1  | ✅ hello — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
-| M-SD-2  | ❌ **NEXT** — wordcount; SNO2C-JVM ✅ PROLOG-JVM ✅ (string_chars/length added); ICON-JVM blocked: &letters keyword cset → illegal JVM field name |
-| M-SD-3  | ❌ |
+| M-SD-2  | ✅ wordcount — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
+| M-SD-3  | ❌ **NEXT** |
 | M-SD-4  | ❌ |
 | M-SD-5  | ❌ |
 | M-SD-6  | ❌ |
