@@ -257,3 +257,13 @@ Root bug: `pj_term_int` stores long as `String` via `Long.toString()` at slot [1
 
 Three-session effort (IJ-34/35/36): IJ-34 scaffold + insert/delete/member; IJ-35 t[k]:=v VerifyError + table default value + 4/5 rung23; IJ-36 key(T) two-bug fix (kinit re-snapshot + subscript β wiring) → 5/5 rung23. 119/119 PASS. JVM HashMap<String,Object> backend. Subscript β now resumes key generator β (not one-shot) — required for `every … t[key(t)]` patterns.
 >>>>>>> 38b5401 (IJ-36: M-IJ-TABLE ✅ — update PLAN.md NOW, FRONTEND-ICON-JVM.md §NOW, milestone+session archive)
+
+## IJ-39 — M-IJ-GLOBAL ✅  2026-03-25
+rung25 7/0/0 · HEAD `e4f0f7e` · `global` var declarations + `initial` clause (already implemented; corpus + runner scaffolded)
+
+## IJ-40 — M-IJ-POW ✅  2026-03-25
+rung26 5/0/0 · HEAD `90c759e` · `^` exponentiation via `Math.pow(DD)D`, right-assoc, int+real (already implemented; corpus + runner scaffolded)
+
+## IJ-41 — M-IJ-READ ✅  2026-03-25
+rung27 5/0/0 · HEAD `d94e728` · `read()`/`reads()` builtins (BufferedReader wrapping System.in)
+Bugs fixed: while-cond pop/pop2 · body-result drain · cond_ok fall-through · local-slot zero-init

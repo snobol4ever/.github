@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` R-2 | `00846d3` | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-57 — M-PJ-SORT ✅ 5/5 rung17 | `d0b58bb` PJ-57 | M-PJ-SUCC-PLUS |
-| **Icon JVM** | `main` IJ-37 — M-IJ-RECORD 4/5 PASS (t03 xfail: proc arg) | `90bd967` IJ-37 | M-IJ-RECORD-PROCARG |
+| **Icon JVM** | `main` IJ-41 — M-IJ-READ ✅ rung27 5/5 | `d94e728` IJ-41 | M-IJ-BUILTINS-STR |
 
 **Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)
 
@@ -52,7 +52,7 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 ## Milestone Dashboard
 
 ### ⭐⭐ Icon JVM — detail → [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md)
-`M-IJ-LISTS` ✅ · `M-IJ-TABLE` ✅ · `M-IJ-RECORD` ✅ · `M-IJ-RECORD-PROCARG` ✅ · `M-IJ-STRING-RETVAL` ✅ · `M-IJ-NULL-TEST` ❌ **NEXT** · `M-IJ-BLOCK-BODY` ❌ · `M-IJ-GLOBAL` ❌ · `M-IJ-BUILTINS-STR` ❌ · `M-IJ-SORT` ❌
+`M-IJ-LISTS` ✅ · `M-IJ-TABLE` ✅ · `M-IJ-RECORD` ✅ · `M-IJ-RECORD-PROCARG` ✅ · `M-IJ-GLOBAL` ✅ · `M-IJ-POW` ✅ · `M-IJ-READ` ✅ · `M-IJ-BUILTINS-STR` ❌ **NEXT** · `M-IJ-BUILTINS-TYPE` ❌ · `M-IJ-SORT` ❌
 
 ### ⭐⭐ Prolog JVM — detail → [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
 `M-PJ-FINDALL` ✅ · `M-PJ-ATOM-BUILTINS` ✅ · `M-PJ-ASSERTZ` ✅ · `M-PJ-RETRACT` ✅ · `M-PJ-ABOLISH` ✅ · `M-PJ-ATOP` ✅ · `M-PJ-SORT` ✅ · `M-PJ-SUCC-PLUS` ❌ **NEXT**

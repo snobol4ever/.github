@@ -1782,3 +1782,25 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~65%.**
 
 **Next session (PJ-58):** M-PJ-SUCC-PLUS — `succ/2`, `plus/3`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+## IJ-39 / IJ-40 / IJ-41 — 2026-03-25
+
+**Milestones:** M-IJ-GLOBAL ✅ · M-IJ-POW ✅ · M-IJ-READ ✅
+**Rungs:** rung25 7/0/0 · rung26 5/0/0 · rung27 5/0/0 · Grand total 87/87 PASS
+**Commits:** `e4f0f7e` (global) · `90c759e` (pow) · `d94e728` (read)
+
+**M-IJ-GLOBAL / M-IJ-POW:** Both already fully implemented in source at session start. Work was corpus scaffolding (rung25, rung26) and runner scripts.
+
+**M-IJ-READ:** New implementation.
+- `read()` — lazy `BufferedReader` wrapping `System.in` via static Object field `icn_stdin_reader` + init flag. Returns String on γ, fails on EOF.
+- `reads(n)` — same reader, `read([CII)I`, returns String of n chars or fails.
+- `ij_expr_is_string`: added `read()`/`reads()` → String return type.
+
+**While-loop bugs fixed (4, pre-existing):**
+1. `pop2` hardcoded in cond_ok drain → now `pop`/`pop2` via `ij_expr_is_string(cond)`
+2. Body result not drained before loop-back → added `body_drain` label
+3. `cond_ok` fell through to mid-body code bypassing body's α initialization (`bf_slot` flag stale) → added explicit `body_start` label + `JGoto`
+4. Local slot type inconsistency at loop-back join points (VerifyError "Register pair N wrong type") → unconditional `lconst_0; lstore N` zero-init of all local slots at method entry
+
+**Next:** IJ-42 — M-IJ-BUILTINS-STR (`repl`/`reverse`/`left`/`right`/`center`/`trim`/`map`/`char`/`ord`)
