@@ -1742,3 +1742,23 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~45%.**
 
 **Next session (PJ-56):** M-PJ-ATOP — `@<`/`@>`/`@=<`/`@>=`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+
+## PJ-56 — M-PJ-ATOP
+
+**HEAD start:** `db82779` (PJ-55) → **HEAD end:** `033f34f`
+
+**Accomplished:**
+
+- **`@<` `@>` `@=<` `@>=` added to `BIN_OPS[]`** in `prolog_parse.c` at precedence 700, `ASSOC_NONE`. No lexer changes needed — `@` is already a graphic char and sequences like `@<` lex as `TK_ATOM` automatically.
+
+- **Term-order comparison dispatch in `pj_emit_goal`** (after arithmetic comparisons): deref both args, call `pj_term_str` on each to get lexicographic string representation, `String.compareTo`, branch with `ifge`/`ifle`/`ifgt`/`iflt` to `lbl_ω`.
+
+- **rung16_atop corpus** (5 tests): `@<` (less-than), `@>` (greater-than), `@=<` (less-or-equal), `@>=` (greater-or-equal), mixed atom ordering.
+
+**Score:** 5/5 rung16 ✅. rung11–15: 25/25 no regressions. **M-PJ-ATOP ✅ FIRES.**
+
+**Context window at handoff: ~55%.**
+
+**Next session (PJ-57):** Awaiting direction. See FRONTEND-PROLOG-JVM.md §NOW.
