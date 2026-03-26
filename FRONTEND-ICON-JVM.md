@@ -19,28 +19,26 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-45 ✅ M-IJ-SORT complete | `1bef9c8` IJ-45: M-IJ-SORT ✅ | M-IJ-RECORD (Tier 1) |
+| **Icon JVM** | `main` IJ-46 ✅ M-IJ-ALT-VALUE complete | `b37383b` IJ-46: M-IJ-ALT-VALUE ✅ | M-IJ-STRING-RETVAL or M-IJ-CASE |
 
-### CRITICAL NEXT ACTION (IJ-46)
+### CRITICAL NEXT ACTION (IJ-47)
 
-**Baseline: 107/107 JVM rungs (rung05–31) PASS. rung14 2 pre-existing xfail unchanged.**
+**Baseline: 112/112 JVM rungs (rung05–31) PASS. rung14 5/5 (xfails resolved).**
 
-M-IJ-SORT committed (`1bef9c8`). rung31: **5/5 PASS**.
+IJ-46 committed (`b37383b`). rung13: **5/5 PASS**. rung14: **5/5 PASS**.
 
-Four bugs were fixed to make sortf/sort work with record lists:
-1. `'R'` type tag for record-list vars (ij_declare_static_reclist)
-2. Pre-pass 2: `every v := !reclist` pre-tags `v` as Object before body emit
-3. `is_rec_direct`: bang-of-reclist stores Object directly (no pop2+retval_obj)
-4. ICN_MAKELIST: record elements loaded from icn_retval_obj (not boxed as Long)
+ALT relay now passes actual values through (was always discarding to lconst_0):
+- String alts: astore scratch → set gate → aload scratch
+- Double alts: dstore temp → set gate → dload temp
+- Long/int alts: lstore temp → set gate → lload temp
 
-**Next milestone: M-IJ-RECORD (Tier 1)**
-- record decl → static inner class with public Object fields
-- `r.field` access (ICN_FIELD) → getfield/putfield
-- Constructor call `foo(v1,v2)` → new foo + field stores
-- Corpus: test/frontend/icon/corpus/rung24_records/ (5 tests)
+**Next options:**
+- M-IJ-STRING-RETVAL: string procedure returns (VerifyError with putstatic J)
+- M-IJ-CASE: `case E of { ... }` expression
+- M-IJ-NULL-TEST: `\\E` / `/E` non-null and null test operators
 
 ```bash
-# Bootstrap IJ-46:
+# Bootstrap IJ-47:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
