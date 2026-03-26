@@ -1950,3 +1950,14 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 **Context window at handoff: ~77%.**
 
 **Next session (SD-3):** Fix remaining 8 stack-height conflicts. Key insight: the ICN_EVERY β-tableswitch resume path enters the ICN_AND chain's α port at a different stack depth than the normal entry. Fix: in `ij_emit_every`, ensure the β-resume dispatch drains any stale stack before re-entering the generator's α. See `SCRIPTEN_DEMO.md` §NOW for details.
+---
+
+## SD-2 (Scripten Demo) — Session 2026-03-26
+
+**Date:** 2026-03-26. **HEAD at start:** `a5f01c8` (snobol4x).
+
+**Fixes:** `ij_emit_relop`/`ij_emit_binop`: `lstore/lload` JVM locals → `putstatic/getstatic` static field relay. ICN_AND `relay_g`: `pop2/pop` → `putstatic` typed static drain fields. `ij_emit_alt`: original behavior preserved. rung28–30: 15/15 PASS ✅.
+
+**Remaining blocker:** 8 stack-height conflicts. ICN_EVERY β-tableswitch re-enters ICN_AND sub-chain at different stack depth than fresh α-entry.
+
+**Next (SD-3):** Drain stale stack at β-resume dispatch. HEAD at handoff: snobol4x `973a68a`. Context: ~77%.
