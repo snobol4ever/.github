@@ -291,3 +291,6 @@ rung30 5/0/0 · 102/102 total · HEAD `fe87efc` · `abs/max/min/sqrt/seq` — `M
 
 ## IJ-52 — M-IJ-TABLE-VERIFY ✅  2026-03-26
 rung23 5/5 · 136/136 total · HEAD `6fe0f2b` · resolved on arrival (IJ-51 codebase). Discovered M-IJ-RECURSION: static `icn_pv_*` fields clobbered by recursive proc calls.
+
+## PJ-75 — M-PJ-LINKER ✅  2026-03-26
+test_list 10/1/0 (raw SWI .pl, no wrap_swi.py) · HEAD `a316544` · plunit linker in `prolog_emit_jvm.c`: `pj_linker_has_plunit`, `pj_plunit_shim_src[]` embedded C string, `pj_linker_emit_plunit_shim` (parse+lower+emit via prolog_parse/prolog_lower), `pj_linker_emit_db_stub` (proper DB-query loop for pj_suite/1 + pj_test/4), `pj_linker_scan` (two-pass: suites from begin_tests directives, tests from E_CHOICE nodes assigned to suite[0]), `pj_linker_emit_main_assertz` (assertz pj_suite/pj_test facts in main()), `pj_linker_emit_bridge` (bridge predicates suite_name/0). begin_tests/end_tests added to meta-directive skip list. main() stack limit → 32. All 34 corpus rungs: 0 regressions.

@@ -2490,3 +2490,37 @@ Key contrast: SORTCHARS+TABLE (SNOBOL4) vs canonical+table (Icon) vs msort+asser
 Blocked pending StackMapTable work in Icon JVM backend.
 
 **Context window at handoff: ~64%.**
+
+---
+
+## PJ-75 — M-PJ-LINKER  2026-03-26
+
+**Session type:** Prolog JVM backend (PJ-session)
+**HEAD at start:** `8bf24cf` (PJ-74) → **HEAD at end:** `a316544` (PJ-75)
+**Milestone fired:** M-PJ-LINKER ✅
+
+**Work done:**
+- Built from scratch, confirmed baseline (0 regressions, all 34 rungs pass)
+- Diagnosed root cause from §NOW: prolog_lower batches E_CHOICE nodes non-interleaved with directives, so window-tracking approach for suite assignment fails
+- Confirmed gap: raw test_list.pl → `NoSuchMethodError: p_run_tests_0`; wrap_swi.py pipeline → 10/11 pass
+- Implemented full plunit linker in `prolog_emit_jvm.c` (~521 lines):
+  - `pj_linker_has_plunit()` — detects `use_module(library(plunit))`
+  - `pj_plunit_shim_src[]` — plunit.pl shim embedded as C string
+  - `pj_linker_emit_plunit_shim()` — parse+lower+emit shim inline
+  - `pj_linker_emit_db_stub()` — proper pj_db_query loop (mirrors Bug 1 stub pattern)
+  - `pj_linker_scan()` — two-pass; suite[0] assignment
+  - `pj_linker_emit_main_assertz()` — assertz pj_suite/pj_test in main()
+  - `pj_linker_emit_bridge()` — bridge predicates with two-label omega fix
+  - begin_tests/end_tests → meta-directive skip list; main() stack → 32
+- Fixed VerifyError: Inconsistent stack height in bridge (two separate omega labels)
+- Fixed 0/0 output: initial stubs were null-returning; replaced with full DB-query loop
+- Result: test_list.pl 10/11 raw (member_fail pre-existing, identical to wrap pipeline)
+
+**Known issues / next session:**
+- `member_fail` failure: member/2 in shim succeeds when it should fail for `fail` opt tests
+- `test/2` bare-goal opts (e.g. `X==3`) need `true(X==3)` wrapping in scanner (linker-side)
+- Need to fetch real SWI test files and run M-PJ-SWI-BASELINE
+
+**Next: M-PJ-SWI-BASELINE** — fetch SWI test suite, run all, record baseline, fix member_fail.
+
+**Context window at handoff: ~78%.**
