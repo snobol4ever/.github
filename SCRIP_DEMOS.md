@@ -10,16 +10,16 @@ unified compiler.
 
 | # | File | Algorithm | Key contrast |
 |---|------|-----------|--------------|
-| DEMO1 | `hello.scrip` | Hello World | `OUTPUT =` vs `write()` vs `write/1` |
-| DEMO2 | `wordcount.scrip` | Count words | SPAN patterns vs `!str` generator vs DCG |
-| DEMO3 | `roman.scrip` | Integer → Roman numerals | Table-driven goto vs `suspend` vs arithmetic rules |
-| DEMO4 | `palindrome.scrip` | Is string a palindrome? | `REVERSE` vs subscript walk vs `reverse/2` |
-| DEMO5 | `fib.scrip` | Fibonacci first 10 | Labeled goto vs `suspend` generator vs `fib/2` rule |
-| DEMO6 | `sieve.scrip` | Primes to 50 (Sieve) | TABLE bitset vs list+every vs `exclude/sieve` |
-| DEMO7 | `caesar.scrip` | ROT13 cipher | `MAP` vs `map()` vs `maplist+rot13_char` |
-| DEMO8 | `sort.scrip` | Sort 8 integers | Insertion sort vs `isort` vs `msort/2` |
-| DEMO9 | `rpn.scrip` | RPN calculator | Pattern-driven stack vs list-as-stack vs DCG |
-| DEMO10 | `anagram.scrip` | Detect anagrams | SORTCHARS+TABLE vs canonical+table vs `msort+assert` |
+| DEMO1 | `hello.md` | Hello World | `OUTPUT =` vs `write()` vs `write/1` |
+| DEMO2 | `wordcount.md` | Count words | SPAN patterns vs `!str` generator vs DCG |
+| DEMO3 | `roman.md` | Integer → Roman numerals | Table-driven goto vs `suspend` vs arithmetic rules |
+| DEMO4 | `palindrome.md` | Is string a palindrome? | `REVERSE` vs subscript walk vs `reverse/2` |
+| DEMO5 | `fib.md` | Fibonacci first 10 | Labeled goto vs `suspend` generator vs `fib/2` rule |
+| DEMO6 | `sieve.md` | Primes to 50 (Sieve) | TABLE bitset vs list+every vs `exclude/sieve` |
+| DEMO7 | `caesar.md` | ROT13 cipher | `MAP` vs `map()` vs `maplist+rot13_char` |
+| DEMO8 | `sort.md` | Sort 8 integers | Insertion sort vs `isort` vs `msort/2` |
+| DEMO9 | `rpn.md` | RPN calculator | Pattern-driven stack vs list-as-stack vs DCG |
+| DEMO10 | `anagram.md` | Detect anagrams | SORTCHARS+TABLE vs canonical+table vs `msort+assert` |
 
 ---
 
@@ -43,7 +43,7 @@ M-SCRIP-DEMO3  tiny compiler              — concept
 ```
 
 Each milestone fires when:
-1. `demo/scrip/demoN/NAME.scrip` exists in snobol4x
+1. `demo/scrip/demoN/NAME.md` exists in snobol4x
 2. `run_demo.sh demoN` passes — all three backends match `.expected`
 3. Session note added to `SESSIONS_ARCHIVE.md`
 
