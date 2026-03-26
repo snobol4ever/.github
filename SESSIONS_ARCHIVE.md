@@ -2000,3 +2000,22 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~59%.**
 
 **Next session (PJ-68):** M-PJ-AGGREGATE — `aggregate_all/3`, `nb_getval/2`, `nb_setval/2`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+
+## IJ-45 — M-IJ-SORT WIP (emergency handoff, ~85% context)
+
+**Date:** 2026-03-26. **HEAD at handoff:** snobol4x `b2868c8`.
+
+**Baseline entering:** 102/102 rung05–rung30 PASS. rung14 2 pre-existing xfail unchanged.
+
+**Bugs fixed (all in `icon_emit_jvm.c`):**
+1. `lstore_4`/`lload_4` → `lstore 4`/`lload 4` (Jasmin rejects underscore form for locals ≥ 4)
+2. `sort`/`sortf` added to `ij_expr_is_list` ICN_CALL branch (variables assigned from sort were typed `J`)
+3. `ij_expr_is_record_list()` added; `ij_expr_is_record` extended for `!(record-list)`; `ij_emit_bang` list branch forks on record vs scalar list
+
+**Result:** 3/5 rung31 PASS (t01–t03). t04/t05 (sortf with records) still fail.
+
+**Remaining bug:** `p` in `every p := !S do write(p.x)` pre-declared as `J` not `Object`. `ij_expr_is_record_list` VAR branch checks statics for `_elem_0 'O'` but those entries don't exist at Pass 1b time.
+
+**NEXT:** Add **Pass 1c** in `ij_emit_proc` after Pass 1b (~line 5545): walk all `ICN_ASSIGN(VAR v, rhs)` where `ij_expr_is_record_list(rhs)` is true (AST-only: MAKELIST with record elements, `sortf(...)`, or `sort` of record list) → `ij_declare_static_obj("icn_gvar_v")`. Expect 5/5 rung31. Then confirm 102/102 prior rungs. Then commit `IJ-45: M-IJ-SORT ✅`.

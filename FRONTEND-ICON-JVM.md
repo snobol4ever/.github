@@ -19,13 +19,13 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-45 — M-IJ-SORT WIP (Jasmin fix needed) | `fe87efc` IJ-44 | M-IJ-SORT |
+| **Icon JVM** | `main` IJ-45 WIP — M-IJ-SORT 3/5 (sortf Pass 1c fix needed) | `b2868c8` IJ-45 WIP | M-IJ-SORT |
 
 ### CRITICAL NEXT ACTION (IJ-46)
 
 **Baseline: 102/102 JVM rungs (rung05–30) PASS. 0 xfail. rung14 2 pre-existing xfail unchanged.**
 
-**IJ-45 WIP — NOT committed.** Structural work done in working tree only. One Jasmin assembler bug blocks rung31 passing. **Do not pull — apply the fix below then commit.**
+**IJ-45 WIP committed** (`b2868c8`). Three bugs fixed (lstore/lload, ij_expr_is_list, record-list bang fork). rung31: **3/5 PASS**. t04/t05 (sortf) still fail — one fix remaining (Pass 1c, see below).
 
 #### IJ-45 findings (working tree, not committed)
 
