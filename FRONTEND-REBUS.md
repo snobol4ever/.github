@@ -1,4 +1,4 @@
-# FRONTEND-REBUS.md — Rebus Language Frontend (L3)
+# FRONTEND-REBUS.md — Rebus Language Frontend
 
 Rebus is a structured language that transpiles to SNOBOL4.
 M-REBUS ✅ `bf86b4b` — round-trip complete.

@@ -1,4 +1,4 @@
-# BACKEND-NET.md — snobol4dotnet Reference (L3)
+# BACKEND-NET.md — snobol4dotnet Reference
 
 Jeff Cooper's complete SNOBOL4/SPITBOL implementation in C#, targeting .NET/MSIL.
 Compiler pipeline: Lexer → Parser → threaded `Instruction[]` → MSIL delegate JIT.

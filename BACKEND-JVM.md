@@ -1,4 +1,4 @@
-# BACKEND-JVM.md — JVM Backend Reference (L3)
+# BACKEND-JVM.md — JVM Backend Reference
 
 Full SNOBOL4/SPITBOL in Clojure targeting JVM bytecode.
 Multi-stage pipeline: interpreter → transpiler → stack VM → JVM `.class` bytecode.

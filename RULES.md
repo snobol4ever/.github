@@ -35,7 +35,7 @@ Each session increments only its own counter. Commit messages: `PJ-5: M-PJ-BACKT
 - `"ICON frontend with JVM backend"` = IJ-session (`icon_emit_jvm.c`, Jasmin)
 - `"Icon JVM"` = IJ-session
 - The phrase "JVM backend" is the deciding signal. When in doubt: check which emitter file is active. `icon_emit.c` → I. `icon_emit_jvm.c` → IJ.
-- **HQ MD files are the only reliable memory.** Always read the relevant L3 doc (FRONTEND-ICON.md vs FRONTEND-ICON-JVM.md) to confirm session type before doing any work.
+- **HQ MD files are the only reliable memory.** Always read the relevant SESSION doc (`SESSION-icon-x64.md` vs `SESSION-icon-jvm.md`) to confirm session type before doing any work.
 
 ---
 
@@ -81,36 +81,22 @@ The Byrd-box four-port model (α/β/γ/ω) is emitted as labels + gotos — neve
 
 ---
 
-## ⛔ DOC HIERARCHY — Five levels, strict reading discipline
+## ⛔ THREE-AXIS ORIENTATION — Repo × Frontend × Backend
 
-| Level | Files | Size limit | Read when |
-|-------|-------|-----------|-----------|
-| **L1** | `PLAN.md` | 3KB hard | Every session, always — NOW table + milestone IDs only |
-| **L2** | `TINY.md`, `JVM.md`, `DOTNET.md` | 10KB | Your platform session — HEAD, build, §NOW sprint |
-| **L3** | `RULES.md`, `ARCH.md` | 10KB | Every session — invariant, never changes session-to-session |
-| **L4** | `FRONTEND-*.md`, `BACKEND-*.md`, `MONITOR.md`, `TESTING.md`, `BEAUTY.md`, `GRAND_MASTER_REORG.md`, `SCRIP_DEMO*.md`, `PATCHES.md` | No hard limit | **Your pipeline or topic only** — read the one(s) matching your session type, no others |
-| **L5** | `SESSIONS_ARCHIVE.md`, `MILESTONE_ARCHIVE.md` | Unlimited | `tail -80 SESSIONS_ARCHIVE.md` = step 1 of session start. Full read: never. Append only. |
+Every session is defined by three values. Pick them, read three docs, work.
 
-**The session start protocol:**
-1. `tail -80 SESSIONS_ARCHIVE.md` — find your session type's last entry; this is the handoff. Do this FIRST, before anything else.
-2. Read L1 (`PLAN.md`) — NOW table + your next milestone ID only
-3. Read L3 (`RULES.md` + `ARCH.md`) — skip if familiar
-4. Read your L2 doc — if your session type has one
-5. Read your L4 doc — the ONE file matching your frontend×backend or topic
-6. Do not read any other L4 docs. Do not read GRAND_MASTER_REORG.md, TESTING.md, or MONITOR.md unless your milestone explicitly requires it.
+**1. Repo** → `REPO-snobol4x.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
+**2. Frontend** → `FRONTEND-icon.md` / `FRONTEND-prolog.md` / `FRONTEND-snobol4.md` etc. (pure reference, no §NOW)
+**3. Frontend × Backend** → `SESSION-icon-jvm.md` / `SESSION-prolog-x64.md` etc. (§NOW lives here)
 
-**L4 owns all sprint content.** Session state, §NOW, §CRITICAL NEXT ACTION, step-by-step plans — all go in the L4 doc. Never in L1 or L3.
+**Deep reference** → `ARCH-*.md` — open only when you hit something unfamiliar. Full catalog in `ARCH-index.md`. Never read speculatively.
 
----
+**Session start — three steps:**
+1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
+2. Read `PLAN.md` — NOW table, confirm next milestone.
+3. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
 
-
-
-- **L1 PLAN.md:** 3KB max. NOW table + milestone IDs only. No sprint content, no step content, no completed rows. Ever.
-- **L2 docs:** 10KB max. §NOW + §CRITICAL NEXT ACTION only.
-- **L3 docs:** 10KB max. Invariant reference only — no session state, no step content.
-- **L4 docs:** No hard limit. Replace sections; never append. Session summaries → L5 SESSIONS_ARCHIVE.md.
-- When updating: **replace** the relevant section. Never append session summaries beyond §NOW.
-- SESSIONS_ARCHIVE.md is append-only and has no size limit.
+**§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
 ---
 

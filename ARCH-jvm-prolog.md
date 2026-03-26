@@ -1,4 +1,4 @@
-# BACKEND-JVM-PROLOG.md — JVM Prolog Backend
+# ARCH-jvm-prolog.md — JVM Prolog Backend Architecture
 
 Prolog frontend IR (E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT) → Jasmin `.j` → `.class`.
 Driver flag: `snobol4x -pl -jvm foo.pl` → `foo.j` → assembled by `jasmin.jar`.
