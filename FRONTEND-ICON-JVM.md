@@ -19,23 +19,65 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-52 — M-IJ-TABLE-VERIFY ✅; recursion bug diagnosed | `6fe0f2b` IJ-51 | M-IJ-RECURSION |
+| **Icon JVM** | `main` IJ-55 — M-IJ-STRRET-GEN ✅ | `d64d752` IJ-55 | *(open)* |
 
-### CRITICAL NEXT ACTION (IJ-53)
+### IJ-55 findings — M-IJ-STRRET-GEN ✅ (HEAD d64d752)
 
-**Baseline: 136/136 JVM rungs (rung05–36 incl rung23 5/5). rung32 t03 xfail. rung36 t05 xfail.**
+**rung32: 5/5 PASS (was 4 pass, 1 xfail). 153/153 PASS total. Zero regressions.**
 
-**Bug: `rung02_proc/t02_fact` — recursion clobbers static locals**
+**Root cause:** `ij_emit_call` β path for non-generator procs unconditionally jumped to `ports.ω`. So `every write(tag("a" | "b" | "c"))` — where `tag` is non-gen but its arg is a generator — exited after the first value; the arg alternation's β was never invoked on subsequent pump cycles.
 
-`icn_pv_<proc>_*` are class-level statics. Recursive call overwrites caller's `n`; `n * fact(n-1)` reads `n=0` at base, gives `1` not `120`.
+**Fix:** Non-generator proc β now routes to `arg_betas[nargs-1]` (last arg's β) when `nargs > 0`, re-pumping the arg generator chain and re-calling. Zero-arg non-gen procs still route to `ports.ω`.
 
-**Fix: `ij_emit_call` `do_call` block (~line 3110 in `icon_emit_jvm.c`)**
-- Before `invokestatic`: for each `icn_pv_<ij_cur_proc>_*` long in `ij_statics[]`, emit `getstatic` + `lstore` into save slots starting at `ij_jvm_locals_count() + 10`
-- After call: emit `lload` + `putstatic` for each, restoring caller's locals
-- Bump `ij_jvm_locals_count()` return by `2 * MAX_LOCALS`
+**Removed:** `t03_strret_every.xfail` marker.
 
-**Also: write 4 missing harness scripts** (all corpus already passing except t02_fact):
-- `run_rung02_arith_gen.sh` (5/5 ✅), `run_rung02_proc.sh` (2/3), `run_rung04_string.sh` (5/5 ✅), `run_rung35_table_str.sh` (2/2 ✅)
+### Session IJ-53 — IJ-55 summary
+
+| Milestone | Result |
+|---|---|
+| M-IJ-RECURSION (IJ-53) | `fact(5)=120` — save/restore caller scratch statics across calls |
+| M-IJ-INITIAL (IJ-54) | `initial` persistence — exclude callee `icn_pv_*` from callsave restore |
+| Harness coverage (IJ-54b) | All corpus dirs now have scripts (rung08/09/12/18/20/21 added) |
+| M-IJ-STRRET-GEN (IJ-55) | `every proc(gen_arg)` — β re-pumps last arg; rung32 t03 promoted from xfail |
+
+### Bootstrap IJ-56
+
+```bash
+git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x
+gcc -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+for s in test/frontend/icon/run_rung*.sh; do bash $s /tmp/icon_driver 2>/dev/null; done | grep -E "^---"
+# Expected: all clean, 0 fail
+```
+
+**Baseline: rung02_proc 3/3, rung02_arith_gen 5/5, rung04_string 5/5, rung35_table_str 2/2. All rung05–35 unaffected. Zero regressions.**
+
+**Root cause (broader than diagnosed):** ALL class-level statics — not just `icn_pv_<proc>_*` but also `icn_N_binop_lc/rc`, `icn_N_relop_lc/rc`, etc. — are trampled by recursive calls. For `n * fact(n-1)`, `n` is saved into `icn_1_binop_lc` before the recursive call; that field is then overwritten by the callee's own `n * fact(n-1)` computation.
+
+**Fix in `icon_emit_jvm.c`:**
+- Added `ij_static_needs_callsave(i)`: returns 1 for `'J'`-typed statics except `icn_gvar_*` (globals), `icn_arg_*`, `icn_retval`, `icn_failed/suspended/suspend_id`
+- In `ij_emit_call` `do_call` block: emit `getstatic+lstore` for each saveable static before `invokestatic`; `lload+putstatic` after
+- Same treatment for `b_resume` (generator re-entry) path
+- `.limit locals` bumped by `2 * ij_nstatics` to cover the spill region
+
+**Harness scripts written:** `run_rung02_arith_gen.sh`, `run_rung02_proc.sh`, `run_rung04_string.sh`, `run_rung35_table_str.sh`
+
+**Pre-existing failures (not introduced):** rung25 t03/t07 (`initial` locals) — next milestone candidate.
+
+### NEXT ACTION (IJ-54) — M-IJ-INITIAL
+
+**Bug: `initial` block in procedure runs every call instead of once**
+
+rung25 t03 (`t03_initial_once.icn`) and t07 (`t07_initial_zero.icn`) fail:
+- `initial x := 10` should run only on first call; subsequent calls skip it
+- Currently re-initialises `x` on every call → counter resets each time
+
+**Expected fix:** emit an `icn_init_<proc>` byte static (flag); wrap `initial` block: `getstatic icn_init_<proc>` → `ifne skip_initial` → run block → `iconst_1 putstatic icn_init_<proc>` → `skip_initial:`
 
 ```bash
 # Bootstrap IJ-53:

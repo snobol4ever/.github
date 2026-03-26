@@ -1,8 +1,15 @@
 # SCRIP_DEMOS.md — The Demo Ladder
 
 Ten self-contained Scrip programs. Same algorithm in SNOBOL4, Icon, Prolog.
-Same input, same output, three idioms. Each is a unit test for the Scrip
-unified compiler.
+Same input, same output, three idioms. Each demo is a **product milestone** —
+it fires when all three snobol4ever frontends compile the program through the
+JVM backend and produce the correct output.
+
+**Three frontends:** SNOBOL4 · Icon · Prolog  
+**One backend:** JVM
+
+Reference interpreters (csnobol4, swipl, icont) were used to establish
+`.expected` output only. They are not the product.
 
 ---
 
@@ -15,8 +22,8 @@ unified compiler.
 | DEMO3 | `roman.md` | Integer → Roman numerals | Table-driven goto vs `suspend` vs arithmetic rules |
 | DEMO4 | `palindrome.md` | Is string a palindrome? | `REVERSE` vs subscript walk vs `reverse/2` |
 | DEMO5 | `fib.md` | Fibonacci first 10 | Labeled goto vs `suspend` generator vs `fib/2` rule |
-| DEMO6 | `sieve.md` | Primes to 50 (Sieve) | TABLE bitset vs list+every vs `exclude/sieve` |
-| DEMO7 | `caesar.md` | ROT13 cipher | `MAP` vs `map()` vs `maplist+rot13_char` |
+| DEMO6 | `sieve.md` | Primes to 50 (Sieve) | ARRAY bitset vs list+every vs trial division |
+| DEMO7 | `caesar.md` | ROT13 cipher | `REPLACE` parallel strings vs `map()` vs `maplist` |
 | DEMO8 | `sort.md` | Sort 8 integers | Insertion sort vs `isort` vs `msort/2` |
 | DEMO9 | `rpn.md` | RPN calculator | Pattern-driven stack vs list-as-stack vs DCG |
 | DEMO10 | `anagram.md` | Detect anagrams | SORTCHARS+TABLE vs canonical+table vs `msort+assert` |
@@ -26,26 +33,30 @@ unified compiler.
 ## Milestone Map
 
 ```
-M-SD-DEMO1   hello       ← NEXT
-M-SD-DEMO2   wordcount
-M-SD-DEMO3   roman
-M-SD-DEMO4   palindrome
-M-SD-DEMO5   fib
-M-SD-DEMO6   sieve
-M-SD-DEMO7   caesar
-M-SD-DEMO8   sort
-M-SD-DEMO9   rpn
-M-SD-DEMO10  anagram
-             ↓
-M-SCRIP-DEMO   family tree (funny linkage) — was DEMO1, now DEMO4
-M-SCRIP-DEMO2  puzzle solver              — was DEMO2, now DEMO5
-M-SCRIP-DEMO3  tiny compiler              — concept
+M-SD-1   hello       ← NEXT
+M-SD-2   wordcount
+M-SD-3   roman
+M-SD-4   palindrome
+M-SD-5   fib
+M-SD-6   sieve
+M-SD-7   caesar
+M-SD-8   sort
+M-SD-9   rpn
+M-SD-10  anagram
 ```
 
-Each milestone fires when:
-1. `demo/scrip/demoN/NAME.md` exists in snobol4x
-2. `run_demo.sh demoN` passes — all three backends match `.expected`
-3. Session note added to `SESSIONS_ARCHIVE.md`
+**Product demo fires when all 10 milestones are green.**
+
+---
+
+## Milestone firing condition
+
+Each `M-SD-N` fires when:
+1. SNOBOL4 block compiles via snobol4jvm → JVM → correct output
+2. Icon block compiles via icon_driver -jvm → JVM → correct output
+3. Prolog block compiles via sno2c -pl -jvm → JVM → correct output
+4. All three match `demo/scrip/demoN/NAME.expected`
+5. Session note added to `SESSIONS_ARCHIVE.md`
 
 ---
 
@@ -53,17 +64,16 @@ Each milestone fires when:
 
 | Milestone | Status |
 |-----------|--------|
-| M-SD-DEMO1 | ❌ **NEXT** — file exists, needs runtime wiring in run_demo.sh |
-| M-SD-DEMO2 | ❌ |
-| M-SD-DEMO3 | ❌ |
-| M-SD-DEMO4 | ❌ |
-| M-SD-DEMO5 | ❌ |
-| M-SD-DEMO6 | ❌ |
-| M-SD-DEMO7 | ❌ |
-| M-SD-DEMO8 | ❌ |
-| M-SD-DEMO9 | ❌ |
-| M-SD-DEMO10 | ❌ |
-| M-SCRIP-DEMO (family tree) | ❌ blocked — StackMapTable work needed |
+| M-SD-1  | ❌ **NEXT** — wire three JVM frontends into run_demo.sh; run hello |
+| M-SD-2  | ❌ |
+| M-SD-3  | ❌ |
+| M-SD-4  | ❌ |
+| M-SD-5  | ❌ |
+| M-SD-6  | ❌ |
+| M-SD-7  | ❌ |
+| M-SD-8  | ❌ |
+| M-SD-9  | ❌ |
+| M-SD-10 | ❌ |
 
 ---
 
@@ -76,18 +86,8 @@ SNOBOL4: patterns consume input structurally.
 Icon: generators produce output lazily.  
 Prolog: rules define truth declaratively.
 
-One algorithm. Three windows into it.
+One algorithm. Three frontends. One backend. One result.
 
 ---
 
-## SD-10 Pick-up
-
-```bash
-cd /home/claude/snobol4x
-# Wire up csnobol4 + swipl paths in run_demo.sh
-# Test: bash demo/scrip/run_demo.sh demo/scrip/demo1 demo/scrip/demo1/hello.expected
-# Fire M-SD-DEMO1 when all three pass
-# Then proceed through the ladder
-```
-
-*SCRIP_DEMOS.md — the ladder. Each rung is a green test.*
+*SCRIP_DEMOS.md — the ladder. Each rung is a green test through snobol4ever.*

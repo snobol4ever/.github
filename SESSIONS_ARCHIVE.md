@@ -2524,3 +2524,70 @@ Blocked pending StackMapTable work in Icon JVM backend.
 **Next: M-PJ-SWI-BASELINE** — fetch SWI test suite, run all, record baseline, fix member_fail.
 
 **Context window at handoff: ~78%.**
+
+---
+
+## SD-21 -- 30/30 FULL LADDER ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `3bba8e2`.
+
+**Style change:** All SNOBOL4 sections converted to `&CASE = 1` mode.
+Convention: UPPERCASE for built-ins (OUTPUT, DEFINE, ARRAY, TABLE, SPAN, BREAK,
+REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA),
+`snake_case` for variables, function names, and labels.
+
+**Bugs fixed running csnobol4 for the first time:**
+- demo6: `DIFFER(a<i>)` treats `'0'` as non-null -- fixed to `EQ(a<i>, 1)`.
+- demo5/6/8/10: `i = i + 1 GT(i, n) :S(label)` -- assignment only fires if RHS succeeds; GT failure means i never increments. Split to two statements.
+- demo9: label `push` conflicted with function `push` -- renamed all branch labels.
+- demo9: unanchored `SPAN(' ')` matched interior spaces and stripped leading chars -- fixed with `POS(0)` anchor on all patterns.
+- demo8/10: Gimpel BSORT had `LT(j,hi)` (skips last element) and `b_s_ro` clobbered `a<lo>` without first shifting it. Rewrote as standard insertion sort: `GT(k,lo) + LGT(a<k-1>,v)` guards; `a<k> = a<k-1>` shift; `a<k> = v` place.
+
+**Final result: 30/30 — demo1–demo10 × snobol4 + swipl + icont, all PASS, 0 FAIL.**
+
+**Next: M-SCRIP-DEMO** — family tree polyglot. Blocked on StackMapTable work in Icon JVM backend.
+
+**Context window at handoff: ~82%.**
+
+---
+
+## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `d64d752`. **HEAD (.github):** `cbbbfbd`.
+
+**Baseline entering session:** 136/136 (rung05–35). `fact(5)=1` (recursion bug). rung32 t03 xfail. rung25 t03/t07 failing.
+
+**IJ-53 — M-IJ-RECURSION:**
+- Root cause broader than diagnosed: not just `icn_pv_*` but ALL class-level scratch statics (`icn_N_binop_lc/rc`, `icn_N_relop_lc/rc`) trampled by recursive calls.
+- Fix: `ij_static_needs_callsave(idx)` — save/restore all `'J'` statics except globals, args, retval, control, and other procs' `icn_pv_*` — at every user-proc call site.
+- `.limit locals` bumped by `2*ij_nstatics`.
+- 4 harness scripts: rung02_arith_gen, rung02_proc, rung04_string, rung35_table_str.
+
+**IJ-54 — M-IJ-INITIAL:**
+- Root cause: callsave restore overwrote callee's `icn_pv_<callee>_*` on return, resetting `initial`-initialised vars each call.
+- Fix: exclude `icn_pv_<other_proc>_*` from callsave — only save caller's own `icn_pv_<ij_cur_proc>_*` plus scratch.
+- 6 harness scripts: rung08/09/12/18/20/21.
+- rung25: 7/7 ✅.
+
+**IJ-55 — M-IJ-STRRET-GEN:**
+- Root cause: β path for non-generator procs jumped unconditionally to `ports.ω`; `every write(tag("a"|"b"|"c"))` exited after first value.
+- Fix: non-gen proc β → `arg_betas[nargs-1]` when `nargs > 0`, re-pumping arg generator chain.
+- Removed `t03_strret_every.xfail`. rung32: 5/5 ✅.
+
+**Final baseline: 153/153 PASS, 0 xfail. All corpus dirs have harness scripts.**
+
+**Context window at handoff: ~63%.**
+
+---
+
+## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `d64d752`.
+
+**IJ-53:** All class-level scratch statics trampled by recursive calls. `ij_static_needs_callsave()` save/restore at every user-proc call site. `fact(5)=120`.
+
+**IJ-54:** Callsave restore overwrote callee persistent locals. Exclude `icn_pv_<other_proc>_*`. `initial` persistence fixed. rung25 7/7.
+
+**IJ-55:** Non-gen proc β → `arg_betas[nargs-1]`. `every write(tag("a"|"b"|"c"))` now yields all values. rung32 5/5.
+
+**Final: 153/153 PASS, 0 xfail. Context window at handoff: ~63%.**
