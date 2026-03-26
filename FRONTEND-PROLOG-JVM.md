@@ -19,19 +19,19 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-71 — M-PJ-DCG 3/5 rung30 | `65cdac3` PJ-71 | M-PJ-DCG (complete) |
+| **Prolog JVM** | `main` PJ-72 — M-PJ-DCG ✅ 5/5 rung30 | `4fbe5f1` PJ-72 | next TBD |
 
-### CRITICAL NEXT ACTION (PJ-72)
+### CRITICAL NEXT ACTION (PJ-73)
 
-**Baseline: t01–t03 rung30 ✅, t04–t05 ❌. snobol4x HEAD `65cdac3`.**
+**M-PJ-DCG complete. snobol4x HEAD `4fbe5f1`. All 30 rungs passing.**
 
-**Next milestone: M-PJ-DCG — finish rung30 5/5.**
+**PJ-72 landed:** Two-part fix for `phrase/N`:
+1. `pj_emit_body` ucall block: intercept `phrase/2,3` before building `p_phrase_N` descriptor; rewrite to NT/+2 so retry loop handles backtracking.
+2. `pj_call_goal` (findall path): add phrase handler; rewrites `phrase(NT,List[,Rest])` to `pj_reflect_call(NT, base+2, [nt_args..., list, rest_or_nil], cs)`. Three sub-bugs fixed: arity computed inline (local 5 unset at that point), `pj_term_atom("[]")` not bare string for nil rest, local 7 initialized to null on atom-NT path for JVM verifier. Also fixed t05_generate.pro test bug (`item --> [a]` defines item/2, not item/3; corrected to `item(X) --> [X]`).
 
-**Root cause of t04/t05 failure:** `phrase/N` routed through `pj_emit_body` ucall retry loop (because `pj_is_user_call` returns 1). Fix: intercept `phrase` inside `pj_emit_body`'s ucall block (search `"user-defined predicate call"` comment ~line 4895) and rewrite to `NT/+2` before building the descriptor — same logic as `pj_emit_goal` rewriter: extract NT from `children[0]`, build new `E_FNC(NT, [list, rest/[]])`, swap `goal`, recalculate `fn`/`nargs`.
+**Next session:** Pick next milestone from PLAN.md Prolog JVM dashboard.
 
-**Also added PJ-71:** `{...}` braces lexed/parsed (TK_LBRACE/TK_RBRACE); `{ Goal }` → `'{}'(Goal)` compound; DCG inline-expansion in `parse_clause`; rung30 test suite (5 tests).
-
-**Bootstrap PJ-72:**
+**Bootstrap PJ-73:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
@@ -83,6 +83,7 @@ make -C snobol4x/src
 | **M-PJ-AGGREGATE** | `aggregate_all/3` (count/sum/max/min/bag/set), `nb_setval/2`, `nb_getval/2`, `succ_or_zero/2`; rung27 5/5 | ✅ |
 | **M-PJ-EXCEPTIONS** | `catch/3`, `throw/1` — ISO exception machinery; rung28 5/5 | ✅ |
 | **M-PJ-NUMBER-OPS** | `sqrt/sin/cos/tan/exp/log/atan/atan2/float/float_integer_part/float_fractional_part/pi/e`; `truncate/ceiling/floor/round` float→int; `gcd/2`; rung29 5/5 | ✅ |
+| **M-PJ-DCG** | DCG `-->` rules, `phrase/2,3`, `{}/1` inline goals, pushback notation; rung30 5/5 | ✅ |
 
 ---
 
