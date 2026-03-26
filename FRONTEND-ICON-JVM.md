@@ -19,26 +19,26 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-46 ✅ M-IJ-ALT-VALUE complete | `b37383b` IJ-46: M-IJ-ALT-VALUE ✅ | M-IJ-STRING-RETVAL or M-IJ-CASE |
+| **Icon JVM** | `main` IJ-47 ✅ M-IJ-STRING-RETVAL complete | `f204094` IJ-47 ✅ | M-IJ-NULL-TEST or M-IJ-CASE |
 
-### CRITICAL NEXT ACTION (IJ-47)
+### CRITICAL NEXT ACTION (IJ-48)
 
-**Baseline: 112/112 JVM rungs (rung05–31) PASS. rung14 5/5 (xfails resolved).**
+**Baseline: 116/116 JVM rungs (rung05–32) PASS. rung32 t03 xfail (nested gen in str arg).**
 
-IJ-46 committed (`b37383b`). rung13: **5/5 PASS**. rung14: **5/5 PASS**.
+IJ-47 committed (`f204094`). rung32: **4 pass, 0 fail, 1 xfail**.
 
-ALT relay now passes actual values through (was always discarding to lconst_0):
-- String alts: astore scratch → set gate → aload scratch
-- Double alts: dstore temp → set gate → dload temp
-- Long/int alts: lstore temp → set gate → lload temp
+String proc args/returns fixed:
+1. Call emitter uses `icn_arg_str_N` (String) for string args
+2. Proc prologue loads from `icn_arg_str_N` when tagged 'A'
+3. Pass 1d (3-iteration fixpoint): pre-registers string arg/param fields
 
 **Next options:**
-- M-IJ-STRING-RETVAL: string procedure returns (VerifyError with putstatic J)
+- M-IJ-NULL-TEST: `\E` (non-null test) and `/E` (null/failure test)
 - M-IJ-CASE: `case E of { ... }` expression
-- M-IJ-NULL-TEST: `\\E` / `/E` non-null and null test operators
+- M-IJ-BLOCK-BODY: `{ stmt; stmt }` compound body
 
 ```bash
-# Bootstrap IJ-47:
+# Bootstrap IJ-48:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
