@@ -6,6 +6,8 @@ snobol4x: multiple frontends, multiple backends.
 → Rules: [RULES.md](RULES.md) · Beauty plan: [BEAUTY.md](BEAUTY.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## NOW
 

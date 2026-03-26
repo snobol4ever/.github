@@ -11,6 +11,8 @@
 | snobol4jvm repo details | REPO-snobol4jvm.md | build, paths, Clojure pipeline |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## §NOW
 

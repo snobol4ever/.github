@@ -6,6 +6,8 @@ Status: in progress across TINY, JVM, DOTNET — lexer and expression parser don
 *Session state → TINY.md / JVM.md / DOTNET.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Status by Repo
 

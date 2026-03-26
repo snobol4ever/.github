@@ -5,6 +5,8 @@ Implemented in all three repos. No session state here.
 **Session state** → `SESSION-snobol4-x64.md` / `SESSION-snobol4-jvm.md` / `SESSION-snobol4-net.md`
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Subsystems
 

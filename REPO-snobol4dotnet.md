@@ -8,6 +8,8 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 → Full session history: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## NOW
 

@@ -12,6 +12,8 @@
 | sno2c implementation | ARCH-sno2c.md | compiler internals |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Status by Repo
 

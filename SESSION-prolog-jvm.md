@@ -13,6 +13,8 @@
 | JVM Prolog runtime design | ARCH-jvm-prolog.md | term encoding, trail, clause dispatch |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## §BUILD
 

@@ -4,6 +4,8 @@ Pure reference. No session state here.
 **Session state** → `SESSION-snobol4-x64.md` / `SESSION-icon-x64.md` / `SESSION-prolog-x64.md`
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## The Core Insight — CODE shared, DATA per-invocation
 

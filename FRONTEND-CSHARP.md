@@ -6,6 +6,8 @@ Allows writing SNOBOL4-style programs in C# syntax, compiled via the .NET backen
 *Session state → DOTNET.md. Backend → BACKEND-NET.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Status: Planned
 

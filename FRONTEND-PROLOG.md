@@ -4,6 +4,8 @@ Tiny-Prolog frontend: lex → parse → lower → IR. No session state here.
 **Session state** → `SESSION-prolog-x64.md` (x64) or `SESSION-prolog-jvm.md` (JVM)
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Subsystems
 

@@ -6,6 +6,8 @@ then C once the design is proven.
 *Session state → TINY.md. Milestone dashboard → PLAN.md §Prolog Frontend.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Design Philosophy
 

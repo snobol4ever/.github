@@ -6,6 +6,8 @@ Driver flag: `snobol4x -pl -jvm foo.pl` → `foo.j` → assembled by `jasmin.jar
 *Session state → JVM.md. Milestone dashboard → PLAN.md §Prolog JVM Backend.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## JCON Correspondence
 

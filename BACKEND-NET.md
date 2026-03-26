@@ -7,6 +7,8 @@ Plugin system: C-ABI `.so` extensions, .NET assembly extensions, VB.NET fixtures
 *Session state → DOTNET.md. Testing protocol → TESTING.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Architecture Overview
 

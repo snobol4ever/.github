@@ -14,6 +14,8 @@
 | JVM bytecode patterns | ARCH-overview.md | Byrd box → JVM mapping, stack discipline |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## §BUILD
 

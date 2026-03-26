@@ -6,6 +6,8 @@ All patterns are compiled Byrd boxes. No interpreter on the hot path.
 *Session state → TINY.md. sno2c compiler frontend → FRONTEND-SNO2C.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Core Model — Statement IS a Byrd Box (Session 27)
 

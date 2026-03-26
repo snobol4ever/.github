@@ -11,6 +11,8 @@
 | snobol4dotnet repo details | REPO-snobol4dotnet.md | build, paths, C# pipeline |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## §NOW
 

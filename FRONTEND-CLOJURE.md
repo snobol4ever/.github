@@ -7,6 +7,8 @@ consumed directly by the JVM runtime without a separate parse step.
 *Session state → JVM.md. Backend → BACKEND-JVM.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Status: Active (integrated with JVM runtime)
 

@@ -4,6 +4,8 @@ Icon parser, AST, and IR mapping. No session state here.
 **Session state** → `SESSION-icon-x64.md` (x64) or `SESSION-icon-jvm.md` (JVM)
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Why Icon fits the Byrd Box model
 

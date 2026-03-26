@@ -6,6 +6,8 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 → Testing: [TESTING.md](TESTING.md) · Rules: [RULES.md](RULES.md)
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## NOW
 

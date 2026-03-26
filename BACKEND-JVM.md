@@ -6,6 +6,8 @@ Multi-stage pipeline: interpreter → transpiler → stack VM → JVM `.class` b
 *Session state → JVM.md. Testing protocol → TESTING.md.*
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## Design Decisions (Immutable — 10 laws)
 

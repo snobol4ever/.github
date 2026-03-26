@@ -12,6 +12,8 @@
 | JCON deep analysis | `ARCH-icon-jcon.md` | four-port templates, IR vocab |
 
 ---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+---
 
 ## §BUILD
 
