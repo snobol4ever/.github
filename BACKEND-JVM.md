@@ -1,10 +1,12 @@
-# BACKEND-JVM.md — JVM Backend Reference (L3)
+# BACKEND-JVM.md — JVM Backend Reference
 
 Full SNOBOL4/SPITBOL in Clojure targeting JVM bytecode.
 Multi-stage pipeline: interpreter → transpiler → stack VM → JVM `.class` bytecode.
 
 *Session state → JVM.md. Testing protocol → TESTING.md.*
 
+---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 ---
 
 ## Design Decisions (Immutable — 10 laws)

@@ -1,4 +1,4 @@
-# FRONTEND-PROLOG-JVM.md — Prolog × JVM (snobol4x)
+# SESSION-prolog-jvm.md — Prolog × JVM (snobol4x)
 
 **Repo:** snobol4x · **Frontend:** Prolog · **Backend:** JVM (Jasmin)
 **Session prefix:** `PJ` · **Trigger:** "playing with Prolog JVM"

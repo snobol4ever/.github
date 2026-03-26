@@ -1,10 +1,12 @@
-# FRONTEND-REBUS.md — Rebus Language Frontend (L3)
+# FRONTEND-REBUS.md — Rebus Language Frontend
 
 Rebus is a structured language that transpiles to SNOBOL4.
 M-REBUS ✅ `bf86b4b` — round-trip complete.
 
 *Session state → TINY.md. sno2c compiler → FRONTEND-SNO2C.md.*
 
+---
+**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 ---
 
 ## Source Layout

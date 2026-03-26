@@ -2709,40 +2709,143 @@ M-SD-3 — roman numerals (table-driven goto vs `suspend` vs arithmetic rules)
 
 ---
 
+## SD-27 — SCRIP Demo M-SD-3 (roman) — in progress
+
+**Date:** 2026-03-26
+**Branch:** `main` snobol4x + .github
+**HEAD at start:** `dc4070c` (snobol4x), `3a0f68f` (.github) [approximate — session start]
+
+### Work completed
+
+**Environment bootstrap:**
+- Built `sno2c` from source (`src/` → `make -j4`) — binary at `snobol4x/sno2c`
+- Installed `swipl` (swi-prolog) and `icont` via apt
+- `icon_driver` binary already present at `snobol4x/icon_driver` (IJ-56, `52e575c`)
+
+**roman.md Icon block — semicolons added:**
+- Original block lacked explicit semicolons (implicit newline form)
+- Fixed: all statements terminated with `;` per SCRIP dialect rule
+- SNOBOL4 + SWIPL + ICONT + SNO2C-JVM + PROLOG-JVM: all **PASS**
+
+### Blocking bug: ICON-JVM list subscript VerifyError
+
+**Symptom:** `java.lang.VerifyError: Bad type in putfield/putstatic` in `icn_main`  
+**Minimal repro:**
+```icon
+procedure main();
+    vals := [10, 5, 1];
+    i := 1;
+    write(vals[i]);
+end
+```
+**Root cause:** `icon_emit_jvm.c` — list subscript (`L[i]`) emits a `putstatic` with wrong type descriptor. Stack has a `long` (the subscript result) where an object reference is expected, or vice versa.  
+**Does NOT affect:** plain `while` loops, `!L` bang generator, string subscript.  
+**Affects:** `vals[i]` and `syms[i]` in `roman.md` Icon block — exactly the pattern needed for M-SD-3.
+
+### ⚠️ MANDATE VIOLATION CAUGHT
+
+A session nearly rewrote the `roman.md` Icon block to avoid `every`/`while` + list subscript, working around the emitter bug. **This violates the project rule: demo programs are the spec. Bugs must be fixed in the compiler, not papered over in the source.**
+
+The Icon block stays as written. The fix belongs in `icon_emit_jvm.c`.
+
+### Current harness result
+```
+PASS  SNOBOL4
+PASS  SWIPL
+PASS  ICONT
+PASS  SNO2C-JVM
+FAIL  ICON-JVM  (VerifyError: Bad type in putfield/putstatic — list subscript bug)
+PASS  PROLOG-JVM
+```
+
+### Next
+Fix `icon_emit_jvm.c` list subscript emission. The bug is in how `L[i]` stores the subscript result — wrong type on the JVM stack before `putstatic`. Once fixed, re-run harness and fire M-SD-3.
+
+---
+
+## SD-27 — HQ Restructure + M-SD-3 in progress
+
+**Date:** 2026-03-26
+**snobol4x HEAD at close:** `51e38fc`
+**Context window at handoff:** ~67%
+
+### Work completed
+
+**roman.md (demo/scrip/demo3/):**
+- Icon block: added explicit semicolons throughout (SCRIP dialect rule)
+- SNOBOL4 ✅ · SWIPL ✅ · ICONT ✅ · SNO2C-JVM ✅ · PROLOG-JVM ✅
+- ICON-JVM ❌ — blocked by `icon_emit_jvm.c` list subscript VerifyError
+
+**ICON-JVM blocker identified:**
+- `vals[i]` → `Bad type in putfield/putstatic` (VerifyError in `icn_main`)
+- Minimal repro: `vals := [10,5,1]; i := 1; write(vals[i]);`
+- Fix location: `ij_emit_subscript()` in `icon_emit_jvm.c` — list path
+- Does NOT affect: string subscript, table subscript, `!L` bang generator
+- Documented in SESSION-icon-jvm.md §NOW
+
+**Mandate violation caught and documented:**
+- Session nearly rewrote roman.md Icon block to work around emitter bug
+- Caught, not executed
+- Rule added to RULES.md: SCRIP DEMO PROGRAMS ARE THE SPEC
+- Memory updated
+
+**HQ restructure (major):**
+- Three-axis model: REPO-* × FRONTEND-* × BACKEND-* → SESSION-frontend-backend.md
+- Old five-level L1-L5 hierarchy replaced
+- PLAN.md trimmed to 2.3KB (was 6.4KB, over hard limit)
+- SESSION-*.md created for all frontend×backend combos
+- FRONTEND-*.md / BACKEND-*.md stripped to pure reference (no §NOW)
+- §NOW lives only in SESSION-*.md
+- ARCH-*.md created for all deep reference content (18 files)
+- ARCH-index.md — full catalog, every operational doc links to it
+- Old duplicate files (TINY.md, JVM.md, DOTNET.md etc.) still present — Lon to delete after confirming content preserved in REPO-*.md
+
+### Next session (SD-28)
+
+1. Fix `icon_emit_jvm.c` list subscript VerifyError — see SESSION-icon-jvm.md §NOW
+2. Re-run harness: `bash demo/scrip/run_demo.sh demo/scrip/demo3/`
+3. Fire M-SD-3 when all 6 PASS
+4. Update PLAN.md, SESSIONS_ARCHIVE.md, MILESTONE_ARCHIVE.md
+
+**Bootstrap SD-28:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+cd snobol4x && make -C src && apt-get install -y default-jdk swi-prolog icont
+export JAVA_TOOL_OPTIONS=""
+# Confirm 5/6: SNO2C=snobol4x/sno2c ICON_DRIVER=snobol4x/icon_driver JASMIN=snobol4x/src/backend/jvm/jasmin.jar bash demo/scrip/run_demo.sh demo/scrip/demo3/
+# Fix icon_emit_jvm.c ij_emit_subscript() list path → re-run → fire M-SD-3
+```
+
+---
+
 ## IJ-57 — Icon JVM — Stream A parse fixes (2026-03-26)
 
-**HEAD:** `14400a9`  **rung01–35:** 153/153 PASS  **rung36:** 0/51 (was 0/51, same count but completely different failure mode)
+**HEAD:** `14400a9`  **rung01–35:** 153/153 PASS  **rung36:** 0/51 (same count, completely different failure mode)
 
 ### Work done
 
 **Lexer (`icon_lex.c` / `icon_lex.h`):**
 - `++` → `TK_PLUSPLUS` (cset union), `--` → `TK_MINUSMINUS` (cset diff), `**` → `TK_STARSTAR` (cset inter)
 - `=:=` → `TK_AUGEQ` (augmented numeric `=`); `==:=` → `TK_AUGSEQ` (augmented string `==`)
-- `.NN` leading-dot float literals: `.` + digit backs up and calls `scan_number`
-- `scan_number`: fractional-part condition relaxed to handle leading-dot entry
+- `.NN` leading-dot float literals; `scan_number` fractional-part condition relaxed for leading-dot entry
 
 **Parser (`icon_parse.c`):**
-- Forward declaration added for `parse_block_or_expr`
-- `parse_unary`: added `+E` (ICN_POS), `?E` (ICN_RANDOM), `~E` (ICN_COMPLEMENT)
+- Forward decl added for `parse_block_or_expr`
+- `parse_unary`: `+E` (ICN_POS), `?E` (ICN_RANDOM), `~E` (ICN_COMPLEMENT)
 - `parse_cset` (new layer between `parse_add` and `parse_concat`): `E++E`, `E--E`, `E**E`, `E!E` binary list-invoke
 - `parse_postfix`: `s[i+:n]` → ICN_SECTION_PLUS, `s[i-:n]` → ICN_SECTION_MINUS
-- `parse_assign`: scan RHS now uses `parse_block_or_expr` (fixes `"str" ? { ... }`)
-- `parse_expr`: restored broken TK_RETURN handler; added `if`/`every`/`while`/`until`/`repeat` as expression-context constructs (fixes `line ? if { ... } then ...`)
-- `parse_primary`: `TK_LBRACE` → `parse_block_or_expr` (compound block as expression)
-- `parse_stmt` TK_INITIAL: now uses `parse_block_or_expr` + `match(TK_SEMICOL)` (fixes `initial { ... }` and keeps `initial x := 0;` working)
+- `parse_assign`: scan RHS uses `parse_block_or_expr`
+- `parse_expr`: restored TK_RETURN handler; `if`/`every`/`while`/`until`/`repeat` as expression-context constructs
+- `parse_primary`: `TK_LBRACE` → `parse_block_or_expr`
+- `parse_stmt` TK_INITIAL: `parse_block_or_expr` + `match(TK_SEMICOL)`
 - `is_augop`: extended with `TK_AUGEQ`, `TK_AUGSEQ`
 
-**AST (`icon_ast.h`):**
-- Added: `ICN_POS`, `ICN_RANDOM`, `ICN_COMPLEMENT`, `ICN_CSET_UNION`, `ICN_CSET_DIFF`, `ICN_CSET_INTER`, `ICN_BANG_BINARY`, `ICN_SECTION_PLUS`, `ICN_SECTION_MINUS`
+**AST (`icon_ast.h`):** `ICN_POS` `ICN_RANDOM` `ICN_COMPLEMENT` `ICN_CSET_UNION` `ICN_CSET_DIFF` `ICN_CSET_INTER` `ICN_BANG_BINARY` `ICN_SECTION_PLUS` `ICN_SECTION_MINUS`
 
-### Rung36 status change
-- **Before IJ-57:** 38 compile errors, ~13 reach JVM, 0 pass
-- **After IJ-57:** 0 compile errors, all 51 non-xfail tests compile and reach JVM, 0 pass
-- **Failure mode now:** `VerifyError: Unable to pop operand off an empty stack` — new node kinds hit emitter `default:` branch which emits `goto ω` with no stack value
-
-### Regressions caught and fixed
-- `initial x := 0;` regression (rung21/rung25): fixed by `match(TK_SEMICOL)` after `parse_block_or_expr` in initial handler
+### Rung36 status
+- Before: 38 CE, ~13 reach JVM, 0 pass
+- After: 0 CE, all 51 compile+reach JVM, 0 pass — VerifyError from missing emit stubs
 
 ### Next session
-
-Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-58. Add emit stubs for all 9 new node kinds in `icon_emit_jvm.c` to eliminate VerifyError. Then fix Stream B content bugs to get passes.
+IJ-58: add emit stubs for 9 new node kinds in `icon_emit_jvm.c`, then Stream B content bugs.

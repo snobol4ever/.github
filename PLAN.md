@@ -1,17 +1,17 @@
 # snobol4ever — HQ
 
 SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
-Shared frontends. Multiple backends.
 **Team:** Lon Jones Cherryholmes (arch, MSIL), Jeffrey Cooper M.D. (DOTNET), Claude Sonnet 4.6 (TINY co-author, third developer).
 
 ---
 
 ## ⚡ NOW
 
-Each concurrent session owns exactly one row. Update only your row on every push. `git pull --rebase` before every push — see RULES.md §CONCURRENT SESSIONS and §NOW TABLE ROW FORMAT.
+Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
+<<<<<<< HEAD
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed 12KB→4.6KB; §NOW bloat + Roadmap removed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-26: M-SD-2 ✅ wordcount — SNO2C-JVM + ICON-JVM + PROLOG-JVM PASS | `de04f48` SD-26 | M-SD-3 |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
@@ -23,85 +23,48 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-76 — 8 plunit bugs fixed; SWI baseline partial | `d6c63ad` PJ-76 | M-PJ-SWI-BASELINE |
 | **Icon JVM** | `main` IJ-57 — M-IJ-JCON-HARNESS 🔄 rung36 0/51 pass; 0 CE; all compile+reach JVM; VerifyError from missing emit stubs | `14400a9` IJ-57 | M-IJ-JCON-HARNESS |
+=======
+| **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
+| **⭐ Scrip Demo** | SD-27: M-SD-3 🔄 roman — 5/6 PASS; ICON-JVM list subscript VerifyError | `51e38fc` SD-27 | M-SD-3 |
+| **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
+| **TINY NET** | N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
+| **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
+| **TINY frontend** | F-223 — see REPO-snobol4x.md | `b4507dc` F-223 | M-PROLOG-CORPUS |
+| **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
+| **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
+| **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
+| **Prolog JVM** | PJ-77a — corpus 30/30 | `b7b7aa7` PJ-76 | M-PJ-SWI-BASELINE |
+| **Icon JVM** | IJ-56 — rung36 0/51; 38 CE | `52e575c` IJ-56 | M-IJ-JCON-HARNESS |
+>>>>>>> ad7a4abb3dc12790abbb08ff7386c5c42d9567cf
 
-**Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)
-
----
-
-## 4D Matrix
-
-```
-Frontends:  SNOBOL4 · Snocone · Rebus · Icon · Prolog · C#/Clojure
-Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
-            [C backend: ☠️ DEAD]
-```
-
-| Frontend | TINY-x64 | TINY-NET | TINY-JVM | TINY-WASM | JVM | DOTNET |
-|----------|:--------:|:--------:|:--------:|:---------:|:---:|:------:|
-| SNOBOL4/SPITBOL | ⏳ | ⏳ | — | — | ⏳ | ⏳ |
-| Snocone | — | — | — | — | ⏳ | ⏳ |
-| Rebus | — | — | — | — | — | — |
-| Icon | — | — | — | — | — | — |
-| Prolog | ⏳ | — | — | — | ⏳ | — |
-| C#/Clojure | — | — | — | — | — | — |
-
-✅ done · ⏳ active · — planned · ☠️ dead
+**Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
 ---
 
-## Milestone Dashboard
+## Routing: pick three → read three docs
 
-### ⭐⭐ Icon JVM — detail → [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md)
-`M-IJ-LISTS` ✅ · `M-IJ-TABLE` ✅ · `M-IJ-RECORD` ✅ · `M-IJ-RECORD-PROCARG` ✅ · `M-IJ-GLOBAL` ✅ · `M-IJ-POW` ✅ · `M-IJ-READ` ✅ · `M-IJ-BUILTINS-STR` ✅ · `M-IJ-BUILTINS-TYPE` ✅ · `M-IJ-BUILTINS-MISC` ✅ · `M-IJ-SORT` ✅ · `M-IJ-ALT-VALUE` ✅ · `M-IJ-STRING-RETVAL` ✅ · `M-IJ-CASE` ✅ · `M-IJ-NULL-TEST` ✅ · `M-IJ-BLOCK-BODY` ✅ · `M-IJ-TABLE-VERIFY` ✅ · `M-IJ-RECURSION` ✅ · `M-IJ-INITIAL` ✅ · `M-IJ-STRRET-GEN` ✅ · *(open)*
+**1. Repo**
 
-### ⭐⭐ Prolog JVM — detail → [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
-`M-PJ-FINDALL` ✅ · `M-PJ-ATOM-BUILTINS` ✅ · `M-PJ-ASSERTZ` ✅ · `M-PJ-RETRACT` ✅ · `M-PJ-ABOLISH` ✅ · `M-PJ-ATOP` ✅ · `M-PJ-SORT` ✅ · `M-PJ-SUCC-PLUS` ✅ · `M-PJ-FORMAT` ✅ · `M-PJ-NUMBER-VARS` ✅ · `M-PJ-CHAR-TYPE` ✅ · `M-PJ-WRITE-CANONICAL` ✅ · `M-PJ-SUCC-ARITH` ✅ · `M-PJ-STRING-IO` ✅ · `M-PJ-TERM-STRING` ✅ · `M-PJ-COPY-TERM` ✅ · `M-PJ-AGGREGATE` ✅ · `M-PJ-EXCEPTIONS` ✅ · `M-PJ-NUMBER-OPS` ✅ · `M-PJ-DCG` ✅ · `M-PJ-PLUNIT-SHIM` ✅ · `M-PJ-SWI-BASELINE` ❌ **NEXT**
+| Repo | Doc |
+|------|-----|
+| snobol4x | `REPO-snobol4x.md` |
+| snobol4jvm | `REPO-snobol4jvm.md` |
+| snobol4dotnet | `REPO-snobol4dotnet.md` |
 
-### ⭐ Scrip Demo Ladder — detail → [SCRIP_DEMOS.md](SCRIP_DEMOS.md)
-`M-SD-DEMO1` ✅ · `M-SD-DEMO2` ✅ · `M-SD-DEMO3` ❌ **NEXT** · `M-SD-DEMO4` ❌ · `M-SD-DEMO5` ❌ · `M-SD-DEMO6` ❌ · `M-SD-DEMO7` ❌ · `M-SD-DEMO8` ❌ · `M-SD-DEMO9` ❌ · `M-SD-DEMO10` ❌
-`M-SCRIP-DEMO` (family tree, now DEMO4) ❌ · `M-SCRIP-DEMO2` (puzzle, now DEMO5) ❌ · `M-SCRIP-DEMO3` (compiler) ❌ *(concept)*
+**2. Frontend × Backend → Session doc**
 
-### TINY backend — detail → [BEAUTY.md](BEAUTY.md) · [BACKEND-X64.md](BACKEND-X64.md)
-`M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR` ❌ **NEXT** · `M-BEAUTIFY-BOOTSTRAP` ❌ · `M-MONITOR-4DEMO` ❌
+| | x64 ASM | JVM | .NET |
+|--|:-------:|:---:|:----:|
+| SNOBOL4 | `SESSION-snobol4-x64.md` | `SESSION-snobol4-jvm.md` | `SESSION-snobol4-net.md` |
+| Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |
+| Prolog | `SESSION-prolog-x64.md` | `SESSION-prolog-jvm.md` | — |
+| Snocone | `FRONTEND-SNOCONE.md` | — | — |
+| Rebus | `FRONTEND-REBUS.md` | — | — |
 
-### Grand Master Reorg — all ❌ — detail → [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md)
-Phases 0–8 · ~80 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (Lon schedules)**
+Special: `SCRIP_DEMOS.md` (SD sessions) · `BEAUTY.md` (beauty sprint)
 
-### ICON frontend (ASM) — detail → [FRONTEND-ICON.md](FRONTEND-ICON.md)
-`M-ICON-STRING` ❌ **NEXT** · `M-ICON-SCAN` ❌ · `M-ICON-CSET` ❌ · `M-ICON-CORPUS-R4` ❌
-
-### Grid + README v2 — detail → [GRIDS.md](GRIDS.md)
-`M-FEAT-JVM` ❌ **NEXT** · `M-FEAT-DOTNET` ❌ · `M-GRID-*×8` ❌ · `M-README-V2-*×3` ❌ · `M-PROFILE-V2` ❌
-
----
-
-## Doc Index
-
-| File | Level | Read when |
-|------|-------|-----------|
-| [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md) | L5 | `tail -80` — **step 1 of every session** |
-| [RULES.md](RULES.md) | L3 | Every session |
-| [ARCH.md](ARCH.md) | L3 | Every session |
-| [TINY.md](TINY.md) | L2 | B/N/J/F sessions |
-| [JVM.md](JVM.md) | L2 | snobol4jvm sessions |
-| [DOTNET.md](DOTNET.md) | L2 | D sessions |
-| [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) | L4 | SNOBOL4 frontend |
-| [FRONTEND-ICON.md](FRONTEND-ICON.md) | L4 | I sessions |
-| [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md) | L4 | IJ sessions |
-| [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md) | L4 | F sessions |
-| [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md) | L4 | PJ sessions |
-| [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) | L4 | Snocone sessions |
-| [FRONTEND-REBUS.md](FRONTEND-REBUS.md) | L4 | Rebus sessions |
-| [BACKEND-X64.md](BACKEND-X64.md) | L4 | B sessions |
-| [BACKEND-JVM.md](BACKEND-JVM.md) | L4 | J sessions |
-| [BACKEND-NET.md](BACKEND-NET.md) | L4 | N sessions |
-| [BEAUTY.md](BEAUTY.md) | L4 | beauty.sno sprint |
-| [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md) | L4 | G sessions only |
-| [SCRIP_DEMO.md](SCRIP_DEMO.md) | L4 | SD sessions |
-| [PATCHES.md](PATCHES.md) | L4 | runtime patch work |
-| [MILESTONE_ARCHIVE.md](MILESTONE_ARCHIVE.md) | L5 | append only |
+**3. Deep reference → ARCH-*.md** (open only when you hit something you don't understand)
 
 ---
 
-*PLAN.md = L1. 3KB max. NOW table + milestone IDs only. No sprint content. No completed rows. Ever.*
-*Milestone fires → move to MILESTONE_ARCHIVE.md, update NOW table, update L4 doc.*
+*PLAN.md = routing + NOW only. 3KB max. No sprint content. No completed milestones.*
