@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed 12KB→4.6KB; §NOW bloat + Roadmap removed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scripten Demo** | SD-2 WIP — slot-type VerifyError fixed (int-scratch region); remaining: "Expecting long on stack" stack-discipline error in icn_main sec relay | `a5f01c8` SD-2 | M-SCRIPTEN-DEMO |
+| **⭐ Scripten Demo** | SD-2 WIP — relop/binop/AND relay converted to static-field drain; 8 stack-height conflicts remain (ICN_EVERY β-resume enters ICN_AND at wrong depth) | `973a68a` SD-2 | M-SCRIPTEN-DEMO |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |

@@ -14,9 +14,44 @@ that the idea works end-to-end.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scripten Demo** | SD-1 — all 4 classes assemble clean; last blocker: register-pair VerifyError in comparator relay slots | `c6ef225` SD-1 | M-SCRIPTEN-DEMO |
+| **Scripten Demo** | SD-2 WIP — relop/binop/ICN_AND relay converted to static-field drain; 8 stack-height conflicts remain from ICN_EVERY β-tableswitch entering ICN_AND sub-chain at wrong depth | `973a68a` SD-2 | M-SCRIPTEN-DEMO |
 
-### CRITICAL NEXT ACTION (SD-2)
+### CRITICAL NEXT ACTION (SD-3)
+
+**Blocker: 8 stack-height conflicts at ICN_AND `relay_g` labels, all sharing the same root cause.**
+
+**Root cause:** When ICN_EVERY's body runs inside an ICN_AND chain, the generator's β-tableswitch resume re-enters the ICN_AND sub-chain's α port. But the ICN_AND sub-chain may have been entered originally with stack-height H (from the outer every's yielded value still on stack from a prior relay), while the β-resume enters it at height H-2 (after the every's body drained the value). This 2-slot base mismatch propagates through all subsequent `relay_g` drains.
+
+**Confirmed evidence (from `icon_emit_jvm.c` dataflow analysis):**
+- `icn_157_and_rg_5` (drain_5 :J) reached at heights `64 vs 62` (diff=2)
+- `icn_257_and_rg_5` (drain_5 :J) reached at heights `65 vs 63` (diff=2)  
+- 6 more similar conflicts at β-port labels inside strrelop/relop sub-expressions
+
+**Fix path (SD-3 step 1):** In `ij_emit_every` (`icon_emit_jvm.c`), at the β-resume tableswitch dispatch, ensure the stack is normalized before re-entering the generator's α. Concretely: the `icn_N_genb` label (every-body drain) does `pop2; goto icn_gen_β`. The β-tableswitch then dispatches to the generator's β labels. The generator's β labels expect empty stack. But the ICN_AND relay labels used as generator γ/β targets may be in the middle of the ICN_AND stack context.
+
+**The exact fix:** In `ij_emit_every`, when the body's genb drain fires (`pop2; goto gen_β`), the `gen_β` → tableswitch path must arrive at the SAME stack height as the normal flow entering those labels. Since all relay_g drains now use `putstatic` (not `pop2`), the stack is always empty at relay_g entry from the normal path. The β-tableswitch dispatch to those labels also arrives empty. So the fix may simply be: **confirm the current 8 conflicts are from the `cg[i]` (ICN_ALT relay) `pop2` still using a stack-consuming instruction** rather than a static-field drain.
+
+**Specifically check:** `icn_185_alt_g0/g1` (in `family_icon.icn`) emit `pop; lconst_0; sipush; putstatic; goto and_rg_5`. The `lconst_0` is still pushed, making height at `and_rg_5` = base+2. The direct child path also arrives at +2. But one path's "base" is 0 and the other's is 2 — because the ALT child's β-resume path somehow arrives at the `cg[i]` region with 2 extra slots from the outer ICN_AND chain context.
+
+**Next step:** Add a targeted `pop2` drain at the start of `icn_185_alt_g0/g1` labels, OR ensure the ICN_ALT `cg[i]` relay is always entered with empty stack by having the ALT children use static-field drain before jumping to `cg[i]`.
+
+**Files to edit:** `snobol4x/src/frontend/icon/icon_emit_jvm.c` — `ij_emit_alt` relay section.
+
+**Bootstrap SD-3:**
+```bash
+cd /home/claude && git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x && gcc -Wall -g -O0 -I src/frontend/icon \
+    src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver_jvm
+# Verify rung28-30 still pass (baseline: 15/15)
+# Then tackle the 8 remaining stack-height conflicts
+```
+
+**Invariant to maintain:** rung28–30 15/15 PASS throughout SD-3 work.
 
 **Blocker: `"Register pair N/N+1 contains wrong type"` VerifyError in `icn_main`.**
 
