@@ -303,3 +303,12 @@ rung25 7/7 (t03, t07 promoted) · HEAD `d029d7c` · Root cause: callsave restore
 
 ## IJ-55 — M-IJ-STRRET-GEN ✅  2026-03-26
 rung32 5/5 (t03 promoted from xfail) · 153/153 PASS total · HEAD `d64d752` · Root cause: β path for non-generator procs unconditionally jumped to `ports.ω`, so `every write(tag("a"|"b"|"c"))` exited after first value. Fix: non-gen proc β routes to `arg_betas[nargs-1]` when `nargs > 0`, re-pumping the arg generator chain. Removed `t03_strret_every.xfail`.
+
+## IJ-53 — M-IJ-RECURSION ✅  2026-03-26
+`fact(5)=120` · rung02_proc 3/3 · HEAD `f1dc530` · All class-level scratch statics (`icn_N_binop_lc/rc`, `icn_N_relop_lc/rc`) trampled by recursive calls. Fix: `ij_static_needs_callsave()` — save/restore all `'J'` statics except globals, args, retval, control, other procs' `icn_pv_*` — around every user-proc `invokestatic`. `.limit locals` bumped by `2*ij_nstatics`. 4 harness scripts added.
+
+## IJ-54 — M-IJ-INITIAL ✅  2026-03-26
+rung25 7/7 · HEAD `d029d7c` · callsave restore overwrote callee's persistent `icn_pv_<callee>_*` locals on return. Fix: exclude `icn_pv_<other_proc>_*` from callsave — only save caller's own `icn_pv_<ij_cur_proc>_*` plus scratch. 6 harness scripts added (rung08/09/12/18/20/21).
+
+## IJ-55 — M-IJ-STRRET-GEN ✅  2026-03-26
+rung32 5/5 · 153/153 PASS total · HEAD `d64d752` · β path for non-gen procs jumped to `ports.ω`; `every write(tag("a"|"b"|"c"))` exited after first value. Fix: non-gen proc β → `arg_betas[nargs-1]` when `nargs > 0`. Removed `t03_strret_every.xfail`.

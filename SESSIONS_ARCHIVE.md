@@ -2577,3 +2577,17 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 **Final baseline: 153/153 PASS, 0 xfail. All corpus dirs have harness scripts.**
 
 **Context window at handoff: ~63%.**
+
+---
+
+## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `d64d752`.
+
+**IJ-53:** All class-level scratch statics trampled by recursive calls. `ij_static_needs_callsave()` save/restore at every user-proc call site. `fact(5)=120`.
+
+**IJ-54:** Callsave restore overwrote callee persistent locals. Exclude `icn_pv_<other_proc>_*`. `initial` persistence fixed. rung25 7/7.
+
+**IJ-55:** Non-gen proc β → `arg_betas[nargs-1]`. `every write(tag("a"|"b"|"c"))` now yields all values. rung32 5/5.
+
+**Final: 153/153 PASS, 0 xfail. Context window at handoff: ~63%.**
