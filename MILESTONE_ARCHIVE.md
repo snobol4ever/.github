@@ -312,3 +312,11 @@ rung25 7/7 · HEAD `d029d7c` · callsave restore overwrote callee's persistent `
 
 ## IJ-55 — M-IJ-STRRET-GEN ✅  2026-03-26
 rung32 5/5 · 153/153 PASS total · HEAD `d64d752` · β path for non-gen procs jumped to `ports.ω`; `every write(tag("a"|"b"|"c"))` exited after first value. Fix: non-gen proc β → `arg_betas[nargs-1]` when `nargs > 0`. Removed `t03_strret_every.xfail`.
+
+## M-SD-1 ✅ — hello: all three JVM frontends PASS
+
+**Fired:** 2026-03-26. **Session:** SD-24. **HEAD:** `0f28136`.
+
+hello.md — `OUTPUT = 'Hello, World!'` / `write("Hello, World!")` / `write('Hello, World!'), nl.`
+All three compile through snobol4ever JVM frontends and produce correct output.
+SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.

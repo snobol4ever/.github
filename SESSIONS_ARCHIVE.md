@@ -2591,3 +2591,44 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 **IJ-55:** Non-gen proc β → `arg_betas[nargs-1]`. `every write(tag("a"|"b"|"c"))` now yields all values. rung32 5/5.
 
 **Final: 153/153 PASS, 0 xfail. Context window at handoff: ~63%.**
+
+---
+
+## SD-24 — run_demo.sh wired; SNO2C-JVM 9/10; M-SD-1 ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `0f28136`.
+
+**M-SD-1 FIRED.** hello.md passes all three JVM frontends (SNO2C-JVM, ICON-JVM, PROLOG-JVM).
+
+**Infrastructure:**
+- `run_demo.sh` rewritten with 6 runners: 3 reference interpreters + 3 JVM frontends (SNO2C-JVM, ICON-JVM, PROLOG-JVM)
+- Auto-detect sno2c, icon_driver_jvm, jasmin.jar; dynamic classname extraction from .j
+- Inline Icon explicit-semicolon converter (snobol4x dialect requires `;` after procedure headers and statements)
+- `set -e` guards (`|| true` on all java/compiler calls) prevent script death on runtime exceptions
+
+**SNOBOL4 fixes (SNO2C-JVM 6→9/10):**
+- demo4: IDENT palindrome check separated from assignment; was concatenating IDENT's return value (`s`) with `'yes'`
+- demo6: `ARRAY(n,init)` now pre-fills — added `sno_array_new2(size,init)` JVM runtime helper
+- demo9: RPN do_op rewritten from broken `IDENT(tok,'+') b + a` idiom to proper test-and-branch per operator
+- emit_byrd_jvm.c: removed broken sno_norm_key stub (arithmetic already emits integer strings via whole-number path)
+
+**Ladder (JVM frontends):**
+`SNO2C 9/10` (demo10 blocked) | `ICON 2/10` (demos 1,7) | `PROLOG 4/10` (demos 1,3,6,8)
+
+**demo10 root causes documented, not fixed — next session:**
+1. `sno_array_get` returns Java `null` for missing TABLE entries; SNOBOL4 semantics require `""`. Fix in `sno_array_get`: return `""` when key not found (not null).
+2. `rows<i,2>` 2D subscript may not parse correctly in frontend. Workaround: avoid `CONVERT`+2D; use parallel arrays built during word-scan.
+
+**SNOBOL4 scrutiny (doc-informed, this session):**
+- `IDENT(a,b)` returns `a` on success (not `""`); `DIFFER` returns `""` — confirmed from spitbol-manual.
+- `ARRAY(n,init)` pre-fills 1..n with init; verified and fixed.
+- Arithmetic `k-1` in array subscripts: JVM whole-number path correctly emits `Long.toString` — no key-normalization bug.
+- TABLE missing-key → `""` in real SNOBOL4; snobol4x returns Java null — root cause of demo10 NPE.
+
+**Next session (SD-25):**
+1. Fix `sno_array_get`/`sno_table_get` to return `""` for missing keys (not Java null)
+2. Rewrite demo10 SNOBOL4 to avoid CONVERT+2D subscript (use parallel grp_k/grp_v arrays)
+3. Fire M-SD-1 in MILESTONE_ARCHIVE (already firing now — do it)
+4. Begin Icon/Prolog runtime gap analysis for M-SD-2 (wordcount)
+
+**Context window at handoff: ~78%.**
