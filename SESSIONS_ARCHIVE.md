@@ -1872,3 +1872,17 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~78%.**
 
 **Next session (IJ-45):** M-IJ-SORT — `sort(L)` and `sortf(L,field)`. See FRONTEND-ICON-JVM.md §NOW.
+
+---
+
+## PJ-64 — Baseline verification, no milestone fired
+
+**Date:** 2026-03-26. **Repos:** snobol4x (main, no changes). **HEAD at handoff:** `e897666`.
+
+**Baseline entering:** 20/20 rung11–rung23 ✅. **Baseline at handoff:** 20/20 ✅ (confirmed).
+
+**Work done:** Cloned repos, installed deps (`--fix-missing`), built snobol4x clean, verified 20/20 baseline across rung11–rung23. Confirmed M-PJ-STRING-IO (`atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2`) is fully absent from both `prolog_emit_jvm.c` and `prolog_builtin.c`. No rung24 yet. Documented implementation plan in §NOW.
+
+**Context window at handoff: ~26%.**
+
+**Next session (PJ-65):** M-PJ-STRING-IO — create rung24, implement 6 string builtins. See FRONTEND-PROLOG-JVM.md §NOW.

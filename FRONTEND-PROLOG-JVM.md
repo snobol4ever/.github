@@ -19,23 +19,28 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-61 — M-PJ-CHAR-TYPE ✅ 5/5 rung21 | `adae291` PJ-61 | M-PJ-SUCC-ARITH |
+| **Prolog JVM** | `main` PJ-64 — baseline 20/20 rung11–rung23 ✅ | `e897666` PJ-64 | M-PJ-STRING-IO |
 
-### CRITICAL NEXT ACTION (PJ-64)
+### CRITICAL NEXT ACTION (PJ-65)
 
-**Baseline: 5/5 rung11–rung23 ✅. snobol4x HEAD `e897666`.**
+**Baseline: 20/20 rung11–rung23 ✅. snobol4x HEAD `e897666`.**
 
-**Next milestone: M-PJ-STRING-IO — implement `atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2` or next queued milestone.**
+**Next milestone: M-PJ-STRING-IO — implement `atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2`.**
 
-**Bootstrap PJ-61:**
+**Implementation plan:**
+1. Create `test/frontend/prolog/corpus/rung24_string_io/` — 5 test cases (t01–t05), `.pro` + `.expected`
+2. Add JVM helper methods + `pj_emit_goal` dispatch in `prolog_emit_jvm.c` following `atom_concat`/`atom_chars` pattern
+3. Register names in builtin whitelist (`prolog_builtin.c` / whitelist array near line 2941)
+4. Build, run rung24 to green, confirm rung11–23 no regressions
+5. Commit snobol4x, update §NOW + PLAN.md, push both repos
+
+**Bootstrap PJ-65:**
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/snobol4x
-git clone https://TOKEN@github.com/snobol4ever/.github
-apt-get install -y default-jdk nasm libgc-dev swi-prolog
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
-# Read §NOW above. Implement next milestone.
-# Confirm rung11–rung23 no regressions
-# Commit snobol4x, update §NOW + PLAN.md, push both repos
+# Read §NOW above. Start at CRITICAL NEXT ACTION.
 ```
 
 ## Milestone Table
