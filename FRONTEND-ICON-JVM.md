@@ -19,18 +19,20 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-37 — M-IJ-RECORD 4/5 PASS; t03 xfail | `90bd967` IJ-37 | M-IJ-RECORD-PROCARG |
+| **Icon JVM** | `main` IJ-38 — M-IJ-RECORD-PROCARG ✅ rung24 5/5 | `4e09418` IJ-38 | M-IJ-GLOBAL |
 
-### CRITICAL NEXT ACTION (IJ-38)
+### CRITICAL NEXT ACTION (IJ-39)
 
-**Baseline: 65/65 JVM rungs (rung05–23) PASS. rung24: 4 pass, 0 fail, 1 xfail.**
+**Baseline: 70/70 JVM rungs (rung05–24) PASS. 0 xfail.**
 
-**THE XFAIL — t03 `sum(q)` where q is a record:** `ij_emit_call` passes record args as `lconst_0` (long). The callee param var (`icn_pv_sum_p`) is declared `J`, not `Ljava/lang/Object;`. Pre-pass only scans `ICN_ASSIGN(VAR, record_call)` — param passing goes through call machinery, not assign.
+**M-IJ-RECORD is complete.** Next milestone: **M-IJ-GLOBAL** — `global` variable declarations and `initial` clause.
 
-**Fix:** In `ij_emit_call` user-proc path, after computing each arg: detect if arg is a record type (`ij_expr_is_record`). If so, after emitting the arg (which stores `icn_retval_obj`), store `icn_retval_obj` into the param's Object field (`icn_pv_{proc}_{param}`). Also pre-declare that param field as `O` in a pre-pass or at call-site.
+Features needed:
+- `global x` — declare a global var (already handled via `icn_gvar_*` fields for vars used before assignment, but `global` keyword needs parser + explicit registration)
+- `initial { ... }` — code block executed only on first proc entry (guarded by a static boolean flag)
 
 ```bash
-# Bootstrap IJ-38:
+# Bootstrap IJ-39:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
@@ -39,11 +41,9 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_rung24.sh /tmp/icon_driver   # expect 4/0/1
-# Fix t03 → 5/5 → remove xfail → commit "IJ-38: M-IJ-RECORD-PROCARG ✅"
+bash test/frontend/icon/run_rung24.sh /tmp/icon_driver   # expect 5/0/0 baseline
+# Add rung25_global corpus, implement M-IJ-GLOBAL, commit "IJ-39: M-IJ-GLOBAL ✅"
 ```
-
-**Also note:** `run_rung22.sh` and `run_rung23.sh` had a path bug (`../../..` fix applied in IJ-37, committed). The old scripts used `../..` and always reported 0/0.
 
 ---
 
@@ -64,6 +64,18 @@ bash test/frontend/icon/run_corpus_jvm.sh /tmp/icon_driver
 # Single rung:
 bash test/frontend/icon/run_rung_jvm.sh /tmp/icon_driver 23
 ```
+
+### IJ-38 findings — M-IJ-RECORD-PROCARG ✅ (HEAD 4e09418)
+
+**70/70 PASS (rung05–24). rung24 5/5, 0 xfail.**
+
+**Root cause:** `ij_expr_is_record` only detected direct constructor calls, not VAR nodes holding a record. `ij_emit_call` user-proc path stored all args as `J` (long) into `icn_arg_N`. Callee param-load loaded `J` into `icn_pv_{proc}_{param}` as long.
+
+**Three-part fix in `icon_emit_jvm.c`:**
+1. Added `ij_field_type_tag(name)` helper; extended `ij_expr_is_record` to return true for `ICN_VAR` whose static field is `'O'`-typed.
+2. **Pass 1c** (new pre-pass): scans all user-proc call sites; for each record arg at position `i`, pre-declares `icn_arg_obj_i` as Object AND pre-declares the callee's param var field as Object (saving/restoring `ij_cur_proc`).
+3. **Call site** (`ij_emit_call` user-proc loop): if `ij_expr_is_record(arg)`, pops `lconst_0`, loads `icn_retval_obj`, stores into `icn_arg_obj_N` (Object).
+4. **Callee param-load** (non-gen + gen fresh_entry): if `ij_field_type_tag("icn_arg_obj_N") == 'O'`, loads from `icn_arg_obj_N` into Object param field; else long path unchanged.
 
 ### IJ-36 findings — M-IJ-TABLE ✅ (HEAD 9635570)
 
@@ -173,9 +185,9 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
 | M-IJ-CORPUS-R18 | 94/94 PASS rungs 01–18 | ✅ |
 | M-IJ-LISTS | `list`, `push/put/get/pop/pull`, `[a,b,c]`, `!L` | ✅ |
 | M-IJ-CORPUS-R22 | 114/114 PASS rungs 01–22 | ✅ |
-| **M-IJ-TABLE** | `table`, `t[k]`, `key/insert/delete/member` | ❌ **NEXT** |
-| M-IJ-RECORD | `record` decl, `r.field` access | ❌ |
-| M-IJ-GLOBAL | `global` vars, `initial` clause | ❌ |
+| **M-IJ-TABLE** | `table`, `t[k]`, `key/insert/delete/member` | ✅ |
+| **M-IJ-RECORD** | `record` decl, `r.field` access, record proc args | ✅ |
+| **M-IJ-GLOBAL** | `global` vars, `initial` clause | ❌ **NEXT** |
 | M-IJ-BUILTINS-STR | `repl/reverse/left/right/center/trim/map/char/ord` | ❌ |
 | M-IJ-BUILTINS-TYPE | `type/copy/image/numeric` | ❌ |
 | M-IJ-SORT | `sort/sortf` (depends: LISTS+TABLE) | ❌ |
