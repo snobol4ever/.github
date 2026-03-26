@@ -19,18 +19,18 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-43 — M-IJ-BUILTINS-TYPE ✅ rung29 5/5 | `495cb65` IJ-43 | M-IJ-BUILTINS-MISC |
+| **Icon JVM** | `main` IJ-44 — M-IJ-BUILTINS-MISC ✅ rung30 5/5 | `fe87efc` IJ-44 | M-IJ-SORT |
 
-### CRITICAL NEXT ACTION (IJ-44)
+### CRITICAL NEXT ACTION (IJ-45)
 
-**Baseline: 97/97 JVM rungs (rung05–29) PASS. 0 xfail. rung14 2 pre-existing xfail unchanged.**
+**Baseline: 102/102 JVM rungs (rung05–30) PASS. 0 xfail. rung14 2 pre-existing xfail unchanged.**
 
-**M-IJ-BUILTINS-TYPE is complete.** Next milestone: **M-IJ-BUILTINS-MISC** — remaining utility builtins.
+**M-IJ-BUILTINS-MISC is complete.** Next milestone: **M-IJ-SORT** — `sort(L)` and `sortf(L,f)` builtins.
 
-Candidates: `abs(x)` `max(x,...)` `min(x,...)` `sqrt(x)` `seq(i,j)` `iand/ior/ixor/icom/ishift`
+Functions needed: `sort(L)` — sort list ascending; `sortf(L, field)` — sort list of records by field index.
 
 ```bash
-# Bootstrap IJ-44:
+# Bootstrap IJ-45:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
@@ -39,8 +39,8 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_rung29.sh /tmp/icon_driver   # expect 5/0/0 baseline
-# Add rung30_builtins_misc corpus, implement M-IJ-BUILTINS-MISC, commit "IJ-44: M-IJ-BUILTINS-MISC ✅"
+bash test/frontend/icon/run_rung30.sh /tmp/icon_driver   # expect 5/0/0 baseline
+# Add rung31_sort corpus, implement M-IJ-SORT, commit "IJ-45: M-IJ-SORT ✅"
 ```
 
 ---
@@ -62,6 +62,27 @@ bash test/frontend/icon/run_corpus_jvm.sh /tmp/icon_driver
 # Single rung:
 bash test/frontend/icon/run_rung_jvm.sh /tmp/icon_driver 23
 ```
+
+### IJ-44 findings — M-IJ-BUILTINS-MISC ✅ (HEAD fe87efc)
+
+**102/102 PASS (rung05–30). rung30 5/5, 0 xfail.**
+
+**Five builtins in `icon_emit_jvm.c`:**
+
+1. **`abs(x)`** — `Math.abs(J)J` for integer, `Math.abs(D)D` for real. Single-arg, single relay.
+2. **`max(x,y,...)`** / **`min(x,y,...)`** — varargs relay chain: emit all arg exprs first, wire with relay labels. `relay[1]` stores arg0 to `tmp` field; each subsequent `relay[i+1]` loads `tmp`, calls `Math.max/min(JJ)J` or `(DD)D`, stores result back to `tmp`; final load after loop. Varargs-safe for N≥2.
+3. **`sqrt(x)`** — `l2d` promotion if integer, then `Math.sqrt(D)D`. Always real result.
+4. **`seq(i[,j])`** — infinite generator. α: eval start (and optional step), store to `icn_N_seq_cur`/`step` statics, fall to `produce`. β: `cur += step`, fall to `produce`. `produce`: `ij_get_long(cur_fld)` → `ports.γ`. Never reaches `ports.ω`.
+
+**`ij_expr_is_real` extended:** `sqrt` always real; `abs/max/min` real if any arg real.
+
+**Root-cause fixes:** `ij_declare_static_long` → `ij_declare_static`; `ij_put/get_real` → `ij_put/get_dbl`; `ij_declare_static_real` → `ij_declare_static_dbl`.
+
+### IJ-43 findings — M-IJ-BUILTINS-TYPE ✅ (HEAD 495cb65)
+
+**97/97 PASS (rung05–29). rung29 5/5, 0 xfail.**
+
+**Four builtins:** `type(x)` — compile-time pop+`ldc "integer"/"real"/"string"`; `copy(x)` — identity pass-through; `image(x)` — `Long.toString`/`Double.toString`/no-op; `numeric(s)` — `icn_builtin_numeric(String)J` helper with Jasmin `.catch NumberFormatException`, `Long.MIN_VALUE` sentinel → `ports.ω` on failure. `ij_expr_is_string` extended for `type`/`image`/`copy`.
 
 ### IJ-38 findings — M-IJ-RECORD-PROCARG ✅ (HEAD 4e09418)
 

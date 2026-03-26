@@ -1856,3 +1856,19 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~78%.**
 
 **Next session (PJ-59):** M-PJ-FORMAT — `format/1`, `format/2`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+
+## IJ-43 + IJ-44 — M-IJ-BUILTINS-TYPE ✅ + M-IJ-BUILTINS-MISC ✅
+
+**Date:** 2026-03-25. **Repos:** snobol4x (main). **HEAD at handoff:** `fe87efc`.
+
+**Baseline entering:** 92/92 (rung05–28). **Baseline at handoff:** 102/102 (rung05–30).
+
+**IJ-43 (M-IJ-BUILTINS-TYPE):** `type(x)` compile-time string constant; `copy(x)` identity; `image(x)` via toString; `numeric(s)` with `.catch` exception handler + `Long.MIN_VALUE` sentinel. rung29 5/5 ✅.
+
+**IJ-44 (M-IJ-BUILTINS-MISC):** `abs`, `max`, `min` (varargs relay chain with static tmp field), `sqrt` (always real), `seq` (infinite generator, α/β ports, static cur+step fields). `ij_expr_is_real` extended. Helper name fixes: `_long→(default)`, `_real→_dbl`. rung30 5/5 ✅.
+
+**Context window at handoff: ~78%.**
+
+**Next session (IJ-45):** M-IJ-SORT — `sort(L)` and `sortf(L,field)`. See FRONTEND-ICON-JVM.md §NOW.

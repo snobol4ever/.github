@@ -282,3 +282,9 @@ rung18 5/0/0 · HEAD `937ef92` · `succ/2`/`plus/3` — `pj_is_var`, `pj_succ_2`
 
 ## IJ-42 — M-IJ-BUILTINS-STR ✅  2026-03-25
 rung28 5/0/0 · 92/92 total · HEAD `c1e2b56` · `repl/reverse/left/right/center/trim/map/char/ord` — inline JVM emission + static helpers `icn_builtin_left/right/center/trim/map`; `ij_expr_is_string` extended for all 8 String-returning builtins
+
+## IJ-43 — M-IJ-BUILTINS-TYPE ✅  2026-03-25
+rung29 5/0/0 · 97/97 total · HEAD `495cb65` · `type/copy/image/numeric` — compile-time type constant; identity copy; toString image; `icn_builtin_numeric` with Jasmin `.catch`; `Long.MIN_VALUE` fail sentinel; `ij_expr_is_string` extended
+
+## IJ-44 — M-IJ-BUILTINS-MISC ✅  2026-03-25
+rung30 5/0/0 · 102/102 total · HEAD `fe87efc` · `abs/max/min/sqrt/seq` — `Math.abs/max/min/sqrt`; varargs relay chain for max/min; seq infinite generator with α/β ports + static cur+step; `ij_expr_is_real` extended for sqrt/abs/max/min; helper name fixes `_long→default`, `_real→_dbl`
