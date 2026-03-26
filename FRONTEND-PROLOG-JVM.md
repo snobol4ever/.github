@@ -19,15 +19,19 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-70 — M-PJ-NUMBER-OPS ✅ 5/5 rung29 | `31c5d1f` PJ-70 | M-PJ-DCG |
+| **Prolog JVM** | `main` PJ-71 — M-PJ-DCG 3/5 rung30 | `65cdac3` PJ-71 | M-PJ-DCG (complete) |
 
-### CRITICAL NEXT ACTION (PJ-71)
+### CRITICAL NEXT ACTION (PJ-72)
 
-**Baseline: 5/5 rung29 ✅, rung11–rung29 all green. snobol4x HEAD `31c5d1f`.**
+**Baseline: t01–t03 rung30 ✅, t04–t05 ❌. snobol4x HEAD `65cdac3`.**
 
-**Next milestone: M-PJ-DCG — DCG (Definite Clause Grammars): `-->` rules, `phrase/2,3`.**
+**Next milestone: M-PJ-DCG — finish rung30 5/5.**
 
-**Bootstrap PJ-71:**
+**Root cause of t04/t05 failure:** `phrase/N` routed through `pj_emit_body` ucall retry loop (because `pj_is_user_call` returns 1). Fix: intercept `phrase` inside `pj_emit_body`'s ucall block (search `"user-defined predicate call"` comment ~line 4895) and rewrite to `NT/+2` before building the descriptor — same logic as `pj_emit_goal` rewriter: extract NT from `children[0]`, build new `E_FNC(NT, [list, rest/[]])`, swap `goal`, recalculate `fn`/`nargs`.
+
+**Also added PJ-71:** `{...}` braces lexed/parsed (TK_LBRACE/TK_RBRACE); `{ Goal }` → `'{}'(Goal)` compound; DCG inline-expansion in `parse_clause`; rung30 test suite (5 tests).
+
+**Bootstrap PJ-72:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
