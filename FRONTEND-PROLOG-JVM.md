@@ -19,9 +19,60 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-50 — M-PJ-ATOM-BUILTINS ✅; M-PJ-ASSERTZ WIP; pj_db HashMap field + helpers + walker skeleton; rung13 corpus created (0/5 JVM — stub predicate for pure-dynamic missing) | `02cc4c6` PJ-50 | M-PJ-ASSERTZ |
+| **Prolog JVM** | `main` PJ-51 — stub emitter + directive exec done; `pj_db_assert` stack-height VerifyError on all 5 rung13 | `ce8bc5a` PJ-51 | M-PJ-ASSERTZ |
 
-### CRITICAL NEXT ACTION (PJ-51)
+### CRITICAL NEXT ACTION (PJ-52)
+
+**Baseline: 5/5 rung11 ✅. 5/5 rung12 ✅. snobol4x HEAD `ce8bc5a`.**
+
+**Next milestone: M-PJ-ASSERTZ — fix pj_db_assert stack height, get 5/5 rung13**
+
+**THE BUG:** `pj_db_assert` (in `pj_emit_assertz_helpers`) has inconsistent stack heights at label `pj_db_assert_have_list`. The "new list" path and the "existing list" path leave different numbers of values on the stack when they converge at that label.
+
+**Root cause:** In the "new list" path: after `astore_3` (store new list) + `getstatic pj_db` + `aload_0` + `aload_3` + `invokevirtual HashMap.put` + `pop` + `aload_3` → stack height 1 (the list). In the "existing list" path: after `invokevirtual HashMap.get` + `dup` + `ifnonnull` → the `dup`'d reference is still on stack at height 1. So both paths should leave stack height 1 at `pj_db_assert_have_list`. But the JVM verifier says `4 != 1` — the "new list" path must be leaving 4 items.
+
+**Fix strategy:** Rewrite `pj_db_assert` using a cleaner pattern — store the list to local 3 on both paths, then load it once after the join:
+
+```jasmin
+; get or create list, store to local 3
+getstatic pj_db
+aload_0
+invokevirtual HashMap/get
+dup
+ifnonnull db_assert_have
+pop
+new ArrayList
+dup
+invokespecial ArrayList/<init>()V
+dup                          ; ArrayList, ArrayList
+astore_3                     ; store, keep one on stack
+getstatic pj_db
+aload_0
+aload_3
+invokevirtual HashMap/put
+pop                          ; discard old value
+goto db_assert_join
+db_assert_have:
+checkcast ArrayList
+astore_3
+db_assert_join:
+; now local 3 = the list, stack empty
+; deep-copy term...
+; prepend or append...
+return
+```
+
+**Bootstrap PJ-52:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src && cd snobol4x
+# Rewrite pj_db_assert in pj_emit_assertz_helpers (~line 1193)
+# Build, run rung13 5-way sweep, expect 5/5
+# Confirm rung11+rung12 no regressions
+# Commit, update §NOW + PLAN.md, push both repos
+```
 
 **Baseline: 5/5 rung11 ✅. 5/5 rung12 ✅. snobol4x HEAD `02cc4c6`.**
 

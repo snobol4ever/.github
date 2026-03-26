@@ -1515,3 +1515,29 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 **Context window at handoff: ~88%.**
 
 **Next session (PJ-51):** Fix Bug 1 + Bug 2 → 5/5 rung13 → **M-PJ-ASSERTZ ✅** → M-PJ-RETRACT.
+
+## PJ-51 — M-PJ-ASSERTZ WIP (stub emitter + directive exec; stack-height bug)
+
+**HEAD start:** `02cc4c6` (PJ-50) → **HEAD end:** `ce8bc5a`
+**Date:** 2026-03-25
+
+**Accomplished:**
+
+1. **Bug 1 fixed — stub predicate emitter for pure-dynamic predicates.**
+   In `prolog_emit_jvm()` entry, after emitting static predicates, scans all directive STMT_t nodes for `assertz/asserta` calls whose functor has no static `E_CHOICE`. Emits a full stub `p_foo_N` method containing only the dynamic DB walker (identical logic to the omega-port walker in `pj_emit_choice`). Dedup scan prevents double-emit for same functor.
+
+2. **Bug 2 fixed — `:- assertz(...)` directives execute before `main/0`.**
+   `pj_emit_main()` now iterates `prog->head` for non-`E_CHOICE` directive nodes whose goal is `assertz/1` or `asserta/1` and emits the assertz bytecode inline (same as `pj_emit_goal` assertz case, with `var_locals=NULL, n_vars=0`).
+
+3. **Stray `astore 4` removed from `pj_copy_term_ground`.**
+   Was causing `VerifyError: Unable to pop operand off empty stack` before any assertz code ran.
+
+4. **rung13 corpus `.pro` files fixed** — stripped `:- dynamic` directives (parser chokes on them; our emitter silently ignores them anyway).
+
+**Remaining bug:** `pj_db_assert` — `VerifyError: Inconsistent stack height 4 != 1` at label `pj_db_assert_have_list`. The "new list" path leaves stack height 4 at the join point; "existing list" path leaves 1. The `dup_x2` that was planned but removed left the new-list path unbalanced.
+
+**Score:** 5/5 rung11 ✅ · 5/5 rung12 ✅ · 0/5 rung13 (VerifyError in pj_db_assert)
+
+**Fix for PJ-52:** Rewrite `pj_db_assert` (line ~1193 in `prolog_emit_jvm.c`). Use local 3 as list storage on both paths; join point has empty stack, then load local 3. See FRONTEND-PROLOG-JVM.md §NOW for exact Jasmin pattern.
+
+**Context window at handoff: ~95%.**

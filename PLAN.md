@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | `main` R-2 | `00846d3` | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-50 — M-PJ-ATOM-BUILTINS ✅; M-PJ-ASSERTZ WIP (pj_db helpers+walker done; stub predicate + directive execution needed) | `02cc4c6` PJ-50 | M-PJ-ASSERTZ |
+| **Prolog JVM** | `main` PJ-51 — M-PJ-ASSERTZ WIP; stub emitter + directive exec done; pj_db_assert stack-height VerifyError remains | `ce8bc5a` PJ-51 | M-PJ-ASSERTZ |
 | **Icon JVM** | `main` IJ-36 — M-IJ-TABLE ✅; 119/119 PASS | `9635570` IJ-36 | M-IJ-CORPUS-R22 |
 
 **Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)
