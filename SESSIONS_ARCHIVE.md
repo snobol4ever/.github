@@ -1636,3 +1636,37 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 **Context window at handoff: ~85%.**
 
 **Next session (PJ-54):** M-PJ-RETRACT — implement `retract/1`, create rung14 corpus (5 tests), get 5/5 rung14. See FRONTEND-PROLOG-JVM.md §NOW for full plan.
+
+## SD-0 — Scripten Demo scaffold
+
+**HEAD start:** — (fresh session) → **HEAD end:** `a9de763`
+**Date:** 2026-03-25
+
+**Goal:** M-SCRIPTEN-DEMO — polyglot SNOBOL4+Icon+Prolog family-tree demo on JVM.
+
+**Work done:**
+
+- **Environment bootstrapped:** `sno2c` compiled from source (`src/make -j4`), `sno2c_jvm` symlink created, `icon_driver_jvm` built from `icon_emit_jvm.c`, JVM pipeline smoke-tested end-to-end (`hello JVM` ✅, `1 to 5` via Icon ✅).
+
+- **`demo/scripten/family.csv`** — 9-row family tree input (Eleanor/George roots through James/Sophie generation 3).
+
+- **`demo/scripten/family_snobol4.sno`** — SNOBOL4 CSV parser. Uses 5 named structural patterns (PAT_NAME/PAT_UID/PAT_YEAR/PAT_GENDER/PAT_ROW). DEFINE stubs for PROLOG_ASSERT_PERSON/PROLOG_ASSERT_PARENT/SCRIPTEN_INIT. Compiles + assembles clean → `Family_snobol4.class`.
+
+- **`demo/scripten/family_prolog.pro`** — Prolog relational engine. Inference rules: grandparent/2, ancestor/2, sibling/2, cousin/2, generation/2. Query entry points: query_count/1, query_grandparents/1, query_siblings/1, query_cousins/1, query_generations/1, query_ancestors/2. Pipe-delimited output for Icon parsing. Workarounds: no `:- dynamic` (not supported), no `@<` in rule bodies (not in parser operator table → wrapper rules used). Compiles clean → 6923 lines; assembles → `Family_prolog.class`.
+
+- **`demo/scripten/family_icon.icn`** — Icon report generator. Recursive `split_nl` generator, `pipe_a`/`pipe_b` helpers, `canon` for dedup key, `table("0")` sentinel workaround for missing `\E`/`/E`. Compiles clean; assembles fails on `M-IJ-STRING-RETVAL` VerifyError.
+
+- **`demo/scripten/inject_linkage.py`** — written; injects Prolog String-bridge methods into FamilyProlog.j, patches SNOBOL4 stub bodies with `invokestatic Family_prolog/...`, patches Icon stub bodies similarly. Untested pending string-retval fix.
+
+- **Milestone dashboard reordered:** Icon JVM + Prolog JVM promoted above all others. New milestones named: `M-IJ-STRING-RETVAL` (hard blocker), `M-IJ-NULL-TEST`, `M-IJ-BLOCK-BODY`, `M-PJ-ATOP`. `M-PJ-ASSERTZ` corrected to ✅; `M-PJ-RETRACT` confirmed as PJ-54 next.
+
+**Blocker discovered:** `M-IJ-STRING-RETVAL` — `icon_emit_jvm.c` emits `ldc "string"` → `putstatic icn_retval J` which is a JVM type mismatch (String ref ≠ long). All string-returning Icon procedures fail with VerifyError. This is the only remaining hard blocker for M-SCRIPTEN-DEMO.
+
+**Context window at handoff: ~62%.**
+
+**Next session (SD-1):**
+1. Fix `M-IJ-STRING-RETVAL` in `icon_emit_jvm.c` — string values route through `icn_retval_obj Ljava/lang/Object;`, not `icn_retval J`.
+2. Rebuild `icon_driver_jvm`, recompile `family_icon.icn`, confirm assembles + runs standalone.
+3. Run `inject_linkage.py /tmp/scripten_demo/`.
+4. Write `ScriptenFamily.j`, `scripten_split.py`, `run_demo.sh`, `family.expected`, `README.md`.
+5. `run_demo.sh` clean → commit `M-SCRIPTEN-DEMO ✅`.

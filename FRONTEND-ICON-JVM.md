@@ -187,7 +187,8 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
 | M-IJ-CORPUS-R22 | 114/114 PASS rungs 01–22 | ✅ |
 | **M-IJ-TABLE** | `table`, `t[k]`, `key/insert/delete/member` | ✅ |
 | **M-IJ-RECORD** | `record` decl, `r.field` access, record proc args | ✅ |
-| **M-IJ-NULL-TEST** | `\E` (non-null test) and `/E` (null/failure test) unary ops — Scripten dep | ❌ **NEXT** |
+| **M-IJ-STRING-RETVAL** | String procedure returns: `putstatic icn_retval J` VerifyError — hard Scripten dep | ❌ **NEXT** |
+| M-IJ-NULL-TEST | `\E` (non-null test) and `/E` (null/failure test) unary ops | ❌ |
 | **M-IJ-BLOCK-BODY** | `{ stmt; stmt }` compound body in `while`/`every`/`if` — Scripten dep | ❌ |
 | M-IJ-GLOBAL | `global` vars, `initial` clause | ❌ |
 | M-IJ-BUILTINS-STR | `repl/reverse/left/right/center/trim/map/char/ord` | ❌ |

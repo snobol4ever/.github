@@ -10,6 +10,57 @@ that the idea works end-to-end.
 
 ---
 
+## §NOW — Session State
+
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **Scripten Demo** | SD-0 — scaffold committed; blocked on Icon string-return bug | `a9de763` SD-0 | M-IJ-STRING-RETVAL → then M-SCRIPTEN-DEMO |
+
+### CRITICAL NEXT ACTION (SD-1)
+
+**Blocker: `M-IJ-STRING-RETVAL` — Icon JVM emitter stores string procedure returns via `putstatic icn_retval J` but `ldc "string"` pushes a String ref, causing JVM VerifyError.**
+
+**Root cause:** `ij_emit_str` in `icon_emit_jvm.c` emits `ldc "..."` then `goto ret_store` which does `putstatic icn_retval J`. String refs and longs are incompatible JVM types. Fix: string values must go through `icn_retval_obj` (`Ljava/lang/Object;`) with a parallel string-retval path, or the emitter must use `invokestatic` to pack the string into a long index.
+
+**Fix path (SD-1):**
+1. Fix `icon_emit_jvm.c` — string literals and string procedure returns use `putstatic icn_retval_obj` (not `icn_retval J`); callers read back via `getstatic icn_retval_obj` + `checkcast String`.
+2. Rebuild `/tmp/icon_driver_jvm` and confirm `write(get_str())` works.
+3. Recompile `demo/scripten/family_icon.icn` → `FamilyIcon.j` assembles + runs standalone with stub strings.
+4. Run `inject_linkage.py` on all three `.j` files.
+5. Write `ScriptenFamily.j` driver, `scripten_split.py`, `run_demo.sh`, `family.expected`.
+6. `run_demo.sh` clean → M-SCRIPTEN-DEMO ✅ fires.
+
+**Bootstrap SD-1:**
+```bash
+git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x/src && make -j4
+gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c \
+    src/frontend/icon/icon_lex.c src/frontend/icon/icon_parse.c \
+    src/frontend/icon/icon_ast.c src/frontend/icon/icon_emit.c \
+    src/frontend/icon/icon_emit_jvm.c src/frontend/icon/icon_runtime.c \
+    -o /tmp/icon_driver_jvm
+# Fix M-IJ-STRING-RETVAL in icon_emit_jvm.c
+# Then: compile all three demo blocks, run inject_linkage.py, assemble, run
+```
+
+**Files already done (commit a9de763):**
+- `demo/scripten/family.csv` ✅
+- `demo/scripten/family_snobol4.sno` ✅ — compiles + assembles clean
+- `demo/scripten/family_prolog.pro` ✅ — compiles + assembles clean (6923 lines)
+- `demo/scripten/family_icon.icn` ✅ — compiles; assembles fails on string-retval VerifyError
+- `demo/scripten/inject_linkage.py` ✅ — written; untested pending string-retval fix
+
+**Files still needed:**
+- `demo/scripten/scripten_split.py`
+- `demo/scripten/ScriptenFamily.j`
+- `demo/scripten/run_demo.sh`
+- `demo/scripten/family.expected`
+- `demo/scripten/README.md`
+
+---
+
 ## The Demo Program: Family Tree
 
 A CSV file of family data is read, parsed, stored relationally, and queried.
