@@ -2673,3 +2673,36 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 
 Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-57. Fix Stream A (parse gaps) first to maximize compile coverage, then Stream B (backend bugs) to get passes.
 
+
+---
+
+## SD-25 / SD-26 — SCRIP Demo M-SD-2 ✅ (wordcount)
+
+**Date:** 2026-03-26  
+**Branch:** `main` snobol4x + .github  
+**Commits:** `de04f48` (snobol4x), `9a7a2e7` (.github)
+
+### What fired
+- **M-SD-2 ✅** — wordcount: SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS (output: `9`)
+
+### Prolog JVM emitter fixes (prolog_emit_jvm.c)
+- `string_chars/2` → dispatches to `pj_atom_chars_2` (same semantics on JVM)
+- `string_codes/2` → dispatches to `pj_atom_codes_2`
+- `length/2` → new `pj_length_2` helper: walks cons list, counts cells, unifies N
+
+### Icon parser fixes (icon_parse.c)
+- `?` (scan) RHS: changed `parse_assign` → `parse_block_or_expr` so `s ? { ... }` parses correctly
+- Forward decl added for `parse_block_or_expr`
+- `while`/`until`/`every`/`repeat`/`if` stmts: `expect(TK_SEMICOL)` → `match(TK_SEMICOL)` — trailing `;` optional after block body
+
+### Icon JVM emitter fixes (icon_emit_jvm.c)
+- Keyword csets `&letters`, `&ucase`, `&lcase`, `&digits`, `&ascii`, `&cset` intercepted before `icn_gvar_` fallthrough; emitted as `ldc` String constants
+- **`upto` bug:** was prematurely doing `dup2/l2i/putstatic icn_pos` — removed. `upto` is a generator yielding 1-based positions; only `tab` advances `icn_pos`
+
+### SCRIP dialect rule (permanent)
+- SCRIP `.md` Icon blocks use **explicit semicolons**
+- `icon_semicolon` is a standalone end-user tool — **never run in the snobol4ever pipeline**
+- `run_demo.sh` Python `icon_add_semis` function removed; ICON-JVM source fed directly
+
+### Next
+M-SD-3 — roman numerals (table-driven goto vs `suspend` vs arithmetic rules)
