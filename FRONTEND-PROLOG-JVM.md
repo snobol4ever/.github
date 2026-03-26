@@ -19,22 +19,36 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-72 — M-PJ-DCG ✅ 5/5 rung30 | `4fbe5f1` PJ-72 | next TBD |
+| **Prolog JVM** | `main` PJ-72 — M-PJ-DCG ✅ 5/5 rung30 | `4fbe5f1` PJ-72 | M-PJ-SWI-BASELINE |
 
 ### CRITICAL NEXT ACTION (PJ-73)
 
-**M-PJ-DCG complete. snobol4x HEAD `4fbe5f1`. All 30 rungs passing.**
+**M-PJ-DCG complete. New milestone: M-PJ-SWI-BASELINE.**
 
-**PJ-72 landed:** Two-part fix for `phrase/N`:
-1. `pj_emit_body` ucall block: intercept `phrase/2,3` before building `p_phrase_N` descriptor; rewrite to NT/+2 so retry loop handles backtracking.
-2. `pj_call_goal` (findall path): add phrase handler; rewrites `phrase(NT,List[,Rest])` to `pj_reflect_call(NT, base+2, [nt_args..., list, rest_or_nil], cs)`. Three sub-bugs fixed: arity computed inline (local 5 unset at that point), `pj_term_atom("[]")` not bare string for nil rest, local 7 initialized to null on atom-NT path for JVM verifier. Also fixed t05_generate.pro test bug (`item --> [a]` defines item/2, not item/3; corrected to `item(X) --> [X]`).
+**What was done this session (post-PJ-72):**
+- Downloaded 18 SWI-Prolog `tests/core/` files (LGPL v2.1 / BSD-2) into `snobol4corpus/programs/prolog/swi_tests_core/`
+- Wrote `convert_plunit2.py` — strips plunit harness, emits standalone `.pro` with inline `pj_test_*` harness
+- Converted 14 files (~564 tests) into `snobol4corpus/programs/prolog/swi_tests_converted/`
+- Verified converted files load and run under SWI-Prolog
+- snobol4corpus HEAD: `384d9c1`
 
-**Next session:** Pick next milestone from PLAN.md Prolog JVM dashboard.
+**PJ-73 task: M-PJ-SWI-BASELINE**
+
+Run all 14 converted `.pro` files against our JVM backend, record pass/fail counts as the baseline. Expected: many failures (missing `?=/2`, `unifiable/3`, `trim_stacks/0`, cyclic terms, `freeze/2`, arity-0 compounds `f()`). Goal is just to establish the number.
+
+```bash
+cd snobol4x
+bash test/frontend/prolog/run_prolog_jvm_rung.sh \
+  ../snobol4corpus/programs/prolog/swi_tests_converted/
+```
+
+Record results in `SESSIONS_ARCHIVE.md` under PJ-73. Then define rung31 from the passing subset.
 
 **Bootstrap PJ-73:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4corpus
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 # Read §NOW above. Start at CRITICAL NEXT ACTION.
@@ -84,6 +98,8 @@ make -C snobol4x/src
 | **M-PJ-EXCEPTIONS** | `catch/3`, `throw/1` — ISO exception machinery; rung28 5/5 | ✅ |
 | **M-PJ-NUMBER-OPS** | `sqrt/sin/cos/tan/exp/log/atan/atan2/float/float_integer_part/float_fractional_part/pi/e`; `truncate/ceiling/floor/round` float→int; `gcd/2`; rung29 5/5 | ✅ |
 | **M-PJ-DCG** | DCG `-->` rules, `phrase/2,3`, `{}/1` inline goals, pushback notation; rung30 5/5 | ✅ |
+| **M-PJ-PLUNIT-SHIM** | SWI `tests/core/` converted to standalone `.pro` (564 tests); loads+runs under SWI | ✅ |
+| **M-PJ-SWI-BASELINE** | Run all 564 converted tests against JVM backend; record pass/fail baseline | ❌ |
 
 ---
 
