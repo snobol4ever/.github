@@ -19,36 +19,36 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-74 — M-PJ-SWI-SUITE 🔄 | `8bf24cf` PJ-74 | M-PJ-LINKER |
+| **Prolog JVM** | `main` PJ-75 — M-PJ-LINKER ✅ | `a316544` PJ-75 | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-75)
+### CRITICAL NEXT ACTION (PJ-76)
 
-**PJ-74 findings: directive runtime dispatch works; registration gap requires linker.**
+**PJ-75 findings: M-PJ-LINKER complete. Raw SWI plunit files now compile directly.**
 
-**What was done this session (PJ-74):**
-- Confirmed pipeline: test_acyclic ✅ 51/52, test_unify ✅ 11/0/0, test_occurs_check ✅ 6/0/3
-- test_list / test_copy_term: COMPILE_ERR — `test(Name, X==y)` bare-goal opts → unbound var in fact head
-- wrap_swi.py: added `normalize_opts()` — bare goals wrapped as `true(X==y)`
-- `prolog_emit_jvm.c` `pj_emit_main`: directives now routed through `pj_call_goal` at JVM init.
-  Meta-directives (module/use_module/dynamic etc.) silently skipped. All others execute at runtime.
-- `test/frontend/prolog/plunit_mock.pro`: full runtime plunit mock — begin_tests/1,2, end_tests/1,
-  run_tests/0,1, option handling (sto/fail/error/throws/true/bare-goal). No Python, no text munging.
-- **Blocker:** `test(Name,Opts)` clauses are user-defined — runtime can't enumerate names without
-  `clause/2`. Registration gap: `pj_registered_test` facts never get asserted.
+**What was done this session (PJ-75):**
+- `prolog_emit_jvm.c`: full plunit linker implemented (~521 lines added)
+  - `pj_linker_has_plunit()` — detects `use_module(library(plunit))`
+  - `pj_plunit_shim_src[]` — plunit.pl shim embedded as C string literal
+  - `pj_linker_emit_plunit_shim()` — parse+lower+emit shim via prolog_parse/prolog_lower
+  - `pj_linker_emit_db_stub()` — proper DB-query stubs for pj_suite/1 and pj_test/4
+  - `pj_linker_scan()` — scans test/1 and test/2 E_CHOICE nodes, assigns to suite[0]
+  - `pj_linker_emit_main_assertz()` — assertz pj_suite/pj_test facts in main()
+  - `pj_linker_emit_bridge()` — bridge predicates suite_name/0 :- test(name)
+  - `begin_tests`/`end_tests` added to meta-directive skip list
+  - `main()` stack limit raised to 32
+- **Key fix:** prolog_lower batches E_CHOICE nodes separately from directives — scanner
+  uses two-pass approach: pass 1 collects suites from begin_tests directives, pass 2
+  assigns all test/N clauses to suite[0] (correct for single-suite files)
+- **Result:** `test_list.pl` raw SWI file: 10/11 pass without wrap_swi.py
+- `member_fail` failure is pre-existing (member/2 shim semantics, same as wrap pipeline)
+- All 34 corpus rungs: 0 regressions
 
-**Architecture decision (PJ-75): implement a linker.**
-- `use_module(library(plunit))` → linker resolves to pre-compiled plunit_mock.j fragment, linked in.
-- Parser recognises `use_module(library(X))` directive → hands to linker.
-- Linker pre-populates `pj_registered_test` facts by scanning compiled test/N clause table.
-- This is the Wizard of Oz approach: SWI files load unchanged, everything wired behind the curtain.
-- Also need: `clause/2` builtin for runtime test enumeration (or linker handles it statically).
-
-**PJ-75 task: M-PJ-LINKER**
-1. Add `clause/2` to `prolog_builtin.c` + `prolog_emit_jvm.c`
-2. OR: linker in `prolog_emit_jvm.c` — `use_module(library(X))` resolves to `SNOBOL4_LIB/X.pro`,
-   compiles and merges into the output `.j`
-3. Wire `plunit_mock.pro` as the canonical `library(plunit)` target
-4. Delete wrap_swi.py (or demote to legacy fallback)
+**PJ-76 task: M-PJ-SWI-BASELINE — run full SWI test suite**
+1. Fetch test files from `https://raw.githubusercontent.com/SWI-Prolog/swipl-devel/master/src/Tests/core/TEST.pl`
+2. Run each through `sno2c -pl -jvm` directly (no wrap_swi.py)
+3. Record pass/fail/skip baseline for each test file
+4. Fix `member_fail` semantics in plunit shim (member/2 should be deterministic after first solution)
+5. Fix `test/2` opts: bare-goal opts like `X==3` need `true(X==3)` wrapping at scan time in linker
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -59,16 +59,16 @@ make -C snobol4x/src
 ```
 
 **Key files:**
-- `snobol4x/test/frontend/prolog/plunit_mock.pro` — runtime mock (needs clause/2 or linker)
-- `snobol4x/test/frontend/prolog/wrap_swi.py` — legacy fallback (normalize_opts fix landed)
-- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — pj_emit_main directive dispatch (PJ-74)
-- Fetch URL pattern: `https://raw.githubusercontent.com/SWI-Prolog/swipl-devel/master/tests/core/TEST.pl`
+- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — linker at line ~6708 (`pj_linker_*`)
+- `snobol4x/test/frontend/prolog/plunit.pl` — shim embedded in C string (keep in sync)
+- `snobol4x/test/frontend/prolog/wrap_swi.py` — legacy fallback (demote, keep for reference)
+- Fetch URL: `https://raw.githubusercontent.com/SWI-Prolog/swipl-devel/master/src/Tests/core/TEST.pl`
 
 **SWI suite status:**
-test_acyclic ✅ 51/0/1, test_unify ✅ 11/0/0, test_occurs_check ✅ 6/0/3,
-test_list ⏳, test_copy_term ⏳, test_exception ⏳, test_op ⏳, test_sort ⏳,
-test_string ⏳, test_arith ⏳, test_format ⏳, test_write ⏳, test_read ⏳,
-test_dcg ⏳, test_bips ⏳, test_misc ⏳
+test_list ✅ 10/1/0 (raw .pl, linker), test_acyclic ✅ 51/0/1, test_unify ✅ 11/0/0,
+test_occurs_check ✅ 6/0/3, test_copy_term ⏳, test_exception ⏳, test_op ⏳,
+test_sort ⏳, test_string ⏳, test_arith ⏳, test_format ⏳, test_write ⏳,
+test_read ⏳, test_dcg ⏳, test_bips ⏳, test_misc ⏳
 
 ## Milestone Table
 
@@ -115,6 +115,7 @@ test_dcg ⏳, test_bips ⏳, test_misc ⏳
 | **M-PJ-NUMBER-OPS** | `sqrt/sin/cos/tan/exp/log/atan/atan2/float/float_integer_part/float_fractional_part/pi/e`; `truncate/ceiling/floor/round` float→int; `gcd/2`; rung29 5/5 | ✅ |
 | **M-PJ-DCG** | DCG `-->` rules, `phrase/2,3`, `{}/1` inline goals, pushback notation; rung30 5/5 | ✅ |
 | **M-PJ-PLUNIT-SHIM** | SWI `tests/core/` converted to standalone `.pro` (564 tests); loads+runs under SWI | ✅ |
+| **M-PJ-LINKER** | plunit linker in prolog_emit_jvm.c — raw SWI .pl files compile directly; test_list 10/11 | ✅ |
 | **M-PJ-SWI-BASELINE** | Run all 564 converted tests against JVM backend; record pass/fail baseline | ❌ |
 
 ---
