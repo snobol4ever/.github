@@ -1972,3 +1972,17 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **Context window at handoff: ~40%.**
 
 **Next session (PJ-66):** M-PJ-TERM-STRING — `term_to_atom/2`, `term_string/2`, `with_output_to(string(S),Goal)`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+
+## PJ-66 — M-PJ-TERM-STRING ✅
+
+**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `a1163f4`.
+
+**Baseline entering:** 35/35 rung11–rung24 ✅. **Baseline at handoff:** 38/38 rung11–rung25 ✅.
+
+**M-PJ-TERM-STRING:** Added `pj_term_to_atom_2` JVM helper (calls `pj_term_str` → box atom → unify). Added dispatch for `term_to_atom/2` and `term_string/2` (both call same helper). Both forward-only (Term bound); reverse direction (atom→term parse) deferred — requires JVM-side Prolog parser. Created rung25_term_string with 3 tests. 3/3 PASS, 0 regressions.
+
+**Context window at handoff: ~49%.**
+
+**Next session (PJ-67):** M-PJ-COPY-TERM — `copy_term/2`. See FRONTEND-PROLOG-JVM.md §NOW.

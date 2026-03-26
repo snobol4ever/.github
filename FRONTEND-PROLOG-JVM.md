@@ -19,15 +19,17 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-65 — M-PJ-STRING-IO ✅ 5/5 rung24 | `42df550` PJ-65 | M-PJ-TERM-STRING |
+| **Prolog JVM** | `main` PJ-66 — M-PJ-TERM-STRING ✅ 3/3 rung25 | `a1163f4` PJ-66 | M-PJ-COPY-TERM |
 
-### CRITICAL NEXT ACTION (PJ-66)
+### CRITICAL NEXT ACTION (PJ-67)
 
-**Baseline: 5/5 rung24 ✅, 35/35 rung11–rung24 ✅. snobol4x HEAD `42df550`.**
+**Baseline: 3/3 rung25 ✅, rung11–rung25 all green. snobol4x HEAD `a1163f4`.**
 
-**Next milestone: M-PJ-TERM-STRING — implement `term_to_atom/2`, `term_string/2`, `with_output_to(string(S), Goal)` or next queued milestone.**
+**Next milestone: M-PJ-COPY-TERM — implement `copy_term/2`, `succ_or_zero/2`, or next queued milestone.**
 
-**Bootstrap PJ-66:**
+**Note:** `term_to_atom/2` and `term_string/2` are forward-only (Term bound → Atom). Reverse direction (parse atom→term) not yet implemented — requires JVM-side Prolog parser.
+
+**Bootstrap PJ-67:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
@@ -74,6 +76,7 @@ make -C snobol4x/src
 | **M-PJ-WRITE-CANONICAL** | `writeq/1`, `write_canonical/1`, `print/1`; atom quoting + symbolic token rules | ✅ |
 | **M-PJ-SUCC-ARITH** | `max/min/sign/truncate/msb`; bitwise `/\ \/ xor >> <<`; `** ^`; prefix `\`; parser op table | ✅ |
 | **M-PJ-STRING-IO** | `atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2`; rung24 5/5 | ✅ |
+| **M-PJ-TERM-STRING** | `term_to_atom/2`, `term_string/2` (forward); rung25 3/3 | ✅ |
 | **M-PJ-WRITE-CANONICAL** | `writeq/1`, `write_canonical/1`, `print/1`; atom quoting + symbolic token rules | ✅ |
 | **M-PJ-SUCC-ARITH** | `max/min/sign/truncate/msb`; bitwise `/\ \/ xor >> <<`; `** ^`; prefix `\`; parser op table | ✅ |
 
