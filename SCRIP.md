@@ -1,17 +1,17 @@
-# Scripten — Executive Planning Session
+# Scrip — Executive Planning Session
 ## From snobol4ever to a Universal Goal-Directed Evaluation Suite
 
 **Date:** 2026-03-25  
 **Author:** Claude Sonnet 4.6 (TINY co-author, third developer)  
 **Purpose:** Top-level planning session to frame the evolution from snobol4ever
-into Scripten — a unified, multi-language, multi-target Goal-Directed Evaluation platform.
+into Scrip — a unified, multi-language, multi-target Goal-Directed Evaluation platform.
 
 ---
 
 ## 1. The Playing Field: Where You Are Right Now
 
 Before looking forward, it is worth being precise about what already exists, because
-this project is substantially further along than the Scripten vision framing might suggest.
+this project is substantially further along than the Scrip vision framing might suggest.
 
 ### What Is Working Today (2026-03-25)
 
@@ -42,14 +42,14 @@ this project is substantially further along than the Scripten vision framing mig
 - Claude Sonnet 4.6 — TINY co-author, third developer, continuous pair programmer
 
 This is not a concept. It is a working compiler suite, in active daily sprint development,
-with thousands of tests and real benchmark numbers. Scripten is the name and vision for
+with thousands of tests and real benchmark numbers. Scrip is the name and vision for
 what it grows into.
 
 ---
 
-## 2. What Scripten Is
+## 2. What Scrip Is
 
-**Scripten** — Snobol4, SnoCone, REBUS, ICON, Prolog — TEN times faster.
+**Scrip** — Snobol4, SnoCone, REBUS, ICON, Prolog — TEN times faster.
 
 One integrated platform for Goal-Directed Evaluation (GDE) programming. The only system
 in existence that unifies:
@@ -62,7 +62,7 @@ in existence that unifies:
 All four paradigms share one execution model: the Byrd Box (α/β/γ/ω). This is not a
 lucky coincidence. Peter Byrd's 1980 box model for Prolog execution is the same
 four-state machine that underlies SNOBOL4 pattern matching, Icon generators, and
-recursive-descent parsing. Scripten makes this shared soul explicit and exploitable.
+recursive-descent parsing. Scrip makes this shared soul explicit and exploitable.
 
 **The name:**
 - S — SNOBOL4 / Snocone
@@ -72,16 +72,16 @@ recursive-descent parsing. Scripten makes this shared soul explicit and exploita
 - P — Prolog
 - TEN — ten times faster / ten times better
 
-The "TEN" lands like a punch. Say it aloud: *Scripten*. The number is not a visual
+The "TEN" lands like a punch. Say it aloud: *Scrip*. The number is not a visual
 trick requiring the reader to decode X=10 — it speaks itself. In Germanic languages
-*scripten* carries the root meaning "to script," making it feel like a tool someone
+*scrip* carries the root meaning "to script," making it feel like a tool someone
 reaches for rather than a brand someone generated.
 
 **Tagline:** *Write once. Run everywhere. Match anything.*
 
 ---
 
-## 3. The Three Levels of Scripten
+## 3. The Three Levels of Scrip
 
 ### Level 1 — The Current Level: Five Languages, Three Platforms
 
@@ -95,10 +95,10 @@ REBUS               planned         planned        planned
 Icon                ⏳              ✅ (17 rungs)  planned
 Prolog              ⏳              ✅ (19/20)     planned
 ──────────────────────────────────────────────────────────
-Scripten (polyglot)  future          future         future
+Scrip (polyglot)  future          future         future
 ```
 
-This yields **18 compiler/runtime combinations** (5 languages + 1 integrated Scripten
+This yields **18 compiler/runtime combinations** (5 languages + 1 integrated Scrip
 × 3 platforms). "Write once. Run everywhere" in the classical Java sense, but for
 the entire GDE language family.
 
@@ -134,11 +134,11 @@ how α/β/γ/ω ports map to native calling conventions for cross-language calls
 ### Level 3 — The Beyond Level: Polyglot Source Files
 
 Multiple languages coexist in the same source file, delimited by triple-backtick
-fencing (the Markdown convention). The file format is itself Markdown, making Scripten
+fencing (the Markdown convention). The file format is itself Markdown, making Scrip
 source files both human-readable documentation and executable programs.
 
 ```markdown
-# My Scripten program
+# My Scrip program
 
 ## The database (Prolog)
 
@@ -215,7 +215,7 @@ a significant PL theory contribution.
 
 ### iPython / Jupyter Notebooks
 
-Scripten as a Jupyter kernel is a natural fit. Each cell's language declaration maps
+Scrip as a Jupyter kernel is a natural fit. Each cell's language declaration maps
 to the triple-backtick fence model — Jupyter already uses this convention. The kernel
 would:
 
@@ -243,16 +243,16 @@ in PLAN.md is the first step.
 
 ### WASM Target
 
-A fourth backend: WebAssembly. Scripten in the browser. Pattern matching in JavaScript
+A fourth backend: WebAssembly. Scrip in the browser. Pattern matching in JavaScript
 contexts at native speed. The JVM backend serves as the design reference — the same
 tableswitch/static-field model translates to WASM's structured control flow.
 
 ---
 
-## 6. The Bootstrap Question: Scripten in Scripten
+## 6. The Bootstrap Question: Scrip in Scrip
 
-You originally planned a SNOBOL4 bootstrap compiler written in SNOBOL4. With Scripten,
-the natural evolution is a Scripten compiler written in Scripten — and the division of
+You originally planned a SNOBOL4 bootstrap compiler written in SNOBOL4. With Scrip,
+the natural evolution is a Scrip compiler written in Scrip — and the division of
 labor writes itself:
 
 ```
@@ -260,7 +260,7 @@ Parser (Snocone):      Tokenize and parse all five language surfaces
 Symbol table (Prolog): Maintain scope, type, and binding information
 IR lowering (Icon):    Walk AST, emit Byrd IR, drive backend selection
 Code generation (SNOBOL4): Legacy-compatible output, C/ASM emission
-Integration (Scripten): The meta-level that ties the compiler itself together
+Integration (Scrip): The meta-level that ties the compiler itself together
 ```
 
 The compiler self-describes its own structure using the same linguistic division
@@ -270,7 +270,7 @@ it enforces in user programs. This is the Forth move: the system parses itself.
 the TINY backend) is the first concrete step on this path. A program that reads and
 writes itself using the pattern engine that will eventually compile the compiler.
 
-**Strategic advice:** Do not attempt the full self-hosting Scripten bootstrap until
+**Strategic advice:** Do not attempt the full self-hosting Scrip bootstrap until
 the fenced polyglot model is working end-to-end for at least two languages. The
 bootstrap is Phase 4. Phases 1–3 are what make it possible.
 
@@ -278,7 +278,7 @@ bootstrap is Phase 4. Phases 1–3 are what make it possible.
 
 ## 7. The Name and Positioning
 
-**Scripten** is the right name. Here is why:
+**Scrip** is the right name. Here is why:
 
 1. It encodes the language family (S/C/R/I/P) — immediately tells an expert what it is
 2. The X signals "10×" and "eXtensible" and the unknown-variable quality — mathematical confidence
@@ -306,10 +306,10 @@ The request is for a top-level planning session that produces deeper planning se
 Here is the recommended sequence:
 
 ### Session A — "The 18-Cell Matrix" (infrastructure planning)
-Define the complete 5×3+1 product matrix (5 frontend languages, 3 backends, plus Scripten
+Define the complete 5×3+1 product matrix (5 frontend languages, 3 backends, plus Scrip
 integrated). For each cell: current state, prerequisite milestones, target milestone,
 estimated session depth, inter-cell dependencies. Output: a dependency graph of all
-18 cells, with a critical path to first Scripten-fenced polyglot file.
+18 cells, with a critical path to first Scrip-fenced polyglot file.
 
 ### Session B — "The ABI / Cross-Language Calling Convention"
 This is the technical lynchpin. Before Level 2 (cross-language assemblies) can work,
@@ -324,10 +324,10 @@ parser dispatch, shared symbol table fed by all blocks, IR lowering that treats 
 block's output as a module in a shared assembly. Output: POLYGLOT.md specification
 and sprint plan for the first two-language fenced file that compiles and runs.
 
-### Session D — "The Scripten Bootstrap Sequence"
-Once polyglot files exist: design the Scripten-in-Scripten compiler. Which parts
+### Session D — "The Scrip Bootstrap Sequence"
+Once polyglot files exist: design the Scrip-in-Scrip compiler. Which parts
 go in which language, how the compiler represents its own internals, what the
-self-hosting milestone looks like. Output: BOOTSTRAP-Scripten.md with the three-phase
+self-hosting milestone looks like. Output: BOOTSTRAP-Scrip.md with the three-phase
 plan (interpreter → partial compiler → self-hosting).
 
 ### Session E — "Jupyter Integration Sprint"
@@ -352,13 +352,13 @@ calling convention, targeting three production backends.
 
 **The performance argument:**
 10–33× faster than PCRE2 JIT on patterns. 14–15× faster than Bison LALR(1) on
-context-free grammars. And unlike every other competitor, Scripten has no ceiling —
+context-free grammars. And unlike every other competitor, Scrip has no ceiling —
 it handles context-sensitive and Turing-complete grammars that no regex or parser
 generator can touch. This is not incremental improvement. It is a different tier.
 
 **The "write once, run everywhere" argument:**
 18 compiler/runtime combinations. JVM and .NET are the two dominant managed platforms.
-x86-64 native covers bare-metal and systems programming. Any Scripten program runs
+x86-64 native covers bare-metal and systems programming. Any Scrip program runs
 on all three without modification. This matches or exceeds the Java promise, for
 a language family that Java never served.
 
@@ -367,7 +367,7 @@ Two people — one with sixty years of waiting to build something like this, one
 spent fifty years building SNOBOL4 implementations out of pure love — found each
 other. The technical quality of what already exists (over 3,500 passing tests,
 real benchmark numbers, five frontends, three backends) is the direct product of
-that kind of commitment. Scripten is the shape that commitment is growing into.
+that kind of commitment. Scrip is the shape that commitment is growing into.
 
 ---
 
@@ -375,16 +375,16 @@ that kind of commitment. Scripten is the shape that commitment is growing into.
 
 Before the deeper planning sessions, three things to do:
 
-1. **Add a `Scripten.md` to `.github/`** — the top-level Scripten vision document,
-   distinct from PLAN.md. This is the document that explains what Scripten *is*
+1. **Add a `Scrip.md` to `.github/`** — the top-level Scrip vision document,
+   distinct from PLAN.md. This is the document that explains what Scrip *is*
    to someone who doesn't know the project history. The name, the claim, the
    language family, the platform targets, the polyglot model. 400 lines max.
    Written for the outside world, not the internal team.
 
-2. **Add `Scripten` to the NOW table** as a parallel track row in PLAN.md —
+2. **Add `Scrip` to the NOW table** as a parallel track row in PLAN.md —
    tracking the polyglot and integration work separately from the existing
    per-language sprints. This keeps the current sprint discipline intact while
-   giving the Scripten-level work its own milestone chain.
+   giving the Scrip-level work its own milestone chain.
 
 3. **Fire M-BEAUTIFY-BOOTSTRAP (TINY ASM track) and M-PJ-CUT-UCALL (Prolog JVM)**
    — these are the two NEXT milestones in PLAN.md and clearing them keeps the

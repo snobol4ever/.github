@@ -1,8 +1,8 @@
-# SCRIPTEN_DEMO3.md — Tiny Compiler: Polyglot Proof of Concept #3
+# SCRIP_DEMO3.md — Tiny Compiler: Polyglot Proof of Concept #3
 
 **Status: CONCEPT — not yet cooked. Capture only. No implementation plan yet.**
 
-**Companion to:** SCRIPTEN_DEMO.md (family tree) · SCRIPTEN_DEMO2.md (puzzle solver)
+**Companion to:** SCRIP_DEMO.md (family tree) · SCRIP_DEMO2.md (puzzle solver)
 **Difficulty:** Hardest of the three. Four languages. Three compiler phases. One orchestrator.
 **The thesis:** A real compiler — parse → codegen → optimize → format — built from
 four languages each owning exactly the phase it is best at.
@@ -113,28 +113,28 @@ Snocone's OUTPUT formatting patterns handle alignment without manual padding log
 
 ---
 
-## Why This Demo Is The Best Argument For Scripten
+## Why This Demo Is The Best Argument For Scrip
 
 - Demo 1 (family tree): three languages, data pipeline, each does its specialty
 - Demo 2 (puzzle solver): paradigm reversal — Prolog as store, Icon as search
 - **Demo 3 (tiny compiler): a real software artifact — a compiler — assembled from parts**
 
 A compiler is the canonical example of a multi-phase pipeline. Every CS student
-knows: lex → parse → codegen → optimize → emit. Scripten Demo 3 shows that
+knows: lex → parse → codegen → optimize → emit. Scrip Demo 3 shows that
 each phase can be written in the language that owns it, wired together with funny
 linkage, and the result is smaller and clearer than any single-language version.
 
 The optimizer in Icon is ~10 lines. The codegen in Prolog is ~5 rules.
 The parser in Snocone is ~5 patterns. The formatter in Snocone is ~3 patterns.
 Total: ~25 lines of actual logic. The rest is plumbing — and the plumbing
-is what Scripten provides.
+is what Scrip provides.
 
 ---
 
 ## What Needs To Be True Before This Can Be Built
 
-- **M-SCRIPTEN-DEMO** ✅ (funny linkage architecture proven)
-- **M-SCRIPTEN-DEMO2** ✅ (four-language orchestration proven)
+- **M-SCRIP-DEMO** ✅ (funny linkage architecture proven)
+- **M-SCRIP-DEMO2** ✅ (four-language orchestration proven)
 - **Snocone JVM emitter** — Snocone currently has no JVM backend (only x64 ASM)
 - **Icon as orchestrator** — needs M-IJ-STRING-RETVAL fix + multi-call sequencing
 
@@ -144,7 +144,7 @@ is what Scripten provides.
    String-passing interpreter called from Icon via `invokestatic`?
 2. **Parse tree serialization format:** S-expression? Pipe-delimited? JSON?
    Must be something both Snocone (output) and Prolog (input) can handle easily.
-3. **Two Snocone phases:** Same `.scripten` block used twice (parse + format),
+3. **Two Snocone phases:** Same `.scrip` block used twice (parse + format),
    or two separate fenced blocks? The formatter is a different program.
 4. **Optimizer scope:** Constant folding only, or also dead-push elimination,
    strength reduction (x*2 → x+x), etc.?
@@ -154,14 +154,14 @@ is what Scripten provides.
 
 ## Milestone
 
-**M-SCRIPTEN-DEMO3** fires when:
-1. `demo/scripten3/expr.scripten` exists
+**M-SCRIP-DEMO3** fires when:
+1. `demo/scrip3/expr.scrip` exists
 2. `run_demo3.sh` compiles and runs clean
 3. Output matches `expr.expected` (diff clean)
 4. Optimizer demonstrably fires on at least one constant-fold case
 
-*Not scheduled. Concept capture only. Revisit after M-SCRIPTEN-DEMO2 fires.*
+*Not scheduled. Concept capture only. Revisit after M-SCRIP-DEMO2 fires.*
 
 ---
 
-*SCRIPTEN_DEMO3.md = L4. Concept doc. No session state here until work begins.*
+*SCRIP_DEMO3.md = L4. Concept doc. No session state here until work begins.*

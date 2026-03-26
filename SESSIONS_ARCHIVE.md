@@ -966,34 +966,34 @@ END
 
 ---
 
-## Scripten Planning Session — 2026-03-25
+## Scrip Planning Session — 2026-03-25
 
 **Session type:** Strategic planning / HQ documentation
 **Branch:** main
-**HEAD at start:** `bf0527a` (SCRIPTEN.md initial)
+**HEAD at start:** `bf0527a` (SCRIP.md initial)
 **HEAD at end:** `e2200e6`
 
 **Work done:**
 
-1. **SCRIPTEN.md** — Top-level vision document for Scripten (formerly SCRIPTX).
-   Named the platform: **Scripten** — S/C/R/I/P + TEN (ten times faster, ten times
-   better). File name uppercase per convention (`SCRIPTEN.md`), product name natural
+1. **SCRIP.md** — Top-level vision document for Scrip (formerly SCRIPTX).
+   Named the platform: **Scrip** — S/C/R/I/P + TEN (ten times faster, ten times
+   better). File name uppercase per convention (`SCRIP.md`), product name natural
    case. Covers: current state (18 compiler/runtime combinations, 3500+ tests),
    three levels (matrix, cross-language assemblies, polyglot fenced files), five
    deeper planning sessions (Matrix, ABI, Polyglot Parser, Bootstrap, Jupyter),
    immediate next actions.
 
-2. **SCRIPTEN_DEMO.md** — Demo #1: Family Tree polyglot proof of concept.
-   Three languages, one fenced `.scripten` source file, funny linkage via JVM
+2. **SCRIP_DEMO.md** — Demo #1: Family Tree polyglot proof of concept.
+   Three languages, one fenced `.scrip` source file, funny linkage via JVM
    invokestatic. SNOBOL4: 4 named patterns, one-pass CSV consumer, assertz per row.
    Prolog: dynamic facts + relational inference (grandparent/2, ancestor/2,
    sibling/2, cousin/2, generation/2). Icon: generator pipelines over Prolog
    solution sets using `every`. One new compiler change: ~20 lines in
    `icon_emit_jvm.c` to detect `Lang.method()` dot syntax and emit cross-class
    invokestatic. Everything else: Python glue scripts + hand-edited Jasmin stubs.
-   Milestone: M-SCRIPTEN-DEMO.
+   Milestone: M-SCRIP-DEMO.
 
-3. **SCRIPTEN_DEMO2.md** — Demo #2: Puzzle Solver. The paradigm inversion demo.
+3. **SCRIP_DEMO2.md** — Demo #2: Puzzle Solver. The paradigm inversion demo.
    Prolog does NOT search — Icon searches. SNOBOL4 reads puzzle definition in
    S-expression format using reduced treebank `group()` technique (3 functions
    instead of 5: do_push_list, do_push_item, do_pop_assert). `do_pop_assert`
@@ -1002,21 +1002,21 @@ END
    dynamic facts, answers one-hop `valid_assign/2` constraint queries only.
    Icon does combinatorial search via recursive `suspend` generator (`try_assign`)
    with Prolog as the constraint oracle. Uses M-IJ-CORPUS-R3 suspend (already ✅).
-   Puzzles 1–5 from existing Prolog corpus. Milestone: M-SCRIPTEN-DEMO2.
+   Puzzles 1–5 from existing Prolog corpus. Milestone: M-SCRIP-DEMO2.
 
 **Milestones fired:** none (planning session only)
 
-**PLAN.md:** No NOW row added — Scripten is a new track, row to be added when
-M-SCRIPTEN-DEMO sprint begins.
+**PLAN.md:** No NOW row added — Scrip is a new track, row to be added when
+M-SCRIP-DEMO sprint begins.
 
 **HEAD at handoff:** `e2200e6` on origin/main
-**Next:** Begin M-SCRIPTEN-DEMO sprint — build `scripten_split.py`, compile
-three blocks of `family.scripten` independently, inject funny linkage.
-Then M-SCRIPTEN-DEMO2 immediately after.
+**Next:** Begin M-SCRIP-DEMO sprint — build `scrip_split.py`, compile
+three blocks of `family.scrip` independently, inject funny linkage.
+Then M-SCRIP-DEMO2 immediately after.
 
 ---
 
-## Scripten Planning Session 2 — 2026-03-25
+## Scrip Planning Session 2 — 2026-03-25
 
 **Session type:** Strategic planning / HQ documentation
 **Branch:** main
@@ -1059,7 +1059,7 @@ then M-PJ-FINDALL as first enhancement sprint.
 
 ---
 
-## Scripten Planning Session 3 — 2026-03-25
+## Scrip Planning Session 3 — 2026-03-25
 
 **Session type:** Strategic planning / HQ documentation
 **Branch:** main
@@ -1218,9 +1218,9 @@ G-2: Fixed invariants — removed snobol4dotnet 1903/1903 from reorg scope. Corr
 
 G-3: Added Phase 8 — grammar-driven exhaustive test generation. 4 design-decision milestones (M-G8-HOME, M-G8-DEPTH, M-G8-ORACLE, M-G8-GRAMMAR) must produce doc/GEN_*.md decision records before any code. 11 implementation milestones follow. Key insight: IR-tree enumeration bypasses parser, tests emitters directly, exhaustive coverage to N=25 tokens via differential oracle (CSNOBOL4+SPITBOL agree = correct). Integrates with existing 5-way Monitor — no new infra needed.
 
-G-4: Added SD (Scripten Demo) session type. M-SCRIPTEN-DEMO (family tree: SNOBOL4+Prolog+Icon JVM funny linkage) and M-SCRIPTEN-DEMO2 (puzzle solver: suspend search + Prolog constraints) added to PLAN.md. Trigger phrase: "playing with Scripten demo". Full specs already exist in SCRIPTEN_DEMO.md and SCRIPTEN_DEMO2.md (L4).
+G-4: Added SD (Scrip Demo) session type. M-SCRIP-DEMO (family tree: SNOBOL4+Prolog+Icon JVM funny linkage) and M-SCRIP-DEMO2 (puzzle solver: suspend search + Prolog constraints) added to PLAN.md. Trigger phrase: "playing with Scrip demo". Full specs already exist in SCRIP_DEMO.md and SCRIP_DEMO2.md (L4).
 
-G-5: Introduced five-level doc hierarchy to fix session bloat/confusion problem. L3=invariant (RULES.md+ARCH.md, read every session), L4=pipeline or topic (read ONLY your one file), L5=archive (never read at session start). RULES.md now has explicit session-start protocol. PLAN.md doc index updated with Level + "Read when" columns. Phase 8 collapsed to 1 summary row in PLAN.md. Scripten Demo prose trimmed.
+G-5: Introduced five-level doc hierarchy to fix session bloat/confusion problem. L3=invariant (RULES.md+ARCH.md, read every session), L4=pipeline or topic (read ONLY your one file), L5=archive (never read at session start). RULES.md now has explicit session-start protocol. PLAN.md doc index updated with Level + "Read when" columns. Phase 8 collapsed to 1 summary row in PLAN.md. Scrip Demo prose trimmed.
 
 **THE UNFINISHED WORK — critical for next G-session:**
 
@@ -1262,7 +1262,7 @@ The five-level hierarchy is defined but NOT YET ENFORCED by the doc structure. T
 
 **What is still NOT done (next G-session mandate):**
 
-- PLAN.md is 5KB, still above the 3KB target. The NOW table alone is ~1.5KB for 12 rows. To hit 3KB hard, either: (a) accept 5KB as the practical floor for this project's complexity, or (b) move DOTNET/README/Scripten rows to a PLAN-INACTIVE.md stub and only show rows with work in the last 2 sessions.
+- PLAN.md is 5KB, still above the 3KB target. The NOW table alone is ~1.5KB for 12 rows. To hit 3KB hard, either: (a) accept 5KB as the practical floor for this project's complexity, or (b) move DOTNET/README/Scrip rows to a PLAN-INACTIVE.md stub and only show rows with work in the last 2 sessions.
 
 - L4 docs still lack explicit `§BUILD` and `§TEST` sections with the 3 commands. Sessions still have to grep for build commands. This is the G-5 mandate that was NOT done in G-6.
 
@@ -1637,39 +1637,39 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 
 **Next session (PJ-54):** M-PJ-RETRACT — implement `retract/1`, create rung14 corpus (5 tests), get 5/5 rung14. See FRONTEND-PROLOG-JVM.md §NOW for full plan.
 
-## SD-0 — Scripten Demo scaffold
+## SD-0 — Scrip Demo scaffold
 
 **HEAD start:** — (fresh session) → **HEAD end:** `a9de763`
 **Date:** 2026-03-25
 
-**Goal:** M-SCRIPTEN-DEMO — polyglot SNOBOL4+Icon+Prolog family-tree demo on JVM.
+**Goal:** M-SCRIP-DEMO — polyglot SNOBOL4+Icon+Prolog family-tree demo on JVM.
 
 **Work done:**
 
 - **Environment bootstrapped:** `sno2c` compiled from source (`src/make -j4`), `sno2c_jvm` symlink created, `icon_driver_jvm` built from `icon_emit_jvm.c`, JVM pipeline smoke-tested end-to-end (`hello JVM` ✅, `1 to 5` via Icon ✅).
 
-- **`demo/scripten/family.csv`** — 9-row family tree input (Eleanor/George roots through James/Sophie generation 3).
+- **`demo/scrip/family.csv`** — 9-row family tree input (Eleanor/George roots through James/Sophie generation 3).
 
-- **`demo/scripten/family_snobol4.sno`** — SNOBOL4 CSV parser. Uses 5 named structural patterns (PAT_NAME/PAT_UID/PAT_YEAR/PAT_GENDER/PAT_ROW). DEFINE stubs for PROLOG_ASSERT_PERSON/PROLOG_ASSERT_PARENT/SCRIPTEN_INIT. Compiles + assembles clean → `Family_snobol4.class`.
+- **`demo/scrip/family_snobol4.sno`** — SNOBOL4 CSV parser. Uses 5 named structural patterns (PAT_NAME/PAT_UID/PAT_YEAR/PAT_GENDER/PAT_ROW). DEFINE stubs for PROLOG_ASSERT_PERSON/PROLOG_ASSERT_PARENT/SCRIP_INIT. Compiles + assembles clean → `Family_snobol4.class`.
 
-- **`demo/scripten/family_prolog.pro`** — Prolog relational engine. Inference rules: grandparent/2, ancestor/2, sibling/2, cousin/2, generation/2. Query entry points: query_count/1, query_grandparents/1, query_siblings/1, query_cousins/1, query_generations/1, query_ancestors/2. Pipe-delimited output for Icon parsing. Workarounds: no `:- dynamic` (not supported), no `@<` in rule bodies (not in parser operator table → wrapper rules used). Compiles clean → 6923 lines; assembles → `Family_prolog.class`.
+- **`demo/scrip/family_prolog.pro`** — Prolog relational engine. Inference rules: grandparent/2, ancestor/2, sibling/2, cousin/2, generation/2. Query entry points: query_count/1, query_grandparents/1, query_siblings/1, query_cousins/1, query_generations/1, query_ancestors/2. Pipe-delimited output for Icon parsing. Workarounds: no `:- dynamic` (not supported), no `@<` in rule bodies (not in parser operator table → wrapper rules used). Compiles clean → 6923 lines; assembles → `Family_prolog.class`.
 
-- **`demo/scripten/family_icon.icn`** — Icon report generator. Recursive `split_nl` generator, `pipe_a`/`pipe_b` helpers, `canon` for dedup key, `table("0")` sentinel workaround for missing `\E`/`/E`. Compiles clean; assembles fails on `M-IJ-STRING-RETVAL` VerifyError.
+- **`demo/scrip/family_icon.icn`** — Icon report generator. Recursive `split_nl` generator, `pipe_a`/`pipe_b` helpers, `canon` for dedup key, `table("0")` sentinel workaround for missing `\E`/`/E`. Compiles clean; assembles fails on `M-IJ-STRING-RETVAL` VerifyError.
 
-- **`demo/scripten/inject_linkage.py`** — written; injects Prolog String-bridge methods into FamilyProlog.j, patches SNOBOL4 stub bodies with `invokestatic Family_prolog/...`, patches Icon stub bodies similarly. Untested pending string-retval fix.
+- **`demo/scrip/inject_linkage.py`** — written; injects Prolog String-bridge methods into FamilyProlog.j, patches SNOBOL4 stub bodies with `invokestatic Family_prolog/...`, patches Icon stub bodies similarly. Untested pending string-retval fix.
 
 - **Milestone dashboard reordered:** Icon JVM + Prolog JVM promoted above all others. New milestones named: `M-IJ-STRING-RETVAL` (hard blocker), `M-IJ-NULL-TEST`, `M-IJ-BLOCK-BODY`, `M-PJ-ATOP`. `M-PJ-ASSERTZ` corrected to ✅; `M-PJ-RETRACT` confirmed as PJ-54 next.
 
-**Blocker discovered:** `M-IJ-STRING-RETVAL` — `icon_emit_jvm.c` emits `ldc "string"` → `putstatic icn_retval J` which is a JVM type mismatch (String ref ≠ long). All string-returning Icon procedures fail with VerifyError. This is the only remaining hard blocker for M-SCRIPTEN-DEMO.
+**Blocker discovered:** `M-IJ-STRING-RETVAL` — `icon_emit_jvm.c` emits `ldc "string"` → `putstatic icn_retval J` which is a JVM type mismatch (String ref ≠ long). All string-returning Icon procedures fail with VerifyError. This is the only remaining hard blocker for M-SCRIP-DEMO.
 
 **Context window at handoff: ~62%.**
 
 **Next session (SD-1):**
 1. Fix `M-IJ-STRING-RETVAL` in `icon_emit_jvm.c` — string values route through `icn_retval_obj Ljava/lang/Object;`, not `icn_retval J`.
 2. Rebuild `icon_driver_jvm`, recompile `family_icon.icn`, confirm assembles + runs standalone.
-3. Run `inject_linkage.py /tmp/scripten_demo/`.
-4. Write `ScriptenFamily.j`, `scripten_split.py`, `run_demo.sh`, `family.expected`, `README.md`.
-5. `run_demo.sh` clean → commit `M-SCRIPTEN-DEMO ✅`.
+3. Run `inject_linkage.py /tmp/scrip_demo/`.
+4. Write `ScripFamily.j`, `scrip_split.py`, `run_demo.sh`, `family.expected`, `README.md`.
+5. `run_demo.sh` clean → commit `M-SCRIP-DEMO ✅`.
 
 ## PJ-54 — M-PJ-RETRACT ✅ — 2026-03-25
 
@@ -1708,18 +1708,18 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
   - New `.field public static icn_retval_str Ljava/lang/String;` emitted in class header
   - **Rungs 22/23/24: 15/15 PASS** — no regressions
 
-- **`demo/scripten/ScriptenFamily.j`** written — hand-written Jasmin driver invoking SNOBOL4 main then Icon icn_main
+- **`demo/scrip/ScripFamily.j`** written — hand-written Jasmin driver invoking SNOBOL4 main then Icon icn_main
 
 - **`inject_linkage.py`** updated: all stubs use `icn_retval_str`; ancestors stub hardcodes `"U008"` arg
 
 - **`family_icon.icn`** rewritten multiple times; current version uses `while i <= n do (expr | 1)` pattern — compiles and assembles but hits JVM VerifyError at runtime: `icn_main: Expecting to find long on stack`. Root cause: `| 1` at merge point leaves String on one branch, int `1` on other — JVM verifier rejects.
 
-- **SCRIPTEN_DEMO3.md** created — concept doc for tiny compiler demo (Snocone parse → Prolog codegen → Icon optimize+orchestrate → Snocone format). Marked concept-only, not scheduled.
+- **SCRIP_DEMO3.md** created — concept doc for tiny compiler demo (Snocone parse → Prolog codegen → Icon optimize+orchestrate → Snocone format). Marked concept-only, not scheduled.
 
 **Context window at handoff: ~91%.**
 
 **Next session (SD-1) — one action to unblock:**
-Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (long-typed no-op assignment), or restructure without `|` fallthrough. Then: recompile → re-inject → reassemble → run → get output → write `family.expected` → write `run_demo.sh` + `scripten_split.py` + `README.md` → commit `M-SCRIPTEN-DEMO ✅`.
+Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (long-typed no-op assignment), or restructure without `|` fallthrough. Then: recompile → re-inject → reassemble → run → get output → write `family.expected` → write `run_demo.sh` + `scrip_split.py` + `README.md` → commit `M-SCRIP-DEMO ✅`.
 
 ---
 
@@ -1810,7 +1810,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 **HEAD start:** `8ec4bac` (SD-0) → **HEAD end:** `c6ef225`
 **Date:** 2026-03-25
 
-**Goal:** Unblock M-SCRIPTEN-DEMO by fixing JVM VerifyError chain in `family_icon.icn` pipeline.
+**Goal:** Unblock M-SCRIP-DEMO by fixing JVM VerifyError chain in `family_icon.icn` pipeline.
 
 **Work done:**
 
@@ -1818,7 +1818,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 - **`family_icon.icn` `| 1` fix:** Replaced all `| 1` fallthrough no-ops with `| (i := i)` (long-typed). This was the originally documented blocker from SD-0.
 
-- **Pipeline to assembly ✅:** All four classes (`Family_prolog.class`, `Family_snobol4.class`, `Family_icon.class`, `ScriptenFamily.class`) assemble clean with Jasmin.
+- **Pipeline to assembly ✅:** All four classes (`Family_prolog.class`, `Family_snobol4.class`, `Family_icon.class`, `ScripFamily.class`) assemble clean with Jasmin.
 
 - **ICN_ALT stack normalization in `icon_emit_jvm.c`:**
   - Root cause diagnosed: `(write(...) | (i := i))` inside AND chain → `write()` leaves String ref (1 slot), `(i := i)` leaves long (2 slots). Both paths converge at same AND trampoline label → JVM type-inference verifier rejects.
@@ -1833,10 +1833,10 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 **Next session (SD-2):**
 1. Fix register-pair VerifyError: in `ij_emit_cmp` or method-header emit, zero-init all local slots used as relay temporaries at method entry.
-2. Verify `java ScriptenFamily < family.csv` produces output (even stub output — linkage stubs return empty strings).
+2. Verify `java ScripFamily < family.csv` produces output (even stub output — linkage stubs return empty strings).
 3. Wire real linkage: `inject_linkage.py` stubs need actual `invokestatic` to Prolog entry points — verify the injected `.j` files contain real calls not just `return ""`.
-4. Get `family.expected` output, write `scripten_split.py`, `run_demo.sh`, `README.md`.
-5. `run_demo.sh` clean → commit `SD-2: M-SCRIPTEN-DEMO ✅`.
+4. Get `family.expected` output, write `scrip_split.py`, `run_demo.sh`, `README.md`.
+5. `run_demo.sh` clean → commit `SD-2: M-SCRIP-DEMO ✅`.
 ---
 
 ## PJ-58 — M-PJ-SUCC-PLUS
@@ -1859,9 +1859,9 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 ## SD-2 — 2026-03-26
 
-**HEAD start:** `c6ef225` (SD-1) → **HEAD end:** `a5f01c8` (WIP, not M-SCRIPTEN-DEMO)
+**HEAD start:** `c6ef225` (SD-1) → **HEAD end:** `a5f01c8` (WIP, not M-SCRIP-DEMO)
 
-**Goal:** Fix VerifyError blocking `java ScriptenFamily < family.csv`.
+**Goal:** Fix VerifyError blocking `java ScripFamily < family.csv`.
 
 **Work done:**
 
@@ -1886,8 +1886,8 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 1. `javap -c -p Family_icon.class` — find exact byte offset of stack error in `icn_main`
 2. Cross-reference to `.j` label — identify which relay/relay-join has wrong stack type
 3. Fix in `icon_emit_jvm.c` (likely `ij_emit_section` lo/hi relay, or a sec→cmp hand-off)
-4. Rebuild → run → if clean: write `family.expected`, `scripten_split.py`, `run_demo.sh`, `README.md`
-5. `run_demo.sh` diff clean → commit `SD-3: M-SCRIPTEN-DEMO ✅` → update NOW table in PLAN.md
+4. Rebuild → run → if clean: write `family.expected`, `scrip_split.py`, `run_demo.sh`, `README.md`
+5. `run_demo.sh` diff clean → commit `SD-3: M-SCRIP-DEMO ✅` → update NOW table in PLAN.md
 
 ---
 
@@ -1921,7 +1921,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 ---
 
-## SD-2 (Scripten Demo) — Session 2026-03-26
+## SD-2 (Scrip Demo) — Session 2026-03-26
 
 **Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at start:** `a5f01c8`.
 
@@ -1949,10 +1949,10 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 **Context window at handoff: ~77%.**
 
-**Next session (SD-3):** Fix remaining 8 stack-height conflicts. Key insight: the ICN_EVERY β-tableswitch resume path enters the ICN_AND chain's α port at a different stack depth than the normal entry. Fix: in `ij_emit_every`, ensure the β-resume dispatch drains any stale stack before re-entering the generator's α. See `SCRIPTEN_DEMO.md` §NOW for details.
+**Next session (SD-3):** Fix remaining 8 stack-height conflicts. Key insight: the ICN_EVERY β-tableswitch resume path enters the ICN_AND chain's α port at a different stack depth than the normal entry. Fix: in `ij_emit_every`, ensure the β-resume dispatch drains any stale stack before re-entering the generator's α. See `SCRIP_DEMO.md` §NOW for details.
 ---
 
-## SD-2 (Scripten Demo) — Session 2026-03-26
+## SD-2 (Scrip Demo) — Session 2026-03-26
 
 **Date:** 2026-03-26. **HEAD at start:** `a5f01c8` (snobol4x).
 
@@ -2165,13 +2165,13 @@ rung33: **5/5 PASS**. Baseline: 121/121.
 **VerifyError root cause confirmed:**  
 Contiguous AND relay labels with mixed J/String stack types. The v45 type-inference verifier merges stack states at `rg_N+1` from both the explicit `goto rg_N+1` path (correct type) AND the bytecode fall-through from `rg_N` (different type). Result: Object inferred → `putstatic J` fails with "Expecting to find long on stack."
 
-**Fix for SD-5:** In `ij_emit_and` relay-trampoline loop, place relay bodies only reachable via explicit gotos — emit `goto ca2` (AND alpha) before the relay block so fall-through from normal code can't reach any relay label directly. See SCRIPTEN_DEMO.md §NOW SD-5 Option C.
+**Fix for SD-5:** In `ij_emit_and` relay-trampoline loop, place relay bodies only reachable via explicit gotos — emit `goto ca2` (AND alpha) before the relay block so fall-through from normal code can't reach any relay label directly. See SCRIP_DEMO.md §NOW SD-5 Option C.
 
 **Score:** rung28–30 15/15 PASS ✅ (invariant maintained). family_icon.icn still VerifyError — ✗.
 
 **Context window at handoff: ~78%.**
 
-**Next session (SD-5):** Fix AND relay contiguous-label type merge. See SCRIPTEN_DEMO.md §NOW.
+**Next session (SD-5):** Fix AND relay contiguous-label type merge. See SCRIP_DEMO.md §NOW.
 
 ---
 
@@ -2201,7 +2201,7 @@ Contiguous AND relay labels with mixed J/String stack types. The v45 type-infere
 
 **Context window at handoff: ~94%.**
 
-**Next session (SD-7):** Fix `ts_got`/null branch for String-valued tables. See SCRIPTEN_DEMO.md §NOW.
+**Next session (SD-7):** Fix `ts_got`/null branch for String-valued tables. See SCRIP_DEMO.md §NOW.
 
 ---
 
@@ -2225,4 +2225,59 @@ Contiguous AND relay labels with mixed J/String stack types. The v45 type-infere
 
 **Context window at close: ~47%.**
 
-**Next session (SD-8):** Build `family_icon.icn` end-to-end. Check `demo/scripten/` exists; if not, create `family.scripten`, `family.csv`, `family.expected` per SCRIPTEN_DEMO.md spec, then run `run_demo.sh`.
+**Next session (SD-8):** Build `family_icon.icn` end-to-end. Check `demo/scrip/` exists; if not, create `family.scrip`, `family.csv`, `family.expected` per SCRIP_DEMO.md spec, then run `run_demo.sh`.
+
+---
+
+## IJ-49 + IJ-50 — M-IJ-NULL-TEST ✅ + M-IJ-BLOCK-BODY ✅ + IJ-51 M-IJ-SCAN-AUGOP WIP (handoff, rung23 regression)
+
+**Date:** 2026-03-26. **HEAD at handoff (snobol4x):** `1ccf83e` IJ-50 (clean). IJ-51 WIP stashed.
+
+**IJ-49: M-IJ-NULL-TEST ✅** (`21e4f46`)
+- `ICN_NONNULL`/`ICN_NULL` added; `\E` fixed (was wrongly `ICN_NOT`); `/E` added; `ij_emit_nonnull` (transparent pass-through); `ij_emit_null` (inverted lconst_0). rung34: 5/5.
+
+**IJ-50: M-IJ-BLOCK-BODY ✅** (`1ccf83e`)
+- `parse_block_or_expr()` wired into do/then/else/repeat. `ij_emit_every` gen_drain/pump_gen split fixes VerifyError. `ij_emit_if` mixed-width drain+join; `ij_expr_is_string(ICN_IF)` returns 0 for mixed. rung35: 5/5. Regression: 131/131.
+
+**IJ-51: M-IJ-SCAN-AUGOP WIP — NOT committed (stashed)**
+- TK_SCANAUGOP, ICN_SCAN_AUGOP, ij_emit_scan_augop (stores body result into lhs, not &subject). rung36: 4/4 + 1 xfail (pre-existing tab off-by-one).
+- **REGRESSION introduced:** rung23 5/5 → 1/4. `ij_expr_is_string(ICN_IF)` mixed-width change breaks table tests. Fix: revert is_string change; instead normalize else-drain width to then-branch width in ij_emit_if (pop2+aconst_null or pop+lconst_0).
+
+**Next session (IJ-51):** `git stash pop`, fix rung23, confirm rung23+rung35+rung36 all pass, commit, push, update §NOW → M-IJ-TAB-OFFSET.
+
+**Context window at handoff: ~88%.**
+
+---
+
+## IJ-51 — M-IJ-SCAN-AUGOP ✅
+
+**Date:** 2026-03-26. **HEAD:** `6fe0f2b`.
+
+- TK_SCANAUGOP lexed (`?:=`); ICN_SCAN_AUGOP parsed; `ij_emit_scan_augop` emitter: saves/restores subject+pos, installs lhs as subject, runs body, stores **body result** (not &subject) into lhs var.
+- `ICN_SCAN_AUGOP` in `ij_expr_is_string` (body type) + dispatch.
+- `?` body now uses `parse_block_or_expr` (enables `s ? { block }`).
+- rung36: 4/4 PASS. t05 xfail (pre-existing tab off-by-one).
+- rung23 1/4 confirmed pre-existing (present at IJ-49, unrelated).
+- Regression: 131/131 (excl rung23).
+
+**Next (IJ-52): M-IJ-TABLE-VERIFY** — fix rung23 VerifyError in table subscript/write path.
+
+**Context window at handoff: ~95%.**
+
+---
+
+## SD-10 — Scripten→SCRIP global rename
+
+**Date:** 2026-03-26. **HEAD at handoff (snobol4x):** `1e11076`.
+
+**Work done:**
+- Global rename: `SCRIPTEN`→`SCRIP`, `Scripten`→`Scrip`, `scripten`→`scrip` in all files across both repos.
+- `.github`: 9 MD files updated; `SCRIPTEN*.md` → `SCRIP*.md` (5 files renamed: SCRIP.md, SCRIP_DEMO.md, SCRIP_DEMO2.md, SCRIP_DEMO3.md, SCRIP_DEMOS.md).
+- `snobol4x`: `demo/scripten/` → `demo/scrip/`; `ScriptenFamily.j` → `ScripFamily.j`; content updated in `.sno`, `.icn`, `.pro`, `.py`, `.j`.
+- Name rationale: SCRIP = **S**NOBOL4 + s**C**nocone + **R**ebus + **I**con + **P**rolog — real word, fits SNOBOL4/SPITBOL/SITBOL tradition.
+
+**State of demo/scrip/:** Only family-tree files present. `demo1/` dir and `run_demo.sh` do NOT exist yet — next session creates them for M-SD-DEMO1.
+
+**Next session (SD-11):** Create `demo/scrip/demo1/hello.scrip` (SNOBOL4+Icon+Prolog sections), `hello.expected`, and `run_demo.sh`. Wire csnobol4 + swipl + icon_driver paths. Fire M-SD-DEMO1 when all three backends pass.
+
+**Context window at handoff: ~23%.**

@@ -1,6 +1,6 @@
-# SCRIPTEN_DEMO2.md — Puzzle Solver: Polyglot Proof of Concept #2
+# SCRIP_DEMO2.md — Puzzle Solver: Polyglot Proof of Concept #2
 
-**Companion to:** SCRIPTEN_DEMO.md (family tree — Demo #1)
+**Companion to:** SCRIP_DEMO.md (family tree — Demo #1)
 **Difficulty:** One step harder. Same funny linkage architecture.
 **The inversion:** Prolog does NOT search. Icon searches. Prolog is the constraint oracle.
 **Target:** One working day, back-to-back with Demo #1 or standalone.
@@ -9,7 +9,7 @@
 
 ## The Thesis
 
-Every language in Scripten is a **tool**, not a religion.
+Every language in Scrip is a **tool**, not a religion.
 
 Prolog does not have to do the search. Icon does not have to be a formatter.
 SNOBOL4 does not have to read CSV.
@@ -420,15 +420,15 @@ Prolog can be a store, Icon can be a solver, SNOBOL4 can read anything.
 
 ## Milestone
 
-**M-SCRIPTEN-DEMO2** fires when:
+**M-SCRIP-DEMO2** fires when:
 
-1. `demo/scripten/puzzle1.clues` (and 2–5) exist in `snobol4x`
+1. `demo/scrip/puzzle1.clues` (and 2–5) exist in `snobol4x`
 2. `run_demo2.sh` runs clean from a fresh clone
 3. Output for puzzle1 matches `puzzle1.expected` (diff clean)
 4. Output for puzzle3 is verified against swipl reference
 5. Session note written to `SESSIONS_ARCHIVE.md`
 
-**Dependency:** M-SCRIPTEN-DEMO (Demo #1) should fire first —
+**Dependency:** M-SCRIP-DEMO (Demo #1) should fire first —
 the splitter, inject_linkage, and funny linkage infrastructure
 are shared and only built once.
 
@@ -438,11 +438,11 @@ are shared and only built once.
 
 | File | Location | What |
 |------|----------|------|
-| `puzzle1.clues` – `puzzle5.clues` | `snobol4x/demo/scripten/` | S-expression puzzle inputs |
-| `puzzle1.expected` – `puzzle5.expected` | `snobol4x/demo/scripten/` | Expected outputs |
-| `family.scripten` → `puzzle1.scripten` | `snobol4x/demo/scripten/` | Fenced polyglot source |
-| `run_demo2.sh` | `snobol4x/demo/scripten/` | Build + run (reuses Demo #1 infra) |
-| `README.md` (update) | `snobol4x/demo/scripten/` | Add Demo #2 section |
+| `puzzle1.clues` – `puzzle5.clues` | `snobol4x/demo/scrip/` | S-expression puzzle inputs |
+| `puzzle1.expected` – `puzzle5.expected` | `snobol4x/demo/scrip/` | Expected outputs |
+| `family.scrip` → `puzzle1.scrip` | `snobol4x/demo/scrip/` | Fenced polyglot source |
+| `run_demo2.sh` | `snobol4x/demo/scrip/` | Build + run (reuses Demo #1 infra) |
+| `README.md` (update) | `snobol4x/demo/scrip/` | Add Demo #2 section |
 
 No new repos. No new compiler files beyond the ~20-line Icon cross-call addition
 from Demo #1 (already planned). `inject_linkage.py` extended with new stub
@@ -465,10 +465,10 @@ functions as embedded actions) combined with the recursive descent from
 `treebank.sno` (mutual reference, `group()` calling itself via `group_recurse`).
 Two proven techniques from the existing corpus, composed into something new.
 
-That is Scripten working as designed.
+That is Scrip working as designed.
 
 ---
 
-*Demo #2 of 2. Together with SCRIPTEN_DEMO.md, these two programs constitute
-the proof that Scripten is real. Everything else in SCRIPTEN.md builds on
+*Demo #2 of 2. Together with SCRIP_DEMO.md, these two programs constitute
+the proof that Scrip is real. Everything else in SCRIP.md builds on
 what these demos establish.*

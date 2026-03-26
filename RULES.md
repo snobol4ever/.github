@@ -26,7 +26,7 @@ Format: `PREFIX-NNN` where NNN increments within that namespace only.
 | ICON frontend | `I` | **ICON frontend** row |
 | Prolog JVM | `PJ` | **Prolog JVM** row |
 | Icon JVM | `IJ` | **Icon JVM** row |
-| Scripten Demo | `SD` | **Scripten Demo** row |
+| Scrip Demo | `SD` | **Scrip Demo** row |
 
 Each session increments only its own counter. Commit messages: `PJ-5: M-PJ-BACKTRACK — fix suffix_fail`.
 
@@ -88,7 +88,7 @@ The Byrd-box four-port model (α/β/γ/ω) is emitted as labels + gotos — neve
 | **L1** | `PLAN.md` | 3KB hard | Every session, always — NOW table + milestone IDs only |
 | **L2** | `TINY.md`, `JVM.md`, `DOTNET.md` | 10KB | Your platform session — HEAD, build, §NOW sprint |
 | **L3** | `RULES.md`, `ARCH.md` | 10KB | Every session — invariant, never changes session-to-session |
-| **L4** | `FRONTEND-*.md`, `BACKEND-*.md`, `MONITOR.md`, `TESTING.md`, `BEAUTY.md`, `GRAND_MASTER_REORG.md`, `SCRIPTEN_DEMO*.md`, `PATCHES.md` | No hard limit | **Your pipeline or topic only** — read the one(s) matching your session type, no others |
+| **L4** | `FRONTEND-*.md`, `BACKEND-*.md`, `MONITOR.md`, `TESTING.md`, `BEAUTY.md`, `GRAND_MASTER_REORG.md`, `SCRIP_DEMO*.md`, `PATCHES.md` | No hard limit | **Your pipeline or topic only** — read the one(s) matching your session type, no others |
 | **L5** | `SESSIONS_ARCHIVE.md`, `MILESTONE_ARCHIVE.md` | Unlimited | `tail -80 SESSIONS_ARCHIVE.md` = step 1 of session start. Full read: never. Append only. |
 
 **The session start protocol:**

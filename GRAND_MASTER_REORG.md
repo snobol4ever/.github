@@ -47,7 +47,7 @@ snobol4x/
       rebus/          lex.c  parse.c  lower.c   → IR
       icon/           lex.c  parse.c  lower.c   → IR
       prolog/         lex.c  parse.c  lower.c   → IR
-      scripten/       lex.c  parse.c  lower.c   → IR  [future]
+      scrip/       lex.c  parse.c  lower.c   → IR  [future]
     ir/
       ir.h            ← THE shared IR: unified EKind enum + EXPR_t
       ir_print.c      ← IR pretty-printer (debugging)
@@ -395,14 +395,14 @@ backtracking arrows reversing. Animated goal-directed evaluation in a browser wo
 be a world-class educational tool for SNOBOL4, Prolog, and Icon simultaneously.
 Nothing like it exists anywhere.
 
-**How it works:** the `scripten` compiler compiles to WASM. The runtime
+**How it works:** the `scrip` compiler compiles to WASM. The runtime
 (`snobol4.c`, the pattern engine, the Byrd box machinery) also compiles to WASM
-via Emscripten. Both run client-side. The React/HTML monitor GUI (M-MONITOR-GUI,
+via Emscrip. Both run client-side. The React/HTML monitor GUI (M-MONITOR-GUI,
 currently 💭) becomes buildable once this lands.
 
 **Dependency chain:**
 ```
-M-G6-SNOBOL4-WASM → runtime via Emscripten → browser harness → M-MONITOR-GUI
+M-G6-SNOBOL4-WASM → runtime via Emscrip → browser harness → M-MONITOR-GUI
 ```
 
 This is the motivating vision for the WASM backend. It turns a compiler project
@@ -423,7 +423,7 @@ No new emitter code for shared node kinds. Priority order:
 | **M-G6-SNOBOL4-WASM** | SNOBOL4 → WASM | M-G4-SHARED-CONC + M-G2-SCAFFOLD-WASM | hello.sno → .wat → wasmtime PASS |
 | **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON + M-G5-LOWER-ICON | Icon WASM rung01 PASS |
 | **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG | Prolog WASM rung01 PASS |
-| **M-G6-SCRIPTEN-ALL** | Scripten → all 4 backends | M-G5 complete | Scripten rung01 all 4 PASS |
+| **M-G6-SCRIP-ALL** | Scrip → all 4 backends | M-G5 complete | Scrip rung01 all 4 PASS |
 
 ---
 

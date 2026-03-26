@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed 12KB→4.6KB; §NOW bloat + Roadmap removed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scripten Demo** | SD-7 ✅ — String-valued table subscript fix complete (`bc686de`); rung35 2/2 + rung28-34 35/35 PASS; 7 fixes in icon_emit_jvm.c; next: SD-8 build family_icon.icn end-to-end | `bc686de` SD-7 | M-SCRIPTEN-DEMO |
+| **⭐ Scrip Demo** | SD-10: Scripten→SCRIP global rename (all files, dirs, content); demo1 dir + run_demo.sh missing — next session creates them | `1e11076` SD-10 | M-SD-DEMO1 |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -57,8 +57,9 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 ### ⭐⭐ Prolog JVM — detail → [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
 `M-PJ-FINDALL` ✅ · `M-PJ-ATOM-BUILTINS` ✅ · `M-PJ-ASSERTZ` ✅ · `M-PJ-RETRACT` ✅ · `M-PJ-ABOLISH` ✅ · `M-PJ-ATOP` ✅ · `M-PJ-SORT` ✅ · `M-PJ-SUCC-PLUS` ✅ · `M-PJ-FORMAT` ✅ · `M-PJ-NUMBER-VARS` ✅ · `M-PJ-CHAR-TYPE` ✅ · `M-PJ-WRITE-CANONICAL` ✅ · `M-PJ-SUCC-ARITH` ✅ · `M-PJ-STRING-IO` ✅ · `M-PJ-TERM-STRING` ✅ · `M-PJ-COPY-TERM` ✅ · `M-PJ-AGGREGATE` ✅ · `M-PJ-EXCEPTIONS` ✅ · `M-PJ-NUMBER-OPS` ✅ · `M-PJ-DCG` ✅ · `M-PJ-PLUNIT-SHIM` ✅ · `M-PJ-SWI-BASELINE` ❌ **NEXT**
 
-### ⭐ Scripten Demo — detail → [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md) · [SCRIPTEN_DEMO2.md](SCRIPTEN_DEMO2.md) · [SCRIPTEN_DEMO3.md](SCRIPTEN_DEMO3.md)
-`M-SCRIPTEN-DEMO` ❌ **NEXT** · `M-SCRIPTEN-DEMO2` ❌ · `M-SCRIPTEN-DEMO3` ❌ *(concept)*
+### ⭐ Scrip Demo Ladder — detail → [SCRIP_DEMOS.md](SCRIP_DEMOS.md)
+`M-SD-DEMO1` ❌ **NEXT** (hello) · `M-SD-DEMO2` ❌ (wordcount) · `M-SD-DEMO3` ❌ (roman) · `M-SD-DEMO4` ❌ (palindrome) · `M-SD-DEMO5` ❌ (fib) · `M-SD-DEMO6` ❌ (sieve) · `M-SD-DEMO7` ❌ (caesar) · `M-SD-DEMO8` ❌ (sort) · `M-SD-DEMO9` ❌ (rpn) · `M-SD-DEMO10` ❌ (anagram)
+`M-SCRIP-DEMO` (family tree, now DEMO4) ❌ · `M-SCRIP-DEMO2` (puzzle, now DEMO5) ❌ · `M-SCRIP-DEMO3` (compiler) ❌ *(concept)*
 
 ### TINY backend — detail → [BEAUTY.md](BEAUTY.md) · [BACKEND-X64.md](BACKEND-X64.md)
 `M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR` ❌ **NEXT** · `M-BEAUTIFY-BOOTSTRAP` ❌ · `M-MONITOR-4DEMO` ❌
@@ -96,7 +97,7 @@ Phases 0–8 · ~80 milestones M-G0-FREEZE → M-G8-CI · **NEXT: M-G0-FREEZE (L
 | [BACKEND-NET.md](BACKEND-NET.md) | L4 | N sessions |
 | [BEAUTY.md](BEAUTY.md) | L4 | beauty.sno sprint |
 | [GRAND_MASTER_REORG.md](GRAND_MASTER_REORG.md) | L4 | G sessions only |
-| [SCRIPTEN_DEMO.md](SCRIPTEN_DEMO.md) | L4 | SD sessions |
+| [SCRIP_DEMO.md](SCRIP_DEMO.md) | L4 | SD sessions |
 | [PATCHES.md](PATCHES.md) | L4 | runtime patch work |
 | [MILESTONE_ARCHIVE.md](MILESTONE_ARCHIVE.md) | L5 | append only |
 

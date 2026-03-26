@@ -1,4 +1,4 @@
-# SCRIPTEN_DEMO.md — Polyglot Proof of Concept
+# SCRIP_DEMO.md — Polyglot Proof of Concept
 
 **Goal:** Demonstrate three languages (SNOBOL4, Icon, Prolog) coexisting in one
 fenced source file, compiled by a thin driver to three JVM classes, wired together
@@ -14,15 +14,15 @@ that the idea works end-to-end.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scripten Demo** | SD-7 ✅ — String-valued table subscript ClassCastException resolved. 7 fixes in `icon_emit_jvm.c`: dflt-type tracking, prepass registration, `ij_expr_is_string` ICN_SUBSCRIPT, ts_got/null checkcast, drelay String boxing, k_relay String keys, stray putstatic. rung35 2/2 PASS; rung28-34 35/35. | `bc686de` SD-7 | M-SCRIPTEN-DEMO |
+| **Scrip Demo** | SD-7 ✅ — String-valued table subscript ClassCastException resolved. 7 fixes in `icon_emit_jvm.c`: dflt-type tracking, prepass registration, `ij_expr_is_string` ICN_SUBSCRIPT, ts_got/null checkcast, drelay String boxing, k_relay String keys, stray putstatic. rung35 2/2 PASS; rung28-34 35/35. | `bc686de` SD-7 | M-SCRIP-DEMO |
 
 ### CRITICAL NEXT ACTION (SD-8)
 
-**Next blocker: Build `family_icon.icn` and verify end-to-end Scripten demo pipeline.**
+**Next blocker: Build `family_icon.icn` and verify end-to-end Scrip demo pipeline.**
 
 Now that String-valued tables work, the Icon side of the family tree demo can proceed. SD-8 tasks:
 1. Compile `family_icon.icn` with `icon_driver -jvm` — expected: clean `.j` output
-2. Run the full `run_demo.sh` pipeline (scripten_split → compile × 3 → inject_linkage → jasmin → java)
+2. Run the full `run_demo.sh` pipeline (scrip_split → compile × 3 → inject_linkage → jasmin → java)
 3. Diff output against `family.expected`
 4. Fix any remaining issues in cross-language call emission (`ij_emit_call` dot-notation path)
 
@@ -36,8 +36,8 @@ gcc -Wall -Wno-unused-function -g -O0 -I src/frontend/icon \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver_jvm
 ln -sf /tmp/icon_driver_jvm /tmp/icon_driver
 # Check if demo files exist:
-ls demo/scripten/
-# If not: create family.scripten, family.csv, family.expected per SCRIPTEN_DEMO.md spec
+ls demo/scrip/
+# If not: create family.scrip, family.csv, family.expected per SCRIP_DEMO.md spec
 ```
 
 **File:** `snobol4x/src/frontend/icon/icon_emit_jvm.c` — `ij_emit_subscript` table path, around `ts_got` label (after `ij_emit_subscript` line ~5020–5035).
@@ -236,14 +236,14 @@ family.csv
 ### What Each Block Compiles To
 
 ```
-family.scripten
+family.scrip
 │
 ├── ```Prolog   ──► sno2c -pl -jvm  ──► FamilyProlog.j  ──► FamilyProlog.class
 ├── ```SNOBOL4  ──► sno2c -jvm      ──► FamilySnobol4.j ──► FamilySnobol4.class
 └── ```Icon     ──► icon_driver -jvm ──► FamilyIcon.j    ──► FamilyIcon.class
                                               │
-                                   ScriptenFamily.j  (hand-written, ~40 lines)
-                                   java ScriptenFamily
+                                   ScripFamily.j  (hand-written, ~40 lines)
+                                   java ScripFamily
 ```
 
 ### Cross-Language Call Table
@@ -268,7 +268,7 @@ String as their primary inter-operation type — no new marshaling layer needed.
 
 ### Phase 1 — Splitter (1 hour)
 
-`scripten_split.py` (~50 lines of Python). Reads triple-backtick fences,
+`scrip_split.py` (~50 lines of Python). Reads triple-backtick fences,
 writes each block to a named temp file, emits a manifest.
 
 ```python
@@ -302,7 +302,7 @@ if (strchr(fname, '.') != NULL) {
     strncpy(lang, fname, dot - fname);
     lang[dot - fname] = '\0';
     strcpy(method, dot + 1);
-    const char *classname = scripten_class_for_lang(lang);
+    const char *classname = scrip_class_for_lang(lang);
     fprintf(out,
         "    invokestatic %s/%s(Ljava/lang/String;)Ljava/lang/String;\n",
         classname, method);
@@ -310,8 +310,8 @@ if (strchr(fname, '.') != NULL) {
 }
 ```
 
-`scripten_class_for_lang("Snobol4")` → `"FamilySnobol4"`,
-`scripten_class_for_lang("Prolog")` → `"FamilyProlog"`.
+`scrip_class_for_lang("Snobol4")` → `"FamilySnobol4"`,
+`scrip_class_for_lang("Prolog")` → `"FamilyProlog"`.
 
 Everything else in Phase 3 is stub methods hand-inserted into the generated
 `.j` files by `inject_linkage.py`:
@@ -324,16 +324,16 @@ Everything else in Phase 3 is stub methods hand-inserted into the generated
 
 ### Phase 4 — Driver + Assembly + Run (1 hour)
 
-`ScriptenFamily.j` (~40 lines Jasmin):
+`ScripFamily.j` (~40 lines Jasmin):
 
 ```jasmin
-.class public ScriptenFamily
+.class public ScripFamily
 .super java/lang/Object
 .method public static main([Ljava/lang/String;)V
     .limit stack 4
     .limit locals 1
-    invokestatic FamilyProlog/scripten_init()V
-    invokestatic FamilySnobol4/scripten_init()V
+    invokestatic FamilyProlog/scrip_init()V
+    invokestatic FamilySnobol4/scrip_init()V
     invokestatic FamilyIcon/icn_main()V
     return
 .end method
@@ -341,8 +341,8 @@ Everything else in Phase 3 is stub methods hand-inserted into the generated
 ```
 
 ```bash
-java -jar jasmin.jar FamilyProlog.j FamilySnobol4.j FamilyIcon.j ScriptenFamily.j -d /tmp/classes
-java -cp /tmp/classes ScriptenFamily
+java -jar jasmin.jar FamilyProlog.j FamilySnobol4.j FamilyIcon.j ScripFamily.j -d /tmp/classes
+java -cp /tmp/classes ScripFamily
 ```
 
 ### Phase 5 — Build Script (30 minutes)
@@ -352,26 +352,26 @@ java -cp /tmp/classes ScriptenFamily
 ```bash
 #!/bin/bash
 set -e
-DEMO=demo/scripten
-TMP=/tmp/scripten_demo
+DEMO=demo/scrip
+TMP=/tmp/scrip_demo
 mkdir -p $TMP
-python3 $DEMO/scripten_split.py $DEMO/family.scripten $TMP
+python3 $DEMO/scrip_split.py $DEMO/family.scrip $TMP
 ./sno2c -pl -jvm  $TMP/prolog.pro    -o $TMP/FamilyProlog.j
 ./sno2c -jvm      $TMP/snobol4.sno   -o $TMP/FamilySnobol4.j
 ./icon_driver -jvm $TMP/icon.icn     -o $TMP/FamilyIcon.j
 python3 $DEMO/inject_linkage.py $TMP
-cp $DEMO/ScriptenFamily.j $TMP/
+cp $DEMO/ScripFamily.j $TMP/
 java -jar src/backend/jvm/jasmin.jar $TMP/*.j -d $TMP/classes
-java -cp $TMP/classes ScriptenFamily
+java -cp $TMP/classes ScripFamily
 ```
 
 ---
 
 ## Milestone
 
-**M-SCRIPTEN-DEMO** fires when:
+**M-SCRIP-DEMO** fires when:
 
-1. `demo/scripten/family.scripten` exists in `snobol4x`
+1. `demo/scrip/family.scrip` exists in `snobol4x`
 2. `run_demo.sh` runs clean from a fresh clone
 3. Output matches `family.expected` (diff clean)
 4. Session note written to `SESSIONS_ARCHIVE.md`
@@ -382,29 +382,29 @@ java -cp $TMP/classes ScriptenFamily
 
 | File | Location | What |
 |------|----------|------|
-| `family.scripten` | `snobol4x/demo/scripten/` | Fenced polyglot source |
-| `family.csv` | `snobol4x/demo/scripten/` | Input data (9 rows) |
-| `family.expected` | `snobol4x/demo/scripten/` | Expected output (for CI) |
-| `run_demo.sh` | `snobol4x/demo/scripten/` | End-to-end build + run |
-| `scripten_split.py` | `snobol4x/demo/scripten/` | Fence splitter |
-| `inject_linkage.py` | `snobol4x/demo/scripten/` | Stub injector into .j files |
-| `ScriptenFamily.j` | `snobol4x/demo/scripten/` | Hand-written driver class |
-| `README.md` | `snobol4x/demo/scripten/` | Explains the demo |
+| `family.scrip` | `snobol4x/demo/scrip/` | Fenced polyglot source |
+| `family.csv` | `snobol4x/demo/scrip/` | Input data (9 rows) |
+| `family.expected` | `snobol4x/demo/scrip/` | Expected output (for CI) |
+| `run_demo.sh` | `snobol4x/demo/scrip/` | End-to-end build + run |
+| `scrip_split.py` | `snobol4x/demo/scrip/` | Fence splitter |
+| `inject_linkage.py` | `snobol4x/demo/scrip/` | Stub injector into .j files |
+| `ScripFamily.j` | `snobol4x/demo/scrip/` | Hand-written driver class |
+| `README.md` | `snobol4x/demo/scrip/` | Explains the demo |
 
-All in `snobol4x`. No new repos. No `.github` changes until M-SCRIPTEN-DEMO fires.
+All in `snobol4x`. No new repos. No `.github` changes until M-SCRIP-DEMO fires.
 
 ---
 
 ## What Comes After
 
-1. **Real polyglot parser** — `scripten_split.py` is its seed
-2. **Real ABI** — replaces funny linkage; Session B in SCRIPTEN.md
+1. **Real polyglot parser** — `scrip_split.py` is its seed
+2. **Real ABI** — replaces funny linkage; Session B in SCRIP.md
 3. **Bidirectional backtracking** — Icon generators resuming into Prolog
 4. **Auto-injection** — emitters generate cross-language stubs natively
 5. **Code reorganization** — shared runtime across all three JVM emitters
-   (next step after M-SCRIPTEN-DEMO fires, per the plan)
+   (next step after M-SCRIP-DEMO fires, per the plan)
 
 ---
 
-*This is a one-day sprint document. The demo proves Scripten works.
+*This is a one-day sprint document. The demo proves Scrip works.
 Everything else builds on that proof.*
