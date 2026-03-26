@@ -2336,3 +2336,29 @@ Input: a short text string (or stdin). Output: word count integer.
 Key contrast: table-driven goto (SNOBOL4) vs `suspend` generator (Icon) vs arithmetic rules (Prolog).
 
 **Context window at handoff: ~18%.**
+
+---
+
+## SD-13 -- M-SD-DEMO2 fix + M-SD-DEMO3 ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `8931853`.
+
+**demo2 correction:** SNOBOL4 section was non-idiomatic. Rewrote to Gimpel style:
+`BREAK(WORD) SPAN(WORD)` pattern, subject replacement loop (`LINE WPAT =`).
+The match IS the consumption — no `LEN(SIZE(W))=''` hackery.
+
+**demo3 roman.md:**
+- SNOBOL4: Gimpel `ROMAN.inc` verbatim — recursive digit-strip, inline table string,
+  `REPLACE` shifts `IVXLCDM` → `XLCDM**` for place-value promotion. Elegant.
+- Icon: greedy subtraction loop over parallel `vals`/`syms` lists.
+- Prolog: arithmetic rules with cut, recursive `atom_concat` accumulation.
+- Input: 1776, 42, 9. Expected: `MDCCLXXVI` / `XLII` / `IX`. swipl PASS.
+
+**Lesson:** Read Gimpel before writing SNOBOL4. The idioms are specific:
+BREAK/SPAN for word boundaries, subject replacement for consumption,
+`RPOS(1) LEN(1) . T =` for digit-stripping from the right.
+
+**Next (SD-14): M-SD-DEMO4** -- `demo4/palindrome.md`.
+Key contrast: `REVERSE` built-in (SNOBOL4) vs subscript walk (Icon) vs `reverse/2` (Prolog).
+
+**Context window at handoff: ~28%.**

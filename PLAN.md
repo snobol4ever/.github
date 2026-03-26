@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed 12KB→4.6KB; §NOW bloat + Roadmap removed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scrip Demo** | SD-12: M-SD-DEMO2 ✅ — demo2/wordcount.md; SPAN/tab-many/DCG; swipl PASS | `0c1fc58` SD-12 | M-SD-DEMO3 |
+| **⭐ Scrip Demo** | SD-13: M-SD-DEMO3 ✅ — demo3/roman.md (Gimpel ROMAN.inc); fixed demo2 SNOBOL4 idiom | `8931853` SD-13 | M-SD-DEMO4 |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -58,7 +58,7 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 `M-PJ-FINDALL` ✅ · `M-PJ-ATOM-BUILTINS` ✅ · `M-PJ-ASSERTZ` ✅ · `M-PJ-RETRACT` ✅ · `M-PJ-ABOLISH` ✅ · `M-PJ-ATOP` ✅ · `M-PJ-SORT` ✅ · `M-PJ-SUCC-PLUS` ✅ · `M-PJ-FORMAT` ✅ · `M-PJ-NUMBER-VARS` ✅ · `M-PJ-CHAR-TYPE` ✅ · `M-PJ-WRITE-CANONICAL` ✅ · `M-PJ-SUCC-ARITH` ✅ · `M-PJ-STRING-IO` ✅ · `M-PJ-TERM-STRING` ✅ · `M-PJ-COPY-TERM` ✅ · `M-PJ-AGGREGATE` ✅ · `M-PJ-EXCEPTIONS` ✅ · `M-PJ-NUMBER-OPS` ✅ · `M-PJ-DCG` ✅ · `M-PJ-PLUNIT-SHIM` ✅ · `M-PJ-SWI-BASELINE` ❌ **NEXT**
 
 ### ⭐ Scrip Demo Ladder — detail → [SCRIP_DEMOS.md](SCRIP_DEMOS.md)
-`M-SD-DEMO1` ✅ · `M-SD-DEMO2` ✅ · `M-SD-DEMO3` ❌ **NEXT** (roman) · `M-SD-DEMO4` ❌ (palindrome) · `M-SD-DEMO5` ❌ (fib) · `M-SD-DEMO6` ❌ (sieve) · `M-SD-DEMO7` ❌ (caesar) · `M-SD-DEMO8` ❌ (sort) · `M-SD-DEMO9` ❌ (rpn) · `M-SD-DEMO10` ❌ (anagram)
+`M-SD-DEMO1` ✅ · `M-SD-DEMO2` ✅ · `M-SD-DEMO3` ✅ · `M-SD-DEMO4` ❌ **NEXT** (palindrome) · `M-SD-DEMO5` ❌ (fib) · `M-SD-DEMO6` ❌ (sieve) · `M-SD-DEMO7` ❌ (caesar) · `M-SD-DEMO8` ❌ (sort) · `M-SD-DEMO9` ❌ (rpn) · `M-SD-DEMO10` ❌ (anagram)
 `M-SCRIP-DEMO` (family tree, now DEMO4) ❌ · `M-SCRIP-DEMO2` (puzzle, now DEMO5) ❌ · `M-SCRIP-DEMO3` (compiler) ❌ *(concept)*
 
 ### TINY backend — detail → [BEAUTY.md](BEAUTY.md) · [BACKEND-X64.md](BACKEND-X64.md)
