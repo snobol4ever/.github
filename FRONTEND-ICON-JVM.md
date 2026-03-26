@@ -19,28 +19,24 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-48 ✅ M-IJ-CASE complete | `2dad5b3` IJ-48 ✅ | M-IJ-NULL-TEST |
+| **Icon JVM** | `main` IJ-49 ✅ M-IJ-NULL-TEST complete | `21e4f46` IJ-49 ✅ | M-IJ-AUGOP |
 
-### CRITICAL NEXT ACTION (IJ-49)
+### CRITICAL NEXT ACTION (IJ-50)
 
-**Baseline: 121/121 JVM rungs (rung05–33) PASS. rung32 t03 xfail (nested gen in str arg).**
+**Baseline: 126/126 JVM rungs (rung05–34) PASS. rung32 t03 xfail (nested gen in str arg).**
 
-IJ-48 committed (`2dad5b3`). rung33: **5/5 PASS**.
+IJ-49 committed (`21e4f46`). rung34: **5/5 PASS**.
 
-This session completed (IJ-45→IJ-48):
-- M-IJ-SORT ✅ (4 layered bugs: 'R' tag, pre-pass 2, is_rec_direct, makelist record)
-- M-IJ-ALT-VALUE ✅ (ALT relay passes actual values through, not lconst_0 sentinel)
-- M-IJ-STRING-RETVAL ✅ (icn_arg_str_N + Pass 1d fixpoint, generator prologue)
-- M-IJ-CASE ✅ (parser + Byrd-box emitter: int/str dispatch, default, result wiring)
+This session completed (IJ-49):
+- M-IJ-NULL-TEST ✅ (`\E`→ICN_NONNULL transparent pass-through; `/E`→ICN_NULL inverted with lconst_0)
 
-**Next: M-IJ-NULL-TEST**
-- `\E` — non-null test: succeeds if E succeeds (like `not not E`), produces E's value
-- `/E` — null/failure test: succeeds if E fails (like `not E`), produces &null (0L)
-- Needs: TK_BACKSLASH + TK_SLASH in lexer/parser as unary prefix ops
-- Emitter: ICN_NOT already exists; need ICN_NONNULL and ICN_NULL new AST kinds
+**Next: M-IJ-AUGOP**
+- Augmented assignment: `x +:= 3`, `s ||:= "!"` etc.
+- ICN_AUGOP already in AST (val.ival = op subtype); needs emitter in icon_emit_jvm.c
+- Pattern: load var, emit RHS, apply op, store back
 
 ```bash
-# Bootstrap IJ-49:
+# Bootstrap IJ-50:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
@@ -49,7 +45,7 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_rung31.sh /tmp/icon_driver   # expect 5/5 after fix
+bash test/frontend/icon/run_rung34.sh /tmp/icon_driver   # expect 5/5
 ```
 
 ---
