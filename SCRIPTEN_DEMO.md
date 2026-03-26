@@ -14,28 +14,52 @@ that the idea works end-to-end.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scripten Demo** | SD-2 WIP — relop/binop/ICN_AND relay converted to static-field drain; 8 stack-height conflicts remain from ICN_EVERY β-tableswitch entering ICN_AND sub-chain at wrong depth | `973a68a` SD-2 | M-SCRIPTEN-DEMO |
+| **Scripten Demo** | SD-3 WIP — 3 fixes landed (`81b4166`): MAX_STATICS 256→512, AND drain ICN_ALT type guards removed, mixed-ALT pop+lconst_0. VerifyError persists: root cause is VAR type inference ordering — `lo`/`hi` declared `J` because `ij_expr_is_string(VAR)` checks static registry which is populated at emit-time, but AND drain-type query fires before assignment to that var is emitted. Fix: add `ij_prepass_types(root)` pre-pass that walks all ICN_ASSIGN nodes and calls `ij_declare_static_str/dbl` eagerly before `ij_emit_expr`. Minimal reproducer: `(a > b & (lo := b) & (hi := a)) \| ((lo := a) & (hi := b))` — single expression, fails immediately. | `81b4166` SD-3 | M-SCRIPTEN-DEMO |
 
-### CRITICAL NEXT ACTION (SD-3)
+### CRITICAL NEXT ACTION (SD-4)
 
-**Blocker: 8 stack-height conflicts at ICN_AND `relay_g` labels, all sharing the same root cause.**
+**Blocker: VerifyError "Expecting to find long on stack" in `icn_main` — VAR type inference ordering.**
 
-**Root cause:** When ICN_EVERY's body runs inside an ICN_AND chain, the generator's β-tableswitch resume re-enters the ICN_AND sub-chain's α port. But the ICN_AND sub-chain may have been entered originally with stack-height H (from the outer every's yielded value still on stack from a prior relay), while the β-resume enters it at height H-2 (after the every's body drained the value). This 2-slot base mismatch propagates through all subsequent `relay_g` drains.
+**Root cause (confirmed, minimal reproducer isolated):**
+```icon
+(a > b & (lo := b) & (hi := a)) | ((lo := a) & (hi := b))
+```
+Variables `lo` and `hi` are assigned String values, but their static fields are declared as `J` (long). The AND drain-type query for the outer structure calls `ij_expr_is_string(VAR)` which checks `ij_static_types[]` — but that registry is populated at **emit time** when `ij_emit_assign` fires `ij_declare_static_str(fld)`. The drain-type query fires **before** emission, so `hi`/`lo` aren't in the registry yet → default `J` → VerifyError.
 
-**Confirmed evidence (from `icon_emit_jvm.c` dataflow analysis):**
-- `icn_157_and_rg_5` (drain_5 :J) reached at heights `64 vs 62` (diff=2)
-- `icn_257_and_rg_5` (drain_5 :J) reached at heights `65 vs 63` (diff=2)  
-- 6 more similar conflicts at β-port labels inside strrelop/relop sub-expressions
+**The fix: `ij_prepass_types(IcnNode *root)` pre-pass.**
 
-**Fix path (SD-3 step 1):** In `ij_emit_every` (`icon_emit_jvm.c`), at the β-resume tableswitch dispatch, ensure the stack is normalized before re-entering the generator's α. Concretely: the `icn_N_genb` label (every-body drain) does `pop2; goto icn_gen_β`. The β-tableswitch then dispatches to the generator's β labels. The generator's β labels expect empty stack. But the ICN_AND relay labels used as generator γ/β targets may be in the middle of the ICN_AND stack context.
+Add before `ij_emit_expr` is ever called (in the procedure emit entry point). Walk the entire AST and for every `ICN_ASSIGN` node where LHS is `ICN_VAR`, call `ij_declare_static_str/dbl/list/tbl` on the LHS field based on the RHS type — same logic as in `ij_emit_assign` lines 997–1031, but without emitting any bytecode.
 
-**The exact fix:** In `ij_emit_every`, when the body's genb drain fires (`pop2; goto gen_β`), the `gen_β` → tableswitch path must arrive at the SAME stack height as the normal flow entering those labels. Since all relay_g drains now use `putstatic` (not `pop2`), the stack is always empty at relay_g entry from the normal path. The β-tableswitch dispatch to those labels also arrives empty. So the fix may simply be: **confirm the current 8 conflicts are from the `cg[i]` (ICN_ALT relay) `pop2` still using a stack-consuming instruction** rather than a static-field drain.
+```c
+static void ij_prepass_types(IcnNode *n) {
+    if (!n) return;
+    if (n->kind == ICN_ASSIGN && n->nchildren >= 2) {
+        IcnNode *lhs = n->children[0];
+        IcnNode *rhs = n->children[1];
+        if (lhs && lhs->kind == ICN_VAR) {
+            char fld[128]; ij_var_field(lhs->val.sval, fld, sizeof fld);
+            if (ij_expr_is_string(rhs))     ij_declare_static_str(fld);
+            else if (ij_expr_is_list(rhs))  ij_declare_static_list(fld);
+            else if (ij_expr_is_table(rhs)) ij_declare_static_table(fld);
+            else if (ij_expr_is_real(rhs))  ij_declare_static_dbl(fld);
+            else                            ij_declare_static(fld);
+        }
+    }
+    for (int i = 0; i < n->nchildren; i++) ij_prepass_types(n->children[i]);
+}
+```
 
-**Specifically check:** `icn_185_alt_g0/g1` (in `family_icon.icn`) emit `pop; lconst_0; sipush; putstatic; goto and_rg_5`. The `lconst_0` is still pushed, making height at `and_rg_5` = base+2. The direct child path also arrives at +2. But one path's "base" is 0 and the other's is 2 — because the ALT child's β-resume path somehow arrives at the `cg[i]` region with 2 extra slots from the outer ICN_AND chain context.
+Call it from `ij_emit_proc` right before the first `ij_emit_expr` call on the procedure body.
 
-**Next step:** Add a targeted `pop2` drain at the start of `icn_185_alt_g0/g1` labels, OR ensure the ICN_ALT `cg[i]` relay is always entered with empty stack by having the ALT children use static-field drain before jumping to `cg[i]`.
+**Why the three prior fixes weren't enough:**
+1. `MAX_STATICS 256→512` — fixed silent field truncation ✓
+2. AND drain `kind != ICN_ALT` guards removed — fixed drain type for ALT children ✓ (but drain type query still wrong because VAR type wrong)
+3. mixed-ALT `pop+lconst_0` — fixed stack for mixed-type ALT relay ✓
+4. **This fix** — makes VAR type registry accurate before any type queries fire
 
-**Files to edit:** `snobol4x/src/frontend/icon/icon_emit_jvm.c` — `ij_emit_alt` relay section.
+**After this fix:** rerun `java -cp /tmp/td Test_dedup` — VerifyError should be gone. Then rebuild family_icon.icn and run the full stub test.
+
+**Files to edit:** `snobol4x/src/frontend/icon/icon_emit_jvm.c` — add `ij_prepass_types` before `ij_emit_proc` calls `ij_emit_expr`.
 
 **Bootstrap SD-3:**
 ```bash
