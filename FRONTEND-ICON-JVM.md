@@ -19,24 +19,25 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-49 ✅ M-IJ-NULL-TEST complete | `21e4f46` IJ-49 ✅ | M-IJ-AUGOP |
+| **Icon JVM** | `main` IJ-50 ✅ M-IJ-BLOCK-BODY complete | `1ccf83e` IJ-50 ✅ | M-IJ-SCAN-AUGOP |
 
-### CRITICAL NEXT ACTION (IJ-50)
+### CRITICAL NEXT ACTION (IJ-51)
 
-**Baseline: 126/126 JVM rungs (rung05–34) PASS. rung32 t03 xfail (nested gen in str arg).**
+**Baseline: 131/131 JVM rungs (rung05–35) PASS. rung32 t03 xfail (nested gen in str arg).**
 
-IJ-49 committed (`21e4f46`). rung34: **5/5 PASS**.
+IJ-50 committed (`1ccf83e`). rung35: **5/5 PASS**.
 
-This session completed (IJ-49):
-- M-IJ-NULL-TEST ✅ (`\E`→ICN_NONNULL transparent pass-through; `/E`→ICN_NULL inverted with lconst_0)
+This session completed (IJ-49→IJ-50):
+- M-IJ-NULL-TEST ✅ (`\E`→ICN_NONNULL transparent; `/E`→ICN_NULL inverted lconst_0)
+- M-IJ-BLOCK-BODY ✅ (parse_block_or_expr; ij_emit_every gen_drain/pump_gen split; ij_emit_if mixed-width drain+join)
 
-**Next: M-IJ-AUGOP**
-- Augmented assignment: `x +:= 3`, `s ||:= "!"` etc.
-- ICN_AUGOP already in AST (val.ival = op subtype); needs emitter in icon_emit_jvm.c
-- Pattern: load var, emit RHS, apply op, store back
+**Next: M-IJ-SCAN-AUGOP**
+- `s ?:= expr` — scanning augmented assignment
+- ICN_SCAN_AUGOP already in AST; needs emitter in icon_emit_jvm.c
+- Pattern: like ICN_SCAN but stores scan result back into lhs var
 
 ```bash
-# Bootstrap IJ-50:
+# Bootstrap IJ-51:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
@@ -45,7 +46,7 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_rung34.sh /tmp/icon_driver   # expect 5/5
+bash test/frontend/icon/run_rung35.sh /tmp/icon_driver   # expect 5/5
 ```
 
 ---
