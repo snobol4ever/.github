@@ -2524,3 +2524,27 @@ Blocked pending StackMapTable work in Icon JVM backend.
 **Next: M-PJ-SWI-BASELINE** — fetch SWI test suite, run all, record baseline, fix member_fail.
 
 **Context window at handoff: ~78%.**
+
+---
+
+## SD-21 -- 30/30 FULL LADDER ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `3bba8e2`.
+
+**Style change:** All SNOBOL4 sections converted to `&CASE = 1` mode.
+Convention: UPPERCASE for built-ins (OUTPUT, DEFINE, ARRAY, TABLE, SPAN, BREAK,
+REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA),
+`snake_case` for variables, function names, and labels.
+
+**Bugs fixed running csnobol4 for the first time:**
+- demo6: `DIFFER(a<i>)` treats `'0'` as non-null -- fixed to `EQ(a<i>, 1)`.
+- demo5/6/8/10: `i = i + 1 GT(i, n) :S(label)` -- assignment only fires if RHS succeeds; GT failure means i never increments. Split to two statements.
+- demo9: label `push` conflicted with function `push` -- renamed all branch labels.
+- demo9: unanchored `SPAN(' ')` matched interior spaces and stripped leading chars -- fixed with `POS(0)` anchor on all patterns.
+- demo8/10: Gimpel BSORT had `LT(j,hi)` (skips last element) and `b_s_ro` clobbered `a<lo>` without first shifting it. Rewrote as standard insertion sort: `GT(k,lo) + LGT(a<k-1>,v)` guards; `a<k> = a<k-1>` shift; `a<k> = v` place.
+
+**Final result: 30/30 — demo1–demo10 × snobol4 + swipl + icont, all PASS, 0 FAIL.**
+
+**Next: M-SCRIP-DEMO** — family tree polyglot. Blocked on StackMapTable work in Icon JVM backend.
+
+**Context window at handoff: ~82%.**
