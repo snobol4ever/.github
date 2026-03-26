@@ -19,48 +19,37 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-76 — 8 plunit bugs fixed; SWI baseline partial | `d6c63ad` PJ-76 | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-77a — parse gaps fixed; corpus 30/30 | `b7b7aa7` PJ-77a | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-77)
+### CRITICAL NEXT ACTION (PJ-78)
 
-**PJ-76 findings: 8 bugs fixed in plunit linker/shim. Corpus 107/107. SWI files now run.**
+**PJ-77 findings: 2 parse gaps fixed. Corpus 30/30. No regressions.**
 
-**What was done PJ-76 (commits PJ-76a/b/c):**
-1. `pj_linker_emit_main_assertz` moved before directive loop (was after → 0/0/0 always)
-2. `pj_linker_emit_bridge` now dispatches `p_test_2(name,opts,cs)` for `test/2` (was always `p_test_1`)
-3. Bare-goal opts (`X==3`) wrapped as `true(Opts)` compound at assertz time
-4. `run_suite/1` — added `!` after format to prevent double header print on retry
-5. `E_VART` as goal → now calls `pj_call_goal` with `-1`-as-fail convention (was `goto lbl_γ`)
-6. `p_main_0` call guarded by `has_main0` scan (plunit-only files crashed)
-7. Auto `run_tests` emitted in `main()` when plunit file has no `:- run_tests` directive
-8. `run_tests/1` accepts list of suites; `run_suites_list/1` helper added to shim
-- **Corpus:** 107/107 pass, 0 regressions throughout
-- SWI test files provided as `swipl-devel-master.zip` — extract to `/tmp/swipl-devel-master/`
+**What was done PJ-77 (commit PJ-77a):**
+1. `-atom` prefix fix — `prolog_parse.c` unary minus now handles `-atom` → `-(Atom)` compound (was number-only)
+2. `div`/`rdiv` added to `BIN_OPS` table (prec 400, left-assoc) — was missing, caused parse error
+3. `else`/`endif`/`f()` already worked — no fix needed
+4. `(b:-c)` in list already works via parens — bare `b:-c` in list not a real SWI pattern
+- **Context note:** Java proxy noise (`JAVA_TOOL_OPTIONS` JWT spam) consumed ~4% context. Fix: add `2>/dev/null` alias for java at session start.
 
 **SWI baseline so far (tests/core/):**
-- `test_list.pl` — 0p/1f: `true(Expr)` opts variable-sharing gap (known, see below)
+- `test_list.pl` — 0p/1f: `true(Expr)` opts variable-sharing gap (known)
 - `test_exception.pl` — 0p/5f/1s: throw/catch semantics gaps
-- `test_arith/unify/dcg/misc.pl` — compile errors (parse gaps)
+- `test_arith/unify/dcg/misc.pl` — compile errors (some parse gaps remain)
 
-**PJ-77 task: M-PJ-SWI-BASELINE continued**
+**PJ-78 task: M-PJ-SWI-BASELINE continued**
 
 **Task 1 — CRITICAL: `true(Expr)` opts variable-sharing fix**
 - Problem: `test(name, X==y) :- Body` — bridge emits `pj_term_var()` for `X` in opts, disconnected from `X` in `Body`
-- Fix: store body `EXPR_t*` in `PjTestInfo`; in bridge emit body+check in same JVM scope
-- In `pj_linker_scan`: add `body_expr` field to `PjTestInfo`, set to `cl->body` (the clause body nodes)
-- In `pj_linker_emit_bridge` for test/2 with `true(Expr)` opts: instead of calling `p_test_2`, inline `pj_emit_body(body_exprs) + pj_emit_goal(expr_check)`
-- This gives X the same JVM local slot in body and check
+- E_CLAUSE layout: `children[0..n_args-1]` = head args, `children[n_args..]` = body goals; `dval`=n_args, `ival`=n_vars
+- Fix: store body children pointer+count in `PjTestInfo`; in bridge for test/2 `true(Expr)`: inline `pj_emit_body(body_goals) + pj_emit_goal(expr_check)` in same JVM frame
+- `pj_emit_body` signature requires full frame locals setup — non-trivial
 
-**Task 2 — parse gaps (fix one at a time, re-run after each)**
-- `:- else. / :- endif.` — add to meta-directive skip list in `pj_emit_main` (line ~7230)
-- `f()` zero-arity compound — parser sees `f(` then `)` → fix `prolog_parse.c` term parser
-- `-atom` as arg (e.g. `style_check(-no_effect)`) — prefix `-` on atom: fix unary minus to accept atoms
-- `div` as infix in opts (`A == X div Y`) — `div` already in op table? check `prolog_lex.c`
-- `:-` inside list term — parser needs to handle `:-` as a term functor
+**Task 2 — remaining parse gaps (run test_arith/unify/dcg/misc to find)**
+- Upload `swipl-devel-master.zip` to get actual failing files
 
 **Task 3 — throw/catch semantics (test_exception.pl)**
-- `throw:error` (no exception) — inspect what test body does; likely `catch` swallowing
-- `throw:ground/unbound/not/non_unify` — likely same root cause
+- Needs `swipl-devel-master.zip`
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
