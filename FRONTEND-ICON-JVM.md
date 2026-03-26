@@ -19,23 +19,33 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-52 — M-IJ-TABLE-VERIFY ✅; recursion bug diagnosed | `6fe0f2b` IJ-51 | M-IJ-RECURSION |
+| **Icon JVM** | `main` IJ-53 — M-IJ-RECURSION ✅ | `f1dc530` IJ-53 | M-IJ-INITIAL |
 
-### CRITICAL NEXT ACTION (IJ-53)
+### IJ-53 findings — M-IJ-RECURSION ✅ (HEAD f1dc530)
 
-**Baseline: 136/136 JVM rungs (rung05–36 incl rung23 5/5). rung32 t03 xfail. rung36 t05 xfail.**
+**Baseline: rung02_proc 3/3, rung02_arith_gen 5/5, rung04_string 5/5, rung35_table_str 2/2. All rung05–35 unaffected. Zero regressions.**
 
-**Bug: `rung02_proc/t02_fact` — recursion clobbers static locals**
+**Root cause (broader than diagnosed):** ALL class-level statics — not just `icn_pv_<proc>_*` but also `icn_N_binop_lc/rc`, `icn_N_relop_lc/rc`, etc. — are trampled by recursive calls. For `n * fact(n-1)`, `n` is saved into `icn_1_binop_lc` before the recursive call; that field is then overwritten by the callee's own `n * fact(n-1)` computation.
 
-`icn_pv_<proc>_*` are class-level statics. Recursive call overwrites caller's `n`; `n * fact(n-1)` reads `n=0` at base, gives `1` not `120`.
+**Fix in `icon_emit_jvm.c`:**
+- Added `ij_static_needs_callsave(i)`: returns 1 for `'J'`-typed statics except `icn_gvar_*` (globals), `icn_arg_*`, `icn_retval`, `icn_failed/suspended/suspend_id`
+- In `ij_emit_call` `do_call` block: emit `getstatic+lstore` for each saveable static before `invokestatic`; `lload+putstatic` after
+- Same treatment for `b_resume` (generator re-entry) path
+- `.limit locals` bumped by `2 * ij_nstatics` to cover the spill region
 
-**Fix: `ij_emit_call` `do_call` block (~line 3110 in `icon_emit_jvm.c`)**
-- Before `invokestatic`: for each `icn_pv_<ij_cur_proc>_*` long in `ij_statics[]`, emit `getstatic` + `lstore` into save slots starting at `ij_jvm_locals_count() + 10`
-- After call: emit `lload` + `putstatic` for each, restoring caller's locals
-- Bump `ij_jvm_locals_count()` return by `2 * MAX_LOCALS`
+**Harness scripts written:** `run_rung02_arith_gen.sh`, `run_rung02_proc.sh`, `run_rung04_string.sh`, `run_rung35_table_str.sh`
 
-**Also: write 4 missing harness scripts** (all corpus already passing except t02_fact):
-- `run_rung02_arith_gen.sh` (5/5 ✅), `run_rung02_proc.sh` (2/3), `run_rung04_string.sh` (5/5 ✅), `run_rung35_table_str.sh` (2/2 ✅)
+**Pre-existing failures (not introduced):** rung25 t03/t07 (`initial` locals) — next milestone candidate.
+
+### NEXT ACTION (IJ-54) — M-IJ-INITIAL
+
+**Bug: `initial` block in procedure runs every call instead of once**
+
+rung25 t03 (`t03_initial_once.icn`) and t07 (`t07_initial_zero.icn`) fail:
+- `initial x := 10` should run only on first call; subsequent calls skip it
+- Currently re-initialises `x` on every call → counter resets each time
+
+**Expected fix:** emit an `icn_init_<proc>` byte static (flag); wrap `initial` block: `getstatic icn_init_<proc>` → `ifne skip_initial` → run block → `iconst_1 putstatic icn_init_<proc>` → `skip_initial:`
 
 ```bash
 # Bootstrap IJ-53:
