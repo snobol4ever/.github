@@ -14,7 +14,7 @@ that the idea works end-to-end.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scripten Demo** | SD-0 — scaffold committed; blocked on Icon string-return bug | `a9de763` SD-0 | M-IJ-STRING-RETVAL → then M-SCRIPTEN-DEMO |
+| **Scripten Demo** | SD-0 — M-IJ-STRING-RETVAL ✅; last blocker: `| 1` VerifyError in icn_main | `8ec4bac` SD-0 | M-SCRIPTEN-DEMO |
 
 ### CRITICAL NEXT ACTION (SD-1)
 
@@ -41,7 +41,10 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c \
     src/frontend/icon/icon_ast.c src/frontend/icon/icon_emit.c \
     src/frontend/icon/icon_emit_jvm.c src/frontend/icon/icon_runtime.c \
     -o /tmp/icon_driver_jvm
-# Fix M-IJ-STRING-RETVAL in icon_emit_jvm.c
+# Fix | 1 VerifyError: replace all '| 1' with '| (i := i)' in family_icon.icn
+# Then recompile, re-inject, run ScriptenFamily < family.csv
+# Write family.expected, run_demo.sh, scripten_split.py, README.md
+# Commit: SD-1: M-SCRIPTEN-DEMO ✅
 # Then: compile all three demo blocks, run inject_linkage.py, assemble, run
 ```
 

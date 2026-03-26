@@ -1692,3 +1692,31 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 **Context window at handoff: ~90%.**
 
 **Next session (PJ-55):** M-PJ-ABOLISH — implement `abolish/1`, create rung15 corpus (5 tests). See FRONTEND-PROLOG-JVM.md §NOW.
+
+## SD-0 continued — M-IJ-STRING-RETVAL fix + pipeline progress
+
+**HEAD:** `8ec4bac` | **Date:** 2026-03-25
+
+**Accomplished:**
+
+- **M-IJ-STRING-RETVAL ✅ FIXED** in `src/frontend/icon/icon_emit_jvm.c`:
+  - Added `icn_user_returns_str[]` to proc table; `ij_mark_proc_returns_str()` / `ij_proc_returns_str()` helpers
+  - Pre-pass at proc registration scans `ICN_RETURN` children for string type; marks proc accordingly
+  - `ij_emit_return`: string child now routes to `ij_put_str_field("icn_retval_str")` instead of `ij_put_long("icn_retval")`
+  - Both call-site `ij_get_long("icn_retval")` reads patched to use `ij_get_str_field("icn_retval_str")` when proc returns string
+  - `ij_expr_is_string` updated to return 1 for user proc calls that `ij_proc_returns_str()`
+  - New `.field public static icn_retval_str Ljava/lang/String;` emitted in class header
+  - **Rungs 22/23/24: 15/15 PASS** — no regressions
+
+- **`demo/scripten/ScriptenFamily.j`** written — hand-written Jasmin driver invoking SNOBOL4 main then Icon icn_main
+
+- **`inject_linkage.py`** updated: all stubs use `icn_retval_str`; ancestors stub hardcodes `"U008"` arg
+
+- **`family_icon.icn`** rewritten multiple times; current version uses `while i <= n do (expr | 1)` pattern — compiles and assembles but hits JVM VerifyError at runtime: `icn_main: Expecting to find long on stack`. Root cause: `| 1` at merge point leaves String on one branch, int `1` on other — JVM verifier rejects.
+
+- **SCRIPTEN_DEMO3.md** created — concept doc for tiny compiler demo (Snocone parse → Prolog codegen → Icon optimize+orchestrate → Snocone format). Marked concept-only, not scheduled.
+
+**Context window at handoff: ~91%.**
+
+**Next session (SD-1) — one action to unblock:**
+Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (long-typed no-op assignment), or restructure without `|` fallthrough. Then: recompile → re-inject → reassemble → run → get output → write `family.expected` → write `run_demo.sh` + `scripten_split.py` + `README.md` → commit `M-SCRIPTEN-DEMO ✅`.

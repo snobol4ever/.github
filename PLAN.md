@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed 12KB→4.6KB; §NOW bloat + Roadmap removed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scripten Demo** | SD-0 — scaffold ✅ blocked: M-IJ-STRING-RETVAL in icon_emit_jvm.c | `a9de763` SD-0 | M-IJ-STRING-RETVAL → M-SCRIPTEN-DEMO |
+| **⭐ Scripten Demo** | SD-0 — M-IJ-STRING-RETVAL ✅ fixed; icn_main VerifyError (`| 1` type mismatch) last blocker | `8ec4bac` SD-0 | M-SCRIPTEN-DEMO |
 | **TINY backend** | `main` B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | `net-t2` N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | `main` J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -52,7 +52,7 @@ Backends:   x64 ASM · JVM bytecode · .NET MSIL · WebAssembly
 ## Milestone Dashboard
 
 ### ⭐⭐ Icon JVM — detail → [FRONTEND-ICON-JVM.md](FRONTEND-ICON-JVM.md)
-`M-IJ-LISTS` ✅ · `M-IJ-TABLE` ✅ · `M-IJ-RECORD` ✅ · `M-IJ-RECORD-PROCARG` ✅ · `M-IJ-STRING-RETVAL` ❌ **NEXT** · `M-IJ-NULL-TEST` ❌ · `M-IJ-BLOCK-BODY` ❌ · `M-IJ-GLOBAL` ❌ · `M-IJ-BUILTINS-STR` ❌ · `M-IJ-SORT` ❌
+`M-IJ-LISTS` ✅ · `M-IJ-TABLE` ✅ · `M-IJ-RECORD` ✅ · `M-IJ-RECORD-PROCARG` ✅ · `M-IJ-STRING-RETVAL` ✅ · `M-IJ-NULL-TEST` ❌ **NEXT** · `M-IJ-BLOCK-BODY` ❌ · `M-IJ-GLOBAL` ❌ · `M-IJ-BUILTINS-STR` ❌ · `M-IJ-SORT` ❌
 
 ### ⭐⭐ Prolog JVM — detail → [FRONTEND-PROLOG-JVM.md](FRONTEND-PROLOG-JVM.md)
 `M-PJ-FINDALL` ✅ · `M-PJ-ATOM-BUILTINS` ✅ · `M-PJ-ASSERTZ` ✅ · `M-PJ-RETRACT` ❌ **NEXT** · `M-PJ-ATOP` ❌
