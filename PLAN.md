@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **DOTNET** | `main` D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | `main` R-2 | `00846d3` | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | `main` PJ-69 — M-PJ-EXCEPTIONS ✅ 5/5 rung28 | `a48be16` PJ-69 | M-PJ-NUMBER-OPS |
+| **Prolog JVM** | `main` PJ-70 — M-PJ-NUMBER-OPS ✅ 5/5 rung29 | `31c5d1f` PJ-70 | M-PJ-DCG |
 | **Icon JVM** | `main` IJ-45 — M-IJ-SORT WIP; fix `lstore_4`→`lstore 4` then commit | `fe87efc` IJ-44 | M-IJ-SORT |
 
 **Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)

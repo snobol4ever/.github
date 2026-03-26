@@ -2043,6 +2043,51 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ---
 
+## PJ-68 — M-PJ-AGGREGATE ✅
+
+**Date:** 2026-03-26. **HEAD:** `(reconstructed — see milestone table)`.
+
+**Milestone:** M-PJ-AGGREGATE ✅ — `aggregate_all/3` (count/sum/max/min/bag/set), `nb_setval/2`, `nb_getval/2`, `succ_or_zero/2`; rung27 5/5.
+
+---
+
+## PJ-69 — M-PJ-EXCEPTIONS ✅
+
+**Date:** 2026-03-26. **HEAD:** `a48be16`.
+
+**Milestone:** M-PJ-EXCEPTIONS ✅ — `catch/3`, `throw/1` ISO exception machinery; rung28 5/5.
+
+---
+
+## PJ-70 — M-PJ-NUMBER-OPS ✅
+
+**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `31c5d1f`.
+
+**Baseline entering:** 5/5 rung28, rung11–rung28 all green.
+
+**M-PJ-NUMBER-OPS:** Float arithmetic infrastructure added to `prolog_emit_jvm.c`:
+- `pj_term_float(D)` helper: `Object[]{"float", Double.toString(d)}`
+- `pj_emit_dbl_const()`: emits via raw `long` bits + `longBitsToDouble` — avoids Jasmin float32 truncation of decimal `ldc2_w` literals
+- `pj_arith_is_float()`: compile-time type inference (float vs int result)
+- `E_FLIT` in `pj_emit_term` + `pj_emit_arith`
+- `E_VART` in `pj_emit_arith`: float-tag branch (`parseDouble`+bits) vs int (`parseLong`)
+- Float math: `sqrt/sin/cos/tan/exp/log/atan/atan2/float/float_integer_part/float_fractional_part/pi/e`
+- `truncate/integer/round/ceiling/floor` fixed for float→int conversion
+- `pj_emit_gcd_helper`: Euclidean `gcd(JJ)J`, always emitted
+- `is/2`: calls `pj_term_float` when `pj_arith_is_float`, else `pj_term_int`
+- Comparison ops: `dcmpl` for float operands
+- rung29_number_ops corpus: 5 tests (float_math, float_conversion, float_constants, float_parts, gcd)
+
+**Score:** 5/5 rung29 ✅. rung11–rung29 all green (15/15 for rung27–29).
+
+**Key bug fixed mid-session:** Jasmin `ldc2_w 4.0` truncates to float32 (`3.1415927…` for pi). Fixed by `pj_emit_dbl_const` using `ldc2_w <longbits>` + `longBitsToDouble`.
+
+**Context window at handoff: ~72%.**
+
+**Next session (PJ-71):** M-PJ-DCG — DCG rules (`-->`), `phrase/2,3`. See FRONTEND-PROLOG-JVM.md §NOW.
+
+---
+
 ## IJ-45 — M-IJ-SORT WIP (emergency handoff, ~85% context)
 
 **Date:** 2026-03-26. **HEAD at handoff:** snobol4x `b2868c8`.
