@@ -267,3 +267,15 @@ rung26 5/0/0 · HEAD `90c759e` · `^` exponentiation via `Math.pow(DD)D`, right-
 ## IJ-41 — M-IJ-READ ✅  2026-03-25
 rung27 5/0/0 · HEAD `d94e728` · `read()`/`reads()` builtins (BufferedReader wrapping System.in)
 Bugs fixed: while-cond pop/pop2 · body-result drain · cond_ok fall-through · local-slot zero-init
+
+## PJ-55 — M-PJ-ABOLISH ✅  2026-03-25
+rung15 5/0/0 · HEAD `db82779` · `abolish/1` — `pj_db_abolish` + `pj_db_abolish_key` (uses `pj_atom_name`/`pj_int_val` to decode `/(Name,Arity)` compound)
+
+## PJ-56 — M-PJ-ATOP ✅  2026-03-25
+rung16 5/0/0 · HEAD `033f34f` · `@<`/`@>`/`@=<`/`@>=` — 4 entries in `BIN_OPS[]` + `pj_term_str`→`String.compareTo` dispatch
+
+## PJ-57 — M-PJ-SORT ✅  2026-03-25
+rung17 5/0/0 · HEAD `d0b58bb` · `sort/2`/`msort/2` — `pj_list_to_arraylist`, `pj_arraylist_to_list`, `pj_sort_list` (insertion sort + optional dedup)
+
+## PJ-58 — M-PJ-SUCC-PLUS ✅  2026-03-25
+rung18 5/0/0 · HEAD `937ef92` · `succ/2`/`plus/3` — `pj_is_var`, `pj_succ_2`, `pj_plus_3` (all 3 modes for plus)
