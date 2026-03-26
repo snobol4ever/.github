@@ -2608,3 +2608,17 @@ Each fires when all three frontends compile correctly through JVM and match .exp
 Updated: SCRIP_DEMOS.md, PLAN.md NOW row (next = M-SD-1).
 
 **Context window at handoff: ~94%.**
+
+---
+
+## SD-23 -- Handoff note: linker comes after ladder
+
+**Date:** 2026-03-26. **No code change.**
+
+Confirmed plan sequence:
+1. M-SD-1 through M-SD-10 — each demo passes all three JVM frontends (SNOBOL4, Icon, Prolog) independently. Ladder proves each frontend compiles correctly in isolation.
+2. Linker milestone (M-SCRIP-DEMO2 or new milestone) — wire three JVM classes together into one execution. SNOBOL4 parses, Prolog reasons, Icon reports. This is the funny linkage demo from SCRIP_DEMO.md.
+
+**Next session (SD-24):** M-SD-1 — wire snobol4jvm + icon_driver -jvm + sno2c -pl -jvm into run_demo.sh; run hello.md through all three JVM frontends; fire M-SD-1.
+
+**Context window at handoff: ~95%.**
