@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row on every push
 | **README** | `main` R-2 | `00846d3` | M-README-DEEP-SCAN |
 | **ICON frontend** | `main` I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | `main` PJ-52 — M-PJ-ASSERTZ WIP; stack-height+key-encoding fixed; ClassCastException String->Integer in p_main_0 remains | `d4f8ac4` PJ-52 | M-PJ-ASSERTZ |
-| **Icon JVM** | `main` IJ-36 — M-IJ-TABLE ✅; 119/119 PASS | `9635570` IJ-36 | M-IJ-CORPUS-R22 |
+| **Icon JVM** | `main` IJ-37 — M-IJ-RECORD 4/5 PASS (t03 xfail: proc arg) | `90bd967` IJ-37 | M-IJ-RECORD-PROCARG |
 
 **Invariants:** TINY `106/106` (`run_crosscheck_asm_corpus.sh`) · DOTNET `1903/1903` (`dotnet test`)
 

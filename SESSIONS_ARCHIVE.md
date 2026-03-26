@@ -1579,3 +1579,36 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 **Context window at handoff: ~35%.**
 
 **Next G-session:** Check remaining L4 docs for similar §NOW stacking. Candidates: FRONTEND-ICON.md, BACKEND-X64.md. Or proceed to pre-stage Phase 0 emitter audit. Wait for Lon's M-G0-FREEZE signal before any execution work.
+
+## IJ-37 — M-IJ-RECORD (4/5 PASS) — 2026-03-25
+
+**HEAD start:** `9635570` (IJ-36). **HEAD end:** `90bd967`.
+**Baseline confirmed:** 65/65 JVM rungs (rung05–23) PASS. Script path bug found: `run_rung22.sh` and `run_rung23.sh` used `../../..` (wrong — went to `test/frontend/` not repo root) — fixed to `../../..` → confirmed 5/5 each.
+
+**Accomplished:**
+
+- **Parser:** `parse_record()` added to `icon_parse.c`. Parses `record Name(f1,f2,...)` → `ICN_RECORD` node with `val.sval=name`, children=`ICN_VAR` field nodes. Hooked into `icn_parse_file` top-level loop alongside `TK_PROCEDURE`/`TK_GLOBAL`.
+
+- **JVM emitter — record type registry:** `ij_register_record`, `ij_is_record_type`, `ij_record_nfields`, `ij_record_field`. Registered in pass-0 of `ij_emit_file`. `ij_nrec` reset on each file.
+
+- **JVM emitter — `ICN_FIELD` (E.name read):** `ij_emit_field` — pops 0L placeholder, loads record Object static, `checkcast`, `getfield`, instanceof-branch to unbox Long or handle String. Wired into dispatch.
+
+- **JVM emitter — `ij_emit_record_class`:** Writes a separate `ClassName$RecordName.j` file (Jasmin inner-class syntax not supported in single file). `run_rung24.sh` assembles all sibling `$*.j` files.
+
+- **JVM emitter — record constructor in `ij_emit_call`:** Detects `ij_is_record_type(fname)`. Chains arg relays (box each Long arg), builds `new`+`invokespecial`, `putfield` each arg, stores into `icn_retval_obj`. Emits `lconst_0` as numeric placeholder.
+
+- **JVM emitter — `ICN_ASSIGN` with `ICN_FIELD` lhs:** Early-exit before generic assign. Eval RHS → relay → box → load record obj → `putfield`. β wired to `vb` (resumes RHS generator, enabling `every c.n := 1 to 3`).
+
+- **JVM emitter — `ICN_ASSIGN` with record RHS:** `is_rec` detection. Pops 0L, loads `icn_retval_obj`, stores as `Ljava/lang/Object;` field. `ij_declare_static_typed` upgraded to allow `J→O` type promotion.
+
+- **JVM emitter — `ij_emit_var` Object path:** Detects `'O'`-typed statics; emits `lconst_0` placeholder instead of `getstatic J` (which would NoSuchFieldError).
+
+- **Pass-1b pre-scan:** Walks all proc bodies before emit, pre-registers record-assigned vars as Object-typed so `ij_emit_var` sees the correct type even before the assign is emitted in Byrd-box order.
+
+- **`icn_retval_obj`:** New `Ljava/lang/Object;` static field in emitted class. Constructor stores here; assign picks it up.
+
+- **rung24 corpus:** 5 tests — t01 basic r/w, t02 field assign, t03 proc arg (xfail), t04 two record types, t05 record in every loop. `run_rung24.sh` with xfail support.
+
+**Score:** rung24: 4 pass, 0 fail, 1 xfail. Old 65/65 unaffected.
+
+**Remaining bug (IJ-38 / M-IJ-RECORD-PROCARG):** `sum(q)` where `q` is a record. `ij_emit_call` user-proc path passes args as longs — param var `icn_pv_sum_p` declared `J`. Pre-pass only detects `ASSIGN(VAR, record_call)`, not call-arg passing. Fix: in `ij_emit_call` user-proc arg-store loop, detect record-type arg and store `icn_retval_obj` into `icn_pv_{proc}_{param}` Object field; pre-declare that field as `O`.

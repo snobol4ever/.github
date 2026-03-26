@@ -19,25 +19,18 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-36 — M-IJ-TABLE ✅; 119/119 PASS | `9635570` IJ-36 | M-IJ-CORPUS-R22 |
+| **Icon JVM** | `main` IJ-37 — M-IJ-RECORD 4/5 PASS; t03 xfail | `90bd967` IJ-37 | M-IJ-RECORD-PROCARG |
 
-### CRITICAL NEXT ACTION (IJ-36)
+### CRITICAL NEXT ACTION (IJ-38)
 
-**Baseline: 114/114 PASS (rungs 01–22). rung23: 4/5 (t01–t04 PASS, t05 FAIL).**
+**Baseline: 65/65 JVM rungs (rung05–23) PASS. rung24: 4 pass, 0 fail, 1 xfail.**
 
-**THE BUG — `key(T)` α re-snapshot:** `every` drives the generator via α (not β) on each iteration → `ktr` re-snapshots keySet and resets kidx=0 → only the first key is yielded repeatedly.
+**THE XFAIL — t03 `sum(q)` where q is a record:** `ij_emit_call` passes record args as `lconst_0` (long). The callee param var (`icn_pv_sum_p`) is declared `J`, not `Ljava/lang/Object;`. Pre-pass only scans `ICN_ASSIGN(VAR, record_call)` — param passing goes through call machinery, not assign.
 
-**Fix:** Add `icn_N_kinit I` static. α port: `getstatic kinit; ifne kchk` (skip re-snapshot if already init'd). `ktr` entry: `iconst_1; putstatic kinit` (mark init done on first entry).
+**Fix:** In `ij_emit_call` user-proc path, after computing each arg: detect if arg is a record type (`ij_expr_is_record`). If so, after emitting the arg (which stores `icn_retval_obj`), store `icn_retval_obj` into the param's Object field (`icn_pv_{proc}_{param}`). Also pre-declare that param field as `O` in a pre-pass or at call-site.
 
 ```bash
-grep -n "ktr\|kchk\|kidx\|karr\|ktbl\|kinit" src/frontend/icon/icon_emit_jvm.c
-# Apply fix above → build → rung23 5/5 → total 119/119 → M-IJ-TABLE ✅
-# Commit "IJ-36: M-IJ-TABLE ✅ — 119/119 PASS"
-# Update PLAN.md NOW, §NOW above, SESSIONS_ARCHIVE.md
-```
-
-**Bootstrap IJ-36:**
-```bash
+# Bootstrap IJ-38:
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
@@ -46,9 +39,11 @@ gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/i
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_corpus_jvm.sh /tmp/icon_driver   # expect 114/114
-bash test/frontend/icon/run_rung_jvm.sh /tmp/icon_driver 23  # expect 4/5
+bash test/frontend/icon/run_rung24.sh /tmp/icon_driver   # expect 4/0/1
+# Fix t03 → 5/5 → remove xfail → commit "IJ-38: M-IJ-RECORD-PROCARG ✅"
 ```
+
+**Also note:** `run_rung22.sh` and `run_rung23.sh` had a path bug (`../../..` fix applied in IJ-37, committed). The old scripts used `../..` and always reported 0/0.
 
 ---
 
