@@ -1560,3 +1560,22 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 **Fix for PJ-53:** Change `db_idx_local = arity + 4 + 32 + 4` to `locals_needed - 2` (within `pj_emit_choice`). Also add `iconst_0; istore db_idx_local` at method entry so the JVM knows the type. See §NOW CRITICAL NEXT ACTION.
 
 **Context window at handoff: ~99%.**
+
+## G-7 — FRONTEND-PROLOG-JVM.md context bloat fix
+
+**HEAD:** `eb9f2ec` | **Date:** 2026-03-25
+
+**Goal:** Apply same §NOW discipline to Prolog JVM doc that was applied to Icon JVM doc in G-6.
+
+**Work done:**
+
+- **§NOW trimmed:** Removed PJ-50/51/52 stacked bug writeups (those sessions are in SESSIONS_ARCHIVE already). Kept only PJ-53 CRITICAL NEXT ACTION — the one live bug and its fix.
+- **Roadmap section deleted:** The Tier 1/2/3 table was a complete duplicate of the Milestone Table. Replaced with single sprint-order line.
+- **Header fixed:** `L3` → `L4`.
+- **Size:** 12,057 bytes → 4,605 bytes (62% reduction).
+
+**No content lost:** all PJ-50/51/52 bug details already in SESSIONS_ARCHIVE.md.
+
+**Context window at handoff: ~35%.**
+
+**Next G-session:** Check remaining L4 docs for similar §NOW stacking. Candidates: FRONTEND-ICON.md, BACKEND-X64.md. Or proceed to pre-stage Phase 0 emitter audit. Wait for Lon's M-G0-FREEZE signal before any execution work.
