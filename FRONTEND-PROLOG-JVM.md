@@ -21,11 +21,11 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 |---------|--------|------|----------------|
 | **Prolog JVM** | `main` PJ-61 — M-PJ-CHAR-TYPE ✅ 5/5 rung21 | `adae291` PJ-61 | M-PJ-SUCC-ARITH |
 
-### CRITICAL NEXT ACTION (PJ-62)
+### CRITICAL NEXT ACTION (PJ-63)
 
-**Baseline: 5/5 rung11–rung21 ✅. snobol4x HEAD `adae291`.**
+**Baseline: 5/5 rung11–rung22 ✅. snobol4x HEAD `60ef637`.**
 
-**Next milestone: M-PJ-WRITE-CANONICAL — implement `write_canonical/1`, `writeq/1`, `print/1` or next queued milestone.**
+**Next milestone: M-PJ-SUCC-ARITH — implement `succ_or_zero/2`, `max/2`, `min/2`, `abs/1`, `sign/1` in arithmetic or next queued milestone.**
 
 **Bootstrap PJ-61:**
 ```bash
@@ -34,7 +34,7 @@ git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 # Read §NOW above. Implement next milestone.
-# Confirm rung11–rung21 no regressions
+# Confirm rung11–rung22 no regressions
 # Commit snobol4x, update §NOW + PLAN.md, push both repos
 ```
 
@@ -73,6 +73,7 @@ make -C snobol4x/src
 | **M-PJ-FORMAT** | `format/1`, `format/2` — ~w ~a ~n ~d ~i directives | ✅ |
 | **M-PJ-NUMBER-VARS** | `numbervars/3` — name unbound vars as A,B,...Z,A1,...; `$VAR` write support | ✅ |
 | **M-PJ-CHAR-TYPE** | `char_type/2` — alpha/alnum/digit/space/upper/lower/to_upper/to_lower/ascii | ✅ |
+| **M-PJ-WRITE-CANONICAL** | `writeq/1`, `write_canonical/1`, `print/1`; atom quoting + symbolic token rules | ✅ |
 
 ---
 
