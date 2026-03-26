@@ -19,31 +19,36 @@ and emits Jasmin `.j` files, assembled by `jasmin.jar`.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-73 — M-PJ-SWI-BASELINE ✅ 51/52 test_acyclic | `7037880` PJ-73 | M-PJ-SWI-SUITE |
+| **Prolog JVM** | `main` PJ-74 — M-PJ-SWI-SUITE 🔄 | `8bf24cf` PJ-74 | M-PJ-LINKER |
 
-### CRITICAL NEXT ACTION (PJ-74)
+### CRITICAL NEXT ACTION (PJ-75)
 
-**M-PJ-SWI-BASELINE complete. New milestone: M-PJ-SWI-SUITE.**
+**PJ-74 findings: directive runtime dispatch works; registration gap requires linker.**
 
-**What was done this session (PJ-73):**
-- Wiped last session's corpus mistakes (snobol4corpus reset to ccd79fa)
-- Architecture decision: fetch SWI tests at run-time, no copies in repo
-- `test/frontend/prolog/wrap_swi.py` — wraps SWI .pl files for our backend:
-  strips module/use_module/bare-dynamic directives, silences begin/end_tests,
-  statically emits pj_suite/pj_test facts + bridge predicates, appends shim
-- `test/frontend/prolog/plunit.pl` — 161-line plunit shim:
-  no call/N, flat single-clause dispatch, acyclic_term/maplist/append stdlib
-- `src/frontend/prolog/prolog_parse.c` fixes:
-  - f() zero-arity compound parsing
-  - operator-as-functor: =(x), not(x) etc.
-  - =@= / \=@= / ?= added to BIN_OPS operator table
-- First green run: `test_acyclic.pl` → 51 passed, 0 failed, 1 skipped (sto)
+**What was done this session (PJ-74):**
+- Confirmed pipeline: test_acyclic ✅ 51/52, test_unify ✅ 11/0/0, test_occurs_check ✅ 6/0/3
+- test_list / test_copy_term: COMPILE_ERR — `test(Name, X==y)` bare-goal opts → unbound var in fact head
+- wrap_swi.py: added `normalize_opts()` — bare goals wrapped as `true(X==y)`
+- `prolog_emit_jvm.c` `pj_emit_main`: directives now routed through `pj_call_goal` at JVM init.
+  Meta-directives (module/use_module/dynamic etc.) silently skipped. All others execute at runtime.
+- `test/frontend/prolog/plunit_mock.pro`: full runtime plunit mock — begin_tests/1,2, end_tests/1,
+  run_tests/0,1, option handling (sto/fail/error/throws/true/bare-goal). No Python, no text munging.
+- **Blocker:** `test(Name,Opts)` clauses are user-defined — runtime can't enumerate names without
+  `clause/2`. Registration gap: `pj_registered_test` facts never get asserted.
 
-**PJ-74 task: M-PJ-SWI-SUITE**
+**Architecture decision (PJ-75): implement a linker.**
+- `use_module(library(plunit))` → linker resolves to pre-compiled plunit_mock.j fragment, linked in.
+- Parser recognises `use_module(library(X))` directive → hands to linker.
+- Linker pre-populates `pj_registered_test` facts by scanning compiled test/N clause table.
+- This is the Wizard of Oz approach: SWI files load unchanged, everything wired behind the curtain.
+- Also need: `clause/2` builtin for runtime test enumeration (or linker handles it statically).
 
-Run wrap_swi.py + pipeline against the full SWI tests/core suite.
-Fetch each file, wrap, compile, run, record pass/fail/skip/error.
-Build a baseline table. Then fix the gaps.
+**PJ-75 task: M-PJ-LINKER**
+1. Add `clause/2` to `prolog_builtin.c` + `prolog_emit_jvm.c`
+2. OR: linker in `prolog_emit_jvm.c` — `use_module(library(X))` resolves to `SNOBOL4_LIB/X.pro`,
+   compiles and merges into the output `.j`
+3. Wire `plunit_mock.pro` as the canonical `library(plunit)` target
+4. Delete wrap_swi.py (or demote to legacy fallback)
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -54,14 +59,16 @@ make -C snobol4x/src
 ```
 
 **Key files:**
-- `snobol4x/test/frontend/prolog/wrap_swi.py` — wrapper
-- `snobol4x/test/frontend/prolog/plunit.pl` — shim
+- `snobol4x/test/frontend/prolog/plunit_mock.pro` — runtime mock (needs clause/2 or linker)
+- `snobol4x/test/frontend/prolog/wrap_swi.py` — legacy fallback (normalize_opts fix landed)
+- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — pj_emit_main directive dispatch (PJ-74)
 - Fetch URL pattern: `https://raw.githubusercontent.com/SWI-Prolog/swipl-devel/master/tests/core/TEST.pl`
 
-**SWI tests to run next (roughly easy→hard):**
-test_acyclic ✅, test_unify, test_list, test_copy_term, test_occurs_check,
-test_exception, test_op, test_sort, test_string, test_arith, test_format,
-test_write, test_read, test_dcg, test_bips, test_misc
+**SWI suite status:**
+test_acyclic ✅ 51/0/1, test_unify ✅ 11/0/0, test_occurs_check ✅ 6/0/3,
+test_list ⏳, test_copy_term ⏳, test_exception ⏳, test_op ⏳, test_sort ⏳,
+test_string ⏳, test_arith ⏳, test_format ⏳, test_write ⏳, test_read ⏳,
+test_dcg ⏳, test_bips ⏳, test_misc ⏳
 
 ## Milestone Table
 
