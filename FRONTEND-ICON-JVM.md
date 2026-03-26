@@ -19,19 +19,41 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-54b — full harness coverage ✅ | `71e8e7c` IJ-54b | *(open — see below)* |
+| **Icon JVM** | `main` IJ-55 — M-IJ-STRRET-GEN ✅ | `d64d752` IJ-55 | *(open)* |
 
-### IJ-54b — Full harness coverage (HEAD 71e8e7c)
+### IJ-55 findings — M-IJ-STRRET-GEN ✅ (HEAD d64d752)
 
-**152/152 PASS, 1 xfail (rung32 t03 pre-existing). All corpus dirs now have harness scripts.**
+**rung32: 5/5 PASS (was 4 pass, 1 xfail). 153/153 PASS total. Zero regressions.**
 
-New scripts: `run_rung08_strbuiltins.sh`, `run_rung09_loops.sh`, `run_rung12_strrelop_size.sh`, `run_rung18_real_relop.sh`, `run_rung20_section_seqexpr.sh`, `run_rung21_global_initial.sh`.
+**Root cause:** `ij_emit_call` β path for non-generator procs unconditionally jumped to `ports.ω`. So `every write(tag("a" | "b" | "c"))` — where `tag` is non-gen but its arg is a generator — exited after the first value; the arg alternation's β was never invoked on subsequent pump cycles.
 
-### Open items / next milestone candidates
+**Fix:** Non-generator proc β now routes to `arg_betas[nargs-1]` (last arg's β) when `nargs > 0`, re-pumping the arg generator chain and re-calling. Zero-arg non-gen procs still route to `ports.ω`.
 
-- **rung32 t03 xfail** (`strretval` — string return from generator) — investigate and fix
-- **rung01/rung03** — x64 native backend failures (different subsystem, not JVM)
-- New corpus tiers beyond rung35 if any exist upstream
+**Removed:** `t03_strret_every.xfail` marker.
+
+### Session IJ-53 — IJ-55 summary
+
+| Milestone | Result |
+|---|---|
+| M-IJ-RECURSION (IJ-53) | `fact(5)=120` — save/restore caller scratch statics across calls |
+| M-IJ-INITIAL (IJ-54) | `initial` persistence — exclude callee `icn_pv_*` from callsave restore |
+| Harness coverage (IJ-54b) | All corpus dirs now have scripts (rung08/09/12/18/20/21 added) |
+| M-IJ-STRRET-GEN (IJ-55) | `every proc(gen_arg)` — β re-pumps last arg; rung32 t03 promoted from xfail |
+
+### Bootstrap IJ-56
+
+```bash
+git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+apt-get install -y default-jdk nasm libgc-dev
+cd snobol4x
+gcc -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+for s in test/frontend/icon/run_rung*.sh; do bash $s /tmp/icon_driver 2>/dev/null; done | grep -E "^---"
+# Expected: all clean, 0 fail
+```
 
 **Baseline: rung02_proc 3/3, rung02_arith_gen 5/5, rung04_string 5/5, rung35_table_str 2/2. All rung05–35 unaffected. Zero regressions.**
 
