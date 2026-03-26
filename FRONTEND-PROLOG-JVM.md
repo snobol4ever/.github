@@ -56,6 +56,7 @@ git clone https://TOKEN@github.com/snobol4ever/snobol4x
 git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
+export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~4% context window
 # SWI test files: unzip swipl-devel-master.zip to /tmp/
 # Read §NOW above. Start at CRITICAL NEXT ACTION.
 ```
