@@ -19,15 +19,19 @@ assembled by `jasmin.jar` into `.class` files. Despite the file's location under
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-54 — M-IJ-INITIAL ✅ | `d029d7c` IJ-54 | *(assess next)* |
+| **Icon JVM** | `main` IJ-54b — full harness coverage ✅ | `71e8e7c` IJ-54b | *(open — see below)* |
 
-### IJ-54 findings — M-IJ-INITIAL ✅ (HEAD d029d7c)
+### IJ-54b — Full harness coverage (HEAD 71e8e7c)
 
-**rung25: 7/7 PASS. All rung02/04/05–35 clean. Zero regressions.**
+**152/152 PASS, 1 xfail (rung32 t03 pre-existing). All corpus dirs now have harness scripts.**
 
-**Root cause:** `ij_static_needs_callsave()` was restoring `icn_pv_<callee>_*` fields back to their pre-call values after return, undoing callee-side mutations (e.g. `x := x + 1` after `initial x := 10`).
+New scripts: `run_rung08_strbuiltins.sh`, `run_rung09_loops.sh`, `run_rung12_strrelop_size.sh`, `run_rung18_real_relop.sh`, `run_rung20_section_seqexpr.sh`, `run_rung21_global_initial.sh`.
 
-**Fix:** exclude `icn_pv_<other_proc>_*` from save/restore — only save the caller's own `icn_pv_<ij_cur_proc>_*` locals plus scratch intermediates (`icn_N_binop_*`, etc.).
+### Open items / next milestone candidates
+
+- **rung32 t03 xfail** (`strretval` — string return from generator) — investigate and fix
+- **rung01/rung03** — x64 native backend failures (different subsystem, not JVM)
+- New corpus tiers beyond rung35 if any exist upstream
 
 **Baseline: rung02_proc 3/3, rung02_arith_gen 5/5, rung04_string 5/5, rung35_table_str 2/2. All rung05–35 unaffected. Zero regressions.**
 
