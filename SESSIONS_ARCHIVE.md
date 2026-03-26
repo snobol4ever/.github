@@ -2416,3 +2416,20 @@ Key contrast: TABLE bitset (SNOBOL4) vs list+every (Icon) vs exclude/sieve (Prol
 Key contrast: `MAP` built-in (SNOBOL4) vs `map()` with char translation (Icon) vs `maplist+rot13_char` (Prolog).
 
 **Context window at handoff: ~44%.**
+
+---
+
+## SD-17 -- M-SD-DEMO7 ✅
+
+**Date:** 2026-03-26. **HEAD (snobol4x):** `137364c`.
+
+- `demo/scrip/demo7/caesar.md`: ROT13 cipher; double application proves involution.
+- SNOBOL4: `REPLACE(S, PLAIN, ROT13)` with two parallel 52-char strings -- Gimpel UPLO.inc idiom verbatim.
+- Icon: `map(s, plain, rot13)` -- same parallel-string idiom, built-in function.
+- Prolog: `maplist/2` over integer codes; `rot13_code/2` uses `mod 26` arithmetic.
+- Expected: `Uryyb, Jbeyq!` / `Hello, World!`. swipl PASS.
+
+**Next (SD-18): M-SD-DEMO8** -- `demo8/sort.md`.
+Key contrast: Gimpel BSORT/HSORT insertion-sort idiom (SNOBOL4) vs `isort` (Icon) vs `msort/2` (Prolog).
+
+**Context window at handoff: ~50%.**
