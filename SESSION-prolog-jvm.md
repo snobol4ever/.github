@@ -64,11 +64,11 @@ git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context window
-# SWI test files: source UNKNOWN — snobol4corpus confirmed to be SNOBOL4 only (no .pl files)
-# TODO: determine canonical home for swipl-devel-master/tests/core/test_*.pl
-# Fallback: upload swipl-devel-master.zip or clone https://github.com/SWI-Prolog/swipl-devel
-# Then: for each of test_list/arith/dcg/unify/misc:
-#   python3 test/frontend/prolog/wrap_swi.py <swipl-devel>/tests/core/TEST.pl /tmp/TEST.pro
+# SWI test files: IN snobol4x/test/frontend/prolog/corpus/ as .pro files (rungs 01-30+)
+# Run harness: bash test/frontend/prolog/run_prolog_jvm_rung.sh test/frontend/prolog/corpus/rung04_arith
+# wrap_swi.py is for importing NEW tests from upstream SWI plunit .pl files only
+# For each rung:
+#   bash test/frontend/prolog/run_prolog_jvm_rung.sh test/frontend/prolog/corpus/<rung>
 #   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
@@ -78,7 +78,7 @@ export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context wi
 **Key files:**
 - `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — var/nonvar ~line 4703; pj_ldc_str ~line 56; linker ~line 7040
 - `snobol4x/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
-- SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files) — source TBD (not snobol4corpus; may need upload or clone SWI-Prolog/swipl-devel)
+- SWI tests: `snobol4x/test/frontend/prolog/corpus/` — .pro files, rungs 01–30+; run via run_prolog_jvm_rung.sh
 
 ## Milestone Table
 
