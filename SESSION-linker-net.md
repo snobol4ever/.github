@@ -550,3 +550,41 @@ Regression:  109/110            (056_pat_star_deref @N off-by-one pre-existing)
 
 With M-LINK-NET-8 green, next sprint opens all-five-languages in one linked program.
 Read: `ARCH-scrip-abi.md` + `SESSION-linker-net.md` only.
+
+---
+
+## M-LINK-NET-8 Revised (2026-03-27, Claude Sonnet 4.6) — `db82ce7`
+
+**Scope change:** M-LINK-NET-8 upgraded to three-language linked program (SNOBOL4 + Prolog + Icon).
+
+### Delivered
+
+- `test/linker/net/three_lang/fibonacci.il`    NEW: hand-authored Icon-as-CIL
+  `FIBONACCI(object[], Action, Action)` — recursive fib(n), Byrd-box ABI §4.1
+- `test/linker/net/three_lang/three_lang_main.sno`  NEW: SNOBOL4 caller
+  `IMPORT greet_lib.GREET` + `IMPORT ancestor.ANCESTOR` + `IMPORT fibonacci.FIBONACCI`
+- `test/linker/net/three_lang/run.sh`          NEW: three-language acceptance test
+
+### Result
+
+```
+Hello, World   (SNOBOL4 → SNOBOL4 greet_lib.dll)
+ann            (SNOBOL4 → Prolog  ancestor.dll)
+13             (SNOBOL4 → Icon    fibonacci.dll, fib(7))
+M-LINK-NET-8 ✅  three-language link green
+```
+
+### Icon hand-authored rationale
+
+`icon_emit_net.c` does not yet exist. Hand-authored `fibonacci.il` follows the same
+precedent as `ancestor.il` (LP-4b) — proves the Byrd-box cross-assembly ABI is
+language-agnostic without gating on a full Icon CIL compiler.
+`icon_emit_net.c` is M-SCRIP-XLINK-1 work.
+
+### Next: M-SCRIP-XLINK-1
+
+All five languages in one linked program. Requires:
+1. `icon_emit_net.c` — Icon → CIL emitter (mirrors `icon_emit_jvm.c`)
+2. Snocone .NET emitter stub
+3. Rebus .NET emitter stub
+4. Five-language test: SNOBOL4 + Prolog + Icon + Snocone + Rebus in one run

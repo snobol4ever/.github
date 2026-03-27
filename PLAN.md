@@ -14,7 +14,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
-| **TINY NET** | N-254 — M-LINK-NET-8 ✅ | `6988505` N-254 | M-SCRIP-XLINK-1 |
+| **TINY NET** | N-255 — M-LINK-NET-8 3-lang ✅ | `db82ce7` N-255 | M-SCRIP-XLINK-1 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83d — test_list 1/0 ✅ test_unify 7/4 ✅ test_dcg 7/17 test_arith 63/140 | `5854a82` PJ-83d | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
-| **🔗 LINKER** | LP-8 — M-LINK-NET-8 ✅ | `6988505` LP-8 | M-SCRIP-XLINK-1 |
+| **🔗 LINKER** | LP-8c — M-LINK-NET-8 3-lang ✅ | `db82ce7` LP-8c | M-SCRIP-XLINK-1 |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
