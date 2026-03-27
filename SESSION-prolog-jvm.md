@@ -36,28 +36,34 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-81d WIP — SWI baseline run | `8f86084` PJ-81c | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-79b — parse gaps fixed; all 5 SWI files compile; corpus 107/107 | `75e46c2` PJ-79b | M-PJ-SWI-BASELINE |
 
-### SWI Baseline (PJ-81d) — first run results
+### CRITICAL NEXT ACTION (PJ-80)
 
-SWI upstream: `git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core`
+**PJ-79 findings: test_list/arith/dcg/unify/misc all compile clean. Corpus 107/107. No regressions.**
 
-| Test file | Status | Notes |
-|-----------|--------|-------|
-| `test_list` | ❌ `memberchk` suite: 0 passed, 1 failed | memberchk/2 goal fails in plunit context |
-| `test_arith` | ❌ ClassFormatError | Duplicate method `p_bigint_fmtd_1_0` — split scaffold bug |
-| `test_unify` | ❌ 3 fail | `blam`, `unify_self`, `unify_fv` goal failures |
-| `test_dcg` | ❌ VerifyError | `p_test_2`: integer not on stack |
-| `test_misc` | ❌ 3 fail | `read_only_flag`, `cut_to`, `cut_to_cleanup` |
+**What was done PJ-79 (commits PJ-79a, PJ-79b):**
+- PJ-79a: suppress unused `loc_mstart` warnings in `emit_byrd_net.c`
+- PJ-79b parser fixes (`prolog_parse.c`):
+  1. `:-` as binary op (prec 1200) in `BIN_OPS` + Pratt loop (`TK_NECK`) — fixes `(a :- b(...))` inside args
+  2. Unary minus before variables and parens (`-V0`, `-(expr)`) — was only `-atom`/`-op`
+- PJ-79b lexer fixes (`prolog_lex.c`):
+  3. `0o` octal literal support (was missing)
+  4. `Xe`/`XeN` float literals without decimal point (e.g. `10e300`)
+- PJ-79b `wrap_swi.py` fixes:
+  5. Multi-line directive stripping (consume through terminating `.`)
+  6. `:- dynamic` with predicate on next line (`STRIP_BARE_RE` relaxed to `\s*$`)
+  7. Xfail suites requiring GMP/pushback-DCG: `minint`, `maxint`, `minint_promotion`, `maxint_promotion`, `max_integer_size`, `float_compare`, `context`
 
-### NEXT ACTIONS (priority order)
+**SWI baseline compile status (tests/core/):**
+- `test_list.pl` ✅ compiles clean
+- `test_unify.pl` ✅ compiles clean
+- `test_misc.pl` ✅ compiles clean
+- `test_arith.pl` ✅ compiles clean (7 GMP/NaN suites xfailed)
+- `test_dcg.pl` ✅ compiles clean (pushback-DCG `context` suite xfailed)
+- `test_exception.pl` — NOT YET RUN (throw/catch semantics gaps from PJ-78)
 
-1. **test_arith duplicate method**: `p_bigint_fmtd_1_0` emitted twice — split scaffold emits sub-method AND normal choice; guard needed
-2. **test_dcg VerifyError**: `p_test_2` stack type mismatch — check `.limit locals` sizing for DCG predicates  
-3. **test_list memberchk**: investigate why memberchk/2 fails in plunit context (may be plunit shim vs stdlib shim conflict)
-4. **test_unify**: `unify_self` (X=X), `unify_fv` (free var unify), `blam` — investigate
-5. **test_misc cut_to**: cut across catch boundary
-6. **wrap_swi.py multi-line directive bug**: fix paren-depth tracking
+**PJ-80 task: run the 5 compiled test files, assess pass/fail, then tackle test_exception.pl**
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -65,13 +71,9 @@ git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context window
-# SWI test files: IN snobol4x/test/frontend/prolog/corpus/ as .pro files (rungs 01-30+)
-# Run harness: bash test/frontend/prolog/run_prolog_jvm_rung.sh test/frontend/prolog/corpus/rung04_arith
-# wrap_swi.py is for importing NEW tests from upstream SWI plunit .pl files only
-# Upstream SWI core tests: sparse clone SWI-Prolog/swipl-devel tests/core:
-#   git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
-#   cd /tmp/swipl-devel && git sparse-checkout set tests/core
-# Then wrap: python3 test/frontend/prolog/wrap_swi.py /tmp/swipl-devel/tests/core/TEST.pl /tmp/TEST.pro
+# SWI test files: unzip swipl-devel-master.zip to /tmp/
+# Then: for each of test_list/arith/dcg/unify/misc:
+#   python3 test/frontend/prolog/wrap_swi.py /tmp/swipl/swipl-devel-master/tests/core/TEST.pl /tmp/TEST.pro
 #   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
@@ -79,9 +81,9 @@ export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context wi
 ```
 
 **Key files:**
-- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — var/nonvar ~line 4703; pj_ldc_str ~line 56; linker ~line 7040
+- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
 - `snobol4x/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
-- SWI tests: `snobol4x/test/frontend/prolog/corpus/` — .pro files, rungs 01–30+; run via run_prolog_jvm_rung.sh
+- SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files)
 
 ## Milestone Table
 

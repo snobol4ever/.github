@@ -134,22 +134,3 @@ When the frontend produces an IR node the backend cannot yet emit, do not add a 
 ---
 
 *RULES.md = L3 reference. ~10 rules, each ≤10 lines. No session playbooks. No artifact status tables. No war stories beyond one-line root-cause citations.*
-
-## ⛔ ICON SEMICOLONS — Never recreate icon_semicolon.c
-
-The Icon corpus (rung36 and all demo `.icn` files) has been permanently
-converted to explicit-semicolon form. `icon_semicolon.c` was a one-time
-batch tool; it has been deleted from the repo (SD-28b, `753e243`).
-
-**Never recreate it.** If presented with a semicolon-free Icon snippet
-(extremely rare — all repo files are already converted), add the semicolons
-by hand inline. The parser also accepts optional semicolons after procedure
-headers (SD-30 fix).
-
-## ⛔ ICON PARSER — Never inject semicolons in the parser
-
-The Icon parser must accept source as written. It must never silently insert
-semicolons, infer statement boundaries, or perform automatic semicolon
-insertion (ASI) at parse time. If a source file is missing semicolons, fix
-the source file — not the parser. The corpus is already fully converted;
-this situation should not arise.
