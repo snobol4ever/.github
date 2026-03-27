@@ -25,6 +25,7 @@ gcc -Wall -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
     src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+# icon_semicolon is a one-time batch conversion tool — NOT used at test time
 gcc -O2 -o /tmp/icon_semicolon src/frontend/icon/icon_semicolon.c
 export JAVA_TOOL_OPTIONS=""
 ```
@@ -33,7 +34,8 @@ export JAVA_TOOL_OPTIONS=""
 
 ```bash
 for s in test/frontend/icon/run_rung*.sh; do bash $s /tmp/icon_driver 2>/dev/null; done | grep -E "^---"
-bash test/frontend/icon/run_rung36.sh /tmp/icon_driver /tmp/icon_semicolon 2>/dev/null | grep -E "^PASS|^---"
+# rung36 corpus is pre-converted — compile directly, no icon_semicolon
+bash test/frontend/icon/run_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "^PASS|^FAIL|^---"
 ```
 
 ## Key Files
