@@ -1,4 +1,4 @@
-# snobol4ever — HQ
+# snobol4ever — README
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
@@ -48,7 +48,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [IMPL-SNO2C.md](IMPL-SNO2C.md) | sno2c compiler — lex/parse/emit, SIL naming, CNode IR, artifacts |
+| [ARCH-sno2c.md](ARCH-sno2c.md) | sno2c compiler — lex/parse/emit, SIL naming, CNode IR, artifacts |
 | [ARCH.md](ARCH.md) | Shared architecture — Byrd box concept, oracle hierarchy |
 | [ARCH-testing.md](ARCH-testing.md) | Four testing paradigms · corpus ladder protocol |
 | [RULES.md](RULES.md) | Mandatory rules — token, identity, artifacts, hierarchy |

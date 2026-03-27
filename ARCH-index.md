@@ -20,7 +20,7 @@ All deep reference docs. Open on demand — never speculatively.
 | Doc | Contents | Open when |
 |-----|----------|-----------|
 | `ARCH-icon-jcon.md` | JCON + icon-master analysis; four-port templates | Icon emitter design, rung36 |
-| `ARCH-icon-jvm.md` | Icon×JVM milestone history IJ-1..56 | Reviewing completed IJ work |
+| `ARCH-icon-jvm-history.md` | Icon×JVM milestone history IJ-1..56 | Reviewing completed IJ work |
 
 ### Prolog Frontend
 | Doc | Contents | Open when |
