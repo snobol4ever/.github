@@ -3,7 +3,7 @@
 snobol4x: multiple frontends, multiple backends.
 **Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.**
 
-→ Rules: [RULES.md](RULES.md) · Beauty plan: [BEAUTY.md](BEAUTY.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
+→ Rules: [RULES.md](RULES.md) · Beauty plan: [ARCH-snobol4-beauty-testing.md](ARCH-snobol4-beauty-testing.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
 

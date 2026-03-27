@@ -476,7 +476,7 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - ASM bootstrap blocked on systemic r12 clobber in nested named-pattern calls (requires M-T2-INVOKE)
 - JVM backend avoids the issue entirely (JVM stack frames, no r12)
 - Created `M-BEAUTIFY-BOOTSTRAP-JVM` milestone in PLAN.md
-- Added full JVM milestone track (19 subsystems) to BEAUTY.md
+- Added full JVM milestone track (19 subsystems) to ARCH-snobol4-beauty-testing.md
 - `sno2c -jvm beauty.sno` still segfaults — `named_pats[512]` (~1.5MB static) is next fix
 
 ### Next session (J-prefix, jvm-t2 branch OR main)
@@ -735,7 +735,7 @@ END
 **Repos:** snobol4x + .github
 
 **Work done:**
-- PIVOT 2026-03-24: launched M-BEAUTIFY-BOOTSTRAP-JVM (all 19 JVM beauty milestones, per BEAUTY.md)
+- PIVOT 2026-03-24: launched M-BEAUTIFY-BOOTSTRAP-JVM (all 19 JVM beauty milestones, per ARCH-snobol4-beauty-testing.md)
 - Cloned snobol4corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, sno2c, Java 21, jasmin.jar, monitor_ipc.so)
 - Found and fixed 5 JVM emitter bugs in `emit_byrd_jvm.c`:
   1. **jvm_named_pats BSS overflow** — `static JvmNamedPat[64]` on BSS → heap `calloc(512)` with lazy init in reset+register+lookup
@@ -802,7 +802,7 @@ END
 - Diagnosed root cause: `&STLIMIT` is not implemented in JVM backend. `sno_kw_set` in `emit_byrd_jvm.c` handles TRIM/ANCHOR/STNO but falls through silently for STLIMIT. No `sno_kw_STLIMIT` field declared. No step counter decremented. `global.sno` sets `&STLIMIT = 1000000` then runs `G1: i=i+1 / $UTF_Array[i,2] = UTF_Array[i,1] :S(G1)` over SORT(UTF) (~100 entries) — loop never terminates.
 - Confirmed: `&STLIMIT = 10000` + infinite `:(L)` loop ran 200K+ iterations in 5s — zero enforcement.
 - Also noted: `sno_indr_get` has `Lsig_done` label not method-local (same scoping class of bug as J-214 fix) — fix in same session as STLIMIT.
-- Sprint `M-JVM-STLIMIT-STCOUNT` written in full (6 hunks) in JVM.md §STLIMIT Sprint. JVM.md NOW updated. BEAUTY.md prerequisite row added. PLAN.md NOW row updated to J-215.
+- Sprint `M-JVM-STLIMIT-STCOUNT` written in full (6 hunks) in JVM.md §STLIMIT Sprint. JVM.md NOW updated. ARCH-snobol4-beauty-testing.md prerequisite row added. PLAN.md NOW row updated to J-215.
 - ASM corpus: 106/106 ALL PASS ✅ (no code touched).
 
 **Milestones fired:** none

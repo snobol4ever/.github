@@ -230,7 +230,7 @@ Scope qualifiers narrow the match:
 - (planned) `{global}/var` — matches module-scope global `var` only
 
 **Noise reduction as subsystems are proven clean:**
-As each beauty subsystem milestone fires (see BEAUTY.md), add EXCLUDE rules
+As each beauty subsystem milestone fires (see ARCH-snobol4-beauty-testing.md), add EXCLUDE rules
 to suppress that subsystem's variables and functions from the trace stream.
 This keeps the stream focused on the subsystem under test.
 
@@ -415,7 +415,7 @@ claws5 divergence count documented. 100/106 C + 26/26 ASM invariants hold.
 
 **Goal:** Prove each of beauty.sno's 19 `-INCLUDE` subsystems correct in isolation
 before attempting full self-beautification. Each subsystem gets its own test driver
-and monitor run. Full plan → **[BEAUTY.md](BEAUTY.md)**.
+and monitor run. Full plan → **[ARCH-snobol4-beauty-testing.md](ARCH-snobol4-beauty-testing.md)**.
 
 **Strategy:**
 - One driver per subsystem: a small `.sno` that `-INCLUDE`s only that file
@@ -427,7 +427,7 @@ and monitor run. Full plan → **[BEAUTY.md](BEAUTY.md)**.
 - As each subsystem passes, EXCLUDE rules are added to `tracepoints.conf`
   to suppress proven-clean variables from future trace streams
 
-**19 sub-milestones in dependency order** (full table in BEAUTY.md):
+**19 sub-milestones in dependency order** (full table in ARCH-snobol4-beauty-testing.md):
 M-BEAUTY-GLOBAL → M-BEAUTY-IS → M-BEAUTY-FENCE → M-BEAUTY-IO →
 M-BEAUTY-CASE → M-BEAUTY-ASSIGN → M-BEAUTY-MATCH → M-BEAUTY-COUNTER →
 M-BEAUTY-STACK → M-BEAUTY-TREE → M-BEAUTY-SR → M-BEAUTY-TDUMP →

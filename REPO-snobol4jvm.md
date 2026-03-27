@@ -243,7 +243,7 @@ Then immediately continue into M-JVM-BEAUTY-GLOBAL fix loop.
 ---
 
 **J-214 — M-JVM-BEAUTY-GLOBAL in progress (2026-03-24):**
-- PIVOT: M-BEAUTIFY-BOOTSTRAP-JVM launched (BEAUTY.md updated 2026-03-24)
+- PIVOT: M-BEAUTIFY-BOOTSTRAP-JVM launched (ARCH-snobol4-beauty-testing.md updated 2026-03-24)
 - 5 JVM emitter bugs found and fixed in `emit_byrd_jvm.c`:
   1. `jvm_named_pats` static BSS[64] → heap `calloc(512)` (mirrors `box_data`)
   2. Jasmin label scoping: `L_<label>` not method-local → `Lf<fnidx>_<label>` in functions
