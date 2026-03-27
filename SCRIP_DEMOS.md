@@ -65,8 +65,8 @@ Each `M-SD-N` fires when:
 | Milestone | Status |
 |-----------|--------|
 | M-SD-1  | ✅ hello — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
-| M-SD-2  | ❌ **NEXT** — wordcount; blocked on Icon scanning + Prolog string builtins |
-| M-SD-3  | ❌ |
+| M-SD-2  | ✅ wordcount — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
+| M-SD-3  | ❌ **NEXT** — roman |
 | M-SD-4  | ❌ |
 | M-SD-5  | ❌ |
 | M-SD-6  | ❌ |
