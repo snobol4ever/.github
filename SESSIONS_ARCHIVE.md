@@ -2917,3 +2917,27 @@ export JAVA_TOOL_OPTIONS=""
 unzip swipl-devel-master.zip -d /tmp/swipl
 # wrap/compile/run each test per §NOW in SESSION-prolog-jvm.md
 ```
+
+---
+
+## Session SD-30 — 2026-03-27
+
+**Commits:** `cf39803` SD-30, `2074158` SD-30b (snobol4x); .github (this commit)
+
+**Five fixes to `icon_emit_jvm.c`:** implicit locals, J→A upgrade, augop pre-pass, skip sdrain for control flow, is_strlist in local var path. Corpus procedure-header cleanup (261 files). roman ICON-JVM still PASS. palindrome both frontends failing silently.
+
+**SD-31 tasks:** debug `map(s)` one-arg and `~==` for ICON-JVM; debug `string_chars/2` for PROLOG-JVM.
+
+**HEAD at handoff:** snobol4x `2074158`, .github (this commit)
+
+**Bootstrap SD-31:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk swi-prolog
+cd snobol4x/src && make -f Makefile
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c icon_parse.c icon_ast.c \
+  icon_emit.c icon_emit_jvm.c icon_runtime.c -o ../icon_driver
+export JAVA_TOOL_OPTIONS=""
+```

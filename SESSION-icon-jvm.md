@@ -53,7 +53,7 @@ bash test/frontend/icon/run_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "^P
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-56 — M-IJ-JCON-HARNESS 🔄 | `cd8cb80` SD-29 | M-SD-4 (palindrome) |
+| **Icon JVM** | `main` IJ-56 — M-IJ-JCON-HARNESS 🔄 | `2074158` SD-30b | M-SD-4 (palindrome ICON-JVM silent fail) |
 
 ### IJ-56 progress — M-IJ-JCON-HARNESS (HEAD 708964d)
 
