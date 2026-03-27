@@ -14,7 +14,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
-| **TINY NET** | N-248 — 110/110 ✅ M-T2-FULL ✅ | `425921a` N-248 | M-LINK-NET-1 (SESSION-linker-net.md) |
+| **TINY NET** | N-249 — M-LINK-NET-1,2,3 ✅ | `13866d1` N-249 | M-LINK-NET-4 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
