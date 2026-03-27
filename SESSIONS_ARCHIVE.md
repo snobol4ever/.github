@@ -3095,3 +3095,46 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 # Then: run M-SD-5 fibonacci — check demo/scrip/demo5/ source+expected
 # Run all 3 JVM frontends, fix any failures, fire M-SD-5 if all PASS
 ```
+
+---
+
+## PJ-83 — Parser fx-1150 prefix atoms; §NOW rewrite; wrap_swi.py removal
+
+**Date:** 2026-03-27
+
+**Commits:**
+- snobol4x `b05b919` PJ-83a: parser fx-1150 prefix atoms + directive prec 1200
+- snobol4x `840e966` PJ-83b: remove wrap_swi.py
+- .github `af8897e` PJ-83b: §NOW rewrite + HEAD update
+
+**What was done:**
+
+1. **Parser fix (PJ-83a):** Declaration keywords (`dynamic`, `discontiguous`, `multifile`, `use_module`, `ensure_loaded`, `meta_predicate`, `mode`) now parse as `fx 1150` prefix operators when followed by a term-starting token. Previously only the `dynamic(foo/1)` form (with parens) worked; bare `:- dynamic foo/1.` caused parse errors. Directive parse precedence raised from 999 → 1200. Raw SWI `.pl` files with bare declarations now parse through `sno2c` without errors for `test_list` and `test_misc`.
+
+2. **wrap_swi.py deleted (PJ-83b):** Python preprocessor shim removed entirely. It was the wrong approach — the canonical machinery is the plunit linker inside `prolog_emit_jvm.c`.
+
+3. **§NOW rewritten:** Added explicit `⚠️ DO NOT use wrap_swi.py` warning. Documented canonical architecture (linker functions, no Python). Replaced misleading "fix wrap_swi.py" action item with concrete linker fix roadmap.
+
+**What was NOT done (next session):**
+- `pj_linker_scan` multi-suite fix: pass-2 assigns all tests to `suite[0]` — wrong for multi-suite files. Fix: interleave directive + E_CHOICE walk to track current suite.
+- Variable-sharing body inlining: linker emits bridge atom in `pj_test/4` assertz — breaks `true(X==y)` when `X` shared with body. Fix: inline body term directly into assertz.
+- `test_list`/`test_unify`/`test_dcg`/`test_misc` still not producing correct pass counts via raw-file path.
+- `unifiable/2`, `cut_to`, `=@=` not implemented.
+
+**Corpus baseline:** 53/54 passing (1 pre-existing `lists` failure — `reverse/2` duplicate method, pre-dates this session).
+
+**HEAD at handoff:** snobol4x `840e966`, .github `af8897e`
+
+**Bootstrap PJ-84:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+cd snobol4x && make -C src
+export JAVA_TOOL_OPTIONS=""
+# FIRST: read only §NOW of SESSION-prolog-jvm.md
+# SECOND: sparse-clone SWI tests: git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core
+# THEN: fix pj_linker_scan multi-suite (track current suite in pass-2)
+# THEN: fix variable-sharing (inline body term in pj_test assertz)
+# Run: ./sno2c -pl -jvm /tmp/swipl-devel/tests/core/test_list.pl > /tmp/test_list.j
+```
