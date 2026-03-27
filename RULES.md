@@ -154,7 +154,24 @@ When the frontend produces an IR node the backend cannot yet emit, do not add a 
 
 ---
 
-## ⛔ ICON SEMICOLONS — Explicit required; NO semicolon after procedure header
+## ⛔ HQ DOCS ARE THE ONLY RELIABLE MEMORY — Verify before asserting
+
+Before making any factual claim about how a component works — lexer behaviour,
+semicolons, calling conventions, corpus format, file layout, build commands — check
+the relevant HQ doc first. Do NOT reason from training data or session memory.
+Training data is wrong. Session memory drifts. HQ docs are ground truth.
+
+**Failure mode:** Claude asserted Icon/JCON uses implicit semicolons (standard Icon
+behaviour). Our lexer explicitly does NOT — "No auto-semicolon insertion" is line 4
+of `icon_lex.c` and documented in RULES.md and ARCH-icon-jcon.md. This caused
+wasted session time diagnosing a non-problem.
+
+**Rule:** When in doubt about ANY system property: `grep` the relevant HQ doc first.
+If the doc doesn't cover it, check the source. Never guess and assert.
+
+---
+
+
 
 All Icon source in SCRIP demos must use explicit semicolons between statements.
 The parser requires **no semicolon after `procedure name(args)`** — the header line
@@ -175,6 +192,12 @@ procedure main();   ← ERROR
 
 `icon_semicolon` is an end-user tool only — never run in the pipeline.
 When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
+
+**IPL programs from snobol4corpus require explicit semicolons added before they
+can be compiled by our frontend.** Standard Icon has implicit semicolons; our
+lexer (`icon_lex.c` line 4: "No auto-semicolon insertion — deliberate deviation")
+does NOT. The rung36 corpus is pre-converted. Raw IPL files are NOT directly usable.
+Do NOT claim otherwise. Verified in `icon_lex.c`; documented in `ARCH-icon-jcon.md §Auto-semicolon`.
 
 ---
 
