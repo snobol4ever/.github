@@ -45,11 +45,11 @@ M-SD-N fires when all six pass:
 
 ---
 
-## §NOW — SD-35
+## §NOW — SD-36
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scrip Demo** | SD-35 — M-SD-6 🔄 sieve ICON-JVM fix | `5d900b8` SD-34 | M-SD-6 |
+| **Scrip Demo** | SD-36 — M-SD-10 ✅ SNO2C-JVM anagram PASS | `7ccd33e` SD-36 | M-SD-6 ICON-JVM sieve |
 
 ### Status
 
@@ -64,15 +64,16 @@ M-SD-N fires when all six pass:
 | DEMO7 rot13 | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
 | DEMO8 insertion sort | ✅ | ✅ | ✅ | ✅ | ❌ untested | ✅ |
 | DEMO9 rpn calc | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
-| DEMO10 anagram | ✅ | ✅ | ✅ | ❌ | ❌ untested | ❌ |
+| DEMO10 anagram | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
 
-### NEXT ACTION — SD-35: fix ICON-JVM demo6 sieve VerifyError
+### NEXT ACTION — SD-37: fix ICON-JVM demo6 sieve VerifyError
 
-**Blocker:** `out ||:= i` where `out` is String and `i` is long (integer).
-String concat augmented-assign with integer RHS → VerifyError "Expecting to find object/array on stack".
-**Fix location:** `ij_emit_jvm.c` — augmented string concat (`||:=`) when RHS is numeric type needs `Long.toString()` coercion before concat.
-**Also pending:** PROLOG-JVM demo5 forall/2 — `pj_call_goal` doesn't bind variable `N` across `between` iterations.
-**Also pending:** demos 7, 9, 10 Prolog failures; demo 10 SNO2C failure.
+**Blocker:** `out ||:= i` — String concat augmented-assign with integer RHS → VerifyError.
+**Fix:** `icon_emit_jvm.c` — `||:=` with numeric RHS needs `Long.toString()` coerce before concat.
+**Also pending:** PROLOG-JVM demo5 forall/2; demos 7, 9, 10 Prolog failures.
+
+**SD-36 fixes (snobol4x `7ccd33e`):** IDENT/DIFFER null-coerce; CONVERT+PROTOTYPE implemented;
+E_IDX 2D subscript; array `:S`/`:F` null semantics; BREAK EOS fix; warnings cleared; RULES.md updated.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|

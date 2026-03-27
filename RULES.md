@@ -161,3 +161,22 @@ procedure main();   ← ERROR
 
 `icon_semicolon` is an end-user tool only — never run in the pipeline.
 When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
+
+---
+
+## ⛔ JVM BACKEND — Null = uninitialized; coerce before string ops
+
+`sno_array_get` returns Java `null` for uninitialized slots.
+In SNOBOL4 semantics, uninitialized = empty string `""`.
+
+**Rule:** Any JVM emitter path that calls `sno_array_get` and then invokes a String
+method (`.equals`, `.contains`, concatenation) on the result **must** emit a
+null→`""` coerce inline first (dup / ifnonnull / pop / ldc "").
+
+`sno_indr_get` (variable lookup) already coerces internally — no guard needed there.
+`sno_array_get` does **not** — guard required at every call site that uses the
+result as a non-null String.
+
+Also: array subscript assignment with `:S`/`:F` goto — the value may be null
+(failed sub-expression). Null-check the value before `sno_array_put`; null → skip
+put and take `:F` / fall through. Violation root cause: SD-10 NPE on `IDENT(t<key>)`.
