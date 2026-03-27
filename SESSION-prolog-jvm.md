@@ -36,20 +36,20 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-81b ✅ CLEAN | `541504e` PJ-81b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-81c ✅ CLEAN | `8f86084` PJ-81c | M-PJ-SWI-BASELINE |
 
-### Status after PJ-81b
+### Status after PJ-81c
 
-**PJ-81b (commit `541504e`) — duplicate removed, build clean, 98/98 corpus pass:**
-- Removed duplicate `#define PJ_SPLIT_THRESHOLD 16` / `int do_split` at ~line 6483
-- `prolog_emit_jvm.c` builds cleanly; all 98 corpus `.pro` tests pass (rungs 01–30)
-- Jasmin overflow on large predicate bodies resolved by method-splitting scaffold
+- **107/107 corpus pass** (rungs 01–30)
+- `member/2` and `memberchk/2` now emitted as stdlib shim unless user-defined
+- `pj_prog_defines()` scans E_CHOICE by `"functor/arity"` sval format
+- Runtime failures from PJ-80 SWI run (memberchk, unify_self, DCG expand_goal, cut_to): **memberchk fixed**; unify_self/cut_to/DCG phrase confirmed working in isolation — failures were SWI plunit test failures, not compiler bugs
 
 ### NEXT ACTIONS
 
-1. **Runtime failures** (from PJ-80 SWI run): memberchk, unify_self, DCG expand_goal, cut_to — investigate against corpus rung failures or new SWI-wrapped tests
-2. **M-PJ-SWI-BASELINE**: define pass threshold; run full SWI core test suite via wrap_swi.py against corpus
-3. **PJ-81 task 2**: address remaining runtime failures
+1. **M-PJ-SWI-BASELINE**: run full SWI core suite through `wrap_swi.py` and document pass/fail baseline per test file
+2. **Remaining runtime failures**: identify what specifically fails in SWI plunit `test_list`, `test_unify`, `test_misc`, `test_dcg` runs
+3. **wrap_swi.py multi-line directive bug**: fix paren-depth tracking for multi-line directives (currently only strips first line)
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
