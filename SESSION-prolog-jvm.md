@@ -64,9 +64,10 @@ git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context window
-# SWI test files: unzip swipl-devel-master.zip to /tmp/
+# SWI test files: clone https://TOKEN@github.com/snobol4ever/snobol4corpus
+# (previously thought to require swipl-devel-master.zip upload — not needed)
 # Then: for each of test_list/arith/dcg/unify/misc:
-#   python3 test/frontend/prolog/wrap_swi.py /tmp/swipl/swipl-devel-master/tests/core/TEST.pl /tmp/TEST.pro
+#   python3 test/frontend/prolog/wrap_swi.py snobol4corpus/swipl-devel-master/tests/core/TEST.pl /tmp/TEST.pro
 #   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
@@ -76,7 +77,7 @@ export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context wi
 **Key files:**
 - `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — var/nonvar ~line 4703; pj_ldc_str ~line 56; linker ~line 7040
 - `snobol4x/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
-- SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files)
+- SWI tests: `snobol4corpus/swipl-devel-master/tests/core/test_*.pl` (58 files) — clone snobol4ever/snobol4corpus
 
 ## Milestone Table
 
