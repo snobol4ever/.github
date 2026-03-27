@@ -3181,3 +3181,47 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 # Step 3: fix PROLOG-JVM demo5 forall/2 — pj_call_goal variable binding across between iterations
 # Step 4: run full demo6 run_demo.sh, fire M-SD-6 if all 3 PASS
 ```
+
+---
+
+## SD-35 — 2026-03-27 — HQ housekeeping + file audit
+
+**Session type:** Housekeeping · .github only · no snobol4x code changes
+
+**Work done:**
+
+Full HQ file audit. Removed all duplicates, fixed all naming inconsistencies, verified every file's H1 title matches its filename.
+
+**Removed (duplicates — title-only diffs from ARCH- versions):**
+`STATUS.md`, `CORPUS.md`, `DECISIONS.md`, `GRIDS.md`, `HARNESS.md`, `TESTING.md`, `MONITOR.md`, `IMPL-SNO2C.md`, `JCON-ANALYSIS.md`
+
+**Renamed:**
+- `IGNORE_ME.md` → `HOLD_ARCHIVE.md` (content was always HOLD_ARCHIVE)
+- `BEAUTY.md` → `ARCH-snobol4-beauty-testing.md`
+- `ARCH-jvm-prolog.md` → `ARCH-prolog-jvm.md` (correct frontend-backend order)
+- `ARCH-prolog-jvm.md` → `ARCH-prolog-jvm-history.md` (disambiguate design vs history)
+- `ARCH-icon-jvm.md` → `ARCH-icon-jvm-history.md` (consistent with prolog pattern)
+- `SCRIP_DEMO.md` + `SCRIP_DEMO2.md` + `SCRIP_DEMO3.md` → merged into `SCRIP_CONCEPTS.md`
+
+**Deleted:** `FRONTEND-PROLOG-JVM.md` (wrong family; refs → `ARCH-prolog-jvm.md`)
+
+**Fixed:** 5 H1 title mismatches (PLAN, README, GRAND_MASTER_REORG, MILESTONE_ARCHIVE, BEAUTY_BUG_HANDOFF). Updated all cross-references. Added `ARCH-snobol4-beauty-testing.md` to ARCH-index.
+
+**Also:** User disabled auto-derive memory in Claude GUI (was propagating stale/wrong facts). RULES.md corrected: Icon parser requires NO semicolon after procedure headers.
+
+**No snobol4x changes this session.**
+
+**HEAD at handoff:** snobol4x `5d900b8`, .github this commit
+
+**Bootstrap SD-35:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+cd snobol4x/src && make -j$(nproc) && make icon_driver
+# FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md in full
+# Step 1: fix icon_emit_jvm.c — ||:= augmented string-concat with integer RHS
+#   needs Long.toString() coercion before StringBuilder.append()
+#   VerifyError: "Expecting to find object/array on stack" in icn_main
+# Step 2: test demo6 ICON-JVM sieve, fire M-SD-6 if all 3 pass
+# Step 3: fix PROLOG-JVM demo5 forall/2 — pj_call_goal variable binding
+```
