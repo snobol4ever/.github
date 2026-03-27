@@ -1,4 +1,4 @@
-# snobol4ever — HQ
+# PLAN.md — snobol4ever HQ Plan
 
 SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 **Team:** Lon Jones Cherryholmes (arch, MSIL), Jeffrey Cooper M.D. (DOTNET), Claude Sonnet 4.6 (TINY co-author, third developer).

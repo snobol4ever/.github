@@ -11,7 +11,7 @@
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
 | Icon language, IR nodes, milestones | `FRONTEND-ICON.md` | parser/AST questions |
-| Full milestone history | `ARCH-icon-jvm.md` | completed work, milestone IDs |
+| Full milestone history | `ARCH-icon-jvm-history.md` | completed work, milestone IDs |
 | JCON test analysis | `ARCH-icon-jcon.md` | rung36 oracle, four-port templates |
 | JVM bytecode patterns | `ARCH-overview.md` | Byrd box → JVM mapping |
 

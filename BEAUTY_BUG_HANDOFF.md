@@ -1,4 +1,4 @@
-# M-BUG-BOOTSTRAP-FENCE — FENCE Pattern Matching Broken in ASM Backend
+# BEAUTY_BUG_HANDOFF.md — M-BUG-BOOTSTRAP-FENCE: FENCE Pattern Matching Broken in ASM Backend
 
 **Date:** 2026-03-24  
 **Sprint:** M-BEAUTIFY-BOOTSTRAP  

@@ -1,4 +1,4 @@
-# Milestone Archive
+# MILESTONE_ARCHIVE.md — Milestone Archive
 
 All completed (✅) milestone rows, moved from PLAN.md dashboard.
 Append-only. Do not edit existing entries.

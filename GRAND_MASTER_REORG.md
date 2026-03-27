@@ -1,4 +1,4 @@
-# GRAND MASTER REORGANIZATION — snobol4ever
+# GRAND_MASTER_REORG.md — Grand Master Reorganization
 *2026-03-25 — authored by Claude Sonnet 4.6 in consultation with the project record*
 *2026-03-25 — milestones decomposed for incremental safety by Claude Sonnet 4.6 (G-6 session)*
 
