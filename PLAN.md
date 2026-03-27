@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83d — test_list 1/0 ✅ test_unify 7/4 ✅ test_dcg 7/17 test_arith 63/140 | `5854a82` PJ-83d | M-PJ-SWI-BASELINE |
-| **Icon JVM** | IJ-57 — dead-code suppression ✅ center ✅ image(&null) null-flag ✅ | `ced118e` IJ-57 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | IJ-58 — multi-arg write ✅ t02/t13/t21/t34 PASS; parse_long radix; fwd-emit blocked | `ba5b57c` IJ-58 | M-IJ-JCON-HARNESS |
 | **🔗 LINKER** | LP-8d — M-LINK-NET-8 6-edge ✅ | `cce1c3a` LP-8g | M-SCRIP-XLINK-1 |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
