@@ -36,26 +36,27 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-80b — ldc escape + var/nonvar VerifyError fixed; 5/5 files run | `4d4e90a` PJ-80b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-81a WIP — method splitting scaffold; BROKEN BUILD (dup do_split ~line 6483) | `3744f9a` PJ-81a | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-81)
+### CRITICAL NEXT ACTION (PJ-81b)
 
-**PJ-80 findings: all 5 SWI files now run (no more Jasmin errors or VerifyErrors). Corpus 107/107. No regressions.**
+**PJ-81a WIP (commit `3744f9a`) — broken build, one-line fix needed:**
+- `pj_emit_choice()` has `PJ_SPLIT_THRESHOLD=16` split path scaffolded; per-clause sub-methods `p_fn_arity__cN(args..., I init_cs)` emitted after main method; dispatcher uses invokestatic + null-check
+- **BROKEN**: `#define PJ_SPLIT_THRESHOLD 16` / `int do_split` / `if (do_split) {` appear **twice** (~line 6461 and ~6483). Remove the second occurrence to fix build.
 
-**What was done PJ-80 (commits PJ-80a, PJ-80b):**
-- PJ-80a: `pj_ldc_str()` in `prolog_emit_jvm.c` — escape `\` and `"` in `ldc` string emission; fixes Jasmin `Bad backslash escape` on atoms like `=\=`
-- PJ-80b: `var`/`nonvar` type-check codegen stack fix — after `invokevirtual equals`, emit `swap; pop` so branch targets have consistent stack height; fixes VerifyError in `test_dcg` `p_test_2`
+**Fix for PJ-81b (first thing next session):** In `prolog_emit_jvm.c` ~line 6483, remove:
+```
+#define PJ_SPLIT_THRESHOLD 16
+    int do_split = (nclauses > PJ_SPLIT_THRESHOLD);
+    if (do_split) {
+```
+Then rebuild, run test_arith, verify Jasmin overflow gone, commit PJ-81b, update docs, push.
 
-**SWI run status after PJ-80 (tests/core/):**
-- `test_list.pl` ✅ runs — 0 passed, 1 failed (`memberchk` goal failed)
-- `test_unify.pl` ✅ runs — 1 passed, 11 failed (unify_self, unify_fv, unify_arity_0, cycles, unifiable…)
-- `test_misc.pl` ✅ runs — 0 passed, 3 failed (read_only_flag, cut_to, cut_to_cleanup)
-- `test_dcg.pl` ✅ runs — **5 passed**, 29 failed, 3 skipped (VerifyError fixed)
-- `test_arith.pl` ❌ Jasmin method-size overflow — `p_test_2` (225 clauses → 20K-line method) exceeds 16-bit branch offset limit
+**SWI run status after PJ-80:**
+- `test_list.pl` ✅ 0 passed, 1 failed | `test_unify.pl` ✅ 1 passed, 11 failed | `test_misc.pl` ✅ 0 passed, 3 failed
+- `test_dcg.pl` ✅ **5 passed**, 29 failed, 3 skipped | `test_arith.pl` ❌ Jasmin overflow → fix in PJ-81b
 
-**PJ-81 tasks (in order):**
-1. **Method splitting** — large predicates must be split into per-clause sub-methods to fix `test_arith` Jasmin overflow
-2. **Runtime failures** — `memberchk`, `unify_self`/`unify_fv`/`unify_arity_0`, DCG `expand_goal`, `cut_to`, etc.
+**PJ-81 tasks:** 1. Method splitting (scaffold done PJ-81a, fix+test PJ-81b) 2. Runtime failures (memberchk, unify_self, DCG expand_goal, cut_to…)
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
