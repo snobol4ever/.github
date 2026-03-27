@@ -3393,3 +3393,26 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 2. Deploy `IjBuf` at `ij_emit_alt` → kills 7 "Unable to pop" VEs (t14/t16/t17/t22/t23/t39/t42)
 3. `image()` quoting for strings (`"abc"` → `"\"abc\""`) → unblocks many WO tests
 4. Remaining "Expecting object/array" VEs in scan/subscript/other builtins
+
+---
+
+## IJ-58b (2026-03-27) — Icon JVM: benchmark readiness discussion
+
+**Session type:** Icon JVM (IJ prefix) — continuation/discussion
+**Repos:** snobol4x `5b32daa`, .github `c472c77` (no code changes this sub-session)
+
+**What was established:**
+- rung36_jcon has 75 tests; benchmark-class [B]: t01 t27 t28 t39 t54 t66 t70
+- IPL programs require explicit semicolons (our lexer deviation from standard Icon — confirmed in RULES.md)
+- ~65-70% of Icon implemented for JVM backend
+- Core benchmark-relevant subset (arithmetic, strings, lists, tables, records, generators, recursion) is implemented — benchmarks are structurally compilable, blocked only by VEs
+- JVM startup dominates current timings (~120ms) — micro.icn needed for real ns/op numbers
+- RULES.md: new rule "HQ DOCS ARE THE ONLY RELIABLE MEMORY" added
+
+**IJ-59 unblock sequence (15-20 PASS expected):**
+1. Bulk `ij_gvar_field` (29 sites) → ~9 LinkageErrors gone
+2. `IjBuf` at `ij_emit_alt` → 7 "Unable to pop" VEs gone → t39_concord [B]
+3. `image()` string quoting → t54_sieve [B] t66_cxprimes [B] t70_sorting [B]
+4. Remaining VEs → t27_queens [B] t28_genqueen [B]
+
+**Next session:** IJ-59 — read `SESSION-icon-jvm.md §NOW`, run harness, execute unblock sequence.
