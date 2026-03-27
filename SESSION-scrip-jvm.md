@@ -24,16 +24,28 @@
 cd snobol4x && make -C src
 apt-get install -y default-jdk swi-prolog icont
 export JAVA_TOOL_OPTIONS=""
+
+# Build icon_driver (required for ICON-JVM block)
+gcc -g -O0 -I. \
+  src/frontend/icon/icon_driver.c \
+  src/frontend/icon/icon_lex.c \
+  src/frontend/icon/icon_parse.c \
+  src/frontend/icon/icon_ast.c \
+  src/frontend/icon/icon_emit.c \
+  src/frontend/icon/icon_emit_jvm.c \
+  src/frontend/icon/icon_runtime.c \
+  -o /tmp/icon_driver
+
 SNO2C=$(pwd)/sno2c
-ICON_DRIVER=$(pwd)/icon_driver
+ICON_DRIVER=/tmp/icon_driver
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 ```
 
 ## §RUN
 
 ```bash
-SNO2C=snobol4x/sno2c ICON_DRIVER=snobol4x/icon_driver \
-  JASMIN=snobol4x/src/backend/jvm/jasmin.jar \
+SNO2C=$(pwd)/sno2c ICON_DRIVER=/tmp/icon_driver \
+  JASMIN=$(pwd)/src/backend/jvm/jasmin.jar \
   bash demo/scrip/run_demo.sh demo/scrip/demo3/
 ```
 
@@ -42,6 +54,30 @@ SNO2C=snobol4x/sno2c ICON_DRIVER=snobol4x/icon_driver \
 M-SD-N fires when all six pass:
 - SNOBOL4 ✅ · SWIPL ✅ · ICONT ✅ · SNO2C-JVM ✅ · ICON-JVM ✅ · PROLOG-JVM ✅
 - Output matches `demo/scrip/demoN/NAME.expected`
+
+## §ARTIFACTS
+
+When M-SD-N fires, update `artifacts/jvm/samples/` with the passing demo's `.j` files.
+Session prefix for commits: `SD` (e.g. `SD-37: M-SD-6 ICON-JVM sieve PASS`).
+
+```bash
+# After a demo passes all six backends:
+SNO2C=$(pwd)/sno2c
+JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
+DEMO=demo/scrip/demo6   # replace with passing demo number
+NAME=sieve              # replace with demo name
+
+# Regenerate canonical .j artifacts
+$SNO2C -jvm $DEMO/${NAME}.sno_extracted > artifacts/jvm/samples/${NAME}.j 2>/dev/null || true
+/tmp/icon_driver -jvm $DEMO/${NAME}.icn_extracted -o artifacts/jvm/samples/${NAME}_icon.j 2>/dev/null || true
+# Scrip demos compile from .md via run_demo.sh split — use /tmp outputs if needed
+
+git add artifacts/jvm/samples/
+git commit -m "SD-N: artifacts/jvm/samples/ — $NAME ICON-JVM PASS"
+```
+
+**Ownership:** SD session owns `artifacts/jvm/samples/` for demo artifacts only.
+Cross-repo rule: never write `artifacts/asm/`, `artifacts/net/`, or `artifacts/c/` from an SD session.
 
 ---
 

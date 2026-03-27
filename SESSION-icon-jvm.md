@@ -53,7 +53,18 @@ bash test/frontend/icon/run_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "^P
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-56 — M-IJ-JCON-HARNESS 🔄 | `f10a133` IJ-56 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | `main` IJ-57 — TK_AUGCONCAT fix ✅ | `87325b3` IJ-57 | M-IJ-JCON-HARNESS |
+
+### IJ-57 progress
+
+**Fix landed:** `TK_AUGCONCAT` with numeric RHS now emits `invokestatic Long/toString(J)` before `putstatic` — resolves VerifyError on `out ||:= i` (sieve demo6, t01 primes).
+
+**ICN_SEQ_EXPR failure-relay bug (next blocker):**
+In a compound block `{ stmt1; stmt2; }`, when `stmt1` is an `if`-without-`else` and its condition fails, the ω port goes to `icn_2_pump` (outer every loop) instead of continuing to `stmt2`.
+
+Root cause: `ij_emit_seq_expr` does not apply the failure-relay pattern for `if`-no-else children. The `while/do` body emitter (lines 3826–3863) has `relay_f[i]: goto cca[i+1]` which is exactly correct. `ij_emit_seq_expr` needs the same treatment.
+
+**Fix location:** `icon_emit_jvm.c`, function `ij_emit_seq_expr` — when emitting a sequence `(E1; E2; ... En)`, each non-last child's ω must go to the next child's α (not propagate to outer ω). Pattern already proven in the while/do body emitter at line 3826.
 
 ### IJ-56 progress — M-IJ-JCON-HARNESS (HEAD f10a133)
 
