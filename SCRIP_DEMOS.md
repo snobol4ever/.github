@@ -66,9 +66,14 @@ Each `M-SD-N` fires when:
 |-----------|--------|
 | M-SD-1  | ✅ hello — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
 | M-SD-2  | ✅ wordcount — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
-| M-SD-3  | ❌ **NEXT** — roman |
-| M-SD-4  | ❌ |
-| M-SD-5  | ❌ |
+| M-SD-3  | ✅ roman — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
+| M-SD-4  | ✅ palindrome — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
+| M-SD-5  | ❌ **NEXT** — fibonacci |
+| M-SD-6  | ❌ |
+| M-SD-7  | ❌ |
+| M-SD-8  | ❌ |
+| M-SD-9  | ❌ |
+| M-SD-10 | ❌ |
 | M-SD-6  | ❌ |
 | M-SD-7  | ❌ |
 | M-SD-8  | ❌ |

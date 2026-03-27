@@ -320,3 +320,27 @@ rung32 5/5 · 153/153 PASS total · HEAD `d64d752` · β path for non-gen procs 
 hello.md — `OUTPUT = 'Hello, World!'` / `write("Hello, World!")` / `write('Hello, World!'), nl.`
 All three compile through snobol4ever JVM frontends and produce correct output.
 SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.
+
+## M-SD-2 ✅ — wordcount: all three JVM frontends PASS
+
+**Fired:** 2026-03-26. **Session:** SD-28. **HEAD:** `51e38fc`.
+
+wordcount.md — count words in a string using SNOBOL4 BREAK/SPAN, Icon string scan, Prolog DCG-style split.
+SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.
+
+## M-SD-3 ✅ — roman: all three JVM frontends PASS
+
+**Fired:** 2026-03-26. **Session:** SD-28. **HEAD:** `51e38fc`.
+
+roman.md — convert integer to Roman numeral string.
+SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.
+
+## M-SD-4 ✅ — palindrome: all three JVM frontends PASS
+
+**Fired:** 2026-03-27. **Session:** SD-33. **HEAD:** `f8e74fc`.
+
+palindrome.md — `palindrome("racecar")` → yes, `palindrome("hello")` → no, `palindrome("level")` → yes.
+SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.
+
+ICON-JVM required 5 fixes in icon_emit_jvm.c: stray include, map(1-arg), proc-namespaced sdrain labels,
+ICN_SEQ_EXPR while-body statement independence (failing stmt must not abort remaining body stmts).

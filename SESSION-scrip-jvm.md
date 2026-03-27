@@ -45,11 +45,11 @@ M-SD-N fires when all six pass:
 
 ---
 
-## §NOW — SD-27
+## §NOW — SD-34
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scrip Demo** | SD-27 — M-SD-3 🔄 roman | `51e38fc` | M-SD-3 |
+| **Scrip Demo** | SD-34 — M-SD-5 🔄 fibonacci | `f8e74fc` SD-33 | M-SD-5 |
 
 ### Status
 
@@ -57,19 +57,13 @@ M-SD-N fires when all six pass:
 |------|:-------:|:-----:|:-----:|:---------:|:--------:|:----------:|
 | DEMO1 hello | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DEMO2 wordcount | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| DEMO3 roman | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| DEMO3 roman | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| DEMO4 palindrome | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| DEMO5 fibonacci | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-### NEXT ACTION — SD-28: fix ICON-JVM blocker, fire M-SD-3
+### NEXT ACTION — SD-34: M-SD-5 fibonacci
 
-**Blocker:** `vals[i]` list subscript → `Bad type in putfield/putstatic` VerifyError
-**Fix location:** `ij_emit_subscript()` in `src/frontend/icon/icon_emit_jvm.c` — list path
-**Minimal repro:** `vals := [10,5,1]; i := 1; write(vals[i]);`
-**Does NOT affect:** string subscript, table subscript, `!L` bang generator
+Run demo5 across all three JVM frontends. Check demo/scrip/demo5/ for source + expected.
 
-```bash
-# After fix — confirm 6/6:
-SNO2C=snobol4x/sno2c ICON_DRIVER=snobol4x/icon_driver \
-  JASMIN=snobol4x/src/backend/jvm/jasmin.jar \
-  bash demo/scrip/run_demo.sh demo/scrip/demo3/
-# Then fire M-SD-3: update PLAN.md, SCRIP_DEMOS.md §NOW, SESSIONS_ARCHIVE, MILESTONE_ARCHIVE
-```
+
+

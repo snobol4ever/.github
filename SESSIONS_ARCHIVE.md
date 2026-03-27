@@ -3062,3 +3062,36 @@ export JAVA_TOOL_OPTIONS=""
 # Read only §NOW of hq/SESSION-prolog-jvm.md
 # SWI upstream: git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core
 ```
+
+---
+
+## SD-33 — 2026-03-27 — ICON-JVM palindrome: 5 bugs fixed, M-SD-4 fires
+
+**Session type:** Scrip Demo · ICON-JVM · M-SD-4 (palindrome)
+
+**Starting state:** M-SD-1/2/3 ✅. rung35 unrun after SD-32 cut-scope change. ICON-JVM demo4 unknown.
+
+**Findings & fixes (all in `icon_emit_jvm.c`):**
+1. Stray `#include "src/frontend/icon/icon_lex.h"` at line 51 — blocked all compilation. Removed duplicate.
+2. `make icon_driver` rule missing — added to `src/Makefile` with `ICON_SRCS` + `$(ICON_BIN)` target.
+3. `map(s)` 1-arg form fell through to user-proc lookup → infinite loop. Added 1-arg case emitting default ucase/lcase table strings inline before the nargs>=3 case.
+4. Proc-namespaced sdrain labels: Jasmin resolves labels per-class; `icn_s0_sdrain` in `palindrome` collided with `icn_s0_sdrain` in `main`. Fixed by including pname: `icn_pname_sN_sdrain`.
+5. `ICN_SEQ_EXPR` while-body statement independence: `ij_emit_while` emitted body with `ω=loop_top`; an `if` with no else (chars equal, `~==` fails) jumped to `loop_top` skipping `i+:=1`/`j-:=1` → infinite loop. Fix: detect `ICN_SEQ_EXPR` body, emit each child independently with failure-relay labels (`wb_rf_N`) that skip to next child's alpha.
+6. Three build warnings fixed: `arg_is_dbl` and `alt_uniform` unused vars; nested `/* /*` comment.
+
+**rung35:** 5/5 PASS (before and after fix).
+**Result:** demo4 all 3 JVM frontends `yes/no/yes` ✅ → **M-SD-4 fires.**
+
+**Commits:** snobol4x `f8e74fc` SD-33
+
+**HEAD at handoff:** snobol4x `f8e74fc`, .github this commit
+
+**Bootstrap SD-34:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+cd snobol4x/src && make -j$(nproc) && make icon_driver
+# FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md
+# Then: run M-SD-5 fibonacci — check demo/scrip/demo5/ source+expected
+# Run all 3 JVM frontends, fix any failures, fire M-SD-5 if all PASS
+```
