@@ -36,7 +36,7 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-83a | `2b4290f` PJ-83a | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-83b | `840e966` PJ-83b | M-PJ-SWI-BASELINE |
 
 ### ⚠️ CANONICAL ARCHITECTURE — READ BEFORE TOUCHING SWI TESTS
 
