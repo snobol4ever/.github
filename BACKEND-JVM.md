@@ -3,7 +3,7 @@
 Full SNOBOL4/SPITBOL in Clojure targeting JVM bytecode.
 Multi-stage pipeline: interpreter → transpiler → stack VM → JVM `.class` bytecode.
 
-*Session state → JVM.md. Testing protocol → TESTING.md.*
+*Session state → JVM.md. Testing protocol → ARCH-testing.md.*
 
 ---
 

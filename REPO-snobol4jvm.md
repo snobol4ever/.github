@@ -3,7 +3,7 @@
 JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 → Backend reference: [BACKEND-JVM.md](BACKEND-JVM.md)
-→ Testing: [TESTING.md](TESTING.md) · Rules: [RULES.md](RULES.md)
+→ Testing: [ARCH-testing.md](ARCH-testing.md) · Rules: [RULES.md](RULES.md)
 
 ---
 

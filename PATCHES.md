@@ -12,7 +12,7 @@
 > and our compiled C translation.
 >
 > **Cross-reference**: See `PLAN.md` § Outstanding Items for priority
-> classification (P1/P2/P3). See `MONITOR.md` for the diagnostic
+> classification (P1/P2/P3). See `ARCH-monitor.md` for the diagnostic
 > methodology. See `STRING_ESCAPES.md` for string literal handling.
 > See `COMPILAND_REACHABILITY.md` for inc-file → C mapping.
 

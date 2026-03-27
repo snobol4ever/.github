@@ -4,7 +4,7 @@ Jeff Cooper's complete SNOBOL4/SPITBOL runtime in C#. Compiler pipeline, threade
 execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta release.
 
 → Backend reference: [BACKEND-NET.md](BACKEND-NET.md)
-→ Testing: [TESTING.md](TESTING.md) · Rules: [RULES.md](RULES.md)
+→ Testing: [ARCH-testing.md](ARCH-testing.md) · Rules: [RULES.md](RULES.md)
 → Full session history: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
@@ -50,7 +50,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 ## Sprint: net-polish (D-164 — next)
 
 Next sprint: 106/106 corpus crosscheck via harness, diag1 35/35, benchmark grid → M-NET-POLISH.
-See TESTING.md for corpus ladder and HARNESS.md for crosscheck scripts.
+See ARCH-testing.md for corpus ladder and ARCH-harness.md for crosscheck scripts.
 
 ## Completed: net-spitbol-switches (D-162)
 
