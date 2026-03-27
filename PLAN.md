@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | PJ-79b — parse gaps fixed; 5 SWI files compile; 107/107 | `75e46c2` PJ-79b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | PJ-82b — =.. bidirectional, split dispatcher fix, SWI baseline 13/102 | `ab7f006` PJ-82b | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-56 — rung36 0/51; 38 CE | `52e575c` IJ-56 | M-IJ-JCON-HARNESS |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`

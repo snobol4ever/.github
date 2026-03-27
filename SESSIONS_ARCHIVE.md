@@ -3010,3 +3010,55 @@ cd snobol4x/src && make -j$(nproc)
 # Then: run rung35 regression (cut-scoping change in b34cbc0 is high-risk)
 # Then: test ICON-JVM demo4, close M-SD-4 if all 3 JVM frontends PASS
 ```
+
+---
+
+## PJ-82 — 2026-03-27
+
+**Commits:** `c62b9dd` PJ-82a, `ab7f006` PJ-82b (after rebase)
+**HEAD:** `ab7f006` on `snobol4ever/snobol4x` main
+
+### What was done
+
+**PJ-82a** — Two compiler bugs fixed:
+1. `pj_safe_name` lowercased all identifiers, causing `fmtD_1` and `fmtd_1` to collide on the same JVM method name → `ClassFormatError: duplicate method`. Fixed by removing `tolower()` — JVM identifiers are case-sensitive and allow uppercase.
+2. Split dispatcher (nclauses > PJ_SPLIT_THRESHOLD=16): emitted a spurious `aload` loop before `istore init_cs_local`, leaving a reference on stack when the verifier expected an integer → `VerifyError`. Fixed by removing the premature `aload` loop.
+
+**PJ-82b** — Bidirectional `=..` (univ):
+- Added `pj_list_to_term(Object list) -> Object[]` runtime helper: compose direction of `=..`
+- Added `pj_univ(Object term, Object list) -> Z` bidirectional dispatcher: decomposes if term is bound, composes if term is unbound
+- Rewrote `=..` emitter to call `pj_univ` instead of `pj_term_to_list` only
+- Added `expand_goal/2` single-clause shim to `plunit.pl`
+
+### SWI baseline results
+
+| Test file | Passed | Failed | Skipped |
+|-----------|--------|--------|---------|
+| test_list  | 0 | 1 | 0 |
+| test_arith | 7 | 51 | 6 |
+| test_unify | 1 | 11 | 0 |
+| test_dcg   | 5 | 29 | 3 |
+| test_misc  | 0 | 3 | 0 |
+| **Total**  | **13** | **95** | **9** |
+
+Corpus: 98/98 passing throughout (no regressions).
+
+### Known blockers for PJ-83
+
+1. **`wrap_swi.py` variable-sharing bug** (highest priority): `pj_test(S,N,Opts,Goal)` uses predicate indirection — the goal body is wrapped as `suite_name_N` predicate, breaking variable sharing between `Opts` (e.g. `[G == a(L,[])]`) and the goal body. Affects all `true(Expr)` checks. Fix: inline goal body directly in pj_test fact.
+2. **`unify_self`**: `X = X` reflexive unification — check `pj_unify` handles `(term == term)`.
+3. **`unifiable/2`**: not implemented.
+4. **`cut_to`**: cut across catch boundary.
+5. **`test_arith` arith_basics**: `is/2` failures — likely missing arithmetic operators or int/float coercion gaps.
+
+### Bootstrap for PJ-83
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+export JAVA_TOOL_OPTIONS=""
+# Read only §NOW of hq/SESSION-prolog-jvm.md
+# SWI upstream: git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core
+```
