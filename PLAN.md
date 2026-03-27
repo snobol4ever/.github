@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | PJ-81a WIP — method-split scaffold committed; BROKEN BUILD (dup do_split); fix+test = PJ-81b | `3744f9a` PJ-81a | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | PJ-81d — 107/107 corpus ✅; SWI baseline run: test_arith dup-method, test_dcg VerifyError, test_list/unify/misc goal fails — see §NOW | `8f86084` PJ-81c | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-56 — rung36 0/51; 38 CE | `52e575c` IJ-56 | M-IJ-JCON-HARNESS |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
