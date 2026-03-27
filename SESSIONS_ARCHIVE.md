@@ -3307,3 +3307,23 @@ python3 demo/scrip/scrip_split.py demo/scrip/demo7/caesar.md /tmp/d7/ 2>/dev/nul
 /tmp/icon_driver -jvm /tmp/d7/icon.icn 2>&1 | head -5
 ```
 Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW` first.
+
+---
+
+## HQ-1 (2026-03-27) — HQ MD maintenance: broken links + unclosed fences
+
+**Session type:** HQ maintenance (no code changes, no emitter touches)
+**HEAD:** `31b7ffc` (.github only)
+
+**What was done:**
+1. Diagnosed all `.md` files in `.github` for structural issues.
+2. Fixed 5 broken internal links caused by GRAND_MASTER_REORG rename clobber:
+   - `README.md`: `TINY.md`→`REPO-snobol4x.md`, `JVM.md`→`REPO-snobol4jvm.md`, `DOTNET.md`→`REPO-snobol4dotnet.md`, `ARCH.md`→`ARCH-overview.md`
+   - `MISC.md`: `TESTING.md`→`ARCH-testing.md` (2 occurrences)
+3. Fixed 2 unclosed code fences:
+   - `REPO-snobol4jvm.md`: closed unclosed bash block in Session Start; removed stray bare fence after J2 comment
+   - `REPO-snobol4x.md`: added missing opening fence before dangling `...}` snippet
+
+**No milestones fired. No artifacts regenerated (no emitters touched).**
+
+**Next session:** Resume Prolog JVM at M-PJ-SWI-BASELINE — read `SESSION-prolog-jvm.md §NOW` + CRITICAL NEXT ACTION.
