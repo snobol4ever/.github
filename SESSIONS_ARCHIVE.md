@@ -3327,3 +3327,69 @@ Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW` first.
 **No milestones fired. No artifacts regenerated (no emitters touched).**
 
 **Next session:** Resume Prolog JVM at M-PJ-SWI-BASELINE — read `SESSION-prolog-jvm.md §NOW` + CRITICAL NEXT ACTION.
+
+---
+
+## IJ-58 (2026-03-27) — Icon JVM: augops, builtins, 75-test harness
+
+**Session type:** Icon JVM (IJ prefix)
+**Repos:** snobol4x `5b32daa`, .github `c8d03a7`
+
+**Bootstrap (next IJ session):**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk
+cd snobol4x
+cat > /tmp/icon_driver_shim.c << 'SHIM'
+extern int icon_driver_main(int argc, char **argv);
+int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
+SHIM
+gcc -g -O0 -I. -Isrc/frontend/snobol4 /tmp/icon_driver_shim.c \
+    src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "PASS|XPASS|^---"
+# Expected: PASS=2 (t01_primes t72_proto)
+```
+
+**Score: PASS=2 WO=21 VE=48 CE=3 / 75 total**
+
+**NOTE: icon_driver.c now integrated into sno2c (LP-JVM-2/LP-JVM-3 commits). Build requires shim main + `-Isrc/frontend/snobol4`.**
+
+**Milestones fired:** none (M-IJ-JCON-HARNESS still in progress)
+
+**Fixes in `src/frontend/icon/icon_emit_jvm.c`:**
+1. Multi-arg `write` relay chain — `System.out.print()` per arg + `println("")`; jump-over-relay-blocks prevents VE at waft labels
+2. `icn_builtin_parse_long` — whitespace trim + `NNrXX` radix notation + `Long.MIN_VALUE` sentinel on failure
+3. `integer()` — delegates to `parse_long`, fails on sentinel
+4. `ij_expr_is_string(write_call)` — uses last arg not first; fixes `pop`/`pop2` drain in `ij_emit_every`
+5. `TK_AUGPOW` — static D field temp replaces invalid `swap`-on-2-word-double
+6. Comparison augops (`=:=` `<:=` `<=:=` `>:=` `>=:=` `~=:=` `==:=` `<<:=` `<<=:=` `>>:=` `>>=:=` `~==:=`) — proper `lcmp`/`String.compareTo` emit; previously fell to arithmetic `ladd` → VE
+7. `ij_expr_is_string` — string comparison augops now return 1 (they yield String rhs)
+8. `left()`/`right()`/`center()` — coerce numeric `sarg` to String via `Long.toString` at `mid` label
+9. `ij_sanitize_name` + `ij_gvar_field` — sanitize `&` in Icon keyword names (e.g. `&subject`) → `_kw_subject`; fixes LinkageError "Illegal field name"
+10. `IjBuf` forward-emit infrastructure — `ij_buf_open`/`ij_buf_flush`/`ij_buf_flush_entry`; ready to deploy at `ij_emit_alt` etc.
+
+**New in test harness:**
+- `test/frontend/icon/run_bench_rung36.sh` — full 75-test ladder, `[B]` marks benchmark-class tests (t01 t27 t28 t39 t54 t66 t70); handles `.xfail` as XFAIL/XPASS
+- `t72_proto.xfail` removed (XPASS → PASS)
+
+**Discovered this session:**
+- rung36_jcon has **75 tests** (t01–t75), not 51; t53–t75 all had `.xfail` pre-marked
+- `icon_driver.c` no longer has standalone `main()` — integrated into sno2c
+- IPL programs from snobol4corpus require explicit semicolons (our lexer: "No auto-semicolon insertion — deliberate deviation from standard Icon")
+- RULES.md new rule: "HQ DOCS ARE THE ONLY RELIABLE MEMORY"
+
+**VE breakdown (48 VEs):**
+- ~25 "Expecting to find object/array": type-mismatch in builtins (numeric where String expected)
+- 7 "Unable to pop off empty stack": live-code stack-merge → forward-emit needed
+- ~9 LinkageError: `&`-in-field-name; `ij_gvar_field` deployed for `ij_var_field` but ~29 raw `snprintf(X,"icn_gvar_%s",Y.val.sval)` sites still need bulk replacement
+- ~7 other VE flavors
+
+**Next session priorities (IJ-59):**
+1. Bulk replace 29 `snprintf(X,sizeof X,"icn_gvar_%s",Y.val.sval)` → `ij_gvar_field(Y.val.sval,X,sizeof X)` → kills ~9 LinkageErrors (t18/t19/t20/t26/t33/t47–t51)
+2. Deploy `IjBuf` at `ij_emit_alt` → kills 7 "Unable to pop" VEs (t14/t16/t17/t22/t23/t39/t42)
+3. `image()` quoting for strings (`"abc"` → `"\"abc\""`) → unblocks many WO tests
+4. Remaining "Expecting object/array" VEs in scan/subscript/other builtins
