@@ -137,3 +137,27 @@ When the frontend produces an IR node the backend cannot yet emit, do not add a 
 ---
 
 *RULES.md = L3 reference. ~10 rules, each ≤10 lines. No session playbooks. No artifact status tables. No war stories beyond one-line root-cause citations.*
+
+---
+
+## ⛔ ICON SEMICOLONS — Explicit required; NO semicolon after procedure header
+
+All Icon source in SCRIP demos must use explicit semicolons between statements.
+The parser requires **no semicolon after `procedure name(args)`** — the header line
+takes no terminator. First statement of the body follows on the next line.
+
+Correct:
+```icon
+procedure main()
+    x := 1;
+    write(x);
+end
+```
+
+Wrong (parse error):
+```icon
+procedure main();   ← ERROR
+```
+
+`icon_semicolon` is an end-user tool only — never run in the pipeline.
+When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
