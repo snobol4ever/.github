@@ -97,8 +97,70 @@ bash test/frontend/icon/run_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "^P
 ```
 
 
-**SD-27 blocker (list subscript VerifyError):**
-- `vals[i]` → `Bad type in putfield/putstatic` in `icon_emit_jvm.c`
-- Minimal repro: `vals := [10,5,1]; i := 1; write(vals[i]);`
-- Fix in: `ij_emit_subscript()` — list subscript path (not string, not table)
-- Blocks: M-SD-3 roman demo
+**SD-27 blocker (list subscript) — PARTIALLY FIXED (commit 26eccbe):**
+
+What was done:
+- Added `'S'` type tag for string-element ArrayLists (vs `'L'` for numeric)
+- `ij_emit_subscript()`: new ArrayList branch using `ArrayList.get(i-1)` + `checkcast Long`/`checkcast String`
+- `ij_expr_is_string(ICN_SUBSCRIPT)`: returns 0 for numeric list subscript, 1 for string list
+- Pre-pass registers `'S'` under BOTH `icn_pv_proc_var` AND `icn_gvar_var` names
+- Assignment emitter: `is_strlist` branch in both local and global var paths
+- `ij_expr_is_list()`: recognises `'S'`-tagged vars as lists
+- Field emitter: `'S'` → `Ljava/util/ArrayList;`
+- `ij_declare_static_typed()`: `'L'` cannot overwrite `'S'`
+
+Current state: roman demo SNOBOL4 ✅ Prolog ✅ Icon **runs but outputs `0\n0\n0`**
+
+**Remaining bug — `result` variable outputs `0` instead of roman numeral string:**
+
+Root cause: `result := ""` is a String assignment inside procedure `roman`.
+The `every i := 1 to *vals do { result ||:= syms[i]; ... }` body emits
+`result` load before the assignment statement is processed by the pre-pass,
+so `result` is typed `J` (long, default) instead of `A` (String).
+
+Minimal repro:
+```icon
+procedure roman(n);
+    result := "";
+    every i := 1 to 3 do {
+        result ||:= "X";
+    };
+    return result;
+end
+procedure main();
+    write(roman(5));
+end
+```
+
+Expected: `XXX`. Actual: `0`.
+
+Fix needed in `icon_emit_jvm.c`:
+- The pre-pass first loop (around line 5991 in `ij_emit_proc`) only scans
+  **top-level** `stmt->kind == ICN_ASSIGN` statements. `result := ""` IS
+  top-level — check why it's not being caught.
+- Hypothesis: `result` variable has slot ≥ 0 (it's a local), so `fld` =
+  `icn_pv_roman_result`. The pre-pass should call `ij_declare_static_str(fld)`.
+  But then at every-body emit time, `result` is loaded as `J`.
+- Likely cause: every-body is emitted BEFORE the statement chain (Byrd-box
+  every emits generator first, body second in code layout — but body executes
+  at runtime when generator yields). The pre-pass walk may miss body statements
+  nested inside `ICN_EVERY`.
+
+Pre-pass 3 (`ij_prepass_types`) IS a recursive walk — it should catch
+`result := ""` even inside every-body. So the issue may be that `result`'s
+`'A'` tag IS registered, but the load of `result` inside the every-body
+uses the wrong field name (local vs global mismatch — same bug as `syms`).
+
+Apply the same dual-registration fix used for `syms`:
+In the pre-pass first loop AND `ij_prepass_types`, for string-typed vars,
+also register under the alternate field name:
+```c
+if (ij_expr_is_string(rhs)) {
+    ij_declare_static_str(fld);
+    /* dual-register: */
+    if (slot >= 0) { char g[80]; snprintf(g,80,"icn_gvar_%s",lhs->val.sval); ij_declare_static_str(g); }
+    else           { char f2[128]; ij_var_field(lhs->val.sval,f2,sizeof f2); ij_declare_static_str(f2); }
+}
+```
+
+Same fix needed in `ij_prepass_types` (the recursive walk, ~line 5917).
