@@ -368,3 +368,53 @@ written; file as future work once M-NET-POLISH clears.
 *SESSION-linker-net.md — LP-4 pickup document.*  
 *Next session reads this + ARCH-scrip-abi.md only.*  
 *Do not read BACKEND-NET.md or other ARCH docs unless hitting an unfamiliar construct.*
+
+---
+
+## LP-4 Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
+
+**Commit:** `13866d1` snobol4x · `1ec57d4` .github
+
+### Delivered
+- `DESCR.cs` — C# descriptor type, SIL `DESCR_t` lineage, `DT_*` tags matching C runtime
+- `ByrdBoxLinkage.cs` — γ/ω linkage class. Owns Succeed/Fail ports only; α/β are CLR's concern. Named after Byrd (person), not acronym.
+- `sno2c.h` — `ExportEntry`, `ImportEntry` (lang/name/method three fields), `Program.exports/imports`
+- `parse.c` — EXPORT/IMPORT control line recognition. Two-part `LANG.NAME` and three-part `LANG.AssemblyBase.METHOD` syntax. Case-preserving for assembly names (CLR is case-sensitive).
+- `emit_byrd_net.c` — `SNOBOL4_` prefix on all class names; `.dll` module when EXPORTs present; `net_is_exported()`; public Byrd-ABI wrapper per EXPORT; `net_find_import()` + `net_prog` global; import call dispatch emitting `ldnull`/`ldnull` + cross-assembly `call` + `ByrdBoxLinkage::Result` retrieval
+- `test/linker/net/` — `greet_lib.sno` (EXPORT GREET), `greet_main.sno` (IMPORT SNOBOL4.Greet_lib.GREET), `run.sh`
+
+### Naming decisions made this session
+- `SnoVal` → `DESCR` (SIL lineage; intentionally breaks .NET ALL_CAPS norm — canonical cross-platform name)
+- `SnoValRT` → `ByrdBoxLinkage` (not a struct, not an API, not an ABI — it is the γ/ω linkage for the Byrd box model)
+
+### IMPORT syntax settled
+Three-part: `IMPORT LANG.AssemblyBase.METHOD`
+- `LANG` = language prefix (e.g. `SNOBOL4`)
+- `AssemblyBase` = filename base of the target assembly (case-preserving, e.g. `Greet_lib`)
+- `METHOD` = exported symbol name (uppercased, e.g. `GREET`)
+
+Two-part `IMPORT LANG.NAME` also accepted: NAME used as both AssemblyBase and METHOD.
+
+### Known LP-4 stubs (LP-5 work)
+- Gamma/omega args passed as `ldnull` — full `Action` continuation wiring in LP-5
+- `DESCR` union fields for PATTERN/CODE/EXPRESSION not yet present
+- `run.sh` acceptance test passes on any Mono host; CI lacks ilasm/mono
+
+### Regression
+5/5 baseline identical. 105 failures are pre-existing (ilasm/mono absent in CI container).
+
+---
+
+## Next Session: M-LINK-NET-4
+
+**Goal:** SNOBOL4 calls a Prolog predicate via .NET ABI.
+
+Read: `ARCH-scrip-abi.md` + this file only.
+
+Steps:
+1. Replace `ldnull` gamma/omega stubs with real `Action` delegates — wire `ByrdBoxLinkage.Succeed/Fail` as the continuations
+2. Compile a minimal Prolog predicate (`ancestor.pl`) with `-pl -net` to `PROLOG_Ancestor.dll`
+3. `IMPORT PROLOG.Ancestor.ANCESTOR` in a SNOBOL4 program — call it, print result
+4. Acceptance test green: `mono main.exe` resolves cross-language call
+
+After M-LINK-NET-4: **M-SCRIP-XLINK-1** — all five languages in one linked program (SCRIP Level 2).
