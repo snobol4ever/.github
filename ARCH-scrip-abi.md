@@ -237,41 +237,33 @@ public static class SnoValRT {
 
 ```csharp
 // In SNOBOL4 assembly (hello.dll):
-// IMPORT PROLOG.ANCESTOR
-using PrologAncestor;  // extern assembly reference in MSIL
+// IMPORT ancestor.ANCESTOR
+// (two-part: assembly name . method name — no language prefix)
 
 // In generated MSIL:
-call void [PrologAncestor]PROLOG_ANCESTOR::ANCESTOR(SnoVal[], Action, Action)
+.assembly extern ancestor {}
+call void [ancestor]ancestor::ANCESTOR(SnoVal[], Action, Action)
 ```
 
 ---
 
 ## 5. Symbol Naming Convention
 
-**All backends use the same mangled symbol name.** This is the linker's contract.
+**Method names** use the exported symbol name verbatim (uppercased by convention).
+**Assembly/DLL names** are the bare source basename — no language prefix.
 
 ```
-Pattern:   {LANG}_{NAME}
-Examples:
-  SNOBOL4_WORDCOUNT       (wordcount pattern, SNOBOL4 frontend)
-  ICON_FIBONACCI          (fibonacci generator, Icon frontend)  
-  PROLOG_ANCESTOR         (ancestor/2 predicate, Prolog frontend)
-  SNOCONE_WORD_RULE       (WORD pattern rule, Snocone frontend)
-  REBUS_TOKENIZE          (tokenize expression, REBUS frontend)
+Assembly:  {basename}          e.g. greet_lib.dll, ancestor.dll
+Method:    {EXPORTED_NAME}     e.g. GREET, ANCESTOR, FIBONACCI
 ```
+
+The language prefix (`SNOBOL4_`, `PROLOG_`, etc.) is **not** applied to assembly
+or file names. A caller does not need to know what language a library is written
+in — only the assembly name and method name. This follows the same convention as
+native object files (`.o`, `.so`, `.dll`) which carry no language tag.
 
 Arity is **not** part of the symbol name. Arity is enforced at compile time by the
 calling language's type checker. Mismatch = compile error, not link error.
-
-**Language prefixes:**
-
-| Language | Prefix |
-|----------|--------|
-| SNOBOL4  | `SNOBOL4_` |
-| Snocone  | `SNOCONE_` |
-| REBUS    | `REBUS_`   |
-| Icon     | `ICON_`    |
-| Prolog   | `PROLOG_`  |
 
 ---
 
@@ -282,8 +274,8 @@ Added to all five language parsers. Syntax is identical regardless of source lan
 ```snobol4
 * SNOBOL4 syntax
 EXPORT  WORDCOUNT
-IMPORT  PROLOG.ANCESTOR
-IMPORT  ICON.FIBONACCI
+IMPORT  ancestor.ANCESTOR
+IMPORT  fibonacci.FIBONACCI
 ```
 
 ```prolog
@@ -295,19 +287,19 @@ IMPORT  ICON.FIBONACCI
 ```icon
 # Icon syntax
 $export fibonacci
-$import prolog.ancestor
-$import snobol4.wordcount
+$import ancestor.ANCESTOR
+$import wordcount.WORDCOUNT
 ```
 
 ```snocone
 (* Snocone syntax *)
 EXPORT WORD_RULE
-IMPORT PROLOG.CLASSIFY
+IMPORT classify.CLASSIFY
 ```
 
 **Semantics:**
 - `EXPORT name` — the named Byrd Box is visible in the object symbol table (`.globl` on x64, `public` on JVM/.NET)
-- `IMPORT lang.name` — an external reference; the compiler emits a relocation/reference; the linker/class-loader resolves it
+- `IMPORT assembly.METHOD` — an external reference; the compiler emits a relocation/reference; the linker/class-loader resolves it
 - All other DEFINEs are **static** by default — no external visibility
 
 ---
