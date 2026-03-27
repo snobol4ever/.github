@@ -2885,3 +2885,35 @@ export JAVA_TOOL_OPTIONS=""
 bash ../demo/scrip/run_demo.sh ../demo/scrip/demo4 \
   SNO2C=../sno2c ICON_DRIVER=../icon_driver JASMIN=../backend/jvm/jasmin.jar
 ```
+
+---
+
+## PJ-80 — Prolog JVM — 2026-03-26
+
+**HEAD at close:** `4d4e90a` (snobol4x main)
+
+**What was done:**
+- PJ-80a: `pj_ldc_str()` — escape `\` and `"` in `ldc` atom string emission (`prolog_emit_jvm.c`); fixes Jasmin `Bad backslash escape` on atoms like `=\=` in `test_arith`
+- PJ-80b: `var`/`nonvar` type-check codegen stack fix — `swap;pop` after `invokevirtual equals` + re-deref for `[1]` check; fixes VerifyError `Inconsistent stack height 0 != 1` in `test_dcg p_test_2`
+
+**SWI run results after PJ-80:**
+- `test_list`: 0 passed, 1 failed
+- `test_unify`: 1 passed, 11 failed
+- `test_misc`: 0 passed, 3 failed
+- `test_dcg`: 5 passed, 29 failed, 3 skipped ✅ (VerifyError gone)
+- `test_arith`: ❌ Jasmin method-size overflow (p_test_2 = 225 clauses → 20K-line method)
+
+**Next session (PJ-81):**
+1. Method splitting — split large predicates into per-clause sub-methods to fix `test_arith` Jasmin 16-bit branch overflow
+2. Runtime failures — memberchk, unify builtins (unify_self, unify_fv, unify_arity_0), DCG expand_goal, cut_to
+
+**Bootstrap PJ-81:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+export JAVA_TOOL_OPTIONS=""
+unzip swipl-devel-master.zip -d /tmp/swipl
+# wrap/compile/run each test per §NOW in SESSION-prolog-jvm.md
+```
