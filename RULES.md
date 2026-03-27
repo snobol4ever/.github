@@ -95,7 +95,7 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **Session start — four steps (mandatory, in order):**
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
-2. `grep "^## " RULES.md` — scan all rule headers. Do this SECOND, before any file writes or commits.
+2. Read `RULES.md` in full — 139 lines, mandatory before any file writes or commits.
 3. Read `PLAN.md` — NOW table, confirm next milestone.
 4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
 

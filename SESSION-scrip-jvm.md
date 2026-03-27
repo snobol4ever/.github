@@ -18,14 +18,6 @@
 
 ---
 
-## §SESSION START (mandatory, before any file writes or commits)
-1. `tail -80 SESSIONS_ARCHIVE.md` — read your handoff
-2. `grep "^## " RULES.md` — scan rule headers (catches TOKEN, identity, etc.)
-3. Read `PLAN.md` §NOW row for this session
-4. Read §NOW below
-
----
-
 ## §BUILD
 
 ```bash
