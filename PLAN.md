@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83b — multi-suite scan ✅ forall-dedup ✅ unary+ ✅ bridge-naming ✅; next: memberchk var-share, test_arith spaced-int, test_dcg DCG-conj-head | `fb09892` PJ-83b | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
-| **🔗 LINKER** | LP-4 — SESSION docs: sprint1 (JVM), net (.NET), abi spec | `36ccf10` LP-4 | M-LINK-ABI freeze → LP-2 (JVM) || LP-4 (.NET) |
+| **🔗 LINKER** | LP-4 — M-LINK-NET-1,2,3 ✅ | `1ec57d4` LP-4 | M-LINK-NET-4 (SNOBOL4→Prolog .NET call) |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 

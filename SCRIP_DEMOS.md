@@ -117,9 +117,9 @@ Separate from the demo ladder. Tracks the compile+link infrastructure.
 | M-LINK-JVM-3 | Two-file SNOBOL4 JVM link test passes | ❌ |
 | M-LINK-JVM-4 | **PROOF OF CONCEPT** — SNOBOL4 calls Prolog predicate via JVM ABI | ❌ |
 | M-LINK-JVM-5 | SNOBOL4 calls Icon generator via JVM ABI | ❌ |
-| M-LINK-NET-1 | EXPORT/IMPORT in .NET emitter | ❌ |
-| M-LINK-NET-2 | Per-file `.dll` generation | ❌ |
-| M-LINK-NET-3 | Two-file SNOBOL4 .NET link test passes | ❌ |
+| M-LINK-NET-1 | EXPORT/IMPORT in .NET emitter | ✅ |
+| M-LINK-NET-2 | Per-file `.dll` generation | ✅ |
+| M-LINK-NET-3 | Two-file SNOBOL4 .NET link test passes | ✅ |
 | M-SCRIP-XLINK-1 | hello: all 5 languages in one linked binary | ❌ |
 | M-SCRIP-XLINK-2 | fibonacci: SNO calls PROLOG calls ICON | ❌ |
 | M-SCRIP-XLINK-3 | wordcount: SNO tokenizes, PL classifies | ❌ |
