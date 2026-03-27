@@ -14,7 +14,7 @@
 | Prolog×JVM emitter §NOW | `SESSION-prolog-jvm.md` | Prolog block fails in harness |
 | SNOBOL4×JVM emitter §NOW | `SESSION-snobol4-jvm.md` | SNOBOL4 block fails in harness |
 | Icon deep reference | `ARCH-icon-jcon.md` | unfamiliar Icon/JCON construct |
-| Prolog JVM runtime | `ARCH-jvm-prolog.md` | unfamiliar Jasmin/Prolog pattern |
+| Prolog JVM runtime | `ARCH-prolog-jvm.md` | unfamiliar Jasmin/Prolog pattern |
 
 ---
 

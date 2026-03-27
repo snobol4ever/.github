@@ -2,8 +2,8 @@
 
 *Session state lives in SESSION-prolog-jvm.md §NOW. This doc is pure reference.*
 
-→ Runtime design: [ARCH-jvm-prolog.md](ARCH-jvm-prolog.md)
-→ Milestone history: [ARCH-prolog-jvm.md](ARCH-prolog-jvm.md)
+→ Runtime design: [ARCH-prolog-jvm.md](ARCH-prolog-jvm.md)
+→ Milestone history: [ARCH-prolog-jvm-history.md](ARCH-prolog-jvm-history.md)
 → Session state: [SESSION-prolog-jvm.md](SESSION-prolog-jvm.md)
 
 ## Invocation

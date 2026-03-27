@@ -26,8 +26,8 @@ All deep reference docs. Open on demand — never speculatively.
 | Doc | Contents | Open when |
 |-----|----------|-----------|
 | `ARCH-prolog-x64.md` | Prolog×x64 historical notes F-212..F-214 | Early Prolog design decisions |
-| `ARCH-prolog-jvm.md` | Prolog×JVM milestone history PJ-1..78 | Reviewing completed PJ work |
-| `ARCH-jvm-prolog.md` | JVM Prolog runtime: term encoding, trail, clause dispatch | PJ emitter design |
+| `ARCH-prolog-jvm-history.md` | Prolog×JVM milestone history PJ-1..78 | Reviewing completed PJ work |
+| `ARCH-prolog-jvm.md` | JVM Prolog runtime: term encoding, trail, clause dispatch | PJ emitter design |
 
 ### x64 Backend
 | Doc | Contents | Open when |

@@ -10,7 +10,7 @@ Tiny-Prolog: lex → parse → lower → IR. No session state here.
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| JVM runtime design | `ARCH-jvm-prolog.md` | term encoding, trail, clause dispatch |
+| JVM runtime design | `ARCH-prolog-jvm.md` | term encoding, trail, clause dispatch |
 | Historical session notes | `ARCH-prolog-x64.md` | F-212..F-214 design decisions |
 
 ---

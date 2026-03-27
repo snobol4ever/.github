@@ -11,8 +11,8 @@
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
 | Prolog language, IR nodes | `FRONTEND-PROLOG.md` | parser/AST questions |
-| Full milestone history | `ARCH-prolog-jvm.md` | completed work, milestone IDs |
-| JVM Prolog runtime design | `ARCH-jvm-prolog.md` | term encoding, trail, clause dispatch |
+| Full milestone history | `ARCH-prolog-jvm-history.md` | completed work, milestone IDs |
+| JVM Prolog runtime design | `ARCH-prolog-jvm.md` | term encoding, trail, clause dispatch |
 
 ---
 
