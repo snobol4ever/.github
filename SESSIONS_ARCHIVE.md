@@ -3251,3 +3251,59 @@ cd snobol4x/src && make
 - RULES.md: ⛔ JVM BACKEND null-coerce rule appended
 
 **Next session SD-37:** ICON-JVM demo6 sieve VerifyError — `out ||:= i` integer RHS in `icon_emit_jvm.c`. Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW`.
+
+---
+
+## SD-37 — 2026-03-27
+
+**Session type:** Scrip Demo × JVM (SD prefix)
+**Repos:** snobol4x `795c2ff`, .github `(this commit)`
+**Bootstrap:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+cd snobol4x && make -C src
+apt-get install -y default-jdk swi-prolog icont
+gcc -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
+  src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
+  src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
+  src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
+```
+
+**Milestones fired:**
+- M-SD-6: sieve ICON-JVM ✅ PASS (`2 3 5 7 11 13 17 19 23 29 31 37 41 43 47`)
+- Demo8 PROLOG-JVM insertion sort: now ✅ PASS (side effect of seq_expr fix)
+
+**Fixes in `src/frontend/icon/icon_emit_jvm.c`:**
+1. `TK_AUGCONCAT` numeric RHS: emit `invokestatic Long/toString(J)` before `putstatic` — resolves VerifyError on `out ||:= i`
+2. `ICN_SEQ_EXPR` failure-relay: non-last child failure (e.g. `if`-no-else) now jumps to next sibling's α instead of propagating to `ports.ω`. Pattern mirrors the `while/do` body emitter's `relay_f` at line 3826.
+3. List subscript assignment `a[i] := v`: added `ArrayList.set` path in push-back block; added `else if (ICN_SUBSCRIPT) { (void)0; }` guard in store block to prevent premature `pop2` discarding RHS.
+
+**Artifact work:**
+- All stale ASM/JVM/NET artifacts regenerated from current source
+- `artifacts/icon/samples/`: hello/wordcount/roman/palindrome/sieve (.icn+.j passing); queens/meander/generators (.icn source, .j where compiles)
+- `artifacts/prolog/samples/`: hello/wordcount/roman/palindrome (.pro+.j passing); queens/sentences (.pro swipl-verified, aspirational)
+- `artifacts/README.md`: ownership table extended; per-frontend regen commands added
+- `RULES.md`: `⛔ ARTIFACT REFRESH` rule added — regenerate affected artifacts after every emitter change
+
+**Demo status at handoff:**
+
+| Demo | SNO2C-JVM | ICON-JVM | PROLOG-JVM |
+|------|:---------:|:--------:|:----------:|
+| 1 hello | ✅ | ✅ | ✅ |
+| 2 wordcount | ✅ | ✅ | ✅ |
+| 3 roman | ✅ | ✅ | ✅ |
+| 4 palindrome | ✅ | ✅ | ✅ |
+| 5 fibonacci | ✅ | ⏭ | ❌ forall/2 |
+| 6 sieve | ✅ | ✅ | ✅ |
+| 7 rot13 | ✅ | ❌ no output | ❌ |
+| 8 insertion sort | ✅ | ❌ no output | ✅ |
+| 9 rpn calc | ✅ | ❌ no output | ❌ |
+| 10 anagram | ✅ | ❌ no output | ❌ |
+
+**Next session SD-38:** Diagnose ICON-JVM demos 7-10 "compiler produced no output". Start with demo7 caesar/rot13:
+```bash
+python3 demo/scrip/scrip_split.py demo/scrip/demo7/caesar.md /tmp/d7/ 2>/dev/null
+/tmp/icon_driver -jvm /tmp/d7/icon.icn 2>&1 | head -5
+```
+Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW` first.

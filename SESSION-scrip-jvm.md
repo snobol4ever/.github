@@ -81,11 +81,11 @@ Cross-repo rule: never write `artifacts/asm/`, `artifacts/net/`, or `artifacts/c
 
 ---
 
-## §NOW — SD-36
+## §NOW — SD-37
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Scrip Demo** | SD-36 — M-SD-10 ✅ SNO2C-JVM anagram PASS | `7ccd33e` SD-36 | M-SD-6 ICON-JVM sieve |
+| **Scrip Demo** | SD-37 — M-SD-6 ✅ ICON-JVM sieve PASS | `795c2ff` SD-37 | M-SD-7 ICON-JVM rot13 |
 
 ### Status
 
@@ -96,20 +96,24 @@ Cross-repo rule: never write `artifacts/asm/`, `artifacts/net/`, or `artifacts/c
 | DEMO3 roman | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DEMO4 palindrome | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DEMO5 fibonacci | ✅ | ✅ | ✅ | ✅ | ⏭ skipped | ❌ forall/2 meta-call |
-| DEMO6 sieve | ✅ | ✅ | ✅ | ✅ | ❌ VerifyError | ✅ |
-| DEMO7 rot13 | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
-| DEMO8 insertion sort | ✅ | ✅ | ✅ | ✅ | ❌ untested | ✅ |
-| DEMO9 rpn calc | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
-| DEMO10 anagram | ✅ | ✅ | ✅ | ✅ | ❌ untested | ❌ |
+| DEMO6 sieve | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| DEMO7 rot13 | ✅ | ✅ | ✅ | ✅ | ❌ compiler no output | ❌ |
+| DEMO8 insertion sort | ✅ | ✅ | ✅ | ✅ | ❌ compiler no output | ✅ |
+| DEMO9 rpn calc | ✅ | ✅ | ✅ | ✅ | ❌ compiler no output | ❌ |
+| DEMO10 anagram | ✅ | ✅ | ✅ | ✅ | ❌ compiler no output | ❌ |
 
-### NEXT ACTION — SD-37: fix ICON-JVM demo6 sieve VerifyError
+### NEXT ACTION — SD-38: fix ICON-JVM demos 7-10
 
-**Blocker:** `out ||:= i` — String concat augmented-assign with integer RHS → VerifyError.
-**Fix:** `icon_emit_jvm.c` — `||:=` with numeric RHS needs `Long.toString()` coerce before concat.
-**Also pending:** PROLOG-JVM demo5 forall/2; demos 7, 9, 10 Prolog failures.
+**Blocker:** `icon_driver -jvm` produces no output for demos 7-10. Parse/emitter gap.
+Check each demo's Icon block manually: `python3 demo/scrip/scrip_split.py demo/scrip/demo7/caesar.md /tmp/ && /tmp/icon_driver -jvm /tmp/icon.icn 2>&1`
 
-**SD-36 fixes (snobol4x `7ccd33e`):** IDENT/DIFFER null-coerce; CONVERT+PROTOTYPE implemented;
-E_IDX 2D subscript; array `:S`/`:F` null semantics; BREAK EOS fix; warnings cleared; RULES.md updated.
+**SD-37 fixes landed (795c2ff):**
+- `TK_AUGCONCAT` numeric RHS: `Long.toString` coerce (VerifyError fix)
+- `ICN_SEQ_EXPR` failure-relay: `if`-no-else continues to next stmt
+- List subscript assignment `a[i]:=v`: `ArrayList.set` emitted correctly
+- Demo8 PROLOG-JVM insertion sort now ✅
+
+**Artifact refresh:** `artifacts/icon/samples/` fully regenerated; `sieve.icn+.j` added.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|

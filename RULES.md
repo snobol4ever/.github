@@ -67,6 +67,20 @@ End-of-session checklist (in order):
 
 ---
 
+## ⛔ ARTIFACT REFRESH — After every milestone fix, regenerate affected artifacts
+
+Any time a frontend emitter or backend is modified, all artifacts for that frontend/backend combination must be regenerated and committed before handoff. Stale artifacts are worse than no artifacts.
+
+**Trigger:** You touched `icon_emit_jvm.c` → regenerate `artifacts/icon/samples/*.j` and `artifacts/jvm/samples/*.j` for all passing demos. You touched `prolog_emit_jvm.c` → regenerate `artifacts/prolog/samples/*.j`. You touched `emit_byrd_jvm.c` → regenerate `artifacts/jvm/samples/*.j`. And so on.
+
+**Rule:** If an artifact `.j` file would now produce different output than the committed version, regenerate it. If it now passes when it previously failed, promote it from source-only to source+`.j`. If it now fails, mark it with a comment and open a bug.
+
+**Regen commands live in `artifacts/README.md`** — one block per frontend/backend. Run the relevant block, verify outputs, commit.
+
+**At every milestone fire:** run the full demo harness (`bash demo/scrip/run_demo.sh demo/scrip/demoN/`) for all demos that touch the affected system. If additional demos now pass, fire their milestones too.
+
+---
+
 ## ⛔ GIT IDENTITY — Set before first commit
 
 ```bash

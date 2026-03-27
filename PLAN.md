@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scrip Demo** | SD-37: artifacts regen ✅ icon/prolog samples added; IJ-57 ||:= fix; ICN_SEQ_EXPR relay WIP | `87325b3` SD-37 | M-SD-6 ICON-JVM sieve |
+| **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83b — multi-suite scan ✅ forall-dedup ✅ unary+ ✅ bridge-naming ✅; next: memberchk var-share, test_arith spaced-int, test_dcg DCG-conj-head | `fb09892` PJ-83b | M-PJ-SWI-BASELINE |
-| **Icon JVM** | IJ-57 — TK_AUGCONCAT numeric RHS fix ✅; ICN_SEQ_EXPR relay bug WIP | `87325b3` IJ-57 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
