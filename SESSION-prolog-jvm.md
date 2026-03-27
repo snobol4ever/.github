@@ -36,42 +36,43 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-82b | `ab7f006` PJ-82b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-83a | `2b4290f` PJ-83a | M-PJ-SWI-BASELINE |
 
-### SWI Baseline State (PJ-82b)
+### ⚠️ CANONICAL ARCHITECTURE — READ BEFORE TOUCHING SWI TESTS
 
-**Commits this session: PJ-82a, PJ-82b (HEAD `ab7f006`)**
+**DO NOT use `wrap_swi.py`. DO NOT preprocess SWI `.pl` files in Python.**
+**DO NOT invent a new shim layer. The right machinery already exists in `prolog_emit_jvm.c`.**
 
-PJ-82a fixes:
-- `pj_safe_name`: removed `tolower()` — case-fold collision caused duplicate method `ClassFormatError` (e.g. `fmtD_1` vs `fmtd_1`)
-- Split dispatcher: removed spurious `aload` loop before `istore` — caused `VerifyError` (integer expected on stack)
+The canonical pipeline for SWI plunit tests:
+1. Feed raw SWI `.pl` files **directly** to `sno2c -pl -jvm`
+2. The **plunit linker** inside `prolog_emit_jvm.c` detects `use_module(library(plunit))`, scans `begin_tests`/`end_tests` directives and `test/N` clause heads, and emits `assertz(pj_suite/pj_test)` facts + bridge predicates at JVM init time
+3. The embedded `pj_plunit_shim_src[]` C-string (in `prolog_emit_jvm.c`) provides `run_tests`, `pj_run_one`, counters etc — **this is the shim**, not `test/frontend/prolog/plunit.pl`
+4. `test/frontend/prolog/plunit_mock.pro` is an **alternative** stand-alone mock — DO NOT mix it with the linker; pick one approach
 
-PJ-82b fixes:
-- `pj_list_to_term` + `pj_univ` runtime helpers: bidirectional `=..` now works in both compose and decompose directions
-- `expand_goal/2` shim in `plunit.pl` (single-clause if-then-else)
+Key functions in `prolog_emit_jvm.c`:
+- `pj_linker_has_plunit()` — detects `use_module(library(plunit))`
+- `pj_linker_scan()` — pass1: suite names from `begin_tests` directives; pass2: test/1 test/2 clause heads → `PjTestInfo[]`
+- `pj_linker_emit_plunit_shim()` — parse+lower+emit embedded shim, skipping user-defined predicates
+- `pj_linker_emit_main_assertz()` — emit `assertz(pj_suite/pj_test)` in JVM `<clinit>`
 
-**SWI baseline pass/fail (tests/core/):**
+**Known linker limitations to fix (NEXT ACTIONS):**
+1. **Multi-suite test files**: `pj_linker_scan` pass-2 assigns all tests to `suite[0]` — wrong for files with multiple `begin_tests` blocks. Fix: track current suite during pass-2 by interleaving directive and E_CHOICE walks.
+2. **Variable sharing in `true(Expr)` tests**: linker emits `assertz(pj_test(Suite,Name,Opts,BridgeAtom))` where `BridgeAtom` is a call to a bridge predicate — breaks variable sharing between `Opts` (e.g. `true(X==y)`) and the test body that binds `X`. Fix: inline the body term directly into the `pj_test` assertz instead of using a bridge atom.
+3. **`=@=` structural equivalence**: not implemented — skip tests using it.
+4. **`unifiable/2`**: not implemented.
+5. **`cut_to`**: cut across catch boundary — not implemented.
+
+**SWI baseline pass/fail (tests/core/) — as of PJ-82b, via old wrap_swi.py:**
 
 | Test file | Passed | Failed | Skipped | Notes |
 |-----------|--------|--------|---------|-------|
-| `test_list` | 0 | 1 | 0 | `memberchk` fails in plunit context |
-| `test_arith` | 7 | 51 | 6 | arithmetic/GMP suite failures |
-| `test_unify` | 1 | 11 | 0 | `unify_self`, `unify_fv`, `blam`, `unifiable/2` |
-| `test_dcg` | 5 | 29 | 3 | `expand_goal` suite: variable sharing broken via pj_test indirection |
-| `test_misc` | 0 | 3 | 0 | `read_only_flag`, `cut_to`, `cut_to_cleanup` |
+| `test_list` | 0 | 1 | 0 | `memberchk` fails |
+| `test_arith` | 7 | 51 | 6 | GMP/bignum suite failures expected |
+| `test_unify` | 1 | 11 | 0 | variable sharing, `unifiable/2` |
+| `test_dcg` | 5 | 29 | 3 | multi-suite scan + variable sharing |
+| `test_misc` | 0 | 3 | 0 | `cut_to`, `read_only_flag` |
 
-**NEXT ACTIONS (priority order):**
-
-1. **`wrap_swi.py` variable sharing bug**: `pj_test(S,N,Opts,Goal)` uses predicate indirection for goal body, breaking variable sharing between Opts and Goal body. Fix: inline the goal body directly in pj_test fact (or use a lambda/call approach). Affects all `true(Expr)` tests where Expr shares vars with body.
-2. **`test_unify: unify_self`**: `X = X` — self-unification; check `pj_unify` handles reflexive case.
-3. **`test_unify: unify_fv`**: free var unification edge case.
-4. **`test_unify: unifiable/2`**: `unifiable(X,Y,Unifier)` — not implemented.
-5. **`test_misc: cut_to`**: cut across catch boundary.
-6. **`test_arith` arith basics**: investigate `is/2` failures.
-
-**Known issues:**
-- `expand_goal` suite unfixable without wrap_swi.py variable-sharing fix
-- `=@=` (structural equivalence modulo variable names) not implemented in shim
+**PJ-83a (HEAD):** parser fix — `fx 1150` prefix atoms (`dynamic`, `discontiguous`, `multifile`, `use_module`, `ensure_loaded`, `meta_predicate`, `mode`) now parse without parens. Directive prec raised to 1200. Enables raw SWI files with bare `:- dynamic foo/1.` to parse correctly.
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -80,10 +81,10 @@ apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam
 # SWI upstream tests: sparse clone
-#   git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
-#   cd /tmp/swipl-devel && git sparse-checkout set tests/core
-# Wrap+run: python3 test/frontend/prolog/wrap_swi.py /tmp/swipl-devel/tests/core/TEST.pl /tmp/TEST.pro
-#   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
+git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
+cd /tmp/swipl-devel && git sparse-checkout set tests/core
+# Run raw SWI file directly — NO wrap_swi.py:
+#   ./sno2c -pl -jvm /tmp/swipl-devel/tests/core/TEST.pl > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
 
