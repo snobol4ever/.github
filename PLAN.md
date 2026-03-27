@@ -19,10 +19,10 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
-| **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
+| **ICON x64** | IX-12 — rung01-03 confirmed ✅ baseline surveyed rung04-15 | `5b32daa` IX-12 | M-IX-STRING (fix `\|\|` concat segfault, rung04 100%) |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
 | **Prolog x64** | PX-1 — probing, hello works, multi-clause broken | `a79906e` | M-PJ-X64-1 |
-| **Icon JVM** | IJ-58 — multi-arg write ✅ augop-cmp ✅ left/right/center coerce ✅ 75-test harness ✅ | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 | **🔗 LINKER JVM** | LP-JVM-3 — demos 1-3 ✅ ICON-JVM via sno2c; M-SCRIP-DEMO WIP (family demo needs EXPORT directives + ByrdBoxLinkage.j) | `c3e3ab3` LP-JVM-3 | M-SCRIP-DEMO |
 
