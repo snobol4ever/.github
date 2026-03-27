@@ -14,7 +14,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
-| **TINY NET** | N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
+| **TINY NET** | N-248 — 110/110 ✅ M-T2-FULL ✅ | `425921a` N-248 | M-LINK-NET-1 (SESSION-linker-net.md) |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83b — multi-suite scan ✅ forall-dedup ✅ unary+ ✅ bridge-naming ✅; next: memberchk var-share, test_arith spaced-int, test_dcg DCG-conj-head | `fb09892` PJ-83b | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
-| **🔗 LINKER** | LP-1 — ARCH-scrip-abi.md DRAFT · SCRIP_DEMOS.md XLINK column added | `—` LP-1 | M-LINK-ABI (freeze ABI doc) |
+| **🔗 LINKER** | LP-4 — SESSION docs: sprint1 (JVM), net (.NET), abi spec | `36ccf10` LP-4 | M-LINK-ABI freeze → LP-2 (JVM) || LP-4 (.NET) |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
@@ -48,7 +48,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Snocone | `FRONTEND-SNOCONE.md` | — | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
-Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (beauty sprint) · `ARCH-scrip-abi.md` (linker ABI — read before any M-LINK-* work)
+Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (beauty sprint) · `ARCH-scrip-abi.md` + `SESSION-linker-sprint1.md` (LP-2 JVM) + `SESSION-linker-net.md` (LP-4 .NET)
 
 **3. Deep reference → ARCH-*.md** (open only when needed — full catalog in `ARCH-index.md`)
 
