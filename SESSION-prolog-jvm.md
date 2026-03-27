@@ -36,37 +36,34 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-78a — true(Expr) var-sharing fixed; corpus 107/107 | `ad4dfc5` PJ-78a | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-79b — parse gaps fixed; all 5 SWI files compile; corpus 107/107 | `75e46c2` PJ-79b | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-79)
+### CRITICAL NEXT ACTION (PJ-80)
 
-**PJ-78 findings: true(Expr) var-sharing fixed. Corpus 107/107. No regressions.**
+**PJ-79 findings: test_list/arith/dcg/unify/misc all compile clean. Corpus 107/107. No regressions.**
 
-**What was done PJ-78 (commit PJ-78a):**
-1. `PjTestInfo` gains `clause_expr` field — stores full `E_CLAUSE*` pointer during linker scan
-2. `pj_linker_emit_bridge`: detects `true(Expr)` opts (bare or inside list `[true(E)|_]`)
-3. `true(Expr)` bridge: inline body + check in same JVM frame — vars shared correctly
-4. Self-reporting: bridge emits pass/fail directly via `p_pj_inc_pass/fail_0` + `PrintStream.println`, returns null
-5. DB assertz: emits `pj_inline` atom as opts for `true(Expr)` tests (not the list term)
-6. Shim `run_one`: new `pj_inline` branch — just calls `catch(Goal,_,fail)->true;true`, bridge handles reporting
-7. `.limit locals 4+n_vars+32` — generous scratch for body/check ucalls
-- **Context note:** JWT proxy spam in `JAVA_TOOL_OPTIONS` consumed ~5% context. Fix: `export JAVA_TOOL_OPTIONS=""` at session start.
+**What was done PJ-79 (commits PJ-79a, PJ-79b):**
+- PJ-79a: suppress unused `loc_mstart` warnings in `emit_byrd_net.c`
+- PJ-79b parser fixes (`prolog_parse.c`):
+  1. `:-` as binary op (prec 1200) in `BIN_OPS` + Pratt loop (`TK_NECK`) — fixes `(a :- b(...))` inside args
+  2. Unary minus before variables and parens (`-V0`, `-(expr)`) — was only `-atom`/`-op`
+- PJ-79b lexer fixes (`prolog_lex.c`):
+  3. `0o` octal literal support (was missing)
+  4. `Xe`/`XeN` float literals without decimal point (e.g. `10e300`)
+- PJ-79b `wrap_swi.py` fixes:
+  5. Multi-line directive stripping (consume through terminating `.`)
+  6. `:- dynamic` with predicate on next line (`STRIP_BARE_RE` relaxed to `\s*$`)
+  7. Xfail suites requiring GMP/pushback-DCG: `minint`, `maxint`, `minint_promotion`, `maxint_promotion`, `max_integer_size`, `float_compare`, `context`
 
-**SWI baseline so far (tests/core/):**
-- `test_list.pl` — true(Expr) gap now FIXED; re-run needed
-- `test_exception.pl` — 0p/5f/1s: throw/catch semantics gaps
-- `test_arith/unify/dcg/misc.pl` — compile errors (some parse gaps remain)
+**SWI baseline compile status (tests/core/):**
+- `test_list.pl` ✅ compiles clean
+- `test_unify.pl` ✅ compiles clean
+- `test_misc.pl` ✅ compiles clean
+- `test_arith.pl` ✅ compiles clean (7 GMP/NaN suites xfailed)
+- `test_dcg.pl` ✅ compiles clean (pushback-DCG `context` suite xfailed)
+- `test_exception.pl` — NOT YET RUN (throw/catch semantics gaps from PJ-78)
 
-**PJ-79 task: M-PJ-SWI-BASELINE continued**
-
-**Task 1 — Re-run test_list.pl (was blocked by true(Expr) gap, now fixed)**
-- Need `swipl-devel-master.zip` — upload to get actual SWI test files
-
-**Task 2 — remaining parse gaps (run test_arith/unify/dcg/misc to find)**
-- Upload `swipl-devel-master.zip` to get actual failing files
-
-**Task 3 — throw/catch semantics (test_exception.pl)**
-- Needs `swipl-devel-master.zip`
+**PJ-80 task: run the 5 compiled test files, assess pass/fail, then tackle test_exception.pl**
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -75,6 +72,11 @@ apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context window
 # SWI test files: unzip swipl-devel-master.zip to /tmp/
+# Then: for each of test_list/arith/dcg/unify/misc:
+#   python3 test/frontend/prolog/wrap_swi.py /tmp/swipl/swipl-devel-master/tests/core/TEST.pl /tmp/TEST.pro
+#   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
+#   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
+#   java -cp /tmp/TESTd <ClassName>
 # Read §NOW above. Start at CRITICAL NEXT ACTION.
 ```
 
