@@ -2725,3 +2725,51 @@ apt-get install -y default-jdk swi-prolog icont
 export JAVA_TOOL_OPTIONS=""
 # Read FRONTEND-ICON-JVM.md §NOW — fix ij_emit_subscript() list path
 ```
+
+---
+
+## Session PJ-79 (Prolog JVM) — 2026-03-26
+
+**Commits:** `6f22e7f` PJ-79a, `75e46c2` PJ-79b (snobol4x); `7d89d06` (`.github`)
+
+**What landed:**
+
+- **PJ-79a:** Suppress unused `loc_mstart` warnings in `emit_byrd_net.c` (`(void)loc_mstart`)
+- **PJ-79b — Parser fixes (`prolog_parse.c`):**
+  - `:-` as binary op (prec 1200) in `BIN_OPS` + Pratt loop via `TK_NECK` — fixes `(a :- b(...))` inside compound args
+  - Unary minus before variables and parenthesized expressions (`-V0`, `-(expr)`) — was only `-number`/`-atom`/`-op`
+- **PJ-79b — Lexer fixes (`prolog_lex.c`):**
+  - `0o` octal literal support (was missing; `0b`/`0x` existed but not `0o`)
+  - Float literals without decimal point (`10e300`, `2e-5`)
+- **PJ-79b — `wrap_swi.py` fixes:**
+  - Multi-line directive stripping (consume through terminating `.`)
+  - `:- dynamic` with predicate on next line (`STRIP_BARE_RE` relaxed)
+  - Xfail suites needing GMP/pushback-DCG: `minint`, `maxint`, `minint_promotion`, `maxint_promotion`, `max_integer_size`, `float_compare`, `context`
+
+**Result:** `test_list`, `test_arith`, `test_dcg`, `test_unify`, `test_misc` all compile clean. Corpus 107/107. No regressions.
+
+**Work in progress (not committed — PJ-80 task):**
+- `jvm_ldc_atom()` helper added to `prolog_emit_jvm.c` (not yet wired up)
+- Raw `ldc "%s"` emissions on lines 3024, 3058, 3073, 3093, 3101 need replacing with `jvm_ldc_atom()` to fix jasmin `=\=` escape error in `test_arith`
+- `test_dcg` VerifyError in `p_test_2` — stack height inconsistency — emitter bug to investigate
+- `test_exception.pl` — not yet run; throw/catch semantics gaps expected from PJ-78
+
+### Next session (PJ-80)
+
+1. Wire up `jvm_ldc_atom()` — replace 5 raw `ldc "%s"` lines (3024, 3058, 3073, 3093, 3101) in `prolog_emit_jvm.c`
+2. Build + verify `=\=` no longer breaks jasmin on `test_arith`
+3. Investigate `test_dcg` VerifyError in `p_test_2` (stack height 0 != 1)
+4. Run all 5 compiled test files, triage pass/fail counts
+5. Run `test_exception.pl`, assess throw/catch gaps
+6. Commit PJ-80 + update §NOW + push both repos
+
+**Bootstrap PJ-80:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+export JAVA_TOOL_OPTIONS=""
+unzip swipl-devel-master.zip -d /tmp/swipl   # upload zip at session start
+# Read §NOW in SESSION-prolog-jvm.md. Start at CRITICAL NEXT ACTION (PJ-80).
+```
