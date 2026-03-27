@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83e — test_arith 92/111 (+7 var+float) test_dcg 9/15 (+2) test_unify 7/4 test_list 1/0 | `2ddc784` PJ-83e | M-PJ-SWI-BASELINE |
-| **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | IJ-58 — multi-arg write ✅ augop-cmp ✅ left/right/center coerce ✅ 75-test harness ✅ | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 | **🔗 LINKER JVM** | LP-JVM-3 — demos 1-3 ✅ ICON-JVM via sno2c; M-SCRIP-DEMO WIP (family demo needs EXPORT directives + ByrdBoxLinkage.j) | `c3e3ab3` LP-JVM-3 | M-SCRIP-DEMO |
 
