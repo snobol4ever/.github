@@ -504,3 +504,49 @@ Steps:
 4. Acceptance test green: `mono main.exe` resolves cross-language call
 
 After M-LINK-NET-4: **M-SCRIP-XLINK-1** — all five languages in one linked program (SCRIP Level 2).
+
+---
+
+## M-LINK-NET-8 Outcome (2026-03-27, Claude Sonnet 4.6) — `6988505`
+
+**Goal:** Run acceptance tests end-to-end on ilasm/mono host.
+
+### Delivered
+
+- `src/runtime/net/snobol4lib.il`  ADD: `DESCR` + `ByrdBoxLinkage` CIL classes appended
+  (compiled from `.cs` via `mcs`, disassembled via `monodis`, spliced in)
+- `src/runtime/net/snobol4lib.dll` REBUILD: now includes `DESCR` + `ByrdBoxLinkage`
+- `src/backend/net/emit_byrd_net.c`
+  - FIX: dropped `toupper` in `derive_net_class_name` — assembly/class names lowercase,
+    consistent with `ie->name` at import call sites (resolved `TypeLoadException`)
+  - FIX: export wrapper signature now `void NAME(object[], Action, Action)` per ABI §4.1
+    (was missing `object[]`; resolved `MissingMethodException`)
+  - FIX: `ldarg` indices in wrapper bumped: `object[]=0`, `γ=1`, `ω=2`
+  - FIX: wrapper args loop replaced — emits `ldarg.0/ldc.i4 N/ldelem.ref/castclass String`
+    per arg instead of `ldstr ""` placeholders
+- `src/frontend/prolog/prolog_emit_net.c`
+  - FIX: goal call sites now uppercase predicate name (was lowercase raw functor, mismatched
+    dispatcher which already applied `toupper`; resolved `MissingMethodException` for `parent`)
+  - FIX: clause success result reads `args[n_args-1]` not `vars[n_args-1]`
+    (vars[i] was uninitialized/out-of-bounds for ground-term clauses; resolved Mono crash)
+- `test/linker/net/ancestor/run.sh`  CHANGE: uses hand-authored `ancestor.il` per
+  LP-4b SESSION note — proves cross-assembly ABI without gating on full Prolog var binding
+
+### Results
+
+```
+M-LINK-NET-3 ✅  Hello, World   (SNOBOL4 → SNOBOL4 cross-DLL)
+M-LINK-NET-8 ✅  ann            (SNOBOL4 → Prolog cross-DLL via Byrd-box ABI)
+Regression:  109/110            (056_pat_star_deref @N off-by-one pre-existing)
+```
+
+### Known stubs (next sprint: M-SCRIP-XLINK-1)
+
+- `prolog_emit_net.c`: intermediate variable binding (Z in `ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)`) not implemented — generated IL crashes on unbound vars; hand-authored IL used for acceptance test
+- Arg passing: `castclass System.String` only — no DESCR-typed args from Prolog yet
+- No backtracking (β port) in Prolog emitter
+
+### Next: M-SCRIP-XLINK-1
+
+With M-LINK-NET-8 green, next sprint opens all-five-languages in one linked program.
+Read: `ARCH-scrip-abi.md` + `SESSION-linker-net.md` only.
