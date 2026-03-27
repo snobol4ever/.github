@@ -36,7 +36,7 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-83d | `ef4c596` PJ-83d | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-83e | `2ddc784` PJ-83e | M-PJ-SWI-BASELINE |
 
 ### ⚠️ CANONICAL ARCHITECTURE — READ BEFORE TOUCHING SWI TESTS
 
@@ -60,7 +60,7 @@ Key functions in `prolog_emit_jvm.c`:
 
 **Bridge opts detection:** bare expression opts `X==y` (not wrapped in `true(...)`) are now detected in both `has_true_expr` (bridge emitter) and `is_true_expr` (assertz loop). Both must agree or the test runs twice. The assertz emits `pj_inline` atom → `run_one` pj_inline branch fires → self-reporting bridge. `run_succeed` second clause excludes `pj_inline`.
 
-**RESOLVED (ef4c596 / this session):**
+**RESOLVED (2ddc784 / PJ-83e):**
 1. ~~Multi-suite test files~~: FIXED — prescan.
 2. ~~Variable sharing in `true(Expr)` / bare-expr tests~~: FIXED — `pj_inline` bridge path.
 3. ~~`forall` duplicate method~~: FIXED.
@@ -90,6 +90,9 @@ Key functions in `prolog_emit_jvm.c`:
 27. ~~`>>`/`<<` wrap on large counts~~: FIXED — `pj_shr`/`pj_shl` saturating.
 28. ~~`nan`/`inf`/`infinity` constants~~: FIXED — recognized in arith emit.
 29. ~~`between/3` deterministic check (bound 3rd arg)~~: FIXED — fast path bypasses iteration.
+30. ~~**var+float binary arith**~~: FIXED — `pj_varnum_*` + `pj_obj_to_bits/is_float/to_double` + generalized `pj_emit_arith_as_double`.
+31. ~~**succ/2 slot collision**~~: FIXED — `.limit locals 6`, `astore 4` for domain_error Object (avoids clobber of long in slots 2-3). Passes in isolation; large-file failure = item 8.
+32. ~~**InvocationTargetException unwrap**~~: FIXED — `pj_reflect_call` now unwraps before PROLOG_THROW check.
 
 **Remaining known limitations (NEXT ACTIONS):**
 1. **`=@=` structural equivalence**: not implemented — skip tests using it.
@@ -98,7 +101,7 @@ Key functions in `prolog_emit_jvm.c`:
 4. **`\+` swallowing exceptions**: `not1_a/b`, `not2_a/b` in `test_dcg`.
 5. **`cut1_b`, `curlycut_b`** in `test_dcg`.
 6. **`succ/2` domain_error**: throws wrong term (local slot conflict in throw construction) — WIP commit `ef4c596`. Fix: increase `.limit locals` in `pj_succ_2` to 6, use local slot 4 instead of 2 for the domain_error Object term. The `astore_2` in the neg path clobbers the long in slots 2-3.
-7. **var+float binary op** (`X*1000` where X is runtime float var): compile-time `pj_arith_is_float(E_VART)=0` so `lmul` is used on float bits. Affects `hyperbolic` suite (6 tests) and `ar_builtin:a_add_fc_float`. Root cause: once `pj_emit_arith(E_VART)` returns a raw J, binary ops can't distinguish int-bits from float-bits without the tag. Need `pj_emit_arith_as_double` path in binary ops when either side is var AND other is float — but `(lv && rf)` condition misses `var * int_literal` where var holds float. Real fix: full runtime arith eval, or propagate type through variable slots.
+7. ~~**var+float binary op**~~: FIXED — `pj_varnum_{add,sub,mul,div}` Object[]-level helpers; `pj_emit_arith_as_double` generalized to `pj_arith_has_var`; `round/1`/`integer/1` use `pj_emit_arith_as_double` when child has var. +7 tests (all hyperbolic + a_add_fc_float).
 8. **`test_arith` `between_1`/`plus_1`** fail in large-file context but pass in isolation — likely label collision or method table size issue in Jasmin for very large classes.
 9. **`format/3` with atom output** `format(atom(A), Fmt, Args)` not implemented — blocks `minint`/`maxint` suites (16 tests).
 10. **bignum**: `bigint`/`minint_promotion`/`maxint_promotion` require arbitrary precision — out of scope for JVM long.
@@ -110,7 +113,7 @@ Key functions in `prolog_emit_jvm.c`:
 | Test file | Passed | Failed | Skipped | Notes |
 |-----------|--------|--------|---------|-------|
 | `test_list` | **1** | 0 | 0 | ✅ |
-| `test_arith` | **85** | 118 | 1 | +22 this session; bignum/format/var+float remain |
+| `test_arith` | **92** | 111 | 1 | +7 this session (var+float fixed); bignum/format remain |
 | `test_unify` | **7** | 4 | 0 | cycle/unifiable unimplemented |
 | `test_dcg` | **7** | 17 | 3 | pushback+phrase fixed; =@=, \+, cut remain |
 | `test_misc` | 0 | 3 | 0 | not re-run |
