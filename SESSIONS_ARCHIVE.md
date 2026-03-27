@@ -2773,3 +2773,77 @@ export JAVA_TOOL_OPTIONS=""
 unzip swipl-devel-master.zip -d /tmp/swipl   # upload zip at session start
 # Read §NOW in SESSION-prolog-jvm.md. Start at CRITICAL NEXT ACTION (PJ-80).
 ```
+
+---
+
+## Session SD-28 — 2026-03-26
+
+**Commits:** `fd7362d` SD-28a (snobol4x); .github pending
+
+**Goal:** M-SD-3 roman — ICON-JVM PASS
+
+**Context:** Session started with roman demo status:
+- SNO2C-JVM ✅ PROLOG-JVM ✅ ICON-JVM ❌ (outputting `0\n0\n0`)
+
+**Root cause diagnosed:**
+`icon_driver` pre-pass could not detect `roman()` as string-returning because
+`ij_expr_is_string(ICN_VAR "result")` requires statics to be populated (not yet
+done at pre-pass time). Result: call sites in `icn_main` read `icn_retval J`
+(long = 0) instead of `icn_retval_str`.
+
+**What landed (SD-28a, `fd7362d`):**
+- Pre-pass body scan for string-returning procs: when returned expr is a VAR,
+  scan proc body for `ICN_ASSIGN(VAR, STR/CONCAT/LCONCAT)` or
+  `ICN_AUGOP(TK_AUGCONCAT, VAR)` — marks proc correctly without statics.
+- Call sites now correctly read `icn_retval_str` + emit `println(String)`.
+- `icon_driver` rebuilt and committed.
+
+**Current state:** ICON-JVM outputs empty string (not `0`). Progress.
+
+**Remaining bug (SD-29 task) — `result` variable types as J inside proc body:**
+
+`result := ""` IS caught by `ij_prepass_types` (recursive walk), but the
+`result` variable is typed correctly as `'A'` only under one field name.
+Inside the `every` body, the load uses a different field name
+(`icn_pv_roman_result` vs `icn_gvar_result`) — same local/global mismatch
+that affected `syms` (fixed in SD-27 commit 26eccbe).
+
+**Fix is the same dual-registration pattern (already documented in SESSION-icon-jvm.md):**
+In `ij_prepass_types` and the first-pass assignment scanner, when declaring
+a string-typed var, also register under the alternate field name:
+```c
+if (ij_expr_is_string(rhs)) {
+    ij_declare_static_str(fld);
+    // dual-register:
+    if (slot >= 0) { char g[80]; snprintf(g,80,"icn_gvar_%s",lhs->val.sval); ij_declare_static_str(g); }
+    else           { char f2[128]; ij_var_field(lhs->val.sval,f2,sizeof f2); ij_declare_static_str(f2); }
+}
+```
+Also: `TK_AUGCONCAT` hardcoded as `35` in `ij_emit_augop` and `ij_expr_is_string`
+— verify against enum; change to `(int)TK_AUGCONCAT` if value differs.
+
+**Status at handoff:** snobol4x `fd7362d`, .github (this commit)
+
+### Next session (SD-29)
+
+1. Apply dual-registration fix in `ij_prepass_types` for string-typed vars
+2. Verify `TK_AUGCONCAT` enum value = 35 (or fix hardcoded literal)
+3. Rebuild `icon_driver` (without `icon_semicolon.c`)
+4. Run `demo/scrip/run_demo.sh demo/scrip/demo3` → expect all 3 JVM PASS
+5. Fire M-SD-3, update §NOW in SCRIP_DEMOS.md + SESSION-icon-jvm.md
+6. Commit + push both repos
+
+**Bootstrap SD-29:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk
+cd snobol4x/src
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
+  frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
+  frontend/icon/icon_emit.c frontend/icon/icon_emit_jvm.c \
+  frontend/icon/icon_runtime.c -o ../icon_driver
+export JAVA_TOOL_OPTIONS=""
+# Read SESSION-icon-jvm.md §NOW. Apply dual-registration fix. Run demo3.
+```
