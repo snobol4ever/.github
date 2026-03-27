@@ -3225,3 +3225,29 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 # Step 2: test demo6 ICON-JVM sieve, fire M-SD-6 if all 3 pass
 # Step 3: fix PROLOG-JVM demo5 forall/2 — pj_call_goal variable binding
 ```
+
+---
+
+## SD-36 — M-SD-10 anagram SNO2C-JVM PASS
+
+**Date:** 2026-03-27
+**Repos:** snobol4x `7ccd33e`, .github `db83c55`
+**Bootstrap:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+cd snobol4x/src && make
+```
+
+**Milestone:** M-SD-10 (anagram) SNO2C-JVM ✅ PASS. All M-SD-1..10 SNO2C-JVM green.
+
+**Fixes in `src/backend/jvm/emit_byrd_jvm.c`:**
+- IDENT/DIFFER: null-coerce `sno_array_get` result before `.equals` (NPE on unset table slot)
+- CONVERT/PROTOTYPE: implemented `sno_convert_table` + `sno_prototype` JVM helpers
+- E_IDX 2D subscript: `expr<row,col>` now builds `"row,col"` key (read + lvalue write)
+- Array subscript `:S`/`:F`: null value = assignment failure; conditional goto now correct
+- BREAK: end-of-string without finding break char = fail (BREAKX still succeeds at EOS)
+- Pre-existing warnings cleared: unused vars, `-Wswitch` default, `-Wformat-truncation` buffers
+- RULES.md: ⛔ JVM BACKEND null-coerce rule appended
+
+**Next session SD-37:** ICON-JVM demo6 sieve VerifyError — `out ||:= i` integer RHS in `icon_emit_jvm.c`. Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW`.
