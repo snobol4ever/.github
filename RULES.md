@@ -8,6 +8,8 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 Token is provided once by Lon at session start. Use in shell only. Never on disk, never in chat, never in commit messages, never in handoff summaries. Write `TOKEN_SEE_LON` as placeholder in any file that references it. If token appears in a commit: notify Lon immediately — rotation and history rewriting are Lon's decisions only.
 
+**Bootstrap blocks in SESSIONS_ARCHIVE.md and all other HQ docs must use `TOKEN_SEE_LON` as the placeholder — never the real token. This applies to every `git clone https://...@github.com/...` line without exception. GitHub Push Protection will block the push and force a rewrite if a real PAT is committed.**
+
 ---
 
 ## ⛔ SESSION NUMBERS — Globally unique per session type
