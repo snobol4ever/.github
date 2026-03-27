@@ -23,6 +23,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **Prolog JVM** | PJ-83e — test_arith 92/111 (+7 var+float) test_dcg 9/15 (+2) test_unify 7/4 test_list 1/0 | `2ddc784` PJ-83e | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
+| **🔗 LINKER JVM** | LP-JVM-3 — M-SCRIP-DEMO WIP (SNOBOL4 export wrapper loop not emitting) | `d3ac6f0` LP-JVM-3 | M-SCRIP-DEMO |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
