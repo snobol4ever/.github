@@ -68,12 +68,12 @@ Each `M-SD-N` fires when:
 | M-SD-2  | ✅ wordcount — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
 | M-SD-3  | ✅ roman — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
 | M-SD-4  | ✅ palindrome — SNO2C-JVM + ICON-JVM + PROLOG-JVM all PASS |
-| M-SD-5  | ❌ **NEXT** — fibonacci |
-| M-SD-6  | ❌ |
-| M-SD-7  | ❌ |
-| M-SD-8  | ❌ |
-| M-SD-9  | ❌ |
-| M-SD-10 | ❌ |
+| M-SD-5  | ⚠ fibonacci — SNO2C-JVM ✅ ICON-JVM ⏭ PROLOG-JVM ❌ (forall/2 meta-call) |
+| M-SD-6  | ⚠ sieve — SNO2C-JVM ✅ ICON-JVM ⏭ PROLOG-JVM ✅ |
+| M-SD-7  | ⚠ rot13 — SNO2C-JVM ✅ ICON-JVM ⏭ PROLOG-JVM ❌ |
+| M-SD-8  | ⚠ insertion sort — SNO2C-JVM ✅ ICON-JVM ⏭ PROLOG-JVM ✅ |
+| M-SD-9  | ⚠ rpn calc — SNO2C-JVM ✅ ICON-JVM ⏭ PROLOG-JVM ❌ |
+| M-SD-10 | ⚠ anagram — SNO2C-JVM ❌ ICON-JVM ⏭ PROLOG-JVM ❌ |
 | M-SD-6  | ❌ |
 | M-SD-7  | ❌ |
 | M-SD-8  | ❌ |

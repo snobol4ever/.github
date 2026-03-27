@@ -344,3 +344,24 @@ SNO2C-JVM: PASS | ICON-JVM: PASS | PROLOG-JVM: PASS.
 
 ICON-JVM required 5 fixes in icon_emit_jvm.c: stray include, map(1-arg), proc-namespaced sdrain labels,
 ICN_SEQ_EXPR while-body statement independence (failing stmt must not abort remaining body stmts).
+
+## M-SD-5 ⚠ — fibonacci: SNO2C-JVM PASS, ICON-JVM skipped, PROLOG-JVM blocked
+
+**Session:** SD-33/34. **HEAD:** `583e685`.
+
+fibonacci.md — first 10 Fibonacci numbers (0..34).
+SNO2C-JVM: PASS | ICON-JVM: skipped (suspend/repeat/limit generators) | PROLOG-JVM: FAIL (forall/2 meta-call — pj_call_goal doesn't bind N across iterations).
+
+## M-SD-6 ⚠ — sieve: SNO2C-JVM PASS, ICON-JVM skipped, PROLOG-JVM PASS
+
+**Session:** SD-34. **HEAD:** `583e685`.
+
+sieve.md — primes to 50 via trial division: `2 3 5 7 11 13 17 19 23 29 31 37 41 43 47`.
+SNO2C-JVM: PASS | ICON-JVM: skipped | PROLOG-JVM: PASS.
+
+## M-SD-8 ⚠ — insertion sort: SNO2C-JVM PASS, ICON-JVM skipped, PROLOG-JVM PASS
+
+**Session:** SD-34. **HEAD:** `583e685`.
+
+insertion_sort.md — sort `[5,3,8,1,9,2,7,4]` → `1 2 3 4 5 7 8 9`.
+SNO2C-JVM: PASS | ICON-JVM: skipped | PROLOG-JVM: PASS.
