@@ -1,7 +1,53 @@
 
 ---
 
-## LP-JVM-3 Emergency Handoff (2026-03-27, Claude Sonnet 4.6)
+## LP-JVM-3 Handoff update (2026-03-27, Claude Sonnet 4.6) — commit c3e3ab3
+
+### Demos 1-3: ✅ PASS (3/3 JVM frontends)
+
+`run_demo.sh` was using the retired `icon_driver` binary for ICON-JVM. Fixed to use
+`sno2c -icn -jvm` (Icon was merged into sno2c in LP-JVM-2). All three demos now:
+
+```
+demo1 (hello):     SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+demo2 (wordcount): SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+demo3 (roman):     SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+```
+
+Reference interpreters (snobol4, swipl, icont) SKIP — not installed in this env.
+
+### Export wrapper bug — RESOLVED (was misdiagnosed in prior handoff)
+
+Prior handoff said "export wrapper loop not firing / jvm_fn_count==0". **Not true.**
+Debug confirmed `jvm_fn_count=3` for `family_snobol4.sno` — the loop runs fine.
+Real issue: **`prog->exports == NULL`** because `family_snobol4.sno` has no `EXPORT`
+directives at all. The EXPORT wrapper code in `emit_byrd_jvm.c` is correct.
+
+### Remaining work for M-SCRIP-DEMO
+
+Two blockers:
+
+**1. `family_snobol4.sno` needs EXPORT directives.**
+The SNOBOL4 EXPORT syntax is label-style (column 1):
+```
+EXPORT  PARSE_CSV
+```
+Functions to export: whatever Icon calls cross-language. Currently `family_icon.icn`
+calls only stubs (all return "" or "0") — no actual cross-language calls yet wired.
+Decision needed: does M-SCRIP-DEMO require real cross-language calls, or just the
+family demo running end-to-end with each language self-contained?
+
+**2. `ByrdBoxLinkage.j` is missing from `src/runtime/jvm/` (directory is empty/.gitkeep).**
+Restore from LP-JVM-1 commit:
+```bash
+cd snobol4x
+git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinkage.j
+```
+Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
+
+**Read only:** `ARCH-scrip-abi.md` + `SESSION-linker-jvm.md`. No other docs.
+
+
 
 **Commit:** `d3ac6f0` snobol4x
 
