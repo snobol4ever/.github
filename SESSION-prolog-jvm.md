@@ -115,3 +115,5 @@ cd /tmp/swipl-devel && git sparse-checkout set tests/core
 | **M-PJ-UNIFY** | Rung 3: head unification, compound terms | ✅ |
 | **M-PJ-ARITH** | Rung 4: `is/2` arithmetic | ✅ |
 | **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ |
+
+**test_dcg parse errors (fb09892):** Lines 196–208 use DCG rules with conjunction in the head (`a, [_] --> !,{fail}.`) — non-standard SWI extension. Parser does not handle `','` as DCG head. These are in the `context` suite. Skipping for now.
