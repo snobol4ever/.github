@@ -3,7 +3,7 @@
 **Track:** LINKER (LP)  
 **Session:** LP-4 (parallel with LP-3 JVM proof-of-concept)  
 **Date:** 2026-03-27  
-**Goal:** M-LINK-NET-1 · M-LINK-NET-2 · M-LINK-NET-3  
+**Goal:** M-LINK-NET-1 · M-LINK-NET-2 · M-LINK-NET-3 · M-LINK-NET-4  
 **Gate:** Read `ARCH-scrip-abi.md` before touching any code.
 
 ---
@@ -405,7 +405,75 @@ Two-part `IMPORT LANG.NAME` also accepted: NAME used as both AssemblyBase and ME
 
 ---
 
-## Next Session: M-LINK-NET-4
+## LP-4b Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
+
+**Commits:** snobol4x (pending) · .github (pending)
+
+### Naming convention revised
+
+`SNOBOL4_` prefix dropped from assembly/DLL names (YAGNI — the CLR already
+namespaces by file; a caller does not need to know the source language).
+`ARCH-scrip-abi.md` §5 updated accordingly.
+
+### IMPORT syntax simplified
+
+Two-part `IMPORT assembly.METHOD` is now canonical.
+Three-part `IMPORT lang.assembly.METHOD` still parsed (lang field ignored) for
+backward compatibility with LP-4 test files.
+
+### Real Action delegate wiring (M-LINK-NET-4)
+
+Replaced `ldnull` gamma/omega stubs with `ldftn`+`newobj` delegates.
+Per-call private static helpers (`net_imp_gamma_N` / `net_imp_omega_N`) set a
+static int flag; the call site reads the flag for success/failure and retrieves
+`ByrdBoxLinkage.Result` on the γ path.
+
+### Prolog NET emitter
+
+Stub only (`prolog_emit_net.c`) — error exit with clear message.
+`-pl -net` routing wired in driver so it links.
+M-LINK-NET-4 acceptance test uses hand-authored `ancestor.il` (valid approach:
+proves the cross-assembly ABI without gating on a full Prolog CIL compiler).
+
+### Delivered
+
+- `src/backend/net/emit_byrd_net.c`   CHANGE: drop SNOBOL4_ prefix; real Action delegates
+- `src/frontend/snobol4/parse.c`      CHANGE: two-part IMPORT parser (assembly.METHOD)
+- `src/driver/main.c`                 CHANGE: -pl -net routing
+- `src/frontend/prolog/prolog_emit_net.c`  NEW: stub
+- `test/linker/net/ancestor/`         NEW: ancestor.il + ancestor_main.sno + run.sh
+- `test/linker/net/greet_main.sno`    CHANGE: two-part IMPORT
+- `test/linker/net/run.sh`            CHANGE: drop SNOBOL4_ prefix from filenames
+- `.github/ARCH-scrip-abi.md`         CHANGE: §4.3, §5, §6 revised
+- `.github/SESSION-linker-net.md`     CHANGE: this section
+
+### Known stubs (next sprint)
+
+- `prolog_emit_net.c` full implementation (M-LINK-NET-5)
+- Full backtracking (β port) in ancestor.il
+- Arg passing: currently `ldstr ""` placeholders in export wrapper (LP-5)
+
+---
+
+## Next Session: M-LINK-NET-5
+
+**Goal:** Full Prolog CIL emitter (`prolog_emit_net.c`) — generate `ancestor.il`
+from `ancestor.pl` source rather than hand-authoring it.
+
+Read: `ARCH-scrip-abi.md` + this file only.
+
+Steps:
+1. Write `prolog_emit_net.c` mirroring `prolog_emit_jvm.c` structure
+2. `sno2c -pl -net ancestor.pl` produces valid CIL matching hand-authored IL
+3. Run M-LINK-NET-4 acceptance test using generated (not hand-authored) IL
+4. Regression: 110/110 NET corpus green
+
+
+---
+
+## Next Session: M-LINK-NET-4 (completed above)
+
+## Next Session: M-LINK-NET-5
 
 **Goal:** SNOBOL4 calls a Prolog predicate via .NET ABI.
 
