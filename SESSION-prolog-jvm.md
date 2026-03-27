@@ -36,20 +36,28 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-81c ✅ CLEAN | `8f86084` PJ-81c | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-81d WIP — SWI baseline run | `8f86084` PJ-81c | M-PJ-SWI-BASELINE |
 
-### Status after PJ-81c
+### SWI Baseline (PJ-81d) — first run results
 
-- **107/107 corpus pass** (rungs 01–30)
-- `member/2` and `memberchk/2` now emitted as stdlib shim unless user-defined
-- `pj_prog_defines()` scans E_CHOICE by `"functor/arity"` sval format
-- Runtime failures from PJ-80 SWI run (memberchk, unify_self, DCG expand_goal, cut_to): **memberchk fixed**; unify_self/cut_to/DCG phrase confirmed working in isolation — failures were SWI plunit test failures, not compiler bugs
+SWI upstream: `git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core`
 
-### NEXT ACTIONS
+| Test file | Status | Notes |
+|-----------|--------|-------|
+| `test_list` | ❌ `memberchk` suite: 0 passed, 1 failed | memberchk/2 goal fails in plunit context |
+| `test_arith` | ❌ ClassFormatError | Duplicate method `p_bigint_fmtd_1_0` — split scaffold bug |
+| `test_unify` | ❌ 3 fail | `blam`, `unify_self`, `unify_fv` goal failures |
+| `test_dcg` | ❌ VerifyError | `p_test_2`: integer not on stack |
+| `test_misc` | ❌ 3 fail | `read_only_flag`, `cut_to`, `cut_to_cleanup` |
 
-1. **M-PJ-SWI-BASELINE**: run full SWI core suite through `wrap_swi.py` and document pass/fail baseline per test file
-2. **Remaining runtime failures**: identify what specifically fails in SWI plunit `test_list`, `test_unify`, `test_misc`, `test_dcg` runs
-3. **wrap_swi.py multi-line directive bug**: fix paren-depth tracking for multi-line directives (currently only strips first line)
+### NEXT ACTIONS (priority order)
+
+1. **test_arith duplicate method**: `p_bigint_fmtd_1_0` emitted twice — split scaffold emits sub-method AND normal choice; guard needed
+2. **test_dcg VerifyError**: `p_test_2` stack type mismatch — check `.limit locals` sizing for DCG predicates  
+3. **test_list memberchk**: investigate why memberchk/2 fails in plunit context (may be plunit shim vs stdlib shim conflict)
+4. **test_unify**: `unify_self` (X=X), `unify_fv` (free var unify), `blam` — investigate
+5. **test_misc cut_to**: cut across catch boundary
+6. **wrap_swi.py multi-line directive bug**: fix paren-depth tracking
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -60,8 +68,10 @@ export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context wi
 # SWI test files: IN snobol4x/test/frontend/prolog/corpus/ as .pro files (rungs 01-30+)
 # Run harness: bash test/frontend/prolog/run_prolog_jvm_rung.sh test/frontend/prolog/corpus/rung04_arith
 # wrap_swi.py is for importing NEW tests from upstream SWI plunit .pl files only
-# For each rung:
-#   bash test/frontend/prolog/run_prolog_jvm_rung.sh test/frontend/prolog/corpus/<rung>
+# Upstream SWI core tests: sparse clone SWI-Prolog/swipl-devel tests/core:
+#   git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
+#   cd /tmp/swipl-devel && git sparse-checkout set tests/core
+# Then wrap: python3 test/frontend/prolog/wrap_swi.py /tmp/swipl-devel/tests/core/TEST.pl /tmp/TEST.pro
 #   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
