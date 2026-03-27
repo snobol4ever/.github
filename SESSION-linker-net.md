@@ -475,8 +475,16 @@ Key fixes during session:
   in `ByrdBoxLinkage.Result` before firing gamma
 - Known cleanup: stale `ANCESTOR_EXPORT` dead method (remove in next session)
 
-**Next session: M-LINK-NET-7** — run acceptance test on ilasm/mono host;
-clean up dead `_EXPORT` wrapper; add Prolog `:- export` directive parsing.
+**M-LINK-NET-7 outcome (2026-03-27, Claude Sonnet 4.6) — `e7dc859`**
+
+- `prolog_lower.c`: `:- export(Name/Arity)` and `:- export(Name)` directives
+  populate `prog->exports` (same `ExportEntry` list as SNOBOL4 EXPORT)
+- `prolog_emit_net.c`: selective `public`/`private` restored via `pn_is_exported()`
+- `ancestor.pl`: `:- export(ancestor/2)` added — `ANCESTOR` public, `PARENT` private ✅
+- Dead `_EXPORT` wrapper already cleaned up in LP-5c
+
+**Next session: M-LINK-NET-8** — run acceptance test end-to-end on ilasm/mono host.
+If green: open M-SCRIP-XLINK-1 (all five languages in one linked program).
 
 
 ---
