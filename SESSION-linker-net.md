@@ -623,3 +623,62 @@ Fix: emit_byrd_net.c import call block must push `""` on the omega path to keep
 stack balanced with the success path.
 
 ### Next: M-SCRIP-XLINK-1 or fix emitter stack bug
+
+---
+
+## LP-8g Outcome (2026-03-27, Claude Sonnet 4.6) — `cce1c3a`
+
+**-EXPORT/-IMPORT as proper control lines**
+
+### Problem fixed
+Previous sessions kludged EXPORT/IMPORT recognition into the parser via a
+fake `label="EXPORT"` convention. This was wrong — the parser should never
+see a label called EXPORT or IMPORT.
+
+### Fix
+`lex.c` rewritten. `snoc_scan_file()` reads character by character (no
+`join_file`, no `join_line`). Control lines fully handled in the scanner:
+- `-INCLUDE`  → recursive scan (unchanged)
+- `-EXPORT`   → `handle_export()` → `lex_exports` module-global list
+- `-IMPORT`   → `handle_import()` → `lex_imports` module-global list
+- other `-`   → silently discarded
+
+`parse_program()` signature changed to take `(LineArray*, ExportEntry*, ImportEntry*)`.
+Lists attached to `prog` at entry. No control-line logic in parser.
+
+`snoc_parse()` resets `lex_exports`/`lex_imports`, calls `snoc_scan_file()`,
+passes lists to `parse_program()`.
+
+All `.sno` test files updated to use `-EXPORT`/`-IMPORT` syntax.
+
+### State at handoff — `cce1c3a` / `.github` `e03add2`
+
+**Green:**
+- M-LINK-NET-8 ✅ — all six cross-language edges (SNOBOL4↔Prolog↔Icon)
+- 109/110 NET corpus (056_pat_star_deref @N off-by-one pre-existing)
+
+**Test:**
+```
+test/linker/net/three_lang/run.sh
+Output:
+  [sno4->prolog] ann
+  [sno4->icon] 13
+  [prolog->sno4] Hello, World
+  [prolog->icon] 5
+  [icon->sno4] Hello, Icon
+  [icon->prolog] ann
+```
+
+**Known stubs:**
+- `prolog_emit_net.c`: intermediate variable binding (Z in transitive rules) not implemented
+- `icon_emit_net.c`: does not exist — hand-authored `fibonacci.il` used
+- `demo_prolog.il` / `demo_icon.il`: hand-authored — no compiler generates them yet
+
+**Next milestone: M-SCRIP-XLINK-1**
+All five languages in one linked program. Requires:
+1. `icon_emit_net.c` — Icon → CIL emitter (model on `icon_emit_jvm.c`)
+2. Snocone `.NET` emitter stub
+3. Five-language acceptance test
+
+**Next session reads:**
+`ARCH-scrip-abi.md` + `SESSION-linker-net.md` only.
