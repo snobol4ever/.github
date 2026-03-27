@@ -48,6 +48,7 @@ if (in_body && !fn->end_label && s->label && strcasecmp(s->label, entry) != 0) {
 Note: earlier attempt added this to the wrong loop (main() pass at 4451 instead of fn-method pass at 4153). Apply to `jvm_emit_fn_method` loop only.
 
 **After fix:** Jasmin assembles beauty.j → run JVM beauty bootstrap → fire M-BEAUTIFY-BOOTSTRAP.
+```
     ...
 }
 ```

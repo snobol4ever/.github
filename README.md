@@ -17,9 +17,9 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [TINY.md](TINY.md) | snobol4x — HEAD, build commands, sprint, frontier table, pivot log |
-| [JVM.md](JVM.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
-| [DOTNET.md](DOTNET.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
+| [REPO-snobol4x.md](REPO-snobol4x.md) | snobol4x — HEAD, build commands, sprint, frontier table, pivot log |
+| [REPO-snobol4jvm.md](REPO-snobol4jvm.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
+| [REPO-snobol4dotnet.md](REPO-snobol4dotnet.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
 | [ARCH-corpus.md](ARCH-corpus.md) | snobol4corpus — layout, update protocol |
 | [ARCH-harness.md](ARCH-harness.md) | snobol4harness — oracles, probe, benchmarks |
 
@@ -49,7 +49,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 | File | What it is |
 |------|------------|
 | [ARCH-sno2c.md](ARCH-sno2c.md) | sno2c compiler — lex/parse/emit, SIL naming, CNode IR, artifacts |
-| [ARCH.md](ARCH.md) | Shared architecture — Byrd box concept, oracle hierarchy |
+| [ARCH-overview.md](ARCH-overview.md) | Shared architecture — Byrd box concept, oracle hierarchy |
 | [ARCH-testing.md](ARCH-testing.md) | Four testing paradigms · corpus ladder protocol |
 | [RULES.md](RULES.md) | Mandatory rules — token, identity, artifacts, hierarchy |
 | [PATCHES.md](PATCHES.md) | Runtime patch audit trail |

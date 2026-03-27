@@ -106,7 +106,7 @@ No action needed — our model is correct and preferable.
 
 ## SNOBOL4 Implementation Landscape
 
-→ **See [TESTING.md — Oracle Index](TESTING.md)** for the full table: versions, authors, GitHub URLs, download links, invocation, and build instructions.
+→ **See [ARCH-testing.md — Oracle Index](ARCH-testing.md)** for the full table: versions, authors, GitHub URLs, download links, invocation, and build instructions.
 
 
 
@@ -129,7 +129,7 @@ newline       \n (1 char)   \n   (C newline escape)
 
 ## SNOBOL4 Keyword & TRACE Reference
 
-→ **Consolidated into [TESTING.md — Oracle Keyword & TRACE Reference](TESTING.md)**. All keyword, TRACE type, output format tables live there — alongside the four paradigms that use them.
+→ **Consolidated into [ARCH-testing.md — Oracle Keyword & TRACE Reference](ARCH-testing.md)**. All keyword, TRACE type, output format tables live there — alongside the four paradigms that use them.
 
 ---
 

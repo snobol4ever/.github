@@ -347,7 +347,6 @@ for t in size_test dupl_test remdr_test goto_s goto_f; do
   echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"; rm -f $TMPD/*.class
 done; rm -rf $TMPD
 # Then implement J4: LIT/SEQ/ALT/ARBNO Byrd box pattern emitter
-```
 # Then Sprint J2: assign/ + arith/ rungs
 ```
 
