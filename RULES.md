@@ -93,10 +93,11 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **Deep reference** → `ARCH-*.md` — open only when you hit something unfamiliar. Full catalog in `ARCH-index.md`. Never read speculatively.
 
-**Session start — three steps:**
+**Session start — four steps (mandatory, in order):**
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
-2. Read `PLAN.md` — NOW table, confirm next milestone.
-3. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
+2. `grep "^## " RULES.md` — scan all rule headers. Do this SECOND, before any file writes or commits.
+3. Read `PLAN.md` — NOW table, confirm next milestone.
+4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
