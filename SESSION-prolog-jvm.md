@@ -36,7 +36,9 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-83e | `2ddc784` PJ-83e | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `pj-84-bench-baseline` PJ-84a | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
+
+**SWI bench suite: 31/31 ✅** (was 19/31 at PJ-83e). See `BENCH-prolog-jvm.md` for grid.
 
 ### ⚠️ CANONICAL ARCHITECTURE — READ BEFORE TOUCHING SWI TESTS
 
@@ -149,6 +151,6 @@ cd /tmp/swipl-devel && git sparse-checkout set tests/core
 | **M-PJ-FACTS** | Rung 2: deterministic fact lookup | ✅ |
 | **M-PJ-UNIFY** | Rung 3: head unification, compound terms | ✅ |
 | **M-PJ-ARITH** | Rung 4: `is/2` arithmetic | ✅ |
-| **M-PJ-BACKTRACK** | Rung 5: `member/2` — β port, all solutions | ✅ |
+| **M-PJ-BENCH-BASELINE** | SWI bench 31/31 PASS | ✅ PJ-84a `a79906e` |
 
 **test_dcg parse errors (fb09892):** Lines 196–208 use DCG rules with conjunction in the head (`a, [_] --> !,{fail}.`) — non-standard SWI extension. Parser does not handle `','` as DCG head. These are in the `context` suite. Skipping for now.
