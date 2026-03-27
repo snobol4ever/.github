@@ -2773,3 +2773,210 @@ export JAVA_TOOL_OPTIONS=""
 unzip swipl-devel-master.zip -d /tmp/swipl   # upload zip at session start
 # Read §NOW in SESSION-prolog-jvm.md. Start at CRITICAL NEXT ACTION (PJ-80).
 ```
+
+---
+
+## Session SD-28 — 2026-03-26
+
+**Commits:** `fd7362d` SD-28a (snobol4x); .github pending
+
+**Goal:** M-SD-3 roman — ICON-JVM PASS
+
+**Context:** Session started with roman demo status:
+- SNO2C-JVM ✅ PROLOG-JVM ✅ ICON-JVM ❌ (outputting `0\n0\n0`)
+
+**Root cause diagnosed:**
+`icon_driver` pre-pass could not detect `roman()` as string-returning because
+`ij_expr_is_string(ICN_VAR "result")` requires statics to be populated (not yet
+done at pre-pass time). Result: call sites in `icn_main` read `icn_retval J`
+(long = 0) instead of `icn_retval_str`.
+
+**What landed (SD-28a, `fd7362d`):**
+- Pre-pass body scan for string-returning procs: when returned expr is a VAR,
+  scan proc body for `ICN_ASSIGN(VAR, STR/CONCAT/LCONCAT)` or
+  `ICN_AUGOP(TK_AUGCONCAT, VAR)` — marks proc correctly without statics.
+- Call sites now correctly read `icn_retval_str` + emit `println(String)`.
+- `icon_driver` rebuilt and committed.
+
+**Current state:** ICON-JVM outputs empty string (not `0`). Progress.
+
+**Remaining bug (SD-29 task) — `result` variable types as J inside proc body:**
+
+`result := ""` IS caught by `ij_prepass_types` (recursive walk), but the
+`result` variable is typed correctly as `'A'` only under one field name.
+Inside the `every` body, the load uses a different field name
+(`icn_pv_roman_result` vs `icn_gvar_result`) — same local/global mismatch
+that affected `syms` (fixed in SD-27 commit 26eccbe).
+
+**Fix is the same dual-registration pattern (already documented in SESSION-icon-jvm.md):**
+In `ij_prepass_types` and the first-pass assignment scanner, when declaring
+a string-typed var, also register under the alternate field name:
+```c
+if (ij_expr_is_string(rhs)) {
+    ij_declare_static_str(fld);
+    // dual-register:
+    if (slot >= 0) { char g[80]; snprintf(g,80,"icn_gvar_%s",lhs->val.sval); ij_declare_static_str(g); }
+    else           { char f2[128]; ij_var_field(lhs->val.sval,f2,sizeof f2); ij_declare_static_str(f2); }
+}
+```
+Also: `TK_AUGCONCAT` hardcoded as `35` in `ij_emit_augop` and `ij_expr_is_string`
+— verify against enum; change to `(int)TK_AUGCONCAT` if value differs.
+
+**Status at handoff:** snobol4x `fd7362d`, .github (this commit)
+
+### Next session (SD-29)
+
+1. Apply dual-registration fix in `ij_prepass_types` for string-typed vars
+2. Verify `TK_AUGCONCAT` enum value = 35 (or fix hardcoded literal)
+3. Rebuild `icon_driver` (without `icon_semicolon.c`)
+4. Run `demo/scrip/run_demo.sh demo/scrip/demo3` → expect all 3 JVM PASS
+5. Fire M-SD-3, update §NOW in SCRIP_DEMOS.md + SESSION-icon-jvm.md
+6. Commit + push both repos
+
+**Bootstrap SD-29:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk
+cd snobol4x/src
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
+  frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
+  frontend/icon/icon_emit.c frontend/icon/icon_emit_jvm.c \
+  frontend/icon/icon_runtime.c -o ../icon_driver
+export JAVA_TOOL_OPTIONS=""
+# Read SESSION-icon-jvm.md §NOW. Apply dual-registration fix. Run demo3.
+```
+
+---
+
+## Session SD-29 — 2026-03-26
+
+**Commits:** `cd8cb80` SD-29 (snobol4x); .github (this commit)
+
+**M-SD-3 FIRES — roman: SNO2C-JVM ✅ ICON-JVM ✅ PROLOG-JVM ✅**
+
+**Root cause (one-liner):** `TK_AUGCONCAT = 36`, hardcoded as `35` in three places in `icon_emit_jvm.c`. The `||:=` operator always fell through to the arithmetic path (`ladd` on String refs → 0).
+
+**Fix:**
+- Added `#include "icon_lex.h"` to `icon_emit_jvm.c`
+- Replaced all three literal `35` comparisons with `(int)TK_AUGCONCAT`
+- `ij_expr_is_string(ICN_AUGOP)`, `ij_emit_augop()`, and pre-pass body scan
+
+**HEAD at handoff:** snobol4x `cd8cb80`, .github (this commit)
+
+### Next session (SD-30)
+
+M-SD-4: palindrome. Read `demo/scrip/demo4/palindrome.md`, run demo, fix failures.
+
+**Bootstrap SD-30:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk
+cd snobol4x/src
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
+  frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
+  frontend/icon/icon_emit.c frontend/icon/icon_emit_jvm.c \
+  frontend/icon/icon_runtime.c -o ../icon_driver
+make -f Makefile  # builds sno2c
+export JAVA_TOOL_OPTIONS=""
+bash ../demo/scrip/run_demo.sh ../demo/scrip/demo4 \
+  SNO2C=../sno2c ICON_DRIVER=../icon_driver JASMIN=../backend/jvm/jasmin.jar
+```
+
+---
+
+## PJ-80 — Prolog JVM — 2026-03-26
+
+**HEAD at close:** `4d4e90a` (snobol4x main)
+
+**What was done:**
+- PJ-80a: `pj_ldc_str()` — escape `\` and `"` in `ldc` atom string emission (`prolog_emit_jvm.c`); fixes Jasmin `Bad backslash escape` on atoms like `=\=` in `test_arith`
+- PJ-80b: `var`/`nonvar` type-check codegen stack fix — `swap;pop` after `invokevirtual equals` + re-deref for `[1]` check; fixes VerifyError `Inconsistent stack height 0 != 1` in `test_dcg p_test_2`
+
+**SWI run results after PJ-80:**
+- `test_list`: 0 passed, 1 failed
+- `test_unify`: 1 passed, 11 failed
+- `test_misc`: 0 passed, 3 failed
+- `test_dcg`: 5 passed, 29 failed, 3 skipped ✅ (VerifyError gone)
+- `test_arith`: ❌ Jasmin method-size overflow (p_test_2 = 225 clauses → 20K-line method)
+
+**Next session (PJ-81):**
+1. Method splitting — split large predicates into per-clause sub-methods to fix `test_arith` Jasmin 16-bit branch overflow
+2. Runtime failures — memberchk, unify builtins (unify_self, unify_fv, unify_arity_0), DCG expand_goal, cut_to
+
+**Bootstrap PJ-81:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
+make -C snobol4x/src
+export JAVA_TOOL_OPTIONS=""
+unzip swipl-devel-master.zip -d /tmp/swipl
+# wrap/compile/run each test per §NOW in SESSION-prolog-jvm.md
+```
+
+---
+
+## Session SD-30 — 2026-03-27
+
+**Commits:** `cf39803` SD-30, `2074158` SD-30b (snobol4x); .github (this commit)
+
+**Five fixes to `icon_emit_jvm.c`:** implicit locals, J→A upgrade, augop pre-pass, skip sdrain for control flow, is_strlist in local var path. Corpus procedure-header cleanup (261 files). roman ICON-JVM still PASS. palindrome both frontends failing silently.
+
+**SD-31 tasks:** debug `map(s)` one-arg and `~==` for ICON-JVM; debug `string_chars/2` for PROLOG-JVM.
+
+**HEAD at handoff:** snobol4x `2074158`, .github (this commit)
+
+**Bootstrap SD-31:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk swi-prolog
+cd snobol4x/src && make -f Makefile
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c icon_parse.c icon_ast.c \
+  icon_emit.c icon_emit_jvm.c icon_runtime.c -o ../icon_driver
+export JAVA_TOOL_OPTIONS=""
+```
+
+---
+
+## SD-32 — 2026-03-27 — PROLOG-JVM palindrome: reverse/2 + cut-scoping fix
+
+**Session type:** Scrip Demo · PROLOG-JVM · M-SD-4 (palindrome)
+
+**Starting state:** M-SD-1/2/3 all ✅. Demo4 PROLOG-JVM failing with NoSuchMethodError on p_reverse_2.
+
+**Findings:**
+- `reverse/2` is a Prolog built-in with no synthetic method in the emitter → `NoSuchMethodError` at runtime.
+- Cut inside `palindrome/2` clause 0 propagated MAX_VALUE sentinel up into `main/0` via the `pj_callee_has_cut_no_last_ucall` guard, causing main to exit before writing anything.
+- Reverse loop direction bug: iterating ArrayList from size-1 downto 0 while prepending yields original order; must iterate 0 to size-1 (prepending each = reversed).
+
+**Fixes in `prolog_emit_jvm.c`:**
+1. `pj_emit_reverse_builtin()` — synthetic `p_reverse_2` walking list→ArrayList then prepending front-to-back. Detect-and-emit at same site as between/3, findall/3, aggregate_all/3.
+2. M-PJ-CUT-SCOPE: clamp MAX_VALUE from subcall — overwrite rv[0] with 1 (deterministic success) instead of jumping to caller's cutgamma. Cut scoping is now correct: a cut inside a called predicate does not escape to its caller.
+
+**Result:** `java Prolog` for demo4 outputs `yes / no / yes` ✅
+
+**Pending before M-SD-4 can close:**
+- Regression suite (rung35) NOT YET RUN — cut-scoping change is high-risk, may break puzzle_18-style tests.
+- ICON-JVM demo4 status unknown (run_demo.sh timed out; icon_driver produces Jasmin .j file, needs assembly step).
+- PLAN.md §NOW row not updated (handoff at 86% context).
+
+**Commits:** snobol4x `b34cbc0` SD-28
+
+**HEAD at handoff:** snobol4x `b34cbc0`, .github (this commit)
+
+**Bootstrap SD-33:**
+```bash
+git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/.github
+cd snobol4x/src && make -j$(nproc)
+# Step 1: run regression rung35 — cd snobol4x && bash test/run_tests.sh (or equivalent)
+# Step 2: if rung35 green, test ICON-JVM demo4
+# Step 3: run full demo4 run_demo.sh, mark M-SD-4 complete if all 3 JVM frontends PASS
+# Step 4: continue M-SD-5 (fibonacci)
+```

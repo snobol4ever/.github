@@ -12,7 +12,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scrip Demo** | SD-27: M-SD-3 🔄 roman — Icon outputs 0/0/0; `result` var typed J not A inside every-body | `26eccbe` SD-27 | M-SD-3 |
+| **⭐ Scrip Demo** | SD-32: M-SD-4 🔄 palindrome — PROLOG-JVM reverse/2+cut-scope fixed; rung35+ICON-JVM pending | `b34cbc0` SD-28 | M-SD-4 |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-248 — 110/110 | `425921a` N-248 | M-T2-FULL |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
