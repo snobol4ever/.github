@@ -2980,3 +2980,33 @@ cd snobol4x/src && make -j$(nproc)
 # Step 3: run full demo4 run_demo.sh, mark M-SD-4 complete if all 3 JVM frontends PASS
 # Step 4: continue M-SD-5 (fibonacci)
 ```
+
+---
+
+## SD-32b — 2026-03-27 — RULES fix: TOKEN rule enforcement + session start protocol
+
+**Session type:** Housekeeping / HQ process fix
+
+**What happened:** SD-32 handoff wrote the real PAT into SESSIONS_ARCHIVE.md bootstrap block. GitHub Push Protection blocked the push. PAT redacted to TOKEN, push succeeded.
+
+**Root cause:** RULES.md had the TOKEN rule but RULES.md was not in the mandatory session start steps — so the rule existed but had no guaranteed read point.
+
+**Fixes committed to HQ:**
+- `b033c6f` — RULES.md TOKEN rule strengthened: bootstrap blocks must use TOKEN_SEE_LON
+- `5a52ff2` — Session start protocol upgraded to 4 steps; step 2 = read RULES.md in full (reverted SESSION-scrip-jvm.md addition as wrong pattern)
+- `72a9a2f` — RULES.md: full read (not grep) mandatory as step 2; SESSION doc addition reverted
+
+**PLAN.md row:** no change needed (housekeeping only)
+
+**HEAD at handoff:** snobol4x `4b046a6`, .github `72a9a2f`
+
+**Bootstrap SD-33:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+cd snobol4x/src && make -j$(nproc)
+# FIRST: tail -80 SESSIONS_ARCHIVE.md
+# SECOND: read RULES.md in full
+# Then: run rung35 regression (cut-scoping change in b34cbc0 is high-risk)
+# Then: test ICON-JVM demo4, close M-SD-4 if all 3 JVM frontends PASS
+```
