@@ -36,47 +36,57 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-79b — parse gaps fixed; all 5 SWI files compile; corpus 107/107 | `75e46c2` PJ-79b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-82b | `ab7f006` PJ-82b | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-80)
+### SWI Baseline State (PJ-82b)
 
-**PJ-79 findings: test_list/arith/dcg/unify/misc all compile clean. Corpus 107/107. No regressions.**
+**Commits this session: PJ-82a, PJ-82b (HEAD `ab7f006`)**
 
-**What was done PJ-79 (commits PJ-79a, PJ-79b):**
-- PJ-79a: suppress unused `loc_mstart` warnings in `emit_byrd_net.c`
-- PJ-79b parser fixes (`prolog_parse.c`):
-  1. `:-` as binary op (prec 1200) in `BIN_OPS` + Pratt loop (`TK_NECK`) — fixes `(a :- b(...))` inside args
-  2. Unary minus before variables and parens (`-V0`, `-(expr)`) — was only `-atom`/`-op`
-- PJ-79b lexer fixes (`prolog_lex.c`):
-  3. `0o` octal literal support (was missing)
-  4. `Xe`/`XeN` float literals without decimal point (e.g. `10e300`)
-- PJ-79b `wrap_swi.py` fixes:
-  5. Multi-line directive stripping (consume through terminating `.`)
-  6. `:- dynamic` with predicate on next line (`STRIP_BARE_RE` relaxed to `\s*$`)
-  7. Xfail suites requiring GMP/pushback-DCG: `minint`, `maxint`, `minint_promotion`, `maxint_promotion`, `max_integer_size`, `float_compare`, `context`
+PJ-82a fixes:
+- `pj_safe_name`: removed `tolower()` — case-fold collision caused duplicate method `ClassFormatError` (e.g. `fmtD_1` vs `fmtd_1`)
+- Split dispatcher: removed spurious `aload` loop before `istore` — caused `VerifyError` (integer expected on stack)
 
-**SWI baseline compile status (tests/core/):**
-- `test_list.pl` ✅ compiles clean
-- `test_unify.pl` ✅ compiles clean
-- `test_misc.pl` ✅ compiles clean
-- `test_arith.pl` ✅ compiles clean (7 GMP/NaN suites xfailed)
-- `test_dcg.pl` ✅ compiles clean (pushback-DCG `context` suite xfailed)
-- `test_exception.pl` — NOT YET RUN (throw/catch semantics gaps from PJ-78)
+PJ-82b fixes:
+- `pj_list_to_term` + `pj_univ` runtime helpers: bidirectional `=..` now works in both compose and decompose directions
+- `expand_goal/2` shim in `plunit.pl` (single-clause if-then-else)
 
-**PJ-80 task: run the 5 compiled test files, assess pass/fail, then tackle test_exception.pl**
+**SWI baseline pass/fail (tests/core/):**
+
+| Test file | Passed | Failed | Skipped | Notes |
+|-----------|--------|--------|---------|-------|
+| `test_list` | 0 | 1 | 0 | `memberchk` fails in plunit context |
+| `test_arith` | 7 | 51 | 6 | arithmetic/GMP suite failures |
+| `test_unify` | 1 | 11 | 0 | `unify_self`, `unify_fv`, `blam`, `unifiable/2` |
+| `test_dcg` | 5 | 29 | 3 | `expand_goal` suite: variable sharing broken via pj_test indirection |
+| `test_misc` | 0 | 3 | 0 | `read_only_flag`, `cut_to`, `cut_to_cleanup` |
+
+**NEXT ACTIONS (priority order):**
+
+1. **`wrap_swi.py` variable sharing bug**: `pj_test(S,N,Opts,Goal)` uses predicate indirection for goal body, breaking variable sharing between Opts and Goal body. Fix: inline the goal body directly in pj_test fact (or use a lambda/call approach). Affects all `true(Expr)` tests where Expr shares vars with body.
+2. **`test_unify: unify_self`**: `X = X` — self-unification; check `pj_unify` handles reflexive case.
+3. **`test_unify: unify_fv`**: free var unification edge case.
+4. **`test_unify: unifiable/2`**: `unifiable(X,Y,Unifier)` — not implemented.
+5. **`test_misc: cut_to`**: cut across catch boundary.
+6. **`test_arith` arith basics**: investigate `is/2` failures.
+
+**Known issues:**
+- `expand_goal` suite unfixable without wrap_swi.py variable-sharing fix
+- `=@=` (structural equivalence modulo variable names) not implemented in shim
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
 git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
 make -C snobol4x/src
-export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context window
-# SWI test files: unzip swipl-devel-master.zip to /tmp/
-# Then: for each of test_list/arith/dcg/unify/misc:
-#   python3 test/frontend/prolog/wrap_swi.py /tmp/swipl/swipl-devel-master/tests/core/TEST.pl /tmp/TEST.pro
+export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam
+# SWI upstream tests: sparse clone
+#   git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
+#   cd /tmp/swipl-devel && git sparse-checkout set tests/core
+# Wrap+run: python3 test/frontend/prolog/wrap_swi.py /tmp/swipl-devel/tests/core/TEST.pl /tmp/TEST.pro
 #   ./sno2c -pl -jvm /tmp/TEST.pro > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
+
 # Read §NOW above. Start at CRITICAL NEXT ACTION.
 ```
 
