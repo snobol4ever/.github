@@ -2,24 +2,45 @@
 
 **Track:** LINKER (LP)  
 **Session:** LP-2 (this doc written LP-1)  
-**Date:** 2026-03-27  
-**Goal:** M-LINK-ABI freeze + M-LINK-X64-1 through M-LINK-X64-3  
+**Date:** 2026-03-27 (revised: JVM before x64)  
+**Goal:** M-LINK-JVM-1 · M-LINK-JVM-2 · M-LINK-JVM-3  
 **Gate:** Read `ARCH-scrip-abi.md` before touching any code.
+
+---
+
+## Why JVM First
+
+JVM and .NET already have object file infrastructure. `.class` is an object format
+with a built-in symbol table. The JVM classloader **is** the linker — free, correct,
+and already installed. `EXPORT` becomes `public static`. `IMPORT` becomes a foreign
+class reference resolved at load time. Zero ELF relocation logic. Zero `ld` invocation.
+
+x64 comes after — once the pattern is proven on JVM, the x64 ELF work is mechanical.
+
+**Sprint order:**
+
+| Sprint | Milestones | Depends on |
+|--------|-----------|------------|
+| LP-2 (this) | M-LINK-JVM-1,2,3 — EXPORT/IMPORT in JVM, per-file .class, two-file SNOBOL4 link | ABI frozen |
+| LP-3 | M-LINK-JVM-4,5 — **PROOF OF CONCEPT**: SNOBOL4 calls Prolog, SNOBOL4 calls Icon | LP-2 green |
+| LP-4 | M-LINK-NET-1,2,3 — same pattern, .NET | LP-2 green (parallel) |
+| LP-5 | M-LINK-X64-1..4 — x64 last, informed by JVM lessons | LP-3 green |
 
 ---
 
 ## Session Objective
 
-By end of Sprint 1:
+By end of Sprint 1 (LP-2):
 
 1. `ARCH-scrip-abi.md` reviewed, any issues resolved, marked **FROZEN**
 2. `EXPORT` / `IMPORT` parsed in `src/frontend/snobol4/parse.c`
-3. `EXPORT name` emits `.globl alpha_NAME, gamma_NAME, omega_NAME` in `emit_byrd_asm.c`
-4. Static-by-default: non-exported DEFINEs emit **no** `.globl`
-5. `scrip compile -c hello.sno` → `hello.o` via `as -o hello.o hello.s`
-6. **Acceptance test green:** `hello_a.sno` exports `GREET`, `hello_b.sno` imports and calls it, linked binary runs
+3. `EXPORT NAME` emitted as `public static` method in Jasmin output
+4. Non-exported DEFINEs emitted as `private static` (static-by-default)
+5. Each `.sno` file → its own named `.class` (not monolithic `SnobolProg`)
+6. **Acceptance test green:** `greet_lib.sno` exports `GREET`, `greet_main.sno`
+   imports and calls it, `java` runs and prints `Hello, World`
 
-Regression invariant: `106/106` ASM corpus stays green throughout.
+Regression invariant: `1896 tests / 0 failures` on snobol4jvm throughout.
 
 ---
 
@@ -27,47 +48,45 @@ Regression invariant: `106/106` ASM corpus stays green throughout.
 
 ```
 src/frontend/snobol4/
-    lex.c           ADD: T_EXPORT, T_IMPORT token kinds
-    lex.h           ADD: token kind enum entries
-    parse.c         ADD: parse_toplevel_directive() for EXPORT/IMPORT
-    sno2c.h         ADD: ExportList, ImportList fields on Program struct
+    lex.c               ADD: T_EXPORT, T_IMPORT token kinds
+    lex.h               ADD: token kind enum entries
+    parse.c             ADD: parse_toplevel_directive()
+    sno2c.h             ADD: ExportEntry, ImportEntry fields on Program struct
 
-src/backend/x64/
-    emit_byrd_asm.c ADD: emit_exports(), emit_import_externs()
-                    CHANGE: emit_named_def() — omit .globl unless exported
-
-src/driver/
-    main.c          ADD: -c flag → invoke `as`, produce .o
-                    ADD: --jvm, --net flag stubs (no-op for now)
+src/backend/jvm/
+    emit_byrd_jvm.c     CHANGE: class name from hardcoded → derived from filename
+                        ADD: jvm_is_exported(), public/private static dispatch
+                        ADD: emit_jvm_import_call() — invokestatic for IMPORTs
 
 src/runtime/snobol4/
-    snoVal.h        NEW: canonical SnoVal definition (from ARCH-scrip-abi.md §1)
+    snoVal.h            NEW: canonical C SnoVal definition (ABI §1)
+
+src/runtime/jvm/
+    SnoVal.java         NEW: JVM SnoVal stub (full impl LP-3)
+
+src/driver/
+    main.c              ADD: --jvm flag routes to JVM emitter
+                        ADD: -c flag → compile to .class via jasmin.jar, do not run
 ```
 
 ---
 
 ## Step-by-Step
 
-### Step 1 — snoVal.h (30 min)
+### Step 1 — snoVal.h (20 min)
 
-Create `src/runtime/snobol4/snoVal.h` verbatim from the ABI doc §1.
-This is the canonical shared type. Every future cross-language file will `#include` it.
+Create `src/runtime/snobol4/snoVal.h`:
 
 ```c
-/* snoVal.h — canonical SCRIP value type. Shared across all backends.
- * Do not add language-specific fields. Keep this file ABI-stable. */
+/* snoVal.h — canonical SCRIP value type. ABI-stable.
+ * Java equivalent: src/runtime/jvm/SnoVal.java (LP-3 full impl). */
 #ifndef SNOVAL_H
 #define SNOVAL_H
 #include <stddef.h>
 
 typedef enum {
-    SV_STRING  = 0,
-    SV_INTEGER = 1,
-    SV_REAL    = 2,
-    SV_PATTERN = 3,
-    SV_TABLE   = 4,
-    SV_ARRAY   = 5,
-    SV_UNDEF   = 6
+    SV_STRING=0, SV_INTEGER=1, SV_REAL=2,
+    SV_PATTERN=3, SV_TABLE=4, SV_ARRAY=5, SV_UNDEF=6
 } SnoValTag;
 
 typedef struct SnoVal {
@@ -80,230 +99,169 @@ typedef struct SnoVal {
     };
 } SnoVal;
 
-#endif /* SNOVAL_H */
+#endif
 ```
 
-Verify: `#include "snoVal.h"` compiles clean in `sno2c.h`. Zero code changes needed yet.
+### Step 2 — SnoVal.java stub (20 min)
 
----
+Create `src/runtime/jvm/SnoVal.java`:
 
-### Step 2 — Lex tokens (45 min)
+```java
+/* SnoVal.java — SCRIP universal value type for JVM.
+ * Sprint 1 stub. Full union fields + SnoValRT added LP-3.
+ * Ref: ARCH-scrip-abi.md §1, §3. */
+public class SnoVal {
+    public static final int SV_STRING=0, SV_INTEGER=1, SV_REAL=2,
+                             SV_PATTERN=3, SV_TABLE=4, SV_ARRAY=5, SV_UNDEF=6;
+    public int    tag;
+    public String s;
+    public long   i;
+    public double r;
 
-In `lex.h`, add two token kinds after the existing list:
+    public SnoVal(String s) { this.tag = SV_STRING;  this.s = s; }
+    public SnoVal(long   i) { this.tag = SV_INTEGER; this.i = i; }
+    public SnoVal(double r) { this.tag = SV_REAL;    this.r = r; }
 
-```c
-T_EXPORT,   /* EXPORT keyword at start of statement label position */
-T_IMPORT,   /* IMPORT keyword at start of statement label position */
+    /* Thread-local result slot — ABI §3.2 */
+    public static final ThreadLocal<SnoVal> RESULT = new ThreadLocal<>();
+}
 ```
 
-In `lex.c`, in the keyword recognition section (wherever `DEFINE`, `END`, etc. are
-recognized as special statement-level keywords):
+### Step 3 — Lex tokens (30 min)
 
+`lex.h` — add after existing token kinds:
 ```c
-/* Statement-level directives — recognized only at label/body position */
+T_EXPORT,   /* EXPORT — statement-level directive */
+T_IMPORT,   /* IMPORT — statement-level directive */
+```
+
+`lex.c` — in keyword recognition alongside `DEFINE`, `END`:
+```c
 if (strcmp(word, "EXPORT") == 0) return T_EXPORT;
 if (strcmp(word, "IMPORT") == 0) return T_IMPORT;
 ```
 
-**Note:** `EXPORT` and `IMPORT` are only keywords at the **statement level** (where
-`DEFINE` and `END` live). Inside pattern expressions they remain ordinary identifiers —
-existing SNOBOL4 programs that use `EXPORT` or `IMPORT` as variable names are unaffected
-if those names appear only in the body/goto fields.
+**Scope:** Statement-level only. In pattern body/goto fields these remain identifiers.
+Existing programs using `EXPORT`/`IMPORT` as variable names are unaffected.
 
----
+### Step 4 — AST + Program struct (30 min)
 
-### Step 3 — AST nodes (30 min)
-
-In `sno2c.h`, add to the statement node kinds:
-
+`sno2c.h`:
 ```c
-STMT_EXPORT,   /* EXPORT name — marks a DEFINE as externally visible */
-STMT_IMPORT,   /* IMPORT lang.name — declares an external symbol */
-```
+STMT_EXPORT,
+STMT_IMPORT,
 
-Add to the `Program` struct:
-
-```c
-typedef struct ExportEntry {
-    char *name;                  /* exported symbol name (uppercase) */
-    struct ExportEntry *next;
-} ExportEntry;
-
+typedef struct ExportEntry { char *name; struct ExportEntry *next; } ExportEntry;
 typedef struct ImportEntry {
-    char *lang;                  /* source language: "PROLOG", "ICON", etc. */
-    char *name;                  /* symbol name */
+    char *lang;   /* "PROLOG", "ICON", "SNOBOL4", "SNOCONE", "REBUS" */
+    char *name;
     struct ImportEntry *next;
 } ImportEntry;
 
-/* Add to Program: */
-ExportEntry *exports;            /* linked list of EXPORTs */
-ImportEntry *imports;            /* linked list of IMPORTs */
+/* Add to Program struct: */
+ExportEntry *exports;
+ImportEntry *imports;
 ```
 
----
+### Step 5 — Parser (45 min)
 
-### Step 4 — Parser (1 hr)
-
-In `parse.c`, add `parse_toplevel_directive()` called from the statement dispatcher
-when `T_EXPORT` or `T_IMPORT` is seen at the start of a line:
-
+`parse.c`:
 ```c
-/* parse_toplevel_directive — handles EXPORT and IMPORT statements.
- *
- * EXPORT syntax:   EXPORT  <IDENT>
- * IMPORT syntax:   IMPORT  <LANG>.<IDENT>
- *
- * Both are statement-level only. No expression parsing needed.
- * Returns a STMT_EXPORT or STMT_IMPORT node. */
 static Stmt *parse_toplevel_directive(Lex *lx, Program *prog) {
-    Token t = lex_next(lx);   /* consume T_EXPORT or T_IMPORT */
+    Token t = lex_next(lx);          /* T_EXPORT or T_IMPORT */
     skip_ws(lx);
-    Token name_tok = lex_next(lx);  /* expect T_IDENT */
+    Token name_tok = lex_next(lx);
     if (name_tok.kind != T_IDENT) {
-        parse_error(lx, "EXPORT/IMPORT: expected identifier");
-        return NULL;
+        parse_error(lx, "EXPORT/IMPORT: expected identifier"); return NULL;
     }
-
     if (t.kind == T_EXPORT) {
         ExportEntry *e = xmalloc(sizeof *e);
-        e->name = xstrdup(name_tok.text);
-        e->next = prog->exports;
-        prog->exports = e;
+        e->name = xstrdup(name_tok.text); e->next = prog->exports; prog->exports = e;
         return make_stmt(STMT_EXPORT, name_tok.text);
     }
-
-    /* IMPORT: expect LANG.NAME */
-    if (lex_peek(lx).kind != T_DOT) {
-        /* bare IMPORT NAME — no language prefix, assume same language */
-        ImportEntry *ie = xmalloc(sizeof *ie);
+    /* IMPORT: LANG.NAME  or  bare NAME (defaults to SNOBOL4) */
+    ImportEntry *ie = xmalloc(sizeof *ie);
+    if (lex_peek(lx).kind == T_DOT) {
+        lex_next(lx);
+        Token sym = lex_next(lx);
+        ie->lang = xstrdup(name_tok.text);
+        ie->name = xstrdup(sym.text);
+    } else {
         ie->lang = xstrdup("SNOBOL4");
         ie->name = xstrdup(name_tok.text);
-        ie->next = prog->imports;
-        prog->imports = ie;
-        return make_stmt(STMT_IMPORT, name_tok.text);
     }
-    lex_next(lx);  /* consume T_DOT */
-    Token sym_tok = lex_next(lx);  /* symbol name after dot */
-    ImportEntry *ie = xmalloc(sizeof *ie);
-    ie->lang = xstrdup(name_tok.text);   /* the lang prefix */
-    ie->name = xstrdup(sym_tok.text);
-    ie->next = prog->imports;
-    prog->imports = ie;
-    return make_stmt(STMT_IMPORT, sym_tok.text);
+    ie->next = prog->imports; prog->imports = ie;
+    return make_stmt(STMT_IMPORT, ie->name);
 }
 ```
 
----
+### Step 6 — JVM Emitter (2 hr — core work)
 
-### Step 5 — x64 Emitter (1.5 hr)
-
-This is the core change. Two functions in `emit_byrd_asm.c`.
-
-#### 5a. `emit_exports()` — emit `.globl` for exported symbols
+**6a. Per-file class name** — replace hardcoded `"SnobolProg"`:
 
 ```c
-/* emit_exports — emit .globl directives for all EXPORTs.
- * Called once, before the first section, after the file header.
- * Each exported DEFINE gets three .globl entries: alpha, gamma, omega.
- * The beta port is NOT exported — callers do not redo into foreign boxes
- * in Sprint 1. (Beta export deferred to M-LINK-X64-REDO.) */
-static void emit_exports(Program *prog) {
-    for (ExportEntry *e = prog->exports; e; e = e->next) {
-        /* Mangle: EXPORT FOO → SNOBOL4_FOO */
-        A(".globl  SNOBOL4_%s_alpha\n", e->name);
-        A(".globl  SNOBOL4_%s_gamma\n", e->name);
-        A(".globl  SNOBOL4_%s_omega\n", e->name);
-    }
-    if (prog->exports) A("\n");
+static char *derive_jvm_class_name(const char *src_path) {
+    const char *base = strrchr(src_path, '/');
+    base = base ? base + 1 : src_path;
+    char *name = xstrdup(base);
+    char *dot = strrchr(name, '.'); if (dot) *dot = '\0';
+    char *result = xmalloc(strlen(name) + 10);
+    sprintf(result, "SNOBOL4_%s", name);   /* e.g. "SNOBOL4_greet_lib" */
+    free(name); return result;
 }
 ```
 
-#### 5b. `emit_import_externs()` — emit `extern` references for IMPORTs
+**6b. Export predicate + visibility dispatch**:
 
 ```c
-/* emit_import_externs — emit extern declarations for all IMPORTs.
- * In NASM ELF64, external symbols need no explicit declaration —
- * the linker resolves them. But we emit comments for documentation
- * and to catch naming issues early with `nm`. */
-static void emit_import_externs(Program *prog) {
-    for (ImportEntry *ie = prog->imports; ie; ie = ie->next) {
-        /* e.g. IMPORT PROLOG.ANCESTOR → references PROLOG_ANCESTOR_alpha */
-        A("; extern  %s_%s_alpha  (resolved by linker)\n",
-          ie->lang, ie->name);
-    }
-    if (prog->imports) A("\n");
-}
-```
-
-#### 5c. `emit_named_def()` — static-by-default
-
-Find the function that emits DEFINE bodies (currently emits `.globl` unconditionally
-for all named patterns). Change to: **only emit `.globl` if the name is in the export list.**
-
-```c
-/* In emit_named_def(), before emitting alpha_FUNCNAME label: */
-static int is_exported(Program *prog, const char *name) {
+static int jvm_is_exported(Program *prog, const char *name) {
     for (ExportEntry *e = prog->exports; e; e = e->next)
         if (strcmp(e->name, name) == 0) return 1;
     return 0;
 }
 
-/* Then in the emit loop, replace unconditional .globl with: */
-if (is_exported(prog, def->name)) {
-    A(".globl  SNOBOL4_%s_alpha\n", def->name);
-    /* gamma and omega already covered by emit_exports() */
-}
-/* Label itself uses mangled name when exported, raw name when static: */
-if (is_exported(prog, def->name))
-    asmL("SNOBOL4_%s_alpha", def->name);
-else
-    asmL("alpha_%s", def->name);
+/* In method header emission — replace current ".method public static" with: */
+const char *visibility = jvm_is_exported(prog, def->name)
+                         ? "public" : "private";
+J(".method %s static %s([Ljava/lang/Object;Ljava/lang/Runnable;Ljava/lang/Runnable;)V\n",
+  visibility, def->name);
 ```
 
----
+Sprint 1 uses `Object[]` as stand-in for `SnoVal[]`. Descriptor tightens in LP-3
+once `SnoVal.class` is on the classpath.
 
-### Step 6 — Driver: `-c` flag (45 min)
-
-In `src/driver/main.c`, add:
+**6c. Import call site** — when emitting a call to an imported name:
 
 ```c
-/* Flag: compile only (do not link or run) */
-static int flag_compile_only = 0;    /* -c */
-static int flag_backend_jvm  = 0;    /* --jvm */
-static int flag_backend_net  = 0;    /* --net */
-
-/* After emitting .s file, if -c: */
-if (flag_compile_only) {
-    /* Derive .o name from .s name */
-    char obj_path[PATH_MAX];
-    snprintf(obj_path, sizeof obj_path, "%s.o", base_name);
-    /* Invoke system assembler */
-    char cmd[PATH_MAX * 2];
-    snprintf(cmd, sizeof cmd, "as -o %s %s", obj_path, asm_path);
-    int rc = system(cmd);
-    if (rc != 0) {
-        fprintf(stderr, "sno2c: assembler failed (exit %d)\n", rc);
-        exit(1);
-    }
-    fprintf(stderr, "sno2c: wrote %s\n", obj_path);
-    exit(0);
+static void emit_jvm_import_call(FILE *out, ImportEntry *ie) {
+    /* Pushes args, gamma, omega already on stack by caller convention */
+    fprintf(out,
+        "    invokestatic %s_%s/%s"
+        "([Ljava/lang/Object;Ljava/lang/Runnable;Ljava/lang/Runnable;)V\n",
+        ie->lang, ie->name, ie->name);
 }
 ```
 
-**Invocation model after this sprint:**
-```bash
-sno2c -c hello.sno          # → hello.sno.o  (compile only)
-sno2c hello.sno             # → a.out        (compile + link + run, existing)
-sno2c --jvm hello.sno       # → Hello.class  (stub, Sprint 3)
+### Step 7 — Driver flags (30 min)
+
+`main.c`:
+```c
+static int flag_compile_only = 0;  /* -c */
+static int flag_jvm          = 0;  /* --jvm */
+
+/* After emitting .j Jasmin text, if --jvm -c: */
+if (flag_jvm && flag_compile_only) {
+    char cmd[512];
+    snprintf(cmd, sizeof cmd,
+        "java -jar %s/jasmin.jar %s -d %s",
+        jasmin_dir, jasmin_path, output_dir);
+    if (system(cmd) != 0) { fprintf(stderr, "jasmin failed\n"); exit(1); }
+}
 ```
 
----
+### Step 8 — Acceptance Test (30 min)
 
-### Step 7 — Acceptance Test (1 hr)
-
-Create `test/linker/` directory with two files:
-
-**`test/linker/greet_lib.sno`** — the library:
+`test/linker/jvm/greet_lib.sno`:
 ```snobol4
         EXPORT  GREET
 
@@ -313,7 +271,7 @@ GREET_END
         END
 ```
 
-**`test/linker/greet_main.sno`** — the caller:
+`test/linker/jvm/greet_main.sno`:
 ```snobol4
         IMPORT  SNOBOL4.GREET
 
@@ -321,97 +279,80 @@ GREET_END
         END
 ```
 
-**Build and test script `test/linker/run.sh`:**
+`test/linker/jvm/run.sh`:
 ```bash
 #!/bin/bash
 set -e
-BIN=../../src/sno2c/sno2c
+SNO2C=../../../src/sno2c/sno2c
+JASMIN=../../../src/backend/jvm/jasmin.jar
+OUT=./out ; mkdir -p $OUT
 
-$BIN -c greet_lib.sno
-$BIN -c greet_main.sno
+$SNO2C --jvm greet_lib.sno  > $OUT/SNOBOL4_greet_lib.j
+$SNO2C --jvm greet_main.sno > $OUT/SNOBOL4_greet_main.j
+java -jar $JASMIN $OUT/SNOBOL4_greet_lib.j  -d $OUT
+java -jar $JASMIN $OUT/SNOBOL4_greet_main.j -d $OUT
 
-# Link with ld (or gcc for convenience — pulls in libc)
-gcc -o greet_test greet_main.sno.o greet_lib.sno.o \
-    -L../../src/runtime/snobol4 -lsnobol4
-
-./greet_test
+RESULT=$(java -cp $OUT SNOBOL4_greet_main)
+[ "$RESULT" = "Hello, World" ] \
+    && echo "M-LINK-JVM-3 ✅  $RESULT" \
+    || { echo "M-LINK-JVM-3 ❌  got: '$RESULT'"; exit 1; }
 ```
 
-**Expected output:**
-```
-Hello, World
-```
-
-**Milestone fires when:** `./run.sh` exits 0 and output matches expected.
+**M-LINK-JVM-3 fires when `run.sh` exits 0.**
 
 ---
 
 ## Regression Protocol
 
-After **every** change, before committing:
-
+After every change, before committing:
 ```bash
-# Full ASM corpus — must stay 106/106
-cd /path/to/snobol4x && make test-asm 2>&1 | tail -5
+# snobol4jvm — must stay 1896/0
+cd snobol4jvm && lein test 2>&1 | tail -3
 
-# Quick smoke: hello via existing path (no -c flag)
-echo "OUTPUT = 'hi'" | sno2c /dev/stdin
-```
-
-If either breaks: **revert, do not push, diagnose before continuing.**
-
----
-
-## Known Risks This Sprint
-
-**R1 — `.globl` placement:** NASM requires `.globl` before the label definition.
-Our current emitter may emit the section header before `.globl`. Fix: call
-`emit_exports()` and `emit_import_externs()` at the top of the emitter, before
-any `.text` section content.
-
-**R2 — Name collision between exported and static symbols:** If `EXPORT GREET`
-is declared and there is also a static `DEFINE('GREET()')` in another file,
-the linker will see two `SNOBOL4_GREET_alpha` symbols and error. This is
-correct behavior — document it as a compile error to catch in Sprint 2.
-
-**R3 — `as` not on PATH:** The CI environment may not have GNU `as`. Check
-with `which as || apt-get install binutils`. If missing, `-c` emits `.s` only
-and prints a warning.
-
----
-
-## Commit Protocol
-
-```
-LP-2: M-LINK-X64-1 — EXPORT/IMPORT parse + x64 .globl emit
-
-- src/runtime/snobol4/snoVal.h  NEW: canonical SnoVal (ABI §1)
-- src/frontend/snobol4/lex.h    ADD: T_EXPORT, T_IMPORT
-- src/frontend/snobol4/lex.c    ADD: keyword recognition
-- src/frontend/snobol4/parse.c  ADD: parse_toplevel_directive()
-- src/frontend/snobol4/sno2c.h  ADD: ExportEntry, ImportEntry, Program fields
-- src/backend/x64/emit_byrd_asm.c ADD: emit_exports(), emit_import_externs()
-                                  CHANGE: static-by-default in emit_named_def()
-- src/driver/main.c             ADD: -c flag → produce .o via as
-- test/linker/                  NEW: greet_lib.sno + greet_main.sno + run.sh
-
-Regression: 106/106 ASM corpus green.
-M-LINK-X64-1 ✅  M-LINK-X64-2 ✅  M-LINK-X64-3 ✅
-Acceptance test: test/linker/run.sh → "Hello, World"
+# Existing JVM path still emits valid Jasmin (class name change is the risk)
+echo "OUTPUT = 'smoke'" | sno2c --jvm /dev/stdin | grep "class SNOBOL4_"
 ```
 
 ---
 
-## After This Sprint: What Opens
+## Commit Message Template
 
-With M-LINK-X64-1 through X64-3 green and the acceptance test passing, the
-following become unblocked in parallel:
+```
+LP-2: M-LINK-JVM-1,2,3 — EXPORT/IMPORT JVM, per-file .class, two-file link
 
-- **M-LINK-X64-4** — two-file SNOBOL4 link with a non-trivial program (wordcount)
-- **M-LINK-JVM-1** — EXPORT/IMPORT in `emit_byrd_jvm.c` (same pattern, JVM syntax)
-- **ABI doc freeze** — circulate `ARCH-scrip-abi.md` for final review; one session to resolve open questions before Sprint 2
+- src/runtime/snobol4/snoVal.h      NEW: canonical C SnoVal (ABI §1)
+- src/runtime/jvm/SnoVal.java       NEW: JVM SnoVal stub (full LP-3)
+- src/frontend/snobol4/lex.h/.c     ADD: T_EXPORT, T_IMPORT
+- src/frontend/snobol4/parse.c      ADD: parse_toplevel_directive()
+- src/frontend/snobol4/sno2c.h      ADD: ExportEntry, ImportEntry, Program fields
+- src/backend/jvm/emit_byrd_jvm.c   CHANGE: per-file class name (SNOBOL4_basename)
+                                    ADD: public/private static dispatch on EXPORT
+                                    ADD: emit_jvm_import_call() invokestatic
+- src/driver/main.c                 ADD: --jvm -c flags
+- test/linker/jvm/                  NEW: greet_lib.sno + greet_main.sno + run.sh
+
+Regression: 1896/0 snobol4jvm green.
+M-LINK-JVM-1 ✅  M-LINK-JVM-2 ✅  M-LINK-JVM-3 ✅
+Acceptance: test/linker/jvm/run.sh → "Hello, World"
+```
 
 ---
 
-*SESSION-linker-sprint1.md — pickup document for LP-2.*  
-*Next session reads this file + ARCH-scrip-abi.md. Do not read other ARCH docs unless hitting an unfamiliar construct.*
+## What LP-3 Opens (the big one)
+
+**M-LINK-JVM-4 — SNOBOL4 calls a Prolog predicate.** This is the proof-of-concept.
+
+Requires:
+- `SnoVal.java` fully implemented + `SnoValRT.java` with `ThreadLocal<SnoVal> RESULT`
+- Prolog JVM emitter updated: `EXPORT` → `public static` with ABI signature
+- A Prolog file `ancestor.pl` with `EXPORT ANCESTOR` → compiles to `PROLOG_ANCESTOR.class`
+- A SNOBOL4 file with `IMPORT PROLOG.ANCESTOR` → `invokestatic PROLOG_ANCESTOR/ANCESTOR`
+- Integration test: SNOBOL4 hands a string to Prolog, Prolog unifies, returns via γ
+
+When M-LINK-JVM-4 passes: **every other cross-language combination is a variation
+on this same pattern.** SCRIP Level 2 is real.
+
+---
+
+*SESSION-linker-sprint1.md — revised 2026-03-27: JVM → .NET → x64 order.*  
+*Next session reads this file + ARCH-scrip-abi.md only. Do not read other ARCH docs unless hitting an unfamiliar construct.*
