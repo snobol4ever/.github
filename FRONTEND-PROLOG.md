@@ -232,7 +232,7 @@ test/frontend/prolog/corpus/
 ```
 snobol4x -pl -asm  foo.pl    ->  foo.s   (x64 NASM)
 snobol4x -pl -c    foo.pl    ->  foo.c   (C backend, later)
-snobol4x -pl -jvm  foo.pl    ->  foo.j   (JVM Jasmin — see FRONTEND-PROLOG-JVM.md)
+snobol4x -pl -jvm  foo.pl    ->  foo.j   (JVM Jasmin — see ARCH-prolog-jvm.md)
 ```
 
 ---

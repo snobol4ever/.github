@@ -58,7 +58,7 @@ Each session edits only its own row in PLAN.md NOW and its own L3 docs. **Never 
 A committed-but-not-pushed session lives only on a throwaway container — it is a lost session. Never say "handoff complete" until `git log origin/main --oneline -1` shows your commit hash on the remote. If push fails for any reason: fix it. Ask for credentials if needed. Do not declare done and move on.
 
 End-of-session checklist (in order):
-1. Update platform MD (TINY.md / FRONTEND-PROLOG-JVM.md / etc.) — HEAD, sprint status, §NOW next action.
+1. Update platform MD (TINY.md / ARCH-prolog-jvm.md / etc.) — HEAD, sprint status, §NOW next action.
 2. Update PLAN.md NOW table row (your row only).
 3. If milestone fired: move its row to MILESTONE_ARCHIVE.md.
 4. `git add -A && git commit && git push` every touched repo.
