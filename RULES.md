@@ -145,3 +145,11 @@ batch tool; it has been deleted from the repo (SD-28b, `753e243`).
 (extremely rare — all repo files are already converted), add the semicolons
 by hand inline. The parser also accepts optional semicolons after procedure
 headers (SD-30 fix).
+
+## ⛔ ICON PARSER — Never inject semicolons in the parser
+
+The Icon parser must accept source as written. It must never silently insert
+semicolons, infer statement boundaries, or perform automatic semicolon
+insertion (ASI) at parse time. If a source file is missing semicolons, fix
+the source file — not the parser. The corpus is already fully converted;
+this situation should not arise.
