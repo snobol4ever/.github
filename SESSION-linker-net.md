@@ -588,3 +588,38 @@ All five languages in one linked program. Requires:
 2. Snocone .NET emitter stub
 3. Rebus .NET emitter stub
 4. Five-language test: SNOBOL4 + Prolog + Icon + Snocone + Rebus in one run
+
+---
+
+## M-LINK-NET-8 All-Directional (2026-03-27, Claude Sonnet 4.6) — `8a4dc35`
+
+**Scope:** All six cross-language call edges proven (each language calls the other two).
+
+### Delivered
+
+- `demo_prolog.il`  NEW: Prolog assembly calling SNOBOL4 (GREET) and Icon (FIBONACCI)
+- `demo_icon.il`    NEW: Icon assembly calling SNOBOL4 (GREET) and Prolog (ANCESTOR)
+- `three_lang_main.sno`  CHANGE: two-step assign; calls all four assemblies
+- `run.sh`          CHANGE: assembles 5 DLLs + exe
+
+### Results
+
+```
+[sno4->prolog] ann        sno4  → ancestor.dll
+[sno4->icon]   13         sno4  → fibonacci.dll
+[prolog->sno4] Hello, World  demo_prolog → greet_lib.dll
+[prolog->icon] 5          demo_prolog → fibonacci.dll
+[icon->sno4]   Hello, Icon   demo_icon   → greet_lib.dll
+[icon->prolog] ann        demo_icon   → ancestor.dll
+```
+
+### Known emitter bug (tracked, not blocking)
+
+`OUTPUT = 'prefix' IMPORT_CALL(args)` in single expression hits a stack-depth
+verifier failure: `brfalse` on the omega path leaves the prefix string stranded
+on the stack with depth 1 instead of 2 at the `Nimp_done` label.
+Workaround: two-step `RESULT = IMPORT_CALL(...) / OUTPUT = 'prefix' RESULT`.
+Fix: emit_byrd_net.c import call block must push `""` on the omega path to keep
+stack balanced with the success path.
+
+### Next: M-SCRIP-XLINK-1 or fix emitter stack bug
