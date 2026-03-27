@@ -2847,3 +2847,41 @@ gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
 export JAVA_TOOL_OPTIONS=""
 # Read SESSION-icon-jvm.md §NOW. Apply dual-registration fix. Run demo3.
 ```
+
+---
+
+## Session SD-29 — 2026-03-26
+
+**Commits:** `cd8cb80` SD-29 (snobol4x); .github (this commit)
+
+**M-SD-3 FIRES — roman: SNO2C-JVM ✅ ICON-JVM ✅ PROLOG-JVM ✅**
+
+**Root cause (one-liner):** `TK_AUGCONCAT = 36`, hardcoded as `35` in three places in `icon_emit_jvm.c`. The `||:=` operator always fell through to the arithmetic path (`ladd` on String refs → 0).
+
+**Fix:**
+- Added `#include "icon_lex.h"` to `icon_emit_jvm.c`
+- Replaced all three literal `35` comparisons with `(int)TK_AUGCONCAT`
+- `ij_expr_is_string(ICN_AUGOP)`, `ij_emit_augop()`, and pre-pass body scan
+
+**HEAD at handoff:** snobol4x `cd8cb80`, .github (this commit)
+
+### Next session (SD-30)
+
+M-SD-4: palindrome. Read `demo/scrip/demo4/palindrome.md`, run demo, fix failures.
+
+**Bootstrap SD-30:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+apt-get install -y default-jdk
+cd snobol4x/src
+gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
+  frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
+  frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
+  frontend/icon/icon_emit.c frontend/icon/icon_emit_jvm.c \
+  frontend/icon/icon_runtime.c -o ../icon_driver
+make -f Makefile  # builds sno2c
+export JAVA_TOOL_OPTIONS=""
+bash ../demo/scrip/run_demo.sh ../demo/scrip/demo4 \
+  SNO2C=../sno2c ICON_DRIVER=../icon_driver JASMIN=../backend/jvm/jasmin.jar
+```
