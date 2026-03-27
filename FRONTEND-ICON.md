@@ -4,6 +4,9 @@ Icon parser, AST, IR mapping. No session state here.
 **Session state** → `SESSION-icon-x64.md` (x64) or `SESSION-icon-jvm.md` (JVM)
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
+**Main program is `sno2c`.** The `icon_driver` is an internal entry point
+(`icon_driver_main`) called by `sno2c -icn`. Use a shim for standalone testing.
+
 ---
 
 ## Why Icon fits the Byrd Box model
@@ -38,7 +41,7 @@ Proebsting 1996 §4.1–4.5 gives four-port templates for every Icon operator.
 
 ---
 
-## Milestone Table
+## x64 Milestone Table
 
 | ID | Feature | Status |
 |----|---------|--------|
@@ -51,10 +54,16 @@ Proebsting 1996 §4.1–4.5 gives four-port templates for every Icon operator.
 | M-ICON-SUSPEND | user-defined generators | ✅ |
 | M-ICON-CORPUS-R2 | rung02 | ✅ |
 | M-ICON-CORPUS-R3 | rung03 `bab5664` | ✅ |
-| **M-ICON-STRING** | `ICN_STR`, `\|\|` concat | ❌ NEXT |
-| M-ICON-SCAN | `E ? E` string scanning | ❌ |
-| M-ICON-CSET | Cset literals | ❌ |
-| M-ICON-CORPUS-R4 | rung04 | ❌ |
+| **M-IX-STRING** | Fix `\|\|` concat segfault; rung04 100% | ❌ NEXT |
+| M-IX-SCAN | `E ? E` string scanning (rung05) | ❌ |
+| M-IX-CSET | Cset literals + any/many/upto (rung06) | ❌ |
+| M-IX-CONTROL | if/then/else, next, break (rung07) | ❌ |
+| M-IX-STRBUILTINS | size/trim/repl/left/right (rung08) | ❌ |
+| M-IX-LOOPS | while/until/repeat (rung09) | ❌ |
+| M-IX-AUGOP | `+:=` etc augmented assignment (rung10) | ❌ |
+| M-IX-REAL | Real arithmetic + swap (rung15) | ❌ |
+| M-IX-CORPUS-R10 | rungs 01–10 all green | ❌ |
+| M-IX-BENCHMARK | rung36_jcon subset on x64 | ❌ |
 
 ---
 
@@ -67,4 +76,5 @@ Proebsting 1996 §4.1–4.5 gives four-port templates for every Icon operator.
 | `src/frontend/icon/icon_ast.c` | AST node types |
 | `src/frontend/icon/icon_emit.c` | x64 ASM emitter |
 | `src/frontend/icon/icon_emit_jvm.c` | JVM emitter |
-| `test/frontend/icon/corpus/` | Test corpus |
+| `src/frontend/icon/icon_runtime.c` | x64 runtime (syscall-based, no libc) |
+| `test/frontend/icon/corpus/` | Test corpus (rung01–rung36) |
