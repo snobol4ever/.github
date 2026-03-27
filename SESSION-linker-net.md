@@ -455,18 +455,19 @@ proves the cross-assembly ABI without gating on a full Prolog CIL compiler).
 
 ---
 
-## Next Session: M-LINK-NET-5
+## M-LINK-NET-5 Outcome (2026-03-27, Claude Sonnet 4.6)
 
-**Goal:** Full Prolog CIL emitter (`prolog_emit_net.c`) — generate `ancestor.il`
-from `ancestor.pl` source rather than hand-authoring it.
+**Delivered:** `prolog_emit_net.c` — Prolog IR → CIL emitter, subset for ancestor.pl.
 
-Read: `ARCH-scrip-abi.md` + this file only.
+Key fixes during session:
+- `E_FNC(nchildren=0)` is how prolog_lower encodes atoms (not `E_QLIT`)
+- Head unification, goal emission, and unify all updated
+- Helper `.method`/`.field` declarations buffered via `D()` and flushed at class scope
+- Dispatcher loop fixed: forward order, jump-to-exit on success
+- `ancestor.pl` added to test directory; `run.sh` updated to use generated IL
 
-Steps:
-1. Write `prolog_emit_net.c` mirroring `prolog_emit_jvm.c` structure
-2. `sno2c -pl -net ancestor.pl` produces valid CIL matching hand-authored IL
-3. Run M-LINK-NET-4 acceptance test using generated (not hand-authored) IL
-4. Regression: 110/110 NET corpus green
+**Next session: M-LINK-NET-6** — run acceptance test end-to-end on a host with ilasm/mono;
+wire `ByrdBoxLinkage.Result` in the SNOBOL4 import call to extract the string result.
 
 
 ---
