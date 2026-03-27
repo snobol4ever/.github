@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
-| **Prolog JVM** | PJ-83b — multi-suite scan ✅ forall-dedup ✅ unary+ ✅ bridge-naming ✅; next: memberchk var-share, test_arith spaced-int, test_dcg DCG-conj-head | `fb09892` PJ-83b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | PJ-83d — test_list 1/0 ✅ test_unify 7/4 ✅ test_dcg 7/17 test_arith 63/140 | `5854a82` PJ-83d | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 
