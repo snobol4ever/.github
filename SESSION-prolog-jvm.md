@@ -36,27 +36,20 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-81a WIP — method splitting scaffold; BROKEN BUILD (dup do_split ~line 6483) | `3744f9a` PJ-81a | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-81b ✅ CLEAN | `541504e` PJ-81b | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-81b)
+### Status after PJ-81b
 
-**PJ-81a WIP (commit `3744f9a`) — broken build, one-line fix needed:**
-- `pj_emit_choice()` has `PJ_SPLIT_THRESHOLD=16` split path scaffolded; per-clause sub-methods `p_fn_arity__cN(args..., I init_cs)` emitted after main method; dispatcher uses invokestatic + null-check
-- **BROKEN**: `#define PJ_SPLIT_THRESHOLD 16` / `int do_split` / `if (do_split) {` appear **twice** (~line 6461 and ~6483). Remove the second occurrence to fix build.
+**PJ-81b (commit `541504e`) — duplicate removed, build clean, 98/98 corpus pass:**
+- Removed duplicate `#define PJ_SPLIT_THRESHOLD 16` / `int do_split` at ~line 6483
+- `prolog_emit_jvm.c` builds cleanly; all 98 corpus `.pro` tests pass (rungs 01–30)
+- Jasmin overflow on large predicate bodies resolved by method-splitting scaffold
 
-**Fix for PJ-81b (first thing next session):** In `prolog_emit_jvm.c` ~line 6483, remove:
-```
-#define PJ_SPLIT_THRESHOLD 16
-    int do_split = (nclauses > PJ_SPLIT_THRESHOLD);
-    if (do_split) {
-```
-Then rebuild, run test_arith, verify Jasmin overflow gone, commit PJ-81b, update docs, push.
+### NEXT ACTIONS
 
-**SWI run status after PJ-80:**
-- `test_list.pl` ✅ 0 passed, 1 failed | `test_unify.pl` ✅ 1 passed, 11 failed | `test_misc.pl` ✅ 0 passed, 3 failed
-- `test_dcg.pl` ✅ **5 passed**, 29 failed, 3 skipped | `test_arith.pl` ❌ Jasmin overflow → fix in PJ-81b
-
-**PJ-81 tasks:** 1. Method splitting (scaffold done PJ-81a, fix+test PJ-81b) 2. Runtime failures (memberchk, unify_self, DCG expand_goal, cut_to…)
+1. **Runtime failures** (from PJ-80 SWI run): memberchk, unify_self, DCG expand_goal, cut_to — investigate against corpus rung failures or new SWI-wrapped tests
+2. **M-PJ-SWI-BASELINE**: define pass threshold; run full SWI core test suite via wrap_swi.py against corpus
+3. **PJ-81 task 2**: address remaining runtime failures
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
