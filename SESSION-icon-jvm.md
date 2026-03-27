@@ -50,73 +50,41 @@ bash test/frontend/icon/run_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "^P
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon JVM** | `main` IJ-57 — M-IJ-JCON-HARNESS 🔄 | `4e3252c` IJ-57 | M-IJ-JCON-HARNESS |
+| **Icon JVM** | `main` IJ-57 — M-IJ-JCON-HARNESS 🔄 | `ced118e` IJ-57 | M-IJ-JCON-HARNESS |
 
-### IJ-57 progress — M-IJ-JCON-HARNESS (HEAD 4e3252c)
+### IJ-57 progress — M-IJ-JCON-HARNESS (HEAD ced118e)
 
 **rung01–35: 153/153 PASS. Zero regressions.**
 
-**Work done IJ-57 session:**
-- `&null` keyword: `ICN_VAR` with `sval="&null"` now emits `lconst_0` in `ij_emit_var` — was falling through to `icn_gvar_&null` which is an illegal JVM field name (`ClassFormatError`)
-- **Ref-scratch region**: `ij_alloc_ref_scratch()` allocates JVM locals initialized `aconst_null/astore` (above int-scratch region at `2*MAX_LOCALS+20+64+N`). All `astore` targets (write scratch, trim/map scratch) moved to ref-scratch. Fixes `VerifyError: Register N contains wrong type`
-- **scratch_n fix**: `left()`/`right()`/`center()` `scratch_n` now uses `ij_alloc_int_scratch()` (absolute slot) instead of `slot_jvm(ij_locals_alloc_tmp())` — int-scratch region is `istore`-typed, long-pair region is `lstore`-typed
-- **left/right/center nargs>=1**: guards relaxed from `nargs>=2` to `nargs>=1`; NULL narg (missing width arg) defaults to width=1
-- **left/right/center static String field**: `sfld_left/sfld_right/sfld_ctr` — avoids storing String ref into long-pair slot
-- **left/right/center null coercions**: `sarg_is_null` → `""`, `narg_is_null` → `iconst_1`, `parg_is_null` → `ldc " "`
-- **Pad-arg buffer swap**: pad expression body captured in local tmp buffer then emitted AFTER `JGoto(ca)`, making the dispatch live (not dead code)
-- **ICN_IF all-branches-novalue skip**: when all branches are `ICN_FAIL`/`ICN_RETURN`/`ICN_SUSPEND`/`ICN_BREAK`/`ICN_NEXT`, skip statement-level sdrain (these never fire γ with a value)
-- **JCON reference study**: confirmed JCON uses higher-level Java method calls (no stack management), so JCON doesn't have the backward-emit dead-code VerifyError problem
+**rung36: compile_err=0 verify_err=39 wrong_output=9 pass=3**
 
-**rung36 status: 0 pass, 39 verify_err, 12 wrong_output** (same as IJ-56 adjusted baseline).
+Passing: t01_primes t03_statics t07_center
+WO: t02_every t08_trim t11_parse t13_toby t21_string t24_numeric t30_substring t32_var t34_augment
+VE: 39 (live-code stack-merge — IJ-58 forward-emit work)
 
-The IJ-57 fixes don't show in the score because all 39 VerifyErrors have a single systemic root cause (see below).
+**Work done this IJ-57 session (continuation):**
 
-### ROOT CAUSE — All 39 VerifyErrors
+- **Dead-code suppression** (`j_suppress` flag): `JGoto()` sets suppress=1, `JL()` clears it. `J()` passes `.`-prefixed lines (Jasmin directives) through unconditionally. `JBarrier()` → no-op. Committed `20a232a`.
+- **`icn_builtin_center` rewrite**: ceiling-division truncation `(len-n+1)/2`; empty-pad guard; pad cycling `i%padlen` left, `(pad_right+count)%padlen` right for Icon symmetric semantics. **t07_center PASS.**
+- **`image()` null-flag system**: parser marks `ICN_GLOBAL` `val.ival=1` for `static` keyword. `ij_locals_is_icon_static[]` + `ij_static_is_icon_static[]` track which `icn_pv_*` fields are Icon-static. `icn_nl_<fld> B` fields emitted for all J-typed proc-local/global vars. Icon-static vars initialized in `<clinit>` (persistent). Regular locals reset at proc entry. `ij_emit_assign` clears null-flag on long-var store. `image()` emitter does inline null-check for `ICN_VAR` args → `"&null"` or `Long.toString`. **t03_statics PASS.**
+- **`image(String)` quoting**: added `icn_builtin_image_str`, but reverted — rung29 standard Icon baseline (`hello` no quotes) conflicts with rung36 JCON dialect (`"hello"` with quotes). Needs JCON-mode flag (IJ-58+).
+- **`write()` null-flag**: pulled back — inline conditionals cause live-code stack-merge VerifyErrors in rung19/26/29/30. Only `image()` null-check is safe (clean stack entry).
 
-**The JVM old-format (class 45.0) type-inference verifier processes dead code** and propagates type state through unreachable instruction sequences. The backward-emit model in `ij_emit_proc` emits child expressions BEFORE their `JGoto(alpha)` dispatch — creating dead code sections where the type inferred from the preceding live code propagates into the dead section. When dead paths reach `pop`/`pop2`/`putstatic`/`invokestatic` labels via chains like `icn_N_α → icn_N+1_α → ... → actual_label`, the verifier merges live and dead type states and finds inconsistencies.
+### ROOT CAUSE — All 39 VerifyErrors (unchanged from IJ-56)
 
-**Evidence:**
-- All 39 VerifyErrors disappear with `-noverify` (though some tests still crash with SIGSEGV from `pop2` on truly-empty stack at runtime — those are real bugs)
-- Strip-dead-code post-processor (ASM COMPUTE_FRAMES, text-based fixpoint) was tried — ASM crashes on type conflicts before it can strip; text-based stripper removes dead code but misses cases where live labels create CFG paths through dead sections
-- The error is in `icn_main()` or user-proc methods, never in the runtime helper methods
+Live-code stack-merge conflicts: two paths converge at same label with different operand stack types. The backward-emit model is the root cause. Dead-code suppression (`j_suppress`) eliminated the dead-code VerifyErrors completely — what remains are genuine live-code merges. **This requires IJ-58 forward-emit restructure.**
 
-**Two sub-categories of VerifyError:**
-1. **"Expecting to find object/array on stack"** (25 tests): dead code path reaches a `putstatic String` or `invokestatic` with a `long` or empty stack instead of `String`
-2. **"Unable to pop operand off an empty stack"** (7 tests): dead code path reaches a `pop2` sdrain with empty stack; some also crash with SIGSEGV at runtime (real pop2 on empty stack, not just verifier artifact)
+### NEXT ACTION — IJ-58
 
-### NEXT ACTION — Kill the VerifyErrors
+**Priority 1: Forward-emit restructure** (kills all 39 VEs)
+- Restructure `ij_emit_expr` to emit `JGoto(child_alpha)` BEFORE the child subtree, using a buffer/second-pass mechanism. Eliminates all stack-merge conflicts by ensuring each label has exactly one predecessor stack type.
 
-**Option A (RECOMMENDED): Emit dead-code barriers**
-
-After every `JL(b); JGoto(sb)` pattern (the β-routing in all emit functions), emit:
-```c
-JI("aconst_null", "");
-JI("athrow", "");  // unreachable barrier — stops type propagation
-```
-This makes the verifier treat everything after as truly dead (type = T, doesn't propagate). The old verifier stops propagating at `athrow`. This is a 2-line change in `ij_emit_expr` or in each individual emitter's beta-label block.
-
-**Specifically**: in `ij_emit_call` (the write() handler), after `JL(b); JGoto(arg_b);`, and in `ij_emit_if`, after `JL(b); JGoto(cb);`. Also in `ij_emit_every`, `ij_emit_while` etc.
-
-**Option B: Upgrade to class format 51.0 with explicit StackMapTable**
-
-Requires either: (a) Jasmin upgrade that auto-generates StackMapTable (Jasmin 2.x does this), or (b) post-process `.class` with ASM `COMPUTE_FRAMES`. ASM currently crashes due to type conflicts; fix by running dead-code strip FIRST (text-based), then ASM.
-
-**Option C: Forward-emit child dispatches**
-
-Restructure the emitter so `JGoto(child_alpha)` is emitted BEFORE `ij_emit_expr(child)`. This requires a second-pass / buffer mechanism for each call site. Most complex but produces clean Jasmin.
-
-**RECOMMENDED immediate steps:**
-
-1. **Add `athrow` barrier** after every β-label routing goto in `ij_emit_call` (write handler specifically), `ij_emit_if`, and the statement-chain loop. Test on t04, t14, t22 — if those pass, apply globally.
-
-2. **Fix wrong-output tests** in parallel (no VerifyError, no JVM crash):
-   - t07: `center()` off-by-one in `icn_builtin_center`
-   - t08: `image()` quoting — wrap strings in `\"`
-   - t11: real formatting `19683.0` vs `19683`
-   - t03/t21/t24: `image(&null)` returns `"&null"` not `""`
-   - t01: `next` inside nested `every/if`
-
-3. **Integer coercion for `left(int, n)`**: `sarg` not string-typed (e.g. `left(237, 4)`) causes NPE because `ij_expr_is_string(ICN_INT)` = 0 → left_mid stores a long into String static field → `icn_builtin_left` gets null. Fix: in left/right/center mid block, if `ij_expr_is_string(sarg)` is false, emit `Long.toString(J)String` conversion before `putstatic sfld_left`.
+**Priority 2: Wrong-output tests** (after VEs resolved, more tests become visible)
+- **t08/t21**: `image(String)` quoting — needs JCON-mode flag; wrap in `"..."` for JCON tests
+- **t03/t24/t34**: `write(&null)` → `"&null"` — null-flag check in `write()` path, safe once stack-merges resolved
+- **t11**: `write(3^3^2)` → `19683` — Icon `^` always returns D; t11 expects integer formatting; needs JCON integer-power semantics
+- **t02/t13/t30**: `every` value not printing — deeper diagnosis needed
+- **t32**: `NoSuchFieldError` for `icn_pv_main_s` ArrayList field typed as long
 
 ### Bootstrap IJ-58
 
@@ -140,7 +108,7 @@ for icn in $CORPUS/t*.icn; do
   [ -f "${base}.xfail" ] && continue
   [ -f "${base}.expected" ] || continue
   /tmp/icon_driver -jvm "$icn" -o /tmp/t36.j 2>/dev/null
-  cls=$(grep -m1 '\.class' /tmp/t36.j 2>/dev/null | awk '{print $NF}')
+  cls=$(grep -m1 \'\.class\' /tmp/t36.j 2>/dev/null | awk \'{print $NF}\')
   asm_out=$(java -jar $JASMIN /tmp/t36.j -d /tmp/ 2>&1 | grep -v "Generated\|JAVA_TOOL")
   if [ -n "$asm_out" ]; then compile_errs=$((compile_errs+1)); continue; fi
   stdin_file="${base}.stdin"
@@ -155,14 +123,12 @@ for icn in $CORPUS/t*.icn; do
   fi
 done
 echo "compile_err=$compile_errs verify_err=$verify_errs wrong_output=$wrong_out pass=$pass"
-# Expected: 0/39/12
+# Expected: compile_err=0 verify_err=39 wrong_output=9 pass=3
 ```
 
 **Current rung36 categorized:**
 ```
-VerifyError "Expecting object/array": t04 t05 t06 t09 t12 t15 t25 t27 t28 t29 t35 t36 t37 t38 t40 t41 t43 t44 t45 t46 t52
-VerifyError "Unable to pop empty":    t14 t16 t17 t22 t23 t39 t42
-VerifyError "Bad type putstatic":     t38
-VerifyError "Expecting long":         t37
-Wrong output:                         t01 t02 t03 t07 t08 t11 t13 t21 t24 t30 t32 t34
+VerifyError (live-code stack-merge): t04-t06 t09-t10 t12 t14-t18 t22-t23 t25-t29 t33 t35-t36 t38-t46 t48-t52
+Wrong output: t02 t08 t11 t13 t21 t24 t30 t32 t34
+Passing: t01_primes t03_statics t07_center
 ```
