@@ -22,6 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **ICON x64** | I-11 — rung03 ✅ | `bab5664` I-11 | M-ICON-STRING |
 | **Prolog JVM** | PJ-83b — multi-suite scan ✅ forall-dedup ✅ unary+ ✅ bridge-naming ✅; next: memberchk var-share, test_arith spaced-int, test_dcg DCG-conj-head | `fb09892` PJ-83b | M-PJ-SWI-BASELINE |
 | **Icon JVM** | IJ-57 — list subscript assign ✅ seq_expr relay ✅ Long.toString ✅ | `795c2ff` IJ-57 | M-IJ-JCON-HARNESS |
+| **🔗 LINKER** | LP-1 — ARCH-scrip-abi.md DRAFT · SCRIP_DEMOS.md XLINK column added | `—` LP-1 | M-LINK-ABI (freeze ABI doc) |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
@@ -47,7 +48,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Snocone | `FRONTEND-SNOCONE.md` | — | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
-Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (beauty sprint)
+Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (beauty sprint) · `ARCH-scrip-abi.md` (linker ABI — read before any M-LINK-* work)
 
 **3. Deep reference → ARCH-*.md** (open only when needed — full catalog in `ARCH-index.md`)
 
