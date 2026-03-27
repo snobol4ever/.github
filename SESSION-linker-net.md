@@ -466,8 +466,17 @@ Key fixes during session:
 - Dispatcher loop fixed: forward order, jump-to-exit on success
 - `ancestor.pl` added to test directory; `run.sh` updated to use generated IL
 
-**Next session: M-LINK-NET-6** — run acceptance test end-to-end on a host with ilasm/mono;
-wire `ByrdBoxLinkage.Result` in the SNOBOL4 import call to extract the string result.
+**M-LINK-NET-6 outcome (2026-03-27, Claude Sonnet 4.6) — `792f2ec`**
+
+- Import helpers pre-emitted at class scope (not nested in main body)
+- SNOBOL4 call site builds `object[]` args array from call-site arguments
+- Call signature both sides: `ANCESTOR(object[], Action, Action)` ✅
+- `prolog_emit_net.c`: all predicates public; clause success stores `vars[n_args-1]`
+  in `ByrdBoxLinkage.Result` before firing gamma
+- Known cleanup: stale `ANCESTOR_EXPORT` dead method (remove in next session)
+
+**Next session: M-LINK-NET-7** — run acceptance test on ilasm/mono host;
+clean up dead `_EXPORT` wrapper; add Prolog `:- export` directive parsing.
 
 
 ---
