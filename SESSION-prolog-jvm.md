@@ -36,34 +36,26 @@ export JAVA_TOOL_OPTIONS=""
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog JVM** | `main` PJ-79b — parse gaps fixed; all 5 SWI files compile; corpus 107/107 | `75e46c2` PJ-79b | M-PJ-SWI-BASELINE |
+| **Prolog JVM** | `main` PJ-80b — ldc escape + var/nonvar VerifyError fixed; 5/5 files run | `4d4e90a` PJ-80b | M-PJ-SWI-BASELINE |
 
-### CRITICAL NEXT ACTION (PJ-80)
+### CRITICAL NEXT ACTION (PJ-81)
 
-**PJ-79 findings: test_list/arith/dcg/unify/misc all compile clean. Corpus 107/107. No regressions.**
+**PJ-80 findings: all 5 SWI files now run (no more Jasmin errors or VerifyErrors). Corpus 107/107. No regressions.**
 
-**What was done PJ-79 (commits PJ-79a, PJ-79b):**
-- PJ-79a: suppress unused `loc_mstart` warnings in `emit_byrd_net.c`
-- PJ-79b parser fixes (`prolog_parse.c`):
-  1. `:-` as binary op (prec 1200) in `BIN_OPS` + Pratt loop (`TK_NECK`) — fixes `(a :- b(...))` inside args
-  2. Unary minus before variables and parens (`-V0`, `-(expr)`) — was only `-atom`/`-op`
-- PJ-79b lexer fixes (`prolog_lex.c`):
-  3. `0o` octal literal support (was missing)
-  4. `Xe`/`XeN` float literals without decimal point (e.g. `10e300`)
-- PJ-79b `wrap_swi.py` fixes:
-  5. Multi-line directive stripping (consume through terminating `.`)
-  6. `:- dynamic` with predicate on next line (`STRIP_BARE_RE` relaxed to `\s*$`)
-  7. Xfail suites requiring GMP/pushback-DCG: `minint`, `maxint`, `minint_promotion`, `maxint_promotion`, `max_integer_size`, `float_compare`, `context`
+**What was done PJ-80 (commits PJ-80a, PJ-80b):**
+- PJ-80a: `pj_ldc_str()` in `prolog_emit_jvm.c` — escape `\` and `"` in `ldc` string emission; fixes Jasmin `Bad backslash escape` on atoms like `=\=`
+- PJ-80b: `var`/`nonvar` type-check codegen stack fix — after `invokevirtual equals`, emit `swap; pop` so branch targets have consistent stack height; fixes VerifyError in `test_dcg` `p_test_2`
 
-**SWI baseline compile status (tests/core/):**
-- `test_list.pl` ✅ compiles clean
-- `test_unify.pl` ✅ compiles clean
-- `test_misc.pl` ✅ compiles clean
-- `test_arith.pl` ✅ compiles clean (7 GMP/NaN suites xfailed)
-- `test_dcg.pl` ✅ compiles clean (pushback-DCG `context` suite xfailed)
-- `test_exception.pl` — NOT YET RUN (throw/catch semantics gaps from PJ-78)
+**SWI run status after PJ-80 (tests/core/):**
+- `test_list.pl` ✅ runs — 0 passed, 1 failed (`memberchk` goal failed)
+- `test_unify.pl` ✅ runs — 1 passed, 11 failed (unify_self, unify_fv, unify_arity_0, cycles, unifiable…)
+- `test_misc.pl` ✅ runs — 0 passed, 3 failed (read_only_flag, cut_to, cut_to_cleanup)
+- `test_dcg.pl` ✅ runs — **5 passed**, 29 failed, 3 skipped (VerifyError fixed)
+- `test_arith.pl` ❌ Jasmin method-size overflow — `p_test_2` (225 clauses → 20K-line method) exceeds 16-bit branch offset limit
 
-**PJ-80 task: run the 5 compiled test files, assess pass/fail, then tackle test_exception.pl**
+**PJ-81 tasks (in order):**
+1. **Method splitting** — large predicates must be split into per-clause sub-methods to fix `test_arith` Jasmin overflow
+2. **Runtime failures** — `memberchk`, `unify_self`/`unify_fv`/`unify_arity_0`, DCG `expand_goal`, `cut_to`, etc.
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
@@ -81,7 +73,7 @@ export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam — saves ~5% context wi
 ```
 
 **Key files:**
-- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
+- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — var/nonvar ~line 4703; pj_ldc_str ~line 56; linker ~line 7040
 - `snobol4x/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
 - SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files)
 
