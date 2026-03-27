@@ -3138,3 +3138,46 @@ export JAVA_TOOL_OPTIONS=""
 # THEN: fix variable-sharing (inline body term in pj_test assertz)
 # Run: ./sno2c -pl -jvm /tmp/swipl-devel/tests/core/test_list.pl > /tmp/test_list.j
 ```
+
+---
+
+## SD-34 — 2026-03-27 — Scrip demos M-SD-5 through M-SD-8 survey; RULES.md fix
+
+**Session type:** Scrip Demo · multi-milestone survey · SD-34
+
+**Starting state:** M-SD-4 ✅. snobol4x `f8e74fc`.
+
+**Work done:**
+
+M-SD-5 fibonacci:
+- SNO2C-JVM: PASS first try.
+- PROLOG-JVM: `forall/2` NoSuchMethodError → added synthetic `pj_emit_forall_builtin()` using `pj_call_goal` loop. Still fails silently — `pj_call_goal` doesn't bind variable `N` across `between` iterations. Blocked.
+- ICON-JVM: skipped (suspend/repeat/limit generators — complex). **Wrong call — should not have skipped.**
+
+M-SD-6 sieve:
+- SNO2C-JVM: PASS. PROLOG-JVM: PASS.
+- ICON-JVM: demo6/sieve.md Icon block had no semicolons — added by hand (no semicolon on procedure header). After fix: parse OK but VerifyError — `out ||:= i` (String concat augmented-assign with long RHS) → "Expecting to find object/array on stack". Blocked.
+
+M-SD-7 (rot13): SNO2C PASS, PROLOG FAIL. M-SD-8 (insertion sort): SNO2C PASS, PROLOG PASS. M-SD-9 (rpn): SNO2C PASS, PROLOG FAIL. M-SD-10 (anagram): SNO2C FAIL, PROLOG FAIL.
+
+RULES.md fix: wrong claim "parser accepts optional semicolons after procedure headers" — corrected to "NO semicolon after procedure header". Memory system (auto-derived) also carried this wrong claim; user disabled auto-derive memory in GUI.
+
+**Commits:**
+- snobol4x `583e685` — forall/2 synthetic builtin (WIP)
+- snobol4x `5d900b8` — demo6/sieve.md semicolons
+- .github `1d0f809` — RULES.md semicolon fix
+- .github `db782be` — SCRIP_DEMOS + MILESTONE_ARCHIVE M-SD-5/6/8
+
+**HEAD at handoff:** snobol4x `5d900b8`, .github this commit
+
+**Bootstrap SD-35:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
+cd snobol4x/src && make -j$(nproc) && make icon_driver
+# FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md in full
+# Step 1: fix icon_emit_jvm.c — ||:= augmented concat with integer RHS needs Long.toString() coercion
+# Step 2: test demo6 ICON-JVM: sieve[1] := 0; out ||:= i pattern
+# Step 3: fix PROLOG-JVM demo5 forall/2 — pj_call_goal variable binding across between iterations
+# Step 4: run full demo6 run_demo.sh, fire M-SD-6 if all 3 PASS
+```
