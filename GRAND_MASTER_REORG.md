@@ -339,9 +339,34 @@ the emit pass. Generated labels are always `L<id>_<port>` (JVM/.NET) or
 | Icon return value | `icn_retval` | `icn_retval` | `icn_retval` |
 | Prolog trail top | `pl_trail_top` | `pl_trail_top` | `pl_trail_top` |
 
----
+**Output macro — law addition (M-G0-SIL-NAMES):**
 
-## Migration Strategy
+`ICN_OUT(em, fmt, ...)` — write macro for `icon_emit.c` (Icon x64 backend).
+Distinct from `E(fmt, ...)` (SNOBOL4/x64 instruction output). The distinction
+is necessary because both files may be compiled together after Phase 2
+restructuring. `ICN_OUT` is the law; do not use bare `E()` in `icon_emit.c`.
+
+**EKind alias bridges — law addition (M-G0-SIL-NAMES):**
+
+During Phase 1 (M-G1-IR-HEADER-WIRE), `sno2c.h` receives `#define` aliases
+mapping old names to canonical `ir.h` names (e.g. `#define E_VART E_VAR`).
+These aliases exist only for compilation compatibility. They are removed
+in Phase 5 when all frontends are updated to use canonical names.
+
+**`stmt_` prefix — runtime C shim functions (confirmed law):**
+
+`stmt_init`, `stmt_get`, `stmt_set`, `stmt_concat`, `stmt_any_ptr`, etc.
+The `stmt_` prefix scopes all C runtime shim functions called from x64 ASM
+macros. Not to be confused with SIL's `STMT` (statement number field). Do
+not use `stmt_` for any non-shim function.
+
+**`_fn` suffix — engine-level SIL-derived function names (confirmed law):**
+
+`VARVAL_fn`, `STRCONCAT_fn`, `NV_GET_fn`, etc. The `_fn` suffix appended to
+SIL procedure names avoids clashes with SNOBOL4 source-language identifiers.
+All engine-level functions derived from SIL proc names use this suffix.
+
+---
 
 **Concurrent development continues normally until Lon gives the word to begin execution.**
 When execution is scheduled, all sessions will be paused for the duration of the reorg.
@@ -412,7 +437,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `snobol4corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
 | **M-G0-AUDIT** ✅ | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | `doc/EMITTER_AUDIT.md` committed `252dac0` |
 | **M-G0-IR-AUDIT** ✅ | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md`. `E_VAR` renamed `E_VAR` (T was SIL type-code artifact). 45 canonical node names. See `ARCH-sil-heritage.md`. | `doc/IR_AUDIT.md` updated; `ARCH-sil-heritage.md` committed `fb90365` |
-| **M-G0-SIL-NAMES** | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`sno2c.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` exists, covers all four areas |
+| **M-G0-SIL-NAMES** ✅ | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`sno2c.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` committed — covers all four areas. Two law additions: `ICN_OUT()` for icon_emit.c write macro (avoids `E()` collision); EKind alias bridge documentation. `snobol4_asm.mac` is fully conformant gold standard. No law corrections needed — existing law is sound. |
 
 #### M-G0-CORPUS-AUDIT — Inventory and Open Decisions
 
