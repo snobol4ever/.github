@@ -114,37 +114,70 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 | Kind | Meaning | α | β |
 |------|---------|---|---|
-| `E_QLIT` | String literal match | match at cursor | restore, fail |
+| `E_QLIT` | String literal | load/match value | — |
 | `E_ILIT` | Integer literal | load value | — |
 | `E_FLIT` | Float literal | load value | — |
+| `E_CSET` | Cset literal (Icon/Rebus) | load cset value | — |
 | `E_VART` | Variable reference | load binding | — |
-| `E_CONC` | Concatenation / sequence | left then right | right-ω → left-β |
-| `E_OR` | Alternation | try left | left-ω → try right |
-| `E_ARBNO` | Zero-or-more | try zero | undo last match |
+| `E_CONC` | Concatenation / sequence (also: conjunction, compound stmt) | left then right | right-ω → left-β |
+| `E_OR` | Alternation (SNOBOL4 pattern) | try left | left-ω → try right |
+| `E_ARBNO` | Zero-or-more (also: while/until/repeat/every via lowering) | try zero | undo last match |
 | `E_POS` | Cursor position assert | check cursor == n | fail |
 | `E_RPOS` | Right cursor assert | check cursor == len-n | fail |
 | `E_ARB` | Arbitrary match | try 0 chars | advance one, retry |
 | `E_DOT` | Cursor capture (`.`) | match, capture cursor | pass β to child |
 | `E_DOLLAR` | Value capture (`$`) | match, capture value | pass β to child |
-| `E_FNC` | Function call / goal | call | — |
-| `E_ASSIGN` | Assignment | evaluate RHS, assign | — |
-| `E_ADD/SUB/MPY/DIV/MOD` | Arithmetic | evaluate | — |
-| `E_IDX` | Array/table subscript | aref | — |
+| `E_FNC` | Function call / goal / builtin | call | — |
+| `E_ASSIGN` | Assignment (also: augmented assign via lowering) | evaluate RHS, assign | — |
+| `E_ADD` | Addition | evaluate | — |
+| `E_SUB` | Subtraction | evaluate | — |
+| `E_MPY` | Multiplication | evaluate | — |
+| `E_DIV` | Division | evaluate | — |
+| `E_MOD` | Modulo / remainder | evaluate | — |
+| `E_POW` | Exponentiation | evaluate | — |
+| `E_IDX` | Array/table/record subscript (also: field access via string key) | aref | — |
+| `E_MAKELIST` | List constructor `[e1,e2,...]` (Icon/Rebus) | evaluate all children, build list | — |
 | `E_UNIFY` | Prolog unification | bind with trail | unwind trail, fail |
 | `E_CLAUSE` | Prolog Horn clause | try head | retry next |
 | `E_CHOICE` | Prolog predicate | α of first clause | β chain |
-| `E_CUT` | Prolog cut / FENCE | seal β | unreachable |
+| `E_CUT` | Prolog cut / FENCE (also: unless-lowering) | seal β | unreachable |
 | `E_TRAIL_MARK` | Save trail top | mark | — |
 | `E_TRAIL_UNWIND` | Restore trail | unwind | — |
 | `E_SUSPEND` | Icon suspend / generator | yield value | resume |
 | `E_TO` | Icon `i to j` generator | emit i | increment, retry |
 | `E_TO_BY` | Icon `i to j by k` | emit i | step by k, retry |
 | `E_LIMIT` | Icon `E \ N` limitation | count down | fail at 0 |
-| `E_ALT_GEN` | Icon alt generator | emit left | left-done → emit right |
-| `E_BANG` | Icon `!E` (iterate string) | emit first char | next char |
-| `E_SCAN` | Icon `E ? E` scanning | set subject | restore subject |
-| `E_SWAP` | Icon `:=:` swap | swap bindings | — |
-| `E_POW` | Icon `^` power | compute | — |
+| `E_ALT_GEN` | Icon alt generator (distinct β wiring from E_OR) | emit left | left-done → emit right |
+| `E_BANG` | Icon `!E` (iterate list or string elements) | emit first element | next element |
+| `E_SCAN` | Icon/Rebus `E ? E` scanning | set subject | restore subject |
+| `E_SWAP` | Swap bindings `:=:` | swap | — |
+
+**37 node kinds total.**
+
+**Lowering rules — constructs that collapse to existing nodes:**
+
+| Source construct | Lowers to | Rationale |
+|-----------------|-----------|-----------|
+| `every E do body` | `E_ARBNO(E_CONC(E, body))` | ARBNO wiring covers it |
+| `while E do body` | `E_ARBNO(E_CONC(E, body))` | Same |
+| `until E do body` | `E_ARBNO(E_CONC(E_OR(fail,E), body))` | Composable |
+| `repeat body` | `E_ARBNO(body)` | Same |
+| `if E then A else B` | `E_OR(E_CONC(E,A), B)` | OR wiring |
+| `unless E then body` | `E_OR(E_CONC(E_CUT,fail), body)` | FENCE pattern |
+| `E1 ; E2` (seq expr) | `E_CONC(E1, E2)` | Sequencing is CONC |
+| `E1 & E2` (conjunction) | `E_CONC(E1, E2)` | Conjunction IS sequencing |
+| `{ s1; s2; ... }` (compound) | `E_CONC(s1, E_CONC(s2, ...))` | Same |
+| `x op:= e` (augmented assign) | `E_ASSIGN(x, E_op(x, e))` | Composable |
+| `for i from a to b` | `E_CONC(E_ASSIGN(i,a), E_ARBNO(...))` | Composable |
+| `E.field` (field access) | `E_IDX(E, E_QLIT("field"))` | Named subscript |
+| `E[i:j]` (substring) | `E_FNC("sub", E, i, j)` | Builtin call |
+| `E \|\|\| F` (list concat) | `E_FNC("lconcat", E, F)` | Builtin call |
+| All comparisons (LT,GE,SEQ...) | `E_FNC("LT",2)` etc. | Builtin calls |
+| `*E` (size), `?E` (random), `===` | `E_FNC(...)` | Builtin calls |
+| `not E`, `\E`, `/E` | `E_FNC(...)` | Builtin calls |
+| Cset ops (`++`,`--`,`**`,`~`) | `E_FNC(...)` | Builtin calls |
+| `return/fail/break/next` | γ/ω routing at stmt level | Not IR nodes |
+| `proc/record/global/initial` | Program/STMT_t level | Not EKind |
 
 ### Naming Convention — THE LAW
 
