@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-PARSE-POLISH ✅ mirrors pass (Prolog exit 0 144L; Icon exit 0 259L; fix: sx_tag call compound tag → atom) | `9cb4af7` PP-1 | — |
+| **🌳 Parser pair** | PP-1: M-PARSE-POLISH ✅ mirrors pass; icon_recognizer.icn WIP (compiles, 7 bugs fixed, 1 remaining — see handoff) | `35988b9` PP-1 | M-RECOG-ICON · M-RECOG-PROLOG |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
