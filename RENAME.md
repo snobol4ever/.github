@@ -30,8 +30,8 @@ One-time rename execution plan. Eight phases, strict order. Do not reorder — s
 | python | `snobol4python` | `snobol4-python` | — | PyPI: `snobol4python` | `import snobol4python` |
 | c# | `snobol4csharp` | `snobol4-csharp` | — | NuGet: `snobol4csharp` | `Snobol4.CSharp` ¹ |
 | **INFRASTRUCTURE** | | | | | |
-| test corpus | `snobol4corpus` | `snobol4-corpus` | — | — | — |
-| test harness | `snobol4harness` | `snobol4-harness` | — | — | — |
+| test corpus | `corpus` | `snobol4-corpus` | — | — | — |
+| test harness | `harness` | `snobol4-harness` | — | — | — |
 | **EXPERIMENTAL** | | | | | |
 | cpython ext | `snobol4artifact` | `snobol4-artifact` | — | PyPI: `snobol4artifact` | `import snobol4artifact` |
 
@@ -50,8 +50,8 @@ Edit all `.md` files. **Do not push yet.**
 | `github.com/SNOBOL4-plus/SNOBOL4-tiny` | `github.com/snobol4ever/snobol4x` |
 | `github.com/SNOBOL4-plus/SNOBOL4-jvm` | `github.com/snobol4ever/snobol4jvm` |
 | `github.com/SNOBOL4-plus/SNOBOL4-dotnet` | `github.com/snobol4ever/snobol4dotnet` |
-| `github.com/SNOBOL4-plus/SNOBOL4-corpus` | `github.com/snobol4ever/snobol4corpus` |
-| `github.com/SNOBOL4-plus/SNOBOL4-harness` | `github.com/snobol4ever/snobol4harness` |
+| `github.com/SNOBOL4-plus/SNOBOL4-corpus` | `github.com/snobol4ever/corpus` |
+| `github.com/SNOBOL4-plus/SNOBOL4-harness` | `github.com/snobol4ever/harness` |
 | `github.com/SNOBOL4-plus/SNOBOL4-python` | `github.com/snobol4ever/snobol4python` |
 | `github.com/SNOBOL4-plus/SNOBOL4-cpython` | `github.com/snobol4ever/snobol4artifact` |
 | `github.com/SNOBOL4-plus/SNOBOL4-csharp` | `github.com/snobol4ever/snobol4csharp` |
@@ -66,7 +66,7 @@ Edit all `.md` files. **Do not push yet.**
 | `SNOBOL4-tiny` (repo refs) | `snobol4x` |
 | `SNOBOL4-jvm` (repo refs) | `snobol4jvm` |
 | `SNOBOL4-dotnet` (repo refs) | `snobol4dotnet` |
-| `SNOBOL4-corpus` (repo refs) | `snobol4corpus` |
+| `SNOBOL4-corpus` (repo refs) | `corpus` |
 | `SNOBOL4-cpython` (repo refs) | `snobol4artifact` |
 | `SNOBOL4-python` (repo refs) | `snobol4python` |
 | `SNOBOL4-csharp` (repo refs) | `snobol4csharp` |
@@ -114,8 +114,8 @@ Settings → General → Repository name, one at a time:
 | `SNOBOL4-tiny` | `snobol4x` |
 | `SNOBOL4-jvm` | `snobol4jvm` |
 | `SNOBOL4-dotnet` | `snobol4dotnet` |
-| `SNOBOL4-corpus` | `snobol4corpus` |
-| `SNOBOL4-harness` | `snobol4harness` |
+| `SNOBOL4-corpus` | `corpus` |
+| `SNOBOL4-harness` | `harness` |
 | `SNOBOL4-python` | `snobol4python` |
 | `SNOBOL4-cpython` | `snobol4artifact` |
 | `SNOBOL4-csharp` | `snobol4csharp` |
@@ -131,8 +131,8 @@ Run in each cloned repo on every machine:
 git remote set-url origin https://github.com/snobol4ever/snobol4x
 git remote set-url origin https://github.com/snobol4ever/snobol4jvm
 git remote set-url origin https://github.com/snobol4ever/snobol4dotnet
-git remote set-url origin https://github.com/snobol4ever/snobol4corpus
-git remote set-url origin https://github.com/snobol4ever/snobol4harness
+git remote set-url origin https://github.com/snobol4ever/corpus
+git remote set-url origin https://github.com/snobol4ever/harness
 git remote set-url origin https://github.com/snobol4ever/snobol4python
 git remote set-url origin https://github.com/snobol4ever/snobol4artifact
 git remote set-url origin https://github.com/snobol4ever/snobol4csharp

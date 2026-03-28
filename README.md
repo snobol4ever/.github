@@ -20,8 +20,8 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 | [REPO-snobol4x.md](REPO-snobol4x.md) | snobol4x — HEAD, build commands, sprint, frontier table, pivot log |
 | [REPO-snobol4jvm.md](REPO-snobol4jvm.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
 | [REPO-snobol4dotnet.md](REPO-snobol4dotnet.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
-| [ARCH-corpus.md](ARCH-corpus.md) | snobol4corpus — layout, update protocol |
-| [ARCH-harness.md](ARCH-harness.md) | snobol4harness — oracles, probe, benchmarks |
+| [ARCH-corpus.md](ARCH-corpus.md) | corpus — layout, update protocol |
+| [ARCH-harness.md](ARCH-harness.md) | harness — oracles, probe, benchmarks |
 
 ## L3 — Frontends (one per input language)
 

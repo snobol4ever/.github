@@ -17,7 +17,7 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 |---|-------|-------------|
 | 1 | **WHO** | Sets `git config user.name/email` to LCherryholmes — every commit, every repo |
 | 2 | **WHAT** | Prints project summary: 6 frontends × 4 backends, current reorg phase, ref docs |
-| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `snobol4x` · `snobol4corpus` · `snobol4harness` |
+| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `snobol4x` · `corpus` · `harness` |
 | 4 | **WHERE (tools)** | Installs `nasm` · `mono-complete` · `java` · confirms `jasmin.jar` · builds `sno2c` |
 | 5 | **WHY** | Prints current milestone from PLAN.md and the four docs to read before coding |
 | 6 | **HOW** | Runs all three invariants: `x86 106/106 · JVM 106/106 · .NET 110/110` |
@@ -170,7 +170,7 @@ No narrative beyond a short status phrase. No substeps. No bullet points. One ro
 ```
 /home/claude/snobol4x/        ← compiler + backends (main working repo)
 /home/claude/.github/         ← HQ docs
-/home/claude/snobol4corpus/   ← test corpus (clone if needed)
+/home/claude/corpus/   ← test corpus (clone if needed)
 /home/claude/snobol4jvm/      ← JVM/Clojure backend (clone if needed)
 ```
 Always clone fresh at session start. Never use symlinks. First action is always clone.
@@ -189,7 +189,7 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 - **x86 SNOBOL4:** `run_crosscheck_asm_corpus.sh` must show 106/106.
 - **JVM SNOBOL4:** `run_crosscheck_jvm_rung.sh` against full corpus must show 106/106.
-- **.NET SNOBOL4:** `run_crosscheck_net.sh` must show 110/110 (requires `snobol4harness`).
+- **.NET SNOBOL4:** `run_crosscheck_net.sh` must show 110/110 (requires `harness`).
 - **Icon x64:** all 38 `test/frontend/icon/run_rung*.sh` must PASS.
 - **Icon JVM:** all 38 `test/frontend/icon/run_rung*.sh` via JVM path must PASS.
 - **Prolog x64:** all `test/frontend/prolog/corpus/rung*/` must PASS.
@@ -252,7 +252,7 @@ procedure main();   ← ERROR
 `icon_semicolon` is an end-user tool only — never run in the pipeline.
 When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
 
-**IPL programs from snobol4corpus require explicit semicolons added before they
+**IPL programs from corpus require explicit semicolons added before they
 can be compiled by our frontend.** Standard Icon has implicit semicolons; our
 lexer (`icon_lex.c` line 4: "No auto-semicolon insertion — deliberate deviation")
 does NOT. The rung36 corpus is pre-converted. Raw IPL files are NOT directly usable.

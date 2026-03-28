@@ -14,17 +14,17 @@ compiler/runtime product repos:
 | `snobol4x` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
 | `snobol4jvm` | Compiler/runtime | Clojure | SNOBOL4/SPITBOL → JVM only |
 | `snobol4dotnet` → `snobol4net` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only; rename pending (M-G9) |
-| `snobol4harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
-| `snobol4corpus` | Test data | SNOBOL4/Icon/Prolog | Canonical crosscheck corpus used by all backends |
+| `harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
+| `corpus` | Test data | SNOBOL4/Icon/Prolog | Canonical crosscheck corpus used by all backends |
 | `snobol4python` | Pattern library | Python | Out of scope for this reorg |
 | `snobol4csharp` | Pattern library | C# | Out of scope for this reorg |
 
 `snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend repos in different
 host languages; they are **not restructured here**.
 
-`snobol4harness` and `snobol4corpus` are infrastructure repos. They are **not
-structurally reorganized** but their rename (to the canonical `snobol4harness` /
-`snobol4corpus` marketing names, per RENAME.md) is part of the reorg scope and
+`harness` and `corpus` are infrastructure repos. They are **not
+structurally reorganized** but their rename (to the canonical `harness` /
+`corpus` marketing names, per RENAME.md) is part of the reorg scope and
 is executed in **M-G0-RENAME** below.
 
 `snobol4x` is the 2D matrix repo — the only one that is, or will be, multi-frontend
@@ -443,9 +443,9 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. snobol4harness HEAD: `eced661`. snobol4corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
-| **M-G0-RENAME** ✅ | Confirmed: `snobol4harness` and `snobol4corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
-| **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `snobol4corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
+| **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. harness HEAD: `eced661`. corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
+| **M-G0-RENAME** ✅ | Confirmed: `harness` and `corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
+| **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
 | **M-G0-AUDIT** ✅ | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | `doc/EMITTER_AUDIT.md` committed `252dac0` |
 | **M-G0-IR-AUDIT** ✅ | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md`. `E_VAR` renamed `E_VAR` (T was SIL type-code artifact). 45 canonical node names. See `ARCH-sil-heritage.md`. | `doc/IR_AUDIT.md` updated; `ARCH-sil-heritage.md` committed `fb90365` |
 | **M-G0-SIL-NAMES** ✅ | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`sno2c.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` committed — covers all four areas. Two law additions: `ICN_OUT()` for icon_emit.c write macro (avoids `E()` collision); EKind alias bridge documentation. `snobol4_asm.mac` is fully conformant gold standard. No law corrections needed — existing law is sound. |
@@ -455,9 +455,9 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 **What was found in `snobol4x/test/` (G-7 session, 2026-03-28):**
 
 All corpus source programs currently living in `snobol4x`. None of these belong here
-post-reorg — they must migrate to `snobol4corpus`.
+post-reorg — they must migrate to `corpus`.
 
-| Location in snobol4x | Extensions | Count | Destination in snobol4corpus |
+| Location in snobol4x | Extensions | Count | Destination in corpus |
 |-----------------------|-----------|-------|------------------------------|
 | `test/frontend/icon/corpus/rung01–rung38/` | `.icn` | 258 | `programs/icon/rung*/` (TBD — check overlap with existing 851 files) |
 | `test/frontend/prolog/corpus/rung*/` | `.pro`, `.pl` | 130 | `programs/prolog/rung*/` |
@@ -476,24 +476,24 @@ These travel with the source programs (decision pending — see below).
 
 **Decisions resolved (2026-03-28, Lon):**
 
-1. **Oracle files (`.expected` / `.ref`):** ✅ **Migrate to `snobol4corpus`** alongside
+1. **Oracle files (`.expected` / `.ref`):** ✅ **Migrate to `corpus`** alongside
    their source programs. Source and oracle are a unit — they travel together.
 
 2. **Runner scripts (`run_rung*.sh` etc.):** ✅ **Stay in all three compiler/runtime repos**
    (`snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`), with paths updated to point
-   to `snobol4corpus`. Runners are compiler-specific test drivers, not shared infrastructure.
+   to `corpus`. Runners are compiler-specific test drivers, not shared infrastructure.
 
-3. **Overlap / dedup:** ✅ **Clone `snobol4corpus` and diff first.** If a file exists in
-   both repos with identical content → keep one copy in `snobol4corpus`, remove from
+3. **Overlap / dedup:** ✅ **Clone `corpus` and diff first.** If a file exists in
+   both repos with identical content → keep one copy in `corpus`, remove from
    `snobol4x`. If content differs → human review before any merge. No blind overwrites.
 
 **Dedup analysis complete (G-7 session, 2026-03-28):**
 
-`snobol4corpus` was cloned and diffed against every snobol4x corpus directory.
+`corpus` was cloned and diffed against every snobol4x corpus directory.
 Result: **zero content conflicts**. Every file in `snobol4x/test/` is either
-entirely absent from `snobol4corpus` or clearly distinct. No blind-overwrite risk.
+entirely absent from `corpus` or clearly distinct. No blind-overwrite risk.
 
-| Frontend | snobol4x location | Files | In snobol4corpus? | Action |
+| Frontend | snobol4x location | Files | In corpus? | Action |
 |----------|-------------------|-------|-------------------|--------|
 | Icon | `test/frontend/icon/corpus/rung01–38/` | 258 `.icn` | ❌ Not present (corpus has IPL only) | Move to `programs/icon/rung*/` |
 | Prolog | `test/frontend/prolog/corpus/rung*/` | 130 `.pro/.pl` | ❌ Not present | Move to `programs/prolog/rung*/` |
@@ -506,7 +506,7 @@ entirely absent from `snobol4corpus` or clearly distinct. No blind-overwrite ris
 | Rebus | `test/rebus/*.reb` | 3 `.reb` | ❌ Not present | Move to `programs/rebus/` |
 
 **One file resolved this session:**
-`snobol4corpus/programs/beauty/beauty.sno` removed (`6c964b8`). The corpus version
+`corpus/programs/beauty/beauty.sno` removed (`6c964b8`). The corpus version
 used `.inc` extensions and different indentation — stale. `snobol4x/demo/beauty.sno`
 is the single authoritative copy.
 
@@ -516,13 +516,13 @@ is the single authoritative copy.
 
 | Step | Action | Verify |
 |------|--------|--------|
-| 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to snobol4corpus; matching removal from snobol4x. | Icon invariants green after each batch |
+| 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to corpus; matching removal from snobol4x. | Icon invariants green after each batch |
 | 2 | Move Prolog corpus (130 `.pro`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
 | 3 | Move Snocone corpus (30 `.sc` + oracles). | Snocone 10/10 green |
 | 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 x86 106/106 + JVM + 110/110 NET green |
 | 5 | Move Rebus corpus (3 `.reb` + oracles). | Rebus 3/3 green |
 | 6 | **HOLD** — `demo/beauty.sno` vs corpus `beauty.sno` divergence. Human review. | Lon sign-off |
-| 7 | Update runner script paths in `snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `snobol4corpus` paths |
+| 7 | Update runner script paths in `snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `corpus` paths |
 | 8 | Run full invariant suite. | All four backend invariants green |
 
 ---
@@ -877,7 +877,7 @@ kinds. The enumerator is shared across all languages.
 
 | ID | Decision | Action | Deliverable |
 |----|----------|--------|-------------|
-| **M-G8-HOME** | Where does the enumerator live? | Evaluate `snobol4harness` (cross-repo test infra, already hosts probe/monitor) vs new `snobol4gen` repo (cleaner separation). Decide and document. | `doc/GEN_HOME.md` — one-page decision record: chosen location, rationale, how other repos reference it |
+| **M-G8-HOME** | Where does the enumerator live? | Evaluate `harness` (cross-repo test infra, already hosts probe/monitor) vs new `snobol4gen` repo (cleaner separation). Decide and document. | `doc/GEN_HOME.md` — one-page decision record: chosen location, rationale, how other repos reference it |
 | **M-G8-DEPTH** | Token-count or IR-node depth as the bound? | Token-count is user-intuitive ("programs up to 20 tokens"). IR-node depth is uniform across languages (depth-5 tree has the same combinatorial budget in every grammar). Evaluate both for SNOBOL4 pattern fragment: how many programs does each generate at N=10, N=20, N=25? Is the count tractable? | `doc/GEN_DEPTH.md` — table: language × bound-type × N → program count. Chosen primary bound documented. |
 | **M-G8-ORACLE** | How is expected output determined for generated programs? | Option A: differential (CSNOBOL4 + SPITBOL agree → that is correct; any snobol4x backend that disagrees → bug). Option B: reference cache (run CSNOBOL4 once per generated program, store `.ref`). Evaluate: is differential sufficient, or do we need cached refs for regression detection after a fix? | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
 | **M-G8-GRAMMAR** | What is the Phase-1 grammar scope? | Which language first and what fragment? Candidates: (a) SNOBOL4 pattern expressions — richest, most bug-prone, maps directly to E_QLIT/E_CONC/E_OR/E_ARBNO/E_CAPT_COND/E_CAPT_IMM/E_VAR (7 node kinds); (b) Icon generator expressions — E_TO/E_TO_BY/E_SUSPEND/E_ALT_GEN/E_ITER/E_LIMIT (6 kinds, `Expressions.py` already seeds this); (c) Prolog clause bodies — E_UNIFY/E_CLAUSE/E_CHOICE/E_CUT (4 kinds, simpler). Evaluate coverage ROI vs implementation effort. | `doc/GEN_GRAMMAR.md` — chosen first language and fragment, BNF of the fragment, mapping from each production to its IR node kind(s), estimated program count at N=25 |
@@ -991,9 +991,9 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `snobol4x`, `snobol4jvm`, `.github`, `snobol4harness`, `snobol4corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
+| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `snobol4x`, `snobol4jvm`, `.github`, `harness`, `corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
 | **M-G9-RENAME-NET-EXEC** | Rename GitHub repo `snobol4ever/snobol4dotnet` → `snobol4ever/snobol4net`. GitHub creates redirect from old name automatically. Update RENAME.md name grid. | `git ls-remote github.com/snobol4ever/snobol4net` resolves; old name redirects |
-| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `snobol4x` runner scripts, `snobol4harness` adapters. One repo per commit. | All references resolve; no broken links |
+| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `snobol4x` runner scripts, `harness` adapters. One repo per commit. | All references resolve; no broken links |
 | **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite. Confirm nothing broke. Count TBD — retest required before this milestone can close. | Full suite PASS (retest to establish count) |
 
 ---

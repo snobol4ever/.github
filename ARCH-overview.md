@@ -146,7 +146,7 @@ Rung 3:  concat      Rung 7:  capture     Rung 11: data
 Rung 4:  arith       Rung 8:  strings     Rung 12: beauty.sno
 ```
 All three backends (TINY, JVM, DOTNET) climb the same ladder against the same
-corpus in snobol4corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
+corpus in corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 
 ---
 

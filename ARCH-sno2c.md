@@ -87,8 +87,8 @@ emit_byrd.c uses 3-column ✅. emit.c still uses raw `E(...)` — fix after M-BE
 
 End of every session touching sno2c, emit*.c, or runtime/:
 ```bash
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/claude/corpus/programs/inc
+BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > /tmp/beauty_tramp_candidate.c
 LAST=$(ls artifacts/beauty_tramp_session*.c 2>/dev/null | sort -V | tail -1)
 md5sum $LAST /tmp/beauty_tramp_candidate.c

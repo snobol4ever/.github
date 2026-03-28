@@ -67,8 +67,8 @@ clone_or_pull() {
 
 clone_or_pull ".github"       ".github"
 clone_or_pull "snobol4x"      "snobol4x"
-clone_or_pull "snobol4corpus" "snobol4corpus"
-clone_or_pull "snobol4harness" "snobol4harness"
+clone_or_pull "corpus" "corpus"
+clone_or_pull "harness" "harness"
 echo ""
 
 # ── WHERE — install tools ─────────────────────────────────────────────────────

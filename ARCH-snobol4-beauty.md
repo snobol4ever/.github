@@ -170,7 +170,7 @@ must call `nPop()` on failure before falling to the next alternative.
 
 ## Rung 12 Test Format (TINY crosscheck)
 
-Tests in `snobol4corpus/crosscheck/beauty/`:
+Tests in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet piped into beauty_full_bin
 - `NNN_name.ref` — oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
 
@@ -236,7 +236,7 @@ Given first divergence line N in the diff:
 ## Probe Script (Paradigm 2)
 
 ```bash
-python3 /home/claude/snobol4harness/probe/probe.py \
+python3 /home/claude/harness/probe/probe.py \
     --oracle csnobol4 --max 200 failing.sno
 ```
 Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.

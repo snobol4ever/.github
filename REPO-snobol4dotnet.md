@@ -37,9 +37,9 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Fix → cross test PASS → 80/80 crosscheck → diag1 → benchmark → M-NET-POLISH.
 
 # Crosscheck command:
-# DOTNET_REPO=/home/claude/snobol4dotnet CORPUS=/home/claude/snobol4corpus/crosscheck \
+# DOTNET_REPO=/home/claude/snobol4dotnet CORPUS=/home/claude/corpus/crosscheck \
 # DOTNET_ROOT=/usr/local/dotnet10 \
-# bash /home/claude/snobol4harness/adapters/dotnet/run_crosscheck_dotnet.sh
+# bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 # Currently: 79/80 (1 fail: strings/cross — @N bug)
 ```
 

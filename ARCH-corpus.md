@@ -1,6 +1,6 @@
-# ARCH-corpus.md — snobol4corpus Structure
+# ARCH-corpus.md — corpus Structure
 
-**Repo:** https://github.com/snobol4ever/snobol4corpus  
+**Repo:** https://github.com/snobol4ever/corpus  
 **What it is:** Single source of truth for all `.sno`, `.inc`, and `.spt` files. Shared by all three platforms. No per-platform duplicates.
 
 ---

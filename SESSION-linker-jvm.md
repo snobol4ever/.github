@@ -113,7 +113,7 @@ git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinka
 ```
 
 **After M-SCRIP-DEMO passes:**
-- Run regression: `bash test/crosscheck/run_crosscheck_jvm_rung.sh /home/claude/snobol4corpus/crosscheck/*/` → expect 127 pass
+- Run regression: `bash test/crosscheck/run_crosscheck_jvm_rung.sh /home/claude/corpus/crosscheck/*/` → expect 127 pass
 - Commit: `LP-JVM-3: M-SCRIP-DEMO ✅`
 - Update this SESSION doc + PLAN.md
 
@@ -192,7 +192,7 @@ git commit -m "LP-JVM-3: M-SCRIP-DEMO ✅"
 
 **Then run regression:**
 ```bash
-bash test/crosscheck/run_crosscheck_jvm_rung.sh /home/claude/snobol4corpus/crosscheck/*/
+bash test/crosscheck/run_crosscheck_jvm_rung.sh /home/claude/corpus/crosscheck/*/
 # expect 127 pass
 ```
 

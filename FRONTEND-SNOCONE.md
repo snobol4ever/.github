@@ -19,7 +19,7 @@ Status: in progress across TINY, JVM, DOTNET — lexer and expression parser don
 
 ## Corpus
 
-Reference files in `snobol4corpus/programs/snocone/`:
+Reference files in `corpus/programs/snocone/`:
 - `snocone.sc` — Snocone reference program (self-describing)
 - `snocone.snobol4` — SNOBOL4 translation oracle
 - `report.md` — language specification

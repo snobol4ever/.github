@@ -39,16 +39,16 @@ bash test/crosscheck/run_beauty.sh                       # rung 12
 ### Paradigm 2 — Probe (&STLIMIT frame-by-frame)
 What: run program N times at &STLIMIT=1..N with &DUMP=2. Show what changed each step.
 Catches: exactly WHERE divergence first appears — which variable, which statement.
-Tool: `snobol4harness/probe/probe.py`
+Tool: `harness/probe/probe.py`
 ```bash
-python3 /home/claude/snobol4harness/probe/probe.py --oracle csnobol4 --max 200 failing.sno
+python3 /home/claude/harness/probe/probe.py --oracle csnobol4 --max 200 failing.sno
 ```
 When to use: Paradigm 1 finds failure → Paradigm 2 locates statement.
 
 ### Paradigm 3 — Monitor (TRACE double-trace diff)
 What: TRACE('fn','CALL'/'RETURN'/'VALUE') hooks in beauty.sno. Both oracle and compiled
 emit same event stream. Diff stream event by event. First divergence = root cause.
-Tool: `snobol4corpus/programs/beauty/beauty_trace.sno` + `test/crosscheck/monitor_beauty.sh`
+Tool: `corpus/programs/beauty/beauty_trace.sno` + `test/crosscheck/monitor_beauty.sh`
 ```bash
 snobol4 -f -P256k -I$INC beauty_trace.sno < input.sno 2>oracle_trace.txt
 ./beauty_full_bin_trace < input.sno 2>compiled_trace.txt
@@ -86,7 +86,7 @@ Note: SPITBOL excluded from full beauty.sno (error 021 at END). CSNOBOL4 is prim
 
 ## Rung 12 Test Format
 
-Tests live in `snobol4corpus/crosscheck/beauty/`:
+Tests live in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet to pipe to beauty_full_bin
 - `NNN_name.ref` — oracle output: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
 
@@ -109,7 +109,7 @@ Test progression: 101_comment → 102_output → 103_assign → 104_label → 10
 | SPITBOL x32 | https://github.com/snobol4ever/x32 | [`snobol4ever/x32`](https://github.com/snobol4ever/x32) — **our fork** of [`hardbol/spitbol`](https://github.com/hardbol/spitbol) |
 | SNOBOL5 | Linux binary: https://snobol5.org/snobol5 · Docs: https://snobol5.org/snobol5.htm | No GitHub — binary only, no public source |
 
-Step-by-step build: `snobol4harness/oracles/csnobol4/BUILD.md` · `snobol4harness/oracles/spitbol/BUILD.md`
+Step-by-step build: `harness/oracles/csnobol4/BUILD.md` · `harness/oracles/spitbol/BUILD.md`
 
 **SNOBOL5 notes:** 64-bit ints/strings. `&CASE` → Error 7. `CODE()` broken. OPSYN single-char only. Not a drop-in oracle.
 
@@ -127,7 +127,7 @@ Step-by-step build: `snobol4harness/oracles/csnobol4/BUILD.md` · `snobol4harnes
 5. All `?` cells in the grid below replaced with live-tested ✅ or ❌
 6. `&STEXEC` tested on CSNOBOL4 as alternative to `&STCOUNT` (both work; `&STEXEC` is CSNOBOL4-only, `&STCOUNT` is portable)
 7. SNOBOL5 probe counter situation resolved: `&STNO`, `&LASTNO`, or neither?
-8. Commit to snobol4harness with updated grid
+8. Commit to harness with updated grid
 
 **verify.sno — probe program:**
 ```snobol4
@@ -256,13 +256,13 @@ Monitor pipe reader must normalize per oracle — all carry statement number and
 cd /home/claude/snobol4x
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 apt-get install -y libgc-dev && make -C src/sno2c
-mkdir -p /home/snobol4corpus
-ln -sf /home/claude/snobol4corpus/crosscheck /home/snobol4corpus/crosscheck
+mkdir -p /home/corpus
+ln -sf /home/claude/corpus/crosscheck /home/corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106 before any work
 
 # Build beauty_full_bin
-RT=src/runtime; INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+RT=src/runtime; INC=/home/claude/corpus/programs/inc
+BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
 src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \

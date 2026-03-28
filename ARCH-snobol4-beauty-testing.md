@@ -12,7 +12,7 @@ One session = write driver → monitor finds divergence → fix backend → re-r
 No separate BUG SESSION needed for beauty bugs: find it and fix it in the same session.
 
 Drivers live in `snobol4x/test/beauty/` alongside `.ref` oracle files.
-Gimpel corpus programs (snobol4corpus/programs/gimpel/) serve as inspiration and
+Gimpel corpus programs (corpus/programs/gimpel/) serve as inspiration and
 cross-validation — 145 programs exercising nearly every SNOBOL4 pattern, many
 directly parallel to the beauty subsystems.
 
@@ -130,11 +130,11 @@ Both scripts live in `snobol4x/test/beauty/` on the `asm-backend` branch.
 
 ```bash
 # 1. Generate oracle ref (once per driver)
-INC=/home/claude/snobol4corpus/programs/inc \
+INC=/home/claude/corpus/programs/inc \
   snobol4 -f -P256k -I$INC test/beauty/<sub>/driver.sno > test/beauty/<sub>/driver.ref
 
 # 2. Run monitor — first diverging line identifies the bug precisely
-INC=/home/claude/snobol4corpus/programs/inc X64_DIR=/home/claude/x64 \
+INC=/home/claude/corpus/programs/inc X64_DIR=/home/claude/x64 \
   MONITOR_TIMEOUT=30 bash test/beauty/run_beauty_subsystem.sh <sub>
 
 # 3. Fix the bug in src/runtime/snobol4/snobol4.c (or emitter)
@@ -262,7 +262,7 @@ git checkout jvm-t2 && git pull
 apt-get install -y default-jdk
 cd src && make -j4
 # Confirm JVM corpus
-CORPUS=/home/claude/snobol4corpus/crosscheck
+CORPUS=/home/claude/corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
   $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \

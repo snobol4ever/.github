@@ -2,8 +2,8 @@
 
 > **STATUS: ALL NUMBERS ARE PLACEHOLDERS.**
 > These tables will be populated from three official milestone runs:
-> - **M-GRID-BENCH** — benchmark grid: all engines timed against same programs via snobol4harness
-> - **M-GRID-CORPUS** — corpus grid: all engines run against snobol4corpus crosscheck ladder
+> - **M-GRID-BENCH** — benchmark grid: all engines timed against same programs via harness
+> - **M-GRID-CORPUS** — corpus grid: all engines run against corpus crosscheck ladder
 > - **M-GRID-COMPAT** — compatibility grid: feature/switch/behavior differences verified per engine
 >
 > Do not publish these tables until all three milestones have fired.
@@ -27,8 +27,8 @@
 
 ## Grid 1 — Benchmarks
 
-> Source programs: `snobol4corpus/benchmarks/`
-> Runner: `snobol4harness/` — all engines, same input, wall-clock time
+> Source programs: `corpus/benchmarks/`
+> Runner: `harness/` — all engines, same input, wall-clock time
 > Machine: TBD (specify CPU, RAM, OS, date of run)
 > Units: milliseconds unless noted. `—` = not yet run. `DNF` = did not finish / error.
 
@@ -52,7 +52,7 @@
 
 ## Grid 2 — Corpus Ladder
 
-> Source: `snobol4corpus/crosscheck/` — 106 programs across 11 rungs + rung 12 (beauty)
+> Source: `corpus/crosscheck/` — 106 programs across 11 rungs + rung 12 (beauty)
 > Pass = output byte-for-byte matches CSNOBOL4 oracle `.ref` file
 > `—` = not yet run. Numbers = passing / total.
 
@@ -285,7 +285,7 @@
 ---
 
 *Grid 4 is a stub. All `—` cells require M-GRID-REFERENCE to fire.*
-*Milestone definition: every `—` cell replaced by ✅/⚠/🔧/❌ from actual test runs via snobol4harness.*
+*Milestone definition: every `—` cell replaced by ✅/⚠/🔧/❌ from actual test runs via harness.*
 *The CSNOBOL4 and SPITBOL columns are pre-filled from documentation and known behaviour; verify against oracle before publishing.*
 
 ---

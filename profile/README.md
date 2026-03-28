@@ -38,7 +38,7 @@ We built two complete, independent implementations of the full SNOBOL4/SPITBOL l
 
 We brought the pattern matching engine to Python and C# as first-class libraries. Not regex wrappers. The real thing.
 
-And we are building [snobol4x](https://github.com/snobol4ever/snobol4x): a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL from a single IR. Its correctness goal: pass the full snobol4corpus crosscheck ladder on all three backends, then achieve self-hosting bootstrap — first through `beauty.sno` (the SNOBOL4 beautifier written in SNOBOL4), then through `compiler.sno` (the full compiler written in SNOBOL4).
+And we are building [snobol4x](https://github.com/snobol4ever/snobol4x): a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL from a single IR. Its correctness goal: pass the full corpus crosscheck ladder on all three backends, then achieve self-hosting bootstrap — first through `beauty.sno` (the SNOBOL4 beautifier written in SNOBOL4), then through `compiler.sno` (the full compiler written in SNOBOL4).
 
 ---
 
@@ -102,7 +102,7 @@ A C# port of the snobol4python pattern engine. Patterns are first-class objects 
 
 Direct CPython C extension running SNOBOL4python pattern trees through a full Byrd Box engine in C. The proof-of-concept from which `engine.c` in snobol4x was extracted.
 
-### [snobol4corpus](https://github.com/snobol4ever/snobol4corpus)
+### [corpus](https://github.com/snobol4ever/corpus)
 *Shared test corpus — CC0*
 
 Single source of truth for all `.sno`, `.inc`, and `.spt` files shared across all repos. 106-program crosscheck ladder across 11 language rungs plus beauty.sno. Gimpel algorithm library. Shafto AI corpus. Oracle runner scripts.
@@ -111,7 +111,7 @@ Single source of truth for all `.sno`, `.inc`, and `.spt` files shared across al
 
 ## Performance
 
-These benchmark numbers compare the snobol4x ASM backend against PCRE2 JIT and Bison LALR(1). They are a starting point — the community is invited to verify them independently using `snobol4harness`. A full cross-engine benchmark grid (all seven implementations, all benchmark programs) will be published when M-GRID-BENCH fires. See [GRIDS.md](../GRIDS.md).
+These benchmark numbers compare the snobol4x ASM backend against PCRE2 JIT and Bison LALR(1). They are a starting point — the community is invited to verify them independently using `harness`. A full cross-engine benchmark grid (all seven implementations, all benchmark programs) will be published when M-GRID-BENCH fires. See [GRIDS.md](../GRIDS.md).
 
 | Pattern | snobol4x ASM | PCRE2 JIT | Notes |
 |---------|:------------:|:---------:|-------|
@@ -183,4 +183,4 @@ snobol4all. snobol4now. snobol4ever.
 
 ## License
 
-AGPL v3 (snobol4x, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp, snobol4artifact) · CC0 (snobol4corpus). See individual repos for details.
+AGPL v3 (snobol4x, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp, snobol4artifact) · CC0 (corpus). See individual repos for details.

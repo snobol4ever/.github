@@ -331,7 +331,7 @@ The SNOBOL4 `*` operator is overloaded: arithmetic multiply OR pattern deferred-
 
 ### Trace infrastructure (built this session, NOT committed to repo)
 
-**Oracle trace:** copy `/home/claude/snobol4corpus/programs/inc/counter.sno` to `/tmp/inc_trace/counter.sno` with `PushCounter/IncCounter/PopCounter` shadowed to write `NPUSH/NINC/NPOP depth=N top=N` to `TERMINAL`. Run:
+**Oracle trace:** copy `/home/claude/corpus/programs/inc/counter.sno` to `/tmp/inc_trace/counter.sno` with `PushCounter/IncCounter/PopCounter` shadowed to write `NPUSH/NINC/NPOP depth=N top=N` to `TERMINAL`. Run:
 ```bash
 INC=/tmp/inc_trace
 snobol4 -f -P256k -I$INC $BEAUTY < input > /dev/null 2>oracle_stack.txt

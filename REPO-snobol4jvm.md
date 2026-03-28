@@ -217,7 +217,7 @@ timeout 5 java -cp /tmp/cls_stlimit Test_stlimit 2>&1 | tail -3
 # Must end with: Termination: statement limit
 
 # 2. Corpus invariant (ASM — must not regress)
-CORPUS=/home/claude/snobol4corpus/crosscheck
+CORPUS=/home/claude/corpus/crosscheck
 bash test/crosscheck/run_crosscheck_asm_corpus.sh 2>&1 | tail -3
 # Must: 106 passed, ALL PASS
 
@@ -281,7 +281,7 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git checkout jvm-t2 && git pull
 apt-get install -y libgc-dev nasm default-jdk && make -C src
-CORPUS=/home/claude/snobol4corpus/crosscheck
+CORPUS=/home/claude/corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh \
   $CORPUS/output $CORPUS/assign $CORPUS/concat $CORPUS/arith_new \
   $CORPUS/control_new $CORPUS/patterns $CORPUS/capture \
@@ -311,7 +311,7 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
 git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
 git log --oneline -3   # verify HEAD = c2e7a0e
-CORPUS=/home/claude/snobol4corpus/crosscheck
+CORPUS=/home/claude/corpus/crosscheck
 bash test/crosscheck/run_crosscheck_jvm_rung.sh $CORPUS/functions $CORPUS/data 2>&1
 # Expected: 11/14 — fix 3 remaining DATA failures
 ```

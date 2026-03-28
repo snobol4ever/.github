@@ -1,6 +1,6 @@
-# ARCH-harness.md — snobol4harness Reference
+# ARCH-harness.md — harness Reference
 
-**Repo:** https://github.com/snobol4ever/snobol4harness  
+**Repo:** https://github.com/snobol4ever/harness  
 **What it is:** Double-trace monitor, cross-engine oracle harness, benchmark pipeline.
 
 ---
@@ -55,10 +55,10 @@ Never skip ahead. A failure at rung 4 (arith) means rungs 5–12 are meaningless
 Use `TRACE('varname','VALUE')` on a probe variable instead.
 `&STCOUNT` broken in CSNOBOL4 (always 0) — use `&STLIMIT` values for binary search.
 
-### Corpus lives in snobol4corpus
+### Corpus lives in corpus
 
 Every repo uses the same corpus. Test programs are never duplicated into engine repos.
-The corpus crosscheck runner lives in `snobol4corpus/crosscheck/run_all.sh`.
+The corpus crosscheck runner lives in `corpus/crosscheck/run_all.sh`.
 The per-engine adapter lives in `test/crosscheck/run_crosscheck.sh` in each repo.
 
 ### Current crosscheck results (snobol4x, Session 89, `29c0a4b`)

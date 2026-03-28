@@ -22,7 +22,7 @@ for trend.
 **Input corpora:**
 | Corpus | Files | Notes |
 |--------|-------|-------|
-| `snobol4corpus/programs/icon/**/*.icn` | ~851 | IPL + misc Icon programs |
+| `corpus/programs/icon/**/*.icn` | ~851 | IPL + misc Icon programs |
 | `snobol4x/test/frontend/icon/**/*.icn` | ~258 | Compiler test suite |
 | `snobol4x/test/frontend/prolog/**/*.pro` | ~130 | Compiler test suite |
 | `snobol4x/test/frontend/prolog/**/*.pl`  | included above | Same dir |
@@ -52,7 +52,7 @@ Two scripts added to `snobol4x/test/scrip/`:
 ```bash
 # Icon (both parser and recognizer)
 bash test/scrip/run_corpus_icon.sh \
-  snobol4corpus/programs/icon \
+  corpus/programs/icon \
   test/frontend/icon
 
 # Prolog (both parser and recognizer)
@@ -83,7 +83,7 @@ Prolog baseline: not yet run (tools just created).
 
 ## Session instructions
 
-1. `git pull --rebase` in both `snobol4x` and `snobol4corpus`
+1. `git pull --rebase` in both `snobol4x` and `corpus`
 2. Run `bash test/scrip/run_corpus_icon.sh` — record counts
 3. Run `bash test/scrip/run_corpus_prolog.sh` — record counts
 4. If crashes > 0: triage top-5 crash inputs, fix tool, re-run

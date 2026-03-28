@@ -41,8 +41,8 @@ All deep reference docs. Open on demand — never speculatively.
 | Doc | Contents | Open when |
 |-----|----------|-----------|
 | `ARCH-testing.md` | Four-paradigm TDD protocol | Setting up tests |
-| `ARCH-harness.md` | snobol4harness double-trace monitor | Monitor/trace debugging |
-| `ARCH-corpus.md` | snobol4corpus structure, rung ladder | Corpus questions |
+| `ARCH-harness.md` | harness double-trace monitor | Monitor/trace debugging |
+| `ARCH-corpus.md` | corpus structure, rung ladder | Corpus questions |
 | `ARCH-monitor.md` | Five-way sync-step monitor | Monitor implementation |
 
 ### Project-Level

@@ -32,8 +32,8 @@ Self-contained SNOBOL4 parser+pretty-printer written in SNOBOL4.
 If a backend runs `beauty.sno` self-beautification correctly, the frontend is correct.
 
 ```bash
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/claude/corpus/programs/inc
+BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
 snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
 <backend-binary> < $BEAUTY > compiled.sno
 diff oracle.sno compiled.sno   # empty = correct

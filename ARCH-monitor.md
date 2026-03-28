@@ -271,8 +271,8 @@ identical to `beauty.sno`. Oracle = compiled = input. A fixed point.
 This is the SNOBOL4 frontend correctness proof for all three backends.
 
 ```bash
-INC=/home/claude/snobol4corpus/programs/inc
-BEAUTY=/home/claude/snobol4corpus/programs/beauty/beauty.sno
+INC=/home/claude/corpus/programs/inc
+BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
 
 snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
 ./snobol4-asm < $BEAUTY > asm.sno
@@ -292,7 +292,7 @@ diff oracle.sno $BEAUTY    # empty  <- the bootstrap condition
 ## Monitor Infrastructure
 
 Lives in `snobol4x/test/monitor/` initially.
-Will move to `snobol4harness/monitor/` when extending to other repos.
+Will move to `harness/monitor/` when extending to other repos.
 
 ```
 snobol4x/test/monitor/
@@ -312,7 +312,7 @@ snobol4x/test/monitor/
 SNO=$1
 CONF=${2:-$(dirname $0)/tracepoints.conf}
 TMP=/tmp/monitor_$$
-INC=/home/claude/snobol4corpus/programs/inc
+INC=/home/claude/corpus/programs/inc
 DIR=$(dirname $(realpath $0))/../../..   # snobol4x root
 
 python3 $(dirname $0)/inject_traces.py $SNO $CONF > $TMP.sno

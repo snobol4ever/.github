@@ -163,7 +163,7 @@ triggers OFNE check on the stored function-result pattern.
 
 ## B-285 — 2026-03-24 — BEAUTY accounting — full test sweep before bootstrap
 
-(1) Cloned snobol4harness + snobol4corpus; built CSNOBOL4 2.3.3 from tarball; confirmed 106/106 ASM corpus ALL PASS; C backend marked ☠️ DEAD (99/106, not maintained).
+(1) Cloned harness + corpus; built CSNOBOL4 2.3.3 from tarball; confirmed 106/106 ASM corpus ALL PASS; C backend marked ☠️ DEAD (99/106, not maintained).
 (2) Re-ran all 19 beauty subsystem drivers standalone through ASM: 15/19 PASS. Regressions found: is, TDump, Gen, semantic FAIL. Filed M-BUG-IS-DIALECT, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER, M-BUG-SEMANTIC-NTYPE.
 (3) Bootstrap trial: beauty_asm produces 10-line header + Parse Error vs oracle 784 lines. Filed M-BUG-BOOTSTRAP-PARSE. HQ updated. No snobol4x code changes this session.
 ---
@@ -280,7 +280,7 @@ IJ-8: instrument → find exact branch → fix → fire M-IJ-CORPUS-R3
 ---
 
 **B-287 (2026-03-24) — E_STAR pat_ref fix; bootstrap CALL_PAT gap diagnosed; 106/106:**
-(1) Setup: CSNOBOL4 built from tarball, SPITBOL prebuilt verified, snobol4corpus cloned, 106/106 confirmed. Reproduced Parse Error: beauty_asm outputs 10 lines then "Parse Error" on "START\n".
+(1) Setup: CSNOBOL4 built from tarball, SPITBOL prebuilt verified, corpus cloned, 106/106 confirmed. Reproduced Parse Error: beauty_asm outputs 10 lines then "Parse Error" on "START\n".
 (2) Root cause 1: E_STAR in emit_expr value-context called stmt_get() (snapshots var at assignment time). "Parse = nPush() ARBNO(*Command)..." ran before Command was assigned → ARBNO(null) built permanently broken pattern. Fix: emit pat_ref() instead → XDSAR deferred lookup. Commit `843b9f3`.
 (3) Root cause 2 (open): CALL_PAT_α is one-shot match_pattern_at — no backtracking bridge from outer compiled Byrd-box into inner engine. ARBNO(*Command) matches 0 iterations (correct); outer RPOS(0) then fails; engine never receives RECEDE to try 1+ iterations. Fix requires T_VARREF integration (B-288).
 ## IJ-8 — 2026-03-24
@@ -578,7 +578,7 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 **Branch:** main
 
 **What happened:**
-- Setup: cloned .github, snobol4x, x64 (SPITBOL), snobol4corpus. Built CSNOBOL4 2.3.3 from tarball (STNO-patched). Ran setup.sh → 106/106 ALL PASS.
+- Setup: cloned .github, snobol4x, x64 (SPITBOL), corpus. Built CSNOBOL4 2.3.3 from tarball (STNO-patched). Ran setup.sh → 106/106 ALL PASS.
 - Root cause of sno2c segfault on beauty.sno diagnosed: total BSS 8.4MB > 8MB stack limit. Binary loads, BSS mapped, process crashes before main() runs.
 - Fix: heap-allocated 4 large statics in emit_byrd_asm.c using calloc-on-first-use pattern (identical to existing box_data pattern):
   - named_pats[512] → pointer, -1856KB BSS
@@ -736,7 +736,7 @@ END
 
 **Work done:**
 - PIVOT 2026-03-24: launched M-BEAUTIFY-BOOTSTRAP-JVM (all 19 JVM beauty milestones, per ARCH-snobol4-beauty-testing.md)
-- Cloned snobol4corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, sno2c, Java 21, jasmin.jar, monitor_ipc.so)
+- Cloned corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, sno2c, Java 21, jasmin.jar, monitor_ipc.so)
 - Found and fixed 5 JVM emitter bugs in `emit_byrd_jvm.c`:
   1. **jvm_named_pats BSS overflow** — `static JvmNamedPat[64]` on BSS → heap `calloc(512)` with lazy init in reset+register+lookup
   2. **Jasmin label scoping** — `L_<label>:` definitions and `goto L_<label>` cross-method references; Jasmin labels are method-local. Fix: qualify as `Lf<fnidx>_<label>` at all 3 emission sites (computed-goto scan, direct-goto, label-definition)
@@ -883,7 +883,7 @@ END
 **HEAD start:** `309a2f9` B-291 → **HEAD end:** `acbc71e` B-292
 
 **Work done:**
-1. Setup: cloned snobol4x, .github, x64, snobol4corpus; ran setup.sh → 106/106 ALL PASS. CSNOBOL4 2.3.3 built from ZIP, SPITBOL x64 built, sno2c built.
+1. Setup: cloned snobol4x, .github, x64, corpus; ran setup.sh → 106/106 ALL PASS. CSNOBOL4 2.3.3 built from ZIP, SPITBOL x64 built, sno2c built.
 2. **Fixed JVM segfault (B-292 commit `acbc71e`):** `emit_byrd_jvm.c:1156` — DATA type constructor loop `for fi in 0..nfields` accessed `e->children[fi]` without checking `fi < e->nchildren`. For `tree(t,v,n)` (3 children, 4 fields), `e->children[3]` = garbage `0x21` (non-NULL) → SIGSEGV. Fix: `fi < e->nchildren &&` guard added. `sno2c -jvm demo/beauty.sno` now emits 872,847-line beauty.j.
 3. **Diagnosed L_io_end missing label:** Jasmin fails with `L_io_end has not been added to the code`. Root cause: `output_->end_label` is NULL (DEFINE has no goto, next stmt OPSYN also has no goto). `jvm_emit_fn_method` body scan runs unbounded for output_, absorbs `io_end` top-level label, emits it as `Lf5_io_end` inside output_ method. But `goto L_io_end` in main() uses unscoped name → label not found in main(). Fix strategy: add next-fn-entry stop condition to `jvm_emit_fn_method` body loop (line 4153) when `fn->end_label` is NULL. See TINY.md §CRITICAL NEXT ACTION.
 
@@ -1865,7 +1865,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 **Work done:**
 
-**Bootstrap:** Cloned `snobol4x`, `.github`, `x64`, `snobol4corpus`. Installed `nasm`, `libgc-dev`. Built `sno2c` (`make -j4` clean). Built `icon_driver_jvm` directly from source.
+**Bootstrap:** Cloned `snobol4x`, `.github`, `x64`, `corpus`. Installed `nasm`, `libgc-dev`. Built `sno2c` (`make -j4` clean). Built `icon_driver_jvm` directly from source.
 
 **Pipeline unblocked to assembly:** Renamed emitter outputs (`FamilyProlog.j` → `Family_prolog.j` etc.) to match inject_linkage.py expectations. All 4 classes assemble clean.
 
@@ -3379,7 +3379,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 **Discovered this session:**
 - rung36_jcon has **75 tests** (t01–t75), not 51; t53–t75 all had `.xfail` pre-marked
 - `icon_driver.c` no longer has standalone `main()` — integrated into sno2c
-- IPL programs from snobol4corpus require explicit semicolons (our lexer: "No auto-semicolon insertion — deliberate deviation from standard Icon")
+- IPL programs from corpus require explicit semicolons (our lexer: "No auto-semicolon insertion — deliberate deviation from standard Icon")
 - RULES.md new rule: "HQ DOCS ARE THE ONLY RELIABLE MEMORY"
 
 **VE breakdown (48 VEs):**
@@ -3446,7 +3446,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX`, `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`, `E_NULV→E_NUL`, `E_STAR→E_DEFER`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`.
 New nodes: `E_PLS`, `E_CSET`, `E_MAKELIST`, `E_ANY`, `E_NOTANY`, `E_SPAN`, `E_BREAK`, `E_BREAKX`, `E_LEN`, `E_TAB`, `E_RTAB`, `E_REM`, `E_FAIL`, `E_SUCCEED`, `E_FENCE`, `E_ABORT`, `E_BAL`.
 
-**Git identity rule corrected:** All commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via `git-filter-repo` across `.github`, `snobol4x`, `snobol4corpus`, `snobol4jvm`. RULES.md updated.
+**Git identity rule corrected:** All commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via `git-filter-repo` across `.github`, `snobol4x`, `corpus`, `snobol4jvm`. RULES.md updated.
 
 **New docs created:**
 - `ARCH-sil-heritage.md` — SIL v311.sil lineage for all E_ node names
@@ -3543,7 +3543,7 @@ sval presence, NULL child detection). Per-kind spec table for all 59 nodes. 6/6 
 PASS. `make debug` target added. 106/106 ✅.
 
 PLAN.md updated: mandatory session-start block (4 steps) + 9-repo inventory added to header.
-snobol4corpus cloned — ASM 106/106 confirmed against real corpus.
+corpus cloned — ASM 106/106 confirmed against real corpus.
 
 **Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 2 (M-G2-SCAFFOLD-WASM).
 
@@ -3638,11 +3638,11 @@ Grand Master Reorg — G-7 continuation (same session chain as G-6/G-7 prior ent
 ### Not yet done (next session must complete)
 
 - **M-G4-SPLIT-SEQ-CONCAT phase 2**: migrate parser/lowering `E_CONC` construction sites to emit `E_SEQ` vs `E_CONCAT` correctly. Key files: `src/frontend/snobol4/parse.c` (emits `E_CONC` at concat parse), `sno2c.h`/lowering. After this, `E_CONC` compat alias can be removed.
-- **Invariant verification**: `run_invariants.sh` needs `snobol4corpus` cloned (requires bootstrap token) to verify x86 106/106 · JVM 106/106 · .NET 110/110 still hold after E_SEQ/E_CONCAT split.
+- **Invariant verification**: `run_invariants.sh` needs `corpus` cloned (requires bootstrap token) to verify x86 106/106 · JVM 106/106 · .NET 110/110 still hold after E_SEQ/E_CONCAT split.
 - **M-G4-SHARED-CONC-FOLD**: extract n-ary→binary right-fold helper into `ir_emit_common.c` (first shared wiring extraction).
 
 ### Invariants at handoff
-x86 106/106 [snobol4corpus not available in container — build clean, local 3-test PASS] · JVM 106/106 [frozen] · .NET 110/110 [frozen] · Icon x64 38-rung [frozen] · Prolog x64 per-rung [frozen]
+x86 106/106 [corpus not available in container — build clean, local 3-test PASS] · JVM 106/106 [frozen] · .NET 110/110 [frozen] · Icon x64 38-rung [frozen] · Prolog x64 per-rung [frozen]
 
 ### Next session read order
 1. `bash SESSION_BOOTSTRAP.sh TOKEN=...` (runs 3×3 invariants via `run_invariants.sh`)

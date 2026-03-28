@@ -22,8 +22,8 @@ Script is self-contained. See RULES.md for the six things it covers.
 | `snobol4x` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/snobol4x/` |
 | `snobol4jvm` | SNOBOL4 → JVM, Clojure | `/home/claude/snobol4jvm/` |
 | `snobol4dotnet` → `snobol4net` | SNOBOL4 → .NET, C# (rename pending M-G9) | `/home/claude/snobol4dotnet/` |
-| `snobol4corpus` | Test corpus — .sno/.icn/.pro + .ref oracle output | `/home/claude/snobol4corpus/` |
-| `snobol4harness` | Test infrastructure — corpus runners | `/home/claude/snobol4harness/` |
+| `corpus` | Test corpus — .sno/.icn/.pro + .ref oracle output | `/home/claude/corpus/` |
+| `harness` | Test infrastructure — corpus runners | `/home/claude/harness/` |
 | `snobol4python` | SNOBOL4 pattern library for Python | clone if needed |
 | `snobol4csharp` | SNOBOL4 pattern library for C# | clone if needed |
 | `snobol4artifact` | CPython extension | clone if needed |
@@ -450,7 +450,7 @@ Lon to assign. Read only: `PLAN.md` PP-1 section + this handoff.
 **Milestone defined: M-RECOG-CORPUS**
 
 New milestone to run all four tools (icon_parser, icon_recognizer, prolog_parser,
-prolog_recognizer) against every program in snobol4corpus and snobol4x test suites.
+prolog_recognizer) against every program in corpus and snobol4x test suites.
 
 **Harness scripts added to `snobol4x/test/scrip/`:**
 - `run_corpus_icon.sh` — compiles both Icon tools, runs on all `.icn` files, reports pass/empty/crash
@@ -463,7 +463,7 @@ prolog_recognizer) against every program in snobol4corpus and snobol4x test suit
 **Milestone doc:** `MILESTONE-RECOG-CORPUS.md` in this repo
 
 **Corpus sizes:**
-- `snobol4corpus/programs/icon/`: 851 .icn files
+- `corpus/programs/icon/`: 851 .icn files
 - `snobol4x/test/frontend/icon/`: 258 .icn files
 - `snobol4x/test/frontend/prolog/`: 130 .pro/.pl files
 
@@ -580,7 +580,7 @@ around line 5840 (the `jmp α0` at end of re-entry decode).
 - **Greek law**: Greek letters (α β γ ω) used **everywhere** — C source, comments, generated labels. No ASCII aliases. Was incorrectly written as ASCII in original law doc — corrected.
 - **45 canonical IR node names** — finalized with SIL heritage. Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VAR→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
 - **ARCH-sil-heritage.md** created — documents SIL v311.sil lineage for all E_ names.
-- **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, snobol4x, snobol4corpus, snobol4jvm.
+- **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, snobol4x, corpus, snobol4jvm.
 - **Phase 9 added**: snobol4dotnet → snobol4net rename (post M-G7-UNFREEZE).
 - **snobol4jvm, snobol4dotnet test counts** marked TBD — retest required.
 
