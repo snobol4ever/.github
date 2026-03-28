@@ -5,6 +5,36 @@ SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 
 ---
 
+## ⛔ MANDATORY SESSION START — Do these four steps before ANY work
+
+```
+1. tail -80 SESSIONS_ARCHIVE.md        ← your handoff, do this FIRST
+2. cat RULES.md                        ← mandatory, ~10 rules, read in full
+3. cat PLAN.md                         ← NOW table + next milestone (you are here)
+4. cat REPO-snobol4x.md                ← §BUILD §TEST §NOW for your repo
+   cat SESSION-<frontend>-<backend>.md ← §NOW lives here, not in PLAN.md
+```
+
+Skipping any step is catastrophic. HQ docs are the only reliable memory.
+
+## 9 Repos under github.com/snobol4ever
+
+| Repo | Role | Clone path |
+|------|------|------------|
+| `.github` | HQ — PLAN, ARCH, SESSION, FRONTEND docs | `/home/claude/.github/` |
+| `snobol4x` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/snobol4x/` |
+| `snobol4jvm` | SNOBOL4 → JVM, Clojure | `/home/claude/snobol4jvm/` |
+| `snobol4dotnet` → `snobol4net` | SNOBOL4 → .NET, C# (rename pending M-G9) | `/home/claude/snobol4dotnet/` |
+| `snobol4corpus` | Test corpus — .sno/.icn/.pro + .ref oracle output | `/home/claude/snobol4corpus/` |
+| `snobol4harness` | Test infrastructure — corpus runners | `/home/claude/snobol4harness/` |
+| `snobol4python` | SNOBOL4 pattern library for Python | clone if needed |
+| `snobol4csharp` | SNOBOL4 pattern library for C# | clone if needed |
+| `snobol4artifact` | CPython extension | clone if needed |
+
+**Always clone `snobol4corpus` as sibling of `snobol4x`** — crosscheck scripts expect it at `../snobol4corpus/`.
+
+---
+
 ## ⚡ NOW
 
 Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
@@ -13,7 +43,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — M-G1-IR-HEADER-DEF ✅ | `4d65f06` .github / `a1f9a76` snobol4x | M-G1-IR-HEADER-WIRE |
+| **⚠ GRAND MASTER REORG** | G-7 — M-G1-IR-HEADER-WIRE ✅ | `4cb03d4` snobol4x / `.github` pending | M-G0-SIL-NAMES → next per GRAND_MASTER_REORG.md |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
