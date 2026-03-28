@@ -1,6 +1,6 @@
-# SESSION-prolog-x64.md — Prolog × x64 ASM (snobol4x)
+# SESSION-prolog-x64.md — Prolog × x86 (snobol4x)
 
-**Repo:** snobol4x · **Frontend:** Prolog · **Backend:** x64 ASM (NASM)
+**Repo:** snobol4x · **Frontend:** Prolog · **Backend:** x86 (NASM)
 **Session prefix:** `PX` · **Trigger:** "playing with Prolog x64" or "Prolog x86"
 **Driver:** `sno2c -pl -asm foo.pl > foo.s` → `nasm -f elf64 foo.s -o foo.o` → `gcc -no-pie foo.o ...srcs... -lm -o foo`
 **Deep reference:** `ARCH-prolog-x64.md` · `FRONTEND-PROLOG.md`
