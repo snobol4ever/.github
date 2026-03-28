@@ -19,7 +19,7 @@ parser to classify tokens and expression nodes.
 
 **SIL `xxxTYP` naming convention:** `VARTYP EQU 3` means "Variable token has type
 code 3". The `TYP` suffix = type code. The prefix (VAR, QLIT, ILIT, etc.) = the
-semantic category. Our `E_VART` came from `VARTYP` — the T is the first letter of
+semantic category. Our `E_VAR` came from `VARTYP` — the T is the first letter of
 TYP, compressed for the C identifier.
 
 **The `E_` prefix** was added when sno2c.h defined the C enum — `E_` for Expression
@@ -35,7 +35,7 @@ FLITYP EQU     6       Literal real             → E_FLIT
 FNCTYP EQU     5       Function call            → E_FNC
 ILITYP EQU     2       Literal integer          → E_ILIT
 QLITYP EQU     1       Quoted literal           → E_QLIT
-VARTYP EQU     3       Variable                 → E_VART  (T = first letter of TYP)
+VARTYP EQU     3       Variable                 → E_VAR  (T = first letter of TYP)
 ```
 
 Note: `EQTYP EQU 4` (Equal sign) became `E_ASSIGN` (not `E_EQTYP`) —
@@ -136,7 +136,7 @@ distinct operation — it belongs in the IR alongside `E_NEG`.
 
 | SIL name | Our name | Why |
 |----------|----------|-----|
-| `VARTYP` → `VART` | `E_VART` | Kept — too woven into existing code to change |
+| `VARTYP` → `VART` | `E_VAR` | Kept — too woven into existing code to change |
 | `CONCAT`/`CONCL` | `E_SEQ` | SEQ is more universal (sequence across all 6 languages) |
 | `ORPP`/alternation | `E_ALT` | ALT clearer than OR for pattern alternation |
 | `MNSM` | `E_NEG` | NEG signals unary clearly; MNS is opaque |

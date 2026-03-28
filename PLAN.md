@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — M-G0-IR-AUDIT ✅ `28514f8` IR_AUDIT.md | `28514f8` G-7 | M-G1-IR-HEADER-DEF |
+| **⚠ GRAND MASTER REORG** | G-7 — E_VAR rename + 45 nodes canonical + ARCH-sil-heritage.md | `fb90365` G-7 | M-G0-SIL-NAMES (broader SIL naming heritage: runtime vars, labels, macros) |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -533,3 +533,38 @@ with slot_1=K correctly resumes permutation at solution K+1.
 ### Read only for next session
 `SESSION-prolog-x64.md` §NOW only. The fix is ~10 lines in `emit_byrd_asm.c`
 around line 5840 (the `jmp α0` at end of re-entry decode).
+
+---
+
+## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — .github `fb90365` snobol4x `d2ac7e6`
+
+### Phase 0 milestones completed this session
+
+| Milestone | Commit | What |
+|-----------|--------|------|
+| M-G0-FREEZE ✅ | snobol4x `716b814` | pre-reorg-freeze tag; doc/BASELINE.md |
+| M-G0-RENAME ✅ | .github `22fae8d` | canonical names confirmed; GitHub redirects live |
+| M-G0-CORPUS-AUDIT ✅ | .github `19d0db8` | 471-file inventory; 0 conflicts; execution plan; beauty.sno divergence flagged for Lon |
+| M-G0-AUDIT ✅ | snobol4x `8b773e8` | doc/EMITTER_AUDIT.md — all 8 emitters, deviations, Greek law |
+| M-G0-IR-AUDIT ✅ | snobol4x `d2ac7e6` | doc/IR_AUDIT.md — 45 nodes, minimal set, lowering rules |
+
+### Key decisions and corrections made this session
+
+- **Greek law**: Greek letters (α β γ ω) used **everywhere** — C source, comments, generated labels. No ASCII aliases. Was incorrectly written as ASCII in original law doc — corrected.
+- **45 canonical IR node names** — finalized with SIL heritage. Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_DOT`, `E_DOL→E_DOLLAR`, `E_ATP→E_AT`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
+- **ARCH-sil-heritage.md** created — documents SIL v311.sil lineage for all E_ names.
+- **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, snobol4x, snobol4corpus, snobol4jvm.
+- **Phase 9 added**: snobol4dotnet → snobol4net rename (post M-G7-UNFREEZE).
+- **snobol4jvm, snobol4dotnet test counts** marked TBD — retest required.
+
+### Next milestone: M-G0-SIL-NAMES
+
+SIL naming heritage was analyzed for IR nodes only. Broader analysis needed:
+1. Runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top` etc.)
+2. Emitter C source variable names and struct fields
+3. Generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`)
+4. Runtime library macro names (`snobol4_asm.mac`, Byrd box macro library)
+
+Produce `doc/SIL_NAMES_AUDIT.md`. This is prerequisite for M-G3 (naming law may need extension).
+
+**Read for next G-session:** `GRAND_MASTER_REORG.md` Phase 0 + `ARCH-sil-heritage.md` + `doc/EMITTER_AUDIT.md` runtime variable table.
