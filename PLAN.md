@@ -236,3 +236,148 @@ companion `ClassName$RecordType.j` files. Correct runner pattern (see §BUILD in
 
 Read `SESSION-icon-x64.md` §NOW (IX-17) only. rung36_jcon is the frontier —
 52 tests, currently 2/52. That's a separate subsystem (`ARCH-icon-jcon.md`).
+
+---
+
+## PP-1 Handoff update (2026-03-27 session 3, Claude Sonnet 4.6) — commit 35988b9
+
+### Task: icon_recognizer.icn + prolog_recognizer.pro (SNOBOL4 BEAUTY paradigm)
+
+**What these are:** Wholesale recognizers (no separate lexer/tokenizer). The
+program matches the entire source as a single string. Procedures mirror BNF.
+`suspend` for every terminal. Same `nPush/nInc/nDec/nPop` + `Shift/Reduce`
+as beauty.sno, translated one-to-one to Icon (string scanning) and Prolog (DCG).
+
+### icon_recognizer.icn — STATUS: WIP, compiles, tree structure has one remaining bug
+
+**Two stacks (globals):**
+- `_stk` — tree/value stack. `Shift(tag,val)` pushes a leaf. `Reduce(tag,n)` pops n, makes parent node.
+- `_cstk` — counter stack. `nPush()` pushes 0. `nInc()` increments top. `nTop()` reads top. `nPop()` pops. Used to count variable-length child lists.
+
+**Bugs fixed this session:**
+1. `many(cs)` used `every tab(upto(~cs)|0)` — `every` generated two positions, leaving &pos at 0. Fixed to `tab(upto(~cs)) | tab(0)`.
+2. `skip_ws_comments()` used `else break` inside `if` inside `repeat` — illegal in Icon. Fixed to progress-check: `if &pos = p then break`.
+3. `tab(many(...))` double-advance in `ws()`, `ident()`, `integer_lit()`. Fixed: call `many()` directly (it already advances &pos).
+4. `r_top()` had no `suspend` — returned nothing to `compiland()`. Fixed: `suspend r_proc() | r_global() | r_record()`.
+5. `r_expr_prec()` called `r_primary()` unconditionally — if primary fails, loop drives infinite recursion → segfault. Fixed: `r_primary() | fail`.
+6. `r_xlist()` called `nInc()` before `r_expr()` check. Fixed: only `nInc()` after successful `r_expr()`.
+7. `r_block()` used `nInc()` into the outer counter. Fixed: local `stmts` counter.
+
+**ONE REMAINING BUG — r_decls never calls nInc()**
+
+`r_decls()` finds `local`/`static`/`initial` declarations and for each one
+calls `Reduce(dk,1)` pushing a node — but never calls `nInc()`. The counter
+pushed by `r_proc` via `nPush()` before calling `r_decls()` stays 0. So
+`nTop()` = 0 → `if ndecls = 0 then Shift("decls","")` always fires, even
+when real decls were found.
+
+**Fix:** Add `nInc()` inside `r_decls` after each successful decl:
+```icon
+procedure r_decls()
+  local found, dk
+  repeat {
+    found := &null
+    skip_ws_comments()
+    every dk := "local" | "static" | "initial" do {
+      if kw(dk) then {
+        r_namelist()
+        Reduce(dk, 1)
+        nInc()          # ← ADD THIS
+        found := 1; break
+      }
+    }
+    /found & break
+  }
+  suspend &pos
+end
+```
+
+Also verify `r_proc` restores `nPush/nPop` pairing for decls — current code
+uses `stk_before`/delta approach (wrong session logic leaked in). Revert to
+clean `nPush() / r_decls() / ndecls := nTop() / nPop()` with the `nInc()` fix above.
+
+**After fixing:** Run smoke test:
+```bash
+icont -s -o /tmp/icon_recognizer demo/scrip/icon_recognizer.icn
+echo 'procedure foo(x)
+  local a
+  return x + 1
+end' | /tmp/icon_recognizer
+```
+Expected tree:
+```
+(proc
+  (id "foo")
+  (namelist (id "x"))
+  (local (namelist (id "a")))
+  (block (return (+ (id "x") (int "1"))))
+)
+```
+
+**After smoke test passes:** Run self-parse mirror:
+```bash
+/tmp/icon_recognizer < demo/scrip/icon_recognizer.icn | head -30
+```
+
+### prolog_recognizer.pro — STATUS: NOT STARTED
+
+**Design:** DCG rules with `{action}` code. Same `nPush/nInc/nDec/nPop` +
+`Shift/Reduce` implemented as Prolog predicates operating on global nb-variables
+(or passed state — nb_getval/nb_setval for the two stacks).
+
+**Input:** char-code list from `atom_codes(Src, Codes)`.
+
+**Terminal primitive:**
+```prolog
+% lit(+Codes, -Rest): match literal string
+lit([], S, S).
+lit([H|T], [H|S], Rest) :- lit(T, S, Rest).
+
+% Match and shift an identifier
+p_ident([C|Cs], Rest) --> { code_type(C, alpha) }, ... 
+```
+
+Or more idiomatically with DCG:
+```prolog
+ws --> [C], { code_type(C, space) }, !, ws.
+ws --> [].
+
+kw(Word) --> { atom_codes(Word, Codes) }, Codes, ws,
+             { \+ peek_alnum }.
+```
+
+**Stack implementation:**
+```prolog
+:- nb_setval(val_stack, []).
+:- nb_setval(ctr_stack, []).
+
+nPush :- nb_getval(ctr_stack, S), nb_setval(ctr_stack, [0|S]).
+nInc  :- nb_getval(ctr_stack, [H|T]), H1 is H+1, nb_setval(ctr_stack, [H1|T]).
+nTop(N) :- nb_getval(ctr_stack, [N|_]).
+nPop  :- nb_getval(ctr_stack, [_|T]), nb_setval(ctr_stack, T).
+
+shift(Tag, Val) :-
+    nb_getval(val_stack, S),
+    nb_setval(val_stack, [node(Tag,Val,[])|S]).
+
+reduce(Tag, N) :-
+    nb_getval(val_stack, S),
+    length(Kids0, N), append(Kids0, Rest, S),
+    reverse(Kids0, Kids),
+    nb_setval(val_stack, [node(Tag,'',Kids)|Rest]).
+```
+
+**Top-level call:**
+```prolog
+main :-
+    read_all_input(Src),
+    atom_codes(Src, Codes),
+    phrase(compiland, Codes, []),
+    nb_getval(val_stack, [Tree|_]),
+    print_tree(Tree, 0).
+```
+
+**Grammar rules** mirror `prolog_parser.pro` but as DCG on char codes, with
+`{shift(...)}` / `{reduce(...)}` / `{nPush}` / `{nInc}` / `{nPop}` actions.
+
+**Read only:** `PLAN.md` PP-1 section + this handoff. No other docs.
