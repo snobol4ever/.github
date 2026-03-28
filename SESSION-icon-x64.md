@@ -71,11 +71,11 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 
 ---
 
-## §NOW — IX-14
+## §NOW — IX-15
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon x64** | IX-14 — M-IX-CSET ✅ | `02d10ce` | M-IX-STRBUILTINS (rung08 5/5) |
+| **Icon x64** | IX-15 — M-IX-STRBUILTINS ✅ | `ee76037` | M-IX-LOOPS (rung09 5/5 — emit_until) |
 
 ### Baseline (confirmed this session)
 
@@ -84,39 +84,54 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 | rung01_paper | **6/6 ✅** |
 | rung02_arith_gen | **5/5 ✅** |
 | rung02_proc | **3/3 ✅** |
-| rung03_suspend | 3/5 CE — 2 linker failures (pre-existing, untouched) |
+| rung03_suspend | 3/5 CE — 2 linker failures (pre-existing) |
 | rung04_string | **5/5 ✅** |
 | rung05_scan | **5/5 ✅** |
 | rung06_cset | **5/5 ✅** |
 | rung07_control | **5/5 ✅** |
-| rung08_strbuiltins | 0/5 — not started |
-| rung09–15 | 0–1/5 |
+| rung08_strbuiltins | **5/5 ✅** |
+| rung09_loops | 0/5 — `until` unimplemented |
+| rung10–15 | unknown |
 
-### What was fixed (IX-13 session, commit `02d10ce`)
+### What was fixed (IX-14 session, commit `ee76037`)
 
-**Bug 1 — ICN_AND forward-reference** (rung06 t02, t05)
-- Old code emitted children right-to-left; used `ccb[i-1]` before filled.
-- Fix: emit left-to-right, pre-generate `relay_g[i]` gamma labels;
-  relay trampolines discard Ei's stack result (`add rsp,8`) then
-  jump to `cca[i+1]`. Mirrors JVM emitter.
+**M-IX-STRBUILTINS — find, match, tab, move (rung08 5/5)**
 
-**Bug 2 — ICN_CSET assign stores via rdi not stack** (rung06 t05)
-- `emit_cset` uses `lea rdi,[rel label]` like `emit_str` — nothing pushed.
-- `emit_assign` only handled `ICN_STR` on the rdi path, not `ICN_CSET`.
-- Fix: `rhs_is_str` covers both `ICN_STR` and `ICN_CSET`.
+Runtime (`icon_runtime.c`):
+- `icn_str_find(s1, s2, from)` — 1-based pos of s1 in s2 from 0-based `from`, or 0.
+- `icn_match(s)` — match s at `icn_subject[icn_pos]`; advance pos; return 1-based new pos.
+- `icn_tab(n)` — `subject[pos..n-1]`, set `pos=n-1`; return `char*`.
+- `icn_move(n)` — `subject[pos..pos+n-1]`, advance `pos+=n`; return `char*`.
+- Shared `icn_tabmove_buf[4096]` for tab/move results.
 
-**Bug 3 — write() type dispatch** (rung05, rung06, rung07)
-- Root cause of rung07 t05 "stack corruption" was actually
-  `write(x)` calling `icn_write_str` with an integer variable value.
-- Added `LocalVar.type` field, `icn_expr_kind()` helper, and
-  `infer_local_types()` pre-pass to record rhs types from assignments.
-- `icn_expr_kind()` handles: `ICN_STR/CSET→S`, `ICN_INT/arith→I`,
-  `ICN_VAR→locals_type()`, `&subject→S`, `&pos→I`,
-  `ICN_CALL any/many/upto→I`, `ICN_CALL tab/move/string/…→S`.
-- `write` dispatch uses `icn_expr_kind()` uniformly.
+Emitter (`icon_emit.c`):
+- `match`, `tab`, `move` — one-shot; str/cset arg uses rdi directly, others pop.
+- `find` — generator; BSS slots `icn_find_s1_N`, `icn_find_s2_N`, `icn_find_pos_N`; β re-enters check with stored pos.
+- `icn_expr_kind`: `match`/`find`→`'I'`, `tab`/`move` already `'S'`.
 
-### NEXT ACTION — IX-15: M-IX-STRBUILTINS
+### NEXT ACTION — IX-15: M-IX-LOOPS
 
-Start rung08_strbuiltins (0/5). Likely needs: `size()`, `find()`,
-`match()`, `pos()`, `move()`, `tab()`, possibly `trim()`/`left()`/`right()`.
-Check which builtins rung08 exercises before writing any code.
+**Implement `emit_until`** (rung09 0/5, all tests use `until E do body`).
+
+`until E do body` = run `body` while `E` fails; stop when `E` succeeds.
+Complement of `while`: `while` loops while E succeeds, `until` loops while E fails.
+
+**Consult:** `ij_emit_until` in `icon_emit_jvm.c` (grep `ICN_UNTIL`).
+**Mirror:** `emit_while` in `icon_emit.c` — just invert the success/failure ports of E.
+
+Wire:
+- `α` → body.α (first iteration, skip condition check — run body once then test)
+  OR `α` → E.α (test first) — check which Icon semantics uses.
+  Icon `until`: test E first; if E succeeds immediately, body never runs.
+- E succeeds → exit (ports.γ)
+- E fails → body.α
+- body.γ → E.α (loop back)
+- β → body.β (resume body generator, if any)
+
+**rung09 test notes:**
+- t01: two-proc, body uses `write(i) & (i := i+1)` — ICN_AND in body
+- t02/t03: assignment in condition `(i := i+1) >= 3`
+- t04: separate proc `count(n)`, decrement loop
+- t05: `until ... do 0` (body is integer literal, discarded)
+
+All 5 tests: no CEs, just WO — structure assembles fine, `until` dispatches to UNIMPL which jumps to `ports.ω` immediately.
