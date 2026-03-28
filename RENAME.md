@@ -25,7 +25,7 @@ One-time rename execution plan. Eight phases, strict order. Do not reorder — s
 | **COMPILERS** | | | | | |
 | native kernel | `snobol4x` | `snobol4x` | `sno4x` | — | `snobol4x.c` / `snoc` (internal) |
 | jvm backend | `snobol4jvm` | `snobol4-jvm` | `sno4jvm` | Maven: `snobol4/jvm` | `snobol4.jvm` |
-| .net backend | `snobol4dotnet` | `snobol4-dotnet` | `sno4net` | NuGet: `snobol4dotnet` | `Snobol4.Dotnet` ¹ |
+| .net backend | `snobol4net` *(pending rename from `snobol4dotnet` — see M-G9)* | `snobol4-net` | `sno4net` | NuGet: `snobol4net` | `Snobol4.Net` ¹ |
 | **PATTERN LIBRARIES** | | | | | |
 | python | `snobol4python` | `snobol4-python` | — | PyPI: `snobol4python` | `import snobol4python` |
 | c# | `snobol4csharp` | `snobol4-csharp` | — | NuGet: `snobol4csharp` | `Snobol4.CSharp` ¹ |

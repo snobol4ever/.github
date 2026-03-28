@@ -13,7 +13,7 @@ compiler/runtime product repos:
 |------|------|----------|-------|
 | `snobol4x` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
 | `snobol4jvm` | Compiler/runtime | Clojure | SNOBOL4/SPITBOL → JVM only |
-| `snobol4dotnet` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only |
+| `snobol4dotnet` → `snobol4net` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only; rename pending (M-G9) |
 | `snobol4harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
 | `snobol4corpus` | Test data | SNOBOL4/Icon/Prolog | Canonical crosscheck corpus used by all backends |
 | `snobol4python` | Pattern library | Python | Out of scope for this reorg |
@@ -304,26 +304,57 @@ These travel with the source programs (decision pending — see below).
 
 **Total source programs to migrate: ~471 files** (source + oracle pairs).
 
-**Open decisions — must be resolved before M-G0-CORPUS-AUDIT can close:**
+**Decisions resolved (2026-03-28, Lon):**
 
-1. **Oracle files (`.expected` / `.ref`):** Do they migrate to `snobol4corpus` alongside
-   their source programs, or remain in `snobol4x` adjacent to the runner scripts?
-   *Recommendation: migrate with source — oracle and source are a unit.*
+1. **Oracle files (`.expected` / `.ref`):** ✅ **Migrate to `snobol4corpus`** alongside
+   their source programs. Source and oracle are a unit — they travel together.
 
-2. **Runner scripts (`run_rung*.sh` etc.):** Do they stay in `snobol4x` (with paths
-   updated to point to `snobol4corpus`) or migrate to `snobol4harness`?
-   *Recommendation: migrate to `snobol4harness` — runners are infrastructure, not compiler code.*
+2. **Runner scripts (`run_rung*.sh` etc.):** ✅ **Stay in all three compiler/runtime repos**
+   (`snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`), with paths updated to point
+   to `snobol4corpus`. Runners are compiler-specific test drivers, not shared infrastructure.
 
-3. **Overlap check:** `snobol4corpus/programs/icon/` already contains ~851 `.icn` files.
-   The 258 `.icn` files in `snobol4x` may overlap. Clone `snobol4corpus` and diff
-   before any move to avoid duplicates or regression.
+3. **Overlap / dedup:** ✅ **Clone `snobol4corpus` and diff first.** If a file exists in
+   both repos with identical content → keep one copy in `snobol4corpus`, remove from
+   `snobol4x`. If content differs → human review before any merge. No blind overwrites.
 
-**Execution order (once decisions resolved):**
-1. Clone `snobol4corpus`, diff each corpus dir against snobol4x equivalents
-2. For non-overlapping files: `git mv` in snobol4x + matching `git add` in snobol4corpus, one frontend at a time
-3. Update runner script paths in snobol4x (or move runners to snobol4harness)
-4. Run full invariant suite — all four backends must stay green
-5. Commit both repos atomically (snobol4x removes, snobol4corpus receives)
+**Dedup analysis complete (G-7 session, 2026-03-28):**
+
+`snobol4corpus` was cloned and diffed against every snobol4x corpus directory.
+Result: **zero content conflicts**. Every file in `snobol4x/test/` is either
+entirely absent from `snobol4corpus` or clearly distinct. No blind-overwrite risk.
+
+| Frontend | snobol4x location | Files | In snobol4corpus? | Action |
+|----------|-------------------|-------|-------------------|--------|
+| Icon | `test/frontend/icon/corpus/rung01–38/` | 258 `.icn` | ❌ Not present (corpus has IPL only) | Move to `programs/icon/rung*/` |
+| Prolog | `test/frontend/prolog/corpus/rung*/` | 130 `.pro/.pl` | ❌ Not present | Move to `programs/prolog/rung*/` |
+| Snocone | `test/frontend/snocone/sc_asm_corpus/` | 10 `.sc` | ❌ Not present | Move to `programs/snocone/corpus/` |
+| Snocone | `test/crosscheck/sc_corpus/` | 20 `.sc` | ❌ Not present | Move to `crosscheck/snocone/` |
+| SNOBOL4 | `test/frontend/snobol4/*.sno` | 5 `.sno` | ❌ Not present | Move to `programs/snobol4/smoke/` |
+| SNOBOL4 | `test/beauty/*/driver.sno` + subsystems | 19 `.sno` | ❌ Not present | Move to `programs/snobol4/beauty/` |
+| SNOBOL4 | `test/feat/f*.sno` | 20 `.sno` | ❌ Not present | Move to `programs/snobol4/feat/` |
+| SNOBOL4 | `test/jvm_j3/*.sno` | 6 `.sno` | ❌ Not present | Move to `programs/snobol4/jvm_j3/` |
+| Rebus | `test/rebus/*.reb` | 3 `.reb` | ❌ Not present | Move to `programs/rebus/` |
+
+**One file requiring human review before move:**
+`snobol4corpus/programs/beauty/beauty.sno` and `snobol4x/demo/beauty.sno` have
+**different MD5s** — they are divergent versions of the beauty program. Similarly
+`expression.sno` differs. These are in `demo/` not `test/`, and the corpus versions
+may be older. Lon must decide which is authoritative before either moves.
+
+**All `.expected`/`.ref` oracle files travel with their source programs** (per decision 1).
+
+**Execution order:**
+
+| Step | Action | Verify |
+|------|--------|--------|
+| 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to snobol4corpus; matching removal from snobol4x. | Icon invariants green after each batch |
+| 2 | Move Prolog corpus (130 `.pro`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
+| 3 | Move Snocone corpus (30 `.sc` + oracles). | Snocone 10/10 green |
+| 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 106/106 ASM + JVM + 110/110 NET green |
+| 5 | Move Rebus corpus (3 `.reb` + oracles). | Rebus 3/3 green |
+| 6 | **HOLD** — `demo/beauty.sno` vs corpus `beauty.sno` divergence. Human review. | Lon sign-off |
+| 7 | Update runner script paths in `snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `snobol4corpus` paths |
+| 8 | Run full invariant suite. | All four backend invariants green |
 
 ---
 
@@ -669,6 +700,10 @@ M-G0-FREEZE
 | M-G8-ICON-N25           | 8 — GenTest: Icon generators N=25 clean | ❌ |
 | M-G8-PROLOG-N25         | 8 — GenTest: Prolog clause bodies N=25 clean | ❌ |
 | M-G8-CI                 | 8 — GenTest: N=10 slice wired into CI | ❌ |
+| M-G9-RENAME-NET-PLAN    | 9 — snobol4dotnet→snobol4net: impact checklist | ❌ |
+| M-G9-RENAME-NET-EXEC    | 9 — snobol4dotnet→snobol4net: GitHub repo rename | ❌ |
+| M-G9-RENAME-NET-REFS    | 9 — snobol4dotnet→snobol4net: update all cross-repo refs | ❌ |
+| M-G9-RENAME-NET-VERIFY  | 9 — snobol4dotnet→snobol4net: 1903/1903 PASS | ❌ |
 ```
 
 ---
@@ -771,9 +806,10 @@ with one shared tool.
 - No behavior changes of any kind.
 - The runtime libraries (`src/runtime/`) are untouched.
 - The test corpus (`test/`) is untouched — it is the ground truth throughout.
-- `snobol4dotnet` and `snobol4jvm` are separate repos written in different host
-  languages (C# and Clojure respectively). They are not restructured here. They
-  participate only via the pipeline matrix documentation update in PLAN.md.
+- `snobol4dotnet` (pending rename to `snobol4net`) and `snobol4jvm` are separate repos
+  written in different host languages (C# and Clojure respectively). They are not
+  restructured here. They participate only via the pipeline matrix documentation update
+  in PLAN.md and the corpus migration (M-G0-CORPUS-AUDIT).
 
 ---
 
@@ -788,7 +824,7 @@ The Grand Master Reorg is complete (M-G7-UNFREEZE fires) when:
 5. The Byrd box wiring logic for every shared node kind lives in exactly one place.
 6. Every corpus test that passed before the reorg still passes.
 7. `doc/STYLE.md` exists and all source files conform to it.
-8. The `snobol4x` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4dotnet` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
+8. The `snobol4x` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4net` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
 
 The full project testing transformation is complete (M-G8-CI fires) when:
 
@@ -799,6 +835,20 @@ The full project testing transformation is complete (M-G8-CI fires) when:
 11. Zero divergences between oracle and all three snobol4x backends at N=25 for
     all three language fragments.
 12. The N=10 slice runs in CI on every commit to snobol4x in under 5 minutes.
+
+---
+
+### Phase 9 — Repo Rename: snobol4dotnet → snobol4net
+
+Executed **after** M-G7-UNFREEZE. Purely administrative — no code changes.
+Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
+
+| ID | Action | Verify |
+|----|--------|--------|
+| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `snobol4x`, `snobol4jvm`, `.github`, `snobol4harness`, `snobol4corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
+| **M-G9-RENAME-NET-EXEC** | Rename GitHub repo `snobol4ever/snobol4dotnet` → `snobol4ever/snobol4net`. GitHub creates redirect from old name automatically. Update RENAME.md name grid. | `git ls-remote github.com/snobol4ever/snobol4net` resolves; old name redirects |
+| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `snobol4x` runner scripts, `snobol4harness` adapters. One repo per commit. | All references resolve; no broken links |
+| **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite (`1903/1903` DOTNET invariant). Confirm nothing broke. | 1903/1903 PASS |
 
 ---
 
