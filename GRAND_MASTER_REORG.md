@@ -56,7 +56,7 @@ The goal of the Grand Master Reorganization is to impose a single clean architec
 across `snobol4x`:
 
 ```
-6 frontends → ONE shared IR → 4 active backends (x64 ASM, JVM, .NET, WASM)
+6 frontends → ONE shared IR → 4 active backends (x86, JVM, .NET, WASM)
 ```
 
 Every frontend lowers to the same IR. Every backend consumes that same IR.
@@ -298,7 +298,7 @@ letter is the name.
 
 | Backend | Alpha label | Beta label | Notes |
 |---------|-------------|------------|-------|
-| x64 ASM | `P_<id>_α:` | `P_<id>_β:` | γ/ω are caller-supplied jumps |
+| x86 | `P_<id>_α:` | `P_<id>_β:` | γ/ω are caller-supplied jumps |
 | JVM | `L<id>_α` | `L<id>_β` | id = unique integer per node |
 | .NET | `L<id>_α` | `L<id>_β` | same scheme as JVM |
 
@@ -356,7 +356,7 @@ in Phase 5 when all frontends are updated to use canonical names.
 **`stmt_` prefix — runtime C shim functions (confirmed law):**
 
 `stmt_init`, `stmt_get`, `stmt_set`, `stmt_concat`, `stmt_any_ptr`, etc.
-The `stmt_` prefix scopes all C runtime shim functions called from x64 ASM
+The `stmt_` prefix scopes all C runtime shim functions called from x86
 macros. Not to be confused with SIL's `STMT` (statement number field). Do
 not use `stmt_` for any non-shim function.
 
@@ -387,14 +387,25 @@ backends that frontend is wired to.
 **Rule:** never declare a milestone done until every backend invariant it touches
 is green. If a backend has no runner yet (WASM), "builds clean" is the gate.
 
-#### x64 ASM backend — trigger when: any change to `emit_x64.c`, `emit_x64_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to x64
+**⚠ NAMING NOTE (2026-03-28):** The native backend was originally called "ASM" or
+"x64 ASM" — imprecise. Canonical name is now **x86** everywhere. The emitter file
+will be `emit_x64.c` (folder name stays `backend/x64/`) but the backend is referred
+to as "x86" in all docs, PLAN.md, session summaries, and invariant reports.
+Physical file renames happen in Phase 2 (M-G2-MOVE-ASM).
+
+**Invariant format — always report all three active backends:**
+`x86 106/106 · JVM 106/106 · .NET 110/110`
+Never report only one backend. If a backend cannot be run in the current
+environment, mark it with its last known good count and note why.
+
+#### x86 backend — trigger when: any change to `emit_x64.c`, `emit_x64_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to x64
 
 | Frontend | Suite | Count | Runner |
 |----------|-------|-------|--------|
 | SNOBOL4 | crosscheck corpus | `106/106` | `test/crosscheck/run_crosscheck_asm_corpus.sh` |
 | Icon | rung ladder (rungs 01–35+) | `38 rungs` | `test/frontend/icon/run_icon_x64_rung.sh` |
 | Prolog | rung ladder (rungs 1–9, expanding) | per-rung PASS | `test/frontend/prolog/` (per-rung scripts) |
-| Snocone | ASM corpus | `10/10` | `test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh` |
+| Snocone | x86 corpus | `10/10` | `test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh` |
 | Rebus | round-trip | `3/3` | `test/rebus/run_roundtrip.sh` |
 
 #### JVM backend — trigger when: any change to `emit_jvm.c`, `emit_jvm_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to JVM
@@ -417,7 +428,7 @@ is green. If a backend has no runner yet (WASM), "builds clean" is the gate.
 
 | Frontend | Suite | Count | Runner |
 |----------|-------|-------|--------|
-| *(none yet — WASM scaffolded in M-G2-SCAFFOLD-WASM; suites added as M-G6 milestones deliver them)* | — | — | `builds clean` |
+| *(none yet — WASM scaffolded in M-G2-SCAFFOLD-Wx86; suites added as M-G6 milestones deliver them)* | — | — | `builds clean` |
 
 `snobol4dotnet` and `snobol4jvm` are separate repos with different host languages
 and are not part of these invariants.
@@ -508,7 +519,7 @@ is the single authoritative copy.
 | 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to snobol4corpus; matching removal from snobol4x. | Icon invariants green after each batch |
 | 2 | Move Prolog corpus (130 `.pro`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
 | 3 | Move Snocone corpus (30 `.sc` + oracles). | Snocone 10/10 green |
-| 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 106/106 ASM + JVM + 110/110 NET green |
+| 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 x86 106/106 + JVM + 110/110 NET green |
 | 5 | Move Rebus corpus (3 `.reb` + oracles). | Rebus 3/3 green |
 | 6 | **HOLD** — `demo/beauty.sno` vs corpus `beauty.sno` divergence. Human review. | Lon sign-off |
 | 7 | Update runner script paths in `snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `snobol4corpus` paths |
@@ -521,7 +532,7 @@ is the single authoritative copy.
 | ID | Action | Verify |
 |----|--------|--------|
 | **M-G1-IR-HEADER-DEF** ✅ | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean ✅; `IR_DEFINE_NAMES` name table PASS ✅; `IR_COMPAT_ALIASES` 15 bridges PASS ✅; `E_KIND_COUNT = 59` ✅. Commit snobol4x `a1f9a76`. |
-| **M-G1-IR-HEADER-WIRE** ✅ | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean ✅; ASM 106/106 ✅. E_ARY/E_IDX duplicate cases collapsed (sval-based dispatch) in all 4 backends. EXPR_T_DEFINED guard added to ir.h. -I . added to Makefile. Commit snobol4x `4cb03d4`. |
+| **M-G1-IR-HEADER-WIRE** ✅ | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean ✅; x86 106/106 ✅. E_ARY/E_IDX duplicate cases collapsed (sval-based dispatch) in all 4 backends. EXPR_T_DEFINED guard added to ir.h. -I . added to Makefile. Commit snobol4x `4cb03d4`. |
 | **M-G1-IR-PRINT** ✅ | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: 6 node types printed correctly ✅; integrated into Makefile ✅; 106/106 ✅. Commit snobol4x `23d339b`. |
 | **M-G1-IR-VERIFY** ✅ | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | 6/6 unit tests PASS ✅; `make debug` target added ✅; 106/106 ✅. Commit snobol4x `c14da15`. |
 
@@ -538,9 +549,9 @@ is the single authoritative copy.
 | **M-G2-SCAFFOLD-WASM** | Create `src/backend/wasm/emit_wasm.c` — skeleton only: file header, empty `emit_wasm()` entry point, no IR handling yet. Add to Makefile. | Builds clean |
 | **M-G2-MOVE-ICON-JVM** | `git mv src/frontend/icon/icon_emit_jvm.c src/backend/jvm/emit_jvm_icon.c`. Update references. No content changes. | Icon JVM corpus 99/99 |
 | **M-G2-MOVE-PROLOG-JVM** | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Prolog JVM 20/20 |
-| **M-G2-MOVE-ICON-ASM** | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Icon ASM rung03 5/5 |
-| **M-G2-MOVE-PROLOG-ASM-a** | ⚠ FILE SPLIT step 1 — create `src/backend/x64/emit_x64_prolog.c` as an empty stub and `#include` it from the **tail** of `emit_x64.c`. Prolog code still physically lives in `emit_x64.c` at this step. Add stub to Makefile if needed. | 106/106 ASM; Prolog ASM rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
-| **M-G2-MOVE-PROLOG-ASM-b** | ⚠ FILE SPLIT step 2 — physically move Prolog ASM emitter code from `emit_x64.c` into `emit_x64_prolog.c`. Remove from `emit_x64.c`. The `#include` from step (a) stays. | 106/106 ASM; Prolog ASM rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
+| **M-G2-MOVE-ICON-ASM** | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Icon x86 rung03 5/5 |
+| **M-G2-MOVE-PROLOG-ASM-a** | ⚠ FILE SPLIT step 1 — create `src/backend/x64/emit_x64_prolog.c` as an empty stub and `#include` it from the **tail** of `emit_x64.c`. Prolog code still physically lives in `emit_x64.c` at this step. Add stub to Makefile if needed. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
+| **M-G2-MOVE-PROLOG-ASM-b** | ⚠ FILE SPLIT step 2 — physically move Prolog ASM emitter code from `emit_x64.c` into `emit_x64_prolog.c`. Remove from `emit_x64.c`. The `#include` from step (a) stays. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
 
 After M-G2: the file layout matches the target architecture. Every emitter sits
 in the backend directory that owns it. **M-G2-MOVE-PROLOG-ASM-a/b must be last** —
@@ -580,12 +591,12 @@ A regression is immediately localizable to the one file just touched.
 | ID | File | What changes | Verify |
 |----|------|-------------|--------|
 | **M-G3-NAME-COMMON** | `ir_emit_common.c` | Verify naming law from creation — no renames expected since file is written post-collapse; confirm `emit_wiring_<Kind>` function names, Greek port variable names, no deviations. | All corpus PASS (shared file) |
-| **M-G3-NAME-X64** | `emit_x64.c` | Rename backend-specific residuals: local vars, label strings, function names → naming law. `E()`/`EI()`/`EL()` macros confirmed. | 106/106 ASM |
+| **M-G3-NAME-X64** | `emit_x64.c` | Rename backend-specific residuals: local vars, label strings, function names → naming law. `E()`/`EI()`/`EL()` macros confirmed. | x86 106/106 |
 | **M-G3-NAME-JVM** | `emit_jvm.c` | Same. `J()`/`JI()`/`JL()` confirmed. | 106/106 JVM |
 | **M-G3-NAME-NET** | `emit_net.c` | Same. `N()`/`NI()`/`NL()` confirmed. | 110/110 NET |
 | **M-G3-NAME-WASM** | `emit_wasm.c` | Naming law applied from scratch at scaffold time (M-G2-SCAFFOLD-WASM); verify only. `W()`/`WI()`/`WL()`. | Builds clean |
-| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific residuals after Phase 4 extraction. | Icon ASM rung03 5/5 |
-| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific residuals. | Prolog ASM rungs 1–9 PASS |
+| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific residuals after Phase 4 extraction. | Icon x86 rung03 5/5 |
+| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific residuals. | Prolog x86 rungs 1–9 PASS |
 | **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific residuals. | Icon JVM 99/99 |
 | **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific residuals. | Prolog JVM 20/20 |
 
@@ -617,22 +628,22 @@ Each backend provides its own `emit_fn_t` callback. The wiring is written once.
 
 | ID | Node kinds | Action | Verify |
 |----|-----------|--------|--------|
-| **M-G4-SHARED-CONC** | `E_CONC` | Extract wiring to `ir_emit_common.c`. All three SNOBOL4 backends use it. | 106/106 ASM + JVM + NET |
+| **M-G4-SHARED-CONC** | `E_CONC` | Extract wiring to `ir_emit_common.c`. All three SNOBOL4 backends use it. | x86 106/106 + JVM + NET |
 | **M-G4-SHARED-OR** | `E_OR` | Same. | All |
 | **M-G4-SHARED-ARBNO** | `E_ARBNO` | Same. | All |
 | **M-G4-SHARED-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same. | All |
 | **M-G4-SHARED-ARITH** | `E_ADD/SUB/MPY/DIV/MOD` | Same. | All |
 | **M-G4-SHARED-ASSIGN** | `E_ASSIGN` | Same. | All |
 | **M-G4-SHARED-IDX** | `E_IDX` | Same. | All |
-| **M-G4-SHARED-ICON-TO** | `E_TO`, `E_TO_BY` | Extract Icon generator wiring shared between `emit_x64_icon.c` and `emit_jvm_icon.c`. | Icon ASM + JVM |
-| **M-G4-SHARED-ICON-SUSPEND** | `E_SUSPEND` | Same. Suspend/resume wiring isolated from other generators. | Icon ASM + JVM |
-| **M-G4-SHARED-ICON-ALT** | `E_ALT_GEN` | Same. | Icon ASM + JVM |
-| **M-G4-SHARED-ICON-BANG** | `E_ITER`, `E_MATCH` | Same. SCAN involves subject save/restore — verify both backends independently. | Icon ASM + JVM |
-| **M-G4-SHARED-ICON-LIMIT** | `E_LIMIT` | Same. | Icon ASM + JVM |
-| **M-G4-SHARED-PROLOG-UNIFY** | `E_UNIFY` | Extract Prolog unification wiring shared between ASM and JVM. | Prolog ASM + JVM |
-| **M-G4-SHARED-PROLOG-CLAUSE** | `E_CLAUSE`, `E_CHOICE` | Same. Head-matching and predicate dispatch wiring. | Prolog ASM + JVM |
-| **M-G4-SHARED-PROLOG-CUT** | `E_CUT` | Same. FENCE/cut sealing logic. | Prolog ASM + JVM |
-| **M-G4-SHARED-PROLOG-TRAIL** | `E_TRAIL_MARK`, `E_TRAIL_UNWIND` | Same. Trail save/restore is the most backend-sensitive Prolog operation — isolated last. | Prolog ASM + JVM |
+| **M-G4-SHARED-ICON-TO** | `E_TO`, `E_TO_BY` | Extract Icon generator wiring shared between `emit_x64_icon.c` and `emit_jvm_icon.c`. | Icon x86 + JVM |
+| **M-G4-SHARED-ICON-SUSPEND** | `E_SUSPEND` | Same. Suspend/resume wiring isolated from other generators. | Icon x86 + JVM |
+| **M-G4-SHARED-ICON-ALT** | `E_ALT_GEN` | Same. | Icon x86 + JVM |
+| **M-G4-SHARED-ICON-BANG** | `E_ITER`, `E_MATCH` | Same. SCAN involves subject save/restore — verify both backends independently. | Icon x86 + JVM |
+| **M-G4-SHARED-ICON-LIMIT** | `E_LIMIT` | Same. | Icon x86 + JVM |
+| **M-G4-SHARED-PROLOG-UNIFY** | `E_UNIFY` | Extract Prolog unification wiring shared between ASM and JVM. | Prolog x86 + JVM |
+| **M-G4-SHARED-PROLOG-CLAUSE** | `E_CLAUSE`, `E_CHOICE` | Same. Head-matching and predicate dispatch wiring. | Prolog x86 + JVM |
+| **M-G4-SHARED-PROLOG-CUT** | `E_CUT` | Same. FENCE/cut sealing logic. | Prolog x86 + JVM |
+| **M-G4-SHARED-PROLOG-TRAIL** | `E_TRAIL_MARK`, `E_TRAIL_UNWIND` | Same. Trail save/restore is the most backend-sensitive Prolog operation — isolated last. | Prolog x86 + JVM |
 
 ---
 
@@ -651,7 +662,7 @@ first being documented.
 | **M-G5-LOWER-SNOBOL4-AUDIT** | snobol4 | Audit `parse.c` / `lower.c` — list every node kind produced. Cross-reference to unified enum. Produce `doc/IR_LOWER_SNOBOL4.md` with gap table. No code changes. | File exists |
 | **M-G5-LOWER-SNOBOL4-FIX** | snobol4 | For each gap in `doc/IR_LOWER_SNOBOL4.md`: add missing kind to enum (if absent), wire bridge in `lower.c`. One commit per gap. | 106/106 after each gap fixed |
 | **M-G5-LOWER-ICON-AUDIT** | icon | Audit `IcnNode` kinds — map each to unified enum or flag as frontend-local extension. Produce `doc/IR_LOWER_ICON.md`. No code changes. | File exists |
-| **M-G5-LOWER-ICON-FIX** | icon | For each gap: add kind or wire explicit bridge. One commit per gap. | Icon ASM rung03 5/5 after each gap |
+| **M-G5-LOWER-ICON-FIX** | icon | For each gap: add kind or wire explicit bridge. One commit per gap. | Icon x86 rung03 5/5 after each gap |
 | **M-G5-LOWER-PROLOG-AUDIT** | prolog | Confirm `E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*` are all in unified enum (Phase 1). Produce `doc/IR_LOWER_PROLOG.md` — expected to be short. | File exists |
 | **M-G5-LOWER-PROLOG-FIX** | prolog | Fix any gaps found. (Expected: none.) | Prolog JVM 20/20 |
 | **M-G5-LOWER-SNOCONE-AUDIT** | snocone | Audit lowered form — map to unified enum. Produce `doc/IR_LOWER_SNOCONE.md`. | File exists |
@@ -704,17 +715,17 @@ No new emitter code for shared node kinds. Priority order:
 | **M-G6-PROLOG-NET** | Prolog → .NET | M-G4-SHARED-PROLOG-TRAIL + M-G5-LOWER-PROLOG | Prolog NET rung01 PASS |
 | **M-G6-SNOCONE-JVM** | Snocone → JVM | M-G5-LOWER-SNOCONE | Snocone JVM corpus PASS |
 | **M-G6-SNOCONE-NET** | Snocone → .NET | M-G5-LOWER-SNOCONE | Snocone NET corpus PASS |
-| **M-G6-SNOCONE-WASM** | Snocone → WASM | M-G5-LOWER-SNOCONE + M-G6-SNOBOL4-WASM | Snocone WASM rung01 PASS |
+| **M-G6-SNOCONE-WASM** | Snocone → WASM | M-G5-LOWER-SNOCONE + M-G6-SNOBOL4-WASM | Snocone Wx86 rung01 PASS |
 | **M-G6-REBUS-JVM** | Rebus → JVM | M-G5-LOWER-REBUS | Rebus JVM PASS |
 | **M-G6-REBUS-NET** | Rebus → .NET | M-G5-LOWER-REBUS | Rebus NET PASS |
-| **M-G6-REBUS-WASM** | Rebus → WASM | M-G5-LOWER-REBUS + M-G6-SNOBOL4-WASM | Rebus WASM rung01 PASS |
+| **M-G6-REBUS-WASM** | Rebus → WASM | M-G5-LOWER-REBUS + M-G6-SNOBOL4-WASM | Rebus Wx86 rung01 PASS |
 | **M-G6-SNOBOL4-WASM** | SNOBOL4 → WASM | M-G4-SHARED-ASSIGN + M-G2-SCAFFOLD-WASM | hello.sno → .wat → wasmtime PASS |
-| **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON-LIMIT + M-G5-LOWER-ICON | Icon WASM rung01 PASS |
-| **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG-TRAIL + M-G5-LOWER-PROLOG | Prolog WASM rung01 PASS |
-| **M-G6-SCRIP-X64** | Scrip → x64 ASM | M-G5-LOWER-SCRIP-FIX | Scrip ASM rung01 PASS |
+| **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON-LIMIT + M-G5-LOWER-ICON | Icon Wx86 rung01 PASS |
+| **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG-TRAIL + M-G5-LOWER-PROLOG | Prolog Wx86 rung01 PASS |
+| **M-G6-SCRIP-X64** | Scrip → x86 | M-G5-LOWER-SCRIP-FIX | Scrip x86 rung01 PASS |
 | **M-G6-SCRIP-JVM** | Scrip → JVM | M-G5-LOWER-SCRIP-FIX | Scrip JVM rung01 PASS |
 | **M-G6-SCRIP-NET** | Scrip → .NET | M-G5-LOWER-SCRIP-FIX | Scrip NET rung01 PASS |
-| **M-G6-SCRIP-WASM** | Scrip → WASM | M-G5-LOWER-SCRIP-FIX + M-G6-SNOBOL4-WASM | Scrip WASM rung01 PASS |
+| **M-G6-SCRIP-WASM** | Scrip → WASM | M-G5-LOWER-SCRIP-FIX + M-G6-SNOBOL4-WASM | Scrip Wx86 rung01 PASS |
 
 ---
 

@@ -12,7 +12,7 @@ snobol4x: multiple frontends, multiple backends.
 **Sprint:** `main` — B-292 (JVM nchildren fix ✅; L_io_end missing-label WIP)
 **HEAD:** `acbc71e` B-292
 **B-session:** Fixed JVM segfault: fi < e->nchildren guard in DATA ctor loop (emit_byrd_jvm.c:1156). beauty.sno now emits 872K-line beauty.j without crash. Jasmin still fails: `L_io_end has not been added to the code`. Root cause fully diagnosed (see CRITICAL NEXT ACTION). 106/106 ✅.
-**Invariants:** 106/106 ASM corpus ALL PASS ✅
+**Invariants:** `x86 106/106 · JVM 106/106 [frozen B-292] · .NET 110/110 [needs snobol4harness]`
 
 ## §BUILD
 ```bash
@@ -21,7 +21,7 @@ cd snobol4x && bash setup.sh   # installs deps, builds all drivers
 
 ## §TEST
 ```bash
-# ASM corpus (must be 106/106 before any work):
+# x86 corpus (must be 106/106 before any work):
 bash run_crosscheck_asm_corpus.sh
 # JVM corpus:
 bash run_crosscheck_jvm_rung.sh
