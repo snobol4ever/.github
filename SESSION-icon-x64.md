@@ -1,6 +1,6 @@
-# SESSION-icon-x64.md — Icon × x64 ASM (snobol4x)
+# SESSION-icon-x64.md — Icon × x86 (snobol4x)
 
-**Repo:** snobol4x · **Frontend:** Icon · **Backend:** x64 ASM
+**Repo:** snobol4x · **Frontend:** Icon · **Backend:** x86
 **Session prefix:** `IX` · **Trigger:** "playing with Icon x64" or "Icon asm"
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
@@ -185,7 +185,7 @@ a runtime type check (or just call `icn_write_int` as fallback for now).
    fall to emit_fail_node.
 
 3. **x64 corpus harness** (`test/frontend/icon/run_icon_x64_rung.sh`): new script
-   mirrors `run_crosscheck_asm_rung.sh` but for `.icn`/`.expected` pairs. Uses
+   mirrors `run_crosscheck_x86_rung.sh` but for `.icn`/`.expected` pairs. Uses
    `sno2c -icn`, nasm, `gcc -nostdlib`, diff. PASS/FAIL/SKIP counts.
 
 ### NEXT ACTION — IX-18
