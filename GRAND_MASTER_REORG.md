@@ -209,11 +209,48 @@ When execution begins: the reorg is **purely mechanical** at each step — no ne
 no bug fixes, no behavior changes. If a step introduces a regression, it is reverted
 entirely. The test suite must be green at the end of every milestone. Any regression → rollback, diagnose, fix before continuing.
 
-| Backend | Invariant | Runner |
-|---------|-----------|--------|
-| x64 ASM | `106/106` | `run_crosscheck_asm_corpus.sh` |
-| JVM | `106/106` | `run_crosscheck_jvm_rung.sh` |
-| .NET | `110/110` | `run_crosscheck_net.sh` |
+### Invariant Table
+
+Each milestone's Verify column references the **minimum set of backend invariants
+its change can affect**. A change to a shared file (e.g. `ir.h`, `sno2c.h`,
+`emit_x64.c`) triggers all four backends. A change scoped to one backend's emitter
+triggers only that backend. A change to one frontend's `lower.c` triggers only the
+backends that frontend is wired to.
+
+**Rule:** never declare a milestone done until every backend invariant it touches
+is green. If a backend has no runner yet (WASM), "builds clean" is the gate.
+
+#### x64 ASM backend — trigger when: any change to `emit_x64.c`, `emit_x64_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to x64
+
+| Frontend | Suite | Count | Runner |
+|----------|-------|-------|--------|
+| SNOBOL4 | crosscheck corpus | `106/106` | `test/crosscheck/run_crosscheck_asm_corpus.sh` |
+| Icon | rung ladder (rungs 01–35+) | `38 rungs` | `test/frontend/icon/run_icon_x64_rung.sh` |
+| Prolog | rung ladder (rungs 1–9, expanding) | per-rung PASS | `test/frontend/prolog/` (per-rung scripts) |
+| Snocone | ASM corpus | `10/10` | `test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh` |
+| Rebus | round-trip | `3/3` | `test/rebus/run_roundtrip.sh` |
+
+#### JVM backend — trigger when: any change to `emit_jvm.c`, `emit_jvm_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to JVM
+
+| Frontend | Suite | Count | Runner |
+|----------|-------|-------|--------|
+| SNOBOL4 | crosscheck corpus | `106/106` | `test/crosscheck/run_crosscheck_jvm_rung.sh` |
+| Icon | rung corpus (rungs 01–38) | `38 rung folders` | `test/frontend/icon/corpus/` (per-rung) |
+| Prolog | SWI bench ladder | `31/31` | `test/frontend/prolog/run_prolog_jvm_rung.sh` |
+
+#### .NET backend — trigger when: any change to `emit_net.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to .NET
+
+| Frontend | Suite | Count | Runner |
+|----------|-------|-------|--------|
+| SNOBOL4 | crosscheck corpus | `110/110` | `test/crosscheck/run_crosscheck_net.sh` |
+
+*(Icon .NET, Prolog .NET, Snocone .NET, Rebus .NET added here as M-G6 milestones deliver them)*
+
+#### WASM backend — trigger when: any change to `emit_wasm.c`, `ir.h`, or any frontend lower.c wired to WASM
+
+| Frontend | Suite | Count | Runner |
+|----------|-------|-------|--------|
+| *(none yet — WASM scaffolded in M-G2-SCAFFOLD-WASM; suites added as M-G6 milestones deliver them)* | — | — | `builds clean` |
 
 `snobol4dotnet` and `snobol4jvm` are separate repos with different host languages
 and are not part of these invariants.
@@ -228,7 +265,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G0-FREEZE** | Tag current HEAD of snobol4x as `pre-reorg-freeze`. Record 106/106 ASM, 106/106 JVM, 110/110 NET. | `git tag pre-reorg-freeze && git push --tags` |
+| **M-G0-FREEZE** | Tag current HEAD of snobol4x as `pre-reorg-freeze`. Record baseline for all invariants: 106/106 ASM (SNOBOL4), 38-rung ASM (Icon), Prolog ASM per-rung PASS, 10/10 Snocone ASM, 3/3 Rebus; 106/106 JVM (SNOBOL4), 38-rung JVM (Icon), 31/31 JVM (Prolog); 110/110 .NET (SNOBOL4). Produce `doc/BASELINE.md` with exact counts. | `git tag pre-reorg-freeze && git push --tags`; `doc/BASELINE.md` exists |
 | **M-G0-AUDIT** | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all emitter files |
 | **M-G0-IR-AUDIT** | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
 
@@ -239,7 +276,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | ID | Action | Verify |
 |----|--------|--------|
 | **M-G1-IR-HEADER-DEF** | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean; no `-Werror` violations |
-| **M-G1-IR-HEADER-WIRE** | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean; 106/106 ASM; 106/106 JVM; 110/110 NET |
+| **M-G1-IR-HEADER-WIRE** | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean; all four backend invariants green (shared header change triggers all backends) |
 | **M-G1-IR-PRINT** | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: print a known IR, check output |
 | **M-G1-IR-VERIFY** | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | `make debug` passes verify on all corpus programs |
 
@@ -470,7 +507,7 @@ No logic changes.
 | **M-G7-STYLE-BACKENDS** | Apply style to all backend files. | All corpus tests PASS |
 | **M-G7-STYLE-FRONTENDS** | Apply style to all frontend files. | All corpus tests PASS |
 | **M-G7-STYLE-IR** | Apply style to `src/ir/`. | Builds clean |
-| **M-G7-UNFREEZE** | Lift concurrent-development freeze. Update PLAN.md: resume all session rows from their pre-reorg HEADs. Tag `post-reorg-baseline`. | 106/106 ASM; 106/106 JVM; 110/110 NET; all frontend corpus PASS |
+| **M-G7-UNFREEZE** | Lift concurrent-development freeze. Update PLAN.md: resume all session rows from their pre-reorg HEADs. Tag `post-reorg-baseline`. | All four backend invariants green; all frontend corpus PASS |
 
 ---
 
