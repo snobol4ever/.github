@@ -1001,3 +1001,86 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 *GRAND_MASTER_REORG.md — living document.*
 *Completed G-milestone rows → MILESTONE_ARCHIVE.md per standard protocol.*
 *All concurrent development frozen until M-G7-UNFREEZE.*
+
+---
+
+## G-7 Addendum — Phase 4 design correction (2026-03-28)
+
+### E_CONC is not uniformly shareable
+
+The Phase 4 spec uses `E_CONC` as the worked example for `ir_emit_common.c`.
+Audit of all three backends reveals `E_CONC` has two distinct semantics:
+
+| Context | x64 | JVM | .NET |
+|---------|-----|-----|------|
+| Pattern (subject match) | SEQ Byrd-box: left.γ→right.α, right.ω→left.β via `emit_seq()` | N/A (no pattern Byrd-box in JVM) | SEQ chain + deferred-commit for NAM(ARB,...) |
+| Value (string concat) | n-ary fold, runtime call | StringBuilder n-ary append | CIL String::Concat chain with goal-directed short-circuit |
+
+**JVM has no pattern-mode Byrd-box for E_CONC** — it uses a completely different
+execution model (stack-based, no label/goto wiring). Extracting a shared
+`emit_wiring_CONC()` that covers all three backends is not possible in the form
+the spec describes.
+
+**What IS extractable:**
+- x64 and .NET share the abstract SEQ wiring topology (α→lα, β→rβ, lγ→rα, rω→lβ).
+  The .NET version adds a deferred-commit layer on top. A shared
+  `emit_wiring_SEQ(left, right, α, β, γ, ω, emit_child_fn)` could express
+  the common skeleton, with .NET providing a wrapper that injects the
+  deferred-commit logic.
+- The n-ary fold (>2 children right-fold) is identical in x64 and .NET and
+  can be extracted cleanly.
+
+**Revised Phase 4 approach for E_CONC:**
+1. Extract the **n-ary→binary right-fold** helper shared by x64 and .NET
+   into `ir_emit_common.c` — this is purely structural, zero backend specifics.
+2. Extract the **binary SEQ wiring skeleton** (4 labels, 2 child dispatches)
+   as `emit_wiring_SEQ()` in `ir_emit_common.c`, parameterised by `emit_child_fn`.
+   x64 uses it directly; .NET wraps it to inject deferred-commit.
+   JVM does not use it (different execution model — stays in `emit_jvm.c`).
+3. **Do not attempt to share value-context E_CONC** across backends — each
+   backend's string-concat emission is backend-idiomatic and non-trivial to
+   abstract without introducing overhead.
+
+**Implication for Phase 4 milestone ordering:**
+M-G4-SHARED-CONC is now split into two sub-steps:
+- M-G4-SHARED-CONC-FOLD: extract n-ary right-fold helper
+- M-G4-SHARED-CONC-SEQ: extract binary SEQ wiring skeleton
+
+Both are `ir_emit_common.c` additions. JVM is unaffected.
+Verification: x86 106/106 + .NET 110/110 (JVM 106/106 unchanged by construction).
+
+This finding likely generalises: **E_OR, E_ARBNO, E_CAPT_COND** all have
+pattern-mode wiring that is x64+.NET shareable but JVM-incompatible.
+Each Phase 4 milestone should be audited against this 2-vs-3 backend split
+before implementation.
+
+---
+
+## G-7 Addendum — E_SEQ / E_CONCAT split decision (2026-03-28)
+
+**Decision (Lon, 2026-03-28):** Split the overloaded `E_SEQ`/`E_CONC` node into
+two distinct IR node kinds:
+
+| Kind | Meaning | Wiring | Used by |
+|------|---------|--------|---------|
+| `E_SEQ` | Goal-directed sequence — both children must succeed | Byrd-box: α→lα, lγ→rα, rω→lβ, rγ→γ | SNOBOL4 pattern CAT; Icon `||` / `;` / `&` / loop bodies |
+| `E_CONCAT` | Pure value-context string concatenation — cannot fail | Direct: eval left, eval right, concatenate | SNOBOL4 value-context string building; JVM StringBuilder; .NET String::Concat |
+
+**Root cause of overloading:** SNOBOL4 `emit_expr` (value context) and
+`emit_pat_node` (pattern context) both dispatch on `E_CONC`/`E_SEQ` but produce
+completely different code. The same node kind served two roles, disambiguated
+only by which emit function was active. This made Phase 4 extraction impossible.
+
+**Impact:**
+- `ir.h`: add `E_CONCAT` enum entry; keep `E_SEQ`; update `E_CONC` alias to
+  `E_SEQ` (pattern) — add `E_CONCAT` alias for value-context callers
+- `sno2c.h` / SNOBOL4 lowering: value-context concat → `E_CONCAT`; pattern-context → `E_SEQ`
+- `emit_x64.c`: `emit_expr` `E_CONC` case → `E_CONCAT`; `emit_pat_node` `E_CONC` case stays `E_SEQ`
+- `emit_jvm.c`: `E_CONC` (StringBuilder) → `E_CONCAT`
+- `emit_net.c`: value-context `E_CONC` → `E_CONCAT`; pattern-context `E_CONC` → `E_SEQ`
+- `emit_x64_icon.c`, `emit_jvm_icon.c`: `ICN_CONCAT (||)` already lowers to `E_SEQ` — correct, no change
+- `ir_verify.c`: add rule — `E_CONCAT` children must be value nodes (no Byrd-box)
+
+**Milestone:** `M-G4-SPLIT-SEQ-CONCAT` — prerequisite for all M-G4-SHARED-* milestones.
+After this split, Phase 4 wiring extraction proceeds cleanly: `E_SEQ` wiring is
+shared across x64+.NET+Icon backends; `E_CONCAT` emission stays backend-local.
