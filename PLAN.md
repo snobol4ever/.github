@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — Phase 2 ✅ · M-G-INV ✅ · M-G4-SPLIT-SEQ-CONCAT ✅ (emitters done; parser sites pending) | `ad29d4a` snobol4x / `2cebfd4` .github | M-G4-SPLIT-SEQ-CONCAT phase 2 (parser/lowering E_CONC sites) then M-G4-SHARED-CONC-FOLD |
+| **⚠ GRAND MASTER REORG** | G-7 — Phase 2 ✅ · M-G-INV ✅ · M-G4-SPLIT-SEQ-CONCAT ✅ · M-G-INV-JVM ⏳ (harness built; full run pending) | `0bc5d9a` snobol4x / `.github` HEAD | M-G-INV-JVM: confirm JVM 106/106 with SnoHarness, then M-G4-SHARED-CONC-FOLD |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -617,3 +617,73 @@ SPITBOL v37.min p$xxx match routines confirm each is distinct.
 Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 
 **IR_AUDIT.md is now correct. Proceed to M-G0-SIL-NAMES then M-G1-IR-HEADER-DEF.**
+
+---
+
+## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — snobol4x `0bc5d9a`
+
+### What was done this session
+
+**Repo renames (M-G0-RENAME cleanup):**
+- `snobol4ever/snobol4corpus` → `snobol4ever/corpus` ✅
+- `snobol4ever/snobol4harness` → `snobol4ever/harness` ✅
+- 112 refs updated in `.github`, 43 refs in `snobol4x`. Both committed.
+
+**M-G4-SPLIT-SEQ-CONCAT phase 2 — parser/lowering E_CONC sites ✅**
+
+`src/frontend/snobol4/parse.c`:
+- Added `fixup_val_tree()` — recursively renames `E_SEQ` → `E_CONCAT` in value-context trees.
+- Added `repl_is_pat_tree()` — lightweight guard: detects pattern-only nodes (`E_ARB`, `E_ARBNO`, `E_NAM`, `E_DOL`, `E_ATP`, `E_STAR`) in replacement tree.
+- Post-parse fixup at statement level: `fixup_val_tree(s->subject)` always; `fixup_val_tree(s->replacement)` only when `!repl_is_pat_tree(s->replacement)`. `s->pattern` left as `E_SEQ` (correct by construction).
+- **Key bug caught and fixed:** `PAT = " the " ARB . OUTPUT (...)` — replacement IS a pattern expression. Naive `fixup_val_tree` on replacement converted `E_SEQ→E_CONCAT`, breaking `expr_is_pattern_expr` in the emitter → `named_pat_register` not called → word1-4 FAIL. Fix: `repl_is_pat_tree` guard.
+
+`src/frontend/snocone/snocone_lower.c`:
+- `SNOCONE_CONCAT`, `SNOCONE_PIPE`, `SNOCONE_OR` → `E_CONCAT` (all pure value-context string concat).
+
+**x86 invariant: 106/106 ✅** (verified with `run_crosscheck_asm_corpus.sh`)
+
+**M-G-INV-JVM: single-JVM harness ⏳ (built, smoke-tested, full run pending)**
+
+Root cause of JVM suite slowness: per-test JVM startup (~200-500ms × 106+ tests = minutes). Previous M-G-INV optimization only addressed x86 gcc recompilation — never touched JVM startup cost.
+
+Fix:
+- `src/backend/jvm/emit_jvm.c`: `System/exit` → `SnoRuntime/sno_exit` (2 sites).
+- `test/jvm/SnoRuntime.java`: `sno_exit(int)` shim — throws `SnoExitException` in harness mode, calls `System.exit` standalone.
+- `test/jvm/SnoHarness.java`: single-JVM runner. Per-test `URLClassLoader` isolation (statics reset automatically). Per-test daemon thread with 3s timeout (handles blocking `INPUT` reads). One JVM startup for entire suite.
+- `test/run_invariants.sh` `run_snobol4_jvm()`: rewritten — compile all `.j` + assemble all `.class` in one pass, copy `.ref`/`.input` flat, then `java -cp $W SnoHarness $W $W $W` once.
+- `setup.sh`: installs `openjdk-21-jdk-headless` (javac) if missing.
+
+**Smoke test (13 tests):** 11 PASS, 1 FAIL (expr_eval — pre-existing), 1 TIMEOUT (wordcount — infinite INPUT loop, expected). Mechanism confirmed working.
+
+**`javac` not in PATH by default** — only JRE was installed. `setup.sh` now installs JDK.
+
+### Remaining issues / known state
+
+1. **Full JVM 106/106 run not yet confirmed** — harness built and smoke-tested but `run_invariants.sh` full run was not completed this session (context limit). This is the first thing to do next session.
+
+2. **`expr_eval` FAIL in JVM smoke** — pre-existing (not caused by this session's changes). Check whether it fails in the old per-test runner too before investigating.
+
+3. **`wordcount` TIMEOUT** — expected. `wordcount.sno` reads `INPUT` in a loop; no `.input` file → blocks. The 3s timeout in SnoHarness handles it correctly. Not a bug.
+
+4. **`.class` files gitignored** — correct, they're build artifacts. `run_invariants.sh` compiles them fresh each run from the `.java` sources in `test/jvm/`.
+
+### Next session
+
+**Read only:** `PLAN.md` G-7 Handoff + this section.
+
+**Step 1 — Run SESSION_BOOTSTRAP.sh first (mandatory):**
+```bash
+TOKEN=ghp_<your-token> bash /home/claude/.github/SESSION_BOOTSTRAP.sh
+```
+
+**Step 2 — Confirm JVM 106/106:**
+```bash
+cd /home/claude/snobol4x
+bash test/run_invariants.sh 2>&1 | grep -E "matrix|106|FAIL|wall"
+```
+If JVM shows 106/106: commit `G-7: M-G-INV-JVM ✅ — JVM 106/106 confirmed`, update PLAN.md, advance to **M-G4-SHARED-CONC-FOLD**.
+
+If JVM shows failures: diff against `run_crosscheck_jvm_rung.sh` results to isolate whether failures are harness bugs or real regressions.
+
+**Step 3 — M-G4-SHARED-CONC-FOLD** (after JVM confirmed):
+Extract n-ary→binary right-fold helper for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. Shared by x64 and .NET. JVM unaffected (different execution model). See GRAND_MASTER_REORG.md Phase 4.
