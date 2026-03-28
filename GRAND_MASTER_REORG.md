@@ -9,14 +9,23 @@
 The project is a matrix of **6 frontends × 4 active backends**, housed across three
 compiler/runtime product repos:
 
-| Repo | Language | Frontends | Backends |
-|------|----------|-----------|---------|
-| `snobol4x` | C | SNOBOL4/SPITBOL, Snocone, Rebus, Icon, Prolog, Scrip | x64 ASM, JVM, .NET, WASM |
-| `snobol4jvm` | Clojure | SNOBOL4/SPITBOL only | JVM only |
-| `snobol4dotnet` | C# | SNOBOL4/SPITBOL only | .NET only |
+| Repo | Role | Language | Notes |
+|------|------|----------|-------|
+| `snobol4x` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
+| `snobol4jvm` | Compiler/runtime | Clojure | SNOBOL4/SPITBOL → JVM only |
+| `snobol4dotnet` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only |
+| `snobol4harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
+| `snobol4corpus` | Test data | SNOBOL4/Icon/Prolog | Canonical crosscheck corpus used by all backends |
+| `snobol4python` | Pattern library | Python | Out of scope for this reorg |
+| `snobol4csharp` | Pattern library | C# | Out of scope for this reorg |
 
-Plus two pattern-matching library repos (`snobol4python`, `snobol4csharp`) that are
-out of scope for this reorg.
+`snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend repos in different
+host languages; they are **not restructured here**.
+
+`snobol4harness` and `snobol4corpus` are infrastructure repos. They are **not
+structurally reorganized** but their rename (to the canonical `snobol4harness` /
+`snobol4corpus` marketing names, per RENAME.md) is part of the reorg scope and
+is executed in **M-G0-RENAME** below.
 
 `snobol4x` is the 2D matrix repo — the only one that is, or will be, multi-frontend
 and multi-backend. `snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend
@@ -265,7 +274,8 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G0-FREEZE** | Tag current HEAD of snobol4x as `pre-reorg-freeze`. Record baseline for all invariants: 106/106 ASM (SNOBOL4), 38-rung ASM (Icon), Prolog ASM per-rung PASS, 10/10 Snocone ASM, 3/3 Rebus; 106/106 JVM (SNOBOL4), 38-rung JVM (Icon), 31/31 JVM (Prolog); 110/110 .NET (SNOBOL4). Produce `doc/BASELINE.md` with exact counts. | `git tag pre-reorg-freeze && git push --tags`; `doc/BASELINE.md` exists |
+| **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. snobol4harness HEAD: `eced661`. snobol4corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
+| **M-G0-RENAME** | Confirm `snobol4harness` and `snobol4corpus` are using their canonical marketing names (per RENAME.md). Update any cross-repo references in `snobol4x/setup.sh`, runner scripts, and `.github` docs that use old names. No functional changes. | All references in snobol4x and .github resolve correctly |
 | **M-G0-AUDIT** | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all emitter files |
 | **M-G0-IR-AUDIT** | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
 

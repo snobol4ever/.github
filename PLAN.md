@@ -9,25 +9,27 @@ SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 
 Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
 
+**🔒 ALL SESSIONS FROZEN — Grand Master Reorganization in progress. Resume post M-G7-UNFREEZE.**
+
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
-| **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-RECOG-CORPUS ✅ 0 crashes; icon_parser 98.3%, icon_recog 51.9%, prolog 100%/100% | `4b4d71a` PP-1 | Lon to assign |
-| **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
-| **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
-| **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
-| **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
-| **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
-| **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
-| **ICON x64** | IX-18 — x64 gate wired, ICN_AUGOP impl, harness added; 22/110 rung10–35 pass; taxonomy in SESSION | `c648df5` IX-18 | rung10–35 all green on x64 |
-| **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
-| **Prolog x64** | PX-1 — \+/\= ✅; 2-ucall backtrack ✅ `a051367`; 3-ucall re-entry loop WIP | `a051367` | M-PJ-X64-3 (3-ucall re-entry) |
-| **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
-| **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
-| **🔗 LINKER JVM** | LP-JVM-3 — linkage infra ✅; pj_call_goal passes arity=0+null args to pj_reflect_call for compound goals — DB fallback can't unify | `55d8655` LP-JVM-3 | M-SCRIP-DEMO |
+| **⚠ GRAND MASTER REORG** | G-7 — M-G0-FREEZE ✅ `716b814` | `716b814` G-7 | M-G0-RENAME |
+| **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
+| **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
+| **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
+| **TINY NET** | [FROZEN N-253 `e7dc859`] | — | resume post-reorg |
+| **TINY JVM** | [FROZEN J-216 `a74ccd8`] | — | resume post-reorg |
+| **TINY frontend** | [FROZEN F-223 `b4507dc`] | — | resume post-reorg |
+| **DOTNET** | [FROZEN D-164 `e1e4d9e`] | — | resume post-reorg |
+| **README** | [FROZEN R-2 `00846d3`] | — | resume post-reorg |
+| **ICON x64** | [FROZEN IX-18 `c648df5`] | — | resume post-reorg |
+| **Prolog JVM** | [FROZEN PJ-84a `a79906e`] | — | resume post-reorg |
+| **Prolog x64** | [FROZEN PX-1 `a051367`] | — | resume post-reorg |
+| **Icon JVM** | [FROZEN IJ-58 `5b32daa`] | — | resume post-reorg |
+| **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
+| **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
 
-**Invariants:** TINY `106/106` · DOTNET `1903/1903`
+**Invariants (frozen baseline):** x64 ASM: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `1903/1903`
 
 ---
 
