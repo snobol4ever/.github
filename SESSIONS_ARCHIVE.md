@@ -3546,3 +3546,25 @@ PLAN.md updated: mandatory session-start block (4 steps) + 9-repo inventory adde
 snobol4corpus cloned — ASM 106/106 confirmed against real corpus.
 
 **Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 2 (M-G2-SCAFFOLD-WASM).
+
+---
+
+**G-7 addendum (2026-03-28, Claude Sonnet 4.6) — snobol4x `c11841f`**
+
+Fixed E_ARY/E_IDX assignment-path regressions introduced by M-G1-IR-HEADER-WIRE.
+Three files had `kind == E_ARY` branch conditions — now that E_ARY is a compat alias
+for E_IDX (same integer), every postfix subscript incorrectly hit the named-array branch.
+Fix: replace kind-check with `sval != NULL` in `emit_byrd_jvm.c`, `emit_byrd_net.c`,
+`emit_byrd_c.c` assignment paths. .NET went from 105/110 back to 109/110.
+Remaining 1 failure (056_pat_star_deref) is pre-existing: E_DEFER unimplemented in NET,
+predates freeze baseline. JVM pre-existing failures unchanged.
+
+SESSION_BOOTSTRAP.sh created in .github — single script covering WHO/WHAT/WHERE/WHY/HOW.
+Clones repos, installs tools (nasm/mono/java), sets git identity, prints milestone, runs
+all three invariants. RULES.md and PLAN.md updated to point to it.
+
+Backend renamed ASM → x86 in all HQ docs. Invariant format standardised:
+`x86 106/106 · JVM 106/106 · .NET 109/110 [056 pre-existing]`
+
+**Next session:** M-G2-SCAFFOLD-WASM — Phase 2 start.
+Run SESSION_BOOTSTRAP.sh first. Read GRAND_MASTER_REORG.md Phase 2.

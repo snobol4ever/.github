@@ -5,17 +5,14 @@ SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 
 ---
 
-## ⛔ MANDATORY SESSION START — Do these four steps before ANY work
+## ⛔ SESSION START — Run this first, every session
 
-```
-1. tail -80 SESSIONS_ARCHIVE.md        ← your handoff, do this FIRST
-2. cat RULES.md                        ← mandatory, ~10 rules, read in full
-3. cat PLAN.md                         ← NOW table + next milestone (you are here)
-4. cat REPO-snobol4x.md                ← §BUILD §TEST §NOW for your repo
-   cat SESSION-<frontend>-<backend>.md ← §NOW lives here, not in PLAN.md
+```bash
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
-Skipping any step is catastrophic. HQ docs are the only reliable memory.
+Clones repos, installs tools, sets git identity, prints current milestone, runs all three invariants.
+Script is self-contained. See RULES.md for the six things it covers.
 
 ## 9 Repos under github.com/snobol4ever
 
@@ -31,8 +28,6 @@ Skipping any step is catastrophic. HQ docs are the only reliable memory.
 | `snobol4csharp` | SNOBOL4 pattern library for C# | clone if needed |
 | `snobol4artifact` | CPython extension | clone if needed |
 
-**Always clone `snobol4corpus` as sibling of `snobol4x`** — crosscheck scripts expect it at `../snobol4corpus/`.
-
 ---
 
 ## ⚡ NOW
@@ -43,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — Phase 1 complete ✅ (IR-DEF/WIRE/PRINT/VERIFY) | `c14da15` snobol4x / `3adc7b0` .github | M-G2-SCAFFOLD-WASM (Phase 2 start) |
+| **⚠ GRAND MASTER REORG** | G-7 — Phase 1 complete ✅ + assignment regressions fixed | `c11841f` snobol4x / `.github` pending | M-G2-SCAFFOLD-WASM (Phase 2 start) |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -59,7 +54,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
 | **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
 
-**Invariants (frozen baseline):** x64 ASM: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
+**Invariants (frozen baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
 
 ---
 
@@ -75,7 +70,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 **2. Frontend × Backend → Session doc**
 
-| | x64 ASM | JVM | .NET |
+| | x86 | JVM | .NET |
 |--|:-------:|:---:|:----:|
 | SNOBOL4 | `SESSION-snobol4-x64.md` | `SESSION-snobol4-jvm.md` | `SESSION-snobol4-net.md` |
 | Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |

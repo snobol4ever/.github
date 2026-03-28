@@ -4,6 +4,36 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ---
 
+## ⛔ SIX THINGS — Run SESSION_BOOTSTRAP.sh first, every session, no exceptions
+
+```bash
+# At session start — provide the GitHub token Lon gave you:
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
+```
+
+`SESSION_BOOTSTRAP.sh` does all six things automatically:
+
+| # | Thing | What it does |
+|---|-------|-------------|
+| 1 | **WHO** | Sets `git config user.name/email` to LCherryholmes — every commit, every repo |
+| 2 | **WHAT** | Prints project summary: 6 frontends × 4 backends, current reorg phase, ref docs |
+| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `snobol4x` · `snobol4corpus` · `snobol4harness` |
+| 4 | **WHERE (tools)** | Installs `nasm` · `mono-complete` · `java` · confirms `jasmin.jar` · builds `sno2c` |
+| 5 | **WHY** | Prints current milestone from PLAN.md and the four docs to read before coding |
+| 6 | **HOW** | Runs all three invariants: `x86 106/106 · JVM 106/106 · .NET 110/110` |
+
+Script location: `/home/claude/.github/SESSION_BOOTSTRAP.sh`
+Never say a tool is unavailable. The script installs everything. You have a network connection.
+
+After the script passes, read (in order):
+```
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md   # your handoff
+cat /home/claude/.github/RULES.md                   # this file
+cat /home/claude/.github/PLAN.md                    # NOW table + next milestone
+cat /home/claude/.github/GRAND_MASTER_REORG.md      # phase detail
+```
+
+
 ## ⛔ TOKEN — Never write or display the token
 
 Token is provided once by Lon at session start. Use in shell only. Never on disk, never in chat, never in commit messages, never in handoff summaries. Write `TOKEN_SEE_LON` as placeholder in any file that references it. If token appears in a commit: notify Lon immediately — rotation and history rewriting are Lon's decisions only.
@@ -33,7 +63,7 @@ Format: `PREFIX-NNN` where NNN increments within that namespace only.
 Each session increments only its own counter. Commit messages: `PJ-5: M-PJ-BACKTRACK — fix suffix_fail`.
 
 **⚠ ICON vs IJ DISAMBIGUATION — common source of error:**
-- `"ICON frontend"` alone = I-session (x64 ASM backend, `icon_emit.c`)
+- `"ICON frontend"` alone = I-session (x86 backend, `icon_emit.c`)
 - `"ICON frontend with JVM backend"` = IJ-session (`icon_emit_jvm.c`, Jasmin)
 - `"Icon JVM"` = IJ-session
 - The phrase "JVM backend" is the deciding signal. When in doubt: check which emitter file is active. `icon_emit.c` → I. `icon_emit_jvm.c` → IJ.
@@ -149,8 +179,15 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 ## ⛔ TEST INVARIANT — Confirm before any work
 
-- **TINY/ASM sessions:** `run_crosscheck_asm_corpus.sh` must show 106/106 before any work begins. Fix regressions before starting new work.
-- **All sessions:** run the relevant rung/corpus check for your frontend+backend and confirm baseline before touching code.
+**Required baseline (always report all three):** `x86 106/106 · JVM 106/106 · .NET 110/110`
+
+- **x86 sessions:** `run_crosscheck_asm_corpus.sh` must show 106/106 before any work begins.
+- **JVM sessions:** `run_crosscheck_jvm_rung.sh` against full corpus must show 106/106.
+- **.NET sessions:** `run_crosscheck_net.sh` must show 110/110 (requires `snobol4harness`).
+- **All sessions:** run the relevant rung/corpus check for your frontend+backend and confirm baseline before touching code. Fix regressions before starting new work.
+- **Never report only one backend.** If a backend cannot be run, state the last known count and the reason (e.g. "JVM 106/106 [frozen B-292]").
+
+**Backend name:** The native backend is **x86** (not "ASM" or "x64 ASM"). Emitter file stays `emit_x64.c`; folder stays `backend/x64/`; the human name is x86.
 
 ---
 
