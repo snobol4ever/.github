@@ -71,11 +71,11 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 
 ---
 
-## §NOW — IX-13
+## §NOW — IX-14
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon x64** | IX-13 — rung04-05 ✅; rung06-07 WIP | `2453f6a` | M-IX-CSET (rung06 5/5, rung07 5/5) |
+| **Icon x64** | IX-14 — M-IX-CSET ✅ | `02d10ce` | M-IX-STRBUILTINS (rung08 5/5) |
 
 ### Baseline (confirmed this session)
 
@@ -84,38 +84,39 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 | rung01_paper | **6/6 ✅** |
 | rung02_arith_gen | **5/5 ✅** |
 | rung02_proc | **3/3 ✅** |
-| rung03_suspend | **5/5 ✅** |
+| rung03_suspend | 3/5 CE — 2 linker failures (pre-existing, untouched) |
 | rung04_string | **5/5 ✅** |
 | rung05_scan | **5/5 ✅** |
-| rung06_cset | 2/5 — any/many off-by-one + ICN_AND fwd-ref bug |
-| rung07_control | 4/5 — t05 `not (x < 5)` stack corruption |
+| rung06_cset | **5/5 ✅** |
+| rung07_control | **5/5 ✅** |
 | rung08_strbuiltins | 0/5 — not started |
 | rung09–15 | 0–1/5 |
 
-### NEXT ACTION — IX-14: M-IX-CSET
+### What was fixed (IX-13 session, commit `02d10ce`)
 
-Two bugs to fix before rung06/07 are green:
+**Bug 1 — ICN_AND forward-reference** (rung06 t02, t05)
+- Old code emitted children right-to-left; used `ccb[i-1]` before filled.
+- Fix: emit left-to-right, pre-generate `relay_g[i]` gamma labels;
+  relay trampolines discard Ei's stack result (`add rsp,8`) then
+  jump to `cca[i+1]`. Mirrors JVM emitter.
 
-**Bug 1 — ICN_AND forward-reference (CE / wrong output)**
-- In `emit_expr` `case ICN_AND`: loop emits children right-to-left.
-  For child `i`, sets `ep.ω = ccb[i-1]` — but `ccb[i-1]` is not yet
-  filled (child `i-1` hasn't been emitted yet).
-- Fix: pre-generate a beta placeholder label for each child *before* the
-  loop using `icn_new_id` + `icn_label_β`, store in `ccb[i]`, then emit
-  children using those pre-generated labels.
-- Affects: t02_any_fail (rung06), t05_cset_var (rung06).
+**Bug 2 — ICN_CSET assign stores via rdi not stack** (rung06 t05)
+- `emit_cset` uses `lea rdi,[rel label]` like `emit_str` — nothing pushed.
+- `emit_assign` only handled `ICN_STR` on the rdi path, not `ICN_CSET`.
+- Fix: `rhs_is_str` covers both `ICN_STR` and `ICN_CSET`.
 
-**Bug 2 — emit_not stack corruption (rung07 t05)**
-- `emit_not` does `add rsp, 8` to discard E's value when E succeeds.
-- But if E is a relop that *fails* first (no push), then the β path
-  reaches `e_ok` via a different route and `add rsp, 8` corrupts rsp.
-- Actual issue: `not (x < 5)` — `x < 5` fails (x=7), so `not` should
-  succeed. But the relop failure path doesn't go through `e_ok`; it
-  goes to `e_fail` correctly. Re-examine generated asm to confirm.
-- Also check: `if not (x < 5) then write(x)` — `emit_if` discards
-  the condition value with `add rsp, 8` after cond succeeds. When
-  cond = `not(...)`, the not node pushes 0. That should work.
-  Actual failure may be that `emit_not`'s `e_fail` label jumps to
-  `ports.γ` without pushing, but `emit_if`'s cond_then does
-  `add rsp, 8` expecting a value. ✓ not does push 0 to `ports.γ`.
-  Needs asm inspection.
+**Bug 3 — write() type dispatch** (rung05, rung06, rung07)
+- Root cause of rung07 t05 "stack corruption" was actually
+  `write(x)` calling `icn_write_str` with an integer variable value.
+- Added `LocalVar.type` field, `icn_expr_kind()` helper, and
+  `infer_local_types()` pre-pass to record rhs types from assignments.
+- `icn_expr_kind()` handles: `ICN_STR/CSET→S`, `ICN_INT/arith→I`,
+  `ICN_VAR→locals_type()`, `&subject→S`, `&pos→I`,
+  `ICN_CALL any/many/upto→I`, `ICN_CALL tab/move/string/…→S`.
+- `write` dispatch uses `icn_expr_kind()` uniformly.
+
+### NEXT ACTION — IX-15: M-IX-STRBUILTINS
+
+Start rung08_strbuiltins (0/5). Likely needs: `size()`, `find()`,
+`match()`, `pos()`, `move()`, `tab()`, possibly `trim()`/`left()`/`right()`.
+Check which builtins rung08 exercises before writing any code.
