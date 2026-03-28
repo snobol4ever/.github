@@ -71,11 +71,11 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 
 ---
 
-## §NOW — IX-12
+## §NOW — IX-13
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon x64** | IX-12 — rung01-03 ✅ confirmed | `5b32daa` | M-IX-STRING |
+| **Icon x64** | IX-13 — rung04-05 ✅; rung06-07 WIP | `2453f6a` | M-IX-CSET (rung06 5/5, rung07 5/5) |
 
 ### Baseline (confirmed this session)
 
@@ -85,18 +85,37 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 | rung02_arith_gen | **5/5 ✅** |
 | rung02_proc | **3/3 ✅** |
 | rung03_suspend | **5/5 ✅** |
-| rung04_string | 2/5 — `\|\|` concat segfaults |
-| rung05_scan | 0/5 — scan not implemented |
-| rung06_cset | 1/5 — cset not implemented |
-| rung07_control | 0/5 — if/next/break missing |
-| rung08_strbuiltins | 0/5 — str builtins missing |
-| rung09–15 | 0–1/5 — real, augop, alt, etc |
+| rung04_string | **5/5 ✅** |
+| rung05_scan | **5/5 ✅** |
+| rung06_cset | 2/5 — any/many off-by-one + ICN_AND fwd-ref bug |
+| rung07_control | 4/5 — t05 `not (x < 5)` stack corruption |
+| rung08_strbuiltins | 0/5 — not started |
+| rung09–15 | 0–1/5 |
 
-### NEXT ACTION — IX-12: M-IX-STRING
+### NEXT ACTION — IX-14: M-IX-CSET
 
-Diagnose and fix `||` concat segfault in rung04.
-- `t02_concat`, `t03_str_var`, `t05_concat_chain` fail with segfault (output empty)
-- `t01_str_lit`, `t04_multi_str` already pass
-- Root cause: likely `icn_write_str` called with bad pointer from concat codegen
+Two bugs to fix before rung06/07 are green:
 
-Check: what does `icon_emit.c` emit for `ICN_CONCAT`? Is `icn_runtime.c` missing a concat helper?
+**Bug 1 — ICN_AND forward-reference (CE / wrong output)**
+- In `emit_expr` `case ICN_AND`: loop emits children right-to-left.
+  For child `i`, sets `ep.ω = ccb[i-1]` — but `ccb[i-1]` is not yet
+  filled (child `i-1` hasn't been emitted yet).
+- Fix: pre-generate a beta placeholder label for each child *before* the
+  loop using `icn_new_id` + `icn_label_β`, store in `ccb[i]`, then emit
+  children using those pre-generated labels.
+- Affects: t02_any_fail (rung06), t05_cset_var (rung06).
+
+**Bug 2 — emit_not stack corruption (rung07 t05)**
+- `emit_not` does `add rsp, 8` to discard E's value when E succeeds.
+- But if E is a relop that *fails* first (no push), then the β path
+  reaches `e_ok` via a different route and `add rsp, 8` corrupts rsp.
+- Actual issue: `not (x < 5)` — `x < 5` fails (x=7), so `not` should
+  succeed. But the relop failure path doesn't go through `e_ok`; it
+  goes to `e_fail` correctly. Re-examine generated asm to confirm.
+- Also check: `if not (x < 5) then write(x)` — `emit_if` discards
+  the condition value with `add rsp, 8` after cond succeeds. When
+  cond = `not(...)`, the not node pushes 0. That should work.
+  Actual failure may be that `emit_not`'s `e_fail` label jumps to
+  `ports.γ` without pushing, but `emit_if`'s cond_then does
+  `add rsp, 8` expecting a value. ✓ not does push 0 to `ports.γ`.
+  Needs asm inspection.

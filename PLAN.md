@@ -19,7 +19,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
-| **ICON x64** | IX-12 — rung01-03 confirmed ✅ baseline surveyed rung04-15 | `5b32daa` IX-12 | M-IX-STRING (fix `\|\|` concat segfault, rung04 100%) |
+| **ICON x64** | IX-13 — rung04 ✅ rung05 ✅ rung06 2/5 rung07 4/5 | `2453f6a` IX-13 | M-IX-CSET (fix ICN_AND fwd-ref + emit_not; rung06-07 100%) |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
 | **Prolog x64** | PX-1 — probing, hello works, multi-clause broken | `a79906e` | M-PJ-X64-1 |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
