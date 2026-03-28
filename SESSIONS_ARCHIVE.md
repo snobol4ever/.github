@@ -3525,3 +3525,24 @@ JVM + 110/110 NET — after the include is added.
 
 **Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 1 +
 `src/ir/ir.h` + `src/frontend/snobol4/sno2c.h` header section.
+
+---
+
+**G-7 (2026-03-28, Claude Sonnet 4.6) — Phase 1 complete: snobol4x `c14da15` / .github `3adc7b0`**
+
+M-G1-IR-HEADER-WIRE ✅: `sno2c.h` now includes `ir/ir.h`. Replaced local EKind enum with
+`#define IR_COMPAT_ALIASES / EXPR_T_DEFINED / #include "ir/ir.h"`. Added `EXPR_T_DEFINED`
+guard to `ir.h` EXPR_t block (struct unification later phase). Added `-I .` to Makefile.
+Collapsed E_ARY/E_IDX duplicate cases in all 4 backends (sval-based dispatch). 106/106 ✅.
+
+M-G1-IR-PRINT ✅: `src/ir/ir_print.c` — S-expression printer, all 59 node kinds, unit test
+6/6 PASS. Added to Makefile IR var. 106/106 ✅.
+
+M-G1-IR-VERIFY ✅: `src/ir/ir_verify.c` — structural checker (kind range, nchildren spec,
+sval presence, NULL child detection). Per-kind spec table for all 59 nodes. 6/6 unit tests
+PASS. `make debug` target added. 106/106 ✅.
+
+PLAN.md updated: mandatory session-start block (4 steps) + 9-repo inventory added to header.
+snobol4corpus cloned — ASM 106/106 confirmed against real corpus.
+
+**Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 2 (M-G2-SCAFFOLD-WASM).

@@ -43,7 +43,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — M-G1-IR-HEADER-WIRE ✅ | `4cb03d4` snobol4x / `.github` pending | M-G0-SIL-NAMES → next per GRAND_MASTER_REORG.md |
+| **⚠ GRAND MASTER REORG** | G-7 — Phase 1 complete ✅ (IR-DEF/WIRE/PRINT/VERIFY) | `c14da15` snobol4x / `3adc7b0` .github | M-G2-SCAFFOLD-WASM (Phase 2 start) |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
