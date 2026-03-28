@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-RECOG-ICON ✅ M-RECOG-PROLOG ✅ both mirrors pass | `566aba8` PP-1 | Lon to assign |
+| **🌳 Parser pair** | PP-1: M-RECOG-ICON ✅ M-RECOG-PROLOG ✅ both mirrors pass | `566aba8` PP-1 | M-RECOG-CORPUS |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -411,3 +411,39 @@ Self-parse mirror: exit 0, 1486 lines, 1065 open = 1065 close parens — perfect
 
 ### Next session
 Lon to assign. Read only: `PLAN.md` PP-1 section + this handoff.
+
+---
+
+## PP-1 Handoff update (2026-03-27 session 5, Claude Sonnet 4.6) — commits below
+
+### What was done
+
+**Milestone defined: M-RECOG-CORPUS**
+
+New milestone to run all four tools (icon_parser, icon_recognizer, prolog_parser,
+prolog_recognizer) against every program in snobol4corpus and snobol4x test suites.
+
+**Harness scripts added to `snobol4x/test/scrip/`:**
+- `run_corpus_icon.sh` — compiles both Icon tools, runs on all `.icn` files, reports pass/empty/crash
+- `run_corpus_prolog.sh` — runs both Prolog tools via swipl, reports pass/empty/crash
+
+**Baseline (30-file sample, icon corpus):**
+- icon_parser: 29/30 pass (97%), 0 crashes
+- icon_recognizer: 13/30 pass (43%, empty = files with $include/link), 0 crashes
+
+**Milestone doc:** `MILESTONE-RECOG-CORPUS.md` in this repo
+
+**Corpus sizes:**
+- `snobol4corpus/programs/icon/`: 851 .icn files
+- `snobol4x/test/frontend/icon/`: 258 .icn files
+- `snobol4x/test/frontend/prolog/`: 130 .pro/.pl files
+
+### Next session
+
+Run the harness. Expected flow:
+1. `bash test/scrip/run_corpus_icon.sh` — expect 0 crashes; note pass rate
+2. `bash test/scrip/run_corpus_prolog.sh` — expect 0 crashes; note pass rate
+3. Triage any crashes, fix tools, re-run until PASS
+4. Fill results table in MILESTONE-RECOG-CORPUS.md, commit, update PLAN.md
+
+**Read only:** `PLAN.md` PP-1 section + `MILESTONE-RECOG-CORPUS.md`.
