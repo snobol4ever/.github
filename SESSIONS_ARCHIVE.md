@@ -3610,3 +3610,43 @@ x86 106/106 ✅ · JVM 106/106 [pre-existing: 056/210/212/rung11] · .NET 109/11
    into emit_x64_prolog.c, remove from emit_x64.c, keep the #include
 7. Verify x86 106/106 + Prolog x86 rungs 1-9 pass
 8. Commit both steps, push, update HQ
+
+---
+
+## G-7 Session (2026-03-28, Claude Sonnet 4.6) — snobol4x `ad29d4a` / .github `2cebfd4`
+
+### Session type
+Grand Master Reorg — G-7 continuation (same session chain as G-6/G-7 prior entries)
+
+### Milestones completed
+
+| Milestone | Commit | What |
+|-----------|--------|------|
+| M-G2-MOVE-PROLOG-ASM-a ✅ | snobol4x `b37854c` (step a in prior push) | Created empty `src/backend/x64/emit_x64_prolog.c` stub; `#include` at tail of `emit_x64.c` |
+| M-G2-MOVE-PROLOG-ASM-b ✅ | snobol4x `b37854c` | Physically moved Prolog ASM emitter (lines 5416–7247) to `emit_x64_prolog.c`; `emit_x64.c` retains `#include` at tail. Build clean. |
+| M-G-INV ✅ | snobol4x `ce0580c` / .github `5ddf954` | Fast parallel 3×3 invariant harness `test/run_invariants.sh`: pre-builds `libsno4rt_asm.a` + `libsno4rt_pl.a` once; 7 active cells in parallel. SESSION_BOOTSTRAP.sh HOW block replaced with single call. |
+| M-G4-SPLIT-SEQ-CONCAT ✅ (emitters) | snobol4x `cf7bce3` + `ad29d4a` | `E_CONCAT` added to `ir.h` enum. All three emitters migrated: pattern-context `E_CONC` → `E_SEQ`; value-context `E_CONC` → `E_CONCAT`. Build clean. |
+
+### Design decisions recorded
+
+1. **3×3 invariant matrix** — expanded from 3 (SNOBOL4-only) to 9 cells (SNOBOL4/Icon/Prolog × x86/JVM/.NET). Icon .NET / Prolog .NET = SKIP (not yet impl). 7 active checks. RULES.md + SESSION_BOOTSTRAP.sh + PLAN.md updated.
+
+2. **Phase 4 design correction** — `E_CONC` is not uniformly shareable across backends. JVM has no Byrd-box pattern wiring. x64 + .NET share SEQ topology; JVM uses StringBuilder. Recorded in GRAND_MASTER_REORG.md.
+
+3. **E_SEQ / E_CONCAT split** — `E_SEQ` = goal-directed sequence (Byrd-box); `E_CONCAT` = pure value-context string concat, cannot fail. Decision by Lon. `E_CONC` compat alias → `E_SEQ` retained for parser/lowering sites not yet migrated.
+
+### Not yet done (next session must complete)
+
+- **M-G4-SPLIT-SEQ-CONCAT phase 2**: migrate parser/lowering `E_CONC` construction sites to emit `E_SEQ` vs `E_CONCAT` correctly. Key files: `src/frontend/snobol4/parse.c` (emits `E_CONC` at concat parse), `sno2c.h`/lowering. After this, `E_CONC` compat alias can be removed.
+- **Invariant verification**: `run_invariants.sh` needs `snobol4corpus` cloned (requires bootstrap token) to verify x86 106/106 · JVM 106/106 · .NET 110/110 still hold after E_SEQ/E_CONCAT split.
+- **M-G4-SHARED-CONC-FOLD**: extract n-ary→binary right-fold helper into `ir_emit_common.c` (first shared wiring extraction).
+
+### Invariants at handoff
+x86 106/106 [snobol4corpus not available in container — build clean, local 3-test PASS] · JVM 106/106 [frozen] · .NET 110/110 [frozen] · Icon x64 38-rung [frozen] · Prolog x64 per-rung [frozen]
+
+### Next session read order
+1. `bash SESSION_BOOTSTRAP.sh TOKEN=...` (runs 3×3 invariants via `run_invariants.sh`)
+2. `tail -80 SESSIONS_ARCHIVE.md` — this entry
+3. `RULES.md` — in full
+4. `PLAN.md` — NOW table (GRAND MASTER REORG row)
+5. `GRAND_MASTER_REORG.md` — Phase 4 section + two G-7 addenda at bottom
