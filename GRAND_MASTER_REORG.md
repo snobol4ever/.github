@@ -520,7 +520,7 @@ is the single authoritative copy.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G1-IR-HEADER-DEF** | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean; no `-Werror` violations |
+| **M-G1-IR-HEADER-DEF** ✅ | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean ✅; `IR_DEFINE_NAMES` name table PASS ✅; `IR_COMPAT_ALIASES` 15 bridges PASS ✅; `E_KIND_COUNT = 59` ✅. Commit snobol4x `a1f9a76`. |
 | **M-G1-IR-HEADER-WIRE** | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean; all four backend invariants green (shared header change triggers all backends) |
 | **M-G1-IR-PRINT** | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: print a known IR, check output |
 | **M-G1-IR-VERIFY** | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | `make debug` passes verify on all corpus programs |
