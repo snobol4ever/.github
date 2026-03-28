@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | IX-18 — x64 gate wired, ICN_AUGOP impl, harness added; 22/110 rung10–35 pass; taxonomy in SESSION | `c648df5` IX-18 | rung10–35 all green on x64 |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
-| **Prolog x64** | PX-1 — \+/\= ✅ `e3f92cc`; multi-ucall backtrack WIP `532be13` (minimal2 PASS, alldiff regressed) | `532be13` | M-PJ-X64-3 (multi-ucall backtrack) |
+| **Prolog x64** | PX-1 — \+/\= ✅; 2-ucall backtrack ✅ `a051367`; 3-ucall re-entry loop WIP | `a051367` | M-PJ-X64-3 (3-ucall re-entry) |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 | **🔗 LINKER JVM** | LP-JVM-3 — linkage infra ✅; pj_call_goal passes arity=0+null args to pj_reflect_call for compound goals — DB fallback can't unify | `55d8655` LP-JVM-3 | M-SCRIP-DEMO |
@@ -493,3 +493,41 @@ from the `pl_all_dt_diff_sl_1_c1_body:` label through α0, and trace why
 
 ### Read only for next session
 `SESSION-prolog-x64.md` §NOW only.
+
+---
+
+## PX-1 Handoff (2026-03-28, Claude Sonnet 4.6) — snobol4x `a051367`
+
+### Accomplished this session
+- `jle` fix: re-entry decode `inner = start-base` goes negative on head-fail jumps — `jz` → `jle`
+- γN recompute: `sub_cs_acc` now recomputed from slots 0..N at each γN (fixes retry corruption)
+- `pop rcx` fix: was `pop ecx` (invalid 64-bit instruction)
+- All 2-ucall tests PASS: naf, alldiff, minimal2, retry2
+
+### Remaining blocker — 3-ucall re-entry γN slot-zeroing conflict
+
+On re-entry with `inner > 0`, the decode pre-loads `slot_1 = K`. Then α0 (ucall 0)
+re-succeeds, γ0 runs and **zeros `slot_1`**, so α1 (ucall 1) gets `start=0` (fresh)
+instead of `start=K` (resume). Always returns first solution → infinite loop.
+
+**Fix (designed, not implemented):** At end of re-entry decode, instead of
+`jmp α0`, emit a runtime dispatch that jumps to the deepest appropriate αK:
+
+```asm
+; end of re-entry decode, after pre-loading all slots:
+cmp  dword [rbp - UCALL_SLOT_OFFSET(max_ucalls-1)], 0
+jne  pred_c_α{max_ucalls-1}
+...
+cmp  dword [rbp - UCALL_SLOT_OFFSET(1)], 0
+jne  pred_c_α1
+jmp  pred_c_α0
+```
+
+Jumping to α1 bypasses γ0's slot-zeroing. Vars are already bound from head
+unification (done at clause entry before body label). Ucall 0's bindings are
+live (the caller's β only undid ucall N's bindings). So jumping straight to α1
+with slot_1=K correctly resumes permutation at solution K+1.
+
+### Read only for next session
+`SESSION-prolog-x64.md` §NOW only. The fix is ~10 lines in `emit_byrd_asm.c`
+around line 5840 (the `jmp α0` at end of re-entry decode).

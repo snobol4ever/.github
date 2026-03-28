@@ -40,110 +40,119 @@ gcc -no-pie foo.o \
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog x64** | `PX-1` | `532be13` | M-PJ-X64-3 (multi-ucall backtrack) |
+| **Prolog x64** | `PX-1` | `a051367` | M-PJ-X64-3 (3-ucall re-entry) |
 
-**M-PJ-X64-1 ✅ M-PJ-X64-2 ✅** at `8843d71` — tak/nrev/qsort PASS, times10/ops8/log10 PASS.  
-**Parts A/B/C (`\+`/`\=`)** ✅ at `e3f92cc` — naf PASS, alldiff PASS.  
-**Multi-ucall backtrack** 🔲 WIP at `532be13` — root cause diagnosed, fix partial.
+**M-PJ-X64-1 ✅ M-PJ-X64-2 ✅** at `8843d71`.  
+**Parts A/B/C (`\+`/`\=`)** ✅ at `e3f92cc`.  
+**2-ucall backtrack** ✅ at `a051367` — naf/alldiff/minimal2/retry2 all PASS.  
+**3-ucall re-entry** 🔲 — loops; root cause identified, fix designed.
 
-## CRITICAL NEXT ACTION — multi-ucall backtrack (M-PJ-X64-3 final blocker)
+## CRITICAL NEXT ACTION — 3-ucall re-entry loop (M-PJ-X64-3 final blocker)
 
-### Background: what was diagnosed this session
+### What is fixed (all in `emit_byrd_asm.c`, committed at `a051367`)
 
-All changes are in `src/backend/x64/emit_byrd_asm.c`. Four bugs found and addressed:
+| Bug | Fix |
+|-----|-----|
+| Inter-ucall trail mark in dead code | Moved to success path before `jmp γN` |
+| βN unwind to wrong mark (post-ucall N-1) | Now unwinds to `UCALL_MARK_OFFSET(N-1)` |
+| `UCALL_MARK_OFFSET(0)` before head unif | Moved to body label, fresh `trail_mark_fn` |
+| Body always started fresh (ignored start) | Stride-based re-entry decode added |
+| `inner = start-base` negative (head-fail jump) | Changed `jz` → `jle` for fresh check |
+| `sub_cs_acc` corrupted on retry | γN now recomputes from slots 0..N |
+| `pop ecx` invalid in 64-bit | Fixed to `pop rcx` |
 
-**Bug 1 ✅** (`e3f92cc`): inter-ucall trail mark was dead code (between β exit-jmp and γ label).  
-**Bug 2 ✅** (`532be13`): βN unwind target = `UCALL_MARK_OFFSET(N)` (mark *after* ucall N-1) → ucall N-1 bindings survived → retry always got already-bound args. Fixed to `UCALL_MARK_OFFSET(N-1)`.  
-**Bug 3 ✅** (`532be13`): `UCALL_MARK_OFFSET(0)` was taken at clause entry before head unification → β0 undid head bindings. Fixed: moved to body label with a fresh `trail_mark_fn` call after all head args unified.  
-**Bug 4 ✅** (`532be13`): body always started fresh (`xor edx,edx`); added stride-based re-entry decode — `inner = start-base`, pre-loads ucall slots from `inner-1` packed as `slot_K = (inner-1 >> 12*K) & 0xFFF`, then jumps to α0.
+### Remaining bug — 3-ucall γN slot-zeroing conflict
 
-### Current test status
+**Symptom:** `find(N,Qs) :- numlist(1,N,Ns), permutation(Ns,Qs), safe(Qs)` loops for N≥2.
 
+**Root cause:** γ0 (reached after ucall 0 = numlist succeeds) zeros `UCALL_SLOT_OFFSET(1)` so that ucall 1 (permutation) starts fresh when numlist finds a new answer. But on re-entry, the re-entry decode pre-loads `slot_1 = K` (the permutation sub_cs to resume). Then α0 (numlist retry) succeeds — possibly at the same answer — and γ0 fires, zeroing `slot_1`. α1 then calls `permutation_r(start=0)` (fresh) instead of `permutation_r(start=K)` (resume). Permutation always gives its first solution → same safe-check → same fail → infinite loop.
+
+**The fix: separate fresh vs resume entry points for α0.**
+
+Add a `resume_α0` label that jumps directly past γ0's slot-zeroing into α1 with slot_1 intact. The re-entry decode, instead of jumping to `α0`, should jump to `resume_αK` where K is the deepest ucall to resume.
+
+Concretely: for a 3-ucall clause on re-entry with `inner > 0`:
+- Decode `slot_0`, `slot_1`, `slot_2` from packed inner-1
+- Pre-load all three slots
+- Determine which ucall to resume: it's the deepest one with slot > 0
+  - if `slot_2 > 0`: jump to `α2` (bypass α0, γ0, α1, γ1 — but vars not bound)
+  - if `slot_1 > 0`: jump to `α1` (bypass α0 and γ0's slot-zeroing)
+  - else: jump to `α0`
+
+But jumping to α1 skips head unif and α0's work — vars from prior ucalls are still live from the original call (trail unwind at the caller's β only undid the last ucall's work). So jumping to α1 directly with pre-loaded slots is correct.
+
+**Simpler equivalent fix:** In the re-entry decode, after pre-loading all slots, jump to `αK` where K = highest slot index with non-zero value. This bypasses all γ slot-zeroings:
+
+```c
+/* After pre-loading all slots in re-entry decode: */
+/* Find deepest non-zero slot and jump to its αK */
+int resume_ucall = 0;
+for each ucall K from max_ucalls-1 down to 0:
+    if slot_K != 0: resume_ucall = K; break
+A("    jmp pl_%s_c%d_α%d\n", pred_safe, idx, resume_ucall);
 ```
-naf:     PASS
-minimal2 PASS  ([2,1] — 2-ucall fact backtrack)
-alldiff: FAIL  — all_diff([1,2,3]) → fail1  (was ok1 before Bug 3 fix)
-retry2:  FAIL  — permutation retry → none instead of [2,1,3]
+
+But at emit time we can't know which slot will be non-zero (it's runtime data). So the emitted code must do this at runtime:
+
+```asm
+; after pre-loading slot_0, slot_1, slot_2:
+cmp dword [rbp - UCALL_SLOT_OFFSET(2)], 0
+jne pl_PRED_c_α2
+cmp dword [rbp - UCALL_SLOT_OFFSET(1)], 0
+jne pl_PRED_c_α1
+jmp pl_PRED_c_α0
 ```
 
-### Most likely remaining bug
+Jumping to `α2` directly skips fresh var allocation (already done at c_α entry above the body), head unification (already done), and α0/γ0/α1/γ1. The vars `_V0.._VN` are freshly allocated at clause entry and bound by head unification. The trail unwind at the caller's β undid the *last* ucall's bindings — so jumping to α2 with slot_2 is correct: vars are bound (from head unif), ucall 0 and 1's bindings are live (from previous successful calls before the unwind), only ucall 2's bindings were undone.
 
-The body-entry `trail_mark_fn` call (Bug 3) uses `rdi` = `[rel pl_trail]`.
-`trail_mark_fn` returns the mark in `eax`. Immediately after, the re-entry decode
-reads `[rbp-32]` (start) into `eax`, overwriting the mark value — but the mark was
-already stored into `[rbp - UCALL_MARK_OFFSET(0)]`, so that's fine.
+**Wait** — the trail unwind at the caller's β2 unwound to `UCALL_MARK_OFFSET(1)` (mark after ucall 0 succeeded, before ucall 1). This undoes both ucall 1 *and* ucall 2's bindings. So ucall 1's bindings are also gone. We cannot jump directly to α2 — we must re-run α1 (permutation) to get its bindings back. So the correct resume point is α1 (not α2) when β2 fires and we're re-entering permutation.
 
-**Actual suspect**: `trail_mark_fn` is called with `rdi = &pl_trail`. But the emitter
-passes `Trail*` as `rdi` at the function call sites. Check whether `trail_mark_fn`
-signature matches — it should take `Trail*` as first arg. If it takes *no* args and
-reads the global directly, the `lea rdi` is harmless noise but the call is still OK.
+The key insight: **the caller's β always fires for the last ucall** (β2 = ucall 2 failed), and it retries the previous ucall (α1 = ucall 1). So the re-entry always resumes at `α_{last-1}`. For a 3-ucall clause retried by the caller, we always resume at α1. For a 2-ucall clause retried by the caller, always at α0. We never need to jump to α2 on re-entry from an external caller's β.
 
-**More likely culprit**: in clauses with zero ucalls (facts / builtin-only), the new
-`UCALL_MARK_OFFSET(0)` block is guarded by `if (max_ucalls > 0)` — but `all_diff/1`
-clause 2 (`all_diff([H|T]) :- \+ member(H,T), all_diff(T)`) has `\+` (now a builtin,
-not a ucall) and `all_diff/1` recursion (1 ucall). So `max_ucalls=1`. The body-entry
-mark call happens. **The mark call clobbers `eax` — but right before `xor edx,edx`
-and the fresh-entry path. The `sub_cs_acc` at `[rbp-16]` is zeroed at clause entry
-(before the mark call). The mark call returns the mark in `eax`. Then `xor edx,edx`
-zeros edx. The `\+` handler calls `trail_mark_fn` again internally via push/pop.
-All seems OK.**
+**Therefore the correct fix is simple:** on re-entry decode, always jump to `α_{max_ucalls - 1}` (the second-to-last ucall) with `slot_{max_ucalls-1}` pre-loaded, and set all other slots correctly. γ_{max_ucalls-2} (the one that would zero slot_{max_ucalls-1}) is bypassed. γ_{max_ucalls-1} still runs after α_{max_ucalls} (last ucall), but it doesn't zero any prior slots.
 
-**Most likely: check `all_diff` clause 2 generated ASM carefully.** The `\+`
-inline emission uses `push rax / pop rax` around the inner call — verify these
-don't clobber `[rbp-24]` (args array ptr). Since push/pop only affect rsp and the
-memory at [rsp], and `[rbp-24]` is a frame slot not a stack-relative slot, this
-should be safe. Generate the ASM and read it.
+Actually more precisely: the caller retried this predicate because its β_{last} fired. That β retried α_{last-1}. So from the callee's perspective, we're entering this predicate fresh at the clause entry (c_α) with start=sub_cs. Inside this predicate, the re-entry decode must set up to resume at α_{ucall_to_retry} which is determined by which level the sub_cs encodes.
 
-### How to rebuild and test
+**Simplest correct implementation for the common case:**
 
-```bash
-cd snobol4x && make -C src -s
-# Gate test files (recreate each session — /tmp doesn't persist):
-cat > /tmp/naf.pro << 'EOF'
-:- initialization(main, main).
-main :-
-    ( \+ fail -> write(naf_ok) ; write(naf_fail) ), nl,
-    ( \+ (1 = 2) -> write(neq_ok) ; write(neq_fail) ), nl.
-EOF
-cat > /tmp/alldiff.pro << 'EOF'
-:- initialization(main, main).
-all_diff([]). all_diff([H|T]) :- \+ member(H, T), all_diff(T).
-member(X, [X|_]). member(X, [_|T]) :- member(X, T).
-main :-
-    ( all_diff([1,2,3]) -> write(ok1) ; write(fail1) ), nl,
-    ( \+ all_diff([1,2,1]) -> write(ok2) ; write(fail2) ), nl.
-EOF
-cat > /tmp/minimal2.pro << 'EOF'
-:- initialization(main, main).
-mylist([1,2]). mylist([2,1]).
-headis2([2|_]).
-search(L) :- mylist(L), headis2(L).
-main :- ( search(L) -> write(L) ; write(none) ), nl.
-EOF
-# Build helper:
-build_run() {
-  f=$1
-  ./sno2c -pl -asm "$f" -o /tmp/t.asm &&
-  nasm -f elf64 /tmp/t.asm -o /tmp/t.o &&
-  gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_atom.o \
-    src/frontend/prolog/prolog_unify.o src/frontend/prolog/prolog_builtin.o \
-    -lm -o /tmp/t && timeout 5 /tmp/t
+```c
+/* Re-entry: jump past γ0..γ_{K-1} slot-zeroings by jumping to αK directly */
+/* For 3-ucall clause: if slot_1 > 0, jump to α1; else jump to α0 */
+/* Emitted at compile time as runtime check: */
+for (int _ji = max_ucalls - 1; _ji >= 1; _ji--) {
+    A("    cmp     dword [rbp - %d], 0\n", UCALL_SLOT_OFFSET(_ji));
+    A("    jne     pl_%s_c%d_α%d\n", pred_safe, idx, _ji);
 }
+A("    jmp     pl_%s_c%d_α0\n", pred_safe, idx);
 ```
+
+This replaces the current unconditional `jmp α0` at the end of the re-entry decode.
 
 ### Key emitter locations (`emit_byrd_asm.c`)
 
 | What | Approx line |
 |------|-------------|
-| Clause-entry mark `[rbp-8]`, slot zeroing | ~5753 |
-| Head unification loop | ~5768 |
+| Clause-entry mark, slot zeroing | ~5753 |
 | Body label + `UCALL_MARK_OFFSET(0)` mark | ~5800 |
-| Re-entry decode block | ~5810 |
-| Fresh-entry `xor edx,edx` | ~5845 |
-| `\+` inline handler | ~5880 |
-| sub_cs_acc stride accumulation (ucall success path) | ~6755 |
-| βN unwind + retry | ~6816 |
-| γ return encoding | ~6844 |
+| Re-entry decode → `jmp α0` to fix | ~5840 |
+| γN recompute + slot zeroing | ~6837 |
+| βN unwind + retry | ~6820 |
+| γ return | ~6850 |
+
+### Gate tests (recreate each session — /tmp doesn't persist)
+
+```bash
+cd snobol4x && make -C src -s
+build_run() {
+  ./sno2c -pl -asm "$1" -o /tmp/t.asm &&
+  nasm -f elf64 /tmp/t.asm -o /tmp/t.o &&
+  gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_{atom,unify,builtin}.o -lm -o /tmp/t &&
+  timeout 8 /tmp/t
+}
+# Passing: naf.pro alldiff.pro minimal2.pro retry2.pro
+# Target: queens_4.pro (find(4,Q) with self-contained numlist/permutation/safe)
+# Expected: [2,4,1,3]
+```
 
 ---
 
@@ -153,6 +162,6 @@ build_run() {
 |----|-------------|------|--------|
 | M-PJ-X64-1 | Multi-clause dispatch | tak/nreverse/qsort PASS | ✅ `8843d71` |
 | M-PJ-X64-2 | Arithmetic (is/2, comparisons) | times10/log10/ops8 PASS | ✅ `8843d71` |
-| M-PJ-X64-3 | \+ / \= / multi-ucall backtrack | naf/alldiff/crypt/sendmore/queens PASS | 🔲 WIP `532be13` |
+| M-PJ-X64-3 | \+ / \= / multi-ucall backtrack | naf/alldiff/crypt/sendmore/queens PASS | 🔲 WIP `a051367` |
 | M-PJ-X64-4 | List builtins (member/append) | nreverse/qsort/flatten PASS | 🔲 |
 | M-PJ-X64-5 | Timing grid ≥15/31 vs SWI native | BENCH-prolog-x64.md committed | 🔲 |
