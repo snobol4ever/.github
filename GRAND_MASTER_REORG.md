@@ -708,7 +708,7 @@ M-G0-FREEZE
 | M-G9-RENAME-NET-PLAN    | 9 — snobol4dotnet→snobol4net: impact checklist | ❌ |
 | M-G9-RENAME-NET-EXEC    | 9 — snobol4dotnet→snobol4net: GitHub repo rename | ❌ |
 | M-G9-RENAME-NET-REFS    | 9 — snobol4dotnet→snobol4net: update all cross-repo refs | ❌ |
-| M-G9-RENAME-NET-VERIFY  | 9 — snobol4dotnet→snobol4net: 1903/1903 PASS | ❌ |
+| M-G9-RENAME-NET-VERIFY  | 9 — snobol4dotnet→snobol4net: full test suite PASS (retest required — count TBD) | ❌ |
 ```
 
 ---
@@ -853,7 +853,7 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 | **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `snobol4x`, `snobol4jvm`, `.github`, `snobol4harness`, `snobol4corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
 | **M-G9-RENAME-NET-EXEC** | Rename GitHub repo `snobol4ever/snobol4dotnet` → `snobol4ever/snobol4net`. GitHub creates redirect from old name automatically. Update RENAME.md name grid. | `git ls-remote github.com/snobol4ever/snobol4net` resolves; old name redirects |
 | **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `snobol4x` runner scripts, `snobol4harness` adapters. One repo per commit. | All references resolve; no broken links |
-| **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite (`1903/1903` DOTNET invariant). Confirm nothing broke. | 1903/1903 PASS |
+| **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite. Confirm nothing broke. Count TBD — retest required before this milestone can close. | Full suite PASS (retest to establish count) |
 
 ---
 

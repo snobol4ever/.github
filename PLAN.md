@@ -29,7 +29,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
 | **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
 
-**Invariants (frozen baseline):** x64 ASM: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `1903/1903`
+**Invariants (frozen baseline):** x64 ASM: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
 
 ---
 
