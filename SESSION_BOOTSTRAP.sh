@@ -7,7 +7,7 @@
 #   WHERE — clones all required repos
 #   WHERE — installs all required tools
 #   WHY   — prints the current milestone from PLAN.md
-#   HOW   — runs all three backend invariants and reports pass/fail
+#   HOW   — runs all nine invariants (3x3 matrix) and reports pass/fail
 #
 # Usage:
 #   TOKEN=ghp_xxx bash SESSION_BOOTSTRAP.sh
@@ -118,7 +118,7 @@ info "  cat /home/claude/.github/PLAN.md                     # NOW table"
 info "  cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail"
 echo ""
 
-# ── HOW — run all three invariants ───────────────────────────────────────────
+# ── HOW — run all nine invariants (3x3: SNOBOL4/Icon/Prolog × x86/JVM/.NET) ─
 echo -e "${BOLD}HOW — invariants (must be green before any work)${RESET}"
 cd /home/claude/snobol4x
 
@@ -165,6 +165,125 @@ else
     echo -e "${RED}${NET}${RESET}"
     ERRORS=$((ERRORS+1))
 fi
+
+
+# Icon x64
+echo -n "  Icon x64 ... "
+if ! command -v icont &>/dev/null; then
+    echo -e "${YELLOW}SKIP (icont not found)${RESET}"
+else
+    ICN_PASS=0; ICN_FAIL=0
+    ICON_ASM=/home/claude/snobol4x/icon-asm
+    for rung_sh in /home/claude/snobol4x/test/frontend/icon/run_rung*.sh; do
+        result=$(bash "$rung_sh" "$ICON_ASM" 2>/dev/null | grep -E "^(PASS|FAIL|Results)" | tail -1)
+        if echo "$result" | grep -q "FAIL\|failed [^0]"; then
+            ICN_FAIL=$((ICN_FAIL+1))
+        else
+            ICN_PASS=$((ICN_PASS+1))
+        fi
+    done
+    if [[ $ICN_FAIL -eq 0 ]]; then
+        echo -e "${GREEN}${ICN_PASS} rungs PASS${RESET}"
+    else
+        echo -e "${RED}${ICN_PASS} pass, ${ICN_FAIL} fail${RESET}"
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
+# Prolog x64
+echo -n "  Prolog x64 ... "
+if ! command -v nasm &>/dev/null; then
+    echo -e "${YELLOW}SKIP (nasm not found)${RESET}"
+else
+    PL_PASS=0; PL_FAIL=0
+    cd /home/claude/snobol4x
+    PLRT_OBJS=""
+    WORK_PL=$(mktemp -d /tmp/pl_inv_XXXXXX)
+    gcc -O0 -g -c src/frontend/prolog/prolog_atom.c    -Isrc/frontend/prolog -w -o $WORK_PL/atom.o    2>/dev/null
+    gcc -O0 -g -c src/frontend/prolog/prolog_unify.c   -Isrc/frontend/prolog -w -o $WORK_PL/unify.o   2>/dev/null
+    gcc -O0 -g -c src/frontend/prolog/prolog_builtin.c -Isrc/frontend/prolog -Isrc/frontend/prolog -w -o $WORK_PL/builtin.o 2>/dev/null
+    PLRT_OBJS="$WORK_PL/atom.o $WORK_PL/unify.o $WORK_PL/builtin.o"
+    for rung_dir in test/frontend/prolog/corpus/rung*/; do
+        rung_pass=0; rung_fail=0
+        for pro in "$rung_dir"*.pro; do
+            [ -f "$pro" ] || continue
+            expected="${pro%.pro}.expected"
+            [ -f "$expected" ] || continue
+            W=$(mktemp -d /tmp/pl_t_XXXXXX)
+            ./sno2c -pl -asm "$pro" > $W/t.asm 2>/dev/null &&
+            nasm -f elf64 $W/t.asm -o $W/t.o 2>/dev/null &&
+            gcc -no-pie $W/t.o $PLRT_OBJS -lm -o $W/t 2>/dev/null &&
+            actual=$(timeout 8 $W/t 2>/dev/null) || actual="__CRASH__"
+            if [ "$actual" = "$(cat $expected)" ]; then
+                rung_pass=$((rung_pass+1))
+            else
+                rung_fail=$((rung_fail+1))
+            fi
+            rm -rf $W
+        done
+        [ $rung_fail -gt 0 ] && PL_FAIL=$((PL_FAIL+1)) || PL_PASS=$((PL_PASS+1))
+    done
+    rm -rf $WORK_PL
+    if [[ $PL_FAIL -eq 0 ]]; then
+        echo -e "${GREEN}${PL_PASS} rungs PASS${RESET}"
+    else
+        echo -e "${RED}${PL_PASS} pass, ${PL_FAIL} fail${RESET}"
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
+
+# Icon JVM
+echo -n "  Icon JVM  ... "
+JASMIN=/home/claude/snobol4x/src/backend/jvm/jasmin.jar
+if ! command -v java &>/dev/null || [[ ! -f "$JASMIN" ]]; then
+    echo -e "${YELLOW}SKIP (java or jasmin.jar not found)${RESET}"
+else
+    ICN_JVM_PASS=0; ICN_JVM_FAIL=0
+    for rung_sh in /home/claude/snobol4x/test/frontend/icon/run_rung*.sh; do
+        result=$(bash "$rung_sh" /home/claude/snobol4x/sno2c 2>/dev/null | tail -1)
+        if echo "$result" | grep -qE "FAIL [^0]|[1-9][0-9]* FAIL"; then
+            ICN_JVM_FAIL=$((ICN_JVM_FAIL+1))
+        else
+            ICN_JVM_PASS=$((ICN_JVM_PASS+1))
+        fi
+    done
+    if [[ $ICN_JVM_FAIL -eq 0 ]]; then
+        echo -e "${GREEN}${ICN_JVM_PASS} rungs PASS${RESET}"
+    else
+        echo -e "${RED}${ICN_JVM_PASS} pass, ${ICN_JVM_FAIL} fail${RESET}"
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
+# Prolog JVM
+echo -n "  Prolog JVM ... "
+JASMIN=/home/claude/snobol4x/src/backend/jvm/jasmin.jar
+if ! command -v java &>/dev/null || [[ ! -f "$JASMIN" ]]; then
+    echo -e "${YELLOW}SKIP (java or jasmin.jar not found)${RESET}"
+else
+    PL_JVM_PASS=0; PL_JVM_FAIL=0
+    for rung_dir in /home/claude/snobol4x/test/frontend/prolog/corpus/rung*/; do
+        result=$(bash /home/claude/snobol4x/test/frontend/prolog/run_prolog_jvm_rung.sh "$rung_dir" 2>/dev/null | grep "Results:" | tail -1)
+        if echo "$result" | grep -q "0 failed"; then
+            PL_JVM_PASS=$((PL_JVM_PASS+1))
+        else
+            PL_JVM_FAIL=$((PL_JVM_FAIL+1))
+        fi
+    done
+    if [[ $PL_JVM_FAIL -eq 0 ]]; then
+        echo -e "${GREEN}${PL_JVM_PASS} rungs PASS${RESET}"
+    else
+        echo -e "${RED}${PL_JVM_PASS} pass, ${PL_JVM_FAIL} fail${RESET}"
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
+# Icon .NET  — not yet implemented
+echo -e "  Icon .NET  ... ${YELLOW}SKIP (not implemented)${RESET}"
+
+# Prolog .NET — not yet implemented
+echo -e "  Prolog .NET ... ${YELLOW}SKIP (not implemented)${RESET}"
 
 echo ""
 

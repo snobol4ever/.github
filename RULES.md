@@ -179,13 +179,25 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 ## ⛔ TEST INVARIANT — Confirm before any work
 
-**Required baseline (always report all three):** `x86 106/106 · JVM 106/106 · .NET 110/110`
+**Required baseline — 3×3 matrix (7 active, 2 not-yet-implemented):**
 
-- **x86 sessions:** `run_crosscheck_asm_corpus.sh` must show 106/106 before any work begins.
-- **JVM sessions:** `run_crosscheck_jvm_rung.sh` against full corpus must show 106/106.
-- **.NET sessions:** `run_crosscheck_net.sh` must show 110/110 (requires `snobol4harness`).
-- **All sessions:** run the relevant rung/corpus check for your frontend+backend and confirm baseline before touching code. Fix regressions before starting new work.
-- **Never report only one backend.** If a backend cannot be run, state the last known count and the reason (e.g. "JVM 106/106 [frozen B-292]").
+| | x86 | JVM | .NET |
+|--|-----|-----|------|
+| SNOBOL4 | `106/106` | `106/106` | `110/110` |
+| Icon | `38-rung` | `38-rung` | SKIP (not impl) |
+| Prolog | `per-rung PASS` | `31/31` | SKIP (not impl) |
+
+- **x86 SNOBOL4:** `run_crosscheck_asm_corpus.sh` must show 106/106.
+- **JVM SNOBOL4:** `run_crosscheck_jvm_rung.sh` against full corpus must show 106/106.
+- **.NET SNOBOL4:** `run_crosscheck_net.sh` must show 110/110 (requires `snobol4harness`).
+- **Icon x64:** all 38 `test/frontend/icon/run_rung*.sh` must PASS.
+- **Icon JVM:** all 38 `test/frontend/icon/run_rung*.sh` via JVM path must PASS.
+- **Prolog x64:** all `test/frontend/prolog/corpus/rung*/` must PASS.
+- **Prolog JVM:** `run_prolog_jvm_rung.sh` per rung must PASS (31/31 baseline).
+- **Icon .NET / Prolog .NET:** not yet implemented — always SKIP.
+- **All sessions:** confirm baseline before touching code. Fix regressions before new work.
+- **Never report only one backend.** If a backend cannot be run, state the last known count and the reason.
+- **G-sessions always run all seven active invariants** — the reorg touches all emitters.
 
 **Backend name:** The native backend is **x86** (not "ASM" or "x64 ASM"). Emitter file stays `emit_x64.c`; folder stays `backend/x64/`; the human name is x86.
 
