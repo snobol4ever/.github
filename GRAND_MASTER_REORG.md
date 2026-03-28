@@ -276,8 +276,54 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 |----|--------|--------|
 | **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. snobol4harness HEAD: `eced661`. snobol4corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
 | **M-G0-RENAME** ✅ | Confirmed: `snobol4harness` and `snobol4corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
+| **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `snobol4corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
 | **M-G0-AUDIT** | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all emitter files |
 | **M-G0-IR-AUDIT** | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
+
+#### M-G0-CORPUS-AUDIT — Inventory and Open Decisions
+
+**What was found in `snobol4x/test/` (G-7 session, 2026-03-28):**
+
+All corpus source programs currently living in `snobol4x`. None of these belong here
+post-reorg — they must migrate to `snobol4corpus`.
+
+| Location in snobol4x | Extensions | Count | Destination in snobol4corpus |
+|-----------------------|-----------|-------|------------------------------|
+| `test/frontend/icon/corpus/rung01–rung38/` | `.icn` | 258 | `programs/icon/rung*/` (TBD — check overlap with existing 851 files) |
+| `test/frontend/prolog/corpus/rung*/` | `.pro`, `.pl` | 130 | `programs/prolog/rung*/` |
+| `test/frontend/snocone/sc_asm_corpus/` | `.sc` | 10 | `programs/snocone/` |
+| `test/crosscheck/sc_corpus/` | `.sc` | 20 | `crosscheck/snocone/` or `programs/snocone/crosscheck/` |
+| `test/frontend/snobol4/` | `.sno` | 5 | `programs/snobol4/smoke/` |
+| `test/beauty/*/driver.sno` + subsystems | `.sno` | 19 | `programs/snobol4/beauty/` |
+| `test/feat/f*.sno` | `.sno` | 20 | `programs/snobol4/feat/` |
+| `test/jvm_j3/*.sno` | `.sno` | 6 | `programs/snobol4/jvm_j3/` |
+| `test/rebus/*.reb` | `.reb` | 3 | `programs/rebus/` |
+
+**Also present alongside each source program: `.expected` and `.ref` oracle output files.**
+These travel with the source programs (decision pending — see below).
+
+**Total source programs to migrate: ~471 files** (source + oracle pairs).
+
+**Open decisions — must be resolved before M-G0-CORPUS-AUDIT can close:**
+
+1. **Oracle files (`.expected` / `.ref`):** Do they migrate to `snobol4corpus` alongside
+   their source programs, or remain in `snobol4x` adjacent to the runner scripts?
+   *Recommendation: migrate with source — oracle and source are a unit.*
+
+2. **Runner scripts (`run_rung*.sh` etc.):** Do they stay in `snobol4x` (with paths
+   updated to point to `snobol4corpus`) or migrate to `snobol4harness`?
+   *Recommendation: migrate to `snobol4harness` — runners are infrastructure, not compiler code.*
+
+3. **Overlap check:** `snobol4corpus/programs/icon/` already contains ~851 `.icn` files.
+   The 258 `.icn` files in `snobol4x` may overlap. Clone `snobol4corpus` and diff
+   before any move to avoid duplicates or regression.
+
+**Execution order (once decisions resolved):**
+1. Clone `snobol4corpus`, diff each corpus dir against snobol4x equivalents
+2. For non-overlapping files: `git mv` in snobol4x + matching `git add` in snobol4corpus, one frontend at a time
+3. Update runner script paths in snobol4x (or move runners to snobol4harness)
+4. Run full invariant suite — all four backends must stay green
+5. Commit both repos atomically (snobol4x removes, snobol4corpus receives)
 
 ---
 
