@@ -24,7 +24,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **Prolog x64** | PX-1 — probing, hello works, multi-clause broken | `a79906e` | M-PJ-X64-1 |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
-| **🔗 LINKER JVM** | LP-JVM-3 — demos 1-3 ✅ ICON-JVM via sno2c; M-SCRIP-DEMO WIP (family demo needs EXPORT directives + ByrdBoxLinkage.j) | `c3e3ab3` LP-JVM-3 | M-SCRIP-DEMO |
+| **🔗 LINKER JVM** | LP-JVM-3 — linkage infra ✅; pj_call_goal passes arity=0+null args to pj_reflect_call for compound goals — DB fallback can't unify | `55d8655` LP-JVM-3 | M-SCRIP-DEMO |
 
 **Invariants:** TINY `106/106` · DOTNET `1903/1903`
 
