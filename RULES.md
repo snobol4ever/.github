@@ -81,13 +81,23 @@ Any time a frontend emitter or backend is modified, all artifacts for that front
 
 ---
 
-## ⛔ GIT IDENTITY — Set before first commit
+## ⛔ GIT IDENTITY — Always commit as Lon, never as Claude
+
+**Every commit in every repo must be authored as Lon Cherryholmes.**
+Claude is a tool, not an author. Never commit as `claude@anywhere.com`.
 
 ```bash
-git config user.email "SESSION_PREFIX@snobol4ever.dev"
-git config user.name "Claude SESSION_ID"
+git config user.name "LCherryholmes"
+git config user.email "lcherryh@yahoo.com"
 ```
-Do this in every repo at session start. Commits without identity fail.
+
+Set this in every repo at session start, before the first commit. This is not optional.
+Violations require a history rewrite (`git filter-repo`) and force-push — expensive to fix.
+
+**Wrong (never use):** `claude@anthropic.com`, `claude@snobol4ever.dev`, `SESSION@snobol4ever.dev`,
+`session@snobol4ever`, `bot@snobol4ever.dev`, or any other Claude/session/bot address.
+
+**Right:** `lcherryh@yahoo.com` / `LCherryholmes` — always, every repo, every session.
 
 ---
 
