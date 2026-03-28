@@ -569,6 +569,15 @@ Produce `doc/SIL_NAMES_AUDIT.md`. This is prerequisite for M-G3 (naming law may 
 
 **Read for next G-session:** `GRAND_MASTER_REORG.md` Phase 0 + `ARCH-sil-heritage.md` + `doc/EMITTER_AUDIT.md` runtime variable table.
 
+## G-7 Addendum — phase reorder decision (2026-03-28)
+
+**Phase 3 (naming) moved after Phase 4 (collapse) and Phase 5 (frontend unification).**
+Rationale: Phase 4 collapses duplicate `emit_<Kind>` functions into shared wiring;
+Phase 5 eliminates frontend-local node types. Renaming pre-collapse code that Phases 4+5
+immediately delete wastes ~20 milestones. Post-collapse naming surface: 9 surviving files
+instead of 29+ opcode-group passes. GRAND_MASTER_REORG.md Phase 3 and dependency graph
+updated. Commit `G-7`.
+
 ## G-7 Addendum — final pattern primitive pass (2026-03-28)
 
 59 IR nodes (was 45). 14 pattern primitives added after discovering they each

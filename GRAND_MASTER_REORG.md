@@ -523,69 +523,46 @@ they are a file split, not a rename, and carry the most risk within this phase.
 
 ---
 
-### Phase 3 — Naming Unification (one opcode group at a time)
+### Phase 3 — Naming Unification (survivors only, post-collapse)
 
-Each sub-milestone touches **one emitter, one opcode group only**. No cross-emitter
-changes in one commit. The naming law (see above) is applied mechanically:
-search-replace C variable names, rename generated label patterns, update comments.
-No logic changes. Old-style names may coexist with new-style names across groups
-within the same file — the file is fully conformant only after all sub-milestones
-for that emitter are done.
+**⚠ REORDERED 2026-03-28:** Phase 3 now executes **after** Phase 4 (shared wiring
+extraction) and Phase 5 (frontend unification). Rationale: Phase 4 collapses
+duplicate `emit_<Kind>` functions across backends into shared wiring in
+`ir_emit_common.c`; Phase 5 eliminates frontend-local node types. Renaming
+pre-collapse duplicates that Phase 4 will immediately delete or merge produces
+wasted milestones and confusion. The naming law is applied once to the survivors —
+the code that actually remains after the collapse — not to temporaries.
+
+**Survivor surface after Phases 4+5:**
+- `src/ir/ir_emit_common.c` — shared Byrd box wiring (new file, naming law applied from creation)
+- `src/backend/x64/emit_x64.c` — x64-specific instruction emission residual
+- `src/backend/jvm/emit_jvm.c` — JVM-specific residual
+- `src/backend/net/emit_net.c` — .NET-specific residual
+- `src/backend/wasm/emit_wasm.c` — WASM (new, already law-conformant from M-G2-SCAFFOLD-WASM)
+- `src/backend/x64/emit_x64_icon.c` — Icon x64-specific residual
+- `src/backend/x64/emit_x64_prolog.c` — Prolog x64-specific residual
+- `src/backend/jvm/emit_jvm_icon.c` — Icon JVM-specific residual
+- `src/backend/jvm/emit_jvm_prolog.c` — Prolog JVM-specific residual
+
+**Scope reduction:** ~29 pre-collapse sub-milestones collapse to ~9 post-collapse
+milestones — one per surviving file. Each file's shared-wiring handlers are already
+law-conformant (written that way in Phase 4); only backend-specific residuals need
+the naming pass.
 
 **Rule:** after every sub-milestone, the full corpus for that backend must pass.
-A regression is immediately localizable to the one opcode group just touched.
-
-#### emit_x64.c
-
-| ID | Opcode group | What changes | Verify |
-|----|-------------|-------------|--------|
-| **M-G3-NAME-X64-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | Local vars → `lbl_alpha/beta/gamma/omega`; functions → `emit_x64_<Kind>` | 106/106 |
-| **M-G3-NAME-X64-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
-| **M-G3-NAME-X64-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 106/106 |
-| **M-G3-NAME-X64-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
-| **M-G3-NAME-X64-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
-| **M-G3-NAME-X64-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same; macros confirmed as `E()`/`EI()`/`EL()` | 106/106 |
-| **M-G3-NAME-X64-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 106/106 |
-| **M-G3-NAME-X64-REMAINING** | All remaining kinds in `emit_x64.c` | Same; confirm no non-conforming names remain | 106/106 |
-
-#### emit_jvm.c
-
-| ID | Opcode group | What changes | Verify |
-|----|-------------|-------------|--------|
-| **M-G3-NAME-JVM-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `J()`/`JI()`/`JL()` confirmed; functions → `emit_jvm_<Kind>` | 106/106 |
-| **M-G3-NAME-JVM-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
-| **M-G3-NAME-JVM-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 106/106 |
-| **M-G3-NAME-JVM-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
-| **M-G3-NAME-JVM-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
-| **M-G3-NAME-JVM-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 106/106 |
-| **M-G3-NAME-JVM-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 106/106 |
-| **M-G3-NAME-JVM-REMAINING** | All remaining kinds in `emit_jvm.c` | Same; confirm no non-conforming names remain | 106/106 |
-
-#### emit_net.c
-
-| ID | Opcode group | What changes | Verify |
-|----|-------------|-------------|--------|
-| **M-G3-NAME-NET-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `N()`/`NI()`/`NL()` confirmed or renamed; functions → `emit_net_<Kind>` | 110/110 NET |
-| **M-G3-NAME-NET-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 110/110 NET |
-| **M-G3-NAME-NET-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 110/110 NET |
-| **M-G3-NAME-NET-CURSOR** | `E_POS`, `E_RPOS` | Same | 110/110 NET |
-| **M-G3-NAME-NET-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 110/110 NET |
-| **M-G3-NAME-NET-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 110/110 NET |
-| **M-G3-NAME-NET-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 110/110 NET |
-| **M-G3-NAME-NET-REMAINING** | All remaining kinds in `emit_net.c` | Same; confirm no non-conforming names remain | 110/110 NET |
-
-#### emit_wasm.c, emit_jvm_icon.c, emit_jvm_prolog.c, emit_x64_icon.c, emit_x64_prolog.c
-
-These files are either new (WASM) or smaller/split files. A single milestone per file is
-acceptable here since diffs are bounded and reviewable.
+A regression is immediately localizable to the one file just touched.
 
 | ID | File | What changes | Verify |
 |----|------|-------------|--------|
-| **M-G3-NAME-WASM** | `emit_wasm.c` | Establish naming law from scratch: `W()`/`WI()`/`WL()`, `lbl_alpha/beta/gamma/omega`, `emit_wasm_<Kind>`. WASM uses `br_table` for tableswitch (maps to JVM pattern). | Builds clean |
-| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific; shared node handlers → `emit_jvm_<Kind>` | Icon JVM 99/99 |
-| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific; shared → `emit_jvm_<Kind>` | Prolog JVM 20/20 |
-| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific; shared → `emit_x64_<Kind>` | Icon ASM rung03 5/5 |
-| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | Apply naming law to Prolog x64 emitter split out in M-G2-MOVE-PROLOG-ASM-b: `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific; shared → `emit_x64_<Kind>` | Prolog ASM rungs 1–9 PASS |
+| **M-G3-NAME-COMMON** | `ir_emit_common.c` | Verify naming law from creation — no renames expected since file is written post-collapse; confirm `emit_wiring_<Kind>` function names, Greek port variable names, no deviations. | All corpus PASS (shared file) |
+| **M-G3-NAME-X64** | `emit_x64.c` | Rename backend-specific residuals: local vars, label strings, function names → naming law. `E()`/`EI()`/`EL()` macros confirmed. | 106/106 ASM |
+| **M-G3-NAME-JVM** | `emit_jvm.c` | Same. `J()`/`JI()`/`JL()` confirmed. | 106/106 JVM |
+| **M-G3-NAME-NET** | `emit_net.c` | Same. `N()`/`NI()`/`NL()` confirmed. | 110/110 NET |
+| **M-G3-NAME-WASM** | `emit_wasm.c` | Naming law applied from scratch at scaffold time (M-G2-SCAFFOLD-WASM); verify only. `W()`/`WI()`/`WL()`. | Builds clean |
+| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific residuals after Phase 4 extraction. | Icon ASM rung03 5/5 |
+| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific residuals. | Prolog ASM rungs 1–9 PASS |
+| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific residuals. | Icon JVM 99/99 |
+| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific residuals. | Prolog JVM 20/20 |
 
 ---
 
@@ -745,15 +722,12 @@ M-G0-FREEZE
                                             └── M-G2-MOVE-* (×7, sequential)
                                                     └── M-G2-MOVE-PROLOG-ASM-a
                                                             └── M-G2-MOVE-PROLOG-ASM-b
-                                                                    └── M-G3-NAME-X64-* (×8, sequential)
-                                                                    └── M-G3-NAME-JVM-* (×8, sequential)
-                                                                    └── M-G3-NAME-NET-* (×8, sequential)
-                                                                    └── M-G3-NAME-WASM / JVM-ICON / JVM-PROLOG / X64-ICON / X64-PROLOG
-                                                                            └── M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (sequential)
-                                                                                    └── M-G4-SHARED-ICON-TO → SUSPEND → ALT → BANG → LIMIT (sequential)
-                                                                                    └── M-G4-SHARED-PROLOG-UNIFY → CLAUSE → CUT → TRAIL (sequential)
-                                                                                            └── M-G5-LOWER-*-AUDIT → M-G5-LOWER-*-FIX (×6, one per frontend, sequential)
-                                                                                                    └── M-G6-* (×10, parallel)
+                                                                    └── M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (sequential)
+                                                                            └── M-G4-SHARED-ICON-TO → SUSPEND → ALT → BANG → LIMIT (sequential)
+                                                                            └── M-G4-SHARED-PROLOG-UNIFY → CLAUSE → CUT → TRAIL (sequential)
+                                                                                    └── M-G5-LOWER-*-AUDIT → M-G5-LOWER-*-FIX (×6, one per frontend, sequential)
+                                                                                            └── M-G3-NAME-* (×9, one per surviving file) ← REORDERED: after collapse
+                                                                                                    └── M-G6-* (×15, parallel)
                                                                                                             └── M-G7-STYLE-DOC
                                                                                                                     └── M-G7-STYLE-*
                                                                                                                             └── M-G7-UNFREEZE
