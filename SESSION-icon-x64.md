@@ -65,54 +65,44 @@ echo "--- PASS=$PASS FAIL=$FAIL ---"
 
 ---
 
-## §NOW — IX-16
+## §NOW — IX-17
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon x64** | IX-16 — M-IX-LOOPS ✅ | `3a548ef` | rung03_suspend CE triage |
+| **Icon x64** | IX-17 | `3e4f131` | rung10–35 full scan with correct harness |
 
-### Baseline (confirmed IX-15 / IX-15b)
+### Baseline (confirmed IX-16)
 
 | Rung | Result |
 |------|--------|
 | rung01_paper | **6/6 ✅** |
 | rung02_arith_gen | **5/5 ✅** |
 | rung02_proc | **3/3 ✅** |
-| rung03_suspend | 3/5 CE — 2 linker failures (pre-existing) |
-| rung04–08 | **all 5/5 ✅** |
-| rung09_loops | **5/5 ✅** (was 0/5 — `emit_until` implemented) |
+| rung03_suspend | **5/5 ✅** (was 3/5 CE — suspend body ω routing fixed) |
+| rung04–09 | **all 5/5 ✅** |
 | rung10–23 | **all 5/5 ✅** |
-| rung24_records | **5/5 ✅** (was 0/5 — record type prepass fix) |
+| rung24_records | **5/5 ✅** |
 | rung25–26 | **all ✅** |
-| rung27_read | **5/5 ✅** (was 4/5 — `reads()` slot_jvm bug fixed) |
-| rung28–31 | **all 5/5 ✅** (rung31 was 3/5 — same record fix) |
+| rung27_read | **5/5 ✅** |
+| rung28–31 | **all 5/5 ✅** |
 | rung32–35 | **all ✅** |
 | rung36_jcon | 2/52 — jcon subsystem, separate milestone |
 
-### What was fixed (IX-15 + IX-15b, commits `75cfd68` → `3a548ef`)
+### What was fixed (IX-16, commit `3e4f131`)
 
-**M-IX-LOOPS — emit_until (rung09 5/5)**
-- `icon_emit.c`: `emit_until()` added, `ICN_UNTIL` wired in dispatch
-- `until E do body`: α→cond.α; cond.γ→discard+exit; cond.ω→body.α; body.γ/ω→loop_top
+**rung03_suspend — suspend body ω routing (5/5)**
 
-**Rename: `icon_driver` eradicated**
-- `src/frontend/icon/icon_driver.c` → `icn_main.c`; function `icn_main()` (was `icon_driver_main`)
-- All 46 affected files swept (shell scripts, Makefile, comments, stale binary removed)
+`ij_emit_suspend` body wiring had two bugs:
+- `bp.ω = ports.γ` — body failure (empty stack) jumped to `body_drain` (which does `pop2`) → VerifyError
+- `body_done: pop2; JGoto(ports.γ)` — after draining body result, jumped to `body_drain` again → double pop2
 
-**Record type prepass fix (rung24/31)**
-- `ij_prepass_types` missing `ij_expr_is_record(rhs)` branch — record vars fell to `'J'` default
-- Fix: detect record RHS → `ij_declare_static_obj(fld)` with dual local/global register
+Fix: both paths now target `ports.ω` (= while's `loop_top`, no-value path):
+- `bp.ω = ports.ω` — body fail bypasses drain
+- `body_done: pop2; JGoto(ports.ω)` — body ok: drain once then loop-back
+- no-body resume: `JGoto(ports.ω)`
 
-**`reads()` slot bug (rung27 t04)**
-- `arr_slot` from `ij_alloc_ref_scratch()` is raw JVM slot; wrongly wrapped in `slot_jvm()`
-- Fix: use `arr_slot` directly on both `aload` sites
+### NEXT ACTION — IX-17
 
-### NOTE: test harness — companion .j assembly required
-
-Record types emit companion `ClassName$RecordType.j` files alongside `main.j`.
-Must assemble **all** `.j` files in TMPD and use TMPD as `-cp`. See §BUILD.
-
-### NEXT ACTION — IX-16: rung03_suspend CE triage
-
-Two tests in rung03 produce CE (Jasmin error or runtime crash). Diagnose each,
-identify missing emitter feature or linker gap, fix or xfail with reason.
+All rungs 01–35 now passing (rung36_jcon is a separate subsystem).
+Next: run the full rung10–35 scan with correct companion-.j harness to confirm
+no regressions from IX-15/16 fixes, then update SESSION with final baseline.
