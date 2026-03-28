@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
-| **ICON x64** | IX-17 — rung01–35 all 5/5 ✅; emit_until, record prepass, reads() slot, suspend ω fixed | `3e4f131` IX-17 | rung36_jcon (separate subsystem) |
+| **ICON x64** | IX-18 — x64 gate wired, ICN_AUGOP impl, harness added; 22/110 rung10–35 pass; taxonomy in SESSION | `c648df5` IX-18 | rung10–35 all green on x64 |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
 | **Prolog x64** | PX-1 — \+/\= ✅ `e3f92cc`; multi-ucall backtrack WIP `532be13` (minimal2 PASS, alldiff regressed) | `532be13` | M-PJ-X64-3 (multi-ucall backtrack) |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
