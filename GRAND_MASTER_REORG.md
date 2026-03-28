@@ -152,22 +152,27 @@ This convention applies **identically** in all emitter files and all six fronten
 Every generated label, every C variable, every comment uses these names.
 No exceptions. No aliases. No abbreviations beyond those listed here.
 
-**Greek ports — source code (C variables and comments):**
+**Greek ports — used everywhere without exception (C source, comments, generated output):**
 
-| Port | C name | Meaning |
-|------|--------|---------|
-| α | `lbl_alpha` | Fresh entry |
-| β | `lbl_beta` | Resume after downstream failure |
-| γ | `lbl_gamma` | Success exit |
-| ω | `lbl_omega` | Failure exit |
+| Port | C name | Generated label fragment | Meaning |
+|------|--------|--------------------------|---------|
+| α | `α` | `_α` | Fresh entry |
+| β | `β` | `_β` | Resume after downstream failure |
+| γ | `γ` | `_γ` | Success exit |
+| ω | `ω` | `_ω` | Failure exit |
+
+Greek letters are used **everywhere**: C variable names, C parameter names, struct
+field names, label string literals, comments. No ASCII spelling-out (`alpha`,
+`beta`, `gamma`, `omega`) anywhere. No `lbl_alpha`, no `lbl_gamma`. The Greek
+letter is the name.
 
 **Greek ports — generated labels (in .asm / .j / .il output):**
 
 | Backend | Alpha label | Beta label | Notes |
 |---------|-------------|------------|-------|
-| x64 ASM | `P_<id>_alpha:` | `P_<id>_beta:` | gamma/omega are caller-supplied jumps |
-| JVM | `L<id>_alpha` | `L<id>_beta` | id = unique integer per node |
-| .NET | `L<id>_alpha` | `L<id>_beta` | same scheme as JVM |
+| x64 ASM | `P_<id>_α:` | `P_<id>_β:` | γ/ω are caller-supplied jumps |
+| JVM | `L<id>_α` | `L<id>_β` | id = unique integer per node |
+| .NET | `L<id>_α` | `L<id>_β` | same scheme as JVM |
 
 **Node ID convention:** Every IR node gets a unique integer `id` assigned during
 the emit pass. Generated labels are always `L<id>_<port>` (JVM/.NET) or
@@ -181,15 +186,15 @@ the emit pass. Generated labels are always `L<id>_<port>` (JVM/.NET) or
 | Left child | `left` / `node->children[0]` |
 | Right child | `right` / `node->children[1]` |
 | Node unique id | `node->id` |
-| Alpha label string | `lbl_alpha` |
-| Beta label string | `lbl_beta` |
-| Gamma label string (passed in) | `lbl_gamma` |
-| Omega label string (passed in) | `lbl_omega` |
-| Emit function signature | `emit_<kind>(EXPR_t *node, const char *lbl_gamma, const char *lbl_omega)` |
+| Alpha label string | `α` |
+| Beta label string | `β` |
+| Gamma label string (passed in) | `γ` |
+| Omega label string (passed in) | `ω` |
+| Emit function signature | `emit_<kind>(EXPR_t *node, const char *γ, const char *ω)` |
 | Output file | `out` (all backends) |
-| Output macro | `E(fmt, ...)` (x64) · `J(fmt, ...)` (JVM) · `N(fmt, ...)` (.NET) |
-| Instruction emit helper | `EI(instr, ops)` · `JI(instr, ops)` · `NI(instr, ops)` |
-| Label definition helper | `EL(label, instr, ops)` · `JL(...)` · `NL(...)` |
+| Output macro | `E(fmt, ...)` (x64) · `J(fmt, ...)` (JVM) · `N(fmt, ...)` (.NET) · `W(fmt, ...)` (WASM) |
+| Instruction emit helper | `EI(instr, ops)` · `JI(instr, ops)` · `NI(instr, ops)` · `WI(instr, ops)` |
+| Label definition helper | `EL(label, instr, ops)` · `JL(...)` · `NL(...)` · `WL(...)` |
 
 **Runtime variable naming in generated code:**
 
