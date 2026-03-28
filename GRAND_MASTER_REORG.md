@@ -275,7 +275,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | ID | Action | Verify |
 |----|--------|--------|
 | **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. snobol4harness HEAD: `eced661`. snobol4corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
-| **M-G0-RENAME** | Confirm `snobol4harness` and `snobol4corpus` are using their canonical marketing names (per RENAME.md). Update any cross-repo references in `snobol4x/setup.sh`, runner scripts, and `.github` docs that use old names. No functional changes. | All references in snobol4x and .github resolve correctly |
+| **M-G0-RENAME** ✅ | Confirmed: `snobol4harness` and `snobol4corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
 | **M-G0-AUDIT** | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all emitter files |
 | **M-G0-IR-AUDIT** | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
 
