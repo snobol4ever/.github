@@ -20,7 +20,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **TINY frontend** | F-223 | `b4507dc` F-223 | M-PROLOG-CORPUS |
 | **DOTNET** | D-164 — 1903/1903 | `e1e4d9e` D-164 | TBD |
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
-| **ICON x64** | IX-14 — M-IX-CSET ✅ M-IX-STRBUILTINS ✅; rung09 0/5 until unimpl | `ee76037` IX-14 | M-IX-LOOPS (emit_until; rung09 5/5) |
+| **ICON x64** | IX-17 — rung01–35 all 5/5 ✅; emit_until, record prepass, reads() slot, suspend ω fixed | `3e4f131` IX-17 | rung36_jcon (separate subsystem) |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
 | **Prolog x64** | PX-1 — M-PJ-X64-1 ✅ M-PJ-X64-2 ✅ | `8843d71` | M-PJ-X64-3 (\+ inline) |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
@@ -192,3 +192,47 @@ child as `atom(F)`, preserving `(call member ...)` output format.
 **Session is complete. Next session: Lon to assign.**
 
 **Read only:** `PLAN.md` only.
+
+---
+
+## IX-17 Handoff (2026-03-27, Claude Sonnet 4.6) — commit `3e4f131`
+
+### What was done (sessions IX-15 / IX-15b / IX-16)
+
+**All rungs 01–35 now 5/5 ✅.** rung36_jcon is a separate subsystem.
+
+**Fixes applied (`icon_emit_jvm.c`):**
+
+1. **`emit_until` / rung09** — `ICN_UNTIL` was falling to UNIMPL. Added `emit_until()`
+   to `icon_emit.c` (x64) and wired dispatch. Also `ij_emit_until` already existed in
+   JVM emitter; rung09 5/5 via JVM path.
+
+2. **Record type prepass / rung24, rung31** — `ij_prepass_types` had no branch for
+   `ij_expr_is_record(rhs)`. Variables assigned from record constructors fell to `'J'`
+   (long) default; `getstatic`/`putstatic` mixed `J` and `Ljava/lang/Object;` →
+   `NoSuchFieldError` at runtime. Fix: detect record RHS → `ij_declare_static_obj(fld)`
+   with dual local/global register.
+
+3. **`reads()` slot bug / rung27** — `arr_slot` from `ij_alloc_ref_scratch()` is a raw
+   JVM slot but was wrapped in `slot_jvm()` (doubles it) on two `aload` sites →
+   `VerifyError: Illegal local variable number`. Fix: use `arr_slot` directly.
+
+4. **Suspend body ω routing / rung03** — `ij_emit_suspend` body wired `bp.ω = ports.γ`
+   (= while's `body_drain`, does `pop2`) and `body_done: pop2; JGoto(ports.γ)` (double
+   drain). Both paths hit `pop2` on empty stack → `VerifyError`. Fix: both now target
+   `ports.ω` (= while's `loop_top`, no-value path).
+
+**Rename:** `icon_driver` eradicated everywhere — `src/frontend/icon/icon_driver.c` →
+`icn_main.c`; function renamed `icn_main()`; all 46 affected files swept.
+
+### Harness note
+
+The standard `run_rungNN.sh` scripts only assemble `main.j`. Record types emit
+companion `ClassName$RecordType.j` files. Correct runner pattern (see §BUILD in
+`SESSION-icon-x64.md`): assemble **all** `.j` in TMPD, use TMPD as `-cp`, feed
+`.stdin` files where present.
+
+### Next session
+
+Read `SESSION-icon-x64.md` §NOW (IX-17) only. rung36_jcon is the frontier —
+52 tests, currently 2/52. That's a separate subsystem (`ARCH-icon-jcon.md`).
