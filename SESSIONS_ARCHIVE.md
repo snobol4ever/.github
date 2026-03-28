@@ -3475,3 +3475,53 @@ SIL heritage analyzed for IR nodes only. Broader analysis needed:
 Produce `doc/SIL_NAMES_AUDIT.md`. Prerequisite for M-G3 naming pass.
 
 After M-G0-SIL-NAMES: proceed to **M-G1-IR-HEADER-DEF** — create `src/ir/ir.h`.
+
+## G-7b (2026-03-28) — Grand Master Reorg: SIL names audit, phase reorder, ir.h
+
+**Session type:** Grand Master Reorg (G prefix)
+**Repos:** snobol4x `a1f9a76`, .github `c722b1e`
+**Bootstrap:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git`
+
+### Milestones completed
+
+| Milestone | snobol4x commit | .github commit | Result |
+|-----------|----------------|----------------|--------|
+| Phase 3 reorder | — | `1efd6fe` | Phase 3 (naming) moved after Phase 4+5 (collapse+unification). 29+ sub-milestones → 9 per-survivor-file passes. GRAND_MASTER_REORG.md Phase 3 section rewritten; dependency graph updated. |
+| M-G0-SIL-NAMES ✅ | `b1d200f` | `4d65f06` | `doc/SIL_NAMES_AUDIT.md` — all four areas covered. Two law additions: `ICN_OUT()` (icon_emit.c write macro, avoids E() collision); EKind alias bridge doc. `snobol4_asm.mac` confirmed as gold standard — fully conformant. No law corrections needed. |
+| M-G1-IR-HEADER-DEF ✅ | `a1f9a76` | `c722b1e` | `src/ir/ir.h` created. 59 canonical EKind nodes. `gcc -fsyntax-only` clean; `IR_DEFINE_NAMES` name table PASS; `IR_COMPAT_ALIASES` 15 bridges PASS; `E_KIND_COUNT = 59` confirmed. |
+
+### Key decisions this session
+
+**Phase 3 reorder (Lon's instinct, confirmed correct):** Naming pass on pre-collapse code wastes milestones — Phase 4 immediately collapses the renamed functions. New order: Phase 0 → Phase 1 → Phase 2 → **Phase 4** (collapse) → **Phase 5** (frontend unification) → **Phase 3** (rename survivors) → Phase 6 → Phase 7. Saves ~20 milestones.
+
+**SIL names audit findings:**
+- All `sno_` / `icn_` / `pl_` / `stmt_` prefixes confirmed correct and law-conformant
+- `snobol4_asm.mac` fully conformant — Greek port suffixes throughout, all 14 pattern primitive macros trace to correct SIL X___ codes (XANYC=1, XARBN=3, XATP=4, XSPNC=31, etc.)
+- Two deviations requiring fix: `A()` output macro in `emit_byrd_asm.c` (→ `E()`); `ICN_OUT()` needed in `icon_emit.c` (→ eliminate `E()` collision)
+- ASCII `gamma`/`omega` in JVM and NET SNOBOL4 emitters (→ `γ`/`ω`) — fixed in Phase 3
+- `_fn` suffix law confirmed for engine-level SIL-derived names (VARVAL_fn, NV_GET_fn etc.)
+
+**ir.h design:**
+- `E_KIND_COUNT` sentinel at end for array sizing and exhaustive-switch enforcement
+- `#ifdef IR_DEFINE_NAMES` guard for `ekind_name[]` table (used by ir_print.c)
+- `#ifdef IR_COMPAT_ALIASES` guard for 15 old→canonical `#define` bridges
+- `EXPR_t` struct: `kind`, `sval`, `ival`, `fval`, `children[]`, `nchildren`, `nalloc`, `id`
+- Not included anywhere yet — M-G1-IR-HEADER-WIRE wires it in
+
+### Next session reads (G-session)
+
+1. `PLAN.md` — NOW table (G row)
+2. `GRAND_MASTER_REORG.md` — Phase 1 milestones (M-G1-IR-HEADER-WIRE is next)
+3. `snobol4x/src/ir/ir.h` — the new header (read before touching sno2c.h)
+4. `snobol4x/src/frontend/snobol4/sno2c.h` — add `#include "ir/ir.h"` + `IR_COMPAT_ALIASES`
+
+### Next milestone: M-G1-IR-HEADER-WIRE
+
+Add `#include "ir/ir.h"` to `sno2c.h`. Activate `IR_COMPAT_ALIASES` so existing
+code compiles without change. Fix any `switch(kind)` that becomes non-exhaustive
+(add `default: assert(0)` or handle new kinds). Run `setup.sh` first to confirm
+baseline: `106/106 ALL PASS`. Then `make -j4` must stay green — 106/106 ASM +
+JVM + 110/110 NET — after the include is added.
+
+**Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 1 +
+`src/ir/ir.h` + `src/frontend/snobol4/sno2c.h` header section.
