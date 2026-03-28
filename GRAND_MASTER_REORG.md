@@ -112,53 +112,57 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 **Byrd box node kinds — canonical names (all backends must handle all of these):**
 
+*`E_` prefix = Expression node. Names derived from SIL `xxxTYP` token type codes
+(CSNOBOL4 v311.sil) where applicable. See `ARCH-sil-heritage.md` for full lineage.*
+
 | Kind | Meaning | α | β |
 |------|---------|---|---|
 | **Literals** | | | |
-| `E_QLIT` | String / pattern literal | load/match value | — |
-| `E_ILIT` | Integer literal | load value | — |
-| `E_FLIT` | Float literal | load value | — |
+| `E_QLIT` | String / pattern literal (`QLITYP` in SIL) | load/match value | — |
+| `E_ILIT` | Integer literal (`ILITYP` in SIL) | load value | — |
+| `E_FLIT` | Float/real literal (`FLITYP` in SIL) | load value | — |
 | `E_CSET` | Cset literal (Icon/Rebus) | load cset value | — |
 | `E_NULV` | Null / empty value | load null | — |
 | **References** | | | |
-| `E_VART` | Variable reference | load binding | — |
-| `E_KW` | `&IDENT` keyword reference | load keyword value | — |
+| `E_VART` | Variable reference (`VARTYP=3` in SIL; T = Type code discriminant) | load binding | — |
+| `E_KW` | `&IDENT` keyword reference (`K=10` data type in SIL) | load keyword value | — |
 | `E_INDR` | `$expr` indirect / immediate-assign target | resolve indirection | — |
-| `E_STAR` | `*expr` deferred / indirect pattern reference | load deferred pattern | — |
+| `E_STAR` | `*expr` deferred / indirect pattern reference (`XSTAR=32` in SIL) | load deferred pattern | — |
 | **Arithmetic** | | | |
-| `E_NEG` | Unary minus | negate | — |
+| `E_NEG` | Unary minus (`MNSM/MNSR` procs in SIL) | negate | — |
+| `E_PLS` | Unary plus — coerces `''` to 0 (`PLS` proc in SIL; distinct op, not identity) | coerce to numeric | — |
 | `E_ADD` | Addition | evaluate | — |
 | `E_SUB` | Subtraction | evaluate | — |
 | `E_MPY` | Multiplication | evaluate | — |
 | `E_DIV` | Division | evaluate | — |
 | `E_MOD` | Modulo / remainder | evaluate | — |
-| `E_POW` | Exponentiation | evaluate | — |
+| `E_POW` | Exponentiation (`EXR` in SIL; `E_EXPOP` in sno2c.h) | evaluate | — |
 | **Sequence and Alternation** | | | |
-| `E_SEQ` | Sequence / concatenation (n-ary) | left then right | right-ω → left-β |
-| `E_ALT` | SNOBOL4 pattern alternation (n-ary) | try left | left-ω → try right |
+| `E_SEQ` | Sequence / concatenation, n-ary (`CONCAT`/`CONCL` in SIL; was `E_CONC`) | left then right | right-ω → left-β |
+| `E_ALT` | SNOBOL4 pattern alternation, n-ary (`ORPP` in SIL; was `E_OR`) | try left | left-ω → try right |
 | `E_OPSYN` | `&` operator: reduce(left, right) | evaluate | — |
 | **Pattern Primitives** | | | |
-| `E_ARB` | Arbitrary match | try 0 chars | advance one, retry |
-| `E_ARBNO` | Zero-or-more (also: every/while/repeat via lowering) | try zero | undo last match |
-| `E_POS` | Cursor position assert `POS(n)` | check cursor == n | fail |
-| `E_RPOS` | Right cursor assert `RPOS(n)` | check cursor == len-n | fail |
+| `E_ARB` | Arbitrary match (`XFARB=17`/`XEARBNO` in SIL) | try 0 chars | advance one, retry |
+| `E_ARBNO` | Zero-or-more (`XARBN=3` in SIL; also: every/while/repeat via lowering) | try zero | undo last match |
+| `E_POS` | Cursor position assert `POS(n)` (`XPOSI=24` in SIL) | check cursor == n | fail |
+| `E_RPOS` | Right cursor assert `RPOS(n)` (`XRPSI=25` in SIL) | check cursor == len-n | fail |
 | **Captures** | | | |
-| `E_DOT` | `.` conditional capture | match, save on success | pass β to child |
-| `E_DOLLAR` | `$` immediate capture | match, save immediately | pass β to child |
-| `E_AT` | `@var` cursor position capture | capture cursor | — |
+| `E_DOT` | `.` conditional capture (`E_NAM` in sno2c.h) | match, save on success | pass β to child |
+| `E_DOLLAR` | `$` immediate capture (`E_DOL` in sno2c.h) | match, save immediately | pass β to child |
+| `E_AT` | `@var` cursor position capture (`XATP=4` in SIL; `E_ATP` in sno2c.h) | capture cursor | — |
 | **Call, Access, Assignment** | | | |
-| `E_FNC` | Function call / goal / builtin (n-ary) | call | — |
-| `E_IDX` | Array / table / record subscript | aref | — |
-| `E_ASSIGN` | Assignment | evaluate RHS, assign | — |
+| `E_FNC` | Function call / goal / builtin, n-ary (`FNCTYP=5` in SIL) | call | — |
+| `E_IDX` | Array / table / record subscript (`ARYTYP=7` in SIL; absorbs `E_ARY`) | aref | — |
+| `E_ASSIGN` | Assignment (`ASGN` proc in SIL; `E_ASGN` in sno2c.h) | evaluate RHS, assign | — |
 | **Scan and Swap** | | | |
-| `E_SCAN` | `E ? E` scanning (set subject, restore on β) | set subject | restore subject |
-| `E_SWAP` | `:=:` swap bindings | swap | — |
+| `E_SCAN` | `E ? E` scanning (`XSCON=30`/`SCONCL` in SIL) | set subject | restore subject |
+| `E_SWAP` | `:=:` swap bindings (`SWAP` proc in SIL) | swap | — |
 | **Icon Generators** | | | |
 | `E_SUSPEND` | Generator suspend / yield | yield value | resume |
 | `E_TO` | `i to j` generator | emit i | increment, retry |
 | `E_TO_BY` | `i to j by k` generator | emit i | step by k, retry |
 | `E_LIMIT` | `E \ N` limitation | count down | fail at 0 |
-| `E_GENALT` | Icon / Rebus alt generator (emit left exhausted then right) | emit left | left-done → emit right |
+| `E_GENALT` | Icon / Rebus alt generator — emit left exhausted then right (was `E_ALT_GEN`) | emit left | left-done → emit right |
 | `E_BANG` | `!E` iterate list or string elements | emit first | next element |
 | **Icon / Rebus Constructors** | | | |
 | `E_MAKELIST` | `[e1,e2,...]` list constructor | evaluate all, build list | — |
@@ -166,17 +170,18 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_UNIFY` | Prolog unification `=/2` | bind with trail | unwind trail, fail |
 | `E_CLAUSE` | Prolog Horn clause | try head | retry next |
 | `E_CHOICE` | Prolog predicate choice point | α of first clause | β chain |
-| `E_CUT` | Prolog `!` cut / FENCE | seal β | unreachable |
+| `E_CUT` | Prolog `!` cut / FENCE (`XFNCE=35` in SIL) | seal β | unreachable |
 | `E_TRAIL_MARK` | Save trail top into env slot | mark | — |
 | `E_TRAIL_UNWIND` | Restore trail to saved mark | unwind | — |
 
-**44 node kinds total.**
+**45 node kinds total** (44 + `E_PLS`: unary plus is distinct — coerces `''→0`, not identity).
 
 **Rename bridge — old sno2c.h names → canonical ir.h names:**
 
 | Old name | Canonical name | Note |
 |----------|---------------|------|
-| `E_MNS` | `E_NEG` | Unary — NEG not MNS |
+| `E_MNS` | `E_NEG` | Unary minus — NEG not MNS |
+| *(new)* | `E_PLS` | Unary plus — coerces `''→0`; SIL `PLS` proc |
 | `E_EXPOP` | `E_POW` | More universal |
 | `E_CONC` | `E_SEQ` | Sequence, not just concatenation |
 | `E_OR` | `E_ALT` | Alternation |

@@ -9,6 +9,7 @@ All deep reference docs. Open on demand — never speculatively.
 |-----|----------|-----------|
 | `ARCH-overview.md` | Byrd box α/β/γ/ω, shared IR, calling conventions | Fundamental design questions |
 | `ARCH-decisions.md` | Design decisions log (append-only) | Why was X decided? |
+| `ARCH-sil-heritage.md` | SIL `xxxTYP` lineage for all E_ IR node names | Where did E_VART, E_QLIT etc come from? |
 
 ### SNOBOL4 Frontend
 | Doc | Contents | Open when |
