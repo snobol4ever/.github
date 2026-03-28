@@ -179,6 +179,43 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `return/fail/break/next` | γ/ω routing at stmt level | Not IR nodes |
 | `proc/record/global/initial` | Program/STMT_t level | Not EKind |
 
+### IR Node Set — Living Target
+
+**The 37-node set above is the best current analysis, not a frozen contract.**
+
+The unification work itself — Phases 3 through 5 — is the real test. When the
+emitters are actually being merged and the backends are consuming the same IR,
+the code will tell us things the analysis cannot. Expect the set to change:
+
+**Nodes may be added** when a lowering that looked clean on paper fights back
+in code. If `E_ARBNO(E_CONC(E, body))` for `every` turns out to require
+β-wiring that differs subtly from plain ARBNO (e.g. because the body's ω
+behavior is different than a pattern's ω), that warrants a new node. The
+emitter will make this obvious.
+
+**Nodes may be removed** when two nodes that looked distinct turn out to share
+identical emitter code across all four backends. If the generated output for
+node A and node B is always the same modulo a constant, they should merge.
+
+**Some lowering combinations may prove wrong.** The `if/else → E_OR(E_CONC)`
+lowering, the `unless → E_CUT FENCE` lowering, and the goal-directed comparison
+`→ E_FNC` decisions are analysis-time best guesses. The CISC/RISC tension is
+real: a CISC approach would give each construct its own node (clean frontend
+lowering, complex backend); a RISC approach pushes complexity into the lowering
+layer (complex frontend, clean backend). The right balance is found empirically
+during Phases 3–5, not theoretically in advance.
+
+**Protocol for IR changes during the reorg:**
+
+| Change type | Who decides | How |
+|-------------|-------------|-----|
+| Add a node | Lon — after emitter evidence shows lowering fails | Add to `ir.h`, update all four backends, re-run invariants |
+| Remove a node | Lon — after evidence shows two nodes always emit identically | Merge in `ir.h`, update frontends that used removed node |
+| Rename a node | Lon — for clarity | Phase 3 naming pass; alias bridging in `sno2c.h` |
+| Split a node | Lon — if β behavior diverges by context | Same as add |
+
+**The 37 is the starting point. The reorg execution produces the final answer.**
+
 ### Naming Convention — THE LAW
 
 This convention applies **identically** in all emitter files and all six frontends.
