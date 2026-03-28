@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-PARSE-POLISH ✅ mirrors pass; icon_recognizer.icn WIP (compiles, 7 bugs fixed, 1 remaining — see handoff) | `35988b9` PP-1 | M-RECOG-ICON · M-RECOG-PROLOG |
+| **🌳 Parser pair** | PP-1: M-RECOG-ICON ✅ M-RECOG-PROLOG ✅ both mirrors pass | `566aba8` PP-1 | Lon to assign |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -381,3 +381,33 @@ main :-
 `{shift(...)}` / `{reduce(...)}` / `{nPush}` / `{nInc}` / `{nPop}` actions.
 
 **Read only:** `PLAN.md` PP-1 section + this handoff. No other docs.
+
+---
+
+## PP-1 Handoff update (2026-03-27 session 4, Claude Sonnet 4.6) — commits 008ea48 / 566aba8
+
+### M-RECOG-ICON ✅ (commit 008ea48)
+
+**Bugs fixed in icon_recognizer.icn:**
+1. `r_decls` never called `nInc()` — counter stayed 0, placeholder always fired. Fixed: add `nInc()` after each successful decl.
+2. `r_proc` used stk-size delta for params (wrong — `r_namelist` is self-contained). Fixed: stk-size delta for params, clean `nPush/r_decls/nTop/nPop` for decls.
+3. `Reduce()` — `every` loop as last expression causes procedure to fail. Fixed: add `return` at end of `Reduce`.
+
+Self-parse mirror: exit 0, balanced parens (71/71 after stripping string literals).
+
+### M-RECOG-PROLOG ✅ (commit 566aba8)
+
+**New file: `demo/scrip/prolog_recognizer.pro`**
+
+DCG on char-code lists. `op_def/3` table (renamed from `op/3` to avoid built-in clash). `nPush/nInc/nTop/nPop` via `nb_setval/nb_getval`. `shift/2` + `reduce/2` on `val_stack`. `compiland_loop/4` with snapshot/restore on clause parse failure (graceful skip-past-dot for unrecognised constructs).
+
+Key fixes during development:
+- `r_op_token` needs explicit clauses for `,` (code 44) and `;` (code 59) — not covered by symbol-char scanner
+- `r_maybe_args`: shift functor *before* parsing args (not after) to get correct stack order for `reduce(call, N+1)`
+- `!` (cut, code 33) added as explicit `r_primary` alternative
+- `compiland_loop` snapshot/restore prevents stray nodes from failed partial parses corrupting the tree count
+
+Self-parse mirror: exit 0, 1486 lines, 1065 open = 1065 close parens — perfectly balanced.
+
+### Next session
+Lon to assign. Read only: `PLAN.md` PP-1 section + this handoff.
