@@ -21,7 +21,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | IX-14 — M-IX-CSET ✅ M-IX-STRBUILTINS ✅; rung09 0/5 until unimpl | `ee76037` IX-14 | M-IX-LOOPS (emit_until; rung09 5/5) |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
-| **Prolog x64** | PX-1 — probing, hello works, multi-clause broken | `a79906e` | M-PJ-X64-1 |
+| **Prolog x64** | PX-1 — M-PJ-X64-1 ✅ M-PJ-X64-2 ✅ | `8843d71` | M-PJ-X64-3 (\+ inline) |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 | **🔗 LINKER JVM** | LP-JVM-3 — linkage infra ✅; pj_call_goal passes arity=0+null args to pj_reflect_call for compound goals — DB fallback can't unify | `55d8655` LP-JVM-3 | M-SCRIP-DEMO |
