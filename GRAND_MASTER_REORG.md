@@ -122,12 +122,12 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_ILIT` | Integer literal (`ILITYP` in SIL) | load value | — |
 | `E_FLIT` | Float/real literal (`FLITYP` in SIL) | load value | — |
 | `E_CSET` | Cset literal (Icon/Rebus) | load cset value | — |
-| `E_NULV` | Null / empty value | load null | — |
+| `E_NUL` | Null / empty value | load null | — |
 | **References** | | | |
 | `E_VAR` | Variable reference (`VARTYP=3` in SIL; T = Type code discriminant) | load binding | — |
 | `E_KW` | `&IDENT` keyword reference (`K=10` data type in SIL) | load keyword value | — |
 | `E_INDR` | `$expr` indirect / immediate-assign target | resolve indirection | — |
-| `E_STAR` | `*expr` deferred / indirect pattern reference (`XSTAR=32` in SIL) | load deferred pattern | — |
+| `E_DEFER` | `*expr` deferred / indirect pattern reference (`XSTAR=32` in SIL) | load deferred pattern | — |
 | **Arithmetic** | | | |
 | `E_NEG` | Unary minus (`MNSM/MNSR` procs in SIL) | negate | — |
 | `E_PLS` | Unary plus — coerces `''` to 0 (`PLS` proc in SIL; distinct op, not identity) | coerce to numeric | — |
@@ -147,15 +147,15 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_POS` | Cursor position assert `POS(n)` (`XPOSI=24` in SIL) | check cursor == n | fail |
 | `E_RPOS` | Right cursor assert `RPOS(n)` (`XRPSI=25` in SIL) | check cursor == len-n | fail |
 | **Captures** | | | |
-| `E_DOT` | `.` conditional capture (`E_NAM` in sno2c.h) | match, save on success | pass β to child |
-| `E_DOLLAR` | `$` immediate capture (`E_DOL` in sno2c.h) | match, save immediately | pass β to child |
-| `E_AT` | `@var` cursor position capture (`XATP=4` in SIL; `E_ATP` in sno2c.h) | capture cursor | — |
+| `E_CAPT_COND` | `.` conditional capture (`E_NAM` in sno2c.h) | match, save on success | pass β to child |
+| `E_CAPT_IMM` | `$` immediate capture (`E_DOL` in sno2c.h) | match, save immediately | pass β to child |
+| `E_CAPT_CUR` | `@var` cursor position capture (`XATP=4` in SIL; `E_ATP` in sno2c.h) | capture cursor | — |
 | **Call, Access, Assignment** | | | |
 | `E_FNC` | Function call / goal / builtin, n-ary (`FNCTYP=5` in SIL) | call | — |
 | `E_IDX` | Array / table / record subscript (`ARYTYP=7` in SIL; absorbs `E_ARY`) | aref | — |
 | `E_ASSIGN` | Assignment (`ASGN` proc in SIL; `E_ASGN` in sno2c.h) | evaluate RHS, assign | — |
 | **Scan and Swap** | | | |
-| `E_SCAN` | `E ? E` scanning (`XSCON=30`/`SCONCL` in SIL) | set subject | restore subject |
+| `E_MATCH` | `E ? E` scanning (`XSCON=30`/`SCONCL` in SIL) | set subject | restore subject |
 | `E_SWAP` | `:=:` swap bindings (`SWAP` proc in SIL) | swap | — |
 | **Icon Generators** | | | |
 | `E_SUSPEND` | Generator suspend / yield | yield value | resume |
@@ -163,7 +163,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_TO_BY` | `i to j by k` generator | emit i | step by k, retry |
 | `E_LIMIT` | `E \ N` limitation | count down | fail at 0 |
 | `E_GENALT` | Icon / Rebus alt generator — emit left exhausted then right (was `E_ALT_GEN`) | emit left | left-done → emit right |
-| `E_BANG` | `!E` iterate list or string elements | emit first | next element |
+| `E_ITER` | `!E` iterate list or string elements | emit first | next element |
 | **Icon / Rebus Constructors** | | | |
 | `E_MAKELIST` | `[e1,e2,...]` list constructor | evaluate all, build list | — |
 | **Prolog** | | | |
@@ -180,17 +180,22 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 | Old name | Canonical name | Note |
 |----------|---------------|------|
-| `E_MNS` | `E_NEG` | Unary minus — NEG not MNS |
-| *(new)* | `E_PLS` | Unary plus — coerces `''→0`; SIL `PLS` proc |
-| `E_EXPOP` | `E_POW` | More universal |
-| `E_CONC` | `E_SEQ` | Sequence, not just concatenation |
+| `E_VART` | `E_VAR` | T was SIL type-code artifact |
+| `E_NULV` | `E_NUL` | Null value |
+| `E_STAR` | `E_DEFER` | `*X` deferred pattern — names the operation |
+| `E_MNS` | `E_NEG` | Unary minus |
+| *(new)* | `E_PLS` | Unary plus — affirmation, coerces `''→0` |
+| `E_EXPOP` | `E_POW` | Exponentiation |
+| `E_CONC` | `E_SEQ` | Sequence |
 | `E_OR` | `E_ALT` | Alternation |
-| `E_NAM` | `E_DOT` | Matches `.` operator |
-| `E_DOL` | `E_DOLLAR` | Matches `$` operator |
-| `E_ATP` | `E_AT` | Matches `@` operator |
+| `E_NAM` | `E_CAPT_COND` | `.` conditional capture |
+| `E_DOL` | `E_CAPT_IMM` | `$` immediate capture |
+| `E_ATP` | `E_CAPT_CUR` | `@` cursor capture |
 | `E_ARY` | `E_IDX` | Merged — same node |
-| `E_ASGN` | `E_ASSIGN` | Full word |
-| `E_ALT_GEN` | `E_GENALT` | No underscore between |
+| `E_ASGN` | `E_ASSIGN` | Assignment |
+| `E_ALT_GEN` | `E_GENALT` | Generator alternation |
+| `E_SCAN` | `E_MATCH` | Pattern match / scanning |
+| `E_BANG` | `E_ITER` | Iterate elements |
 
 During Phase 1 (M-G1-IR-HEADER-WIRE), `sno2c.h` gets `#define` aliases so
 existing code compiles without change. The aliases are removed in Phase 3.
@@ -253,7 +258,7 @@ during Phases 3–5, not theoretically in advance.
 | Rename a node | Lon — for clarity | Phase 3 naming pass; alias bridging in `sno2c.h` |
 | Split a node | Lon — if β behavior diverges by context | Same as add |
 
-**The 37 is the starting point. The reorg execution produces the final answer.**
+**The 45 nodes are the starting point. The reorg execution produces the final answer.**
 
 ### Naming Convention — THE LAW
 
@@ -392,7 +397,7 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | **M-G0-RENAME** ✅ | Confirmed: `snobol4harness` and `snobol4corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
 | **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `snobol4corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
 | **M-G0-AUDIT** ✅ | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | `doc/EMITTER_AUDIT.md` committed `252dac0` |
-| **M-G0-IR-AUDIT** ✅ | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md`. `E_VART` renamed `E_VAR` (T was SIL type-code artifact). 45 canonical node names. See `ARCH-sil-heritage.md`. | `doc/IR_AUDIT.md` updated; `ARCH-sil-heritage.md` committed `fb90365` |
+| **M-G0-IR-AUDIT** ✅ | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md`. `E_VAR` renamed `E_VAR` (T was SIL type-code artifact). 45 canonical node names. See `ARCH-sil-heritage.md`. | `doc/IR_AUDIT.md` updated; `ARCH-sil-heritage.md` committed `fb90365` |
 | **M-G0-SIL-NAMES** | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`sno2c.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` exists, covers all four areas |
 
 #### M-G0-CORPUS-AUDIT — Inventory and Open Decisions
@@ -523,7 +528,7 @@ A regression is immediately localizable to the one opcode group just touched.
 |----|-------------|-------------|--------|
 | **M-G3-NAME-X64-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | Local vars → `lbl_alpha/beta/gamma/omega`; functions → `emit_x64_<Kind>` | 106/106 |
 | **M-G3-NAME-X64-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
-| **M-G3-NAME-X64-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 106/106 |
+| **M-G3-NAME-X64-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 106/106 |
 | **M-G3-NAME-X64-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
 | **M-G3-NAME-X64-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
 | **M-G3-NAME-X64-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same; macros confirmed as `E()`/`EI()`/`EL()` | 106/106 |
@@ -536,7 +541,7 @@ A regression is immediately localizable to the one opcode group just touched.
 |----|-------------|-------------|--------|
 | **M-G3-NAME-JVM-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `J()`/`JI()`/`JL()` confirmed; functions → `emit_jvm_<Kind>` | 106/106 |
 | **M-G3-NAME-JVM-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 106/106 |
-| **M-G3-NAME-JVM-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 106/106 |
+| **M-G3-NAME-JVM-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 106/106 |
 | **M-G3-NAME-JVM-CURSOR** | `E_POS`, `E_RPOS` | Same | 106/106 |
 | **M-G3-NAME-JVM-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 106/106 |
 | **M-G3-NAME-JVM-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 106/106 |
@@ -549,7 +554,7 @@ A regression is immediately localizable to the one opcode group just touched.
 |----|-------------|-------------|--------|
 | **M-G3-NAME-NET-CORE** | `E_QLIT`, `E_CONC`, `E_OR` | `N()`/`NI()`/`NL()` confirmed or renamed; functions → `emit_net_<Kind>` | 110/110 NET |
 | **M-G3-NAME-NET-ITERATE** | `E_ARB`, `E_ARBNO` | Same | 110/110 NET |
-| **M-G3-NAME-NET-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same | 110/110 NET |
+| **M-G3-NAME-NET-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same | 110/110 NET |
 | **M-G3-NAME-NET-CURSOR** | `E_POS`, `E_RPOS` | Same | 110/110 NET |
 | **M-G3-NAME-NET-LOAD** | `E_VAR`, `E_ILIT`, `E_FLIT` | Same | 110/110 NET |
 | **M-G3-NAME-NET-ARITH** | `E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`, `E_MOD` | Same | 110/110 NET |
@@ -600,14 +605,14 @@ Each backend provides its own `emit_fn_t` callback. The wiring is written once.
 | **M-G4-SHARED-CONC** | `E_CONC` | Extract wiring to `ir_emit_common.c`. All three SNOBOL4 backends use it. | 106/106 ASM + JVM + NET |
 | **M-G4-SHARED-OR** | `E_OR` | Same. | All |
 | **M-G4-SHARED-ARBNO** | `E_ARBNO` | Same. | All |
-| **M-G4-SHARED-CAPTURE** | `E_DOT`, `E_DOLLAR` | Same. | All |
+| **M-G4-SHARED-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same. | All |
 | **M-G4-SHARED-ARITH** | `E_ADD/SUB/MPY/DIV/MOD` | Same. | All |
 | **M-G4-SHARED-ASSIGN** | `E_ASSIGN` | Same. | All |
 | **M-G4-SHARED-IDX** | `E_IDX` | Same. | All |
 | **M-G4-SHARED-ICON-TO** | `E_TO`, `E_TO_BY` | Extract Icon generator wiring shared between `emit_x64_icon.c` and `emit_jvm_icon.c`. | Icon ASM + JVM |
 | **M-G4-SHARED-ICON-SUSPEND** | `E_SUSPEND` | Same. Suspend/resume wiring isolated from other generators. | Icon ASM + JVM |
 | **M-G4-SHARED-ICON-ALT** | `E_ALT_GEN` | Same. | Icon ASM + JVM |
-| **M-G4-SHARED-ICON-BANG** | `E_BANG`, `E_SCAN` | Same. SCAN involves subject save/restore — verify both backends independently. | Icon ASM + JVM |
+| **M-G4-SHARED-ICON-BANG** | `E_ITER`, `E_MATCH` | Same. SCAN involves subject save/restore — verify both backends independently. | Icon ASM + JVM |
 | **M-G4-SHARED-ICON-LIMIT** | `E_LIMIT` | Same. | Icon ASM + JVM |
 | **M-G4-SHARED-PROLOG-UNIFY** | `E_UNIFY` | Extract Prolog unification wiring shared between ASM and JVM. | Prolog ASM + JVM |
 | **M-G4-SHARED-PROLOG-CLAUSE** | `E_CLAUSE`, `E_CHOICE` | Same. Head-matching and predicate dispatch wiring. | Prolog ASM + JVM |
@@ -852,7 +857,7 @@ kinds. The enumerator is shared across all languages.
 | **M-G8-HOME** | Where does the enumerator live? | Evaluate `snobol4harness` (cross-repo test infra, already hosts probe/monitor) vs new `snobol4gen` repo (cleaner separation). Decide and document. | `doc/GEN_HOME.md` — one-page decision record: chosen location, rationale, how other repos reference it |
 | **M-G8-DEPTH** | Token-count or IR-node depth as the bound? | Token-count is user-intuitive ("programs up to 20 tokens"). IR-node depth is uniform across languages (depth-5 tree has the same combinatorial budget in every grammar). Evaluate both for SNOBOL4 pattern fragment: how many programs does each generate at N=10, N=20, N=25? Is the count tractable? | `doc/GEN_DEPTH.md` — table: language × bound-type × N → program count. Chosen primary bound documented. |
 | **M-G8-ORACLE** | How is expected output determined for generated programs? | Option A: differential (CSNOBOL4 + SPITBOL agree → that is correct; any snobol4x backend that disagrees → bug). Option B: reference cache (run CSNOBOL4 once per generated program, store `.ref`). Evaluate: is differential sufficient, or do we need cached refs for regression detection after a fix? | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
-| **M-G8-GRAMMAR** | What is the Phase-1 grammar scope? | Which language first and what fragment? Candidates: (a) SNOBOL4 pattern expressions — richest, most bug-prone, maps directly to E_QLIT/E_CONC/E_OR/E_ARBNO/E_DOT/E_DOLLAR/E_VAR (7 node kinds); (b) Icon generator expressions — E_TO/E_TO_BY/E_SUSPEND/E_ALT_GEN/E_BANG/E_LIMIT (6 kinds, `Expressions.py` already seeds this); (c) Prolog clause bodies — E_UNIFY/E_CLAUSE/E_CHOICE/E_CUT (4 kinds, simpler). Evaluate coverage ROI vs implementation effort. | `doc/GEN_GRAMMAR.md` — chosen first language and fragment, BNF of the fragment, mapping from each production to its IR node kind(s), estimated program count at N=25 |
+| **M-G8-GRAMMAR** | What is the Phase-1 grammar scope? | Which language first and what fragment? Candidates: (a) SNOBOL4 pattern expressions — richest, most bug-prone, maps directly to E_QLIT/E_CONC/E_OR/E_ARBNO/E_CAPT_COND/E_CAPT_IMM/E_VAR (7 node kinds); (b) Icon generator expressions — E_TO/E_TO_BY/E_SUSPEND/E_ALT_GEN/E_ITER/E_LIMIT (6 kinds, `Expressions.py` already seeds this); (c) Prolog clause bodies — E_UNIFY/E_CLAUSE/E_CHOICE/E_CUT (4 kinds, simpler). Evaluate coverage ROI vs implementation effort. | `doc/GEN_GRAMMAR.md` — chosen first language and fragment, BNF of the fragment, mapping from each production to its IR node kind(s), estimated program count at N=25 |
 
 All four `doc/GEN_*.md` files must exist and be consistent before any enumerator
 code is written. They are the spec. Disagreement between team members → resolve in

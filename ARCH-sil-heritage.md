@@ -70,7 +70,7 @@ for pattern-matching operations. These give us the definitive mapping:
 XANYC  =  1    ANY(cset)
 XARBF  =  2    ARB (first — zero chars)
 XARBN  =  3    ARBNO                           → E_ARBNO
-XATP   =  4    @ cursor capture                → E_AT  (was E_ATP)
+XATP   =  4    @ cursor capture                → E_CAPT_CUR  (was E_ATP)
 XCHR   =  5    single char match
 XBAL   =  6    BAL
 XBRKC  =  8    BREAK(cset)
@@ -83,9 +83,9 @@ XRPSI  = 25    RPOS(n)                         → E_RPOS
 XRTB   = 26    RTAB
 XSALF  = 28    scan alternation fail
 XSCOK  = 29    scan continuation ok
-XSCON  = 30    scan continuation               → E_SCAN
+XSCON  = 30    scan continuation               → E_MATCH
 XSPNC  = 31    SPAN(cset)
-XSTAR  = 32    *X deferred reference           → E_STAR
+XSTAR  = 32    *X deferred reference           → E_DEFER
 XRTNL3 = 34    RTNL (return null)
 XFNCE  = 35    FENCE                           → E_CUT
 XSUCF  = 36    SUCCEED/FAIL
@@ -105,7 +105,7 @@ PLS    proc   Unary plus — coerces '' to 0     → E_PLS     (NEW; not identit
 SWAP   proc   :=: exchange                     → E_SWAP
 CONCAT proc   Concatenation                    → E_SEQ     (was E_CONC/CONCAT)
 ORPP   proc   Pattern alternation OR           → E_ALT     (was E_OR)
-SCONCL label  Scan continuation                → E_SCAN
+SCONCL label  Scan continuation                → E_MATCH
 CONCL  label  Concatenation node descriptor    → E_SEQ
 ```
 
@@ -142,7 +142,7 @@ distinct operation — it belongs in the IR alongside `E_NEG`.
 | `MNSM` | `E_NEG` | NEG signals unary clearly; MNS is opaque |
 | `EXPOP` | `E_POW` | POW is universally understood |
 | `ARYTYP` | `E_IDX` | IDX covers all subscript forms, not just arrays |
-| `ATP` | `E_AT` | Shorter; matches `@` operator directly |
+| `ATP` | `E_CAPT_CUR` | Shorter; matches `@` operator directly |
 
 ---
 

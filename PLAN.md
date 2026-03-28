@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — E_VAR rename + 45 nodes canonical + ARCH-sil-heritage.md | `fb90365` G-7 | M-G0-SIL-NAMES (broader SIL naming heritage: runtime vars, labels, macros) |
+| **⚠ GRAND MASTER REORG** | G-7 — 45 canonical IR nodes FINAL; SPITBOL docs consulted | `fb90365` G-7 | M-G0-SIL-NAMES |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -551,7 +551,7 @@ around line 5840 (the `jmp α0` at end of re-entry decode).
 ### Key decisions and corrections made this session
 
 - **Greek law**: Greek letters (α β γ ω) used **everywhere** — C source, comments, generated labels. No ASCII aliases. Was incorrectly written as ASCII in original law doc — corrected.
-- **45 canonical IR node names** — finalized with SIL heritage. Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_DOT`, `E_DOL→E_DOLLAR`, `E_ATP→E_AT`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
+- **45 canonical IR node names** — finalized with SIL heritage. Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VAR→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
 - **ARCH-sil-heritage.md** created — documents SIL v311.sil lineage for all E_ names.
 - **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, snobol4x, snobol4corpus, snobol4jvm.
 - **Phase 9 added**: snobol4dotnet → snobol4net rename (post M-G7-UNFREEZE).
