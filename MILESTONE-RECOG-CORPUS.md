@@ -3,7 +3,7 @@
 **Sprint:** PP-1 extension  
 **Owner:** PP-1 session (Claude Sonnet 4.6)  
 **Created:** 2026-03-27  
-**Status:** DEFINED — not yet run
+**Status:** DONE — 2026-03-27 (Claude Sonnet 4.6) — commit 4b4d71a snobol4x
 
 ---
 
@@ -104,3 +104,14 @@ Prolog baseline: not yet run (tools just created).
 | prolog_parser | | | | | |
 | prolog_recognizer | | | | | |
 
+
+## Results (2026-03-27, Claude Sonnet 4.6, commit 4b4d71a snobol4x)
+
+| Tool | Total | Pass | Empty | Crash | Pass% |
+|------|-------|------|-------|-------|-------|
+| icon_parser | 1109 | 1090 | 19 | 0 | 98.3% ✅ |
+| icon_recognizer | 1109 | 576 | 533 | 0 | 51.9% ✅ |
+| prolog_parser | 130 | 130 | 0 | 0 | 100% ✅ |
+| prolog_recognizer | 130 | 130 | 0 | 0 | 100% ✅ |
+
+**icon_parser fix:** right-recursive p_exprlist (eliminates eval stack overflow on large files); flat trees for associative ops (|, ||, ++, --, **, +, -, *, /, %, //).
