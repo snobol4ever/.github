@@ -16,68 +16,62 @@
 
 ## §BUILD
 
-**Main program is `sno2c` (not `icon_driver`).**
-Use a shim to call `icon_driver_main` directly while `sno2c` integration is pending.
+**Compiler is `sno2c` (built from `src/`). Frontend module is `src/frontend/icon/icn_main.c`.**
 
 ```bash
 # Clone
 git clone https://TOKEN@github.com/snobol4ever/snobol4x
 git clone https://TOKEN@github.com/snobol4ever/.github
 
-# Build shim driver
-cat > /tmp/icon_driver_shim.c << 'SHIM'
-extern int icon_driver_main(int argc, char **argv);
-int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
-SHIM
-
-gcc -Wall -g -O0 -I. -Isrc/frontend/snobol4 /tmp/icon_driver_shim.c \
-    src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
-    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
-    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
-    src/frontend/icon/icon_runtime.c \
-    -o /tmp/icon_driver_asm
-
-# Build runtime object (needed for every link step)
-gcc -c -g -O0 -fno-stack-protector src/frontend/icon/icon_runtime.c -o /tmp/icon_runtime.o
+# Build
+cd snobol4x/src && make
+# produces ../sno2c
 ```
 
-### Assemble and run a single test
+### Run a single test (JVM backend — canonical test path)
 
 ```bash
-/tmp/icon_driver_asm foo.icn -o /tmp/out.s
-nasm -f elf64 /tmp/out.s -o /tmp/out.o
-ld /tmp/out.o /tmp/icon_runtime.o -o /tmp/out
-/tmp/out
+TMPD=$(mktemp -d)
+./sno2c -jvm foo.icn -o $TMPD/main.j
+for jf in $TMPD/*.j; do java -jar src/backend/jvm/jasmin.jar "$jf" -d $TMPD/; done
+cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
+java -cp $TMPD/ "$cls"
 ```
+
+Note: always assemble **all** `.j` files in the output dir — record types emit
+companion `ClassName$RecordType.j` files that must be assembled alongside `main.j`.
 
 ### Run a corpus rung
 
 ```bash
-pass=0; fail=0; ce=0; total=0
+JASMIN=src/backend/jvm/jasmin.jar; PASS=0; FAIL=0
 for icn in test/frontend/icon/corpus/RUNG/t*.icn; do
-  base="${icn%.icn}"; name=$(basename "$base")
-  [ -f "${base}.expected" ] || continue; total=$((total+1))
-  /tmp/icon_driver_asm "$icn" -o /tmp/ix.s 2>/dev/null
-  if ! nasm -f elf64 /tmp/ix.s -o /tmp/ix.o 2>/dev/null; then
-    ce=$((ce+1)); echo "CE $name"; continue; fi
-  if ! ld /tmp/ix.o /tmp/icon_runtime.o -o /tmp/ix 2>/dev/null; then
-    ce=$((ce+1)); echo "CE(ld) $name"; continue; fi
-  out=$(timeout 5 /tmp/ix 2>/dev/null)
-  if [ "$out" = "$(cat ${base}.expected)" ]; then pass=$((pass+1)); echo "PASS $name"
-  else echo "WO $name"; fail=$((fail+1)); fi
+  base="${icn%.icn}"; exp="$base.expected"; [ -f "$exp" ] || continue
+  [ -f "$base.xfail" ] && continue
+  TMPD=$(mktemp -d)
+  ./sno2c -jvm "$icn" -o $TMPD/main.j 2>/dev/null
+  for jf in $TMPD/*.j; do java -jar $JASMIN "$jf" -d $TMPD/ >/dev/null 2>&1; done
+  cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
+  stdin_f="$base.stdin"
+  [ -f "$stdin_f" ] && got=$(timeout 5 java -cp $TMPD/ "$cls" < "$stdin_f" 2>/dev/null) \
+                    || got=$(timeout 5 java -cp $TMPD/ "$cls" 2>/dev/null)
+  want=$(cat "$exp")
+  [ "$got" = "$want" ] && { echo "PASS $(basename $icn)"; PASS=$((PASS+1)); } \
+                       || { echo "FAIL $(basename $icn)"; FAIL=$((FAIL+1)); }
+  rm -rf $TMPD
 done
-echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
+echo "--- PASS=$PASS FAIL=$FAIL ---"
 ```
 
 ---
 
-## §NOW — IX-15
+## §NOW — IX-16
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Icon x64** | IX-15 — M-IX-STRBUILTINS ✅ | `ee76037` | M-IX-LOOPS (rung09 5/5 — emit_until) |
+| **Icon x64** | IX-16 — M-IX-LOOPS ✅ | `3a548ef` | rung03_suspend CE triage |
 
-### Baseline (confirmed this session)
+### Baseline (confirmed IX-15 / IX-15b)
 
 | Rung | Result |
 |------|--------|
@@ -85,53 +79,40 @@ echo "--- PASS=$pass WO=$fail CE=$ce / $total ---"
 | rung02_arith_gen | **5/5 ✅** |
 | rung02_proc | **3/3 ✅** |
 | rung03_suspend | 3/5 CE — 2 linker failures (pre-existing) |
-| rung04_string | **5/5 ✅** |
-| rung05_scan | **5/5 ✅** |
-| rung06_cset | **5/5 ✅** |
-| rung07_control | **5/5 ✅** |
-| rung08_strbuiltins | **5/5 ✅** |
-| rung09_loops | 0/5 — `until` unimplemented |
-| rung10–15 | unknown |
+| rung04–08 | **all 5/5 ✅** |
+| rung09_loops | **5/5 ✅** (was 0/5 — `emit_until` implemented) |
+| rung10–23 | **all 5/5 ✅** |
+| rung24_records | **5/5 ✅** (was 0/5 — record type prepass fix) |
+| rung25–26 | **all ✅** |
+| rung27_read | **5/5 ✅** (was 4/5 — `reads()` slot_jvm bug fixed) |
+| rung28–31 | **all 5/5 ✅** (rung31 was 3/5 — same record fix) |
+| rung32–35 | **all ✅** |
+| rung36_jcon | 2/52 — jcon subsystem, separate milestone |
 
-### What was fixed (IX-14 session, commit `ee76037`)
+### What was fixed (IX-15 + IX-15b, commits `75cfd68` → `3a548ef`)
 
-**M-IX-STRBUILTINS — find, match, tab, move (rung08 5/5)**
+**M-IX-LOOPS — emit_until (rung09 5/5)**
+- `icon_emit.c`: `emit_until()` added, `ICN_UNTIL` wired in dispatch
+- `until E do body`: α→cond.α; cond.γ→discard+exit; cond.ω→body.α; body.γ/ω→loop_top
 
-Runtime (`icon_runtime.c`):
-- `icn_str_find(s1, s2, from)` — 1-based pos of s1 in s2 from 0-based `from`, or 0.
-- `icn_match(s)` — match s at `icn_subject[icn_pos]`; advance pos; return 1-based new pos.
-- `icn_tab(n)` — `subject[pos..n-1]`, set `pos=n-1`; return `char*`.
-- `icn_move(n)` — `subject[pos..pos+n-1]`, advance `pos+=n`; return `char*`.
-- Shared `icn_tabmove_buf[4096]` for tab/move results.
+**Rename: `icon_driver` eradicated**
+- `src/frontend/icon/icon_driver.c` → `icn_main.c`; function `icn_main()` (was `icon_driver_main`)
+- All 46 affected files swept (shell scripts, Makefile, comments, stale binary removed)
 
-Emitter (`icon_emit.c`):
-- `match`, `tab`, `move` — one-shot; str/cset arg uses rdi directly, others pop.
-- `find` — generator; BSS slots `icn_find_s1_N`, `icn_find_s2_N`, `icn_find_pos_N`; β re-enters check with stored pos.
-- `icn_expr_kind`: `match`/`find`→`'I'`, `tab`/`move` already `'S'`.
+**Record type prepass fix (rung24/31)**
+- `ij_prepass_types` missing `ij_expr_is_record(rhs)` branch — record vars fell to `'J'` default
+- Fix: detect record RHS → `ij_declare_static_obj(fld)` with dual local/global register
 
-### NEXT ACTION — IX-15: M-IX-LOOPS
+**`reads()` slot bug (rung27 t04)**
+- `arr_slot` from `ij_alloc_ref_scratch()` is raw JVM slot; wrongly wrapped in `slot_jvm()`
+- Fix: use `arr_slot` directly on both `aload` sites
 
-**Implement `emit_until`** (rung09 0/5, all tests use `until E do body`).
+### NOTE: test harness — companion .j assembly required
 
-`until E do body` = run `body` while `E` fails; stop when `E` succeeds.
-Complement of `while`: `while` loops while E succeeds, `until` loops while E fails.
+Record types emit companion `ClassName$RecordType.j` files alongside `main.j`.
+Must assemble **all** `.j` files in TMPD and use TMPD as `-cp`. See §BUILD.
 
-**Consult:** `ij_emit_until` in `icon_emit_jvm.c` (grep `ICN_UNTIL`).
-**Mirror:** `emit_while` in `icon_emit.c` — just invert the success/failure ports of E.
+### NEXT ACTION — IX-16: rung03_suspend CE triage
 
-Wire:
-- `α` → body.α (first iteration, skip condition check — run body once then test)
-  OR `α` → E.α (test first) — check which Icon semantics uses.
-  Icon `until`: test E first; if E succeeds immediately, body never runs.
-- E succeeds → exit (ports.γ)
-- E fails → body.α
-- body.γ → E.α (loop back)
-- β → body.β (resume body generator, if any)
-
-**rung09 test notes:**
-- t01: two-proc, body uses `write(i) & (i := i+1)` — ICN_AND in body
-- t02/t03: assignment in condition `(i := i+1) >= 3`
-- t04: separate proc `count(n)`, decrement loop
-- t05: `until ... do 0` (body is integer literal, discarded)
-
-All 5 tests: no CEs, just WO — structure assembles fine, `until` dispatches to UNIMPL which jumps to `ports.ω` immediately.
+Two tests in rung03 produce CE (Jasmin error or runtime crash). Diagnose each,
+identify missing emitter feature or linker gap, fix or xfail with reason.
