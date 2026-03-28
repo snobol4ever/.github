@@ -110,65 +110,99 @@ snobol4x/
 All frontends lower to `EXPR_t` nodes using a **unified `EKind` enum**.
 New node kinds are added to the shared enum only — never in a frontend header.
 
-**Byrd box node kinds (all backends must handle all of these):**
+**Byrd box node kinds — canonical names (all backends must handle all of these):**
 
 | Kind | Meaning | α | β |
 |------|---------|---|---|
-| `E_QLIT` | String literal | load/match value | — |
+| **Literals** | | | |
+| `E_QLIT` | String / pattern literal | load/match value | — |
 | `E_ILIT` | Integer literal | load value | — |
 | `E_FLIT` | Float literal | load value | — |
 | `E_CSET` | Cset literal (Icon/Rebus) | load cset value | — |
+| `E_NULV` | Null / empty value | load null | — |
+| **References** | | | |
 | `E_VART` | Variable reference | load binding | — |
-| `E_CONC` | Concatenation / sequence (also: conjunction, compound stmt) | left then right | right-ω → left-β |
-| `E_OR` | Alternation (SNOBOL4 pattern) | try left | left-ω → try right |
-| `E_ARBNO` | Zero-or-more (also: while/until/repeat/every via lowering) | try zero | undo last match |
-| `E_POS` | Cursor position assert | check cursor == n | fail |
-| `E_RPOS` | Right cursor assert | check cursor == len-n | fail |
-| `E_ARB` | Arbitrary match | try 0 chars | advance one, retry |
-| `E_DOT` | Cursor capture (`.`) | match, capture cursor | pass β to child |
-| `E_DOLLAR` | Value capture (`$`) | match, capture value | pass β to child |
-| `E_FNC` | Function call / goal / builtin | call | — |
-| `E_ASSIGN` | Assignment (also: augmented assign via lowering) | evaluate RHS, assign | — |
+| `E_KW` | `&IDENT` keyword reference | load keyword value | — |
+| `E_INDR` | `$expr` indirect / immediate-assign target | resolve indirection | — |
+| `E_STAR` | `*expr` deferred / indirect pattern reference | load deferred pattern | — |
+| **Arithmetic** | | | |
+| `E_NEG` | Unary minus | negate | — |
 | `E_ADD` | Addition | evaluate | — |
 | `E_SUB` | Subtraction | evaluate | — |
 | `E_MPY` | Multiplication | evaluate | — |
 | `E_DIV` | Division | evaluate | — |
 | `E_MOD` | Modulo / remainder | evaluate | — |
 | `E_POW` | Exponentiation | evaluate | — |
-| `E_IDX` | Array/table/record subscript (also: field access via string key) | aref | — |
-| `E_MAKELIST` | List constructor `[e1,e2,...]` (Icon/Rebus) | evaluate all children, build list | — |
-| `E_UNIFY` | Prolog unification | bind with trail | unwind trail, fail |
+| **Sequence and Alternation** | | | |
+| `E_SEQ` | Sequence / concatenation (n-ary) | left then right | right-ω → left-β |
+| `E_ALT` | SNOBOL4 pattern alternation (n-ary) | try left | left-ω → try right |
+| `E_OPSYN` | `&` operator: reduce(left, right) | evaluate | — |
+| **Pattern Primitives** | | | |
+| `E_ARB` | Arbitrary match | try 0 chars | advance one, retry |
+| `E_ARBNO` | Zero-or-more (also: every/while/repeat via lowering) | try zero | undo last match |
+| `E_POS` | Cursor position assert `POS(n)` | check cursor == n | fail |
+| `E_RPOS` | Right cursor assert `RPOS(n)` | check cursor == len-n | fail |
+| **Captures** | | | |
+| `E_DOT` | `.` conditional capture | match, save on success | pass β to child |
+| `E_DOLLAR` | `$` immediate capture | match, save immediately | pass β to child |
+| `E_AT` | `@var` cursor position capture | capture cursor | — |
+| **Call, Access, Assignment** | | | |
+| `E_FNC` | Function call / goal / builtin (n-ary) | call | — |
+| `E_IDX` | Array / table / record subscript | aref | — |
+| `E_ASSIGN` | Assignment | evaluate RHS, assign | — |
+| **Scan and Swap** | | | |
+| `E_SCAN` | `E ? E` scanning (set subject, restore on β) | set subject | restore subject |
+| `E_SWAP` | `:=:` swap bindings | swap | — |
+| **Icon Generators** | | | |
+| `E_SUSPEND` | Generator suspend / yield | yield value | resume |
+| `E_TO` | `i to j` generator | emit i | increment, retry |
+| `E_TO_BY` | `i to j by k` generator | emit i | step by k, retry |
+| `E_LIMIT` | `E \ N` limitation | count down | fail at 0 |
+| `E_GENALT` | Icon / Rebus alt generator (emit left exhausted then right) | emit left | left-done → emit right |
+| `E_BANG` | `!E` iterate list or string elements | emit first | next element |
+| **Icon / Rebus Constructors** | | | |
+| `E_MAKELIST` | `[e1,e2,...]` list constructor | evaluate all, build list | — |
+| **Prolog** | | | |
+| `E_UNIFY` | Prolog unification `=/2` | bind with trail | unwind trail, fail |
 | `E_CLAUSE` | Prolog Horn clause | try head | retry next |
-| `E_CHOICE` | Prolog predicate | α of first clause | β chain |
-| `E_CUT` | Prolog cut / FENCE (also: unless-lowering) | seal β | unreachable |
-| `E_TRAIL_MARK` | Save trail top | mark | — |
-| `E_TRAIL_UNWIND` | Restore trail | unwind | — |
-| `E_SUSPEND` | Icon suspend / generator | yield value | resume |
-| `E_TO` | Icon `i to j` generator | emit i | increment, retry |
-| `E_TO_BY` | Icon `i to j by k` | emit i | step by k, retry |
-| `E_LIMIT` | Icon `E \ N` limitation | count down | fail at 0 |
-| `E_ALT_GEN` | Icon alt generator (distinct β wiring from E_OR) | emit left | left-done → emit right |
-| `E_BANG` | Icon `!E` (iterate list or string elements) | emit first element | next element |
-| `E_SCAN` | Icon/Rebus `E ? E` scanning | set subject | restore subject |
-| `E_SWAP` | Swap bindings `:=:` | swap | — |
+| `E_CHOICE` | Prolog predicate choice point | α of first clause | β chain |
+| `E_CUT` | Prolog `!` cut / FENCE | seal β | unreachable |
+| `E_TRAIL_MARK` | Save trail top into env slot | mark | — |
+| `E_TRAIL_UNWIND` | Restore trail to saved mark | unwind | — |
 
-**37 node kinds total.**
+**44 node kinds total.**
 
-**Lowering rules — constructs that collapse to existing nodes:**
+**Rename bridge — old sno2c.h names → canonical ir.h names:**
+
+| Old name | Canonical name | Note |
+|----------|---------------|------|
+| `E_MNS` | `E_NEG` | Unary — NEG not MNS |
+| `E_EXPOP` | `E_POW` | More universal |
+| `E_CONC` | `E_SEQ` | Sequence, not just concatenation |
+| `E_OR` | `E_ALT` | Alternation |
+| `E_NAM` | `E_DOT` | Matches `.` operator |
+| `E_DOL` | `E_DOLLAR` | Matches `$` operator |
+| `E_ATP` | `E_AT` | Matches `@` operator |
+| `E_ARY` | `E_IDX` | Merged — same node |
+| `E_ASGN` | `E_ASSIGN` | Full word |
+| `E_ALT_GEN` | `E_GENALT` | No underscore between |
+
+During Phase 1 (M-G1-IR-HEADER-WIRE), `sno2c.h` gets `#define` aliases so
+existing code compiles without change. The aliases are removed in Phase 3.
 
 | Source construct | Lowers to | Rationale |
 |-----------------|-----------|-----------|
-| `every E do body` | `E_ARBNO(E_CONC(E, body))` | ARBNO wiring covers it |
-| `while E do body` | `E_ARBNO(E_CONC(E, body))` | Same |
-| `until E do body` | `E_ARBNO(E_CONC(E_OR(fail,E), body))` | Composable |
+| `every E do body` | `E_ARBNO(E_SEQ(E, body))` | ARBNO wiring covers it |
+| `while E do body` | `E_ARBNO(E_SEQ(E, body))` | Same |
+| `until E do body` | `E_ARBNO(E_SEQ(E_ALT(fail,E), body))` | Composable |
 | `repeat body` | `E_ARBNO(body)` | Same |
-| `if E then A else B` | `E_OR(E_CONC(E,A), B)` | OR wiring |
-| `unless E then body` | `E_OR(E_CONC(E_CUT,fail), body)` | FENCE pattern |
-| `E1 ; E2` (seq expr) | `E_CONC(E1, E2)` | Sequencing is CONC |
-| `E1 & E2` (conjunction) | `E_CONC(E1, E2)` | Conjunction IS sequencing |
-| `{ s1; s2; ... }` (compound) | `E_CONC(s1, E_CONC(s2, ...))` | Same |
+| `if E then A else B` | `E_ALT(E_SEQ(E,A), B)` | ALT wiring |
+| `unless E then body` | `E_ALT(E_SEQ(E_CUT,fail), body)` | FENCE pattern |
+| `E1 ; E2` (seq expr) | `E_SEQ(E1, E2)` | Sequencing IS SEQ |
+| `E1 & E2` (conjunction) | `E_SEQ(E1, E2)` | Conjunction IS sequencing |
+| `{ s1; s2; ... }` (compound) | `E_SEQ(s1, E_SEQ(s2, ...))` | Same |
 | `x op:= e` (augmented assign) | `E_ASSIGN(x, E_op(x, e))` | Composable |
-| `for i from a to b` | `E_CONC(E_ASSIGN(i,a), E_ARBNO(...))` | Composable |
+| `for i from a to b` | `E_SEQ(E_ASSIGN(i,a), E_ARBNO(...))` | Composable |
 | `E.field` (field access) | `E_IDX(E, E_QLIT("field"))` | Named subscript |
 | `E[i:j]` (substring) | `E_FNC("sub", E, i, j)` | Builtin call |
 | `E \|\|\| F` (list concat) | `E_FNC("lconcat", E, F)` | Builtin call |
@@ -181,14 +215,14 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 ### IR Node Set — Living Target
 
-**The 37-node set above is the best current analysis, not a frozen contract.**
+**The 44-node set above is the best current analysis, not a frozen contract.**
 
 The unification work itself — Phases 3 through 5 — is the real test. When the
 emitters are actually being merged and the backends are consuming the same IR,
 the code will tell us things the analysis cannot. Expect the set to change:
 
 **Nodes may be added** when a lowering that looked clean on paper fights back
-in code. If `E_ARBNO(E_CONC(E, body))` for `every` turns out to require
+in code. If `E_ARBNO(E_SEQ(E, body))` for `every` turns out to require
 β-wiring that differs subtly from plain ARBNO (e.g. because the body's ω
 behavior is different than a pattern's ω), that warrants a new node. The
 emitter will make this obvious.
@@ -197,7 +231,7 @@ emitter will make this obvious.
 identical emitter code across all four backends. If the generated output for
 node A and node B is always the same modulo a constant, they should merge.
 
-**Some lowering combinations may prove wrong.** The `if/else → E_OR(E_CONC)`
+**Some lowering combinations may prove wrong.** The `if/else → E_ALT(E_SEQ)`
 lowering, the `unless → E_CUT FENCE` lowering, and the goal-directed comparison
 `→ E_FNC` decisions are analysis-time best guesses. The CISC/RISC tension is
 real: a CISC approach would give each construct its own node (clean frontend
