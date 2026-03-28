@@ -40,92 +40,110 @@ gcc -no-pie foo.o \
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog x64** | `PX-1` | `8843d71` | M-PJ-X64-3 (\+ inline emission) |
+| **Prolog x64** | `PX-1` | `532be13` | M-PJ-X64-3 (multi-ucall backtrack) |
 
-**M-PJ-X64-1 ✅ M-PJ-X64-2 ✅** committed at `8843d71`.
-- tak/nrev/qsort PASS, times10/ops8/log10 PASS.
+**M-PJ-X64-1 ✅ M-PJ-X64-2 ✅** at `8843d71` — tak/nrev/qsort PASS, times10/ops8/log10 PASS.  
+**Parts A/B/C (`\+`/`\=`)** ✅ at `e3f92cc` — naf PASS, alldiff PASS.  
+**Multi-ucall backtrack** 🔲 WIP at `532be13` — root cause diagnosed, fix partial.
 
-**Blocker for M-PJ-X64-3:** `\+` (negation-as-failure) emitted as undefined user-call
-`pl__bs__pl__sl_1_r`. Two-part fix in `src/backend/x64/emit_byrd_asm.c`.
+## CRITICAL NEXT ACTION — multi-ucall backtrack (M-PJ-X64-3 final blocker)
 
-## CRITICAL NEXT ACTION — M-PJ-X64-3
+### Background: what was diagnosed this session
 
-### Part A — Add `\+` (and `\=`) to the four builtin filter lists
+All changes are in `src/backend/x64/emit_byrd_asm.c`. Four bugs found and addressed:
 
-Lines **5736, 6657, 6733, 6761** each end with:
-```c
-strcmp(gn,"compound")==0) continue;
+**Bug 1 ✅** (`e3f92cc`): inter-ucall trail mark was dead code (between β exit-jmp and γ label).  
+**Bug 2 ✅** (`532be13`): βN unwind target = `UCALL_MARK_OFFSET(N)` (mark *after* ucall N-1) → ucall N-1 bindings survived → retry always got already-bound args. Fixed to `UCALL_MARK_OFFSET(N-1)`.  
+**Bug 3 ✅** (`532be13`): `UCALL_MARK_OFFSET(0)` was taken at clause entry before head unification → β0 undid head bindings. Fixed: moved to body label with a fresh `trail_mark_fn` call after all head args unified.  
+**Bug 4 ✅** (`532be13`): body always started fresh (`xor edx,edx`); added stride-based re-entry decode — `inner = start-base`, pre-loads ucall slots from `inner-1` packed as `slot_K = (inner-1 >> 12*K) & 0xFFF`, then jumps to α0.
+
+### Current test status
+
 ```
-Change each to:
-```c
-strcmp(gn,"compound")==0||strcmp(gn,"\\+")==0||strcmp(gn,"\\=")==0) continue;
-```
-This prevents `\+` and `\=` being counted as user-calls (ucall_seq stays correct).
-
-### Part B — Inline `\+` emission in body goal dispatcher
-
-After the `fail/0` handler (~line 5878), add a `\+` block. Pattern (use a frame temp slot
-for the NAF trail mark — `UCALL_MARK_OFFSET(ucall_seq)` or a dedicated scratch slot):
-
-```c
-if (strcmp(fn, "\\+") == 0 && garity == 1) {
-    EXPR_t *inner = goal->children[0];
-    const char *ifn = (inner && inner->sval) ? inner->sval : NULL;
-    int ia = inner ? (int)inner->nchildren : 0;
-    int nuid = pl_next_uid();
-    /* save trail mark to a temp stack slot */
-    A("    call    trail_mark_fn\n");
-    A("    mov     [rbp - %d], eax\n", NAF_MARK_SLOT);
-    /* call inner goal → result in rax (-1=fail, >=0=succeed) */
-    if (ifn && strcmp(ifn,"fail")==0) {
-        A("    mov     eax, -1\n");               /* \+ fail → succeed */
-    } else if (ifn && strcmp(ifn,"true")==0) {
-        A("    mov     eax, 0\n");                /* \+ true → fail */
-    } else {
-        /* emit user-call for inner goal */
-        char isf[256]; snprintf(isf,sizeof isf,"pl_%s",pl_safe_arity(ifn,ia));
-        /* build args, call isf_r with start=0 */
-        ...
-        A("    call    %s_r\n", isf);
-    }
-    /* unwind trail regardless */
-    A("    push    rax\n");
-    A("    lea     rdi, [rel pl_trail]\n");
-    A("    mov     esi, [rbp - %d]\n", NAF_MARK_SLOT);
-    A("    call    trail_unwind\n");
-    A("    pop     rax\n");
-    /* invert: inner succeeded (>=0) → \+ fails */
-    A("    cmp     eax, -1\n");
-    A("    jne     %s\n", next_clause);   /* \+ fails → try next clause */
-    /* inner failed → \+ succeeds → fall through to γ */
-    continue;
-}
+naf:     PASS
+minimal2 PASS  ([2,1] — 2-ucall fact backtrack)
+alldiff: FAIL  — all_diff([1,2,3]) → fail1  (was ok1 before Bug 3 fix)
+retry2:  FAIL  — permutation retry → none instead of [2,1,3]
 ```
 
-### Part C — Inline `\=` (not-unifiable)
+### Most likely remaining bug
 
-After the `=` (unify) handler, add:
-```c
-if (strcmp(fn, "\\=") == 0 && garity == 2) {
-    /* save mark, call unify, unwind, invert */
-    /* if unify succeeded → \= fails (jump next_clause) */
-    /* if unify failed   → \= succeeds (fall through) */
-}
-```
+The body-entry `trail_mark_fn` call (Bug 3) uses `rdi` = `[rel pl_trail]`.
+`trail_mark_fn` returns the mark in `eax`. Immediately after, the re-entry decode
+reads `[rbp-32]` (start) into `eax`, overwriting the mark value — but the mark was
+already stored into `[rbp - UCALL_MARK_OFFSET(0)]`, so that's fine.
 
-### Gate tests
+**Actual suspect**: `trail_mark_fn` is called with `rdi = &pl_trail`. But the emitter
+passes `Trail*` as `rdi` at the function call sites. Check whether `trail_mark_fn`
+signature matches — it should take `Trail*` as first arg. If it takes *no* args and
+reads the global directly, the `lea rdi` is harmless noise but the call is still OK.
+
+**More likely culprit**: in clauses with zero ucalls (facts / builtin-only), the new
+`UCALL_MARK_OFFSET(0)` block is guarded by `if (max_ucalls > 0)` — but `all_diff/1`
+clause 2 (`all_diff([H|T]) :- \+ member(H,T), all_diff(T)`) has `\+` (now a builtin,
+not a ucall) and `all_diff/1` recursion (1 ucall). So `max_ucalls=1`. The body-entry
+mark call happens. **The mark call clobbers `eax` — but right before `xor edx,edx`
+and the fresh-entry path. The `sub_cs_acc` at `[rbp-16]` is zeroed at clause entry
+(before the mark call). The mark call returns the mark in `eax`. Then `xor edx,edx`
+zeros edx. The `\+` handler calls `trail_mark_fn` again internally via push/pop.
+All seems OK.**
+
+**Most likely: check `all_diff` clause 2 generated ASM carefully.** The `\+`
+inline emission uses `push rax / pop rax` around the inner call — verify these
+don't clobber `[rbp-24]` (args array ptr). Since push/pop only affect rsp and the
+memory at [rsp], and `[rbp-24]` is a frame slot not a stack-relative slot, this
+should be safe. Generate the ASM and read it.
+
+### How to rebuild and test
 
 ```bash
-# naf.pl: \+ fail → naf_ok, \+ (X=Y) with X≠Y → neq_ok
-# alldiff.pl: all_diff([1,2,3]) → ok1, all_diff([1,2,1]) → ok2
-# Then: crypt / sendmore / queens_8 from SWI bench suite
+cd snobol4x && make -C src -s
+# Gate test files (recreate each session — /tmp doesn't persist):
+cat > /tmp/naf.pro << 'EOF'
+:- initialization(main, main).
+main :-
+    ( \+ fail -> write(naf_ok) ; write(naf_fail) ), nl,
+    ( \+ (1 = 2) -> write(neq_ok) ; write(neq_fail) ), nl.
+EOF
+cat > /tmp/alldiff.pro << 'EOF'
+:- initialization(main, main).
+all_diff([]). all_diff([H|T]) :- \+ member(H, T), all_diff(T).
+member(X, [X|_]). member(X, [_|T]) :- member(X, T).
+main :-
+    ( all_diff([1,2,3]) -> write(ok1) ; write(fail1) ), nl,
+    ( \+ all_diff([1,2,1]) -> write(ok2) ; write(fail2) ), nl.
+EOF
+cat > /tmp/minimal2.pro << 'EOF'
+:- initialization(main, main).
+mylist([1,2]). mylist([2,1]).
+headis2([2|_]).
+search(L) :- mylist(L), headis2(L).
+main :- ( search(L) -> write(L) ; write(none) ), nl.
+EOF
+# Build helper:
+build_run() {
+  f=$1
+  ./sno2c -pl -asm "$f" -o /tmp/t.asm &&
+  nasm -f elf64 /tmp/t.asm -o /tmp/t.o &&
+  gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_atom.o \
+    src/frontend/prolog/prolog_unify.o src/frontend/prolog/prolog_builtin.o \
+    -lm -o /tmp/t && timeout 5 /tmp/t
+}
 ```
 
-### Known secondary bug
+### Key emitter locations (`emit_byrd_asm.c`)
 
-queens_8 outputs `[]` not a valid solution. Suspected: multi-ucall var aliasing — when
-a clause with 3+ user-calls backtracks, var bindings from earlier ucalls may be incorrectly
-preserved or lost during trail unwind. Investigate after \+ lands.
+| What | Approx line |
+|------|-------------|
+| Clause-entry mark `[rbp-8]`, slot zeroing | ~5753 |
+| Head unification loop | ~5768 |
+| Body label + `UCALL_MARK_OFFSET(0)` mark | ~5800 |
+| Re-entry decode block | ~5810 |
+| Fresh-entry `xor edx,edx` | ~5845 |
+| `\+` inline handler | ~5880 |
+| sub_cs_acc stride accumulation (ucall success path) | ~6755 |
+| βN unwind + retry | ~6816 |
+| γ return encoding | ~6844 |
 
 ---
 
@@ -135,6 +153,6 @@ preserved or lost during trail unwind. Investigate after \+ lands.
 |----|-------------|------|--------|
 | M-PJ-X64-1 | Multi-clause dispatch | tak/nreverse/qsort PASS | ✅ `8843d71` |
 | M-PJ-X64-2 | Arithmetic (is/2, comparisons) | times10/log10/ops8 PASS | ✅ `8843d71` |
-| M-PJ-X64-3 | \+ / \= / multi-ucall backtrack | crypt/sendmore/queens_8 PASS | 🔲 |
+| M-PJ-X64-3 | \+ / \= / multi-ucall backtrack | naf/alldiff/crypt/sendmore/queens PASS | 🔲 WIP `532be13` |
 | M-PJ-X64-4 | List builtins (member/append) | nreverse/qsort/flatten PASS | 🔲 |
 | M-PJ-X64-5 | Timing grid ≥15/31 vs SWI native | BENCH-prolog-x64.md committed | 🔲 |
