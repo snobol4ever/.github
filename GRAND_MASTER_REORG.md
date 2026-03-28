@@ -469,11 +469,10 @@ entirely absent from `snobol4corpus` or clearly distinct. No blind-overwrite ris
 | SNOBOL4 | `test/jvm_j3/*.sno` | 6 `.sno` | ❌ Not present | Move to `programs/snobol4/jvm_j3/` |
 | Rebus | `test/rebus/*.reb` | 3 `.reb` | ❌ Not present | Move to `programs/rebus/` |
 
-**One file requiring human review before move:**
-`snobol4corpus/programs/beauty/beauty.sno` and `snobol4x/demo/beauty.sno` have
-**different MD5s** — they are divergent versions of the beauty program. Similarly
-`expression.sno` differs. These are in `demo/` not `test/`, and the corpus versions
-may be older. Lon must decide which is authoritative before either moves.
+**One file resolved this session:**
+`snobol4corpus/programs/beauty/beauty.sno` removed (`6c964b8`). The corpus version
+used `.inc` extensions and different indentation — stale. `snobol4x/demo/beauty.sno`
+is the single authoritative copy.
 
 **All `.expected`/`.ref` oracle files travel with their source programs** (per decision 1).
 
