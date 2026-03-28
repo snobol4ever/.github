@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — M-G0-RENAME ✅ (canonical names confirmed, GitHub redirects live) | `5a9f437` G-7 | M-G0-CORPUS-AUDIT (plan only — 3 open decisions, see GRAND_MASTER_REORG.md) |
+| **⚠ GRAND MASTER REORG** | G-7 — M-G0-AUDIT ✅ `252dac0` EMITTER_AUDIT.md | `252dac0` G-7 | M-G0-IR-AUDIT |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
