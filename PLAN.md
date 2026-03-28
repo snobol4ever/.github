@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-RECOG-ICON ✅ M-RECOG-PROLOG ✅ both mirrors pass | `566aba8` PP-1 | M-RECOG-CORPUS |
+| **🌳 Parser pair** | PP-1: M-RECOG-CORPUS ✅ 0 crashes; icon_parser 98.3%, icon_recog 51.9%, prolog 100%/100% | `4b4d71a` PP-1 | Lon to assign |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -447,3 +447,31 @@ Run the harness. Expected flow:
 4. Fill results table in MILESTONE-RECOG-CORPUS.md, commit, update PLAN.md
 
 **Read only:** `PLAN.md` PP-1 section + `MILESTONE-RECOG-CORPUS.md`.
+
+---
+
+## PP-1 Handoff update (2026-03-27 session 6, Claude Sonnet 4.6) -- commit 4b4d71a snobol4x
+
+### M-RECOG-CORPUS PASS
+
+All four tools ran clean on full corpus (1109 Icon files, 130 Prolog files). Zero crashes.
+
+**icon_parser fix applied this session:**
+- p_exprlist: was left-recursive via mutual recursion (p_exprlist -> p_expr -> p_primary -> p_exprlist).
+  On files with long argument lists this blew Icon eval stack (error 301, 13 crashes).
+  Fix: iterative right-recursive accumulation -- single p_expr call, then while loop consuming commas.
+- make_node/is_flat_op: flat trees for associative/chainable ops.
+  | || ++ -- ** + - * / % // now produce (op a b c ...) instead of (op (op a b) c).
+
+**Results:**
+| Tool | Total | Pass | Empty | Crash | Pass% |
+|------|-------|------|-------|-------|-------|
+| icon_parser | 1109 | 1090 | 19 | 0 | 98.3% |
+| icon_recognizer | 1109 | 576 | 533 | 0 | 51.9% |
+| prolog_parser | 130 | 130 | 0 | 0 | 100% |
+| prolog_recognizer | 130 | 130 | 0 | 0 | 100% |
+
+**Remaining icon_parser non-passes (19 empty):** files using $include/link directives --
+parser produces empty output, not crash. Acceptable per milestone criteria.
+
+**Next session:** Lon to assign. Read only: PLAN.md PP-1 section.
