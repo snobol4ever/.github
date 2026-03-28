@@ -3416,3 +3416,62 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 4. Remaining VEs → t27_queens [B] t28_genqueen [B]
 
 **Next session:** IJ-59 — read `SESSION-icon-jvm.md §NOW`, run harness, execute unblock sequence.
+
+## G-7 (2026-03-28) — Grand Master Reorg: Phase 0 complete; 59 canonical IR nodes
+
+**Session type:** Grand Master Reorg (G prefix)
+**Repos:** snobol4x `36fa6aa`, .github `1ec22dc`
+**Bootstrap:** TOKEN_SEE_LON
+
+### Phase 0 milestones completed
+
+| Milestone | Commit | Result |
+|-----------|--------|--------|
+| M-G0-FREEZE | snobol4x `716b814` | `pre-reorg-freeze` tag pushed; `doc/BASELINE.md` |
+| M-G0-RENAME | .github `22fae8d` | Canonical names confirmed; GitHub redirects live; 0 file changes |
+| M-G0-CORPUS-AUDIT | .github `19d0db8` | 471-file inventory; 0 conflicts; execution plan; `demo/beauty.sno` divergence flagged for Lon |
+| M-G0-AUDIT | snobol4x `8b773e8` | `doc/EMITTER_AUDIT.md` — all 8 emitters, deviations, Greek law confirmed |
+| M-G0-IR-AUDIT | snobol4x `36fa6aa` | `doc/IR_AUDIT.md` — 59 canonical IR nodes, minimal set, lowering rules, pattern primitives |
+
+### Key decisions and corrections
+
+**Greek law confirmed:** α β γ ω everywhere — C source, comments, generated labels. No ASCII aliases. Was incorrectly written as ASCII in original law doc; corrected.
+
+**59 canonical IR node names finalized** — three passes required:
+- Pass 1: mechanical mapping, 60+ nodes (wrong — source AST, not IR)
+- Pass 2: lowering analysis, 37 nodes (wrong — missed pattern primitives)
+- Pass 3: 45 nodes (wrong — E_FNC was hiding 14 distinct pattern nodes)
+- Pass 4 (final): 59 nodes — confirmed from `emit_byrd_asm.c` recognized builtin list lines 2420-2422 and SPITBOL v37.min `p$xxx` match routines
+
+Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX`, `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`, `E_NULV→E_NUL`, `E_STAR→E_DEFER`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`.
+New nodes: `E_PLS`, `E_CSET`, `E_MAKELIST`, `E_ANY`, `E_NOTANY`, `E_SPAN`, `E_BREAK`, `E_BREAKX`, `E_LEN`, `E_TAB`, `E_RTAB`, `E_REM`, `E_FAIL`, `E_SUCCEED`, `E_FENCE`, `E_ABORT`, `E_BAL`.
+
+**Git identity rule corrected:** All commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via `git-filter-repo` across `.github`, `snobol4x`, `snobol4corpus`, `snobol4jvm`. RULES.md updated.
+
+**New docs created:**
+- `ARCH-sil-heritage.md` — SIL v311.sil lineage for all E_ node names
+- `snobol4x/doc/BASELINE.md` — pre-reorg test baseline counts
+- `snobol4x/doc/EMITTER_AUDIT.md` — all 8 emitter files audited
+- `snobol4x/doc/IR_AUDIT.md` — all 6 frontends mapped to 59-node IR
+
+**Phase 9 added:** `snobol4dotnet → snobol4net` rename (post M-G7-UNFREEZE, milestones M-G9-RENAME-NET-*).
+
+**SPITBOL docs consulted:** `spitbol-docs-master/v37.min` — canonical `o$xxx` operation names and `p$xxx` pattern match routines.
+
+### Next session reads
+
+1. `GRAND_MASTER_REORG.md` — Phase 0 milestones + 59-node IR table
+2. `ARCH-sil-heritage.md` — SIL name lineage
+3. `doc/EMITTER_AUDIT.md` — runtime variable naming table
+
+### Next milestone: M-G0-SIL-NAMES
+
+SIL heritage analyzed for IR nodes only. Broader analysis needed:
+1. Runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top` etc.)
+2. Emitter C source variable names and struct fields
+3. Generated label prefixes (`sno_`, `pl_`, `icn_`, `pj_`, `ij_`)
+4. Runtime library macro names (`snobol4_asm.mac`, Byrd box macro library)
+
+Produce `doc/SIL_NAMES_AUDIT.md`. Prerequisite for M-G3 naming pass.
+
+After M-G0-SIL-NAMES: proceed to **M-G1-IR-HEADER-DEF** — create `src/ir/ir.h`.
