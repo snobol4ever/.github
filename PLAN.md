@@ -22,7 +22,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | **README** | R-2 | `00846d3` R-2 | M-README-DEEP-SCAN |
 | **ICON x64** | IX-17 — rung01–35 all 5/5 ✅; emit_until, record prepass, reads() slot, suspend ω fixed | `3e4f131` IX-17 | rung36_jcon (separate subsystem) |
 | **Prolog JVM** | PJ-84a — SWI bench 31/31 ✅ | `a79906e` PJ-84a | M-PJ-SWI-BASELINE |
-| **Prolog x64** | PX-1 — M-PJ-X64-1 ✅ M-PJ-X64-2 ✅ | `8843d71` | M-PJ-X64-3 (\+ inline) |
+| **Prolog x64** | PX-1 — \+/\= ✅ `e3f92cc`; multi-ucall backtrack WIP `532be13` (minimal2 PASS, alldiff regressed) | `532be13` | M-PJ-X64-3 (multi-ucall backtrack) |
 | **Icon JVM** | IJ-58 — snprintf→ij_gvar_field bulk ✅ list-arg obj-field ✅ bang-coerce WIP | `5b32daa` IJ-58 | M-IJ-JCON-HARNESS (VE 36→0) |
 | **🔗 LINKER** | LP-6 — M-LINK-NET-7 ✅ | `e7dc859` LP-6 | M-LINK-NET-8 (ilasm/mono run) |
 | **🔗 LINKER JVM** | LP-JVM-3 — linkage infra ✅; pj_call_goal passes arity=0+null args to pj_reflect_call for compound goals — DB fallback can't unify | `55d8655` LP-JVM-3 | M-SCRIP-DEMO |
@@ -447,3 +447,23 @@ Run the harness. Expected flow:
 4. Fill results table in MILESTONE-RECOG-CORPUS.md, commit, update PLAN.md
 
 **Read only:** `PLAN.md` PP-1 section + `MILESTONE-RECOG-CORPUS.md`.
+
+---
+
+## PX-1 Handoff (2026-03-27, Claude Sonnet 4.6) — snobol4x `532be13`
+
+### Accomplished
+- `\+` and `\=` inline emission ✅ (`e3f92cc`) — naf/alldiff PASS
+- Multi-ucall backtrack root cause **fully diagnosed** — four bugs in `emit_byrd_asm.c`
+- Bugs 1–4 addressed in `532be13`; `minimal2` PASS (2-ucall fact backtrack works)
+- `alldiff` regressed (all_diff([1,2,3]) fails) — one remaining issue
+
+### Remaining issue — alldiff regression
+`all_diff([H|T]) :- \+ member(H,T), all_diff(T)` — `\+` is inlined (not a ucall),
+`all_diff/1` is the single ucall. The Bug 3 fix adds a `trail_mark_fn` call at body
+entry. **Next session: generate ASM for alldiff, read the `all_diff` clause 2 body
+from the `pl_all_dt_diff_sl_1_c1_body:` label through α0, and trace why
+`member([1,2,3])` fails when it should find `1` not in `[2,3]`.**
+
+### Read only for next session
+`SESSION-prolog-x64.md` §NOW only.
