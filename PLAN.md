@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-7 — FRONTEND-PROLOG-JVM.md trimmed | `eb9f2ec` G-7 | M-G0-FREEZE (Lon schedules) |
 | **⭐ Scrip Demo** | SD-37: M-SD-6 ✅ ICON-JVM sieve PASS; demos 7-10 ICON-JVM compiler gap | `795c2ff` SD-37 | M-SD-7 ICON-JVM |
-| **🌳 Parser pair** | PP-1: M-PARSE-PROLOG ✅ M-PARSE-ICON ✅ pretty-printers WIP (fit-or-wrap, 2-space indent, width=120 default); pending: mirror self-parse smoke test | `3fe17af` PP-1 | M-PARSE-POLISH |
+| **🌳 Parser pair** | PP-1: M-PARSE-POLISH ✅ mirrors pass (Prolog exit 0 144L; Icon exit 0 259L; fix: sx_tag call compound tag → atom) | `9cb4af7` PP-1 | — |
 | **TINY backend** | B-292 — 106/106 | `acbc71e` B-292 | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | **TINY NET** | N-253 — M-LINK-NET-7 ✅ | `e7dc859` N-253 | M-LINK-NET-8 |
 | **TINY JVM** | J-216 — STLIMIT/STCOUNT ✅ | `a74ccd8` J-216 | M-JVM-STLIMIT-STCOUNT |
@@ -132,7 +132,7 @@ or restructure as separate `if/else if` chains rather than `every`.
       (block ...))))
 ```
 
-### PENDING — trigger phrase: "Run the mirrors"
+### DONE — "Run the mirrors" (2026-03-27, Claude Sonnet 4.6) — commit 9cb4af7
 ```bash
 cd snobol4x
 
@@ -161,3 +161,34 @@ balanced parens. Do a quick `| grep -c '('` vs `| grep -c ')'` parity check.
 - Update this row in PLAN.md
 
 **Read only:** `PLAN.md` section "Parser pair session doc" above + this handoff.
+
+---
+
+## PP-1 Handoff update (2026-03-27 session 2, Claude Sonnet 4.6) — commit 9cb4af7
+
+### Mirrors PASS
+
+**Prolog self-parse:** exit 0, 144 lines, structurally balanced.
+**Icon self-parse:** exit 0, 259 lines, structurally balanced.
+
+Raw `grep -c '('` counts show small apparent imbalances — artifacts of paren
+characters inside `(str "(")` / `(str ")")` string literal nodes. Stripping
+string contents before counting confirms both outputs are fully balanced.
+
+**Bug fixed (prolog_parser.pro):**
+`sx_tag(call(F,As), call(F), As)` → `sx_tag(call(F,As), call, [atom(F)|As])`
+The compound tag `call(F)` caused `atom_length/2` to crash with a type error
+whenever a call node was too wide to fit inline and `pp` fell through to the
+multi-line path. Fix: tag is now the atom `call`; functor `F` becomes first
+child as `atom(F)`, preserving `(call member ...)` output format.
+
+**Known issues verified:**
+1. `p_namelist` local-decl dup — did NOT manifest in Icon self-parse. ✓
+2. Prolog `,`-chain flat rendering — `op_info` facts render correctly. ✓
+3. Icon `str` quoting — `(str "hello")` output confirmed. ✓
+   Exception: `(str "\"")` for literal double-quote renders as `(str "")` —
+   cosmetic, does not affect parse correctness.
+
+**Session is complete. Next session: Lon to assign.**
+
+**Read only:** `PLAN.md` only.
