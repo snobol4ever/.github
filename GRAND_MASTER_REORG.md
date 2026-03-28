@@ -142,10 +142,24 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_ALT` | SNOBOL4 pattern alternation, n-ary (`ORPP` in SIL; was `E_OR`) | try left | left-ω → try right |
 | `E_OPSYN` | `&` operator: reduce(left, right) | evaluate | — |
 | **Pattern Primitives** | | | |
-| `E_ARB` | Arbitrary match (`XFARB=17`/`XEARBNO` in SIL) | try 0 chars | advance one, retry |
-| `E_ARBNO` | Zero-or-more (`XARBN=3` in SIL; also: every/while/repeat via lowering) | try zero | undo last match |
+| `E_ARB` | Arbitrary match (`XFARB=17`/`XEARBNO` in SIL; `p$arb`) | try 0 chars | advance one, retry |
+| `E_ARBNO` | Zero-or-more (`XARBN=3`/`p$arb`; also: every/while/repeat via lowering) | try zero | undo last match |
 | `E_POS` | Cursor position assert `POS(n)` (`XPOSI=24` in SIL) | check cursor == n | fail |
 | `E_RPOS` | Right cursor assert `RPOS(n)` (`XRPSI=25` in SIL) | check cursor == len-n | fail |
+| `E_ANY` | `ANY(S)` — match one char from cset S (`p$any`) | match one | fail |
+| `E_NOTANY` | `NOTANY(S)` — match one char not in S | match one | fail |
+| `E_SPAN` | `SPAN(S)` — match longest run of chars from S (`p$spn`) | match run | fail |
+| `E_BREAK` | `BREAK(S)` — match up to char in S (`p$brk`) | match up-to | fail |
+| `E_BREAKX` | `BREAKX(S)` — BREAK with backtrack past delimiter (`p$bkx`) | match up-to | advance past, retry |
+| `E_LEN` | `LEN(N)` — match exactly N chars (`p$len`) | match N | fail |
+| `E_TAB` | `TAB(N)` — match to cursor pos N (`p$tab`) | advance to N | fail |
+| `E_RTAB` | `RTAB(N)` — match to N from right (`p$rtb`) | advance to len-N | fail |
+| `E_REM` | `REM` — match remainder of subject (`p$rem`) | match rest | fail |
+| `E_FAIL` | `FAIL` — always fail (`p$fal`; α and β both → ω) | fail | fail |
+| `E_SUCCEED` | `SUCCEED` — always succeed (`p$suc`) | succeed | succeed |
+| `E_FENCE` | `FENCE` — succeed then seal β (`XFNCE=35`; no backtrack past) | succeed | abort |
+| `E_ABORT` | `ABORT` — abort entire match immediately | abort | — |
+| `E_BAL` | `BAL` — match balanced parentheses (`p$bal`) | match balanced | fail |
 | **Captures** | | | |
 | `E_CAPT_COND` | `.` conditional capture (`E_NAM` in sno2c.h) | match, save on success | pass β to child |
 | `E_CAPT_IMM` | `$` immediate capture (`E_DOL` in sno2c.h) | match, save immediately | pass β to child |
@@ -174,7 +188,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_TRAIL_MARK` | Save trail top into env slot | mark | — |
 | `E_TRAIL_UNWIND` | Restore trail to saved mark | unwind | — |
 
-**45 node kinds total** (44 + `E_PLS`: unary plus is distinct — coerces `''→0`, not identity).
+**59 node kinds total** (45 + 14 pattern primitives that each have distinct Byrd box wiring in `emit_byrd_asm.c`).
 
 **Rename bridge — old sno2c.h names → canonical ir.h names:**
 

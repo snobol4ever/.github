@@ -13,7 +13,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — 45 canonical IR nodes FINAL; SPITBOL docs consulted | `fb90365` G-7 | M-G0-SIL-NAMES |
+| **⚠ GRAND MASTER REORG** | G-7 — 59 canonical IR nodes FINAL; pattern primitives added | `fb90365` G-7 | M-G0-SIL-NAMES |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -568,3 +568,16 @@ SIL naming heritage was analyzed for IR nodes only. Broader analysis needed:
 Produce `doc/SIL_NAMES_AUDIT.md`. This is prerequisite for M-G3 (naming law may need extension).
 
 **Read for next G-session:** `GRAND_MASTER_REORG.md` Phase 0 + `ARCH-sil-heritage.md` + `doc/EMITTER_AUDIT.md` runtime variable table.
+
+## G-7 Addendum — final pattern primitive pass (2026-03-28)
+
+59 IR nodes (was 45). 14 pattern primitives added after discovering they each
+have distinct Byrd box wiring in emit_byrd_asm.c:
+E_ANY, E_NOTANY, E_SPAN, E_BREAK, E_BREAKX, E_LEN, E_TAB, E_RTAB, E_REM,
+E_FAIL, E_SUCCEED, E_FENCE, E_ABORT, E_BAL.
+
+Source: snobol4x emit_byrd_asm.c lines 2420-2422 recognized builtin list.
+SPITBOL v37.min p$xxx match routines confirm each is distinct.
+Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
+
+**IR_AUDIT.md is now correct. Proceed to M-G0-SIL-NAMES then M-G1-IR-HEADER-DEF.**
