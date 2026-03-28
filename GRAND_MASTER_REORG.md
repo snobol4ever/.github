@@ -6,31 +6,52 @@
 
 ## The Problem
 
-The project has grown organically into a matrix of 5–6 frontends × 3 backends.
-Each pipeline was built when it was needed, with naming, folder structure, and IR
-conventions that were right-for-the-moment. The result is structural debt:
+The project is a matrix of **6 frontends × 4 active backends**, housed across three
+compiler/runtime product repos:
 
-- **Five separate IRs** (or near-IRs): SNOBOL4's `EXPR_t/EKind`, Icon's `IcnNode`,
+| Repo | Language | Frontends | Backends |
+|------|----------|-----------|---------|
+| `snobol4x` | C | SNOBOL4/SPITBOL, Snocone, Rebus, Icon, Prolog, Scrip | x64 ASM, JVM, .NET, WASM |
+| `snobol4jvm` | Clojure | SNOBOL4/SPITBOL only | JVM only |
+| `snobol4dotnet` | C# | SNOBOL4/SPITBOL only | .NET only |
+
+Plus two pattern-matching library repos (`snobol4python`, `snobol4csharp`) that are
+out of scope for this reorg.
+
+`snobol4x` is the 2D matrix repo — the only one that is, or will be, multi-frontend
+and multi-backend. `snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend
+repos written in different host languages; they are **not restructured here**.
+
+A fifth backend, **C** (`sno2c`), exists in `snobol4x` but is effectively dead — it
+produces C output that is not actively maintained or tested. It is **excluded from
+the reorg** (not moved, not renamed, not wired to shared IR). Its presence is noted
+here only to prevent confusion with the active backends.
+
+Each pipeline in `snobol4x` was built when it was needed, with naming, folder
+structure, and IR conventions that were right-for-the-moment. The result is structural debt:
+
+- **Six separate IRs** (or near-IRs): SNOBOL4's `EXPR_t/EKind`, Icon's `IcnNode`,
   Prolog's `E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*`, Snocone's lowered form,
-  Rebus's AST. Each frontend invented its own node vocabulary.
+  Rebus's AST, Scrip's AST. Each frontend invented its own node vocabulary.
 - **Emitters are not parallel.** `emit_byrd_asm.c` (6937 lines) is the oracle.
   `emit_byrd_jvm.c` (4479 lines) mirrors it for SNOBOL4 only. `emit_byrd_net.c`
   (2669 lines) mirrors it for SNOBOL4 only. `icon_emit_jvm.c` (3308 lines) is
   Icon-only. `prolog_emit_jvm.c` (2676 lines) is Prolog-only. No frontend other
-  than SNOBOL4 has all three backends.
+  than SNOBOL4 has all four active backends.
 - **Naming is inconsistent.** Greek letters, label prefixes, local variable names,
   and generated-code symbol conventions differ across emitters and frontends.
 - **Folder structure reflects history, not architecture.** Prolog and Icon JVM
   emitters live under `src/frontend/`, not `src/backend/`.
 
-The goal of the Grand Master Reorganization is to impose a single clean architecture:
+The goal of the Grand Master Reorganization is to impose a single clean architecture
+across `snobol4x`:
 
 ```
-5 (or 6) frontends → ONE shared IR → 3 shared backends
+6 frontends → ONE shared IR → 4 active backends (x64 ASM, JVM, .NET, WASM)
 ```
 
 Every frontend lowers to the same IR. Every backend consumes that same IR.
-The 15 (or 18) pipelines become consistent by construction.
+The 24 pipelines (6 × 4) become consistent by construction.
 
 ---
 
@@ -47,7 +68,7 @@ snobol4x/
       rebus/          lex.c  parse.c  lower.c   → IR
       icon/           lex.c  parse.c  lower.c   → IR
       prolog/         lex.c  parse.c  lower.c   → IR
-      scrip/       lex.c  parse.c  lower.c   → IR  [future]
+      scrip/          lex.c  parse.c  lower.c   → IR
     ir/
       ir.h            ← THE shared IR: unified EKind enum + EXPR_t
       ir_print.c      ← IR pretty-printer (debugging)
@@ -65,10 +86,12 @@ snobol4x/
       wasm/
         emit_wasm.c   ← THE WebAssembly emitter (consumes IR)
         emit_wasm.h
+      c/              ← DEAD — sno2c C backend, not maintained, excluded from reorg
     runtime/
       asm/            (unchanged)
       jvm/            (unchanged)
       net/            (unchanged)
+      wasm/           (Emscripten-compiled runtime for browser IDE)
     driver/
       main.c          (updated: route any frontend → any backend)
 ```
@@ -116,7 +139,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 ### Naming Convention — THE LAW
 
-This convention applies **identically** in all five emitters and all six frontends.
+This convention applies **identically** in all emitter files and all six frontends.
 Every generated label, every C variable, every comment uses these names.
 No exceptions. No aliases. No abbreviations beyond those listed here.
 
@@ -192,7 +215,8 @@ entirely. The test suite must be green at the end of every milestone. Any regres
 | JVM | `106/106` | `run_crosscheck_jvm_rung.sh` |
 | .NET | `110/110` | `run_crosscheck_net.sh` |
 
-`snobol4dotnet` is a separate repo and is not part of these invariants.
+`snobol4dotnet` and `snobol4jvm` are separate repos with different host languages
+and are not part of these invariants.
 
 Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
@@ -205,8 +229,8 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 | ID | Action | Verify |
 |----|--------|--------|
 | **M-G0-FREEZE** | Tag current HEAD of snobol4x as `pre-reorg-freeze`. Record 106/106 ASM, 106/106 JVM, 110/110 NET. | `git tag pre-reorg-freeze && git push --tags` |
-| **M-G0-AUDIT** | Audit all five emitters: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all 5 emitters |
-| **M-G0-IR-AUDIT** | Audit all five frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
+| **M-G0-AUDIT** | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | File exists, covers all emitter files |
+| **M-G0-IR-AUDIT** | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md` with a mapping table: `frontend × node_kind → unified_EKind`. | File exists |
 
 ---
 
@@ -293,9 +317,9 @@ A regression is immediately localizable to the one opcode group just touched.
 | **M-G3-NAME-NET-ASSIGN** | `E_ASSIGN`, `E_IDX`, `E_FNC` | Same | 110/110 NET |
 | **M-G3-NAME-NET-REMAINING** | All remaining kinds in `emit_net.c` | Same; confirm no non-conforming names remain | 110/110 NET |
 
-#### emit_wasm.c, emit_jvm_icon.c, emit_jvm_prolog.c, emit_x64_icon.c
+#### emit_wasm.c, emit_jvm_icon.c, emit_jvm_prolog.c, emit_x64_icon.c, emit_x64_prolog.c
 
-These files are either new (WASM) or smaller. A single milestone per file is
+These files are either new (WASM) or smaller/split files. A single milestone per file is
 acceptable here since diffs are bounded and reviewable.
 
 | ID | File | What changes | Verify |
@@ -304,6 +328,7 @@ acceptable here since diffs are bounded and reviewable.
 | **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific; shared node handlers → `emit_jvm_<Kind>` | Icon JVM 99/99 |
 | **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific; shared → `emit_jvm_<Kind>` | Prolog JVM 20/20 |
 | **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific; shared → `emit_x64_<Kind>` | Icon ASM rung03 5/5 |
+| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | Apply naming law to Prolog x64 emitter split out in M-G2-MOVE-PROLOG-ASM-b: `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific; shared → `emit_x64_<Kind>` | Prolog ASM rungs 1–9 PASS |
 
 ---
 
@@ -374,6 +399,8 @@ first being documented.
 | **M-G5-LOWER-SNOCONE-FIX** | snocone | Fix gaps. One commit per gap. | Snocone corpus PASS after each gap |
 | **M-G5-LOWER-REBUS-AUDIT** | rebus | Audit `rebus_emit.c` — map Rebus AST nodes to unified enum. Produce `doc/IR_LOWER_REBUS.md`. | File exists |
 | **M-G5-LOWER-REBUS-FIX** | rebus | Fix gaps. One commit per gap. | Rebus corpus PASS after each gap |
+| **M-G5-LOWER-SCRIP-AUDIT** | scrip | Audit Scrip AST — map every node kind to unified enum or flag as Scrip-specific extension. Produce `doc/IR_LOWER_SCRIP.md`. No code changes. | File exists |
+| **M-G5-LOWER-SCRIP-FIX** | scrip | For each gap: add kind or wire explicit bridge. One commit per gap. | Scrip corpus PASS after each gap |
 
 ---
 
@@ -397,12 +424,12 @@ Nothing like it exists anywhere.
 
 **How it works:** the `scrip` compiler compiles to WASM. The runtime
 (`snobol4.c`, the pattern engine, the Byrd box machinery) also compiles to WASM
-via Emscrip. Both run client-side. The React/HTML monitor GUI (M-MONITOR-GUI,
+via Emscripten. Both run client-side. The React/HTML monitor GUI (M-MONITOR-GUI,
 currently 💭) becomes buildable once this lands.
 
 **Dependency chain:**
 ```
-M-G6-SNOBOL4-WASM → runtime via Emscrip → browser harness → M-MONITOR-GUI
+M-G6-SNOBOL4-WASM → runtime via Emscripten → browser harness → M-MONITOR-GUI
 ```
 
 This is the motivating vision for the WASM backend. It turns a compiler project
@@ -414,16 +441,21 @@ No new emitter code for shared node kinds. Priority order:
 
 | ID | Pipeline | Prerequisite | Verify |
 |----|----------|-------------|--------|
-| **M-G6-ICON-NET** | Icon → .NET | M-G4-SHARED-ICON + M-G5-LOWER-ICON | Icon NET rung01 PASS |
-| **M-G6-PROLOG-NET** | Prolog → .NET | M-G4-SHARED-PROLOG + M-G5-LOWER-PROLOG | Prolog NET rung01 PASS |
+| **M-G6-ICON-NET** | Icon → .NET | M-G4-SHARED-ICON-LIMIT + M-G5-LOWER-ICON | Icon NET rung01 PASS |
+| **M-G6-PROLOG-NET** | Prolog → .NET | M-G4-SHARED-PROLOG-TRAIL + M-G5-LOWER-PROLOG | Prolog NET rung01 PASS |
 | **M-G6-SNOCONE-JVM** | Snocone → JVM | M-G5-LOWER-SNOCONE | Snocone JVM corpus PASS |
 | **M-G6-SNOCONE-NET** | Snocone → .NET | M-G5-LOWER-SNOCONE | Snocone NET corpus PASS |
+| **M-G6-SNOCONE-WASM** | Snocone → WASM | M-G5-LOWER-SNOCONE + M-G6-SNOBOL4-WASM | Snocone WASM rung01 PASS |
 | **M-G6-REBUS-JVM** | Rebus → JVM | M-G5-LOWER-REBUS | Rebus JVM PASS |
 | **M-G6-REBUS-NET** | Rebus → .NET | M-G5-LOWER-REBUS | Rebus NET PASS |
-| **M-G6-SNOBOL4-WASM** | SNOBOL4 → WASM | M-G4-SHARED-CONC + M-G2-SCAFFOLD-WASM | hello.sno → .wat → wasmtime PASS |
-| **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON + M-G5-LOWER-ICON | Icon WASM rung01 PASS |
-| **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG | Prolog WASM rung01 PASS |
-| **M-G6-SCRIP-ALL** | Scrip → all 4 backends | M-G5 complete | Scrip rung01 all 4 PASS |
+| **M-G6-REBUS-WASM** | Rebus → WASM | M-G5-LOWER-REBUS + M-G6-SNOBOL4-WASM | Rebus WASM rung01 PASS |
+| **M-G6-SNOBOL4-WASM** | SNOBOL4 → WASM | M-G4-SHARED-ASSIGN + M-G2-SCAFFOLD-WASM | hello.sno → .wat → wasmtime PASS |
+| **M-G6-ICON-WASM** | Icon → WASM | M-G4-SHARED-ICON-LIMIT + M-G5-LOWER-ICON | Icon WASM rung01 PASS |
+| **M-G6-PROLOG-WASM** | Prolog → WASM | M-G4-SHARED-PROLOG-TRAIL + M-G5-LOWER-PROLOG | Prolog WASM rung01 PASS |
+| **M-G6-SCRIP-X64** | Scrip → x64 ASM | M-G5-LOWER-SCRIP-FIX | Scrip ASM rung01 PASS |
+| **M-G6-SCRIP-JVM** | Scrip → JVM | M-G5-LOWER-SCRIP-FIX | Scrip JVM rung01 PASS |
+| **M-G6-SCRIP-NET** | Scrip → .NET | M-G5-LOWER-SCRIP-FIX | Scrip NET rung01 PASS |
+| **M-G6-SCRIP-WASM** | Scrip → WASM | M-G5-LOWER-SCRIP-FIX + M-G6-SNOBOL4-WASM | Scrip WASM rung01 PASS |
 
 ---
 
@@ -459,11 +491,11 @@ M-G0-FREEZE
                                                                     └── M-G3-NAME-X64-* (×8, sequential)
                                                                     └── M-G3-NAME-JVM-* (×8, sequential)
                                                                     └── M-G3-NAME-NET-* (×8, sequential)
-                                                                    └── M-G3-NAME-WASM / JVM-ICON / JVM-PROLOG / X64-ICON
+                                                                    └── M-G3-NAME-WASM / JVM-ICON / JVM-PROLOG / X64-ICON / X64-PROLOG
                                                                             └── M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (sequential)
                                                                                     └── M-G4-SHARED-ICON-TO → SUSPEND → ALT → BANG → LIMIT (sequential)
                                                                                     └── M-G4-SHARED-PROLOG-UNIFY → CLAUSE → CUT → TRAIL (sequential)
-                                                                                            └── M-G5-LOWER-*-AUDIT → M-G5-LOWER-*-FIX (per frontend, sequential)
+                                                                                            └── M-G5-LOWER-*-AUDIT → M-G5-LOWER-*-FIX (×6, one per frontend, sequential)
                                                                                                     └── M-G6-* (×10, parallel)
                                                                                                             └── M-G7-STYLE-DOC
                                                                                                                     └── M-G7-STYLE-*
@@ -524,13 +556,13 @@ M-G0-FREEZE
 | M-G3-NAME-X64-* (×8)    | 3 — Names     | ❌ |
 | M-G3-NAME-JVM-* (×8)    | 3 — Names     | ❌ |
 | M-G3-NAME-NET-* (×8)    | 3 — Names     | ❌ |
-| M-G3-NAME-WASM/ICON/PRO (×4) | 3 — Names | ❌ |
+| M-G3-NAME-WASM/ICON/PRO/X64-PRO (×5) | 3 — Names | ❌ |
 | M-G4-SHARED-CONC/OR/ARBNO/CAPTURE/ARITH/ASSIGN/IDX (×7) | 4 — Wiring | ❌ |
 | M-G4-SHARED-ICON-* (×5) | 4 — Wiring    | ❌ |
 | M-G4-SHARED-PROLOG-* (×4) | 4 — Wiring  | ❌ |
-| M-G5-LOWER-*-AUDIT (×5) | 5 — Frontends | ❌ |
-| M-G5-LOWER-*-FIX (×5)   | 5 — Frontends | ❌ |
-| M-G6-* (×10)            | 6 — Matrix    | ❌ |
+| M-G5-LOWER-*-AUDIT (×6) | 5 — Frontends (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) | ❌ |
+| M-G5-LOWER-*-FIX (×6)   | 5 — Frontends | ❌ |
+| M-G6-* (×15)            | 6 — Matrix (6 frontends × 4 backends, minus already-done SNOBOL4 x64/JVM/NET) | ❌ |
 | M-G7-UNFREEZE           | 7 — Style     | ❌ |
 | M-G8-HOME               | 8 — GenTest: where does enumerator live? | ❌ |
 | M-G8-DEPTH              | 8 — GenTest: token-count vs IR-node depth bound? | ❌ |
@@ -635,7 +667,7 @@ IR-tree enumeration bypasses the parser entirely — trees are emitted directly 
 the backend's emit functions. Parser and emitter bugs are tested independently.
 Exhaustive enumeration guarantees coverage of every tree shape up to the depth bound.
 
-After Phase 1 (unified `ir.h`), all five frontends lower to the same `EXPR_t` tree.
+After Phase 1 (unified `ir.h`), all six frontends lower to the same `EXPR_t` tree.
 The enumerator works on that tree type — it tests all backends for all languages
 with one shared tool.
 
@@ -646,8 +678,9 @@ with one shared tool.
 - No behavior changes of any kind.
 - The runtime libraries (`src/runtime/`) are untouched.
 - The test corpus (`test/`) is untouched — it is the ground truth throughout.
-- `snobol4dotnet` is a separate repo and is not restructured here. It participates
-  only via the 4D matrix documentation update.
+- `snobol4dotnet` and `snobol4jvm` are separate repos written in different host
+  languages (C# and Clojure respectively). They are not restructured here. They
+  participate only via the pipeline matrix documentation update in PLAN.md.
 
 ---
 
@@ -655,15 +688,14 @@ with one shared tool.
 
 The Grand Master Reorg is complete (M-G7-UNFREEZE fires) when:
 
-1. `src/` has the folder structure shown above, exactly.
+1. `src/` has the folder structure shown above, exactly. Six frontend directories, four active backend directories, one dead `c/` directory untouched.
 2. All emitter files follow the naming law — no deviations.
-3. `src/ir/ir.h` contains the unified `EKind` enum covering all frontends.
+3. `src/ir/ir.h` contains the unified `EKind` enum covering all six frontends.
 4. No node kind is defined in more than one header.
 5. The Byrd box wiring logic for every shared node kind lives in exactly one place.
 6. Every corpus test that passed before the reorg still passes.
 7. `doc/STYLE.md` exists and all source files conform to it.
-8. The 4D matrix in PLAN.md has at least one ✅ or ⏳ in every cell that was
-   previously `—` but is now reachable via shared backend infrastructure.
+8. The `snobol4x` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4dotnet` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
 
 The full project testing transformation is complete (M-G8-CI fires) when:
 
