@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — Phase 1 complete ✅ + assignment regressions fixed | `c11841f` snobol4x / `.github` pending | M-G2-SCAFFOLD-WASM (Phase 2 start) |
+| **⚠ GRAND MASTER REORG** | G-7 — Phase 2 partial ✅ (renames done; Prolog split pending) | `845e255` snobol4x / `.github` pending | M-G2-MOVE-PROLOG-ASM-a (next) |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |

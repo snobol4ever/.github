@@ -3568,3 +3568,45 @@ Backend renamed ASM → x86 in all HQ docs. Invariant format standardised:
 
 **Next session:** M-G2-SCAFFOLD-WASM — Phase 2 start.
 Run SESSION_BOOTSTRAP.sh first. Read GRAND_MASTER_REORG.md Phase 2.
+
+---
+
+**G-7 Phase 2 partial (2026-03-28, Claude Sonnet 4.6) — snobol4x `845e255`**
+
+Phase 2 mechanical renames all complete except Prolog x86 split (left for next session,
+requires fresh context — it is a file split not a rename and carries the most risk).
+
+Completed this commit:
+- M-G2-DIRS ✅ (dirs already existed)
+- M-G2-MOVE-ASM ✅ emit_byrd_asm.c → emit_x64.c
+- M-G2-MOVE-JVM ✅ emit_byrd_jvm.c → emit_jvm.c
+- M-G2-MOVE-NET ✅ emit_byrd_net.c → emit_net.c
+- M-G2-MOVE-ICON-JVM ✅ frontend/icon/icon_emit_jvm.c → backend/jvm/emit_jvm_icon.c
+- M-G2-MOVE-PROLOG-JVM ✅ frontend/prolog/prolog_emit_jvm.c → backend/jvm/emit_jvm_prolog.c
+- M-G2-MOVE-ICON-ASM ✅ frontend/icon/icon_emit.c → backend/x64/emit_x64_icon.c
+- M-G2-SCAFFOLD-WASM ✅ src/backend/wasm/emit_wasm.c skeleton
+
+Makefile updated: all new paths, BACKEND_WASM added.
+main.c comments updated to new file names.
+
+Also this session:
+- SESSION_BOOTSTRAP.sh created — WHO/WHAT/WHERE/WHY/HOW as runnable script
+- RULES.md rewritten to point to SESSION_BOOTSTRAP.sh
+- ASM → x86 rename throughout all HQ docs
+- Invariant format standardised: x86 106/106 · JVM 106/106 · .NET 110/110
+- E_ARY/E_IDX assignment-path regressions fixed in emit_jvm.c, emit_net.c, emit_byrd_c.c
+
+Invariants at handoff:
+x86 106/106 ✅ · JVM 106/106 [pre-existing: 056/210/212/rung11] · .NET 109/110 [pre-existing: 056]
+
+**NEXT SESSION — M-G2-MOVE-PROLOG-ASM-a then -b:**
+1. Run SESSION_BOOTSTRAP.sh
+2. Read SESSIONS_ARCHIVE.md tail + RULES.md + PLAN.md + GRAND_MASTER_REORG.md Phase 2
+3. Prolog section in emit_x64.c starts around line 5489 (grep "emit_prolog_choice\|emit_pl_header")
+4. M-G2-MOVE-PROLOG-ASM-a: create empty src/backend/x64/emit_x64_prolog.c, add
+   `#include "emit_x64_prolog.c"` at TAIL of emit_x64.c (after last Prolog fn), add to Makefile
+5. Verify x86 106/106 still passes
+6. M-G2-MOVE-PROLOG-ASM-b: physically move all Prolog functions out of emit_x64.c
+   into emit_x64_prolog.c, remove from emit_x64.c, keep the #include
+7. Verify x86 106/106 + Prolog x86 rungs 1-9 pass
+8. Commit both steps, push, update HQ

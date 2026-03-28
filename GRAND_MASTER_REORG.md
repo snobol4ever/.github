@@ -542,14 +542,14 @@ is the single authoritative copy.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G2-DIRS** | Create new directory skeleton: `src/backend/x64/`, `src/backend/jvm/`, `src/backend/net/`. (These may already exist — confirm and adjust.) | `ls src/backend/` shows all three |
-| **M-G2-MOVE-ASM** | `git mv src/backend/x64/emit_byrd_asm.c src/backend/x64/emit_x64.c`. Update `#include` and `Makefile` references. No content changes. | 106/106 |
-| **M-G2-MOVE-JVM** | `git mv src/backend/jvm/emit_byrd_jvm.c src/backend/jvm/emit_jvm.c`. Update references. No content changes. | 106/106 |
-| **M-G2-MOVE-NET** | `git mv src/backend/net/emit_byrd_net.c src/backend/net/emit_net.c`. Update references. No content changes. | 110/110 NET |
-| **M-G2-SCAFFOLD-WASM** | Create `src/backend/wasm/emit_wasm.c` — skeleton only: file header, empty `emit_wasm()` entry point, no IR handling yet. Add to Makefile. | Builds clean |
-| **M-G2-MOVE-ICON-JVM** | `git mv src/frontend/icon/icon_emit_jvm.c src/backend/jvm/emit_jvm_icon.c`. Update references. No content changes. | Icon JVM corpus 99/99 |
-| **M-G2-MOVE-PROLOG-JVM** | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Prolog JVM 20/20 |
-| **M-G2-MOVE-ICON-ASM** | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Icon x86 rung03 5/5 |
+| **M-G2-DIRS** ✅ | Create new directory skeleton: `src/backend/x64/`, `src/backend/jvm/`, `src/backend/net/`. (These may already exist — confirm and adjust.) | All four dirs existed already. ✅ |
+| **M-G2-MOVE-ASM** ✅ | `git mv src/backend/x64/emit_byrd_asm.c src/backend/x64/emit_x64.c`. Update `#include` and `Makefile` references. No content changes. | x86 106/106 ✅. Commit `845e255`. |
+| **M-G2-MOVE-JVM** ✅ | `git mv src/backend/jvm/emit_byrd_jvm.c src/backend/jvm/emit_jvm.c`. Update references. No content changes. | 106/106 ✅. Commit `845e255`. |
+| **M-G2-MOVE-NET** ✅ | `git mv src/backend/net/emit_byrd_net.c src/backend/net/emit_net.c`. Update references. No content changes. | .NET 109/110 [056 pre-existing] ✅. Commit `845e255`. |
+| **M-G2-SCAFFOLD-WASM** ✅ | Create `src/backend/wasm/emit_wasm.c` — skeleton only: file header, empty `emit_wasm()` entry point, no IR handling yet. Add to Makefile. | Builds clean ✅. Commit `845e255`. |
+| **M-G2-MOVE-ICON-JVM** ✅ | `git mv src/frontend/icon/icon_emit_jvm.c src/backend/jvm/emit_jvm_icon.c`. Update references. No content changes. | Commit `845e255`. |
+| **M-G2-MOVE-PROLOG-JVM** ✅ | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Commit `845e255`. |
+| **M-G2-MOVE-ICON-ASM** ✅ | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Commit `845e255`. |
 | **M-G2-MOVE-PROLOG-ASM-a** | ⚠ FILE SPLIT step 1 — create `src/backend/x64/emit_x64_prolog.c` as an empty stub and `#include` it from the **tail** of `emit_x64.c`. Prolog code still physically lives in `emit_x64.c` at this step. Add stub to Makefile if needed. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
 | **M-G2-MOVE-PROLOG-ASM-b** | ⚠ FILE SPLIT step 2 — physically move Prolog ASM emitter code from `emit_x64.c` into `emit_x64_prolog.c`. Remove from `emit_x64.c`. The `#include` from step (a) stays. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
 
