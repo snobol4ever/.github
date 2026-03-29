@@ -174,7 +174,7 @@ Tests in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet piped into beauty_full_bin
 - `NNN_name.ref` — oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
 
-Runner: `snobol4x/test/crosscheck/run_beauty.sh` (pre-compiled binary).
+Runner: `one4all/test/crosscheck/run_beauty.sh` (pre-compiled binary).
 
 Test progression (one at a time, never skip):
 ```
@@ -337,7 +337,7 @@ One pass, O(n) in token count.
 definitions from beauty.sno — not approximate them. Any divergence produces
 output that does not round-trip correctly through the parser.
 
-**Use case:** generated C through the sno2c emitter and beautifier pipeline —
+**Use case:** generated C through the scrip-cc emitter and beautifier pipeline —
 where machine-readable regularity matters more than human column alignment.
 Also useful as a canonical normalized form for diffing and testing.
 

@@ -24,7 +24,7 @@ The same four-state **Byrd Box model** — first described by Lawrence Byrd in 1
 
 The four ports are: **α** (proceed — enter), **β** (recede — resume after backtrack), **γ** (succeed — matched), **ω** (concede — failed). Sequential composition wires γ of one node to α of the next. Alternation saves the cursor on ω and restores it before trying the next alternative. ARBNO wires child-γ back into α until child-ω exits. The wiring *is* the execution — no interpreter loop, no dispatch table.
 
-Proebsting's key insight, applied to SNOBOL4: compile these four states to static labeled gotos, and you get goal-directed backtracking evaluation with zero dispatch overhead. Every pattern node in every snobol4x compiled program is a Byrd box — four labeled entry points, wired at compile time.
+Proebsting's key insight, applied to SNOBOL4: compile these four states to static labeled gotos, and you get goal-directed backtracking evaluation with zero dispatch overhead. Every pattern node in every one4all compiled program is a Byrd box — four labeled entry points, wired at compile time.
 
 ---
 
@@ -38,7 +38,7 @@ We built two complete, independent implementations of the full SNOBOL4/SPITBOL l
 
 We brought the pattern matching engine to Python and C# as first-class libraries. Not regex wrappers. The real thing.
 
-And we are building [snobol4x](https://github.com/snobol4ever/snobol4x): a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL from a single IR. Its correctness goal: pass the full corpus crosscheck ladder on all three backends, then achieve self-hosting bootstrap — first through `beauty.sno` (the SNOBOL4 beautifier written in SNOBOL4), then through `compiler.sno` (the full compiler written in SNOBOL4).
+And we are building [one4all](https://github.com/snobol4ever/one4all): a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL from a single IR. Its correctness goal: pass the full corpus crosscheck ladder on all three backends, then achieve self-hosting bootstrap — first through `beauty.sno` (the SNOBOL4 beautifier written in SNOBOL4), then through `compiler.sno` (the full compiler written in SNOBOL4).
 
 ---
 
@@ -50,9 +50,9 @@ SNOBOL4 and SPITBOL are one frontend — SPITBOL extensions enabled by switch. C
 
 |                           | **SNOBOL4 / SPITBOL** | **Snocone** | **Rebus** | **Tiny-Icon** | **Tiny-Prolog** |
 |---------------------------|:---------------------:|:-----------:|:---------:|:-------------:|:---------------:|
-| **C / x86-64 native**     | snobol4x ✅           | snobol4x ✅ | snobol4x ✅ | post-compiler.sno | post-compiler.sno |
-| **JVM bytecode**          | snobol4x ✅ / snobol4jvm ✅ | planned | — | post-compiler.sno | post-compiler.sno |
-| **.NET MSIL**             | snobol4x ⏳ / snobol4dotnet ✅ | planned | — | post-compiler.sno | post-compiler.sno |
+| **C / x86-64 native**     | one4all ✅           | one4all ✅ | one4all ✅ | post-compiler.sno | post-compiler.sno |
+| **JVM bytecode**          | one4all ✅ / snobol4jvm ✅ | planned | — | post-compiler.sno | post-compiler.sno |
+| **.NET MSIL**             | one4all ⏳ / snobol4dotnet ✅ | planned | — | post-compiler.sno | post-compiler.sno |
 
 **Rows = backends.** Wherever programs run, SNOBOL4 should run there too.
 
@@ -74,7 +74,7 @@ Jeffrey Cooper built a complete SNOBOL4/SPITBOL implementation in C#, taking Emm
 
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. Parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement IR, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: interpreter, Clojure IR transpiler (3.5–6×), stack-machine VM (2–6×), and direct JVM bytecode via ASM (up to 7.6× faster with JVM JIT). EDN compilation cache gives 22× speedup on repeated programs. **2,033 tests / 4,417 assertions / 0 failures.** The JVM backend has achieved `beauty.sno` self-beautification — byte-for-byte identical to the CSNOBOL4 oracle (M-JVM-BEAUTY ✅).
 
-### [snobol4x](https://github.com/snobol4ever/snobol4x)
+### [one4all](https://github.com/snobol4ever/one4all)
 *A native SNOBOL4 compiler — x86-64 ASM, JVM bytecode, .NET MSIL — from a single IR*
 
 The compiler. Every expression compiles to inlined α/β/γ/ω gotos — no runtime dispatch. Three backends share one IR: C with gotos (default, 106/106 corpus ✅), x86-64 NASM assembly (106/106 corpus ✅), JVM Jasmin bytecode (beauty.sno ✅), and .NET CIL (110/110 corpus ✅). Five frontends: SNOBOL4/SPITBOL (active), Snocone (active), Rebus (complete — M-REBUS ✅), Tiny-Icon (planned), Tiny-Prolog (planned).
@@ -100,7 +100,7 @@ A C# port of the snobol4python pattern engine. Patterns are first-class objects 
 ### [snobol4artifact](https://github.com/snobol4ever/snobol4artifact)
 *CPython C extension: SNOBOL4 Byrd Box engine*
 
-Direct CPython C extension running SNOBOL4python pattern trees through a full Byrd Box engine in C. The proof-of-concept from which `engine.c` in snobol4x was extracted.
+Direct CPython C extension running SNOBOL4python pattern trees through a full Byrd Box engine in C. The proof-of-concept from which `engine.c` in one4all was extracted.
 
 ### [corpus](https://github.com/snobol4ever/corpus)
 *Shared test corpus — CC0*
@@ -111,14 +111,14 @@ Single source of truth for all `.sno`, `.inc`, and `.spt` files shared across al
 
 ## Performance
 
-These benchmark numbers compare the snobol4x ASM backend against PCRE2 JIT and Bison LALR(1). They are a starting point — the community is invited to verify them independently using `harness`. A full cross-engine benchmark grid (all seven implementations, all benchmark programs) will be published when M-GRID-BENCH fires. See [GRIDS.md](../GRIDS.md).
+These benchmark numbers compare the one4all ASM backend against PCRE2 JIT and Bison LALR(1). They are a starting point — the community is invited to verify them independently using `harness`. A full cross-engine benchmark grid (all seven implementations, all benchmark programs) will be published when M-GRID-BENCH fires. See [GRIDS.md](../GRIDS.md).
 
-| Pattern | snobol4x ASM | PCRE2 JIT | Notes |
+| Pattern | one4all ASM | PCRE2 JIT | Notes |
 |---------|:------------:|:---------:|-------|
 | `(a\|b)*abb` — normal | 33 ns | 77 ns | 2.3× faster |
-| `(a+)+b` len=28 — pathological | 0.7 ns | 25 ns | 33× — PCRE2 backtracks exponentially; snobol4x detects failure in the wiring |
+| `(a+)+b` len=28 — pathological | 0.7 ns | 25 ns | 33× — PCRE2 backtracks exponentially; one4all detects failure in the wiring |
 
-| Grammar | snobol4x ASM | Bison LALR(1) | Notes |
+| Grammar | one4all ASM | Bison LALR(1) | Notes |
 |---------|:------------:|:-------------:|-------|
 | `{a^n b^n}` — context-free | 44 ns | 72 ns | 1.6× faster; and Bison cannot recognize `{a^n b^n c^n}` at all |
 
@@ -128,7 +128,7 @@ These benchmark numbers compare the snobol4x ASM backend against PCRE2 JIT and B
 
 **Chomsky hierarchy oracles.** Nine canonical languages, one per tier plus cross-tier verification. The expected answers are mathematically proven, not empirical.
 
-| Tier | Oracle language | snobol4x |
+| Tier | Oracle language | one4all |
 |------|----------------|:--------:|
 | Type 3 — Regular | `(a\|b)*abb`, `a*b*`, `{x^2n}` | ✅ |
 | Type 2 — Context-free | `{a^n b^n}`, palindromes, Dyck language | ✅ |
@@ -157,17 +157,17 @@ SNOBOL4 programs consist of labeled statements. Each statement has a subject, an
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, snobol4x (co-author), snobol4jvm, snobol4python. Sixty years from first dream to this repository.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, one4all (co-author), snobol4jvm, snobol4python. Sixty years from first dream to this repository.
 
 **Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime), snobol4csharp. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
 
-**Claude Sonnet 4.6** — snobol4x (co-author). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
+**Claude Sonnet 4.6** — one4all (co-author). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
 
 ---
 
 ## What's Next
 
-The five-way monitor: a parallel harness that runs the same SNOBOL4 program through CSNOBOL4, SPITBOL/x64, the snobol4x ASM backend, the snobol4x JVM backend, and snobol4dotnet simultaneously — comparing trace streams event-by-event. Infrastructure complete. Full five-way launch: M-MONITOR-IPC-5WAY.
+The five-way monitor: a parallel harness that runs the same SNOBOL4 program through CSNOBOL4, SPITBOL/x64, the one4all ASM backend, the one4all JVM backend, and snobol4dotnet simultaneously — comparing trace streams event-by-event. Infrastructure complete. Full five-way launch: M-MONITOR-IPC-5WAY.
 
 Then: `beauty.sno` bootstrap on all backends (M-BEAUTIFY-BOOTSTRAP), `compiler.sno` bootstrap (M-COMPILER-BOOTSTRAP), self-hosting. When the compiler writes itself in SNOBOL4, every cell of the matrix opens.
 
@@ -183,4 +183,4 @@ snobol4all. snobol4now. snobol4ever.
 
 ## License
 
-AGPL v3 (snobol4x, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp, snobol4artifact) · CC0 (corpus). See individual repos for details.
+AGPL v3 (one4all, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp, snobol4artifact) · CC0 (corpus). See individual repos for details.

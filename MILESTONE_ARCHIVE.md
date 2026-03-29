@@ -5,13 +5,13 @@ Append-only. Do not edit existing entries.
 
 ---
 
-## TINY (snobol4x) — Completed
+## TINY (one4all) — Completed
 
 | ID | Trigger | Status |
 |----|---------|--------|
 | M-SNOC-COMPILES | snoc compiles beauty_core.sno | ✅ |
 | M-REBUS | Rebus round-trip diff empty | ✅ `bf86b4b` |
-| M-COMPILED-BYRD | sno2c emits Byrd boxes, mock_engine only | ✅ `560c56a` |
+| M-COMPILED-BYRD | scrip-cc emits Byrd boxes, mock_engine only | ✅ `560c56a` |
 | M-CNODE | CNode IR, zero lines >120 chars | ✅ `ac54bd2` |
 | M-STACK-TRACE | oracle == compiled stack trace, rung-12 inputs | ✅ session119 |
 | M-ASM-HELLO | null.s assembles+links+runs → exit 0 | ✅ session145 |
@@ -115,7 +115,7 @@ Append-only. Do not edit existing entries.
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| M-NET-HELLO | sno2c -net null.sno → exit 0 | ✅ session195 |
+| M-NET-HELLO | scrip-cc -net null.sno → exit 0 | ✅ session195 |
 | M-NET-LIT | OUTPUT = 'hello' correct | ✅ `efc3772` N-197 |
 | M-NET-ASSIGN | Variable assign + arith correct | ✅ `02d1f9b` N-206 |
 | M-NET-GOTO | :S(X)F(Y) branching correct | ✅ `02d1f9b` N-206 |
@@ -184,7 +184,7 @@ Append-only. Do not edit existing entries.
 
 | ID | Trigger | Status |
 |----|---------|--------|
-| M-VOL-X | G-VOLUME for snobol4x | ✅ `07a34d7` |
+| M-VOL-X | G-VOLUME for one4all | ✅ `07a34d7` |
 | M-VOL-JVM | G-VOLUME for snobol4jvm | ✅ README SESSION 2026-03-22 |
 | M-VOL-DOTNET | G-VOLUME for snobol4dotnet | ✅ README SESSION 2026-03-22 |
 

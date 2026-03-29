@@ -21,9 +21,9 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 **⚡ CRITICAL NEXT ACTION — J-217:**
 
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 git config user.name "Claude J-217" && git config user.email "J@snobol4ever.dev"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git checkout main && git pull
 apt-get install -y default-jdk libgc-dev nasm && cd src && make -j4
 
@@ -39,7 +39,7 @@ grep -n "E_ARY\|2D\|nchildren\|children\[1\]\|children\[2\]" src/backend/x64/emi
 
 # 4. Run global driver → diff clean → fire M-JVM-STLIMIT-STCOUNT + M-JVM-BEAUTY-GLOBAL
 INC=demo/inc
-./sno2c -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
+./scrip-cc -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
 mkdir -p /tmp/cls_global
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_global /tmp/drv_global.j
 timeout 30 java -cp /tmp/cls_global Driver > /tmp/jvm_global_out.txt 2>/dev/null
@@ -199,7 +199,7 @@ JI("invokestatic", tickdesc);
 ### Verification sequence
 
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 cd src && make -j4
 
 # 1. STLIMIT enforcement test
@@ -208,7 +208,7 @@ cat > /tmp/test_stlimit.sno << 'EOF'
 L       OUTPUT = 'looping'  :(L)
 END
 EOF
-./sno2c -jvm /tmp/test_stlimit.sno -o /tmp/stlimit.j
+./scrip-cc -jvm /tmp/test_stlimit.sno -o /tmp/stlimit.j
 mkdir -p /tmp/cls_stlimit
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_stlimit /tmp/stlimit.j 2>/dev/null
 timeout 5 java -cp /tmp/cls_stlimit Test_stlimit 2>&1 | wc -l
@@ -223,7 +223,7 @@ bash test/crosscheck/run_crosscheck_asm_corpus.sh 2>&1 | tail -3
 
 # 3. Global driver now completes
 INC=demo/inc
-./sno2c -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
+./scrip-cc -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
 mkdir -p /tmp/cls_global
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_global /tmp/drv_global.j 2>/dev/null
 timeout 30 java -cp /tmp/cls_global Driver > /tmp/jvm_global_out.txt 2>/dev/null
@@ -257,16 +257,16 @@ Then immediately continue into M-JVM-BEAUTY-GLOBAL fix loop.
 Continue M-JVM-BEAUTY-GLOBAL. Run global driver to completion:
 
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 git config user.name "Claude J-215" && git config user.email "J@snobol4ever.dev"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git checkout main && git pull
 apt-get install -y default-jdk libgc-dev nasm
 cd src && make -j4
 
 # Run global driver
 INC=demo/inc
-./sno2c -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
+./scrip-cc -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
 mkdir -p /tmp/cls_global
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_global /tmp/drv_global.j
 timeout 15 java -cp /tmp/cls_global Driver > /tmp/jvm_global_out.txt 2>&1
@@ -276,9 +276,9 @@ diff test/beauty/global/driver.ref /tmp/jvm_global_out.txt
 ```
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git checkout jvm-t2 && git pull
 apt-get install -y libgc-dev nasm default-jdk && make -C src
 CORPUS=/home/claude/corpus/crosscheck
@@ -306,9 +306,9 @@ bash test/crosscheck/jvm_artifact_check.sh
 Sprint J-R4 continued — fix DATA tests 094/095/096 → M-JVM-R4
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git pull && apt-get install -y libgc-dev nasm default-jdk && make -C src
 git log --oneline -3   # verify HEAD = c2e7a0e
 CORPUS=/home/claude/corpus/crosscheck
@@ -333,15 +333,15 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh $CORPUS/functions $CORPUS/data 2
 ## Session Start
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 git log --oneline -3   # verify HEAD = f24fb97
-git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git remote set-url origin https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 apt-get install -y libgc-dev nasm && make -C src
 # J3 smoke baseline:
 TMPD=$(mktemp -d); JASMIN=src/backend/jvm/jasmin.jar
 for t in size_test dupl_test remdr_test goto_s goto_f; do
-  ./sno2c -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
+  ./scrip-cc -jvm test/jvm_j3/${t}.sno > $TMPD/p.j
   java -jar $JASMIN $TMPD/p.j -d $TMPD/ 2>/dev/null
   cls=$(ls $TMPD/*.class | head -1 | xargs basename | sed 's/.class//')
   echo "$t: $(java -cp $TMPD $cls 2>/dev/null)"; rm -f $TMPD/*.class

@@ -1,6 +1,6 @@
-# SESSION-icon-jvm.md — Icon × JVM (snobol4x)
+# SESSION-icon-jvm.md — Icon × JVM (one4all)
 
-**Repo:** snobol4x · **Frontend:** Icon · **Backend:** JVM (Jasmin)
+**Repo:** one4all · **Frontend:** Icon · **Backend:** JVM (Jasmin)
 **Session prefix:** `IJ` · **Trigger:** "playing with Icon JVM"
 **Driver:** `icon_driver -jvm foo.icn -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
 **Oracle:** `icon_driver foo.icn -o foo.asm -run` (x64 ASM backend)
@@ -20,8 +20,8 @@
 ## §BUILD
 
 ```bash
-cd snobol4x
-# icon_driver.c now needs sno2c.h — use shim main:
+cd one4all
+# icon_driver.c now needs scrip-cc.h — use shim main:
 cat > /tmp/icon_driver_shim.c << 'SHIM'
 extern int icon_driver_main(int argc, char **argv);
 int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
@@ -75,7 +75,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver
 - `IjBuf` forward-emit infrastructure ready to deploy
 - `run_bench_rung36.sh`: full 75-test harness with `[B]` benchmark flags
 
-**NOTE: icon_driver.c now integrated into sno2c. Build requires shim main + `-Isrc/frontend/snobol4`.**
+**NOTE: icon_driver.c now integrated into scrip-cc. Build requires shim main + `-Isrc/frontend/snobol4`.**
 
 **Benchmark-class tests [B]:** t01 t27 t28 t39 t54 t66 t70 — all VE/WO, blocked by VE fixes.
 
@@ -93,10 +93,10 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver
 ### Bootstrap IJ-58 (next session)
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk
-cd snobol4x
+cd one4all
 cat > /tmp/icon_driver_shim.c << 'SHIM'
 extern int icon_driver_main(int argc, char **argv);
 int main(int argc, char **argv) { return icon_driver_main(argc, argv); }

@@ -76,7 +76,7 @@ directly analogous to the emit_body fix above.
 
 1. In `driver/main.c`, replace the hardcoded `pl_emit(prog, out)` with the `asm_mode` branch (call `asm_emit` when `-asm` is set).
 2. Link `prolog_atom.c`, `prolog_unify.c`, `prolog_builtin.c` into the ASM binary (add to `Makefile` runtime link or emit inline calls).
-3. Test: `sno2c -pl -asm null.pl -o null.s && nasm -f elf64 null.s && ld ... && ./a.out` → exit 0.
+3. Test: `scrip-cc -pl -asm null.pl -o null.s && nasm -f elf64 null.s && ld ... && ./a.out` → exit 0.
 4. Then `hello.pl` → M-PROLOG-HELLO fires.
 5. Rungs 1–5: Byrd box β port handles backtracking automatically — no C emitter `_cs` hack needed.
 
@@ -144,8 +144,8 @@ test/frontend/prolog/corpus/rung10_programs/
 
 ### Recommendation for F-213
 
-1. `cd snobol4x && make -C src` — rebuild with emit_body fix
-2. Test rungs 1–5: `./sno2c -pl test/.../rungN.pro -o /tmp/t.c && gcc ... && ./a.out`
+1. `cd one4all && make -C src` — rebuild with emit_body fix
+2. Test rungs 1–5: `./scrip-cc -pl test/.../rungN.pro -o /tmp/t.c && gcc ... && ./a.out`
 3. If rung 5 (backtrack/member) passes, rungs 6–8 likely follow
 4. Consider pivot: instead of C backend, target x64 ASM emitter directly
    (emit native NASM α/β/γ/ω labels). Read ARCH.md + BACKEND-X64.md.

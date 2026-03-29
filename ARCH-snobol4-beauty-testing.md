@@ -11,7 +11,7 @@ The two agreeing participants (CSNOBOL4 + SPITBOL) are the live specification fo
 One session = write driver → monitor finds divergence → fix backend → re-run → repeat → milestone fires.
 No separate BUG SESSION needed for beauty bugs: find it and fix it in the same session.
 
-Drivers live in `snobol4x/test/beauty/` alongside `.ref` oracle files.
+Drivers live in `one4all/test/beauty/` alongside `.ref` oracle files.
 Gimpel corpus programs (corpus/programs/gimpel/) serve as inspiration and
 cross-validation — 145 programs exercising nearly every SNOBOL4 pattern, many
 directly parallel to the beauty subsystems.
@@ -76,7 +76,7 @@ backends come online per M-MONITOR-5WAY).
 
 ## Driver Format
 
-Each driver lives in `snobol4x/test/beauty/<subsystem>/`:
+Each driver lives in `one4all/test/beauty/<subsystem>/`:
 
 ```
 test/beauty/
@@ -124,7 +124,7 @@ the monitor (inject_traces.py → CSNOBOL4 + SPITBOL + ASM → sync-step diff).
 
 `test/beauty/run_beauty_all.sh` — runs all 19 subsystems, reports PASS/FAIL matrix.
 
-Both scripts live in `snobol4x/test/beauty/` on the `asm-backend` branch.
+Both scripts live in `one4all/test/beauty/` on the `asm-backend` branch.
 
 **The fix loop (inside a BEAUTY SESSION):**
 
@@ -145,7 +145,7 @@ INC=/home/claude/corpus/programs/inc X64_DIR=/home/claude/x64 \
 # 5. Confirm corpus invariant still holds
 bash test/crosscheck/run_crosscheck_asm_corpus.sh   # must be 106/106
 
-# 6. Fire milestone — commit snobol4x, update PLAN.md + TINY.md, push .github
+# 6. Fire milestone — commit one4all, update PLAN.md + TINY.md, push .github
 ```
 
 ---
@@ -217,9 +217,9 @@ Use existing drivers in `test/beauty/` — just add JVM run to the harness.
 
 **JVM invocation:**
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 # Compile SNOBOL4 → Jasmin assembly
-./sno2c -jvm -Idemo/inc -I./src/frontend/snobol4 <file.sno> -o /tmp/out.j
+./scrip-cc -jvm -Idemo/inc -I./src/frontend/snobol4 <file.sno> -o /tmp/out.j
 # Assemble Jasmin → .class
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/out.j
 # Run
@@ -256,7 +256,7 @@ java -cp /tmp/cls <ClassName>
 
 ### JVM session startup checklist
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 git checkout jvm-t2 && git pull
 # OR stay on main if JVM work merged there
 apt-get install -y default-jdk
@@ -271,7 +271,7 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 
 # Fix segfault first:
 # In emit_byrd_asm.c: heap-allocate named_pats[] same as box_data[]
-# Then: ./sno2c -jvm -Idemo/inc demo/beauty.sno -o /tmp/beauty.j
+# Then: ./scrip-cc -jvm -Idemo/inc demo/beauty.sno -o /tmp/beauty.j
 # Then: java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/beauty.j
 # Then: java -cp /tmp/cls Beauty < demo/beauty.sno > /tmp/beauty_jvm_out.sno
 # Then: diff /tmp/beauty_oracle.sno /tmp/beauty_jvm_out.sno
@@ -281,7 +281,7 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh \
 ```bash
 # Run existing ASM driver through JVM backend
 DRIVER=test/beauty/<sub>/driver.sno
-./sno2c -jvm -Idemo/inc $DRIVER -o /tmp/drv.j
+./scrip-cc -jvm -Idemo/inc $DRIVER -o /tmp/drv.j
 java -jar src/backend/jvm/jasmin.jar -d /tmp/cls /tmp/drv.j
 java -cp /tmp/cls Driver > /tmp/jvm_out.txt
 diff test/beauty/<sub>/driver.ref /tmp/jvm_out.txt

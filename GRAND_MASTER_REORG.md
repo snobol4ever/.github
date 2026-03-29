@@ -11,7 +11,7 @@ compiler/runtime product repos:
 
 | Repo | Role | Language | Notes |
 |------|------|----------|-------|
-| `snobol4x` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
+| `one4all` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
 | `snobol4jvm` | Compiler/runtime | Clojure | SNOBOL4/SPITBOL → JVM only |
 | `snobol4dotnet` → `snobol4net` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only; rename pending (M-G9) |
 | `harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
@@ -27,16 +27,16 @@ structurally reorganized** but their rename (to the canonical `harness` /
 `corpus` marketing names, per RENAME.md) is part of the reorg scope and
 is executed in **M-G0-RENAME** below.
 
-`snobol4x` is the 2D matrix repo — the only one that is, or will be, multi-frontend
+`one4all` is the 2D matrix repo — the only one that is, or will be, multi-frontend
 and multi-backend. `snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend
 repos written in different host languages; they are **not restructured here**.
 
-A fifth backend, **C** (`sno2c`), exists in `snobol4x` but is effectively dead — it
+A fifth backend, **C** (`scrip-cc`), exists in `one4all` but is effectively dead — it
 produces C output that is not actively maintained or tested. It is **excluded from
 the reorg** (not moved, not renamed, not wired to shared IR). Its presence is noted
 here only to prevent confusion with the active backends.
 
-Each pipeline in `snobol4x` was built when it was needed, with naming, folder
+Each pipeline in `one4all` was built when it was needed, with naming, folder
 structure, and IR conventions that were right-for-the-moment. The result is structural debt:
 
 - **Six separate IRs** (or near-IRs): SNOBOL4's `EXPR_t/EKind`, Icon's `IcnNode`,
@@ -53,7 +53,7 @@ structure, and IR conventions that were right-for-the-moment. The result is stru
   emitters live under `src/frontend/`, not `src/backend/`.
 
 The goal of the Grand Master Reorganization is to impose a single clean architecture
-across `snobol4x`:
+across `one4all`:
 
 ```
 6 frontends → ONE shared IR → 4 active backends (x86, JVM, .NET, WASM)
@@ -69,7 +69,7 @@ The 24 pipelines (6 × 4) become consistent by construction.
 ### Folder Structure (post-reorg)
 
 ```
-snobol4x/
+one4all/
   src/
     frontend/
       snobol4/        lex.c  parse.c  lower.c   → IR
@@ -95,7 +95,7 @@ snobol4x/
       wasm/
         emit_wasm.c   ← THE WebAssembly emitter (consumes IR)
         emit_wasm.h
-      c/              ← DEAD — sno2c C backend, not maintained, excluded from reorg
+      c/              ← DEAD — scrip-cc C backend, not maintained, excluded from reorg
     runtime/
       asm/            (unchanged)
       jvm/            (unchanged)
@@ -136,7 +136,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_MPY` | Multiplication | evaluate | — |
 | `E_DIV` | Division | evaluate | — |
 | `E_MOD` | Modulo / remainder | evaluate | — |
-| `E_POW` | Exponentiation (`EXR` in SIL; `E_EXPOP` in sno2c.h) | evaluate | — |
+| `E_POW` | Exponentiation (`EXR` in SIL; `E_EXPOP` in scrip-cc.h) | evaluate | — |
 | **Sequence and Alternation** | | | |
 | `E_SEQ` | Sequence / concatenation, n-ary (`CONCAT`/`CONCL` in SIL; was `E_CONC`) | left then right | right-ω → left-β |
 | `E_ALT` | SNOBOL4 pattern alternation, n-ary (`ORPP` in SIL; was `E_OR`) | try left | left-ω → try right |
@@ -161,13 +161,13 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_ABORT` | `ABORT` — abort entire match immediately | abort | — |
 | `E_BAL` | `BAL` — match balanced parentheses (`p$bal`) | match balanced | fail |
 | **Captures** | | | |
-| `E_CAPT_COND` | `.` conditional capture (`E_NAM` in sno2c.h) | match, save on success | pass β to child |
-| `E_CAPT_IMM` | `$` immediate capture (`E_DOL` in sno2c.h) | match, save immediately | pass β to child |
-| `E_CAPT_CUR` | `@var` cursor position capture (`XATP=4` in SIL; `E_ATP` in sno2c.h) | capture cursor | — |
+| `E_CAPT_COND` | `.` conditional capture (`E_NAM` in scrip-cc.h) | match, save on success | pass β to child |
+| `E_CAPT_IMM` | `$` immediate capture (`E_DOL` in scrip-cc.h) | match, save immediately | pass β to child |
+| `E_CAPT_CUR` | `@var` cursor position capture (`XATP=4` in SIL; `E_ATP` in scrip-cc.h) | capture cursor | — |
 | **Call, Access, Assignment** | | | |
 | `E_FNC` | Function call / goal / builtin, n-ary (`FNCTYP=5` in SIL) | call | — |
 | `E_IDX` | Array / table / record subscript (`ARYTYP=7` in SIL; absorbs `E_ARY`) | aref | — |
-| `E_ASSIGN` | Assignment (`ASGN` proc in SIL; `E_ASGN` in sno2c.h) | evaluate RHS, assign | — |
+| `E_ASSIGN` | Assignment (`ASGN` proc in SIL; `E_ASGN` in scrip-cc.h) | evaluate RHS, assign | — |
 | **Scan and Swap** | | | |
 | `E_MATCH` | `E ? E` scanning (`XSCON=30`/`SCONCL` in SIL) | set subject | restore subject |
 | `E_SWAP` | `:=:` swap bindings (`SWAP` proc in SIL) | swap | — |
@@ -190,7 +190,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 
 **59 node kinds total** (45 + 14 pattern primitives that each have distinct Byrd box wiring in `emit_byrd_asm.c`).
 
-**Rename bridge — old sno2c.h names → canonical ir.h names:**
+**Rename bridge — old scrip-cc.h names → canonical ir.h names:**
 
 | Old name | Canonical name | Note |
 |----------|---------------|------|
@@ -211,7 +211,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 | `E_SCAN` | `E_MATCH` | Pattern match / scanning |
 | `E_BANG` | `E_ITER` | Iterate elements |
 
-During Phase 1 (M-G1-IR-HEADER-WIRE), `sno2c.h` gets `#define` aliases so
+During Phase 1 (M-G1-IR-HEADER-WIRE), `scrip-cc.h` gets `#define` aliases so
 existing code compiles without change. The aliases are removed in Phase 3.
 
 | Source construct | Lowers to | Rationale |
@@ -269,7 +269,7 @@ during Phases 3–5, not theoretically in advance.
 |-------------|-------------|-----|
 | Add a node | Lon — after emitter evidence shows lowering fails | Add to `ir.h`, update all four backends, re-run invariants |
 | Remove a node | Lon — after evidence shows two nodes always emit identically | Merge in `ir.h`, update frontends that used removed node |
-| Rename a node | Lon — for clarity | Phase 3 naming pass; alias bridging in `sno2c.h` |
+| Rename a node | Lon — for clarity | Phase 3 naming pass; alias bridging in `scrip-cc.h` |
 | Split a node | Lon — if β behavior diverges by context | Same as add |
 
 **The 45 nodes are the starting point. The reorg execution produces the final answer.**
@@ -348,7 +348,7 @@ restructuring. `ICN_OUT` is the law; do not use bare `E()` in `icon_emit.c`.
 
 **EKind alias bridges — law addition (M-G0-SIL-NAMES):**
 
-During Phase 1 (M-G1-IR-HEADER-WIRE), `sno2c.h` receives `#define` aliases
+During Phase 1 (M-G1-IR-HEADER-WIRE), `scrip-cc.h` receives `#define` aliases
 mapping old names to canonical `ir.h` names (e.g. `#define E_VART E_VAR`).
 These aliases exist only for compilation compatibility. They are removed
 in Phase 5 when all frontends are updated to use canonical names.
@@ -379,7 +379,7 @@ entirely. The test suite must be green at the end of every milestone. Any regres
 ### Invariant Table
 
 Each milestone's Verify column references the **minimum set of backend invariants
-its change can affect**. A change to a shared file (e.g. `ir.h`, `sno2c.h`,
+its change can affect**. A change to a shared file (e.g. `ir.h`, `scrip-cc.h`,
 `emit_x64.c`) triggers all four backends. A change scoped to one backend's emitter
 triggers only that backend. A change to one frontend's `lower.c` triggers only the
 backends that frontend is wired to.
@@ -398,7 +398,7 @@ Physical file renames happen in Phase 2 (M-G2-MOVE-ASM).
 Never report only one backend. If a backend cannot be run in the current
 environment, mark it with its last known good count and note why.
 
-#### x86 backend — trigger when: any change to `emit_x64.c`, `emit_x64_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to x64
+#### x86 backend — trigger when: any change to `emit_x64.c`, `emit_x64_*.c`, `ir.h`, `scrip-cc.h`, or any frontend lower.c wired to x64
 
 | Frontend | Suite | Count | Runner |
 |----------|-------|-------|--------|
@@ -408,7 +408,7 @@ environment, mark it with its last known good count and note why.
 | Snocone | x86 corpus | `10/10` | `test/frontend/snocone/sc_asm_corpus/run_sc_asm_corpus.sh` |
 | Rebus | round-trip | `3/3` | `test/rebus/run_roundtrip.sh` |
 
-#### JVM backend — trigger when: any change to `emit_jvm.c`, `emit_jvm_*.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to JVM
+#### JVM backend — trigger when: any change to `emit_jvm.c`, `emit_jvm_*.c`, `ir.h`, `scrip-cc.h`, or any frontend lower.c wired to JVM
 
 | Frontend | Suite | Count | Runner |
 |----------|-------|-------|--------|
@@ -416,7 +416,7 @@ environment, mark it with its last known good count and note why.
 | Icon | rung corpus (rungs 01–38) | `38 rung folders` | `test/frontend/icon/corpus/` (per-rung) |
 | Prolog | SWI bench ladder | `31/31` | `test/frontend/prolog/run_prolog_jvm_rung.sh` |
 
-#### .NET backend — trigger when: any change to `emit_net.c`, `ir.h`, `sno2c.h`, or any frontend lower.c wired to .NET
+#### .NET backend — trigger when: any change to `emit_net.c`, `ir.h`, `scrip-cc.h`, or any frontend lower.c wired to .NET
 
 | Frontend | Suite | Count | Runner |
 |----------|-------|-------|--------|
@@ -443,21 +443,21 @@ Session prefix for all reorg work: **`G`** (Grand Master). e.g. G-1, G-2, ...
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G0-FREEZE** ✅ | Tag current HEAD of snobol4x as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. harness HEAD: `eced661`. corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
-| **M-G0-RENAME** ✅ | Confirmed: `harness` and `corpus` already use canonical marketing names in all snobol4x and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
-| **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `snobol4x` and into `corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
+| **M-G0-FREEZE** ✅ | Tag current HEAD of one4all as `pre-reorg-freeze` (`a051367`). Baseline recorded in `doc/BASELINE.md`. harness HEAD: `eced661`. corpus HEAD: `ccd79fa`. All concurrent development frozen. | Tag pushed; `doc/BASELINE.md` committed `716b814` |
+| **M-G0-RENAME** ✅ | Confirmed: `harness` and `corpus` already use canonical marketing names in all one4all and .github cross-repo references. GitHub redirects from old dash-form slugs (`snobol4-harness`, `snobol4-corpus`) are live — both resolve to the same HEAD. Zero file changes required. | All references verified clean |
+| **M-G0-CORPUS-AUDIT** | **Plan** the migration of corpus source programs out of `one4all` and into `corpus`. No files move yet — this milestone produces the migration map only. See full inventory and open decisions below. | `doc/CORPUS_MIGRATION.md` exists and all three open decisions are resolved |
 | **M-G0-AUDIT** ✅ | Audit all emitter files: document every `emit_<thing>` function signature, every local variable name, every generated label pattern. Covers: `emit_byrd_asm.c`, `emit_byrd_jvm.c`, `emit_byrd_net.c`, `emit_wasm.c` (stub), `icon_emit_jvm.c`, `prolog_emit_jvm.c`, `icon_emit.c` (x64 icon), and the Prolog-x64 sections of `emit_byrd_asm.c`. Produce `doc/EMITTER_AUDIT.md`. | `doc/EMITTER_AUDIT.md` committed `252dac0` |
 | **M-G0-IR-AUDIT** ✅ | Audit all six frontend IRs: list every node kind used, cross-reference to the target unified enum above. Produce `doc/IR_AUDIT.md`. `E_VAR` renamed `E_VAR` (T was SIL type-code artifact). 45 canonical node names. See `ARCH-sil-heritage.md`. | `doc/IR_AUDIT.md` updated; `ARCH-sil-heritage.md` committed `fb90365` |
-| **M-G0-SIL-NAMES** ✅ | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`sno2c.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` committed — covers all four areas. Two law additions: `ICN_OUT()` for icon_emit.c write macro (avoids `E()` collision); EKind alias bridge documentation. `snobol4_asm.mac` is fully conformant gold standard. No law corrections needed — existing law is sound. |
+| **M-G0-SIL-NAMES** ✅ | **Broader SIL heritage naming analysis.** G-7 covered IR node names only. The SIL naming heritage extends to: (1) runtime variable names in generated code (`sno_var_X`, `sno_cursor`, `pl_trail_top`, `icn_retval` — do these align with SIL's VARTYP/cursor conventions?); (2) emitter C source variable names (`scrip-cc.h` struct fields, local names in emit functions); (3) generated label prefixes (`P_`, `L`, `sno_`, `pl_`, `icn_`, `pj_`, `ij_`); (4) runtime library function names (`snobol4_asm.mac` macro names, Byrd box macro library). Produce `doc/SIL_NAMES_AUDIT.md` covering all four areas. **Prerequisite for M-G3** — naming law may need extension once broader heritage is understood. | `doc/SIL_NAMES_AUDIT.md` committed — covers all four areas. Two law additions: `ICN_OUT()` for icon_emit.c write macro (avoids `E()` collision); EKind alias bridge documentation. `snobol4_asm.mac` is fully conformant gold standard. No law corrections needed — existing law is sound. |
 
 #### M-G0-CORPUS-AUDIT — Inventory and Open Decisions
 
-**What was found in `snobol4x/test/` (G-7 session, 2026-03-28):**
+**What was found in `one4all/test/` (G-7 session, 2026-03-28):**
 
-All corpus source programs currently living in `snobol4x`. None of these belong here
+All corpus source programs currently living in `one4all`. None of these belong here
 post-reorg — they must migrate to `corpus`.
 
-| Location in snobol4x | Extensions | Count | Destination in corpus |
+| Location in one4all | Extensions | Count | Destination in corpus |
 |-----------------------|-----------|-------|------------------------------|
 | `test/frontend/icon/corpus/rung01–rung38/` | `.icn` | 258 | `programs/icon/rung*/` (TBD — check overlap with existing 851 files) |
 | `test/frontend/prolog/corpus/rung*/` | `.pro`, `.pl` | 130 | `programs/prolog/rung*/` |
@@ -480,20 +480,20 @@ These travel with the source programs (decision pending — see below).
    their source programs. Source and oracle are a unit — they travel together.
 
 2. **Runner scripts (`run_rung*.sh` etc.):** ✅ **Stay in all three compiler/runtime repos**
-   (`snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`), with paths updated to point
+   (`one4all`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`), with paths updated to point
    to `corpus`. Runners are compiler-specific test drivers, not shared infrastructure.
 
 3. **Overlap / dedup:** ✅ **Clone `corpus` and diff first.** If a file exists in
    both repos with identical content → keep one copy in `corpus`, remove from
-   `snobol4x`. If content differs → human review before any merge. No blind overwrites.
+   `one4all`. If content differs → human review before any merge. No blind overwrites.
 
 **Dedup analysis complete (G-7 session, 2026-03-28):**
 
-`corpus` was cloned and diffed against every snobol4x corpus directory.
-Result: **zero content conflicts**. Every file in `snobol4x/test/` is either
+`corpus` was cloned and diffed against every one4all corpus directory.
+Result: **zero content conflicts**. Every file in `one4all/test/` is either
 entirely absent from `corpus` or clearly distinct. No blind-overwrite risk.
 
-| Frontend | snobol4x location | Files | In corpus? | Action |
+| Frontend | one4all location | Files | In corpus? | Action |
 |----------|-------------------|-------|-------------------|--------|
 | Icon | `test/frontend/icon/corpus/rung01–38/` | 258 `.icn` | ❌ Not present (corpus has IPL only) | Move to `programs/icon/rung*/` |
 | Prolog | `test/frontend/prolog/corpus/rung*/` | 130 `.pro/.pl` | ❌ Not present | Move to `programs/prolog/rung*/` |
@@ -507,7 +507,7 @@ entirely absent from `corpus` or clearly distinct. No blind-overwrite risk.
 
 **One file resolved this session:**
 `corpus/programs/beauty/beauty.sno` removed (`6c964b8`). The corpus version
-used `.inc` extensions and different indentation — stale. `snobol4x/demo/beauty.sno`
+used `.inc` extensions and different indentation — stale. `one4all/demo/beauty.sno`
 is the single authoritative copy.
 
 **All `.expected`/`.ref` oracle files travel with their source programs** (per decision 1).
@@ -516,13 +516,13 @@ is the single authoritative copy.
 
 | Step | Action | Verify |
 |------|--------|--------|
-| 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to corpus; matching removal from snobol4x. | Icon invariants green after each batch |
+| 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to corpus; matching removal from one4all. | Icon invariants green after each batch |
 | 2 | Move Prolog corpus (130 `.pro`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
 | 3 | Move Snocone corpus (30 `.sc` + oracles). | Snocone 10/10 green |
 | 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 x86 106/106 + JVM + 110/110 NET green |
 | 5 | Move Rebus corpus (3 `.reb` + oracles). | Rebus 3/3 green |
 | 6 | **HOLD** — `demo/beauty.sno` vs corpus `beauty.sno` divergence. Human review. | Lon sign-off |
-| 7 | Update runner script paths in `snobol4x`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `corpus` paths |
+| 7 | Update runner script paths in `one4all`, `snobol4jvm`, `snobol4dotnet`/`snobol4net`. | All runners execute against `corpus` paths |
 | 8 | Run full invariant suite. | All four backend invariants green |
 
 ---
@@ -531,10 +531,10 @@ is the single authoritative copy.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G1-IR-HEADER-DEF** ✅ | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean ✅; `IR_DEFINE_NAMES` name table PASS ✅; `IR_COMPAT_ALIASES` 15 bridges PASS ✅; `E_KIND_COUNT = 59` ✅. Commit snobol4x `a1f9a76`. |
-| **M-G1-IR-HEADER-WIRE** ✅ | Add `#include "ir/ir.h"` to `sno2c.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean ✅; x86 106/106 ✅. E_ARY/E_IDX duplicate cases collapsed (sval-based dispatch) in all 4 backends. EXPR_T_DEFINED guard added to ir.h. -I . added to Makefile. Commit snobol4x `4cb03d4`. |
-| **M-G1-IR-PRINT** ✅ | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: 6 node types printed correctly ✅; integrated into Makefile ✅; 106/106 ✅. Commit snobol4x `23d339b`. |
-| **M-G1-IR-VERIFY** ✅ | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | 6/6 unit tests PASS ✅; `make debug` target added ✅; 106/106 ✅. Commit snobol4x `c14da15`. |
+| **M-G1-IR-HEADER-DEF** ✅ | Create `src/ir/ir.h` with the full unified `EKind` enum (all node kinds from all frontends, listed above). Do **not** include it anywhere yet. Compile it standalone: `gcc -c src/ir/ir.h` (or equivalent). Fix any exhaustive-switch warnings that would fire when new kinds are added. | `gcc -fsyntax-only src/ir/ir.h` clean ✅; `IR_DEFINE_NAMES` name table PASS ✅; `IR_COMPAT_ALIASES` 15 bridges PASS ✅; `E_KIND_COUNT = 59` ✅. Commit one4all `a1f9a76`. |
+| **M-G1-IR-HEADER-WIRE** ✅ | Add `#include "ir/ir.h"` to `scrip-cc.h`. Fix any `switch(kind)` statements that become non-exhaustive (add `default: assert(0)` where appropriate). No logic changes. | `make -j4` clean ✅; x86 106/106 ✅. E_ARY/E_IDX duplicate cases collapsed (sval-based dispatch) in all 4 backends. EXPR_T_DEFINED guard added to ir.h. -I . added to Makefile. Commit one4all `4cb03d4`. |
+| **M-G1-IR-PRINT** ✅ | Create `src/ir/ir_print.c` — a single `ir_print_node(EXPR_t *e, FILE *f)` that prints any node kind. Used for debugging all frontends uniformly. | Unit test: 6 node types printed correctly ✅; integrated into Makefile ✅; 106/106 ✅. Commit one4all `23d339b`. |
+| **M-G1-IR-VERIFY** ✅ | Create `src/ir/ir_verify.c` — structural invariant checker: every node has valid `kind`, `nchildren` matches kind spec, no NULL children where not allowed. Called from driver in debug builds. | 6/6 unit tests PASS ✅; `make debug` target added ✅; 106/106 ✅. Commit one4all `c14da15`. |
 
 ---
 
@@ -879,7 +879,7 @@ kinds. The enumerator is shared across all languages.
 |----|----------|--------|-------------|
 | **M-G8-HOME** | Where does the enumerator live? | Evaluate `harness` (cross-repo test infra, already hosts probe/monitor) vs new `snobol4gen` repo (cleaner separation). Decide and document. | `doc/GEN_HOME.md` — one-page decision record: chosen location, rationale, how other repos reference it |
 | **M-G8-DEPTH** | Token-count or IR-node depth as the bound? | Token-count is user-intuitive ("programs up to 20 tokens"). IR-node depth is uniform across languages (depth-5 tree has the same combinatorial budget in every grammar). Evaluate both for SNOBOL4 pattern fragment: how many programs does each generate at N=10, N=20, N=25? Is the count tractable? | `doc/GEN_DEPTH.md` — table: language × bound-type × N → program count. Chosen primary bound documented. |
-| **M-G8-ORACLE** | How is expected output determined for generated programs? | Option A: differential (CSNOBOL4 + SPITBOL agree → that is correct; any snobol4x backend that disagrees → bug). Option B: reference cache (run CSNOBOL4 once per generated program, store `.ref`). Evaluate: is differential sufficient, or do we need cached refs for regression detection after a fix? | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
+| **M-G8-ORACLE** | How is expected output determined for generated programs? | Option A: differential (CSNOBOL4 + SPITBOL agree → that is correct; any one4all backend that disagrees → bug). Option B: reference cache (run CSNOBOL4 once per generated program, store `.ref`). Evaluate: is differential sufficient, or do we need cached refs for regression detection after a fix? | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
 | **M-G8-GRAMMAR** | What is the Phase-1 grammar scope? | Which language first and what fragment? Candidates: (a) SNOBOL4 pattern expressions — richest, most bug-prone, maps directly to E_QLIT/E_CONC/E_OR/E_ARBNO/E_CAPT_COND/E_CAPT_IMM/E_VAR (7 node kinds); (b) Icon generator expressions — E_TO/E_TO_BY/E_SUSPEND/E_ALT_GEN/E_ITER/E_LIMIT (6 kinds, `Expressions.py` already seeds this); (c) Prolog clause bodies — E_UNIFY/E_CLAUSE/E_CHOICE/E_CUT (4 kinds, simpler). Evaluate coverage ROI vs implementation effort. | `doc/GEN_GRAMMAR.md` — chosen first language and fragment, BNF of the fragment, mapping from each production to its IR node kind(s), estimated program count at N=25 |
 
 All four `doc/GEN_*.md` files must exist and be consistent before any enumerator
@@ -894,14 +894,14 @@ the doc, not in code.
 |----|--------|-------------|--------|
 | **M-G8-ENUM-CORE** | Implement `gen/enumerate.py` — depth-bounded IR-tree enumerator. Takes a grammar spec (dict of node-kind → children rules) and a depth bound. Yields `EXPR_t`-compatible tree objects. No serialization yet. | M-G8-GRAMMAR | Unit test: SNOBOL4 pattern fragment, depth=3 → exact expected count matches `doc/GEN_DEPTH.md` table |
 | **M-G8-EMIT-SNO** | Implement `gen/emit_sno.py` — serializes an IR tree to a one-statement `.sno` file: fixed subject string, pattern match, OUTPUT of captures. | M-G8-ENUM-CORE | 10 hand-verified generated `.sno` files compile and run correctly under CSNOBOL4 |
-| **M-G8-RUNNER** | Implement `gen/run_gen.py` — pipeline: enumerate → emit `.sno` → compile all backends → differential check (CSNOBOL4 vs each snobol4x backend) → on divergence: invoke Monitor → report first diverging event. | M-G8-EMIT-SNO + M-G8-ORACLE | 100 generated SNOBOL4 pattern programs, depth ≤ 4, all PASS or divergences reported with Monitor drill-down |
-| **M-G8-SNOBOL4-N10** | Run SNOBOL4 pattern fragment, depth bound N=10. All divergences found → Monitor drill-down → fix emitter → re-run → clean. | M-G8-RUNNER | Zero divergences at N=10 across all three snobol4x backends |
+| **M-G8-RUNNER** | Implement `gen/run_gen.py` — pipeline: enumerate → emit `.sno` → compile all backends → differential check (CSNOBOL4 vs each one4all backend) → on divergence: invoke Monitor → report first diverging event. | M-G8-EMIT-SNO + M-G8-ORACLE | 100 generated SNOBOL4 pattern programs, depth ≤ 4, all PASS or divergences reported with Monitor drill-down |
+| **M-G8-SNOBOL4-N10** | Run SNOBOL4 pattern fragment, depth bound N=10. All divergences found → Monitor drill-down → fix emitter → re-run → clean. | M-G8-RUNNER | Zero divergences at N=10 across all three one4all backends |
 | **M-G8-SNOBOL4-N25** | Extend to N=25. | M-G8-SNOBOL4-N10 | Zero divergences at N=25 |
 | **M-G8-ICON-GRAMMAR** | Write grammar spec for Icon generator expressions (BNF + IR node mapping). Extend `gen/emit_sno.py` for `.icn` serialization. | M-G8-SNOBOL4-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.icn` files correct |
 | **M-G8-ICON-N25** | Run Icon generator fragment, N=25, all three backends. | M-G8-ICON-GRAMMAR | Zero divergences at N=25 |
 | **M-G8-PROLOG-GRAMMAR** | Write grammar spec for Prolog clause bodies (BNF + IR node mapping). Extend for `.pro` serialization. | M-G8-ICON-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.pro` files correct |
 | **M-G8-PROLOG-N25** | Run Prolog clause body fragment, N=25, all three backends. | M-G8-PROLOG-GRAMMAR | Zero divergences at N=25 |
-| **M-G8-CI** | Wire the enumerator into CI: on every commit to `snobol4x`, run the N=10 slice for all three languages. N=25 run on demand (too slow for every commit). | M-G8-PROLOG-N25 | CI green; N=10 run completes in < 5 minutes |
+| **M-G8-CI** | Wire the enumerator into CI: on every commit to `one4all`, run the N=10 slice for all three languages. N=25 run on demand (too slow for every commit). | M-G8-PROLOG-N25 | CI green; N=10 run completes in < 5 minutes |
 
 ---
 
@@ -970,7 +970,7 @@ The Grand Master Reorg is complete (M-G7-UNFREEZE fires) when:
 5. The Byrd box wiring logic for every shared node kind lives in exactly one place.
 6. Every corpus test that passed before the reorg still passes.
 7. `doc/STYLE.md` exists and all source files conform to it.
-8. The `snobol4x` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4net` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
+8. The `one4all` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4net` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
 
 The full project testing transformation is complete (M-G8-CI fires) when:
 
@@ -978,9 +978,9 @@ The full project testing transformation is complete (M-G8-CI fires) when:
    `doc/GEN_ORACLE.md`, `doc/GEN_GRAMMAR.md` — all consistent, all agreed.
 10. `gen/enumerate.py` enumerates IR trees for SNOBOL4, Icon, and Prolog grammar
     fragments up to depth N=25.
-11. Zero divergences between oracle and all three snobol4x backends at N=25 for
+11. Zero divergences between oracle and all three one4all backends at N=25 for
     all three language fragments.
-12. The N=10 slice runs in CI on every commit to snobol4x in under 5 minutes.
+12. The N=10 slice runs in CI on every commit to one4all in under 5 minutes.
 
 ---
 
@@ -991,9 +991,9 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `snobol4x`, `snobol4jvm`, `.github`, `harness`, `corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
+| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `one4all`, `snobol4jvm`, `.github`, `harness`, `corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
 | **M-G9-RENAME-NET-EXEC** | Rename GitHub repo `snobol4ever/snobol4dotnet` → `snobol4ever/snobol4net`. GitHub creates redirect from old name automatically. Update RENAME.md name grid. | `git ls-remote github.com/snobol4ever/snobol4net` resolves; old name redirects |
-| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `snobol4x` runner scripts, `harness` adapters. One repo per commit. | All references resolve; no broken links |
+| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `one4all` runner scripts, `harness` adapters. One repo per commit. | All references resolve; no broken links |
 | **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite. Confirm nothing broke. Count TBD — retest required before this milestone can close. | Full suite PASS (retest to establish count) |
 
 ---
@@ -1074,7 +1074,7 @@ only by which emit function was active. This made Phase 4 extraction impossible.
 **Impact:**
 - `ir.h`: add `E_CONCAT` enum entry; keep `E_SEQ`; update `E_CONC` alias to
   `E_SEQ` (pattern) — add `E_CONCAT` alias for value-context callers
-- `sno2c.h` / SNOBOL4 lowering: value-context concat → `E_CONCAT`; pattern-context → `E_SEQ`
+- `scrip-cc.h` / SNOBOL4 lowering: value-context concat → `E_CONCAT`; pattern-context → `E_SEQ`
 - `emit_x64.c`: `emit_expr` `E_CONC` case → `E_CONCAT`; `emit_pat_node` `E_CONC` case stays `E_SEQ`
 - `emit_jvm.c`: `E_CONC` (StringBuilder) → `E_CONCAT`
 - `emit_net.c`: value-context `E_CONC` → `E_CONCAT`; pattern-context `E_CONC` → `E_SEQ`

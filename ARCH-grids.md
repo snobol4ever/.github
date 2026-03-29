@@ -19,9 +19,9 @@
 | **SPITBOL** | SPITBOL x64 4.0f (Cheyenne Wills) | Native x64 compiler — speed reference |
 | **dotnet** | snobol4dotnet (Jeffrey Cooper) | Full C# implementation, .NET 10, MSIL JIT |
 | **jvm** | snobol4jvm (Lon Cherryholmes) | Full Clojure implementation, JVM bytecode |
-| **x-net** | snobol4x / .NET backend | TINY compiler, CIL output |
-| **x-jvm** | snobol4x / JVM backend | TINY compiler, Jasmin/JVM output |
-| **x-asm** | snobol4x / x86-64 ASM backend | TINY compiler, NASM output |
+| **x-net** | one4all / .NET backend | TINY compiler, CIL output |
+| **x-jvm** | one4all / JVM backend | TINY compiler, Jasmin/JVM output |
+| **x-asm** | one4all / x86-64 ASM backend | TINY compiler, NASM output |
 
 ---
 
@@ -352,7 +352,7 @@ Warm numbers show steady-state scripting cost.
 > Categories are **logical function**, comparable across all repos regardless of implementation language.
 > Numbers from `wc -l` on checked-out source. Generated artifacts excluded.
 
-### snobol4x ✅ M-VOL-X 2026-03-22
+### one4all ✅ M-VOL-X 2026-03-22
 
 | Category | Files | Lines | Blank-stripped | % total |
 |----------|------:|------:|:--------------:|--------:|
@@ -402,7 +402,7 @@ Warm numbers show steady-state scripting cost.
 > **STATUS: STUB — requires M-FEAT-{repo} to fire.**
 > Rating: ✅ complete · ⚠ partial · 🔧 skeleton · ❌ missing · — N/A for this repo type
 
-| Feature Area | snobol4x | snobol4jvm | snobol4dotnet | snobol4python | snobol4csharp |
+| Feature Area | one4all | snobol4jvm | snobol4dotnet | snobol4python | snobol4csharp |
 |-------------|:---:|:---:|:---:|:---:|:---:|
 | Core language (labels, GOTO, subject/pat/repl) | — | — | — | — | — |
 | String operations (SUBSTR/REPLACE/DUPL/etc) | — | — | — | — | — |

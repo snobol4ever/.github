@@ -19,7 +19,7 @@ Script is self-contained. See RULES.md for the six things it covers.
 | Repo | Role | Clone path |
 |------|------|------------|
 | `.github` | HQ — PLAN, ARCH, SESSION, FRONTEND docs | `/home/claude/.github/` |
-| `snobol4x` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/snobol4x/` |
+| `one4all` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/one4all/` |
 | `snobol4jvm` | SNOBOL4 → JVM, Clojure | `/home/claude/snobol4jvm/` |
 | `snobol4dotnet` → `snobol4net` | SNOBOL4 → .NET, C# (rename pending M-G9) | `/home/claude/snobol4dotnet/` |
 | `corpus` | Test corpus — .sno/.icn/.pro + .ref oracle output | `/home/claude/corpus/` |
@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ⏳ (484/0 via emit_baseline; co-located mode broken — see G-8 handoff) | `9c386ee` snobol4x · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ⏳ (484/0 via emit_baseline; co-located mode broken — see G-8 handoff) | `9c386ee` one4all · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -66,7 +66,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Repo | Doc |
 |------|-----|
-| snobol4x | `REPO-snobol4x.md` |
+| one4all | `REPO-one4all.md` |
 | snobol4jvm | `REPO-snobol4jvm.md` |
 | snobol4dotnet | `REPO-snobol4dotnet.md` |
 
@@ -93,7 +93,7 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 ## Parser pair session doc
 
 **Files:** `demo/scrip/prolog_parser.pro` · `demo/scrip/icon_parser.icn`
-**Commit:** `82c2491` snobol4x
+**Commit:** `82c2491` one4all
 
 ### M-PARSE-PROLOG (done)
 DCG tokeniser + op-climbing term parser + S-expression output. Handles facts,
@@ -163,7 +163,7 @@ or restructure as separate `if/else if` chains rather than `every`.
 
 ### DONE — "Run the mirrors" (2026-03-27, Claude Sonnet 4.6) — commit 9cb4af7
 ```bash
-cd snobol4x
+cd one4all
 
 # Prolog self-parse
 swipl -q -f demo/scrip/prolog_parser.pro -t halt \
@@ -450,9 +450,9 @@ Lon to assign. Read only: `PLAN.md` PP-1 section + this handoff.
 **Milestone defined: M-RECOG-CORPUS**
 
 New milestone to run all four tools (icon_parser, icon_recognizer, prolog_parser,
-prolog_recognizer) against every program in corpus and snobol4x test suites.
+prolog_recognizer) against every program in corpus and one4all test suites.
 
-**Harness scripts added to `snobol4x/test/scrip/`:**
+**Harness scripts added to `one4all/test/scrip/`:**
 - `run_corpus_icon.sh` — compiles both Icon tools, runs on all `.icn` files, reports pass/empty/crash
 - `run_corpus_prolog.sh` — runs both Prolog tools via swipl, reports pass/empty/crash
 
@@ -464,8 +464,8 @@ prolog_recognizer) against every program in corpus and snobol4x test suites.
 
 **Corpus sizes:**
 - `corpus/programs/icon/`: 851 .icn files
-- `snobol4x/test/frontend/icon/`: 258 .icn files
-- `snobol4x/test/frontend/prolog/`: 130 .pro/.pl files
+- `one4all/test/frontend/icon/`: 258 .icn files
+- `one4all/test/frontend/prolog/`: 130 .pro/.pl files
 
 ### Next session
 
@@ -479,7 +479,7 @@ Run the harness. Expected flow:
 
 ---
 
-## PP-1 Handoff update (2026-03-27 session 6, Claude Sonnet 4.6) -- commit 4b4d71a snobol4x
+## PP-1 Handoff update (2026-03-27 session 6, Claude Sonnet 4.6) -- commit 4b4d71a one4all
 
 ### M-RECOG-CORPUS PASS
 
@@ -505,7 +505,7 @@ parser produces empty output, not crash. Acceptable per milestone criteria.
 
 **Next session:** Lon to assign. Read only: PLAN.md PP-1 section.
 
-## PX-1 Handoff (2026-03-27, Claude Sonnet 4.6) — snobol4x `532be13`
+## PX-1 Handoff (2026-03-27, Claude Sonnet 4.6) — one4all `532be13`
 
 ### Accomplished
 - `\+` and `\=` inline emission ✅ (`e3f92cc`) — naf/alldiff PASS
@@ -525,7 +525,7 @@ from the `pl_all_dt_diff_sl_1_c1_body:` label through α0, and trace why
 
 ---
 
-## PX-1 Handoff (2026-03-28, Claude Sonnet 4.6) — snobol4x `a051367`
+## PX-1 Handoff (2026-03-28, Claude Sonnet 4.6) — one4all `a051367`
 
 ### Accomplished this session
 - `jle` fix: re-entry decode `inner = start-base` goes negative on head-fail jumps — `jz` → `jle`
@@ -563,24 +563,24 @@ around line 5840 (the `jmp α0` at end of re-entry decode).
 
 ---
 
-## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — .github `fb90365` snobol4x `d2ac7e6`
+## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — .github `fb90365` one4all `d2ac7e6`
 
 ### Phase 0 milestones completed this session
 
 | Milestone | Commit | What |
 |-----------|--------|------|
-| M-G0-FREEZE ✅ | snobol4x `716b814` | pre-reorg-freeze tag; doc/BASELINE.md |
+| M-G0-FREEZE ✅ | one4all `716b814` | pre-reorg-freeze tag; doc/BASELINE.md |
 | M-G0-RENAME ✅ | .github `22fae8d` | canonical names confirmed; GitHub redirects live |
 | M-G0-CORPUS-AUDIT ✅ | .github `19d0db8` | 471-file inventory; 0 conflicts; execution plan; beauty.sno divergence flagged for Lon |
-| M-G0-AUDIT ✅ | snobol4x `8b773e8` | doc/EMITTER_AUDIT.md — all 8 emitters, deviations, Greek law |
-| M-G0-IR-AUDIT ✅ | snobol4x `d2ac7e6` | doc/IR_AUDIT.md — 45 nodes, minimal set, lowering rules |
+| M-G0-AUDIT ✅ | one4all `8b773e8` | doc/EMITTER_AUDIT.md — all 8 emitters, deviations, Greek law |
+| M-G0-IR-AUDIT ✅ | one4all `d2ac7e6` | doc/IR_AUDIT.md — 45 nodes, minimal set, lowering rules |
 
 ### Key decisions and corrections made this session
 
 - **Greek law**: Greek letters (α β γ ω) used **everywhere** — C source, comments, generated labels. No ASCII aliases. Was incorrectly written as ASCII in original law doc — corrected.
-- **45 canonical IR node names** — finalized with SIL heritage. Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VAR→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
+- **45 canonical IR node names** — finalized with SIL heritage. Key renames from scrip-cc.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX` (merged), `E_ALT_GEN→E_GENALT`, `E_VAR→E_VAR`. New: `E_PLS`, `E_CSET`, `E_MAKELIST`.
 - **ARCH-sil-heritage.md** created — documents SIL v311.sil lineage for all E_ names.
-- **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, snobol4x, corpus, snobol4jvm.
+- **Git identity rule** corrected in RULES.md: all commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via git-filter-repo across .github, one4all, corpus, snobol4jvm.
 - **Phase 9 added**: snobol4dotnet → snobol4net rename (post M-G7-UNFREEZE).
 - **snobol4jvm, snobol4dotnet test counts** marked TBD — retest required.
 
@@ -612,7 +612,7 @@ have distinct Byrd box wiring in emit_byrd_asm.c:
 E_ANY, E_NOTANY, E_SPAN, E_BREAK, E_BREAKX, E_LEN, E_TAB, E_RTAB, E_REM,
 E_FAIL, E_SUCCEED, E_FENCE, E_ABORT, E_BAL.
 
-Source: snobol4x emit_byrd_asm.c lines 2420-2422 recognized builtin list.
+Source: one4all emit_byrd_asm.c lines 2420-2422 recognized builtin list.
 SPITBOL v37.min p$xxx match routines confirm each is distinct.
 Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 
@@ -620,7 +620,7 @@ Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 
 ---
 
-## G-8 Handoff (2026-03-29, Claude Sonnet 4.6) — snobol4x `9c386ee` .github pending
+## G-8 Handoff (2026-03-29, Claude Sonnet 4.6) — one4all `9c386ee` .github pending
 
 ### What was done this session
 
@@ -634,7 +634,7 @@ Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 - Added `ECHILD(e,idx)` macro to `emit_jvm.c`; fixed all OOB sites (ASan-verified).
 - Added per-file state reset to `asm_emit()` and `jvm_emit()`: zero `named_pats`,
   `call_slots`, `uid_ctr`, `jvm_pat_node_uid`, `jvm_fn_count_fwd`, etc. on every
-  call, not just first init. Commit `6967683` snobol4x.
+  call, not just first init. Commit `6967683` one4all.
 
 **emit-diff check: 484 pass / 0 fail (emit_baseline/ layout)**
 - `test/run_emit_check.sh` extended to all 7 cells: SNOBOL4×{asm,jvm,net},
@@ -645,19 +645,19 @@ Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 - `test/snobol4/{subdir}/foo.{sno,s,j,il}` — 152 SNOBOL4 sources with all backends.
 - `test/icon/foo.{icn,s,j}` — 8 Icon samples.
 - `test/prolog/foo.{pro,s,j}` — 6 Prolog samples.
-- Commit `9c386ee` snobol4x.
+- Commit `9c386ee` one4all.
 
 ### Unfinished / known issues
 
 **1. run_emit_check.sh co-located mode broken (PRIORITY 1)**
 The check script was rewritten to use co-located sources but produces 484 FAILs.
-Root cause: `sno2c` adds the source file's directory as an include dir via
+Root cause: `scrip-cc` adds the source file's directory as an include dir via
 `snoc_add_include_dir()` in `compile_one`. When sources live under
 `test/snobol4/arith_new/`, that directory is added as the include root, but
-`sno2c` silently produces **empty output** for those files (exit 0, 0 bytes).
+`scrip-cc` silently produces **empty output** for those files (exit 0, 0 bytes).
 The stored generated files were created from `corpus/crosscheck/` paths and have
-content. Direct `./sno2c -asm test/snobol4/arith_new/023_arith_add.sno` → 0 bytes.
-Same file via `./sno2c -asm /home/claude/corpus/crosscheck/arith_new/023_arith_add.sno` → 70 lines.
+content. Direct `./scrip-cc -asm test/snobol4/arith_new/023_arith_add.sno` → 0 bytes.
+Same file via `./scrip-cc -asm /home/claude/corpus/crosscheck/arith_new/023_arith_add.sno` → 70 lines.
 
 **Fix:** In `run_emit_check.sh` `check_one` and `regen_one`, pass
 `-I$(dirname $src)/..` or use the corpus path directly for SNOBOL4 files.
@@ -682,13 +682,13 @@ Declare ✅ after fixing run_emit_check.sh co-located mode.
 **Step 1 — Fix co-located check mode:**
 In `run_emit_check.sh`, pass corpus path for SNOBOL4, not test/snobol4/ path:
 ```bash
-# check_one: resolve source path to corpus for sno2c invocation
+# check_one: resolve source path to corpus for scrip-cc invocation
 # but compare output against co-located stored file
 CORPUS_SRC="/home/claude/corpus/crosscheck/$(basename $(dirname $src))/$(basename $src)"
 "$SNO2C" "$backend" "$CORPUS_SRC" > "$tmp" 2>/dev/null
 ```
 Or: set `-I` flag per subdir. Simplest: keep test/snobol4/ for human reading
-but invoke sno2c on the corpus originals.
+but invoke scrip-cc on the corpus originals.
 
 **Step 2 — Verify 484/0 with co-located mode, delete emit_baseline/**
 
@@ -698,14 +698,14 @@ but invoke sno2c on the corpus originals.
 Extract n-ary→binary right-fold helper for E_SEQ/E_CONCAT into
 `src/ir/ir_emit_common.c`. Shared by x64 and .NET. See GRAND_MASTER_REORG.md Phase 4.
 
-## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — snobol4x `0bc5d9a`
+## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — one4all `0bc5d9a`
 
 ### What was done this session
 
 **Repo renames (M-G0-RENAME cleanup):**
 - `snobol4ever/snobol4corpus` → `snobol4ever/corpus` ✅
 - `snobol4ever/snobol4harness` → `snobol4ever/harness` ✅
-- 112 refs updated in `.github`, 43 refs in `snobol4x`. Both committed.
+- 112 refs updated in `.github`, 43 refs in `one4all`. Both committed.
 
 **M-G4-SPLIT-SEQ-CONCAT phase 2 — parser/lowering E_CONC sites ✅**
 
@@ -756,7 +756,7 @@ TOKEN=ghp_<your-token> bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 
 **Step 2 — Confirm JVM 106/106:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 bash test/run_invariants.sh 2>&1 | grep -E "matrix|106|FAIL|wall"
 ```
 If JVM shows 106/106: commit `G-7: M-G-INV-JVM ✅ — JVM 106/106 confirmed`, update PLAN.md, advance to **M-G4-SHARED-CONC-FOLD**.

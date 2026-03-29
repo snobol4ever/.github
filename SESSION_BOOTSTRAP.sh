@@ -49,7 +49,7 @@ info "SNOBOL4/SPITBOL compiler/runtime"
 info "6 frontends (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip)"
 info "4 backends  (x86, JVM, .NET, WASM)"
 info "Grand Master Reorg (G-8): Phase 2+4 done; M-G-INV-EMIT next (emit-diff harness)"
-info "Reference docs: snobol4x/doc/EMITTER_AUDIT.md · IR_AUDIT.md · SIL_NAMES_AUDIT.md"
+info "Reference docs: one4all/doc/EMITTER_AUDIT.md · IR_AUDIT.md · SIL_NAMES_AUDIT.md"
 echo ""
 
 # ── WHERE — clone repos ───────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ clone_or_pull() {
 }
 
 clone_or_pull ".github"       ".github"
-clone_or_pull "snobol4x"      "snobol4x"
+clone_or_pull "one4all"      "one4all"
 clone_or_pull "corpus" "corpus"
 clone_or_pull "harness" "harness"
 echo ""
@@ -90,16 +90,16 @@ install_if_missing ilasm  mono-complete
 install_if_missing java   default-jre
 
 # jasmin.jar — bundled in repo
-JASMIN="/home/claude/snobol4x/src/backend/jvm/jasmin.jar"
+JASMIN="/home/claude/one4all/src/backend/jvm/jasmin.jar"
 [[ -f "$JASMIN" ]] && ok "jasmin.jar ($JASMIN)" || fail "jasmin.jar not found at $JASMIN"
 
-# sno2c binary — built from snobol4x
-SNO2C="/home/claude/snobol4x/sno2c"
+# scrip-cc binary — built from one4all
+SNO2C="/home/claude/one4all/scrip-cc"
 if [[ ! -x "$SNO2C" ]]; then
-    info "Building sno2c..."
-    (cd /home/claude/snobol4x && bash setup.sh -q 2>/dev/null) && ok "sno2c built" || fail "sno2c build failed"
+    info "Building scrip-cc..."
+    (cd /home/claude/one4all && bash setup.sh -q 2>/dev/null) && ok "scrip-cc built" || fail "scrip-cc build failed"
 else
-    ok "sno2c ($SNO2C)"
+    ok "scrip-cc ($SNO2C)"
 fi
 echo ""
 
@@ -120,7 +120,7 @@ echo ""
 
 # ── HOW — emit-diff invariant check (fast, emitter-only, ~4s) ─────────────────
 echo -e "${BOLD}HOW — emit-diff invariants (must be green before any work)${RESET}"
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 if [[ -d test/emit_baseline ]]; then
     info "Running emit-diff check (test/run_emit_check.sh)..."
     if CORPUS=/home/claude/corpus bash test/run_emit_check.sh 2>&1; then

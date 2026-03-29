@@ -12,7 +12,7 @@
 
 | Track | Repo | Emitter | Owner | Linker relevance |
 |-------|------|---------|-------|-----------------|
-| **TINY NET** | snobol4x | `src/backend/net/emit_byrd_net.c` | Lon | **This sprint** — add EXPORT/IMPORT here |
+| **TINY NET** | one4all | `src/backend/net/emit_byrd_net.c` | Lon | **This sprint** — add EXPORT/IMPORT here |
 | **DOTNET** | snobol4dotnet | Jeff's full C# runtime | Jeff | Later — Jeff's track, independent |
 
 **This sprint targets TINY NET only.** Jeff's snobol4dotnet `@N` bug and M-NET-POLISH
@@ -111,7 +111,7 @@ call void [PROLOG_ANCESTOR]PROLOG_ANCESTOR::ANCESTOR(object[],
 ```
 src/frontend/snobol4/
     lex.c / lex.h               (shared with JVM sprint — T_EXPORT/T_IMPORT already added)
-    parse.c / sno2c.h           (shared — ExportEntry/ImportEntry already added)
+    parse.c / scrip-cc.h           (shared — ExportEntry/ImportEntry already added)
 
 src/backend/net/
     emit_byrd_net.c             CHANGE: class name → derived from filename, prefixed SNOBOL4_
@@ -252,14 +252,14 @@ if (flag_net && flag_compile_only) {
     snprintf(cmd, sizeof cmd,
         "ilasm %s /dll /output:%s.dll", il_path, class_name);
     if (system(cmd) != 0) { fprintf(stderr, "ilasm failed\n"); exit(1); }
-    fprintf(stderr, "sno2c: wrote %s.dll\n", class_name);
+    fprintf(stderr, "scrip-cc: wrote %s.dll\n", class_name);
 }
 ```
 
 **Invocation after this sprint:**
 ```bash
-sno2c --net greet_lib.sno   > SNOBOL4_greet_lib.il
-sno2c --net greet_main.sno  > SNOBOL4_greet_main.il
+scrip-cc --net greet_lib.sno   > SNOBOL4_greet_lib.il
+scrip-cc --net greet_main.sno  > SNOBOL4_greet_main.il
 ilasm SNOBOL4_greet_lib.il  /dll /output:SNOBOL4_greet_lib.dll
 ilasm SNOBOL4_greet_main.il /exe /output:greet_main.exe
 mono greet_main.exe
@@ -271,7 +271,7 @@ mono greet_main.exe
 ```bash
 #!/bin/bash
 set -e
-SNO2C=../../../src/sno2c/sno2c
+SNO2C=../../../src/scrip-cc/scrip-cc
 OUT=./out ; mkdir -p $OUT
 
 $SNO2C --net greet_lib.sno  > $OUT/SNOBOL4_greet_lib.il
@@ -294,10 +294,10 @@ Same `greet_lib.sno` / `greet_main.sno` as JVM test — reuse verbatim.
 
 ```bash
 # TINY NET corpus — must stay 110/110
-cd snobol4x && make test-net 2>&1 | tail -5
+cd one4all && make test-net 2>&1 | tail -5
 
 # Existing .NET path still emits valid CIL (class name change is the risk)
-echo "OUTPUT = 'smoke'" | sno2c --net /dev/stdin | grep "SNOBOL4_"
+echo "OUTPUT = 'smoke'" | scrip-cc --net /dev/stdin | grep "SNOBOL4_"
 ```
 
 ---
@@ -360,7 +360,7 @@ That is SCRIP Level 2.
 Jeff's snobol4dotnet (`D-165` next) is **independent**. When M-NET-POLISH is
 eventually done there, a separate linker session will add EXPORT/IMPORT to his
 C# compiler pipeline using the same ABI contract — but different implementation
-path (C# AST → MSIL, not the TINY sno2c pipeline). That session is not yet
+path (C# AST → MSIL, not the TINY scrip-cc pipeline). That session is not yet
 written; file as future work once M-NET-POLISH clears.
 
 ---
@@ -373,12 +373,12 @@ written; file as future work once M-NET-POLISH clears.
 
 ## LP-4 Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
 
-**Commit:** `13866d1` snobol4x · `1ec57d4` .github
+**Commit:** `13866d1` one4all · `1ec57d4` .github
 
 ### Delivered
 - `DESCR.cs` — C# descriptor type, SIL `DESCR_t` lineage, `DT_*` tags matching C runtime
 - `ByrdBoxLinkage.cs` — γ/ω linkage class. Owns Succeed/Fail ports only; α/β are CLR's concern. Named after Byrd (person), not acronym.
-- `sno2c.h` — `ExportEntry`, `ImportEntry` (lang/name/method three fields), `Program.exports/imports`
+- `scrip-cc.h` — `ExportEntry`, `ImportEntry` (lang/name/method three fields), `Program.exports/imports`
 - `parse.c` — EXPORT/IMPORT control line recognition. Two-part `LANG.NAME` and three-part `LANG.AssemblyBase.METHOD` syntax. Case-preserving for assembly names (CLR is case-sensitive).
 - `emit_byrd_net.c` — `SNOBOL4_` prefix on all class names; `.dll` module when EXPORTs present; `net_is_exported()`; public Byrd-ABI wrapper per EXPORT; `net_find_import()` + `net_prog` global; import call dispatch emitting `ldnull`/`ldnull` + cross-assembly `call` + `ByrdBoxLinkage::Result` retrieval
 - `test/linker/net/` — `greet_lib.sno` (EXPORT GREET), `greet_main.sno` (IMPORT SNOBOL4.Greet_lib.GREET), `run.sh`
@@ -407,7 +407,7 @@ Two-part `IMPORT LANG.NAME` also accepted: NAME used as both AssemblyBase and ME
 
 ## LP-4b Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
 
-**Commits:** snobol4x (pending) · .github (pending)
+**Commits:** one4all (pending) · .github (pending)
 
 ### Naming convention revised
 

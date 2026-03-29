@@ -39,7 +39,7 @@ Oldest sessions pruned for context economy. Full git history is the permanent re
 
 ## PJ-8 — Prolog JVM — 2026-03-24
 
-**HEAD:** `d36f0ed` snobol4x main
+**HEAD:** `d36f0ed` one4all main
 
 **Fixed:** rung02 infinite loop. Root cause: `base[nclauses]` uninitialized in `pj_emit_choice()`.
 
@@ -69,7 +69,7 @@ Oldest sessions pruned for context economy. Full git history is the permanent re
 
 Binary `E_ATP` in value context emitted wrong OPSYN dispatch. Fixed `expr_has_pattern_fn` + `expr_is_pattern_expr`. 106/106 ✅.
 
-**Commits:** snobol4x `151a99b` · .github `468c507`
+**Commits:** one4all `151a99b` · .github `468c507`
 
 ---
 
@@ -165,7 +165,7 @@ triggers OFNE check on the stored function-result pattern.
 
 (1) Cloned harness + corpus; built CSNOBOL4 2.3.3 from tarball; confirmed 106/106 ASM corpus ALL PASS; C backend marked ☠️ DEAD (99/106, not maintained).
 (2) Re-ran all 19 beauty subsystem drivers standalone through ASM: 15/19 PASS. Regressions found: is, TDump, Gen, semantic FAIL. Filed M-BUG-IS-DIALECT, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER, M-BUG-SEMANTIC-NTYPE.
-(3) Bootstrap trial: beauty_asm produces 10-line header + Parse Error vs oracle 784 lines. Filed M-BUG-BOOTSTRAP-PARSE. HQ updated. No snobol4x code changes this session.
+(3) Bootstrap trial: beauty_asm produces 10-line header + Parse Error vs oracle 784 lines. Filed M-BUG-BOOTSTRAP-PARSE. HQ updated. No one4all code changes this session.
 ---
 
 ## PJ-10 — 2026-03-24
@@ -185,7 +185,7 @@ triggers OFNE check on the stored function-result pattern.
 
 ## PJ-11 — 2026-03-24
 
-**Repo:** snobol4x `main` · **HEAD:** `e3c30ab`
+**Repo:** one4all `main` · **HEAD:** `e3c30ab`
 **Milestone:** M-PJ-LISTS ✅
 
 **Work done:**
@@ -201,7 +201,7 @@ triggers OFNE check on the stored function-result pattern.
 ## PJ-12 — 2026-03-24
 
 **Milestone:** M-PJ-CUT ✅  
-**Commit:** `bf20b73` snobol4x main  
+**Commit:** `bf20b73` one4all main  
 **Result:** Rungs 01-07 all PASS via `-pl -jvm`
 
 **What was fixed:** `E_CUT` in `pj_emit_body` was emitting only `goto lbl_γ` — it succeeded but never sealed β. Clause 2 (`_,_ .`) remained reachable after cut+fail, giving wrong `yes` for `differ(a,a)`.
@@ -215,14 +215,14 @@ triggers OFNE check on the stored function-result pattern.
 ## B-286 — 2026-03-24
 
 **Milestone:** 4 bug milestones resolved; D-001–D-005 arch decisions recorded  
-**Commit:** `d8f1fe2` snobol4x main  
+**Commit:** `d8f1fe2` one4all main  
 **Result:** 19/19 beauty subsystems PASS; 106/106 corpus invariant holds; SPITBOL-primary architecture declared
 
 **Arch decisions (DECISIONS.md created):**
 - D-001: SPITBOL is the primary compat target. CSNOBOL4 FENCE difference disqualifies it as full target.
 - D-002: DATATYPE() returns UPPERCASE always (traditional SNOBOL4 spec). SPITBOL lowercase is ignore-point.
 - D-003: Test suite case-insensitive on DATATYPE output. normalize_trace.py and run_beauty_subsystem.sh normalise before diff.
-- D-004: .NAME is a third dialect — snobol4x emits DT_N (type=9). Observable behaviour matches SPITBOL (DIFFER succeeds, IDENT fails). Monitor ignore-point covers DT_N vs DT_S.
+- D-004: .NAME is a third dialect — one4all emits DT_N (type=9). Observable behaviour matches SPITBOL (DIFFER succeeds, IDENT fails). Monitor ignore-point covers DT_N vs DT_S.
 - D-005: Monitor swapped — SPITBOL is participant 0 (primary oracle). CSNOBOL4 is secondary.
 
 **Bug fix:** Single line in `emit_byrd_asm.c`: arg staging loop now always passes `rbp_off=-32` to `emit_expr` (was `-(rbp_off < 0 ? -rbp_off : 32)`). When a function call appears in subject position (rbp_off=-16), the old code caused E_VART to emit `GET_VAR→rbp-16/8` while `STORE_ARG32` reads `rbp-32/24` — stale data. Fix resolves four milestones: M-BUG-IS-DIALECT, M-BUG-SEMANTIC-NTYPE, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER.
@@ -262,7 +262,7 @@ Test puzzle_01–06 (already solved) via -pl -jvm. Then tackle stubs per FRONTEN
 
 ## IJ-7 (2026-03-24) — Diagnosis session: JVM rung03 no-output bug
 
-**HEAD:** `a3d4a55` (no snobol4x commits — diagnosis only, no fix landed)
+**HEAD:** `a3d4a55` (no one4all commits — diagnosis only, no fix landed)
 **Date:** 2026-03-24
 
 ### Work done
@@ -288,12 +288,12 @@ IJ-8: instrument → find exact branch → fix → fire M-IJ-CORPUS-R3
 **No code written.** Session consumed by context overhead (jcon-master + full repo read) and session-type misidentification (I vs IJ confusion).
 
 **What happened:**
-- Cloned snobol4x + .github, extracted jcon-master.zip, read PLAN.md, FRONTEND-ICON.md, FRONTEND-ICON-JVM.md, RULES.md, irgen.icn in full
+- Cloned one4all + .github, extracted jcon-master.zip, read PLAN.md, FRONTEND-ICON.md, FRONTEND-ICON-JVM.md, RULES.md, irgen.icn in full
 - Incorrectly began briefing under I-session (ASM frontend) instead of IJ-session (JVM backend)
 - Root cause: "ICON frontend + JVM backend" phrasing triggered I-session association; "JVM backend" signal was underweighted
 - **Fix:** Added `⚠ ICON vs IJ DISAMBIGUATION` rule to RULES.md (commit b21617a) — "JVM backend" = IJ, always
 
-**No milestones fired. No snobol4x changes.**
+**No milestones fired. No one4all changes.**
 
 ### Next
 IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch taking `done` not `sret` → fix → fire M-IJ-CORPUS-R3
@@ -302,7 +302,7 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 
 **Trigger:** "ICON frontend with JVM backend" → IJ-session (icon_emit_jvm.c)
 **Milestone:** M-IJ-CORPUS-R3 ✅
-**HEAD:** `54c301b` snobol4x main
+**HEAD:** `54c301b` one4all main
 
 **Work done:**
 - Diagnosed IJ-7 no-output bug: zero-init loop clobbered param n (slot 0) before `ifne icn_upto_beta`
@@ -313,14 +313,14 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 
 ## PJ-15 — 2026-03-24 (emergency handoff at ~95% context)
 
-**Trigger:** "playing with Prolog frontend for snobol4x with JVM backend"
+**Trigger:** "playing with Prolog frontend for one4all with JVM backend"
 **HEAD in:** `fabd377` (PJ-14)
-**HEAD out:** `0df7b38` (PJ-15, already on remote snobol4x)
+**HEAD out:** `0df7b38` (PJ-15, already on remote one4all)
 
 **Work done:**
 - Rungs 01-09 PASS confirmed on entry
 - Fixed `call_omega` bug: `local_cs` for exhausted inner call was not reset to 0 before jumping to enclosing beta, causing infinite loop when e.g. `differ` was exhausted and `item(Y)` retried
-- Fix: `iconst_0 / istore local_cs` before `goto lbl_ω` at `call_omega` label in `pj_emit_body` — committed `0df7b38` to snobol4x
+- Fix: `iconst_0 / istore local_cs` before `goto lbl_ω` at `call_omega` label in `pj_emit_body` — committed `0df7b38` to one4all
 - Identified remaining bug: two-clause `fail/retry` pattern (`p :- ..., fail. p.`) loops forever because `fail/0` in last body position receives `lbl_ω=clause_beta` instead of `lbl_pred_ω`, so exhausting clause 0 restarts it instead of advancing to clause 1
 
 **Next session PJ-16:** Fix `fail/0`→`lbl_pred_ω` wiring in `pj_emit_clause`/`pj_emit_body`. See §NOW CRITICAL NEXT ACTION.
@@ -328,7 +328,7 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 ## IJ-9 (continued) — M-IJ-STRING — 2026-03-24
 
 **Milestone:** M-IJ-STRING ✅
-**HEAD:** `9932df5` snobol4x main
+**HEAD:** `9932df5` one4all main
 
 **Work done:**
 - Added `'A'`-typed String static fields (`icn_pv_PROC_VAR Ljava/lang/String;`) alongside existing J/I types
@@ -368,7 +368,7 @@ IJ-9: build → instrument `icn_upto` with stderr probes → find exact branch t
 - Fixed both trigger phrases in HQ; added disambiguation note to RULES.md §SESSION NUMBERS.
 - Reverted incorrect ASM work (icon_emit.c / icon_runtime.c changes from wrong session).
 - Clarified FRONTEND-ICON-JVM.md header: icon_emit_jvm.c is JVM backend emission, not frontend parsing.
-- Created rung05_scan corpus: 5 tests (t01–t05) covering &subject read, scan from var, restore after scan, concat subject, nested scan. Committed `992a3a5` to snobol4x.
+- Created rung05_scan corpus: 5 tests (t01–t05) covering &subject read, scan from var, restore after scan, concat subject, nested scan. Committed `992a3a5` to one4all.
 - Full M-IJ-SCAN implementation plan documented in FRONTEND-ICON-JVM.md §IJ-10 findings (static fields, &subject keyword, ij_emit_scan four-port wiring, dispatch case, run_rung05.sh).
 
 **Next:** IJ-11 — implement ij_emit_scan, &subject keyword, icn_subject/icn_pos globals, fire M-IJ-SCAN.
@@ -407,12 +407,12 @@ Beauty still shows Parse Error. The r12 save/restore fix is committed but not ye
 
 ### Next session action
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 # Rebuild with B-289 commit
 cd src && make -j4
 WORK=/tmp/beauty_build
 RT=src/runtime; SNO2C_INC=src/frontend/snobol4
-./sno2c -asm -Idemo/inc -I$SNO2C_INC demo/beauty.sno -o $WORK/beauty.asm
+./scrip-cc -asm -Idemo/inc -I$SNO2C_INC demo/beauty.sno -o $WORK/beauty.asm
 nasm -f elf64 -I src/runtime/asm/ -o $WORK/beauty.o $WORK/beauty.asm
 for f in snobol4_stmt_rt snobol4 snobol4_pattern mock_engine blk_alloc blk_reloc; do
   gcc -O0 -g -c "$RT/asm/${f}.c" -I"$RT/snobol4" -I"$RT" -I"$SNO2C_INC" -w -o "$WORK/${f}.o" 2>/dev/null ||
@@ -431,7 +431,7 @@ If garbage vtype persists: r12 is still being clobbered somewhere else (e.g. use
 ## Session 2026-03-24 B-289 — M-BEAUTIFY-BOOTSTRAP buffer limits + FENCE + r12
 
 **Invariant maintained:** 106/106 ASM corpus ALL PASS ✅  
-**Commit:** `0378dad` B-289 (snobol4x)
+**Commit:** `0378dad` B-289 (one4all)
 
 ### Completed fixes
 - `NAMED_PAT_MAX 64→512`: Parse/Command/Compiland silently dropped
@@ -465,11 +465,11 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 ## Session 2026-03-24 B-290 — JVM pivot + r12/box_data fixes
 
 **Invariant:** 106/106 ASM corpus ALL PASS ✅  
-**Commit:** `05f36ae` B-290 (snobol4x main)
+**Commit:** `05f36ae` B-290 (one4all main)
 
 ### Fixes landed
 - `emit_named_ref`: r12 save slot now uses `flat_bss_register` (was `var_register` → landed in box DATA block → NASM undefined symbol)
-- `box_data[MAX_BOXES]` heap-allocated via `calloc` — was 20MB static BSS, caused `sno2c -jvm beauty.sno` segfault mid-output
+- `box_data[MAX_BOXES]` heap-allocated via `calloc` — was 20MB static BSS, caused `scrip-cc -jvm beauty.sno` segfault mid-output
 - `MAX_BOX_DATA_VARS` reverted 512→128 (max actual usage is 53 vars/box)
 
 ### PIVOT: JVM Beauty Bootstrap
@@ -477,11 +477,11 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - JVM backend avoids the issue entirely (JVM stack frames, no r12)
 - Created `M-BEAUTIFY-BOOTSTRAP-JVM` milestone in PLAN.md
 - Added full JVM milestone track (19 subsystems) to ARCH-snobol4-beauty-testing.md
-- `sno2c -jvm beauty.sno` still segfaults — `named_pats[512]` (~1.5MB static) is next fix
+- `scrip-cc -jvm beauty.sno` still segfaults — `named_pats[512]` (~1.5MB static) is next fix
 
 ### Next session (J-prefix, jvm-t2 branch OR main)
 1. Heap-allocate `named_pats[]` in `emit_byrd_asm.c` (same pattern as `box_data`)
-2. Confirm `sno2c -jvm beauty.sno` completes without segfault
+2. Confirm `scrip-cc -jvm beauty.sno` completes without segfault
 3. Assemble with jasmin.jar, run beauty, diff vs oracle
 4. Work through 19 JVM subsystem milestones (M-JVM-BEAUTY-*)
 
@@ -494,7 +494,7 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - Inserted `\=/2` emit block after `\==` block: save trail mark to fresh scratch local, call `pj_unify` as probe, `istore` boolean result, `pj_trail_unwind`, `iload` result, branch inverted.
 - Added `pj_count_neq` helper; folded `2 * max_neq` into `.limit locals` formula to fix `VerifyError: Illegal local variable number` on `all_diff5` (10 `\=` calls).
 - Results: 9/9 rungs PASS (no regression), puzzle_08 PASS, puzzle_09 PASS, 19/21 rung10 PASS (03+11 pre-existing).
-- Commit: `d6d2266` on snobol4x main.
+- Commit: `d6d2266` on one4all main.
 
 **Next:** M-PJ-STACK-LIMIT — `.limit stack 16` hard-code needs fix for deep predicates.
 
@@ -508,7 +508,7 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 - Replaced hardcoded `.limit stack 16` with `max(16, computed_max)` per predicate in `pj_emit_predicate`.
 - Verified: 8-level deep compound term now works (was `VerifyError: Stack size too large`).
 - Results: 9/9 rungs PASS (no regression), 19/21 rung10 PASS (puzzle_03 + puzzle_11 pre-existing, different bugs).
-- Commit: `cb0b4d0` on snobol4x main.
+- Commit: `cb0b4d0` on one4all main.
 
 **Diagnosis of remaining failures:**
 - puzzle_11 double-print: `!` inside `ages_ok` not sealing β in enclosing `puzzle` conjunction — `cut_cs_seal` not propagating across user-call boundary. → M-PJ-DISJ-ARITH or new milestone.
@@ -520,7 +520,7 @@ Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIO
 
 ## IJ-14 — 2026-03-24
 
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend"
+**Trigger:** "playing with one4all JVM backend for ICON frontend"
 **Goal:** M-IJ-CORPUS-R5 — fix t03_to_by VerifyError, rung07 5/5 PASS
 
 **What was done:**
@@ -578,16 +578,16 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 **Branch:** main
 
 **What happened:**
-- Setup: cloned .github, snobol4x, x64 (SPITBOL), corpus. Built CSNOBOL4 2.3.3 from tarball (STNO-patched). Ran setup.sh → 106/106 ALL PASS.
-- Root cause of sno2c segfault on beauty.sno diagnosed: total BSS 8.4MB > 8MB stack limit. Binary loads, BSS mapped, process crashes before main() runs.
+- Setup: cloned .github, one4all, x64 (SPITBOL), corpus. Built CSNOBOL4 2.3.3 from tarball (STNO-patched). Ran setup.sh → 106/106 ALL PASS.
+- Root cause of scrip-cc segfault on beauty.sno diagnosed: total BSS 8.4MB > 8MB stack limit. Binary loads, BSS mapped, process crashes before main() runs.
 - Fix: heap-allocated 4 large statics in emit_byrd_asm.c using calloc-on-first-use pattern (identical to existing box_data pattern):
   - named_pats[512] → pointer, -1856KB BSS
   - str_table[8192] → pointer, -2752KB BSS
   - call_slots[4096][320] → pointer, -1280KB BSS
   - lit_table[1024] → pointer, -352KB BSS
   - BSS: 8.4MB → 2.0MB. 106/106 corpus still ALL PASS.
-- sno2c -asm beauty.sno → 70,840 lines of ASM. beauty_asm_bin built (1.1MB), runs, outputs 10 lines then "Parse Error" (r12 DATA-block clobber, expected per M-BUG-BOOTSTRAP-PARSE).
-- sno2c -jvm beauty.sno → 18,348 lines of Jasmin, then mid-emission segfault. GDB confirmed: e=0x21 (garbage pointer) in jvm_emit_expr for DATA constructor field[2] of tree(t,v,n,c). Root cause: emit loop iterates dt->nfields but e->nchildren may be smaller; out-of-bounds children[] access. Fix: use (fi < e->nchildren) bound. Not yet applied — context limit.
+- scrip-cc -asm beauty.sno → 70,840 lines of ASM. beauty_asm_bin built (1.1MB), runs, outputs 10 lines then "Parse Error" (r12 DATA-block clobber, expected per M-BUG-BOOTSTRAP-PARSE).
+- scrip-cc -jvm beauty.sno → 18,348 lines of Jasmin, then mid-emission segfault. GDB confirmed: e=0x21 (garbage pointer) in jvm_emit_expr for DATA constructor field[2] of tree(t,v,n,c). Root cause: emit loop iterates dt->nfields but e->nchildren may be smaller; out-of-bounds children[] access. Fix: use (fi < e->nchildren) bound. Not yet applied — context limit.
 - TRACE_SET_CAP 64→256 in snobol4.c (beauty.sno injects 107 TRACE registrations).
 - Sprint M5 attempted: inject_traces.py on beauty.sno → 107 TRACE registrations. CSNOBOL4 oracle run: 92,601 trace events, 784 lines output. ASM trace: silent (TERMINAL= fallback; crash occurs before trace stream flows). Async diff approach identified as immediate next step.
 - SPITBOL monitor IPC times out at step 0 (M-MON-BUG-SPL-EMPTY, pre-existing).
@@ -606,11 +606,11 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 
 ## IJ-15 — 2026-03-24
 
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend" + jcon-master.zip uploaded.
+**Trigger:** "playing with one4all JVM backend for ICON frontend" + jcon-master.zip uploaded.
 **Sprint:** Icon JVM. **HEAD start:** `6780ab9` (IJ-14). **HEAD end:** `6f11821`.
 
 **Work done:**
-- Cloned snobol4x + .github fresh; installed default-jdk + nasm + libgc-dev.
+- Cloned one4all + .github fresh; installed default-jdk + nasm + libgc-dev.
 - Confirmed baseline **39/39 PASS** rung01–07 using `.expected` oracle harness.
 - Harness clarification: `-run` needs `-o` flag + nasm link; correct harness uses `.expected` files directly.
 - Extracted and read JCON-ANALYSIS.md (386 lines); read FRONTEND-ICON-JVM.md §NOW fully.
@@ -623,7 +623,7 @@ In `prolog_emit_jvm.c` `\+` handler (~line 1369–1378):
 ---
 ## PJ-24 — 2026-03-24
 
-**Fixes landed (snobol4x a77555c):**
+**Fixes landed (one4all a77555c):**
 1. `\+` trail corruption: save mark before inner goal, unwind on both inner_ok and inner_fail paths. Mirrors `\=/2` pattern.
 2. Body-fail trail corruption: added `bodyfail_N` trampoline per clause in `pj_emit_choice`. Body goal failure now unwinds clause trail before jumping to next clause. `lbl_outer_ω` (ucall exhaustion) bypasses trampoline to avoid double-unwind.
 
@@ -682,7 +682,7 @@ END
 
 **Sessions:** PJ-25, PJ-26, PJ-27, PJ-28, PJ-29, PJ-30
 **Branch:** main
-**Repo:** snobol4x + .github
+**Repo:** one4all + .github
 
 **Work done:**
 - Audited all 16 M-PZ puzzle files: identified 7 hardcoded write stubs (puzzle_12, 13, 15, 16, 18, 19, 20).
@@ -699,7 +699,7 @@ END
 **Still open:** M-PJ-DISPLAY-BT (puzzle_03 JVM over-generates; ITE cut leak in pj_emit_goal).
 **Next:** PJ-31 — fix puzzle_03 not_dorothy to single clause; verify JVM 1L. Then puzzle_11 2L issue.
 
-**HEAD at handoff:** snobol4x `8ace0f7`, .github `d8e49fe`
+**HEAD at handoff:** one4all `8ace0f7`, .github `d8e49fe`
 
 ---
 
@@ -707,7 +707,7 @@ END
 
 **Session:** PJ-31
 **Branch:** main
-**Repos:** snobol4x + .github
+**Repos:** one4all + .github
 
 **Work done:**
 - Discovered 4 puzzle files (01, 02, 05, 06) missing from milestone tables.
@@ -723,7 +723,7 @@ END
 
 **Milestones fired:** M-PZ-01 ✅, M-PZ-02 ✅, M-PZ-05 ✅, M-PZ-06 ✅
 
-**HEAD at handoff:** snobol4x `251ae11`, .github `750893e`
+**HEAD at handoff:** one4all `251ae11`, .github `750893e`
 **Next:** PJ-32 — fix M-PJ-BETWEEN (add between/3 to pj_emit_goal), then M-PJ-ITE-CUT, then M-PJ-DISJ-ARITH.
 
 ---
@@ -732,18 +732,18 @@ END
 
 **Session:** J-214
 **Branch:** main
-**Repos:** snobol4x + .github
+**Repos:** one4all + .github
 
 **Work done:**
 - PIVOT 2026-03-24: launched M-BEAUTIFY-BOOTSTRAP-JVM (all 19 JVM beauty milestones, per ARCH-snobol4-beauty-testing.md)
-- Cloned corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, sno2c, Java 21, jasmin.jar, monitor_ipc.so)
+- Cloned corpus; confirmed setup.sh environment OK (CSNOBOL4 2.3.3, SPITBOL, scrip-cc, Java 21, jasmin.jar, monitor_ipc.so)
 - Found and fixed 5 JVM emitter bugs in `emit_byrd_jvm.c`:
   1. **jvm_named_pats BSS overflow** — `static JvmNamedPat[64]` on BSS → heap `calloc(512)` with lazy init in reset+register+lookup
   2. **Jasmin label scoping** — `L_<label>:` definitions and `goto L_<label>` cross-method references; Jasmin labels are method-local. Fix: qualify as `Lf<fnidx>_<label>` at all 3 emission sites (computed-goto scan, direct-goto, label-definition)
   3. **sno_array_get false non-null** — returned `""` on key-not-found; caused `:S(G1)` in global.sno UTF loop to fire unconditionally → infinite loop. Fix: return `null` on miss
   4. **SORT unimplemented** — fell to `default: ldc ""` stub; `UTF_Array = SORT(UTF)` set UTF_Array to `""`. Fix: full `sno_sort()` Jasmin method using `TreeMap` for sorted key iteration, builds 2D array with `[row,1]=key [row,2]=val` and `__rows__` sentinel
   5. **sno_array_counter field** — referenced in early sno_sort draft but never declared. Fix: removed; switched to `identityHashCode` pattern matching `sno_array_new`
-- global driver: `sno2c -jvm` compile ✅, Jasmin assemble ✅, runtime test not completed at handoff (context window ~75%)
+- global driver: `scrip-cc -jvm` compile ✅, Jasmin assemble ✅, runtime test not completed at handoff (context window ~75%)
 
 **Milestones fired:** none (M-JVM-BEAUTY-GLOBAL in progress)
 
@@ -764,7 +764,7 @@ END
 - puzzle_03: ITE seal now emitted but `equal_sums`/`find_couples` 6-clause predicates still over-generate all permutations.
 - puzzle_12: DISJ-ARITH unchanged.
 
-**HEAD at handoff:** snobol4x `c0987cc`, .github pending push
+**HEAD at handoff:** one4all `c0987cc`, .github pending push
 **Next:** PJ-34 — trace puzzle_11/18 doubling; fix M-PJ-DISJ-ARITH (puzzle_12).
 
 ---
@@ -788,14 +788,14 @@ END
 
 **Next:** IJ-21 — M-IJ-CORPUS-R12: ALT gate fix + string relops + size(*s)
 
-**HEAD at handoff:** snobol4x `ff3e05c` J-214, .github (pending push)
+**HEAD at handoff:** one4all `ff3e05c` J-214, .github (pending push)
 **Next:** J-215 — run global driver to completion; fix remaining runtime divergences; fire M-JVM-BEAUTY-GLOBAL; proceed to M-JVM-BEAUTY-IS
 
 ## J-215 — M-JVM-STLIMIT-STCOUNT sprint written; &STLIMIT root cause diagnosed
 
 **Session:** J-215
 **Branch:** main
-**Repos:** .github only (no snobol4x code change this session — sprint written, not yet implemented)
+**Repos:** .github only (no one4all code change this session — sprint written, not yet implemented)
 
 **Work done:**
 - Continued M-JVM-BEAUTY-GLOBAL from J-214. global driver: compile ✅, assemble ✅, run → exit 124 (TIMEOUT, 15s).
@@ -807,7 +807,7 @@ END
 
 **Milestones fired:** none
 
-**HEAD at handoff:** snobol4x `ff3e05c` J-214 (unchanged), .github updated
+**HEAD at handoff:** one4all `ff3e05c` J-214 (unchanged), .github updated
 **Next:** J-216 — implement M-JVM-STLIMIT-STCOUNT (6 hunks in emit_byrd_jvm.c); verify STLIMIT enforces; run global driver to completion; fix any remaining divergences; fire M-JVM-BEAUTY-GLOBAL
 
 ---
@@ -827,7 +827,7 @@ END
 
 **Milestones fired:** M-IJ-CORPUS-R12 ✅
 
-**HEAD at handoff:** snobol4x `be2af59` IJ-21, .github updated
+**HEAD at handoff:** one4all `be2af59` IJ-21, .github updated
 **Next:** IJ-22 — M-IJ-CORPUS-R13: ICN_ALT β-resume indirect-goto gate (JCON §4.5); enables `every s ||:= ("a"|"b"|"c")` patterns
 
 ---
@@ -840,7 +840,7 @@ END
 
 **Work done:**
 - CSNOBOL4 2.3.3 built from tarball (`snobol4-2_3_3_tar.gz`). Smoke-tested OK.
-- `snobol4x` and `x64` cloned fresh. All deps installed (libgc-dev, nasm, default-jdk).
+- `one4all` and `x64` cloned fresh. All deps installed (libgc-dev, nasm, default-jdk).
 - Implemented 6 hunks in `emit_byrd_jvm.c`:
   1. `sno_kw_STLIMIT I` + `sno_kw_STCOUNT I` field declarations
   2. `clinit`: `iconst_m1` (STLIMIT=-1 unlimited), `iconst_0` (STCOUNT=0)
@@ -883,8 +883,8 @@ END
 **HEAD start:** `309a2f9` B-291 → **HEAD end:** `acbc71e` B-292
 
 **Work done:**
-1. Setup: cloned snobol4x, .github, x64, corpus; ran setup.sh → 106/106 ALL PASS. CSNOBOL4 2.3.3 built from ZIP, SPITBOL x64 built, sno2c built.
-2. **Fixed JVM segfault (B-292 commit `acbc71e`):** `emit_byrd_jvm.c:1156` — DATA type constructor loop `for fi in 0..nfields` accessed `e->children[fi]` without checking `fi < e->nchildren`. For `tree(t,v,n)` (3 children, 4 fields), `e->children[3]` = garbage `0x21` (non-NULL) → SIGSEGV. Fix: `fi < e->nchildren &&` guard added. `sno2c -jvm demo/beauty.sno` now emits 872,847-line beauty.j.
+1. Setup: cloned one4all, .github, x64, corpus; ran setup.sh → 106/106 ALL PASS. CSNOBOL4 2.3.3 built from ZIP, SPITBOL x64 built, scrip-cc built.
+2. **Fixed JVM segfault (B-292 commit `acbc71e`):** `emit_byrd_jvm.c:1156` — DATA type constructor loop `for fi in 0..nfields` accessed `e->children[fi]` without checking `fi < e->nchildren`. For `tree(t,v,n)` (3 children, 4 fields), `e->children[3]` = garbage `0x21` (non-NULL) → SIGSEGV. Fix: `fi < e->nchildren &&` guard added. `scrip-cc -jvm demo/beauty.sno` now emits 872,847-line beauty.j.
 3. **Diagnosed L_io_end missing label:** Jasmin fails with `L_io_end has not been added to the code`. Root cause: `output_->end_label` is NULL (DEFINE has no goto, next stmt OPSYN also has no goto). `jvm_emit_fn_method` body scan runs unbounded for output_, absorbs `io_end` top-level label, emits it as `Lf5_io_end` inside output_ method. But `goto L_io_end` in main() uses unscoped name → label not found in main(). Fix strategy: add next-fn-entry stop condition to `jvm_emit_fn_method` body loop (line 4153) when `fn->end_label` is NULL. See TINY.md §CRITICAL NEXT ACTION.
 
 **Invariant:** 106/106 ASM corpus ALL PASS throughout.
@@ -953,7 +953,7 @@ END
 ## IJ-27 — 2026-03-25
 
 **Sprint:** M-IJ-CORPUS-R18
-**HEAD:** `f976057` (snobol4x main)
+**HEAD:** `f976057` (one4all main)
 **Result:** ✅ 94/94 PASS (rung01–18)
 
 **Work done:**
@@ -1043,7 +1043,7 @@ then M-PJ-FINDALL as first enhancement sprint.
 ## IJ-28 — 2026-03-25
 
 **Milestone:** M-IJ-CORPUS-R19 ✅
-**HEAD:** `2574281` (snobol4x main)
+**HEAD:** `2574281` (one4all main)
 **Result:** 99/99 PASS (rung01–19)
 
 **What fired:** ICN_POW (exponentiation `^`) + real `to-by` generator support.
@@ -1214,7 +1214,7 @@ IJ-33 checklist updated in FRONTEND-ICON-JVM.md with all corrections.
 
 G-1: Authored GRAND_MASTER_REORG.md — 7-phase plan (Phases 0–7), 54 milestones covering folder restructure, unified IR, naming unification, shared wiring extraction, frontend lower-to-IR, new matrix pipelines, style pass. WASM browser IDE vision added. PLAN.md NOW table updated.
 
-G-2: Fixed invariants — removed snobol4dotnet 1903/1903 from reorg scope. Correct invariants are snobol4x only: 106/106 ASM, 106/106 JVM, 110/110 NET.
+G-2: Fixed invariants — removed snobol4dotnet 1903/1903 from reorg scope. Correct invariants are one4all only: 106/106 ASM, 106/106 JVM, 110/110 NET.
 
 G-3: Added Phase 8 — grammar-driven exhaustive test generation. 4 design-decision milestones (M-G8-HOME, M-G8-DEPTH, M-G8-ORACLE, M-G8-GRAMMAR) must produce doc/GEN_*.md decision records before any code. 11 implementation milestones follow. Key insight: IR-tree enumeration bypasses parser, tests emitters directly, exhaustive coverage to N=25 tokens via differential oracle (CSNOBOL4+SPITBOL agree = correct). Integrates with existing 5-way Monitor — no new infra needed.
 
@@ -1323,7 +1323,7 @@ The five-level hierarchy is defined but NOT YET ENFORCED by the doc structure. T
 ## IJ-33 — M-IJ-LISTS
 
 **Date:** 2026-03-25  
-**HEAD:** `51c7335` snobol4x  
+**HEAD:** `51c7335` one4all  
 **Result:** M-IJ-LISTS ✅ — 114/114 PASS (rungs 01–22)
 
 Implemented full list infrastructure: `ij_expr_is_list()`, pre-pass type registration for list vars, `ij_emit_var`/`ij_emit_assign` list branches, statement drain ref-type fix, list builtins (`push`/`put`/`get`/`pop`/`pull`/`list`), `ij_emit_bang` list branch, `ij_emit_size` list branch, `ij_expr_is_string(ICN_BANG)` list fix. rung22 corpus 5/5. Root bugs fixed: pre-pass missing list type → statics table miss at emit time; `pull` `dup`+`ifeq` stack-height inconsistency (pull_fail trampoline); `ij_expr_is_string(ICN_BANG)` returning 1 for list operands.
@@ -1332,7 +1332,7 @@ Implemented full list infrastructure: `ij_expr_is_list()`, pre-pass type registr
 
 ## IJ-34 — 2026-03-25
 
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend" + JCON source zip uploaded.
+**Trigger:** "playing with one4all JVM backend for ICON frontend" + JCON source zip uploaded.
 **HEAD start:** `51c7335` (IJ-33). **HEAD end:** `ca94be1`.
 **Baseline confirmed:** 114/114 PASS (rungs 01–22) at session start and end.
 
@@ -1362,7 +1362,7 @@ Scrutinized the entire GRAND_MASTER_REORG.md plan for chunk size and incremental
 
 **Changes committed to GRAND_MASTER_REORG.md + PLAN.md (`1ee99b5`):**
 
-1. **Phase 1** — `M-G1-IR-HEADER` split into `M-G1-IR-HEADER-DEF` (create `ir.h`, compile standalone, no includes yet) + `M-G1-IR-HEADER-WIRE` (add `#include` to `sno2c.h`, fix exhaustive-switch fallout). Isolates the moment new enum kinds first touch existing code.
+1. **Phase 1** — `M-G1-IR-HEADER` split into `M-G1-IR-HEADER-DEF` (create `ir.h`, compile standalone, no includes yet) + `M-G1-IR-HEADER-WIRE` (add `#include` to `scrip-cc.h`, fix exhaustive-switch fallout). Isolates the moment new enum kinds first touch existing code.
 
 2. **Phase 2** — `M-G2-MOVE-PROLOG-ASM` split into `-a` (create stub + `#include` from `emit_x64.c`, Prolog code still physically in place, 106/106) + `-b` (physically move code into stub, 106/106). Two green checkpoints for the riskiest Phase 2 step.
 
@@ -1379,7 +1379,7 @@ Scrutinized the entire GRAND_MASTER_REORG.md plan for chunk size and incremental
 - Context window reached ~85% — handoff triggered per protocol.
 
 **Next G-session mandate:**
-- Wait for Lon's signal to execute **M-G0-FREEZE** — tag `pre-reorg-freeze` on snobol4x, record 106/106 ASM + JVM, 110/110 NET.
+- Wait for Lon's signal to execute **M-G0-FREEZE** — tag `pre-reorg-freeze` on one4all, record 106/106 ASM + JVM, 110/110 NET.
 - After freeze: M-G0-AUDIT (all 5 emitters → `doc/EMITTER_AUDIT.md`) and M-G0-IR-AUDIT (all 5 frontend IRs → `doc/IR_AUDIT.md`) can proceed in parallel.
 - Do NOT read GRAND_MASTER_REORG.md cold — use `tail -80 SESSIONS_ARCHIVE.md` to find this entry, then read PLAN.md NOW table, then GRAND_MASTER_REORG.md Phase 0 section only.
 
@@ -1432,7 +1432,7 @@ Root cause: `pj_emit_arith()` has no case for `mod` — falls to `default: lcons
 
 ## IJ-35 — 2026-03-25
 
-**Trigger:** "playing with snobol4x JVM backend for ICON frontend" continuation.
+**Trigger:** "playing with one4all JVM backend for ICON frontend" continuation.
 **HEAD start:** `ca94be1` (IJ-34). **HEAD end:** `6e41be2`.
 **Baseline confirmed:** rung22 5/5 PASS (runner set -e was swallowing results — tests were passing all along). rung23 2/5 at start.
 
@@ -1465,7 +1465,7 @@ Root cause: `pj_emit_arith()` has no case for `mod` — falls to `default: lcons
 1. Diff `pj_code_list_to_string` vs `pj_char_list_to_string` nil-check index — fix to match working version.
 2. Build, `5/5 rung12` → **M-PJ-ATOM-BUILTINS ✅**.
 3. `20/20 puzzle corpus` confirm.
-4. Commit snobol4x, update §NOW + milestone table FRONTEND-PROLOG-JVM.md, update PLAN.md, push .github.
+4. Commit one4all, update §NOW + milestone table FRONTEND-PROLOG-JVM.md, update PLAN.md, push .github.
 
 ## IJ-36 — M-IJ-TABLE ✅
 
@@ -1646,7 +1646,7 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 
 **Work done:**
 
-- **Environment bootstrapped:** `sno2c` compiled from source (`src/make -j4`), `sno2c_jvm` symlink created, `icon_driver_jvm` built from `icon_emit_jvm.c`, JVM pipeline smoke-tested end-to-end (`hello JVM` ✅, `1 to 5` via Icon ✅).
+- **Environment bootstrapped:** `scrip-cc` compiled from source (`src/make -j4`), `scrip-cc_jvm` symlink created, `icon_driver_jvm` built from `icon_emit_jvm.c`, JVM pipeline smoke-tested end-to-end (`hello JVM` ✅, `1 to 5` via Icon ✅).
 
 - **`demo/scrip/family.csv`** — 9-row family tree input (Eleanor/George roots through James/Sophie generation 3).
 
@@ -1865,7 +1865,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 **Work done:**
 
-**Bootstrap:** Cloned `snobol4x`, `.github`, `x64`, `corpus`. Installed `nasm`, `libgc-dev`. Built `sno2c` (`make -j4` clean). Built `icon_driver_jvm` directly from source.
+**Bootstrap:** Cloned `one4all`, `.github`, `x64`, `corpus`. Installed `nasm`, `libgc-dev`. Built `scrip-cc` (`make -j4` clean). Built `icon_driver_jvm` directly from source.
 
 **Pipeline unblocked to assembly:** Renamed emitter outputs (`FamilyProlog.j` → `Family_prolog.j` etc.) to match inject_linkage.py expectations. All 4 classes assemble clean.
 
@@ -1893,7 +1893,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 ## IJ-43 + IJ-44 — M-IJ-BUILTINS-TYPE ✅ + M-IJ-BUILTINS-MISC ✅
 
-**Date:** 2026-03-25. **Repos:** snobol4x (main). **HEAD at handoff:** `fe87efc`.
+**Date:** 2026-03-25. **Repos:** one4all (main). **HEAD at handoff:** `fe87efc`.
 
 **Baseline entering:** 92/92 (rung05–28). **Baseline at handoff:** 102/102 (rung05–30).
 
@@ -1909,11 +1909,11 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 ## PJ-64 — Baseline verification, no milestone fired
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main, no changes). **HEAD at handoff:** `e897666`.
+**Date:** 2026-03-26. **Repos:** one4all (main, no changes). **HEAD at handoff:** `e897666`.
 
 **Baseline entering:** 20/20 rung11–rung23 ✅. **Baseline at handoff:** 20/20 ✅ (confirmed).
 
-**Work done:** Cloned repos, installed deps (`--fix-missing`), built snobol4x clean, verified 20/20 baseline across rung11–rung23. Confirmed M-PJ-STRING-IO (`atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2`) is fully absent from both `prolog_emit_jvm.c` and `prolog_builtin.c`. No rung24 yet. Documented implementation plan in §NOW.
+**Work done:** Cloned repos, installed deps (`--fix-missing`), built one4all clean, verified 20/20 baseline across rung11–rung23. Confirmed M-PJ-STRING-IO (`atom_string/2`, `number_string/2`, `string_concat/3`, `string_length/2`, `string_lower/2`, `string_upper/2`) is fully absent from both `prolog_emit_jvm.c` and `prolog_builtin.c`. No rung24 yet. Documented implementation plan in §NOW.
 
 **Context window at handoff: ~26%.**
 
@@ -1923,7 +1923,7 @@ Replace all `| 1` fallthrough no-ops in `family_icon.icn` with `| (i := i)` (lon
 
 ## SD-2 (Scrip Demo) — Session 2026-03-26
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at start:** `a5f01c8`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at start:** `a5f01c8`.
 
 **Goal:** Fix "Expecting to find long on stack" VerifyError in `icn_main` for `family_icon.icn`.
 
@@ -1954,16 +1954,16 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## SD-2 (Scrip Demo) — Session 2026-03-26
 
-**Date:** 2026-03-26. **HEAD at start:** `a5f01c8` (snobol4x).
+**Date:** 2026-03-26. **HEAD at start:** `a5f01c8` (one4all).
 
 **Fixes:** `ij_emit_relop`/`ij_emit_binop`: `lstore/lload` JVM locals → `putstatic/getstatic` static field relay. ICN_AND `relay_g`: `pop2/pop` → `putstatic` typed static drain fields. `ij_emit_alt`: original behavior preserved. rung28–30: 15/15 PASS ✅.
 
 **Remaining blocker:** 8 stack-height conflicts. ICN_EVERY β-tableswitch re-enters ICN_AND sub-chain at different stack depth than fresh α-entry.
 
-**Next (SD-3):** Drain stale stack at β-resume dispatch. HEAD at handoff: snobol4x `973a68a`. Context: ~77%.
+**Next (SD-3):** Drain stale stack at β-resume dispatch. HEAD at handoff: one4all `973a68a`. Context: ~77%.
 ## IJ-45 — M-IJ-SORT WIP (handoff, not committed)
 
-**Date:** 2026-03-26. **Repos:** snobol4x (working tree only — not pushed). **HEAD unchanged:** `fe87efc`.
+**Date:** 2026-03-26. **Repos:** one4all (working tree only — not pushed). **HEAD unchanged:** `fe87efc`.
 
 **Baseline entering:** 102/102 (rung05–30). **Baseline at handoff:** unchanged (no commit made).
 
@@ -1993,7 +1993,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 1. Apply one-line fix: `lstore_4` → `lstore 4`, `lload_4` → `lload 4` in sort helper emission.
 2. Rebuild, confirm rung31 5/5 PASS.
 3. Confirm prior rungs 102/102 unchanged.
-4. Commit `IJ-45: M-IJ-SORT ✅`, push snobol4x.
+4. Commit `IJ-45: M-IJ-SORT ✅`, push one4all.
 5. Update FRONTEND-ICON-JVM.md §NOW, PLAN.md, MILESTONE_ARCHIVE.md, SESSIONS_ARCHIVE.md.
 6. Push .github.
 
@@ -2001,7 +2001,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## PJ-65 — M-PJ-STRING-IO ✅
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `42df550`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at handoff:** `42df550`.
 
 **Baseline entering:** 20/20 rung11–rung23 ✅. **Baseline at handoff:** 35/35 rung11–rung24 ✅.
 
@@ -2017,7 +2017,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## PJ-66 — M-PJ-TERM-STRING ✅
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `a1163f4`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at handoff:** `a1163f4`.
 
 **Baseline entering:** 35/35 rung11–rung24 ✅. **Baseline at handoff:** 38/38 rung11–rung25 ✅.
 
@@ -2031,7 +2031,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## PJ-67 — M-PJ-COPY-TERM ✅
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `87b8c4f`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at handoff:** `87b8c4f`.
 
 **Baseline entering:** 38/38 rung11–rung25 ✅. **Baseline at handoff:** 43/43 rung11–rung26 ✅.
 
@@ -2061,7 +2061,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## PJ-70 — M-PJ-NUMBER-OPS ✅
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `31c5d1f`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at handoff:** `31c5d1f`.
 
 **Baseline entering:** 5/5 rung28, rung11–rung28 all green.
 
@@ -2090,7 +2090,7 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 
 ## IJ-45 — M-IJ-SORT WIP (emergency handoff, ~85% context)
 
-**Date:** 2026-03-26. **HEAD at handoff:** snobol4x `b2868c8`.
+**Date:** 2026-03-26. **HEAD at handoff:** one4all `b2868c8`.
 
 **Baseline entering:** 102/102 rung05–rung30 PASS. rung14 2 pre-existing xfail unchanged.
 
@@ -2152,7 +2152,7 @@ rung33: **5/5 PASS**. Baseline: 121/121.
 
 ## SD-4 — ij_prepass_types + string relop fix
 
-**Date:** 2026-03-26. **Repos:** snobol4x (main). **HEAD at handoff:** `406eff6`.
+**Date:** 2026-03-26. **Repos:** one4all (main). **HEAD at handoff:** `406eff6`.
 
 **Baseline entering:** rung28–30 15/15 PASS.
 
@@ -2231,7 +2231,7 @@ Contiguous AND relay labels with mixed J/String stack types. The v45 type-infere
 
 ## IJ-49 + IJ-50 — M-IJ-NULL-TEST ✅ + M-IJ-BLOCK-BODY ✅ + IJ-51 M-IJ-SCAN-AUGOP WIP (handoff, rung23 regression)
 
-**Date:** 2026-03-26. **HEAD at handoff (snobol4x):** `1ccf83e` IJ-50 (clean). IJ-51 WIP stashed.
+**Date:** 2026-03-26. **HEAD at handoff (one4all):** `1ccf83e` IJ-50 (clean). IJ-51 WIP stashed.
 
 **IJ-49: M-IJ-NULL-TEST ✅** (`21e4f46`)
 - `ICN_NONNULL`/`ICN_NULL` added; `\E` fixed (was wrongly `ICN_NOT`); `/E` added; `ij_emit_nonnull` (transparent pass-through); `ij_emit_null` (inverted lconst_0). rung34: 5/5.
@@ -2268,12 +2268,12 @@ Contiguous AND relay labels with mixed J/String stack types. The v45 type-infere
 
 ## SD-10 — Scripten→SCRIP global rename
 
-**Date:** 2026-03-26. **HEAD at handoff (snobol4x):** `1e11076`.
+**Date:** 2026-03-26. **HEAD at handoff (one4all):** `1e11076`.
 
 **Work done:**
 - Global rename: `SCRIPTEN`→`SCRIP`, `Scripten`→`Scrip`, `scripten`→`scrip` in all files across both repos.
 - `.github`: 9 MD files updated; `SCRIPTEN*.md` → `SCRIP*.md` (5 files renamed: SCRIP.md, SCRIP_DEMO.md, SCRIP_DEMO2.md, SCRIP_DEMO3.md, SCRIP_DEMOS.md).
-- `snobol4x`: `demo/scripten/` → `demo/scrip/`; `ScriptenFamily.j` → `ScripFamily.j`; content updated in `.sno`, `.icn`, `.pro`, `.py`, `.j`.
+- `one4all`: `demo/scripten/` → `demo/scrip/`; `ScriptenFamily.j` → `ScripFamily.j`; content updated in `.sno`, `.icn`, `.pro`, `.py`, `.j`.
 - Name rationale: SCRIP = **S**NOBOL4 + s**C**nocone + **R**ebus + **I**con + **P**rolog — real word, fits SNOBOL4/SPITBOL/SITBOL tradition.
 
 **State of demo/scrip/:** Only family-tree files present. `demo1/` dir and `run_demo.sh` do NOT exist yet — next session creates them for M-SD-DEMO1.
@@ -2298,7 +2298,7 @@ rung23 arrived 5/5 — already resolved in IJ-51. Confirmed 136/136 JVM rungs gr
 
 ## SD-11 — M-SD-DEMO1 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `fcbd6a8`.
+**Date:** 2026-03-26. **HEAD (one4all):** `fcbd6a8`.
 
 **Work done:**
 - Created `demo/scrip/demo1/hello.scrip`: three-section polyglot Hello World.
@@ -2323,7 +2323,7 @@ Input: a short text string (or stdin). Output: word count integer.
 
 ## SD-12 -- M-SD-DEMO2 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `0c1fc58`.
+**Date:** 2026-03-26. **HEAD (one4all):** `0c1fc58`.
 
 - `demo/scrip/demo2/wordcount.md`: three-section polyglot word counter.
   Input string: "the quick brown fox jumps over the lazy dog". Expected output: `9`.
@@ -2341,7 +2341,7 @@ Key contrast: table-driven goto (SNOBOL4) vs `suspend` generator (Icon) vs arith
 
 ## SD-13 -- M-SD-DEMO2 fix + M-SD-DEMO3 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `8931853`.
+**Date:** 2026-03-26. **HEAD (one4all):** `8931853`.
 
 **demo2 correction:** SNOBOL4 section was non-idiomatic. Rewrote to Gimpel style:
 `BREAK(WORD) SPAN(WORD)` pattern, subject replacement loop (`LINE WPAT =`).
@@ -2367,7 +2367,7 @@ Key contrast: `REVERSE` built-in (SNOBOL4) vs subscript walk (Icon) vs `reverse/
 
 ## SD-14 -- M-SD-DEMO4 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `62b0077`.
+**Date:** 2026-03-26. **HEAD (one4all):** `62b0077`.
 
 - `demo/scrip/demo4/palindrome.md`: three-section palindrome detector.
 - SNOBOL4: `IDENT(S, REVERSE(S))` — exact palin.sno idiom; `REPLACE(S, &LCASE, &UCASE)` normalises case. One comparison, no loop.
@@ -2384,7 +2384,7 @@ Key contrast: labeled goto loop (SNOBOL4) vs `suspend` generator (Icon) vs `fib/
 
 ## SD-15 -- M-SD-DEMO5 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `f7153ce`.
+**Date:** 2026-03-26. **HEAD (one4all):** `f7153ce`.
 
 - `demo/scrip/demo5/fib.md`: Fibonacci first 10.
 - SNOBOL4: iterative labeled-goto; accumulators A/B; T for swap; `LT(N,10)` guard.
@@ -2401,7 +2401,7 @@ Key contrast: TABLE bitset (SNOBOL4) vs list+every (Icon) vs exclude/sieve (Prol
 
 ## SD-16 -- M-SD-DEMO6 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `72de264`.
+**Date:** 2026-03-26. **HEAD (one4all):** `72de264`.
 
 - `demo/scrip/demo6/sieve.md`: Sieve of Eratosthenes, primes to 50.
 - SNOBOL4: `ARRAY(LIMIT, 1)` as bitset; `OUTER`/`INNER`/`PRINT`/`PLOOP` labeled-goto loops.
@@ -2421,7 +2421,7 @@ Key contrast: `MAP` built-in (SNOBOL4) vs `map()` with char translation (Icon) v
 
 ## SD-17 -- M-SD-DEMO7 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `137364c`.
+**Date:** 2026-03-26. **HEAD (one4all):** `137364c`.
 
 - `demo/scrip/demo7/caesar.md`: ROT13 cipher; double application proves involution.
 - SNOBOL4: `REPLACE(S, PLAIN, ROT13)` with two parallel 52-char strings -- Gimpel UPLO.inc idiom verbatim.
@@ -2438,7 +2438,7 @@ Key contrast: Gimpel BSORT/HSORT insertion-sort idiom (SNOBOL4) vs `isort` (Icon
 
 ## SD-18 -- M-SD-DEMO8 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `62da781`.
+**Date:** 2026-03-26. **HEAD (one4all):** `62da781`.
 
 - `demo/scrip/demo8/sort.md`: insertion sort of 8 integers.
 - SNOBOL4: Gimpel BSORT verbatim -- `LGT(A<K>,V) A<K>` shifts in one statement;
@@ -2456,7 +2456,7 @@ Key contrast: pattern-driven stack (SNOBOL4) vs list-as-stack (Icon) vs DCG (Pro
 
 ## SD-19 -- M-SD-DEMO9 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `2e3aaba`.
+**Date:** 2026-03-26. **HEAD (one4all):** `2e3aaba`.
 
 - `demo/scrip/demo9/rpn.md`: RPN calculator. Expression: `5 1 2 + 4 * + 3 -` = 14.
 - SNOBOL4: pattern-driven scan; `SPAN(DIGITS)` for numbers, `LEN(1)` for operators;
@@ -2475,7 +2475,7 @@ Key contrast: SORTCHARS+TABLE (SNOBOL4) vs canonical+table (Icon) vs msort+asser
 
 ## SD-20 -- M-SD-DEMO10 ✅  **SCRIP DEMO LADDER COMPLETE**
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `ebe6d87`.
+**Date:** 2026-03-26. **HEAD (one4all):** `ebe6d87`.
 
 - `demo/scrip/demo10/anagram.md`: detect anagram groups in a word list.
 - SNOBOL4: `BSORT` on char `ARRAY` → canonical key; `TABLE` groups words by key;
@@ -2529,7 +2529,7 @@ Blocked pending StackMapTable work in Icon JVM backend.
 
 ## SD-21 -- 30/30 FULL LADDER ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `3bba8e2`.
+**Date:** 2026-03-26. **HEAD (one4all):** `3bba8e2`.
 
 **Style change:** All SNOBOL4 sections converted to `&CASE = 1` mode.
 Convention: UPPERCASE for built-ins (OUTPUT, DEFINE, ARRAY, TABLE, SPAN, BREAK,
@@ -2553,7 +2553,7 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 
 ## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `d64d752`. **HEAD (.github):** `cbbbfbd`.
+**Date:** 2026-03-26. **HEAD (one4all):** `d64d752`. **HEAD (.github):** `cbbbfbd`.
 
 **Baseline entering session:** 136/136 (rung05–35). `fact(5)=1` (recursion bug). rung32 t03 xfail. rung25 t03/t07 failing.
 
@@ -2582,7 +2582,7 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 
 ## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `d64d752`.
+**Date:** 2026-03-26. **HEAD (one4all):** `d64d752`.
 
 **IJ-53:** All class-level scratch statics trampled by recursive calls. `ij_static_needs_callsave()` save/restore at every user-proc call site. `fact(5)=120`.
 
@@ -2596,14 +2596,14 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 
 ## SD-24 — run_demo.sh wired; SNO2C-JVM 9/10; M-SD-1 ✅
 
-**Date:** 2026-03-26. **HEAD (snobol4x):** `0f28136`.
+**Date:** 2026-03-26. **HEAD (one4all):** `0f28136`.
 
 **M-SD-1 FIRED.** hello.md passes all three JVM frontends (SNO2C-JVM, ICON-JVM, PROLOG-JVM).
 
 **Infrastructure:**
 - `run_demo.sh` rewritten with 6 runners: 3 reference interpreters + 3 JVM frontends (SNO2C-JVM, ICON-JVM, PROLOG-JVM)
-- Auto-detect sno2c, icon_driver_jvm, jasmin.jar; dynamic classname extraction from .j
-- Inline Icon explicit-semicolon converter (snobol4x dialect requires `;` after procedure headers and statements)
+- Auto-detect scrip-cc, icon_driver_jvm, jasmin.jar; dynamic classname extraction from .j
+- Inline Icon explicit-semicolon converter (one4all dialect requires `;` after procedure headers and statements)
 - `set -e` guards (`|| true` on all java/compiler calls) prevent script death on runtime exceptions
 
 **SNOBOL4 fixes (SNO2C-JVM 6→9/10):**
@@ -2623,7 +2623,7 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 - `IDENT(a,b)` returns `a` on success (not `""`); `DIFFER` returns `""` — confirmed from spitbol-manual.
 - `ARRAY(n,init)` pre-fills 1..n with init; verified and fixed.
 - Arithmetic `k-1` in array subscripts: JVM whole-number path correctly emits `Long.toString` — no key-normalization bug.
-- TABLE missing-key → `""` in real SNOBOL4; snobol4x returns Java null — root cause of demo10 NPE.
+- TABLE missing-key → `""` in real SNOBOL4; one4all returns Java null — root cause of demo10 NPE.
 
 **Next session (SD-25):**
 1. Fix `sno_array_get`/`sno_table_get` to return `""` for missing keys (not Java null)
@@ -2638,7 +2638,7 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 ## IJ-56 — M-IJ-JCON-HARNESS (in progress)
 
 **Date:** 2026-03-26  
-**HEAD at close:** `52e575c` snobol4x  
+**HEAD at close:** `52e575c` one4all  
 **Baseline maintained:** rung01–35: 153/153 PASS, 0 regressions
 
 ### Work completed
@@ -2679,7 +2679,7 @@ Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-57. Fix Stream A (parse gaps) first
 ## SD-27 — M-SD-3 roman in progress + HQ restructure proposal
 
 **Date:** 2026-03-26
-**snobol4x HEAD at close:** `51e38fc`
+**one4all HEAD at close:** `51e38fc`
 **Context window at handoff:** ~73%
 
 ### Work completed
@@ -2713,14 +2713,14 @@ Read FRONTEND-ICON-JVM.md §NOW Bootstrap IJ-57. Fix Stream A (parse gaps) first
 ### Next session (SD-28)
 
 1. Fix `icon_emit_jvm.c` `ij_emit_subscript()` — list subscript path emits wrong type before `putstatic`
-2. Re-run: `SNO2C=snobol4x/sno2c ICON_DRIVER=snobol4x/icon_driver JASMIN=snobol4x/src/backend/jvm/jasmin.jar bash demo/scrip/run_demo.sh demo/scrip/demo3/`
+2. Re-run: `SNO2C=one4all/scrip-cc ICON_DRIVER=one4all/icon_driver JASMIN=one4all/src/backend/jvm/jasmin.jar bash demo/scrip/run_demo.sh demo/scrip/demo3/`
 3. All 6 green → fire M-SD-3
 
 **Bootstrap SD-28:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-cd snobol4x && make -C src
+cd one4all && make -C src
 apt-get install -y default-jdk swi-prolog icont
 export JAVA_TOOL_OPTIONS=""
 # Read FRONTEND-ICON-JVM.md §NOW — fix ij_emit_subscript() list path
@@ -2730,7 +2730,7 @@ export JAVA_TOOL_OPTIONS=""
 
 ## Session PJ-79 (Prolog JVM) — 2026-03-26
 
-**Commits:** `6f22e7f` PJ-79a, `75e46c2` PJ-79b (snobol4x); `7d89d06` (`.github`)
+**Commits:** `6f22e7f` PJ-79a, `75e46c2` PJ-79b (one4all); `7d89d06` (`.github`)
 
 **What landed:**
 
@@ -2765,10 +2765,10 @@ export JAVA_TOOL_OPTIONS=""
 
 **Bootstrap PJ-80:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
+make -C one4all/src
 export JAVA_TOOL_OPTIONS=""
 unzip swipl-devel-master.zip -d /tmp/swipl   # upload zip at session start
 # Read §NOW in SESSION-prolog-jvm.md. Start at CRITICAL NEXT ACTION (PJ-80).
@@ -2778,7 +2778,7 @@ unzip swipl-devel-master.zip -d /tmp/swipl   # upload zip at session start
 
 ## Session SD-28 — 2026-03-26
 
-**Commits:** `fd7362d` SD-28a (snobol4x); .github pending
+**Commits:** `fd7362d` SD-28a (one4all); .github pending
 
 **Goal:** M-SD-3 roman — ICON-JVM PASS
 
@@ -2822,7 +2822,7 @@ if (ij_expr_is_string(rhs)) {
 Also: `TK_AUGCONCAT` hardcoded as `35` in `ij_emit_augop` and `ij_expr_is_string`
 — verify against enum; change to `(int)TK_AUGCONCAT` if value differs.
 
-**Status at handoff:** snobol4x `fd7362d`, .github (this commit)
+**Status at handoff:** one4all `fd7362d`, .github (this commit)
 
 ### Next session (SD-29)
 
@@ -2835,10 +2835,10 @@ Also: `TK_AUGCONCAT` hardcoded as `35` in `ij_emit_augop` and `ij_expr_is_string
 
 **Bootstrap SD-29:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk
-cd snobol4x/src
+cd one4all/src
 gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
   frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
   frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
@@ -2852,7 +2852,7 @@ export JAVA_TOOL_OPTIONS=""
 
 ## Session SD-29 — 2026-03-26
 
-**Commits:** `cd8cb80` SD-29 (snobol4x); .github (this commit)
+**Commits:** `cd8cb80` SD-29 (one4all); .github (this commit)
 
 **M-SD-3 FIRES — roman: SNO2C-JVM ✅ ICON-JVM ✅ PROLOG-JVM ✅**
 
@@ -2863,7 +2863,7 @@ export JAVA_TOOL_OPTIONS=""
 - Replaced all three literal `35` comparisons with `(int)TK_AUGCONCAT`
 - `ij_expr_is_string(ICN_AUGOP)`, `ij_emit_augop()`, and pre-pass body scan
 
-**HEAD at handoff:** snobol4x `cd8cb80`, .github (this commit)
+**HEAD at handoff:** one4all `cd8cb80`, .github (this commit)
 
 ### Next session (SD-30)
 
@@ -2871,26 +2871,26 @@ M-SD-4: palindrome. Read `demo/scrip/demo4/palindrome.md`, run demo, fix failure
 
 **Bootstrap SD-30:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk
-cd snobol4x/src
+cd one4all/src
 gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
   frontend/icon/icon_driver.c frontend/icon/icon_lex.c \
   frontend/icon/icon_parse.c frontend/icon/icon_ast.c \
   frontend/icon/icon_emit.c frontend/icon/icon_emit_jvm.c \
   frontend/icon/icon_runtime.c -o ../icon_driver
-make -f Makefile  # builds sno2c
+make -f Makefile  # builds scrip-cc
 export JAVA_TOOL_OPTIONS=""
 bash ../demo/scrip/run_demo.sh ../demo/scrip/demo4 \
-  SNO2C=../sno2c ICON_DRIVER=../icon_driver JASMIN=../backend/jvm/jasmin.jar
+  SNO2C=../scrip-cc ICON_DRIVER=../icon_driver JASMIN=../backend/jvm/jasmin.jar
 ```
 
 ---
 
 ## PJ-80 — Prolog JVM — 2026-03-26
 
-**HEAD at close:** `4d4e90a` (snobol4x main)
+**HEAD at close:** `4d4e90a` (one4all main)
 
 **What was done:**
 - PJ-80a: `pj_ldc_str()` — escape `\` and `"` in `ldc` atom string emission (`prolog_emit_jvm.c`); fixes Jasmin `Bad backslash escape` on atoms like `=\=` in `test_arith`
@@ -2909,10 +2909,10 @@ bash ../demo/scrip/run_demo.sh ../demo/scrip/demo4 \
 
 **Bootstrap PJ-81:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
+make -C one4all/src
 export JAVA_TOOL_OPTIONS=""
 unzip swipl-devel-master.zip -d /tmp/swipl
 # wrap/compile/run each test per §NOW in SESSION-prolog-jvm.md
@@ -2922,20 +2922,20 @@ unzip swipl-devel-master.zip -d /tmp/swipl
 
 ## Session SD-30 — 2026-03-27
 
-**Commits:** `cf39803` SD-30, `2074158` SD-30b (snobol4x); .github (this commit)
+**Commits:** `cf39803` SD-30, `2074158` SD-30b (one4all); .github (this commit)
 
 **Five fixes to `icon_emit_jvm.c`:** implicit locals, J→A upgrade, augop pre-pass, skip sdrain for control flow, is_strlist in local var path. Corpus procedure-header cleanup (261 files). roman ICON-JVM still PASS. palindrome both frontends failing silently.
 
 **SD-31 tasks:** debug `map(s)` one-arg and `~==` for ICON-JVM; debug `string_chars/2` for PROLOG-JVM.
 
-**HEAD at handoff:** snobol4x `2074158`, .github (this commit)
+**HEAD at handoff:** one4all `2074158`, .github (this commit)
 
 **Bootstrap SD-31:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk swi-prolog
-cd snobol4x/src && make -f Makefile
+cd one4all/src && make -f Makefile
 gcc -Wall -Wno-unused-function -g -O0 -I frontend/snobol4 -I frontend/icon \
   frontend/icon/icon_driver.c frontend/icon/icon_lex.c icon_parse.c icon_ast.c \
   icon_emit.c icon_emit_jvm.c icon_runtime.c -o ../icon_driver
@@ -2966,16 +2966,16 @@ export JAVA_TOOL_OPTIONS=""
 - ICON-JVM demo4 status unknown (run_demo.sh timed out; icon_driver produces Jasmin .j file, needs assembly step).
 - PLAN.md §NOW row not updated (handoff at 86% context).
 
-**Commits:** snobol4x `b34cbc0` SD-28
+**Commits:** one4all `b34cbc0` SD-28
 
-**HEAD at handoff:** snobol4x `b34cbc0`, .github (this commit)
+**HEAD at handoff:** one4all `b34cbc0`, .github (this commit)
 
 **Bootstrap SD-33:**
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/one4all
 git clone https://TOKEN@github.com/snobol4ever/.github
-cd snobol4x/src && make -j$(nproc)
-# Step 1: run regression rung35 — cd snobol4x && bash test/run_tests.sh (or equivalent)
+cd one4all/src && make -j$(nproc)
+# Step 1: run regression rung35 — cd one4all && bash test/run_tests.sh (or equivalent)
 # Step 2: if rung35 green, test ICON-JVM demo4
 # Step 3: run full demo4 run_demo.sh, mark M-SD-4 complete if all 3 JVM frontends PASS
 # Step 4: continue M-SD-5 (fibonacci)
@@ -2998,13 +2998,13 @@ cd snobol4x/src && make -j$(nproc)
 
 **PLAN.md row:** no change needed (housekeeping only)
 
-**HEAD at handoff:** snobol4x `4b046a6`, .github `72a9a2f`
+**HEAD at handoff:** one4all `4b046a6`, .github `72a9a2f`
 
 **Bootstrap SD-33:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-cd snobol4x/src && make -j$(nproc)
+cd one4all/src && make -j$(nproc)
 # FIRST: tail -80 SESSIONS_ARCHIVE.md
 # SECOND: read RULES.md in full
 # Then: run rung35 regression (cut-scoping change in b34cbc0 is high-risk)
@@ -3016,7 +3016,7 @@ cd snobol4x/src && make -j$(nproc)
 ## PJ-82 — 2026-03-27
 
 **Commits:** `c62b9dd` PJ-82a, `ab7f006` PJ-82b (after rebase)
-**HEAD:** `ab7f006` on `snobol4ever/snobol4x` main
+**HEAD:** `ab7f006` on `snobol4ever/one4all` main
 
 ### What was done
 
@@ -3054,10 +3054,10 @@ Corpus: 98/98 passing throughout (no regressions).
 ### Bootstrap for PJ-83
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
+make -C one4all/src
 export JAVA_TOOL_OPTIONS=""
 # Read only §NOW of hq/SESSION-prolog-jvm.md
 # SWI upstream: git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core
@@ -3082,15 +3082,15 @@ export JAVA_TOOL_OPTIONS=""
 **rung35:** 5/5 PASS (before and after fix).
 **Result:** demo4 all 3 JVM frontends `yes/no/yes` ✅ → **M-SD-4 fires.**
 
-**Commits:** snobol4x `f8e74fc` SD-33
+**Commits:** one4all `f8e74fc` SD-33
 
-**HEAD at handoff:** snobol4x `f8e74fc`, .github this commit
+**HEAD at handoff:** one4all `f8e74fc`, .github this commit
 
 **Bootstrap SD-34:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-cd snobol4x/src && make -j$(nproc) && make icon_driver
+cd one4all/src && make -j$(nproc) && make icon_driver
 # FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md
 # Then: run M-SD-5 fibonacci — check demo/scrip/demo5/ source+expected
 # Run all 3 JVM frontends, fix any failures, fire M-SD-5 if all PASS
@@ -3103,13 +3103,13 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 **Date:** 2026-03-27
 
 **Commits:**
-- snobol4x `b05b919` PJ-83a: parser fx-1150 prefix atoms + directive prec 1200
-- snobol4x `840e966` PJ-83b: remove wrap_swi.py
+- one4all `b05b919` PJ-83a: parser fx-1150 prefix atoms + directive prec 1200
+- one4all `840e966` PJ-83b: remove wrap_swi.py
 - .github `af8897e` PJ-83b: §NOW rewrite + HEAD update
 
 **What was done:**
 
-1. **Parser fix (PJ-83a):** Declaration keywords (`dynamic`, `discontiguous`, `multifile`, `use_module`, `ensure_loaded`, `meta_predicate`, `mode`) now parse as `fx 1150` prefix operators when followed by a term-starting token. Previously only the `dynamic(foo/1)` form (with parens) worked; bare `:- dynamic foo/1.` caused parse errors. Directive parse precedence raised from 999 → 1200. Raw SWI `.pl` files with bare declarations now parse through `sno2c` without errors for `test_list` and `test_misc`.
+1. **Parser fix (PJ-83a):** Declaration keywords (`dynamic`, `discontiguous`, `multifile`, `use_module`, `ensure_loaded`, `meta_predicate`, `mode`) now parse as `fx 1150` prefix operators when followed by a term-starting token. Previously only the `dynamic(foo/1)` form (with parens) worked; bare `:- dynamic foo/1.` caused parse errors. Directive parse precedence raised from 999 → 1200. Raw SWI `.pl` files with bare declarations now parse through `scrip-cc` without errors for `test_list` and `test_misc`.
 
 2. **wrap_swi.py deleted (PJ-83b):** Python preprocessor shim removed entirely. It was the wrong approach — the canonical machinery is the plunit linker inside `prolog_emit_jvm.c`.
 
@@ -3123,20 +3123,20 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 
 **Corpus baseline:** 53/54 passing (1 pre-existing `lists` failure — `reverse/2` duplicate method, pre-dates this session).
 
-**HEAD at handoff:** snobol4x `840e966`, .github `af8897e`
+**HEAD at handoff:** one4all `840e966`, .github `af8897e`
 
 **Bootstrap PJ-84:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-cd snobol4x && make -C src
+cd one4all && make -C src
 export JAVA_TOOL_OPTIONS=""
 # FIRST: read only §NOW of SESSION-prolog-jvm.md
 # SECOND: sparse-clone SWI tests: git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel && cd /tmp/swipl-devel && git sparse-checkout set tests/core
 # THEN: fix pj_linker_scan multi-suite (track current suite in pass-2)
 # THEN: fix variable-sharing (inline body term in pj_test assertz)
-# Run: ./sno2c -pl -jvm /tmp/swipl-devel/tests/core/test_list.pl > /tmp/test_list.j
+# Run: ./scrip-cc -pl -jvm /tmp/swipl-devel/tests/core/test_list.pl > /tmp/test_list.j
 ```
 
 ---
@@ -3145,7 +3145,7 @@ export JAVA_TOOL_OPTIONS=""
 
 **Session type:** Scrip Demo · multi-milestone survey · SD-34
 
-**Starting state:** M-SD-4 ✅. snobol4x `f8e74fc`.
+**Starting state:** M-SD-4 ✅. one4all `f8e74fc`.
 
 **Work done:**
 
@@ -3163,18 +3163,18 @@ M-SD-7 (rot13): SNO2C PASS, PROLOG FAIL. M-SD-8 (insertion sort): SNO2C PASS, PR
 RULES.md fix: wrong claim "parser accepts optional semicolons after procedure headers" — corrected to "NO semicolon after procedure header". Memory system (auto-derived) also carried this wrong claim; user disabled auto-derive memory in GUI.
 
 **Commits:**
-- snobol4x `583e685` — forall/2 synthetic builtin (WIP)
-- snobol4x `5d900b8` — demo6/sieve.md semicolons
+- one4all `583e685` — forall/2 synthetic builtin (WIP)
+- one4all `5d900b8` — demo6/sieve.md semicolons
 - .github `1d0f809` — RULES.md semicolon fix
 - .github `db782be` — SCRIP_DEMOS + MILESTONE_ARCHIVE M-SD-5/6/8
 
-**HEAD at handoff:** snobol4x `5d900b8`, .github this commit
+**HEAD at handoff:** one4all `5d900b8`, .github this commit
 
 **Bootstrap SD-35:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-cd snobol4x/src && make -j$(nproc) && make icon_driver
+cd one4all/src && make -j$(nproc) && make icon_driver
 # FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md in full
 # Step 1: fix icon_emit_jvm.c — ||:= augmented concat with integer RHS needs Long.toString() coercion
 # Step 2: test demo6 ICON-JVM: sieve[1] := 0; out ||:= i pattern
@@ -3186,7 +3186,7 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 
 ## SD-35 — 2026-03-27 — HQ housekeeping + file audit
 
-**Session type:** Housekeeping · .github only · no snobol4x code changes
+**Session type:** Housekeeping · .github only · no one4all code changes
 
 **Work done:**
 
@@ -3209,15 +3209,15 @@ Full HQ file audit. Removed all duplicates, fixed all naming inconsistencies, ve
 
 **Also:** User disabled auto-derive memory in Claude GUI (was propagating stale/wrong facts). RULES.md corrected: Icon parser requires NO semicolon after procedure headers.
 
-**No snobol4x changes this session.**
+**No one4all changes this session.**
 
-**HEAD at handoff:** snobol4x `5d900b8`, .github this commit
+**HEAD at handoff:** one4all `5d900b8`, .github this commit
 
 **Bootstrap SD-35:**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-cd snobol4x/src && make -j$(nproc) && make icon_driver
+cd one4all/src && make -j$(nproc) && make icon_driver
 # FIRST: tail -80 SESSIONS_ARCHIVE.md; SECOND: read RULES.md in full
 # Step 1: fix icon_emit_jvm.c — ||:= augmented string-concat with integer RHS
 #   needs Long.toString() coercion before StringBuilder.append()
@@ -3231,12 +3231,12 @@ cd snobol4x/src && make -j$(nproc) && make icon_driver
 ## SD-36 — M-SD-10 anagram SNO2C-JVM PASS
 
 **Date:** 2026-03-27
-**Repos:** snobol4x `7ccd33e`, .github `db83c55`
+**Repos:** one4all `7ccd33e`, .github `db83c55`
 **Bootstrap:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
-cd snobol4x/src && make
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
+cd one4all/src && make
 ```
 
 **Milestone:** M-SD-10 (anagram) SNO2C-JVM ✅ PASS. All M-SD-1..10 SNO2C-JVM green.
@@ -3257,12 +3257,12 @@ cd snobol4x/src && make
 ## SD-37 — 2026-03-27
 
 **Session type:** Scrip Demo × JVM (SD prefix)
-**Repos:** snobol4x `795c2ff`, .github `(this commit)`
+**Repos:** one4all `795c2ff`, .github `(this commit)`
 **Bootstrap:**
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
-cd snobol4x && make -C src
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
+cd one4all && make -C src
 apt-get install -y default-jdk swi-prolog icont
 gcc -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
   src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
@@ -3318,11 +3318,11 @@ Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW` first.
 **What was done:**
 1. Diagnosed all `.md` files in `.github` for structural issues.
 2. Fixed 5 broken internal links caused by GRAND_MASTER_REORG rename clobber:
-   - `README.md`: `TINY.md`→`REPO-snobol4x.md`, `JVM.md`→`REPO-snobol4jvm.md`, `DOTNET.md`→`REPO-snobol4dotnet.md`, `ARCH.md`→`ARCH-overview.md`
+   - `README.md`: `TINY.md`→`REPO-one4all.md`, `JVM.md`→`REPO-snobol4jvm.md`, `DOTNET.md`→`REPO-snobol4dotnet.md`, `ARCH.md`→`ARCH-overview.md`
    - `MISC.md`: `TESTING.md`→`ARCH-testing.md` (2 occurrences)
 3. Fixed 2 unclosed code fences:
    - `REPO-snobol4jvm.md`: closed unclosed bash block in Session Start; removed stray bare fence after J2 comment
-   - `REPO-snobol4x.md`: added missing opening fence before dangling `...}` snippet
+   - `REPO-one4all.md`: added missing opening fence before dangling `...}` snippet
 
 **No milestones fired. No artifacts regenerated (no emitters touched).**
 
@@ -3333,14 +3333,14 @@ Read `SESSION-scrip-jvm.md §NOW` and `SESSION-icon-jvm.md §NOW` first.
 ## IJ-58 (2026-03-27) — Icon JVM: augops, builtins, 75-test harness
 
 **Session type:** Icon JVM (IJ prefix)
-**Repos:** snobol4x `5b32daa`, .github `c8d03a7`
+**Repos:** one4all `5b32daa`, .github `c8d03a7`
 
 **Bootstrap (next IJ session):**
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk
-cd snobol4x
+cd one4all
 cat > /tmp/icon_driver_shim.c << 'SHIM'
 extern int icon_driver_main(int argc, char **argv);
 int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
@@ -3356,7 +3356,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 
 **Score: PASS=2 WO=21 VE=48 CE=3 / 75 total**
 
-**NOTE: icon_driver.c now integrated into sno2c (LP-JVM-2/LP-JVM-3 commits). Build requires shim main + `-Isrc/frontend/snobol4`.**
+**NOTE: icon_driver.c now integrated into scrip-cc (LP-JVM-2/LP-JVM-3 commits). Build requires shim main + `-Isrc/frontend/snobol4`.**
 
 **Milestones fired:** none (M-IJ-JCON-HARNESS still in progress)
 
@@ -3378,7 +3378,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 
 **Discovered this session:**
 - rung36_jcon has **75 tests** (t01–t75), not 51; t53–t75 all had `.xfail` pre-marked
-- `icon_driver.c` no longer has standalone `main()` — integrated into sno2c
+- `icon_driver.c` no longer has standalone `main()` — integrated into scrip-cc
 - IPL programs from corpus require explicit semicolons (our lexer: "No auto-semicolon insertion — deliberate deviation from standard Icon")
 - RULES.md new rule: "HQ DOCS ARE THE ONLY RELIABLE MEMORY"
 
@@ -3399,7 +3399,7 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 ## IJ-58b (2026-03-27) — Icon JVM: benchmark readiness discussion
 
 **Session type:** Icon JVM (IJ prefix) — continuation/discussion
-**Repos:** snobol4x `5b32daa`, .github `c472c77` (no code changes this sub-session)
+**Repos:** one4all `5b32daa`, .github `c472c77` (no code changes this sub-session)
 
 **What was established:**
 - rung36_jcon has 75 tests; benchmark-class [B]: t01 t27 t28 t39 t54 t66 t70
@@ -3420,18 +3420,18 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 ## G-7 (2026-03-28) — Grand Master Reorg: Phase 0 complete; 59 canonical IR nodes
 
 **Session type:** Grand Master Reorg (G prefix)
-**Repos:** snobol4x `36fa6aa`, .github `1ec22dc`
+**Repos:** one4all `36fa6aa`, .github `1ec22dc`
 **Bootstrap:** TOKEN_SEE_LON
 
 ### Phase 0 milestones completed
 
 | Milestone | Commit | Result |
 |-----------|--------|--------|
-| M-G0-FREEZE | snobol4x `716b814` | `pre-reorg-freeze` tag pushed; `doc/BASELINE.md` |
+| M-G0-FREEZE | one4all `716b814` | `pre-reorg-freeze` tag pushed; `doc/BASELINE.md` |
 | M-G0-RENAME | .github `22fae8d` | Canonical names confirmed; GitHub redirects live; 0 file changes |
 | M-G0-CORPUS-AUDIT | .github `19d0db8` | 471-file inventory; 0 conflicts; execution plan; `demo/beauty.sno` divergence flagged for Lon |
-| M-G0-AUDIT | snobol4x `8b773e8` | `doc/EMITTER_AUDIT.md` — all 8 emitters, deviations, Greek law confirmed |
-| M-G0-IR-AUDIT | snobol4x `36fa6aa` | `doc/IR_AUDIT.md` — 59 canonical IR nodes, minimal set, lowering rules, pattern primitives |
+| M-G0-AUDIT | one4all `8b773e8` | `doc/EMITTER_AUDIT.md` — all 8 emitters, deviations, Greek law confirmed |
+| M-G0-IR-AUDIT | one4all `36fa6aa` | `doc/IR_AUDIT.md` — 59 canonical IR nodes, minimal set, lowering rules, pattern primitives |
 
 ### Key decisions and corrections
 
@@ -3443,16 +3443,16 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep 
 - Pass 3: 45 nodes (wrong — E_FNC was hiding 14 distinct pattern nodes)
 - Pass 4 (final): 59 nodes — confirmed from `emit_byrd_asm.c` recognized builtin list lines 2420-2422 and SPITBOL v37.min `p$xxx` match routines
 
-Key renames from sno2c.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX`, `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`, `E_NULV→E_NUL`, `E_STAR→E_DEFER`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`.
+Key renames from scrip-cc.h: `E_CONC→E_SEQ`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_ASGN→E_ASSIGN`, `E_ARY→E_IDX`, `E_ALT_GEN→E_GENALT`, `E_VART→E_VAR`, `E_NULV→E_NUL`, `E_STAR→E_DEFER`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`.
 New nodes: `E_PLS`, `E_CSET`, `E_MAKELIST`, `E_ANY`, `E_NOTANY`, `E_SPAN`, `E_BREAK`, `E_BREAKX`, `E_LEN`, `E_TAB`, `E_RTAB`, `E_REM`, `E_FAIL`, `E_SUCCEED`, `E_FENCE`, `E_ABORT`, `E_BAL`.
 
-**Git identity rule corrected:** All commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via `git-filter-repo` across `.github`, `snobol4x`, `corpus`, `snobol4jvm`. RULES.md updated.
+**Git identity rule corrected:** All commits as `LCherryholmes <lcherryh@yahoo.com>`. History rewritten via `git-filter-repo` across `.github`, `one4all`, `corpus`, `snobol4jvm`. RULES.md updated.
 
 **New docs created:**
 - `ARCH-sil-heritage.md` — SIL v311.sil lineage for all E_ node names
-- `snobol4x/doc/BASELINE.md` — pre-reorg test baseline counts
-- `snobol4x/doc/EMITTER_AUDIT.md` — all 8 emitter files audited
-- `snobol4x/doc/IR_AUDIT.md` — all 6 frontends mapped to 59-node IR
+- `one4all/doc/BASELINE.md` — pre-reorg test baseline counts
+- `one4all/doc/EMITTER_AUDIT.md` — all 8 emitter files audited
+- `one4all/doc/IR_AUDIT.md` — all 6 frontends mapped to 59-node IR
 
 **Phase 9 added:** `snobol4dotnet → snobol4net` rename (post M-G7-UNFREEZE, milestones M-G9-RENAME-NET-*).
 
@@ -3479,12 +3479,12 @@ After M-G0-SIL-NAMES: proceed to **M-G1-IR-HEADER-DEF** — create `src/ir/ir.h`
 ## G-7b (2026-03-28) — Grand Master Reorg: SIL names audit, phase reorder, ir.h
 
 **Session type:** Grand Master Reorg (G prefix)
-**Repos:** snobol4x `a1f9a76`, .github `c722b1e`
-**Bootstrap:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x.git`
+**Repos:** one4all `a1f9a76`, .github `c722b1e`
+**Bootstrap:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git`
 
 ### Milestones completed
 
-| Milestone | snobol4x commit | .github commit | Result |
+| Milestone | one4all commit | .github commit | Result |
 |-----------|----------------|----------------|--------|
 | Phase 3 reorder | — | `1efd6fe` | Phase 3 (naming) moved after Phase 4+5 (collapse+unification). 29+ sub-milestones → 9 per-survivor-file passes. GRAND_MASTER_REORG.md Phase 3 section rewritten; dependency graph updated. |
 | M-G0-SIL-NAMES ✅ | `b1d200f` | `4d65f06` | `doc/SIL_NAMES_AUDIT.md` — all four areas covered. Two law additions: `ICN_OUT()` (icon_emit.c write macro, avoids E() collision); EKind alias bridge doc. `snobol4_asm.mac` confirmed as gold standard — fully conformant. No law corrections needed. |
@@ -3512,25 +3512,25 @@ After M-G0-SIL-NAMES: proceed to **M-G1-IR-HEADER-DEF** — create `src/ir/ir.h`
 
 1. `PLAN.md` — NOW table (G row)
 2. `GRAND_MASTER_REORG.md` — Phase 1 milestones (M-G1-IR-HEADER-WIRE is next)
-3. `snobol4x/src/ir/ir.h` — the new header (read before touching sno2c.h)
-4. `snobol4x/src/frontend/snobol4/sno2c.h` — add `#include "ir/ir.h"` + `IR_COMPAT_ALIASES`
+3. `one4all/src/ir/ir.h` — the new header (read before touching scrip-cc.h)
+4. `one4all/src/frontend/snobol4/scrip-cc.h` — add `#include "ir/ir.h"` + `IR_COMPAT_ALIASES`
 
 ### Next milestone: M-G1-IR-HEADER-WIRE
 
-Add `#include "ir/ir.h"` to `sno2c.h`. Activate `IR_COMPAT_ALIASES` so existing
+Add `#include "ir/ir.h"` to `scrip-cc.h`. Activate `IR_COMPAT_ALIASES` so existing
 code compiles without change. Fix any `switch(kind)` that becomes non-exhaustive
 (add `default: assert(0)` or handle new kinds). Run `setup.sh` first to confirm
 baseline: `106/106 ALL PASS`. Then `make -j4` must stay green — 106/106 ASM +
 JVM + 110/110 NET — after the include is added.
 
 **Read only for next G-session:** `PLAN.md` + `GRAND_MASTER_REORG.md` Phase 1 +
-`src/ir/ir.h` + `src/frontend/snobol4/sno2c.h` header section.
+`src/ir/ir.h` + `src/frontend/snobol4/scrip-cc.h` header section.
 
 ---
 
-**G-7 (2026-03-28, Claude Sonnet 4.6) — Phase 1 complete: snobol4x `c14da15` / .github `3adc7b0`**
+**G-7 (2026-03-28, Claude Sonnet 4.6) — Phase 1 complete: one4all `c14da15` / .github `3adc7b0`**
 
-M-G1-IR-HEADER-WIRE ✅: `sno2c.h` now includes `ir/ir.h`. Replaced local EKind enum with
+M-G1-IR-HEADER-WIRE ✅: `scrip-cc.h` now includes `ir/ir.h`. Replaced local EKind enum with
 `#define IR_COMPAT_ALIASES / EXPR_T_DEFINED / #include "ir/ir.h"`. Added `EXPR_T_DEFINED`
 guard to `ir.h` EXPR_t block (struct unification later phase). Added `-I .` to Makefile.
 Collapsed E_ARY/E_IDX duplicate cases in all 4 backends (sval-based dispatch). 106/106 ✅.
@@ -3549,7 +3549,7 @@ corpus cloned — ASM 106/106 confirmed against real corpus.
 
 ---
 
-**G-7 addendum (2026-03-28, Claude Sonnet 4.6) — snobol4x `c11841f`**
+**G-7 addendum (2026-03-28, Claude Sonnet 4.6) — one4all `c11841f`**
 
 Fixed E_ARY/E_IDX assignment-path regressions introduced by M-G1-IR-HEADER-WIRE.
 Three files had `kind == E_ARY` branch conditions — now that E_ARY is a compat alias
@@ -3571,7 +3571,7 @@ Run SESSION_BOOTSTRAP.sh first. Read GRAND_MASTER_REORG.md Phase 2.
 
 ---
 
-**G-7 Phase 2 partial (2026-03-28, Claude Sonnet 4.6) — snobol4x `845e255`**
+**G-7 Phase 2 partial (2026-03-28, Claude Sonnet 4.6) — one4all `845e255`**
 
 Phase 2 mechanical renames all complete except Prolog x86 split (left for next session,
 requires fresh context — it is a file split not a rename and carries the most risk).
@@ -3613,7 +3613,7 @@ x86 106/106 ✅ · JVM 106/106 [pre-existing: 056/210/212/rung11] · .NET 109/11
 
 ---
 
-## G-7 Session (2026-03-28, Claude Sonnet 4.6) — snobol4x `ad29d4a` / .github `2cebfd4`
+## G-7 Session (2026-03-28, Claude Sonnet 4.6) — one4all `ad29d4a` / .github `2cebfd4`
 
 ### Session type
 Grand Master Reorg — G-7 continuation (same session chain as G-6/G-7 prior entries)
@@ -3622,10 +3622,10 @@ Grand Master Reorg — G-7 continuation (same session chain as G-6/G-7 prior ent
 
 | Milestone | Commit | What |
 |-----------|--------|------|
-| M-G2-MOVE-PROLOG-ASM-a ✅ | snobol4x `b37854c` (step a in prior push) | Created empty `src/backend/x64/emit_x64_prolog.c` stub; `#include` at tail of `emit_x64.c` |
-| M-G2-MOVE-PROLOG-ASM-b ✅ | snobol4x `b37854c` | Physically moved Prolog ASM emitter (lines 5416–7247) to `emit_x64_prolog.c`; `emit_x64.c` retains `#include` at tail. Build clean. |
-| M-G-INV ✅ | snobol4x `ce0580c` / .github `5ddf954` | Fast parallel 3×3 invariant harness `test/run_invariants.sh`: pre-builds `libsno4rt_asm.a` + `libsno4rt_pl.a` once; 7 active cells in parallel. SESSION_BOOTSTRAP.sh HOW block replaced with single call. |
-| M-G4-SPLIT-SEQ-CONCAT ✅ (emitters) | snobol4x `cf7bce3` + `ad29d4a` | `E_CONCAT` added to `ir.h` enum. All three emitters migrated: pattern-context `E_CONC` → `E_SEQ`; value-context `E_CONC` → `E_CONCAT`. Build clean. |
+| M-G2-MOVE-PROLOG-ASM-a ✅ | one4all `b37854c` (step a in prior push) | Created empty `src/backend/x64/emit_x64_prolog.c` stub; `#include` at tail of `emit_x64.c` |
+| M-G2-MOVE-PROLOG-ASM-b ✅ | one4all `b37854c` | Physically moved Prolog ASM emitter (lines 5416–7247) to `emit_x64_prolog.c`; `emit_x64.c` retains `#include` at tail. Build clean. |
+| M-G-INV ✅ | one4all `ce0580c` / .github `5ddf954` | Fast parallel 3×3 invariant harness `test/run_invariants.sh`: pre-builds `libsno4rt_asm.a` + `libsno4rt_pl.a` once; 7 active cells in parallel. SESSION_BOOTSTRAP.sh HOW block replaced with single call. |
+| M-G4-SPLIT-SEQ-CONCAT ✅ (emitters) | one4all `cf7bce3` + `ad29d4a` | `E_CONCAT` added to `ir.h` enum. All three emitters migrated: pattern-context `E_CONC` → `E_SEQ`; value-context `E_CONC` → `E_CONCAT`. Build clean. |
 
 ### Design decisions recorded
 
@@ -3637,7 +3637,7 @@ Grand Master Reorg — G-7 continuation (same session chain as G-6/G-7 prior ent
 
 ### Not yet done (next session must complete)
 
-- **M-G4-SPLIT-SEQ-CONCAT phase 2**: migrate parser/lowering `E_CONC` construction sites to emit `E_SEQ` vs `E_CONCAT` correctly. Key files: `src/frontend/snobol4/parse.c` (emits `E_CONC` at concat parse), `sno2c.h`/lowering. After this, `E_CONC` compat alias can be removed.
+- **M-G4-SPLIT-SEQ-CONCAT phase 2**: migrate parser/lowering `E_CONC` construction sites to emit `E_SEQ` vs `E_CONCAT` correctly. Key files: `src/frontend/snobol4/parse.c` (emits `E_CONC` at concat parse), `scrip-cc.h`/lowering. After this, `E_CONC` compat alias can be removed.
 - **Invariant verification**: `run_invariants.sh` needs `corpus` cloned (requires bootstrap token) to verify x86 106/106 · JVM 106/106 · .NET 110/110 still hold after E_SEQ/E_CONCAT split.
 - **M-G4-SHARED-CONC-FOLD**: extract n-ary→binary right-fold helper into `ir_emit_common.c` (first shared wiring extraction).
 
@@ -3653,7 +3653,7 @@ x86 106/106 [corpus not available in container — build clean, local 3-test PAS
 
 ---
 
-## G-8 Session (2026-03-29, Claude Sonnet 4.6) — snobol4x `6b88ffa` / .github `d5001d2`
+## G-8 Session (2026-03-29, Claude Sonnet 4.6) — one4all `6b88ffa` / .github `d5001d2`
 
 ### Session type
 Grand Master Reorg — G-8 (continuation of G-7 chain)
@@ -3662,13 +3662,13 @@ Grand Master Reorg — G-8 (continuation of G-7 chain)
 
 | Milestone | Commit | What |
 |-----------|--------|------|
-| M-G4-SPLIT-SEQ-CONCAT phase 2 ✅ | snobol4x `0bc5d9a` (carried from G-7) | `parse.c` fixup_val_tree/repl_is_pat_tree emit E_SEQ vs E_CONCAT correctly; `snocone_lower.c` CONCAT/PIPE/OR → E_CONCAT. Single-JVM harness `test/jvm/SnoHarness.java` + `SnoRuntime.java` (M-G-INV-JVM). |
-| M-G4-SHARED-CONC-FOLD ✅ | snobol4x `9f947cd` | `src/ir/ir_emit_common.c` + `ir_emit_common.h`: `ir_nary_right_fold` / `ir_nary_right_fold_free`. Five duplicate right-fold blocks replaced: emit_x64.c ×3 (E_SEQ pat, E_OR pat, E_OR val), emit_jvm.c ×2 (E_SEQ, E_OR). Makefile updated. Build clean. |
-| M-G-INV-EMIT (partial) ✅ | snobol4x `9f947cd` | gcc-style multi-file CLI: `sno2c -asm f1.sno f2.sno ...` → `f1.s f2.s ...`. `compile_one()` extracted from `main()`. `snoc_reset()` added to `lex.c` (clears nerrors, inc_dirs). `test/run_emit_check.sh`: emit-diff harness using `xargs -P8`, ~4s wall time, no assembling/running. |
+| M-G4-SPLIT-SEQ-CONCAT phase 2 ✅ | one4all `0bc5d9a` (carried from G-7) | `parse.c` fixup_val_tree/repl_is_pat_tree emit E_SEQ vs E_CONCAT correctly; `snocone_lower.c` CONCAT/PIPE/OR → E_CONCAT. Single-JVM harness `test/jvm/SnoHarness.java` + `SnoRuntime.java` (M-G-INV-JVM). |
+| M-G4-SHARED-CONC-FOLD ✅ | one4all `9f947cd` | `src/ir/ir_emit_common.c` + `ir_emit_common.h`: `ir_nary_right_fold` / `ir_nary_right_fold_free`. Five duplicate right-fold blocks replaced: emit_x64.c ×3 (E_SEQ pat, E_OR pat, E_OR val), emit_jvm.c ×2 (E_SEQ, E_OR). Makefile updated. Build clean. |
+| M-G-INV-EMIT (partial) ✅ | one4all `9f947cd` | gcc-style multi-file CLI: `scrip-cc -asm f1.sno f2.sno ...` → `f1.s f2.s ...`. `compile_one()` extracted from `main()`. `snoc_reset()` added to `lex.c` (clears nerrors, inc_dirs). `test/run_emit_check.sh`: emit-diff harness using `xargs -P8`, ~4s wall time, no assembling/running. |
 
 ### Not completed — next session
 
-**M-G-INV-EMIT-FIX** — `sno2c` multi-file mode crashes (SIGSEGV rc=139) on specific file pair: `013_assign_overwrite.sno` + `014_assign_indirect_dollar.sno`. Root cause: one or more parser/emitter statics not reset between files in `compile_one()`. `snoc_reset()` clears `nerrors`/`n_inc`/`inc_dirs` but the crash persists.
+**M-G-INV-EMIT-FIX** — `scrip-cc` multi-file mode crashes (SIGSEGV rc=139) on specific file pair: `013_assign_overwrite.sno` + `014_assign_indirect_dollar.sno`. Root cause: one or more parser/emitter statics not reset between files in `compile_one()`. `snoc_reset()` clears `nerrors`/`n_inc`/`inc_dirs` but the crash persists.
 
 Workaround in place: `run_emit_check.sh` uses `xargs -P8` (one process per file) — correct and ~4s.
 
@@ -3676,7 +3676,7 @@ Workaround in place: `run_emit_check.sh` uses `xargs -P8` (one process per file)
 1. Run `bash test/g8_session.sh` — it builds an ASan binary and runs the crash pair
 2. ASan stack trace names the exact static
 3. Add it to `snoc_reset()` in `src/frontend/snobol4/lex.c`
-4. Re-run: `sno2c -asm $(find corpus/crosscheck -name '*.sno')` should complete without crash
+4. Re-run: `scrip-cc -asm $(find corpus/crosscheck -name '*.sno')` should complete without crash
 5. Then: `bash test/run_emit_check.sh --update` to generate `test/emit_baseline/`
 6. Commit baseline, confirm `run_emit_check.sh` green in <5s
 
@@ -3688,7 +3688,7 @@ After M-G-INV-EMIT-FIX + baseline committed, SESSION_BOOTSTRAP.sh HOW block is f
 
 1. **Emit-diff invariant philosophy** — invariant for a reorg is "did emitter output change?", not "does the program produce correct output". Emit+diff is the right primitive: tests emitters not runtime. No nasm, no JVM startup, no mono. Target: <5s wall time for 152 files × 3 backends.
 
-2. **gcc-style multi-file CLI** — `sno2c -asm f1.sno f2.sno` derives output names by replacing suffix, exactly like gcc. `-o` errors with multiple inputs. stdin mode preserved. No `--batch` switch.
+2. **gcc-style multi-file CLI** — `scrip-cc -asm f1.sno f2.sno` derives output names by replacing suffix, exactly like gcc. `-o` errors with multiple inputs. stdin mode preserved. No `--batch` switch.
 
 3. **corpus repo location** — `snobol4ever/corpus` (not `snobol4harness/snobol4corpus` — that was the old slug). SESSION_BOOTSTRAP.sh clones to `/home/claude/corpus`.
 
@@ -3706,10 +3706,10 @@ That is 3 of the 7 active invariant cells. Full coverage requires:
 | 1 | SNOBOL4 | x86  | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
 | 2 | SNOBOL4 | JVM  | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
 | 3 | SNOBOL4 | .NET | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
-| 4 | Icon    | x86  | `.icn` rungs 01–38 | `snobol4x/test/frontend/icon/corpus/rung*/` | 258 |
-| 5 | Icon    | JVM  | `.icn` rungs 01–38 | `snobol4x/test/frontend/icon/corpus/rung*/` | 258 |
-| 6 | Prolog  | x86  | `.pro/.pl` rungs | `snobol4x/test/frontend/prolog/corpus/rung*/` | 131 |
-| 7 | Prolog  | JVM  | `.pro/.pl` rungs | `snobol4x/test/frontend/prolog/corpus/rung*/` | 131 |
+| 4 | Icon    | x86  | `.icn` rungs 01–38 | `one4all/test/frontend/icon/corpus/rung*/` | 258 |
+| 5 | Icon    | JVM  | `.icn` rungs 01–38 | `one4all/test/frontend/icon/corpus/rung*/` | 258 |
+| 6 | Prolog  | x86  | `.pro/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
+| 7 | Prolog  | JVM  | `.pro/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
 
 Also present but lower priority: Snocone 10 `.sc` (x86 only), Rebus 3 `.reb` (x86 only).
 
@@ -3724,4 +3724,4 @@ the multi-file batch for SNOBOL4; Icon/Prolog frontends reset cleanly already
 3. `cat /home/claude/.github/RULES.md`
 4. `cat /home/claude/.github/PLAN.md` — NOW table
 5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
-6. `bash /home/claude/snobol4x/test/g8_session.sh` — completes M-G-INV-EMIT-FIX automatically
+6. `bash /home/claude/one4all/test/g8_session.sh` — completes M-G-INV-EMIT-FIX automatically

@@ -16,7 +16,7 @@
 ## How to Reproduce
 
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 cat > /tmp/fence_test.sno << 'SNOEOF'
                'hello world' FENCE('hello')  :F(FAIL)
                OUTPUT = 'OK'   :(END)
@@ -24,7 +24,7 @@ FAIL           OUTPUT = 'FAIL'
 END
 SNOEOF
 
-./sno2c -asm /tmp/fence_test.sno -o /tmp/fence_test.asm
+./scrip-cc -asm /tmp/fence_test.sno -o /tmp/fence_test.asm
 nasm -f elf64 -I src/runtime/asm/ -o /tmp/fence_test.o /tmp/fence_test.asm
 WORK=/tmp/beauty_build
 RT_OBJS="$WORK/stmt_rt.o $WORK/snobol4.o $WORK/mock_includes.o $WORK/snobol4_pattern.o $WORK/mock_engine.o $WORK/blk_alloc.o $WORK/blk_reloc.o"
@@ -95,9 +95,9 @@ All fixes confirmed: **106/106 corpus ALL PASS**.
 ## Current State of beauty Build
 
 ```bash
-cd /home/claude/snobol4ever/snobol4x
+cd /home/claude/snobol4ever/one4all
 WORK=/tmp/beauty_build
-./sno2c -asm -Idemo/inc -I./src/frontend/snobol4 demo/beauty.sno -o $WORK/beauty.asm
+./scrip-cc -asm -Idemo/inc -I./src/frontend/snobol4 demo/beauty.sno -o $WORK/beauty.asm
 nasm -f elf64 -I src/runtime/asm/ -o $WORK/beauty.o $WORK/beauty.asm
 # Runtime objects (rebuild stmt_rt.o with DT_N fix):
 RT=src/runtime; SNO2C_INC=src/frontend/snobol4

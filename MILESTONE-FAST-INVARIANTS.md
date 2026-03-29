@@ -37,11 +37,11 @@ A single script `test/run_invariants.sh` that:
 | Prolog runtime archive | `libsno4rt_pl.a` (atom+unify+builtin) | Same for Prolog x64 |
 | No verbose per-test output | Only FAIL lines + final matrix | Less I/O contention |
 | TIMEOUT tuned | 5s x86, 10s JVM (JVM startup cost) | No wasted wait |
-| sno2c pipe | `sno2c ... | nasm -f elf64 /dev/stdin` | Skip temp .s file for x86 |
+| scrip-cc pipe | `scrip-cc ... | nasm -f elf64 /dev/stdin` | Skip temp .s file for x86 |
 
 ## Script location
 
-`snobol4x/test/run_invariants.sh`
+`one4all/test/run_invariants.sh`
 
 Called from `SESSION_BOOTSTRAP.sh` HOW block in place of the current
 per-suite inline code.

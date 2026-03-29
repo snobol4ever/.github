@@ -20,7 +20,7 @@ SNOBOL4's pattern engine is not a regex engine. It is a universal grammar machin
 
 The same four-state **Byrd Box model** — α (PROCEED), β (RECEDE), γ (SUCCEED), ω (CONCEDE) — describes SNOBOL4 pattern matching, Icon's goal-directed generators, Prolog unification, and recursive-descent parsing at every level of the Chomsky hierarchy. All four tiers: regular, context-free, context-sensitive, Turing-complete — expressible directly as SNOBOL4 patterns, with mutual recursion, backtracking, and capture. No yacc. No lex. No separate grammar formalism.
 
-The key insight in snobol4x: the Byrd Box model is not just an execution model — it is a **code generation strategy**. Compile those four states to static gotos and you get goal-directed backtracking evaluation with zero dispatch overhead.
+The key insight in one4all: the Byrd Box model is not just an execution model — it is a **code generation strategy**. Compile those four states to static gotos and you get goal-directed backtracking evaluation with zero dispatch overhead.
 
 ---
 
