@@ -90,9 +90,9 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 13 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 14 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `3ff859f` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+**one4all** `0f71030` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
 
 ### Completed this session
 - **pl__cm__sl_N_r fix** committed — n-ary conjunction splice in disj handler; rung02_facts ✅
@@ -106,8 +106,8 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 **Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — confirm baseline (snobol4_x86 106/106, prolog_x86 13/107, prolog_jvm 106/107).
 
-**Step 2:** M-G4-SHARED-ICON-TO — audit `E_TO`/`E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
+**Step 2:** Complete M-G5-LOWER-ICON-AUDIT — write `doc/IR_LOWER_ICON.md`. Expected gaps: ICN_CSET_DIFF/INTER/UNION, ICN_AUGOP, ICN_RANDOM, ICN_LCONCAT, ICN_COMPLEMENT.
 
-**Step 3:** Continue M-G4 Icon rows (SUSPEND, ALT, BANG, LIMIT), then Prolog rows.
+**Step 3:** M-G5-LOWER-SNOCONE/REBUS/SCRIP audits, then execute Fix milestones for any gaps found.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
