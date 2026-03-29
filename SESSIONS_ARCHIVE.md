@@ -5199,3 +5199,60 @@ Requirement: no test hang can block the harness for more than a few seconds. Imp
 5. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` → `corpus/`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 4 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `222c300` · **corpus** `ada0755` · **.github** `d27c347` (pending new push)
+
+### Completed this session
+
+#### SESSION_BOOTSTRAP.sh — complete rewrite ✅
+Fully self-sufficient from a bare container. Installs everything from the internet:
+- apt: gcc make nasm libgc-dev java/javac binutils curl unzip mono
+- SWI-Prolog: apt swi-prolog
+- Icon: apt icont, fallback build from `github.com/gtownsend/icon`
+- CSNOBOL4 2.3.3: build from `snobol4.org/csnobol4/curr/snobol4-2_3_3.tar.gz`
+- SPITBOL: build from `github.com/spitbol/spitbol`
+- scrip-cc: `make -j` in `one4all/src/`
+- Runs emit-diff (493/0) then full 7-cell invariant gate
+
+#### All SESSION docs unified ✅
+§BUILD sections in SESSION-icon-x64, icon-jvm, prolog-jvm, prolog-x64, scrip-jvm, linker-jvm replaced with single line:
+`TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+REPO-one4all.md and RULES.md updated. Commit: `.github` `d27c347`
+
+#### M-G4-SHARED-OR ✅ — NOT extractable
+E_OR wiring differs fundamentally across backends:
+1. Cursor-save: x64 uses named BSS vars + ASM macros; JVM uses local int slots; .NET uses CIL local ints
+2. n-ary: .NET has native loop; x64+JVM use ir_nary_right_fold
+3. Child-emit callback signatures incompatible across backends
+Decision recorded in GRAND_MASTER_REORG.md. No code change.
+
+#### M-G2-MOVE-PROLOG-ASM-a/b ✅ — confirmed already done
+emit_x64_prolog.c exists (1842 lines), #included from emit_x64.c line 5403.
+Emit-diff 493/0 confirmed. Both milestones marked ✅ in GRAND_MASTER_REORG.md.
+
+#### M-G0-CORPUS-AUDIT execution — icon rungs ✅
+All 38 icon rung dirs migrated from one4all → corpus, one commit per rung:
+- corpus commits: `379b346` (rung01) through `ada0755` (rung36_jcon)
+- 258 .icn files + .expected + .c files — exact match
+- 38 run_rung*.sh runners updated: CORPUS_REPO env var, SCRIPT_DIR before cd, unquoted glob
+- Verified: 121p/109f — identical to pre-migration baseline
+- one4all commit: `222c300`
+
+**Source files still present in one4all/test/frontend/icon/corpus/** — removal is a
+separate step after corpus migration declared complete.
+
+### Emit-diff baseline
+493/0 ✅ — unchanged.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh` — does everything.
+
+1. **Run full 7-cell invariant gate** with `CORPUS_REPO=/home/claude/corpus` set — confirm icon_x86 reads from corpus repo correctly through run_invariants.sh.
+2. **Remove one4all/test/frontend/icon/corpus/** — now that corpus repo is the canonical source and runners point there. One `git rm -r` + commit.
+3. **Prolog corpus migration** — same pattern: migrate `one4all/test/frontend/prolog/corpus/rung*/` → `corpus/programs/prolog/rung*/`, update prolog runners, remove from one4all.
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.

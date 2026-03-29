@@ -135,8 +135,8 @@ is the single authoritative copy.
 | **M-G2-MOVE-PROLOG-JVM** ✅ | `git mv src/frontend/prolog/prolog_emit_jvm.c src/backend/jvm/emit_jvm_prolog.c`. Update references. No content changes. | Commit `845e255`. |
 | **M-G2-MOVE-ICON-ASM** ✅ | `git mv src/frontend/icon/icon_emit.c src/backend/x64/emit_x64_icon.c`. Update references. No content changes. | Commit `845e255`. |
 | **M-G2-ICN-X64-GAP-FILL** ✅ | Implement 28 ICN kinds missing from `emit_x64_icon.c` (present in JVM but unimplemented — `default` stub). Implemented: NONNULL, REAL, SIZE, POW, SEQ_EXPR, IDENTICAL, SWAP, SGT/SGE/SLT/SLE/SNE, REPEAT, BREAK, NEXT, INITIAL, LIMIT, SUBSCRIPT, SECTION/+/-, MAKELIST, RECORD, FIELD, CASE, BANG. Loop control stack added (push/pop in while/until/every/repeat). Runtime additions: `icn_str_cmp`, `icn_strlen`, `icn_pow`, `icn_str_subscript`, `icn_str_section`. Stubs: BANG_BINARY, MATCH, MAKELIST, RECORD, FIELD (list/record runtime deferred). | emit-diff 488/0 ✅ · one4all `6ee8905` |
-| **M-G2-MOVE-PROLOG-ASM-a** | ⚠ FILE SPLIT step 1 — create `src/backend/x64/emit_x64_prolog.c` as an empty stub and `#include` it from the **tail** of `emit_x64.c`. Prolog code still physically lives in `emit_x64.c` at this step. Add stub to Makefile if needed. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
-| **M-G2-MOVE-PROLOG-ASM-b** | ⚠ FILE SPLIT step 2 — physically move Prolog ASM emitter code from `emit_x64.c` into `emit_x64_prolog.c`. Remove from `emit_x64.c`. The `#include` from step (a) stays. | x86 106/106; Prolog x86 rungs 1–9 PASS; `emit_x64.c` still passes 106/106 |
+| **M-G2-MOVE-PROLOG-ASM-a** ✅ | FILE SPLIT step 1 — `src/backend/x64/emit_x64_prolog.c` created; `#include "emit_x64_prolog.c"` at tail of `emit_x64.c` (line 5403). Emit-diff 493/0. | Confirmed G-9 s3 |
+| **M-G2-MOVE-PROLOG-ASM-b** ✅ | FILE SPLIT step 2 — Prolog ASM emitter (1842 lines) physically lives in `emit_x64_prolog.c`. `emit_x64.c` retains only the `#include`. Emit-diff 493/0. | Confirmed G-9 s3 |
 
 After M-G2: the file layout matches the target architecture. Every emitter sits
 in the backend directory that owns it. **M-G2-MOVE-PROLOG-ASM-a/b must be last** —
@@ -215,7 +215,7 @@ Each backend provides its own `emit_fn_t` callback. The wiring is written once.
 |----|-----------|--------|--------|
 | **M-G4-SHARED-CONC-FOLD** ✅ | `E_SEQ`/`E_OR` n-ary | `ir_nary_right_fold` + `ir_nary_right_fold_free` in `ir_emit_common.c`. x64 ×3 + JVM ×2 inline folds replaced. Dead C backend inline folds retained (no test). one4all `9f947cd`. | emit-diff 488/0 |
 | **M-G4-SHARED-CONC-SEQ** ✅ | `E_SEQ` binary | Not extracted — .NET deferred-commit pre-scan makes x64/NET binary paths non-isomorphic. Wiring stays in `emit_seq()` (x64) and `net_emit_pat_node E_SEQ` (NET). Decision recorded G-9s1. | n/a — no code change |
-| **M-G4-SHARED-OR** | `E_OR` | Same. | All |
+| **M-G4-SHARED-OR** ✅ | `E_OR` | NOT extracted — same decision as E_SEQ. Three backends diverge on: (1) cursor-save mechanism (BSS var/ASM macro vs JVM local int vs CIL local int); (2) n-ary handling (.NET native loop, x64+JVM use ir_nary_right_fold); (3) child-emit callback signatures incompatible. Wiring stays in-situ per backend. Decision recorded G-9 s3. | n/a — no code change |
 | **M-G4-SHARED-ARBNO** | `E_ARBNO` | Same. | All |
 | **M-G4-SHARED-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same. | All |
 | **M-G4-SHARED-ARITH** | `E_ADD/SUB/MPY/DIV/MOD` | Same. | All |
