@@ -18,21 +18,24 @@
 ## §BUILD
 
 ```bash
-cd one4all && make -C src
-./scrip-cc -pl -asm foo.pl > foo.s
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
+```
+
+All tools, repos, and oracles installed by bootstrap. Single-test pipeline:
+
+```bash
+cd /home/claude/one4all
+./scrip-cc -pl -asm foo.pl -o foo.s
 nasm -f elf64 foo.s -o foo.o
 gcc -no-pie foo.o \
   src/frontend/prolog/prolog_atom.c \
   src/frontend/prolog/prolog_unify.c \
   src/frontend/prolog/prolog_builtin.c \
-  -lm -o foo
+  -lm -o foo && ./foo
 ```
 
-**Key facts:**
-- Link `.c` source files directly (no separate `prolog_runtime.c` exists)
-- `-no-pie` required (NASM 32-bit PC-relative calls incompatible with GCC PIE default)
-- `-lm` required (pow, sqrt, log, etc.)
-- `nasm` must be installed: `apt-get install -y nasm`
+**Key facts:** `-no-pie` required · `-lm` required · link `.c` sources directly (no prolog_runtime.c).
+
 
 ---
 

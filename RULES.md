@@ -18,7 +18,7 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 | 1 | **WHO** | Sets `git config user.name/email` to LCherryholmes — every commit, every repo |
 | 2 | **WHAT** | Prints project summary: 6 frontends × 4 backends, current reorg phase, ref docs |
 | 3 | **WHERE (repos)** | Clones or pulls: `.github` · `one4all` · `corpus` · `harness` |
-| 4 | **WHERE (tools)** | Installs `nasm` · `mono-complete` · `java` · confirms `jasmin.jar` · builds `scrip-cc` |
+| 4 | **WHERE (tools)** | apt: `nasm` · `libgc-dev` · `java/javac` · `mono` · `swipl` · `icont`; builds from source: `CSNOBOL4 2.3.3` · `SPITBOL` · `scrip-cc`; confirms `jasmin.jar` |
 | 5 | **WHY** | Prints current milestone from PLAN.md and the four docs to read before coding |
 | 6 | **HOW** | Runs all three invariants: `x86 106/106 · JVM 106/106 · .NET 110/110` |
 
