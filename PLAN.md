@@ -799,3 +799,24 @@ Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located sto
 **Step 3 — Wire into SESSION_BOOTSTRAP.sh**
 
 **Step 4 — M-G4-SHARED-CONC-FOLD**
+
+## G-8 Handoff update (2026-03-29 session 3, Claude Sonnet 4.6) — GitHub rename done
+
+### GitHub rename complete
+`snobol4ever/snobol4x` → `snobol4ever/one4all` ✅ (Lon, 2026-03-29)
+
+### NEW MILESTONE: M-G-RENAME-ONE4ALL
+
+**Full scan-and-replace of all remaining `snobol4x` string literals** in every file
+across all four repos: README.md, all .github MDs, source comments, shell scripts,
+generated headers, .gitignore, everything. The previous M-G-RENAME-ANY2MANY sweep
+caught shell/script/MD references but a full grep will surface any stragglers
+(clone URLs, path strings, comments, GitHub URLs still pointing to old name).
+
+**Scope:**
+- `snobol4ever/snobol4x` → `snobol4ever/one4all` (GitHub URLs)
+- `snobol4x` (bare repo name in prose/paths) → `one4all`
+- Local clone path `/home/claude/snobol4x` refs in docs → `/home/claude/one4all`
+- Any `github.com/snobol4ever/snobol4x` URLs in README, ARCH docs, SESSION docs
+
+**Read for next G-session:** This handoff only. Run SESSION_BOOTSTRAP first.
