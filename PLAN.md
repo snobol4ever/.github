@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G-RENAME-ONE4ALL ✅ `f2f0fcb` one4all (58 files, snobol4x→scrip-cc) | `f2f0fcb` one4all · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
+| **⚠ GRAND MASTER REORG** | G-8 — rename/rebrand complete ✅ (snobol4x→scrip-cc, SNO2C→SCRIP_CC, README, ARCH-sno2c→ARCH-scrip-cc) | `394aa39` one4all · `bb919c7` .github | **Diagnose scrip-cc 0-byte output → fix run_emit_check.sh → M-G-INV-EMIT-FIX ✅ → SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -850,3 +850,48 @@ Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located sto
 **Step 4 — M-G4-SHARED-CONC-FOLD**
 
 **Read only:** This G-8 session 4 handoff.
+
+## G-8 Handoff update (2026-03-29 session 5, Claude Sonnet 4.6) — multiple commits
+
+### Milestones completed this session
+
+| Milestone | Commits | What |
+|-----------|---------|------|
+| M-G-RENAME-ONE4ALL ✅ | one4all `f2f0fcb` | snobol4x→scrip-cc, 58 files |
+| SNO2C→SCRIP_CC sweep ✅ | one4all `6327be8` · harness `3dbec03` · corpus `1a92bc5` · .github `6bb9617` | All shell variable names SNO2C→SCRIP_CC, SNO2C_INC→SCRIP_CC_INC, SNO2C-JVM→SCRIP_CC-JVM |
+| Header guard fix ✅ | one4all `cc10b62` | scrip_cc.h: SNO2C_H→SCRIP_CC_H |
+| Dead doc ref fix ✅ | .github `eaea0cc` | FRONTEND-SNO2C.md→FRONTEND-SNOBOL4.md in ARCH-backend-c-dead.md, BACKEND-C.md, FRONTEND-REBUS.md |
+| ARCH-sno2c.md rename ✅ | .github `bb919c7` | ARCH-sno2c.md→ARCH-scrip-cc.md |
+| README rebrand ✅ | one4all `394aa39` | TINY→scrip-cc, Icon/Prolog active (not planned), five frontends correct, TINY.md→PLAN.md, TINY co-author→scrip-cc co-author |
+| Makefile fix ✅ | one4all `2a7e1d1` | Removed duplicate ICON_BIN rule, added -lm; scrip-cc now builds clean |
+
+### What was NOT changed (correct as-is)
+- `SNO2C` / `SCRIP_CC` as shell variable *names* holding the path to the binary — these are legitimate shell convention, kept throughout all scripts
+- `SNO2C_INC` → now `SCRIP_CC_INC` everywhere (was old name for include path var)
+- Historical records: PLAN.md handoffs, SESSIONS_ARCHIVE.md, MILESTONE_ARCHIVE.md, MILESTONE-RENAME-ANY2MANY.md
+- `corpus/` .sno comments: "SPITBOL/snobol4x" = external SPITBOL engine, not our project
+
+### Remaining rename/rebrand items (for future session)
+- README "one4all" intro still calls it "TINY compiler" — **FIXED this session**
+- Other MD files in .github may reference old names — quick grep recommended at session start
+- `run_demo.sh` still has `SNOBOL4X` variable name (line 79) — minor straggler
+
+### Next session — M-G-INV-EMIT-FIX
+
+**Read only:** G-8 session 1 handoff (the co-located check mode bug) + this update.
+
+**Step 1 — Diagnose why scrip-cc produces 0 bytes:**
+```bash
+cd /home/claude/one4all
+./scrip-cc -asm corpus/../corpus/crosscheck/arith_new/023_arith_add.sno 2>&1 | head -20
+./scrip-cc -asm test/snobol4/arith_new/023_arith_add.sno 2>&1 | head -20
+```
+Both produced 0 bytes last session — stderr was suppressed. Run with stderr visible first.
+
+**Step 2 — Fix run_emit_check.sh co-located mode, verify 484/0**
+
+**Step 3 — Wire into SESSION_BOOTSTRAP.sh, declare M-G-INV-EMIT-FIX ✅**
+
+**Step 4 — M-G4-SHARED-CONC-FOLD**
+
+**Read only:** This G-8 session 5 handoff only.
