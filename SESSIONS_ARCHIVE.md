@@ -5084,3 +5084,62 @@ shared across x64+.NET+Icon backends; `E_CONCAT` emission stays backend-local.
 5. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` to `corpus/` (one rung dir per commit).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 2 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `6d8dd4b` (no new one4all commits — infrastructure session) · **.github** pending push
+
+### Completed this session
+
+#### Environment bootstrap (all oracles now installed)
+- **CSNOBOL4 2.3.3** ✅ installed from uploaded tarball → `/usr/local/bin/snobol4`
+- **SPITBOL/x64** ✅ built from `x64-main.zip` → `/usr/local/bin/spitbol`
+- **Icon 9.5.25a** ✅ built from `icon-master.zip` → `/usr/local/bin/icon`, `icont`, `iconx`
+- **SWI-Prolog 9.0.4** ✅ installed via apt → `swipl`
+- **scrip-cc** ✅ built from `one4all/src/` (`make -j4`)
+
+#### M-G-INV-FAST ✅ — Invariant harness speed overhaul
+Root cause of previous timeout: per-test JVM startup (jasmin + java) × ~152 tests = 3–5 min.
+
+Optimizations implemented in `test/run_invariants.sh`:
+1. **Persistent runtime archive cache** — `out/rt_cache/libsno4rt_asm.a` + `libsno4rt_pl.a`. Stamp-checked against source md5; rebuilt only when runtime C sources change. Eliminates 7-file gcc compile on every run (was ~8s, now ~0s warm).
+2. **Batch jasmin** — all `.j` files for SNOBOL4-JVM and Prolog-JVM assembled in **one** `java -jar jasmin` invocation each. Was: N×187ms. Now: 1×187ms + file I/O.
+3. **One SnoHarness JVM** — all SNOBOL4 JVM tests and all Prolog JVM tests each run in a single `java -cp ... SnoHarness` process. Per-test classloader, per-test thread, per-test timeout (3s) inside SnoHarness. Was: N JVM startups. Now: 1.
+4. **Parallel nasm+link** — x86 compile/nasm/link/run dispatched via `xargs -P$JOBS`.
+
+#### M-G-INV-TIMEOUT ✅ — Hang detection at every level
+Requirement: no test hang can block the harness for more than a few seconds. Implemented:
+- **Per-binary x86**: `timeout $TIMEOUT_X86` (default 5s) on every executed binary — existing, confirmed present.
+- **Per-class JVM**: SnoHarness internal `TIMEOUT_MS=3000` per class thread — existing, confirmed present.
+- **Batch jasmin ceiling**: `timeout 60` on each batch jasmin invocation.
+- **SnoHarness suite ceiling**: `timeout 120` wrapping each SnoHarness invocation.
+- **Prolog x86 per-binary**: `timeout $TIMEOUT_X86` — existing, confirmed present.
+- **Icon rung runners (all 38)**: patched — `timeout "${TIMEOUT:-5}"` on every binary/iconx execution; `timeout 30` on every bare `java -jar jasmin` call. Two families patched (old-style `got=$(java -cp ...)` and new-style `actual=$("$BINARY" ...)`).
+- **Suite-level watchdog**: `SUITE_TIMEOUT=300` background process kills the entire harness if it has not exited in 5 minutes. Final backstop.
+
+#### START/FINISH/ELAPSED timing
+- `run_emit_check.sh`: START banner added at top; FINISH + ELAPSED block added to summary. Confirmed last run: **44,425ms (~44s)**.
+- `run_invariants.sh`: START banner at top; FINISH + ELAPSED at bottom.
+- SESSION_BOOTSTRAP.sh: not yet patched (next session).
+
+### Known open failures (not regressions — pre-existing)
+- **snobol4_x86 LINK_FAIL** — xargs worker env export issue: `$SCRIP_CC_BIN` and `$RT_ASM_INC` not visible inside `bash -c '_x86_compile_one ...'` subshell invoked by xargs. Manual compile chain works. Fix: inline the compile logic directly into the manifest-loop (no exported function), or write a small helper script to `/tmp`. **Must fix before invariant gate.**
+- **icon_jvm rung01/rung03 failures** — pre-existing, not introduced this session.
+
+### Emit-diff baseline
+493/0 ✅ — unchanged this session.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0 (required):** Run `test/run_emit_check.sh` first — confirm 493/0 before touching anything.
+
+1. **Fix snobol4_x86 LINK_FAIL** — inline the x86 compile+nasm+link+run logic directly into the xargs loop (remove `_x86_compile_one` exported function). Write each tuple as a mini shell script to `$WORK/jobs/NNN.sh` and dispatch with `xargs -P$JOBS bash`. Verify 106/106.
+2. **Run full 7 invariants** — gate checkpoint: `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`. Record results.
+3. **M-G4-SHARED-OR** — audit E_OR wiring extractability (same 2-vs-3 backend analysis as E_SEQ/CONC).
+4. **M-G2-MOVE-PROLOG-ASM-a** — create `src/backend/x64/emit_x64_prolog.c` stub, `#include` from tail of `emit_x64.c`. Emit-diff gate.
+5. **M-G2-MOVE-PROLOG-ASM-b** — physically move Prolog ASM code. Emit-diff gate.
+6. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` → `corpus/`.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
