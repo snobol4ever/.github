@@ -90,26 +90,24 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 12 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 13 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `0e800d0` (harness serial + ensure_tools) · **scrip-cc DELETED — rebuild required** · **.github** `be14b28` · **harness** local adapter fix not committed
+**one4all** `3ff859f` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
 
 ### Completed this session
-- **M-G-INV-SESSION-BASELINE** ✅ — harness serial dispatch, 70s wall time, snobol4_x86 106/106
-- **ensure_tools** extended — javac, mono-devel, SnoHarness compile; JVM/NET cells no longer SKIP
-- **scrip-cc -jvm -o fix** committed to run_invariants.sh; harness/adapters/tiny_net/run.sh fix NOT committed
-- **pl__cm__sl_N_r root cause found + fix written** in emit_x64_prolog.c — NOT compiled, NOT committed; scrip-cc binary deleted during rebuild
+- **pl__cm__sl_N_r fix** committed — n-ary conjunction splice in disj handler; rung02_facts ✅
+- **Makefile dep rule** fixed — emit_x64.o: emit_x64_prolog.c after `all` target
+- **harness tiny_net adapter** fix committed — scrip-cc -net -o flag
+- **Remaining 94 Prolog x86 failures** = missing runtime builtins (findall, sort, assertz, etc.) — out of reorg scope
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-**Step 0:** Clone repos: `TOKEN=ghp_REDACTED` for repos `.github one4all harness corpus`
+**Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
 
-**Step 1:** Fix Makefile dep comment (line ~40), `rm -f src/backend/x64/emit_x64.o && cd src && make -j4`, verify `../scrip-cc` exists.
+**Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — confirm baseline (snobol4_x86 106/106, prolog_x86 13/107, prolog_jvm 106/107).
 
-**Step 2:** Test rung02: `./scrip-cc -pl -asm -o /tmp/t.s corpus/programs/prolog/rung02_facts_facts.pl && nasm -f elf64 /tmp/t.s -o /tmp/t.o && gcc -O0 -no-pie /tmp/t.o out/rt_cache/libsno4rt_pl.a -lm -o /tmp/t && /tmp/t` — expect `brown\njones\nsmith`.
+**Step 2:** M-G4-SHARED-ICON-TO — audit `E_TO`/`E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
 
-**Step 3:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — expect Prolog x86 > 11/107.
-
-**Step 4:** Commit one4all fix + harness adapter fix. Then M-G4-SHARED-ICON-TO.
+**Step 3:** Continue M-G4 Icon rows (SUSPEND, ALT, BANG, LIMIT), then Prolog rows.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

@@ -5759,3 +5759,41 @@ git push origin main
 **Step 7:** M-G4-SHARED-ICON-TO.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 13 Handoff (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `3ff859f` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+
+### Completed this session
+
+- **pl__cm__sl_N_r fix committed** `3ff859f` — n-ary conjunction compound in disjunction handler now spliced inline instead of calling undefined label. rung02_facts `brown/jones/smith` ✅.
+- **Makefile dep rule fixed** — `emit_x64.o: emit_x64_prolog.c` dep now after `all` target; escaped hash removed.
+- **harness tiny_net adapter fix committed** `aede157` — `scrip-cc -net -o` flag instead of stdout redirect.
+- **Root cause of remaining 94 Prolog x86 failures identified** — missing runtime builtins: `findall/3`, `atom_length/2`, `sort/2`, `assertz/1`, `retract/1`, `catch/3`, `format/2`, `char_type/2`, `succ/2`, `plus/3`, `numbervars/3`, `term_to_atom/2`, `@</2`, `@>/2`, `@>=/2`, `@=</2`, `aggregate_all/3`, `writeq/1`, etc. These belong in `prolog_builtin.c` + `libsno4rt_pl.a`. **Out of reorg scope** — not emitter work.
+
+### Invariant state — end of session
+```
+snobol4_x86  106/106 ✅
+snobol4_jvm    5/6   (1 failure — corpus partially wired)
+snobol4_net    0/0   (corpus not wired to NET cell yet)
+icon_x86       0/0   (no corpus wired)
+icon_jvm       0/0   (no corpus wired)
+prolog_x86    13/107 (94 missing builtins — out of scope)
+prolog_jvm   106/107 (1 failure — rung06_lists_lists)
+icon_net      SKIP   (by design — not implemented)
+prolog_net    SKIP   (by design — not implemented)
+```
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
+
+**Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — confirm baseline above.
+
+**Step 2:** M-G4-SHARED-ICON-TO — audit `E_TO` / `E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c` and write `doc/M-G4-SHARED-ICON-TO.md`. Decision: extract or NOT extracted with rationale.
+
+**Step 3:** Continue remaining M-G4 Icon rows (SUSPEND, ALT, BANG, LIMIT), then Prolog rows (UNIFY, CLAUSE, CUT, TRAIL).
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
