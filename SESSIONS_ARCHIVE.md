@@ -4623,3 +4623,38 @@ Both produced 0 bytes last session — stderr was suppressed. Run with stderr vi
 **Step 4 — M-G4-SHARED-CONC-FOLD**
 
 **Read only:** This G-8 session 5 handoff only.
+
+---
+
+## G-8 Session 6 Handoff (2026-03-29, Claude Sonnet 4.6) — one4all `0eb2b57` · .github `99287e5`
+
+### Milestones completed
+
+| Milestone | What |
+|-----------|------|
+| M-G-INV-EMIT-FIX ✅ | `run_emit_check.sh`: `-o /dev/stdout` fix + `-pl` flag for `.pro` files. Prolog baselines were 0-byte (vacuous pass) — regenerated real. 488/0. SESSION_BOOTSTRAP emit guard fixed (was checking nonexistent `test/emit_baseline/`, now checks `test/snobol4/*.s`). |
+| M-G5-EMITTER-COVERAGE-AUDIT ✅ | Full gap matrix: SNO×3 / PL×3 / ICN×2 backends. Coverage tests committed. |
+| PLAN.md debloat ✅ | 897→123 lines. Handoff spam moved to SESSIONS_ARCHIVE. |
+
+### Extension canonical answer
+**.pro is the project convention** (PLAN.md, corpus layout doc, all 136 test files). Driver auto-detects only `.pl` — this is a driver bug. Workaround: `-pl` flag, now wired into `run_emit_check.sh`. Long-term fix: add `ends_with(infile, ".pro")` to driver main.c.
+
+### Coverage gap summary (emitter switch coverage, not test corpus coverage)
+- **SNO × x64/JVM/NET**: ✅ complete (E_NUL handled inline, not via switch)
+- **PL × x64**: ✅ complete (E_CUT/TRAIL/UNIFY via if-else, not switch)
+- **PL × JVM**: ✅ complete (same)
+- **PL × NET**: ⚠️ stub — no arithmetic, no CUT/TRAIL/UNIFY. By design (no backtracking yet). Coverage test exists: `test/prolog/coverage/coverage_net_gaps.pro`
+- **ICN × JVM**: ✅ complete for all constructed ICN_ kinds
+- **ICN × x64**: ⚠️ 34 ICN_ kinds missing from switch. Coverage test exists: `test/icon/coverage/coverage_x64_gaps.icn`. Compiles (22KB .s, 85KB .j) — missing cases will hit fallthrough/abort at runtime.
+
+### Next session — read only this entry
+
+**Step 1** — Fix driver to auto-detect `.pro` (one-liner in `src/driver/main.c`):
+```c
+int file_pl = pl_mode || ends_with(infile, ".pl") || ends_with(infile, ".pro");
+```
+Commit: `G-8: fix .pro auto-detection in driver`
+
+**Step 2** — M-G4-SHARED-CONC-FOLD: extract n-ary→binary right-fold for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. See GRAND_MASTER_REORG.md Phase 4.
+
+**Step 3** — ICN x64 gap fill: implement the 34 missing ICN_ switch cases in `emit_x64_icon.c`, using coverage test as the regression harness.
