@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 s6 — M-G-INV-EMIT-FIX ✅ · M-G5-COVERAGE-AUDIT ✅ · .pro→.pl ✅ · GNU Prolog oracle noted | `7faff12` one4all · `196b17b` .github | **M-G4-SHARED-CONC-FOLD → ICN x64 gap fill → benchmark scaffolding** |
+| **⚠ GRAND MASTER REORG** | G-8 s7 — WASM=tail-call encoding ✅ · BACKEND-WASM.md ✅ · 5×4 parallel plan ✅ · 488/0 emit-diff | `7faff12` one4all · `.github` pending push | **M-G4-SPLIT-SEQ-CONCAT cleanup → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -90,6 +90,28 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
+
+## G-8 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `7faff12` (unchanged) · **.github** pending push
+
+### Completed this session
+- WASM backend analysis ✅ — confirmed WebAssembly; tail-call function encoding chosen over flat labels
+- BACKEND-WASM.md ✅ — new reference doc covering encoding model, tail-call rationale, runtime, 5×4 plan
+- GRAND_MASTER_REORG.md addendum ✅ — WASM encoding decision + 5×4 parallel dev session naming
+- SESSIONS_ARCHIVE.md ✅ — full WASM vs JS/TS analysis appended
+- 488/0 emit-diff baseline confirmed at session open
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+1. **M-G4-SPLIT-SEQ-CONCAT** — close out: clean `emit_byrd_c.c` / `emit_cnode.c` E_CONC refs (dead backend, ~15 sites), drop `#define E_CONC E_SEQ` alias from ir.h
+2. **M-G4-SHARED-CONC-FOLD** — extract n-ary→binary right-fold into `ir_emit_common.c`
+3. **ICN x64 gap fill** — 34 missing ICN_ switch cases in `emit_x64_icon.c`
+4. **Benchmark scaffolding** — `queens.pl` / `fib.pl` / `roman.pl`
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
 
 ## G-8 Session 6 — Final state (2026-03-29, Claude Sonnet 4.6)
 

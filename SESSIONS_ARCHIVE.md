@@ -4761,3 +4761,98 @@ SNOBOL pattern matching compiled to native is a fundamentally different approach
 ### Note for ARCH-scrip-cc.md
 This deserves a section: "Why Byrd-box as compiled IR rather than debug model."
 Add post-reorg when ARCH docs are being cleaned up.
+
+---
+
+## Architecture Note: WASM vs JavaScript/TypeScript as 4th backend (2026-03-29, G-8 s7)
+
+### Decision: WASM stays as the 4th backend. JavaScript/TypeScript is a non-starter for Byrd-box IR.
+
+### The question
+Lon asked: is WASM WebAssembly? Should we target WASM or JS/TS as the 4th backend?
+Goal: one4all running in the browser.
+
+### What WASM is
+Yes — WebAssembly. `.wat` is the human-readable text format (what scrip-cc emits);
+`.wasm` is the binary. Browsers execute `.wasm` natively at near-native speed.
+`wasm-pack` / `wasm-bindgen` bridge to JS for DOM/API calls.
+
+### WASM instruction model vs x64/JVM/.NET
+
+| | x64 | JVM | .NET MSIL | WASM |
+|--|-----|-----|-----------|------|
+| Instruction style | RISC-like, register | Stack, bytecode | Stack, CIL | Stack, linear |
+| Control flow | Arbitrary goto/jmp labels | Labels + goto (jasmin) | br/beq/bne labels | **Structured only: block/loop/if/br/br_if** |
+| Label discipline | `α:`, `β:`, etc. — arbitrary | `lbl:` arbitrary | `.label` arbitrary | **NO arbitrary labels** |
+| Output | `.s` → nasm | `.j` → jasmin | `.il` → ilasm | `.wat` → wat2wasm |
+
+### The critical structural difference
+WASM has **no arbitrary labels and no goto**. Control flow is structured:
+`block`/`loop`/`if` with `br` (break-to-enclosing-block) only. This is the same
+constraint that forced JVM's Jasmin to use a label-encoding trick
+(labels as synthetic `nop` targets in linear bytecode) — but WASM is stricter:
+even that trick doesn't apply. `br` in WASM jumps *out of* a named block, not *to*
+a label. You cannot implement α/β/γ/ω as flat labels in .wat.
+
+### Does this mean WASM is wrong?
+No — it means WASM requires a **structured Byrd-box encoding**, not a flat-label one.
+Two known approaches:
+
+**Option A — Trampoline/CPS transform:**
+Each Byrd port (α/β/γ/ω) becomes a WASM function. Calls replace gotos.
+WASM tail-call proposal (now standardized, 2023) enables zero-overhead port dispatch.
+x64 emits `jmp α_label`; WASM emitter emits `return_call $α_fn`.
+This is structurally sound and maps 1:1 with the Byrd-box model — α/β/γ/ω become
+first-class WASM functions rather than labels.
+
+**Option B — Block-nesting encoding:**
+Each Byrd port lives inside a nested `block` structure. `br N` to depth N reaches
+the right port. Mechanically correct but produces deeply nested, unreadable .wat.
+Better left as a compiler transform, not hand-readable output.
+
+**Recommendation: Option A (trampoline).** The WASM tail-call extension is now
+in all major browsers (Chrome 112+, Firefox 121+, Safari 17+). `return_call $fn`
+is zero-overhead — no stack growth. This makes the Byrd-box model work naturally:
+α/β/γ/ω are WASM functions, `jmp label` → `return_call $fn`. The emitter differs
+from x64 in output syntax but the IR mapping is identical.
+
+### Why not JavaScript/TypeScript?
+- JS has arbitrary labels (via `label: continue`) but they only apply to loops — not
+  general control flow. Emitting α/β/γ/ω as JS labels doesn't work.
+- The natural JS encoding is also Option A: functions per port, or a trampoline loop.
+  But JS runs through a JIT with non-deterministic compilation; no bytecode control.
+- TypeScript compiles to JS — same constraints, additional transpile step, no benefit.
+- Both lack direct memory layout control needed for the SNOBOL4 runtime data model.
+- **WASM wins decisively**: typed, compact binary, linear memory, near-native speed,
+  browser-native, and the tail-call extension makes Byrd-box encoding clean.
+
+### Is the WASM backend "free" after the reorg?
+Partially. The shared IR and frontend lower.c files are completely free — all
+frontends already lower to EXPR_t / EKind. What the WASM emitter needs that differs
+from x64:
+- Replace flat `EL(label, ...)` / `goto label` with `return_call $fn` sequences
+- WASM function table for each Byrd-box node's α/β/γ/ω ports
+- A WASM linear-memory layout for the runtime (STRING, TABLE, ARRAY data types)
+- `emit_wasm.c` is currently a scaffold stub — full implementation is Phase 6 work
+
+The **emit structure** (switch on EKind, one case per IR node) is identical to x64.
+The **output syntax** differs. Estimate: 60-70% of the emitter logic is mechanically
+parallel to x64; 30-40% is WASM-specific (function table, memory layout, tail calls).
+
+### 5×4 parallel development plan
+Lon's direction: 5 parallel sessions, 5 frontends × 4 backends matrix after reorg.
+This is correct and maps cleanly to the post-reorg architecture:
+- Each session owns one frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus) across all 4 backends
+- Shared IR means frontend sessions don't collide — lower.c files are per-frontend
+- Backend emitters (emit_x64.c, emit_jvm.c, emit_net.c, emit_wasm.c) will need
+  coordination when new E_* node kinds are added — gate via ir.h PR review
+- Scrip frontend is special (compiler-compiler for Scrip language itself) — recommend
+  keeping it as a separate 6th session or subsuming under the reorg G-session
+
+Session naming for 5-way parallel:
+  SN-session (SNOBOL4 frontend all backends)
+  ICN-session (Icon frontend all backends)  
+  PL-session (Prolog frontend all backends)
+  SCN-session (Snocone frontend)
+  RB-session (Rebus frontend)
+

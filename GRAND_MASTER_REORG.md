@@ -1004,6 +1004,58 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 ---
 
+## G-8 Addendum — WASM backend encoding decision (2026-03-29)
+
+### WASM is WebAssembly — confirmed as 4th backend
+
+WASM (WebAssembly, `.wat` text format → `.wasm` binary) is the correct 4th backend
+for browser execution. JavaScript/TypeScript were evaluated and rejected:
+- JS has no general goto (loop labels only — useless for Byrd-box ports)
+- JS/TS lack linear memory control needed for the SNOBOL4 runtime data model
+- WASM is typed, compact, near-native, browser-native
+
+### WASM does NOT have flat labels — different Byrd-box encoding required
+
+x64/JVM/MSIL all support arbitrary labels + goto/jmp/branch. WASM is structured-only
+(`block`/`loop`/`if`/`br`). The flat α/β/γ/ω label model used by the other three
+backends **cannot be directly ported**.
+
+**Decision: tail-call function encoding (Option A).**
+Each Byrd port becomes a WASM function. `jmp α_label` → `return_call $node_α`.
+The WASM tail-call extension (`return_call`) is standardized (2023) and shipping in
+Chrome 112+, Firefox 121+, Safari 17+. Zero-overhead — no stack growth.
+
+This means `emit_wasm.c` shares the IR switch structure with x64 but differs in
+port-wiring output. Estimated 60-70% of emitter logic is parallel to x64;
+30-40% is WASM-specific (function table, linear memory, tail-call dispatch).
+
+**Full reference:** `BACKEND-WASM.md` (created G-8 s7).
+
+### 5×4 parallel development plan (post M-G7-UNFREEZE)
+
+Lon's direction: 5 parallel frontend sessions, each covering all 4 backends.
+
+| Session prefix | Frontend | Backends covered |
+|----------------|----------|-----------------|
+| SN | SNOBOL4 | x64, JVM, .NET, WASM |
+| ICN | Icon | x64, JVM, .NET, WASM |
+| PL | Prolog | x64, JVM, .NET, WASM |
+| SCN | Snocone | x64 (primary), others as capacity allows |
+| RB | Rebus | x64 (primary), others as capacity allows |
+
+Scrip frontend: remains under G-session (reorg) or SD-session (Scrip Demo) depending
+on whether compiler-compiler work is reorg-related or feature work.
+
+**Coordination rule:** all 5 sessions share `emit_wasm.c` and `ir.h`.
+New EKind entries require PR review — `ir.h` is the single arbitration point.
+No session adds a node kind in a frontend header; all new kinds go to `ir.h` only.
+
+**Gate:** M-G7-UNFREEZE must fire before any 5-way parallel session begins.
+M-G7 criteria: folder structure complete, naming law enforced, all invariants green,
+`doc/STYLE.md` exists, pipeline matrix has ✅/⏳ in all reachable cells.
+
+---
+
 ## G-7 Addendum — Phase 4 design correction (2026-03-28)
 
 ### E_CONC is not uniformly shareable
