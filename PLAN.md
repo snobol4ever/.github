@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G4-SHARED-CONC-FOLD ✅ · M-G-INV-EMIT ⏳ (emit-diff harness built; multi-file batch fix pending) | `9f947cd` snobol4x | **M-G-INV-EMIT-FIX**: fix sno2c multi-file SIGSEGV (audit+reset all parser/emitter statics) → enable true in-process batch → baseline snapshot → emit-diff check sub-5s |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G4-SHARED-CONC-FOLD ✅ · M-G-INV-EMIT ⏳ (SNOBOL4×3 backends only; 4 of 7 cells missing) | `6b88ffa` snobol4x · `3ff5d2d` .github | **M-G-INV-EMIT-FIX**: (1) fix sno2c SIGSEGV on multi-file SNOBOL4 pairs; (2) extend run_emit_check.sh to all 7 cells (SNOBOL4/Icon/Prolog × x86/JVM + SNOBOL4×.NET); (3) generate+commit baseline; (4) SESSION_BOOTSTRAP.sh check green <5s |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
