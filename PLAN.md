@@ -90,29 +90,26 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 11 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 12 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `1d59258` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
+**one4all** `0e800d0` (harness serial + ensure_tools) · **scrip-cc DELETED — rebuild required** · **.github** `be14b28` · **harness** local adapter fix not committed
 
 ### Completed this session
-- **M-G-INV-FAST-X86-FIX verified** — snobol4_x86 106/106 ✅
-- **Prolog x86 harness fix** `ad84745` — stdout redirect → `-o` flag; 0/107 → 11/107; 96 remaining = pre-existing `pl__cm__sl_N_r` emitter bug
-- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 axes)
-- **M-G4-SHARED-CAPTURE** ✅ `3b9f159` — NOT extracted (4 axes)
-- **M-G4-SHARED-ARITH** ✅ `1924740` — NOT extracted (3 fundamentally different models)
-- **M-G4-SHARED-ASSIGN** ✅ `9f8a610` — NOT extracted (E_ASSIGN not wired in any backend)
-- **M-G4-SHARED-IDX** ✅ `1d59258` — NOT extracted (ABI + array-resolution + key-build all diverge)
-
-All SNOBOL4 M-G4 rows complete. Remaining: 5 Icon + 4 Prolog rows.
+- **M-G-INV-SESSION-BASELINE** ✅ — harness serial dispatch, 70s wall time, snobol4_x86 106/106
+- **ensure_tools** extended — javac, mono-devel, SnoHarness compile; JVM/NET cells no longer SKIP
+- **scrip-cc -jvm -o fix** committed to run_invariants.sh; harness/adapters/tiny_net/run.sh fix NOT committed
+- **pl__cm__sl_N_r root cause found + fix written** in emit_x64_prolog.c — NOT compiled, NOT committed; scrip-cc binary deleted during rebuild
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+**Step 0:** Clone repos: `TOKEN=ghp_REDACTED` for repos `.github one4all harness corpus`
 
-**Step 1:** ✅ **M-G-INV-SESSION-BASELINE** — `snobol4_x86 106/106` confirmed. Harness runs serially in 60.8s. Baseline locked.
+**Step 1:** Fix Makefile dep comment (line ~40), `rm -f src/backend/x64/emit_x64.o && cd src && make -j4`, verify `../scrip-cc` exists.
 
-**Step 2:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
+**Step 2:** Test rung02: `./scrip-cc -pl -asm -o /tmp/t.s corpus/programs/prolog/rung02_facts_facts.pl && nasm -f elf64 /tmp/t.s -o /tmp/t.o && gcc -O0 -no-pie /tmp/t.o out/rt_cache/libsno4rt_pl.a -lm -o /tmp/t && /tmp/t` — expect `brown\njones\nsmith`.
 
-**Step 3:** Continue remaining M-G4 Icon rows, then Prolog rows.
+**Step 3:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — expect Prolog x86 > 11/107.
+
+**Step 4:** Commit one4all fix + harness adapter fix. Then M-G4-SHARED-ICON-TO.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
