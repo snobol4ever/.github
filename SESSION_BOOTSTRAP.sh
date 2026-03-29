@@ -121,16 +121,16 @@ echo ""
 # ── HOW — emit-diff invariant check (fast, emitter-only, ~4s) ─────────────────
 echo -e "${BOLD}HOW — emit-diff invariants (must be green before any work)${RESET}"
 cd /home/claude/one4all
-if [[ -d test/emit_baseline ]]; then
+if [[ -d test/snobol4 ]] && find test/snobol4 -name "*.s" -quit 2>/dev/null | grep -q .; then
     info "Running emit-diff check (test/run_emit_check.sh)..."
-    if CORPUS=/home/claude/corpus bash test/run_emit_check.sh 2>&1; then
+    if bash test/run_emit_check.sh 2>&1; then
         ok "Emit-diff: all green"
     else
         fail "Emit-diff: mismatches found — do not proceed until green"
         ERRORS=$((ERRORS+1))
     fi
 else
-    info "No emit baseline yet — run: bash test/g8_session.sh --only-baseline"
+    info "No emit baseline yet — run: bash test/run_emit_check.sh --update"
     info "Falling back to run_invariants.sh (slow — builds + runs programs)..."
     if CORPUS=/home/claude/corpus bash test/run_invariants.sh 2>&1; then
         echo ""
