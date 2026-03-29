@@ -20,19 +20,11 @@
 ## §BUILD
 
 ```bash
-cd one4all
-# icon_driver.c now needs scrip-cc.h — use shim main:
-cat > /tmp/icon_driver_shim.c << 'SHIM'
-extern int icon_driver_main(int argc, char **argv);
-int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
-SHIM
-gcc -g -O0 -I. -Isrc/frontend/snobol4 /tmp/icon_driver_shim.c \
-    src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
-    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
-    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
-    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-export JAVA_TOOL_OPTIONS=""
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
+
+All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/one4all/scrip-cc`.
+
 
 ## §TEST
 
@@ -93,19 +85,5 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver
 ### Bootstrap IJ-58 (next session)
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
-apt-get install -y default-jdk
-cd one4all
-cat > /tmp/icon_driver_shim.c << 'SHIM'
-extern int icon_driver_main(int argc, char **argv);
-int main(int argc, char **argv) { return icon_driver_main(argc, argv); }
-SHIM
-gcc -g -O0 -I. -Isrc/frontend/snobol4 /tmp/icon_driver_shim.c \
-    src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
-    src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
-    src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
-    src/frontend/icon/icon_runtime.c -o /tmp/icon_driver
-bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver 2>/dev/null | grep -E "PASS|XPASS|^---"
-# Expected: PASS=2 (t01_primes t72_proto)
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```

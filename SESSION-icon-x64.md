@@ -16,54 +16,12 @@
 
 ## §BUILD
 
-**Compiler is `scrip-cc` (built from `src/`). Frontend module is `src/frontend/icon/icn_main.c`.**
-
 ```bash
-# Clone
-git clone https://TOKEN@github.com/snobol4ever/one4all
-git clone https://TOKEN@github.com/snobol4ever/.github
-
-# Build
-cd one4all/src && make
-# produces ../scrip-cc
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
-### Run a single test (JVM backend — canonical test path)
+All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/one4all/scrip-cc`.
 
-```bash
-TMPD=$(mktemp -d)
-./scrip-cc -jvm foo.icn -o $TMPD/main.j
-for jf in $TMPD/*.j; do java -jar src/backend/jvm/jasmin.jar "$jf" -d $TMPD/; done
-cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
-java -cp $TMPD/ "$cls"
-```
-
-Note: always assemble **all** `.j` files in the output dir — record types emit
-companion `ClassName$RecordType.j` files that must be assembled alongside `main.j`.
-
-### Run a corpus rung
-
-```bash
-JASMIN=src/backend/jvm/jasmin.jar; PASS=0; FAIL=0
-for icn in test/frontend/icon/corpus/RUNG/t*.icn; do
-  base="${icn%.icn}"; exp="$base.expected"; [ -f "$exp" ] || continue
-  [ -f "$base.xfail" ] && continue
-  TMPD=$(mktemp -d)
-  ./scrip-cc -jvm "$icn" -o $TMPD/main.j 2>/dev/null
-  for jf in $TMPD/*.j; do java -jar $JASMIN "$jf" -d $TMPD/ >/dev/null 2>&1; done
-  cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
-  stdin_f="$base.stdin"
-  [ -f "$stdin_f" ] && got=$(timeout 5 java -cp $TMPD/ "$cls" < "$stdin_f" 2>/dev/null) \
-                    || got=$(timeout 5 java -cp $TMPD/ "$cls" 2>/dev/null)
-  want=$(cat "$exp")
-  [ "$got" = "$want" ] && { echo "PASS $(basename $icn)"; PASS=$((PASS+1)); } \
-                       || { echo "FAIL $(basename $icn)"; FAIL=$((FAIL+1)); }
-  rm -rf $TMPD
-done
-echo "--- PASS=$PASS FAIL=$FAIL ---"
-```
-
----
 
 ## §NOW — IX-18
 

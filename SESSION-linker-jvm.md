@@ -94,7 +94,7 @@ for (ExportEntry *e = prog->exports; e; e = e->next) {
 
 **After fixing the export wrapper — run in order:**
 ```bash
-cd one4all && make -C src
+# scrip-cc: TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 cd demo/scrip/family_net
 SCRIP_CC=../../scrip-cc; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
 
@@ -176,7 +176,7 @@ Also verify `pj_rc_swallow` DB loop: after fix, `pj_unify(args[i], fact[i+2])` s
 
 **After fixing:**
 ```bash
-cd one4all && make -C src
+# scrip-cc: TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 OUT=demo/scrip/out && JASMIN=src/backend/jvm/jasmin.jar
 ./scrip-cc -pl -jvm demo/scrip/family_prolog.pl -o $OUT/family_prolog.j
 ./scrip-cc -jvm demo/scrip/family_snobol4.sno -o $OUT/family_snobol4.j

@@ -21,25 +21,19 @@
 ## §BUILD
 
 ```bash
-cd one4all && make -C src
-apt-get install -y default-jdk swi-prolog icont
-export JAVA_TOOL_OPTIONS=""
-
-# Build icon_driver (required for ICON-JVM block)
-gcc -g -O0 -I. \
-  src/frontend/icon/icon_driver.c \
-  src/frontend/icon/icon_lex.c \
-  src/frontend/icon/icon_parse.c \
-  src/frontend/icon/icon_ast.c \
-  src/frontend/icon/icon_emit.c \
-  src/frontend/icon/icon_emit_jvm.c \
-  src/frontend/icon/icon_runtime.c \
-  -o /tmp/icon_driver
-
-SCRIP_CC=$(pwd)/scrip-cc
-ICON_DRIVER=/tmp/icon_driver
-JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
+
+All tools, repos, and oracles installed by bootstrap.
+
+```bash
+# After bootstrap — set session vars:
+cd /home/claude/one4all
+SCRIP_CC=$(pwd)/scrip-cc
+JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
+export JAVA_TOOL_OPTIONS=""
+```
+
 
 ## §RUN
 

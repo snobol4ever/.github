@@ -19,9 +19,11 @@
 ## §BUILD
 
 ```bash
-cd one4all && make -C src
-export JAVA_TOOL_OPTIONS=""
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
+
+All tools, repos, and oracles installed by bootstrap. `export JAVA_TOOL_OPTIONS=""`  if JVM is noisy.
+
 
 ## Key Files
 
@@ -121,20 +123,7 @@ Key functions in `prolog_emit_jvm.c`:
 | `test_misc` | 0 | 3 | 0 | not re-run |
 
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/one4all
-git clone https://TOKEN@github.com/snobol4ever/.github
-apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C one4all/src
-export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam
-# SWI upstream tests: sparse clone
-git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
-cd /tmp/swipl-devel && git sparse-checkout set tests/core
-# Run raw SWI file directly — NO wrap_swi.py:
-#   ./scrip-cc -pl -jvm /tmp/swipl-devel/tests/core/TEST.pl > /tmp/TEST.j
-#   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
-#   java -cp /tmp/TESTd <ClassName>
-
-# Read §NOW above. Start at CRITICAL NEXT ACTION.
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
 **Key files:**

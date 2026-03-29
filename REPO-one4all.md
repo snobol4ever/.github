@@ -16,7 +16,7 @@ one4all: multiple frontends, multiple backends.
 
 ## §BUILD
 ```bash
-cd one4all && bash setup.sh   # installs deps, builds all drivers
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh   # installs all deps + oracles, builds scrip-cc, runs invariants
 ```
 
 ## §TEST
