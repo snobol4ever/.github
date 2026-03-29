@@ -97,16 +97,20 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 ### Completed this session
 - **M-G-INV-FAST-X86-FIX verified** — snobol4_x86 106/106 ✅
 - **Prolog x86 harness fix** `ad84745` — stdout redirect → `-o` flag; 0/107 → 11/107
-- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 divergence axes); `doc/M-G4-SHARED-ARBNO.md`
+- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 divergence axes)
+- **M-G4-SHARED-CAPTURE** ✅ `3b9f159` — NOT extracted (4 divergence axes)
+- **M-G4-SHARED-ARITH** ✅ `1924740` — NOT extracted (3 fundamentally different models)
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1:** Push `.github` (GRAND_MASTER_REORG.md + SESSIONS_ARCHIVE).
+**Step 1:** Push `.github`.
 
-**Step 2:** M-G4-SHARED-CAPTURE — `E_CAPT_COND`, `E_CAPT_IMM` extractability audit.
+**Step 2:** M-G4-SHARED-ASSIGN — `E_ASSIGN`.
 
-**Step 3:** M-G4-SHARED-ARITH — `E_ADD/SUB/MPY/DIV/MOD`.
+**Step 3:** M-G4-SHARED-IDX — `E_IDX`.
+
+**Step 4:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

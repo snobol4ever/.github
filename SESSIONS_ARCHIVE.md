@@ -5557,3 +5557,40 @@ Matches M-G4-SHARED-OR and M-G4-SHARED-SEQ decisions. `doc/M-G4-SHARED-ARBNO.md`
 **Step 3:** M-G4-SHARED-ARITH — `E_ADD/SUB/MPY/DIV/MOD`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+### S11 continuation (same session — additional milestones)
+
+#### M-G4-SHARED-CAPTURE ✅ `3b9f159`
+NOT extracted — four divergence axes:
+1. Cursor-save: `.bss` CaptureVar registry + `extra_slots[]` (x64) vs JVM local int (`p_cap_local`) vs CIL local int (`p_next_int`)
+2. β port: transparent backtrack in x64; absent in JVM and .NET
+3. Variable-store: `.bss` buffer+len (x64) vs `sno_var_put` invokestatic (JVM) vs `stsfld` static field with `net_is_output` Console::WriteLine path (.NET)
+4. Child callback signatures all differ
+
+Also noted: `E_NAM` and `E_DOL` treated identically in all backends at Byrd-box level — semantic distinction (conditional vs immediate) not differentiated (pre-existing limitation).
+
+#### M-G4-SHARED-ARITH ✅ `1924740`
+NOT extracted — three fundamentally different arithmetic models:
+- x64: NASM macro fast-paths (7 VV/VI/IV/II/VS/SV/VN variants) + `APPLY_FN_N` runtime dispatch
+- JVM: double-precision bytecode with inline integer detection (`sno_is_integer`, `parseLong`, `ldiv`/`ddiv`, whole-number check, `jvm_l2sno`/`jvm_d2sno`)
+- NET: pure library delegation (`Snobol4Lib::sno_add` etc.) — all coercion hidden in managed assembly
+
+E_MOD absent from all arith case blocks — likely falls to `E_FNC` generic path; needs follow-up audit.
+
+### Invariant state end of s11 (full)
+`snobol4_x86 106/106 ✅ · prolog_x86 11/107 (96 pre-existing emitter bug, pl__cm__sl_N_r) · JVM/NET: SKIP`
+
+### one4all HEAD end of s11
+`1924740`
+
+### Next session
+
+**Step 1:** Push `.github` (this archive entry + GRAND_MASTER_REORG.md updates).
+
+**Step 2:** M-G4-SHARED-ASSIGN — `E_ASSIGN`.
+
+**Step 3:** M-G4-SHARED-IDX — `E_IDX`.
+
+**Step 4:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY` (Icon generator wiring).
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
