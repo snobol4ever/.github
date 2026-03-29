@@ -5797,3 +5797,59 @@ prolog_net    SKIP   (by design — not implemented)
 **Step 3:** Continue remaining M-G4 Icon rows (SUSPEND, ALT, BANG, LIMIT), then Prolog rows (UNIFY, CLAUSE, CUT, TRAIL).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 14 Handoff (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `0f71030` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+
+### Completed this session
+
+- **M-G4-SHARED-ICON-TO** `5b409c4` — NOT extracted (BSS vs static fields; integer-only vs promotes-to-double in TO_BY; backward-branch freedom vs StackMapTable)
+- **M-G4-SHARED-ICON-SUSPEND** `4606869` — NOT extracted (pointer-slot coroutine vs tableswitch; frame-alive vs frame-reclaimed)
+- **M-G4-SHARED-ICON-ALT** `2b52a77` — NOT extracted (hardwired-E1 β vs gate+tableswitch; JVM model is correct general case)
+- **M-G4-SHARED-ICON-BANG** `7e895d1` — NOT extracted (x64 was stub; JVM has full implementation)
+- **M-G4-SHARED-ICON-LIMIT** `d29021d` — NOT extracted (rbp frame-slots+count-down vs static-fields+count-up)
+- **M-G4-CONVERGENCE-ANALYSIS** `f325cf8` — architectural review of all Phase 4 divergences. Key findings: (1) ABI/storage divergences are necessary; (2) ICN_BANG/MATCH is a genuine gap; (3) ICN_ALT x64 model is conditionally correct but should migrate to gate model when irgen gains generator-alternatives
+- **BACKLOG-BANG-X64** `97a8b76` — **ICN_BANG and ICN_MATCH implemented in x64** (was stubs). Added `icn_bang_char_at()` + `icn_match_pat()` to `icon_runtime.c`; replaced stub `emit_bang`/`emit_match` with full BSS-slot emitters. Invariants 106/106 held.
+- **M-G4-SHARED-PROLOG-UNIFY** `28ffed6` — NOT extracted (Term*/Trail* SysV vs Object/invokestatic)
+- **M-G4-SHARED-PROLOG-CLAUSE** `a97de4f` — NOT extracted (NASM predicate ABI vs JVM method ABI; base[] helper extractable post-Phase-7)
+- **M-G4-SHARED-PROLOG-CUT** `b8536ed` — NOT extracted (compile-time label redirect+BSS flag vs runtime cs-local sentinel+cutgamma)
+- **M-G4-SHARED-PROLOG-TRAIL** `c25ff18` — NOT extracted (C Trail struct/BSS vs ArrayList<Object[]>/static). **Phase 4 complete.**
+- **M-G5-LOWER-SNOBOL4-AUDIT** `0e9245a` — PASS. All emitted kinds canonical or compat-aliased. M-G5-LOWER-SNOBOL4-FIX is no-op.
+- **M-G5-LOWER-PROLOG-AUDIT** `0f71030` — PASS. All 9 Prolog kinds canonical. M-G5-LOWER-PROLOG-FIX is no-op.
+
+### Invariant state — end of session
+```
+snobol4_x86  106/106 ✅  (unchanged)
+prolog_x86    13/107     (94 missing builtins — out of scope, unchanged)
+all others    unchanged from session 13
+```
+
+### Phase 5 status
+- M-G5-LOWER-SNOBOL4-AUDIT ✅ (no-op fix)
+- M-G5-LOWER-PROLOG-AUDIT ✅ (no-op fix)
+- M-G5-LOWER-ICON-AUDIT ⏳ IN PROGRESS — Icon uses own `IcnNode` type with ~75 ICN_* kinds. ir.h has canonical E_* for: E_TO, E_TO_BY, E_SUSPEND, E_LIMIT, E_GENALT (=E_ALT_GEN), E_ITER (=E_BANG), E_MATCH (=E_SCAN). **Audit cut off at start.** Need to map ALL ICN_* kinds to ir.h E_* and identify gaps.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
+
+**Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — confirm 106/106 baseline.
+
+**Step 2:** Complete **M-G5-LOWER-ICON-AUDIT** — write `doc/IR_LOWER_ICON.md`.
+- Source: `src/frontend/icon/icon_parse.c` + `icon_lower.c` — all `ICN_*` kinds assigned to nodes
+- Cross-ref: `src/ir/ir.h` canonical enum + aliases (E_SCAN=E_MATCH, E_BANG=E_ITER, E_ALT_GEN=E_GENALT)
+- Expected gaps: ICN_CSET_DIFF, ICN_CSET_INTER, ICN_CSET_UNION (cset arithmetic — not in ir.h); ICN_AUGOP (augmented assignment — not in ir.h); ICN_RANDOM, ICN_LCONCAT, ICN_COMPLEMENT — check each
+- For each gap: decide add to ir.h (general) or flag as Icon-local extension
+
+**Step 3:** M-G5-LOWER-SNOCONE-AUDIT — write `doc/IR_LOWER_SNOCONE.md`.
+
+**Step 4:** M-G5-LOWER-REBUS-AUDIT — write `doc/IR_LOWER_REBUS.md`.
+
+**Step 5:** M-G5-LOWER-SCRIP-AUDIT — write `doc/IR_LOWER_SCRIP.md`.
+
+**Step 6:** After all five audits done, review gaps and execute M-G5-LOWER-*-FIX milestones for any frontend with actual gaps.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
