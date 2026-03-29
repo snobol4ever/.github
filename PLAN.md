@@ -90,23 +90,23 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 10 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 11 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `e72c861` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
+**one4all** `c1f9d3d` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
 
 ### Completed this session
-- **M-G0-CORPUS-AUDIT genuinely complete** — previous closure was premature
-- All .sno/.icn/.pl source programs + named artifacts migrated from one4all to corpus ✅
-- `find one4all -name "*.sno" -o -name "*.icn" -o -name "*.pl"` → zero results ✅
-- corpus `c230de7` (695 files added) · one4all `f9fbf15` (741 files deleted) · CORPUS_MIGRATION.md `e72c861`
+- **M-G-INV-FAST-X86-FIX verified** — snobol4_x86 106/106 ✅
+- **Prolog x86 harness fix** `ad84745` — stdout redirect → `-o` flag; 0/107 → 11/107
+- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 divergence axes); `doc/M-G4-SHARED-ARBNO.md`
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1 — Verify M-G-INV-FAST-X86-FIX:**
-Mini-script fix already in `run_invariants.sh`. Run gate with `CORPUS=/home/claude/corpus`. Confirm snobol4_x86 106/106.
+**Step 1:** Push `.github` (GRAND_MASTER_REORG.md + SESSIONS_ARCHIVE).
 
-**Step 2:** M-G4-SHARED-ARBNO — node kind extractability audit.
+**Step 2:** M-G4-SHARED-CAPTURE — `E_CAPT_COND`, `E_CAPT_IMM` extractability audit.
+
+**Step 3:** M-G4-SHARED-ARITH — `E_ADD/SUB/MPY/DIV/MOD`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

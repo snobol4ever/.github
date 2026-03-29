@@ -216,7 +216,7 @@ Each backend provides its own `emit_fn_t` callback. The wiring is written once.
 | **M-G4-SHARED-CONC-FOLD** ✅ | `E_SEQ`/`E_OR` n-ary | `ir_nary_right_fold` + `ir_nary_right_fold_free` in `ir_emit_common.c`. x64 ×3 + JVM ×2 inline folds replaced. Dead C backend inline folds retained (no test). one4all `9f947cd`. | emit-diff 488/0 |
 | **M-G4-SHARED-CONC-SEQ** ✅ | `E_SEQ` binary | Not extracted — .NET deferred-commit pre-scan makes x64/NET binary paths non-isomorphic. Wiring stays in `emit_seq()` (x64) and `net_emit_pat_node E_SEQ` (NET). Decision recorded G-9s1. | n/a — no code change |
 | **M-G4-SHARED-OR** ✅ | `E_OR` | NOT extracted — same decision as E_SEQ. Three backends diverge on: (1) cursor-save mechanism (BSS var/ASM macro vs JVM local int vs CIL local int); (2) n-ary handling (.NET native loop, x64+JVM use ir_nary_right_fold); (3) child-emit callback signatures incompatible. Wiring stays in-situ per backend. Decision recorded G-9 s3. | n/a — no code change |
-| **M-G4-SHARED-ARBNO** | `E_ARBNO` | Same. | All |
+| **M-G4-SHARED-ARBNO** ✅ | `E_ARBNO` | NOT extracted — three divergence axes: (1) cursor-save mechanism (.bss/NASM-macro stack vs JVM local int vs CIL local int); (2) β port implemented in x64, absent in JVM and .NET; (3) child-emit callback signatures all differ. Wiring stays in-situ. Icon E_ARBNO gap (not wired in icon emitters) noted as Phase 5/6 scope. `doc/M-G4-SHARED-ARBNO.md` one4all `c1f9d3d`. | n/a — no code change |
 | **M-G4-SHARED-CAPTURE** | `E_CAPT_COND`, `E_CAPT_IMM` | Same. | All |
 | **M-G4-SHARED-ARITH** | `E_ADD/SUB/MPY/DIV/MOD` | Same. | All |
 | **M-G4-SHARED-ASSIGN** | `E_ASSIGN` | Same. | All |
