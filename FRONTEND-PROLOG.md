@@ -1,6 +1,6 @@
 # FRONTEND-PROLOG.md — Prolog Frontend (one4all)
 
-Tiny-Prolog: lex → parse → lower → IR. No session state here.
+Prolog: lex → parse → lower → IR. No session state here.
 **Session state** → `SESSION-prolog-x64.md` or `SESSION-prolog-jvm.md`
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
