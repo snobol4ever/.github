@@ -5594,3 +5594,61 @@ E_MOD absent from all arith case blocks — likely falls to `E_FNC` generic path
 **Step 4:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY` (Icon generator wiring).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+### S11 final handoff (2026-03-29)
+
+#### M-G4-SHARED-ASSIGN ✅ `9f8a610`
+NOT extracted. `E_ASSIGN` defined in `ir.h` but dispatched by no backend as an expr-IR node:
+- SNOBOL4: assignment is statement-level (`has_eq` + `replacement` in `stmt_t`); no `case E_ASSIGN:` anywhere
+- Icon: uses `ICN_ASSIGN` (own node type), not `E_ASSIGN`; x64 and JVM Icon backends diverge substantially (rbp-slot+type-tag vs JVM type-inferred `putstatic`/`istore`/`astore`)
+- Prolog: unification is `E_UNIFY`, not assignment
+
+`E_ASSIGN` exists for future Icon `lower.c` unification (Phase 5) and augmented-assignment lowering.
+
+#### M-G4-SHARED-IDX ✅ `1d59258`
+NOT extracted — ABI, array-resolution, key-building, and child-emit all diverge:
+- x64: SysV AMD64 DESCR_t pairs via C stack push/pop; `stmt_aref` / `stmt_aref2`; result in `rax:rdx`
+- JVM: `sno_array_get(arr,key)` invokestatic; `sno_indr_get` for named arrays; StringBuilder for 2D keys
+- NET: `net_array_get(arr,key)` static call; `ldsfld` for named arrays; `net_field_name()`
+
+### Full one4all commit log this session
+```
+1d59258  doc: M-G4-SHARED-IDX extractability audit — NOT extracted
+9f8a610  doc: M-G4-SHARED-ASSIGN extractability audit — NOT extracted
+1924740  doc: M-G4-SHARED-ARITH extractability audit — NOT extracted
+3b9f159  doc: M-G4-SHARED-CAPTURE extractability audit — NOT extracted
+c1f9d3d  doc: M-G4-SHARED-ARBNO extractability audit — NOT extracted
+ad84745  fix run_prolog_x86: use -o flag instead of stdout redirect
+```
+
+### M-G4 phase status
+Remaining M-G4 rows after this session:
+
+| Milestone | Node(s) | Status |
+|-----------|---------|--------|
+| M-G4-SHARED-ICON-TO | `E_TO`, `E_TO_BY` | ⬜ next |
+| M-G4-SHARED-ICON-SUSPEND | `E_SUSPEND` | ⬜ |
+| M-G4-SHARED-ICON-ALT | `E_ALT_GEN` | ⬜ |
+| M-G4-SHARED-ICON-BANG | `E_ITER`, `E_MATCH` | ⬜ |
+| M-G4-SHARED-ICON-LIMIT | `E_LIMIT` | ⬜ |
+| M-G4-SHARED-PROLOG-UNIFY | `E_UNIFY` | ⬜ |
+| M-G4-SHARED-PROLOG-CLAUSE | `E_CLAUSE`, `E_CHOICE` | ⬜ |
+| M-G4-SHARED-PROLOG-CUT | `E_CUT` | ⬜ |
+| M-G4-SHARED-PROLOG-TRAIL | `E_TRAIL_MARK`, `E_TRAIL_UNWIND` | ⬜ |
+
+All SNOBOL4 M-G4 rows complete. Remaining rows are Icon and Prolog generator/unification wiring — these compare `emit_x64_icon.c` vs `emit_jvm_icon.c` (Icon) and `emit_x64_prolog.c` vs `emit_jvm_prolog.c` (Prolog).
+
+### Invariant state — end of session
+`snobol4_x86 106/106 ✅ · prolog_x86 11/107 (96 pre-existing emitter bug, pl__cm__sl_N_r) · JVM/NET: SKIP (not in environment)`
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+**Step 1:** Confirm `snobol4_x86 106/106` with `CORPUS=/home/claude/corpus bash test/run_invariants.sh`.
+
+**Step 2:** M-G4-SHARED-ICON-TO — audit `E_TO` and `E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
+
+**Step 3:** Continue remaining M-G4 Icon rows, then Prolog rows.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
