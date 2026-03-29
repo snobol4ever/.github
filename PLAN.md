@@ -90,21 +90,22 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 1 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 2 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `6d8dd4b` · **.github** pending push
+**one4all** `6d8dd4b` (no new commits — infrastructure session) · **.github** pending push
 
 ### Completed this session
-- M-G4-SHARED-CONC-FOLD ✅ confirmed (G-8s7). M-G4-SHARED-CONC-SEQ: not-extracted (architectural decision). Both recorded in GRAND_MASTER_REORG.md.
-- M-G2-ICN-X64-GAP-FILL ✅ — 28 ICN x64 cases + loop stack + runtime extensions. `6ee8905`.
-- Prolog IR coverage: ✅ no gap (E_INFINITY is string branch inside E_FLIT, not missing case).
-- M-G-EMIT-COVERAGE ✅ — coverage_sno_nodes.sno (26 SNOBOL4 IR nodes) + coverage_pl_nodes.pl (15 Prolog IR nodes). Emit-diff: **493/0**. `6d8dd4b`.
+- All oracles installed: CSNOBOL4 2.3.3, SPITBOL/x64, Icon 9.5.25a, SWI-Prolog 9.0.4, scrip-cc ✅
+- M-G-INV-FAST ✅ — harness rewritten: persistent archive cache, batch jasmin, single SnoHarness JVM, parallel nasm. Harness now returns results within 240s.
+- M-G-INV-TIMEOUT ✅ — five-layer timeout defence: per-binary (5s), SnoHarness per-class (3s), jasmin batch (60s), SnoHarness suite (120s), watchdog (300s). All 38 icon rung runners patched. START/FINISH/ELAPSED on all scripts.
+- Emit-diff: **493/0** ✅ unchanged.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **Run 7 runtime invariants** (gate checkpoint): `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
-2. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
-3. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
-4. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
+1. **M-G-INV-FAST-X86-FIX** — fix snobol4_x86 LINK_FAIL (xargs subshell can't see exported bash function — rewrite dispatch to per-test mini-scripts). Do first, before any other work.
+2. **Run 7 runtime invariants** gate checkpoint: `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
+3. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
+4. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
+5. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
