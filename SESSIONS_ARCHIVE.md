@@ -3650,3 +3650,56 @@ x86 106/106 [corpus not available in container — build clean, local 3-test PAS
 3. `RULES.md` — in full
 4. `PLAN.md` — NOW table (GRAND MASTER REORG row)
 5. `GRAND_MASTER_REORG.md` — Phase 4 section + two G-7 addenda at bottom
+
+---
+
+## G-8 Session (2026-03-29, Claude Sonnet 4.6) — snobol4x `6b88ffa` / .github `d5001d2`
+
+### Session type
+Grand Master Reorg — G-8 (continuation of G-7 chain)
+
+### Milestones completed
+
+| Milestone | Commit | What |
+|-----------|--------|------|
+| M-G4-SPLIT-SEQ-CONCAT phase 2 ✅ | snobol4x `0bc5d9a` (carried from G-7) | `parse.c` fixup_val_tree/repl_is_pat_tree emit E_SEQ vs E_CONCAT correctly; `snocone_lower.c` CONCAT/PIPE/OR → E_CONCAT. Single-JVM harness `test/jvm/SnoHarness.java` + `SnoRuntime.java` (M-G-INV-JVM). |
+| M-G4-SHARED-CONC-FOLD ✅ | snobol4x `9f947cd` | `src/ir/ir_emit_common.c` + `ir_emit_common.h`: `ir_nary_right_fold` / `ir_nary_right_fold_free`. Five duplicate right-fold blocks replaced: emit_x64.c ×3 (E_SEQ pat, E_OR pat, E_OR val), emit_jvm.c ×2 (E_SEQ, E_OR). Makefile updated. Build clean. |
+| M-G-INV-EMIT (partial) ✅ | snobol4x `9f947cd` | gcc-style multi-file CLI: `sno2c -asm f1.sno f2.sno ...` → `f1.s f2.s ...`. `compile_one()` extracted from `main()`. `snoc_reset()` added to `lex.c` (clears nerrors, inc_dirs). `test/run_emit_check.sh`: emit-diff harness using `xargs -P8`, ~4s wall time, no assembling/running. |
+
+### Not completed — next session
+
+**M-G-INV-EMIT-FIX** — `sno2c` multi-file mode crashes (SIGSEGV rc=139) on specific file pair: `013_assign_overwrite.sno` + `014_assign_indirect_dollar.sno`. Root cause: one or more parser/emitter statics not reset between files in `compile_one()`. `snoc_reset()` clears `nerrors`/`n_inc`/`inc_dirs` but the crash persists.
+
+Workaround in place: `run_emit_check.sh` uses `xargs -P8` (one process per file) — correct and ~4s.
+
+**Diagnosis approach for next session:**
+1. Run `bash test/g8_session.sh` — it builds an ASan binary and runs the crash pair
+2. ASan stack trace names the exact static
+3. Add it to `snoc_reset()` in `src/frontend/snobol4/lex.c`
+4. Re-run: `sno2c -asm $(find corpus/crosscheck -name '*.sno')` should complete without crash
+5. Then: `bash test/run_emit_check.sh --update` to generate `test/emit_baseline/`
+6. Commit baseline, confirm `run_emit_check.sh` green in <5s
+
+After M-G-INV-EMIT-FIX + baseline committed, SESSION_BOOTSTRAP.sh HOW block is fully live (already updated to call `run_emit_check.sh`).
+
+**Next milestone after that: M-G4-SHARED-CONC-SEQ** — extract binary SEQ Byrd-box wiring skeleton into `ir_emit_common.c` as `emit_wiring_SEQ(left, right, α, β, γ, ω, emit_child_fn)`. x64 and .NET share it; JVM does not (different execution model).
+
+### Design decisions
+
+1. **Emit-diff invariant philosophy** — invariant for a reorg is "did emitter output change?", not "does the program produce correct output". Emit+diff is the right primitive: tests emitters not runtime. No nasm, no JVM startup, no mono. Target: <5s wall time for 152 files × 3 backends.
+
+2. **gcc-style multi-file CLI** — `sno2c -asm f1.sno f2.sno` derives output names by replacing suffix, exactly like gcc. `-o` errors with multiple inputs. stdin mode preserved. No `--batch` switch.
+
+3. **corpus repo location** — `snobol4ever/corpus` (not `snobol4harness/snobol4corpus` — that was the old slug). SESSION_BOOTSTRAP.sh clones to `/home/claude/corpus`.
+
+### Invariants at handoff
+x86 106/106 ✅ · JVM 106/106 [frozen] · .NET 110/110 [frozen]
+Emit-diff baseline: not yet generated (pending M-G-INV-EMIT-FIX)
+
+### Next session read order
+1. `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+2. `tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md` — this entry
+3. `cat /home/claude/.github/RULES.md`
+4. `cat /home/claude/.github/PLAN.md` — NOW table
+5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
+6. `bash /home/claude/snobol4x/test/g8_session.sh` — completes M-G-INV-EMIT-FIX automatically
