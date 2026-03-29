@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s1 — M-G4-SHARED-CONC-FOLD ✅ · M-G2-ICN-X64-GAP-FILL ✅ · Prolog IR coverage verified ✅ · emit-diff 488/0 | `6ee8905` one4all · .github pending | **run 7 invariants → M-G4-SHARED-OR → M-G2-MOVE-PROLOG-ASM-a/b → corpus migration** |
+| **⚠ GRAND MASTER REORG** | G-9 s1 — M-G2-ICN-X64-GAP-FILL ✅ · M-G-EMIT-COVERAGE ✅ · emit-diff 493/0 | `6d8dd4b` one4all · .github pending | **run 7 invariants → M-G4-SHARED-OR → M-G2-MOVE-PROLOG-ASM-a/b → corpus migration** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -92,22 +92,19 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ## G-9 Session 1 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `6ee8905` · **.github** pending push
+**one4all** `6d8dd4b` · **.github** pending push
 
 ### Completed this session
-- M-G4-SHARED-CONC-FOLD ✅ confirmed (done G-8s7 `9f947cd`). GRAND_MASTER_REORG.md updated.
-- M-G4-SHARED-CONC-SEQ: recorded as not-extracted — .NET deferred-commit pre-scan makes x64/NET binary E_SEQ non-isomorphic. Decision archived.
-- M-G2-ICN-X64-GAP-FILL ✅ — 28 ICN kinds added to `emit_x64_icon.c`: NONNULL, REAL, SIZE, POW, SEQ_EXPR, IDENTICAL, SWAP, SGT/SGE/SLT/SLE/SNE, REPEAT, BREAK, NEXT, INITIAL, LIMIT, SUBSCRIPT, SECTION/+/-, MAKELIST(stub), RECORD(stub), FIELD(stub), CASE, BANG(stub). Loop control stack added (push/pop in while/until/every/repeat). Runtime: icn_str_cmp, icn_strlen, icn_pow, icn_str_subscript, icn_str_section.
-- Prolog IR coverage verified: ✅ no gap. x64 Prolog covers all node kinds; E_INFINITY is a string-value branch inside E_FLIT, not a missing case.
-- Emit-diff: **488/0** ✅. Baselines regenerated and committed.
+- M-G4-SHARED-CONC-FOLD ✅ confirmed (G-8s7). M-G4-SHARED-CONC-SEQ: not-extracted (architectural decision). Both recorded in GRAND_MASTER_REORG.md.
+- M-G2-ICN-X64-GAP-FILL ✅ — 28 ICN x64 cases + loop stack + runtime extensions. `6ee8905`.
+- Prolog IR coverage: ✅ no gap (E_INFINITY is string branch inside E_FLIT, not missing case).
+- M-G-EMIT-COVERAGE ✅ — coverage_sno_nodes.sno (26 SNOBOL4 IR nodes) + coverage_pl_nodes.pl (15 Prolog IR nodes). Emit-diff: **493/0**. `6d8dd4b`.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **Run 7 runtime invariants** (bootstrapped env — gate checkpoint):
-   `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
-2. **M-G4-SHARED-OR** — audit E_OR wiring: same 2-vs-3 backend analysis as CONC-SEQ. If non-extractable, record and move on.
-3. **M-G2-MOVE-PROLOG-ASM-a** — create `src/backend/x64/emit_x64_prolog.c` stub, `#include` from tail of `emit_x64.c`. Emit-diff gate after.
-4. **M-G2-MOVE-PROLOG-ASM-b** — physically move Prolog ASM code from `emit_x64.c` into `emit_x64_prolog.c`. Emit-diff gate after each file.
-5. **M-G0-CORPUS-AUDIT execution** — begin moving Icon rung corpus from `one4all/test/` to `corpus/` (one rung dir per commit, invariants green after each batch).
+1. **Run 7 runtime invariants** (gate checkpoint): `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
+2. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
+3. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
+4. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

@@ -5058,3 +5058,29 @@ shared across x64+.NET+Icon backends; `E_CONCAT` emission stays backend-local.
 4. **M-G0-CORPUS-AUDIT execution** — begin moving corpus files from one4all/test/ to corpus repo (Icon rung batch first)
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 1 — Addendum (M-G-EMIT-COVERAGE)
+
+**one4all** `6d8dd4b`
+
+### Completed (addendum)
+
+- **M-G-EMIT-COVERAGE** ✅ — IR node emit-diff coverage closed across all three frontends:
+  - SNOBOL4: `test/snobol4/coverage/coverage_sno_nodes.sno` — 26 node kinds, 3 backends (×3 baselines)
+  - Prolog: `test/prolog/coverage/coverage_pl_nodes.pl` — 15 node kinds, 2 backends (×2 baselines)
+  - Icon: existing `test/icon/coverage/coverage_x64_gaps.icn` — 28 ICN kinds (×2 baselines, updated G-9s1)
+  - Emit-diff: **493/0** ✅ (was 488/0)
+  - All new baselines committed alongside source files
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+1. **Run 7 runtime invariants** (gate checkpoint, bootstrapped env):
+   `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
+2. **M-G4-SHARED-OR** — audit E_OR wiring extractability (same 2-vs-3 backend analysis as CONC-SEQ)
+3. **M-G2-MOVE-PROLOG-ASM-a** — create `src/backend/x64/emit_x64_prolog.c` stub, `#include` from tail of `emit_x64.c`. Emit-diff gate.
+4. **M-G2-MOVE-PROLOG-ASM-b** — physically move Prolog ASM code from `emit_x64.c` into `emit_x64_prolog.c`. Emit-diff gate.
+5. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` to `corpus/` (one rung dir per commit).
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
