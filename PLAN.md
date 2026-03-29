@@ -90,20 +90,19 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 5 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 6 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `09b493e` · **corpus** `7d3d3d6` · **.github** pending push
+**one4all** `5c02ec6` · **corpus** `f220364` · **.github** pending push
 
 ### Completed this session
-- Icon corpus flattened ✅ — `icon_{rung_name}__{test_name}.{ext}` in programs/icon/ root
-- `.c` → `.s` extension corrected (NASM x64 assembly, not C) ✅
-- All 38 rung runners updated for flat layout ✅
+- Icon corpus naming fixed ✅ — single underscore `icon_rung01_paper_t01_to5.icn`
+- `.c` → `.s` extension confirmed clean (rung03 duplicate `.c` files removed)
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus`.
-2. **Remove** `one4all/test/frontend/icon/corpus/` (now in corpus repo).
-3. **Prolog corpus migration** — flat naming `prolog_{rung_name}__{test_name}.{ext}`.
-4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
+2. **Remove** `one4all/test/frontend/icon/corpus/`.
+3. **Prolog corpus migration** — `prolog_{rung_name}_{test_name}.{ext}`.
+4. **M-G4-SHARED-ARBNO**.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

@@ -5295,3 +5295,43 @@ User direction: flatten subdirs, full descriptive names, correct extensions.
 4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 6 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `5c02ec6` · **corpus** `f220364` · **.github** pending push
+
+### Completed this session
+
+#### Icon corpus naming fixed ✅
+- Double-underscore `icon_rung01_paper__t01_to5.icn` → single underscore `icon_rung01_paper_t01_to5.icn`
+- The `t01_` prefix on test names is the natural parse boundary — no separator needed
+- 580 files renamed in corpus, 23 runner scripts updated
+- Stale rung03 `.c` duplicates removed (artifact of rename step)
+- corpus: `aaa0f9f` rename, `f220364` cleanup · one4all: `5c02ec6` runners
+
+### Final icon corpus layout
+```
+corpus/programs/icon/
+  icon_rung01_paper_t01_to5.icn
+  icon_rung01_paper_t01_to5.expected
+  icon_rung01_paper_t01_to5.s        ← NASM x64 asm (was wrongly .c)
+  icon_rung02_arith_gen_t01_range.icn
+  icon_rung02_proc_t01_add_proc.icn  ← disambiguated from rung02_arith_gen
+  ...575 files total, 0 subdirs
+```
+
+### Emit-diff baseline
+493/0 ✅ — unchanged.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+1. **Run full 7-cell invariant gate** with `CORPUS_REPO=/home/claude/corpus`.
+2. **Remove** `one4all/test/frontend/icon/corpus/` — canonical source now in corpus repo.
+3. **Prolog corpus migration** — flat naming `prolog_{rung_name}_{test_name}.{ext}`.
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
