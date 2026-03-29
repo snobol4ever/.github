@@ -5462,3 +5462,61 @@ In `run_invariants.sh`, find the `run_snobol4_x86` function. The xargs dispatch 
 **Step 2:** M-G4-SHARED-ARBNO.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 10 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `e72c861` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
+
+### Completed this session
+
+#### M-G0-CORPUS-AUDIT — genuinely complete ✅
+
+Previous session closed this milestone prematurely. Audit found 153 .sno files still in one4all/test/snobol4/, plus .icn and .pl files across test/, demo/, bench/, artifacts/ never migrated.
+
+Full migration executed — all source programs + named artifacts moved to corpus:
+
+| Source in one4all | Destination in corpus | Commit |
+|---|---|---|
+| crosscheck .j .s .il artifacts (all test/snobol4/ dirs) | crosscheck/{dir}/ | `c230de7` |
+| test/snobol4/coverage/ | crosscheck/coverage/ | `c230de7` |
+| test/icon/*.icn .j .s | programs/icon/ | `c230de7` |
+| test/icon/coverage/* | programs/icon/coverage/ | `c230de7` |
+| artifacts/icon/samples/* | programs/icon/samples/ | `c230de7` |
+| demo/scrip/*.icn + family_net/ | programs/icon/demo/ | `c230de7` |
+| test/prolog/*.pl .j .s | programs/prolog/ | `c230de7` |
+| test/prolog/coverage/* | programs/prolog/coverage/ | `c230de7` |
+| test/frontend/prolog/plunit*.pl | programs/prolog/frontend/ | `c230de7` |
+| test/linker/net/ancestor/ancestor.pl .il | programs/prolog/linker/ancestor/ | `c230de7` |
+| artifacts/prolog/samples/* | programs/prolog/samples/ | `c230de7` |
+| demo/scrip/*.pl + family_net/ | programs/prolog/demo/ | `c230de7` |
+| demo/*.sno + associated (.input .ref .dat) | programs/snobol4/demo/ | `c230de7` |
+| demo/inc/*.sno | programs/snobol4/demo/inc/ | `c230de7` |
+| demo/scrip/family_snobol4.sno + family_net/ | programs/snobol4/demo/scrip/ | `c230de7` |
+| bench/test_icon.sno | programs/snobol4/bench/ | `c230de7` |
+| test/smoke/outputs/session50/beauty_*.sno | programs/snobol4/smoke/ | `c230de7` |
+| test/linker/net/ greet_lib greet_main ancestor_main | programs/snobol4/linker/ | `c230de7` |
+
+Deletion from one4all: `f9fbf15` (741 files) + CORPUS_MIGRATION.md updated: `e72c861`
+
+**Verified:** `find one4all -name "*.sno" -o -name "*.icn" -o -name "*.pl"` → zero results ✅
+
+Rule established: corpus gets source programs + ALL associated files with same root name (.ref .input .conf .expected .j .s .il .dat .csv). Compiler build infrastructure (.c .h .py .sh Makefile) stays in one4all.
+
+Also fixed: misplaced `programs/icon/test_icon.sno` removed from corpus (renamed to programs/snobol4/bench/).
+
+### Open items (unchanged from s9)
+- **M-G-INV-FAST-X86-FIX** — snobol4_x86 LINK_FAIL in parallel harness. Fix already implemented in run_invariants.sh (`_x86_write_job` + `xargs -P$JOBS bash {}`). Needs gate run verification: `CORPUS=/path/to/corpus bash test/run_invariants.sh` → confirm snobol4_x86 106/106. **Do this first.**
+- **M-G4-SHARED-ARBNO** — node kind extractability audit.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+**Step 1 — Verify M-G-INV-FAST-X86-FIX:**
+Run `CORPUS=/home/claude/corpus bash test/run_invariants.sh` in one4all. The mini-script fix is already in place. Confirm snobol4_x86 scores 106/106. If LINK_FAIL persists, root cause is the `_x86_write_job` function — check that `$SCRIP_CC` and `$RT` are expanded correctly inside the heredoc (use `printf '%q'` for all paths).
+
+**Step 2:** M-G4-SHARED-ARBNO — node kind extractability audit.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
