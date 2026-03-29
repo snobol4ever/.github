@@ -5652,3 +5652,110 @@ All SNOBOL4 M-G4 rows complete. Remaining rows are Icon and Prolog generator/uni
 **Step 3:** Continue remaining M-G4 Icon rows, then Prolog rows.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 12 Handoff (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `0e800d0` (pre-fix, scrip-cc rebuilt but not committed) · **.github** `be14b28` · **harness** (tiny_net adapter fixed, not committed)
+
+### Completed this session
+
+- **M-G-INV-SESSION-BASELINE ✅** — Harness rewritten: removed parallel dispatch + watchdog, replaced with 7 serial cell calls. Runs in ~70s. `snobol4_x86 106/106` confirmed.
+- **ensure_tools extended** — Added javac (default-jdk), SnoHarness compile, mono-devel (ilasm). JVM and NET cells now run instead of SKIP. `one4all` `0e800d0`.
+- **scrip-cc -jvm stdout bug found** — `scrip-cc -jvm <file>` with stdout redirect hangs (reads from stdin). Fixed in `run_invariants.sh` (both JVM calls) and `harness/adapters/tiny_net/run.sh` to use `-o <file>` flag. **NOT YET COMMITTED to harness repo.**
+- **pl__cm__sl_N_r root cause found and fix written** — Conjunction compound (`,/N`) reaching the generic user-call path in `emit_x64_prolog.c` generates `call pl__cm__sl_N_r` — a label that is never defined. Fix: guard before generic user-call detects `fn == ","` and flattens the conjunction inline. Code written into `emit_x64_prolog.c`. **NOT YET COMPILED/TESTED** — scrip-cc binary deleted during rebuild attempts; Makefile dep rule added but rebuild failed due to Makefile comment syntax issue.
+
+### State of working tree (IMPORTANT — read before touching anything)
+
+**`one4all/src/backend/x64/emit_x64_prolog.c`** — fix written, NOT in compiled binary yet.
+
+**`one4all/scrip-cc`** — DELETED during rebuild attempts. Must be rebuilt first thing.
+
+**`one4all/src/Makefile`** — has new dep rule `backend/x64/emit_x64.o: backend/x64/emit_x64_prolog.c` but the comment line above it uses `\#` which may confuse make. Clean it up.
+
+**`harness/adapters/tiny_net/run.sh`** — `scrip-cc -net -o "$il" "$SNO_FILE"` fix written locally, NOT committed to harness repo.
+
+**`run_invariants.sh`** — `scrip-cc -jvm -o` fix written, committed to one4all `0e800d0`.
+
+### Step-by-step recovery for next session
+
+**Step 0:** Clone repos with token (SESSION_BOOTSTRAP.sh or manual):
+```bash
+TOKEN=ghp_REDACTED
+for repo in .github one4all harness corpus; do
+  git clone "https://oauth2:${TOKEN}@github.com/snobol4ever/${repo}.git"
+done
+```
+
+**Step 1:** Fix Makefile comment, rebuild scrip-cc:
+```bash
+cd /home/claude/one4all/src
+# Remove the \\# comment line above the dep rule (line ~40), keep only:
+#   backend/x64/emit_x64.o: backend/x64/emit_x64_prolog.c
+rm -f backend/x64/emit_x64.o
+make -j4
+ls -la ../scrip-cc   # must exist
+```
+
+**Step 2:** Test pl__cm__sl_N_r fix on rung02:
+```bash
+cd /home/claude/one4all
+./scrip-cc -pl -asm -o /tmp/test.s /home/claude/corpus/programs/prolog/rung02_facts_facts.pl
+nasm -f elf64 /tmp/test.s -o /tmp/test.o
+gcc -O0 -no-pie /tmp/test.o out/rt_cache/libsno4rt_pl.a -lm -o /tmp/test_pl
+timeout 5 /tmp/test_pl
+# Expected: brown\njones\nsmith
+```
+
+**Step 3:** Run full invariant suite, confirm snobol4_x86 106/106 still holds and Prolog x86 count rises above 11:
+```bash
+CORPUS=/home/claude/corpus bash test/run_invariants.sh
+```
+
+**Step 4:** Commit fix to one4all:
+```bash
+git add src/backend/x64/emit_x64_prolog.c src/Makefile
+git commit -m "fix: pl__cm__sl_N_r — flatten conjunction compound in generic ucall path
+
+Root cause: conjunction compound (','/N) reaching the generic user-call
+path in emit_x64_prolog.c generated 'call pl__cm__sl_N_r' — a label
+that is never defined. Manifested in any clause body using ';/2'
+disjunction where the left branch is a conjunction containing a
+backtrackable user call (e.g. 'person(X), write(X), nl, fail ; true').
+
+Fix: guard inserted before generic user-call detects fn==\",\" and
+flattens the conjunction inline, matching the existing ',/2' flattening
+logic. Handles nl/0, write/1, fail/0, true/0, and nested user calls.
+
+Makefile: added explicit dep backend/x64/emit_x64.o: emit_x64_prolog.c
+so make rebuilds correctly when the #included file changes."
+git push origin main
+```
+
+**Step 5:** Commit harness tiny_net adapter fix:
+```bash
+cd /home/claude/harness
+git add adapters/tiny_net/run.sh
+git commit -m "fix: scrip-cc -net -o flag — stdout redirect hangs (reads stdin)"
+git push origin main
+```
+
+**Step 6:** Re-run invariant suite with all fixes in place. Confirm 7-cell baseline. Update GRAND_MASTER_REORG.md baseline numbers.
+
+**Step 7:** Proceed to M-G4-SHARED-ICON-TO — audit E_TO / E_TO_BY in emit_x64_icon.c vs emit_jvm_icon.c. Both implementations were read this session; notes are in context but not written to a doc yet.
+
+### Invariant state — end of session
+`snobol4_x86 106/106 ✅ · prolog_x86 11/107 (fix written, not yet compiled) · snobol4_jvm 0 (corpus not wired) · snobol4_net 0 (corpus not wired) · icon_x86 0 · icon_jvm 0 · icon_net SKIP (by design) · prolog_jvm 0 · prolog_net SKIP (by design)`
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** Clone repos (token above).
+**Step 1:** Fix Makefile, rebuild scrip-cc, verify binary exists.
+**Step 2:** Test rung02_facts — expect `brown\njones\nsmith`.
+**Step 3:** Run invariants — expect Prolog x86 to rise above 11/107.
+**Step 4–5:** Commit one4all fix + harness adapter fix.
+**Step 6:** Confirm full 7-cell baseline numbers. Update GRAND_MASTER_REORG.md.
+**Step 7:** M-G4-SHARED-ICON-TO.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
