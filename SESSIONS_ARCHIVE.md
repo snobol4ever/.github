@@ -5413,3 +5413,52 @@ Work top-to-bottom through the checklist. Do not stop mid-checklist for naming d
 5. Verify: `find one4all/test -name "*.icn" -o -name "*.pl" -o -name "*.sno" -o -name "*.sc" -o -name "*.reb"` returns empty
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 9 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `631b69f` · **corpus** `d24fda7` · **.github** `1cc9ea0` · all pushed
+
+### Completed this session
+
+#### Corpus migration — full execution ✅
+
+All corpus source programs migrated from `one4all` to `corpus`. CORPUS_MIGRATION.md all boxes checked.
+
+| Frontend | corpus commit | one4all deletion |
+|---|---|---|
+| Icon deletion | (prior session) | `8327311` |
+| Prolog (30 rungs, 235 files) | `92cff0a` | `4da8aed` |
+| SNOBOL4 smoke/beauty/feat/jvm_j3 (81 files) | `606c141` | `2e22f6e` |
+| Snocone corpus + crosscheck + Rebus (67 files) | `c29fe83` | `edc0ab4` |
+
+Runner fixes:
+- `run_invariants.sh` prolog blocks: old `rung*/corpus/*.pro` nested loop → flat `$CORPUS/programs/prolog/*.pl` — `6b5f6a5`
+- `jvm_artifact_check.sh` null.sno path → `$CORPUS_ROOT/programs/snobol4/smoke/null.sno` — `e63d8d6`
+- `run_sc_corpus_rung.sh` comments updated — `e63d8d6`
+- CORPUS_MIGRATION.md marked complete — `631b69f`
+
+#### Prolog `_tNN_` serial strip ✅
+
+156 files renamed in `corpus/programs/prolog/`. All unique after strip (verified before rename).
+`rung15_abolish_t01_abolish_existing.pl` → `rung15_abolish_abolish_existing.pl`
+corpus `d24fda7`.
+
+### State of `one4all/test/` after migration
+`find one4all/test -name "*.icn" -o -name "*.pl" -o -name "*.sno" -o -name "*.sc" -o -name "*.reb"` returns only compiler unit tests (crosscheck/, coverage/, linker/, etc.) — no corpus source programs. ✅
+
+### Open items
+- **M-G-INV-FAST-X86-FIX** — snobol4_x86 LINK_FAIL in parallel harness. Root cause: `_x86_compile_one` exported function not visible in `bash -c` subshell via xargs. Fix: per-test mini-scripts written to `$WORK/jobs/NNN.sh`, dispatched with `xargs -P$JOBS bash`. **Do this first next session.**
+- **M-G4-SHARED-ARBNO** — node kind extractability audit (after fix above).
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+**Step 1 — M-G-INV-FAST-X86-FIX:**
+In `run_invariants.sh`, find the `run_snobol4_x86` function. The xargs dispatch currently calls `bash -c` with an inline function body. Rewrite: write each test's compile+run+diff logic to `$WORK/snobol4_x86_jobs/NNN.sh`, then `xargs -P$JOBS bash` over those files. Verify `snobol4_x86` scores 106/106.
+
+**Step 2:** M-G4-SHARED-ARBNO.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
