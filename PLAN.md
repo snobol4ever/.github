@@ -765,3 +765,37 @@ If JVM shows failures: diff against `run_crosscheck_jvm_rung.sh` results to isol
 
 **Step 3 — M-G4-SHARED-CONC-FOLD** (after JVM confirmed):
 Extract n-ary→binary right-fold helper for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. Shared by x64 and .NET. JVM unaffected (different execution model). See GRAND_MASTER_REORG.md Phase 4.
+
+## G-8 Handoff update (2026-03-29 session 2, Claude Sonnet 4.6) — .github `10c20f8` snobol4x `65baf6a`
+
+### M-G-RENAME-ANY2MANY ✅
+
+**Full rename complete. 0 remaining `sno2c` refs. 0 remaining `snobol4x` refs.**
+
+| Old | New |
+|-----|-----|
+| `sno2c` binary | `scrip-cc` |
+| `sno2c.h` header | `scrip_cc.h` |
+| `snobol4x` (repo identity in all docs/scripts) | `one4all` |
+| `sno2c_icon` | removed — Icon is a frontend of `scrip-cc`, not a separate binary |
+
+**Brand:** `any²many` (compiler) · `many²one` (linker) · `any²many²one` (full pipeline)  
+`scrip-cc` = Scrip Compiler Collection (CC = Compiler Collection, per GCC precedent)
+
+**GitHub repo rename still pending** — Lon must do manually:  
+`https://github.com/snobol4ever/snobol4x/settings` → Danger Zone → Rename → `one4all`
+
+**All four repos pushed:** `.github` `10c20f8` · `snobol4x` `65baf6a` · `harness` `4e4860f` · `corpus` `ab217d4`
+
+### Next session
+
+**Read only:** `PLAN.md` G-8 handoff (session 1, above) + this update.
+
+**Step 1 — Fix co-located check mode in `run_emit_check.sh`** (G-8 session 1 handoff, still pending):
+Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located stored file.
+
+**Step 2 — Verify 484/0, declare M-G-INV-EMIT-FIX ✅**
+
+**Step 3 — Wire into SESSION_BOOTSTRAP.sh**
+
+**Step 4 — M-G4-SHARED-CONC-FOLD**
