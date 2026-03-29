@@ -1,4 +1,4 @@
-# MILESTONE-RENAME-ANY2MANY — Grand Rename: sno2c→scrip-cc, snobol4x→one4all
+# MILESTONE-RENAME-ANY2MANY — Grand Rename: sno2c→scrip-cc, one4all→one4all
 
 **Milestone:** M-G-RENAME-ANY2MANY  
 **Session:** G-8 (2026-03-29, Claude Sonnet 4.6)  
@@ -103,5 +103,5 @@ Org rename is a separate GitHub operation (Lon to do manually).
 3. `make` in `src/` produces binary named `scrip-cc`
 4. `scrip-cc -asm test/snobol4/hello/hello.sno` works
 5. SESSION_BOOTSTRAP.sh updated and functional
-6. Commit: `G-8: M-G-RENAME-ANY2MANY ✅ — sno2c→scrip-cc, snobol4x→one4all`
+6. Commit: `G-8: M-G-RENAME-ANY2MANY ✅ — sno2c→scrip-cc, one4all→one4all`
 
