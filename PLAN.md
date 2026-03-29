@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ✅ · M-G5-EMITTER-COVERAGE-AUDIT ✅ · PLAN debloat ✅ | `0eb2b57` one4all · `99287e5` .github | **Next: fix `.pl` driver auto-detect → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
+| **⚠ GRAND MASTER REORG** | G-8 s6 — M-G-INV-EMIT-FIX ✅ · M-G5-COVERAGE-AUDIT ✅ · .pro→.pl ✅ · GNU Prolog oracle noted | `7faff12` one4all · `196b17b` .github | **M-G4-SHARED-CONC-FOLD → ICN x64 gap fill → benchmark scaffolding** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -91,46 +91,22 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 ---
 
 
-## G-8 Handoff update (2026-03-29 session 6, Claude Sonnet 4.6)
+## G-8 Session 6 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-### PLAN.md bloat cleared ✅
-897 lines → 92 lines. All handoff content moved to SESSIONS_ARCHIVE.md.
-RULES.md rule: handoffs go to SESSIONS_ARCHIVE, not PLAN.md.
+**one4all** `7faff12` · **.github** `196b17b`
 
-### M-G-INV-EMIT-FIX ✅ (completed session 5 + this session)
-- `run_emit_check.sh`: fixed stdout capture (`-o /dev/stdout`) and `-pl` flag for `.pl` files
-- Prolog baselines were silently 0 bytes (vacuous pass) — regenerated with real content
-- 488/0 emit-diff (up from 484: +4 new coverage test baselines)
+### Completed this session
+- M-G-INV-EMIT-FIX ✅ — 488/0 emit-diff, prolog baselines real, SESSION_BOOTSTRAP guard fixed
+- M-G5-EMITTER-COVERAGE-AUDIT ✅ — full gap matrix SNO/PL/ICN × x64/JVM/NET; coverage tests committed
+- PLAN.md debloat ✅ — 897→92 lines; all handoff history in SESSIONS_ARCHIVE
+- `.pro` → `.pl` rename ✅ — 136 files, driver auto-detects both, run_emit_check.sh cleaned
+- GNU Prolog added as second oracle ✅ — noted in SESSIONS_ARCHIVE with speed analysis
 
-### M-G5-EMITTER-COVERAGE-AUDIT ✅
-Gap analysis complete across SNO/PL/ICN × x64/JVM/NET:
-- **SNO**: no emitter gaps (E_NUL handled inline, not via switch)
-- **PL/JVM**: E_CUT, E_TRAIL_MARK, E_TRAIL_UNWIND, E_UNIFY all handled via if/else — no gaps
-- **PL/NET**: arithmetic (E_ADD/SUB/MPY/DIV), E_CUT, E_TRAIL_*, E_UNIFY not handled — stub emitter by design (no backtracking yet)
-- **ICN/x64**: 34 ICN_ kinds missing from switch vs JVM
-- **ICN/both**: ICN_COMPLEMENT, ICN_CSET_DIFF/INTER/UNION, ICN_POS, ICN_RANDOM, ICN_RECORD missing from both backends
+### Next session — read SESSIONS_ARCHIVE last entry only
 
-### Coverage tests added
-- `test/icon/coverage/coverage_x64_gaps.icn` — 129-line Icon test exercising all 34 x64-missing ICN_ kinds; compiles clean to x64 (22KB) and JVM (85KB)
-- `test/prolog/coverage/coverage_net_gaps.pl` — 43-line Prolog test exercising E_ADD/SUB/MPY/DIV/FLIT/CUT/TRAIL/UNIFY; compiles clean to x64 (75KB), JVM (159KB), NET (19KB)
-- Baselines committed alongside sources
+1. **M-G4-SHARED-CONC-FOLD** — extract n-ary→binary right-fold for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`
+2. **ICN x64 gap fill** — 34 missing ICN_ switch cases in `emit_x64_icon.c`; coverage test already in place
+3. **GNU Prolog oracle** — add to ARCH-corpus.md alongside SWI-Prolog
+4. **Benchmark scaffolding** — `queens.pl` / `fib.pl` / `roman.pl` timed runs vs SWI + GNU Prolog
 
-### Next session
-**Step 1** — Wire M-G-INV-EMIT-FIX into SESSION_BOOTSTRAP.sh (emit baseline guard uses wrong dir `test/emit_baseline` — should be `test/snobol4`)
-**Step 2** — Commit all of the above, update NOW table
-**Step 3** — M-G4-SHARED-CONC-FOLD
-
-**Read only:** This handoff.
-
-## Oracle note (2026-03-29)
-
-**Prolog oracles:** SWI-Prolog (primary) · GNU Prolog (add as second — strict ISO, native Linux)
-
-**"SNU Prolog"** — no such system found. Clarify with Lon. Candidates: SICStus, Scryer Prolog?
-
-**Byrd box in one4all vs the Prolog world:** Every major Prolog (GNU Prolog, SWI, SICStus) uses
-Byrd box as a *debugger* model only. one4all compiles Byrd box ports (α/β/γ/ω) directly into
-emitted code. Novel use — worth documenting in ARCH-scrip-cc.md.
-
-**GNU does NOT have SNOBOL or Icon.** GCC covers: C C++ Fortran Ada Go D Modula-2 COBOL Rust ALGOL68.
-SPITBOL is GPL but not a GNU project. Icon is University of Arizona.
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
