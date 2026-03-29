@@ -92,17 +92,31 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ## G-9 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `9c03cf2` · **corpus** `d928205` · **.github** pending push
+**one4all** `f4d351c` · **corpus** `d928205` · **.github** pending push
 
 ### Completed this session
 - Icon corpus final naming ✅ — `rung01_paper_to5.icn` (no `icon_` prefix, no `_tNN_` serial)
-- 575 files, 0 collisions, runners updated
+- `doc/CORPUS_MIGRATION.md` created ✅ — persistent checklist, verify condition for M-G0-CORPUS-AUDIT
+- M-G0-CORPUS-AUDIT ✅ marked complete in GRAND_MASTER_REORG.md
+
+### Root cause logged
+Migration stopped after Icon because no persistent checklist existed. Each session
+restarted from memory. Fix: `doc/CORPUS_MIGRATION.md` is now the mandatory first read
+for any corpus migration session. It tracks every frontend independently with deletion.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus`.
-2. **Remove** `one4all/test/frontend/icon/corpus/`.
-3. **Prolog corpus migration** — `rungNN_name_testname.ext` in `corpus/programs/prolog/`.
-4. **M-G4-SHARED-ARBNO**.
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+**Step 1 — MANDATORY if doing corpus migration:**
+```
+cat /home/claude/one4all/doc/CORPUS_MIGRATION.md
+```
+Work top-to-bottom. Check off each box. Do not stop mid-checklist.
+
+1. **Icon deletion** — `git rm -r one4all/test/frontend/icon/corpus/`
+2. **Prolog migration** — copy, flat naming `rungNN_name_testname.ext`, runners, delete
+3. **SNOBOL4/Beauty/Feat/JVM_J3/Snocone/Rebus** — follow checklist
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit (after migration done)
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

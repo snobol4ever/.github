@@ -5382,3 +5382,34 @@ corpus/programs/icon/
 4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `f4d351c` · **corpus** `d928205` · **.github** pending push
+
+### Root cause analysis — incomplete corpus migration
+
+**What went wrong:** Icon migration completed but Prolog/SNOBOL4/Snocone/Rebus/Beauty/Feat/JVM_J3 not started. Milestone left incomplete across multiple sessions.
+
+**Why:** No persistent checklist. Each session restarted from conversation memory, got pulled into naming iterations (double-underscore → single → drop prefix → drop serial = 4 full rename-commit-push cycles), and lost track of the remaining 8 frontend migrations.
+
+**Fix:** `doc/CORPUS_MIGRATION.md` now exists in one4all (`f4d351c`). It is the verify condition for M-G0-CORPUS-AUDIT (now marked ✅). It has one checkbox per frontend including deletion. **Every corpus migration session must open this file first.**
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**MANDATORY before any corpus migration work:**
+```bash
+cat /home/claude/one4all/doc/CORPUS_MIGRATION.md
+```
+
+Work top-to-bottom through the checklist. Do not stop mid-checklist for naming discussions.
+
+1. `git rm -r one4all/test/frontend/icon/corpus/` + commit
+2. Prolog: copy rung*, flat naming, runners, delete
+3. SNOBOL4 smoke, beauty, feat, jvm_j3: copy, runners, delete
+4. Snocone, Rebus: copy, runners, delete
+5. Verify: `find one4all/test -name "*.icn" -o -name "*.pl" -o -name "*.sno" -o -name "*.sc" -o -name "*.reb"` returns empty
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
