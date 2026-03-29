@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ⏳ (484/0 via emit_baseline; co-located mode broken — see G-8 handoff) | `9c386ee` one4all · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G-RENAME-ONE4ALL ✅ `f2f0fcb` one4all (58 files, snobol4x→scrip-cc) | `f2f0fcb` one4all · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -820,3 +820,33 @@ caught shell/script/MD references but a full grep will surface any stragglers
 - Any `github.com/snobol4ever/snobol4x` URLs in README, ARCH docs, SESSION docs
 
 **Read for next G-session:** This handoff only. Run SESSION_BOOTSTRAP first.
+
+## G-8 Handoff update (2026-03-29 session 4, Claude Sonnet 4.6) — one4all `f2f0fcb`
+
+### M-G-RENAME-ONE4ALL ✅
+
+**Full sweep complete. 0 remaining `snobol4x` refs in live code.**
+
+58 files changed in one4all. `snobol4x` → `scrip-cc` everywhere:
+- bench printf strings (bench_re_vs_tiny.c, bench_pcre2_wins.c, bench_round2.c, bench_round2b.c, bench_pda.c)
+- shell driver scripts (snobol4-asm, snobol4-jvm, snobol4-net) — comments + env var names (`scrip_cc_jvm_cache`, `scrip_cc_net_cache`)
+- source file headers/comments (ir.h, engine.c/h, runtime.c/h, snobol4.c/h, prolog_lex.c/h, prolog_builtin.h, term.h, icon_ast.h, rebus_emit.c, emit_wasm.c, emit_jvm_prolog.c, mock_includes.c)
+- generated file banners (.j artifacts, demo output)
+- test comments (plunit.pl, tracepoints.conf, .sno test files, .c backend test files)
+
+**Not changed (correct as-is):**
+- `.github/PLAN.md` + `MILESTONE-RENAME-ANY2MANY.md` — historical handoff records, accurately describe the rename
+- `corpus/` .sno files — "SPITBOL/snobol4x" refers to the external SPITBOL engine, not our project
+
+### Next session
+
+**Step 1 — Fix co-located check mode in `run_emit_check.sh`** (G-8 session 1 handoff):
+Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located stored file.
+
+**Step 2 — Verify 484/0, declare M-G-INV-EMIT-FIX ✅**
+
+**Step 3 — Wire into SESSION_BOOTSTRAP.sh**
+
+**Step 4 — M-G4-SHARED-CONC-FOLD**
+
+**Read only:** This G-8 session 4 handoff.
