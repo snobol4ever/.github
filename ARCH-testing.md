@@ -253,9 +253,9 @@ Monitor pipe reader must normalize per oracle — all carry statement number and
 ## Session Start Checklist
 
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-apt-get install -y libgc-dev && make -C src/sno2c
+apt-get install -y libgc-dev && make -C src/scrip-cc
 mkdir -p /home/corpus
 ln -sf /home/claude/corpus/crosscheck /home/corpus/crosscheck
 STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106 before any work
@@ -263,8 +263,8 @@ STOP_ON_FAIL=0 bash test/crosscheck/run_crosscheck.sh   # must be 106/106 before
 # Build beauty_full_bin
 RT=src/runtime; INC=/home/claude/corpus/programs/inc
 BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
-src/sno2c/sno2c -trampoline -I$INC $BEAUTY > beauty_full.c
+src/scrip-cc/scrip-cc -trampoline -I$INC $BEAUTY > beauty_full.c
 gcc -O0 -g beauty_full.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
-    -I$RT/snobol4 -I$RT -Isrc/sno2c -lgc -lm -w -o beauty_full_bin
+    -I$RT/snobol4 -I$RT -Isrc/scrip-cc -lgc -lm -w -o beauty_full_bin
 ```

@@ -1,9 +1,9 @@
-# SESSION-prolog-jvm.md — Prolog × JVM (snobol4x)
+# SESSION-prolog-jvm.md — Prolog × JVM (one4all)
 
-**Repo:** snobol4x · **Frontend:** Prolog · **Backend:** JVM (Jasmin)
+**Repo:** one4all · **Frontend:** Prolog · **Backend:** JVM (Jasmin)
 **Session prefix:** `PJ` · **Trigger:** "playing with Prolog JVM"
-**Driver:** `sno2c -pl -jvm foo.pl -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
-**Oracle:** `sno2c -pl -asm foo.pl` (ASM emitter)
+**Driver:** `scrip-cc -pl -jvm foo.pl -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
+**Oracle:** `scrip-cc -pl -asm foo.pl` (ASM emitter)
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
 ## Subsystems
@@ -19,7 +19,7 @@
 ## §BUILD
 
 ```bash
-cd snobol4x && make -C src
+cd one4all && make -C src
 export JAVA_TOOL_OPTIONS=""
 ```
 
@@ -46,7 +46,7 @@ export JAVA_TOOL_OPTIONS=""
 **DO NOT invent a new shim layer. The right machinery already exists in `prolog_emit_jvm.c`.**
 
 The canonical pipeline for SWI plunit tests:
-1. Feed raw SWI `.pl` files **directly** to `sno2c -pl -jvm`
+1. Feed raw SWI `.pl` files **directly** to `scrip-cc -pl -jvm`
 2. The **plunit linker** inside `prolog_emit_jvm.c` detects `use_module(library(plunit))`, scans `begin_tests`/`end_tests` directives and `test/N` clause heads, and emits `assertz(pj_suite/pj_test)` facts + bridge predicates at JVM init time
 3. The embedded `pj_plunit_shim_src[]` C-string (in `prolog_emit_jvm.c`) provides `run_tests`, `pj_run_one`, counters etc — **this is the shim**, not `test/frontend/prolog/plunit.pl`
 4. `test/frontend/prolog/plunit_mock.pro` is an **alternative** stand-alone mock — DO NOT mix it with the linker; pick one approach
@@ -121,16 +121,16 @@ Key functions in `prolog_emit_jvm.c`:
 | `test_misc` | 0 | 3 | 0 | not re-run |
 
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/one4all
 git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C snobol4x/src
+make -C one4all/src
 export JAVA_TOOL_OPTIONS=""   # suppress proxy JWT spam
 # SWI upstream tests: sparse clone
 git clone --depth=1 --filter=blob:none --sparse https://github.com/SWI-Prolog/swipl-devel.git /tmp/swipl-devel
 cd /tmp/swipl-devel && git sparse-checkout set tests/core
 # Run raw SWI file directly — NO wrap_swi.py:
-#   ./sno2c -pl -jvm /tmp/swipl-devel/tests/core/TEST.pl > /tmp/TEST.j
+#   ./scrip-cc -pl -jvm /tmp/swipl-devel/tests/core/TEST.pl > /tmp/TEST.j
 #   java -jar src/backend/jvm/jasmin.jar /tmp/TEST.j -d /tmp/TESTd
 #   java -cp /tmp/TESTd <ClassName>
 
@@ -138,8 +138,8 @@ cd /tmp/swipl-devel && git sparse-checkout set tests/core
 ```
 
 **Key files:**
-- `snobol4x/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
-- `snobol4x/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
+- `one4all/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
+- `one4all/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
 - SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files)
 
 ## Milestone Table

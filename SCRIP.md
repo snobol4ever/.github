@@ -16,7 +16,7 @@ this project is substantially further along than the Scrip vision framing might 
 ### What Is Working Today (2026-03-25)
 
 **Three full SNOBOL4 implementations:**
-- **snobol4x (TINY/native):** 106/106 ASM corpus passing. C backend (99/106, deprecated).
+- **one4all (TINY/native):** 106/106 ASM corpus passing. C backend (99/106, deprecated).
   JVM backend (M-JVM-STLIMIT underway). .NET backend (110/110, M-T2-NET complete).
   Five frontends in active development: SNOBOL4, Snocone, REBUS, Icon, Prolog.
 - **snobol4jvm:** 1,896 tests / 4,120 assertions / 0 failures. Full SNOBOL4 language,
@@ -333,7 +333,7 @@ plan (interpreter → partial compiler → self-hosting).
 ### Session E — "Jupyter Integration Sprint"
 Kernel architecture, cell model, state persistence across cells, output formatting
 for pattern match traces and Prolog solutions. Output: JUPYTER.md and a prototype
-kernel using the snobol4x x64 backend as the execution engine.
+kernel using the one4all x64 backend as the execution engine.
 
 ---
 
@@ -397,9 +397,9 @@ Before the deeper planning sessions, three things to do:
 
 | Component | Status | Passing |
 |-----------|--------|---------|
-| snobol4x ASM backend | Production | 106/106 |
-| snobol4x NET backend | M-T2-NET complete | 110/110 |
-| snobol4x JVM backend | STLIMIT sprint active | ~90% |
+| one4all ASM backend | Production | 106/106 |
+| one4all NET backend | M-T2-NET complete | 110/110 |
+| one4all JVM backend | STLIMIT sprint active | ~90% |
 | snobol4dotnet | Stable | 1607/1607 |
 | snobol4jvm | Stable | 1896 tests / 0 fail |
 | Icon JVM frontend | Rung 17 complete | 89/89 |
@@ -413,7 +413,7 @@ Before the deeper planning sessions, three things to do:
 **Benchmark positions:**
 - vs PCRE2 JIT (Type 3): 10–33× faster
 - vs Bison LALR(1) (Type 2): 14–15× faster
-- Type 1 and Type 0: snobol4x only — no competitor
+- Type 1 and Type 0: one4all only — no competitor
 
 **Platform matrix cells active:** 13 of 18 in some stage of implementation.
 **Blocking the remaining 5:** REBUS×all-backends, Snocone×JVM, Snocone×NET.
@@ -421,6 +421,6 @@ Before the deeper planning sessions, three things to do:
 ---
 
 *This document is the output of a full repository read across snobol4ever/.github and
-snobol4ever/snobol4x, covering all PLAN, STATUS, ARCH, DESIGN, DECISIONS, GRIDS,
+snobol4ever/one4all, covering all PLAN, STATUS, ARCH, DESIGN, DECISIONS, GRIDS,
 SESSIONS_ARCHIVE, and representative frontend/backend source files.
 It is written as input to further planning sessions, not as a sprint document.*

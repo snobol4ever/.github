@@ -1,6 +1,6 @@
-# REPO-snobol4x.md
+# REPO-one4all.md
 
-snobol4x: multiple frontends, multiple backends.
+one4all: multiple frontends, multiple backends.
 **Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.**
 
 → Rules: [RULES.md](RULES.md) · Beauty plan: [ARCH-snobol4-beauty-testing.md](ARCH-snobol4-beauty-testing.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
@@ -16,7 +16,7 @@ snobol4x: multiple frontends, multiple backends.
 
 ## §BUILD
 ```bash
-cd snobol4x && bash setup.sh   # installs deps, builds all drivers
+cd one4all && bash setup.sh   # installs deps, builds all drivers
 ```
 
 ## §TEST
@@ -63,7 +63,7 @@ Then: beauty.j completes → Jasmin assembles → JVM beauty subsystem ladder be
 - Single-line fix in emit_byrd_asm.c (arg staging always -32): resolves M-BUG-IS-DIALECT,
   M-BUG-SEMANTIC-NTYPE, M-BUG-TDUMP-TLUMP, M-BUG-GEN-BUFFER. 19/19 beauty PASS.
 - DECISIONS.md created in .github.
-C backend: ☠️ DEAD — removed from matrix. 99/106, sno2c fails on word*/pat_alt_commit. Not maintained.
+C backend: ☠️ DEAD — removed from matrix. 99/106, scrip-cc fails on word*/pat_alt_commit. Not maintained.
 
 ---
 
@@ -76,5 +76,5 @@ C backend: ☠️ DEAD — removed from matrix. 99/106, sno2c fails on word*/pat
 
 **B-291 (2026-03-25) — BSS heap fix; Sprint M5 unblocked; 106/106:**
 (1) Heap-allocated 4 large BSS statics (named_pats/str_table/call_slots/lit_table). BSS 8.4MB→2.0MB.
-(2) sno2c -asm/-jvm beauty.sno no longer segfaults. beauty_asm_bin builds, runs 10 lines then Parse Error.
+(2) scrip-cc -asm/-jvm beauty.sno no longer segfaults. beauty_asm_bin builds, runs 10 lines then Parse Error.
 (3) TRACE_SET_CAP 64→256. Oracle trace: 92,601 events. HEAD `309a2f9`.

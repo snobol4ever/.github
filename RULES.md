@@ -17,8 +17,8 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 |---|-------|-------------|
 | 1 | **WHO** | Sets `git config user.name/email` to LCherryholmes — every commit, every repo |
 | 2 | **WHAT** | Prints project summary: 6 frontends × 4 backends, current reorg phase, ref docs |
-| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `snobol4x` · `corpus` · `harness` |
-| 4 | **WHERE (tools)** | Installs `nasm` · `mono-complete` · `java` · confirms `jasmin.jar` · builds `sno2c` |
+| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `one4all` · `corpus` · `harness` |
+| 4 | **WHERE (tools)** | Installs `nasm` · `mono-complete` · `java` · confirms `jasmin.jar` · builds `scrip-cc` |
 | 5 | **WHY** | Prints current milestone from PLAN.md and the four docs to read before coding |
 | 6 | **HOW** | Runs all three invariants: `x86 106/106 · JVM 106/106 · .NET 110/110` |
 
@@ -141,7 +141,7 @@ The Byrd-box four-port model (α/β/γ/ω) is emitted as labels + gotos — neve
 
 Every session is defined by three values. Pick them, read three docs, work.
 
-**1. Repo** → `REPO-snobol4x.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
+**1. Repo** → `REPO-one4all.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
 **2. Frontend** → `FRONTEND-icon.md` / `FRONTEND-prolog.md` / `FRONTEND-snobol4.md` etc. (pure reference, no §NOW)
 **3. Frontend × Backend** → `SESSION-icon-jvm.md` / `SESSION-prolog-x64.md` etc. (§NOW lives here)
 
@@ -168,7 +168,7 @@ No narrative beyond a short status phrase. No substeps. No bullet points. One ro
 ## ⛔ REPO PATHS — Canonical clone locations
 
 ```
-/home/claude/snobol4x/        ← compiler + backends (main working repo)
+/home/claude/one4all/        ← compiler + backends (main working repo)
 /home/claude/.github/         ← HQ docs
 /home/claude/corpus/   ← test corpus (clone if needed)
 /home/claude/snobol4jvm/      ← JVM/Clojure backend (clone if needed)

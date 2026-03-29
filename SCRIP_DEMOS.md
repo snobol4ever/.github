@@ -54,7 +54,7 @@ M-SD-10  anagram
 Each `M-SD-N` fires when:
 1. SNOBOL4 block compiles via snobol4jvm → JVM → correct output
 2. Icon block compiles via icon_driver -jvm → JVM → correct output
-3. Prolog block compiles via sno2c -pl -jvm → JVM → correct output
+3. Prolog block compiles via scrip-cc -pl -jvm → JVM → correct output
 4. All three match `demo/scrip/demoN/NAME.expected`
 5. Session note added to `SESSIONS_ARCHIVE.md`
 

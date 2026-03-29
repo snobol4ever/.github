@@ -35,7 +35,7 @@ Now that String-valued tables work, the Icon side of the family tree demo can pr
 
 **Bootstrap SD-8:**
 ```bash
-cd /home/claude/snobol4x
+cd /home/claude/one4all
 gcc -Wall -Wno-unused-function -g -O0 -I src/frontend/icon \
     src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
@@ -47,14 +47,14 @@ ls demo/scrip/
 # If not: create family.scrip, family.csv, family.expected per SCRIP_DEMO.md spec
 ```
 
-**File:** `snobol4x/src/frontend/icon/icon_emit_jvm.c` — `ij_emit_subscript` table path, around `ts_got` label (after `ij_emit_subscript` line ~5020–5035).
+**File:** `one4all/src/frontend/icon/icon_emit_jvm.c` — `ij_emit_subscript` table path, around `ts_got` label (after `ij_emit_subscript` line ~5020–5035).
 
 **Bootstrap SD-7:**
 ```bash
-cd /home/claude && git clone https://TOKEN@github.com/snobol4ever/snobol4x
+cd /home/claude && git clone https://TOKEN@github.com/snobol4ever/one4all
 git clone https://TOKEN@github.com/snobol4ever/.github
 apt-get install -y default-jdk
-cd snobol4x && gcc -Wall -g -O0 -I src/frontend/icon \
+cd one4all && gcc -Wall -g -O0 -I src/frontend/icon \
     src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
@@ -245,8 +245,8 @@ family.csv
 ```
 family.scrip
 │
-├── ```Prolog   ──► sno2c -pl -jvm  ──► FamilyProlog.j  ──► FamilyProlog.class
-├── ```SNOBOL4  ──► sno2c -jvm      ──► FamilySnobol4.j ──► FamilySnobol4.class
+├── ```Prolog   ──► scrip-cc -pl -jvm  ──► FamilyProlog.j  ──► FamilyProlog.class
+├── ```SNOBOL4  ──► scrip-cc -jvm      ──► FamilySnobol4.j ──► FamilySnobol4.class
 └── ```Icon     ──► icon_driver -jvm ──► FamilyIcon.j    ──► FamilyIcon.class
                                               │
                                    ScripFamily.j  (hand-written, ~40 lines)
@@ -289,8 +289,8 @@ fence_close = re.compile(r'^```\s*$')
 ### Phase 2 — Per-Language Compilation (1 hour)
 
 ```bash
-sno2c -pl -jvm demo_prolog.pro    -o /tmp/FamilyProlog.j
-sno2c -jvm     demo_snobol4.sno   -o /tmp/FamilySnobol4.j
+scrip-cc -pl -jvm demo_prolog.pro    -o /tmp/FamilyProlog.j
+scrip-cc -jvm     demo_snobol4.sno   -o /tmp/FamilySnobol4.j
 icon_driver -jvm demo_icon.icn    -o /tmp/FamilyIcon.j
 ```
 
@@ -363,8 +363,8 @@ DEMO=demo/scrip
 TMP=/tmp/scrip_demo
 mkdir -p $TMP
 python3 $DEMO/scrip_split.py $DEMO/family.scrip $TMP
-./sno2c -pl -jvm  $TMP/prolog.pro    -o $TMP/FamilyProlog.j
-./sno2c -jvm      $TMP/snobol4.sno   -o $TMP/FamilySnobol4.j
+./scrip-cc -pl -jvm  $TMP/prolog.pro    -o $TMP/FamilyProlog.j
+./scrip-cc -jvm      $TMP/snobol4.sno   -o $TMP/FamilySnobol4.j
 ./icon_driver -jvm $TMP/icon.icn     -o $TMP/FamilyIcon.j
 python3 $DEMO/inject_linkage.py $TMP
 cp $DEMO/ScripFamily.j $TMP/
@@ -378,7 +378,7 @@ java -cp $TMP/classes ScripFamily
 
 **M-SCRIP-DEMO** fires when:
 
-1. `demo/scrip/family.scrip` exists in `snobol4x`
+1. `demo/scrip/family.scrip` exists in `one4all`
 2. `run_demo.sh` runs clean from a fresh clone
 3. Output matches `family.expected` (diff clean)
 4. Session note written to `SESSIONS_ARCHIVE.md`
@@ -389,16 +389,16 @@ java -cp $TMP/classes ScripFamily
 
 | File | Location | What |
 |------|----------|------|
-| `family.scrip` | `snobol4x/demo/scrip/` | Fenced polyglot source |
-| `family.csv` | `snobol4x/demo/scrip/` | Input data (9 rows) |
-| `family.expected` | `snobol4x/demo/scrip/` | Expected output (for CI) |
-| `run_demo.sh` | `snobol4x/demo/scrip/` | End-to-end build + run |
-| `scrip_split.py` | `snobol4x/demo/scrip/` | Fence splitter |
-| `inject_linkage.py` | `snobol4x/demo/scrip/` | Stub injector into .j files |
-| `ScripFamily.j` | `snobol4x/demo/scrip/` | Hand-written driver class |
-| `README.md` | `snobol4x/demo/scrip/` | Explains the demo |
+| `family.scrip` | `one4all/demo/scrip/` | Fenced polyglot source |
+| `family.csv` | `one4all/demo/scrip/` | Input data (9 rows) |
+| `family.expected` | `one4all/demo/scrip/` | Expected output (for CI) |
+| `run_demo.sh` | `one4all/demo/scrip/` | End-to-end build + run |
+| `scrip_split.py` | `one4all/demo/scrip/` | Fence splitter |
+| `inject_linkage.py` | `one4all/demo/scrip/` | Stub injector into .j files |
+| `ScripFamily.j` | `one4all/demo/scrip/` | Hand-written driver class |
+| `README.md` | `one4all/demo/scrip/` | Explains the demo |
 
-All in `snobol4x`. No new repos. No `.github` changes until M-SCRIP-DEMO fires.
+All in `one4all`. No new repos. No `.github` changes until M-SCRIP-DEMO fires.
 
 ---
 
@@ -842,7 +842,7 @@ Prolog can be a store, Icon can be a solver, SNOBOL4 can read anything.
 
 **M-SCRIP-DEMO2** fires when:
 
-1. `demo/scrip/puzzle1.clues` (and 2–5) exist in `snobol4x`
+1. `demo/scrip/puzzle1.clues` (and 2–5) exist in `one4all`
 2. `run_demo2.sh` runs clean from a fresh clone
 3. Output for puzzle1 matches `puzzle1.expected` (diff clean)
 4. Output for puzzle3 is verified against swipl reference
@@ -858,11 +858,11 @@ are shared and only built once.
 
 | File | Location | What |
 |------|----------|------|
-| `puzzle1.clues` – `puzzle5.clues` | `snobol4x/demo/scrip/` | S-expression puzzle inputs |
-| `puzzle1.expected` – `puzzle5.expected` | `snobol4x/demo/scrip/` | Expected outputs |
-| `family.scrip` → `puzzle1.scrip` | `snobol4x/demo/scrip/` | Fenced polyglot source |
-| `run_demo2.sh` | `snobol4x/demo/scrip/` | Build + run (reuses Demo #1 infra) |
-| `README.md` (update) | `snobol4x/demo/scrip/` | Add Demo #2 section |
+| `puzzle1.clues` – `puzzle5.clues` | `one4all/demo/scrip/` | S-expression puzzle inputs |
+| `puzzle1.expected` – `puzzle5.expected` | `one4all/demo/scrip/` | Expected outputs |
+| `family.scrip` → `puzzle1.scrip` | `one4all/demo/scrip/` | Fenced polyglot source |
+| `run_demo2.sh` | `one4all/demo/scrip/` | Build + run (reuses Demo #1 infra) |
+| `README.md` (update) | `one4all/demo/scrip/` | Add Demo #2 section |
 
 No new repos. No new compiler files beyond the ~20-line Icon cross-call addition
 from Demo #1 (already planned). `inject_linkage.py` extended with new stub

@@ -152,7 +152,7 @@ corpus in corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 
 ## Compatibility Target — SPITBOL (D-001)
 
-**snobol4x targets SPITBOL** as its primary compatibility reference. See DECISIONS.md D-001.
+**one4all targets SPITBOL** as its primary compatibility reference. See DECISIONS.md D-001.
 
 - All SPITBOL language extensions supported (HOST, LOAD, OPSYN, CLEAR, indirect calls, etc.)
 - Command-line switches match SPITBOL identically
@@ -173,7 +173,7 @@ corpus in corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 |----------------|------------------------|
 | CSNOBOL4 | `"PATTERN"` (uppercase) |
 | SPITBOL | `"pattern"` (lowercase) |
-| **snobol4x** | `"PATTERN"` (uppercase — traditional spec, D-002) |
+| **one4all** | `"PATTERN"` (uppercase — traditional spec, D-002) |
 
 Monitor ignore-point: case differences in DATATYPE output are normalised. Tests are case-insensitive.
 
@@ -182,11 +182,11 @@ Monitor ignore-point: case differences in DATATYPE output are normalised. Tests 
 |----------------|------------------------|------------------------|
 | CSNOBOL4 | DT_S `"NAME"` | Fails |
 | SPITBOL | DT_S `"name"` | Succeeds |
-| **snobol4x** | DT_N ptr→`"NAME"` | Succeeds (type mismatch) |
+| **one4all** | DT_N ptr→`"NAME"` | Succeeds (type mismatch) |
 
-snobol4x is a **third dialect** — matches SPITBOL's observable behaviour (IsSpitbol
+one4all is a **third dialect** — matches SPITBOL's observable behaviour (IsSpitbol
 passes, IsSnobol4 fails) via a different internal mechanism. Monitor ignore-point covers
 DT_N vs DT_S differences. See DECISIONS.md D-004.
 
 ### FENCE semantics
-CSNOBOL4 has a known FENCE difference. snobol4x follows SPITBOL FENCE semantics.
+CSNOBOL4 has a known FENCE difference. one4all follows SPITBOL FENCE semantics.

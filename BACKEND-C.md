@@ -3,7 +3,7 @@
 The C backend compiles SNOBOL4 → C code that links against the C runtime (snobol4.c).
 All patterns are compiled Byrd boxes. No interpreter on the hot path.
 
-*Session state → TINY.md. sno2c compiler frontend → FRONTEND-SNO2C.md.*
+*Session state → TINY.md. scrip-cc compiler frontend → FRONTEND-SNO2C.md.*
 
 ---
 

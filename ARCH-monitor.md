@@ -29,21 +29,21 @@ identical to the input. A fixed point.
 |---|-------------|------|-------------|
 | 1 | SPITBOL x64 4.0f | **Primary oracle** (D-005) | stdout |
 | 2 | CSNOBOL4 2.3.3 | Secondary reference | stderr |
-| 3 | snobol4x ASM backend | Compiled target | stderr |
-| 4 | snobol4x JVM backend | Compiled target | stderr |
-| 5 | snobol4x NET backend | Compiled target | stderr |
+| 3 | one4all ASM backend | Compiled target | stderr |
+| 4 | one4all JVM backend | Compiled target | stderr |
+| 5 | one4all NET backend | Compiled target | stderr |
 
-**Compatibility target: snobol4x implements SPITBOL. SPITBOL is the primary oracle. (D-001)**
+**Compatibility target: one4all implements SPITBOL. SPITBOL is the primary oracle. (D-001)**
 - All SPITBOL extensions, switches, HOST() semantics are matched.
-- `DATATYPE()` returns **UPPERCASE** (snobol4x convention, D-002). SPITBOL lowercase is an ignore-point.
+- `DATATYPE()` returns **UPPERCASE** (one4all convention, D-002). SPITBOL lowercase is an ignore-point.
 - `.NAME` is a third dialect matching SPITBOL *observable* behaviour. See D-004.
 - CSNOBOL4 quirks (FENCE semantics, DATATYPE case) do not drive fixes.
 
 **Consensus rules (updated D-005):**
-- SPITBOL and snobol4x agree, CSNOBOL4 diverges → known CSNOBOL4 quirk; not our bug.
-- SPITBOL and CSNOBOL4 agree, snobol4x diverges → our bug; fix to match SPITBOL.
-- SPITBOL and CSNOBOL4 disagree, snobol4x matches SPITBOL → correct.
-- SPITBOL and CSNOBOL4 disagree, snobol4x matches neither → our bug; fix to SPITBOL.
+- SPITBOL and one4all agree, CSNOBOL4 diverges → known CSNOBOL4 quirk; not our bug.
+- SPITBOL and CSNOBOL4 agree, one4all diverges → our bug; fix to match SPITBOL.
+- SPITBOL and CSNOBOL4 disagree, one4all matches SPITBOL → correct.
+- SPITBOL and CSNOBOL4 disagree, one4all matches neither → our bug; fix to SPITBOL.
 - DATATYPE case differences → ignore-point always (D-002).
 - `.NAME` DT_N vs DT_S differences → ignore-point (D-004).
 
@@ -291,11 +291,11 @@ diff oracle.sno $BEAUTY    # empty  <- the bootstrap condition
 
 ## Monitor Infrastructure
 
-Lives in `snobol4x/test/monitor/` initially.
+Lives in `one4all/test/monitor/` initially.
 Will move to `harness/monitor/` when extending to other repos.
 
 ```
-snobol4x/test/monitor/
+one4all/test/monitor/
     inject_traces.py        <- reads .sno + tracepoints.conf -> instrumented .sno
     normalize_trace.py      <- applies ignore-points, normalizes SPITBOL format
     run_monitor.sh          <- single test: 5 participants -> 5 streams -> diff
@@ -313,7 +313,7 @@ SNO=$1
 CONF=${2:-$(dirname $0)/tracepoints.conf}
 TMP=/tmp/monitor_$$
 INC=/home/claude/corpus/programs/inc
-DIR=$(dirname $(realpath $0))/../../..   # snobol4x root
+DIR=$(dirname $(realpath $0))/../../..   # one4all root
 
 python3 $(dirname $0)/inject_traces.py $SNO $CONF > $TMP.sno
 
@@ -420,7 +420,7 @@ and monitor run. Full plan → **[ARCH-snobol4-beauty-testing.md](ARCH-snobol4-b
 **Strategy:**
 - One driver per subsystem: a small `.sno` that `-INCLUDE`s only that file
   (plus dependencies) and exercises all DEFINE'd functions
-- Drivers live in `snobol4x/test/beauty/<subsystem>/driver.sno`
+- Drivers live in `one4all/test/beauty/<subsystem>/driver.sno`
 - Gimpel corpus (145 programs) provides semantic cross-validation
 - Monitor runs each driver: CSNOBOL4 oracle + ASM (expanding to JVM+NET as
   M-MONITOR-5WAY is reached)

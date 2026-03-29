@@ -22,7 +22,7 @@ code 3". The `TYP` suffix = type code. The prefix (VAR, QLIT, ILIT, etc.) = the
 semantic category. Our `E_VAR` came from `VARTYP` — the T is the first letter of
 TYP, compressed for the C identifier.
 
-**The `E_` prefix** was added when sno2c.h defined the C enum — `E_` for Expression
+**The `E_` prefix** was added when scrip-cc.h defined the C enum — `E_` for Expression
 kind, distinguishing from `S_` (statement kinds) and other prefix families.
 
 ---

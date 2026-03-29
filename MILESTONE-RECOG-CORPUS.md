@@ -3,7 +3,7 @@
 **Sprint:** PP-1 extension  
 **Owner:** PP-1 session (Claude Sonnet 4.6)  
 **Created:** 2026-03-27  
-**Status:** DONE — 2026-03-27 (Claude Sonnet 4.6) — commit 4b4d71a snobol4x
+**Status:** DONE — 2026-03-27 (Claude Sonnet 4.6) — commit 4b4d71a one4all
 
 ---
 
@@ -23,9 +23,9 @@ for trend.
 | Corpus | Files | Notes |
 |--------|-------|-------|
 | `corpus/programs/icon/**/*.icn` | ~851 | IPL + misc Icon programs |
-| `snobol4x/test/frontend/icon/**/*.icn` | ~258 | Compiler test suite |
-| `snobol4x/test/frontend/prolog/**/*.pro` | ~130 | Compiler test suite |
-| `snobol4x/test/frontend/prolog/**/*.pl`  | included above | Same dir |
+| `one4all/test/frontend/icon/**/*.icn` | ~258 | Compiler test suite |
+| `one4all/test/frontend/prolog/**/*.pro` | ~130 | Compiler test suite |
+| `one4all/test/frontend/prolog/**/*.pl`  | included above | Same dir |
 
 ---
 
@@ -47,7 +47,7 @@ with no top-level procedures.
 
 ## Harness
 
-Two scripts added to `snobol4x/test/scrip/`:
+Two scripts added to `one4all/test/scrip/`:
 
 ```bash
 # Icon (both parser and recognizer)
@@ -83,7 +83,7 @@ Prolog baseline: not yet run (tools just created).
 
 ## Session instructions
 
-1. `git pull --rebase` in both `snobol4x` and `corpus`
+1. `git pull --rebase` in both `one4all` and `corpus`
 2. Run `bash test/scrip/run_corpus_icon.sh` — record counts
 3. Run `bash test/scrip/run_corpus_prolog.sh` — record counts
 4. If crashes > 0: triage top-5 crash inputs, fix tool, re-run
@@ -105,7 +105,7 @@ Prolog baseline: not yet run (tools just created).
 | prolog_recognizer | | | | | |
 
 
-## Results (2026-03-27, Claude Sonnet 4.6, commit 4b4d71a snobol4x)
+## Results (2026-03-27, Claude Sonnet 4.6, commit 4b4d71a one4all)
 
 | Tool | Total | Pass | Empty | Crash | Pass% |
 |------|-------|------|-------|-------|-------|

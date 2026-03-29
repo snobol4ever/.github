@@ -7,7 +7,7 @@
 
 ## Current State
 
-**Active priority:** Stable. Used as diagnostic tool when debugging snobol4x.
+**Active priority:** Stable. Used as diagnostic tool when debugging one4all.
 
 ---
 
@@ -61,7 +61,7 @@ Every repo uses the same corpus. Test programs are never duplicated into engine 
 The corpus crosscheck runner lives in `corpus/crosscheck/run_all.sh`.
 The per-engine adapter lives in `test/crosscheck/run_crosscheck.sh` in each repo.
 
-### Current crosscheck results (snobol4x, Session 89, `29c0a4b`)
+### Current crosscheck results (one4all, Session 89, `29c0a4b`)
 
 ```
 output:   7/8  — FAIL: SIZE(&ALPHABET) returns 0 instead of 256
@@ -114,6 +114,6 @@ Times include ~15ms process-spawn overhead for SPITBOL/CSNOBOL4 — subtract for
 
 **Key results (2026-03-10):**
 
-vs PCRE2 JIT — `(a|b)*abb`: snobol4x **2.3×** faster (33 ns vs 78 ns)  
-vs PCRE2 JIT — `(a+)+b` pathological: snobol4x **7–33×** faster (0.7 ns vs 21 ns)  
-vs Bison LALR(1) — `{a^n b^n}`: snobol4x **1.6×** faster (44 ns vs 72 ns)
+vs PCRE2 JIT — `(a|b)*abb`: one4all **2.3×** faster (33 ns vs 78 ns)  
+vs PCRE2 JIT — `(a+)+b` pathological: one4all **7–33×** faster (0.7 ns vs 21 ns)  
+vs Bison LALR(1) — `{a^n b^n}`: one4all **1.6×** faster (44 ns vs 72 ns)

@@ -1,4 +1,4 @@
-# FRONTEND-PROLOG.md — Prolog Frontend (snobol4x)
+# FRONTEND-PROLOG.md — Prolog Frontend (one4all)
 
 Tiny-Prolog: lex → parse → lower → IR. No session state here.
 **Session state** → `SESSION-prolog-x64.md` or `SESSION-prolog-jvm.md`
@@ -65,7 +65,7 @@ Cut (`!`) maps to FENCE: β becomes unreachable. No new mechanism needed.
 Reuse existing EXPR_t/EKind nodes where semantics match exactly.
 Introduce new kinds only where they do not.
 
-### Reused (from sno2c.h EKind)
+### Reused (from scrip-cc.h EKind)
 
 | Existing node | Prolog use | Match? |
 |---------------|-----------|--------|
@@ -230,9 +230,9 @@ test/frontend/prolog/corpus/
 ## Driver Flag
 
 ```
-snobol4x -pl -asm  foo.pl    ->  foo.s   (x64 NASM)
-snobol4x -pl -c    foo.pl    ->  foo.c   (C backend, later)
-snobol4x -pl -jvm  foo.pl    ->  foo.j   (JVM Jasmin — see ARCH-prolog-jvm.md)
+one4all -pl -asm  foo.pl    ->  foo.s   (x64 NASM)
+one4all -pl -c    foo.pl    ->  foo.c   (C backend, later)
+one4all -pl -jvm  foo.pl    ->  foo.j   (JVM Jasmin — see ARCH-prolog-jvm.md)
 ```
 
 ---

@@ -17,7 +17,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [REPO-snobol4x.md](REPO-snobol4x.md) | snobol4x — HEAD, build commands, sprint, frontier table, pivot log |
+| [REPO-one4all.md](REPO-one4all.md) | one4all — HEAD, build commands, sprint, frontier table, pivot log |
 | [REPO-snobol4jvm.md](REPO-snobol4jvm.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
 | [REPO-snobol4dotnet.md](REPO-snobol4dotnet.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
 | [ARCH-corpus.md](ARCH-corpus.md) | corpus — layout, update protocol |
@@ -48,7 +48,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [ARCH-sno2c.md](ARCH-sno2c.md) | sno2c compiler — lex/parse/emit, SIL naming, CNode IR, artifacts |
+| [ARCH-scrip-cc.md](ARCH-scrip-cc.md) | scrip-cc compiler — lex/parse/emit, SIL naming, CNode IR, artifacts |
 | [ARCH-overview.md](ARCH-overview.md) | Shared architecture — Byrd box concept, oracle hierarchy |
 | [ARCH-testing.md](ARCH-testing.md) | Four testing paradigms · corpus ladder protocol |
 | [RULES.md](RULES.md) | Mandatory rules — token, identity, artifacts, hierarchy |

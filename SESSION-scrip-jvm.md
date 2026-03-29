@@ -1,6 +1,6 @@
-# SESSION-scrip-jvm.md — Scrip Demos × JVM (snobol4x)
+# SESSION-scrip-jvm.md — Scrip Demos × JVM (one4all)
 
-**Repo:** snobol4x · **Frontends:** SNOBOL4 + Icon + Prolog · **Backend:** JVM
+**Repo:** one4all · **Frontends:** SNOBOL4 + Icon + Prolog · **Backend:** JVM
 **Session prefix:** `SD` · **Trigger:** "playing with Scrip demos, JVM backend"
 **Harness:** `bash demo/scrip/run_demo.sh demo/scrip/demoN/`
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
@@ -21,7 +21,7 @@
 ## §BUILD
 
 ```bash
-cd snobol4x && make -C src
+cd one4all && make -C src
 apt-get install -y default-jdk swi-prolog icont
 export JAVA_TOOL_OPTIONS=""
 
@@ -36,7 +36,7 @@ gcc -g -O0 -I. \
   src/frontend/icon/icon_runtime.c \
   -o /tmp/icon_driver
 
-SNO2C=$(pwd)/sno2c
+SNO2C=$(pwd)/scrip-cc
 ICON_DRIVER=/tmp/icon_driver
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 ```
@@ -44,7 +44,7 @@ JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 ## §RUN
 
 ```bash
-SNO2C=$(pwd)/sno2c ICON_DRIVER=/tmp/icon_driver \
+SNO2C=$(pwd)/scrip-cc ICON_DRIVER=/tmp/icon_driver \
   JASMIN=$(pwd)/src/backend/jvm/jasmin.jar \
   bash demo/scrip/run_demo.sh demo/scrip/demo3/
 ```
@@ -62,7 +62,7 @@ Session prefix for commits: `SD` (e.g. `SD-37: M-SD-6 ICON-JVM sieve PASS`).
 
 ```bash
 # After a demo passes all six backends:
-SNO2C=$(pwd)/sno2c
+SNO2C=$(pwd)/scrip-cc
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 DEMO=demo/scrip/demo6   # replace with passing demo number
 NAME=sieve              # replace with demo name

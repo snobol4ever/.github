@@ -70,7 +70,7 @@ All 35 files verified 35/35 PASS under CSNOBOL4 2.3.3.
 
 - **snobol4jvm:** submodule at `corpus/lon`
 - **snobol4dotnet:** submodule at `corpus`
-- **snobol4x:** referenced via `$INC` path for `-INCLUDE` files
+- **one4all:** referenced via `$INC` path for `-INCLUDE` files
 
 ## Update Protocol
 

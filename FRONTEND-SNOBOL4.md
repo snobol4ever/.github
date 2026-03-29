@@ -10,7 +10,7 @@ No session state here. **Session state** → SESSION-snobol4-*.md
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| sno2c compiler internals | `ARCH-sno2c.md` | parser, IR lowering, emit |
+| scrip-cc compiler internals | `ARCH-scrip-cc.md` | parser, IR lowering, emit |
 | beauty.sno deep analysis | `ARCH-snobol4-beauty.md` | two-stack engine, TDD, bug history |
 | Testing protocol | `ARCH-testing.md` | TDD, crosscheck harness |
 
@@ -20,7 +20,7 @@ No session state here. **Session state** → SESSION-snobol4-*.md
 
 | Repo | Implementation | Next milestone |
 |------|---------------|----------------|
-| snobol4x | sno2c (C compiler) | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
+| one4all | scrip-cc (C compiler) | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | snobol4jvm | Clojure + JVM codegen | M-JVM-STLIMIT-STCOUNT |
 | snobol4dotnet | C# + MSIL | M-T2-FULL |
 
@@ -47,5 +47,5 @@ diff oracle.sno compiled.sno   # empty = correct
 |------|------|
 | `src/frontend/snobol4/lex.c` | Lexer |
 | `src/frontend/snobol4/parse.c` | Parser |
-| `src/frontend/snobol4/sno2c.h` | IR node types |
+| `src/frontend/snobol4/scrip-cc.h` | IR node types |
 | `demo/beauty.sno` | The proof program |

@@ -6,7 +6,7 @@
 ### Demos 1-3: ✅ PASS (3/3 JVM frontends)
 
 `run_demo.sh` was using the retired `icon_driver` binary for ICON-JVM. Fixed to use
-`sno2c -icn -jvm` (Icon was merged into sno2c in LP-JVM-2). All three demos now:
+`scrip-cc -icn -jvm` (Icon was merged into scrip-cc in LP-JVM-2). All three demos now:
 
 ```
 demo1 (hello):     SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
@@ -40,7 +40,7 @@ family demo running end-to-end with each language self-contained?
 **2. `ByrdBoxLinkage.j` is missing from `src/runtime/jvm/` (directory is empty/.gitkeep).**
 Restore from LP-JVM-1 commit:
 ```bash
-cd snobol4x
+cd one4all
 git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinkage.j
 ```
 Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
@@ -49,7 +49,7 @@ Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
 
 
 
-**Commit:** `d3ac6f0` snobol4x
+**Commit:** `d3ac6f0` one4all
 
 ### All fixes applied and confirmed in source:
 
@@ -94,9 +94,9 @@ for (ExportEntry *e = prog->exports; e; e = e->next) {
 
 **After fixing the export wrapper — run in order:**
 ```bash
-cd snobol4x && make -C src
+cd one4all && make -C src
 cd demo/scrip/family_net
-SNO2C=../../sno2c; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
+SNO2C=../../scrip-cc; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
 
 $SNO2C -pl -jvm family_prolog.pro > out/family_prolog.j
 $SNO2C -jvm family_snobol4.sno > out/family_snobol4.j  
@@ -176,11 +176,11 @@ Also verify `pj_rc_swallow` DB loop: after fix, `pj_unify(args[i], fact[i+2])` s
 
 **After fixing:**
 ```bash
-cd snobol4x && make -C src
+cd one4all && make -C src
 OUT=demo/scrip/out && JASMIN=src/backend/jvm/jasmin.jar
-./sno2c -pl -jvm demo/scrip/family_prolog.pro -o $OUT/family_prolog.j
-./sno2c -jvm demo/scrip/family_snobol4.sno -o $OUT/family_snobol4.j
-./sno2c -icn -jvm demo/scrip/family_icon.icn -o $OUT/family_icon.j
+./scrip-cc -pl -jvm demo/scrip/family_prolog.pro -o $OUT/family_prolog.j
+./scrip-cc -jvm demo/scrip/family_snobol4.sno -o $OUT/family_snobol4.j
+./scrip-cc -icn -jvm demo/scrip/family_icon.icn -o $OUT/family_icon.j
 java -jar $JASMIN src/runtime/jvm/ByrdBoxLinkage.j \
   $OUT/family_prolog.j $OUT/family_snobol4.j $OUT/family_icon.j \
   demo/scrip/scrip_driver.j -d $OUT

@@ -1,8 +1,8 @@
-# SESSION-prolog-x64.md — Prolog × x86 (snobol4x)
+# SESSION-prolog-x64.md — Prolog × x86 (one4all)
 
-**Repo:** snobol4x · **Frontend:** Prolog · **Backend:** x86 (NASM)
+**Repo:** one4all · **Frontend:** Prolog · **Backend:** x86 (NASM)
 **Session prefix:** `PX` · **Trigger:** "playing with Prolog x64" or "Prolog x86"
-**Driver:** `sno2c -pl -asm foo.pl > foo.s` → `nasm -f elf64 foo.s -o foo.o` → `gcc -no-pie foo.o ...srcs... -lm -o foo`
+**Driver:** `scrip-cc -pl -asm foo.pl > foo.s` → `nasm -f elf64 foo.s -o foo.o` → `gcc -no-pie foo.o ...srcs... -lm -o foo`
 **Deep reference:** `ARCH-prolog-x64.md` · `FRONTEND-PROLOG.md`
 
 ## Subsystems
@@ -18,8 +18,8 @@
 ## §BUILD
 
 ```bash
-cd snobol4x && make -C src
-./sno2c -pl -asm foo.pl > foo.s
+cd one4all && make -C src
+./scrip-cc -pl -asm foo.pl > foo.s
 nasm -f elf64 foo.s -o foo.o
 gcc -no-pie foo.o \
   src/frontend/prolog/prolog_atom.c \
@@ -142,9 +142,9 @@ This replaces the current unconditional `jmp α0` at the end of the re-entry dec
 ### Gate tests (recreate each session — /tmp doesn't persist)
 
 ```bash
-cd snobol4x && make -C src -s
+cd one4all && make -C src -s
 build_run() {
-  ./sno2c -pl -asm "$1" -o /tmp/t.asm &&
+  ./scrip-cc -pl -asm "$1" -o /tmp/t.asm &&
   nasm -f elf64 /tmp/t.asm -o /tmp/t.o &&
   gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_{atom,unify,builtin}.o -lm -o /tmp/t &&
   timeout 8 /tmp/t

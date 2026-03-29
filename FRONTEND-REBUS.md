@@ -3,7 +3,7 @@
 Rebus is a structured language that transpiles to SNOBOL4.
 M-REBUS ✅ `bf86b4b` — round-trip complete.
 
-*Session state → TINY.md. sno2c compiler → FRONTEND-SNO2C.md.*
+*Session state → TINY.md. scrip-cc compiler → FRONTEND-SNO2C.md.*
 
 ---
 

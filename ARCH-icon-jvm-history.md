@@ -46,10 +46,10 @@ Operational §NOW → SESSION-icon-jvm.md.
 ### Next session checklist (IJ-37)
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
-cd snobol4x
+cd one4all
 gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \
@@ -108,10 +108,10 @@ Remaining: list builtins, bang/size list branches, rung22 corpus.
 ## Session Bootstrap (every IJ-session)
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4x
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y default-jdk nasm libgc-dev
-cd snobol4x
+cd one4all
 gcc -Wall -Wextra -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
     src/frontend/icon/icon_parse.c src/frontend/icon/icon_ast.c \
     src/frontend/icon/icon_emit.c src/frontend/icon/icon_emit_jvm.c \

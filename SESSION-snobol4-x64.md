@@ -1,6 +1,6 @@
-# SESSION-snobol4-x64.md — SNOBOL4 × x86 (snobol4x)
+# SESSION-snobol4-x64.md — SNOBOL4 × x86 (one4all)
 
-**Repo:** snobol4x · **Frontend:** SNOBOL4/SPITBOL · **Backend:** x86
+**Repo:** one4all · **Frontend:** SNOBOL4/SPITBOL · **Backend:** x86
 **Session prefix:** `B` · **Trigger:** "playing with beauty" / TINY ASM
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 

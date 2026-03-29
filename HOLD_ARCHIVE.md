@@ -6,7 +6,7 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 
 ---
 
-## TINY (snobol4x) — On Hold
+## TINY (one4all) — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|
@@ -20,20 +20,20 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 | **M-ENG685-TREEBANK** | treebank.sno — Penn Treebank S-expr parser; .ref oracle committed; PASS via CSNOBOL4 and ASM backend | ❌ Sprint B-ENG685 |
 | **M-ASM-MACROS** | NASM macro library `snobol4_asm.mac` — every emitted line is `LABEL  MACRO(args)  GOTO` | ❌ Sprint A12 |
 | **M-ASM-IR** | ASM IR phase: AsmNode tree between parse and emit | ⏸ DEFERRED — premature unification risks blocking ASM progress |
-| **M-BOOTSTRAP** | sno2c_stage1 output = sno2c_stage2 | ❌ |
+| **M-BOOTSTRAP** | scrip-cc_stage1 output = scrip-cc_stage2 | ❌ |
 | **M-SC-CORPUS-R2** | control/control_new all PASS via `-sc -asm` | ❌ |
 | **M-SC-CORPUS-R3** | patterns/capture all PASS via `-sc -asm` | ❌ |
 | **M-SC-CORPUS-R4** | strings/ all PASS via `-sc -asm` | ❌ |
 | **M-SC-CORPUS-R5** | keywords/functions/data all PASS via `-sc -asm` | ❌ |
 | **M-SC-CORPUS-FULL** | 106/106 SC equivalent of SNOBOL4 crosscheck | ❌ |
 | **M-SNOC-ASM-SELF** | snocone.sc compiles itself via `-sc -asm`; diff oracle empty | ❌ Sprint SC6-ASM |
-| **M-SNOC-EMIT** | `-sc` flag in sno2c; `OUTPUT = 'hello'` .sc → C binary PASS | ❌ deferred — C backend |
+| **M-SNOC-EMIT** | `-sc` flag in scrip-cc; `OUTPUT = 'hello'` .sc → C binary PASS | ❌ deferred — C backend |
 | **M-SNOC-CORPUS** | SC corpus 10-rung all PASS (C backend) | ❌ Sprint SC4 (deferred) |
 | **M-SNOC-SELF** | snocone.sc compiles itself via C pipeline; diff oracle empty | ❌ Sprint SC5 (deferred) |
 
 ---
 
-## JVM backend — snobol4x TINY — On Hold
+## JVM backend — one4all TINY — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|
@@ -53,7 +53,7 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 
 ---
 
-## NET backend — snobol4x TINY — On Hold
+## NET backend — one4all TINY — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|

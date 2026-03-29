@@ -1,6 +1,6 @@
-# SESSION-icon-x64.md — Icon × x86 (snobol4x)
+# SESSION-icon-x64.md — Icon × x86 (one4all)
 
-**Repo:** snobol4x · **Frontend:** Icon · **Backend:** x86
+**Repo:** one4all · **Frontend:** Icon · **Backend:** x86
 **Session prefix:** `IX` · **Trigger:** "playing with Icon x64" or "Icon asm"
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
@@ -16,23 +16,23 @@
 
 ## §BUILD
 
-**Compiler is `sno2c` (built from `src/`). Frontend module is `src/frontend/icon/icn_main.c`.**
+**Compiler is `scrip-cc` (built from `src/`). Frontend module is `src/frontend/icon/icn_main.c`.**
 
 ```bash
 # Clone
-git clone https://TOKEN@github.com/snobol4ever/snobol4x
+git clone https://TOKEN@github.com/snobol4ever/one4all
 git clone https://TOKEN@github.com/snobol4ever/.github
 
 # Build
-cd snobol4x/src && make
-# produces ../sno2c
+cd one4all/src && make
+# produces ../scrip-cc
 ```
 
 ### Run a single test (JVM backend — canonical test path)
 
 ```bash
 TMPD=$(mktemp -d)
-./sno2c -jvm foo.icn -o $TMPD/main.j
+./scrip-cc -jvm foo.icn -o $TMPD/main.j
 for jf in $TMPD/*.j; do java -jar src/backend/jvm/jasmin.jar "$jf" -d $TMPD/; done
 cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
 java -cp $TMPD/ "$cls"
@@ -49,7 +49,7 @@ for icn in test/frontend/icon/corpus/RUNG/t*.icn; do
   base="${icn%.icn}"; exp="$base.expected"; [ -f "$exp" ] || continue
   [ -f "$base.xfail" ] && continue
   TMPD=$(mktemp -d)
-  ./sno2c -jvm "$icn" -o $TMPD/main.j 2>/dev/null
+  ./scrip-cc -jvm "$icn" -o $TMPD/main.j 2>/dev/null
   for jf in $TMPD/*.j; do java -jar $JASMIN "$jf" -d $TMPD/ >/dev/null 2>&1; done
   cls=$(grep -m1 '\.class' $TMPD/main.j | awk '{print $NF}')
   stdin_f="$base.stdin"
@@ -186,7 +186,7 @@ a runtime type check (or just call `icn_write_int` as fallback for now).
 
 3. **x64 corpus harness** (`test/frontend/icon/run_icon_x64_rung.sh`): new script
    mirrors `run_crosscheck_x86_rung.sh` but for `.icn`/`.expected` pairs. Uses
-   `sno2c -icn`, nasm, `gcc -nostdlib`, diff. PASS/FAIL/SKIP counts.
+   `scrip-cc -icn`, nasm, `gcc -nostdlib`, diff. PASS/FAIL/SKIP counts.
 
 ### NEXT ACTION — IX-18
 

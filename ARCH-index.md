@@ -14,7 +14,7 @@ All deep reference docs. Open on demand — never speculatively.
 ### SNOBOL4 Frontend
 | Doc | Contents | Open when |
 |-----|----------|-----------|
-| `ARCH-sno2c.md` | sno2c compiler: parser, IR lowering, emit | sno2c internals |
+| `ARCH-scrip-cc.md` | scrip-cc compiler: parser, IR lowering, emit | scrip-cc internals |
 | `ARCH-snobol4-beauty.md` | beauty.sno two-stack engine, TDD protocol, bug history | beauty sprint deep work |
 | `ARCH-snobol4-beauty-testing.md` | beauty.sno 19-subsystem testing plan, milestone map, driver format | beauty testing protocol |
 

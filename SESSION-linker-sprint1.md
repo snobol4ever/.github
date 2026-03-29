@@ -51,7 +51,7 @@ src/frontend/snobol4/
     lex.c               ADD: T_EXPORT, T_IMPORT token kinds
     lex.h               ADD: token kind enum entries
     parse.c             ADD: parse_toplevel_directive()
-    sno2c.h             ADD: ExportEntry, ImportEntry fields on Program struct
+    scrip-cc.h             ADD: ExportEntry, ImportEntry fields on Program struct
 
 src/backend/jvm/
     emit_byrd_jvm.c     CHANGE: class name from hardcoded → derived from filename
@@ -146,7 +146,7 @@ Existing programs using `EXPORT`/`IMPORT` as variable names are unaffected.
 
 ### Step 4 — AST + Program struct (30 min)
 
-`sno2c.h`:
+`scrip-cc.h`:
 ```c
 STMT_EXPORT,
 STMT_IMPORT,
@@ -283,7 +283,7 @@ GREET_END
 ```bash
 #!/bin/bash
 set -e
-SNO2C=../../../src/sno2c/sno2c
+SNO2C=../../../src/scrip-cc/scrip-cc
 JASMIN=../../../src/backend/jvm/jasmin.jar
 OUT=./out ; mkdir -p $OUT
 
@@ -310,7 +310,7 @@ After every change, before committing:
 cd snobol4jvm && lein test 2>&1 | tail -3
 
 # Existing JVM path still emits valid Jasmin (class name change is the risk)
-echo "OUTPUT = 'smoke'" | sno2c --jvm /dev/stdin | grep "class SNOBOL4_"
+echo "OUTPUT = 'smoke'" | scrip-cc --jvm /dev/stdin | grep "class SNOBOL4_"
 ```
 
 ---
@@ -324,7 +324,7 @@ LP-2: M-LINK-JVM-1,2,3 — EXPORT/IMPORT JVM, per-file .class, two-file link
 - src/runtime/jvm/SnoVal.java       NEW: JVM SnoVal stub (full LP-3)
 - src/frontend/snobol4/lex.h/.c     ADD: T_EXPORT, T_IMPORT
 - src/frontend/snobol4/parse.c      ADD: parse_toplevel_directive()
-- src/frontend/snobol4/sno2c.h      ADD: ExportEntry, ImportEntry, Program fields
+- src/frontend/snobol4/scrip-cc.h      ADD: ExportEntry, ImportEntry, Program fields
 - src/backend/jvm/emit_byrd_jvm.c   CHANGE: per-file class name (SNOBOL4_basename)
                                     ADD: public/private static dispatch on EXPORT
                                     ADD: emit_jvm_import_call() invokestatic

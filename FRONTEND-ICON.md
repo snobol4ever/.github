@@ -1,11 +1,11 @@
-# FRONTEND-ICON.md — Icon Language Frontend (snobol4x)
+# FRONTEND-ICON.md — Icon Language Frontend (one4all)
 
 Icon parser, AST, IR mapping. No session state here.
 **Session state** → `SESSION-icon-x64.md` (x64) or `SESSION-icon-jvm.md` (JVM)
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
-**Main program is `sno2c`.** The `icon_driver` is an internal entry point
-(`icon_driver_main`) called by `sno2c -icn`. Use a shim for standalone testing.
+**Main program is `scrip-cc`.** The `icon_driver` is an internal entry point
+(`icon_driver_main`) called by `scrip-cc -icn`. Use a shim for standalone testing.
 
 ---
 
