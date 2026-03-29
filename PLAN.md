@@ -22,7 +22,7 @@ Script is self-contained. See RULES.md for the six things it covers.
 | `one4all` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/one4all/` |
 | `snobol4jvm` | SNOBOL4 → JVM, Clojure | `/home/claude/snobol4jvm/` |
 | `snobol4dotnet` → `snobol4net` | SNOBOL4 → .NET, C# (rename pending M-G9) | `/home/claude/snobol4dotnet/` |
-| `corpus` | Test corpus — .sno/.icn/.pro + .ref oracle output | `/home/claude/corpus/` |
+| `corpus` | Test corpus — .sno/.icn/.pl + .ref oracle output | `/home/claude/corpus/` |
 | `harness` | Test infrastructure — corpus runners | `/home/claude/harness/` |
 | `snobol4python` | SNOBOL4 pattern library for Python | clone if needed |
 | `snobol4csharp` | SNOBOL4 pattern library for C# | clone if needed |
@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ✅ · M-G5-EMITTER-COVERAGE-AUDIT ✅ · PLAN debloat ✅ | `0eb2b57` one4all · `99287e5` .github | **Next: fix `.pro` driver auto-detect → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ✅ · M-G5-EMITTER-COVERAGE-AUDIT ✅ · PLAN debloat ✅ | `0eb2b57` one4all · `99287e5` .github | **Next: fix `.pl` driver auto-detect → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -98,7 +98,7 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 RULES.md rule: handoffs go to SESSIONS_ARCHIVE, not PLAN.md.
 
 ### M-G-INV-EMIT-FIX ✅ (completed session 5 + this session)
-- `run_emit_check.sh`: fixed stdout capture (`-o /dev/stdout`) and `-pl` flag for `.pro` files
+- `run_emit_check.sh`: fixed stdout capture (`-o /dev/stdout`) and `-pl` flag for `.pl` files
 - Prolog baselines were silently 0 bytes (vacuous pass) — regenerated with real content
 - 488/0 emit-diff (up from 484: +4 new coverage test baselines)
 
@@ -112,7 +112,7 @@ Gap analysis complete across SNO/PL/ICN × x64/JVM/NET:
 
 ### Coverage tests added
 - `test/icon/coverage/coverage_x64_gaps.icn` — 129-line Icon test exercising all 34 x64-missing ICN_ kinds; compiles clean to x64 (22KB) and JVM (85KB)
-- `test/prolog/coverage/coverage_net_gaps.pro` — 43-line Prolog test exercising E_ADD/SUB/MPY/DIV/FLIT/CUT/TRAIL/UNIFY; compiles clean to x64 (75KB), JVM (159KB), NET (19KB)
+- `test/prolog/coverage/coverage_net_gaps.pl` — 43-line Prolog test exercising E_ADD/SUB/MPY/DIV/FLIT/CUT/TRAIL/UNIFY; compiles clean to x64 (75KB), JVM (159KB), NET (19KB)
 - Baselines committed alongside sources
 
 ### Next session

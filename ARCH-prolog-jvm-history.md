@@ -44,7 +44,7 @@ Operational §NOW → SESSION-prolog-jvm.md.
 | **M-PJ-EXCEPTIONS** | `catch/3`, `throw/1` — ISO exception machinery; rung28 5/5 | ✅ |
 | **M-PJ-NUMBER-OPS** | `sqrt/sin/cos/tan/exp/log/atan/atan2/float/float_integer_part/float_fractional_part/pi/e`; `truncate/ceiling/floor/round` float→int; `gcd/2`; rung29 5/5 | ✅ |
 | **M-PJ-DCG** | DCG `-->` rules, `phrase/2,3`, `{}/1` inline goals, pushback notation; rung30 5/5 | ✅ |
-| **M-PJ-PLUNIT-SHIM** | SWI `tests/core/` converted to standalone `.pro` (564 tests); loads+runs under SWI | ✅ |
+| **M-PJ-PLUNIT-SHIM** | SWI `tests/core/` converted to standalone `.pl` (564 tests); loads+runs under SWI | ✅ |
 | **M-PJ-LINKER** | plunit linker in prolog_emit_jvm.c — raw SWI .pl files compile directly; test_list 10/11 | ✅ |
 | **M-PJ-TRUE-EXPR** | `true(Expr)` var-sharing fix — self-reporting bridge, pj_inline shim path; 2/2 pass | ✅ |
 | **M-PJ-SWI-BASELINE** | Run all 564 converted tests against JVM backend; record pass/fail baseline | ❌ |

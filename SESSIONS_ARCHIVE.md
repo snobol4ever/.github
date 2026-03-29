@@ -1159,7 +1159,7 @@ completely, inventory existing milestones that overlap, then write the full plan
 ### PJ-43 (no code commit — diagnosis only)
 **Score: 20/20 confirmed.** Root cause for M-PJ-DISPLAY-BT isolated:
 `display/6` gamma cs re-enters `gn` retry chain on external fail-loop.
-Minimal reproducer `chain_bug.pro` (3-line predicate, JVM=3 lines, swipl=1 line).
+Minimal reproducer `chain_bug.pl` (3-line predicate, JVM=3 lines, swipl=1 line).
 Fix target: `p_go_6` gamma_0 cs pack — inspect `iload 3` vs correct cs value.
 Full diagnosis and bootstrap in FRONTEND-PROLOG-JVM.md §NOW (CRITICAL NEXT ACTION PJ-44).
 
@@ -1420,7 +1420,7 @@ Root cause: `pj_emit_arith()` has no case for `mod` — falls to `default: lcons
 
 **Work done:**
 
-- Created `rung12_atom_builtins/` corpus: 5 test `.pro` files + swipl-oracle `.expected` for `atom_length`, `atom_concat`, `atom_chars`, `atom_codes`, `atom_case` (upcase_atom/downcase_atom/atom_length).
+- Created `rung12_atom_builtins/` corpus: 5 test `.pl` files + swipl-oracle `.expected` for `atom_length`, `atom_concat`, `atom_chars`, `atom_codes`, `atom_case` (upcase_atom/downcase_atom/atom_length).
 - Added runtime Jasmin helper methods in `pj_emit_helpers()`: `pj_atom_name`, `pj_int_val`, `pj_string_to_char_list`, `pj_string_to_code_list`, `pj_char_list_to_string`, `pj_code_list_to_string`, `pj_atom_chars_2`, `pj_atom_codes_2`, `pj_char_code_2`.
 - Added all 9 dispatch cases to `pj_emit_goal()`: `atom_length/2`, `atom_concat/3`, `atom_chars/2`, `atom_codes/2`, `number_chars/2`, `number_codes/2`, `char_code/2`, `upcase_atom/2`, `downcase_atom/2`.
 
@@ -1499,7 +1499,7 @@ Two bugs fixed in `icon_emit_jvm.c`:
    - `pj_emit_assertz_helpers()` emits 4 Jasmin helpers: `pj_db_assert_key`, `pj_db_assert`, `pj_db_query`, `pj_copy_term_ground`.
    - `assertz/1` + `asserta/1` added to `pj_is_user_call` whitelist + `pj_emit_goal` dispatch.
    - Dynamic DB walker appended to every predicate method's omega port: computes `db_idx = cs - base[nclauses]`, calls `pj_db_query`, unifies args one by one with trail-unwind on failure, returns `pj_term_atom("true")` on success.
-   - rung13 corpus created: 5 `.pro` + `.expected` via swipl oracle.
+   - rung13 corpus created: 5 `.pl` + `.expected` via swipl oracle.
    - Build clean.
 
 **Score:** 5/5 rung11 ✅ · 5/5 rung12 ✅ · 0/5 rung13 (not yet run — two blockers)
@@ -1532,7 +1532,7 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 3. **Stray `astore 4` removed from `pj_copy_term_ground`.**
    Was causing `VerifyError: Unable to pop operand off empty stack` before any assertz code ran.
 
-4. **rung13 corpus `.pro` files fixed** — stripped `:- dynamic` directives (parser chokes on them; our emitter silently ignores them anyway).
+4. **rung13 corpus `.pl` files fixed** — stripped `:- dynamic` directives (parser chokes on them; our emitter silently ignores them anyway).
 
 **Remaining bug:** `pj_db_assert` — `VerifyError: Inconsistent stack height 4 != 1` at label `pj_db_assert_have_list`. The "new list" path leaves stack height 4 at the join point; "existing list" path leaves 1. The `dup_x2` that was planned but removed left the new-list path unbalanced.
 
@@ -1629,7 +1629,7 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
    - **Omega-port walker success return:** now emits `Object[1+arity]{ Integer(base[nclauses]+db_idx+1), arg0..N }` instead of `pj_term_atom("true")`
    - **Pure-dynamic stub success return:** now emits `Object[1+dyn_arity]{ Integer(idx+1), arg0..N }` instead of `pj_term_atom("true")`
 
-3. **`run_prolog_jvm_rung.sh` test runner added** to `test/frontend/prolog/`. Mirrors `run_crosscheck_jvm_rung.sh` but for `.pro`/`.expected` pairs using `-pl -jvm` flags.
+3. **`run_prolog_jvm_rung.sh` test runner added** to `test/frontend/prolog/`. Mirrors `run_crosscheck_jvm_rung.sh` but for `.pl`/`.expected` pairs using `-pl -jvm` flags.
 
 **Score:** 5/5 rung11 ✅ · 5/5 rung12 ✅ · 5/5 rung13 ✅ — **M-PJ-ASSERTZ ✅ FIRES.**
 
@@ -1652,7 +1652,7 @@ Toplevel `:- Goal` directives are parsed as `E_DIRECTIVE` but `pj_emit_main()` i
 
 - **`demo/scrip/family_snobol4.sno`** — SNOBOL4 CSV parser. Uses 5 named structural patterns (PAT_NAME/PAT_UID/PAT_YEAR/PAT_GENDER/PAT_ROW). DEFINE stubs for PROLOG_ASSERT_PERSON/PROLOG_ASSERT_PARENT/SCRIP_INIT. Compiles + assembles clean → `Family_snobol4.class`.
 
-- **`demo/scrip/family_prolog.pro`** — Prolog relational engine. Inference rules: grandparent/2, ancestor/2, sibling/2, cousin/2, generation/2. Query entry points: query_count/1, query_grandparents/1, query_siblings/1, query_cousins/1, query_generations/1, query_ancestors/2. Pipe-delimited output for Icon parsing. Workarounds: no `:- dynamic` (not supported), no `@<` in rule bodies (not in parser operator table → wrapper rules used). Compiles clean → 6923 lines; assembles → `Family_prolog.class`.
+- **`demo/scrip/family_prolog.pl`** — Prolog relational engine. Inference rules: grandparent/2, ancestor/2, sibling/2, cousin/2, generation/2. Query entry points: query_count/1, query_grandparents/1, query_siblings/1, query_cousins/1, query_generations/1, query_ancestors/2. Pipe-delimited output for Icon parsing. Workarounds: no `:- dynamic` (not supported), no `@<` in rule bodies (not in parser operator table → wrapper rules used). Compiles clean → 6923 lines; assembles → `Family_prolog.class`.
 
 - **`demo/scrip/family_icon.icn`** — Icon report generator. Recursive `split_nl` generator, `pipe_a`/`pipe_b` helpers, `canon` for dedup key, `table("0")` sentinel workaround for missing `\E`/`/E`. Compiles clean; assembles fails on `M-IJ-STRING-RETVAL` VerifyError.
 
@@ -2273,7 +2273,7 @@ Contiguous AND relay labels with mixed J/String stack types. The v45 type-infere
 **Work done:**
 - Global rename: `SCRIPTEN`→`SCRIP`, `Scripten`→`Scrip`, `scripten`→`scrip` in all files across both repos.
 - `.github`: 9 MD files updated; `SCRIPTEN*.md` → `SCRIP*.md` (5 files renamed: SCRIP.md, SCRIP_DEMO.md, SCRIP_DEMO2.md, SCRIP_DEMO3.md, SCRIP_DEMOS.md).
-- `one4all`: `demo/scripten/` → `demo/scrip/`; `ScriptenFamily.j` → `ScripFamily.j`; content updated in `.sno`, `.icn`, `.pro`, `.py`, `.j`.
+- `one4all`: `demo/scripten/` → `demo/scrip/`; `ScriptenFamily.j` → `ScripFamily.j`; content updated in `.sno`, `.icn`, `.pl`, `.py`, `.j`.
 - Name rationale: SCRIP = **S**NOBOL4 + s**C**nocone + **R**ebus + **I**con + **P**rolog — real word, fits SNOBOL4/SPITBOL/SITBOL tradition.
 
 **State of demo/scrip/:** Only family-tree files present. `demo1/` dir and `run_demo.sh` do NOT exist yet — next session creates them for M-SD-DEMO1.
@@ -2306,7 +2306,7 @@ rung23 arrived 5/5 — already resolved in IJ-51. Confirmed 136/136 JVM rungs gr
   Prolog idiom: `write('Hello, World!'), nl` under `:- initialization(main, main)`.
 - Created `demo/scrip/demo1/hello.expected`: `Hello, World!\n`
 - Created `demo/scrip/scrip_split.py`: fence splitter. Reads triple-backtick blocks,
-  writes `snobol4.sno` / `icon.icn` / `prolog.pro` to OUTDIR, prints manifest.
+  writes `snobol4.sno` / `icon.icn` / `prolog.pl` to OUTDIR, prints manifest.
 - Created `demo/scrip/run_demo.sh`: wires SNOBOL4 / swipl / icont. Graceful SKIP
   for missing backends (0 FAIL when binary absent). Invocation: `swipl -q -f FILE -t halt`.
 
@@ -3282,7 +3282,7 @@ gcc -g -O0 -I. src/frontend/icon/icon_driver.c src/frontend/icon/icon_lex.c \
 **Artifact work:**
 - All stale ASM/JVM/NET artifacts regenerated from current source
 - `artifacts/icon/samples/`: hello/wordcount/roman/palindrome/sieve (.icn+.j passing); queens/meander/generators (.icn source, .j where compiles)
-- `artifacts/prolog/samples/`: hello/wordcount/roman/palindrome (.pro+.j passing); queens/sentences (.pro swipl-verified, aspirational)
+- `artifacts/prolog/samples/`: hello/wordcount/roman/palindrome (.pl+.j passing); queens/sentences (.pl swipl-verified, aspirational)
 - `artifacts/README.md`: ownership table extended; per-frontend regen commands added
 - `RULES.md`: `⛔ ARTIFACT REFRESH` rule added — regenerate affected artifacts after every emitter change
 
@@ -3708,8 +3708,8 @@ That is 3 of the 7 active invariant cells. Full coverage requires:
 | 3 | SNOBOL4 | .NET | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
 | 4 | Icon    | x86  | `.icn` rungs 01–38 | `one4all/test/frontend/icon/corpus/rung*/` | 258 |
 | 5 | Icon    | JVM  | `.icn` rungs 01–38 | `one4all/test/frontend/icon/corpus/rung*/` | 258 |
-| 6 | Prolog  | x86  | `.pro/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
-| 7 | Prolog  | JVM  | `.pro/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
+| 6 | Prolog  | x86  | `.pl/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
+| 7 | Prolog  | JVM  | `.pl/.pl` rungs | `one4all/test/frontend/prolog/corpus/rung*/` | 131 |
 
 Also present but lower priority: Snocone 10 `.sc` (x86 only), Rebus 3 `.reb` (x86 only).
 
@@ -3820,7 +3820,7 @@ x86 106/106 [frozen] · JVM 106/106 [frozen] · .NET 110/110 [frozen]
 
 ## Parser pair session doc
 
-**Files:** `demo/scrip/prolog_parser.pro` · `demo/scrip/icon_parser.icn`
+**Files:** `demo/scrip/prolog_parser.pl` · `demo/scrip/icon_parser.icn`
 **Commit:** `82c2491` one4all
 
 ### M-PARSE-PROLOG (done)
@@ -3848,7 +3848,7 @@ or restructure as separate `if/else if` chains rather than `every`.
 
 ### M-PARSE-POLISH (next)
 1. Fix Icon local-decl dup
-2. Self-parse: feed `prolog_parser.pro` through itself; feed `icon_parser.icn`
+2. Self-parse: feed `prolog_parser.pl` through itself; feed `icon_parser.icn`
    through itself
 3. Add pretty-print indentation (2-space indent per nesting level, matching
    treebank.sno style)
@@ -3860,7 +3860,7 @@ or restructure as separate `if/else if` chains rather than `every`.
 ## PP-1 Emergency Handoff (2026-03-27, Claude Sonnet 4.6) — commit 3fe17af
 
 ### What exists
-**`demo/scrip/prolog_parser.pro`** — full Prolog DCG parser + pretty-printer
+**`demo/scrip/prolog_parser.pl`** — full Prolog DCG parser + pretty-printer
 **`demo/scrip/icon_parser.icn`** — full Icon combinator parser + pretty-printer
 
 ### Pretty-printer design (both files)
@@ -3894,8 +3894,8 @@ or restructure as separate `if/else if` chains rather than `every`.
 cd one4all
 
 # Prolog self-parse
-swipl -q -f demo/scrip/prolog_parser.pro -t halt \
-  < demo/scrip/prolog_parser.pro 2>/dev/null | head -20
+swipl -q -f demo/scrip/prolog_parser.pl -t halt \
+  < demo/scrip/prolog_parser.pl 2>/dev/null | head -20
 
 # Icon self-parse
 icont -s -o /tmp/icon_parser demo/scrip/icon_parser.icn
@@ -3909,7 +3909,7 @@ balanced parens. Do a quick `| grep -c '('` vs `| grep -c ')'` parity check.
    if they appear on the line immediately after `local`. The `id(` lookahead
    fix is in — verify it works on the self-parse.
 2. Prolog `sx_flat` for deeply nested `,`-chains still renders flat; the
-   pp_children wrapping handles it but verify on `prolog_parser.pro` itself
+   pp_children wrapping handles it but verify on `prolog_parser.pl` itself
    (it has long `op_info` facts with many operators).
 3. `str` node quoting in Icon `flat()` — verify `(str "hello")` not `(str hello)`.
 
@@ -3932,7 +3932,7 @@ Raw `grep -c '('` counts show small apparent imbalances — artifacts of paren
 characters inside `(str "(")` / `(str ")")` string literal nodes. Stripping
 string contents before counting confirms both outputs are fully balanced.
 
-**Bug fixed (prolog_parser.pro):**
+**Bug fixed (prolog_parser.pl):**
 `sx_tag(call(F,As), call(F), As)` → `sx_tag(call(F,As), call, [atom(F)|As])`
 The compound tag `call(F)` caused `atom_length/2` to crash with a type error
 whenever a call node was too wide to fit inline and `pp` fell through to the
@@ -3998,7 +3998,7 @@ Read `SESSION-icon-x64.md` §NOW (IX-17) only. rung36_jcon is the frontier —
 
 ## PP-1 Handoff update (2026-03-27 session 3, Claude Sonnet 4.6) — commit 35988b9
 
-### Task: icon_recognizer.icn + prolog_recognizer.pro (SNOBOL4 BEAUTY paradigm)
+### Task: icon_recognizer.icn + prolog_recognizer.pl (SNOBOL4 BEAUTY paradigm)
 
 **What these are:** Wholesale recognizers (no separate lexer/tokenizer). The
 program matches the entire source as a single string. Procedures mirror BNF.
@@ -4076,7 +4076,7 @@ Expected tree:
 /tmp/icon_recognizer < demo/scrip/icon_recognizer.icn | head -30
 ```
 
-### prolog_recognizer.pro — STATUS: NOT STARTED
+### prolog_recognizer.pl — STATUS: NOT STARTED
 
 **Design:** DCG rules with `{action}` code. Same `nPush/nInc/nDec/nPop` +
 `Shift/Reduce` implemented as Prolog predicates operating on global nb-variables
@@ -4134,7 +4134,7 @@ main :-
     print_tree(Tree, 0).
 ```
 
-**Grammar rules** mirror `prolog_parser.pro` but as DCG on char codes, with
+**Grammar rules** mirror `prolog_parser.pl` but as DCG on char codes, with
 `{shift(...)}` / `{reduce(...)}` / `{nPush}` / `{nInc}` / `{nPop}` actions.
 
 **Read only:** `PLAN.md` PP-1 section + this handoff. No other docs.
@@ -4154,7 +4154,7 @@ Self-parse mirror: exit 0, balanced parens (71/71 after stripping string literal
 
 ### M-RECOG-PROLOG ✅ (commit 566aba8)
 
-**New file: `demo/scrip/prolog_recognizer.pro`**
+**New file: `demo/scrip/prolog_recognizer.pl`**
 
 DCG on char-code lists. `op_def/3` table (renamed from `op/3` to avoid built-in clash). `nPush/nInc/nTop/nPop` via `nb_setval/nb_getval`. `shift/2` + `reduce/2` on `val_stack`. `compiland_loop/4` with snapshot/restore on clause parse failure (graceful skip-past-dot for unrecognised constructs).
 
@@ -4193,7 +4193,7 @@ prolog_recognizer) against every program in corpus and one4all test suites.
 **Corpus sizes:**
 - `corpus/programs/icon/`: 851 .icn files
 - `one4all/test/frontend/icon/`: 258 .icn files
-- `one4all/test/frontend/prolog/`: 130 .pro/.pl files
+- `one4all/test/frontend/prolog/`: 130 .pl/.pl files
 
 ### Next session
 
@@ -4632,28 +4632,28 @@ Both produced 0 bytes last session — stderr was suppressed. Run with stderr vi
 
 | Milestone | What |
 |-----------|------|
-| M-G-INV-EMIT-FIX ✅ | `run_emit_check.sh`: `-o /dev/stdout` fix + `-pl` flag for `.pro` files. Prolog baselines were 0-byte (vacuous pass) — regenerated real. 488/0. SESSION_BOOTSTRAP emit guard fixed (was checking nonexistent `test/emit_baseline/`, now checks `test/snobol4/*.s`). |
+| M-G-INV-EMIT-FIX ✅ | `run_emit_check.sh`: `-o /dev/stdout` fix + `-pl` flag for `.pl` files. Prolog baselines were 0-byte (vacuous pass) — regenerated real. 488/0. SESSION_BOOTSTRAP emit guard fixed (was checking nonexistent `test/emit_baseline/`, now checks `test/snobol4/*.s`). |
 | M-G5-EMITTER-COVERAGE-AUDIT ✅ | Full gap matrix: SNO×3 / PL×3 / ICN×2 backends. Coverage tests committed. |
 | PLAN.md debloat ✅ | 897→123 lines. Handoff spam moved to SESSIONS_ARCHIVE. |
 
 ### Extension canonical answer
-**.pro is the project convention** (PLAN.md, corpus layout doc, all 136 test files). Driver auto-detects only `.pl` — this is a driver bug. Workaround: `-pl` flag, now wired into `run_emit_check.sh`. Long-term fix: add `ends_with(infile, ".pro")` to driver main.c.
+**.pl is the project convention** (PLAN.md, corpus layout doc, all 136 test files). Driver auto-detects only `.pl` — this is a driver bug. Workaround: `-pl` flag, now wired into `run_emit_check.sh`. Long-term fix: add `ends_with(infile, ".pl")` to driver main.c.
 
 ### Coverage gap summary (emitter switch coverage, not test corpus coverage)
 - **SNO × x64/JVM/NET**: ✅ complete (E_NUL handled inline, not via switch)
 - **PL × x64**: ✅ complete (E_CUT/TRAIL/UNIFY via if-else, not switch)
 - **PL × JVM**: ✅ complete (same)
-- **PL × NET**: ⚠️ stub — no arithmetic, no CUT/TRAIL/UNIFY. By design (no backtracking yet). Coverage test exists: `test/prolog/coverage/coverage_net_gaps.pro`
+- **PL × NET**: ⚠️ stub — no arithmetic, no CUT/TRAIL/UNIFY. By design (no backtracking yet). Coverage test exists: `test/prolog/coverage/coverage_net_gaps.pl`
 - **ICN × JVM**: ✅ complete for all constructed ICN_ kinds
 - **ICN × x64**: ⚠️ 34 ICN_ kinds missing from switch. Coverage test exists: `test/icon/coverage/coverage_x64_gaps.icn`. Compiles (22KB .s, 85KB .j) — missing cases will hit fallthrough/abort at runtime.
 
 ### Next session — read only this entry
 
-**Step 1** — Fix driver to auto-detect `.pro` (one-liner in `src/driver/main.c`):
+**Step 1** — Fix driver to auto-detect `.pl` (one-liner in `src/driver/main.c`):
 ```c
-int file_pl = pl_mode || ends_with(infile, ".pl") || ends_with(infile, ".pro");
+int file_pl = pl_mode || ends_with(infile, ".pl") || ends_with(infile, ".pl");
 ```
-Commit: `G-8: fix .pro auto-detection in driver`
+Commit: `G-8: fix .pl auto-detection in driver`
 
 **Step 2** — M-G4-SHARED-CONC-FOLD: extract n-ary→binary right-fold for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. See GRAND_MASTER_REORG.md Phase 4.
 

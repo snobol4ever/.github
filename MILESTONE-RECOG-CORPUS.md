@@ -16,15 +16,15 @@ for trend.
 **Tools under test:**
 - `demo/scrip/icon_parser.icn` — full Icon parser (combinator, AST output)
 - `demo/scrip/icon_recognizer.icn` — Icon wholesale recognizer (BEAUTY paradigm)
-- `demo/scrip/prolog_parser.pro` — full Prolog DCG parser
-- `demo/scrip/prolog_recognizer.pro` — Prolog wholesale recognizer (BEAUTY paradigm)
+- `demo/scrip/prolog_parser.pl` — full Prolog DCG parser
+- `demo/scrip/prolog_recognizer.pl` — Prolog wholesale recognizer (BEAUTY paradigm)
 
 **Input corpora:**
 | Corpus | Files | Notes |
 |--------|-------|-------|
 | `corpus/programs/icon/**/*.icn` | ~851 | IPL + misc Icon programs |
 | `one4all/test/frontend/icon/**/*.icn` | ~258 | Compiler test suite |
-| `one4all/test/frontend/prolog/**/*.pro` | ~130 | Compiler test suite |
+| `one4all/test/frontend/prolog/**/*.pl` | ~130 | Compiler test suite |
 | `one4all/test/frontend/prolog/**/*.pl`  | included above | Same dir |
 
 ---
