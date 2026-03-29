@@ -121,3 +121,16 @@ Gap analysis complete across SNO/PL/ICN × x64/JVM/NET:
 **Step 3** — M-G4-SHARED-CONC-FOLD
 
 **Read only:** This handoff.
+
+## Oracle note (2026-03-29)
+
+**Prolog oracles:** SWI-Prolog (primary) · GNU Prolog (add as second — strict ISO, native Linux)
+
+**"SNU Prolog"** — no such system found. Clarify with Lon. Candidates: SICStus, Scryer Prolog?
+
+**Byrd box in one4all vs the Prolog world:** Every major Prolog (GNU Prolog, SWI, SICStus) uses
+Byrd box as a *debugger* model only. one4all compiles Byrd box ports (α/β/γ/ω) directly into
+emitted code. Novel use — worth documenting in ARCH-scrip-cc.md.
+
+**GNU does NOT have SNOBOL or Icon.** GCC covers: C C++ Fortran Ada Go D Modula-2 COBOL Rust ALGOL68.
+SPITBOL is GPL but not a GNU project. Icon is University of Arizona.
