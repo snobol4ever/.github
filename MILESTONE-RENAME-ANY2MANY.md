@@ -1,8 +1,8 @@
-# MILESTONE-RENAME-ANY2MANY — Grand Rename: scrip-cc → scrip-cc, one4all → one4all
+# MILESTONE-RENAME-ANY2MANY — Grand Rename: sno2c→scrip-cc, snobol4x→one4all
 
 **Milestone:** M-G-RENAME-ANY2MANY  
 **Session:** G-8 (2026-03-29, Claude Sonnet 4.6)  
-**Status:** ⏳ IN PROGRESS
+**Status:** ✅ COMPLETE — fixup commit bab5b6f + this
 
 ---
 
@@ -22,7 +22,7 @@ The old names were wrong in two dimensions:
 ## The New Identity
 
 ```
-ANY²MANY²ONE
+any²many²one
 ```
 
 ```
@@ -45,9 +45,9 @@ ANY²MANY²ONE
 > *scrip-cc · scrip-ld · one4all*
 
 **Coined phrases (for README, docs, future logo):**
-- **ANY²MANY** — the compiler direction: any source language, many backend outputs
-- **MANY²ONE** — the linker direction: many language objects, one executable
-- **ANY²MANY²ONE** — the full pipeline, end to end
+- **any²many** — the compiler direction: any source language, many backend outputs
+- **many²one** — the linker direction: many language objects, one executable
+- **any²many²one** — the full pipeline, end to end
 
 This naming is unique. gcc is one-to-one. LLVM is many-to-many but not
 *simultaneously* from one IR pass. scrip-cc builds the IR **once** and hands it
@@ -60,7 +60,7 @@ to N backends in a single invocation — an optimization gcc has no equivalent o
 | Old | New | Where |
 |-----|-----|-------|
 | `scrip-cc` (binary) | `scrip-cc` | Makefile BIN, all shell scripts, all .md |
-| `scrip-cc_icon` (binary) | `scrip-cc-icon` | Makefile ICON_BIN |
+| ~~`sno2c_icon`~~ | removed — Icon is a frontend of `scrip-cc`, not a separate binary |
 | `scrip-cc.h` (header) | `scrip_cc.h` | src/frontend/snobol4/, all #include sites |
 | `one4all` (repo/dir) | `one4all` | all .md, all .sh, PLAN.md table |
 | `scrip-cc -asm` | `scrip-cc -asm` | generated file headers, docs |
@@ -103,5 +103,5 @@ Org rename is a separate GitHub operation (Lon to do manually).
 3. `make` in `src/` produces binary named `scrip-cc`
 4. `scrip-cc -asm test/snobol4/hello/hello.sno` works
 5. SESSION_BOOTSTRAP.sh updated and functional
-6. Commit: `G-8: M-G-RENAME-ANY2MANY ✅ — scrip-cc→scrip-cc, one4all→one4all`
+6. Commit: `G-8: M-G-RENAME-ANY2MANY ✅ — sno2c→scrip-cc, snobol4x→one4all`
 
