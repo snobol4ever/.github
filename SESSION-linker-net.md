@@ -271,11 +271,11 @@ mono greet_main.exe
 ```bash
 #!/bin/bash
 set -e
-SNO2C=../../../src/scrip-cc/scrip-cc
+SCRIP_CC=../../../src/scrip-cc/scrip-cc
 OUT=./out ; mkdir -p $OUT
 
-$SNO2C --net greet_lib.sno  > $OUT/SNOBOL4_greet_lib.il
-$SNO2C --net greet_main.sno > $OUT/SNOBOL4_greet_main.il
+$SCRIP_CC --net greet_lib.sno  > $OUT/SNOBOL4_greet_lib.il
+$SCRIP_CC --net greet_main.sno > $OUT/SNOBOL4_greet_main.il
 
 ilasm $OUT/SNOBOL4_greet_lib.il  /dll /output:$OUT/SNOBOL4_greet_lib.dll
 ilasm $OUT/SNOBOL4_greet_main.il /exe /output:$OUT/greet_main.exe

@@ -94,12 +94,12 @@ JASMIN="/home/claude/one4all/src/backend/jvm/jasmin.jar"
 [[ -f "$JASMIN" ]] && ok "jasmin.jar ($JASMIN)" || fail "jasmin.jar not found at $JASMIN"
 
 # scrip-cc binary — built from one4all
-SNO2C="/home/claude/one4all/scrip-cc"
-if [[ ! -x "$SNO2C" ]]; then
+SCRIP_CC="/home/claude/one4all/scrip-cc"
+if [[ ! -x "$SCRIP_CC" ]]; then
     info "Building scrip-cc..."
     (cd /home/claude/one4all && bash setup.sh -q 2>/dev/null) && ok "scrip-cc built" || fail "scrip-cc build failed"
 else
-    ok "scrip-cc ($SNO2C)"
+    ok "scrip-cc ($SCRIP_CC)"
 fi
 echo ""
 

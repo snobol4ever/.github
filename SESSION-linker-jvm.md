@@ -9,9 +9,9 @@
 `scrip-cc -icn -jvm` (Icon was merged into scrip-cc in LP-JVM-2). All three demos now:
 
 ```
-demo1 (hello):     SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
-demo2 (wordcount): SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
-demo3 (roman):     SNO2C-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+demo1 (hello):     SCRIP_CC-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+demo2 (wordcount): SCRIP_CC-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
+demo3 (roman):     SCRIP_CC-JVM ✅  ICON-JVM ✅  PROLOG-JVM ✅
 ```
 
 Reference interpreters (snobol4, swipl, icont) SKIP — not installed in this env.
@@ -96,11 +96,11 @@ for (ExportEntry *e = prog->exports; e; e = e->next) {
 ```bash
 cd one4all && make -C src
 cd demo/scrip/family_net
-SNO2C=../../scrip-cc; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
+SCRIP_CC=../../scrip-cc; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
 
-$SNO2C -pl -jvm family_prolog.pro > out/family_prolog.j
-$SNO2C -jvm family_snobol4.sno > out/family_snobol4.j  
-$SNO2C -jvm family_icon.icn > out/family_icon.j
+$SCRIP_CC -pl -jvm family_prolog.pro > out/family_prolog.j
+$SCRIP_CC -jvm family_snobol4.sno > out/family_snobol4.j  
+$SCRIP_CC -jvm family_icon.icn > out/family_icon.j
 
 java -jar $JASMIN out/ByrdBoxLinkage.j out/family_prolog.j out/family_snobol4.j out/family_icon.j -d out
 java -cp out family_icon < family.csv 2>&1

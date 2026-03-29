@@ -283,12 +283,12 @@ GREET_END
 ```bash
 #!/bin/bash
 set -e
-SNO2C=../../../src/scrip-cc/scrip-cc
+SCRIP_CC=../../../src/scrip-cc/scrip-cc
 JASMIN=../../../src/backend/jvm/jasmin.jar
 OUT=./out ; mkdir -p $OUT
 
-$SNO2C --jvm greet_lib.sno  > $OUT/SNOBOL4_greet_lib.j
-$SNO2C --jvm greet_main.sno > $OUT/SNOBOL4_greet_main.j
+$SCRIP_CC --jvm greet_lib.sno  > $OUT/SNOBOL4_greet_lib.j
+$SCRIP_CC --jvm greet_main.sno > $OUT/SNOBOL4_greet_main.j
 java -jar $JASMIN $OUT/SNOBOL4_greet_lib.j  -d $OUT
 java -jar $JASMIN $OUT/SNOBOL4_greet_main.j -d $OUT
 
