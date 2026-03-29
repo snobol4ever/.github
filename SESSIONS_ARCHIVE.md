@@ -4994,3 +4994,32 @@ only by which emit function was active. This made Phase 4 extraction impossible.
 **Milestone:** `M-G4-SPLIT-SEQ-CONCAT` — prerequisite for all M-G4-SHARED-* milestones.
 After this split, Phase 4 wiring extraction proceeds cleanly: `E_SEQ` wiring is
 shared across x64+.NET+Icon backends; `E_CONCAT` emission stays backend-local.
+
+---
+
+## G-8 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `56d7ab8` · **.github** `5bfa4a0`
+
+### Completed this session
+
+- **GRAND_MASTER_REORG.md split** ✅ — 1138L/73KB → 411L/32KB. Extracted:
+  - `ARCH-reorg-design.md` (new): architecture, IR node table, Naming Law, Invariant Table
+  - `ARCH-reorg-gentest.md` (new): Phase 8 gen-test full spec
+  - G-7/G-8 addenda archived to SESSIONS_ARCHIVE. Stale PLAN.md-Changes-Required section dropped.
+- **M-G4-SPLIT-SEQ-CONCAT** ✅ — `#define E_CONC E_SEQ` alias dropped from `ir.h`.
+  All 11 files migrated: pattern-context sites → `E_SEQ`, value-context sites → `E_CONCAT`.
+  Dead C backend treated identically to active backends (no test run per reorg rules).
+  Build: clean. Invariant run blocked by missing `gc.h` in this environment — must run in bootstrapped env.
+
+### Next session — read this entry only
+
+1. **Verify invariants** in bootstrapped env: `x86 106/106 · JVM 106/106 · .NET 110/110`
+   Run: `test/crosscheck/run_crosscheck_asm_corpus.sh`, `run_crosscheck_jvm_rung.sh`, `run_crosscheck_net.sh`
+2. **M-G4-SHARED-CONC-FOLD** — extract n-ary→binary right-fold helper into `src/ir/ir_emit_common.c`.
+   Shared by x64 and .NET (JVM unaffected — different execution model).
+   Pattern: `ir_nary_right_fold(node, kind, &freed_nodes, &freed_kids)` already exists in one4all;
+   audit whether it already lives in `ir_emit_common.c` or needs extraction.
+3. **ICN x64 gap fill** — 34 missing `ICN_` switch cases in `emit_x64_icon.c`.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
