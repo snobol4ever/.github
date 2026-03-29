@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — rename/rebrand complete ✅ (one4all→scrip-cc, SNO2C→SCRIP_CC, README, ARCH-sno2c→ARCH-scrip-cc) | `394aa39` one4all · `bb919c7` .github | **Diagnose scrip-cc 0-byte output → fix run_emit_check.sh → M-G-INV-EMIT-FIX ✅ → SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G-RENAME-ONE4ALL ✅ (all 4 repos clean: snobol4x→one4all, snobol4corpus→corpus, snobol4harness→harness, README rebranded) | `09706ff` one4all · `31c3bb8` .github | **M-G-INV-EMIT-FIX: run g8_session.sh → SIGSEGV fix → emit baseline → SESSION_BOOTSTRAP → M-G4-SHARED-CONC-SEQ** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
