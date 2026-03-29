@@ -62,7 +62,7 @@ Each `M-SD-N` fires when:
 
 ## §NOW
 
-| Milestone | SNO2C-JVM | ICON-JVM | PROLOG-JVM | XLINK |
+| Milestone | SCRIP_CC-JVM | ICON-JVM | PROLOG-JVM | XLINK |
 |-----------|-----------|----------|------------|-------|
 | M-SD-1  hello      | ✅ | ✅ | ✅ | ⏳ |
 | M-SD-2  wordcount  | ✅ | ✅ | ✅ | ⏳ |

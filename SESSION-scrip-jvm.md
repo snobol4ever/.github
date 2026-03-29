@@ -36,7 +36,7 @@ gcc -g -O0 -I. \
   src/frontend/icon/icon_runtime.c \
   -o /tmp/icon_driver
 
-SNO2C=$(pwd)/scrip-cc
+SCRIP_CC=$(pwd)/scrip-cc
 ICON_DRIVER=/tmp/icon_driver
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 ```
@@ -44,7 +44,7 @@ JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 ## §RUN
 
 ```bash
-SNO2C=$(pwd)/scrip-cc ICON_DRIVER=/tmp/icon_driver \
+SCRIP_CC=$(pwd)/scrip-cc ICON_DRIVER=/tmp/icon_driver \
   JASMIN=$(pwd)/src/backend/jvm/jasmin.jar \
   bash demo/scrip/run_demo.sh demo/scrip/demo3/
 ```
@@ -52,7 +52,7 @@ SNO2C=$(pwd)/scrip-cc ICON_DRIVER=/tmp/icon_driver \
 ## Milestone firing condition
 
 M-SD-N fires when all six pass:
-- SNOBOL4 ✅ · SWIPL ✅ · ICONT ✅ · SNO2C-JVM ✅ · ICON-JVM ✅ · PROLOG-JVM ✅
+- SNOBOL4 ✅ · SWIPL ✅ · ICONT ✅ · SCRIP_CC-JVM ✅ · ICON-JVM ✅ · PROLOG-JVM ✅
 - Output matches `demo/scrip/demoN/NAME.expected`
 
 ## §ARTIFACTS
@@ -62,13 +62,13 @@ Session prefix for commits: `SD` (e.g. `SD-37: M-SD-6 ICON-JVM sieve PASS`).
 
 ```bash
 # After a demo passes all six backends:
-SNO2C=$(pwd)/scrip-cc
+SCRIP_CC=$(pwd)/scrip-cc
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 DEMO=demo/scrip/demo6   # replace with passing demo number
 NAME=sieve              # replace with demo name
 
 # Regenerate canonical .j artifacts
-$SNO2C -jvm $DEMO/${NAME}.sno_extracted > artifacts/jvm/samples/${NAME}.j 2>/dev/null || true
+$SCRIP_CC -jvm $DEMO/${NAME}.sno_extracted > artifacts/jvm/samples/${NAME}.j 2>/dev/null || true
 /tmp/icon_driver -jvm $DEMO/${NAME}.icn_extracted -o artifacts/jvm/samples/${NAME}_icon.j 2>/dev/null || true
 # Scrip demos compile from .md via run_demo.sh split — use /tmp outputs if needed
 
@@ -89,7 +89,7 @@ Cross-repo rule: never write `artifacts/asm/`, `artifacts/net/`, or `artifacts/c
 
 ### Status
 
-| Demo | SNOBOL4 | SWIPL | ICONT | SNO2C-JVM | ICON-JVM | PROLOG-JVM |
+| Demo | SNOBOL4 | SWIPL | ICONT | SCRIP_CC-JVM | ICON-JVM | PROLOG-JVM |
 |------|:-------:|:-----:|:-----:|:---------:|:--------:|:----------:|
 | DEMO1 hello | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DEMO2 wordcount | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -121,7 +121,7 @@ Check each demo's Icon block manually: `python3 demo/scrip/scrip_split.py demo/s
 
 ### Status
 
-| Demo | SNOBOL4 | SWIPL | ICONT | SNO2C-JVM | ICON-JVM | PROLOG-JVM |
+| Demo | SNOBOL4 | SWIPL | ICONT | SCRIP_CC-JVM | ICON-JVM | PROLOG-JVM |
 |------|:-------:|:-----:|:-----:|:---------:|:--------:|:----------:|
 | DEMO1 hello | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DEMO2 wordcount | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
