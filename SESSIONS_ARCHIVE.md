@@ -5143,3 +5143,59 @@ Requirement: no test hang can block the harness for more than a few seconds. Imp
 6. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` → `corpus/`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 3 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `b544eff` · **.github** pending push
+
+### Completed this session
+
+#### M-G-INV-FAST-X86-FIX ✅ — xargs dispatch rewritten to per-test mini-scripts
+- Root cause confirmed: `xargs` invokes `bash` via `execve()`, so `export -f` function env vars (`BASH_FUNC_*`) are not inherited. `_x86_compile_one` was silently not found → every test LINK_FAIL.
+- Fix: removed `_x86_compile_one` + `export -f`. Added `_x86_write_job()` which bakes all variable values and the full worker body into a self-contained per-test `$WORK/snobol4_x86_jobs/NNNNN.sh`. `xargs -P$JOBS -I{} bash {}` dispatches these — no function inheritance needed.
+- Commit: `33f5599` one4all
+
+#### scrip-cc -o flag fix ✅
+- Root cause: `scrip-cc -asm file.sno > $asm` was always empty — scrip-cc writes to a derived filename beside the input by default, not stdout. Fix: use `-o "$asm"` explicit output flag in the mini-script template.
+- Commit: `c05b6d8` one4all (combined with ensure_tools)
+
+#### ensure_tools() bootstrap in both harness scripts ✅
+- Problem: missing scrip-cc / nasm / libgc-dev discovered only after 5+ minutes of suite execution.
+- `run_invariants.sh`: checks and auto-fixes all four deps before watchdog starts: (1) scrip-cc — builds from `$ROOT/src` via `make -j`; (2) nasm — `apt-get install`; (3) libgc-dev — `apt-get install`; (4) java — warns, JVM cells SKIP gracefully.
+- `run_emit_check.sh`: self-healing scrip-cc check replaces the old one-liner `exit 1`.
+- Commit: `c05b6d8` one4all
+
+#### Icon rung output parser fix ✅
+- Two rung summary formats exist: 25 scripts emit `--- rungNN: X pass, Y fail, Z xfail ---` (new); 13 scripts emit `X PASS  Y FAIL` (old). Both icon cells were only matching old uppercase format → all new-format rungs scored 0/0.
+- Added `_parse_rung_summary()` shared helper; both `run_icon_x86` and `run_icon_jvm` now use it.
+- Also fixed `run_icon_x86` to pass `$SCRIP_CC` to rung scripts (was passing `$ICON_ASM`, a binary removed in reorg).
+- Commit: `b544eff` one4all
+
+### Invariant results this session (cells individually verified)
+
+| Cell | Result | Note |
+|------|--------|------|
+| snobol4_x86 | **106/106 ✅** | M-G-INV-FAST-X86-FIX confirmed working |
+| snobol4_jvm | not re-run this session | needs full harness run next session |
+| snobol4_net | SKIP (no dotnet in container) | — |
+| icon_x86 | **121p/109f, 38 rungs execute ✅** | pre-existing failures only (rung01/03/23–31/36) |
+| icon_jvm | not re-run this session | — |
+| prolog_x86 | not re-run this session | — |
+| prolog_jvm | not re-run this session | — |
+
+### Emit-diff baseline
+493/0 ✅ — unchanged this session.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `ensure_tools()` now auto-builds scrip-cc — no manual `make` needed. Just run the harness.
+
+1. **Run full 7-invariant gate** via `SCRIP_CC=./scrip-cc CORPUS=../corpus bash test/run_invariants.sh` — confirm all 7 cells. Record matrix. (snobol4_x86 106/106 already confirmed this session.)
+2. **M-G4-SHARED-OR** — audit E_OR wiring extractability across backends.
+3. **M-G2-MOVE-PROLOG-ASM-a** — create `src/backend/x64/emit_x64_prolog.c` stub, `#include` from tail of `emit_x64.c`. Emit-diff gate.
+4. **M-G2-MOVE-PROLOG-ASM-b** — physically move Prolog ASM code. Emit-diff gate.
+5. **M-G0-CORPUS-AUDIT execution** — begin Icon rung migration from `one4all/test/` → `corpus/`.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

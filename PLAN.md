@@ -90,22 +90,21 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 2 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 3 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `6d8dd4b` (no new commits — infrastructure session) · **.github** pending push
+**one4all** `b544eff` · **.github** pending push
 
 ### Completed this session
-- All oracles installed: CSNOBOL4 2.3.3, SPITBOL/x64, Icon 9.5.25a, SWI-Prolog 9.0.4, scrip-cc ✅
-- M-G-INV-FAST ✅ — harness rewritten: persistent archive cache, batch jasmin, single SnoHarness JVM, parallel nasm. Harness now returns results within 240s.
-- M-G-INV-TIMEOUT ✅ — five-layer timeout defence: per-binary (5s), SnoHarness per-class (3s), jasmin batch (60s), SnoHarness suite (120s), watchdog (300s). All 38 icon rung runners patched. START/FINISH/ELAPSED on all scripts.
-- Emit-diff: **493/0** ✅ unchanged.
+- M-G-INV-FAST-X86-FIX ✅ — xargs dispatch rewritten to per-test mini-scripts. snobol4_x86 **106/106** confirmed.
+- scrip-cc `-o` flag fix ✅ — was writing to derived filename beside input, not stdout.
+- `ensure_tools()` in both harness scripts ✅ — auto-builds scrip-cc, installs nasm + libgc-dev before watchdog starts.
+- Icon rung parser fix ✅ — `_parse_rung_summary()` handles both old (`X PASS Y FAIL`) and new (`X pass, Y fail`) formats. icon_x86 correctly shows 121p/109f across 38 rungs (pre-existing failures only).
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **M-G-INV-FAST-X86-FIX** — fix snobol4_x86 LINK_FAIL (xargs subshell can't see exported bash function — rewrite dispatch to per-test mini-scripts). Do first, before any other work.
-2. **Run 7 runtime invariants** gate checkpoint: `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
-3. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
-4. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
-5. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
+1. **Run full 7-invariant gate** — `SCRIP_CC=./scrip-cc CORPUS=../corpus bash test/run_invariants.sh`. Record matrix.
+2. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
+3. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
+4. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
