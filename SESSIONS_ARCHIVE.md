@@ -5335,3 +5335,50 @@ corpus/programs/icon/
 4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `9c03cf2` · **corpus** `d928205` · **.github** pending push
+
+### Completed this session
+
+#### Icon corpus final naming ✅
+Dropped `icon_` prefix and `_tNN_` serial numbers — both redundant.
+
+Was:  `icon_rung01_paper_t01_to5.icn`
+Now:  `rung01_paper_to5.icn`
+
+- `icon_` prefix: redundant — `.icn` extension and `rung` prefix identify it
+- `_tNN_`: numbering things already named adds no information
+- 575 files renamed, 0 collisions
+- corpus: `c6d2d3e` rename, `d928205` .c artifact cleanup
+- one4all: `9c03cf2` runner globs updated
+
+#### Final icon corpus layout
+```
+corpus/programs/icon/
+  rung01_paper_compound.icn      rung01_paper_compound.expected    rung01_paper_compound.s
+  rung01_paper_lt.icn            rung01_paper_lt.expected          rung01_paper_lt.s
+  rung02_arith_gen_range.icn     rung02_arith_gen_range.expected
+  rung02_proc_add_proc.icn       rung02_proc_add_proc.expected
+  rung35_block_body_every_do_block.icn ...
+  rung35_table_str_str_table_read.icn  ...
+  rung36_jcon_primes.icn         rung36_jcon_primes.expected
+  ... 575 files total, 0 subdirs
+```
+
+### Emit-diff baseline
+493/0 ✅ — unchanged.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus`.
+2. **Remove** `one4all/test/frontend/icon/corpus/` — source now in corpus.
+3. **Prolog corpus migration** — `rung{NN}_{name}_{testname}.{ext}` in `corpus/programs/prolog/`.
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
