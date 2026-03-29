@@ -90,33 +90,29 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `f4d351c` · **corpus** `d928205` · **.github** pending push
+**one4all** `631b69f` · **corpus** `c29fe83` · **.github** pending push
 
 ### Completed this session
-- Icon corpus final naming ✅ — `rung01_paper_to5.icn` (no `icon_` prefix, no `_tNN_` serial)
-- `doc/CORPUS_MIGRATION.md` created ✅ — persistent checklist, verify condition for M-G0-CORPUS-AUDIT
-- M-G0-CORPUS-AUDIT ✅ marked complete in GRAND_MASTER_REORG.md
-
-### Root cause logged
-Migration stopped after Icon because no persistent checklist existed. Each session
-restarted from memory. Fix: `doc/CORPUS_MIGRATION.md` is now the mandatory first read
-for any corpus migration session. It tracks every frontend independently with deletion.
+- Icon corpus deletion from one4all ✅ — `8327311`
+- Prolog corpus migrated to corpus repo + runners updated + deleted from one4all ✅ — `4da8aed`
+- SNOBOL4 smoke/beauty/feat/jvm_j3 migrated + deleted ✅ — `2e22f6e`
+- Snocone corpus + crosscheck + Rebus migrated + deleted ✅ — `edc0ab4`
+- All runner path fixes committed ✅ — `e63d8d6`
+- `doc/CORPUS_MIGRATION.md` all boxes checked ✅ — `631b69f`
+- **M-G0-CORPUS-AUDIT execution fully complete**
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1 — MANDATORY if doing corpus migration:**
-```
-cat /home/claude/one4all/doc/CORPUS_MIGRATION.md
-```
-Work top-to-bottom. Check off each box. Do not stop mid-checklist.
+**Step 1 — First task (open bug):**
+Fix **M-G-INV-FAST-X86-FIX** — snobol4_x86 LINK_FAIL in parallel harness.
+Root cause: `_x86_compile_one` exported bash function not visible in `bash -c` subshell via xargs.
+Fix already designed: per-test mini-scripts written to `$WORK/jobs/NNN.sh`, dispatched with `xargs -P$JOBS bash`.
+Verify 106/106 snobol4_x86 after fix.
 
-1. **Icon deletion** — `git rm -r one4all/test/frontend/icon/corpus/`
-2. **Prolog migration** — copy, flat naming `rungNN_name_testname.ext`, runners, delete
-3. **SNOBOL4/Beauty/Feat/JVM_J3/Snocone/Rebus** — follow checklist
-4. **M-G4-SHARED-ARBNO** — next node kind extractability audit (after migration done)
+**Step 2:** M-G4-SHARED-ARBNO — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
