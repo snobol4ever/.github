@@ -5023,3 +5023,38 @@ shared across x64+.NET+Icon backends; `E_CONCAT` emission stays backend-local.
 3. **ICN x64 gap fill** — 34 missing `ICN_` switch cases in `emit_x64_icon.c`.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 1 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `6ee8905` · **.github** pending push
+
+### Completed this session
+
+- **M-G4-SHARED-CONC-FOLD** ✅ confirmed — already done in G-8s7 (`9f947cd`). GRAND_MASTER_REORG.md updated to reflect.
+- **M-G4-SHARED-CONC-SEQ** — recorded as not-extracted. Decision: `.NET` deferred-commit pre-scan makes x64/NET binary E_SEQ paths non-isomorphic. No shared skeleton possible without introducing overhead. Wiring stays backend-local. GRAND_MASTER_REORG.md updated.
+- **M-G2-ICN-X64-GAP-FILL** ✅ — 28 ICN kinds implemented in `emit_x64_icon.c`:
+  - Simple: NONNULL (pass-through), REAL (truncate to int), SIZE (icn_strlen), POW (icn_pow), SEQ_EXPR (chain, discard intermediates), IDENTICAL (ptr/int compare), SWAP (frame-local or BSS cross-write), string relops SGT/SGE/SLT/SLE/SNE (icn_str_cmp)
+  - Loop control: loop_push/pop stack added; while/until/every updated to push/pop; REPEAT (infinite loop with break exit), BREAK (jump to loop_break_target), NEXT (jump to loop_next_target), INITIAL (BSS flag, run-once)
+  - Moderate: LIMIT (counter slot), SUBSCRIPT (icn_str_subscript), SECTION/+/- (icn_str_section)
+  - Stubs (list/record runtime deferred): MAKELIST, RECORD, FIELD, BANG, BANG_BINARY, MATCH
+  - CASE (selector eval + arm compare chain + default)
+  - Runtime additions to `icon_runtime.c`: icn_str_cmp, icn_strlen, icn_pow, icn_str_subscript, icn_str_section
+  - Emit baselines regenerated (node IDs shifted due to new emit functions)
+  - emit-diff: **488/0** ✅ (baselines updated)
+
+### Invariant status
+- Build: ✅ clean
+- Emit-diff: **488/0** ✅
+- Runtime invariants: not run this session (environment lacks gc.h) — must run in bootstrapped env
+
+### Next session
+
+1. **Run 7 runtime invariants** as gate checkpoint (bootstrapped env required):
+   x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31
+2. **M-G4-SHARED-OR** — audit whether E_OR wiring extraction is feasible (same 2-vs-3 backend analysis as CONC-SEQ)
+3. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM emitter out of emit_x64.c into emit_x64_prolog.c
+4. **M-G0-CORPUS-AUDIT execution** — begin moving corpus files from one4all/test/ to corpus repo (Icon rung batch first)
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

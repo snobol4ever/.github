@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 s8 — GRAND_MASTER_REORG.md split ✅ · M-G4-SPLIT-SEQ-CONCAT ✅ · build clean | `56d7ab8` one4all · `5bfa4a0` .github | **verify invariants → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
+| **⚠ GRAND MASTER REORG** | G-9 s1 — M-G4-SHARED-CONC-FOLD ✅ · M-G2-ICN-X64-GAP-FILL ✅ · Prolog IR coverage verified ✅ · emit-diff 488/0 | `6ee8905` one4all · .github pending | **run 7 invariants → M-G4-SHARED-OR → M-G2-MOVE-PROLOG-ASM-a/b → corpus migration** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -90,64 +90,24 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
+## G-9 Session 1 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-## G-8 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
-
-**one4all** `56d7ab8` · **.github** `5bfa4a0`
+**one4all** `6ee8905` · **.github** pending push
 
 ### Completed this session
-- GRAND_MASTER_REORG.md split ✅ — 73KB→32KB; ARCH-reorg-design.md + ARCH-reorg-gentest.md created
-- M-G4-SPLIT-SEQ-CONCAT ✅ — E_CONC alias dropped; all sites migrated (11 files, active + dead C backend)
-- Build: clean. Invariants: blocked by missing gc.h in environment — run next session.
+- M-G4-SHARED-CONC-FOLD ✅ confirmed (done G-8s7 `9f947cd`). GRAND_MASTER_REORG.md updated.
+- M-G4-SHARED-CONC-SEQ: recorded as not-extracted — .NET deferred-commit pre-scan makes x64/NET binary E_SEQ non-isomorphic. Decision archived.
+- M-G2-ICN-X64-GAP-FILL ✅ — 28 ICN kinds added to `emit_x64_icon.c`: NONNULL, REAL, SIZE, POW, SEQ_EXPR, IDENTICAL, SWAP, SGT/SGE/SLT/SLE/SNE, REPEAT, BREAK, NEXT, INITIAL, LIMIT, SUBSCRIPT, SECTION/+/-, MAKELIST(stub), RECORD(stub), FIELD(stub), CASE, BANG(stub). Loop control stack added (push/pop in while/until/every/repeat). Runtime: icn_str_cmp, icn_strlen, icn_pow, icn_str_subscript, icn_str_section.
+- Prolog IR coverage verified: ✅ no gap. x64 Prolog covers all node kinds; E_INFINITY is a string-value branch inside E_FLIT, not a missing case.
+- Emit-diff: **488/0** ✅. Baselines regenerated and committed.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. Verify invariants: `x86 106/106 · JVM 106/106 · .NET 110/110`
-2. M-G4-SHARED-CONC-FOLD — extract n-ary→binary right-fold into `ir_emit_common.c`
-3. ICN x64 gap fill — 34 missing ICN_ cases in `emit_x64_icon.c`
-
-**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
-
----
-
-## G-8 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
-
-**one4all** `7faff12` (unchanged) · **.github** pending push
-
-### Completed this session
-- WASM backend analysis ✅ — confirmed WebAssembly; tail-call function encoding chosen over flat labels
-- BACKEND-WASM.md ✅ — new reference doc covering encoding model, tail-call rationale, runtime, 5×4 plan
-- GRAND_MASTER_REORG.md addendum ✅ — WASM encoding decision + 5×4 parallel dev session naming
-- SESSIONS_ARCHIVE.md ✅ — full WASM vs JS/TS analysis appended
-- 488/0 emit-diff baseline confirmed at session open
-
-### Next session — read SESSIONS_ARCHIVE last entry only
-
-1. **M-G4-SPLIT-SEQ-CONCAT** — close out: clean `emit_byrd_c.c` / `emit_cnode.c` E_CONC refs (dead backend, ~15 sites), drop `#define E_CONC E_SEQ` alias from ir.h
-2. **M-G4-SHARED-CONC-FOLD** — extract n-ary→binary right-fold into `ir_emit_common.c`
-3. **ICN x64 gap fill** — 34 missing ICN_ switch cases in `emit_x64_icon.c`
-4. **Benchmark scaffolding** — `queens.pl` / `fib.pl` / `roman.pl`
-
-**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
-
----
-
-## G-8 Session 6 — Final state (2026-03-29, Claude Sonnet 4.6)
-
-**one4all** `7faff12` · **.github** `196b17b`
-
-### Completed this session
-- M-G-INV-EMIT-FIX ✅ — 488/0 emit-diff, prolog baselines real, SESSION_BOOTSTRAP guard fixed
-- M-G5-EMITTER-COVERAGE-AUDIT ✅ — full gap matrix SNO/PL/ICN × x64/JVM/NET; coverage tests committed
-- PLAN.md debloat ✅ — 897→92 lines; all handoff history in SESSIONS_ARCHIVE
-- `.pro` → `.pl` rename ✅ — 136 files, driver auto-detects both, run_emit_check.sh cleaned
-- GNU Prolog added as second oracle ✅ — noted in SESSIONS_ARCHIVE with speed analysis
-
-### Next session — read SESSIONS_ARCHIVE last entry only
-
-1. **M-G4-SHARED-CONC-FOLD** — extract n-ary→binary right-fold for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`
-2. **ICN x64 gap fill** — 34 missing ICN_ switch cases in `emit_x64_icon.c`; coverage test already in place
-3. **GNU Prolog oracle** — add to ARCH-corpus.md alongside SWI-Prolog
-4. **Benchmark scaffolding** — `queens.pl` / `fib.pl` / `roman.pl` timed runs vs SWI + GNU Prolog
+1. **Run 7 runtime invariants** (bootstrapped env — gate checkpoint):
+   `x86 106/106 · JVM 106/106 · .NET 110/110 · Icon x64 38-rung · Icon JVM 38-rung · Prolog x64 per-rung · Prolog JVM 31/31`
+2. **M-G4-SHARED-OR** — audit E_OR wiring: same 2-vs-3 backend analysis as CONC-SEQ. If non-extractable, record and move on.
+3. **M-G2-MOVE-PROLOG-ASM-a** — create `src/backend/x64/emit_x64_prolog.c` stub, `#include` from tail of `emit_x64.c`. Emit-diff gate after.
+4. **M-G2-MOVE-PROLOG-ASM-b** — physically move Prolog ASM code from `emit_x64.c` into `emit_x64_prolog.c`. Emit-diff gate after each file.
+5. **M-G0-CORPUS-AUDIT execution** — begin moving Icon rung corpus from `one4all/test/` to `corpus/` (one rung dir per commit, invariants green after each batch).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
