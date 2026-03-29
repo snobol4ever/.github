@@ -3771,3 +3771,46 @@ x86 106/106 [frozen] · JVM 106/106 [frozen] · .NET 110/110 [frozen]
 4. `cat /home/claude/.github/PLAN.md` — NOW table
 5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
 6. `bash /home/claude/one4all/test/g8_session.sh` — M-G-INV-EMIT-FIX (SIGSEGV fix + baseline)
+
+---
+
+## G-8 Session (2026-03-29 session 7, Claude Sonnet 4.6) — one4all `cd25441` / .github `e9158e9` / harness `32af043` / corpus `43473ea`
+
+### Session type
+Grand Master Reorg — G-8 (rename/rebrand continuation)
+
+### Milestones completed
+
+| Milestone | Commits | What |
+|-----------|---------|------|
+| M-G-RENAME-REBRAND (MD sweep) ✅ | .github `e9158e9` · one4all `cd25441` · corpus `43473ea` | Full sweep of all four repos MD files — Tiny-Icon→Icon, Tiny-Prolog→Prolog, Tiny-ICON→Icon, one4all tagline corrected in profile/README.md |
+
+### What was changed
+
+**`Tiny-Icon` / `Tiny-ICON` → `Icon`, `Tiny-Prolog` → `Prolog`:**
+- `.github/profile/README.md` — table header, column description, one4all description (×3 hits)
+- `.github/FRONTEND-PROLOG.md` — opening line
+- `.github/README.md` — FRONTEND-ICON and FRONTEND-PROLOG table rows
+- `one4all/test/frontend/prolog/corpus/README.md`
+- `corpus/programs/icon/ipl/README.md`
+
+**`one4all` tagline in `profile/README.md`:**
+- Old: *A native SNOBOL4 compiler — x86-64 ASM, JVM bytecode, .NET MSIL — from a single IR*
+- New: *A multi-language compiler — SNOBOL4, Icon, Prolog, Snocone, Rebus × x86-64 ASM, JVM bytecode, .NET MSIL, portable C — from a single IR*
+
+**Not touched (correct as-is):**
+- `SESSIONS_ARCHIVE.md` / `MILESTONE_ARCHIVE.md` — historical records
+- `PLAN.md:706-707` — accurately documents the rename sequence
+- `snobol4dotnet` / `snobol4jvm` — out of scope per Lon's instruction
+- `harness` — no Tiny-* hits found
+
+### Invariants at handoff
+x86 106/106 [frozen] · JVM 106/106 [frozen] · .NET 110/110 [frozen]
+
+### Next session read order
+1. `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+2. `tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md` — this entry
+3. `cat /home/claude/.github/RULES.md`
+4. `cat /home/claude/.github/PLAN.md` — NOW table
+5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
+6. `bash /home/claude/one4all/test/g8_session.sh` — M-G-INV-EMIT-FIX
