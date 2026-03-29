@@ -4658,3 +4658,54 @@ Commit: `G-8: fix .pl auto-detection in driver`
 **Step 2** — M-G4-SHARED-CONC-FOLD: extract n-ary→binary right-fold for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. See GRAND_MASTER_REORG.md Phase 4.
 
 **Step 3** — ICN x64 gap fill: implement the 34 missing ICN_ switch cases in `emit_x64_icon.c`, using coverage test as the regression harness.
+
+---
+
+## Research Note: GNU languages, Byrd Box, Prolog oracles (2026-03-29, G-8 s6)
+
+### GNU languages — what GNU has and doesn't have
+
+**GCC frontends (official):** C, C++, Objective-C, Objective-C++, Fortran, Ada, Go, D, Modula-2, COBOL, Rust, ALGOL 68.
+**GNU project languages (separate packages):** GNU Prolog, GNU Guile (Scheme), GNU Smalltalk, GNU Octave.
+**Not GNU:** SNOBOL, Icon, Prolog (in general). None of these three are GNU languages.
+- SPITBOL was released as free software under GPL in 2009 but is NOT a GNU project.
+- Icon is from University of Arizona (Griswold), not GNU.
+- There is no GNU SNOBOL and no GNU Icon.
+
+### GNU Prolog — what it is
+- ISO-standard Prolog compiler; compiles via WAM → mini-assembly → native code
+- Maintained by Daniel Diaz; hosted at gprolog.org, also on GitHub (didoudiaz/gprolog)
+- Has **its own ISO Prolog test suite** (Paulo Moura's ISO unit tests, included in Logtalk)
+- **Uses the Byrd Box model for its debugger** — explicitly documented: "The debugger uses the
+  'procedure box control flow model', also called the Byrd Box model since it is due to Lawrence Byrd."
+- Key difference from one4all: GNU Prolog uses Byrd box **for tracing/debugging only** (a runtime
+  observer model). one4all uses Byrd box **as the code generation IR** — the α/β/γ/ω ports are
+  *compiled into the emitted code*, not just a runtime trace layer. This is a novel use.
+
+### Byrd Box model — universal in Prolog debuggers
+Every major Prolog system uses Byrd box for debugging:
+- SWI-Prolog: "Byrd Box Model" — call/exit/redo/fail ports, plus unify/exception extensions
+- GNU Prolog: "procedure box control flow model (Byrd Box)"
+- SICStus Prolog: "Procedure Box model / Byrd Box model"
+- All descend from Clocksin & Mellish Ch.8 and Byrd's 1980 paper
+
+one4all's innovation: using Byrd box ports as the **compiled execution model** (the α/β/γ/ω
+labels in generated assembly/JVM/.NET code), not just a debug overlay. This is closer to
+continuation-passing style with named continuations than to traditional WAM.
+
+### Prolog oracle sources for corpus
+Currently tracking: **SWI-Prolog** as primary oracle.
+
+**"SNU Prolog"** — no such system found. Not a known Prolog implementation.
+Possible confusion with: SICStus (Swedish Institute of Computer Science), Scryer Prolog,
+or a university course implementation. Clarification needed from Lon.
+
+**GNU Prolog as second oracle:** Worth adding. It is strict ISO, native-code, and widely
+available on Linux. Differences from SWI: no modules, no constraint solving in SWI style,
+but strong ISO core compliance. Adding GNU Prolog as a second oracle would catch
+SWI-specific extensions that sneak into our corpus .pl files.
+
+### Action items for HQ
+- [ ] Add GNU Prolog as second oracle in ARCH-corpus.md (alongside SWI-Prolog)
+- [ ] Clarify "SNU Prolog" with Lon — likely a misremembering of another system
+- [ ] Note in ARCH-scrip-cc.md: Byrd box used as compiled IR (novel), not just debug model
