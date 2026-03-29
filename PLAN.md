@@ -90,22 +90,20 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 4 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 5 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `222c300` · **corpus** `ada0755` · **.github** pending push
+**one4all** `09b493e` · **corpus** `7d3d3d6` · **.github** pending push
 
 ### Completed this session
-- SESSION_BOOTSTRAP.sh fully rewritten — installs all oracles from internet (CSNOBOL4, SPITBOL, Icon, SWI-Prolog) ✅
-- All SESSION docs unified — §BUILD → single bootstrap call ✅
-- M-G4-SHARED-OR ✅ — NOT extractable (cursor-save + n-ary + callback diverge). Recorded.
-- M-G2-MOVE-PROLOG-ASM-a/b ✅ — confirmed already done. Marked in reorg doc.
-- M-G0-CORPUS-AUDIT icon rungs ✅ — all 38 dirs in corpus, runners updated, 121p/109f baseline preserved.
+- Icon corpus flattened ✅ — `icon_{rung_name}__{test_name}.{ext}` in programs/icon/ root
+- `.c` → `.s` extension corrected (NASM x64 assembly, not C) ✅
+- All 38 rung runners updated for flat layout ✅
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus` — confirm icon_x86 reads from corpus.
-2. **Remove** `one4all/test/frontend/icon/corpus/` — canonical source now in corpus repo.
-3. **Prolog corpus migration** — `one4all/test/frontend/prolog/corpus/rung*/` → `corpus/programs/prolog/`.
+1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus`.
+2. **Remove** `one4all/test/frontend/icon/corpus/` (now in corpus repo).
+3. **Prolog corpus migration** — flat naming `prolog_{rung_name}__{test_name}.{ext}`.
 4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
