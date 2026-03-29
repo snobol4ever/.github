@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 s7 — WASM=tail-call encoding ✅ · BACKEND-WASM.md ✅ · 5×4 parallel plan ✅ · 488/0 emit-diff | `7faff12` one4all · `.github` pending push | **M-G4-SPLIT-SEQ-CONCAT cleanup → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
+| **⚠ GRAND MASTER REORG** | G-8 s8 — GRAND_MASTER_REORG.md split ✅ · M-G4-SPLIT-SEQ-CONCAT ✅ · build clean | `56d7ab8` one4all · `5bfa4a0` .github | **verify invariants → M-G4-SHARED-CONC-FOLD → ICN x64 gap fill** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -90,6 +90,25 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
+
+## G-8 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `56d7ab8` · **.github** `5bfa4a0`
+
+### Completed this session
+- GRAND_MASTER_REORG.md split ✅ — 73KB→32KB; ARCH-reorg-design.md + ARCH-reorg-gentest.md created
+- M-G4-SPLIT-SEQ-CONCAT ✅ — E_CONC alias dropped; all sites migrated (11 files, active + dead C backend)
+- Build: clean. Invariants: blocked by missing gc.h in environment — run next session.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+1. Verify invariants: `x86 106/106 · JVM 106/106 · .NET 110/110`
+2. M-G4-SHARED-CONC-FOLD — extract n-ary→binary right-fold into `ir_emit_common.c`
+3. ICN x64 gap fill — 34 missing ICN_ cases in `emit_x64_icon.c`
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
 
 ## G-8 Session 7 — Final state (2026-03-29, Claude Sonnet 4.6)
 
