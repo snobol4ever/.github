@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — M-G4-SHARED-CONC-FOLD ✅ · M-G-INV-EMIT ⏳ (SNOBOL4×3 backends only; 4 of 7 cells missing) | `6b88ffa` snobol4x · `3ff5d2d` .github | **M-G-INV-EMIT-FIX**: (1) fix sno2c SIGSEGV on multi-file SNOBOL4 pairs; (2) extend run_emit_check.sh to all 7 cells (SNOBOL4/Icon/Prolog × x86/JVM + SNOBOL4×.NET); (3) generate+commit baseline; (4) SESSION_BOOTSTRAP.sh check green <5s |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G-INV-EMIT-FIX ⏳ (484/0 via emit_baseline; co-located mode broken — see G-8 handoff) | `9c386ee` snobol4x · pending .github | **Fix co-located check mode → declare M-G-INV-EMIT-FIX ✅ → wire SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -619,6 +619,84 @@ Icon equivalents (upto, move, tab, match) map to same nodes in M-G5-LOWER-ICON.
 **IR_AUDIT.md is now correct. Proceed to M-G0-SIL-NAMES then M-G1-IR-HEADER-DEF.**
 
 ---
+
+## G-8 Handoff (2026-03-29, Claude Sonnet 4.6) — snobol4x `9c386ee` .github pending
+
+### What was done this session
+
+**M-G-INV-EMIT-FIX: SIGSEGV fixed, baseline generated, check script working**
+
+**SIGSEGV root cause (both asm and jvm emitters):**
+- `emit_program` (x64) and `jvm_emit_stmt` (jvm) accessed `e->children[1]` on
+  unary `E_INDR` nodes produced by `unop()` — `nchildren==1`, so `children[1]`
+  reads one slot past the `realloc`'d array into heap memory from the previous
+  file's stdio buffer. Manifested only in multi-file mode.
+- Added `ECHILD(e,idx)` macro to `emit_jvm.c`; fixed all OOB sites (ASan-verified).
+- Added per-file state reset to `asm_emit()` and `jvm_emit()`: zero `named_pats`,
+  `call_slots`, `uid_ctr`, `jvm_pat_node_uid`, `jvm_fn_count_fwd`, etc. on every
+  call, not just first init. Commit `6967683` snobol4x.
+
+**emit-diff check: 484 pass / 0 fail (emit_baseline/ layout)**
+- `test/run_emit_check.sh` extended to all 7 cells: SNOBOL4×{asm,jvm,net},
+  Icon×{asm,jvm}, Prolog×{asm,jvm}.
+- 474 baseline snapshots in `test/emit_baseline/`.
+
+**test/ reorganization: co-located source+generated layout**
+- `test/snobol4/{subdir}/foo.{sno,s,j,il}` — 152 SNOBOL4 sources with all backends.
+- `test/icon/foo.{icn,s,j}` — 8 Icon samples.
+- `test/prolog/foo.{pro,s,j}` — 6 Prolog samples.
+- Commit `9c386ee` snobol4x.
+
+### Unfinished / known issues
+
+**1. run_emit_check.sh co-located mode broken (PRIORITY 1)**
+The check script was rewritten to use co-located sources but produces 484 FAILs.
+Root cause: `sno2c` adds the source file's directory as an include dir via
+`snoc_add_include_dir()` in `compile_one`. When sources live under
+`test/snobol4/arith_new/`, that directory is added as the include root, but
+`sno2c` silently produces **empty output** for those files (exit 0, 0 bytes).
+The stored generated files were created from `corpus/crosscheck/` paths and have
+content. Direct `./sno2c -asm test/snobol4/arith_new/023_arith_add.sno` → 0 bytes.
+Same file via `./sno2c -asm /home/claude/corpus/crosscheck/arith_new/023_arith_add.sno` → 70 lines.
+
+**Fix:** In `run_emit_check.sh` `check_one` and `regen_one`, pass
+`-I$(dirname $src)/..` or use the corpus path directly for SNOBOL4 files.
+Alternatively: fix `compile_one` in `driver/main.c` to not silently swallow
+errors when include dir is wrong — return non-zero so the bug surfaces.
+
+Until fixed: `test/emit_baseline/` remains the authoritative baseline.
+`run_emit_check.sh` still uses `emit_baseline/` path (old mode).
+
+**2. SESSION_BOOTSTRAP.sh not updated**
+`run_emit_check.sh` not yet wired into SESSION_BOOTSTRAP.sh. Do this after fix #1.
+
+**3. M-G-INV-EMIT-FIX milestone**
+The milestone is functionally complete (SIGSEGV fixed, 7-cell check green at
+484/0 using emit_baseline/) but the co-located layout isn't wired up yet.
+Declare ✅ after fixing run_emit_check.sh co-located mode.
+
+### Next session
+
+**Read only:** This G-8 handoff section.
+
+**Step 1 — Fix co-located check mode:**
+In `run_emit_check.sh`, pass corpus path for SNOBOL4, not test/snobol4/ path:
+```bash
+# check_one: resolve source path to corpus for sno2c invocation
+# but compare output against co-located stored file
+CORPUS_SRC="/home/claude/corpus/crosscheck/$(basename $(dirname $src))/$(basename $src)"
+"$SNO2C" "$backend" "$CORPUS_SRC" > "$tmp" 2>/dev/null
+```
+Or: set `-I` flag per subdir. Simplest: keep test/snobol4/ for human reading
+but invoke sno2c on the corpus originals.
+
+**Step 2 — Verify 484/0 with co-located mode, delete emit_baseline/**
+
+**Step 3 — Wire into SESSION_BOOTSTRAP.sh, declare M-G-INV-EMIT-FIX ✅**
+
+**Step 4 — Advance to M-G4-SHARED-CONC-FOLD**
+Extract n-ary→binary right-fold helper for E_SEQ/E_CONCAT into
+`src/ir/ir_emit_common.c`. Shared by x64 and .NET. See GRAND_MASTER_REORG.md Phase 4.
 
 ## G-7 Handoff (2026-03-28, Claude Sonnet 4.6) — snobol4x `0bc5d9a`
 
