@@ -3696,6 +3696,28 @@ After M-G-INV-EMIT-FIX + baseline committed, SESSION_BOOTSTRAP.sh HOW block is f
 x86 106/106 ✅ · JVM 106/106 [frozen] · .NET 110/110 [frozen]
 Emit-diff baseline: not yet generated (pending M-G-INV-EMIT-FIX)
 
+### Emit-diff coverage gap (discovered end of G-8)
+
+`run_emit_check.sh` currently covers only **SNOBOL4 × crosscheck** (152 `.sno` files → 3 backends).
+That is 3 of the 7 active invariant cells. Full coverage requires:
+
+| Cell | Frontend | Backend | Sources | Location | Count |
+|------|----------|---------|---------|----------|-------|
+| 1 | SNOBOL4 | x86  | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
+| 2 | SNOBOL4 | JVM  | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
+| 3 | SNOBOL4 | .NET | `.sno` crosscheck | `corpus/crosscheck/` | 152 |
+| 4 | Icon    | x86  | `.icn` rungs 01–38 | `snobol4x/test/frontend/icon/corpus/rung*/` | 258 |
+| 5 | Icon    | JVM  | `.icn` rungs 01–38 | `snobol4x/test/frontend/icon/corpus/rung*/` | 258 |
+| 6 | Prolog  | x86  | `.pro/.pl` rungs | `snobol4x/test/frontend/prolog/corpus/rung*/` | 131 |
+| 7 | Prolog  | JVM  | `.pro/.pl` rungs | `snobol4x/test/frontend/prolog/corpus/rung*/` | 131 |
+
+Also present but lower priority: Snocone 10 `.sc` (x86 only), Rebus 3 `.reb` (x86 only).
+
+**Next session must extend `run_emit_check.sh` to cover all 7 cells** before
+declaring M-G-INV-EMIT complete. The SIGSEGV fix (M-G-INV-EMIT-FIX) unblocks
+the multi-file batch for SNOBOL4; Icon/Prolog frontends reset cleanly already
+(they init fresh per `compile_one` call — no global state leak confirmed).
+
 ### Next session read order
 1. `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 2. `tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md` — this entry
