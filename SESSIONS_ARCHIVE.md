@@ -4709,3 +4709,55 @@ SWI-specific extensions that sneak into our corpus .pl files.
 - [ ] Add GNU Prolog as second oracle in ARCH-corpus.md (alongside SWI-Prolog)
 - [ ] Clarify "SNU Prolog" with Lon — likely a misremembering of another system
 - [ ] Note in ARCH-scrip-cc.md: Byrd box used as compiled IR (novel), not just debug model
+
+---
+
+## Architecture note: Why Byrd-box compiled IR may outperform WAM (2026-03-29)
+
+**The insight (from Lon):** If Byrd box gives GNU Prolog 15× speedup over wamcc-style C
+compilation, why hasn't anyone compiled Byrd box ports directly into native code as the
+execution model — rather than using it only as a debug overlay?
+
+**Answer: one4all does exactly this, and it's theoretically sound.**
+
+### WAM vs one4all Byrd-box IR
+
+| | WAM (GNU Prolog, SWI) | one4all Byrd-box IR |
+|--|--|--|
+| Control flow | Indirect via choice-point stack, WAM registers | Direct labels: α/β/γ/ω are native branch targets |
+| Choice points | Heap-allocated struct, saved registers | β label = direct conditional branch |
+| Backtracking | Pop choice point, restore registers | Branch to β label (already in scope) |
+| Environment | WAM environment frames on stack | Continuation closures / stack frame |
+| Trail | Write on every bind | Write only on actual conditional bind |
+| Debug model | Byrd box retrofitted as observer | Byrd box IS the execution model |
+
+### Precedent in the literature
+- **Aquarius Prolog** (Van Roy 1990, Berkeley): compiled Prolog to native by determinism
+  analysis, eliminated choice points for deterministic predicates. Fast but complex analysis.
+- **BinProlog / WAM with continuations**: similar idea, binary clauses + CPS transform.
+- one4all: simpler — always emit α/β/γ/ω structure, trust the CPU branch predictor for
+  the deterministic case (β branch rarely taken = predicted not-taken = zero cost).
+
+### Speed prediction
+- **Deterministic code** (no backtracking): α→γ path is a straight line of native jumps.
+  β label exists but is never reached. Should be **at or above GNU Prolog speed**.
+- **Backtracking-heavy code** (queens, etc.): β labels are real branches. Cost depends on
+  branch misprediction rate. Likely **comparable to WAM**, possibly better due to no
+  choice-point struct allocation.
+- **Deep backtracking with many clauses**: E_CHOICE emits one β chain per predicate.
+  GNU Prolog's indexing (first-arg indexing) may win here if one4all lacks it.
+
+### What the benchmarks will answer
+Priority benchmark programs once reorg is done:
+1. `queens.pl` — pure backtracking, worst case for β chains
+2. `fib.pl` — deterministic arithmetic, best case for α→γ path
+3. `roman.pl` — mixed, string output
+4. `wordcount.pl` / `sentences.pl` — string scanning (SNOBOL/Icon territory)
+
+Compare: one4all x64 / JVM / .NET vs SWI-Prolog vs GNU Prolog.
+The string/pattern benchmarks are where one4all should dominate all Prolog systems —
+SNOBOL pattern matching compiled to native is a fundamentally different approach.
+
+### Note for ARCH-scrip-cc.md
+This deserves a section: "Why Byrd-box as compiled IR rather than debug model."
+Add post-reorg when ARCH docs are being cleaned up.
