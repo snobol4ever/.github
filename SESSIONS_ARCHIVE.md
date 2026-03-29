@@ -5520,3 +5520,40 @@ Run `CORPUS=/home/claude/corpus bash test/run_invariants.sh` in one4all. The min
 **Step 2:** M-G4-SHARED-ARBNO — node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 11 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `c1f9d3d` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
+
+### Completed this session
+
+#### M-G-INV-FAST-X86-FIX verified ✅
+`snobol4_x86 106/106` confirmed. The `_x86_write_job` mini-script parallel fix was already in place and working.
+
+#### Prolog x86 harness fix `ad84745`
+`run_prolog_x86` was redirecting stdout (`> $asm`) but `scrip-cc` with a filename writes gcc-style to a derived path next to the input, not stdout. Fixed: `-o "$asm"` explicit flag triggers the single-file-with-explicit-output branch in `main.c`.
+
+Result: prolog_x86 moves from 0/107 → 11/107. Remaining 96 failures are a **pre-existing emitter bug** (`pl__cm__sl_N_r` resume label undefined for conjunction predicates) — not a harness issue, not a reorg regression. Needs Lon review.
+
+#### M-G4-SHARED-ARBNO ✅ `c1f9d3d`
+NOT extracted — three independent divergence axes:
+1. Cursor-save: `.bss`/NASM macro 64-slot stack (x64) vs JVM local int (`p_cap_local`) vs CIL local int (`p_next_int`)
+2. β port: fully implemented in x64; absent in JVM and .NET
+3. Child-emit callback signatures: all three differ
+
+Matches M-G4-SHARED-OR and M-G4-SHARED-SEQ decisions. `doc/M-G4-SHARED-ARBNO.md` committed. Icon `E_ARBNO` gap (not wired in icon emitters) noted as Phase 5/6 scope item.
+
+### Invariant state end of session
+`snobol4_x86 106/106 ✅ · prolog_x86 11/107 (96 pre-existing emitter bug) · JVM/NET: SKIP (not in environment)`
+
+### Next session
+
+**Step 1:** Push `.github` (this archive entry + GRAND_MASTER_REORG.md update).
+
+**Step 2:** M-G4-SHARED-CAPTURE — `E_CAPT_COND`, `E_CAPT_IMM` extractability audit.
+
+**Step 3:** M-G4-SHARED-ARITH — `E_ADD/SUB/MPY/DIV/MOD`.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
