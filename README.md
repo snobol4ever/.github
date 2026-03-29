@@ -30,8 +30,8 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 | [FRONTEND-SNOBOL4.md](FRONTEND-SNOBOL4.md) | SNOBOL4/SPITBOL — beauty.sno, TDD protocol, rung 12, probe/monitor/triangulate |
 | [FRONTEND-SNOCONE.md](FRONTEND-SNOCONE.md) | Snocone — status across repos, corpus, sprint sequence |
 | [FRONTEND-REBUS.md](FRONTEND-REBUS.md) | Rebus — TR 84-9 §5 translation rules, round-trip protocol |
-| [FRONTEND-ICON.md](FRONTEND-ICON.md) | Tiny-ICON — TINY only, planned, JCON reference |
-| [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md) | Tiny-Prolog — TINY only, planned |
+| [FRONTEND-ICON.md](FRONTEND-ICON.md) | Icon — TINY only, planned, JCON reference |
+| [FRONTEND-PROLOG.md](FRONTEND-PROLOG.md) | Prolog — TINY only, planned |
 | [FRONTEND-CSHARP.md](FRONTEND-CSHARP.md) | C# frontend — DOTNET only, planned |
 | [FRONTEND-CLOJURE.md](FRONTEND-CLOJURE.md) | Clojure-EDN — JVM only, active |
 

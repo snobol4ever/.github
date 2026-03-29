@@ -48,7 +48,7 @@ The org is a **compiler matrix**. Two dimensions.
 
 SNOBOL4 and SPITBOL are one frontend — SPITBOL extensions enabled by switch. CSNOBOL4 and SPITBOL are our *oracles* — reference implementations we test against, not our products.
 
-|                           | **SNOBOL4 / SPITBOL** | **Snocone** | **Rebus** | **Tiny-Icon** | **Tiny-Prolog** |
+|                           | **SNOBOL4 / SPITBOL** | **Snocone** | **Rebus** | **Icon** | **Prolog** |
 |---------------------------|:---------------------:|:-----------:|:---------:|:-------------:|:---------------:|
 | **C / x86-64 native**     | one4all ✅           | one4all ✅ | one4all ✅ | post-compiler.sno | post-compiler.sno |
 | **JVM bytecode**          | one4all ✅ / snobol4jvm ✅ | planned | — | post-compiler.sno | post-compiler.sno |
@@ -56,7 +56,7 @@ SNOBOL4 and SPITBOL are one frontend — SPITBOL extensions enabled by switch. C
 
 **Rows = backends.** Wherever programs run, SNOBOL4 should run there too.
 
-**Columns = frontends.** SNOBOL4/SPITBOL is the core. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus is a structured transpiler to SNOBOL4. Tiny-Icon and Tiny-Prolog extend the Byrd Box IR to Icon generators and Prolog unification — both map naturally to the same four-port model.
+**Columns = frontends.** SNOBOL4/SPITBOL is the core. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus is a structured transpiler to SNOBOL4. Icon and Prolog extend the Byrd Box IR to Icon generators and Prolog unification — both map naturally to the same four-port model.
 
 **"post-compiler.sno"** means after the two-stage bootstrap: first `beauty.sno` self-beautification on all backends (M-BEAUTIFY-BOOTSTRAP), then `compiler.sno` — the full compiler written in SNOBOL4 — achieving self-hosting (M-COMPILER-BOOTSTRAP). These are the gates, not arbitrary timelines.
 
@@ -75,9 +75,9 @@ Jeffrey Cooper built a complete SNOBOL4/SPITBOL implementation in C#, taking Emm
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. Parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement IR, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: interpreter, Clojure IR transpiler (3.5–6×), stack-machine VM (2–6×), and direct JVM bytecode via ASM (up to 7.6× faster with JVM JIT). EDN compilation cache gives 22× speedup on repeated programs. **2,033 tests / 4,417 assertions / 0 failures.** The JVM backend has achieved `beauty.sno` self-beautification — byte-for-byte identical to the CSNOBOL4 oracle (M-JVM-BEAUTY ✅).
 
 ### [one4all](https://github.com/snobol4ever/one4all)
-*A native SNOBOL4 compiler — x86-64 ASM, JVM bytecode, .NET MSIL — from a single IR*
+*A multi-language compiler — SNOBOL4, Icon, Prolog, Snocone, Rebus × x86-64 ASM, JVM bytecode, .NET MSIL, portable C — from a single IR*
 
-The compiler. Every expression compiles to inlined α/β/γ/ω gotos — no runtime dispatch. Three backends share one IR: C with gotos (default, 106/106 corpus ✅), x86-64 NASM assembly (106/106 corpus ✅), JVM Jasmin bytecode (beauty.sno ✅), and .NET CIL (110/110 corpus ✅). Five frontends: SNOBOL4/SPITBOL (active), Snocone (active), Rebus (complete — M-REBUS ✅), Tiny-Icon (planned), Tiny-Prolog (planned).
+The compiler. Every expression compiles to inlined α/β/γ/ω gotos — no runtime dispatch. Three backends share one IR: C with gotos (default, 106/106 corpus ✅), x86-64 NASM assembly (106/106 corpus ✅), JVM Jasmin bytecode (beauty.sno ✅), and .NET CIL (110/110 corpus ✅). Five frontends: SNOBOL4/SPITBOL (active), Snocone (active), Rebus (complete — M-REBUS ✅), Icon (planned), Prolog (planned).
 
 ### [snobol4python](https://github.com/snobol4ever/snobol4python)
 *SNOBOL4 pattern matching for Python — on PyPI*
