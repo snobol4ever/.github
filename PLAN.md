@@ -109,7 +109,7 @@ All SNOBOL4 M-G4 rows complete. Remaining: 5 Icon + 4 Prolog rows.
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1:** **M-G-INV-SESSION-BASELINE** — run `CORPUS=/home/claude/corpus bash test/run_invariants.sh` to completion. Must print `snobol4_x86 106/106` within session timeout. If it times out, diagnose (pre-warm cache, reduce JOBS, use `--serial`). Do NOT proceed to Step 2 until this is green.
+**Step 1:** ✅ **M-G-INV-SESSION-BASELINE** — `snobol4_x86 106/106` confirmed. Harness runs serially in 60.8s. Baseline locked.
 
 **Step 2:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
 
