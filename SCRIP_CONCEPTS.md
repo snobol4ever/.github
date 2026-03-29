@@ -289,7 +289,7 @@ fence_close = re.compile(r'^```\s*$')
 ### Phase 2 — Per-Language Compilation (1 hour)
 
 ```bash
-scrip-cc -pl -jvm demo_prolog.pro    -o /tmp/FamilyProlog.j
+scrip-cc -pl -jvm demo_prolog.pl    -o /tmp/FamilyProlog.j
 scrip-cc -jvm     demo_snobol4.sno   -o /tmp/FamilySnobol4.j
 icon_driver -jvm demo_icon.icn    -o /tmp/FamilyIcon.j
 ```
@@ -363,7 +363,7 @@ DEMO=demo/scrip
 TMP=/tmp/scrip_demo
 mkdir -p $TMP
 python3 $DEMO/scrip_split.py $DEMO/family.scrip $TMP
-./scrip-cc -pl -jvm  $TMP/prolog.pro    -o $TMP/FamilyProlog.j
+./scrip-cc -pl -jvm  $TMP/prolog.pl    -o $TMP/FamilyProlog.j
 ./scrip-cc -jvm      $TMP/snobol4.sno   -o $TMP/FamilySnobol4.j
 ./icon_driver -jvm $TMP/icon.icn     -o $TMP/FamilyIcon.j
 python3 $DEMO/inject_linkage.py $TMP

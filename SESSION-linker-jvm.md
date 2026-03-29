@@ -58,7 +58,7 @@ Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
 3. **`src/frontend/icon/icon_emit_jvm.c`** — lowercase classnames; `'P'` type for Object[] fields; `ij_find_import` case-sensitive; import dispatch correct relay labels/stack; `JBarrier()` restored; `ij_expr_is_string` returns 1 for imports
 4. **`src/frontend/prolog/prolog_emit_jvm.c`** — lowercase classnames; export wrapper block (null-check args, pj_term_var fallback); `pj_db_call` for findall on dynamic facts; `pj_rc_swallow` → `pj_db_call`; `assertz/1` case in `pj_call_goal`
 5. **`src/backend/jvm/emit_byrd_jvm.c`** — lowercase classnames; `jvm_is_exported` (strcasecmp); `jvm_find_import`; EXPORT wrapper loop emitting `public static export_name(...)V`
-6. **`demo/scrip/family_net/family_prolog.pro`** — restored from LP-JVM-1 commit
+6. **`demo/scrip/family_net/family_prolog.pl`** — restored from LP-JVM-1 commit
 
 ### ONE REMAINING BUG — EXPORT WRAPPER LOOP NOT FIRING
 
@@ -98,7 +98,7 @@ cd one4all && make -C src
 cd demo/scrip/family_net
 SCRIP_CC=../../scrip-cc; JASMIN=../../src/backend/jvm/jasmin.jar; BYRD=../../src/runtime/jvm/ByrdBoxLinkage.j (CHECK IF EXISTS — may need to hand-author)
 
-$SCRIP_CC -pl -jvm family_prolog.pro > out/family_prolog.j
+$SCRIP_CC -pl -jvm family_prolog.pl > out/family_prolog.j
 $SCRIP_CC -jvm family_snobol4.sno > out/family_snobol4.j  
 $SCRIP_CC -jvm family_icon.icn > out/family_icon.j
 
@@ -132,7 +132,7 @@ git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinka
 - `parse.c`: IMPORT method names verbatim (removed `toupper`)
 - `icon_emit_jvm.c`: global String pre-scan pre-tags import-assigned globals as `Ljava/lang/String;` before helper procs emit; `ij_find_import` uses `strcasecmp`; `ICN_GLOBAL` respects pre-tagged field type
 - `ByrdBoxLinkage.j`: new — `static AtomicReference RESULT` + `<clinit>`
-- `family_prolog.pro`: 9 `:- export(...)` directives → 9 public ABI wrappers emit correctly
+- `family_prolog.pl`: 9 `:- export(...)` directives → 9 public ABI wrappers emit correctly
 - `family_snobol4.sno`: 3 `IMPORT` directives (lowercase), stubs removed
 - `family_icon.icn`: 6 `$import` directives; all string state via globals (`g_raw`, `g_line`, `g_kind`); no string params to avoid Icon emitter type-inference bug
 - `scrip_driver.j`: entry point — `aconst_null; family_snobol4/main; aconst_null; family_icon/main`
@@ -178,7 +178,7 @@ Also verify `pj_rc_swallow` DB loop: after fix, `pj_unify(args[i], fact[i+2])` s
 ```bash
 cd one4all && make -C src
 OUT=demo/scrip/out && JASMIN=src/backend/jvm/jasmin.jar
-./scrip-cc -pl -jvm demo/scrip/family_prolog.pro -o $OUT/family_prolog.j
+./scrip-cc -pl -jvm demo/scrip/family_prolog.pl -o $OUT/family_prolog.j
 ./scrip-cc -jvm demo/scrip/family_snobol4.sno -o $OUT/family_snobol4.j
 ./scrip-cc -icn -jvm demo/scrip/family_icon.icn -o $OUT/family_icon.j
 java -jar $JASMIN src/runtime/jvm/ByrdBoxLinkage.j \

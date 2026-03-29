@@ -149,8 +149,8 @@ build_run() {
   gcc -no-pie /tmp/t.o src/frontend/prolog/prolog_{atom,unify,builtin}.o -lm -o /tmp/t &&
   timeout 8 /tmp/t
 }
-# Passing: naf.pro alldiff.pro minimal2.pro retry2.pro
-# Target: queens_4.pro (find(4,Q) with self-contained numlist/permutation/safe)
+# Passing: naf.pl alldiff.pl minimal2.pl retry2.pl
+# Target: queens_4.pl (find(4,Q) with self-contained numlist/permutation/safe)
 # Expected: [2,4,1,3]
 ```
 

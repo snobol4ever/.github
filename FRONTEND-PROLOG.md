@@ -218,11 +218,11 @@ test/frontend/prolog/corpus/
     README.md
     rung01_hello/ .. rung09_builtins/   (stubs, filled as milestones fire)
     rung10_programs/                    (Lon's word-puzzle solvers -- committed)
-        puzzle_01.pro   bank positions Brown/Jones/Smith
-        puzzle_02.pro   trades Clark/Daw/Fuller
-        puzzle_05.pro   bank chess Brown/Clark/Jones/Smith (WIP)
-        puzzle_06.pro   occupations Clark/Jones/Morgan/Smith
-        puzzles.pro     stubs for puzzles 3-20
+        puzzle_01.pl   bank positions Brown/Jones/Smith
+        puzzle_02.pl   trades Clark/Daw/Fuller
+        puzzle_05.pl   bank chess Brown/Clark/Jones/Smith (WIP)
+        puzzle_06.pl   occupations Clark/Jones/Morgan/Smith
+        puzzles.pl     stubs for puzzles 3-20
 ```
 
 ---

@@ -49,7 +49,7 @@ The canonical pipeline for SWI plunit tests:
 1. Feed raw SWI `.pl` files **directly** to `scrip-cc -pl -jvm`
 2. The **plunit linker** inside `prolog_emit_jvm.c` detects `use_module(library(plunit))`, scans `begin_tests`/`end_tests` directives and `test/N` clause heads, and emits `assertz(pj_suite/pj_test)` facts + bridge predicates at JVM init time
 3. The embedded `pj_plunit_shim_src[]` C-string (in `prolog_emit_jvm.c`) provides `run_tests`, `pj_run_one`, counters etc — **this is the shim**, not `test/frontend/prolog/plunit.pl`
-4. `test/frontend/prolog/plunit_mock.pro` is an **alternative** stand-alone mock — DO NOT mix it with the linker; pick one approach
+4. `test/frontend/prolog/plunit_mock.pl` is an **alternative** stand-alone mock — DO NOT mix it with the linker; pick one approach
 
 Key functions in `prolog_emit_jvm.c`:
 - `pj_linker_prescan()` — called from `main.c` BEFORE `prolog_program_free()`, walks `PlProgram` in source order to map each `test/N` clause to its `begin_tests` suite

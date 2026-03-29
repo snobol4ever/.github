@@ -460,7 +460,7 @@ post-reorg — they must migrate to `corpus`.
 | Location in one4all | Extensions | Count | Destination in corpus |
 |-----------------------|-----------|-------|------------------------------|
 | `test/frontend/icon/corpus/rung01–rung38/` | `.icn` | 258 | `programs/icon/rung*/` (TBD — check overlap with existing 851 files) |
-| `test/frontend/prolog/corpus/rung*/` | `.pro`, `.pl` | 130 | `programs/prolog/rung*/` |
+| `test/frontend/prolog/corpus/rung*/` | `.pl`, `.pl` | 130 | `programs/prolog/rung*/` |
 | `test/frontend/snocone/sc_asm_corpus/` | `.sc` | 10 | `programs/snocone/` |
 | `test/crosscheck/sc_corpus/` | `.sc` | 20 | `crosscheck/snocone/` or `programs/snocone/crosscheck/` |
 | `test/frontend/snobol4/` | `.sno` | 5 | `programs/snobol4/smoke/` |
@@ -496,7 +496,7 @@ entirely absent from `corpus` or clearly distinct. No blind-overwrite risk.
 | Frontend | one4all location | Files | In corpus? | Action |
 |----------|-------------------|-------|-------------------|--------|
 | Icon | `test/frontend/icon/corpus/rung01–38/` | 258 `.icn` | ❌ Not present (corpus has IPL only) | Move to `programs/icon/rung*/` |
-| Prolog | `test/frontend/prolog/corpus/rung*/` | 130 `.pro/.pl` | ❌ Not present | Move to `programs/prolog/rung*/` |
+| Prolog | `test/frontend/prolog/corpus/rung*/` | 130 `.pl/.pl` | ❌ Not present | Move to `programs/prolog/rung*/` |
 | Snocone | `test/frontend/snocone/sc_asm_corpus/` | 10 `.sc` | ❌ Not present | Move to `programs/snocone/corpus/` |
 | Snocone | `test/crosscheck/sc_corpus/` | 20 `.sc` | ❌ Not present | Move to `crosscheck/snocone/` |
 | SNOBOL4 | `test/frontend/snobol4/*.sno` | 5 `.sno` | ❌ Not present | Move to `programs/snobol4/smoke/` |
@@ -517,7 +517,7 @@ is the single authoritative copy.
 | Step | Action | Verify |
 |------|--------|--------|
 | 1 | Move Icon corpus (258 `.icn` + oracles). One rung dir per commit to corpus; matching removal from one4all. | Icon invariants green after each batch |
-| 2 | Move Prolog corpus (130 `.pro`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
+| 2 | Move Prolog corpus (130 `.pl`/`.pl` + oracles). Same pattern. | Prolog JVM 31/31 green |
 | 3 | Move Snocone corpus (30 `.sc` + oracles). | Snocone 10/10 green |
 | 4 | Move SNOBOL4 test programs (beauty drivers, feat, jvm_j3, smoke — 50 `.sno` + oracles). | SNOBOL4 x86 106/106 + JVM + 110/110 NET green |
 | 5 | Move Rebus corpus (3 `.reb` + oracles). | Rebus 3/3 green |
@@ -899,7 +899,7 @@ the doc, not in code.
 | **M-G8-SNOBOL4-N25** | Extend to N=25. | M-G8-SNOBOL4-N10 | Zero divergences at N=25 |
 | **M-G8-ICON-GRAMMAR** | Write grammar spec for Icon generator expressions (BNF + IR node mapping). Extend `gen/emit_sno.py` for `.icn` serialization. | M-G8-SNOBOL4-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.icn` files correct |
 | **M-G8-ICON-N25** | Run Icon generator fragment, N=25, all three backends. | M-G8-ICON-GRAMMAR | Zero divergences at N=25 |
-| **M-G8-PROLOG-GRAMMAR** | Write grammar spec for Prolog clause bodies (BNF + IR node mapping). Extend for `.pro` serialization. | M-G8-ICON-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.pro` files correct |
+| **M-G8-PROLOG-GRAMMAR** | Write grammar spec for Prolog clause bodies (BNF + IR node mapping). Extend for `.pl` serialization. | M-G8-ICON-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.pl` files correct |
 | **M-G8-PROLOG-N25** | Run Prolog clause body fragment, N=25, all three backends. | M-G8-PROLOG-GRAMMAR | Zero divergences at N=25 |
 | **M-G8-CI** | Wire the enumerator into CI: on every commit to `one4all`, run the N=10 slice for all three languages. N=25 run on demand (too slow for every commit). | M-G8-PROLOG-N25 | CI green; N=10 run completes in < 5 minutes |
 

@@ -84,32 +84,32 @@ directly analogous to the emit_body fix above.
 
 ## Puzzle Corpus — rung10 Sprint Plan (added 2026-03-23)
 
-`puzzles.pro` has been split into individual stub files, one per puzzle.
+`puzzles.pl` has been split into individual stub files, one per puzzle.
 Each stub contains the full problem text as comments and a `main` that prints `'puzzleNN: stub\n'`.
 Milestones are ordered from easiest to hardest based on problem structure:
 
 | ID | File | Puzzle | Status |
 |----|------|--------|--------|
-| **M-PZ-01** | puzzle_01.pro | Bank positions Brown/Jones/Smith | ✅ real search — swipl PASS |
-| **M-PZ-02** | puzzle_02.pro | Clark/Daw/Fuller occupations | ✅ real search — swipl PASS |
-| **M-PZ-14** | puzzle_14.pro | Golf scores (Bill/Ed/Tom wives) | ✅ real search — swipl PASS + JVM PASS |
-| **M-PZ-17** | puzzle_17.pro | Country Club dance pairings | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-15** | puzzle_15.pro | Vernon/Wilson/Yates offices + secretaries | ✅ real search — swipl PASS |
-| **M-PZ-16** | puzzle_16.pro | Train crew relations | ✅ real search — swipl PASS |
-| **M-PZ-20** | puzzle_20.pro | Pullman car readers | ✅ real search — 4 valid solutions, swipl PASS (stub was wrong) |
-| **M-PZ-13** | puzzle_13.pro | Murder case roles | ✅ real search — swipl PASS |
-| **M-PZ-18** | puzzle_18.pro | Shopping day scheduling | ✅ real search — swipl PASS |
-| **M-PZ-19** | puzzle_19.pro | Office floors + professions | ✅ real search — swipl PASS |
-| **M-PZ-04** | puzzle_04.pro | Milford occupations + salaries | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-05** | puzzle_05.pro | First National Bank chess/proximity | ✅ real search — swipl PASS |
-| **M-PZ-06** | puzzle_06.pro | Clark/Jones/Morgan/Smith occupations | ✅ real search — swipl PASS |
-| **M-PZ-09** | puzzle_09.pro | Empire Dept Store positions | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-08** | puzzle_08.pro | Dept Store positions (Ames/Brown/Conroy…) | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-11** | puzzle_11.pro | Smith family positions | ✅ real search — swipl PASS; JVM 2L (over-generates) |
-| **M-PZ-07** | puzzle_07.pro | Brown/Clark/Jones/Smith professions | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-10** | puzzle_10.pro | Five J-names + last names | ✅ real search — swipl PASS; JVM PASS |
-| **M-PZ-03** | puzzle_03.pro | Triple engagement party | ✅ real search — swipl PASS; JVM 20L (over-generates) |
-| **M-PZ-12** | puzzle_12.pro | Stillwater High teachers | ✅ real search — swipl PASS |
+| **M-PZ-01** | puzzle_01.pl | Bank positions Brown/Jones/Smith | ✅ real search — swipl PASS |
+| **M-PZ-02** | puzzle_02.pl | Clark/Daw/Fuller occupations | ✅ real search — swipl PASS |
+| **M-PZ-14** | puzzle_14.pl | Golf scores (Bill/Ed/Tom wives) | ✅ real search — swipl PASS + JVM PASS |
+| **M-PZ-17** | puzzle_17.pl | Country Club dance pairings | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-15** | puzzle_15.pl | Vernon/Wilson/Yates offices + secretaries | ✅ real search — swipl PASS |
+| **M-PZ-16** | puzzle_16.pl | Train crew relations | ✅ real search — swipl PASS |
+| **M-PZ-20** | puzzle_20.pl | Pullman car readers | ✅ real search — 4 valid solutions, swipl PASS (stub was wrong) |
+| **M-PZ-13** | puzzle_13.pl | Murder case roles | ✅ real search — swipl PASS |
+| **M-PZ-18** | puzzle_18.pl | Shopping day scheduling | ✅ real search — swipl PASS |
+| **M-PZ-19** | puzzle_19.pl | Office floors + professions | ✅ real search — swipl PASS |
+| **M-PZ-04** | puzzle_04.pl | Milford occupations + salaries | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-05** | puzzle_05.pl | First National Bank chess/proximity | ✅ real search — swipl PASS |
+| **M-PZ-06** | puzzle_06.pl | Clark/Jones/Morgan/Smith occupations | ✅ real search — swipl PASS |
+| **M-PZ-09** | puzzle_09.pl | Empire Dept Store positions | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-08** | puzzle_08.pl | Dept Store positions (Ames/Brown/Conroy…) | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-11** | puzzle_11.pl | Smith family positions | ✅ real search — swipl PASS; JVM 2L (over-generates) |
+| **M-PZ-07** | puzzle_07.pl | Brown/Clark/Jones/Smith professions | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-10** | puzzle_10.pl | Five J-names + last names | ✅ real search — swipl PASS; JVM PASS |
+| **M-PZ-03** | puzzle_03.pl | Triple engagement party | ✅ real search — swipl PASS; JVM 20L (over-generates) |
+| **M-PZ-12** | puzzle_12.pl | Stillwater High teachers | ✅ real search — swipl PASS |
 
 Each milestone trigger: the puzzle file prints the correct solution and exits 0 via swipl.
 
@@ -117,27 +117,27 @@ Each milestone trigger: the puzzle file prints the correct solution and exits 0 
 
 ```
 test/frontend/prolog/corpus/rung10_programs/
-    puzzle_01.pro   ✅ solved (bank positions)
-    puzzle_02.pro   ✅ solved (trades Clark/Daw/Fuller)
-    puzzle_03.pro   ✅ solved (triple engagement party)
-    puzzle_04.pro   ✅ solved (Milford occupations)
-    puzzle_05.pro   ✅ solved (bank chess Brown/Clark/Jones/Smith)
-    puzzle_06.pro   ✅ solved (occupations Clark/Jones/Morgan/Smith)
-    puzzle_07.pro   ✅ solved (professions Brown/Clark/Jones/Smith)
-    puzzle_08.pro   ✅ solved (dept store Ames/Brown/Conroy…)
-    puzzle_09.pro   ✅ solved (Empire dept store)
-    puzzle_10.pro   ✅ solved (five J-names)
-    puzzle_11.pro   ✅ solved (Smith family)
-    puzzle_12.pro   ✅ solved (Stillwater High teachers)
-    puzzle_13.pro   ✅ solved (murder case)
-    puzzle_14.pro   ✅ solved (golf scores)
-    puzzle_15.pro   ✅ solved (Vernon/Wilson/Yates)
-    puzzle_16.pro   ✅ solved (train crew)
-    puzzle_17.pro   ✅ solved (Country Club dance)
-    puzzle_18.pro   ✅ solved (shopping day)
-    puzzle_19.pro   ✅ solved (office floors)
-    puzzle_20.pro   ✅ solved (Pullman car readers)
-    puzzles.pro     source anthology (read-only reference)
+    puzzle_01.pl   ✅ solved (bank positions)
+    puzzle_02.pl   ✅ solved (trades Clark/Daw/Fuller)
+    puzzle_03.pl   ✅ solved (triple engagement party)
+    puzzle_04.pl   ✅ solved (Milford occupations)
+    puzzle_05.pl   ✅ solved (bank chess Brown/Clark/Jones/Smith)
+    puzzle_06.pl   ✅ solved (occupations Clark/Jones/Morgan/Smith)
+    puzzle_07.pl   ✅ solved (professions Brown/Clark/Jones/Smith)
+    puzzle_08.pl   ✅ solved (dept store Ames/Brown/Conroy…)
+    puzzle_09.pl   ✅ solved (Empire dept store)
+    puzzle_10.pl   ✅ solved (five J-names)
+    puzzle_11.pl   ✅ solved (Smith family)
+    puzzle_12.pl   ✅ solved (Stillwater High teachers)
+    puzzle_13.pl   ✅ solved (murder case)
+    puzzle_14.pl   ✅ solved (golf scores)
+    puzzle_15.pl   ✅ solved (Vernon/Wilson/Yates)
+    puzzle_16.pl   ✅ solved (train crew)
+    puzzle_17.pl   ✅ solved (Country Club dance)
+    puzzle_18.pl   ✅ solved (shopping day)
+    puzzle_19.pl   ✅ solved (office floors)
+    puzzle_20.pl   ✅ solved (Pullman car readers)
+    puzzles.pl     source anthology (read-only reference)
 ```
 
 ---
@@ -145,7 +145,7 @@ test/frontend/prolog/corpus/rung10_programs/
 ### Recommendation for F-213
 
 1. `cd one4all && make -C src` — rebuild with emit_body fix
-2. Test rungs 1–5: `./scrip-cc -pl test/.../rungN.pro -o /tmp/t.c && gcc ... && ./a.out`
+2. Test rungs 1–5: `./scrip-cc -pl test/.../rungN.pl -o /tmp/t.c && gcc ... && ./a.out`
 3. If rung 5 (backtrack/member) passes, rungs 6–8 likely follow
 4. Consider pivot: instead of C backend, target x64 ASM emitter directly
    (emit native NASM α/β/γ/ω labels). Read ARCH.md + BACKEND-X64.md.
