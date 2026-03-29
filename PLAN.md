@@ -90,29 +90,23 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 8 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 10 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `631b69f` · **corpus** `c29fe83` · **.github** pending push
+**one4all** `e72c861` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
 
 ### Completed this session
-- Icon corpus deletion from one4all ✅ — `8327311`
-- Prolog corpus migrated to corpus repo + runners updated + deleted from one4all ✅ — `4da8aed`
-- SNOBOL4 smoke/beauty/feat/jvm_j3 migrated + deleted ✅ — `2e22f6e`
-- Snocone corpus + crosscheck + Rebus migrated + deleted ✅ — `edc0ab4`
-- All runner path fixes committed ✅ — `e63d8d6`
-- `doc/CORPUS_MIGRATION.md` all boxes checked ✅ — `631b69f`
-- **M-G0-CORPUS-AUDIT execution fully complete**
+- **M-G0-CORPUS-AUDIT genuinely complete** — previous closure was premature
+- All .sno/.icn/.pl source programs + named artifacts migrated from one4all to corpus ✅
+- `find one4all -name "*.sno" -o -name "*.icn" -o -name "*.pl"` → zero results ✅
+- corpus `c230de7` (695 files added) · one4all `f9fbf15` (741 files deleted) · CORPUS_MIGRATION.md `e72c861`
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1 — First task (open bug):**
-Fix **M-G-INV-FAST-X86-FIX** — snobol4_x86 LINK_FAIL in parallel harness.
-Root cause: `_x86_compile_one` exported bash function not visible in `bash -c` subshell via xargs.
-Fix already designed: per-test mini-scripts written to `$WORK/jobs/NNN.sh`, dispatched with `xargs -P$JOBS bash`.
-Verify 106/106 snobol4_x86 after fix.
+**Step 1 — Verify M-G-INV-FAST-X86-FIX:**
+Mini-script fix already in `run_invariants.sh`. Run gate with `CORPUS=/home/claude/corpus`. Confirm snobol4_x86 106/106.
 
-**Step 2:** M-G4-SHARED-ARBNO — next node kind extractability audit.
+**Step 2:** M-G4-SHARED-ARBNO — node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
