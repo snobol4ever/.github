@@ -92,25 +92,27 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ## G-9 Session 11 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `c1f9d3d` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
+**one4all** `1d59258` · **corpus** `c230de7` · **.github** pending push · **harness** `32af043`
 
 ### Completed this session
 - **M-G-INV-FAST-X86-FIX verified** — snobol4_x86 106/106 ✅
-- **Prolog x86 harness fix** `ad84745` — stdout redirect → `-o` flag; 0/107 → 11/107
-- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 divergence axes)
-- **M-G4-SHARED-CAPTURE** ✅ `3b9f159` — NOT extracted (4 divergence axes)
+- **Prolog x86 harness fix** `ad84745` — stdout redirect → `-o` flag; 0/107 → 11/107; 96 remaining = pre-existing `pl__cm__sl_N_r` emitter bug
+- **M-G4-SHARED-ARBNO** ✅ `c1f9d3d` — NOT extracted (3 axes)
+- **M-G4-SHARED-CAPTURE** ✅ `3b9f159` — NOT extracted (4 axes)
 - **M-G4-SHARED-ARITH** ✅ `1924740` — NOT extracted (3 fundamentally different models)
+- **M-G4-SHARED-ASSIGN** ✅ `9f8a610` — NOT extracted (E_ASSIGN not wired in any backend)
+- **M-G4-SHARED-IDX** ✅ `1d59258` — NOT extracted (ABI + array-resolution + key-build all diverge)
+
+All SNOBOL4 M-G4 rows complete. Remaining: 5 Icon + 4 Prolog rows.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
 
-**Step 1:** Push `.github`.
+**Step 1:** Confirm `snobol4_x86 106/106`.
 
-**Step 2:** M-G4-SHARED-ASSIGN — `E_ASSIGN`.
+**Step 2:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY` in `emit_x64_icon.c` vs `emit_jvm_icon.c`.
 
-**Step 3:** M-G4-SHARED-IDX — `E_IDX`.
-
-**Step 4:** M-G4-SHARED-ICON-TO — `E_TO`, `E_TO_BY`.
+**Step 3:** Continue remaining M-G4 Icon rows, then Prolog rows.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
