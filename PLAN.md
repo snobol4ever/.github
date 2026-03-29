@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-8 — rename/rebrand complete ✅ (snobol4x→scrip-cc, SNO2C→SCRIP_CC, README, ARCH-sno2c→ARCH-scrip-cc) | `394aa39` one4all · `bb919c7` .github | **Diagnose scrip-cc 0-byte output → fix run_emit_check.sh → M-G-INV-EMIT-FIX ✅ → SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
+| **⚠ GRAND MASTER REORG** | G-8 — rename/rebrand complete ✅ (one4all→scrip-cc, SNO2C→SCRIP_CC, README, ARCH-sno2c→ARCH-scrip-cc) | `394aa39` one4all · `bb919c7` .github | **Diagnose scrip-cc 0-byte output → fix run_emit_check.sh → M-G-INV-EMIT-FIX ✅ → SESSION_BOOTSTRAP → M-G4-SHARED-CONC-FOLD** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -766,26 +766,26 @@ If JVM shows failures: diff against `run_crosscheck_jvm_rung.sh` results to isol
 **Step 3 — M-G4-SHARED-CONC-FOLD** (after JVM confirmed):
 Extract n-ary→binary right-fold helper for `E_SEQ`/`E_CONCAT` into `src/ir/ir_emit_common.c`. Shared by x64 and .NET. JVM unaffected (different execution model). See GRAND_MASTER_REORG.md Phase 4.
 
-## G-8 Handoff update (2026-03-29 session 2, Claude Sonnet 4.6) — .github `10c20f8` snobol4x `65baf6a`
+## G-8 Handoff update (2026-03-29 session 2, Claude Sonnet 4.6) — .github `10c20f8` one4all `65baf6a`
 
 ### M-G-RENAME-ANY2MANY ✅
 
-**Full rename complete. 0 remaining `sno2c` refs. 0 remaining `snobol4x` refs.**
+**Full rename complete. 0 remaining `sno2c` refs. 0 remaining `one4all` refs.**
 
 | Old | New |
 |-----|-----|
 | `sno2c` binary | `scrip-cc` |
 | `sno2c.h` header | `scrip_cc.h` |
-| `snobol4x` (repo identity in all docs/scripts) | `one4all` |
+| `one4all` (repo identity in all docs/scripts) | `one4all` |
 | `sno2c_icon` | removed — Icon is a frontend of `scrip-cc`, not a separate binary |
 
 **Brand:** `any²many` (compiler) · `many²one` (linker) · `any²many²one` (full pipeline)  
 `scrip-cc` = Scrip Compiler Collection (CC = Compiler Collection, per GCC precedent)
 
 **GitHub repo rename still pending** — Lon must do manually:  
-`https://github.com/snobol4ever/snobol4x/settings` → Danger Zone → Rename → `one4all`
+`https://github.com/snobol4ever/one4all/settings` → Danger Zone → Rename → `one4all`
 
-**All four repos pushed:** `.github` `10c20f8` · `snobol4x` `65baf6a` · `harness` `4e4860f` · `corpus` `ab217d4`
+**All four repos pushed:** `.github` `10c20f8` · `one4all` `65baf6a` · `harness` `4e4860f` · `corpus` `ab217d4`
 
 ### Next session
 
@@ -803,21 +803,21 @@ Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located sto
 ## G-8 Handoff update (2026-03-29 session 3, Claude Sonnet 4.6) — GitHub rename done
 
 ### GitHub rename complete
-`snobol4ever/snobol4x` → `snobol4ever/one4all` ✅ (Lon, 2026-03-29)
+`snobol4ever/one4all` → `snobol4ever/one4all` ✅ (Lon, 2026-03-29)
 
 ### NEW MILESTONE: M-G-RENAME-ONE4ALL
 
-**Full scan-and-replace of all remaining `snobol4x` string literals** in every file
+**Full scan-and-replace of all remaining `one4all` string literals** in every file
 across all four repos: README.md, all .github MDs, source comments, shell scripts,
 generated headers, .gitignore, everything. The previous M-G-RENAME-ANY2MANY sweep
 caught shell/script/MD references but a full grep will surface any stragglers
 (clone URLs, path strings, comments, GitHub URLs still pointing to old name).
 
 **Scope:**
-- `snobol4ever/snobol4x` → `snobol4ever/one4all` (GitHub URLs)
-- `snobol4x` (bare repo name in prose/paths) → `one4all`
-- Local clone path `/home/claude/snobol4x` refs in docs → `/home/claude/one4all`
-- Any `github.com/snobol4ever/snobol4x` URLs in README, ARCH docs, SESSION docs
+- `snobol4ever/one4all` → `snobol4ever/one4all` (GitHub URLs)
+- `one4all` (bare repo name in prose/paths) → `one4all`
+- Local clone path `/home/claude/one4all` refs in docs → `/home/claude/one4all`
+- Any `github.com/snobol4ever/one4all` URLs in README, ARCH docs, SESSION docs
 
 **Read for next G-session:** This handoff only. Run SESSION_BOOTSTRAP first.
 
@@ -825,9 +825,9 @@ caught shell/script/MD references but a full grep will surface any stragglers
 
 ### M-G-RENAME-ONE4ALL ✅
 
-**Full sweep complete. 0 remaining `snobol4x` refs in live code.**
+**Full sweep complete. 0 remaining `one4all` refs in live code.**
 
-58 files changed in one4all. `snobol4x` → `scrip-cc` everywhere:
+58 files changed in one4all. `one4all` → `scrip-cc` everywhere:
 - bench printf strings (bench_re_vs_tiny.c, bench_pcre2_wins.c, bench_round2.c, bench_round2b.c, bench_pda.c)
 - shell driver scripts (snobol4-asm, snobol4-jvm, snobol4-net) — comments + env var names (`scrip_cc_jvm_cache`, `scrip_cc_net_cache`)
 - source file headers/comments (ir.h, engine.c/h, runtime.c/h, snobol4.c/h, prolog_lex.c/h, prolog_builtin.h, term.h, icon_ast.h, rebus_emit.c, emit_wasm.c, emit_jvm_prolog.c, mock_includes.c)
@@ -836,7 +836,7 @@ caught shell/script/MD references but a full grep will surface any stragglers
 
 **Not changed (correct as-is):**
 - `.github/PLAN.md` + `MILESTONE-RENAME-ANY2MANY.md` — historical handoff records, accurately describe the rename
-- `corpus/` .sno files — "SPITBOL/snobol4x" refers to the external SPITBOL engine, not our project
+- `corpus/` .sno files — "SPITBOL/one4all" refers to the external SPITBOL engine, not our project
 
 ### Next session
 
@@ -857,7 +857,7 @@ Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located sto
 
 | Milestone | Commits | What |
 |-----------|---------|------|
-| M-G-RENAME-ONE4ALL ✅ | one4all `f2f0fcb` | snobol4x→scrip-cc, 58 files |
+| M-G-RENAME-ONE4ALL ✅ | one4all `f2f0fcb` | one4all→scrip-cc, 58 files |
 | SNO2C→SCRIP_CC sweep ✅ | one4all `6327be8` · harness `3dbec03` · corpus `1a92bc5` · .github `6bb9617` | All shell variable names SNO2C→SCRIP_CC, SNO2C_INC→SCRIP_CC_INC, SNO2C-JVM→SCRIP_CC-JVM |
 | Header guard fix ✅ | one4all `cc10b62` | scrip_cc.h: SNO2C_H→SCRIP_CC_H |
 | Dead doc ref fix ✅ | .github `eaea0cc` | FRONTEND-SNO2C.md→FRONTEND-SNOBOL4.md in ARCH-backend-c-dead.md, BACKEND-C.md, FRONTEND-REBUS.md |
@@ -869,7 +869,7 @@ Pass corpus path to `scrip-cc` for SNOBOL4 files, compare against co-located sto
 - `SNO2C` / `SCRIP_CC` as shell variable *names* holding the path to the binary — these are legitimate shell convention, kept throughout all scripts
 - `SNO2C_INC` → now `SCRIP_CC_INC` everywhere (was old name for include path var)
 - Historical records: PLAN.md handoffs, SESSIONS_ARCHIVE.md, MILESTONE_ARCHIVE.md, MILESTONE-RENAME-ANY2MANY.md
-- `corpus/` .sno comments: "SPITBOL/snobol4x" = external SPITBOL engine, not our project
+- `corpus/` .sno comments: "SPITBOL/one4all" = external SPITBOL engine, not our project
 
 ### Remaining rename/rebrand items (for future session)
 - README "one4all" intro still calls it "TINY compiler" — **FIXED this session**
