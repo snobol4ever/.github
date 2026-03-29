@@ -5256,3 +5256,42 @@ separate step after corpus migration declared complete.
 2. **Remove one4all/test/frontend/icon/corpus/** — now that corpus repo is the canonical source and runners point there. One `git rm -r` + commit.
 3. **Prolog corpus migration** — same pattern: migrate `one4all/test/frontend/prolog/corpus/rung*/` → `corpus/programs/prolog/rung*/`, update prolog runners, remove from one4all.
 4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
+
+---
+
+## G-9 Session 5 — Final state (2026-03-29, Claude Sonnet 4.6)
+
+**one4all** `09b493e` · **corpus** `7d3d3d6` · **.github** pending push
+
+### Completed this session
+
+#### Icon corpus flat layout ✅
+User direction: flatten subdirs, full descriptive names, correct extensions.
+
+**corpus** `7d3d3d6` — all 575 icon corpus files restructured:
+- Was: `programs/icon/rung01_paper/t01_to5.icn` (deep, short names)
+- Now: `programs/icon/icon_rung01_paper__t01_to5.icn` (flat, full names)
+- Naming: `icon_{full_rung_name}__{test_name}.{ext}` — double-underscore
+  separates rung from test name for unambiguous parsing
+- `.c` extension corrected to `.s` (files are NASM x64 assembly, not C)
+- Disambiguated: rung02_arith_gen vs rung02_proc, rung35_block_body vs rung35_table_str
+- 38 rung subdirs removed; all 575 files flat in programs/icon/
+
+**one4all** `09b493e` — all 38 run_rung*.sh updated:
+- RUNG_DIR now points to programs/icon/ (no subdir)
+- Glob: `icon_{rung_name}__t*.icn` — each script targets its own rung exclusively
+- Verified: rung02_arith_gen 5/5, rung02_proc 3/3, rung35_table_str 2/2
+
+### Emit-diff baseline
+493/0 ✅ — unchanged.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+
+1. **Run full 7-cell invariant gate** with `CORPUS_REPO=/home/claude/corpus` — confirm icon runners read flat corpus.
+2. **Remove** `one4all/test/frontend/icon/corpus/` — canonical source now in corpus repo, runners updated.
+3. **Prolog corpus migration** — `one4all/test/frontend/prolog/corpus/rung*/` → `corpus/programs/prolog/`. Apply same flat naming: `prolog_{rung_name}__{test_name}.{ext}`.
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
