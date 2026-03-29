@@ -3725,3 +3725,49 @@ the multi-file batch for SNOBOL4; Icon/Prolog frontends reset cleanly already
 4. `cat /home/claude/.github/PLAN.md` — NOW table
 5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
 6. `bash /home/claude/one4all/test/g8_session.sh` — completes M-G-INV-EMIT-FIX automatically
+
+---
+
+## G-8 Session (2026-03-29 session 6, Claude Sonnet 4.6) — one4all `09706ff` / .github `31c3bb8`
+
+### Session type
+Grand Master Reorg — G-8 (rename/rebrand continuation)
+
+### Milestones completed
+
+| Milestone | Commits | What |
+|-----------|---------|------|
+| M-G-RENAME-ONE4ALL (extended) ✅ | .github `29094b8` `31c3bb8` · one4all `6b17ec6` `732eab1` `09706ff` · harness `32af043` · corpus `ca5bcec` | Full sweep of all remaining old repo names across all four repos. See detail below. |
+
+### What was renamed
+
+**`snobol4x` / `SNOBOL4x` → `one4all` / `ONE4ALL`:**
+- `.github/PLAN.md` + `MILESTONE-RENAME-ANY2MANY.md` — 19 substitutions
+- `.github/REPO-snobol4x.md` → `REPO-one4all.md` (file rename)
+
+**`snobol4corpus` → `corpus` / `snobol4harness` → `harness`:**
+- `harness/LAYOUT.md`, `README.md`, `adapters/dotnet/run.sh`, `adapters/dotnet/bench.sh`, `adapters/dotnet/run_crosscheck_dotnet.sh`, `adapters/tiny/run.sh`, `adapters/tiny_net/run.sh`, `adapters/jvm/run.sh`, `crosscheck/crosscheck.sh`, `crosscheck/bench.sh` — 11 files
+- `corpus/LAYOUT.md`, `README.md`, `benchmarks/README.md`, `lib/README.md` — 4 files
+- `one4all/test/backend/c/oracle_sprint20_parser.py`, `oracle_sprint22.py` — 2 files
+- `one4all/snobol4-asm` — path fix (`snobol4corpus/programs/inc` → `corpus/programs/inc`)
+
+**README rebrand (`one4all/README.md`):**
+- Tagline: SNOBOL4-only → full multi-language description (SNOBOL4, Icon, Prolog, Snocone, Rebus)
+- Stale sprint reference (`monitor-ipc`) → Grand Master Reorg G-8
+- Duplicate `PLAN.md` bullet removed
+- `JVM.md` / `MONITOR.md` stale refs → `ARCH-monitor.md`
+
+**Not touched (correct as-is):**
+- `corpus/crosscheck/*.sno` — "SPITBOL/snobol4x" in comments refers to external SPITBOL engine, not this project
+- `SESSIONS_ARCHIVE.md` + `PLAN.md` historical handoff records — accurately document the rename sequence
+
+### Invariants at handoff
+x86 106/106 [frozen] · JVM 106/106 [frozen] · .NET 110/110 [frozen]
+
+### Next session read order
+1. `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_BOOTSTRAP.sh`
+2. `tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md` — this entry
+3. `cat /home/claude/.github/RULES.md`
+4. `cat /home/claude/.github/PLAN.md` — NOW table
+5. `cat /home/claude/.github/GRAND_MASTER_REORG.md` — Phase 4 section
+6. `bash /home/claude/one4all/test/g8_session.sh` — M-G-INV-EMIT-FIX (SIGSEGV fix + baseline)
