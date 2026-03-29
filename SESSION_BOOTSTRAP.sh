@@ -48,7 +48,7 @@ echo -e "${BOLD}WHAT — project${RESET}"
 info "SNOBOL4/SPITBOL compiler/runtime"
 info "6 frontends (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip)"
 info "4 backends  (x86, JVM, .NET, WASM)"
-info "Grand Master Reorg (G-7): collapsing all IRs into src/ir/ir.h (59 EKind nodes)"
+info "Grand Master Reorg (G-8): Phase 2+4 done; M-G-INV-EMIT next (emit-diff harness)"
 info "Reference docs: snobol4x/doc/EMITTER_AUDIT.md · IR_AUDIT.md · SIL_NAMES_AUDIT.md"
 echo ""
 
@@ -118,14 +118,26 @@ info "  cat /home/claude/.github/PLAN.md                     # NOW table"
 info "  cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail"
 echo ""
 
-# ── HOW — run all nine invariants (3x3: SNOBOL4/Icon/Prolog × x86/JVM/.NET) ─
-echo -e "${BOLD}HOW — invariants (must be green before any work)${RESET}"
+# ── HOW — emit-diff invariant check (fast, emitter-only, ~4s) ─────────────────
+echo -e "${BOLD}HOW — emit-diff invariants (must be green before any work)${RESET}"
 cd /home/claude/snobol4x
-if bash test/run_invariants.sh 2>&1; then
-    echo ""
+if [[ -d test/emit_baseline ]]; then
+    info "Running emit-diff check (test/run_emit_check.sh)..."
+    if CORPUS=/home/claude/corpus bash test/run_emit_check.sh 2>&1; then
+        ok "Emit-diff: all green"
+    else
+        fail "Emit-diff: mismatches found — do not proceed until green"
+        ERRORS=$((ERRORS+1))
+    fi
 else
-    echo ""
-    ERRORS=$((ERRORS+1))
+    info "No emit baseline yet — run: bash test/g8_session.sh --only-baseline"
+    info "Falling back to run_invariants.sh (slow — builds + runs programs)..."
+    if CORPUS=/home/claude/corpus bash test/run_invariants.sh 2>&1; then
+        echo ""
+    else
+        echo ""
+        ERRORS=$((ERRORS+1))
+    fi
 fi
 echo ""
 

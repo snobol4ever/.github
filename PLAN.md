@@ -38,7 +38,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-7 — Phase 2 ✅ · M-G-INV ✅ · M-G4-SPLIT-SEQ-CONCAT ✅ · M-G-INV-JVM ⏳ (harness built; full run pending) | `0bc5d9a` snobol4x / `.github` HEAD | M-G-INV-JVM: confirm JVM 106/106 with SnoHarness, then M-G4-SHARED-CONC-FOLD |
+| **⚠ GRAND MASTER REORG** | G-8 — M-G4-SHARED-CONC-FOLD ✅ · M-G-INV-EMIT ⏳ (emit-diff harness built; multi-file batch fix pending) | `9f947cd` snobol4x | **M-G-INV-EMIT-FIX**: fix sno2c multi-file SIGSEGV (audit+reset all parser/emitter statics) → enable true in-process batch → baseline snapshot → emit-diff check sub-5s |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
