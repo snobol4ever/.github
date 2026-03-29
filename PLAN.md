@@ -90,21 +90,22 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 3 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 4 — Final state (2026-03-29, Claude Sonnet 4.6)
 
-**one4all** `b544eff` · **.github** pending push
+**one4all** `222c300` · **corpus** `ada0755` · **.github** pending push
 
 ### Completed this session
-- M-G-INV-FAST-X86-FIX ✅ — xargs dispatch rewritten to per-test mini-scripts. snobol4_x86 **106/106** confirmed.
-- scrip-cc `-o` flag fix ✅ — was writing to derived filename beside input, not stdout.
-- `ensure_tools()` in both harness scripts ✅ — auto-builds scrip-cc, installs nasm + libgc-dev before watchdog starts.
-- Icon rung parser fix ✅ — `_parse_rung_summary()` handles both old (`X PASS Y FAIL`) and new (`X pass, Y fail`) formats. icon_x86 correctly shows 121p/109f across 38 rungs (pre-existing failures only).
+- SESSION_BOOTSTRAP.sh fully rewritten — installs all oracles from internet (CSNOBOL4, SPITBOL, Icon, SWI-Prolog) ✅
+- All SESSION docs unified — §BUILD → single bootstrap call ✅
+- M-G4-SHARED-OR ✅ — NOT extractable (cursor-save + n-ary + callback diverge). Recorded.
+- M-G2-MOVE-PROLOG-ASM-a/b ✅ — confirmed already done. Marked in reorg doc.
+- M-G0-CORPUS-AUDIT icon rungs ✅ — all 38 dirs in corpus, runners updated, 121p/109f baseline preserved.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
-1. **Run full 7-invariant gate** — `SCRIP_CC=./scrip-cc CORPUS=../corpus bash test/run_invariants.sh`. Record matrix.
-2. **M-G4-SHARED-OR** — E_OR wiring extractability audit (2-vs-3 backend)
-3. **M-G2-MOVE-PROLOG-ASM-a/b** — split Prolog ASM out of emit_x64.c → emit_x64_prolog.c
-4. **M-G0-CORPUS-AUDIT execution** — Icon rung migration one4all/test/ → corpus/
+1. **Run full 7-cell gate** with `CORPUS_REPO=/home/claude/corpus` — confirm icon_x86 reads from corpus.
+2. **Remove** `one4all/test/frontend/icon/corpus/` — canonical source now in corpus repo.
+3. **Prolog corpus migration** — `one4all/test/frontend/prolog/corpus/rung*/` → `corpus/programs/prolog/`.
+4. **M-G4-SHARED-ARBNO** — next node kind extractability audit.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
