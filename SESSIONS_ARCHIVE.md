@@ -6321,3 +6321,24 @@ Categorise: pre-existing (float format `3.` vs `3`, OPSYN gap) vs new regression
 Each is a multi-hour full-file pass. Do not rush. Do not declare done until invariants pass.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+## G-9 Session 21 — Invariant correction (2026-03-30)
+
+**one4all** `6d77c92` · **corpus** `6fba552`
+
+**Regression found and fixed:** `rung21_char_type_alpha` (Prolog JVM) — `ldc "α"` should be `ldc "alpha"`. The Prolog atom `alpha` is a runtime string comparison in `char_type/2`, not a port name. Reverted. Corpus refs regenerated.
+
+**All other invariant failures confirmed pre-existing** (present on s20 baseline before any s21 changes). The 16 SNOBOL4 JVM failures are the pre-existing OPSYN/float/indirect gap from s18. Greek sweep introduced zero new runtime regressions beyond the one ldc fix.
+
+**Invariant baseline post-s21:**
+- SNOBOL4 x86: `106/106` ✅
+- SNOBOL4 JVM: `94p/32f` (32 pre-existing — OPSYN/float/indirect gaps)
+- SNOBOL4 NET: `108p/2f` (2 pre-existing)
+- Icon x86: `94p/164f` (pre-existing M-G5-LOWER-ICON gaps)
+- Icon JVM: `173p/61f` (pre-existing)
+- Prolog x86: `13p/94f` (pre-existing missing builtins)
+- Prolog JVM: `105p/2f` (pre-existing rung06 + rung21 now fixed)
+
+**Gate: 738/0 emit-diff ✅**
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
