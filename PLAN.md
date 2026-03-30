@@ -68,6 +68,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
+| **Prolog WASM** | PW-1 `(new)` | — | **M-PW-SCAFFOLD** |
 | **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
