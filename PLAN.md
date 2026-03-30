@@ -60,7 +60,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-9 s23 | `.github` pending | **M-G7-UNFREEZE** (execute this session — all NAME-* done) |
-| **Snocone x86** | SC-1 design complete | `e874660` .github | M-SC-CONSOLIDATE: merge snocone_lower+cf → emit_x64_snocone.c; then add goto/break/continue; then corpus rungs A01–A05 |
+| **Snocone x86** | SC-1 in progress | `c1eed78` one4all | M-SC-CONSOLIDATE: finish build (fix go-to removal, delete snocone_lower+cf, clean compile); then gate 738/0; then corpus A01–A05 |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |

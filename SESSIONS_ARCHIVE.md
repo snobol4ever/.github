@@ -6597,3 +6597,128 @@ Verify counts match post-s22 baseline. Record in GRAND_MASTER_REORG.md §Invaria
 - `M-G7-UNFREEZE` tag not yet pushed — do it Step 1 next session
 - Token: never in commits, never in chat — `TOKEN_SEE_LON` as placeholder
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+
+---
+
+## SC-1 Session (2026-03-30, Claude Sonnet 4.6) — IN PROGRESS
+
+**one4all** `c1eed78` · **corpus** `8db2d44` · **.github** this session
+
+### Completed this session
+
+**HQ improvements:**
+- `SESSION_SETUP.sh` — added `FRONTEND=` / `BACKEND=` switches; gates tool installs per matrix
+- `SETUP-tools.md` — new doc mapping every frontend×backend combination to required tools
+- `SESSIONS_ARCHIVE.md` correction: previous session had wrong scope for `emit_x64_snocone.c`
+
+**Language design decisions (all final):**
+
+1. **Semicolon required** — every statement ends with `;`; bare newline is whitespace only. Enables free-form multi-line expressions exactly like C. Already implemented in lexer architecture (tokenize_logical_line splits on `;`).
+
+2. **Comments** — `//` line comment and `/* */` block comment added. `#` retained for backward compat in existing corpus. **New code always uses `//` or `/* */`, never `#`.**
+
+3. **`goto` only** — `go to` (two-word) removed from keyword table. Enum slots `SNOCONE_KW_GO` and `SNOCONE_KW_TO` retained to avoid shifts but not in KW_TABLE.
+
+4. **`break` / `continue`** — added, C semantics, all three loop types (while/do-while/for). Loop label stack in CfState (max depth 64). `for` gets `lab_step` label so `continue` lands before step expression.
+
+5. **Compound assignments** — `+=` `-=` `*=` `/=` `%=` `^=` added. Desugar to `x = x OP rhs` in expression lowering. No new IR nodes.
+
+6. **`++` / `--` — explicitly dropped.** SNOBOL4 has no sequence points; pre/post semantics are impossible to implement correctly. A C programmer will understand the omission.
+
+7. **String comparison operators** — `:==:` `:!=:` `:>:` `:<:` `:>=:` `:<=:` `::` `:!:` — unchanged. Deliberately non-C; visually distinct.
+
+8. **`#` comment** — kept in lexer for backward compat; end-user conversion tool handles it.
+
+**End-user conversion tool** `tools/sc_convert.py` — converts old-style `.sc` to new C-style:
+- `go to label` → `goto label`
+- adds `;` at statement ends
+- `#` → `//`
+- Analogous to Icon's semicolon converter. Never used in our pipeline.
+
+**M-SC-CONSOLIDATE — IN PROGRESS (`c1eed78`):**
+- `src/backend/x64/emit_x64_snocone.c` created — merged snocone_lower+cf, lowering only
+- `src/backend/x64/emit_x64_snocone.h` created — public entry `emit_x64_snocone_compile()`
+- `src/Makefile` updated — BACKEND_X64 += emit_x64_snocone.c; FRONTEND_SNOCONE removes lower+cf
+- `src/driver/main.c` updated — uses `emit_x64_snocone_compile()`
+- `src/frontend/snocone/snocone_lex.h` — new tokens before SNOCONE_UNKNOWN (fixes enum collision)
+- `src/frontend/snocone/snocone_lex.c` — `//`/`/* */` comments; compound assignments in OP_TABLE; go/to removed from KW_TABLE
+
+**Read the uploaded source files this session:**
+- `SNOCONE.zip` — canonical snocone.sc (modern SC syntax) + snocone.snobol4 (original Koenig spec)
+- `spitbol-docs-master.zip` — SPITBOL reference (green-book.pdf, spitbol-manual-v3.7.pdf)
+- Key finding: original Koenig spec uses `,` as for separator; our impl uses `;` (C-style, correct)
+- Key finding: `isneg()` optimization in snocone.sc (flips S/F for `~expr`) — not yet in our CF pass
+
+### What is NOT yet done — next session must complete first
+
+**Step 1 — Fix build (before anything else):**
+
+Remove the `go to` two-word handler from `sc_do_stmt` in `emit_x64_snocone.c`:
+```c
+/* ---- go to label  (two-word — backward compat) ---- */
+if (k == SNOCONE_KW_GO) {
+    ...
+}
+```
+Delete this entire block. `SNOCONE_KW_GO` no longer appears in the token stream (removed from KW_TABLE), but the dead code must go.
+
+Also delete the old files now superseded:
+```bash
+rm src/frontend/snocone/snocone_lower.c
+rm src/frontend/snocone/snocone_lower.h
+rm src/frontend/snocone/snocone_cf.c
+rm src/frontend/snocone/snocone_cf.h
+```
+
+**Step 2 — Build clean:**
+```bash
+cd /home/claude/one4all/src && make -j$(nproc) 2>&1
+```
+Expect zero errors. Fix any remaining issues.
+
+**Step 3 — Gate:**
+```bash
+cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+```
+Expect **738/0**.
+
+**Step 4 — Targeted x86 invariants:**
+```bash
+cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+```
+Expect no regressions vs baseline (SNOBOL4 106/106, Icon 94p/164f, Prolog 13p/94f).
+Snocone crosscheck: expect 10/10.
+
+**Step 5 — Commit clean milestone:**
+```bash
+git add -A
+git commit -m "SC-1: M-SC-CONSOLIDATE complete — emit_x64_snocone.c, goto/break/continue, C-style extensions"
+git push
+```
+
+**Step 6 — Create conversion tool:**
+```bash
+mkdir -p /home/claude/one4all/tools
+# create tools/sc_convert.py
+```
+Converts: `go to` → `goto`, adds `;`, `#` → `//`. Simple line-by-line with quote awareness.
+
+**Step 7 — Begin corpus Partition A rung A01:**
+- `corpus/programs/snocone/rungA01_hello_*.sc` + `.expected`
+- 5 tests: hello world, string literal, integer literal, null string, empty output
+- All SNO→SC mechanical translations from existing SNOBOL4 crosscheck corpus
+- Oracles already exist as `.ref` files in `corpus/crosscheck/snobol4/`
+
+**Step 8 — Update PLAN.md SC row, push all repos.**
+
+### Key facts for next session
+
+- Gate: **738/0** emit-diff
+- Snocone invariant baseline: **10/10** crosscheck
+- `for` uses `;` separator — confirmed from source, do not change
+- Compound assignment desugaring: `x += e` → `x = x + e` — lhs must be E_VART (simple var); array/indirect LHS not yet handled — that's a future milestone
+- `isneg()` optimization (flip S/F for `~expr` in while/for/do) — noted from snocone.sc, not yet implemented — future milestone, not SC-1
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: never in commits — `TOKEN_SEE_LON`
+- `FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash SESSION_SETUP.sh` — correct invocation
+
