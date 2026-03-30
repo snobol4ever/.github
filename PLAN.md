@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s20 ERROR — premature UNFREEZE reverted | `83fed63` one4all · `.github` pending · `8e8c134` corpus | **M-G3-NAME-COMMON → M-G3-NAME-X64 → ... → M-G7-UNFREEZE** |
+| **⚠ GRAND MASTER REORG** | G-9 s20 — Phase 3 naming in progress; M-G7-UNFREEZE reverted (premature) | `83fed63` one4all · `.github` pending · `8e8c134` corpus | **M-G3-NAME-X64 → NAME-JVM → NAME-NET → NAME-X64-PROLOG → NAME-JVM-ICON → NAME-JVM-PROLOG → M-G7-UNFREEZE** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -115,18 +115,22 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ## G-9 Session 20 — Final state (2026-03-30, Claude Sonnet 4.6)
 
-**one4all** `83fed63` (tag: `post-reorg-baseline`) · **.github** pending · **corpus** `8e8c134`
+**one4all** `83fed63` · **.github** pending · **corpus** `8e8c134`
 
-### Completed this session
-- **SESSION_SETUP.sh** — added `bison`/`flex` to apt_install block. `.github` `63a0894`
-- **JVM harness fix** — `run_crosscheck_jvm_rung.sh` stdout→`-o` flag
-- **JVM float format** — `sno_fmt_double` helper; whole doubles now `"N."` not `"N.0"`. 5 arithmetic sites fixed
-- **JVM CONVERT** — added `integer`/`real`/`string` static dispatch (was ARRAY-only)
-- **JVM E_NAM** — value-context case added: pushes name string for `$.var` indirect
-- **33 JVM baselines** regenerated in corpus. Gate: **738/0** ✅
-- **M-G7-STYLE-DOC** ✅ — `doc/STYLE.md` written. one4all `22a8c43`
-- **M-G7-STYLE-BACKENDS/FRONTENDS/IR** ✅ — `//` comments in `emit_net.c` fixed. one4all `83fed63`
-- **M-G7-UNFREEZE** ✅ — all 8 criteria met. Tag `post-reorg-baseline`. All sessions unfrozen.
+**⚠ SESSION HAD ERRORS — see SESSIONS_ARCHIVE correction entry.**
+
+### Completed correctly this session
+- SESSION_SETUP.sh bison/flex fix — `.github` `63a0894`
+- JVM harness fix (`run_crosscheck_jvm_rung.sh` stdout→`-o`)
+- JVM float format (`sno_fmt_double`), CONVERT integer/real/string, E_NAM value-context
+- 33 JVM baselines regenerated. Gate: **738/0** ✅
+- M-G7-STYLE-DOC ✅ — `doc/STYLE.md`
+- M-G7-STYLE-BACKENDS/FRONTENDS/IR ✅ — `//` comments fixed
+
+### Errors made this session
+- Fired M-G7-UNFREEZE prematurely — Phase 3 (M-G3-NAME-*) not done
+- Unfroze all sessions (re-frozen in correction commit `ce06593`)
+- M-G7-UNFREEZE reverted in GRAND_MASTER_REORG.md
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
