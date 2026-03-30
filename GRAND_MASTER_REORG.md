@@ -174,17 +174,33 @@ the naming pass.
 **Rule:** after every sub-milestone, the full corpus for that backend must pass.
 A regression is immediately localizable to the one file just touched.
 
-| ID | File | What changes | Verify |
-|----|------|-------------|--------|
-| **M-G3-NAME-COMMON** | `ir_emit_common.c` | Verify naming law from creation — no renames expected since file is written post-collapse; confirm `emit_wiring_<Kind>` function names, Greek port variable names, no deviations. | All corpus PASS (shared file) |
-| **M-G3-NAME-X64** | `emit_x64.c` | Rename backend-specific residuals: local vars, label strings, function names → naming law. `E()`/`EI()`/`EL()` macros confirmed. | x86 106/106 |
-| **M-G3-NAME-JVM** | `emit_jvm.c` | Same. `J()`/`JI()`/`JL()` confirmed. | 106/106 JVM |
-| **M-G3-NAME-NET** | `emit_net.c` | Same. `N()`/`NI()`/`NL()` confirmed. | 110/110 NET |
-| **M-G3-NAME-WASM** | `emit_wasm.c` | Naming law applied from scratch at scaffold time (M-G2-SCAFFOLD-WASM); verify only. `W()`/`WI()`/`WL()`. | Builds clean |
-| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | `icon_emit_*` → `emit_x64_icon_*` for Icon-specific residuals after Phase 4 extraction. | Icon x86 rung03 5/5 |
-| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | `pl_emit_*` → `emit_x64_prolog_*` for Prolog-specific residuals. | Prolog x86 rungs 1–9 PASS |
-| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | `ij_emit_*` → `emit_jvm_icon_*` for Icon-specific residuals. | Icon JVM 99/99 |
-| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | `pj_emit_*` → `emit_jvm_prolog_*` for Prolog-specific residuals. | Prolog JVM 20/20 |
+**⚠ SCOPE CLARIFICATION (G-9 s21):** Each M-G3-NAME-* milestone is a **full naming law enforcement pass** on its file — not just Greek port spelling and not just function prefix renames. The law (ARCH-reorg-design.md §Naming Convention) requires:
+- Every function name → law-conformant prefix (`emit_<backend>_<frontend>_*`)
+- Every local variable → law name (`node`, `left`, `right`, `γ`, `ω`, `out`, etc.)
+- Every parameter name → law name
+- Every struct field name → law name
+- Every generated label format string → law name (Greek ports, `L<id>_α` etc.)
+- Every comment → no ASCII port spelling (`alpha`/`beta`/`gamma`/`omega` → Greek)
+- Every filename reference in comments → correct
+
+**What G-9 s21 actually completed:**
+- Greek port ASCII→Greek sweep across all emitter C source files and generated output ✅ (committed `d0e5ea1`)
+- CSV reporting added to `run_emit_check.sh` and `run_invariants.sh` ✅
+- `jvm_emit_*` → `emit_jvm_*` prefix in `emit_jvm.c` ✅
+- Invariant regression detected — recheck in progress (pre-existing float gaps vs. Greek-caused gaps not yet separated)
+
+**What remains in Phase 3 (each is a full-file naming pass):**
+
+| ID | File | What changes | Verify | Status |
+|----|------|-------------|--------|--------|
+| **M-G3-NAME-COMMON** ✅ | `ir_emit_common.c` | Verify only — written post-collapse, law-conformant | All corpus PASS | Done |
+| **M-G3-NAME-WASM** ✅ | `emit_wasm.c` | Verify only — scaffolded law-conformant | Builds clean | Done |
+| **M-G3-NAME-JVM** ⚠️ PARTIAL | `emit_jvm.c` | Greek ports ✅, `jvm_emit_*`→`emit_jvm_*` ✅, remaining local vars/labels/comments TBD | 106/106 JVM — recheck needed | Partial |
+| **M-G3-NAME-NET** | `emit_net.c` | Full pass: all function names, local vars, labels, comments → law | 110/110 NET | OPEN |
+| **M-G3-NAME-X64** | `emit_x64.c` | Full pass: introduce `E()` macro, all identifiers → law | x86 106/106 | OPEN |
+| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | Full pass: `emit_pl_*`/`emit_prolog_*` → `emit_x64_prolog_*`, all identifiers | Prolog x86 rungs PASS | OPEN |
+| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | Full pass: `ij_emit_*` → `emit_jvm_icon_*`, all identifiers (~7000 lines) | Icon JVM 38-rung | OPEN |
+| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | Full pass: `pj_emit_*` → `emit_jvm_prolog_*`, all identifiers (~8000 lines) | Prolog JVM 31/31 | OPEN |
 
 ---
 
