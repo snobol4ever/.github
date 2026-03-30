@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-1 — runtime stub | `645f402` one4all · `44af7e8` corpus | **M-SW-1: RUNTIME-STUB** |
+| **SNOBOL4 WASM** | SW-1 — M-SW-A01 WIP | `36af87e` one4all · `62f2d8f` corpus | **M-SW-A01: HELLO** (3/4; literals str→int coerce needed) |
 
 ---
 
