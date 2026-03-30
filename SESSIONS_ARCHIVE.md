@@ -6722,3 +6722,90 @@ Converts: `go to` → `goto`, adds `;`, `#` → `//`. Simple line-by-line with q
 - Token: never in commits — `TOKEN_SEE_LON`
 - `FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash SESSION_SETUP.sh` — correct invocation
 
+
+---
+
+## SC-1 Session Continued (2026-03-30, Claude Sonnet 4.6) — HQ CLEANUP
+
+**.github** `02838cb`
+
+### Completed this session (HQ work only)
+
+**Language design finalized (no further changes expected):**
+- Semicolons required; `goto` only (no `go to`); `break`/`continue`; `//` and `/* */` comments; `+=` `-=` `*=` `/=` `%=` `^=`; no `++`/`--`; `#` kept in lexer for compat
+- End-user conversion tool `tools/sc_convert.py`: `go to`→`goto`, add `;`, `#`→`//` — never used in pipeline
+
+**HQ files updated:**
+- `SESSION-snocone-x64.md` created — full language definition, Partition A (16 rungs ~85 tests), Partition B (13 rungs ~64 tests), 8-sprint plan SC-1 through SC-8, corpus layout, invariant growth table, known gaps
+- `FRONTEND-SNOCONE.md` updated — x86 row added, pointer to SESSION-snocone-x64.md
+- `PLAN.md` pruned — 131→100 lines, 6KB→3.9KB; removed stale G-9 s23 agenda, fixed retired invariants notice, deduped routing table
+- `RULES.md` updated — explicit ⛔ rule: SESSIONS_ARCHIVE is append-only, size irrelevant, never prune; documents which files ARE pruned (PLAN.md 3KB max, RULES.md, GRAND_MASTER_REORG.md)
+- `SESSION_SETUP.sh` — FRONTEND=/BACKEND= switches added
+- `SETUP-tools.md` created — tool matrix for every frontend×backend combination
+
+### one4all SC-1 state — IN PROGRESS `c1eed78`
+
+**Done:**
+- `src/backend/x64/emit_x64_snocone.c` — created, merged lower+cf, lowering only
+- `src/backend/x64/emit_x64_snocone.h` — public entry `emit_x64_snocone_compile()`
+- `src/Makefile` — BACKEND_X64 += emit_x64_snocone.c; FRONTEND_SNOCONE removes lower+cf
+- `src/driver/main.c` — uses `emit_x64_snocone_compile()`
+- `src/frontend/snocone/snocone_lex.h` — new tokens before SNOCONE_UNKNOWN (fixes enum collision with SNOCONE_CALL/ARRAY_REF synthetic tokens)
+- `src/frontend/snocone/snocone_lex.c` — `//`/`/* */` comments; compound assignments in OP_TABLE; go/to removed from KW_TABLE
+
+**NOT done — next session completes in order:**
+
+1. Remove `go to` two-word handler block from `sc_do_stmt` in `emit_x64_snocone.c`:
+   ```c
+   /* ---- go to label  (two-word — backward compat) ---- */
+   if (k == SNOCONE_KW_GO) { ... }
+   ```
+   Delete this entire block.
+
+2. Delete superseded files:
+   ```bash
+   git rm src/frontend/snocone/snocone_lower.c
+   git rm src/frontend/snocone/snocone_lower.h
+   git rm src/frontend/snocone/snocone_cf.c
+   git rm src/frontend/snocone/snocone_cf.h
+   ```
+
+3. Build clean:
+   ```bash
+   cd /home/claude/one4all/src && make -j$(nproc) 2>&1
+   ```
+
+4. Gate 738/0:
+   ```bash
+   cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+   ```
+
+5. Targeted x86 invariants — expect no regressions:
+   ```bash
+   CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+   ```
+   Snocone crosscheck: expect 10/10.
+
+6. Commit M-SC-CONSOLIDATE:
+   ```bash
+   git add -A
+   git commit -m "SC-1: M-SC-CONSOLIDATE complete — emit_x64_snocone.c, goto/break/continue, C-style extensions"
+   git push
+   ```
+
+7. Create `tools/sc_convert.py` — end-user conversion: `go to`→`goto`, add `;`, `#`→`//`
+
+8. Begin corpus Partition A rung A01 (5 tests: hello/output) — see SESSION-snocone-x64.md §Partition A
+
+9. Update SESSION-snocone-x64.md §NOW, update PLAN.md SC row, push all repos.
+
+### Key facts for next session
+
+- Gate: **738/0** emit-diff
+- Snocone crosscheck baseline: **10/10**
+- `for` uses `;` separator — do not change
+- Compound assignment lhs must be simple E_VART for now — array/indirect lhs is future M-SC-COMPOUND-IDX
+- `isneg()` optimization not yet implemented — future M-SC-ISNEG
+- `FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash SESSION_SETUP.sh` — correct invocation
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: never displayed — `TOKEN_SEE_LON`
