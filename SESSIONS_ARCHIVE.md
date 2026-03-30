@@ -7114,3 +7114,61 @@ WASM artifacts (`.wat`) sit flat alongside `.s` / `.j` / `.il` in every crossche
 3. Write `test/run_wasm_corpus_rung.sh` rung test script
 4. Prove pipeline with hand-written `W01_hello_proof.wat` in corpus
 5. Then M-SW-1: `src/runtime/wasm/` memory layout + `sno_output_str/int/flush`
+
+---
+
+## SC-2 Session (2026-03-30, Claude Sonnet 4.6) — rungA04+A05, parser+emitter fixes
+
+**one4all** `3f5da0f` · **corpus** `6ed189c` · **.github** `(this commit)`
+
+### Completed this session
+
+**Policy updates (HQ):**
+- x86-only invariant policy codified in RULES.md — JVM/NET cells skipped all sessions
+- bison/flex not-needed documented (generated Rebus files already committed SC-1)
+- CSNOBOL4 download broken (snobol4.org redirects); Lon supplies tarball; build procedure documented
+- PLAN.md and SESSION-snocone-x64.md gate commands updated to x86-only
+
+**M-SC-A04 ✅ — rungA04 concat (&&) 5/5:**
+- Tests translate SNOBOL4 blank-concat → Snocone `&&` operator
+- No emitter work needed — `&&` already wired via E_CONCAT
+
+**Two bugs found and fixed for M-SC-A05:**
+
+1. **Parser: angle-bracket array ref `A<i>` not recognised** (`snocone_parse.c`)
+   - `<` was lexed as `SNOCONE_LT` (binary comparator), not as array subscript delimiter
+   - Fix: `IDENT + SNOCONE_LT` now opens a `FRAME_ARRAY` (mirrors `IDENT + LBRACKET`)
+   - `SNOCONE_GT` handler added: if top frame is `FRAME_ARRAY`, close it and emit `SNOCONE_ARRAY_REF`; otherwise treat as binary GT
+   - Comma drain stop-condition extended to include `SNOCONE_LT`
+   - Same fix mirrored in `parse_operand_into()`
+
+2. **Emitter: `SNOCONE_ARRAY_REF` built E_IDX incompatibly** (`emit_x64_snocone.c`)
+   - Was storing array name in `base->sval` with only index as `children[0]` (`nchildren==1`)
+   - `emit_x64.c` guard requires `nchildren >= 2`, uses `children[0]`=arr, `children[1]`=key
+   - Fix: keep `name_node` as `children[0]` E_VAR; append index children after → `nchildren = nargs+1 >= 2`
+   - Fixes both `A<i>` (angle-bracket) and `T['key']` (square-bracket table) in one change
+
+**M-SC-A05 ✅ — rungA05 data structures 5/5:**
+- A05_array_create (ARRAY + `<>` subscript)
+- A05_array_loop (ARRAY + while loop fill/read)
+- A05_table (TABLE + `[]` key access)
+- A05_data_define (DATA type create+access)
+- A05_data_field_set (DATA field mutation)
+
+### Gate (end-of-session)
+- **Emit-diff: 738/0 ✅**
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f** (pre-existing unchanged)
+
+### Key facts for next session
+- `A<i>` angle-bracket subscript now fully works (parser + emitter fixed)
+- `T['key']` table subscript works (same emitter fix)
+- DATA types work (were already fine — no goto, verbatim translation)
+- 25/25 total (A01–A05)
+- Next: rungA06 — strings (goto-free), look at `corpus/crosscheck/strings/` for SNOBOL4 sources
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+3. rungA06 — strings (goto-free) 5 tests from `corpus/crosscheck/strings/`
+4. rungA07 — strings (with goto) 5 tests — rewrite loops to `while`
+5. Fire M-SC-A07 after both pass; update invariant cell count

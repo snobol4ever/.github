@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-1 → SC-2 — M-SC-A01/A02/A03 complete (15/15); next M-SC-A04 (concat &&)
-**HEAD:** `f0ddef4` one4all · `149f48a` corpus
-**Next action:** rungA04 — concat (&&) 5 tests; rungA05 — data structures 5 tests; fire M-SC-A05 after both pass
+**Sprint:** SC-2 — M-SC-A04 ✅ M-SC-A05 ✅ (25/25); next M-SC-A06 (strings, goto-free)
+**HEAD:** `3f5da0f` one4all · `6ed189c` corpus
+**Next action:** rungA06 — strings (goto-free) 5 tests; see corpus/crosscheck/strings/ for source SNOBOL4
 
 **Session start — mandatory order, no exceptions:**
 
@@ -124,7 +124,7 @@ Translation rules:
 | M-SC-A02 | rungA02 | assignment | 5 | ✅ | Verbatim |
 | M-SC-A03 | rungA03 | arithmetic | 5 | ✅ | Verbatim |
 | M-SC-A04 | rungA04 | concat (`&&`) | 5 | ✅ | Blank concat → `&&` |
-| M-SC-A05 | rungA05 | data structures | 5 | ✅ | Verbatim |
+| M-SC-A05 | rungA05 | data structures | 5 | ✅ | array `<>`, table `[]`, DATA |
 | M-SC-A06 | rungA06 | strings (goto-free) | 5 | ✅ | Verbatim |
 | M-SC-A07 | rungA07 | strings (with goto) | 5 | ❌ | Rewrite loops to `while` |
 | M-SC-A08 | rungA08 | keywords (goto-free) | 4 | ✅ | Verbatim |
