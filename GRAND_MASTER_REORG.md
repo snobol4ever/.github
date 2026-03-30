@@ -168,33 +168,44 @@ the naming pass.
 **Rule:** after every sub-milestone, the full corpus for that backend must pass.
 A regression is immediately localizable to the one file just touched.
 
-**⚠ SCOPE CLARIFICATION (G-9 s21):** Each M-G3-NAME-* milestone is a **full naming law enforcement pass** on its file — not just Greek port spelling and not just function prefix renames. The law (ARCH-reorg-design.md §Naming Convention) requires:
-- Every function name → law-conformant prefix (`emit_<backend>_<frontend>_*`)
-- Every local variable → law name (`node`, `left`, `right`, `γ`, `ω`, `out`, etc.)
-- Every parameter name → law name
-- Every struct field name → law name
-- Every generated label format string → law name (Greek ports, `L<id>_α` etc.)
-- Every comment → no ASCII port spelling (`alpha`/`beta`/`gamma`/`omega` → Greek)
-- Every filename reference in comments → correct
+**SCOPE (G-9 s22 — full similarity-maximization):** Each M-G3-NAME-* milestone is a
+**similarity-maximization pass** on its file per ARCH-reorg-design.md §THE LAW.
+The goal: after all passes, diffing any two emitter files should show differences
+*only* in the output macro letter and platform-specific code sequences — not in
+naming. Every class of named thing (globals, functions, locals, parameters, generated
+labels, comments) must satisfy the 9-class law.
 
-**What G-9 s21 actually completed:**
-- Greek port ASCII→Greek sweep across all emitter C source files and generated output ✅ (committed `d0e5ea1`)
-- CSV reporting added to `run_emit_check.sh` and `run_invariants.sh` ✅
+**Concrete checklist for each file (all 9 classes):**
+1. **Class 3 globals** — strip spurious file-local prefixes (`jvm_out`→`out`, `net_out`→`out`, `jout`→`out`; `jvm_classname`→`classname`; `jvm_nvar`→`nvar`; `jvm_vars`→`vars`; `uid_ctr`/`ij_node_id`/`pj_label_counter`→`uid`; `next_uid`/`ij_new_id`/`pj_fresh_label`→`next_uid()`; `jvm_cur_fn`/`net_cur_fn`→`cur_fn`; `jvm_cur_stmt_fail_label`/`net_cur_stmt_fail_label`→`cur_stmt_fail`; `pj_prog`→`prog`; etc.)
+2. **Class 4 emit-function signatures** — `emit_<file-prefix>_<kind>(EXPR_t *node, const char *γ, const char *ω)`; no `IjPorts`/`IcnPorts` structs — replace with plain `γ`/`ω` params
+3. **Class 6 IR node locals** — `char a[64]`→`char α[LBUF]`, `char b[64]`→`char β[LBUF]`, `ports.γ`→`γ`, `ports.ω`→`ω`
+4. **Class 2 generated label formats** — `icn_%d_α`/`icon_%d_α` → `icn_%d_α` (unified); `pj_` prefixes in generated labels → `pl_`; `Jfn%d_return`→`sno_fn%d_return`; `Nfn%d_return`→`sno_fn%d_return`
+5. **Class 8 intermediate labels** — `<fe>_<id>_<role>` pattern (e.g. `sno_42_fail`, not `Nasgn42_skip`)
+6. **Class 9 function table** — `JvmFnDef`/`jvm_fn_table`/`jvm_fn_count`→`FnDef`/`fn_table`/`fn_count`; `NetFnDef`/`net_fn_table`/`net_fn_count`→same
+7. **Function names** — `emit_<kind>` for IR node emitters; helper fns use Class 3/9 roots
+8. **Comments** — no ASCII port spellings (`alpha`/`beta`/`gamma`/`omega` → Greek)
+9. **Verify** — build clean + full backend invariant suite green before commit
+
+**Completed:**
+- Greek port ASCII→Greek sweep across all emitter C source files and generated corpus output ✅ `d0e5ea1`
+- CSV reporting in `run_emit_check.sh` + `run_invariants.sh` ✅
 - `jvm_emit_*` → `emit_jvm_*` prefix in `emit_jvm.c` ✅
-- Invariant regression detected — recheck in progress (pre-existing float gaps vs. Greek-caused gaps not yet separated)
+- Invariant regression (Prolog JVM `rung21_char_type_alpha` ldc string) found + fixed ✅ `6d77c92`
+- All remaining invariant failures confirmed pre-existing ✅
 
-**What remains in Phase 3 (each is a full-file naming pass):**
+**Remaining (each is a full 9-class similarity pass):**
 
-| ID | File | What changes | Verify | Status |
-|----|------|-------------|--------|--------|
-| **M-G3-NAME-COMMON** ✅ | `ir_emit_common.c` | Verify only — written post-collapse, law-conformant | All corpus PASS | Done |
-| **M-G3-NAME-WASM** ✅ | `emit_wasm.c` | Verify only — scaffolded law-conformant | Builds clean | Done |
-| **M-G3-NAME-JVM** ⚠️ PARTIAL | `emit_jvm.c` | Greek ports ✅, `jvm_emit_*`→`emit_jvm_*` ✅, remaining local vars/labels/comments TBD | 106/106 JVM — recheck needed | Partial |
-| **M-G3-NAME-NET** | `emit_net.c` | Full pass: all function names, local vars, labels, comments → law | 110/110 NET | OPEN |
-| **M-G3-NAME-X64** | `emit_x64.c` | Full pass: introduce `E()` macro, all identifiers → law | x86 106/106 | OPEN |
-| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | Full pass: `emit_pl_*`/`emit_prolog_*` → `emit_x64_prolog_*`, all identifiers | Prolog x86 rungs PASS | OPEN |
-| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | Full pass: `ij_emit_*` → `emit_jvm_icon_*`, all identifiers (~7000 lines) | Icon JVM 38-rung | OPEN |
-| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | Full pass: `pj_emit_*` → `emit_jvm_prolog_*`, all identifiers (~8000 lines) | Prolog JVM 31/31 | OPEN |
+| ID | File | Lines | Key class-1 changes | Key class-2/3 label changes | Verify | Status |
+|----|------|-------|--------------------|-----------------------------|--------|--------|
+| **M-G3-NAME-COMMON** ✅ | `ir_emit_common.c` | ~small | Written law-conformant | n/a | All corpus PASS | Done |
+| **M-G3-NAME-WASM** ✅ | `emit_wasm.c` | ~46 | Written law-conformant | n/a | Builds clean | Done |
+| **M-G3-NAME-JVM** ⚠️ PARTIAL | `emit_jvm.c` | ~5000 | Greek ✅, `emit_jvm_*` ✅; `jvm_out`→`out`, `jvm_classname`→`classname`, `jvm_nvar`→`nvar`, `jvm_vars`→`vars`, `uid_ctr`→`uid`, `jvm_cur_fn`→`cur_fn`, `jvm_cur_stmt_fail`→`cur_stmt_fail`, `JvmFnDef`→`FnDef`, `jvm_fn_*`→`fn_*`; `char a`/`b`→`α`/`β`; `Jfn%d_`→`sno_fn%d_`  | `Jfn%d_return`→`sno_fn%d_return` | 106/106 JVM | Partial — classes 3/6/8/9 OPEN |
+| **M-G3-NAME-NET** | `emit_net.c` | ~2841 | `net_out`→`out`, `net_classname`→`classname`, `net_nvar`→`nvar`, `net_vars`→`vars`, `net_cur_fn`→`cur_fn`, `net_cur_stmt_fail`→`cur_stmt_fail`, `NetFnDef`→`FnDef`, `net_fn_*`→`fn_*`, `net_named_pat_*`→`named_pat_*`, `nc()`→helper; `Nfn%d_`→`sno_fn%d_`, `Nasgn%d_`→`sno_%d_` | `Nfn%d_return`→`sno_fn%d_return` | 110/110 NET | OPEN |
+| **M-G3-NAME-X64** | `emit_x64.c` | ~5400 | `uid_ctr`→`uid`, `next_uid()`✅(keep), `call_uid_ctr`→`call_uid`; `char a`/`b`→`α`/`β`; `vars`/`nvar`✅(already bare); label bufs `seq_l%d_α`/etc. already use Greek; `cur_fn`→`cur_fn`✅; introduce `EC()`/`ESep()` if absent | verify label bufs use `sno_` prefix for SNOBOL4 nodes | x86 106/106 | OPEN |
+| **M-G3-NAME-X64-PROLOG** | `emit_x64_prolog.c` | ~1931 | `A()`→`E()` (or alias); `emit_pl_*`/`emit_prolog_*`→`emit_x64_prolog_*`; `pl_compound_uid_ctr`→`uid`; `pl_safe`→`safe_name`; `pl_atom_*`→`atom_*`; `char a`/`b`→`α`/`β` | generated labels: `pl_<id>_α` pattern | Prolog x86 rungs PASS | OPEN |
+| **M-G3-NAME-X64-ICON** | `emit_x64_icon.c` | ~2635 | `ICN_OUT`→`E()`; `icn_new_id`→`next_uid()`; `ij_node_id` (n/a — x64 file); `user_procs`→`user_proc_table`; `register_user_proc`→`register_proc`; `IcnPorts`→plain `γ`/`ω` params; `char a`/`b`→`α`/`β`; `label_val`/`label_I`→`lbl_val`/`lbl_init` | `icon_%d_α`→`icn_%d_α` (unify with JVM) | Icon x86 38-rung | OPEN |
+| **M-G3-NAME-JVM-ICON** | `emit_jvm_icon.c` | ~8100 | `jout`→`out`; `ij_classname`→`classname`; `ij_node_id`→`uid`; `ij_new_id`→`next_uid()`; `ij_find_import`→`find_import`; `ij_set_classname`→`set_classname`; `IjPorts`→plain `γ`/`ω` params; `ij_user_procs`→`user_proc_table`; `ij_buf_*`→`buf_*`; `char a`/`b`→`α`/`β` | `icn_%d_α`✅ (already correct) | Icon JVM 38-rung | OPEN |
+| **M-G3-NAME-JVM-PROLOG** | `emit_jvm_prolog.c` | ~9970 | `pj_out`→`out`; `pj_classname`→`classname`; `pj_prog`→`prog`; `pj_label_counter`→`uid`; `pj_fresh_label`→`next_uid()`; `pj_set_classname`→`set_classname`; `pj_safe_name`→`safe_name`; `pj_atoms`→`atoms`; `pj_natoms`→`natom`; `pj_intern_atom`→`intern_atom`; `lbl_γ`/`lbl_ω` params→`γ`/`ω` | `pj_*` prefixes in generated labels→`pl_*` (e.g. `pj_ret%d_loop`→`pl_%d_loop`) | Prolog JVM 31/31 | OPEN |
 
 ---
 

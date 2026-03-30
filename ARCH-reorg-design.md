@@ -274,96 +274,259 @@ during Phases 3–5, not theoretically in advance.
 **The 45 nodes are the starting point. The reorg execution produces the final answer.**
 
 ### Naming Convention — THE LAW
+*Extended G-9 s22 to cover full similarity-maximization goal.*
 
-This convention applies **identically** in all emitter files and all six frontends.
-Every generated label, every C variable, every comment uses these names.
-No exceptions. No aliases. No abbreviations beyond those listed here.
+---
 
-**Greek ports — used everywhere without exception (C source, comments, generated output):**
+#### The Goal: Similarity Maximization
 
-| Port | C name | Generated label fragment | Meaning |
-|------|--------|--------------------------|---------|
-| α | `α` | `_α` | Fresh entry |
-| β | `β` | `_β` | Resume after downstream failure |
-| γ | `γ` | `_γ` | Success exit |
-| ω | `ω` | `_ω` | Failure exit |
+Every variable, function, generated label, local, global, parameter, and
+comment that represents **the same concept** must use **the same root name**
+across every emitter file and every frontend. The source files should look
+almost identical except for the parts that are uniquely specific to a
+language's syntax/semantics or a platform's code model.
 
-Greek letters are used **everywhere**: C variable names, C parameter names, struct
-field names, label string literals, comments. No ASCII spelling-out (`alpha`,
-`beta`, `gamma`, `omega`) anywhere. No `lbl_alpha`, no `lbl_gamma`. The Greek
-letter is the name.
+Differences that are **permitted** (they represent genuinely different things):
+- Language-specific semantic distinctions (Icon suspension vs SNOBOL4 cursors)
+- Platform code-model distinctions (JVM stack vs x86 registers)
+- Backend output-macro letter (`E`/`J`/`N`/`W`) — same concept, different letter because they must be distinct in a multi-backend translation unit
 
-**Greek ports — generated labels (in .asm / .j / .il output):**
+Differences that are **forbidden** (they represent the same concept):
+- `jvm_out` vs `net_out` vs `jout` vs `out` — all mean "the output file"
+- `jvm_classname` vs `ij_classname` vs `pj_classname` vs `net_classname` — all mean "the output class name"
+- `jvm_nvar` vs `net_nvar` vs `nvar` — all mean "number of registered variables"
+- `jvm_vars` vs `net_vars` vs `vars` — all mean "the variable registry"
+- `uid_ctr`/`next_uid` vs `ij_node_id`/`ij_new_id` vs `pj_label_counter`/`pj_fresh_label` — all mean "the unique-id counter and allocator"
+- `jvm_cur_fn` vs `net_cur_fn` vs `cur_fn` — all mean "the current function being emitted"
+- `jvm_cur_stmt_fail_label` vs `net_cur_stmt_fail_label` — same concept
+- `jvm_classname` init function vs `ij_set_classname` vs `pj_set_classname` vs `net_set_classname` — same concept
+- `icn_N_α`/`icn_N_β` (JVM Icon) vs `icon_N_α`/`icon_N_β` (x86 Icon) — same concept, different prefix spelling
+- `pj_` prefix inside JVM Prolog vs no prefix in x64 Prolog — same things, different naming regime
 
-| Backend | Alpha label | Beta label | Notes |
-|---------|-------------|------------|-------|
-| x86 | `P_<id>_α:` | `P_<id>_β:` | γ/ω are caller-supplied jumps |
+**The test:** If you could diff two emitter files and the only differences were
+the output macro letter and the platform-specific code sequences, the naming
+law is satisfied. Any diff line that differs *only in a name prefix or suffix*
+where both sides represent the same concept is a violation.
+
+---
+
+#### Naming partitions — the classes
+
+Variables are partitioned into **root-name equivalence classes** by concept.
+Within a single compiland (`emit_<backend>_<frontend>.c`), the root is
+morphed with a consistent prefix/suffix for subclassing (e.g. `cur_` for
+"currently active", `_count` for a count, `_reset` for a reset function).
+The morphing rules are uniform across all files.
+
+**Class 1 — Byrd-box ports (THE key example)**
+
+The four-port Byrd-box model is the central concept. The port names are used
+**identically everywhere** — C source, parameters, local variables, generated
+labels, and comments. No file-local variation is permitted.
+
+| Port | Root | C param/local | Generated label suffix | Meaning |
+|------|------|--------------|------------------------|---------|
+| α | `α` | `α` | `_α` | Fresh entry |
+| β | `β` | `β` | `_β` | Resume after downstream failure |
+| γ | `γ` | `γ` | `_γ` | Success exit (passed in) |
+| ω | `ω` | `ω` | `_ω` | Failure exit (passed in) |
+
+Greek letters are used **everywhere**: parameters, locals, struct fields,
+label literals, comments. No ASCII spelling-out (`alpha`, `beta`, `gamma`,
+`omega`) anywhere. The Greek letter IS the name. The Byrd-box is universal
+across all six frontends and all four backends — the name must be too.
+
+**Class 2 — Generated labels for α/β ports**
+
+| Backend | Alpha entry label | Beta resume label | Notes |
+|---------|-------------------|-------------------|-------|
+| x86 | `P_<id>_α` | `P_<id>_β` | γ/ω are caller-supplied jumps |
 | JVM | `L<id>_α` | `L<id>_β` | id = unique integer per node |
 | .NET | `L<id>_α` | `L<id>_β` | same scheme as JVM |
 
-**Node ID convention:** Every IR node gets a unique integer `id` assigned during
-the emit pass. Generated labels are always `L<id>_<port>` (JVM/.NET) or
-`P_<id>_<port>` (x64).
+Frontend-qualified node labels use the frontend prefix before the id:
+`sno_<id>_α`, `icn_<id>_α`, `pl_<id>_α` — prefix identifies the frontend,
+`_α`/`_β` suffix identifies the port. **All files use this exact scheme.**
+No `icon_` vs `icn_` inconsistency. No `pj_` vs `pl_` inconsistency.
 
-**C-side naming (emitter source code):**
+| Frontend | Label prefix | Example α label |
+|----------|-------------|-----------------|
+| SNOBOL4 | `sno_` | `sno_<id>_α` |
+| Icon | `icn_` | `icn_<id>_α` |
+| Prolog | `pl_` | `pl_<id>_α` |
+| Snocone | `sc_` | `sc_<id>_α` |
+| Rebus | `reb_` | `reb_<id>_α` |
 
-| Purpose | Name |
-|---------|------|
-| Current node being emitted | `node` |
-| Left child | `left` / `node->children[0]` |
-| Right child | `right` / `node->children[1]` |
-| Node unique id | `node->id` |
-| Alpha label string | `α` |
-| Beta label string | `β` |
-| Gamma label string (passed in) | `γ` |
-| Omega label string (passed in) | `ω` |
-| Emit function signature | `emit_<kind>(EXPR_t *node, const char *γ, const char *ω)` |
-| Output file | `out` (all backends) |
-| Output macro | `E(fmt, ...)` (x64) · `J(fmt, ...)` (JVM) · `N(fmt, ...)` (.NET) · `W(fmt, ...)` (WASM) |
-| Instruction emit helper | `EI(instr, ops)` · `JI(instr, ops)` · `NI(instr, ops)` · `WI(instr, ops)` |
-| Label definition helper | `EL(label, instr, ops)` · `JL(...)` · `NL(...)` · `WL(...)` |
+**Class 3 — Emitter module globals (same root, backend-letter morphing only)**
 
-**Runtime variable naming in generated code:**
+Every emitter file has the same set of module-level globals. The root name
+is fixed. Within a multi-frontend backend file (not yet the case but future-proof),
+a `<frontend>_` prefix is added. Within a single-frontend file the root
+stands alone (or with the single backend prefix if two backends are compiled
+together).
 
-| What | x64 symbol | JVM field | .NET field |
-|------|-----------|-----------|-----------|
-| SNOBOL4 variable `X` | `sno_var_X` (bss) | `sno_var_X` (static String) | `sno_var_X` (static string) |
+| Concept | Root | x86/SNOBOL4 | JVM/SNOBOL4 | .NET/SNOBOL4 | JVM/Icon | JVM/Prolog |
+|---------|------|-------------|-------------|--------------|----------|------------|
+| Output file pointer | `out` | `out` | `out` | `out` | `out` | `out` |
+| Class/module name | `classname` | *(n/a — x86 has no classname)* | `classname` | `classname` | `classname` | `classname` |
+| Variable registry | `vars` | `vars` | `vars` | `vars` | *(n/a)* | *(n/a)* |
+| Variable count | `nvar` | `nvar` | `nvar` | `nvar` | *(n/a)* | *(n/a)* |
+| Node UID counter | `uid` | `uid` | `uid` | `uid` | `uid` | `uid` |
+| UID allocator | `next_uid()` | `next_uid()` | `next_uid()` | `next_uid()` | `next_uid()` | `next_uid()` |
+| Current function def | `cur_fn` | `cur_fn` | `cur_fn` | `cur_fn` | *(n/a)* | *(n/a — prog root used)* |
+| Stmt fail label | `cur_stmt_fail` | `cur_stmt_fail` | `cur_stmt_fail` | `cur_stmt_fail` | *(n/a)* | *(n/a)* |
+| Fn return label | `fn_return` | `fn_return` | `fn_return` | `fn_return` | *(n/a)* | *(n/a)* |
+| Fn fail-return label | `fn_freturn` | `fn_freturn` | `fn_freturn` | `fn_freturn` | *(n/a)* | *(n/a)* |
+| Program root | `prog` | `prog` | `prog` | `prog` | `prog` | `prog` |
+| Set-classname fn | `set_classname()` | *(n/a)* | `set_classname()` | `set_classname()` | `set_classname()` | `set_classname()` |
+| Fn table | `fn_table` | `fn_table` | `fn_table` | `fn_table` | *(n/a)* | *(n/a)* |
+| Fn table count | `fn_count` | `fn_count` | `fn_count` | `fn_count` | *(n/a)* | *(n/a)* |
+
+**Morphing rule for file-scoped disambiguation:** When two emitter `.c` files
+are compiled into the same translation unit, each global gets the backend prefix
+(`jvm_`, `net_`, `x64_`, `wasm_`) to avoid link-time collision. In standalone
+files (current architecture — one TU per backend+frontend), no prefix is needed:
+`out`, `uid`, `cur_fn`, etc. stand unadorned. **The current architecture is
+standalone files; no prefix is needed now.** Remove existing spurious prefixes
+(`jvm_out` → `out`, `net_out` → `out`, `jout` → `out`, etc.) as part of the
+M-G3-NAME-* passes.
+
+**Class 4 — Emit-function signatures**
+
+All emit functions for IR nodes follow the same signature pattern:
+
+```c
+static void emit_<kind>(EXPR_t *node, const char *γ, const char *ω)
+```
+
+- `node` — the IR node being emitted (always `node`)
+- `γ` — success continuation label (always `γ`)
+- `ω` — failure continuation label (always `ω`)
+- Return type always `void`
+- Local α/β label strings declared as `char α[LBUF]`, `char β[LBUF]`
+
+No `ports` structs, no `IjPorts`, no `IcnPorts` — γ and ω are plain `const char *`
+parameters, consistent with `emit_x64.c` (the oracle). Existing `IjPorts` /
+`IcnPorts` structs in `emit_jvm_icon.c` / `emit_x64_icon.c` are replaced with
+plain `const char *γ, const char *ω` parameters in the M-G3-NAME-JVM-ICON /
+M-G3-NAME-X64-ICON passes.
+
+**Class 5 — Output macros (backend-letter subclassing)**
+
+Output macros share identical semantics; the letter is the only difference
+(required for multi-backend TU safety):
+
+| Backend file | Raw output | Instruction | Labelled instruction | Comment | Separator |
+|---|---|---|---|---|---|
+| `emit_x64.c` | `E(fmt,...)` | `EI(op,ops)` | `EL(lbl,op,ops)` | `EC(txt)` | `ESep(tag)` |
+| `emit_jvm.c` | `J(fmt,...)` | `JI(op,ops)` | `JL(lbl,op,ops)` | `JC(txt)` | `JSep(tag)` |
+| `emit_net.c` | `N(fmt,...)` | `NI(op,ops)` | `NL(lbl,op,ops)` | `NC(txt)` | `NSep(tag)` |
+| `emit_wasm.c` | `W(fmt,...)` | `WI(op,ops)` | `WL(lbl,op,ops)` | `WC(txt)` | `WSep(tag)` |
+| `emit_jvm_icon.c` | `J(fmt,...)` | `JI(op,ops)` | `JL(lbl)` *(label-only)* | `JC(txt)` | — |
+| `emit_jvm_prolog.c` | `J(fmt,...)` | `JI(op,ops)` | `JL(lbl,op,ops)` | `JC(txt)` | `JSep(tag)` |
+| `emit_x64_icon.c` | `E(fmt,...)` via `em->out` | `EI`/`Ldef`/`Jmp` | — | — | — |
+| `emit_x64_prolog.c` | `A(fmt,...)` | — | — | — | — |
+
+**Law:** All frontend-specific emitters within the same backend family use the
+same output macro letter as the SNOBOL4 oracle for that backend. `emit_jvm_icon.c`
+uses `J`. `emit_x64_icon.c` uses `E` (or a thin wrapper that calls `fprintf(em->out,…)`
+which is equivalent). `emit_x64_prolog.c` uses `A` — this is a legacy name;
+the M-G3-NAME-X64-PROLOG pass renames it to `E` (via the `IcnEmitter` struct
+approach or direct `out` global, whichever is cleaner).
+
+**Class 6 — IR node locals**
+
+Inside any `emit_<kind>` function:
+
+| Local | Root | Meaning |
+|-------|------|---------|
+| `node` | `node` | current IR node |
+| `left` | `left` | `node->children[0]` |
+| `right` | `right` | `node->children[1]` |
+| `id` | `id` | unique integer id for this node's labels |
+| `α` | `α` | char buf for α label string, `char α[LBUF]` |
+| `β` | `β` | char buf for β label string, `char β[LBUF]` |
+
+No `char a[64]`, no `char b[64]`. These are `α` and `β`. No `lα`, `lβ`.
+
+**Class 7 — Generated runtime symbols (same across all backends)**
+
+| Concept | Symbol root | x86 form | JVM/NET form |
+|---------|------------|----------|--------------|
+| SNOBOL4 variable X | `sno_var_` | `sno_var_X` (bss label) | `sno_var_X` (static field) |
 | Subject string | `sno_subject` | `sno_subject` | `sno_subject` |
-| Cursor position | `sno_cursor` | `sno_cursor` (static long) | `sno_cursor` (static int32) |
+| Cursor position | `sno_cursor` | `sno_cursor` | `sno_cursor` |
 | Subject length | `sno_sublen` | `sno_sublen` | `sno_sublen` |
-| Keyword `&STLIMIT` | `sno_kw_STLIMIT` | `sno_kw_STLIMIT` | `sno_kw_STLIMIT` |
-| Keyword `&STCOUNT` | `sno_kw_STCOUNT` | `sno_kw_STCOUNT` | `sno_kw_STCOUNT` |
+| Keyword STLIMIT | `sno_kw_STLIMIT` | `sno_kw_STLIMIT` | `sno_kw_STLIMIT` |
+| Keyword STCOUNT | `sno_kw_STCOUNT` | `sno_kw_STCOUNT` | `sno_kw_STCOUNT` |
 | Icon failed flag | `icn_failed` | `icn_failed` | `icn_failed` |
 | Icon suspended flag | `icn_suspended` | `icn_suspended` | `icn_suspended` |
 | Icon return value | `icn_retval` | `icn_retval` | `icn_retval` |
 | Prolog trail top | `pl_trail_top` | `pl_trail_top` | `pl_trail_top` |
 
-**Output macro — law addition (M-G0-SIL-NAMES):**
+**Class 8 — Function-scope intermediate labels**
 
-`ICN_OUT(em, fmt, ...)` — write macro for `icon_emit.c` (Icon x64 backend).
-Distinct from `E(fmt, ...)` (SNOBOL4/x64 instruction output). The distinction
-is necessary because both files may be compiled together after Phase 2
-restructuring. `ICN_OUT` is the law; do not use bare `E()` in `icon_emit.c`.
+Intermediate labels within a single emit function that do not map to α/β ports
+follow this pattern: `<frontend>_<id>_<role>` where `<role>` is a short
+descriptive word. The frontend prefix must match Class 2 (i.e. `sno_`, `icn_`,
+`pl_`). No file-local pseudo-prefixes like `Jfn`, `Nfn`, `jvm_fn`, `pj_` in
+the generated output. Generated function-body labels:
 
-**EKind alias bridges — law addition (M-G0-SIL-NAMES):**
+| Concept | Pattern | Example |
+|---------|---------|---------|
+| Fn return label | `<fe>_fn<id>_return` | `sno_fn3_return` |
+| Fn fail-return label | `<fe>_fn<id>_freturn` | `sno_fn3_freturn` |
+| Stmt-local fail label | `<fe>_<id>_fail` | `sno_42_fail` |
+| Loop top | `<fe>_<id>_loop` | `icn_7_loop` |
+| Loop done | `<fe>_<id>_done` | `icn_7_done` |
+| Conditional mid | `<fe>_<id>_mid` | `sno_12_mid` |
 
-During Phase 1 (M-G1-IR-HEADER-WIRE), `scrip-cc.h` receives `#define` aliases
-mapping old names to canonical `ir.h` names (e.g. `#define E_VART E_VAR`).
-These aliases exist only for compilation compatibility. They are removed
-in Phase 5 when all frontends are updated to use canonical names.
+**Class 9 — Function registration tables (same root, no prefix)**
 
-**`stmt_` prefix — runtime C shim functions (confirmed law):**
+| Concept | Root name |
+|---------|-----------|
+| Fn definition struct type | `FnDef` |
+| Fn table array | `fn_table` |
+| Fn table count | `fn_count` |
+| Current fn pointer | `cur_fn` |
+| Find fn by name | `find_fn()` |
 
-`stmt_init`, `stmt_get`, `stmt_set`, `stmt_concat`, `stmt_any_ptr`, etc.
-The `stmt_` prefix scopes all C runtime shim functions called from x86
-macros. Not to be confused with SIL's `STMT` (statement number field). Do
-not use `stmt_` for any non-shim function.
+JVM had `JvmFnDef`/`jvm_fn_table`/`jvm_fn_count`/`jvm_cur_fn`/`jvm_find_fn`.
+NET had `NetFnDef`/`net_fn_table`/`net_fn_count`/`net_cur_fn`/`net_find_fn`.
+Both become `FnDef`/`fn_table`/`fn_count`/`cur_fn`/`find_fn` — same concept,
+same name, no spurious prefix (files are standalone TUs; no collision risk).
 
-**`_fn` suffix — engine-level SIL-derived function names (confirmed law):**
+---
 
-`VARVAL_fn`, `STRCONCAT_fn`, `NV_GET_fn`, etc. The `_fn` suffix appended to
-SIL procedure names avoids clashes with SNOBOL4 source-language identifiers.
-All engine-level functions derived from SIL proc names use this suffix.
+#### Pre-existing law additions (unchanged)
+
+**`ICN_OUT(em, fmt, ...)` — M-G0-SIL-NAMES:**
+Write macro for `emit_x64_icon.c`. Distinct from `E(fmt,...)` only where both
+files share a TU. In the current standalone architecture this can be unified
+to `E` in M-G3-NAME-X64-ICON.
+
+**EKind alias bridges — M-G0-SIL-NAMES:**
+`scrip-cc.h` `#define` aliases for old→canonical names. Removed in Phase 5.
+
+**`stmt_` prefix — runtime C shim functions:**
+`stmt_init`, `stmt_get`, `stmt_set`, etc. Scopes x86 runtime shim functions.
+Not an emitter concept — unchanged.
+
+**`_fn` suffix — engine-level SIL-derived names:**
+`VARVAL_fn`, `STRCONCAT_fn`, etc. Unchanged.
+
+---
+
+#### Summary: what changes in M-G3-NAME-* passes
+
+Every M-G3-NAME-* pass is a **full-file similarity pass**, not just function
+prefix renames. For each file the pass must:
+
+1. **Globals:** rename to Class 3 roots (strip spurious `jvm_`/`net_`/`ij_`/`pj_` prefixes)
+2. **Function names:** rename to `emit_<file-prefix>_<kind>` pattern; helper functions use Class 9 roots
+3. **Local variables:** rename `char a[64]`→`char α[LBUF]`, `char b[64]`→`char β[LBUF]`, ports struct fields → plain `γ`/`ω` params
+4. **Generated labels:** ensure Class 2 and Class 8 patterns (frontend prefix + `_α`/`_β`)
+5. **Comments:** no ASCII port spellings (`alpha`/`beta`/`gamma`/`omega` → `α`/`β`/`γ`/`ω`)
 
 ---
 
