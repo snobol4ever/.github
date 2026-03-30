@@ -6135,3 +6135,52 @@ Expect **738/0**. (Note: gate now requires `CORPUS=` env var — always pass it.
 - If criteria met: tag `post-reorg`, unfreeze all sessions.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 20 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `83fed63` (tag: `post-reorg-baseline`) · **.github** pending · **corpus** `8e8c134`
+
+### Completed this session
+
+**SESSION_SETUP.sh bison/flex fix** — `bison` and `flex` missing from apt_install block; scrip-cc build was failing in fresh environments with `make: bison: No such file or directory`. Added both. `.github` `63a0894`.
+
+**JVM harness fix** — `run_crosscheck_jvm_rung.sh` used stdout redirect (`> jfile`) but scrip-cc with a file arg routes to gcc-style output (derived filename), not stdout. Fixed to use `-o "$jfile"`. This was producing "empty source file" jasmin errors, making all 16 previously-reported JVM failures appear as infra failures.
+
+**JVM float format (sno_fmt_double)** — `E_FLIT` literals emit `"5."` (CSNOBOL4 convention) but all 5 arithmetic whole-number result paths used `jvm_l2sno()` → `Long.toString()` → `"5"`. Mismatch broke `differ` comparisons. Fixed: new `sno_fmt_double(D)String` helper method emitted per-class; all 5 sites (E_ADD/SUB/MPY/EXPOP whole path, E_MNS, E_DIV float path, `neg()`, `abs()`) now call `jvm_d2sno()` → `sno_fmt_double`. Fixes rung4 `412_arith_real`, `413_arith_mixed`.
+
+**JVM CONVERT** — only `'ARRAY'` type was handled; `'integer'`/`'real'`/`'string'` fell through to unrecognised stub. Added static dispatch for all three. Fixes rung9 `910_convert`.
+
+**JVM E_NAM value-context** — `$.bal` parses as `E_INDR(E_NAM("bal"))`. `E_NAM` had no case in `jvm_emit_expr`, emitting nothing → `sno_indr_get("")`. Added case that pushes name string literal for use by `E_INDR`. Fixes `210_indirect_ref` `$.var` sub-test.
+
+**33 JVM baselines regenerated** in corpus (arith format `"N."` not `"N.0"`). Gate: **738/0** ✅.
+
+**M-G7-STYLE-DOC** ✅ — `doc/STYLE.md` written from codebase survey (emit_x64.c reference). 4-space indent, K&R braces, COL_W/COL2_W/COL_CMT constants, naming conventions, function header format. one4all `22a8c43`.
+
+**M-G7-STYLE-BACKENDS/FRONTENDS/IR** ✅ — Only real violation: 4 `//` line comments in `emit_net.c` `net_indr_set` helper. Converted to `/* */`. All other `//` occurrences inside block-comment pseudo-code. No tabs anywhere. one4all `83fed63`.
+
+**M-G7-UNFREEZE** ✅ — All 8 criteria met. Confirmed: Scrip is product name / polyglot dispatcher, not a 6th frontend; `one4all` has 5 frontend dirs + 4 active backend dirs + 1 dead `c/`. Tag `post-reorg-baseline` on one4all `83fed63`. All sessions unfrozen in PLAN.md.
+
+### Context note
+Session ran to ~55% context. JVM OPSYN gap (optional, from s18/s19) not started — still deferred.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+
+**Step 1 — Gate:**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+```
+Expect **738/0**.
+
+**Step 2 — Grand Master Reorg is COMPLETE.** Sessions are unfrozen. Each session resumes from its pre-reorg HEAD listed in PLAN.md NOW table. The G-session is done.
+
+**Step 3 (optional) — snobol4_jvm OPSYN gap** still open if desired:
+- `emit_jvm.c` ~100 lines: OPSYN call-site handler + dynamic dispatch on `jvm_find_fn` miss
+- `SnoRuntime.java` ~80 lines: alias table
+- Verify: snobol4_jvm failures drop from 16 toward 0
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

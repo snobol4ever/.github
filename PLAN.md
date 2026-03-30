@@ -57,29 +57,29 @@ cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail
 
 Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
 
-**🔒 ALL SESSIONS FROZEN — Grand Master Reorganization in progress. Resume post M-G7-UNFREEZE.**
+**🔓 ALL SESSIONS UNFROZEN — M-G7-UNFREEZE fired G-9 s20. Resume from pre-reorg HEADs below.**
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s19 — M-G5-LOWER-SNOCONE-FIX ✅ M-G5-LOWER-REBUS-FIX ✅; gate restored 738/0 | `9a3ac41` one4all · `.github` pending · `8ecee15` corpus | **snobol4_jvm OPSYN gap (optional) → M-G7-UNFREEZE** |
-| **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
-| **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
-| **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
-| **TINY NET** | [FROZEN N-253 `e7dc859`] | — | resume post-reorg |
-| **TINY JVM** | [FROZEN J-216 `a74ccd8`] | — | resume post-reorg |
-| **TINY frontend** | [FROZEN F-223 `b4507dc`] | — | resume post-reorg |
-| **DOTNET** | [FROZEN D-164 `e1e4d9e`] | — | resume post-reorg |
-| **README** | [FROZEN R-2 `00846d3`] | — | resume post-reorg |
-| **ICON x64** | [FROZEN IX-18 `c648df5`] | — | resume post-reorg |
-| **Prolog JVM** | [FROZEN PJ-84a `a79906e`] | — | resume post-reorg |
-| **Prolog x64** | [FROZEN PX-1 `a051367`] | — | resume post-reorg |
-| **Icon JVM** | [FROZEN IJ-58 `5b32daa`] | — | resume post-reorg |
-| **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
-| **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
+| **⚠ GRAND MASTER REORG** | G-9 s20 — M-G7-UNFREEZE ✅; tag `post-reorg-baseline`; gate 738/0 | `83fed63` one4all · `8e8c134` corpus · `.github` pending | **COMPLETE — post-reorg work per M-G8** |
+| **⭐ Scrip Demo** | SD-37 `795c2ff` | resume | next SD milestone |
+| **🌳 Parser pair** | PP-1 `4b4d71a` | resume | next PP milestone |
+| **TINY backend** | B-292 `acbc71e` | resume | next B milestone |
+| **TINY NET** | N-253 `e7dc859` | resume | next N milestone |
+| **TINY JVM** | J-216 `a74ccd8` | resume | next J milestone |
+| **TINY frontend** | F-223 `b4507dc` | resume | next F milestone |
+| **DOTNET** | D-164 `e1e4d9e` | resume | next D milestone |
+| **README** | R-2 `00846d3` | resume | next R milestone |
+| **ICON x64** | IX-18 `c648df5` | resume | next IX milestone |
+| **Prolog JVM** | PJ-84a `a79906e` | resume | next PJ milestone |
+| **Prolog x64** | PX-1 `a051367` | resume | next PX milestone |
+| **Icon JVM** | IJ-58 `5b32daa` | resume | next IJ milestone |
+| **🔗 LINKER** | LP-6 `e7dc859` | resume | next LP milestone |
+| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | resume | next LP-JVM milestone |
 
-**Invariants (frozen baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
+**Invariants (post-reorg baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
 
-**Gate invariants (RETIRED G-9 s18):** Final 3×3 matrix counts recorded in `GRAND_MASTER_REORG.md` M-G-INV-FAST-X86-FIX ✅. All failures confirmed pre-existing non-regressions. Invariant suite no longer run as session gate — emit-diff only.
+**Gate:** emit-diff only — `CORPUS=/home/claude/corpus bash test/run_emit_check.sh` → expect **738/0**. Invariant suite retired as session gate (G-9 s18).
 
 ---
 
@@ -113,14 +113,20 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 19 — Final state (2026-03-30, Claude Sonnet 4.6)
+## G-9 Session 20 — Final state (2026-03-30, Claude Sonnet 4.6)
 
-**one4all** `9a3ac41` · **.github** pending · **harness** `aede157` · **corpus** `8ecee15`
+**one4all** `83fed63` (tag: `post-reorg-baseline`) · **.github** pending · **corpus** `8e8c134`
 
 ### Completed this session
-- **Emit-diff gate restored** — broken since corpus migration (f9fbf15). run_emit_check.sh now uses CORPUS env var. Gate: **738/0** ✅
-- **M-G5-LOWER-SNOCONE-FIX** ✅ — removed asm_mode gate on snocone_cf_compile. one4all `099737e`
-- **M-G5-LOWER-REBUS-FIX** ✅ — rebus_lower.c (RE_*→EKind + RS_*→STMT_t), -reb flag, Makefile bison/flex rules, 3×3 baselines in corpus. one4all `9a3ac41` · corpus `8ecee15`
+- **SESSION_SETUP.sh** — added `bison`/`flex` to apt_install block. `.github` `63a0894`
+- **JVM harness fix** — `run_crosscheck_jvm_rung.sh` stdout→`-o` flag
+- **JVM float format** — `sno_fmt_double` helper; whole doubles now `"N."` not `"N.0"`. 5 arithmetic sites fixed
+- **JVM CONVERT** — added `integer`/`real`/`string` static dispatch (was ARRAY-only)
+- **JVM E_NAM** — value-context case added: pushes name string for `$.var` indirect
+- **33 JVM baselines** regenerated in corpus. Gate: **738/0** ✅
+- **M-G7-STYLE-DOC** ✅ — `doc/STYLE.md` written. one4all `22a8c43`
+- **M-G7-STYLE-BACKENDS/FRONTENDS/IR** ✅ — `//` comments in `emit_net.c` fixed. one4all `83fed63`
+- **M-G7-UNFREEZE** ✅ — all 8 criteria met. Tag `post-reorg-baseline`. All sessions unfrozen.
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
