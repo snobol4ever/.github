@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s29 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `ad0e869` one4all · `ba3fe80` corpus | M-SC-A16: rungA16 existing SC crosscheck (~10 tests) |
-| **SNOBOL4 WASM** | SW-2 — M-SW-A02 ✅ | `8aff622` one4all · `7a88f12` corpus | **M-SW-A03: CONCAT** rung3/ 3 tests |
+| **SNOBOL4 WASM** | SW-3 — M-SW-A03 ✅ | `093d25e` one4all · `e61c0d2` corpus | **M-SW-A04: VARS+KEYWORDS** rung2/ 3 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
@@ -74,7 +74,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `9/9` (SW-2 M-SW-A02)
+**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `12/12` (SW-3 M-SW-A03)
 
 **Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
 
