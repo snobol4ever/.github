@@ -7785,3 +7785,89 @@ This was a planning + scaffold session. No regressions. Gate: **738/0** ✅.
 **Run `prolog_wasm` cell ONLY. Never run x86, JVM, snobol4_wasm, or icon_wasm cells.**
 The `prolog_wasm` cell doesn't exist in `run_invariants.sh` yet — create it at M-PW-HELLO.
 
+
+---
+
+## IW-1 — Icon × WASM Scaffold (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `5736907` · **corpus** unchanged · **.github** `73e018c`
+
+### Session type
+IW (Icon × WASM). Session prefix `IW`. Owns `icon_wasm` invariant cell.
+
+### Reference material absorbed this session
+- `Simple_Translation_of_Goal_Directed_Evaluation.pdf` — Proebsting 1996 §4.1–4.5: four-port templates for every Icon operator (literal, unary, binary, `to`, `if`, `every`, function call)
+- `ByrdBox/test_icon-4.py` — **direct WAT structural blueprint**: each Python `def f(): return g` maps 1:1 to WAT `(func $f (result i32) return_call $g)`. Generator state (global `to1_I`) maps to WASM linear memory slot.
+- `ByrdBox/byrd_box.py genc()` — flat-goto C oracle confirming all node wirings
+- `jcon-master/tran/irgen.icn` — complete authoritative four-port wiring for every Icon AST node (every, alt, toby, scan, if, while, until, repeat, suspend, break, case, …)
+- `jcon-master/tran/ir.icn` — complete IR vocabulary (ir_Tmp, ir_TmpLabel, ir_MoveLabel, ir_IndirectGoto, ir_Succeed, ir_ResumeValue, ir_ScanSwap, …)
+- `icon-master.zip` — reference Icon source
+
+### Completed this session
+
+**M-IW-SCAFFOLD ✅**
+- `src/backend/emit_wasm_icon.c` — scaffold with full structural commentary; all ICN_* nodes recognised; Tier-0 emitters documented (ICN_INT, ICN_TO, ICN_EVERY, ICN_ALT, ICN_LT/relops, ICN_ADD/arith, ICN_CALL(write)); generator-state memory at `ICON_GEN_STATE_BASE = 0x10000`; all nodes emit stub-fail per RULES.md §FRONTEND/BACKEND SEPARATION
+- `src/backend/emit_wasm_icon.h` — public interface (`emit_wasm_icon_node`, `emit_wasm_icon_globals`, `is_icon_node`, `emit_wasm_icon_set_out`)
+- `src/Makefile` — `emit_wasm_icon.c` added to `BACKEND_WASM`
+- `test/run_invariants.sh` — `run_icon_wasm()` function added; dispatched in serial block; removed from hardcoded SKIP list; added to OVERALL_FAIL loops
+- `SESSION-icon-wasm.md` — full HQ session doc: §NOW, §BUILD, §TEST GATE, §ARCHITECTURE (oracle chain, WAT blueprint, port-name table, generator state memory, shared-node boundary), §MILESTONE TABLE (M-IW-SCAFFOLD through M-IW-PARITY ~30 milestones), §KEY FILES, §SESSION START
+- `RULES.md` — `icon × wasm` and `prolog × wasm` rows added to own-backend invariant table (verbose "do NOT run" form)
+- `PLAN.md` — IW-1 row added to NOW table; invariant baseline updated
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✅**
+- **icon_wasm: 23p/235f** — live cell (was SKIP); 23 passing = .xfail entries; 235 failing = stub-fail (expected — scaffold state). No regressions vs pre-session baseline.
+- Build: clean (`emit_wasm_icon.o` compiled and linked)
+
+### Concurrent session note
+A concurrent IW+PW session committed `emit_wasm_icon.c` and `emit_wasm_prolog.c` to `origin/main` during this session (commit `80fff2c` / `8267ef5`). Our local file matched their committed version exactly — no conflict in one4all. The `.github` RULES.md had a minor conflict on the `prolog × wasm` row (short vs verbose form); resolved in favour of the verbose "do NOT run" form for consistency with `icon × wasm`.
+
+### Next session execution order (IW-2)
+
+```bash
+# Step 1 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 2 — setup (icon × wasm)
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 3 — gate (own cell ONLY)
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                  # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm        # expect 23p/235f (scaffold baseline)
+
+# Step 4 — read HQ docs
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md    # this entry — FIRST
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+
+# Step 5 — begin M-IW-A01
+```
+
+### M-IW-A01 blueprint (next milestone)
+
+Goal: rung01 hello/write tests pass. Requires wiring the full recursive dispatch in `emit_wasm_icon_node()` for:
+- `ICN_INT` — emit `$iconN_start` (store i64 literal to global, return_call succ) + `$iconN_resume` (return_call fail)
+- `ICN_VAR` — load from variable table; for rung01 only `write()` arg is needed so can start with integer path
+- `ICN_PROC` / `ICN_CALL(write)` — procedure entry; write() calls `$sno_output_int` then newline
+- `ICN_EVERY` — start→E.start; E.fail→every.fail; E.succeed→body.start; body.done→E.resume
+- `ICN_RETURN` / `ICN_FAIL` — procedure exit
+
+Key oracle reference for M-IW-A01:
+- `test_icon-4.py` lines for `write1_*`, `greater_*`, `mult_*` — full wired example
+- `byrd_box.py genc() case 'WRITE'` — write node wiring template
+- `irgen.icn ir_a_ProcBody` — procedure body sequencing
+
+The full recursive dispatch pattern (walking IcnNode tree, threading α/β names down through children) needs to be built in `emit_wasm_icon_node()`. The individual emitter functions (`emit_icn_int`, `emit_icn_to`, etc.) are already written correctly — they just need to be called with the right child node names as arguments.
+
+### Architecture reminders for IW-2
+
+- **Shared runtime**: programs import from `"sno"` namespace (same as SNOBOL4 WASM); `$sno_output_int`, `$sno_output_str`, `$sno_str_concat` etc. already available
+- **Generator state memory**: `ICON_GEN_STATE_BASE = 0x10000` (64KB), slots of 64 bytes each, allocated by `icon_alloc_gen_slot()`
+- **Node-value globals**: `$icn_int0..$icn_int63` (i64), `$icn_flt0..$icn_flt15` (f64) — declared by `emit_wasm_icon_globals()`, must be called from `emit_wasm.c` before function section
+- **No auto-semicolon**: Icon source in corpus uses explicit semicolons; `icon_lex.c` line 4 confirms
+- **`.expected` not `.ref`**: Icon corpus uses `rung*.expected` (not `.ref` like SNOBOL4 crosscheck)
+- **Session prefix IW**, not I (Icon×x86) or IJ (Icon×JVM)
