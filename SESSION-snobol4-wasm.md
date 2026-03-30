@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-1 — toolchain/scaffold | `db6219c` one4all (emit_wasm.c scaffold) | **M-SW-0: TOOLCHAIN** |
+| **SNOBOL4 WASM** | SW-1 — runtime stub | `645f402` one4all · `44af7e8` corpus | **M-SW-1: RUNTIME-STUB** |
 
 ---
 
@@ -47,7 +47,7 @@ Skips: `nasm libgc-dev java javac mono ilasm icont swipl`
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # always — 738/0
 CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh W01 # per-rung during session
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # once rung added
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # wasm session: own cell only
 ```
 
 **Node WASM runner** (`test/wasm/run_wasm.js` — created M-SW-0):
@@ -454,7 +454,7 @@ FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESS
 # Step 2 — gate
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # wasm session: own cell only
 
 # Step 3 — read in order
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md

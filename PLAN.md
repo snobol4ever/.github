@@ -16,8 +16,8 @@ See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 **Step 2 — Gate:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                                    # expect 738/0+
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86   # x86 only (see RULES.md)
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                   # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>     # own backend only — see RULES.md
 ```
 
 **Step 3 — Read in order:**
@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s26 | one4all `f0ddef4` · corpus `06419f3` · .github this session | **M-G5-LOWER-ICON-FIX** G2/G1/G7 remaining → then **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `3f5da0f` one4all · `080d51a` corpus | M-SC-A10: rungA10 capture (goto-free) |
-| **SNOBOL4 WASM** | SW-1 | `db6219c` one4all · `9afbd15` .github | M-SW-0: TOOLCHAIN (wat2wasm + node runner) |
+| **SNOBOL4 WASM** | SW-1 | `645f402` one4all · `62f2d8f` corpus | M-SW-1: RUNTIME-STUB |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
