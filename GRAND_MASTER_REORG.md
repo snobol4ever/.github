@@ -348,7 +348,7 @@ No logic changes.
 | **M-G7-STYLE-BACKENDS** ✅ | Apply style to all backend files. | Only violation: 4 `//` line comments in `emit_net.c` — converted to `/* */`. Gate 738/0 ✅. one4all `83fed63` G-9 s20 |
 | **M-G7-STYLE-FRONTENDS** ✅ | Apply style to all frontend files. | Audit clean — no violations found in frontend files. G-9 s20 |
 | **M-G7-STYLE-IR** ✅ | Apply style to `src/ir/`. | Audit clean — `ir_emit_common.c` `//` is inside a block-comment example. Builds clean. G-9 s20 |
-| **M-G7-UNFREEZE** | Lift concurrent-development freeze. Tag `post-reorg-baseline-2` in one4all + push. Update PLAN.md: all FROZEN rows → resume status. Update this file: M-G7-UNFREEZE ✅. Push .github. | `git tag post-reorg-baseline-2` exists on remote; PLAN.md freeze notice removed; all session rows show resume ✅ |
+| **M-G7-UNFREEZE** ✅ | Lift concurrent-development freeze. Tag `post-reorg-baseline-2` in one4all + push. Update PLAN.md: all FROZEN rows → resume status. Update this file: M-G7-UNFREEZE ✅. Push .github. | `post-reorg-baseline-2` pushed one4all G-9 s24. PLAN.md resume status confirmed. All session rows unfrozen. |
 
 ---
 
@@ -359,7 +359,7 @@ internal consistency of the compiler source. Fire opportunistically.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G9-ALIAS-CLEANUP** | Replace all `IR_COMPAT_ALIASES` usage in backend switch cases with canonical `EKind` names. Specifically: `E_VART→E_VAR`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_NULV→E_NUL`, `E_ASGN→E_ASSIGN`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`, `E_ALT_GEN→E_GENALT`, `E_ARY→E_IDX`. Affects: `emit_x64.c`, `emit_jvm.c`, `emit_net.c`. After cleanup, remove `#define IR_COMPAT_ALIASES` from all consumers. The alias block in `ir.h` may then be deleted or kept for external consumers only. | Gate 738/0 ✅; all 7 invariant cells unchanged; `grep -r "E_VART\|E_OR\b\|E_MNS\|E_EXPOP\|E_NAM\b\|E_DOL\b\|E_ATP\|E_NULV\|E_ASGN\|E_SCAN\b\|E_BANG\b\|E_ALT_GEN\|E_ARY\b" src/backend/` returns zero hits |
+| **M-G9-ALIAS-CLEANUP** ✅ | Replace all `IR_COMPAT_ALIASES` usage in backend switch cases with canonical `EKind` names. Specifically: `E_VART→E_VAR`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_NULV→E_NUL`, `E_ASGN→E_ASSIGN`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`, `E_ALT_GEN→E_GENALT`, `E_ARY→E_IDX`. Affects: `emit_x64.c`, `emit_jvm.c`, `emit_net.c`. After cleanup, remove `#define IR_COMPAT_ALIASES` from all consumers. The alias block in `ir.h` may then be deleted or kept for external consumers only. | Gate 738/0 ✅; all 7 invariant cells unchanged; `grep -r "E_VART\|E_OR\b\|E_MNS\|E_EXPOP\|E_NAM\b\|E_DOL\b\|E_ATP\|E_NULV\|E_ASGN\|E_SCAN\b\|E_BANG\b\|E_ALT_GEN\|E_ARY\b" src/backend/` returns zero hits ✅. one4all `acda30b` G-9 s24. |
 | **M-G9-BACKEND-FLATTEN** | Remove the extra folder level under `src/backend/`. Currently: `src/backend/x64/emit_x64.c` etc. Target: `src/backend/emit_x64.c`, `src/backend/emit_jvm.c`, etc. The naming convention `emit_<backend>_<frontend>.c` already encodes the backend — the subfolder is redundant. Includes: move `jasmin.jar` to `src/backend/`. Update all `#include` paths, Makefile, and any scripts referencing `backend/x64/` or `backend/jvm/` etc. The `src/backend/c/` legacy stubs move too (or are deleted if confirmed dead). | `find src/backend -maxdepth 2 -name "*.c"` shows all `.c` files at depth 1 only; build clean; gate 738/0 ✅ |
 | **M-G9-ICON-IR-WIRE** | Wire Icon frontend through `EXPR_t` / `ir.h` rather than the parallel `IcnNode` AST. This is the primary remaining structural gap: `emit_x64_icon.c` and `emit_jvm_icon.c` consume `IcnNode*` directly, bypassing the unified IR. Requires: (1) `icon_lower.c` — new file, lowers `IcnNode` tree to `EXPR_t` tree using canonical `EKind` names; (2) update `emit_x64_icon.c` to consume `EXPR_t`; (3) update `emit_jvm_icon.c` same; (4) `IcnNode` AST becomes parse-only (frontend-private). Prerequisite: M-G5-LOWER-ICON-FIX (7 ICN gaps). This is the largest remaining unification item. | Icon x86 `94p/164f` unchanged (pre-existing gaps stay pre-existing); Icon JVM `173p/44f` unchanged; gate 738/0 ✅ |
 
@@ -446,7 +446,7 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 *GRAND_MASTER_REORG.md — living document.*
 *Completed G-milestone rows → MILESTONE_ARCHIVE.md per standard protocol.*
-*All concurrent development frozen until M-G7-UNFREEZE.*
+*All concurrent development unfrozen — M-G7-UNFREEZE ✅ G-9 s24.*
 
 ---
 

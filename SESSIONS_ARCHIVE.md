@@ -6809,3 +6809,64 @@ Converts: `go to` → `goto`, adds `;`, `#` → `//`. Simple line-by-line with q
 - `FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash SESSION_SETUP.sh` — correct invocation
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
 - Token: never displayed — `TOKEN_SEE_LON`
+## G-9 Session 24 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `acda30b` · **corpus** `8db2d44` (unchanged) · **.github** this session
+
+### Completed this session
+
+- **M-G7-UNFREEZE** ✅ — tag `post-reorg-baseline-2` pushed to one4all remote. GRAND_MASTER_REORG.md freeze notice updated. PLAN.md NOW table updated (all sessions resume status, confirmed from s23).
+- **Gate** — emit-diff 738/0 ✅; full 7-cell invariant suite matches RULES.md baseline exactly (106/106 x86; 94p/32f JVM; 0/0 NET; all failures pre-existing).
+- **M-G9-ALIAS-CLEANUP** ✅ — replaced all 13 `IR_COMPAT_ALIASES` with canonical `EKind` names across every consumer in the repo. Removed `#define IR_COMPAT_ALIASES` from `scrip_cc.h`. Updated comments in scrip_cc.h and scrip_cc.h layout table to use canonical names. Files touched: `emit_x64.c`, `emit_jvm.c`, `emit_net.c`, `emit_byrd_c.c`, `emit_cnode.c`, `emit_x64_prolog.c`, `emit_x64_icon.c`, `emit_jvm_icon.c`, `emit_jvm_prolog.c`, `ir_emit_common.c`, `prolog_emit.c`, `prolog_emit_net.c`, `prolog_lower.c/.h`, `parse.c`, `snocone_cf.c`, `snocone_lower.c/.h`, `snobol4_stmt_rt.c`, `runtime_shim.h`, `scrip_cc.h`. Verify: `grep src/backend/` = 0 hits ✅; emit-diff 738/0 ✅; all 7 invariant cells unchanged ✅. Committed `acda30b`.
+
+### Setup notes
+
+- swipl, CSNOBOL4, SPITBOL failed to install in this container environment (pre-existing — snobol4_net shows 0/0 not 108/2, non-regression). All other tools OK.
+- Rebase conflict on `test-results/emit_latest.csv` symlink resolved with `git checkout --theirs`.
+
+### Next session execution order
+
+**Step 0:** Setup + gate
+```bash
+TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh    # full 7-cell at session start
+```
+
+**Step 1 — M-G2-BACKEND-FLATTEN:**
+
+Current layout:
+```
+src/backend/x64/   emit_x64.c  emit_x64_icon.c  emit_x64_prolog.c  emit_x64_snocone.c  emit_x64_snocone.h
+src/backend/jvm/   emit_jvm.c  emit_jvm_icon.c  emit_jvm_prolog.c  jasmin.jar
+src/backend/net/   emit_net.c
+src/backend/wasm/  emit_wasm.c
+src/backend/c/     emit_byrd_c.c  emit_cnode.c  emit_cnode.h  emit_pretty.h  trampoline*.c  trampoline.h
+```
+
+Target: all `.c`/`.h`/`.jar` files moved to `src/backend/` directly (subdirs deleted). The naming convention `emit_<backend>_<frontend>.c` already encodes the backend.
+
+Execution:
+1. `git mv src/backend/x64/* src/backend/` (then rmdir x64)
+2. `git mv src/backend/jvm/* src/backend/` (then rmdir jvm)
+3. `git mv src/backend/net/* src/backend/` (then rmdir net)
+4. `git mv src/backend/wasm/* src/backend/` (then rmdir wasm)
+5. `src/backend/c/` — confirm dead (no tests, no Makefile targets), then `git rm -r src/backend/c/` or `git mv` to archive
+6. Update `Makefile` — all `-I backend/x64` → `-I backend`; all `backend/x64/emit_x64.c` → `backend/emit_x64.c` etc.
+7. Update any `#include "backend/x64/..."` paths in source files
+8. Update scripts that reference `backend/x64/` or `backend/jvm/` paths
+9. Build clean; emit-diff 738/0; targeted invariants
+
+**Step 2 — M-G9-ICON-IR-WIRE** (large — prereq M-G5-LOWER-ICON-FIX):
+- New `icon_lower.c`: lowers `IcnNode` → `EXPR_t` using canonical EKind
+- Update `emit_x64_icon.c` and `emit_jvm_icon.c` to consume `EXPR_t`
+- Prerequisite: M-G5-LOWER-ICON-FIX (7 ICN gaps) must land first
+
+### Known facts for next session
+
+- Gate: **738/0** emit-diff (confirmed s24)
+- Invariant baseline (post-s22, confirmed s24): x86 SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | NET SNOBOL4 `108p/2f` — all failures pre-existing
+- `IR_COMPAT_ALIASES` is **gone** — do not re-add. All code uses canonical EKind names.
+- Token: never in commits — `TOKEN_SEE_LON` as placeholder
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
