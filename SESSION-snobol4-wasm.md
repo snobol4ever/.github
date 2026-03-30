@@ -2,7 +2,7 @@
 
 **Repo:** one4all · **Frontend:** SNOBOL4/SPITBOL · **Backend:** WebAssembly (wat2wasm + Node.js)
 **Session prefix:** `SW` · **Trigger:** "playing with SNOBOL4 WASM" / Byrd-box WASM
-**Driver:** `scrip-cc -wasm prog.sno > prog.wat` → `wat2wasm prog.wat -o prog.wasm` → `node run_wasm.js prog.wasm`
+**Driver:** `scrip-cc -wasm -o prog.wat prog.sno` → `wat2wasm --enable-tail-call prog.wat -o prog.wasm` → `node run_wasm.js prog.wasm`
 **Oracle:** `snobol4 prog.sno` (CSNOBOL4 2.3.3)
 **Deep reference:** `BACKEND-WASM.md` · `ARCH-index.md`
 
@@ -19,11 +19,11 @@
 
 ---
 
-## §NOW — SW-1
+## §NOW — SW-2
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
+| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ | `44ac687` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests — fix dispatch-loop block nesting first |
 
 ---
 
