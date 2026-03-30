@@ -6955,3 +6955,14 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 738/0 (or 726
 - `IR_COMPAT_ALIASES` is gone; `E_STAR` alias cleaned from all files including parse.c
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
 - Token: never in commits — `TOKEN_SEE_LON` as placeholder
+
+### Invariant suite reactivation — confirmed G-9 s25
+
+Invariant suite reactivated (retirement notice removed from GRAND_MASTER_REORG.md).
+Full run result post-BACKEND-FLATTEN:
+
+  x86: SNOBOL4 106/106 ✓ · Icon 94p/164f (pre-existing) · Prolog 13p/94f (pre-existing)
+  JVM: SKIP (CSNOBOL4 build fails in this container — pre-existing)
+  NET: SKIP (same)
+
+Matches G-9 s18 baseline exactly. No regressions from FLATTEN or alias cleanup.
