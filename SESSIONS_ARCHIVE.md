@@ -6475,3 +6475,68 @@ Pattern is identical to siblings:
 - `emit_x64_snocone.c`— Snocone lowering only → shared `emit_x64.c` for NASM
 
 Nothing else changes in the 12-step execution order from the previous entry.
+
+---
+
+## G-9 Session 22 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `b41dc8d` · **corpus** `8db2d44` · **.github** pending
+
+### Completed this session
+
+- **THE LAW expanded** — ARCH-reorg-design.md §Naming Convention rewritten with full similarity-maximization goal and 9 naming classes (root equivalence, TU-scoping rules, entry-point shadowing fix pattern)
+- **GRAND_MASTER_REORG.md Phase 3 table** rewritten — per-file 9-class checklists with explicit before→after name mappings; M-G3-NAME-X64-ICON added as new milestone
+- **M-G3-NAME-JVM** ✅ `c7981c1` — all jvm_* globals stripped, JvmFnDef→FnDef, Jfn%d_→sno_fn%d_ labels
+- **M-G3-NAME-NET** ✅ `5186936` — all net_* globals stripped, NetFnDef→FnDef, Nfn%d_→sno_fn%d_ labels
+- **M-G3-NAME-X64-PROLOG** ✅ `01ea478` — emit_pl_*/emit_prolog_*→emit_*, pl_ TU-scoped where needed
+- **M-G3-NAME-X64** ✅ `fe37fc3` — uid_ctr→uid
+- **M-G3-NAME-JVM-PROLOG** ✅ `d1e2abd` — all pj_* stripped, pj_ runtime labels→pl_ in generated output, lbl_γ/lbl_ω params→γ/ω
+- **M-G3-NAME-JVM-ICON** ✅ `010e648` — all ij_* stripped, IjPorts eliminated, ij_emit_file→emit_jvm_icon_file
+- **M-G3-NAME-X64-ICON** ✅ `b41dc8d` — icn_label_α/β→icn_lbl_α/β, icon_%d_α→icn_%d_α (unified with JVM), IcnEmitter.node_id→uid
+- **Invariants** — zero regressions; Icon JVM improved 173p/61f→173p/44f (+17 fixes from icn_%d_α unification)
+- **Corpus refs** regenerated throughout `8db2d44`
+
+### Invariant baseline post-s22 (confirmed)
+
+- SNOBOL4 x86: `106/106` ✅
+- SNOBOL4 JVM: `94p/32f` (32 pre-existing — OPSYN/float/indirect gaps)
+- SNOBOL4 NET: `108p/2f` (2 pre-existing)
+- Icon x86: `94p/164f` (pre-existing M-G5-LOWER-ICON gaps)
+- Icon JVM: `173p/44f` (44 pre-existing — improved from 61f by icn_ label unification)
+- Prolog x86: `13p/94f` (pre-existing missing builtins)
+- Prolog JVM: `106p/1f` (pre-existing rung06)
+
+**Gate: 738/0 ✅**
+
+### Key pattern established this session — entry-point shadowing
+
+Every emitter has `void xxx_emit(Program *prog, FILE *out, ...)`. When globals are renamed to `prog`/`out`, entry-point params must use `prog_in`/`fp` and assign explicitly:
+```c
+void xxx_emit(Program *prog_in, FILE *fp, const char *filename) {
+    prog = prog_in;
+    out  = fp;
+```
+Applied to: `jvm_emit`, `net_emit`, `prolog_emit_jvm`, `emit_jvm_icon_file`. **Apply to any future emitter entry points.**
+
+### TU-scoping rule established
+
+Files sharing a translation unit with `emit_x64.c` (`emit_x64_prolog.c`, `emit_x64_icon.c`) cannot use bare `next_uid()`/`safe_name()` if those already exist in `emit_x64.c`. Use `pl_`/`icn_` prefix for the TU-local version.
+
+### Next session execution order
+
+**Step 0:** Setup + gate (expect 738/0)
+
+**Step 1 — M-G7-UNFREEZE (legitimate — all M-G3-NAME-* done):**
+- `cd /home/claude/one4all && git tag post-reorg-baseline-2`
+- `git push origin post-reorg-baseline-2`
+- Update GRAND_MASTER_REORG.md: M-G7-UNFREEZE ✅
+- Update PLAN.md: remove 🔒 freeze notice; change all FROZEN session rows to resume status
+- Push .github
+
+**Step 2 — Confirm invariant CSV for archive:**
+- `cat test-results/invariants_latest.csv` — verify counts match post-s22 baseline above
+- Record in GRAND_MASTER_REORG.md §Invariant baseline
+
+**Step 3 — Begin post-reorg work (sessions now unfrozen)**
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s22 — HQ updated: THE LAW expanded to 9-class similarity-maximization; GRAND_MASTER_REORG.md Phase 3 table rewritten with per-file class checklists | `d0e5ea1` one4all · `6fba552` corpus · `.github` pending push | **NEXT: run setup+gate (738/0) → run invariants → M-G3-NAME-JVM complete (classes 3/6/8/9) → M-G3-NAME-NET** |
+| **⚠ GRAND MASTER REORG** | G-9 s22 — ALL M-G3-NAME-* COMPLETE ✅; invariants: zero regressions; Icon JVM +17 | `b41dc8d` one4all · `8db2d44` corpus · `.github` pending | **NEXT: M-G7-UNFREEZE — tag post-reorg-baseline-2, unfreeze all sessions in PLAN.md** |
 | **Snocone x86** | SC-1 design complete | `e874660` .github | M-SC-CONSOLIDATE: merge snocone_lower+cf → emit_x64_snocone.c; then add goto/break/continue; then corpus rungs A01–A05 |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
