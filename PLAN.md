@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s25 | one4all `db6219c` · corpus `06419f3` · .github `940895b` | **M-G5-LOWER-ICON-FIX** (7 ICN gaps) → then **M-G9-ICON-IR-WIRE** |
+| **GRAND MASTER REORG** | G-9 s26 | one4all `f0ddef4` · corpus `06419f3` · .github this session | **M-G5-LOWER-ICON-FIX** G2/G1/G7 remaining → then **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `3f5da0f` one4all · `6ed189c` corpus | M-SC-A06: rungA06 strings (goto-free) |
 | **SNOBOL4 WASM** | SW-1 | `db6219c` one4all · `9afbd15` .github | M-SW-0: TOOLCHAIN (wat2wasm + node runner) |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |

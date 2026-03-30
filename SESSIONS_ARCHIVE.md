@@ -7172,3 +7172,69 @@ WASM artifacts (`.wat`) sit flat alongside `.s` / `.j` / `.il` in every crossche
 3. rungA06 — strings (goto-free) 5 tests from `corpus/crosscheck/strings/`
 4. rungA07 — strings (with goto) 5 tests — rewrite loops to `while`
 5. Fire M-SC-A07 after both pass; update invariant cell count
+
+## G-9 Session 26 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `f0ddef4` · **corpus** `06419f3` · **.github** this session
+
+### Completed this session
+
+- **M-G5-LOWER-ICON-FIX G3–G6** ✅ (partial — G1/G2/G7 remain) — ICN_COMPLEMENT, ICN_CSET_UNION, ICN_CSET_DIFF, ICN_CSET_INTER implemented in both x64 and JVM backends:
+  - `icon_runtime.c`: `icn_cset_complement`, `icn_cset_union`, `icn_cset_diff`, `icn_cset_inter` (arena-allocated, null-terminated char* csets)
+  - `emit_x64_icon.c`: `emit_cset_complement` + `emit_cset_binop`; extern decls added; dispatch wired
+  - `emit_jvm_icon.c`: `emit_jvm_icon_cset_complement` + `emit_jvm_icon_cset_binop`; `need_cset_builtins` flag; four conditional Jasmin static methods; dispatch wired
+  - Committed `47ebbae` → pushed as `f0ddef4` (rebased over concurrent SC-1 commit)
+- Gate confirmed: **738/0 ✅** · Invariants: x86 SNOBOL4 `106/106` ✅ · all pre-existing failures unchanged
+
+### Key lesson this session
+
+`make` from `one4all/` root does NOT rebuild `scrip-cc` — must `cd src && make`. Always verify binary timestamp vs source after edits to frontend/backend C files. Build verification: `ls -la scrip-cc` timestamp must be newer than modified sources.
+
+### Known facts
+
+- `ICN_CSET_UNION` verified calling `icn_cset_union` correctly in x64 (returns correct scan position)
+- `ICN_COMPLEMENT` generates correct asm; runtime function untested end-to-end (gcc link path issue in test — use absolute path `/home/claude/one4all/src/frontend/icon/icon_runtime.c`)
+- `cd src && make -j4` (not `cd one4all && make`) to rebuild scrip-cc
+
+### Gate (end of session)
+
+- **Emit-diff: 738/0 ✅**
+- **Invariants: x86 SNOBOL4 `106/106` ✅** (full suite not re-run end-of-session — gate confirms no regressions)
+
+### Next session execution order
+
+**Step 0 — Setup:**
+```bash
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all/src && make -j4   # rebuild scrip-cc if sources changed
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh    # expect x86 106/106
+```
+
+**Step 1 — Verify G3–G6 end-to-end:**
+```bash
+cat > /tmp/test_cset_all.icn << 'EOFI'
+procedure main()
+    low := 'abcdefghijklmnopqrstuvwxyz';
+    diff_cs := low -- 'aeiou';
+    "bee" ? write(many(diff_cs));
+    comp := ~low;
+    "Hello" ? write(any(comp));
+    u := 'abc' ++ 'bcd';
+    "abc" ? write(many(u));
+    i := 'abc' ** 'bcd';
+    "bc" ? write(many(i));
+end
+EOFI
+./scrip-cc -icn /tmp/test_cset_all.icn -o /tmp/t.s && \
+nasm -f elf64 /tmp/t.s -o /tmp/t.o && \
+gcc -nostdlib -no-pie -Wl,--no-warn-execstack /tmp/t.o \
+    /home/claude/one4all/src/frontend/icon/icon_runtime.c -o /tmp/t && /tmp/t
+# expect: 2  2  4  3
+```
+
+**Step 2 — G2: ICN_RANDOM** (both backends + runtime `icn_random(long n)`)
+**Step 3 — G1: ICN_POS** (identity — emit child, pass value unchanged)
+**Step 4 — G7: ICN_SCAN_AUGOP** (stub-fail both backends — one line each)
+**Step 5 — Commit all remaining gaps, push, update PLAN.md + SESSIONS_ARCHIVE**
