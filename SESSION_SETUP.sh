@@ -269,19 +269,9 @@ fi
 step "WHERE — scrip-cc (project compiler)"
 SCRIP_CC=/home/claude/one4all/scrip-cc
 
-# Translate FRONTEND/BACKEND into Makefile BUILD_ switches so only the
-# components needed for this session are compiled (avoids bison/flex/JVM/etc).
-BUILD_FLAGS=""
-need_frontend rebus || BUILD_FLAGS="$BUILD_FLAGS BUILD_REBUS=0"
-need_backend  jvm   || BUILD_FLAGS="$BUILD_FLAGS BUILD_JVM=0"
-need_backend  net   || BUILD_FLAGS="$BUILD_FLAGS BUILD_NET=0"
-need_backend  wasm  || BUILD_FLAGS="$BUILD_FLAGS BUILD_WASM=0"
-[[ -n "$BUILD_FLAGS" ]] && info "Makefile flags:$BUILD_FLAGS"
-
 if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
     info "Building scrip-cc from one4all/src/ ..."
-    # shellcheck disable=SC2086
-    (cd /home/claude/one4all/src && make -j"$(nproc)" $BUILD_FLAGS 2>/dev/null) \
+    (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
         && ok "scrip-cc built" \
         || fail "scrip-cc — build failed"
 else
