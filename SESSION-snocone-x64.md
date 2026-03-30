@@ -11,6 +11,14 @@
 **HEAD:** `c1eed78` one4all
 **Next action:** Complete M-SC-CONSOLIDATE (see SESSIONS_ARCHIVE for 8-step checklist)
 
+**Session start reading order (mandatory):**
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # handoff details
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snocone-x64.md      # this file — language def + milestone ladder
+```
+
 ---
 
 ## Language Definition — Snocone C-Style (SC-1 extensions)

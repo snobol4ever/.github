@@ -37,6 +37,11 @@ cat /home/claude/.github/PLAN.md                     # NOW table + next mileston
 cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail
 ```
 
+**If working on Snocone × x86, also read (mandatory):**
+```
+cat /home/claude/.github/SESSION-snocone-x64.md      # full milestone ladder + language definition
+```
+
 ## 9 Repos under github.com/snobol4ever
 
 | Repo | Role | Clone path |
@@ -60,7 +65,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **⚠ GRAND MASTER REORG** | G-9 s23 | `.github` pending | **M-G7-UNFREEZE** (execute this session — all NAME-* done) |
-| **Snocone x86** | SC-1 in progress | `c1eed78` one4all | M-SC-CONSOLIDATE: finish build (fix go-to removal, delete snocone_lower+cf, clean compile); then gate 738/0; then corpus A01–A05 |
+| **Snocone x86** | SC-1 in progress | `c1eed78` one4all | M-SC-CONSOLIDATE: finish build (fix go-to removal, delete snocone_lower+cf, clean compile); gate 738/0; corpus A01–A05. **Read SESSION-snocone-x64.md** |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
