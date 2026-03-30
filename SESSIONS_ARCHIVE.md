@@ -6203,3 +6203,77 @@ Expect **738/0**.
 - Sessions re-frozen
 
 **Next session must:** complete M-G3-NAME-COMMON → M-G3-NAME-X64 → M-G3-NAME-JVM → M-G3-NAME-NET → M-G3-NAME-WASM → M-G3-NAME-X64-ICON → M-G3-NAME-X64-PROLOG → M-G3-NAME-JVM-ICON → M-G3-NAME-JVM-PROLOG, gate after each, then legitimately re-fire M-G7-UNFREEZE.
+
+---
+
+## G-9 Session 20 — Phase 3 Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `83fed63` · **.github** pending · **corpus** `8e8c134`
+
+### Phase 3 audit — what was found
+
+Guiding principle: same concept, same name, across all emitters. A reader should not need to know which file they are in to understand the code.
+
+**Rename grid — full picture of what Phase 3 must do:**
+
+| File | Port names | Output macro | Function prefix | State |
+|------|-----------|-------------|-----------------|-------|
+| `ir_emit_common.c` | n/a | n/a | `ir_*` ✅ | verify-only ✅ DONE |
+| `emit_wasm.c` | none needed | `W()` ✅ | none yet | verify-only ✅ DONE |
+| `emit_x64.c` | `γ`/`ω` in sigs ✅ | `fprintf` directly → needs `E()` macro | `emit_*` ✅ | **OPEN** |
+| `emit_x64_icon.c` | `IcnPorts.γ/.ω` ✅ | `E(em,...)`/`ICN_OUT` ✅ | `emit_*` ✅ | verify-only ✅ DONE |
+| `emit_x64_prolog.c` | inherited from x64 | inherited from x64 | `emit_pl_*`/`emit_prolog_*` → `emit_x64_prolog_*` | **OPEN** |
+| `emit_jvm.c` | `gamma`/`omega` → `γ`/`ω` (sed applied, **unverified, uncommitted**) | `J()`/`JI()` ✅ | `jvm_emit_*` → `emit_jvm_*` | **OPEN** |
+| `emit_jvm_icon.c` | needs audit | `J()`/`JI()` ✅ | `ij_emit_*` → `emit_jvm_icon_*` | **OPEN** |
+| `emit_jvm_prolog.c` | needs audit | `J()`/`JI()` ✅ | `pj_emit_*` → `emit_jvm_prolog_*` | **OPEN** |
+| `emit_net.c` | `gamma`/`omega` → `γ`/`ω` (not yet done) | `N()`/`NI()` ✅ | needs audit | **OPEN** |
+
+### Critical note on emit_jvm.c
+
+`sed -i 's/\bgamma\b/γ/g; s/\bomega\b/ω/g'` was run on `emit_jvm.c` this session. The result was **not built, not tested, not committed**. The backup is at `src/backend/jvm/emit_jvm.c.bak`. Next session must verify the sed result builds cleanly before proceeding.
+
+### Errors made this session (already corrected)
+
+M-G7-UNFREEZE was fired prematurely before Phase 3 complete. All sessions re-frozen in `ce06593`. GRAND_MASTER_REORG.md M-G7-UNFREEZE reverted to ⚠️ REVERTED. Tag `post-reorg-baseline` left on one4all as historical marker — real tag will be `post-reorg-baseline-2` after Phase 3 done.
+
+### Next session execution order
+
+**Step 0:** Setup + gate (expect 738/0)
+
+**Step 1 — verify emit_jvm.c sed:**
+- Build: `cd src && make -j$(nproc)` — must be clean
+- If build fails: restore from `emit_jvm.c.bak`, redo sed carefully
+- Run gate: 738/0
+
+**Step 2 — NAME-JVM complete:**
+- Audit `jvm_emit_*` function prefix — does it need → `emit_jvm_*`?
+- Commit if clean
+
+**Step 3 — NAME-NET:**
+- `sed -i 's/\bgamma\b/γ/g; s/\bomega\b/ω/g'` on `emit_net.c`
+- Audit `net_emit_*` prefix
+- Build + gate + commit
+
+**Step 4 — NAME-X64:**
+- Introduce `E(fmt,...)` macro wrapping `fprintf(out,...)` throughout `emit_x64.c`
+- Build + gate + commit
+
+**Step 5 — NAME-X64-PROLOG:**
+- `emit_pl_*`/`emit_prolog_*` → `emit_x64_prolog_*` throughout `emit_x64_prolog.c`
+- Build + gate + commit
+
+**Step 6 — NAME-JVM-ICON:**
+- `ij_emit_*` → `emit_jvm_icon_*` throughout `emit_jvm_icon.c`
+- Build + gate + commit
+
+**Step 7 — NAME-JVM-PROLOG:**
+- `pj_emit_*` → `emit_jvm_prolog_*` throughout `emit_jvm_prolog.c`
+- Build + gate + commit
+
+**Step 8 — M-G7-UNFREEZE (legitimate):**
+- All M-G3-NAME-* done → update GRAND_MASTER_REORG.md
+- Unfreeze all sessions in PLAN.md
+- Tag `post-reorg-baseline-2` on one4all
+- Push all repos
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
