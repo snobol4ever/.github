@@ -365,3 +365,43 @@ SNO2C-JVM: PASS | ICON-JVM: skipped | PROLOG-JVM: PASS.
 
 insertion_sort.md — sort `[5,3,8,1,9,2,7,4]` → `1 2 3 4 5 7 8 9`.
 SNO2C-JVM: PASS | ICON-JVM: skipped | PROLOG-JVM: PASS.
+
+## M-G7-STYLE-DOC ✅ — doc/STYLE.md written
+
+**Session:** G-9 s20. **HEAD:** one4all `22a8c43`.
+
+4-space indent, K&R braces, COL_W/COL2_W/COL_CMT column constants, naming conventions (sno_/jvm_/x64_/net_ prefixes, E_/STMT_ IR kinds), function header block format, file header format. Reference backend: emit_x64.c.
+
+## M-G7-STYLE-BACKENDS ✅ — backend style conformance
+
+**Session:** G-9 s20. **HEAD:** one4all `83fed63`.
+
+Only violation found: 4 `//` line comments in `emit_net.c` `net_indr_set`. Converted to `/* */`. All other backends conformant. Gate 738/0 ✅.
+
+## M-G7-STYLE-FRONTENDS ✅ — frontend style conformance
+
+**Session:** G-9 s20.
+
+Audit clean. All `//` occurrences in frontend files are inside `/* */` block-comment pseudo-code examples, not live line comments. No violations.
+
+## M-G7-STYLE-IR ✅ — ir/ style conformance
+
+**Session:** G-9 s20.
+
+Audit clean. `ir_emit_common.c` single `//` is inside a block-comment example. Builds clean.
+
+## M-G7-UNFREEZE ✅ — Grand Master Reorganization complete
+
+**Session:** G-9 s20. **HEAD:** one4all `83fed63` (tag: `post-reorg-baseline`) · corpus `8e8c134` · .github `1062173`.
+
+All 8 success criteria met:
+1. ✅ 5 frontend dirs + 4 active backend dirs + 1 dead `c/` (Scrip = product name / polyglot dispatcher in driver/, not a 6th parse frontend)
+2. ✅ Emitter naming law — all moves done M-G2
+3. ✅ Unified EKind in ir.h — M-G1
+4. ✅ No duplicate node kinds — M-G1
+5. ✅ Byrd box wiring in one place — M-G4
+6. ✅ All corpus tests pass — gate 738/0
+7. ✅ doc/STYLE.md + conformance — M-G7-STYLE-*
+8. ✅ Pipeline matrix — M-G6
+
+All 15 concurrent sessions unfrozen. Tag `post-reorg-baseline` pushed to one4all.
