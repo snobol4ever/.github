@@ -14,20 +14,20 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 Clones repos, installs ALL tools via apt (nasm, gcc, libgc, java, mono, swipl, icont),
 builds from source (CSNOBOL4, SPITBOL, scrip-cc), sets git identity. No tests run.
 
-**Step 2 — Gate (emit-diff + 7-cell invariants). Run every session after setup:**
+**Step 2 — Gate (emit-diff only). Run every session after setup:**
 ```bash
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-CORPUS=/home/claude/corpus bash test/run_invariants.sh
 ```
+
+**⚠ `run_invariants.sh` is RETIRED as a session gate.** Last full run: G-9 s18. Final counts recorded in `GRAND_MASTER_REORG.md` (M-G-INV-FAST-X86-FIX ✅). Do not run invariants at session start — emit-diff only going forward.
 
 **Never pre-check or pre-install tools manually.** SESSION_SETUP.sh handles everything.
 The test scripts verify tools are present but do NOT install — if they report a missing
 tool, re-run SESSION_SETUP.sh.
 
-**Invariant run times (G-9 baseline):**
+**Gate run time:**
 - `run_emit_check.sh` — emit-diff 493 files × 3 backends: **~8–12s**
-- `run_invariants.sh` — 7-cell runtime suite: **~60–270s** depending on environment
 
 After setup + gate, read in order:
 ```
@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s17 — M-G-INV-FAST-X86-FIX ✅ confirmed; ensure_tools split done; snobol4_jvm 16 pre-existing gaps surfaced | `dcdaa3e` one4all · `9fce47d` .github | **verify snobol4_net → close M-G-INV-FAST-X86-FIX → M-G5-LOWER-SNOCONE-FIX → M-G5-LOWER-REBUS-FIX** |
+| **⚠ GRAND MASTER REORG** | G-9 s18 — M-G-INV-FAST-X86-FIX ✅ closed; invariant suite retired; emit-diff only | `dcdaa3e` one4all · `.github` pending | **M-G5-LOWER-SNOCONE-FIX → M-G5-LOWER-REBUS-FIX** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -79,7 +79,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 **Invariants (frozen baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
 
-**Gate invariants (SESSION_BOOTSTRAP.sh — G-sessions run all nine):** 3×3 matrix: SNOBOL4/Icon/Prolog × x86/JVM/.NET. Icon .NET and Prolog .NET not yet implemented (SKIP). Seven active checks: x86 `106/106` · JVM `106/106` · .NET `110/110` · Icon x64 `38-rung` · Icon JVM `38-rung` · Prolog x64 per-rung PASS · Prolog JVM `31/31`. Expanded from three per G-7 session (M-G2-MOVE-PROLOG-ASM-b). Rationale: reorg touches all emitters.
+**Gate invariants (RETIRED G-9 s18):** Final 3×3 matrix counts recorded in `GRAND_MASTER_REORG.md` M-G-INV-FAST-X86-FIX ✅. All failures confirmed pre-existing non-regressions. Invariant suite no longer run as session gate — emit-diff only.
 
 ---
 
