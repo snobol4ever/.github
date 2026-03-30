@@ -54,9 +54,9 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s29 | one4all `75ad614` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** (emitter migration) |
-| **Snocone x86** | SC-2 | `95b2617` one4all · `27129a2` corpus | M-SC-A13: rungA13 functions (8 tests) |
-| **SNOBOL4 WASM** | SW-2 | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
+| **GRAND MASTER REORG** | G-9 s29 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
+| **Snocone x86** | SC-2 | `95b2617` one4all · `5f5206d` corpus | M-SC-A14: rungA14 arith loops (2 tests) |
+| **SNOBOL4 WASM** | SW-2 | `44ac687` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests — dispatch-loop block nesting fix needed |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
@@ -66,13 +66,15 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
 | **README** | R-2 `00846d3` | — | resume — unfrozen |
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
+| **ICON WASM** | IW-1 scaffold | one4all `(this session)` | **M-IW-A01**: ICN_INT/VAR/ASSIGN/CALL(write)/PROC rung01 hello |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
+| **Prolog WASM** | PW-1 `9aa5a8e` one4all | `1884247` .github | **M-PW-HELLO** |
 | **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f`
+**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `4/4` · Icon `23p/235f` (scaffold, stub-fail)
 
 **Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
 
@@ -144,16 +146,10 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 **one4all** `75ad614` · **corpus** `224d3d4` · **.github** this session
 
 ### Completed
-- ir.h +32 Icon EKind entries ✅ — full semantic audit; 22 shared, 32 new
-- scrip_cc.h EXPR_T_DEFINED guard ✅
-- icon_lower.c + icon_lower.h ✅ — IcnNode→EXPR_t lowering pass, not yet wired
-- Makefile: icon_lower.o ✅
+- ir.h +32 Icon EKind entries ✅ · scrip_cc.h guard ✅ · icon_lower.c ✅ · Makefile ✅
+- Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅
 
 ### NOT done
-- Emitter migration (emit_x64_icon.c + emit_jvm_icon.c → EXPR_t*). Bridge
-  approach was attempted and reverted — round-trip defeats the purpose.
-  Next session must do direct migration of both emitters (~11K lines).
-
-**Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅**
+- emit_x64_icon.c + emit_jvm_icon.c emitter migration to EXPR_t* (direct, no bridge)
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

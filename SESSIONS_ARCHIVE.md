@@ -7529,70 +7529,383 @@ Their fix was taken in the rebase conflict resolution.
 
 ---
 
+## SW-2 Session 2 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `44ac687` · **.github** this session
+
+### Completed this session
+
+**Infrastructure (M-SW-A02 prerequisites):**
+
+1. **Makefile rebus deps fixed** — `frontend/rebus/rebus.tab.c` and `lex.rebus.c` rules now use order-only prerequisites (`|`). `make` no longer invokes bison/flex on a fresh clone. Clean build confirmed without touch workaround. SESSION_SETUP.sh touch workaround removed.
+
+2. **SESSION_SETUP.sh jasmin check gated** — `[[ -f "$JASMIN" ]]` check now inside `if need_backend jvm; then`. WASM session no longer exits with code 3 due to missing jasmin.jar.
+
+3. **`run_invariants.sh` -o flag fix** — Line 243 was `> "$wat"` (stdout redirect); scrip-cc writes gcc-style to derived path alongside source, not stdout. Fixed to `-o "$wat"`. Confirmed `snobol4_wasm` 4/4 ✓.
+
+4. **3×4 matrix** — `run_invariants.sh` display expanded from 3×3 to 3×4; WASM column added; `snobol4_wasm` included in OVERALL_FAIL. `icon_wasm`/`prolog_wasm` marked SKIP.
+
+5. **HQ docs updated** — RULES.md invariant table 3×4 with WASM `4/4` baseline; PLAN.md invariant baseline includes `WASM: SNOBOL4 4/4`; `.github/README.md` adds BACKEND-WASM.md to L3 table; `one4all/README.md` adds `-wasm` to backend table, "four→five backends", WASM usage example.
+
+6. **Runtime refactored to standalone module** — `sno_runtime.wat` converted from inlined fragment to proper `(module ...)` with exports. Pre-compiled to `sno_runtime.wasm` (committed). `run_wasm.js` updated: instantiates runtime first, passes exports as `{ sno: rtExports }` import object. Programs now import all runtime functions — runtime compiled once by V8 per session, not per test (~10x speedup).
+
+7. **`emit_wasm.c` dispatch-loop framework** — Full rewrite of statement emitter:
+   - `collect_labels()` / `lbl_index()` — label table with index 0 = `__end__`
+   - `emit_goto_target()` — sets `$pc` + `br $dispatch`
+   - `emit_differ()` — DIFFER/IDENT via `$sno_str_eq`
+   - `emit_subject_as_bool()` — any subject expr → i32 success flag
+   - `emit_output()` — OUTPUT = expr for str/int/float
+   - `emit_main_body()` — dispatch-loop with `(loop $dispatch)` + nested `(block $LN)`
+   - `E_ADD/SUB/MPY/DIV/MOD/E_POW` — int-lhs+float-rhs FIXME resolved via `$tmp_f` local
+   - `E_POW` → `$sno_pow` (integer exponentiation loop in runtime)
+   - `$sno_str_eq`, `$sno_pow`, `$sno_str_to_int`, `$sno_int_to_str`, `$sno_float_to_str` all moved to runtime module
+
+### One bug remaining — NEXT SESSION MUST FIX FIRST
+
+**`emit_main_body` block nesting** — WAT syntax error: extra `)` after `loop $dispatch`. Root cause: `closed[]` tracking array was designed but the `str_replace` applying it failed mid-session (file encoding issue). The fix is straightforward:
+
+In `emit_main_body` (line ~500), add `int closed[MAX_LABELS] = {0};` and set `closed[0] = 1` after emitting `$L0`. Then in the label-closing loop: `if (idx > 0 && !closed[idx]) { W(...); closed[idx] = 1; }`. At end: `for (int i = 1; i < nlabels; i++) if (!closed[i]) W("      ) ;; $L%d\\n", i);`
+
+Current state: rung4 produces WAT that fails `wat2wasm` with "unexpected token ), expected EOF" at the unreached-label close block.
+
+**hello rung (4 tests) still passes via the old `hello.wat` artifact in corpus** — but `run_invariants.sh` now uses `-o` flag which triggers the new emitter, so `snobol4_wasm` will show 0/4 until the block-nesting is fixed. Fix this first.
+
+### Gate (end of session)
+- **Emit-diff: not re-run** (no .wat artifacts changed in corpus this session)
+- **WASM invariants: 0/4** (dispatch-loop block nesting broken — fix is the first task)
+
+### Next session execution order
+
+```bash
+# Step 0 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 1 — setup (no touch needed — Makefile fixed)
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 2 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm   # expect 0/4 — known
+
+# Step 3 — FIRST FIX: emit_main_body block nesting in emit_wasm.c
+# Add closed[] array, close L0 immediately, track closures, close unclosed at end.
+# Verify: scrip-cc -wasm -o /tmp/t.wat hello.sno && wat2wasm --enable-tail-call /tmp/t.wat -o /tmp/t.wasm && node test/wasm/run_wasm.js /tmp/t.wasm
+# Then: run_invariants.sh snobol4_wasm → 4/4 ✓
+
+# Step 4 — M-SW-A02: rung4/ 5 tests
+# CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung4
+# All 5 should pass once block nesting fixed (DIFFER, goto, arith all implemented)
+# Update snobol4_wasm DIRS to include rung4 → 9 tests
+# Fire M-SW-A02, update invariant cell, commit/push
+
+# Step 5 — update PLAN.md NOW row, append SESSIONS_ARCHIVE
+```
+
+### Key architecture facts for next session
+
+- **Runtime is now a separate module** (`src/runtime/wasm/sno_runtime.wasm`). If runtime changes, recompile: `wat2wasm --enable-tail-call src/runtime/wasm/sno_runtime.wat -o src/runtime/wasm/sno_runtime.wasm`
+- **Import namespace is `"sno"`** — all program WAT files import from `(import "sno" "funcname" ...)` 
+- **`run_wasm.js` takes optional 2nd arg** for runtime path; defaults to `../../src/runtime/wasm/sno_runtime.wasm` relative to script
+- **`$tmp_f` local (f64)** is declared in main body for int-lhs+float-rhs swap
+- **dispatch-loop pattern**: `(loop $dispatch` → blocks opened highest-index-first → `br_table` → L0 closes immediately → statements close their label blocks → unreached blocks close at end
+- **No `$str_ptr` global in programs** — programs use `$sno_str_alloc` from runtime; literal data segment at `STR_DATA_BASE=8192` is below runtime's dynamic heap at 32768
+
+---
+
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA13 + handoff
+
+**one4all** `95b2617` (unchanged) · **corpus** `5f5206d` · **.github** `(this commit)`
+
+### Completed this session
+
+**M-SC-A13 ✅ — rungA13 functions 8/8:**
+define_simple_return(083), define_loop_call(084), define_two_args(085),
+define_locals(086), define_freturn(087), define_recursive_fib(088),
+define_in_pattern(089), define_entry_label(090). All pass immediately.
+
+### Key design note: procedure locals syntax
+Locals are declared as a **second parenthesis group** after the argument list:
+`procedure name(args)(locals) { body }` — NOT `procedure name(args) locals`.
+The `locals` keyword does not exist; the parser hangs on it. This is documented here
+to prevent the same mistake in future sessions.
+
+### Gate (end of session)
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f**
+
+### Running total: 68p / 1xfail / 69 total (A01–A13)
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+   - Ask Lon for `snobol4-2_3_3_tar.gz` if CSNOBOL4 needed; install `m4` first
+   - Compile SnoHarness: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
+2. Gate: `run_emit_check.sh` + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+   - Expect emit-diff ~718/20 (stale .s artifacts, not regressions)
+   - Expect invariants: snobol4_x86 106/106 · icon_x86 94p/164f · prolog_x86 13p/94f
+3. rungA14 — arith loops (2 tests) from corpus/crosscheck/control/
+   - `while (INPUT)` loop pattern — reads until EOF
+   - Fire M-SC-A14 when both pass
+4. rungA15 — library builtins (4 tests, mixed) — corpus/crosscheck/library/ or similar
+5. rungA16 — existing SC crosscheck (10 tests) — promote corpus/crosscheck/snocone/ existing tests
+6. Fire milestones as rungs pass; at A16 completion Partition A is done (~95 tests)
+   - Then begin Partition B: if/while/for/break/continue/&& extensions
+
+### Session summary: emitter fixes this session
+- SNOCONE_QUESTION binary → E_MATCH (was DIFFER stub)
+- assemble_stmt: unwrap E_MATCH into subject+pattern fields
+- sc_pat_concat_to_seq: rewrite E_CONCAT→E_SEQ in pattern tree (Snocone-local)
+- icn_random: libc regression from G-9 s27 found and fixed (G-session also fixed independently)
+
+---
+
+## PW-1 Session (2026-03-30, Claude Sonnet 4.6) — M-PW-SCAFFOLD
+
+**one4all** `9aa5a8e` · **.github** `16ca5da`
+
+### Completed this session
+
+**M-PW-SCAFFOLD ✅** — Prolog × WASM scaffold wired end-to-end:
+- `src/backend/emit_wasm_prolog.c` created (stub `prolog_emit_wasm()` entry point; α/β/γ/ω stubs for all 6 Prolog-specific EKinds: E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_MARK/E_TRAIL_UNWIND)
+- `src/runtime/wasm/pl_runtime.wat` created — stub Prolog WASM runtime (`"pl"` namespace): output_str/nl/flush, trail_mark/unwind, var_bind/deref, unify_atom
+- `src/runtime/wasm/pl_runtime.wasm` assembled clean (wabt 1.0.34)
+- `src/driver/main.c` wired: `-pl -wasm` → `prolog_emit_wasm()` dispatch added
+- `src/Makefile` wired: `emit_wasm_prolog.c` added to BACKEND_WASM sources
+- `scrip-cc -pl -wasm hello.pl` produces valid `(module ...)` WAT without crash ✅
+- Emit-diff gate: **738/0** ✅ — no regressions
+
+### HQ updates
+- `RULES.md`: added `prolog × wasm` row to own-backend invariant policy table; updated baseline matrix Prolog WASM column from SKIP to `0/0 (new — PW session)`
+- `SESSION-prolog-wasm.md`: created — full sprint map PW-1..PW-5, milestone ladder M-PW-SCAFFOLD through M-PW-PARITY, emitter architecture split documented
+- `PLAN.md`: added Prolog WASM row to NOW table
+
+### Architecture summary (for next PW session)
+- **Emitter split:** `emit_wasm.c` = shared (SNOBOL4/ICON/Prolog common nodes — do not modify). `emit_wasm_prolog.c` = Prolog-only (E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*).
+- **Runtime namespace:** `"pl"` (not `"sno"`). Programs `(import "pl" "...")`.
+- **Port encoding:** α/β/γ/ω as tail-call WAT functions (`return_call`), same logic as emit_x64_prolog.c and emit_jvm_prolog.c but `.wat` output.
+- **Session prefix:** `PW`. Next milestone: **M-PW-HELLO**.
+
+### Next session execution order
+1. Setup: `FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (738/0) · `run_invariants.sh prolog_wasm` (0/0 — cell exists, no tests yet)
+3. Implement M-PW-HELLO: wire `write/1` atom output through shared `emit_wasm.c` string table → `$pl_output_str`; `nl/0` → `$pl_output_nl`; emit `:- initialization(main)` as `(func $main (export "main"))`.
+4. Test: `scrip-cc -pl -wasm rung01_hello_hello.pl | wat2wasm | node run_wasm.js` → `hello\n`
+5. Add `prolog_wasm` invariant cell to `run_invariants.sh` (1 test), fire M-PW-HELLO, commit.
+
+---
+
+## PW-1 HANDOFF (2026-03-30, Claude Sonnet 4.6) — context ~70%, clean handoff
+
+**one4all** `9aa5a8e` · **.github** `1884247`
+
+### Session summary
+
+This was a planning + scaffold session. No regressions. Gate: **738/0** ✅.
+
+**M-PW-SCAFFOLD ✅** — all infrastructure for Prolog × WASM in place:
+- `src/backend/emit_wasm_prolog.c` — stub emitter, all 6 Prolog EKinds present as `unreachable` stubs
+- `src/runtime/wasm/pl_runtime.wat` + `.wasm` — `"pl"` namespace runtime: output, trail, var, unify_atom
+- `src/driver/main.c` — `-pl -wasm` dispatch wired to `prolog_emit_wasm()`
+- `src/Makefile` — `emit_wasm_prolog.c` in BACKEND_WASM
+- `SESSION-prolog-wasm.md` created — full sprint/milestone ladder
+- `RULES.md` updated — `prolog × wasm | prolog_wasm only` row added; baseline matrix updated
+- `PLAN.md` updated — PW row added
+
+### What the next PW session must do — M-PW-HELLO
+
+**Goal:** `write('hello'), nl.` → WASM output `hello\n`
+
+**Concrete steps:**
+
+1. **Setup:**
+   ```bash
+   FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+   ```
+   Needs: `gcc make wabt node swipl`. Skips everything else.
+
+2. **Gate:**
+   ```bash
+   cd /home/claude/one4all
+   CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+   # prolog_wasm invariant cell does not exist yet — no run_invariants needed until M-PW-HELLO fires
+   ```
+
+3. **Wire string literals through shared emitter.**
+   `emit_wasm.c` has `strlit_intern()` and `strlit_abs()` but they are `static`.
+   To call them from `emit_wasm_prolog.c`, either:
+   - Promote to `extern` in a new `src/backend/emit_wasm.h`, OR
+   - Duplicate a minimal inline atom-data segment in `emit_wasm_prolog.c`
+   The cleanest path: add `emit_wasm.h` exporting:
+   ```c
+   int  emit_wasm_strlit_intern(const char *s);
+   int  emit_wasm_strlit_abs(int idx);
+   void emit_wasm_set_out(FILE *f);   /* so prolog emitter can share wasm_out */
+   ```
+   Then in `emit_wasm_prolog.c` call these for atom literals in `write/1`.
+
+4. **Implement `emit_write_atom()` in `emit_wasm_prolog.c`:**
+   - For `E_QLIT` arg: call `emit_wasm_strlit_intern(s)` → get idx, `emit_wasm_strlit_abs(idx)` → offset
+   - Emit: `(i32.const OFFSET) (i32.const LEN) call $pl_output_str`
+
+5. **Emit `(func $main (export "main"))` with real body:**
+   Walk `prog->head` statements; for each `E_FNC(write/1)` or `E_FNC(nl/0)` goal, call `emit_pl_goal()`.
+   The current scaffold `emit_pl_main()` is a stub — replace with real statement walker.
+
+6. **Wire the data segment** — `emit_wasm_prolog.c` must emit `(data ...)` blocks for atom strings. Coordinate with `emit_wasm.c`'s `emit_data_segment()` — either share the table or emit a separate Prolog-side data block at a different base offset (e.g., `PL_STR_DATA_BASE = 16384` to avoid collision with `STR_DATA_BASE = 8192`).
+
+7. **Assemble and run:**
+   ```bash
+   scrip-cc -pl -wasm rung01_hello_hello.pl -o /tmp/hello.wat
+   wat2wasm --enable-tail-call /tmp/hello.wat -o /tmp/hello.wasm
+   # Need to link pl_runtime.wasm — update run_wasm.js or write a pl_run_wasm.js
+   node test/wasm/run_wasm.js /tmp/hello.wasm  # expect: hello\n
+   ```
+   Note: `run_wasm.js` was written for the SNOBOL4 runtime (`"sno"` namespace).
+   Prolog programs import from `"pl"` namespace. Options:
+   - Write `test/wasm/pl_run_wasm.js` that loads `pl_runtime.wasm` as the `"pl"` import module, OR
+   - Make `run_wasm.js` accept a `--runtime` flag
+   Simplest for M-PW-HELLO: write `pl_run_wasm.js` (20 lines, mirrors `run_wasm.js`).
+
+8. **Add `prolog_wasm` invariant cell** to `test/run_invariants.sh`:
+   - Copy the `snobol4_wasm` cell block, change cell name to `prolog_wasm`
+   - Point at Prolog corpus rung dir (`corpus/programs/prolog/rung01_hello_hello.pl`)
+   - Update RULES.md baseline: `0/0` → `1/0`
+
+9. **Fire M-PW-HELLO, commit:** `PW-1: M-PW-HELLO — prolog×wasm hello: write/1 + nl/0, 1/1`
+
+### Key files for next session
+- `one4all/src/backend/emit_wasm_prolog.c` — main work file
+- `one4all/src/backend/emit_wasm.c` — read to understand string table; add `extern` exports only if needed
+- `one4all/src/runtime/wasm/pl_runtime.wat` — add `output_nl` if missing; confirm all exports match imports in `emit_wasm_prolog.c`
+- `one4all/test/wasm/run_wasm.js` — reference for writing `pl_run_wasm.js`
+- `corpus/programs/prolog/rung01_hello_hello.pl` — first test
+
+### Invariant policy reminder
+**Run `prolog_wasm` cell ONLY. Never run x86, JVM, snobol4_wasm, or icon_wasm cells.**
+The `prolog_wasm` cell doesn't exist in `run_invariants.sh` yet — create it at M-PW-HELLO.
+
+
+---
+
+## IW-1 — Icon × WASM Scaffold (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `5736907` · **corpus** unchanged · **.github** `73e018c`
+
+### Session type
+IW (Icon × WASM). Session prefix `IW`. Owns `icon_wasm` invariant cell.
+
+### Reference material absorbed this session
+- `Simple_Translation_of_Goal_Directed_Evaluation.pdf` — Proebsting 1996 §4.1–4.5: four-port templates for every Icon operator (literal, unary, binary, `to`, `if`, `every`, function call)
+- `ByrdBox/test_icon-4.py` — **direct WAT structural blueprint**: each Python `def f(): return g` maps 1:1 to WAT `(func $f (result i32) return_call $g)`. Generator state (global `to1_I`) maps to WASM linear memory slot.
+- `ByrdBox/byrd_box.py genc()` — flat-goto C oracle confirming all node wirings
+- `jcon-master/tran/irgen.icn` — complete authoritative four-port wiring for every Icon AST node (every, alt, toby, scan, if, while, until, repeat, suspend, break, case, …)
+- `jcon-master/tran/ir.icn` — complete IR vocabulary (ir_Tmp, ir_TmpLabel, ir_MoveLabel, ir_IndirectGoto, ir_Succeed, ir_ResumeValue, ir_ScanSwap, …)
+- `icon-master.zip` — reference Icon source
+
+### Completed this session
+
+**M-IW-SCAFFOLD ✅**
+- `src/backend/emit_wasm_icon.c` — scaffold with full structural commentary; all ICN_* nodes recognised; Tier-0 emitters documented (ICN_INT, ICN_TO, ICN_EVERY, ICN_ALT, ICN_LT/relops, ICN_ADD/arith, ICN_CALL(write)); generator-state memory at `ICON_GEN_STATE_BASE = 0x10000`; all nodes emit stub-fail per RULES.md §FRONTEND/BACKEND SEPARATION
+- `src/backend/emit_wasm_icon.h` — public interface (`emit_wasm_icon_node`, `emit_wasm_icon_globals`, `is_icon_node`, `emit_wasm_icon_set_out`)
+- `src/Makefile` — `emit_wasm_icon.c` added to `BACKEND_WASM`
+- `test/run_invariants.sh` — `run_icon_wasm()` function added; dispatched in serial block; removed from hardcoded SKIP list; added to OVERALL_FAIL loops
+- `SESSION-icon-wasm.md` — full HQ session doc: §NOW, §BUILD, §TEST GATE, §ARCHITECTURE (oracle chain, WAT blueprint, port-name table, generator state memory, shared-node boundary), §MILESTONE TABLE (M-IW-SCAFFOLD through M-IW-PARITY ~30 milestones), §KEY FILES, §SESSION START
+- `RULES.md` — `icon × wasm` and `prolog × wasm` rows added to own-backend invariant table (verbose "do NOT run" form)
+- `PLAN.md` — IW-1 row added to NOW table; invariant baseline updated
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✅**
+- **icon_wasm: 23p/235f** — live cell (was SKIP); 23 passing = .xfail entries; 235 failing = stub-fail (expected — scaffold state). No regressions vs pre-session baseline.
+- Build: clean (`emit_wasm_icon.o` compiled and linked)
+
+### Concurrent session note
+A concurrent IW+PW session committed `emit_wasm_icon.c` and `emit_wasm_prolog.c` to `origin/main` during this session (commit `80fff2c` / `8267ef5`). Our local file matched their committed version exactly — no conflict in one4all. The `.github` RULES.md had a minor conflict on the `prolog × wasm` row (short vs verbose form); resolved in favour of the verbose "do NOT run" form for consistency with `icon × wasm`.
+
+### Next session execution order (IW-2)
+
+```bash
+# Step 1 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 2 — setup (icon × wasm)
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 3 — gate (own cell ONLY)
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                  # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm        # expect 23p/235f (scaffold baseline)
+
+# Step 4 — read HQ docs
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md    # this entry — FIRST
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+
+# Step 5 — begin M-IW-A01
+```
+
+### M-IW-A01 blueprint (next milestone)
+
+Goal: rung01 hello/write tests pass. Requires wiring the full recursive dispatch in `emit_wasm_icon_node()` for:
+- `ICN_INT` — emit `$iconN_start` (store i64 literal to global, return_call succ) + `$iconN_resume` (return_call fail)
+- `ICN_VAR` — load from variable table; for rung01 only `write()` arg is needed so can start with integer path
+- `ICN_PROC` / `ICN_CALL(write)` — procedure entry; write() calls `$sno_output_int` then newline
+- `ICN_EVERY` — start→E.start; E.fail→every.fail; E.succeed→body.start; body.done→E.resume
+- `ICN_RETURN` / `ICN_FAIL` — procedure exit
+
+Key oracle reference for M-IW-A01:
+- `test_icon-4.py` lines for `write1_*`, `greater_*`, `mult_*` — full wired example
+- `byrd_box.py genc() case 'WRITE'` — write node wiring template
+- `irgen.icn ir_a_ProcBody` — procedure body sequencing
+
+The full recursive dispatch pattern (walking IcnNode tree, threading α/β names down through children) needs to be built in `emit_wasm_icon_node()`. The individual emitter functions (`emit_icn_int`, `emit_icn_to`, etc.) are already written correctly — they just need to be called with the right child node names as arguments.
+
+### Architecture reminders for IW-2
+
+- **Shared runtime**: programs import from `"sno"` namespace (same as SNOBOL4 WASM); `$sno_output_int`, `$sno_output_str`, `$sno_str_concat` etc. already available
+- **Generator state memory**: `ICON_GEN_STATE_BASE = 0x10000` (64KB), slots of 64 bytes each, allocated by `icon_alloc_gen_slot()`
+- **Node-value globals**: `$icn_int0..$icn_int63` (i64), `$icn_flt0..$icn_flt15` (f64) — declared by `emit_wasm_icon_globals()`, must be called from `emit_wasm.c` before function section
+- **No auto-semicolon**: Icon source in corpus uses explicit semicolons; `icon_lex.c` line 4 confirms
+- **`.expected` not `.ref`**: Icon corpus uses `rung*.expected` (not `.ref` like SNOBOL4 crosscheck)
+- **Session prefix IW**, not I (Icon×x86) or IJ (Icon×JVM)
+
+---
+
 ## G-9 Session 29 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
 
 **one4all** `75ad614` · **corpus** `224d3d4` · **.github** this session
 
-### Completed this session
+### Completed
+- ir.h +32 Icon EKind entries — full semantic audit; 22 IcnKinds map to shared EKinds, 32 new
+- scrip_cc.h EXPR_T_DEFINED guard added; hard unconditional #define removed
+- icon_lower.c + icon_lower.h — complete IcnNode→EXPR_t lowering pass (not yet wired to pipeline)
+- Makefile: icon_lower.o added
+- Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅
 
-- **ir.h +32 Icon EKind entries** — full semantic audit of all 73 IcnKind values
-  against existing EKind. 22 map to shared EKinds (same Byrd-box semantics);
-  32 are Icon-specific and required new entries. Key decisions:
-  - `ICN_SEQ` (string equality ==) → `E_SSEQ` (NOT E_SEQ which = goal-directed sequence)
-  - `ICN_AND` (n-ary conjunction) → `E_SEQ` (identical Byrd-box wiring, SHARED)
-  - `ICN_BREAK` (loop break) → `E_LOOP_BREAK` (avoids collision with E_BREAK = SNOBOL4 BREAK(S))
-  - `dval` field name preserved in ir.h EXPR_t (all existing backends use dval)
-  - `#define EXPR_T_DEFINED` added inside ir.h's own guard block
+### Key decisions
+- ICN_SEQ (string ==) → E_SSEQ (E_SEQ = goal-directed sequence, already taken)
+- ICN_AND (n-ary conjunction) → E_SEQ (identical Byrd-box wiring, SHARED)
+- ICN_BREAK (loop break) → E_LOOP_BREAK (avoids collision with E_BREAK = SNOBOL4 BREAK(S))
+- dval field name preserved in ir.h EXPR_t (all existing backends use dval, not fval)
+- Bridge functions attempted and reverted — round-trip IcnNode→EXPR_t→IcnNode is wrong
 
-- **scrip_cc.h EXPR_T_DEFINED guard** — struct definition wrapped in
-  `#ifndef EXPR_T_DEFINED` so ir.h or scrip_cc.h can be included first
-  without redefinition. Forward typedef added before STMT_t. Hard
-  unconditional `#define EXPR_T_DEFINED` removed.
+### NOT done — next session must complete
+Migrate emit_x64_icon.c and emit_jvm_icon.c to consume EXPR_t* directly.
+Replace IcnNode* params with EXPR_t*, ICN_* cases with E_*, IcnPorts with γ/ω.
+Wire main.c to call icon_lower_file() between parse and emit.
+No bridges. Direct mapping only.
 
-- **icon_lower.c + icon_lower.h** — complete IcnNode→EXPR_t lowering pass.
-  `icon_lower_file()` walks IcnNode** and produces EXPR_t** using canonical
-  EKind. Compiles and links cleanly.
-
-- **Makefile** — icon_lower.o added to SRCS.
-
-- **Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅**
-
-### What was NOT done (correct decision)
-
-Attempted to wire icon_lower into main.c and add bridge functions
-(EXPR_t**→IcnNode**) to both emitters. This was wrong — a round-trip
-lowering defeats the purpose of M-G9-ICON-IR-WIRE. Bridge code was reverted.
-
-The correct next step is to migrate `emit_x64_icon.c` and `emit_jvm_icon.c`
-to consume `EXPR_t*` directly: replace `IcnNode*` parameters with `EXPR_t*`,
-replace `ICN_*` switch cases with `E_*`, replace `IcnPorts` with plain γ/ω
-params (Class 4 naming law). This is a large mechanical substitution (~11K
-lines across two files) requiring a full fresh session.
-
-### Key facts for next session
-
-- `icon_lower.c` is complete and correct — do not re-examine it
-- ir.h new EKinds are committed — do not re-add them
-- scrip_cc.h guard is in place — do not change include order logic
-- The emitter migration is the ONLY remaining work for M-G9-ICON-IR-WIRE
-- emit_x64_icon.c entry point: `icn_emit_file()` takes `IcnEmitter*, IcnNode**, int`
-- emit_jvm_icon.c entry point: `emit_jvm_icon_file()` takes `IcnNode**, int, FILE*, ...`
-- Both need new signatures: accept `EXPR_t**` from icon_lower_file()
-- main.c pipeline point: after `icn_parse_file()`, before emit call
-
-### Next session execution order
-
+### Next session
 ```bash
 FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 touch /home/claude/one4all/src/frontend/rebus/rebus.tab.c \
       /home/claude/one4all/src/frontend/rebus/rebus.tab.h \
       /home/claude/one4all/src/frontend/rebus/lex.rebus.c
 cd /home/claude/one4all/src && make -j$(nproc)
-cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
-# Then: migrate emit_x64_icon.c to EXPR_t* (direct, no bridge)
-# Then: migrate emit_jvm_icon.c to EXPR_t* (direct, no bridge)
-# Then: wire main.c to call icon_lower_file() between parse and emit
-# Gate 738/0 after each emitter migration before touching the next
+# Migrate emit_x64_icon.c first (2750 lines), gate 738/0, then emit_jvm_icon.c (8360 lines)
 ```

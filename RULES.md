@@ -33,9 +33,10 @@ for, or run invariant cells from, a backend you are not working on this session.
 | snobol4 × net | `snobol4_net` only |
 | icon × x86 | `icon_x86` only |
 | icon × jvm | `icon_jvm` only |
+| icon × wasm | `icon_wasm` only — do NOT run snobol4_wasm, prolog_wasm, or any x86/jvm cells |
 | prolog × x86 | `prolog_x86` only |
 | prolog × jvm | `prolog_jvm` only |
-| prolog × wasm | `prolog_wasm` only |
+| prolog × wasm | `prolog_wasm` only — do NOT run snobol4_wasm, icon_wasm, or any x86/jvm cells |
 | snocone × x86 | `snobol4_x86` · `snocone_x86` (snocone is additive over snobol4) |
 | G-sessions | all active cells — reorg touches all emitters |
 
