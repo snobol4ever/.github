@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s28 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `95b2617` one4all · `27129a2` corpus | M-SC-A13: rungA13 functions (8 tests) |
-| **SNOBOL4 WASM** | SW-2 | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
+| **SNOBOL4 WASM** | SW-2 | `44ac687` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests — dispatch-loop block nesting fix needed |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
