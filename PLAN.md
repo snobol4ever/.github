@@ -69,7 +69,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **ICON WASM** | IW-1 scaffold | one4all `(this session)` | **M-IW-A01**: ICN_INT/VAR/ASSIGN/CALL(write)/PROC rung01 hello |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
-| **Prolog WASM** | PW-1 `9aa5a8e` one4all | `1884247` .github | **M-PW-HELLO** |
+| **Prolog WASM** | PW-2 `651922d` one4all | — | **M-PW-HELLO** (1-fix from done) |
 | **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |

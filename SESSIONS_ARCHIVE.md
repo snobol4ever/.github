@@ -7909,3 +7909,111 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
 # Migrate emit_x64_icon.c first (2750 lines), gate 738/0, then emit_jvm_icon.c (8360 lines)
 ```
+
+---
+
+## PW-2 HANDOFF (2026-03-30, Claude Sonnet 4.6) — context ~87%, handoff
+
+**one4all** `651922d` · **.github** this commit
+
+### Session summary
+
+M-PW-HELLO infrastructure complete. One-line fix remaining before milestone fires.
+
+**Gate: 738/0** ✅ · No regressions.
+
+### Work completed
+
+**emit_wasm.h** (new):
+- Exports shared string table API: `emit_wasm_set_out(FILE*)`, `emit_wasm_strlit_intern(s)`, `emit_wasm_strlit_abs(idx)`, `emit_wasm_strlit_len(idx)`, `emit_wasm_data_segment()`, `emit_wasm_strlit_reset()`
+- Enables sibling emitters (PW, future IW) to share `emit_wasm.c` string literal table without touching `emit_wasm.c` internals
+
+**emit_wasm.c** (modified):
+- Added 6 extern wrapper functions before the public `emit_wasm()` entry point
+- `emit_wasm_strlit_reset()` frees + clears the table for a fresh Prolog emit pass
+- No logic changed in existing SNOBOL4 paths — SW session unaffected
+
+**emit_wasm_prolog.c** (full rewrite from scaffold):
+- `prescan_pl_prog()` — walks all stmt subjects/patterns/replacements, interns E_QLIT + E_ILIT atoms before data segment emission
+- `emit_wasm_data_segment()` call — shared string literal `(data ...)` block at offset 8192
+- `emit_pl_choice_body()` — for single-clause E_CHOICE, inline body goals (children[n_args..]) directly; multi-clause stubs to M-PW-A01
+- `emit_pl_main()` — Pass 1: find `main/0` E_CHOICE by sval, call `emit_pl_choice_body()`; Pass 2 fallback: walk non-E_CHOICE directives, skip known meta-directives
+- `emit_pl_goal()` — nl/0, write/1, writeln/1, halt/0, true/0, fail/0, E_SEQ conjunction, stubs for E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*
+- `emit_write_atom()` — handles E_QLIT and E_ILIT args via shared string table
+
+**test/wasm/pl_run_wasm.js** (new):
+- 25-line mirror of `run_wasm.js`; loads `pl_runtime.wasm` as `"pl"` import namespace
+- Usage: `node test/wasm/pl_run_wasm.js prog.wasm [pl_runtime.wasm]`
+
+### BLOCKER — one fix to fire M-PW-HELLO
+
+**Root cause:** `prolog_lower()` lowers atom arguments (e.g. `hello` in `write(hello)`) as **nullary `E_FNC`** (kind 51), NOT as `E_QLIT`. The `emit_write_atom()` function handles `E_QLIT` and `E_ILIT` but falls through to the stub for `E_FNC`.
+
+**Fix (5 lines in `emit_write_atom()`):** Add this case before the fallback:
+```c
+/* Atom argument: prolog_lower() emits TT_ATOM args as nullary E_FNC */
+if (arg->kind == E_FNC && arg->sval && arg->nchildren == 0) {
+    int idx = emit_wasm_strlit_intern(arg->sval);
+    int off = emit_wasm_strlit_abs(idx);
+    int len = emit_wasm_strlit_len(idx);
+    W("    ;; write('%s') atom\n", arg->sval);
+    W("    (i32.const %d)\n", off);
+    W("    (i32.const %d)\n", len);
+    W("    (call $pl_output_str)\n");
+    return;
+}
+```
+Also add `E_FNC` atom interning to `prescan_goal()`:
+```c
+if (g->kind == E_FNC && g->sval && g->nchildren == 0)
+    emit_wasm_strlit_intern(g->sval);
+```
+
+**After fix:** `write(hello)` will emit `(i32.const OFF)(i32.const 5)(call $pl_output_str)` correctly.
+
+**Also check:** whether `E_CLAUSE` body goals come as direct children or wrapped in `E_FNC(",")` conjunction — if the comma-conjunction case fires, add it to `emit_pl_choice_body()`:
+```c
+/* Body goal may be wrapped in E_FNC(",") conjunction */
+if (g->kind == E_FNC && g->sval && strcmp(g->sval, ",") == 0) {
+    for (int i = 0; i < g->nchildren; i++) emit_pl_goal(g->children[i]);
+    return;
+}
+```
+Add this at the top of `emit_pl_goal()` before the other E_FNC dispatch.
+
+### Test sequence for next session
+
+```bash
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+
+# Apply the 5-line E_FNC nullary fix to src/backend/emit_wasm_prolog.c
+# Then:
+scrip-cc -pl -wasm corpus/programs/prolog/rung01_hello_hello.pl -o /tmp/hello.wat
+wat2wasm --enable-tail-call /tmp/hello.wat -o /tmp/hello.wasm
+node test/wasm/pl_run_wasm.js /tmp/hello.wasm
+# expect: hello\n
+
+# Add prolog_wasm invariant cell to test/run_invariants.sh
+# CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  → 1/0
+# Fire M-PW-HELLO, commit: "PW-2: M-PW-HELLO — prolog×wasm hello: write/1 + nl/0, 1/1"
+```
+
+### Key files
+- `one4all/src/backend/emit_wasm_prolog.c` — main work file; apply E_FNC nullary fix
+- `one4all/src/backend/emit_wasm.h` — shared API (do not modify)
+- `one4all/src/backend/emit_wasm.c` — shared emitter (do not modify)
+- `one4all/test/wasm/pl_run_wasm.js` — Prolog node runner (complete)
+- `one4all/src/runtime/wasm/pl_runtime.wat` + `.wasm` — runtime (complete)
+- `corpus/programs/prolog/rung01_hello_hello.pl` — first test
+
+### Invariant policy
+**Run `prolog_wasm` cell ONLY.** Cell does not yet exist in `run_invariants.sh` — create it when M-PW-HELLO fires (1 test). Never run x86/JVM/snobol4_wasm cells in a PW session.
+
+### Architecture reminder (shared WASM emitter split)
+| File | Owns | Rule |
+|------|------|------|
+| `emit_wasm.c` | Shared string table, E_QLIT/ILIT/FLIT, arithmetic, SNOBOL4 runtime imports | SW session — do not modify |
+| `emit_wasm_prolog.c` | E_CHOICE/CLAUSE/UNIFY/CUT/TRAIL_*, pl runtime imports, `prolog_emit_wasm()` | PW session |
+| `emit_wasm_icon.c` | ICN_* nodes | Future IW session |
