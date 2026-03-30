@@ -6,10 +6,13 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ## ⛔ TWO SCRIPTS — SESSION_SETUP.sh then test scripts, every session, no exceptions
 
-**Setup (once per fresh environment):**
+**Setup (once per fresh environment) — ALWAYS pass FRONTEND and BACKEND:**
 ```bash
-TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
+See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combination installs/skips.
+
+**⛔ Never omit FRONTEND= and BACKEND=.** Omitting them installs everything (bison, flex, java, mono, swipl, icont, spitbol) — wastes 5–15 min and signals the wrong mental model. The correct switches for each session are in that session's §START block.
 
 **Gate (every session after setup) — emit-diff first, then targeted invariants:**
 ```bash
