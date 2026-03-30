@@ -5853,3 +5853,61 @@ all others    unchanged from session 13
 **Step 6:** After all five audits done, review gaps and execute M-G5-LOWER-*-FIX milestones for any frontend with actual gaps.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 15 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `2af1b6b` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+
+### Completed this session
+
+**M-G5-LOWER-* audits — all five complete:**
+- M-G5-LOWER-ICON-AUDIT ✅ `d593d66` — 7 gaps: ICN_POS, ICN_RANDOM, ICN_COMPLEMENT, ICN_CSET_{UNION,DIFF,INTER}, ICN_SCAN_AUGOP. ICN_LCONCAT confirmed implemented (aliases to concat in both backends).
+- M-G5-LOWER-SNOCONE-AUDIT ✅ `2287572` — PASS. Snocone IS a standard frontend. scrip_cc.h includes ir.h with EXPR_T_DEFINED + IR_COMPAT_ALIASES. Only real gap: snocone_cf_compile gated on asm_mode only (G2).
+- M-G5-LOWER-REBUS-AUDIT ✅ `77fd565` — 2 arch gaps: no rebus_lower.c, not in main.c. RE_*→EKind mapping fully specified (50% SNOBOL4 pool + 50% Icon pool). rebus_emit.c is transpiler only — not the production path.
+- M-G5-LOWER-SCRIP-AUDIT ✅ `a27cd83` — PASS. Scrip is a polyglot dispatcher (scrip_split.py), not a language with its own IR. No new EKind nodes needed.
+- M-G5-LOWER-SNOBOL4-AUDIT + M-G5-LOWER-PROLOG-AUDIT already done.
+
+**Architecture clarifications from Lon (incorporated into docs):**
+- Snocone: shares 90%+ nodes with SNOBOL4 — correct, it is a standard frontend on the common pool
+- Rebus: 50% Icon + 50% SNOBOL4 pool — RE_BANG→E_ITER, RE_PATOPT→E_ARBNO; no new kinds needed
+- Scrip: not a language with its own IR — polyglot dispatcher only
+- All frontends: produce EKind IR directly, NOT SNOBOL4 source (rebus_emit.c is oracle/debug only)
+
+**M-G-INV-FAST-X86-FIX (partial)** `2af1b6b` — harness fixes:
+1. `export CORPUS_REPO="$CORPUS"` — root cause of icon/prolog_jvm cells showing 0/0. Icon rung scripts use CORPUS_REPO, harness only set CORPUS.
+2. `icon_x86_runner.sh` + `icon_jvm_runner.sh` — wrappers for old-format rung01/rung03 that expect a binary taking .icn and printing output.
+3. `run_rung22-31.sh` — parameterized hardcoded `/tmp/scrip-cc` → `${1:-/tmp/scrip-cc}`.
+
+**Invariant status after partial fix:**
+```
+              x86           JVM           .NET
+SNOBOL4    106 ✓          0 ✓           0 ✓
+Icon       102p/11f ✗    102p/11f ✗    SKIP
+Prolog     13p/94f ✗      0 ✓          SKIP
+```
+- Icon 11 failures = rung01 (6) + rung03 (5) — old-format scripts not yet wired to x86/jvm runners in harness. Runners exist and work; harness run_icon_x86/jvm now passes runners — need one more invariant run to confirm.
+- prolog_jvm 0/0 — `scrip-cc -pl -jvm` emits empty output for prolog .pl files. Root cause not yet determined.
+- snobol4_jvm/net 0/0 — under investigation; likely similar env issue.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
+
+**Step 1:** Run `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — expect icon_x86 and icon_jvm to now show real counts (rung01/03 should now pass via runners). Confirm.
+
+**Step 2:** Investigate `prolog_jvm 0/0`:
+- Manual test: `./scrip-cc -pl -jvm /home/claude/corpus/programs/prolog/rung01_hello_hello.pl`
+- If empty output: check `jvm_mode` flag handling in main.c for `-pl -jvm` combination, check `emit_jvm_prolog.c` entry point.
+- Expected: `31/31` per frozen baseline.
+
+**Step 3:** Investigate `snobol4_jvm 0/0` and `snobol4_net 0/0`:
+- Check what those harness cells actually run (read run_invariants.sh snobol4_jvm/net runners).
+- Expected: `106/106` JVM, `110/110` .NET per frozen baseline.
+
+**Step 4:** Once all 7 cells show real counts matching frozen baseline, close M-G-INV-FAST-X86-FIX ✅ and update GRAND_MASTER_REORG.md.
+
+**Step 5:** Proceed to M-G5-LOWER-SNOCONE-FIX (G2: snocone_cf_compile asm_mode gate), M-G5-LOWER-REBUS-FIX (rebus_lower.c + main.c integration).
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

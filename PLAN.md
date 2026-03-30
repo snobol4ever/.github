@@ -90,24 +90,20 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 14 — Final state (2026-03-29, Claude Sonnet 4.6)
+## G-9 Session 15 — Final state (2026-03-30, Claude Sonnet 4.6)
 
-**one4all** `0f71030` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+**one4all** `2af1b6b` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
 
 ### Completed this session
-- **pl__cm__sl_N_r fix** committed — n-ary conjunction splice in disj handler; rung02_facts ✅
-- **Makefile dep rule** fixed — emit_x64.o: emit_x64_prolog.c after `all` target
-- **harness tiny_net adapter** fix committed — scrip-cc -net -o flag
-- **Remaining 94 Prolog x86 failures** = missing runtime builtins (findall, sort, assertz, etc.) — out of reorg scope
+- **All M-G5-LOWER-* audits** ✅ — ICON (7 gaps), SNOCONE (pass), REBUS (2 arch gaps), SCRIP (pass), SNOBOL4+PROLOG already done
+- **M-G-INV-FAST-X86-FIX (partial)** — CORPUS_REPO export fix; icon_x86_runner.sh + icon_jvm_runner.sh; rung22-31 parameterized
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
 
 **Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
 
-**Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh` — confirm baseline (snobol4_x86 106/106, prolog_x86 13/107, prolog_jvm 106/107).
+**Step 1:** Run invariants — confirm icon_x86/jvm now show real counts. Investigate prolog_jvm 0/0 and snobol4_jvm/net 0/0. Close M-G-INV-FAST-X86-FIX when all 7 cells show real counts matching frozen baseline.
 
-**Step 2:** Complete M-G5-LOWER-ICON-AUDIT — write `doc/IR_LOWER_ICON.md`. Expected gaps: ICN_CSET_DIFF/INTER/UNION, ICN_AUGOP, ICN_RANDOM, ICN_LCONCAT, ICN_COMPLEMENT.
-
-**Step 3:** M-G5-LOWER-SNOCONE/REBUS/SCRIP audits, then execute Fix milestones for any gaps found.
+**Step 2:** M-G5-LOWER-SNOCONE-FIX (G2: snocone_cf_compile asm_mode gate) and M-G5-LOWER-REBUS-FIX (rebus_lower.c + main.c -reb integration).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
