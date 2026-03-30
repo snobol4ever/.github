@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-2 — M-SC-A04–A09 ✅ (43p/1xfail of 44); next M-SC-A10 (capture, goto-free)
-**HEAD:** `3f5da0f` one4all · `080d51a` corpus
-**Next action:** rungA10 — capture (goto-free) 3 tests; see corpus/crosscheck/capture/ for SNOBOL4 sources
+**Sprint:** SC-2 — M-SC-A04–A11 ✅ (50p/1xfail of 51); next M-SC-A12 (patterns, 10 tests)
+**HEAD:** `c95400f` one4all · `fc6f3a5` corpus
+**Next action:** rungA12 — patterns 10 tests; see corpus/crosscheck/patterns/
 
 **Session start — mandatory order, no exceptions:**
 
@@ -130,7 +130,7 @@ Translation rules:
 | M-SC-A08 | rungA08 | keywords (goto-free) | 4 | ✅ | DATATYPE &ALPHABET LPAD EQ/NE |
 | M-SC-A09 | rungA09 | keywords (with goto) | 5 | ✅ (4p/1xfail) | &STNO &ANCHOR(xfail) LGT/LLT/LEQ/LNE REVERSE DUPL+SIZE |
 | M-SC-A10 | rungA10 | capture (goto-free) | 3 | ✅ | Verbatim |
-| M-SC-A11 | rungA11 | capture (with goto) | 4 | ❌ | `if` rewrite |
+| M-SC-A11 | rungA11 | capture (with goto) | 4 | ✅ | `if`/`while` rewrite; && for pat sequence |
 | M-SC-A12 | rungA12 | patterns | 10 | ❌ | `if` + `?` operator |
 | M-SC-A13 | rungA13 | functions | 8 | ❌ | `procedure` decl |
 | M-SC-A14 | rungA14 | arith loops | 2 | ❌ | `while (INPUT)` loop |
