@@ -272,9 +272,11 @@ else
     ok "scrip-cc (already built)"
 fi
 
-# jasmin.jar — bundled in repo
-JASMIN=/home/claude/one4all/src/backend/jvm/jasmin.jar
-[[ -f "$JASMIN" ]] && ok "jasmin.jar" || fail "jasmin.jar missing at $JASMIN"
+# jasmin.jar — bundled in repo (JVM backend only)
+if need_backend jvm; then
+    JASMIN=/home/claude/one4all/src/backend/jvm/jasmin.jar
+    [[ -f "$JASMIN" ]] && ok "jasmin.jar" || fail "jasmin.jar missing at $JASMIN"
+fi
 
 # ── WHY — what to read ────────────────────────────────────────────────────────
 step "WHY — read before coding (mandatory)"

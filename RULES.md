@@ -235,13 +235,13 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 ## ⛔ TEST INVARIANT — Confirm before any work
 
-**Required baseline — 3×3 matrix (7 active, 2 not-yet-implemented):**
+**Required baseline — 3×4 matrix (7 active x86/JVM/.NET, snobol4_wasm active, others not-yet-implemented):**
 
-| | x86 | JVM | .NET |
-|--|-----|-----|------|
-| SNOBOL4 | `106/106` | `94p/32f` | `108p/2f` |
-| Icon | `94p/164f` | `173p/44f` | SKIP (not impl) |
-| Prolog | `13p/94f` | `106p/1f` | SKIP (not impl) |
+| | x86 | JVM | .NET | WASM |
+|--|-----|-----|------|------|
+| SNOBOL4 | `106/106` | `94p/32f` | `108p/2f` | `4/4` |
+| Icon | `94p/164f` | `173p/44f` | SKIP (not impl) | SKIP (not impl) |
+| Prolog | `13p/94f` | `106p/1f` | SKIP (not impl) | SKIP (not impl) |
 
 All failure counts above are **pre-existing, non-regressions** (confirmed G-9 s22). Any new
 failure not in this table is a regression — fix before pushing.
