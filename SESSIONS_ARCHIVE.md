@@ -6540,3 +6540,60 @@ Files sharing a translation unit with `emit_x64.c` (`emit_x64_prolog.c`, `emit_x
 **Step 3 — Begin post-reorg work (sessions now unfrozen)**
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 23 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `b41dc8d` (unchanged) · **corpus** `8db2d44` (unchanged) · **.github** `d5692f4`
+
+### Completed this session
+
+- **Assessment** — evaluated whether Grand Master Reorg met its goal of maximally shared IR + maximally shared backend code. Finding: structural unification achieved (one directory layout, one naming law, one IR header, one corpus); semantic sharing hit the Byrd-box physics ceiling (only `ir_nary_right_fold` extractable across backends). Two open structural gaps identified: (1) alias names still used in backend switch cases, (2) Icon bypasses `EXPR_t` entirely via parallel `IcnNode` AST.
+- **RULES.md updated** — invariants reinstated (were retired as gate G-9 s18). New rule: full 7-cell suite at session START and END only; targeted backend-column regression mid-session. Baseline table corrected to real post-s22 counts.
+- **PLAN.md updated** — freeze notice removed; all FROZEN session rows → resume status; NOW row updated to G-9 s23; invariant baseline corrected.
+- **GRAND_MASTER_REORG.md updated** — M-G7-UNFREEZE row corrected (no longer PREMATURE — all M-G3-NAME-* done); **Phase 9** added with three new milestones.
+
+### New milestones added (Phase 9)
+
+- **M-G9-ALIAS-CLEANUP** — Replace 13 `IR_COMPAT_ALIASES` in backend `switch` cases with canonical `EKind` names (`E_VART→E_VAR`, `E_OR→E_ALT`, `E_MNS→E_NEG`, `E_EXPOP→E_POW`, `E_NAM→E_CAPT_COND`, `E_DOL→E_CAPT_IMM`, `E_ATP→E_CAPT_CUR`, `E_NULV→E_NUL`, `E_ASGN→E_ASSIGN`, `E_SCAN→E_MATCH`, `E_BANG→E_ITER`, `E_ALT_GEN→E_GENALT`, `E_ARY→E_IDX`). Affects `emit_x64.c`, `emit_jvm.c`, `emit_net.c`. Then remove `#define IR_COMPAT_ALIASES` from all consumers.
+- **M-G9-BACKEND-FLATTEN** — Remove extra subfolder level under `src/backend/`. `src/backend/x64/emit_x64.c` → `src/backend/emit_x64.c` etc. Naming convention `emit_<backend>_<frontend>.c` already encodes backend — subfolder is redundant. Move `jasmin.jar` too. Update all `#include` paths, Makefile, scripts.
+- **M-G9-ICON-IR-WIRE** — Wire Icon through `EXPR_t`/`ir.h`. New `icon_lower.c` lowers `IcnNode` → `EXPR_t`; update both `emit_x64_icon.c` and `emit_jvm_icon.c` to consume `EXPR_t`. Prerequisite: M-G5-LOWER-ICON-FIX (7 ICN gaps). Largest remaining unification item.
+
+### Next session execution order
+
+**Step 0:** Setup + gate
+```bash
+TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh    # full 7-cell; confirm post-s22 baseline
+```
+
+**Step 1 — M-G7-UNFREEZE (legitimate — all M-G3-NAME-* done, Phase 9 milestones recorded):**
+```bash
+cd /home/claude/one4all
+git tag post-reorg-baseline-2
+git push origin post-reorg-baseline-2
+```
+Then update GRAND_MASTER_REORG.md: M-G7-UNFREEZE ✅. Push .github.
+
+**Step 2 — Confirm invariant CSV for archive:**
+```bash
+cat /home/claude/one4all/test-results/invariants_latest.csv
+```
+Verify counts match post-s22 baseline. Record in GRAND_MASTER_REORG.md §Invariant baseline if not already there.
+
+**Step 3 — Begin Phase 9 cleanup (sessions now unfrozen, fire in any order):**
+- M-G9-ALIAS-CLEANUP first (smallest risk, pure rename in 3 files)
+- M-G9-BACKEND-FLATTEN second (Makefile + path surgery)
+- M-G9-ICON-IR-WIRE last (largest, prerequisite M-G5-LOWER-ICON-FIX)
+
+### Known facts for next session
+
+- Gate: **738/0** emit-diff (confirmed s22)
+- Invariant baseline (post-s22): x86 SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | NET SNOBOL4 `108p/2f` — all failures pre-existing
+- All sessions unfrozen as of this session (PLAN.md updated)
+- `M-G7-UNFREEZE` tag not yet pushed — do it Step 1 next session
+- Token: never in commits, never in chat — `TOKEN_SEE_LON` as placeholder
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
