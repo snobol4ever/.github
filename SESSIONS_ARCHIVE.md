@@ -7526,3 +7526,73 @@ Their fix was taken in the rebase conflict resolution.
 3. rungA13 — functions 8 tests from `corpus/crosscheck/functions/`
    - DEFINE/label/goto → `procedure` declarations
    - Fire M-SC-A13 when all pass
+
+---
+
+## G-9 Session 29 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `75ad614` · **corpus** `224d3d4` · **.github** this session
+
+### Completed this session
+
+- **ir.h +32 Icon EKind entries** — full semantic audit of all 73 IcnKind values
+  against existing EKind. 22 map to shared EKinds (same Byrd-box semantics);
+  32 are Icon-specific and required new entries. Key decisions:
+  - `ICN_SEQ` (string equality ==) → `E_SSEQ` (NOT E_SEQ which = goal-directed sequence)
+  - `ICN_AND` (n-ary conjunction) → `E_SEQ` (identical Byrd-box wiring, SHARED)
+  - `ICN_BREAK` (loop break) → `E_LOOP_BREAK` (avoids collision with E_BREAK = SNOBOL4 BREAK(S))
+  - `dval` field name preserved in ir.h EXPR_t (all existing backends use dval)
+  - `#define EXPR_T_DEFINED` added inside ir.h's own guard block
+
+- **scrip_cc.h EXPR_T_DEFINED guard** — struct definition wrapped in
+  `#ifndef EXPR_T_DEFINED` so ir.h or scrip_cc.h can be included first
+  without redefinition. Forward typedef added before STMT_t. Hard
+  unconditional `#define EXPR_T_DEFINED` removed.
+
+- **icon_lower.c + icon_lower.h** — complete IcnNode→EXPR_t lowering pass.
+  `icon_lower_file()` walks IcnNode** and produces EXPR_t** using canonical
+  EKind. Compiles and links cleanly.
+
+- **Makefile** — icon_lower.o added to SRCS.
+
+- **Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅**
+
+### What was NOT done (correct decision)
+
+Attempted to wire icon_lower into main.c and add bridge functions
+(EXPR_t**→IcnNode**) to both emitters. This was wrong — a round-trip
+lowering defeats the purpose of M-G9-ICON-IR-WIRE. Bridge code was reverted.
+
+The correct next step is to migrate `emit_x64_icon.c` and `emit_jvm_icon.c`
+to consume `EXPR_t*` directly: replace `IcnNode*` parameters with `EXPR_t*`,
+replace `ICN_*` switch cases with `E_*`, replace `IcnPorts` with plain γ/ω
+params (Class 4 naming law). This is a large mechanical substitution (~11K
+lines across two files) requiring a full fresh session.
+
+### Key facts for next session
+
+- `icon_lower.c` is complete and correct — do not re-examine it
+- ir.h new EKinds are committed — do not re-add them
+- scrip_cc.h guard is in place — do not change include order logic
+- The emitter migration is the ONLY remaining work for M-G9-ICON-IR-WIRE
+- emit_x64_icon.c entry point: `icn_emit_file()` takes `IcnEmitter*, IcnNode**, int`
+- emit_jvm_icon.c entry point: `emit_jvm_icon_file()` takes `IcnNode**, int, FILE*, ...`
+- Both need new signatures: accept `EXPR_t**` from icon_lower_file()
+- main.c pipeline point: after `icn_parse_file()`, before emit call
+
+### Next session execution order
+
+```bash
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+touch /home/claude/one4all/src/frontend/rebus/rebus.tab.c \
+      /home/claude/one4all/src/frontend/rebus/rebus.tab.h \
+      /home/claude/one4all/src/frontend/rebus/lex.rebus.c
+cd /home/claude/one4all/src && make -j$(nproc)
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+# Then: migrate emit_x64_icon.c to EXPR_t* (direct, no bridge)
+# Then: migrate emit_jvm_icon.c to EXPR_t* (direct, no bridge)
+# Then: wire main.c to call icon_lower_file() between parse and emit
+# Gate 738/0 after each emitter migration before touching the next
+```
