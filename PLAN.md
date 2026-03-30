@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s18 — M-G-INV-FAST-X86-FIX ✅ closed; invariant suite retired; emit-diff only | `dcdaa3e` one4all · `.github` pending | **M-G5-LOWER-SNOCONE-FIX → M-G5-LOWER-REBUS-FIX** |
+| **⚠ GRAND MASTER REORG** | G-9 s19 — M-G5-LOWER-SNOCONE-FIX ✅ M-G5-LOWER-REBUS-FIX ✅; gate restored 738/0 | `9a3ac41` one4all · `.github` pending · `8ecee15` corpus | **snobol4_jvm OPSYN gap (optional) → M-G7-UNFREEZE** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
@@ -113,20 +113,15 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 15 — Final state (2026-03-30, Claude Sonnet 4.6)
+## G-9 Session 19 — Final state (2026-03-30, Claude Sonnet 4.6)
 
-**one4all** `2af1b6b` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+**one4all** `9a3ac41` · **.github** pending · **harness** `aede157` · **corpus** `8ecee15`
 
 ### Completed this session
-- **All M-G5-LOWER-* audits** ✅ — ICON (7 gaps), SNOCONE (pass), REBUS (2 arch gaps), SCRIP (pass), SNOBOL4+PROLOG already done
-- **M-G-INV-FAST-X86-FIX (partial)** — CORPUS_REPO export fix; icon_x86_runner.sh + icon_jvm_runner.sh; rung22-31 parameterized
+- **Emit-diff gate restored** — broken since corpus migration (f9fbf15). run_emit_check.sh now uses CORPUS env var. Gate: **738/0** ✅
+- **M-G5-LOWER-SNOCONE-FIX** ✅ — removed asm_mode gate on snocone_cf_compile. one4all `099737e`
+- **M-G5-LOWER-REBUS-FIX** ✅ — rebus_lower.c (RE_*→EKind + RS_*→STMT_t), -reb flag, Makefile bison/flex rules, 3×3 baselines in corpus. one4all `9a3ac41` · corpus `8ecee15`
 
 ### Next session — read SESSIONS_ARCHIVE last entry only
-
-**Step 0:** Clone repos with token (see SESSION_BOOTSTRAP.sh).
-
-**Step 1:** Run invariants — confirm icon_x86/jvm now show real counts. Investigate prolog_jvm 0/0 and snobol4_jvm/net 0/0. Close M-G-INV-FAST-X86-FIX when all 7 cells show real counts matching frozen baseline.
-
-**Step 2:** M-G5-LOWER-SNOCONE-FIX (G2: snocone_cf_compile asm_mode gate) and M-G5-LOWER-REBUS-FIX (rebus_lower.c + main.c -reb integration).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
