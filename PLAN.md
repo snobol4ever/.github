@@ -5,26 +5,31 @@ SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 
 ---
 
-## ⛔ SESSION START — Run this first, every session, no exceptions
+## ⛔ SESSION START — Run these two commands first, every session, no exceptions
 
+**Step 1 — Setup (tools + repos + build). Run once per fresh environment:**
 ```bash
-TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+```
+Clones repos, installs ALL tools via apt (nasm, gcc, libgc, java, mono, swipl, icont),
+builds from source (CSNOBOL4, SPITBOL, scrip-cc), sets git identity. No tests run.
+
+**Step 2 — Gate (emit-diff + 7-cell invariants). Run every session after setup:**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh
 ```
 
-**This script is fully self-contained.** It clones repos, installs ALL tools via apt (nasm, gcc,
-libgc, java, mono, swipl, icont) and builds from source (CSNOBOL4, SPITBOL, scrip-cc), sets git
-identity, prints current milestone, then runs emit-diff and 7-cell runtime invariants.
-
-**Never pre-check or pre-install tools manually. Never ask "do I have everything I need?"**
-Just run the script. It handles everything. Network access is available.
+**Never pre-check or pre-install tools manually.** SESSION_SETUP.sh handles everything.
+The test scripts verify tools are present but do NOT install — if they report a missing
+tool, re-run SESSION_SETUP.sh.
 
 **Invariant run times (G-9 baseline):**
 - `run_emit_check.sh` — emit-diff 493 files × 3 backends: **~8–12s**
-- `run_invariants.sh` — 7-cell runtime suite: **~60s** serial (M-G-INV-SESSION-BASELINE)
+- `run_invariants.sh` — 7-cell runtime suite: **~60–270s** depending on environment
 
-Both scripts have `ensure_tools()` — they self-heal missing binaries before running.
-
-After bootstrap, read in order:
+After setup + gate, read in order:
 ```
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # last handoff — FIRST
 cat /home/claude/.github/RULES.md                    # mandatory rules
