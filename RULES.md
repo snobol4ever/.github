@@ -4,6 +4,16 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ---
 
+## ⛔ SCRIPTS ARE SELF-SUFFICIENT — Never pre-check tools, never install manually
+
+`SESSION_BOOTSTRAP.sh`, `run_invariants.sh`, and `run_emit_check.sh` all have `ensure_tools()`
+that installs apt packages and builds binaries automatically. **Never ask "do I have nasm/gcc/java?"
+Never run apt-get manually before a script. Never build scrip-cc separately before running a test
+script.** Just invoke the script directly — it handles everything. Wasting steps pre-checking is
+a context burn and signals the wrong mental model. The scripts are the environment setup.
+
+---
+
 ## ⛔ SIX THINGS — Run SESSION_BOOTSTRAP.sh first, every session, no exceptions
 
 ```bash
