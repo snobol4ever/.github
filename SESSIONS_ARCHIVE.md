@@ -6026,3 +6026,59 @@ Close milestone: **M-G-INV-FAST-X86-FIX ✅** — all 7 cells show real counts m
 - Estimated: medium complexity, ~100 lines emit_jvm.c + ~80 lines SnoRuntime.java.
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 18 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `dcdaa3e` · **.github** pending · **harness** `aede157` · **corpus** `c230de7`
+
+### Completed this session
+
+**M-G-INV-FAST-X86-FIX ✅ CLOSED** — Final invariant run completed (221.9s). All 7 cells confirmed with real counts. snobol4_net verified manually via `run_crosscheck_net.sh`: **108/110**. Both failures confirmed pre-existing non-regressions:
+- `056_pat_star_deref` NET: emits empty instead of `hello` — same OPSYN/star-deref gap as JVM. Pre-existing.
+- `wordcount` NET: hangs under mono (infinite loop in runtime). Pre-existing.
+
+**Final frozen invariant baseline (PERMANENT RECORD — suite retired):**
+```
+              x86              JVM                  .NET
+SNOBOL4    106/106 ✅    110p/16f (16 pre-ex)   108/110 (2 pre-ex) ✅
+Icon        94/258 *     173/234 **              SKIP
+Prolog      13/107 †     106/107 ✅              SKIP
+```
+`*` Icon x86 94/258: rung05-36 = pre-existing M-G5-LOWER-ICON-FIX gaps (ICN_POS, ICN_RANDOM, ICN_COMPLEMENT, ICN_CSET_*, ICN_SCAN_AUGOP).
+`**` Icon JVM 173/234: pre-existing gaps, same root causes.
+`†` Prolog x86 13/107: 94 missing builtins (findall, sort, assertz etc.) — out of reorg scope.
+snobol4_jvm 16f: OPSYN alias dispatch + EVAL/APPLY — no handler in emit_jvm.c. Pre-existing.
+
+**Invariant suite RETIRED as session gate.** Lon's direction: emit-diff only going forward.
+
+**HQ updated:**
+- `GRAND_MASTER_REORG.md`: M-G-INV-FAST-X86-FIX row updated ⏳ → ✅ with final counts.
+- `PLAN.md`: SESSION START Step 2 updated — `run_invariants.sh` removed, emit-diff only. Gate invariants paragraph retired. NOW table row updated.
+- `SESSIONS_ARCHIVE.md`: this entry.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+
+**Step 1 — Gate (emit-diff only):**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+```
+Expect 493/0. Do NOT run `run_invariants.sh`.
+
+**Step 2 — M-G5-LOWER-SNOCONE-FIX:**
+- File: `driver/main.c` — find the `asm_mode` gate on `snocone_cf_compile`.
+- Fix: call `snocone_cf_compile` regardless of backend (it's a frontend lowering pass, not ASM-specific).
+- Verify: emit-diff 493/0 still clean after fix. Snocone 10/10 still green (run `CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh` or equivalent).
+
+**Step 3 — M-G5-LOWER-REBUS-FIX:**
+- Write `src/frontend/rebus/rebus_lower.c` — maps RE_* nodes to EKind per `doc/IR_LOWER_REBUS.md`. RE_BANG→E_ITER, RE_PATOPT→E_ARBNO. 50% SNOBOL4 pool + 50% Icon pool.
+- Wire `-reb` flag in `driver/main.c`.
+- Verify: Rebus 3/3 green.
+
+**Step 4 (optional):** snobol4_jvm OPSYN gap — add OPSYN handler to `emit_jvm.c` (~100 lines + ~80 lines SnoRuntime.java).
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
