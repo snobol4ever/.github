@@ -17,8 +17,8 @@
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
-Installs: gcc make curl unzip nasm libgc-dev CSNOBOL4. Skips: bison flex java mono icont swipl.
-Never run `make` or `apt-get` by hand. Never install bison/flex — not needed for Snocone×x86.
+Installs: gcc make curl unzip nasm libgc-dev CSNOBOL4. Skips: java mono icont swipl.
+Never run `make` or `apt-get` by hand. Never install bison/flex — they are never installed in any session. See RULES.md.
 
 **Step 1 — Gate:**
 ```bash

@@ -23,10 +23,10 @@ TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SET
 
 | Tool | Package | Purpose |
 |------|---------|---------|
-| `bison` | `bison` | Rebus parser generator (regenerate only — generated files committed to repo) |
-| `flex` | `flex` | Rebus lexer generator (regenerate only — generated files committed to repo) |
+| ~~`bison`~~ | — | **Never installed.** `rebus.tab.c/h` are committed. Regenerate on your own machine if you modify `rebus.y`. |
+| ~~`flex`~~ | — | **Never installed.** `lex.rebus.c` is committed. Regenerate on your own machine if you modify `rebus.l`. |
 
-**bison and flex are NOT required for normal builds.** Generated files (`rebus.tab.c`, `rebus.tab.h`, `lex.rebus.c`) are committed to the repo. Only needed when `rebus.y` or `rebus.l` change.
+**bison and flex are NEVER installed in any session — including Rebus sessions.** Generated files (`rebus.tab.c`, `rebus.tab.h`, `lex.rebus.c`) are committed and always current. If `rebus.y` or `rebus.l` change, regenerate on your own machine and commit the C files.
 
 ---
 
@@ -61,15 +61,15 @@ Each frontend has a reference oracle used to generate `.ref` expected output for
 
 | FRONTEND | BACKEND | Always | + Backend | + Oracle | Skip |
 |----------|---------|--------|-----------|---------|------|
-| `snocone` | `x64` | gcc make curl unzip | nasm libgc-dev | snobol4 (CSNOBOL4) | bison flex java javac mono ilasm icont swipl spitbol |
-| `snobol4` | `x64` | " | nasm libgc-dev | snobol4 (CSNOBOL4) | bison flex java javac mono ilasm icont swipl spitbol |
-| `icon` | `x64` | " | nasm libgc-dev | icont iconx | bison flex java javac mono ilasm snobol4 swipl spitbol |
-| `prolog` | `x64` | " | nasm libgc-dev | swipl | bison flex java javac mono ilasm snobol4 icont spitbol |
-| `snobol4` | `jvm` | " | java javac jasmin.jar | snobol4 (CSNOBOL4) | bison flex nasm libgc-dev mono ilasm icont swipl spitbol |
-| `icon` | `jvm` | " | java javac jasmin.jar | icont iconx | bison flex nasm libgc-dev mono ilasm snobol4 swipl spitbol |
-| `prolog` | `jvm` | " | java javac jasmin.jar | swipl | bison flex nasm libgc-dev mono ilasm snobol4 icont spitbol |
-| `snobol4` | `net` | " | mono ilasm | snobol4 (CSNOBOL4) | bison flex nasm libgc-dev java javac icont swipl spitbol |
-| `snobol4` | `wasm` | " | wabt(wat2wasm) node | snobol4 (CSNOBOL4) | bison flex nasm libgc-dev java javac mono ilasm icont swipl spitbol |
+| `snocone` | `x64` | gcc make curl unzip | nasm libgc-dev | snobol4 (CSNOBOL4) | java javac mono ilasm icont swipl spitbol |
+| `snobol4` | `x64` | " | nasm libgc-dev | snobol4 (CSNOBOL4) | java javac mono ilasm icont swipl spitbol |
+| `icon` | `x64` | " | nasm libgc-dev | icont iconx | java javac mono ilasm snobol4 swipl spitbol |
+| `prolog` | `x64` | " | nasm libgc-dev | swipl | java javac mono ilasm snobol4 icont spitbol |
+| `snobol4` | `jvm` | " | java javac jasmin.jar | snobol4 (CSNOBOL4) | nasm libgc-dev mono ilasm icont swipl spitbol |
+| `icon` | `jvm` | " | java javac jasmin.jar | icont iconx | nasm libgc-dev mono ilasm snobol4 swipl spitbol |
+| `prolog` | `jvm` | " | java javac jasmin.jar | swipl | nasm libgc-dev mono ilasm snobol4 icont spitbol |
+| `snobol4` | `net` | " | mono ilasm | snobol4 (CSNOBOL4) | nasm libgc-dev java javac icont swipl spitbol |
+| `snobol4` | `wasm` | " | wabt(wat2wasm) node | snobol4 (CSNOBOL4) | nasm libgc-dev java javac mono ilasm icont swipl spitbol |
 | *(omitted)* | *(omitted)* | " | ALL backends | ALL oracles | nothing — full install |
 
 **SPITBOL** is never required for any current session — it is an alternative SNOBOL4 oracle
@@ -85,7 +85,7 @@ TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SET
 ```
 
 Installs: `gcc make curl unzip nasm libgc-dev snobol4(CSNOBOL4)`
-Skips:    `bison flex java javac mono ilasm icont swipl spitbol` — saves ~5–10 min
+Skips:    `java javac mono ilasm icont swipl spitbol` — saves ~5–10 min
 
 ---
 

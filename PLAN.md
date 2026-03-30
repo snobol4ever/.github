@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s27 | one4all `29c836f` · corpus `7d3cfa2` · .github this session | **M-G5-LOWER-ICON-FIX** G2/G1/G7 emitter cases remaining → then **M-G9-ICON-IR-WIRE** |
+| **GRAND MASTER REORG** | G-9 s28 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `c95400f` one4all · `fc6f3a5` corpus | M-SC-A12: rungA12 patterns |
 | **SNOBOL4 WASM** | SW-2 | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
@@ -121,5 +121,20 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 - Corpus icon `.s` baselines updated (stale from G3–G6 cset externs) — gate 738/0 ✅
 - `icn_random(long n)` added to `icon_runtime.c` — G2 runtime prerequisite ✅
 - Invariants confirmed: x86 SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f`
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+## G-9 Session 28 — Completed (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `9b2fa58` · **corpus** `224d3d4` · **.github** this session
+
+### Completed
+- **icn_random no-libc fix** ✅ — replaced `rand()`/`srand()`/`time()` (broken under `-nostdlib`) with pure LCG seeded from stack pointer. Restored icon_x86 invariants 23p/235f → 94p/164f.
+- **M-G5-LOWER-ICON-FIX G1** ✅ — `ICN_POS`: identity passthrough both backends
+- **M-G5-LOWER-ICON-FIX G2** ✅ — `ICN_RANDOM`: `emit_random()` x64 + `emit_jvm_icon_random()` + `icn_builtin_random(J)J` Jasmin method JVM
+- **M-G5-LOWER-ICON-FIX G7** ✅ — `ICN_SCAN_AUGOP`: explicit stub-fail both backends
+- **M-G5-LOWER-ICON-FIX complete** ✅ — all G1–G7 cases done
+- **bison/flex purged** ✅ — SESSION_SETUP.sh, RULES.md, SETUP-tools.md, SESSION-snocone-x64.md updated; rebus Makefile guarded; generated files freshened and committed
+- Gate: **738/0** ✅ · Invariants: SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f`
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
