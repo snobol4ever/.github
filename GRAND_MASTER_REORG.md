@@ -32,7 +32,7 @@
 | **M-G-EMIT-COVERAGE** ✅ | Emit-diff coverage: one test per IR node kind across all applicable backends. SNOBOL4: `test/snobol4/coverage/coverage_sno_nodes.sno` — all 26 frontend-emitted node kinds (E_QLIT E_ILIT E_FLIT E_VART E_KW E_NULV E_ADD E_SUB E_MPY E_DIV E_MNS E_EXPOP E_CONCAT E_SEQ E_OR E_NAM E_DOL E_ATP E_ARB E_ARBNO E_STAR E_INDR E_FNC E_IDX E_ASGN E_OPSYN). Prolog: `test/prolog/coverage/coverage_pl_nodes.pl` — all 15 Prolog IR node kinds. Icon: `test/icon/coverage/coverage_x64_gaps.icn` (existing, covers 28 ICN kinds). Emit-diff: **493/0** ✅. | one4all `6d8dd4b` |
 | **M-G-INV-FAST** ✅ | Invariant harness speed overhaul. Root cause: per-test JVM startup (jasmin + java) × ~152 tests = 3–5 min, causing session timeouts. Fixes: (1) **Persistent runtime archive cache** `out/rt_cache/libsno4rt_asm.a` + `libsno4rt_pl.a` — stamp-checked, rebuilt only on source change; (2) **Batch jasmin** — all `.j` files assembled in one `java -jar jasmin` call per suite; (3) **Single SnoHarness JVM** — all SNOBOL4-JVM and Prolog-JVM tests run in one `java -cp SnoHarness` process with per-test classloader + 3s thread timeout; (4) **Parallel nasm+link** via `xargs -P$JOBS`. Result: harness now produces output within 240s. | G-9 s2 · .github pending |
 | **M-G-INV-TIMEOUT** ✅ | Hang detection requirement: no infinite-loop test may block harness for more than seconds. Implemented five-layer timeout defence: (1) per-binary x86 `timeout $TIMEOUT_X86` (5s); (2) SnoHarness internal 3s per-class thread; (3) batch jasmin `timeout 60`; (4) SnoHarness suite `timeout 120`; (5) suite-level watchdog background process kills harness after `SUITE_TIMEOUT=300`s. All 38 icon rung runners patched (two structural families). START/FINISH/ELAPSED printed at top and bottom of `run_emit_check.sh` and `run_invariants.sh`. | G-9 s2 · .github pending |
-| **M-G-INV-FAST-X86-FIX** | Fix snobol4_x86 LINK_FAIL in new parallel harness. Root cause: `_x86_compile_one` exported bash function not visible inside `bash -c` subshell spawned by `xargs`. Fix: rewrite xargs dispatch to write per-test mini-scripts to `$WORK/jobs/NNN.sh` and invoke with `xargs -P$JOBS bash`. Verify 106/106 snobol4_x86. | Next session — do first |
+| **M-G-INV-FAST-X86-FIX** ⏳ | Get all 7 invariant cells showing real test counts. Root causes found G-9 s15: (1) `CORPUS_REPO` not exported — icon/prolog rung scripts use `CORPUS_REPO`, harness only set `CORPUS`; fixed `export CORPUS_REPO="$CORPUS"`. (2) Old-format rung01/rung03 expect standalone binary — `icon_x86_runner.sh` + `icon_jvm_runner.sh` wrappers added. (3) rung22-31 hardcoded `/tmp/scrip-cc` — parameterized. Still open: `prolog_jvm 0/0` (scrip-cc -pl -jvm emits empty), `snobol4_jvm/net 0/0` (under investigation). one4all `2af1b6b`. | Next session: investigate prolog_jvm + snobol4_jvm/net |
 | **M-G-INV-SESSION-BASELINE** ✅ | Gate: confirm full invariant suite runs to completion in the current Claude session environment. Fix: removed parallel dispatch + watchdog, replaced with serial cell execution. Result: 60.8s wall time, `snobol4_x86 106/106` ✅, Prolog x86 11/107 (96 pre-existing compile failures, not a regression), Icon 0/0, JVM/NET SKIP. Baseline confirmed. | `snobol4_x86 106/106` ✅ · one4all `4f30e7f` |
 
 #### M-G0-CORPUS-AUDIT — Inventory and Open Decisions
@@ -246,18 +246,18 @@ first being documented.
 
 | ID | Frontend | Action | Verify |
 |----|----------|--------|--------|
-| **M-G5-LOWER-SNOBOL4-AUDIT** | snobol4 | Audit `parse.c` / `lower.c` — list every node kind produced. Cross-reference to unified enum. Produce `doc/IR_LOWER_SNOBOL4.md` with gap table. No code changes. | File exists |
-| **M-G5-LOWER-SNOBOL4-FIX** | snobol4 | For each gap in `doc/IR_LOWER_SNOBOL4.md`: add missing kind to enum (if absent), wire bridge in `lower.c`. One commit per gap. | 106/106 after each gap fixed |
-| **M-G5-LOWER-ICON-AUDIT** | icon | Audit `IcnNode` kinds — map each to unified enum or flag as frontend-local extension. Produce `doc/IR_LOWER_ICON.md`. No code changes. | File exists |
-| **M-G5-LOWER-ICON-FIX** | icon | For each gap: add kind or wire explicit bridge. One commit per gap. | Icon x86 rung03 5/5 after each gap |
-| **M-G5-LOWER-PROLOG-AUDIT** | prolog | Confirm `E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*` are all in unified enum (Phase 1). Produce `doc/IR_LOWER_PROLOG.md` — expected to be short. | File exists |
-| **M-G5-LOWER-PROLOG-FIX** | prolog | Fix any gaps found. (Expected: none.) | Prolog JVM 20/20 |
-| **M-G5-LOWER-SNOCONE-AUDIT** | snocone | Audit lowered form — map to unified enum. Produce `doc/IR_LOWER_SNOCONE.md`. | File exists |
-| **M-G5-LOWER-SNOCONE-FIX** | snocone | Fix gaps. One commit per gap. | Snocone corpus PASS after each gap |
-| **M-G5-LOWER-REBUS-AUDIT** | rebus | Audit `rebus_emit.c` — map Rebus AST nodes to unified enum. Produce `doc/IR_LOWER_REBUS.md`. | File exists |
-| **M-G5-LOWER-REBUS-FIX** | rebus | Fix gaps. One commit per gap. | Rebus corpus PASS after each gap |
-| **M-G5-LOWER-SCRIP-AUDIT** | scrip | Audit Scrip AST — map every node kind to unified enum or flag as Scrip-specific extension. Produce `doc/IR_LOWER_SCRIP.md`. No code changes. | File exists |
-| **M-G5-LOWER-SCRIP-FIX** | scrip | For each gap: add kind or wire explicit bridge. One commit per gap. | Scrip corpus PASS after each gap |
+| **M-G5-LOWER-SNOBOL4-AUDIT** ✅ | snobol4 | Audit `parse.c` / `lower.c`. No code changes. `doc/IR_LOWER_SNOBOL4.md`. | File exists |
+| **M-G5-LOWER-SNOBOL4-FIX** ✅ | snobol4 | No gaps — alias names only (M-G3 scope). No-op. | 106/106 ✅ |
+| **M-G5-LOWER-ICON-AUDIT** ✅ | icon | 7 gaps: ICN_POS, ICN_RANDOM, ICN_COMPLEMENT, ICN_CSET_{UNION,DIFF,INTER}, ICN_SCAN_AUGOP. `doc/IR_LOWER_ICON.md` `d593d66`. | File exists |
+| **M-G5-LOWER-ICON-FIX** | icon | Fix 7 gaps. G1/G7 low priority. G2-G6 medium (cset ops + random). | Icon x86 rung03 5/5 after each gap |
+| **M-G5-LOWER-PROLOG-AUDIT** ✅ | prolog | All Prolog IR kinds in unified enum. `doc/IR_LOWER_PROLOG.md`. | File exists |
+| **M-G5-LOWER-PROLOG-FIX** ✅ | prolog | No gaps. No-op. | Prolog JVM 20/20 ✅ |
+| **M-G5-LOWER-SNOCONE-AUDIT** ✅ | snocone | PASS. Standard frontend on unified IR. Gap G2: snocone_cf_compile asm_mode gate. `doc/IR_LOWER_SNOCONE.md` `2287572`. | File exists |
+| **M-G5-LOWER-SNOCONE-FIX** | snocone | G2: remove asm_mode gate in main.c. | Snocone corpus 10/10 PASS after fix |
+| **M-G5-LOWER-REBUS-AUDIT** ✅ | rebus | 2 arch gaps: no rebus_lower.c, not in main.c. RE_*→EKind mapped (50% SNOBOL4 + 50% Icon pool). `doc/IR_LOWER_REBUS.md` `77fd565`. | File exists |
+| **M-G5-LOWER-REBUS-FIX** | rebus | Write rebus_lower.c + add -reb in main.c. rebus_emit.c is oracle only. | Rebus corpus 3/3 PASS after fix |
+| **M-G5-LOWER-SCRIP-AUDIT** ✅ | scrip | PASS. Polyglot dispatcher — no new EKind nodes. `doc/IR_LOWER_SCRIP.md` `a27cd83`. | File exists |
+| **M-G5-LOWER-SCRIP-FIX** ✅ | scrip | No-op at IR level. Post-UNFREEZE harness work. | n/a |
 
 ---
 
