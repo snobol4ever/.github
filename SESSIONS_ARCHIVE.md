@@ -8337,3 +8337,47 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 1p/
 - `test/run_invariants.sh prolog_wasm` → target 3p/0f after M-PW-A01
 
 **Commit:** `PW-4: M-PW-A01 — facts: E_CHOICE/E_CLAUSE/E_UNIFY atom, 2/2`
+
+---
+
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — M-SC-A15 + blk_alloc fix
+
+**one4all** `ad0e869` · **corpus** `ba3fe80` · **.github** this session
+
+### Completed this session
+
+1. **blk_alloc link fix ✅** — `run_sc_corpus_rung.sh` was missing `blk_alloc.o` + `blk_reloc.o` from LINK_OBJS since SC-1. Added both. This unblocked all procedure-using tests (rungA13 8/8, rungA15 4/4 all now pass).
+
+2. **M-SC-A15 ✅ — rungA15 library builtins 4/4:**
+   - `A15_lib_math.sc` — max, min, abs, sign, gcd, lcm
+   - `A15_lib_stack.sc` — push, pop, peek, depth, empty freturn, pattern capture
+   - `A15_lib_case.sc` — lwr, upr, cap, icase (case-normalized comparison via lwr())
+   - `A15_lib_string.sc` — pad_left, pad_right, ltrim (while loop), rtrim (break), trimws, repeat, contains, startswith, endswith, index
+
+3. **snocone_x86 invariant fixes:**
+   - Count parsing fixed: `tr -d '[:space:]'` on `grep -c` output
+   - rungA15 added to DIRS in `run_invariants.sh`
+   - **New baseline: snocone_x86 74/74 ✓**
+
+### Gate (end of session)
+- **snobol4_x86: 106/106 ✅**
+- **snocone_x86: 74/74 ✅** — clean
+
+### Running total: 74/74 passing (A01–A15, xfail excluded)
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` + `run_invariants.sh snobol4_x86 snocone_x86`
+   - Expect: emit-diff 738/0; snobol4_x86 106/106; snocone_x86 74/74
+3. M-SC-A16 — rungA16: promote `corpus/crosscheck/snocone/` root-level files
+   - Files: `assign_009–016_*.sc`, `hello_*.sc`, `output_001–008_*.sc` (~20 files)
+   - Create `corpus/crosscheck/snocone/rungA16/`, copy files in (check/fix semicolons — old format used no semicolons)
+   - Add rungA16 to snocone_x86 DIRS in run_invariants.sh
+   - Fire M-SC-A16 when passing
+4. At A16 completion Partition A is done (~95 tests total)
+5. Begin Partition B: M-SC-B01 if/else extensions
+
+### Naming convention (permanent)
+- User vars/procedures → lowercase/snake_case
+- SNOBOL4 builtins/keywords → UPPER
+- String content → lowercase natural text

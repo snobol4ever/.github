@@ -7,12 +7,15 @@
 
 ## §NOW
 
-**Sprint:** SC-2 — M-SC-A14 ✅ (70p/1xfail/9link-fail); next M-SC-A15 (library builtins, 4 tests)
-**HEAD:** `972ae52` one4all · `6b258c5` corpus
-**Next action:** rungA15 — library builtins 4 tests (corpus/crosscheck/library/ SNOBOL4 sources)
+**Sprint:** SC-2 — M-SC-A15 ✅ (74/74); next M-SC-A16 (existing SC crosscheck, ~10 tests)
+**HEAD:** `ad0e869` one4all · `ba3fe80` corpus
+**Next action:** rungA16 — promote corpus/crosscheck/snocone/ root-level files (assign_*, hello_*, output_*) into rungA16/, wire into snocone_x86 DIRS, fire M-SC-A16
 
-**Invariant baseline (snocone_x86):** 62p/9f — 9 pre-existing rungA13 blk_alloc link failures (tracked, not regressions)
-**Naming convention (enforced this session):** user vars/procedures → lowercase/snake_case; SNOBOL4 builtins/keywords → UPPER; string literals → lowercase natural text
+**Invariant baseline (snocone_x86):** 74/74 ✓ — clean, no failures
+**Key fixes this session:**
+- blk_alloc.o + blk_reloc.o added to run_sc_corpus_rung.sh LINK_OBJS (was missing since SC-1, blocked all procedure tests)
+- snocone_x86 invariant count parsing fixed (tr -d whitespace)
+**Naming convention:** user vars/procedures → lowercase/snake_case; SNOBOL4 builtins → UPPER; string content → lowercase
 
 **Session start — mandatory order, no exceptions:**
 
