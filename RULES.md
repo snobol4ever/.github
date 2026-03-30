@@ -11,12 +11,26 @@ Every rule exists because a violation caused real damage. Read section headers f
 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
 
-**Gate (every session after setup):**
+**Gate (every session after setup) — emit-diff first, then targeted invariants:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-CORPUS=/home/claude/corpus bash test/run_invariants.sh
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # always — all backends
+CORPUS=/home/claude/corpus bash test/run_invariants.sh          # always at session START
 ```
+
+**Targeted regression rule (post-M-G7-UNFREEZE):** After every milestone commit,
+run only the invariant cells for the backend you are working on — not the full 7-cell
+suite. The full suite is only required at session start and session end.
+
+| If working on… | Regression cells to run |
+|----------------|------------------------|
+| anything × x86 | `snobol4_x86` · `icon_x86` · `prolog_x86` |
+| anything × JVM | `snobol4_jvm` · `icon_jvm` · `prolog_jvm` |
+| anything × .NET | `snobol4_net` |
+| anything × WASM | (no invariants yet — emit-diff only) |
+
+Exclude the cell you are actively modifying from the regression set — you own that
+cell's correctness; the regression cells are the *other* frontends on the same backend.
 
 `SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4, SPITBOL,
 scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they
@@ -192,21 +206,20 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 | | x86 | JVM | .NET |
 |--|-----|-----|------|
-| SNOBOL4 | `106/106` | `106/106` | `110/110` |
-| Icon | `38-rung` | `38-rung` | SKIP (not impl) |
-| Prolog | `per-rung PASS` | `31/31` | SKIP (not impl) |
+| SNOBOL4 | `106/106` | `94p/32f` | `108p/2f` |
+| Icon | `94p/164f` | `173p/44f` | SKIP (not impl) |
+| Prolog | `13p/94f` | `106p/1f` | SKIP (not impl) |
 
-- **x86 SNOBOL4:** `run_crosscheck_asm_corpus.sh` must show 106/106.
-- **JVM SNOBOL4:** `run_crosscheck_jvm_rung.sh` against full corpus must show 106/106.
-- **.NET SNOBOL4:** `run_crosscheck_net.sh` must show 110/110 (requires `harness`).
-- **Icon x64:** all 38 `test/frontend/icon/run_rung*.sh` must PASS.
-- **Icon JVM:** all 38 `test/frontend/icon/run_rung*.sh` via JVM path must PASS.
-- **Prolog x64:** all `test/frontend/prolog/corpus/rung*/` must PASS.
-- **Prolog JVM:** `run_prolog_jvm_rung.sh` per rung must PASS (31/31 baseline).
+All failure counts above are **pre-existing, non-regressions** (confirmed G-9 s22). Any new
+failure not in this table is a regression — fix before pushing.
+
+**Session start:** run the full 7-cell suite once and confirm counts match the table.
+**Mid-session (after each milestone commit):** run only the targeted backend column
+(see gate section). Do not run the full suite mid-session — it is slow and unnecessary.
+**Session end:** run the full 7-cell suite once more and confirm no regressions.
+
 - **Icon .NET / Prolog .NET:** not yet implemented — always SKIP.
-- **All sessions:** confirm baseline before touching code. Fix regressions before new work.
-- **Never report only one backend.** If a backend cannot be run, state the last known count and the reason.
-- **G-sessions always run all seven active invariants** — the reorg touches all emitters.
+- **G-sessions always run all seven active invariants at START and END** — the reorg touches all emitters.
 
 **Backend name:** The native backend is **x86** (not "ASM" or "x64 ASM"). Emitter file stays `emit_x64.c`; folder stays `backend/x64/`; the human name is x86.
 
