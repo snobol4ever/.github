@@ -7612,3 +7612,48 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm   # expect 0
 - **`$tmp_f` local (f64)** is declared in main body for int-lhs+float-rhs swap
 - **dispatch-loop pattern**: `(loop $dispatch` → blocks opened highest-index-first → `br_table` → L0 closes immediately → statements close their label blocks → unreached blocks close at end
 - **No `$str_ptr` global in programs** — programs use `$sno_str_alloc` from runtime; literal data segment at `STR_DATA_BASE=8192` is below runtime's dynamic heap at 32768
+
+---
+
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA13 + handoff
+
+**one4all** `95b2617` (unchanged) · **corpus** `5f5206d` · **.github** `(this commit)`
+
+### Completed this session
+
+**M-SC-A13 ✅ — rungA13 functions 8/8:**
+define_simple_return(083), define_loop_call(084), define_two_args(085),
+define_locals(086), define_freturn(087), define_recursive_fib(088),
+define_in_pattern(089), define_entry_label(090). All pass immediately.
+
+### Key design note: procedure locals syntax
+Locals are declared as a **second parenthesis group** after the argument list:
+`procedure name(args)(locals) { body }` — NOT `procedure name(args) locals`.
+The `locals` keyword does not exist; the parser hangs on it. This is documented here
+to prevent the same mistake in future sessions.
+
+### Gate (end of session)
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f**
+
+### Running total: 68p / 1xfail / 69 total (A01–A13)
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+   - Ask Lon for `snobol4-2_3_3_tar.gz` if CSNOBOL4 needed; install `m4` first
+   - Compile SnoHarness: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
+2. Gate: `run_emit_check.sh` + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+   - Expect emit-diff ~718/20 (stale .s artifacts, not regressions)
+   - Expect invariants: snobol4_x86 106/106 · icon_x86 94p/164f · prolog_x86 13p/94f
+3. rungA14 — arith loops (2 tests) from corpus/crosscheck/control/
+   - `while (INPUT)` loop pattern — reads until EOF
+   - Fire M-SC-A14 when both pass
+4. rungA15 — library builtins (4 tests, mixed) — corpus/crosscheck/library/ or similar
+5. rungA16 — existing SC crosscheck (10 tests) — promote corpus/crosscheck/snocone/ existing tests
+6. Fire milestones as rungs pass; at A16 completion Partition A is done (~95 tests)
+   - Then begin Partition B: if/while/for/break/continue/&& extensions
+
+### Session summary: emitter fixes this session
+- SNOCONE_QUESTION binary → E_MATCH (was DIFFER stub)
+- assemble_stmt: unwrap E_MATCH into subject+pattern fields
+- sc_pat_concat_to_seq: rewrite E_CONCAT→E_SEQ in pattern tree (Snocone-local)
+- icn_random: libc regression from G-9 s27 found and fixed (G-session also fixed independently)
