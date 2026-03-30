@@ -66,6 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
 | **README** | R-2 `00846d3` | — | resume — unfrozen |
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
+| **ICON WASM** | IW-1 scaffold | one4all `(this session)` | **M-IW-A01**: ICN_INT/VAR/ASSIGN/CALL(write)/PROC rung01 hello |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
 | **Prolog WASM** | PW-1 `9aa5a8e` one4all | `1884247` .github | **M-PW-HELLO** |
@@ -73,7 +74,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `4/4`
+**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `4/4` · Icon `23p/235f` (scaffold, stub-fail)
 
 **Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
 
