@@ -56,6 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s25 | one4all `db6219c` · corpus `06419f3` · .github `940895b` | **M-G5-LOWER-ICON-FIX** (7 ICN gaps) → then **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-1 | `f0ddef4` one4all · `149f48a` corpus | M-SC-A04: rungA04 concat (&&) |
+| **SNOBOL4 WASM** | SW-1 | `db6219c` one4all (scaffold) | M-SW-0: TOOLCHAIN (wat2wasm + node runner) |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
@@ -89,6 +90,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |
 | Prolog | `SESSION-prolog-x64.md` | `SESSION-prolog-jvm.md` | — |
 | Snocone | `SESSION-snocone-x64.md` | — | — |
+| SNOBOL4 (WASM) | `SESSION-snobol4-wasm.md` | `BACKEND-WASM.md` | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
 Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md`

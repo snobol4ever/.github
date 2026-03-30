@@ -7071,3 +7071,46 @@ Fix one gap at a time. After each: Icon x86 rung03 5/5 green.
 - Generated Rebus files committed; bison/flex Rebus-only
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
 - Token: `TOKEN_SEE_LON`
+
+---
+
+## SW-1 Session (2026-03-30, Claude Sonnet 4.6) — WASM Planning + HQ Setup
+
+**.github** `(this commit)` · **one4all** `db6219c` (scaffold) · **corpus** `149f48a`
+
+### Work completed
+
+**Research + validation:**
+- Read all ByrdBox zip files: `byrd_box.py`, `byrd_box.sno`, `test_icon.sno`, `test_icon.c`, `SNOBOL4c.c` — confirmed `genc()` in byrd_box.py is the structural oracle for emit_wasm.c
+- Confirmed toolchain: `wabt 1.0.34` (`wat2wasm`) + `node v22.22.0` — tail calls (`return_call`) work natively in Node 22 V8, no experimental flag needed
+- End-to-end pipeline proof: hand-written `.wat` → `wat2wasm --enable-tail-call` → `.wasm` → `node run_wasm.js` → correct stdout ✅
+- Four-port Byrd-box encoding strategy confirmed: Option A (tail calls) — each α/β/γ/ω port = one WAT function; `return_call` = zero-overhead goto
+
+**HQ updates:**
+- Created `SESSION-snobol4-wasm.md` — full session doc with §NOW, §BUILD, §TEST, sprint map, 15 milestones (M-SW-0 through M-SW-PARITY), invariant projections, bootstrap block
+- Rewrote `BACKEND-WASM.md` — concrete toolchain (confirmed versions), WAT encoding examples per EKind, linear memory layout, corpus artifact layout (`.wat` alongside `.s/.j/.il`), output macro naming law
+- Updated `SETUP-tools.md` — WASM backend row: `wabt(wat2wasm) node`; added `snobol4 × wasm` combination matrix row
+- Updated `PLAN.md` — added SW row to NOW table; added routing entry for SESSION-snobol4-wasm.md
+
+**Gate:** emit-diff **738/0** ✅ · x86 invariants: SNOBOL4 `106/106` ✅ · Icon `94p/164f` (pre-existing) · Prolog `13p/94f` (pre-existing)
+
+### Corpus layout decision
+WASM artifacts (`.wat`) sit flat alongside `.s` / `.j` / `.il` in every crosscheck rung dir — same stem, one extra extension. New pattern-test rungs use prefix `rungW0N` and follow identical flat layout: `.sno` + `.ref` + `.s` + `.j` + `.il` + `.wat` all in same directory. No WASM-only subdirs.
+
+### Key facts
+
+- Toolchain: `wat2wasm 1.0.34` + `node v22.22.0` — both confirmed working
+- Tail calls: `return_call` enabled with `--enable-tail-call` flag to `wat2wasm`; native in Node 22
+- Session prefix: `SW` · Invariant cell: `snobol4_wasm` (added at M-SW-A01)
+- 15 milestones across 7 sprints: SW-1 (infra) → SW-7 (106/106 parity)
+- Byrd-box blueprint: `byrd_box.py genc()` maps directly to `emit_wasm.c` EKind switch
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: `TOKEN_SEE_LON`
+
+### Next session — M-SW-0
+
+1. Add `wabt` to SESSION_SETUP.sh BACKEND=wasm block
+2. Write `test/wasm/run_wasm.js` Node runner shim
+3. Write `test/run_wasm_corpus_rung.sh` rung test script
+4. Prove pipeline with hand-written `W01_hello_proof.wat` in corpus
+5. Then M-SW-1: `src/runtime/wasm/` memory layout + `sno_output_str/int/flush`
