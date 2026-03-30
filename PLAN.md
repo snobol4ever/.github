@@ -16,8 +16,8 @@ See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 **Step 2 — Gate:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh   # full suite at session start/end
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                                    # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86   # x86 only (see RULES.md)
 ```
 
 **Step 3 — Read in order:**

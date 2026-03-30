@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-1 — M-SC-A03 complete; next M-SC-A04 (concat &&)
+**Sprint:** SC-1 → SC-2 — M-SC-A01/A02/A03 complete (15/15); next M-SC-A04 (concat &&)
 **HEAD:** `f0ddef4` one4all · `149f48a` corpus
-**Next action:** rungA04 — concat (&&) 5 tests; rungA05 — data structures 5 tests; then M-SC-CONSOLIDATE commit
+**Next action:** rungA04 — concat (&&) 5 tests; rungA05 — data structures 5 tests; fire M-SC-A05 after both pass
 
 **Session start — mandatory order, no exceptions:**
 
@@ -23,9 +23,10 @@ Never run `make` or `apt-get` by hand. Never install bison/flex — not needed f
 **Step 1 — Gate:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                                    # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86   # x86 only, always
 ```
+Per RULES.md x86-only policy: JVM/NET cells are never run in SC-sessions.
 
 **Step 2 — Read in order:**
 ```

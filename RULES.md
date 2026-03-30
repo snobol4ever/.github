@@ -14,34 +14,49 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 
 **⛔ Never omit FRONTEND= and BACKEND=.** Omitting them installs everything (bison, flex, java, mono, swipl, icont, spitbol) — wastes 5–15 min and signals the wrong mental model. The correct switches for each session are in that session's §START block.
 
-**Gate (every session after setup) — emit-diff first, then targeted invariants:**
+**Gate (every session after setup) — emit-diff first, then x86 invariants:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # always — all backends
-CORPUS=/home/claude/corpus bash test/run_invariants.sh          # always at session START
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                              # always — all backends
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86  # x86 column only
 ```
 
-**Targeted regression rule (post-M-G7-UNFREEZE):** After every milestone commit,
-run only the invariant cells for the backend you are working on — not the full 7-cell
-suite. The full suite is only required at session start and session end.
+**⛔ x86-ONLY INVARIANT POLICY (all sessions until further notice):**
+Run ONLY the three x86 cells — `snobol4_x86` · `icon_x86` · `prolog_x86` — at session
+start, after each milestone commit, and at session end. JVM and .NET cells are skipped.
 
-| If working on… | Regression cells to run |
-|----------------|------------------------|
-| anything × x86 | `snobol4_x86` · `icon_x86` · `prolog_x86` |
-| anything × JVM | `snobol4_jvm` · `icon_jvm` · `prolog_jvm` |
-| anything × .NET | `snobol4_net` |
-| anything × WASM | (no invariants yet — emit-diff only) |
+Rationale: Up to 5 parallel sessions each own their backend column. Each session checks
+only x86 to detect cross-session regressions fast. JVM/NET are slow and no session
+currently owns them as primary work.
 
-Exclude the cell you are actively modifying from the regression set — you own that
-cell's correctness; the regression cells are the *other* frontends on the same backend.
+**Mid-session (after each milestone commit):** run all three x86 cells. They are fast
+(native compile+run). Exclude the single cell you are actively modifying.
 
-`SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4, SPITBOL,
+| If working on… | Run these x86 cells |
+|----------------|---------------------|
+| snocone_x86 | `snobol4_x86` · `icon_x86` · `prolog_x86` (all three — snocone is additive) |
+| snobol4_x86 | `icon_x86` · `prolog_x86` |
+| icon_x86 | `snobol4_x86` · `prolog_x86` |
+| prolog_x86 | `snobol4_x86` · `icon_x86` |
+
+`SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4,
 scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they
 verify tools are present and exit immediately with a clear message if anything is missing.
 
 **Never pre-check or pre-install tools manually.** SESSION_SETUP.sh is the environment setup.
 Never run apt-get or build scrip-cc by hand before a script. Wasting steps pre-checking is
 a context burn and signals the wrong mental model.
+
+**⛔ bison/flex NOT required — generated files committed to repo.** `rebus.tab.c`,
+`rebus.tab.h`, and `lex.rebus.c` are committed. `scrip-cc` builds from `make` with no
+parser-generator tools needed. Only regenerate those files if you modify `rebus.y` or
+`rebus.l` — and only a Rebus-session does that. SESSION_SETUP.sh skips bison/flex for all
+non-Rebus frontends.
+
+**⛔ CSNOBOL4 download from snobol4.org is broken** (site redirects to lander as of 2026-03-30).
+Lon supplies the tarball (`snobol4-2_3_3_tar.gz`) at session start when needed. Build with:
+`tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
+Note: CSNOBOL4 is NOT required to run the gate — `.ref` files are pre-baked in corpus.
 
 ---
 
