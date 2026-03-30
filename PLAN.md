@@ -100,6 +100,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 | Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |
 | Prolog | `SESSION-prolog-x64.md` | `SESSION-prolog-jvm.md` | — |
 | Snocone | `FRONTEND-SNOCONE.md` | — | — |
+| Snocone | `SESSION-snocone-x64.md` | — | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
 Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (beauty sprint) · `ARCH-scrip-abi.md` + `SESSION-linker-sprint1.md` (LP-2 JVM) + `SESSION-linker-net.md` (LP-4 .NET)
