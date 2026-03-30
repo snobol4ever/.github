@@ -57,30 +57,28 @@ cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail
 
 Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
 
-**🔒 ALL SESSIONS FROZEN except Snocone x86 — Phase 3 naming (M-G3-NAME-*) still in progress. Do not unfreeze until all NAME-* milestones complete and invariants confirm clean.**
-
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s22 — ALL M-G3-NAME-* COMPLETE ✅; invariants: zero regressions; Icon JVM +17 | `b41dc8d` one4all · `8db2d44` corpus · `.github` pending | **NEXT: M-G7-UNFREEZE — tag post-reorg-baseline-2, unfreeze all sessions in PLAN.md** |
+| **⚠ GRAND MASTER REORG** | G-9 s23 | `.github` pending | **M-G7-UNFREEZE** (execute this session — all NAME-* done) |
 | **Snocone x86** | SC-1 design complete | `e874660` .github | M-SC-CONSOLIDATE: merge snocone_lower+cf → emit_x64_snocone.c; then add goto/break/continue; then corpus rungs A01–A05 |
-| **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
-| **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
-| **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
-| **TINY NET** | [FROZEN N-253 `e7dc859`] | — | resume post-reorg |
-| **TINY JVM** | [FROZEN J-216 `a74ccd8`] | — | resume post-reorg |
-| **TINY frontend** | [FROZEN F-223 `b4507dc`] | — | resume post-reorg |
-| **DOTNET** | [FROZEN D-164 `e1e4d9e`] | — | resume post-reorg |
-| **README** | [FROZEN R-2 `00846d3`] | — | resume post-reorg |
-| **ICON x64** | [FROZEN IX-18 `c648df5`] | — | resume post-reorg |
-| **Prolog JVM** | [FROZEN PJ-84a `a79906e`] | — | resume post-reorg |
-| **Prolog x64** | [FROZEN PX-1 `a051367`] | — | resume post-reorg |
-| **Icon JVM** | [FROZEN IJ-58 `5b32daa`] | — | resume post-reorg |
-| **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
-| **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
+| **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
+| **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
+| **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
+| **TINY NET** | N-253 `e7dc859` | — | resume — unfrozen |
+| **TINY JVM** | J-216 `a74ccd8` | — | resume — unfrozen |
+| **TINY frontend** | F-223 `b4507dc` | — | resume — unfrozen |
+| **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
+| **README** | R-2 `00846d3` | — | resume — unfrozen |
+| **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
+| **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
+| **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
+| **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
+| **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
+| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
+**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: SNOBOL4 `108p/2f` — all failures pre-existing non-regressions.
 
-**Gate:** emit-diff only — `CORPUS=/home/claude/corpus bash test/run_emit_check.sh` → expect **738/0**. Invariant suite retired as session gate (G-9 s18).
+**Gate:** emit-diff + targeted invariants — see RULES.md gate section. Emit-diff expects **738/0**.
 
 ---
 
@@ -114,25 +112,14 @@ Special: `SCRIP_DEMOS.md` (SD sessions) · `ARCH-snobol4-beauty-testing.md` (bea
 
 ---
 
-## G-9 Session 20 — Final state (2026-03-30, Claude Sonnet 4.6)
+## G-9 Session 23 — Start (2026-03-30, Claude Sonnet 4.6)
 
-**one4all** `83fed63` · **.github** pending · **corpus** `8e8c134`
+**one4all** `b41dc8d` · **corpus** `8db2d44` · **.github** this session
 
-**⚠ SESSION HAD ERRORS — see SESSIONS_ARCHIVE correction entry.**
-
-### Completed correctly this session
-- SESSION_SETUP.sh bison/flex fix — `.github` `63a0894`
-- JVM harness fix (`run_crosscheck_jvm_rung.sh` stdout→`-o`)
-- JVM float format (`sno_fmt_double`), CONVERT integer/real/string, E_NAM value-context
-- 33 JVM baselines regenerated. Gate: **738/0** ✅
-- M-G7-STYLE-DOC ✅ — `doc/STYLE.md`
-- M-G7-STYLE-BACKENDS/FRONTENDS/IR ✅ — `//` comments fixed
-
-### Errors made this session
-- Fired M-G7-UNFREEZE prematurely — Phase 3 (M-G3-NAME-*) not done
-- Unfroze all sessions (re-frozen in correction commit `ce06593`)
-- M-G7-UNFREEZE reverted in GRAND_MASTER_REORG.md
-
-### Next session — read SESSIONS_ARCHIVE last entry only
+### Agenda this session
+- M-G7-UNFREEZE — tag post-reorg-baseline-2, unfreeze all sessions
+- M-G3-ALIAS-CLEANUP — replace all compat alias names in backend switch cases with canonical EKind names
+- M-G2-BACKEND-FLATTEN — remove one4all/src/backend/{x64,jvm,net,wasm} subfolders; all emit_*.c files live directly in src/backend/
+- RULES.md updated — invariants reinstated with targeted-regression rule (per-backend column only mid-session; full suite at start/end)
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
