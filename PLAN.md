@@ -153,3 +153,19 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 - emit_x64_icon.c + emit_jvm_icon.c emitter migration to EXPR_t* (direct, no bridge)
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+## G-9 Session 30 — Completed (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `28ff9b7` · **corpus** `224d3d4` · **.github** this session
+
+### Completed
+- Gate confirmed: 738/0 ✅ · SNOBOL4 x86 106/106 ✅ · Icon 94p/164f · Prolog 13p/94f
+- `emit_x64_icon.c` IcnNode→EXPR_t migration ~90% done: all ICN_*→E_*, IcnEmitter→globals, IcnPorts→γ/ω params, val.sval/ival/fval→sval/ival/dval
+- ~15 call-site compile errors remain (wrong var names for local port pairs) — see SESSIONS_ARCHIVE for exact list
+
+### NOT done
+- Fix remaining compile errors in emit_x64_icon.c
+- Wire main.c to call icon_lower_file() + emit_x64_icon_file()
+- emit_jvm_icon.c migration (8359 lines)
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
