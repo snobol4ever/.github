@@ -20,11 +20,11 @@
 
 ---
 
-## §NOW — PW-1
+## §NOW — PW-3
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-1 | `9aa5a8e` one4all · `1884247` .github | **M-PW-HELLO** |
+| **Prolog WASM** | PW-3 | `82dd935` one4all · `.github` this commit | **M-PW-A01** |
 
 ---
 

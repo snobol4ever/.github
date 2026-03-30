@@ -8278,3 +8278,62 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 4. Run: `write("done")` should produce `done\n` ✓
 
 >>>>>>> ec01cbc (IW-2: M-IW-A01 handoff — icon_wasm 33p/225f, rung01 5/6 pass)
+
+---
+
+## PW-3 HANDOFF (2026-03-30, Claude Sonnet 4.6) — context ~88%, handoff
+
+**one4all** `82dd935` · **.github** this commit
+
+### Session summary
+
+**M-PW-HELLO** ✅ fired. `rung01_hello_hello.pl` → `hello\n` via WASM.
+
+**Gate: 738/0** ✅ · No regressions. `prolog_wasm` invariant cell: **1p/0f**.
+
+### Work completed
+
+**emit_wasm_prolog.c** (three fixes from PW-2 handoff blocker):
+- `emit_write_atom()`: added nullary `E_FNC` atom case — `prolog_lower()` emits TT_ATOM args as `E_FNC(sval, nchildren=0)`, not `E_QLIT`. Interns via shared string table, emits `(i32.const OFF)(i32.const LEN)(call $pl_output_str)`.
+- `prescan_goal()`: added nullary `E_FNC` interning so atoms hit data segment before emission.
+- `emit_pl_goal()`: added `","` comma-conjunction unwrap at top of `E_FNC` dispatch — body goals may arrive wrapped in `E_FNC(",", [g1, g2])`.
+
+**test/run_invariants.sh**:
+- `run_prolog_wasm()` function added — mirrors `run_prolog_x86` but: `scrip-cc -pl -wasm`, `wat2wasm --enable-tail-call`, `node pl_run_wasm.js`.
+- Wired into serial dispatch (after `run_prolog_jvm` definition, ordering fix required), both full-suite `for cell in ...` loops, matrix display (removed from SKIP branch).
+- Merge conflict resolved with IW-2 commit (added `snocone_x86`, `icon_wasm` SKIP, `snocone_*` SKIP) — merged additive: `prolog_wasm` live, `icon_wasm`/`snocone_*` still SKIP.
+
+### Invariant result
+```
+prolog_wasm: 1p/0f  ✅  (rung01_hello_hello — hello\n)
+```
+All other prolog_wasm tests fail [output] — expected, future milestones M-PW-A01+.
+
+### Architecture reminder (unchanged)
+| File | Owns |
+|------|------|
+| `emit_wasm.c` | Shared string table, E_QLIT/ILIT/FLIT, arithmetic — SW session |
+| `emit_wasm_prolog.c` | E_CHOICE/CLAUSE/UNIFY/CUT/TRAIL_*, pl runtime — **PW session** |
+| `emit_wasm_icon.c` | ICN_* nodes — IW session |
+
+### Next session — M-PW-A01: FACTS
+
+```bash
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 1p/0f
+```
+
+**Goal:** `rung02_facts_*.pl` (2 tests) — first real `E_CHOICE` emission.
+
+**IR nodes needed:** `E_CHOICE`(1 clause) · `E_CLAUSE` · `E_UNIFY`(atom literal match).
+
+**Design:** Single-clause predicate = α port only (no β/retry needed). `E_UNIFY` for head atom check: compare arg against interned string, on mismatch `return_call $ω`.
+
+**Key files:**
+- `src/backend/emit_wasm_prolog.c` — extend `emit_pl_choice_body()` for multi-clause, add `emit_pl_unify_atom()`
+- `corpus/programs/prolog/rung02_facts_facts.pl` + `.expected`
+- `test/run_invariants.sh prolog_wasm` → target 3p/0f after M-PW-A01
+
+**Commit:** `PW-4: M-PW-A01 — facts: E_CHOICE/E_CLAUSE/E_UNIFY atom, 2/2`
