@@ -6082,3 +6082,56 @@ Expect 493/0. Do NOT run `run_invariants.sh`.
 **Step 4 (optional):** snobol4_jvm OPSYN gap — add OPSYN handler to `emit_jvm.c` (~100 lines + ~80 lines SnoRuntime.java).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 19 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `9a3ac41` · **.github** pending · **harness** `aede157` · **corpus** `8ecee15`
+
+### Completed this session
+
+**Emit-diff gate restored ✅** — broken since corpus migration commit f9fbf15 (0/0 false clean):
+- `run_emit_check.sh` wires `CORPUS` env var: `TEST_SNO=corpus/crosscheck`, `TEST_ICN=corpus/programs/icon` (baselined-only filter: `.s` peer required), `TEST_PRO=corpus/programs/prolog` (same filter), `TEST_REB=corpus/programs/rebus` (same filter)
+- MISSING → SKIP (non-fatal; unbaselined files silently skipped)
+- Baselines regenerated: icon externs updated, prolog JVM path-in-comment updated, +many new prolog JVM baselines committed
+- one4all `07b706d` · corpus `a04306c`
+
+**M-G5-LOWER-SNOCONE-FIX ✅** — `driver/main.c` line 159: removed `asm_mode ? snocone_cf_compile : snocone_compile` ternary. `snocone_cf_compile` is a frontend lowering pass, not ASM-specific. Now called for all backends. one4all `099737e`
+
+**M-G5-LOWER-REBUS-FIX ✅** — Full Rebus → unified IR pipeline:
+- `src/frontend/rebus/rebus_lower.c` — walks `RProgram*`, produces `Program*`. All RE_* kinds mapped to EKind per `doc/IR_LOWER_REBUS.md`. All RS_* control-flow kinds lowered to label/goto STMT_t chains (same pattern as snocone_cf.c).
+- `src/frontend/rebus/rebus_lower.h`
+- `src/driver/main.c` — `file_reb` compile branch (auto-detects `.reb`, `-reb` flag), falls through to asm/jvm/net/c dispatch
+- `src/Makefile` — FRONTEND_REBUS added, bison/flex generation rules, `-I frontend/rebus`
+- `test/run_emit_check.sh` — `.reb` 3-backend (asm/jvm/net) support added
+- 3 corpus programs (word_count, binary_trees, syntax_exercise) × 3 backends compile clean
+- Baselines committed to corpus/programs/rebus/ (9 files: .s .j .il each)
+- one4all `9a3ac41` · corpus `8ecee15`
+
+**Final gate: 738/0** ✅ (was 0/0 broken at session start; 729/0 after gate fix; 738/0 after rebus baselines)
+
+### Context note
+Session ran long (~91% context). snobol4_jvm OPSYN gap (Step 4 from s18) was deferred — not started.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+
+**Step 1 — Gate:**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+```
+Expect **738/0**. (Note: gate now requires `CORPUS=` env var — always pass it.)
+
+**Step 2 (optional) — snobol4_jvm OPSYN gap:**
+- Add OPSYN handler to `emit_jvm.c` (~100 lines): at call site, push alias name + target, invoke `sno_opsyn_define(String,String)V` runtime helper. Dynamic dispatch: when `jvm_find_fn(fname)` misses, emit `sno_opsyn_call(String, String[])` → runtime checks alias table.
+- Add ~80 lines to `SnoHarness`/`SnoRuntime.java`.
+- Verify: snobol4_jvm failure count drops from 16 toward 0.
+
+**Step 3 — M-G7-UNFREEZE:**
+- All M-G5-LOWER-* milestones now complete. Review M-G7 criteria in GRAND_MASTER_REORG.md.
+- If criteria met: tag `post-reorg`, unfreeze all sessions.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

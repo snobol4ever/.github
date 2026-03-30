@@ -253,9 +253,9 @@ first being documented.
 | **M-G5-LOWER-PROLOG-AUDIT** ✅ | prolog | All Prolog IR kinds in unified enum. `doc/IR_LOWER_PROLOG.md`. | File exists |
 | **M-G5-LOWER-PROLOG-FIX** ✅ | prolog | No gaps. No-op. | Prolog JVM 20/20 ✅ |
 | **M-G5-LOWER-SNOCONE-AUDIT** ✅ | snocone | PASS. Standard frontend on unified IR. Gap G2: snocone_cf_compile asm_mode gate. `doc/IR_LOWER_SNOCONE.md` `2287572`. | File exists |
-| **M-G5-LOWER-SNOCONE-FIX** | snocone | G2: remove asm_mode gate in main.c. | Snocone corpus 10/10 PASS after fix |
+| **M-G5-LOWER-SNOCONE-FIX** ✅ | snocone | G2: removed asm_mode gate on snocone_cf_compile in main.c. Frontend lowering now runs for all backends. | Gate 738/0 ✅ · one4all `099737e` G-9 s19 |
 | **M-G5-LOWER-REBUS-AUDIT** ✅ | rebus | 2 arch gaps: no rebus_lower.c, not in main.c. RE_*→EKind mapped (50% SNOBOL4 + 50% Icon pool). `doc/IR_LOWER_REBUS.md` `77fd565`. | File exists |
-| **M-G5-LOWER-REBUS-FIX** | rebus | Write rebus_lower.c + add -reb in main.c. rebus_emit.c is oracle only. | Rebus corpus 3/3 PASS after fix |
+| **M-G5-LOWER-REBUS-FIX** ✅ | rebus | rebus_lower.c written (RE_*→EKind + RS_*→STMT_t). -reb flag + file_reb branch in main.c. Makefile bison/flex rules. 3 corpus programs × 3 backends compile clean. Baselines in corpus. | Gate 738/0 ✅ · one4all `9a3ac41` · corpus `8ecee15` G-9 s19 |
 | **M-G5-LOWER-SCRIP-AUDIT** ✅ | scrip | PASS. Polyglot dispatcher — no new EKind nodes. `doc/IR_LOWER_SCRIP.md` `a27cd83`. | File exists |
 | **M-G5-LOWER-SCRIP-FIX** ✅ | scrip | No-op at IR level. Post-UNFREEZE harness work. | n/a |
 
