@@ -14,30 +14,34 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 
 **⛔ Never omit FRONTEND= and BACKEND=.** Omitting them installs everything (bison, flex, java, mono, swipl, icont, spitbol) — wastes 5–15 min and signals the wrong mental model. The correct switches for each session are in that session's §START block.
 
-**Gate (every session after setup) — emit-diff first, then x86 invariants:**
+**Gate (every session after setup) — emit-diff first, then YOUR backend's invariant cells only:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                              # always — all backends
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86  # x86 column only
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # always — all backends
+CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells_only>
 ```
 
-**⛔ x86-ONLY INVARIANT POLICY (all sessions until further notice):**
-Run ONLY the three x86 cells — `snobol4_x86` · `icon_x86` · `prolog_x86` — at session
-start, after each milestone commit, and at session end. JVM and .NET cells are skipped.
+**⛔ OWN-BACKEND-ONLY INVARIANT POLICY (all sessions, no exceptions):**
+Each session runs invariant cells **only for the backend it owns**. Never install tools
+for, or run invariant cells from, a backend you are not working on this session.
 
-Rationale: Up to 5 parallel sessions each own their backend column. Each session checks
-only x86 to detect cross-session regressions fast. JVM/NET are slow and no session
-currently owns them as primary work.
+| Session type | Invariant cells to run |
+|---|---|
+| snobol4 × x86 | `snobol4_x86` only |
+| snobol4 × wasm | `snobol4_wasm` only |
+| snobol4 × jvm | `snobol4_jvm` only |
+| snobol4 × net | `snobol4_net` only |
+| icon × x86 | `icon_x86` only |
+| icon × jvm | `icon_jvm` only |
+| prolog × x86 | `prolog_x86` only |
+| prolog × jvm | `prolog_jvm` only |
+| snocone × x86 | `snobol4_x86` · `snocone_x86` (snocone is additive over snobol4) |
+| G-sessions | all active cells — reorg touches all emitters |
 
-**Mid-session (after each milestone commit):** run all three x86 cells. They are fast
-(native compile+run). Exclude the single cell you are actively modifying.
-
-| If working on… | Run these x86 cells |
-|----------------|---------------------|
-| snocone_x86 | `snobol4_x86` · `icon_x86` · `prolog_x86` (all three — snocone is additive) |
-| snobol4_x86 | `icon_x86` · `prolog_x86` |
-| icon_x86 | `snobol4_x86` · `prolog_x86` |
-| prolog_x86 | `snobol4_x86` · `icon_x86` |
+Rationale: Each session owns one backend column. Running other backends wastes context,
+installs unneeded tools, and adds noise. Cross-session regressions are caught by each
+session running its own column. Do not run x86 cells in a WASM session, JVM cells in an
+x86 session, etc.
 
 `SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4,
 scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they

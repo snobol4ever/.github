@@ -116,6 +116,18 @@ else
     info "Skipping bison/flex (FRONTEND=${FRONTEND} — only needed to regenerate Rebus parser)"
 fi
 
+# WASM backend tools
+if need_backend wasm; then
+    apt_install wat2wasm  wabt
+    if command -v node &>/dev/null; then
+        ok "node $(node --version)"
+    else
+        apt_install node nodejs
+    fi
+else
+    info "Skipping wabt/node (BACKEND=${BACKEND})"
+fi
+
 # x64 backend tools
 if need_backend x64; then
     apt_install nasm

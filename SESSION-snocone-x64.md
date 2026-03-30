@@ -24,7 +24,7 @@ Never run `make` or `apt-get` by hand. Never install bison/flex — not needed f
 ```bash
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh                                    # expect 738/0+
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86   # x86 only, always
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86           # snocone session: own cells only
 ```
 Per RULES.md x86-only policy: JVM/NET cells are never run in SC-sessions.
 

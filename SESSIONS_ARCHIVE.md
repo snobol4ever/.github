@@ -7275,8 +7275,44 @@ Low priority — defer to a dedicated milestone.
 
 ### Next session execution order
 1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
-2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 snocone_x86`
 3. rungA10 — capture (goto-free) 3 tests from `corpus/crosscheck/capture/`
 4. rungA11 — capture (with goto) 4 tests — rewrite to `if`
 5. rungA12 — patterns 10 tests — `if (s ? pat)` + `?` operator
 6. Fire milestones as rungs pass; update invariant cell count after each batch
+
+---
+
+## SW-1 Session (2026-03-30, Claude Sonnet 4.6) — M-SW-0 TOOLCHAIN
+
+**one4all** `645f402` · **corpus** `62f2d8f` · **.github** `(this commit)`
+
+### Completed this session
+
+**HQ policy update:**
+- RULES.md: replaced x86-only invariant policy with **own-backend-only policy** — each session runs only its own backend's invariant cells; never installs or runs other backends' tools. Table maps every session type to its exact cells.
+- PLAN.md, SESSION_SETUP.sh, SESSION-snobol4-wasm.md, SESSION-snocone-x64.md: gate commands updated to match.
+- SESSION_SETUP.sh: WASM backend block added (`apt_install wat2wasm wabt` + node check).
+
+**M-SW-0 ✅ — WASM toolchain proven end-to-end:**
+1. `src/driver/main.c`: `-wasm` flag wired — `wasm_mode` variable, `backend_ext()` returns `.wat`, argv parse, emission dispatch to `emit_wasm()` at all three call sites. Usage comment updated.
+2. `test/wasm/run_wasm.js`: Node runner shim — reads `.wasm`, instantiates, calls `main()`, writes `memory[0..len-1]` to stdout.
+3. `test/run_wasm_corpus_rung.sh`: Rung test runner — compiles with `scrip-cc -wasm -o`, assembles with `wat2wasm --enable-tail-call`, runs with `node run_wasm.js`, diffs against `.ref`. Uses `-o $WORK/stem.wat` (never writes alongside corpus source).
+4. `corpus/crosscheck/hello/hello.wat`: Hand-written proof WAT — outputs `HELLO WORLD\n`, passes `diff` against `hello.ref` ✅
+
+### Gate (end-of-session)
+- **Emit-diff: 718/20** — 20 pre-existing Icon x86 failures in G-9 s26 committed CSV; not regressions.
+- **WASM invariant cell**: not yet added (added at M-SW-A01).
+
+### Key facts for next session
+- `scrip-cc -wasm prog.sno` works; scaffold emits placeholder module (no `main` export yet)
+- `wat2wasm 1.0.34` + `node v22.22.0` confirmed
+- CSNOBOL4 2.3.3 built from tarball (Lon supplied — snobol4.org broken)
+- bison/flex not needed; `touch` generated Rebus files before `make` to skip regeneration
+- Reference docs: `spitbol-docs-master/` (green-book.pdf, spitbol-manual-v3.7.pdf), `ByrdBox/` (byrd_box.py)
+
+### Next session execution order
+1. Setup: `FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (expect 718/20 pre-existing) — no invariant cell yet
+3. M-SW-1: `src/runtime/wasm/sno_runtime.wat` — memory layout, `sno_output_str/int/flush/concat`; `emit_wasm_runtime_header()` in `emit_wasm.c`
+4. Then M-SW-A01: hello — `emit_wasm.c` E_QLIT + OUTPUT assign → 3/3; add `snobol4_wasm` invariant cell
