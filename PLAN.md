@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s28 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
+| **GRAND MASTER REORG** | G-9 s29 | one4all `75ad614` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** (emitter migration) |
 | **Snocone x86** | SC-2 | `95b2617` one4all · `27129a2` corpus | M-SC-A13: rungA13 functions (8 tests) |
 | **SNOBOL4 WASM** | SW-2 | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
@@ -136,5 +136,24 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 - **M-G5-LOWER-ICON-FIX complete** ✅ — all G1–G7 cases done
 - **bison/flex purged** ✅ — SESSION_SETUP.sh, RULES.md, SETUP-tools.md, SESSION-snocone-x64.md updated; rebus Makefile guarded; generated files freshened and committed
 - Gate: **738/0** ✅ · Invariants: SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f`
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+## G-9 Session 29 — Completed (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `75ad614` · **corpus** `224d3d4` · **.github** this session
+
+### Completed
+- ir.h +32 Icon EKind entries ✅ — full semantic audit; 22 shared, 32 new
+- scrip_cc.h EXPR_T_DEFINED guard ✅
+- icon_lower.c + icon_lower.h ✅ — IcnNode→EXPR_t lowering pass, not yet wired
+- Makefile: icon_lower.o ✅
+
+### NOT done
+- Emitter migration (emit_x64_icon.c + emit_jvm_icon.c → EXPR_t*). Bridge
+  approach was attempted and reverted — round-trip defeats the purpose.
+  Next session must do direct migration of both emitters (~11K lines).
+
+**Gate: 738/0 ✅ · SNOBOL4 x86 106/106 ✅**
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
