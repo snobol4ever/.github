@@ -23,10 +23,10 @@ TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SET
 
 | Tool | Package | Purpose |
 |------|---------|---------|
-| `bison` | `bison` | Rebus parser generator |
-| `flex` | `flex` | Rebus lexer generator |
+| `bison` | `bison` | Rebus parser generator (regenerate only — generated files committed to repo) |
+| `flex` | `flex` | Rebus lexer generator (regenerate only — generated files committed to repo) |
 
-**bison and flex are NOT required for any non-Rebus session.** Gated on `need_frontend rebus` in SESSION_SETUP.sh. Do not install manually for Snocone/SNOBOL4/Icon/Prolog sessions.
+**bison and flex are NOT required for normal builds.** Generated files (`rebus.tab.c`, `rebus.tab.h`, `lex.rebus.c`) are committed to the repo. Only needed when `rebus.y` or `rebus.l` change.
 
 ---
 
