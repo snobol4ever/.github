@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ | `44ac687` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests — fix dispatch-loop block nesting first |
+| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ M-SW-A02 ✅ | `8aff622` one4all · `7a88f12` corpus | **M-SW-A03: CONCAT** rung3/ 3 tests |
 
 ---
 
