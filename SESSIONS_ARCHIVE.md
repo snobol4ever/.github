@@ -6870,3 +6870,50 @@ Execution:
 - `IR_COMPAT_ALIASES` is **gone** — do not re-add. All code uses canonical EKind names.
 - Token: never in commits — `TOKEN_SEE_LON` as placeholder
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+
+---
+
+## SC-1 Session Continued (2026-03-30, Claude Sonnet 4.6) — BUILD FIXES + HQ CORRECTION
+
+**.github** `845ba3e` · **one4all** `6d0faf2`
+
+### HQ files corrected this session
+
+**Root cause:** SESSION-snocone-x64.md §START lacked the correct `SESSION_SETUP.sh` invocation with FRONTEND/BACKEND switches. SETUP-tools.md listed bison/flex as "always required" (wrong — Rebus only). SESSION_SETUP.sh installed bison/flex unconditionally. RULES.md did not mandate switches.
+
+**Files fixed:**
+- `SETUP-tools.md` — bison/flex moved to "Rebus frontend only"; all matrix rows and quick-reference corrected
+- `SESSION_SETUP.sh` — bison/flex gated on `need_frontend rebus`
+- `SESSION-snocone-x64.md` §START — now self-contained: exact invocation with switches, what installs/skips, gate commands, minimal 3-doc read list
+- `RULES.md` — ⛔ TWO SCRIPTS rule now mandates FRONTEND= BACKEND= always
+
+**New prompt contract:** Lon provides frontend, backend, milestone in opening prompt. Claude reads only: SESSIONS_ARCHIVE tail → RULES.md → SESSION-{frontend}-{backend}.md.
+
+### one4all partial work — commit `6d0faf2`
+
+`E_STAR` → `E_DEFER` in `parse.c` (2 sites) and `emit_x64.c` (3 sites).
+Deleted: `snocone_lower.c/.h`, `snocone_cf.c/.h`, `snocone_driver.c/.h`.
+Removed dead `#include "snocone_driver.h"` from `main.c`; removed from Makefile.
+Fixed nested `/* */` comments in `snocone_lex.c`.
+Deleted `go to` two-word handler from `emit_x64_snocone.c`.
+
+**Build NOT yet clean** — `emit_x64_snocone.c` still uses 8 compat alias names.
+
+### Next session — complete in order
+
+1. Fix `emit_x64_snocone.c`: E_NULV→E_NUL, E_VART→E_VAR, E_MNS→E_NEG, E_EXPOP→E_POW, E_NAM→E_CAPT_COND, E_DOL→E_CAPT_IMM, E_ATP→E_CAPT_CUR, E_ASGN→E_ASSIGN
+2. Build clean: `cd /home/claude/one4all/src && make -j$(nproc)`
+3. Gate 738/0: `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`
+4. Targeted invariants: `bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86` + snocone 10/10
+5. Commit: `git commit -m "SC-1: M-SC-CONSOLIDATE complete — emit_x64_snocone.c, goto/break/continue, C-style extensions"`
+6. Push one4all; pull --rebase + push .github
+7. Create `tools/sc_convert.py`
+8. Begin corpus Partition A rung A01 (5 hello/output tests)
+9. Update SESSION-snocone-x64.md §NOW + PLAN.md SC row, push all repos
+
+### Key facts
+
+- Gate: **738/0** · Snocone crosscheck: **10/10**
+- `IR_COMPAT_ALIASES` gone — use canonical EKind names everywhere, no exceptions
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: `TOKEN_SEE_LON`
