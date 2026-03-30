@@ -4,38 +4,37 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ---
 
-## ⛔ SCRIPTS ARE SELF-SUFFICIENT — Never pre-check tools, never install manually
+## ⛔ TWO SCRIPTS — SESSION_SETUP.sh then test scripts, every session, no exceptions
 
-`SESSION_BOOTSTRAP.sh`, `run_invariants.sh`, and `run_emit_check.sh` all have `ensure_tools()`
-that installs apt packages and builds binaries automatically. **Never ask "do I have nasm/gcc/java?"
-Never run apt-get manually before a script. Never build scrip-cc separately before running a test
-script.** Just invoke the script directly — it handles everything. Wasting steps pre-checking is
-a context burn and signals the wrong mental model. The scripts are the environment setup.
+**Setup (once per fresh environment):**
+```bash
+TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+```
+
+**Gate (every session after setup):**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh
+```
+
+`SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4, SPITBOL,
+scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they
+verify tools are present and exit immediately with a clear message if anything is missing.
+
+**Never pre-check or pre-install tools manually.** SESSION_SETUP.sh is the environment setup.
+Never run apt-get or build scrip-cc by hand before a script. Wasting steps pre-checking is
+a context burn and signals the wrong mental model.
 
 ---
 
-## ⛔ SIX THINGS — Run SESSION_BOOTSTRAP.sh first, every session, no exceptions
+## ⛔ SETUP DOES NOT RUN TESTS — Test scripts do not install
 
-```bash
-# At session start — provide the GitHub token Lon gave you:
-TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
-```
+`SESSION_SETUP.sh` — installs, builds, clones. No tests.
+`run_emit_check.sh` — emits and diffs. Verifies tools, does NOT install.
+`run_invariants.sh` — runs 7-cell matrix. Verifies tools, does NOT install.
 
-`SESSION_BOOTSTRAP.sh` does all six things automatically:
-
-| # | Thing | What it does |
-|---|-------|-------------|
-| 1 | **WHO** | Sets `git config user.name/email` to LCherryholmes — every commit, every repo |
-| 2 | **WHAT** | Prints project summary: 6 frontends × 4 backends, current reorg phase, ref docs |
-| 3 | **WHERE (repos)** | Clones or pulls: `.github` · `one4all` · `corpus` · `harness` |
-| 4 | **WHERE (tools)** | apt: `nasm` · `libgc-dev` · `java/javac` · `mono` · `swipl` · `icont`; builds from source: `CSNOBOL4 2.3.3` · `SPITBOL` · `scrip-cc`; confirms `jasmin.jar` |
-| 5 | **WHY** | Prints current milestone from PLAN.md and the four docs to read before coding |
-| 6 | **HOW** | Runs all three invariants: `x86 106/106 · JVM 106/106 · .NET 110/110` |
-
-Script location: `/home/claude/.github/SESSION_BOOTSTRAP.sh`
-Never say a tool is unavailable. The script installs everything. You have a network connection.
-
-After the script passes, read (in order):
+If a test script reports a missing tool, re-run `SESSION_SETUP.sh`. Do not install manually.
 ```
 tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md   # your handoff
 cat /home/claude/.github/RULES.md                   # this file
