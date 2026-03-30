@@ -95,6 +95,8 @@ apt_install curl
 apt_install unzip
 apt_install java   default-jre
 apt_install javac  default-jdk
+apt_install bison
+apt_install flex
 
 # libgc (Boehm GC) — -lgc for x86 test link
 if ldconfig -p 2>/dev/null | grep -q 'libgc\.so'; then
