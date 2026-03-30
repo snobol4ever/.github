@@ -6277,3 +6277,47 @@ M-G7-UNFREEZE was fired prematurely before Phase 3 complete. All sessions re-fro
 - Push all repos
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 21 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `d0e5ea1` · **corpus** `f8d139f` · **.github** pending
+
+### Completed this session
+
+- **M-G3-NAME-JVM** (partial) `3f0eb04`: `emit_jvm.c` — γ/ω sed + `jvm_emit_*` → `emit_jvm_*`
+- **Greek port sweep** `d0e5ea1`: all ASCII `alpha`/`beta`/`gamma`/`omega` → Greek in all emitter C source (`emit_net.c`, `emit_jvm_icon.c`, `emit_jvm_prolog.c`, `emit_x64_icon.c`, `prolog_emit_net.c`) and all generated corpus ref files (`f8d139f`, 117 files)
+- **CSV reporting** added to `test/run_emit_check.sh` and `test/run_invariants.sh` — persistent `test-results/emit_latest.csv` and `test-results/invariants_latest.csv`
+- **Snocone x86 SC-1** unlocked in PLAN.md; all other sessions remain frozen
+- **GRAND_MASTER_REORG.md** updated with correct Phase 3 scope (full identifier rename per THE LAW, not just Greek ports)
+- **Known exceptions** (ASCII stays): `engine.c` `Omega` struct + `omega_*` functions (external linkage); `smoke_gaps.c` `"alpha"`/`"beta"` string literals (test data, not port names); `mock_includes` `omega.inc` filename + `alpha char` (not port references)
+
+### Errors / confusion this session
+
+- Underestimated M-G3-NAME-* scope repeatedly — scope is **full naming law enforcement** per ARCH-reorg-design.md §THE LAW: every function name, every local variable, every parameter, every label format string, every comment. Not just Greek port spelling. Not just function prefixes.
+- Prematurely unfroze all sessions — corrected, refrozen (Snocone x86 only unlocked)
+- Invariant regression introduced — NASM and Jasmin both accept Greek-first labels (confirmed empirically), so cause unknown. Pre-existing float failures (`3.` vs `3`) confound the picture. Invariants must be run next session and CSV inspected before any further naming work.
+
+### Next session execution order
+
+**Step 0:** Setup + gate (expect 738/0 emit-diff)
+
+**Step 1:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh`
+Read `test-results/invariants_latest.csv` — every FAIL row visible immediately.
+Categorise: pre-existing (float format `3.` vs `3`, OPSYN gap) vs new regression.
+
+**Step 2:** Fix any genuine regressions introduced by Greek sweep.
+
+**Step 3:** Begin M-G3-NAME-NET — `emit_net.c` full naming law pass:
+- Every function: `net_emit_*` → `emit_net_*` (confirm or rename)
+- Every local variable → law name (`node`, `left`, `right`, `γ`, `ω`, `out`)
+- Every parameter → law name
+- Every label format string → `L<id>_α` / `L<id>_ω` etc.
+- Every comment: no ASCII port spelling
+- Build + 738/0 gate + 110/110 NET invariant + commit
+
+**Step 4:** M-G3-NAME-X64, NAME-X64-PROLOG, NAME-JVM-ICON, NAME-JVM-PROLOG in order.
+Each is a multi-hour full-file pass. Do not rush. Do not declare done until invariants pass.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**

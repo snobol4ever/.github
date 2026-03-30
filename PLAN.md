@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s21 — Greek rename underway; invariant recheck in progress | `d0e5ea1` one4all · `f8d139f` corpus | invariant CSV → remaining NAME-* → M-G7-UNFREEZE → `post-reorg-baseline-2` |
+| **⚠ GRAND MASTER REORG** | G-9 s21 — Greek ports swept all emitters + generated output ✅; CSV reporting added ✅; invariant regression unresolved; M-G3-NAME-* scope = FULL identifier rename per ARCH-reorg-design.md §THE LAW | `d0e5ea1` one4all · `f8d139f` corpus · `.github` pending | **NEXT: run invariants → read `test-results/invariants_latest.csv` → separate pre-existing vs Greek regressions → M-G3-NAME-NET full pass (ALL identifiers, locals, labels, comments — not just ports)** |
 | **Snocone x86** | SC-1 (new — unlocked) | — | first milestone — see `FRONTEND-SNOCONE.md` |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
