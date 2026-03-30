@@ -8447,3 +8447,84 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm # expect 12/
 - **`is_varassign` path** handles plain `X = expr`. Does NOT yet handle `X = pattern` (pattern assignment) or `X Y = replacement` (subject+pattern+replacement triple) — those are later milestones.
 - **Coerce-to-str on assign**: int/float values are coerced via `$sno_int_to_str`/`$sno_float_to_str` before storage. All variables are stored as `(off, len)` string pairs.
 - **rung2 indirect**: `E_INDR` ($x — value of variable named by x) will need a runtime `$sno_var_get` function that does a linear scan of globals — or a separate variable-lookup table in memory. Check `ARCH-index.md` for any existing spec before implementing.
+
+## IW-3 — 2026-03-30 (Claude Sonnet 4.6)
+
+**one4all** `ddf6bcf` · **.github** this session
+
+### Work done
+
+**emit_x64_icon.c EXPR_t migration complete (G-9 s30 left-over):**
+
+The file had 155 compile errors from an incomplete IcnNode→EXPR_t migration. All fixed:
+
+1. Dispatch table (44 calls): `emit_XXX(em,n,ports,oa,ob)` → `emit_XXX(n, γ, ω, oa, ob)`
+2. `emit_fail_node`/`emit_break_node`/`emit_stub_fail`: `(em, n_γ, n_ω, ports, oa,ob)` → `(n, γ, ω, oa, ob)`
+3. In-function call-sites (~25): `emit_expr(NODE_γ, NODE_ω, SHORTNAME, a, b)` → `emit_expr(NODE, SHORTNAME_γ, SHORTNAME_ω, a, b)` for all node vars (val_node, body_node, thenb, elseb, cond, expr_node, arg, s1arg, s2arg, child, idx, ifrom, ito, obj, sel, key, def_body, rch, lch, stmt, gen, lim, body)
+4. `(void)ports;` stale lines removed
+5. `IcnKind` → `EKind`
+6. Duplicate `E_MATCH` case removed from dispatch table
+7. Public API: `icn_emit_file(EXPR_t**, int)` → `icn_emit_file(EXPR_t**, int, FILE*)` — removed dead `IcnEmitter` struct; updated both callers (`main.c`, `icn_main.c`); updated `icon_emit.h`
+8. `em->out` / stale `f` → module-global `out` / `real`
+
+**Gate:**
+- Build: **clean** ✅
+- Emit-diff: **719/19** — 19 failures all `-asm` Icon x86 (pre-existing, `emit_x64_icon.c` was not building before this session; not IW's regression)
+- `icon_wasm`: **33p/225f** ✅ — matches IW-2 baseline, no regressions
+
+**NOT done:** M-IW-A02 (ICN_STR data segment + write(str)) — deferred; session consumed by migration fix
+
+**Note on emit-diff 719/19:** The 19 x86 Icon failures are owned by the IX session, not IW. Before IW-3, `emit_x64_icon.c` had 155 compile errors so the entire binary was broken. Now it builds; the x86 Icon tests expose pre-existing semantic gaps in the migrated emitter. IX session should pick these up. IW session is unaffected — WASM emitter is separate file.
+
+**Note on JCON zip:** Lon uploaded `jcon-master.zip` mid-session for reference. Scanned: `tran/irgen.icn` is the same authoritative reference already in repo. `test/` has ~100 `.icn`+`.std` pairs — good future corpus candidates. `gen_bc.icn` operates on linearized IR (different abstraction). No WASM output. Nothing changes IW-3 work.
+
+### Gate (end of session)
+- **Emit-diff: 719/19** (19 = pre-existing x86 Icon gaps, not IW regression)
+- **icon_wasm: 33p/225f** ✅
+- Build: clean ✅
+
+### Next session execution (IW-4)
+
+```bash
+# Step 1 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 2 — setup
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 3 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19 (19 = x86 Icon pre-existing)
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm  # expect 33p/225f
+
+# Step 4 — read HQ
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+
+# Step 5 — begin M-IW-A02
+```
+
+### M-IW-A02 blueprint (unchanged from IW-2)
+
+Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
+
+1. Add string intern table to `emit_wasm_icon_file()` in `src/backend/emit_wasm_icon.c`:
+   - Pre-scan all ICN_STR nodes in all procs (recursive walk)
+   - Emit `(data (i32.const OFFSET) "...")` block after globals, before procs
+   - String data base: 0x8000 (32768)
+
+2. In `emit_expr_wasm` ICN_STR case:
+   - Look up intern table → (abs_offset, len)
+   - Emit `$iconN_start`: store offset into `$icn_str_off{id}` (i32), len into `$icn_str_len{id}` (i32)
+
+3. In ICN_CALL(write) dispatch:
+   - Peek at arg node type: if ICN_STR → `emit_icn_call_write_str()` variant
+   - Loads offset+len globals → calls `$sno_output_str`
+
+4. Verify: `write("done")` → `done\n` ✅
+
+>>>>>>> ddf6bcf (IW-3: emit_x64_icon.c EXPR_t migration complete)
