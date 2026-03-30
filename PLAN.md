@@ -57,25 +57,25 @@ cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail
 
 Each concurrent session owns exactly one row. Update only your row. `git pull --rebase` before every push.
 
-**🔓 ALL SESSIONS UNFROZEN — M-G7-UNFREEZE fired G-9 s20. Resume from pre-reorg HEADs below.**
+**🔒 ALL SESSIONS RE-FROZEN — M-G7-UNFREEZE was fired prematurely (G-9 s20 error). Phase 3 naming (M-G3-NAME-*) was not complete. Re-frozen until Phase 3 done and UNFREEZE legitimately re-fires.**
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s20 — M-G7-UNFREEZE ✅; tag `post-reorg-baseline`; gate 738/0 | `83fed63` one4all · `8e8c134` corpus · `.github` pending | **COMPLETE — post-reorg work per M-G8** |
-| **⭐ Scrip Demo** | SD-37 `795c2ff` | resume | next SD milestone |
-| **🌳 Parser pair** | PP-1 `4b4d71a` | resume | next PP milestone |
-| **TINY backend** | B-292 `acbc71e` | resume | next B milestone |
-| **TINY NET** | N-253 `e7dc859` | resume | next N milestone |
-| **TINY JVM** | J-216 `a74ccd8` | resume | next J milestone |
-| **TINY frontend** | F-223 `b4507dc` | resume | next F milestone |
-| **DOTNET** | D-164 `e1e4d9e` | resume | next D milestone |
-| **README** | R-2 `00846d3` | resume | next R milestone |
-| **ICON x64** | IX-18 `c648df5` | resume | next IX milestone |
-| **Prolog JVM** | PJ-84a `a79906e` | resume | next PJ milestone |
-| **Prolog x64** | PX-1 `a051367` | resume | next PX milestone |
-| **Icon JVM** | IJ-58 `5b32daa` | resume | next IJ milestone |
-| **🔗 LINKER** | LP-6 `e7dc859` | resume | next LP milestone |
-| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | resume | next LP-JVM milestone |
+| **⚠ GRAND MASTER REORG** | G-9 s20 ERROR — premature UNFREEZE reverted | `83fed63` one4all · `.github` pending · `8e8c134` corpus | **M-G3-NAME-COMMON → M-G3-NAME-X64 → ... → M-G7-UNFREEZE** |
+| **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
+| **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
+| **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |
+| **TINY NET** | [FROZEN N-253 `e7dc859`] | — | resume post-reorg |
+| **TINY JVM** | [FROZEN J-216 `a74ccd8`] | — | resume post-reorg |
+| **TINY frontend** | [FROZEN F-223 `b4507dc`] | — | resume post-reorg |
+| **DOTNET** | [FROZEN D-164 `e1e4d9e`] | — | resume post-reorg |
+| **README** | [FROZEN R-2 `00846d3`] | — | resume post-reorg |
+| **ICON x64** | [FROZEN IX-18 `c648df5`] | — | resume post-reorg |
+| **Prolog JVM** | [FROZEN PJ-84a `a79906e`] | — | resume post-reorg |
+| **Prolog x64** | [FROZEN PX-1 `a051367`] | — | resume post-reorg |
+| **Icon JVM** | [FROZEN IJ-58 `5b32daa`] | — | resume post-reorg |
+| **🔗 LINKER** | [FROZEN LP-6 `e7dc859`] | — | resume post-reorg |
+| **🔗 LINKER JVM** | [FROZEN LP-JVM-3 `55d8655`] | — | resume post-reorg |
 
 **Invariants (post-reorg baseline):** x86: SNOBOL4 `106/106` · Icon `38-rung` · Snocone `10/10` · Rebus `3/3` · Prolog per-rung PASS | JVM: SNOBOL4 `106/106` · Icon `38-rung` · Prolog `31/31` | .NET: SNOBOL4 `110/110` | DOTNET repo: `TBD — retest required` | snobol4jvm repo: `TBD — retest required`
 
