@@ -5,14 +5,32 @@ SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
 
 ---
 
-## ⛔ SESSION START — Run this first, every session
+## ⛔ SESSION START — Run this first, every session, no exceptions
 
 ```bash
 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
-Clones repos, installs tools, sets git identity, prints current milestone, runs all three invariants.
-Script is self-contained. See RULES.md for the six things it covers.
+**This script is fully self-contained.** It clones repos, installs ALL tools via apt (nasm, gcc,
+libgc, java, mono, swipl, icont) and builds from source (CSNOBOL4, SPITBOL, scrip-cc), sets git
+identity, prints current milestone, then runs emit-diff and 7-cell runtime invariants.
+
+**Never pre-check or pre-install tools manually. Never ask "do I have everything I need?"**
+Just run the script. It handles everything. Network access is available.
+
+**Invariant run times (G-9 baseline):**
+- `run_emit_check.sh` — emit-diff 493 files × 3 backends: **~8–12s**
+- `run_invariants.sh` — 7-cell runtime suite: **~60s** serial (M-G-INV-SESSION-BASELINE)
+
+Both scripts have `ensure_tools()` — they self-heal missing binaries before running.
+
+After bootstrap, read in order:
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # last handoff — FIRST
+cat /home/claude/.github/RULES.md                    # mandatory rules
+cat /home/claude/.github/PLAN.md                     # NOW table + next milestone
+cat /home/claude/.github/GRAND_MASTER_REORG.md       # phase detail
+```
 
 ## 9 Repos under github.com/snobol4ever
 
