@@ -103,11 +103,17 @@ apt_install() {
 
 apt_install gcc
 apt_install make
-apt_install bison
-apt_install flex
 apt_install curl
 apt_install unzip
 apt_install ar     binutils
+
+# Rebus frontend only — bison/flex not needed for any other frontend
+if need_frontend rebus; then
+    apt_install bison
+    apt_install flex
+else
+    info "Skipping bison/flex (FRONTEND=${FRONTEND} — Rebus only)"
+fi
 
 # x64 backend tools
 if need_backend x64; then

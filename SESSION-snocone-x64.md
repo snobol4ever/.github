@@ -11,13 +11,29 @@
 **HEAD:** `c1eed78` one4all
 **Next action:** Complete M-SC-CONSOLIDATE (see SESSIONS_ARCHIVE for 8-step checklist)
 
-**Session start reading order (mandatory):**
+**Session start — mandatory order, no exceptions:**
+
+**Step 0 — Setup (fresh environment only — skip if scrip-cc already built):**
+```bash
+FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # handoff details
+Installs: gcc make curl unzip nasm libgc-dev CSNOBOL4. Skips: bison flex java mono icont swipl.
+Never run `make` or `apt-get` by hand. Never install bison/flex — not needed for Snocone×x86.
+
+**Step 1 — Gate:**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+```
+
+**Step 2 — Read in order:**
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # handoff — FIRST
 cat /home/claude/.github/RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-snocone-x64.md      # this file — language def + milestone ladder
+cat /home/claude/.github/SESSION-snocone-x64.md      # this file — §NOW + ladder
 ```
+Do NOT read PLAN.md, SETUP-tools.md, or ARCH docs unless specifically needed.
 
 ---
 
