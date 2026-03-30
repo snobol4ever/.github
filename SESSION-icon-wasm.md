@@ -32,7 +32,7 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-2 `098706b` | one4all `098706b` | **M-IW-A02**: write(str) + ICN_STR data segment → rung01 6/6 |
+| **ICON WASM** | IW-3 `ddf6bcf` | one4all `ddf6bcf` | **M-IW-A02**: write(str) + ICN_STR data segment → rung01 6/6 |
 
 ---
 
