@@ -8089,3 +8089,86 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 9/
   String var: two globals `(global $var_X (mut i32) (i32.const 0))` + `(global $var_X_len (mut i32) (i32.const 0))`. Int var: one `(global $var_X_i (mut i64) (i64.const 0))`.
 - **Runtime memory**: page 0 = output buffer `[0..32767]` + string heap `[32768..65535]`; page 1 = program data `[65536+]`.
 - **`sno_str_concat`** takes `(i32 i32 i32 i32) → (i32 i32)`: (a_off, a_len, b_off, b_len) → (result_off, result_len). Allocates in runtime string heap.
+
+---
+
+## G-9 Session 30 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `28ff9b7` · **corpus** `224d3d4` · **.github** this session
+
+### Completed
+- Gate confirmed at session start: 738/0 ✅ · SNOBOL4 x86 106/106 ✅ · Icon 94p/164f · Prolog 13p/94f (all pre-existing baseline)
+- Build clean from `s29` state ✅
+- `emit_x64_icon.c` mechanical migration ~90% complete:
+  - `IcnEmitter *em` removed; `static FILE *out` + `static int uid` / `next_uid()` globals inserted
+  - All function signatures: `IcnNode *` → `EXPR_t *`, `IcnPorts ports` → `const char *γ, const char *ω`
+  - All 54 `ICN_*` switch cases → canonical `E_*` EKind names
+  - `n->val.sval` → `n->sval`, `n->val.ival` → `n->ival`, `n->val.fval` → `n->dval`
+  - Local `IcnPorts` var declarations → `char VAR_γ[64]; char VAR_ω[64];`
+
+### NOT done — compile errors remain (~15 sites)
+The local-ports expansion produced `rhs_ports_γ`/`rhs_ports_ω` instead of `rhs_γ`/`rhs_ω` in a few cases, and some call sites still reference stale `vp`, `bp`, `tp`, `ep`, `cp`, `ap`, `ap2`, `sp` port-struct variables. All errors are the same class — wrong variable name at call site.
+
+### Exact errors to fix (from last compile)
+```
+emit_x64_icon.c:326  rhs_ports_γ/rhs_ports_ω  → rhs_γ/rhs_ω
+emit_x64_icon.c:370  'ports' undeclared in emit_return    → use γ/ω directly
+emit_x64_icon.c:398  'ports' undeclared in emit_fail_node → use γ/ω directly
+emit_x64_icon.c:426  'ports' undeclared in emit_suspend   → use γ/ω directly
+emit_x64_icon.c:451  val_node_γ/ω + 'vp' undeclared      → declare vp_γ/vp_ω or inline
+emit_x64_icon.c:490  body_node_γ/ω + 'bp' undeclared     → declare bp_γ/bp_ω or inline
+emit_x64_icon.c:519  thenb_γ/ω + 'tp' undeclared         → declare tp_γ/tp_ω or inline
+emit_x64_icon.c:524  elseb_γ/ω + 'ep' undeclared         → declare ep_γ/ep_ω or inline
+emit_x64_icon.c:529  cond_γ/ω + 'cp' undeclared          → declare cp_γ/cp_ω or inline
+emit_x64_icon.c:547  'em','NULL_γ','NULL_ω','ports' in emit_call → use NULL,γ,ω directly
+emit_x64_icon.c:567  arg_γ/ω + 'ap2' undeclared           → declare ap2_γ/ap2_ω or inline
+emit_x64_icon.c:632  'ap' undeclared                       → declare ap_γ/ap_ω or inline
+emit_x64_icon.c:704  s1arg_γ/ω + 'ap1'/'ap2' undeclared  → declare ap1/ap2_γ/ω or inline
+```
+Pattern for each fix: wherever old code had `IcnPorts xyz; strncpy(xyz.γ, A, 63); strncpy(xyz.ω, B, 63);` followed by `emit_expr(child, xyz, oa, ob)`, it now needs:
+```c
+char xyz_γ[64]; char xyz_ω[64];
+strncpy(xyz_γ, A, 63); strncpy(xyz_ω, B, 63);
+emit_expr(child, xyz_γ, xyz_ω, oa, ob);
+```
+
+### After compile errors fixed
+1. Add public entry point at bottom of `emit_x64_icon.c`:
+```c
+void emit_x64_icon_file(EXPR_t **nodes, int count, FILE *f) {
+    /* rename from icn_emit_file, set out=f */
+}
+```
+2. Add to `emit_x64_icon.h` (or create it): `void emit_x64_icon_file(EXPR_t **nodes, int count, FILE *f);`
+3. Wire `main.c` icon x64 path:
+```c
+// Replace: IcnEmitter em; icn_emit_init(&em, out); icn_emit_file(&em, procs, count);
+// With:
+int lowered_count = 0;
+EXPR_t **lowered = icon_lower_file(procs, count, &lowered_count);
+emit_x64_icon_file(lowered, lowered_count, out);
+for (int i = 0; i < lowered_count; i++) expr_free(lowered[i]);
+free(lowered);
+```
+4. Gate: 738/0 ✅ · icon_x86 94p/164f unchanged (pre-existing gaps stay pre-existing)
+5. Then `emit_jvm_icon.c` (8359 lines) — same migration, same pattern
+
+### Next session execution order (G-9 s31)
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=x64 TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+touch src/frontend/rebus/rebus.tab.c src/frontend/rebus/rebus.tab.h src/frontend/rebus/lex.rebus.c
+cd src && make -j$(nproc)   # expect compile errors — that's the starting point
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # skip until compile clean
+
+# Read:
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md   # THIS entry — FIRST
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+
+# Fix the ~15 compile errors in emit_x64_icon.c (all same pattern — see above)
+# Then gate, then main.c wiring, then emit_jvm_icon.c migration
+```
