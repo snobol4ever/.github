@@ -7479,3 +7479,50 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
 cat /home/claude/.github/GRAND_MASTER_REORG.md   # find M-G9-ICON-IR-WIRE section
 ```
+
+---
+
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA12 + regression fix
+
+**one4all** `95b2617` · **corpus** `27129a2` · **.github** `(this commit)`
+
+### Completed this session
+
+**M-SC-A12 ✅ — rungA12 patterns 10/10:**
+pat_literal(038), pat_any(039), pat_notany(040), pat_span(041), pat_break(042),
+pat_len(043), pat_pos(044), pat_rpos(045), pat_tab(046), pat_rtab(047).
+
+### Emitter fix: sc_pat_concat_to_seq (Snocone-local)
+
+The `E_CONCAT→E_SEQ` fix needed for `&&` in pattern context was placed in
+`emit_x64_snocone.c` only (not in `emit_x64.c`), as a recursive helper called
+on `st->pattern` after `assemble_stmt` sets it. This is invisible to Icon/SNOBOL4.
+
+The earlier attempt (`case E_CONCAT:` fall-through in `emit_x64.c`) caused icon_x86
+regression 94p→23p (COMPILE_FAIL on all icon tests). Reverted immediately.
+
+### Regression found and fixed: icn_random libc dependency
+
+G-9 s27 added `icn_random()` to `icon_runtime.c` using `rand()`/`srand()`/`time()`.
+The icon_x86 runner uses `-nostdlib`, so this broke all icon compilation (23p/235f).
+G-session also independently fixed this with an ASLR-seeded LCG (stack pointer entropy).
+Their fix was taken in the rebase conflict resolution.
+
+### Key design notes for next session
+- Pattern sequence in Snocone: `&&` between pattern elements (not juxtaposition)
+- `?` operator confirmed working: `if (X ? pat)`, `if (X ? pat . V)`, `X ? pat = repl`
+- `sc_pat_concat_to_seq` is called on `st->pattern` only — not on value expressions
+
+### Gate (end of session)
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f**
+
+### Running total: 60p / 1xfail / 61 total (A01–A12)
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+   - Ask Lon for `snobol4-2_3_3_tar.gz` if CSNOBOL4 needed; install `m4` first
+   - Compile SnoHarness: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
+2. Gate: `run_emit_check.sh` + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+3. rungA13 — functions 8 tests from `corpus/crosscheck/functions/`
+   - DEFINE/label/goto → `procedure` declarations
+   - Fire M-SC-A13 when all pass
