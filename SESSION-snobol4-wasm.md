@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ M-SW-A02 ✅ | `8aff622` one4all · `7a88f12` corpus | **M-SW-A03: CONCAT** rung3/ 3 tests |
+| **SNOBOL4 WASM** | SW-3 — M-SW-A01 ✅ M-SW-A02 ✅ M-SW-A03 ✅ | `093d25e` one4all · `e61c0d2` corpus | **M-SW-A04: VARS+KEYWORDS** rung2/ 3 tests |
 
 ---
 

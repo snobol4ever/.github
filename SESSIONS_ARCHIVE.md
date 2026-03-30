@@ -8381,3 +8381,69 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 1p/
 - User vars/procedures → lowercase/snake_case
 - SNOBOL4 builtins/keywords → UPPER
 - String content → lowercase natural text
+
+---
+
+## SW-3 Session (2026-03-30, Claude Sonnet 4.6) — M-SW-A03 ✅
+
+**one4all** `093d25e` · **corpus** `e61c0d2` · **.github** this commit
+
+### Completed this session
+
+**M-SW-A03: CONCAT + STRING ASSIGN — rung3/ 3/3 ✅**
+
+1. **Variable table** (`var_intern`/`var_table_reset`, `MAX_VARS=512`) — prescan collects all `E_VAR` names from both lvalue assignments (`s->has_eq`) and rvalue expressions. Case-insensitive. `is_keyword_name()` guard excludes OUTPUT/INPUT/PUNCH/TERMINAL.
+
+2. **`emit_var_globals()`** — emits `(global $var_X_off (mut i32) (i32.const 0))` + `(global $var_X_len (mut i32) (i32.const 0))` per variable, between data segment and func. Called from `emit_wasm()` after `emit_data_segment()`.
+
+3. **`E_VAR` rvalue in `emit_expr`** — `global.get $var_X_off` + `global.get $var_X_len` → `TY_STR`.
+
+4. **`is_varassign` path in statement emitter** — detects `s->has_eq && s->subject->kind == E_VAR && !is_keyword_name()`. Emits `emit_expr(replacement)`, coerces to TY_STR if needed, then `global.set $var_X_len` / `global.set $var_X_off` (len on top of stack, set first).
+
+5. **rung3 `.wat` artifacts** committed to corpus flat alongside `.sno`/`.ref`.
+
+6. **`run_invariants.sh` DIRS** updated: `"hello rung4"` → `"hello rung4 rung3"` (12 tests).
+
+**Sharing note:** `emit_var_globals` and the var table are in `emit_wasm.c` (SW-owned). `emit_wasm_prolog.c` (PW) and `emit_wasm_icon.c` (IW) share `strlit_*` API and can share `var_intern`/`var_table_reset` via `emit_wasm.h` if those sessions need variables — no changes needed to their files today.
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✓**
+- **snobol4_wasm: 12/12 ✓** (hello 3 + rung4 5 + rung3 3 = 11... wait: hello=3, rung4=5, rung3=3 → 11? No — invariants show 12. rung4 has 5, hello has 4 (confirmed SW-2: "hello 4 + rung4 5"). hello=4 + rung4=5 + rung3=3 = 12 ✓)
+
+### Next session execution order
+
+```bash
+# Step 0 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 1 — setup
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 2 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm # expect 12/12
+
+# Step 3 — M-SW-A04: VARIABLES + KEYWORDS (rung2/, 3 tests)
+# Files: corpus/crosscheck/rung2/  (indirect_ref, indirect_assign, indirect_array)
+# IR nodes: E_VAR (already done), E_KW (&ALPHABET etc.), E_INDR ($-indirect), E_ASSIGN var-to-var
+# Key work:
+#   E_KW: check what &-keywords appear in rung2; emit constant string globals for each
+#   E_INDR: indirect lookup — call $sno_var_get with string key (requires runtime addition)
+#   Variable table already in place from M-SW-A03 — extend as needed
+# Gate: CORPUS=... bash test/run_wasm_corpus_rung.sh rung2 → 3/3
+# Update DIRS in run_invariants.sh: "hello rung4 rung3 rung2" → 15 tests
+# Fire M-SW-A04, commit, push
+
+# Step 4 — update PLAN.md NOW row, SESSION-snobol4-wasm.md §NOW, append SESSIONS_ARCHIVE
+```
+
+### Key architecture facts for next session
+
+- **Variable globals pattern is stable** — `$var_X_off` / `$var_X_len` pair. All future milestones that read/write variables follow the same pattern.
+- **`E_CONCAT` is fully working** — n-ary, left-associative via pairwise `$sno_str_concat`.
+- **`is_varassign` path** handles plain `X = expr`. Does NOT yet handle `X = pattern` (pattern assignment) or `X Y = replacement` (subject+pattern+replacement triple) — those are later milestones.
+- **Coerce-to-str on assign**: int/float values are coerced via `$sno_int_to_str`/`$sno_float_to_str` before storage. All variables are stored as `(off, len)` string pairs.
+- **rung2 indirect**: `E_INDR` ($x — value of variable named by x) will need a runtime `$sno_var_get` function that does a linear scan of globals — or a separate variable-lookup table in memory. Check `ARCH-index.md` for any existing spec before implementing.
