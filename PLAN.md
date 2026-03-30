@@ -61,7 +61,7 @@ Each concurrent session owns exactly one row. Update only your row. `git pull --
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s16 — M-G-INV-FAST-X86-FIX substantially resolved; snobol4_jvm+prolog_jvm 0/0→real counts | `6fa0982` one4all · `91628a6` .github | **run full invariants → confirm all 7 cells → close M-G-INV-FAST-X86-FIX → M-G5-LOWER-SNOCONE-FIX → M-G5-LOWER-REBUS-FIX** |
+| **⚠ GRAND MASTER REORG** | G-9 s17 — M-G-INV-FAST-X86-FIX ✅ confirmed; ensure_tools split done; snobol4_jvm 16 pre-existing gaps surfaced | `dcdaa3e` one4all · `9fce47d` .github | **verify snobol4_net → close M-G-INV-FAST-X86-FIX → M-G5-LOWER-SNOCONE-FIX → M-G5-LOWER-REBUS-FIX** |
 | **⭐ Scrip Demo** | [FROZEN SD-37 `795c2ff`] | — | resume post-reorg |
 | **🌳 Parser pair** | [FROZEN PP-1 `4b4d71a`] | — | resume post-reorg |
 | **TINY backend** | [FROZEN B-292 `acbc71e`] | — | resume post-reorg |

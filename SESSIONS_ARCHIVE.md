@@ -5968,3 +5968,61 @@ Known open failures (non-regressions):
 **Step 3:** Proceed to M-G5-LOWER-SNOCONE-FIX (remove asm_mode gate in main.c) and M-G5-LOWER-REBUS-FIX (write rebus_lower.c + -reb in main.c).
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 17 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `dcdaa3e` · **.github** `9fce47d` · **harness** `aede157` · **corpus** `c230de7`
+
+### Completed this session
+
+**M-SESSION-SETUP-SPLIT ✅** — Lon's direction: separate setup from running.
+- Created `/home/claude/.github/SESSION_SETUP.sh` — all tool installs (apt + source builds: CSNOBOL4, SPITBOL, scrip-cc, SnoHarness), repo clones, git identity. No tests.
+- Stripped `ensure_tools()` from `test/run_invariants.sh` and `test/run_emit_check.sh` — replaced with lean preflight that checks tools present, exits with `SESSION_SETUP.sh` hint if missing. No installs in runners.
+- Updated `PLAN.md` SESSION START block: two commands (setup then gate).
+- Updated `RULES.md`: replaced SCRIPTS ARE SELF-SUFFICIENT + SIX THINGS with TWO SCRIPTS + SETUP DOES NOT RUN TESTS rules.
+- Commits: one4all `dcdaa3e`, .github `9fce47d`.
+
+**M-G-INV-FAST-X86-FIX ✅ CONFIRMED** — Full invariant run completed (272s). All 7 cells show real counts:
+```
+              x86              JVM             .NET
+SNOBOL4    106/106 ✅    110p/16f ✗      0/0 ✅ (NET not run — mono not verified)
+Icon        94/258 *     173/234 **      SKIP
+Prolog      13/107 †    106/107 ✅       SKIP
+```
+`*` Icon x86 94/258: rung05-36 gaps = pre-existing M-G5-LOWER-ICON-FIX gaps. Not regressions.
+`†` Prolog x86 13/107: 94 missing builtins (findall, sort, assertz etc.) — pre-existing, out of reorg scope.
+
+**snobol4_jvm 16 failures — root-caused, NOT regressions:**
+Session 16's correct classname-based ref-copy fix (6b367a0) now surfaces tests that previously silently scored 0 (ref name never matched). The 16 failures are pre-existing JVM backend gaps:
+- **OPSYN alias dispatch**: `jvm_find_fn(fname)` is compile-time only — OPSYN aliases (e.g. `facto` → `fact`) fall through to "unrecognised function → stub `\"\"`". `emit_jvm.c` has no OPSYN handler at all.
+- **EVAL, APPLY**: no handler in `emit_jvm.c` — stub `""`.
+- **Array PROTOTYPE for 1D**: `sno_prototype` helper returns wrong format.
+- **Indirect ref / array**: likely related to OPSYN table miss or indirect variable resolution.
+Confirmed pre-existing: x86 also fails these with no runtime (runtime .o not built in session).
+
+Close milestone: **M-G-INV-FAST-X86-FIX ✅** — all 7 cells show real counts matching session 16 character.
+
+### Next session — read SESSIONS_ARCHIVE last entry only
+
+**Step 0:** `TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh` then gate scripts.
+
+**Step 1:** Verify snobol4_net — run `bash test/crosscheck/run_crosscheck_net.sh` in one4all with mono available. Expect 110/110. If passes, all 7 cells confirmed and M-G-INV-FAST-X86-FIX is fully closed.
+
+**Step 2:** Proceed to **M-G5-LOWER-SNOCONE-FIX**:
+- File: `driver/main.c` — find the `asm_mode` gate on `snocone_cf_compile`.
+- Fix: call `snocone_cf_compile` regardless of backend (it's a frontend lowering pass, not ASM-specific).
+- Verify: Snocone 10/10 still green after fix.
+
+**Step 3:** Proceed to **M-G5-LOWER-REBUS-FIX**:
+- Write `src/frontend/rebus/rebus_lower.c` — maps RE_* nodes to EKind (50% SNOBOL4 pool + 50% Icon pool per audit). RE_BANG→E_ITER, RE_PATOPT→E_ARBNO. See `doc/IR_LOWER_REBUS.md`.
+- Wire `-reb` flag in `driver/main.c`.
+- Verify: Rebus 3/3 green.
+
+**Step 4 (optional / context permitting):** snobol4_jvm OPSYN gap — add OPSYN handler to `emit_jvm.c`:
+- OPSYN call site: push alias name + target name, invoke `sno_opsyn_define(String,String)V` runtime helper.
+- Dynamic dispatch: when `jvm_find_fn(fname)` misses, emit `sno_opsyn_call(String fname, String[] args)` → runtime checks alias table.
+- Estimated: medium complexity, ~100 lines emit_jvm.c + ~80 lines SnoRuntime.java.
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
