@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s26 | one4all `f0ddef4` · corpus `06419f3` · .github this session | **M-G5-LOWER-ICON-FIX** G2/G1/G7 remaining → then **M-G9-ICON-IR-WIRE** |
+| **GRAND MASTER REORG** | G-9 s27 | one4all `29c836f` · corpus `7d3cfa2` · .github this session | **M-G5-LOWER-ICON-FIX** G2/G1/G7 emitter cases remaining → then **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `3f5da0f` one4all · `080d51a` corpus | M-SC-A10: rungA10 capture (goto-free) |
 | **SNOBOL4 WASM** | SW-1 | `645f402` one4all · `62f2d8f` corpus | M-SW-1: RUNTIME-STUB |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
@@ -110,5 +110,16 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 ### Completed
 - M-G7-UNFREEZE ✅ — `post-reorg-baseline-2` tagged + pushed
 - M-G9-ALIAS-CLEANUP ✅ — all 13 IR_COMPAT_ALIASES replaced with canonical EKind; `#define IR_COMPAT_ALIASES` removed from scrip_cc.h; grep src/backend/ = 0 hits; 738/0; baseline invariants confirmed
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+## G-9 Session 27 — Completed (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `29c836f` · **corpus** `7d3cfa2` · **.github** this session
+
+### Completed
+- Corpus icon `.s` baselines updated (stale from G3–G6 cset externs) — gate 738/0 ✅
+- `icn_random(long n)` added to `icon_runtime.c` — G2 runtime prerequisite ✅
+- Invariants confirmed: x86 SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f`
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
