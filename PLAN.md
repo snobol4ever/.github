@@ -54,22 +54,22 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **⚠ GRAND MASTER REORG** | G-9 s23 | `.github` pending | **M-G7-UNFREEZE** |
+| **GRAND MASTER REORG** | G-9 s24 | one4all `acda30b` · .github pending | **M-G2-BACKEND-FLATTEN** |
 | **Snocone x86** | SC-1 | `c1eed78` one4all | M-SC-CONSOLIDATE: clean build → gate → corpus A01–A05. Read SESSION-snocone-x64.md |
-| **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume |
-| **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume |
-| **TINY backend** | B-292 `acbc71e` | — | resume |
-| **TINY NET** | N-253 `e7dc859` | — | resume |
-| **TINY JVM** | J-216 `a74ccd8` | — | resume |
-| **TINY frontend** | F-223 `b4507dc` | — | resume |
-| **DOTNET** | D-164 `e1e4d9e` | — | resume |
-| **README** | R-2 `00846d3` | — | resume |
-| **ICON x64** | IX-18 `c648df5` | — | resume |
-| **Prolog JVM** | PJ-84a `a79906e` | — | resume |
-| **Prolog x64** | PX-1 `a051367` | — | resume |
-| **Icon JVM** | IJ-58 `5b32daa` | — | resume |
-| **🔗 LINKER** | LP-6 `e7dc859` | — | resume |
-| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume |
+| **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
+| **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
+| **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
+| **TINY NET** | N-253 `e7dc859` | — | resume — unfrozen |
+| **TINY JVM** | J-216 `a74ccd8` | — | resume — unfrozen |
+| **TINY frontend** | F-223 `b4507dc` | — | resume — unfrozen |
+| **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
+| **README** | R-2 `00846d3` | — | resume — unfrozen |
+| **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
+| **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
+| **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
+| **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
+| **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
+| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
 **Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f`
 
@@ -98,3 +98,15 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 ---
 
 *PLAN.md = routing + NOW only. 3KB max. No sprint content. No completed milestones.*
+
+---
+
+## G-9 Session 24 — Completed (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `acda30b` · **corpus** `8db2d44` · **.github** this session
+
+### Completed
+- M-G7-UNFREEZE ✅ — `post-reorg-baseline-2` tagged + pushed
+- M-G9-ALIAS-CLEANUP ✅ — all 13 IR_COMPAT_ALIASES replaced with canonical EKind; `#define IR_COMPAT_ALIASES` removed from scrip_cc.h; grep src/backend/ = 0 hits; 738/0; baseline invariants confirmed
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
