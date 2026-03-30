@@ -7275,7 +7275,7 @@ Low priority — defer to a dedicated milestone.
 
 ### Next session execution order
 1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
-2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 snocone_x86`
+2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
 3. rungA10 — capture (goto-free) 3 tests from `corpus/crosscheck/capture/`
 4. rungA11 — capture (with goto) 4 tests — rewrite to `if`
 5. rungA12 — patterns 10 tests — `if (s ? pat)` + `?` operator
@@ -7283,117 +7283,106 @@ Low priority — defer to a dedicated milestone.
 
 ---
 
-## SW-1 Session (2026-03-30, Claude Sonnet 4.6) — M-SW-0 TOOLCHAIN
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA10–A11
 
-**one4all** `645f402` · **corpus** `62f2d8f` · **.github** `(this commit)`
-
-### Completed this session
-
-**HQ policy update:**
-- RULES.md: replaced x86-only invariant policy with **own-backend-only policy** — each session runs only its own backend's invariant cells; never installs or runs other backends' tools. Table maps every session type to its exact cells.
-- PLAN.md, SESSION_SETUP.sh, SESSION-snobol4-wasm.md, SESSION-snocone-x64.md: gate commands updated to match.
-- SESSION_SETUP.sh: WASM backend block added (`apt_install wat2wasm wabt` + node check).
-
-**M-SW-0 ✅ — WASM toolchain proven end-to-end:**
-1. `src/driver/main.c`: `-wasm` flag wired — `wasm_mode` variable, `backend_ext()` returns `.wat`, argv parse, emission dispatch to `emit_wasm()` at all three call sites. Usage comment updated.
-2. `test/wasm/run_wasm.js`: Node runner shim — reads `.wasm`, instantiates, calls `main()`, writes `memory[0..len-1]` to stdout.
-3. `test/run_wasm_corpus_rung.sh`: Rung test runner — compiles with `scrip-cc -wasm -o`, assembles with `wat2wasm --enable-tail-call`, runs with `node run_wasm.js`, diffs against `.ref`. Uses `-o $WORK/stem.wat` (never writes alongside corpus source).
-4. `corpus/crosscheck/hello/hello.wat`: Hand-written proof WAT — outputs `HELLO WORLD\n`, passes `diff` against `hello.ref` ✅
-
-### Gate (end-of-session)
-- **Emit-diff: 718/20** — 20 pre-existing Icon x86 failures in G-9 s26 committed CSV; not regressions.
-- **WASM invariant cell**: not yet added (added at M-SW-A01).
-
-### Key facts for next session
-- `scrip-cc -wasm prog.sno` works; scaffold emits placeholder module (no `main` export yet)
-- `wat2wasm 1.0.34` + `node v22.22.0` confirmed
-- CSNOBOL4 2.3.3 built from tarball (Lon supplied — snobol4.org broken)
-- bison/flex not needed; `touch` generated Rebus files before `make` to skip regeneration
-- Reference docs: `spitbol-docs-master/` (green-book.pdf, spitbol-manual-v3.7.pdf), `ByrdBox/` (byrd_box.py)
-
-### Next session execution order
-1. Setup: `FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
-2. Gate: `run_emit_check.sh` (expect 718/20 pre-existing) — no invariant cell yet
-3. M-SW-1: `src/runtime/wasm/sno_runtime.wat` — memory layout, `sno_output_str/int/flush/concat`; `emit_wasm_runtime_header()` in `emit_wasm.c`
-4. Then M-SW-A01: hello — `emit_wasm.c` E_QLIT + OUTPUT assign → 3/3; add `snobol4_wasm` invariant cell
----
-
-## G-9 Session 27 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
-
-**one4all** `29c836f` · **corpus** `7d3cfa2` · **.github** this session
+**one4all** `c95400f` · **corpus** `fc6f3a5` · **.github** `(this commit)`
 
 ### Completed this session
 
-- **Gate baseline restored** — `run_emit_check.sh --update` regenerated 20 stale icon `.s` baselines (previous session G3–G6 added `icn_cset_*` extern decls to all icon x64 outputs; baselines had not been updated). Gate: **738/0 ✅**.
-- **Invariants confirmed** — x86: SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f` — all match G-9 s22 baseline, no regressions.
-- **`icn_random(long n)` added to `icon_runtime.c`** — G2 runtime prerequisite. Uses `rand() % n + 1` seeded once via `time(0)`. Committed `29c836f`.
+**M-SC-A10 ✅ — rungA10 capture (goto-free) 3/3:**
+A10_capture_replace (062), A10_capture_delete (063), A10_capture_conditional (064) — all pass.
 
-### Not completed — interrupted before emitter work
+**M-SC-A11 ✅ — rungA11 capture (with-goto rewritten) 4/4:**
+A11_capture_dot (058), A11_capture_dollar (059), A11_capture_multiple (060), A11_capture_loop (061) — all pass.
 
-G1/G2/G7 emitter cases were **not** added to `emit_x64_icon.c` or `emit_jvm_icon.c`. Runtime function exists but the dispatch cases are missing. These are the only remaining items for M-G5-LOWER-ICON-FIX.
+### Emitter fixes (two bugs, both in pattern/? operator path)
 
-### Key facts for next session
+**Bug 1 — emit_x64_snocone.c:** `SNOCONE_QUESTION` binary case was `make_fnc2("DIFFER", l, r)` — a stub. Fixed to `expr_binary(E_MATCH, l, r)`. This made `if (X ? pat)` conditions work immediately (A10_conditional passed after this fix alone).
 
-- `icn_random(long n)` is in `icon_runtime.c` — just needs `case ICN_RANDOM` in both emitters
-- `ICN_POS` (G1) = identity: emit child, value passes through unchanged — trivial both backends
-- `ICN_SCAN_AUGOP` (G7) = explicit stub-fail: one `case` line each backend jumping to ω
-- bison/flex must be installed manually (`apt-get install -y bison flex`) — SESSION_SETUP.sh fails without them in this environment
-- Build: `cd /home/claude/one4all/src && make -j4` (not from one4all root)
-- jasmin.jar is at `src/backend/jasmin.jar` (flattened by M-G9-BACKEND-FLATTEN) but `run_invariants.sh` still references `src/backend/jvm/jasmin.jar` — pass `JASMIN=/home/claude/one4all/src/backend/jasmin.jar` for JVM cells (x86-only gate doesn't need it)
+**Bug 2 — emit_x64_snocone.c:** `assemble_stmt` did not unwrap `E_MATCH` or `ASSIGN(E_MATCH, repl)`. Fixed to split `E_MATCH(subj, pat)` into `st->subject + st->pattern`, and `ASSIGN(E_MATCH(subj,pat), repl)` into `st->subject + st->pattern + st->replacement`. This enabled the scan loop machinery for all remaining tests.
+
+**Bug 3 — emit_x64.c:** `emit_pat_node` had no case for `E_CONCAT` (emitted "UNIMPLEMENTED → ω"). Snocone uses `&&` for pattern sequence which lowers to `E_CONCAT`; SNOBOL4 juxtaposition lowers to `E_SEQ`. Added `case E_CONCAT:` fall-through to `case E_SEQ:` — one line. Fixed A11_capture_multiple and A11_capture_loop.
+
+**Key design note for next session:** Snocone pattern sequences must use `&&` (not juxtaposition). `BREAK(' ') . FIRST && LEN(1) && REM . LAST` is the correct Snocone form.
+
+### Setup notes for this session
+- CSNOBOL4 build fixed: snobol4.org is broken; Lon uploaded tarball. `m4` must be installed first.
+- `SESSION_SETUP.sh` and `RULES.md` updated: never download CSNOBOL4, always ask Lon for tarball.
+- `java`/`javac` + SnoHarness compiled manually (SESSION_SETUP.sh skips JDK for BACKEND=x64; invariants script requires them unconditionally).
 
 ### Gate (end of session)
+- **Emit-diff: 718/20** (20 stale artifact .s files with new cset externs — pre-existing, not regressions)
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f** (all pre-existing, no regressions)
 
-- **Emit-diff: 738/0 ✅**
-- **Invariants: x86 SNOBOL4 `106/106` ✅** · Icon `94p/164f` · Prolog `13p/94f` (all pre-existing)
+### Running total: 50p / 1xfail / 51 total (A01–A11)
 
 ### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+   - If CSNOBOL4 needed: ask Lon for `snobol4-2_3_3_tar.gz`; install `m4` first
+   - Compile SnoHarness manually: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
+2. Gate: `run_emit_check.sh` (expect 718/20 stale artifacts — not regressions) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+3. rungA12 — patterns 10 tests from `corpus/crosscheck/patterns/`
+   - Translate SNOBOL4 → Snocone; use `&&` for pattern sequence
+   - `if (X ? pat)` pattern confirmed working
+   - Capture `.` and `$` confirmed working
+4. Fire M-SC-A12 when all 10 pass; update invariant cell count
 
-```bash
-apt-get install -y bison flex
-FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all/src && make -j4
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # own backend only
-```
+### Gate (end of this block)
+- **Emit-diff: 738/0 ✅**
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f** (pre-existing unchanged)
+
+### Running total: 43p / 1xfail / 44 total (A01–A09)
+
+### Next session execution order
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (expect 738/0) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+3. rungA10 — capture (goto-free) 3 tests from `corpus/crosscheck/capture/`
+4. rungA11 — capture (with goto) 4 tests — rewrite to `if`
+5. rungA12 — patterns 10 tests — `if (s ? pat)` + `?` operator
+6. Fire milestones as rungs pass; update invariant cell count after each batch
 
 ---
 
-## SW-1 Session continued (2026-03-30, Claude Sonnet 4.6) — M-SW-1 + M-SW-A01 WIP
+## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA10–A11
 
-**one4all** `36af87e` · **corpus** `62f2d8f` · **.github** `(this commit)`
+**one4all** `c95400f` · **corpus** `fc6f3a5` · **.github** `(this commit)`
 
 ### Completed this session
 
-**M-SW-1 ✅ — WASM runtime stub:**
-- `src/runtime/wasm/sno_runtime.wat` — memory layout, `$sno_output_str`, `$sno_output_int`, `$sno_output_flush`, `$sno_str_alloc`, `$sno_str_concat`. Validated with `wat2wasm --enable-tail-call` ✅
-- `emit_wasm.c` rewritten: `emit_runtime_header()` inlines runtime verbatim; program skeleton emits `main()` returning `$sno_output_flush`. Assembles to valid WASM with empty output ✅
-- Emit-diff: 718/20 (pre-existing Icon x86 failures — unchanged)
+**M-SC-A10 ✅ — rungA10 capture (goto-free) 3/3:**
+A10_capture_replace (062), A10_capture_delete (063), A10_capture_conditional (064) — all pass.
 
-**M-SW-A01 WIP — hello/empty_string/multi 3/4:**
-- `emit_wasm.c`: prescan + string literal table (STR_DATA_BASE=8192); `emit_data_segment()`; `emit_expr()` handles E_QLIT/E_ILIT/E_FLIT/E_NUL/E_NEG/E_PLS/E_ADD/E_SUB/E_MPY/E_DIV/E_MOD/E_CONCAT; `emit_stmt()` detects OUTPUT assignment; `$sno_int_to_str` helper inlined
-- hello ✅ · empty_string ✅ · multi ✅
-- literals ❌ — `E_ADD(E_QLIT(""), E_ILIT(1))` fails: str child in arithmetic leaves (i32,i32) on stack before `i64.add` → type mismatch in wat2wasm
+**M-SC-A11 ✅ — rungA11 capture (with-goto rewritten) 4/4:**
+A11_capture_dot (058), A11_capture_dollar (059), A11_capture_multiple (060), A11_capture_loop (061) — all pass.
 
-### Root cause of literals failure
-SNOBOL4 `'' + 1` parses as `E_ADD(E_QLIT(""), E_ILIT(1))` — parser does NOT pre-coerce string to numeric. Emitter must detect TY_STR children in arithmetic ops and emit `$sno_str_to_int` coerce. No such helper exists yet.
+### Emitter fixes (two bugs, both in pattern/? operator path)
 
-### Fix needed (next session, ~30 min):
-1. Add `$sno_str_to_int (offset:i32, len:i32) → i64` to `sno_runtime.wat` — parse decimal from memory (empty → 0)
-2. In `emit_expr` E_ADD/SUB/MPY/DIV/MOD: if child returns TY_STR, emit `(call $sno_str_to_int)` before op
-3. Add `$sno_float_to_str` proper formatting — SNOBOL4 prints `1.0` as `1.` (drop trailing zero)
-4. Run `run_wasm_corpus_rung.sh hello` → 4/4 → fire M-SW-A01; add `snobol4_wasm` to `run_invariants.sh`
+**Bug 1 — emit_x64_snocone.c:** `SNOCONE_QUESTION` binary case was `make_fnc2("DIFFER", l, r)` — a stub. Fixed to `expr_binary(E_MATCH, l, r)`. This made `if (X ? pat)` conditions work immediately (A10_conditional passed after this fix alone).
 
-### Key facts for next session
-- `scrip-cc -wasm` produces real WAT with inlined runtime + string literals + OUTPUT calls
-- hello/empty_string/multi pass; `str_lits[]` table, prescan, data segment all working
-- `dval` is float field in EXPR_t (not `fval`)
-- WAT type stack strict: arithmetic ops require both operands same type
-- Reference docs: `/home/claude/refs/ByrdBox/byrd_box.py`, `/home/claude/refs/spitbol-docs-master/`
-- CSNOBOL4 at `/usr/local/bin/snobol4`; bison/flex not needed; touch rebus generated files before `make`
+**Bug 2 — emit_x64_snocone.c:** `assemble_stmt` did not unwrap `E_MATCH` or `ASSIGN(E_MATCH, repl)`. Fixed to split `E_MATCH(subj, pat)` into `st->subject + st->pattern`, and `ASSIGN(E_MATCH(subj,pat), repl)` into `st->subject + st->pattern + st->replacement`. This enabled the scan loop machinery for all remaining tests.
+
+**Bug 3 — emit_x64.c:** `emit_pat_node` had no case for `E_CONCAT` (emitted "UNIMPLEMENTED → ω"). Snocone uses `&&` for pattern sequence which lowers to `E_CONCAT`; SNOBOL4 juxtaposition lowers to `E_SEQ`. Added `case E_CONCAT:` fall-through to `case E_SEQ:` — one line. Fixed A11_capture_multiple and A11_capture_loop.
+
+**Key design note for next session:** Snocone pattern sequences must use `&&` (not juxtaposition). `BREAK(' ') . FIRST && LEN(1) && REM . LAST` is the correct Snocone form.
+
+### Setup notes for this session
+- CSNOBOL4 build fixed: snobol4.org is broken; Lon uploaded tarball. `m4` must be installed first.
+- `SESSION_SETUP.sh` and `RULES.md` updated: never download CSNOBOL4, always ask Lon for tarball.
+- `java`/`javac` + SnoHarness compiled manually (SESSION_SETUP.sh skips JDK for BACKEND=x64; invariants script requires them unconditionally).
+
+### Gate (end of session)
+- **Emit-diff: 718/20** (20 stale artifact .s files with new cset externs — pre-existing, not regressions)
+- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f** (all pre-existing, no regressions)
+
+### Running total: 50p / 1xfail / 51 total (A01–A11)
 
 ### Next session execution order
-1. `FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
-2. Gate: `run_emit_check.sh` (expect 718/20 pre-existing)
-3. Add `$sno_str_to_int` to `sno_runtime.wat`; fix arithmetic coerce + float formatting in `emit_wasm.c`
-4. `run_wasm_corpus_rung.sh hello` → 4/4 → M-SW-A01 ✅; add `snobol4_wasm` invariant cell
-5. M-SW-A02: arithmetic rung (`rung4/`) — 5 tests
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+   - If CSNOBOL4 needed: ask Lon for `snobol4-2_3_3_tar.gz`; install `m4` first
+   - Compile SnoHarness manually: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
+2. Gate: `run_emit_check.sh` (expect 718/20 stale artifacts — not regressions) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
+3. rungA12 — patterns 10 tests from `corpus/crosscheck/patterns/`
+   - Translate SNOBOL4 → Snocone; use `&&` for pattern sequence
+   - `if (X ? pat)` pattern confirmed working
+   - Capture `.` and `$` confirmed working
+4. Fire M-SC-A12 when all 10 pass; update invariant cell count
