@@ -6342,3 +6342,113 @@ Each is a multi-hour full-file pass. Do not rush. Do not declare done until inva
 **Gate: 738/0 emit-diff ✅**
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## SC-1 Design Session (2026-03-30, Claude Sonnet 4.6) — DESIGN ONLY, no code
+
+**Repos touched:** `.github` only (this entry). `one4all` and `corpus` untouched.
+
+### What was decided this session
+
+**Architecture: `emit_x64_snocone.c`**
+- Consolidate `snocone_lower.c` + `snocone_cf.c` → `src/backend/x64/emit_x64_snocone.c`
+- Header → `src/backend/x64/emit_x64_snocone.h` with single public entry point
+- `snocone_lex.c/.h` and `snocone_parse.c/.h` stay in `frontend/snocone/` (reused by JVM/NET)
+- Follows same pattern as `emit_x64_icon.c` and `emit_x64_prolog.c` exactly
+- Same number of layers as Icon and Prolog — one IR (`STMT_t`/`EXPR_t`), one emitter
+
+**Language extensions (Snocone++ — silent, no rename)**
+- Add `break` — exits innermost loop (while/do-while/for), C semantics
+- Add `continue` — next iteration of innermost loop, correct continuation per loop type:
+  - `while`: jumps to condition re-test (top)
+  - `do-while`: jumps to condition test (bottom)
+  - `for`: jumps to step expression, then condition test
+- Add `goto` (one word) — C-style primary form
+- Keep `go to` (two words) — backward compat with Koenig spec
+- No `break N` — `goto` handles multi-level exit
+- No new IR node types — `break`/`continue` lower to `emit_goto()` in CF pass, invisible to `emit_x64.c`
+
+**`for` loop separator: semicolons**
+- Current implementation already uses `;` not `,` — C-style, correct for our direction
+- Corpus tests must use `for (i = 0; i < n; i = i + 1)` syntax
+
+**Loop label stack in CfState:**
+- `brk` = label after loop end (`lab_end`)
+- `cont` = `lab_start` for while/do-while; new `lab_step` label before step for `for`
+- Stack depth max 64 — compile error if exceeded
+
+**Two-partition corpus plan:**
+- **Partition A** — SNO→SC mechanical translation of existing 106-test SNOBOL4 crosscheck corpus. Free oracles. ~144 tests across rungs A01–A17.
+- **Partition B** — Snocone-only extensions (if/while/for/struct/&&/||/~/break/continue/procedure-locals/include). New programs, oracles from JVM Snocone. ~50 tests across rungs B01–B12.
+- Naming: `rungA01_hello_*.sc` + `.expected` in `corpus/programs/snocone/`
+- Runner: existing `run_sc_corpus_rung.sh` — no changes needed
+- Invariant cell: `snocone_x86` added to `run_invariants.sh` (parallel to `icon_x86`)
+
+**Operator corrections from source:**
+- `||` = value alternation (SNOBOL4 `(a,b)` form via bprint) — not "logical disjunction"
+- `for` separator = `;` in our implementation (not `,` as in Koenig spec)
+- No `break`/`continue` in original Koenig Snocone — we are adding them
+- `goto` (one-word) is new; `go to` (two-word) is original spec, both supported
+
+### Next session execution order (SC-1)
+
+**Step 0:** `TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+
+**Step 1:** Gate — `CORPUS=/home/claude/corpus bash test/run_emit_check.sh` → expect 738/0
+
+**Step 2:** Create `src/backend/x64/emit_x64_snocone.c` — merge content of `snocone_lower.c` + `snocone_cf.c`. Keep all logic, just move and rename file. Public entry: `emit_x64_snocone_compile()` or match naming law. Add `emit_x64_snocone.h`.
+
+**Step 3:** Wire into driver — replace `snocone_cf_compile()` call sites with new entry point. Update `Makefile` — add `emit_x64_snocone.c` to x64 backend sources, remove `snocone_lower.c` and `snocone_cf.c` from frontend sources.
+
+**Step 4:** Delete `snocone_lower.c`, `snocone_lower.h`, `snocone_cf.c`, `snocone_cf.h`.
+
+**Step 5:** Build clean. Gate 738/0. Existing 10/10 Snocone invariants pass. Commit: `SC-1: consolidate snocone lower+cf → emit_x64_snocone.c`
+
+**Step 6:** Add to `snocone_lex.h` (after `SNOCONE_KW_THEN`, never shifts existing values):
+```c
+SNOCONE_KW_GOTO,
+SNOCONE_KW_BREAK,
+SNOCONE_KW_CONTINUE,
+```
+Add to keyword table in `snocone_lex.c`:
+```c
+{ "goto",     SNOCONE_KW_GOTO     },
+{ "break",    SNOCONE_KW_BREAK    },
+{ "continue", SNOCONE_KW_CONTINUE },
+```
+
+**Step 7:** Add loop stack to `CfState` in `emit_x64_snocone.c`:
+```c
+struct { char *brk; char *cont; } loop_stack[64];
+int loop_depth;
+```
+Thread push/pop through `while`, `do-while`, `for`. For `for`: add `lab_step` label before step expression; `cont` = `lab_step`.
+
+**Step 8:** Add to `do_stmt` in `emit_x64_snocone.c`:
+- `SNOCONE_KW_GOTO` case — same logic as existing `KW_GO` case
+- `SNOCONE_KW_BREAK` case — `emit_goto(st, loop_stack[loop_depth-1].brk)`
+- `SNOCONE_KW_CONTINUE` case — `emit_goto(st, loop_stack[loop_depth-1].cont)`
+
+**Step 9:** Build clean. Gate 738/0. All invariants pass. Commit: `SC-1: add goto/break/continue — flat CF, no new IR nodes`
+
+**Step 10:** Write corpus tests for new keywords. Suggest starting with:
+- `rungB02_while_break_basic.sc` — while loop with break
+- `rungB02_while_continue_basic.sc` — while loop with continue  
+- `rungB03_for_break_basic.sc` — for loop with break
+- `rungB03_for_continue_step.sc` — for loop with continue (verify step executes)
+
+**Step 11:** Update `run_invariants.sh` — add `snocone_x86` cell parallel to `icon_x86`.
+
+**Step 12:** Update PLAN.md SC row. Push all repos. Append next handoff to SESSIONS_ARCHIVE.
+
+### Known facts for next session
+- `for` already uses semicolons as separator (not commas) — do not change
+- `go to` (two-word) handled via `KW_GO` + `consume_kw(KW_TO)` — keep as-is
+- `emit_goto()` already exists as static in `snocone_cf.c` — carry it into merged file
+- `newlab()` already exists — carry it
+- Gate is **738/0** emit-diff (not 493 — corpus grew)
+- Snocone invariant baseline: **10/10** (from `corpus/crosscheck/snocone/`)
+- All other sessions FROZEN — do not touch their files
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: never in commits, never in chat — `TOKEN_SEE_LON` as placeholder
