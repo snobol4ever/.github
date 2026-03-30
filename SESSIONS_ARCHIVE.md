@@ -6452,3 +6452,26 @@ Thread push/pop through `while`, `do-while`, `for`. For `for`: add `lab_step` la
 - All other sessions FROZEN — do not touch their files
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
 - Token: never in commits, never in chat — `TOKEN_SEE_LON` as placeholder
+
+---
+
+## SC-1 Design Correction (2026-03-30, Claude Sonnet 4.6)
+
+**CORRECTION to previous entry — emit_x64_snocone.c scope:**
+
+`emit_x64_snocone.c` contains **only Snocone-specific lowering**:
+- CF lowering pass (token stream → STMT_t list)
+- Expression lowering (RPN → EXPR_t)
+- Loop label stack, newlab(), emit_goto() helpers
+- break/continue/goto handling
+
+It does **NOT** contain any NASM emission, statement emission, runtime calls,
+or label formatting. All of that stays in the shared `emit_x64.c`, used by
+SNOBOL4 + Icon + Prolog + Snocone alike.
+
+Pattern is identical to siblings:
+- `emit_x64_icon.c`   — Icon lowering only   → shared `emit_x64.c` for NASM
+- `emit_x64_prolog.c` — Prolog lowering only  → shared `emit_x64.c` for NASM
+- `emit_x64_snocone.c`— Snocone lowering only → shared `emit_x64.c` for NASM
+
+Nothing else changes in the 12-step execution order from the previous entry.
