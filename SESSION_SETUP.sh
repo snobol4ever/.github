@@ -40,6 +40,20 @@ fi
 [[ -z "$TOKEN" ]] && { echo "ERROR: TOKEN required"; exit 1; }
 GH="https://${TOKEN}@github.com/snobol4ever"
 
+# ── FRONTEND / BACKEND switches ───────────────────────────────────────────────
+# Optional: set FRONTEND= and/or BACKEND= to skip unneeded tool installs.
+# See SETUP-tools.md for the full matrix.
+# Default (omitted): install everything.
+FRONTEND="${FRONTEND:-all}"
+BACKEND="${BACKEND:-all}"
+info "Session target: FRONTEND=${FRONTEND}  BACKEND=${BACKEND}"
+info "See SETUP-tools.md for tool matrix."
+
+# need_backend VAL  — true if BACKEND matches VAL or is "all"
+need_backend()  { [[ "$BACKEND"  == "all" || "$BACKEND"  == "$1" ]]; }
+# need_frontend VAL — true if FRONTEND matches VAL or is "all"
+need_frontend() { [[ "$FRONTEND" == "all" || "$FRONTEND" == "$1" ]]; }
+
 # ── WHO — git identity ────────────────────────────────────────────────────────
 step "WHO — git identity"
 git config --global user.name  "LCherryholmes"
@@ -89,35 +103,50 @@ apt_install() {
 
 apt_install gcc
 apt_install make
-apt_install nasm
-apt_install ar     binutils
-apt_install curl
-apt_install unzip
-apt_install java   default-jre
-apt_install javac  default-jdk
 apt_install bison
 apt_install flex
+apt_install curl
+apt_install unzip
+apt_install ar     binutils
 
-# libgc (Boehm GC) — -lgc for x86 test link
-if ldconfig -p 2>/dev/null | grep -q 'libgc\.so'; then
-    ok "libgc (Boehm GC)"
+# x64 backend tools
+if need_backend x64; then
+    apt_install nasm
+    if ldconfig -p 2>/dev/null | grep -q 'libgc\.so'; then
+        ok "libgc (Boehm GC)"
+    else
+        info "Installing libgc-dev ..."
+        apt-get install -y libgc-dev -qq 2>/dev/null && ok "libgc-dev installed" \
+            || fail "libgc-dev install failed"
+    fi
 else
-    info "Installing libgc-dev ..."
-    apt-get install -y libgc-dev -qq 2>/dev/null && ok "libgc-dev installed" \
-        || fail "libgc-dev install failed"
+    info "Skipping nasm + libgc (BACKEND=${BACKEND})"
 fi
 
-# mono / ilasm — .NET backend (non-fatal if unavailable)
-if command -v mono &>/dev/null && command -v ilasm &>/dev/null; then
-    ok "mono + ilasm"
+# JVM backend tools
+if need_backend jvm; then
+    apt_install java   default-jre
+    apt_install javac  default-jdk
 else
-    info "Installing mono-complete (optional — .NET cell) ..."
-    apt-get install -y mono-complete -qq 2>/dev/null \
-        && ok "mono-complete" \
-        || info "mono unavailable — .NET cell will SKIP"
+    info "Skipping java/javac (BACKEND=${BACKEND})"
 fi
 
-# SnoHarness — compile if absent or stale
+# .NET backend tools
+if need_backend net; then
+    if command -v mono &>/dev/null && command -v ilasm &>/dev/null; then
+        ok "mono + ilasm"
+    else
+        info "Installing mono-complete (optional — .NET cell) ..."
+        apt-get install -y mono-complete -qq 2>/dev/null \
+            && ok "mono-complete" \
+            || info "mono unavailable — .NET cell will SKIP"
+    fi
+else
+    info "Skipping mono/ilasm (BACKEND=${BACKEND})"
+fi
+
+# SnoHarness — compile if absent or stale (JVM backend only)
+if need_backend jvm; then
 HARNESS_DIR="/home/claude/one4all/test/jvm"
 if command -v javac &>/dev/null && \
    [[ ! -f "$HARNESS_DIR/SnoHarness.class" || \
@@ -132,9 +161,13 @@ if command -v javac &>/dev/null && \
 else
     ok "SnoHarness.class"
 fi
+else
+    info "Skipping SnoHarness (BACKEND=${BACKEND})"
+fi
 
 # ── WHERE — oracle: SWI-Prolog ───────────────────────────────────────────────
 step "WHERE — oracle: SWI-Prolog"
+if need_frontend prolog; then
 if command -v swipl &>/dev/null; then
     ok "swipl ($(swipl --version 2>&1 | head -1))"
 else
@@ -143,9 +176,13 @@ else
         && ok "swipl installed" \
         || fail "swipl install failed"
 fi
+else
+    info "Skipping swipl (FRONTEND=${FRONTEND})"
+fi
 
 # ── WHERE — oracle: Icon (icont / iconx) ─────────────────────────────────────
 step "WHERE — oracle: Icon"
+if need_frontend icon; then
 if command -v icont &>/dev/null; then
     ok "icont"
 else
@@ -168,9 +205,13 @@ else
         rm -rf "$ICON_BUILD"; cd /home/claude
     fi
 fi
+else
+    info "Skipping icont/iconx (FRONTEND=${FRONTEND})"
+fi
 
 # ── WHERE — oracle: CSNOBOL4 2.3.3 ───────────────────────────────────────────
 step "WHERE — oracle: CSNOBOL4"
+if need_frontend snobol4 || need_frontend snocone; then
 if command -v snobol4 &>/dev/null; then
     ok "snobol4 (CSNOBOL4)"
 else
@@ -189,9 +230,13 @@ else
     fi
     rm -rf "$SNO_BUILD"; cd /home/claude
 fi
+else
+    info "Skipping CSNOBOL4 (FRONTEND=${FRONTEND})"
+fi
 
 # ── WHERE — oracle: SPITBOL x64 ──────────────────────────────────────────────
 step "WHERE — oracle: SPITBOL"
+if [[ "$FRONTEND" == "all" ]]; then
 if command -v spitbol &>/dev/null; then
     ok "spitbol"
 else
@@ -208,6 +253,9 @@ else
         fail "SPITBOL — build failed (non-fatal for most cells)"
     fi
     rm -rf "$SPIT_BUILD"; cd /home/claude
+fi
+else
+    info "Skipping SPITBOL (full-install mode only — FRONTEND=${FRONTEND})"
 fi
 
 # ── WHERE — build scrip-cc ────────────────────────────────────────────────────
@@ -236,6 +284,7 @@ info "tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # last handoff — FI
 info "cat  /home/claude/.github/RULES.md                   # mandatory rules"
 info "cat  /home/claude/.github/PLAN.md                    # NOW table"
 info "cat  /home/claude/.github/GRAND_MASTER_REORG.md      # phase detail"
+info "cat  /home/claude/.github/SETUP-tools.md             # tool matrix (FRONTEND × BACKEND)"
 
 # ── SUMMARY ───────────────────────────────────────────────────────────────────
 echo ""
