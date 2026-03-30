@@ -7,9 +7,12 @@
 
 ## §NOW
 
-**Sprint:** SC-2 — M-SC-A04–A13 ✅ (68p/1xfail of 69); next M-SC-A14 (arith loops, 2 tests)
-**HEAD:** `95b2617` one4all · `5f5206d` corpus
-**Next action:** rungA14 — arith loops 2 tests; see corpus/crosscheck/control/ for SNOBOL4 sources
+**Sprint:** SC-2 — M-SC-A14 ✅ (70p/1xfail/9link-fail); next M-SC-A15 (library builtins, 4 tests)
+**HEAD:** `972ae52` one4all · `6b258c5` corpus
+**Next action:** rungA15 — library builtins 4 tests (corpus/crosscheck/library/ SNOBOL4 sources)
+
+**Invariant baseline (snocone_x86):** 62p/9f — 9 pre-existing rungA13 blk_alloc link failures (tracked, not regressions)
+**Naming convention (enforced this session):** user vars/procedures → lowercase/snake_case; SNOBOL4 builtins/keywords → UPPER; string literals → lowercase natural text
 
 **Session start — mandatory order, no exceptions:**
 
