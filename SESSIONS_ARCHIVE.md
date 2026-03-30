@@ -6184,3 +6184,22 @@ Expect **738/0**.
 - Verify: snobol4_jvm failures drop from 16 toward 0
 
 **Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
+
+---
+
+## G-9 Session 20 — CORRECTION (2026-03-30, Claude Sonnet 4.6)
+
+**ERROR IN S20 HANDOFF:** M-G7-UNFREEZE was fired prematurely. Phase 3 naming (M-G3-NAME-* × 9 milestones) was not complete — it was skipped entirely. The dependency chain `M-G3-NAME-* → M-G7-STYLE-* → M-G7-UNFREEZE` was violated.
+
+**Damage done:**
+- PLAN.md unfroze all 15 sessions (re-frozen in this correction)
+- GRAND_MASTER_REORG.md marked M-G7-UNFREEZE ✅ (reverted to ⚠️ REVERTED)
+- MILESTONE_ARCHIVE.md received premature M-G7-UNFREEZE entry (historical record — left as warning)
+- Tag `post-reorg-baseline` pushed to one4all (tag left on repo as marker; real baseline tag will be `post-reorg-baseline-2` after Phase 3 complete)
+
+**Corrective actions taken:**
+- PLAN.md: all sessions re-frozen, REORG row shows Phase 3 as next work
+- GRAND_MASTER_REORG.md: M-G7-UNFREEZE reverted to ⚠️ REVERTED
+- Sessions re-frozen
+
+**Next session must:** complete M-G3-NAME-COMMON → M-G3-NAME-X64 → M-G3-NAME-JVM → M-G3-NAME-NET → M-G3-NAME-WASM → M-G3-NAME-X64-ICON → M-G3-NAME-X64-PROLOG → M-G3-NAME-JVM-ICON → M-G3-NAME-JVM-PROLOG, gate after each, then legitimately re-fire M-G7-UNFREEZE.

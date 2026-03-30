@@ -327,7 +327,7 @@ No logic changes.
 | **M-G7-STYLE-BACKENDS** ✅ | Apply style to all backend files. | Only violation: 4 `//` line comments in `emit_net.c` — converted to `/* */`. Gate 738/0 ✅. one4all `83fed63` G-9 s20 |
 | **M-G7-STYLE-FRONTENDS** ✅ | Apply style to all frontend files. | Audit clean — no violations found in frontend files. G-9 s20 |
 | **M-G7-STYLE-IR** ✅ | Apply style to `src/ir/`. | Audit clean — `ir_emit_common.c` `//` is inside a block-comment example. Builds clean. G-9 s20 |
-| **M-G7-UNFREEZE** ✅ | Lift concurrent-development freeze. Update PLAN.md: resume all session rows from their pre-reorg HEADs. Tag `post-reorg-baseline`. | All 8 criteria met. Gate 738/0. Tag `post-reorg-baseline` on one4all `83fed63`. PLAN.md unfrozen. G-9 s20 |
+| **M-G7-UNFREEZE** ⚠️ REVERTED | Lift concurrent-development freeze. Update PLAN.md: resume all session rows from their pre-reorg HEADs. Tag `post-reorg-baseline`. | PREMATURE — fired G-9 s20 before Phase 3 naming complete. Re-frozen. Must re-fire after M-G3-NAME-* all done. |
 
 ---
 
