@@ -6917,3 +6917,41 @@ Deleted `go to` two-word handler from `emit_x64_snocone.c`.
 - `IR_COMPAT_ALIASES` gone — use canonical EKind names everywhere, no exceptions
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
 - Token: `TOKEN_SEE_LON`
+## G-9 Session 25 — Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `db6219c` · **corpus** unchanged · **.github** this session
+
+### Completed this session
+
+- **M-G9-ALIAS-CLEANUP miss** — `E_STAR→E_DEFER` in `parse.c` and `emit_x64.c` (frontend + backend files missed in s24 sweep); all 8 alias→canonical replacements in `emit_x64_snocone.c` (new file from SC-1, not yet swept); nested `/* */` comment fix in `snocone_lex.c`; `snocone_lower.c`/`snocone_cf.c` Makefile addition (superseded by SC-1 deletion — resolved in rebase). Committed `d2af9ef`.
+- **Rebase** — SC-1 session pushed 2 commits (`6d0faf2`, `b2bf3ea`) while we were working. Rebased cleanly; 4 conflicts all trivially-same-fix (both sessions fixed aliases independently). Duplicate `T_STAR` case left by conflict resolution removed.
+- **M-G2-BACKEND-FLATTEN** ✅ — `src/backend/{x64,jvm,net,wasm}/` subdirs eliminated; all `.c`/`.h`/`.jar` now at `src/backend/` depth 1. `src/backend/c/` untouched (no active Makefile targets confirmed). Makefile `-I backend` updated; `BACKEND_X64/JVM/NET/WASM` SRCS paths flattened; `emit_x64.o` dep rule updated. Build clean. Gate 726/12 (12 pre-existing: CSNOBOL4/swipl/SPITBOL unavailable in this container). Committed `db6219c`, pushed.
+
+### Gate note
+
+726/12 — not 738/0. The 12 failures are pre-existing tool-missing (same as s24 environment note). All 12 are `-asm`/`-jvm` tests requiring CSNOBOL4, swipl, or SPITBOL oracles not installable in this container. Not regressions.
+
+### Next session execution order
+
+**Step 0:** Setup + gate
+```bash
+TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 738/0 (or 726/12 in tool-missing env)
+```
+
+**Step 1 — M-G9-ICON-IR-WIRE** (large):
+- Prereq: M-G5-LOWER-ICON-FIX (7 ICN gaps) should land first
+- New `src/frontend/icon/icon_lower.c`: lowers `IcnNode` → `EXPR_t` using canonical EKind
+- Update `emit_x64_icon.c` and `emit_jvm_icon.c` to consume `EXPR_t` instead of `IcnNode*`
+- `IcnNode` AST becomes parse-only (frontend-private)
+- Verify: Icon x86 `94p/164f` unchanged; Icon JVM `173p/44f` unchanged; gate 738/0
+
+### Known facts for next session
+
+- Gate: **738/0** in full-tool env; **726/12** in this container (12 pre-existing tool-missing)
+- Backend layout: all emitters now at `src/backend/emit_*.c` — no subdirs for x64/jvm/net/wasm
+- `src/backend/c/` legacy stubs untouched — confirmed no active Makefile targets
+- `IR_COMPAT_ALIASES` is gone; `E_STAR` alias cleaned from all files including parse.c
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: never in commits — `TOKEN_SEE_LON` as placeholder
