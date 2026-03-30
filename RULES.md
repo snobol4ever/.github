@@ -178,6 +178,17 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
+## ⛔ SESSIONS_ARCHIVE.md — APPEND ONLY, NEVER PRUNE
+
+`SESSIONS_ARCHIVE.md` is a permanent historical record. Its size does not matter.
+**Never** delete, truncate, move, or "archive" entries from it. Never suggest pruning it.
+Only ever append to it. A large SESSIONS_ARCHIVE.md is correct and expected.
+
+Files that ARE pruned when they grow too large:
+- `PLAN.md` — 3KB max. Session content belongs in SESSIONS_ARCHIVE, not PLAN.md.
+- `RULES.md` — trim war-story context, keep only the rule itself.
+- `GRAND_MASTER_REORG.md` — completed phase detail moves to MILESTONE_ARCHIVE.md.
+
 ---
 
 ## ⛔ NOW TABLE ROW FORMAT — Three fields only
