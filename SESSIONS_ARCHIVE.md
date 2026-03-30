@@ -7386,3 +7386,49 @@ A11_capture_dot (058), A11_capture_dollar (059), A11_capture_multiple (060), A11
    - `if (X ? pat)` pattern confirmed working
    - Capture `.` and `$` confirmed working
 4. Fire M-SC-A12 when all 10 pass; update invariant cell count
+
+---
+
+## SW-2 Session 1 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `7ddc01e` · **.github** this session
+
+### Completed this session
+
+**M-SW-A01 ✅ — WASM hello/literals 4/4:**
+- `$sno_str_to_int (off:i32, len:i32) → i64` — decimal parse, empty/non-numeric → 0. Handles sign, leading spaces, stops at non-digit.
+- `$sno_float_to_str (val:f64) → (i32,i32)` — proper SNOBOL4 float format: `1.0` → `"1."`, `1.5` → `"1.5"`, strips trailing fractional zeros, handles negative.
+- Arithmetic coerce: E_ADD/SUB/MPY/DIV/MOD detect TY_STR child and emit `(call $sno_str_to_int)` before op. Fixes `'' + 1` → `1`, `1 + ''` → `1` etc.
+- Float promotion: TY_FLOAT lhs + TY_INT rhs emits `(f64.convert_i64_s)` on rhs before op.
+- Rewrote `$sno_int_to_str` in fully-folded S-expression WAT (no stack-style mixing — wabt 1.0.34 chokes on mixed style inside `(func ...)`).
+- **WAT lesson learned:** locals MUST be declared at function top level — illegal inside `(if (then...))` or `(else...)` blocks. All WAT must be consistently folded S-expression form.
+- `run_emit_check.sh` — removed mandatory `nasm` check (WASM session does not need it).
+- `run_invariants.sh` — made `nasm`/`java`/`javac`/`SnoHarness` checks conditional on requested cell family; added `run_snobol4_wasm` cell (hello rung, 4 tests); added to dispatch.
+
+**Gate:** emit-diff 738/0 ✅ · `snobol4_wasm` 4/4 ✅
+
+### Key facts for next session
+
+- WAT folded form only — never mix stack-style bare expressions inside `(func ...)`.
+- All locals hoisted to function top: `(local $x type)` at top, never inside blocks.
+- `scrip-cc -wasm` → `.wat` → `wat2wasm --enable-tail-call` → `.wasm` → `node test/wasm/run_wasm.js`
+- Float lhs + int rhs case is handled; int lhs + float rhs has a `FIXME` comment in emit_wasm.c (not exercised in M-SW-A01 corpus, fix in M-SW-A02).
+- `snobol4_wasm` invariant cell now live in `run_invariants.sh`, DIRS=`hello` (4 tests).
+- CSNOBOL4 at `/usr/local/bin/snobol4` (built from uploaded tarball this session).
+- bison/flex: `touch` the rebus generated files before `make` to skip regeneration.
+
+### Next session execution order
+
+```bash
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+touch /home/claude/one4all/src/frontend/rebus/rebus.tab.c \
+      /home/claude/one4all/src/frontend/rebus/rebus.tab.h \
+      /home/claude/one4all/src/frontend/rebus/lex.rebus.c
+cd /home/claude/one4all/src && make -j$(nproc)
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 4/4
+# M-SW-A02: rung4/ — arith_int arith_unary arith_real arith_mixed remdr (5 tests)
+# Fix int-lhs + float-rhs promotion FIXME in emit_wasm.c E_ADD case
+# Then: run_wasm_corpus_rung.sh rung4 → 5/5 → fire M-SW-A02
+```
