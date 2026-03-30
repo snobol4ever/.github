@@ -7657,3 +7657,38 @@ to prevent the same mistake in future sessions.
 - assemble_stmt: unwrap E_MATCH into subject+pattern fields
 - sc_pat_concat_to_seq: rewrite E_CONCAT→E_SEQ in pattern tree (Snocone-local)
 - icn_random: libc regression from G-9 s27 found and fixed (G-session also fixed independently)
+
+---
+
+## PW-1 Session (2026-03-30, Claude Sonnet 4.6) — M-PW-SCAFFOLD
+
+**one4all** `9aa5a8e` · **.github** `16ca5da`
+
+### Completed this session
+
+**M-PW-SCAFFOLD ✅** — Prolog × WASM scaffold wired end-to-end:
+- `src/backend/emit_wasm_prolog.c` created (stub `prolog_emit_wasm()` entry point; α/β/γ/ω stubs for all 6 Prolog-specific EKinds: E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_MARK/E_TRAIL_UNWIND)
+- `src/runtime/wasm/pl_runtime.wat` created — stub Prolog WASM runtime (`"pl"` namespace): output_str/nl/flush, trail_mark/unwind, var_bind/deref, unify_atom
+- `src/runtime/wasm/pl_runtime.wasm` assembled clean (wabt 1.0.34)
+- `src/driver/main.c` wired: `-pl -wasm` → `prolog_emit_wasm()` dispatch added
+- `src/Makefile` wired: `emit_wasm_prolog.c` added to BACKEND_WASM sources
+- `scrip-cc -pl -wasm hello.pl` produces valid `(module ...)` WAT without crash ✅
+- Emit-diff gate: **738/0** ✅ — no regressions
+
+### HQ updates
+- `RULES.md`: added `prolog × wasm` row to own-backend invariant policy table; updated baseline matrix Prolog WASM column from SKIP to `0/0 (new — PW session)`
+- `SESSION-prolog-wasm.md`: created — full sprint map PW-1..PW-5, milestone ladder M-PW-SCAFFOLD through M-PW-PARITY, emitter architecture split documented
+- `PLAN.md`: added Prolog WASM row to NOW table
+
+### Architecture summary (for next PW session)
+- **Emitter split:** `emit_wasm.c` = shared (SNOBOL4/ICON/Prolog common nodes — do not modify). `emit_wasm_prolog.c` = Prolog-only (E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_*).
+- **Runtime namespace:** `"pl"` (not `"sno"`). Programs `(import "pl" "...")`.
+- **Port encoding:** α/β/γ/ω as tail-call WAT functions (`return_call`), same logic as emit_x64_prolog.c and emit_jvm_prolog.c but `.wat` output.
+- **Session prefix:** `PW`. Next milestone: **M-PW-HELLO**.
+
+### Next session execution order
+1. Setup: `FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (738/0) · `run_invariants.sh prolog_wasm` (0/0 — cell exists, no tests yet)
+3. Implement M-PW-HELLO: wire `write/1` atom output through shared `emit_wasm.c` string table → `$pl_output_str`; `nl/0` → `$pl_output_nl`; emit `:- initialization(main)` as `(func $main (export "main"))`.
+4. Test: `scrip-cc -pl -wasm rung01_hello_hello.pl | wat2wasm | node run_wasm.js` → `hello\n`
+5. Add `prolog_wasm` invariant cell to `run_invariants.sh` (1 test), fire M-PW-HELLO, commit.
