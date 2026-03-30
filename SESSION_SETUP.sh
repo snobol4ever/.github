@@ -222,20 +222,7 @@ if need_frontend snobol4 || need_frontend snocone; then
 if command -v snobol4 &>/dev/null; then
     ok "snobol4 (CSNOBOL4)"
 else
-    info "Building CSNOBOL4 2.3.3 from snobol4.org ..."
-    SNO_BUILD=/tmp/csno_build_$$; mkdir -p "$SNO_BUILD"
-    if curl -sL "https://www.snobol4.org/csnobol4/curr/snobol4-2_3_3.tar.gz" \
-            -o "$SNO_BUILD/csnobol4.tar.gz" \
-        && tar -xzf "$SNO_BUILD/csnobol4.tar.gz" -C "$SNO_BUILD" \
-        && cd "$SNO_BUILD"/snobol4-2_3_3 \
-        && ./configure --prefix=/usr/local 2>/dev/null \
-        && make -j"$(nproc)" 2>/dev/null \
-        && make install 2>/dev/null; then
-        ok "snobol4 (CSNOBOL4 2.3.3)"
-    else
-        fail "CSNOBOL4 — build failed"
-    fi
-    rm -rf "$SNO_BUILD"; cd /home/claude
+    fail "CSNOBOL4 — NOT installed. NEVER download from snobol4.org (broken). Ask Lon to upload snobol4-2_3_3_tar.gz, then build with: mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j\$(nproc) && make install"
 fi
 else
     info "Skipping CSNOBOL4 (FRONTEND=${FRONTEND})"

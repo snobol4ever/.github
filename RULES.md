@@ -53,9 +53,9 @@ parser-generator tools needed. Only regenerate those files if you modify `rebus.
 `rebus.l` — and only a Rebus-session does that. SESSION_SETUP.sh skips bison/flex for all
 non-Rebus frontends.
 
-**⛔ CSNOBOL4 download from snobol4.org is broken** (site redirects to lander as of 2026-03-30).
-Lon supplies the tarball (`snobol4-2_3_3_tar.gz`) at session start when needed. Build with:
-`tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
+**⛔ NEVER download CSNOBOL4 from snobol4.org or anywhere** — site is broken (redirects to lander as of 2026-03-30) and downloading from unknown sources is forbidden.
+**Always ask Lon to upload `snobol4-2_3_3_tar.gz`** when CSNOBOL4 is needed. Build with:
+`mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
 Note: CSNOBOL4 is NOT required to run the gate — `.ref` files are pre-baked in corpus.
 
 ---
