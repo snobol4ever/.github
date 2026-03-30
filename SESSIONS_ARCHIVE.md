@@ -7526,3 +7526,89 @@ Their fix was taken in the rebase conflict resolution.
 3. rungA13 — functions 8 tests from `corpus/crosscheck/functions/`
    - DEFINE/label/goto → `procedure` declarations
    - Fire M-SC-A13 when all pass
+
+---
+
+## SW-2 Session 2 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `44ac687` · **.github** this session
+
+### Completed this session
+
+**Infrastructure (M-SW-A02 prerequisites):**
+
+1. **Makefile rebus deps fixed** — `frontend/rebus/rebus.tab.c` and `lex.rebus.c` rules now use order-only prerequisites (`|`). `make` no longer invokes bison/flex on a fresh clone. Clean build confirmed without touch workaround. SESSION_SETUP.sh touch workaround removed.
+
+2. **SESSION_SETUP.sh jasmin check gated** — `[[ -f "$JASMIN" ]]` check now inside `if need_backend jvm; then`. WASM session no longer exits with code 3 due to missing jasmin.jar.
+
+3. **`run_invariants.sh` -o flag fix** — Line 243 was `> "$wat"` (stdout redirect); scrip-cc writes gcc-style to derived path alongside source, not stdout. Fixed to `-o "$wat"`. Confirmed `snobol4_wasm` 4/4 ✓.
+
+4. **3×4 matrix** — `run_invariants.sh` display expanded from 3×3 to 3×4; WASM column added; `snobol4_wasm` included in OVERALL_FAIL. `icon_wasm`/`prolog_wasm` marked SKIP.
+
+5. **HQ docs updated** — RULES.md invariant table 3×4 with WASM `4/4` baseline; PLAN.md invariant baseline includes `WASM: SNOBOL4 4/4`; `.github/README.md` adds BACKEND-WASM.md to L3 table; `one4all/README.md` adds `-wasm` to backend table, "four→five backends", WASM usage example.
+
+6. **Runtime refactored to standalone module** — `sno_runtime.wat` converted from inlined fragment to proper `(module ...)` with exports. Pre-compiled to `sno_runtime.wasm` (committed). `run_wasm.js` updated: instantiates runtime first, passes exports as `{ sno: rtExports }` import object. Programs now import all runtime functions — runtime compiled once by V8 per session, not per test (~10x speedup).
+
+7. **`emit_wasm.c` dispatch-loop framework** — Full rewrite of statement emitter:
+   - `collect_labels()` / `lbl_index()` — label table with index 0 = `__end__`
+   - `emit_goto_target()` — sets `$pc` + `br $dispatch`
+   - `emit_differ()` — DIFFER/IDENT via `$sno_str_eq`
+   - `emit_subject_as_bool()` — any subject expr → i32 success flag
+   - `emit_output()` — OUTPUT = expr for str/int/float
+   - `emit_main_body()` — dispatch-loop with `(loop $dispatch)` + nested `(block $LN)`
+   - `E_ADD/SUB/MPY/DIV/MOD/E_POW` — int-lhs+float-rhs FIXME resolved via `$tmp_f` local
+   - `E_POW` → `$sno_pow` (integer exponentiation loop in runtime)
+   - `$sno_str_eq`, `$sno_pow`, `$sno_str_to_int`, `$sno_int_to_str`, `$sno_float_to_str` all moved to runtime module
+
+### One bug remaining — NEXT SESSION MUST FIX FIRST
+
+**`emit_main_body` block nesting** — WAT syntax error: extra `)` after `loop $dispatch`. Root cause: `closed[]` tracking array was designed but the `str_replace` applying it failed mid-session (file encoding issue). The fix is straightforward:
+
+In `emit_main_body` (line ~500), add `int closed[MAX_LABELS] = {0};` and set `closed[0] = 1` after emitting `$L0`. Then in the label-closing loop: `if (idx > 0 && !closed[idx]) { W(...); closed[idx] = 1; }`. At end: `for (int i = 1; i < nlabels; i++) if (!closed[i]) W("      ) ;; $L%d\\n", i);`
+
+Current state: rung4 produces WAT that fails `wat2wasm` with "unexpected token ), expected EOF" at the unreached-label close block.
+
+**hello rung (4 tests) still passes via the old `hello.wat` artifact in corpus** — but `run_invariants.sh` now uses `-o` flag which triggers the new emitter, so `snobol4_wasm` will show 0/4 until the block-nesting is fixed. Fix this first.
+
+### Gate (end of session)
+- **Emit-diff: not re-run** (no .wat artifacts changed in corpus this session)
+- **WASM invariants: 0/4** (dispatch-loop block nesting broken — fix is the first task)
+
+### Next session execution order
+
+```bash
+# Step 0 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 1 — setup (no touch needed — Makefile fixed)
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 2 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm   # expect 0/4 — known
+
+# Step 3 — FIRST FIX: emit_main_body block nesting in emit_wasm.c
+# Add closed[] array, close L0 immediately, track closures, close unclosed at end.
+# Verify: scrip-cc -wasm -o /tmp/t.wat hello.sno && wat2wasm --enable-tail-call /tmp/t.wat -o /tmp/t.wasm && node test/wasm/run_wasm.js /tmp/t.wasm
+# Then: run_invariants.sh snobol4_wasm → 4/4 ✓
+
+# Step 4 — M-SW-A02: rung4/ 5 tests
+# CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung4
+# All 5 should pass once block nesting fixed (DIFFER, goto, arith all implemented)
+# Update snobol4_wasm DIRS to include rung4 → 9 tests
+# Fire M-SW-A02, update invariant cell, commit/push
+
+# Step 5 — update PLAN.md NOW row, append SESSIONS_ARCHIVE
+```
+
+### Key architecture facts for next session
+
+- **Runtime is now a separate module** (`src/runtime/wasm/sno_runtime.wasm`). If runtime changes, recompile: `wat2wasm --enable-tail-call src/runtime/wasm/sno_runtime.wat -o src/runtime/wasm/sno_runtime.wasm`
+- **Import namespace is `"sno"`** — all program WAT files import from `(import "sno" "funcname" ...)` 
+- **`run_wasm.js` takes optional 2nd arg** for runtime path; defaults to `../../src/runtime/wasm/sno_runtime.wasm` relative to script
+- **`$tmp_f` local (f64)** is declared in main body for int-lhs+float-rhs swap
+- **dispatch-loop pattern**: `(loop $dispatch` → blocks opened highest-index-first → `br_table` → L0 closes immediately → statements close their label blocks → unreached blocks close at end
+- **No `$str_ptr` global in programs** — programs use `$sno_str_alloc` from runtime; literal data segment at `STR_DATA_BASE=8192` is below runtime's dynamic heap at 32768
