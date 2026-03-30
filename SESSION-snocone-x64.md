@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-1 — M-SC-CONSOLIDATE in progress
-**HEAD:** `c1eed78` one4all
-**Next action:** Complete M-SC-CONSOLIDATE (see SESSIONS_ARCHIVE for 8-step checklist)
+**Sprint:** SC-1 — M-SC-A03 complete; next M-SC-A04 (concat &&)
+**HEAD:** `f0ddef4` one4all · `149f48a` corpus
+**Next action:** rungA04 — concat (&&) 5 tests; rungA05 — data structures 5 tests; then M-SC-CONSOLIDATE commit
 
 **Session start — mandatory order, no exceptions:**
 

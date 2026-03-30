@@ -7026,3 +7026,48 @@ Fix one gap at a time. After each: Icon x86 rung03 5/5 green.
 - Invariant suite active — run at start and end of every session
 - Commit identity: `LCherryholmes / lcherryh@yahoo.com`
 - Token: `TOKEN_SEE_LON` — never in commits
+
+---
+
+---
+
+## SC-1 Session Continued (2026-03-30, Claude Sonnet 4.6) — GATE + A01–A03
+
+**.github** `(this commit)` · **one4all** `f0ddef4` · **corpus** `149f48a`
+
+### Work completed
+
+**Infrastructure fixes:**
+- Committed generated Rebus parser files (`rebus.tab.c`, `rebus.tab.h`, `lex.rebus.c`) — removed from `.gitignore`; bison/flex now Rebus-only in SESSION_SETUP.sh
+- `emit_x64_snocone.c` — 8 compat alias renames: E_NULV→E_NUL, E_VART→E_VAR, E_MNS→E_NEG, E_EXPOP→E_POW, E_NAM→E_CAPT_COND, E_DOL→E_CAPT_IMM, E_ATP→E_CAPT_CUR, E_ASGN→E_ASSIGN
+- `emit_x64.c` — updated stale `E_VARTs` comment to `E_VARs`
+- Regenerated 11 corpus oracles (comment-only diffs from E_VART→E_VAR rename)
+- `run_sc_corpus_rung.sh` — fixed stdout redirect bug: use `-o "$s_file"` instead of `> "$s_file"`
+- SESSION_SETUP.sh — removed leftover BUILD_FLAGS remnant; restored simple `make` invocation
+
+**Bug fix:**
+- `emit_x64_snocone.c` SNOCONE_ASSIGN: null-RHS assign (`X =;`) — detect stack depth (top < 2 → synthesize E_NUL for rhs instead of double-underflow)
+
+**Gate:** emit-diff **738/0** ✅
+
+**Corpus milestones:**
+- M-SC-A01 ✅ — rungA01 hello/output 5/5 pass
+- M-SC-A02 ✅ — rungA02 assignment 5/5 pass (including null-assign fix)
+- M-SC-A03 ✅ — rungA03 arithmetic 5/5 pass
+- **15/15 total passing**
+
+### Next session — continue in order
+
+1. rungA04 — concat (`&&`) 5 tests: translate blank-concat SNOBOL4 → `&&` Snocone
+2. rungA05 — data structures 5 tests
+3. After A05: fire M-SC-A05, update invariant cell count (~35), commit
+4. Continue A06–A10 per ladder in SESSION-snocone-x64.md
+
+### Key facts
+
+- Gate: **738/0** · Snocone: **15/15** (A01+A02+A03)
+- `run_sc_corpus_rung.sh` uses `-o` flag (fixed this session)
+- Null-RHS assign fixed in `emit_x64_snocone.c`
+- Generated Rebus files committed; bison/flex Rebus-only
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com` — always
+- Token: `TOKEN_SEE_LON`
