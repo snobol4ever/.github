@@ -7692,3 +7692,96 @@ to prevent the same mistake in future sessions.
 3. Implement M-PW-HELLO: wire `write/1` atom output through shared `emit_wasm.c` string table → `$pl_output_str`; `nl/0` → `$pl_output_nl`; emit `:- initialization(main)` as `(func $main (export "main"))`.
 4. Test: `scrip-cc -pl -wasm rung01_hello_hello.pl | wat2wasm | node run_wasm.js` → `hello\n`
 5. Add `prolog_wasm` invariant cell to `run_invariants.sh` (1 test), fire M-PW-HELLO, commit.
+
+---
+
+## PW-1 HANDOFF (2026-03-30, Claude Sonnet 4.6) — context ~70%, clean handoff
+
+**one4all** `9aa5a8e` · **.github** `1884247`
+
+### Session summary
+
+This was a planning + scaffold session. No regressions. Gate: **738/0** ✅.
+
+**M-PW-SCAFFOLD ✅** — all infrastructure for Prolog × WASM in place:
+- `src/backend/emit_wasm_prolog.c` — stub emitter, all 6 Prolog EKinds present as `unreachable` stubs
+- `src/runtime/wasm/pl_runtime.wat` + `.wasm` — `"pl"` namespace runtime: output, trail, var, unify_atom
+- `src/driver/main.c` — `-pl -wasm` dispatch wired to `prolog_emit_wasm()`
+- `src/Makefile` — `emit_wasm_prolog.c` in BACKEND_WASM
+- `SESSION-prolog-wasm.md` created — full sprint/milestone ladder
+- `RULES.md` updated — `prolog × wasm | prolog_wasm only` row added; baseline matrix updated
+- `PLAN.md` updated — PW row added
+
+### What the next PW session must do — M-PW-HELLO
+
+**Goal:** `write('hello'), nl.` → WASM output `hello\n`
+
+**Concrete steps:**
+
+1. **Setup:**
+   ```bash
+   FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+   ```
+   Needs: `gcc make wabt node swipl`. Skips everything else.
+
+2. **Gate:**
+   ```bash
+   cd /home/claude/one4all
+   CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+   # prolog_wasm invariant cell does not exist yet — no run_invariants needed until M-PW-HELLO fires
+   ```
+
+3. **Wire string literals through shared emitter.**
+   `emit_wasm.c` has `strlit_intern()` and `strlit_abs()` but they are `static`.
+   To call them from `emit_wasm_prolog.c`, either:
+   - Promote to `extern` in a new `src/backend/emit_wasm.h`, OR
+   - Duplicate a minimal inline atom-data segment in `emit_wasm_prolog.c`
+   The cleanest path: add `emit_wasm.h` exporting:
+   ```c
+   int  emit_wasm_strlit_intern(const char *s);
+   int  emit_wasm_strlit_abs(int idx);
+   void emit_wasm_set_out(FILE *f);   /* so prolog emitter can share wasm_out */
+   ```
+   Then in `emit_wasm_prolog.c` call these for atom literals in `write/1`.
+
+4. **Implement `emit_write_atom()` in `emit_wasm_prolog.c`:**
+   - For `E_QLIT` arg: call `emit_wasm_strlit_intern(s)` → get idx, `emit_wasm_strlit_abs(idx)` → offset
+   - Emit: `(i32.const OFFSET) (i32.const LEN) call $pl_output_str`
+
+5. **Emit `(func $main (export "main"))` with real body:**
+   Walk `prog->head` statements; for each `E_FNC(write/1)` or `E_FNC(nl/0)` goal, call `emit_pl_goal()`.
+   The current scaffold `emit_pl_main()` is a stub — replace with real statement walker.
+
+6. **Wire the data segment** — `emit_wasm_prolog.c` must emit `(data ...)` blocks for atom strings. Coordinate with `emit_wasm.c`'s `emit_data_segment()` — either share the table or emit a separate Prolog-side data block at a different base offset (e.g., `PL_STR_DATA_BASE = 16384` to avoid collision with `STR_DATA_BASE = 8192`).
+
+7. **Assemble and run:**
+   ```bash
+   scrip-cc -pl -wasm rung01_hello_hello.pl -o /tmp/hello.wat
+   wat2wasm --enable-tail-call /tmp/hello.wat -o /tmp/hello.wasm
+   # Need to link pl_runtime.wasm — update run_wasm.js or write a pl_run_wasm.js
+   node test/wasm/run_wasm.js /tmp/hello.wasm  # expect: hello\n
+   ```
+   Note: `run_wasm.js` was written for the SNOBOL4 runtime (`"sno"` namespace).
+   Prolog programs import from `"pl"` namespace. Options:
+   - Write `test/wasm/pl_run_wasm.js` that loads `pl_runtime.wasm` as the `"pl"` import module, OR
+   - Make `run_wasm.js` accept a `--runtime` flag
+   Simplest for M-PW-HELLO: write `pl_run_wasm.js` (20 lines, mirrors `run_wasm.js`).
+
+8. **Add `prolog_wasm` invariant cell** to `test/run_invariants.sh`:
+   - Copy the `snobol4_wasm` cell block, change cell name to `prolog_wasm`
+   - Point at Prolog corpus rung dir (`corpus/programs/prolog/rung01_hello_hello.pl`)
+   - Update RULES.md baseline: `0/0` → `1/0`
+
+9. **Fire M-PW-HELLO, commit:** `PW-1: M-PW-HELLO — prolog×wasm hello: write/1 + nl/0, 1/1`
+
+### Key files for next session
+- `one4all/src/backend/emit_wasm_prolog.c` — main work file
+- `one4all/src/backend/emit_wasm.c` — read to understand string table; add `extern` exports only if needed
+- `one4all/src/runtime/wasm/pl_runtime.wat` — add `output_nl` if missing; confirm all exports match imports in `emit_wasm_prolog.c`
+- `one4all/test/wasm/run_wasm.js` — reference for writing `pl_run_wasm.js`
+- `corpus/programs/prolog/rung01_hello_hello.pl` — first test
+
+### Invariant policy reminder
+**Run `prolog_wasm` cell ONLY. Never run x86, JVM, snobol4_wasm, or icon_wasm cells.**
+The `prolog_wasm` cell doesn't exist in `run_invariants.sh` yet — create it at M-PW-HELLO.
+

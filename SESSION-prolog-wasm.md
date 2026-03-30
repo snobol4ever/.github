@@ -24,7 +24,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-1 | `(new)` | **M-PW-SCAFFOLD** |
+| **Prolog WASM** | PW-1 | `9aa5a8e` one4all · `1884247` .github | **M-PW-HELLO** |
 
 ---
 
