@@ -28,11 +28,11 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-1 (scaffold)
+## §NOW — IW-2
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-1 scaffold | `(see SESSIONS_ARCHIVE)` | **M-IW-A01**: ICN_INT/VAR/ASSIGN/CALL(write)/PROC/RETURN rung01 hello |
+| **ICON WASM** | IW-2 `098706b` | one4all `098706b` | **M-IW-A02**: write(str) + ICN_STR data segment → rung01 6/6 |
 
 ---
 
@@ -149,8 +149,8 @@ Nodes that exist in the SNOBOL4 frontend too (`E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`
 | Milestone | ICN nodes | Rung target | Status |
 |-----------|-----------|-------------|--------|
 | M-IW-SCAFFOLD | all → stub-fail | build only | ✅ IW-1 |
-| M-IW-A01 | ICN_INT, ICN_VAR, ICN_ASSIGN, ICN_CALL(write), ICN_PROC, ICN_RETURN, ICN_FAIL | rung01 hello | ❌ |
-| M-IW-A02 | ICN_ADD/SUB/MUL/DIV/MOD, ICN_NEG/POS | rung01 arith | ❌ |
+| M-IW-A01 | ICN_INT, ICN_VAR, ICN_ASSIGN, ICN_CALL(write-int), ICN_PROC, ICN_RETURN, ICN_FAIL, ICN_TO, ICN_EVERY, ICN_ALT, ICN_ADD/SUB/MUL/DIV/MOD, ICN_NEG/POS, ICN_LT/LE/GT/GE/EQ/NE | rung01 5/6 | ✅ IW-2 |
+| M-IW-A02 | ICN_STR data segment + write(str) via $sno_output_str | rung01 6/6 | ❌ |
 | M-IW-A03 | ICN_LT/LE/GT/GE/EQ/NE | rung01 relops | ❌ |
 | M-IW-G01 | ICN_TO | rung01 to-gen | ❌ |
 | M-IW-G02 | ICN_TO_BY | rung01/02 | ❌ |

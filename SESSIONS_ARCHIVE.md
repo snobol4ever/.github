@@ -8172,3 +8172,109 @@ cat /home/claude/.github/PLAN.md
 # Fix the ~15 compile errors in emit_x64_icon.c (all same pattern — see above)
 # Then gate, then main.c wiring, then emit_jvm_icon.c migration
 ```
+## IW-2 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `098706b` · **corpus** unchanged · **.github** this session
+
+### Session type
+IW (Icon × WASM). Session prefix `IW`. Owns `icon_wasm` invariant cell.
+
+### Oracle absorbed this session
+- `icon-master.zip` (uploaded by Lon) — `src/icont/tcode.c` authoritative code generator
+- Key confirmation from tcode.c: N_Slist uses mark/unmark per stmt (our chain approach is equivalent); N_To/N_ToBy wiring confirmed; N_Loop EVERY confirmed (mark0 → traverse expr → pop → efail loop)
+
+### Completed this session
+
+**M-IW-A01 ✅** (partial — 5/6 rung01 tests pass)
+- `emit_expr_wasm()`: full recursive Byrd-box dispatcher for all Tier-0 ICN_* nodes
+- `emit_wasm_icon_proc()`: ICN_PROC walker, chains body stmts via `icn_NAME_chain{i}` glue funcs
+- `emit_wasm_icon_file()`: top-level .wat module emitter (imports, globals, procs, terminals, exported main)
+- `main.c`: `else if (wasm_mode) emit_wasm_icon_file(...)` wired into file_icn dispatch block
+- `emit_wasm_icon.h`: `emit_wasm_icon_file()` declared
+
+**Key bugs found and fixed:**
+1. `(memory 2)` → `(memory 1)` — must match 1-page sno_runtime export
+2. `ICON_GEN_STATE_BASE` `0x10000` → `0xC000` — 0x10000 is out-of-bounds for 1-page memory; moved into variable table area [49152..65535]
+3. Children's `succ`/`fail` in recursive emit — must be pre-computed **parent glue names** (e.g. `iconN_e1succ`), not outer `succ`. Byrd-box law: child γ → parent glue, never outer γ directly.
+4. `ICN_CALL(write)` arg's succ — must be `iconN_esucc` (intercepts to call `sno_output_int`), not outer succ
+
+**rung01 results:**
+- PASS: rung01_paper_to5, rung01_paper_mult, rung01_paper_lt, rung01_paper_compound, rung01_paper_nested_to
+- FAIL: rung01_paper_paper_expr — `write("done")` needs ICN_STR + write(str) path
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✅**
+- **icon_wasm: 33p/225f** (was 23p/235f, +10 passing)
+- Build: clean
+
+### Architecture notes for IW-3
+
+**ICN_STR / write(str) — next milestone (M-IW-A02):**
+
+The `emit_wasm_icon_file()` needs a string intern table (parallel to emit_wasm.c's `strlit_intern`).
+ICN_STR nodes must be pre-scanned before proc emission, data segment emitted after globals.
+In `emit_expr_wasm` ICN_STR case: store `(offset<<32)|len` pair concept — but since WAT globals
+are i64, use two globals or a memory slot. Simplest: store offset in low 32 bits, len in high.
+Then `emit_icn_call_write` needs a type-dispatch: if arg is ICN_STR, call `$sno_output_str(offset, len)`
+instead of `$sno_output_int`. String type can be tracked via a separate `$icn_is_str{id}` global (i32, 0=int 1=str).
+
+**Alternatively (simpler for Tier 0):** add a `write_str` variant of the call emitter that is selected
+when the call arg's IcnKind is ICN_STR at emit time (peek at child type before recursive emit).
+
+**ICON_GEN_STATE_BASE:** Now at 0xC000. The variable table area [0xC000..0xFFFF] = 16KB.
+With 64-byte slots, 256 slots fit exactly. Adequate for all Tier 0-2 programs.
+For programs needing more (recursive generators), extend to 2-page memory in M-IW-DEEP.
+
+**emit_wasm_icon.c structure (post IW-2):**
+- §1: WAT macros + gen-state memory — unchanged
+- §2: Label/name helpers — unchanged
+- §3: Per-node emitters — all present, correct
+- §4: `emit_expr_wasm()` recursive dispatcher — NEW in IW-2
+- §5: `emit_wasm_icon_proc()`, `emit_wasm_icon_file()` — NEW in IW-2
+
+### Next session execution (IW-3)
+
+```bash
+# Step 1 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 2 — setup
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 3 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm  # expect 33p/225f
+
+# Step 4 — read HQ
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+
+# Step 5 — begin M-IW-A02 (write(str) + ICN_STR)
+```
+
+### M-IW-A02 blueprint
+
+Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
+
+1. Add string intern table to `emit_wasm_icon_file()`:
+   - Pre-scan all ICN_STR nodes in all procs (recursive walk)
+   - Emit `(data (i32.const OFFSET) "...")` block after globals, before procs
+   - String data base: 0x8000 (32768) — same as SNOBOL4 runtime STR_DATA_BASE
+
+2. In `emit_expr_wasm` ICN_STR case:
+   - Look up intern table, get (abs_offset, len)
+   - Emit `$iconN_start`: store offset as i64 to `$icn_int{id}`, len to a str-len global,
+     or use a dedicated `$icn_str_off{id}` (i32) + `$icn_str_len{id}` (i32) pair
+
+3. In ICN_CALL(write) dispatch:
+   - Peek at arg node type: if ICN_STR → emit `emit_icn_call_write_str()` variant
+   - `write_str.esucc`: loads offset+len from str globals, calls `$sno_output_str`
+
+4. Run: `write("done")` should produce `done\n` ✓
+
+>>>>>>> ec01cbc (IW-2: M-IW-A01 handoff — icon_wasm 33p/225f, rung01 5/6 pass)
