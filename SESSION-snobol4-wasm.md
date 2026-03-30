@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-1 — M-SW-A01 WIP | `36af87e` one4all · `62f2d8f` corpus | **M-SW-A01: HELLO** (3/4; literals str→int coerce needed) |
+| **SNOBOL4 WASM** | SW-2 — M-SW-A01 ✅ | `7ddc01e` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests |
 
 ---
 
