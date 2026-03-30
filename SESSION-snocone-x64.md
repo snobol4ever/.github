@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-2 — M-SC-A04 ✅ M-SC-A05 ✅ (25/25); next M-SC-A06 (strings, goto-free)
-**HEAD:** `3f5da0f` one4all · `6ed189c` corpus
-**Next action:** rungA06 — strings (goto-free) 5 tests; see corpus/crosscheck/strings/ for source SNOBOL4
+**Sprint:** SC-2 — M-SC-A04–A09 ✅ (43p/1xfail of 44); next M-SC-A10 (capture, goto-free)
+**HEAD:** `3f5da0f` one4all · `080d51a` corpus
+**Next action:** rungA10 — capture (goto-free) 3 tests; see corpus/crosscheck/capture/ for SNOBOL4 sources
 
 **Session start — mandatory order, no exceptions:**
 
@@ -125,10 +125,10 @@ Translation rules:
 | M-SC-A03 | rungA03 | arithmetic | 5 | ✅ | Verbatim |
 | M-SC-A04 | rungA04 | concat (`&&`) | 5 | ✅ | Blank concat → `&&` |
 | M-SC-A05 | rungA05 | data structures | 5 | ✅ | array `<>`, table `[]`, DATA |
-| M-SC-A06 | rungA06 | strings (goto-free) | 5 | ✅ | Verbatim |
-| M-SC-A07 | rungA07 | strings (with goto) | 5 | ❌ | Rewrite loops to `while` |
-| M-SC-A08 | rungA08 | keywords (goto-free) | 4 | ✅ | Verbatim |
-| M-SC-A09 | rungA09 | keywords (with goto) | 5 | ❌ | `while`/`if` rewrite |
+| M-SC-A06 | rungA06 | strings (goto-free) | 5 | ✅ | SIZE SUBSTR REPLACE TRIM DUPL |
+| M-SC-A07 | rungA07 | strings (with goto) | 5 | ✅ | INTEGER IDENT DIFFER GT LT/LE/GE via if/else |
+| M-SC-A08 | rungA08 | keywords (goto-free) | 4 | ✅ | DATATYPE &ALPHABET LPAD EQ/NE |
+| M-SC-A09 | rungA09 | keywords (with goto) | 5 | ✅ (4p/1xfail) | &STNO &ANCHOR(xfail) LGT/LLT/LEQ/LNE REVERSE DUPL+SIZE |
 | M-SC-A10 | rungA10 | capture (goto-free) | 3 | ✅ | Verbatim |
 | M-SC-A11 | rungA11 | capture (with goto) | 4 | ❌ | `if` rewrite |
 | M-SC-A12 | rungA12 | patterns | 10 | ❌ | `if` + `?` operator |
