@@ -7316,3 +7316,96 @@ Low priority — defer to a dedicated milestone.
 2. Gate: `run_emit_check.sh` (expect 718/20 pre-existing) — no invariant cell yet
 3. M-SW-1: `src/runtime/wasm/sno_runtime.wat` — memory layout, `sno_output_str/int/flush/concat`; `emit_wasm_runtime_header()` in `emit_wasm.c`
 4. Then M-SW-A01: hello — `emit_wasm.c` E_QLIT + OUTPUT assign → 3/3; add `snobol4_wasm` invariant cell
+---
+
+## G-9 Session 27 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `29c836f` · **corpus** `7d3cfa2` · **.github** this session
+
+### Completed this session
+
+- **Gate baseline restored** — `run_emit_check.sh --update` regenerated 20 stale icon `.s` baselines (previous session G3–G6 added `icn_cset_*` extern decls to all icon x64 outputs; baselines had not been updated). Gate: **738/0 ✅**.
+- **Invariants confirmed** — x86: SNOBOL4 `106/106` ✅ · Icon `94p/164f` · Prolog `13p/94f` — all match G-9 s22 baseline, no regressions.
+- **`icn_random(long n)` added to `icon_runtime.c`** — G2 runtime prerequisite. Uses `rand() % n + 1` seeded once via `time(0)`. Committed `29c836f`.
+
+### Not completed — interrupted before emitter work
+
+G1/G2/G7 emitter cases were **not** added to `emit_x64_icon.c` or `emit_jvm_icon.c`. Runtime function exists but the dispatch cases are missing. These are the only remaining items for M-G5-LOWER-ICON-FIX.
+
+### Key facts for next session
+
+- `icn_random(long n)` is in `icon_runtime.c` — just needs `case ICN_RANDOM` in both emitters
+- `ICN_POS` (G1) = identity: emit child, value passes through unchanged — trivial both backends
+- `ICN_SCAN_AUGOP` (G7) = explicit stub-fail: one `case` line each backend jumping to ω
+- `ICN_SCAN_AUGOP` is declared in `icon_ast.h` but never emitted by parser — already hits `default` UNIMPL; making it explicit is housekeeping only
+- bison/flex must be installed manually (`apt-get install -y bison flex`) — SESSION_SETUP.sh fails without them in this environment
+- Build: `cd /home/claude/one4all/src && make -j4` (not from one4all root)
+- jasmin.jar is at `src/backend/jasmin.jar` (flattened by M-G9-BACKEND-FLATTEN) but `run_invariants.sh` still references `src/backend/jvm/jasmin.jar` — pass `JASMIN=/home/claude/one4all/src/backend/jasmin.jar` for JVM cells (x86-only gate doesn't need it)
+
+### Gate (end of session)
+
+- **Emit-diff: 738/0 ✅**
+- **Invariants: x86 SNOBOL4 `106/106` ✅** · Icon `94p/164f` · Prolog `13p/94f` (all pre-existing)
+
+### Next session execution order
+
+**Step 0 — Setup:**
+```bash
+apt-get install -y bison flex
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all/src && make -j4
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+```
+
+**Step 1 — G1: `ICN_POS` (both backends)**
+In `emit_x64_icon.c` dispatch, near `ICN_NEG`:
+```c
+case ICN_POS:  emit_expr(em, n->children[0], ports, oa, ob); break;
+```
+In `emit_jvm_icon.c` dispatch, near `ICN_NEG`:
+```java
+case ICN_POS:  ij_emit_expr(em, n->children[0], γ, ω); break;
+```
+
+**Step 2 — G2: `ICN_RANDOM` (both backends)**
+In `emit_x64_icon.c`, add helper + dispatch:
+```c
+/* ICN_RANDOM — ?E: random integer 1..E */
+static void emit_random(IcnEmitter *em, IcnNode *n,
+                        IcnPorts ports, char *oa, char *ob) {
+    int id = icn_next_uid(em); char α[LBUF], β[LBUF];
+    icn_label_α(id,α,LBUF); icn_label_β(id,β,LBUF);
+    strncpy(oa,α,LBUF-1); strncpy(ob,β,LBUF-1);
+    emit_expr(em, n->children[0], ports, oa, ob);  /* child result on stack */
+    Ldef(em,α);
+    E(em,"    extern  icn_random\n");
+    E(em,"    pop     rdi\n");
+    E(em,"    call    icn_random\n");
+    E(em,"    push    rax\n");
+    Jmp(em, ports.γ);
+    Ldef(em,β); Jmp(em,ports.ω);
+}
+/* dispatch: */  case ICN_RANDOM: emit_random(em,n,ports,oa,ob); break;
+```
+For JVM: emit child, `invokestatic IcnRuntime/random(J)J`, push result.
+Add `public static long random(long n)` to IcnRuntime.java.
+
+**Step 3 — G7: `ICN_SCAN_AUGOP` (both backends — explicit stub-fail)**
+```c
+case ICN_SCAN_AUGOP: /* stub-fail: E ?:= body unimplemented */
+    Ldef(em,oa); Jmp(em,ports.ω);
+    Ldef(em,ob); Jmp(em,ports.ω);
+    break;
+```
+
+**Step 4 — Rebuild, gate, commit, push all repos**
+```bash
+cd /home/claude/one4all/src && make -j4
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update  # regenerate baselines
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+```
+Then commit one4all + corpus, push both, update PLAN.md row + append SESSIONS_ARCHIVE, push .github.
