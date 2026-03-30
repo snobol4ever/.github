@@ -107,12 +107,13 @@ apt_install curl
 apt_install unzip
 apt_install ar     binutils
 
-# Rebus frontend only — bison/flex not needed for any other frontend
+# Rebus frontend only — bison/flex needed to regenerate parser; generated files are
+# committed to the repo so normal builds don't require them.
 if need_frontend rebus; then
     apt_install bison
     apt_install flex
 else
-    info "Skipping bison/flex (FRONTEND=${FRONTEND} — Rebus only)"
+    info "Skipping bison/flex (FRONTEND=${FRONTEND} — only needed to regenerate Rebus parser)"
 fi
 
 # x64 backend tools
@@ -267,9 +268,20 @@ fi
 # ── WHERE — build scrip-cc ────────────────────────────────────────────────────
 step "WHERE — scrip-cc (project compiler)"
 SCRIP_CC=/home/claude/one4all/scrip-cc
+
+# Translate FRONTEND/BACKEND into Makefile BUILD_ switches so only the
+# components needed for this session are compiled (avoids bison/flex/JVM/etc).
+BUILD_FLAGS=""
+need_frontend rebus || BUILD_FLAGS="$BUILD_FLAGS BUILD_REBUS=0"
+need_backend  jvm   || BUILD_FLAGS="$BUILD_FLAGS BUILD_JVM=0"
+need_backend  net   || BUILD_FLAGS="$BUILD_FLAGS BUILD_NET=0"
+need_backend  wasm  || BUILD_FLAGS="$BUILD_FLAGS BUILD_WASM=0"
+[[ -n "$BUILD_FLAGS" ]] && info "Makefile flags:$BUILD_FLAGS"
+
 if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
     info "Building scrip-cc from one4all/src/ ..."
-    (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
+    # shellcheck disable=SC2086
+    (cd /home/claude/one4all/src && make -j"$(nproc)" $BUILD_FLAGS 2>/dev/null) \
         && ok "scrip-cc built" \
         || fail "scrip-cc — build failed"
 else
