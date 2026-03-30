@@ -37,7 +37,7 @@ TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SET
 | `x64` | `nasm`, `libgc-dev` | NASM assembler + Boehm GC for linking |
 | `jvm` | `java` (JRE), `javac` (JDK), `jasmin.jar` | JVM bytecode assembly; jasmin.jar bundled in repo |
 | `net` | `mono`, `ilasm` | .NET IL assembly + runtime |
-| `wasm` | *(none beyond gcc)* | WASM stub — no extra tools yet |
+| `wasm` | `wabt` (wat2wasm), `node` | `apt-get install -y wabt`; node pre-installed on Ubuntu 24 |
 | `c` | *(none beyond gcc)* | C backend — gcc already required |
 
 ---
@@ -69,6 +69,7 @@ Each frontend has a reference oracle used to generate `.ref` expected output for
 | `icon` | `jvm` | " | java javac jasmin.jar | icont iconx | bison flex nasm libgc-dev mono ilasm snobol4 swipl spitbol |
 | `prolog` | `jvm` | " | java javac jasmin.jar | swipl | bison flex nasm libgc-dev mono ilasm snobol4 icont spitbol |
 | `snobol4` | `net` | " | mono ilasm | snobol4 (CSNOBOL4) | bison flex nasm libgc-dev java javac icont swipl spitbol |
+| `snobol4` | `wasm` | " | wabt(wat2wasm) node | snobol4 (CSNOBOL4) | bison flex nasm libgc-dev java javac mono ilasm icont swipl spitbol |
 | *(omitted)* | *(omitted)* | " | ALL backends | ALL oracles | nothing — full install |
 
 **SPITBOL** is never required for any current session — it is an alternative SNOBOL4 oracle
