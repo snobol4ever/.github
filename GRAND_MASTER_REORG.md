@@ -147,13 +147,7 @@ they are a file split, not a rename, and carry the most risk within this phase.
 
 ### Phase 3 — Naming Unification (survivors only, post-collapse)
 
-**⚠ REORDERED 2026-03-28:** Phase 3 now executes **after** Phase 4 (shared wiring
-extraction) and Phase 5 (frontend unification). Rationale: Phase 4 collapses
-duplicate `emit_<Kind>` functions across backends into shared wiring in
-`ir_emit_common.c`; Phase 5 eliminates frontend-local node types. Renaming
-pre-collapse duplicates that Phase 4 will immediately delete or merge produces
-wasted milestones and confusion. The naming law is applied once to the survivors —
-the code that actually remains after the collapse — not to temporaries.
+**Phase 4 collapse is COMPLETE (G-9 s1–s3).** Result: no significant shared extraction was possible — all major node kinds diverge too fundamentally across backends (cursor-save, β port presence, ABI, callback signatures). Only `ir_nary_right_fold` was extracted. The current emitter files (`emit_x64.c`, `emit_jvm.c`, `emit_net.c`, `emit_jvm_icon.c`, `emit_jvm_prolog.c`, `emit_x64_icon.c`, `emit_x64_prolog.c`) **are the final post-collapse survivors**. No further collapse is coming that would delete code. Phase 3 naming passes proceed on these files as-is.
 
 **Survivor surface after Phases 4+5:**
 - `src/ir/ir_emit_common.c` — shared Byrd box wiring (new file, naming law applied from creation)
