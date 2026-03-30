@@ -43,6 +43,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 | [BACKEND-X64.md](BACKEND-X64.md) | x64 ASM — TINY planned, Technique 2 spec |
 | [BACKEND-NET.md](BACKEND-NET.md) | .NET MSIL — solution layout, open issues, performance |
 | [BACKEND-JVM.md](BACKEND-JVM.md) | JVM bytecodes — design laws, file map, open issues |
+| [BACKEND-WASM.md](BACKEND-WASM.md) | WebAssembly — WAT encoding, Byrd-box tail-call wiring, runtime layout |
 
 ## L3 — Implementation & shared reference
 
