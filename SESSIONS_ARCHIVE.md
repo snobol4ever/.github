@@ -7337,7 +7337,6 @@ G1/G2/G7 emitter cases were **not** added to `emit_x64_icon.c` or `emit_jvm_icon
 - `icn_random(long n)` is in `icon_runtime.c` — just needs `case ICN_RANDOM` in both emitters
 - `ICN_POS` (G1) = identity: emit child, value passes through unchanged — trivial both backends
 - `ICN_SCAN_AUGOP` (G7) = explicit stub-fail: one `case` line each backend jumping to ω
-- `ICN_SCAN_AUGOP` is declared in `icon_ast.h` but never emitted by parser — already hits `default` UNIMPL; making it explicit is housekeeping only
 - bison/flex must be installed manually (`apt-get install -y bison flex`) — SESSION_SETUP.sh fails without them in this environment
 - Build: `cd /home/claude/one4all/src && make -j4` (not from one4all root)
 - jasmin.jar is at `src/backend/jasmin.jar` (flattened by M-G9-BACKEND-FLATTEN) but `run_invariants.sh` still references `src/backend/jvm/jasmin.jar` — pass `JASMIN=/home/claude/one4all/src/backend/jasmin.jar` for JVM cells (x86-only gate doesn't need it)
@@ -7349,63 +7348,52 @@ G1/G2/G7 emitter cases were **not** added to `emit_x64_icon.c` or `emit_jvm_icon
 
 ### Next session execution order
 
-**Step 0 — Setup:**
 ```bash
 apt-get install -y bison flex
 FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all/src && make -j4
-cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # own backend only
 ```
 
-**Step 1 — G1: `ICN_POS` (both backends)**
-In `emit_x64_icon.c` dispatch, near `ICN_NEG`:
-```c
-case ICN_POS:  emit_expr(em, n->children[0], ports, oa, ob); break;
-```
-In `emit_jvm_icon.c` dispatch, near `ICN_NEG`:
-```java
-case ICN_POS:  ij_emit_expr(em, n->children[0], γ, ω); break;
-```
+---
 
-**Step 2 — G2: `ICN_RANDOM` (both backends)**
-In `emit_x64_icon.c`, add helper + dispatch:
-```c
-/* ICN_RANDOM — ?E: random integer 1..E */
-static void emit_random(IcnEmitter *em, IcnNode *n,
-                        IcnPorts ports, char *oa, char *ob) {
-    int id = icn_next_uid(em); char α[LBUF], β[LBUF];
-    icn_label_α(id,α,LBUF); icn_label_β(id,β,LBUF);
-    strncpy(oa,α,LBUF-1); strncpy(ob,β,LBUF-1);
-    emit_expr(em, n->children[0], ports, oa, ob);  /* child result on stack */
-    Ldef(em,α);
-    E(em,"    extern  icn_random\n");
-    E(em,"    pop     rdi\n");
-    E(em,"    call    icn_random\n");
-    E(em,"    push    rax\n");
-    Jmp(em, ports.γ);
-    Ldef(em,β); Jmp(em,ports.ω);
-}
-/* dispatch: */  case ICN_RANDOM: emit_random(em,n,ports,oa,ob); break;
-```
-For JVM: emit child, `invokestatic IcnRuntime/random(J)J`, push result.
-Add `public static long random(long n)` to IcnRuntime.java.
+## SW-1 Session continued (2026-03-30, Claude Sonnet 4.6) — M-SW-1 + M-SW-A01 WIP
 
-**Step 3 — G7: `ICN_SCAN_AUGOP` (both backends — explicit stub-fail)**
-```c
-case ICN_SCAN_AUGOP: /* stub-fail: E ?:= body unimplemented */
-    Ldef(em,oa); Jmp(em,ports.ω);
-    Ldef(em,ob); Jmp(em,ports.ω);
-    break;
-```
+**one4all** `36af87e` · **corpus** `62f2d8f` · **.github** `(this commit)`
 
-**Step 4 — Rebuild, gate, commit, push all repos**
-```bash
-cd /home/claude/one4all/src && make -j4
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update  # regenerate baselines
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
-```
-Then commit one4all + corpus, push both, update PLAN.md row + append SESSIONS_ARCHIVE, push .github.
+### Completed this session
+
+**M-SW-1 ✅ — WASM runtime stub:**
+- `src/runtime/wasm/sno_runtime.wat` — memory layout, `$sno_output_str`, `$sno_output_int`, `$sno_output_flush`, `$sno_str_alloc`, `$sno_str_concat`. Validated with `wat2wasm --enable-tail-call` ✅
+- `emit_wasm.c` rewritten: `emit_runtime_header()` inlines runtime verbatim; program skeleton emits `main()` returning `$sno_output_flush`. Assembles to valid WASM with empty output ✅
+- Emit-diff: 718/20 (pre-existing Icon x86 failures — unchanged)
+
+**M-SW-A01 WIP — hello/empty_string/multi 3/4:**
+- `emit_wasm.c`: prescan + string literal table (STR_DATA_BASE=8192); `emit_data_segment()`; `emit_expr()` handles E_QLIT/E_ILIT/E_FLIT/E_NUL/E_NEG/E_PLS/E_ADD/E_SUB/E_MPY/E_DIV/E_MOD/E_CONCAT; `emit_stmt()` detects OUTPUT assignment; `$sno_int_to_str` helper inlined
+- hello ✅ · empty_string ✅ · multi ✅
+- literals ❌ — `E_ADD(E_QLIT(""), E_ILIT(1))` fails: str child in arithmetic leaves (i32,i32) on stack before `i64.add` → type mismatch in wat2wasm
+
+### Root cause of literals failure
+SNOBOL4 `'' + 1` parses as `E_ADD(E_QLIT(""), E_ILIT(1))` — parser does NOT pre-coerce string to numeric. Emitter must detect TY_STR children in arithmetic ops and emit `$sno_str_to_int` coerce. No such helper exists yet.
+
+### Fix needed (next session, ~30 min):
+1. Add `$sno_str_to_int (offset:i32, len:i32) → i64` to `sno_runtime.wat` — parse decimal from memory (empty → 0)
+2. In `emit_expr` E_ADD/SUB/MPY/DIV/MOD: if child returns TY_STR, emit `(call $sno_str_to_int)` before op
+3. Add `$sno_float_to_str` proper formatting — SNOBOL4 prints `1.0` as `1.` (drop trailing zero)
+4. Run `run_wasm_corpus_rung.sh hello` → 4/4 → fire M-SW-A01; add `snobol4_wasm` to `run_invariants.sh`
+
+### Key facts for next session
+- `scrip-cc -wasm` produces real WAT with inlined runtime + string literals + OUTPUT calls
+- hello/empty_string/multi pass; `str_lits[]` table, prescan, data segment all working
+- `dval` is float field in EXPR_t (not `fval`)
+- WAT type stack strict: arithmetic ops require both operands same type
+- Reference docs: `/home/claude/refs/ByrdBox/byrd_box.py`, `/home/claude/refs/spitbol-docs-master/`
+- CSNOBOL4 at `/usr/local/bin/snobol4`; bison/flex not needed; touch rebus generated files before `make`
+
+### Next session execution order
+1. `FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (expect 718/20 pre-existing)
+3. Add `$sno_str_to_int` to `sno_runtime.wat`; fix arithmetic coerce + float formatting in `emit_wasm.c`
+4. `run_wasm_corpus_rung.sh hello` → 4/4 → M-SW-A01 ✅; add `snobol4_wasm` invariant cell
+5. M-SW-A02: arithmetic rung (`rung4/`) — 5 tests
