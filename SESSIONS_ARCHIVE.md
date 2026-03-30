@@ -6966,3 +6966,63 @@ Full run result post-BACKEND-FLATTEN:
   NET: SKIP (same)
 
 Matches G-9 s18 baseline exactly. No regressions from FLATTEN or alias cleanup.
+
+## G-9 Session 25 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `db6219c` · **corpus** `06419f3` · **.github** `940895b`
+
+### Completed this session
+
+- **M-G9-ALIAS-CLEANUP miss** ✅ — `E_STAR→E_DEFER` in `parse.c` + `emit_x64.c` (both missed in s24 backend-only sweep); all 8 alias→canonical in `emit_x64_snocone.c` (new file from SC-1, never swept); nested `/* */` in `snocone_lex.c` fixed; duplicate `T_STAR` case (rebase artefact) removed. Committed `d2af9ef`.
+- **Rebase over SC-1** — SC-1 pushed `6d0faf2` + `b2bf3ea` while we were working. Rebased cleanly; 4 trivial same-fix conflicts resolved.
+- **M-G2-BACKEND-FLATTEN** ✅ — `src/backend/{x64,jvm,net,wasm}/` subdirs eliminated. All `.c`/`.h`/`.jar` at `src/backend/` depth 1. `src/backend/c/` untouched. Makefile `-I backend`, SRCS, dep rule updated. Committed `db6219c`, pushed.
+- **Corpus refs regenerated** — 12 stale `.s`/`.j` reference files updated (`E_VART→E_VAR` etc. in generated comments). Gate restored **738/0 ✅**. corpus `06419f3`.
+- **Invariant suite reactivated** — retirement notice removed from GRAND_MASTER_REORG.md. Suite runs at every session start/end per RULES.md. Baseline confirmed: x86 SNOBOL4 `106/106` ✓ · Icon `94p/164f` · Prolog `13p/94f` — all match s18, no regressions.
+- **Emit-diff retirement policy clarified** — retire when M-G8-CI lands (grammar-driven gen-test covers all cases behaviorally). Until then emit-diff is the fast first-pass gate.
+
+### Key insight this session
+
+Oracle tools (CSNOBOL4, swipl) are NOT needed to run the gate. The `.ref`/`.expected` files in corpus are pre-baked. The 12 "failures" seen mid-session were stale reference files, not missing-tool failures. `--update` regenerated them in one pass.
+
+### Gate (confirmed end-of-session)
+
+- **Emit-diff: 738/0 ✅**
+- **Invariants: x86 SNOBOL4 `106/106` ✓ · Icon `94p/164f` · Prolog `13p/94f`** (pre-existing failures unchanged)
+- JVM/NET: SKIP — CSNOBOL4 build fails in this container (pre-existing, non-regression)
+
+### Next session execution order
+
+**Step 0 — Setup + gate:**
+```bash
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh     # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh     # expect x86 106/106; icon/prolog pre-existing
+```
+
+**Step 1 — M-G5-LOWER-ICON-FIX (prereq for ICON-IR-WIRE):**
+
+7 ICN gaps from audit `doc/IR_LOWER_ICON.md` (`d593d66`):
+- `ICN_POS` (G1 — low priority)
+- `ICN_RANDOM` (G2 — medium)
+- `ICN_COMPLEMENT` (G2 — medium)
+- `ICN_CSET_UNION`, `ICN_CSET_DIFF`, `ICN_CSET_INTER` (G2-G6 — cset ops)
+- `ICN_SCAN_AUGOP` (G7 — low priority)
+
+Fix one gap at a time. After each: Icon x86 rung03 5/5 green.
+
+**Step 2 — M-G9-ICON-IR-WIRE (large):**
+1. New `src/frontend/icon/icon_lower.c` — lowers `IcnNode*` → `EXPR_t*` using canonical `EKind`
+2. Update `src/backend/emit_x64_icon.c` to consume `EXPR_t*`
+3. Update `src/backend/emit_jvm_icon.c` to consume `EXPR_t*`
+4. `IcnNode` AST becomes parse-only (frontend-private)
+5. Verify: Icon x86 `94p/164f` unchanged; Icon JVM `173p/44f` unchanged; gate 738/0
+
+### Known facts
+
+- Backend layout: all emitters at `src/backend/emit_*.c` — **no subdirs for x64/jvm/net/wasm**
+- `IR_COMPAT_ALIASES` gone; `E_STAR` cleaned from ALL files including `parse.c`
+- Gate is 738/0 — oracle tools not required to run it
+- Invariant suite active — run at start and end of every session
+- Commit identity: `LCherryholmes / lcherryh@yahoo.com`
+- Token: `TOKEN_SEE_LON` — never in commits
