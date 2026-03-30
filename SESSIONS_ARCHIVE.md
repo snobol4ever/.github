@@ -7432,3 +7432,50 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 4/
 # Fix int-lhs + float-rhs promotion FIXME in emit_wasm.c E_ADD case
 # Then: run_wasm_corpus_rung.sh rung4 → 5/5 → fire M-SW-A02
 ```
+
+---
+
+## G-9 Session 28 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
+
+**one4all** `9b2fa58` · **corpus** `224d3d4` · **.github** this session
+
+### Completed this session
+
+- **icn_random no-libc fix** — `icn_random()` called `rand()`/`srand()`/`time()` via extern, but `icon_runtime.c` compiles with `-nostdlib`. Every icon_x86 test failed at link ("undefined reference to `time`") — all 235 COMPILE_FAIL. Fixed: pure LCG seeded from `mov %%rsp` (ASLR entropy), Knuth multiplier `6364136223846793005UL`. Icon_x86 restored to `94p/164f`.
+
+- **M-G5-LOWER-ICON-FIX G1 — `ICN_POS`** both backends:
+  - x64: `case ICN_POS: emit_expr(em, n->children[0], ports, oa, ob); break;`
+  - JVM: `case ICN_POS: emit_jvm_icon_expr(n->children[0], ports, oα, oβ); break;`
+
+- **M-G5-LOWER-ICON-FIX G2 — `ICN_RANDOM`** both backends:
+  - x64: `emit_random()` helper — eval child, `pop rdi`, `extern icn_random`, `call icn_random`, `push rax`, jump γ
+  - JVM: `emit_jvm_icon_random()` helper + `icn_builtin_random(J)J` Jasmin method via `need_random_builtin` flag; uses `System.nanoTime() % n + 1`
+
+- **M-G5-LOWER-ICON-FIX G7 — `ICN_SCAN_AUGOP`** both backends: explicit stub-fail `Ldef(α)→ω; Ldef(β)→ω`
+
+- **M-G5-LOWER-ICON-FIX complete** — all G1/G2/G3/G4/G5/G6/G7 handled; no UNIMPL fallthrough for these nodes
+
+- **bison/flex purged from session environment** — SESSION_SETUP.sh: conditional install block removed entirely. RULES.md: "NEVER install bison or flex — not for any session". SETUP-tools.md: marked never-installed, matrix skips columns cleaned. SESSION-snocone-x64.md: updated. rebus Makefile: bison/flex rules replaced with `@false` guards. `rebus.tab.c/h` + `lex.rebus.c` regenerated once (bison 3.8.2/flex 2.6.4) and committed — always current.
+
+- **corpus baselines** — `coverage_x64_gaps.s` and `.j` updated: ICN_POS was UNIMPL (consumed uid, emitted stub); now identity (child uid passthrough). UID renumbering cascaded.
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✅**
+- **Invariants: SNOBOL4 x86 `106/106` ✅ · Icon x86 `94p/164f` · Prolog x86 `13p/94f`**
+
+### Key facts for next session
+- `M-G5-LOWER-ICON-FIX` fully complete — G1–G7 both backends
+- Next: **M-G9-ICON-IR-WIRE** — see GRAND_MASTER_REORG.md
+- Icon x86 164 pre-existing failures are known missing features, not regressions
+- `icn_builtin_random` JVM uses `System.nanoTime() % n + 1` — not stateful LCG; revisit if corpus tests need deterministic random sequences
+- bison/flex NOT installed in future sessions — Makefile guards prevent accidental regeneration
+
+### Next session execution order
+```bash
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all/src && make -j4
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 icon_x86 prolog_x86
+cat /home/claude/.github/GRAND_MASTER_REORG.md   # find M-G9-ICON-IR-WIRE section
+```

@@ -51,11 +51,11 @@ verify tools are present and exit immediately with a clear message if anything i
 Never run apt-get or build scrip-cc by hand before a script. Wasting steps pre-checking is
 a context burn and signals the wrong mental model.
 
-**⛔ bison/flex NOT required — generated files committed to repo.** `rebus.tab.c`,
-`rebus.tab.h`, and `lex.rebus.c` are committed. `scrip-cc` builds from `make` with no
-parser-generator tools needed. Only regenerate those files if you modify `rebus.y` or
-`rebus.l` — and only a Rebus-session does that. SESSION_SETUP.sh skips bison/flex for all
-non-Rebus frontends.
+**⛔ NEVER install bison or flex — not for any session, including Rebus.** `rebus.tab.c`,
+`rebus.tab.h`, and `lex.rebus.c` are committed and always current. `scrip-cc` builds from
+`make` with no parser-generator tools needed. If you modify `rebus.y` or `rebus.l`
+(Rebus-session only), regenerate on your own machine and commit the C files. See RULES.md.
+SESSION_SETUP.sh never installs bison/flex.
 
 **⛔ NEVER download CSNOBOL4 from snobol4.org or anywhere** — site is broken (redirects to lander as of 2026-03-30) and downloading from unknown sources is forbidden.
 **Always ask Lon to upload `snobol4-2_3_3_tar.gz`** when CSNOBOL4 is needed. Build with:

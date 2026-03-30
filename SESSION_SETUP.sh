@@ -107,14 +107,9 @@ apt_install curl
 apt_install unzip
 apt_install ar     binutils
 
-# Rebus frontend only — bison/flex needed to regenerate parser; generated files are
-# committed to the repo so normal builds don't require them.
-if need_frontend rebus; then
-    apt_install bison
-    apt_install flex
-else
-    info "Skipping bison/flex (FRONTEND=${FRONTEND} — only needed to regenerate Rebus parser)"
-fi
+# bison/flex: NEVER installed -- rebus.tab.c, rebus.tab.h, lex.rebus.c are committed
+# and always kept current. If rebus.y/rebus.l are modified, regenerate on your own
+# machine and commit the result. See RULES.md.
 
 # WASM backend tools
 if need_backend wasm; then
