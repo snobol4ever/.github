@@ -241,7 +241,7 @@ Always clone fresh at session start. Never use symlinks. First action is always 
 
 | | x86 | JVM | .NET | WASM |
 |--|-----|-----|------|------|
-| SNOBOL4 | `106/106` | `94p/32f` | `108p/2f` | `4/4` |
+| SNOBOL4 | `106/106` | `94p/32f` | `108p/2f` | `9/9` |
 | Icon | `94p/164f` | `173p/44f` | SKIP (not impl) | SKIP (not impl) |
 | Prolog | `13p/94f` | `106p/1f` | SKIP (not impl) | `0/0` (new — PW session) |
 

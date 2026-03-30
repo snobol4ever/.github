@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s29 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
 | **Snocone x86** | SC-2 | `95b2617` one4all · `5f5206d` corpus | M-SC-A14: rungA14 arith loops (2 tests) |
-| **SNOBOL4 WASM** | SW-2 | `44ac687` one4all | **M-SW-A02: ARITHMETIC** rung4/ 5 tests — dispatch-loop block nesting fix needed |
+| **SNOBOL4 WASM** | SW-2 — M-SW-A02 ✅ | `8aff622` one4all · `7a88f12` corpus | **M-SW-A03: CONCAT** rung3/ 3 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
@@ -74,7 +74,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `4/4` · Icon `23p/235f` (scaffold, stub-fail)
+**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `9/9` (SW-2 M-SW-A02)
 
 **Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
 

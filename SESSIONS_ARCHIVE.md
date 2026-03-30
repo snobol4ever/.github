@@ -8017,3 +8017,75 @@ node test/wasm/pl_run_wasm.js /tmp/hello.wasm
 | `emit_wasm.c` | Shared string table, E_QLIT/ILIT/FLIT, arithmetic, SNOBOL4 runtime imports | SW session — do not modify |
 | `emit_wasm_prolog.c` | E_CHOICE/CLAUSE/UNIFY/CUT/TRAIL_*, pl runtime imports, `prolog_emit_wasm()` | PW session |
 | `emit_wasm_icon.c` | ICN_* nodes | Future IW session |
+
+---
+
+## SW-2 Session (2026-03-30, Claude Sonnet 4.6) — M-SW-A02 ✅
+
+**one4all** `8aff622` · **corpus** `7a88f12` · **.github** this commit
+
+### Completed this session
+
+**Infrastructure fixes (all required before milestones could fire):**
+
+1. **Dispatch-loop `$br_nop` sentinel pattern** — Rewrote `emit_main_body`. `$br_nop` innermost default target for `br_table`; all label blocks open before `br_table` so they are in scope; sentinel `$pc=nlabels` falls through `$br_nop` → sequential execution without branching.
+
+2. **Memory layout** — `STR_DATA_BASE` moved `8192→65536` (page 2); runtime grown 1→2 pages; program `(import "sno" "memory" (memory 2))`. Data segment no longer collides with output buffer `[0..32767]` or string heap `[32768..65535]`.
+
+3. **`collect_labels` two-pass** — Pass 1 registers statement labels in position order; pass 2 registers goto targets. Fixes inverted label-block numbering that caused all multi-label gotos to route to wrong targets.
+
+4. **E_POW int×int** — Returns `TY_INT` via `sno_pow` + `i64.trunc_f64_s`. `2**3=8` not `8.`.
+
+5. **E_POW conversion order** — Correct `$tmp_f` swap for int×float and float×int stack order.
+
+6. **E_FNC `remdr` in value context** — `i64.rem_s` inline. `remdr(10,3)=1` ✓.
+
+**M-SW-A01 baseline: 4/4 ✓** (restored after dispatch rewrite)
+**M-SW-A02 ✅ — rung4/ 5/5: arith_int, arith_unary, arith_real, arith_mixed, remdr**
+**snobol4_wasm: 9/9 ✓** (hello 4 + rung4 5)
+
+### Gate (end of session)
+- **Emit-diff: 738/0 ✓**
+- **snobol4_wasm: 9/9 ✓**
+
+### Next session execution order
+
+```bash
+# Step 0 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 1 — setup
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# CSNOBOL4 NOT installed — ask Lon for snobol4-2_3_3_tar.gz if oracle needed
+# (.ref files pre-baked in corpus — not needed for gate)
+
+# Step 2 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 738/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 9/9
+
+# Step 3 — M-SW-A03: CONCAT + STRING ASSIGN (rung3/, 3 tests)
+# Files: corpus/crosscheck/rung3/  (concat_strings, concat_numeric, concat_null)
+# IR nodes: E_CONCAT, E_VAR (assign + read), E_QLIT in value ctx
+# Key work:
+#   E_VAR as lvalue: (global $var_X (mut i32)) + (global $var_X_len (mut i32))
+#   E_VAR as rvalue: global.get $var_X + global.get $var_X_len → TY_STR
+#   E_CONCAT: children already TY_STR; call $sno_str_concat pairwise
+#   Numeric coerce before concat: int/float → sno_int_to_str/sno_float_to_str
+# Gate: CORPUS=... bash test/run_wasm_corpus_rung.sh rung3 → 3/3
+# Update DIRS in run_invariants.sh: "hello rung4 rung3" → 12 tests
+# Fire M-SW-A03, commit, push
+
+# Step 4 — update PLAN.md NOW row, SESSION-snobol4-wasm.md §NOW, append SESSIONS_ARCHIVE
+```
+
+### Key architecture facts for next session
+
+- **`$br_nop` pattern is stable** — do not change. All new label handling follows same pattern.
+- **`collect_labels` two-pass is critical** — never revert.
+- **E_VAR not yet implemented** — rung3 is the first milestone that requires it.
+  String var: two globals `(global $var_X (mut i32) (i32.const 0))` + `(global $var_X_len (mut i32) (i32.const 0))`. Int var: one `(global $var_X_i (mut i64) (i64.const 0))`.
+- **Runtime memory**: page 0 = output buffer `[0..32767]` + string heap `[32768..65535]`; page 1 = program data `[65536+]`.
+- **`sno_str_concat`** takes `(i32 i32 i32 i32) → (i32 i32)`: (a_off, a_len, b_off, b_len) → (result_off, result_len). Allocates in runtime string heap.
