@@ -28,11 +28,11 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-2
+## §NOW — IW-4
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-3 `ddf6bcf` | one4all `ddf6bcf` | **M-IW-A02**: write(str) + ICN_STR data segment → rung01 6/6 |
+| **ICON WASM** | IW-4 `e6d384f` | one4all `e6d384f` | **M-IW-A03**: ICN_LT/LE/GT/GE/EQ/NE relops (already emitted in A01 — verify rung01 relop tests) |
 
 ---
 
@@ -150,7 +150,7 @@ Nodes that exist in the SNOBOL4 frontend too (`E_ADD`, `E_SUB`, `E_MPY`, `E_DIV`
 |-----------|-----------|-------------|--------|
 | M-IW-SCAFFOLD | all → stub-fail | build only | ✅ IW-1 |
 | M-IW-A01 | ICN_INT, ICN_VAR, ICN_ASSIGN, ICN_CALL(write-int), ICN_PROC, ICN_RETURN, ICN_FAIL, ICN_TO, ICN_EVERY, ICN_ALT, ICN_ADD/SUB/MUL/DIV/MOD, ICN_NEG/POS, ICN_LT/LE/GT/GE/EQ/NE | rung01 5/6 | ✅ IW-2 |
-| M-IW-A02 | ICN_STR data segment + write(str) via $sno_output_str | rung01 6/6 | ❌ |
+| M-IW-A02 | ICN_STR data segment + write(str) via $sno_output_str | rung01 6/6 | ✅ IW-4 |
 | M-IW-A03 | ICN_LT/LE/GT/GE/EQ/NE | rung01 relops | ❌ |
 | M-IW-G01 | ICN_TO | rung01 to-gen | ❌ |
 | M-IW-G02 | ICN_TO_BY | rung01/02 | ❌ |
