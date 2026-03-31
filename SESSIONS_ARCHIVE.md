@@ -9529,3 +9529,71 @@ cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28p/1f
 ```
+
+---
+
+## IW-9 Session HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `b1b8c15` · **.github** this commit
+
+### Session summary
+
+**M-IW-V01 local variable table — infrastructure complete; E_EVERY/E_TO bug partially fixed; root cause of remaining fault fully isolated.**
+
+### Changes made (one4all `b1b8c15`)
+
+| Area | Change |
+|------|--------|
+| `§1c` local var table | `IcnLocalVar` struct, `icn_locals[]`, `icn_locals_reset/scan/find/emit_local_globals` — placed after `§2` vars |
+| `emit_wasm_icon_proc` | Scans body for locals, emits `(global $icn_lv_PROC_VAR (mut i64) ...)` before body |
+| `emit_icn_assign` | Fully implemented: emits RHS, stores to `$icn_lv_PROC_VAR` (local) or `$icn_param%d` (param) |
+| `emit_icn_var` | Loads from `$icn_lv_PROC_VAR` for locals |
+| `E_TO` | `slot_addr+4` init-flag; `start` skips bound re-eval when flag=1; `e2s` sets flag; exhaustion clears flag and calls outer `fail` |
+| `E_EVERY` | `every_resume` → `e_start` (re-enters body from top so E_VAR re-reads updated locals) |
+
+### Gate
+
+- **Build:** clean ✅
+- **Emit-diff:** 981/4 ✅ (no regression)
+- **`write(sum_to(5))`** → 15 ✅
+- **`every write(sum_to(5))`** → memory fault ❌
+
+### Root cause of remaining fault — DIAGNOSED
+
+`every write(sum_to(5))` faults because E_TO's `code` exhaustion calls `fail`, which threads through E_ADD's backtrack wiring (`e2fail → e1_resume → e2_resume`) back to E_TO `resume` → infinite recursion → WASM stack overflow.
+
+### Fix for IW-10 (ONE CHANGE)
+
+In `emit_expr_wasm` case `E_EVERY`: pass `every_fail` as a new `exhausted_fail` parameter to `emit_icn_to`. In `emit_icn_to`'s `code` function, on exhaustion call `exhausted_fail` instead of `fail`.
+
+Signature change:
+```c
+// add exhausted_fail param after fail:
+static void emit_icn_to(const EXPR_t *n, int id,
+                        const char *succ, const char *fail,
+                        const char *exhausted_fail,   /* NEW */
+                        ...);
+```
+
+In `E_EVERY` case, compute `every_fail` name and pass it. All other `emit_icn_to` callers (E_TO in `E_TO` case of `emit_expr_wasm`) pass `fail` as `exhausted_fail`.
+
+### IW-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh            # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+### IW-10 work order
+
+1. Fix `emit_icn_to` + `E_EVERY` as above → `rung02_proc_locals` → 15 ✅
+2. M-IW-C01: implement `E_IF` → `rung02_proc_fact` → 120 ✅
+3. Run full `run_invariants.sh icon_wasm` gate + update PLAN.md NOW table
+
