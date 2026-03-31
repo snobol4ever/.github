@@ -9647,3 +9647,61 @@ cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
 CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW03  # expect 3/3
 ```
+
+## PW-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `ac49e18` · **.github** this commit
+
+### Session summary
+
+Full Byrd-box α/β rewrite of `emit_wasm_prolog.c`. Replaced the broken global-ci generate-and-test model with per-clause tail-call functions. WAT assembles cleanly. Runtime crashes at `cons()` due to `term_heap_top` corruption — root cause identified, fix is PW-10 first action.
+
+### Work completed
+
+**Root cause of rung05 zero-output (diagnosed):** Shared global `$pl_member_2_ci` corrupted by recursive calls — each recursive `member` invocation inside clause 1's body advanced the same global, so the outer generate-and-test loop never saw ci=1 again.
+
+**Byrd-box α/β rewrite:**
+- Each clause now emits `$pl_foo_N_alpha` (clause 0) / `$pl_foo_N_beta{ci}` (clause ci≥1)
+- Function signature: `(param $trail i32) (param $a0..aN-1 i32) (param $gamma_idx i32) (param $omega_idx i32) (result i32)`
+- On head match: run body goals inline, then `return_call_indirect $pl_cont_t` via gamma_idx
+- On head fail: `trail_unwind` + `return_call` to next β (or `return_call_indirect` omega_idx if last)
+- Non-backtracking body calls use `return_call $pl_foo_N_alpha` passing γ/ω through
+- Added `(type $pl_cont_t (func (param i32) (result i32)))` type declaration
+- γ/ω stubs + funcref table emitted at module end by `emit_cont_functions_and_table()`
+- PL_GT_FLAG at `mem[8188]` (just below atom table at 8192): γ writes 1, ω writes 0
+- Generate-and-test loop polls mem[8188] after `(call $pl_foo_N_alpha)` returns
+
+**Gate (end of session):**
+- Build: clean ✅
+- WAT assembles: ✅ (`wat2wasm --enable-tail-call` passes)
+- rung05 runtime: ❌ `RuntimeError: memory access out of bounds` at `cons()` in pl_runtime
+
+### Root cause of runtime crash (identified, not fixed)
+
+`term_heap_top` (global in pl_runtime, starts at 57344) is read as `mem[57344] = 32768` at crash time. Something writes 32768 to memory address 57344. This is a spurious `var_bind(57344, 32768)` — an env slot address of 57344 is being computed somewhere.
+
+ENV_BASE=32768, ENV_STRIDE=64. `env_slot_addr(env_idx, slot) = 32768 + env_idx*64 + slot*4`. Address 57344 = 32768 + env_idx*64 + slot*4 → env_idx*64 + slot*4 = 24576 → env_idx=384. That means `g_clause_env_idx` is reaching 384, which would happen if `emit_pl_predicate` is being called recursively or the env counter is not reset between program compilations. More likely: the `g_clause_env_idx` is not being reset in `prolog_emit_wasm` — check whether `g_clause_env_idx = 0` appears in the reset block. If it does, the issue is elsewhere.
+
+### PW-10 first action
+
+1. Add debug to narrow the corrupting `var_bind`:
+```c
+// In pl_runtime.wat var_bind, add bounds check:
+// if slot >= 49152, trap (should never bind into trail/term area)
+```
+Or add a Node.js memory watch:
+```js
+// After instantiate, proxy memory writes to detect store to addr 57344
+```
+
+2. Check `g_clause_env_idx` reset in `prolog_emit_wasm` — verify it's 0 at start.
+
+3. Check ENV_STRIDE — if n_vars > 16 per clause, slots overflow into next env frame. Current ENV_STRIDE=64 = 16 slots × 4 bytes. If a clause has >16 vars, slot*4 overflows. Check `n_vars` for member/2 clauses.
+
+4. Once cons() crash fixed: expect `a\nb\nc\n` from rung05.
+
+5. Run emit-diff → expect 981/4 (no regressions on rung01–04).
+
+6. Run `prolog_wasm` invariants → expect ≥3p (rung01+02+05).
+
+7. Commit `PW-10: M-PW-B01 ✅ — rung05 member/2 backtrack passes`.
