@@ -10205,6 +10205,41 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 Need `sno_any`, `sno_span`, `sno_break` runtime helpers in `sno_runtime.wat` (character-class membership, not substring search).
 
 ### SW-10 session start
+## SC-5 M-SC-B04 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `994a482` · **corpus** `bb835ca` · **.github** this commit
+
+### M-SC-B04 complete: `&&` concat semantics — 5/5 ✅
+
+No emitter changes required. `&&` was already fully handled through the existing `E_CONCAT` IR path (same as SNOBOL4 blank-concat). All semantic cases verified by direct compile-and-run before writing corpus:
+
+| Case | Result |
+|------|--------|
+| `"hello" && " " && "world"` | `hello world` ✅ |
+| `"" && X` / `X && ""` (null identity) | `hello` / `hello` ✅ |
+| `"value=" && 42` (integer type coerce) | `value=42` ✅ |
+| `A && "-" && B && "-" && C` (chain) | `foo-bar-baz` ✅ |
+| `C = A && B; OUTPUT = C;` (assign result) | `hello world` ✅ |
+
+**corpus/crosscheck/snocone/rungB04/** — 5 new tests:
+- `B04_concat_basic` — `"hello" && " " && "world"`
+- `B04_concat_null_identity` — empty string as identity in both positions + `"" && ""`
+- `B04_concat_type_coerce` — integer coerced in `"value=" && N` and `N && " things"`
+- `B04_concat_chain` — 5-part chain `A && "-" && B && "-" && C`
+- `B04_concat_assign` — concat result stored in variable, then output
+
+**test/run_invariants.sh:** `rungB04` added to `snocone_x86` DIRS.
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungB04:** 5/5 ✅
+- **snocone_x86 count:** 111→116
+
+### Next: M-SC-B05 — `||` alternation
+
+`||` in Snocone is pattern alternation (not logical-or). New corpus `rungB05/` (5 tests): left-wins, right-fallback, both-fail, chain, assign. Verify through existing `E_ALT` path (same as SNOBOL4 `|`).
+
+### SC-6 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -10282,4 +10317,9 @@ FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESS
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 39p/1f
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB04                      # expect 5/5
 ```
