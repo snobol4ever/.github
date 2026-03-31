@@ -11023,3 +11023,35 @@ Corpus and harness reorg added as Phase 10 and Phase 11 of GRAND_MASTER_REORG_2.
 Phase 0 gate check: read §NOW of each active SESSION-*.md and confirm whether
 current milestones are landed. If all 13 sessions done → call freeze (M-G10-FREEZE).
 If not → note which are still active, return next session.
+
+## G-10 s1 CORRECTION (2026-03-31) — four harness methods corrected
+
+Lon clarified the four harness testing methods. Previous description was wrong.
+Correct methods:
+
+| Method | Purpose |
+|--------|---------|
+| **CROSSCHECK** | Self-contained programs × all engines, `.ref` oracle, fast, CI-safe |
+| **PROBE** | Single-step instrumented execution, per-port Byrd box state inspection, surgical diagnosis |
+| **MONITOR** | Full Byrd box trace diff across two engines — catches semantic divergence output-only comparison misses |
+| **RANDOM/EXHAUSTIVE** | Grammar-driven generation — random sampling or depth-N exhaustive enumeration; pins passing cases to `corpus/generated/` |
+
+GRAND_MASTER_REORG_2.md updated accordingly. `.github HEAD: 33d48fb`
+
+### G-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/GRAND_MASTER_REORG_2.md
+```
+
+### G-11 first action
+
+Phase 0 gate: for each active session in the NOW table, read its SESSION-*.md §NOW
+and confirm whether the current milestone is landed. List which are done and which
+are still active. When all 13 are done → commit M-G10-FREEZE to PLAN.md and notify
+all sessions.
