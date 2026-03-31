@@ -236,27 +236,31 @@ else
 fi
 
 # ── WHERE — oracle: SPITBOL x64 ──────────────────────────────────────────────
+# SPITBOL is the PRIMARY oracle (position zero). Required for snocone + all sessions.
+# CSNOBOL4 is NOT a valid Snocone oracle — it lacks FENCE and SPITBOL extensions.
+# Install from snobol4ever/x64 (pre-built bin/sbl) — never from github.com/spitbol/spitbol.
 step "WHERE — oracle: SPITBOL"
-if [[ "$FRONTEND" == "all" ]]; then
+if [[ "$FRONTEND" == "all" || "$FRONTEND" == "snocone" || "$FRONTEND" == "snobol4" ]]; then
 if command -v spitbol &>/dev/null; then
     ok "spitbol"
 else
-    info "Building SPITBOL from github.com/spitbol/spitbol ..."
-    SPIT_BUILD=/tmp/spit_build_$$; mkdir -p "$SPIT_BUILD"
-    if curl -sL "https://github.com/spitbol/spitbol/archive/refs/heads/master.zip" \
-            -o "$SPIT_BUILD/spitbol.zip" \
-        && unzip -q "$SPIT_BUILD/spitbol.zip" -d "$SPIT_BUILD" \
-        && cd "$SPIT_BUILD"/spitbol-master \
-        && make 2>/dev/null \
-        && cp spitbol /usr/local/bin/; then
-        ok "spitbol installed"
+    # Use snobol4ever/x64 pre-built binary (TOKEN required)
+    if [[ -n "$TOKEN" ]]; then
+        SPIT_BUILD=/tmp/spit_x64_$$; mkdir -p "$SPIT_BUILD"
+        if git clone --depth=1 "https://oauth2:${TOKEN}@github.com/snobol4ever/x64" "$SPIT_BUILD/x64" 2>/dev/null \
+            && cp "$SPIT_BUILD/x64/bin/sbl" /usr/local/bin/spitbol \
+            && chmod +x /usr/local/bin/spitbol; then
+            ok "spitbol installed from snobol4ever/x64"
+        else
+            fail "SPITBOL — install from snobol4ever/x64 failed — provide TOKEN"
+        fi
+        rm -rf "$SPIT_BUILD"; cd /home/claude
     else
-        fail "SPITBOL — build failed (non-fatal for most cells)"
+        fail "SPITBOL — TOKEN not set; cannot clone snobol4ever/x64"
     fi
-    rm -rf "$SPIT_BUILD"; cd /home/claude
 fi
 else
-    info "Skipping SPITBOL (full-install mode only — FRONTEND=${FRONTEND})"
+    info "Skipping SPITBOL (FRONTEND=${FRONTEND} does not require it)"
 fi
 
 # ── WHERE — build scrip-cc ────────────────────────────────────────────────────

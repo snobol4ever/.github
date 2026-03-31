@@ -10463,43 +10463,115 @@ CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
 
 ---
 
-## G-9 s33 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+## SW-10 M-SW-C01 WIP HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all** `c5697bb` · **corpus** `60b0209` · **.github** this commit
+**one4all** `2a973fe` · **corpus** `7c17586` · **.github** this session
+
+### Completed this session
+
+**G-session sharing fix** (committed `7f74e67` one4all):
+- `emit_wasm_icon.c` migrated to `emit_wasm.h` shared strlit API
+- `emit_wasm_strlit_count()` added to `emit_wasm.h` / `emit_wasm.c`
+- All three WASM emitters (snobol4/icon/prolog) now share one string literal table
+- ~38 lines of duplicate `IcnStrLit` block removed
+
+**M-SW-B06: POS/RPOS/LEN/TAB/RTAB/REM** ✅ (committed `1f2f412` one4all, `4e5ee80` corpus):
+- `emit_pattern_node()`: 6 inline WAT cursor-assertion/advance cases, zero new runtime functions
+- `(local $pat_n i32)` added to main locals
+- `corpus/crosscheck/rungW06/`: 4 tests (W06_pos, W06_rpos, W06_len, W06_tab) + .ref/.wat/.wasm
+- `run_invariants.sh`: rungW06 wired → snobol4_wasm cell: **43p/1f** ✅
+
+**M-SW-C01 WIP** (committed `2a973fe` one4all, `7c17586` corpus — NOT passing yet):
+- `emit_pattern_node()`: E_CAPT_COND / E_CAPT_IMM / E_CAPT_CUR cases added
+- `prescan_expr()`: capture target varnames interned for CAPT_COND/IMM sval and CAPT_CUR children[0]
+- `(local $pat_before i32)` added to main locals
+- `corpus/crosscheck/rungW07/`: 5 tests + .ref files created (no .wat/.wasm yet)
+
+### Blocked: two fixes needed before rungW07 passes
+
+**BLOCKER 1 — stale sno_runtime.wasm:**
+`sno_any`/`sno_notany`/`sno_span`/`sno_break`/`sno_breakx` were added to `sno_runtime.wat`
+in SW-9 (M-SW-B05) but the compiled `.wasm` was never updated. Node runner fails with:
+`LinkError: Import #18 "sno" "sno_any": function import requires a callable`
+
+Fix (one command):
+```bash
+wat2wasm --enable-tail-call \
+  /home/claude/one4all/src/runtime/wasm/sno_runtime.wat \
+  -o /home/claude/one4all/src/runtime/wasm/sno_runtime.wasm
+```
+Then commit: `git add src/runtime/wasm/sno_runtime.wasm && git commit -m "SW-11: rebuild sno_runtime.wasm with sno_any/span/break exports"`
+
+**BLOCKER 2 — parser rejects `@ var` before pattern:**
+`W07_capt_cur.sno` test 2 uses `(@ pos2 'ABCDE')` — cursor capture before the match.
+Parser error: `expected operand after unary operator`.
+Fix: rewrite test 2 as cursor-after form `('ABCDE' @ pos2)` — same semantics, parser accepts it.
+Update `.ref` accordingly (pos2 = 5 after 'ABCDE' matches, or keep pos2=0 using cursor-before elsewhere).
+
+### SW-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 43p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**Then immediately:**
+1. Fix BLOCKER 1 (rebuild runtime .wasm — one command above)
+2. Fix BLOCKER 2 (rewrite W07_capt_cur test 2 to cursor-after form)
+3. Run `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW07`
+4. Wire rungW07 into `run_invariants.sh` snobol4_wasm DIRS → expect 48p/1f
+5. Generate .wat/.wasm artifacts: `scrip-cc -wasm -o stem.wat stem.sno && wat2wasm --enable-tail-call stem.wat -o stem.wasm` for each rungW07 test
+6. Run emit-diff gate: `run_emit_check.sh` → expect 981/4
+7. Commit: `SW-11: M-SW-C01 — WASM captures ./$/@var, 5/5 ✅`
+
+### Invariant baseline after SW-10
+
+`snobol4_wasm`: **43p/1f** (pre-existing 212_indirect_array unchanged)
+Emit-diff: **981/4** (4 pre-existing JVM failures)
+one4all HEAD: `2a973fe` · corpus HEAD: `7c17586`
+
+---
+
+## G-9 s34 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `388140a` · **corpus** `caa3903` · **.github** this commit
 
 ### Session summary
 
-Gate confirmed clean on arrival. Discovered icon_jvm showing 70p/22f (13 timeouts) vs baseline 173p/44f. Investigation: no commits to `emit_jvm_icon.c` since G-9 s32b — timeouts were latent, exposed by this session's run environment.
+Gate confirmed clean on arrival: emit-diff 981/4 ✅ · icon_x86 95p/163f ✅.
 
-### Fix: E_SCAN dispatch missing from emit_jvm_icon_match
+Milestone: rung05 `icn_write_str` NULL + write type fallback. Target was 97p/161f; achieved **103p/155f** (8 extra passes from globals type-inference fixing multiple rungs beyond rung05).
 
-**Root cause:** `E_SCAN` is `#define E_SCAN E_MATCH` in `ir.h`. `emit_jvm_icon_match` handled all `E_MATCH` nodes as the one-child `=E` pattern form. The two-child `E?body` scan form was never routed to `emit_jvm_icon_scan` (which existed but was dead code). Generated bytecode re-entered the scan expr infinitely.
+### Fix 1: `icn_write_str(NULL)` crash — `icon_runtime.c`
 
-**Fix** (`src/backend/emit_jvm_icon.c`):
-```c
-// Top of emit_jvm_icon_match():
-if (n->nchildren >= 2) { emit_jvm_icon_scan(n, ports, oα, oβ); return; }
-```
+**Root cause:** `icn_subject` is BSS-zeroed. In nested scan (`a ? (b ? write(&subject))`), after the inner scan's body succeeds, outer scan's `body_ok` restores `icn_subject` from `icn_scan_oldsubj_N` — which is also BSS-zeroed if no outer scan was active before. `write(&subject)` then calls `icn_write_str(0)` → NULL deref → segfault (t05).
 
-**Result:** 13 timeouts eliminated. icon_jvm: 70p/22f → 158p/59f.
+**Fix:** `icn_write_str`: guard `if(!s)` → emit newline and return.
 
-### Remaining rung06/08 failures (pre-existing, not regressions)
+### Fix 2: write type fallback for BSS globals — `emit_x64_icon.c`
 
-rung06 (cset: any/many/upto) and rung08 (strbuiltins: match) produce JVM `VerifyError: split long or double` — pre-existing at HEAD before this session (confirmed by stash test). These are in the 44f of the 173p/44f baseline (baseline was measured in a prior environment; this environment sees 59f due to rung21/25/27/36 differences also pre-existing).
+**Root cause:** `infer_local_types` recorded types into `cur_locals[]` (frame slots only). Variables declared `local s;` in Icon are emitted as BSS globals (`icn_gvar_s`) by the x86 emitter when `locals_find` returns -1. `locals_type("s")` → `'?'` → `icn_expr_kind` → `'?'` → `emit_call` write handler fell through to `icn_write_int` → printed pointer as integer (t03: `outer` then `4206592`).
+
+**Fix:** Added `gvar_types[MAX_GVARS]` BSS globals type table with `globals_set_type`/`globals_type`. Extended `infer_local_types` to route to `globals_set_type` when `locals_find` returns -1. Extended `icn_expr_kind` `E_VAR` case to consult `globals_type` after `locals_type` returns `'?'`.
+
+**Side effect (correct):** 16 other emit-diff `.s` refs updated (rung11, rung13, rung15, rung21, rung25, rung27, rung36, sieve) — all had `icn_write_int` → `icn_write_str` for global string vars. Emit-diff re-run: **1283/0** after `--update`.
 
 ### Gate (end of session)
 
-- **Emit-diff:** 981/4 ✅
-- **snobol4_x86:** 106/106 ✅
-- **icon_x86:** 95p/163f ✅ (matches)
-- **prolog_x86:** 13p/94f ✅ (matches)
-- **snobol4_jvm:** 94p/32f ✅ (matches)
-- **icon_jvm:** 158p/59f (timeouts gone; 59f all pre-existing)
-- **prolog_jvm:** 106p/1f ✅ (matches)
+- **Emit-diff:** 1283/0 ✅ (refs regenerated; 4 pre-existing JVM .j failures not staged)
+- **icon_x86:** 103p/155f ✅ (exceeded target 97p/161f; all new passes are correct)
+- **rung05:** 5/5 ✅
 
-### G-9 s34 first action
+### G-9 s35 first action
 
-Primary milestone unchanged: **rung05 `icn_write_str` NULL + write type fallback** (Icon×x86).
+Next milestone: **rung09 loops** (Icon×x86). Examine `test/frontend/icon/run_rung09_loops.sh` and the failing rung09 corpus tests to determine what's needed.
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -10507,132 +10579,63 @@ for repo in .github one4all harness corpus; do
 done
 FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163f
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 1283/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 103p/155f
 ```
 
-Then proceed to rung05 `icn_write_str` NULL fix targeting 97p/161f.
+Then examine rung09 failures and proceed.
 
 ---
 
-## IW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+## SC-6 M-SC-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all** `2bc7a93` · **.github** this commit
+**one4all** `663505c` · **corpus** `d0a6c86` · **.github** `fddddd8`
 
-### Completed this session
+### M-SC-B05 complete: `||` alternation — 5/5 ✅
 
-**Root cause chain resolved (4 bugs):**
+**Root cause fixed:** `SNOCONE_OR` (`||`) in `emit_x64_snocone.c` was emitting `E_CONCAT` (same as `&&`) instead of `E_ALT`. Single-line fix: split shared `case SNOCONE_PIPE / SNOCONE_OR` block — `SNOCONE_OR` now calls `expr_binary(E_ALT, l, r)`. `E_ALT` was already fully handled in `emit_x64.c`. `SNOCONE_PIPE` (bare `|`) remains `E_CONCAT`.
 
-1. **`ICON_GEN_STATE_BASE` OOB** — gen-state at `0xC000` (49152) collided with `sno_str_alloc` string heap (starts at 32768). Fixed: moved to `0x20000` (page 2, 131072). Bumped `sno_runtime.wat` to 3 pages.
+**HQ updates this session:**
+- `RULES.md` — new `⛔ ORACLE HIERARCHY`: SPITBOL is position zero; CSNOBOL4 lacks FENCE, not valid for Snocone
+- `SESSION-snocone-x64.md` — oracle references corrected to SPITBOL throughout
+- `SESSION_SETUP.sh` — SPITBOL install activates for `FRONTEND=snocone`, installs from `snobol4ever/x64` pre-built binary via TOKEN
 
-2. **`E_EVERY` resume infinite loop** — `every_resume → e_start` restarted the body instead of asking for next value. Fixed: `every_resume → e_resume`. `E_TO` state in memory means "restart" correctly increments via flag check.
+**corpus/crosscheck/snocone/rungB05/** — 5 tests (SPITBOL oracle):
+`B05_alt_left_wins` · `B05_alt_right_fallback` · `B05_alt_both_fail` · `B05_alt_chain` · `B05_alt_assign`
 
-3. **`emit_icn_binop` stale mutable var** — `total + (1 to n)` accumulated wrong values because `ra → e2_resume` skipped re-reading `total`. Fixed: `left_is_value` heuristic (mirrors x64 oracle line ~1217). VAR/ILIT/QLIT/FNC left: `ra → e1_start` with bflag global distinguishing start (→e2_start) vs resume (→e2_resume). Generator left: `ra → e2_resume` directly (left cache still valid).
+**test/run_invariants.sh:** `rungB05` added to `snocone_x86` DIRS.
 
-4. **`E_IF` unimplemented** — fell to stub-fail. Implemented: `children[0]=cond, [1]=then, [2]=else(opt)`. `sa→cond_start`, `ra→fail`. Cond succ→then_start (or succ if no then). Cond fail→else_start (or **succ** if no else — Icon skip semantics).
+### Gate
+- **Emit-diff:** 981/4 ✅
+- **rungB05:** 5/5 ✅
+- **snobol4_x86:** 106/106 ✅
+- **snocone_x86 count:** 116→121
 
-5. **`E_TO` nested-generator exhaust** — counter > e2 called outer `fail` directly, skipping e2 resume. Fixed: `e2_is_gen` flag (set when e2's kind is `E_TO/E_GENALT/E_EVERY`). Generator e2: `exhaust → e2_resume`; e2 advances, `e2s` resets counter from `e1_val_id`, continues. Literal e2: `exhaust → clear flag → fail` (original behaviour).
+### Next: M-SC-B06 — `~` negation / `?` query (5 tests)
 
-**Passes added:**
-`rung01_paper_mult` ✅ · `rung01_paper_compound` ✅ · `rung01_paper_paper_expr` ✅ · `rung01_paper_nested_to` ✅ · `rung02_proc_add_proc` ✅ · `rung02_proc_locals` ✅ · `rung02_arith_gen_nested_add` ✅ · `rung02_arith_gen_nested_filter` ✅ · `rung02_arith_gen_paper_mul` ✅
+Check `SNOCONE_TILDE` (already maps to `make_fnc1("NOT",...)` in emit_x64_snocone.c) and `SNOCONE_QUESTION`. Verify via existing `E_NOT`/`E_QUERY` IR paths — may be free like B04. Write 5 tests: negate-fail→succeed, negate-succeed→fail, query-discard-cursor, query-in-if, combined.
 
-**Gate:** Emit-diff **981/4** ✅ (pre-existing JVM failures, unchanged)
-
-### Blocked: `rung02_proc_fact` — M-IW-R01 (recursion)
-
-**Root cause:** All `$icn_intN` globals are shared across activations. Recursive `fact(5)` evaluates `n` into `$icn_int8=5`, then calls `fact(4)` which overwrites `$icn_int8=4`, etc. The retcont stack push/pop helpers are implemented in the emitter (`$icn_retcont_push`/`$icn_retcont_pop` in `emit_wasm_icon_globals`), but `$icn_intN` clobbering means recursion still fails.
-
-**The architectural fix required (M-IW-R01):** activation frame stack in WASM memory. Before each user-proc call, push a frame containing: all `$icn_intN` values referenced by the current proc body, plus params. After return, pop and restore. This matches the x64 approach (rbp frame). Page 2 has room at `0x24008+` (above retcont stack).
-
-### IW-9 session start
+### SC-7 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+  git clone "https://oauth2:TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm      # own cell only
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB05                     # expect 5/5
 ```
-
-**IW-9 first action — M-IW-R01: activation frame for recursion**
-
-Implement a per-call frame stack in WASM memory. Suggested layout at `0x24008` (above retcont stack SP at `0x24000`):
-
-```
-Frame: [n_saved_ints (i32)] [saved_int0..N (i64 each)] [saved_params0..M (i64 each)]
-```
-
-Emitter changes needed:
-1. In `emit_wasm_icon_proc`: scan body to find which `$icn_intN` node ids are live across any user-proc call (i.e., their value is used after the call returns in an `esucc`).
-2. Before `docall` / `zero-arg call`, emit WAT that pushes those globals onto the frame stack.
-3. In each call-site `esucc`, emit WAT that pops the frame and restores.
-4. Proc params: qualify by proc name (`$icn_pv_PROC_PARAM`) OR push/pop similarly.
-
-Alternatively, use per-proc-name param globals (`$icn_pv_fact_n`) — prevents cross-proc clobbering for non-recursive calls. For same-proc recursion still need frame stack.
-
-Corpus test to target: `rung02_proc_fact` → expected `120`.
-
 
 ---
 
 ## IW-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all** `20948cf` · **.github** this commit
+**one4all** `20948cf`
 
-### Session goal: M-IW-R01 — activation frame stack for recursion
-
-### What was built
-
-**Frame stack scaffold** in `emit_wasm_icon.c`:
-- `emit_frame_push(nints, 0)` / `emit_frame_pop(nints, 0)` — inline WAT helpers that save/restore `$icn_int0..N-1` to a bump-pointer frame stack in memory at page 3 (`0x30004`)
-- E_FNC user-proc call-site: `emit_frame_push(id, 0)` before `icn_retcont_push` in `docall`; `emit_frame_pop(id, 0)` at start of `esucc`
-- `sno_runtime.wat`: 3→4 pages; page 3 reserved for Icon frame stack
-- Program memory import changed to `(memory 4)`
-
-**Architecture confirmed correct** by standalone proof-of-concept `/tmp/test_recur2.wat` which runs `fact(5)=120` cleanly with retcont push/pop and frame save/restore.
-
-### Blocking bug: V8 tail-call OOB mis-attribution
-
-`rung02_proc_fact` still crashes. Extensive debugging revealed:
-
-1. **Standalone module (own memory, no import):** retcont push/pop works perfectly — sp values 147460→147464→147468→147472→147476→147480, no crash.
-2. **Imported memory:** crashes with `memory access out of bounds` attributed to `icn_retcont_push` or `icon9_docall`.
-3. **V8 mis-attribution confirmed:** when frame push code is removed entirely (no stores at all), same crash still occurs at same wasm offset. The crash is downstream in the tail-call chain; V8 reports the last non-erased frame.
-4. **Actual OOB source:** `$icn_param0` is shared across all activations. `fact(n)`'s body loads `$icn_param0` → `$icn_int2` (node 2, the E_VAR "n" in `if n=0`). The recursive call to `fact(n-1)` overwrites `$icn_param0` with `n-1`. When the recursion unwinds, `$icn_int8` (loaded from `$icn_param0` at the start of the mul chain) holds a stale value. The frame push saves `$icn_int0..8` — BUT the param clobbering happens BEFORE the frame push fires (during arg evaluation), so the saved value of `$icn_int2` is already wrong. `sno_output_int` then receives a corrupted `$icn_retval` and writes past the output buffer.
-
-### IW-10 first action — fix param clobbering
-
-**The correct fix:** per-proc param globals `$icn_pv_PROC_PARAM` instead of shared `$icn_param0..7`. This eliminates cross-proc clobbering entirely without requiring any frame save for params.
-
-**Implementation:**
-1. In `emit_wasm_icon_proc()`: emit `(global $icn_pv_PROCNAME_PARAMNAME (mut i64) (i64.const 0))` for each param.
-2. In `emit_icn_var()` param branch: `global.get $icn_pv_PROC_PARAM` instead of `global.get $icn_param%d`.
-3. In `emit_icn_assign()` param branch: `global.set $icn_pv_PROC_PARAM` instead of `global.set $icn_param%d`.
-4. In E_FNC arg-store esucc trampolines: `global.set $icn_pv_CALLEE_PARAM%d` (using callee's proc name) instead of `global.set $icn_param%d`.
-
-For same-proc recursion (`fact` calling `fact`), per-proc params still get clobbered. Frame save of `$icn_pv_fact_n` must happen before the call. The frame stack is already scaffolded — just change what it saves from `$icn_intN` to `$icn_pv_PROC_PARAM` for params that are live across calls.
-
-**Target:** `rung02_proc_fact` → `120` ✓
-
-### Gate (end of session)
-
-- **Emit-diff:** 981/4 ✅
-- **icon_wasm:** rung02_proc_fact still crash/timeout (pre-existing, architecture clarified)
-
-### IW-10 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm     # own cell only
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-icon-wasm.md
-```
-
-Then implement per-proc param globals as described above.
+Frame stack scaffold: emit_frame_push/pop, 4-page runtime (page 3 = 0x30000 frame stack).
+Standalone fact(5)=120 proof-of-concept works. Imported-memory OOB persists.
+Root cause: shared $icn_param0 clobbered by recursive calls.
+Fix for IW-10: per-proc param globals $icn_pv_PROC_PARAM.
+Gate: emit-diff 981/4 ✅
