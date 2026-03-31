@@ -10923,3 +10923,37 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 ```
 
 **IW-12 first action:** Fix duplicate memory import — `emit_wasm_icon_file` calls `emit_wasm_module_header()` (from `emit_wasm.c`) which already emits the memory import, then `emit_wasm_icon.c` emits it again. Remove the duplicate from `emit_wasm_icon.c`. Then re-run `icon_wasm` invariants — expect `[wat2wasm]` failures to clear, revealing the true pass baseline. Then resume M-IW-R01 (activation frame stack → rung02_proc_fact).
+
+---
+
+## G-10 s1 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**.github HEAD:** `7e3b921`
+**one4all HEAD:** `388140a` (unchanged — G-10 s1 was HQ-only work)
+
+### Session summary
+
+Second Grand Master Reorg plan authored and committed.
+
+### Root cause of first reorg failure
+
+1. Naming passes attempted without freeze active
+2. Consolidation never happened — `ir_emit_common.c` has only 99 lines; 11 emitter files total ~41,700 lines with extensive duplication
+3. Emitter dev continued in parallel while reorg was nominally in progress — naming drift compounded
+4. Folder restructure (backend subdirs) was never completed — all emitters still flat in `src/backend/`
+
+### New plan: GRAND_MASTER_REORG_2.md
+
+9 phases. Key discipline changes:
+- **Phase 0:** All emitter dev finishes before freeze (13 sessions must land current milestone)
+- **Phase 1:** Freeze called once by G-session, respected by all
+- **Phase 2–3:** Consolidation audit then extraction — shared Byrd box wiring into `ir_emit_common.c` — before any renaming
+- **Phase 4:** Folder restructure (backend subdirs)
+- **Phase 5:** Naming pass under freeze, one file at a time, gate after each
+- **Phase 6:** Unfreeze
+- **Phase 7–9:** New pipelines, style pass, repo rename
+
+### G-11 first action
+
+Check Phase 0 gate: read each active SESSION-*.md §NOW, confirm whether that session's current milestone is landed. If all 13 are done, call freeze. If not, note which sessions are still active and return next session.
+
