@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s33 | one4all `19e8008` · corpus `60b0209` | rung05: fix icn_write_str NULL + write type fallback → 97p/161f; then rung09 loops |
+| **GRAND MASTER REORG** | G-9 s34 | one4all `c5697bb` · corpus `60b0209` | rung05: fix icn_write_str NULL + write type fallback → 97p/161f; then rung09 loops |
 | **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
 | **SNOBOL4 WASM** | SW-10 | `8072122` one4all · `8c755d4` corpus | **M-SW-B06: POS/RPOS/LEN/TAB** rungW06/ 4 tests |
 | **ICON WASM** | IW-8 | `54eac34` one4all | **M-IW-V01**: local var table (E_ASSIGN) → rung02 locals |
