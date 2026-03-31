@@ -1,4 +1,4 @@
-# SESSION-prolog-wasm.md — Prolog × WASM (one4all)
+# SESSION-prolog-wasm.md — Prolog × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
 **Repo:** one4all · **Frontend:** Prolog · **Backend:** WebAssembly (wat2wasm + Node.js)
 **Session prefix:** `PW` · **Trigger:** "Prolog frontend with WASM backend"

@@ -56,9 +56,12 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
 | **Snocone x86** | SC-9 | `4af2dbe` one4all · `4a70276` corpus | M-SC-B08 ✅ · newline=whitespace · semicolon sole terminator · snocone_x86 126/126 · **SC-10**: next unimplemented construct |
-| **SNOBOL4 WASM** | SW-17 | `fdcd636` one4all | **M-SW-BYRD-A**: per-stmt skeleton (no pattern), gate rung2/3/4. Then B(E_QLIT)→C(E_SEQ)→D(E_ALT)→E(ARBNO)→F(captures)→G(DEFINE). See MILESTONE-WASM-BYRD.md |
-| **ICON WASM** | IW-17 | `4d6cb2d` one4all | **M-IW-G02**: rung03_suspend_gen_compose — implement E_ALT for generator composition (M-IW-G01 multi-yield ✅ 34p) |
-| **Prolog WASM** | PW-17 | `48461c7` one4all (pw-15-wip) | **PW-18**: fix rung07 — in_cond probe + E_CUT (see PW-17 handoff) |
+| ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
+| ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
+| ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
+| **SNOBOL4 JS** | SJ-1 | — | **NEW**: JavaScript backend. Foundation: philbudne/spipatjs (ES6 SNOBOL4/SPITBOL pattern matching). M-SJ-A01: hello/literals/arith parity. eval()/new Function() for EVAL()/CODE(). |
+| **ICON JS** | IJ-1 | — | **NEW**: JavaScript backend for Icon. Generator composition via JS generators (function*). M-IJ-A01: hello/arith parity. |
+| **Prolog JS** | PJ-1 | — | **NEW**: JavaScript backend for Prolog. Continuation-passing for backtracking. M-PJ-A01: hello/facts/unify parity. |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
 **Invariants (SC-9 baseline):** x86: SNOBOL4 `106/106` · Snocone `126p/0f` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
@@ -79,7 +82,10 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |
 | Prolog | `SESSION-prolog-x64.md` | `SESSION-prolog-jvm.md` | — |
 | Snocone | `SESSION-snocone-x64.md` | — | — |
-| SNOBOL4 (WASM) | `SESSION-snobol4-wasm.md` | `BACKEND-WASM.md` | — |
+| SNOBOL4 (WASM) | ⛔ PARKED | — | — |
+| SNOBOL4 (JS) | `SESSION-snobol4-js.md` | — | — |
+| Icon (JS) | `SESSION-icon-js.md` | — | — |
+| Prolog (JS) | `SESSION-prolog-js.md` | — | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
 Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md`

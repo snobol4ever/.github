@@ -1,6 +1,7 @@
-# MILESTONE-WASM-BYRD — SNOBOL4 WASM Full Byrd-Box Rewrite
+# MILESTONE-WASM-BYRD — SNOBOL4 WASM Full Byrd-Box Rewrite ⛔ INACTIVE — parked 2026-03-31
 
-**Status:** OPEN — SW-18 starts here  
+**Status:** PARKED — WASM backend suspended. See MILESTONE_ARCHIVE.md.
+Original status below for reference only.
 **Replaces:** PC-loop + `emit_pattern_node` scaffold in `emit_wasm.c`  
 **Reference oracles:** `emit_x64.c:5033–5200` (stmt wiring) · `emit_pat_node` (x64) · `emit_jvm_pat_node` (JVM)
 
