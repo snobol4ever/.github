@@ -201,7 +201,7 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **Session start — four steps (mandatory, in order):**
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
-2. Read `RULES.md` in full — 139 lines, mandatory before any file writes or commits.
+2. Scan RULES.md headers: `grep "^## " RULES.md` — then `cat` only sections relevant to your session. Never `cat` the whole file.
 3. Read `PLAN.md` — NOW table, confirm next milestone.
 4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
 
@@ -292,49 +292,4 @@ If the doc doesn't cover it, check the source. Never guess and assert.
 
 ---
 
-
-
-All Icon source in SCRIP demos must use explicit semicolons between statements.
-The parser requires **no semicolon after `procedure name(args)`** — the header line
-takes no terminator. First statement of the body follows on the next line.
-
-Correct:
-```icon
-procedure main()
-    x := 1;
-    write(x);
-end
-```
-
-Wrong (parse error):
-```icon
-procedure main();   ← ERROR
-```
-
-`icon_semicolon` is an end-user tool only — never run in the pipeline.
-When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
-
-**IPL programs from corpus require explicit semicolons added before they
-can be compiled by our frontend.** Standard Icon has implicit semicolons; our
-lexer (`icon_lex.c` line 4: "No auto-semicolon insertion — deliberate deviation")
-does NOT. The rung36 corpus is pre-converted. Raw IPL files are NOT directly usable.
-Do NOT claim otherwise. Verified in `icon_lex.c`; documented in `ARCH-icon-jcon.md §Auto-semicolon`.
-
----
-
-## ⛔ JVM BACKEND — Null = uninitialized; coerce before string ops
-
-`sno_array_get` returns Java `null` for uninitialized slots.
-In SNOBOL4 semantics, uninitialized = empty string `""`.
-
-**Rule:** Any JVM emitter path that calls `sno_array_get` and then invokes a String
-method (`.equals`, `.contains`, concatenation) on the result **must** emit a
-null→`""` coerce inline first (dup / ifnonnull / pop / ldc "").
-
-`sno_indr_get` (variable lookup) already coerces internally — no guard needed there.
-`sno_array_get` does **not** — guard required at every call site that uses the
-result as a non-null String.
-
-Also: array subscript assignment with `:S`/`:F` goto — the value may be null
-(failed sub-expression). Null-check the value before `sno_array_put`; null → skip
-put and take `:F` / fall through. Violation root cause: SD-10 NPE on `IDENT(t<key>)`.
+*Icon semicolon rules → `ARCH-icon-jcon.md §Auto-semicolon`. JVM null-coerce rules → `SESSION-icon-jvm.md §JVM-NULL`.*
