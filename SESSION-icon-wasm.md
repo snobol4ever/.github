@@ -39,11 +39,11 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-7
+## §NOW — IW-8
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-7 | one4all `0f0b1eb` · `.github` this commit | **M-IW-P01**: fix proc chain final succ → `$icn_retcont` funcref table; rung02 3/3 |
+| **ICON WASM** | IW-8 | one4all `54eac34` · `.github` this commit | **M-IW-V01**: local var table (E_ASSIGN r/w) → rung02 locals ✅; then M-IW-C01: E_IF → fact |
 
 ---
 
@@ -83,7 +83,7 @@ node test/wasm/run_wasm.js /tmp/t.wasm
 | M-IW-SCAFFOLD | all → stub-fail | build | ✅ IW-1 |
 | M-IW-A01 | ICN_INT/VAR/ASSIGN/CALL(write)/PROC/RETURN/FAIL/TO/EVERY/ALT/arith/relops | rung01 5/6 | ✅ IW-2 |
 | M-IW-A02 | ICN_STR + write(str) | rung01 6/6 | ✅ IW-4 |
-| **M-IW-P01** | ICN_PROC/CALL(user)/RETURN — `$icn_retcont` trampoline | rung02 3/3 | ❌ next |
+| **M-IW-P01** | EXPR_t rewrite + `$icn_retcont` trampoline | rung02 add_proc ✅; fact/locals ❌ (need E_IF + vars) | 🔶 partial IW-8 |
 | M-IW-P03 | ICN_SUSPEND | rung02 suspend | ❌ |
 | M-IW-G01–G06 | ICN_TO/TO_BY/EVERY/ALT/BANG/LIMIT | rung01–14 | ❌ |
 | M-IW-S01–S04 | ICN_CONCAT/strrelops/SIZE/NULL/SCAN | rung04–12 | ❌ |
@@ -94,7 +94,7 @@ node test/wasm/run_wasm.js /tmp/t.wasm
 
 ---
 
-## §M-IW-P01 — Proc return trampoline (next fix)
+## §M-IW-V01 — Local variable table (next fix)
 
 **Root cause:** `emit_wasm_icon_proc()` line 1355 chains last stmt to `"icn_prog_end"` for ALL procs. Non-main procs exit the program instead of returning to the call site's esucc.
 
@@ -140,4 +140,4 @@ cat /home/claude/.github/SESSION-icon-wasm.md        # this file
 
 ---
 
-*SESSION-icon-wasm.md — created IW-1 2026-03-30. Trimmed IW-7 2026-03-31.*
+*SESSION-icon-wasm.md — created IW-1 2026-03-30. Trimmed IW-7 2026-03-31. Updated IW-8 2026-03-31.*
