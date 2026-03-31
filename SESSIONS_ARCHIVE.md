@@ -12489,6 +12489,195 @@ correct for any user proc regardless of name.
 
 ### IW-18 session start
 
+---
+
+## PW-17 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `48461c7` (pw-15-wip)
+**.github HEAD:** this commit
+
+### Session summary
+
+Diagnostic session. Full accounting of Byrd-box IR node coverage. Root-cause
+analysis of rung07 `wat2wasm` failure and rung05 remaining output bug.
+Confirmed gate: 981/4 emit-diff ✅, prolog_wasm rung01–05 PASS.
+Added `g_cut_scope` static scaffold (build-clean). No milestone landed.
+
+### rung05 status
+
+rung05 outputs `a` instead of `a\nb\nc`. The PW-16 `g_head_var_slot` fix is
+present in the code but ineffective. Root cause (still):
+
+`member(X,[X|_]).` / `member(X,[_|T]) :- member(X,T).`
+
+The multi-clause body-call path (lines 999–1025) emits for the non-`g_in_main`
+clause body:
+```
+(local.get $gamma_idx) (local.get $omega_idx)
+(return_call $pl_member_2_alpha)
+```
+This is a **tail call** — it exits the current clause activation. The outer
+GT loop in main calls `$pl_member_2_call` which returns to the loop. But
+`return_call $pl_member_2_alpha` from inside beta1 bypasses the outer loop
+entirely — alpha's γ/ω are the outer GT continuations, not the inner ones.
+
+The `g_head_var_slot` fix correctly patches the slot address passed to alpha,
+but the fundamental issue is that the inner clause (beta1) does a tail-call
+that returns through the funcref table to main's `$gt_gamma_0` — which reads
+the outer slot. Alpha binds the **inner** slot (32768), but gamma reads from
+the outer arg slot (which `g_head_var_slot` was supposed to fix by passing
+`local.get $a0` instead of `i32.const 32768`).
+
+**Verify the actual slot addresses being passed** before the fix is declared
+working:
+```bash
+./scrip-cc -pl -wasm corpus/programs/prolog/rung05_backtrack_backtrack.pl \
+  -o /tmp/r5.wat
+grep -n "32768\|32832\|caller slot\|a0.*V0" /tmp/r5.wat | head -20
+```
+Expected: recursive call should pass `(local.get $a0)` not `(i32.const 32768)`.
+
+### rung07 root cause (definitive)
+
+Two bugs:
+
+**Bug A — missing funcref table:** `$pl_differ_2_alpha` and `$pl_differ_2_beta1`
+emit `return_call_indirect (type $pl_cont_t)` using `$gamma_idx`/`$omega_idx`
+params. Those params receive values `-1` at runtime (from `g_main_gamma_idx`
+before it is set) because the GT-in-condition path (see Bug B) doesn't go
+through the cont_register path. `wat2wasm` reports "table variable out of
+range: 0 (max 0)" because `cont_func_count == 0` → no `(table N funcref)` is
+emitted.
+
+Verify: `grep "table\|elem\|nop_gamma\|nop_omega" /tmp/r7.wat` — nothing.
+Then check `g_main_gamma_idx` value used: `grep "main gamma_idx" /tmp/r7.wat`.
+
+**Bug B — wrong call-site pattern for condition predicate:**
+In `(differ(a,b) -> write(yes) ; write(no))`, `differ(a,b)` is the condition.
+`emit_goals(left->children[0], env_idx, in_disj_left=1)` triggers the
+**generate-and-test loop emitter** (line 903 `if (in_disj_left && n > 0)`),
+which emits:
+```wat
+(local.get $trail)
+(i32.const 7) ;; a
+(i32.const 8) ;; b
+(call $pl_differ_2_call)   ;; ← needs 6 params, gets 3
+```
+`$pl_differ_2_call` signature: `(trail, a0, a1, gamma_idx, omega_idx, ci)` —
+3 args missing. This is a type mismatch; wat2wasm rejects it.
+
+**The fix for Bug B:**
+The condition of `(Cond -> Then ; Else)` must NOT use `in_disj_left=1`. It
+needs a **probe** call: call alpha once, check result, branch on failure.
+
+Change line 799 in `emit_goals`:
+```c
+emit_goals(left->children[0], env_idx, /*in_disj_left=*/1);
+```
+to:
+```c
+emit_goals(left->children[0], env_idx, /*in_disj_left=*/0, /*in_cond=*/1);
+```
+
+And add `in_cond` as 4th param to `emit_goal`/`emit_goals` everywhere. In
+`emit_goal`, the predicate-call block gains a new branch:
+
+```c
+if (in_cond) {
+    /* Probe: call alpha once; branch to $cond_fail if it returns 0 */
+    W("    ;; probe %s/%d for condition\n", fn, n);
+    W("    (local.get $trail)\n");
+    for (int ai = 0; ai < n; ai++) { emit_term_value(goal->children[ai], env_idx); }
+    W("    (i32.const %d) ;; nop gamma_idx\n", g_main_gamma_idx);
+    W("    (i32.const %d) ;; nop omega_idx\n", g_main_omega_idx);
+    W("    (call $pl_%s_alpha)\n", mangled + 3);
+    W("    (i32.eqz) (br_if $cond_fail)\n");
+    return;
+}
+```
+
+This requires `g_main_gamma_idx` to be set before condition emission. It IS
+set at the start of the `main/0` body loop (lines 1339–1340) before
+`emit_goals` is called — so this works.
+
+**The fix for Bug A** is automatic once Bug B is fixed: `cont_register` for
+nop_gamma/nop_omega runs before any goal emission in main, so `cont_func_count
+≥ 2` → `(table 2 funcref)` is emitted.
+
+### E_CUT implementation design
+
+`differ(X,X) :- !, fail.` — cut commits to the first clause and prevents
+backtracking to beta1.
+
+In the Byrd-box model, `!` inside α means: on success of head+body, do NOT
+call the γ continuation in a re-entrant way — instead seal the choice point
+so β1 is never tried.
+
+WASM implementation: wrap each clause body in a labelled block
+`$cut_scope_N`. `E_CUT` in `emit_goal` emits `(br $cut_scope_N)` which exits
+the body block early (before the γ call). After the `$cut_scope_N` block, emit
+the γ call unconditionally — so cut causes the clause to succeed to γ without
+executing the rest of the body, and ω is never called.
+
+In `emit_pl_predicate`, the clause body emit becomes:
+```c
+static int g_cut_scope_idx = 0;  /* bumped per clause */
+int cut_idx = g_cut_scope_idx++;
+g_cut_scope = cut_idx;
+W("      (block $cut_scope_%d\n", cut_idx);
+/* emit body goals */
+for (int bi = n_args; bi < clause->nchildren; bi++)
+    emit_goals(clause->children[bi], env_idx, 0);
+W("      ) ;; $cut_scope_%d\n", cut_idx);
+g_cut_scope = -1;
+/* γ call follows here */
+```
+
+In `emit_goal`, add before the `if (goal->kind != E_FNC ...)` check:
+```c
+if (goal->kind == E_CUT) {
+    if (g_cut_scope >= 0)
+        W("    (br $cut_scope_%d) ;; !/0 cut\n", g_cut_scope);
+    else
+        W("    ;; !/0 cut (no scope — nop)\n");
+    return;
+}
+```
+
+### emit_goals/emit_goal signature change
+
+All internal call sites use positional args. The `in_cond` param is always
+0 except the one call in the `(Cond -> Then ; Else)` handler. Touch every
+call site — there are ~12 of them. Add `int in_cond` as 4th param to both
+`emit_goal` and `emit_goals`; add the second forward decl update at line 743
+(there are two forward decls — both must be updated).
+
+### Consolidation status (session focus per PLAN.md)
+
+**Not started.** Diagnosed the blocking bugs first. The three WASM-trio
+duplicates identified in IW-16 handoff still need extraction:
+- `prescan_prog()` skeleton: `emit_wasm.c:194` vs `emit_wasm_prolog.c:1260`
+- `static void W()` vs `#define W` — unify in `emit_wasm.h`
+- `emit_wasm_strlit_reset()` + `intern("")` seed
+
+These are Phase 2–3 G-10 work (post-freeze). Not to be touched until
+all emitter dev sessions reach their milestones.
+
+### Greek letters in source/generated code
+
+**Not started.** The `g_cut_scope` static and `$cut_scope_N` labels use ASCII.
+Once E_CUT works, rename in generated WAT:
+- α = CALL port label: already `$pl_foo_N_alpha` — rename to `$pl_foo_N_α`
+- β = EXIT port: `$pl_foo_N_beta1` → `$pl_foo_N_β1`
+- γ = REDO port: `pl_gt_gamma_N` → `pl_gt_γ_N`; `$gamma_idx` → `$γ_idx`
+- ω = FAIL port: `pl_gt_omega_N` → `pl_gt_ω_N`; `$omega_idx` → `$ω_idx`
+
+In C source: param names `gamma_idx` → `γ_idx`, `omega_idx` → `ω_idx`, etc.
+WAT identifiers accept UTF-8 (Unicode code points valid in WAT id chars).
+Verify first: `echo '(module (func $α (result i32) (i32.const 1)))' | wat2wasm --enable-tail-call -`
+
+### PW-18 session start
+
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
@@ -12554,3 +12743,107 @@ until GRAND MASTER REORG freeze is called (PLAN.md G-10).
 ### Context discipline
 Never read WAT files wholesale. `grep -n PATTERN file | head -N` then
 `sed -n 'A,Bp'` tight ranges only.
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git fetch origin && git checkout pw-15-wip   # HEAD: 48461c7
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 5p rung01-05
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+### PW-18 first actions (in order)
+
+**1. Verify rung05 slot fix is actually working:**
+```bash
+./scrip-cc -pl -wasm corpus/programs/prolog/rung05_backtrack_backtrack.pl \
+  -o /tmp/r5.wat
+grep -n "caller slot\|local.get.*a0\|32768\|32832" /tmp/r5.wat | head -20
+node test/wasm/run_wasm_pl.js /tmp/r5.wasm   # expect a\nb\nc
+```
+If still outputting only `a`: the `g_head_var_slot` fix is not reaching the
+recursive call. Add a `fprintf(stderr,...)` trace to `emit_goal` body-call
+arg emission to confirm `hp >= 0` fires.
+
+**2. Fix rung07 — implement `in_cond` probe + E_CUT (estimated ~60 lines):**
+
+Step 2a — add `in_cond` param:
+- Line 326: `static void emit_goals(const EXPR_t *g, int env_idx, int in_disj_left);`
+  → `static void emit_goals(const EXPR_t *g, int env_idx, int in_disj_left, int in_cond);`
+- Line 743: same
+- Line 745: `static void emit_goal(const EXPR_t *goal, int env_idx, int in_disj_left)`
+  → add `int in_cond`
+- Line 1031: `static void emit_goals(const EXPR_t *g, int env_idx, int in_disj_left)`
+  → add `int in_cond`
+- All internal call sites: add `0` as 4th arg (grep for `emit_goal(` and `emit_goals(`)
+- Exception: line 799 (condition of `->`) passes `in_cond=1`
+
+Step 2b — add probe path in `emit_goal` predicate-call block (after line 903):
+```c
+if (in_cond) {
+    /* Probe: call alpha once; 0=fail → br $cond_fail, 1=success → fall through */
+    W("    ;; probe-call %s/%d (condition)\n", fn, n);
+    W("    (local.get $trail)\n");
+    for (int ai = 0; ai < n; ai++) emit_term_value(goal->children[ai], env_idx);
+    W("    (i32.const %d) ;; nop γ_idx\n", g_main_gamma_idx);
+    W("    (i32.const %d) ;; nop ω_idx\n", g_main_omega_idx);
+    W("    (call $pl_%s_alpha)\n", mangled + 3);
+    W("    (i32.eqz) (br_if $cond_fail)\n");
+    return;
+}
+```
+
+Step 2c — add E_CUT handler in `emit_goal` (before the `if (goal->kind != E_FNC...)` check):
+```c
+if (goal->kind == E_CUT) {
+    if (g_cut_scope >= 0)
+        W("    (br $cut_scope_%d) ;; !/0 cut\n", g_cut_scope);
+    else
+        W("    ;; !/0 cut (no enclosing scope — nop)\n");
+    return;
+}
+```
+
+Step 2d — wrap clause body in `$cut_scope_N` block in `emit_pl_predicate`.
+Find the clause body emit loop (around line 455–460) — add:
+```c
+static int g_cut_scope_ctr = 0;
+int cut_idx = g_cut_scope_ctr++;
+int saved_cut = g_cut_scope;
+g_cut_scope = cut_idx;
+W("      (block $cut_scope_%d ;; cut fence\n", cut_idx);
+/* existing body emit */
+W("      ) ;; $cut_scope_%d\n", cut_idx);
+g_cut_scope = saved_cut;
+```
+Also reset `g_cut_scope_ctr = 0` in `prolog_emit_wasm()`.
+
+Step 2e — build, test:
+```bash
+cd src && make 2>&1 | grep error
+cd ..
+./scrip-cc -pl -wasm corpus/programs/prolog/rung07_cut_cut.pl -o /tmp/r7.wat
+wat2wasm --enable-tail-call /tmp/r7.wat -o /tmp/r7.wasm && echo "OK"
+node test/wasm/run_wasm_pl.js /tmp/r7.wasm   # expect: yes\nno
+```
+
+Step 2f — verify rung01–06 still pass:
+```bash
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm
+```
+
+**3. Commit:**
+```bash
+git add src/backend/emit_wasm_prolog.c
+git commit -m "PW-17: M-PW-C01 ✅ rung07 cut — in_cond probe + E_CUT block"
+git push origin pw-15-wip
+```
+
+**4. Update PLAN.md NOW table row:**
+```
+| **Prolog WASM** | PW-17 | `<new HEAD>` one4all (pw-15-wip) | **PW-18**: rung06 lists (list unification in head) |
+```
+
+### Context discipline
+Never read WAT files wholesale. `grep -n PATTERN file | head -N` then
+`sed -n 'A,Bp'` tight ranges only. WAT files will consume the context window.
