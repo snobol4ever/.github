@@ -11301,3 +11301,80 @@ echo "CODE('OUTPUT = 1 + 2')()\nEND" | spitbol
 echo "I = 3\n&DUMP = 1\nEND" | spitbol
 ```
 Use those outputs to finalize `spitbol_driver.sno` and `parse_dump()`.
+
+---
+
+## IW-13 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `8bc5773` · **.github** this commit
+
+### Session focus
+M-IW-R01: rung02_proc_fact — fix infinite loop / OOB crash in recursive fact.
+
+### Gate
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm invariants:** 0p/214f ✅ (matches IW-12 baseline — no regressions)
+
+### Context window note
+Session ran at ~97% context at handoff. Two bugs found and partially fixed; third bug remains.
+
+### Bug 1 FIXED — wrong arg passed to recursive call
+**Root cause:** `arg_ids[ai] = wasm_icon_ctr - 1` captured the counter *after* `emit_expr_wasm`, picking up the last sub-node id (E_ILIT 1 → `$icn_int12`) instead of the arg node's own id (E_SUB → `$icn_int10`). Result: `fact` was called with `1` every time instead of `n-1`, causing runaway recursion.
+
+**Fix:** Capture `arg_ids[ai] = wasm_icon_ctr` **before** `emit_expr_wasm` in the E_FNC arg-loop (~line 961 `emit_wasm_icon.c`). One-line change.
+
+### Bug 2 FIXED — static frame slot collision on recursion
+**Root cause:** `emit_frame_push` used `icon_gen_slot_next` (a static compile-time counter, reset per-proc) to assign frame addresses. Both `fact→fact` (recursive) and `main→fact` calls got slot 0 → address `131072`. Recursive activations overwrote each other's frames.
+
+**Fix:** Added `$icn_frame_depth (mut i32)` global. `icn_retcont_push` increments it, `icn_retcont_pop` decrements it. `emit_frame_push/pop` now emit WAT that computes `ICON_GEN_STATE_BASE + $icn_frame_depth * ICON_FRAME_STRIDE` at runtime. `ICON_FRAME_STRIDE = 512` (covers up to 63 i64 slots; old `ICON_GEN_SLOT_BYTES = 64` was also too small).
+
+### Bug 3 UNRESOLVED — `(local ...)` declaration inside function body causes OOB
+**Symptom:** `RuntimeError: memory access out of bounds` still occurs after Bugs 1+2 fixed.
+
+**Root cause:** `emit_frame_push` emits `(local $frame_base i32)` mid-function-body (after `call $icn_retcont_push` instructions). In WAT, locals must be declared at the function top before any instructions. The misplaced declaration likely produces malformed WAT that passes `wat2wasm` validation but generates wrong code.
+
+**Fix for IW-14:** In `emit_frame_push`/`emit_frame_pop`, remove `(local $frame_base i32)` emission. Instead compute the frame address inline on the WASM stack without a local:
+```wat
+;; addr = ICON_GEN_STATE_BASE + $icn_frame_depth * ICON_FRAME_STRIDE + offset
+global.get $icn_frame_depth
+i32.const ICON_FRAME_STRIDE
+i32.mul
+i32.const ICON_GEN_STATE_BASE
+i32.add
+;; then for each slot, dup the base + add per-slot offset, then store/load
+```
+Or: emit a helper function `$icn_frame_base (result i32)` once in `emit_wasm_icon_globals`, then call it at each store/load site. The helper approach is cleaner.
+
+### IW-14 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 0p/214f
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-14 first action (Bug 3 fix — ~15 lines):**
+1. In `emit_wasm_icon_globals()`, add helper func emission after the retcont push/pop:
+   ```c
+   WI("  (func $icn_frame_base (result i32)\n");
+   WI("    global.get $icn_frame_depth\n");
+   WI("    i32.const %d\n", ICON_FRAME_STRIDE);
+   WI("    i32.mul\n");
+   WI("    i32.const %d\n", ICON_GEN_STATE_BASE);
+   WI("    i32.add)\n");
+   ```
+2. In `emit_frame_push`, replace `(local $frame_base i32)` + `emit_frame_base_load()` with per-slot inline calls to `$icn_frame_base` + offset:
+   ```c
+   WI("    call $icn_frame_base  i32.const %d  i32.add  global.get $icn_int%d  i64.store\n", i*8, i);
+   ```
+3. Same for `emit_frame_pop`.
+4. Rebuild, rerun `fact`: expect `120`.
+5. Run `CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm` — expect at least 1p (rung02_proc_fact).
+6. Commit `IW-14: M-IW-R01 ✅ rung02_proc_fact passes`.
+
+**Context discipline:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp'` with tight ranges. Never read full WAT files.
