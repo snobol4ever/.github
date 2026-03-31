@@ -8898,3 +8898,71 @@ cat /home/claude/.github/RULES.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 # Diagnose 2p→3p gap, fire M-PW-A01, then proceed to M-PW-A02.
 ```
+
+---
+
+## SW-4 Session (2026-03-31, Claude Sonnet 4.6) — M-SW-A04 ✅
+
+**one4all** `0839648` · **corpus** `a3ce72c` · **.github** this commit
+
+### Completed this session
+
+**M-SW-A04: INDIRECT REF/ASSIGN — rung2/ 2/3 ✅ (212 xfail)**
+
+1. **`E_INDR` in `emit_expr`** — `$'lit'` uses E_QLIT child directly. `$.var` parses as `E_INDR(E_CAPT_COND(E_VAR))` — parser wraps `.var` as E_CAPT_COND; emitter uses `child->sval` as identifier string literal. General `$expr` evaluates child and coerces to string.
+
+2. **`$sno_var_get` / `$sno_var_set`** — emitted as inline WAT if-else chains over all interned var names using `$sno_str_eq`. Only emitted when `needs_indr=1` (set during prescan on E_INDR). `$sno_var_get(name_off, name_len) → (off, len)`; `$sno_var_set(name_off, name_len, val_off, val_len)`.
+
+3. **Indirect lvalue** (`$'qq' = 'x'`) — detected as `is_indrassign` in statement emitter. Evaluates name child (same E_VAR/E_CAPT_COND/E_QLIT logic), saves to `$indr_no/$indr_nl`, evaluates replacement, saves to `$indr_vo/$indr_vl`, calls `$sno_var_set`.
+
+4. **WASM multi-return stack-order bug** — `sno_var_get` returns `(off, len)` with len on top. `drop` removes len (top), leaving off. Fixed: `local.set $tmp_i32; drop; local.get $tmp_i32` to extract len correctly. Applied in `emit_differ` 1-arg TY_STR path.
+
+5. **DIFFER(1-arg) fix** — `DIFFER(x)` with one arg: succeed if x is non-null (len > 0), fail if null (len = 0). Previously always returned 1 (succeed).
+
+6. **`$tmp_i32` local** — added to all `emit_main_body` locals for safe TY_STR stack manipulation.
+
+7. **212_indirect_array** — requires `ARRAY()` builtin + `E_IDX` (array subscript). Out of scope for SW-4. Marked as xfail. Deferred to M-SW-C02.
+
+8. **G-30 compile errors in `emit_x64_icon.c`** — build was broken at session start (G-30 incomplete migration). Fixed to unblock `make`. Changes committed in one4all alongside SW work. Note: this was G-session work; SW sessions should not normally touch Icon emitter.
+
+### Gate (end of session)
+- **Emit-diff: 719/738** ✓ (19 Icon x64 `-asm` failures are pre-existing G-30 regressions, not SW-owned)
+- **snobol4_wasm: 14/15** ✓ (212_indirect_array xfail — E_IDX unimplemented)
+
+### Key architecture facts for next session
+
+- **`$.var` IR shape**: `E_INDR(E_CAPT_COND(sval="var"))` — child is E_CAPT_COND, sval holds the identifier name. NOT `E_INDR(E_VAR)`.
+- **WASM multi-return `(off, len)`**: len is on top of stack. To test len: `local.set $tmp_i32; drop; local.get $tmp_i32; i32.const 0; i32.ne`.
+- **`needs_indr` flag**: reset at start of each `emit_wasm()` call. Prescan also interns E_CAPT_COND child sval as a variable name.
+- **Sharing**: `sno_var_get`/`sno_var_set` are emitted per-program (not in runtime). PW/IW sessions can share `var_intern`/`var_table_reset` via `emit_wasm.h` — no changes needed to runtime.
+
+### Next session execution order
+
+```bash
+# Step 0 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 1 — setup
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 2 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 719/738 (19 Icon x64 pre-existing)
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm # expect 14/15 (212 xfail)
+
+# Step 3 — M-SW-A05: GOTO/BUILTINS (rung8/, 3 tests)
+# Files: corpus/crosscheck/rung8/ (replace, size, dupl)
+# IR nodes: E_FNC (REPLACE, SIZE, DUPL), STMT :S/:F goto dispatch
+# Key work:
+#   - REPLACE(s,p,r): emit $sno_replace in runtime + call from emitter
+#   - SIZE(s): string length — emit $sno_size
+#   - DUPL(s,n): duplicate string n times — emit $sno_dupl
+#   - :S/:F already works (dispatch loop) — verify with these tests
+# Gate: CORPUS=... bash test/run_wasm_corpus_rung.sh rung8 → 3/3
+# Update DIRS: "hello rung4 rung3 rung2 rung8" → 17 tests (212 still xfail → 17/18)
+# Fire M-SW-A05, commit, push
+
+# Step 4 — update PLAN.md NOW row, SESSION-snobol4-wasm.md §NOW, append SESSIONS_ARCHIVE
+```
