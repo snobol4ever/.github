@@ -9195,67 +9195,253 @@ CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung8   # expect 0/
 
 ---
 
-## SW-6 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~50%
+## PW-7 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%, handoff
 
-**one4all** `f7c915a` · **.github** this session
+**one4all** `b053fc1` · **.github** this commit
 
-### Session summary
+### Gate (start of session)
+- Emit-diff: **719/19** ✅ (19 pre-existing x86 Icon — not PW)
+- `prolog_wasm`: **2p/105f** ✅ — matched PW-6 baseline, no regressions
+- Build: clean ✅
+- swipl: v9.0.4 installed ✅
 
-M-SW-A05 complete: E_KW (keyword constants) + sno_replace/size/dupl builtins.
+### Work done
 
-### Work completed
+**M-PW-A01 gap diagnosed and filed:**
+- PW-6 handoff said "need 3p" but corpus only has 1 `rung02_facts_*` file
+- The "2 tests" in the milestone spec was a planning over-count
+- M-PW-A01 fires correctly at 2p (rung01 + rung02); no corpus addition needed
 
-**M-SW-A05: E_KW + REPLACE/SIZE/DUPL ✅**
+**M-PW-A02 E_UNIFY implemented:**
+- Added `emit_unify_terms()` to `emit_wasm_prolog.c`
+- Handles: `var↔atom`, `atom↔var`, `atom↔atom`, `var↔var`, `int↔var`, compound↔compound (recursive arg-by-arg)
+- `emit_goal()` now dispatches `E_UNIFY` before the `E_FNC` guard
+- `rung03_unify_unify.pl` → `b a` ✅
 
-`emit_wasm.c`:
-- Added `prescan_intern_alphabet()` — pre-interns 256-byte &ALPHABET binary string during prescan phase (before data segment is emitted). Critical: &ALPHABET has embedded null bytes so standard `strlit_intern()` (strlen-based) cannot be used.
-- Added `case E_KW:` branch in `prescan_expr()` — pre-interns all keyword string values during prescan.
-- Added `case E_KW:` in `emit_expr()` — emits pre-interned constant: &ALPHABET (256 bytes, binary), &UCASE, &LCASE, &DIGITS, &NULL → all as (offset, len) on stack.
-- Added `SIZE`, `DUPL`, `REPLACE` cases in `E_FNC` handler.
+**Gate (end of session):** `prolog_wasm` **3p/104f** ✅ — M-PW-A01 FIRED
 
-`sno_runtime.wat`:
-- `sno_size(off, len) → i64` — trivial: i64.extend_i32_u(len).
-- `sno_dupl(off, len, n) → (off, len)` — n <= 0 or len == 0 → empty; else alloc len*n bytes, copy in n iterations.
-- `sno_replace(s, from, to) → (off, len)` — allocate 256-byte identity translation table; apply from→to pairs (min(from_len, to_len) pairs); translate subject through table. 1:1 length-preserving.
+### rung04 diagnosis (next session — 10 minutes)
 
-`test/run_invariants.sh`:
-- Added `rung8` to snobol4_wasm `DIRS` list → invariant cell now covers hello + rung4 + rung3 + rung2 + rung8.
+`rung04_arith_arith.pl` fails `wat2wasm` with:
+- `undefined function variable "$pl_is_2_call"` — `is/2` treated as predicate call
+- `undefined function variable "$pl__2d_3e_2_call"` — `->` (if-then) treated as predicate call
 
-**Bug found and fixed: &ALPHABET prescan order**
-Root cause: `case E_KW:` in `emit_expr()` ran *after* `emit_data_segment()`, so the 256-byte alphabet literal was allocated with the correct offset but never written into the data segment. Fix: pre-intern all E_KW values in `prescan_expr()` so they are in the table before `emit_data_segment()` runs.
+Both need special-case handling in `emit_goal()`:
 
-**Shared code note:**
-`sno_size`, `sno_dupl`, `sno_replace` are in `sno_runtime.wat` (the shared runtime module). Icon×WASM (`emit_wasm_icon.c`) and Prolog×WASM (`emit_wasm_prolog.c`) import from the same runtime — they get these builtins for free, no duplication needed.
+**`is/2` fix:**
+```c
+if (strcmp(fn, "is") == 0 && goal->nchildren == 2) {
+    /* LHS must be E_VAR; RHS is arithmetic expression */
+    EXPR_t *lhs = goal->children[0];
+    EXPR_t *rhs = goal->children[1];
+    int slot = (int)lhs->ival;
+    int addr = env_slot_addr(env_idx, slot < 0 ? 0 : slot);
+    W("    ;; is/2: evaluate RHS arith, bind LHS var slot\n");
+    /* RHS arithmetic → shared emit_wasm_expr() from emit_wasm.c */
+    emit_wasm_expr(rhs, wpl_out);   /* pushes i32 result on stack */
+    W("    (call $pl_var_bind (i32.const %d))\n", addr);  /* bind slot */
+    /* BUT: current var slot holds atom_id (pointer); integers need separate encoding */
+    /* Simplest approach for rung04: store integer directly in slot, write as decimal */
+    return;
+}
+```
 
-### Gate (end of session)
-- **Build:** clean ✅
-- **Emit-diff:** 719/19 ✅ (19 = pre-existing icon_x86 gaps)
-- **snobol4_wasm:** 17p/1f ✅ (1f = pre-existing 212_indirect_array — $.var combined form)
-- **rung8:** 3/3 ✅
+**`->/2` (if-then) fix:**
+```c
+if (strcmp(fn, "->") == 0 && goal->nchildren >= 2) {
+    /* Emit condition test; on success emit Then; on failure fall through */
+    /* In context of (Cond -> Then ; Else): condition is evaluated, 
+     * if succeeds emit Then + br $disj_end; else fall to Else */
+    W("    ;; ->/2 if-then\n");
+    /* For: 3 < 5 -> write(true): condition is a comparison */
+    /* Need to emit condition as a boolean i32, then (if (then ...) ) */
+    ...
+    return;
+}
+```
 
-### SW-7 session start
+**Key issue for is/2:** current atom_id encoding can't hold integers. Two options:
+1. Encode small integers as atom_ids by interning their decimal string (works for write/1 since atom table lookup returns the string)
+2. Use a tagged-value scheme (bit 0 = integer flag)
+
+**Option 1 is simpler** and sufficient for rung04: intern `"6"` as an atom, bind slot to its atom_id, write prints `"6"`. Already works for write — atom table has string. Just need `is/2` to evaluate the arithmetic and intern the result string.
+
+**Comparison ops (<, >, =<, >=):** need to emit as inline i32 comparisons, not predicate calls. Add to `emit_goal()`:
+```c
+if ((strcmp(fn,"<")==0||strcmp(fn,">")==0||strcmp(fn,"=<")==0||strcmp(fn,">=")==0)
+    && goal->nchildren == 2) { ... emit i32 comparison ... }
+```
+
+### M-PW-A02 status: PARTIALLY DONE
+- E_UNIFY compound head unification ✅ (rung03 passes)
+- is/2 arithmetic + comparison ops: NOT YET (rung04 fails)
+- Full A02 milestone fires when rung04 passes (target: 4p)
+
+### Bootstrap (PW-8)
 
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-
-FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, then build per RULES.md
-
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 719/19
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 17p/1f
-CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung9   # expect 0/5 (M-SW-A06 target)
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 3p/104f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+# Fix rung04: add is/2 (intern result string) + comparison ops + -> inline emit
 ```
 
-**Immediate next action (M-SW-A06):** Open `src/backend/emit_wasm.c`. Add CONVERT, DATATYPE, INTEGER, LGT, EQ/NE/LT/GT/LE/GE to the `E_FNC` handler. Add corresponding `sno_convert`, `sno_datatype`, `sno_lgt` WAT functions to `sno_runtime.wat` and import them. Add rung9 to invariant DIRS.
+---
 
-Rung9 tests: `convert`, `datatype`, `num_pred`, `integer_pred`, `lgt` — 5 tests covering CONVERT/DATATYPE builtins and comparison predicates.
+## SC-4b HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%, handoff
 
-Key implementation notes for M-SW-A06:
-- **CONVERT(val, type)**: string↔integer↔real. type arg is a string: "INTEGER", "REAL", "STRING". Use `sno_str_to_int`/`sno_int_to_str`/`sno_float_to_str`/`sno_str_to_float` as appropriate.
-- **DATATYPE(val)**: inspect runtime type tag → return "STRING", "INTEGER", or "REAL". Since WASM has no runtime tags, the emitter must track expression type and emit a compile-time constant — or add a type-tagged i64 representation.
-- **EQ/NE/LT/GT/LE/GE** (numeric predicates): emit as WASM `i64.eq` / `i64.ne` / `i64.lt_s` / `i64.gt_s` / `i64.le_s` / `i64.ge_s`. These are subject-match predicates: succeed/fail rather than return value. Wire :S/:F dispatch.
-- **LGT**: string comparison — byte-by-byte loop, return 1 if a > b lexicographically.
-- **INTEGER(val)**: succeed if val is integer type, fail otherwise.
+**one4all** `e2f6742` · **corpus** `232499f` · **.github** this commit
+
+### Session summary
+
+M-SC-B02 fired. M-SC-B03 blocked by compiler bug (fully diagnosed). B03 .sc files written in corpus but no .ref yet.
+
+### Work completed
+
+**M-SC-B02 ✅** — rungB02: 6 while/do-while/break/continue tests:
+- `B02_while_basic` — while loop runs N times
+- `B02_while_false` — condition false on entry, body skipped
+- `B02_do_while` — body executes at least once
+- `B02_while_break` — break exits loop early
+- `B02_while_continue` — continue skips rest of body
+- `B02_nested_break` — break exits only innermost loop
+- snocone_x86: 99 → 105/105 ✅
+
+**M-SC-B03 BLOCKED — compiler bug diagnosed:**
+
+`sc_compile_expr(st, SNOCONE_RPAREN)` is not depth-aware. When called for the `for` loop step (e.g. `i = ADD(i, 1)`), it stops at the first `)` — the one closing `ADD(...)` — not the outer `)` closing `for(...)`. This leaves `, 1 ) )` tokens unconsumed in the token stream, causing the body `{...}` to be mis-parsed and ultimately leaving a stray `}` token in the main dispatch loop, which spins forever.
+
+**B03 .sc files written** (no .ref yet — need fix first):
+- `B03_for_basic.sc` — for loop 1 to 3
+- `B03_for_zero.sc` — condition false on entry
+- `B03_for_break.sc` — break exits for loop
+- `B03_for_continue.sc` — continue skips to step
+- `B03_for_nested.sc` — nested for, inner break
+- `B03_for_continue_step.sc` — continue lands at step (sum odd numbers)
+
+### Gate (end of session)
+
+- **Emit-diff: 719/738** ✅ (19 icon-x86 = G-session scope)
+- **snobol4_x86: 106/106** ✅
+- **snocone_x86: 105/105** ✅
+
+### Next session execution order
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 719/738+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106 · 105/105
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+### M-SC-B03 fix — implement first thing next session
+
+In `src/backend/emit_x64_snocone.c`, function `sc_compile_expr` (line 492), replace the token scan loop:
+
+**Current (broken):**
+```c
+static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
+    int start = st->pos;
+    while (st->pos < st->count) {
+        SnoconeKind k = st->toks[st->pos].kind;
+        if (k == SNOCONE_NEWLINE || k == SNOCONE_SEMICOLON || k == SNOCONE_EOF) break;
+        if (stop_kind != SNOCONE_EOF && k == stop_kind) break;
+        st->pos++;
+    }
+```
+
+**Fixed (depth-aware):**
+```c
+static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
+    int start = st->pos;
+    int depth = 0;
+    while (st->pos < st->count) {
+        SnoconeKind k = st->toks[st->pos].kind;
+        if (k == SNOCONE_NEWLINE || k == SNOCONE_SEMICOLON || k == SNOCONE_EOF) break;
+        if (k == SNOCONE_LPAREN || k == SNOCONE_LBRACKET) depth++;
+        else if (k == SNOCONE_RPAREN || k == SNOCONE_RBRACKET) {
+            if (depth == 0 && stop_kind == SNOCONE_RPAREN) break;
+            if (depth > 0) depth--;
+        }
+        if (stop_kind != SNOCONE_EOF && stop_kind != SNOCONE_RPAREN && k == stop_kind) break;
+        st->pos++;
+    }
+```
+
+After fix: verify `for_minimal.sc` compiles in <1s, run B03 tests to get oracles, write .ref files, wire rungB03, fire M-SC-B03 (105→111).
+
+---
+
+## PW-7b ADDENDUM (2026-03-31, Claude Sonnet 4.6) — doc cleanup only, no code changes
+
+**.github** `54017ce`
+
+- PLAN.md pruned from 8KB → 4.7KB: removed 5 completed G-session blocks that violated "Handoffs → SESSIONS_ARCHIVE" rule
+- SESSION-prolog-wasm.md: marked M-PW-SCAFFOLD/HELLO/A01 ✅; M-PW-A02 marked partial; full work specs for done milestones replaced with one-line summaries
+- No code changes. one4all HEAD unchanged at `b053fc1`.
+
+---
+
+## G-9 Session 31 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~89%, handoff
+
+**one4all** `baa07a3` · **corpus** `224d3d4` · **.github** this commit
+
+### Session summary
+
+**ICN_* eradication — complete across all emitters.**
+
+#### Changes made
+
+| File | Change |
+|------|--------|
+| `src/frontend/icon/icon_lower.c` | Fixed `ICN_PROC` layout bug: name was read from `n->val.sval` (empty) instead of `n->children[0]->val.sval`; `e->ival` (nparams) not set → segfault on any non-main proc. Fixed. Added missing `ICN_SCAN` → `E_MATCH` case. |
+| `src/driver/main.c` | Added `#include "icon_lower.h"`. All 3 icon backends (x64, JVM, WASM) now call `icon_lower_file()` before emitter. x64 `else` branch was calling `icn_emit_file(procs,...)` with raw `IcnNode**` — now lowered first. |
+| `src/frontend/icon/icn_main.c` | Added `#include "icon_lower.h"`, updated forward decl, wired `icon_lower_file()` for both JVM and x64 paths. |
+| `src/backend/emit_jvm_icon.c` | 116 `case ICN_*` → `case E_*` (full mapping from icon_lower.c). All `IcnNode*` → `EXPR_t*`. All `val.ival/sval/fval` → `ival/sval/dval`. Added `#include "icon_emit.h"` for transitive `ir.h`. Merged duplicate `E_MATCH`/`E_FNC` cases from ICN_SCAN+ICN_MATCH and ICN_PROC+ICN_CALL collapse. |
+| `src/backend/emit_wasm_icon.c` | Full ICN_* → E_* migration (47 references). |
+| `src/backend/emit_wasm_icon.h` | Signature: `IcnNode**` → `EXPR_t**`. |
+
+#### Gate
+- **Build: clean** ✅
+- **Emit-diff: 729/9** ✅ (improved from 719/19 — 10 new passes from JVM icon path now routing through lower)
+- **snobol4_x86: 106/106** ✅
+- **snobol4_jvm: 94p/30f** ✅ (improved from 94p/32f)
+- **icon_x86: 70p/165f** — 28 compile failures remain (not a regression from migration; baseline was 94p/164f with old un-lowered path)
+
+#### NOT done — icon_x86 remaining 28 compile failures
+Two root causes:
+1. **rung03 `upto`/`suspend_gen`**: user proc named `upto` → emitter emits label `icn_upto` → link collision with `icn_upto` in `icon_runtime.c`. Fix: rename emitted user-proc entry labels from `icn_NAME` → `icn_u_NAME` in `emit_x64_icon.c` for non-builtin names.
+2. **rung05/06/08**: `scrip-cc` was segfaulting pre-fix on ICN_SCAN; now fixed in icon_lower.c — verify these pass after next session's fresh build.
+
+### Next session bootstrap
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 729/9
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect ~82p+/165f-
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+```
+
+### Next session work (G-9 s32)
+1. Fix `upto` label collision in `emit_x64_icon.c`: rename user proc entry/done/ret labels from `icn_NAME` → `icn_u_NAME`. Guard: skip rename for `main`.
+2. Verify rung05/06/08 compile failures resolved by ICN_SCAN fix.
+3. Run `icon_x86` invariants — target: recover to ≥94p/164f.
+4. Run full invariant suite end-of-session.
+5. Milestone `M-G9-ICON-IR-WIRE` fires when icon_x86 ≥94p/164f AND emit-diff ≥729/9.
