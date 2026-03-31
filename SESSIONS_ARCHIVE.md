@@ -11959,3 +11959,51 @@ Merge `pw-15-wip` into `main`, commit `PW-15: M-PW-B01 ✅ rung05 passes`. Updat
 
 ### Context discipline
 Never read full WAT files. `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges only.
+
+---
+
+## PW-15 ADDENDUM (2026-03-31, Claude Sonnet 4.6) — M-PW-B01 ✅
+
+**one4all WIP:** `fe597af` on branch `pw-15-wip`
+
+M-PW-B01 is complete. rung05 passes (`a\nb\nc`). rung01–04 unaffected. Emit-diff 981/4 ✅.
+
+### Fix summary
+
+Three changes to `src/backend/emit_wasm_prolog.c`:
+
+**1. `g_head_var_slot[32]` / `g_head_arity` statics** — published by `emit_pl_predicate` before body goal emission. Maps head param index `ai` → clause slot addr for vars that are simple `E_VAR` head args.
+
+**2. Body call arg emission** — for each var arg in a body predicate call:
+- If `g_head_var_slot[hi] == addr` for some `hi`: emit `(local.get $a{hi})` — passes the **caller's slot address** through the recursive chain so alpha writes the result directly to the slot γ reads.
+- Otherwise: emit `(i32.load (i32.const slot))` — passes the **loaded value** for input vars bound during head unification (e.g. the tail T from `[_|T]`).
+
+**3. CI advancement logic** — `cp_set_ci` removed from γ. Outer GT loop advances ci only when `PL_SET_ARG_FLAG=0` (direct head match). When `PL_SET_ARG_FLAG=1` (beta clause did `cp_set_arg` to update list tail), ci stays at current clause so beta retries with the new tail. `cp_set_arg` emission also sets `PL_SET_ARG_FLAG=1`.
+
+### PW-16 session start
+
+```bash
+# swipl: build from uploaded swipl-devel-master.zip (apt fails)
+cd /tmp && unzip <upload> && cd swipl-devel-master && \
+  apt-get install -y cmake ninja-build libssl-dev libgmp-dev libreadline-dev && \
+  cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DSWIPL_PACKAGES=OFF -DBUILD_TESTING=OFF -B build -G Ninja && \
+  ninja -C build -j$(nproc) && ninja -C build install
+
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git fetch origin && git checkout pw-15-wip
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+# Note: run_invariants prolog_wasm shows 0✓ (vacuous) — run_prolog_wasm not wired
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-16 first action:** Wire `run_prolog_wasm` into `test/run_invariants.sh`. Around line 694:
+```bash
+prolog_wasm)  run_prolog_wasm  ;;
+```
+(The function body already exists; the dispatch case is missing.) After wiring, run `run_invariants.sh prolog_wasm` — expect ≥5p. Then check rung06–09 for additional passes. Merge `pw-15-wip` into `main` when clean.
