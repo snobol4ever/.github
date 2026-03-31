@@ -8528,3 +8528,58 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 4. Verify: `write("done")` → `done\n` ✅
 
 >>>>>>> ddf6bcf (IW-3: emit_x64_icon.c EXPR_t migration complete)
+
+---
+
+## PW-4 HANDOFF (2026-03-30, Claude Sonnet 4.6) — context ~75%, handoff
+
+**one4all** `ddf6bcf` (IW-3 HEAD) · **.github** this commit
+
+### Session summary
+
+No milestone fired. Work was infrastructure repair of G-9 build breakage.
+
+**emit_x64_icon.c repair (concurrent with IW-3):** G-9 left ~100 broken `emit_expr()` call sites with garbled arg order (`node_γ/node_ω` in place of the node pointer as first arg). Fixed via Python regex bulk pass (35 automated + manual targeted fixes): `emit_expr(node_γ, node_ω, ports, oa, ob)` → `emit_expr(node, ports_γ, ports_ω, oa, ob)`. Also fixed: missing `icn_emit_init()`, `icn_emit_file()` signature, `icon_emit.h` API, `IcnKind→EKind`, duplicate `E_MATCH` case. IW-3 ran concurrently and fixed the same file — reset to `origin/main ddf6bcf`.
+
+**Gate:** 719/19 (19 Icon x64 pre-existing IW regressions, not PW concern).
+
+**prolog_wasm invariant:** `1p/106f` ✅ — baseline confirmed, no regression.
+
+### Architecture (unchanged)
+
+| File | Owns |
+|------|------|
+| `emit_wasm.c` | Shared string table, E_QLIT/ILIT/FLIT, arithmetic — SW session |
+| `emit_wasm_prolog.c` | E_CHOICE/CLAUSE/UNIFY/CUT/TRAIL_* — **PW session** |
+| `emit_wasm_icon.c` | ICN_* nodes — IW session |
+
+### Next session — M-PW-A01: FACTS
+
+**Goal:** `rung02_facts_facts.pl` → `brown\njones\nsmith`
+
+IR nodes: `E_CHOICE`(3 clauses) · `E_CLAUSE` · `E_UNIFY`(atom) · `E_FNC("fail")` · `E_FNC(";")`
+
+Extend `emit_wasm_prolog.c`:
+1. `emit_pl_choice()`: emit `$pl_PRED_N_α`, `$pl_PRED_N_βK`, `$pl_PRED_N_γ`, `$pl_PRED_N_ω` WAT functions per clause
+2. `emit_pl_unify_atom()`: intern atom → `(call $pl_unify_atom)`
+3. `E_FNC("fail")` → `return_call $ω`
+4. `E_FNC(";")` disjunction
+
+**Target after M-PW-A01:** `prolog_wasm` 3p/104f
+
+**Commit:** `PW-4: M-PW-A01 — facts: E_CHOICE/E_CLAUSE/E_UNIFY atom, 2/2`
+
+### Bootstrap
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 1p/106f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
