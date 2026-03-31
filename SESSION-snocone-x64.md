@@ -7,11 +7,15 @@
 
 ## §NOW
 
-**Sprint:** SC-4 — M-SC-B02 ✅ · M-SC-B03 BLOCKED on compiler bug
-**HEAD:** `e2f6742` one4all · `232499f` corpus
-**Next action:** Fix `for`-loop compile-time infinite loop, then fire M-SC-B03
+**Sprint:** SC-4 — M-SC-B02 ✅ · M-SC-B03 ✅ · next: M-SC-B04
+**HEAD:** `243b082` one4all · `c58ad4e` corpus
+**Next action:** M-SC-B04 — `&&` concat semantics (5 tests: null identity, fail propagation, type coerce)
 
-### BUG: `for { body }` causes infinite loop in `emit_x64_snocone_compile`
+### M-SC-B03 ✅ — `for` loop (SC-4, 2026-03-31)
+
+**Fix:** `sc_compile_expr(st, SNOCONE_RPAREN)` was not depth-aware — stopped at first `)` in step expression (e.g. `ADD(i,1)`), leaving trailing tokens unconsumed and looping forever. Added paren depth counter; break only when `depth==0 && stop_kind==RPAREN`. 6/6 tests pass: basic, false, break, continue, nested_break, step_expr. snocone_x86: 105→111.
+
+### BUG (RESOLVED): `for { body }` caused infinite loop in `emit_x64_snocone_compile`
 
 **Root cause (fully diagnosed, not yet fixed):**
 
@@ -74,8 +78,7 @@ This fix makes `sc_compile_expr(st, SNOCONE_RPAREN)` stop at the matching outer 
 
 **Key work this session (SC-4 continued):**
 - M-SC-B02 ✅ — 6 while/do-while/break/continue tests; 99→105
-- M-SC-B03 6 .sc test files written (rungB03 in corpus, no .ref yet)
-- Compiler bug fully diagnosed: `sc_compile_expr(st, SNOCONE_RPAREN)` not depth-aware → stops at first `)` in step expression, leaves `, 1 ) )` tokens unconsumed, corrupting subsequent parse
+- M-SC-B03 ✅ — sc_compile_expr depth-aware RPAREN fix; rungB03 6 for-loop tests; 105→111
 
 **Session start — mandatory order, no exceptions:**
 
