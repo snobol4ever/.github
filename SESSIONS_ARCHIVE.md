@@ -9328,3 +9328,81 @@ Create `corpus/crosscheck/rungW02/` with 3 tests: `W02_seq_basic.sno`, `W02_seq_
 In emit_wasm.c: `E_SEQ` (pattern concatenation) is currently unhandled — falls to default stub. The `s->pattern` field for `subj pat1 pat2` will parse as `E_SEQ(pat1, pat2)`. Implement `emit_pattern_match()` recursive function that handles `E_QLIT` (literal substring, using `sno_str_contains`) and `E_SEQ` (sequential: find left in subject starting at cursor, then find right in remaining suffix). Needs a cursor-based search, not just `sno_str_contains` on the whole subject.
 
 Key design: replace `sno_str_contains` call with a full `emit_pattern_match(subj_off, subj_len, pattern)` that returns `(new_cursor i32, matched i32)` — or simpler: for Partition B, implement WAT helper `sno_pat_lit_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32` (returns new cursor after match, or -1 on fail). Chain SEQ as: left search from cursor 0 → get cursor1 → right search from cursor1 → get cursor2.
+
+---
+
+## SW-6 FINAL HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%
+
+**one4all** `04c1059` · **corpus** `1ab2f57` · **.github** `ae754cc`
+
+### Session summary
+
+SW-6 completed Partition A entirely and started Partition B. Five milestones fired.
+
+### All work completed this session
+
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| M-SW-A05 ✅ | E_KW (&ALPHABET/UCASE/LCASE/DIGITS/NULL) + sno_replace/size/dupl | rung8 3/3 → 17p/1f |
+| M-SW-A06 ✅ | CONVERT, DATATYPE, LT/LE/EQ/NE/GT/GE, LGT, INTEGER predicates | rung9 5/5 → 22p/1f |
+| M-SW-B01 ✅ | Pattern LIT: subject 'pat' :s/:f via sno_str_contains | rungW01 3/3 → 25p/1f |
+
+**Emit-diff:** 729/9 (improved from 719/19 at session start — rung9 .wat now matching)
+
+### Key bugs fixed
+
+1. **&ALPHABET prescan order** — 256-byte binary string must be pre-interned in `prescan_expr()` before `emit_data_segment()` runs; strlen-based `strlit_intern()` cannot be used for binary data.
+2. **Pattern field ignored** — `s->pattern` was prescanned but never emitted; added branch in statement emitter.
+
+### Shared runtime functions added (free for Icon×WASM and Prolog×WASM)
+
+`sno_size`, `sno_dupl`, `sno_replace`, `sno_str_to_float`, `sno_lgt`, `sno_str_contains`
+
+### SW-7 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, build per RULES.md
+
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 25p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW02  # expect 0/3 (M-SW-B02 target)
+```
+
+### Immediate next action — M-SW-B02: PATTERN SEQ
+
+`corpus/crosscheck/rungW02/` already created and oracle-verified (3 tests).
+
+**Implementation:** SEQ needs cursor-based search, not two independent `sno_str_contains` calls.
+
+Step 1 — add `sno_pat_search` to `sno_runtime.wat`:
+```wat
+;; sno_pat_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32
+;; Returns cursor position AFTER the match (hay_off + match_end), or -1 on fail.
+;; Searches haystack[start_cursor..] for needle.
+(func $sno_pat_search (export "sno_pat_search")
+  (param $ho i32)(param $hl i32)(param $no i32)(param $nl i32)(param $cur i32)
+  (result i32)
+  ...same inner loop as sno_str_contains but starts at $cur and returns $cur+$nl on match...
+)
+```
+
+Step 2 — add import in `emit_runtime_imports()`.
+
+Step 3 — replace the pattern-match branch in the statement emitter with a call to `emit_pattern_node(subj_off_local, subj_len_local, pattern_expr)` which handles:
+- `E_QLIT` → `sno_pat_search(subj, pat, cursor_local)` → update cursor, check ≥ 0
+- `E_SEQ`  → `emit_pattern_node(left)` then `emit_pattern_node(right)` chaining cursor
+
+Locals needed: `$pat_cursor i32`, `$pat_matched i32`, `$pat_subj_off i32`, `$pat_subj_len i32`.
+
+The `$ok` result is: cursor ≥ 0 after all pattern nodes. For `sno_str_contains` (B01), replace with `sno_pat_search` returning new cursor ≥ 0.
+
+Step 4 — update B01 to also use `sno_pat_search` (single literal: start=0, check result ≥ 0).
+
+Step 5 — add rungW02 to invariant DIRS → target 28p/1f.
+
+**Note:** `sno_str_contains` can remain in runtime as a convenience but the emitter should now use `sno_pat_search` for all pattern nodes.
