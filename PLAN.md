@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
 | **Snocone x86** | SC-9 | `a7c09b8` one4all · `da0c0e4` corpus | M-SC-B07 ✅ || concat fix · FOR hang fixed · **M-SC-B08**: FOR step bug (SC-9) — see SESSION-snocone-x64.md |
-| **SNOBOL4 WASM** | SW-16 | `f91cade` one4all | **M-SW-C02 ✅** rung11 7/7. SW-17: sharing refactor (wire emit_wasm_expr into Icon/Prolog) or next rung |
+| **SNOBOL4 WASM** | SW-17 | `fdcd636` one4all | **M-SW-C02 ✅**. SW-17: emit_wasm_expr exposed as public symbol. SW-18: rung12+ or WI()→W() macro unification |
 | **ICON WASM** | IW-16 | `48be4dd` one4all | **M-IW-G02**: rung03_suspend_gen_compose — implement E_ALT for generator composition |
 | **Prolog WASM** | PW-16 | `1a46b53` one4all (pw-15-wip) | **PW-17 first**: fix rung07 multi-clause body call arity mismatch (`_call` needs 6 args, emitter passes 3) — see PW-16 handoff |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
