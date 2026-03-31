@@ -24,7 +24,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-3 | `82dd935` one4all · `.github` this commit | **M-PW-A01** |
+| **Prolog WASM** | PW-6 | `8243b58` one4all · `.github` this commit | **M-PW-A01** (nearly fired — 2p/105f, need 3p) |
 
 ---
 

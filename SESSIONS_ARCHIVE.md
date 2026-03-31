@@ -8817,3 +8817,84 @@ rungB02: while/do-while + break/continue — 6 tests:
 - `B02_nested_break.sc` — break exits only innermost loop
 
 Pipeline: create corpus files → run through scrip-cc to derive oracles → add rungB02 to DIRS → fire M-SC-B02 when 99+6=105/105
+
+---
+
+## PW-6 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~95%, emergency handoff
+
+**one4all** `8243b58` · **.github** this commit
+
+### Gate (start of session)
+- Emit-diff: **719/19** ✅ (19 pre-existing x86 Icon — not PW)
+- `prolog_wasm`: **1p/106f** ✅ — matched PW-5 baseline, no regressions
+- Build: clean ✅
+- swipl: v9.0.4 installed ✅
+
+### Work done
+
+**Two bugs fixed from PW-5 handoff:**
+
+1. **Head-unification bind fix** (`emit_wasm_prolog.c` ~line 278):
+   - OLD: `(if (i32.ne (local.get $a0) (i32.const atom_id)) ...)` — compared slot address against atom_id (wrong)
+   - NEW: `(i32.store (local.get $a0) (i32.const atom_id))` — unconditionally binds slot to atom_id
+   - Removed the entire `if/ne/then/unwind/return-0` comparison block
+
+2. **WAT if/else structure fix** (`emit_pl_predicate()`):
+   - OLD: emitted `(if (then ...) )` then `(else (if ...` as sibling — invalid WAT
+   - NEW: proper nested structure: `(if (then ...) (else (if (then ...) (else ...))))`
+   - Each clause opens `(if` without closing, emits `(then ...)`, then `(else` for next clause
+   - Closing: one `) ;; else` per non-first clause, then one `) ;; if` per clause
+
+3. **`pl_run_wasm.js` / `run_wasm_pl.js`** — created Prolog-specific Node runner
+   - Loads `pl_runtime.wasm`, passes exports as `{ pl: rtExports }` import object
+   - Harness expects `test/wasm/pl_run_wasm.js` — created with correct name
+   - `run_wasm_pl.js` also created as convenience alias
+
+### Results
+- `rung01_hello_hello.pl` → `hello\n` ✅
+- `rung02_facts_facts.pl` → `brown\njones\nsmith\n` ✅ (manually verified)
+- Invariant cell: **2p/105f** (up from 1p/106f)
+- Expected 3p — shortfall of 1. Cause unknown (context exhausted before diagnosis).
+
+### M-PW-A01 status: NOT YET FIRED — 2p vs required 3p
+
+**Diagnosis needed (next session — 5 minutes):**
+```bash
+ls /home/claude/corpus/programs/prolog/rung0{1,2}*.expected
+# Should show rung01 and rung02 .expected files
+# Check if harness uses .expected or .ref
+grep "expected\|\.ref" /home/claude/one4all/test/run_invariants.sh | grep prolog_wasm | head -5
+# Then run manually:
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm 2>&1 | grep "prolog_wasm.*pass\|2p\|3p"
+```
+
+Likely cause: rung02 `.expected` file missing or named differently. If rung02 passes manually but not in harness, the fix is trivial.
+
+Once 3p confirmed → commit `PW-7: M-PW-A01 FIRED — facts 3/3` and proceed to M-PW-A02.
+
+### Architecture reminder (shared WASM emitters — DO NOT CROSS)
+
+| File | Session | Rule |
+|------|---------|------|
+| `emit_wasm.c` | SW | **DO NOT MODIFY** |
+| `emit_wasm_prolog.c` | **PW** | All Prolog EKinds |
+| `emit_wasm_icon.c` | IW | Do not touch |
+
+Atom table at 8192, string literals at 65536 (SW-owned), pl_runtime trail at 49152 — no conflicts.
+
+### Bootstrap (PW-7)
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 2p/105f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+# Diagnose 2p→3p gap, fire M-PW-A01, then proceed to M-PW-A02.
+```
