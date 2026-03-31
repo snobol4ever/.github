@@ -9705,3 +9705,237 @@ Or add a Node.js memory watch:
 6. Run `prolog_wasm` invariants → expect ≥3p (rung01+02+05).
 
 7. Commit `PW-10: M-PW-B01 ✅ — rung05 member/2 backtrack passes`.
+
+---
+
+## PW-10 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `ac49e18` (unchanged — stash only) · **.github** this commit
+
+### Session summary
+
+Full root-cause diagnosis of rung05 crash. Incomplete fix stashed. PW-11 must apply the correct fix described below.
+
+### Gate at session start
+- Emit-diff: **981/4** ✅
+- WAT assembles: ✅
+- rung05 runtime: ❌ `RuntimeError: memory access out of bounds`
+
+### Root cause — CONFIRMED by runtime trace
+
+**Symptom:** `var_bind(32768, 32896)` then `var_bind(32768, 7)` repeat infinitely → trail overflows → OOB.
+
+**Cause:** The generate-and-test (GT) loop in `emit_goals` calls `$pl_member_2_alpha` **fresh every iteration**. Alpha always starts from clause 0 (first solution = 'a'). The loop never advances to clauses β1/β2. Member never yields 'b' or 'c'. Trail fills in ~1024 iterations → crash.
+
+**Secondary issue fixed in stash (correct, keep it):** The list `[a,b,c]` was rebuilt via `$pl_cons` on every loop iteration, growing `term_heap_top` by 24 bytes/iter → eventual OOB. The stash moves cons-cell construction outside the loop using `(local $gt_arg1_0 i32)` pre-built before the `(loop ...)`. This part is **correct and must be kept**.
+
+**Root cause of infinite loop:** The GT model must maintain continuation state between iterations. Alpha always tries clause 0. To get all solutions, after consuming solution N, the **β port** of that solution's clause must be invoked for solution N+1.
+
+### The correct fix for PW-11
+
+**Option A (minimal, correct):** Give each predicate a `$pl_foo_N_ci` global (clause index). Add a `$pl_foo_N_resume` function that dispatches to `alpha` (ci=0) or `beta_ci` based on the global, then increments ci on success, resets on exhaustion.
+
+```wat
+;; GT wrapper (emitted alongside alpha/beta functions)
+(global $pl_member_2_ci (mut i32) (i32.const 0))
+(func $pl_member_2_resume
+  (param $trail i32) (param $a0 i32) (param $a1 i32)
+  (param $gamma_idx i32) (param $omega_idx i32) (result i32)
+  ;; dispatch based on ci
+  (if (i32.eqz (global.get $pl_member_2_ci))
+    (then
+      (global.set $pl_member_2_ci (i32.const 1))
+      (local.get $trail) (local.get $a0) (local.get $a1)
+      (local.get $gamma_idx) (local.get $omega_idx)
+      (return_call $pl_member_2_alpha))
+    (else
+      ;; ci=1 → beta1; ci=2 → exhausted (reset ci, call omega)
+      (if (i32.eq (global.get $pl_member_2_ci) (i32.const 1))
+        (then
+          (global.set $pl_member_2_ci (i32.const 2))
+          (local.get $trail) (local.get $a0) (local.get $a1)
+          (local.get $gamma_idx) (local.get $omega_idx)
+          (return_call $pl_member_2_beta1))
+        (else
+          ;; exhausted
+          (global.set $pl_member_2_ci (i32.const 0))
+          (local.get $trail) (local.get $omega_idx)
+          (return_call_indirect (type $pl_cont_t))))))
+)
+```
+
+The GT loop calls `$pl_member_2_resume` instead of `$pl_member_2_alpha`. The γ stub sets flag=1 and **does not reset ci** — so next iteration resumes from where we left off.
+
+**Problem with Option A:** recursive calls to `member` inside `member`'s body share the same `$pl_member_2_ci` global → corruption. The PW-9 handoff already identified this as the original bug that was "fixed" by the Byrd-box rewrite. We need a **per-call-site** ci.
+
+**Option B (correct for recursive predicates):** Use a ci stack. Per-predicate stack at a fixed memory address. Push ci on enter, pop on exhaustion.
+
+```c
+/* in emit_pl_predicate, emit alongside alpha/beta: */
+W("  (global $pl_%s_ci_top (mut i32) (i32.const 0))\n", mname);
+W("  ;; ci stack at addr %d\n", CI_STACK_BASE + pred_idx * CI_STACK_STRIDE);
+/* resume function: push ci slot, dispatch, pop on omega */
+```
+
+**Option C (simplest correct, for milestone):** The GT loop maintains ci as a LOCAL in `main` (already the `$ci_pl_member_2` local exists!). Modify the GT loop to pass the ci local to `resume`, and each iteration checks ci to pick alpha vs beta vs omega.
+
+```wat
+;; GT loop with ci local
+(local.set $ci_pl_member_2 (i32.const 0))
+(loop $retry
+  ;; call alpha if ci=0, beta1 if ci=1, omega if ci=2
+  (if (i32.eqz (local.get $ci_pl_member_2)) (then
+    (local.set $ci_pl_member_2 (i32.const 1))
+    (local.get $trail)
+    (i32.const 32896) ;; slot addr X
+    (local.get $gt_arg1_0) ;; pre-built list
+    (i32.const 0) (i32.const 1)
+    (call $pl_member_2_alpha)
+    drop
+  ) (else (if (i32.eq (local.get $ci_pl_member_2) (i32.const 1)) (then
+    (local.set $ci_pl_member_2 (i32.const 2))
+    (local.get $trail)
+    (i32.const 32896)
+    (local.get $gt_arg1_0)
+    (i32.const 0) (i32.const 1)
+    (call $pl_member_2_beta1)
+    drop
+  ) (else
+    ;; ci=2 exhausted → exit loop
+    (br $disj_end)
+  ))))
+  ;; poll flag
+  (i32.load (i32.const 8188))
+  (if (i32.eqz) (then) (else
+    ;; write + nl body goals
+    ...
+    (br $retry)
+  ))
+) ;; loop
+```
+
+**But this doesn't work for recursive calls** because beta1 internally `return_call`s alpha recursively, and those recursive alpha calls need their OWN ci tracking, not main's ci.
+
+**Option D — THE CORRECT MINIMAL FIX:**
+
+The Byrd-box α/β design already handles recursion correctly — each recursive call chain has its own stack frame's α/β. The issue is only in the **GT caller loop**: it needs to call α once (gets first solution), then call β₁ for second solution, etc., without corrupting recursive internal calls.
+
+The key insight: **the GT loop's ci (tracking which β to call next) is entirely separate from recursive ci inside member's body**. So Option C IS correct — main's `$ci_pl_member_2` local tracks the outer generate-and-test iteration; recursive calls to `$pl_member_2_alpha` inside `$pl_member_2_beta1`'s body use the normal tail-call chain and don't touch main's ci.
+
+**THIS IS THE FIX TO IMPLEMENT in PW-11:**
+
+In `emit_goals`, replace the current GT loop body that always calls `$pl_foo_N_alpha` with a ci-dispatched call using the `$ci_pl_foo_N` local:
+
+```c
+/* GT loop — ci-dispatched instead of always calling alpha */
+W("    (local.set $ci_%s (i32.const 0))\n", mangled);   /* reset before loop */
+W("    (loop $retry_%s_%d\n", mangled, site_id);
+/* Reset output var slots */
+...
+/* Dispatch on ci: call alpha (ci=0), beta1 (ci=1), ..., exit if ci=nclauses */
+W("      ;; dispatch on ci → alpha/betaN/exhausted\n");
+for (int ci = 0; ci < nclauses; ci++) {
+    char fn[256];
+    if (ci == 0) snprintf(fn, sizeof fn, "$pl_%s_alpha", mname);
+    else         snprintf(fn, sizeof fn, "$pl_%s_beta%d", mname, ci);
+    W("      (if (i32.eq (local.get $ci_%s) (i32.const %d)) (then\n", mangled, ci);
+    W("        (local.set $ci_%s (i32.const %d))\n", mangled, ci+1);
+    W("        (local.get $trail)\n");
+    /* push args */
+    W("        (i32.const %d) (i32.const %d)\n", gamma_idx, omega_idx);
+    W("        (call %s) drop\n", fn);
+    W("      ) (else\n");
+}
+/* all clauses tried: exit */
+W("      (br $disj_end)\n");
+for (int ci = 0; ci < nclauses; ci++) W("      ))\n");
+/* poll flag */
+...
+```
+
+**The `collect_gt_expr` already captures the predicate name** so `$ci_pl_member_2` local IS declared in main's preamble. The stash has the pre-built term arg locals working. PW-11 just needs to replace the single `call $pl_foo_N_alpha` with this ci-dispatch block.
+
+**IMPORTANT:** Also need to get `nclauses` at emit_goals time. Currently `emit_goals` doesn't know the clause count of the called predicate. Two options:
+1. Look it up by scanning `prog` for the `E_CHOICE` node matching the functor/arity
+2. Emit a ci-reset and single `$pl_foo_N_call` wrapper that internally ci-dispatches (the wrapper is emitted in `emit_pl_predicate`)
+
+**Recommended: Option 2 (wrapper).** Add `$pl_foo_N_call(trail, a0..aN, gamma_idx, omega_idx, ci)` that dispatches:
+```c
+static void emit_pl_predicate_call_wrapper(const EXPR_t *choice) {
+    /* emits $pl_foo_N_call with extra (param $ci i32) */
+    /* dispatches to alpha(ci=0) or beta_ci */
+    /* GT loop calls this with ci from main's local */
+}
+```
+
+The GT loop then emits:
+```wat
+(local.get $trail) <args> (gamma_idx) (omega_idx) (local.get $ci_pl_foo_N)
+(call $pl_foo_N_call) drop
+(local.set $ci_pl_foo_N (i32.add (local.get $ci_pl_foo_N) (i32.const 1)))  ;; advance ci after call
+```
+
+Wait — ci must only advance when γ fires (solution found), not on every call. The γ stub must signal success and the ci advances AFTER γ. The ω stub signals exhaustion.
+
+**Simplest: ci advances inside the wrapper after a successful clause match (before calling γ).**
+
+### PW-11 work order
+
+1. `git stash pop` — restore the pre-built term arg fix
+2. In `emit_pl_predicate`, after emitting α and all β functions, emit a `$pl_foo_N_call(trail, a0..aN, gamma_idx, omega_idx, ci)` dispatcher:
+   ```c
+   W("  (func $pl_%s_call\n", mname);
+   W("    (param $trail i32)");
+   for (int a=0;a<arity;a++) W(" (param $a%d i32)",a);
+   W(" (param $gamma_idx i32) (param $omega_idx i32) (param $ci i32)\n");
+   W("    (result i32)\n");
+   for (int ci=0;ci<nclauses;ci++) {
+       char fn[256];
+       snprintf(fn,sizeof fn, ci==0?"$pl_%s_alpha":"$pl_%s_beta%d", mname, ci);
+       W("    (if (i32.eq (local.get $ci) (i32.const %d)) (then\n",ci);
+       W("      (local.get $trail)");
+       for(int a=0;a<arity;a++) W(" (local.get $a%d)",a);
+       W(" (local.get $gamma_idx) (local.get $omega_idx)\n");
+       W("      (return_call %s)))\n",fn);
+   }
+   /* exhausted — call omega */
+   W("    (local.get $trail) (local.get $omega_idx)\n");
+   W("    (return_call_indirect (type $pl_cont_t))\n");
+   W("  )\n");
+   ```
+3. In `emit_goals` GT loop, replace `call $pl_foo_N_alpha` with:
+   ```c
+   W("      (local.get $ci_%s)\n", mangled);           /* ci arg */
+   W("      (call $pl_%s_call)\n", mangled+3);          /* _call wrapper */
+   /* After drop, advance ci only if γ fired: */
+   W("      drop\n");
+   W("      (if (i32.load (i32.const 8188)) (then\n");
+   W("        (local.set $ci_%s (i32.add (local.get $ci_%s) (i32.const 1)))\n",mangled,mangled);
+   W("        ;; body goals\n");
+   /* emit body goals */
+   W("        (br $retry_%s_%d)\n",mangled,site_id);
+   W("      ))\n");
+   /* if !γ: exhausted, fall through → br $disj_end */
+   ```
+
+   Actually ci must be set to NEXT β, not just +1, because internal backtracking in the predicate may have already consumed the β. The `_call` wrapper approach handles this: `ci=0` calls α (which handles clause 0 and internally recurses via β for recursive goals), `ci=1` calls β1 (second top-level solution), etc. Each outer GT iteration advances ci by 1.
+
+4. Run: `rung05 → a\nb\nc\n` ✅
+5. Emit-diff: 981/4 ✅ (no regressions)
+6. `git add src/backend/emit_wasm_prolog.c && git commit -m "PW-10: M-PW-B01 ✅ — rung05 member/2 backtrack passes"`
+7. Update `PLAN.md` NOW table: `prolog_wasm` → `3p` (rung01+02+05), next = M-PW-B02
+
+### PW-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git stash pop                                              # restore pre-built term arg fix
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 981/4
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
