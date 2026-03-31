@@ -11796,3 +11796,70 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 ```
 
 **SC-9 first action:** Identify next milestone. Check xfail list in corpus for queued gaps, or consult FRONTEND-SNOCONE.md for unimplemented constructs. FOR loop (rungB03 xfails) is the highest-value open item — `emit_x64_snocone.c` does not emit `FOR`; scrip-cc hangs on the IR node.
+
+---
+
+## IW-15 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `361a527` · **.github HEAD:** this commit
+
+### Session summary
+
+Two bugs fixed. IW-14 handoff misidentified root cause of OOB — actual bugs were in E_RETURN and missing proc-fail path, not E_EVERY retcont leak.
+
+### Work completed
+
+**Bug fix 1 — `c21e569`: M-IW-R01 E_RETURN bypass chain**
+
+`E_RETURN` was emitting `return_call $succ` (the statement chain) instead of jumping directly to `icn_proc_{pname}_retcont`. For `fact(0)`, `return 1` fell through to `icn_fact_chain0 → icon6_start` (the multiply stmt), re-entering the recursive call with uninitialized `n` → unbounded recursion → frame OOB.
+
+Fix: `E_RETURN` for non-main procs now computes `retcont_target = "icn_proc_{pname}_retcont"` and emits `return_call $retcont_target` directly. ~6 lines changed in `E_RETURN` case.
+
+Result: `fact(5) = 120` ✅
+
+**Bug fix 2 — `361a527`: M-IW-R02 Two-slot retcont, proc-fail path**
+
+When a non-main proc falls off the end without executing a `return` (e.g. `positive(0)` where the `if n > 0` condition fails), the old retcont trampoline unconditionally called esucc — so `positive(0)` incorrectly succeeded.
+
+Fix: `icn_retcont_push` now takes two params `(esucc_idx, efail_idx)` and pushes 8 bytes per frame `[efail@sp, esucc@sp+4]`. New `icn_retcont_pop_fail` pops the efail slot. Each non-main proc now emits both `_retcont` (success, pops esucc) and `_pfail` (fail, pops efail) trampolines. Chain-end calls `_pfail`. `docall` registers `ra` as efail_idx and pushes both.
+
+Result: `rung03_suspend_fail` outputs `1\n3` ✅
+
+### Consolidation audit (session focus)
+
+Audit complete. No high-value consolidation available beyond what `emit_wasm.h` already exports. `wfn()`, `WI()`, `emit_frame_push/pop` are all Icon-specific and correctly stay in `emit_wasm_icon.c`. `W()` in prolog/emit_wasm.c are separate FILE* wrappers — merging them would require architectural changes not worth the risk. Shared API (`strlit_intern`, `data_segment`, `runtime_imports_sno_base`) is already in `emit_wasm.h`.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm:** 23p/124f (was 21p from IW-14 baseline)
+
+### IW-16 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 23p/124f
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-16 first action — M-IW-G01: implement ICN_SUSPEND**
+
+`rung03_suspend_gen` uses `suspend E do body` — a user-defined generator. Currently emits empty output (stub/unimplemented). The Icon four-port model for `suspend`: sa → eval E → on esucc: store result, call outer succ (yield value); outer resume → re-enter body; body efail → proc efail (generator exhausted).
+
+1. `grep -n "ICN_SUSPEND\|E_SUSPEND\|suspend" src/backend/emit_wasm_icon.c | head -20` — find current stub
+2. Read `ARCH-icon-jcon.md` §suspend for four-port wiring
+3. Implement: `suspend E do body` wires as:
+   - `sa` → `E.start`
+   - `E.esucc` → store retval → call outer `succ` (yield)
+   - outer `resume` → `body.start`
+   - `body.esucc` → `E.resume` (next value from generator)
+   - `body.efail` / `E.efail` → outer `fail` (exhausted)
+4. Rebuild, test `rung03_suspend_gen`: expect `1\n2\n3\n4`
+5. Run `run_invariants.sh icon_wasm` — expect ≥25p
+6. Commit `IW-16: M-IW-G01 ICN_SUSPEND four-port emission`
+
