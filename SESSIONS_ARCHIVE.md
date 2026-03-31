@@ -9192,3 +9192,102 @@ CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung8   # expect 0/
 ```
 
 **Immediate next action:** Open `src/backend/emit_wasm.c`. Add `case E_KW:` handler. Add `sno_replace`/`sno_size`/`sno_dupl` to `src/runtime/wasm/sno_runtime.wat` and import them in the header emitter. Wire in `E_FNC`. Run `run_wasm_corpus_rung.sh rung8` → 3/3.
+
+---
+
+## PW-7 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%, handoff
+
+**one4all** `b053fc1` · **.github** this commit
+
+### Gate (start of session)
+- Emit-diff: **719/19** ✅ (19 pre-existing x86 Icon — not PW)
+- `prolog_wasm`: **2p/105f** ✅ — matched PW-6 baseline, no regressions
+- Build: clean ✅
+- swipl: v9.0.4 installed ✅
+
+### Work done
+
+**M-PW-A01 gap diagnosed and filed:**
+- PW-6 handoff said "need 3p" but corpus only has 1 `rung02_facts_*` file
+- The "2 tests" in the milestone spec was a planning over-count
+- M-PW-A01 fires correctly at 2p (rung01 + rung02); no corpus addition needed
+
+**M-PW-A02 E_UNIFY implemented:**
+- Added `emit_unify_terms()` to `emit_wasm_prolog.c`
+- Handles: `var↔atom`, `atom↔var`, `atom↔atom`, `var↔var`, `int↔var`, compound↔compound (recursive arg-by-arg)
+- `emit_goal()` now dispatches `E_UNIFY` before the `E_FNC` guard
+- `rung03_unify_unify.pl` → `b a` ✅
+
+**Gate (end of session):** `prolog_wasm` **3p/104f** ✅ — M-PW-A01 FIRED
+
+### rung04 diagnosis (next session — 10 minutes)
+
+`rung04_arith_arith.pl` fails `wat2wasm` with:
+- `undefined function variable "$pl_is_2_call"` — `is/2` treated as predicate call
+- `undefined function variable "$pl__2d_3e_2_call"` — `->` (if-then) treated as predicate call
+
+Both need special-case handling in `emit_goal()`:
+
+**`is/2` fix:**
+```c
+if (strcmp(fn, "is") == 0 && goal->nchildren == 2) {
+    /* LHS must be E_VAR; RHS is arithmetic expression */
+    EXPR_t *lhs = goal->children[0];
+    EXPR_t *rhs = goal->children[1];
+    int slot = (int)lhs->ival;
+    int addr = env_slot_addr(env_idx, slot < 0 ? 0 : slot);
+    W("    ;; is/2: evaluate RHS arith, bind LHS var slot\n");
+    /* RHS arithmetic → shared emit_wasm_expr() from emit_wasm.c */
+    emit_wasm_expr(rhs, wpl_out);   /* pushes i32 result on stack */
+    W("    (call $pl_var_bind (i32.const %d))\n", addr);  /* bind slot */
+    /* BUT: current var slot holds atom_id (pointer); integers need separate encoding */
+    /* Simplest approach for rung04: store integer directly in slot, write as decimal */
+    return;
+}
+```
+
+**`->/2` (if-then) fix:**
+```c
+if (strcmp(fn, "->") == 0 && goal->nchildren >= 2) {
+    /* Emit condition test; on success emit Then; on failure fall through */
+    /* In context of (Cond -> Then ; Else): condition is evaluated, 
+     * if succeeds emit Then + br $disj_end; else fall to Else */
+    W("    ;; ->/2 if-then\n");
+    /* For: 3 < 5 -> write(true): condition is a comparison */
+    /* Need to emit condition as a boolean i32, then (if (then ...) ) */
+    ...
+    return;
+}
+```
+
+**Key issue for is/2:** current atom_id encoding can't hold integers. Two options:
+1. Encode small integers as atom_ids by interning their decimal string (works for write/1 since atom table lookup returns the string)
+2. Use a tagged-value scheme (bit 0 = integer flag)
+
+**Option 1 is simpler** and sufficient for rung04: intern `"6"` as an atom, bind slot to its atom_id, write prints `"6"`. Already works for write — atom table has string. Just need `is/2` to evaluate the arithmetic and intern the result string.
+
+**Comparison ops (<, >, =<, >=):** need to emit as inline i32 comparisons, not predicate calls. Add to `emit_goal()`:
+```c
+if ((strcmp(fn,"<")==0||strcmp(fn,">")==0||strcmp(fn,"=<")==0||strcmp(fn,">=")==0)
+    && goal->nchildren == 2) { ... emit i32 comparison ... }
+```
+
+### M-PW-A02 status: PARTIALLY DONE
+- E_UNIFY compound head unification ✅ (rung03 passes)
+- is/2 arithmetic + comparison ops: NOT YET (rung04 fails)
+- Full A02 milestone fires when rung04 passes (target: 4p)
+
+### Bootstrap (PW-8)
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 3p/104f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+# Fix rung04: add is/2 (intern result string) + comparison ops + -> inline emit
+```

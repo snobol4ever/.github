@@ -69,7 +69,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **ICON WASM** | IW-6 `0f0b1eb` | one4all `0f0b1eb` | **M-IW-P01**: fix proc chain final succ → per-call-site trampoline (rung02 3/3) |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
-| **Prolog WASM** | PW-6 `8243b58` one4all | — | **M-PW-A01**: FACTS — 2p/105f, invariant count shortfall 2 vs 3 — fix + fire milestone |
+| **Prolog WASM** | PW-7 `b053fc1` one4all | — | **M-PW-A02**: HEAD UNIF done (3p/104f) — next: rung04 is/2 + -> inline emit |
 | **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
