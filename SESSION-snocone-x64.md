@@ -7,15 +7,18 @@
 
 ## §NOW
 
-**Sprint:** SC-2 — M-SC-A15 ✅ (74/74); next M-SC-A16 (existing SC crosscheck, ~10 tests)
-**HEAD:** `ad0e869` one4all · `ba3fe80` corpus
-**Next action:** rungA16 — promote corpus/crosscheck/snocone/ root-level files (assign_*, hello_*, output_*) into rungA16/, wire into snocone_x86 DIRS, fire M-SC-A16
+**Sprint:** SC-3 — gate confirmed, M-SC-A16 next
+**HEAD:** `ddf6bcf` one4all · `ba3fe80` corpus
+**Next action:** rungA16 — convert corpus/crosscheck/snocone/ root-level files (20 .sc files) to semicolon format, prefix A16_, create rungA16/ dir, add rungA16 to snocone_x86 DIRS in run_invariants.sh, fire M-SC-A16
 
 **Invariant baseline (snocone_x86):** 74/74 ✓ — clean, no failures
-**Key fixes this session:**
-- blk_alloc.o + blk_reloc.o added to run_sc_corpus_rung.sh LINK_OBJS (was missing since SC-1, blocked all procedure tests)
-- snocone_x86 invariant count parsing fixed (tr -d whitespace)
-**Naming convention:** user vars/procedures → lowercase/snake_case; SNOBOL4 builtins → UPPER; string content → lowercase
+**Emit-diff baseline:** 719/738 (19 icon-x86 failures = G-session scope, not SC)
+
+**Key work this session (SC-3):**
+- Blocked by G-9 s30 broken commit: emit_x64_icon.c had 155 compile errors (incomplete IcnNode→EXPR_t migration), scrip-cc would not build
+- Fixed all compile errors; wired icon_lower_file() in main.c + icn_main.c
+- IW-3 concurrently fixed same files; reset to origin/main (IW-3 state) per SC-session scope rules — icon files are not SC-owned
+- SC baseline confirmed clean throughout: snobol4_x86 106/106 · snocone_x86 74/74
 
 **Session start — mandatory order, no exceptions:**
 
