@@ -10215,3 +10215,71 @@ cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 34p/1f
 ```
+
+---
+
+## SW-10 M-SW-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `8072122` · **corpus** `8c755d4` · **.github** this session
+
+### M-SW-B05 complete: ANY / SPAN / BREAK / NOTANY / BREAKX ✅
+
+**sno_runtime.wat** — added 6 new functions:
+- `$sno_char_in_set` (internal, not exported): linear scan, byte $ch in set[so..so+sl-1]
+- `$sno_any` (export): match exactly one char in set at cursor → cursor+1 or -1
+- `$sno_notany` (export): match exactly one char NOT in set → cursor+1 or -1
+- `$sno_span` (export): match one-or-more consecutive chars in set → new cursor or -1
+- `$sno_break` (export): advance to first char in set (may be zero chars) → cursor or -1
+- `$sno_breakx` (export): like break, also consumes the delimiter → cursor+1 or -1
+All share signature `(subj_off subj_len set_off set_len cursor) → i32`. Runtime recompiled clean.
+
+**emit_wasm.c** — 2 changes:
+- `emit_runtime_imports()`: 5 new import declarations for sno_any/notany/span/break/breakx
+- `emit_pattern_node()`: new `E_FNC` dispatch block before fallback, matches ANY/NOTANY/SPAN/BREAK/BREAKX by `strcasecmp(sval)`, interns char-class arg into shared strlit table, emits `(subj_off subj_len set_off set_len cursor)(call $sno_*)` then `local.set $pat_cursor`
+
+**test/run_invariants.sh**: rungW05 added to `snobol4_wasm` DIRS.
+
+**corpus/crosscheck/rungW05/**: 5 tests, oracle-verified (.wat + .wasm artifacts committed):
+`W05_any` (ANY('aeiou') on 'hello') · `W05_notany` (NOTANY('aeiou') on 'hello') ·
+`W05_span` (SPAN('0123456789') on '42abc') · `W05_break` (BREAK(':') on 'key:value') ·
+`W05_breakx` (BREAKX(':') on 'key:value')
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungW01–W05:** 3/3 · 3/3 · 3/3 · 3/3 · 5/5 ✅
+- **snobol4_wasm target:** 39p/1f ✅ (pre-existing 212_indirect_array unchanged)
+
+### Code sharing note (for G-session)
+`emit_wasm_icon.c` still has its own private strlit intern table (lines 63–131, ~50 lines),
+duplicating `emit_wasm.c`'s table. `emit_wasm.h` already exposes the shared API
+(`emit_wasm_strlit_intern/abs/len/reset/data_segment`) — prolog already uses it.
+Migration path: replace `icn_strlit_intern(s)` → `emit_wasm_strlit_intern(s)`,
+`icn_strlit_abs(i)` → `emit_wasm_strlit_abs(i)`, `icn_str_lits[i].len` → `emit_wasm_strlit_len(i)`,
+`icn_emit_data_segment()` → `emit_wasm_data_segment()`, `icn_strlit_reset()` → `emit_wasm_strlit_reset()`.
+The per-strlit WAT globals (`$icn_strlit_off%d`, `$icn_strlit_len%d`) are still ICN-specific
+and remain in `emit_wasm_icon.c` — only the C-side table goes away.
+
+### Next: M-SW-B06 — POS / RPOS / LEN / TAB / RTAB / REM
+
+`rungW06/` (4 tests: W06_pos, W06_rpos, W06_len, W06_tab).
+`E_POS`, `E_RPOS`, `E_LEN`, `E_TAB`, `E_RTAB`, `E_REM` in `emit_pattern_node()`.
+Cursor-assertion patterns — no new runtime functions needed, pure inline WAT arithmetic:
+- POS(n): succeed if cursor == n, else fail (no cursor advance)
+- RPOS(n): succeed if cursor == subj_len - n, else fail
+- LEN(n): succeed if cursor+n <= subj_len, advance cursor by n
+- TAB(n): succeed if cursor <= n, set cursor = n
+- RTAB(n): succeed if cursor <= subj_len-n, set cursor = subj_len-n
+- REM: always succeed, cursor = subj_len (consume remainder)
+All come as `E_FNC` with one `E_ILIT` child (integer argument).
+
+### SW-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 39p/1f
+```
