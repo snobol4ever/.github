@@ -7,9 +7,9 @@
 
 ## §NOW
 
-**Sprint:** SC-5 — M-SC-B04 ✅ · next: M-SC-B05
-**HEAD:** `994a482` one4all · `bb835ca` corpus
-**Next action:** M-SC-B05 — `||` alternation semantics (5 tests: left-wins, right-fallback, both-fail, chain, assign)
+**Sprint:** SC-6 — M-SC-B05 ✅ · next: M-SC-B06
+**HEAD:** `663505c` one4all · `d0a6c86` corpus
+**Next action:** M-SC-B06 — `~` negation / `?` query (5 tests: negate-fail→succeed, negate-succeed→fail, query-discard-cursor, query-in-if, combined)
 
 ### M-SC-B03 ✅ — `for` loop (SC-4, 2026-03-31)
 
