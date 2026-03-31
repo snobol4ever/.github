@@ -1,4 +1,4 @@
-# SESSION-snobol4-wasm.md — SNOBOL4 × WASM (one4all)
+# SESSION-snobol4-wasm.md — SNOBOL4 × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
 **Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** WASM
 **Session prefix:** `SW` · **Trigger:** "playing with SNOBOL4 wasm"

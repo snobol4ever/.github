@@ -425,3 +425,39 @@ Sub-fixes landed in G-9 s31/s32/s32b:
 - 256 icon .s emit-diff refs regenerated (s32)
 
 **Gate at fire:** icon_x86 `95p/163f` · emit-diff `981/4` · snobol4_x86 `106/106`
+
+---
+
+## ⛔ WASM BACKEND — ALL SESSIONS PARKED (2026-03-31, SW-18)
+
+**Decision:** WASM backend suspended indefinitely across all three WASM sessions.
+
+**Reason:** WASM's structured control flow and closed binary format make it
+architecturally incompatible with two fundamental SNOBOL4 requirements:
+
+1. `EVAL()` / `CODE()` — SNOBOL4 strings as runtime-compiled programs. WASM has
+   no mechanism for runtime code generation. The host JS layer would be required,
+   making WASM a net liability rather than an asset.
+2. Byrd-box synthesis — the x86 model writes executable memory sequences at
+   runtime. WASM's security sandbox explicitly forbids this.
+
+**New direction:** JavaScript backend for SNOBOL4, Icon, and Prolog.
+Foundation: Phil Budne's `spipatjs` (github.com/philbudne/spipatjs) — a native
+ES6 SNOBOL4/SPITBOL pattern matching implementation, fully Unicode compatible,
+PATTERN as first-class data type with backtracking. `eval()` / `new Function()`
+handle EVAL()/CODE() natively.
+
+**Parked milestones (status at park):**
+
+| Milestone | Session | Status at park |
+|-----------|---------|---------------|
+| M-SW-BYRD-A through M-SW-BYRD-G | SNOBOL4 WASM SW-18 | OPEN, not started |
+| M-IW-G02: E_ALT generator composition | Icon WASM IW-17 | OPEN |
+| PW-18: rung07 in_cond probe + E_CUT | Prolog WASM PW-17 | OPEN |
+
+**Parked session docs:** SESSION-snobol4-wasm.md · SESSION-icon-wasm.md · SESSION-prolog-wasm.md
+**Parked milestone doc:** MILESTONE-WASM-BYRD.md
+**BACKEND-WASM.md:** retained as historical reference, marked INACTIVE.
+
+**Gate at park:** emit-diff 981/4 ✅ · snobol4_wasm 55p/1f ✅
+

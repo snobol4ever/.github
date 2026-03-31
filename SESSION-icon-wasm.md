@@ -1,4 +1,4 @@
-# SESSION-icon-wasm.md — Icon × WASM (one4all)
+# SESSION-icon-wasm.md — Icon × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
 **Repo:** one4all · **Frontend:** Icon (JCON four-port model) · **Backend:** WebAssembly
 **Session prefix:** `IW` · **Trigger:** "playing with ICON Programming Language" / "Icon × WASM" / "IW-session"
