@@ -9126,3 +9126,69 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 ```
 
 **Immediate next action:** Open `src/backend/emit_wasm_icon.c`. Find `emit_wasm_icon_proc()` (~line 1355). Replace `"icn_prog_end"` final-succ with `"icn_proc_NAME_ret_hook"` for non-main procs. Emit that hook function. In ICN_CALL handler, redefine the hook to point at the call site's esucc. Build, test rung02 → expect 3/3, fire M-IW-P01.
+
+---
+
+## SW-5 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~65%
+
+**one4all** `2094796` · **.github** this session
+
+### Session summary
+
+Infrastructure fix: `run_invariants.sh` cell-filter bug found and fixed. No emitter work done.
+
+### Work completed
+
+**Bug: run_invariants.sh ignored cell arg (FIXED ✅)**
+Passing `snobol4_wasm` to `run_invariants.sh` still ran ALL suites (icon_wasm 200+ failures,
+prolog_wasm 150+ failures dumped to stdout). Root causes:
+1. Dispatch block called all suite functions unconditionally — no cell-arg filtering.
+2. `run_prolog_wasm` had a stray bare call after the results matrix (called twice).
+Fix: `_run_cell()` wrapper gates on `$_cells_arg`; all 11 cells go through it.
+Result: `bash test/run_invariants.sh snobol4_wasm` → 2.3s, 1 failure line, own cell only.
+
+### Gate (end of session)
+- **Build:** clean ✅
+- **Emit-diff:** 719/19 ✅ (19 = pre-existing icon_x86 gaps)
+- **snobol4_wasm:** 14p/1f ✅ (pre-existing: 212_indirect_array — $.var<index> combined form)
+- **rung8:** 0/3 (M-SW-A05 not started)
+
+### What SW-6 must do (M-SW-A05)
+
+Root causes for rung8 0/3:
+1. **`E_KW` unhandled** (`UNHANDLED EKind 6`) — `&ALPHABET` (256-char all-ASCII), `&UCASE`, `&LCASE`, `&DIGITS` need inline string constant emission in `emit_expr()`. Add `case E_KW:` before `case E_FNC:` in `emit_wasm.c`. sval is bare keyword name (e.g. `"alphabet"`), uppercase it and switch.
+2. **`sno_replace`, `sno_size`, `sno_dupl` not in runtime** — add to `sno_runtime.wat`, add their imports to `emit_wasm_program_header()`, wire in `E_FNC` handler.
+
+**sno_size** is trivial: `(param $off i32) (param $len i32) (result i64)` → `i64.extend_i32_s(len)`.
+
+**sno_dupl** `(param $off i32) (param $len i32) (param $n i64) (result i32 i32)`: alloc `len*n` bytes, copy `src` into dest `n` times via inner loop.
+
+**sno_replace** `(param $s_off i32) (param $s_len i32) (param $from_off i32) (param $from_len i32) (param $to_off i32) (param $to_len i32) (result i32 i32)`: build a 256-byte translation table from from/to, alloc result buffer = s_len, copy each byte of subject through the table.
+
+**E_KW string constants** — pre-intern these in `emit_wasm_program_header()` or lazily in `case E_KW:` using `strlit_intern()`. Values:
+- `&ALPHABET` = 256 bytes (chars 0..255) — NOTE: full 256-char including non-printable; CSNOBOL4 confirmed `size(&alphabet)=256`
+- `&UCASE`    = `"ABCDEFGHIJKLMNOPQRSTUVWXYZ"` (26 bytes)
+- `&LCASE`    = `"abcdefghijklmnopqrstuvwxyz"` (26 bytes)
+- `&DIGITS`   = `"0123456789"` (10 bytes)
+- `&NULL`     = `""` (0 bytes) — same as E_NUL
+
+**Commit message:** `SW-6: M-SW-A05 — E_KW + sno_replace/size/dupl, rung8 3/3`
+
+### SW-6 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, then:
+# mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j$(nproc) && make install
+
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 14p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung8   # expect 0/3 (M-SW-A05 target)
+```
+
+**Immediate next action:** Open `src/backend/emit_wasm.c`. Add `case E_KW:` handler. Add `sno_replace`/`sno_size`/`sno_dupl` to `src/runtime/wasm/sno_runtime.wat` and import them in the header emitter. Wire in `E_FNC`. Run `run_wasm_corpus_rung.sh rung8` → 3/3.
