@@ -9291,3 +9291,93 @@ tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 # Fix rung04: add is/2 (intern result string) + comparison ops + -> inline emit
 ```
+
+---
+
+## SC-4b HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%, handoff
+
+**one4all** `e2f6742` · **corpus** `232499f` · **.github** this commit
+
+### Session summary
+
+M-SC-B02 fired. M-SC-B03 blocked by compiler bug (fully diagnosed). B03 .sc files written in corpus but no .ref yet.
+
+### Work completed
+
+**M-SC-B02 ✅** — rungB02: 6 while/do-while/break/continue tests:
+- `B02_while_basic` — while loop runs N times
+- `B02_while_false` — condition false on entry, body skipped
+- `B02_do_while` — body executes at least once
+- `B02_while_break` — break exits loop early
+- `B02_while_continue` — continue skips rest of body
+- `B02_nested_break` — break exits only innermost loop
+- snocone_x86: 99 → 105/105 ✅
+
+**M-SC-B03 BLOCKED — compiler bug diagnosed:**
+
+`sc_compile_expr(st, SNOCONE_RPAREN)` is not depth-aware. When called for the `for` loop step (e.g. `i = ADD(i, 1)`), it stops at the first `)` — the one closing `ADD(...)` — not the outer `)` closing `for(...)`. This leaves `, 1 ) )` tokens unconsumed in the token stream, causing the body `{...}` to be mis-parsed and ultimately leaving a stray `}` token in the main dispatch loop, which spins forever.
+
+**B03 .sc files written** (no .ref yet — need fix first):
+- `B03_for_basic.sc` — for loop 1 to 3
+- `B03_for_zero.sc` — condition false on entry
+- `B03_for_break.sc` — break exits for loop
+- `B03_for_continue.sc` — continue skips to step
+- `B03_for_nested.sc` — nested for, inner break
+- `B03_for_continue_step.sc` — continue lands at step (sum odd numbers)
+
+### Gate (end of session)
+
+- **Emit-diff: 719/738** ✅ (19 icon-x86 = G-session scope)
+- **snobol4_x86: 106/106** ✅
+- **snocone_x86: 105/105** ✅
+
+### Next session execution order
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 719/738+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106 · 105/105
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+### M-SC-B03 fix — implement first thing next session
+
+In `src/backend/emit_x64_snocone.c`, function `sc_compile_expr` (line 492), replace the token scan loop:
+
+**Current (broken):**
+```c
+static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
+    int start = st->pos;
+    while (st->pos < st->count) {
+        SnoconeKind k = st->toks[st->pos].kind;
+        if (k == SNOCONE_NEWLINE || k == SNOCONE_SEMICOLON || k == SNOCONE_EOF) break;
+        if (stop_kind != SNOCONE_EOF && k == stop_kind) break;
+        st->pos++;
+    }
+```
+
+**Fixed (depth-aware):**
+```c
+static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
+    int start = st->pos;
+    int depth = 0;
+    while (st->pos < st->count) {
+        SnoconeKind k = st->toks[st->pos].kind;
+        if (k == SNOCONE_NEWLINE || k == SNOCONE_SEMICOLON || k == SNOCONE_EOF) break;
+        if (k == SNOCONE_LPAREN || k == SNOCONE_LBRACKET) depth++;
+        else if (k == SNOCONE_RPAREN || k == SNOCONE_RBRACKET) {
+            if (depth == 0 && stop_kind == SNOCONE_RPAREN) break;
+            if (depth > 0) depth--;
+        }
+        if (stop_kind != SNOCONE_EOF && stop_kind != SNOCONE_RPAREN && k == stop_kind) break;
+        st->pos++;
+    }
+```
+
+After fix: verify `for_minimal.sc` compiles in <1s, run B03 tests to get oracles, write .ref files, wire rungB03, fire M-SC-B03 (105→111).

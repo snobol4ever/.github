@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s29 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
-| **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B02: while/do-while + break/continue (6 tests) |
+| **Snocone x86** | SC-4 | `e2f6742` one4all · `232499f` corpus | M-SC-B03 BLOCKED: fix `for`-loop compile-time hang (RBRACE not consumed at top level in sc_do_stmt) |
 | **SNOBOL4 WASM** | SW-5 | `2094796` one4all | **M-SW-A05: GOTO/BUILTINS** rung8/ 3 tests — E_KW + sno_replace/size/dupl needed |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
