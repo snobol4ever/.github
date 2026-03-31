@@ -10512,3 +10512,65 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163
 ```
 
 Then proceed to rung05 `icn_write_str` NULL fix targeting 97p/161f.
+
+---
+
+## IW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `2bc7a93` · **.github** this commit
+
+### Completed this session
+
+**Root cause chain resolved (4 bugs):**
+
+1. **`ICON_GEN_STATE_BASE` OOB** — gen-state at `0xC000` (49152) collided with `sno_str_alloc` string heap (starts at 32768). Fixed: moved to `0x20000` (page 2, 131072). Bumped `sno_runtime.wat` to 3 pages.
+
+2. **`E_EVERY` resume infinite loop** — `every_resume → e_start` restarted the body instead of asking for next value. Fixed: `every_resume → e_resume`. `E_TO` state in memory means "restart" correctly increments via flag check.
+
+3. **`emit_icn_binop` stale mutable var** — `total + (1 to n)` accumulated wrong values because `ra → e2_resume` skipped re-reading `total`. Fixed: `left_is_value` heuristic (mirrors x64 oracle line ~1217). VAR/ILIT/QLIT/FNC left: `ra → e1_start` with bflag global distinguishing start (→e2_start) vs resume (→e2_resume). Generator left: `ra → e2_resume` directly (left cache still valid).
+
+4. **`E_IF` unimplemented** — fell to stub-fail. Implemented: `children[0]=cond, [1]=then, [2]=else(opt)`. `sa→cond_start`, `ra→fail`. Cond succ→then_start (or succ if no then). Cond fail→else_start (or **succ** if no else — Icon skip semantics).
+
+5. **`E_TO` nested-generator exhaust** — counter > e2 called outer `fail` directly, skipping e2 resume. Fixed: `e2_is_gen` flag (set when e2's kind is `E_TO/E_GENALT/E_EVERY`). Generator e2: `exhaust → e2_resume`; e2 advances, `e2s` resets counter from `e1_val_id`, continues. Literal e2: `exhaust → clear flag → fail` (original behaviour).
+
+**Passes added:**
+`rung01_paper_mult` ✅ · `rung01_paper_compound` ✅ · `rung01_paper_paper_expr` ✅ · `rung01_paper_nested_to` ✅ · `rung02_proc_add_proc` ✅ · `rung02_proc_locals` ✅ · `rung02_arith_gen_nested_add` ✅ · `rung02_arith_gen_nested_filter` ✅ · `rung02_arith_gen_paper_mul` ✅
+
+**Gate:** Emit-diff **981/4** ✅ (pre-existing JVM failures, unchanged)
+
+### Blocked: `rung02_proc_fact` — M-IW-R01 (recursion)
+
+**Root cause:** All `$icn_intN` globals are shared across activations. Recursive `fact(5)` evaluates `n` into `$icn_int8=5`, then calls `fact(4)` which overwrites `$icn_int8=4`, etc. The retcont stack push/pop helpers are implemented in the emitter (`$icn_retcont_push`/`$icn_retcont_pop` in `emit_wasm_icon_globals`), but `$icn_intN` clobbering means recursion still fails.
+
+**The architectural fix required (M-IW-R01):** activation frame stack in WASM memory. Before each user-proc call, push a frame containing: all `$icn_intN` values referenced by the current proc body, plus params. After return, pop and restore. This matches the x64 approach (rbp frame). Page 2 has room at `0x24008+` (above retcont stack).
+
+### IW-9 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm      # own cell only
+```
+
+**IW-9 first action — M-IW-R01: activation frame for recursion**
+
+Implement a per-call frame stack in WASM memory. Suggested layout at `0x24008` (above retcont stack SP at `0x24000`):
+
+```
+Frame: [n_saved_ints (i32)] [saved_int0..N (i64 each)] [saved_params0..M (i64 each)]
+```
+
+Emitter changes needed:
+1. In `emit_wasm_icon_proc`: scan body to find which `$icn_intN` node ids are live across any user-proc call (i.e., their value is used after the call returns in an `esucc`).
+2. Before `docall` / `zero-arg call`, emit WAT that pushes those globals onto the frame stack.
+3. In each call-site `esucc`, emit WAT that pops the frame and restores.
+4. Proc params: qualify by proc name (`$icn_pv_PROC_PARAM`) OR push/pop similarly.
+
+Alternatively, use per-proc-name param globals (`$icn_pv_fact_n`) — prevents cross-proc clobbering for non-recursive calls. For same-proc recursion still need frame stack.
+
+Corpus test to target: `rung02_proc_fact` → expected `120`.
+

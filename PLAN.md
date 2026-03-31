@@ -57,7 +57,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **GRAND MASTER REORG** | G-9 s34 | one4all `c5697bb` · corpus `60b0209` | rung05: fix icn_write_str NULL + write type fallback → 97p/161f; then rung09 loops |
 | **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
 | **SNOBOL4 WASM** | SW-10 | `8072122` one4all · `8c755d4` corpus | **M-SW-B06: POS/RPOS/LEN/TAB** rungW06/ 4 tests |
-| **ICON WASM** | IW-8 | `54eac34` one4all | **M-IW-V01**: local var table (E_ASSIGN) → rung02 locals |
+| **ICON WASM** | IW-9 | `2bc7a93` one4all | **M-IW-R01**: activation frame stack → rung02_proc_fact (120) |
 | **Prolog WASM** | PW-12 | `8869d47` one4all | **M-PW-B01**: γ body-goal fns + GTSiteData done; β1 re-call needs secondary scratch cell for recursive list arg — see SESSIONS_ARCHIVE PW-12 |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
