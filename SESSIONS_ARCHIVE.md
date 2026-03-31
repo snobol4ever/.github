@@ -8277,7 +8277,6 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 
 4. Run: `write("done")` should produce `done\n` ✓
 
->>>>>>> ec01cbc (IW-2: M-IW-A01 handoff — icon_wasm 33p/225f, rung01 5/6 pass)
 
 ---
 
@@ -8527,7 +8526,6 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 
 4. Verify: `write("done")` → `done\n` ✅
 
->>>>>>> ddf6bcf (IW-3: emit_x64_icon.c EXPR_t migration complete)
 
 ---
 
@@ -10253,6 +10251,139 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 34
 
 ---
 
+## PW-12 M-PW-B01 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `8869d47` · **.github** this session
+
+### Work done
+
+**Structural fix to GT backtracking in `emit_wasm_prolog.c`:**
+
+1. Added `GTSiteData` struct (35 lines) — stores per-GT-site: mangled pred name, arity, arg slot addrs, ground arg scratch cells, body goals, env_idx, γ/ω indices, nclauses.
+
+2. Replaced broken `(loop $retry)` + flag trampolines with proper γ body-goal functions:
+   - γ runs body goals (write+nl) inline
+   - Calls `trail_unwind($trail)` — undoes clause bindings
+   - Resets var slots to 0
+   - Calls `β1` (not α) when `nclauses > 1`
+
+3. Added `GT_SCRATCH_BASE = 8000` — 32 i32 scratch cells in unused output buffer area. Ground args (list `[a,b,c]`) stored before first α call; γ reads from scratch to pass list back on re-calls.
+
+4. Added `g_prog` static pointer; set in `prolog_emit_wasm` entry — allows `emit_goals` to look up predicate clause count at code-gen time.
+
+5. Fixed `i32.store` operand order (addr must precede value in linear WAT).
+
+6. Added `$tmp`/`$tbl_entry` local declarations to γ functions (required by `emit_write_var`).
+
+7. **Gate:** 981/4 ✅ (unchanged).
+
+### Current failure: infinite 'b' output
+
+`rung05` outputs `a\n` then infinite `b\n`. Root cause fully diagnosed:
+
+**γ calls `$pl_member_2_beta1` with `scratch[8000] = [a,b,c]` (the original list).** β1 strips head, binds T=[b,c], recurses into `member(X,[b,c])`. That inner α call finds 'b', succeeds → γ fires. γ prints 'b', then calls β1 again with `scratch[8000]=[a,b,c]` — binding T=[b,c] again — finding 'b' again. Infinite loop on 'b'.
+
+### The definitive fix (PW-13 work order)
+
+The γ function **cannot** use a fixed list from scratch. After the first solution ('a' from clause 0), γ needs to call β1 with the **same args α received** — specifically the live `$a1` value. After 'b' (from inner recursion), γ needs to continue that recursion, not restart from the top.
+
+**The correct encoding:** γ must carry the β-function-index of the **currently active α/β invocation**. This means adding a `$beta_idx` parameter to the γ/ω continuation type:
+
+```wat
+;; New continuation type — carries beta index for retry
+(type $pl_cont_t (func (param $trail i32) (param $beta_idx i32) (result i32)))
+```
+
+Each α/β function passes `(call_indirect $beta_idx)` with its own `$beta_idx` hardcoded:
+
+```wat
+;; clause 0 (alpha):
+(local.get $trail) (local.get $gamma_idx) (local.get $omega_idx)
+;; β_idx for "retry after clause 0" = funcref index of $pl_member_2_beta1
+(i32.const BETA1_IDX)
+(return_call_indirect (type $pl_cont_with_beta_t))
+
+;; γ function:
+(func $pl_gt_gamma_0 (param $trail i32) (param $beta_idx i32) (result i32)
+  ;; body goals
+  ...
+  (call $trail_unwind (local.get $trail))
+  ;; reset var slots
+  ...
+  ;; call the beta that was active when this solution was found
+  (local.get $trail)
+  (i32.const SLOT_V0)
+  (i32.load (i32.const 8000))  ;; original list (only for top-level call)
+  (local.get $beta_idx)        ;; which beta to try next
+  ;; BUT: inner recursive calls need their own args, not scratch[8000]
+  ...
+```
+
+**Actually the cleanest solution** (no type change): move body goal code INTO the predicate's α/β functions as the γ continuation, not as a separate stub. The predicate's γ port IS "print X and retry". This is the JVM/x86 approach — body goals run inside the predicate, γ = successor continuation.
+
+Concretely: for the `member(X, List), write(X), nl, fail` pattern, emit:
+
+```wat
+(func $pl_member_2_alpha  ;; ← takes a "body_gamma" closure index
+  (param $trail i32) (param $a0 i32) (param $a1 i32)
+  (param $body_gamma_idx i32) (param $omega_idx i32) (result i32)
+  ;; clause 0: X = head(List), body_gamma fires with X bound
+  ...
+  (return_call_indirect $body_gamma_idx)  ;; body_gamma = write(X)+nl+retry_β1
+```
+
+Where `body_gamma` = a function that:
+1. Writes X from slot
+2. Calls `trail_unwind`  
+3. Resets slot
+4. Calls `$pl_member_2_beta1` with **the same $a1 it received** (not scratch)
+
+This requires `body_gamma` to receive `$a1` as a parameter. Simplest: store `$a1` in scratch before passing to γ, and γ reads it. This is what we're already doing — but scratch[8000] is the OUTER list, and inner recursive calls also fire γ with their own $a1.
+
+**The actual fix** is trivially: use the **beta function index** as the γ parameter. α passes `(BETA1_IDX)` to γ. β1's recursive call to `member(X,T)` passes `(BETA1_IDX)` to the inner γ too. After inner success, inner γ fires, prints X, then calls β1 with T (from scratch — but here scratch must be updated by each call level).
+
+**The simplest correct fix (no type changes):** Add a per-GT-site "current list" scratch cell that is updated by each β invocation before calling α recursively. In β1's body (the `member(X,T)` recursive call), store T into a secondary scratch cell, THEN call α. γ reads from this secondary scratch cell.
+
+```
+GT_SCRATCH[0] = original $a1 (set by main before first α call)
+GT_SCRATCH[1] = current list for next γ→β1 re-call (updated by β1 before recursing)
+```
+
+β1 currently emits:
+```wat
+(local.get $trail)
+(i32.load (i32.const 32832))  ;; X slot
+(i32.load (i32.const 32836))  ;; T slot (tail)
+(local.get $gamma_idx) (local.get $omega_idx)
+(return_call $pl_member_2_alpha)
+```
+
+Add before that call:
+```wat
+;; save T into secondary scratch so γ can pass it to β1 on retry
+(i32.const GT_SCRATCH[1])
+(i32.load (i32.const 32836))  ;; T
+(i32.store)
+```
+
+And in γ: call `β1` with `(i32.load (i32.const GT_SCRATCH[1]))` as `$a1`.
+
+This requires `emit_pl_predicate` to know about the GT site for `member/2` and inject the scratch store into β1's recursive call emission. That's the coupling needed.
+
+**Recommended PW-13 approach:** Add a second scratch cell per GT site. In `emit_goals` when emitting the recursive call inside β1 (which calls the same predicate again), store the list arg into `GT_SCRATCH[site][1]` before the call. γ reads `GT_SCRATCH[site][1]` for `$a1` on retry.
+
+To wire this: `GTSiteData` needs to be visible from `emit_pl_predicate`. Since both are in `emit_wasm_prolog.c` and `gt_site_data[]` is a static global, `emit_pl_predicate` can scan `gt_site_data[]` to find if the predicate being emitted has a GT site, and if so inject the scratch store before the recursive α call.
+
+### Gate for PW-13
+
+```bash
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect >3p
+```
+
+rung05 output must match `a\nb\nc\n`.
+
+### PW-13 session start
 ## SW-10 M-SW-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
 **one4all** `8072122` · **corpus** `8c755d4` · **.github** this session
@@ -10313,6 +10444,12 @@ All come as `E_FNC` with one `E_ILIT` child (integer argument).
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 981/4
+tail -150 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
 FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
