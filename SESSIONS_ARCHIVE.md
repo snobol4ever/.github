@@ -12209,3 +12209,72 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 **SW-18 options (pick one):**
 1. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct — run `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung12` to assess.
 2. **`WI()` → `W()` macro unification** in `emit_wasm_icon.c`: `sed -i 's/\bWI(/W(/g'` across 382 sites, then remove the `WI` macro definition and `icon_wasm_out` static — mechanical but confirm build + invariants after.
+**SC-9 first action — fix FOR step segment:**
+1. `sed -n '946,985p' src/backend/emit_x64_snocone.c` — read the new FOR header parser
+2. Add debug: after segment split, `fprintf(stderr, "seg0=%d+%d seg1=%d+%d seg2=%d+%d\n", seg[0][0],seg[0][1],seg[1][0],seg[1][1],seg[2][0],seg[2][1])` and compile B03_for_basic to verify indices
+3. Fix: replace save/restore `st->count` with a scratch-buffer approach — allocate `seg[i][1]+1` tokens, memcpy from `st->toks + seg[i][0]`, append EOF token, call `snocone_parse` on scratch directly
+4. Build, run rungB03: expect 6/6 pass
+5. Remove all 6 `rungB03/B03_for*.xfail` files from corpus
+6. Run invariants: expect snocone_x86 126/126
+7. Commit `SC-9: M-SC-B07 FOR loop step fix` in one4all; commit corpus xfail removal
+8. Update PLAN.md row, write SC-9 handoff
+
+**After FOR is done — M-SC-B08 candidates:**
+- `A09_anchor.xfail` — `&ANCHOR` keyword not propagated to `?` match path (1 test)
+- New rung for untested constructs — check `FRONTEND-SNOCONE.md` for any unimplemented nodes
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+
+---
+
+## SC-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `086d340` (main)
+**corpus HEAD:** `4a70276` (main)
+**.github HEAD:** see push below
+
+### Session summary
+
+Gates confirmed entering: emit-diff 981/4 ✅, snobol4_x86 106/106, snocone_x86 120/120.
+
+**Fix — M-SC-B08: FOR loop step segment (root cause: lexer)**
+
+The FOR step bug was not in the emitter's segment splitter — it was in the lexer. `tokenize_logical_line` split the logical line on all unquoted `;` characters at the character level, consuming them before any tokens were produced. So `for (i = 1; LE(i, 3); i = ADD(i, 1))` produced:
+
+```
+KW_FOR  (  i = 1  NEWLINE  LE ( i , 3 )  NEWLINE  i = ADD ( i , 1 )  NEWLINE  )  EOF
+```
+
+The emitter's segment splitter searched for `SNOCONE_SEMICOLON` tokens and found zero, so `nseg=1` and only `init_s` was set; `cond_s` and `step_s` were NULL.
+
+**Fix:** Removed `tokenize_segment` and `tokenize_logical_line` entirely. Replaced with a single depth-aware inline tokenization pass directly in `snocone_lex` at the two former call sites. The pass tracks paren/bracket depth: at depth 0, `;` ends the current statement (emit `SNOCONE_NEWLINE`); inside parens, `;` emits `SNOCONE_SEMICOLON` as a proper token. String literals suppress depth/semicolon tracking. All other tokenization logic (numbers, strings, identifiers, keywords, operators) inlined identically from the removed `tokenize_segment`.
+
+**Results:**
+- rungB03: 6/6 ✅ (was 0/6 xfail)
+- snobol4_x86: 106/106 ✅ (no regression)
+- snocone_x86: 126/126 ✅ (+6 from session start at 120)
+- emit-diff: 981/4 ✅ (unchanged)
+- 6 xfail files removed from corpus/crosscheck/snocone/rungB03/
+
+### SC-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                        # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-10 first actions:**
+1. Check next unimplemented construct: `grep -r "xfail" /home/claude/corpus/crosscheck/snocone/ | grep -v rungB03` — find lowest rung with remaining xfails
+2. Check `FRONTEND-SNOCONE.md` for any unimplemented AST nodes
+3. Identify milestone M-SC-B09 and implement
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
