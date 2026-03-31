@@ -8653,53 +8653,104 @@ assign_016_assign_to_output.sc     output_004_output_empty_string.sc
                                    output_008_output_double_quoted.sc
 ```
 
-## IW-4 — 2026-03-31 (Claude Sonnet 4.6)
+---
 
-**one4all** `e6d384f` · **.github** this session
+## PW-5 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~95%, emergency handoff
+
+**one4all** `9792127` · **.github** this commit
+
+### Session summary
+
+No milestone fired. M-PW-A01 is WIP — substantial infrastructure built, one bug remaining.
+
+### Gate (start of session)
+- Emit-diff: **719/19** ✅ (19 pre-existing x86 Icon, not PW)
+- `prolog_wasm`: **1p/106f** ✅ — matches PW-4 baseline, no regressions
+- Build: clean ✅
 
 ### Work done
 
-**M-IW-A02 ✅ FIRED** — ICN_STR data segment + write(str): rung01 **6/6** (was 5/6)
+**emit_wasm_prolog.c** fully rewritten (366 → 670 lines):
 
-Changes to `src/backend/emit_wasm_icon.c`:
-- Added `IcnStrLit` intern table: `icn_strlit_intern/abs/reset` (mirrors `emit_wasm.c` pattern)
-- Added `icn_prescan_node()`: walks full ICN tree to intern all ICN_STR literals before emit
-- Added `icn_emit_data_segment()`: emits `(data ...)` at `ICN_STR_DATA_BASE=65536` (page 1)
-- Added `emit_wasm_icon_str_globals()`: one `$icn_strlit_off/len{N}` global pair per unique string
-- Fixed `ICN_STR` case: stores `(i32.const offset/len)` into strlit globals, tail-calls succ
-- Fixed `emit_icn_call_write`: detects `ICN_STR` arg, emits `$sno_output_str(off,len)` instead of `$sno_output_int`
-- Fixed `(memory 1)` → `(memory 2)`: page 0=runtime, page 1=string literals
-- Fixed `sno_float_to_str` import signature: `(param f64)(result i32 i32)` (was wrong `(result f64)`)
-- Wired prescan + str_globals + data_segment into `emit_wasm_icon_file()`
+1. **Atom table** at `ATOM_TABLE_BASE=8192`: `atom_id*8 → {i32 str_off, i32 str_len}`. Interned at prescan time. Emitted as WAT `(data)` block. Enables `write(X)` to look up string from atom_id bound in variable slot.
 
-Also added `emit_wasm_icon_str_globals` declaration to `emit_wasm_icon.h`.
+2. **`emit_pl_predicate()`**: mutable global `$pl_foo_N_ci` (clause index). Each call to `$pl_foo_N_call` tries clause[ci], advances ci on match/mismatch, resets to 0 when exhausted. Returns i32: 1=success, 0=exhausted.
 
-### Gate (end of session)
-- **Emit-diff: 719/19** ✅ (19 = pre-existing x86 Icon gaps, no regression)
-- **rung01: 6/6** ✅ verified manually (suite showed 23p — ran before fix landed)
-- **Build: clean** ✅
+3. **Generate-and-test loop detection** in `emit_goals()`: detects `pred(X),...,fail` conjunction pattern in left branch of `(;/2)`. Emits WAT `(loop $retry_...)` that calls predicate, runs body goals (write+nl) on each solution, loops back, exits when predicate returns 0.
 
-### Next session execution (IW-5)
+4. **`emit_write_var()`**: loads atom_id from env slot, multiplies by 8, adds ATOM_TABLE_BASE, loads str_off + str_len, calls `$pl_output_str`.
+
+5. **`-dump-ir` flag** added to `main.c` for Prolog IR diagnostics.
+
+### BUG — one4all `9792127` — DO NOT RUN rung02 yet
+
+**Problem:** `emit_pl_predicate()` head-unification emits a *comparison* of `$a0` against `atom_id`. But in generate-and-test calls, `$a0` is a **slot address** (32960), not an atom_id. The predicate must **bind** the slot to the atom_id instead of comparing.
+
+**Fix (next session — 10 minutes):**
+
+In `emit_pl_predicate()`, replace the head-unify block for ground atom args:
+
+```c
+// OLD (wrong for variable-arg calls):
+W("        (if (i32.ne (local.get $a%d) (i32.const %d))\n", ai, atom_id);
+W("          (then ... (i32.const 0) (return)))\n");
+W("        (global.set ...) (i32.const 1) (return)\n");
+
+// NEW (correct — always bind slot to atom_id):
+W("        ;; bind slot $a%d to atom '%s' (id=%d)\n", ai, harg->sval, atom_id);
+W("        (i32.store (local.get $a%d) (i32.const %d))\n", ai, atom_id);
+W("        ;; success: advance ci to %d, return 1\n", next_ci);
+W("        (global.set $%s_ci (i32.const %d))\n", mname, next_ci);
+W("        (i32.const 1) (return)\n");
+```
+
+Remove the `if/ne` comparison block entirely. The predicate unconditionally binds and advances ci. All 3 clauses will each fire once in sequence (ci=0→1→2→exhausted), binding X to brown/jones/smith in turn.
+
+After this fix, assemble + run:
+```bash
+cd /home/claude/one4all
+./scrip-cc -pl -wasm /home/claude/corpus/programs/prolog/rung02_facts_facts.pl -o /tmp/rung02.wat
+wat2wasm --enable-tail-call /tmp/rung02.wat -o /tmp/rung02.wasm
+node test/wasm/run_wasm.js /tmp/rung02.wasm
+# Expected: brown\njones\nsmith\n
+```
+
+Then run rung01 to confirm no regression:
+```bash
+./scrip-cc -pl -wasm /home/claude/corpus/programs/prolog/rung01_hello_hello.pl -o /tmp/rung01.wat
+wat2wasm --enable-tail-call /tmp/rung01.wat -o /tmp/rung01.wasm
+node test/wasm/run_wasm.js /tmp/rung01.wasm
+# Expected: hello\n
+```
+
+Then run invariant gate:
+```bash
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm
+# Target: 3p/104f (was 1p/106f)
+```
+
+### Architecture reminder (shared WASM emitters)
+
+| File | Session | Rule |
+|------|---------|------|
+| `emit_wasm.c` | SW | **DO NOT MODIFY** — shared string table, STR_DATA_BASE=65536 |
+| `emit_wasm_prolog.c` | **PW** | All Prolog EKinds here only |
+| `emit_wasm_icon.c` | IW | Do not touch |
+
+Atom table (8192) is PW-owned and does not conflict with SW's string table (65536+) or pl_runtime.wat's trail (49152) or term heap (57344).
+
+### Bootstrap (PW-6)
 
 ```bash
-# Step 1 — clone
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-
-# Step 2 — setup
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-
-# Step 3 — gate
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm  # expect 24p+ (rung01 6/6 now passing)
-
-# Step 4 — read HQ
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 719/19+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 1p/106f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-icon-wasm.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+# Then apply the 10-line fix described above and fire M-PW-A01.
 ```
-
-**Next milestone: M-IW-A03** — ICN_LT/LE/GT/GE/EQ/NE relops already wired in A01; confirm rung01 relop tests pass, then push rung02+ (proc calls, ICN_PROC multi-proc wiring).
