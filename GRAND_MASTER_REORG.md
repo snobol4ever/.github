@@ -300,3 +300,10 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 ---
 
+
+---
+
+## ⛔ SUPERSEDED — G-10
+
+This plan is superseded by `GRAND_MASTER_REORG_2.md` (G-10, 2026-03-31).
+Retained in git history only. See new plan for active milestone tracking.
