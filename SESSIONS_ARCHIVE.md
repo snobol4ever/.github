@@ -9939,3 +9939,235 @@ tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
 
+
+---
+
+## PW-11 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `ac49e18` (unchanged — all work in stash) · **.github** this commit
+
+### Session summary
+
+Two full sessions of diagnosis and attempted fixes. The stash now contains:
+1. ✅ Pre-built cons cell fix (list built once before retry loop)
+2. ✅ `_call` dispatcher wrapper emitted per predicate
+3. ✅ `g_prog` global + `lookup_nclauses()` helper
+4. ❌ GT loop iteration model still broken — see below
+
+### Why previous attempts failed
+
+**Attempt 1 (PW-10 stash):** always called `$pl_member_2_alpha` → infinite loop on 'a', trail overflow.
+
+**Attempt 2 (this session):** ci-dispatch (ci=0→alpha, ci=1→beta1) + "advance ci on ω, keep ci on γ" → only yields 'a','b' then exits early; 'c' never appears. Root cause: `beta1` (clause 1: `member(X,[_|T]):-member(X,T)`) yields 'b' via one tail-call chain. On the next GT outer iteration, ci is still 1 → beta1 is called again fresh → it tries `member(X,[b,c])` → 'b' again → infinite loop / crash.
+
+**Attempt 3 (this session):** ω→advance-ci→retry loop → infinite loop when `_call` exhausted path fires ω repeatedly.
+
+### Root cause (definitive)
+
+The ci-based generate-and-test model is **fundamentally wrong** for recursive predicates. A single top-level clause (ci=N) can yield multiple solutions via internal recursion. The outer GT loop cannot enumerate those sub-solutions by re-calling the same beta function — each call starts fresh with the trail unwound.
+
+**What is needed:** The GT loop must not call α/β functions directly. It must use a **trampoline with a stable continuation pointer** that survives between outer loop iterations.
+
+### The correct fix for PW-12 — trail-mark stack approach
+
+Instead of ci-dispatch, use a **trail-mark checkpoint** to restart enumeration:
+
+```
+Before loop:
+  build list once → $gt_arg1_0
+  $trail_start = trail_mark()        ;; mark before any bindings
+
+Loop iteration:
+  trail_unwind($trail_start)         ;; undo ALL previous bindings
+  reset output var slots to 0
+  call $pl_member_2_alpha(trail, slot_X, list, γ_idx, ω_idx)
+  poll flag:
+    γ=1 → read mem[slot_X], execute body goals, br $retry
+    ω=0 → all solutions exhausted, br $disj_end
+```
+
+**But this still has the same problem**: alpha always starts from clause 0, finding 'a' every time.
+
+### The ACTUALLY correct fix — internal backtracking flag
+
+The predicate's α/β functions already implement correct backtracking via WASM tail calls. The problem is the GT caller breaks the tail-call chain by using a regular `call` (not `return_call`). The γ stub returns to the caller's `call` site — breaking the chain.
+
+**To fix**: the γ stub must not just set a flag and return. It must somehow signal the result back to the GT loop without breaking the backtracking chain. 
+
+**The correct model**: use a **shared memory cell for the solution value** rather than the slot address mechanism.
+
+### Concrete implementation for PW-12
+
+**Step 1**: Add `$pl_write_solution` as the γ continuation:
+
+```wat
+;; γ for GT loop: write output slot values to scratch area mem[8176..8188]
+;; then return 0 (tail-call returns to main's call site)
+(func $pl_gt_gamma_0 (param $trail i32) (result i32)
+  ;; write current bound value of output slot to scratch
+  (i32.store (i32.const 8176) (i32.load (i32.const 32896)))  ;; slot_X value
+  (i32.store (i32.const 8188) (i32.const 1))  ;; γ flag
+  (i32.const 0)
+)
+```
+
+This requires knowing the output slot address (32896) inside the γ stub. Since γ stubs are emitted per-site in `emit_cont_functions_and_table`, pass the slot addresses as compile-time constants.
+
+**Step 2**: GT loop reads from scratch area instead of output slot:
+
+```wat
+(loop $retry
+  (local.get $trail)
+  (i32.const 32896)       ;; output slot addr
+  (local.get $gt_arg1_0)  ;; pre-built list
+  (i32.const 0) (i32.const 1)  ;; γ_idx, ω_idx
+  (call $pl_member_2_alpha)
+  drop
+  (i32.load (i32.const 8188))  ;; poll flag
+  (if (i32.eqz) (then)         ;; ω: done → exit loop
+  (else
+    ;; read solution from scratch → emit write+nl
+    (i32.load (i32.const 8176))  ;; solution atom_id
+    ;; ... write it ...
+    (br $retry)
+  ))
+)
+```
+
+**But the problem is still the same**: alpha returns the FIRST solution and tail-calls γ. γ sets flag=1 and returns 0. Alpha's `return_call γ` has already completed — the WASM execution is done. The loop calls alpha again — it starts fresh, finds 'a' again.
+
+### The ACTUALLY ACTUALLY correct fix
+
+The issue is that `return_call_indirect γ` causes γ to run and return — ending that execution. The β port is never called because the caller doesn't hold a "resume" capability.
+
+**True fix**: α must be called in a loop **inside the predicate** that yields one value per external call, maintaining state between calls. This is a **coroutine**, which WASM tail calls don't provide natively.
+
+**The simplest correct implementation for member/2 specifically**:
+
+Replace the Byrd-box α/β dispatch in `emit_pl_predicate` with a **stateful iterator** using a persistent depth counter in memory:
+
+```wat
+;; member/2 stateful iterator
+;; mem[ITER_BASE] = current position in list (cons ptr or atom)
+(func $pl_member_2_alpha
+  (param $trail i32) (param $a0 i32) (param $a1 i32)
+  (param $gamma_idx i32) (param $omega_idx i32) (result i32)
+  ;; Save initial list position
+  (i32.store (i32.const ITER_BASE) (local.get $a1))
+  (return_call $pl_member_2_next ...))
+
+(func $pl_member_2_next ...)
+  ;; Load current list position
+  ;; If nil → ω
+  ;; If cons → bind X to head, store tail as new position, → γ
+  ;; On next call: $a1 = current position (tail from previous)
+```
+
+This requires threading the "current list position" through the γ/ω mechanism. Since γ returns to the GT caller, the "current list position" must be stored somewhere persistent between calls.
+
+**The simplest solution that actually works**: store the current list ptr in a per-GT-site memory cell. γ saves it; the GT loop restores it on the next α call.
+
+**Concrete implementation**:
+
+```c
+/* GT scratch cells: mem[8160], mem[8164], ... one per GT site per arg */
+#define GT_STATE_BASE 8160
+
+/* In γ stub for site 0: save current list pos */
+W("(func $pl_gt_gamma_0 (param $trail i32) (result i32)\n");
+W("  (i32.store (i32.const 8188) (i32.const 1))\n");   // flag=γ
+/* copy output slot value to scratch */
+W("  (i32.store (i32.const %d) (i32.load (i32.const %d)))\n",
+  GT_STATE_BASE, output_slot_addr);
+W("  (i32.const 0))\n");
+
+/* In GT loop: instead of passing output_slot as $a0, pass GT_STATE_BASE as cursor */
+/* After γ: output is in mem[GT_STATE_BASE+4], next list pos in mem[GT_STATE_BASE+8] */
+```
+
+This still requires the predicate to save its "next position" — i.e. the tail of the list after yielding the current head. That state lives in the predicate's clause env slot (the T variable), but it's zeroed by trail_unwind.
+
+### THE REAL SOLUTION — don't unwind between solutions
+
+The fundamental issue: `trail_unwind` between iterations destroys the bindings that encode "where we are" in the search. 
+
+**For the GT loop, don't call `trail_unwind` between solutions. Only unwind on final failure.**
+
+```wat
+(local.set $trail_gt (call $trail_mark))  ;; mark before GT loop
+(loop $retry
+  ;; DON'T unwind between solutions
+  ;; call alpha with current trail state
+  (local.get $trail)   ;; NOT $trail_gt — use running trail
+  (i32.const 32896) (local.get $gt_arg1_0)
+  (i32.const 0) (i32.const 1)
+  (call $pl_member_2_alpha) drop
+  (i32.load (i32.const 8188))
+  (if (i32.eqz)
+    (then (call $trail_unwind (local.get $trail_gt)))  ;; unwind only on ω
+  (else
+    ;; γ: body goals, loop back WITHOUT unwinding
+    ... write+nl ...
+    (br $retry)
+  ))
+)
+```
+
+**But this still re-calls alpha fresh, which finds 'a' every time.**
+
+### THE DEFINITIVE SOLUTION
+
+After three sessions of analysis, the conclusion is: **the GT loop cannot work correctly by calling α/β functions as plain calls**. The Byrd-box is designed for `return_call` chaining. Using `call` breaks it.
+
+**The only correct approach for M-PW-B01** is the JVM/x86 approach: compile `member(X,[a,b,c]), write(X), nl, fail ; true` as a **single compiled function** where the entire conjunction including the GT loop is a single tail-call chain. The "outer loop" is not an explicit WAT loop — it's the backtracking chain itself:
+
+```
+alpha → (match a) → write('a') → nl → BACKTRACK → beta1 → (match b) → write('b') → nl → BACKTRACK → beta1-recursive → (match c) → write('c') → nl → BACKTRACK → ω → true → done
+```
+
+The γ continuation for the GT loop IS the "write+nl then backtrack" function. The ω IS the "true/done" function. These must be emitted as real WAT functions in the funcref table with full access to the output logic.
+
+**PW-12 work order**:
+
+1. `git stash pop` to get the pre-built term arg fix + `_call` dispatcher + `g_prog`
+2. In `emit_cont_functions_and_table`, change γ stubs from simple flag-setters to **full body-goal functions**:
+   - γ stub receives `$trail i32`, executes body goals inline (write(X), nl), then **calls α again via `return_call`** to get the next solution
+   - ω stub just returns 0 (done)
+3. The GT "loop" in main becomes just ONE call to α — no explicit loop needed
+4. Body goals (write, nl) are emitted inside the γ stub, not in main
+
+This requires passing output slot addresses and body goal code into `emit_cont_functions_and_table`. Refactor: collect GT site data (output slots, body goal exprs, predicate name) in a per-site struct, then emit proper γ functions.
+
+**Key struct to add**:
+```c
+typedef struct {
+    int  site_id;
+    char mangled[256];     /* predicate mangled name */
+    int  arity;
+    int  arg_slots[16];    /* output var slot addrs (-1 if not var) */
+    int  n_body_goals;     /* number of body goals between pred and fail */
+    /* body goal exprs stored separately — need pointer to EXPR_t */
+    const EXPR_t *body_goals[16];
+    int  env_idx;          /* calling clause's env_idx for body goal emit */
+    int  gamma_idx;        /* funcref table index for γ */
+    int  omega_idx;        /* funcref table index for ω */
+} GTSiteData;
+static GTSiteData gt_site_data[MAX_GT_SITES];
+```
+
+Populate this in `emit_goals` when detecting the GT pattern. Then in `emit_cont_functions_and_table`, emit proper γ functions using stored `body_goals` + `env_idx`.
+
+### PW-12 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git stash pop
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 981/4
+tail -100 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
