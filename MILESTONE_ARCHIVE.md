@@ -405,3 +405,23 @@ All 8 success criteria met:
 8. ✅ Pipeline matrix — M-G6
 
 All 15 concurrent sessions unfrozen. Tag `post-reorg-baseline` pushed to one4all.
+
+---
+
+## M-G9-ICON-IR-WIRE ✅ (2026-03-31, G-9 s32/s32b)
+
+**Verified:** icon_x86 `95p/163f` · emit-diff `981/4`
+
+Wire Icon frontend through `EXPR_t`/`ir.h` — complete. All Icon backends
+(x64, JVM, WASM) now route through `icon_lower_file()` before emitter.
+`IcnNode` AST is frontend-private. `emit_x64_icon.c` and `emit_jvm_icon.c`
+consume `EXPR_t` exclusively.
+
+Sub-fixes landed in G-9 s31/s32/s32b:
+- ICN_* eradicated from all emitters (s31)
+- icon_lower.c ICN_PROC layout bug + ICN_SCAN added (s31)
+- User proc labels renamed `icn_NAME` → `icn_u_NAME` — upto collision fix (s32)
+- any/many/upto builtin guard: user proc now shadows builtin (s32b)
+- 256 icon .s emit-diff refs regenerated (s32)
+
+**Gate at fire:** icon_x86 `95p/163f` · emit-diff `981/4` · snobol4_x86 `106/106`
