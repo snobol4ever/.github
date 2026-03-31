@@ -11378,3 +11378,72 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 6. Commit `IW-14: M-IW-R01 ✅ rung02_proc_fact passes`.
 
 **Context discipline:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp'` with tight ranges. Never read full WAT files.
+
+---
+
+## SW-13 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `5bfb0f7` · **.github HEAD:** this commit
+
+### Session summary
+
+Long session. M-SW-C02 is WIP: rung11 2/7 passing (1110 ✅, 1111 ✅). All WAT validation errors cleared. Five runtime failures remain (1112/1113/1114/1115/1116).
+
+### Work completed (`5bfb0f7`)
+
+**`emit_wasm.c` changes (all rebased onto IW-12 `emit_wasm_expr` rename):**
+
+1. **`is_idxassign` lvalue block** — arr<i>=val / tbl<key>=val / arr<r,c>=val. Evaluates handle, val, key into locals; dispatches `sno_array_set` (1D), `sno_array_set2` (2D), `sno_table_set` (table). Key saved to `$arr_h2`/`$tmp_i32` before handle push to get arg order right.
+
+2. **ARRAY multi-dim** — `ARRAY('2,2')` and `ARRAY('-1:1,2')` now parsed at emit time: if first child is E_QLIT containing `,`, split on `,` and optionally `:`, dispatch `sno_array_create2(lo1,hi1,lo2,hi2)`.
+
+3. **PROTOTYPE byte-copy loop** — replaced `(memory.copy)` with explicit `(loop $cpy ... i32.load8_u / i32.store8 / br_if)`. No `--enable-bulk-memory` flag needed.
+
+4. **VALUE() prescan fix** — `emit_expr E_FNC "value"` calls `$sno_var_get`, which is only emitted when `needs_indr=1`. Added `needs_indr = 1` in `prescan_expr` when `E_FNC "value"` is found.
+
+5. **E_IDX rvalue arg-order fixes** — all `sno_array_get`, `sno_array_get2`, `sno_table_get` calls had reversed arg order (inline folded-WAT confusion). Fixed by saving indices to locals and pushing handle explicitly first. `$arr_h2` local added for 2D col scratch.
+
+6. **E_IDX 1D structured control flow** — replaced `(return)` inside if-then with `(block $eidx_done (result i32 i32) ... (br $eidx_done))` pattern. Null-handle (type=0) guard returns empty string via br.
+
+7. **null-coerce rewrite** — `(if (i32.eqz ...) (then ... (return)))` → save `(off,len)` to `$arr_ok`/`$proto_len`, then `(if (i32.eqz $proto_len) (then local.set $arr_ok empty_off))`. WASM structured CF requires empty stack at if-entry.
+
+8. **`emit_subject_as_bool` TY_STR fix** — `(drop)` was dropping len (wrong), keeping off, then testing off≠0 (always true for interned strings). Fixed to save len to `$tmp_i32`, drop off, test len≠0. Fixes OOB-should-fail tests.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_wasm:** 48p/1f ✅ (212_indirect_array pre-existing)
+- **rung11:** 1110 ✅ (9/9), 1111 ✅ (2/2), 1112 ❌, 1113 ❌, 1114 ❌, 1115 ❌, 1116 ❌
+
+### Remaining failures for SW-14
+
+**1112/002 — PROTOTYPE of 2D array outputs `1,2` instead of `2,2`:**
+`sno_array_prototype` writes `n1,n2` where `n1 = hi1-lo1+1`. For `ARRAY('2,2')` → `sno_array_create2(lo1=1,hi1=2,lo2=1,hi2=2)` → `n1=2`, `n2=2` → should give `2,2`. But output is `1,2`. Suspect `ndims` field at `handle+4` is not being set to 2 by `sno_array_create2`, causing `sno_array_prototype` to only write 1 dimension. Check `sno_array_create2` in `sno_runtime.wat` — confirm it writes `ndims=2` at `handle+4`.
+
+**1113/005 — TABLE→ARRAY conversion (`convert(t,'array')`):**
+CONVERT not implemented in emitter. `sno_table_get_bucket(h, bi)` and `sno_table_cap(h)` exist in runtime for iteration. SW-14 plan: in `E_FNC CONVERT` case, if type arg is `'array'`, iterate buckets (loop `i` from 0 to `sno_table_cap-1`), call `sno_table_get_bucket`, create a 2-column array via `sno_array_create2(1,nrows,1,2)` and fill. Emit as inline WAT using `$arr_ok`/`$tmp_i32` locals.
+
+**1114/001 — ITEM assign/read:**
+`item(arr,1)=5` — ITEM is a builtin that acts as both lvalue and rvalue subscript. Check how the parser emits ITEM: likely as `E_FNC "item"` with children `(arr, idx...)`. Rvalue: emit same as E_IDX. Lvalue: detect `is_idxassign` should already fire if ITEM is parsed as E_IDX. If it's an E_FNC, add explicit ITEM handling in `emit_wasm_expr` E_FNC dispatch that mirrors E_IDX rvalue logic; and in lvalue detection, check for `E_FNC "item"` with ≥2 children alongside `E_IDX`.
+
+**1115/001 — DATA `datatype()` returns wrong value:**
+`replace(datatype(a), &lcase, &ucase)` should yield `'NODE'`. The DATA prescan emits `sno_data_define` calls at module start. The `E_FNC DATATYPE` emitter currently only handles compile-time types (`string`/`integer`/`real`). For DATA instances (handle type=3), needs runtime check: `sno_handle_type(h) == 3` → call `sno_data_get_type_name(h)` (not yet in runtime) or look up the type registry. Simpler: add `sno_data_typename(handle) → (name_off, name_len)` to runtime that reads `data_reg[instance.type_idx].name_off/len`. Then in DATATYPE emitter, after compile-time checks, add: if none match, emit `sno_handle_type` check for type=3 → `sno_data_typename`.
+
+**1116/001 — DATA field accessor dispatch:**
+Shares root with 1115 — DATA constructor, field get/set need to work correctly after 1115 is fixed.
+
+### SW-14 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 2/7
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-14 first action:** Check `sno_array_create2` in `sno_runtime.wat` — does it store `ndims=2` at `handle+4`? If not, add that store. Then re-run `rung11` — expect 1112 to pass. Then tackle ITEM (1114), CONVERT (1113), DATA typename (1115/1116). Wire rung11 into `run_invariants.sh` once all 7 pass → commit `SW-13: M-SW-C02 ✅`.
