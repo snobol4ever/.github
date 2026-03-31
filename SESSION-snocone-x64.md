@@ -7,23 +7,75 @@
 
 ## §NOW
 
-**Sprint:** SC-4 complete — M-SC-A16 ✅ M-SC-B01 ✅
-**HEAD:** `8d539c7` one4all · `0112a56` corpus
-**Next action:** M-SC-B02 — rungB02: while/do-while + break/continue (6 tests)
-- `B02_while_basic.sc` — while loop runs N times
-- `B02_while_false.sc` — while condition immediately false, body skipped
-- `B02_do_while.sc` — do-while body executes at least once
-- `B02_while_break.sc` — break exits loop early
-- `B02_while_continue.sc` — continue skips rest of body, loop continues
-- `B02_nested_break.sc` — break exits only innermost loop
+**Sprint:** SC-4 — M-SC-B02 ✅ · M-SC-B03 BLOCKED on compiler bug
+**HEAD:** `e2f6742` one4all · `232499f` corpus
+**Next action:** Fix `for`-loop compile-time infinite loop, then fire M-SC-B03
 
-**Invariant baseline (snocone_x86):** 99/99 ✓ — snobol4_x86 106/106 ✓
+### BUG: `for { body }` causes infinite loop in `emit_x64_snocone_compile`
+
+**Root cause (fully diagnosed, not yet fixed):**
+
+`sc_do_stmt` (emit_x64_snocone.c line 1005):
+```c
+if (k == SNOCONE_RBRACE) return;
+```
+When the `for` handler calls `sc_do_body(st)` → `sc_do_block(st)`, `sc_do_block` consumes `{`, loops calling `sc_do_stmt`, then on seeing `}` calls `sc_advance(st)` to consume it. **But** — after `sc_do_block` returns, `sc_do_body` returns, `sc_do_stmt` (the `for` handler) emits step+goto+end labels and returns. Back in the **outer** `emit_x64_snocone_compile` main loop, `sc_skip_nl` is called — RBRACE is not NL/SEMI, so it's **not consumed**. Then `sc_do_stmt` is called again, sees RBRACE, returns without advancing. Repeat forever.
+
+**Wait** — `sc_do_block` DOES consume `}` at line 633: `if (sc_cur(st)->kind == SNOCONE_RBRACE) sc_advance(st);`. So after `sc_do_block` the `}` should be gone.
+
+**Actual cause (from trace):** The infinite loop is at pos=28 kind=19 (`SNOCONE_RBRACE`). `for_minimal.sc` token stream: `for ( i = 1 ; LE ( i , 3 ) ; i = ADD ( i , 1 ) ) { \n OUTPUT = i ; \n }`. Token 28 is the closing `}`. So `sc_do_block` is **not consuming** the `}`. Why?
+
+`sc_do_block` line 629: `while (sc_cur(st)->kind != SNOCONE_RBRACE && ...)`. Inside this loop, `sc_do_stmt` is called for `OUTPUT = i ;`. `sc_do_stmt` falls to line 1008 — `k != EOF/NL/SEMI` — calls `sc_compile_expr(st, SNOCONE_EOF)`. Inside `sc_compile_expr`, the token scan at line 494–498: scans until NEWLINE, SEMICOLON, or EOF. After `;` the scan stops (pos on `;`). But `sc_compile_expr` only sets `start` and scans to `st->pos`, then creates segment `[start, st->pos)`. The `;` is **not consumed** — pos stays on `;`. Then `sc_skip_nl` on line 1011 consumes `;`. `sc_do_stmt` returns. `sc_do_block` calls `sc_skip_nl` — consumes `\n`. `sc_cur` → `}` → loop exits. `sc_advance` → pos past `}`. Returns.
+
+**So sc_do_block DOES consume `}`. Then why is pos=28 a `}`?**
+
+The answer: the `for` body `{ OUTPUT = i; }` is parsed correctly. But then the **outer** main loop starts over — and if there's a trailing `\n` after the `}`, `sc_skip_nl` eats it. Then `sc_cur` → EOF → loop exits. That should work.
+
+**The actual token at pos=28 must be a second `}` that doesn't belong to `sc_do_block`.** `for_minimal.sc` is:
+```
+for (i = 1; LE(i, 3); i = ADD(i, 1)) {
+    OUTPUT = i;
+}
+```
+After `sc_compile_expr(st, SNOCONE_RPAREN)` for step `i = ADD(i, 1)`, pos should be on the `)` of `for(...)`. Line 917 advances past it. Then `sc_skip_nl` (line 929). Then `sc_do_body` → `sc_do_block` consumes `{`, processes `OUTPUT = i;`, then sees `}` and consumes it. Back in `for` handler, emits step/goto/end, returns to main loop. Main loop `sc_skip_nl` eats trailing `\n`. `sc_cur` → EOF. Done.
+
+**BUT: `ADD(i, 1)` contains `)` at position — the scan in `sc_compile_expr(st, SNOCONE_RPAREN)` stops at the FIRST `)` it sees, which is the one closing `ADD(i, 1)`, not the one closing `for(...)`. So after line 916, pos is on the inner `)` of `ADD`. Line 917 advances past it. Now pos is on `, 1 ) )` — still inside the for header! The `, 1 ) )` tokens are not consumed. `sc_skip_nl` (line 929) sees `,` — not NL/SEMI — does nothing. `sc_do_body` is called with pos on `,`. `sc_do_body` → `sc_do_block` → `sc_cur` is `,` not `{` → `sc_do_stmt(st)`. `sc_do_stmt` sees `,` — not any keyword, not EOF/NL/SEMI/RBRACE — falls to line 1009, calls `sc_compile_expr(st, SNOCONE_EOF)`. That scans `, 1 ) )` until it hits `\n` (before `{`) → seg = `, 1 ) )`. snocone_parse of `, 1 ) )` likely returns some stmts or errors. After that, pos is on `\n`. `sc_skip_nl` eats `\n`. Now pos on `{`. `sc_do_stmt` returns. `sc_do_block` loop: `sc_cur` = `{` ≠ `}` → calls `sc_do_stmt`. `sc_do_stmt` sees `{` → calls `sc_do_block`. Nested block! This processes `OUTPUT = i;` and consumes `}`. Back in outer `sc_do_block` loop. `sc_cur` → `\n`. After skip: → `}`. Loop exit. `sc_advance` → pos past outer `}`. **But this is the for-body `}` already consumed.** Now pos is past it → EOF ideally. But this is getting entangled.
+
+**The real fix:** `sc_compile_expr(st, SNOCONE_RPAREN)` must be depth-aware — it must count paren depth and stop at the matching `)`, not the first `)`. The step expression `i = ADD(i, 1)` has nested parens that confuse the naive scan.
+
+### Fix to implement next session
+
+In `sc_compile_expr`, when `stop_kind == SNOCONE_RPAREN`, use depth-counting (like `sc_compile_paren_expr` does) instead of stopping at the first `)`:
+
+```c
+static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
+    int start = st->pos;
+    int depth = 0;
+    while (st->pos < st->count) {
+        SnoconeKind k = st->toks[st->pos].kind;
+        if (k == SNOCONE_NEWLINE || k == SNOCONE_SEMICOLON || k == SNOCONE_EOF) break;
+        if (k == SNOCONE_LPAREN || k == SNOCONE_LBRACKET) depth++;
+        if (k == SNOCONE_RPAREN || k == SNOCONE_RBRACKET) {
+            if (depth == 0 && stop_kind == SNOCONE_RPAREN) break;
+            if (depth > 0) depth--;
+        }
+        if (stop_kind != SNOCONE_EOF && stop_kind != SNOCONE_RPAREN && k == stop_kind) break;
+        st->pos++;
+    }
+    // ... rest unchanged
+```
+
+This fix makes `sc_compile_expr(st, SNOCONE_RPAREN)` stop at the matching outer `)` even when the expression contains nested function calls.
+
+**After fix:** `for (i = 1; LE(i, 3); i = ADD(i, 1)) { OUTPUT = i; }` will parse correctly and the 6 B03 tests will compile and run.
+
+**Invariant baseline (snocone_x86):** 105/105 ✓ — snobol4_x86 106/106 ✓
 **Emit-diff baseline:** 719/738 (19 icon-x86 = G-session scope)
 
-**Key work this session (SC-4):**
-- M-SC-A16 ✅ — converted 20 old-format .sc files to semicolon format; rungA16 created; 74→94 tests
-- CSNOBOL4 installed from Lon-supplied tarball (snobol4-2_3_3_tar.gz)
-- M-SC-B01 ✅ — 5 if/else tests (basic, no-else, if/else true/false, nested); 94→99 tests
+**Key work this session (SC-4 continued):**
+- M-SC-B02 ✅ — 6 while/do-while/break/continue tests; 99→105
+- M-SC-B03 6 .sc test files written (rungB03 in corpus, no .ref yet)
+- Compiler bug fully diagnosed: `sc_compile_expr(st, SNOCONE_RPAREN)` not depth-aware → stops at first `)` in step expression, leaves `, 1 ) )` tokens unconsumed, corrupting subsequent parse
 
 **Session start — mandatory order, no exceptions:**
 
