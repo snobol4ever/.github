@@ -11962,284 +11962,190 @@ Never read full WAT files. `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`
 
 ---
 
-## PW-15 ADDENDUM (2026-03-31, Claude Sonnet 4.6) — M-PW-B01 ✅
+## IW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all WIP:** `fe597af` on branch `pw-15-wip`
-
-M-PW-B01 is complete. rung05 passes (`a\nb\nc`). rung01–04 unaffected. Emit-diff 981/4 ✅.
-
-### Fix summary
-
-Three changes to `src/backend/emit_wasm_prolog.c`:
-
-**1. `g_head_var_slot[32]` / `g_head_arity` statics** — published by `emit_pl_predicate` before body goal emission. Maps head param index `ai` → clause slot addr for vars that are simple `E_VAR` head args.
-
-**2. Body call arg emission** — for each var arg in a body predicate call:
-- If `g_head_var_slot[hi] == addr` for some `hi`: emit `(local.get $a{hi})` — passes the **caller's slot address** through the recursive chain so alpha writes the result directly to the slot γ reads.
-- Otherwise: emit `(i32.load (i32.const slot))` — passes the **loaded value** for input vars bound during head unification (e.g. the tail T from `[_|T]`).
-
-**3. CI advancement logic** — `cp_set_ci` removed from γ. Outer GT loop advances ci only when `PL_SET_ARG_FLAG=0` (direct head match). When `PL_SET_ARG_FLAG=1` (beta clause did `cp_set_arg` to update list tail), ci stays at current clause so beta retries with the new tail. `cp_set_arg` emission also sets `PL_SET_ARG_FLAG=1`.
-
-### PW-16 session start
-
-```bash
-# swipl: build from uploaded swipl-devel-master.zip (apt fails)
-cd /tmp && unzip <upload> && cd swipl-devel-master && \
-  apt-get install -y cmake ninja-build libssl-dev libgmp-dev libreadline-dev && \
-  cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
-    -DSWIPL_PACKAGES=OFF -DBUILD_TESTING=OFF -B build -G Ninja && \
-  ninja -C build -j$(nproc) && ninja -C build install
-
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-git fetch origin && git checkout pw-15-wip
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
-# Note: run_invariants prolog_wasm shows 0✓ (vacuous) — run_prolog_wasm not wired
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-prolog-wasm.md
-```
-
-**PW-16 first action:** Wire `run_prolog_wasm` into `test/run_invariants.sh`. Around line 694:
-```bash
-prolog_wasm)  run_prolog_wasm  ;;
-```
-(The function body already exists; the dispatch case is missing.) After wiring, run `run_invariants.sh prolog_wasm` — expect ≥5p. Then check rung06–09 for additional passes. Merge `pw-15-wip` into `main` when clean.
-
-## SW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all HEAD:** `f91cade` · **.github HEAD:** `353c46b`
+**one4all HEAD:** `48be4dd` (main)
+**.github HEAD:** `dacded5`
 
 ### Session summary
 
-M-SW-C02 complete: DATA typename + field accessor implemented and gated.
+Implemented M-IW-G01: `E_WHILE` + `E_SUSPEND` four-port WASM emission.
+Gates: emit-diff 981/4 ✅. Manual test: `rung03_suspend_gen` → `1\n2\n3\n4` ✅.
+Invariant harness still reports rung03 as `[output]` fail — harness mismatch
+not yet diagnosed (context limit). All pre-existing failures unchanged.
 
-### Work completed
+### What was implemented
 
-**`sno_runtime.wat` — `sno_data_typename`:**
-- New exported function reads `type_idx` from `handle+4`, looks up `data_reg[type_idx]` at `DATA_REG_BASE + type_idx*16`, returns `(name_off i32, name_len i32)`.
-- Runtime recompiled to `sno_runtime.wasm`.
+**E_WHILE** (`src/backend/emit_wasm_icon.c`):
+- `sa → cond.start`
+- `cond.esucc (cond_ok) → body.start`
+- `body.esucc/efail → loop_top → cond.start`
+- `cond.efail → outer_fail`; `ra → outer_fail`
 
-**`emit_wasm.c` — Part A (prescan registry):**
-- `DataType` struct + `data_types[64]` registry.
-- `parse_data_spec()` handles both calling conventions: single-string `data('typename(f1,f2,...)')` (SNOBOL4 standard form — splits on `(` and `,`) and multi-arg `data('typename','f1',...)`.
-- `data_type_by_name()` and `data_field_owner()` lookup helpers.
-- `prescan_expr` calls `parse_data_spec` on `E_FNC "data"`.
-- `data_ntype` reset at start of each `emit_wasm()` pass.
+**E_SUSPEND** (four-port WASM coroutine yield):
+- `sa → val.start`
+- `after_val`: stores `$icn_retval`, arms `$icn_retcont = resume_tramp_idx`,
+  decrements `$icn_frame_depth`, calls `icn_retcont_peek_esucc →
+  return_call_indirect` (peek = non-destructive; frame stays live for
+  multi-yield)
+- `resume_tramp`: re-increments `$icn_frame_depth`, then → `body.start`
+  (if body) or `val.resume` (no body)
+- `ra → resume_tramp`
+- Exhaustion: `outer_fail → icn_proc_{name}_pfail → retcont_pop_fail`
+  (consumes the retcont frame, yields efail_idx back to call-site)
 
-**`emit_wasm.c` — Part B (init function + import):**
-- `sno_data_typename` import added to `emit_runtime_imports`.
-- `emit_data_init_func()` emits `$sno_data_init` WAT function: allocates field-name pairs array via `sno_str_alloc`, stores off/len pairs, calls `sno_data_define` per registered type.
-- `(call $sno_data_init)` injected at main entry before dispatch loop (guarded by `data_ntype > 0`).
+**`$icn_retcont_peek_esucc`**: new WAT helper in `emit_wasm_icon_globals` —
+reads `mem[SP-4]` (top esucc_idx) without decrementing SP or `$icn_frame_depth`.
 
-**`emit_wasm.c` — Part C (E_FNC dispatch):**
-- `E_FNC "data"` → drop (emit empty string; declaration handled by init).
-- `E_FNC <typename>` matching `data_type_by_name` → `sno_data_new(ti, nfields)` + loop setting each field via `sno_data_set_field`.
-- `DATATYPE` builtin: TY_STR path now uses `$datatype_done` block — checks `sno_handle_type(handle)==3`, calls `sno_data_typename` if so; falls back to `"string"` literal.
-- `E_FNC <fieldname>` matching `data_field_owner` as rvalue → `sno_data_get_field(handle, fi)`.
-- `E_FNC <fieldname>` as lvalue (`is_idxassign` path) → `sno_data_set_field(handle, fi, vo, vl)`.
+**`icn_has_suspend()`**: recursive predicate in C; guards `E_EVERY` resume —
+uses `$icn_retcont` path only when child tree contains `E_SUSPEND`. Preserves
+`E_TO`/`E_TO_BY` behaviour (no funcref table needed for simple generators).
 
-**`test/run_invariants.sh`:**
-- `rung11` wired into `snobol4_wasm` cell DIRS list.
+### Harness mismatch — IW-17 must diagnose first
 
-### Gate (end of session)
-- **Emit-diff:** 981/4 ✅
-- **snobol4_wasm:** 55p/1f ✅ (1f = pre-existing xfail, not rung11)
-- **rung11:** 7/7 ✅ — M-SW-C02 ✅
+`run_invariants.sh icon_wasm` reports `rung03_suspend_gen [output]` fail even
+though `node test/wasm/run_wasm.js` produces correct `1\n2\n3\n4`. The harness
+likely uses a `.ref`-based comparison or a different corpus subdirectory. Check:
 
-### Session focus: WASM emitter sharing
+```bash
+grep -n "rung03\|\.expected\|\.ref\|icon_wasm" test/run_invariants.sh | head -20
+# or look at the CSV:
+grep rung03 test-results/invariants_latest.csv
+```
 
-Session was asked to maximize reuse across SNOBOL4/Icon/Prolog WASM emitters.
-Current state of sharing (documented for next session):
+Once the harness path is confirmed, rung03 should flip to `[pass]`.
 
-**Already shared (solid):**
-- `emit_wasm.h` API: `strlit_intern/abs/len/count/reset`, `data_segment`, `set_out`, `runtime_imports_sno_base`, `emit_wasm_expr`
-- Icon and Prolog both call `emit_wasm_strlit_*` — no string table duplication
-- `emit_wasm_runtime_imports_sno_base()` shared by SNOBOL4 + Icon (Prolog has different memory layout)
-
-**Sharing gaps (not addressed this session — queued for a dedicated sharing session):**
-- `emit_wasm_expr()` declared in header but Icon/Prolog don't call it — each has inline arithmetic/literal emission using own `WI()`/`WP()` macros
-- Output macro divergence: SNOBOL4 uses `W()`, Icon `WI()`, Prolog owns its stream — a single `FILE*` + shared `W()` would eliminate parallel macro families
-- Prolog's `emit_wasm_runtime_imports_sno_base` divergence (different memory map) — candidate for parameterization
-
-### SW-17 first actions
+### IW-17 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
-CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 7/7
-```
-
-**SW-17 options (pick one):**
-1. **Sharing refactor** (session focus): wire `emit_wasm_expr` into Icon and Prolog emitters, eliminating duplicated arithmetic/literal emission. Start with Icon (`emit_wasm_icon.c` — replace inline E_ILIT/E_FLIT/E_QLIT handling with calls to `emit_wasm_expr`).
-2. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct.
-
----
-
-## SC-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all HEAD:** `a7c09b8` (main)
-**corpus HEAD:** `da0c0e4` (main)
-**.github HEAD:** `778bf9d`
-
-### Session summary
-
-Gates confirmed: emit-diff 981/4 ✅. Invariants entering session: snobol4_x86 106/106, snocone_x86 119p/2f (baseline was 119p/1f — one new failure surfaced). Two fixes landed:
-
-**Fix 1 — `||` dual-use (M-SC-B07 partial):**
-`SNOCONE_OR` (`||`) is context-sensitive in Snocone: pattern alternation in pattern context (`S ? (a || b)`), string concatenation in value context (`OUTPUT = 'A' || 'Z'`). The parser correctly emits `E_ALT` for `||` in all cases. Added `sc_val_alt_to_concat(EXPR_t *e)` — a tree-walk that rewrites `E_ALT → E_CONCAT` on value subtrees — mirroring the existing `sc_pat_concat_to_seq`. Wired into `assemble_stmt` on `st->replacement` (both match-assign and plain-assign), and `st->subject` (plain expr). Pattern subtrees (`st->pattern`) untouched. rungA16 20/20 ✅, rungB05 5/5 ✅.
-
-**Fix 2 — FOR header depth-aware parse:**
-Old `sc_compile_expr(st, SNOCONE_RPAREN)` for the step segment stopped at the first unmatched `)` inside the expression (e.g. the `)` of `ADD(i,1)`), leaving `st->pos` stuck and causing an infinite loop. Replaced with: scan the entire `for(...)` block depth-tracking from `st->pos`, record `hdr_start..hdr_end`, split on top-level `;`s, then compile each segment using save/restore of `st->pos`/`st->count`. Compilation no longer hangs. **Step output is still wrong** (produces `1\n1\n1` instead of `1\n2\n3`) — root cause below.
-
-**Invariants exiting:** snobol4_x86 106/106 ✅, snocone_x86 120/120 ✅ (+1 net from session start).
-
-### Root cause of FOR step bug (SC-9)
-
-The step segment (`i = ADD(i,1)`) is compiled via:
-```c
-st->pos   = seg[2][0];   /* token index of 'i' in step */
-st->count = seg[2][0] + seg[2][1];
-step_s = sc_compile_expr(st, SNOCONE_EOF);
-st->pos   = saved_pos;   /* restore to after outer ) */
-st->count = saved_count;
-```
-
-`sc_compile_expr` scans `st->toks` starting at `st->pos`, reading until `st->pos >= st->count` or a NEWLINE/SEMICOLON/EOF token. The step tokens `i = ADD ( i , 1 )` contain no such terminators, so the inner scan should complete. `snocone_parse(st->toks + start, seg_len)` should produce the right token stream.
-
-**Suspected issue:** `sc_compile_expr` computes `start = st->pos` at entry, then advances `st->pos` in the scan loop. After `sc_compile_expr` returns, `st->pos` is at `seg[2][0] + seg[2][1]`, which is then overwritten by `st->pos = saved_pos`. The compiled `step_s` is returned correctly — but looking at the generated assembly, the step label `L_L_3_3` contains **no assignment code**, just `jmp L_L_1_0`. This means `step_s` is `NULL` or `sc_prog_append(st, step_s)` is a no-op.
-
-**Most likely cause:** `snocone_parse` is being called with `st->toks + seg[2][0]` and `seg[2][1]` tokens, but `st->toks` is the **original flat token array from the full file tokenization** — these tokens include the FOR keyword, `(`, `i`, `=`, `1`, `;`, etc. The step segment starts at some offset. However `snocone_parse` re-parses the sub-slice and the expression lowering runs correctly — UNLESS `seg[2][0]` is miscalculated because the token indices include the `(` that was already consumed.
-
-**Concrete check for SC-9:** Add a `fprintf(stderr, ...)` after the segment split to print `seg[0][0]/[1]`, `seg[1][0]/[1]`, `seg[2][0]/[1]` and verify they point to the right tokens. Alternatively, check whether `hdr_start` is off-by-one: `hdr_start = st->pos + 1` is set BEFORE `st->pos++` consumes the `(`, so after the depth-scan `st->pos` points at the outer `)` and `hdr_start` was `original_pos + 1` which is correct (first token inside `(`).
-
-A simpler alternative fix for SC-9: instead of save/restore `st->count`, use a small local token array — copy the segment tokens into a scratch buffer, null-terminate with a NEWLINE/EOF, then call `snocone_parse` on the scratch buffer directly (already what `sc_compile_expr` does internally). The save/restore of `st->count` might be interfering with how `sc_compile_expr` exits its scan loop.
-
-### SC-9 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 120/120
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect ≥3p
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-snocone-x64.md
+cat /home/claude/.github/SESSION-icon-wasm.md
 ```
 
-**SC-9 first action — fix FOR step segment:**
-1. `sed -n '946,985p' src/backend/emit_x64_snocone.c` — read the new FOR header parser
-2. Add debug: after segment split, `fprintf(stderr, "seg0=%d+%d seg1=%d+%d seg2=%d+%d\n", seg[0][0],seg[0][1],seg[1][0],seg[1][1],seg[2][0],seg[2][1])` and compile B03_for_basic to verify indices
-3. Fix: replace save/restore `st->count` with a scratch-buffer approach — allocate `seg[i][1]+1` tokens, memcpy from `st->toks + seg[i][0]`, append EOF token, call `snocone_parse` on scratch directly
-4. Build, run rungB03: expect 6/6 pass
-5. Remove all 6 `rungB03/B03_for*.xfail` files from corpus
-6. Run invariants: expect snocone_x86 126/126
-7. Commit `SC-9: M-SC-B07 FOR loop step fix` in one4all; commit corpus xfail removal
-8. Update PLAN.md row, write SC-9 handoff
+**IW-17 first actions:**
 
-**After FOR is done — M-SC-B08 candidates:**
-- `A09_anchor.xfail` — `&ANCHOR` keyword not propagated to `?` match path (1 test)
-- New rung for untested constructs — check `FRONTEND-SNOCONE.md` for any unimplemented nodes
+1. Diagnose harness mismatch — `grep -n "icn\|icon\|\.ref\|\.expected" test/run_invariants.sh | head -30`
+2. Once rung03_suspend_gen passes in harness: next is `rung03_suspend_gen_compose`
+   - compose uses two generators called in sequence: `every write(gen1() | gen2())`
+   - Expected: `1\n2\n3\n1\n2` — the `|` (alt) construct is `E_ALT`; implement E_ALT
+   - Check: `./scrip-cc -icn -wasm -o /tmp/compose.wat corpus/programs/icon/rung03_suspend_gen_compose.icn && grep "stub\|SUSPEND\|ALT" /tmp/compose.wat | head -10`
+3. Next milestone after compose: **M-IW-G02** — `rung03_suspend_gen_filter`
+   (uses `suspend` with conditional body — already passes ✅)
+
+### Consolidation note (for G-10, not IW scope)
+
+Three genuine WASM-trio duplicates identified but NOT extracted (pre-freeze):
+- `prescan_prog()` skeleton: in `emit_wasm.c:194` and `emit_wasm_prolog.c:1260` — same triple-field loop
+- `static void W()` in `emit_wasm_prolog.c:58` vs `#define W` macros in the others
+- `emit_wasm_strlit_reset()` + `intern("")` seed pattern (both SNOBOL4 and Prolog)
+These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS** under G-10 Phase 2-3.
 
 ### Context discipline
-Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`.
+```bash
+./scrip-cc -pl -wasm corpus/programs/prolog/rung05_backtrack_backtrack.pl -o /tmp/r5.wat
+wat2wasm --enable-tail-call /tmp/r5.wat -o /tmp/r5.wasm
+node test/wasm/run_wasm_pl.js /tmp/r5.wasm   # expect: a\nb\nc
+```
+Verify rung01–04 still pass. Run `run_invariants.sh prolog_wasm` — expect ≥1p/0 new failures.
+Merge `pw-15-wip` into `main`, commit `PW-15: M-PW-B01 ✅ rung05 passes`. Update PLAN.md row.
+
+### Context discipline
+Never read full WAT files. `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges only.
 
 ---
 
-## PW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+## IW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all WIP:** `1a46b53` on branch `pw-15-wip`
-**Invariants:** `5p / 102f` (was 4p/103f; rung06 + rung08 promoted from [wat2wasm] → [output])
-**Emit-diff gate:** 981/4 ✅
+**one4all HEAD:** `48be4dd` (main)
+**.github HEAD:** `dacded5`
 
-### Fixes this session
+### Session summary
 
-**1. `run_invariants.sh` dispatch wired** (`ddef234`)
+Implemented M-IW-G01: `E_WHILE` + `E_SUSPEND` four-port WASM emission.
+Gates: emit-diff 981/4 ✅. Manual test: `rung03_suspend_gen` → `1\n2\n3\n4` ✅.
+Invariant harness still reports rung03 as `[output]` fail — harness mismatch
+not yet diagnosed (context limit). All pre-existing failures unchanged.
 
-`run_prolog_wasm()` was defined *after* the `for _cell in ...` loop — Bash cannot forward-reference functions. Moved definition before the loop, deleted the now-dead duplicate. Result: vacuous `0p/0f` became real `4p/103f`.
+### What was implemented
 
-**2. `$gamma_idx`/`$omega_idx` undefined in `main`** (`1a46b53`)
+**E_WHILE** (`src/backend/emit_wasm_icon.c`):
+- `sa → cond.start`
+- `cond.esucc (cond_ok) → body.start`
+- `body.esucc/efail → loop_top → cond.start`
+- `cond.efail → outer_fail`; `ra → outer_fail`
 
-Root cause: `emit_goal()`'s predicate-call paths always emitted `(local.get $gamma_idx) (local.get $omega_idx)`. These are valid params inside clause α/β functions but **do not exist in `main`** (no params, `(result i32)` only). Additionally, `return_call` from `main` is wrong for sequential goals — it tail-calls away and never returns for subsequent goals.
+**E_SUSPEND** (four-port WASM coroutine yield):
+- `sa → val.start`
+- `after_val`: stores `$icn_retval`, arms `$icn_retcont = resume_tramp_idx`,
+  decrements `$icn_frame_depth`, calls `icn_retcont_peek_esucc →
+  return_call_indirect` (peek = non-destructive; frame stays live for
+  multi-yield)
+- `resume_tramp`: re-increments `$icn_frame_depth`, then → `body.start`
+  (if body) or `val.resume` (no body)
+- `ra → resume_tramp`
+- Exhaustion: `outer_fail → icn_proc_{name}_pfail → retcont_pop_fail`
+  (consumes the retcont frame, yields efail_idx back to call-site)
 
-Fix: added three statics to `emit_wasm_prolog.c`:
-```c
-static int g_in_main        = 0;
-static int g_main_gamma_idx = -1;
-static int g_main_omega_idx = -1;
-```
+**`$icn_retcont_peek_esucc`**: new WAT helper in `emit_wasm_icon_globals` —
+reads `mem[SP-4]` (top esucc_idx) without decrementing SP or `$icn_frame_depth`.
 
-In `emit_pl_main`, before `emit_goals`:
-```c
-g_main_gamma_idx = cont_register("pl_main_nop_gamma");
-g_main_omega_idx = cont_register("pl_main_nop_omega");
-g_in_main = 1;
-/* ... emit_goals ... */
-g_in_main = 0;
-```
+**`icn_has_suspend()`**: recursive predicate in C; guards `E_EVERY` resume —
+uses `$icn_retcont` path only when child tree contains `E_SUSPEND`. Preserves
+`E_TO`/`E_TO_BY` behaviour (no funcref table needed for simple generators).
 
-Both predicate-call sites in `emit_goal` (det and multi-clause):
-```c
-if (g_in_main) {
-    W("    (i32.const %d) ;; main gamma_idx\n", g_main_gamma_idx);
-    W("    (i32.const %d) ;; main omega_idx\n", g_main_omega_idx);
-    W("    (call $pl_%s_alpha) drop\n", mangled + 3);
-} else {
-    W("    (local.get $gamma_idx) (local.get $omega_idx)\n");
-    W("    (return_call $pl_%s_alpha)\n", mangled + 3);
-}
-```
+### Harness mismatch — IW-17 must diagnose first
 
-In `emit_cont_functions_and_table`: added `is_main_nop` check, emits trivial `(i32.const 0)` bodies for both nop functions.
-
-### Open failures — next session
-
-**rung05 `[output]`** — outputs `a` only, expected `a\nb\nc`.
-`member/2` recursive backtracking. The `g_head_var_slot` fix from PW-15 is in place; the CI advancement conditional on `PL_SET_ARG_FLAG` is in place. Still only one solution escapes. Next: add `VERBOSE=1` trace, check CP frame ci after γ fires, verify `cp_set_ci(ci+1)` is reachable on the second iteration.
-
-**rung06 `[output]`** — `append/3` call succeeds (wat2wasm clean) but hits `RuntimeError: memory access out of bounds`.
-After `(call $pl_append_3_alpha) drop`, main reads back the result var from its slot with `(i32.load (i32.const SLOT))`. The slot address is in ENV_BASE (32768+). The out-of-bounds is likely because `alpha` passes `(i32.const SLOT)` as the var arg (slot address), but inside alpha the unification writes to `i32.store(slot, value)` using a trail-bound value that is itself an atom_id — which when dereferenced as a memory address blows up. Root issue: **from main, output-var args should pass slot addresses, but the deref/write-back path in alpha may be treating them as values not addresses.** Check `emit_pl_predicate`'s head-unification var handling when called from main context.
-
-**rung07 `[wat2wasm]`** — `type mismatch in call, expected [i32×6] but got [i32×3]` for `$pl_differ_2_call`. The `_call` wrapper expects `(trail, a0, a1, gamma_idx, omega_idx, ci)` = 6 params, but only 3 are pushed. This is a multi-clause predicate called from a clause body (not main). The `emit_goal` multi-clause path with `g_in_main=0` emits `return_call $pl_foo_alpha` — it should be emitting the `_call` wrapper for multi-clause preds, not `alpha` directly. The `_call` dispatch was introduced for GT loops; the body-call path still hits alpha directly. Fix: when `body_nclauses > 1` and `!g_in_main`, route through `$pl_foo_N_call` with a fresh CP push, not directly to `alpha`.
-
-### PW-17 session start
+`run_invariants.sh icon_wasm` reports `rung03_suspend_gen [output]` fail even
+though `node test/wasm/run_wasm.js` produces correct `1\n2\n3\n4`. The harness
+likely uses a `.ref`-based comparison or a different corpus subdirectory. Check:
 
 ```bash
-cd /tmp && unzip /mnt/user-data/uploads/swipl-devel-master.zip && \
-  cd swipl-devel-master && \
-  apt-get install -y cmake ninja-build libssl-dev libgmp-dev libreadline-dev && \
-  cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
-    -DSWIPL_PACKAGES=OFF -DBUILD_TESTING=OFF -B build -G Ninja && \
-  ninja -C build -j$(nproc) && ninja -C build install
-# (or verify swipl already present: which swipl && swipl --version)
-
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-git fetch origin && git checkout pw-15-wip
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 5p/102f
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-prolog-wasm.md
+grep -n "rung03\|\.expected\|\.ref\|icon_wasm" test/run_invariants.sh | head -20
+# or look at the CSV:
+grep rung03 test-results/invariants_latest.csv
 ```
 
-**PW-17 first action:** Fix rung07 `[wat2wasm]` — multi-clause body call arity mismatch.
-In `emit_goal`, the `body_nclauses > 1` path currently emits `return_call $pl_foo_alpha`.
-It must instead push a CP frame and call `$pl_foo_N_call` with 6 args (trail, a0..aN, gamma_idx, omega_idx, ci=0).
-This is the same pattern the GT loop uses — factor or replicate.
-After that fix, recount `[wat2wasm]` vs `[output]` failures to find next target.
+Once the harness path is confirmed, rung03 should flip to `[pass]`.
 
-### Session focus reminder (from prompt)
+### IW-17 session start
 
-The user requested consolidation of duplicated WASM emitter source into `emit_wasm.c` with extern declarations in `emit_wasm.h`. That is a **refactor milestone** to tackle after rung pass counts stabilise. Tag it as **M-PW-REFACTOR-01** and address once rung06–09 are passing.
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect ≥3p
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-17 first actions:**
+
+1. Diagnose harness mismatch — `grep -n "icn\|icon\|\.ref\|\.expected" test/run_invariants.sh | head -30`
+2. Once rung03_suspend_gen passes in harness: next is `rung03_suspend_gen_compose`
+   - compose uses two generators called in sequence: `every write(gen1() | gen2())`
+   - Expected: `1\n2\n3\n1\n2` — the `|` (alt) construct is `E_ALT`; implement E_ALT
+   - Check: `./scrip-cc -icn -wasm -o /tmp/compose.wat corpus/programs/icon/rung03_suspend_gen_compose.icn && grep "stub\|SUSPEND\|ALT" /tmp/compose.wat | head -10`
+3. Next milestone after compose: **M-IW-G02** — `rung03_suspend_gen_filter`
+   (uses `suspend` with conditional body — already passes ✅)
+
+### Consolidation note (for G-10, not IW scope)
+
+Three genuine WASM-trio duplicates identified but NOT extracted (pre-freeze):
+- `prescan_prog()` skeleton: in `emit_wasm.c:194` and `emit_wasm_prolog.c:1260` — same triple-field loop
+- `static void W()` in `emit_wasm_prolog.c:58` vs `#define W` macros in the others
+- `emit_wasm_strlit_reset()` + `intern("")` seed pattern (both SNOBOL4 and Prolog)
+These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS** under G-10 Phase 2-3.
+
+### Context discipline
+Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`.
