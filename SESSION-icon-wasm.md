@@ -39,11 +39,15 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-8
+## §NOW — IW-11
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-8 | one4all `54eac34` · `.github` this commit | **M-IW-V01**: local var table (E_ASSIGN r/w) → rung02 locals ✅; then M-IW-C01: E_IF → fact |
+| **ICON WASM** | IW-11 | one4all `3d6195a` · `.github` this commit | **IW-12**: fix scrip-cc segfault on `>` in generators → then M-IW-R01 rung02_proc_fact |
+
+**IW-11 completed:** Repaired ~840-line corruption in `emit_wasm_icon.c` (§1c–§4 missing, `emit_frame_push/pop` + `icn_proc_reg_*` undefined, private strlit API replaced with shared). Fixed duplicate memory import. Gate 981/4 ✅. True invariant baseline: 0p/221f (126 compile-segfault, 65 output, 29 wat2wasm, 1 timeout).
+
+**IW-12 first action:** `gdb ./scrip-cc` on `rung01_paper_paper_expr.icn` — find segfault in `>` operator lowering path. Fix → 126 compile failures become output/pass → then M-IW-R01.
 
 ---
 

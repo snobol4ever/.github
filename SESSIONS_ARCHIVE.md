@@ -10957,3 +10957,43 @@ Second Grand Master Reorg plan authored and committed.
 
 Check Phase 0 gate: read each active SESSION-*.md §NOW, confirm whether that session's current milestone is landed. If all 13 are done, call freeze. If not, note which sessions are still active and return next session.
 
+
+---
+
+## IW-11 HANDOFF (FINAL) (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `3d6195a` · **.github** this commit
+
+### Additional work since IW-11 interim handoff
+
+**Commit `3d6195a` — fix duplicate memory import:**
+- `emit_wasm_icon_file()` was emitting `(import "sno" "memory" ...)` twice: once via a manual `WI(...)` line, then again via `emit_wasm_runtime_imports_sno_base()`.
+- Fix: removed the manual WI line; updated page comment in the shared call to include page3 (frame/retcont stack).
+- This was the root cause of all 235 `[wat2wasm]` failures in the previous baseline.
+
+### Final invariant breakdown (icon_wasm after both fixes)
+
+| Failure mode | Count | Root cause |
+|---|---|---|
+| `[compile]` segfault | 126 | scrip-cc crashes on `>` operator in complex exprs — pre-existing parser/lowerer bug |
+| `[output]` wrong output | 65 | Pre-existing emitter gaps (unimplemented nodes) |
+| `[wat2wasm]` invalid WAT | 29 | Residual — some programs still produce invalid WAT |
+| `[run/timeout]` | 1 | rung02_proc_fact — frame-save E_EVERY infinite loop (known, IW-10 work order) |
+| **PASS** | **0** | All passes gated behind the segfault/emitter gaps above |
+
+Gate: **981/4 ✅**
+
+### IW-12 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 0p/221f breakdown above
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-12 first action:** Diagnose scrip-cc segfault on `>` operator in complex expressions (e.g. `rung01_paper_paper_expr.icn: `every write(5 > ((1 to 2) * (3 to 4)))`). Run under gdb or valgrind to find the crash site. The `>` relational in a generator context likely hits an unhandled lowerer case. Fix → rerun invariants → expect 126 `[compile]` to become `[output]` or `[pass]`. Then address M-IW-R01 (rung02_proc_fact frame-save / E_EVERY exhaustion).
