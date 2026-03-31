@@ -9476,61 +9476,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28
 CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW03  # expect 0/3 (M-SW-B03 target)
 ```
 
----
-
-## SW-7 M-SW-B02 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `93eefec` · **corpus** `31c5c90` · **.github** this session
-
-### M-SW-B02 complete: PATTERN SEQ — cursor-threaded sequential match ✅
-
-**sno_runtime.wat:** Added `sno_pat_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32` — cursor-based search returning position after match, or -1 on fail. Empty needle returns cursor unchanged.
-
-**emit_wasm.c:**
-- Added `$sno_pat_search` import in `emit_runtime_imports()`.
-- Added pattern-match locals to `emit_main_body()`: `$pat_subj_off`, `$pat_subj_len`, `$pat_cursor`, `$pat_ndl_off`, `$pat_ndl_len`.
-- Added `emit_pattern_node(const EXPR_t *pat)` recursive helper — handles `E_QLIT` (literal via `sno_pat_search`) and `E_SEQ` (left then right, cursor threaded; right skipped if cursor == -1). Fallback handles arbitrary string expressions.
-- Replaced `sno_str_contains` call block with: save subject to `$pat_subj_*`, init `$pat_cursor = 0`, call `emit_pattern_node()`, set `$ok = (cursor >= 0)`.
-
-**corpus:** `crosscheck/rungW02/` — 3 tests oracle-verified against CSNOBOL4 2.3.3. Note: CSNOBOL4 requires uppercase `OUTPUT` via `-f file.sno`.
-
-### Gate
-- **Emit-diff:** 729/9 ✅
-- **snobol4_wasm:** 28p/1f ✅ (1f = pre-existing 212_indirect_array)
-- **rungW01:** 3/3 ✅ · **rungW02:** 3/3 ✅
-
-### Next: M-SW-B03 — PATTERN ALT
-
-Create `corpus/crosscheck/rungW03/` with 3 tests (uppercase OUTPUT). SNOBOL4 ALT: `pat = 'foo' | 'bar'` → `E_ALT` node.
-
-Add `E_ALT` to `emit_pattern_node()`:
-```c
-if (pat->kind == E_ALT) {
-    W("      ;; E_ALT: save cursor, try left, restore+try right on fail\n");
-    W("      (local.set $pat_save_cursor (local.get $pat_cursor))\n");
-    emit_pattern_node(left);
-    W("      (if (i32.lt_s (local.get $pat_cursor) (i32.const 0)) (then\n");
-    W("        (local.set $pat_cursor (local.get $pat_save_cursor))\n");
-    emit_pattern_node(right);
-    W("      ))\n");
-}
-```
-Add `(local $pat_save_cursor i32)` to main locals block. Add rungW03 to invariants DIRS → target **31p/1f**.
-
-### SW-8 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, build per RULES.md
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28p/1f
-```
-
----
 
 ## G-9 s33 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
