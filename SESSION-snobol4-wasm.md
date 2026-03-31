@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-7 — M-SW-B02 ✅ | `93eefec` one4all · `31c5c90` corpus | **M-SW-B03: PATTERN ALT** rungW03/ 3 tests |
+| **SNOBOL4 WASM** | SW-11 | `2a973fe` one4all · `7c17586` corpus | **M-SW-C01: CAPTURES** rungW07/ 5 tests — fix 2 blockers (see SESSIONS_ARCHIVE SW-10 handoff) |
 
 ---
 

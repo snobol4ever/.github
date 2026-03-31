@@ -10323,3 +10323,79 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 98
 CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
   /home/claude/corpus/crosscheck/snocone/rungB04                      # expect 5/5
 ```
+
+---
+
+## SW-10 M-SW-C01 WIP HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `2a973fe` · **corpus** `7c17586` · **.github** this session
+
+### Completed this session
+
+**G-session sharing fix** (committed `7f74e67` one4all):
+- `emit_wasm_icon.c` migrated to `emit_wasm.h` shared strlit API
+- `emit_wasm_strlit_count()` added to `emit_wasm.h` / `emit_wasm.c`
+- All three WASM emitters (snobol4/icon/prolog) now share one string literal table
+- ~38 lines of duplicate `IcnStrLit` block removed
+
+**M-SW-B06: POS/RPOS/LEN/TAB/RTAB/REM** ✅ (committed `1f2f412` one4all, `4e5ee80` corpus):
+- `emit_pattern_node()`: 6 inline WAT cursor-assertion/advance cases, zero new runtime functions
+- `(local $pat_n i32)` added to main locals
+- `corpus/crosscheck/rungW06/`: 4 tests (W06_pos, W06_rpos, W06_len, W06_tab) + .ref/.wat/.wasm
+- `run_invariants.sh`: rungW06 wired → snobol4_wasm cell: **43p/1f** ✅
+
+**M-SW-C01 WIP** (committed `2a973fe` one4all, `7c17586` corpus — NOT passing yet):
+- `emit_pattern_node()`: E_CAPT_COND / E_CAPT_IMM / E_CAPT_CUR cases added
+- `prescan_expr()`: capture target varnames interned for CAPT_COND/IMM sval and CAPT_CUR children[0]
+- `(local $pat_before i32)` added to main locals
+- `corpus/crosscheck/rungW07/`: 5 tests + .ref files created (no .wat/.wasm yet)
+
+### Blocked: two fixes needed before rungW07 passes
+
+**BLOCKER 1 — stale sno_runtime.wasm:**
+`sno_any`/`sno_notany`/`sno_span`/`sno_break`/`sno_breakx` were added to `sno_runtime.wat`
+in SW-9 (M-SW-B05) but the compiled `.wasm` was never updated. Node runner fails with:
+`LinkError: Import #18 "sno" "sno_any": function import requires a callable`
+
+Fix (one command):
+```bash
+wat2wasm --enable-tail-call \
+  /home/claude/one4all/src/runtime/wasm/sno_runtime.wat \
+  -o /home/claude/one4all/src/runtime/wasm/sno_runtime.wasm
+```
+Then commit: `git add src/runtime/wasm/sno_runtime.wasm && git commit -m "SW-11: rebuild sno_runtime.wasm with sno_any/span/break exports"`
+
+**BLOCKER 2 — parser rejects `@ var` before pattern:**
+`W07_capt_cur.sno` test 2 uses `(@ pos2 'ABCDE')` — cursor capture before the match.
+Parser error: `expected operand after unary operator`.
+Fix: rewrite test 2 as cursor-after form `('ABCDE' @ pos2)` — same semantics, parser accepts it.
+Update `.ref` accordingly (pos2 = 5 after 'ABCDE' matches, or keep pos2=0 using cursor-before elsewhere).
+
+### SW-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 43p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**Then immediately:**
+1. Fix BLOCKER 1 (rebuild runtime .wasm — one command above)
+2. Fix BLOCKER 2 (rewrite W07_capt_cur test 2 to cursor-after form)
+3. Run `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW07`
+4. Wire rungW07 into `run_invariants.sh` snobol4_wasm DIRS → expect 48p/1f
+5. Generate .wat/.wasm artifacts: `scrip-cc -wasm -o stem.wat stem.sno && wat2wasm --enable-tail-call stem.wat -o stem.wasm` for each rungW07 test
+6. Run emit-diff gate: `run_emit_check.sh` → expect 981/4
+7. Commit: `SW-11: M-SW-C01 — WASM captures ./$/@var, 5/5 ✅`
+
+### Invariant baseline after SW-10
+
+`snobol4_wasm`: **43p/1f** (pre-existing 212_indirect_array unchanged)
+Emit-diff: **981/4** (4 pre-existing JVM failures)
+one4all HEAD: `2a973fe` · corpus HEAD: `7c17586`
