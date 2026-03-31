@@ -57,7 +57,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
 | **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
 | **SNOBOL4 WASM** | SW-12 | `ead4d7e` one4all · `7c17586` corpus | **M-SW-C02**: is_idxassign lvalue + ARRAY/TABLE/DATA — see SW-11 handoff |
-| **ICON WASM** | IW-12 | `ab0ac8f` one4all | **IW-13 first**: M-IW-R01 rung02_proc_fact — E_EVERY exhaustion infinite loop in frame-save path |
+| **ICON WASM** | IW-13 | `8bc5773` one4all | **IW-14 first**: M-IW-R01 — Bug 3: `(local $frame_base)` misplaced in func body → OOB. Fix: emit `$icn_frame_base` helper func, use inline call+offset per store/load in emit_frame_push/pop. |
 | **Prolog WASM** | PW-15 | `77b1e05` one4all · `de89e78` corpus | **M-PW-B01** still open: rung05 outputs `a` only — needs per-call CP frames in beta emission (nested GT sub-loop) |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
