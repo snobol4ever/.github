@@ -9391,3 +9391,61 @@ After fix: verify `for_minimal.sc` compiles in <1s, run B03 tests to get oracles
 - PLAN.md pruned from 8KB → 4.7KB: removed 5 completed G-session blocks that violated "Handoffs → SESSIONS_ARCHIVE" rule
 - SESSION-prolog-wasm.md: marked M-PW-SCAFFOLD/HELLO/A01 ✅; M-PW-A02 marked partial; full work specs for done milestones replaced with one-line summaries
 - No code changes. one4all HEAD unchanged at `b053fc1`.
+
+## IW-7 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~90%
+
+**one4all** `0f0b1eb` (no code changes) · **.github** this commit
+
+### Session summary
+
+Doc-cleanup session only. No emitter changes. M-IW-P01 root cause fully diagnosed and solution verified — ready for IW-8 to implement.
+
+### Work completed
+
+**Gate confirmed:**
+- Emit-diff: 719/19 ✅ (matches IW-6 baseline)
+- icon_wasm: 6/6 rung01 ✅, rung02 3/3 ❌ (trampoline fix pending)
+
+**Rebased onto remote** — picked up PW-7/SC-4 PLAN.md pruning (5 completed G-sessions removed, PLAN.md now 4.7KB).
+
+**SESSION-icon-wasm.md trimmed** — 230 → 143 lines. Removed §ARCHITECTURE (duplicated ARCH-icon-jcon.md + BACKEND-WASM.md), compressed §MILESTONE TABLE, added §M-IW-P01 fix brief, added §Subsystems routing table matching PW pattern.
+
+**PLAN.md IW row updated** — IW-6 → IW-7.
+
+### M-IW-P01 — complete diagnosis (implement in IW-8)
+
+**Root cause:** `emit_wasm_icon_proc()` line 1355 — last stmt in ANY proc chains to `"icn_prog_end"`. Non-main procs therefore exit the program on return instead of resuming the call site's esucc.
+
+**ICN_RETURN** already correctly stores `$icn_retval` and calls `return_call $succ` — but `succ` resolves to `icn_prog_end` via the chain glue. The call site's esucc (which reads `$icn_retval` → `$icn_int{id}` → calls outer succ) is never reached.
+
+**Verified fix strategy:** `return_call_indirect` with `--enable-tail-call` works correctly (tested in this session).
+
+**Implementation plan for IW-8:**
+1. `emit_wasm_icon_globals()`: add `(global $icn_retcont (mut i32) (i32.const 0))`
+2. Module header: add `(type $cont_t (func (result i32)))` + `(table N funcref)` + `(elem ...)` — table populated with all call-site esucc functions at emit time
+3. `emit_wasm_icon_proc()` line 1355: for non-main, final chain target = `icn_proc_NAME_retcont` instead of `icn_prog_end`
+4. Emit `(func $icn_proc_NAME_retcont (result i32)  global.get $icn_retcont  return_call_indirect (type $cont_t))`
+5. ICN_CALL user-proc handler (~line 1088): before docall, emit setter that stores esucc's table index into `$icn_retcont`
+
+**Expected result:** rung02_proc_add_proc / fact / locals → 3/3 ✅ → fire M-IW-P01.
+
+### Gate (end of session)
+- Build: clean ✅ (no code changes)
+- Emit-diff: 719/19 ✅
+- icon_wasm: 6/6 rung01 ✅
+
+### IW-8 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**Immediate next action:** Open `src/backend/emit_wasm_icon.c`. Implement M-IW-P01 `$icn_retcont` trampoline per §M-IW-P01 plan above. Build, test rung02 → expect 3/3, fire M-IW-P01.
