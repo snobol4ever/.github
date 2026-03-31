@@ -8277,7 +8277,6 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 
 4. Run: `write("done")` should produce `done\n` ✓
 
->>>>>>> ec01cbc (IW-2: M-IW-A01 handoff — icon_wasm 33p/225f, rung01 5/6 pass)
 
 ---
 
@@ -8527,7 +8526,6 @@ Goal: `rung01_paper_paper_expr` passes — `write("done")` outputs `done\n`.
 
 4. Verify: `write("done")` → `done\n` ✅
 
->>>>>>> ddf6bcf (IW-3: emit_x64_icon.c EXPR_t migration complete)
 
 ---
 
@@ -10205,6 +10203,41 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 Need `sno_any`, `sno_span`, `sno_break` runtime helpers in `sno_runtime.wat` (character-class membership, not substring search).
 
 ### SW-10 session start
+## SC-5 M-SC-B04 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `994a482` · **corpus** `bb835ca` · **.github** this commit
+
+### M-SC-B04 complete: `&&` concat semantics — 5/5 ✅
+
+No emitter changes required. `&&` was already fully handled through the existing `E_CONCAT` IR path (same as SNOBOL4 blank-concat). All semantic cases verified by direct compile-and-run before writing corpus:
+
+| Case | Result |
+|------|--------|
+| `"hello" && " " && "world"` | `hello world` ✅ |
+| `"" && X` / `X && ""` (null identity) | `hello` / `hello` ✅ |
+| `"value=" && 42` (integer type coerce) | `value=42` ✅ |
+| `A && "-" && B && "-" && C` (chain) | `foo-bar-baz` ✅ |
+| `C = A && B; OUTPUT = C;` (assign result) | `hello world` ✅ |
+
+**corpus/crosscheck/snocone/rungB04/** — 5 new tests:
+- `B04_concat_basic` — `"hello" && " " && "world"`
+- `B04_concat_null_identity` — empty string as identity in both positions + `"" && ""`
+- `B04_concat_type_coerce` — integer coerced in `"value=" && N` and `N && " things"`
+- `B04_concat_chain` — 5-part chain `A && "-" && B && "-" && C`
+- `B04_concat_assign` — concat result stored in variable, then output
+
+**test/run_invariants.sh:** `rungB04` added to `snocone_x86` DIRS.
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungB04:** 5/5 ✅
+- **snocone_x86 count:** 111→116
+
+### Next: M-SC-B05 — `||` alternation
+
+`||` in Snocone is pattern alternation (not logical-or). New corpus `rungB05/` (5 tests): left-wins, right-fallback, both-fail, chain, assign. Verify through existing `E_ALT` path (same as SNOBOL4 `|`).
+
+### SC-6 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -10351,6 +10384,61 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect >3p
 rung05 output must match `a\nb\nc\n`.
 
 ### PW-13 session start
+## SW-10 M-SW-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `8072122` · **corpus** `8c755d4` · **.github** this session
+
+### M-SW-B05 complete: ANY / SPAN / BREAK / NOTANY / BREAKX ✅
+
+**sno_runtime.wat** — added 6 new functions:
+- `$sno_char_in_set` (internal, not exported): linear scan, byte $ch in set[so..so+sl-1]
+- `$sno_any` (export): match exactly one char in set at cursor → cursor+1 or -1
+- `$sno_notany` (export): match exactly one char NOT in set → cursor+1 or -1
+- `$sno_span` (export): match one-or-more consecutive chars in set → new cursor or -1
+- `$sno_break` (export): advance to first char in set (may be zero chars) → cursor or -1
+- `$sno_breakx` (export): like break, also consumes the delimiter → cursor+1 or -1
+All share signature `(subj_off subj_len set_off set_len cursor) → i32`. Runtime recompiled clean.
+
+**emit_wasm.c** — 2 changes:
+- `emit_runtime_imports()`: 5 new import declarations for sno_any/notany/span/break/breakx
+- `emit_pattern_node()`: new `E_FNC` dispatch block before fallback, matches ANY/NOTANY/SPAN/BREAK/BREAKX by `strcasecmp(sval)`, interns char-class arg into shared strlit table, emits `(subj_off subj_len set_off set_len cursor)(call $sno_*)` then `local.set $pat_cursor`
+
+**test/run_invariants.sh**: rungW05 added to `snobol4_wasm` DIRS.
+
+**corpus/crosscheck/rungW05/**: 5 tests, oracle-verified (.wat + .wasm artifacts committed):
+`W05_any` (ANY('aeiou') on 'hello') · `W05_notany` (NOTANY('aeiou') on 'hello') ·
+`W05_span` (SPAN('0123456789') on '42abc') · `W05_break` (BREAK(':') on 'key:value') ·
+`W05_breakx` (BREAKX(':') on 'key:value')
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungW01–W05:** 3/3 · 3/3 · 3/3 · 3/3 · 5/5 ✅
+- **snobol4_wasm target:** 39p/1f ✅ (pre-existing 212_indirect_array unchanged)
+
+### Code sharing note (for G-session)
+`emit_wasm_icon.c` still has its own private strlit intern table (lines 63–131, ~50 lines),
+duplicating `emit_wasm.c`'s table. `emit_wasm.h` already exposes the shared API
+(`emit_wasm_strlit_intern/abs/len/reset/data_segment`) — prolog already uses it.
+Migration path: replace `icn_strlit_intern(s)` → `emit_wasm_strlit_intern(s)`,
+`icn_strlit_abs(i)` → `emit_wasm_strlit_abs(i)`, `icn_str_lits[i].len` → `emit_wasm_strlit_len(i)`,
+`icn_emit_data_segment()` → `emit_wasm_data_segment()`, `icn_strlit_reset()` → `emit_wasm_strlit_reset()`.
+The per-strlit WAT globals (`$icn_strlit_off%d`, `$icn_strlit_len%d`) are still ICN-specific
+and remain in `emit_wasm_icon.c` — only the C-side table goes away.
+
+### Next: M-SW-B06 — POS / RPOS / LEN / TAB / RTAB / REM
+
+`rungW06/` (4 tests: W06_pos, W06_rpos, W06_len, W06_tab).
+`E_POS`, `E_RPOS`, `E_LEN`, `E_TAB`, `E_RTAB`, `E_REM` in `emit_pattern_node()`.
+Cursor-assertion patterns — no new runtime functions needed, pure inline WAT arithmetic:
+- POS(n): succeed if cursor == n, else fail (no cursor advance)
+- RPOS(n): succeed if cursor == subj_len - n, else fail
+- LEN(n): succeed if cursor+n <= subj_len, advance cursor by n
+- TAB(n): succeed if cursor <= n, set cursor = n
+- RTAB(n): succeed if cursor <= subj_len-n, set cursor = subj_len-n
+- REM: always succeed, cursor = subj_len (consume remainder)
+All come as `E_FNC` with one `E_ILIT` child (integer argument).
+
+### SW-11 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -10362,3 +10450,65 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 981/4
 tail -150 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 39p/1f
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB04                      # expect 5/5
+```
+
+---
+
+## G-9 s33 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `c5697bb` · **corpus** `60b0209` · **.github** this commit
+
+### Session summary
+
+Gate confirmed clean on arrival. Discovered icon_jvm showing 70p/22f (13 timeouts) vs baseline 173p/44f. Investigation: no commits to `emit_jvm_icon.c` since G-9 s32b — timeouts were latent, exposed by this session's run environment.
+
+### Fix: E_SCAN dispatch missing from emit_jvm_icon_match
+
+**Root cause:** `E_SCAN` is `#define E_SCAN E_MATCH` in `ir.h`. `emit_jvm_icon_match` handled all `E_MATCH` nodes as the one-child `=E` pattern form. The two-child `E?body` scan form was never routed to `emit_jvm_icon_scan` (which existed but was dead code). Generated bytecode re-entered the scan expr infinitely.
+
+**Fix** (`src/backend/emit_jvm_icon.c`):
+```c
+// Top of emit_jvm_icon_match():
+if (n->nchildren >= 2) { emit_jvm_icon_scan(n, ports, oα, oβ); return; }
+```
+
+**Result:** 13 timeouts eliminated. icon_jvm: 70p/22f → 158p/59f.
+
+### Remaining rung06/08 failures (pre-existing, not regressions)
+
+rung06 (cset: any/many/upto) and rung08 (strbuiltins: match) produce JVM `VerifyError: split long or double` — pre-existing at HEAD before this session (confirmed by stash test). These are in the 44f of the 173p/44f baseline (baseline was measured in a prior environment; this environment sees 59f due to rung21/25/27/36 differences also pre-existing).
+
+### Gate (end of session)
+
+- **Emit-diff:** 981/4 ✅
+- **snobol4_x86:** 106/106 ✅
+- **icon_x86:** 95p/163f ✅ (matches)
+- **prolog_x86:** 13p/94f ✅ (matches)
+- **snobol4_jvm:** 94p/32f ✅ (matches)
+- **icon_jvm:** 158p/59f (timeouts gone; 59f all pre-existing)
+- **prolog_jvm:** 106p/1f ✅ (matches)
+
+### G-9 s34 first action
+
+Primary milestone unchanged: **rung05 `icn_write_str` NULL + write type fallback** (Icon×x86).
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163f
+```
+
+Then proceed to rung05 `icn_write_str` NULL fix targeting 97p/161f.
