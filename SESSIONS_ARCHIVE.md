@@ -10584,3 +10584,46 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 103p/15
 ```
 
 Then examine rung09 failures and proceed.
+
+---
+
+## SC-6 M-SC-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `663505c` · **corpus** `d0a6c86` · **.github** `fddddd8`
+
+### M-SC-B05 complete: `||` alternation — 5/5 ✅
+
+**Root cause fixed:** `SNOCONE_OR` (`||`) in `emit_x64_snocone.c` was emitting `E_CONCAT` (same as `&&`) instead of `E_ALT`. Single-line fix: split shared `case SNOCONE_PIPE / SNOCONE_OR` block — `SNOCONE_OR` now calls `expr_binary(E_ALT, l, r)`. `E_ALT` was already fully handled in `emit_x64.c`. `SNOCONE_PIPE` (bare `|`) remains `E_CONCAT`.
+
+**HQ updates this session:**
+- `RULES.md` — new `⛔ ORACLE HIERARCHY`: SPITBOL is position zero; CSNOBOL4 lacks FENCE, not valid for Snocone
+- `SESSION-snocone-x64.md` — oracle references corrected to SPITBOL throughout
+- `SESSION_SETUP.sh` — SPITBOL install activates for `FRONTEND=snocone`, installs from `snobol4ever/x64` pre-built binary via TOKEN
+
+**corpus/crosscheck/snocone/rungB05/** — 5 tests (SPITBOL oracle):
+`B05_alt_left_wins` · `B05_alt_right_fallback` · `B05_alt_both_fail` · `B05_alt_chain` · `B05_alt_assign`
+
+**test/run_invariants.sh:** `rungB05` added to `snocone_x86` DIRS.
+
+### Gate
+- **Emit-diff:** 981/4 ✅
+- **rungB05:** 5/5 ✅
+- **snobol4_x86:** 106/106 ✅
+- **snocone_x86 count:** 116→121
+
+### Next: M-SC-B06 — `~` negation / `?` query (5 tests)
+
+Check `SNOCONE_TILDE` (already maps to `make_fnc1("NOT",...)` in emit_x64_snocone.c) and `SNOCONE_QUESTION`. Verify via existing `E_NOT`/`E_QUERY` IR paths — may be free like B04. Write 5 tests: negate-fail→succeed, negate-succeed→fail, query-discard-cursor, query-in-if, combined.
+
+### SC-7 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://oauth2:TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB05                     # expect 5/5
+```
