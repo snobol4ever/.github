@@ -59,6 +59,11 @@ a context burn and signals the wrong mental model.
 (Rebus-session only), regenerate on your own machine and commit the C files. See RULES.md.
 SESSION_SETUP.sh never installs bison/flex.
 
+**⛔ ORACLE HIERARCHY — SPITBOL is position zero (primary oracle) for all sessions.**
+SPITBOL (snobol4ever/x64, installed at `/usr/local/bin/spitbol`) is the first and authoritative oracle.
+CSNOBOL4 does NOT support FENCE and other extensions — it is NOT a valid oracle for Snocone or any session requiring SPITBOL semantics.
+When deriving `.ref` output for any new test, run SPITBOL first. CSNOBOL4 is only consulted for features provably identical between the two (basic string ops, arithmetic). When in doubt: use SPITBOL.
+
 **⛔ NEVER download CSNOBOL4 from snobol4.org or anywhere** — site is broken (redirects to lander as of 2026-03-30) and downloading from unknown sources is forbidden.
 **Always ask Lon to upload `snobol4-2_3_3_tar.gz`** when CSNOBOL4 is needed. Build with:
 `mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
