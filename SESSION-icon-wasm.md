@@ -39,15 +39,15 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-11
+## §NOW — IW-12
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-11 | one4all `3d6195a` · `.github` this commit | **IW-12**: fix scrip-cc segfault on `>` in generators → then M-IW-R01 rung02_proc_fact |
+| **ICON WASM** | IW-12 | one4all `ab0ac8f` · `.github` this commit | **IW-13**: M-IW-R01 rung02_proc_fact — E_EVERY exhaustion infinite loop |
 
-**IW-11 completed:** Repaired ~840-line corruption in `emit_wasm_icon.c` (§1c–§4 missing, `emit_frame_push/pop` + `icn_proc_reg_*` undefined, private strlit API replaced with shared). Fixed duplicate memory import. Gate 981/4 ✅. True invariant baseline: 0p/221f (126 compile-segfault, 65 output, 29 wat2wasm, 1 timeout).
+**IW-12 completed:** Fixed NULL `wasm_out` in `emit_wasm_icon_file()` — 126 compile segfaults → 9 (rung36 parse gaps). Added dual-set_out contract to `emit_wasm.h`. Gate 981/4 ✅. Baseline: 0p/214f (9 compile, 124 output, 80 wat2wasm, 1 timeout).
 
-**IW-12 first action:** `gdb ./scrip-cc` on `rung01_paper_paper_expr.icn` — find segfault in `>` operator lowering path. Fix → 126 compile failures become output/pass → then M-IW-R01.
+**IW-13 first action:** `./scrip-cc -icn -wasm -o /tmp/fact.wat corpus/programs/icon/rung02_proc_fact.icn && cat /tmp/fact.wat` — trace the E_EVERY efail chain to find the infinite loop. The `emit_frame_push/pop` + `icn_proc_reg_*` infrastructure is already in place (IW-10). Fix the exhaustion path → expect `[run/timeout]` → `[pass]` or `[output]`.
 
 ---
 

@@ -11121,6 +11121,49 @@ This ensures ci advances exactly once per outer solution, not once per gamma cal
 Not completed — context consumed by diagnostic reads and two unexpected bugs. Next session: after fixing rung05, do the emit_wasm_expr export (change `static WasmTy emit_expr` → non-static + public wrapper `emit_wasm_expr`, add declaration to `emit_wasm.h`). This is a small surgical change (~5 lines).
 
 ### PW-15 session start
+
+---
+
+## IW-12 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `ab0ac8f` · **.github** this commit
+
+### Session focus
+Maximize reuse and sharing of WASM emitter source across SNOBOL4/Icon/Prolog sessions — consolidate duplicated code into emit_wasm.c with extern declarations in emit_wasm.h.
+
+### Root cause found and fixed: NULL wasm_out → 126 segfaults
+
+**Bug:** `emit_wasm_icon_file()` called `emit_wasm_icon_set_out(out)` (sets `icon_wasm_out` for `WI()` macro) but never called `emit_wasm_set_out(out)` (sets shared `wasm_out` in `emit_wasm.c` used by `W()` and `emit_wasm_data_segment()`). Every icon_wasm compile that reached the data-segment phase called `fprintf(NULL, …)` → SIGSEGV.
+
+**Fix:** One line added in `emit_wasm_icon_file()`:
+```c
+emit_wasm_icon_set_out(out);
+emit_wasm_set_out(out);   /* IW-12: sync shared wasm_out — emit_wasm_data_segment() uses W() */
+```
+
+**Note:** `prolog_emit_wasm()` already called `emit_wasm_set_out()` correctly — only Icon was missing it.
+
+### Consolidation work
+
+Added contract warning block to `emit_wasm.h` documenting the dual-set_out requirement. Future sibling emitters must call both their own `set_out` and `emit_wasm_set_out(out)`. This is now explicit in the header.
+
+`emit_frame_push/pop` and `icn_proc_reg_*` remain private to `emit_wasm_icon.c` — correct for now since Prolog WASM has no frame save/restore yet. Move to `emit_wasm.c` + `emit_wasm.h` when PW session needs it.
+
+### Consolidation audit (for G-session / next reorg)
+
+Genuine cross-session duplication still present:
+- Icon `icn_retcont_funcs[]` + Prolog `cont_func_names[]` — both are name→table-index registries that emit `(table N funcref)` + `(elem (i32.const 0) ...)`. Different name-length caps (64 vs 256) and different semantics (return continuations vs γ/ω continuations) make a clean shared helper non-trivial. Defer to G-session freeze.
+- `(table %d funcref)\n` and `(elem (i32.const 0)` are the only literal strings duplicated across both emitters.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm invariants:** 0p/214f (was 0p/221f)
+  - `[compile]`: 126 → 9 (rung36 parse gaps, pre-existing, not segfaults)
+  - `[output]`: 65 → 124 (unblocked by segfault fix, pre-existing emitter gaps)
+  - `[wat2wasm]`: 29 → 80 (unblocked programs producing invalid WAT, pre-existing)
+  - `[run/timeout]`: 1 → 1 (rung02_proc_fact, M-IW-R01, unchanged)
+
+### IW-13 session start
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
@@ -11144,3 +11187,13 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 8. Commit `PW-15: M-PW-B01 ✅ rung05 + emit_wasm_expr exported`.
 
 **Context discipline for PW-15:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp' file` with tight ranges. Never read a full generated WAT. Never read >30 lines of an emitter file without a specific line target.
+
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 0p/214f
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-13 first action:** Resume M-IW-R01 — rung02_proc_fact `[run/timeout]`. The frame-save infrastructure (`emit_frame_push/pop`, `icn_proc_reg_*`) is in place from IW-10. Root cause: `E_EVERY` exhaustion path loops infinitely instead of falling through to `icn_prog_end`. Trace the WAT for rung02_proc_fact manually: `./scrip-cc -icn -wasm -o /tmp/fact.wat corpus/programs/icon/rung02_proc_fact.icn && cat /tmp/fact.wat` — find the infinite loop in the E_EVERY efail chain.
