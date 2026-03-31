@@ -10574,3 +10574,89 @@ Alternatively, use per-proc-name param globals (`$icn_pv_fact_n`) — prevents c
 
 Corpus test to target: `rung02_proc_fact` → expected `120`.
 
+
+---
+
+## PW-12 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `443dae2` · **corpus** `60b0209` · **.github** this commit
+
+### Session summary
+
+Gate confirmed clean on arrival: 981/4 emit-diff ✅, prolog_wasm 0p (runner function ordering bug — `run_prolog_wasm` defined after the dispatch loop in `run_invariants.sh`, so it reports 0p but doesn't crash).
+
+### Fixes committed
+
+**Commit `8ecc935` — ci-cell dispatch fix:**
+- Replaced broken `nclauses>1→beta1` heuristic in gamma with per-GT-site clause-index counter in memory (`GT_CI_BASE=7872`, `ci_cell_addr = GT_CI_BASE + site_id*4`)
+- Added exhaustion guard: if `ci >= nclauses` → call omega (prevents infinite alpha loop)
+- Result: rung02 `person/1` (3 flat clauses) now passes ✅
+
+**Commit `443dae2` — GT loop+flag+_call infrastructure:**
+- Added `$pl_foo_N_call(trail,args,gamma,omega,ci)` dispatcher to each predicate (ci selects alpha/beta_N/omega)
+- GT sites use `(loop $gt_N)` in main with WAT-local `$ci_mangled` (per-activation, not shared with recursive calls)
+- `PL_GT_FLAG` at `mem[8188]`: gamma sets 1 after body goals, omega sets 0
+- Loop: polls flag after each `_call`; if 1 → advance local ci, `br $gt_N`; if 0 → exit
+- Result: rung01–04 all PASS ✅; rung05 still `a\nb` (see below)
+
+### rung05 `member/2` diagnosis (complete, not fixed)
+
+**Root cause (definitive):** WAT `return_call` is destructive — recursive activation frames are discarded. When `beta1([a,b,c])` recursively calls alpha and alpha finds `b` (via gamma), control returns to main's loop. Main increments ci to 2 (next top-level clause). But the recursive branch `member(c,[c])` was only reachable by re-entering beta1 with the current tail `[c]` — that activation is gone. Main's ci=2 ≥ nclauses=2 → omega immediately.
+
+**Approaches tried and why they fail:**
+1. **ci-cell-in-gamma** (8ecc935): gamma increments shared memory cell → corrupted by recursive calls
+2. **WAT-local ci in main loop** (443dae2): local ci unaffected by recursion, but each gamma call (from any recursive depth) advances the top-level ci → skips recursive sub-solutions
+3. **`(call)` instead of `(return_call)` for body goals**: preserves WASM call stack but beta1 falls through after the call, calling gamma with stale V0
+
+**What M-PW-B01 requires:**
+A **choice-point stack** in linear memory. Each predicate call pushes a choice point `{predicate, clause_idx, arg_snapshot}`. On failure (gamma→omega back-propagation), the choice point is popped and the next clause retried with the saved args. This is the standard WAM model.
+
+**Concrete implementation plan for PW-13:**
+
+Add to `pl_runtime.wat`:
+```wat
+;; Choice-point stack at [mem area to be defined]
+;; Each frame: {pred_id i32, ci i32, trail_mark i32, a0..aN i32}
+(global $cp_top (mut i32) (i32.const CP_BASE))
+(func (export "cp_push") (param $pred i32) (param $ci i32) (param $tm i32) ...)
+(func (export "cp_pop_ci") (result i32) ...)   ;; returns ci from top frame
+(func (export "cp_set_ci") (param $ci i32) ...) ;; update ci in top frame
+(func (export "cp_pop") ...)                    ;; discard top frame
+```
+
+In `emit_wasm_prolog.c`: when emitting a GT site, instead of a WAT local ci:
+- Before calling `_call`, push a choice point with `pred_id`, `ci=0`, trail_mark, args
+- Gamma: set flag=1, run body goals, trail_unwind to choice-point's trail_mark, update choice-point `ci` to `ci+1` (or next clause), return 0
+- Main loop: poll flag; if 1 → `br $gt_N` (gamma already updated CP ci); if 0 → pop CP, exit
+
+For recursive calls inside beta_N: push their OWN choice point. Backtracking through the CP stack automatically retries the correct recursive sub-call with the correct args.
+
+**Simpler alternative for rung05 specifically:** Since `member/2` only has 2 clauses and the recursive call is the last goal in clause 1 (tail position), use **iterative deepening** via a depth counter passed as an extra argument. Prolog-specific optimization, not general.
+
+**Recommended: implement choice-point stack (the WAM standard).** This unblocks rung05, rung06 (lists), rung07 (cut), and all subsequent rungs that use recursive predicates.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **rung01:** PASS ✅
+- **rung02:** PASS ✅ (was: memory overflow / infinite loop)
+- **rung03:** PASS ✅
+- **rung04:** PASS ✅
+- **rung05:** FAIL ❌ (outputs `a\nb`, missing `c` — choice-point stack needed)
+
+### Code sharing note
+`emit_wasm_prolog.c` uses `emit_wasm_strlit_intern()` via `emit_wasm.h` — **already correct**.
+`emit_wasm_icon.c` still has private strlit table (lines 85–141, ~50 lines) — IW-session task per G-9 s33.
+
+### PW-13 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -150 /home/claude/.github/SESSIONS_ARCHIVE.md               # this handoff
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-13 first action:** Implement choice-point stack in `pl_runtime.wat`, then wire into `emit_wasm_prolog.c` GT sites. Target: rung05 `a\nb\nc` ✅ → commit `PW-13: M-PW-B01 ✅`.

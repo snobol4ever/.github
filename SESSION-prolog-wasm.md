@@ -20,11 +20,15 @@
 
 ---
 
-## §NOW — PW-7
+## §NOW — PW-12 (end of session)
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-8 | `e52eb1e` one4all · `.github` this commit | **M-PW-B01** (rung05 — output-var writeback fix needed, see SESSIONS_ARCHIVE PW-8) |
+| **Prolog WASM** | PW-12 | `443dae2` one4all · `.github` this commit | **M-PW-B01** — choice-point stack in pl_runtime.wat → rung05 `a\nb\nc` |
+
+**Status:** rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ❌ (outputs `a\nb`, needs CP stack)
+**GT infrastructure** (loop+flag+_call) committed and working for flat predicates.
+**Recursive predicates** require choice-point stack — see SESSIONS_ARCHIVE PW-12 for full design.
 
 ---
 
