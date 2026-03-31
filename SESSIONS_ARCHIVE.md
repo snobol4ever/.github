@@ -9589,3 +9589,52 @@ cat /home/claude/.github/PLAN.md
    - Add debug: does `icn_u_upto` entry get reached? Does it `suspend`?
 2. Once generator suspend/resume works: run icon_x86 invariants — target ≥94p/164f → fires `M-G9-ICON-IR-WIRE`
 3. Run full invariant suite end-of-session.
+
+---
+
+## SC-4 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `243b082` · **corpus** `c58ad4e` · **.github** this session
+
+### Session summary
+
+M-SC-B03 complete: `for`-loop support firing on all 6 tests.
+
+### Work completed
+
+**M-SC-B03: `for` loop ✅**
+
+`src/backend/emit_x64_snocone.c`:
+- `sc_compile_expr(st, SNOCONE_RPAREN)`: added paren depth counter. Previously stopped at first `)` seen — broke on step expressions containing nested function calls like `ADD(i,1)`. Fix: track `depth` with `LPAREN`/`RBRACKET` increments, only stop when `depth==0 && stop_kind==RPAREN`. All other stop_kind paths unchanged.
+
+`corpus/crosscheck/snocone/rungB03/` — 6 new test+ref pairs:
+- `B03_for_basic` — counts 1..3
+- `B03_for_false` — condition false on entry, body skipped
+- `B03_for_break` — break exits at i=4
+- `B03_for_continue` — continue skips i=3, step still runs
+- `B03_for_nested_break` — break exits only innermost for
+- `B03_for_step_expr` — step has nested parens `ADD(i,1)` (regression test for the exact bug fixed)
+
+`test/run_invariants.sh`: added `rungB03` to `snocone_x86` DIRS.
+
+### Gate (end of session)
+- **Build:** clean ✅
+- **Emit-diff:** 729/9 (9 = pre-existing, G-session scope) ✅
+- **snobol4_x86:** 106/106 ✅
+- **snocone_x86:** 111/111 ✅ (was 105; +6 rungB03)
+
+### SC-5 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                          # expect 729/9
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106 + 111/111
+```
+
+**Immediate next action (M-SC-B04):** Create `corpus/crosscheck/snocone/rungB04/` with 5 `&&` concat semantics tests (null identity, fail propagation, type coerce, chained concat, concat in pattern). Add rungB04 to invariants DIRS. All `.ref` are derivable by inspection — no oracle needed.
