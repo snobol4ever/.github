@@ -11121,49 +11121,6 @@ This ensures ci advances exactly once per outer solution, not once per gamma cal
 Not completed — context consumed by diagnostic reads and two unexpected bugs. Next session: after fixing rung05, do the emit_wasm_expr export (change `static WasmTy emit_expr` → non-static + public wrapper `emit_wasm_expr`, add declaration to `emit_wasm.h`). This is a small surgical change (~5 lines).
 
 ### PW-15 session start
-
----
-
-## IW-12 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `ab0ac8f` · **.github** this commit
-
-### Session focus
-Maximize reuse and sharing of WASM emitter source across SNOBOL4/Icon/Prolog sessions — consolidate duplicated code into emit_wasm.c with extern declarations in emit_wasm.h.
-
-### Root cause found and fixed: NULL wasm_out → 126 segfaults
-
-**Bug:** `emit_wasm_icon_file()` called `emit_wasm_icon_set_out(out)` (sets `icon_wasm_out` for `WI()` macro) but never called `emit_wasm_set_out(out)` (sets shared `wasm_out` in `emit_wasm.c` used by `W()` and `emit_wasm_data_segment()`). Every icon_wasm compile that reached the data-segment phase called `fprintf(NULL, …)` → SIGSEGV.
-
-**Fix:** One line added in `emit_wasm_icon_file()`:
-```c
-emit_wasm_icon_set_out(out);
-emit_wasm_set_out(out);   /* IW-12: sync shared wasm_out — emit_wasm_data_segment() uses W() */
-```
-
-**Note:** `prolog_emit_wasm()` already called `emit_wasm_set_out()` correctly — only Icon was missing it.
-
-### Consolidation work
-
-Added contract warning block to `emit_wasm.h` documenting the dual-set_out requirement. Future sibling emitters must call both their own `set_out` and `emit_wasm_set_out(out)`. This is now explicit in the header.
-
-`emit_frame_push/pop` and `icn_proc_reg_*` remain private to `emit_wasm_icon.c` — correct for now since Prolog WASM has no frame save/restore yet. Move to `emit_wasm.c` + `emit_wasm.h` when PW session needs it.
-
-### Consolidation audit (for G-session / next reorg)
-
-Genuine cross-session duplication still present:
-- Icon `icn_retcont_funcs[]` + Prolog `cont_func_names[]` — both are name→table-index registries that emit `(table N funcref)` + `(elem (i32.const 0) ...)`. Different name-length caps (64 vs 256) and different semantics (return continuations vs γ/ω continuations) make a clean shared helper non-trivial. Defer to G-session freeze.
-- `(table %d funcref)\n` and `(elem (i32.const 0)` are the only literal strings duplicated across both emitters.
-
-### Gate (end of session)
-- **Emit-diff:** 981/4 ✅
-- **icon_wasm invariants:** 0p/214f (was 0p/221f)
-  - `[compile]`: 126 → 9 (rung36 parse gaps, pre-existing, not segfaults)
-  - `[output]`: 65 → 124 (unblocked by segfault fix, pre-existing emitter gaps)
-  - `[wat2wasm]`: 29 → 80 (unblocked programs producing invalid WAT, pre-existing)
-  - `[run/timeout]`: 1 → 1 (rung02_proc_fact, M-IW-R01, unchanged)
-
-### IW-13 session start
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
@@ -11188,106 +11145,159 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 
 **Context discipline for PW-15:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp' file` with tight ranges. Never read a full generated WAT. Never read >30 lines of an emitter file without a specific line target.
 
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 0p/214f
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-icon-wasm.md
-```
+## G-10 s2 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**IW-13 first action:** Resume M-IW-R01 — rung02_proc_fact `[run/timeout]`. The frame-save infrastructure (`emit_frame_push/pop`, `icn_proc_reg_*`) is in place from IW-10. Root cause: `E_EVERY` exhaustion path loops infinitely instead of falling through to `icn_prog_end`. Trace the WAT for rung02_proc_fact manually: `./scrip-cc -icn -wasm -o /tmp/fact.wat corpus/programs/icon/rung02_proc_fact.icn && cat /tmp/fact.wat` — find the infinite loop in the E_EVERY efail chain.
-
-## PW-15 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `77b1e05` · **corpus** `de89e78` · **.github** this commit
+**one4all** `231f159` · **harness** `ad593c5` · **.github** `99d193d`
 
 ### Session summary
 
-Oracle: swipl apt failed; built from uploaded swipl-devel-master.zip → 10.1.5 installed.
-Gate on arrival: 981/4 emit-diff ✅, prolog_wasm 0/0 ✅.
+Grand Master Reorg session. Focus: harness generator engine design and first implementation.
 
-### Completed this session
+### Work completed
 
-**emit_wasm_expr export (session focus — ✅ done):**
-- `emit_expr` in `emit_wasm.c` renamed to `emit_wasm_expr`, made non-static.
-- `emit_wasm.h` updated: `WasmTy` typedef + `emit_wasm_expr()` declaration.
-- `emit_wasm_prolog.c` already includes `emit_wasm.h` — no changes needed.
-- Builds clean.
+**1. `harness/adapters/tiny/Expressions.py` — generator engine appended**
 
-**cp_set_arg added to pl_runtime.wat:**
-- New export `cp_set_arg(n, val)` — writes `val` into arg slot `n` of top CP frame.
-- Runtime rebuilt: `pl_runtime.wasm` committed.
-- Import added to emitter preamble; emitted after `cons_tail` binding in clause head unification.
+New sections added (no existing code touched):
 
-**Gamma/ci fixes (from PW-14 spec — all applied):**
-- Removed `cp_set_ci` from gamma body.
-- Added `cp_set_ci(ci+1)` in GT loop before `br $gt_N`.
-- Added flag reset (`store flag=0`) at top of each loop iteration.
+- `INT_VARS = ['i','j','k','l','m','n']` · `PAT_VARS = ['p','q','r']` · `STR_VARS = ['s','t']` · `ANY_VARS = ['u','v','w','x','y','z']` — typed variable pool convention (first written here)
+- `FailBudget` exception + `_spend()` — global token budget, prunes overly-verbose unparse paths
+- `unparse(tree) → str` — minimal-paren serializer; precedence-aware for `+`,`-`,`*`,`/`
+- `_build_items/elements/factors/terms(size)` — DP exhaustive enumerators by operator count
+- `exhaust_expressions(max_size)` — yields all canonical strings ≤ max_size ops, smallest first
+- `rand_expressions(n, seed, max_depth)` — repaired random engine; reproducible, depth-bounded, draws from `i,j,k` pool
+- `as_output(expr)` / `as_assign(var, expr)` — SNOBOL4 statement wrappers
 
-### M-PW-B01 rung05 — still failing (outputs `a` only)
+Smoke test: `max_size=2` → **30,564 expressions**. Random engine with `seed=42` reproducible.
 
-**Root cause definitively identified — not fixed this session:**
+**2. `one4all/doc/HARNESS-GEN.md` + `harness/HARNESS-GEN.md` — design doc committed**
 
-The GT loop in `main` calls `$pl_member_2_call(ci)` with args read from the CP frame. The CP frame stores the **original** call arguments frozen at `cp_push` time. Beta1 (ci=1) always receives `[a,b,c]` as `a1`, strips to `[b,c]`, recurses into alpha → finds `b` → gamma fires → GT loop advances ci to 2 → omega → done. `c` is never found.
+Full design for grammar-driven semantic test generator. Key decisions:
 
-The `cp_set_arg` fix (update CP frame tail after cons_tail extraction) is **logically flawed**: it fires from every beta invocation in the entire recursive call chain, not just top-level. A recursive `member(X,[b,c])` also updates the same CP frame, incorrectly advancing the outer loop's state.
+- **Synchronous IPC** — one long-lived SPITBOL process, blocking readline per request. No async. Lesson from Monitor.
+- **Protocol:** Python sends preamble + statement + `__EVAL__\n`; SPITBOL responds with DUMP lines + `__DONE__\n`. One blocking `readline()` loop.
+- **Result classes:** WELL_BEHAVED · NO_EFFECT · ERROR · HANG · CRASH — only WELL_BEHAVED harvested
+- **Shape** = structural AST skeleton ignoring specific vars/literals — dedup key for test suite
+- **Variable pools:** `i..n` integers (preamble-initialized), `u..v..w..x..y..z` untyped/null (test coercion paths)
+- **Milestones M-H0..M-H7:** IPC driver → classifier → shape → preamble → pipeline → crosscheck → x86 gate
 
-**Correct fix for PW-16 — per-call CP frames (proper WAM):**
+### What is NOT done (G-11 picks up here)
 
-Each predicate invocation that has choice points must push its own CP frame. The GT loop in main manages the outermost frame; each recursive beta call must push/pop its own frame independently. This means:
+**Next milestone: M-H0** — implement the SPITBOL IPC oracle process.
 
-1. Beta functions must call `cp_push` before their recursive `return_call` to alpha, and the GT loop must manage the outermost frame separately.
-2. OR: the recursive call inside beta must be a **regular call** (not `return_call`) that returns a success/fail flag, and beta drives its own retry loop.
+Steps:
+1. Verify `CODE(stmt)()` works in SPITBOL for dynamic statement execution
+2. Write `harness/oracle/spitbol_driver.sno` (loop on INPUT, eval via CODE, dump on `__EVAL__`, sentinel `__DONE__`)
+3. Write `harness/oracle/spitbol_ipc.py` (SpitbolOracle class, synchronous pipe)
+4. Benchmark: target 1000 round-trips/sec on `I = 1 + 2`
+5. Pin the exact `&DUMP` output format to write `parse_dump()`
 
-**Minimal concrete fix for PW-16 (avoid full WAM redesign):**
+Then M-H1 (classifier), M-H2 (shape), M-H3 (preamble), M-H4 (yield trees from Expressions.py), M-H5 (full pipeline).
 
-Change beta emission so that the recursive body call is a **non-tail call** with its own GT sub-loop:
+### Open questions (in HARNESS-GEN.md §Open Questions)
 
-```c
-// Instead of: return_call $pl_member_2_alpha
-// Emit a nested GT loop for the recursive sub-call:
-//   cp_push(pred_id, 0, trail_mark, _V0_addr, tail_addr, ...)
-//   loop $inner_gt:
-//     flag = 0
-//     call $pl_member_2_call(ci_from_inner_cp)
-//     if flag: cp_set_ci(ci+1); br $inner_gt
-//   cp_pop
-```
+1. `CODE()` availability in SPITBOL — verify
+2. `&DUMP` output format — need one sample
+3. State reset between tests — null-assign preamble or process restart?
+4. Hang timeout — 1s sufficient for arithmetic?
+5. `max_size` sweet spot — size=2 gives 30k→~100 shapes; size=3 may suffice for full arith coverage
 
-This makes each recursive level manage its own iteration independently. The outer GT loop then only fires once per top-level solution, not per recursive step.
-
-### Gate (end of session)
-- **Emit-diff:** 981/4 ✅
-- **rung01–04:** PASS ✅
-- **rung05:** FAIL ❌ (outputs `a` only — per-call CP frames needed)
-
-### PW-16 session start
+### G-11 session start (Grand Master Reorg)
 
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-# swipl apt will fail — build from uploaded swipl-devel-master.zip:
-#   cd /home/claude/swipl-devel-master && mkdir build && cd build
-#   cmake -DSWIPL_PACKAGES=OFF -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release ..
-#   make -j$(nproc) && make install
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md                # this handoff
-cat /home/claude/.github/SESSION-prolog-wasm.md
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # this handoff
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/one4all/doc/HARNESS-GEN.md           # design doc
 ```
 
-**PW-16 first action — nested GT sub-loop in beta emission:**
+**G-11 first action:** M-H0 — SPITBOL IPC oracle. Start with:
+```bash
+# Test CODE() in SPITBOL interactively:
+echo "CODE('OUTPUT = 1 + 2')()\nEND" | spitbol
+# Then: &DUMP format:
+echo "I = 3\n&DUMP = 1\nEND" | spitbol
+```
+Use those outputs to finalize `spitbol_driver.sno` and `parse_dump()`.
+8. Commit `PW-15: M-PW-B01 ✅ rung05 + emit_wasm_expr exported`.
 
-In `emit_wasm_prolog.c`, find where beta emits its body recursive call (`return_call $pl_X_alpha`). Replace that `return_call` with a nested GT loop pattern:
-1. `cp_push` with `ci=0`, current trail_mark, and the destructured args (_V0 slot, tail slot).
-2. `loop $inner_gt_N`: reset flag, call `_call(ci_from_cp)`, if flag: `cp_set_ci(ci+1); br $inner_gt_N`.
-3. `cp_pop` after loop exits.
-4. If inner loop found solutions (flag fired at least once) → call outer gamma.
-5. Else → call outer omega.
+**Context discipline for PW-15:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp' file` with tight ranges. Never read a full generated WAT. Never read >30 lines of an emitter file without a specific line target.
 
-This is ~30 lines of new emission logic. Validate with rung05: expect `a\nb\nc`.
+## G-10 s2 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**Context discipline:** `grep -n` + `sed -n 'N,Mp'` tight ranges only. Never read full WAT.
+**one4all** `231f159` · **harness** `ad593c5` · **.github** `99d193d`
+
+### Session summary
+
+Grand Master Reorg session. Focus: harness generator engine design and first implementation.
+
+### Work completed
+
+**1. `harness/adapters/tiny/Expressions.py` — generator engine appended**
+
+New sections added (no existing code touched):
+
+- `INT_VARS = ['i','j','k','l','m','n']` · `PAT_VARS = ['p','q','r']` · `STR_VARS = ['s','t']` · `ANY_VARS = ['u','v','w','x','y','z']` — typed variable pool convention (first written here)
+- `FailBudget` exception + `_spend()` — global token budget, prunes overly-verbose unparse paths
+- `unparse(tree) → str` — minimal-paren serializer; precedence-aware for `+`,`-`,`*`,`/`
+- `_build_items/elements/factors/terms(size)` — DP exhaustive enumerators by operator count
+- `exhaust_expressions(max_size)` — yields all canonical strings ≤ max_size ops, smallest first
+- `rand_expressions(n, seed, max_depth)` — repaired random engine; reproducible, depth-bounded, draws from `i,j,k` pool
+- `as_output(expr)` / `as_assign(var, expr)` — SNOBOL4 statement wrappers
+
+Smoke test: `max_size=2` → **30,564 expressions**. Random engine with `seed=42` reproducible.
+
+**2. `one4all/doc/HARNESS-GEN.md` + `harness/HARNESS-GEN.md` — design doc committed**
+
+Full design for grammar-driven semantic test generator. Key decisions:
+
+- **Synchronous IPC** — one long-lived SPITBOL process, blocking readline per request. No async. Lesson from Monitor.
+- **Protocol:** Python sends preamble + statement + `__EVAL__\n`; SPITBOL responds with DUMP lines + `__DONE__\n`. One blocking `readline()` loop.
+- **Result classes:** WELL_BEHAVED · NO_EFFECT · ERROR · HANG · CRASH — only WELL_BEHAVED harvested
+- **Shape** = structural AST skeleton ignoring specific vars/literals — dedup key for test suite
+- **Variable pools:** `i..n` integers (preamble-initialized), `u..v..w..x..y..z` untyped/null (test coercion paths)
+- **Milestones M-H0..M-H7:** IPC driver → classifier → shape → preamble → pipeline → crosscheck → x86 gate
+
+### What is NOT done (G-11 picks up here)
+
+**Next milestone: M-H0** — implement the SPITBOL IPC oracle process.
+
+Steps:
+1. Verify `CODE(stmt)()` works in SPITBOL for dynamic statement execution
+2. Write `harness/oracle/spitbol_driver.sno` (loop on INPUT, eval via CODE, dump on `__EVAL__`, sentinel `__DONE__`)
+3. Write `harness/oracle/spitbol_ipc.py` (SpitbolOracle class, synchronous pipe)
+4. Benchmark: target 1000 round-trips/sec on `I = 1 + 2`
+5. Pin the exact `&DUMP` output format to write `parse_dump()`
+
+Then M-H1 (classifier), M-H2 (shape), M-H3 (preamble), M-H4 (yield trees from Expressions.py), M-H5 (full pipeline).
+
+### Open questions (in HARNESS-GEN.md §Open Questions)
+
+1. `CODE()` availability in SPITBOL — verify
+2. `&DUMP` output format — need one sample
+3. State reset between tests — null-assign preamble or process restart?
+4. Hang timeout — 1s sufficient for arithmetic?
+5. `max_size` sweet spot — size=2 gives 30k→~100 shapes; size=3 may suffice for full arith coverage
+
+### G-11 session start (Grand Master Reorg)
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # this handoff
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/one4all/doc/HARNESS-GEN.md           # design doc
+```
+
+**G-11 first action:** M-H0 — SPITBOL IPC oracle. Start with:
+```bash
+# Test CODE() in SPITBOL interactively:
+echo "CODE('OUTPUT = 1 + 2')()\nEND" | spitbol
+# Then: &DUMP format:
+echo "I = 3\n&DUMP = 1\nEND" | spitbol
+```
+Use those outputs to finalize `spitbol_driver.sno` and `parse_dump()`.
