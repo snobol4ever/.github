@@ -54,9 +54,9 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s29 | one4all `9b2fa58` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** |
-| **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B02: while/do-while + break/continue (6 tests) |
-| **SNOBOL4 WASM** | SW-6 | `f7c915a` one4all | **M-SW-A06: CONVERT/TYPE** rung9/ 5 tests |
+| **GRAND MASTER REORG** | G-9 s31 | one4all `baa07a3` · corpus `224d3d4` · .github this session | **M-G9-ICON-IR-WIRE** (x64 wired; icon_x86 compile fix next) |
+| **Snocone x86** | SC-4 | `e2f6742` one4all · `232499f` corpus | M-SC-B03 BLOCKED: fix `for`-loop compile-time hang (RBRACE not consumed at top level in sc_do_stmt) |
+| **SNOBOL4 WASM** | SW-5 | `2094796` one4all | **M-SW-A05: GOTO/BUILTINS** rung8/ 3 tests — E_KW + sno_replace/size/dupl needed |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
@@ -66,7 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
 | **README** | R-2 `00846d3` | — | resume — unfrozen |
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
-| **ICON WASM** | IW-7 | one4all `0f0b1eb` · `.github` this commit | **M-IW-P01**: `$icn_retcont` funcref trampoline → rung02 3/3 |
+| **ICON WASM** | IW-6 `0f0b1eb` | one4all `0f0b1eb` | **M-IW-P01**: fix proc chain final succ → per-call-site trampoline (rung02 3/3) |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
 | **Prolog WASM** | PW-7 `b053fc1` one4all | — | **M-PW-A02**: HEAD UNIF done (3p/104f) — next: rung04 is/2 + -> inline emit |
@@ -74,7 +74,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
 | **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `12/12` (SW-3 M-SW-A03)
+**Invariants (post-reorg baseline, G-9 s31):** x86: SNOBOL4 `106/106` · Icon `70p/165f` (28 compile pending) · Prolog `13p/94f` | JVM: SNOBOL4 `94p/30f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `12/12`
 
 **Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
 
@@ -102,3 +102,19 @@ Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` 
 ---
 
 *PLAN.md = routing + NOW only. 3KB max. No sprint content. No completed milestones.*
+
+## G-9 Session 31 — Completed (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `baa07a3` · **corpus** `224d3d4` · **.github** this session
+
+### Completed
+- ICN_* eradicated from all emitters ✅
+- icon_lower.c ICN_PROC layout bug fixed (segfault on non-main procs) ✅
+- icon_lower.c ICN_SCAN added ✅
+- main.c + icn_main.c: all icon backends wired through icon_lower_file() ✅
+- Build: clean ✅ · Emit-diff: 729/9 ✅ · snobol4_x86: 106/106 ✅
+
+### NOT done
+- icon_x86: 70p/165f (28 compile failures remain — rung03 `upto` label collision, rung05/06/08 pending verify)
+
+**Do not add content to PLAN.md beyond this section. Handoffs → SESSIONS_ARCHIVE.**
