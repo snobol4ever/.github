@@ -16,7 +16,7 @@ See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 **Step 2 — Gate:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                   # expect 738/0+
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                   # expect 981/4+
 CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>     # own backend only — see RULES.md
 ```
 
@@ -54,31 +54,16 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s32 | one4all `ccfc677` · corpus `23697ad` · .github this session | **M-G9-ICON-IR-WIRE** (upto collision fixed; emit-diff 981/4; icon_x86 93p/165f — generator runtime next) |
-| **Snocone x86** | SC-4 | `243b082` one4all · `c58ad4e` corpus | M-SC-B04: `&&` concat semantics (5 tests) |
-| **GRAND MASTER REORG** | G-9 s33 | one4all `19e8008` · corpus `60b0209` · .github this session | rung05 diagnosed: 2 bugs (icn_write_str NULL + write type fallback) → fix in s34, then rung09 loops |
-| **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B02: while/do-while + break/continue (6 tests) |
+| **GRAND MASTER REORG** | G-9 s33 | one4all `19e8008` · corpus `60b0209` | rung05: fix icn_write_str NULL + write type fallback → 97p/161f; then rung09 loops |
+| **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B04: `&&` concat semantics (5 tests) |
 | **SNOBOL4 WASM** | SW-7 | `93eefec` one4all · `31c5c90` corpus | **M-SW-B03: PATTERN ALT** rungW03/ 3 tests |
-| **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
-| **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
-| **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |
-| **TINY NET** | N-253 `e7dc859` | — | resume — unfrozen |
-| **TINY JVM** | J-216 `a74ccd8` | — | resume — unfrozen |
-| **TINY frontend** | F-223 `b4507dc` | — | resume — unfrozen |
-| **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
-| **README** | R-2 `00846d3` | — | resume — unfrozen |
-| **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
-| **ICON WASM** | IW-8 | one4all `54eac34` · `.github` this commit | **M-IW-V01**: local var table (E_ASSIGN) → rung02 locals; M-IW-C01: E_IF → fact |
-| **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
-| **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
-| **Prolog WASM** | PW-8 `e52eb1e` one4all | — | **M-PW-B01**: rung05 output-var writeback — E_VAR head arg must copy final value back to caller slot |
-| **Icon JVM** | IJ-58 `5b32daa` | — | resume — unfrozen |
-| **🔗 LINKER** | LP-6 `e7dc859` | — | resume — unfrozen |
-| **🔗 LINKER JVM** | LP-JVM-3 `55d8655` | — | resume — unfrozen |
+| **ICON WASM** | IW-8 | `54eac34` one4all | **M-IW-V01**: local var table (E_ASSIGN) → rung02 locals |
+| **Prolog WASM** | PW-8 | `e52eb1e` one4all | **M-PW-B01**: rung05 output-var writeback |
+| **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
-**Invariants (post-reorg baseline, G-9 s22):** x86: SNOBOL4 `106/106` · Icon `94p/164f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `12/12` (SW-3 M-SW-A03)
+**Invariants (G-9 s33 baseline):** x86: SNOBOL4 `106/106` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
-**Gate:** Emit-diff **738/0**. Targeted invariants per RULES.md gate section.
+**Gate:** Emit-diff **981/4**. Targeted invariants per RULES.md gate section.
 
 ---
 
