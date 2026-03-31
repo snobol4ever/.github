@@ -12278,3 +12278,41 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 
 ### Context discipline
 Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+
+---
+
+## SW-17 ADDENDUM — M-SW-BYRD queued (2026-03-31, Claude Sonnet 4.6)
+
+Session also identified that `emit_wasm.c`'s `emit_pattern_node` uses structured
+`block`/`loop`/`if` — NOT Byrd-box tail calls. This is architecturally wrong for
+SNOBOL4 pattern matching which requires cursor-level backtracking.
+
+**M-SW-BYRD** (see `MILESTONE-WASM-BYRD.md`) queued as SW-18 target:
+- Rewrite `emit_wasm.c` statement dispatch to emit per-statement Byrd-box WAT functions
+- Subject eval → fence → pattern α/β tail-call tree → replacement → :S/:F goto
+- Pattern nodes: each gets α (try) + β (backtrack) WAT functions using `return_call`
+- Reference: x64 `emit_x64.c:5033-5200` (statement wiring) + `emit_pat_node` (nodes)
+- Reference: JVM `emit_jvm.c:2990-3100` (statement wiring) + `emit_jvm_pat_node` (nodes)
+- Keep: strlit table, emit_wasm_expr, runtime imports, var globals
+- Replace: emit_main_body (PC-loop → per-stmt Byrd funcs), emit_pattern_node (→ α/β funcs)
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 first action:** Begin M-SW-BYRD.
+Read `emit_x64.c` lines 5033–5200 and `emit_jvm_pat_node` for wiring reference.
+Start with a single simple statement (no pattern, just subject+replacement) to
+establish the per-statement α/γ/ω WAT function skeleton, then add the scan loop,
+then wire in the first pattern node (E_QLIT). Gate each step against rung2/3/4.
