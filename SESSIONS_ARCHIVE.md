@@ -10725,3 +10725,71 @@ Standalone fact(5)=120 proof-of-concept works. Imported-memory OOB persists.
 Root cause: shared $icn_param0 clobbered by recursive calls.
 Fix for IW-10: per-proc param globals $icn_pv_PROC_PARAM.
 Gate: emit-diff 981/4 ✅
+
+---
+
+## IW-10 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `f0943c3` · **corpus** `d0a6c86` · **.github** this commit
+
+### Root cause fixed: $icn_param0 clobbered by recursive calls
+
+**Diagnosis:** `emit_frame_push(nints, 0)` — the `0` param-count was hardcoded at
+every call site (IW-9 scaffold). The frame push/pop machinery correctly handles
+params at non-zero counts (lines 704–737); it just never received a nonzero count.
+Result: `fact(5)` clobbered `$icn_param0=5` with `$icn_param0=4` on the first
+recursive descent, then restored `4` back from the frame — computing `4 * fact(3)`
+instead of `5 * fact(4)`.
+
+### Fix: IcnProcReg proc registry (§1b2)
+
+Added `IcnProcReg icn_proc_reg[64]` table with `icn_proc_reg_add/lookup/reset`.
+Populated during prescan in `emit_wasm_icon_file()` — every E_FNC proc-decl
+registers `name → nparams` before any WAT emission.
+
+At the ICN_CALL handler call site, hoisted:
+```c
+int callee_nparams = icn_proc_reg_lookup(fname);
+```
+before the `if (nargs > 0)` branch and passed it to all three frame push/pop calls:
+- `emit_frame_push(nints_to_save, callee_nparams)` — docall (multi-arg path)
+- `emit_frame_push(nints_to_save, callee_nparams)` — direct call (zero-arg path)
+- `emit_frame_pop(nints_to_save, callee_nparams)` — esucc restore
+
+**net:** +16 lines, 0 new runtime functions, 0 new globals. Pure call-site fix.
+
+### Unverified — needs toolchain
+
+No `wat2wasm` / `icont` in this environment. SESSION_SETUP.sh was not run.
+Commit `f0943c3` one4all is **unverified** — first action IW-11 is to build and test.
+
+### IW-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**Then immediately:**
+1. Build: `make -C src scrip-cc` (or equivalent per SETUP-tools.md)
+2. Test add: `./scrip-cc -icn -wasm -o /tmp/add.wat corpus/programs/icon/rung02_proc_add_proc.icn && wat2wasm --enable-tail-call /tmp/add.wat -o /tmp/add.wasm && node test/wasm/run_wasm.js /tmp/add.wasm` → expect `7`
+3. Test fact: same pipeline with `rung02_proc_fact.icn` → expect `120`
+4. Test locals: same with `rung02_proc_locals.icn` → expect `15`
+5. If all pass: wire rung02 into `run_invariants.sh` icon_wasm DIRS, generate .wat/.wasm corpus artifacts, commit `IW-11: M-IW-R01 ✅ rung02 3/3`
+6. If fact fails: check frame layout — `emit_frame_push` saves ints then params; `emit_frame_pop` restores params then ints (reverse order per lines 724–737). Verify param offset = `8 + nints*8 + i*8`.
+
+### Sharing work done this session (context note)
+
+Audited emit_wasm.c / emit_wasm_icon.c / emit_wasm_prolog.c for duplication.
+Three sharing opportunities identified for future sessions:
+1. `emit_wasm_funcref_table()` — shared (table funcref)+(elem) emission (Icon+Prolog both need it)
+2. `emit_wasm_common_imports(ns)` — shared memory+output import lines
+3. Unify Prolog's local `W()` with shared `wasm_out` stream via `emit_wasm_set_out`
+Not implemented this session (context limit). Low priority vs milestone work.
