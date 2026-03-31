@@ -54,6 +54,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # own cell 
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-13 WIP | `5bfb0f7` one4all | **M-SW-C02**: rung11 2/7 — fix 1112/1113/1114/1115/1116 |
+| **SNOBOL4 WASM** | SW-14 WIP | `4652640` one4all | **M-SW-C02**: rung11 5/7 — fix 1115/1116 DATA typename+field accessor |
 
-See SESSIONS_ARCHIVE SW-13 handoff for detailed task list and root-cause notes.
+See SESSIONS_ARCHIVE SW-14 handoff for detailed task list and root-cause notes.

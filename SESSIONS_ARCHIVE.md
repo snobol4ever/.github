@@ -11573,3 +11573,126 @@ Audit `emit_wasm_icon.c` / `emit_wasm_prolog.c` for helpers duplicated from `emi
 ### Gate (end of session)
 - **Emit-diff:** 981/4 ✅
 - **icon_wasm:** 0p/214f (baseline unchanged — M-IW-R01 open)
+
+---
+
+## SW-14 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `4652640` · **.github HEAD:** this commit
+
+### Session summary
+
+M-SW-C02 advanced: rung11 5/7 (was 2/7). Three bugs fixed. Two remain (1115/1116 DATA).
+
+### Work completed (`4652640`)
+
+**`sno_runtime.wat` — `sno_array_create2` signature fix:**
+
+Root cause: runtime took `(rows, cols, def_off, def_len)` but emitter always passed `(lo1, hi1, lo2, hi2)`. For `ARRAY('2,2')` emitter sent `(1,2,1,2)` → runtime stored `hi1=1, hi2=2` → prototype gave `1,2` instead of `2,2`. Fix: changed runtime signature to `(lo1, hi1, lo2, hi2)`, computes `nrows/ncols` from bounds, stores all four directly. def_off/def_len hardcoded to 0 (SNOBOL4 array default is always empty string). 1112 now 5/5. ✅
+
+**`emit_wasm.c` — ITEM builtin (rvalue + lvalue):**
+
+`ITEM(arr, i)` was unhandled. Added:
+- E_FNC `"item"` rvalue handler: mirrors E_IDX 1D/table/2D paths exactly (1D → `sno_array_get`, table → `sno_table_get`, 2D → `sno_array_get2`).
+- lvalue: added `E_FNC "item"` to `is_idxassign` detection — existing `is_idxassign` block handles it unchanged since children layout is identical to E_IDX.
+1114 now 7/7. ✅
+
+**`emit_wasm.c` — CONVERT TABLE↔ARRAY:**
+
+`CONVERT(t,'array')`: iterate all `sno_table_cap(h)` buckets via `sno_table_get_bucket(h,bi)→(ko,kl,vo,vl)`, skip empty (kl==0), create `sno_array_create2(1,nrows,1,2)` 2-col array, fill col-1=key col-2=val. Uses `$int_pred_*` locals as scratch (already declared).
+
+`CONVERT(a,'table')`: compute nrows from `hi1-lo1+1`, create table, loop rows, `sno_array_get2(h,row,1/2)` for key/val, `sno_table_set`. 1113 now 8/8. ✅
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_wasm:** 48p/1f ✅ (212_indirect_array pre-existing)
+- **rung11:** 1110 ✅, 1111 ✅, 1112 ✅, 1113 ✅, 1114 ✅, 1115 ❌, 1116 ❌
+
+### Remaining failures for SW-15
+
+**1115/001 — DATA typename (`datatype(a)` returns wrong value for DATA instances):**
+
+Investigation: `data('node(val,lson,rson)')` parses as plain `E_FNC "data"` call statement — no dedicated DATA IR node kind exists. The current DATATYPE emitter only handles compile-time type dispatch (TY_STR/TY_INT/TY_FLOAT). For DATA instances (handle type=3), it needs runtime dispatch.
+
+**Root cause path:**
+1. `data('node(val,lson,rson)')` — this statement is emitted as an `E_FNC "data"` call; it must call `sno_data_define` at runtime. Currently falls into the default E_FNC handler (drop + empty string). **The DATA declaration is never registered.**
+2. `node('x','y','z')` — the constructor call `node(...)` must call `sno_data_new(type_idx, nfields)`. Currently also unhandled — falls into default.
+3. `datatype(a)` — even if DATA instances existed, the emitter drops the value and returns compile-time type name.
+
+**Fix for SW-15 — three-part:**
+
+**Part A — prescan DATA declarations:**
+Add a DATA type registry in the emitter (max 32 types):
+```c
+#define MAX_DATA_TYPES 32
+typedef struct { char *name; char **fields; int nfields; } DataTypeDef;
+static DataTypeDef data_types[MAX_DATA_TYPES];
+static int n_data_types = 0;
+```
+In `prescan_prog`, detect `E_FNC "data"` statements where child[0] is `E_QLIT` with sval like `"node(val,lson,rson)"`. Parse the string: name up to `(`, fields split by `,` inside parens. Register in `data_types[]`.
+
+**Part B — emit DATA init block before main body:**
+After `emit_var_indirect_funcs()` and before the main function, emit a `(func $sno_data_init ...)` that calls `sno_data_define` for each registered type. Call `$sno_data_init` at the start of `main`. The field names need to be interned as string literals first.
+
+```wat
+(func $sno_data_init
+  ;; node: name_off, name_len, nfields=3, field_names_ptr
+  (i32.const NODE_NAME_OFF) (i32.const 4)  ;; "node"
+  (i32.const 3)
+  (i32.const FIELD_NAMES_PTR)              ;; array of (off,len) pairs in memory
+  (call $sno_data_define)
+  (drop)  ;; returns type_idx — not needed at init
+)
+```
+Field names array: emit as a separate `(data ...)` segment after string literals.
+
+**Part C — constructor + DATATYPE + field get/set:**
+
+Constructor `node('x','y','z')`: in E_FNC dispatch, after checking `data_types[]` for a match by name, emit:
+```wat
+(i32.const type_idx) (i32.const nfields)
+(call $sno_data_new)
+(local.set $arr_h)  ;; handle
+;; then for each arg: sno_data_set_field(handle, field_idx, val_off, val_len)
+```
+
+DATATYPE for DATA instances: after compile-time checks, add runtime fallback:
+```wat
+(local.set $arr_h)  ;; save handle
+(drop)
+(if (i32.eq (call $sno_handle_type (local.get $arr_h)) (i32.const 3)) (then
+  (call $sno_data_typename (local.get $arr_h))  ;; → (name_off, name_len)
+  (br $datatype_done)))
+```
+Need `sno_data_typename(handle) → (off, len)` in runtime. Check if it exists:
+```bash
+grep -n "data_typename\|data_type_name" /home/claude/one4all/src/runtime/wasm/sno_runtime.wat
+```
+If not present, add it: reads `type_idx = i32.load(handle+4)`, looks up `data_reg[type_idx].name_off/len`.
+
+Field accessor `val(a)` as rvalue: in E_FNC dispatch, if name matches a known field of a DATA type, emit `sno_data_get_field(handle, field_idx)`.
+
+Field accessor `val(b) = x` as lvalue: detect `E_FNC` with known field name in `is_idxassign` (similar to ITEM), emit `sno_data_set_field(handle, field_idx, val_off, val_len)`.
+
+**1116 shares root with 1115** — once DATA constructor, DATATYPE, and field get/set work, 1116 should pass without additional work.
+
+### SW-15 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 5/7
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-15 first action:**
+```bash
+grep -n "data_typename\|data_type_name" /home/claude/one4all/src/runtime/wasm/sno_runtime.wat
+```
+Then implement Part A (prescan), Part B (init func), Part C (constructor + DATATYPE + field get/set) per the plan above. Expect 1115 and 1116 to pass → M-SW-C02 ✅ → wire rung11 into `run_invariants.sh` → commit `SW-14: M-SW-C02 ✅`.
