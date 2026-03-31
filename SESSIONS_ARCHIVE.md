@@ -12152,6 +12152,300 @@ Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -
 
 ---
 
+## SW-17 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** (see below after push)
+
+### Session summary
+
+Session focus: maximize reuse and sharing of WASM emitter source across SNOBOL4/Icon/Prolog sessions.
+
+### Work completed
+
+**`emit_wasm.c` — remove `static` from `emit_wasm_expr`:**
+- Forward decl (line 89) and definition (line 422): `static WasmTy emit_wasm_expr` → `WasmTy emit_wasm_expr`
+- `emit_wasm_expr` was declared `extern` in `emit_wasm.h` (line 75) but `static` in the `.c` — a linkage contradiction preventing sibling emitters from calling it.
+- Fix: remove both `static` keywords. Build clean. Gates hold.
+- Committed: `fdcd636` "SW-17: expose emit_wasm_expr as public symbol (remove static)"
+
+### Sharing architecture audit (definitive)
+
+**Why `emit_wasm_expr` cannot replace Icon/Prolog literal emission directly:**
+
+| Emitter | Integer width | Emission model |
+|---------|--------------|----------------|
+| SNOBOL4 | `i64.const` | inline stack value |
+| Icon | `i64.const` | Byrd-box `start`/`resume` func pair; value stored in `$icn_int{id}` global |
+| Prolog `is/2` | `i32.const` | 32-bit atom ID; incompatible type |
+
+Icon's Byrd-box model wraps every literal in a goal-directed function pair — structurally incompatible with `emit_wasm_expr`'s inline stack model. Prolog's `emit_arith_i32` uses `i32` (Prolog term width) vs `emit_wasm_expr`'s `i64`. Direct substitution would silently emit wrong-width instructions.
+
+**Output macro divergence:** `WI()` (Icon, 382 sites) and `W()` (SNOBOL4/Prolog) both write to the same `FILE*` after IW-12/PW entry-point setup. Functional equivalence confirmed; mass rename is mechanical but high-risk for low gain.
+
+**What is already shared (solid baseline):**
+- `emit_wasm_strlit_intern/abs/len/reset/count` — all three emitters share the string table
+- `emit_wasm_data_segment()` — called by all three
+- `emit_wasm_set_out()` — called by Icon and Prolog entry points (IW-12 contract)
+- `emit_wasm_runtime_imports_sno_base()` — shared by SNOBOL4 + Icon (Prolog uses `pl` namespace, cannot share)
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_wasm:** 55p/1f ✅ (1f = pre-existing xfail `212_indirect_array`)
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 options (pick one):**
+1. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct — run `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung12` to assess.
+2. **`WI()` → `W()` macro unification** in `emit_wasm_icon.c`: `sed -i 's/\bWI(/W(/g'` across 382 sites, then remove the `WI` macro definition and `icon_wasm_out` static — mechanical but confirm build + invariants after.
+**SC-9 first action — fix FOR step segment:**
+1. `sed -n '946,985p' src/backend/emit_x64_snocone.c` — read the new FOR header parser
+2. Add debug: after segment split, `fprintf(stderr, "seg0=%d+%d seg1=%d+%d seg2=%d+%d\n", seg[0][0],seg[0][1],seg[1][0],seg[1][1],seg[2][0],seg[2][1])` and compile B03_for_basic to verify indices
+3. Fix: replace save/restore `st->count` with a scratch-buffer approach — allocate `seg[i][1]+1` tokens, memcpy from `st->toks + seg[i][0]`, append EOF token, call `snocone_parse` on scratch directly
+4. Build, run rungB03: expect 6/6 pass
+5. Remove all 6 `rungB03/B03_for*.xfail` files from corpus
+6. Run invariants: expect snocone_x86 126/126
+7. Commit `SC-9: M-SC-B07 FOR loop step fix` in one4all; commit corpus xfail removal
+8. Update PLAN.md row, write SC-9 handoff
+
+**After FOR is done — M-SC-B08 candidates:**
+- `A09_anchor.xfail` — `&ANCHOR` keyword not propagated to `?` match path (1 test)
+- New rung for untested constructs — check `FRONTEND-SNOCONE.md` for any unimplemented nodes
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+
+---
+
+## SC-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `086d340` (main)
+**corpus HEAD:** `4a70276` (main)
+**.github HEAD:** see push below
+
+### Session summary
+
+Gates confirmed entering: emit-diff 981/4 ✅, snobol4_x86 106/106, snocone_x86 120/120.
+
+**Fix — M-SC-B08: FOR loop step segment (root cause: lexer)**
+
+The FOR step bug was not in the emitter's segment splitter — it was in the lexer. `tokenize_logical_line` split the logical line on all unquoted `;` characters at the character level, consuming them before any tokens were produced. So `for (i = 1; LE(i, 3); i = ADD(i, 1))` produced:
+
+```
+KW_FOR  (  i = 1  NEWLINE  LE ( i , 3 )  NEWLINE  i = ADD ( i , 1 )  NEWLINE  )  EOF
+```
+
+The emitter's segment splitter searched for `SNOCONE_SEMICOLON` tokens and found zero, so `nseg=1` and only `init_s` was set; `cond_s` and `step_s` were NULL.
+
+**Fix:** Removed `tokenize_segment` and `tokenize_logical_line` entirely. Replaced with a single depth-aware inline tokenization pass directly in `snocone_lex` at the two former call sites. The pass tracks paren/bracket depth: at depth 0, `;` ends the current statement (emit `SNOCONE_NEWLINE`); inside parens, `;` emits `SNOCONE_SEMICOLON` as a proper token. String literals suppress depth/semicolon tracking. All other tokenization logic (numbers, strings, identifiers, keywords, operators) inlined identically from the removed `tokenize_segment`.
+
+**Results:**
+- rungB03: 6/6 ✅ (was 0/6 xfail)
+- snobol4_x86: 106/106 ✅ (no regression)
+- snocone_x86: 126/126 ✅ (+6 from session start at 120)
+- emit-diff: 981/4 ✅ (unchanged)
+- 6 xfail files removed from corpus/crosscheck/snocone/rungB03/
+
+### SC-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                        # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-10 first actions:**
+1. Check next unimplemented construct: `grep -r "xfail" /home/claude/corpus/crosscheck/snocone/ | grep -v rungB03` — find lowest rung with remaining xfails
+2. Check `FRONTEND-SNOCONE.md` for any unimplemented AST nodes
+3. Identify milestone M-SC-B09 and implement
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+
+---
+
+## SW-17 ADDENDUM — M-SW-BYRD queued (2026-03-31, Claude Sonnet 4.6)
+
+Session also identified that `emit_wasm.c`'s `emit_pattern_node` uses structured
+`block`/`loop`/`if` — NOT Byrd-box tail calls. This is architecturally wrong for
+SNOBOL4 pattern matching which requires cursor-level backtracking.
+
+**M-SW-BYRD** (see `MILESTONE-WASM-BYRD.md`) queued as SW-18 target:
+- Rewrite `emit_wasm.c` statement dispatch to emit per-statement Byrd-box WAT functions
+- Subject eval → fence → pattern α/β tail-call tree → replacement → :S/:F goto
+- Pattern nodes: each gets α (try) + β (backtrack) WAT functions using `return_call`
+- Reference: x64 `emit_x64.c:5033-5200` (statement wiring) + `emit_pat_node` (nodes)
+- Reference: JVM `emit_jvm.c:2990-3100` (statement wiring) + `emit_jvm_pat_node` (nodes)
+- Keep: strlit table, emit_wasm_expr, runtime imports, var globals
+- Replace: emit_main_body (PC-loop → per-stmt Byrd funcs), emit_pattern_node (→ α/β funcs)
+
+### SW-18 session start
+## SC-9 ADDENDUM (2026-03-31, Claude Sonnet 4.6) — newline-as-whitespace
+
+**one4all HEAD:** `4af2dbe` (main)
+**corpus HEAD:** `4a70276` (unchanged)
+
+### Change
+
+Follow-on to M-SC-B08. The lexer was still emitting `SNOCONE_NEWLINE` at
+end-of-logical-line and converting depth-0 `;` to NEWLINE rather than
+SEMICOLON. Corrected so that:
+
+- Physical newlines are whitespace — no token emitted
+- Depth-0 `;` emits `SNOCONE_SEMICOLON` (sole statement terminator)
+- Inside parens `;` already emitted `SNOCONE_SEMICOLON` (unchanged)
+- All emitter statement-boundary checks (`sc_skip_nl`, `sc_compile_expr`,
+  lowering loops, sentinels, `has_expr`, top-level dispatch) now use only
+  `SNOCONE_SEMICOLON` and `SNOCONE_EOF` — `SNOCONE_NEWLINE` removed entirely
+  from emit_x64_snocone.c
+
+Also removed the now-dead `tok_start` variable from the inline lex block.
+
+### Gates
+- snobol4_x86: 106/106 ✅
+- snocone_x86: 126/126 ✅
+- rungB03: 6/6 ✅
+
+### SC-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 first action:** Begin M-SW-BYRD.
+Read `emit_x64.c` lines 5033–5200 and `emit_jvm_pat_node` for wiring reference.
+Start with a single simple statement (no pattern, just subject+replacement) to
+establish the per-statement α/γ/ω WAT function skeleton, then add the scan loop,
+then wire in the first pattern node (E_QLIT). Gate each step against rung2/3/4.
+
+---
+
+## SW-17 FINAL HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** `f101d92`
+
+### Session summary
+
+Session focus was WASM emitter sharing across SNOBOL4/Icon/Prolog.
+
+**Delivered:**
+- `emit_wasm_expr` static removed (`fdcd636`) — now properly exported per `emit_wasm.h`
+- Sharing architecture audited: Icon uses Byrd-box funcs (incompatible with inline stack model); Prolog uses i32 arithmetic (incompatible with i64); macro unification (`WI`→`W`) is 382-site mechanical risk
+- **M-SW-BYRD** identified and documented: `emit_wasm.c`'s `emit_pattern_node` uses structured `block`/`loop`/`if` — architecturally wrong for SNOBOL4 pattern backtracking. Full rewrite queued as SW-18 target.
+
+**New milestones:**
+- `MILESTONE-WASM-BYRD.md` — full Byrd-box rewrite spec
+
+**Gates held throughout:** 981/4 ✅ · 55p/1f ✅
+
+### Context note
+
+~80% context consumed this session. SW-18 should be a fresh session.
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 first action:** M-SW-BYRD.
+1. Read `emit_x64.c` lines 5033–5200 — statement-level Byrd-box wiring oracle
+2. Read `emit_jvm_pat_node` in `emit_jvm.c` — pattern node α/β oracle
+3. Start with simplest statement type (no pattern, subject+replacement only):
+   emit `$sN_subj_α` / `$sN_subj_γ` / `$sN_stmt_ω` skeleton, gate rung2
+4. Add scan loop + E_QLIT pattern node: `$sN_scan_α` / `$sN_pat_α` / `$sN_pat_β`
+5. Add E_SEQ, E_ALT, E_ARBNO — each gated against relevant rung
+6. Existing `emit_wasm_expr` is kept for subject/replacement value emission (inline stack model is correct there — subject and replacement are expressions, not patterns)
+
+---
+
+## SW-17 HANDOFF v2 — proper milestones (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** (this commit)
+
+Context ~85%. Final handoff. SW-18 must be a fresh session.
+
+### Milestone ladder (MILESTONE-WASM-BYRD.md)
+
+| Milestone | Scope | Gate |
+|-----------|-------|------|
+| **M-SW-BYRD-A** | Per-stmt skeleton: subj/repl Byrd funcs, no pattern | rung2/3/4 |
+| **M-SW-BYRD-B** | E_QLIT pattern node + scan loop | rungW01/W02 |
+| **M-SW-BYRD-C** | E_SEQ | rungW03/W04 |
+| **M-SW-BYRD-D** | E_ALT | rungW05/W06 |
+| **M-SW-BYRD-E** | E_ARBNO, E_ARB | rungW07 |
+| **M-SW-BYRD-F** | E_CAPT_COND, E_CAPT_IMM | rung8/9 |
+| **M-SW-BYRD-G** | DEFINE / user-defined functions | rung10 |
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+```
+
+**SW-18 first action:** M-SW-BYRD-A.
+Read `emit_x64.c` lines 5033–5200 as oracle for per-statement wiring.
+Replace `emit_main_body` inner body (keep PC-loop dispatch skeleton, replace
+per-statement body emission with α/γ/ω WAT function triples).
+Gate: rung2/3/4 pass, emit-diff 981/4 holds.
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-10 first actions:**
+1. `grep -rl "xfail" /home/claude/corpus/crosscheck/snocone/` — find lowest rung with remaining xfails
+2. Check `FRONTEND-SNOCONE.md` for unimplemented AST nodes
+3. Identify and implement M-SC-B09
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
 ## IW-17 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
 **one4all HEAD:** `4d6cb2d` (main)
