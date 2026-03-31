@@ -24,7 +24,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-7 | `b053fc1` one4all · `.github` this commit | **M-PW-A02** (3p/104f — rung04 is/2 + `->` inline emit needed) |
+| **Prolog WASM** | PW-8 | `e52eb1e` one4all · `.github` this commit | **M-PW-B01** (rung05 — output-var writeback fix needed, see SESSIONS_ARCHIVE PW-8) |
 
 ---
 
@@ -174,7 +174,7 @@ Stub `prolog_emit_wasm()`, `emit_wasm_prolog.c`, `pl_runtime.wat`, wired in `mai
 #### M-PW-A01: FACTS ✅ (PW-7, 2026-03-31)
 `E_CHOICE`/`E_CLAUSE`/`E_UNIFY` atom. `rung01+rung02` pass. **3p/104f.**
 
-#### M-PW-A02: HEAD UNIFICATION ⬜ (partial)
+#### M-PW-A02: HEAD UNIFICATION ✅ (PW-8, 2026-03-31)
 **Rung:** `rung03_unify_unify` ✅ · `rung04_arith_arith` ❌
 **IR nodes:** `E_UNIFY`(compound) ✅ · `E_VART` trail push ✅ · `is/2` inline ❌ · comparison ops ❌
 **Remaining:** `emit_goal()` special-case for `is/2` (eval RHS via `emit_wasm_expr`, intern result string as atom, bind slot) + `<`/`>`/`=<`/`>=` inline i32 comparisons + `->/2` if-then.

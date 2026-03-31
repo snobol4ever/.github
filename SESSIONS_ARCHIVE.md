@@ -9406,3 +9406,67 @@ Step 4 — update B01 to also use `sno_pat_search` (single literal: start=0, che
 Step 5 — add rungW02 to invariant DIRS → target 28p/1f.
 
 **Note:** `sno_str_contains` can remain in runtime as a convenience but the emitter should now use `sno_pat_search` for all pattern nodes.
+
+## PW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%
+
+**one4all** `e52eb1e` · **.github** this commit
+
+### Session summary
+
+Two milestones worked: M-PW-A02 fully fired and pushed; M-PW-B01 substantially implemented but rung05 blocked by one ABI issue.
+
+### Work completed
+
+**M-PW-A02 ✅ FIRED** (`56b4017` → `8355a8a`)
+- `pl_runtime.wat`: added `int_to_atom(i32→i32)` (writes decimal to atom heap, returns slot 255) and `atom_to_int(i32→i32)` (parses decimal string of atom back to i32)
+- `emit_wasm_prolog.c`: `emit_arith_i32()` helper for inline i32 arithmetic; `is/2` special-case (push slot, eval RHS, `int_to_atom`, `var_bind`); comparison ops `</>/=</>=/ =:=/=\=` → inline `i32.lt_s` etc. with `br_if $cond_fail`; `(Cond->Then;Else)` rewritten as two-block structure `(block $ite_end (block $cond_fail Cond Then br $ite_end) Else)`
+- rung01–04 all PASS
+
+**M-PW-B01 WIP** (`e52eb1e`)
+- `pl_runtime.wat`: added `cons/is_cons/cons_head/cons_tail` exports; term heap at 57344; cons encoding = `0x80000000 | heap_offset`
+- `emit_wasm_prolog.c`: added all 4 cons imports; `emit_term_value()` helper (atoms, vars, cons chains); head unification rewritten with `(block $clause_N_end ...)` + matched-flag pattern; ground-atom head uses bind-or-match (if `a_i >= ENV_BASE`, bind; else check equality); `E_VAR` head arg: `var_bind(env_slot, a_i)`; compound `[H|T]` head: `is_cons` check, `cons_head`→H slot, `cons_tail`→T slot; body goals: `emit_goals()` called for recursive calls; `$tm_N` locals added per clause
+- rung01–04 PASS ✅; rung05 produces blank output
+
+### Root cause of rung05 failure — implement first in PW-9
+
+**Problem:** `member(X, [X|_])` clause 0 head arg 0 is `E_VAR X`. Call site passes `a0 = slot_addr_of_X_in_main` (32896). Current code: `var_bind(env_slot_32768, a0=32896)` — stores the ADDRESS into the env slot, not a useful value. Then `var_bind(env_slot_32768, cons_head(a1))` correctly overwrites env slot with the atom_id. But the **caller's slot 32896** is never written.
+
+**Fix (implement first in PW-9):**
+After clause body completes and before `return 1`, for each head arg position where the call-site arg was a slot address (`a_i >= ENV_BASE`), copy the env slot's final value back to that address:
+
+```c
+/* After body, before "return 1": write-back output vars */
+for (int ai = 0; ai < n_args; ai++) {
+    /* If head arg was E_VAR slot S, and a_i >= ENV_BASE: */
+    /*   i32.store(a_i, i32.load(env_slot_of_S)) */
+    W("          (i32.store (local.get $a%d) (i32.load (i32.const %d)))\n",
+      ai, env_slot_of_head_var[ai]);
+}
+```
+
+This applies when `harg->kind == E_VAR && slot >= 0`. Track `head_var_env_slot[ai]` during the head unification loop, then emit the write-back after body goals, before `local.set $tm_N 1`.
+
+Additionally: clause 1 (`member(X,[_|T]) :- member(X,T)`) — the recursive body call uses `(i32.load env_slot_X)` as the X arg, but env_slot_X holds the address (32896+something), not the atom. Same root cause. Fix the write-back and both clauses will work.
+
+### Gate (end of session)
+- Build: clean ✅
+- Emit-diff: 729/9 ✅ (pre-existing, unchanged)
+- rung01–04: all PASS ✅
+- rung05: blank output (write-back fix pending)
+
+### PW-9 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**Immediate first action (PW-9):** Open `src/backend/emit_wasm_prolog.c`, find `emit_pl_predicate()`. In the head-unification loop, add an array `int head_var_slot[MAX_ARGS]` tracking which env slot each `E_VAR` head arg maps to (or -1 for non-var). After body goals, before `local.set $tm_N 1`, emit write-back: for each `ai` where `head_var_slot[ai] >= 0`, emit `(i32.store (local.get $a%d) (i32.load (i32.const %d)))`. Then test rung05 → expect `a\nb\nc\n`. If PASS, run emit-diff + invariants, fire M-PW-B01.
