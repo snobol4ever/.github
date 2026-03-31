@@ -12152,3 +12152,94 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 
 ### Context discipline
 Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
+
+---
+
+## PW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all WIP:** `1a46b53` on branch `pw-15-wip`
+**Invariants:** `5p / 102f` (was 4p/103f; rung06 + rung08 promoted from [wat2wasm] → [output])
+**Emit-diff gate:** 981/4 ✅
+
+### Fixes this session
+
+**1. `run_invariants.sh` dispatch wired** (`ddef234`)
+
+`run_prolog_wasm()` was defined *after* the `for _cell in ...` loop — Bash cannot forward-reference functions. Moved definition before the loop, deleted the now-dead duplicate. Result: vacuous `0p/0f` became real `4p/103f`.
+
+**2. `$gamma_idx`/`$omega_idx` undefined in `main`** (`1a46b53`)
+
+Root cause: `emit_goal()`'s predicate-call paths always emitted `(local.get $gamma_idx) (local.get $omega_idx)`. These are valid params inside clause α/β functions but **do not exist in `main`** (no params, `(result i32)` only). Additionally, `return_call` from `main` is wrong for sequential goals — it tail-calls away and never returns for subsequent goals.
+
+Fix: added three statics to `emit_wasm_prolog.c`:
+```c
+static int g_in_main        = 0;
+static int g_main_gamma_idx = -1;
+static int g_main_omega_idx = -1;
+```
+
+In `emit_pl_main`, before `emit_goals`:
+```c
+g_main_gamma_idx = cont_register("pl_main_nop_gamma");
+g_main_omega_idx = cont_register("pl_main_nop_omega");
+g_in_main = 1;
+/* ... emit_goals ... */
+g_in_main = 0;
+```
+
+Both predicate-call sites in `emit_goal` (det and multi-clause):
+```c
+if (g_in_main) {
+    W("    (i32.const %d) ;; main gamma_idx\n", g_main_gamma_idx);
+    W("    (i32.const %d) ;; main omega_idx\n", g_main_omega_idx);
+    W("    (call $pl_%s_alpha) drop\n", mangled + 3);
+} else {
+    W("    (local.get $gamma_idx) (local.get $omega_idx)\n");
+    W("    (return_call $pl_%s_alpha)\n", mangled + 3);
+}
+```
+
+In `emit_cont_functions_and_table`: added `is_main_nop` check, emits trivial `(i32.const 0)` bodies for both nop functions.
+
+### Open failures — next session
+
+**rung05 `[output]`** — outputs `a` only, expected `a\nb\nc`.
+`member/2` recursive backtracking. The `g_head_var_slot` fix from PW-15 is in place; the CI advancement conditional on `PL_SET_ARG_FLAG` is in place. Still only one solution escapes. Next: add `VERBOSE=1` trace, check CP frame ci after γ fires, verify `cp_set_ci(ci+1)` is reachable on the second iteration.
+
+**rung06 `[output]`** — `append/3` call succeeds (wat2wasm clean) but hits `RuntimeError: memory access out of bounds`.
+After `(call $pl_append_3_alpha) drop`, main reads back the result var from its slot with `(i32.load (i32.const SLOT))`. The slot address is in ENV_BASE (32768+). The out-of-bounds is likely because `alpha` passes `(i32.const SLOT)` as the var arg (slot address), but inside alpha the unification writes to `i32.store(slot, value)` using a trail-bound value that is itself an atom_id — which when dereferenced as a memory address blows up. Root issue: **from main, output-var args should pass slot addresses, but the deref/write-back path in alpha may be treating them as values not addresses.** Check `emit_pl_predicate`'s head-unification var handling when called from main context.
+
+**rung07 `[wat2wasm]`** — `type mismatch in call, expected [i32×6] but got [i32×3]` for `$pl_differ_2_call`. The `_call` wrapper expects `(trail, a0, a1, gamma_idx, omega_idx, ci)` = 6 params, but only 3 are pushed. This is a multi-clause predicate called from a clause body (not main). The `emit_goal` multi-clause path with `g_in_main=0` emits `return_call $pl_foo_alpha` — it should be emitting the `_call` wrapper for multi-clause preds, not `alpha` directly. The `_call` dispatch was introduced for GT loops; the body-call path still hits alpha directly. Fix: when `body_nclauses > 1` and `!g_in_main`, route through `$pl_foo_N_call` with a fresh CP push, not directly to `alpha`.
+
+### PW-17 session start
+
+```bash
+cd /tmp && unzip /mnt/user-data/uploads/swipl-devel-master.zip && \
+  cd swipl-devel-master && \
+  apt-get install -y cmake ninja-build libssl-dev libgmp-dev libreadline-dev && \
+  cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DSWIPL_PACKAGES=OFF -DBUILD_TESTING=OFF -B build -G Ninja && \
+  ninja -C build -j$(nproc) && ninja -C build install
+# (or verify swipl already present: which swipl && swipl --version)
+
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git fetch origin && git checkout pw-15-wip
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 5p/102f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-17 first action:** Fix rung07 `[wat2wasm]` — multi-clause body call arity mismatch.
+In `emit_goal`, the `body_nclauses > 1` path currently emits `return_call $pl_foo_alpha`.
+It must instead push a CP frame and call `$pl_foo_N_call` with 6 args (trail, a0..aN, gamma_idx, omega_idx, ci=0).
+This is the same pattern the GT loop uses — factor or replicate.
+After that fix, recount `[wat2wasm]` vs `[output]` failures to find next target.
+
+### Session focus reminder (from prompt)
+
+The user requested consolidation of duplicated WASM emitter source into `emit_wasm.c` with extern declarations in `emit_wasm.h`. That is a **refactor milestone** to tackle after rung pass counts stabilise. Tag it as **M-PW-REFACTOR-01** and address once rung06–09 are passing.
