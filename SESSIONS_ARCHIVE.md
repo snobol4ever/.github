@@ -12007,3 +12007,76 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 prolog_wasm)  run_prolog_wasm  ;;
 ```
 (The function body already exists; the dispatch case is missing.) After wiring, run `run_invariants.sh prolog_wasm` — expect ≥5p. Then check rung06–09 for additional passes. Merge `pw-15-wip` into `main` when clean.
+
+## SW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `f91cade` · **.github HEAD:** `353c46b`
+
+### Session summary
+
+M-SW-C02 complete: DATA typename + field accessor implemented and gated.
+
+### Work completed
+
+**`sno_runtime.wat` — `sno_data_typename`:**
+- New exported function reads `type_idx` from `handle+4`, looks up `data_reg[type_idx]` at `DATA_REG_BASE + type_idx*16`, returns `(name_off i32, name_len i32)`.
+- Runtime recompiled to `sno_runtime.wasm`.
+
+**`emit_wasm.c` — Part A (prescan registry):**
+- `DataType` struct + `data_types[64]` registry.
+- `parse_data_spec()` handles both calling conventions: single-string `data('typename(f1,f2,...)')` (SNOBOL4 standard form — splits on `(` and `,`) and multi-arg `data('typename','f1',...)`.
+- `data_type_by_name()` and `data_field_owner()` lookup helpers.
+- `prescan_expr` calls `parse_data_spec` on `E_FNC "data"`.
+- `data_ntype` reset at start of each `emit_wasm()` pass.
+
+**`emit_wasm.c` — Part B (init function + import):**
+- `sno_data_typename` import added to `emit_runtime_imports`.
+- `emit_data_init_func()` emits `$sno_data_init` WAT function: allocates field-name pairs array via `sno_str_alloc`, stores off/len pairs, calls `sno_data_define` per registered type.
+- `(call $sno_data_init)` injected at main entry before dispatch loop (guarded by `data_ntype > 0`).
+
+**`emit_wasm.c` — Part C (E_FNC dispatch):**
+- `E_FNC "data"` → drop (emit empty string; declaration handled by init).
+- `E_FNC <typename>` matching `data_type_by_name` → `sno_data_new(ti, nfields)` + loop setting each field via `sno_data_set_field`.
+- `DATATYPE` builtin: TY_STR path now uses `$datatype_done` block — checks `sno_handle_type(handle)==3`, calls `sno_data_typename` if so; falls back to `"string"` literal.
+- `E_FNC <fieldname>` matching `data_field_owner` as rvalue → `sno_data_get_field(handle, fi)`.
+- `E_FNC <fieldname>` as lvalue (`is_idxassign` path) → `sno_data_set_field(handle, fi, vo, vl)`.
+
+**`test/run_invariants.sh`:**
+- `rung11` wired into `snobol4_wasm` cell DIRS list.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_wasm:** 55p/1f ✅ (1f = pre-existing xfail, not rung11)
+- **rung11:** 7/7 ✅ — M-SW-C02 ✅
+
+### Session focus: WASM emitter sharing
+
+Session was asked to maximize reuse across SNOBOL4/Icon/Prolog WASM emitters.
+Current state of sharing (documented for next session):
+
+**Already shared (solid):**
+- `emit_wasm.h` API: `strlit_intern/abs/len/count/reset`, `data_segment`, `set_out`, `runtime_imports_sno_base`, `emit_wasm_expr`
+- Icon and Prolog both call `emit_wasm_strlit_*` — no string table duplication
+- `emit_wasm_runtime_imports_sno_base()` shared by SNOBOL4 + Icon (Prolog has different memory layout)
+
+**Sharing gaps (not addressed this session — queued for a dedicated sharing session):**
+- `emit_wasm_expr()` declared in header but Icon/Prolog don't call it — each has inline arithmetic/literal emission using own `WI()`/`WP()` macros
+- Output macro divergence: SNOBOL4 uses `W()`, Icon `WI()`, Prolog owns its stream — a single `FILE*` + shared `W()` would eliminate parallel macro families
+- Prolog's `emit_wasm_runtime_imports_sno_base` divergence (different memory map) — candidate for parameterization
+
+### SW-17 first actions
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 7/7
+```
+
+**SW-17 options (pick one):**
+1. **Sharing refactor** (session focus): wire `emit_wasm_expr` into Icon and Prolog emitters, eliminating duplicated arithmetic/literal emission. Start with Icon (`emit_wasm_icon.c` — replace inline E_ILIT/E_FLIT/E_QLIT handling with calls to `emit_wasm_expr`).
+2. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct.
