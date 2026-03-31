@@ -8583,3 +8583,72 @@ tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/RULES.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
+
+---
+
+## SC-3 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~85%, handoff
+
+**one4all** `ddf6bcf` (origin/main, IW-3) · **corpus** `ba3fe80` · **.github** this commit
+
+### Session summary
+
+No M-SC-A16 milestone fired this session. Entire session consumed unblocking the build.
+
+### Work completed
+
+**Blocker: G-9 s30 left emit_x64_icon.c with 155 compile errors** — scrip-cc would not build at session start. SC session fixed the blocker to unblock its own gate:
+
+- `emit_x64_icon.c`: fixed all ~155 IcnNode→EXPR_t migration compile errors:
+  - `rhs_ports_γ/ω` → `rhs_γ/ω`; all `(void)ports;` stanzas removed
+  - `val_node_γ/ω`, `body_node_γ/ω`, `expr_node_γ/ω`, `thenb/elseb/cond` port vars fixed
+  - Bulk regex: all dispatch table `(NULL/*em*/, n, ports, oa, ob)` → `(n, γ, ω, oa, ob)`
+  - `IcnKind op_kind` → `EKind op_kind`; `FILE *real=f` stale line removed
+  - `icn_emit_file` signature: added `FILE *out_f` param
+- `icon_emit.h`: rewritten with `EXPR_t`-based API; `IcnEmitter` kept as compat stub
+- `main.c` + `icn_main.c`: wired `icon_lower_file()` before `icn_emit_file()` — fixes IcnNode/EXPR_t layout incompatibility (`IcnNode` has extra `int line` field at offset 4)
+- Emit-diff improved from 0-buildable → 728/738 (our fixes) → reset to 719/738 (IW-3 origin/main)
+
+**IW-3 conflict:** IW-3 session concurrently fixed the same files and pushed first. SC session reset to `origin/main` (IW-3 state) per scope rules — icon files are not SC-owned. Our icon fix work was superseded by IW-3.
+
+### Gate (end of session)
+
+- **Emit-diff: 719/738** (19 icon-x86 failures = G-session scope)
+- **snobol4_x86: 106/106 ✅**
+- **snocone_x86: 74/74 ✅**
+
+### Next session execution order
+
+1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
+2. Gate: `run_emit_check.sh` (expect 719/738+) · `run_invariants.sh snobol4_x86 snocone_x86` (expect 106/106 · 74/74)
+3. **M-SC-A16** — rungA16: 20 files in `corpus/crosscheck/snocone/` root need semicolons added:
+   - Files: `assign_009–016_*.sc`, `hello_*.sc` (4), `output_001–008_*.sc` — all old format (no semicolons)
+   - Create `corpus/crosscheck/snocone/rungA16/`
+   - For each file: add `;` after every statement, rename to `A16_<stem>.sc`, copy `.ref` as-is
+   - Add `rungA16` to snocone_x86 `DIRS` in `test/run_invariants.sh` (line 652)
+   - Run `run_invariants.sh snobol4_x86 snocone_x86` — expect 74+20=94/94
+   - Fire M-SC-A16 when passing
+4. After A16: Partition A complete (~94 tests). Begin Partition B: M-SC-B01 if/else
+
+### Semicolon conversion rule (all 20 files)
+
+Old format: `OUTPUT = 'hello world'` (no semicolon, `#` comments)
+New format: `OUTPUT = 'hello world';` (trailing `;`, `//` comments)
+Every non-blank, non-comment line gets a trailing `;`.
+`.ref` files copy verbatim — oracle output unchanged.
+
+### File inventory (20 .sc files to convert)
+
+```
+assign_009_assign_string.sc        hello_empty_string.sc
+assign_010_assign_integer.sc       hello_hello.sc
+assign_011_assign_chain.sc         hello_literals.sc
+assign_012_assign_null.sc          hello_multi.sc
+assign_013_assign_overwrite.sc     output_001_output_string_literal.sc
+assign_014_assign_indirect_dollar.sc  output_002_output_integer_literal.sc
+assign_015_assign_indirect_var.sc  output_003_output_real_literal.sc
+assign_016_assign_to_output.sc     output_004_output_empty_string.sc
+                                   output_005_output_multiline.sc
+                                   output_006_output_keyword_alphabet.sc
+                                   output_007_output_null_var.sc
+                                   output_008_output_double_quoted.sc
+```
