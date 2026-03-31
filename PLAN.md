@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
+| **Snocone x86** | SC-7 | `2a561dd` one4all · `7038bc7` corpus | M-SC-B06: `~` negation / `?` query (5 tests) |
 | **SNOBOL4 WASM** | SW-13 WIP | `5bfb0f7` one4all | **M-SW-C02**: rung11 2/7 passing — fix 1112/1113/1114/1115/1116 — see SW-13 handoff |
 | **ICON WASM** | IW-13 | `8bc5773` one4all | **IW-14 first**: M-IW-R01 — Bug 3: `(local $frame_base)` misplaced in func body → OOB. Fix: emit `$icn_frame_base` helper func, use inline call+offset per store/load in emit_frame_push/pop. |
 | **Prolog WASM** | PW-15 | `77b1e05` one4all · `de89e78` corpus | **M-PW-B01** still open: rung05 outputs `a` only — needs per-call CP frames in beta emission (nested GT sub-loop) |

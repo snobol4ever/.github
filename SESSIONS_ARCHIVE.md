@@ -11447,3 +11447,47 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 ```
 
 **SW-14 first action:** Check `sno_array_create2` in `sno_runtime.wat` — does it store `ndims=2` at `handle+4`? If not, add that store. Then re-run `rung11` — expect 1112 to pass. Then tackle ITEM (1114), CONVERT (1113), DATA typename (1115/1116). Wire rung11 into `run_invariants.sh` once all 7 pass → commit `SW-13: M-SW-C02 ✅`.
+
+---
+
+## SC-7 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `2a561dd` · **corpus HEAD:** `7038bc7` · **.github HEAD:** (this commit)
+
+### Session summary
+
+Snocone × x86 invariant harness performance fix. `run_sc_corpus_rung.sh` was
+recompiling 7 runtime C files per invocation and ~120ms/test on linking — making
+`run_invariants.sh snocone_x86` take ~2.5 minutes (harness timeout).
+
+### Fixes landed (one4all `2a561dd`, corpus `7038bc7`)
+
+1. **Runtime archive cache** (`out/rt_cache/snocone_rt.a` + mtime stamp) — skips 7 gcc compilations warm.
+2. **Per-test binary cache** (`out/rt_cache/bins/`) — key: `md5(sc)_stamp`. Hit skips scrip-cc+nasm+link. Warm: ~10ms/test vs ~220ms cold.
+3. **scrip-cc timeout 15s** — prevents suite hang on unimplemented constructs.
+4. **B03 FOR loop xfails** (6 tests) — `emit_x64_snocone.c` does not emit FOR; scrip-cc hangs on the IR node.
+
+### Gate
+
+- **Emit-diff:** 981/4 ✅
+- **snocone_x86:** 114p / 1f (A16_hello_literals pre-existing whitespace) / 7 xfail
+- **Full warm run: 23 seconds** (21 rungs, 122 tests)
+
+### SC-8 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snocone_x86  # expect 114p/1f/7xfail ~23s warm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-8 first action:** M-SC-B06 — `~` negation and `?` query operators. Check
+`SNOCONE_TILDE`/`SNOCONE_QUESTION` in `emit_x64_snocone.c` — may map to existing
+`E_NOT`/`E_QUERY` IR paths (free). Write 5 corpus tests, confirm.
+Gate: `snobol4_x86` + `snocone_x86`.
