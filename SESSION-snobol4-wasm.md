@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-4 — M-SW-A01 ✅ M-SW-A02 ✅ M-SW-A03 ✅ M-SW-A04 ✅ | `0839648` one4all · `a3ce72c` corpus | **M-SW-A05: GOTO/BUILTINS** rung8/ 3 tests |
+| **SNOBOL4 WASM** | SW-6 — M-SW-A01 ✅ M-SW-A02 ✅ M-SW-A03 ✅ M-SW-A04 ✅ M-SW-A05 ✅ | `f7c915a` one4all | **M-SW-A06: CONVERT/TYPE** rung9/ 5 tests |
 
 ---
 
