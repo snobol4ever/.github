@@ -8754,3 +8754,66 @@ cat /home/claude/.github/RULES.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 # Then apply the 10-line fix described above and fire M-PW-A01.
 ```
+
+---
+
+## SC-4 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~25%, continuing
+
+**one4all** `8d539c7` · **corpus** `0112a56` · **.github** this commit
+
+### Session summary
+
+Two milestones fired: M-SC-A16 and M-SC-B01. CSNOBOL4 installed from Lon-supplied tarball.
+
+### Work completed
+
+**CSNOBOL4 installed** — built from `snobol4-2_3_3_tar.gz` uploaded by Lon. `/usr/local/bin/snobol4` available for oracle derivation in Partition B sessions.
+
+**M-SC-A16 ✅** — rungA16: 20 existing root-level `.sc` files converted to semicolon format:
+- `#` comments → `//`, trailing `;` added to every statement line
+- Files renamed `A16_<stem>.sc`, `.ref` copied verbatim
+- `rungA16` added to snocone_x86 DIRS in `run_invariants.sh`
+- snocone_x86: 74 → 94/94
+
+**M-SC-B01 ✅** — rungB01: 5 if/else tests:
+- `B01_if_true` — if with true condition, body executes
+- `B01_if_false` — if with false condition, body skipped
+- `B01_if_else_true` — if/else, true branch taken
+- `B01_if_else_false` — if/else, false branch taken
+- `B01_nested_if` — nested if/else (3-way: one/two/other)
+- Oracles derived by running through scrip-cc pipeline
+- `rungB01` added to snocone_x86 DIRS
+- snocone_x86: 94 → 99/99
+
+### Gate (end of session)
+
+- **Emit-diff: 719/738** ✅ (19 icon-x86 = G-session scope)
+- **snobol4_x86: 106/106** ✅
+- **snocone_x86: 99/99** ✅
+
+### Next session execution order
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 719/738+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106 · 99/99
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+### M-SC-B02 next action
+
+rungB02: while/do-while + break/continue — 6 tests:
+- `B02_while_basic.sc` — while loop runs N times, count output
+- `B02_while_false.sc` — while condition immediately false, body skipped
+- `B02_do_while.sc` — do-while body executes at least once even when condition false on entry
+- `B02_while_break.sc` — break exits loop early
+- `B02_while_continue.sc` — continue skips rest of body, loop continues  
+- `B02_nested_break.sc` — break exits only innermost loop
+
+Pipeline: create corpus files → run through scrip-cc to derive oracles → add rungB02 to DIRS → fire M-SC-B02 when 99+6=105/105
