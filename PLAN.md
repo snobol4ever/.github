@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **Snocone x86** | SC-9 | `086d340` one4all · `4a70276` corpus | M-SC-B08 ✅ · FOR step fix (depth-aware lexer) · snocone_x86 126/126 · **SC-10**: next unimplemented construct |
+| **Snocone x86** | SC-9 | `4af2dbe` one4all · `4a70276` corpus | M-SC-B08 ✅ · newline=whitespace · semicolon sole terminator · snocone_x86 126/126 · **SC-10**: next unimplemented construct |
 | **SNOBOL4 WASM** | SW-17 | `fdcd636` one4all | **M-SW-BYRD-A**: per-stmt skeleton (no pattern), gate rung2/3/4. Then B(E_QLIT)→C(E_SEQ)→D(E_ALT)→E(ARBNO)→F(captures)→G(DEFINE). See MILESTONE-WASM-BYRD.md |
 | **ICON WASM** | IW-16 | `48be4dd` one4all | **M-IW-G02**: rung03_suspend_gen_compose — implement E_ALT for generator composition |
 | **Prolog WASM** | PW-16 | `1a46b53` one4all (pw-15-wip) | **PW-17 first**: fix rung07 multi-clause body call arity mismatch (`_call` needs 6 args, emitter passes 3) — see PW-16 handoff |
