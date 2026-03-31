@@ -11696,3 +11696,56 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 grep -n "data_typename\|data_type_name" /home/claude/one4all/src/runtime/wasm/sno_runtime.wat
 ```
 Then implement Part A (prescan), Part B (init func), Part C (constructor + DATATYPE + field get/set) per the plan above. Expect 1115 and 1116 to pass → M-SW-C02 ✅ → wire rung11 into `run_invariants.sh` → commit `SW-14: M-SW-C02 ✅`.
+
+## SW-15 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `4652640` (uncommitted runtime change — see below) · **.github HEAD:** `353c46b`
+
+### Session summary
+
+No milestone progress on 1115/1116. Session consumed by:
+1. Session-start protocol read `cat RULES.md` (340 lines / 17KB — 2.4× stated size) exhausting context before work began.
+2. Diagnosis of root cause and HQ fix committed (`353c46b`).
+
+### HQ fix committed (`353c46b`)
+- **RULES.md:** Removed Icon semicolon block + JVM null-coerce block (appended by PW-13 without section headers, not universal rules). Added pointer lines to `ARCH-icon-jcon.md` and `SESSION-icon-jvm.md`. Fixed stale "139 lines" self-reference → "scan headers with grep, cat only relevant sections".
+- **PLAN.md Step 3:** `cat RULES.md` → `grep "^## " RULES.md` (scan headers, open sections on demand).
+- **SESSION-icon-jvm.md:** Added `§JVM-NULL` section with the null-coerce rule content.
+
+### Runtime change (LOCAL ONLY — not committed)
+`sno_data_typename` added to `src/runtime/wasm/sno_runtime.wat` — reads `type_idx` from `handle+4`, looks up `data_reg[type_idx].name_off/len`. **Not yet committed.** SW-16 must commit this or re-apply from SW-14 handoff plan.
+
+### SW-16 first actions
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 5/7
+```
+
+Then verify `sno_data_typename` is present in runtime (may need re-apply from SW-14 plan):
+```bash
+grep -n "sno_data_typename" /home/claude/one4all/src/runtime/wasm/sno_runtime.wat
+```
+
+### SW-16 work plan (unchanged from SW-14 — three parts)
+
+**Part A — DATA prescan in emitter (`emit_wasm.c`):**
+Add registry struct + `parse_data_spec()` + `data_type_by_name()` + `data_field_index()` + `data_field_owner()` after `needs_indr`. In `prescan_expr`, detect `E_FNC "data"` where `child[0]` is `E_QLIT` — call `parse_data_spec`, intern type name + field names via `strlit_intern`, register in `data_types[]`.
+
+**Part B — emit `$sno_data_init` + call at main start:**
+After string literals segment, emit a `(func $sno_data_init ...)` that emits a `(data ...)` segment for field-name pairs (off,len × nfields per type), then calls `sno_data_define` for each registered type. Call `$sno_data_init` at the top of `main`. Add import for `sno_data_typename` alongside existing data imports.
+
+**Part C — three emitter patches in E_FNC dispatch:**
+1. `E_FNC "data"` → emit nothing (declaration handled by init; drop children).
+2. `E_FNC "<typename>"` matching `data_type_by_name` → `sno_data_new(ti, nfields)` + loop args calling `sno_data_set_field`. Missing args → empty string.
+3. DATATYPE builtin → after compile-time dispatch, add runtime fallback: `if (sno_handle_type(h) == 3) { sno_data_typename(h); br $datatype_done }`.
+4. `E_FNC "<fieldname>"` matching `data_field_owner` as rvalue → `sno_data_get_field(h, fi)`.
+5. `is_idxassign` + lvalue `E_FNC "<fieldname>"` → `sno_data_set_field(h, fi, vo, vl)`.
+
+**Expected result:** 1115 and 1116 both pass → M-SW-C02 ✅ → wire rung11 into `run_invariants.sh` → commit `SW-15: M-SW-C02 ✅`.
