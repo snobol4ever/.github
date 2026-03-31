@@ -10171,3 +10171,47 @@ tail -100 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
 
+
+---
+
+## SW-9 M-SW-B04 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `d3ccac3` · **corpus** `d7348e1` · **.github** this session
+
+### M-SW-B04 complete: PATTERN ARBNO ✅
+
+**emit_wasm.c** — 1 change in `emit_pattern_node()`:
+- Added `E_ARBNO` / `E_FNC("ARBNO")` case: zero-or-more loop with `$pat_save_cursor` zero-advance guard (local already present from SW-8).
+- Both `pat->kind == E_ARBNO` and `E_FNC` with `sval=="ARBNO"` matched — parser delivers ARBNO as `E_FNC` in pattern context.
+- `sno_pat_search` is unanchored (sliding window) — correct for SNOBOL4 pattern semantics.
+
+**test/run_invariants.sh:** `rungW04` added to `snobol4_wasm` DIRS.
+
+**corpus/crosscheck/rungW04/:** 3 tests, oracle-verified:
+`W04_arbno_basic` (ARBNO('ab') then 'X' in 'ababX') · `W04_arbno_zero` (zero matches then literal) · `W04_arbno_backtrack` (zero ARBNO then literal)
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungW01/W02/W03/W04:** 3/3 each ✅
+- **snobol4_wasm target:** 34p/1f ✅ (pre-existing 212_indirect_array unchanged)
+
+### Code sharing note (for G-session)
+`emit_wasm_icon.c` has a **fully duplicated string literal table** (`icn_str_lits[]`, `ICN_STR_DATA_BASE`, `icn_str_intern()`, `icn_emit_data_segment()`) — a complete clone of `emit_wasm.c`'s table. It should be migrated to call `emit_wasm_strlit_intern()` / `emit_wasm_strlit_abs()` / `emit_wasm_strlit_len()` via `emit_wasm.h`, exactly as `emit_wasm_prolog.c` already does. Approximately 50 lines of duplication to eliminate.
+
+### Next: M-SW-B05 — ANY / SPAN / BREAK
+
+`rungW05/` (5 tests: W05_any, W05_span, W05_break, W05_notany, W05_breakx).
+`E_ANY`, `E_NOTANY`, `E_SPAN`, `E_BREAK`, `E_BREAKX` in `emit_pattern_node()`.
+Need `sno_any`, `sno_span`, `sno_break` runtime helpers in `sno_runtime.wat` (character-class membership, not substring search).
+
+### SW-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 34p/1f
+```
