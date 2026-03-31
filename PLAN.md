@@ -23,7 +23,7 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>     # own ba
 **Step 3 — Read in order:**
 ```
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # last handoff — FIRST
-cat /home/claude/.github/RULES.md
+grep "^## " /home/claude/.github/RULES.md            # scan headers, cat only relevant sections
 cat /home/claude/.github/PLAN.md
 ```
 Then read your SESSION-*.md (see Routing table below).

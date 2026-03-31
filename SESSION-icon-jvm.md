@@ -87,3 +87,15 @@ bash test/frontend/icon/run_bench_rung36.sh /tmp/icon_driver
 ```bash
 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
+
+---
+
+## §JVM-NULL — sno_array_get returns null for uninitialized slots
+
+`sno_array_get` returns Java `null` for uninitialized slots. In SNOBOL4 semantics, uninitialized = empty string `""`.
+
+**Rule:** Any JVM emitter path that calls `sno_array_get` and then invokes a String method (`.equals`, `.contains`, concatenation) on the result **must** emit a null→`""` coerce inline first: `dup / ifnonnull / pop / ldc ""`.
+
+`sno_indr_get` already coerces internally — no guard needed there. `sno_array_get` does **not**.
+
+Array subscript assignment with `:S`/`:F` goto: the value may be null (failed sub-expression). Null-check before `sno_array_put`; null → skip put, take `:F`. Root cause: SD-10 NPE on `IDENT(t<key>)`.
