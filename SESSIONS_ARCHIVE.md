@@ -8966,3 +8966,76 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm # expect 14/
 
 # Step 4 — update PLAN.md NOW row, SESSION-snobol4-wasm.md §NOW, append SESSIONS_ARCHIVE
 ```
+
+---
+
+## IW-5 HANDOFF (2026-03-31, Claude Sonnet 4.6) — emergency handoff (~90% context)
+
+**one4all** `7100412` · **.github** this session
+
+### Session summary
+
+Two bugs found and partially fixed. one4all pushed clean.
+
+### Work completed
+
+**Bug 1 — wasm_icon_ctr per-proc reset (FIXED ✅)**
+`emit_wasm_icon_proc()` was resetting `wasm_icon_ctr = 0` per procedure.
+Multi-procedure programs (rung02_proc_*) emitted duplicate WAT function names
+(`$icon0_start` etc.) → `[wat2wasm] redefinition` errors.
+Fix: removed `wasm_icon_ctr = 0` reset. Counter is now program-global.
+`icon_gen_slot_next` still resets per-proc (generator slots are independent per proc — correct).
+Result: rung02_proc_* now assemble cleanly. rung01 6/6 ✅, rung02 arith 5/5 ✅.
+
+**Bug 2 — M-IW-P01 user proc calls (SCAFFOLDED, incomplete)**
+rung02_proc_* now assemble but output nothing — `ICN_CALL` user-procs stub-fail,
+`ICN_VAR` stubs out (params not wired), `ICN_RETURN` jumps to `$icn_prog_end` instead of returning to caller.
+
+Scaffolding committed:
+- `$icn_retval` (i64) + `$icn_param0..7` (i64) globals added to `emit_wasm_icon_globals()`
+- `icn_cur_proc_name / icn_cur_nparams / icn_cur_params[8][64]` statics added
+- `emit_wasm_icon_proc()` sets those context vars + loads param names at proc entry
+
+**NOT done (IW-6 must finish M-IW-P01):**
+1. `ICN_VAR` fix — if `n->val.sval` matches `icn_cur_params[i]`, emit `global.get $icn_param{i}` into the value global, then `return_call $succ`. Otherwise keep existing stub (local vars come later).
+2. `ICN_RETURN` fix — if `strcmp(icn_cur_proc_name, "main") != 0`: emit `global.set $icn_retval` from the return-expr value global, then `return_call $succ`. For main, existing `return_call $icn_prog_end` is correct.
+3. `ICN_CALL` user-proc — in the ICN_CALL handler, after checking for `write()`, add: evaluate each arg into `$icn_param{i}` (emit arg node with a per-arg esucc that does `global.set $icn_param{i}`), then `return_call $icn_proc_<fname>_start`. The call-site esucc reads `global.get $icn_retval` into the result value global.
+4. Build clean, test rung02_proc_add_proc / rung02_proc_fact / rung02_proc_locals → expect 3/3.
+5. Run full gate: emit-diff 719/19, icon_wasm cell.
+6. Commit as `IW-6: M-IW-P01 — ICN_VAR params + ICN_RETURN + ICN_CALL user-proc`
+7. Push one4all, then pull --rebase .github, update PLAN.md IW row, append SESSIONS_ARCHIVE.
+
+### Gate (end of session)
+- **Build: clean ✅**
+- **Emit-diff: 719/19 ✅** (19 = pre-existing icon_x86 gaps, no regression)
+- **rung01: 6/6 ✅** (M-IW-A02 confirmed)
+- **rung02 arith: 5/5 ✅**
+- **rung02 proc: 0/3** (M-IW-P01 incomplete — work in progress)
+
+### IW-6 session start
+
+```bash
+# 1. Clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# 2. Setup
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# 3. Gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+
+# 4. HQ docs
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**Immediate next action (IW-6):** Open `src/backend/emit_wasm_icon.c`.
+Find `emit_icn_var()` (~line 315) and replace the stub with param-read logic.
+Find `ICN_RETURN` case (~line 1073) and add non-main path.
+Find `ICN_CALL` handler (~line 1032) and add user-proc branch before the stub-fail fallthrough.

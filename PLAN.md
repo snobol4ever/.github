@@ -66,7 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
 | **README** | R-2 `00846d3` | — | resume — unfrozen |
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
-| **ICON WASM** | IW-4 M-IW-A02 ✅ | one4all `e6d384f` | **M-IW-A03**: ICN_LT/LE/GT/GE/EQ/NE relops |
+| **ICON WASM** | IW-5 `7100412` | one4all `7100412` | **M-IW-P01**: ICN_VAR param read + ICN_RETURN non-main + ICN_CALL user-proc |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
 | **Prolog WASM** | PW-6 `8243b58` one4all | — | **M-PW-A01**: FACTS — 2p/105f, invariant count shortfall 2 vs 3 — fix + fire milestone |
