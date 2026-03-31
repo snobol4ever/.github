@@ -11863,3 +11863,99 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 5. Run `run_invariants.sh icon_wasm` — expect ≥25p
 6. Commit `IW-16: M-IW-G01 ICN_SUSPEND four-port emission`
 
+
+---
+
+## PW-15 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `77b1e05` (main) · WIP branch `pw-15-wip` @ `592f3f3`
+**.github HEAD:** this commit
+
+### Session summary
+
+Built SWI-Prolog 10.1.5 from `swipl-devel-master.zip` (apt fails; cmake packages=OFF ninja). Gates confirmed: 981/4 emit-diff ✅, prolog_wasm 0p/0f ✅. Full diagnosis and partial implementation of M-PW-B01 (rung05 `a\nb\nc`). rung01–04 pass throughout.
+
+### Root cause of rung05 (final, definitive)
+
+`member(X,[X|_]).` / `member(X,[_|T]) :- member(X,T).`
+
+Outer GT loop calls `$pl_member_2_call` with `a0=slot_addr(32896)` (outer V0).
+Beta1 body emits `return_call $pl_member_2_alpha` with `a0=(i32.const 32832)` — beta1's **own** clause slot for `_V0`.
+Alpha binds 32832 and writes back to 32832. But γ reads outer slot 32896 — never written by the recursive chain. γ outputs atom_id 0 → blank instead of `b`/`c`.
+
+Secondary issue resolved along the way: γ must NOT advance ci (removed `cp_set_ci` from γ). Outer loop advances ci only for direct head-match (when `PL_SET_ARG_FLAG=0`). When beta1 fires (tail update via `cp_set_arg`), `PL_SET_ARG_FLAG=1` → outer loop stays at ci=1 for next tail.
+
+### WIP changes on branch `pw-15-wip` @ `592f3f3`
+
+All changes in `src/backend/emit_wasm_prolog.c`:
+
+1. **`PL_SET_ARG_FLAG = 8128`** — new memory flag at start of BGT region
+2. **`cp_set_arg` emission** in `[H|T]` head unification also sets `PL_SET_ARG_FLAG=1`
+3. **γ function**: removed `cp_set_ci` — γ only sets `PL_GT_FLAG=1`, writes body goals, trail_unwind, resets vars
+4. **Outer GT loop**: resets both `PL_GT_FLAG` and `PL_SET_ARG_FLAG` at top; after γ fires: `if (eqz SET_ARG_FLAG) cp_set_ci(ci+1)` — only advances for direct alpha match
+5. **ω function**: unchanged (`cp_pop` + clear `PL_GT_FLAG`)
+6. **Multi-clause body calls**: simple `return_call alpha` with outer γ/ω (no inner CP push)
+7. **`g_head_var_slot` / `g_head_arity` statics**: declared but NOT yet wired — this is the remaining fix
+
+### The one remaining fix for PW-16
+
+**In `emit_goal` multi-clause body call arg emission**, replace slot-addr emission with caller-param passthrough when the var was bound from a head param:
+
+```c
+/* Add to file-scope statics (near g_clause_env_idx): */
+static int g_head_var_slot[32];  /* head_var_slot[ai] = clause-slot addr if head arg ai is a var */
+static int g_head_arity = 0;
+/* Reset in prolog_emit_wasm: memset(g_head_var_slot,-1,sizeof g_head_var_slot); g_head_arity=0; */
+
+/* In emit_pl_predicate, before emit_goals(body): */
+for (int ai = 0; ai < arity && ai < 32; ai++)
+    g_head_var_slot[ai] = head_var_slot[ai];  /* already computed above */
+g_head_arity = arity;
+
+/* In emit_goal body predicate call arg emission (~line 940), replace: */
+W("    (i32.const %d) ;; slot addr _V%d\n", addr, (int)arg->ival);
+/* with: */
+int found = -1;
+for (int hi = 0; hi < g_head_arity; hi++)
+    if (g_head_var_slot[hi] == addr) { found = hi; break; }
+if (found >= 0)
+    W("    (local.get $a%d) ;; pass caller slot for _V%d\n", found, (int)arg->ival);
+else
+    W("    (i32.const %d) ;; slot addr _V%d\n", addr, (int)arg->ival);
+```
+
+This makes beta1's recursive `member(X,T)` call pass `local.get $a0` (the outer caller's V0 slot addr) as `a0` to alpha, so alpha writes `b`/`c` directly into the outer slot that γ reads.
+
+### PW-16 session start
+
+```bash
+# swipl: build from uploaded swipl-devel-master.zip (apt fails)
+cd /tmp && unzip <upload> && cd swipl-devel-master && \
+  apt-get install -y cmake ninja-build libssl-dev libgmp-dev libreadline-dev && \
+  cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DSWIPL_PACKAGES=OFF -DBUILD_TESTING=OFF -B build -G Ninja && \
+  ninja -C build -j$(nproc) && ninja -C build install
+
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+git fetch origin && git checkout pw-15-wip   # pick up WIP
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm  # expect 0p/0f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-16 first action:** Apply the `g_head_var_slot` fix above. Build. Test:
+```bash
+./scrip-cc -pl -wasm corpus/programs/prolog/rung05_backtrack_backtrack.pl -o /tmp/r5.wat
+wat2wasm --enable-tail-call /tmp/r5.wat -o /tmp/r5.wasm
+node test/wasm/run_wasm_pl.js /tmp/r5.wasm   # expect: a\nb\nc
+```
+Verify rung01–04 still pass. Run `run_invariants.sh prolog_wasm` — expect ≥1p/0 new failures.
+Merge `pw-15-wip` into `main`, commit `PW-15: M-PW-B01 ✅ rung05 passes`. Update PLAN.md row.
+
+### Context discipline
+Never read full WAT files. `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges only.
