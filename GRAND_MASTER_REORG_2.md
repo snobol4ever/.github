@@ -266,3 +266,144 @@ The reorg is complete (M-G10-UNFREEZE fires) when:
 *GRAND_MASTER_REORG_2.md — living document.*
 *Supersedes GRAND_MASTER_REORG.md for active tracking.*
 *Old doc retained in git history; move to MILESTONE_ARCHIVE.md at M-G10-UNFREEZE.*
+
+---
+
+### Phase 10 — Corpus Reorg
+
+**Prerequisite:** M-G10-UNFREEZE. All harness runner path references update in
+lockstep with corpus moves — this cannot be done piecemeal.
+
+#### The problems (G-10 audit)
+
+1. **LAYOUT.md describes a SNOBOL4-only world.** Three more frontends have been
+   added since; they are second-class citizens in their own test repo.
+2. **Two oracle filename conventions coexist.** `crosscheck/` uses `.ref`;
+   `programs/icon/` uses `.expected`. Same concept, two names.
+3. **Rung naming is incoherent across frontends.** `rungN` (SNOBOL4), `rungWNN`
+   (SNOBOL4 WASM), `rungA/BNN` under `snocone/` subdir, flat `rung*` files (Icon,
+   Prolog). Five conventions, no two frontends agree.
+4. **`crosscheck/` mixes legacy topic dirs with rung dirs.** `arith/`, `arith_new/`,
+   `assign/` etc. sit alongside `rung2`–`rung11`. `_new` suffix is a code smell.
+5. **`programs/` is a catch-all.** Real-world programs, IPL library, demo programs,
+   linker tests, and personal collections are all co-mingled.
+
+#### Target corpus layout
+
+```
+corpus/
+  snobol4/
+    crosscheck/         ← .sno + .ref, numbered rungs, self-contained
+    programs/           ← real-world, may need I/O
+    benchmarks/
+  icon/
+    crosscheck/         ← .icn + .ref, numbered rungs
+    programs/           ← includes IPL library
+  prolog/
+    crosscheck/         ← .pl + .ref, numbered rungs
+    programs/
+  snocone/
+    crosscheck/         ← .sc + .ref, numbered rungs
+    programs/
+  rebus/
+    crosscheck/
+    programs/
+  scrip/
+    crosscheck/
+    programs/
+  shared/
+    lib/                ← shared .inc include files
+    run/                ← oracle runner scripts
+    benchmarks/         ← cross-frontend benchmarks
+```
+
+**One oracle extension everywhere: `.ref`.
+One rung convention everywhere: `rung01/`, `rung02/` as directories.**
+
+#### Milestones
+
+| ID | Action | Verify |
+|----|--------|--------|
+| **M-G10-CORPUS-AUDIT** | Map every existing crosscheck dir and programs subdir to its target location. Produce `doc/CORPUS-MIGRATION.md` with complete move table. | Doc exists; no path unmapped |
+| **M-G10-CORPUS-DIRS** | Create target directory tree. No files moved yet. | Tree exists; all repos still build |
+| **M-G10-CORPUS-SNO** | Move SNOBOL4 crosscheck + programs. Rename `.expected` → `.ref` where found. Update harness adapter paths. | SNOBOL4 invariants hold; 981/4 ✅ |
+| **M-G10-CORPUS-ICON** | Move Icon crosscheck + programs. Normalize rung naming. `.expected` → `.ref`. Update harness. | Icon invariants hold |
+| **M-G10-CORPUS-PROLOG** | Move Prolog crosscheck + programs. Normalize rung naming. Update harness. | Prolog invariants hold |
+| **M-G10-CORPUS-SNOCONE** | Move Snocone crosscheck + programs. `rungA/B` → `rung01/rung02` etc. Update harness. | Snocone invariants hold |
+| **M-G10-CORPUS-SHARED** | Move `lib/`, `run/`, cross-frontend `benchmarks/`. Remove old top-level dirs. | Full suite PASS |
+| **M-G10-CORPUS-LAYOUT** | Rewrite `LAYOUT.md` to reflect actual structure. | Doc matches reality |
+
+---
+
+### Phase 11 — Harness Reorg
+
+**Prerequisite:** M-G10-CORPUS-LAYOUT (corpus paths stable).
+
+#### The vision
+
+`harness` is the home for **all** test infrastructure currently scattered across
+`one4all`, `snobol4jvm`, `snobol4dotnet`, `snobol4python`, and `snobol4csharp`.
+It serves all five product repos plus the 6×5 one4all matrix (6 frontends ×
+4 active backends + 1 dead C backend).
+
+#### Four distinct testing methods
+
+| Method | What it does | Corpus relationship |
+|--------|-------------|---------------------|
+| **1. Crosscheck** | Self-contained programs × all engines. Fast, deterministic, CI-safe. Oracle = `.ref` file in corpus. | Reads `corpus/<frontend>/crosscheck/` |
+| **2. Invariant** | Targeted rung-by-rung progression tests. Tracks pass/fail counts per session. Gate before push. | Reads `corpus/<frontend>/crosscheck/rung*/` |
+| **3. Program suite** | Real-world programs with I/O, includes, external files. Slower, not CI-gated per commit. | Reads `corpus/<frontend>/programs/` |
+| **4. Oracle triangulation** | CSNOBOL4 + SPITBOL as dual ground truth. Any divergence between them surfaces a corpus bug before we even run our engines. | Generates its own inputs; validates corpus `.ref` files |
+
+#### Target harness layout
+
+```
+harness/
+  adapters/
+    one4all/
+      snobol4-x86/      ← was adapters/tiny/
+      snobol4-jvm/
+      snobol4-net/
+      snobol4-wasm/
+      icon-x86/
+      icon-jvm/
+      icon-wasm/
+      prolog-x86/
+      prolog-jvm/
+      prolog-wasm/
+      snocone-x86/
+      rebus-x86/
+      scrip-x86/
+    snobol4jvm/         ← adapter for the standalone Clojure repo
+    snobol4dotnet/      ← adapter for the standalone C# repo
+    snobol4python/      ← adapter for the Python pattern library
+    snobol4csharp/      ← adapter for the C# pattern library
+  methods/
+    crosscheck/         ← method 1: fast self-contained suite
+    invariant/          ← method 2: rung-by-rung progression
+    programs/           ← method 3: real-world program suite
+    triangulate/        ← method 4: dual-oracle triangulation
+  oracles/
+    csnobol4/           ← build + run scripts
+    spitbol/            ← build + run scripts
+  monitor/              ← Byrd box trace diff tool (existing)
+  probe/                ← probe.py and test helpers (existing)
+  skeleton/             ← (existing)
+  grid/                 ← pass/fail matrix generator: frontend × backend × method
+  ci/                   ← CI entry points (one script per product repo)
+```
+
+#### Milestones
+
+| ID | Action | Verify |
+|----|--------|--------|
+| **M-G10-HARNESS-AUDIT** | Map all test scripts currently in `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/` to their target location in `harness/`. Produce `doc/HARNESS-MIGRATION.md`. | Doc exists |
+| **M-G10-HARNESS-METHODS** | Create `methods/` subdirs. Move existing crosscheck.sh and invariant runners into `methods/crosscheck/` and `methods/invariant/`. | All existing tests still pass via new paths |
+| **M-G10-HARNESS-ADAPTERS** | Expand `adapters/` to cover all one4all frontend×backend pairs plus the 4 standalone repos. Each adapter: `run.sh` (single program), `run_crosscheck.sh`, `run_invariants.sh`. | Each adapter smoke-tested |
+| **M-G10-HARNESS-PROGRAMS** | Implement `methods/programs/` runner. Handles I/O, includes, timeouts. | Program suite runs for SNOBOL4 at minimum |
+| **M-G10-HARNESS-TRIANGULATE** | Implement `methods/triangulate/`. CSNOBOL4 + SPITBOL both run every `.ref` test; flag any `.ref` file where they disagree. | Zero corpus bugs on current `.ref` set |
+| **M-G10-HARNESS-GRID** | `grid/` generates a frontend × backend × method pass/fail matrix. HTML or Markdown output. | Grid renders correctly for all active cells |
+| **M-G10-HARNESS-CI** | `ci/` has one entry script per product repo. Each runs the appropriate adapter + method combination. | CI scripts exit 0 on clean repo |
+| **M-G10-HARNESS-MIGRATE** | Remove test scripts from `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/`. All tests run from harness only. | Full suite PASS via harness; no orphaned scripts |
+| **M-G10-HARNESS-LAYOUT** | Write `LAYOUT.md` describing all four methods, adapter convention, and grid. | Doc matches reality |
+
