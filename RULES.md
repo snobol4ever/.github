@@ -59,6 +59,11 @@ a context burn and signals the wrong mental model.
 (Rebus-session only), regenerate on your own machine and commit the C files. See RULES.md.
 SESSION_SETUP.sh never installs bison/flex.
 
+**⛔ ORACLE HIERARCHY — SPITBOL is position zero (primary oracle) for all sessions.**
+SPITBOL (snobol4ever/x64, installed at `/usr/local/bin/spitbol`) is the first and authoritative oracle.
+CSNOBOL4 does NOT support FENCE and other extensions — it is NOT a valid oracle for Snocone or any session requiring SPITBOL semantics.
+When deriving `.ref` output for any new test, run SPITBOL first. CSNOBOL4 is only consulted for features provably identical between the two (basic string ops, arithmetic). When in doubt: use SPITBOL.
+
 **⛔ NEVER download CSNOBOL4 from snobol4.org or anywhere** — site is broken (redirects to lander as of 2026-03-30) and downloading from unknown sources is forbidden.
 **Always ask Lon to upload `snobol4-2_3_3_tar.gz`** when CSNOBOL4 is needed. Build with:
 `mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
@@ -138,9 +143,10 @@ End-of-session checklist (in order):
 1. Update platform MD (TINY.md / ARCH-prolog-jvm.md / etc.) — HEAD, sprint status, §NOW next action.
 2. Update PLAN.md NOW table row (your row only).
 3. If milestone fired: move its row to MILESTONE_ARCHIVE.md.
-4. `git add -A && git commit && git push` every touched repo.
-5. `git pull --rebase origin main` on .github, then commit + push .github last.
-6. Append session entry to SESSIONS_ARCHIVE.md.
+4. **Prune your SESSION-*.md:** Replace §NOW with only the next sprint's action. Delete completed sprint analysis, failure taxonomies, "what was fixed" sections — those belong in SESSIONS_ARCHIVE.md, not here. Keep only: §BUILD block, §SUBSYSTEMS routing table, §NOW (current milestone + first action). Target ≤5KB.
+5. `git add -A && git commit && git push` every touched repo.
+6. `git pull --rebase origin main` on .github, then commit + push .github last.
+7. Append session entry to SESSIONS_ARCHIVE.md.
 
 ---
 
@@ -277,59 +283,16 @@ semicolons, calling conventions, corpus format, file layout, build commands — 
 the relevant HQ doc first. Do NOT reason from training data or session memory.
 Training data is wrong. Session memory drifts. HQ docs are ground truth.
 
-**Failure mode:** Claude asserted Icon/JCON uses implicit semicolons (standard Icon
-behaviour). Our lexer explicitly does NOT — "No auto-semicolon insertion" is line 4
-of `icon_lex.c` and documented in RULES.md and ARCH-icon-jcon.md. This caused
-wasted session time diagnosing a non-problem.
-
 **Rule:** When in doubt about ANY system property: `grep` the relevant HQ doc first.
 If the doc doesn't cover it, check the source. Never guess and assert.
 
----
-
-
-
-All Icon source in SCRIP demos must use explicit semicolons between statements.
-The parser requires **no semicolon after `procedure name(args)`** — the header line
-takes no terminator. First statement of the body follows on the next line.
-
-Correct:
-```icon
-procedure main()
-    x := 1;
-    write(x);
-end
-```
-
-Wrong (parse error):
-```icon
-procedure main();   ← ERROR
-```
-
-`icon_semicolon` is an end-user tool only — never run in the pipeline.
-When adding semicolons by hand to a demo `.md` block, skip the procedure header line.
-
-**IPL programs from corpus require explicit semicolons added before they
-can be compiled by our frontend.** Standard Icon has implicit semicolons; our
-lexer (`icon_lex.c` line 4: "No auto-semicolon insertion — deliberate deviation")
-does NOT. The rung36 corpus is pre-converted. Raw IPL files are NOT directly usable.
-Do NOT claim otherwise. Verified in `icon_lex.c`; documented in `ARCH-icon-jcon.md §Auto-semicolon`.
+Root cause on file: Icon lexer has NO auto-semicolon insertion (`icon_lex.c` line 4) — explicit semicolons required. See `ARCH-icon-jcon.md §Auto-semicolon`.
 
 ---
 
 ## ⛔ JVM BACKEND — Null = uninitialized; coerce before string ops
 
-`sno_array_get` returns Java `null` for uninitialized slots.
-In SNOBOL4 semantics, uninitialized = empty string `""`.
-
-**Rule:** Any JVM emitter path that calls `sno_array_get` and then invokes a String
-method (`.equals`, `.contains`, concatenation) on the result **must** emit a
-null→`""` coerce inline first (dup / ifnonnull / pop / ldc "").
-
-`sno_indr_get` (variable lookup) already coerces internally — no guard needed there.
-`sno_array_get` does **not** — guard required at every call site that uses the
-result as a non-null String.
-
-Also: array subscript assignment with `:S`/`:F` goto — the value may be null
-(failed sub-expression). Null-check the value before `sno_array_put`; null → skip
-put and take `:F` / fall through. Violation root cause: SD-10 NPE on `IDENT(t<key>)`.
+`sno_array_get` returns Java `null` for uninitialized slots (SNOBOL4 semantics: uninitialized = `""`).
+Any emitter path calling `sno_array_get` then using result as a String **must** emit null→`""` coerce (dup / ifnonnull / pop / ldc `""`).
+`sno_indr_get` coerces internally — no guard needed there.
+Array subscript assignment: null-check value before `sno_array_put`; null → skip put, take `:F`. Root cause: SD-10 NPE on `IDENT(t<key>)`.
