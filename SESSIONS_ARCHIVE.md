@@ -9590,3 +9590,60 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 2. M-IW-C01: implement `E_IF` → `rung02_proc_fact` → 120 ✅
 3. Run full `run_invariants.sh icon_wasm` gate + update PLAN.md NOW table
 
+
+---
+
+## SW-8 M-SW-B03 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `177300e` · **corpus** `6d2c1d0` · **.github** this session
+
+### M-SW-B03 complete: PATTERN ALT — E_ALT save/restore cursor ✅
+
+**emit_wasm.c** — 2 changes (shared layer; Icon×WASM + Prolog×WASM inherit free):
+1. `(local $pat_save_cursor i32)` added to `emit_main_body()` locals block.
+2. `E_ALT` case in `emit_pattern_node()`: save cursor → try left; if cursor==-1 restore → try right. Right fail leaves cursor==-1. Inline pattern syntax required (pattern variables store as empty string — known gap, post-parity).
+
+**test/run_invariants.sh:** `rungW03` added to `snobol4_wasm` DIRS.
+
+**corpus/crosscheck/rungW03/:** 3 tests, oracle-verified CSNOBOL4 2.3.3:
+`W03_alt_basic` (first branch) · `W03_alt_second` (second branch) · `W03_alt_both_fail` (both fail → :s skipped)
+
+### Gate
+- **Emit-diff:** 981/4 ✅ (4 pre-existing JVM failures unchanged)
+- **rungW01/W02/W03:** 3/3 each ✅
+- **snobol4_wasm target:** 31p/1f (CSNOBOL4 not installed; rung scripts confirm)
+
+### Next: M-SW-B04 — PATTERN ARBNO
+
+`E_ARBNO` in `emit_pattern_node()` — zero-or-more loop with zero-advance guard using `$pat_save_cursor` (already present). New corpus `rungW04/` (3 tests). Add to invariants DIRS → target 34p/1f.
+
+```c
+if (pat->kind == E_ARBNO) {
+    W("      ;; E_ARBNO: zero-or-more with zero-advance guard\n");
+    W("      (block $arbno_done\n");
+    W("      (loop $arbno_loop\n");
+    W("        (local.set $pat_save_cursor (local.get $pat_cursor))\n");
+    emit_pattern_node(inner);
+    W("        (br_if $arbno_done (i32.lt_s (local.get $pat_cursor) (i32.const 0)))\n");
+    W("        (br_if $arbno_done (i32.eq (local.get $pat_cursor) (local.get $pat_save_cursor)))\n");
+    W("        (br $arbno_loop)\n");
+    W("      ))\n");
+    /* restore last good cursor if inner failed */
+    W("      (if (i32.lt_s (local.get $pat_cursor) (i32.const 0)) (then\n");
+    W("        (local.set $pat_cursor (local.get $pat_save_cursor))\n");
+    W("      ))\n");
+    return;
+}
+```
+
+### SW-9 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW03  # expect 3/3
+```
