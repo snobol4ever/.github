@@ -9470,3 +9470,72 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
 
 **Immediate first action (PW-9):** Open `src/backend/emit_wasm_prolog.c`, find `emit_pl_predicate()`. In the head-unification loop, add an array `int head_var_slot[MAX_ARGS]` tracking which env slot each `E_VAR` head arg maps to (or -1 for non-var). After body goals, before `local.set $tm_N 1`, emit write-back: for each `ai` where `head_var_slot[ai] >= 0`, emit `(i32.store (local.get $a%d) (i32.load (i32.const %d)))`. Then test rung05 → expect `a\nb\nc\n`. If PASS, run emit-diff + invariants, fire M-PW-B01.
+
+## IW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `54eac34` · **.github** this commit
+
+### Session summary
+
+Full EXPR_t rewrite of emit_wasm_icon.c — eradicated all IcnNode usage. M-IW-P01 `$icn_retcont` trampoline implemented and working for single non-recursive proc calls. rung01 restored 6/6. rung02 add_proc passing.
+
+### Work completed
+
+**Root cause (IW-7 diagnosis confirmed):** `emit_wasm_icon.c` used `IcnNode*` AST directly. Grand Master Reorg wired all Icon paths through `icon_lower()` → `EXPR_t*`. Driver passes `EXPR_t**lowered`; emitter was comparing `procs[i]->kind == ICN_PROC` which never matched, producing "no main procedure found" (rung01 0/6) and segfaults (rung02 proc tests).
+
+**Fix — complete EXPR_t rewrite:**
+- `ICN_PROC → E_FNC` (sval=name, ival=nparams, children[0]=E_VAR name)
+- `ICN_INT → E_ILIT` (ival), `ICN_STR → E_QLIT` (sval), `ICN_MUL → E_MPY`
+- `ICN_ALT → E_GENALT`, field `->val.ival → ->ival`, `->val.fval → ->dval`
+- Prescan now walks `EXPR_t` tree, detects `E_QLIT` for string interning
+- No `IcnNode` in live code; `icon_ast.h` kept only for transitive include chain
+
+**M-IW-P01 `$icn_retcont` trampoline:**
+- `(global $icn_retcont (mut i32))` + `(type $cont_t (func (result i32)))`
+- Non-main proc's last chain → `icn_proc_NAME_retcont` → `return_call_indirect (type $cont_t)`
+- Call site registers its esucc in `icn_retcont_funcs[]` table; docall sets `$icn_retcont` then calls proc
+- Module emits `(table N funcref)` + `(elem (i32.const 0) $fn0 $fn1 ...)` after all funcs
+- **Fixed E_RETURN e_id bug:** was `wasm_icon_ctr - 1` after emit (grabbed last child node); corrected to `wasm_icon_ctr` before emit (grabs root of child subtree)
+- **Fixed multi-arg call chain:** two-pass — emit all arg expressions first to collect start names, then emit esucc trampolines with correct `arg_starts[ai+1]` forward refs
+
+### Gate (end of session)
+- **Build:** clean ✅
+- **Emit-diff:** 729/9 ✅ (no regressions)
+- **rung01:** 6/6 ✅ (restored from 0/6)
+- **rung02 arith_gen:** 5/5 ✅
+- **rung02_proc_add_proc:** ✅ (M-IW-P01 core case)
+- **rung02_proc_fact:** ❌ needs E_IF (E_IF stub-fail)
+- **rung02_proc_locals:** ❌ needs local var table (E_ASSIGN stub-fail)
+
+### IW-9 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+### M-IW-V01 — Local variable table (implement first in IW-9)
+
+`E_ASSIGN` is currently stub-fail. `rung02_proc_locals` needs `total := 0`, `total + (1 to n)`, `return total`.
+
+**Implementation plan:**
+1. At proc emit time, scan body for `E_ASSIGN` LHS `E_VAR` names → build local var name→slot table
+2. Allocate local var slots in linear memory (separate from gen-state slots; use a per-proc base address)
+3. `E_ASSIGN`: emit E2, then store result into `mem[local_base + slot*8]` (i64 store)
+4. `E_VAR` (non-param, non-global): read from `mem[local_base + slot*8]` (i64 load) → `$icn_int{id}`
+5. Expected result: rung02_proc_locals ✅
+
+### M-IW-C01 — E_IF (after M-IW-V01)
+
+Needed for `rung02_proc_fact`. `if E then S1 [else S2]`:
+- `E.start` → eval condition
+- `E.succeed` → `S1.start`
+- `E.fail` → `S2.start` (or if.fail if no else)
+- `S1/S2.succeed` → if.succeed; `S1/S2.fail` → if.fail
