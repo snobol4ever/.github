@@ -9039,3 +9039,90 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 Find `emit_icn_var()` (~line 315) and replace the stub with param-read logic.
 Find `ICN_RETURN` case (~line 1073) and add non-main path.
 Find `ICN_CALL` handler (~line 1032) and add user-proc branch before the stub-fail fallthrough.
+
+---
+
+## IW-6 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~98%
+
+**one4all** `0f0b1eb` · **.github** this session
+
+### Session summary
+
+M-IW-P01 scaffolding pushed. Root cause of output-nothing bug found and documented. IW-7 has a precise one-area fix to make.
+
+### Work completed
+
+**ICN_VAR param read (DONE ✅)**
+`emit_icn_var()` now checks `icn_cur_params[i]` array. If name matches a param, emits `global.get $icn_param{i}` → `global.set $icn_int{id}` → `return_call $succ`. Non-param vars still stub-fail (M-IW-V01).
+
+**ICN_RETURN non-main (DONE ✅)**
+Non-main procs: emits child expr eval, stores result in `$icn_retval`, `return_call $succ`. Main proc: unchanged (`return_call $icn_prog_end`).
+
+**ICN_CALL user-proc (DONE ✅)**
+Call site evaluates each arg into `$icn_param{i}` via per-arg esucc chain, calls `$icn_proc_NAME_start`, esucc reads `$icn_retval` → `$icn_int{id}` → caller's succ.
+
+**Root cause of rung02 output-nothing (FOUND, NOT YET FIXED)**
+`emit_wasm_icon_proc()` ~line 1355 always chains last stmt to `$icn_prog_end` for ALL procs (including non-main). So `add`'s ICN_RETURN fires its succ → `$icn_add_chain0` → `$icn_prog_end` — exits the program instead of returning to `$icon6_esucc` (the call site's return handler).
+
+The call site correctly emits `$icon6_esucc` (reads `$icn_retval`, calls write's succ) but it is never reached.
+
+### IW-7 — ONE FIX NEEDED
+
+In `emit_wasm_icon_proc()` (~line 1355 of `src/backend/emit_wasm_icon.c`):
+
+```c
+// CURRENT (wrong for non-main):
+const char *next = (i + 1 < nstmts) ? stmt_start[i+1] : "icn_prog_end";
+
+// FIX: non-main procs chain to a per-proc return hook
+const char *final_target;
+if (strcmp(pname, "main") == 0) {
+    final_target = "icn_prog_end";
+} else {
+    final_target = "icn_proc_ret_hook";  /* see below */
+}
+const char *next = (i + 1 < nstmts) ? stmt_start[i+1] : final_target;
+```
+
+And emit one per-proc return-hook function **after** the chain:
+```c
+if (strcmp(pname, "main") != 0) {
+    WI("  (func $icn_proc_%s_ret_hook (result i32)\n", pname);
+    WI("    ;; stub: call site must forward-declare its esucc here\n");
+    WI("    return_call $icn_program_fail)\n");
+}
+WI("  (func $icn_proc_%s_start (result i32)  return_call $%s)\n", pname, stmt_start[0]);
+```
+
+Then in ICN_CALL user-proc handler, after emitting `$icon{id}_docall`, also emit:
+```c
+// Override the proc's ret_hook to point to this call site's esucc
+WI("  ;; Trampoline: redirect proc's ret_hook to this call site\n");
+WI("  (func $icn_proc_%s_ret_hook (result i32)  return_call $%s)\n", fname, esucc);
+```
+
+WAT allows only one definition per function name — so this only works for non-recursive single-call programs. For full generality, use a `$icn_retaddr` funcref table. But for rung02 (single call per proc) this is sufficient.
+
+**After fix: expect rung02_proc_add_proc / fact / locals → 3/3 ✅ → fire M-IW-P01.**
+
+### Gate (end of session)
+- **Build: clean ✅**
+- **Emit-diff: 719/19 ✅** (no regression)
+- **rung01: 6/6 ✅**
+- **rung02 procs: 0/3** (trampoline fix pending IW-7)
+
+### IW-7 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**Immediate next action:** Open `src/backend/emit_wasm_icon.c`. Find `emit_wasm_icon_proc()` (~line 1355). Replace `"icn_prog_end"` final-succ with `"icn_proc_NAME_ret_hook"` for non-main procs. Emit that hook function. In ICN_CALL handler, redefine the hook to point at the call site's esucc. Build, test rung02 → expect 3/3, fire M-IW-P01.

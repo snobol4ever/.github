@@ -28,11 +28,11 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 ---
 
-## §NOW — IW-4
+## §NOW — IW-6
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-4 `e6d384f` | one4all `e6d384f` | **M-IW-A03**: ICN_LT/LE/GT/GE/EQ/NE relops (already emitted in A01 — verify rung01 relop tests) |
+| **ICON WASM** | IW-6 `0f0b1eb` | one4all `0f0b1eb` | **M-IW-P01**: fix proc chain final succ → per-call-site trampoline |
 
 ---
 
