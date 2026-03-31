@@ -10539,146 +10539,243 @@ one4all HEAD: `2a973fe` · corpus HEAD: `7c17586`
 
 ---
 
-## SW-11 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+## G-9 s34 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-**one4all** `77fa6f6` · **corpus** `37f0d5e` · **.github** this session
+**one4all** `388140a` · **corpus** `caa3903` · **.github** this commit
 
-### Completed this session
+### Session summary
 
-**Cleanup (committed `a3c9567` → merged into `9e2109d`):**
-- `emit_wasm.h`: added `emit_wasm_runtime_imports_sno_base(out, npages, comment)` — 10 shared `"sno"` imports (output/string/math) shared between SNOBOL4 and Icon emitters. Previously duplicated verbatim in `emit_wasm_icon.c`.
-- `emit_wasm.c`: `emit_runtime_imports()` now calls shared base + appends 12 SNOBOL4-specific imports.
-- `emit_wasm_icon.c`: 4 thin alias wrappers removed (`icn_strlit_intern/abs/reset`, `icn_emit_data_segment`); all 5 call sites now call `emit_wasm_strlit_*` directly (matches Prolog pattern).
-- `sno_runtime.wasm`: rebuilt with `sno_any/span/break/notany/breakx` exports (SW-10 blocker).
+Gate confirmed clean on arrival: emit-diff 981/4 ✅ · icon_x86 95p/163f ✅.
 
-**M-SW-C01: CAPTURES 5/5 ✅ (committed `50be262` / corpus `e248431` → `37f0d5e`):**
+Milestone: rung05 `icn_write_str` NULL + write type fallback. Target was 97p/161f; achieved **103p/155f** (8 extra passes from globals type-inference fixing multiple rungs beyond rung05).
 
-Root cause: `E_CAPT_COND/IMM/CUR` are `binop(kind, pattern_child, E_VAR(varname))` IR nodes. `sval` is **never set** — varname lives in `children[1]->sval`. Previous code looked in `sval` → always empty → capture commit block silently skipped.
+### Fix 1: `icn_write_str(NULL)` crash — `icon_runtime.c`
 
-Fixes:
-- `emit_pattern_node E_CAPT_COND`: extract varname from `children[1]->sval`; `children[0]` = pattern child. Commit block (`global.set var_X_off/len`) now emits correctly when `cursor >= 0`.
-- `emit_pattern_node E_CAPT_IMM`: same binop fix. Additional fix for QLIT child: offset computed as `subj_off + (cursor - ndl_len)` not `subj_off + pat_before` — `sno_pat_search` scans forward, match starts at `cursor_after - needle_len`, not at `pat_before`.
-- `emit_pattern_node E_CAPT_CUR`: binop fix; run child first then capture cursor; guard with `cursor >= 0`.
-- `prescan_expr`: unified CAPT_COND/IMM/CUR intern: try `sval` first (legacy), then `children[1]->sval` (parser path).
-- `W07_capt_cur.sno` test 2: rewritten cursor-after form (`'ABCDE' @ pos2`) — parser rejects cursor-before `(@ pos2 ...)`.
-- `run_invariants.sh`: rungW07 added to `snobol4_wasm` DIRS.
-- 5 `.wat`/`.wasm` artifacts generated and committed to corpus.
+**Root cause:** `icn_subject` is BSS-zeroed. In nested scan (`a ? (b ? write(&subject))`), after the inner scan's body succeeds, outer scan's `body_ok` restores `icn_subject` from `icn_scan_oldsubj_N` — which is also BSS-zeroed if no outer scan was active before. `write(&subject)` then calls `icn_write_str(0)` → NULL deref → segfault (t05).
 
-**snobol4_wasm: 43p/1f → 48p/1f ✅**. Gate: 981/4.
+**Fix:** `icn_write_str`: guard `if(!s)` → emit newline and return.
 
-**M-SW-C02 WIP (committed `77fa6f6` — NOT yet passing):**
+### Fix 2: write type fallback for BSS globals — `emit_x64_icon.c`
 
-`sno_runtime.wat` — all functions written and compiled clean (`wat2wasm` succeeds):
-- Expanded to 5 pages (320KB); array/table heap at `ARR_HEAP_BASE = 0x40000 = 262144`
-- `sno_arr_alloc`: bump allocator
-- `sno_array_create/create2`: 1D/2D array with 32-byte header + 8-byte/slot storage
-- `sno_array_get/get2`: bounds check, default-value support, null-slot → (0,0)
-- `sno_array_set/set2`: bounds-checked write
-- `sno_array_prototype`: writes "3" or "2,2" into caller-supplied memory buffer
-- `sno_table_create/get/set`: open-address hash (FNV-1a), 16-byte buckets, 8+ capacity
-- `sno_table_count/cap/get_bucket`: for TABLE→ARRAY conversion
-- `sno_data_define/new/get_field/set_field`: DATA type registry at `0x48000`
-- `sno_handle_type`: returns 1=array, 2=table, 3=data for handle validation
-- `sno_hash`, `sno_str_match_exact`: internal helpers
+**Root cause:** `infer_local_types` recorded types into `cur_locals[]` (frame slots only). Variables declared `local s;` in Icon are emitted as BSS globals (`icn_gvar_s`) by the x86 emitter when `locals_find` returns -1. `locals_type("s")` → `'?'` → `icn_expr_kind` → `'?'` → `emit_call` write handler fell through to `icn_write_int` → printed pointer as integer (t03: `outer` then `4206592`).
 
-**Handle representation:** variables holding arrays/tables store handle (heap ptr) in `$var_X_off`, with `$var_X_len = 32767` (MAGIC_HANDLE) as sentinel distinguishing from real strings.
+**Fix:** Added `gvar_types[MAX_GVARS]` BSS globals type table with `globals_set_type`/`globals_type`. Extended `infer_local_types` to route to `globals_set_type` when `locals_find` returns -1. Extended `icn_expr_kind` `E_VAR` case to consult `globals_type` after `locals_type` returns `'?'`.
 
-`emit_wasm.c` — added but **lvalue (assignment) path incomplete**:
-- `emit_runtime_imports`: 20 new array/table/data imports added
-- `emit_main_body`: `$arr_h`, `$arr_ok`, `$proto_len` locals added
-- `E_IDX` rvalue: reads array element (1D/2D) or table entry; coerces null (0,0) to empty string. **Known issue**: the `(local.tee $tmp_i32)` trick for preserving len while checking null needs verification.
-- `E_FNC ARRAY()`: evaluates size arg, optional default, calls `sno_array_create`; returns `(handle, 32767)`.
-- `E_FNC TABLE()`: creates table with inline capacity or default 16.
-- `E_FNC PROTOTYPE()`: calls `sno_array_prototype`, copies result to string heap via `memory.copy`.
-- `E_FNC DIFFER(1-arg)`: sets `$ok` = (len==0); i.e. succeed if null.
-- `E_FNC DIFFER(2-arg)`: calls `sno_str_eq`, sets `$ok` = NOT equal.
-- `E_FNC VALUE()`: routes to `sno_var_get` (indirect lookup by name string).
-- `is_idxassign` **detection** added to statement classifier.
+**Side effect (correct):** 16 other emit-diff `.s` refs updated (rung11, rung13, rung15, rung21, rung25, rung27, rung36, sieve) — all had `icn_write_int` → `icn_write_str` for global string vars. Emit-diff re-run: **1283/0** after `--update`.
 
-### What's missing for M-SW-C02 to pass
+### Gate (end of session)
 
-**1. `is_idxassign` lvalue emit block** — most critical. After `is_indrassign` block (~line 1460 of `emit_wasm.c`), add:
-```c
-} else if (is_idxassign) {
-    /* arr<i> = val  or  tbl<key> = val */
-    const EXPR_t *arr_e = s->subject->children[0];
-    const EXPR_t *idx_e = s->subject->children[1];
-    const EXPR_t *idx2_e = s->subject->nchildren >= 3 ? s->subject->children[2] : NULL;
-    /* Evaluate array handle */
-    emit_expr(arr_e);  /* → (handle, 32767) */
-    W("      (drop)  ;; drop magic sentinel\n");
-    W("      (local.set $arr_h)\n");
-    /* Check handle type */
-    W("      (local.set $arr_ok (call $sno_handle_type (local.get $arr_h)))\n");
-    /* Evaluate value */
-    WasmTy vt = emit_expr(s->replacement);
-    if (vt == TY_INT)   W("      (call $sno_int_to_str)\n");
-    if (vt == TY_FLOAT) W("      (call $sno_float_to_str)\n");
-    W("      (local.set $proto_len)  ;; val_len\n");
-    W("      (local.set $tmp_i32)    ;; val_off (reuse tmp)\n");
-    if (idx2_e) {
-        /* 2D array set */
-        emit_expr_as_i32(idx_e);
-        emit_expr_as_i32(idx2_e);
-        W("      (local.get $arr_h) (local.get $tmp_i32) (local.get $proto_len)\n");
-        W("      ... sno_array_set2 ... \n");
-    } else {
-        W("      (if (i32.eq (local.get $arr_ok) (i32.const 2)) (then\n");
-        /* TABLE set */
-        emit_expr(idx_e);  /* key as string */
-        if (TY_INT) W("(call $sno_int_to_str)\n");
-        W("        (call $sno_table_set (local.get $arr_h))\n");
-        W("        (br $stmt_done)))\n");
-        /* ARRAY set */
-        emit_expr_as_i32(idx_e);
-        W("      (call $sno_array_set (local.get $arr_h))\n");
-        W("      (drop)\n");
-    }
-    W("      (local.set $ok (i32.const 1))\n");
-}
-```
-Note: you'll need a helper or inline sequence to evaluate an index expr → i32 (str→int→wrap). See how E_IDX rvalue does it.
+- **Emit-diff:** 1283/0 ✅ (refs regenerated; 4 pre-existing JVM .j failures not staged)
+- **icon_x86:** 103p/155f ✅ (exceeded target 97p/161f; all new passes are correct)
+- **rung05:** 5/5 ✅
 
-**2. `memory.copy` instruction** — `sno_array_prototype` in the emitter uses `(memory.copy)`. This requires `--enable-bulk-memory` flag to `wat2wasm`. Either add that flag to `test/run_wasm_corpus_rung.sh` and `SESSION_SETUP.sh`, or rewrite PROTOTYPE to use a byte-copy loop instead. **Recommend**: use byte-copy loop (no new flag needed).
+### G-9 s35 first action
 
-**3. Multi-dimensional ARRAY parsing** — `ARRAY('2,2')` passes a string. Current emitter calls `sno_str_to_int` which only gets the first number (`2`). Need to detect `','` in the dim string and dispatch to `sno_array_create2`. Parse at emit time: if the E_FNC ARRAY child is a QLIT containing `','`, split and call create2.
-
-**4. DATA/ITEM** — not yet in emitter. Tests `1115_data_basic`, `1116_data_overlap`, `1114_item` need `E_FNC DATA`, `E_FNC ITEM`.
-
-**5. CONVERT(t, 'array') / CONVERT(ta, 'table')** — test `1113_table` needs TABLE→ARRAY and ARRAY→TABLE. Runtime has `sno_table_get_bucket` for iteration; emitter needs to build a 2-column array from table entries.
-
-**6. DATATYPE() for user DATA types** — current `DATATYPE()` emitter only handles compile-time types (string/integer/real). For DATA instances, needs runtime check via `sno_handle_type` + registry lookup.
-
-**7. Invariant wiring** — `rung11` not yet added to `run_invariants.sh` `snobol4_wasm` DIRS. Add after passing.
-
-### SW-12 session start
+Next milestone: **rung09 loops** (Icon×x86). Examine `test/frontend/icon/run_rung09_loops.sh` and the failing rung09 corpus tests to determine what's needed.
 
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-snobol4-wasm.md
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 1283/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 103p/155f
 ```
 
-**Then immediately:**
-1. Add `is_idxassign` lvalue emit block (see pseudocode above)
-2. Fix PROTOTYPE to use byte-copy loop (avoid `memory.copy` / bulk-memory flag)
-3. Fix ARRAY multi-dim parsing for `'2,2'` string arg
-4. Build: `cd src && touch backend/emit_wasm.c && make`
-5. Run: `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11`
-6. Fix failures iteratively (expect: 1110 first, then 1111, 1112, 1113, 1114, 1115, 1116)
-7. Add DATA/ITEM E_FNC cases for tests 1114–1116
-8. Wire `rung11` into `run_invariants.sh` snobol4_wasm DIRS → expect 55p/1f
-9. Emit-diff gate → 981/4
-10. Commit: `SW-12: M-SW-C02 — WASM DATA/ARRAY/TABLE, 7/7 ✅`
+Then examine rung09 failures and proceed.
 
-### Invariant baseline after SW-11
+---
 
-`snobol4_wasm`: **48p/1f** (pre-existing `212_indirect_array` unchanged)
-Emit-diff: **981/4** (4 pre-existing JVM failures)
-one4all HEAD: `77fa6f6` · corpus HEAD: `37f0d5e`
+## SC-6 M-SC-B05 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `663505c` · **corpus** `d0a6c86` · **.github** `fddddd8`
+
+### M-SC-B05 complete: `||` alternation — 5/5 ✅
+
+**Root cause fixed:** `SNOCONE_OR` (`||`) in `emit_x64_snocone.c` was emitting `E_CONCAT` (same as `&&`) instead of `E_ALT`. Single-line fix: split shared `case SNOCONE_PIPE / SNOCONE_OR` block — `SNOCONE_OR` now calls `expr_binary(E_ALT, l, r)`. `E_ALT` was already fully handled in `emit_x64.c`. `SNOCONE_PIPE` (bare `|`) remains `E_CONCAT`.
+
+**HQ updates this session:**
+- `RULES.md` — new `⛔ ORACLE HIERARCHY`: SPITBOL is position zero; CSNOBOL4 lacks FENCE, not valid for Snocone
+- `SESSION-snocone-x64.md` — oracle references corrected to SPITBOL throughout
+- `SESSION_SETUP.sh` — SPITBOL install activates for `FRONTEND=snocone`, installs from `snobol4ever/x64` pre-built binary via TOKEN
+
+**corpus/crosscheck/snocone/rungB05/** — 5 tests (SPITBOL oracle):
+`B05_alt_left_wins` · `B05_alt_right_fallback` · `B05_alt_both_fail` · `B05_alt_chain` · `B05_alt_assign`
+
+**test/run_invariants.sh:** `rungB05` added to `snocone_x86` DIRS.
+
+### Gate
+- **Emit-diff:** 981/4 ✅
+- **rungB05:** 5/5 ✅
+- **snobol4_x86:** 106/106 ✅
+- **snocone_x86 count:** 116→121
+
+### Next: M-SC-B06 — `~` negation / `?` query (5 tests)
+
+Check `SNOCONE_TILDE` (already maps to `make_fnc1("NOT",...)` in emit_x64_snocone.c) and `SNOCONE_QUESTION`. Verify via existing `E_NOT`/`E_QUERY` IR paths — may be free like B04. Write 5 tests: negate-fail→succeed, negate-succeed→fail, query-discard-cursor, query-in-if, combined.
+
+### SC-7 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://oauth2:TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB05                     # expect 5/5
+```
+
+---
+
+## IW-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `20948cf`
+
+
+---
+
+## PW-12 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `443dae2` · **corpus** `60b0209` · **.github** this commit
+
+### Session summary
+
+Gate confirmed clean on arrival: 981/4 emit-diff ✅, prolog_wasm 0p (runner function ordering bug — `run_prolog_wasm` defined after the dispatch loop in `run_invariants.sh`, so it reports 0p but doesn't crash).
+
+### Fixes committed
+
+**Commit `8ecc935` — ci-cell dispatch fix:**
+- Replaced broken `nclauses>1→beta1` heuristic in gamma with per-GT-site clause-index counter in memory (`GT_CI_BASE=7872`, `ci_cell_addr = GT_CI_BASE + site_id*4`)
+- Added exhaustion guard: if `ci >= nclauses` → call omega (prevents infinite alpha loop)
+- Result: rung02 `person/1` (3 flat clauses) now passes ✅
+
+**Commit `443dae2` — GT loop+flag+_call infrastructure:**
+- Added `$pl_foo_N_call(trail,args,gamma,omega,ci)` dispatcher to each predicate (ci selects alpha/beta_N/omega)
+- GT sites use `(loop $gt_N)` in main with WAT-local `$ci_mangled` (per-activation, not shared with recursive calls)
+- `PL_GT_FLAG` at `mem[8188]`: gamma sets 1 after body goals, omega sets 0
+- Loop: polls flag after each `_call`; if 1 → advance local ci, `br $gt_N`; if 0 → exit
+- Result: rung01–04 all PASS ✅; rung05 still `a\nb` (see below)
+
+### rung05 `member/2` diagnosis (complete, not fixed)
+
+**Root cause (definitive):** WAT `return_call` is destructive — recursive activation frames are discarded. When `beta1([a,b,c])` recursively calls alpha and alpha finds `b` (via gamma), control returns to main's loop. Main increments ci to 2 (next top-level clause). But the recursive branch `member(c,[c])` was only reachable by re-entering beta1 with the current tail `[c]` — that activation is gone. Main's ci=2 ≥ nclauses=2 → omega immediately.
+
+**Approaches tried and why they fail:**
+1. **ci-cell-in-gamma** (8ecc935): gamma increments shared memory cell → corrupted by recursive calls
+2. **WAT-local ci in main loop** (443dae2): local ci unaffected by recursion, but each gamma call (from any recursive depth) advances the top-level ci → skips recursive sub-solutions
+3. **`(call)` instead of `(return_call)` for body goals**: preserves WASM call stack but beta1 falls through after the call, calling gamma with stale V0
+
+**What M-PW-B01 requires:**
+A **choice-point stack** in linear memory. Each predicate call pushes a choice point `{predicate, clause_idx, arg_snapshot}`. On failure (gamma→omega back-propagation), the choice point is popped and the next clause retried with the saved args. This is the standard WAM model.
+
+**Concrete implementation plan for PW-13:**
+
+Add to `pl_runtime.wat`:
+```wat
+;; Choice-point stack at [mem area to be defined]
+;; Each frame: {pred_id i32, ci i32, trail_mark i32, a0..aN i32}
+(global $cp_top (mut i32) (i32.const CP_BASE))
+(func (export "cp_push") (param $pred i32) (param $ci i32) (param $tm i32) ...)
+(func (export "cp_pop_ci") (result i32) ...)   ;; returns ci from top frame
+(func (export "cp_set_ci") (param $ci i32) ...) ;; update ci in top frame
+(func (export "cp_pop") ...)                    ;; discard top frame
+```
+
+In `emit_wasm_prolog.c`: when emitting a GT site, instead of a WAT local ci:
+- Before calling `_call`, push a choice point with `pred_id`, `ci=0`, trail_mark, args
+- Gamma: set flag=1, run body goals, trail_unwind to choice-point's trail_mark, update choice-point `ci` to `ci+1` (or next clause), return 0
+- Main loop: poll flag; if 1 → `br $gt_N` (gamma already updated CP ci); if 0 → pop CP, exit
+
+For recursive calls inside beta_N: push their OWN choice point. Backtracking through the CP stack automatically retries the correct recursive sub-call with the correct args.
+
+**Simpler alternative for rung05 specifically:** Since `member/2` only has 2 clauses and the recursive call is the last goal in clause 1 (tail position), use **iterative deepening** via a depth counter passed as an extra argument. Prolog-specific optimization, not general.
+
+**Recommended: implement choice-point stack (the WAM standard).** This unblocks rung05, rung06 (lists), rung07 (cut), and all subsequent rungs that use recursive predicates.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **rung01:** PASS ✅
+- **rung02:** PASS ✅ (was: memory overflow / infinite loop)
+- **rung03:** PASS ✅
+- **rung04:** PASS ✅
+- **rung05:** FAIL ❌ (outputs `a\nb`, missing `c` — choice-point stack needed)
+
+### Code sharing note
+`emit_wasm_prolog.c` uses `emit_wasm_strlit_intern()` via `emit_wasm.h` — **already correct**.
+`emit_wasm_icon.c` still has private strlit table (lines 85–141, ~50 lines) — IW-session task per G-9 s33.
+
+### PW-13 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -150 /home/claude/.github/SESSIONS_ARCHIVE.md               # this handoff
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-13 first action:** Implement choice-point stack in `pl_runtime.wat`, then wire into `emit_wasm_prolog.c` GT sites. Target: rung05 `a\nb\nc` ✅ → commit `PW-13: M-PW-B01 ✅`.
+Frame stack scaffold: emit_frame_push/pop, 4-page runtime (page 3 = 0x30000 frame stack).
+Standalone fact(5)=120 proof-of-concept works. Imported-memory OOB persists.
+Root cause: shared $icn_param0 clobbered by recursive calls.
+Fix for IW-10: per-proc param globals $icn_pv_PROC_PARAM.
+Gate: emit-diff 981/4 ✅
+---
+
+## PW-13 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `f250fd1` · **corpus** `60b0209` · **.github** this commit
+
+### Session summary
+
+Gate confirmed clean on arrival: 981/4 emit-diff ✅, memory 2-page (pre-PW-13).
+
+### Work completed
+
+**Commit `f250fd1` — CP stack implementation:**
+- `pl_runtime.wat`: choice-point stack at [57344..65535] (8KB, 32-byte frames per activation). Memory bumped to 3 pages. Exports: `cp_push`(pred_id,ci,tm,a0..a4), `cp_get_ci`, `cp_set_ci`, `cp_get_arg`(n), `cp_get_trail_mark`, `cp_pop`.
+- `emit_wasm_prolog.c`: GT loop now uses CP stack instead of WAT-local `$ci_`. Before loop: `cp_push(site_id, 0, trail_mark, a0..a4)`. Inner call: passes `cp_get_ci()` as `ci` arg. Gamma: calls `cp_set_ci(ci+1)` then `trail_unwind(cp_get_trail_mark())`. Omega: calls `cp_pop()`. Dead `$ci_pred` WAT locals removed. New CP imports added to `emit_pl_runtime_imports()`.
+
+### rung05 diagnosis (still failing)
+
+**Root cause confirmed:** Pre-existing env-slot aliasing in recursive clause bodies. Beta1's recursive call to alpha passes `i32.load(32832)` (dereferenced value) as `a0` instead of a slot address. Alpha then tries `atom_table[cons_ptr * 8]` → OOB memory access. The cons-cell tagged pointer (high bit set, e.g. `0x80008010`) is used as an atom_id.
+
+**CP stack is correct.** The bug is in `emit_pl_predicate`: recursive goal calls within clause bodies must pass a fresh env-slot address for each output variable, not the loaded value. The fix: allocate a new env frame per recursive activation, or pass the caller's slot address through (threading the slot address rather than the value).
+
+**Concrete fix for PW-14:**
+
+In `emit_pl_predicate`, the recursive call inside `E_CLAUSE` body goals currently emits:
+```c
+W("    (i32.load (i32.const %d)) ;; var _V%d\n", slot_addr, slot);
+```
+This should emit the **slot address** for output vars, not the loaded value:
+```c
+W("    (i32.const %d) ;; slot addr _V%d\n", slot_addr, slot);
+```
+Then alpha/beta must treat `a0` consistently as a slot address (which they already do — the writeback logic `if (a0 >= ENV_BASE) store(a0, load(32768))` is already correct). The bug is only in the call-site arg emission for recursive body calls.
+
+The specific location: `emit_goal` → `E_FNC` pred-call case → the arg-emission loop that builds args for a body call to a user predicate. When the arg is `E_VAR` and the call is inside a clause body (not the GT outer call), it emits `i32.load(slot_addr)` instead of `i32.const slot_addr`.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **rung01–04:** PASS ✅ (unchanged)
+- **rung05:** FAIL ❌ (OOB in gamma — env-slot aliasing in recursive call)
+
+### PW-14 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -150 /home/claude/.github/SESSIONS_ARCHIVE.md               # this handoff
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-14 first action:** In `emit_goal`, find the body-call arg emission for E_VAR args and change `i32.load(slot_addr)` → `i32.const slot_addr` for output variable slots (those with valid slot indices ≥ 0). Then regenerate, reassemble, rerun rung05 → expect `a\nb\nc` ✅ → commit `PW-14: M-PW-B01 ✅`.

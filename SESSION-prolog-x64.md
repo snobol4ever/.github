@@ -52,8 +52,17 @@ gcc -no-pie foo.o \
 
 ## CRITICAL NEXT ACTION — 3-ucall re-entry loop (M-PJ-X64-3 final blocker)
 
+### What is fixed (all in `emit_byrd_asm.c`, committed at `a051367`)
 
-**Previously fixed (PX-1, `a051367`):** inter-ucall trail mark, βN unwind, slot-zeroing, re-entry decode, `pop rcx` fix. See SESSIONS_ARCHIVE.
+| Bug | Fix |
+|-----|-----|
+| Inter-ucall trail mark in dead code | Moved to success path before `jmp γN` |
+| βN unwind to wrong mark (post-ucall N-1) | Now unwinds to `UCALL_MARK_OFFSET(N-1)` |
+| `UCALL_MARK_OFFSET(0)` before head unif | Moved to body label, fresh `trail_mark_fn` |
+| Body always started fresh (ignored start) | Stride-based re-entry decode added |
+| `inner = start-base` negative (head-fail jump) | Changed `jz` → `jle` for fresh check |
+| `sub_cs_acc` corrupted on retry | γN now recomputes from slots 0..N |
+| `pop ecx` invalid in 64-bit | Fixed to `pop rcx` |
 
 ### Remaining bug — 3-ucall γN slot-zeroing conflict
 
