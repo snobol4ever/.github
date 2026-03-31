@@ -54,6 +54,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # own cell 
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-11 | `2a973fe` one4all · `7c17586` corpus | **M-SW-C02** — see SESSIONS_ARCHIVE SW-11 handoff |
+| **SNOBOL4 WASM** | SW-12 | `ead4d7e` one4all · `7c17586` corpus | **M-SW-C02**: is_idxassign lvalue + ARRAY/TABLE/DATA |
 
-See SESSIONS_ARCHIVE SW-11 handoff for current status and next action.
+See SESSIONS_ARCHIVE SW-11 handoff for full M-SW-C02 task list and pseudocode.
