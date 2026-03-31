@@ -11197,3 +11197,97 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 ```
 
 **IW-13 first action:** Resume M-IW-R01 — rung02_proc_fact `[run/timeout]`. The frame-save infrastructure (`emit_frame_push/pop`, `icn_proc_reg_*`) is in place from IW-10. Root cause: `E_EVERY` exhaustion path loops infinitely instead of falling through to `icn_prog_end`. Trace the WAT for rung02_proc_fact manually: `./scrip-cc -icn -wasm -o /tmp/fact.wat corpus/programs/icon/rung02_proc_fact.icn && cat /tmp/fact.wat` — find the infinite loop in the E_EVERY efail chain.
+
+## PW-15 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `77b1e05` · **corpus** `de89e78` · **.github** this commit
+
+### Session summary
+
+Oracle: swipl apt failed; built from uploaded swipl-devel-master.zip → 10.1.5 installed.
+Gate on arrival: 981/4 emit-diff ✅, prolog_wasm 0/0 ✅.
+
+### Completed this session
+
+**emit_wasm_expr export (session focus — ✅ done):**
+- `emit_expr` in `emit_wasm.c` renamed to `emit_wasm_expr`, made non-static.
+- `emit_wasm.h` updated: `WasmTy` typedef + `emit_wasm_expr()` declaration.
+- `emit_wasm_prolog.c` already includes `emit_wasm.h` — no changes needed.
+- Builds clean.
+
+**cp_set_arg added to pl_runtime.wat:**
+- New export `cp_set_arg(n, val)` — writes `val` into arg slot `n` of top CP frame.
+- Runtime rebuilt: `pl_runtime.wasm` committed.
+- Import added to emitter preamble; emitted after `cons_tail` binding in clause head unification.
+
+**Gamma/ci fixes (from PW-14 spec — all applied):**
+- Removed `cp_set_ci` from gamma body.
+- Added `cp_set_ci(ci+1)` in GT loop before `br $gt_N`.
+- Added flag reset (`store flag=0`) at top of each loop iteration.
+
+### M-PW-B01 rung05 — still failing (outputs `a` only)
+
+**Root cause definitively identified — not fixed this session:**
+
+The GT loop in `main` calls `$pl_member_2_call(ci)` with args read from the CP frame. The CP frame stores the **original** call arguments frozen at `cp_push` time. Beta1 (ci=1) always receives `[a,b,c]` as `a1`, strips to `[b,c]`, recurses into alpha → finds `b` → gamma fires → GT loop advances ci to 2 → omega → done. `c` is never found.
+
+The `cp_set_arg` fix (update CP frame tail after cons_tail extraction) is **logically flawed**: it fires from every beta invocation in the entire recursive call chain, not just top-level. A recursive `member(X,[b,c])` also updates the same CP frame, incorrectly advancing the outer loop's state.
+
+**Correct fix for PW-16 — per-call CP frames (proper WAM):**
+
+Each predicate invocation that has choice points must push its own CP frame. The GT loop in main manages the outermost frame; each recursive beta call must push/pop its own frame independently. This means:
+
+1. Beta functions must call `cp_push` before their recursive `return_call` to alpha, and the GT loop must manage the outermost frame separately.
+2. OR: the recursive call inside beta must be a **regular call** (not `return_call`) that returns a success/fail flag, and beta drives its own retry loop.
+
+**Minimal concrete fix for PW-16 (avoid full WAM redesign):**
+
+Change beta emission so that the recursive body call is a **non-tail call** with its own GT sub-loop:
+
+```c
+// Instead of: return_call $pl_member_2_alpha
+// Emit a nested GT loop for the recursive sub-call:
+//   cp_push(pred_id, 0, trail_mark, _V0_addr, tail_addr, ...)
+//   loop $inner_gt:
+//     flag = 0
+//     call $pl_member_2_call(ci_from_inner_cp)
+//     if flag: cp_set_ci(ci+1); br $inner_gt
+//   cp_pop
+```
+
+This makes each recursive level manage its own iteration independently. The outer GT loop then only fires once per top-level solution, not per recursive step.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **rung01–04:** PASS ✅
+- **rung05:** FAIL ❌ (outputs `a` only — per-call CP frames needed)
+
+### PW-16 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# swipl apt will fail — build from uploaded swipl-devel-master.zip:
+#   cd /home/claude/swipl-devel-master && mkdir build && cd build
+#   cmake -DSWIPL_PACKAGES=OFF -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release ..
+#   make -j$(nproc) && make install
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md                # this handoff
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-16 first action — nested GT sub-loop in beta emission:**
+
+In `emit_wasm_prolog.c`, find where beta emits its body recursive call (`return_call $pl_X_alpha`). Replace that `return_call` with a nested GT loop pattern:
+1. `cp_push` with `ci=0`, current trail_mark, and the destructured args (_V0 slot, tail slot).
+2. `loop $inner_gt_N`: reset flag, call `_call(ci_from_cp)`, if flag: `cp_set_ci(ci+1); br $inner_gt_N`.
+3. `cp_pop` after loop exits.
+4. If inner loop found solutions (flag fired at least once) → call outer gamma.
+5. Else → call outer omega.
+
+This is ~30 lines of new emission logic. Validate with rung05: expect `a\nb\nc`.
+
+**Context discipline:** `grep -n` + `sed -n 'N,Mp'` tight ranges only. Never read full WAT.
