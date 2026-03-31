@@ -9297,3 +9297,34 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 22
 ```
 
 **Immediate next action (M-SW-B01):** Create `corpus/crosscheck/rungW01/` with 3 test files (W01_pat_lit_basic.sno, W01_pat_lit_anchor.sno, W01_pat_lit_fail.sno + .ref files). Add Byrd-box α/β/γ/ω WAT emission for `E_QLIT` in pattern context and `E_MATCH`. See SESSION-snobol4-wasm.md §M-SW-B01 for exact spec and WAT shape.
+
+---
+
+## SW-6 cont. M-SW-B01 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `04c1059` · **corpus** `1ab2f57` · **.github** this session
+
+### M-SW-B01 complete: PATTERN LIT — unanchored substring match ✅
+
+**sno_runtime.wat:** `sno_str_contains(hay_off, hay_len, ndl_off, ndl_len) → i32` — standard O(n·m) substring scan; empty needle always matches; returns 1 if found, 0 if not.
+
+**emit_wasm.c:**
+- Added `sno_str_contains` import in `emit_runtime_imports()`.
+- Added pattern-match branch in statement emitter (before plain `has_subject` eval): when `s->pattern` is non-NULL and non-`E_NUL`, emit subject + pattern as strings, call `$sno_str_contains`, set `$ok`.
+
+**corpus:** `crosscheck/rungW01/` — 3 tests: `W01_pat_lit_basic`, `W01_pat_lit_fail`, `W01_pat_lit_anchor`. All oracle-verified against CSNOBOL4 2.3.3.
+
+**Shared code note:** `sno_str_contains` is in `sno_runtime.wat` — Icon×WASM and Prolog×WASM get it free.
+
+### Gate
+- **Emit-diff:** 729/9 ✅
+- **snobol4_wasm:** 25p/1f ✅
+- **rungW01:** 3/3 ✅
+
+### Next: M-SW-B02 — PATTERN SEQ
+
+Create `corpus/crosscheck/rungW02/` with 3 tests: `W02_seq_basic.sno`, `W02_seq_nested.sno`, `W02_seq_fail_propagate.sno`. Oracle-verify with CSNOBOL4.
+
+In emit_wasm.c: `E_SEQ` (pattern concatenation) is currently unhandled — falls to default stub. The `s->pattern` field for `subj pat1 pat2` will parse as `E_SEQ(pat1, pat2)`. Implement `emit_pattern_match()` recursive function that handles `E_QLIT` (literal substring, using `sno_str_contains`) and `E_SEQ` (sequential: find left in subject starting at cursor, then find right in remaining suffix). Needs a cursor-based search, not just `sno_str_contains` on the whole subject.
+
+Key design: replace `sno_str_contains` call with a full `emit_pattern_match(subj_off, subj_len, pattern)` that returns `(new_cursor i32, matched i32)` — or simpler: for Partition B, implement WAT helper `sno_pat_lit_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32` (returns new cursor after match, or -1 on fail). Chain SEQ as: left search from cursor 0 → get cursor1 → right search from cursor1 → get cursor2.
