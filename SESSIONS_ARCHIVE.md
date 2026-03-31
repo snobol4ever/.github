@@ -12149,3 +12149,63 @@ These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS** under G-10 Phase 2-
 
 ### Context discipline
 Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`.
+
+---
+
+## SW-17 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** (see below after push)
+
+### Session summary
+
+Session focus: maximize reuse and sharing of WASM emitter source across SNOBOL4/Icon/Prolog sessions.
+
+### Work completed
+
+**`emit_wasm.c` — remove `static` from `emit_wasm_expr`:**
+- Forward decl (line 89) and definition (line 422): `static WasmTy emit_wasm_expr` → `WasmTy emit_wasm_expr`
+- `emit_wasm_expr` was declared `extern` in `emit_wasm.h` (line 75) but `static` in the `.c` — a linkage contradiction preventing sibling emitters from calling it.
+- Fix: remove both `static` keywords. Build clean. Gates hold.
+- Committed: `fdcd636` "SW-17: expose emit_wasm_expr as public symbol (remove static)"
+
+### Sharing architecture audit (definitive)
+
+**Why `emit_wasm_expr` cannot replace Icon/Prolog literal emission directly:**
+
+| Emitter | Integer width | Emission model |
+|---------|--------------|----------------|
+| SNOBOL4 | `i64.const` | inline stack value |
+| Icon | `i64.const` | Byrd-box `start`/`resume` func pair; value stored in `$icn_int{id}` global |
+| Prolog `is/2` | `i32.const` | 32-bit atom ID; incompatible type |
+
+Icon's Byrd-box model wraps every literal in a goal-directed function pair — structurally incompatible with `emit_wasm_expr`'s inline stack model. Prolog's `emit_arith_i32` uses `i32` (Prolog term width) vs `emit_wasm_expr`'s `i64`. Direct substitution would silently emit wrong-width instructions.
+
+**Output macro divergence:** `WI()` (Icon, 382 sites) and `W()` (SNOBOL4/Prolog) both write to the same `FILE*` after IW-12/PW entry-point setup. Functional equivalence confirmed; mass rename is mechanical but high-risk for low gain.
+
+**What is already shared (solid baseline):**
+- `emit_wasm_strlit_intern/abs/len/reset/count` — all three emitters share the string table
+- `emit_wasm_data_segment()` — called by all three
+- `emit_wasm_set_out()` — called by Icon and Prolog entry points (IW-12 contract)
+- `emit_wasm_runtime_imports_sno_base()` — shared by SNOBOL4 + Icon (Prolog uses `pl` namespace, cannot share)
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_wasm:** 55p/1f ✅ (1f = pre-existing xfail `212_indirect_array`)
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 options (pick one):**
+1. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct — run `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung12` to assess.
+2. **`WI()` → `W()` macro unification** in `emit_wasm_icon.c`: `sed -i 's/\bWI(/W(/g'` across 382 sites, then remove the `WI` macro definition and `icon_wasm_out` static — mechanical but confirm build + invariants after.
