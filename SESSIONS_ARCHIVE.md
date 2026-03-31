@@ -12297,6 +12297,33 @@ SNOBOL4 pattern matching which requires cursor-level backtracking.
 - Replace: emit_main_body (PC-loop → per-stmt Byrd funcs), emit_pattern_node (→ α/β funcs)
 
 ### SW-18 session start
+## SC-9 ADDENDUM (2026-03-31, Claude Sonnet 4.6) — newline-as-whitespace
+
+**one4all HEAD:** `4af2dbe` (main)
+**corpus HEAD:** `4a70276` (unchanged)
+
+### Change
+
+Follow-on to M-SC-B08. The lexer was still emitting `SNOCONE_NEWLINE` at
+end-of-logical-line and converting depth-0 `;` to NEWLINE rather than
+SEMICOLON. Corrected so that:
+
+- Physical newlines are whitespace — no token emitted
+- Depth-0 `;` emits `SNOCONE_SEMICOLON` (sole statement terminator)
+- Inside parens `;` already emitted `SNOCONE_SEMICOLON` (unchanged)
+- All emitter statement-boundary checks (`sc_skip_nl`, `sc_compile_expr`,
+  lowering loops, sentinels, `has_expr`, top-level dispatch) now use only
+  `SNOCONE_SEMICOLON` and `SNOCONE_EOF` — `SNOCONE_NEWLINE` removed entirely
+  from emit_x64_snocone.c
+
+Also removed the now-dead `tok_start` variable from the inline lex block.
+
+### Gates
+- snobol4_x86: 106/106 ✅
+- snocone_x86: 126/126 ✅
+- rungB03: 6/6 ✅
+
+### SC-10 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -12404,3 +12431,18 @@ Read `emit_x64.c` lines 5033–5200 as oracle for per-statement wiring.
 Replace `emit_main_body` inner body (keep PC-loop dispatch skeleton, replace
 per-statement body emission with α/γ/ω WAT function triples).
 Gate: rung2/3/4 pass, emit-diff 981/4 holds.
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-10 first actions:**
+1. `grep -rl "xfail" /home/claude/corpus/crosscheck/snocone/` — find lowest rung with remaining xfails
+2. Check `FRONTEND-SNOCONE.md` for unimplemented AST nodes
+3. Identify and implement M-SC-B09
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
