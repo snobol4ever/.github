@@ -7,18 +7,23 @@
 
 ## §NOW
 
-**Sprint:** SC-3 — gate confirmed, M-SC-A16 next
-**HEAD:** `ddf6bcf` one4all · `ba3fe80` corpus
-**Next action:** rungA16 — convert corpus/crosscheck/snocone/ root-level files (20 .sc files) to semicolon format, prefix A16_, create rungA16/ dir, add rungA16 to snocone_x86 DIRS in run_invariants.sh, fire M-SC-A16
+**Sprint:** SC-4 complete — M-SC-A16 ✅ M-SC-B01 ✅
+**HEAD:** `8d539c7` one4all · `0112a56` corpus
+**Next action:** M-SC-B02 — rungB02: while/do-while + break/continue (6 tests)
+- `B02_while_basic.sc` — while loop runs N times
+- `B02_while_false.sc` — while condition immediately false, body skipped
+- `B02_do_while.sc` — do-while body executes at least once
+- `B02_while_break.sc` — break exits loop early
+- `B02_while_continue.sc` — continue skips rest of body, loop continues
+- `B02_nested_break.sc` — break exits only innermost loop
 
-**Invariant baseline (snocone_x86):** 74/74 ✓ — clean, no failures
-**Emit-diff baseline:** 719/738 (19 icon-x86 failures = G-session scope, not SC)
+**Invariant baseline (snocone_x86):** 99/99 ✓ — snobol4_x86 106/106 ✓
+**Emit-diff baseline:** 719/738 (19 icon-x86 = G-session scope)
 
-**Key work this session (SC-3):**
-- Blocked by G-9 s30 broken commit: emit_x64_icon.c had 155 compile errors (incomplete IcnNode→EXPR_t migration), scrip-cc would not build
-- Fixed all compile errors; wired icon_lower_file() in main.c + icn_main.c
-- IW-3 concurrently fixed same files; reset to origin/main (IW-3 state) per SC-session scope rules — icon files are not SC-owned
-- SC baseline confirmed clean throughout: snobol4_x86 106/106 · snocone_x86 74/74
+**Key work this session (SC-4):**
+- M-SC-A16 ✅ — converted 20 old-format .sc files to semicolon format; rungA16 created; 74→94 tests
+- CSNOBOL4 installed from Lon-supplied tarball (snobol4-2_3_3_tar.gz)
+- M-SC-B01 ✅ — 5 if/else tests (basic, no-else, if/else true/false, nested); 94→99 tests
 
 **Session start — mandatory order, no exceptions:**
 
