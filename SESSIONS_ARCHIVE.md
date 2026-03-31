@@ -9509,6 +9509,41 @@ Full EXPR_t rewrite of emit_wasm_icon.c — eradicated all IcnNode usage. M-IW-P
 
 ### IW-9 session start
 
+---
+
+## G-9 Session 32 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~35%, handoff
+
+**one4all** `ccfc677` · **corpus** `23697ad` · **.github** this session
+
+### Session summary
+
+**Fix: user proc label collision (`icn_NAME` → `icn_u_NAME`) + emit-diff ref regeneration.**
+
+#### Root cause
+User proc entry/done/ret/sret/caller_ret labels were emitted as `icn_NAME`, colliding
+with runtime builtins of the same name (e.g. a user proc named `upto` → `icn_upto` →
+link collision with `icn_upto` in `icon_runtime.c`). Identified in G-9 s31 handoff.
+
+#### Changes made
+
+| File | Change |
+|------|--------|
+| `src/backend/emit_x64_icon.c` | All user proc labels renamed: entry `icn_NAME` → `icn_u_NAME`, plus `_done`/`_ret`/`_sret`/`_caller_ret` suffixed forms. Guard: `main` keeps `icn_main`. Call sites (`jmp`/`call`, caller_ret BSS ref) updated to match. |
+| `corpus/programs/icon/*.s` (256 files) | All icon emit-diff `.s` reference files regenerated. 250 new `.s` files added (rung02–rung36 previously had no refs). 6 existing refs updated for label rename. |
+
+#### Gate
+- **Build: clean** ✅
+- **Emit-diff: 981/4** ✅ (up from 729/9 — 252 new passes)
+- **icon_x86: 93p/165f** — no regression; link collision resolved. Generator runtime failures (e.g. `upto` binary links but produces no output) are separate issues.
+- 4 remaining emit-diff failures: pre-existing JVM-side (`meander`, `queens`, `wordcount`, `coverage_x64_gaps`)
+
+#### NOT done — icon_x86 generator runtime (next session priority)
+The `upto` test now links cleanly but produces no output. `every write(upto(4))` calls
+the generator but the `suspend`/resume cycle doesn't yield values. Root cause: the
+`icn_suspended` flag + `icn_suspend_resume` trampoline path in the generator β port
+needs investigation. This is the next unlock for icon_x86 pass count.
+
+### Next session bootstrap
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
@@ -9539,3 +9574,18 @@ Needed for `rung02_proc_fact`. `if E then S1 [else S2]`:
 - `E.succeed` → `S1.start`
 - `E.fail` → `S2.start` (or if.fail if no else)
 - `S1/S2.succeed` → if.succeed; `S1/S2.fail` → if.fail
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect ~93p/165f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+```
+
+### Next session work (G-9 s33)
+1. Debug `upto` generator: why does `every write(upto(4))` produce no output after link fix?
+   - Check `icn_suspended` flag path in `emit_x64_icon.c` β-port generator resume
+   - Add debug: does `icn_u_upto` entry get reached? Does it `suspend`?
+2. Once generator suspend/resume works: run icon_x86 invariants — target ≥94p/164f → fires `M-G9-ICON-IR-WIRE`
+3. Run full invariant suite end-of-session.
