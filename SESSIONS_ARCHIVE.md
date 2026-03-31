@@ -12316,3 +12316,51 @@ Read `emit_x64.c` lines 5033–5200 and `emit_jvm_pat_node` for wiring reference
 Start with a single simple statement (no pattern, just subject+replacement) to
 establish the per-statement α/γ/ω WAT function skeleton, then add the scan loop,
 then wire in the first pattern node (E_QLIT). Gate each step against rung2/3/4.
+
+---
+
+## SW-17 FINAL HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** `f101d92`
+
+### Session summary
+
+Session focus was WASM emitter sharing across SNOBOL4/Icon/Prolog.
+
+**Delivered:**
+- `emit_wasm_expr` static removed (`fdcd636`) — now properly exported per `emit_wasm.h`
+- Sharing architecture audited: Icon uses Byrd-box funcs (incompatible with inline stack model); Prolog uses i32 arithmetic (incompatible with i64); macro unification (`WI`→`W`) is 382-site mechanical risk
+- **M-SW-BYRD** identified and documented: `emit_wasm.c`'s `emit_pattern_node` uses structured `block`/`loop`/`if` — architecturally wrong for SNOBOL4 pattern backtracking. Full rewrite queued as SW-18 target.
+
+**New milestones:**
+- `MILESTONE-WASM-BYRD.md` — full Byrd-box rewrite spec
+
+**Gates held throughout:** 981/4 ✅ · 55p/1f ✅
+
+### Context note
+
+~80% context consumed this session. SW-18 should be a fresh session.
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**SW-18 first action:** M-SW-BYRD.
+1. Read `emit_x64.c` lines 5033–5200 — statement-level Byrd-box wiring oracle
+2. Read `emit_jvm_pat_node` in `emit_jvm.c` — pattern node α/β oracle
+3. Start with simplest statement type (no pattern, subject+replacement only):
+   emit `$sN_subj_α` / `$sN_subj_γ` / `$sN_stmt_ω` skeleton, gate rung2
+4. Add scan loop + E_QLIT pattern node: `$sN_scan_α` / `$sN_pat_α` / `$sN_pat_β`
+5. Add E_SEQ, E_ALT, E_ARBNO — each gated against relevant rung
+6. Existing `emit_wasm_expr` is kept for subject/replacement value emission (inline stack model is correct there — subject and replacement are expressions, not patterns)
