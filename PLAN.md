@@ -58,7 +58,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B04: `&&` concat semantics (5 tests) |
 | **SNOBOL4 WASM** | SW-9 | `d3ccac3` one4all · `d7348e1` corpus | **M-SW-B05: ANY/SPAN/BREAK** rungW05/ 5 tests |
 | **ICON WASM** | IW-8 | `54eac34` one4all | **M-IW-V01**: local var table (E_ASSIGN) → rung02 locals |
-| **Prolog WASM** | PW-9 | `ac49e18` one4all | **M-PW-B01**: rung05 Byrd-box WAT ok; runtime cons() crash — term_heap_top=32768 corruption TBD |
+| **Prolog WASM** | PW-12 | `8869d47` one4all | **M-PW-B01**: γ body-goal fns + GTSiteData done; β1 re-call needs secondary scratch cell for recursive list arg — see SESSIONS_ARCHIVE PW-12 |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
 **Invariants (G-9 s33 baseline):** x86: SNOBOL4 `106/106` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
