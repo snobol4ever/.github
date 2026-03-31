@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-9 s32 | one4all `ccfc677` · corpus `23697ad` · .github this session | **M-G9-ICON-IR-WIRE** (upto collision fixed; emit-diff 981/4; icon_x86 93p/165f — generator runtime next) |
 | **Snocone x86** | SC-4 | `243b082` one4all · `c58ad4e` corpus | M-SC-B04: `&&` concat semantics (5 tests) |
-| **GRAND MASTER REORG** | G-9 s32b | one4all `19e8008` · corpus `60b0209` · .github this session | **M-G9-ICON-IR-WIRE ✅ FIRED** · next: icon_x86 compile failures (95p/163f → target rung05/06/08) |
+| **GRAND MASTER REORG** | G-9 s33 | one4all `19e8008` · corpus `60b0209` · .github this session | rung05 diagnosed: 2 bugs (icn_write_str NULL + write type fallback) → fix in s34, then rung09 loops |
 | **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B02: while/do-while + break/continue (6 tests) |
 | **SNOBOL4 WASM** | SW-7 | `93eefec` one4all · `31c5c90` corpus | **M-SW-B03: PATTERN ALT** rungW03/ 3 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
