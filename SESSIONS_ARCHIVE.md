@@ -10874,3 +10874,52 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 4. `cd src && touch backend/emit_wasm.c && make`
 5. `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11`
 6. Add DATA/ITEM E_FNC cases; wire rung11 into run_invariants.sh → expect 55p/1f
+
+---
+
+## IW-11 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `ead4d7e` (SW-12 fix, canonical) · **.github** this commit
+
+### Session focus
+Corruption repair + session start for IW-11. Session focus was: consolidate WASM emitter source across SNOBOL4/Icon/Prolog (emit_wasm.c sharing). Icon oracle build package attached but not needed — icont already installed by SESSION_SETUP.sh.
+
+### Corruption found and repaired
+
+`emit_wasm_icon.c` was 516 lines (corrupted) vs correct ~1370+ lines. The corruption existed since at least IW-10 (`f0943c3`) — approximately 840 lines were missing:
+- §1c: `ICN_MAX_LOCALS` typedef + `icn_locals[]` table
+- §2: `wasm_icon_ctr`, `icn_cur_proc_name`, `wfn()` label helpers
+- §3: all per-node emitters (`emit_icn_int/real/var/assign/binop/unop/relop/to/alt/call_write/stub`)
+- §4: forward decl + `emit_expr_wasm` body (function head through E_FNC)
+- IW-10 additions never defined: `emit_frame_push/pop`, `icn_proc_reg_*`, `ICON_FRAME_MAX_INTS`
+
+**Both IW-11 and SW-12 independently repaired the file in parallel.** SW-12's fix (`ead4d7e`) landed on origin first and is canonical. IW-11 verified SW-12's version: builds clean, gate 981/4 ✅.
+
+Additional fix in both repairs: `E_QLIT` case updated to use shared `emit_wasm_strlit_intern/abs/len()` API instead of deleted private `icn_str_lits[]` table — consistent with the §1b comment already in the file ("emit_wasm.c owns the table").
+
+### Code-sharing status (session focus)
+
+The IW-11 session focus was maximising reuse across WASM emitters. Current state after SW-12+IW-11 repairs:
+- `emit_wasm.c` owns: strlit intern table, memory import, base runtime imports, shared node dispatch
+- `emit_wasm_icon.c` calls `emit_wasm_strlit_*` correctly ✅ (private table gone)
+- `emit_wasm_prolog.c` already uses `emit_wasm_strlit_intern` via `emit_wasm.h` ✅ (per PW-13 handoff note)
+- **Remaining duplication to consolidate (next G-session or dedicated IW session):** `emit_frame_push/pop` and `icn_proc_reg_*` are currently private to `emit_wasm_icon.c` — if Prolog WASM also needs frame save/restore, these should move to `emit_wasm.c` + `emit_wasm.h`
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm invariants:** 0p/235f — unchanged from pre-repair baseline (duplicate memory import is pre-existing `[wat2wasm]` failure across all icon_wasm tests; not introduced by this session)
+
+### IW-12 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-12 first action:** Fix duplicate memory import — `emit_wasm_icon_file` calls `emit_wasm_module_header()` (from `emit_wasm.c`) which already emits the memory import, then `emit_wasm_icon.c` emits it again. Remove the duplicate from `emit_wasm_icon.c`. Then re-run `icon_wasm` invariants — expect `[wat2wasm]` failures to clear, revealing the true pass baseline. Then resume M-IW-R01 (activation frame stack → rung02_proc_fact).
