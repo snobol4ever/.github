@@ -58,7 +58,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **Snocone x86** | SC-9 | `a7c09b8` one4all · `da0c0e4` corpus | M-SC-B07 ✅ || concat fix · FOR hang fixed · **M-SC-B08**: FOR step bug (SC-9) — see SESSION-snocone-x64.md |
 | **SNOBOL4 WASM** | SW-16 | `f91cade` one4all | **M-SW-C02 ✅** rung11 7/7. SW-17: sharing refactor (wire emit_wasm_expr into Icon/Prolog) or next rung |
 | **ICON WASM** | IW-15 | `361a527` one4all | **M-IW-G01**: rung03_suspend_gen — implement ICN_SUSPEND node emission |
-| **Prolog WASM** | PW-15 | `fe597af` one4all (pw-15-wip) · `de89e78` corpus | **PW-16 first**: wire run_prolog_wasm into run_invariants.sh; check rung06–09 |
+| **Prolog WASM** | PW-16 | `1a46b53` one4all (pw-15-wip) | **PW-17 first**: fix rung07 multi-clause body call arity mismatch (`_call` needs 6 args, emitter passes 3) — see PW-16 handoff |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
 **Invariants (G-9 s33 baseline):** x86: SNOBOL4 `106/106` · Snocone `120p/0f` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
