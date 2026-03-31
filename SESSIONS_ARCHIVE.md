@@ -10536,3 +10536,51 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 `snobol4_wasm`: **43p/1f** (pre-existing 212_indirect_array unchanged)
 Emit-diff: **981/4** (4 pre-existing JVM failures)
 one4all HEAD: `2a973fe` · corpus HEAD: `7c17586`
+
+---
+
+## G-9 s34 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `388140a` · **corpus** `caa3903` · **.github** this commit
+
+### Session summary
+
+Gate confirmed clean on arrival: emit-diff 981/4 ✅ · icon_x86 95p/163f ✅.
+
+Milestone: rung05 `icn_write_str` NULL + write type fallback. Target was 97p/161f; achieved **103p/155f** (8 extra passes from globals type-inference fixing multiple rungs beyond rung05).
+
+### Fix 1: `icn_write_str(NULL)` crash — `icon_runtime.c`
+
+**Root cause:** `icn_subject` is BSS-zeroed. In nested scan (`a ? (b ? write(&subject))`), after the inner scan's body succeeds, outer scan's `body_ok` restores `icn_subject` from `icn_scan_oldsubj_N` — which is also BSS-zeroed if no outer scan was active before. `write(&subject)` then calls `icn_write_str(0)` → NULL deref → segfault (t05).
+
+**Fix:** `icn_write_str`: guard `if(!s)` → emit newline and return.
+
+### Fix 2: write type fallback for BSS globals — `emit_x64_icon.c`
+
+**Root cause:** `infer_local_types` recorded types into `cur_locals[]` (frame slots only). Variables declared `local s;` in Icon are emitted as BSS globals (`icn_gvar_s`) by the x86 emitter when `locals_find` returns -1. `locals_type("s")` → `'?'` → `icn_expr_kind` → `'?'` → `emit_call` write handler fell through to `icn_write_int` → printed pointer as integer (t03: `outer` then `4206592`).
+
+**Fix:** Added `gvar_types[MAX_GVARS]` BSS globals type table with `globals_set_type`/`globals_type`. Extended `infer_local_types` to route to `globals_set_type` when `locals_find` returns -1. Extended `icn_expr_kind` `E_VAR` case to consult `globals_type` after `locals_type` returns `'?'`.
+
+**Side effect (correct):** 16 other emit-diff `.s` refs updated (rung11, rung13, rung15, rung21, rung25, rung27, rung36, sieve) — all had `icn_write_int` → `icn_write_str` for global string vars. Emit-diff re-run: **1283/0** after `--update`.
+
+### Gate (end of session)
+
+- **Emit-diff:** 1283/0 ✅ (refs regenerated; 4 pre-existing JVM .j failures not staged)
+- **icon_x86:** 103p/155f ✅ (exceeded target 97p/161f; all new passes are correct)
+- **rung05:** 5/5 ✅
+
+### G-9 s35 first action
+
+Next milestone: **rung09 loops** (Icon×x86). Examine `test/frontend/icon/run_rung09_loops.sh` and the failing rung09 corpus tests to determine what's needed.
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 1283/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 103p/155f
+```
+
+Then examine rung09 failures and proceed.
