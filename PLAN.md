@@ -66,7 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **DOTNET** | D-164 `e1e4d9e` | — | resume — unfrozen |
 | **README** | R-2 `00846d3` | — | resume — unfrozen |
 | **ICON x64** | IX-18 `c648df5` | — | resume — unfrozen |
-| **ICON WASM** | IW-6 `0f0b1eb` | one4all `0f0b1eb` | **M-IW-P01**: fix proc chain final succ → per-call-site trampoline (rung02 3/3) |
+| **ICON WASM** | IW-7 | one4all `0f0b1eb` · `.github` this commit | **M-IW-P01**: `$icn_retcont` funcref trampoline → rung02 3/3 |
 | **Prolog JVM** | PJ-84a `a79906e` | — | resume — unfrozen |
 | **Prolog x64** | PX-1 `a051367` | — | resume — unfrozen |
 | **Prolog WASM** | PW-7 `b053fc1` one4all | — | **M-PW-A02**: HEAD UNIF done (3p/104f) — next: rung04 is/2 + -> inline emit |
