@@ -12364,3 +12364,43 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 4. Add scan loop + E_QLIT pattern node: `$sN_scan_α` / `$sN_pat_α` / `$sN_pat_β`
 5. Add E_SEQ, E_ALT, E_ARBNO — each gated against relevant rung
 6. Existing `emit_wasm_expr` is kept for subject/replacement value emission (inline stack model is correct there — subject and replacement are expressions, not patterns)
+
+---
+
+## SW-17 HANDOFF v2 — proper milestones (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` · **.github HEAD:** (this commit)
+
+Context ~85%. Final handoff. SW-18 must be a fresh session.
+
+### Milestone ladder (MILESTONE-WASM-BYRD.md)
+
+| Milestone | Scope | Gate |
+|-----------|-------|------|
+| **M-SW-BYRD-A** | Per-stmt skeleton: subj/repl Byrd funcs, no pattern | rung2/3/4 |
+| **M-SW-BYRD-B** | E_QLIT pattern node + scan loop | rungW01/W02 |
+| **M-SW-BYRD-C** | E_SEQ | rungW03/W04 |
+| **M-SW-BYRD-D** | E_ALT | rungW05/W06 |
+| **M-SW-BYRD-E** | E_ARBNO, E_ARB | rungW07 |
+| **M-SW-BYRD-F** | E_CAPT_COND, E_CAPT_IMM | rung8/9 |
+| **M-SW-BYRD-G** | DEFINE / user-defined functions | rung10 |
+
+### SW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 55p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/MILESTONE-WASM-BYRD.md
+```
+
+**SW-18 first action:** M-SW-BYRD-A.
+Read `emit_x64.c` lines 5033–5200 as oracle for per-statement wiring.
+Replace `emit_main_body` inner body (keep PC-loop dispatch skeleton, replace
+per-statement body emission with α/γ/ω WAT function triples).
+Gate: rung2/3/4 pass, emit-diff 981/4 holds.
