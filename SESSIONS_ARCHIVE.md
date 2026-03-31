@@ -10997,3 +10997,29 @@ cat /home/claude/.github/SESSION-icon-wasm.md
 ```
 
 **IW-12 first action:** Diagnose scrip-cc segfault on `>` operator in complex expressions (e.g. `rung01_paper_paper_expr.icn: `every write(5 > ((1 to 2) * (3 to 4)))`). Run under gdb or valgrind to find the crash site. The `>` relational in a generator context likely hits an unhandled lowerer case. Fix → rerun invariants → expect 126 `[compile]` to become `[output]` or `[pass]`. Then address M-IW-R01 (rung02_proc_fact frame-save / E_EVERY exhaustion).
+
+## G-10 s1 ADDENDUM (2026-03-31) — corpus + harness analysis
+
+Corpus and harness reorg added as Phase 10 and Phase 11 of GRAND_MASTER_REORG_2.md.
+
+**Corpus problems identified:**
+- LAYOUT.md is SNOBOL4-only; Icon/Prolog/Snocone are second-class
+- Two oracle extensions: `.ref` (crosscheck/) vs `.expected` (programs/icon/)
+- Five incompatible rung naming conventions across frontends
+- `crosscheck/` mixes legacy topic dirs with rung dirs (`arith_new`, `control_new`)
+- `programs/` is a catch-all with no coherent structure
+
+**Harness scope clarified by Lon:**
+- `harness` is home for ALL test infrastructure across ALL 5 product repos
+  (one4all, snobol4jvm, snobol4dotnet, snobol4python, snobol4csharp)
+- one4all matrix is 6 frontends × 5 backends (4 active + C dead)
+- Four distinct testing methods: crosscheck, invariant, program suite, oracle triangulation
+- Each method relates to corpus differently
+
+**.github HEAD:** `20fc5ef`
+
+### G-11 first action
+
+Phase 0 gate check: read §NOW of each active SESSION-*.md and confirm whether
+current milestones are landed. If all 13 sessions done → call freeze (M-G10-FREEZE).
+If not → note which are still active, return next session.
