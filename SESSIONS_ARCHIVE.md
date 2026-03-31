@@ -9625,6 +9625,38 @@ M-SC-B03 complete: `for`-loop support firing on all 6 tests.
 
 ### SC-5 session start
 
+## G-9 Session 32b HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~53%, handoff
+
+**one4all** `19e8008` · **corpus** `60b0209` · **.github** this session
+
+### Session summary
+
+**Fix: any/many/upto builtin guard missing `!icn_is_user_proc()` + M-G9-ICON-IR-WIRE fired.**
+
+#### Root cause
+`any`/`many`/`upto` builtin dispatch (line 593) was missing the
+`&& !icn_is_user_proc(fname)` guard that `match`/`tab`/`move`/`find` already had.
+A user proc named `upto` was dispatched to `icn_upto` (C runtime scan builtin)
+instead of the user proc trampoline — producing no output from `every write(upto(4))`.
+
+#### Changes made
+
+| File | Change |
+|------|--------|
+| `src/backend/emit_x64_icon.c` | Added `&& !icn_is_user_proc(fname)` to the `any`/`many`/`upto` builtin check. |
+| `corpus/programs/icon/rung03_suspend_gen.s` | Regenerated — now uses user proc trampoline path. |
+| `corpus/programs/icon/rung03_suspend_gen_compose.s` | Regenerated — same. |
+
+#### Gate
+- **Build: clean** ✅
+- **Emit-diff: 981/4** ✅ (stable)
+- **icon_x86: 95p/163f** ✅ (was 93p/165f — 2 new passes)
+- **M-G9-ICON-IR-WIRE: FIRED** ✅ — criteria ≥94p/164f met; full milestone details in MILESTONE_ARCHIVE.md
+
+#### Milestone archive
+M-G9-ICON-IR-WIRE moved to MILESTONE_ARCHIVE.md. GRAND_MASTER_REORG.md row marked ✅.
+
+### Next session bootstrap
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
@@ -9638,3 +9670,17 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  
 ```
 
 **Immediate next action (M-SC-B04):** Create `corpus/crosscheck/snocone/rungB04/` with 5 `&&` concat semantics tests (null identity, fail propagation, type coerce, chained concat, concat in pattern). Add rungB04 to invariants DIRS. All `.ref` are derivable by inspection — no oracle needed.
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+```
+
+### Next session work (G-9 s33)
+icon_x86 remaining 163 failures — investigate rung05/06/08 compile failures.
+Per G-9 s31 handoff: rung05/06/08 were expected to be fixed by ICN_SCAN addition
+in icon_lower.c — verify if that holds, then identify next highest-leverage failures.
+Run full invariant suite end-of-session.
