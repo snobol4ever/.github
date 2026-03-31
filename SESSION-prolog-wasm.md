@@ -165,54 +165,21 @@ The node runner shim (`run_wasm.js`) is shared unchanged.
 
 ### Sprint PW-1 — Infrastructure
 
-#### M-PW-SCAFFOLD ⬜
-**Goal:** `scrip-cc -pl -wasm null.pl` builds + exits 0, no output.
+#### M-PW-SCAFFOLD ✅ (PW-1, 2026-03-30)
+Stub `prolog_emit_wasm()`, `emit_wasm_prolog.c`, `pl_runtime.wat`, wired in `main.c`.
 
-**Work:**
-1. Create `src/backend/emit_wasm_prolog.c` — stub `prolog_emit_wasm(Program*, FILE*, const char*)` that emits an empty `.wat` module `(module)`.
-2. Create `src/backend/emit_wasm.h` — export `emit_wasm_expr(const EXPR_t*, FILE*)` so `emit_wasm_prolog.c` can call shared arithmetic/literal emission.
-3. Wire in `driver/main.c`: when `-pl` AND `-wasm` flags both set → call `prolog_emit_wasm()`.
-4. Add `emit_wasm_prolog.c` to `Makefile`.
-5. Create `src/runtime/wasm/pl_runtime.wat` — stub: memory export, `$trail_mark`, `$trail_unwind`, `$pl_output_str`, `$pl_output_flush`.
-6. Compile stub runtime: `wat2wasm --enable-tail-call src/runtime/wasm/pl_runtime.wat -o src/runtime/wasm/pl_runtime.wasm`
+#### M-PW-HELLO ✅ (PW-2, 2026-03-30)
+`write/1` atom + `nl/0` → WASM output. `rung01` passes.
 
-**Gate:** `make` clean · emit-diff 738/0 · `-pl -wasm null.pl` produces `(module)` without crash
-**Commit:** `PW-1: M-PW-SCAFFOLD — prolog×wasm stub: emit_wasm_prolog.c + pl_runtime.wat`
+#### M-PW-A01: FACTS ✅ (PW-7, 2026-03-31)
+`E_CHOICE`/`E_CLAUSE`/`E_UNIFY` atom. `rung01+rung02` pass. **3p/104f.**
 
----
-
-#### M-PW-HELLO ⬜
-**Goal:** `write('hello'), nl.` → WASM output `hello\n`
-
-**Work:**
-1. `E_FNC(write/1)` with atom arg → `E_QLIT` via shared `emit_wasm_expr()` → `call $pl_output_str`
-2. `nl/0` → `call $pl_output_nl`
-3. `E_QLIT` atom interning already works via `emit_wasm.c` string table — just call it
-4. `:- initialization(main)` directive → emit `(func $main (export "main") ...)`
-
-**Gate:** `rung01_hello_hello.pl` → `hello\n` via node runner · 1/1
-**Invariant:** `prolog_wasm` cell added to `run_invariants.sh` at 1 test
-**Commit:** `PW-1: M-PW-HELLO — prolog×wasm hello: write/1 + nl/0, 1/1`
-
----
-
-### Sprint PW-2 — Deterministic Goals
-
-#### M-PW-A01: FACTS ⬜
-**Rung:** `rung02_facts_*` (2 tests)
-**IR nodes:** `E_CHOICE`(1 clause) · `E_CLAUSE` · `E_UNIFY`(atom literal)
-**Work:** First real E_CHOICE emission: 1-clause predicate = α only (no β needed); `E_UNIFY` atom check.
-**Gate:** rung 2: 2/2 · invariant cell 3 tests
-**Commit:** `PW-2: M-PW-A01 — facts: E_CHOICE/E_CLAUSE/E_UNIFY atom, 2/2`
-
----
-
-#### M-PW-A02: HEAD UNIFICATION ⬜
-**Rung:** `rung03_unify_*` (3 tests)
-**IR nodes:** `E_UNIFY`(compound) · `E_VART` (variable binding + trail push)
-**Work:** Trail push on `E_VART` binding; `E_UNIFY` compound recursion.
-**Gate:** rung 3: 3/3 · invariant cell 6 tests
-**Commit:** `PW-2: M-PW-A02 — unify: compound terms + VART trail, 3/3`
+#### M-PW-A02: HEAD UNIFICATION ⬜ (partial)
+**Rung:** `rung03_unify_unify` ✅ · `rung04_arith_arith` ❌
+**IR nodes:** `E_UNIFY`(compound) ✅ · `E_VART` trail push ✅ · `is/2` inline ❌ · comparison ops ❌
+**Remaining:** `emit_goal()` special-case for `is/2` (eval RHS via `emit_wasm_expr`, intern result string as atom, bind slot) + `<`/`>`/`=<`/`>=` inline i32 comparisons + `->/2` if-then.
+**Gate:** rung03 + rung04 both pass · invariant cell 4p
+**Commit:** `PW-8: M-PW-A02 — is/2 + comparisons + ->/2, 4p`
 
 ---
 
