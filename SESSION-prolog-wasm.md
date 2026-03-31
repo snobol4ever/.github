@@ -20,11 +20,11 @@
 
 ---
 
-## §NOW — PW-3
+## §NOW — PW-7
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-6 | `8243b58` one4all · `.github` this commit | **M-PW-A01** (nearly fired — 2p/105f, need 3p) |
+| **Prolog WASM** | PW-7 | `b053fc1` one4all · `.github` this commit | **M-PW-A02** (3p/104f — rung04 is/2 + `->` inline emit needed) |
 
 ---
 
