@@ -86,7 +86,7 @@ This fix makes `sc_compile_expr(st, SNOCONE_RPAREN)` stop at the matching outer 
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
-Installs: gcc make curl unzip nasm libgc-dev CSNOBOL4. Skips: java mono icont swipl.
+Installs: gcc make curl unzip nasm libgc-dev SPITBOL (primary oracle). Skips: java mono icont swipl. CSNOBOL4 is NOT used for Snocone — it lacks FENCE and other SPITBOL extensions. SPITBOL (snobol4ever/x64) is oracle position zero.
 Never run `make` or `apt-get` by hand. Never install bison/flex — they are never installed in any session. See RULES.md.
 
 **Step 1 — Gate:**
@@ -211,7 +211,7 @@ Translation rules:
 ### Partition B — Snocone Extensions (features not in SNOBOL4)
 
 New programs exercising syntax that only exists in Snocone.
-Oracles derived from JVM Snocone (already working) or CSNOBOL4+snocone.sc.
+Oracles derived from SPITBOL (snobol4ever/x64, installed at /usr/local/bin/spitbol) — primary oracle. CSNOBOL4 is NOT used for Snocone (lacks FENCE and other extensions SPITBOL supports).
 
 | Milestone | Rung | Topic | Tests | Key proof point |
 |-----------|------|-------|-------|-----------------|
