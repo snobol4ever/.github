@@ -8652,3 +8652,54 @@ assign_016_assign_to_output.sc     output_004_output_empty_string.sc
                                    output_007_output_null_var.sc
                                    output_008_output_double_quoted.sc
 ```
+
+## IW-4 — 2026-03-31 (Claude Sonnet 4.6)
+
+**one4all** `e6d384f` · **.github** this session
+
+### Work done
+
+**M-IW-A02 ✅ FIRED** — ICN_STR data segment + write(str): rung01 **6/6** (was 5/6)
+
+Changes to `src/backend/emit_wasm_icon.c`:
+- Added `IcnStrLit` intern table: `icn_strlit_intern/abs/reset` (mirrors `emit_wasm.c` pattern)
+- Added `icn_prescan_node()`: walks full ICN tree to intern all ICN_STR literals before emit
+- Added `icn_emit_data_segment()`: emits `(data ...)` at `ICN_STR_DATA_BASE=65536` (page 1)
+- Added `emit_wasm_icon_str_globals()`: one `$icn_strlit_off/len{N}` global pair per unique string
+- Fixed `ICN_STR` case: stores `(i32.const offset/len)` into strlit globals, tail-calls succ
+- Fixed `emit_icn_call_write`: detects `ICN_STR` arg, emits `$sno_output_str(off,len)` instead of `$sno_output_int`
+- Fixed `(memory 1)` → `(memory 2)`: page 0=runtime, page 1=string literals
+- Fixed `sno_float_to_str` import signature: `(param f64)(result i32 i32)` (was wrong `(result f64)`)
+- Wired prescan + str_globals + data_segment into `emit_wasm_icon_file()`
+
+Also added `emit_wasm_icon_str_globals` declaration to `emit_wasm_icon.h`.
+
+### Gate (end of session)
+- **Emit-diff: 719/19** ✅ (19 = pre-existing x86 Icon gaps, no regression)
+- **rung01: 6/6** ✅ verified manually (suite showed 23p — ran before fix landed)
+- **Build: clean** ✅
+
+### Next session execution (IW-5)
+
+```bash
+# Step 1 — clone
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+
+# Step 2 — setup
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+
+# Step 3 — gate
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 719/19
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm  # expect 24p+ (rung01 6/6 now passing)
+
+# Step 4 — read HQ
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**Next milestone: M-IW-A03** — ICN_LT/LE/GT/GE/EQ/NE relops already wired in A01; confirm rung01 relop tests pass, then push rung02+ (proc calls, ICN_PROC multi-proc wiring).
