@@ -12080,3 +12080,75 @@ CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11  # expect 7/
 **SW-17 options (pick one):**
 1. **Sharing refactor** (session focus): wire `emit_wasm_expr` into Icon and Prolog emitters, eliminating duplicated arithmetic/literal emission. Start with Icon (`emit_wasm_icon.c` — replace inline E_ILIT/E_FLIT/E_QLIT handling with calls to `emit_wasm_expr`).
 2. **Next SNOBOL4 WASM milestone**: check rung12+ for next unimplemented construct.
+
+---
+
+## SC-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `a7c09b8` (main)
+**corpus HEAD:** `da0c0e4` (main)
+**.github HEAD:** `778bf9d`
+
+### Session summary
+
+Gates confirmed: emit-diff 981/4 ✅. Invariants entering session: snobol4_x86 106/106, snocone_x86 119p/2f (baseline was 119p/1f — one new failure surfaced). Two fixes landed:
+
+**Fix 1 — `||` dual-use (M-SC-B07 partial):**
+`SNOCONE_OR` (`||`) is context-sensitive in Snocone: pattern alternation in pattern context (`S ? (a || b)`), string concatenation in value context (`OUTPUT = 'A' || 'Z'`). The parser correctly emits `E_ALT` for `||` in all cases. Added `sc_val_alt_to_concat(EXPR_t *e)` — a tree-walk that rewrites `E_ALT → E_CONCAT` on value subtrees — mirroring the existing `sc_pat_concat_to_seq`. Wired into `assemble_stmt` on `st->replacement` (both match-assign and plain-assign), and `st->subject` (plain expr). Pattern subtrees (`st->pattern`) untouched. rungA16 20/20 ✅, rungB05 5/5 ✅.
+
+**Fix 2 — FOR header depth-aware parse:**
+Old `sc_compile_expr(st, SNOCONE_RPAREN)` for the step segment stopped at the first unmatched `)` inside the expression (e.g. the `)` of `ADD(i,1)`), leaving `st->pos` stuck and causing an infinite loop. Replaced with: scan the entire `for(...)` block depth-tracking from `st->pos`, record `hdr_start..hdr_end`, split on top-level `;`s, then compile each segment using save/restore of `st->pos`/`st->count`. Compilation no longer hangs. **Step output is still wrong** (produces `1\n1\n1` instead of `1\n2\n3`) — root cause below.
+
+**Invariants exiting:** snobol4_x86 106/106 ✅, snocone_x86 120/120 ✅ (+1 net from session start).
+
+### Root cause of FOR step bug (SC-9)
+
+The step segment (`i = ADD(i,1)`) is compiled via:
+```c
+st->pos   = seg[2][0];   /* token index of 'i' in step */
+st->count = seg[2][0] + seg[2][1];
+step_s = sc_compile_expr(st, SNOCONE_EOF);
+st->pos   = saved_pos;   /* restore to after outer ) */
+st->count = saved_count;
+```
+
+`sc_compile_expr` scans `st->toks` starting at `st->pos`, reading until `st->pos >= st->count` or a NEWLINE/SEMICOLON/EOF token. The step tokens `i = ADD ( i , 1 )` contain no such terminators, so the inner scan should complete. `snocone_parse(st->toks + start, seg_len)` should produce the right token stream.
+
+**Suspected issue:** `sc_compile_expr` computes `start = st->pos` at entry, then advances `st->pos` in the scan loop. After `sc_compile_expr` returns, `st->pos` is at `seg[2][0] + seg[2][1]`, which is then overwritten by `st->pos = saved_pos`. The compiled `step_s` is returned correctly — but looking at the generated assembly, the step label `L_L_3_3` contains **no assignment code**, just `jmp L_L_1_0`. This means `step_s` is `NULL` or `sc_prog_append(st, step_s)` is a no-op.
+
+**Most likely cause:** `snocone_parse` is being called with `st->toks + seg[2][0]` and `seg[2][1]` tokens, but `st->toks` is the **original flat token array from the full file tokenization** — these tokens include the FOR keyword, `(`, `i`, `=`, `1`, `;`, etc. The step segment starts at some offset. However `snocone_parse` re-parses the sub-slice and the expression lowering runs correctly — UNLESS `seg[2][0]` is miscalculated because the token indices include the `(` that was already consumed.
+
+**Concrete check for SC-9:** Add a `fprintf(stderr, ...)` after the segment split to print `seg[0][0]/[1]`, `seg[1][0]/[1]`, `seg[2][0]/[1]` and verify they point to the right tokens. Alternatively, check whether `hdr_start` is off-by-one: `hdr_start = st->pos + 1` is set BEFORE `st->pos++` consumes the `(`, so after the depth-scan `st->pos` points at the outer `)` and `hdr_start` was `original_pos + 1` which is correct (first token inside `(`).
+
+A simpler alternative fix for SC-9: instead of save/restore `st->count`, use a small local token array — copy the segment tokens into a scratch buffer, null-terminate with a NEWLINE/EOF, then call `snocone_parse` on the scratch buffer directly (already what `sc_compile_expr` does internally). The save/restore of `st->count` might be interfering with how `sc_compile_expr` exits its scan loop.
+
+### SC-9 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 120/120
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-9 first action — fix FOR step segment:**
+1. `sed -n '946,985p' src/backend/emit_x64_snocone.c` — read the new FOR header parser
+2. Add debug: after segment split, `fprintf(stderr, "seg0=%d+%d seg1=%d+%d seg2=%d+%d\n", seg[0][0],seg[0][1],seg[1][0],seg[1][1],seg[2][0],seg[2][1])` and compile B03_for_basic to verify indices
+3. Fix: replace save/restore `st->count` with a scratch-buffer approach — allocate `seg[i][1]+1` tokens, memcpy from `st->toks + seg[i][0]`, append EOF token, call `snocone_parse` on scratch directly
+4. Build, run rungB03: expect 6/6 pass
+5. Remove all 6 `rungB03/B03_for*.xfail` files from corpus
+6. Run invariants: expect snocone_x86 126/126
+7. Commit `SC-9: M-SC-B07 FOR loop step fix` in one4all; commit corpus xfail removal
+8. Update PLAN.md row, write SC-9 handoff
+
+**After FOR is done — M-SC-B08 candidates:**
+- `A09_anchor.xfail` — `&ANCHOR` keyword not propagated to `?` match path (1 test)
+- New rung for untested constructs — check `FRONTEND-SNOCONE.md` for any unimplemented nodes
+
+### Context discipline
+Never read full .asm files. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges.
