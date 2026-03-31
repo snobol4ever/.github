@@ -9381,3 +9381,13 @@ static STMT_t *sc_compile_expr(CfState *st, SnoconeKind stop_kind) {
 ```
 
 After fix: verify `for_minimal.sc` compiles in <1s, run B03 tests to get oracles, write .ref files, wire rungB03, fire M-SC-B03 (105→111).
+
+---
+
+## PW-7b ADDENDUM (2026-03-31, Claude Sonnet 4.6) — doc cleanup only, no code changes
+
+**.github** `54017ce`
+
+- PLAN.md pruned from 8KB → 4.7KB: removed 5 completed G-session blocks that violated "Handoffs → SESSIONS_ARCHIVE" rule
+- SESSION-prolog-wasm.md: marked M-PW-SCAFFOLD/HELLO/A01 ✅; M-PW-A02 marked partial; full work specs for done milestones replaced with one-line summaries
+- No code changes. one4all HEAD unchanged at `b053fc1`.
