@@ -10574,3 +10574,65 @@ Alternatively, use per-proc-name param globals (`$icn_pv_fact_n`) — prevents c
 
 Corpus test to target: `rung02_proc_fact` → expected `120`.
 
+
+---
+
+## IW-9 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `20948cf` · **.github** this commit
+
+### Session goal: M-IW-R01 — activation frame stack for recursion
+
+### What was built
+
+**Frame stack scaffold** in `emit_wasm_icon.c`:
+- `emit_frame_push(nints, 0)` / `emit_frame_pop(nints, 0)` — inline WAT helpers that save/restore `$icn_int0..N-1` to a bump-pointer frame stack in memory at page 3 (`0x30004`)
+- E_FNC user-proc call-site: `emit_frame_push(id, 0)` before `icn_retcont_push` in `docall`; `emit_frame_pop(id, 0)` at start of `esucc`
+- `sno_runtime.wat`: 3→4 pages; page 3 reserved for Icon frame stack
+- Program memory import changed to `(memory 4)`
+
+**Architecture confirmed correct** by standalone proof-of-concept `/tmp/test_recur2.wat` which runs `fact(5)=120` cleanly with retcont push/pop and frame save/restore.
+
+### Blocking bug: V8 tail-call OOB mis-attribution
+
+`rung02_proc_fact` still crashes. Extensive debugging revealed:
+
+1. **Standalone module (own memory, no import):** retcont push/pop works perfectly — sp values 147460→147464→147468→147472→147476→147480, no crash.
+2. **Imported memory:** crashes with `memory access out of bounds` attributed to `icn_retcont_push` or `icon9_docall`.
+3. **V8 mis-attribution confirmed:** when frame push code is removed entirely (no stores at all), same crash still occurs at same wasm offset. The crash is downstream in the tail-call chain; V8 reports the last non-erased frame.
+4. **Actual OOB source:** `$icn_param0` is shared across all activations. `fact(n)`'s body loads `$icn_param0` → `$icn_int2` (node 2, the E_VAR "n" in `if n=0`). The recursive call to `fact(n-1)` overwrites `$icn_param0` with `n-1`. When the recursion unwinds, `$icn_int8` (loaded from `$icn_param0` at the start of the mul chain) holds a stale value. The frame push saves `$icn_int0..8` — BUT the param clobbering happens BEFORE the frame push fires (during arg evaluation), so the saved value of `$icn_int2` is already wrong. `sno_output_int` then receives a corrupted `$icn_retval` and writes past the output buffer.
+
+### IW-10 first action — fix param clobbering
+
+**The correct fix:** per-proc param globals `$icn_pv_PROC_PARAM` instead of shared `$icn_param0..7`. This eliminates cross-proc clobbering entirely without requiring any frame save for params.
+
+**Implementation:**
+1. In `emit_wasm_icon_proc()`: emit `(global $icn_pv_PROCNAME_PARAMNAME (mut i64) (i64.const 0))` for each param.
+2. In `emit_icn_var()` param branch: `global.get $icn_pv_PROC_PARAM` instead of `global.get $icn_param%d`.
+3. In `emit_icn_assign()` param branch: `global.set $icn_pv_PROC_PARAM` instead of `global.set $icn_param%d`.
+4. In E_FNC arg-store esucc trampolines: `global.set $icn_pv_CALLEE_PARAM%d` (using callee's proc name) instead of `global.set $icn_param%d`.
+
+For same-proc recursion (`fact` calling `fact`), per-proc params still get clobbered. Frame save of `$icn_pv_fact_n` must happen before the call. The frame stack is already scaffolded — just change what it saves from `$icn_intN` to `$icn_pv_PROC_PARAM` for params that are live across calls.
+
+**Target:** `rung02_proc_fact` → `120` ✓
+
+### Gate (end of session)
+
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm:** rung02_proc_fact still crash/timeout (pre-existing, architecture clarified)
+
+### IW-10 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm     # own cell only
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+Then implement per-proc param globals as described above.
