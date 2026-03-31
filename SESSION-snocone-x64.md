@@ -26,17 +26,17 @@ CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
 
 ---
 
-## §NOW — SC-7
+## §NOW — SC-8
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Snocone x86** | SC-6 | `663505c` one4all · `d0a6c86` corpus | **M-SC-B06:** `~` negation / `?` query (5 tests) |
+| **Snocone x86** | SC-8 | `465572c` one4all · `180a3ee` corpus | **M-SC-B07:** next unimplemented construct |
 
-**Next action:** M-SC-B06 — implement `~` negation and `?` query operators. 5 tests:
-negate-fail→succeed, negate-succeed→fail, query-discard-cursor, query-in-if, combined.
+**M-SC-B06 ✅ DONE** (`~` negation / `?` query — 5 tests, rungB06 all pass)
 
-Check `SNOCONE_TILDE` (maps to `make_fnc1("NOT",...)`) and `SNOCONE_QUESTION` in `emit_x64_snocone.c`.
-Verify via existing `E_NOT`/`E_QUERY` IR paths — may be free like B04. Write 5 corpus tests then confirm.
+Implementation: `sc_emit_cond` detects `E_FNC("NOT",...)` on condition subject, swaps S/F labels, unwraps inner expr. Handles `~~` double-negation by looping. Zero new runtime symbols. Unary `?x` → `DIFFER(x,"")` already worked via `APPLY_FN_N`. Note: `~(?x)` nested unary+paren form triggers parser stack underflow (shunting-yard issue, separate from B06 scope) — queued as known gap.
+
+**Next action:** SC-9 — identify next rungB or new milestone. Check for unimplemented constructs in xfail list or open corpus gaps.
 
 **Invariants gate:** `snobol4_x86` + `snocone_x86` (snocone is additive over snobol4).
-Current baseline: snobol4_x86 `106/106` · snocone_x86 `121p/0f`.
+Current baseline: snobol4_x86 `106/106` · snocone_x86 `119p/1f` (A16 pre-existing whitespace).

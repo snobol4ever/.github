@@ -224,15 +224,16 @@ else
 fi
 
 # ── WHERE — oracle: CSNOBOL4 2.3.3 ───────────────────────────────────────────
-step "WHERE — oracle: CSNOBOL4"
-if need_frontend snobol4 || need_frontend snocone; then
+# DEPRECATED — CSNOBOL4 is no longer needed on a regular basis.
+# SPITBOL (position zero) is the authoritative oracle for all sessions.
+# CSNOBOL4 is NOT a valid oracle for Snocone (lacks FENCE + SPITBOL extensions).
+# snobol4.org is broken as of 2026-03-30. If CSNOBOL4 is ever needed, ask Lon
+# to upload snobol4-2_3_3_tar.gz and build manually — do NOT attempt here.
+step "WHERE — oracle: CSNOBOL4 (deprecated — skipped)"
 if command -v snobol4 &>/dev/null; then
-    ok "snobol4 (CSNOBOL4)"
+    info "snobol4 (CSNOBOL4) present but not required — SPITBOL is primary oracle"
 else
-    fail "CSNOBOL4 — NOT installed. NEVER download from snobol4.org (broken). Ask Lon to upload snobol4-2_3_3_tar.gz, then build with: mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j\$(nproc) && make install"
-fi
-else
-    info "Skipping CSNOBOL4 (FRONTEND=${FRONTEND})"
+    info "CSNOBOL4 not installed — not required. SPITBOL is the authoritative oracle."
 fi
 
 # ── WHERE — oracle: SPITBOL x64 ──────────────────────────────────────────────

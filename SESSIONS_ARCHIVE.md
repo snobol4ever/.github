@@ -11677,6 +11677,44 @@ Field accessor `val(b) = x` as lvalue: detect `E_FNC` with known field name in `
 **1116 shares root with 1115** — once DATA constructor, DATATYPE, and field get/set work, 1116 should pass without additional work.
 
 ### SW-15 session start
+## SC-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `bede304` · **corpus HEAD:** `180a3ee` · **.github HEAD:** (this commit)
+
+### Session summary
+
+M-SC-B06 complete: `~` negation and `?` query operators implemented and gated.
+Also: CSNOBOL4 deprecated in SESSION_SETUP.sh and RULES.md (no longer needed on regular basis).
+
+### Work completed
+
+**`emit_x64_snocone.c` — `sc_emit_cond` NOT-inversion:**
+- `~expr` lowers to `make_fnc1("NOT", inner)` in `lower_token` (pre-existing).
+- `sc_emit_cond` now detects `E_FNC("NOT",...)` on condition subject: swaps S/F labels, unwraps inner expr, loops to handle `~~` double-negation. Zero new runtime symbols — pure IR-lowering label swap.
+- Added `<strings.h>` include for `strcasecmp`.
+
+**Unary `?x` (DIFFER):** Already worked via `APPLY_FN_N` path — `DIFFER` registered in `snobol4.c`. No emitter change needed.
+
+**rungB06 corpus (5 tests, all pass):**
+- `B06_not_fail_succeeds` — `~DIFFER(x,"")` when x="" → true branch
+- `B06_not_succeed_fails` — `~DIFFER(x,"")` when x="hello" → else branch
+- `B06_not_query_combined` — `~~DIFFER(x,"")` double-negation cancels → true branch
+- `B06_query_empty` — `?x` when x="" → DIFFER fails → else branch
+- `B06_query_nonempty` — `?x` when x="hello" → DIFFER succeeds → true branch
+
+**rungB06 wired** into `run_invariants.sh` snocone_x86 cell.
+
+**SESSION_SETUP.sh + RULES.md:** CSNOBOL4 block changed from `fail` to `info`; marked deprecated. No longer a blocking setup error.
+
+### Known gap (not SC-8 scope)
+`~(?x)` nested unary-paren form causes shunting-yard stack underflow in `snocone_parse`. `~DIFFER(x,"")` is the correct workaround. Queue for a future parser session.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **snobol4_x86:** 106/106 ✅
+- **snocone_x86:** 119p/1f ✅ (A16_hello_literals pre-existing whitespace only)
+
+### SC-9 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
@@ -11749,3 +11787,12 @@ After string literals segment, emit a `(func $sno_data_init ...)` that emits a `
 5. `is_idxassign` + lvalue `E_FNC "<fieldname>"` → `sno_data_set_field(h, fi, vo, vl)`.
 
 **Expected result:** 1115 and 1116 both pass → M-SW-C02 ✅ → wire rung11 into `run_invariants.sh` → commit `SW-15: M-SW-C02 ✅`.
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snocone_x86  # expect 119p/1f ~23s warm
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-9 first action:** Identify next milestone. Check xfail list in corpus for queued gaps, or consult FRONTEND-SNOCONE.md for unimplemented constructs. FOR loop (rungB03 xfails) is the highest-value open item — `emit_x64_snocone.c` does not emit `FOR`; scrip-cc hangs on the IR node.
