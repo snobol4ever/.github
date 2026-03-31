@@ -11491,3 +11491,85 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 `SNOCONE_TILDE`/`SNOCONE_QUESTION` in `emit_x64_snocone.c` — may map to existing
 `E_NOT`/`E_QUERY` IR paths (free). Write 5 corpus tests, confirm.
 Gate: `snobol4_x86` + `snocone_x86`.
+
+---
+
+## IW-14 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `dcce561` · **.github HEAD:** this commit
+
+### Session summary
+
+Session focus: Bug 3 fix (M-IW-R01) + WASM emitter consolidation scoping.
+
+### Work completed (`dcce561`)
+
+**Bug 3 fix — `$icn_frame_base` helper func (emit_wasm_icon.c):**
+
+`(local $frame_base i32)` was being emitted mid-function-body in `emit_frame_push` and `emit_frame_pop`. WAT requires locals declared at function top before any instructions. The misplaced local produced structurally malformed WAT.
+
+Fix:
+1. `emit_wasm_icon_globals()` now emits `(func $icn_frame_base (result i32))` after `$icn_frame_depth` global — computes `$icn_frame_depth * 512 + 131072` and returns the result.
+2. `emit_frame_push()` — removed `(local $frame_base i32)` + `emit_frame_base_load()`. Each slot now: `call $icn_frame_base  i32.const N  i32.add  global.get $icn_intN  i64.store`
+3. `emit_frame_pop()` — same treatment for loads.
+4. `emit_frame_base_load()` is now dead code (kept, remove later).
+
+Gate: 981/4 ✅. Build clean.
+
+### M-IW-R01 still open — OOB root cause identified
+
+**Not the (local) bug.** Bug 3 fix is clean but `fact` still OOBs. Investigation established:
+
+- Memory: 5 pages = 327680 bytes. `ICON_GEN_STATE_BASE = 0x20000 = 131072`.
+- `$icn_frame_base` correctly computes `$icn_frame_depth * 512 + 131072`.
+- For OOB: needs depth ≥ 384 → `384 * 512 + 131072 = 327680` = end of memory.
+- `fact(5)` recurses only 6 deep — should never reach depth 384.
+
+**Root cause: E_EVERY exhaustion leaks `retcont_push` without `retcont_pop`.**
+
+`every write(fact(5))` execution path on exhaustion:
+- `icon13_resume` (E_EVERY resume) → `icon14_resume` → `icon15_resume` → `icon13_efail`
+- This path re-enters the iteration WITHOUT calling `icn_retcont_pop` first.
+- Each exhaustion/resume cycle: `icon15_docall` calls `icn_retcont_push` (depth +1) but no corresponding `retcont_pop` on the exhaustion path.
+- After 384 iterations: depth = 384, `$icn_frame_base` returns 327680 = OOB.
+
+Confirmed via wasm-objdump: crash at `wasm-function[46]:0x538` = first `i64.store` in `icon9_docall` (frame_push slot 0).
+
+**The handoff says E_EVERY has an "infinite loop" issue (IW-13). The OOB is that infinite loop exhausting memory before hitting any timeout.**
+
+### IW-15 first action — Fix E_EVERY exhaustion + retcont lifecycle
+
+**Root fix:** In `E_EVERY` emission (`emit_wasm_icon.c` case `E_EVERY`/`ICN_EVERY`), the resume path (ra → body.resume chain) that leads back to re-entering the generator must ensure `icn_retcont_pop` is called once per exhausted iteration before `icn_retcont_push` fires again for the next. 
+
+Concretely: find where `E_EVERY` ra chain re-enters and insert `call $icn_retcont_pop` (+ discard result) before the re-entry. OR restructure: `icon15` (inner fact call) should only `retcont_push` on first entry; resume path should `retcont_pop` then `retcont_push` with refreshed esucc index.
+
+Simpler approach: check if `E_EVERY` is supposed to use the exhaustion chain differently — the four-port model for `every` has its body's `efail` wire back to `body.start` (generator restart), not via retcont at all. The retcont is for the inner user-proc call (fact), not for every. The bug may be that every's resume path is re-calling `icon15_docall` (which includes retcont_push) instead of `icon15_start` (which evaluates the arg fresh without retcont).
+
+```bash
+# IW-15 session start
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 0p/214f
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+**IW-15 first action:**
+1. `grep -n "E_EVERY\|ICN_EVERY\|every" src/backend/emit_wasm_icon.c | head -20` — find E_EVERY case.
+2. Read E_EVERY emission. Confirm ra/resume path wiring.
+3. Check: does the resume path call `icon15_docall` (with retcont_push) or `icon15_start` (arg eval only)?
+4. Fix: E_EVERY body efail should loop back to `body.start` (re-evaluate generator), not `docall` (which retcont_pushes again).
+5. Rebuild, test fact: expect `120`. Run `run_invariants.sh icon_wasm` → expect ≥1p.
+6. Commit `IW-15: M-IW-R01 ✅ rung02_proc_fact passes`.
+
+### Consolidation task (session focus — deferred to IW-15+)
+
+Audit `emit_wasm_icon.c` / `emit_wasm_prolog.c` for helpers duplicated from `emit_wasm.c`. Move shared low-level WAT emission helpers into `emit_wasm.c` with `extern` declarations in `emit_wasm.h`. `$icn_frame_base` is Icon-specific — stays in `emit_wasm_icon.c`.
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **icon_wasm:** 0p/214f (baseline unchanged — M-IW-R01 open)
