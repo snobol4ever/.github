@@ -10536,3 +10536,149 @@ cat /home/claude/.github/SESSION-snobol4-wasm.md
 `snobol4_wasm`: **43p/1f** (pre-existing 212_indirect_array unchanged)
 Emit-diff: **981/4** (4 pre-existing JVM failures)
 one4all HEAD: `2a973fe` · corpus HEAD: `7c17586`
+
+---
+
+## SW-11 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `77fa6f6` · **corpus** `37f0d5e` · **.github** this session
+
+### Completed this session
+
+**Cleanup (committed `a3c9567` → merged into `9e2109d`):**
+- `emit_wasm.h`: added `emit_wasm_runtime_imports_sno_base(out, npages, comment)` — 10 shared `"sno"` imports (output/string/math) shared between SNOBOL4 and Icon emitters. Previously duplicated verbatim in `emit_wasm_icon.c`.
+- `emit_wasm.c`: `emit_runtime_imports()` now calls shared base + appends 12 SNOBOL4-specific imports.
+- `emit_wasm_icon.c`: 4 thin alias wrappers removed (`icn_strlit_intern/abs/reset`, `icn_emit_data_segment`); all 5 call sites now call `emit_wasm_strlit_*` directly (matches Prolog pattern).
+- `sno_runtime.wasm`: rebuilt with `sno_any/span/break/notany/breakx` exports (SW-10 blocker).
+
+**M-SW-C01: CAPTURES 5/5 ✅ (committed `50be262` / corpus `e248431` → `37f0d5e`):**
+
+Root cause: `E_CAPT_COND/IMM/CUR` are `binop(kind, pattern_child, E_VAR(varname))` IR nodes. `sval` is **never set** — varname lives in `children[1]->sval`. Previous code looked in `sval` → always empty → capture commit block silently skipped.
+
+Fixes:
+- `emit_pattern_node E_CAPT_COND`: extract varname from `children[1]->sval`; `children[0]` = pattern child. Commit block (`global.set var_X_off/len`) now emits correctly when `cursor >= 0`.
+- `emit_pattern_node E_CAPT_IMM`: same binop fix. Additional fix for QLIT child: offset computed as `subj_off + (cursor - ndl_len)` not `subj_off + pat_before` — `sno_pat_search` scans forward, match starts at `cursor_after - needle_len`, not at `pat_before`.
+- `emit_pattern_node E_CAPT_CUR`: binop fix; run child first then capture cursor; guard with `cursor >= 0`.
+- `prescan_expr`: unified CAPT_COND/IMM/CUR intern: try `sval` first (legacy), then `children[1]->sval` (parser path).
+- `W07_capt_cur.sno` test 2: rewritten cursor-after form (`'ABCDE' @ pos2`) — parser rejects cursor-before `(@ pos2 ...)`.
+- `run_invariants.sh`: rungW07 added to `snobol4_wasm` DIRS.
+- 5 `.wat`/`.wasm` artifacts generated and committed to corpus.
+
+**snobol4_wasm: 43p/1f → 48p/1f ✅**. Gate: 981/4.
+
+**M-SW-C02 WIP (committed `77fa6f6` — NOT yet passing):**
+
+`sno_runtime.wat` — all functions written and compiled clean (`wat2wasm` succeeds):
+- Expanded to 5 pages (320KB); array/table heap at `ARR_HEAP_BASE = 0x40000 = 262144`
+- `sno_arr_alloc`: bump allocator
+- `sno_array_create/create2`: 1D/2D array with 32-byte header + 8-byte/slot storage
+- `sno_array_get/get2`: bounds check, default-value support, null-slot → (0,0)
+- `sno_array_set/set2`: bounds-checked write
+- `sno_array_prototype`: writes "3" or "2,2" into caller-supplied memory buffer
+- `sno_table_create/get/set`: open-address hash (FNV-1a), 16-byte buckets, 8+ capacity
+- `sno_table_count/cap/get_bucket`: for TABLE→ARRAY conversion
+- `sno_data_define/new/get_field/set_field`: DATA type registry at `0x48000`
+- `sno_handle_type`: returns 1=array, 2=table, 3=data for handle validation
+- `sno_hash`, `sno_str_match_exact`: internal helpers
+
+**Handle representation:** variables holding arrays/tables store handle (heap ptr) in `$var_X_off`, with `$var_X_len = 32767` (MAGIC_HANDLE) as sentinel distinguishing from real strings.
+
+`emit_wasm.c` — added but **lvalue (assignment) path incomplete**:
+- `emit_runtime_imports`: 20 new array/table/data imports added
+- `emit_main_body`: `$arr_h`, `$arr_ok`, `$proto_len` locals added
+- `E_IDX` rvalue: reads array element (1D/2D) or table entry; coerces null (0,0) to empty string. **Known issue**: the `(local.tee $tmp_i32)` trick for preserving len while checking null needs verification.
+- `E_FNC ARRAY()`: evaluates size arg, optional default, calls `sno_array_create`; returns `(handle, 32767)`.
+- `E_FNC TABLE()`: creates table with inline capacity or default 16.
+- `E_FNC PROTOTYPE()`: calls `sno_array_prototype`, copies result to string heap via `memory.copy`.
+- `E_FNC DIFFER(1-arg)`: sets `$ok` = (len==0); i.e. succeed if null.
+- `E_FNC DIFFER(2-arg)`: calls `sno_str_eq`, sets `$ok` = NOT equal.
+- `E_FNC VALUE()`: routes to `sno_var_get` (indirect lookup by name string).
+- `is_idxassign` **detection** added to statement classifier.
+
+### What's missing for M-SW-C02 to pass
+
+**1. `is_idxassign` lvalue emit block** — most critical. After `is_indrassign` block (~line 1460 of `emit_wasm.c`), add:
+```c
+} else if (is_idxassign) {
+    /* arr<i> = val  or  tbl<key> = val */
+    const EXPR_t *arr_e = s->subject->children[0];
+    const EXPR_t *idx_e = s->subject->children[1];
+    const EXPR_t *idx2_e = s->subject->nchildren >= 3 ? s->subject->children[2] : NULL;
+    /* Evaluate array handle */
+    emit_expr(arr_e);  /* → (handle, 32767) */
+    W("      (drop)  ;; drop magic sentinel\n");
+    W("      (local.set $arr_h)\n");
+    /* Check handle type */
+    W("      (local.set $arr_ok (call $sno_handle_type (local.get $arr_h)))\n");
+    /* Evaluate value */
+    WasmTy vt = emit_expr(s->replacement);
+    if (vt == TY_INT)   W("      (call $sno_int_to_str)\n");
+    if (vt == TY_FLOAT) W("      (call $sno_float_to_str)\n");
+    W("      (local.set $proto_len)  ;; val_len\n");
+    W("      (local.set $tmp_i32)    ;; val_off (reuse tmp)\n");
+    if (idx2_e) {
+        /* 2D array set */
+        emit_expr_as_i32(idx_e);
+        emit_expr_as_i32(idx2_e);
+        W("      (local.get $arr_h) (local.get $tmp_i32) (local.get $proto_len)\n");
+        W("      ... sno_array_set2 ... \n");
+    } else {
+        W("      (if (i32.eq (local.get $arr_ok) (i32.const 2)) (then\n");
+        /* TABLE set */
+        emit_expr(idx_e);  /* key as string */
+        if (TY_INT) W("(call $sno_int_to_str)\n");
+        W("        (call $sno_table_set (local.get $arr_h))\n");
+        W("        (br $stmt_done)))\n");
+        /* ARRAY set */
+        emit_expr_as_i32(idx_e);
+        W("      (call $sno_array_set (local.get $arr_h))\n");
+        W("      (drop)\n");
+    }
+    W("      (local.set $ok (i32.const 1))\n");
+}
+```
+Note: you'll need a helper or inline sequence to evaluate an index expr → i32 (str→int→wrap). See how E_IDX rvalue does it.
+
+**2. `memory.copy` instruction** — `sno_array_prototype` in the emitter uses `(memory.copy)`. This requires `--enable-bulk-memory` flag to `wat2wasm`. Either add that flag to `test/run_wasm_corpus_rung.sh` and `SESSION_SETUP.sh`, or rewrite PROTOTYPE to use a byte-copy loop instead. **Recommend**: use byte-copy loop (no new flag needed).
+
+**3. Multi-dimensional ARRAY parsing** — `ARRAY('2,2')` passes a string. Current emitter calls `sno_str_to_int` which only gets the first number (`2`). Need to detect `','` in the dim string and dispatch to `sno_array_create2`. Parse at emit time: if the E_FNC ARRAY child is a QLIT containing `','`, split and call create2.
+
+**4. DATA/ITEM** — not yet in emitter. Tests `1115_data_basic`, `1116_data_overlap`, `1114_item` need `E_FNC DATA`, `E_FNC ITEM`.
+
+**5. CONVERT(t, 'array') / CONVERT(ta, 'table')** — test `1113_table` needs TABLE→ARRAY and ARRAY→TABLE. Runtime has `sno_table_get_bucket` for iteration; emitter needs to build a 2-column array from table entries.
+
+**6. DATATYPE() for user DATA types** — current `DATATYPE()` emitter only handles compile-time types (string/integer/real). For DATA instances, needs runtime check via `sno_handle_type` + registry lookup.
+
+**7. Invariant wiring** — `rung11` not yet added to `run_invariants.sh` `snobol4_wasm` DIRS. Add after passing.
+
+### SW-12 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**Then immediately:**
+1. Add `is_idxassign` lvalue emit block (see pseudocode above)
+2. Fix PROTOTYPE to use byte-copy loop (avoid `memory.copy` / bulk-memory flag)
+3. Fix ARRAY multi-dim parsing for `'2,2'` string arg
+4. Build: `cd src && touch backend/emit_wasm.c && make`
+5. Run: `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11`
+6. Fix failures iteratively (expect: 1110 first, then 1111, 1112, 1113, 1114, 1115, 1116)
+7. Add DATA/ITEM E_FNC cases for tests 1114–1116
+8. Wire `rung11` into `run_invariants.sh` snobol4_wasm DIRS → expect 55p/1f
+9. Emit-diff gate → 981/4
+10. Commit: `SW-12: M-SW-C02 — WASM DATA/ARRAY/TABLE, 7/7 ✅`
+
+### Invariant baseline after SW-11
+
+`snobol4_wasm`: **48p/1f** (pre-existing `212_indirect_array` unchanged)
+Emit-diff: **981/4** (4 pre-existing JVM failures)
+one4all HEAD: `77fa6f6` · corpus HEAD: `37f0d5e`
