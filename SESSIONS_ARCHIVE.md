@@ -9529,3 +9529,59 @@ cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28p/1f
 ```
+
+---
+
+## G-9 s33 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `19e8008` (no change) · **corpus** `60b0209` (no change) · **.github** this session
+
+### Session work: rung05 failure diagnosis
+
+Gate confirmed at session start:
+- Emit-diff: **981/4** ✅ (matches s32b handoff)
+- icon_x86: **95p/163f** ✅ (matches s32b handoff)
+
+No regressions. No code changes this session.
+
+### Diagnosis: two rung05 failures
+
+**rung05_scan_scan_nested** — segfault after printing "second":
+- After outer scan exits, `icn_subject` is restored to NULL (pre-scan value, never set at top level).
+- `write(&subject)` calls `icn_write_str(NULL)` → crashes in `my_strlen`.
+- **Fix:** Add null guard to `icn_write_str` in `icon_runtime.c` — treat null pointer as empty string, print `\n` only.
+
+**rung05_scan_scan_restores** — prints `4206592` instead of `outer`:
+- `write(s)` after the scan emits `icn_write_int` instead of `icn_write_str`.
+- `icn_expr_kind()` returns `'?'` for the VAR `s` (assignment happened before scan scope; type inference doesn't track across statement boundaries), so `emit_call()` falls back to `icn_write_int`, printing the raw pointer value.
+- **Fix:** In `emit_call()` (`src/backend/emit_x64_icon.c` ~line 582), change the `k == '?'` fallback from `icn_write_int` to `icn_write_str`. Icon's `write()` on an integer var already resolves correctly via `k == 'I'`; the unknown case is almost always a string pointer. `icn_write_int` of a pointer is always wrong.
+
+### Files to edit (G-9 s34)
+
+1. `src/frontend/icon/icon_runtime.c` — `icn_write_str`: add `if (!s) { write_bytes("\n", 1); return; }` at top
+2. `src/backend/emit_x64_icon.c` — `emit_call()` ~line 582: change `icn_write_int` fallback to `icn_write_str`
+
+### Expected outcome after fixes
+
+- rung05_scan_scan_nested: `second\n\n` ✅
+- rung05_scan_scan_restores: `outer\nouter\n` ✅
+- icon_x86: **97p/161f** (net +2)
+- Emit-diff: **981/4** (unchanged)
+
+### Failure taxonomy for rung09 (next after rung05)
+
+rung09 has 5 failures: `repeat_break`, `repeat_counter`, `until`, `until_gen`, `until_while` — all loop control. These are likely `ICN_REPEAT`/`ICN_UNTIL` emitter gaps or break/next label routing issues. Session s34 should tackle rung09 after rung05 is green.
+
+### G-9 s34 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163f
+```
+
+Then apply the two fixes above and verify rung05 goes green.
