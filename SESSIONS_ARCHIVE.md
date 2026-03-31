@@ -10818,3 +10818,59 @@ SESSION-*.md §NOW is **replaced** each session, not appended. Completed sprint 
 ### G-10 first action
 
 Resume icon_x86 rung10–35 per SESSION-icon-x64.md §NOW (IX-18 taxonomy).
+
+---
+
+## SW-12 — 2026-03-31
+
+**Session focus:** WASM emitter consolidation / build repair
+
+**Critical fix: corrupt IW-10 commit (f0943c3) recovered**
+
+IW-10 accidentally deleted 805 lines from `emit_wasm_icon.c` (diff claimed +40/-4 but was +16/-805). The file was left with orphaned `case` statement fragments at file scope, breaking the entire build (`scrip-cc` link failure).
+
+Root cause: IW-10 authored as `Claude Sonnet 4.6 <claude@anthropic.com>` — also a RULES.md §GIT IDENTITY violation (should always be `LCherryholmes <lcherryh@yahoo.com>`).
+
+**Fix applied in `ead4d7e`:**
+- Restored `emit_wasm_icon.c` from `a3c9567` (SW-11 cleanup, 1305 lines)
+- Added `§1b2`: `IcnProcReg` struct + `icn_proc_reg_add/lookup/reset`
+- Added `emit_frame_push/pop` (after `icon_gen_slot_addr` to avoid forward-decl error)
+- Patched E_FNC user-proc call handler: `nints_to_save` + `callee_nparams` (IW-10 intent)
+- Patched `emit_wasm_icon_file`: `icn_proc_reg_reset()` + registration loop (IW-10 intent)
+
+**Consolidation analysis (session focus):**
+
+`emit_wasm.h` API is already well-formed (created PW-2). All three WASM emitters share:
+- `strlit_intern/abs/len/count` — ✅ shared
+- `emit_wasm_data_segment()` — ✅ shared
+- `emit_wasm_runtime_imports_sno_base()` — ✅ shared (sno namespace; pl namespace stays separate)
+
+Remaining duplication candidates:
+- `icn_retcont_register` (icon) and `cont_register` (prolog) follow identical name→index table pattern. Could be `emit_wasm_cont_register(tag, name)` in `emit_wasm.c` with two instances. Low priority — each table is frontend-private and small.
+- `emit_frame_push/pop` is Icon-only (gen-state page model); Prolog uses trail/heap differently. No sharing needed.
+
+**Gate:** 981/4 ✅  **Invariants:** snobol4_wasm 48p/1f ✅ (212_indirect_array pre-existing)
+
+**one4all HEAD:** `ead4d7e` · **corpus HEAD:** `7c17586`
+
+### SW-13 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh        # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 48p/1f
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-wasm.md
+```
+
+**Then immediately (M-SW-C02):**
+1. Add `is_idxassign` lvalue emit block (pseudocode in SW-11 handoff above)
+2. Fix PROTOTYPE to use byte-copy loop (avoid `memory.copy`)
+3. Fix ARRAY multi-dim parsing for `'2,2'` string arg
+4. `cd src && touch backend/emit_wasm.c && make`
+5. `CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rung11`
+6. Add DATA/ITEM E_FNC cases; wire rung11 into run_invariants.sh → expect 55p/1f
