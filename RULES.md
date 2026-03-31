@@ -45,8 +45,7 @@ installs unneeded tools, and adds noise. Cross-session regressions are caught by
 session running its own column. Do not run x86 cells in a WASM session, JVM cells in an
 x86 session, etc.
 
-`SESSION_SETUP.sh` does all tool installation: apt packages, source builds (CSNOBOL4,
-scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they
+`SESSION_SETUP.sh` does all tool installation: apt packages, source builds (scrip-cc), SnoHarness compile, git identity. **The test scripts do NOT install tools** — they
 verify tools are present and exit immediately with a clear message if anything is missing.
 
 **Never pre-check or pre-install tools manually.** SESSION_SETUP.sh is the environment setup.
@@ -64,8 +63,7 @@ SPITBOL (snobol4ever/x64, installed at `/usr/local/bin/spitbol`) is the first an
 CSNOBOL4 does NOT support FENCE and other extensions — it is NOT a valid oracle for Snocone or any session requiring SPITBOL semantics.
 When deriving `.ref` output for any new test, run SPITBOL first. CSNOBOL4 is only consulted for features provably identical between the two (basic string ops, arithmetic). When in doubt: use SPITBOL.
 
-**⛔ NEVER download CSNOBOL4 from snobol4.org or anywhere** — site is broken (redirects to lander as of 2026-03-30) and downloading from unknown sources is forbidden.
-**Always ask Lon to upload `snobol4-2_3_3_tar.gz`** when CSNOBOL4 is needed. Build with:
+**CSNOBOL4 is deprecated — no longer needed on a regular basis.** SESSION_SETUP.sh skips it. SPITBOL covers all active sessions. If CSNOBOL4 is ever needed for a specific task: ask Lon to upload `snobol4-2_3_3_tar.gz` (do NOT download from snobol4.org — broken as of 2026-03-30), then build manually:
 `mkdir -p /tmp/sno_build && tar -xzf <tarball> -C /tmp/sno_build && cd /tmp/sno_build/snobol4-2.3.3 && apt-get install -y m4 && ./configure --prefix=/usr/local && make -j$(nproc) && make install`
 Note: CSNOBOL4 is NOT required to run the gate — `.ref` files are pre-baked in corpus.
 

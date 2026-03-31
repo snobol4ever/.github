@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **Snocone x86** | SC-7 | `2a561dd` one4all · `7038bc7` corpus | M-SC-B06: `~` negation / `?` query (5 tests) |
+| **Snocone x86** | SC-8 | `bede304` one4all · `180a3ee` corpus | M-SC-B07: next unimplemented construct — see SESSION-snocone-x64.md |
 | **SNOBOL4 WASM** | SW-14 WIP | `4652640` one4all | **M-SW-C02**: rung11 5/7 — fix 1115/1116 DATA typename+field accessor — see SW-14 handoff |
 | **ICON WASM** | IW-14 | `dcce561` one4all | **IW-15 first**: M-IW-R01 — OOB root cause: E_EVERY exhaustion leaks retcont_push (no pop), drives $icn_frame_depth to 384 → frame addr hits end of 5-page memory. Fix: E_EVERY ra path must call retcont_pop before re-entering. |
 | **Prolog WASM** | PW-15 | `77b1e05` one4all · `de89e78` corpus | **M-PW-B01** still open: rung05 outputs `a` only — needs per-call CP frames in beta emission (nested GT sub-loop) |
