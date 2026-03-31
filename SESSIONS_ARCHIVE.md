@@ -10779,3 +10779,42 @@ cat /home/claude/.github/SESSION-prolog-wasm.md
 ```
 
 **PW-14 first action:** In `emit_goal`, find the body-call arg emission for E_VAR args and change `i32.load(slot_addr)` → `i32.const slot_addr` for output variable slots (those with valid slot indices ≥ 0). Then regenerate, reassemble, rerun rung05 → expect `a\nb\nc` ✅ → commit `PW-14: M-PW-B01 ✅`.
+
+---
+
+## G-9 s35 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `388140a` (unchanged — G-9 s35 was HQ-only work)
+
+### Session summary
+
+Grand Master Reorg session focused on HQ doc hygiene — SESSION docs and RULES.md were accumulating completed sprint history without being pruned at handoff, causing context bloat for every subsequent session.
+
+### Changes committed (`4c66dd2` .github)
+
+**RULES.md:**
+- Added SESSION doc pruning as step 4 of end-of-session checklist
+- Trimmed HQ DOCS war story to one-line root-cause citation
+- Trimmed JVM BACKEND verbose examples to 4-line rule
+- 17.3KB → 15.9KB
+
+**SESSION docs pruned** (completed sprint history removed; recoverable from git):
+- SESSION-linker-net.md: 25.9KB → 2.3KB
+- SESSION-snobol4-wasm.md: 20.0KB → 1.7KB
+- SESSION-snocone-x64.md: 16.9KB → 1.6KB
+- SESSION-prolog-wasm.md: 11.9KB → 6.0KB
+- SESSION-linker-sprint1.md: 11.4KB → 1.2KB
+- SESSION-linker-jvm.md: 10.2KB → 0.2KB
+- SESSION-prolog-jvm.md: 9.0KB → 5.1KB
+- SESSION-prolog-x64.md: 8.9KB → 8.2KB
+- SESSION-icon-x64.md: 7.2KB → 2.3KB
+
+**Note:** SW-11 and PW-13 pushed while G-9 s35 was active and reverted some pruned files. Re-applied pruning on top at handoff. SESSION doc discipline requires all sessions to follow the new checklist step 4 — replace §NOW, do not append.
+
+### Process fix for all future sessions
+
+SESSION-*.md §NOW is **replaced** each session, not appended. Completed sprint analysis goes to SESSIONS_ARCHIVE only. Target ≤5KB per SESSION doc.
+
+### G-10 first action
+
+Resume icon_x86 rung10–35 per SESSION-icon-x64.md §NOW (IX-18 taxonomy).
