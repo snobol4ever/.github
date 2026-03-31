@@ -58,7 +58,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **Snocone x86** | SC-4 | `243b082` one4all · `c58ad4e` corpus | M-SC-B04: `&&` concat semantics (5 tests) |
 | **GRAND MASTER REORG** | G-9 s32b | one4all `19e8008` · corpus `60b0209` · .github this session | **M-G9-ICON-IR-WIRE ✅ FIRED** · next: icon_x86 compile failures (95p/163f → target rung05/06/08) |
 | **Snocone x86** | SC-4 | `8d539c7` one4all · `0112a56` corpus | M-SC-B02: while/do-while + break/continue (6 tests) |
-| **SNOBOL4 WASM** | SW-6 | `04c1059` one4all · `1ab2f57` corpus | **M-SW-B02: PATTERN SEQ** rungW02/ 3 tests |
+| **SNOBOL4 WASM** | SW-7 | `93eefec` one4all · `31c5c90` corpus | **M-SW-B03: PATTERN ALT** rungW03/ 3 tests |
 | **⭐ Scrip Demo** | SD-37 `795c2ff` | — | resume — unfrozen |
 | **🌳 Parser pair** | PP-1 `4b4d71a` | — | resume — unfrozen |
 | **TINY backend** | B-292 `acbc71e` | — | resume — unfrozen |

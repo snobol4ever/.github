@@ -9407,280 +9407,125 @@ Step 5 — add rungW02 to invariant DIRS → target 28p/1f.
 
 **Note:** `sno_str_contains` can remain in runtime as a convenience but the emitter should now use `sno_pat_search` for all pattern nodes.
 
-## PW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~80%
+---
 
-**one4all** `e52eb1e` · **.github** this commit
+## SW-7 M-SW-B02 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
-### Session summary
+**one4all** `93eefec` · **corpus** `31c5c90` · **.github** `b6f7181`
 
-Two milestones worked: M-PW-A02 fully fired and pushed; M-PW-B01 substantially implemented but rung05 blocked by one ABI issue.
+### M-SW-B02 complete: PATTERN SEQ — cursor-threaded sequential match ✅
 
-### Work completed
+**sno_runtime.wat:** Added `sno_pat_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32` — cursor-based search returning position after match, or -1 on fail. Empty needle returns cursor unchanged. Lives alongside `sno_str_contains` (kept for compatibility).
 
-**M-PW-A02 ✅ FIRED** (`56b4017` → `8355a8a`)
-- `pl_runtime.wat`: added `int_to_atom(i32→i32)` (writes decimal to atom heap, returns slot 255) and `atom_to_int(i32→i32)` (parses decimal string of atom back to i32)
-- `emit_wasm_prolog.c`: `emit_arith_i32()` helper for inline i32 arithmetic; `is/2` special-case (push slot, eval RHS, `int_to_atom`, `var_bind`); comparison ops `</>/=</>=/ =:=/=\=` → inline `i32.lt_s` etc. with `br_if $cond_fail`; `(Cond->Then;Else)` rewritten as two-block structure `(block $ite_end (block $cond_fail Cond Then br $ite_end) Else)`
-- rung01–04 all PASS
+**emit_wasm.c:**
+- Added `$sno_pat_search` import in `emit_runtime_imports()`.
+- Added pattern-match locals to `emit_main_body()`: `$pat_subj_off`, `$pat_subj_len`, `$pat_cursor`, `$pat_ndl_off`, `$pat_ndl_len`.
+- Added `emit_pattern_node(const EXPR_t *pat)` recursive helper — handles `E_QLIT` (literal search from cursor) and `E_SEQ` (left then right, cursor threaded; right skipped if cursor == -1). Fallback path handles arbitrary string expressions via saved locals.
+- Replaced old `sno_str_contains` call block in statement emitter with: save subject to `$pat_subj_*` locals, init `$pat_cursor = 0`, call `emit_pattern_node(s->pattern)`, set `$ok = (cursor >= 0)`.
 
-**M-PW-B01 WIP** (`e52eb1e`)
-- `pl_runtime.wat`: added `cons/is_cons/cons_head/cons_tail` exports; term heap at 57344; cons encoding = `0x80000000 | heap_offset`
-- `emit_wasm_prolog.c`: added all 4 cons imports; `emit_term_value()` helper (atoms, vars, cons chains); head unification rewritten with `(block $clause_N_end ...)` + matched-flag pattern; ground-atom head uses bind-or-match (if `a_i >= ENV_BASE`, bind; else check equality); `E_VAR` head arg: `var_bind(env_slot, a_i)`; compound `[H|T]` head: `is_cons` check, `cons_head`→H slot, `cons_tail`→T slot; body goals: `emit_goals()` called for recursive calls; `$tm_N` locals added per clause
-- rung01–04 PASS ✅; rung05 produces blank output
+**corpus:** `crosscheck/rungW02/` — 3 tests: `W02_seq_basic`, `W02_seq_nested`, `W02_seq_fail_propagate`. Oracle-verified against CSNOBOL4 2.3.3. Note: CSNOBOL4 requires uppercase `OUTPUT` (not `output`) when invoked via `-f file.sno`.
 
-### Root cause of rung05 failure — implement first in PW-9
+**Shared code note:** `sno_pat_search` is in `sno_runtime.wat` — Icon×WASM and Prolog×WASM get it free.
 
-**Problem:** `member(X, [X|_])` clause 0 head arg 0 is `E_VAR X`. Call site passes `a0 = slot_addr_of_X_in_main` (32896). Current code: `var_bind(env_slot_32768, a0=32896)` — stores the ADDRESS into the env slot, not a useful value. Then `var_bind(env_slot_32768, cons_head(a1))` correctly overwrites env slot with the atom_id. But the **caller's slot 32896** is never written.
+### Gate
+- **Emit-diff:** 729/9 ✅
+- **snobol4_wasm:** 28p/1f ✅ (1f = pre-existing 212_indirect_array)
+- **rungW01:** 3/3 ✅ (no regression)
+- **rungW02:** 3/3 ✅
 
-**Fix (implement first in PW-9):**
-After clause body completes and before `return 1`, for each head arg position where the call-site arg was a slot address (`a_i >= ENV_BASE`), copy the env slot's final value back to that address:
+### Next: M-SW-B03 — PATTERN ALT
 
+Create `corpus/crosscheck/rungW03/` with 3 tests: `W03_alt_basic.sno`, `W03_alt_second.sno`, `W03_alt_both_fail.sno`. Oracle-verify with CSNOBOL4 (use uppercase OUTPUT).
+
+SNOBOL4 ALT syntax: `pat = 'foo' | 'bar'` — the `|` operator produces `E_ALT`. Check IR with `scrip-cc -wasm -dump-ir prog.sno` to confirm node kind.
+
+In `emit_wasm.c`: add `E_ALT` case to `emit_pattern_node()`:
+- `alt_α → left_α` : try left first (cursor saved)
+- `left_β → right_α` : if left failed, restore cursor and try right
+- `right_β → alt_β` : if right also failed, cursor stays -1
+
+WAT shape (using a saved-cursor local `$pat_save_cursor`):
+```
+;; E_ALT: try left; if cursor==-1 restore and try right
+(local.set $pat_save_cursor (local.get $pat_cursor))
+;; emit left child
+emit_pattern_node(left)
+(if (i32.lt_s (local.get $pat_cursor) (i32.const 0)) (then
+  ;; left failed — restore cursor and try right
+  (local.set $pat_cursor (local.get $pat_save_cursor))
+  ;; emit right child
+  emit_pattern_node(right)
+))
+```
+
+Need one new local `$pat_save_cursor i32` added to the main locals block (alongside the existing pat_* locals). For nested ALT, the save/restore is per-call-frame in the C recursion — each `emit_pattern_node` call sees its own `$pat_save_cursor` emission inline, so nesting works correctly with a single WAT local (left saves before trying, right is only reached if left failed, so the saved value is still valid).
+
+Add rungW03 to `run_invariants.sh` DIRS → target **31p/1f**.
+
+### SW-8 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, build per RULES.md
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28p/1f
+CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh rungW03  # expect 0/3 (M-SW-B03 target)
+```
+
+---
+
+## SW-7 M-SW-B02 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `93eefec` · **corpus** `31c5c90` · **.github** this session
+
+### M-SW-B02 complete: PATTERN SEQ — cursor-threaded sequential match ✅
+
+**sno_runtime.wat:** Added `sno_pat_search(hay_off, hay_len, ndl_off, ndl_len, start_cursor) → i32` — cursor-based search returning position after match, or -1 on fail. Empty needle returns cursor unchanged.
+
+**emit_wasm.c:**
+- Added `$sno_pat_search` import in `emit_runtime_imports()`.
+- Added pattern-match locals to `emit_main_body()`: `$pat_subj_off`, `$pat_subj_len`, `$pat_cursor`, `$pat_ndl_off`, `$pat_ndl_len`.
+- Added `emit_pattern_node(const EXPR_t *pat)` recursive helper — handles `E_QLIT` (literal via `sno_pat_search`) and `E_SEQ` (left then right, cursor threaded; right skipped if cursor == -1). Fallback handles arbitrary string expressions.
+- Replaced `sno_str_contains` call block with: save subject to `$pat_subj_*`, init `$pat_cursor = 0`, call `emit_pattern_node()`, set `$ok = (cursor >= 0)`.
+
+**corpus:** `crosscheck/rungW02/` — 3 tests oracle-verified against CSNOBOL4 2.3.3. Note: CSNOBOL4 requires uppercase `OUTPUT` via `-f file.sno`.
+
+### Gate
+- **Emit-diff:** 729/9 ✅
+- **snobol4_wasm:** 28p/1f ✅ (1f = pre-existing 212_indirect_array)
+- **rungW01:** 3/3 ✅ · **rungW02:** 3/3 ✅
+
+### Next: M-SW-B03 — PATTERN ALT
+
+Create `corpus/crosscheck/rungW03/` with 3 tests (uppercase OUTPUT). SNOBOL4 ALT: `pat = 'foo' | 'bar'` → `E_ALT` node.
+
+Add `E_ALT` to `emit_pattern_node()`:
 ```c
-/* After body, before "return 1": write-back output vars */
-for (int ai = 0; ai < n_args; ai++) {
-    /* If head arg was E_VAR slot S, and a_i >= ENV_BASE: */
-    /*   i32.store(a_i, i32.load(env_slot_of_S)) */
-    W("          (i32.store (local.get $a%d) (i32.load (i32.const %d)))\n",
-      ai, env_slot_of_head_var[ai]);
+if (pat->kind == E_ALT) {
+    W("      ;; E_ALT: save cursor, try left, restore+try right on fail\n");
+    W("      (local.set $pat_save_cursor (local.get $pat_cursor))\n");
+    emit_pattern_node(left);
+    W("      (if (i32.lt_s (local.get $pat_cursor) (i32.const 0)) (then\n");
+    W("        (local.set $pat_cursor (local.get $pat_save_cursor))\n");
+    emit_pattern_node(right);
+    W("      ))\n");
 }
 ```
+Add `(local $pat_save_cursor i32)` to main locals block. Add rungW03 to invariants DIRS → target **31p/1f**.
 
-This applies when `harg->kind == E_VAR && slot >= 0`. Track `head_var_env_slot[ai]` during the head unification loop, then emit the write-back after body goals, before `local.set $tm_N 1`.
-
-Additionally: clause 1 (`member(X,[_|T]) :- member(X,T)`) — the recursive body call uses `(i32.load env_slot_X)` as the X arg, but env_slot_X holds the address (32896+something), not the atom. Same root cause. Fix the write-back and both clauses will work.
-
-### Gate (end of session)
-- Build: clean ✅
-- Emit-diff: 729/9 ✅ (pre-existing, unchanged)
-- rung01–04: all PASS ✅
-- rung05: blank output (write-back fix pending)
-
-### PW-9 session start
+### SW-8 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# CSNOBOL4: ask Lon to upload snobol4-2_3_3_tar.gz, build per RULES.md
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/RULES.md
-cat /home/claude/.github/SESSION-prolog-wasm.md
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 729/9
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # expect 28p/1f
 ```
-
-**Immediate first action (PW-9):** Open `src/backend/emit_wasm_prolog.c`, find `emit_pl_predicate()`. In the head-unification loop, add an array `int head_var_slot[MAX_ARGS]` tracking which env slot each `E_VAR` head arg maps to (or -1 for non-var). After body goals, before `local.set $tm_N 1`, emit write-back: for each `ai` where `head_var_slot[ai] >= 0`, emit `(i32.store (local.get $a%d) (i32.load (i32.const %d)))`. Then test rung05 → expect `a\nb\nc\n`. If PASS, run emit-diff + invariants, fire M-PW-B01.
-
-## IW-8 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `54eac34` · **.github** this commit
-
-### Session summary
-
-Full EXPR_t rewrite of emit_wasm_icon.c — eradicated all IcnNode usage. M-IW-P01 `$icn_retcont` trampoline implemented and working for single non-recursive proc calls. rung01 restored 6/6. rung02 add_proc passing.
-
-### Work completed
-
-**Root cause (IW-7 diagnosis confirmed):** `emit_wasm_icon.c` used `IcnNode*` AST directly. Grand Master Reorg wired all Icon paths through `icon_lower()` → `EXPR_t*`. Driver passes `EXPR_t**lowered`; emitter was comparing `procs[i]->kind == ICN_PROC` which never matched, producing "no main procedure found" (rung01 0/6) and segfaults (rung02 proc tests).
-
-**Fix — complete EXPR_t rewrite:**
-- `ICN_PROC → E_FNC` (sval=name, ival=nparams, children[0]=E_VAR name)
-- `ICN_INT → E_ILIT` (ival), `ICN_STR → E_QLIT` (sval), `ICN_MUL → E_MPY`
-- `ICN_ALT → E_GENALT`, field `->val.ival → ->ival`, `->val.fval → ->dval`
-- Prescan now walks `EXPR_t` tree, detects `E_QLIT` for string interning
-- No `IcnNode` in live code; `icon_ast.h` kept only for transitive include chain
-
-**M-IW-P01 `$icn_retcont` trampoline:**
-- `(global $icn_retcont (mut i32))` + `(type $cont_t (func (result i32)))`
-- Non-main proc's last chain → `icn_proc_NAME_retcont` → `return_call_indirect (type $cont_t)`
-- Call site registers its esucc in `icn_retcont_funcs[]` table; docall sets `$icn_retcont` then calls proc
-- Module emits `(table N funcref)` + `(elem (i32.const 0) $fn0 $fn1 ...)` after all funcs
-- **Fixed E_RETURN e_id bug:** was `wasm_icon_ctr - 1` after emit (grabbed last child node); corrected to `wasm_icon_ctr` before emit (grabs root of child subtree)
-- **Fixed multi-arg call chain:** two-pass — emit all arg expressions first to collect start names, then emit esucc trampolines with correct `arg_starts[ai+1]` forward refs
-
-### Gate (end of session)
-- **Build:** clean ✅
-- **Emit-diff:** 729/9 ✅ (no regressions)
-- **rung01:** 6/6 ✅ (restored from 0/6)
-- **rung02 arith_gen:** 5/5 ✅
-- **rung02_proc_add_proc:** ✅ (M-IW-P01 core case)
-- **rung02_proc_fact:** ❌ needs E_IF (E_IF stub-fail)
-- **rung02_proc_locals:** ❌ needs local var table (E_ASSIGN stub-fail)
-
-### IW-9 session start
-
----
-
-## G-9 Session 32 HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~35%, handoff
-
-**one4all** `ccfc677` · **corpus** `23697ad` · **.github** this session
-
-### Session summary
-
-**Fix: user proc label collision (`icn_NAME` → `icn_u_NAME`) + emit-diff ref regeneration.**
-
-#### Root cause
-User proc entry/done/ret/sret/caller_ret labels were emitted as `icn_NAME`, colliding
-with runtime builtins of the same name (e.g. a user proc named `upto` → `icn_upto` →
-link collision with `icn_upto` in `icon_runtime.c`). Identified in G-9 s31 handoff.
-
-#### Changes made
-
-| File | Change |
-|------|--------|
-| `src/backend/emit_x64_icon.c` | All user proc labels renamed: entry `icn_NAME` → `icn_u_NAME`, plus `_done`/`_ret`/`_sret`/`_caller_ret` suffixed forms. Guard: `main` keeps `icn_main`. Call sites (`jmp`/`call`, caller_ret BSS ref) updated to match. |
-| `corpus/programs/icon/*.s` (256 files) | All icon emit-diff `.s` reference files regenerated. 250 new `.s` files added (rung02–rung36 previously had no refs). 6 existing refs updated for label rename. |
-
-#### Gate
-- **Build: clean** ✅
-- **Emit-diff: 981/4** ✅ (up from 729/9 — 252 new passes)
-- **icon_x86: 93p/165f** — no regression; link collision resolved. Generator runtime failures (e.g. `upto` binary links but produces no output) are separate issues.
-- 4 remaining emit-diff failures: pre-existing JVM-side (`meander`, `queens`, `wordcount`, `coverage_x64_gaps`)
-
-#### NOT done — icon_x86 generator runtime (next session priority)
-The `upto` test now links cleanly but produces no output. `every write(upto(4))` calls
-the generator but the `suspend`/resume cycle doesn't yield values. Root cause: the
-`icn_suspended` flag + `icn_suspend_resume` trampoline path in the generator β port
-needs investigation. This is the next unlock for icon_x86 pass count.
-
-### Next session bootstrap
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-icon-wasm.md
-```
-
-### M-IW-V01 — Local variable table (implement first in IW-9)
-
-`E_ASSIGN` is currently stub-fail. `rung02_proc_locals` needs `total := 0`, `total + (1 to n)`, `return total`.
-
-**Implementation plan:**
-1. At proc emit time, scan body for `E_ASSIGN` LHS `E_VAR` names → build local var name→slot table
-2. Allocate local var slots in linear memory (separate from gen-state slots; use a per-proc base address)
-3. `E_ASSIGN`: emit E2, then store result into `mem[local_base + slot*8]` (i64 store)
-4. `E_VAR` (non-param, non-global): read from `mem[local_base + slot*8]` (i64 load) → `$icn_int{id}`
-5. Expected result: rung02_proc_locals ✅
-
-### M-IW-C01 — E_IF (after M-IW-V01)
-
-Needed for `rung02_proc_fact`. `if E then S1 [else S2]`:
-- `E.start` → eval condition
-- `E.succeed` → `S1.start`
-- `E.fail` → `S2.start` (or if.fail if no else)
-- `S1/S2.succeed` → if.succeed; `S1/S2.fail` → if.fail
-FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect ~93p/165f
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/RULES.md
-cat /home/claude/.github/PLAN.md
-```
-
-### Next session work (G-9 s33)
-1. Debug `upto` generator: why does `every write(upto(4))` produce no output after link fix?
-   - Check `icn_suspended` flag path in `emit_x64_icon.c` β-port generator resume
-   - Add debug: does `icn_u_upto` entry get reached? Does it `suspend`?
-2. Once generator suspend/resume works: run icon_x86 invariants — target ≥94p/164f → fires `M-G9-ICON-IR-WIRE`
-3. Run full invariant suite end-of-session.
-
----
-
-## SC-4 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `243b082` · **corpus** `c58ad4e` · **.github** this session
-
-### Session summary
-
-M-SC-B03 complete: `for`-loop support firing on all 6 tests.
-
-### Work completed
-
-**M-SC-B03: `for` loop ✅**
-
-`src/backend/emit_x64_snocone.c`:
-- `sc_compile_expr(st, SNOCONE_RPAREN)`: added paren depth counter. Previously stopped at first `)` seen — broke on step expressions containing nested function calls like `ADD(i,1)`. Fix: track `depth` with `LPAREN`/`RBRACKET` increments, only stop when `depth==0 && stop_kind==RPAREN`. All other stop_kind paths unchanged.
-
-`corpus/crosscheck/snocone/rungB03/` — 6 new test+ref pairs:
-- `B03_for_basic` — counts 1..3
-- `B03_for_false` — condition false on entry, body skipped
-- `B03_for_break` — break exits at i=4
-- `B03_for_continue` — continue skips i=3, step still runs
-- `B03_for_nested_break` — break exits only innermost for
-- `B03_for_step_expr` — step has nested parens `ADD(i,1)` (regression test for the exact bug fixed)
-
-`test/run_invariants.sh`: added `rungB03` to `snocone_x86` DIRS.
-
-### Gate (end of session)
-- **Build:** clean ✅
-- **Emit-diff:** 729/9 (9 = pre-existing, G-session scope) ✅
-- **snobol4_x86:** 106/106 ✅
-- **snocone_x86:** 111/111 ✅ (was 105; +6 rungB03)
-
-### SC-5 session start
-
-## G-9 Session 32b HANDOFF (2026-03-31, Claude Sonnet 4.6) — context ~53%, handoff
-
-**one4all** `19e8008` · **corpus** `60b0209` · **.github** this session
-
-### Session summary
-
-**Fix: any/many/upto builtin guard missing `!icn_is_user_proc()` + M-G9-ICON-IR-WIRE fired.**
-
-#### Root cause
-`any`/`many`/`upto` builtin dispatch (line 593) was missing the
-`&& !icn_is_user_proc(fname)` guard that `match`/`tab`/`move`/`find` already had.
-A user proc named `upto` was dispatched to `icn_upto` (C runtime scan builtin)
-instead of the user proc trampoline — producing no output from `every write(upto(4))`.
-
-#### Changes made
-
-| File | Change |
-|------|--------|
-| `src/backend/emit_x64_icon.c` | Added `&& !icn_is_user_proc(fname)` to the `any`/`many`/`upto` builtin check. |
-| `corpus/programs/icon/rung03_suspend_gen.s` | Regenerated — now uses user proc trampoline path. |
-| `corpus/programs/icon/rung03_suspend_gen_compose.s` | Regenerated — same. |
-
-#### Gate
-- **Build: clean** ✅
-- **Emit-diff: 981/4** ✅ (stable)
-- **icon_x86: 95p/163f** ✅ (was 93p/165f — 2 new passes)
-- **M-G9-ICON-IR-WIRE: FIRED** ✅ — criteria ≥94p/164f met; full milestone details in MILESTONE_ARCHIVE.md
-
-#### Milestone archive
-M-G9-ICON-IR-WIRE moved to MILESTONE_ARCHIVE.md. GRAND_MASTER_REORG.md row marked ✅.
-
-### Next session bootstrap
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-
-FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                          # expect 729/9
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106 + 111/111
-```
-
-**Immediate next action (M-SC-B04):** Create `corpus/crosscheck/snocone/rungB04/` with 5 `&&` concat semantics tests (null identity, fail propagation, type coerce, chained concat, concat in pattern). Add rungB04 to invariants DIRS. All `.ref` are derivable by inspection — no oracle needed.
-FRONTEND=icon BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_x86 # expect 95p/163f
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/RULES.md
-cat /home/claude/.github/PLAN.md
-```
-
-### Next session work (G-9 s33)
-icon_x86 remaining 163 failures — investigate rung05/06/08 compile failures.
-Per G-9 s31 handoff: rung05/06/08 were expected to be fixed by ICN_SCAN addition
-in icon_lower.c — verify if that holds, then identify next highest-leverage failures.
-Run full invariant suite end-of-session.

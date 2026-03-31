@@ -23,7 +23,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-6 — Partition A ✅ M-SW-B01 ✅ | `04c1059` one4all · `1ab2f57` corpus | **M-SW-B02: PATTERN SEQ** rungW02/ 3 tests |
+| **SNOBOL4 WASM** | SW-7 — M-SW-B02 ✅ | `93eefec` one4all · `31c5c90` corpus | **M-SW-B03: PATTERN ALT** rungW03/ 3 tests |
 
 ---
 
