@@ -54,7 +54,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-9 s35 | one4all `388140a` · corpus `caa3903` | rung09 loops: icon_x86 103p/155f → next milestone |
+| **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
 | **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
 | **SNOBOL4 WASM** | SW-12 | `ead4d7e` one4all · `7c17586` corpus | **M-SW-C02**: is_idxassign lvalue + ARRAY/TABLE/DATA — see SW-11 handoff |
 | **ICON WASM** | IW-11 | `ead4d7e` one4all | **IW-12 first**: fix dup memory import → clear wat2wasm failures → resume M-IW-R01 rung02_proc_fact |
