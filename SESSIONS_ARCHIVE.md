@@ -11055,3 +11055,92 @@ Phase 0 gate: for each active session in the NOW table, read its SESSION-*.md §
 and confirm whether the current milestone is landed. List which are done and which
 are still active. When all 13 are done → commit M-G10-FREEZE to PLAN.md and notify
 all sessions.
+
+## PW-14 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all** `20dd4f4` · **corpus** `de89e78` · **.github** this commit
+
+### Session summary
+
+Oracle: SWI-Prolog apt failed; built from uploaded swipl-devel-master.zip → 10.1.5 installed.
+Gate on arrival: 981/4 emit-diff ✅, prolog_wasm 0p ✅ (baseline).
+
+### Context discipline failure
+
+Read full generated WAT (150 lines) and large `emit_wasm_prolog.c` swaths diagnostically instead of using targeted grep/sed. Cost ~15% context unnecessarily. Next session: use `grep -n` + `sed -n 'N,Mp'` with tight ranges only.
+
+### Fixes committed (`20dd4f4`)
+
+**Fix 1 — emit_wasm_prolog.c: body-call E_VAR arg emission (PW-13 handoff spec):**
+- Body-call arg for `E_VAR` slots was `(i32.load (i32.const addr))` — passed the *value*.
+- Fixed to `(i32.const addr)` — passes the *slot address*.
+- Alpha's `if ($ai >= ENV_BASE) store($ai, atom_id)` pattern requires the address, not the value. The old code caused OOB when a cons-cell pointer (e.g. `0x80008010`) was used as an atom_id.
+
+**Fix 2 — pl_runtime.wat: term heap collision with CP stack (new bug found this session):**
+- `$term_heap_top` was initialized to `57344` = same as `$CP_BASE`.
+- CP stack occupies `[57344..65535]`; cons cells for `[a,b,c]` were allocated into it.
+- Fixed: `$term_heap_top` → `98304` (`65536` string-data base + 32KB buffer).
+- Comment updated to reflect new region `[98304..131071]`.
+- Runtime rebuilt: `pl_runtime.wasm` committed.
+
+### rung05 status: still failing (outputs `a`, expected `a\nb\nc`)
+
+**Root cause identified:** gamma/ci double-advance.
+
+The GT loop flow:
+1. Main calls `$pl_member_2_call` with `ci = cp_get_ci()` (initially 0 → alpha).
+2. Alpha finds `a`, calls gamma (idx=0).
+3. Gamma: increments CP ci (0→1), sets flag=1, writes `a\n`, trail_unwind, resets V0, returns.
+4. Main loop: flag=1 → `br $gt_0`. Now calls `_call` with `ci = cp_get_ci()` = **1** → beta1.
+5. Beta1: recursive call to alpha with `[b,c]`. Alpha finds `b`, calls gamma.
+6. Gamma: increments CP ci (1→**2**), sets flag=1, writes `b\n`, returns.
+7. Main loop: flag=1 → `br $gt_0`. Calls `_call` with `ci = cp_get_ci()` = **2** → exhausted → omega. Done.
+
+Solution `c` is never found because ci reaches 2 (= nclauses) before beta1 can retry with `[c]`.
+
+**The fix for PW-15:** Gamma must NOT increment CP ci. The loop should advance ci itself after each successful iteration. Change gamma to only set the flag; remove `cp_set_ci` from gamma. Add `cp_set_ci(cp_get_ci()+1)` to the loop in main, AFTER the flag check and BEFORE `br $gt_0`.
+
+Alternatively (cleaner): gamma does NOT touch ci at all; ci is a WAT local in main that the loop increments; CP frame stores it for backtracking only. This is the original GT-loop design from PW-12 — but the CP ci needs to be updated when beta's recursive call succeeds so that on re-entry the correct clause is tried. Actually the issue is deeper: the CP ci is shared between the outer GT loop and recursive beta calls. The real WAM solution is to have each predicate call push its OWN CP frame, not share the outer GT frame.
+
+**Concrete minimal fix for PW-15 (avoids WAM full redesign):**
+In `$pl_gt_gamma_0` in `emit_wasm_prolog.c` (`emit_cont_functions_and_table`):
+- Remove the `(call $pl_cp_set_ci ...)` line.
+In the GT loop in `emit_pl_main`:
+- After the flag check `(if flag (then ...))`, before `(br $gt_0)`:
+  add `(call $pl_cp_set_ci (i32.add (call $pl_cp_get_ci) (i32.const 1)))`.
+
+This ensures ci advances exactly once per outer solution, not once per gamma call (which may fire from a recursive depth).
+
+### Gate (end of session)
+- **Emit-diff:** 981/4 ✅
+- **rung01–04:** PASS ✅
+- **rung05:** FAIL ❌ (outputs `a\n` only — gamma/ci double-advance)
+
+### Code-sharing status (session focus: emit_wasm_expr export)
+
+Not completed — context consumed by diagnostic reads and two unexpected bugs. Next session: after fixing rung05, do the emit_wasm_expr export (change `static WasmTy emit_expr` → non-static + public wrapper `emit_wasm_expr`, add declaration to `emit_wasm.h`). This is a small surgical change (~5 lines).
+
+### PW-15 session start
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=prolog BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+# swipl apt may fail — build from swipl-devel-master.zip if so (cmake -DSWIPL_PACKAGES=OFF)
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md                # this handoff
+cat /home/claude/.github/SESSION-prolog-wasm.md
+```
+
+**PW-15 first action (gamma/ci fix — ~10 lines total):**
+1. In `emit_cont_functions_and_table()` in `emit_wasm_prolog.c`: find the `cp_set_ci` emission inside gamma, delete those 2 lines.
+2. In `emit_pl_main()`: find the GT loop `(if flag (then (br $gt_0)))` block, add `(call $pl_cp_set_ci (i32.add (call $pl_cp_get_ci) (i32.const 1)))` immediately before `(br $gt_0)`.
+3. Rebuild: `cd src && make -j$(nproc)`.
+4. Recompile rung05: `./scrip-cc -pl -wasm corpus/rung05... -o /tmp/r5.wat && wat2wasm --enable-tail-call /tmp/r5.wat -o /tmp/r5.wasm && node test/wasm/run_wasm_pl.js /tmp/r5.wasm`.
+5. Expect `a\nb\nc` ✅.
+6. Run `CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm`.
+7. Then do emit_wasm_expr export (5-line change in emit_wasm.c + emit_wasm.h).
+8. Commit `PW-15: M-PW-B01 ✅ rung05 + emit_wasm_expr exported`.
+
+**Context discipline for PW-15:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp' file` with tight ranges. Never read a full generated WAT. Never read >30 lines of an emitter file without a specific line target.

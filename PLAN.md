@@ -58,7 +58,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **Snocone x86** | SC-5 | `994a482` one4all · `bb835ca` corpus | M-SC-B05: `||` alternation (5 tests) |
 | **SNOBOL4 WASM** | SW-12 | `ead4d7e` one4all · `7c17586` corpus | **M-SW-C02**: is_idxassign lvalue + ARRAY/TABLE/DATA — see SW-11 handoff |
 | **ICON WASM** | IW-11 | `3d6195a` one4all | **IW-12 first**: fix scrip-cc segfault on `>` in complex exprs → rung01_paper_paper_expr; then M-IW-R01 rung02_proc_fact |
-| **Prolog WASM** | PW-12 | `443dae2` one4all · `60b0209` corpus | **M-PW-B01**: choice-point stack in pl_runtime.wat → rung05 recursive member/2 |
+| **Prolog WASM** | PW-14 | `20dd4f4` one4all · `de89e78` corpus | **M-PW-B01** still open: rung05 outputs `a` not `a\nb\nc` — gamma/ci double-advance bug |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
 **Invariants (G-9 s33 baseline):** x86: SNOBOL4 `106/106` · Snocone `116p/0f` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
