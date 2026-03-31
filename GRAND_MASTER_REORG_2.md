@@ -350,7 +350,7 @@ It serves all five product repos plus the 6×5 one4all matrix (6 frontends ×
 
 | Method | What it does | Corpus relationship |
 |--------|-------------|---------------------|
-| **1. Crosscheck** | Self-contained programs × all engines. Fast, deterministic, CI-safe. Oracle = `.ref` file in corpus. | Reads `corpus/<frontend>/crosscheck/` |
+| **1. Crosscheck (CROSSCHECK)** | Self-contained programs × all engines. Fast, deterministic, CI-safe. Oracle = `.ref` file in corpus. | Reads `corpus/<frontend>/crosscheck/` |
 | **2. Invariant** | Targeted rung-by-rung progression tests. Tracks pass/fail counts per session. Gate before push. | Reads `corpus/<frontend>/crosscheck/rung*/` |
 | **3. Program suite** | Real-world programs with I/O, includes, external files. Slower, not CI-gated per commit. | Reads `corpus/<frontend>/programs/` |
 | **4. Oracle triangulation** | CSNOBOL4 + SPITBOL as dual ground truth. Any divergence between them surfaces a corpus bug before we even run our engines. | Generates its own inputs; validates corpus `.ref` files |
@@ -379,10 +379,10 @@ harness/
     snobol4python/      ← adapter for the Python pattern library
     snobol4csharp/      ← adapter for the C# pattern library
   methods/
-    crosscheck/         ← method 1: fast self-contained suite
-    invariant/          ← method 2: rung-by-rung progression
-    programs/           ← method 3: real-world program suite
-    triangulate/        ← method 4: dual-oracle triangulation
+    crosscheck/         ← CROSSCHECK: fast self-contained suite × all engines
+    probe/              ← PROBE: single-step instrumented execution, per-port state inspection
+    monitor/            ← MONITOR: full Byrd box trace diff across engines
+    random/             ← RANDOM/EXHAUSTIVE: grammar-driven generation, depth-N enumeration
   oracles/
     csnobol4/           ← build + run scripts
     spitbol/            ← build + run scripts
@@ -398,10 +398,11 @@ harness/
 | ID | Action | Verify |
 |----|--------|--------|
 | **M-G10-HARNESS-AUDIT** | Map all test scripts currently in `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/` to their target location in `harness/`. Produce `doc/HARNESS-MIGRATION.md`. | Doc exists |
-| **M-G10-HARNESS-METHODS** | Create `methods/` subdirs. Move existing crosscheck.sh and invariant runners into `methods/crosscheck/` and `methods/invariant/`. | All existing tests still pass via new paths |
-| **M-G10-HARNESS-ADAPTERS** | Expand `adapters/` to cover all one4all frontend×backend pairs plus the 4 standalone repos. Each adapter: `run.sh` (single program), `run_crosscheck.sh`, `run_invariants.sh`. | Each adapter smoke-tested |
-| **M-G10-HARNESS-PROGRAMS** | Implement `methods/programs/` runner. Handles I/O, includes, timeouts. | Program suite runs for SNOBOL4 at minimum |
-| **M-G10-HARNESS-TRIANGULATE** | Implement `methods/triangulate/`. CSNOBOL4 + SPITBOL both run every `.ref` test; flag any `.ref` file where they disagree. | Zero corpus bugs on current `.ref` set |
+| **M-G10-HARNESS-METHODS** | Create `methods/` subdirs. Move existing `crosscheck.sh` → `methods/crosscheck/`; existing `probe.py` → `methods/probe/`; existing `monitor/` → `methods/monitor/`. Stub `methods/random/`. | All existing tests still pass via new paths |
+| **M-G10-HARNESS-ADAPTERS** | Expand `adapters/` to cover all one4all frontend×backend pairs plus the 4 standalone repos. Each adapter: `run.sh` (single program) + method-specific entry points. | Each adapter smoke-tested |
+| **M-G10-HARNESS-PROBE** | Complete PROBE method. Single-step instrumented run; prints engine state at each α/β/γ/ω port. Works against any adapter. | Probe output readable for SNOBOL4 x86 |
+| **M-G10-HARNESS-MONITOR** | Complete MONITOR method. Runs same program on two adapters, diffs Byrd box trace streams, reports first divergence point. | Monitor catches a known semantic divergence |
+| **M-G10-HARNESS-RANDOM** | Implement RANDOM/EXHAUSTIVE method. Grammar-driven IR tree generation; depth-N enumeration or random sampling; all engines diff'd; passing cases pinned to `corpus/generated/`. | Depth-3 SNOBOL4 exhaustive: zero divergence |
 | **M-G10-HARNESS-GRID** | `grid/` generates a frontend × backend × method pass/fail matrix. HTML or Markdown output. | Grid renders correctly for all active cells |
 | **M-G10-HARNESS-CI** | `ci/` has one entry script per product repo. Each runs the appropriate adapter + method combination. | CI scripts exit 0 on clean repo |
 | **M-G10-HARNESS-MIGRATE** | Remove test scripts from `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/`. All tests run from harness only. | Full suite PASS via harness; no orphaned scripts |
