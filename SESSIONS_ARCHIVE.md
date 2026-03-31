@@ -12149,3 +12149,114 @@ These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS** under G-10 Phase 2-
 
 ### Context discipline
 Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`.
+
+---
+
+## IW-17 HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `4d6cb2d` (main)
+**.github HEAD:** `fc9b89c`
+
+### Session summary
+
+Fixed M-IW-G01: multi-yield bug in suspend-based generators.
+Gates: emit-diff 981/4 ✅. icon_wasm: **34p/224f** (up from ~3p).
+rung03_suspend_gen ✅, rung03_suspend_gen_filter ✅.
+rung03_suspend_gen_compose ❌ (needs E_ALT — M-IW-G02).
+
+### Root cause of single-yield bug (three layers)
+
+**Layer 1 — E_EVERY resume predicate wrong:**
+`icn_has_suspend(child)` checked the call-site AST for `E_SUSPEND`.
+But `E_SUSPEND` only lives inside the *callee's procedure body*, never
+at the call site. So `every write(upto(4))` → predicate returned 0 →
+`icon13_resume → icon14_resume → icon13_efail` (dead after first yield).
+
+**Layer 2 — `emit_icn_call_write` hardwired `ra → e_resume`:**
+The write node's resume pointed at the arg's resume chain, which for a
+user-proc call was also dead. Added `arg_has_usercall` param; write's
+resume now uses `return_call_indirect $icn_retcont` when arg is a user call.
+
+**Layer 3 — Static builtin list contained `"upto"`:**
+`icn_has_usercall` used a static string list to classify builtins.
+`"upto"` is an Icon string-scanning builtin — but the test defines a
+*user procedure* named `upto`. Static list classified it as builtin → 0.
+Fixed by replacing with `icn_proc_reg_lookup(fname) >= 0`: registry-based,
+correct for any user proc regardless of name.
+
+### Changes in `src/backend/emit_wasm_icon.c`
+
+- **`icn_is_usercall(fname)`**: new helper, uses `icn_proc_reg_lookup`.
+- **`icn_has_usercall(n)`**: replaces `icn_has_suspend`; recurses AST,
+  returns 1 if any E_FNC names a registered user proc.
+- **`emit_icn_call_write`**: new `arg_has_usercall` param; `ra` emits
+  `return_call_indirect $icn_retcont` when true, else `e_resume`.
+- **`case E_EVERY`**: `icn_has_suspend` → `icn_has_usercall` in resume branch.
+
+### IW-18 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=icon BACKEND=wasm TOKEN=TOKEN bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect 34p
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-icon-wasm.md
+```
+
+### IW-18 first actions
+
+**M-IW-G02: E_ALT — implement `|` operator for generator composition**
+
+Target: `rung03_suspend_gen_compose` — `every write(gen1() | gen2())`
+Expected: `1\n2\n3\n1\n2` (gen1=upto(3), gen2=upto(2))
+
+1. Check IR shape:
+   ```bash
+   grep -n "E_ALT\|ALT\|stub" /tmp/rung03_compose.wat | head -10
+   # or compile and inspect:
+   ./scrip-cc -icn -wasm -o /tmp/compose.wat \
+     /home/claude/corpus/programs/icon/rung03_suspend_gen_compose.icn 2>/dev/null
+   grep -n "stub\|ALT\|alt" /tmp/compose.wat | head -10
+   ```
+
+2. E_ALT Byrd-box wiring (two children: left gen, right gen):
+   - `sa → left.start`
+   - `left.esucc → copy-val → outer esucc` (propagate value up)
+   - `left.efail → right.start` (exhaust left, try right)
+   - `ra` (resume): must re-enter whichever side is active.
+     Use a slot in gen-state page (page2) to track which branch is live.
+     OR: left's esucc sets a flag; left's resume = `$icn_retcont` when
+     left child is a user-proc generator. Right side same.
+   - `right.efail → outer efail`
+
+3. Key complication — resume after yield from either side:
+   Both `gen1()` and `gen2()` are user-proc calls that set `$icn_retcont`.
+   E_ALT's resume must `return_call_indirect $icn_retcont` unconditionally
+   (both branches use it). No branch-tracking slot needed if outer E_EVERY
+   already drives resume via `$icn_retcont`.
+   Verify: does `icon13_resume` (E_EVERY) call `$icn_retcont` after the fix?
+   It should — `icn_has_usercall` finds `gen1` or `gen2` in E_ALT's subtree.
+
+4. Check existing E_GENALT at line ~720 — that handles `E_ALT` for
+   *non-generator* (value) alternation with branch-slot memory.
+   E_GENALT uses a gen-state slot. Verify: does the Icon lowering
+   emit `E_ALT` for `|` in generator context, or a different node?
+   `grep -n "E_ALT\|E_GENALT\|ICN_ALT" src/frontend/icon/icon_lower.c | head -20`
+
+### Consolidation (session focus from user — cross-WASM sharing)
+
+Per PLAN.md G-10 scope, not IW scope. Three targets identified in IW-16:
+- `prescan_prog()` skeleton: `emit_wasm.c:194` and `emit_wasm_prolog.c:1260`
+- `static void W()` vs `#define W` inconsistency
+- `emit_wasm_strlit_reset()` + `intern("")` seed pattern
+
+These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS**. Do NOT touch
+until GRAND MASTER REORG freeze is called (PLAN.md G-10).
+
+### Context discipline
+Never read WAT files wholesale. `grep -n PATTERN file | head -N` then
+`sed -n 'A,Bp'` tight ranges only.
