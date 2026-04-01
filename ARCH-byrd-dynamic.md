@@ -936,3 +936,86 @@ NASM is replaced by `call stmt_exec_dyn`). Run `--update` to regenerate baseline
 Then: 179 (now different) / 0 fail. Then run invariants — same 142/142 but now
 going through stmt_exec_dyn.
 
+
+---
+
+## Ground Truth: SPITBOL/CSNOBOL4 Statement Execution (2026-04-01, DYN-16)
+
+### From v311.sil (CSNOBOL4 SIL source — the canonical reference)
+
+The CSNOBOL4 interpreter executes statements via **INTERP/SJSR** procedures.
+Key finding: CSNOBOL4 is an **interpreter** — it walks compiled object code
+descriptors in a loop (INTRP0: increment offset, get descriptor, invoke).
+SPITBOL compiles to native code but follows the same logical structure.
+
+**SJSR** (pattern matching with replacement) is the canonical 5-phase procedure:
+
+```
+Phase 1 — Subject eval:
+  GETD WPTR, OCBSCL, OCICL   ; get subject name descriptor
+  TESTF WPTR, FNC → INVOKE   ; if function call, evaluate it (can FAIL)
+  Input association check (if &INPUT set)
+  Result: subject value in XPTR, subject name in WPTR
+
+Phase 2 — Pattern eval (PATVAL):
+  RCALL YPTR, PATVAL,,FAIL   ; evaluate pattern expression → DT_P
+  PATVAL handles: DT_P passthrough, DT_S→wrap-in-STAR-pattern, expressions
+  Can FAIL → whole statement fails
+
+Phase 3 — Pattern match (SCNR):
+  Dispatch on (subject_type, pattern_type) pair: VVDTP, VPDTP, IVDTP, etc.
+  RCALL ,SCNR,,(FAIL,,FAIL)  ; call scanner — unanchored scan, α/β loop
+  kw_anchor gate: if &ANCHOR≠0, scan only position 0
+  Scanner uses PATBRA table — branches per pattern node type
+
+Phase 4 — Naming (NMD):
+  If NAMGCL set: perform naming (captures: . and $ assignments)
+  RCALL ,NMD,,FAIL
+
+Phase 5 — Replacement (ARGVAL + RPLACE):
+  RCALL ZPTR, ARGVAL,,FAIL   ; evaluate replacement expression
+  Head/tail reconstruction: SJSRP/SJSRV/SJSS1 etc.
+  NMD: write result back into subject variable
+  Return :S or :F
+```
+
+### Key Insight from v311.sil
+
+**Each phase is a separate RCALL that can FAIL.** Failure at any phase
+routes to `:F` target. This is NOT a Byrd box graph for phases 1/2/4/5 —
+it's a straight-line call sequence with failure exits. Phase 3 (the match)
+is the Byrd box graph (SCNR drives the pattern stack).
+
+**EXPVAL** is the expression evaluator — it handles `EVAL()` by saving/restoring
+the interpreter state and running a sub-interpreter on the expression's object
+code. `CODE()` does the same for full statement sequences.
+
+### Implication for emit_x64.c M-DYN-S1
+
+The 5 phases map directly to the stack machine call sequence we emit:
+
+```nasm
+; Phase 1: subject name (lvalue) or evaluated expression
+lea  rdi, [rel S_subj_name]  ; or evaluate subject expr → push result
+; Phase 2: pattern → DT_P (emit_pat_to_descr — straight-line calls)
+call pat_lit / pat_cat / pat_alt / NV_GET_fn+pat_ref etc.
+mov  rdx, rax  ; pat.lo
+mov  rcx, [result+8] ; pat.hi
+; Phase 3+4+5: all inside stmt_exec_dyn
+lea  r8, [repl_slot]  ; or xor r8,r8
+mov  r9d, has_repl
+call stmt_exec_dyn    ; returns 1=:S, 0=:F
+test eax, eax
+jnz  S_target
+jmp  F_target
+```
+
+**Phases 1 and 2 = stack machine assembly (straight-line, FAIL→:F, no β).**
+**Phase 3 = Byrd box graph inside stmt_exec_dyn (full α/β backtracking).**
+**Phase 4+5 = deterministic inside stmt_exec_dyn (no backtracking).**
+
+The subject build CAN fail (function call returns FRETURN) but does NOT
+backtrack — once subject is evaluated it's fixed for this statement.
+Same for pattern build and replacement build. Only the match (Phase 3)
+has backtracking via β ports.
+
