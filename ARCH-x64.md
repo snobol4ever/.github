@@ -151,7 +151,7 @@ Tests (from `LoadSpecTests`):
 ### Sprint S5 — M-X64-FULL: test suite + PR
 
 - Run SPITBOL's own test suite: all tests pass
-- SPITBOL participates in `run_monitor.sh` hello test alongside CSNOBOL4+ASM+JVM+NET
+- SPITBOL participates in `run_monitor.sh` hello test alongside ASM+JVM+NET
 - Open PR to `spitbol/x64` referencing upstream issue #35
 
 **Fires:** M-X64-FULL.

@@ -3,11 +3,11 @@
 **The strategy:** Test each of beauty.sno's 19 `-INCLUDE` subsystems independently before
 attempting full self-beautification. Each subsystem gets its own test driver (a small `.sno`
 program that `-INCLUDE`s only that file plus its dependencies and exercises all DEFINE'd
-functions), run through the monitor against CSNOBOL4 + ASM.
+functions), run through the monitor against SPITBOL + ASM.
 
 **The developer cycle:** The monitor is not just a pass/fail tool — it is the bug-finding engine.
 The first diverging trace line names the exact variable, value, and step where the backend goes wrong.
-The two agreeing participants (CSNOBOL4 + SPITBOL) are the live specification for the fix.
+SPITBOL is the live specification for the fix.
 One session = write driver → monitor finds divergence → fix backend → re-run → repeat → milestone fires.
 No separate BUG SESSION needed for beauty bugs: find it and fix it in the same session.
 
@@ -45,7 +45,7 @@ The 19 subsystems in include order (dependency order is load order):
 ## Milestone Map
 
 Prerequisites flow left to right. Each milestone fires when its driver passes
-all 3 backends via the monitor (CSNOBOL4 oracle + ASM, expanded to JVM+NET as
+all 3 backends via the monitor (SPITBOL oracle + ASM, expanded to JVM+NET as
 backends come online per M-MONITOR-5WAY).
 
 | ID | Subsystem | Depends on | Status |
@@ -82,7 +82,7 @@ Each driver lives in `one4all/test/beauty/<subsystem>/`:
 test/beauty/
     global/
         driver.sno      <- exercises all of global.sno
-        driver.ref      <- CSNOBOL4 oracle output
+        driver.ref      <- SPITBOL oracle output (CSNOBOL4 for beauty.sno only — documented exception)
     is/
         driver.sno
         driver.ref
@@ -96,7 +96,7 @@ A driver follows this pattern:
 
 ```snobol4
 *  driver.sno — test driver for <subsystem>
-*  Oracle: snobol4 -f -P256k -I$INC driver.sno
+*  Oracle: spitbol -b driver.sno
 *  Run via: bash test/beauty/run_beauty_subsystem.sh <subsystem>
 
 -INCLUDE 'global.sno'    ;* always first if needed
@@ -120,7 +120,7 @@ comments at the top of each driver. Example: `counter/driver.sno` references
 ## Harness
 
 `test/beauty/run_beauty_subsystem.sh <subsystem>` — runs one driver through
-the monitor (inject_traces.py → CSNOBOL4 + SPITBOL + ASM → sync-step diff).
+the monitor (inject_traces.py → SPITBOL + ASM → sync-step diff).
 
 `test/beauty/run_beauty_all.sh` — runs all 19 subsystems, reports PASS/FAIL matrix.
 
@@ -131,7 +131,7 @@ Both scripts live in `one4all/test/beauty/` on the `asm-backend` branch.
 ```bash
 # 1. Generate oracle ref (once per driver)
 INC=/home/claude/corpus/programs/inc \
-  snobol4 -f -P256k -I$INC test/beauty/<sub>/driver.sno > test/beauty/<sub>/driver.ref
+  spitbol -b test/beauty/<sub>/driver.sno > test/beauty/<sub>/driver.ref
 
 # 2. Run monitor — first diverging line identifies the bug precisely
 INC=/home/claude/corpus/programs/inc X64_DIR=/home/claude/x64 \
@@ -195,7 +195,7 @@ M-BEAUTY-TREE   ─┘  M-BEAUTY-QIZE ──────────►         
 ```
 
 **M-BEAUTIFY-BOOTSTRAP** fires when `beauty.sno` reads `beauty.sno` and
-all 3 compiled backends produce output byte-for-byte identical to CSNOBOL4
+all 3 compiled backends produce output byte-for-byte identical to SPITBOL
 oracle AND identical to `beauty.sno` input. Fixed point.
 
 ---
@@ -212,7 +212,7 @@ oracle AND identical to `beauty.sno` input. Fixed point.
 for call frames — no r12 issue. JVM 106/106 corpus passes on `jvm-t2` branch.
 
 **Strategy:** Mirror the 19 ASM subsystem milestones exactly, but for JVM.
-Each milestone fires when its driver passes: CSNOBOL4 oracle + JVM backend.
+Each milestone fires when its driver passes: SPITBOL oracle + JVM backend.
 Use existing drivers in `test/beauty/` — just add JVM run to the harness.
 
 **JVM invocation:**

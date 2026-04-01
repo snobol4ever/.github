@@ -92,7 +92,7 @@ repeated matches on the same compiled pattern pay zero rebuild cost.
 
 ## SPITBOL Oracle Rule
 
-When CSNOBOL4 and SPITBOL MINIMAL diverge: **SPITBOL MINIMAL wins.**
+SPITBOL MINIMAL is authoritative.
 Key semantics: DATATYPE builtins lowercase; user DATA types `ToLowerInvariant`;
 `&UCASE`/`&LCASE` = exactly 26 ASCII letters; `@N` is **0-based** cursor position.
 

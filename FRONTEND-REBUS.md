@@ -91,7 +91,7 @@ E1 ? E2 <- E3                  → E1 ? E2 = E3
 ```bash
 # .reb → .sno → CSNOBOL4 → diff oracle
 src/rebus/rebus word_count.reb > /tmp/word_count.sno
-snobol4 -f /tmp/word_count.sno < input > /tmp/got.txt
+spitbol -b /tmp/word_count.sno < input > /tmp/got.txt
 diff /tmp/expected.txt /tmp/got.txt   # empty = pass
 ```
 

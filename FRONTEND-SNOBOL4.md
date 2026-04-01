@@ -34,7 +34,7 @@ If a backend runs `beauty.sno` self-beautification correctly, the frontend is co
 ```bash
 INC=/home/claude/corpus/programs/inc
 BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
-snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
+spitbol -b $BEAUTY < $BEAUTY > oracle.sno
 <backend-binary> < $BEAUTY > compiled.sno
 diff oracle.sno compiled.sno   # empty = correct
 ```

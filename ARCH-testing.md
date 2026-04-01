@@ -1,6 +1,7 @@
 # ARCH-testing.md — Four-Paradigm TDD Protocol
 
-**The goal:** `beauty_full_bin` reads `beauty.sno`, diff vs CSNOBOL4 oracle is empty. **M-BEAUTY-FULL.**
+**The goal:** `beauty_full_bin` reads `beauty.sno`, diff vs SPITBOL oracle is empty. **M-BEAUTY-FULL.**
+**Note:** SPITBOL exits error 021 at the END statement in beauty.sno — CSNOBOL4 is used as the reference for beauty.sno output only, as a documented exception to the general rule. See Oracle Index below.
 **The invariant:** 106/106 rungs 1–11 pass after every commit. Regression = rollback.
 
 ---
@@ -41,7 +42,7 @@ What: run program N times at &STLIMIT=1..N with &DUMP=2. Show what changed each 
 Catches: exactly WHERE divergence first appears — which variable, which statement.
 Tool: `harness/probe/probe.py`
 ```bash
-python3 /home/claude/harness/probe/probe.py --oracle csnobol4 --max 200 failing.sno
+python3 /home/claude/harness/probe/probe.py --oracle spitbol --max 200 failing.sno
 ```
 When to use: Paradigm 1 finds failure → Paradigm 2 locates statement.
 
@@ -50,22 +51,21 @@ What: TRACE('fn','CALL'/'RETURN'/'VALUE') hooks in beauty.sno. Both oracle and c
 emit same event stream. Diff stream event by event. First divergence = root cause.
 Tool: `corpus/programs/beauty/beauty_trace.sno` + `test/crosscheck/monitor_beauty.sh`
 ```bash
-snobol4 -f -P256k -I$INC beauty_trace.sno < input.sno 2>oracle_trace.txt
+spitbol -b beauty_trace.sno < input.sno 2>oracle_trace.txt
 ./beauty_full_bin_trace < input.sno 2>compiled_trace.txt
 diff oracle_trace.txt compiled_trace.txt | head -20
 ```
 When to use: Paradigm 2 finds divergence in recursion → Paradigm 3 shows call/return stream.
 
 ### Paradigm 4 — Triangulate (cross-engine)
-What: same program through CSNOBOL4 + SPITBOL + compiled. Two oracles agree, compiled
-differs → our bug. Two oracles disagree → semantic edge case, check Gimpel §7.
+What: same program through SPITBOL + compiled. Compiled differs → our bug.
 Tool: `test/crosscheck/triangulate_beauty.sh`
 ```bash
-snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle_csn.txt
+spitbol -b $BEAUTY < $BEAUTY > oracle_spt.txt
 ./beauty_full_bin < $BEAUTY > compiled_out.txt
 diff oracle_csn.txt compiled_out.txt   # empty = M-BEAUTY-FULL
 ```
-Note: SPITBOL excluded from full beauty.sno (error 021 at END). CSNOBOL4 is primary oracle.
+Note: SPITBOL exits error 021 at END in beauty.sno — CSNOBOL4 is used as the reference for beauty.sno output only. This is a documented exception. SPITBOL remains the primary oracle for everything else.
 
 ---
 
@@ -88,7 +88,7 @@ Note: SPITBOL excluded from full beauty.sno (error 021 at END). CSNOBOL4 is prim
 
 Tests live in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet to pipe to beauty_full_bin
-- `NNN_name.ref` — oracle output: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
+- `NNN_name.ref` — oracle output: `spitbol -b $BEAUTY < NNN_name.input`
 
 Test progression: 101_comment → 102_output → 103_assign → 104_label → 105_goto →
 109_multi → 120_real_prog → 130_inc_file → 140_self (M-BEAUTY-CORE).
@@ -97,19 +97,19 @@ Test progression: 101_comment → 102_output → 103_assign → 104_label → 10
 
 | System | Version | Author | Role | Invocation |
 |--------|---------|--------|------|------------|
-| CSNOBOL4 | 2.3.3 | Philip L. Budne | **Primary oracle** | `snobol4 -f -P256k file.sno` |
-| SPITBOL x64 | 4.0f | Dewar / Shields | Secondary oracle | `spitbol -b file.sno` |
+| SPITBOL x64 | 4.0f | Dewar / Shields | **Primary oracle** (D-001, D-005) | `spitbol -b file.sno` |
+| CSNOBOL4 | 2.3.3 | Philip L. Budne | Secondary oracle; primary for beauty.sno only (SPITBOL error 021 at END — documented exception) | `snobol4 -f -P256k file.sno` |
 | SPITBOL x32 | — | Dewar | Tertiary (32-bit — not runnable in container) | `spitbol file.sno` |
 | SNOBOL5 | beta 2024-08-29 | Viktors Berstis | 64-bit native SIL port | `snobol5 file.sno` |
 
 | System | Source / Download | GitHub |
 |--------|-------------------|--------|
-| CSNOBOL4 | https://www.regressive.org/snobol4/csnobol4/curr/ | No GitHub — regressive.org only |
+
 | SPITBOL x64 | https://github.com/spitbol/x64 | [`spitbol/x64`](https://github.com/spitbol/x64) |
 | SPITBOL x32 | https://github.com/snobol4ever/x32 | [`snobol4ever/x32`](https://github.com/snobol4ever/x32) — **our fork** of [`hardbol/spitbol`](https://github.com/hardbol/spitbol) |
 | SNOBOL5 | Linux binary: https://snobol5.org/snobol5 · Docs: https://snobol5.org/snobol5.htm | No GitHub — binary only, no public source |
 
-Step-by-step build: `harness/oracles/csnobol4/BUILD.md` · `harness/oracles/spitbol/BUILD.md`
+Step-by-step build: `harness/oracles/spitbol/BUILD.md`
 
 **SNOBOL5 notes:** 64-bit ints/strings. `&CASE` → Error 7. `CODE()` broken. OPSYN single-char only. Not a drop-in oracle.
 
@@ -120,19 +120,19 @@ Step-by-step build: `harness/oracles/csnobol4/BUILD.md` · `harness/oracles/spit
 **Goal:** Every `?` and every unverified cell in the keyword grid below becomes ✅ or ❌, confirmed by live test. Every oracle must have ≥1 working probe statement counter.
 
 **Deliverables:**
-1. CSNOBOL4 built from source (tarball already uploaded)
+1. SPITBOL installed from snobol4ever/x64 (via SESSION_SETUP.sh)
 2. SPITBOL x64 built from source (needs `x64-main.zip` upload)
 3. SNOBOL5 located, installed if available, or documented as unavailable
 4. `oracles/verify.sno` — single test program that probes all keywords and emits a result line per keyword
 5. All `?` cells in the grid below replaced with live-tested ✅ or ❌
-6. `&STEXEC` tested on CSNOBOL4 as alternative to `&STCOUNT` (both work; `&STEXEC` is CSNOBOL4-only, `&STCOUNT` is portable)
+6. `&STCOUNT` is portable across SPITBOL versions
 7. SNOBOL5 probe counter situation resolved: `&STNO`, `&LASTNO`, or neither?
 8. Commit to harness with updated grid
 
 **verify.sno — probe program:**
 ```snobol4
 *       verify.sno — oracle keyword verification
-*       Run: snobol4 -f verify.sno  (or spitbol -b, or snobol5)
+*       Run: spitbol -b verify.sno  (or snobol5)
 *       Each line of output: KEYWORD = value  OR  KEYWORD = FAIL
 
         &STLIMIT = 100000
@@ -141,7 +141,7 @@ Step-by-step build: `harness/oracles/csnobol4/BUILD.md` · `harness/oracles/spit
         X = &STCOUNT
         OUTPUT = '&STCOUNT = ' X
 
-*       &STEXEC (CSNOBOL4 extension)
+*       &STEXEC is CSNOBOL4-only — do not use
         X = &STEXEC                                         :F(NO_STEXEC)
         OUTPUT = '&STEXEC = ' X                             :(DONE_STEXEC)
 NO_STEXEC
@@ -176,13 +176,11 @@ DONE_LASTNO
 
 **Pass condition:** every keyword row in the grid has a live result. No `?` remaining. Each oracle has ≥1 cell in {`&STCOUNT`, `&STEXEC`, `&STNO`, `&LASTNO`} that returns a non-zero-always value.
 
-**Build steps** (see `oracles/csnobol4/BUILD.md` and `oracles/spitbol/BUILD.md`):
+**Build steps** (see `oracles/spitbol/BUILD.md`):
 ```bash
 # CSNOBOL4 — tarball already at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz
 apt-get install -y build-essential libgmp-dev m4
-mkdir -p /home/claude/csnobol4-src
-tar xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/csnobol4-src/ --strip-components=1
-cd /home/claude/csnobol4-src
+# SPITBOL is installed automatically by SESSION_SETUP.sh from snobol4ever/x64
 sed -i '/if (!chk_break(0))/{N;/goto L_INIT1;/d}' snobol4.c isnobol4.c
 ./configure --prefix=/usr/local && make -j4 && make install
 
@@ -242,7 +240,7 @@ All cells marked ✅/❌ verified by live test 2026-03-16 on CSNOBOL4 2.3.3, SPI
 
 | Oracle | Format |
 |--------|--------|
-| CSNOBOL4 | `file:LINE stmt N: EVENT, time = T.` |
+
 | SPITBOL-x64 | `****N*******  event` |
 | SNOBOL5 | `    STATEMENT N: EVENT,TIME = T` |
 
@@ -268,3 +266,15 @@ gcc -O0 -g beauty_full.c $RT/snobol4/snobol4.c $RT/snobol4/mock_includes.c \
     $RT/snobol4/snobol4_pattern.c $RT/mock_engine.c \
     -I$RT/snobol4 -I$RT -Isrc/scrip-cc -lgc -lm -w -o beauty_full_bin
 ```
+
+---
+
+## M-SPITBOL-BEAUTY — Fix SPITBOL error 021 on beauty.sno
+
+**Status:** 🔲 Open  
+**Error:** SPITBOL exits with error 021 ("Function called by name returned a value") when running beauty.sno end-to-end.  
+**Root cause:** beauty.sno uses functions that are called by name (NRETURN path); SPITBOL enforces that name-called functions must not return values. CSNOBOL4 was lenient on this. SPITBOL is strict.  
+**Fix:** Identify the offending function(s) in beauty.sno (or its includes), change RETURN to NRETURN/FRETURN as appropriate, or restructure the call sites.  
+**Gate:** `spitbol -b beauty.sno < beauty.sno > /tmp/spt.txt` exits 0 with non-empty output.  
+**Fires when:** beauty.sno passes SPITBOL end-to-end. Then remove all "documented exception" notes and update `.ref` oracle to SPITBOL output.  
+**Impact:** Removes the last reason CSNOBOL4 was considered "necessary". All `.ref` files become pure SPITBOL.

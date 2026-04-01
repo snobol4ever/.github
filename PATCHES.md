@@ -128,7 +128,7 @@ null subscript result causes `_ok = 1` and the loop continues.
 In SNOBOL4 semantics, accessing a nonexistent array element should either
 (a) fail the statement (causing the `F:` branch — `goto _stmt_153`), or
 (b) return an uninitialized value that causes the match to fail.
-CSNOBOL4 takes approach (a): out-of-bounds subscript causes statement failure.
+SPITBOL takes approach (a): out-of-bounds subscript causes statement failure.
 
 **Fix**: `sno_subscript_get2` must return a failure signal when `i` is
 out of bounds. The emitter's match-and-replace wrapper must propagate
@@ -334,7 +334,7 @@ The SNOBOL4 `*` operator is overloaded: arithmetic multiply OR pattern deferred-
 **Oracle trace:** copy `/home/claude/corpus/programs/inc/counter.sno` to `/tmp/inc_trace/counter.sno` with `PushCounter/IncCounter/PopCounter` shadowed to write `NPUSH/NINC/NPOP depth=N top=N` to `TERMINAL`. Run:
 ```bash
 INC=/tmp/inc_trace
-snobol4 -f -P256k -I$INC $BEAUTY < input > /dev/null 2>oracle_stack.txt
+spitbol -b $BEAUTY < input > /dev/null 2>oracle_stack.txt
 ```
 
 **Compiled trace:** instrument `snobol4.c` `NPUSH_fn/NINC_fn/NPOP_fn` with `fprintf(stderr,...)`. Normalize compiled depth (+1) vs oracle (1-based). Diff.

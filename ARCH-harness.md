@@ -51,9 +51,9 @@ Never skip ahead. A failure at rung 4 (arith) means rungs 5–12 are meaningless
 
 ### The TRACE gotcha
 
-`TRACE(...,'KEYWORD')` is non-functional on both CSNOBOL4 and SPITBOL.
+`TRACE(...,'KEYWORD')` is non-functional on SPITBOL.
 Use `TRACE('varname','VALUE')` on a probe variable instead.
-`&STCOUNT` broken in CSNOBOL4 (always 0) — use `&STLIMIT` values for binary search.
+`&STCOUNT` — use `&STLIMIT` values for binary search.
 
 ### Corpus lives in corpus
 
@@ -82,15 +82,15 @@ Run the oracle interpreter and the compiled binary side by side, emit the same e
         TRACE('snoLine','VALUE')
         TRACE('snoSrc','VALUE')
 ```
-CSNOBOL4 → stderr. SPITBOL → stdout. Monitor separates these.
+SPITBOL → stdout.
 
-**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on both CSNOBOL4 and SPITBOL. Use VALUE trace on a probe variable. `&STCOUNT` broken in CSNOBOL4 (always 0) — use literal `&STLIMIT` values for binary search.
+**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on SPITBOL. Use VALUE trace on a probe variable. `&STCOUNT` broken in CSNOBOL4 (always 0) — use literal `&STLIMIT` values for binary search.
 
 ## Oracle Hierarchy
 
 | Oracle | Role | Invocation |
 |--------|------|-----------|
-| CSNOBOL4 2.3.3 | **Primary** — `beauty.sno` reference | `snobol4 -f -P256k -I $INC file.sno` |
+| SPITBOL x64 4.0f | **Primary oracle** | `spitbol -b file.sno` |
 | SPITBOL x64 4.0f | Secondary reference | `spitbol -b file.sno` |
 
 **SPITBOL disqualified for beauty.sno** — error 021 at END (indirect function call semantic difference).
@@ -99,7 +99,7 @@ CSNOBOL4 → stderr. SPITBOL → stdout. Monitor separates these.
 
 ```bash
 # CSNOBOL4
-./configure && make && make install   # → /usr/local/bin/snobol4
+# SPITBOL installed by SESSION_SETUP.sh from snobol4ever/x64
 
 # SPITBOL x64
 apt-get install nasm
@@ -109,8 +109,8 @@ cd spitbol-x64 && make && cp sbl /usr/local/bin/spitbol
 
 ## Benchmark Pipeline
 
-Cross-engine grid: SPITBOL / CSNOBOL4 / Interpreter / Transpiler / Stack VM / JVM bytecode.  
-Times include ~15ms process-spawn overhead for SPITBOL/CSNOBOL4 — subtract for fair comparison.
+Cross-engine grid: SPITBOL / Interpreter / Transpiler / Stack VM / JVM bytecode.  
+Times include ~15ms process-spawn overhead for SPITBOL — subtract for fair comparison.
 
 **Key results (2026-03-10):**
 

@@ -20,7 +20,7 @@
 FRONTEND=snobol4 BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 ```
 
-Installs: `gcc make curl unzip wabt(wat2wasm) node snobol4(CSNOBOL4)`
+Installs: `gcc make curl unzip wabt(wat2wasm) node spitbol`
 Skips: `nasm libgc-dev java javac mono ilasm icont swipl`
 
 Note: `wabt` = `apt-get install -y wabt` · `node` = `nodejs` (pre-installed Ubuntu 24).

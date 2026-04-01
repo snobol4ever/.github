@@ -60,7 +60,7 @@ No stream redirection needed. Each participant writes trace events directly to i
 Redirect hacks are fragile. Parallel execution is impossible.
 
 **The solution:** A LOAD'd C shared library that writes trace events to a named FIFO (pipe),
-bypassing all stdio streams entirely. One `.so` file, compatible ABI for both CSNOBOL4 and
+bypassing all stdio streams entirely. One `.so` file, compatible ABI for SPITBOL and
 SPITBOL (`lret_t fn(LA_ALIST)` — identical dlopen/dlsym convention, verified from source).
 
 ### monitor_ipc.c — three functions
@@ -158,7 +158,7 @@ into non-termination. No `&STLIMIT` needed. No binary search. The monitor *is* t
 
 **Note on `&STLIMIT`:** Still useful as a hard backstop *inside* the SNOBOL4 program to
 prevent truly runaway programs from filling the FIFO. Set `&STLIMIT = 5000000` in
-`tracepoints.conf` preamble. If hit, CSNOBOL4/SPITBOL emit an error to stderr (clean,
+`tracepoints.conf` preamble. If hit, SPITBOL emits an error to stderr (clean,
 not the trace FIFO) and exit — the FIFO closes, the collector sees EOF, marks that
 participant done. Belt and suspenders.
 
@@ -180,7 +180,7 @@ This does NOT stop participants at the exact moment of first divergence.
 1. Participant writes `"KIND body\n"` to `<n>.evt`
 2. Participant **blocks** on `read()` from `<n>.ack`
 3. Controller reads one event from each of all 5 `*.evt` FIFOs
-4. Consensus rule applied — oracle = CSNOBOL4 (participant 0)
+4. Consensus rule applied — oracle = SPITBOL (participant 0, per D-005)
 5. Controller writes `G` (go) or `S` (stop) to each `*.ack`
 6. `G` → `MON_SEND` returns, participant continues
    `S` → `MON_SEND` returns FAIL, participant branches `:F(END)`
@@ -274,7 +274,7 @@ This is the SNOBOL4 frontend correctness proof for all three backends.
 INC=/home/claude/corpus/programs/inc
 BEAUTY=/home/claude/corpus/programs/beauty/beauty.sno
 
-snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle.sno
+spitbol -b $BEAUTY < $BEAUTY > oracle.sno
 ./snobol4-asm < $BEAUTY > asm.sno
 ./snobol4-jvm < $BEAUTY > jvm.sno
 ./snobol4-net < $BEAUTY > net.sno
@@ -317,7 +317,7 @@ DIR=$(dirname $(realpath $0))/../../..   # one4all root
 
 python3 $(dirname $0)/inject_traces.py $SNO $CONF > $TMP.sno
 
-snobol4 -f -P256k -I$INC $TMP.sno < /dev/null 2>$TMP.csn  >/dev/null
+spitbol -b $TMP.sno < /dev/null >$TMP.spt  2>/dev/null
 spitbol -b           $TMP.sno < /dev/null >$TMP.spl 2>/dev/null
 $DIR/snobol4-asm     $TMP.sno < /dev/null 2>$TMP.asm >/dev/null
 $DIR/snobol4-jvm     $TMP.sno < /dev/null 2>$TMP.jvm >/dev/null
@@ -334,7 +334,7 @@ for B in asm jvm net; do
 done
 
 ODIFF=$(diff $TMP.csn.norm $TMP.spl.norm)
-[ -n "$ODIFF" ] && echo "ORACLE-DIFF [csnobol4 vs spitbol] — check Gimpel §7" \
+[ -n "$ODIFF" ] && echo "ORACLE-DIFF [spitbol divergence] — check Gimpel §7" \
     && echo "$ODIFF" | head -3
 
 rm -f $TMP.*; exit $FAIL
@@ -353,7 +353,7 @@ rm -f $TMP.*; exit $FAIL
 
 1. Read ignore rules from conf
 2. Strip lines matching any IGNORE pattern from each stream
-3. Normalize SPITBOL format (`****N*******`) to CSNOBOL4 format (`*** name = val`)
+3. Normalize SPITBOL trace format (`****N*******`)
 4. Write `.norm` files for diffing
 
 ---
@@ -422,7 +422,7 @@ and monitor run. Full plan → **[ARCH-snobol4-beauty-testing.md](ARCH-snobol4-b
   (plus dependencies) and exercises all DEFINE'd functions
 - Drivers live in `one4all/test/beauty/<subsystem>/driver.sno`
 - Gimpel corpus (145 programs) provides semantic cross-validation
-- Monitor runs each driver: CSNOBOL4 oracle + ASM (expanding to JVM+NET as
+- Monitor runs each driver: SPITBOL oracle + ASM (expanding to JVM+NET as
   M-MONITOR-5WAY is reached)
 - As each subsystem passes, EXCLUDE rules are added to `tracepoints.conf`
   to suppress proven-clean variables from future trace streams
