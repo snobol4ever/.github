@@ -609,3 +609,22 @@ Priority order:
 4. **kw_anchor integration** — gate Phase 3 scan loop on kw_anchor global.
 5. **Rung 6 corpus gate** — run dynamic path against corpus patterns that use *VAR.
 
+
+---
+
+## Allocator idiom — realloc(NULL/p) (DYN-6, 2026-04-01)
+
+For box state allocation in the dynamic model, prefer the `realloc` idiom:
+
+```c
+realloc(NULL, len)   /* = malloc(len)  — allocate   */
+realloc(p,    0)     /* = free(p)      — deallocate  */
+```
+
+Single function, single `#include`. No `malloc`/`free` call-site asymmetry.
+Fits the LIFO pool's alloc/free symmetry naturally.
+
+When `EMIT_BINARY` pre-allocates box state inside a `bb_pool` slab (future
+milestone), `ζ_size` already on `bb_node_t` makes sizing free — the slab
+allocator just bumps a pointer by `ζ_size`, no `realloc` needed there.
+But for the current C-path dynamic model, `realloc` is the right primitive.

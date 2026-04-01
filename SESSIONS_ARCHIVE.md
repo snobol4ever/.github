@@ -13442,3 +13442,51 @@ bash one4all/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
 tail -40 .github/SESSIONS_ARCHIVE.md
 # HEAD must be 5423ec6
 ```
+
+---
+
+## Session DYN-6 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `5423ec6` (DYN-5 final)
+**HEAD at session end:** `bda64af`
+**Sprint:** DYN-6 partial
+
+### Work completed
+
+**DVAR_CHILD_STATE_MAX — true sizeof fix (M-DYN-5 item 1)**
+
+- `bb_node_t` gains `size_t ζ_size` — set at every `calloc` site in `bb_build` (26 branches, automated + manual XDSAR/XVAR)
+- `deferred_var_t` gains `size_t child_ζ_size`; `DVAR_CHILD_STATE_MAX 4096` define deleted
+- `bb_deferred_var` α port: stores `child.ζ_size → ζ->child_ζ_size` on first lazy build; uses it for `memset` reset on subsequent α calls
+- All three lazy-build paths (DT_P pattern, DT_S string, epsilon fallback) set `child.ζ_size` correctly
+- `stmt_exec_test.c` build comment updated to include DYN-5 boxes (bb_tab, bb_fence)
+- `ζ_size` on `bb_node_t` noted as future benefit for `EMIT_BINARY` slab pre-allocation
+
+**realloc idiom (Lon's suggestion):** `realloc(NULL, len)` = malloc, `realloc(p, 0)` = free. Single function, zero header juggling. Right allocator for box state in the dynamic model; fits LIFO pool symmetry. Logged in ARCH-byrd-dynamic.md.
+
+### Gates
+- stmt_exec_test: **13/13 ✅**
+- bb_dyn_test: **3/3 ✅**
+- bb_tab_fence_test: **12/12 ✅**
+- emit-diff: **981/4 ✅**
+
+### Push
+`bda64af` ✅
+
+### M-DYN-5 remaining (next session)
+1. Rung 6 corpus gate — drive `stmt_exec_dyn()` with real PATND_t trees containing XDSAR/XVAR nodes
+2. XNME `.` capture ordering — confirm spec compliance with corpus tests
+
+### Bootstrap for next DYN session
+```bash
+cd /home/claude
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness.git
+bash .github/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
+tail -60 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md
+# HEAD must be bda64af
+# Next: Rung 6 corpus gate (XDSAR/XVAR), then XNME capture ordering
+```
