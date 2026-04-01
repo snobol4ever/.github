@@ -13711,3 +13711,70 @@ cat .github/ARCH-byrd-dynamic.md
 # HEAD must be 08ed81e
 # Next: M-DYN-OPT (invariance detection) — see ARCH-byrd-dynamic.md §OPTIMIZATION
 ```
+
+---
+
+## Session DYN-9 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `08ed81e` (DYN-8 / M-DYN-6 complete)
+**HEAD at session end:** `652b237`
+**Sprint:** DYN-9 — M-DYN-OPT complete
+
+### Work completed
+
+**M-DYN-OPT: Invariance detection + node cache wired into bb_build**
+
+The cache infrastructure (`patnd_is_invariant`, `g_node_cache`, `_cache_find`,
+`_cache_insert`, `_cache_get_fresh`) was fully written in DYN-8 but never called
+from `bb_build`. This session wired it in:
+
+- **Hit path** (top of `bb_build`, after null guard): calls `patnd_is_invariant(p)`;
+  on cache hit returns `_cache_get_fresh()` — O(ζ_size) memcpy vs O(depth) tree walk.
+- **Insert path** (bottom of `bb_build`, before return): if `_is_inv`, calls
+  `_cache_insert(p, n)` to populate cache for next call.
+
+**Variant nodes bypass cache correctly:** `_XDSAR`, `_XVAR`, `_XATP`, `_XFNME`,
+`_XNME` return 0 from `patnd_is_invariant` → cache skipped. Literal/POS/LEN/etc
+are invariant → cached after first build.
+
+**`dyn_cache_test_run(lit, n)` helper added to `stmt_exec.c`:** builds a static
+`_PND_t _XCHR` node N times through `bb_build`, returns hit count. Exercises the
+real `DT_P` cache path (the `DT_S` string shortcut in `stmt_exec_dyn` bypasses
+`bb_build` entirely by design).
+
+**T14 gate in `stmt_exec_test.c`:** 10 builds of same node → `hits=9` ✅
+
+**Corpus: `f14_dyn_opt.sno` + `.ref`** — 10-iteration loop with invariant literal
+pattern; SPITBOL oracle = PASS.
+
+### Gates
+- stmt_exec_test T14: **hits=9/10 PASS ✅**
+- emit-diff: **1286/0 ✅**
+- invariants (snobol4_x86): **ALL PASS ✅**
+
+### Push
+- one4all `652b237` ✅
+- corpus `c69c4f6` ✅
+
+### Context at handoff: ~55%. Session ending cleanly.
+
+### Next session: DYN-10
+M-DYN-OPT is complete. Remaining DYN-4 work items (from ARCH-byrd-dynamic.md):
+1. XDSAR/XVAR deferred dispatch — resolve at α port, not bb_build (Phase 2)
+2. XNME conditional capture — buffer captures, commit only after Phase 3 success
+3. kw_anchor integration — gate Phase 3 scan loop on kw_anchor global
+4. Rung 6 corpus gate — run dynamic path against corpus patterns using *VAR
+
+### Bootstrap for DYN-10
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh          # expect 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect ALL PASS
+tail -80 .github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 652b237 · corpus c69c4f6
+# Next: DYN-4 work items — XDSAR/XVAR deferred dispatch, XNME capture, kw_anchor
+```

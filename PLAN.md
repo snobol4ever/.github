@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-8 — M-DYN-6 ✅ | one4all `08ed81e` | **M-DYN-OPT** (next): invariance detection. M-DYN-6 complete: CODE builtin + EVAL_fn wire + :<VAR> dispatch + f13 PASS. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-9 — M-DYN-OPT ✅ | one4all `652b237` | **DYN-4 items** (next): XDSAR/XVAR deferred dispatch + XNME capture + kw_anchor + Rung 6 gate. M-DYN-OPT complete: invariance cache wired into bb_build, T14 hits=9/10. |
 | **Snocone x86** | SC-12 | `5ee6353` one4all · `5f8fee1` corpus | M-SC-B08 done · rungB08 5/5 (struct keyword) · **SC-13**: M-SC-B09 string comparisons :==: :!=: :>: :<: |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
