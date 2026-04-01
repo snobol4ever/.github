@@ -59,20 +59,57 @@ grep -n "^static void emit_\|case E_" src/backend/c/emit_byrd_c.c | head -40
 
 ---
 
-## §NOW — SJ-1
+## §DISPATCH ENCODING (decided SJ-1 — do not re-debate)
 
-**Next milestone: M-SJ-A01**
+Pattern statements emit a `for(;;) switch(_pc)` loop.
+`_pc` is an integer: `(node_uid << 2) | signal`.
 
-First actions:
-1. Read oracles above
-2. Create `src/backend/emit_js.c` scaffold — empty EKind switch, `J()` macro
-3. Create `src/runtime/js/sno_runtime.js` — trampoline + OUTPUT + `_vars`
-4. Create `test/js/run_js.js` — Node runner
-5. Wire into Makefile
-6. Gate: hello/literals pass, emit-diff 981/4 holds
+```js
+const PROCEED = 0, SUCCEED = 1, CONCEDE = 2, RECEDE = 3;
+// emit_js.c:  J("case %d: ", uid << 2 | PROCEED)
+// uid from next_uid() — same counter as x64/C emitters
+```
 
-Read: `BACKEND-JS.md` · `MILESTONE-JS-SNOBOL4.md`
+**Oracle:** `src/runtime/engine/engine.c` — `t << 2 | a` dispatch.
+**Do NOT use string case labels** — integer switch → JS JIT jump table.
+
+emitted shape:
+```js
+let _pc = (N_SEQ<<2|PROCEED);
+dispatch: for(;;) switch(_pc) {
+  case (1<<2|0): ...  // SEQ  PROCEED
+  case (1<<2|2): ...  // SEQ  CONCEDE  (β — advance scan)
+  case (1<<2|3): return block_END;  // SEQ RECEDE (ω — total fail)
+  case (2<<2|0): ...  // ALT1 PROCEED  (α — try first arm)
+  case (2<<2|2): ...  // ALT1 CONCEDE  (β — try second arm)
+  case (2<<2|3): _pc=(1<<2|2); break;  // ALT1 RECEDE (ω → SEQ β)
+}
+```
+
+## §OUTPUT HANDLING (decided SJ-1)
+
+```js
+const _vars = new Proxy({}, {
+    set(o,k,v) { o[k]=v; if(k==="OUTPUT") process.stdout.write(String(v)+"\n"); return true; }
+});
+```
+
+## §NOW — SJ-2
+
+**Next milestone: M-SJ-A01 — write the code**
+
+First actions (mandatory order):
+1. `cat src/backend/c/trampoline.h`
+2. `sed -n '1,100p' src/backend/c/emit_byrd_c.c`
+3. `grep -n "^static void emit_\|case E_" src/backend/c/emit_byrd_c.c | head -40`
+4. Create `src/backend/emit_js.c` — `J()` macro, `next_uid()`, EKind switch,
+   implement `E_QLIT` `E_ILIT` `E_VAR` `E_NUL` `E_ASSIGN` OUTPUT.
+   Pattern stmts: `(uid<<2)|signal` dispatch switch (see §DISPATCH above).
+5. Create `src/runtime/js/sno_runtime.js` — `_vars` Proxy, coercions, trampoline
+6. Create `test/js/run_js.js` — Node runner shim
+7. Wire `src/Makefile` + `driver/main.c` (`-js` flag, `.js` ext, `js_emit()`)
+8. Gate: hello passes · emit-diff 981/4 ✅
 
 ---
 
-*SESSION-snobol4-js.md — rewritten SJ-1, 2026-03-31, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — updated SJ-2, 2026-04-01, Claude Sonnet 4.6.*
