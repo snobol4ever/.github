@@ -14871,3 +14871,35 @@ Header comment updated with full Greek glossary + port reservation notice.
 # SJ-7 FIRST ACTION: fix emit_js.c block-grouping bug
 # See SJ-6 handoff above for exact fix description
 ```
+
+---
+
+## Session SJ-6c ADDENDUM — 2026-04-01 — Action/port naming settled
+
+**HEAD:** one4all `6e2c869`
+**Context: ~68%**
+
+### Architecture decision: actions ≠ ports
+
+Discussed and settled: the four interpreter action strings and the four
+Byrd-box port labels are NOT the same thing, even though they correspond
+to the same semantic concepts.
+
+**Ports** (α/β/γ/ω): compile-time addresses in emitted code. Static
+wiring. Never exist as runtime values. A JMP to γ-port of the next node
+is one machine instruction resolved at compile time.
+
+**Actions** ('proceed'/'succeed'/'recede'/'concede'): runtime values held
+in the interpreter's action variable `α`. Passed through the while/switch
+loop one step at a time. Recede propagates slowly — one node per iteration
+— because the loop must dispatch each step explicitly.
+
+The interpreter is a universal Byrd-box machine: it simulates any compiled
+pattern by making wiring explicit as Ψ/Ω stacks and port signals explicit
+as the four action strings.
+
+### Naming convention locked:
+- `α` — the action *variable* in sno_engine.js (fine: it's the signal register)
+- `'proceed'`/`'succeed'`/`'recede'`/`'concede'` — action *values* (English, interpreter)
+- `α`/`β`/`γ`/`ω` — port *labels* in emitters only (compile-time, not runtime values)
+- Never use a Greek letter as both a variable name AND one of its own values
