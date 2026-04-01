@@ -13563,166 +13563,49 @@ cat .github/ARCH-byrd-dynamic.md   # M-DYN-6 spec
 
 ---
 
-## Session DYN-7 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+## Session SC-12 — 2026-04-01 — Snocone x86 (Claude Sonnet 4.6)
 
-**HEAD at session start:** `5ee6353` (DYN-6 final / M-DYN-5 complete)
-**HEAD at session end:** `c4bc4ba`
-**Sprint:** DYN-7 partial — M-DYN-6 in progress
-
-### Work completed
-
-**eval_code.c — new file (src/runtime/dyn/eval_code.c)**
-
-Three public functions implementing EVAL and CODE via the dynamic path:
-
-- `eval_expr_dyn(src)` — `parse_expr_from_str(src)` → `eval_node()` EXPR_t walker
-  - E_ILIT/FLIT/QLIT/NUL: literals direct
-  - E_VAR/KW: `NV_GET_fn` lookup (KW prepends `&`)
-  - E_NEG/ADD/SUB/MPY/DIV/POW: via snobol4.h exported `neg/add/sub/mul/DIVIDE_fn/POWER_fn`
-  - E_CONCAT/SEQ: fold `CONCAT_fn` across all children
-  - E_ASSIGN: eval right, `NV_SET_fn` on E_VAR lvalue or indirect
-  - E_INDR: eval child name, `NV_GET_fn`
-  - E_FNC: eval args into alloca array, `APPLY_fn(name, args, nargs)`
-  - E_IDX: `subscript_get` / `subscript_get2`
-  - Unknown/pattern nodes: NULVCL (old `EVAL_fn` mini-parser handles those)
-
-- `code_dyn(src)` — `fmemopen` → `snoc_parse` → `Program*` stored as `DT_C` DESCR_t
-- `execute_code_dyn(block)` — walks `Program*` stmts, calls `stmt_exec_dyn` per stmt,
-  resolves `SnoGoto` fields (uncond/onsuccess/onfailure), returns first branch label
-
-**rung7_eval_code_test.c — 8/8 PASS**
-
-T1: EVAL('2 + 3') → 5  
-T2: EVAL('X + 1') X=10 → 11  
-T3: EVAL("'hello'") → 'hello'  
-T4: CODE parse → DT_C  
-T5: CODE OUTPUT='PASS' execution + stdout capture  
-T6: CODE goto label → 'END'  
-T7: EVAL(concat 'a' 'b') → 'ab'  
-T8: EVAL('42') → 42  
-
-**Key decisions:**
-- `fval` on EXPR_t is named `dval` throughout codebase — fixed during build
-- stdout capture: `fflush(stdout)` BEFORE `dup2` redirect is mandatory; pipe
-  otherwise slurps buffered output from before the capture window
-- `alloca` for arg array in E_FNC path — safe because eval_node is bounded depth
-
-### Gates
-- rung7_eval_code_test: **8/8 ✅**
-- emit-diff: **981/4 ✅**
-- invariants (x64): **ALL PASS ✅**
-
-### Push
-`c4bc4ba` ✅
-
-### M-DYN-6 remaining (next session)
-
-**Item 1 — Register CODE builtin in snobol4.c**
-```c
-/* in SNO_INIT_fn() near the EVAL registration (~line 943): */
-static DESCR_t _b_CODE(DESCR_t *a, int n) {
-    return code_dyn(n > 0 ? VARVAL_fn(a[0]) : "");
-}
-register_fn("CODE", _b_CODE, 1, 1);
-```
-`code_dyn` is in eval_code.c — already linked when the full runtime builds.
-
-**Item 2 — Wire EVAL_fn to use eval_expr_dyn for arithmetic**
-
-In `snobol4_pattern.c`, `EVAL_fn` currently short-circuits on quoted strings
-then falls through to the old `_ev_expr` hand-roller (pattern-subset only).
-Replace the fall-through with:
-```c
-/* After the quoted-string fast path: */
-DESCR_t full = eval_expr_dyn(s);
-if (!IS_FAIL_fn(full)) return full;
-/* Fallback: old _ev_expr for pattern-context strings */
-SnoEvalCtx ctx = { s, 0 };
-return _ev_expr(&ctx);
-```
-`eval_expr_dyn` is declared `extern` in snobol4_pattern.c — add the extern decl.
-
-**Item 3 — Corpus gate: f13_eval_code.sno**
-```bash
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-# Then specifically check f13:
-./scrip-cc corpus/programs/snobol4/feat/f13_eval_code.sno | diff - corpus/programs/snobol4/feat/f13_eval_code.ref
-```
-f13 requires `EVAL('2 + 3')` → 5 (arithmetic) and `CODE("...")` → runnable block.
-Both are now implemented. The static emitter still emits a call to `EVAL_fn` /
-`CODE_fn` — once Item 1+2 are wired, f13 should pass end-to-end.
-
-**Item 4 — Update PLAN.md NOW table DYN row**
-
-After f13 passes, mark M-DYN-6 complete. Next: M-DYN-OPT (invariance detection).
-
-### Bootstrap for next DYN session
-```bash
-cd /home/claude
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness.git
-bash .github/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
-tail -100 .github/SESSIONS_ARCHIVE.md
-cat .github/ARCH-byrd-dynamic.md
-# HEAD must be c4bc4ba
-# Next: M-DYN-6 items 1-4 above (CODE builtin, EVAL_fn wire, f13 corpus gate)
-```
-
----
-
-## Session SJ-2 — 2026-04-01 — SNOBOL4 × JavaScript
-
-**HEAD at session start:** — (SJ-1 had no commits)
-**HEAD at session end:** `f9499d8` (one4all main)
-**Sprint:** SJ-2
+**HEAD at session start:** one4all `5ee6353` · corpus `327ed02`
+**HEAD at session end:** one4all `5ee6353` (unchanged) · corpus `5f8fee1`
+**Sprint:** SC-12
 
 ### Work completed
 
-**M-SJ-A01 — full scaffold delivered and passing:**
+**M-SC-B08: `struct` keyword — rungB08 5/5 ✅**
 
-- `src/backend/emit_js.c` — JS emitter: `J()` macro, `next_uid()`,
-  `js_emit_expr()` EKind switch (E_NUL/QLIT/ILIT/VAR/ASSIGN/arith/FNC/
-  CONCAT/INDR), `js_emit_stmt()` (pure-assign / null-assign / pattern-stub /
-  expr paths), `js_emit_goto()` (onsuccess/onfailure/uncond), label
-  collector, `js_emit()` entry point.
-- `src/runtime/js/sno_runtime.js` — `_vars` Proxy (OUTPUT trap → stdout),
-  `_FAIL` sentinel, `_str/_num/_cat/_add/_sub/_mul/_div/_pow`, `_apply()`
-  with 30+ builtin stubs (SIZE/TRIM/DUPL/IDENT/DIFFER/LT/LE/GT/GE/EQ/NE/
-  CHAR/CODE/REPLACE/REVERSE/UPPER/LOWER/ABORT/FAIL/SUCCEED/…),
-  `_match/_replace` stubs for M-SJ-A02.
-- `test/js/run_js.js` — Node runner shim; `SNO_RUNTIME` env var for runtime
-  path resolution.
-- `src/Makefile` — `BACKEND_JS = backend/emit_js.c`, added to `SRCS`.
-- `src/driver/main.c` — `js_mode` static flag, `-js` CLI arg, `.js`
-  extension, `js_emit()` forward decl, dispatch in `compile_one()`.
+- SC-12 discovery pass: `do...while`, procedures, `return`/`freturn`/`nreturn`, string comparisons, `goto` all already implemented in `emit_x64_snocone.c`.
+- Identified `struct` keyword as next uncovered construct (rungA05 uses raw `DATA(...)` only; `sc_do_struct` path was implemented but unrung'd).
+- Wrote 5 corpus tests for rungB08: basic create+access, field mutation, DATATYPE check, struct-in-procedure, two coexisting struct types.
+- All 5 pass via official harness. No emitter changes needed — `sc_do_struct` was complete.
 
 ### Gates
 - emit-diff: **981/4 ✅**
-- hello: **passes ✅** (`OUTPUT = 'Hello, World!'` → correct stdout)
+- rungB08: **5/5 ✅**
+- Invariants: snobol4_x86 **106/106** · snocone_x86 **126/126** ✅
 
-### Push
-`git log origin/main --oneline -1` → `f9499d8` ✅
+### Pushes
+- corpus `5f8fee1` ✅ (rungB08 — 10 files)
+- one4all: no changes (emitter already complete)
 
-### Remaining for M-SJ-A02
-1. Replace `_match()` stub with full Byrd-box `for(;;) switch(_pc)` dispatch
-   loop in `emit_js.c` — pattern statements only.
-2. Port `emit_pat_node()` from `emit_byrd_c.c`: E_SEQ, E_ALT, E_CAPT_IMM,
-   E_CAPT_COND, emit_lit / emit_pos / emit_len / emit_any / emit_arb.
-3. Wire `test/run_invariants.sh snobol4_js` and drive toward first green.
-4. Update SESSION-snobol4-js.md §NOW, PLAN.md, SESSIONS_ARCHIVE.md.
+### Next: SC-13 — identify M-SC-B09
+**Candidates** (in priority order):
+1. **String comparisons** `:==:` `:!=:` `:>:` `:<:` `:>=:` `:<=:` — rungA07 covers numeric+IDENT/DIFFER; lexicographic ops unrung'd. Six operators, 4–6 tests.
+2. **`nreturn`** — name-return (pass-by-reference). rungA13 covers `freturn` + `return` only.
+3. **`goto`** (C-style one-word) — unrung'd control flow.
+4. **Scope**: check if any rungA tests use constructs not yet in any rungB.
 
-### Bootstrap for next SJ session
+### Bootstrap for SC-13
 ```bash
 for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
-cd one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh     # expect 981/4
-# HEAD should be f9499d8
-tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-snobol4-js.md
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB08                                  # expect 5/5
+tail -60 /home/claude/.github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 5ee6353 · corpus 5f8fee1
+# Next: M-SC-B09 — string comparisons (:==: :!=: :>: :<: :>=: :<=:)
 ```

@@ -55,12 +55,12 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-7 partial — M-DYN-6 🔧 | one4all `c4bc4ba` DYN-7 | **M-DYN-6** (next): wire CODE builtin + EVAL_fn arithmetic path + f13 corpus gate. eval_code.c done, rung7 8/8. See SESSIONS_ARCHIVE DYN-7. |
-| **Snocone x86** | SC-11 | `dbad62b` one4all · `327ed02` corpus | M-SC-B07 done · compound-assign fix in snocone_parse.c · rungB07 7/7 · **SC-12**: identify next unimplemented construct |
+| **⭐ DYNAMIC BYRD BOX** | DYN-6 complete — M-DYN-5 ✅ | one4all `5ee6353` DYN-6 | **M-DYN-6** (next): EVAL/CODE — parse string, call same builder, execute. See ARCH-byrd-dynamic.md milestone chain. |
+| **Snocone x86** | SC-12 | `5ee6353` one4all · `5f8fee1` corpus | M-SC-B08 done · rungB08 5/5 (struct keyword) · **SC-13**: M-SC-B09 string comparisons :==: :!=: :>: :<: |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-2 | one4all `f9499d8` | **M-SJ-A02**: Byrd-box dispatch loop in emit_js.c for pattern-match stmts. Replace _match() stub with `for(;;) switch(_pc)` using `(uid<<2)|signal`. Wire run_invariants.sh snobol4_js. |
+| **SNOBOL4 JS** | SJ-2 | — | **M-SJ-A01**: emit_js.c + sno_runtime.js + run_js.js + Makefile wire. Dispatch: `(uid<<2)|signal` integer switch (engine.c oracle). OUTPUT via Proxy. See SESSION-snobol4-js.md §DISPATCH. |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
