@@ -13552,3 +13552,116 @@ All dyn/ files now build clean with -Wall:
 - bb_dyn_test.c: (void)ζ for unused len1 state; (void**) casts at typed call sites
 
 Zero warnings. 3/3 + 13/13 PASS confirmed.
+
+---
+
+## DYN-3 DESIGN NOTES — ideas from session (2026-04-01, Claude Sonnet 4.6)
+
+one4all HEAD: `4b25ebd` · .github HEAD: `303d387`
+
+### Phase 5 lvalue requirement — CRITICAL correctness bug to fix in DYN-4
+
+Phase 5 (perform replacement) MUST verify the subject is an lvalue before
+splicing. The current stmt_exec_dyn() takes `DESCR_t *subj_var` — a pointer
+to whatever the caller passed. If the caller passes a pointer to a temporary
+(a literal string, an integer coerced to string, an expression result), the
+write-back via `*subj_var = new_val` modifies a temporary, not a named
+variable. The replacement is silently lost.
+
+SNOBOL4 spec: the subject of a pattern match statement MUST be a named
+variable (an lvalue). If it is a literal or an expression, replacement is
+illegal — the statement should :F (or signal an error per &ERRLIMIT).
+
+**The fix (DYN-4):**
+
+    Phase 5 gate: check that subj_var points to a live NV entry, not a
+    temporary. The canonical test: the subject descriptor must have been
+    fetched via NV_GET_fn (has a name) — not constructed inline.
+
+    Two approaches:
+      A. Pass the subject variable NAME (const char *) alongside the
+         DESCR_t* to stmt_exec_dyn. Phase 5 writes back via
+         NV_SET_fn(name, new_val) instead of *subj_var = new_val.
+         This is correct by construction: NV_SET_fn is the only safe
+         write path.
+      B. Teach stmt_exec_dyn to accept a NULL subj_name to mean
+         "read-only subject" (replacement silently skipped / :F).
+
+    Preferred: approach A. New signature:
+
+        int stmt_exec_dyn(const char  *subj_name,   /* NV name, or NULL */
+                          DESCR_t      pat,
+                          DESCR_t     *repl,
+                          int          has_repl);
+
+    Phase 1: Σ = NV_GET_fn(subj_name) → VARVAL_fn().
+    Phase 5: NV_SET_fn(subj_name, new_val).
+    If subj_name is NULL and has_repl: → :F (can't assign to non-lvalue).
+
+### spec_t — the right name, correct origin
+
+spec_t = specifier: { σ (pointer), δ (length) }.
+SIL (SNOBOL4 Implementation Language) called these "specifiers" — a
+two-word descriptor holding base address + length. Our spec_t is exactly
+that. The name is now canonical for all dyn/ code. Never revert to str_t.
+
+Three-column law holds for spec_t declarations too:
+
+    LABEL:          SPEC_DECL                       (blank goto col)
+    ─────────────────────────────────────────────────────────────────
+    spec_t          BIRD;
+    BIRD_α:         ...                             goto BIRD_γ;
+
+### bb_build_from_patnd — Phase 2 timing vs Phase 3 timing
+
+Current DYN-3: XDSAR (*name) and XVAR are resolved at Phase 2 (build time).
+This means the value of the named variable is snapshotted when the pattern
+graph is built, not when each match attempt runs.
+
+SNOBOL4 spec: *X must be evaluated at match time (Phase 3), not build time.
+If X changes between iterations (e.g. inside ARBNO), the dynamic dispatch
+must see the updated value.
+
+DYN-4 fix: XDSAR/XVAR boxes must defer NV_GET_fn to their α port (inside
+the box function body), not in bb_build. The box stores only the variable
+NAME, not the resolved value. On each α call it fetches fresh.
+
+This is what ARCH-byrd-dynamic.md §"*X — Static vs. Dynamic (E_DEFER)"
+describes. DYN-3 stubbed it correctly (NV_GET_fn at build time = safe
+approximation for non-mutating patterns); DYN-4 makes it exact.
+
+### ARBNO zero-advance guard — confirmed correct
+
+The zero-advance guard in bb_arbno.c (if body matched zero chars, yield
+current accumulation immediately rather than looping forever) is correct
+per SNOBOL4 spec §3 and matches test_sno_1.c behavior exactly.
+Do not remove it.
+
+### Scan loop in Phase 3 — anchor flag
+
+Current DYN-3 always scans positions 0..Ω (unanchored).
+&ANCHOR keyword (kw_anchor global) should suppress the scan and pin to Δ=0.
+DYN-4: import kw_anchor from snobol4.h and gate the scan loop on it.
+
+    if (kw_anchor) { Δ = 0; /* single attempt */ }
+    else           { for scan = 0..Ω ... }
+
+### Capture ordering — $ vs .
+
+XFNME (pat $ var): immediate capture — variable is set each time the
+sub-pattern γ's, even during backtracking. The LAST successful match wins.
+
+XNME (pat . var): conditional capture — variable is set only when the
+ENTIRE enclosing pattern succeeds. Must be deferred to after Phase 3
+confirms overall match success.
+
+Current bb_capture in DYN-3 writes immediately on every γ (behaves like $).
+DYN-4: XNME must buffer the capture and only commit it in Phase 5.
+
+### GC_MALLOC in Phase 5 — correct, not malloc
+
+Phase 5 uses GC_MALLOC for the spliced subject string. This is correct —
+the SNOBOL4 runtime owns all strings via the Boehm GC. Never use plain
+malloc for strings that enter the DESCR_t / NV table.
+The standalone test uses plain malloc (no GC) — acceptable for testing only.
+
