@@ -13362,3 +13362,51 @@ new local state each attempt. No allocation after first call.
    bb_build time in deferred_var_t.
 5. **XNME . capture ordering** — confirm spec compliance with corpus tests.
 
+
+---
+
+## Session DYN-5 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `350f6b4` (DYN-4 final)
+**HEAD at session end:** `073fc99`
+**Sprint:** DYN-5 partial
+
+### Work completed
+
+**Three-column alignment fix** — all five `src/runtime/dyn/` box files reformatted to strict spec (col1=0/22, col2=22/62, col3=62). Automated reformatter. Entry dispatch lines kept at 4-space indent convention. Zero functional change.
+
+**M-DYN-5 partial:**
+
+- `bb_tab.c` — TAB/RTAB boxes with correct semantics: advance TO n if Δ≤n (not POS assert-equal). TAB_β restores cursor. RTAB symmetric from right (Ω-n).
+- `bb_fence.c` — FENCE (cut: α ε-match, β always ω) and ABORT (α/β both ω immediately).
+- `bb_tab_fence_test.c` — 12/12 unit tests. T5a/T5b explicitly confirm TAB≠POS.
+- `stmt_exec.c` — TAB/RTAB/FENCE/ABORT stubs replaced. Extern decls + mirror structs added.
+
+### Gates
+- emit-diff: **981/4 ✅**
+- stmt_exec_test: **13/13 ✅**
+- bb_dyn_test: **3/3 ✅**
+- bb_tab_fence_test: **12/12 ✅**
+
+### Push
+`git log origin/main --oneline -1` → `073fc99` ✅
+
+### Remaining M-DYN-5 items (next session)
+1. DVAR_CHILD_STATE_MAX — replace magic `4096` with true sizeof stored at bb_build time in deferred_var_t
+2. Rung 6 corpus gate — drive `stmt_exec_dyn()` with real PATND_t trees containing XDSAR/XVAR nodes
+3. XNME `.` capture ordering — confirm spec compliance with corpus tests
+4. PLAN.md, SESSIONS_ARCHIVE.md updates (this session done)
+
+### Bootstrap for next DYN session
+```bash
+cd /home/claude
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness.git
+bash one4all/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
+tail -80 .github/SESSIONS_ARCHIVE.md   # this entry
+cat .github/PLAN.md
+cat .github/ARCH-byrd-dynamic.md
+# HEAD should be 073fc99
+```
