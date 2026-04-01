@@ -2,123 +2,144 @@
 
 **Status:** NEW — SJ-1 / IJ-1 / PJ-1 (2026-03-31)
 **Replaces:** WASM backend (parked — see MILESTONE_ARCHIVE.md)
+**Session prefixes:** SJ (SNOBOL4 JS) · IJJ (Icon JS) · PJJ (Prolog JS)
 
 ---
 
-## Why JavaScript, Not WASM
+## Why JavaScript
 
-WASM is a closed compiled format: no runtime code generation. SNOBOL4's
-`EVAL()` and `CODE()` require compiling strings at runtime — a deal-breaker.
-JavaScript solves this natively:
+SNOBOL4's `EVAL()` and `CODE()` require runtime code generation. WASM's
+closed binary format cannot do this. JavaScript solves it natively:
 
-- `eval(str)` — evaluate expression string
-- `new Function(body)` — compile and instantiate a function from a string
-- `function*` generators — native Icon-style backtracking / suspension
-- Continuations via callbacks or async/await — Prolog unification/backtrack
+- `new Function(body)` — compile and run arbitrary code strings at runtime
+- `eval(str)` — evaluate expression strings
+- Functions are first-class values — Byrd-box ports are just function refs
+- `function*` generators — native Icon-style suspension/resumption
 
 ---
 
-## Foundation: spipatjs
+## The Trampoline Model (oracle: `backend/c/trampoline.h`)
 
-**Repo:** `github.com/philbudne/spipatjs`
-**License:** open source, ES6
-**What it provides:** Native SNOBOL4/SPITBOL pattern matching for JavaScript.
-PATTERN as first-class composable data type. Non-greedy matching with
-backtracking. Full Unicode. Primitive patterns: LEN, POS, RPOS, TAB, RTAB,
-REM, ARB, ARBNO, BAL, BREAK, BREAKX, SPAN, ANY, NOTANY, FENCE, ABORT, SUCCEED.
-Concatenation (`Pat.and`) and alternation (`Pat.or`). Cursor-function assigns.
+The C backend already solved dispatch. Every SNOBOL4 statement compiles to
+a `block_fn_t` — zero-argument function returning the next function:
 
-This is the pattern runtime for SNOBOL4 JS — we do not reimplement it.
+```c
+block_fn_t pc = block_START;   /* C */
+while (pc) pc = pc();
+```
+
+In JavaScript this is **identical**:
+
+```js
+let pc = block_START;          /* JS */
+while (pc) pc = pc();
+```
+
+Every Byrd-box port (α/β/γ/ω) is a JS function returning the next port.
+No recursion. No stack growth. EVAL()/CODE() work because `new Function()`
+creates new port functions at runtime and wires them into the dispatch table.
+
+**`emit_byrd_c.c` is the direct oracle for `emit_js.c`.**
+Same EKind switch. Same four-port wiring per node. Same trampoline engine.
+Replace `C(fmt,...)` with `J(fmt,...)`. Replace C syntax with JS syntax.
 
 ---
 
 ## Byrd-Box → JS Encoding
 
-Unlike WASM, JavaScript does not need `return_call`. Byrd boxes become
-trampolined objects or closures:
-
 ```js
-// α = entry, β = resume, γ = succeed, ω = fail
-function lit_α(cursor, subject, γ, ω) {
+// E_QLIT — literal string match (node id N)
+function P_N_α() {
     const end = cursor + LIT_LEN;
-    if (subject.slice(cursor, end) === LIT) return γ(end);
-    return ω();
+    if (subject.slice(cursor, end) === "LIT_STR") {
+        cursor = end; return γ_outer;
+    }
+    return ω_outer;
 }
+function P_N_β() { return ω_outer; }   // literals don't backtrack
 ```
 
-For SNOBOL4 pattern matching specifically, `spipatjs` handles this entirely —
-we wire our IR pattern nodes to `spipatjs` constructors rather than emitting
-match logic ourselves.
+For value expressions: JS expression syntax for values, trampoline for
+control — same split as C backend.
 
 ---
 
 ## EVAL() / CODE()
 
 ```js
-// EVAL(expr_string) — evaluate as SNOBOL4 expression
 function sno_eval(str) {
-    const js = compile_expr_to_js(str);  // scrip-cc partial eval
-    return new Function('return ' + js)();
+    const js = _scrip_compile_expr(str);   // mini-compiler (M-SJ-C01)
+    return new Function('return (' + js + ')')();
 }
-
-// CODE(stmt_string) — compile and jump into
 function sno_code(str) {
-    const js = compile_stmts_to_js(str);
-    return new Function(js)();
+    const js = _scrip_compile_stmts(str);
+    return new Function('_rt', js)(_runtime);
 }
 ```
 
-The JS compiler (`emit_js.c`) must be callable at runtime via a bundled
-mini-compiler. This is the key milestone that WASM could never reach.
-
----
-
-## Output Macro Convention
-
-```c
-#define J(fmt, ...)  fprintf(js_out, fmt, ##__VA_ARGS__)
-#define JFN(name)    fprintf(js_out, "function %s", name)
-#define JRET(name)   fprintf(js_out, "  return %s(", name)
-```
-
-Mirrors: `W()`/`WFN()`/`WTAIL()` (WASM) · `E()`/`EI()` (x64) · `N()`/`NI()` (.NET)
+Mini-compiler added in M-SJ-C01 after full corpus parity is established.
 
 ---
 
 ## Runtime Layout
 
-No linear memory. JS objects:
-
-- Variables: plain JS object `{ NAME: value }` — string or number
-- Strings: native JS strings (UTF-16, Unicode-correct via spipatjs)
-- Arrays: JS arrays
-- Tables: JS `Map`
-- DATA types: JS classes
+| SNOBOL4 type | JS representation |
+|---|---|
+| String | native JS string |
+| Integer / Real | JS number |
+| Pattern | `{α, β}` port function pair |
+| Array | JS array |
+| Table | JS `Map` |
+| DATA type | JS class instance |
+| Variable | `_vars` object property |
 
 ---
 
 ## Corpus Artifacts
 
 `.js` files alongside `.s` / `.j` / `.il`:
+```
+corpus/crosscheck/rung2/210_indirect_ref.js
+corpus/crosscheck/rung4/410_arith_int.js
+```
+
+JS-specific pattern rungs: `rungJ01`–`rungJ07`.
+
+---
+
+## Dependency Chain — Chicken and Egg
+
+The correct order (each step gates the next):
 
 ```
-corpus/crosscheck/rung4/410_arith_int.js   ← JS artifact
+Step 1  emit_js.c scaffold — builds clean, empty EKind switch
+Step 2  sno_runtime.js stub — print/OUTPUT, variable get/set
+Step 3  Trampoline + arith + assignment (rung2/3/4) — 981/4 holds
+Step 4  String ops: concat, SIZE, REPLACE, DUPL (rung8)
+Step 5  Control flow: goto, :S/:F, labels (rung5/6)
+Step 6  Pattern matching: E_QLIT→E_ALT→E_ARBNO (rungJ01–J04)
+Step 7  Captures: E_CAPT_COND / E_CAPT_IMM (rungJ05)
+Step 8  Arrays / Tables / DATA (rung10/11)
+Step 9  User-defined functions / DEFINE (rung10)
+Step 10 EVAL() / CODE() mini-compiler (M-SJ-C01)
 ```
 
-New JS rungs (`rungJ01`+) follow same flat layout.
+Runtime before tests. Scaffold before runtime. Emit-diff gate holds from
+step 3 — JS artifacts don't exist yet for steps 1–2, checker skips absent
+artifact types.
 
 ---
 
 ## Relation to Other Backends
 
-| Property | x64 | JVM | .NET | ~~WASM~~ | JS |
-|----------|-----|-----|------|----------|----|
-| IR switch structure | identical | identical | identical | identical | identical |
-| EVAL()/CODE() | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Byrd-box model | inline labels | Jasmin labels | ilasm labels | return_call | closures/spipatjs |
-| Pattern runtime | custom | custom | custom | custom | spipatjs |
-| Runner | native | java | mono | node | node / browser |
+| | x64 | JVM | .NET | JS |
+|---|---|---|---|---|
+| Oracle for JS | — | — | — | `emit_byrd_c.c` |
+| Port encoding | inline labels | Jasmin labels | ilasm labels | trampoline fns |
+| EVAL()/CODE() | ❌ | ❌ | ❌ | ✅ |
+| Browser target | ❌ | ❌ | ❌ | ✅ |
+| Runner | native | java | mono | node / browser |
 
 ---
 
-*BACKEND-JS.md — created SJ-1, 2026-03-31, Claude Sonnet 4.6.*
+*BACKEND-JS.md — rewritten SJ-1, 2026-03-31, Claude Sonnet 4.6.*

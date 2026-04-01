@@ -1,62 +1,62 @@
 # SESSION-prolog-js.md — Prolog × JavaScript (one4all)
 
 **Repo:** one4all · **Frontend:** Prolog · **Backend:** JavaScript
-**Session prefix:** `PJ` (JS) · **Trigger:** "playing with Prolog JavaScript" / "Prolog JS"
+**Session prefix:** `PJJ` (Prolog JS — distinct from `PJ` = Prolog JVM)
+**Trigger:** "playing with Prolog JavaScript" / "Prolog JS"
 **Replaces:** SESSION-prolog-wasm.md (⛔ PARKED)
+**Depends on:** M-SJ-A01 complete (shared trampoline + runtime)
 
 ---
 
 ## §SUBSYSTEMS
 
-| Subsystem | Doc | Go there when |
-|-----------|-----|---------------|
-| Prolog language / IR | `FRONTEND-PROLOG.md` | unification/clause questions |
-| JS backend | `BACKEND-JS.md` | JS codegen patterns |
+| Subsystem | Doc |
+|-----------|-----|
+| Prolog language / IR | `FRONTEND-PROLOG.md` |
+| JS backend | `BACKEND-JS.md` |
+| Milestone ladder | `MILESTONE-JS-PROLOG.md` |
 
 ---
 
-## §KEY INSIGHT — Prolog Backtracking → JS Continuations
+## §KEY INSIGHT — Unification + Backtracking → Trampoline CPS
 
-Prolog's unification and backtracking map to continuation-passing style (CPS)
-in JavaScript:
+Each Prolog clause becomes a trampoline block function.
+The choice point (`E_CHOICE`) is a chain: α tries clause 1,
+β tries clause 2, etc. E_CUT nulls out the retry chain.
+Trail stack unwinds variable bindings on backtrack.
 
 ```js
-// Prolog: member(X, [H|_]) :- X = H.
-//         member(X, [_|T]) :- member(X, T).
-function member(X, list, succeed, fail) {
-    if (list.length === 0) return fail();
-    const [H, ...T] = list;
-    // first clause: unify X with H
-    succeed(unify(X, H), () => member(X, T, succeed, fail));
+// Prolog: foo(X) :- bar(X), baz(X).
+function foo_α() {
+    _trail_mark();
+    return bar_α;       // try bar first
 }
+// bar_γ → baz_α → foo_γ (success chain)
+// baz_ω → bar_β → foo_ω (backtrack chain)
 ```
 
-`succeed` = γ continuation. `fail` = ω continuation (retry next clause).
-No stack overflow risk on modern JS engines with tail-call opt; for deep
-recursion, trampolining can be added.
+This is the same trampoline model as SNOBOL4 — just with unification
+instead of string matching, and trail instead of cursor state.
 
 ---
 
-## §MILESTONES
+## §KEY FILES
 
-| ID | Scope | Gate |
-|----|-------|------|
-| **M-PJ-A01** | Scaffold + hello/facts/unify parity | rung2/3 |
-| **M-PJ-B01** | Multi-clause predicates + backtracking | rungP01 |
-| **M-PJ-B02** | Arithmetic, comparison, is/2 | rungP02 |
-| **M-PJ-B03** | Lists, append, member | rungP03 |
-| **M-PJ-C01** | Cut (`!`), negation-as-failure | rungP04 |
-| **M-PJ-C02** | assert/retract (dynamic predicates) | rungP05 |
-| **M-PJ-PARITY** | Full corpus parity | all Prolog rungs |
+| File | Role |
+|------|------|
+| `src/backend/emit_js_prolog.c` | Prolog JS emitter (to create) |
+| `src/runtime/js/prolog_runtime.js` | term, unify, trail |
+| `src/backend/emit_wasm_prolog.c` | Oracle for IR switch (parked) |
+| `src/backend/emit_jvm_prolog.c` | Oracle for Byrd wiring (9,972 lines) |
 
 ---
 
-## §NOW — PJ-1
+## §NOW — PJJ-1
 
-First action: read `FRONTEND-PROLOG.md`, then `BACKEND-JS.md`, then design
-`emit_js_prolog.c` scaffold following `emit_wasm_prolog.c` IR switch layout
-(parked but useful as template).
+**Next milestone: M-PJJ-A01** (requires M-SJ-A01 complete first)
+
+Read: `BACKEND-JS.md` · `MILESTONE-JS-PROLOG.md` · `FRONTEND-PROLOG.md`
 
 ---
 
-*SESSION-prolog-js.md — created PJ-1, 2026-03-31, Claude Sonnet 4.6.*
+*SESSION-prolog-js.md — rewritten PJJ-1, 2026-03-31, Claude Sonnet 4.6.*

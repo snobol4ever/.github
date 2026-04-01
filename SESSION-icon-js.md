@@ -1,60 +1,55 @@
 # SESSION-icon-js.md — Icon × JavaScript (one4all)
 
 **Repo:** one4all · **Frontend:** Icon · **Backend:** JavaScript
-**Session prefix:** `IJ` (JS) · **Trigger:** "playing with Icon JavaScript" / "Icon JS"
-**Note:** `IJ` prefix previously used for Icon JVM — context distinguishes them.
+**Session prefix:** `IJJ` (Icon JS — distinct from `IJ` = Icon JVM)
+**Trigger:** "playing with Icon JavaScript" / "Icon JS"
 **Replaces:** SESSION-icon-wasm.md (⛔ PARKED)
+**Depends on:** M-SJ-A01 complete (shared trampoline + runtime)
 
 ---
 
 ## §SUBSYSTEMS
 
-| Subsystem | Doc | Go there when |
-|-----------|-----|---------------|
-| Icon language / IR | `FRONTEND-ICON.md` | generator/suspension questions |
-| JS backend | `BACKEND-JS.md` | JS codegen patterns |
+| Subsystem | Doc |
+|-----------|-----|
+| Icon language / IR | `FRONTEND-ICON.md` |
+| JS backend | `BACKEND-JS.md` |
+| Milestone ladder | `MILESTONE-JS-ICON.md` |
 
 ---
 
-## §KEY INSIGHT — Icon Generators → JS Generators
+## §KEY INSIGHT — Goal-Directed Evaluation → Trampoline
 
-Icon's goal-directed evaluation maps almost perfectly to JavaScript's
-`function*` generators:
+Proebsting's paper (in ByrdBox.zip) gives the exact templates.
+`5 > ((1 to 2) * (3 to 4))` compiles to a state machine with
+`_to_i` counters and conditional trampoline returns — identical
+to the C backend's `emit_byrd_c.c` `case 'TO':` handler in `byrd_box.py`.
 
-```js
-// Icon: every(write(1 to 5))
-function* _range(lo, hi) {
-    for (let i = lo; i <= hi; i++) yield i;
-}
-function* _write(gen) {
-    for (const v of gen) { process.stdout.write(String(v) + '\n'); yield v; }
-}
-```
-
-Suspension (`@`) → `yield`. Resume (`@&`) → `.next()`. Failure → generator
-exhaustion. This is a natural fit — no trampoline needed for the common case.
+Each EKind gets four labeled trampoline functions (α/β/γ/ω).
+The Proebsting Figure 2 "optimized code" IS what the emitter should produce
+after copy-propagation. Read Figure 1 first to understand the wiring,
+then collapse it to Figure 2 in the emitter.
 
 ---
 
-## §MILESTONES
+## §KEY FILES
 
-| ID | Scope | Gate |
-|----|-------|------|
-| **M-IJ-A01** | Scaffold + hello/arith/string parity | rung2/3/4 |
-| **M-IJ-B01** | Generator basics: `to`, `seq`, `every` | rungI01 |
-| **M-IJ-B02** | Alternation: `|` operator via chained generators | rungI02 |
-| **M-IJ-B03** | Suspension / co-expression basics | rungI03 |
-| **M-IJ-C01** | String scanning (`?` operator) | rungI04 |
-| **M-IJ-PARITY** | Full corpus parity | all Icon rungs |
+| File | Role |
+|------|------|
+| `src/backend/emit_js_icon.c` | Icon JS emitter (to create) |
+| `src/runtime/js/icon_runtime.js` | extends sno_runtime.js |
+| `src/backend/emit_wasm_icon.c` | Oracle for IR switch structure |
+| `src/backend/emit_jvm_icon.c` | Oracle for Byrd wiring |
 
 ---
 
-## §NOW — IJ-1
+## §NOW — IJJ-1
 
-First action: read `FRONTEND-ICON.md`, then `BACKEND-JS.md`, then design
-`emit_js_icon.c` scaffold following `emit_wasm_icon.c` structure (now parked
-but useful as template for IR switch layout).
+**Next milestone: M-IJJ-A01** (requires M-SJ-A01 complete first)
+
+Read: `BACKEND-JS.md` · `MILESTONE-JS-ICON.md` · `FRONTEND-ICON.md`
+Then: `src/backend/emit_wasm_icon.c` IR switch (parked but useful template)
 
 ---
 
-*SESSION-icon-js.md — created IJ-1, 2026-03-31, Claude Sonnet 4.6.*
+*SESSION-icon-js.md — rewritten IJJ-1, 2026-03-31, Claude Sonnet 4.6.*
