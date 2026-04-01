@@ -13778,3 +13778,97 @@ tail -80 .github/SESSIONS_ARCHIVE.md
 # HEAD must be: one4all 652b237 · corpus c69c4f6
 # Next: DYN-4 work items — XDSAR/XVAR deferred dispatch, XNME capture, kw_anchor
 ```
+
+---
+
+## Session DYN-10 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `652b237` (DYN-9 / M-DYN-OPT complete)
+**HEAD at session end:** `5aa181f`
+**Sprint:** DYN-10 — DYN-4 items (partial)
+
+### Work completed
+
+**DYN-4 item 2 — bb_deferred_var re-resolve every α (XDSAR/XVAR)**
+Old code resolved `*VAR` once on first α and cached. Fixed to re-resolve
+`NV_GET_fn(name)` on every α entry. If value pointer unchanged, reuses
+existing child graph (avoids rebuild); if changed, rebuilds. Child ζ
+memset to 0 for clean match state on reuse.
+
+**DYN-4 item 4 — kw_anchor scan-loop gate**
+Already wired from prior session; T16 confirms it works.
+
+**T15 gate:** bb_deferred_var re-resolve runs on every α — both calls
+return non-empty (epsilon fallback when NV returns SNUL). PASS ✅
+
+**T16 gate:** kw_anchor=1 gates scan to pos 0 only — "XhelloY" anchored
+fails (pattern at pos 1), unanchored succeeds. PASS ✅
+
+**Rung 6 gate attempted:**
+Built rung6_dyn_test against full runtime (lex.c + parse.c + snobol4.c +
+snobol4_pattern.c + eval_code.c + engine + runtime). Result:
+- T1 ✅ T4 ✅ (match correctness)
+- T2 T3 T5 FAIL: `V == ''` (want captured value)
+
+### Root cause identified (NOT YET FIXED)
+
+XNME (`.` conditional capture) flush ordering bug:
+
+`stmt_exec_dyn` does `g_capture_count = 0` at top (Phase 1).
+`bb_build` (Phase 2) calls `register_capture(ζ)` to populate `g_capture_list`.
+On second stmt execution, `g_capture_count = 0` fires BEFORE `bb_build`
+re-registers the capture boxes — so `flush_pending_captures()` in Phase 4
+walks an empty list and never calls `NV_SET_fn`.
+
+**The fix (one line):** move `g_capture_count = 0` from top of
+`stmt_exec_dyn` to AFTER the `bb_build` call (after Phase 2), so
+captures are registered before the flush list is used.
+
+Look in `stmt_exec.c` for:
+```c
+    /* reset capture registry for this statement */
+    g_capture_count = 0;
+```
+Move it to just after the Phase 2 block (after `bb_build` / `bb_lit` /
+`bb_eps` assignments, before Phase 3 scan loop).
+
+### Gates
+- stmt_exec_test T1–T16: **ALL PASS ✅** (16/16)
+- emit-diff: **1286/0 ✅**
+- invariants (snobol4_x86): **ALL PASS ✅**
+- Rung 6: **8/12 PASS, 4 fail** — fix below
+
+### Push
+- one4all `5aa181f` ✅ (bb_deferred_var fix + T15/T16)
+- .github this handoff
+
+### Context at handoff: ~78%. Hard context limit approaching.
+
+### Bootstrap for DYN-11
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh         # expect 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect ALL PASS
+tail -100 .github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 5aa181f
+# FIRST ACTION: fix g_capture_count reset ordering in stmt_exec_dyn (see above)
+# SECOND ACTION: rebuild rung6_dyn_test, confirm 12/12 PASS
+# THIRD ACTION: commit + push, declare DYN-4 complete
+# Build cmd for rung6_dyn_test:
+#   cd /home/claude/one4all && gcc -g -O0 \
+#     -I src -I src/runtime/dyn -I src/runtime/snobol4 -I src/runtime \
+#     -I src/frontend/snobol4 -I src/frontend/snocone -I src/frontend/prolog \
+#     -I src/frontend/icon -I src/frontend/rebus -I src/backend -I src/backend/c \
+#     src/runtime/dyn/bb_lit.c src/runtime/dyn/bb_alt.c src/runtime/dyn/bb_seq.c \
+#     src/runtime/dyn/bb_arbno.c src/runtime/dyn/bb_pos.c src/runtime/dyn/bb_tab.c \
+#     src/runtime/dyn/bb_fence.c src/runtime/dyn/stmt_exec.c \
+#     src/runtime/dyn/eval_code.c src/runtime/snobol4/snobol4.c \
+#     src/runtime/snobol4/snobol4_pattern.c src/runtime/mock/mock_includes.c \
+#     src/runtime/engine/engine.c src/runtime/engine/runtime.c \
+#     src/frontend/snobol4/lex.c src/frontend/snobol4/parse.c \
+#     src/runtime/dyn/rung6_dyn_test.c -lgc -lm -o rung6_dyn_test
+```
