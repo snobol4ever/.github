@@ -15036,3 +15036,74 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # ex
 ```
 
 ### Context at handoff: ~92%. Clean stop.
+
+---
+
+## Session SJ-7 FINAL — 2026-04-01 — Block-grouping, arith semantics, invariants wired
+
+**HEAD at session end:** one4all `24d0718` · .github this entry
+**Context at handoff: ~70%**
+
+### Work completed
+
+**1. emit_js.c: block-grouping bug FIXED**
+Unlabeled continuation blocks after explicit-transfer blocks were reopened under
+the same label name, overwriting the previous block. Fix: look-ahead on `s->next`
+when transferred block closes; pre-generate synthetic `_c<uid>` label; emit
+`return goto_v__cN` before closing; open continuation block under that unique name.
+
+**2. jv() uppercase normalization**
+SNOBOL4 labels case-insensitive. `jv()` now uppercases so `:(end)` = `:(END)`.
+
+**3. js_upper_var() — variable name uppercase**
+All `_vars["..."]` emission sites use `js_upper_var()`. OUTPUT trap now fires.
+Fixed: E_VAR, E_ASSIGN, capture, pat_stmt, pure assignment, null assign.
+
+**4. E_UPLUS added to emitter**
+`case E_UPLUS: J("_num("); js_emit_expr(...); J(")");`
+
+**5. Real literal / DIFFER/IDENT numeric semantics**
+E_FLIT stays as string `"3."` form (SPITBOL convention).
+DIFFER/IDENT use `_num()` equality when both args are numeric.
+`_is_int()` detects real strings by presence of `.` or `e`.
+`_add/_sub/_mul/_div` correct int vs real propagation.
+
+**6. run_snobol4_js() wired into run_invariants.sh**
+Full crosscheck dirs. `.js.xfail` convention. In dispatch, cell loop, summary.
+
+**Baseline: 34p/86f → 46p/74f**
+
+### Known open issues for SJ-8
+
+**Priority 1 — E_INDR uppercase (210/211/212 failing)**
+`case E_INDR:` emits `_vars[_str(...)]` — key not uppercased.
+Fix: `J("_vars[_str("); js_emit_expr(operand); J(").toUpperCase()]");`
+
+**Priority 2 — LGT builtin missing (914 timeout)**
+Add: `LGT(args) { return _str(args[0]) > _str(args[1]) ? _str(args[0]) : _FAIL; }`
+
+**Priority 3 — DEFINE/RETURN runtime (1010–1018 timeout)**
+User-defined functions. `goto_v_RETURN`/`goto_v_FRETURN` emitted, no call stack.
+Need `_user_fns` map + frame stack in sno_engine.js.
+
+**Priority 4 — DATA/ARRAY/TABLE (1110–1116 failing)**
+Implement `ARRAY`, `TABLE`, `DATA`, `ITEM` in `_builtins`.
+
+**Priority 5 — REPLACE/CONVERT/DATATYPE (810/910/911 failing)**
+
+### Bootstrap for SJ-8
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+git log --oneline -3   # expect 24d0718 at HEAD
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js  # expect 46p/74f
+
+# SJ-8 FIRST ACTION: fix E_INDR uppercase in src/backend/emit_js.c
+# case E_INDR: change _vars[_str(...)] to _vars[_str(...).toUpperCase()]
+# make -C src && test 210/211/212
+# Then: add LGT to sno_runtime.js (one-liner)
+# Then: DEFINE/RETURN call stack
+```
