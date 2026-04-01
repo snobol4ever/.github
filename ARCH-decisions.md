@@ -138,3 +138,46 @@ CSNOBOL4 semantics.
 
 *DECISIONS.md = append-only L3 reference. No session state. No sprint content.*
 *New decisions append below the last entry. Never edit existing entries.*
+
+---
+
+## D-010 — E_SEQ vs E_CONCAT: juxtaposition is a runtime operation (2026-04-01)
+
+**Status:** Known fragility — deferred refactor post M-DYN-S1.
+
+**The issue:** SNOBOL4 juxtaposition is polymorphic at runtime:
+- All operands coerce to string → `stmt_concat` (string concat)
+- Any operand is `DT_P` → `pat_cat` (pattern sequence)
+
+The parser cannot determine this at parse/IR-build time. A variable `P` holding
+a pattern is syntactically identical to one holding a string.
+
+**Current approach (fragile):**
+Parser emits `E_SEQ` for all juxtaposition. Post-parse `fixup_val_tree` renames
+`E_SEQ → E_CONCAT` in "known value contexts" (subject field always; replacement
+field unless structural pattern markers like `E_CAPT_COND`/`E_ARB` are present).
+`emit_x64.c` branches on the tag.
+
+**Why it's fragile:** A variable `P` holding a DT_P value looks like a string variable
+at parse time. `'' P ''` in the replacement field gets `E_CONCAT` → `stmt_concat`,
+which will fail or produce wrong output if P is a PATTERN at runtime.
+
+**What other frontends do:** Snocone uses `&&` (explicit sequence), Icon uses `||`
+(explicit string concat) vs `&` (goal-directed sequence). Only SNOBOL4 has the
+ambiguity — it's inherent to the language design.
+
+**Correct fix:** Use `E_SEQ` everywhere for SNOBOL4 juxtaposition. Add a runtime
+dispatcher `stmt_seq(DESCR_t left, DESCR_t right)` that checks types at runtime:
+```c
+if (left.v == DT_P || right.v == DT_P) return pat_cat(left, right);
+return CONCAT_fn(left, right);
+```
+Remove `fixup_val_tree` from the SNOBOL4 frontend. Remove `E_CONCAT` as a distinct
+node for SNOBOL4 (keep it for Icon/Snocone where it means explicit string concat).
+
+**Deferred because:** M-DYN-S1 gate work (142/142) is the current priority. This
+refactor touches the parser, emitter, and runtime simultaneously. Schedule for
+a dedicated sprint after M-DYN-S1 fires.
+
+**Short-term mitigation:** Remove `fixup_val_tree` call on `s->replacement` — that's
+the most fragile site. Subject field is generally safe (value context is correct there).
