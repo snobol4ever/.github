@@ -94,24 +94,30 @@ const _vars = new Proxy({}, {
 });
 ```
 
-## §NOW — SJ-3
+## §NOW — SJ-4
 
-**HEAD:** one4all `63bed44`
-**Next milestone: M-SJ-A03**
+**HEAD:** one4all `4b5e682`
+**Next milestone: M-SJ-A03** (still in progress)
 
-M-SJ-A01 + M-SJ-A02 delivered. Byrd-box dispatch works.
-Hello passes. Pattern literal scan passes (found it). emit-diff 981/4.
+M-SJ-A01 + M-SJ-A02 + block-grouping rewrite (SJ-3) done.
+Emit-diff 1286/0. Node v22 IIFE bug is the only blocker.
 
 First actions (mandatory order):
-1. `git log --oneline -3`  # confirm 63bed44
-2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # 981/4
-3. Wire corpus JS runner — create `test/run_invariants_js.sh` or extend
-   existing `test/run_invariants.sh` to support snobol4_js cell.
-4. Fix ARBNO: implement iterative emit in js_emit_pat() E_FNC ARBNO case.
-5. Fix n-ary SEQ: right-fold children[0..n-1] into binary SEQ pairs
-   before calling js_emit_pat_seq (mirror emit_byrd_c.c E_SEQ n-ary path).
-6. Gate: emit-diff 981/4, first invariants green.
+1. `git log --oneline -3`  # confirm 4b5e682
+2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # expect 1286/0
+3. **Fix Node v22 var/IIFE bug** in `js_emit()` forward-decl section:
+   - Emit bare `var goto_vX;` only in forward section
+   - Remove `var goto_v_END = function() { return null; };` from forward section
+   - Block section already assigns goto_v_END correctly
+   - Test: `node compiled_hello.js` must print `HELLO WORLD` with no error
+4. Run full corpus baseline (hello, rung2/3/4/8): measure pass/fail
+5. Fix `remdr` missing in sno_runtime.js
+6. Fix float format: `1.` → `1` in `_to_str()`
+7. Fix n-ary SEQ: right-fold children in js_emit_pat()
+8. Fix ARBNO zero-advance guard (see ARCH-spipat-js.md)
+9. Wire `run_snobol4_js()` into `run_invariants.sh`
+10. Gate: emit-diff 1286/0, first snobol4_js invariants green → commit M-SJ-A03
 
 ---
 
-*SESSION-snobol4-js.md — updated SJ-2 final, 2026-04-01, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — updated SJ-3 final, 2026-04-01, Claude Sonnet 4.6.*
