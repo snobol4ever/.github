@@ -14988,3 +14988,51 @@ cat .github/SESSION-snobol4-js.md
 # 6. scrip-cc -js corpus/.../feat/f09_functions.sno -o /tmp/f09.js
 # 7. SNO_RUNTIME=... SNO_ENGINE=... node /tmp/f09.js  # expect PASS
 ```
+
+---
+
+## Session DYN-15 ADDENDUM 2 — 2026-04-01 — 911_datatype fix
+
+**HEAD at addendum:** one4all `7cd3c8e` · corpus `f7c92f2`
+
+### Gates
+- emit-diff (CELLS=snobol4_x86): **179/0 ✅**
+- invariants (snobol4_x86): **142/142 ALL PASS ✅**
+
+### Work done — 911_datatype
+
+**Root cause:** `datatype()` returns uppercase (`"STRING"`, `"INTEGER"`, `"REAL"`).
+Test compared against lowercase literals. SPITBOL returns lowercase; CSNOBOL4
+returns uppercase. We are neither — our convention is uppercase, which is fine.
+
+**Decision (Lon):** DATATYPE() case is implementation-defined. No production
+code should depend on the case — it should LCASE() or UCASE() before comparing.
+Fix the test, not the runtime.
+
+**Fix:** `corpus/crosscheck/rung9/911_datatype.sno` — wrap each `datatype()`
+call in `lcase()` so comparison is case-portable. Runtime unchanged.
+
+### Bootstrap for DYN-16
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # expect 142/142
+
+# DYN-16 FIRST ACTION: rung2/210_indirect_ref — $.var indirect variable lookup
+# Remaining priority list:
+#   1. ✅ rung4/411_arith_unary — DONE (E_UPLUS pos-name collision)
+#   2. ✅ rung9/911_datatype    — DONE (test uses LCASE now)
+#   3. rung2/210_indirect_ref  — $.var lookup through indirect variable (next)
+#   4. rung2/212_indirect_array — $.var<index> indirect array
+#   5. rung10 failures — OPSYN, APPLY, NRETURN, EVAL, ARG, LOCAL (complex)
+#   6. rung11 failures — ARRAY, TABLE, ITEM, DATA (complex)
+
+# HEAD: one4all 7cd3c8e · corpus f7c92f2 · .github (this entry)
+```
+
+### Context at handoff: ~92%. Clean stop.
