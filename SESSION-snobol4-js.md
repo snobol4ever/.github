@@ -96,25 +96,22 @@ const _vars = new Proxy({}, {
 
 ## §NOW — SJ-3
 
-**HEAD:** one4all `f9499d8`
-**Next milestone: M-SJ-A02 — Byrd-box pattern dispatch**
+**HEAD:** one4all `63bed44`
+**Next milestone: M-SJ-A03**
 
-M-SJ-A01 delivered: emit_js.c + sno_runtime.js + run_js.js + Makefile/-js wire.
-Hello passes. emit-diff 981/4.
+M-SJ-A01 + M-SJ-A02 delivered. Byrd-box dispatch works.
+Hello passes. Pattern literal scan passes (found it). emit-diff 981/4.
 
 First actions (mandatory order):
-1. `git log --oneline -3`  # confirm f9499d8
-2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # confirm 981/4
-3. Read `src/backend/c/emit_byrd_c.c` emit_pat_node() (E_SEQ, E_ALT, emit_lit,
-   emit_pos, emit_len, emit_any, emit_arb) — oracle for JS port.
-4. In `src/backend/emit_js.c`: replace `_match()` stub in js_emit_stmt()
-   with full `for(;;) switch(_pc)` Byrd-box dispatch (see §DISPATCH).
-   Port emit_pat_node() as js_emit_pat_node() using J() macro.
-5. In `src/runtime/js/sno_runtime.js`: promote `_match` from stub to full
-   dispatcher that invokes the compiled pattern function.
-6. Wire `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js`.
-7. Gate: emit-diff 981/4 · invariants moving toward green.
+1. `git log --oneline -3`  # confirm 63bed44
+2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # 981/4
+3. Wire corpus JS runner — create `test/run_invariants_js.sh` or extend
+   existing `test/run_invariants.sh` to support snobol4_js cell.
+4. Fix ARBNO: implement iterative emit in js_emit_pat() E_FNC ARBNO case.
+5. Fix n-ary SEQ: right-fold children[0..n-1] into binary SEQ pairs
+   before calling js_emit_pat_seq (mirror emit_byrd_c.c E_SEQ n-ary path).
+6. Gate: emit-diff 981/4, first invariants green.
 
 ---
 
-*SESSION-snobol4-js.md — updated SJ-2→SJ-3, 2026-04-01, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — updated SJ-2 final, 2026-04-01, Claude Sonnet 4.6.*
