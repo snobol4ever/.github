@@ -13074,3 +13074,70 @@ Write `src/runtime/asm/bb_poc.c`:
 - Set up γ/ω return addresses, call into α via function pointer
 - Print PASS (γ fired) or FAIL (ω fired)
 - Test: subject='hello world' → PASS, subject='goodbye' → FAIL
+
+---
+
+## B-292 FINAL HANDOFF — Context limit, handing off to DYN-2 (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `0be6605` · **one4all HEAD:** `ce72c34` · **corpus HEAD:** `209a976`
+
+### Context note
+
+~72% consumed. DYN-2 should be a fresh session.
+
+### What happened this session
+
+1. Full session start protocol executed: cloned .github/one4all/harness/corpus,
+   ran SESSION_SETUP.sh (scrip-cc built OK), ran run_emit_check.sh (981/4 ✅),
+   ran run_invariants.sh snobol4_x86 (ALL PASS / 106/106 ✅).
+
+2. Full targeted read on: ARCH-x64, BACKEND-X64, ARCH-sil-heritage, ARCH-scrip-vision,
+   ARCH-scrip-abi, ARCH-overview, ARCH-scrip-cc, FRONTEND-SNOBOL4, BACKEND-C,
+   GRAND_MASTER_REORG_2, SESSIONS_ARCHIVE tail, emit_x64.c survey.
+
+3. Design session with Lon: established the dynamic Byrd box execution model.
+   Everything in SNOBOL4 is built on the fly. Static compilation is an optimization.
+   The five-phase statement model. EVAL/CODE fall out for free from M-DYN-3.
+   Cache coherence: mprotect RW→RX is the I-cache fence on x86-64.
+
+4. Delivered: ARCH-byrd-dynamic.md, ARCH-index update, ARCH-overview update,
+   PLAN.md DYN-1 row, prior SESSIONS_ARCHIVE entry. All pushed to `0be6605`.
+
+### Gates held throughout
+
+981/4 ✅ · snobol4_x86 106/106 ✅ (design session — no code changed)
+
+### DYN-2 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86   # expect 106/106
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/ARCH-byrd-dynamic.md
+```
+
+**DYN-2 first action: M-DYN-POC**
+
+Write `src/runtime/asm/bb_poc.c`. This is a standalone C program — no scrip-cc,
+no frontend, no runtime. Pure proof that the stack works:
+
+1. `mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0)`
+2. Write x86-64 bytes by hand for a minimal Byrd box:
+   - α port: compare subject bytes against literal 'hello' (repe cmpsb or manual loop)
+   - γ port: return success indicator
+   - ω port: return failure indicator
+3. `mprotect(buf, 4096, PROT_READ|PROT_EXEC)` — I-cache fence
+4. Cast buf to function pointer, call with subject string
+5. Print PASS (γ fired) or FAIL (ω fired)
+
+Test cases:
+- subject = "hello world" → PASS (prefix match)
+- subject = "goodbye"     → FAIL
+
+Gate: compiles with `gcc -o bb_poc src/runtime/asm/bb_poc.c`, runs, both
+test cases correct. No other files touched. 981/4 ✅ · 106/106 ✅ unchanged.
