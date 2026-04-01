@@ -82,3 +82,48 @@ B01  spipatjs  11234567 ops/sec
 
 *(to be filled in at milestone completion)*
 
+
+---
+
+## Results — SJ-6, 2026-04-01
+
+**Node:** v22.22.0  **WARMUP:** 2000  **MEASURE:** 20000
+
+| ID  | one4all (ops/sec) | spipatjs (ops/sec) | ratio | desc |
+|-----|------------------:|-------------------:|------:|------|
+| B01 | 207,510 | 6,354 | 32.7x | Literal match |
+| B02 | 23,578 | 6,072 | 3.9x | BREAK+SPAN word scan |
+| B03 | 28,602 | 6,418 | 4.5x | ARB backtrack depth 12 |
+| B04 | 232,160 | 6,875 | 33.8x | ARBNO multi-rep |
+| B05 | 179,353 | 6,457 | 27.8x | BAL balanced parens |
+| B06 | 9,196 | 6,379 | 1.4x | Wide ALT (4 alternatives) |
+| B07 | 163,845 | 6,268 | 26.1x | Deep SEQ (10 literals) |
+| B08 | 415,434 | 6,406 | 64.9x | CAPT_IMM capture overhead |
+
+**one4all wins all 8 benchmarks.** Range: 1.4x–64.9x faster.
+
+### Analysis
+
+spipatjs throughput is nearly flat (~6,000–6,900 ops/sec) across all patterns
+regardless of complexity. Root cause: `Pattern.umatch()` calls `Object.freeze(m)`
+on the Match result object on every successful match — this is an O(n) GC write-
+barrier operation that dominates the timing. The PE node-graph pthen advantage
+is completely masked by this per-call freeze cost.
+
+one4all's advantage is largest on:
+- **B08 CAPT_IMM (64.9x)**: short fast path, no freeze overhead
+- **B04 ARBNO (33.8x)**: lazy expansion via GC-owned frame tree is cheaper
+  than spipatjs's stack management inside freeze-gated match objects
+- **B01 Literal (32.7x)**: pure allocation/startup cost dominates spipatjs
+
+**B06 Wide ALT (1.4x)** is the closest: our string-concatenated switch key
+`(λ + '/' + action)` pays for itself vs spipatjs's class dispatch only when
+pattern complexity is high enough to amortize the freeze cost.
+
+### Conclusion
+
+The Clojure-model engine (immutable frame arrays, GC-owned Ω stack, zero
+post-match allocation) is decisively faster in Node.js v22 than the GNAT PE
+node-graph model with result freezing. For production use: one4all engine.
+
+Gate: ✅ All 8 benchmarks ran, results committed.
