@@ -12991,3 +12991,86 @@ which is an empty-name variable, causing the E_ADD to be emitted as a
 standalone expression rather than as the RHS of an assignment.
 
 **M-SC-B07:** Fix compound-assign, write rungB07 tests (+=, -=, *=, /=).
+
+---
+
+## B-292 DESIGN HANDOFF — Dynamic Byrd Box Redesign (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD before this session:** `ee81b9c`
+
+### Session summary
+
+Session focus: Revisit static vs. dynamic nature of Byrd box assembly sequences.
+Design session — no code written, new architecture established.
+
+### The Fundamental Redesign
+
+Everything in SNOBOL4 is built on the fly. This is not a feature — it is the
+execution model. Every statement is a live Byrd box chain with five phases:
+
+1. Build subject (can fail)
+2. Build pattern → live Byrd box graph in executable memory (can fail)
+3. Run match against that graph (can fail — graph traversal, backtracking)
+4. Build replacement (can fail)
+5. Perform replacement (deterministic if reached)
+
+The pattern `(P() | Q())` builds an ALT Byrd box graph from P's and Q's live
+return values on every execution. P and Q can return different patterns each time.
+Static compilation is an optimization of this model — not the model.
+
+EVAL() and CODE() are not special cases. They fall out of M-DYN-3 for free.
+*VAR (E_DEFER) is a direct jump into a stored Byrd box graph's α port.
+
+Cache coherence note: x86-64 instruction cache ≠ data cache. The mprotect
+RW→RX transition is the I-cache fence. Always seal via mprotect, never jump
+into a buffer that has only been written as data.
+
+### Delivered
+
+- `ARCH-byrd-dynamic.md` — new fundamental architecture doc, M-DYN-* chain
+- `ARCH-index.md` — ARCH-byrd-dynamic registered as primary x64 reference
+- `ARCH-overview.md` — dynamic model note added, links to new doc
+- `PLAN.md` — DYN-1 row added to NOW table; M-DYN-POC is first action
+
+### M-DYN-* Chain (see ARCH-byrd-dynamic.md for full detail)
+
+| ID | Deliverable |
+|----|-------------|
+| **M-DYN-POC** | `bb_poc.c` — hand-write x86 bytes, mmap, mprotect, jump, PASS/FAIL |
+| **M-DYN-0** | `bb_pool.c` — alloc/seal/free LIFO buffer pool |
+| **M-DYN-1** | `bb_emit.c` — byte-level x86 emitter (output: buffer, not file) |
+| **M-DYN-2** | `bb_build.c` — Byrd box graph assembler (lit/alt/seq/arbno/fn) |
+| **M-DYN-3** | `stmt_exec.c` — five-phase statement executor |
+| **M-DYN-4** | `*VAR` dynamic dispatch |
+| **M-DYN-5** | `EVAL(str)` / `CODE(str)` |
+| **M-DYN-OPT** | Invariance detection — static optimization layer |
+
+M-T2-* (Technique 2) milestone chain is absorbed into M-DYN-*:
+M-DYN-POC through M-DYN-1 build exactly what M-T2-RUNTIME needs.
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 106/106 ✅ (no code changed — design session only)
+
+### DYN-2 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/ARCH-byrd-dynamic.md
+```
+
+**DYN-2 first action: M-DYN-POC**
+Write `src/runtime/asm/bb_poc.c`:
+- `mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0)`
+- Hand-write x86-64 bytes for a literal 'hello' matcher (α/γ/ω ports)
+- `mprotect(buf, 4096, PROT_READ|PROT_EXEC)` — this is the I-cache fence
+- Set up γ/ω return addresses, call into α via function pointer
+- Print PASS (γ fired) or FAIL (ω fired)
+- Test: subject='hello world' → PASS, subject='goodbye' → FAIL

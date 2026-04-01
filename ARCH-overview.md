@@ -17,6 +17,12 @@ This model applies to ALL backends — the execution semantics are the same whet
 the target is C, JVM bytecode, or MSIL. The pattern match is always a Byrd box.
 The S/F routing is always a two-port exit.
 
+**⚠ DYNAMIC MODEL (2026-04-01):** Everything in SNOBOL4 is built on the fly.
+The five phases of every statement (build subject, build pattern, run match,
+build replacement, perform replacement) each produce live Byrd box graphs in
+executable memory. Static compilation is an optimization of this model, not
+the model itself. Full design and M-DYN-* milestone chain → **ARCH-byrd-dynamic.md**.
+
 ---
 
 ## Byrd Box (universal concept)
