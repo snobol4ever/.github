@@ -56,7 +56,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
 | **⭐ DYNAMIC BYRD BOX** | DYN-10 — DYN-4 partial | one4all `5aa181f` | **DYN-11 FIRST ACTION**: fix `g_capture_count=0` ordering in `stmt_exec_dyn` (move past Phase 2 bb_build). Rung 6: 8/12 PASS, 4 fail on XNME capture flush. See DYN-10 handoff. |
-| **Snocone x86** | SC-12 | `5ee6353` one4all · `5f8fee1` corpus | M-SC-B08 done · rungB08 5/5 (struct keyword) · **SC-13**: M-SC-B09 string comparisons :==: :!=: :>: :<: |
+| **Snocone x86** | SC-13 | `45ab380` one4all · `1a6e674` corpus | M-SC-B09 done · rungB09 6/6 (string comparisons) · **SC-14**: M-SC-B10 next unimplemented construct |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
@@ -64,7 +64,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
-**Invariants (SC-9 baseline):** x86: SNOBOL4 `106/106` · Snocone `126p/0f` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
+**Invariants (SC-13 baseline):** x86: SNOBOL4 `106/106` · Snocone `144p/0f` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
 **Gate:** Emit-diff **981/4**. Targeted invariants per RULES.md gate section.
 
