@@ -62,7 +62,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-8 | one4all `09fb31f` · corpus `8b0f243` | **SJ-9 FIRST**: DEFINE/RETURN call stack (sno_engine.js) → fixes 1010–1018 timeouts. Then DATA/ARRAY/TABLE. Bench: 6/7 running, 3×–24× vs SPITBOL. Invariants: 52p/68f. |
+| **SNOBOL4 JS** | SJ-8 | one4all `5f0f36a` · corpus `18a8b70` | **SJ-9 FIRST**: DEFINE/RETURN call stack (sno_engine.js) → fixes 1010–1018 timeouts. Then DATA/ARRAY/TABLE. Gates: emit-diff **175/0** · invariants **52p/68f**. |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-164 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
