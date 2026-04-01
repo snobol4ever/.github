@@ -13644,3 +13644,70 @@ tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
 # HEAD must be: one4all 5ee6353 · corpus 5f8fee1 · .github 3a4bd32
 # Next: M-SC-B09 — rungB09 string comparisons :==: :!=: :>: :<: :>=: :<=:
 ```
+
+---
+
+## Session DYN-8 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `c4bc4ba` (DYN-7 partial / M-DYN-6 in progress)
+**HEAD at session end:** `08ed81e`
+**Sprint:** DYN-8 — M-DYN-6 ✅ complete
+
+### Work completed
+
+**Item 1 — CODE builtin registered (snobol4.c)**
+- `extern DESCR_t code_dyn(const char *src)` added alongside EVAL extern
+- `static DESCR_t _b_CODE(DESCR_t *a, int n)` wrapper
+- `register_fn("CODE", _b_CODE, 1, 1)` after EVAL registration
+
+**Item 2 — EVAL_fn wired to eval_expr_dyn (snobol4_pattern.c)**
+- `extern DESCR_t eval_expr_dyn(const char *src)` inline in EVAL_fn
+- After quoted-string fast path: try eval_expr_dyn → if not FAIL return it
+- Fallback to old `_ev_expr` for pattern-context strings
+
+**Item 3 — :<VAR> CODE block dispatch (emit_x64.c)**
+Root cause: `:<C>` parses as `go->uncond = "C"` (plain label), not computed_uncond_expr.
+`L_C_1` lands in the undefined-label stub loop.
+Fix: stub loop now emits full CODE block dispatch for every undefined label:
+1. `stmt_get(S_LABEL)` → DESCR_t of variable
+2. `execute_code_dyn(DESCR_t)` → `const char *` label string
+3. `stmt_goto_dispatch(DESCR_t(DT_S, label), name_table, N)` → index
+4. `jmp [jump_table + rax*8]` or fall to L_SNO_END
+
+Three bugs fixed during debug:
+- `add rsp,32` clobbered FLAGS before `cmp rax,-1` → fixed with `lea rsp,[rsp+32]`
+- `stmt_goto_dispatch` returns `int` in eax → `movsxd rax,eax` before cmp
+- sub rsp,32 needed before calls (stub entered via jmp, not call)
+
+**f13_eval_code.sno: PASS ✅**
+- `EVAL('2 + 3')` → 5 via eval_expr_dyn arithmetic path
+- `CODE("CPASS OUTPUT = 'PASS' :(END)")` → DT_C block in C
+- `:<C>` → executes block → outputs PASS → goto END → L_SNO_END
+
+### Gates
+- f13 run: **PASS ✅**
+- emit-diff: **1286/0 ✅** (artifacts regenerated after stub loop change)
+- invariants (x64): **ALL PASS ✅**
+
+### Push
+- corpus `12a25d3` ✅ (f13.ref + 460 regenerated .s artifacts)
+- one4all `08ed81e` ✅
+
+### M-DYN-OPT — next milestone
+Invariance detection: identify SNOBOL4 programs where the dynamic Byrd box
+build is invariant across executions and can be hoisted (static optimization).
+See ARCH-byrd-dynamic.md §OPTIMIZATION.
+
+### Bootstrap for next DYN session
+```bash
+cd /home/claude
+git clone https://TOKEN@github.com/snobol4ever/one4all.git
+git clone https://TOKEN@github.com/snobol4ever/.github.git
+git clone https://TOKEN@github.com/snobol4ever/corpus.git
+git clone https://TOKEN@github.com/snobol4ever/harness.git
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md
+# HEAD must be 08ed81e
+# Next: M-DYN-OPT (invariance detection) — see ARCH-byrd-dynamic.md §OPTIMIZATION
+```
