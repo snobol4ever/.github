@@ -13494,3 +13494,51 @@ cat /home/claude/.github/test_sno_2.c
 Five-phase statement executor. Pure x86 path: r12=data ptr, one frame established
 by executor, all box ports are flat labels, pure jmp. C-text path follows the
 test_sno_*.c one-function-per-box pattern exactly.
+
+---
+
+## DYN-3 CLOSE — M-DYN-3 ✅ spec_t rename (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `c8190c9` · **one4all HEAD:** `2ff4647` · **corpus HEAD:** `209a976`
+
+### M-DYN-3 ✅ — one4all `2ff4647`
+
+Five-phase dynamic statement executor committed.
+
+**spec_t** replaces str_t throughout src/runtime/dyn/ — avoids collision
+with engine/runtime.h's str_t. SIL precedent: spec = specifier (σ pointer + δ length).
+
+Five phases — layout:
+
+    LABEL:              ACTION                          GOTO
+    ─────────────────────────────────────────────────────────
+    Phase1:             Σ = VARVAL_fn(*subj_var)        → Phase2
+                        Δ = 0; Ω = strlen(Σ);
+    Phase2:             root = bb_build(spat_of(pat))   → Phase3
+                        (walks PATND_t tree → live bb box graph)
+    Phase3:             for scan=0..Ω:                  → Phase4 on γ
+                            Δ=scan; r=root.fn(α)        → :F if all fail
+    Phase4:             repl already DESCR_t            → Phase5 / skip
+    Phase5:             splice repl into Σ at           → :S
+                        [match_start..match_end]
+                        GC_MALLOC new string, NV_SET_fn
+
+New files:
+  src/runtime/dyn/stmt_exec.c       — executor + bb_build_from_patnd (all XKIND_t cases)
+  src/runtime/dyn/stmt_exec_test.c  — 13/13 PASS standalone gate
+
+Modified (spec_t rename):
+  bb_box.h  bb_lit.c  bb_alt.c  bb_seq.c  bb_arbno.c  bb_pos.c  bb_dyn_test.c
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 ALL PASS ✅
+
+### DYN-4 first action: M-DYN-4 — *VAR dynamic dispatch
+
+*X where X holds a PATTERN SnoVal (DT_P) → jump directly to stored box graph α.
+XDSAR / XVAR already stubbed in bb_build_from_patnd (calls NV_GET_fn at Phase 2 time).
+DYN-4 makes this deferred to Phase 3 match time (true dynamic dispatch).
+Read ARCH-byrd-dynamic.md §*X — Static vs. Dynamic (E_DEFER) before coding.
+Run corpus Rung 6 patterns via dynamic path as gate.
+
