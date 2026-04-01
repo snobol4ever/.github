@@ -15258,276 +15258,63 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js  # expect 52p/
 
 ---
 
-# DYN-17 Pivot Handoff — 2026-04-01 (continuation)
+## Session SJ-8 ADDENDUM — 2026-04-01 — JS artifacts + emit-diff gate
 
-**Session:** ⭐ DYNAMIC BYRD BOX — DYN-17 pivot (coding session)
-**HEADs:** one4all `96f018b` · .github `3d11460` (planning) + pending pivot commit
-**Context at handoff:** ~46%
-
----
-
-## What happened this pivot
-
-Started M-DYN-S1 execution. Five bugs found and fixed. Gate went from 0/142 → 131/142.
-
-### Bugs fixed (all in emit_x64.c + runtime)
-
-**Bug 1 — run_invariants.sh:** `eval_code.o` compiled into `libsno4rt_asm.a` — pulled
-in `parse_expr_from_str` + `snoc_parse` (frontend symbols), causing LINK_FAIL all 142.
-Fix: removed `eval_code.c` compile from `ensure_sno4_archive`. Not part of the archive.
-
-**Bug 2 — emit_x64.c Case 2:** `rdi` (subject variable name) clobbered by
-`emit_pat_to_descr` — `pat_lit`/`pat_any_cs` etc. use `rdi` as their char* arg,
-overwriting the subject name loaded in Phase 1.
-Fix: save `rdi`/`rsi` to `[rsp+32/40]` before Phase 2, restore after.
-
-**Bug 3 — emit_x64.c E_CAPT_IMM/E_CAPT_COND:** both fell through to old inline path
-(`emit_expr`). Implemented properly using `pat_assign_imm`/`pat_assign_cond`.
-**Key:** var descriptor must be `DT_S` (type=1) not `DT_N` (type=9) — `stmt_exec.c`
-`bb_build()` checks `p->var.v == DT_S` to extract varname for `NV_SET_fn`.
-
-**Bug 4 — emit_x64.c pattern string/int args:** `stmt_strval(char*)` called with
-`DESCR_t` lo-word (type tag = 1, not a pointer) — crash in `GC_strdup`.
-Fix: `VARVAL_fn(DESCR_t)` for string args (ANY/SPAN/BREAK/NOTANY/LIT).
-     `to_int(DESCR_t)` for integer args (LEN/POS/RPOS/TAB/RTAB).
-Added both to emitted `extern` declarations in asm header.
-
-**Bug 5 — bb_arbno.c:** greedy accumulation broken — `body_γ` immediately returned
-after one successful iteration. Fix: `body_γ` loops via `ARBNO_try` for next iteration;
-`β` backtracks by decrementing `ARBNO_i` and returning accumulated match;
-`body_ω` returns best accumulated match (zero-or-more semantics correct).
-
-### Gates after all fixes
-- emit-diff: **179/0 ✅** (--update run after emit_x64.c changes)
-- invariants: **131/142** (was 0/142 at session start)
-
----
-
-## Remaining 11 failures for DYN-18
-
-```
-048_pat_rem          — REM pattern returns nothing
-055_pat_concat_seq   — 3-part concat 'ab cd ef' only gets 'ab cd'
-057_pat_fail_builtin — FAIL() builtin not failing the match
-060_capture_multiple — second capture (Smith) missing after first (John) succeeds
-063_capture_null_replace — replacement not being applied
-word1-4, wordcount   — ARB . OUTPUT in loop (depends on ARB + capture_null_replace fix)
-W07_capt_cur         — cursor @ capture always returns 0 not real position
-```
-
-### Root cause analysis (diagnosed, not yet fixed)
-
-**REM:** `pat_rem()` takes no args — likely emitted correctly but `stmt_exec_dyn`
-Phase 3 doesn't handle REM box termination. Check `bb_rem` in `bb_lit.c` or similar.
-
-**pat_concat_seq (3-part):** `E_SEQ` of 3 nodes — likely the third node gets
-lost in `emit_pat_to_descr`'s recursive `E_SEQ` handling. The tree may be
-right-associative but the emitter builds left-to-right. Check the `push/pop`
-pattern in the E_SEQ case — third `pat_cat` call may clobber saved registers.
-
-**FAIL builtin:** `pat_fail()` node type `_XFAIL` — check `bb_build` switch
-in `stmt_exec.c` for `_XFAIL` case. May be missing or returning wrong spec.
-
-**capture_multiple:** Two `.` captures in one pattern — `flush_pending_captures()`
-may only flush one. Check `pending_captures` list in `stmt_exec.c`. The capture
-for `Smith` is not being committed even though the pattern matched fully.
-
-**capture_null_replace:** Replacement with null (empty) string — `stmt_exec_dyn`
-Phase 5 may not handle null replacement correctly.
-
-**W07 cursor (@):** `E_CAPT_CUR` / `@` operator — cursor position in `DESCR_t`
-is 0. `pat_at_cursor` or similar not wired to actual `Δ` (cursor) value.
-`stmt_exec_dyn` returns cursor as part of match result but @ capture reads it wrong.
-
-**word1-4/wordcount:** `ARB . OUTPUT` — OUTPUT as a capture target requires
-`NV_SET_fn("OUTPUT", val)` which triggers the write hook. This likely works
-once `capture_null_replace` is fixed (the replacement `= ""` empties the match
-in the loop). Also needs ARB to work — ARB is `pat_arb()`, distinct from ARBNO.
-Check `_XARB` in `bb_build`.
-
----
-
-## DYN-18 first tasks
-
-```bash
-# Setup
-cd /home/claude/one4all
-FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
-# HEADs: one4all 96f018b · .github 3d11460
-
-# Gate check
-CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
-# Expected: 179/0, 131/142
-
-# Fix order (suggested):
-# 1. pat_concat_seq — check E_SEQ 3-node handling in emit_pat_to_descr
-# 2. capture_multiple — check flush_pending_captures in stmt_exec.c
-# 3. FAIL builtin — check _XFAIL in bb_build
-# 4. REM — check _XREM bb handling
-# 5. cursor @ — check E_CAPT_CUR in emit_pat_to_descr + stmt_exec_dyn
-# 6. capture_null_replace — Phase 5 null replacement
-# Each fix should be tested individually before full run
-```
-
-## Re: JCON Byrd box wiring
-
-**Short answer: yes, but indirectly.** JCON (Proebsting 1996) is the canonical
-reference for Icon's four-port generator wiring. Our SNOBOL4 Byrd box wiring is
-conceptually parallel but semantically different:
-
-**What JCON confirms about our model:**
-- The `bounded` parameter pattern — JCON only emits β (resume) wiring when
-  `/bounded` (unbounded context). Our `stmt_exec_dyn` is always the bounded
-  context for phases 1/2/4/5 (single-shot). Phase 3 (match) is unbounded —
-  β is always wired. This confirms our design is correct.
-- The `every/do` → `body.success → expr.resume` wiring is exactly our ARBNO
-  loop: after each body_γ, jump back to ARBNO_try (the expr.resume equivalent).
-  The fix we just applied matches JCON's `every` wiring precisely.
-- The `ir_Succeed` / `ir_ResumeValue` co-routine pattern is EXPRESSION/CODE
-  in SNOBOL4 terms — same deferred execution model we documented in E=mc².
-
-**What JCON does NOT help with:**
-- SNOBOL4-specific Byrd box ports (α/β/γ/ω) vs Icon's (start/resume/success/fail)
-  — the naming differs but the wiring is isomorphic.
-- Pattern backtracking (our Phase 3) is richer than Icon's generator protocol —
-  SNOBOL4 patterns have both conditional (.) and immediate ($) capture with
-  commit/rollback semantics that Icon lacks.
-- The ARBNO zero-advance guard is SNOBOL4-specific — Icon has no equivalent
-  because Icon generators are lazy, not greedy+backtrack.
-
-**The key JCON insight applicable NOW:**
-The `every` wiring (`body.success → expr.resume`) is exactly the pattern for
-our `capture_multiple` fix: after the first capture commits (body_γ for first .),
-the second capture should be tried as the next iteration, not abandoned. Check
-whether `flush_pending_captures` iterates ALL pending captures or just one.
-
----
-
-# DYN-17 Continuation Handoff — 2026-04-01 (second continuation)
-
-**Session:** ⭐ DYNAMIC BYRD BOX — DYN-17 continuation 2
-**HEADs:** one4all `ab5b3b7` · .github `7bbfade`
-**Context at handoff:** ~54%
-
----
-
-## What happened
-
-### Bugs fixed (on top of 131/142)
-
-**Bug 6 — E_SEQ/E_ALT flatten:**
-Parser builds flat n-ary nodes — all N children direct under one E_SEQ/E_ALT.
-Previous code did a right-spine walk expecting a binary tree — only found 2 of N
-children. Fix: iterate `e->nchildren` directly in left-fold loop.
-Fixes: `055_pat_concat_seq`, `048_pat_rem`, `060_capture_multiple`, `word*` partial.
-
-**Bug 7 — E_VAR nullary pattern builtins:**
-`FAIL`, `SUCCEED`, `ARB`, `REM`, `ABORT`, `BAL`, `FENCE` used without parens
-in patterns were parsed as `E_VAR("FAIL")` → emitted as `pat_ref("FAIL")`
-(deferred variable lookup). Fix: detect by name in `E_VAR` case of
-`emit_pat_to_descr`, call `pat_fail()`/`pat_arb()`/etc. directly.
-Fixes: `057_pat_fail_builtin`.
-
-### Architectural decision recorded
-
-**D-010 + M-DYN-SEQ:** E_SEQ vs E_CONCAT juxtaposition fragility documented.
-SNOBOL4 juxtaposition is polymorphic at runtime. `fixup_val_tree` parse-time
-heuristic is wrong for variables holding DT_P. Deferred to post M-DYN-S1.
-Fix: `stmt_seq(left, right)` runtime dispatcher. See ARCH-decisions.md D-010
-and ARCH-byrd-dynamic.md M-DYN-SEQ section.
+**HEAD at addendum:** one4all `5f0f36a` · corpus `18a8b70`
 
 ### Gates
-- emit-diff: **179/0 ✅**
-- invariants: **134/142** (up from 131)
+- emit-diff (CELLS=snobol4_js): **175/0** ✅ (was 0/0 — JS not wired)
+- invariants (snobol4_js): **52p/68f** (unchanged)
 
----
+### Work done
 
-## Remaining 8 failures — root causes for DYN-18
+**JS artifacts generated for all corpus crosscheck tests**
+178 of 179 `.sno` files had zero `.js` artifacts. Generated `.js` for all 175
+that compile (4 `library/` tests fail to compile — same as invariants `[compile]`).
+Committed to `corpus/crosscheck/` alongside `.s`/`.j`/`.il` per-backend convention.
 
-```
-cross         ASM_FAIL   — E_CAPT_CUR (@) in value context generates "ASSIGN_INT_RAX S_NH"
-                           which is invalid NASM (macro call in wrong context)
-W07_capt_cur  FAIL       — E_CAPT_CUR cursor always 0 (old AT_α path reads BSS cursor
-                           global, but stmt_exec_dyn maintains cursor in C Δ variable,
-                           not BSS slot)
-063_capture_null_replace FAIL — replacement with null/empty not applied in Phase 5
-word1-4, wordcount FAIL   — use ARB . OUTPUT + INPUT loop; depend on capture_null_replace
-                            (the `=` replacement clears consumed match) working correctly
-```
+**`run_emit_check.sh` wired for snobol4_js**
+Added `_want_sno_js` flag, `snobol4_js` CELLS dispatch, `-js js` regen and
+check_one lines. Emit-diff gate now live: 175/0.
 
-### Root cause analysis
-
-**E_CAPT_CUR (@ operator) — two symptoms, one root cause:**
-`E_CAPT_CUR` falls through to `default` in `emit_pat_to_descr` → calls
-`emit_expr(e, -32)` → hits the old `case E_CAPT_CUR:` at line 3936 in `emit_expr` →
-emits `mov rax, [cursor]` + `ASSIGN_INT_RAX S_VAR` inline NASM macros.
-
-Problem 1 (ASM_FAIL in `cross`): `ASSIGN_INT_RAX` is a pattern-context macro,
-not valid inside the Case 2 `sub rsp, 48` stack frame. Generates invalid NASM.
-
-Problem 2 (cursor=0 in W07): Even when the asm is valid, `[cursor]` reads the
-BSS global `cursor` variable. But in the `stmt_exec_dyn` path, cursor position
-is tracked in the C local `Δ` inside `stmt_exec.c` — the BSS `cursor` is never
-written. So `[cursor]` is always 0.
-
-**Fix for E_CAPT_CUR:**
-Add `case E_CAPT_CUR:` to `emit_pat_to_descr`. Use `_XATP` pattern node.
-`pat_atp` / `XATP` node kind exists in `snobol4_pattern.c` (kind=`XATP`=53 in
-the enum, `_XATP`=25 in `stmt_exec.c`). `bb_build` `_XATP` case is at line 897.
-
-The emit approach: build a `XATP` pattern node that wraps the child pattern
-(if binary `pat@var`) or is unary (if just `@var`). In `emit_pat_to_descr`:
-```c
-case E_CAPT_CUR: {
-    EXPR_t *child = (e->nchildren >= 2) ? e->children[0] : NULL;
-    EXPR_t *varnd = (e->nchildren >= 2) ? e->children[1] : e->children[0];
-    if (child) emit_pat_to_descr(child);
-    else A("    call    pat_epsilon\n");   /* unary @: epsilon child */
-    // push child result, build DT_S var descriptor, call pat_atp_assign
-    // OR: use pat_assign_cond with the XATP cursor-writing box
-}
-```
-Check `bb_build _XATP` case and `pat_at_cursor` (if it exists in snobol4_pattern.c)
-to understand the correct API before coding.
-
-**Fix for capture_null_replace:**
-`063_capture_null_replace.sno`: match `'hello world'` with pattern `'hello'`,
-replacement field is `=` (null/empty string). Expected output: `hello` (just the
-matched part, subject becomes `hello`). Currently outputs `hello world` (no replacement).
-Check Phase 5 in `stmt_exec_dyn` — `perform_repl` — for the null/empty replacement case.
-`has_repl=1` but `repl` DESCR_t is `DT_SNUL` or empty string → may be skipped.
-
----
-
-## DYN-18 first tasks
-
+### Bootstrap for SJ-9
 ```bash
-# Setup
-cd /home/claude/one4all
-FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
-# Expected HEADs: one4all ab5b3b7 · .github 7bbfade
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=... bash .github/SESSION_SETUP.sh
+cd one4all
+git log --oneline -3   # expect 5f0f36a at HEAD
+CELLS=snobol4_js CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 175/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js          # expect 52p/68f
 
-# Gate check
-CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 179/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # 134/142
-
-# Task 1: Fix E_CAPT_CUR in emit_pat_to_descr
-#   Read: grep -n "_XATP\|bb_atp\|pat_atp\|XATP" src/runtime/dyn/stmt_exec.c
-#   Read: grep -n "XATP\|pat_atp\|at_cursor" src/runtime/snobol4/snobol4_pattern.c
-#   Read: sed -n '897,920p' src/runtime/dyn/stmt_exec.c  (bb_build _XATP case)
-#   Then add case E_CAPT_CUR to emit_pat_to_descr
-
-# Task 2: Fix capture_null_replace
-#   Read: grep -n "perform_repl\|Phase 5\|has_repl\|repl\b" src/runtime/dyn/stmt_exec.c
-#   Check null/empty replacement path in Phase 5
-
-# Task 3: Run full invariants → should be 142/142 → M-DYN-S1 COMPLETE 🎉
+# SJ-9 FIRST: DEFINE/RETURN call stack in sno_engine.js
+# Fixes 1010-1018 timeouts (~8 tests). Oracle: emit_jvm.c DEFINE handling.
+# Then: DATA/ARRAY/TABLE builtins.
+# Then: string_pattern needs E_18 value-context pattern expression.
 ```
 
-## Key files for DYN-18
-```
-src/backend/emit_x64.c           — add E_CAPT_CUR to emit_pat_to_descr
-src/runtime/dyn/stmt_exec.c      — check _XATP case + Phase 5 null replace
-src/runtime/snobol4/snobol4_pattern.c — XATP / pat_at_cursor API
+---
+
+## Session SJ-8 ADDENDUM — 2026-04-01 — JS artifacts + emit-diff gate
+
+**HEAD at addendum:** one4all `5f0f36a` · corpus `18a8b70`
+
+### Gates
+- emit-diff (CELLS=snobol4_js): **175/0** ✅ (was 0/0 — JS not wired)
+- invariants (snobol4_js): **52p/68f** (unchanged)
+
+**JS artifacts generated** for all 175 compiling crosscheck tests.
+**run_emit_check.sh wired** — snobol4_js CELLS dispatch + -js js lines.
+
+### Bootstrap for SJ-9
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=... bash .github/SESSION_SETUP.sh
+cd one4all
+CELLS=snobol4_js CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 175/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js          # 52p/68f
+# SJ-9 FIRST: DEFINE/RETURN call stack in sno_engine.js
 ```
