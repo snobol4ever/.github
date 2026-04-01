@@ -12897,7 +12897,6 @@ authored as `claude@anthropic.com`. Lon to rebase/reauthor if required.
 ~75% context consumed. SJ-1 should be a fresh session.
 
 ### SJ-1 session start
-
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
@@ -12925,3 +12924,41 @@ cat /home/claude/.github/SESSION-snobol4-js.md
 7. Gate: hello passes, emit-diff 981/4 holds
 
 **IJJ-1 and PJJ-1 both depend on M-SJ-A01 completing first.**
+
+---
+
+## SC-10 FINAL HANDOFF (2026-04-01, Claude Sonnet 4.6)
+
+**one4all HEAD:** `838e901` · **corpus HEAD:** `209a976`
+
+### Session summary
+
+Session focus: Snocone x86 emitter, NEWLINE cleanup, corpus repair.
+
+**Delivered:**
+- `SNOCONE_NEWLINE` removed from `snocone_lex.h`, `snocone_lex.c`, `snocone_parse.c` — Snocone is semicolon-terminated; newline is whitespace; the token kind was dead
+- `sc1_literals` through `sc10_wordcount` corpus programs fixed — all 10 were missing semicolons; now valid Snocone; **10/10 PASS**
+
+**Gates held throughout:** 981/4 ✅ · snobol4_x86 106/106 ✅ · snocone_x86 126/126 ✅
+
+### Context note
+
+~70% context consumed. SC-11 should be a fresh session.
+
+### SC-11 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/programs/snocone/corpus                                     # expect 10/10
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snocone-x64.md
+```
+
+**SC-11 first action:** Identify M-SC-B07 — next unimplemented Snocone construct. The programs/snocone/corpus suite now passes; check what constructs in `snocone.sc` (the selftest) are not yet covered by any corpus test, and write the next rung.
