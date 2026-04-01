@@ -13284,3 +13284,81 @@ size at build time.
 
 Tests: 13/13 stmt_exec_test · 3/3 bb_dyn_test · gate 981/4
 
+
+---
+
+## DYN-4 ADDENDUM 2 — Greek restore + final cleanup (2026-04-01, Claude Sonnet 4.6)
+
+one4all HEAD: `350f6b4` · .github HEAD: TBD after push
+
+### What happened
+
+Claude made a mistake. After implementing M-DYN-4 correctly (commit `e1fc67a`),
+Claude over-eagerly renamed all Greek letters to ASCII (`745d047`, `108c4bf`)
+against explicit requirement to keep them. Then wasted session time reverting.
+
+The mistake: fixing `-Wmisleading-indentation` by mass-renaming rather than
+using a one-line pragma. Correct fix: `#pragma GCC diagnostic ignored "-Wmisleading-indentation"` at top of affected files.
+
+### Final state of dyn/ (one4all `350f6b4`)
+
+Greek roots in use — all eleven canonical:
+
+| Root | Count | Role |
+|------|-------|------|
+| Σ | 40 | Subject string pointer (global) |
+| Δ | 90 | Cursor (global, mutated by boxes) |
+| Ω | 23 | Subject length (global) |
+| saved_Δ | 14 | Cursor save in ALT/ARBNO state |
+| ζ | state structs | Box state pointer (`*ζ`) |
+| ζζ | params | Pointer-to-state (`**ζζ`) |
+| σ | spec_t field | Matched span pointer |
+| δ | spec_t field | Matched span length |
+| α | port | Fresh entry (0) |
+| β | port | Backtrack re-entry (1) |
+| γ | port | Success return |
+| ω | port | Failure return |
+
+### Real fixes in this session (both in `350f6b4`)
+
+**1. Misleading-indentation warning silenced with pragma** (not rename):
+```c
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
+```
+Added to: `stmt_exec.c`, `bb_alt.c`, `bb_seq.c`, `bb_arbno.c`.
+Three-column layout is intentional style — the warning was wrong to fight.
+
+**2. bb_deferred_var: build-once semantics**
+Graph built ONCE on first α call. Subsequent α calls: `memset(ζ->child_ζ, 0,
+DVAR_CHILD_STATE_MAX)` to reset child state for fresh locals. Same graph,
+new local state each attempt. No allocation after first call.
+`DVAR_CHILD_STATE_MAX 4096` — conservative upper bound, noted for DYN-5.
+
+### M-DYN-4 items (all done, landed in `e1fc67a` + `350f6b4`)
+
+1. ✅ XDSAR/XVAR deferred dispatch — `bb_deferred_var()`, resolves at α
+2. ✅ XNME (.) conditional capture — buffered, flushed after Phase 3
+3. ✅ kw_anchor integration — Phase 3 scan gated on &ANCHOR
+4. ✅ Phase 5 lvalue fix — NV_SET_fn(subj_name) write-back
+5. ✅ Zero -Wall warnings (pragma, not rename)
+6. ✅ All Greek roots preserved throughout
+
+### Tests
+
+- stmt_exec_test: **13/13 PASS**
+- bb_dyn_test: **3/3 PASS**
+- emit-diff gate: **981/4 PASS**
+
+### M-DYN-5 next actions
+
+1. **Rung 6 corpus gate** — run corpus patterns with *VAR through dynamic path.
+   Needs test harness driving stmt_exec_dyn() with real PATND_t trees containing
+   XDSAR/XVAR nodes. Integrate with snobol4_pattern.c or write a builder stub.
+2. **TAB box** — current impl reuses POS semantics (assert Δ==n). TAB should
+   advance TO n if Δ ≤ n. One-line fix in bb_build _XTB case.
+3. **FENCE/ABORT** — currently epsilon/fail stubs. FENCE = cut (γ once, then ω
+   on all β). ABORT = immediate match failure regardless of context.
+4. **DVAR_CHILD_STATE_MAX** — replace 4096 magic with true sizeof stored at
+   bb_build time in deferred_var_t.
+5. **XNME . capture ordering** — confirm spec compliance with corpus tests.
+
