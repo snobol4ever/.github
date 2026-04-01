@@ -14828,3 +14828,46 @@ cat .github/SESSION-snobol4-js.md
 # make -C src && ./scrip-cc -js corpus/.../feat/f09_functions.sno -o /tmp/f09.js
 # SNO_RUNTIME=... SNO_ENGINE=... node /tmp/f09.js   # expect PASS
 ```
+---
+
+## Session SJ-6b FINAL — 2026-04-01 — Greek port rename
+
+**HEAD at session end:** one4all `d9e0837` · .github unchanged
+**Context at handoff: ~62%**
+
+### Work completed
+
+**Greek port signals — Byrd-box alignment**
+Action strings renamed to Greek matching the four Byrd-box ports:
+  'proceed' → 'α'   (α-port: enter fresh)
+  'succeed' → 'γ'   (γ-port: match succeeded)
+  'recede'  → 'β'   (β-port: backtrack resume)
+  'fail'    → 'ω'   (ω-port: concede — matches rest of codebase)
+
+α/β/γ/ω RESERVED for Byrd-box port semantics only per arch decision.
+Header comment updated with full Greek glossary + port reservation notice.
+
+**Greek variable grid (complete):**
+
+| Symbol | Role |
+|--------|------|
+| ζ | frame (7-element array) |
+| α | action variable (holds current port signal: 'α'/'γ'/'β'/'ω') |
+| Ω | backtrack stack |
+| Ψ | parent frame stack (inside ζ) |
+| Π | current pattern node |
+| φ | child index / retry state |
+| λ | node type tag |
+| Σ/Δ | subject string + cursor on frame entry |
+| σ/δ | subject string + current cursor |
+| 'α' | proceed port signal |
+| 'γ' | succeed port signal |
+| 'β' | recede port signal |
+| 'ω' | concede port signal (was "fail" — renamed to match codebase) |
+
+### Bootstrap for SJ-7
+```bash
+# same as SJ-6 bootstrap
+# SJ-7 FIRST ACTION: fix emit_js.c block-grouping bug
+# See SJ-6 handoff above for exact fix description
+```
