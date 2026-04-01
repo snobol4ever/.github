@@ -13351,3 +13351,42 @@ Then M-DYN-2 is complete. Then M-DYN-3: stmt_exec.c — five-phase executor.
 
 Read .github/test_sno_1.c through test_sno_4.c before any coding.
 They ARE the spec.
+
+---
+
+## DYN-2 ADDENDUM — Three-column NASM law locked (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `682fba4` · **one4all HEAD:** `7b20e2a` · **corpus HEAD:** `209a976`
+
+### The three-column NASM law — final form
+
+Lon confirmed the design. NASM semicolons are column 3. Macro names are column 2.
+Labels are column 1. One NASM proc per named pattern (globbing sub-box labels as
+local labels within). Multi-line port bodies are fine — each line keeps its column,
+the jmp sits in column 3 on the last line of the port body.
+
+    LABEL:          ACTION                      GOTO
+    ─────────────────────────────────────────────────
+    BIRD_α:         MACRO0_port(p1, p2, p3)     ;
+                    MACRO1(p5, p7)              ; jmp BIRD_γ
+                                                ; jmp BIRD_ω
+    BIRD_β:         MACRO2(p1)                  ; jmp BIRD_ω
+
+C function = NASM proc. C label = NASM local label. goto = jmp. return = ret.
+The C reference implementations (test_sno_*.c) and the NASM output are direct
+translations of each other. Correctness verifiable by inspection.
+
+ARCH-byrd-dynamic.md updated with full three-column NASM spec, globbing example,
+multi-line port body example. This is the final canonical form.
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 106/106 ✅
+
+### DYN-3 first action
+
+Fix bb_alt β bug (one line in src/runtime/dyn/bb_alt.c):
+  ALT_β must ω immediately after current child β ω's.
+  Never advance to next alternative on β — that is ARBNO's job.
+Run bb_dyn_test → expect Blue/BlueGold/BlueGoldBird/BlueGoldBirdFish/Success!
+Then M-DYN-3: stmt_exec.c five-phase executor.
