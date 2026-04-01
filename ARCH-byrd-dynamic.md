@@ -567,3 +567,45 @@ The macro expansion is invisible at the call site — one line per semantic oper
 C layer (src/runtime/dyn/): bb_lit, bb_seq, bb_pos, bb_arbno written ✅
 bb_alt β bug: fix in DYN-3 (one line — ALT_β must ω not advance to next branch)
 NASM layer: M-DYN-1 bb_emit provides primitives; macro-to-NASM in M-DYN-2 scope
+
+---
+
+## Phase 5 lvalue requirement — DYN-4 correctness fix (2026-04-01)
+
+**The bug:** `stmt_exec_dyn(DESCR_t *subj_var, ...)` writes back via
+`*subj_var = new_val`. If the caller passed a pointer to a temporary
+(literal string, integer, expression result), the write is silently lost.
+
+**SNOBOL4 spec:** the subject MUST be a named variable (lvalue). Replacement
+into a non-lvalue is illegal.
+
+**The fix:** change signature to pass subject by name:
+
+```c
+int stmt_exec_dyn(const char *subj_name,   /* NV variable name, or NULL */
+                  DESCR_t     pat,
+                  DESCR_t    *repl,
+                  int         has_repl);
+```
+
+- Phase 1: `Σ = VARVAL_fn(NV_GET_fn(subj_name))`
+- Phase 5: `NV_SET_fn(subj_name, new_val)`
+- If `subj_name == NULL && has_repl`: return 0 (`:F` — can't assign to non-lvalue)
+- If `subj_name == NULL && !has_repl`: match-only is valid (subject is read-only)
+
+**Implement in DYN-4** alongside the *VAR dynamic dispatch work.
+
+---
+
+## DYN-4 work items (from DYN-3 session, 2026-04-01)
+
+Priority order:
+
+1. **Phase 5 lvalue fix** — subj_name signature (above). One-function change.
+2. **XDSAR/XVAR deferred dispatch** — resolve at α port (Phase 3), not bb_build (Phase 2).
+   Store variable name in box state; call NV_GET_fn on each α entry.
+3. **XNME conditional capture** — buffer captures, commit only after Phase 3 succeeds.
+   XFNME (immediate $) is already correct.
+4. **kw_anchor integration** — gate Phase 3 scan loop on kw_anchor global.
+5. **Rung 6 corpus gate** — run dynamic path against corpus patterns that use *VAR.
+
