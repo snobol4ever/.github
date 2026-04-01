@@ -1088,6 +1088,7 @@ complex expressions is minor compared to the pattern match itself.
 |----|-------------|
 | **M-DYN-S1** | emit_x64.c: replace inline NASM with call stmt_exec_dyn. Stack machine for phases 1/2/4/5. Gate: 142/142 via stmt_exec_dyn. |
 | **M-DYN-S2** | Verify CODE() and compiled .s agree on all 142 tests. |
+| **M-DYN-SEQ** | Unify E_SEQ and E_CONCAT: remove fixup_val_tree from SNOBOL4 frontend; add stmt_seq(DESCR_t,DESCR_t) runtime dispatcher that branches on DT_P at runtime. See ARCH-decisions.md D-010. |
 | **M-DYN-BENCH** | Benchmark: stack machine vs Byrd box for phases 1/2/4/5 on complex patterns. |
 | **M-DYN-BB-EVAL** | (If bench shows >20% gain) Byrd box evaluation phases. 99% stackless. |
 | **M-DYN-B1** | S-binary: bb_emit.c raw x86, r12=DATA, Technique 2. Gate: LIT box binary. |
@@ -1219,3 +1220,91 @@ computations are executed by stmt_exec_dyn or a thin wrapper over it.**
 This is the invariant. Every new feature either fits this model or reveals
 a gap in it. TDD confirms the model is tight.
 
+
+---
+
+## M-DYN-SEQ — Unify E_SEQ / E_CONCAT (deferred, post M-DYN-S1)
+
+**Decision:** See `ARCH-decisions.md D-010` for the full rationale.
+
+### Problem
+
+SNOBOL4 juxtaposition is a single syntactic operation whose runtime semantics
+depend on the types of its operands:
+
+```snobol4
+X = A B C          ; if A,B,C are strings → string concat
+X A B C            ; if any of A,B,C is DT_P → pattern sequence (pat_cat)
+```
+
+The current parser applies `fixup_val_tree` post-parse to rename `E_SEQ → E_CONCAT`
+in "known value contexts". This is fragile:
+
+```snobol4
+PAT = LEN(3) FENCE       ; PAT holds DT_P
+X = '' PAT ''            ; '' looks like strings → fixup_val_tree → E_CONCAT
+                         ; but '' PAT '' at runtime: PAT is DT_P → should be pat_cat
+                         ; stmt_concat sees DT_P → wrong result or crash
+```
+
+The `repl_is_pat_tree` guard doesn't catch variable references holding patterns.
+
+### Fix
+
+**One IR node for juxtaposition: `E_SEQ`.**
+
+Remove `fixup_val_tree` from the SNOBOL4 frontend.
+Remove `E_CONCAT` from `parse.c` (keep it for Icon/Snocone where `||` is explicit).
+Add runtime dispatcher:
+
+```c
+/* snobol4_stmt_rt.c — or inline in emit_x64.c E_SEQ case */
+DESCR_t stmt_seq(DESCR_t left, DESCR_t right) {
+    /* SNOBOL4 juxtaposition: DT_P on either side → pattern sequence */
+    if (left.v == DT_P || right.v == DT_P)
+        return pat_cat(left, right);
+    /* otherwise: string concatenation */
+    return CONCAT_fn(left, right);
+}
+```
+
+`emit_x64.c` `E_SEQ` case in `emit_expr`:
+```nasm
+; evaluate left → [rbp-32/24]
+; push
+; evaluate right → [rbp-32/24]  
+; pop rdi:rsi (left), mov rdx:rcx (right)
+; call stmt_seq
+```
+
+The `emit_pat_to_descr` path for `E_SEQ` is unchanged — in pattern context,
+juxtaposition is always `pat_cat` (already correct).
+
+### What stays
+
+- `E_CONCAT` kept as a distinct node for **Icon** (`||` string concat) and **Snocone**
+  (`+` or `&&` depending on context). These frontends have unambiguous syntax.
+- `emit_x64.c` `E_CONCAT` case in `emit_expr`: unchanged — calls `stmt_concat` directly.
+  Used only by Icon/Snocone emitters where the type is guaranteed at parse time.
+- `emit_pat_to_descr` handles both `E_SEQ` and `E_CONCAT` identically → `pat_cat`.
+  No change there.
+
+### Gate
+
+```bash
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+# 179/0 ✅
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# 142/142 ✅ (no regression)
+
+# Plus: specific tests that exercise DT_P variable in juxtaposition:
+# corpus/crosscheck/*/dynamic_pat_concat.sno (to be written for this milestone)
+# Tests: PAT = LEN(3); X 'AB' PAT 'CD' :S(yes); etc.
+```
+
+### Why deferred
+
+This requires touching `parse.c`, `emit_x64.c`, and `snobol4_stmt_rt.c`
+simultaneously, plus a new rung of corpus tests. It is a correctness fix for
+an edge case (variable holding DT_P in juxtaposition) that does not affect
+the 142/142 gate tests currently. Schedule after M-DYN-S1 fires.
