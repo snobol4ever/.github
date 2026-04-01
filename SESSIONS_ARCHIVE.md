@@ -14149,3 +14149,75 @@ cat .github/SESSION-snocone-beauty.md   # read full SCB plan
 #
 # TRACK A (SC-15) — fix sc_compile_paren_expr depth-tracking, then M-SC-SELFTEST
 ```
+
+---
+
+## Session SJ-3 FINAL — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** one4all `63bed44` · .github `1dcec8a`
+**HEAD at session end:**   one4all `2d9dc3f` · .github `0437500`
+**Sprint:** SJ-3
+**Context at handoff: ~72%**
+
+### Work completed
+
+**Item 1 — spipatjs study**
+Cloned `philbudne/spipatjs` (not in snobol4ever org — found via GitHub search).
+ES6 port of GNAT.SPITBOL.PATTERNS, 3090 lines. Author is Phil Budne
+(SPITBOL x32/x64 maintainer). Authoritative JS pattern reference.
+
+**Item 2 — ARCH-spipat-js.md (committed 0437500)**
+GNAT model vs Byrd-box trampoline documented. Key lessons:
+- Adopt: ARBNO zero-advance guard, `Array.from()` subject, `Set` char sets
+- Do NOT adopt: PE node graph, Stack class, M_* constants
+- License: GPL-3 — reference only, do not import source
+- Registered in ARCH-index.md under new JS Backend section
+
+**Item 3 — Root cause diagnosis: rung2/3/4/8 emit nothing**
+Two-pass emitter was wrong. Labeled statements were isolated stubs.
+`goto_e001()` ran empty, returned — rest of program unreachable.
+
+**Item 4 — Block-grouping trampoline rewrite (committed 2d9dc3f)**
+Rewrote `js_emit()` to mirror `emit_byrd_c.c`:
+- `js_emit_goto`: `goto_X(); return` → `return goto_X`
+- `js_emit_stmt_body`: split out; returns transferred flag
+- `js_emit`: single-pass block grouping with jv() naming throughout
+- Trampoline: `(function(){var _pc=goto_v_START;while(_pc)_pc=_pc();})()`
+- Emit-diff: **1286/0 ✅**
+
+### Known remaining issue — SJ-4 FIRST ACTION
+
+**Node v22 trampoline IIFE bug:**
+`node hello.js` → `TypeError: (intermediate value)(...) is not a function`
+Logic is correct (explicit stepped loop works). Hypothesis: duplicate
+`var goto_v_END` declaration (forward decl + immediate assign) confuses
+Node v22 CJS module wrapper under `'use strict'`.
+
+**Fix candidates (try in order):**
+1. Forward-declare with bare `var x;` only — move all `= function()` to block section
+2. Remove duplicate `goto_v_END` from forward-decl section entirely
+3. Switch forward decls from `var` to `let`
+
+### Gates
+- Emit-diff: **1286/0 ✅**
+- snobol4_js invariants: not yet wired
+
+### Bootstrap for SJ-4
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 1286/0
+# HEAD: one4all 2d9dc3f  .github 0437500
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+
+# SJ-4 FIRST ACTION: fix Node v22 var/IIFE bug in emit_js.c
+# In js_emit() forward-decl loop: emit bare 'var goto_vX;' only
+# Remove 'var goto_v_END = function() { return null; };' from forward section
+# The block section already emits goto_v_END = function(){return null;} correctly
+# Test: node compiled_hello.js  (no SNO_RUNTIME env needed if runtime colocated)
+# Then: baseline corpus, fix remdr+float, wire run_snobol4_js(), commit M-SJ-A03
+```
