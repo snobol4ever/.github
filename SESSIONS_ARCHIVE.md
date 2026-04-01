@@ -13872,3 +13872,66 @@ tail -100 .github/SESSIONS_ARCHIVE.md
 #     src/frontend/snobol4/lex.c src/frontend/snobol4/parse.c \
 #     src/runtime/dyn/rung6_dyn_test.c -lgc -lm -o rung6_dyn_test
 ```
+
+---
+
+## SC-13 — 2026-04-01 — Snocone × x86
+
+**HEAD at session start:** one4all `5ee6353` · corpus `5f8fee1` · .github `3a4bd32`
+**HEAD at session end:**   one4all `45ab380` · corpus `1a6e674`
+**Sprint:** SC-13 — M-SC-B09 ✅ complete
+**Context at handoff: ~75%**
+
+### Work completed
+
+**Item 1 — Fixed DYN-8 cross-session mock link regression (mock_includes.c)**
+DYN-8 added `extern DESCR_t code_dyn(const char *src)` to `snobol4.c` and
+`extern DESCR_t eval_expr_dyn(const char *src)` to `snobol4_pattern.c`.
+The snocone test runner links against `mock_engine.c` which does not define
+these symbols → all 127 snocone_x86 invariant tests failed at link time.
+Fix: added FAILDESCR-returning stubs in `mock_includes.c` (which has snobol4.h
+in scope). Cache busted, invariants restored.
+
+**Item 2 — M-SC-B09: string comparison operators**
+All six operators (`:==:` `:!=:` `:>:` `:<:` `:>=:` `:<=:`) already wired in
+`emit_x64_snocone.c` lower_token (SC-12 or earlier) as `make_fnc2("LEQ",...)` etc.
+Runtime builtins `LEQ`/`LNE`/`LGT`/`LLT`/`LGE`/`LLE` registered in `snobol4.c`
+via `register_fn` → reach via existing `APPLY_FN_N` path. **Zero new emitter code.**
+
+**Item 3 — rungB09 corpus (6 tests)**
+One test per operator, each covering true and false branches:
+B09_str_eq · B09_str_ne · B09_str_lt · B09_str_gt · B09_str_le · B09_str_ge
+
+**Item 4 — run_invariants.sh: added rungB07/B08/B09 to snocone DIRS**
+B07/B08 were passing but uncounted. B09 is new. Snocone count: 126→144.
+
+### Gates
+- Emit-diff: **1286/0 ✅**
+- snobol4_x86: **106 ✓ ✅**
+- snocone_x86: **144 ✓ ✅** (was 0p/127f link-error at session start)
+- rungB09: **6/6 ✅**
+
+### Push
+- one4all `45ab380` ✅
+- corpus  `1a6e674` ✅
+
+### SC-14 first action
+Identify M-SC-B10: next unimplemented Snocone construct. Check xfail list
+and open corpus gaps. Candidates: numeric comparisons (`:=:` `:<>:` etc.),
+`goto`, array/table access, or `return` from procedures.
+
+### Bootstrap for SC-14
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 144/144
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB09                                  # expect 6/6
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 45ab380 · corpus 1a6e674
+# Next: M-SC-B10 — identify and implement next unimplemented construct
+```
