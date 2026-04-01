@@ -14753,3 +14753,78 @@ cat .github/SESSION-snobol4-js.md
 # (may need to wrap spipatjs ESM import; check bench harness)
 # Then: DEFINE() support for user-defined functions (f09)
 ```
+
+---
+
+## Session SJ-6 FINAL — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** one4all `4204e20`
+**HEAD at session end:** one4all `2d907b7` · .github `84d03f1`
+**Sprint:** SJ-6
+**Context at handoff: ~57%**
+
+### Work completed
+
+**Item 1 — MILESTONE-JS-BENCH: completed and committed**
+bench_engine.js (159 lines): 8 patterns × 2 engines × 20k iterations.
+one4all wins all 8 benchmarks vs spipatjs, range 1.4×–64.9×.
+Root cause of spipatjs slowness: Object.freeze() on every match result.
+Results committed to test/js/bench_engine_results.txt.
+MILESTONE-JS-BENCH.md updated with full results + analysis table.
+
+**Item 2 — Greek variable names confirmed and completed**
+sno_engine.js uses: ζ (frame), Ω (backtrack stack), Ψ (parent stack),
+Π (pattern node), Σ/Δ (subject/entry-cursor), σ/δ (current),
+φ (child index), λ (node type tag), α (action signal).
+Renamed: action→α throughout, engine_at→engine_ζ.
+Node.js v22 handles Greek identifiers correctly (ES2015+ Unicode).
+
+**Item 3 — README.md updated**
+Added:  row in backends table, "JavaScript Backend (In Progress)"
+section with status, pattern engine architecture with Greek variable
+reference table, full 8-row benchmark comparison vs spipatjs.
+
+### Gates
+- Emit-diff: **1286/0 ✅**
+- Feat suite: **14/17 ✅**
+- Benchmark: **8/8 ✅ one4all wins all**
+
+### Known open issues for SJ-7
+
+**Priority 1 — emit_js.c block-grouping bug (f09 triple-START)**
+Unlabeled stmts after an explicit-transfer block reopen goto_v_START
+instead of continuing under the last-opened label. Fix: track
+`current_label` (initialized "START", updated on each label open).
+str_replace failed this session due to escape sequence mismatch —
+view the file fresh, apply the fix, rebuild, rerun f09.
+
+**Priority 2 — DEFINE/RETURN runtime**
+DEFINE('FACT(N)') must register label FACT in _user_fns so
+_apply('FACT',[...]) can call it. RETURN must restore caller frame.
+The emitter already emits goto_v_RETURN as a label — runtime needs
+a call stack and RETURN handler.
+
+**Priority 3 — Wire run_snobol4_js() into run_invariants.sh**
+
+**Priority 4 — INPUT line buffering**
+
+### Bootstrap for SJ-7
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 1286/0
+git log --oneline -3   # expect 2d907b7 at HEAD
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+
+# SJ-7 FIRST ACTION: fix block-grouping bug in emit_js.c
+# view src/backend/emit_js.c around line 985
+# Add: const char *current_label = "START";
+# Change unlabeled-block open from jv("START") to jv(current_label)
+# Update current_label = s->label whenever a new label block opens
+# make -C src && ./scrip-cc -js corpus/.../feat/f09_functions.sno -o /tmp/f09.js
+# SNO_RUNTIME=... SNO_ENGINE=... node /tmp/f09.js   # expect PASS
+```
