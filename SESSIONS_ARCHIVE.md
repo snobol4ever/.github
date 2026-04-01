@@ -13218,3 +13218,136 @@ Write `src/runtime/asm/bb_emit.c` + `bb_emit.h`:
   call it, confirm PASS/FAIL behavior.
 
 Pool is ready. Emitter is next.
+
+---
+
+## DYN-2 FINAL HANDOFF — M-DYN-1 ✅ + M-DYN-2 WIP (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `d123ac8` · **one4all HEAD:** `7b20e2a` · **corpus HEAD:** `209a976`
+
+### Context note
+
+~58% consumed. DYN-3 should be a fresh session. Plenty of runway for the β bug fix.
+
+### What happened this session (continuation of DYN-2)
+
+**M-DYN-1 ✅** — `bb_emit.{h,c}` + `bb_emit_test.c` (`df6278e`)
+Dual-mode emitter: EMIT_TEXT / EMIT_BINARY switch, label/patch system (forward +
+backward refs, rel8 + rel32), all x86-64 instruction helpers. 25/25 tests PASS.
+Binary mode builds working 'hello' box. Text mode emits clean NASM. Both modes
+same call sites, same logic.
+
+**Architecture pivot (critical):**
+Lon uploaded test_sno_1.c through test_sno_4.c and test_icon.c from the ByrdBox
+archive. These are the canonical reference implementations. They reveal the correct
+design had been stated for three weeks:
+
+  **ONE C FUNCTION PER BOX. THREE-COLUMN LAYOUT.**
+
+    LABEL:          ACTION                          GOTO
+    ──────────────────────────────────────────────────────
+    BIRD_α:         if (Σ[Δ+0] != 'B')             goto BIRD_ω;
+                    BIRD = str(Σ+Δ,4); Δ+=4;        goto BIRD_γ;
+    BIRD_β:         Δ-=4;                           goto BIRD_ω;
+    BIRD_γ:         return BIRD;
+    BIRD_ω:         return empty;
+
+The previous mac_LIT_α / mac_LIT_β split-across-four-functions approach was WRONG.
+Real C labels in scope. Real gotos. No call/return on hot path. Readable like SNOBOL4.
+
+Reference files committed to .github:
+  test_sno_1.c, test_sno_2.c, test_sno_3.c, test_sno_4.c, test_icon.c
+
+ARCH-byrd-dynamic.md updated with:
+  - The canonical one-function-per-box layout
+  - Three-column law (col1=label@0, col2=action@22, col3=goto@62)
+  - Dual-mode applies: EMIT_TEXT → .c file (gcc), EMIT_BINARY → bb_pool buffer
+  - The str_t / empty / α / β / Σ / Δ / Ω runtime model (from test_sno_*.c)
+  - Revised file layout: src/runtime/dyn/ for the C-function boxes
+
+**M-DYN-2 WIP** — `src/runtime/dyn/` (`7b20e2a`)
+  - `bb_box.h` — str_t, empty, α/β, Σ/Δ/Ω, bb_enter(), BB_ENTER(), bb_box_fn
+  - `bb_lit.c` — LIT box, three-column, one function ✅
+  - `bb_seq.c` — SEQ box, three-column, one function ✅
+  - `bb_pos.c` — POS + RPOS boxes, three-column, one function each ✅
+  - `bb_arbno.c` — ARBNO box, three-column, one function ✅
+  - `bb_alt.c` — ALT box, three-column, one function — **β BUG OPEN** ⚠
+  - `bb_dyn_test.c` — integration test: POS(0) ARBNO('Bird'|'Blue'|LEN(1)) RPOS(0)
+
+Integration test result:
+  - Output includes extra intermediate steps (BlueG, BlueGo, BlueGol etc.)
+  - Expected: Blue / BlueGold / BlueGoldBird / BlueGoldBirdFish / Success!
+  - pattern matched ✅, cursor at end ✅, but intermediate γ firings wrong ✗
+
+### The β bug in bb_alt
+
+The ALT β path needs to retry the CURRENT alternative first (it may have more
+solutions), and only advance to alt_i++ when the current branch is truly exhausted.
+
+Current wrong logic:
+  ALT_β: dispatch to children[alt_i-1].fn(β)
+         if empty → child_ω → alt_i++ → next child α
+
+Problem: ARBNO calls ALT β when it wants to "un-match" the last LEN(1) step and
+try something shorter. But ALT β should first retry LEN(1) β (which will ω since
+LEN(1) has no retry), THEN try the previous alt. The issue is that on ALT β,
+we're trying to give back the match, not extend it — so we should just ω, not
+try the next alternative.
+
+**The key insight from test_sno_1.c §alt_β:**
+
+    alt_β:  if (ζ->alt_i == 1) goto BIRD_β;
+            if (ζ->alt_i == 2) goto BLUE_β;
+            if (ζ->alt_i == 3) goto LEN1_β;
+                               goto alt_ω;
+
+β dispatches back into the SAME child that last succeeded, asking it to undo.
+It does NOT try the next child. The next child is only tried on alt_ω (when
+the current child can't undo further), and that's the ARBNO machinery doing
+the walk-back, not ALT itself.
+
+**Fix for DYN-3:**
+In bb_alt.c, the ALT_β path should ONLY retry the current child β.
+If that child ω's, ALT also ω's. Period.
+The "try next alternative" logic lives ONLY in alt_ω (called from ARBNO's
+backtrack walk), never in alt_β.
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 106/106 ✅ (no emitter code changed)
+
+### DYN-3 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/ARCH-byrd-dynamic.md
+```
+
+**DYN-3 first action: fix bb_alt β bug**
+
+In `src/runtime/dyn/bb_alt.c`, the ALT_β path:
+
+WRONG (current):
+  ALT_β: retry current child β → if ω → alt_i++ → try next child α
+
+RIGHT (per test_sno_1.c):
+  ALT_β: retry current child β → if ω → ALT_ω (done, don't try next)
+
+The "try next alternative" logic fires from ARBNO's backtrack path calling ALT_α
+on a fresh iteration, NOT from ALT_β. ALT_β means "undo what you just did" —
+pure backtrack, never advance to next branch.
+
+After fix, run bb_dyn_test. Expected:
+  Blue / BlueGold / BlueGoldBird / BlueGoldBirdFish / Success!
+
+Then M-DYN-2 is complete. Then M-DYN-3: stmt_exec.c — five-phase executor.
+
+Read .github/test_sno_1.c through test_sno_4.c before any coding.
+They ARE the spec.
