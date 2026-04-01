@@ -13935,3 +13935,54 @@ tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
 # HEAD must be: one4all 45ab380 · corpus 1a6e674
 # Next: M-SC-B10 — identify and implement next unimplemented construct
 ```
+
+---
+
+## Session SJ-2 FINAL — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** — (SJ-1 had no commits)
+**HEAD at session end:** `63bed44` (one4all main)
+**Sprint:** SJ-2
+
+### Work completed
+
+**M-SJ-A01** — scaffold (committed f9499d8):
+emit_js.c, sno_runtime.js, run_js.js, Makefile/-js, driver/-js flag.
+Hello passes. emit-diff 981/4.
+
+**M-SJ-A02** — Byrd-box dispatch (committed 63bed44):
+- `js_emit_pat()`: full dispatcher. Signals: PROCEED=0, CONCEDE=2.
+  Dispatch: `for(;;) switch(_pc)` with `_pc=(uid<<2)|signal`.
+- ARB scan wrapper: arb_uid → relay_uid → pattern entry → ok/fail.
+  `arb_b_uid` redirect: pattern ω → arb CONCEDE (advance scan).
+- SEQ: `left_b_uid` redirect so right's ω → left CONCEDE (not PROCEED).
+- ALT: standard left/right arm wiring.
+- E_FNC builtins: ARB REM LEN POS RPOS TAB RTAB ANY NOTANY SPAN BREAK
+  FENCE SUCCEED FAIL — all with correct α/β cases.
+- E_CAPT_IMM/COND: cursor-snapshot capture into named variable.
+- Two-pass emit: labeled goto_ fns first (uid stable), then _main IIFE
+  with uid_ctr reset. `_saved[]` array (strict-mode safe).
+
+### Gates
+- emit-diff: **981/4 ✅**
+- hello: **Hello, World! ✅**
+- pattern match (literal scan + goto): **start / found it ✅**
+
+### Known gaps for M-SJ-A03
+1. ARBNO — currently stubs zero-width succeed; needs real iterative emit.
+2. n-ary SEQ (>2 children) — currently emits only children[0]; needs
+   right-fold into binary SEQ pairs.
+3. `run_invariants.sh snobol4_js` not yet wired — no JS corpus runner.
+
+### Bootstrap for next SJ session
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 981/4
+# HEAD should be 63bed44
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+```
