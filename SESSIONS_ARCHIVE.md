@@ -12847,3 +12847,81 @@ git push origin pw-15-wip
 ### Context discipline
 Never read WAT files wholesale. `grep -n PATTERN file | head -N` then
 `sed -n 'A,Bp'` tight ranges only. WAT files will consume the context window.
+
+---
+
+## SW-18 FINAL HANDOFF (2026-03-31, Claude Sonnet 4.6)
+
+**one4all HEAD:** `fdcd636` (unchanged — no emitter work this session)
+**.github HEAD:** `9d3f826`
+
+### Session summary
+
+Session focus: WASM emitter sharing + M-SW-BYRD-A.
+
+**Actual outcome:** WASM backend suspended entirely. During architectural
+review of EVAL()/CODE() requirements, identified that WASM's closed binary
+format cannot support runtime code generation — a hard deal-breaker for
+full SNOBOL4 compliance. All three WASM sessions (SW, IW, PW) parked.
+
+**Pivot to JavaScript backend:**
+- `emit_byrd_c.c` (4820 lines) identified as direct oracle for `emit_js.c`
+- `trampoline.h` model (`let pc=start; while(pc) pc=pc()`) is identical in JS
+- `EVAL()`/`CODE()` via `new Function()` — solved natively
+- `philbudne/spipatjs` (ES6 SNOBOL4/SPITBOL patterns) available as runtime
+- Proebsting paper (ByrdBox.zip) gives exact four-port templates for
+  Icon goal-directed evaluation
+
+**Delivered:**
+- WASM sessions archived: MILESTONE_ARCHIVE.md updated, all SESSION-*-wasm.md
+  and MILESTONE-WASM-BYRD.md marked ⛔ INACTIVE
+- BACKEND-JS.md: complete reference doc, trampoline oracle, dependency chain
+- MILESTONE-JS-SNOBOL4.md: 10-step ladder (M-SJ-A01 → M-SJ-PARITY)
+- MILESTONE-JS-ICON.md: 6-step ladder (M-IJJ-A01 → M-IJJ-PARITY)
+- MILESTONE-JS-PROLOG.md: 6-step ladder (M-PJJ-A01 → M-PJJ-PARITY)
+- SESSION-snobol4-js.md / SESSION-icon-js.md / SESSION-prolog-js.md: rewritten
+- PLAN.md NOW table and routing updated
+
+**Session prefixes assigned:**
+- `SJ` = SNOBOL4 JS
+- `IJJ` = Icon JS (distinct from `IJ` = Icon JVM)
+- `PJJ` = Prolog JS (distinct from `PJ` = Prolog JVM)
+
+**Gates held:** emit-diff 981/4 ✅ · snobol4_wasm 55p/1f ✅ (no regressions)
+
+**⚠ Git identity violation:** Commits 54d3709 and 41524d8 were incorrectly
+authored as `claude@anthropic.com`. Lon to rebase/reauthor if required.
+
+### Context note
+
+~75% context consumed. SJ-1 should be a fresh session.
+
+### SJ-1 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/BACKEND-JS.md
+cat /home/claude/.github/MILESTONE-JS-SNOBOL4.md
+cat /home/claude/.github/SESSION-snobol4-js.md
+```
+
+**SJ-1 first action: M-SJ-A01**
+1. Read oracles: `src/backend/c/trampoline.h` and first 100 lines of
+   `src/backend/c/emit_byrd_c.c` — understand `J()` macro pattern and
+   uid counter before writing anything
+2. Create `src/backend/emit_js.c` — empty EKind switch, `J()` macro,
+   module header/footer
+3. Create `src/runtime/js/sno_runtime.js` — trampoline engine, `_vars`,
+   `_print()`, OUTPUT handling
+4. Create `test/js/run_js.js` — Node runner shim
+5. Wire into Makefile: `FRONTEND=snobol4 BACKEND=js` → `.js` output
+6. Implement: E_QLIT, E_ILIT, E_VAR, E_NUL, E_ASSIGN, OUTPUT stmt
+7. Gate: hello passes, emit-diff 981/4 holds
+
+**IJJ-1 and PJJ-1 both depend on M-SJ-A01 completing first.**
