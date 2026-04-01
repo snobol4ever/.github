@@ -14903,3 +14903,88 @@ as the four action strings.
 - `'proceed'`/`'succeed'`/`'recede'`/`'concede'` — action *values* (English, interpreter)
 - `α`/`β`/`γ`/`ω` — port *labels* in emitters only (compile-time, not runtime values)
 - Never use a Greek letter as both a variable name AND one of its own values
+
+---
+
+## Session SJ-6d FINAL — 2026-04-01 — Naming fully settled
+
+**HEAD at session end:** one4all `566e666` · .github `6f09296`
+**Context at handoff: ~72%**
+
+### Work completed
+
+**Action variable renamed α → action in sno_engine.js**
+α is now reserved exclusively for Byrd-box port labels in emitters.
+The engine action register is plainly named `action`.
+All value strings remain English: 'proceed'/'succeed'/'recede'/'concede'.
+
+### Final Greek variable grid for sno_engine.js
+
+| Symbol | Role |
+|--------|------|
+| ζ / ζ_make / ζ_down / ζ_up / ζλ | frame and frame operations |
+| Ω | backtrack stack |
+| Ψ | parent frame stack (inside ζ[6]) |
+| Π | current pattern node |
+| φ | child index / retry state |
+| λ | node type tag |
+| Σ / Δ | subject + cursor on frame entry |
+| σ / δ | subject + current cursor |
+| action | action variable — plain English, NOT Greek |
+| α β γ ω | RESERVED — emitters only, never in sno_engine.js |
+
+### Architecture decisions locked this session
+
+1. Ports (α/β/γ/ω) = compile-time addresses in emitted code.
+   Never exist as runtime values. One JMP per port transition.
+
+2. Actions ('proceed'/'succeed'/'recede'/'concede') = runtime values
+   in the interpreter loop. Propagate one node per iteration.
+   'fail' renamed 'concede' to match rest of codebase.
+
+3. The interpreter is a universal Byrd-box machine: same state machine,
+   different level of abstraction. Not the same thing as the ports.
+
+4. α must never name both a variable AND one of its own values.
+
+### Known open issues for SJ-7
+
+**Priority 1 — emit_js.c block-grouping bug (f09, triple-START)**
+Unlabeled stmts after explicit-transfer block reopen goto_v_START
+instead of continuing under last-opened label.
+Fix: add `const char *current_label = "START"` tracking variable.
+When opening a block for unlabeled stmt, use jv(current_label) not
+jv("START"). Update current_label = s->label on each label-open.
+str_replace previously failed due to escape sequence mismatch —
+view file fresh before applying.
+
+**Priority 2 — DEFINE/RETURN runtime (f09)**
+DEFINE('FACT(N)') must register label in _user_fns.
+RETURN must restore caller frame and return function value.
+Emitter already emits goto_v_RETURN — runtime needs call stack.
+
+**Priority 3 — Wire run_snobol4_js() into run_invariants.sh**
+
+**Priority 4 — INPUT line buffering**
+
+### Bootstrap for SJ-7
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 1286/0
+git log --oneline -3   # expect 566e666 at HEAD
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+
+# SJ-7 FIRST ACTION: fix emit_js.c block-grouping bug
+# 1. view src/backend/emit_js.c around the js_emit() block loop
+# 2. Add: const char *current_label = "START";
+# 3. On label-open: current_label = s->label;
+# 4. On unlabeled block-open: use jv(current_label) not jv("START")
+# 5. make -C src
+# 6. scrip-cc -js corpus/.../feat/f09_functions.sno -o /tmp/f09.js
+# 7. SNO_RUNTIME=... SNO_ENGINE=... node /tmp/f09.js  # expect PASS
+```
