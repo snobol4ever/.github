@@ -13411,63 +13411,12 @@ cat .github/ARCH-byrd-dynamic.md
 # HEAD should be 073fc99
 ```
 
----
+### DYN-5 addendum — alignment fix (same session)
 
-## SC-11 FINAL HANDOFF (2026-04-01, Claude Sonnet 4.6)
+Full reformatter run on ALL dyn/*.c files (bb_alt, bb_arbno, bb_fence, bb_lit, bb_pos, bb_seq, bb_tab, bb_tab_fence_test, bb_dyn_test, stmt_exec, stmt_exec_test). All body goto/return now at char col 62 matching spec. Verified with Python checker. All 3 suites green. Pushed `5423ec6`.
 
-**one4all HEAD:** `dbad62b` · **corpus HEAD:** `327ed02`
+**MISSED RULE:** RULES.md §ARTIFACT REFRESH already requires regenerating ALL artifacts in a touched folder. Session missed it due to context pressure. Rule stands — no amendment needed.
 
-### Session summary
+### DYN-5 addendum — alignment fix (same session)
 
-Session focus: M-SC-B07 — compound-assign operators (`+=` `-=` `*=` `/=` `%=` `^=`).
-
-**Root cause diagnosed and fixed:**
-
-All 6 compound-assign token kinds were absent from `PREC_TABLE` in
-`snocone_parse.c`. `is_binary_op()` checks only that table, so the
-shunting-yard hit the "unknown token — skip" branch and silently dropped
-them. The RPN stream for `x += 5` became `[x][5]` with no operator.
-`assemble_stmt` wrapped the bare `E_ILIT(5)` as a statement, emitting
-`LOAD_INT 5` while `x` died as an orphan on the ExprStack.
-
-The `lower_token` handlers in `emit_x64_snocone.c` for all six operators
-were already correct — they simply never fired.
-
-**Fix:** One change — `snocone_parse.c`: added 6 entries to `PREC_TABLE`
-with `lp=1, rp=2` (right-associative, same as `SNOCONE_ASSIGN`).
-
-**Delivered:**
-- `src/frontend/snocone/snocone_parse.c` — 6 compound-assign ops in `PREC_TABLE`
-- `corpus/crosscheck/snocone/rungB07/` — 7 tests: `+=` `-=` `*=` `/=` `%=` `^=` + chain; 7/7 PASS
-
-**Gates held throughout:** emit-diff 981/4 ✅ · snobol4_x86 106 ✅ · snocone_x86 126 ✅
-
-### Context note
-
-~45% context consumed. SC-12 should be a fresh session.
-
-### SC-12 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
-CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
-  /home/claude/corpus/crosscheck/snocone/rungB07                                  # expect 7/7
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-snocone-x64.md
-```
-
-**SC-12 first action:** Identify next unimplemented Snocone construct.
-Candidates (check `snocone.sc` selftest and xfail list):
-1. `$var` indirect in assignment LHS: `$ptr = value`
-2. Pattern-match replacement: `x ? pat = repl`
-3. `||` alternation in pattern context
-4. String concat `&&` in expression statement context
-
-Run all rungs A01–B07 to confirm clean baseline, then pick the first
-uncovered construct and write rungB08.
+Full reformatter run on ALL dyn/*.c files. All body goto/return now at char col 62. All 3 suites green. Pushed `5423ec6`. RULES.md §ARTIFACT REFRESH already covers this — rule stands, no amendment needed.
