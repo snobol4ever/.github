@@ -38,6 +38,10 @@ All deep reference docs. Open on demand — never speculatively.
 | `ARCH-x64.md` | Technique 2 historical plan (M-T2-* absorbed into M-DYN-*) | Historical static path detail |
 | `ARCH-backend-c-dead.md` | C backend (dead) | Historical only |
 
+### JS Backend
+| Doc | Contents | Open when |
+|-----|----------|-----------|\n| `ARCH-spipat-js.md` | spipatjs (philbudne/spipatjs) architecture lessons — GNAT model vs Byrd-box, Unicode, ARBNO correctness, import strategy | Any JS pattern work; M-SJ-B01+ |
+
 ### Testing & Infrastructure
 | Doc | Contents | Open when |
 |-----|----------|-----------|
