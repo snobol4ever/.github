@@ -12962,3 +12962,32 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 ```
 
 **SC-11 first action:** Identify M-SC-B07 — next unimplemented Snocone construct. The programs/snocone/corpus suite now passes; check what constructs in `snocone.sc` (the selftest) are not yet covered by any corpus test, and write the next rung.
+---
+
+## SC-10 ADDENDUM — compound-assign bug identified (2026-04-01, Claude Sonnet 4.6)
+
+**Root cause of `x += 5` producing wrong output:**
+
+`sc_compile_expr` returns only `eprog->head` — the first STMT_t in the
+assembled chain. Compound-assign lowers `x += 5` → `E_ASSIGN(x, E_ADD(x,5))`
+which is a single STMT_t, but `assemble_stmt` only fires when it sees a
+SEMICOLON token. The shunting-yard postfix for `x += 5` is
+`[x][5][+=]` → `lower_token(+=)` pushes one `E_ASSIGN` node onto estack —
+but `assemble_stmt` is never called because there is no SEMICOLON in the
+segment (sc_compile_expr appends a synthetic SEMICOLON at `buf[pr.count]`).
+
+Actually the synthetic SEMICOLON IS appended. Re-examine: the postfix
+token stream `[x][5][+=][;]` should fire assemble_stmt at `;`, producing
+one STMT_t `E_ASSIGN(lhs=x, rhs=E_ADD(x_copy, 5))`. That STMT_t becomes
+`eprog->head`. Then `sc_compile_expr` returns it and `sc_prog_append` adds
+it. But the asm shows `LOAD_INT 5` as a bare statement — meaning the
+ASSIGN wrapper is dropped and only the `5` literal is emitted.
+
+**SC-11 diagnosis task:** Add `-dump-ir` tracing to `x += 5;` and confirm
+whether the STMT_t reaching emit_x64 has kind E_ASSIGN or something else.
+The `lhs2` copy uses `strdup(lhs->sval ? lhs->sval : "")` — if `lhs` is
+not E_VAR but some other kind, `sval` may be NULL and lhs2 becomes `E_VAR("")`
+which is an empty-name variable, causing the E_ADD to be emitted as a
+standalone expression rather than as the RHS of an assignment.
+
+**M-SC-B07:** Fix compound-assign, write rungB07 tests (+=, -=, *=, /=).
