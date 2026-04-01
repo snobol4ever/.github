@@ -13542,3 +13542,13 @@ DYN-4 makes this deferred to Phase 3 match time (true dynamic dispatch).
 Read ARCH-byrd-dynamic.md §*X — Static vs. Dynamic (E_DEFER) before coding.
 Run corpus Rung 6 patterns via dynamic path as gate.
 
+
+### DYN-3 ADDENDUM — warning cleanup (2026-04-01)
+
+one4all HEAD: `4b25ebd`
+
+All dyn/ files now build clean with -Wall:
+- stmt_exec.c: removed /* within /* in comments
+- bb_dyn_test.c: (void)ζ for unused len1 state; (void**) casts at typed call sites
+
+Zero warnings. 3/3 + 13/13 PASS confirmed.
