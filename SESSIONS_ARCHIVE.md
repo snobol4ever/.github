@@ -14537,3 +14537,60 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # ex
 ```
 
 ### Context at handoff: ~50%. Stopping cleanly.
+
+---
+
+## Session DYN-13 addendum — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**Continuation of DYN-13 (same session, additional work)**
+**HEAD at addendum end:** one4all `10d065d`
+
+### Additional work
+
+**Verified 057_pat_fail_builtin already works:**
+- bb_fail already implemented inline in stmt_exec.c (always returns spec_empty)
+- End-to-end: emit → nasm → gcc → run → output matches ref ✅
+
+**Surveyed all crosscheck dirs for x86 runtime correctness:**
+
+| Dir | Result | Action |
+|-----|--------|--------|
+| hello | 4/4 ✅ | Added to snobol4_x86 DIRS |
+| rung3 | 3/3 ✅ | Added |
+| rung8 | 3/3 ✅ | Added |
+| rungW01–W07 | 26/26 ✅ | Added all 7 |
+| rung2 | 1/3 — indirect ref fails | Deferred |
+| rung4 | 4/5 — unary plus str→int | Deferred |
+| rung9 | 4/5 — datatype pred | Deferred |
+| arith | 1/2 — fileinfo needs FILE I/O | Deferred |
+| control | 0/1 — EVAL fails | Deferred |
+| library | 0/4 — all fail | Deferred |
+| rung10 | 2/9 — OPSYN/APPLY/NRETURN/EVAL/ARG/LOCAL | Deferred |
+| rung11 | 1/7 — ARRAY/TABLE/ITEM/DATA | Deferred |
+| coverage | no .ref | Skip |
+
+**snobol4_x86 invariant count: 106 → 142 (+36), ALL PASS ✅**
+
+### Bootstrap for DYN-14
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # expect ALL PASS 142/142
+# HEAD: one4all 10d065d · .github (DYN-13 addendum)
+#
+# DYN-14 FIRST ACTION: investigate failing dirs, pick easiest to fix
+# Priority order:
+#   1. rung4/411_arith_unary — unary plus string→int coercion (likely 1-line fix)
+#   2. rung9/911_datatype — DATATYPE() predicate string literal case
+#   3. rung2/210_indirect_ref — $.var lookup through indirect variable
+#   4. rung2/212_indirect_array — $.var<index> indirect array
+#   5. rung10 failures — OPSYN, APPLY, NRETURN, EVAL, ARG, LOCAL (complex)
+#   6. rung11 failures — ARRAY, TABLE, ITEM, DATA (complex)
+# For each: run scrip-cc -asm, assemble, run, diff vs ref, find root cause.
+```
+
+### Context at handoff: ~65%. Stopping cleanly.
