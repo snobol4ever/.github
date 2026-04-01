@@ -13490,3 +13490,73 @@ cat .github/ARCH-byrd-dynamic.md
 # HEAD must be bda64af
 # Next: Rung 6 corpus gate (XDSAR/XVAR), then XNME capture ordering
 ```
+
+---
+
+## Session DYN-6 addendum — 2026-04-01 — M-DYN-5 COMPLETE
+
+**one4all HEAD:** `5ee6353`
+**M-DYN-5 status: ✅ ALL ITEMS COMPLETE**
+
+### Work completed (this addendum)
+
+**Rung 6 corpus gate — rung6_dyn_test.c (12/12)**
+
+Five tests driving stmt_exec_dyn() with real PATND_t trees:
+- T1: 056_pat_star_deref — *PAT captures 'hello' via XDSAR, OUTPUT correct
+- T2: XDSAR resolves at match time — PAT mutated between calls, both match correct
+- T3: *PAT1 | *PAT2 — XDSAR inside ALT, first arm wins
+- T4: XNME conditional ordering — capture NOT committed on overall failure
+- T5: *PAT where PAT holds DT_S string — literal match path
+
+**Three bugs found and fixed:**
+
+1. **BB_ALPHA_DEFINED guard** — bb_box.h and stmt_exec.c both defined α/β;
+   guard in bb_box.h + conditional in stmt_exec.c full-build path.
+
+2. **kw_anchor type** — extern declared as `int` in stmt_exec.c standalone
+   guard but `int64_t` in snobol4.h; fixed to match.
+
+3. **DVAR memset regression** — DYN-6 DVAR_CHILD_STATE_MAX fix introduced
+   `memset(child_ζ, 0, child_ζ_size)` on subsequent α calls. This zeroed
+   `capture_t.varname` (config, not state), breaking all XNME captures
+   through deferred vars. **Fix: removed memset entirely.** Box β ports
+   own their cursor/state restore. Config fields must survive across calls.
+   `child_ζ_size` field on deferred_var_t is retained for future EMIT_BINARY
+   slab allocation (see ARCH-byrd-dynamic.md realloc note).
+
+**DESCR_t union hazard — rule for test writers:**
+`str_val()` set `.i = 0` after `.s = ptr` — both are in a union, so `.i = 0`
+clobbered `.s`. Rule: never set multiple union fields in a DESCR_t initialiser.
+Use designated initialisers: `(DESCR_t){.v = DT_S, .s = ptr, .slen = len}`.
+
+### All gates green
+- stmt_exec_test: **13/13 ✅**
+- bb_dyn_test: **3/3 ✅**
+- bb_tab_fence_test: **12/12 ✅**
+- rung6_dyn_test: **12/12 ✅**
+- emit-diff: **981/4 ✅**
+
+### M-DYN-5 complete — all three items done
+1. ✅ DVAR_CHILD_STATE_MAX — true sizeof (bda64af)
+2. ✅ Rung 6 corpus gate — XDSAR/XVAR through stmt_exec_dyn (5ee6353)
+3. ✅ XNME conditional ordering — T4 confirms correct (5ee6353)
+
+### Next: M-DYN-6 — EVAL/CODE
+Per ARCH-byrd-dynamic.md: parse string as SNOBOL4 expression/statements,
+call same bb_build path, execute. EVAL and CODE fall out from the dynamic
+model — they ARE the runtime doing what it always does with late-arriving source.
+
+### Bootstrap for next DYN session
+```bash
+cd /home/claude
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness.git
+bash .github/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md   # M-DYN-6 spec
+# HEAD must be 5ee6353
+# Next milestone: M-DYN-6 EVAL/CODE
+```
