@@ -243,3 +243,95 @@ use for both.
 *ARCH-byrd-dynamic.md — first written 2026-04-01, B-292 session.*
 *This document supersedes the static-first framing in ARCH-x64.md.*
 *ARCH-x64.md Technique 2 chain (M-T2-*) is absorbed into M-DYN-* above.*
+
+---
+
+## Dual-Mode Emitter — Text and Binary from One Function (2026-04-01)
+
+### The Insight
+
+`snobol4_asm.mac` defines 151 NASM macros — `LIT_α`, `ALT_α`, `ARBNO_β`, etc.
+The current static backend (`emit_x64.c`) calls C helpers (`A()`, `asmL()`, `ALF()`)
+that emit *text* expanding those macros via NASM.
+
+The dynamic model needs *binary* — raw x86-64 bytes written into a `bb_pool` buffer,
+no assembler, callable immediately via function pointer.
+
+**The unification:** each NASM macro becomes a C function in scrip-cc with a mode switch:
+
+```c
+typedef enum { EMIT_TEXT, EMIT_BINARY } bb_emit_mode_t;
+extern bb_emit_mode_t bb_emit_mode;
+
+// Same call site in the emitter regardless of mode:
+void mac_LIT_α(const char *lstr, int len,
+               bb_label_t saved, bb_label_t cursor,
+               bb_label_t subj,  bb_label_t subj_len,
+               bb_label_t γ,     bb_label_t ω);
+```
+
+- `EMIT_TEXT`:   writes `"    LIT_α  lstr, 5, saved, cur, subj, slen, γ_lbl, ω_lbl\n"`
+                 → `.s` file → NASM → ELF → link. Current proven path.
+- `EMIT_BINARY`: writes raw x86-64 bytes into the current `bb_pool` buffer.
+                 Labels are buffer offsets. Forward refs tracked in a patch list,
+                 resolved when the label is defined (same technique as `bb_poc.c`).
+
+Same C function. Same arguments. Same call site. The switch is global state.
+
+### Why This Is Correct by Construction
+
+The `.s` path already runs against the SPITBOL oracle — 106/106 passes.
+The binary path is the *same logic* in the same function body.
+Any behavioral difference between the two modes is a bug in the binary branch,
+detectable immediately by running the same corpus tests in both modes.
+
+### Label Representation
+
+```c
+typedef struct {
+    int       offset;    // byte offset into current bb_pool buffer (-1 = unresolved)
+    char      name[64];  // symbolic name for text mode (e.g. "sno_42_α")
+} bb_label_t;
+```
+
+- Text mode: use `name` field — emit as string.
+- Binary mode: use `offset` field — emit as relative address or patch slot.
+
+Forward references: when a jump target is not yet defined, emit a 4-byte placeholder
+and record `(patch_site, target_label)` in a patch list. When `bb_label_define(lbl)`
+is called, walk the patch list and fill in all pending refs.
+
+### Scope — Core 20 Macros First
+
+Start with the Byrd box core (~20 macros that handle all pattern matching):
+`LIT_α/β`, `ALT_α/ω`, `SEQ_α/β`, `ARBNO_α/β/α1/β1`, `POS_α/β`,
+`RPOS_α/β`, `CURSOR_SAVE/RESTORE`, `NAMED_PAT_γ/ω`, `GOTO_ALWAYS/S/F`.
+
+Gate: build a `LIT 'hello'` box via `mac_LIT_α()` in binary mode, run it,
+confirm same result as the `.s` path through NASM. Then expand to all 151.
+
+### File Layout
+
+```
+src/runtime/asm/bb_pool.h/.c       M-DYN-0 ✅  pool
+src/runtime/asm/bb_emit.h/.c       M-DYN-1     dual-mode emitter + label/patch system
+src/runtime/asm/bb_macros.h/.c     M-DYN-1b    one C function per NASM macro (core 20 first)
+src/runtime/asm/bb_build.h/.c      M-DYN-2     Byrd box graph assembler
+src/runtime/asm/bb_poc.c           M-DYN-POC ✅ standalone proof
+src/runtime/asm/bb_pool_test.c     M-DYN-0 ✅  pool unit test
+```
+
+### Relation to Static Path
+
+`emit_x64.c` stays alive throughout. It calls the same `mac_*` functions
+in `EMIT_TEXT` mode — no change to its behavior. The dynamic path is additive.
+At M-DYN-OPT, provably-static boxes pre-built at load time replace the
+per-execution build; at that point the two paths fully merge.
+
+### Relocation
+
+Binary mode buffers are position-independent within the pool slab:
+all jumps use relative addressing (rel8 or rel32). No absolute addresses
+except calls to C runtime shims (stmt_get, stmt_set, stmt_output etc.) —
+those use a 64-bit absolute `mov rax, imm64 / call rax` sequence so the
+pool slab can sit anywhere in the address space.
