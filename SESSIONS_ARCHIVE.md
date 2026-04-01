@@ -12994,674 +12994,195 @@ standalone expression rather than as the RHS of an assignment.
 
 ---
 
-## B-292 DESIGN HANDOFF — Dynamic Byrd Box Redesign (2026-04-01, Claude Sonnet 4.6)
+## SJ-1 FINAL HANDOFF (2026-04-01, Claude Sonnet 4.6)
 
-**.github HEAD before this session:** `ee81b9c`
+**one4all HEAD:** unchanged (no code written — design session)
+**corpus HEAD:** unchanged
+**Gate held:** emit-diff 981/4 ✅
 
 ### Session summary
 
-Session focus: Revisit static vs. dynamic nature of Byrd box assembly sequences.
-Design session — no code written, new architecture established.
-
-### The Fundamental Redesign
-
-Everything in SNOBOL4 is built on the fly. This is not a feature — it is the
-execution model. Every statement is a live Byrd box chain with five phases:
-
-1. Build subject (can fail)
-2. Build pattern → live Byrd box graph in executable memory (can fail)
-3. Run match against that graph (can fail — graph traversal, backtracking)
-4. Build replacement (can fail)
-5. Perform replacement (deterministic if reached)
-
-The pattern `(P() | Q())` builds an ALT Byrd box graph from P's and Q's live
-return values on every execution. P and Q can return different patterns each time.
-Static compilation is an optimization of this model — not the model.
-
-EVAL() and CODE() are not special cases. They fall out of M-DYN-3 for free.
-*VAR (E_DEFER) is a direct jump into a stored Byrd box graph's α port.
-
-Cache coherence note: x86-64 instruction cache ≠ data cache. The mprotect
-RW→RX transition is the I-cache fence. Always seal via mprotect, never jump
-into a buffer that has only been written as data.
-
-### Delivered
-
-- `ARCH-byrd-dynamic.md` — new fundamental architecture doc, M-DYN-* chain
-- `ARCH-index.md` — ARCH-byrd-dynamic registered as primary x64 reference
-- `ARCH-overview.md` — dynamic model note added, links to new doc
-- `PLAN.md` — DYN-1 row added to NOW table; M-DYN-POC is first action
-
-### M-DYN-* Chain (see ARCH-byrd-dynamic.md for full detail)
-
-| ID | Deliverable |
-|----|-------------|
-| **M-DYN-POC** | `bb_poc.c` — hand-write x86 bytes, mmap, mprotect, jump, PASS/FAIL |
-| **M-DYN-0** | `bb_pool.c` — alloc/seal/free LIFO buffer pool |
-| **M-DYN-1** | `bb_emit.c` — byte-level x86 emitter (output: buffer, not file) |
-| **M-DYN-2** | `bb_build.c` — Byrd box graph assembler (lit/alt/seq/arbno/fn) |
-| **M-DYN-3** | `stmt_exec.c` — five-phase statement executor |
-| **M-DYN-4** | `*VAR` dynamic dispatch |
-| **M-DYN-5** | `EVAL(str)` / `CODE(str)` |
-| **M-DYN-OPT** | Invariance detection — static optimization layer |
-
-M-T2-* (Technique 2) milestone chain is absorbed into M-DYN-*:
-M-DYN-POC through M-DYN-1 build exactly what M-T2-RUNTIME needs.
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 106/106 ✅ (no code changed — design session only)
-
-### DYN-2 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/ARCH-byrd-dynamic.md
-```
-
-**DYN-2 first action: M-DYN-POC**
-Write `src/runtime/asm/bb_poc.c`:
-- `mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0)`
-- Hand-write x86-64 bytes for a literal 'hello' matcher (α/γ/ω ports)
-- `mprotect(buf, 4096, PROT_READ|PROT_EXEC)` — this is the I-cache fence
-- Set up γ/ω return addresses, call into α via function pointer
-- Print PASS (γ fired) or FAIL (ω fired)
-- Test: subject='hello world' → PASS, subject='goodbye' → FAIL
+Design-only session. No files written to one4all. All decisions below are
+authoritative for SJ-2 — the next session begins coding M-SJ-A01.
 
 ---
 
-## B-292 FINAL HANDOFF — Context limit, handing off to DYN-2 (2026-04-01, Claude Sonnet 4.6)
+### Key decision: JS dispatch encoding
 
-**.github HEAD:** `0be6605` · **one4all HEAD:** `ce72c34` · **corpus HEAD:** `209a976`
+**Do NOT use string case labels** (`"SEQ_α"`, `"ALT1_proceed"` etc).
+**Use integer encoding identical to engine.c:**
+
+```js
+// signals — 2 low bits (identical to engine.c PROCEED/SUCCEED/CONCEDE/RECEDE)
+const PROCEED = 0, SUCCEED = 1, CONCEDE = 2, RECEDE = 3;
+
+// dispatch key per node: (node_uid << 2) | signal
+// emit_js.c emits:  J("case %d: ", uid << 2 | PROCEED)
+// same uid counter already used by x64 and C emitters (next_uid())
+```
+
+The emitted switch per statement looks like:
+
+```js
+let _pc = (uid_SEQ << 2 | PROCEED);
+dispatch: for (;;) switch (_pc) {
+  case (1<<2|0): /* SEQ PROCEED  */ _mstart=_cur; _pc=(2<<2|0); break;
+  case (1<<2|1): /* SEQ SUCCEED  */ break dispatch;
+  case (1<<2|2): /* SEQ CONCEDE  */ ...advance scan...; break;
+  case (1<<2|3): /* SEQ RECEDE   */ return block_END;
+  case (2<<2|0): /* ALT1 PROCEED */ ...try 'B'...; break;
+  case (2<<2|2): /* ALT1 CONCEDE */ ...try 'R'...; break;
+  case (2<<2|3): /* ALT1 RECEDE  */ _pc=(1<<2|2); break;
+  ...
+}
+```
+
+**Why this is fast:** JS engines see a dense integer switch → compile to
+jump table. Identical dispatch cost to C's `t<<2|a` in engine.c.
+String switches do hash lookup per iteration — unacceptable for inner loop.
+
+**Oracle for this encoding:** `src/runtime/engine/engine.c` (the pattern
+engine). Same `t << 2 | a` idiom. Same four signals. Same node-type IDs
+in the high bits (but for emit_js.c the high bits are per-node UIDs, not
+type codes — because multiple nodes of same type exist per statement).
+
+---
+
+### Key decision: emitted JS file structure
+
+```js
+// generated by scrip-cc -js
+"use strict";
+// ── runtime (require'd or inlined) ─────────────────────────────────
+// ── global var declarations ─────────────────────────────────────────
+let _SUBJECT;   // one per named SNOBOL4 variable, like C's static DESCR_t
+// ── block forward structure (no forward decls needed in JS) ─────────
+// ── compiled named pattern stubs (future) ──────────────────────────
+// ── stmt functions ──────────────────────────────────────────────────
+function stmt_1() { ... return _tramp_next_1; }
+function stmt_2() { ... return _tramp_next_3; }  // pattern stmt uses switch
+// ── block functions ─────────────────────────────────────────────────
+function block_START() { ... return block_END; }
+function block_END() { return null; }
+// ── label table ─────────────────────────────────────────────────────
+const _label_table = { START: block_START, END: block_END };
+// ── trampoline ──────────────────────────────────────────────────────
+let pc = block_START;
+while (pc) pc = pc();
+```
+
+**Trampoline sentinel pattern** (mirrors C's `_tramp_sentinel_N` /
+`_tramp_next_N`): each stmt function returns a unique sentinel object
+so block functions can detect whether to chain or short-circuit.
+Simplest JS equivalent: just return the next stmt function directly —
+no sentinel needed since JS functions are reference-comparable.
+
+---
+
+### Key decision: OUTPUT handling
+
+Use a `Proxy` on `_vars` to intercept `OUTPUT` assignment:
+
+```js
+const _vars = new Proxy({}, {
+    set(o, k, v) {
+        o[k] = v;
+        if (k === "OUTPUT") process.stdout.write(String(v) + "\n");
+        return true;
+    }
+});
+```
+
+This means `_vars["OUTPUT"] = val` automatically prints, exactly like
+`NV_SET_fn("OUTPUT", v)` in the C runtime shim.
+
+---
+
+### Key decision: variable storage
+
+Named SNOBOL4 variables that appear in the source get a `let _VARNAME`
+declaration at the top of the file (parallel to C's `static DESCR_t _SUBJECT`).
+`_vars` proxy handles runtime-named / indirect access (`$expr`).
+Direct named access uses the local `let` for speed.
+
+---
+
+### Key decision: J() macro
+
+```c
+// in emit_js.c
+static FILE *out;
+static void J(const char *fmt, ...) {
+    va_list ap; va_start(ap, fmt); vfprintf(out, fmt, ap); va_end(ap);
+}
+```
+
+Identical to `C()` in `emit_byrd_c.c`. Same uid counter. Same `next_uid()`.
+The EKind switch in `emit_js.c` is a direct syntactic translation of
+`emit_byrd_c.c`'s switch — replace `C(...)` with `J(...)`, C syntax → JS.
+
+---
+
+### ByrdBox.zip content (from Lon)
+
+`SNOBOL4c.c` — standalone C pattern engine with heap GC, PROCEED/SUCCESS/
+FAILURE/RECEDE four-signal dispatch, `Π`(ALT) / `Σ`(SEQ) / `σ`(LIT) nodes.
+Uses `t<<2|a` encoding (same as engine.c). Confirms the encoding is the
+right approach. `BEAD_PATTERN.h` / `BEARDS_PATTERN.h` — concrete test
+patterns used for validation.
+
+### Proebsting paper
+
+"Simple Translation of Goal-Directed Evaluation" — the theoretical
+foundation. Four-port model: start/resume/fail/succeed (= PROCEED/
+CONCEDE/RECEDE/SUCCEED). Templates for literal, unary, binary, `to`,
+`if`. The key insight: start/resume are synthesised; fail/succeed are
+inherited. Figure 2 shows the optimised flat form — exactly what the
+switch dispatch produces after branch chaining.
+
+---
 
 ### Context note
 
-~72% consumed. DYN-2 should be a fresh session.
+~80% context consumed. SJ-2 should be a fresh session.
 
-### What happened this session
-
-1. Full session start protocol executed: cloned .github/one4all/harness/corpus,
-   ran SESSION_SETUP.sh (scrip-cc built OK), ran run_emit_check.sh (981/4 ✅),
-   ran run_invariants.sh snobol4_x86 (ALL PASS / 106/106 ✅).
-
-2. Full targeted read on: ARCH-x64, BACKEND-X64, ARCH-sil-heritage, ARCH-scrip-vision,
-   ARCH-scrip-abi, ARCH-overview, ARCH-scrip-cc, FRONTEND-SNOBOL4, BACKEND-C,
-   GRAND_MASTER_REORG_2, SESSIONS_ARCHIVE tail, emit_x64.c survey.
-
-3. Design session with Lon: established the dynamic Byrd box execution model.
-   Everything in SNOBOL4 is built on the fly. Static compilation is an optimization.
-   The five-phase statement model. EVAL/CODE fall out for free from M-DYN-3.
-   Cache coherence: mprotect RW→RX is the I-cache fence on x86-64.
-
-4. Delivered: ARCH-byrd-dynamic.md, ARCH-index update, ARCH-overview update,
-   PLAN.md DYN-1 row, prior SESSIONS_ARCHIVE entry. All pushed to `0be6605`.
-
-### Gates held throughout
-
-981/4 ✅ · snobol4_x86 106/106 ✅ (design session — no code changed)
-
-### DYN-2 session start
+### SJ-2 session start
 
 ```bash
 for repo in .github one4all harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86   # expect 106/106
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 981/4
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/ARCH-byrd-dynamic.md
+cat /home/claude/.github/BACKEND-JS.md
+cat /home/claude/.github/MILESTONE-JS-SNOBOL4.md
+cat /home/claude/.github/SESSION-snobol4-js.md
 ```
 
-**DYN-2 first action: M-DYN-POC**
-
-Write `src/runtime/asm/bb_poc.c`. This is a standalone C program — no scrip-cc,
-no frontend, no runtime. Pure proof that the stack works:
-
-1. `mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0)`
-2. Write x86-64 bytes by hand for a minimal Byrd box:
-   - α port: compare subject bytes against literal 'hello' (repe cmpsb or manual loop)
-   - γ port: return success indicator
-   - ω port: return failure indicator
-3. `mprotect(buf, 4096, PROT_READ|PROT_EXEC)` — I-cache fence
-4. Cast buf to function pointer, call with subject string
-5. Print PASS (γ fired) or FAIL (ω fired)
-
-Test cases:
-- subject = "hello world" → PASS (prefix match)
-- subject = "goodbye"     → FAIL
-
-Gate: compiles with `gcc -o bb_poc src/runtime/asm/bb_poc.c`, runs, both
-test cases correct. No other files touched. 981/4 ✅ · 106/106 ✅ unchanged.
-
----
-
-## DYN-2 HANDOFF — M-DYN-POC + M-DYN-0 complete (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `d7fcb3c` · **one4all HEAD:** `a3d0dd1` · **corpus HEAD:** `209a976`
-
-### Context note
-
-~40% consumed. DYN-3 can continue in this session or fresh.
-
-### What happened this session
-
-1. Full session start protocol: cloned .github/one4all/harness/corpus, SESSION_SETUP.sh
-   (scrip-cc built OK, SPITBOL installed), run_emit_check.sh (981/4 ✅),
-   run_invariants.sh snobol4_x86 (ALL PASS / 106/106 ✅).
-
-2. HQ sanity audit:
-   - CRITICAL: two commits in one4all authored as claude@anthropic.com (1d9de57, c40b493)
-     — RULES violation, history rewrite is Lon's decision.
-   - .github commits use lon@snobol4ever.com not lcherryh@yahoo.com — Lon to confirm.
-   - one4all/PLAN.md removed (a3e6d9c) — was stale B-278 content, trap for future sessions.
-     HQ docs live in .github only; README.md stays in each repo.
-   - PLAN.md HEADs stale (cosmetic).
-   - WASM invariant baseline disagrees across PLAN.md / RULES.md / SESSIONS_ARCHIVE
-     (actual is 55p/1f from SW-17; RULES.md says 9/9 — needs correction).
-   - DYN session prefix not registered in RULES.md SESSION NUMBERS table.
-
-3. **M-DYN-POC ✅** — `src/runtime/asm/bb_poc.c` (one4all `72b13ca`)
-   Standalone C program. mmap 4096-byte page, hand-write x86-64 bytes for a
-   'hello' literal Byrd box (unrolled byte comparisons, γ=mov eax,1/ret,
-   ω=mov eax,0/ret, all forward jumps patched by hand), mprotect RW→RX
-   (I-cache fence), call via function pointer. 6/6 test cases PASS.
-   Note: mprotect is the correct fence — normal cached writes are D/I cache
-   coherent on x86-64; CLFLUSH is not needed (only for non-temporal stores).
-
-4. **M-DYN-0 ✅** — `bb_pool.{h,c}` + `bb_pool_test.c` (one4all `a3d0dd1`)
-   4 MB mmap'd slab. Key design decision: bb_alloc page-aligns every allocation
-   (each box owns its pages exclusively). This is required for bb_seal correctness —
-   mprotect is page-granular, and two small boxes sharing a page would have the
-   second box's write location sealed when the first is sealed. Discovered and
-   fixed during testing. bb_free rewinds bump pointer + mprotects back to RW
-   for reuse. bb_seal: mprotect RW→RX. 21/21 unit tests PASS.
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 106/106 ✅ (no code changed in emitters)
-
-### DYN-3 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/ARCH-byrd-dynamic.md
-```
-
-**DYN-3 first action: M-DYN-1**
-
-Write `src/runtime/asm/bb_emit.c` + `bb_emit.h`:
-- `bb_emit_byte(buf, pos, b)` — write one byte at buf[*pos], increment *pos
-- `bb_emit_u32(buf, pos, v)` — little-endian 4 bytes
-- `bb_emit_u64(buf, pos, v)` — little-endian 8 bytes
-- `bb_emit_rel32(buf, pos, target)` — 32-bit relative offset (target - (here+4))
-- x86-64 instruction helpers built on top:
-  `bb_emit_mov_eax_imm32`, `bb_emit_ret`, `bb_emit_cmp_esi_imm8`,
-  `bb_emit_jl_rel8`, `bb_emit_jne_rel8`, `bb_emit_movzx_eax_rdi_off8`
-- Unit test: emit known sequences, read back bytes, verify exact encoding.
-  Also: emit a working 'hello' box using the helpers (same as bb_poc but via API),
-  call it, confirm PASS/FAIL behavior.
-
-Pool is ready. Emitter is next.
-
----
-
-## DYN-2 FINAL HANDOFF — M-DYN-1 ✅ + M-DYN-2 WIP (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `d123ac8` · **one4all HEAD:** `7b20e2a` · **corpus HEAD:** `209a976`
-
-### Context note
-
-~58% consumed. DYN-3 should be a fresh session. Plenty of runway for the β bug fix.
-
-### What happened this session (continuation of DYN-2)
-
-**M-DYN-1 ✅** — `bb_emit.{h,c}` + `bb_emit_test.c` (`df6278e`)
-Dual-mode emitter: EMIT_TEXT / EMIT_BINARY switch, label/patch system (forward +
-backward refs, rel8 + rel32), all x86-64 instruction helpers. 25/25 tests PASS.
-Binary mode builds working 'hello' box. Text mode emits clean NASM. Both modes
-same call sites, same logic.
-
-**Architecture pivot (critical):**
-Lon uploaded test_sno_1.c through test_sno_4.c and test_icon.c from the ByrdBox
-archive. These are the canonical reference implementations. They reveal the correct
-design had been stated for three weeks:
-
-  **ONE C FUNCTION PER BOX. THREE-COLUMN LAYOUT.**
-
-    LABEL:          ACTION                          GOTO
-    ──────────────────────────────────────────────────────
-    BIRD_α:         if (Σ[Δ+0] != 'B')             goto BIRD_ω;
-                    BIRD = str(Σ+Δ,4); Δ+=4;        goto BIRD_γ;
-    BIRD_β:         Δ-=4;                           goto BIRD_ω;
-    BIRD_γ:         return BIRD;
-    BIRD_ω:         return empty;
-
-The previous mac_LIT_α / mac_LIT_β split-across-four-functions approach was WRONG.
-Real C labels in scope. Real gotos. No call/return on hot path. Readable like SNOBOL4.
-
-Reference files committed to .github:
-  test_sno_1.c, test_sno_2.c, test_sno_3.c, test_sno_4.c, test_icon.c
-
-ARCH-byrd-dynamic.md updated with:
-  - The canonical one-function-per-box layout
-  - Three-column law (col1=label@0, col2=action@22, col3=goto@62)
-  - Dual-mode applies: EMIT_TEXT → .c file (gcc), EMIT_BINARY → bb_pool buffer
-  - The str_t / empty / α / β / Σ / Δ / Ω runtime model (from test_sno_*.c)
-  - Revised file layout: src/runtime/dyn/ for the C-function boxes
-
-**M-DYN-2 WIP** — `src/runtime/dyn/` (`7b20e2a`)
-  - `bb_box.h` — str_t, empty, α/β, Σ/Δ/Ω, bb_enter(), BB_ENTER(), bb_box_fn
-  - `bb_lit.c` — LIT box, three-column, one function ✅
-  - `bb_seq.c` — SEQ box, three-column, one function ✅
-  - `bb_pos.c` — POS + RPOS boxes, three-column, one function each ✅
-  - `bb_arbno.c` — ARBNO box, three-column, one function ✅
-  - `bb_alt.c` — ALT box, three-column, one function — **β BUG OPEN** ⚠
-  - `bb_dyn_test.c` — integration test: POS(0) ARBNO('Bird'|'Blue'|LEN(1)) RPOS(0)
-
-Integration test result:
-  - Output includes extra intermediate steps (BlueG, BlueGo, BlueGol etc.)
-  - Expected: Blue / BlueGold / BlueGoldBird / BlueGoldBirdFish / Success!
-  - pattern matched ✅, cursor at end ✅, but intermediate γ firings wrong ✗
-
-### The β bug in bb_alt
-
-The ALT β path needs to retry the CURRENT alternative first (it may have more
-solutions), and only advance to alt_i++ when the current branch is truly exhausted.
-
-Current wrong logic:
-  ALT_β: dispatch to children[alt_i-1].fn(β)
-         if empty → child_ω → alt_i++ → next child α
-
-Problem: ARBNO calls ALT β when it wants to "un-match" the last LEN(1) step and
-try something shorter. But ALT β should first retry LEN(1) β (which will ω since
-LEN(1) has no retry), THEN try the previous alt. The issue is that on ALT β,
-we're trying to give back the match, not extend it — so we should just ω, not
-try the next alternative.
-
-**The key insight from test_sno_1.c §alt_β:**
-
-    alt_β:  if (ζ->alt_i == 1) goto BIRD_β;
-            if (ζ->alt_i == 2) goto BLUE_β;
-            if (ζ->alt_i == 3) goto LEN1_β;
-                               goto alt_ω;
-
-β dispatches back into the SAME child that last succeeded, asking it to undo.
-It does NOT try the next child. The next child is only tried on alt_ω (when
-the current child can't undo further), and that's the ARBNO machinery doing
-the walk-back, not ALT itself.
-
-**Fix for DYN-3:**
-In bb_alt.c, the ALT_β path should ONLY retry the current child β.
-If that child ω's, ALT also ω's. Period.
-The "try next alternative" logic lives ONLY in alt_ω (called from ARBNO's
-backtrack walk), never in alt_β.
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 106/106 ✅ (no emitter code changed)
-
-### DYN-3 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/ARCH-byrd-dynamic.md
-```
-
-**DYN-3 first action: fix bb_alt β bug**
-
-In `src/runtime/dyn/bb_alt.c`, the ALT_β path:
-
-WRONG (current):
-  ALT_β: retry current child β → if ω → alt_i++ → try next child α
-
-RIGHT (per test_sno_1.c):
-  ALT_β: retry current child β → if ω → ALT_ω (done, don't try next)
-
-The "try next alternative" logic fires from ARBNO's backtrack path calling ALT_α
-on a fresh iteration, NOT from ALT_β. ALT_β means "undo what you just did" —
-pure backtrack, never advance to next branch.
-
-After fix, run bb_dyn_test. Expected:
-  Blue / BlueGold / BlueGoldBird / BlueGoldBirdFish / Success!
-
-Then M-DYN-2 is complete. Then M-DYN-3: stmt_exec.c — five-phase executor.
-
-Read .github/test_sno_1.c through test_sno_4.c before any coding.
-They ARE the spec.
-
----
-
-## DYN-2 ADDENDUM — Three-column NASM law locked (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `682fba4` · **one4all HEAD:** `7b20e2a` · **corpus HEAD:** `209a976`
-
-### The three-column NASM law — final form
-
-Lon confirmed the design. NASM semicolons are column 3. Macro names are column 2.
-Labels are column 1. One NASM proc per named pattern (globbing sub-box labels as
-local labels within). Multi-line port bodies are fine — each line keeps its column,
-the jmp sits in column 3 on the last line of the port body.
-
-    LABEL:          ACTION                      GOTO
-    ─────────────────────────────────────────────────
-    BIRD_α:         MACRO0_port(p1, p2, p3)     ;
-                    MACRO1(p5, p7)              ; jmp BIRD_γ
-                                                ; jmp BIRD_ω
-    BIRD_β:         MACRO2(p1)                  ; jmp BIRD_ω
-
-C function = NASM proc. C label = NASM local label. goto = jmp. return = ret.
-The C reference implementations (test_sno_*.c) and the NASM output are direct
-translations of each other. Correctness verifiable by inspection.
-
-ARCH-byrd-dynamic.md updated with full three-column NASM spec, globbing example,
-multi-line port body example. This is the final canonical form.
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 106/106 ✅
-
-### DYN-3 first action
-
-Fix bb_alt β bug (one line in src/runtime/dyn/bb_alt.c):
-  ALT_β must ω immediately after current child β ω's.
-  Never advance to next alternative on β — that is ARBNO's job.
-Run bb_dyn_test → expect Blue/BlueGold/BlueGoldBird/BlueGoldBirdFish/Success!
-Then M-DYN-3: stmt_exec.c five-phase executor.
-
----
-
-## DYN-2 FINAL ADDENDUM — M-DYN-2 ✅ + pure-x86 register model (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `c8190c9` · **one4all HEAD:** `4d85f67` · **corpus HEAD:** `209a976`
-
-### M-DYN-2 ✅ — one4all `4d85f67`
-
-bb_alt β bug fixed (one line: ALT_β → current child β → if ω → ALT_ω, never advance).
-bb_dyn_test 3/3 PASS. Output matches test_sno_1.c compiled with gcc exactly:
-  Blue / BlueG / ... / BlueGoldBirdFish / BlueGoldBirdFish / Success!
-
-Files in src/runtime/dyn/:
-  bb_box.h    — str_t, empty, α/β, Σ/Δ/Ω, BB_ENTER, bb_box_fn
-  bb_lit.c    — LIT box ✅
-  bb_alt.c    — ALT box ✅ (β bug fixed)
-  bb_seq.c    — SEQ box ✅
-  bb_arbno.c  — ARBNO box ✅
-  bb_pos.c    — POS + RPOS boxes ✅
-  bb_dyn_test.c — integration test ✅ 3/3
-
-### Pure x86 register model — new design insight
-
-No function wrapper needed for pure x86 path. One dedicated register (r12 or rbx)
-indexes into a flat data block in bb_pool. All locals are [r12 + offset]. No frame
-pointer. No push rbp. No call/ret between boxes. Pure jmp everywhere.
-
-  r12 = data pointer for current box invocation (bb_pool LIFO slab)
-
-  BIRD_α:     cmp  [r12 + CURSOR], ...         ; action    ; → BIRD_γ/ω
-  BIRD_β:     sub  [r12 + CURSOR], 4           ; action    ; → BIRD_ω
-  BIRD_γ:     jmp  seq_γ                       ;           ;
-  BIRD_ω:     jmp  seq_ω                       ;           ;
-
-The C struct layout IS the [r12 + offset] layout — same field, same offset, two
-syntaxes. C-text path uses ζ->field. x86 path uses [r12 + FIELD_OFFSET].
-
-Two clean modes:
-  PURE x86:  r12=data, flat labels, jmp, no frame between boxes.
-             C shim calls (stmt_get etc.) use call rax — ABI-safe because
-             stmt_exec establishes ONE frame for the whole statement, shared.
-  C-TEXT:    ζ=data struct, C labels, goto, one function per box.
-
-Both modes: same three-column layout, same data offset model, same box structure.
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 106/106 ✅
-
-### DYN-3 first action: M-DYN-3 — stmt_exec.c
-
-Five-phase statement executor:
-  Phase 1: build subject  → Σ, Δ=0, Ω
-  Phase 2: build pattern  → assembled box graph
-  Phase 3: run match      → drive root box α/β, collect captures
-  Phase 4: build replacement
-  Phase 5: perform replacement → assign + jump :S/:F
-
-For pure x86: executor establishes the ONE frame, sets r12 to bb_pool slab,
-then pure jmp into root box α. No further call overhead.
-
-Read .github/test_sno_*.c before coding. They are the spec.
-
----
-
-## DYN-2 CLOSE — verified reference files complete (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `1269747` · **one4all HEAD:** `4d85f67` · **corpus HEAD:** `209a976`
-
-Lon provided test_sno_2.c and test_sno_3.c as separate uploads to confirm they
-were not missed from the ZIP. Diff confirmed both are identical to the copies
-already committed to .github at d123ac8. All five reference files are present
-and correct in HQ:
-
-  .github/test_sno_1.c  ✅
-  .github/test_sno_2.c  ✅
-  .github/test_sno_3.c  ✅
-  .github/test_sno_4.c  ✅
-  .github/test_icon.c   ✅
-
-These are the canonical spec. DYN-3 reads them before any coding.
-
-### DYN-3 start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh            # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86   # expect 106/106
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/ARCH-byrd-dynamic.md
-cat /home/claude/.github/test_sno_1.c
-cat /home/claude/.github/test_sno_2.c
-```
-
-**DYN-3 first action: M-DYN-3 — stmt_exec.c**
-
-Five-phase statement executor. Pure x86 path: r12=data ptr, one frame established
-by executor, all box ports are flat labels, pure jmp. C-text path follows the
-test_sno_*.c one-function-per-box pattern exactly.
-
----
-
-## DYN-3 CLOSE — M-DYN-3 ✅ spec_t rename (2026-04-01, Claude Sonnet 4.6)
-
-**.github HEAD:** `c8190c9` · **one4all HEAD:** `2ff4647` · **corpus HEAD:** `209a976`
-
-### M-DYN-3 ✅ — one4all `2ff4647`
-
-Five-phase dynamic statement executor committed.
-
-**spec_t** replaces str_t throughout src/runtime/dyn/ — avoids collision
-with engine/runtime.h's str_t. SIL precedent: spec = specifier (σ pointer + δ length).
-
-Five phases — layout:
-
-    LABEL:              ACTION                          GOTO
-    ─────────────────────────────────────────────────────────
-    Phase1:             Σ = VARVAL_fn(*subj_var)        → Phase2
-                        Δ = 0; Ω = strlen(Σ);
-    Phase2:             root = bb_build(spat_of(pat))   → Phase3
-                        (walks PATND_t tree → live bb box graph)
-    Phase3:             for scan=0..Ω:                  → Phase4 on γ
-                            Δ=scan; r=root.fn(α)        → :F if all fail
-    Phase4:             repl already DESCR_t            → Phase5 / skip
-    Phase5:             splice repl into Σ at           → :S
-                        [match_start..match_end]
-                        GC_MALLOC new string, NV_SET_fn
-
-New files:
-  src/runtime/dyn/stmt_exec.c       — executor + bb_build_from_patnd (all XKIND_t cases)
-  src/runtime/dyn/stmt_exec_test.c  — 13/13 PASS standalone gate
-
-Modified (spec_t rename):
-  bb_box.h  bb_lit.c  bb_alt.c  bb_seq.c  bb_arbno.c  bb_pos.c  bb_dyn_test.c
-
-### Gates held
-
-981/4 ✅ · snobol4_x86 ALL PASS ✅
-
-### DYN-4 first action: M-DYN-4 — *VAR dynamic dispatch
-
-*X where X holds a PATTERN SnoVal (DT_P) → jump directly to stored box graph α.
-XDSAR / XVAR already stubbed in bb_build_from_patnd (calls NV_GET_fn at Phase 2 time).
-DYN-4 makes this deferred to Phase 3 match time (true dynamic dispatch).
-Read ARCH-byrd-dynamic.md §*X — Static vs. Dynamic (E_DEFER) before coding.
-Run corpus Rung 6 patterns via dynamic path as gate.
-
-
-### DYN-3 ADDENDUM — warning cleanup (2026-04-01)
-
-one4all HEAD: `4b25ebd`
-
-All dyn/ files now build clean with -Wall:
-- stmt_exec.c: removed /* within /* in comments
-- bb_dyn_test.c: (void)ζ for unused len1 state; (void**) casts at typed call sites
-
-Zero warnings. 3/3 + 13/13 PASS confirmed.
-
----
-
-## DYN-3 DESIGN NOTES — ideas from session (2026-04-01, Claude Sonnet 4.6)
-
-one4all HEAD: `4b25ebd` · .github HEAD: `303d387`
-
-### Phase 5 lvalue requirement — CRITICAL correctness bug to fix in DYN-4
-
-Phase 5 (perform replacement) MUST verify the subject is an lvalue before
-splicing. The current stmt_exec_dyn() takes `DESCR_t *subj_var` — a pointer
-to whatever the caller passed. If the caller passes a pointer to a temporary
-(a literal string, an integer coerced to string, an expression result), the
-write-back via `*subj_var = new_val` modifies a temporary, not a named
-variable. The replacement is silently lost.
-
-SNOBOL4 spec: the subject of a pattern match statement MUST be a named
-variable (an lvalue). If it is a literal or an expression, replacement is
-illegal — the statement should :F (or signal an error per &ERRLIMIT).
-
-**The fix (DYN-4):**
-
-    Phase 5 gate: check that subj_var points to a live NV entry, not a
-    temporary. The canonical test: the subject descriptor must have been
-    fetched via NV_GET_fn (has a name) — not constructed inline.
-
-    Two approaches:
-      A. Pass the subject variable NAME (const char *) alongside the
-         DESCR_t* to stmt_exec_dyn. Phase 5 writes back via
-         NV_SET_fn(name, new_val) instead of *subj_var = new_val.
-         This is correct by construction: NV_SET_fn is the only safe
-         write path.
-      B. Teach stmt_exec_dyn to accept a NULL subj_name to mean
-         "read-only subject" (replacement silently skipped / :F).
-
-    Preferred: approach A. New signature:
-
-        int stmt_exec_dyn(const char  *subj_name,   /* NV name, or NULL */
-                          DESCR_t      pat,
-                          DESCR_t     *repl,
-                          int          has_repl);
-
-    Phase 1: Σ = NV_GET_fn(subj_name) → VARVAL_fn().
-    Phase 5: NV_SET_fn(subj_name, new_val).
-    If subj_name is NULL and has_repl: → :F (can't assign to non-lvalue).
-
-### spec_t — the right name, correct origin
-
-spec_t = specifier: { σ (pointer), δ (length) }.
-SIL (SNOBOL4 Implementation Language) called these "specifiers" — a
-two-word descriptor holding base address + length. Our spec_t is exactly
-that. The name is now canonical for all dyn/ code. Never revert to str_t.
-
-Three-column law holds for spec_t declarations too:
-
-    LABEL:          SPEC_DECL                       (blank goto col)
-    ─────────────────────────────────────────────────────────────────
-    spec_t          BIRD;
-    BIRD_α:         ...                             goto BIRD_γ;
-
-### bb_build_from_patnd — Phase 2 timing vs Phase 3 timing
-
-Current DYN-3: XDSAR (*name) and XVAR are resolved at Phase 2 (build time).
-This means the value of the named variable is snapshotted when the pattern
-graph is built, not when each match attempt runs.
-
-SNOBOL4 spec: *X must be evaluated at match time (Phase 3), not build time.
-If X changes between iterations (e.g. inside ARBNO), the dynamic dispatch
-must see the updated value.
-
-DYN-4 fix: XDSAR/XVAR boxes must defer NV_GET_fn to their α port (inside
-the box function body), not in bb_build. The box stores only the variable
-NAME, not the resolved value. On each α call it fetches fresh.
-
-This is what ARCH-byrd-dynamic.md §"*X — Static vs. Dynamic (E_DEFER)"
-describes. DYN-3 stubbed it correctly (NV_GET_fn at build time = safe
-approximation for non-mutating patterns); DYN-4 makes it exact.
-
-### ARBNO zero-advance guard — confirmed correct
-
-The zero-advance guard in bb_arbno.c (if body matched zero chars, yield
-current accumulation immediately rather than looping forever) is correct
-per SNOBOL4 spec §3 and matches test_sno_1.c behavior exactly.
-Do not remove it.
-
-### Scan loop in Phase 3 — anchor flag
-
-Current DYN-3 always scans positions 0..Ω (unanchored).
-&ANCHOR keyword (kw_anchor global) should suppress the scan and pin to Δ=0.
-DYN-4: import kw_anchor from snobol4.h and gate the scan loop on it.
-
-    if (kw_anchor) { Δ = 0; /* single attempt */ }
-    else           { for scan = 0..Ω ... }
-
-### Capture ordering — $ vs .
-
-XFNME (pat $ var): immediate capture — variable is set each time the
-sub-pattern γ's, even during backtracking. The LAST successful match wins.
-
-XNME (pat . var): conditional capture — variable is set only when the
-ENTIRE enclosing pattern succeeds. Must be deferred to after Phase 3
-confirms overall match success.
-
-Current bb_capture in DYN-3 writes immediately on every γ (behaves like $).
-DYN-4: XNME must buffer the capture and only commit it in Phase 5.
-
-### GC_MALLOC in Phase 5 — correct, not malloc
-
-Phase 5 uses GC_MALLOC for the spliced subject string. This is correct —
-the SNOBOL4 runtime owns all strings via the Boehm GC. Never use plain
-malloc for strings that enter the DESCR_t / NV table.
-The standalone test uses plain malloc (no GC) — acceptable for testing only.
-
+**SJ-2 first action: M-SJ-A01 — write the code**
+
+Read oracles first (mandatory, per SESSION-snobol4-js.md §ORACLE READ ORDER),
+then create these three files in order:
+
+1. `src/backend/emit_js.c`
+   - `J()` macro (copy of `C()` from emit_byrd_c.c)
+   - `next_uid()` counter
+   - `js_emit(Program*, FILE*)` entry point
+   - EKind switch scaffold — empty cases, builds clean
+   - Implement: `E_QLIT`, `E_ILIT`, `E_VAR`, `E_NUL`, `E_ASSIGN`, OUTPUT stmt
+   - Pattern stmts: dispatch switch using `(uid << 2) | signal` encoding
+     (see SJ-1 handoff above — this is the confirmed design)
+
+2. `src/runtime/js/sno_runtime.js`
+   - `_vars` Proxy with OUTPUT intercept
+   - `_to_str()`, `_to_int()`, `_to_float()` coercions
+   - Trampoline: `let pc = block_START; while(pc) pc = pc();`
+
+3. `test/js/run_js.js` — Node runner shim
+
+4. Wire `src/Makefile`: add `backend/emit_js.c` to `BACKEND_JS =`
+5. Wire `driver/main.c`: `-js` flag → `js_mode`, `.js` extension, call `js_emit()`
+
+Gate: hello world passes, emit-diff 981/4 holds.
