@@ -14594,3 +14594,84 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # ex
 ```
 
 ### Context at handoff: ~65%. Stopping cleanly.
+
+---
+
+## Session DYN-14 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** one4all `10d065d` · .github `708f224`
+**HEAD at session end:** one4all `e77bbac` · corpus `8ced56b` (WIP — gates not rerun)
+**Sprint:** DYN-14 — unary plus coerce fix (E_UPLUS)
+
+### Gates at session start
+- emit-diff (CELLS=snobol4_x86): 179/0 ✅
+- invariants (snobol4_x86): 142/142 ALL PASS ✅
+
+### Work done — E_UPLUS unary plus coerce
+
+**Root cause of 411/002 failure:**
+- Parser (parse.c line 236): `case T_PLUS: lex_next(lx); return parse_expr14(lx)` — unary `+` was treated as identity (no-op), returning the raw operand without numeric coercion
+- SNOBOL4 semantics: `+x` must coerce x to numeric (string `'4'` → integer `4`)
+- The oracle `.s` for 411_arith_unary was generated with the broken behavior and expected `FAIL 411/002` — but the `.ref` correctly expects `PASS 411_arith_unary (2/2)`
+
+**Fix applied (4 files in one4all, 1 oracle in corpus):**
+
+| File | Change |
+|------|--------|
+| `src/ir/ir.h` | Added `E_UPLUS` to enum + name table |
+| `src/frontend/snobol4/parse.c` | `T_PLUS` → `uk=E_UPLUS` (was identity return) |
+| `src/backend/emit_x64.c` | `case E_UPLUS:` — calls `"pos"` via CALL1_STR/CALL1_VAR/CALL1_INT + generic path (identical pattern to `E_NEG`/`"neg"`) |
+| `src/runtime/snobol4/snobol4.c` | Added `pos()` helper, `_b_pos()` builtin, `register_fn("pos", _b_pos, 1, 1)` |
+| `src/runtime/snobol4/snobol4.h` | Declared `DESCR_t pos(DESCR_t a)` |
+| `corpus/crosscheck/rung4/411_arith_unary.s` | Regenerated — now emits `CALL1_STR S_pos, S_4` |
+
+**pos() semantics:** identity on DT_I/DT_R, `INTVAL(to_int(a))` on string — mirrors `neg()` pattern.
+
+**Status at handoff: WIP — gates not rerun.**
+The RT_CACHE (`out/rt_cache/libsno4rt_asm.a`) was deleted (it was stale — built before `pos` was added). DYN-15 must rebuild it and rerun gates before declaring the fix complete.
+
+**Suspected remaining issue:** During testing with manually-rebuilt `/tmp` archive, `411` still printed `FAIL 411/002`. The `pos` symbol was confirmed present in the archive (`nm` verified). The `scrip-cc` correctly emits `CALL1_STR S_pos, S_4`. Root cause of the continued failure was not pinned before context limit — most likely the stale RT_CACHE was being used by the linked binary (the invariant runner rebuilds into `out/rt_cache/`; manual `/tmp` build may have had a different issue). **DYN-15 first action: run `run_invariants.sh snobol4_x86` which will rebuild RT_CACHE with `pos` and give the true result.**
+
+### Bootstrap for DYN-15
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+
+# Step 1: rebuild scrip-cc (E_UPLUS changes require recompile)
+cd src && make -j$(nproc) && cd ..
+
+# Step 2: delete stale RT_CACHE (already deleted but re-confirm)
+rm -f out/rt_cache/libsno4rt_asm.a
+
+# Step 3: run gates — RT_CACHE will be rebuilt with pos()
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+# expect 179/0 (411.s oracle now correct)
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# expect 142/142 if pos() fix works, or 141/142+1fail if it doesn't
+
+# Step 4: manually verify 411
+sno=corpus/crosscheck/rung4/411_arith_unary.sno
+./scrip-cc -asm -o /tmp/411.s "$sno"
+nasm -f elf64 -I src/runtime/asm/ /tmp/411.s -o /tmp/411.o
+gcc -O0 -no-pie /tmp/411.o out/rt_cache/libsno4rt_asm.a -lgc -lm -o /tmp/411
+/tmp/411   # expect: PASS 411_arith_unary (2/2)
+
+# Step 5: if 411 passes and all gates pass:
+#   - Add rung4 to snobol4_x86 DIRS in run_invariants.sh (5 tests, 4 were already passing)
+#   - Run invariants again — expect 147/147
+#   - Commit run_invariants.sh change
+#   - Move on to next failing dir (rung9/911_datatype — DATATYPE() predicate)
+
+# Step 6: if 411 still fails with rebuilt cache:
+#   - Check: nm out/rt_cache/libsno4rt_asm.a | grep " pos"
+#   - If missing: SESSION_SETUP.sh doesn't rebuild cache; must delete and run run_invariants.sh
+#   - Check ensure_sno4_archive() in run_invariants.sh — it compares stamp file
+#     rm -f out/rt_cache/.stamp_sno4 to force rebuild
+
+# HEAD: one4all e77bbac · corpus 8ced56b · .github 708f224
+```
+
+### Context at handoff: ~92%. Clean stop.
