@@ -43,6 +43,18 @@ SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
 - `.dummy` unevaluated result — same, Snocone supports `.`
 - `do { } while (expr with fn call)` — known hang, workaround:
   rewrite as `while(1) { ...; if (!(cond)) break; }`
+- `+expr` (unary plus / numeric coerce) returns `''` in snocone x86 — drop it or use `INTEGER()`
+- Cond-assign idiom `val = GT(a,b) expr` → rewrite as `if (GT(a,b)) { val = expr; }`
+- Subject replacement `str pat =` not available — use SUBSTR/SIZE index walk
+- `~(strval)` unreliable as empty check — use `GT(i, SIZE(arr))` for loop bounds
+- Loop termination on SORT array: use `n = SIZE(arr); while GT(i,n)` not empty-sentinel
+
+**Policy (SC-16+): IS and FENCE stubs dropped**
+- `IsSpitbol()` / `IsSnobol4()` / `IsType()` — NOT included in any Snocone driver.
+  one4all targets SPITBOL semantics exclusively; no runtime dialect detection needed.
+- `FENCE` — builtin in snocone x86 (0-arg and 1-arg pattern forms). No stub .sc needed.
+  `FENCE.sc` is empty. Drivers never include is.sc or FENCE.sc.
+- All `.inc` guards like `IsSnobol4() :F(end)` are converted as unconditional in .sc.
 
 ---
 
@@ -50,27 +62,27 @@ SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
 
 | ID | Subsystem | .inc source | Depends on | Status |
 |----|-----------|-------------|------------|--------|
-| **M-SCB-ASSIGN** | assign.sc — conditional assignment in pattern | assign.inc | — | ❌ |
-| **M-SCB-MATCH** | match.sc — match/notmatch | match.inc | — | ❌ |
-| **M-SCB-IS** | is.sc — IsSnobol4/IsSpitbol predicates | is.inc | — | ❌ |
-| **M-SCB-FENCE** | FENCE.sc — FENCE primitive wrapper | FENCE.inc | IS | ❌ |
-| **M-SCB-GLOBAL** | global.sc — char constants, &ALPHABET | global.inc | — | ❌ |
-| **M-SCB-CASE** | case.sc — UpperCase/LowerCase | case.inc | GLOBAL | ❌ |
-| **M-SCB-COUNTER** | counter.sc — counter stack | counter.inc | — | ❌ |
-| **M-SCB-STACK** | stack.sc — value stack | stack.inc | — | ❌ |
-| **M-SCB-TREE** | tree.sc — DATA tree type | tree.inc | STACK | ❌ |
-| **M-SCB-SR** | ShiftReduce.sc — Shift/Reduce | ShiftReduce.inc | TREE,COUNTER | ❌ |
-| **M-SCB-TDUMP** | TDump.sc — tree pretty-printer | TDump.inc | TREE | ❌ |
-| **M-SCB-IO** | io.sc — INPUT/OUTPUT OPSYN | io.inc | FENCE | ❌ |
-| **M-SCB-GEN** | Gen.sc — code generation output | Gen.inc | IO | ❌ |
-| **M-SCB-QIZE** | Qize.sc — quoting/unquoting | Qize.inc | GLOBAL | ❌ |
-| **M-SCB-READWRITE** | ReadWrite.sc — buffered I/O | ReadWrite.inc | IO | ❌ |
-| **M-SCB-XDUMP** | XDump.sc — extended dump | XDump.inc | TDUMP | ❌ |
-| **M-SCB-SEMANTIC** | semantic.sc — semantic actions | semantic.inc | SR,GEN | ❌ |
-| **M-SCB-OMEGA** | omega.sc — omega pattern helpers | omega.inc | SEMANTIC | ❌ |
-| **M-SCB-TRACE** | trace.sc — xTrace helpers | trace.inc | — | ❌ |
+| **M-SCB-ASSIGN** | assign.sc | assign.inc | — | ✅ |
+| **M-SCB-MATCH** | match.sc | match.inc | — | ✅ |
+| ~~M-SCB-IS~~ | *(dropped)* | — | — | ⛔ N/A |
+| **M-SCB-FENCE** | FENCE.sc (empty — builtin) | FENCE.inc | — | ✅ |
+| **M-SCB-GLOBAL** | global.sc | global.inc | — | ✅ |
+| **M-SCB-CASE** | case.sc | case.inc | GLOBAL | ⏭ dynamic |
+| **M-SCB-COUNTER** | counter.sc | counter.inc | — | ✅ |
+| **M-SCB-STACK** | stack.sc | stack.inc | — | ✅ |
+| **M-SCB-TREE** | tree.sc | tree.inc | STACK | ✅ |
+| **M-SCB-SR** | ShiftReduce.sc | ShiftReduce.inc | TREE,STACK | ❌ |
+| **M-SCB-TDUMP** | TDump.sc | TDump.inc | TREE,GEN | ⏭ dynamic |
+| **M-SCB-IO** | io.sc | io.inc | — | ❌ |
+| **M-SCB-GEN** | Gen.sc | Gen.inc | IO | ❌ |
+| **M-SCB-QIZE** | Qize.sc | Qize.inc | GLOBAL | ⏭ dynamic |
+| **M-SCB-READWRITE** | ReadWrite.sc | ReadWrite.inc | GLOBAL | ❌ |
+| **M-SCB-XDUMP** | XDump.sc | XDump.inc | TDUMP,QIZE | ⏭ dynamic |
+| **M-SCB-SEMANTIC** | semantic.sc | semantic.inc | SR,COUNTER | ❌ |
+| **M-SCB-OMEGA** | omega.sc | omega.inc | SR,QIZE,CASE... | ⏭ dynamic |
+| **M-SCB-TRACE** | trace.sc | trace.inc | — | ✅ |
 
-**All 19 fire → M-SCB-SELFTEST: run beauty.sc (Snocone port of beauty.sno)**
+**All non-dynamic fire → M-SCB-SELFTEST: run beauty.sc**
 
 ---
 
@@ -79,32 +91,14 @@ SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 cd /home/claude/one4all
-# Convert one subsystem and test:
-CORPUS=/home/claude/corpus bash test/beauty-sc/run_beauty_sc_subsystem.sh assign
-# Gates:
+CORPUS=/home/claude/corpus bash test/beauty-sc/run_beauty_sc_subsystem.sh assign match global counter stack tree trace
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # 1286/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86
 ```
 
 ---
 
-## §FIRST ACTION — SCB-1
-
-1. Create `corpus/programs/include-sc/` directory
-2. Create `test/beauty-sc/run_beauty_sc_subsystem.sh` (mirrors run_beauty_subsystem.sh,
-   uses `-sc -asm` pipeline, compares to SNOBOL4 `.ref` oracle)
-3. Convert `assign.inc` → `assign.sc` (13 lines, simplest, no dependencies)
-4. Write `test/beauty-sc/assign/driver.sc`
-5. Run → fire M-SCB-ASSIGN
-
-Recommended work order (simplest-first):
-ASSIGN → MATCH → IS → FENCE → GLOBAL → CASE → COUNTER → STACK → TREE →
-SR → TDUMP → IO → GEN → QIZE → READWRITE → XDUMP → SEMANTIC → OMEGA → TRACE
-
----
-
-## §OPEN ISSUE FROM SC-14/SC-15
+## §OPEN ISSUES
 
 `do { } while (fn())` hangs in sc_compile_paren_expr — paren depth not tracked
-for nested function call parens. Fix in SC-15 (Track A). Workaround in SCB
-drivers: avoid do-while, use `while(1) { ...; if (!(cond)) break; }`.
+for nested function call parens. Workaround: use `while(1) { ...; if (!(cond)) break; }`.
