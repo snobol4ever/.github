@@ -14094,3 +14094,58 @@ tail -120 .github/SESSIONS_ARCHIVE.md
 ```
 
 ### Context at handoff: ~92%. Hard limit — stopping cleanly.
+
+---
+
+## SC-14 — 2026-04-01 — Snocone × x86
+
+**HEAD at session start:** one4all `45ab380` · corpus `1a6e674` · .github `db47d59`
+**HEAD at session end:**   one4all `05a50e8` · corpus `7729763` · .github `08ebcf8`
+**Sprint:** SC-14 — M-SC-B10 ✅ · M-SC-B11 ✅ · M-SC-B12 ✅ — Sprint SC-7 complete
+**Context at handoff: ~85%**
+
+### Work completed
+
+**M-SC-B10: Numeric comparisons** (== != < > <= >=) — 6 tests, rungB10 6/6.
+Operators already wired via make_fnc2 → APPLY_FN_N. Zero emitter code.
+
+**M-SC-B11: Comments** (// # /* */) — 4 tests, rungB11 4/4. Zero emitter code.
+
+**M-SC-B12: Mixed patterns** — 6 tests, rungB12 6/6. Zero emitter code.
+
+**M-SC-SELFTEST: HANG at line 624 of snocone.sc.**
+`} while (gl_index >= 0 || gl_nextfile());` — do-while condition with nested
+fn-call parens. sc_compile_paren_expr uses a flat scan, not depth-tracking.
+Fix: replace with depth-tracking loop (same as for-header scanner, lines 954-966).
+
+**SESSION-snocone-beauty.md created** — 19-milestone SCB ladder, conversion
+rules (SNOBOL4 .inc → Snocone .sc), oracle strategy, recommended work order.
+Track B (BEAUTY ramp) is priority. Start: assign.inc → assign.sc (simplest).
+
+### Gates
+- Emit-diff: **1286/0 ✅** · snobol4_x86: **106/106 ✅** · snocone_x86: **160/160 ✅**
+
+### Bootstrap for SC-15 / SCB-1
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                          # 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86 # 106/106, 160/160
+tail -60 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snocone-beauty.md   # read full SCB plan
+# HEAD must be: one4all 05a50e8 · corpus 7729763 · .github 08ebcf8
+#
+# TRACK B PRIORITY (SCB-1) — simpler/smaller functions first:
+#   1. corpus/programs/include-sc/assign.sc  ← from assign.inc (13 lines, no deps)
+#   2. corpus/programs/include-sc/match.sc   ← from match.inc  (14 lines, no deps)
+#   3. corpus/programs/include-sc/is.sc      ← from is.inc     (17 lines, no deps)
+#   4. corpus/programs/include-sc/FENCE.sc   ← from FENCE.inc  ( 7 lines, dep: IS)
+#   5. corpus/programs/include-sc/case.sc    ← from case.inc   (26 lines, dep: GLOBAL)
+#   Each: convert .inc → .sc, write driver.sc, run, compare to test/beauty/*/driver.ref
+#   Conversion: DEFINE+label+:(RETURN) → procedure{}; * → //; DATA → struct
+#
+# TRACK A (SC-15) — fix sc_compile_paren_expr depth-tracking, then M-SC-SELFTEST
+```
