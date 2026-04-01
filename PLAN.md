@@ -57,7 +57,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-13 ✅ | one4all `10d065d` | **DYN-14**: investigate rung10/rung11 failures (array/table/OPSYN/APPLY/NRETURN/EVAL/ARG). snobol4_x86 now 142/142. emit-diff CELLS=snobol4_x86 179/0. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-15 | one4all `e77bbac` | **DYN-16**: fix E_UPLUS (CALL1_VAR→direct coerce, mirror E_NEG path); regen wordcount oracle; restore gates to 179/0 · 142/142; then rung9/DATATYPE(). Phase 2 design settled — bb_build() is plain constructor, no box chain needed. See ARCH-byrd-dynamic.md §"Phase 2 — Can Pattern Building Fail?". |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |

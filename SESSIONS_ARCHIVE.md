@@ -14675,3 +14675,90 @@ gcc -O0 -no-pie /tmp/411.o out/rt_cache/libsno4rt_asm.a -lgc -lm -o /tmp/411
 ```
 
 ### Context at handoff: ~92%. Clean stop.
+
+---
+
+## Session DYN-15 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** one4all `e77bbac` · corpus `8ced56b` · .github `708f224`
+**HEAD at session end:** .github updated (ARCH-byrd-dynamic.md + this entry)
+**Sprint:** DYN-15 — gate triage + Phase 2 design
+
+### Gates at session start (rerun after setup)
+- emit-diff (CELLS=snobol4_x86): **177/2 fail** ⛔
+  - `strings/wordcount` — real emit regression (E_UPLUS emitting `CALL1_VAR S_pos` instead of `CAT2_VS`)
+  - `coverage/coverage_sno_nodes` — pre-existing excluded test (not a regression)
+- invariants (snobol4_x86): **141p/1f** ⛔
+  - `wordcount` — same root cause as emit failure
+
+### Root causes diagnosed
+
+**E_UPLUS / wordcount regression (DYN-14 carry-over):**
+The `E_UPLUS` fix in DYN-14 introduced a regression: `CALL1_VAR S_pos, S_N`
+path is broken at runtime — calling `pos` via `stmt_apply` looks up `"pos"` as a
+variable name (returns SNUL/PATTERN, not the function), so `pos()` is never
+invoked. Even a trivial `OUTPUT = +N` (N=5) prints `PATTERN` instead of `5`.
+
+Fix design: `E_UPLUS` should NOT emit `CALL1_VAR S_pos, S_N`. Instead, match
+exactly what `E_NEG` emits (which calls `neg()` via the direct C shim path,
+not via stmt_apply). Alternatively: inline the coercion — `+X` semantics are
+`to_int(X)` if X is a string, identity if already numeric. This can be emitted
+as `COERCE_NUM var` (a new macro or inline sequence) without any `stmt_apply`.
+
+The *oracle* `wordcount.s` was generated with old (identity) behavior — needs
+regenerating after the fix via `run_emit_check.sh --update` for strings/wordcount.
+
+**411_arith_unary:** Same root cause. Once E_UPLUS is fixed, 411 will pass.
+
+### Phase 2 design (Pattern Building)
+
+Wrote design analysis into ARCH-byrd-dynamic.md §"Phase 2 — Can Pattern Building Fail?".
+
+**Summary:** You are right. Phase 2 does NOT need a Byrd box chain.
+- `bb_build()` is a plain recursive constructor (no α/β/γ/ω). Current design is correct.
+- The only failure path at Phase 2 boundary is: the expression that *produced* the
+  DT_P value failed — that's handled by the SNOBOL4 expression evaluator (already correct).
+- `bb_build()` itself cannot fail given a valid PATND_t.
+- The one "funny Byrd box that builds dynamic Byrd boxes" is `bb_deferred_var` —
+  it defers its child graph construction to Phase 3's α port for `*VAR` patterns.
+  That IS correct and already implemented. It's not Phase 2 — it's Phase 3.
+- Lazy/streaming evaluation of ALT arms (call Q() only if P() fails) would
+  interleave Phase 2+3, but that's a future optimization, not current scope.
+
+### Bootstrap for DYN-16
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+
+# Gates at DYN-15 handoff: 177/2 emit · 141/1 invariant (wordcount + E_UPLUS)
+
+# Step 1: Fix E_UPLUS in emit_x64.c
+# Check how E_NEG is emitted — use the SAME pattern for E_UPLUS:
+grep -n "E_NEG" src/backend/emit_x64.c | head -10
+# E_UPLUS should inline numeric coercion, NOT use CALL1_VAR/stmt_apply.
+# Option A: emit inline coerce sequence (call to_int shim directly)
+# Option B: add COERCE_TO_NUM macro to snobol4_asm.mac + runtime shim
+
+# Step 2: Rebuild scrip-cc
+cd src && make -j$(nproc) && cd ..
+
+# Step 3: Regenerate wordcount oracle
+rm out/rt_cache/libsno4rt_asm.a out/rt_cache/.stamp_sno4 2>/dev/null || true
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
+# This will update corpus/crosscheck/strings/wordcount.s in-place
+# Commit corpus change (wordcount.s oracle)
+
+# Step 4: Run gates
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # expect 142/142
+
+# Step 5: Once gates pass, proceed to rung9 / DATATYPE() as per DYN-14 priority list
+
+# HEAD: one4all e77bbac · corpus 8ced56b · .github (DYN-15 addendum)
+```
+
+### Context at handoff: ~47%. Clean stop.

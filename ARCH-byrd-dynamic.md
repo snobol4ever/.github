@@ -628,3 +628,140 @@ When `EMIT_BINARY` pre-allocates box state inside a `bb_pool` slab (future
 milestone), `ζ_size` already on `bb_node_t` makes sizing free — the slab
 allocator just bumps a pointer by `ζ_size`, no `realloc` needed there.
 But for the current C-path dynamic model, `realloc` is the right primitive.
+
+---
+
+## Phase 2 — Can Pattern Building Fail? (DYN-15 Design, 2026-04-01)
+
+### The Brainstorm Question
+
+> "Building can only just completely fail, so why have that whole box chain to do it?"
+
+This is the right question to ask. Here is the full answer.
+
+### Case 1 — Pure Constructor Patterns (the common case)
+
+```snobol4
+        PAT = BREAK(WORD) SPAN(WORD)
+```
+
+`BREAK` and `SPAN` are **constructors**. They take a character-class string
+and return a pattern node. They cannot fail. Phase 2 for this statement is:
+
+1. Evaluate `WORD` → a string value (from the variable table). Cannot fail
+   once WORD is set.
+2. Call `BREAK(str)` → allocates a `brk_t`, sets `ζ->chars = str`. Returns
+   a DT_P descriptor. **Cannot fail.**
+3. Call `SPAN(str)` → same. **Cannot fail.**
+4. Concatenate the two pattern nodes → allocates a `_seq_t`, wires them.
+   **Cannot fail.**
+
+**Conclusion for this case:** Phase 2 is a pure tree-building walk. No α/β
+wiring is needed. `bb_build_from_patnd()` is the right abstraction: a
+recursive DFS that allocates nodes and wires them. No failure path. The
+current `stmt_exec.c` / `bb_build()` already does exactly this — it's a
+plain C function, not a Byrd box graph. **You are correct: no box chain
+is needed for this class.**
+
+### Case 2 — Patterns Built from User-Defined Functions
+
+```snobol4
+        SUBJECT  P() Q()  = R()  :S(x) :F(y)
+```
+
+Where `P()` and `Q()` are user-defined SNOBOL4 functions that **return
+patterns** (DT_P descriptors).
+
+Now Phase 2 looks like:
+
+1. Call `P()` — this executes a SNOBOL4 function body. That function body is
+   itself a SNOBOL4 statement chain. **It can fail** (reach FRETURN or hit
+   a failing match with no :F label).
+2. If `P()` fails → ω fires immediately. Jump to :F(y). Phase 3 is never
+   entered.
+3. If `P()` succeeds → result is a DT_P. Call `Q()`.
+4. `Q()` can also fail. Same wiring.
+5. Both succeeded → build the SEQ node. Enter Phase 3.
+
+**Conclusion for this case:** Each function call in the pattern expression
+IS a Byrd box — it has a γ port (returns a value) and an ω port (FRETURN /
+failure → jumps to :F(y)). The "box chain" for Phase 2 is really just the
+normal SNOBOL4 expression evaluator applied to the pattern expression. The
+γ/ω wiring is already there because SNOBOL4 function calls always have it.
+
+### Case 3 — The Degenerate: FAIL() in a Pattern Expression
+
+```snobol4
+        X  FAIL() =  'x'  :S(ok) :F(bad)
+```
+
+`FAIL()` is a pattern constructor that returns the FAIL pattern node.
+It does not fail at build time — it returns a valid DT_P. At match time
+(Phase 3), the FAIL box always fires ω. So the "chain" goes:
+
+- Phase 2: `FAIL()` → constructs fail node. Succeeds. Phase 3 runs.
+- Phase 3: fail_α → fires ω immediately. Jump to :F(bad).
+
+**The build never fails here. Only the match fails.**
+
+### The Correct Design for Phase 2
+
+```
+Phase 2 = expression evaluation (normal SNOBOL4 eval) + one type check.
+
+If the result is DT_P → we have a pattern. Build the graph via bb_build().
+If the result is DT_S → treat as literal. Build a bb_lit() node.
+If the result is DT_FAIL → ω fires, jump to :F immediately.
+If the result is DT_I/DT_R → coerce to string (SNOBOL4 spec), build bb_lit().
+```
+
+`bb_build()` itself is NOT a Byrd box. It is a plain recursive constructor
+that cannot fail (assuming the DT_P pointer is valid). The only failure path
+at the Phase 2 boundary is: **did the expression that produced the pattern
+value itself fail?** And that failure is handled by the existing SNOBOL4
+expression evaluator — not by a special Phase 2 box chain.
+
+### The "Funny Byrd Box That Builds Dynamic Byrd Boxes"
+
+This IS what `bb_build()` is — a constructor that walks a PATND_t tree and
+assembles a live Byrd box graph. But it's not itself a Byrd box. It has no
+α/β ports. It's called once per statement execution (Phase 2 entry) and
+returns a root `bb_node_t` — the graph — which Phase 3 then drives with
+the α/β/γ/ω protocol.
+
+The directed graph (DG/tree) IS the output. The builder is a plain function.
+This is the cleanest design:
+
+```
+bb_build(PATND_t *)  →  bb_node_t         [pure constructor, no failure]
+stmt_exec_dyn()      →  drives bb_node_t  [Byrd box protocol in Phase 3]
+```
+
+### What CAN Fail at "Build" Time — and Should We Care?
+
+The only true build-time failure is: a function called INSIDE the pattern
+expression returns FRETURN. But that is handled by the expression evaluator
+(the existing `stmt_apply` / dynamic call machinery), NOT by the pattern
+builder. By the time `bb_build()` is called, the PATND_t is already the
+result of a successful expression evaluation. The DT_P handed to Phase 2
+is always valid.
+
+**Verdict:** You are right. The Byrd box chain for Phase 2 is not needed.
+Phase 2 is a plain recursive constructor. The α/β/γ/ω machinery lives
+entirely in Phase 3. The current `stmt_exec.c` design already reflects this.
+The "full box chain" for Phase 2 would be over-engineering.
+
+### The One Exception: Lazy/Streaming Pattern Expressions
+
+If a future optimization defers sub-expression evaluation UNTIL the match
+engine needs that branch (lazy evaluation of ALT arms — only call `Q()` if
+the `P()` arm of `P() | Q()` fails), then Phase 2 and Phase 3 interleave,
+and we DO need Byrd box wiring at the build level. This is the `_XDSAR`
+(`*VAR`) case already handled via `bb_deferred_var`: the "build" of the
+child box is deferred to Phase 3's α port. That IS a box. That IS correct.
+
+The general case (eager evaluation of both arms before starting the match)
+does not need this. Lazy eval is an optimization for patterns with expensive
+function-call arms — a later milestone.
+
+---
