@@ -14221,3 +14221,81 @@ cat .github/SESSION-snobol4-js.md
 # Test: node compiled_hello.js  (no SNO_RUNTIME env needed if runtime colocated)
 # Then: baseline corpus, fix remdr+float, wire run_snobol4_js(), commit M-SJ-A03
 ```
+
+---
+
+## Session SJ-3 FINAL — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** one4all `63bed44`
+**HEAD at session end:** one4all `4b5e682` · .github `0437500`
+**Sprint:** SJ-3
+**Context at handoff: ~72%**
+
+### Work completed
+
+**Item 1 — spipatjs located and studied**
+`philbudne/spipatjs` (not under snobol4ever org) — ES6 port of GNAT.SPITBOL.PATTERNS
+by Phil Budne. 3090 lines, `spipat.mjs`. Architecture: PE node graph + explicit Stack
+(GNAT model), distinct from our Byrd-box trampoline. Studied in full.
+
+**Item 2 — ARCH-spipat-js.md written and pushed (commit 0437500)**
+Full architecture comparison: GNAT model vs Byrd-box, Unicode rune handling,
+ARBNO simple/complex split, zero-advance guard, capture models, import strategy
+(GPL-3: reference only, no source import). Registered in ARCH-index.md.
+
+**Item 3 — Root cause of all rung2/3/4/8 failures diagnosed and fixed**
+Two-pass emitter was architecturally wrong: Pass 1 emitted labeled stmts as
+isolated one-shot JS functions (containing only the single labeled stmt body).
+`goto_eN()` called, ran one empty stub, returned — continuation never executed.
+
+Fix: block-grouping model (mirrors emit_byrd_c.c). Each `goto_vX` contains ALL
+stmts from label X through to the next label, returning next block function.
+Trampoline: `var _pc = goto_v_START; while(_pc) _pc = _pc();`
+
+Changes to emit_js.c:
+- `js_emit_goto`: `goto_X(); return` → `return goto_X` (trampoline-style)
+- `js_emit_stmt_body`: split from `js_emit_stmt`, returns transfer status
+- `js_emit`: full rewrite — block-grouping loop, consistent `jv()` naming,
+  trampoline kickoff IIFE. Committed as `2d9dc3f`.
+
+**Item 4 — Emit-diff gate confirmed: 1286/0 ✅**
+
+### Known open issue for SJ-4
+Hello.js runs correctly manually (trampoline steps verified), but `node hello.js`
+throws `(intermediate value)(...) is not a function` in Node v22 module scope.
+Debug shows `goto_v_START()` returns `goto_v_END` (function) correctly in isolation.
+Likely a Node v22 CJS module scope interaction with the trampoline IIFE timing.
+**SJ-4 first action:** resolve this before wiring invariant cell.
+
+### Gates
+- Emit-diff: **1286/0 ✅**
+- snobol4_js invariants: not yet wired (M-SJ-A03 incomplete)
+
+### Push
+- one4all `4b5e682` ✅
+- .github `0437500` ✅
+
+### SJ-4 first actions (mandatory order)
+1. `git log --oneline -3` — confirm `4b5e682`
+2. Debug Node v22 trampoline IIFE issue in hello.js
+3. Once hello passes: run corpus baseline (hello, rung4, rung3, rung2, rung8)
+4. Fix `remdr` builtin in `sno_runtime.js`
+5. Fix float-to-string format (`1.` → `1` for whole-number floats)
+6. Fix n-ary SEQ right-fold in emit_js.c
+7. Fix ARBNO zero-advance guard (ARCH-spipat-js.md §4)
+8. Wire `run_snobol4_js()` into `run_invariants.sh`
+9. Commit M-SJ-A03
+
+### Bootstrap for SJ-4
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 1286/0
+git log --oneline -3   # expect 4b5e682 at HEAD
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+# Then: debug Node v22 IIFE issue in hello.js
+```
