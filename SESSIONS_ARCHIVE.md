@@ -13390,3 +13390,66 @@ Fix bb_alt β bug (one line in src/runtime/dyn/bb_alt.c):
   Never advance to next alternative on β — that is ARBNO's job.
 Run bb_dyn_test → expect Blue/BlueGold/BlueGoldBird/BlueGoldBirdFish/Success!
 Then M-DYN-3: stmt_exec.c five-phase executor.
+
+---
+
+## DYN-2 FINAL ADDENDUM — M-DYN-2 ✅ + pure-x86 register model (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `c8190c9` · **one4all HEAD:** `4d85f67` · **corpus HEAD:** `209a976`
+
+### M-DYN-2 ✅ — one4all `4d85f67`
+
+bb_alt β bug fixed (one line: ALT_β → current child β → if ω → ALT_ω, never advance).
+bb_dyn_test 3/3 PASS. Output matches test_sno_1.c compiled with gcc exactly:
+  Blue / BlueG / ... / BlueGoldBirdFish / BlueGoldBirdFish / Success!
+
+Files in src/runtime/dyn/:
+  bb_box.h    — str_t, empty, α/β, Σ/Δ/Ω, BB_ENTER, bb_box_fn
+  bb_lit.c    — LIT box ✅
+  bb_alt.c    — ALT box ✅ (β bug fixed)
+  bb_seq.c    — SEQ box ✅
+  bb_arbno.c  — ARBNO box ✅
+  bb_pos.c    — POS + RPOS boxes ✅
+  bb_dyn_test.c — integration test ✅ 3/3
+
+### Pure x86 register model — new design insight
+
+No function wrapper needed for pure x86 path. One dedicated register (r12 or rbx)
+indexes into a flat data block in bb_pool. All locals are [r12 + offset]. No frame
+pointer. No push rbp. No call/ret between boxes. Pure jmp everywhere.
+
+  r12 = data pointer for current box invocation (bb_pool LIFO slab)
+
+  BIRD_α:     cmp  [r12 + CURSOR], ...         ; action    ; → BIRD_γ/ω
+  BIRD_β:     sub  [r12 + CURSOR], 4           ; action    ; → BIRD_ω
+  BIRD_γ:     jmp  seq_γ                       ;           ;
+  BIRD_ω:     jmp  seq_ω                       ;           ;
+
+The C struct layout IS the [r12 + offset] layout — same field, same offset, two
+syntaxes. C-text path uses ζ->field. x86 path uses [r12 + FIELD_OFFSET].
+
+Two clean modes:
+  PURE x86:  r12=data, flat labels, jmp, no frame between boxes.
+             C shim calls (stmt_get etc.) use call rax — ABI-safe because
+             stmt_exec establishes ONE frame for the whole statement, shared.
+  C-TEXT:    ζ=data struct, C labels, goto, one function per box.
+
+Both modes: same three-column layout, same data offset model, same box structure.
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 106/106 ✅
+
+### DYN-3 first action: M-DYN-3 — stmt_exec.c
+
+Five-phase statement executor:
+  Phase 1: build subject  → Σ, Δ=0, Ω
+  Phase 2: build pattern  → assembled box graph
+  Phase 3: run match      → drive root box α/β, collect captures
+  Phase 4: build replacement
+  Phase 5: perform replacement → assign + jump :S/:F
+
+For pure x86: executor establishes the ONE frame, sets r12 to bb_pool slab,
+then pure jmp into root box α. No further call overhead.
+
+Read .github/test_sno_*.c before coding. They are the spec.
