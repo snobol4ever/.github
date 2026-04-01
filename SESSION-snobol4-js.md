@@ -8,10 +8,11 @@
 
 ## §SUBSYSTEMS
 
-| Subsystem | Doc | Go there when |
-|-----------|-----|---------------|
-| SNOBOL4 language / IR | `FRONTEND-SNOBOL4.md` | pattern/AST questions |
-| JS backend patterns | `BACKEND-JS.md` | JS codegen, spipatjs wiring |
+| Subsystem | Doc |
+|-----------|-----|
+| SNOBOL4 language / IR | `FRONTEND-SNOBOL4.md` |
+| JS backend patterns | `BACKEND-JS.md` |
+| Milestone ladder | `MILESTONE-JS-SNOBOL4.md` |
 
 ---
 
@@ -30,8 +31,8 @@ Skips: `nasm wabt wat2wasm java javac mono ilasm icont swipl`
 
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # always — 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js    # own cell only
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # always 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js
 ```
 
 ---
@@ -40,76 +41,38 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js    # own cell 
 
 | File | Role |
 |------|------|
-| `src/backend/emit_js.c` | JS emitter — main work file (to be created) |
-| `src/runtime/js/` | JS runtime (spipatjs, string ops, OUTPUT) |
-| `test/js/run_js.js` | Node runner shim (to be created) |
-| `corpus/crosscheck/rungJ*/` | JS-specific test rungs |
+| `src/backend/emit_js.c` | JS emitter — main work file (to create) |
+| `src/runtime/js/sno_runtime.js` | JS runtime stub (to create) |
+| `test/js/run_js.js` | Node runner shim (to create) |
+| `src/backend/c/emit_byrd_c.c` | **Oracle** — copy EKind switch, adapt syntax |
+| `src/backend/c/trampoline.h` | **Oracle** — trampoline model |
 
 ---
 
-## §SPIPATJS INTEGRATION
+## §ORACLE READ ORDER (before writing any code)
 
-Clone Phil Budne's pattern library into runtime:
 ```bash
-cd /home/claude/one4all/src/runtime/js
-git clone https://github.com/philbudne/spipatjs
+cat src/backend/c/trampoline.h              # trampoline engine
+sed -n '1,100p' src/backend/c/emit_byrd_c.c # output macro, uid counter
+grep -n "^static void emit_\|case E_" src/backend/c/emit_byrd_c.c | head -40
 ```
-
-Pattern IR nodes wire to spipatjs constructors:
-- `E_QLIT` → `new Pat.Lit(str)`
-- `E_SEQ`  → `Pat.and(left, right)`
-- `E_ALT`  → `Pat.or(left, right)`
-- `E_ARBNO`→ `Pat.Arbno(inner)`
-- `E_ARB`  → `Pat.Arb`
-- `E_CAPT_COND` / `E_CAPT_IMM` → cursor-function assign
-
----
-
-## §EVAL / CODE
-
-```js
-// In emitted JS runtime preamble:
-const _scrip = require('./scrip_mini.js');  // bundled mini-compiler
-
-function _sno_eval(str) {
-    return new Function('return ' + _scrip.compile_expr(str))();
-}
-function _sno_code(str) {
-    const js = _scrip.compile_stmts(str);
-    return new Function(js)();
-}
-```
-
-This is the primary reason for the JS pivot. Design the mini-compiler
-interface in M-SJ-C01 after parity is established.
-
----
-
-## §MILESTONES
-
-| ID | Scope | Gate |
-|----|-------|------|
-| **M-SJ-A01** | Scaffold: emit_js.c builds, hello/literals/arith pass | rung2/3/4 |
-| **M-SJ-A02** | String ops: concat, SIZE, REPLACE, DUPL | rung8 |
-| **M-SJ-A03** | Control flow: goto, :S/:F, labels | rung5/6 |
-| **M-SJ-B01** | Pattern matching via spipatjs: E_QLIT, E_SEQ, E_ALT | rungJ01/J02 |
-| **M-SJ-B02** | ARBNO, ARB, captures (.var, $var) | rungJ03/J04 |
-| **M-SJ-B03** | Arrays, Tables, DATA types | rung10/11 |
-| **M-SJ-C01** | EVAL() / CODE() — mini-compiler interface | rungJ05 |
-| **M-SJ-C02** | DEFINE / user-defined functions | rungJ06 |
-| **M-SJ-PARITY** | Full corpus parity with x64/JVM/.NET | all rungs |
 
 ---
 
 ## §NOW — SJ-1
 
-First action:
-1. `cat /home/claude/.github/BACKEND-JS.md`
-2. `cat src/backend/emit_net.c | head -100` — use .NET emitter as structural template (closest to JS in simplicity)
-3. Create `src/backend/emit_js.c` scaffold
-4. Create `src/runtime/js/sno_runtime.js` stub
-5. Gate: `run_emit_check.sh` 981/4 holds after adding emit_js.c to build
+**Next milestone: M-SJ-A01**
+
+First actions:
+1. Read oracles above
+2. Create `src/backend/emit_js.c` scaffold — empty EKind switch, `J()` macro
+3. Create `src/runtime/js/sno_runtime.js` — trampoline + OUTPUT + `_vars`
+4. Create `test/js/run_js.js` — Node runner
+5. Wire into Makefile
+6. Gate: hello/literals pass, emit-diff 981/4 holds
+
+Read: `BACKEND-JS.md` · `MILESTONE-JS-SNOBOL4.md`
 
 ---
 
-*SESSION-snobol4-js.md — created SJ-1, 2026-03-31, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — rewritten SJ-1, 2026-03-31, Claude Sonnet 4.6.*
