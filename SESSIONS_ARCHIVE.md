@@ -15252,3 +15252,138 @@ cat .github/ARCH-byrd-dynamic.md
 ```
 
 ### Context at handoff: ~65%. Stopping cleanly.
+
+---
+
+## Session DYN-16 ADDENDUM — 2026-04-01 — M-DYN-S1 WIP
+
+**HEAD at addendum end:** one4all `e55d80a` · .github `6cd1969`
+
+### Planning corrections confirmed this session
+
+1. **Wrong runtime confirmed:** DYN-13 through DYN-16 corpus fixups ran via
+   `scrip-cc -asm` → static inline Byrd box NASM. `stmt_exec_dyn` was never
+   called. Tests proved the wrong path.
+
+2. **Correct model:** Every pattern statement — whether from `CODE()`, `EVAL()`,
+   or a compiled `.sno` file — must call `stmt_exec_dyn()` (5-phase executor).
+   The static `.s` file calls it as a C function at runtime.
+
+3. **Three output modes unified:** C-text (bb_*.c goto style) / S-text (NASM
+   `call stmt_exec_dyn`) / S-binary (bb_pool raw x86 bytes, r12=DATA Technique 2).
+   All share the same 5-phase executor. Same box structure, same 4 ports.
+
+4. **5 phases confirmed from v311.sil (CSNOBOL4 ground truth):**
+   - Phase 1 (subject): straight-line eval, can FAIL, no backtrack
+   - Phase 2 (pattern): straight-line calls to pat_* constructors → DT_P, no backtrack
+   - Phase 3 (match): Byrd box graph, full α/β backtracking — ONLY phase with backtrack
+   - Phase 4 (naming/capture): deterministic after match success
+   - Phase 5 (replacement): deterministic splice + write-back
+
+5. **Byrd boxes for ALL phases = 99% stackless** (future M-DYN-BB-EVAL).
+   Stack machine correct for now; benchmark before committing to BB eval phases.
+
+6. **Greek letters:** Σ/Δ/Ω kept as C identifiers. Non-static in stmt_exec.c
+   (external linkage for bb_*.c separate compilation). `extern` in bb_box.h.
+   Port labels (alpha/beta/gamma/omega) use ASCII for extern/global symbols.
+
+### M-DYN-S1 work done (WIP — not yet gate-clean)
+
+**emit_x64.c changes:**
+- `emit_pat_to_descr(EXPR_t *e)` — new function. Walks pattern AST, emits
+  straight-line NASM calls to snobol4_pattern.c constructors. E_QLIT→pat_lit,
+  E_CONCAT/E_SEQ→pat_cat, E_ALT→pat_alt, E_FNC(SPAN)→pat_span, etc.
+  Result: DT_P DESCR_t in rax:rdx.
+- Case 2 (pattern statement): ~200 lines of inline Byrd box NASM replaced with:
+  ```
+  Phase 1: subj_name → rdi (or subj_var ptr → rsi)
+  Phase 2: emit_pat_to_descr → rdx:rcx
+  Phase 3+4+5: call stmt_exec_dyn → test eax → :S/:F
+  ```
+- Added `extern stmt_exec_dyn` + all `pat_*` constructors to emitted .s header
+
+**stmt_exec.c:** Σ/Δ/Ω changed from `extern` to non-static definitions.
+
+**bb_box.h:** Σ/Δ/Ω `extern` decls unchanged (satisfied by stmt_exec.o).
+
+**run_invariants.sh:** `ensure_sno4_archive` now compiles bb_lit/alt/seq/arbno/
+pos/tab/fence/stmt_exec into libsno4rt_asm.a. eval_code.c excluded (needs
+frontend parser lex.c/parse.c — link separately).
+
+### Remaining issues for DYN-17 to resolve
+
+1. **Link test and run gates.** The `call stmt_exec_dyn` path is emitted but
+   not yet gate-tested. First action: compile wordcount.sno, link, run, confirm
+   `14 words`. Then run emit-diff `--update` to regenerate baselines. Then
+   confirm 142/142 invariants via stmt_exec_dyn.
+
+2. **E_CAPT_IMM register ordering** in `emit_pat_to_descr`. The `$` capture
+   case falls back to `emit_expr` which is correct but should eventually use
+   `pat_assign_imm` directly. Low priority — fallback works.
+
+3. **Named pattern bodies (DEFINE)** — `emit_named_def` still calls
+   `emit_pat_node` internally. Pattern statements inside function bodies also
+   need to call `stmt_exec_dyn`. Fix after top-level gates pass.
+
+4. **E_CAPT_COND (`.`) capture** — also falls back to `emit_expr`. Correct
+   but could use `pat_assign_cond` directly. Low priority.
+
+5. **Concurrent C-text / S-text verification** (M-DYN-S2): once S-text gates
+   pass, verify CODE() and scrip-cc -asm produce identical results on all 142.
+
+### Milestone chain (locked)
+
+| ID | Status | Deliverable |
+|----|--------|-------------|
+| M-DYN-S1 | 🔧 WIP | emit_x64.c: call stmt_exec_dyn. Gate: 142/142 via 5-phase |
+| M-DYN-S2 | 🔲 | C-text (CODE) and S-text (scrip-cc -asm) agree on all 142 |
+| M-DYN-BENCH | 🔲 | Benchmark: stack machine vs Byrd box for phases 1/2/4/5 |
+| M-DYN-BB-EVAL | 🔲 | (if bench >20% gain) Byrd box eval phases — 99% stackless |
+| M-DYN-B1 | 🔲 | S-binary: LIT box via bb_emit.c, r12=DATA (Technique 2) |
+| M-DYN-B2 | 🔲 | S-binary: SEQ/ALT/ARBNO |
+| M-DYN-B3 | 🔲 | S-binary: full corpus, replace static path |
+
+### Bootstrap for DYN-17
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+
+# HEAD must be: one4all e55d80a · .github 6cd1969
+
+# Step 1: bust RT cache (new archive includes bb_*.o + stmt_exec.o)
+rm -f out/rt_cache/stamp out/rt_cache/libsno4rt_asm.a
+
+# Step 2: run gates (will rebuild archive automatically)
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+# emit-diff will FAIL (baselines show old inline NASM; run --update to regenerate)
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
+# Now emit-diff should be N/0 (new baselines show call stmt_exec_dyn)
+
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# If 142/142: M-DYN-S1 COMPLETE
+# If failures: diagnose — likely emit_pat_to_descr edge cases or
+#   named pattern body (DEFINE) still using emit_pat_node
+
+# Step 3 (if M-DYN-S1 passes): run wordcount manually to confirm 5-phase
+# Add fprintf(stderr, "stmt_exec_dyn called\n") to stmt_exec_dyn temporarily
+# Recompile archive, run wordcount — should see trace for each pattern stmt
+
+# Step 4: M-DYN-S2 — run CODE() on same corpus tests, compare output
+
+# Key files changed this session:
+#   src/backend/emit_x64.c      — emit_pat_to_descr + new Case 2
+#   src/runtime/dyn/stmt_exec.c — Σ/Δ/Ω non-static definitions
+#   src/runtime/dyn/bb_box.h    — Σ/Δ/Ω extern decls (unchanged semantics)
+#   test/run_invariants.sh      — ensure_sno4_archive adds dyn/ files
+
+# Read before coding:
+#   cat .github/ARCH-byrd-dynamic.md  (full updated plan)
+#   grep -A5 "emit_pat_to_descr" src/backend/emit_x64.c  (new function)
+#   sed -n '5350,5430p' src/backend/emit_x64.c  (new Case 2)
+```
+
+### Context at handoff: ~90%. Stopping cleanly.
