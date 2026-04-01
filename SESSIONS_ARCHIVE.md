@@ -15401,3 +15401,133 @@ The `every` wiring (`body.success → expr.resume`) is exactly the pattern for
 our `capture_multiple` fix: after the first capture commits (body_γ for first .),
 the second capture should be tried as the next iteration, not abandoned. Check
 whether `flush_pending_captures` iterates ALL pending captures or just one.
+
+---
+
+# DYN-17 Continuation Handoff — 2026-04-01 (second continuation)
+
+**Session:** ⭐ DYNAMIC BYRD BOX — DYN-17 continuation 2
+**HEADs:** one4all `ab5b3b7` · .github `7bbfade`
+**Context at handoff:** ~54%
+
+---
+
+## What happened
+
+### Bugs fixed (on top of 131/142)
+
+**Bug 6 — E_SEQ/E_ALT flatten:**
+Parser builds flat n-ary nodes — all N children direct under one E_SEQ/E_ALT.
+Previous code did a right-spine walk expecting a binary tree — only found 2 of N
+children. Fix: iterate `e->nchildren` directly in left-fold loop.
+Fixes: `055_pat_concat_seq`, `048_pat_rem`, `060_capture_multiple`, `word*` partial.
+
+**Bug 7 — E_VAR nullary pattern builtins:**
+`FAIL`, `SUCCEED`, `ARB`, `REM`, `ABORT`, `BAL`, `FENCE` used without parens
+in patterns were parsed as `E_VAR("FAIL")` → emitted as `pat_ref("FAIL")`
+(deferred variable lookup). Fix: detect by name in `E_VAR` case of
+`emit_pat_to_descr`, call `pat_fail()`/`pat_arb()`/etc. directly.
+Fixes: `057_pat_fail_builtin`.
+
+### Architectural decision recorded
+
+**D-010 + M-DYN-SEQ:** E_SEQ vs E_CONCAT juxtaposition fragility documented.
+SNOBOL4 juxtaposition is polymorphic at runtime. `fixup_val_tree` parse-time
+heuristic is wrong for variables holding DT_P. Deferred to post M-DYN-S1.
+Fix: `stmt_seq(left, right)` runtime dispatcher. See ARCH-decisions.md D-010
+and ARCH-byrd-dynamic.md M-DYN-SEQ section.
+
+### Gates
+- emit-diff: **179/0 ✅**
+- invariants: **134/142** (up from 131)
+
+---
+
+## Remaining 8 failures — root causes for DYN-18
+
+```
+cross         ASM_FAIL   — E_CAPT_CUR (@) in value context generates "ASSIGN_INT_RAX S_NH"
+                           which is invalid NASM (macro call in wrong context)
+W07_capt_cur  FAIL       — E_CAPT_CUR cursor always 0 (old AT_α path reads BSS cursor
+                           global, but stmt_exec_dyn maintains cursor in C Δ variable,
+                           not BSS slot)
+063_capture_null_replace FAIL — replacement with null/empty not applied in Phase 5
+word1-4, wordcount FAIL   — use ARB . OUTPUT + INPUT loop; depend on capture_null_replace
+                            (the `=` replacement clears consumed match) working correctly
+```
+
+### Root cause analysis
+
+**E_CAPT_CUR (@ operator) — two symptoms, one root cause:**
+`E_CAPT_CUR` falls through to `default` in `emit_pat_to_descr` → calls
+`emit_expr(e, -32)` → hits the old `case E_CAPT_CUR:` at line 3936 in `emit_expr` →
+emits `mov rax, [cursor]` + `ASSIGN_INT_RAX S_VAR` inline NASM macros.
+
+Problem 1 (ASM_FAIL in `cross`): `ASSIGN_INT_RAX` is a pattern-context macro,
+not valid inside the Case 2 `sub rsp, 48` stack frame. Generates invalid NASM.
+
+Problem 2 (cursor=0 in W07): Even when the asm is valid, `[cursor]` reads the
+BSS global `cursor` variable. But in the `stmt_exec_dyn` path, cursor position
+is tracked in the C local `Δ` inside `stmt_exec.c` — the BSS `cursor` is never
+written. So `[cursor]` is always 0.
+
+**Fix for E_CAPT_CUR:**
+Add `case E_CAPT_CUR:` to `emit_pat_to_descr`. Use `_XATP` pattern node.
+`pat_atp` / `XATP` node kind exists in `snobol4_pattern.c` (kind=`XATP`=53 in
+the enum, `_XATP`=25 in `stmt_exec.c`). `bb_build` `_XATP` case is at line 897.
+
+The emit approach: build a `XATP` pattern node that wraps the child pattern
+(if binary `pat@var`) or is unary (if just `@var`). In `emit_pat_to_descr`:
+```c
+case E_CAPT_CUR: {
+    EXPR_t *child = (e->nchildren >= 2) ? e->children[0] : NULL;
+    EXPR_t *varnd = (e->nchildren >= 2) ? e->children[1] : e->children[0];
+    if (child) emit_pat_to_descr(child);
+    else A("    call    pat_epsilon\n");   /* unary @: epsilon child */
+    // push child result, build DT_S var descriptor, call pat_atp_assign
+    // OR: use pat_assign_cond with the XATP cursor-writing box
+}
+```
+Check `bb_build _XATP` case and `pat_at_cursor` (if it exists in snobol4_pattern.c)
+to understand the correct API before coding.
+
+**Fix for capture_null_replace:**
+`063_capture_null_replace.sno`: match `'hello world'` with pattern `'hello'`,
+replacement field is `=` (null/empty string). Expected output: `hello` (just the
+matched part, subject becomes `hello`). Currently outputs `hello world` (no replacement).
+Check Phase 5 in `stmt_exec_dyn` — `perform_repl` — for the null/empty replacement case.
+`has_repl=1` but `repl` DESCR_t is `DT_SNUL` or empty string → may be skipped.
+
+---
+
+## DYN-18 first tasks
+
+```bash
+# Setup
+cd /home/claude/one4all
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+# Expected HEADs: one4all ab5b3b7 · .github 7bbfade
+
+# Gate check
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # 134/142
+
+# Task 1: Fix E_CAPT_CUR in emit_pat_to_descr
+#   Read: grep -n "_XATP\|bb_atp\|pat_atp\|XATP" src/runtime/dyn/stmt_exec.c
+#   Read: grep -n "XATP\|pat_atp\|at_cursor" src/runtime/snobol4/snobol4_pattern.c
+#   Read: sed -n '897,920p' src/runtime/dyn/stmt_exec.c  (bb_build _XATP case)
+#   Then add case E_CAPT_CUR to emit_pat_to_descr
+
+# Task 2: Fix capture_null_replace
+#   Read: grep -n "perform_repl\|Phase 5\|has_repl\|repl\b" src/runtime/dyn/stmt_exec.c
+#   Check null/empty replacement path in Phase 5
+
+# Task 3: Run full invariants → should be 142/142 → M-DYN-S1 COMPLETE 🎉
+```
+
+## Key files for DYN-18
+```
+src/backend/emit_x64.c           — add E_CAPT_CUR to emit_pat_to_descr
+src/runtime/dyn/stmt_exec.c      — check _XATP case + Phase 5 null replace
+src/runtime/snobol4/snobol4_pattern.c — XATP / pat_at_cursor API
+```
