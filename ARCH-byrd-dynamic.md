@@ -461,3 +461,109 @@ src/runtime/dyn/bb_build.c          M-DYN-2     graph assembler: wires boxes tog
 
 Each bb_*.c file is ONE function in test_sno_*.c style.
 The NASM static path (emit_x64.c + snobol4_asm.mac) is unchanged.
+
+---
+
+## Three-Column NASM Layout — The Final Form (2026-04-01)
+
+### The Law Applied to NASM
+
+The three-column law from the C reference implementations maps directly to NASM.
+Semicolons are comments. Macro names ARE the action column. One proc per box.
+
+```
+;   LABEL:              ACTION                          GOTO
+;   ──────────────────────────────────────────────────────────
+    BIRD_α:             LIT_CHECK "Bird", 4             ; implicit → γ/ω
+    BIRD_β:             LIT_UNDO  4                     ; implicit → ω
+    BIRD_γ:             ...                             ; fall through
+    BIRD_ω:             jmp     seq_ω                   ;
+```
+
+### Multi-Line Port Bodies — Still Three Columns
+
+A port may require more than one macro line. Each line keeps its column position.
+The last line of a port body carries the `jmp` in column 3:
+
+```
+;   LABEL:              ACTION                          GOTO
+;   ──────────────────────────────────────────────────────────
+    BIRD_α:             MACRO0_port(param1, p2, p3)     ;
+                        MACRO1(p5, p7)                  ; jmp BIRD_γ
+                                                        ; jmp BIRD_ω
+
+    BIRD_β:             MACRO2(p1)                      ; jmp BIRD_ω
+```
+
+Column 1 (label): col 0, width 20. Real NASM labels.
+Column 2 (action): col 20, width 40. Macro name + params. One macro per semantic op.
+Column 3 (goto): col 60+. Semicolon comment OR live `jmp`. Port terminator.
+
+### NASM Proc = C Function = One Box
+
+```nasm
+proc BIRD
+    .alpha:     LIT_CHECK "Bird", 4, .gamma, .omega
+    .beta:      LIT_UNDO  4,         .omega
+    .gamma:     ret                                 ; γ — eax=1
+    .omega:     xor     eax, eax                   ; ω — eax=0
+                ret
+endp
+```
+
+- C function  → NASM proc
+- C label     → NASM local label (.name)
+- goto        → jmp
+- return      → ret (or jmp caller's γ/ω label)
+- α/β entry   → test entry param, jmp .alpha / .beta
+
+### Globbing — Multiple Sub-Boxes Per Proc
+
+Named patterns (BIRD, SEQ, ALT etc.) glob their sub-box labels into one proc.
+Sub-box ports become local labels within the enclosing proc — exactly as C
+labels are local to their function. The proc boundary IS the pattern boundary.
+
+```nasm
+proc SEQ_BIRD_BLUE
+    ; ── BIRD sub-box ──────────────────────────────────────────────
+    .bird_α:    LIT_CHECK "Bird", 4                 ; jmp .bird_γ
+                                                    ; jmp .bird_ω
+    .bird_β:    LIT_UNDO  4                         ; jmp .bird_ω
+    .bird_γ:                                        ; jmp .blue_α
+    .bird_ω:                                        ; jmp .seq_ω
+    ; ── BLUE sub-box ──────────────────────────────────────────────
+    .blue_α:    LIT_CHECK "Blue", 4                 ; jmp .blue_γ
+                                                    ; jmp .blue_ω
+    .blue_β:    LIT_UNDO  4                         ; jmp .blue_ω
+    .blue_γ:                                        ; jmp .seq_γ
+    .blue_ω:                                        ; jmp .bird_β
+    ; ── SEQ wiring ────────────────────────────────────────────────
+    .seq_α:                                         ; jmp .bird_α
+    .seq_β:                                         ; jmp .blue_β
+    .seq_γ:     ret                                 ; γ
+    .seq_ω:     xor     eax, eax                   ; ω
+                ret
+endp
+```
+
+This is beautiful. It reads like SNOBOL4. The C version and the NASM version
+are structurally identical. The three columns hold across both languages.
+The macro expansion is invisible at the call site — one line per semantic operation.
+
+### Why This Is Right
+
+1. **Readable like SNOBOL4.** Label / Action / Goto. Three columns. Always.
+2. **One proc per named pattern.** Sub-box labels are local. No name scoping problems.
+3. **Macros are the ABI.** `LIT_CHECK`, `LIT_UNDO`, `ALT_TRY`, `ARBNO_PUSH` etc.
+   expand to whatever register shuffling is needed. The call site stays clean.
+4. **Same structure as C.** The C reference implementations (test_sno_*.c) and the
+   NASM output are direct translations of each other. Correctness is verifiable by
+   inspection.
+5. **Dual-mode unity.** EMIT_TEXT produces this NASM. EMIT_BINARY produces the same
+   logic as raw x86-64 bytes into a bb_pool buffer. Same call sites. Same macros.
+
+### Status
+
+C layer (src/runtime/dyn/): bb_lit, bb_seq, bb_pos, bb_arbno written ✅
+bb_alt β bug: fix in DYN-3 (one line — ALT_β must ω not advance to next branch)
+NASM layer: M-DYN-1 bb_emit provides primitives; macro-to-NASM in M-DYN-2 scope
