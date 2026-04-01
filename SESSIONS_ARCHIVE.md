@@ -13986,3 +13986,111 @@ CORPUS=/home/claude/corpus bash test/run_emit_check.sh    # expect 981/4
 tail -80 .github/SESSIONS_ARCHIVE.md
 cat .github/SESSION-snobol4-js.md
 ```
+
+---
+
+## Session DYN-11 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `5aa181f` (DYN-10 / bb_deferred_var fix + T15/T16)
+**HEAD at session end:** `5aa181f` (no commits — no net progress to push)
+**Sprint:** DYN-11 — rung6 XNME capture debug
+
+### Gates
+- emit-diff: **1286/0 ✅**
+- invariants (snobol4_x86): **ALL PASS ✅** (106/106)
+- rung6_dyn_test: **8/12** (4 fail — same as DYN-10, no regression)
+
+### Work completed
+
+**Disproved the DYN-10 handoff hypothesis.**
+The DYN-10 handoff said "move `g_capture_count = 0` from top of `stmt_exec_dyn`
+to after Phase 2 `bb_build`." This was tested and is WRONG:
+- Moving it AFTER `bb_build` wipes the registrations that `bb_build` just made
+  (register_capture is called during bb_build, then immediately zeroed).
+- The original position (before Phase 2) is correct for the first call — and
+  since XNME is non-invariant, bb_build always creates a fresh capture_t and
+  calls register_capture on every invocation.
+- Reverted to original position. No change to stmt_exec.c committed.
+
+**Root cause of 4 failures — partially diagnosed.**
+
+Added stderr tracing to `bb_capture` (CAP_α), `flush_pending_captures`, and
+`stmt_exec_dyn` entry. Key findings:
+
+**T1 (output[0] fail):** `stmt_exec_dyn` is called **6 times** for one test
+call. The extra 5 calls come from the OUTPUT machinery inside snobol4.c — each
+`NV_SET_fn("OUTPUT", v)` triggers engine execution which calls `stmt_exec_dyn`
+recursively. The flush fires correctly (has_pending=1, varname='V') on the
+winning match — but also fires on earlier scan positions' partial matches.
+V gets overwritten by the last flush (a δ=0 match at scan position 15).
+Separately, the output[0] check fails because the pipe-capture machinery
+in the test captures the recursive OUTPUT calls, not the final OUTPUT=V write.
+
+**T2 second call / T3 / T5 (V='' fail):** `stmt_exec_dyn` shows **zero entry
+trace** for these tests — yet `matched=1` is reported. This is impossible if
+the binary's `stmt_exec_dyn` is being called. The test file uses
+`NV_GET_fn("V")` to read the capture result — but `runtime_reset()` calls
+`SNO_INIT_fn()` between tests. Hypothesis: `SNO_INIT_fn()` resets the NV
+store, wiping V before the test reads it. But T2 first call PASSES (V='foo')
+without a `runtime_reset()` between `stmt_exec_dyn` and the NV_GET, so the NV
+store is intact at return time.
+
+**The zero-trace mystery:** The most likely explanation is that the 6 recursive
+`stmt_exec_dyn` calls from T1's OUTPUT machinery are consuming the GC heap in
+a way that causes the subsequent `NV_SET_fn("V", ...)` writes in T2–T5 to be
+collected before `NV_GET_fn("V")` reads them. Or: the `capture_t` registered
+in T2–T5 is a different allocation (different address) from what
+`g_capture_list[0]` holds after the GC ran during T1's OUTPUT flushes.
+
+### Root cause hypothesis for DYN-12
+
+The REAL issue is in `bb_capture`'s `CAP_γ_core` for XNME: it sets
+`ζ->has_pending = 1` and stores `ζ->pending = child_r` where `child_r.σ`
+points INTO `Σ` (the subject string). When `flush_pending_captures` runs,
+it copies `child_r.σ[0..δ]` into a fresh GC_MALLOC buffer and calls NV_SET_fn.
+This should be correct.
+
+**But:** for T2 second call and T3/T5, no `bb_capture` CAP_α trace fires at all.
+This means the root bb_node_t returned by bb_build for those tests has
+`fn != bb_capture`. The XNME node wraps XDSAR. For T2 second call, `pat2` is
+a freshly built `pat_assign_cond(pat_ref("PAT"), str_val("V"))` — a new
+PATND_t. `bb_build` on XNME should build a `capture_t` with `child_fn =
+bb_deferred_var`. Unless `bb_build` is caching it. But XNME returns 0 from
+`patnd_is_invariant` so it should never be cached.
+
+**DYN-12 FIRST ACTION:** Add `fprintf(stderr, "bb_build XNME: p=%p\n", p)`
+at the top of the `case _XNME:` in `bb_build` to confirm whether `bb_build`
+is called for T2–T5 at all. If not called, the `pat` DESCR_t being passed to
+`stmt_exec_dyn` must have `v != DT_P` — forcing the DT_S or epsilon branch,
+which bypasses XNME entirely. Check `snobol4_pattern.c`'s PATND_t typedef
+to confirm `DT_P == 3` matches what `spat_val` writes.
+
+### Bootstrap for DYN-12
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh         # expect 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect ALL PASS
+tail -120 .github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 5aa181f (unchanged from DYN-10)
+# FIRST ACTION: add bb_build XNME trace, confirm whether bb_build is entered
+#   for T2/T3/T5. If not: the pat DESCR_t has wrong .v — check spat_val().
+# SECOND ACTION: if bb_build IS entered, add trace after case _XNME: to
+#   confirm register_capture is called. Check g_capture_list after bb_build.
+# Build cmd for rung6_dyn_test (same as DYN-10/11):
+#   cd /home/claude/one4all && gcc -Wall -Wno-unused-label -Wno-unused-variable -g -O0 \
+#     -I src/runtime/dyn -I src/runtime/snobol4 -I src/runtime \
+#     -I src/frontend/snobol4 \
+#     src/runtime/dyn/bb_lit.c src/runtime/dyn/bb_alt.c src/runtime/dyn/bb_seq.c \
+#     src/runtime/dyn/bb_arbno.c src/runtime/dyn/bb_pos.c src/runtime/dyn/bb_tab.c \
+#     src/runtime/dyn/bb_fence.c src/runtime/dyn/stmt_exec.c \
+#     src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
+#     src/runtime/mock/mock_includes.c \
+#     src/runtime/engine/engine.c src/runtime/engine/runtime.c \
+#     src/runtime/dyn/rung6_dyn_test.c -lgc -lm -o rung6_dyn_test
+```
+
+### Context at handoff: ~92%. Hard limit — stopping cleanly.
