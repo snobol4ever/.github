@@ -17,8 +17,10 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 **Gate (every session after setup) — emit-diff first, then YOUR backend's invariant cells only:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # always — all backends
-CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells_only>
+CELLS=<your_cells> CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # own backend only
+CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>
+# CELLS matches cell names (snobol4_x86, snobol4_jvm, icon_x86, prolog_x86, …)
+# Omit CELLS to run all-backend emit-diff (cross-session full check)
 ```
 
 **⛔ OWN-BACKEND-ONLY INVARIANT POLICY (all sessions, no exceptions):**

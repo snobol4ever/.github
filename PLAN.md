@@ -16,8 +16,10 @@ See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 **Step 2 — Gate:**
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh                   # expect 981/4+
-CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>     # own backend only — see RULES.md
+CELLS=<your_cells> CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # own backend only — see RULES.md
+CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>         # own backend only — see RULES.md
+# CELLS mirrors cell names: snobol4_x86, snobol4_jvm, icon_x86, prolog_x86, etc.
+# Omit CELLS for cross-session full check (all 1286). DYN/x86: CELLS=snobol4_x86 → 179/0
 ```
 
 **Step 3 — Read in order:**
@@ -55,7 +57,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-12 ✅ | one4all `13e4c02` | **DYN-13 FIRST ACTION**: advance to rung7 — identify next unimplemented construct from corpus crosscheck. rung6 12/12. Fix: bb_deferred_var memset destroyed bb_lit config (len zeroed → δ=0 matches). |
+| **⭐ DYNAMIC BYRD BOX** | DYN-13 | one4all `13e4c02` | **DYN-13**: implement bb_fail.c (corpus 057_pat_fail_builtin). Gate: CELLS=snobol4_x86 179/0. emit-diff CELLS scoping added (M-G-EMIT-CELLS). |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
@@ -66,7 +68,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 **Invariants (SC-14 baseline): x86: SNOBOL4 `106/106` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
-**Gate:** Emit-diff **981/4**. Targeted invariants per RULES.md gate section.
+**Gate:** Emit-diff **179/0** (CELLS=snobol4_x86). Targeted invariants per RULES.md gate section.
 
 ---
 
