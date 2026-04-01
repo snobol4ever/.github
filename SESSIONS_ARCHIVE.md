@@ -13560,3 +13560,113 @@ cat .github/ARCH-byrd-dynamic.md   # M-DYN-6 spec
 # HEAD must be 5ee6353
 # Next milestone: M-DYN-6 EVAL/CODE
 ```
+
+---
+
+## Session DYN-7 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `5ee6353` (DYN-6 final / M-DYN-5 complete)
+**HEAD at session end:** `c4bc4ba`
+**Sprint:** DYN-7 partial — M-DYN-6 in progress
+
+### Work completed
+
+**eval_code.c — new file (src/runtime/dyn/eval_code.c)**
+
+Three public functions implementing EVAL and CODE via the dynamic path:
+
+- `eval_expr_dyn(src)` — `parse_expr_from_str(src)` → `eval_node()` EXPR_t walker
+  - E_ILIT/FLIT/QLIT/NUL: literals direct
+  - E_VAR/KW: `NV_GET_fn` lookup (KW prepends `&`)
+  - E_NEG/ADD/SUB/MPY/DIV/POW: via snobol4.h exported `neg/add/sub/mul/DIVIDE_fn/POWER_fn`
+  - E_CONCAT/SEQ: fold `CONCAT_fn` across all children
+  - E_ASSIGN: eval right, `NV_SET_fn` on E_VAR lvalue or indirect
+  - E_INDR: eval child name, `NV_GET_fn`
+  - E_FNC: eval args into alloca array, `APPLY_fn(name, args, nargs)`
+  - E_IDX: `subscript_get` / `subscript_get2`
+  - Unknown/pattern nodes: NULVCL (old `EVAL_fn` mini-parser handles those)
+
+- `code_dyn(src)` — `fmemopen` → `snoc_parse` → `Program*` stored as `DT_C` DESCR_t
+- `execute_code_dyn(block)` — walks `Program*` stmts, calls `stmt_exec_dyn` per stmt,
+  resolves `SnoGoto` fields (uncond/onsuccess/onfailure), returns first branch label
+
+**rung7_eval_code_test.c — 8/8 PASS**
+
+T1: EVAL('2 + 3') → 5  
+T2: EVAL('X + 1') X=10 → 11  
+T3: EVAL("'hello'") → 'hello'  
+T4: CODE parse → DT_C  
+T5: CODE OUTPUT='PASS' execution + stdout capture  
+T6: CODE goto label → 'END'  
+T7: EVAL(concat 'a' 'b') → 'ab'  
+T8: EVAL('42') → 42  
+
+**Key decisions:**
+- `fval` on EXPR_t is named `dval` throughout codebase — fixed during build
+- stdout capture: `fflush(stdout)` BEFORE `dup2` redirect is mandatory; pipe
+  otherwise slurps buffered output from before the capture window
+- `alloca` for arg array in E_FNC path — safe because eval_node is bounded depth
+
+### Gates
+- rung7_eval_code_test: **8/8 ✅**
+- emit-diff: **981/4 ✅**
+- invariants (x64): **ALL PASS ✅**
+
+### Push
+`c4bc4ba` ✅
+
+### M-DYN-6 remaining (next session)
+
+**Item 1 — Register CODE builtin in snobol4.c**
+```c
+/* in SNO_INIT_fn() near the EVAL registration (~line 943): */
+static DESCR_t _b_CODE(DESCR_t *a, int n) {
+    return code_dyn(n > 0 ? VARVAL_fn(a[0]) : "");
+}
+register_fn("CODE", _b_CODE, 1, 1);
+```
+`code_dyn` is in eval_code.c — already linked when the full runtime builds.
+
+**Item 2 — Wire EVAL_fn to use eval_expr_dyn for arithmetic**
+
+In `snobol4_pattern.c`, `EVAL_fn` currently short-circuits on quoted strings
+then falls through to the old `_ev_expr` hand-roller (pattern-subset only).
+Replace the fall-through with:
+```c
+/* After the quoted-string fast path: */
+DESCR_t full = eval_expr_dyn(s);
+if (!IS_FAIL_fn(full)) return full;
+/* Fallback: old _ev_expr for pattern-context strings */
+SnoEvalCtx ctx = { s, 0 };
+return _ev_expr(&ctx);
+```
+`eval_expr_dyn` is declared `extern` in snobol4_pattern.c — add the extern decl.
+
+**Item 3 — Corpus gate: f13_eval_code.sno**
+```bash
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh
+# Then specifically check f13:
+./scrip-cc corpus/programs/snobol4/feat/f13_eval_code.sno | diff - corpus/programs/snobol4/feat/f13_eval_code.ref
+```
+f13 requires `EVAL('2 + 3')` → 5 (arithmetic) and `CODE("...")` → runnable block.
+Both are now implemented. The static emitter still emits a call to `EVAL_fn` /
+`CODE_fn` — once Item 1+2 are wired, f13 should pass end-to-end.
+
+**Item 4 — Update PLAN.md NOW table DYN row**
+
+After f13 passes, mark M-DYN-6 complete. Next: M-DYN-OPT (invariance detection).
+
+### Bootstrap for next DYN session
+```bash
+cd /home/claude
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness.git
+bash .github/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
+tail -100 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md
+# HEAD must be c4bc4ba
+# Next: M-DYN-6 items 1-4 above (CODE builtin, EVAL_fn wire, f13 corpus gate)
+```
