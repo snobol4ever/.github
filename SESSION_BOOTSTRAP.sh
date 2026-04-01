@@ -148,26 +148,8 @@ else
     fi
 fi
 
-# ── WHERE — oracle: CSNOBOL4 2.3.3 ───────────────────────────────────────────
-step "WHERE — oracle: CSNOBOL4"
-if command -v snobol4 &>/dev/null; then
-    ok "snobol4 (CSNOBOL4)"
-else
-    info "Building CSNOBOL4 2.3.3 from snobol4.org ..."
-    SNO_BUILD=/tmp/csno_build_$$; mkdir -p "$SNO_BUILD"
-    if curl -sL "https://www.snobol4.org/csnobol4/curr/snobol4-2_3_3.tar.gz" \
-            -o "$SNO_BUILD/csnobol4.tar.gz" \
-        && tar -xzf "$SNO_BUILD/csnobol4.tar.gz" -C "$SNO_BUILD" \
-        && cd "$SNO_BUILD"/snobol4-2_3_3 \
-        && ./configure --prefix=/usr/local 2>/dev/null \
-        && make -j"$(nproc)" 2>/dev/null \
-        && make install 2>/dev/null; then
-        ok "snobol4 (CSNOBOL4 2.3.3)"
-    else
-        fail "CSNOBOL4 — build failed"
-    fi
-    rm -rf "$SNO_BUILD"; cd /home/claude
-fi
+# ── WHERE — oracle: SPITBOL (CSNOBOL4 removed) ────────────────────────────────
+# CSNOBOL4 is not used. SPITBOL is the sole oracle. Installed above from snobol4ever/x64.
 
 # ── WHERE — oracle: SPITBOL x64 ──────────────────────────────────────────────
 step "WHERE — oracle: SPITBOL"

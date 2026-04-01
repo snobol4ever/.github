@@ -18,7 +18,7 @@ Multi-stage pipeline: interpreter → transpiler → stack VM → JVM `.class` b
 7. `clojure.core/=` inside `operators.clj`. Bare `=` builds IR lists.
 8. INVOKE args are pre-evaluated. Never call `EVAL!` on args inside INVOKE.
 9. Two-tier generator discipline. `rand-*` probabilistic. `gen-*` exhaustive lazy.
-10. Two-strategy debugging: (a) run a probe; (b) read CSNOBOL4/SPITBOL source. Never speculate.
+10. Two-strategy debugging: (a) run a probe; (b) read SPITBOL source (v311.sil for SIL heritage). Never speculate.
 
 ---
 

@@ -13,8 +13,7 @@ not CSNOBOL4 2.3.3.
 **Rationale:** CSNOBOL4 has a known FENCE semantic difference that makes it unsuitable
 as the full compatibility target. SPITBOL is the production-grade, industrial-strength
 SNOBOL4 implementation — it defines the language extensions, switches, and HOST()
-behaviour that real programs depend on. CSNOBOL4 remains useful only as a monitor
-participant and for isolated oracle checks.
+behaviour that real programs depend on. CSNOBOL4 has been removed — no longer installed or used and for isolated oracle checks.
 
 **What this means in practice:**
 - All SPITBOL language extensions are supported (HOST, LOAD, OPSYN, CLEAR, indirect
@@ -22,7 +21,7 @@ participant and for isolated oracle checks.
 - Command-line switches match SPITBOL identically (`-b`, `-f`, `-P`, `-I`, etc.)
 - `HOST()` function semantics match SPITBOL
 - Runtime error messages match SPITBOL conventions
-- CSNOBOL4 may still be used as an oracle participant in the monitor but is no longer
+- CSNOBOL4 is no longer used or installed.
   authoritative when it diverges from SPITBOL
 
 **Exception — datatype names (see D-002).**
@@ -118,7 +117,7 @@ ARCH.md §Dialect Notes, this file.
 ## D-005 — Monitor Oracle: SPITBOL primary, CSNOBOL4 secondary (2026-03-24)
 
 **Decision:** The 3-way monitor uses **SPITBOL as participant 0 (primary oracle)**
-for consensus decisions. CSNOBOL4 remains a participant but is no longer authoritative
+for consensus decisions. CSNOBOL4 has been removed. SPITBOL is the sole oracle.
 when it disagrees with SPITBOL.
 
 **Previous state:** CSNOBOL4 was participant 0 (primary oracle). one4all targeted

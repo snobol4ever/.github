@@ -353,7 +353,7 @@ It serves all five product repos plus the 6×5 one4all matrix (6 frontends ×
 | **1. Crosscheck (CROSSCHECK)** | Self-contained programs × all engines. Fast, deterministic, CI-safe. Oracle = `.ref` file in corpus. | Reads `corpus/<frontend>/crosscheck/` |
 | **2. Invariant** | Targeted rung-by-rung progression tests. Tracks pass/fail counts per session. Gate before push. | Reads `corpus/<frontend>/crosscheck/rung*/` |
 | **3. Program suite** | Real-world programs with I/O, includes, external files. Slower, not CI-gated per commit. | Reads `corpus/<frontend>/programs/` |
-| **4. Oracle triangulation** | CSNOBOL4 + SPITBOL as dual ground truth. Any divergence between them surfaces a corpus bug before we even run our engines. | Generates its own inputs; validates corpus `.ref` files |
+| **4. Oracle triangulation** | SPITBOL x64 as ground truth. Any divergence between SPITBOL and one4all surfaces a corpus bug. | Generates its own inputs; validates corpus `.ref` files |
 
 #### Target harness layout
 
@@ -384,7 +384,7 @@ harness/
     monitor/            ← MONITOR: full Byrd box trace diff across engines
     random/             ← RANDOM/EXHAUSTIVE: grammar-driven generation, depth-N enumeration
   oracles/
-    csnobol4/           ← build + run scripts
+    # csnobol4/ removed — SPITBOL is the oracle
     spitbol/            ← build + run scripts
   monitor/              ← Byrd box trace diff tool (existing)
   probe/                ← probe.py and test helpers (existing)

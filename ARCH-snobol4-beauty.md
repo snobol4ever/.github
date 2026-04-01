@@ -172,7 +172,7 @@ must call `nPop()` on failure before falling to the next alternative.
 
 Tests in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet piped into beauty_full_bin
-- `NNN_name.ref` — oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN_name.input`
+- `NNN_name.ref` — oracle: `spitbol -b $BEAUTY < NNN_name.input`
 
 Runner: `one4all/test/crosscheck/run_beauty.sh` (pre-compiled binary).
 
@@ -189,7 +189,7 @@ Test progression (one at a time, never skip):
 140_self         full beauty.sno → M-BEAUTY-CORE
 ```
 
-Generate oracle: `snobol4 -f -P256k -I$INC $BEAUTY < NNN.input > NNN.ref`
+Generate oracle: `spitbol -b $BEAUTY < NNN.input > NNN.ref`
 
 ---
 
@@ -219,7 +219,7 @@ tPop    OUTPUT = 'NPOP  depth=' nDepth ' top=' nTop()
         ...real nPop logic...    :(RETURN)
 ```
 
-Run under CSNOBOL4 → `oracle_stack.txt` (ground truth).
+Run under SPITBOL → `oracle_stack.txt` (ground truth).
 Run compiled binary with instrumented runtime → `compiled_stack.txt`.
 `diff oracle_stack.txt compiled_stack.txt` — first line = exact imbalance location.
 
@@ -237,11 +237,11 @@ Given first divergence line N in the diff:
 
 ```bash
 python3 /home/claude/harness/probe/probe.py \
-    --oracle csnobol4 --max 200 failing.sno
+    --oracle spitbol --max 200 failing.sno
 ```
 Probe targets: `pp`, `Command`, `Label`, `ss`, `pp_Parse`.
 TRACE gotcha: `TRACE(...,'KEYWORD')` non-functional — use `TRACE('var','VALUE')`.
-`&STCOUNT` increments correctly on CSNOBOL4 (verified 2026-03-16 — prior "always 0" claim was wrong).
+`&STCOUNT` — use `&STLIMIT` for portable binary search.
 
 ---
 
@@ -254,7 +254,7 @@ Prepend to beauty.sno:
         TRACE('pp_Parse','CALL')  TRACE('Command','CALL')
 ```
 ```bash
-snobol4 -f -P256k -I$INC beauty_trace.sno < input.sno 2>oracle_trace.txt
+spitbol -b beauty_trace.sno < input.sno 2>oracle_trace.txt
 ./beauty_full_bin_trace < input.sno 2>compiled_trace.txt
 diff oracle_trace.txt compiled_trace.txt | head -20
 ```
@@ -264,7 +264,7 @@ diff oracle_trace.txt compiled_trace.txt | head -20
 ## Triangulate Script (Paradigm 4 — M-BEAUTY-FULL trigger)
 
 ```bash
-snobol4 -f -P256k -I$INC $BEAUTY < $BEAUTY > oracle_csn.txt
+spitbol -b $BEAUTY < $BEAUTY > oracle_spt.txt
 ./beauty_full_bin < $BEAUTY > compiled_out.txt
 diff oracle_csn.txt compiled_out.txt   # empty = M-BEAUTY-FULL FIRES
 ```

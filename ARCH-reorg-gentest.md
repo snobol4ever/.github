@@ -28,7 +28,7 @@ kinds. The enumerator is shared across all languages.
 |----|----------|--------|-------------|
 | **M-G8-HOME** | Where does the enumerator live? | Evaluate `harness` (cross-repo test infra, already hosts probe/monitor) vs new `snobol4gen` repo (cleaner separation). Decide and document. | `doc/GEN_HOME.md` — one-page decision record: chosen location, rationale, how other repos reference it |
 | **M-G8-DEPTH** | Token-count or IR-node depth as the bound? | Token-count is user-intuitive ("programs up to 20 tokens"). IR-node depth is uniform across languages (depth-5 tree has the same combinatorial budget in every grammar). Evaluate both for SNOBOL4 pattern fragment: how many programs does each generate at N=10, N=20, N=25? Is the count tractable? | `doc/GEN_DEPTH.md` — table: language × bound-type × N → program count. Chosen primary bound documented. |
-| **M-G8-ORACLE** | How is expected output determined for generated programs? | Option A: differential (CSNOBOL4 + SPITBOL agree → that is correct; any one4all backend that disagrees → bug). Option B: reference cache (run CSNOBOL4 once per generated program, store `.ref`). Evaluate: is differential sufficient, or do we need cached refs for regression detection after a fix? | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
+| **M-G8-ORACLE** | How is expected output determined for generated programs? | SPITBOL is the oracle. Run SPITBOL once per generated program, store `.ref`. Any one4all backend that disagrees → bug. | `doc/GEN_ORACLE.md` — decision record: chosen strategy, how divergences are reported, what "PASS" means for a generated test |
 | **M-G8-GRAMMAR** | What is the Phase-1 grammar scope? | Which language first and what fragment? Candidates: (a) SNOBOL4 pattern expressions — richest, most bug-prone, maps directly to E_QLIT/E_CONC/E_OR/E_ARBNO/E_CAPT_COND/E_CAPT_IMM/E_VAR (7 node kinds); (b) Icon generator expressions — E_TO/E_TO_BY/E_SUSPEND/E_ALT_GEN/E_ITER/E_LIMIT (6 kinds, `Expressions.py` already seeds this); (c) Prolog clause bodies — E_UNIFY/E_CLAUSE/E_CHOICE/E_CUT (4 kinds, simpler). Evaluate coverage ROI vs implementation effort. | `doc/GEN_GRAMMAR.md` — chosen first language and fragment, BNF of the fragment, mapping from each production to its IR node kind(s), estimated program count at N=25 |
 
 All four `doc/GEN_*.md` files must exist and be consistent before any enumerator
@@ -42,8 +42,8 @@ the doc, not in code.
 | ID | Action | Prerequisite | Verify |
 |----|--------|-------------|--------|
 | **M-G8-ENUM-CORE** | Implement `gen/enumerate.py` — depth-bounded IR-tree enumerator. Takes a grammar spec (dict of node-kind → children rules) and a depth bound. Yields `EXPR_t`-compatible tree objects. No serialization yet. | M-G8-GRAMMAR | Unit test: SNOBOL4 pattern fragment, depth=3 → exact expected count matches `doc/GEN_DEPTH.md` table |
-| **M-G8-EMIT-SNO** | Implement `gen/emit_sno.py` — serializes an IR tree to a one-statement `.sno` file: fixed subject string, pattern match, OUTPUT of captures. | M-G8-ENUM-CORE | 10 hand-verified generated `.sno` files compile and run correctly under CSNOBOL4 |
-| **M-G8-RUNNER** | Implement `gen/run_gen.py` — pipeline: enumerate → emit `.sno` → compile all backends → differential check (CSNOBOL4 vs each one4all backend) → on divergence: invoke Monitor → report first diverging event. | M-G8-EMIT-SNO + M-G8-ORACLE | 100 generated SNOBOL4 pattern programs, depth ≤ 4, all PASS or divergences reported with Monitor drill-down |
+| **M-G8-EMIT-SNO** | Implement `gen/emit_sno.py` — serializes an IR tree to a one-statement `.sno` file: fixed subject string, pattern match, OUTPUT of captures. | M-G8-ENUM-CORE | 10 hand-verified generated `.sno` files compile and run correctly under SPITBOL |
+| **M-G8-RUNNER** | Implement `gen/run_gen.py` — pipeline: enumerate → emit `.sno` → compile all backends → differential check (SPITBOL vs each one4all backend) → on divergence: invoke Monitor → report first diverging event. | M-G8-EMIT-SNO + M-G8-ORACLE | 100 generated SNOBOL4 pattern programs, depth ≤ 4, all PASS or divergences reported with Monitor drill-down |
 | **M-G8-SNOBOL4-N10** | Run SNOBOL4 pattern fragment, depth bound N=10. All divergences found → Monitor drill-down → fix emitter → re-run → clean. | M-G8-RUNNER | Zero divergences at N=10 across all three one4all backends |
 | **M-G8-SNOBOL4-N25** | Extend to N=25. | M-G8-SNOBOL4-N10 | Zero divergences at N=25 |
 | **M-G8-ICON-GRAMMAR** | Write grammar spec for Icon generator expressions (BNF + IR node mapping). Extend `gen/emit_sno.py` for `.icn` serialization. | M-G8-SNOBOL4-N25 | `doc/GEN_GRAMMAR.md` updated; 10 hand-verified `.icn` files correct |
@@ -64,7 +64,7 @@ simply calls `run_monitor.sh` on the diverging `.sno` file:
 enumerate_programs(language='snobol4', max_depth=25)
   for each program:
     compile: asm, jvm, net
-    run csnobol4 → oracle output
+    run spitbol → oracle output
     for each backend:
       if backend output != oracle output:
         run_monitor.sh(program)   ← existing tool, no changes needed

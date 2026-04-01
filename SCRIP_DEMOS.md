@@ -8,7 +8,7 @@ JVM backend and produce the correct output.
 **Three frontends:** SNOBOL4 · Icon · Prolog  
 **One backend:** JVM
 
-Reference interpreters (csnobol4, swipl, icont) were used to establish
+Reference interpreters (spitbol, swipl, icont) were used to establish
 `.expected` output only. They are not the product.
 
 ---

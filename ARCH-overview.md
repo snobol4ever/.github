@@ -162,15 +162,15 @@ corpus in corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 
 - All SPITBOL language extensions supported (HOST, LOAD, OPSYN, CLEAR, indirect calls, etc.)
 - Command-line switches match SPITBOL identically
-- CSNOBOL4 is a monitor participant but not authoritative when it diverges from SPITBOL
-- FENCE semantic difference in CSNOBOL4 disqualifies it as full target
+- CSNOBOL4 is no longer used. SPITBOL is the sole oracle.
+- FENCE semantic difference in CSNOBOL4 was the reason for its removal.
 
 ## Oracle Hierarchy
 
 | Oracle | Role | Status |
 |--------|------|--------|
 | SPITBOL x64 4.0f | **Primary** — `spitbol -b file.sno` | ✅ installed |
-| CSNOBOL4 2.3.3 | Secondary participant — `snobol4 -f -P256k -I$INC file.sno` | ✅ installed |
+| CSNOBOL4 2.3.3 | ~~Removed~~ — no longer used. SPITBOL covers all active sessions. | — |
 
 ## Dialect Notes — Known Semantic Differences (D-001, D-002, D-004)
 

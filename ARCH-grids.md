@@ -7,7 +7,7 @@
 > - **M-GRID-COMPAT** — compatibility grid: feature/switch/behavior differences verified per engine
 >
 > Do not publish these tables until all three milestones have fired.
-> Oracle for all runs: CSNOBOL4 2.3.3 (`snobol4 -f -P256k -I$INC file.sno`)
+> Oracle for all runs: SPITBOL x64 4.0f (`spitbol -b file.sno`) — primary oracle per D-001/D-005. CSNOBOL4 2.3.3 used for beauty.sno only (documented exception).
 
 ---
 
@@ -46,14 +46,14 @@
 **Notes (fill in at M-GRID-BENCH):**
 - PCRE2 JIT baseline for comparison: TBD
 - Bison LALR(1) baseline for comparison: TBD
-- Process-spawn overhead for CSNOBOL4/SPITBOL: ~15ms (subtract for fair comparison)
+- Process-spawn overhead for SPITBOL: ~15ms (subtract for fair comparison)
 
 ---
 
 ## Grid 2 — Corpus Ladder
 
 > Source: `corpus/crosscheck/` — 106 programs across 11 rungs + rung 12 (beauty)
-> Pass = output byte-for-byte matches CSNOBOL4 oracle `.ref` file
+> Pass = output byte-for-byte matches SPITBOL oracle `.ref` file (CSNOBOL4 used for beauty.sno only — documented exception)
 > `—` = not yet run. Numbers = passing / total.
 
 | Rung | What it tests | CSNOBOL4 | SPITBOL | dotnet | jvm | x-net | x-jvm | x-asm |
@@ -76,9 +76,9 @@
 
 ## Grid 3 — Feature / Compatibility Matrix
 
-> Behavior verified against CSNOBOL4 2.3.3 oracle.
+> Behavior verified against SPITBOL x64 4.0f oracle.
 > `✅` = supported and correct  `⚠` = partial or differs from oracle  `❌` = not supported  `—` = not yet tested
-> When CSNOBOL4 and SPITBOL differ, the SPITBOL column notes the divergence.
+> SPITBOL is authoritative. CSNOBOL4 column shows historical reference data only.
 
 ### Core Language
 
@@ -286,7 +286,7 @@
 
 *Grid 4 is a stub. All `—` cells require M-GRID-REFERENCE to fire.*
 *Milestone definition: every `—` cell replaced by ✅/⚠/🔧/❌ from actual test runs via harness.*
-*The CSNOBOL4 and SPITBOL columns are pre-filled from documentation and known behaviour; verify against oracle before publishing.*
+*SPITBOL column is authoritative. CSNOBOL4 column is historical reference — verify SPITBOL against live oracle before publishing.*
 
 ---
 
@@ -302,7 +302,7 @@
 | hello.sno (one OUTPUT) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | roman.sno (real work) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
 
-**Interpretation guide:** x-asm cold ≈ CSNOBOL4 cold (no JVM/CLR spin-up). jvm/dotnet cold includes JIT compile overhead.
+**Interpretation guide:** x-asm cold ≈ SPITBOL cold (no JVM/CLR spin-up). jvm/dotnet cold includes JIT compile overhead.
 Warm numbers show steady-state scripting cost.
 
 ---
@@ -497,7 +497,7 @@ Warm numbers show steady-state scripting cost.
 | &VERSION | R | ✅ | ✅ | ✅ | — | — | — | — | — |
 
 **Notes:**
-- CSNOBOL4 and SPITBOL columns pre-filled from documentation; verify against oracle at M-GRID-REFERENCE.
+- SPITBOL column pre-filled from documentation; verify against live SPITBOL oracle at M-GRID-REFERENCE. CSNOBOL4 column is historical.
 - SNOBOL5 column from SNOBOL5 language reference; no live run.
 - SPITBOL extensions (`&ABEND`, `&CASE`, `&LINE`, `&FILE`, `&NARGS`) are SPITBOL-only; not in CSNOBOL4 by design.
 - `&LCASE` / `&UCASE` divergence: CSNOBOL4 uses full locale alphabet; SPITBOL uses exactly the 26 ASCII letters.

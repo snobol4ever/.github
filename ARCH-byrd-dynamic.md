@@ -1093,3 +1093,129 @@ complex expressions is minor compared to the pattern match itself.
 | **M-DYN-B1** | S-binary: bb_emit.c raw x86, r12=DATA, Technique 2. Gate: LIT box binary. |
 | **M-DYN-B2** | S-binary: full corpus via binary boxes. |
 
+
+---
+
+## The Unified Execution Model — E=mc² Architecture (2026-04-01, DYN-17 planning)
+
+### The Core Insight
+
+Everything in SNOBOL4/SPITBOL execution reduces to one thing: **stmt_exec_dyn**.
+
+- A compiled pattern statement calls `stmt_exec_dyn` at runtime.
+- `CODE(str)` compiles `str` into a `CODE_t` (a `Program*` — a list of statements).
+- `:<VAR>` (direct goto with CODE operand) **does not call stmt_exec_dyn** —
+  it jumps to the first statement in the code block, which then calls `stmt_exec_dyn`
+  for each of its own pattern statements internally. The goto is a transfer of control,
+  not a function call. The code block runs as if it were part of the main program.
+- `EVAL(str)` compiles and immediately evaluates a single expression — it IS a
+  stmt_exec_dyn call, for a synthetic one-statement program.
+
+**The separation of concerns:**
+
+```
+CODE(str)         → compile str → CODE_t (Program*)   NO execution yet
+:<VAR>            → jump to first stmt of CODE_t       execution is the code block running
+EVAL(str)         → compile + execute immediately      stmt_exec_dyn called once
+stmt_exec_dyn     → 5-phase executor                  the only executor
+```
+
+`CODE()` does not call `execute_code_dyn`. That happens at `:<CODE_VAR>` —
+the indirect goto dispatches to the code block, which runs under the same
+interpreter loop as the main program. The code block's pattern statements
+call `stmt_exec_dyn` exactly as compiled statements do.
+
+### Why This Is E=mc²
+
+The insight is that **compile-time and runtime are the same pipeline, offset
+by when the source arrives.**
+
+- A program compiled ahead-of-time: source → `scrip-cc` → `.s` → NASM → `.o`
+  → link → binary. Each pattern statement's `.s` calls `stmt_exec_dyn`.
+- A `CODE()` call at runtime: source string → `snoc_parse()` → `Program*`
+  → stored as `CODE_t`. Each pattern statement in the `Program*` will call
+  `stmt_exec_dyn` when the code block runs.
+
+The emitter (`emit_x64.c`) and the `CODE()` path produce structurally
+identical execution graphs. One produces NASM text; the other produces
+`Program*` IR nodes. Both drive `stmt_exec_dyn`.
+
+**This means:**
+1. Every test that passes for compiled code SHOULD pass for `CODE()` — same
+   execution path, different representation.
+2. EXPRESSION (`*expr`) is identical to CODE for a single expression — compile
+   the expression node, defer evaluation.
+3. NAME + indirect assignment (`$N = X`) is just stmt_exec_dyn writing through
+   a slot pointer instead of a name string. Same executor.
+
+### The Full Datatype ↔ Executor Mapping
+
+| SNOBOL4 type | Runtime struct | Created by | Executed by |
+|---|---|---|---|
+| `STRING` | inline `char*` | literals, CONCAT, etc. | — |
+| `INTEGER` | inline `int64_t` | arithmetic | — |
+| `REAL` | inline `double` | arithmetic | — |
+| `PATTERN` | `PATTERN_t*` (bb_node_t chain) | `pat_*` constructors | `stmt_exec_dyn` Phase 3 |
+| `CODE` | `CODE_t` (`Program*`) | `CODE(str)` | `:<VAR>` dispatch → interpreter loop |
+| `EXPRESSION` | `EXPRESSION_t` (`EXPR_t*`) | `*expr` operator | `EVAL()` → eval_expr_dyn |
+| `NAME` | `NAME_t` (`varname` + `slot*`) | `.VAR`, `.A<i>` | `$NAME = X` → `*slot = X` |
+| `ARRAY` | `ARBLK_t*` | `ARRAY()` | — (subscript ops) |
+| `TABLE` | `TBBLK_t*` | `TABLE()` | — (subscript ops) |
+| `DATA` | `DATINST_t*` | user `DATA()` | — (field access) |
+
+**The key column is "Executed by"** — only PATTERN, CODE, EXPRESSION, and NAME
+have non-trivial execution semantics. Everything else is a pure value.
+
+### Why TDD Falls Out Cleanly
+
+Once `stmt_exec_dyn` is gate-clean (M-DYN-S1: 142/142), every subsequent
+rung test is a permutation of the same wiring:
+
+1. **Rung tests for NAME** — test `.VAR`, `.A<i>`, `$N`, `DATATYPE(.N)`.
+   Each reduces to: does the `NAME_t.slot` pointer write through correctly?
+   Stack machine handles it. No new executor needed.
+
+2. **Rung tests for CODE** — test `CODE(str)`, `:<VAR>`.
+   Each reduces to: does `snoc_parse()` → `CODE_t` → goto-dispatch work?
+   The individual statements inside the code block already pass (they're
+   pattern statements, same as compiled — already covered by 142/142).
+
+3. **Rung tests for EXPRESSION** — test `*expr`, `EVAL(str)`.
+   Each reduces to: does `eval_expr_dyn()` walk `EXPR_t*` correctly?
+   The expr nodes are the same ones `emit_x64.c` already handles.
+
+4. **EVAL inside a pattern** — `LEN(*K)` — this is just stmt_exec_dyn
+   calling back into eval_expr_dyn for the deferred expression. Already
+   wired in the Byrd box α port mechanism.
+
+**No surprises** because every new feature is a thin layer over an already-
+tested primitive. The primitives (pattern matching, variable get/set,
+arithmetic, string ops) are all exercised by the 142/142 baseline.
+
+### What Could Still Surprise Us
+
+1. **GC stability of NAME_t.slot** — Boehm GC must not move the `DESCR_t`
+   that `slot` points to. `GC_MALLOC` gives us stable pointers, but
+   pinning the var table entries explicitly is worth verifying.
+
+2. **EXPRESSION inside CODE inside EXPRESSION** — pathological nesting.
+   The eval_expr_dyn / execute_code_dyn mutual recursion needs a depth
+   limit to avoid C stack overflow. Add `&STLIMIT`-style guard.
+
+3. **NRETURN from functions called inside CODE blocks** — the beauty.sno
+   error 021 (M-SPITBOL-BEAUTY) is exactly this class of problem.
+   Function semantics inside dynamic code must match compiled semantics.
+
+4. **Pattern variables captured inside CODE** — `CODE('X ? . CAP')` — the
+   CAP variable is in the code block's scope, not the caller's scope.
+   Need to verify NV_SET_fn writes to the correct scope.
+
+### The Architecture in One Sentence
+
+**Every SNOBOL4 value is either a primitive scalar (STRING/INTEGER/REAL)
+or a deferred computation (PATTERN/CODE/EXPRESSION/NAME), and all deferred
+computations are executed by stmt_exec_dyn or a thin wrapper over it.**
+
+This is the invariant. Every new feature either fits this model or reveals
+a gap in it. TDD confirms the model is tight.
+
