@@ -13670,3 +13670,59 @@ cat .github/ARCH-byrd-dynamic.md
 # HEAD must be c4bc4ba
 # Next: M-DYN-6 items 1-4 above (CODE builtin, EVAL_fn wire, f13 corpus gate)
 ```
+
+---
+
+## Session SJ-2 — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** — (SJ-1 had no commits)
+**HEAD at session end:** `f9499d8` (one4all main)
+**Sprint:** SJ-2
+
+### Work completed
+
+**M-SJ-A01 — full scaffold delivered and passing:**
+
+- `src/backend/emit_js.c` — JS emitter: `J()` macro, `next_uid()`,
+  `js_emit_expr()` EKind switch (E_NUL/QLIT/ILIT/VAR/ASSIGN/arith/FNC/
+  CONCAT/INDR), `js_emit_stmt()` (pure-assign / null-assign / pattern-stub /
+  expr paths), `js_emit_goto()` (onsuccess/onfailure/uncond), label
+  collector, `js_emit()` entry point.
+- `src/runtime/js/sno_runtime.js` — `_vars` Proxy (OUTPUT trap → stdout),
+  `_FAIL` sentinel, `_str/_num/_cat/_add/_sub/_mul/_div/_pow`, `_apply()`
+  with 30+ builtin stubs (SIZE/TRIM/DUPL/IDENT/DIFFER/LT/LE/GT/GE/EQ/NE/
+  CHAR/CODE/REPLACE/REVERSE/UPPER/LOWER/ABORT/FAIL/SUCCEED/…),
+  `_match/_replace` stubs for M-SJ-A02.
+- `test/js/run_js.js` — Node runner shim; `SNO_RUNTIME` env var for runtime
+  path resolution.
+- `src/Makefile` — `BACKEND_JS = backend/emit_js.c`, added to `SRCS`.
+- `src/driver/main.c` — `js_mode` static flag, `-js` CLI arg, `.js`
+  extension, `js_emit()` forward decl, dispatch in `compile_one()`.
+
+### Gates
+- emit-diff: **981/4 ✅**
+- hello: **passes ✅** (`OUTPUT = 'Hello, World!'` → correct stdout)
+
+### Push
+`git log origin/main --oneline -1` → `f9499d8` ✅
+
+### Remaining for M-SJ-A02
+1. Replace `_match()` stub with full Byrd-box `for(;;) switch(_pc)` dispatch
+   loop in `emit_js.c` — pattern statements only.
+2. Port `emit_pat_node()` from `emit_byrd_c.c`: E_SEQ, E_ALT, E_CAPT_IMM,
+   E_CAPT_COND, emit_lit / emit_pos / emit_len / emit_any / emit_arb.
+3. Wire `test/run_invariants.sh snobol4_js` and drive toward first green.
+4. Update SESSION-snobol4-js.md §NOW, PLAN.md, SESSIONS_ARCHIVE.md.
+
+### Bootstrap for next SJ session
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh     # expect 981/4
+# HEAD should be f9499d8
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-js.md
+```

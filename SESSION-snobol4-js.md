@@ -94,22 +94,27 @@ const _vars = new Proxy({}, {
 });
 ```
 
-## §NOW — SJ-2
+## §NOW — SJ-3
 
-**Next milestone: M-SJ-A01 — write the code**
+**HEAD:** one4all `f9499d8`
+**Next milestone: M-SJ-A02 — Byrd-box pattern dispatch**
+
+M-SJ-A01 delivered: emit_js.c + sno_runtime.js + run_js.js + Makefile/-js wire.
+Hello passes. emit-diff 981/4.
 
 First actions (mandatory order):
-1. `cat src/backend/c/trampoline.h`
-2. `sed -n '1,100p' src/backend/c/emit_byrd_c.c`
-3. `grep -n "^static void emit_\|case E_" src/backend/c/emit_byrd_c.c | head -40`
-4. Create `src/backend/emit_js.c` — `J()` macro, `next_uid()`, EKind switch,
-   implement `E_QLIT` `E_ILIT` `E_VAR` `E_NUL` `E_ASSIGN` OUTPUT.
-   Pattern stmts: `(uid<<2)|signal` dispatch switch (see §DISPATCH above).
-5. Create `src/runtime/js/sno_runtime.js` — `_vars` Proxy, coercions, trampoline
-6. Create `test/js/run_js.js` — Node runner shim
-7. Wire `src/Makefile` + `driver/main.c` (`-js` flag, `.js` ext, `js_emit()`)
-8. Gate: hello passes · emit-diff 981/4 ✅
+1. `git log --oneline -3`  # confirm f9499d8
+2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # confirm 981/4
+3. Read `src/backend/c/emit_byrd_c.c` emit_pat_node() (E_SEQ, E_ALT, emit_lit,
+   emit_pos, emit_len, emit_any, emit_arb) — oracle for JS port.
+4. In `src/backend/emit_js.c`: replace `_match()` stub in js_emit_stmt()
+   with full `for(;;) switch(_pc)` Byrd-box dispatch (see §DISPATCH).
+   Port emit_pat_node() as js_emit_pat_node() using J() macro.
+5. In `src/runtime/js/sno_runtime.js`: promote `_match` from stub to full
+   dispatcher that invokes the compiled pattern function.
+6. Wire `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js`.
+7. Gate: emit-diff 981/4 · invariants moving toward green.
 
 ---
 
-*SESSION-snobol4-js.md — updated SJ-2, 2026-04-01, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — updated SJ-2→SJ-3, 2026-04-01, Claude Sonnet 4.6.*
