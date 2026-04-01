@@ -13141,3 +13141,80 @@ Test cases:
 
 Gate: compiles with `gcc -o bb_poc src/runtime/asm/bb_poc.c`, runs, both
 test cases correct. No other files touched. 981/4 ✅ · 106/106 ✅ unchanged.
+
+---
+
+## DYN-2 HANDOFF — M-DYN-POC + M-DYN-0 complete (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `d7fcb3c` · **one4all HEAD:** `a3d0dd1` · **corpus HEAD:** `209a976`
+
+### Context note
+
+~40% consumed. DYN-3 can continue in this session or fresh.
+
+### What happened this session
+
+1. Full session start protocol: cloned .github/one4all/harness/corpus, SESSION_SETUP.sh
+   (scrip-cc built OK, SPITBOL installed), run_emit_check.sh (981/4 ✅),
+   run_invariants.sh snobol4_x86 (ALL PASS / 106/106 ✅).
+
+2. HQ sanity audit:
+   - CRITICAL: two commits in one4all authored as claude@anthropic.com (1d9de57, c40b493)
+     — RULES violation, history rewrite is Lon's decision.
+   - .github commits use lon@snobol4ever.com not lcherryh@yahoo.com — Lon to confirm.
+   - one4all/PLAN.md removed (a3e6d9c) — was stale B-278 content, trap for future sessions.
+     HQ docs live in .github only; README.md stays in each repo.
+   - PLAN.md HEADs stale (cosmetic).
+   - WASM invariant baseline disagrees across PLAN.md / RULES.md / SESSIONS_ARCHIVE
+     (actual is 55p/1f from SW-17; RULES.md says 9/9 — needs correction).
+   - DYN session prefix not registered in RULES.md SESSION NUMBERS table.
+
+3. **M-DYN-POC ✅** — `src/runtime/asm/bb_poc.c` (one4all `72b13ca`)
+   Standalone C program. mmap 4096-byte page, hand-write x86-64 bytes for a
+   'hello' literal Byrd box (unrolled byte comparisons, γ=mov eax,1/ret,
+   ω=mov eax,0/ret, all forward jumps patched by hand), mprotect RW→RX
+   (I-cache fence), call via function pointer. 6/6 test cases PASS.
+   Note: mprotect is the correct fence — normal cached writes are D/I cache
+   coherent on x86-64; CLFLUSH is not needed (only for non-temporal stores).
+
+4. **M-DYN-0 ✅** — `bb_pool.{h,c}` + `bb_pool_test.c` (one4all `a3d0dd1`)
+   4 MB mmap'd slab. Key design decision: bb_alloc page-aligns every allocation
+   (each box owns its pages exclusively). This is required for bb_seal correctness —
+   mprotect is page-granular, and two small boxes sharing a page would have the
+   second box's write location sealed when the first is sealed. Discovered and
+   fixed during testing. bb_free rewinds bump pointer + mprotects back to RW
+   for reuse. bb_seal: mprotect RW→RX. 21/21 unit tests PASS.
+
+### Gates held
+
+981/4 ✅ · snobol4_x86 106/106 ✅ (no code changed in emitters)
+
+### DYN-3 session start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect 106/106
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/ARCH-byrd-dynamic.md
+```
+
+**DYN-3 first action: M-DYN-1**
+
+Write `src/runtime/asm/bb_emit.c` + `bb_emit.h`:
+- `bb_emit_byte(buf, pos, b)` — write one byte at buf[*pos], increment *pos
+- `bb_emit_u32(buf, pos, v)` — little-endian 4 bytes
+- `bb_emit_u64(buf, pos, v)` — little-endian 8 bytes
+- `bb_emit_rel32(buf, pos, target)` — 32-bit relative offset (target - (here+4))
+- x86-64 instruction helpers built on top:
+  `bb_emit_mov_eax_imm32`, `bb_emit_ret`, `bb_emit_cmp_esi_imm8`,
+  `bb_emit_jl_rel8`, `bb_emit_jne_rel8`, `bb_emit_movzx_eax_rdi_off8`
+- Unit test: emit known sequences, read back bytes, verify exact encoding.
+  Also: emit a working 'hello' box using the helpers (same as bb_poc but via API),
+  call it, confirm PASS/FAIL behavior.
+
+Pool is ready. Emitter is next.
