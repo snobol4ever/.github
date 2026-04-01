@@ -13186,3 +13186,69 @@ then create these three files in order:
 5. Wire `driver/main.c`: `-js` flag → `js_mode`, `.js` extension, call `js_emit()`
 
 Gate: hello world passes, emit-diff 981/4 holds.
+
+---
+
+## DYN-4 HANDOFF — M-DYN-4 ✅ (2026-04-01, Claude Sonnet 4.6)
+
+one4all HEAD: `e1fc67a` · .github HEAD: TBD after push
+
+### What was done
+
+M-DYN-4 milestone complete. Four items implemented in stmt_exec.c:
+
+**1. XDSAR/XVAR deferred dispatch (primary milestone)**
+New `bb_deferred_var()` box. Stores variable name only. On α: calls
+NV_GET_fn(name) to get current value, builds sub-graph (DT_P → bb_build,
+DT_S → bb_lit, else → bb_eps), drives it. On β: re-drives stored child_fn.
+This is the correct match-time resolution per ARCH-byrd-dynamic.md §E_DEFER.
+
+**2. XNME (.) conditional capture**
+capture_t gains `pending` / `has_pending` fields. XFNME ($) still writes
+immediately on every γ. XNME (.) buffers into pending; only committed by
+`flush_pending_captures()` after Phase 3 confirms overall match success.
+`register_capture()` / `g_capture_list[]` flat registry, reset per statement.
+
+**3. kw_anchor integration**
+Phase 3 scan loop: `int scan_limit = kw_anchor ? 0 : Ω;` — when &ANCHOR is
+set, only position 0 is tried. Declared extern in full-runtime build,
+defined as `int kw_anchor = 0` in STMT_EXEC_STANDALONE.
+
+**4. Phase 5 lvalue fix**
+`stmt_exec_dyn()` gains `const char *subj_name` as first parameter.
+Phase 5 writes via `NV_SET_fn(subj_name, new_val)` — the only safe path.
+`subj_name=NULL + has_repl + no subj_var` → `:F` per SNOBOL4 spec.
+Test/convenience path (`subj_name=NULL`, `subj_var` provided) preserved for
+`stmt_exec_dyn_str()` wrapper.
+
+### Test results
+
+- stmt_exec_test: **13/13 PASS**
+- bb_dyn_test: **3/3 PASS**
+- emit-diff gate: **981/4 PASS** (unchanged)
+- Zero -Wall errors (4 expected misleading-indentation warnings from
+  three-column layout — same as all other dyn/ files)
+
+### Next milestone: M-DYN-5
+
+Suggested work items for DYN-5 (not yet designed — needs ARCH update):
+
+1. **Rung 6 corpus gate** — run corpus patterns that use *VAR through the
+   dynamic path. Need a test harness that calls stmt_exec_dyn() with real
+   PATND_t trees containing XDSAR/XVAR nodes. Likely needs a small
+   snobol4_pattern.c stub or integration with the real frontend parser.
+
+2. **TAB box** — DYN-3/4 used POS semantics as approximation. TAB(n) should
+   advance cursor TO position n (if Δ ≤ n), not assert Δ == n. A dedicated
+   `bb_tab()` box is a one-line fix.
+
+3. **FENCE / ABORT proper** — currently epsilon/fail stubs. FENCE is
+   cut-operator (once γ fires, β is disabled). ABORT terminates the whole
+   match immediately (:F). Both are critical for real SNOBOL4 programs.
+
+4. **ARBNO zero-advance guard review** — confirmed correct in DYN-3 notes;
+   no action needed unless corpus reveals a regression.
+
+5. **Thread-safety** — g_capture_list / g_capture_count / Σ/Δ/Ω are globals.
+   Fine for single-threaded SNOBOL4 execution; flag for future work.
+
