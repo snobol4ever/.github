@@ -15387,3 +15387,117 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
 ```
 
 ### Context at handoff: ~90%. Stopping cleanly.
+
+---
+
+# DYN-17 Handoff — 2026-04-01
+
+**Session:** ⭐ DYNAMIC BYRD BOX — DYN-17 (planning session, no code committed to one4all)
+**HEADs:** one4all `e55d80a` (unchanged) · .github `e12e4a8`
+**Context at handoff:** ~36%
+
+---
+
+## What happened this session
+
+### Gate run
+- Cloned all 4 repos. SESSION_SETUP.sh clean: nasm, libgc-dev, spitbol, scrip-cc built.
+- Busted RT cache. Ran `emit-diff --update` → baselines regenerated → **179/0 ✅**
+- Invariants: **0/142 LINK_FAIL** on all tests. Root cause: `eval_code.o` in
+  `libsno4rt_asm.a` has unresolved symbols `parse_expr_from_str` + `snoc_parse`
+  (frontend symbols, must not be in the archive). Fix: remove `eval_code.c` from
+  `ensure_sno4_archive` in `test/run_invariants.sh`. **Not yet fixed — first task DYN-18.**
+
+### Planning work (all committed to .github `e12e4a8`)
+
+**CSNOBOL4 fully purged from HQ:**
+- 24 files patched. CSNOBOL4 no longer referenced as oracle, required tool, or
+  invocation command anywhere in active HQ docs.
+- `SESSION_BOOTSTRAP.sh`: CSNOBOL4 build block removed.
+- `RULES.md`: single clean statement — SPITBOL x64 sole oracle. DATATYPE uppercase
+  exception documented inline (our `"NAME"` vs SPITBOL's `"name"` — intentional).
+- All `snobol4 -f -P256k` invocations → `spitbol -b` across all docs.
+- **M-SPITBOL-BEAUTY** milestone added to `ARCH-testing.md`: fix SPITBOL error 021
+  ("Function called by name returned a value") on beauty.sno. SPITBOL is strict about
+  NRETURN; CSNOBOL4 was lenient. Fix the `.sno` source, not the runtime. Once fixed,
+  all `.ref` files become pure SPITBOL — no more exceptions.
+
+**Datatype architecture planning:**
+- Full audit of all 7 SNOBOL4 primitive types against SIL `v311.sil` canonical codes.
+- SPITBOL manual consulted for NAME semantics: NAME = address/storage location.
+  `.A[4,2]` produces a NAME of that array element. `$N` dereferences it. Confirmed
+  from SPITBOL oracle: `DATATYPE(.X)` → `"name"` (lowercase in SPITBOL, uppercase
+  `"NAME"` in our implementation — intentional per ARCH-decisions.md D-003).
+- `PATND_t` vs `PATTERN_t` distinction confirmed: `PATND_t` is ephemeral compile-time
+  tree; `PATTERN_t` is the live runtime BB-node chain. No rename yet — under
+  consideration for later sprint.
+- `NAME_t` design: `{ char *varname; DESCR_t *slot; }` — varname for DATATYPE/display,
+  slot for direct write-through. slot=NULL = unresolved (pattern capture case). SIL
+  confirms: NAME block = (name-spec, value-descr) pair at an address. Slot pointer
+  is the faithful SIL translation.
+- `CODE_t` = `Program*` (already exists as `code_dyn` result). Rename pending.
+- `EXPRESSION_t` = `EXPR_t*` + source string. Currently stub `DT_E` in enum only.
+
+**E=mc² unified execution model** appended to `ARCH-byrd-dynamic.md`:
+- Every SNOBOL4 value = primitive scalar OR deferred computation.
+- All deferred computations execute through `stmt_exec_dyn` or thin wrapper.
+- **KEY CORRECTION:** `CODE(str)` does NOT call `execute_code_dyn`. `execute_code_dyn`
+  is called by `:<VAR>` — the indirect goto transfers control to the code block, which
+  runs its own pattern statements through `stmt_exec_dyn`. The goto IS the execution.
+- Datatype↔executor table committed.
+- TDD rationale: once 142/142 passes, every new feature (NAME/CODE/EXPRESSION rungs)
+  is one thin layer over already-tested primitives. No surprises.
+- Potential surprises documented: GC slot stability, deep nesting depth guard,
+  NRETURN inside CODE blocks (beauty.sno error 021), pattern capture scope in CODE.
+
+---
+
+## First tasks for DYN-18
+
+### Task 1 — Fix LINK_FAIL gate (blocker)
+Remove `eval_code.c` from `ensure_sno4_archive` in `test/run_invariants.sh`.
+`eval_code.c` depends on `parse_expr_from_str` + `snoc_parse` (frontend symbols)
+and must be linked separately when CODE/EVAL is used, not baked into the archive.
+
+```bash
+# In test/run_invariants.sh, find ensure_sno4_archive function (~line 129–140)
+# Remove these two lines:
+#   gcc -O2 -c "$DYN/eval_code.c" $DYNFLAGS \
+#       -w -o /tmp/rtbuild_sno_$$/eval_code.o || return 1
+# Re-run invariants:
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# Target: 142/142 → M-DYN-S1 COMPLETE
+```
+
+### Task 2 — If 142/142: M-DYN-S1 COMPLETE → proceed to M-DYN-S2
+Verify CODE() and compiled .s agree on all 142 tests.
+
+### Task 3 — NAME rung suite
+Write `src/runtime/dyn/rung_name_test.c` — 9 rungs:
+1. `&VAR` produces NAME
+2. `$N = X` writes through
+3. `.VAR` conditional capture in pattern
+4. `$VAR` immediate capture in pattern
+5. `DATATYPE(.X)` = `"NAME"` (uppercase)
+6. `NAME('X')` builtin
+7. `.A<i>` name of array element
+8. KEYWORD NAME (`&TRIM` etc.)
+9. NAME passed to function, assigned inside
+
+### Task 4 — M-SPITBOL-BEAUTY
+Find which function(s) in beauty.sno or its includes are called by name
+but return a value (SPITBOL error 021). Fix RETURN → NRETURN or restructure.
+Gate: `spitbol -b beauty.sno < beauty.sno` exits 0.
+
+---
+
+## Key files to read at DYN-18 session start (in order)
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # this handoff
+cat  /home/claude/.github/ARCH-byrd-dynamic.md       # full plan incl. E=mc² section
+grep -n "ensure_sno4_archive" /home/claude/one4all/test/run_invariants.sh  # Task 1
+```
+
+## Invariants baseline (DYN-13, unchanged)
+x86: SNOBOL4 `142/142` target · Snocone `160/160` · emit-diff `179/0`
