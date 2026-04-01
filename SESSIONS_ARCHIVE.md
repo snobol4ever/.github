@@ -15318,3 +15318,185 @@ CELLS=snobol4_js CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 175/
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js          # 52p/68f
 # SJ-9 FIRST: DEFINE/RETURN call stack in sno_engine.js
 ```
+
+---
+
+## DYN-18 cont1 handoff — 2026-04-01
+
+**one4all HEAD:** `9d2cb09` · **corpus HEAD:** `979f981` · **.github HEAD:** `d63e2e1` (unchanged)
+
+**Gates:** emit-diff 179/0 ✅ · invariants **137/142** (was 134)
+
+---
+
+## What happened
+
+### Bug 8 — E_CAPT_CUR in emit_pat_to_descr (W07_capt_cur + cross ASM_FAIL)
+
+`emit_pat_to_descr` had no `case E_CAPT_CUR:` — fell to `default:` → `emit_expr` → emitted
+`AT_α` asm macro in wrong DYN stack frame (ASM_FAIL in `cross`) or read BSS `cursor` global
+that DYN never writes (cursor=0 in `W07_capt_cur`).
+
+**Fix — three parts:**
+
+1. `snobol4_pattern.c`: added `pat_at_cursor(const char *varname)` — builds `XATP("@")` node
+   with `args[0] = DT_S(varname)`. Single-arg constructor, called from NASM with just `rdi`.
+
+2. `emit_x64.c` `emit_pat_to_descr`: added `case E_CAPT_CUR:`.
+   - Unary `@var`: `lea rdi, [rel varname]; call pat_at_cursor` → DT_P result.
+   - Binary `pat@var`: build `pat_at_cursor(var)`, then `pat_cat(child, at_node)` —
+     child matches first, then cursor is captured.
+   - Added `extern pat_at_cursor` to NASM extern block.
+
+3. `stmt_exec.c`: added `bb_atp_t` box before `bb_build`:
+   - On α: if not done, writes `Δ` (global cursor) as `DT_I` into `varname` via `NV_SET_fn`,
+     returns epsilon (zero-width success). On β: fails.
+   - `bb_build _XATP` case: replaced epsilon stub. Intercepts `STRVAL_fn == "@"` →
+     allocates `atp_t{done=0, varname=args[0].s}`, returns `bb_atp`. Other XATP (named
+     function calls) fall to old epsilon stub with stderr log.
+
+Fixes: `W07_capt_cur` ✅ (cursor now correct). `cross` reduced from ASM_FAIL to FAIL
+(no longer generates invalid NASM; now a runtime failure — see remaining bugs below).
+
+### Bug 9 — null replacement (063_capture_null_replace)
+
+`X ' world' =` — the `=` with no RHS. Emitter computed:
+```c
+int has_repl = (s->has_eq && s->replacement && s->replacement->kind != E_NUL) ? 1 : 0;
+```
+This excluded null replacement entirely (`has_repl=0`, `r9=0`) so Phase 5 never ran and
+the matched portion was not spliced out.
+
+**Fix — `emit_x64.c` Phase 5 setup block:**
+```c
+int has_repl    = s->has_eq ? 1 : 0;
+int repl_is_null = has_repl && (!s->replacement || s->replacement->kind == E_NUL);
+```
+For null replacement: writes `qword [rsp+0] = 0; qword [rsp+8] = 0` (DT_SNUL descriptor)
+into the repl slot, then `lea r8, [rsp+0]` and `r9=1`. Phase 5 in `stmt_exec_dyn` already
+handles `DT_SNUL` correctly (repl_str="", repl_len=0 → splice out matched portion). ✅
+
+Fixes: `063_capture_null_replace` ✅
+
+---
+
+## Remaining 5 failures for DYN-19
+
+```
+cross     FAIL  — uses ARB . OUTPUT in loop; ARB . OUTPUT pattern works but cross
+word1-4   FAIL    also uses = replacement on loop variable; suspect the combined
+wordcount FAIL    pattern (ARB . OUTPUT inside XNME inside XDSAR deferred var PAT)
+                  loses capture registration across loop iterations.
+```
+
+### Root cause: XNME capture lost across loop iterations via deferred var
+
+`word1` structure:
+```snobol4
+PAT = " the " ARB . OUTPUT (" of " | " a ")
+LOOP LINE = INPUT :F(END)
+     LINE ? PAT :(LOOP)
+```
+
+`PAT` is a variable holding a DT_P pattern. `LINE ? PAT` → `E_VAR("PAT")` in pattern
+context → `pat_ref("PAT")` → `XDSAR` → `bb_deferred_var`. On each α, `bb_deferred_var`
+fetches PAT's value and calls `bb_build` on the child pattern tree.
+
+**Problem:** `stmt_exec_dyn` resets `g_capture_count = 0` at entry. Then `bb_build` is
+called for the top-level pattern (XDSAR). `bb_deferred_var` calls `bb_build` on the child
+tree at first α — which includes the `XNME` node for `. OUTPUT`. `register_capture` is
+called — but this happens **inside Phase 3** (match execution), AFTER the capture registry
+was already reset. The XNME node IS registered. But on the second loop iteration:
+`stmt_exec_dyn` resets `g_capture_count = 0` again, then `bb_deferred_var` checks if the
+value changed — it didn't — so it **reuses the existing child graph** without rebuilding,
+meaning `register_capture` is never called for the second iteration. `flush_pending_captures`
+finds `g_capture_count = 0` and does nothing.
+
+### DYN-19 fix plan
+
+**Option A (simplest):** In `bb_deferred_var`, always call `register_capture` for any
+XNME nodes in the child graph on every α, regardless of cache. Add a helper
+`re_register_xnme(bb_node_t child)` that walks the graph and registers all capture_t nodes.
+
+**Option B:** Don't reset `g_capture_count = 0` in `stmt_exec_dyn`; instead mark captures
+as "dirty" and only flush ones built in this execution. More complex.
+
+**Option C (cleanest):** Move capture registration out of `bb_build` entirely. Instead,
+`flush_pending_captures` walks the live box graph from the root to find all `capture_t`
+nodes with `has_pending=1` and flushes them. Requires storing the root bb_node_t after
+Phase 2 build.
+
+**Recommended: Option A.** Add after `bb_deferred_var`'s cache-hit path:
+
+```c
+/* Re-register XNME captures in child graph for this iteration */
+static void re_register_captures_in_node(bb_node_t n) {
+    if (n.fn == (bb_box_fn)bb_capture) {
+        capture_t *c = (capture_t *)n.ζ;
+        if (!c->immediate) register_capture(c);
+        /* recurse into child */
+        re_register_captures_in_node((bb_node_t){c->child_fn, c->child_ζ, 0});
+    }
+    /* Note: seq/alt/arbno carry children in their ζ structs — need to recurse those too */
+}
+```
+
+This requires knowing the ζ layout of bb_seq, bb_alt, bb_arbno. Check their `_t` structs
+in the respective `bb_*.c` files. Alternatively: add a `register_all_xnme` traversal
+helper that takes the root `_PND_t *` (still available in `bb_deferred_var`) and calls
+`register_capture` for every XNME node found by tree-walking the PATND_t.
+
+**Simpler alternative:** walk the `_PND_t *` tree (not the bb_node graph) from
+`bb_deferred_var` and register all XNME capture_t nodes. Since `bb_deferred_var` keeps
+`ζ->child_fn` / `ζ->child_ζ` from the previous build, and the PATND_t pointer `p` is
+also available, do:
+
+```c
+/* In bb_deferred_var α path, after cache-hit (child reused): */
+static void _register_xnme_from_patnd(_PND_t *p) {
+    if (!p) return;
+    if (p->kind == _XNME && ...) /* need the capture_t ptr — not available from _PND_t */
+}
+```
+
+Actually the capture_t pointer is NOT stored in _PND_t — it's inside the bb_node_t ζ.
+So we need to walk the bb graph. **Simplest approach that avoids graph-walking:**
+
+In `bb_build _XNME` case, store the capture_t pointer back onto the `_PND_t` node itself
+(add a `void *bb_ζ` field — but we can't modify _PND_t without touching snobol4_pattern.c).
+
+**Actual simplest:** use Option C — after Phase 2 builds the root bb_node_t, store it in
+`stmt_exec_dyn`. In `flush_pending_captures`, walk from root to find all capture_t nodes.
+Store child_fn/child_ζ in bb_seq_t, bb_alt_t, etc. and expose a `bb_walk_captures` API.
+
+OR — the pragmatic fix: **in `bb_deferred_var`, every time it runs its α port (not just
+on cache miss / first build), call `register_capture` on `ζ->child_fn == bb_capture`
+by checking the child node directly.**
+
+### DYN-19 first tasks
+
+```bash
+# Setup (fresh session)
+FRONTEND=snobol4 BACKEND=x64 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+
+# Gate
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # 137/142
+
+# Key reading for the fix:
+sed -n '960,1080p' src/runtime/dyn/stmt_exec.c     # bb_deferred_var full implementation
+cat src/runtime/dyn/bb_seq.c                        # check seq_t struct for child storage
+cat src/runtime/dyn/bb_alt.c                        # check alt_t struct for child storage
+cat src/runtime/dyn/bb_arbno.c                      # check arbno_t struct
+
+# Then: pick Option A or C above and implement
+# Target: word1-4 + wordcount + cross PASS → 142/142 → M-DYN-S1 🎉
+```
+
+### Key files for DYN-19
+```
+src/runtime/dyn/stmt_exec.c      — bb_deferred_var (line ~960), flush_pending_captures (~1104)
+src/runtime/dyn/bb_seq.c         — seq_t layout (children storage)
+src/runtime/dyn/bb_alt.c         — alt_t layout
+src/runtime/dyn/bb_arbno.c       — arbno_t layout
+```
