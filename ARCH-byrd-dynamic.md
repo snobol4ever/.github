@@ -855,3 +855,84 @@ and the pattern constructors are invoked:
 **M-DYN-S2** — All rung1-3 corpus via `scrip-cc -asm` → `stmt_exec_dyn`
 **M-DYN-S3** — Full 142/142 invariants via `stmt_exec_dyn` (not inline NASM)
 
+
+---
+
+## M-DYN-S1 Implementation Plan — emit_pat_to_descr (2026-04-01, DYN-16)
+
+### Key finding
+
+There is NO `emit_pat_expr` in `emit_x64.c`. The emitter goes straight from
+the pattern AST to `emit_pat_node()` (inline NASM). There is no path that
+compiles a pattern expression to a `DT_P` DESCR_t at runtime.
+
+`snobol4_pattern.c` already has all the constructors:
+`pat_lit`, `pat_cat`, `pat_alt`, `pat_arbno`, `pat_span`, `pat_break_`,
+`pat_any_cs`, `pat_notany`, `pat_len`, `pat_pos`, `pat_rpos`, `pat_tab`,
+`pat_rtab`, `pat_arb`, `pat_rem`, `pat_fence`, `pat_fence_p`, `pat_fail`,
+`pat_abort`, `pat_succeed`, `pat_bal`, `pat_ref`, `pat_assign_imm`,
+`pat_assign_cond`. All return `DESCR_t` (DT_P).
+
+These are the same constructors used by `eval_code.c`'s `eval_node()` and
+by `snobol4_pattern.c`'s `snopat_eval()`. They are already in the linked runtime.
+
+### The new function: emit_pat_to_descr
+
+```c
+/* Walk pattern AST, emit NASM to call snobol4_pattern.c constructors,
+ * leave DT_P DESCR_t in [rbp-32]/[rbp-24]. */
+static void emit_pat_to_descr(EXPR_t *pat, int slot);
+```
+
+Pattern node → NASM emission:
+- `E_QLIT`  → `lea rdi, [rel S_literal]` + `call pat_lit` → result in rax:rdx
+- `E_CONCAT`→ emit left (slot-32), emit right (slot-16),
+               load both into rdi:rsi, rdx:rcx → `call pat_cat`
+- `E_ALT`   → same as concat but `call pat_alt`
+- `E_ARBNO` → emit child, load into rdi:rsi → `call pat_arbno`
+- `E_FNC("SPAN",arg)` → emit arg, strval, `call pat_span`
+- `E_FNC("BREAK",arg)` → `call pat_break_`
+- `E_FNC("ANY",arg)` → `call pat_any_cs`
+- `E_FNC("LEN",arg)` → intval, `call pat_len`
+- `E_FNC("POS",arg)` → `call pat_pos`
+- `E_FNC("RPOS",arg)` → `call pat_rpos`
+- `E_FNC("ARB")` → `call pat_arb` (no args)
+- `E_FNC("ARBNO",arg)` → emit arg, `call pat_arbno`
+- `E_FNC("FAIL")` → `call pat_fail`
+- `E_FNC("FENCE",0)` → `call pat_fence`
+- `E_FNC("FENCE",1)` → emit arg, `call pat_fence_p`
+- `E_VAR` → `call pat_ref` with variable name (for *VAR / named patterns)
+- `E_CAPT_IMM` ($ assign) → emit child, `call pat_assign_imm`
+- `E_CAPT_COND` (. assign) → `call pat_assign_cond`
+- `E_INDR` (*VAR) → emit var name, `call pat_ref_val`
+
+### The new Case 2 in emit_x64.c
+
+Replace the entire scan-loop + emit_pat_node() + capture block with:
+
+```nasm
+; 1. Subject name
+;    If s->subject is E_VAR: lea rdi, [rel S_varname]
+;    Else: xor rdi, rdi  (non-lvalue — NULL subj_name)
+; 2. subj_var (NULL when we have subj_name)
+;    xor rsi, rsi
+; 3. Pattern → DT_P descriptor in [rbp-48]/[rbp-40] (temp slot below current frame)
+;    sub rsp, 16
+;    emit_pat_to_descr(s->pattern, -64)   ; result in [rbp-64/56] after sub
+;    mov rdx, [rbp-64]   ; pat.lo
+;    mov rcx, [rbp-56]   ; pat.hi
+;    add rsp, 16
+; 4. Replacement
+;    lea r8, [repl_slot]  or  xor r8, r8
+;    mov r9d, has_repl
+; 5. call stmt_exec_dyn
+; 6. test eax, eax / jnz S-target / jmp F-target
+```
+
+### What RULES.md gate means for M-DYN-S1
+
+After the change: emit-diff baseline artifacts will change (the inline Byrd box
+NASM is replaced by `call stmt_exec_dyn`). Run `--update` to regenerate baselines.
+Then: 179 (now different) / 0 fail. Then run invariants — same 142/142 but now
+going through stmt_exec_dyn.
+
