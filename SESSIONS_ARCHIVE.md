@@ -13420,3 +13420,25 @@ Full reformatter run on ALL dyn/*.c files (bb_alt, bb_arbno, bb_fence, bb_lit, b
 ### DYN-5 addendum — alignment fix (same session)
 
 Full reformatter run on ALL dyn/*.c files. All body goto/return now at char col 62. All 3 suites green. Pushed `5423ec6`. RULES.md §ARTIFACT REFRESH already covers this — rule stands, no amendment needed.
+
+### DYN-5 EMERGENCY HANDOFF — 2026-04-01
+
+**one4all HEAD:** `5423ec6` (ALL dyn/*.c col-62 alignment fix)
+**.github HEAD:** `e38cae5`
+
+**Gates:** emit-diff 981/4 ✅ | stmt_exec_test 13/13 ✅ | bb_dyn_test 3/3 ✅ | bb_tab_fence_test 12/12 ✅
+
+**M-DYN-5 remaining:**
+1. DVAR_CHILD_STATE_MAX — replace magic `4096` with true sizeof in deferred_var_t
+2. Rung 6 corpus gate — drive stmt_exec_dyn() with real PATND_t trees (XDSAR/XVAR)
+3. XNME `.` capture ordering — corpus spec compliance
+
+**Bootstrap:**
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git
+bash one4all/SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64
+tail -40 .github/SESSIONS_ARCHIVE.md
+# HEAD must be 5423ec6
+```
