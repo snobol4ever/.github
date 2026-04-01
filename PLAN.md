@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-4 | one4all `350f6b4` | **M-DYN-5**: Rung 6 corpus gate (XDSAR/XVAR with real PATND_t). TAB box. FENCE/ABORT proper. See DYN-4 handoff in SESSIONS_ARCHIVE. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-5 partial — M-DYN-5 in progress | one4all `073fc99` DYN-5 | **M-DYN-5**: Rung 6 corpus gate (XDSAR/XVAR with real PATND_t). DVAR_CHILD_STATE_MAX true-size fix. |
 | **Snocone x86** | SC-10 | `838e901` one4all · `209a976` corpus | SNOCONE_NEWLINE removed · corpus sc1-sc10 fixed (10/10) · **SC-11**: M-SC-B07 next unimplemented construct |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
