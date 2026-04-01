@@ -14386,3 +14386,154 @@ cat .github/SESSION-snobol4-js.md
 # Oracle: ARCH-spipat-js.md + src/backend/c/emit_byrd_c.c Byrd-box model
 # Test: wordcount.sno < wordcount.input → "14 words"
 ```
+
+---
+
+## Session DYN-12 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `5aa181f` (DYN-11 / no commits)
+**HEAD at session end:** `13e4c02` (one4all — DYN-12 fix committed and pushed)
+**Sprint:** DYN-12 — rung6 XNME capture root cause found and fixed
+
+### Gates
+- emit-diff: **1286/0 ✅**
+- invariants (snobol4_x86): **ALL PASS ✅** (106/106)
+- rung6_dyn_test: **12/12 ✅** (was 8/12 — all 4 failures fixed)
+
+### Root cause — confirmed and fixed
+
+**Bug:** `bb_deferred_var` memset destroying `bb_lit` configuration.
+
+In `DVAR_α`, when a string variable's NV value had not changed pointer
+(same scan position re-entry via the ABA-safe pointer check), the code
+skipped rebuilding the `_lit_t` child but still called:
+
+    memset(ζ->child_ζ, 0, ζ->child_ζ_size)
+
+For stateful boxes (`bb_arb`, `bb_arbno`) this resets cursor state correctly.
+For `bb_lit`, `_lit_t = {lit, len}` are **configuration, not state**. Zeroing
+them sets `len=0`, causing `bb_lit` to match everywhere with δ=0. This
+zero-length `spec_t` (non-null σ, δ=0) propagated up through `bb_capture`'s
+`CAP_γ_core`, storing a δ=0 pending capture. `flush_pending_captures` then
+committed an empty string to the capture variable.
+
+This explained ALL four failures:
+- T1 output[0]: OUTPUT NV recursion caused extra `stmt_exec_dyn` calls;
+  the last recursive call matched at scan pos 1 (next position after real
+  match at pos 0) with a stale δ=0 `bb_lit("hello")` — overwrote V=''.
+  Fix corrects this too (T1 now PASS).
+- T2 second call, T3, T5: same mechanism — `bb_lit` cached from prior call
+  got memset'd on second scan position, produced δ=0 match.
+
+**Fix (one line):**
+```c
+if (!rebuilt && ζ->child_ζ && ζ->child_ζ_size
+        && ζ->child_fn != (bb_box_fn)bb_lit)
+    memset(ζ->child_ζ, 0, ζ->child_ζ_size);
+```
+
+**Also:** renamed `_PND_t.sval` → `.STRVAL_fn` to match `PATND_t` layout.
+No behaviour change (fields are at same struct offset) but removes fragile
+divergence documented as a DYN-4 cleanup debt.
+
+### Diagnostic trail (in case needed)
+
+Three earlier hypotheses disproved this session:
+1. `g_capture_count=0` ordering (DYN-11 handoff) — already correct position
+2. `sval`/`STRVAL_fn` field name mismatch — layout-compatible, no effect
+3. `flush_pending_captures` re-entry via `NV_SET_fn` — snapshot fix applied
+   (correct defensive programming) but not the root cause
+
+The key trace was `DVAR_α` + `DVAR string check` showing `match=1` (correct
+pointer reuse) immediately followed by `CAP_γ_core: delta=0` — proving the
+memset was destroying the node after the correct pointer check passed.
+
+### Bootstrap for DYN-13
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh         # expect 1286/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86  # expect ALL PASS
+# Build and run rung6_dyn_test — expect 12/12 (confirmed clean)
+gcc -Wall -Wno-unused-label -Wno-unused-variable -g -O0 \
+  -I src/runtime/dyn -I src/runtime/snobol4 -I src/runtime \
+  -I src/frontend/snobol4 \
+  src/runtime/dyn/bb_lit.c src/runtime/dyn/bb_alt.c src/runtime/dyn/bb_seq.c \
+  src/runtime/dyn/bb_arbno.c src/runtime/dyn/bb_pos.c src/runtime/dyn/bb_tab.c \
+  src/runtime/dyn/bb_fence.c src/runtime/dyn/stmt_exec.c \
+  src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
+  src/runtime/mock/mock_includes.c \
+  src/runtime/engine/engine.c src/runtime/engine/runtime.c \
+  src/runtime/dyn/rung6_dyn_test.c -lgc -lm -o rung6_dyn_test
+./rung6_dyn_test   # expect PASS (12/12)
+# HEAD must be: one4all 13e4c02
+# DYN-13 FIRST ACTION: advance to rung7 — identify next unimplemented
+#   XNME/XFNME construct from the corpus crosscheck suite.
+#   Run: ls corpus/crosscheck/patterns/ | grep -v ".ref" | head -20
+#   Pick next failing corpus test beyond rung6 scope.
+```
+
+### Context at handoff: ~85%. Stopping cleanly.
+
+---
+
+## Session DYN-13 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** `13e4c02` (DYN-12 fix committed)
+**HEAD at session end:** `13e4c02` (one4all — no new commits this session; .github updated)
+**Sprint:** DYN-13 — gate scoping fix + milestone doc
+
+### Gates
+- emit-diff (CELLS=snobol4_x86): **179/0 ✅**
+- invariants (snobol4_x86): **ALL PASS ✅** (106/106)
+- rung6_dyn_test: **PASS 12/12 ✅**
+
+### Work done
+
+**Root cause analysis — run_emit_check.sh slowness (224s):**
+- scrip-cc itself: ~2ms/call (fast)
+- bash subprocess per xargs item: ~17ms overhead
+- mktemp + rm per call: ~18ms overhead
+- 1286 invocations × 35ms = ~45s process-spawn overhead alone
+- Milestone written: MILESTONE-FAST-EMIT-CHECK.md (M-G-EMIT-FAST)
+  - Fix 1: batch scrip-cc (3 invocations total, one per backend)
+  - Fix 2: eliminate mktemp (--outdir flag on scrip-cc + bulk diff)
+  - Fix 3: kill xargs bash subprocesses (single-process diff loop)
+  - Target: 224s → <15s
+
+**Scope fix — emit-diff was NOT x86-only (now fixed):**
+- run_emit_check.sh was running all 1286 checks: SNO×{asm,jvm,net} + ICN×{asm,jvm} + PRO×{asm,jvm} + REB×{asm,jvm,net}
+- run_invariants.sh was already correct when called with `snobol4_x86` arg
+- Fix: added CELLS env var to run_emit_check.sh mirroring run_invariants.sh cell names
+  - CELLS=snobol4_x86 → SNO×asm only → 179/0
+  - CELLS="" (default) → all backends (full cross-session check)
+- Updated PLAN.md Step 2 gate, bottom gate line, and RULES.md gate section
+
+**DYN-13 rung7 target identified:**
+- Next corpus test: 057_pat_fail_builtin.sno (FAIL builtin — unconditional failure)
+- Missing bb box: bb_fail (trivial — bb_box_fn always returns NULL)
+- NOT YET IMPLEMENTED this session (stopped for handoff)
+
+### Bootstrap for DYN-14
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # expect ALL PASS 106/106
+# Build rung6: (cmd from DYN-12 handoff) → expect PASS 12/12
+# HEAD must be: one4all 13e4c02, .github updated (DYN-13 archive + PLAN/RULES scope fix)
+# DYN-14 FIRST ACTION: implement bb_fail.c
+#   - Trivial box: bb_box_fn returns NULL always
+#   - Wire into stmt_exec.c pattern dispatch (FAIL builtin → bb_fail node)
+#   - Add T_FAIL test to rung6_dyn_test or new rung7 test covering 057_pat_fail_builtin
+#   - Run: scrip-cc -asm -o /dev/stdout corpus/crosscheck/patterns/057_pat_fail_builtin.sno
+#   - Compare to 057_pat_fail_builtin.ref
+```
+
+### Context at handoff: ~50%. Stopping cleanly.
