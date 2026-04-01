@@ -55,7 +55,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-6 complete — M-DYN-5 ✅ | one4all `5ee6353` DYN-6 | **M-DYN-6** (next): EVAL/CODE — parse string, call same builder, execute. See ARCH-byrd-dynamic.md milestone chain. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-7 partial — M-DYN-6 🔧 | one4all `c4bc4ba` DYN-7 | **M-DYN-6** (next): wire CODE builtin + EVAL_fn arithmetic path + f13 corpus gate. eval_code.c done, rung7 8/8. See SESSIONS_ARCHIVE DYN-7. |
 | **Snocone x86** | SC-11 | `dbad62b` one4all · `327ed02` corpus | M-SC-B07 done · compound-assign fix in snocone_parse.c · rungB07 7/7 · **SC-12**: identify next unimplemented construct |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
