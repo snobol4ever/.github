@@ -34,7 +34,8 @@ All deep reference docs. Open on demand — never speculatively.
 ### x64 Backend
 | Doc | Contents | Open when |
 |-----|----------|-----------|
-| `ARCH-x64.md` | Technique 2 sprint plan; M-X64-FULL | x64 deep implementation |
+| `ARCH-byrd-dynamic.md` | **THE fundamental model — dynamic Byrd box execution, M-DYN-* chain, proof-of-concept** | x64 dynamic execution, EVAL/CODE, *X, any new x64 work |
+| `ARCH-x64.md` | Technique 2 historical plan (M-T2-* absorbed into M-DYN-*) | Historical static path detail |
 | `ARCH-backend-c-dead.md` | C backend (dead) | Historical only |
 
 ### Testing & Infrastructure
