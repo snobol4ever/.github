@@ -291,3 +291,21 @@ If the doc doesn't cover it, check the source. Never guess and assert.
 ---
 
 *Icon semicolon rules → `ARCH-icon-jcon.md §Auto-semicolon`. JVM null-coerce rules → `SESSION-icon-jvm.md §JVM-NULL`.*
+
+---
+
+## ⚠️ Known deferred fragility: E_SEQ vs E_CONCAT in SNOBOL4 frontend
+
+**M-DYN-SEQ** tracks this. Short version:
+
+SNOBOL4 juxtaposition (`A B C`) is polymorphic at runtime — string concat OR
+pattern sequence depending on operand types. The parser currently guesses context
+using `fixup_val_tree`. This is **wrong** for variables holding DT_P.
+
+**Do not add new uses of `fixup_val_tree`** or rely on `E_CONCAT` being reliably
+"always string" in the SNOBOL4 frontend. In pattern context (`emit_pat_to_descr`)
+both `E_SEQ` and `E_CONCAT` produce `pat_cat` — correct. In value context
+(`emit_expr`), `E_CONCAT` calls `stmt_concat` which will break if an operand is DT_P.
+
+Fix is `stmt_seq()` runtime dispatcher. See `ARCH-decisions.md D-010` and
+`ARCH-byrd-dynamic.md M-DYN-SEQ`.
