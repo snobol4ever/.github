@@ -13252,3 +13252,35 @@ Suggested work items for DYN-5 (not yet designed — needs ARCH update):
 5. **Thread-safety** — g_capture_list / g_capture_count / Σ/Δ/Ω are globals.
    Fine for single-threaded SNOBOL4 execution; flag for future work.
 
+
+---
+
+## DYN-4 ADDENDUM — cleanup (2026-04-01, Claude Sonnet 4.6)
+
+one4all HEAD: `745d047`
+
+### Changes
+
+**Port name rename:** All four port constants renamed from Greek single-letters
+(α=0, β=1) to `alpha`/`beta`/`gamma`/`omega` across bb_box.h and all dyn/ .c
+files. `#define alpha 0` / `#define beta 1` (was `static const int`). Every
+label suffix (`LIT_alpha:`), entry comparison (`entry == alpha`), and call
+argument (`, alpha)`) updated via python3 unicode replace.
+
+**Field name rename:** spec_t fields renamed `sigma`/`delta` (was Greek σ/δ).
+All struct state fields renamed from Greek `zeta` to ascii `zeta` throughout:
+bb_node_t, _bchild_t, capture_t, deferred_var_t, _arbno_t.
+
+**Zero warnings:** Was 4 misleading-indentation warnings in bb_capture from
+three-column `if (spec_is_empty) goto X; / goto Y;` layout. Fixed by wrapping
+if/goto pairs in braces: `if (spec_is_empty(x)) { goto X; }`.
+
+**bb_deferred_var rebuild fix:** DYN-4 was rebuilding the child graph on every
+alpha call (allocating new structs each match attempt). Fixed: graph built ONCE
+on first alpha; subsequent alpha calls zero child_zeta (memset 0,
+DVAR_CHILD_STATE_MAX=4096) for fresh locals, then re-drive same graph.
+DVAR_CHILD_STATE_MAX is a conservative upper bound — DYN-5 should store true
+size at build time.
+
+Tests: 13/13 stmt_exec_test · 3/3 bb_dyn_test · gate 981/4
+
