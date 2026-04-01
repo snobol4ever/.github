@@ -13609,3 +13609,38 @@ tail -60 /home/claude/.github/SESSIONS_ARCHIVE.md
 # HEAD must be: one4all 5ee6353 · corpus 5f8fee1
 # Next: M-SC-B09 — string comparisons (:==: :!=: :>: :<: :>=: :<=:)
 ```
+
+---
+
+## SC-12 ADDENDUM — handoff note (2026-04-01, Claude Sonnet 4.6)
+
+**Context at handoff: ~70-75%. Session ending cleanly.**
+
+All gates green, all commits pushed. No outstanding work items in this session.
+
+### Final state
+- one4all HEAD: `5ee6353` (unchanged from session start — no emitter edits needed)
+- corpus HEAD:  `5f8fee1` (rungB08 committed and pushed)
+- .github HEAD: `3a4bd32` (SC-12 handoff + PLAN.md updated)
+
+### SC-13 first action
+Identify and implement M-SC-B09: string lexicographic comparisons.
+Operators in `emit_x64_snocone.c`: `SNOCONE_STR_EQ`→`LEQ`, `SNOCONE_STR_NE`→`LNE`,
+`SNOCONE_STR_GT`→`LGT`, `SNOCONE_STR_LT`→`LLT`, `SNOCONE_STR_GE`→`LGE`, `SNOCONE_STR_LE`→`LLE`.
+All six are wired in `lower_token` already. Write ~6 tests in rungB09, confirm pass, commit corpus.
+
+### Bootstrap for SC-13
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86  # expect 106/106, 126/126
+CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
+  /home/claude/corpus/crosscheck/snocone/rungB08                                  # expect 5/5
+tail -80 /home/claude/.github/SESSIONS_ARCHIVE.md
+# HEAD must be: one4all 5ee6353 · corpus 5f8fee1 · .github 3a4bd32
+# Next: M-SC-B09 — rungB09 string comparisons :==: :!=: :>: :<: :>=: :<=:
+```
