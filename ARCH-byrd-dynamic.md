@@ -765,3 +765,93 @@ does not need this. Lazy eval is an optimization for patterns with expensive
 function-call arms — a later milestone.
 
 ---
+
+---
+
+## Static .s Path Must Also Use Five Phases (2026-04-01, DYN-16 session)
+
+### The Clarification
+
+The static `.s` file (output of `scrip-cc -asm`) is a valid output mode —
+**but it must call `stmt_exec_dyn()` at runtime for each pattern statement.**
+
+The pattern must NOT be baked inline as NASM Byrd box code. Instead the
+compiled program must build the pattern at runtime (Phase 2) and execute
+it through the 5-phase executor, exactly as `CODE()` does internally.
+
+`CODE()` and the static compiled path are **the same thing at runtime**.
+The compiler's job for a pattern statement is to emit assembly that:
+
+```
+1. Evaluate subject expression → subj_name (variable name string)
+2. Evaluate pattern expression → DESCR_t pat  (DT_P — built by snobol4_pattern.c)
+3. Evaluate replacement (if any) → DESCR_t repl
+4. call stmt_exec_dyn(subj_name, &pat, &repl, has_repl)
+5. test rax (return value 1=:S, 0=:F) → branch to S-target or F-target
+```
+
+The pattern expression evaluation (step 2) uses the existing emitter machinery
+for expressions — it calls `snobol4_pattern.c` constructors (pat_lit, pat_cat,
+pat_alt, etc.) which return DT_P descriptors. Those are the same constructors
+that `bb_build()` uses. The result is a live PATND_t tree → `stmt_exec_dyn`
+calls `bb_build()` on it to get the runnable box graph.
+
+### What Changes in emit_x64.c
+
+The current pattern statement emission block (around line 5140) emits:
+- `stmt_setup_subject()` + scan loop
+- Inline Byrd box NASM via `emit_pat_node()`
+- Direct `jmp` to `:S`/`:F` labels
+
+This must be replaced with:
+1. `emit_expr(s->subject)` → push subject name (or null for literals)
+2. `emit_pat_expr(s->pattern)` → evaluate pattern expression, result in rax:rdx
+3. `emit_expr(s->replacement)` if present
+4. `call stmt_exec_dyn`
+5. `test eax, eax` / `jnz S-target` / `jmp F-target`
+
+### What Does NOT Change
+
+- `emit_pat_expr()` — the pattern expression evaluator that builds DT_P
+  descriptors by calling pat_lit/pat_cat/pat_alt/etc. This stays. It is
+  Phase 2. The result is a DESCR_t{DT_P, ...} on the stack.
+- The rest of the statement emitter — subject eval, replacement eval,
+  goto resolution, label handling. All unchanged.
+- The Byrd box C layer (`bb_lit.c`, `bb_alt.c`, etc.) — unchanged.
+- `stmt_exec_dyn()` — unchanged.
+
+### What Gets Removed
+
+- `emit_pat_node()` — the inline NASM Byrd box emitter. Deleted.
+- `stmt_setup_subject()`, `stmt_apply_replacement()` call sites in the
+  emitter — these move inside `stmt_exec_dyn()` where they already live.
+- The scan retry loop (scan_start/scan_retry labels) in the emitter —
+  this is Phase 3 and lives inside `stmt_exec_dyn()`.
+
+### The Three Output Modes Unified
+
+All three output modes (C-text, S-text, S-binary) now emit the same
+five-phase call structure. The difference is only how `stmt_exec_dyn`
+and the pattern constructors are invoked:
+
+- **C-text**: direct C function calls. `stmt_exec_dyn(...)` in generated C.
+- **S-text**: `call stmt_exec_dyn` in generated NASM `.s`. Extern declared.
+- **S-binary**: `bb_insn_mov_rax_imm64(addr_of_stmt_exec_dyn)` +
+  `bb_insn_call_rax()` in the bb_pool buffer. Same absolute-call idiom
+  already used for C runtime shims.
+
+### Milestone Revision
+
+**M-DYN-C1** (already done via rung7_eval_code_test T5) ✅
+
+**M-DYN-S1** — Wire `emit_x64.c` pattern statement to call `stmt_exec_dyn`:
+- Replace inline `emit_pat_node()` with `call stmt_exec_dyn`
+- Pattern expression already emitted as DT_P by `emit_pat_expr()`
+- Gate: `wordcount.sno` compiled via `scrip-cc -asm`, runs through
+  `stmt_exec_dyn()`, produces `14 words` — same as SPITBOL oracle.
+  Check: add `fprintf(stderr, "stmt_exec_dyn called\n")` temporarily
+  to confirm the dynamic path fires for a compiled binary.
+
+**M-DYN-S2** — All rung1-3 corpus via `scrip-cc -asm` → `stmt_exec_dyn`
+**M-DYN-S3** — Full 142/142 invariants via `stmt_exec_dyn` (not inline NASM)
+
