@@ -15039,71 +15039,216 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # ex
 
 ---
 
-## Session SJ-7 FINAL — 2026-04-01 — Block-grouping, arith semantics, invariants wired
+## Session DYN-16 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
 
-**HEAD at session end:** one4all `24d0718` · .github this entry
-**Context at handoff: ~70%**
+**HEAD at session start:** one4all `7cd3c8e` · corpus `f7c92f2`
+**HEAD at session end:** one4all `7486db7`
+**Sprint:** DYN-16
 
 ### Work completed
 
-**1. emit_js.c: block-grouping bug FIXED**
-Unlabeled continuation blocks after explicit-transfer blocks were reopened under
-the same label name, overwriting the previous block. Fix: look-ahead on `s->next`
-when transferred block closes; pre-generate synthetic `_c<uid>` label; emit
-`return goto_v__cN` before closing; open continuation block under that unique name.
+**1. Stale RT cache regression fixed (wordcount 141→142)**
+`SESSION_SETUP.sh` built `libsno4rt_asm.a` at 16:53, but the DYN-15 commit
+`308ce2d` (`__num_pos` rename in `snobol4.c`) landed at 16:34. The stamp md5
+was stale. Fix: delete stamp + archive to force rebuild on next `run_invariants.sh`.
+Root cause documented for future sessions: always bust RT cache stamp after any
+`snobol4.c` change.
 
-**2. jv() uppercase normalization**
-SNOBOL4 labels case-insensitive. `jv()` now uppercases so `:(end)` = `:(END)`.
+**2. $.var indirect lookup fixed (DYN-16 target)**
+`$.bal` is parsed as `E_INDR(E_CAPT_COND("bal"))`. `E_CAPT_COND` emits `DT_N=9`
+name descriptor with `.s = "bal"`. `stmt_get_indirect` was rejecting non-`DT_S`
+inputs. Fix: accept `DT_N` — `.s` field directly holds the variable name.
+File: `src/runtime/asm/snobol4_stmt_rt.c`.
+An emitter change (`E_VAR` shortcut in `emit_x64.c`) was written and reverted —
+it would have broken `$VNAME` (dynamic string→variable lookup). Runtime fix only.
 
-**3. js_upper_var() — variable name uppercase**
-All `_vars["..."]` emission sites use `js_upper_var()`. OUTPUT trap now fires.
-Fixed: E_VAR, E_ASSIGN, capture, pat_stmt, pure assignment, null assign.
+**3. mock_includes.c DYN_ENGINE_LINKED guard**
+`code_dyn`/`eval_expr_dyn` stubs in `mock_includes.c` conflicted with real
+`eval_code.c` when linking `rung7_eval_code_test`. Fixed with
+`#ifndef DYN_ENGINE_LINKED` guard.
 
-**4. E_UPLUS added to emitter**
-`case E_UPLUS: J("_num("); js_emit_expr(...); J(")");`
+### Gates
+- emit-diff (CELLS=snobol4_x86): **179/0 ✅**
+- invariants (snobol4_x86): **142/142 ✅**
+- rung7_eval_code_test: **8/8 ✅**
 
-**5. Real literal / DIFFER/IDENT numeric semantics**
-E_FLIT stays as string `"3."` form (SPITBOL convention).
-DIFFER/IDENT use `_num()` equality when both args are numeric.
-`_is_int()` detects real strings by presence of `.` or `e`.
-`_add/_sub/_mul/_div` correct int vs real propagation.
+### Push
+- one4all `7486db7` ✅
 
-**6. run_snobol4_js() wired into run_invariants.sh**
-Full crosscheck dirs. `.js.xfail` convention. In dispatch, cell loop, summary.
+### PLANNING CORRECTION — DYN-17 direction change
 
-**Baseline: 34p/86f → 46p/74f**
+**The corpus fixup work (DYN-13 through DYN-16) was testing the wrong runtime.**
+All those tests run through `scrip-cc -asm` → NASM → static inline Byrd box NASM.
+That path NEVER calls `stmt_exec_dyn()`. The 5-phase executor is bypassed entirely.
 
-### Known open issues for SJ-8
+**The correct model (re-read from HQ docs this session):**
+- Everything goes through `CODE()` and `EVAL()` — these ARE the runtime
+- The compiler reads a source statement and calls `CODE()` for it
+- `CODE()` → `stmt_exec_dyn()` → 5-phase executor → dynamic Byrd box graph
+- There are THREE output modes, not one:
+  1. **C text** — one whole Byrd box as a C function, three-column layout,
+     `goto`-based, like `test_sno_*.c`. Compiles with gcc.
+  2. **S-text** — same three-column structure as NASM proc, emitted as `.s`
+  3. **S-binary** — raw x86-64 bytes into `bb_pool` via `bb_emit.c` primitives
+- Each Byrd box is ONE WHOLE unit — all 4 ports (α/β/γ/ω) together, three columns
+- The x86 NASM macro system (`snobol4_asm.mac`) is for the OLD static path only.
+  We do NOT sprinkle macros. We emit ONE complete box.
+- Binary boxes: relocatable, `r12` points to per-invocation DATA block (Technique 2).
+  Some boxes wrap with C stack frame. Some use `r12` exclusively.
+- TDD: every test goes through `CODE()` → `stmt_exec_dyn()`. Not through
+  `scrip-cc -asm`.
 
-**Priority 1 — E_INDR uppercase (210/211/212 failing)**
-`case E_INDR:` emits `_vars[_str(...)]` — key not uppercased.
-Fix: `J("_vars[_str("); js_emit_expr(operand); J(").toUpperCase()]");`
+### New milestone structure for DYN-17+
 
-**Priority 2 — LGT builtin missing (914 timeout)**
-Add: `LGT(args) { return _str(args[0]) > _str(args[1]) ? _str(args[0]) : _FAIL; }`
+**M-DYN-C1 — CODE() TDD gate: LIT box, C-text mode**
+- Input: `CODE("OUTPUT = 'hello'")` — one statement, literal match
+- Output: C-text box function in three-column format, compiled with gcc, run
+- Gate: output matches SPITBOL oracle for this one statement
+- This proves the `CODE()` → parse → bb_build → stmt_exec_dyn path end-to-end
+- ONE box (LIT), all 4 ports, three columns, no NASM
 
-**Priority 3 — DEFINE/RETURN runtime (1010–1018 timeout)**
-User-defined functions. `goto_v_RETURN`/`goto_v_FRETURN` emitted, no call stack.
-Need `_user_fns` map + frame stack in sno_engine.js.
+**M-DYN-C2 — CODE() TDD gate: SEQ, ALT, ARBNO in C-text mode**
+- Expand to compound patterns via `CODE()`
+- Gate: rung1-3 corpus via `CODE()` path, C-text boxes, all pass
 
-**Priority 4 — DATA/ARRAY/TABLE (1110–1116 failing)**
-Implement `ARRAY`, `TABLE`, `DATA`, `ITEM` in `_builtins`.
+**M-DYN-S1 — S-text gate: LIT box as NASM proc, three-column**
+- Same CODE() input, switch to S-text output mode
+- ONE proc, all 4 ports, three columns, `.alpha:` / `.beta:` local labels
+- No macro explosion. No sprinkled assembly. One proc = one box.
+- Gate: assemble, link, run — same output as C-text gate
 
-**Priority 5 — REPLACE/CONVERT/DATATYPE (810/910/911 failing)**
+**M-DYN-B1 — S-binary gate: LIT box via bb_emit.c into bb_pool**
+- Same CODE() input, switch to S-binary output mode
+- Raw x86 bytes, relocatable, r12 = DATA block (Technique 2)
+- Gate: mprotect RW→RX, jump to α, same output as C-text and S-text gates
 
-### Bootstrap for SJ-8
+**M-DYN-B2 — S-binary: compound patterns (SEQ/ALT/ARBNO)**
+**M-DYN-B3 — S-binary: all rung1-3 corpus via binary boxes**
+**M-DYN-B4 — S-binary: *VAR deferred dispatch (XDSAR)**
+**M-DYN-B5 — S-binary: full corpus gate, replace static inline NASM path**
+
+### Bootstrap for DYN-17
+
 ```bash
 for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
 done
-FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
-cd one4all
-git log --oneline -3   # expect 24d0718 at HEAD
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js  # expect 46p/74f
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # expect 142/142
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md
 
-# SJ-8 FIRST ACTION: fix E_INDR uppercase in src/backend/emit_js.c
-# case E_INDR: change _vars[_str(...)] to _vars[_str(...).toUpperCase()]
-# make -C src && test 210/211/212
-# Then: add LGT to sno_runtime.js (one-liner)
-# Then: DEFINE/RETURN call stack
+# HEAD: one4all 7486db7
+
+# DYN-17 FIRST ACTION: M-DYN-C1
+# Write a standalone test that calls CODE("OUTPUT = 'hello'") and
+# verifies the output matches SPITBOL oracle.
+# Build: same as rung7_eval_code_test (DDYN_ENGINE_LINKED, full runtime)
+# The C-text Byrd box for LIT should look exactly like test_sno_1.c BIRD box:
+#   LIT_α: if (memcmp(Σ+Δ, lit, len) != 0) goto LIT_ω;
+#           LIT = spec(Σ+Δ, len); Δ += len;  goto LIT_γ;
+#   LIT_β: Δ -= len;                          goto LIT_ω;
+#   LIT_γ:                                    return LIT;
+#   LIT_ω:                                    return spec_empty;
+# This is already in bb_lit.c — verify stmt_exec_dyn calls it correctly
+# for the "OUTPUT = 'hello'" statement parsed by CODE().
 ```
+
+### Context at handoff: ~65%. Stopping cleanly.
+
+---
+
+## Session DYN-16 — 2026-04-01 — DYNAMIC BYRD BOX (snobol4 × x64)
+
+**HEAD at session start:** one4all `7cd3c8e` · corpus `f7c92f2`
+**HEAD at session end:** one4all `7486db7`
+**Sprint:** DYN-16
+
+### Work completed
+
+**1. Stale RT cache regression fixed (wordcount 141→142)**
+DYN-15 commit `308ce2d` renamed `pos`→`__num_pos` in `snobol4.c`. SESSION_SETUP
+built libsno4rt_asm.a before the stamp check ran, leaving the archive stale.
+Fix: delete stamp + archive to force rebuild. Root cause: always bust RT cache
+stamp after any snobol4.c change.
+
+**2. $.var indirect lookup fixed**
+`$.bal` → `E_INDR(E_CAPT_COND("bal"))` → `DT_N=9` descriptor.
+`stmt_get_indirect` was rejecting non-`DT_S`. Fix: accept `DT_N` — `.s` holds
+the variable name directly. File: `src/runtime/asm/snobol4_stmt_rt.c`.
+Emitter change (`E_VAR` shortcut) written and reverted — would have broken
+`$VNAME` dynamic lookup.
+
+**3. mock_includes.c DYN_ENGINE_LINKED guard**
+`code_dyn`/`eval_expr_dyn` stubs conflicted with real `eval_code.c` in
+rung7_eval_code_test. Fixed with `#ifndef DYN_ENGINE_LINKED` guard.
+
+### Gates
+- emit-diff (CELLS=snobol4_x86): **179/0 ✅**
+- invariants (snobol4_x86): **142/142 ✅**
+- rung7_eval_code_test: **8/8 ✅**
+
+### Push
+- one4all `7486db7` ✅
+
+### PLANNING CORRECTION — DYN-17 direction change
+
+**The corpus fixup work (DYN-13 through DYN-16) tested the wrong runtime.**
+scrip-cc -asm → NASM → static inline Byrd box NASM bypasses stmt_exec_dyn()
+entirely.
+
+**The correct model:**
+- Everything goes through CODE() and EVAL() — these ARE the runtime
+- The compiler reads a source statement and calls CODE() for it
+- CODE() → stmt_exec_dyn() → 5-phase executor → dynamic Byrd box graph
+- THREE output modes:
+  1. C-text — one whole box as C function, three-column, goto-based (test_sno_*.c)
+  2. S-text — same three-column as NASM proc, .s file
+  3. S-binary — raw x86 bytes into bb_pool via bb_emit.c, r12=DATA (Technique 2)
+- Each Byrd box is ONE WHOLE unit — all 4 ports (α/β/γ/ω), three columns
+- snobol4_asm.mac is for the OLD static path only. We do NOT sprinkle macros.
+- Binary boxes: relocatable, r12=per-invocation DATA (Technique 2)
+- TDD: every test through CODE() → stmt_exec_dyn(). NOT through scrip-cc -asm.
+
+### New milestone chain (DYN-17+)
+
+| ID | Deliverable | Gate |
+|----|-------------|------|
+| **M-DYN-C1** | CODE() TDD gate: LIT box, C-text mode, three-column, gcc | OUTPUT='hello' via CODE() matches SPITBOL |
+| **M-DYN-C2** | SEQ/ALT/ARBNO in C-text via CODE() | rung1-3 corpus via CODE() path |
+| **M-DYN-S1** | LIT box as NASM proc, S-text, three-column, one proc all 4 ports | assemble+link+run = same as C-text |
+| **M-DYN-B1** | LIT box via bb_emit.c, S-binary, r12=DATA (Technique 2) | mprotect RW→RX, jump α, same output |
+| **M-DYN-B2** | Compound patterns (SEQ/ALT/ARBNO) in S-binary | rung1-3 via binary boxes |
+| **M-DYN-B3** | Full corpus via binary boxes | snobol4_x86 142/142 via binary path |
+| **M-DYN-B4** | *VAR deferred dispatch (XDSAR) in binary | rung6 via binary |
+| **M-DYN-B5** | Replace static inline NASM path | all tests binary, remove old path |
+
+### Bootstrap for DYN-17
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash .github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # 142/142
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/ARCH-byrd-dynamic.md
+
+# HEAD: one4all 7486db7
+
+# DYN-17 FIRST ACTION: M-DYN-C1
+# Verify that CODE("OUTPUT = 'hello'") via the existing rung7_eval_code_test
+# infrastructure produces correct output through stmt_exec_dyn().
+# The LIT box (bb_lit.c) is already complete. The question is whether
+# CODE() → parse → bb_build → stmt_exec_dyn() → bb_lit chain works for
+# a simple OUTPUT statement. Add T_CODE_LIT to rung7_eval_code_test.c:
+#   CODE("OUTPUT = 'hello'") → expect output "hello"
+# If it passes: M-DYN-C1 done. Move to M-DYN-C2 (SEQ/ALT/ARBNO).
+# If it fails: diagnose the CODE() → stmt_exec_dyn() path, not the box itself.
+```
+
+### Context at handoff: ~65%. Stopping cleanly.
