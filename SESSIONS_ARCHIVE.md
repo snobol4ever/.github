@@ -13453,3 +13453,44 @@ For pure x86: executor establishes the ONE frame, sets r12 to bb_pool slab,
 then pure jmp into root box α. No further call overhead.
 
 Read .github/test_sno_*.c before coding. They are the spec.
+
+---
+
+## DYN-2 CLOSE — verified reference files complete (2026-04-01, Claude Sonnet 4.6)
+
+**.github HEAD:** `1269747` · **one4all HEAD:** `4d85f67` · **corpus HEAD:** `209a976`
+
+Lon provided test_sno_2.c and test_sno_3.c as separate uploads to confirm they
+were not missed from the ZIP. Diff confirmed both are identical to the copies
+already committed to .github at d123ac8. All five reference files are present
+and correct in HQ:
+
+  .github/test_sno_1.c  ✅
+  .github/test_sno_2.c  ✅
+  .github/test_sno_3.c  ✅
+  .github/test_sno_4.c  ✅
+  .github/test_icon.c   ✅
+
+These are the canonical spec. DYN-3 reads them before any coding.
+
+### DYN-3 start
+
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
+done
+FRONTEND=snobol4 BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh            # expect 981/4
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86   # expect 106/106
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/ARCH-byrd-dynamic.md
+cat /home/claude/.github/test_sno_1.c
+cat /home/claude/.github/test_sno_2.c
+```
+
+**DYN-3 first action: M-DYN-3 — stmt_exec.c**
+
+Five-phase statement executor. Pure x86 path: r12=data ptr, one frame established
+by executor, all box ports are flat labels, pure jmp. C-text path follows the
+test_sno_*.c one-function-per-box pattern exactly.
