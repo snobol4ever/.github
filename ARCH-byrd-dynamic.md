@@ -1019,3 +1019,77 @@ backtrack — once subject is evaluated it's fixed for this statement.
 Same for pattern build and replacement build. Only the match (Phase 3)
 has backtracking via β ports.
 
+
+---
+
+## Byrd Boxes for ALL Phases — Stackless Architecture (2026-04-01, DYN-16)
+
+### The Insight: 99% Stackless
+
+If every phase is a Byrd box (not just Phase 3), the entire execution model
+becomes stackless. No push/pop for intermediate values. No C stack frames
+for sub-expression evaluation. The only stack usage is:
+1. Runtime recursion (user-defined SNOBOL4 functions calling each other)
+2. The small save/restore at function call boundaries (Technique 2 DATA blocks)
+
+**Could this be 3× faster?**
+
+For Phase 3 (match) — already a Byrd box — no question.
+For Phases 1, 2, 4, 5 — the argument:
+
+- **Fail is free.** In the stack machine, each call site needs `test eax / jz fail`.
+  In a Byrd box, failure is just the ω port — no conditional branch, just a jump.
+  For complex subject/pattern/replacement expressions with many sub-calls, this
+  adds up.
+
+- **No push/pop for intermediate values.** The stack machine pushes DT_P left
+  results across right sub-expression calls. Byrd box: left child γ wires
+  directly to right child α. The result sits in the box's ζ state. No stack.
+
+- **Cache locality.** All box state (ζ) for a statement lives in one allocated
+  block. Linear access. The stack machine scatters intermediates across `[rbp-N]`
+  slots and push/pop sequences.
+
+- **BUT:** Phase 1/2/4/5 have NO backtracking. The β port is never used for
+  these phases. A Byrd box without β is just a function with a γ/ω exit pair.
+  That's exactly what a C function with a return value and an error exit IS.
+  The overhead of the box machinery (ζ alloc, entry dispatch) may exceed the
+  savings from eliminating push/pop.
+
+### The Verdict
+
+**For Phase 3 (match):** Byrd boxes are mandatory and optimal.
+
+**For Phases 1, 2, 4, 5 (evaluation):** The question is node count.
+- Simple cases (literal subject, literal pattern): stack machine wins — 3 instructions
+  vs box alloc + dispatch. No contest.
+- Complex cases (`(S() T())` subject, `(P() | Q())` pattern, user functions
+  that can fail): Byrd boxes eliminate all the `test/jz` failure scaffolding.
+  At 5+ nodes, Byrd boxes likely win on branch prediction alone.
+
+### The Practical Answer
+
+**Implement stack machine first (M-DYN-S1).** It's simpler, the correctness
+path is clear, and it proves the `stmt_exec_dyn` wiring works. Stack machine
+phases 1/2/4/5 + Byrd box phase 3 = correct and fast enough.
+
+**Then benchmark.** If `(S() T()) (P() | Q()) = R()` with user functions shows
+measurable overhead vs pure Byrd box — implement Byrd box evaluation phases as
+M-DYN-EVAL-BB. This is a pure optimization with identical semantics.
+
+**The 99% stackless target is achievable** — but only worth the complexity cost
+if the benchmark shows it. The stack machine phase 1/2/4/5 already eliminates
+the inline NASM scan loop (the biggest overhead). The remaining push/pop for
+complex expressions is minor compared to the pattern match itself.
+
+### Revised Milestone Order
+
+| ID | Deliverable |
+|----|-------------|
+| **M-DYN-S1** | emit_x64.c: replace inline NASM with call stmt_exec_dyn. Stack machine for phases 1/2/4/5. Gate: 142/142 via stmt_exec_dyn. |
+| **M-DYN-S2** | Verify CODE() and compiled .s agree on all 142 tests. |
+| **M-DYN-BENCH** | Benchmark: stack machine vs Byrd box for phases 1/2/4/5 on complex patterns. |
+| **M-DYN-BB-EVAL** | (If bench shows >20% gain) Byrd box evaluation phases. 99% stackless. |
+| **M-DYN-B1** | S-binary: bb_emit.c raw x86, r12=DATA, Technique 2. Gate: LIT box binary. |
+| **M-DYN-B2** | S-binary: full corpus via binary boxes. |
+
