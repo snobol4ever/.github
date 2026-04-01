@@ -335,3 +335,129 @@ all jumps use relative addressing (rel8 or rel32). No absolute addresses
 except calls to C runtime shims (stmt_get, stmt_set, stmt_output etc.) —
 those use a 64-bit absolute `mov rax, imm64 / call rax` sequence so the
 pool slab can sit anywhere in the address space.
+
+---
+
+## The Canonical Byrd Box Layout — ONE Function Per Box (2026-04-01)
+
+### The Revelation from test_sno_*.c and test_icon.c
+
+The uploaded reference implementations (test_sno_1.c through test_sno_4.c,
+test_icon.c) are the GROUND TRUTH for what generated code must look like.
+Each box is ONE C function. The layout inside is pure three-column SNOBOL4:
+
+```
+    LABEL:          ACTION                          GOTO
+    ───────────────────────────────────────────────────────
+    BIRD_α:         if (Σ[Δ+0] != 'B')             goto BIRD_ω;
+                    if (Σ[Δ+1] != 'i')             goto BIRD_ω;
+                    BIRD = str(Σ+Δ, 4); Δ += 4;    goto BIRD_γ;
+    BIRD_β:         Δ -= 4;                         goto BIRD_ω;
+```
+
+This is beautiful. It reads like the theory. Labels are real C labels.
+Gotos are real gotos. No call/return overhead on the hot path. No mocking.
+No split across four separate "mac_" functions.
+
+### What Was Wrong with the mac_* Approach
+
+The previous `bb_emit.c` design split each box into four separate C functions
+(one per port: mac_LIT_α, mac_LIT_β, mac_LIT_γ, mac_LIT_ω). This is wrong:
+
+1. **Split across functions** — the box body spans four function calls. The
+   α/β/γ/ω labels are not in the same scope. Real labels (as in test_sno_*.c)
+   ARE in the same scope and reference each other directly.
+
+2. **Stray x86 instruction preambles** — each mac_* function had to set up its
+   own context (which registers to use, where the buffer is). This produced
+   scattered preamble/postamble that obscured the box logic.
+
+3. **Not one function per box** — the canonical form is one function per named
+   pattern (or per primitive node), just like test_sno_2.c's `word()`, `group()`,
+   `treebank()`. Each function contains ALL ports for that box.
+
+### The Correct Design
+
+**One C function per box.** Signature:
+
+```c
+typedef str_t (*box_fn_t)(box_t *ζ, int entry);
+```
+
+Where entry is α (0) or β (1). The function contains ALL ports as real C labels.
+The generated code looks EXACTLY like test_sno_3.c:
+
+```c
+str_t BIRD(bird_t **ζζ, int entry) {
+    bird_t *ζ = *ζζ;
+    if (entry == α) { ζ = enter(ζζ, sizeof(bird_t)); goto BIRD_α; }
+    if (entry == β) {                                  goto BIRD_β; }
+    /*------------------------------------------------------------------------*/
+    str_t         BIRD;
+    BIRD_α:       if (Σ[Δ+0] != 'B')                  goto BIRD_ω;
+                  if (Σ[Δ+1] != 'i')                  goto BIRD_ω;
+                  if (Σ[Δ+2] != 'r')                  goto BIRD_ω;
+                  if (Σ[Δ+3] != 'd')                  goto BIRD_ω;
+                  BIRD = str(Σ+Δ, 4); Δ += 4;          goto BIRD_γ;
+    BIRD_β:       Δ -= 4;                               goto BIRD_ω;
+    /*------------------------------------------------------------------------*/
+    BIRD_γ:       return BIRD;
+    BIRD_ω:       return empty;
+}
+```
+
+### The Three-Column Law
+
+Every generated line follows the three-column SNOBOL4 form:
+
+```
+    LABEL:          ACTION                          GOTO
+```
+
+- Column 1 (label): starts at col 0, width 22. Real C labels.
+- Column 2 (action): starts at col 22, width 40. The operation.
+- Column 3 (goto): starts at col 62. Always `goto X;` or `return`.
+
+Comments are `/*---...---*/` separator lines between logical sections.
+This matches test_sno_*.c exactly. It is readable. It is like SNOBOL4.
+
+### The Dual-Mode Application
+
+`bb_emit.c` remains correct as the low-level primitive layer (byte/label/patch).
+What changes is the LAYER ABOVE it: instead of `mac_LIT_α()`, `mac_LIT_β()` etc.,
+we generate ONE complete box function — either as C text (→ `.c` file → gcc) or
+as x86-64 binary (→ bb_pool buffer → mprotect → call).
+
+**Text mode:** generates a `.c` file in the test_sno_*.c style. Beautiful,
+readable, three-column. Compiles with gcc. No NASM needed for C path.
+
+**Binary mode:** generates x86-64 bytes directly into a bb_pool buffer for
+the dynamic model. Same box logic, same ports, same goto structure — just
+emitting machine code instead of C source.
+
+### The snobol4_asm.mac Macros — Correct Role
+
+The 151 NASM macros in snobol4_asm.mac are correct for the NASM `.s` path
+(emit_x64.c static backend). They are NOT the right abstraction for the
+dynamic binary path or for the C-text path.
+
+For the dynamic model, `bb_emit.c` primitives + one C function per box is
+the correct structure. The NASM macro names document what the x86 sequences
+DO — they remain the reference for the binary encoding of each box type.
+
+### File Layout (revised)
+
+```
+src/runtime/asm/bb_pool.h/.c        M-DYN-0 ✅  mmap pool
+src/runtime/asm/bb_emit.h/.c        M-DYN-1 ✅  byte/label/patch primitives
+src/runtime/dyn/bb_box.h            M-DYN-2     box type: str_t (*)(box_t*, int)
+src/runtime/dyn/bb_lit.c            M-DYN-2     LIT box: one function, all ports
+src/runtime/dyn/bb_alt.c            M-DYN-2     ALT box
+src/runtime/dyn/bb_seq.c            M-DYN-2     SEQ box
+src/runtime/dyn/bb_arbno.c          M-DYN-2     ARBNO box
+src/runtime/dyn/bb_pos.c            M-DYN-2     POS / RPOS box
+src/runtime/dyn/bb_build.c          M-DYN-2     graph assembler: wires boxes together
+```
+
+Each bb_*.c file is ONE function in test_sno_*.c style.
+The NASM static path (emit_x64.c + snobol4_asm.mac) is unchanged.
