@@ -14284,3 +14284,105 @@ cat .github/SESSION-snocone-beauty.md
 # 4. Then M-SCB-FENCE (depends IS): FENCE.inc → FENCE.sc
 # Note: avoid ~(expr ? pat) form (stack underflow); avoid alt-patterns through fn args
 ```
+
+---
+
+## Session SJ-4 FINAL — 2026-04-01 — SNOBOL4 × JavaScript
+
+**HEAD at session start:** one4all `4b5e682`
+**HEAD at session end:** one4all `248a967` · .github unchanged
+**Sprint:** SJ-4
+**Context at handoff: ~58%**
+
+### Work completed
+
+**Item 1 — Node v22 IIFE bug FIXED (M-SJ-A03 blocker resolved)**
+Root cause isolated: `(function(){})()` trampoline IIFE fails in Node v22
+strict-mode CJS scope with `TypeError: (intermediate value)(...) is not a function`.
+Minimal repro confirmed in `node -e`. Fix: replace IIFE with plain block loop:
+```js
+// OLD (crashes Node v22):
+(function() { var _pc = goto_v_START; while(_pc) _pc = _pc(); })();
+// NEW (works):
+{ var _pc = goto_v_START; while(_pc) _pc = _pc(); }
+```
+`hello.sno` → `node hello.js` → **HELLO WORLD** ✅
+
+**Item 2 — Duplicate `var goto_v_END` declarations FIXED**
+`collect_labels` already adds END/START to `label_list`; explicit post-loop
+lines emitted them again. Fix: call `label_register("START")` and
+`label_register("END")` before the loop (deduplication handled by existing
+guard in `label_register`). Removed the two explicit post-loop `J()` lines.
+
+**Item 3 — Redundant `goto_v_END` sentinel assignment FIXED**
+Added `int end_emitted = 0` flag; set when `s->is_end` block is written.
+Sentinel `goto_v_END = function(){return null;}` only emitted when `!end_emitted`.
+
+**Item 4 — E_FLIT whole-number real format FIXED**
+`%g` in C drops `.0` from `1.0` → emits JS number `1` → `String(1)` = `"1"`.
+SPITBOL format requires `"1."` for whole-number reals.
+Fix: emit `"1."` as a JS string literal for whole-number E_FLIT values.
+`literals.sno` now **4/4 hello suite** ✅
+
+**Item 5 — `js_emit_goto` segfault on `:S(X)F(Y)` FIXED**
+ASAN trace: `strlen(NULL)` at `js_emit_goto` line 730 — `go->onfailure` was
+a bad pointer (ASAN reports address `0x1`). Combined `&&` guard entered branch
+but second pointer was corrupt. Fix: separate `if (go->onsuccess && go->onsuccess[0])`
+and `if (go->onfailure && go->onfailure[0])` guards, matching `emit_byrd_c.c`
+oracle pattern (lines 3475–3476). `075_builtin_integer_test` now passes ✅
+
+**Item 6 — `&UCASE` / `&LCASE` keywords added to `_kw_store`**
+Were emitted as `_kw("UCASE")` / `_kw("LCASE")` but absent from `_kw_store`.
+Added as full 26-char alphabet strings built at module load.
+`071_builtin_ucase` and `072_builtin_lcase` now pass ✅
+
+**Item 7 — `REMDR` builtin added to `_builtins` table**
+
+### Gates
+- Emit-diff: **1286/0 ✅** (confirmed post-fix)
+- Hello suite: **4/4 ✅**
+- INTEGER/UCASE/LCASE: **pass ✅**
+
+### Known open issues for SJ-5
+
+**Priority 1 — Pattern matching (unanchored `?`, BREAK/SPAN/ARB)**
+Tests: `word1–4`, `cross`, `wordcount` — all fail with empty output.
+These use `LINE ? PAT` (unanchored scan) + `BREAK(WORD) SPAN(WORD)` + ARB captures.
+`_match()` in sno_runtime.js is a stub. This is the major remaining item.
+See `ARCH-spipat-js.md` for full architecture comparison.
+
+**Priority 2 — INPUT line buffering**
+`fs.readSync(0, buf, 0, 4095, null)` reads whatever is available — may not
+be line-by-line on all inputs. Need a proper line buffer that:
+- Reads chunks, buffers remainder after `\n`
+- Returns `_FAIL` on EOF
+- Respects `&TRIM` keyword (trim trailing whitespace when set)
+
+**Priority 3 — `control/expr_eval` — EVAL()/CODE()**
+Requires `eval()` + runtime compilation of SNOBOL4 expressions at runtime.
+Defer until pattern matching is solid.
+
+**Priority 4 — Wire `run_snobol4_js()` into `run_invariants.sh`**
+Cannot gate until pattern matching produces meaningful pass counts.
+
+### Bootstrap for SJ-5
+```bash
+for repo in .github one4all harness corpus; do
+  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}"
+done
+FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash .github/SESSION_SETUP.sh
+cd one4all
+CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # expect 1286/0
+git log --oneline -3   # expect 248a967 at HEAD
+tail -80 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-js.md
+
+# SJ-5 FIRST ACTION: implement pattern matching in sno_runtime.js
+# Start with _match(subject, pat_fn) engine:
+#   - unanchored scan loop (advance cursor 0..len)
+#   - BREAK(chars), SPAN(chars) as cursor-advancing fns
+#   - ARB as zero-or-more greedy with backtrack
+#   - . capture (assign match to var) and $ capture (conditional assign)
+# Oracle: ARCH-spipat-js.md + src/backend/c/emit_byrd_c.c Byrd-box model
+# Test: wordcount.sno < wordcount.input → "14 words"
+```
