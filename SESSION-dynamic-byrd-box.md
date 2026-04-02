@@ -19,6 +19,7 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | `src/runtime/asm/bb_pool.c` | mmap pool (M-DYN-0 ✅) |
 | `src/runtime/asm/bb_emit.c` | byte/label/patch primitives (M-DYN-1 ✅) |
 | `src/runtime/dyn/` | bb_*.c — 25 C box implementations (DYN-23 ✅ frozen) |
+| `src/runtime/boxes/bb_*.java` | Java ports of all 25 boxes + bb_executor.java (J-217 ✅) — oracle for JVM backend; M-INTERP-B03 test target |
 | `src/driver/scrip-interp.c` | tree-walk interpreter (M-INTERP-A01 ✅) |
 | `src/runtime/dyn/bb_test.c` | per-box unit test harness (M-INTERP-B01 TODO) |
 
