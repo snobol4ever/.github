@@ -19,12 +19,10 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | `src/runtime/asm/bb_pool.c` | mmap pool (M-DYN-0 ✅) |
 | `src/runtime/asm/bb_emit.c` | byte/label/patch primitives (M-DYN-1 ✅) |
 | `src/runtime/dyn/` | bb_*.c — 25 C box implementations (DYN-23 ✅ frozen) |
-| `src/driver/scrip-interp.c` | M-INTERP-A01: tree-walk interpreter driver (TODO) |
-| `src/runtime/dyn/bb_test.c` | M-INTERP-B01: per-box unit test harness (TODO) |
+| `src/driver/scrip-interp.c` | tree-walk interpreter (M-INTERP-A01 ✅) |
+| `src/runtime/dyn/bb_test.c` | per-box unit test harness (M-INTERP-B01 TODO) |
 
 ## ARCH-byrd-dynamic.md — grep, don't cat
-
-Relevant sections by task:
 
 | Task | Section to grep |
 |------|----------------|
@@ -34,47 +32,13 @@ Relevant sections by task:
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-23
+## §NOW — DYN-29
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-23 | one4all `27300c5` · .github (this) · corpus `31ad542` | **M-DYN-OPT** (wire Pass 2b + preamble), then **M-INTERP-A01** (scrip-interp + bb_test) |
+| **DYNAMIC BYRD BOX** | DYN-29 | one4all `eb273e1` · .github `4df1169` · corpus `d5058ef` | **DYN-30**: debug word*/cross/$.var · fix REM/capture/rung11-ARRAY · target ≥130p broad |
 
-## DYN-21 first task — invariance detection
-
-M-DYN-S1 ✅ — 142/142 gate passed.
-
-Next milestone: M-DYN-OPT. Detect provably invariant patterns at emit time
-(no XDSAR/XVAR/XATP/capture nodes in subtree) and emit a one-time pre-build
-sequence in the program preamble instead of rebuilding on every stmt_exec_dyn call.
-See ARCH-byrd-dynamic.md §M-DYN-OPT for the invariance detection spec.
-
-## DYN-20 first task — one edit
-
-**File:** `src/backend/emit_x64.c` line ~5050  
-**Where:** `Case 1` VAR=expr handler, `} else { /* General path */` block  
-**Fix:** split on `expr_is_pattern_expr(s->replacement)`:
-- true → `emit_pat_to_descr(s->replacement)` + `SET_VAR` (no FAIL_BR — pat constructors don't fail)
-- false → current path unchanged
-
-**Also check:** `E_CAPT_CUR` in `emit_pat_to_descr` switch (~line 4281) — needed for `cross.sno` `@NH`/`@NV`.  
-Check `pat_at_cursor` signature in `snobol4_pattern.c` first.
-
-**Gate:** `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142
-
-**After gate:**
-```bash
-CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
-cd /home/claude/corpus && git add -A && git commit -m "regen: DYN-20 post M-DYN-S1 artifacts" && git push
-```
-
-## §NOW — DYN-26
-
-| Session | Sprint | HEAD | Next milestone |
-|---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-26 | one4all `61639ca` · .github (this) | **M-INTERP-A03**: wire DEFINE/call-stack → fix 083–090 cluster → broad ≥85p |
-
-## scrip-interp build command (M-INTERP-A01 baseline)
+## scrip-interp build command
 
 ```bash
 cd /home/claude/one4all
@@ -101,43 +65,22 @@ gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$RT/boxes" -I "$RT/dyn" -DDYN_ENGIN
     /tmp/ib/*.o -lgc -lm -o scrip-interp
 ```
 
-## M-INTERP-A02 first task — wire pattern nodes in interp_eval
+## DYN-30 first tasks (in order)
 
-The 28 broad-set failures are all E_CAPT_* / E_ALT nodes falling through to `default: return NULVCL`.
-Add cases to `interp_eval` switch in `scrip-interp.c`:
+1. **Build scrip-interp** — use build command above. Baseline one4all `eb273e1`.
+2. **Run gate** — `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → must be 142/142.
+3. **Run broad** — inline runner in SESSIONS_ARCHIVE.md §DYN-29. Expect 120p/25f.
+4. **Debug strings/word1** — `./scrip-interp corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input 2>&1` vs `.ref` — isolate `&TRIM`/`INPUT`/pattern issue.
+5. **Debug rung2/210 `$.var`** — printf in `interp_eval` E_INDR: print `e->children[0]->kind`. Likely `E_FIELD` or different parser node.
+6. **Fix rung11 ARRAY/DATA** — `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` vs `.ref`; check `_b_ARRAY` arg passing.
+7. **Fix patterns/048 REM** — add `E_REM` case in `interp_eval` → `pat_rem()`.
+8. **Broad re-run** → target ≥130p. **Gate**: snobol4_x86 142/142.
 
-```c
-case E_ALT: {
-    /* children[0] | children[1] | ... — build pat_alt chain */
-    if (e->nchildren == 0) return NULVCL;
-    DESCR_t acc = interp_eval(e->children[0]);
-    for (int i = 1; i < e->nchildren; i++)
-        acc = pat_alt(acc, interp_eval(e->children[i]));
-    return acc;
-}
-case E_CAPT_COND: {
-    /* pat . var — conditional assignment on match */
-    DESCR_t pat  = interp_eval(e->children[0]);
-    DESCR_t var  = interp_eval(e->children[1]);  /* E_VAR → name */
-    const char *nm = (e->nchildren>1 && e->children[1]->sval)
-                     ? e->children[1]->sval : NULL;
-    return nm ? pat_capture(pat, nm) : pat;
-}
-case E_CAPT_IMM: {
-    /* pat $ var — immediate assignment */
-    DESCR_t pat = interp_eval(e->children[0]);
-    const char *nm = (e->nchildren>1 && e->children[1]->sval)
-                     ? e->children[1]->sval : NULL;
-    return nm ? pat_imm_assign(pat, nm) : pat;
-}
-case E_CAPT_CUR: {
-    /* @var — cursor capture */
-    const char *nm = (e->nchildren>0 && e->children[0]->sval)
-                     ? e->children[0]->sval : NULL;
-    return nm ? pat_at_cursor(nm) : NULVCL;
-}
-```
+## Known open issues
 
-Check `pat_alt`, `pat_capture`, `pat_imm_assign`, `pat_at_cursor` signatures in
-`src/runtime/snobol4/snobol4_pattern.c` before using — names may differ slightly.
-Gate: 60+ of the 65p+28f broad tests should now pass.
+- `$.var` (210/212): `$'literal'` works; `$.var` fails — child node kind not yet traced.
+- word*/cross: not `&alphabet`; likely `&TRIM` or `INPUT` reading.
+- rung11 ARRAY/DATA: builtins registered; dispatch or arg-passing is the bug.
+- patterns 048/056/057: E_REM/star-deref/FAIL-builtin not wired in `interp_eval`.
+- capture 060/063: multiple captures / null-replace edge cases.
+- rung10 1010–1018: recursion/NRETURN/OPSYN/EVAL/APPLY — deeper call-stack.
