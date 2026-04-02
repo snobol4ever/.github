@@ -16013,3 +16013,46 @@ Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` and `§Milestone Chain` before coding.
 **Reminder for next session**: if bb_*.c field names are ever renamed again,
 immediately update the mirror typedefs in `stmt_exec.c` — they must stay
 in sync or bb_build() will silently write to wrong offsets.
+
+---
+
+## DYN-22 — 2026-04-02 (naming alignment fix)
+
+### What was done this session
+
+**Restored 142/142 gate after DYN-21 naming pass left stmt_exec.c misaligned.**
+
+The DYN-21 naming pass updated field names in bb_*.c reference files but left
+`stmt_exec.c` inline struct definitions and function bodies using a mix of old
+terse names, Greek-letter field names, and invented names. Additionally,
+`bb_alt.c` missed the `ch[]` → `children[]` rename.
+
+**Two commits:**
+
+1. `a8f5467` — first pass: fixed most struct/field mismatches, restored compile.
+2. `38a2fb0` — aligned `bb_alt.c` and `stmt_exec.c` to canonical DYN-21 names:
+   - `bb_alt.c`: `ch[]` → `children[]` throughout
+   - `stmt_exec.c` `_alt_t`: `ch[]` → `children[]`
+   - All inline typedefs now match bb_*.c exactly:
+     `children`, `current`, `position`, `result` (alt)
+     `fn`, `state`, `depth`, `stack`, `matched` (arbno/seq)
+     `fn`, `state`, `varname`, `immediate`, `pending`, `has_pending` (capture)
+     `child_fn`, `child_state`, `child_size` (deferred_var)
+
+**Gate: snobol4_x86 142/142 ✅**
+
+### What was NOT done
+
+- M-DYN-OPT (invariance pre-build preamble) — not started. Session consumed
+  by alignment fix.
+
+### Baseline for DYN-23
+
+- one4all: `38a2fb0`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-23 first task — M-DYN-OPT
+
+Same as DYN-22 plan. Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` before coding.
