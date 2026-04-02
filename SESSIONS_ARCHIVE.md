@@ -16451,3 +16451,57 @@ Gate: snobol4_x86 **142/142** ✅
 
 4. **Gate**: snobol4_x86 142/142 (scrip-interp is separate binary — no regression risk).
 
+
+---
+
+## DYN-27 final handoff — M-INTERP-A03 DEFINE/call-stack — 2026-04-02
+
+### What was done
+
+**M-INTERP-A03** (`1ebaa02`) — wire DEFINE registration and user-function call-stack:
+
+**`snobol4.c`** — added 4 source-case accessors:
+- `FUNC_NPARAMS_fn(fname)` / `FUNC_NLOCALS_fn(fname)` — param/local counts
+- `FUNC_PARAM_fn(fname, i)` / `FUNC_LOCAL_fn(fname, i)` — source-case names (0-based)
+- Critical: NV store uses `strcmp` (case-sensitive). `_b_ARG` uppercases names, so using `ARG("f",n)` to bind params caused `NV_SET_fn("S", v)` but body reads `NV_GET_fn("s")` → miss. These accessors return names exactly as written in the DEFINE spec.
+
+**`scrip-interp.c`** — call-stack infrastructure:
+- `prescan_defines()` — pre-scan program for `DEFINE('spec')` statements, call `DEFINE_fn(spec, NULL)` before execution begins
+- `call_user_function()` — `setjmp/longjmp` frame: saves param+local+return-slot vars, binds args to source-case param names, runs body from label, handles RETURN/FRETURN via `goto fn_done`, restores all saved vars on exit
+- `E_FNC` dispatch: `FNCEX_fn()` + `label_lookup()` to distinguish user-defined (has body label) from builtins; routes accordingly
+- `DEFINE` in `interp_eval` E_FNC: calls `define_spec_from_expr()` + `DEFINE_fn()` directly (succeeds → NULVCL)
+- Return-value slot uses source-case `fname` (not uppercase `ufname`) — same NV case issue applied to function name variable
+
+**Key bugs fixed this session:**
+1. Stale binary — GT test "passed" until scrip-interp was rebuilt after E_FNC changes
+2. `_b_ARG` uppercase vs NV case-sensitive store → use `FUNC_PARAM_fn` instead
+3. `fr->fname` uppercase vs function body writing lowercase name variable → use source-case `fname`
+
+**Broad: 115p/63f** (up from 74p/29f; target was ≥85p ✅)
+Gate: snobol4_x86 **142/142** ✅
+
+### Baseline for DYN-28
+
+- one4all: `1ebaa02`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **115p/63f**
+
+### DYN-28 first tasks (in order)
+
+1. **Build scrip-interp** — use build command in SESSION-dynamic-byrd-box.md §scrip-interp build command. `nasm`+`libgc-dev` needed (`apt-get install -y nasm libgc-dev`). Rebuild `snobol4.o` first (new functions in snobol4.c).
+
+2. **Analyse remaining 63 failures** — clusters from DYN-27 broad run:
+   - `1010–1018`: func/opsyn/eval/apply (9) — deeper call-stack features: NRETURN, OPSYN, EVAL, APPLY builtin, ARG/LOCAL in running code
+   - `091–095`, `1110–1115`: ARRAY/TABLE/DATA (11) — aggregate constructors; `_b_ARRAY`/`_b_TABLE`/`_b_DATA` are registered, check why they fail
+   - `082`, `098`: keywords `&STCOUNT`, `&ANCHOR` (2) — NV_GET_fn uses `strcmp` but these are handled specially; check `s->subject->kind == E_KW` path in interp_eval
+   - `048`, `056`, `057`: REM/star-deref/FAIL-builtin pattern nodes (3)
+   - `060`, `063`: capture variants (2)
+   - `fileinfo`, `triplet`, `expr_eval`, `test_*`, `roman` (9) — misc
+   - remaining ~27: review individually
+
+3. **M-INTERP-A04** target: fix ARRAY/TABLE/DATA cluster (likely just a dispatch issue — `_b_ARRAY` etc. are already registered) and keyword cluster → aim for **≥130p** broad.
+
+4. **Gate**: snobol4_x86 142/142 (scrip-interp separate binary).
+
