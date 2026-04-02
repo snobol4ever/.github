@@ -17021,3 +17021,98 @@ From the Green Book / v37.min source — confirmed against `.s` oracle:
 - **BAL**: scans balanced parenthesised string, stacks self-ptr for backtrack.
 - **`bal`** is a protected system variable in SPITBOL (error 042 on assign).
   The corpus test 210 uses `bal` because our scrip-interp doesn't protect it.
+
+---
+
+## DYN-35 handoff — 2026-04-02
+
+### What was done
+
+**PIVOT: EKind IR node rename sprint. No functional changes to scrip-interp. 142/142 gate held throughout.**
+
+This session was a naming/documentation sprint, not a bug-fix sprint.
+DYN-35 functional targets (095_data_field_set, 1110_array_1d) deferred to DYN-36.
+
+#### Commits (one4all)
+
+- `fccd027` — 13 EKind renames + README operator table + duplicate E_PLS/E_UPLUS collapsed
+- `b51c202` — 6 lexicographic relop renames + IR_COMPAT_ALIASES dead-code removal
+
+#### EKind renames applied (one4all `b51c202`)
+
+**Unary (SNOBOL4):**
+
+| old | new | SIL | MINIMAL |
+|-----|-----|-----|---------|
+| `E_NEG` | `E_MNS` | `MNS` (-X) | `o$com` complementation |
+| `E_INDR` | `E_INDIRECT` | c$ind inline | `o$inv` indirection |
+| `E_KW` | `E_KEYWORD` | c$key inline | `o$kwv` keyword reference |
+| `E_CAPT_CUR` | `E_CAPT_CURSOR` | `ATOP` (@X) | `o$cas` cursor assignment |
+| `E_UPLUS` | `E_PLS` (merge) | `PLS` (+X) | `o$aff` affirmation |
+
+**Binary (SNOBOL4):**
+
+| old | new | SIL | MINIMAL |
+|-----|-----|-----|---------|
+| `E_MPY` | `E_MUL` | `MPY` (X*Y) | `o$mlt` multiplication |
+| `E_CONCAT` | `E_CAT` | `CONCAT` (X Y val) | `o$cnc` concatenation |
+| `E_SEQ` | `E_PAT_SEQ` | BINCON/CONCL (pat ctx) | c$cnc Byrd-box seq |
+| `E_ALT` | `E_PAT_ALT` | `OR`/`ORPP` (X\|Y) | `o$alt` alternation |
+| `E_MATCH` | `E_SCAN` | `SCAN` (X?Y) | `o$pmv/pmn/pms` pattern match |
+| `E_CAPT_COND` | `E_CAPT_COND_ASGN` | `NAM` (X.Y) | `o$pas` pattern assignment |
+| `E_CAPT_IMM` | `E_CAPT_IMMED_ASGN` | `DOL` (X$Y) | `o$ima` immediate assignment |
+| `E_GENALT` | `E_ALTERNATES` | — | — Icon generator alt |
+
+**Icon lexicographic relops:**
+
+| old | new | op |
+|-----|-----|----|
+| `E_SLT` | `E_LLT` | `<<` |
+| `E_SLE` | `E_LLE` | `<<=` |
+| `E_SGT` | `E_LGT` | `>>` |
+| `E_SGE` | `E_LGE` | `>>=` |
+| `E_SSEQ` | `E_LEQ` | `==` |
+| `E_SNE` | `E_LNE` | `~==` |
+
+**Removed:** `IR_COMPAT_ALIASES` block in `ir.h` — was dead code, never `#define`d anywhere.
+
+**Added to README:** SNOBOL4 operator four-column reference table (SIL proc · MINIMAL o$ · functional name · IR node). Source authority: `v311.sil` (CSNOBOL4) and `v37.min` (SPITBOL v3.7).
+
+**Three new nodes identified but NOT yet added** (decided, deferred to DYN-36):
+- `E_NOT` — `\X` logical negation (SIL: `NEG`, MINIMAL: `o$nta/b/c`)
+- `E_INTERROGATE` — `?X` interrogation (SIL: `QUES`, MINIMAL: `o$int`)
+- `E_NAME` — unary `.X` name reference (SIL: unary via NAM, MINIMAL: `o$nam`)
+
+**Key correction discovered:** SIL `NEG` = `\X` (logical not), NOT `-X`. Our old `E_NEG` was named after the wrong SIL proc. `-X` in SIL is `MNS`, in MINIMAL is `o$com` (complementation). Fixed.
+
+### Baseline for DYN-36
+
+- one4all: `b51c202`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **160p/18f** (unchanged — no scrip-interp functional changes this session)
+
+### Remaining failures (18) — unchanged from DYN-35
+
+- `expr_eval`, `cross` — DEFINE/named-pattern interaction, deep
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+- `095_data_field_set` — DATA field setter
+- `1110_array_1d`, `1112_array_multi`, `1114_item`, `1115_data_basic`, `1116_data_overlap` — ARRAY/DATA builtins
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`, `1018_apply` — deep call-stack / NRETURN / OPSYN / EVAL
+
+### DYN-36 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. SESSION_SETUP.sh `FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad run → confirm 160p baseline.
+5. Add `E_NOT`, `E_INTERROGATE`, `E_NAME` to ir.h enum + name table + ir_verify.c + all backends (emit_x64.c, emit_jvm.c, emit_net.c, emit_wasm.c, emit_js.c, scrip-interp.c).
+6. Debug `095_data_field_set` — DATA field setter dispatch. Run:
+   `./scrip-interp /home/claude/corpus/crosscheck/rung3/095_data_field_set.sno 2>&1`
+   vs `.ref`. Check `_b_DATA` vrsto path in interp.
+7. Debug `1110_array_1d` — ARRAY builtin. Run:
+   `./scrip-interp /home/claude/corpus/crosscheck/rung11/1110_array_1d.sno 2>&1`
+   vs `.ref`. Check `_b_ARRAY` arg passing and `stmt_aref`/`stmt_aset`.
+8. Broad → target ≥164p. Gate 142/142.
+9. Commit + push one4all, then update SESSIONS_ARCHIVE + push .github.
