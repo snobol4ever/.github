@@ -86,6 +86,23 @@ doing the clobber, guard it so Phase 3 capture writes survive into Phase 5.
 
 ---
 
+## Phase 0 — Box library: pure Byrd boxes in C#
+
+### M-NET-BOXES — 26 C# Byrd box classes ✅ one4all `90d5531`
+
+**Delivered:** `src/runtime/dotnet/boxes/` — 24 files, 1246 lines.
+Every box mirrors its `bb_*.c` counterpart exactly.
+Foundation: `IByrdBox` (α/β ports) · `Spec` (match result) · `MatchState` (Σ/Δ/Ω).
+Structural: `BbSeq` `BbAlt` `BbArbno` `BbCapture` `BbDvar` `BbNot` `BbInterr`.
+Primitives: `BbLit` `BbLen` `BbPos` `BbRpos` `BbTab` `BbRtab` `BbRem`
+            `BbAny` `BbNotany` `BbSpan` `BbBrk` `BbBreakx` `BbArb` `BbEps`
+            `BbFence` `BbAbort` `BbFail` `BbSucceed` `BbAtp` `BbBal`.
+Wiring: `ByrdBoxFactory` (Pattern tree → box graph) · `ByrdBoxExecutor` (Phase 3 trampoline).
+
+**Gate:** one4all `90d5531` · side-by-side with C originals ✅
+
+---
+
 ## Phase A — Correctness: fix Phase 3/5 capture boundary
 
 ### M-NET-P35-FIX — @N cursor capture survives Phase 5
@@ -210,14 +227,15 @@ applies here.  Wait for DYN-42 to land; adopt the winning option.
 
 | Sprint | Milestone | Key work |
 |--------|-----------|----------|
-| D-165 | M-NET-P35-FIX | Trace @N clobber · fix Phase 3/5 boundary |
-| D-166 | M-NET-POLISH | 106/106 crosscheck · diag1 · benchmark |
-| D-167 | M-NET-PAT-CAPTURES | Capture audit: @/./$  vs stmt_exec.c |
-| D-168 | M-NET-PAT-PRIMITIVES | 16 primitives vs SPITBOL oracle |
-| D-169 | M-NET-EVAL-COMPLETE | EVAL/CODE edge cases + rung10/1016 |
-| D-170 | M-NET-NRETURN | NRETURN lvalue (follow DYN-42) |
-| D-171 | M-NET-SNOCONE | Snocone self-test |
-| D-172 | M-NET-BOOTSTRAP | Self-hosting bootstrap |
+| D-165 | M-NET-BOXES ✅ | 26 C# boxes · ByrdBoxFactory · ByrdBoxExecutor |
+| D-166 | M-NET-P35-FIX | Trace @N clobber · fix Phase 3/5 boundary |
+| D-167 | M-NET-POLISH | 106/106 crosscheck · diag1 · benchmark |
+| D-168 | M-NET-PAT-CAPTURES | Capture audit: @/./$  vs stmt_exec.c |
+| D-169 | M-NET-PAT-PRIMITIVES | 16 primitives vs SPITBOL oracle |
+| D-170 | M-NET-EVAL-COMPLETE | EVAL/CODE edge cases + rung10/1016 |
+| D-171 | M-NET-NRETURN | NRETURN lvalue (follow DYN-42) |
+| D-172 | M-NET-SNOCONE | Snocone self-test |
+| D-173 | M-NET-BOOTSTRAP | Self-hosting bootstrap |
 
 ---
 
