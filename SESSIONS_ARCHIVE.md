@@ -17530,3 +17530,35 @@ Risk: `call_depth == 0` guard means NRETURN lvalue assign only works at top leve
 7. Broad → target ≥170p. Gate 142/142.
 8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
 
+
+---
+
+## DYN-41 addendum — 2026-04-02
+
+### Additional investigation on 1013/003
+
+Commit `fbc75dd` — clean build with Option B guard in place.
+
+#### Diagnosis of Option B not firing
+
+The guard `call_depth == 0 && FNCEX_fn(subj_name) && FUNC_NPARAMS_fn(subj_name) == 0` does not fire for `ref_a = 26` at top level. Traces confirmed the branch body is never entered. The most likely cause is `FNCEX_fn("ref_a")` returning 0 — meaning `ref_a` is not in the function hash table when `ref_a = 26` executes.
+
+**Hypothesis**: `prescan_defines` calls `DEFINE_fn("ref_a()", NULL)` which calls `_func_init()` and inserts into the hash. But the main interpreter also calls some initialization that clears or re-inits the table — or `_func_init()` is guarded so it only runs once, and the prescan insertion happens on a fresh table that later gets wiped by a re-init.
+
+#### DYN-42 first diagnostic (before any fix attempt)
+
+Add this immediately after `prescan_defines(prog)` in `main`/`run_program`:
+```c
+fprintf(stderr, "PRESCAN: FNCEX(ref_a)=%d NP=%d\n",
+    FNCEX_fn("ref_a"), FUNC_NPARAMS_fn("ref_a"));
+```
+Run on `1013_func_nreturn.sno`. If 0 → prescan isn't registering, check `_func_init` guard. If 1 → check if table is cleared between prescan and statement execution.
+
+#### Updated baseline for DYN-42
+
+- one4all: `fbc75dd`
+- corpus: `2f2bbe3`
+- .github: this commit
+- invariants: **142/142** ✅
+- broad: **169p/9f**
+
