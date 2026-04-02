@@ -17715,13 +17715,13 @@ trampoline and triggers Phase 5 capture commit.
 
 ### What was done
 
-**25 Byrd box Java classes + BbExecutor written; one4all `d52fcbc`.**
+**25 Byrd box Java classes + BbExecutor written; one4all `7ecad28`.**
 
 #### Commits (one4all)
 
-- `d52fcbc` — J-217: src/runtime/jvm/ — 25 Byrd boxes + BbExecutor; Java ports of bb_*.c; clean compile
+- `d52fcbc` — J-217: src/runtime/boxes/ — 25 Byrd boxes + BbExecutor; Java ports of bb_*.c; clean compile
 
-#### New files: `src/runtime/jvm/`
+#### New files: `src/runtime/boxes/`
 
 | File | Box | C oracle |
 |------|-----|----------|
@@ -17780,7 +17780,7 @@ Package: `snobol4.runtime.boxes`
 1. `git pull --rebase` all repos (including snobol4jvm clone).
 2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
 3. Read `MILESTONE-JVM-SNOBOL4.md` in full.
-4. **Review** `src/runtime/jvm/Bb*.java` — Lon to inspect for correctness,
+4. **Review** `src/runtime/boxes/Bb*.java` — Lon to inspect for correctness,
    especially `BbSeq` β wiring and `BbArbno` frame stack.
 5. **Wire the boxes into `emit_jvm.c`**: replace the current ad-hoc
    `emit_jvm_pat_node()` calls with a `BbBuilder` that instantiates the
