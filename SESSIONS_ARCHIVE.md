@@ -17715,13 +17715,13 @@ trampoline and triggers Phase 5 capture commit.
 
 ### What was done
 
-**25 Byrd box Java classes + BbExecutor written; one4all `d52fcbc`.**
+**25 Byrd box Java classes + BbExecutor written; one4all `7ecad28`.**
 
 #### Commits (one4all)
 
-- `d52fcbc` — J-217: src/runtime/jvm/ — 25 Byrd boxes + BbExecutor; Java ports of bb_*.c; clean compile
+- `d52fcbc` — J-217: src/runtime/boxes/ — 25 Byrd boxes + BbExecutor; Java ports of bb_*.c; clean compile
 
-#### New files: `src/runtime/jvm/`
+#### New files: `src/runtime/boxes/`
 
 | File | Box | C oracle |
 |------|-----|----------|
@@ -17780,7 +17780,7 @@ Package: `snobol4.runtime.boxes`
 1. `git pull --rebase` all repos (including snobol4jvm clone).
 2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
 3. Read `MILESTONE-JVM-SNOBOL4.md` in full.
-4. **Review** `src/runtime/jvm/Bb*.java` — Lon to inspect for correctness,
+4. **Review** `src/runtime/boxes/Bb*.java` — Lon to inspect for correctness,
    especially `BbSeq` β wiring and `BbArbno` frame stack.
 5. **Wire the boxes into `emit_jvm.c`**: replace the current ad-hoc
    `emit_jvm_pat_node()` calls with a `BbBuilder` that instantiates the
@@ -17869,6 +17869,52 @@ Both files committed at `4735571`. Direct port of all 27 `src/runtime/boxes/bb_*
 
 ---
 
+## J-217 addendum — 2026-04-02
+
+### Rename: Bb*.java → bb_*.java
+
+Files moved to correct location and naming convention.
+
+#### Commits (one4all)
+
+- `4bef94f` — J-217: rename Bb*.java → bb_*.java to match bb_*.c convention; drop package/public
+
+#### Final layout: `src/runtime/boxes/`
+
+Each Java file sits beside its C and ASM siblings:
+
+```
+bb_lit.c    bb_lit.s    bb_lit.java
+bb_seq.c    bb_seq.s    bb_seq.java
+bb_alt.c    bb_alt.s    bb_alt.java
+...                     (all 25 boxes)
+bb_box.h                bb_box.java
+bb_bal.c    bb_bal.s    bb_bal.java      ← bb_bal.c was stub; bb_bal.java is real
+                        bb_executor.java
+```
+
+Java class names remain BbLit, BbSeq etc. (Java convention).
+Files named bb_lit.java, bb_seq.java etc. (project convention).
+`public` removed from class declarations; no package declaration.
+
+#### Baseline
+
+- one4all: `7c35456`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. Read `MILESTONE-JVM-SNOBOL4.md` in full.
+4. Lon reviews `src/runtime/boxes/bb_seq.java` (β wiring) and `bb_arbno.java` (frame stack).
+5. Fix M-JVM-A02: read `emit_byrd_asm.c` lines ~3530–3570, fix E_IDX write path
+   (lines ~2658–2700 in `emit_jvm.c`) — 2D `"row,col"` key for nchildren>=3.
+6. Run global driver → diff clean.
+7. Invariants → ≥100p. Gate 142/142.
+8. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
 ## SJ-5 addendum — 2026-04-02
 
 ### Correction: bb_boxes.js + bb_boxes.wat relocated to correct directory
