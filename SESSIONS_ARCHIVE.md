@@ -16744,3 +16744,37 @@ The invariance cache fix (`_XFARB → return 0`) is in, but the bug persists. Tr
 5. **rung10/1010–1018** func_recursion/NRETURN/OPSYN/EVAL/APPLY (6)
 6. **rung11/1110–1116** ARRAY/DATA constructors (5)
 7. **misc** expr_eval, test_case, test_math, test_stack, test_string (5) — likely rung10/11 dependencies
+
+---
+
+## DYN-31 CORRECTION (same session, post-handoff)
+
+The handoff note incorrectly stated: *"Static x86 BB emission for invariant patterns is M-DYN-S1 (not yet implemented)."*
+
+**This is wrong.** `expr_eval.s` in corpus/crosscheck proves M-DYN-S1 IS implemented. `P_expr_α`, `P_term_α`, `P_factor_α`, `P_primary_α` are fully static compiled x86 BB sequences with inline `ALT_α`/`SEQ`/`DOL_SAVE`/`DOL_CAPTURE` macros and direct `jmp` between four-port labels — no `exec_stmt` call in their bodies. Mutual recursion between named patterns works via direct `jmp P_term_α` etc.
+
+Two distinct tracks exist in emit_x64.c:
+
+**Track 1 — `scan_named_patterns`** (M-DYN-S1, WORKING): Pattern variables with genuine pattern-building RHS (`ARBNO`, `ANY`, `*ref`, captures, alternation etc.) are promoted to named patterns and emitted as static four-port x86 BB sequences. This is what `P_expr_α` is.
+
+**Track 2 — `inv_pats` Pass 2b** (M-DYN-OPT, partial): Simpler invariant `PAT=` assignments that don't qualify as named patterns get `_PND_t` trees pre-built once at program startup via `pat_*` constructors — avoiding repeated tree construction — but still matched via `exec_stmt` at match time.
+
+The 22 corpus `.s` files with four-port sequences contain a mix of: DEFINE user-function stubs (`P_Push_α` etc.) AND statically compiled named patterns (`P_expr_α` etc.). Both are live code.
+
+DYN-32 baseline and task list in previous entry remain correct.
+
+---
+
+## DYN-31 CORRECTION (same session, post-handoff)
+
+The handoff note incorrectly stated: *"Static x86 BB emission for invariant patterns is M-DYN-S1 (not yet implemented)."*
+
+**This is wrong.** `expr_eval.s` in corpus/crosscheck proves M-DYN-S1 IS implemented. `P_expr_α`, `P_term_α`, `P_factor_α`, `P_primary_α` are fully static compiled x86 BB sequences with inline `ALT_α`/`SEQ`/`DOL_SAVE`/`DOL_CAPTURE` macros and direct `jmp` between four-port labels — no `exec_stmt` call in their bodies. Mutual recursion between named patterns works via direct `jmp P_term_α` etc.
+
+Two distinct tracks exist in emit_x64.c:
+
+**Track 1 — `scan_named_patterns`** (M-DYN-S1, WORKING): Pattern variables with genuine pattern-building RHS are promoted to named patterns and emitted as static four-port x86 BB sequences. This is what `P_expr_α` is.
+
+**Track 2 — `inv_pats` Pass 2b** (M-DYN-OPT, partial): Simpler invariant PAT= assignments get _PND_t trees pre-built once at startup via pat_* constructors but still matched via exec_stmt at match time.
+
+The 22 corpus .s files contain a mix of DEFINE user-function stubs (P_Push_α etc.) AND statically compiled named patterns (P_expr_α etc.). Both are live. DYN-32 baseline and tasks remain correct.
