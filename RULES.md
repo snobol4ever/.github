@@ -180,15 +180,22 @@ End-of-session checklist (in order):
 
 ## ⛔ ARTIFACT REFRESH — After every milestone fix, regenerate affected artifacts
 
-Any time a frontend emitter or backend is modified, all artifacts for that frontend/backend combination must be regenerated and committed before handoff. Stale artifacts are worse than no artifacts.
+**The design:** scrip-cc writes generated output (`.s`, `.j`, `.il`, `.js`, `.wat`) **side by side next to the source** when invoked without `-o`. `foo/bar.sno` → `foo/bar.s`. Every clean compile drops its output automatically. Commit corpus after any session that changes an emitter — git sweeps up changed generated files naturally.
 
-**Trigger:** You touched `icon_emit_jvm.c` → regenerate `artifacts/icon/samples/*.j` and `artifacts/jvm/samples/*.j` for all passing demos. You touched `prolog_emit_jvm.c` → regenerate `artifacts/prolog/samples/*.j`. You touched `emit_byrd_jvm.c` → regenerate `artifacts/jvm/samples/*.j`. And so on.
+**Promotion path:** compile clean → `.s` appears in corpus. Run passes → it is already an emit-diff oracle (emit-diff just compares committed vs fresh). Once all files are current, emit-diff can resume immediately with zero new work.
 
-**Rule:** If an artifact `.j` file would now produce different output than the committed version, regenerate it. If it now passes when it previously failed, promote it from source-only to source+`.j`. If it now fails, mark it with a comment and open a bug.
+**At handoff — mandatory for any session that touches an emitter:**
+```bash
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
+cd /home/claude/corpus && git add -A && git commit -m "regen: update generated artifacts alongside sources"
+```
+Substitute `CELLS=` for the session's backend. Omit `CELLS=` to regen all backends.
 
-**Regen commands live in `artifacts/README.md`** — one block per frontend/backend. Run the relevant block, verify outputs, commit.
+**Rule:** Only non-empty output is kept — compile errors leave no file, stale oracles are never created. If a previously-compiling file now fails, delete its generated artifact from corpus and commit.
 
-**At every milestone fire:** run the full demo harness (`bash demo/scrip/run_demo.sh demo/scrip/demoN/`) for all demos that touch the affected system. If additional demos now pass, fire their milestones too.
+**`artifacts/` samples:** regen commands in `artifacts/README.md` — one block per frontend/backend. Run the relevant block, verify, commit.
+
+**At every milestone fire:** run the full demo harness (`bash demo/scrip/run_demo.sh demo/scrip/demoN/`) for all demos that touch the affected system.
 
 ---
 
