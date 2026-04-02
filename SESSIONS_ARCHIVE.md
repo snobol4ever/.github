@@ -16673,3 +16673,74 @@ Files touched: `stmt_exec.c`, `eval_code.c`, `scrip-interp.c`, `emit_x64.c`, arc
 5. **Verify**: `./scrip-interp /tmp/arb_only.sno` should output `ARB:[abc]` after fix.
 6. **Broad re-run** → target ≥155p (fixing ARB captures unlocks ~8 tests).
 7. **Gate**: snobol4_x86 142/142.
+
+---
+
+## DYN-31 final handoff — renames + ARB investigation + architecture clarification — 2026-04-02
+
+### What was done
+
+**Corpus artifact regen** (`b3ad891`) — DYN-30 rename (`stmt_exec_dyn→exec_stmt`) had left all 175 `.s` corpus artifacts stale. Regenerated and pushed.
+
+**Three remaining `dyn` symbol renames** (`406b507`) — per session instruction:
+- `execute_code_dyn` → `exec_code`
+- `eval_expr_dyn`   → `eval_expr`
+- `code_dyn`        → `code`
+
+Across 7 files: `emit_x64.c`, `mock_includes.c`, `snobol4_pattern.c`, `snobol4.c`, `eval_code.c`, `rung7_eval_code_test.c`, `scrip-interp.c`. Zero `dyn` names remain in symbol space.
+
+**Build fix** — `mock_includes.c` must be compiled with `-DDYN_ENGINE_LINKED` (suppresses now-clashing `code`/`eval_expr` stubs). `mock_engine.c` must be compiled as a separate object (`mock_engine.o`) alongside `mock_eng.o` — it was previously being silently overwritten.
+
+**`_XFARB`/`_XSTAR` invariance fix** — `patnd_is_invariant` was returning 1 (invariant) for `_XFARB` (ARB) and `_XSTAR` (REM), causing the node cache to serve stale `arb_t`/`rem_t` with persistent `count`/`start` across matches. Both now explicitly `return 0`. Built and confirmed compiles. ARB capture (`W=[]` vs `W=[ab]`) is **still wrong** — root cause is deeper in `bb_seq`/`CAP_β` path, not the cache (see below).
+
+**scrip-cc rebuild + corpus regen** (`2f2bbe3`) — `execute_code_dyn` string literal in `emit_x64.c` was already renamed but the old binary was still installed. Rebuilt `scrip-cc`, re-ran `--update`, pushed 175 `.s` artifacts with `exec_code`.
+
+**Architecture research** — compared our `pat_*` builder API against v311.sil:
+- v311 has **no equivalent `pat_*` build sequence**. Pattern construction is done by `MAKNOD` (a 6-arg raw-memory stamper in `lib/pat.c`) plus `linkor()` for alternation chain threading. The `X*` node type is embedded in a pre-built descriptor constant, not a named arg.
+- v311 builds patterns **directly during expression evaluation** — `ANY PROC`, `SPAN PROC` etc. are interpreter dispatch labels that push a type descriptor and call `MAKNOD` immediately. No separate AST walk.
+- The corpus `.s` four-port sequences (`P_NAME_α/β`, `fn_NAME_γ/ω`) are **DEFINE function stubs**, not compiled pattern BB sequences. All 22 files with box data are DEFINE-using programs; all references are live.
+- **Invariant patterns are NOT yet statically compiled to BB sequences.** Pass 2b detects them and pre-builds `_PND_t` trees at startup via `pat_*` constructors, but `exec_stmt` still runs the dynamic BB engine at match time. Static x86 BB emission for invariant patterns is M-DYN-S1 (not yet implemented).
+
+### ARB capture bug — root cause hypothesis for DYN-32
+
+`ARB . VAR` in `(ARB . W) 'c'` on `'abc'` gives `W=[]` (expected `W=[ab]`).
+
+The invariance cache fix (`_XFARB → return 0`) is in, but the bug persists. Trace so far:
+- `bb_arb` `ARB_α` sets `count=0, start=Δ` and returns `spec(Σ+Δ, 0)` — zero-length first try.
+- `bb_capture` wraps `bb_arb`. On `CAP_γ_core` it stores `pending = child_r` (the zero-length spec).
+- `bb_seq` (`SEQ_α`): calls `left.α` (the capture wrapper). Gets `spec(Σ+Δ, 0)`. Calls `right.α` (the `bb_lit` for `'c'`). `bb_lit` checks if `subject[Δ] == 'c'` — at Δ=0 it finds `'a'`, fails → returns `spec_empty`.
+- `bb_seq` `right_ω`: calls `left.β` (capture wrapper β). Capture wrapper calls `bb_arb β`. `ARB_β` increments `count` to 1, returns `spec(Σ+Δ, 1)`. Capture wrapper stores `pending = spec(Σ+Δ, 1)`.
+- `bb_seq` `left_γ`: updates `ζ->matched`, calls `right.α` again — `bb_lit` checks `subject[1] == 'c'`? No, it's `'b'`. Fails again.
+- `bb_seq` `right_ω` again: calls `left.β` → `ARB_β` → `count=2` → `spec(Σ+0, 2)`. Capture stores `pending = spec(Σ+0,2)`. Now `right.α`: `subject[2]=='c'`? Yes → match.
+- `bb_seq` returns `SEQ = spec_cat(matched, rr)`.
+
+**So CAP_β IS being called and pending IS being updated.** The bug must be in Phase 5 flush: `flush_pending_captures()` is not being called, OR it flushes `pending` at `spec(Σ+0,0)` from the first `CAP_γ_core` call rather than the last. Check `flush_pending_captures` — it may iterate a stale capture list, or `register_capture` may be failing to register the wrapper built inside `exec_stmt`'s pattern tree.
+
+**DYN-32 first tasks (in order):**
+
+1. **Build** — SESSION-dynamic-byrd-box.md build command, but compile `mock_includes.c` with `-DDYN_ENGINE_LINKED` and add `mock_engine.o` separately. Baseline `406b507`.
+2. **Gate** — `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
+3. **Debug ARB flush** — add `fprintf(stderr, "flush: varname=%s pending.len=%d\n", c->varname, (int)c->pending.len)` in `flush_pending_captures` loop. Run `/tmp/arb_test3.sno`. Check: (a) is flush called at all? (b) how many capture_t entries are registered? (c) what is `pending.len` at flush time?
+4. **Check `register_capture` scope** — `exec_stmt` builds the `bb_node_t` tree on each call. If `register_capture` appends to a global list that is reset between calls (`cache_reset` or similar), the capture_t built for this match is already freed/reset by the time Phase 5 flush runs. Look for `cap_registry_reset` or equivalent.
+5. **Fix and verify** `./scrip-interp /tmp/arb_test3.sno` → `W=[ab]`.
+6. **Broad re-run** → target ≥155p. **Gate**: snobol4_x86 142/142.
+
+### Baseline for DYN-32
+
+- one4all: `406b507`
+- .github: (this commit)
+- corpus: `2f2bbe3`
+- invariants: snobol4_x86 **142/142** ✅
+- emit-diff: **175/0** ✅
+- broad: **146p/32f**
+- zero `dyn` names in symbol space ✅
+
+### Remaining 32 failures — clusters
+
+1. **ARB capture** — `word1–4`, `wordcount`, `cross`, `060_capture_multiple`, `063_capture_null_replace` (~8) — flush bug above
+2. **patterns/048 REM, 056 star-deref, 057 FAIL-builtin** (3) — E_REM/star-deref/FAIL not wired in `interp_eval`
+3. **rung2/210,212 `$.var` indirect** (2) — `E_INDR` child node kind not yet traced
+4. **data/095 data_field_set** (1) — DATA()-defined object field assignment
+5. **rung10/1010–1018** func_recursion/NRETURN/OPSYN/EVAL/APPLY (6)
+6. **rung11/1110–1116** ARRAY/DATA constructors (5)
+7. **misc** expr_eval, test_case, test_math, test_stack, test_string (5) — likely rung10/11 dependencies

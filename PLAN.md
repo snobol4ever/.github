@@ -61,7 +61,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-29 | one4all `eb273e1` · .github (this) · corpus `d5058ef` | **DYN-30**: debug word*/cross/$.var · fix REM/capture/rung11-ARRAY · target ≥130p broad |
+| **⭐ DYNAMIC BYRD BOX** | DYN-31 | one4all `406b507` · corpus `2f2bbe3` | **DYN-32**: fix ARB capture flush bug → ≥155p broad |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
