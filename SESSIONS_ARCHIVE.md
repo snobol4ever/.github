@@ -17218,3 +17218,57 @@ Output: `10 / 20 / 10` (last should be 99). The setter path `x(P) = 99` is not d
 6. Fix `1110_array_1d`: run `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` — error is `FAIL 1110/005: prototype(array(3))=3` — `prototype()` returning integer 3 instead of string `"array"`. Check `_b_PROTOTYPE` in snobol4.c.
 7. Broad → target ≥164p. Gate 142/142.
 8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-37 handoff — 2026-04-02
+
+### What was done
+
+**VALUE/ARRAY/PROTOTYPE/setter fixes — +2p broad (162→164).**
+
+Gate held 142/142 throughout.
+
+#### Commits (one4all)
+
+- `c61da12` — DYN-37 partial: VALUE/ARRAY/PROTOTYPE fixes; 142/142 gate ✅ broad 164p/14f
+
+#### Fixes landed
+
+| File | Fix | Result |
+|------|-----|--------|
+| `snobol4.c` | Remove `register_fn("value", _b_field_value)` + `register_fn("next", _b_field_next)` — these shadowed `VALUE()` builtin via `strcasecmp` in `APPLY_fn` | `1115_data_basic` ✅ |
+| `snobol4.c` | Add `fn_has_builtin()` helper + forward decls; DATA field accessor registration skips names that already have a C builtin fn pointer | Partial — see 1116 below |
+| `snobol4.c` | Fix `_ARRAY_()` to parse `"R,C"` (no colons) as `array_new2d(1,R,1,C)` | `1112_array_multi` ✅ |
+| `snobol4.c` | Fix `_PROTOTYPE_()` 2D: emit `"R,C"` for standard 1-based 2D (was `"1:R,1:C"`) | `1112_array_multi` ✅ |
+| `scrip-interp.c` | Add `E_IDX` lhs in `E_ASSIGN` (expression context `arr<i>=val`) | infrastructure |
+| `scrip-interp.c` | Add `ITEM()`/field setter in `E_ASSIGN` (expression context) | infrastructure |
+| `scrip-interp.c` | Add `E_FNC` subject + `has_eq` handler at statement level (covers `item(arr,i) = val`) | infrastructure |
+
+#### Remaining failures (14)
+
+- `1116_data_overlap` — `DATA('clunk(value,lson)')` still overwrites `VALUE()`. Root cause: `fn_has_builtin()` correctly detects existing C builtins by hash, BUT it's called from `_DATA_` which runs *during program execution* — after `SNO_INIT_fn` has run. The `_func_init()` call was added to `fn_has_builtin`. **Likely remaining bug**: `_parse_define_spec` stores names uppercase-normalised or the hash still mismatches. Next session: add `fprintf(stderr,"fn_has_builtin(%s)=%d\n",fname,fn_has_builtin(fname));` in `_DATA_` field loop to confirm whether it's being called and what it returns.
+- `1114_item` — `item(aaa,1) = 5` statement setter: the `E_FNC`+`has_eq` branch was added at statement level but still not firing. Next: add `fprintf(stderr,"stmt kind=%d sval=%s has_eq=%d\n", s->subject->kind, s->subject->sval, s->has_eq)` to trace whether subject is E_FNC and has_eq=1, or whether the parser is putting it elsewhere.
+- `212_indirect_array` — indirect array subscript
+- `expr_eval`, `cross` — DEFINE/named-pattern deep interaction
+- `test_case/math/stack/string` — scrip test harness failures
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval` — deep call-stack / NRETURN / OPSYN / EVAL
+
+### Baseline for DYN-38
+
+- one4all: `c61da12`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **164p/14f**
+
+### DYN-38 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad → confirm 164p/14f baseline.
+5. Debug `1116_data_overlap`: add `fprintf(stderr,"fn_has_builtin(%s)=%d\n",fname,fn_has_builtin(fname));` in `_DATA_` field registration loop (snobol4.c ~line 799). Run `1116` test. If fn_has_builtin returns 0 for "value", the hash or lookup is wrong — compare against `_func_hash("VALUE")` manually.
+6. Debug `1114_item`: add `fprintf(stderr,"STMT kind=%d sval=%s has_eq=%d\n",s->subject?s->subject->kind:-1,s->subject&&s->subject->sval?s->subject->sval:"?",s->has_eq);` before the `if (s->pattern)` check. Run `1114` test. Confirm subject kind == E_FNC (enum value) and has_eq == 1.
+7. Fix both based on trace. Broad → target ≥167p. Gate 142/142.
+8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
