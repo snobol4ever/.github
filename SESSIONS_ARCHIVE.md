@@ -18095,3 +18095,59 @@ All planning and milestones from this session are now in HQ.
 8. Run global driver → diff clean → fire M-JVM-A02.
 9. Invariants → ≥100p. Gate 142/142.
 10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## D-166 handoff — 2026-04-02
+
+### Session summary
+
+This session was HQ documentation and planning — no code changes to one4all or snobol4dotnet.
+
+### Work done
+
+**1. New interpreter track: scrip-interp.cs (SNOBOL4 .NET interpreter)**
+- Decision: build standalone C# interpreter using Pidgin parser + existing IByrdBox boxes
+- Parser choice: Pidgin (over Irony: LALR(1)/significant-whitespace issues; over Sprache: aging API)
+- Pidgin AST (`StmtNode`/`BodyNode`/`InvokingNode`/`MatchingNode`/`ReplacingNode`/`AssigningNode`/`GotoNode`) maps directly to 5-phase eval loop
+- @N Phase 3/5 bug avoided structurally — captures commit only on Phase 5 :S by construction
+- `MILESTONE-NET-INTERP.md` created: M-NET-INTERP-A01 through B03
+- `MILESTONE-NET-SNOBOL4.md` updated: two parallel sprint tracks added
+- `SESSION-snobol4-net.md` updated: Track A (@N fix) + Track B (interpreter) for D-166
+- `PLAN.md` updated: NET INTERP D-166 row added
+
+**2. DYN session docs synced to reality (were frozen at DYN-29)**
+- `MILESTONE-DYN-INTERP.md` rewritten: A01/A02/A03/A04 marked ✅ with commit hashes; A05 = next (9 failures); B01/B02 not started
+- `SESSION-dynamic-byrd-box.md` updated: §NOW bumped to DYN-42, 169p/9f baseline, build command updated for SJ-5 box subdir layout
+- `PLAN.md` updated: DYN row bumped to DYN-42 / `fbc75dd` / M-INTERP-A05
+
+**3. Noted but not fixed: run_invariants.sh box path bug**
+`run_invariants.sh` line ~130 references `$DYN/bb_lit.c` flat — broken since SJ-5 reorg (commit `46c6267`) moved boxes into per-subdirectory layout. Gate shows BUILD_FAIL for SNOBOL4 x86. Needs a separate fix pass (update the gcc compile loop in `build_libsno4rt_asm` to walk subdirs).
+
+### Baselines
+
+- one4all: `46c6267` (SJ-5 reorg)
+- corpus: `2f2bbe3`
+- .github: `b92be50` (this session)
+- snobol4dotnet: `e1e4d9e`
+- snobol4_x86: gate BUILD_FAIL (run_invariants.sh path bug — not a code regression)
+- scrip-interp broad: **169p/9f** (DYN-41 baseline, unchanged this session)
+
+### D-167 first actions
+
+**Priority 1 — Fix run_invariants.sh gate (blocks all sessions)**
+1. `git pull --rebase` all repos.
+2. In `one4all/test/run_invariants.sh`, find the `build_libsno4rt_asm` function (~line 117).
+3. Update the `gcc -O2 -c "$DYN/bb_lit.c"` line and all similar lines to walk `src/runtime/boxes/*/bb_*.c` subdirs instead of flat `$DYN/bb_*.c`.
+4. Run gate → confirm 142/142. Commit + push one4all. Push .github.
+
+**Priority 2 — NET INTERP track (Track B, D-167)**
+5. Create `src/driver/dotnet/scrip-interp.csproj` with Pidgin NuGet ref.
+6. Port `Snobol4Pidgin.cs` → `src/driver/dotnet/Snobol4Parser.cs`.
+7. Run 19 parse smoke tests → all pass → commit M-NET-INTERP-A01.
+
+**Priority 3 — DYN-42 (if time)**
+8. Build scrip-interp using updated build command in SESSION-dynamic-byrd-box.md.
+9. Confirm 169p/9f baseline.
+10. Fix `1013/003` Option A: `skip_ws(lx)` in `parse_expr17`.
+11. Fix `1015_opsyn`. Target ≥175p. Gate 142/142.
