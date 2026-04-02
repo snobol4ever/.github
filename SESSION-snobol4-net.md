@@ -123,9 +123,9 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **TINY NET** | N-248 — 110/110 ✅ | `425921a` | M-T2-FULL ✅ complete |
-| **DOTNET** | D-165 | `e1e4d9e` | **M-NET-P35-FIX** — fix @N Phase 3/5 → 80/80 |
+| **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet · one4all `90d5531` | **M-NET-P35-FIX** — wire boxes · fix @N Phase 3/5 → 80/80 |
 
-**D-165 first actions (mandatory order):**
+**D-166 first actions (mandatory order):**
 1. `git pull --rebase` all repos.
 2. `export PATH=/usr/local/dotnet10:$PATH` + `dotnet test` → confirm 1911/1913.
 3. Crosscheck → confirm 79/80 baseline.
