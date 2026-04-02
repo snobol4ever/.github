@@ -18002,3 +18002,45 @@ bb_bal.c    bb_bal.s                 bb_bal.java  ← C was stub; Java is real
 8. Run global driver → diff clean → M-JVM-A02.
 9. Invariants → ≥100p. Gate 142/142.
 10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## D-166 addendum — 2026-04-02
+
+### New track: scrip-interp.cs — SNOBOL4 .NET interpreter
+
+Decision: add a standalone C# interpreter (`scrip-interp.cs`) as a parallel
+development track alongside the `snobol4dotnet` ThreadedExecuteLoop work.
+
+**Motivation:** eliminates compile → MSIL emit → ilasm → mono startup from
+every test iteration. Pattern matching runs directly through the existing
+`IByrdBox` graph (M-NET-BOXES ✅). The @N Phase 3/5 bug is avoided structurally
+— captures are committed only on Phase 5 :S, by construction.
+
+**Parser choice: Pidgin** (over Irony and Sprache).
+- Irony: LALR(1) + significant-whitespace = requires two-stage line scanner; opaque `ParseTreeNode` AST
+- Sprache: functional but aging; `IOption<T>` API; minimal maintenance
+- Pidgin: modern combinators; `ExpressionParser.Build()` for operator tower; clean typed record AST (`StmtNode`, `BodyNode`, `InvokingNode`, `MatchingNode`, `ReplacingNode`, `AssigningNode`, `GotoNode`); maps directly to 5-phase eval loop dispatch
+
+**Files created/updated:**
+- `.github/MILESTONE-NET-INTERP.md` — new milestone file (M-NET-INTERP-A01 through B03)
+- `.github/MILESTONE-NET-SNOBOL4.md` — added interpreter sprint sequence table
+- `.github/SESSION-snobol4-net.md` — added Track B (interpreter) to §NOW; D-166 actions split into two parallel tracks
+- `.github/PLAN.md` — added NET INTERP D-166 row to NOW table
+
+### D-167 first actions (interpreter track)
+
+1. `git pull --rebase` all repos.
+2. Create `src/driver/dotnet/scrip-interp.csproj` — Pidgin NuGet ref (`Pidgin` ~3.x).
+3. Port `Snobol4Pidgin.cs` (already written) → `src/driver/dotnet/Snobol4Parser.cs`.
+4. Run 19 parse smoke tests → all pass → commit **M-NET-INTERP-A01**.
+5. Add `SnobolEnv.cs` + `Executor.cs` skeleton.
+6. Wire Phase 1/4/5 (assignments, OUTPUT, goto, END) → rung1 smoke tests pass → commit **M-NET-INTERP-A02**.
+7. Gate 142/142. Update SESSIONS_ARCHIVE + push .github.
+
+### Baseline
+
+- one4all: `46c6267`
+- corpus: `2f2bbe3`
+- .github: this commit
+- invariants: snobol4_x86 gate — BUILD_FAIL (run_invariants.sh box paths stale after SJ-5 reorg; fix needed separately)
