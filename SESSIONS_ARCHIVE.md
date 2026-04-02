@@ -17562,3 +17562,59 @@ Run on `1013_func_nreturn.sno`. If 0 → prescan isn't registering, check `_func
 - invariants: **142/142** ✅
 - broad: **169p/9f**
 
+
+---
+
+## D-165 pivot — 2026-04-02
+
+### Architecture survey + 5-phase milestone reorg
+
+No code changes to snobol4dotnet this session — full architecture survey and
+HQ documentation pivot.
+
+#### Survey findings
+
+**Pattern engine:** Jeff's `AbstractSyntaxTreeNode` / `Scanner` / `Pattern`
+hierarchy is already a dynamic Byrd box graph.  `Subsequent` / `Alternate`
+indices are the γ/β port wiring.  `Scanner.Match()` `while(true)` loop is
+the trampoline.  `ArbNoPattern.Scan` re-enters recursively (≡ `bb_arbno`).
+`UnevaluatedPattern.Scan` calls a pre-compiled `DeferredCode` delegate at
+match time (≡ `bb_unevaluated`).  No new Byrd box infrastructure needed.
+
+**EVAL/CODE:** Self-hosted, no Roslyn.  `BuildEval` / `BuildCode` route back
+through the same compiler pipeline (`ReadCodeInString` → `Lex` → `Parse` →
+`ResolveSlots` → `EmitMsilForAllStatements` → `CompileStarFunctions`).
+`CODE` uses `AppendCompile` to live-patch the running `Instruction[]` thread.
+
+**@N bug (Phase 3/5):** `CursorAssignmentPattern.Scan` writes
+`IdentifierTable["N"] = cursor` during Phase 3 ✅.  Something in `Init`,
+`Finalize`, or `CheckGotoFailure` clobbers it during Phase 5.  Most likely:
+`Init` snapshots pre-match variable state; `Finalize` / `CheckGotoFailure`
+restores it on the failure path — capture writes fall inside that window.
+
+#### HQ changes
+
+- `SESSION-snobol4-net.md` — rewritten: 5-phase spine, architecture survey,
+  Byrd box mapping table, @N anatomy, D-165 first actions
+- `MILESTONE-NET-SNOBOL4.md` — new file: full ladder Phase A/B/C organized
+  around 5-phase executor model (audit+gap-fill, not rewrite)
+- `REPO-snobol4dotnet.md` — active milestones updated to new ladder
+- `PLAN.md` — DOTNET row updated: D-165, 5-phase pivot, MILESTONE-NET-SNOBOL4.md ref
+
+#### Baseline for D-165 (unchanged — no code commits)
+
+- snobol4dotnet: `e1e4d9e` (D-164)
+- `dotnet test`: 1911/1913
+- crosscheck: 79/80 (strings/cross — @N bug)
+
+#### D-166 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `export PATH=/usr/local/dotnet10:$PATH` + `dotnet test` → confirm 1911/1913.
+3. Crosscheck → confirm 79/80 baseline.
+4. Read oracle: `sed -n '1,50p' /home/claude/one4all/src/runtime/dyn/stmt_exec.c`.
+5. Add sentinel printouts before/after `CheckGotoFailure`, `Init`, `Finalize`
+   in `ThreadedExecuteLoop.cs`; run `strings/cross`; identify the clobber opcode.
+6. Fix. Crosscheck → 80/80. `dotnet test` → ≥1911/1913. Commit M-NET-P35-FIX.
+7. Update SESSIONS_ARCHIVE + push .github.
+
