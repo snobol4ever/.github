@@ -15594,3 +15594,47 @@ corpus/crosscheck/strings/word1.sno   — primary failing test
 - emit-diff: 179/0 · one4all `ab5b3b7` · .github `7bbfade`
 - invariants: snobol4_x86 137p/5f (word1 word2 word3 word4 cross)
 - stmt_exec.c: unchanged from ab5b3b7 (DYN-19 cont3 changes reverted — wrong diagnosis)
+
+---
+
+## DYN-19 cont3 addendum — architecture clarification (same session)
+
+### On "named patterns" — wrong framing retired
+
+The concept of "named patterns" (PAT registered by name, compiled to P_PAT_α trampoline)
+is an artifact of the old static-first path. It is wrong framing.
+
+**Correct model:**
+
+A deterministic pattern sequence — one where every component is invariant at runtime
+(no variable reads, no function calls, just literals and constructors) — is an
+**anonymous compile-time constant**, exactly like a string literal in `.data`.
+
+It has no user-visible name. The assembler gives it an anonymous label (_pat_42 etc.)
+for its own bookkeeping. It is flat — one sequence of α/β/γ/ω labels in three-column
+NASM, all in the same scope, wired by direct jmp. No nested procs per box. No call/return
+between sub-boxes. One flat block per anonymous pattern constant.
+
+The proc boundary (if any) is the pattern constant boundary — not the box boundary.
+Sub-boxes are inlined flat within it.
+
+**The optimizer path (M-DYN-OPT and beyond):**
+
+1. M-DYN-S1: everything through stmt_exec_dyn. All patterns built at runtime as C struct
+   graphs. Correct baseline. 142/142.
+
+2. M-DYN-OPT: invariance detection. Provably deterministic patterns pre-built at load
+   time as C struct graphs (same bb_node_t chain, just built once not per-execution).
+
+3. M-DYN-B1+: binary emission. Invariant patterns emitted as flat anonymous x86 sequences
+   into bb_pool. Three-column layout. Anonymous labels. No names. Like literals in .data.
+
+The old P_PAT_α named trampolines are not coming back. What comes back is anonymous
+flat inline sequences — a different thing, correct by construction, generated from
+emit_pat_to_descr in EMIT_BINARY mode after the dynamic path is proven.
+
+### Gate reminder (updated this session)
+- emit-diff: RETIRED until post M-DYN-S1 across all languages/platforms
+- All sessions except DYNAMIC BYRD BOX: FROZEN
+- Only gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86`
+- Target: 142/142. Current: 137p/5f (word1-4, cross)
