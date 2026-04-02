@@ -16505,3 +16505,61 @@ Gate: snobol4_x86 **142/142** ✅
 
 4. **Gate**: snobol4_x86 142/142 (scrip-interp separate binary).
 
+
+---
+
+## DYN-28 final handoff — M-INTERP-A04 output/kw/array/uplus — 2026-04-02
+
+### What was done
+
+**M-INTERP-A04** (`bb76582`) — four fixes unlocking 24 tests:
+
+**`snobol4.c`** — `strcmp` → `strcasecmp` for all special-variable checks in `NV_GET_fn` / `NV_SET_fn`:
+- `OUTPUT`, `INPUT`, `TERMINAL`, `STLIMIT`, `ANCHOR`, `TRIM`, `FULLSCAN`, `STCOUNT`, `STNO`
+- Root cause: SNOBOL4 parser emits variable names in the case they are written (`output`, `&anchor`). `NV_SET_fn` used case-sensitive `strcmp("OUTPUT")` → lowercase assignments silently stored in hash table, never triggering `output_val()` or `kw_anchor` update. This single bug suppressed output for every test using lowercase `output = ...` (majority of rung3/4/8/9).
+
+**`scrip-interp.c`** — four new dispatch paths in both `execute_program` and `call_user_function` inner loop:
+- **E_KW assignment** (`&KW = expr`): `NV_SET_fn(s->subject->sval, repl_val)` — fixes `&ANCHOR`, `&STLIMIT` etc.
+- **E_IDX assignment** (`A<i> = expr`): `subscript_set(base, idx, val)` — fixes array/table element writes
+- **E_UPLUS** (unary `+` → numeric coerce): `strtoll`/`strtod` on string — fixes `differ(+'4', 4)`
+- **`comm_stno(++stno)`** per statement in `execute_program` — fixes `&STCOUNT`/`&STNO`
+
+**Broad: 139p/19f** (from 115p/63f; target ≥130p ✅)
+**Gate: snobol4_x86 142/142 ✅**
+
+### Debugging notes
+
+- The output suppression bug was masked by the fact that `OUTPUT = 'hello'` (uppercase, as used in trivial tests) worked fine. Only lowercase `output = ...` (used in rung3/4/8/9 via `differ()` assertion helpers) was broken.
+- `DIFFER`, `IDENT`, `SIZE` etc. all worked correctly. The rung3/4/8/9 failures were entirely the output case bug — confirmed by strace/ASAN showing clean exit with no writes to stdout.
+- `E_IDX` assignment: `subscript_get` was wired (for reads) but `subscript_set` was never called for `A<i> = rhs` statements. Both exec loops needed the fix.
+
+### Baseline for DYN-29
+
+- one4all: `bb76582`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **139p/19f**
+
+### Remaining 19 failures — clusters for DYN-29
+
+1. **strings/word1–4, wordcount, cross** (6) — likely `&TRIM` or `INPUT` reading; word* programs read stdin or use complex patterns
+2. **patterns/048 REM, 056 star-deref, 057 FAIL-builtin** (3) — pattern nodes not wired in `interp_eval`
+3. **capture/060, 063** (2) — capture edge cases (multiple captures / null replace)
+4. **rung2/210 indirect_ref, 212 indirect_array** (2) — `$$var` indirect read; `$X<i>` indirect subscript
+5. **rung8/810 REPLACE** (1) — `&alphabet` keyword read in REPLACE arg (should work now — re-verify)
+6. **rung9/911 DATATYPE** (1) — `DATATYPE()` / `LCASE()` builtins; check return string format
+7. **data/095 DATA field set** (1) — `DATA()`-defined object field assignment
+8. **arith/fileinfo, arith/triplet** (2) — misc; check individually
+9. **control/expr_eval** (1) — `EVAL()` builtin
+
+### DYN-29 first tasks (in order)
+
+1. **Build scrip-interp** — `nasm`+`libgc-dev` needed (`apt-get install -y nasm libgc-dev`). Rebuild `snobol4.o` first (snobol4.c changed).
+2. **Re-verify rung8/810** — `&alphabet` read may now work after strcasecmp fix. If still failing, check `REPLACE` builtin with multi-char from/to strings.
+3. **Fix patterns/048 REM** — add `E_REM` (or `E_FNC("REM")` → `pat_rem()`) in `interp_eval`
+4. **Fix rung2/210,212 indirect read** — `$$var`: `E_INDR` in `interp_eval` reads `NV_GET_fn(VARVAL_fn(child))` — check if double-deref is handled
+5. **Fix DATATYPE/LCASE** — check `_b_DATATYPE` return string case; `LCASE` builtin
+6. **Broad re-run** → target ≥150p
+7. **Gate**: snobol4_x86 142/142
+
