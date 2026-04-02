@@ -18151,3 +18151,47 @@ This session was HQ documentation and planning — no code changes to one4all or
 9. Confirm 169p/9f baseline.
 10. Fix `1013/003` Option A: `skip_ws(lx)` in `parse_expr17`.
 11. Fix `1015_opsyn`. Target ≥175p. Gate 142/142.
+
+---
+
+## J-218 handoff — 2026-04-02
+
+### What was designed — JVM Dynamic Interpreter Path
+
+**Added M-JVM-INTERP milestone** to create JVM equivalent of x86 dynamic path for zero compile+link test loop. Updates to `MILESTONE-JVM-SNOBOL4.md`, `PLAN.md`.
+
+**Key architectural insight:** The x86 dynamic execution model (`scrip-interp.c` + `stmt_exec.c` + `bb_*.c`) provides the perfect template for JVM rapid iteration:
+
+```
+x86 dynamic path:         JVM dynamic path (designed):
+scrip-interp.c       →    scrip-interp/ (Clojure project)  
+parse → PATND_t IR   →    instaparse → parse tree
+stmt_exec.c          →    BbExecutor.java (already exists ✅)
+bb_build(PATND_t)    →    PatternBuilder.java (missing piece)
+bb_*.c function ptrs →    bb_*.java objects (already exist ✅)
+exec_stmt 5-phase    →    BbExecutor.exec 5-phase (already exists ✅)
+```
+
+**The bb_*.java files and BbExecutor.java are already complete** — they're the perfect runtime implementation. The missing piece is `PatternBuilder.java` that walks instaparse parse trees and constructs `BbBox` object graphs at runtime (equivalent of `bb_build()` in `stmt_exec.c`).
+
+**Implementation plan documented:**
+- Phase 0A: Clojure project with instaparse dependency  
+- Phase 0B: `PatternBuilder.java` — parse tree walker → BbBox construction
+- Phase 0C: Test harness integration (same interface as `snobol4_jvm`)
+- Phase 0D: Baseline verification against snobol4jvm semantics
+
+**Deliverable:** Rapid iteration testbed for pattern development using the exact same boxes that the compiled Jasmin path targets.
+
+#### Baseline
+
+- one4all: `46c6267` (SJ-5 box reorganization)
+- snobol4jvm: `f06baeb` (README updates)
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-219 first actions
+
+1. Implement M-JVM-INTERP per milestone: build scrip-interp/ project
+2. Write PatternBuilder.java using `stmt_exec.c bb_build()` as structural oracle  
+3. Establish interpreter baseline → proceed to M-JVM-A02 compiled path
