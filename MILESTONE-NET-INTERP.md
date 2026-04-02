@@ -55,6 +55,7 @@ that walks Pidgin AST pattern nodes instead — straightforward extension.
 
 | Milestone | Description | Gate |
 |-----------|-------------|------|
+| **M-NET-INTERP-A00** | IR design locked (D-167): one IR / three consumers; no C; no generated C#; scrip-cc never invoked; EVAL/CODE build same IR nodes at runtime as parser | ✅ Design doc committed |
 | **M-NET-INTERP-A01** | Project scaffold + Pidgin parser: parse all 19 test cases, pretty-print AST | 19/19 parse tests pass |
 | **M-NET-INTERP-A02** | Eval loop Phase 1/4/5: assignments, OUTPUT, gotos, labels, END | 20 smoke corpus tests pass (rung1) |
 | **M-NET-INTERP-A03** | Phase 2/3: pattern matching via IByrdBox — literal, ANY, SPAN, ARB, ARBNO | 60 pattern corpus tests pass (rung2–5) |
@@ -78,6 +79,28 @@ src/driver/dotnet/
   scrip-interp.csproj      — project file (Pidgin NuGet ref)
 test/run_interp_dotnet.sh  — corpus runner: diff interp vs SPITBOL oracle
 ```
+
+---
+
+## IR design (D-167 — canonical)
+
+**One IR, three consumers.** The IR tree shape is identical across:
+
+| Consumer | Language | Role |
+|----------|----------|------|
+| `scrip-cc` | C | compiler — emits IL/NASM/JVM bytecode |
+| `scrip-interp.c` | C | tree-walk interpreter (DYN- reference) |
+| `scrip-interp.cs` | C# | this interpreter |
+
+This is a design invariant, not a convenience. Consequences:
+
+- Corpus tests are a true oracle across all three — failures isolate to the consumer, not IR shape
+- EVAL/CODE in C# build the same IR node types that the parser produces — no special runtime IR
+- `PatternBuilder.cs` walks the same node kinds that `Snobol4Parser.cs` emits
+- No scrip-cc involvement at any point — the C# parser produces the shared IR directly
+
+**No C code. No generated C# code.** scrip-interp.cs is entirely hand-written managed C#.
+scrip-cc is not invoked at runtime or build time for the interpreter track.
 
 ---
 
@@ -113,4 +136,5 @@ test/run_interp_dotnet.sh  — corpus runner: diff interp vs SPITBOL oracle
 ---
 
 *MILESTONE-NET-INTERP.md — created D-166, 2026-04-02, Claude Sonnet 4.6.*
+*D-167, 2026-04-02: IR design section added — one IR / three consumers invariant; M-NET-INTERP-A00 added.*
 *Pidgin parser + C# bb boxes = zero compile/link overhead in .NET test cycle.*
