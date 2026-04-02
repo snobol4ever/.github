@@ -67,3 +67,77 @@ Check `pat_at_cursor` signature in `snobol4_pattern.c` first.
 CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
 cd /home/claude/corpus && git add -A && git commit -m "regen: DYN-20 post M-DYN-S1 artifacts" && git push
 ```
+
+## §NOW — DYN-25 (updated)
+
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **DYNAMIC BYRD BOX** | DYN-25 | one4all `200543f` · .github (this) | **M-INTERP-A02**: wire E_CAPT_*/E_ALT in interp_eval → pat_* constructors → 60p pattern tests |
+
+## scrip-interp build command (M-INTERP-A01 baseline)
+
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; DYN="$RT/boxes"; DYNENG="$RT/dyn"
+SCRIP_CC_INC="$ROOT/src"
+DYNFLAGS="-I$DYN -I$RT/snobol4 -I$RT -I$SCRIP_CC_INC -DDYN_ENGINE_LINKED"
+
+mkdir -p /tmp/ib
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib/x86_stubs.o
+for f in bb_lit bb_alt bb_seq bb_arbno bb_pos bb_rpos bb_tab bb_rtab bb_fence bb_abort \
+          bb_len bb_span bb_any bb_notany bb_brk bb_breakx bb_arb bb_rem bb_succeed bb_fail bb_eps bb_bal; do
+  gcc -O2 -c "$DYN/${f}.c" $DYNFLAGS -w -o /tmp/ib/${f}.o
+done
+gcc -O2 -c "$DYNENG/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
+gcc -O2 -c "$DYNENG/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
+
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$RT/boxes" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c \
+    src/frontend/snobol4/lex.o src/frontend/snobol4/parse.o \
+    /tmp/ib/*.o -lgc -lm -o scrip-interp
+```
+
+## M-INTERP-A02 first task — wire pattern nodes in interp_eval
+
+The 28 broad-set failures are all E_CAPT_* / E_ALT nodes falling through to `default: return NULVCL`.
+Add cases to `interp_eval` switch in `scrip-interp.c`:
+
+```c
+case E_ALT: {
+    /* children[0] | children[1] | ... — build pat_alt chain */
+    if (e->nchildren == 0) return NULVCL;
+    DESCR_t acc = interp_eval(e->children[0]);
+    for (int i = 1; i < e->nchildren; i++)
+        acc = pat_alt(acc, interp_eval(e->children[i]));
+    return acc;
+}
+case E_CAPT_COND: {
+    /* pat . var — conditional assignment on match */
+    DESCR_t pat  = interp_eval(e->children[0]);
+    DESCR_t var  = interp_eval(e->children[1]);  /* E_VAR → name */
+    const char *nm = (e->nchildren>1 && e->children[1]->sval)
+                     ? e->children[1]->sval : NULL;
+    return nm ? pat_capture(pat, nm) : pat;
+}
+case E_CAPT_IMM: {
+    /* pat $ var — immediate assignment */
+    DESCR_t pat = interp_eval(e->children[0]);
+    const char *nm = (e->nchildren>1 && e->children[1]->sval)
+                     ? e->children[1]->sval : NULL;
+    return nm ? pat_imm_assign(pat, nm) : pat;
+}
+case E_CAPT_CUR: {
+    /* @var — cursor capture */
+    const char *nm = (e->nchildren>0 && e->children[0]->sval)
+                     ? e->children[0]->sval : NULL;
+    return nm ? pat_at_cursor(nm) : NULVCL;
+}
+```
+
+Check `pat_alt`, `pat_capture`, `pat_imm_assign`, `pat_at_cursor` signatures in
+`src/runtime/snobol4/snobol4_pattern.c` before using — names may differ slightly.
+Gate: 60+ of the 65p+28f broad tests should now pass.
