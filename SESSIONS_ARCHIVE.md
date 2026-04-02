@@ -17116,3 +17116,18 @@ DYN-35 functional targets (095_data_field_set, 1110_array_1d) deferred to DYN-36
    vs `.ref`. Check `_b_ARRAY` arg passing and `stmt_aref`/`stmt_aset`.
 8. Broad → target ≥164p. Gate 142/142.
 9. Commit + push one4all, then update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-35 addendum — 2026-04-02 (same session, post-handoff renames)
+
+Four more EKind renames applied to one4all `a9723d5`:
+
+| old | new | rationale |
+|-----|-----|-----------|
+| `E_PAT_SEQ` | `E_SEQ` | PAT_ prefix redundant — SEQ in pattern context is unambiguous |
+| `E_PAT_ALT` | `E_ALT` | same — ALT unambiguous in context |
+| `E_ALTERNATES` | `E_ALTERNATE` | singular noun, consistent with E_CHOICE, E_CLAUSE |
+| `E_ITER` | `E_ITERATE` | spell it out, matches E_ITERATE semantic clarity |
+
+Gate: 142/142 ✅. one4all HEAD now `a9723d5`.
