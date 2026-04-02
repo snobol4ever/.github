@@ -16342,3 +16342,52 @@ Generated files are written beside their source in corpus automatically — no m
 
 5. Begin **MILESTONE-BOX-UNIFY Phase 1** if time permits.
 
+
+---
+
+## DYN-25 final handoff — harness fix + scrip-interp M-INTERP-A01 — 2026-04-02
+
+### What was done
+
+**Harness fix** (`a51d910`) — `ensure_sno4_archive()` was compiling only 10 of the
+22 boxes declared `extern` in `stmt_exec.c`. Added 12 missing boxes:
+`bb_len`, `bb_span`, `bb_any`, `bb_notany`, `bb_brk`, `bb_breakx`, `bb_arb`,
+`bb_rem`, `bb_succeed`, `bb_fail`, `bb_eps`, `bb_bal`.
+Gate: snobol4_x86 **142/142** ✅ (restored from full LINK_FAIL storm)
+
+**scrip-interp M-INTERP-A01** (`200543f`) — binary links and runs:
+- `Σ/Δ/Ω`: changed from definitions to `extern` (owned by `stmt_exec.c`)
+- `E_KW`: removed `&` prefix — NV store uses bare name (`ALPHABET` not `&ALPHABET`)
+- null assign: `X =` (no replacement) now assigns `NULVCL` correctly
+- indirect write: `$expr = rhs` resolves via `VARVAL_fn` + `NV_SET_fn`
+- `x86_stubs_interp.c`: satisfies `cursor`/`subject_data`/`subject_len_val` for linker
+
+Smoke results:
+- trivial (hello/output/assign/arith/control): **35p/0f** ✅
+- broad (+ patterns/strings/rungW01–W06): **65p/28f**
+- 28 failures: `E_CAPT_COND`, `E_CAPT_IMM`, `E_CAPT_CUR`, `E_ALT` fall through
+  to `default: return NULVCL` in `interp_eval` — not yet wired to `pat_*` constructors
+
+### Baseline for DYN-26
+
+- one4all: `200543f`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-26 first tasks (in order)
+
+1. **Build scrip-interp** — use the full build command in `SESSION-dynamic-byrd-box.md §scrip-interp build command`.
+
+2. **M-INTERP-A02** — add `E_ALT`, `E_CAPT_COND`, `E_CAPT_IMM`, `E_CAPT_CUR` cases
+   to `interp_eval` switch in `scrip-interp.c`. See `SESSION-dynamic-byrd-box.md §M-INTERP-A02`
+   for the code skeleton. Check `pat_alt`/`pat_capture`/`pat_imm_assign`/`pat_at_cursor`
+   signatures in `snobol4_pattern.c` before using.
+   Gate: broad test ≥ 85p.
+
+3. **Commit + push** `scrip-interp.c` changes.
+
+4. **Gate**: `snobol4_x86 142/142` still passes (scrip-interp is separate binary — no regression risk).
+
+5. Begin **MILESTONE-BOX-UNIFY Phase 1** if time permits.
+
