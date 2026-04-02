@@ -17958,3 +17958,47 @@ src/runtime/boxes/
 SJ-6 actions unchanged from prior handoff. First task: fix emit_js.c
 _saved%d → _saved[%d] bug (lines 397/412/313), then wire bb_*.js boxes
 into sno_engine.js build_pattern().
+
+---
+
+## J-217 final handoff — 2026-04-02
+
+### What was done
+
+**bb_*.java naming finalized. All 29 Java files in src/runtime/boxes/ alongside bb_*.c/.s/.cs.**
+
+#### Final commit (one4all)
+
+- `7c35456` — J-217: rename BbLit.java -> bb_lit.java — snake_case matching bb_lit.c/s/cs
+
+#### Final layout: `src/runtime/boxes/`
+
+```
+bb_lit.c    bb_lit.s    bb_lit.cs    bb_lit.java
+bb_seq.c    bb_seq.s    bb_seq.cs    bb_seq.java
+bb_alt.c    bb_alt.s    bb_alt.cs    bb_alt.java
+... (all 25 boxes, 4 languages each)
+bb_box.h                             bb_box.java
+bb_bal.c    bb_bal.s                 bb_bal.java  ← C was stub; Java is real
+                                     bb_executor.java
+```
+
+#### Baseline
+
+- one4all: `7c35456`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos (including snobol4jvm).
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. JVM baseline → confirm 94p/32f.
+4. Read `MILESTONE-JVM-SNOBOL4.md` in full.
+5. Lon reviews `bb_seq.java` (β wiring) and `bb_arbno.java` (frame stack).
+6. Read `emit_byrd_asm.c` lines ~3530–3570 (2D subscript structural oracle).
+7. Fix `emit_jvm.c` E_IDX write path (~2658–2700): build `"row,col"` key for nchildren>=3.
+8. Run global driver → diff clean → M-JVM-A02.
+9. Invariants → ≥100p. Gate 142/142.
+10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
