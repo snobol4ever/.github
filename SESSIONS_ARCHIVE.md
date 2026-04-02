@@ -16873,3 +16873,66 @@ case XNME: {
 
 The `left`/`right` pair in the old `PATND_t` was the proximate cause of `ARB . W` failing — not because of a layout mismatch (the struct layouts DID match after `materialising` was verified), but because **`ARB` as a zero-arg builtin is parsed as `E_VAR`, not `E_FNC`, so `interp_eval` never dispatches it through `_b_PAT_ARB`**. The children array refactor is correct and necessary but orthogonal to the immediate bug. Fix the `E_VAR` dispatch first (task 6), then the ARB cluster (~8 tests) will pass.
 
+
+---
+
+## DYN-33 handoff — 2026-04-02
+
+### What was done
+
+**Five bugs fixed in scrip-interp / snobol4.c. Broad: 148p → 158p (+10).**
+
+**Fix 1 — ARB zero-arg dispatch (`scrip-interp.c` `E_VAR`):**
+`NV_GET_fn("ARB")` returns `DT_SNUL` because ARB is a function, not a variable.
+Added fallback: after `NV_GET_fn` returns `DT_SNUL`, try `APPLY_fn(name, NULL, 0)`.
+Fixes ARB, REM, FAIL, SUCCEED, BAL, FENCE, ABORT as pattern elements in unary position.
++5 tests (ARB cluster: 060_capture_multiple, 048_pat_rem, word1, word2, word3).
+
+**Fix 2 — BREAKX never registered (`snobol4.c`):**
+`register_fn("BREAK", ...)` existed but `BREAKX` was absent entirely.
+Added `extern pat_breakx`, `_b_PAT_BREAKX` wrapper, `register_fn("BREAKX", ...)`.
++1 test (word4).
+
+**Fix 3 — `"DT_FAIL"` typo → `"FAIL"` (`snobol4.c`):**
+`register_fn("DT_FAIL", _b_PAT_FAIL, 0, 0)` — name was wrong, FAIL was unreachable via APPLY_fn.
++1 test (057_pat_fail_builtin).
+
+**Fix 4 — `E_DEFER` missing (`scrip-interp.c`):**
+`*PAT` star-deref parses to `E_DEFER` node; `interp_eval` had no case for it → fell through.
+Added: `case E_DEFER: return interp_eval(e->children[0]);`
++1 test (056_pat_star_deref).
+
+**Fix 5 — empty replacement hang (`scrip-interp.c`):**
+`LINE ? WPAT =` (no RHS) sets `s->has_eq=1`, `s->replacement=NULL`.
+Old code: `has_repl=0` → `exec_stmt` never wrote back → LINE unchanged → infinite loop.
+Fix: when `s->has_eq && !s->replacement`, pass `has_repl=1` with `NULVCL` so matched portion is deleted.
++2 tests (wordcount, word4 also benefited).
+
+### Baseline for DYN-34
+
+- one4all: `0ba4175`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **158p/20f**
+
+### Remaining failures (20)
+
+- `expr_eval`, `cross` — DEFINE/named-pattern interaction, deep
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+- `095_data_field_set` — DATA field setter
+- `210_indirect_ref`, `212_indirect_array` — `$.var` indirect (child node kind not yet correct)
+- `063_capture_null_replace` — null-replace edge case
+- `1110_array_1d`, `1112_array_multi`, `1114_item`, `1115_data_basic`, `1116_data_overlap` — ARRAY/DATA builtins
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`, `1018_apply` — deep call-stack / NRETURN / OPSYN / EVAL
+
+### DYN-34 first tasks
+
+1. `git pull --rebase` all repos.
+2. SESSION_SETUP.sh `FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad run → confirm 158p baseline.
+5. Debug `210_indirect_ref` — `$.var` child node kind trace.
+6. Debug `095_data_field_set` — DATA field setter dispatch.
+7. Broad → target ≥162p. Gate 142/142.
+8. Commit + push one4all, then update SESSIONS_ARCHIVE + push .github.
