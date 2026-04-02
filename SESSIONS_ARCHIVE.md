@@ -16936,3 +16936,88 @@ Fix: when `s->has_eq && !s->replacement`, pass `has_repl=1` with `NULVCL` so mat
 6. Debug `095_data_field_set` — DATA field setter dispatch.
 7. Broad → target ≥162p. Gate 142/142.
 8. Commit + push one4all, then update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-34 handoff — 2026-04-02
+
+### What was done
+
+**Two bugs fixed in scrip-interp.c (`E_INDR` handler). Broad: 158p → 160p (+2).**
+
+**Fix 1 — `$.var` indirect semantics (`scrip-interp.c` `E_INDR`):**
+Previous sessions had wrong semantics: `$.var` was evaluated as "look up
+the value of `var`, then use that as a variable name." The `.s` oracle
+(emitted x86 asm) proves the correct semantics: `$.var` == `$'var'` —
+use the identifier name `"var"` literally as the string for indirection.
+Both `$'bal'` and `$.bal` call `stmt_get_indirect` with the string `"bal"`.
+Fixes 210_indirect_ref (+1).
+
+**Fix 2 — `$.var<idx>` indirect-then-subscript (`scrip-interp.c` `E_INDR`):**
+`$.a<2>` parses as `E_INDR(E_CAPT_COND(E_IDX(E_VAR"a", 2)))` because
+`parse_expr14` (unary prefix) recurses into itself, so `.a<2>` is parsed
+whole before `$` sees it. The fix: when `E_INDR` child is unary
+`E_CAPT_COND(E_IDX(E_VAR"name", ...))`, resolve `name` via `NV_GET_fn`
+then apply the subscript indices. Fixes 212_indirect_array (+1).
+
+### Key insight on `$.var` semantics
+
+The parse structure `E_INDR(E_CAPT_COND(E_VAR))` was always correct —
+the `.` in `$.var` is parsed as the dot-capture operator applied as a
+unary prefix. But the _evaluation_ of `E_CAPT_COND` in a unary context
+must yield the variable name as a literal string, not the variable's
+runtime value. The oracle `.s` file for 210 confirmed this definitively:
+both `$'bal'` and `$.bal` emit `LOAD_STR S_bal` / `call stmt_get_indirect`,
+not a variable lookup followed by indirection.
+
+### Baseline for DYN-35
+
+- one4all: `107a0ca`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **160p/18f**
+
+### Remaining failures (18)
+
+- `expr_eval`, `cross` — DEFINE/named-pattern interaction, deep
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+- `095_data_field_set` — DATA field setter
+- `1110_array_1d`, `1112_array_multi`, `1114_item`, `1115_data_basic`, `1116_data_overlap` — ARRAY/DATA builtins
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`, `1018_apply` — deep call-stack / NRETURN / OPSYN / EVAL
+
+### DYN-35 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. SESSION_SETUP.sh `FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad run → confirm 160p baseline.
+5. Debug `095_data_field_set` — DATA field setter dispatch. Run:
+   `./scrip-interp /home/claude/corpus/crosscheck/rung3/095_data_field_set.sno 2>&1`
+   vs `.ref`. Likely `_b_DATA` registers the constructor but field-setter
+   functions (`vrsto` path) not wired in interp.
+6. Debug `1110_array_1d` — ARRAY builtin. Run:
+   `./scrip-interp /home/claude/corpus/crosscheck/rung11/1110_array_1d.sno 2>&1`
+   vs `.ref`. Check `_b_ARRAY` registration and `stmt_aref`/`stmt_aset` dispatch.
+7. Broad → target ≥164p. Gate 142/142.
+8. Commit + push one4all, then update SESSIONS_ARCHIVE + push .github.
+
+### SNOBOL4 semantics learned this session (from spitbol-docs-master)
+
+From the Green Book / v37.min source — confirmed against `.s` oracle:
+
+- **`$expr`** — indirect: look up variable whose name is the runtime string
+  value of `expr`. `$'bal'` and `$(expr)` follow this path.
+- **`$.var`** — syntactic sugar: use the identifier `var`'s name literally
+  as the indirection string. Equivalent to `$'var'`, NOT `$(var)`.
+- **`$.var<idx>`** parses as `$(.var<idx>)` — the subscript is inside the
+  dot's operand. Correct evaluation: resolve `var` by name to get array,
+  then subscript. NOT: evaluate `var<idx>` then indirect.
+- **vrblk layout**: `vrget`/`vrsto`/`vrval`/`vrtra`/`vrlbl`/`vrfnc`/`vrnxt`/`vrlen`
+- **Pattern nodes**: p0blk (pcode+pthen), p1blk (+parm1), p2blk (+parm2).
+  `parm2` is non-relocatable (no GC pointer).
+- **ARB** compound: `p$arb` matches null, stacks (cursor, successor, cursor,
+  ndarc ptr); `p$arc` extends by 1 on backtrack.
+- **BAL**: scans balanced parenthesised string, stacks self-ptr for backtrack.
+- **`bal`** is a protected system variable in SPITBOL (error 042 on assign).
+  The corpus test 210 uses `bal` because our scrip-interp doesn't protect it.
