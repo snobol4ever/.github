@@ -16199,3 +16199,84 @@ Key points:
    - Set Σ/Δ/Ω, call each bb_* directly, assert spec_t results
    - Compile twice: vs dyn/*.c, vs dyn_asm/*.s
    - Gate: 25/25 C boxes pass; then 25/25 S boxes match
+
+---
+
+## DYN-23 final handoff — runtime reorg — 2026-04-02
+
+### What was done
+
+**Runtime folder reorg** (`27300c5`) — final clean layout:
+
+```
+src/runtime/
+  boxes/      bb_abort.c  bb_abort.s  (25 pairs, C and S side by side)
+              bb_alt.c    bb_alt.s
+              ... all 25 boxes ...
+              bb_box.h
+  dyn/        stmt_exec.c   eval_code.c   (live engine only)
+  asm/        snobol4_stmt_rt.c  blk_alloc.c  bb_pool.c  bb_emit.c  (unchanged)
+  snobol4/    snobol4.c  snobol4.h  snobol4_pattern.c  (unchanged)
+  archive/    dyn/: bb_dyn_test.c  bb_tab_fence_test.c  rung6_dyn_test.c
+                    rung7_eval_code_test.c  stmt_exec_test.c
+              snobol4/: smoke_deferred.c  smoke_gaps.c  test_snobol4_runtime.c
+  engine/     unchanged
+  mock/       unchanged
+```
+
+Updated paths:
+- `src/runtime/dyn/stmt_exec.c` — `#include "../boxes/bb_box.h"`
+- `test/run_invariants.sh` — DYN → `$RT/boxes`, DYNENG → `$RT/dyn`
+
+Gate: snobol4_x86 **142/142** ✅
+
+### Baseline for DYN-24
+
+- one4all: `27300c5`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-24 first tasks (in order)
+
+1. **Lon reviews `src/runtime/boxes/bb_*.s`** — fix any issues found.
+
+2. **M-DYN-OPT** — wire `expr_is_invariant` + `inv_pats[]` into `emit_program()`:
+
+   Pass 2b — insert after scan_start_N loop, before `/* ---- Pre-scan: compute body_end_idx`:
+   ```c
+   inv_pats_reset();
+   for (STMT_t *sp = prog->head; sp; sp = sp->next) {
+       if (sp->is_end) break;
+       if (!sp->subject || sp->subject->kind != E_VAR) continue;
+       if (sp->pattern) continue;
+       if (!sp->replacement) continue;
+       if (!expr_is_pattern_expr(sp->replacement)) continue;
+       if (!expr_is_invariant(sp->replacement)) continue;
+       if (inv_pat_count >= INV_PATS_MAX) break;
+       InvPat *ip = &inv_pats[inv_pat_count++];
+       snprintf(ip->varname, NAME_LEN, "%s", sp->subject->sval);
+       ip->rhs = sp->replacement;
+   }
+   ```
+
+   Preamble — insert after `A("    PROG_INIT\n");`:
+   ```c
+   if (inv_pat_count > 0) {
+       A("\n    ; M-DYN-OPT: pre-build invariant patterns\n");
+       for (int i = 0; i < inv_pat_count; i++) {
+           const char *vlab = str_intern(inv_pats[i].varname);
+           A("\n    ; pre-build: %s\n", inv_pats[i].varname);
+           emit_pat_to_descr(inv_pats[i].rhs);
+           A("    mov     [rbp-32], rax\n");
+           A("    mov     [rbp-24], rdx\n");
+           A("    SET_VAR     %s\n", vlab);
+       }
+   }
+   ```
+   Gate: snobol4_x86 **142/142**
+
+3. **M-INTERP-A01** — `src/driver/scrip-interp.c` + `src/runtime/boxes/bb_test.c`
+   See MILESTONE-DYN-INTERP.md for full spec.
+   Key path: `boxes/` for include (`-I$RT/boxes`), `dyn/stmt_exec.c` for engine.
+
