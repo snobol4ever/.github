@@ -17272,3 +17272,61 @@ Gate held 142/142 throughout.
 6. Debug `1114_item`: add `fprintf(stderr,"STMT kind=%d sval=%s has_eq=%d\n",s->subject?s->subject->kind:-1,s->subject&&s->subject->sval?s->subject->sval:"?",s->has_eq);` before the `if (s->pattern)` check. Run `1114` test. Confirm subject kind == E_FNC (enum value) and has_eq == 1.
 7. Fix both based on trace. Broad → target ≥167p. Gate 142/142.
 8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-38 handoff — 2026-04-02
+
+### What was done
+
+**ITEM setter + DATA field accessor fixes — +2p broad (164→166).**
+
+Gate held 142/142 throughout.
+
+#### Commits
+
+- one4all `c70fad0` — DYN-38: fix ITEM setter + DATA field accessor; 142/142 gate broad 166p/12f
+- corpus: no change (1116 ref was already correct)
+
+#### Fixes landed
+
+| File | Fix | Result |
+|------|-----|--------|
+| `scrip-interp.c` | Statement-level `E_FNC`+`has_eq`: check `strcasecmp(sval,"ITEM")==0` before falling through to `FIELD_SET_fn`; handles 1D/2D/4D array and TABLE | `1114_item` (7/7) ✅ |
+| `scrip-interp.c` | `E_IDX` bracket-assign: `nchildren==3` → `nchildren>=3` so `ama<2,1,2,1>=val` routes to `subscript_set2` matching `_ITEM_` getter | `1114_item` assertion 006 ✅ |
+| `snobol4.c` | `_make_fget` returns `FAILDESCR` (not `NULVCL`) on wrong-type arg — matches SPITBOL error-041 semantics | `1116_data_overlap` (3/3) ✅ |
+| `snobol4.c` | DATA fields always shadow builtins (guard removed from `_DATA_` loop) — matches SPITBOL/csnobol4 behavior | `094_data_define_access` unblocked ✅ |
+| `snobol4.c` | `fn_has_builtin` hash seed fixed (0→5381, djb2 to match `_func_hash`) — kept for future use but not guarding registration | correctness fix |
+
+#### Investigation notes (SPITBOL -F vs -f)
+
+- SPITBOL `-F` (default, case-fold): `DATA('clunk(value,lson)')` succeeds; `INTEGER`/`SIZE` field names trigger error 248.
+- SPITBOL `-f` (case-sensitive): END recognition broken in temp-file tests; not fully characterized.
+- SPITBOL oracle for 1116: errors at stmt 12 with error 041 (stdout empty). Our interp reaches PASS via FAILDESCR path. Ref stays `PASS 1116_data_overlap (3/3)` (csnobol4 oracle baseline from session122).
+- csnobol4 2.3.3 is the corpus ref generator for rung09–rung11; SPITBOL is the oracle for x86 invariants only.
+
+#### Remaining failures (12)
+
+- `212_indirect_array` — indirect array subscript
+- `expr_eval`, `cross` — DEFINE/named-pattern deep interaction
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval` — deep call-stack / NRETURN / OPSYN / EVAL
+
+### Baseline for DYN-39
+
+- one4all: `c70fad0`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **166p/12f**
+
+### DYN-39 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad → confirm 166p/12f baseline.
+5. Fix `212_indirect_array`: run `./scrip-interp corpus/crosscheck/rung02/212_indirect_array.sno 2>&1` vs `.ref`. Likely `$.var<idx>` — the `E_IDX` child under `E_INDIRECT`; check `interp_eval E_INDIRECT` branch for `inner->kind == E_IDX`.
+6. Fix `1010_func_recursion`: add `fprintf(stderr,"DEFINE call: spec=%s\n", spec)` in `_DEFINE_` handler; run test; confirm DEFINE spec is parsed; then trace recursion depth.
+7. Broad → target ≥167p. Gate 142/142.
+8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
