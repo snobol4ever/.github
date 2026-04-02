@@ -4,6 +4,28 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ---
 
+## ⛔ LIVE DOC UPDATE — any clarification must be written immediately
+
+Claude has no memory between sessions. HQ MD files ARE the memory.
+
+**Rule:** Whenever the human corrects a wrong assumption, clarifies the architecture,
+or changes a design decision — update the appropriate doc IMMEDIATELY, before
+continuing. Do not defer to handoff. Do not just "note it."
+
+| What changed | Where it goes |
+|---|---|
+| Architecture / design insight | `ARCH-byrd-dynamic.md` or relevant `ARCH-*.md` |
+| Wrong assumption corrected | Same ARCH doc, clearly marked |
+| Process / gate / rule change | `RULES.md` (here) |
+| NOW table / sprint / milestone | `PLAN.md` |
+| Session-specific finding | `SESSIONS_ARCHIVE.md` handoff |
+
+**Trigger:** Human says "X is wrong" or "it works like Y" or "change X to Y"
+→ Claude updates the doc → then continues.
+Not at handoff. Not summarized. In the right place, right now.
+
+---
+
 ## ⛔ TWO SCRIPTS — SESSION_SETUP.sh then test scripts, every session, no exceptions
 
 **Setup (once per fresh environment) — ALWAYS pass FRONTEND and BACKEND:**

@@ -1308,3 +1308,51 @@ This requires touching `parse.c`, `emit_x64.c`, and `snobol4_stmt_rt.c`
 simultaneously, plus a new rung of corpus tests. It is a correctness fix for
 an edge case (variable holding DT_P in juxtaposition) that does not affect
 the 142/142 gate tests currently. Schedule after M-DYN-S1 fires.
+
+---
+
+## Anonymous Inline Pattern Constants — Not "Named Patterns" (DYN-19 cont3, 2026-04-01)
+
+### Wrong framing retired
+
+The concept of "named patterns" — registering `PAT` by name, compiling to a
+`P_PAT_α` trampoline — is an artifact of the old static-first path. It is wrong.
+
+### Correct model
+
+A deterministic pattern sequence (all components invariant: no variable reads,
+no function calls, just literals and constructors) is an **anonymous compile-time
+constant** — exactly like a string literal in `.data`. It has no user-visible name.
+
+- Anonymous label for assembler bookkeeping only (e.g. `_pat_42`)
+- Flat three-column NASM — one sequence of α/β/γ/ω labels in one scope
+- Wired by direct `jmp`, not `call/ret` between sub-boxes
+- Sub-boxes inlined flat — no nested procs per box
+- The scope boundary is the pattern constant boundary, not the box boundary
+
+### The optimizer sequence
+
+1. **M-DYN-S1**: everything through `stmt_exec_dyn`. Patterns built at runtime
+   as C struct graphs (`bb_node_t` chains). Correct baseline. 142/142.
+2. **M-DYN-OPT**: invariance detection. Provably deterministic patterns pre-built
+   at load time as C struct graphs (built once, not per-execution).
+3. **M-DYN-B1+**: binary emission. Invariant patterns emitted as flat anonymous
+   x86 sequences into bb_pool. Three-column layout. Anonymous labels. Like literals.
+
+`P_PAT_α` named trampolines do not come back. What comes back is anonymous flat
+inline sequences — a different thing, correct by construction, generated from
+`emit_pat_to_descr` in EMIT_BINARY mode after the dynamic path is proven.
+
+---
+
+## One Path — stmt_exec_dyn (DYN-19 cont3, 2026-04-01)
+
+There is one execution path for pattern matching: **`stmt_exec_dyn`**.
+
+The static inline NASM Byrd box path (`emit_pat_node`, named-pattern trampolines,
+scan loops in the emitter) is dead code during the M-DYN-S1 migration. It will
+return only as an optimizer output — anonymous, flat, correct — not as a competing
+first-class path.
+
+Any code in `emit_x64.c` that routes around `stmt_exec_dyn` is wrong.
+Any code that suppresses the runtime building of a DT_P value is wrong.
