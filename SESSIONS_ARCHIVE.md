@@ -17618,3 +17618,79 @@ restores it on the failure path — capture writes fall inside that window.
 6. Fix. Crosscheck → 80/80. `dotnet test` → ≥1911/1913. Commit M-NET-P35-FIX.
 7. Update SESSIONS_ARCHIVE + push .github.
 
+
+---
+
+## SJ-5 handoff — 2026-04-02
+
+### Session: SNOBOL4 × JavaScript (SJ-5)
+
+**Baseline confirmed:**
+- one4all: `4735571`
+- corpus: `2f2bbe3` (unchanged)
+- .github: `80e5424` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+- snobol4_js: **51p/69f** (unchanged — no regression work this session)
+- emit-diff: **1548p/84f**
+
+### What was done this session
+
+**Primary deliverable: bb_boxes.js + bb_boxes.wat**
+
+Both files committed at `4735571`. Direct port of all 27 `src/runtime/boxes/bb_*.c` boxes.
+
+`src/runtime/js/bb_boxes.js`:
+- All 27 boxes as `{α, β}` factory functions closing over module-level `_Σ/_Δ/_Ω`.
+- Primitive boxes (lit, any, notany, len, pos, rpos, tab, rtab, rem, span, brk, breakx, arb, fence, fail, succeed, abort, eps, atp): **complete**.
+- Composite boxes (seq, alt, arbno, capture, dvar, not, interr): **complete** — JS closures make recursion natural, no dispatch table needed.
+- bb_bal: **stub** (M-DYN-BAL pending — matches bb_bal.c).
+- Exports: `bb_set_subject`, `bb_reset_captures`, `bb_get_pending`, `bb_reset_abort`, `bb_aborted`, all 27 box factories.
+
+`src/runtime/wasm/bb_boxes.wat`:
+- All primitive boxes as `$bb_NAME_new` / `$bb_NAME_a` / `$bb_NAME_b` export triples.
+- Arena allocator: 32-byte slots at `BOX_ARENA_BASE=0x50000`.
+- Capture list at `0x70000`; ATP writes entries directly.
+- Composite boxes (`seq`, `alt`, `arbno`, `not`, `interr`, `capture`, `dvar`): `_new` allocators exported; `_a/_b` bodies must go in `sno_engine.wat` (require function-table dispatch to recurse into children).
+- bb_bal: stub.
+
+**Also investigated (not committed):**
+- Diagnosed `emit_js.c` save/restore asymmetry in `bb_any`/`bb_notany`: PROCEED emits `_saved%d = _cur%d` (undeclared bare variable) but CONCEDE reads `_saved[%d]` (array slot). Fix: change both to `_saved[%d]`. Lines 397 and 412 in `emit_js.c`. **Not yet applied** — left for SJ-6.
+
+### SJ-6 first actions (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=js` + gate 142/142.
+3. **Fix emit_js.c save/restore bug** (lines 397, 412):
+   ```c
+   /* ANY PROCEED — line 397 */
+   J("        _saved[%d] = _cur%d; _cur%d++;\n", uid, uid_stmt, uid_stmt);
+   /* NOTANY PROCEED — line 412 */
+   J("        _saved[%d] = _cur%d; _cur%d++;\n", uid, uid_stmt, uid_stmt);
+   ```
+   Also check line 313 (ARB CONCEDE): `_saved%d++; _cur%d = _saved%d` → `_saved[%d]++; _cur%d = _saved[%d]`.
+   Rebuild scrip-cc. Run `039_pat_any` test — expect "e" not "no vowel".
+4. Run `snobol4_js` invariants — expect significant improvement in pattern tests (039–056).
+5. **Wire `bb_boxes.js` into `sno_engine.js`**: replace inline box logic with `require('./bb_boxes.js')` factories. `exec_stmt` Phase 2 calls `build_pattern(pat)` which calls the bb_* factories.
+6. Implement `build_pattern(pat)` in `sno_engine.js` using bb_boxes.js — dispatcher over IR node types:
+   - `E_QLIT` → `bb_lit(s)`
+   - `E_ANY` → `bb_any(chars)`
+   - `E_NOTANY` → `bb_notany(chars)`
+   - `E_SEQ` → `bb_seq(build_pattern(left), build_pattern(right))`
+   - `E_ALT` → `bb_alt([build_pattern(c) for c in children])`
+   - `E_ARB` → `bb_arb()`
+   - `E_ARBNO` → `bb_arbno(build_pattern(body))`
+   - `E_SPAN/E_BREAK/E_BREAKX` → `bb_span/bb_brk/bb_breakx(chars)`
+   - `E_LEN/E_POS/E_RPOS/E_TAB/E_RTAB/E_REM` → corresponding factories
+   - `E_FENCE/E_FAIL/E_SUCCEED/E_ABORT` → corresponding factories
+   - `E_CAPT_COND` → `bb_capture(child, varname, false, _vars)`
+   - `E_CAPT_IMM` → `bb_capture(child, varname, true, _vars)`
+   - `E_CAPT_CUR` → `bb_atp(varname, _vars)`
+   - `E_DVAR` → `bb_dvar(name, _vars, build_pattern)`
+7. Phase 3 scan loop using bb boxes: for each cursor position 0..Ω, call `root.α()`; on success → Phase 5; on fail → try next position (unless `&ANCHOR`).
+8. Target: `snobol4_js` ≥ 80p (patterns 039–056 + captures 058–063 should now pass).
+9. Gate 142/142. Commit M-SJ-B01 (or M-SJ-A03+B01 if Phase 1+5 also cleaned up).
+
+### Architecture note for SJ-6
+
+`bb_boxes.js` is the **dynamic path** foundation. The static emitter (`emit_js.c`) emits hardwired `switch(_pc)` dispatch — that's a separate (faster) path for statically-known patterns. Both paths must be correct. The dynamic path (`sno_engine.js` + `bb_boxes.js`) is what powers EVAL/CODE and pattern variables at runtime. Fix emit_js.c first (step 3 above) to unblock static tests, then wire dynamic path (step 5–7) to unblock pattern-variable and ARBNO tests.
+
