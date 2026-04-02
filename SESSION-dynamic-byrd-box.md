@@ -32,19 +32,32 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-29
+## §NOW — DYN-42
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-29 | one4all `eb273e1` · .github `4df1169` · corpus `d5058ef` | **DYN-30**: debug word*/cross/$.var · fix REM/capture/rung11-ARRAY · target ≥130p broad |
+| **DYNAMIC BYRD BOX** | DYN-42 | one4all `fbc75dd` · corpus `2f2bbe3` | **M-INTERP-A05**: fix 9 remaining failures → ≥175p broad · 142/142 gate |
+
+**Broad baseline: 169p/9f**
+
+Remaining failures: `1013/003` (NRETURN lvalue-assign) · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
+
+**DYN-42 first actions:**
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (build command below).
+4. Broad → confirm 169p/9f baseline.
+5. Fix `1013/003` — Option A: `skip_ws(lx)` in `parse_expr17` after consuming IDENT, before `T_LPAREN`. Rebuild, run test vs ref → PASS (3/3). Gate + broad → no regression.
+6. Fix `1015_opsyn` — run vs ref, trace.
+7. Target ≥175p. Gate 142/142. Commit + push. Update SESSIONS_ARCHIVE + push .github.
 
 ## scrip-interp build command
 
 ```bash
 cd /home/claude/one4all
-ROOT=$(pwd); RT="$ROOT/src/runtime"; DYN="$RT/boxes"; DYNENG="$RT/dyn"
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; DYN="$RT/dyn"
 SCRIP_CC_INC="$ROOT/src"
-DYNFLAGS="-I$DYN -I$RT/snobol4 -I$RT -I$SCRIP_CC_INC -DDYN_ENGINE_LINKED"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$SCRIP_CC_INC -DDYN_ENGINE_LINKED"
 
 mkdir -p /tmp/ib
 gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/snobol4.o
@@ -52,29 +65,25 @@ gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_
 gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/mock_eng.o
 gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib/stmt_rt.o
 gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib/x86_stubs.o
-for f in bb_lit bb_alt bb_seq bb_arbno bb_pos bb_rpos bb_tab bb_rtab bb_fence bb_abort \
-          bb_len bb_span bb_any bb_notany bb_brk bb_breakx bb_arb bb_rem bb_succeed bb_fail bb_eps bb_bal; do
-  gcc -O2 -c "$DYN/${f}.c" $DYNFLAGS -w -o /tmp/ib/${f}.o
+# Boxes now live in per-box subdirs: src/runtime/boxes/<name>/bb_<name>.c
+for box in lit alt seq arbno pos rpos tab rtab fence abort \
+           len span any notany brk breakx arb rem succeed fail eps bal \
+           atp capture dvar not interr; do
+  f="$BOXES/$box/bb_${box}.c"
+  [ -f "$f" ] && gcc -O2 -c "$f" $DYNFLAGS -w -o "/tmp/ib/bb_${box}.o"
 done
-gcc -O2 -c "$DYNENG/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
-gcc -O2 -c "$DYNENG/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
+gcc -O2 -c "$DYN/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
+gcc -O2 -c "$DYN/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
 
-gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$RT/boxes" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
     src/driver/scrip-interp.c \
     src/frontend/snobol4/lex.o src/frontend/snobol4/parse.o \
     /tmp/ib/*.o -lgc -lm -o scrip-interp
 ```
 
-## DYN-30 first tasks (in order)
+*(Box paths updated for SJ-5 reorg — one subfolder per box under `src/runtime/boxes/`.)*
 
-1. **Build scrip-interp** — use build command above. Baseline one4all `eb273e1`.
-2. **Run gate** — `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → must be 142/142.
-3. **Run broad** — inline runner in SESSIONS_ARCHIVE.md §DYN-29. Expect 120p/25f.
-4. **Debug strings/word1** — `./scrip-interp corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input 2>&1` vs `.ref` — isolate `&TRIM`/`INPUT`/pattern issue.
-5. **Debug rung2/210 `$.var`** — printf in `interp_eval` E_INDR: print `e->children[0]->kind`. Likely `E_FIELD` or different parser node.
-6. **Fix rung11 ARRAY/DATA** — `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` vs `.ref`; check `_b_ARRAY` arg passing.
-7. **Fix patterns/048 REM** — add `E_REM` case in `interp_eval` → `pat_rem()`.
-8. **Broad re-run** → target ≥130p. **Gate**: snobol4_x86 142/142.
+
 
 ## Known open issues
 
