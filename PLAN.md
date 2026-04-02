@@ -13,13 +13,11 @@ FRONTEND=x BACKEND=y TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
 See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 
-**Step 2 — Gate:**
+**Step 2 — Gate (snobol4_x86 runtime only — emit-diff retired):**
 ```bash
 cd /home/claude/one4all
-CELLS=<your_cells> CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # own backend only — see RULES.md
-CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>         # own backend only — see RULES.md
-# CELLS mirrors cell names: snobol4_x86, snobol4_jvm, icon_x86, prolog_x86, etc.
-# Omit CELLS for cross-session full check (all 1286). DYN/x86: CELLS=snobol4_x86 → 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# Target: 142/142. Currently: 137p/5f (word1-4, cross). All other sessions FROZEN.
 ```
 
 **Step 3 — Read in order:**
@@ -68,7 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 
 **Invariants (DYN-13 baseline): x86: SNOBOL4 `142/142` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
-**Gate:** Emit-diff **179/0** (CELLS=snobol4_x86). Targeted invariants per RULES.md gate section.
+**Gate:** Runtime invariants only — `snobol4_x86`. Emit-diff retired until post M-DYN-S1.
 
 ---
 
