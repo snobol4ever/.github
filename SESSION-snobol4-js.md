@@ -41,21 +41,55 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js
 
 | File | Role |
 |------|------|
-| `src/backend/emit_js.c` | JS emitter — main work file (to create) |
-| `src/runtime/js/sno_runtime.js` | JS runtime stub (to create) |
-| `test/js/run_js.js` | Node runner shim (to create) |
+| `src/backend/emit_js.c` | JS emitter — main work file |
+| `src/runtime/js/sno_engine.js` | **5-phase executor** (port of `stmt_exec.c`) |
+| `src/runtime/js/sno_runtime.js` | Value types, builtins, I/O |
+| `test/js/run_js.js` | Node runner shim |
 | `src/backend/c/emit_byrd_c.c` | **Oracle** — copy EKind switch, adapt syntax |
 | `src/backend/c/trampoline.h` | **Oracle** — trampoline model |
+| `src/runtime/dyn/stmt_exec.c` | **Oracle** — 5-phase executor (sno_engine.js model) |
 
 ---
 
-## §ORACLE READ ORDER (before writing any code)
+## §ORACLE READ ORDER (before writing any pattern code)
 
 ```bash
-cat src/backend/c/trampoline.h              # trampoline engine
-sed -n '1,100p' src/backend/c/emit_byrd_c.c # output macro, uid counter
+cat src/backend/c/trampoline.h                       # trampoline engine
+sed -n '1,50p' src/runtime/dyn/stmt_exec.c           # 5-phase spec header
+sed -n '1,100p' src/backend/c/emit_byrd_c.c          # output macro, uid counter
 grep -n "^static void emit_\|case E_" src/backend/c/emit_byrd_c.c | head -40
 ```
+
+The two oracles are complementary:
+- `stmt_exec.c` → oracle for `sno_engine.js` (runtime executor, 5-phase logic)
+- `emit_byrd_c.c` → oracle for `emit_js.c` (emitter, EKind switch)
+
+---
+
+## §5-PHASE EXECUTOR (the architectural spine)
+
+Every SNOBOL4 pattern-match statement is:
+```
+Phase 1: build_subject  — resolve subject variable or evaluate expression
+Phase 2: build_pattern  — pattern AST → {α, β} JS Byrd box graph
+Phase 3: run_match      — drive root.α() via trampoline, collect captures
+Phase 4: build_repl     — replacement expression already evaluated
+Phase 5: perform_repl   — splice into subject, assign, :S/:F branch
+```
+
+`sno_engine.js` exports:
+```js
+function exec_stmt(subj_name, subj_val, pat, repl, has_repl) {
+    // Phase 1: resolve subject
+    // Phase 2: build_pattern(pat) → {α, β} root box
+    // Phase 3: scan loop + trampoline
+    // Phase 4: repl already in hand
+    // Phase 5: splice + assign + return 1/:S or 0/:F
+}
+```
+
+For pattern-free statements, Phases 2+3 are skipped and Phase 5 is just
+a variable assignment. The executor handles both paths.
 
 ---
 
@@ -70,7 +104,6 @@ const PROCEED = 0, SUCCEED = 1, CONCEDE = 2, RECEDE = 3;
 // uid from next_uid() — same counter as x64/C emitters
 ```
 
-**Oracle:** `src/runtime/engine/engine.c` — `t << 2 | a` dispatch.
 **Do NOT use string case labels** — integer switch → JS JIT jump table.
 
 emitted shape:
@@ -94,15 +127,19 @@ const _vars = new Proxy({}, {
 });
 ```
 
-## §NOW — SJ-4
+## §NOW — SJ-4 → SJ-5
 
 **HEAD:** one4all `4b5e682`
-**Next milestone: M-SJ-A03** (still in progress)
+**Next milestone: M-SJ-A03**
 
-M-SJ-A01 + M-SJ-A02 + block-grouping rewrite (SJ-3) done.
-Emit-diff 1286/0. Node v22 IIFE bug is the only blocker.
+**Architecture pivot (SJ-4):** Milestones reorganized around the 5-phase
+executor model from `stmt_exec.c`.  `sno_engine.js` is the new key file —
+a direct JS port of the x86 5-phase executor.  See MILESTONE-JS-SNOBOL4.md.
 
-First actions (mandatory order):
+Current state: M-SJ-A01 + M-SJ-A02 + block-grouping rewrite (SJ-3) done.
+Emit-diff 1286/0. Node v22 IIFE bug is the only blocker for M-SJ-A03.
+
+**SJ-5 first actions (mandatory order):**
 1. `git log --oneline -3`  # confirm 4b5e682
 2. `CORPUS=/home/claude/corpus bash test/run_emit_check.sh`  # expect 1286/0
 3. **Fix Node v22 var/IIFE bug** in `js_emit()` forward-decl section:
@@ -114,10 +151,12 @@ First actions (mandatory order):
 5. Fix `remdr` missing in sno_runtime.js
 6. Fix float format: `1.` → `1` in `_to_str()`
 7. Fix n-ary SEQ: right-fold children in js_emit_pat()
-8. Fix ARBNO zero-advance guard (see ARCH-spipat-js.md)
-9. Wire `run_snobol4_js()` into `run_invariants.sh`
-10. Gate: emit-diff 1286/0, first snobol4_js invariants green → commit M-SJ-A03
+8. Wire `run_snobol4_js()` into `run_invariants.sh`
+9. Gate: emit-diff 1286/0, first snobol4_js invariants green → commit M-SJ-A03
+10. **Begin `sno_engine.js` Phase 5 stub** (no-pattern path: var assign + :S/:F)
+    Oracle: `stmt_exec.c` lines 877–end (Phase 5 `perform_repl`)
 
 ---
 
-*SESSION-snobol4-js.md — updated SJ-3 final, 2026-04-01, Claude Sonnet 4.6.*
+*SESSION-snobol4-js.md — updated SJ-4 pivot, 2026-04-02, Claude Sonnet 4.6.*
+*Added 5-phase executor spine. sno_engine.js is now the architectural center.*
