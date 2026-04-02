@@ -16056,3 +16056,85 @@ terse names, Greek-letter field names, and invented names. Additionally,
 ### DYN-23 first task — M-DYN-OPT
 
 Same as DYN-22 plan. Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` before coding.
+
+---
+
+## DYN-23 session-start — 2026-04-02
+
+### What was done this session
+
+**bb_*.s x86-64 box set** (`3a1ee0a`)
+
+Generated 25 NASM files in `src/runtime/dyn/asm/`, one per `bb_*.c`:
+
+  bb_lit bb_eps bb_fail bb_succeed bb_abort bb_rem
+  bb_pos bb_rpos bb_len bb_tab bb_rtab bb_fence
+  bb_any bb_notany bb_span bb_brk bb_breakx bb_arb
+  bb_seq bb_alt bb_arbno bb_atp bb_bal bb_capture bb_dvar
+
+All 25 assemble clean (`nasm -f elf64`).
+
+**Design:**
+- Pure three-column layout — LABEL: ACTION GOTO — matching bb_*.c exactly
+- Same field names, same struct offsets (verified via abi_check)
+- `spec_t` ABI: `rax=σ` (ptr), `rdx=δ` (int, low 32 bits); `spec_empty` = `rax=0, rdx=0`
+- entry: `esi=0` → α, `esi=1` → β. No macros. No PROG_INIT.
+- `bb_dvar.s` has `extern bb_build` matching bb_dvar.c — static linkage note applies
+- `bb_arbno.s` uses `%macro FRAME_PTR` purely as a local offset computation helper
+
+**emit_x64.c scaffolding** (no logic wired yet):
+- `expr_is_invariant()` — recursive predicate: 0 if any E_VAR/E_DEFER/capture node
+- `inv_pats[]` static array + `inv_pats_reset()` — for M-DYN-OPT Pass 2b
+
+**Gate: snobol4_x86 142/142 ✅**
+
+### Baseline for DYN-24
+
+- one4all: `3a1ee0a`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-24 first task — Lon review of bb_*.s, then M-DYN-OPT
+
+**Step 1:** Lon reviews `src/runtime/dyn/asm/bb_*.s` files. Fix any issues found.
+
+**Step 2 (M-DYN-OPT):** Wire Pass 2b + preamble into `emit_program()`:
+
+Pass 2b — after scan_start_N loop (~line 4713), before Pre-scan body_end_idx:
+```c
+inv_pats_reset();
+for (STMT_t *sp = prog->head; sp; sp = sp->next) {
+    if (sp->is_end) break;
+    if (!sp->subject || sp->subject->kind != E_VAR) continue;
+    if (sp->pattern) continue;
+    if (!sp->replacement) continue;
+    if (!expr_is_pattern_expr(sp->replacement)) continue;
+    if (!expr_is_invariant(sp->replacement)) continue;
+    if (inv_pat_count >= INV_PATS_MAX) break;
+    InvPat *ip = &inv_pats[inv_pat_count++];
+    snprintf(ip->varname, NAME_LEN, "%s", sp->subject->sval);
+    ip->rhs = sp->replacement;
+}
+```
+
+Preamble emission — after `A("    PROG_INIT\n");` (~line 4907):
+```c
+if (inv_pat_count > 0) {
+    A("\n    ; M-DYN-OPT: pre-build invariant patterns\n");
+    for (int i = 0; i < inv_pat_count; i++) {
+        const char *vlab = str_intern(inv_pats[i].varname);
+        A("\n    ; pre-build: %s\n", inv_pats[i].varname);
+        emit_pat_to_descr(inv_pats[i].rhs);  /* → rax=type rdx=ptr */
+        A("    mov     [rbp-32], rax\n");
+        A("    mov     [rbp-24], rdx\n");
+        A("    SET_VAR     %s\n", vlab);
+    }
+}
+```
+
+NOTE: SET_VAR calls stmt_set → NV_SET_fn. This is correct — SNOBOL4 variables
+live in the NV runtime table, not directly in .bss slots. The .bss label is only
+a string constant used as the key. PROG_INIT has already run so rbp frame is valid.
+
+**Gate:** snobol4_x86 **142/142** (no regression).
