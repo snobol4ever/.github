@@ -68,11 +68,11 @@ CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --updat
 cd /home/claude/corpus && git add -A && git commit -m "regen: DYN-20 post M-DYN-S1 artifacts" && git push
 ```
 
-## §NOW — DYN-25 (updated)
+## §NOW — DYN-26
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-25 | one4all `200543f` · .github (this) | **M-INTERP-A02**: wire E_CAPT_*/E_ALT in interp_eval → pat_* constructors → 60p pattern tests |
+| **DYNAMIC BYRD BOX** | DYN-26 | one4all `61639ca` · .github (this) | **M-INTERP-A03**: wire DEFINE/call-stack → fix 083–090 cluster → broad ≥85p |
 
 ## scrip-interp build command (M-INTERP-A01 baseline)
 
