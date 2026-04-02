@@ -34,13 +34,19 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 ---
 
-## §NOW — J-217
+## §NOW — J-217 → J-218
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-217 | one4all `a74ccd8` | **M-JVM-A02**: 2D subscript fix + rung8 strings → ≥100p |
+| **TINY JVM** | J-218 | one4all `7c35456` | **M-JVM-A02**: 2D subscript fix + rung8 strings → ≥100p |
 
-**J-217 first actions (mandatory order):**
+**J-217 landed (this session):**
+- `src/runtime/boxes/bb_*.java` — 29 Java files: all 25 Byrd boxes + `bb_box.java` + `bb_executor.java`
+- Side-by-side with `bb_lit.c`/`.s`/`.cs` — snake_case, same name, same directory
+- `bb_bal.java` is first real BAL (C original is a stub)
+- Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
+
+**J-218 first actions (mandatory order):**
 
 ```bash
 cd /home/claude/one4all && git pull --rebase
