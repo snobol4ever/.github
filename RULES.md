@@ -16,6 +16,18 @@ Not at handoff. Rewrite/consolidate the relevant section. Do not append.
 misled without the update. Passing remarks, tactical decisions, session-specific
 findings → SESSIONS_ARCHIVE handoff only.
 
+**ARCH doc size limit — 20KB hard cap per file.**
+ARCH docs are read in full during session start. Every KB added is context burned.
+- Consolidate: if adding a new section, remove or compress an older one that is now settled.
+- Do NOT append brainstorm sections that were useful when being worked out but are now resolved.
+- Resolved design questions → one-line summary in the relevant section, not a new section.
+- If an ARCH doc exceeds 20KB, trim it before the next handoff. `wc -c ARCH-*.md` at handoff.
+- `ARCH-byrd-dynamic.md` is currently over-limit (58KB). DYN-20 must trim it to ≤20KB.
+
+**SESSION doc is the context budget:**
+Each session type must have a `SESSION-*.md` that is ≤2KB and replaces full ARCH reads.
+The SESSION doc says which ARCH sections to grep for which tasks — not cat the whole file.
+
 | What changed | Where it goes |
 |---|---|
 | Architecture / design insight corrected | Rewrite relevant section in `ARCH-*.md` |

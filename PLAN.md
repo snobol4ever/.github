@@ -33,6 +33,12 @@ Then read your SESSION-*.md (see Routing table below).
 cat /home/claude/.github/SESSION-snocone-x64.md
 ```
 
+**Dynamic Byrd Box additionally read:**
+```
+cat /home/claude/.github/SESSION-dynamic-byrd-box.md
+# Do NOT cat ARCH-byrd-dynamic.md in full — grep only the section you need
+```
+
 ---
 
 ## 9 Repos under github.com/snobol4ever
@@ -55,7 +61,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-17 cont2 ✅ | one4all `ab5b3b7` · .github `7bbfade` | **DYN-18**: fix 8 remaining → 142/142 → M-DYN-S1. (1) E_CAPT_CUR: add to emit_pat_to_descr via _XATP — fixes cross ASM_FAIL + W07 cursor=0. (2) capture_null_replace: Phase 5 null repl path. (3) word*/wordcount follow. See SESSIONS_ARCHIVE DYN-17 cont2 handoff. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-20 | one4all `a31f6c2` · .github `705949b` · corpus `77f476c` | **M-DYN-S1**: fix emit_x64.c VAR=pat-expr → 142/142. See SESSION-dynamic-byrd-box.md. |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
