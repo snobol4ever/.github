@@ -17709,3 +17709,87 @@ trampoline and triggers Phase 5 capture commit.
 4. `dotnet test` → confirm no regressions.
 5. Add sentinel printouts to trace @N clobber (M-NET-P35-FIX).
 6. Fix @N. Crosscheck → 80/80. Commit.
+
+---
+## J-217 handoff — 2026-04-02
+
+### What was done
+
+**25 Byrd box Java classes + BbExecutor written; one4all `d52fcbc`.**
+
+#### Commits (one4all)
+
+- `d52fcbc` — J-217: src/runtime/jvm/ — 25 Byrd boxes + BbExecutor; Java ports of bb_*.c; clean compile
+
+#### New files: `src/runtime/jvm/`
+
+| File | Box | C oracle |
+|------|-----|----------|
+| `BbBox.java` | Base class, `Spec`, `MatchState` | `bb_box.h` |
+| `BbLit.java` | LIT literal match | `bb_lit.c` |
+| `BbSeq.java` | SEQ concatenation, full β wiring | `bb_seq.c` |
+| `BbAlt.java` | ALT alternation, cursor-save | `bb_alt.c` |
+| `BbAny.java` | ANY one char in set | `bb_any.c` |
+| `BbNotany.java` | NOTANY one char not in set | `bb_notany.c` |
+| `BbSpan.java` | SPAN longest prefix in set (≥1) | `bb_span.c` |
+| `BbBrk.java` | BRK scan to first in set | `bb_brk.c` |
+| `BbBreakx.java` | BREAKX BRK but fails on zero advance | `bb_breakx.c` |
+| `BbArb.java` | ARB lazy 0..n, β extends +1 | `bb_arb.c` |
+| `BbArbno.java` | ARBNO greedy, β unwinds 64-frame stack | `bb_arbno.c` |
+| `BbLen.java` | LEN exactly n chars | `bb_len.c` |
+| `BbPos.java` | POS assert cursor==n | `bb_pos.c` |
+| `BbRpos.java` | RPOS assert cursor==Ω-n | `bb_rpos.c` |
+| `BbTab.java` | TAB advance to absolute position n | `bb_tab.c` |
+| `BbRtab.java` | RTAB advance to Ω-n | `bb_rtab.c` |
+| `BbRem.java` | REM match entire remainder | `bb_rem.c` |
+| `BbFence.java` | FENCE succeed once; β cuts | `bb_fence.c` |
+| `BbFail.java` | FAIL always ω | `bb_fail.c` |
+| `BbSucceed.java` | SUCCEED always γ zero-width | `bb_succeed.c` |
+| `BbAbort.java` | ABORT throws AbortException | `bb_abort.c` |
+| `BbEps.java` | EPS zero-width once (done-flag) | `bb_eps.c` |
+| `BbCapture.java` | CAPTURE `.var` deferred / `$var` immediate | `bb_capture.c` |
+| `BbAtp.java` | ATP `@var` cursor int write | `bb_atp.c` |
+| `BbDvar.java` | DVAR `*VAR` re-resolve on every α | `bb_dvar.c` |
+| `BbInterr.java` | INTERR `?X` succeed zero-width if X succeeds | `bb_interr.c` |
+| `BbNot.java` | NOT `\X` succeed iff X fails | `bb_not.c` |
+| `BbBal.java` | BAL balanced parens | (spec-derived) |
+| `BbExecutor.java` | 5-phase scan loop driver | `stmt_exec.c` |
+
+All 29 files compile clean (`javac *.java` zero errors).
+
+Package: `snobol4.runtime.boxes`
+
+#### Design decisions
+
+- `MatchState` holds `sigma`/`delta`/`omega` as plain fields (no global statics)
+- `null` return = ω (failure); `Spec(start, len)` = γ (success)
+- `BbCapture.commitPending()` called by `BbExecutor` after overall match success
+- `BbAbort` throws `AbortException` (caught by `BbExecutor.exec()`)
+- `BbDvar.BoxResolver` callback decouples variable lookup from box internals
+- `BbCapture.VarSetter` / `BbAtp.IntSetter` callbacks decouple NV_SET from boxes
+
+### Baseline
+
+- one4all: `d52fcbc` (J-217 JVM boxes)
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f** (unchanged)
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos (including snobol4jvm clone).
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. Read `MILESTONE-JVM-SNOBOL4.md` in full.
+4. **Review** `src/runtime/jvm/Bb*.java` — Lon to inspect for correctness,
+   especially `BbSeq` β wiring and `BbArbno` frame stack.
+5. **Wire the boxes into `emit_jvm.c`**: replace the current ad-hoc
+   `emit_jvm_pat_node()` calls with a `BbBuilder` that instantiates the
+   correct Java box class for each IR node (E_QLIT→BbLit, E_SEQ→BbSeq, etc.).
+   The emitter calls `new BbLit(ms, "foo")` at pattern-build time (Phase 2);
+   `BbExecutor.exec()` drives Phase 3.
+6. Alternatively: use the Java boxes as a **test harness** — run the corpus
+   `.sno` patterns through the Java boxes directly (no Jasmin needed) to
+   validate box semantics before wiring into the emitter.
+7. Fix M-JVM-A02: 2D subscript E_IDX write path (lines ~2658-2700 emit_jvm.c).
+8. Invariants → ≥100p target. Gate 142/142.
+9. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
