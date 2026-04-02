@@ -14,14 +14,23 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 
 **⛔ Never omit FRONTEND= and BACKEND=.** Omitting them installs everything (bison, flex, java, mono, swipl, icont, spitbol) — wastes 5–15 min and signals the wrong mental model. The correct switches for each session are in that session's §START block.
 
-**Gate (every session after setup) — emit-diff first, then YOUR backend's invariant cells only:**
+**Gate (every session after setup) — runtime invariants ONLY, snobol4_x86 only:**
 ```bash
 cd /home/claude/one4all
-CELLS=<your_cells> CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # own backend only
-CORPUS=/home/claude/corpus bash test/run_invariants.sh <your_cells>
-# CELLS matches cell names (snobol4_x86, snobol4_jvm, icon_x86, prolog_x86, …)
-# Omit CELLS to run all-backend emit-diff (cross-session full check)
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
 ```
+
+**⛔ emit-diff (run_emit_check.sh) is RETIRED for all sessions until M-DYN-S1 is complete.**
+The emitter is mid-migration to 5-phase `stmt_exec_dyn`. Static inline NASM Byrd box
+bodies, named-pattern trampolines, and scan loops are dead code being removed.
+Emit-diff pins artifacts of the wrong architecture. Do not run it. Do not chase it.
+It will be restored when the emitter stabilizes after M-DYN-S1 lands across all 5
+languages × 6 platforms.
+
+**⛔ ALL sessions except DYNAMIC BYRD BOX (snobol4 × x86) are FROZEN.**
+No development on JVM, .NET, WASM, JS, Icon, Prolog, Snocone until M-DYN-S1
+is complete and 5-phase stmt_exec_dyn is the sole execution path.
+The only active gate: `snobol4_x86` runtime invariants.
 
 **⛔ OWN-BACKEND-ONLY INVARIANT POLICY (all sessions, no exceptions):**
 Each session runs invariant cells **only for the backend it owns**. Never install tools
