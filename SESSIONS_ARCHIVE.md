@@ -15858,3 +15858,88 @@ The runtime lazy cache (`_dync_slot_t g_node_cache[512]`) is already in `stmt_ex
 
 Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` and `§Milestone Chain` for the full spec before coding.
 
+
+---
+
+## DYN-21 cont — 2026-04-02 (format + naming pass)
+
+### What was done this session (continuation of DYN-21)
+
+This session was entirely housekeeping on the `bb_*.c` reference suite.
+No M-DYN-OPT work was done. Gate held 142/142 throughout all commits.
+
+**1. bb_span β bug fixed** (`2419d6a`)
+- `span_t` lacked `δ` field; SPAN_β was a dead-end with no cursor restore.
+- Added `int δ` to `span_t`; SPAN_β now `Δ -= ζ->δ`.
+
+**2. Complete 1:1 bb_*.c reference suite** (`56a9db6`)
+- All 27 XKIND box types now have a dedicated `bb_*.c` file.
+- `bb_bal.c` is a documented stub (M-DYN-BAL pending).
+- `test/run_invariants.sh` updated to compile `bb_rpos.c`, `bb_rtab.c`,
+  `bb_abort.c` (split from `bb_pos/bb_tab/bb_fence`).
+
+**3. Three-column Mona Lisa format** (`c315621`)
+- All 25 files regenerated: label=20, action=80 (width 60), goto=80+.
+- One banner comment per file. No blank lines inside bodies. No verbose
+  comments. Code is the comment.
+
+**4. Single indirection** (`77c173f`)
+- `bb_box_fn` changed from `spec_t(*)(void**,int)` to `spec_t(*)(void*,int)`.
+- Every box: `spec_t bb_foo(void *zeta, int entry) { T *ζ = zeta; ...`
+- All call sites: `fn(node.state, α)` — no `&`, no `*`.
+
+**5. Final readable field names** (`20b2648` → `649c407`)
+- After a grid review: terse where unambiguous, full words where clarity
+  requires. Final names:
+  `count` `start` `current` `position` `result` `depth` `stack`
+  `matched` `state` `child_fn` `child_state` `child_size`
+  `advance` `varname` `immediate` `pending` `has_pending`
+- `fn` kept in `arbno_t` (only one fn, context is clear).
+- `fired` `done` `name` `chars` `n` kept throughout (already clear).
+
+### Baseline for DYN-22
+
+- one4all: `649c407`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged throughout)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-22 first task — M-DYN-OPT
+
+Runtime lazy cache (`_dync_slot_t g_node_cache[512]`) is already in
+`stmt_exec.c` and working — invariant subtrees cached after first build,
+fresh `ζ` copies returned on hits. M-DYN-OPT adds eager preamble
+pre-build: at `_start`, before any statement executes, emit calls that
+pre-build all invariant `PAT=` assignments so first execution is also a
+cache hit.
+
+**Implementation path:**
+
+1. In `emit_program()` (`emit_x64.c`), after Pass 2 (bss slots), add
+   Pass 2b: walk all statements, identify `PAT=` assignments where
+   `expr_is_pattern_expr(s->replacement)` AND replacement AST has no
+   `E_VAR`/`E_DSAR`/`E_ATP`/capture nodes (mirror `patnd_is_invariant`
+   at the AST level — call it `expr_is_invariant()`).
+
+2. For each such invariant `PAT=`, emit in `_start` preamble (before
+   `jmp root_α`):
+   ```nasm
+   ; pre-build invariant pattern PAT_varname
+   <emit_pat_to_descr(s->replacement)>   ; leaves DT_P in rax:rdx
+   mov  [rel PAT_varname+0], rax
+   mov  [rel PAT_varname+8], rdx
+   ```
+   This stores the pre-built `DT_P` descriptor into the variable's bss
+   slot. When `stmt_exec_dyn` runs, `bb_build` hits cache immediately.
+
+3. Gate: `snobol4_x86 142/142` (no regression).
+
+Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` and `§Milestone Chain` before
+coding.
+
+**Note on bb_*.c suite:** The 25 reference files plus `stmt_exec_dyn`
+constitute a complete portable C BB interpreter — no asm required.
+`bb_box_fn` is `spec_t(*)(void *zeta, int entry)`; every box does
+`T *ζ = zeta;` at top. Double indirection is gone. Field names are
+readable English words. The suite is DaVinci-grade and frozen unless
+a box needs a semantic fix.
