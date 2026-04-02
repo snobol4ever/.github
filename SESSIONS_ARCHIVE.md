@@ -17330,3 +17330,61 @@ Gate held 142/142 throughout.
 6. Fix `1010_func_recursion`: add `fprintf(stderr,"DEFINE call: spec=%s\n", spec)` in `_DEFINE_` handler; run test; confirm DEFINE spec is parsed; then trace recursion depth.
 7. Broad → target ≥167p. Gate 142/142.
 8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-39 handoff — 2026-04-02
+
+### What was done
+
+**$.var/$.var<idx> indirect fix + OPSYN entry_label infrastructure — +1p broad (166→167).**
+
+Gate held 142/142 throughout.
+
+#### Commits (one4all)
+
+- `be60a40` — DYN-39 partial: fix $.var/$.var<idx> indirect + OPSYN entry_label; 142/142 gate broad 167p/11f
+
+#### Fixes landed
+
+| File | Fix | Result |
+|------|-----|--------|
+| `scrip-interp.c` | `E_INDIRECT`: add E_NAME unwrap before dispatch; add `E_VAR` direct case for `$.var` plain lookup; add `E_IDX` case for `$.var<idx>` subscript | `212_indirect_array` ✅ · `210_indirect_ref` regression fixed ✅ |
+| `scrip-interp.c` | `define_entry_from_expr()` helper extracts second arg of `DEFINE('spec', .label)` | infrastructure |
+| `scrip-interp.c` | Both `prescan_defines` and runtime `E_FNC DEFINE` handler call `DEFINE_fn_entry` when second arg present | `1010/004` alt-entry path primed |
+| `scrip-interp.c` | `call_user_function`: use `FUNC_ENTRY_fn(fname)` for label lookup before falling back to fname/ufname | OPSYN alias dispatch primed |
+| `snobol4.c` | `FNCBLK_t`: added `entry_label` field | infrastructure |
+| `snobol4.c` | `_parse_define_spec`: sets `entry_label = name` (default) in all three parse paths | infrastructure |
+| `snobol4.c` | `register_fn_alias`: copies `entry_label` from old_entry (OPSYN body label preserved) | infrastructure |
+| `snobol4.c` | `DEFINE_fn_entry(spec, fn, entry_label)`: like DEFINE_fn but overrides entry_label after insert | infrastructure |
+| `snobol4.c` | `FUNC_ENTRY_fn(fname)`: accessor returns `entry_label` (or `name` fallback) | infrastructure |
+| `snobol4.h` | Declarations for `DEFINE_fn_entry`, `FUNC_ENTRY_fn` | infrastructure |
+
+#### Investigation: 1010/003 `facto(4)` via OPSYN still failing
+
+Infrastructure is complete but `facto(4)` still returns empty. Likely cause: `FUNC_ENTRY_fn("facto")` may return `"fact"` but `label_lookup("fact")` fails due to case mismatch — the label in the program is lowercase `fact` but `label_lookup` may be doing a case-sensitive search. **Next session: add `fprintf(stderr,"FUNC_ENTRY_fn(facto)=%s label_lookup=%p\n", FUNC_ENTRY_fn("facto")?:"NULL", label_lookup(FUNC_ENTRY_fn("facto")?:""))` in `call_user_function` before the body lookup; run 1010 test; confirm whether the problem is in `FUNC_ENTRY_fn` returning wrong value OR `label_lookup` not finding the label.**
+
+#### Remaining failures (11)
+
+- `1010_func_recursion` — assertions 003 (OPSYN alias dispatch) + 004 (alternate entry point): infrastructure in place, one debug trace needed
+- `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval` — deep call-stack / NRETURN / OPSYN / EVAL
+- `cross`, `expr_eval` — DEFINE/named-pattern deep interaction
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+
+### Baseline for DYN-40
+
+- one4all: `be60a40`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **167p/11f**
+
+### DYN-40 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad → confirm 167p/11f baseline.
+5. Debug `1010/003` OPSYN: add `fprintf(stderr,"ENTRY=%s body=%p\n", FUNC_ENTRY_fn("facto")?:"NULL", (void*)label_lookup(FUNC_ENTRY_fn("facto")?:"x"))` in `call_user_function` just before the `const char *entry = FUNC_ENTRY_fn(fname)` line, rebuild **only scrip-interp.c** (snobol4.o already current), run `./scrip-interp corpus/crosscheck/rung10/1010_func_recursion.sno 2>&1`. If ENTRY=NULL → `register_fn_alias` not copying entry_label — check if `old_entry` is found. If ENTRY=fact but body=NULL → `label_lookup` case sensitivity issue — check `label_lookup` implementation and add case-insensitive variant if needed.
+6. Fix both 1010/003 and 1010/004. Broad → target ≥168p. Gate 142/142.
+7. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
