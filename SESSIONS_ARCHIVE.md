@@ -16280,3 +16280,65 @@ Gate: snobol4_x86 **142/142** ✅
    See MILESTONE-DYN-INTERP.md for full spec.
    Key path: `boxes/` for include (`-I$RT/boxes`), `dyn/stmt_exec.c` for engine.
 
+
+---
+
+## DYN-24 final handoff — box dedup + M-DYN-OPT + artifact automation — 2026-04-02
+
+### What was done
+
+**M-DYN-OPT** (`a3635a8`) — wire Pass 2b + preamble into `emit_program()`:
+- Pass 2b: after scan_start_N loop, collect invariant PAT= assignments into `inv_pats[]`
+  using `expr_is_pattern_expr` + `expr_is_invariant`
+- Preamble: after `PROG_INIT`, emit `emit_pat_to_descr` + `SET_VAR` for each
+- Fired on 2 corpus programs: `expr_eval.s`, `coverage_sno_nodes.s` — artifacts updated
+- Gate: snobol4_x86 **142/142** ✅
+
+**Auto-artifact save** (`d4cc217`) — `run_invariants.sh` now calls `save_artifact()`
+after every successful compile for all backends (x86 .s, JVM .j, WASM .wat, JS .js).
+Generated files are written beside their source in corpus automatically — no manual
+`--update` step needed. Corpus `git push` at end of session catches all changes.
+
+**Box deduplication** (`fbcd349` — WIP, one linker error remaining):
+- `bb_box.h`: all 21 box-state typedefs centralized (`lit_t`, `len_t`, `span_t`, etc.)
+  This is the single canonical definition — C files, asm files, and `stmt_exec.c` all use it
+- `stmt_exec.c`: 11 static box bodies removed (~209 lines); extern declarations added
+  for all 21 simple boxes. Private `_lit_t`/`_pos_t` aliases replaced with canonical names
+- `bb_*.c` (18 simple boxes): local `typedef struct` removed — inherited from `bb_box.h`
+- 3 complex boxes (`bb_atp`, `bb_capture`, `bb_deferred_var`) remain `static` in
+  `stmt_exec.c` — their `bb_*.c` stubs excluded from build pending MILESTONE-BOX-UNIFY
+- **One linker error remaining**: `bb_build()` references `bb_atp`/`bb_capture`/
+  `bb_deferred_var` as function-pointer targets; excluded stubs leave them undefined
+
+**scrip-interp.c** (`src/driver/scrip-interp.c`) — M-INTERP-A01 scaffold created:
+- Full label-table goto resolver, `interp_eval()` expression walker, `execute_program()`
+- Parses `.sno` → `Program*`, calls `stmt_init()`, walks statements with goto resolution
+- Does not yet link cleanly (same linker error as above)
+
+**MILESTONE-BOX-UNIFY.md** written — full architecture for single-source box definitions
+(C text / asm text / asm binary, port wiring diagram, macro format spec, gate criteria).
+
+### Baseline for DYN-25
+
+- one4all: `fbcd349`
+- .github: (this commit)
+- corpus: `d5058ef` (2 regen'd artifacts from M-DYN-OPT)
+- invariants: snobol4_x86 **142/142** ✅ (on `d4cc217`; WIP commit not gated)
+
+### DYN-25 first tasks (in order)
+
+1. **Fix linker error** — choose Option A (delete `bb_atp.c`, `bb_capture.c`,
+   `bb_dvar.c` stubs; complex boxes stay `static` in `stmt_exec.c`) or Option B
+   (extract `bb_build.h` header). Option A is one commit.
+
+2. **Gate** — `snobol4_x86 142/142` with `scrip-interp` linking cleanly.
+
+3. **M-INTERP-A01 smoke test** — run `scrip-interp` against 20 corpus programs,
+   diff output vs `.ref`. Fix any failures.
+   Quick test: `./scrip-interp corpus/crosscheck/hello/hello.sno`
+
+4. **Commit + push** `scrip-interp` binary build instructions into `SESSION-dynamic-byrd-box.md`
+   (compiler flags, source file list).
+
+5. Begin **MILESTONE-BOX-UNIFY Phase 1** if time permits.
+
