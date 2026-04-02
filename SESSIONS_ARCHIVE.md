@@ -16611,3 +16611,65 @@ Gate: snobol4_x86 **142/142** ✅
 4. **Fix rung11 ARRAY** — run `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` vs `.ref`; check `_b_ARRAY` argument passing.
 5. **Broad re-run** → target ≥130p
 6. **Gate**: snobol4_x86 142/142
+
+---
+
+## DYN-30 final handoff — rename + ARB capture investigation — 2026-04-02
+
+### What was done
+
+**Rename pass** (`c27e841`) — no functional changes, pure rename:
+- `stmt_exec_dyn` → `exec_stmt` (public five-phase executor)
+- `stmt_exec_dyn_str` → `exec_stmt_args` (string-arg convenience wrapper)
+- `dyn_cache_reset/stats/test_run` → `cache_reset/stats/test_run`
+- `dyn_anchor_test` → `anchor_test`
+- `dyn_deferred_var_test` → `deferred_var_test`
+- `_dync_slot_t` → `cache_slot_t`
+- `_cache_find/insert/get_fresh` → `cache_find/insert/get_fresh`
+- `_alt_t/_seq_t/_aframe_t/_arbno_t/_bchild_t` → no leading underscore
+- `_is_inv` local → `is_invariant`
+- `_slot` local → `slot`
+
+Files touched: `stmt_exec.c`, `eval_code.c`, `scrip-interp.c`, `emit_x64.c`, archive test files.
+`emit_x64.c` rename requires `make` rebuild of `scrip-cc` (not just `SESSION_SETUP.sh` which skips if binary exists). Fixed by `touch src/backend/emit_x64.c && make`.
+
+**ARB capture bug investigated — NOT fixed** (ran out of context):
+- `ARB . VAR` always captures empty string (`delta=0` at flush)
+- `has_pending=1` confirmed at flush — the pending IS being set
+- `pending.δ=0` means the pending is only ever updated to ARB's initial 0-length match
+- `CAP_β` (which should update pending as ARB grows) appears not to be called
+- `LEN(3) . VAR` works correctly — isolated to ARB specifically
+- Debug approach blocked by unicode field name `δ` in `spec_t` causing gcc encoding errors in `fprintf` strings
+- Root cause hypothesis: `CAP_β` is not being invoked by `bb_seq`'s `right_ω → left.β` path, OR `patnd_is_invariant` is incorrectly returning 1 for the ARB subtree inside `_XNME`, causing the cache to return a stale `arb_t` with `count` from a previous match
+
+### Baseline for DYN-31
+
+- one4all: `c27e841`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **148p/30f** (unchanged — no functional fixes this session)
+
+### Remaining 30 failures — clusters for DYN-31
+
+1. **ARB . VAR capture bug** — `word1–4`, `wordcount`, `cross`, `060_capture_multiple`, `063_capture_null_replace` (all capture-related)
+   - **First task**: check `patnd_is_invariant` for `_XFARB` — is it returning 1 (invariant)?
+   - If yes: the cache returns a shared `arb_t` whose `count/start` fields persist across matches → `CAP_β` grows a stale count. Fix: `_XFARB` must be variant when inside `_XNME`.
+   - If no: add `g_dbg_cap_beta_calls` global int, increment in `CAP_β`, print after match — confirm whether `CAP_β` is called at all.
+   - **Debug note**: avoid `fprintf(stderr, "...%d", spec.δ)` — unicode field name `δ` mangles in gcc. Use `memcpy(&_d, &spec, sizeof(const char*)); int _delta = *((int*)((char*)&spec + sizeof(const char*)));` or rename spec_t fields to ASCII.
+2. **patterns/048 REM, 056 star-deref, 057 FAIL-builtin** (3) — not started
+3. **rung2/210,212 $.var indirect** (2) — not started
+4. **data/095 data_field_set** (1) — not started
+5. **rung10/1010–1018** func_recursion/NRETURN/OPSYN/EVAL/APPLY (6) — not started
+6. **rung11/1110–1116** ARRAY/DATA constructors (5) — not started
+7. **misc**: `expr_eval`, `test_case`, `test_math`, `test_stack`, `test_string` (5)
+
+### DYN-31 first tasks (in order)
+
+1. **Build scrip-interp** — use SESSION-dynamic-byrd-box.md §scrip-interp build command. Baseline `c27e841`.
+2. **Gate** — `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
+3. **Debug ARB capture** — check `patnd_is_invariant(_XFARB)`: grep for `_XFARB` case in `patnd_is_invariant`. If it returns 1 (default through), fix to return 0 when the node is a child of `_XNME`.
+4. **Simpler fix alt**: make `patnd_is_invariant` return 0 for `_XFARB` unconditionally — ARB has internal mutable state (`count`, `start`) so it should never be cached anyway.
+5. **Verify**: `./scrip-interp /tmp/arb_only.sno` should output `ARB:[abc]` after fix.
+6. **Broad re-run** → target ≥155p (fixing ARB captures unlocks ~8 tests).
+7. **Gate**: snobol4_x86 142/142.
