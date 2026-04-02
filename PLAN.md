@@ -66,7 +66,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-6 | one4all `4735571` | **SJ-6**: Fix emit_js.c _saved%d bug (lines 397/412/313) → wire bb_boxes.js into sno_engine.js build_pattern() → Phase 3 scan loop → M-SJ-B01. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
+| **SNOBOL4 JS** | SJ-6 | one4all `03b9328` | **SJ-6**: Fix emit_js.c _saved%d bug (lines 397/412/313) → wire bb_boxes.js into sno_engine.js build_pattern() → Phase 3 scan loop → M-SJ-B01. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **DOTNET** D-165 (5-phase pivot — @N=Phase3/5 gap — M-NET-P35-FIX next — see MILESTONE-NET-SNOBOL4.md) · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 

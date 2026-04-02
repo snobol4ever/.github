@@ -17866,3 +17866,22 @@ Both files committed at `4735571`. Direct port of all 27 `src/runtime/boxes/bb_*
 
 `bb_boxes.js` is the **dynamic path** foundation. The static emitter (`emit_js.c`) emits hardwired `switch(_pc)` dispatch — that's a separate (faster) path for statically-known patterns. Both paths must be correct. The dynamic path (`sno_engine.js` + `bb_boxes.js`) is what powers EVAL/CODE and pattern variables at runtime. Fix emit_js.c first (step 3 above) to unblock static tests, then wire dynamic path (step 5–7) to unblock pattern-variable and ARBNO tests.
 
+
+---
+
+## SJ-5 addendum — 2026-04-02
+
+### Correction: bb_boxes.js + bb_boxes.wat relocated to correct directory
+
+After initial commit placed files in `src/runtime/js/` and `src/runtime/wasm/`,
+files were moved to `src/runtime/boxes/` — the correct location, directly
+alongside `bb_*.c` and `bb_*.s` for side-by-side inspection per-box.
+
+- one4all HEAD: `03b9328`
+- gate: 142/142 ✅
+
+**Canonical paths:**
+- `src/runtime/boxes/bb_boxes.js`
+- `src/runtime/boxes/bb_boxes.wat`
+
+No other changes from prior SJ-5 handoff. SJ-6 actions unchanged — see above.
