@@ -15500,3 +15500,97 @@ src/runtime/dyn/bb_seq.c         — seq_t layout (children storage)
 src/runtime/dyn/bb_alt.c         — alt_t layout
 src/runtime/dyn/bb_arbno.c       — arbno_t layout
 ```
+
+---
+
+## DYN-19 cont3 — 2026-04-01 — Claude Sonnet 4.6
+
+### Session summary
+
+Ran gates: emit-diff 179/0 ✅ · invariants 137p/5f (word1-4, cross) ✅ baseline confirmed.
+
+### Root cause — CORRECTLY diagnosed this session
+
+`word1.sno` pattern: `PAT = " the " ARB . OUTPUT (" of " | " a ")`
+
+Generated word1.s shows:
+```asm
+; PAT = ... assignment:
+mov  qword [rbp-32], 1   ; DT_S=1 — WRONG, null stub
+mov  qword [rbp-24], 0
+SET_VAR S_PAT
+
+; LINE ? PAT match:
+lea  rdi, [rel S_PAT]
+call pat_ref             ; builds XDSAR("PAT") node
+call stmt_exec_dyn       ; Phase 2: bb_build(XDSAR) → bb_deferred_var
+                         ; α: NV_GET_fn("PAT") → DT_S null → bb_eps → epsilon match
+```
+
+**`NV_GET_fn("PAT")` returns DT_S(null) not DT_P.**
+
+### Why: incomplete M-DYN-S1 migration
+
+`scan_named_patterns` registered `PAT` as a named pattern and compiled it into
+a static Byrd-box ASM trampoline `P_PAT_α` (path 1 — old inline NASM).
+The match side was migrated to path 2 (`stmt_exec_dyn`) but the assignment side
+was left stubbed — emitting null DT_S instead of building a real DT_P.
+`P_PAT_α` is **dead code** — nothing calls it. The two paths are in conflict.
+
+### Architecture confirmed (from ARCH-byrd-dynamic.md)
+
+There is ONE path: `stmt_exec_dyn`. M-DYN-S1 requires:
+- `emit_pat_to_descr(pat_ast)` — walks pattern AST, emits NASM calls to
+  `snobol4_pattern.c` constructors (`pat_lit`, `pat_cat`, `pat_alt`, `pat_arb`,
+  `pat_assign_cond`, etc.), leaves DT_P DESCR_t in `[rbp-32/24]`
+- Pattern statement emission: subject name + `emit_pat_to_descr` + `call stmt_exec_dyn`
+- Assignment `PAT = <pat-expr>`: `emit_pat_to_descr(s->replacement)` + `SET_VAR`
+  (NOT a null stub, NOT `scan_named_patterns` suppressing it)
+
+### What was NOT done / wrong turns
+
+- Spent time in `stmt_exec.c` chasing `g_capture_count=0` and `bb_deferred_var`
+  cache-hit path — these are downstream symptoms, not the cause
+- Added `re_register_captures` walker to `stmt_exec.c` — **reverted**, wrong diagnosis
+- Real fix is entirely in `emit_x64.c`
+
+### DYN-19 first tasks (next session)
+
+```bash
+# Gate
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 179/0
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86          # 137/142
+```
+
+**Fix location: `emit_x64.c`**
+
+1. Find where `scan_named_patterns` suppresses the `PAT = ...` assignment emission
+   (produces null DT_S stub). Search: where `named_pat_lookup(s->subject->sval)`
+   gates the assignment and skips `emit_expr(s->replacement)`.
+
+2. For pattern-valued assignments (`PAT = <pat-expr>`), emit
+   `emit_pat_to_descr(s->replacement, -32)` instead of the null stub,
+   so `SET_VAR` stores a real DT_P.
+
+3. `emit_pat_to_descr` may already exist partially — check `emit_x64.c` for it.
+   If not, implement: walk EXPR_t pattern AST, emit NASM calls to pat_* constructors.
+   Key nodes: E_QLIT→pat_lit, E_SEQ/E_CONCAT→pat_cat, E_ALT→pat_alt,
+   E_FNC("ARB")→pat_arb, E_CAPT_COND→pat_assign_cond, E_VAR→pat_ref,
+   E_FNC("ARBNO")→pat_arbno, E_FNC("LEN")→pat_len, etc.
+
+4. The static named-pattern trampoline (`P_PAT_α`) is dead code for XDSAR-referenced
+   patterns. Do NOT call it — leave removal for later cleanup milestone.
+
+5. Gate: word1-4 + cross PASS → 142/142 → M-DYN-S1 🎉
+
+### Key files
+```
+src/backend/emit_x64.c          — assignment stub + emit_pat_to_descr
+src/runtime/snobol4/snobol4_pattern.c — pat_* constructors (already in runtime)
+corpus/crosscheck/strings/word1.sno   — primary failing test
+```
+
+### Baseline
+- emit-diff: 179/0 · one4all `ab5b3b7` · .github `7bbfade`
+- invariants: snobol4_x86 137p/5f (word1 word2 word3 word4 cross)
+- stmt_exec.c: unchanged from ab5b3b7 (DYN-19 cont3 changes reverted — wrong diagnosis)
