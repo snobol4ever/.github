@@ -16563,3 +16563,51 @@ Gate: snobol4_x86 **142/142** ✅
 6. **Broad re-run** → target ≥150p
 7. **Gate**: snobol4_x86 142/142
 
+
+---
+
+## DYN-29 final handoff — M-INTERP-A05 ALPHABET/LCASE/UCASE — 2026-04-02
+
+### What was done
+
+**M-INTERP-A05** (`eb273e1`) — two fixes unlocking 2 tests:
+
+**`snobol4.c`** — `NV_GET_fn`: added `strcasecmp(name, "ALPHABET")` special case before the hash lookup (line ~1522). Root cause: `&alphabet` (lowercase) was falling through to the case-sensitive hash table which stored `"ALPHABET"` (uppercase) — returning NULVCL. Now returns `BSTRVAL(alphabet, 256)` directly. Fixes 810/002 (alphabet-based REPLACE).
+
+**`snobol4.c`** — added `_b_LCASE` and `_b_UCASE_fn` builtins registered as `LCASE(s)` / `UCASE(s)`. Previously `LCASE` existed only as a variable (the lowercase alphabet string), not a callable function. `911_datatype.sno` calls `lcase(datatype(...))` — now dispatches to the tolower builtin. Fixes 911_datatype (all 4 assertions).
+
+**Broad: 120p/25f** (from 118p/27f at DYN-29 open; archive baseline was 139p/19f with different corpus dir coverage)
+**Gate: snobol4_x86 142/142 ✅**
+
+### Debugging notes
+
+- Context window hit ~90% mid-session; $.var indirect (210/212) root cause not resolved — E_INDR child for `$.bal` form not yet traced.
+- word*/cross still failing — likely `&TRIM` or `INPUT` reading; not `&alphabet` (810 fix didn't unblock them).
+- rung11 (1110–1116) ARRAY/DATA dispatch: `_b_ARRAY`/`_b_DATA` are registered but failing — likely an argument-passing or subscript issue in execute_program.
+
+### Baseline for DYN-30
+
+- one4all: `eb273e1`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **120p/25f**
+
+### Remaining 25 failures — clusters for DYN-30
+
+1. **strings/word1–4, wordcount, cross** (6) — `&TRIM`/`INPUT` reading; debug with `./scrip-interp corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input` and trace
+2. **patterns/048 REM, 056 star-deref, 057 FAIL-builtin** (3) — add E_REM / star-deref / FAIL nodes in `interp_eval`
+3. **capture/060 multiple, 063 null-replace** (2) — capture edge cases
+4. **rung2/210 indirect_ref, 212 indirect_array** (2) — `$.var` form of E_INDR; `$'literal'` (001) passes but `$.bal` (002) fails — child node type not yet traced
+5. **data/095 data_field_set** (1) — DATA()-defined object field assignment
+6. **rung10/1010–1018** (6) — func_recursion, func_redefine, NRETURN, OPSYN, EVAL, APPLY
+7. **rung11/1110–1116** (5) — ARRAY/DATA constructors; `_b_ARRAY`/`_b_DATA` registered but failing
+
+### DYN-30 first tasks (in order)
+
+1. **Build scrip-interp** — use SESSION-dynamic-byrd-box.md §scrip-interp build command. Baseline is `eb273e1`.
+2. **Debug strings/word1** — `./scrip-interp corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input 2>&1` vs `.ref` — isolate whether `&TRIM`, `INPUT` reads, or pattern matching is the issue.
+3. **Debug rung2/210 $.var** — add a printf in `interp_eval` E_INDR case to print `e->children[0]->kind` for the `$.bal` form. Likely `E_FIELD` or a different node emitted by the parser for dot-indirect.
+4. **Fix rung11 ARRAY** — run `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` vs `.ref`; check `_b_ARRAY` argument passing.
+5. **Broad re-run** → target ≥130p
+6. **Gate**: snobol4_x86 142/142
