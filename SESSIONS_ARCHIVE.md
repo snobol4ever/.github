@@ -16778,3 +16778,98 @@ Two distinct tracks exist in emit_x64.c:
 **Track 2 — `inv_pats` Pass 2b** (M-DYN-OPT, partial): Simpler invariant PAT= assignments get _PND_t trees pre-built once at startup via pat_* constructors but still matched via exec_stmt at match time.
 
 The 22 corpus .s files contain a mix of DEFINE user-function stubs (P_Push_α etc.) AND statically compiled named patterns (P_expr_α etc.). Both are live. DYN-32 baseline and tasks remain correct.
+
+---
+
+## DYN-32 partial handoff — children array refactor + ARB root cause — 2026-04-02
+
+### What was done
+
+**Root cause of ARB capture bug fully traced.**
+
+The interpreter path for `(ARB . W) 'c'` was:
+1. Parser emits `E_CAPT_COND(children=[E_VAR("ARB"), E_VAR("W")])`
+2. `interp_eval(E_VAR("ARB"))` calls `NV_GET_fn("ARB")` → returns `DT_SNUL` (ARB is a zero-arg *function*, not a variable)
+3. `pat_assign_cond(DT_SNUL, "W")` → `spat_of(DT_SNUL)` → NULL → `XNME.children[0] = NULL`
+4. `bb_build(XNME)` → `bb_build(children[0]=NULL)` → epsilon → capture wraps epsilon, always gives δ=0
+
+**Fix needed (NOT YET DONE):** In `scrip-interp.c` `E_VAR` case, after `NV_GET_fn` returns `DT_SNUL`, check if name is a registered zero-arg function and call it. Or: in `E_CAPT_COND`, if `pat.v == DT_SNUL`, try `APPLY_fn(children[0]->sval, NULL, 0)` as a zero-arg function call. This will make `ARB` return `DT_P` (the `XFARB` node), which `spat_of` will accept, giving `XNME.children[0] = XFARB`.
+
+**Structural refactor: `snobol4_patnd.h` — single source of truth.**
+
+Created `/home/claude/one4all/src/runtime/snobol4/snobol4_patnd.h` with:
+- `XKIND_t` enum — no leading underscores, no hardcoded numeric values
+- `PATND_t` struct — `children[]`/`nchildren` array (no `left`/`right`)
+- No duplicate in `snobol4_pattern.c` or `stmt_exec.c`
+
+`snobol4_pattern.c` updated:
+- Includes `snobol4_patnd.h` instead of defining its own enum+struct
+- `STRVAL_fn` → `strval`
+- All constructors use `spat_set1`/`spat_set2`/`spat_append`
+- `pat_cat` and `pat_alt` now flatten: if left child is already XCAT/XOR, `spat_append` instead of nesting
+- `materialise()` updated for XCAT/XOR n-ary loops, XFNCE→XFNCE1, XARBN→XARBN1
+
+`stmt_exec.c` updated:
+- Includes `snobol4_patnd.h` directly — no duplicate enum, no `_X` aliases, no `typedef PATND_t _PND_t`
+- `bb_build` XCAT: left-associative chain of `seq_t` over `children[]`
+- `bb_build` XOR: flat loop over `children[]` (no right-spine walk)
+- `bb_build` XNME/XFNME/XARBN1: `children[0]`
+- `patnd_is_invariant`: recurses over `children[]`
+
+**Compile status: NOT YET CLEAN.** Two remaining issues:
+
+1. **XNME block in `bb_build`** (~line 620): `bb_node_t child` declaration got mangled when debug `fprintf` was removed. View the block, repair — should be:
+```c
+case XNME: {
+    capture_t *ζ = calloc(1, sizeof(capture_t));
+    bb_node_t child = (p->nchildren > 0) ? bb_build(p->children[0])
+                    : (bb_node_t){(bb_box_fn)bb_eps, calloc(1,sizeof(eps_t)), sizeof(eps_t)};
+    ζ->fn    = child.fn;
+    ζ->state = child.ζ;
+    ζ->varname   = (p->var.v == DT_S && p->var.s) ? p->var.s : NULL;
+    ζ->immediate = 0;
+    register_capture(ζ);
+    n.fn = (bb_box_fn)bb_capture;
+    n.ζ  = ζ;
+    n.ζ_size = sizeof(*ζ);
+    break;
+}
+```
+
+2. **Test helpers** (`cache_test_run`, `deferred_var_test`): `node.left = node.right = NULL` replaced with `node.children = NULL; node.nchildren = 0;` — verify compiles.
+
+3. **`STRVAL_fn` in `stmt_exec.c`**: replaced with `strval` — verify no remaining `STRVAL_fn` references in that file.
+
+### DYN-33 first tasks (in order)
+
+1. **`git pull --rebase`** all repos.
+2. **SESSION_SETUP.sh** `FRONTEND=snobol4 BACKEND=x64`.
+3. **Gate** — `snobol4_x86 142/142`.
+4. **Build scrip-interp** (SESSION-dynamic-byrd-box.md build command).
+5. **Fix compile errors** — view `stmt_exec.c` around line 620 (XNME block), repair `bb_node_t child` declaration; check test helpers.
+6. **Fix ARB zero-arg dispatch** — in `scrip-interp.c` `E_VAR` case (or `E_CAPT_COND`): after `NV_GET_fn` returns `DT_SNUL`, try the name as a zero-arg function call:
+   ```c
+   // In E_VAR handler, after NV_GET_fn:
+   if (result.v == DT_SNUL) {
+       DESCR_t fn_result = APPLY_fn(e->sval, NULL, 0);
+       if (fn_result.v != DT_SNUL) result = fn_result;
+   }
+   ```
+7. **Verify** `./scrip-interp /tmp/arb_test3.sno` → `W=[ab]` (not `W=[]`).
+8. **Broad run** → target ≥155p. **Gate**: `snobol4_x86 142/142`.
+9. **Commit** `snobol4_patnd.h` + updated `snobol4_pattern.c` + `stmt_exec.c` with message `DYN-32 single-source PATND_t header, children array, no _X aliases`.
+10. **Push** one4all, then update SESSIONS_ARCHIVE.md and push .github.
+
+### Baseline for DYN-33
+
+- one4all: `406b507` (no new commits yet — changes are local, not pushed)
+- .github: this commit
+- corpus: `2f2bbe3`
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **148p/30f** (pre-fix)
+- scrip-interp: built locally, not committed
+
+### Key insight for DYN-33
+
+The `left`/`right` pair in the old `PATND_t` was the proximate cause of `ARB . W` failing — not because of a layout mismatch (the struct layouts DID match after `materialising` was verified), but because **`ARB` as a zero-arg builtin is parsed as `E_VAR`, not `E_FNC`, so `interp_eval` never dispatches it through `_b_PAT_ARB`**. The children array refactor is correct and necessary but orthogonal to the immediate bug. Fix the `E_VAR` dispatch first (task 6), then the ARB cluster (~8 tests) will pass.
+
