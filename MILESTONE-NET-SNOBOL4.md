@@ -223,7 +223,7 @@ applies here.  Wait for DYN-42 to land; adopt the winning option.
 
 ---
 
-## Sprint Sequence
+## Sprint Sequence — ThreadedExecuteLoop track (snobol4dotnet)
 
 | Sprint | Milestone | Key work |
 |--------|-----------|----------|
@@ -236,6 +236,22 @@ applies here.  Wait for DYN-42 to land; adopt the winning option.
 | D-171 | M-NET-NRETURN | NRETURN lvalue (follow DYN-42) |
 | D-172 | M-NET-SNOCONE | Snocone self-test |
 | D-173 | M-NET-BOOTSTRAP | Self-hosting bootstrap |
+
+## Sprint Sequence — Interpreter track (scrip-interp.cs)
+
+Parallel track. Eliminates compile+assemble+link from the .NET test loop.
+Uses Pidgin parser + existing C# bb boxes. No MSIL emit. No mono startup per test.
+See **MILESTONE-NET-INTERP.md** for full detail.
+
+| Sprint | Milestone | Key work |
+|--------|-----------|----------|
+| D-166 | M-NET-INTERP-A01 | Pidgin parser scaffold · 19/19 parse tests |
+| D-167 | M-NET-INTERP-A02 | Eval loop: assignments / OUTPUT / goto / END |
+| D-168 | M-NET-INTERP-A03 | Phase 2/3: IByrdBox pattern matching |
+| D-169 | M-NET-INTERP-A04 | Full corpus ≥130/142 vs SPITBOL oracle |
+| D-170 | M-NET-INTERP-B01 | Captures: @/./$  correct by construction |
+| D-171 | M-NET-INTERP-B02 | Functions: DEFINE/RETURN/NRETURN/FRETURN |
+| D-172 | M-NET-INTERP-B03 | EVAL/CODE self-hosted |
 
 ---
 

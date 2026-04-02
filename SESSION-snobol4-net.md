@@ -124,8 +124,11 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 |---------|--------|------|----------------|
 | **TINY NET** | N-248 — 110/110 ✅ | `425921a` | M-T2-FULL ✅ complete |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet · one4all `90d5531` | **M-NET-P35-FIX** — wire boxes · fix @N Phase 3/5 → 80/80 |
+| **NET INTERP** | D-166 | — | **M-NET-INTERP-A01** — Pidgin parser scaffold · 19/19 parse tests |
 
-**D-166 first actions (mandatory order):**
+**Two parallel tracks from D-166:**
+
+### Track A — ThreadedExecuteLoop (snobol4dotnet @N fix)
 1. `git pull --rebase` all repos.
 2. `export PATH=/usr/local/dotnet10:$PATH` + `dotnet test` → confirm 1911/1913.
 3. Crosscheck → confirm 79/80 baseline.
@@ -134,6 +137,20 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
    in `ThreadedExecuteLoop.cs`; run `strings/cross`; find the clobber.
 6. Fix. Crosscheck → 80/80. `dotnet test` → ≥1911/1913.
 7. Commit, push, update SESSIONS_ARCHIVE + push .github.
+
+### Track B — scrip-interp.cs (new interpreter, zero compile/link overhead)
+See **MILESTONE-NET-INTERP.md** for full spec.
+
+1. Create `src/driver/dotnet/scrip-interp.csproj` — add Pidgin NuGet ref.
+2. Port `Snobol4Pidgin.cs` → `Snobol4Parser.cs` (already written, ~500 lines).
+3. Run 19 parse smoke tests → all pass. Commit M-NET-INTERP-A01.
+4. Add `SnobolEnv.cs` (variable dict) + `Executor.cs` (5-phase loop skeleton).
+5. Wire Phase 1/4/5: assignments, OUTPUT, goto, END → rung1 smoke tests pass.
+6. Commit M-NET-INTERP-A02.
+
+**Track B is the recommended starting point for D-166** — it builds momentum
+fast, has no dependency on snobol4dotnet, and the @N bug is avoided structurally
+(captures commit only on Phase 5 :S, by design).
 
 ---
 
