@@ -17931,3 +17931,30 @@ alongside `bb_*.c` and `bb_*.s` for side-by-side inspection per-box.
 - `src/runtime/boxes/bb_boxes.wat`
 
 No other changes from prior SJ-5 handoff. SJ-6 actions unchanged — see above.
+
+---
+
+## SJ-5 addendum 2 — 2026-04-02
+
+### Reorganization: one subfolder per box in src/runtime/boxes/
+
+Per original intent, files are now organized as:
+
+```
+src/runtime/boxes/
+├── shared/     bb_box.h  bb_box.cs  bb_box.java  bb_boxes.csproj
+│               bb_executor.cs  bb_executor.java  bb_factory.cs  bb_terminals.cs
+├── lit/        bb_lit.c  bb_lit.s  bb_lit.js  bb_lit.wat  bb_lit.java  bb_lit.cs
+├── any/        bb_any.c  bb_any.s  bb_any.js  bb_any.wat  bb_any.java  bb_any.cs
+├── seq/        bb_seq.c  bb_seq.s  bb_seq.js  bb_seq.wat  ...
+│   ... (27 box subfolders total)
+└── bal/        bb_bal.c  bb_bal.s  bb_bal.js  bb_bal.wat  (stub)
+```
+
+- one4all HEAD: `46c6267`
+- gate: 142/142 ✅
+- No code changes — rename/reorganize only.
+
+SJ-6 actions unchanged from prior handoff. First task: fix emit_js.c
+_saved%d → _saved[%d] bug (lines 397/412/313), then wire bb_*.js boxes
+into sno_engine.js build_pattern().
