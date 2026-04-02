@@ -15733,3 +15733,75 @@ Then update PLAN.md NOW table (DYN row → DYN-20, milestone M-DYN-S1 ✅), upda
 - emit-diff: retired until post M-DYN-S1
 - No other changes to one4all source — fix is entirely in `emit_x64.c` one block
 
+
+---
+
+## DYN-20 handoff — 2026-04-02
+
+### What was done this session
+
+1. **Session start protocol completed** — SESSION_SETUP.sh ran clean, gate confirmed 137p/5f (word1-4, cross). All 4 repos current at DYN-19 cont4 baseline.
+
+2. **M-DYN-S1 achieved: snobol4_x86 142/142 ✅**
+
+   Five bugs fixed across three files:
+
+   **emit_x64.c — VAR=pat-expr store fix (word1/word2/word3)**
+   - `emit_pat_to_descr` returns DT_P in `rax:rdx`. `SET_VAR` reads from `[rbp-32/24]`.
+   - Missing bridge: added `mov [rbp-32], rax` / `mov [rbp-24], rdx` between the two.
+   - This was the root cause of word1, word2, word3 failures.
+
+   **emit_x64.c — BREAKX in emit_pat_to_descr E_FNC dispatch (word4)**
+   - `BREAKX` not in the `E_FNC` handler list in `emit_pat_to_descr`.
+   - Fell through to `emit_expr` fallback → treated as user function call via `CALL1_STR`.
+   - Fix: added `BREAKX` to the char-set dispatch group → `call pat_breakx`.
+
+   **snobol4_pattern.c — pat_breakx constructor**
+   - Added `XBRKX` to `XKIND_t` enum (value 26).
+   - Added `pat_breakx(const char*)` constructor (identical to `pat_break_` but uses `XBRKX`).
+   - Added `XBRKX` materialise case → `T_BREAKX`.
+
+   **stmt_exec.c — bb_breakx box + _XBRKX in bb_build**
+   - Added `_XBRKX=26` to `_XKIND_t` enum.
+   - Added `bb_breakx` box: BREAK semantics (scan until char in set) + fails if δ==0 (zero advance).
+   - Added `_XBRKX` case in `bb_build`.
+
+   **stmt_exec.c — bb_atp done-flag bug (cross)**
+   - `bb_atp.done=1` after first scan position never reset on subsequent α calls.
+   - The scan loop in `stmt_exec_dyn` calls `root.fn(&root.ζ, α)` across positions with no ζ reset.
+   - `@NH`/`@NV` cursor captures fired on position 0 only; all later positions got ATP_ω immediately.
+   - Fix: removed the `if (ζ->done) goto ATP_ω` guard. ATP always captures on α.
+
+3. **Post-gate protocol completed**
+   - `CELLS=snobol4_x86 CORPUS=... bash test/run_emit_check.sh --update` — 1651 generated files regenerated.
+   - corpus pushed: `31ad542`
+   - one4all pushed: `9e1e769`
+
+4. **2-way MONITOR (SPITBOL+ASM) scaffolded**
+   - Created `test/monitor/run_monitor_2way.sh` (strips CSNOBOL4, adds dyn rt objects to link).
+   - x64 repo cloned, `bootsbl` symlinked to `/usr/local/bin/spitbol`.
+   - Monitor was not used for the actual bug-finding this session (shell variable scoping across bash_tool calls prevented IPC setup). Diagnoses were done by manual build+diff and source inspection.
+   - For future sessions: run the 2-way monitor as a single bash call with all variables inline.
+
+### What was NOT done
+
+- M-DYN-OPT (invariance detection) — not started. Gate was the only target this session.
+
+### Baseline for DYN-21
+
+- one4all: `9e1e769`
+- .github: `5a62f5a`
+- corpus: `31ad542`
+- invariants: snobol4_x86 **142/142** ✅
+- emit-diff: can resume — `run_emit_check.sh --update` completed cleanly
+
+### Next session first task — M-DYN-OPT
+
+Detect provably invariant patterns at emit time. A pattern subtree is invariant
+if it contains no `XDSAR`/`XVAR`/`XATP`/capture nodes (already implemented in
+`patnd_is_invariant()` in `stmt_exec.c`). For invariant `PAT=` assignments:
+emit a one-time pre-build sequence in the program preamble (or at first-use with
+a guard flag) rather than rebuilding the PATND_t graph on every `stmt_exec_dyn`
+call. The built `bb_node_t` root is cached in a static/global slot keyed by the
+PATND_t pointer — same logic as the existing `_dync_slot_t` cache in `bb_build`.
+See ARCH-byrd-dynamic.md §M-DYN-OPT for the full spec.

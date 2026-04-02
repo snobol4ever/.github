@@ -31,11 +31,20 @@ Relevant sections by task:
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-20
+## §NOW — DYN-21
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-20 | one4all `a31f6c2` · .github `705949b` · corpus `77f476c` | **M-DYN-S1**: fix `emit_x64.c` VAR=pat-expr → 142/142 |
+| **DYNAMIC BYRD BOX** | DYN-21 | one4all `9e1e769` · .github `5a62f5a` · corpus `31ad542` | **M-DYN-OPT**: invariance detection → static pre-build |
+
+## DYN-21 first task — invariance detection
+
+M-DYN-S1 ✅ — 142/142 gate passed.
+
+Next milestone: M-DYN-OPT. Detect provably invariant patterns at emit time
+(no XDSAR/XVAR/XATP/capture nodes in subtree) and emit a one-time pre-build
+sequence in the program preamble instead of rebuilding on every stmt_exec_dyn call.
+See ARCH-byrd-dynamic.md §M-DYN-OPT for the invariance detection spec.
 
 ## DYN-20 first task — one edit
 
