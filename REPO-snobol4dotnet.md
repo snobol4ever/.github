@@ -70,14 +70,22 @@ See ARCH-testing.md for corpus ladder and ARCH-harness.md for crosscheck scripts
 
 ---
 
-## Active Milestones (next 5)
+## Active Milestones
+
+Full ladder: `MILESTONE-NET-SNOBOL4.md` — organized around 5-phase executor model.
 
 | ID | Status | Notes |
 |----|--------|-------|
 | M-NET-PERF | ✅ | Hotfixes A–D confirmed; baseline published |
 | M-NET-SPITBOL-SWITCHES | ✅ | 1911/1913 D-163 |
+| M-NET-P35-FIX | ❌ | Fix @N Phase 3/5 capture boundary → 80/80 crosscheck |
 | M-NET-POLISH | ❌ | 106/106 + diag1 35/35 + benchmark grid |
+| M-NET-PAT-CAPTURES | ❌ | @/./$var capture audit vs stmt_exec.c |
+| M-NET-PAT-PRIMITIVES | ❌ | 16 pattern primitives vs SPITBOL oracle |
+| M-NET-EVAL-COMPLETE | ❌ | EVAL/CODE edge cases + rung10/1016 |
+| M-NET-NRETURN | ❌ | NRETURN lvalue (follow DYN-42 fix) |
 | M-NET-SNOCONE | ❌ | Snocone self-test |
+| M-NET-BOOTSTRAP | ❌ | Self-hosting bootstrap |
 | M-NET-BOOTSTRAP | ❌ | snobol4-dotnet compiles itself |
 
 Full milestone history → [PLAN.md](PLAN.md)
