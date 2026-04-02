@@ -18,6 +18,10 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | `src/runtime/snobol4/stmt_exec.c` | `stmt_exec_dyn` — five-phase executor |
 | `src/runtime/asm/bb_pool.c` | mmap pool (M-DYN-0 ✅) |
 | `src/runtime/asm/bb_emit.c` | byte/label/patch primitives (M-DYN-1 ✅) |
+| `src/runtime/dyn/` | bb_*.c — 25 C box implementations (DYN-23 ✅ frozen) |
+| `src/runtime/dyn_asm/` | bb_*.s — 25 x86-64 NASM box implementations (DYN-23 ✅ frozen) |
+| `src/driver/scrip-interp.c` | M-INTERP-A01: tree-walk interpreter driver (TODO) |
+| `src/runtime/dyn/bb_test.c` | M-INTERP-B01: per-box unit test harness (TODO) |
 
 ## ARCH-byrd-dynamic.md — grep, don't cat
 
@@ -31,11 +35,11 @@ Relevant sections by task:
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-21
+## §NOW — DYN-23
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-21 | one4all `9e1e769` · .github `5a62f5a` · corpus `31ad542` | **M-DYN-OPT**: invariance detection → static pre-build |
+| **DYNAMIC BYRD BOX** | DYN-23 | one4all `c368769` · .github (this) · corpus `31ad542` | **M-DYN-OPT** (wire Pass 2b + preamble), then **M-INTERP-A01** (scrip-interp + bb_test) |
 
 ## DYN-21 first task — invariance detection
 

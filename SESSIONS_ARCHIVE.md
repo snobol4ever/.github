@@ -16138,3 +16138,64 @@ live in the NV runtime table, not directly in .bss slots. The .bss label is only
 a string constant used as the key. PROG_INIT has already run so rbp frame is valid.
 
 **Gate:** snobol4_x86 **142/142** (no regression).
+
+---
+
+## DYN-23 addendum — reorg + interp milestone — 2026-04-02
+
+### Additional work this session
+
+**Directory reorg** (`c368769`)
+- Moved `src/runtime/dyn/asm/` → `src/runtime/dyn_asm/`
+- C boxes: `src/runtime/dyn/` (25 files)
+- S boxes: `src/runtime/dyn_asm/` (25 files)
+- Now at same level, parallel naming — C and S counts match exactly
+
+**scrip-interp milestone created** (`MILESTONE-DYN-INTERP.md`)
+
+Key points:
+- scrip-interp reuses existing frontend (lex/parse) + runtime (stmt_exec_dyn,
+  eval_expr_dyn, execute_code_dyn) — estimate ~500-800 lines new driver glue
+- Much simpler than scrip-cc: no emit_x64.c equivalent needed
+- execute_code_dyn (eval_code.c) is already ~80% of a full interpreter
+- Two sub-tracks: A (interpreter correctness) and B (box unit tests)
+- M-INTERP-B02 tests bb_*.s vs bb_*.c parity using same harness
+
+**Milestone chain:**
+  M-INTERP-A01: scrip-interp binary, 20 smoke tests
+  M-INTERP-A02: pattern matching, 60 corpus tests
+  M-INTERP-A03: full corpus diff vs snobol4_x86, ≥130/142
+  M-INTERP-B01: bb_test.c harness, 25/25 C boxes unit tested
+  M-INTERP-B02: same harness vs bb_*.s, 25/25 S boxes match C
+
+**HQ updated:**
+- PLAN.md: DYN row → DYN-23, MILESTONE-DYN-INTERP.md reference
+- SESSION-dynamic-byrd-box.md: key files table + §NOW updated
+
+### Baseline for DYN-24
+
+- one4all: `c368769`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-24 first tasks (in order)
+
+1. **Lon reviews bb_*.s** in `src/runtime/dyn_asm/`. Fix any issues found.
+
+2. **M-DYN-OPT** — wire into `emit_program()`:
+   - Pass 2b: collect invariant PAT= (after scan_start_N loop, ~line 4713)
+   - Preamble: emit after PROG_INIT (~line 4907)
+   - Code in SESSIONS_ARCHIVE.md DYN-23 entry above
+   - Gate: snobol4_x86 142/142
+
+3. **M-INTERP-A01** — create `src/driver/scrip-interp.c`:
+   - Parse .sno → Program* via snoc_parse()
+   - stmt_init(), execute_code_dyn_full(prog), exit
+   - Gate: 20 corpus smoke tests pass
+   - See MILESTONE-DYN-INTERP.md for full spec
+
+4. **M-INTERP-B01** — create `src/runtime/dyn/bb_test.c`:
+   - Set Σ/Δ/Ω, call each bb_* directly, assert spec_t results
+   - Compile twice: vs dyn/*.c, vs dyn_asm/*.s
+   - Gate: 25/25 C boxes pass; then 25/25 S boxes match
