@@ -15638,3 +15638,98 @@ emit_pat_to_descr in EMIT_BINARY mode after the dynamic path is proven.
 - All sessions except DYNAMIC BYRD BOX: FROZEN
 - Only gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86`
 - Target: 142/142. Current: 137p/5f (word1-4, cross)
+
+---
+
+## DYN-19 cont4 handoff — 2026-04-02
+
+### What was done this session
+
+1. **Session start protocol completed** — SESSION_SETUP.sh ran clean, gate confirmed 137p/5f (word1-4, cross). All 4 repos current.
+
+2. **Side-by-side generated artifact policy established** (Lon's direction):
+   - `scrip-cc` already writes `foo.sno → foo.s` alongside source gcc-style when invoked without `-o`. This is the canonical design.
+   - `run_emit_check.sh --update` was broken (used `-o /dev/stdout` hack). **Fixed** in `a31f6c2`: `regen_one` now calls `scrip-cc -asm $src` with no `-o`, letting the compiler write the output. Covers ALL `.sno` files (not just those with existing `.s`). Empty output on compile error is cleaned up.
+   - RULES.md ARTIFACT REFRESH updated to document: design, promotion path (compile clean → `.s` appears → run passes → already an emit-diff oracle), mandatory handoff step.
+   - Corpus regenerated and pushed: `f13_eval_code.s`, 3 rebus `.s` files updated. `corpus: 77f476c`.
+   - Library `.s` files (`crosscheck/library/test_*.s`) were already empty stubs in repo — confirmed they compile-fail due to missing `-I`. This is correct; empty stubs deleted by regen, not committed.
+
+3. **Emit-diff can resume immediately** once all generated files are current — the design already supports it.
+
+### What was NOT done — the actual bug fix
+
+The 5 failing invariants (word1-4, cross) are NOT fixed yet. Session ran long on the infrastructure work. The fix is fully diagnosed and one edit away.
+
+### Exact fix location — emit_x64.c line ~5050
+
+**File:** `src/backend/emit_x64.c`
+**Function:** the `Case 1` VAR = expr handler, `} else { /* General path */` block at line 5050.
+
+**Root cause (from DYN-19 cont3 archive):**
+`PAT = <pat-expr>` goes through the general path which calls `emit_expr(s->replacement, -32)` → `SET_VAR`. But `emit_expr` on a pattern AST emits a DT_S null stub, not a DT_P. When `LINE ? PAT` fires later, `NV_GET_fn("PAT")` returns DT_S(null) → XDSAR → `bb_deferred_var` → epsilon match → wrong.
+
+**The fix — split the general path on `expr_is_pattern_expr`:**
+
+```c
+} else {
+    /* General path */
+    if (!is_output && expr_is_pattern_expr(s->replacement)) {
+        /* Pattern-valued assignment: PAT = <pat-expr>
+         * emit_pat_to_descr walks the AST and emits calls to pat_* constructors,
+         * leaving a real DT_P DESCR_t in rax:rdx. SET_VAR stores it.
+         * Pat constructors cannot fail — no FAIL_BR needed. */
+        emit_pat_to_descr(s->replacement);
+        const char *vlab = str_intern(subj_name);
+        A("    SET_VAR     %s\n", vlab);
+    } else {
+        emit_expr(s->replacement, -32);
+        if (has_u_only) {
+            A("    FAIL_BR     %s\n", sfail_lbl);
+        } else {
+            A("    FAIL_BR     %s\n", fail_target);
+        }
+        if (is_output) {
+            A("    SET_OUTPUT\n");
+        } else {
+            const char *vlab = str_intern(subj_name);
+            A("    SET_VAR     %s\n", vlab);
+        }
+    }
+}
+```
+
+**Also check:** `emit_pat_to_descr` for `E_CAPT_CUR` (`@N` cursor capture, used in `cross.sno` `@NH` / `@NV`). Search `emit_x64.c` around line 4281 for `E_CAPT_CUR` in the `emit_pat_to_descr` switch. If missing, add:
+```c
+case E_CAPT_CUR: {
+    /* @VAR cursor capture — pat_at_cursor(varname) */
+    const char *vn = e->children[0] ? e->children[0]->sval : "";
+    const char *vlab = str_intern(vn);
+    A("    lea     rdi, [rel %s]\n", vlab);
+    A("    call    pat_at_cursor\n");
+    A("    mov     rdx, rax\n");   /* DT_P.lo */
+    A("    mov     rcx, rdx\n");   /* DT_P.hi — pat_at_cursor returns DESCR_t in rax:rdx */
+    break;
+}
+```
+(Check `snobol4_pattern.c` for the actual `pat_at_cursor` signature first.)
+
+**Gate after fix:**
+```bash
+CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+# Target: 142/142 → M-DYN-S1 🎉
+```
+
+**After gate passes:**
+```bash
+CELLS=snobol4_x86 CORPUS=/home/claude/corpus bash test/run_emit_check.sh --update
+cd /home/claude/corpus && git add -A && git commit -m "regen: DYN-20 post M-DYN-S1 artifacts"
+cd /home/claude/corpus && git push
+```
+Then update PLAN.md NOW table (DYN row → DYN-20, milestone M-DYN-S1 ✅), update SESSIONS_ARCHIVE.
+
+### Baseline
+- one4all: `a31f6c2` · .github: `0c5d1c7` · corpus: `77f476c`
+- invariants: snobol4_x86 **137p/5f** (word1 word2 word3 word4 cross)
+- emit-diff: retired until post M-DYN-S1
+- No other changes to one4all source — fix is entirely in `emit_x64.c` one block
+
