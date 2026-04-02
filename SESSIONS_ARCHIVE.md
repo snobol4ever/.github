@@ -15805,3 +15805,56 @@ a guard flag) rather than rebuilding the PATND_t graph on every `stmt_exec_dyn`
 call. The built `bb_node_t` root is cached in a static/global slot keyed by the
 PATND_t pointer — same logic as the existing `_dync_slot_t` cache in `bb_build`.
 See ARCH-byrd-dynamic.md §M-DYN-OPT for the full spec.
+
+---
+
+## DYN-21 handoff — 2026-04-02
+
+### What was done this session
+
+1. **Session start protocol completed** — SESSION_SETUP.sh ran clean, gate confirmed 142/142 at DYN-20 baseline. Repos at expected HEADs (one4all `9e1e769` · .github `5a62f5a` · corpus `31ad542`).
+
+2. **bb_span β bug fixed** — `span_t` lacked a `δ` field; SPAN_β was a dead-end `goto SPAN_ω` with no cursor restore. Added `int δ` to `span_t`; SPAN_α now stores advance into `ζ->δ`; SPAN_β correctly executes `Δ -= ζ->δ`. Gate held 142/142 after fix. Pushed at `2419d6a`.
+
+3. **Complete 1:1 bb_*.c reference suite** — 27 XKIND box types now each have a dedicated `bb_*.c` file in `src/runtime/dyn/`. New files this session (two commits):
+   - First commit (`2419d6a`): `bb_len.c` `bb_span.c` `bb_any.c` `bb_brk.c` `bb_arb.c` `bb_eps.c`
+   - Second commit (`56a9db6`): `bb_rpos.c` `bb_rtab.c` `bb_notany.c` `bb_breakx.c` `bb_abort.c` `bb_rem.c` `bb_succeed.c` `bb_fail.c` `bb_atp.c` `bb_capture.c` `bb_dvar.c` `bb_bal.c`
+
+   All inline statics in `stmt_exec.c` remain authoritative for compilation. The `bb_*.c` files are canonical reference/documentation and constitute a complete portable C BB interpreter usable without any asm emission.
+
+   `bb_bal.c` is a documented stub (always ω + warning). Full BAL implementation deferred to M-DYN-BAL (post M-DYN-OPT).
+
+4. **M-DYN-OPT NOT started** — session consumed by housekeeping (bb_span fix + reference suite). M-DYN-OPT remains the DYN-22 first task.
+
+### What was NOT done
+
+- M-DYN-OPT (invariance pre-build preamble) — not started.
+
+### Baseline for DYN-22
+
+- one4all: `56a9db6`
+- .github: (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-22 first task — M-DYN-OPT
+
+The runtime lazy cache (`_dync_slot_t g_node_cache[512]`) is already in `stmt_exec.c` and working — invariant subtrees are cached after first build and return fresh ζ copies on subsequent hits. What M-DYN-OPT adds on top is **eager preamble pre-build**: at `_start` (before any statement executes), emit a call sequence that pre-builds all invariant `PAT=` assignments once, so the first execution of every invariant pattern statement is also a cache hit.
+
+**Implementation path:**
+
+1. In `emit_program()` (emit_x64.c), after the existing Pass 1 (label/string collection) and Pass 2 (bss slots), add **Pass 2b**: walk all statements, identify `PAT=` assignments where `expr_is_pattern_expr(s->replacement)` AND `patnd_is_invariant` would be true (i.e. no E_VAR/E_DSAR/E_ATP/capture nodes in the replacement AST — can use `expr_is_invariant()` helper mirroring the runtime predicate).
+
+2. For each such invariant PAT= assignment, emit a preamble call in `_start` (before `jmp root_α`):
+   ```nasm
+   ; pre-build invariant pattern PAT_varname
+   <emit_pat_to_descr(s->replacement)>   ; leaves DT_P in rax:rdx
+   mov  [rel PAT_varname+0], rax
+   mov  [rel PAT_varname+8], rdx
+   ```
+   This stores the pre-built DT_P descriptor into the variable's bss slot. When the statement body later executes `emit_pat_to_descr` + `stmt_exec_dyn`, the runtime cache will already have the `_PND_t*` → `bb_node_t` mapping from the pre-build call, so `bb_build` hits cache on first execution.
+
+3. Gate: `snobol4_x86 142/142` (no regression). Measurable speedup on lit-match benchmark if available; otherwise gate alone is sufficient for M-DYN-OPT ✅.
+
+Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` and `§Milestone Chain` for the full spec before coding.
+
