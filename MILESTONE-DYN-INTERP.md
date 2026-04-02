@@ -40,6 +40,7 @@ without emitting any assembly or bytecode.  It serves two purposes:
 | **M-INTERP-A05** | Fix remaining 9 failures → ≥175p broad | ≥175p broad · 142/142 gate | ⬜ DYN-42 next |
 | **M-INTERP-B01** | `bb_test.c` per-box unit harness — 25/25 C boxes | 25/25 unit tests pass | ⬜ not started |
 | **M-INTERP-B02** | Same harness vs `bb_*.s` objects — C/ASM parity | 25/25 `.s` boxes match `.c` | ⬜ not started |
+| **M-INTERP-B03** | Same harness vs `bb_*.java` — Java/C parity | 25/25 Java boxes match `.c` | ⬜ not started — bb_*.java landed J-217 (`7c35456`) |
 
 ---
 
