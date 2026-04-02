@@ -68,7 +68,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-5 | one4all `4b5e682` | **SJ-5**: Fix Node v22 IIFE bug + A02 residual → **M-SJ-A02+A03**. SJ-6: `build_pattern()` + scan loop → M-SJ-B01. Static emitter (`emit_js.c`) + dynamic executor (`sno_engine.js`) are dual paths. EVAL/CODE payoff at SJ-12. See MILESTONE-JS-SNOBOL4.md. |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
-| **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-216 · **TINY frontend** F-223 · **DOTNET** D-165 (5-phase pivot — @N=Phase3/5 gap — M-NET-P35-FIX next — see MILESTONE-NET-SNOBOL4.md) · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
+| **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **DOTNET** D-165 (5-phase pivot — @N=Phase3/5 gap — M-NET-P35-FIX next — see MILESTONE-NET-SNOBOL4.md) · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
 
 **Invariants (DYN-20 baseline): x86: SNOBOL4 `142/142` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
@@ -95,7 +95,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Prolog (JS) | `SESSION-prolog-js.md` | `BACKEND-JS.md` | — |
 | Rebus | `FRONTEND-REBUS.md` | — | — |
 
-Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md`
+Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md` · `MILESTONE-JVM-SNOBOL4.md`
 
 **3. Deep reference → ARCH-*.md** (open only when needed — catalog in `ARCH-index.md`)
 
