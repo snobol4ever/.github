@@ -17899,7 +17899,7 @@ Files named bb_lit.java, bb_seq.java etc. (project convention).
 
 #### Baseline
 
-- one4all: `4776550`
+- one4all: `7c35456`
 - corpus: `2f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
