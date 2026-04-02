@@ -17675,3 +17675,37 @@ paths: rung8 strings, rung10 functions, rung11 DATA, 2D subscript.
 7. Run global driver → diff clean.
 8. Invariants → ≥100p. Gate 142/142.
 9. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## D-165 (boxes) — 2026-04-02
+
+### M-NET-BOXES: 26 C# Byrd box classes delivered
+
+**Commit:** one4all `90d5531`
+
+All 26 boxes ported from `src/runtime/boxes/bb_*.c` to C# in
+`src/runtime/dotnet/boxes/`.  Side-by-side with C originals for inspection.
+
+Foundation types: `IByrdBox` (α/β ports), `Spec` (mirrors `spec_t`),
+`MatchState` (mirrors Σ/Δ/Ω globals).
+
+Wiring: `ByrdBoxFactory` builds a box graph from Jeff's `Pattern` tree
+(mirrors `bb_build()` in `stmt_exec.c`).  `ByrdBoxExecutor` drives Phase 3
+trampoline and triggers Phase 5 capture commit.
+
+**Baseline for D-166:**
+- one4all: `90d5531`
+- snobol4dotnet: `e1e4d9e` (unchanged)
+- dotnet test: 1911/1913
+- crosscheck: 79/80
+
+**D-166 first tasks (in order):**
+1. `git pull --rebase` all repos.
+2. Add `Snobol4.Runtime.Boxes` project reference to `snobol4dotnet`.
+3. Wire `ByrdBoxFactory` + `ByrdBoxExecutor` into `ThreadedExecuteLoop` for
+   pattern-match statements — replace the `Scanner`/`AbstractSyntaxTree` path
+   with the new box graph path (or run both in parallel for comparison).
+4. `dotnet test` → confirm no regressions.
+5. Add sentinel printouts to trace @N clobber (M-NET-P35-FIX).
+6. Fix @N. Crosscheck → 80/80. Commit.
