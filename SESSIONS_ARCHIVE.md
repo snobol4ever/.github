@@ -17131,3 +17131,90 @@ Four more EKind renames applied to one4all `a9723d5`:
 | `E_ITER` | `E_ITERATE` | spell it out, matches E_ITERATE semantic clarity |
 
 Gate: 142/142 ✅. one4all HEAD now `a9723d5`.
+
+---
+
+## DYN-36 handoff — 2026-04-02
+
+### What was done
+
+**Operator wiring sprint + new Byrd boxes for negation/interrogation.**
+
+Gate held 142/142 throughout. Broad baseline 160p/18f confirmed unchanged.
+
+#### Commits (one4all)
+
+- `839282c` — DYN-36 partial: E_INTERROGATE/E_NAME/E_NOT + 12 relops + bb_not + bb_interr; 142/142 gate ✅ broad 160/18 baseline held
+
+#### New Byrd boxes
+
+| File | Operator | Semantics |
+|------|----------|-----------|
+| `bb_not.c` / `bb_not.s` | `\X` negation | α: run child; if child γ → NOT_ω; if child ω → restore Δ → NOT_γ(0). β: unconditional ω. Maps o$nta/b/c. |
+| `bb_interr.c` / `bb_interr.s` | `?X` interrogation | α: save Δ; run child; if child ω → INT_ω; if child γ → restore Δ → INT_γ(0). β: unconditional ω. Maps o$int. |
+
+**`bb_name` deliberately NOT created** — `.X` (o$nam) is a pure value expression, cannot fail, no cursor interaction. Runtime only.
+
+#### ir.h additions
+
+| Node | Operator | Semantics |
+|------|----------|-----------|
+| `E_INTERROGATE` | `?X` | null if X succeeds, fail if X fails (o$int) |
+| `E_NAME` | `.X` | name reference — return name descriptor (o$nam) |
+
+Both added to enum and name table.
+
+#### parse.c fixes
+
+| Token | Was | Now |
+|-------|-----|-----|
+| `T_QMARK` unary | `E_CAPT_COND_ASGN` (wrong) | `E_INTERROGATE` |
+| `T_DOT` unary | `E_CAPT_COND_ASGN` (wrong) | `E_NAME` |
+
+#### scrip-interp.c additions
+
+| Case | Behaviour |
+|------|-----------|
+| `E_INTERROGATE` | eval child; IS_FAIL → FAILDESCR; else NULVCL |
+| `E_NAME` | extract sval from VAR/FNC/KEYWORD child → STRVAL; complex lvalue → eval |
+| `E_NOT` | eval child; IS_FAIL → NULVCL (succeed); else FAILDESCR (fail) |
+| `E_LT/LE/GT/GE/EQ/NE` | numeric relops via NUMREL macro; return lhs on success |
+| `E_LLT/LLE/LGT/LGE/LEQ/LNE` | lexicographic relops via STRREL macro; return lhs on success |
+
+#### 095_data_field_set root cause identified (NOT yet fixed)
+
+```
+DATA('point(x,y)')
+P = point(10, 20)
+x(P) = 99        ← setter call: GOT 10, EXP 99
+```
+
+Output: `10 / 20 / 10` (last should be 99). The setter path `x(P) = 99` is not dispatching through `_b_DATA` vrsto. The field getter `x(P)` returns correctly (10, 20); the setter assignment silently does nothing. Bug is in `stmt_assign` or `interp_eval E_ASSIGN` when lhs is `E_FNC` with a DATA-type argument — needs to call `data_field_set(base, field_idx, val)` rather than treating as normal function call.
+
+### Baseline for DYN-37
+
+- one4all: `839282c`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **160p/18f** (unchanged — baseline confirmed)
+
+### Remaining failures (18) — unchanged
+
+- `expr_eval`, `cross` — DEFINE/named-pattern interaction, deep
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+- `095_data_field_set` — DATA field setter dispatch (root cause identified above)
+- `1110_array_1d`, `1112_array_multi`, `1114_item`, `1115_data_basic`, `1116_data_overlap` — ARRAY/DATA builtins
+- `1010_func_recursion`, `1011_func_redefine`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval` — deep call-stack / NRETURN / OPSYN / EVAL
+- `212_indirect_array` — indirect array subscript
+
+### DYN-37 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. SESSION_SETUP.sh `FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad run → confirm 160p/18f baseline.
+5. Fix `095_data_field_set` setter: in `interp_eval E_ASSIGN`, when lhs is `E_FNC` and base evaluates to a DATA instance, dispatch to `data_field_set(base, field_name, rhs)` instead of silently failing. Check `_b_DATA` vrsto path in `snobol4_pattern.c`.
+6. Fix `1110_array_1d`: run `./scrip-interp corpus/crosscheck/rung11/1110_array_1d.sno 2>&1` — error is `FAIL 1110/005: prototype(array(3))=3` — `prototype()` returning integer 3 instead of string `"array"`. Check `_b_PROTOTYPE` in snobol4.c.
+7. Broad → target ≥164p. Gate 142/142.
+8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
