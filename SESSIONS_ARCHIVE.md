@@ -17866,3 +17866,52 @@ Both files committed at `4735571`. Direct port of all 27 `src/runtime/boxes/bb_*
 
 `bb_boxes.js` is the **dynamic path** foundation. The static emitter (`emit_js.c`) emits hardwired `switch(_pc)` dispatch — that's a separate (faster) path for statically-known patterns. Both paths must be correct. The dynamic path (`sno_engine.js` + `bb_boxes.js`) is what powers EVAL/CODE and pattern variables at runtime. Fix emit_js.c first (step 3 above) to unblock static tests, then wire dynamic path (step 5–7) to unblock pattern-variable and ARBNO tests.
 
+
+---
+
+## J-217 addendum — 2026-04-02
+
+### Rename: Bb*.java → bb_*.java
+
+Files moved to correct location and naming convention.
+
+#### Commits (one4all)
+
+- `4bef94f` — J-217: rename Bb*.java → bb_*.java to match bb_*.c convention; drop package/public
+
+#### Final layout: `src/runtime/boxes/`
+
+Each Java file sits beside its C and ASM siblings:
+
+```
+bb_lit.c    bb_lit.s    bb_lit.java
+bb_seq.c    bb_seq.s    bb_seq.java
+bb_alt.c    bb_alt.s    bb_alt.java
+...                     (all 25 boxes)
+bb_box.h                bb_box.java
+bb_bal.c    bb_bal.s    bb_bal.java      ← bb_bal.c was stub; bb_bal.java is real
+                        bb_executor.java
+```
+
+Java class names remain BbLit, BbSeq etc. (Java convention).
+Files named bb_lit.java, bb_seq.java etc. (project convention).
+`public` removed from class declarations; no package declaration.
+
+#### Baseline
+
+- one4all: `4bef94f`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. Read `MILESTONE-JVM-SNOBOL4.md` in full.
+4. Lon reviews `src/runtime/boxes/bb_seq.java` (β wiring) and `bb_arbno.java` (frame stack).
+5. Fix M-JVM-A02: read `emit_byrd_asm.c` lines ~3530–3570, fix E_IDX write path
+   (lines ~2658–2700 in `emit_jvm.c`) — 2D `"row,col"` key for nchildren>=3.
+6. Run global driver → diff clean.
+7. Invariants → ≥100p. Gate 142/142.
+8. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
