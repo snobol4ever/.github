@@ -17388,3 +17388,56 @@ Infrastructure is complete but `facto(4)` still returns empty. Likely cause: `FU
 5. Debug `1010/003` OPSYN: add `fprintf(stderr,"ENTRY=%s body=%p\n", FUNC_ENTRY_fn("facto")?:"NULL", (void*)label_lookup(FUNC_ENTRY_fn("facto")?:"x"))` in `call_user_function` just before the `const char *entry = FUNC_ENTRY_fn(fname)` line, rebuild **only scrip-interp.c** (snobol4.o already current), run `./scrip-interp corpus/crosscheck/rung10/1010_func_recursion.sno 2>&1`. If ENTRY=NULL → `register_fn_alias` not copying entry_label — check if `old_entry` is found. If ENTRY=fact but body=NULL → `label_lookup` case sensitivity issue — check `label_lookup` implementation and add case-insensitive variant if needed.
 6. Fix both 1010/003 and 1010/004. Broad → target ≥168p. Gate 142/142.
 7. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## DYN-40 handoff — 2026-04-02
+
+### What was done
+
+**OPSYN alias dispatch + alternate-entry retval fixes — +2p broad (167→169).**
+
+Gate held 142/142 throughout.
+
+#### Commits (one4all)
+
+- `92481bf` — DYN-40: fix OPSYN alias dispatch + retname; fix alt-entry retval; 142/142 gate broad 169p/9f
+
+#### Fixes landed
+
+| File | Fix | Result |
+|------|-----|--------|
+| `scrip-interp.c` | `E_FNC` dispatch: after `APPLY_fn` returns NULVCL, try `FUNC_ENTRY_fn(e->sval)` for body label lookup — OPSYN alias `"facto"` has no label, but `entry_label="fact"` does | `1010/003` OPSYN alias dispatch ✅ |
+| `scrip-interp.c` | `call_user_function`: compute `retname` = `entry_label` when it's a registered function (OPSYN case — body writes to original fn name, not alias name); use `fname` for alternate-entry (entry_label is just a jump target, body still writes `fname=`) | `1010/003` return value ✅ · `1010/004` alternate entry ✅ |
+
+#### Two-bug anatomy for 1010/003 OPSYN
+
+Bug 1 (dispatch): `facto(4)` hit `E_FNC` path, `APPLY_fn("facto",...)` returned NULVCL, then `label_lookup("facto")` returned NULL (no such label) → fell through to return NULVCL, never calling `call_user_function`. Fix: also try `FUNC_ENTRY_fn(e->sval)` for the body label.
+
+Bug 2 (retval): even after dispatch fix, `fr->fname = "facto"` but body writes `"fact = ..."`, so `NV_GET_fn(fr->fname)` on RETURN read `"facto"` (NULVCL). Fix: `retname = FUNC_ENTRY_fn(fname)` when it's a registered function (OPSYN case). Alternate-entry case (`fact2`/`fact2_entry`) must NOT use this — `fact2_entry` is not a registered function, body writes to `fact2`; guard with `FNCEX_fn(entry_pre)`.
+
+#### Remaining failures (9)
+
+- `1013_func_nreturn`, `1015_opsyn`, `1016_eval` — NRETURN / OPSYN deeper / EVAL
+- `cross`, `expr_eval` — DEFINE/named-pattern deep interaction
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip test harness failures
+
+### Baseline for DYN-41
+
+- one4all: `92481bf`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **169p/9f**
+
+### DYN-41 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad → confirm 169p/9f baseline.
+5. Fix `1013_func_nreturn`: run `./scrip-interp corpus/crosscheck/rung10/1013_func_nreturn.sno 2>&1` vs `.ref`. NRETURN should longjmp with kind=2 (FAILDESCR path) but return the function's current value. Check `NRETURN` handling in the `target == "NRETURN"` branch — likely missing `NV_GET_fn(fr->fname)` before the longjmp.
+6. Fix `1015_opsyn`: run test vs ref — likely a deeper OPSYN case (operator overloading or 3-arg form). Trace the specific failure assertion.
+7. Broad → target ≥170p. Gate 142/142.
+8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
