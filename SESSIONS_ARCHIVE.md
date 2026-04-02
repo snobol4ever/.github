@@ -17441,3 +17441,92 @@ Bug 2 (retval): even after dispatch fix, `fr->fname = "facto"` but body writes `
 7. Broad → target ≥170p. Gate 142/142.
 8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
 
+
+---
+
+## DYN-41 handoff — 2026-04-02
+
+### What was done
+
+**NRETURN infrastructure + 1013/001+002 — no broad change (169p/9f), 003 pending.**
+
+Gate held 142/142 throughout.
+
+#### Commits (one4all)
+
+- `d411c48` — DYN-41 partial: NRETURN goto + DT_N read deref; 1013/001+002 pass; 003 pending; 142/142 gate 169p/9f
+
+#### Changes landed
+
+| File | Change | Effect |
+|------|--------|--------|
+| `snobol4.h` | Added `#define NAMEVAL(s_)` — `DT_N` name-reference descriptor macro | infrastructure |
+| `scrip-interp.c` | NRETURN branch in goto dispatcher: collects `NV_GET_fn(fr->fname)`, extracts name string (handles DT_N or DT_S), wraps as `NAMEVAL(GC_strdup(name))` | `1013/001` ✅ · `1013/002` ✅ |
+| `scrip-interp.c` | E_FNC result in interp_eval: dereference `DT_N` → `NV_GET_fn(r.s)` in value context | `1013/001` read path ✅ |
+| `scrip-interp.c` | E_FNC+nchildren==0 `has_eq` branch: call user fn, if DT_N write through (infrastructure in place, not yet fired for 003) | partial |
+
+#### 1013/003 root-cause analysis
+
+`ref_a() = 26` — the subject `ref_a()` does NOT parse as `E_FNC` (kind=44) in statement subject position. It parses as `E_VAR` (kind=5, sval="ref_a"). This was confirmed by printing `E_VAR=5 E_FNC=44` from the enum, and tracing that the E_FNC+nchildren==0 `has_eq` branch is never reached.
+
+**Root cause**: `parse_expr17` at line 174 checks `lex_peek(lx).kind == T_LPAREN` immediately after consuming the IDENT. In statement subject position, after `skip_ws` at the statement-parse level, the first token of the subject line is `ref_a` (no leading whitespace). After lexing `ref_a` as T_IDENT and consuming it, `lex_peek` returns the next raw token. If there is any whitespace between `ref_a` and `(` in the source, it returns `T_WS` not `T_LPAREN`, causing the IDENT to become E_VAR and `()` to be left as unparsed tokens (silently swallowed or causing parse confusion).
+
+**Confirmed path**: `ref_a() = 26` subject enters `has_eq && subj_name` branch (subj_name="ref_a", E_VAR). Replacement is `26`. Normal write: `NV_SET_fn("ref_a", 26)` — updates `ref_a` NV slot, not `a`.
+
+#### Two fix options for DYN-42
+
+**Option A (parser fix — preferred)**: In `parse_expr17`, after consuming the IDENT, skip whitespace before checking for `T_LPAREN`:
+```c
+if (t.kind == T_IDENT) {
+    lex_next(lx);
+    skip_ws(lx);   /* ADD THIS — allow space before ( in call */
+    if (lex_peek(lx).kind == T_LPAREN) { ... E_FNC ... }
+    ...
+}
+```
+Risk: changing the parser may affect other tests. Must re-run gate + broad after.
+
+**Option B (interpreter fix — safer)**: In `has_eq && subj_name` branch, add write-through for NRETURN. The guard must NOT fire during function body execution to avoid recursion. Use `call_depth` to detect: at statement-level `call_depth == 0`; inside a body `call_depth > 0`. Additionally check that `subj_name` is a zero-param user fn:
+```c
+} else if (s->has_eq && subj_name) {
+    DESCR_t repl_val = ...;
+    if (!IS_FAIL_fn(repl_val)) {
+        /* NRETURN write-through: only at top level and only for zero-param user fns */
+        if (call_depth == 0 && FNCEX_fn(subj_name) && FUNC_NPARAMS_fn(subj_name) == 0) {
+            DESCR_t fres = call_user_function(subj_name, NULL, 0);
+            if (fres.v == DT_N && fres.s && *fres.s)
+                { NV_SET_fn(fres.s, repl_val); succeeded = 1; goto next_stmt; }
+        }
+        NV_SET_fn(subj_name, repl_val); succeeded = 1;
+    }
+```
+Risk: `call_depth == 0` guard means NRETURN lvalue assign only works at top level, not from inside another function. SPITBOL allows it anywhere. But sufficient for 1013.
+
+**Recommendation**: Try Option A first (2-line parser change). If it breaks >0 tests, fall back to Option B.
+
+#### Remaining failures (9)
+
+- `1013_func_nreturn` — 003 lvalue-assign via NRETURN pending
+- `1015_opsyn`, `1016_eval` — operator OPSYN / EVAL
+- `cross`, `expr_eval` — DEFINE/named-pattern interaction
+- `test_case`, `test_math`, `test_stack`, `test_string` — scrip harness failures
+
+### Baseline for DYN-42
+
+- one4all: `d411c48`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅
+- broad: **169p/9f**
+
+### DYN-42 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
+3. Build scrip-interp (SESSION-dynamic-byrd-box.md build command).
+4. Broad → confirm 169p/9f baseline.
+5. Fix `1013/003` — try Option A (parser): in `parse_expr17`, add `skip_ws(lx)` after consuming IDENT, before `T_LPAREN` check. Rebuild, run `./scrip-interp corpus/.../1013_func_nreturn.sno` → expect PASS (3/3). Run gate + broad — if no regressions, commit.
+6. Fix `1015_opsyn`: run test vs ref, identify failing assertion, trace.
+7. Broad → target ≥170p. Gate 142/142.
+8. Commit + push one4all, update SESSIONS_ARCHIVE + push .github.
+
