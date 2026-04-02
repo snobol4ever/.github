@@ -4,27 +4,27 @@ Every rule exists because a violation caused real damage. Read section headers f
 
 ---
 
-## ⛔ LIVE DOC UPDATE — any clarification must be written immediately
+## ⛔ LIVE DOC UPDATE — significant clarifications written immediately, consolidated not appended
 
 Claude has no memory between sessions. HQ MD files ARE the memory.
 
-**Rule:** Whenever the human corrects a wrong assumption, clarifies the architecture,
-or changes a design decision — update the appropriate doc IMMEDIATELY, before
-continuing. Do not defer to handoff. Do not just "note it."
+**Rule:** When the human corrects a wrong assumption or clarifies something
+architecturally significant — update the appropriate doc IMMEDIATELY.
+Not at handoff. Rewrite/consolidate the relevant section. Do not append.
+
+**Threshold:** Only if a future Claude reading the doc would be meaningfully
+misled without the update. Passing remarks, tactical decisions, session-specific
+findings → SESSIONS_ARCHIVE handoff only.
 
 | What changed | Where it goes |
 |---|---|
-| Architecture / design insight | `ARCH-byrd-dynamic.md` or relevant `ARCH-*.md` |
-| Wrong assumption corrected | Same ARCH doc, clearly marked |
-| Process / gate / rule change | `RULES.md` (here) |
-| NOW table / sprint / milestone | `PLAN.md` |
-| Session-specific finding | `SESSIONS_ARCHIVE.md` handoff |
+| Architecture / design insight corrected | Rewrite relevant section in `ARCH-*.md` |
+| Process / gate / rule changed | Rewrite relevant section in `RULES.md` |
+| NOW table / milestone changed | Update `PLAN.md` NOW row |
+| Session finding / tactical detail | `SESSIONS_ARCHIVE.md` handoff only |
 
-**Trigger:** Human says "X is wrong" or "it works like Y" or "change X to Y"
-→ Claude updates the doc → then continues.
-Not at handoff. Not summarized. In the right place, right now.
-
----
+**Do not append to ARCH docs speculatively.** If unsure whether something is
+significant enough — ask. A doc that grows every session becomes unreadable.
 
 ## ⛔ TWO SCRIPTS — SESSION_SETUP.sh then test scripts, every session, no exceptions
 
