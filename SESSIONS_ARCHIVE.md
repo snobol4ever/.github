@@ -18044,3 +18044,54 @@ every test iteration. Pattern matching runs directly through the existing
 - corpus: `2f2bbe3`
 - .github: this commit
 - invariants: snobol4_x86 gate — BUILD_FAIL (run_invariants.sh box paths stale after SJ-5 reorg; fix needed separately)
+
+---
+
+## J-217 HQ handoff — 2026-04-02
+
+### Final HQ state after all fixes
+
+All planning and milestones from this session are now in HQ.
+
+#### .github HEAD: `9ba60d6`
+#### one4all HEAD: `7c35456`
+
+#### Files updated this session
+
+| File | What changed |
+|------|-------------|
+| `MILESTONE-JVM-SNOBOL4.md` | NEW — full A/B/C ladder; oracle model; §Java Byrd Box runtime section |
+| `SESSION-snobol4-jvm.md` | Rewritten — oracle table; §NOW J-218; bb_*.java referenced |
+| `REPO-snobol4jvm.md` | Updated — semantic oracle role declared |
+| `MILESTONE-DYN-INTERP.md` | M-INTERP-B03 added — Java/C box parity test milestone |
+| `SESSION-dynamic-byrd-box.md` | bb_*.java added to key files table |
+| `PLAN.md` | TINY JVM dedicated NOW row added; J-218 next action visible; MILESTONE-JVM-SNOBOL4.md in routing |
+
+#### one4all: `src/runtime/boxes/bb_*.java`
+
+29 Java files alongside `bb_*.c`/`.s`/`.cs`:
+- `bb_box.java` — base class, Spec, MatchState
+- `bb_lit.java` through `bb_tab.java` — all 25 boxes
+- `bb_executor.java` — 5-phase scan loop driver
+- `bb_bal.java` — first real BAL (C is stub)
+- snake_case filenames matching bb_lit.c convention ✅
+
+#### Baseline
+
+- one4all: `7c35456`
+- corpus: `2f2bbe3`
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. JVM baseline → confirm 94p/32f.
+4. Read `MILESTONE-JVM-SNOBOL4.md` in full — especially §Java Byrd Box runtime.
+5. Lon reviews `bb_seq.java` (β wiring) and `bb_arbno.java` (64-frame stack).
+6. Read `emit_byrd_asm.c` lines ~3530–3570 (structural oracle for 2D key).
+7. Fix `emit_jvm.c` E_IDX write path (~2658–2700): `"row,col"` for nchildren>=3.
+8. Run global driver → diff clean → fire M-JVM-A02.
+9. Invariants → ≥100p. Gate 142/142.
+10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
