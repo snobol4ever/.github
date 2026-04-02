@@ -246,16 +246,15 @@ compiled statements identically to static ones.
 
 | Sprint | Milestone | Key work |
 |--------|-----------|----------|
-| SJ-5 | M-SJ-A03 | Fix Node v22 IIFE bug · wire goto/labels · Phase 5 assign path |
-| SJ-6 | M-SJ-A02 residual | `remdr`, float fmt, `_to_str` fixes; rung4/8 clean |
-| SJ-7 | M-SJ-B01 | `build_pattern()` + scan loop + E_QLIT + Phase 5 splice |
-| SJ-8 | M-SJ-B02–B03 | E_SEQ right-fold · E_ALT |
-| SJ-9 | M-SJ-B04–B05 | ARBNO/ARB + all 16 primitives |
-| SJ-10 | M-SJ-B06 | Captures: COND/IMM/CUR + Phase 5 commit |
-| SJ-11 | M-SJ-C01 | ARRAY/TABLE/DATA |
-| SJ-12 | M-SJ-C02 | DEFINE/user-fns/RETURN |
-| SJ-13 | M-SJ-C03 | EVAL()/CODE() via `new Function()` |
-| SJ-14 | M-SJ-PARITY | Full corpus sweep |
+| SJ-5 | M-SJ-A02 + M-SJ-A03 | Fix Node v22 IIFE bug · `remdr`/float fmt · rung4/8 clean · wire goto/labels · Phase 5 assign path |
+| SJ-6 | M-SJ-B01 | `sno_engine.js` `build_pattern()` + scan loop + E_QLIT + Phase 5 splice |
+| SJ-7 | M-SJ-B02–B03 | E_SEQ right-fold · E_ALT alternation |
+| SJ-8 | M-SJ-B04–B05 | ARBNO/ARB + all 16 primitives |
+| SJ-9 | M-SJ-B06 | Captures: COND/IMM/CUR + Phase 5 commit flush |
+| SJ-10 | M-SJ-C01 | ARRAY/TABLE/DATA |
+| SJ-11 | M-SJ-C02 | DEFINE/user-fns/RETURN/NRETURN |
+| SJ-12 | M-SJ-C03 | EVAL()/CODE() — `_scrip_compile` + `new Function()` |
+| SJ-13 | M-SJ-PARITY | Full corpus sweep · `snobol4_js` ≥ `snobol4_x86` |
 
 ---
 
@@ -267,11 +266,13 @@ The JS equivalent is `sno_engine.js`'s `exec_stmt(subj, pat, repl, has_repl)`:
 | Aspect | x86 (`stmt_exec.c`) | JS (`sno_engine.js`) |
 |--------|---------------------|----------------------|
 | Phase 1 subject | `NV_GET_fn` → `spec_t` | `_vars[name]` → string |
-| Phase 2 pattern | `PATND_t*` → bb graph | `{α,β}` JS object tree |
+| Phase 2 pattern | `PATND_t*` → bb graph | `build_pattern(pat)` → `{α,β}` tree |
 | Phase 3 drive | C goto trampoline | JS function trampoline |
 | Phase 4 repl | `DESCR_t` already eval'd | `{v,s}` object |
 | Phase 5 splice | `memmove` + `NV_SET_fn` | `slice + concat + _vars[]=` |
 | Captures | pending array, flush on :S | JS array, flush on :S |
+| Static fast path | emit_x64.c bakes NASM | emit_js.c emits `{α,β}` literals |
+| Dynamic path | stmt_exec.c always | sno_engine.js always (EVAL/CODE) |
 
 `stmt_exec.c` is the oracle for `sno_engine.js`.
 `emit_byrd_c.c` is the oracle for `emit_js.c`.
