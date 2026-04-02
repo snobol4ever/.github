@@ -16391,3 +16391,63 @@ Smoke results:
 
 5. Begin **MILESTONE-BOX-UNIFY Phase 1** if time permits.
 
+
+---
+
+## DYN-26 final handoff — M-INTERP-A02 E_ALT/E_CAPT_* wired — 2026-04-02
+
+### What was done
+
+**M-INTERP-A02** (`61639ca`) — wire four pattern nodes in `interp_eval`:
+
+- `E_ALT`: `pat_alt` chain across all children (N-ary alternation)
+- `E_CAPT_COND` (`.`): `pat_assign_cond(pat, STRVAL(nm))`
+- `E_CAPT_IMM` (`$`): `pat_assign_imm(pat, STRVAL(nm))`
+- `E_CAPT_CUR` (`@`): `pat_cat(interp_eval(children[0]), pat_at_cursor(children[1]->sval))`
+  - Key insight: `@` is **binary infix** — `children[0]`=lhs pattern, `children[1]`=E_VAR
+  - Cursor integer written as DT_I by `bb_atp` (inline in `stmt_exec.c`); `stmt_exec_dyn`
+    routes through `bb_build(_XATP)` → `bb_atp` directly, not `match_pattern()`/`materialise()`
+  - `pat_at_cursor` forward-declared in `scrip-interp.c` (not exported from `snobol4.h`)
+
+**`snobol4_pattern.c`** — `is_cursor_cap` flag added to `Capture` struct; `materialise()`
+XATP `"@"` case now builds `T_CAPTURE(epsilon)` writing `INTVAL(cursor)` via `apply_captures`.
+Not used by the `stmt_exec_dyn` path (bb_atp handles it) but correct for any future
+`match_pattern()` caller.
+
+**Broad test: 74p/29f** (up from 65p/28f). W07 capture suite: all 5 tests pass.
+Gate: snobol4_x86 **142/142** ✅
+
+### Debugging notes (save for next session)
+
+- `bb_atp` is defined **static** inline in `stmt_exec.c` line 380 — NOT compiled from
+  `src/runtime/boxes/bb_atp.c` in the scrip-interp build. `_XATP` case in `bb_build`
+  (line 735) routes to this inline definition.
+- `PATND_t` and `_PND_t` layouts confirmed identical (offsetof(args)=56, size=72).
+- `stmt_exec_dyn` takes the `bb_build` path for DT_P — `match_pattern()`/`materialise()`
+  is NOT called from the interpreter. PAT_DEBUG in `snobol4_pattern.c` will show nothing.
+
+### Baseline for DYN-27
+
+- one4all: `61639ca`
+- .github: (this commit)
+- corpus: `d5058ef` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-27 first tasks (in order)
+
+1. **Build scrip-interp** — use build command in SESSION-dynamic-byrd-box.md §scrip-interp build command.
+   Remember: `nasm` + `libgc-dev` need manual install (`apt-get install -y nasm libgc-dev`).
+
+2. **Analyse remaining 29 failures** — clusters:
+   - `083–090`, `1010–1012`: DEFINE/call-stack (9 tests) — `E_DEFINE`/`E_CALL` not wired
+   - `091–095`: ARRAY/TABLE/DATA (4 tests) — aggregate constructors not wired
+   - `082`, `098`: keywords `&STCOUNT`, `&ANCHOR` (2 tests)
+   - `048`, `056`, `057`: REM/star-deref/FAIL-builtin pattern nodes
+   - `fileinfo`, `triplet`, `expr_eval`, `test_*`, `roman` (9 tests) — misc
+
+3. **M-INTERP-A03** — wire DEFINE/call-stack in `interp_eval`/`execute_program`:
+   - `E_FNC` for user-defined functions (DEFINE'd) needs local frame + GOTO FRETURN
+   - Target: fix 083–090 cluster → ≥85p broad.
+
+4. **Gate**: snobol4_x86 142/142 (scrip-interp is separate binary — no regression risk).
+
