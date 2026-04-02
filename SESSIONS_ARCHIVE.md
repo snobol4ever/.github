@@ -15943,3 +15943,73 @@ constitute a complete portable C BB interpreter — no asm required.
 `T *ζ = zeta;` at top. Double indirection is gone. Field names are
 readable English words. The suite is DaVinci-grade and frozen unless
 a box needs a semantic fix.
+
+---
+
+## DYN-22 session-start — 2026-04-02
+
+### What was done this session
+
+**struct rename fix** (`a8f5467`)
+
+The DYN-21 rename pass (final readable field names) updated all 27 bb_*.c
+reference files but left `stmt_exec.c`'s inline struct definitions and
+function bodies using the old names. This produced 105 compile errors at
+session start (BUILD_FAIL on snobol4_x86 gate).
+
+Root cause: `stmt_exec.c` carries its own copies of the box struct typedefs
+for use in `bb_build()`. These were not updated when bb_*.c was renamed.
+
+**Fix**: read canonical names directly from bb_*.c, then aligned every
+diverged typedef and every call site in `stmt_exec.c`:
+
+| Struct | Old fields | Canonical (bb_*.c) fields |
+|--------|-----------|--------------------------|
+| `arb_t` | `tried`, `position`, `n` | `count`, `start` |
+| `_alt_t/_bchild_t` | `children[]{fn,ζ}` | `ch[]{fn,state}` |
+| `_seq_t` | `{fn,ζ}` | `{fn,state}` |
+| `_arbno_t` | `body_fn`, `body_ζ` | `fn`, `state` |
+| `capture_t` | `child_fn`, `child_ζ` | `fn`, `state` |
+| `deferred_var_t` | `child_ζ`, `child_ζ_size` | `child_state`, `child_size` |
+| `bb_rem/succeed/fail` | `(void)ζζ` | `(void)zeta` |
+| `flush_pending_captures` | `c->var` | `c->varname` |
+
+**Lesson**: when renaming fields in bb_*.c, also update the mirror typedefs
+in `stmt_exec.c` (search for the same struct name in that file).
+
+### Baseline for DYN-22 (continued)
+
+- one4all: `38a2fb0`
+- .github: `b647f2a` (this commit)
+- corpus: `31ad542` (unchanged)
+- invariants: snobol4_x86 **142/142** ✅
+
+### DYN-22 next task — M-DYN-OPT (unchanged from prior handoff)
+
+Runtime lazy cache is working. M-DYN-OPT adds eager preamble pre-build:
+at `_start`, before any statement executes, pre-build all invariant
+`PAT=` assignments so first execution is already a cache hit.
+
+**Implementation path (from prior handoff — unchanged):**
+
+1. In `emit_program()` (`emit_x64.c`), after Pass 2 (bss slots), add
+   Pass 2b: walk all statements, identify `PAT=` assignments where
+   `expr_is_pattern_expr(s->replacement)` AND replacement AST has no
+   `E_VAR`/`E_DSAR`/`E_ATP`/capture nodes (call it `expr_is_invariant()`).
+
+2. For each such invariant `PAT=`, emit in `_start` preamble (before
+   `jmp root_α`):
+   ```nasm
+   ; pre-build invariant pattern PAT_varname
+   <emit_pat_to_descr(s->replacement)>   ; leaves DT_P in rax:rdx
+   mov  [rel PAT_varname+0], rax
+   mov  [rel PAT_varname+8], rdx
+   ```
+
+3. Gate: `snobol4_x86 142/142` (no regression).
+
+Grep `ARCH-byrd-dynamic.md §M-DYN-OPT` and `§Milestone Chain` before coding.
+
+**Reminder for next session**: if bb_*.c field names are ever renamed again,
+immediately update the mirror typedefs in `stmt_exec.c` — they must stay
+in sync or bb_build() will silently write to wrong offsets.
