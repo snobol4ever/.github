@@ -17618,3 +17618,60 @@ restores it on the failure path — capture writes fall inside that window.
 6. Fix. Crosscheck → 80/80. `dotnet test` → ≥1911/1913. Commit M-NET-P35-FIX.
 7. Update SESSIONS_ARCHIVE + push .github.
 
+
+---
+
+## J-217 pivot handoff — 2026-04-02
+
+### What was done
+
+**JVM session pivot: compiled Byrd boxes declared; oracle model corrected.**
+
+No code changes to `emit_jvm.c`. Architecture and milestone ladder written.
+
+#### The key architectural insight
+
+`one4all` JVM backend (`emit_jvm.c`) emits **pure compiled Byrd boxes** —
+`emit_jvm_pat_node()` compiles each pattern AST node to Jasmin α/γ/ω labels
+at compile time. The compiled `.class` IS the Byrd box graph. Same model as
+`emit_byrd_asm.c` (x86): same IR, same labeled-goto structure, different ISA.
+
+`snobol4jvm` (Clojure) uses an interpreted frame-walker (`match.clj` engine
+with 7-element frame vector). Different execution model — same semantics.
+
+**Oracle split:**
+- `snobol4jvm` = semantic oracle (what the 5 phases must produce)
+- `emit_byrd_asm.c` = structural oracle (how compiled Byrd boxes look)
+
+**Current 32 failures (94p/32f) are NOT pattern gaps.** The Byrd box
+infrastructure is substantially built (E_QLIT, E_SEQ, E_ALT, ARBNO, ANY,
+NOTANY, captures, scan loop). Failures are in value-layer and DATA/function
+paths: rung8 strings, rung10 functions, rung11 DATA, 2D subscript.
+
+#### New / updated HQ docs
+
+| File | Change |
+|------|--------|
+| `MILESTONE-JVM-SNOBOL4.md` | **NEW** — full ladder; correct oracle model |
+| `SESSION-snobol4-jvm.md` | Rewritten — oracle table corrected; §NOW J-217 |
+| `REPO-snobol4jvm.md` | Updated — semantic oracle role; structural oracle noted |
+| `PLAN.md` | TINY JVM J-216→J-217; MILESTONE-JVM-SNOBOL4.md in routing |
+
+#### Baseline
+
+- one4all: `a74ccd8` (J-216 STLIMIT/STCOUNT — unchanged)
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-218 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=jvm` + x86 gate 142/142.
+3. JVM baseline → confirm 94p/32f.
+4. Read `MILESTONE-JVM-SNOBOL4.md` §Oracle Read Order.
+5. Read `emit_byrd_asm.c` lines ~3530–3570 (structural oracle for 2D key).
+6. Fix `emit_jvm.c` E_IDX write path (lines ~2658–2700): `nchildren>=3` → `"row,col"` key.
+7. Run global driver → diff clean.
+8. Invariants → ≥100p. Gate 142/142.
+9. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
