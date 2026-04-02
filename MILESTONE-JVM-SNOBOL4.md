@@ -80,6 +80,33 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 
 ---
 
+## Java Byrd Box runtime — `src/runtime/boxes/bb_*.java`
+
+**Written J-217. 29 files. one4all `7c35456`.**
+
+Every C box (`bb_lit.c`, `bb_seq.c`, ...) now has a Java sibling in the
+same directory (`bb_lit.java`, `bb_seq.java`, ...) plus `bb_box.java`
+(base class, `Spec`, `MatchState`) and `bb_executor.java` (5-phase driver).
+
+```
+bb_lit.c    bb_lit.s    bb_lit.cs    bb_lit.java
+bb_seq.c    bb_seq.s    bb_seq.cs    bb_seq.java
+... (all 25 boxes, 4 languages, one snake_case name)
+bb_box.h                             bb_box.java
+bb_bal.c    bb_bal.s                 bb_bal.java  ← C stub; Java real
+                                     bb_executor.java
+```
+
+`bb_bal.java` is the first real BAL implementation (C original is a stub).
+
+**Before wiring into `emit_jvm.c`:** Lon reviews `bb_seq.java` (β wiring)
+and `bb_arbno.java` (64-frame stack) for correctness.
+
+**These are the M-JVM-B01 implementation atoms.** Each milestone in Phase 2
+maps directly to instantiating the corresponding Java box class.
+
+---
+
 ## Current state of `emit_jvm_pat_node()`
 
 Already implemented (pre-pivot work):
