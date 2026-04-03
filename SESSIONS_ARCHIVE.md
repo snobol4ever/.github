@@ -19290,3 +19290,64 @@ Removed: `sno.l`, `lex.c` (old scrip-cc two-pass lexer), `sno.y`, `sno.tab.c/h`
 - .github: (this commit)
 - test_lex: **54p/0f** ✅
 - Broad: **126p/52f** ⚠️ (target: 169p/9f)
+
+---
+
+## D-170 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
+
+### What was done
+
+**Box splits (one class per file — mirrors C directory layout):**
+- `any/bb_any.cs` + new `notany/bb_notany.cs` (split from `bb_any.cs`)
+- `brk/bb_brk.cs` + new `breakx/bb_breakx.cs` (split from `bb_brk.cs`)
+- `pos/bb_pos.cs` + new `rpos/bb_rpos.cs` (split from `bb_pos.cs`)
+- `tab/bb_tab.cs` + new `rtab/bb_rtab.cs` (split from `bb_tab.cs`)
+- new `abort/bb_abort.cs`, `fail/bb_fail.cs`, `fence/bb_fence.cs`, `succeed/bb_succeed.cs` (split from `shared/bb_terminals.cs`)
+- `bb_boxes.csproj` updated to include all new files; `bb_terminals.cs` excluded via `<Compile Remove>`
+
+**Bug fixes (four root causes, all resolved):**
+
+1. **`BbAny.Alpha` bounds check** — was missing `if (ms.Cursor >= ms.Length) return Spec.Fail`. `CharInSet` itself has the check but the early-exit path was absent, causing silent mismatch at EOS.
+
+2. **`PatternBuilder.BuildSeq` — capture wrapping** — `E_CAPT_COND_ASGN`/`E_CAPT_IMMED_ASGN` nodes were wrapping `BbEps` (matching nothing) instead of the preceding left sibling box. Fixed: `BuildSeq` now builds left-to-right as a `List<IByrdBox>`, and when a capture node is encountered, pops the last box and wraps it in `BbCapture`. Cursor-capture (`@`) similarly emits `BbAtp` inline.
+
+3. **`Snobol4Parser.ParseCatSequence` — capture operators** — **root cause of all pattern+capture failures**. In SNOBOL4 source like `ANY('aeiou') . V`, space-tokenisation produces `["ANY('aeiou')", ".", "V"]`. The lone `"."` token (length 1) fell through the `.var` detection guard (`src.Length > 1`) and became `IrNode.Var(".")` — a variable named `.`. Fixed: `ParseCatSequence` now detects lone `"."`, `"@"`, `"$"` tokens as binary capture operators, consuming the next token as the variable name.
+
+4. **`Executor` — empty replacement deletion** — `HasEq` with null `Replacement` (e.g. `X 'pattern' =`) left `replVal = null`, skipping the Phase 5 splice entirely. Fixed: `HasEq && Replacement == null` now splices `SnobolVal.Of("")`, correctly deleting the matched substring.
+
+#### Commits
+- `e28680e` (rebased to `cb1b00c`) — D-170 r1: box splits + four bug fixes
+
+### Broad results
+- **Before: 93/178**
+- **After:  118/178** (+25)
+
+### Baselines for D-171
+- `one4all`: `cb1b00c`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 118/178**
+
+### D-171 first actions
+1. `git pull --rebase` all repos.
+2. `export PATH` for dotnet8; `dotnet build src/driver/dotnet/scrip-interp.csproj -c Debug` — confirm clean.
+3. **No gate** (interpreter session, exempt per RULES.md).
+4. Diagnose next failure cluster. Recommended order:
+   - `034_goto_failure` — `:F` goto on pattern mismatch; likely Executor not branching to gF label when match returns false.
+   - `076_builtin_ident` / `078_builtin_gt` — builtin function dispatch; check `SnobolEnv.cs` for IDENT/GT/LT/GE etc.
+   - `097_keyword_alphabet` / `098_keyword_anchor` / `006_output_keyword_alphabet` — `&ALPHABET` / `&ANCHOR` keyword reads; check `EvalNode` for `E_KEYWORD`.
+   - `027_arith_exponent` — `**` operator; check `E_POW` in `EvalNode`.
+   - `053_pat_alt_commit` — ALT with commitment after first match; check `BbAlt` β behaviour.
+   - `091/092_array_*` — ARRAY builtin; check `SnobolEnv` ARRAY creation and `E_IDX` indexing.
+5. Run broad after each cluster, target ≥ 140/178.
+6. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `src/driver/dotnet/Executor.cs` — statement executor (phases 1–5)
+- `src/driver/dotnet/Snobol4Parser.cs` — parser (ExtractGotos, SplitStatement, ParseCatSequence)
+- `src/driver/dotnet/PatternBuilder.cs` — pattern → IByrdBox graph (BuildSeq fixed this session)
+- `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table
+- `MILESTONE-NET-SNOBOL4.md` — milestone chain (currently Phase A)

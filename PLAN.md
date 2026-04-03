@@ -76,7 +76,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **⭐ TINY JVM** | J-221 | one4all `f3049fe` | **M-JVM-INTERP-A04**: pattern match Phase 2-4 via Byrd boxes · oracle: bb_*.java + Jasmin boxes.jar |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
-| **⭐ one4all-SNOBOL4-NET** | D-169 | one4all `a7a2daa` | **M-NET-INTERP-A01b complete**: IrNode/IrStmt migration done, infix arith + goto fix + float fmt — 93/167 broad. **Next**: fix pattern primitives (039–055), captures (058–063), retest literals/ucase/lcase/integer. See SESSION-snobol4-net.md + MILESTONE-NET-SNOBOL4.md. |
+| **⭐ one4all-SNOBOL4-NET** | D-170 | one4all `cb1b00c` | **M-NET-INTERP-A01b complete + pattern/capture fixes — 118/178 broad**. Next: fix goto_failure, builtin IDENT/GT, &ALPHABET/&ANCHOR, arith exponent, ALT commit, ARRAY → ≥ 140/178. See SESSION-snobol4-net.md + MILESTONE-NET-SNOBOL4.md. |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
 
