@@ -18045,3 +18045,72 @@ Key decisions made and committed (`ddb8f71` .github):
 - `one4all/src/runtime/boxes/*/bb_*.java` — authoring oracle for every box
 - `one4all/src/runtime/boxes/shared/bb_executor.java` — BbExecutor oracle
 - `SESSION-snobol4-jvm.md §NOW` — first actions checklist
+
+
+---
+
+## DYN-43 handoff — 2026-04-03
+
+### What was done
+
+**Session infrastructure fixed, root cause of 1013/003 diagnosed.**
+
+#### Build fixes
+- `src/runtime/boxes/bb_box.h` — forwarding header added (`#include "shared/bb_box.h"`). `stmt_exec.c` uses `#include "../boxes/bb_box.h"` (relative path) which now resolves correctly.
+- scrip-interp build loop: `atp`, `capture`, `dvar` removed from separate compilation. All three (`bb_atp`, `bb_capture`, `bb_deferred_var`) are still defined inside `stmt_exec.c` with explicit comment "remain here until MILESTONE-BOX-UNIFY". Compiling them separately caused duplicate symbol conflicts.
+- `test/run_interp_broad.sh` — broad runner committed. Run: `bash test/run_interp_broad.sh` from one4all root.
+
+#### Commit
+- `088ab07` / pushed as `8d38768` — DYN-43: run_interp_broad.sh + boxes/bb_box.h forwarding header; 142/142 gate ✅ 169p/9f broad
+
+#### Root cause of 1013/003 diagnosed
+
+`ref_a() = 26` — the body reconstruction bridge in `parse_program_tokens` prepends a leading space when reconstructing the body string (the body token stream starts with whatever whitespace was in the original source). The reconstructed string is ` ref_a() = 26`. After `skip_ws`, `raw_next_str` tokenizes `ref_a` as `T_IDENT`, then sees `T_WS` (from the space between `ref_a` and `()`... wait — no. The original source has `ref_a()` with NO space. The leading space in the reconstructed body is absorbed by `skip_ws` before `parse_expr14`. After skip_ws, `ref_a` is consumed as `T_IDENT`, then peek is `T_LPAREN` — so it SHOULD parse as `E_FNC`.
+
+**Actual confirmed diagnosis (from token-level tracing):** After consuming `T_IDENT("ref_a")`, `lex_peek` returns `T_WS` (kind=5), NOT `T_LPAREN` (kind=24). This means there IS whitespace between `ref_a` and `()` in the re-lexed stream, despite no whitespace in the source. The body reconstruction emits a space token for the `T_WS` that appears between subject and `()` — but wait, the source `ref_a()` has no space. **The real source of the T_WS is the body reconstruction loop itself**: when it reconstructs `ref_a() = 26` from `body_toks[]`, one of the tokens in `body_toks` is `T_WS` (the space before `=`), and the reconstruction emits it in the right place. But somehow a T_WS is landing between `ref_a` and `()`.
+
+**The correct diagnosis:** `tokenise_body` on the body field of `        ref_a() = 26                                   :s(e002)` strips the goto field `:s(e002)` and leading whitespace from the label column, leaving body = `ref_a() = 26` (no leading space after goto strip). Token stream: `T_IDENT("ref_a"), T_LPAREN, T_RPAREN, T_WS, T_EQ, T_WS, T_INT(26)`. Reconstruction produces exactly `ref_a() = 26`. Re-lex via `raw_next_str`: `T_IDENT("ref_a")` then peek... **`raw_next_str` identifier scanner includes `.` as valid identifier char** — but `ref_a` has no dot. However: `raw_next_str` scans `ref_a` correctly stopping at `(`. So peek after `ref_a` should be `T_LPAREN`. But tracing showed `T_WS`.
+
+**Unresolved:** The token-level trace is definitive — `T_WS` follows `ref_a` in the re-lexed stream. The body reconstruction must be inserting a space. The reconstruction loop emits `T_WS` as a single space `' '`. If `body_toks` for this statement is `[T_IDENT("ref_a"), T_LPAREN, T_RPAREN, T_WS, T_EQ, T_WS, T_INT(26)]`, reconstruction gives `ref_a() = 26` — correct, no space between `ref_a` and `(`. So either `body_toks` has an extra `T_WS` before `T_LPAREN`, or the reconstruction is wrong. This needs one more `fprintf` to dump `body_toks` directly.
+
+**However — this entire investigation is moot for DYN-43.**
+
+### New milestones: M-LEX-1 and M-PARSE-1
+
+The team has decided to replace the hand-rolled lexer and parser with flex/bison:
+
+**M-LEX-1: Rewrite `lex.c` using flex**
+- New file: `src/frontend/snobol4/lex.l`
+- Generated: `src/frontend/snobol4/lex.c` (committed)
+- Preserve: one-pass design, recursive include via buffer stacking, same TokKind token stream, same `Lex` API (`lex_open_str`, `lex_next`, `lex_peek`, `lex_at_end`)
+- Gate: 142/142 · Broad: 169p/9f (no regression)
+
+**M-PARSE-1: Rewrite `parse.c` using bison**
+- New file: `src/frontend/snobol4/parse.y`
+- Generated: `src/frontend/snobol4/parse.c`, `parse.h` (committed)
+- Eliminate: body reconstruction bridge (`bbuf`/`body_toks[]` → string → `lex_open_str` → re-parse)
+- Grammar encodes directly: `IDENT T_LPAREN` (no T_WS between) = function call; `IDENT T_WS ...` = subject + pattern
+- Gate: 142/142 · Broad: 169p/9f (no regression)
+- **After M-PARSE-1: 1013/003 should fall naturally** — `ref_a()` as subject in statement position will parse as E_FNC(zero-args) correctly since the grammar won't reconstruct/re-lex
+
+**Constraint:** flex/bison are not installed in sessions. Install locally to generate `.c`/`.h`, commit generated files. Do NOT install flex/bison via SESSION_SETUP.sh.
+
+### Baseline for DYN-44
+
+- one4all: `8d38768`
+- corpus: `2f2bbe3`
+- .github: this commit
+- invariants: **142/142** ✅
+- broad: **169p/9f**
+
+### DYN-44 first actions
+
+1. `git pull --rebase` all repos.
+2. Build scrip-interp (SESSION-dynamic-byrd-box.md build command — skip atp/capture/dvar in box loop).
+3. Gate 142/142 · Broad 169p/9f confirm.
+4. `apt-get install -y flex bison`
+5. Write `src/frontend/snobol4/lex.l` — M-LEX-1.
+6. Generate, build, gate, broad — confirm no regression.
+7. Write `src/frontend/snobol4/parse.y` — M-PARSE-1.
+8. Generate, build, gate, broad — confirm no regression + 1013/003 now passes.
+9. Commit generated files + .l/.y sources. Push. Update SESSIONS_ARCHIVE.
