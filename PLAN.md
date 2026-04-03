@@ -72,7 +72,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-11 | one4all `df04703` · .github TBD | **SJ-12**: fix E_ALT in value context (7 tests), func_recursion param clobber, TABLE int key, OPSYN alias. Target ≥170p. |
+| **SNOBOL4 JS** | SJ-12 | one4all `59e4f25` · .github TBD | **SJ-13**: fix differ(fnCall) :f mis-fire · word* infinite loop · S=PR split refinement. Target ≥170p. |
 | **⭐ TINY JVM** | J-221 | one4all `f3049fe` | **M-JVM-INTERP-A04**: pattern match Phase 2-4 via Byrd boxes · oracle: bb_*.java + Jasmin boxes.jar |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
