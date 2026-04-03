@@ -17938,3 +17938,82 @@ Seven new files created under `one4all/src/driver/dotnet/`:
 - `src/runtime/js/sno_engine.js` — 552 lines, current pattern engine (iterative state machine, Ψ/Ω stacks)
 - `src/runtime/js/sno-interp.js` — 1109 lines, statement executor (stack machine)
 - `SESSION-snobol4-js.md §DISPATCH ENCODING` — integer switch encoding (uid<<2|signal)
+
+MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section updated with full architecture description and revised A03/A04 milestone specs. Committed `001f369` → see next commit below.
+
+---
+
+## J-220 architecture decision — 2026-04-02
+
+### Jasmin boxes — box execution language changed from Java to Jasmin
+
+**Decision:** `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the JVM interpreter.
+
+**Rationale:**
+- Interpreter tests the *actual emitter artifact* — no translation gap between what the interpreter proves and what `emit_jvm.c` generates
+- `bb_*.java` (J-217, committed) becomes human-readable oracle/reference only
+- Both `.java` and `.jasmin` produce identical `.class` files; `jar` and JVM are agnostic to source language
+- Design invariant preserved: interpreter operations map 1:1 to emitter operations — trivially true because the interpreter *runs* the Jasmin bytecode
+
+**Milestone impact:**
+- New first milestone: **M-JVM-INTERP-A00** — write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble → `boxes.jar`
+- Existing A01–A05 renumbered (unchanged in content); sprint sequence shifts by one (J-220=A00, J-221=A01, ...)
+- MILESTONE-JVM-SNOBOL4.md and SESSION-snobol4-jvm.md updated this session
+
+### Baseline for J-220 (unchanged)
+- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: this commit
+- No gate — interpreter session, exempt per RULES.md
+
+### J-220 first tasks (A00)
+1. `git pull --rebase` all repos
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash SESSION_SETUP.sh`
+3. Read `bb_box.java` + `bb_lit.java` as authoring oracle
+4. Write `BbBox.jasmin` (base + Spec + MatchState)
+5. Write `bb_lit.jasmin` — smoke test α/ω
+6. Write remaining 24 boxes from `bb_*.java` oracles
+7. Assemble all → `boxes.jar`; smoke test BbLit instantiation
+8. Commit one4all + push · update SESSIONS_ARCHIVE + push .github
+
+---
+
+## D-168 handoff — 2026-04-02
+
+### Session type
+**NET INTERP** — SNOBOL4 .NET interpreter (Track B). Milestone planning session.
+
+### What was done
+
+**No code written.** Milestone restructuring only.
+
+Milestone chain corrected to reflect the actual pipeline order:
+`.sno` → **Lexer** → tokens → **Parser** → `IrNode`/`IrStmt` tree → **5-phase interpreter**
+
+Previous A01 was a single undifferentiated "scaffold + parser" milestone that skipped
+lexer as a discrete verified step. Split into:
+
+- **A01a** — `Snobol4Lexer.cs`: tokenizes `.sno`; token stream mirrors `lex.c`; 19/19 token tests
+- **A01b** — `Snobol4Parser.cs` (Pidgin combinators) → `IrNode`/`IrStmt`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`; 19/19 parse tests
+- **A01c** — `Ast.cs` removed; `PatternBuilder.cs` + `Executor.cs` dispatch on `IrKind`; build clean; 3/3 smoke
+
+Updated files: `MILESTONE-NET-SNOBOL4.md` (canonical), `MILESTONE-NET-INTERP.md` (annex), `SESSION-snobol4-net.md`.
+
+### Baseline for D-169
+- one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
+- Build: clean · hello/empty_string/multi: 3/3 pass (D-167 scaffold)
+- Gate: snobol4_x86 142/142 ✅
+
+### D-169 first tasks (in order)
+1. `git pull --rebase` all repos.
+2. `export PATH=/usr/local/dotnet8:$PATH`
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj` → confirm clean.
+4. **Write `Snobol4Lexer.cs`** — tokenizes `.sno` source; mirrors `lex.c` token kinds.
+5. Wire lexer into `Snobol4Parser.cs`; replace any ad-hoc splitting.
+6. Replace `Ast.cs` with `IrNode.cs`; update parser, PatternBuilder, Executor to `IrKind`.
+7. Build clean. 3/3 smoke. 19/19 parse tests. Commit A01a+A01b+A01c.
+8. Update SESSIONS_ARCHIVE + push .github.
+
+### Key reference
+- `MILESTONE-NET-SNOBOL4.md` — canonical unified chain
+- `MILESTONE-NET-INTERP.md` — annex with D-169 first tasks detail
+- `SESSION-snobol4-net.md` §Track B
+>>>>>>> 88694a0 (D-168: split A01 → A01a/b/c (lex→parse→IR); update session+archive)
