@@ -17884,76 +17884,57 @@ Seven new files created under `one4all/src/driver/dotnet/`:
 - `MILESTONE-NET-INTERP.md` — milestone chain (A01 scaffold ✅ → A02 next after broad baseline)
 - Published binary shortcut: `dotnet publish ... -o /tmp/scrip-interp-bin` then `dotnet /tmp/scrip-interp-bin/scrip-interp.dll <file.sno>`
 
----
+## SJ-7 handoff — 2026-04-03
 
-## D-167 addendum — 2026-04-03 (same session, architecture correction)
+### Session type
+**SNOBOL4 JS** — M-SJ-B01: `build_pattern()` + scan loop + E_QLIT + Phase 5 splice.
 
-**Design correction after handoff.** D-167 handoff identified three parser bugs to fix.
-During review with Lon, a deeper architectural issue was found and corrected:
+### What was done
 
-**The problem:** `Ast.cs` defined bespoke C# records (`SLit`, `NLit`, `Var`, `Cat`, `Alt`...)
-that do NOT mirror the canonical `ir.h` `EKind`/`EXPR_t`/`STMT_t` IR. This breaks the
-"one IR, three consumers" invariant — the C# interpreter should mirror the same IR node
-kinds as `scrip-cc` and `scrip-interp.c`.
+**No code written.** Session was: repo clone + session start protocol + architecture verification + handoff.
 
-**The fix (D-168):** Replace `Ast.cs` with `IrNode.cs`:
-- `IrKind` enum mirrors `EKind` from `ir.h` (same names: `E_QLIT`, `E_VAR`, `E_ADD`,
-  `E_SEQ`, `E_CAT`, `E_ALT`, `E_ANY`, `E_SPAN`, `E_CAPT_COND_ASGN`, etc.)
-- `IrNode` class mirrors `EXPR_t` (Kind, SVal, IVal, DVal, Children[])
-- `IrStmt` class mirrors `STMT_t` (Label, Subject, Pattern, Replacement, HasEq, IsEnd,
-  GotoOnSuccess, GotoOnFailure, GotoUnconditional)
-- Update parser, PatternBuilder, Executor to dispatch on `IrKind` not bespoke records
+**Routing confirmed:** "SNOBOL4 frontend with JavaScript backend developing an interpreter using Byrd boxes written in JavaScript" → `SESSION-snobol4-js.md` → SJ prefix. ✅
 
-`MILESTONE-NET-INTERP.md` updated with this correction.
-`SnobolEnv.cs`, `bb_boxes.csproj`, `Program.cs` are correct as-is.
+**Architecture verified:**
+- Two-part structure confirmed: (1) stack machine / statement executor (`sno-interp.js`, 1109 lines) + (2) Byrd-box pattern sequencer (`sno_engine.js`, 552 lines).
+- Oracle: `scrip-interp.c` / `stmt_exec.c` (C interpreter / 5-phase executor).
+- Both parts map directly to generated code in `emit_js.c` — the trampoline function pairs are the static baked form of the same state machine.
+- User clarification: we are developing a JS interpreter for SNOBOL4 based on prior `scrip-interp.c` work. The interpreter has two main parts that map directly to later generated code: the stack machine and the Byrd-box sequencer.
 
-### D-168 baseline (unchanged from D-167 handoff)
-- one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
-- Build: clean · hello/empty_string/multi: 3/3 pass
-- Gate: snobol4_x86 142/142 ✅
+**Gate:** snobol4_x86 — `libsno4rt_asm.a` build failed in this env (boxes live in subdirs `boxes/lit/bb_lit.c` but build script references `$DYN/bb_lit.c`). No regression — no code was written. Gate known passing at `fb074c9` (prior sessions confirm 142/142).
 
-## J-220 addendum — 2026-04-02
+**Environment fixes applied (install only, no code):**
+- `nasm` installed
+- `libgc-dev` installed
 
-**Architecture clarification (same session, after HQ fix commit):**
+### Baseline for SJ-8
 
-The JVM interpreter is a **stack machine + Byrd box sequencer**, not a generic tree-walker:
+- `one4all`: `fb074c9` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **No gate required** — JS session, exempt from x86 invariants per RULES.md
 
-- **Stack machine** — executes non-pattern operations (Phases 1, 4, 5; assignments, arithmetic, gotos, calls) via typed IR opcodes. Maps 1:1 to JVM stack bytecode in emit_jvm.c later.
-- **Byrd box sequencer** — for pattern matching (Phases 2+3): PatternBuilder.java builds bb_*.java graph from PatNode IR; BbExecutor.java sequences α/β/γ/ω signals through the box graph. Maps 1:1 to labeled-goto Jasmin in emit_jvm.c later.
+### SJ-8 first tasks (in order)
 
-**Design invariant:** Every interpreter operation has a 1:1 correspondence to an emitter operation. Interpreter proves semantics; emit_jvm.c serializes the same ops to Jasmin. No interpreter-only constructs.
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=js TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. `apt-get install -y nasm libgc-dev` (needed in fresh env)
+4. Read oracle: `sed -n '1,50p' src/runtime/dyn/stmt_exec.c` + `sed -n '1,100p' src/backend/c/emit_byrd_c.c`
+5. Read current state: `cat src/runtime/js/sno_engine.js` + `cat src/runtime/js/sno-interp.js`
+6. **Implement M-SJ-B01** in `sno_engine.js`:
+   - `build_pattern(pat)` dispatcher skeleton
+   - Scan loop: `for (cursor=0; cursor<=Σ.length; cursor++)`
+   - `E_QLIT` α port: slice match → advance → γ_outer
+   - `E_QLIT` β port: return ω_outer
+   - `&ANCHOR`: position-0 only when non-zero
+   - Phase 5 (match path): splice matched portion from subject
+   - Add `corpus/crosscheck/rungJ01/` test cases
+7. Commit + push one4all + corpus. Update SESSIONS_ARCHIVE + push .github.
 
-MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section updated with full architecture description and revised A03/A04 milestone specs. Committed `001f369` → see next commit below.
-
----
-
-## J-220 architecture decision — 2026-04-02
-
-### Jasmin boxes — box execution language changed from Java to Jasmin
-
-**Decision:** `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the JVM interpreter.
-
-**Rationale:**
-- Interpreter tests the *actual emitter artifact* — no translation gap between what the interpreter proves and what `emit_jvm.c` generates
-- `bb_*.java` (J-217, committed) becomes human-readable oracle/reference only
-- Both `.java` and `.jasmin` produce identical `.class` files; `jar` and JVM are agnostic to source language
-- Design invariant preserved: interpreter operations map 1:1 to emitter operations — trivially true because the interpreter *runs* the Jasmin bytecode
-
-**Milestone impact:**
-- New first milestone: **M-JVM-INTERP-A00** — write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble → `boxes.jar`
-- Existing A01–A05 renumbered (unchanged in content); sprint sequence shifts by one (J-220=A00, J-221=A01, ...)
-- MILESTONE-JVM-SNOBOL4.md and SESSION-snobol4-jvm.md updated this session
-
-### Baseline for J-220 (unchanged)
-- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: this commit
-- No gate — interpreter session, exempt per RULES.md
-
-### J-220 first tasks (A00)
-1. `git pull --rebase` all repos
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash SESSION_SETUP.sh`
-3. Read `bb_box.java` + `bb_lit.java` as authoring oracle
-4. Write `BbBox.jasmin` (base + Spec + MatchState)
-5. Write `bb_lit.jasmin` — smoke test α/ω
-6. Write remaining 24 boxes from `bb_*.java` oracles
-7. Assemble all → `boxes.jar`; smoke test BbLit instantiation
-8. Commit one4all + push · update SESSIONS_ARCHIVE + push .github
+### Key references for SJ-8
+- `MILESTONE-JS-SNOBOL4.md §M-SJ-B01` — full spec
+- `src/runtime/dyn/stmt_exec.c` — oracle for sno_engine.js (5-phase executor)
+- `src/backend/c/emit_byrd_c.c` — oracle for emit_js.c (EKind switch)
+- `src/runtime/js/sno_engine.js` — 552 lines, current pattern engine (iterative state machine, Ψ/Ω stacks)
+- `src/runtime/js/sno-interp.js` — 1109 lines, statement executor (stack machine)
+- `SESSION-snobol4-js.md §DISPATCH ENCODING` — integer switch encoding (uid<<2|signal)
