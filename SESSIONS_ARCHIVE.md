@@ -20515,3 +20515,91 @@ OOB array access → `FAIL` (was `NUL`).
 
 ### Key files
 - `src/driver/jvm/Interpreter.java` — all changes (+387 lines net)
+
+---
+
+## DYN-56 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 154p/24f — no net change. Root cause of continuation capture bug fully traced. Three fixes attempted, reverted due to regressions.
+
+### What was done (DYN-56)
+
+**Build:** Rebuilt cleanly at session start. Confirmed 154p/24f baseline against `32600a3` (which rebased to `6d8fb4e` then `eebc09d` after this session).
+
+**Tracing:** Established full root-cause chain for word2/3/4/wordcount/cross failures. The bug is NOT in ARB terminal-capture — it is in how the SNOBOL4 frontend evaluates pattern-keyword names (`ARB`, `REM`, etc.) when they appear as bare `E_VAR` nodes inside a flat multi-child `E_SEQ` produced by `+` continuation lines.
+
+**Root cause (fully traced):**
+
+In `scrip-interp.c` `interp_eval`, `E_CAPT_COND_ASGN` (`. var`) is only produced by the parser when `.` is parsed as a binary infix operator. When a `+` continuation joins `LEN(4) . WHEN\n+ ARB . WHO`, the flat multi-child `E_SEQ` produced by the grammar contains individual token nodes. In the continuation segment, `ARB` is emitted as `E_VAR("ARB")` which resolves via `NV_GET_fn` → `DT_SNUL` (uninitialized). The `. WHO` following it may not produce `E_CAPT_COND_ASGN` in the flattened context — verified by E_SEQ child-type trace showing all five children as `DT_S`/`DT_SNUL`, none as `DT_P`.
+
+**Three fixes attempted and reverted (`eebc09d`):**
+1. `E_SEQ` runtime `DT_P` check per pair — correct but insufficient
+2. S=PR split `!has_eq` guard — broke `062_capture_replacement`
+3. `E_VAR` bare pattern keyword intercept — broke `210_indirect_ref`
+
+All three were correct in isolation but the S=PR and E_VAR changes had side effects on other tests. Reverted cleanly. **154p/24f restored.**
+
+**Important parallel finding:** SJ-17 commit (`ec6c0b3`) by the JS session already fixed word2/3/4/wordcount for the JS backend via `PAT_FNC_NAMES` expansion of `_expr_is_pat`. The interp session needs equivalent treatment but applied carefully to avoid breaking `062` and `210`.
+
+### DYN-57 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `eebc09d` at one4all HEAD
+2. No gate — interpreter session
+3. Rebuild scrip-interp (build script below)
+4. Confirm **154p/24f** baseline
+5. **Read SJ-17 diff** (`git show ec6c0b3`) — understand exactly how `PAT_FNC_NAMES` and `_expr_is_pat` expansion was done in the JS emitter path, and replicate for scrip-interp's `interp_eval` without touching S=PR or E_VAR
+6. **Fix `E_SEQ` pat_ctx**: the correct fix is to add `E_FNC` nodes whose `sval` is in `{"LEN","POS","TAB","RTAB","RPOS","ARB","REM","FAIL","SUCCEED","FENCE","ABORT","BAL","SPAN","BREAK","BREAKX","ANY","NOTANY","ARBNO","LGT","CALL"}` to `_expr_is_pat` — so that `pat_ctx=1` fires for the whole E_SEQ when any child is a pattern function call, even before evaluation
+7. **Do NOT touch E_VAR** — the bare-keyword E_VAR → DT_P intercept must be scoped only to E_SEQ pat_ctx resolution, not to general variable lookup
+8. **Do NOT touch S=PR split** — leave `has_eq` guard out; 062 depends on current split behavior
+9. After fix → rebuild → expect word2/3/4/wordcount → **≥159p**
+10. Then tackle `310/311/312_concat_*` (numeric coerce in `E_CAT`/`E_SEQ`)
+
+### Build script (every DYN- session)
+```bash
+cd /home/claude/one4all
+apt-get install -y libgc-dev 2>/dev/null | tail -1
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; FE="$ROOT/src/frontend/snobol4"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$ROOT/src -DDYN_ENGINE_LINKED"
+mkdir -p /tmp/ib
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib/x86_stubs.o
+for box in lit alt seq arbno pos rpos tab rtab fence abort len span any notany brk breakx arb rem succeed fail eps bal atp capture not interr; do
+  f="$BOXES/$box/bb_${box}.c"
+  [ -f "$f" ] && gcc -O2 -c "$f" $DYNFLAGS -w -o "/tmp/ib/bb_${box}.o"
+done
+cp "$BOXES/bb_box.h" /tmp/bb_box_j.h && cp "$BOXES/shared/bb_box.h" "$BOXES/bb_box.h"
+gcc -O2 -c "$RT/dyn/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
+gcc -O2 -c "$RT/dyn/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
+cp /tmp/bb_box_j.h "$BOXES/bb_box.h"
+gcc -O2 -c "$FE/snobol4.lex.c"  -I"$FE" -I"$ROOT/src" -w -o "$FE/lex.o"
+gcc -O2 -c "$FE/snobol4.tab.c"  -I"$FE" -I"$ROOT/src" -w -o "$FE/parse.o"
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c "$FE/lex.o" "$FE/parse.o" /tmp/ib/*.o -lgc -lm -o scrip-interp
+cat > /tmp/dyn_runner.sh << 'EOF'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip-interp "$@"
+EOF
+chmod +x /tmp/dyn_runner.sh
+INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+```
+
+### Baselines for DYN-57
+- `one4all`: `eebc09d`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 154p/24f**
+
+### Key files
+- `src/driver/scrip-interp.c` — `_expr_is_pat` (line ~177), `E_SEQ` handler (line ~578), `E_VAR` handler (line ~471)
+- `src/frontend/snobol4/snobol4.tab.c` — S=PR split (line ~1981), grammar rule for E_CAPT_COND_ASGN (line ~1482)
+- `src/runtime/dyn/stmt_exec.c` — `bb_capture`, `flush_pending_captures`, Phase 3 loop
+- `src/runtime/boxes/arb/bb_arb.c` — ARB box (lazy, starts at empty)
+
+### MONITOR recommendation
+For the continuation capture bug: use two-way MONITOR with scrip-interp vs SPITBOL. Feed `word2.sno` with `word2.input` to both and diff. SPITBOL will show correct WHO/WHAT/WHEN captures; scrip-interp shows empty. This will confirm exactly which patterns fail and guide the `_expr_is_pat` fix scope.
