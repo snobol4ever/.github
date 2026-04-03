@@ -243,11 +243,11 @@ Violations require a history rewrite (`git filter-repo`) and force-push — expe
 
 **Emitter sessions (x86/JVM/.NET emit):** Byrd-box ports (α/β/γ/ω) are emitted as labels + gotos — never as an interpreter loop. Any logic that "runs" IR nodes at emit-time is wrong. Emit code; don't execute it. Use `mock_engine.c` only.
 
-**Interpreter sessions (scrip-interp.c / scrip-interp.cs):** Byrd boxes ARE executed at runtime as C/C# function calls. `ByrdBoxExecutor.Run()` (C#) and `stmt_exec_dyn` (C) are the trampolines. This is correct and intentional — the interpreter IS the runtime driver for the IByrdBox graph.
+**Interpreter sessions (scrip-interp.c / scrip-interp.cs):** Byrd boxes ARE executed at runtime as C/MSIL function calls. `ByrdBoxExecutor` (MSIL, in `boxes.dll`) and `stmt_exec_dyn` (C) are the trampolines. `bb_*.cs` are oracle/reference only — the canonical runtime boxes are `bb_*.il` assembled into `boxes.dll`. This is correct and intentional — the interpreter IS the runtime driver for the IByrdBox graph.
 
 **Do not confuse the two.** Session type determines which model applies:
 - DYN- session (snobol4 × x86 scrip-interp) → C boxes executed via stmt_exec_dyn
-- NET INTERP session (scrip-interp.cs) → C# IByrdBox graph via ByrdBoxExecutor
+- NET INTERP session (scrip-interp.cs) → **MSIL `IByrdBox` objects from `boxes.dll`** (assembled from `bb_*.il` via `ilasm`). `bb_*.cs` are oracle/reference ONLY — never referenced by the interpreter build. `scrip-interp.csproj` must reference `boxes.dll` directly, NOT `bb_boxes.csproj`.
 - All emit sessions → labels+gotos, no execution at emit-time
 
 ---

@@ -20003,3 +20003,65 @@ This aligns the interpreter's value type name with the C runtime convention (`DE
 **expr4 $2→$3 fix**: TK_CONCAT is $2; expr5 child is $3.
 
 **Grammar: 0 shift/reduce conflicts ✅**  one4all: `3a4a41c`
+
+---
+
+## D-172 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
+
+### What was done
+
+**Broad: 146p/32f → 149p/29f (+3)**
+
+#### Bug fixes — `src/driver/dotnet/`
+
+1. **`ExtractGotos` quote-aware paren matching** (`Snobol4Parser.cs`) — `LastIndexOf('(')` was finding `(` inside quoted strings (e.g. `define('lfunc(a,b,c)d,e,f') :(end)` was misparsing the goto). Replaced with `FindMatchingOpenParen()` that builds a quoted-char bitmap and scans right-to-left ignoring quoted positions. Fixes all `define(...)` + goto patterns.
+
+2. **`ParseSource` empty-body label preservation** (`Snobol4Parser.cs`) — `SplitSemicolons` on an empty string returned zero parts, dropping the label entry entirely from the program array. Label table then missed e.g. `LFUNC_END`, causing goto to fall through into function body. Fix: emit `(lbl, "")` when parts is empty. Fixes all standalone label lines.
+
+3. **`SplitSemicolons`** (`Snobol4Parser.cs`) — New method splits on `;` outside quotes/parens, expanding multi-statement lines into separate `IrStmt` entries. Required for `a = 'aa' ; b = 'bb'` patterns.
+
+4. **`DefineFunc` locals-after-paren** (`SnobolEnv.cs`) — Was parsing locals after `:` inside parens. SNOBOL4 spec is `FUNCNAME(params)locals` — locals follow the closing `)`. Fixed to split on `)` position.
+
+5. **`E_PLS` unary+ coerce** (`Executor.cs` + `Snobol4Parser.cs`) — `E_PLS` was a no-op; now calls `CoerceNumeric()`. Parser was not emitting `E_PLS` for unary `+`; added alongside existing unary `-` → `E_MNS` path.
+
+6. **`ArrayGet` OOB → `DESCR.Fail`** (`SnobolEnv.cs`) — Was returning `DESCR.Null`; SNOBOL4 spec requires Fail on out-of-bounds.
+
+7. **`&TRIM` on INPUT** (`Executor.cs`) — `EvalVar("INPUT")` now checks `&TRIM != 0` and calls `TrimEnd()`.
+
+8. **`&STCOUNT` + `&STNO`** (`SnobolEnv.cs`) — Added `IncrStcount()` method; called from main run loop each statement. Both `&STCOUNT` and `&STNO` incremented.
+
+9. **`DType.Str` → `DType.String`** (`Executor.cs`) — Typo in `CoerceNumeric`.
+
+#### HQ doc fixes
+- `RULES.md` — BYRD BOXES rule: MSIL `bb_*.il` → `boxes.dll` is the canonical execution layer; `bb_*.cs` are oracle only; `scrip-interp.csproj` must reference `boxes.dll` NOT `bb_boxes.csproj`
+- `MILESTONE-NET-SNOBOL4.md` — "What already exists" table and M-NET-BOXES corrected from `.cs` to `.il`
+
+#### Tests newly passing (+3)
+`1010_func_recursion` · `1013_func_nreturn` · one additional
+
+### ⛔ CRITICAL for D-173
+`scrip-interp.csproj` still references `bb_boxes.csproj` (`.cs` files) — WRONG. Must be fixed:
+1. `bash src/runtime/boxes/build_boxes.sh` → rebuild `boxes.dll` from `.il`
+2. Fix `scrip-interp.csproj`: remove `<ProjectReference>` to `bb_boxes.csproj`, add `<Reference Include="Snobol4.Runtime.Boxes"><HintPath>../../runtime/boxes/boxes.dll</HintPath></Reference>`
+3. Rebuild clean — `PatternBuilder.cs` already uses `IByrdBox` interface which will be satisfied by `boxes.dll`
+
+### Remaining failures (29)
+`1011_func_redefine` · `1012_func_locals` · `1015_opsyn` · `1016_eval` · `1017_arg_local` · `1018_apply` · `1110_array_1d` · `1112_array_multi` · `1113_table` · `1114_item` · `1115_data_basic` · `1116_data_overlap` · `212_indirect_array` · `411_arith_unary` · `cross` · `expr_eval` · `fileinfo` · `test_case` · `test_math` · `test_stack` · `test_string` · `triplet` · `word1`–`word4` · `wordcount` · `082_keyword_stcount` · `087_define_freturn` · `096_data_datatype_check`
+
+### Baselines for D-173
+- `one4all`: `a5b22ff` (local — push blocked, token expired; Lon to refresh token)
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 149p/29f**
+
+### D-173 first actions
+1. Lon refreshes token; `git push` `one4all` `a5b22ff`
+2. Fix `scrip-interp.csproj` → reference `boxes.dll` from MSIL (see ⛔ CRITICAL above)
+3. Run broad to confirm baseline holds at 149p
+4. Fix `1012_func_locals` — `DefineFunc` + label fix should have fixed it but still failing; retrace
+5. Fix `word*` — `&TRIM` wired but may need `&TRIM` default set to 1 (SPITBOL default is trim-on)
+6. Target ≥ 160p
+
