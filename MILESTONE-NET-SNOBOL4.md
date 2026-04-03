@@ -11,7 +11,7 @@ This is a single ladder from interpreted execution to statically optimized
 code generation.  There are no parallel tracks.
 
 **The key insight:** the interpreter *is* the dynamic execution engine.
-`scrip-interp.cs` generates Byrd box graphs in memory and runs them directly —
+`scrip-interp.cs` instantiates MSIL Byrd box objects (loaded from `boxes.dll`) and runs them directly —
 this is not a temporary scaffold, it is Phase D of the full execution model.
 Later phases add optimization: box sequence caching, then full IL emission.
 The same IR and the same IByrdBox graph serve all phases.
@@ -31,7 +31,7 @@ Phase O (optimized):
 **One IR, three consumers** (D-167 invariant):
 - `scrip-cc` (C compiler) — emits IL from IR
 - `scrip-interp.c` (C interpreter) — tree-walks IR, reference oracle
-- `scrip-interp.cs` (C# interpreter) — tree-walks IR, generates box graphs in memory
+- `scrip-interp.cs` (C# interpreter) — tree-walks IR, instantiates MSIL `IByrdBox` objects from `boxes.dll`
 
 No C code in the interpreter.  No generated C# code.  scrip-cc never invoked
 by the interpreter at runtime or build time.  EVAL/CODE build the same IR
@@ -43,10 +43,10 @@ nodes at runtime that the Pidgin parser produces.
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| All 27 C# Byrd boxes | `src/runtime/boxes/*/bb_*.cs` | ✅ M-NET-BOXES |
-| `ByrdBoxExecutor` (Phase 3 trampoline) | `src/runtime/boxes/shared/bb_executor.cs` | ✅ |
-| `ByrdBoxFactory` (pattern tree → IByrdBox) | `src/runtime/boxes/shared/bb_factory.cs` | ✅ partial |
-| `IByrdBox`, `Spec`, `MatchState` | `src/runtime/boxes/shared/bb_box.cs` | ✅ |
+| All 27 MSIL Byrd boxes | `src/runtime/boxes/*/bb_*.il` → assembled into `boxes.dll` | ✅ M-NET-BOXES |
+| `ByrdBoxExecutor` (Phase 3 trampoline) | `src/runtime/boxes/shared/bb_executor.il` | ✅ |
+| `IByrdBox`, `Spec`, `MatchState` | `src/runtime/boxes/shared/bb_box.il` | ✅ |
+| Build script | `src/runtime/boxes/build_boxes.sh` → `ilasm` → `boxes.dll` | ✅ |
 | `ThreadedExecuteLoop.cs` | snobol4dotnet | ✅ Jeff's pipeline (Phase S reference) |
 | `BuildEval` / `BuildCode` | snobol4dotnet | ✅ self-hosted, no Roslyn |
 
@@ -72,7 +72,7 @@ Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 
 | Milestone | Description | Status |
 |-----------|-------------|--------|
-| **M-NET-BOXES** | 27 C# Byrd boxes · ByrdBoxFactory · ByrdBoxExecutor | ✅ one4all `90d5531` |
+| **M-NET-BOXES** | 27 MSIL Byrd boxes (`bb_*.il`) assembled via `ilasm` into `boxes.dll` · `ByrdBoxExecutor` · `IByrdBox`/`Spec`/`MatchState` in `bb_box.il` | ✅ one4all `90d5531` |
 | **M-NET-INTERP-A00** | IR design locked: one IR / three consumers; no C; no generated C#; scrip-cc never invoked; EVAL/CODE build same IR nodes as parser | ✅ .github `aeee9c2` |
 
 ---

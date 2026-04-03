@@ -126,7 +126,7 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-171 | one4all `b45f663` | **146/178 broad** · Fix DataGetField crash, E_PLS unary+, $.var<idx> indirect, array OOB→Fail, FRETURN, func scoping → target ≥ 155p |
+| **NET INTERP** | D-172 | one4all `a5b22ff` | **149p/29f** · Fix scrip-interp.csproj → boxes.dll (MSIL) · Fix 1012/word*/411 → target ≥ 160p |
 
 **First actions:**
 1. `git pull --rebase` all repos.
