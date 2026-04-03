@@ -82,7 +82,14 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 
 ## M-JVM-INTERP — Dynamic JVM Byrd Box Interpreter (Phase 0)
 
-**Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) + `scrip-interp.cs` (NET INTERP session) in Java. Use `src/runtime/boxes/bb_*.java` directly at runtime instead of emitting Jasmin bytecode. Eliminates compile+link cycle from test loop.
+**Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) + `scrip-interp.cs` (NET INTERP session) in Java. Use `src/runtime/boxes/bb_*.jasmin` (assembled to `.class`) directly at runtime. This means the interpreter tests the **actual generated artifact** — no proxy, no translation gap. `bb_*.java` serves as human-readable oracle/reference only.
+
+**Box language decision (J-220):** Jasmin, not Java, is the execution language for boxes.
+- `bb_*.java` — human-readable reference/oracle (already committed J-217) ✅
+- `bb_*.jasmin` — executable form; assembled by `jasmin.jar` → `.class` → packaged into `boxes.jar`
+- Both produce identical `.class` files loadable by the JVM; `jar` is agnostic to source language
+- Interpreter loads Jasmin-assembled classes → tests the real emitter artifact at every iteration
+- **Design invariant preserved:** interpreter proves semantics on the same bytecode `emit_jvm.c` will generate
 
 **Architecture: stack machine + Byrd box sequencer**
 
@@ -95,13 +102,11 @@ NON-PATTERN execution (Phases 1, 4, 5 + all non-pattern statements):
   Maps directly to JVM stack bytecode in emit_jvm.c later
 
 PATTERN execution (Phases 2 + 3):
-  Byrd box sequencer — interprets bb_*.java graph by dispatching α/β/γ/ω signals
-  PatternBuilder.java builds bb_*.java graph from IR PatNode tree
+  Byrd box sequencer — dispatches α/β/γ/ω signals through bb_*.jasmin box graph
+  PatternBuilder.java builds box graph from IR PatNode tree (instantiates Jasmin-assembled classes)
   BbExecutor.java sequences through boxes: α=proceed, β=backtrack, γ=succeed, ω=fail
-  Maps directly to labeled-goto Jasmin bytecode in emit_jvm.c later
+  Maps directly to labeled-goto Jasmin bytecode in emit_jvm.c later — IS that bytecode
 ```
-
-**Design invariant:** Every interpreter operation has a 1:1 correspondence to an emitter operation. The interpreter proves the semantics; `emit_jvm.c` serializes the same operations to Jasmin. No interpreter-only constructs.
 
 **Pipeline:**
 ```
@@ -111,25 +116,32 @@ PATTERN execution (Phases 2 + 3):
   → IrBuilder.java    → IR instruction list (stack machine ops) + PatNode subtrees
   → Interpreter.java
       Phase 1: stack machine resolves subject → String
-      Phase 2: PatternBuilder builds bb_*.java graph from PatNode IR
-      Phase 3: BbExecutor sequences α/β/γ/ω through box graph (scan loop)
+      Phase 2: PatternBuilder builds bb_*.jasmin box graph from PatNode IR
+      Phase 3: BbExecutor sequences α/β/γ/ω through Jasmin box graph (scan loop)
       Phase 4: stack machine evaluates replacement → value
       Phase 5: stack machine splices, commits captures, takes :S/:F branch
   → output
 ```
 
-**No scrip-cc. No JNI. No Jasmin.** Java frontend produces IR directly.
+**No scrip-cc. No JNI.** Java frontend produces IR directly. Jasmin is the box execution layer.
 
 **Oracles:**
 - `src/frontend/snobol4/lex.c` + `parse.c` — lexer/parser structure oracle
 - `scrip-interp.c` + `stmt_exec.c` — eval loop + bb_build() oracle
+- `bb_*.java` — Jasmin authoring oracle (readable reference for each box)
 - `src/backend/emit_jvm.c` + `emit_byrd_asm.c` — emitter oracle (what interpreter ops must map to)
 - `MILESTONE-NET-INTERP.md` — parallel C# interpreter; same structure
 - `MILESTONE-DYN-INTERP.md` — C reference interpreter milestone chain
 
-**Current milestone count:** 9 total (M-JVM-INTERP A01–A05 + 7 existing milestones A01-PARITY)
+**Current milestone count:** 10 total (M-JVM-INTERP A01–A06 + 7 existing milestones A01-PARITY)
 
 **M-JVM-INTERP breakdown:**
+
+### M-JVM-INTERP-A00: Jasmin Boxes
+- Write `bb_*.jasmin` for all 25 boxes + `BbBox.jasmin` base + `BbExecutor.jasmin`
+- **Oracle:** `bb_*.java` (human-readable reference, same logic, same α/β/γ/ω structure)
+- Assemble: `jasmin.jar` → `bb_*.class` → `boxes.jar`
+- **Gate:** All 25 boxes assemble clean; `BbExecutor` instantiates `BbLit` and runs a trivial α/ω smoke test
 
 ### M-JVM-INTERP-A01: Lexer
 - `src/driver/jvm/Lexer.java` — tokenize SNOBOL4 source
@@ -153,8 +165,8 @@ PATTERN execution (Phases 2 + 3):
 
 ### M-JVM-INTERP-A04: Interpreter + Byrd Box Sequencer + Test Harness
 - `src/driver/jvm/Interpreter.java` — dispatches stack machine IR opcodes (Phases 1, 4, 5)
-- `src/driver/jvm/PatternBuilder.java` — walks PatNode IR → instantiates `bb_*.java` graph (Phase 2)
-- `BbExecutor.java` sequences α/β/γ/ω signals through box graph (Phase 3) — already exists ✅
+- `src/driver/jvm/PatternBuilder.java` — walks PatNode IR → instantiates Jasmin-assembled `bb_*.class` graph (Phase 2)
+- `BbExecutor` (Jasmin) sequences α/β/γ/ω signals through box graph (Phase 3) ✅ (from A00)
 - `SnobolEnv.java` — variable store (`Map<String, SnobolValue>`)
 - Corpus runner: `test/run_interp_jvm.sh` — diff vs SPITBOL oracle
 - **Oracle:** `stmt_exec.c` 5-phase loop + `bb_executor.java` + `MILESTONE-DYN-INTERP.md`
@@ -322,18 +334,19 @@ On JVM: re-enter `scrip-cc -jvm`, emit `.j` snippet, assemble via `jasmin.jar`
 
 | Sprint | Milestone | Key work |
 |--------|-----------|----------|
-| J-220 | M-JVM-INTERP-A01 | Lexer.java — tokenize SNOBOL4 source · oracle: lex.c |
-| J-221 | M-JVM-INTERP-A02 | Parser.java — recursive descent → StmtNode[] · oracle: parse.c |
-| J-222 | M-JVM-INTERP-A03 | IrBuilder.java — AST → IR nodes · PatternBuilder.java → bb_*.java |
-| J-223 | M-JVM-INTERP-A04 | Interpreter.java 5-phase loop · SnobolEnv · corpus runner |
-| J-224 | M-JVM-INTERP-A05 | Baseline verification vs scrip-interp.c · ≥94p broad |
-| J-225 | M-JVM-A02 | 2D subscript fix · rung8 strings · global driver clean |
-| J-226 | M-JVM-A03 part 1 | DATA constructor/field/DATATYPE · rung11 |
-| J-227 | M-JVM-A03 part 2 | DEFINE/functions/RETURN/FRETURN/NRETURN · rung10 |
-| J-228 | M-JVM-B01 | SPAN/BREAK/LEN/POS/TAB/REM/BAL/FENCE/FAIL/REF |
-| J-229 | M-JVM-B02 | β backtrack for SPAN/BREAK/BREAKX/ARBNO |
-| J-230 | M-JVM-C01 | EVAL()/CODE() re-entrant pipeline |
-| J-231 | M-JVM-PARITY | Full corpus sweep + xfail audit |
+| J-220 | M-JVM-INTERP-A00 | `bb_*.jasmin` — 25 boxes + BbBox + BbExecutor · oracle: `bb_*.java` · assemble → `boxes.jar` |
+| J-221 | M-JVM-INTERP-A01 | `Lexer.java` — tokenize SNOBOL4 source · oracle: `lex.c` |
+| J-222 | M-JVM-INTERP-A02 | `Parser.java` — recursive descent → `StmtNode[]` · oracle: `parse.c` |
+| J-223 | M-JVM-INTERP-A03 | `IrBuilder.java` — AST → IR nodes · PatternBuilder → Jasmin box classes |
+| J-224 | M-JVM-INTERP-A04 | `Interpreter.java` 5-phase loop · `SnobolEnv` · corpus runner |
+| J-225 | M-JVM-INTERP-A05 | Baseline verification vs `scrip-interp.c` · ≥94p broad |
+| J-226 | M-JVM-A02 | 2D subscript fix · rung8 strings · global driver clean |
+| J-227 | M-JVM-A03 pt1 | DATA constructor/field/DATATYPE · rung11 |
+| J-228 | M-JVM-A03 pt2 | DEFINE/functions/RETURN/FRETURN/NRETURN · rung10 |
+| J-229 | M-JVM-B01 | SPAN/BREAK/LEN/POS/TAB/REM/BAL/FENCE/FAIL/REF |
+| J-230 | M-JVM-B02 | β backtrack for SPAN/BREAK/BREAKX/ARBNO |
+| J-231 | M-JVM-C01 | EVAL()/CODE() re-entrant pipeline |
+| J-232 | M-JVM-PARITY | Full corpus sweep + xfail audit |
 
 ---
 
