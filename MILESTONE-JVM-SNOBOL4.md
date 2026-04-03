@@ -84,18 +84,37 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 
 **Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) + `scrip-interp.cs` (NET INTERP session) in Java. Use `src/runtime/boxes/bb_*.java` directly at runtime instead of emitting Jasmin bytecode. Eliminates compile+link cycle from test loop.
 
+**Architecture: stack machine + Byrd box sequencer**
+
+The interpreter has two distinct execution engines that map directly to what the emitter will later compile:
+
+```
+NON-PATTERN execution (Phases 1, 4, 5 + all non-pattern statements):
+  Stack machine — operand stack + IR instruction dispatch
+  IR opcodes: PUSH_VAR, PUSH_LIT, CALL, ASSIGN, BRANCH_S, BRANCH_F, ...
+  Maps directly to JVM stack bytecode in emit_jvm.c later
+
+PATTERN execution (Phases 2 + 3):
+  Byrd box sequencer — interprets bb_*.java graph by dispatching α/β/γ/ω signals
+  PatternBuilder.java builds bb_*.java graph from IR PatNode tree
+  BbExecutor.java sequences through boxes: α=proceed, β=backtrack, γ=succeed, ω=fail
+  Maps directly to labeled-goto Jasmin bytecode in emit_jvm.c later
+```
+
+**Design invariant:** Every interpreter operation has a 1:1 correspondence to an emitter operation. The interpreter proves the semantics; `emit_jvm.c` serializes the same operations to Jasmin. No interpreter-only constructs.
+
 **Pipeline:**
 ```
 .sno file
-  → Java Lexer      → token stream
-  → Java Parser     → StmtNode[] (typed Java AST)
-  → Java IR builder → PATND_t / AST_t / STMT_t equivalent IR nodes
-  → Java eval loop
-      Phase 1: resolve subject → string
-      Phase 2: PatternBuilder.java → bb_*.java graph
-      Phase 3: BbExecutor.java scan loop
-      Phase 4: evaluate replacement expression
-      Phase 5: splice, commit captures, :S/:F branch
+  → Lexer.java        → token stream
+  → Parser.java       → StmtNode[] (typed Java AST)
+  → IrBuilder.java    → IR instruction list (stack machine ops) + PatNode subtrees
+  → Interpreter.java
+      Phase 1: stack machine resolves subject → String
+      Phase 2: PatternBuilder builds bb_*.java graph from PatNode IR
+      Phase 3: BbExecutor sequences α/β/γ/ω through box graph (scan loop)
+      Phase 4: stack machine evaluates replacement → value
+      Phase 5: stack machine splices, commits captures, takes :S/:F branch
   → output
 ```
 
@@ -104,10 +123,11 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 **Oracles:**
 - `src/frontend/snobol4/lex.c` + `parse.c` — lexer/parser structure oracle
 - `scrip-interp.c` + `stmt_exec.c` — eval loop + bb_build() oracle
-- `MILESTONE-NET-INTERP.md` — parallel C# interpreter (Pidgin + bb_*.cs); same structure
+- `src/backend/emit_jvm.c` + `emit_byrd_asm.c` — emitter oracle (what interpreter ops must map to)
+- `MILESTONE-NET-INTERP.md` — parallel C# interpreter; same structure
 - `MILESTONE-DYN-INTERP.md` — C reference interpreter milestone chain
 
-**Current milestone count:** 8 total (M-JVM-INTERP + 7 existing milestones A01-PARITY)
+**Current milestone count:** 9 total (M-JVM-INTERP A01–A05 + 7 existing milestones A01-PARITY)
 
 **M-JVM-INTERP breakdown:**
 
@@ -124,17 +144,20 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 - **Gate:** 19/19 parse test cases produce correct AST (pretty-print matches reference)
 
 ### M-JVM-INTERP-A03: IR Tree
-- `src/driver/jvm/IrBuilder.java` — lowers typed AST → canonical IR nodes
-- IR node classes mirror `PATND_t` / `AST_t` / `STMT_t` from `scrip-cc`
-- `PatternBuilder.java` walks IR PatNode → instantiates `bb_*.java` Byrd box graph
-- **Oracle:** `src/runtime/dyn/stmt_exec.c bb_build()` (lines 407–640)
-- **Gate:** IR round-trips cleanly for all 19 parse test inputs
+- `src/driver/jvm/IrBuilder.java` — lowers typed AST → IR instruction list + PatNode subtrees
+- **Stack machine IR:** typed opcode nodes (`PUSH_VAR`, `PUSH_LIT`, `CALL`, `ASSIGN`, `BRANCH_S`, `BRANCH_F`, etc.) — one opcode per future JVM bytecode sequence
+- **Pattern IR:** `PatNode` tree with same node kinds as `PATND_t` in scrip-cc — consumed by PatternBuilder
+- IR node design must have 1:1 correspondence to emit_jvm.c operations (design invariant)
+- **Oracle:** `src/runtime/dyn/stmt_exec.c bb_build()` (lines 407–640) + `src/backend/emit_jvm.c`
+- **Gate:** IR pretty-prints cleanly for all 19 parse test inputs; each opcode maps to a named emit_jvm.c operation
 
-### M-JVM-INTERP-A04: Interpreter + Test Harness
-- `src/driver/jvm/Interpreter.java` — 5-phase eval loop driving `BbExecutor.java`
+### M-JVM-INTERP-A04: Interpreter + Byrd Box Sequencer + Test Harness
+- `src/driver/jvm/Interpreter.java` — dispatches stack machine IR opcodes (Phases 1, 4, 5)
+- `src/driver/jvm/PatternBuilder.java` — walks PatNode IR → instantiates `bb_*.java` graph (Phase 2)
+- `BbExecutor.java` sequences α/β/γ/ω signals through box graph (Phase 3) — already exists ✅
 - `SnobolEnv.java` — variable store (`Map<String, SnobolValue>`)
 - Corpus runner: `test/run_interp_jvm.sh` — diff vs SPITBOL oracle
-- **Oracle:** `stmt_exec.c` 5-phase loop + `MILESTONE-DYN-INTERP.md`
+- **Oracle:** `stmt_exec.c` 5-phase loop + `bb_executor.java` + `MILESTONE-DYN-INTERP.md`
 - **Gate:** ≥ 20 corpus smoke tests pass (rung1); ready for M-JVM-INTERP-A05
 
 ### M-JVM-INTERP-A05: Baseline Verification
