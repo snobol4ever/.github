@@ -126,7 +126,7 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01a** — `Snobol4Lexer.cs` token stream mirrors `lex.c` · 19/19 token tests |
+| **NET INTERP** | D-169 | one4all `a7a2daa` | **93/167 broad** · Fix pattern primitives (039–055), captures (058–063), arithmetic edge cases |
 
 **First actions:**
 1. `git pull --rebase` all repos.

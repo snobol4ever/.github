@@ -18733,3 +18733,90 @@ diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 - corpus: `2f2bbe3` (unchanged)
 - .github: (this commit)
 - Broad: **169p/9f** (unchanged — scrip-interp not yet rebuilt with new lex.l)
+## D-168 handoff — 2026-04-02
+
+### Session type
+**one4all SNOBOL4 .NET** — SNOBOL4 × C# interpreter. Session prefix: D-.
+
+### What was done
+
+**Migrated scrip-interp from bespoke Ast.cs types to IrNode/IrStmt. Fixed infix arithmetic, goto resolution, float formatting. 93/167 broad.**
+
+#### Commits
+- `5670b49` (rebased to `a7a2daa`) — D-168: migrate to IrNode/IrStmt; fix infix arith, goto resolution, float fmt — 93/167 broad
+
+#### Changes
+
+**`Snobol4Parser.cs`** — complete rewrite emitting `IrNode`/`IrStmt` directly:
+- Logical line splitter, goto extractor, statement body splitter: all unchanged in logic, output is now `IrStmt` not `Stmt`
+- **Infix arithmetic parser**: `ParseConcat` replaced with proper precedence-climbing parser: `ParseAdditive` → `ParseMultiplicative` → `ParsePower` (right-assoc) → `ParseCatSequence` (juxtaposition). `+`, `-`, `*`, `/`, `^` tokens between operands are binary operators, not concatenation.
+- `ParseAtom` emits `IrKind` variants: `E_QLIT`, `E_ILIT`, `E_FLIT`, `E_VAR`, `E_KEYWORD`, `E_FNC`, `E_IDX`, `E_INDIRECT`, `E_DEFER`, `E_CAPT_CURSOR`, `E_CAPT_COND_ASGN`, `E_ALT`, `E_CAT`, pattern primitives mapped to their `IrKind`
+- `IrStmt` constructed with `SnoGoto` from extracted goto tokens
+
+**`Executor.cs`** — complete rewrite dispatching on `IrKind`:
+- `EvalNode` switch on `IrKind` replacing `Node` record pattern match
+- **Goto resolution bug fixed**: was `GotoOnSuccess ?? GotoOnFailure ?? Uncond` — `GotoOnSuccess` had `?? Uncond` fallback so unconditional gotos were masking success/failure branches. Fixed to `Go?.Uncond ?? (succeeded ? Go?.OnSuccess : Go?.OnFailure)` — unconditional takes priority, then success/failure branch.
+- `EvalCat` flattens nested `E_CAT`/`E_SEQ` tree
+- `Arith` dispatches on `IrKind` (E_ADD/SUB/MUL/DIV/POW/MOD)
+- `PrescanDefines` detects `E_FNC` with `SVal == "DEFINE"` in subject position
+
+**`PatternBuilder.cs`** — complete rewrite dispatching on `IrKind`:
+- `BuildNode` switch on `IrKind` replacing `Node` record pattern match
+- All 27 box types wired: nullary (`ARB`/`REM`/`FAIL`/`SUCCEED`/`FENCE`/`ABORT`/`BAL`), unary (`ANY`/`NOTANY`/`SPAN`/`BREAK`/`BREAKX`/`LEN`/`TAB`/`RTAB`/`POS`/`RPOS`/`ARBNO`), captures, deferred
+- `BuildSeq`/`BuildAlt` flatten nested same-kind trees into right-fold
+
+**`SnobolEnv.cs`**:
+- **SNOBOL4 real format**: `Of(double r)` now formats `1.0` → `"1."`, `0.5` → `".5"`, strips trailing zeros
+- Added `UCASE`/`LCASE` builtin aliases for `UPPER`/`LOWER`
+
+#### HQ fixes (separate commit `2bef46f`)
+- `SESSION-snobol4-net.md`: removed Track A/B framing, single §NOW row
+- `MILESTONE-NET-SNOBOL4.md`: removed Track column from Sprint Sequence table
+- `PLAN.md`: removed §Track B reference
+
+### Broad baseline: 93/167
+
+### Remaining failures (diagnosed)
+
+| Failure group | Root cause |
+|---|---|
+| `literals` | `1.0` still outputting as `1` not `1.` — `E_FLIT` DVal is `1.0` stored as JS-like float, `Of(double)` gets `1.0` → formats as `1.` — **needs retest after build** |
+| `034_goto_failure` | Unknown — needs diagnosis |
+| `027_arith_exponent` | Unknown — needs diagnosis |
+| `410/411/412_arith_*` | Arithmetic edge cases — unary minus, real division |
+| `071/072_builtin_ucase/lcase` | `UCASE`/`LCASE` added — **needs retest after build** |
+| `075_builtin_integer_test` | Goto fix applied — **needs retest after build** |
+| `039–057_pat_*` | Pattern matching failures — pattern primitives (ANY/NOTANY/SPAN etc.) box wiring or PatternBuilder dispatch |
+| `058–063_capture_*` | Capture wiring — `E_CAPT_COND_ASGN` wraps `BbEps` not sibling; needs pattern-context capture threading |
+| `W07_capt_*` | Same capture issue |
+| `rung10 (1010–1018)` | Functions: recursion, NRETURN, OPSYN, EVAL, APPLY |
+| `091–096_array/data_*` | Arrays and DATA — not yet implemented |
+| `097/098_keyword_*` | `&ALPHABET`, `&ANCHOR` — keyword reads |
+| `word1–4, wordcount, cross` | Complex programs — likely pattern+capture |
+| `fileinfo, triplet` | INPUT reading |
+
+### Baselines for D-169
+
+- `one4all`: `a7a2daa`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: `2bef46f`
+- **Broad: 93/167** (no gate — interpreter session, exempt per RULES.md)
+
+### D-169 first actions
+
+1. `git pull --rebase` all repos.
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj` — confirm clean.
+3. Rebuild binary: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Debug`
+4. Rerun broad: verify `literals`, `075_builtin_integer_test`, `071/072_builtin_ucase/lcase` now pass (fixes applied this session, not retested due to stale binary during diagnosis).
+5. **Diagnose `039–055_pat_*`**: these are pattern primitive tests — `ANY`, `NOTANY`, `SPAN`, `BREAK`, `LEN`, `POS`, `RPOS`, `TAB`, `RTAB`, `REM`, `ARB`, `ARBNO`, `ALT`. Check that `PatternBuilder.BuildNode` is being reached — the issue is likely that the pattern string `ANY('aeiou')` is parsed as `E_FNC` not `E_ANY` when the arg is present. Verify `ParseAtom` maps `ANY(x)` → `IrKind.E_ANY` with child.
+6. **Fix `058–063_capture_*`**: `E_CAPT_COND_ASGN` currently wraps `BbEps` — it needs to wrap the preceding pattern element. In a pattern like `ARB . FOO`, the parse tree is `E_CAT(E_ARB, E_CAPT_COND_ASGN(E_VAR(FOO)))`. `BuildSeq` should detect that `E_CAPT_COND_ASGN` as a right element in a sequence needs to wrap the left box, not `BbEps`.
+7. **Fix `410–412_arith_*`**: run failing tests and diagnose.
+8. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `src/driver/dotnet/Snobol4Parser.cs` — parser (just rewritten)
+- `src/driver/dotnet/Executor.cs` — executor (just rewritten)
+- `src/driver/dotnet/PatternBuilder.cs` — pattern builder (just rewritten)
+- `src/driver/dotnet/SnobolEnv.cs` — builtins + value type
+- `src/driver/dotnet/IrNode.cs` — IR types (unchanged, correct)
+- `MILESTONE-NET-SNOBOL4.md` — full milestone chain
