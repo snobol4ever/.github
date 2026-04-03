@@ -34,17 +34,24 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 ---
 
-## §NOW — J-217 → J-218
+## §NOW — J-218
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-218 | one4all `7c35456` | **M-JVM-A02**: 2D subscript fix + rung8 strings → ≥100p |
+| **TINY JVM** | J-218 | one4all `09ac2cb` | **M-JVM-A02**: 2D subscript fix + rung8 strings → ≥100p |
 
-**J-217 landed (this session):**
+**Confirmed baseline (J-218 session start):** `snobol4_jvm` **94p/32f** · x86 gate **142/142** ✅
+
+**J-217 landed:**
 - `src/runtime/boxes/bb_*.java` — 29 Java files: all 25 Byrd boxes + `bb_box.java` + `bb_executor.java`
 - Side-by-side with `bb_lit.c`/`.s`/`.cs` — snake_case, same name, same directory
 - `bb_bal.java` is first real BAL (C original is a stub)
 - Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
+
+**⚠️ JVM interpreter work (Java Byrd boxes) is visible in PLAN.md but NOT active this sprint.**
+The Java Byrd boxes (`src/runtime/boxes/bb_*.java`) are wired as a future JVM interpreter path.
+This session (J-218) targets the **compiled emitter** (`emit_jvm.c` → Jasmin). The Java Byrd
+box interpreter is a separate milestone (M-INTERP-B03) — do not conflate with M-JVM-A02.
 
 **J-218 first actions (mandatory order):**
 
