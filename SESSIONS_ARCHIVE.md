@@ -20319,3 +20319,91 @@ INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_int
 - `src/runtime/dyn/stmt_exec.c` — bb_build, exec_stmt (unchanged this session)
 - `src/runtime/boxes/bb_box.h` — Jasmin file (do NOT use for C compile; use `shared/bb_box.h`)
 
+---
+
+## DYN-55 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 154p/24f — no net change from start. Two fixes committed; root cause of ARB capture isolated but not yet fixed.
+
+### What was done (DYN-55)
+
+**Build fix:** `scrip-interp.c` had orphaned debug-trace arguments (lines 572–574) left from DYN-54 partial commit — three bare expression-statement lines that were arguments to a removed `fprintf`. Caused `expected ';' before ')'` compile error. Removed.
+
+**Pattern primitives fix (commit `32600a3`):** `interp_eval` had NO case handlers for any of the IR-level pattern primitive nodes. All 14 fell through to `default: return NULVCL` (DT_SNUL/DT_S, not DT_P). Added:
+- Zero-arg: `E_ARB`, `E_REM`, `E_FAIL`, `E_SUCCEED`, `E_FENCE`, `E_ABORT`, `E_BAL`
+- Int-arg: `E_POS`, `E_RPOS`, `E_TAB`, `E_RTAB`, `E_LEN`
+- Str-arg: `E_ANY`, `E_NOTANY`, `E_SPAN`, `E_BREAK`, `E_BREAKX`, `E_ARBNO`
+- `pat_breakx` not declared in `snobol4.h` — added `extern` decl inside case block.
+
+Score unchanged at 154p/24f because word2/3/4/cross/wordcount use `ARB` as `E_VAR("ARB")` (bare identifier, not E_FNC call), which already had an APPLY_fn fallback in the `E_VAR` case. The new E_ARB case handles direct IR nodes, which the SNOBOL4 frontend doesn't currently emit for bare keywords.
+
+### Root cause isolated (NOT yet fixed): ARB . W capture assigns empty string
+
+Trace established:
+- `ARB . W " world"` → correctly assigns `"hello"` to W ✓
+- `ARB . W` (ARB as entire pattern, no trailing anchor) → W always `""` ✗
+- `LEN(3) . W` → correctly assigns `"hel"` ✓
+
+This is NOT a parse error — the `snobol4:0: error: parse error: syntax error` message is a pre-existing red herring that fires during parsing (not runtime) and does not affect execution.
+
+Root cause: `pat_arb()` + `pat_assign_cond()` interaction in the byrd-box executor when ARB is the terminal element. ARB starts by matching empty string and grows; `CommitCaptures()` appears to fire at the first (empty) match position rather than the final maximal match. When a trailing literal forces cursor advancement past ARB's initial empty match, the capture is correct.
+
+### DYN-56 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `32600a3` at one4all HEAD
+2. No gate — interpreter session
+3. **Rebuild** scrip-interp (use build script from DYN-55 handoff in SESSIONS_ARCHIVE)
+4. **Confirm 154p/24f baseline**
+5. **Trace `stmt_exec_dyn`** for a minimal `X ? ARB . W` case — add `fprintf(stderr,...)` in `bb_arb.c`'s match/backtrack callbacks to see what cursor positions are tried and when capture commits
+6. **Check `W04_arbno_basic/W04_arbno_zero/W04_arbno_backtrack`** — determine if these are new regressions from `E_ARBNO` case or pre-existing (run against baseline commit `f7e9be0` to bisect)
+7. **Fix `310/311/312_concat_*`** — separate bug; likely string-coerce path in `E_CAT`/`E_SEQ` when operands are numeric
+8. After ARB capture fix → rebuild → expect word2/3/4/wordcount/cross → ≥159p
+
+### Build script (every DYN- session)
+```bash
+cd /home/claude/one4all
+apt-get install -y libgc-dev 2>/dev/null | tail -1
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; FE="$ROOT/src/frontend/snobol4"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$ROOT/src -DDYN_ENGINE_LINKED"
+mkdir -p /tmp/ib
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib/x86_stubs.o
+for box in lit alt seq arbno pos rpos tab rtab fence abort len span any notany brk breakx arb rem succeed fail eps bal atp capture not interr; do
+  f="$BOXES/$box/bb_${box}.c"
+  [ -f "$f" ] && gcc -O2 -c "$f" $DYNFLAGS -w -o "/tmp/ib/bb_${box}.o"
+done
+# bb_box.h swap (Jasmin file at root, C at shared/):
+cp "$BOXES/bb_box.h" /tmp/bb_box_j.h && cp "$BOXES/shared/bb_box.h" "$BOXES/bb_box.h"
+gcc -O2 -c "$RT/dyn/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
+gcc -O2 -c "$RT/dyn/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
+cp /tmp/bb_box_j.h "$BOXES/bb_box.h"
+[ ! -f "$FE/lex.o" ] && gcc -O2 -c "$FE/snobol4.lex.c" -I"$FE" -I"$ROOT/src" -w -o "$FE/lex.o"
+[ ! -f "$FE/parse.o" ] && gcc -O2 -c "$FE/snobol4.tab.c" -I"$FE" -I"$ROOT/src" -w -o "$FE/parse.o"
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c "$FE/lex.o" "$FE/parse.o" /tmp/ib/*.o -lgc -lm -o scrip-interp
+cat > /tmp/dyn_runner.sh << 'EOF'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip-interp "$@"
+EOF
+chmod +x /tmp/dyn_runner.sh
+INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+```
+
+### Baselines for DYN-56
+- `one4all`: `32600a3`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 154p/24f**
+
+### Key files
+- `src/driver/scrip-interp.c` — all pattern primitive cases added (DYN-55); ARB capture bug NOT yet fixed
+- `src/runtime/boxes/arb/bb_arb.c` — likely site of ARB terminal-capture bug; trace here first
+- `src/runtime/dyn/stmt_exec.c` — `CommitCaptures()` call site; check when it fires relative to ARB backtrack
+- `src/runtime/boxes/bb_box.h` — Jasmin file (do NOT use for C compile; use `shared/bb_box.h`)
+
