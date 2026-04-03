@@ -18114,3 +18114,61 @@ The team has decided to replace the hand-rolled lexer and parser with flex/bison
 7. Write `src/frontend/snobol4/parse.y` — M-PARSE-1.
 8. Generate, build, gate, broad — confirm no regression + 1013/003 now passes.
 9. Commit generated files + .l/.y sources. Push. Update SESSIONS_ARCHIVE.
+
+---
+
+## SJ-6 handoff — 2026-04-02
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript. Session prefix: SJ-.
+
+### What was done
+
+**Architecture pivot — no code written.** Planning and HQ update session.
+
+Key decisions made and committed:
+
+1. **Interpreter-first architecture confirmed** — One SJ- track, two phases:
+   - Phase A–C: Interpreter (Lex → Parse → IR → stack machine + JS Byrd-box sequencer)
+   - Phase D+: Emitter (`emit_js.c`) after interpreter proven
+   No separate session prefix needed. SJ- covers both phases sequentially.
+
+2. **No IR tree walk** — Unlike `scrip-interp.c` (C tree-walk), the JS interpreter
+   executes via stack machine (Phases 1,4,5) + Byrd-box sequencer (Phases 2,3).
+   IR is identical to what `scrip-cc` builds.
+
+3. **Gate clarified** — Phases A–C: interpreter regression only. No emit-diff,
+   no snobol4_x86 invariants. These reintroduce in Phase D.
+
+4. **JS Byrd boxes confirmed** — `src/runtime/boxes/*/bb_*.js`, one per box type.
+   `bb_lit.js` already written (SJ-5). All others to be written in Phase B.
+
+5. **MILESTONE-JS-SNOBOL4.md rewritten** — Interpreter-first ladder, Phases A–D.
+   Sprint sequence: SJ-6 (lexer) → SJ-7 (parser) → SJ-8 (stack machine Phase 1+5)
+   → SJ-9 (full value layer) → SJ-10 (BB sequencer) → ... → SJ-17 (parity) → SJ-18+ (emitter).
+
+6. **PLAN.md NOW table updated** — SJ- row reflects interpreter-first pivot.
+
+### Baselines
+- `.github`: (this commit)
+- `one4all`: `46c6267` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- No gate — architecture session only
+
+### SJ-7 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=js TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. Read oracle: `cat one4all/src/frontend/snobol4/lex.c`
+5. Write `one4all/src/runtime/js/lex.js` — tokenize SNOBOL4 source.
+   Token types: label, subject, pattern, replacement, goto, continuation line.
+6. Create `corpus/rungJS00/` with lex smoke tests.
+7. Run smoke: `node lex.js test.sno` → token stream printed correctly.
+8. Commit + push one4all + corpus. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `MILESTONE-JS-SNOBOL4.md §M-SJ-A01` — gate criteria
+- `one4all/src/frontend/snobol4/lex.c` — oracle for lex.js
+- `one4all/src/driver/scrip-interp.c` — oracle for interpreter architecture
+- `one4all/src/runtime/dyn/stmt_exec.c` — oracle for 5-phase executor
