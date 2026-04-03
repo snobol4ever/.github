@@ -19888,3 +19888,70 @@ END
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
 - **Broad: 115p/17f**
+
+---
+
+## DYN-52 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp). Session prefix: DYN-
+
+### Result: 129p/16f (baseline confirmed — fix staged, binary stale due to build issue)
+
+### What was done (DYN-52, commit `ce40aab` on one4all)
+
+**Renamed frontend objects to match sources:**
+- `src/frontend/snobol4/lex.o` → `snobol4.lex.o`
+- `src/frontend/snobol4/parse.o` → `snobol4.tab.o`
+- Both regenerated from `snobol4.l` / `snobol4.y` via flex/bison
+
+**`_XNME` capture fix (staged, not yet confirmed working):**
+- `capture_t` gains `registered` flag
+- Forward decl of `register_capture` moved before `bb_capture` body
+- `_XNME` in `bb_build`: removed `register_capture(ζ)` call (was lost by `g_capture_count=0` reset at `exec_stmt` entry)
+- `CAP_α` in `bb_capture`: now calls `register_capture(ζ)` for non-immediate captures
+- `register_capture`: made idempotent (linear scan for duplicate)
+
+**Build blocker discovered:**
+Pre-existing compile errors in `bb_atp.c`, `bb_capture.c`, `bb_dvar.c` cause `gcc` to exit 1 on combined compile+link. The `-o scrip-interp` binary is NOT written when gcc exits 1, even if the linker itself succeeds. All prior sessions worked because they compiled boxes separately into `/tmp/ib/*.o` first — but the final link line must compile `scrip-interp.c` only, with no source files that have errors.
+
+**Debug confirmed:** `strings scrip-interp | grep DBG` showed debug strings NOT present in binary — confirming binary was not updated.
+
+### DYN-53 first actions
+1. Fix build: compile `scrip-interp.c` → `scrip-interp.o` separately, then link-only:
+```bash
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    -c src/driver/scrip-interp.c -o /tmp/ib/scrip_interp_driver.o
+gcc /tmp/ib/scrip_interp_driver.o \
+    src/frontend/snobol4/snobol4.lex.o src/frontend/snobol4/snobol4.tab.o \
+    /tmp/ib/*.o -lgc -lm -o scrip-interp
+```
+2. Confirm binary timestamp updated; hello gate passes
+3. Run `./scrip-interp /tmp/t_cap.sno` where `t_cap.sno` is:
+```snobol4
+     LINE = 'the cat of hats'
+     LINE ? LEN(4) . X
+     OUTPUT = X
+END
+```
+4. If still empty: add `fprintf(stderr, "DBG pat.v=%d\n", pat.v)` at top of `exec_stmt` — if `pat.v != DT_P` (e.g. `DT_S`), `interp_eval` of `E_CAPT_COND_ASGN` is not returning a `DT_P` descriptor — check `pat_assign_cond` return and `spat_val()`
+5. If `pat.v == DT_P` but no `DBG _XNME`: check `bb_build` switch — `_XNME` enum value in `stmt_exec.c` (=23) may not match `XNME` in `snobol4_pattern.c` (=51, different enum)
+6. Fix whichever path → rerun crosscheck → target ≥125p
+
+**⚠️ CRITICAL for DYN-53:** Check `_XNME` value in `stmt_exec.c` enum vs `XNME` in `snobol4_pattern.c`. They are in different enums and may not match — this would silently skip the `case _XNME:` in `bb_build`.
+
+### Baselines for DYN-53
+- `one4all`: `ce40aab`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 129p/16f**
+
+### Remaining 16 failures
+| Test | Root cause |
+|------|-----------|
+| `word1`–`word4`, `wordcount`, `cross` | `_XNME` capture — enum mismatch suspected (DYN-53 to confirm) |
+| `056_pat_star_deref` | `*VAR` deref in pattern not handled in `interp_eval` |
+| `063_capture_null_replace` | null replacement edge case |
+| `rung3/310–312` | concat regression — needs investigation |
+| `hello/literals` | case/literal edge case |
+| `rung10/1012–1016` | func locals, NRETURN, OPSYN, EVAL |
