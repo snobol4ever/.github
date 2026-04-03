@@ -124,7 +124,7 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 |---------|--------|------|----------------|
 | **TINY NET** | N-248 — 110/110 ✅ | `425921a` | M-T2-FULL ✅ complete |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet · one4all `90d5531` | **M-NET-P35-FIX** — wire boxes · fix @N Phase 3/5 → 80/80 |
-| **NET INTERP** | D-166 | — | **M-NET-INTERP-A01** — Pidgin parser scaffold · 19/19 parse tests |
+| **NET INTERP** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01a** — `Snobol4Lexer.cs` token stream mirrors `lex.c` · 19/19 token tests |
 
 **Two parallel tracks from D-166:**
 
@@ -139,14 +139,15 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 7. Commit, push, update SESSIONS_ARCHIVE + push .github.
 
 ### Track B — scrip-interp.cs (new interpreter, zero compile/link overhead)
-See **MILESTONE-NET-INTERP.md** for full spec.
+See **MILESTONE-NET-INTERP.md** and **MILESTONE-NET-SNOBOL4.md** for full spec.
 
-1. Create `src/driver/dotnet/scrip-interp.csproj` — add Pidgin NuGet ref.
-2. Port `Snobol4Pidgin.cs` → `Snobol4Parser.cs` (already written, ~500 lines).
-3. Run 19 parse smoke tests → all pass. Commit M-NET-INTERP-A01.
-4. Add `SnobolEnv.cs` (variable dict) + `Executor.cs` (5-phase loop skeleton).
-5. Wire Phase 1/4/5: assignments, OUTPUT, goto, END → rung1 smoke tests pass.
-6. Commit M-NET-INTERP-A02.
+Pipeline: `.sno` → **Lexer** → tokens → **Parser** → `IrNode`/`IrStmt` tree → **5-phase interpreter**
+
+1. **M-NET-INTERP-A01a** — Write `Snobol4Lexer.cs`; token stream mirrors `lex.c`; wire into parser; 19/19 token tests.
+2. **M-NET-INTERP-A01b** — Replace `Ast.cs` with `IrNode.cs` (mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`); update parser to emit `IrNode`/`IrStmt`; 19/19 parse tests.
+3. **M-NET-INTERP-A01c** — Update `PatternBuilder.cs` + `Executor.cs` to dispatch on `IrKind`; remove `Ast.cs`; build clean; hello/empty_string/multi 3/3.
+4. **M-NET-INTERP-A02** — Stack machine Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind`; rung1 20/20.
+5. **M-NET-INTERP-A03** — Byrd box sequencer Phases 2/3: `PatternBuilder` → `IByrdBox` graph; `ByrdBoxExecutor` trampoline; rung2–5 60/60.
 
 **Track B is the recommended starting point for D-166** — it builds momentum
 fast, has no dependency on snobol4dotnet, and the @N bug is avoided structurally

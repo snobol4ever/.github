@@ -145,14 +145,16 @@ public sealed class IrStmt {
 
 ---
 
-## Milestone chain (revised)
+## Milestone chain (revised D-168 — lex → parse → IR explicit)
 
 | Milestone | Description | Gate |
 |-----------|-------------|------|
 | **M-NET-INTERP-A00** | IR design: one IR / three consumers; IrNode mirrors EXPR_t | ✅ |
-| **M-NET-INTERP-A01** | `IrNode.cs` + Pidgin parser → `IrStmt[]`; build clean; hello/multi/empty_string pass | 3/3 smoke pass ✅ D-167 scaffold (needs IrNode.cs revision) |
-| **M-NET-INTERP-A02** | Full rung1: assignments, OUTPUT, gotos, labels, END, arithmetic | rung1 20/20 |
-| **M-NET-INTERP-A03** | Phase 2/3: PatternBuilder on IrKind → IByrdBox; LIT ANY SPAN ARB ARBNO wired | rung2–5 60/60 |
+| **M-NET-INTERP-A01a** | **Lexer** — `Snobol4Lexer.cs` tokenizes `.sno`; token stream mirrors `lex.c` on 19 test cases | 19/19 token stream tests pass |
+| **M-NET-INTERP-A01b** | **Parser** — Pidgin combinators consume token stream → `IrStmt[]`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t` | 19/19 parse tests pass |
+| **M-NET-INTERP-A01c** | **IR verified** — `IrNode`/`IrStmt` shape confirmed vs `ir.h`; `Ast.cs` removed; build clean; hello/empty_string/multi pass | 3/3 smoke ✅ (D-167 scaffold needs IrNode.cs revision) |
+| **M-NET-INTERP-A02** | **Stack machine** — Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind` | rung1 20/20 |
+| **M-NET-INTERP-A03** | **Byrd box sequencer** — Phase 2/3: PatternBuilder on `IrKind` → `IByrdBox`; ByrdBoxExecutor trampoline; LIT ANY SPAN ARB ARBNO wired | rung2–5 60/60 |
 | **M-NET-INTERP-A04** | Full corpus vs SPITBOL | ≥ 130/142 |
 | **M-NET-INTERP-A05** | All failures closed | 142/142 |
 | **M-NET-INTERP-B01** | Captures @var/.var/$var correct by construction | rung9 100% |
@@ -161,19 +163,22 @@ public sealed class IrStmt {
 
 ---
 
-## D-168 first tasks
+## D-168 first tasks — target M-NET-INTERP-A01a (Lexer)
 
 1. `git pull --rebase` all repos.
 2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed).
-3. **Replace `Ast.cs` with `IrNode.cs`** — `IrKind` enum (mirrors `EKind` subset for SNOBOL4),
-   `IrNode` class (Kind/SVal/IVal/DVal/Children), `IrStmt` class (mirrors `STMT_t`).
-4. **Update `Snobol4Parser.cs`** — emit `IrNode`/`IrStmt` instead of bespoke records.
-   Pidgin combinator structure is otherwise fine; just change the output types.
-5. **Update `PatternBuilder.cs`** — switch dispatch from bespoke records to `IrKind`.
-6. **Update `Executor.cs`** — switch dispatch from bespoke records to `IrKind`.
-7. Build clean. Run `hello`/`empty_string`/`multi` → 3/3.
-8. Fix arithmetic: parser must emit `E_ADD`/`E_MUL` etc. IR nodes (not `FncCall("+",...)`).
-   Executor dispatches on `IrKind.E_ADD` etc. directly.
+3. Confirm build: `dotnet build src/driver/dotnet/scrip-interp.csproj`.
+4. **Write `Snobol4Lexer.cs`** — tokenizes `.sno` source; token stream mirrors `lex.c`.
+   Token kinds: `LABEL`, `IDENT`, `QLIT`, `ILIT`, `FLIT`, `OP`, `LPAREN`, `RPAREN`,
+   `COMMA`, `COLON`, `GOTO_S`, `GOTO_F`, `GOTO_U`, `CONTINUATION`, `END`, `EOF`.
+5. **Wire lexer into `Snobol4Parser.cs`** — replace any ad-hoc splitting with lexer token stream.
+6. **Replace `Ast.cs` with `IrNode.cs`** — `IrKind` enum (mirrors `EKind`), `IrNode`
+   (Kind/SVal/IVal/DVal/Children), `IrStmt` (mirrors `STMT_t`). Remove `Ast.cs`.
+7. **Update `Snobol4Parser.cs`** — emit `IrNode`/`IrStmt` from token stream.
+8. **Update `PatternBuilder.cs` and `Executor.cs`** — dispatch on `IrKind`.
+9. Build clean. Run `hello`/`empty_string`/`multi` → 3/3 (A01c gate).
+10. Run 19 parse tests → A01b gate.
+11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
 9. Run full crosscheck corpus → establish D-168 broad baseline.
 10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
 

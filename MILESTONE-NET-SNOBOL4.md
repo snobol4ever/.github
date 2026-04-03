@@ -81,9 +81,11 @@ Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 
 | Milestone | Description | Gate |
 |-----------|-------------|------|
-| **M-NET-INTERP-A01** | Project scaffold + Pidgin parser: `scrip-interp.csproj` · `Snobol4Parser.cs` · parse all 19 test cases · pretty-print AST | 19/19 parse tests pass |
-| **M-NET-INTERP-A02** | Eval loop Phase 1/4/5: assignments · OUTPUT · gotos · labels · END · `SnobolEnv` dict | rung1 smoke (20 tests) pass |
-| **M-NET-INTERP-A03** | Phase 2/3: `PatternBuilder.cs` → IByrdBox graph · `ByrdBoxExecutor` wired · LIT ANY SPAN ARB ARBNO first | rung2–5 (60 tests) pass |
+| **M-NET-INTERP-A01a** | **Lexer** — `Snobol4Lexer.cs` tokenizes `.sno` source; token stream mirrors `lex.c` output on 19 test cases | 19/19 token stream tests pass |
+| **M-NET-INTERP-A01b** | **Parser** — `Snobol4Parser.cs` (Pidgin combinators) consumes token stream → `IrStmt[]`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`; pretty-print AST matches `parse.c` output | 19/19 parse tests pass |
+| **M-NET-INTERP-A01c** | **IR tree verified** — `IrNode`/`IrStmt` shape confirmed vs `ir.h`; `Ast.cs` removed; `scrip-interp.csproj` builds clean; hello/empty_string/multi smoke pass | 3/3 smoke + IR shape matches oracle |
+| **M-NET-INTERP-A02** | **Stack machine** — Phases 1/4/5: assignments · OUTPUT · gotos · labels · END · arithmetic via explicit value stack dispatching on `IrKind` · `SnobolEnv` dict | rung1 smoke (20 tests) pass |
+| **M-NET-INTERP-A03** | **Byrd box sequencer** — Phase 2/3: `PatternBuilder.cs` walks pattern `IrKind` → `IByrdBox` graph · `ByrdBoxExecutor` trampoline wired · LIT ANY SPAN ARB ARBNO first | rung2–5 (60 tests) pass |
 | **M-NET-INTERP-A04** | Full corpus run · diff vs SPITBOL oracle · all rungs · crosscheck | ≥ 130/142 pass |
 | **M-NET-INTERP-A05** | Remaining failures closed · full corpus clean | 142/142 pass · crosscheck 100% |
 
@@ -143,11 +145,13 @@ Phase O caches, specializes, and ultimately emits IL directly from the interpret
 | D-165 | M-NET-BOXES ✅ | Foundation |
 | D-166 | planning | Design |
 | D-167 | M-NET-INTERP-A00 ✅ · IR design locked · unified chain | Design |
-| D-168 | M-NET-INTERP-A01 | Phase A |
-| D-169 | M-NET-INTERP-A02 | Phase A |
-| D-170 | M-NET-INTERP-A03 | Phase A |
-| D-171 | M-NET-INTERP-A04 | Phase A |
-| D-172 | M-NET-INTERP-A05 | Phase A |
+| D-168 | M-NET-INTERP-A01a — Lexer (`Snobol4Lexer.cs`, token stream mirrors `lex.c`) | Phase A |
+| D-169 | M-NET-INTERP-A01b — Parser (Pidgin → `IrStmt[]`; `IrNode.cs` mirrors `ir.h`) | Phase A |
+| D-170 | M-NET-INTERP-A01c — IR verified; `Ast.cs` removed; build clean; 3/3 smoke | Phase A |
+| D-171 | M-NET-INTERP-A02 — Stack machine Phases 1/4/5 | Phase A |
+| D-172 | M-NET-INTERP-A03 — Byrd box sequencer Phases 2/3 | Phase A |
+| D-173 | M-NET-INTERP-A04 — Full corpus vs SPITBOL | Phase A |
+| D-174 | M-NET-INTERP-A05 — All failures closed | Phase A |
 | D-173 | M-NET-INTERP-B01 | Phase B |
 | D-174 | M-NET-INTERP-B02 | Phase B |
 | D-175 | M-NET-INTERP-B03 (EVAL/CODE) | Phase B |
