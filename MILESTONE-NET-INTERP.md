@@ -3,7 +3,7 @@
 
 # MILESTONE-NET-INTERP — scrip-interp.cs: SNOBOL4 .NET Interpreter
 
-**Session prefix:** D · **Repo:** one4all · **Frontend:** Pidgin → IR · **Backend:** C# Byrd boxes
+**Session prefix:** D · **Repo:** one4all · **Frontend:** Pidgin → IR · **Backend:** MSIL Byrd boxes (ilasm → boxes.dll)
 
 ---
 
@@ -49,18 +49,37 @@ EVAL/CODE at runtime call the Pidgin parser to build live IR trees — same node
 
 ---
 
-## What already exists — DO NOT REWRITE
+## Execution layer vs oracle — CRITICAL DISTINCTION
+
+The `bb_*.cs` files are **oracle/reference only** — exactly parallel to `bb_*.java` for the JVM session.
+They are NOT the execution layer. Do not invoke them from the interpreter.
+
+**Execution layer = MSIL (ilasm → boxes.dll):**
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| All 27 C# Byrd boxes | `src/runtime/boxes/*/bb_*.cs` | ✅ |
-| `ByrdBoxExecutor` (Phase 3) | `src/runtime/boxes/shared/bb_executor.cs` | ✅ |
-| `IByrdBox`, `Spec`, `MatchState` | `src/runtime/boxes/shared/bb_box.cs` | ✅ |
-| `BbCapture`, `BbAtp`, `BbDvar` | `src/runtime/boxes/capture,atp,dvar/` | ✅ |
-| `DESCR.cs`, `ByrdBoxLinkage.cs` | `src/runtime/net/` | ✅ |
+| `bb_box.il` — `IByrdBox` interface, `Spec` valuetype, `MatchState` class | `src/runtime/boxes/shared/bb_box.il` | ✅ D-169 |
+| `bb_executor.il` — `ByrdBoxExecutor`, `MatchResult` | `src/runtime/boxes/shared/bb_executor.il` | ✅ D-169 |
+| All 27 `bb_*.il` box implementations | `src/runtime/boxes/*/bb_*.il` | ✅ D-169 |
+| Assembled `boxes.dll` | `ilasm /dll` from all `bb_*.il` | ✅ D-169 |
+
+**Oracle only — do NOT invoke from interpreter:**
+
+| Component | Location |
+|-----------|----------|
+| `bb_*.cs` — C# authoring oracle | `src/runtime/boxes/*/bb_*.cs` |
+| `bb_executor.cs` | `src/runtime/boxes/shared/bb_executor.cs` |
+| `bb_box.cs` | `src/runtime/boxes/shared/bb_box.cs` |
+
+**Why MSIL:** the generator (`emit_net.c`) emits `.il` files assembled by `ilasm`.
+The interpreter tests the same artifact — `boxes.dll` assembled from `bb_*.il` — so
+there is zero semantic gap between interpreted and generated execution.
+
+`scrip-interp.cs` loads `boxes.dll` via `Assembly.LoadFrom` and invokes `Alpha`/`Beta`
+through the `IByrdBox` interface defined in `bb_box.il`.
 
 `ByrdBoxFactory.cs` bridges Jeff's snobol4dotnet `Pattern` hierarchy — **not used**
-by the interpreter. `PatternBuilder.cs` walks IR nodes instead (same logic, different input).
+by the interpreter. `PatternBuilder.cs` walks IR nodes instead.
 
 ---
 

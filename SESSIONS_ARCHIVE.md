@@ -18173,6 +18173,70 @@ Add `ARCH-ir-tree.md` to ARCH-index.md.
 9. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
 
 ### Key references
+- `MILESTONE-NET-INTERP.md` — full milestone ladder + IrNode.cs design
+- `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase oracle
+- `one4all/src/runtime/boxes/shared/bb_box.cs` — IByrdBox/Spec/MatchState (already written)
+- `one4all/src/driver/dotnet/` — scrip-interp.cs scaffold (D-167)
+- `SESSION-snobol4-net.md §Track B` — session doc (ignore Track A)
+
+---
+
+## D-169 handoff — 2026-04-02
+
+### Session type
+**NET INTERP** — SNOBOL4 × .NET C# interpreter. Session prefix: D-.
+
+### What was done
+
+**M-NET-INTERP-A00 (MSIL boxes) — COMPLETE.**
+
+All 27 Byrd boxes written in raw MSIL (`.il`), assembled via `ilasm` into `boxes.dll`.
+
+Key decisions confirmed and committed:
+
+1. **MSIL is the execution layer** — `bb_*.il` assembled into `boxes.dll` is what both the interpreter and generator use. `bb_*.cs` are oracle/reference only (parallel to `bb_*.java` for JVM). `MILESTONE-NET-INTERP.md` updated to reflect this.
+
+2. **All 27 boxes written and assembling clean:**
+   - Foundation: `bb_box.il` (`IByrdBox` interface, `Spec` valuetype, `MatchState` class), `bb_executor.il` (`ByrdBoxExecutor`, `MatchResult`)
+   - Structural: `bb_lit.il`, `bb_seq.il`, `bb_alt.il`, `bb_arb.il`, `bb_arbno.il`
+   - Char-set: `bb_any.il`, `bb_notany.il`, `bb_span.il`, `bb_brk.il`, `bb_breakx.il`
+   - Position/length: `bb_len.il`, `bb_pos.il` (BbPos+BbRpos), `bb_tab.il` (BbTab+BbRtab), `bb_rem.il`
+   - Control: `bb_eps.il`, `bb_bal.il`, `bb_terminals.il` (BbFence+BbAbort+BbFail+BbSucceed)
+   - Logical: `bb_not.il`, `bb_interr.il`
+   - Capture/side-effect: `bb_capture.il`, `bb_atp.il`, `bb_dvar.il`
+
+3. **`build_boxes.sh`** — concatenates all `.il` files (stripping per-file `.assembly` directives), prepends single `.assembly boxes {}` header, calls `ilasm /dll`. One command rebuild.
+
+4. **Smoke test 5/5** — BbLit α success (cursor=5), BbLit β ω (cursor restored=0), BbLit α ω on mismatch, BbSeq("he","llo") cursor=5, BbAlt("foo"|"bar") matched bar cursor=3.
+
+5. **One4all commit:** `8c6d8ea`
+
+### Baselines
+- `.github`: (this commit)
+- `one4all`: `8c6d8ea`
+- `corpus`: `2f2bbe3` (unchanged)
+- No gate — interpreter session, exempt per RULES.md
+
+### D-170 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=net TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. Wire `boxes.dll` into `scrip-interp.csproj` — add `<Reference Include="boxes"><HintPath>../../runtime/boxes/boxes.dll</HintPath></Reference>`.
+5. Write `IrNode.cs` — `IrKind` enum mirroring `EKind` from `ir.h`, `IrNode` (Kind/SVal/IVal/DVal/Children), `IrStmt` (mirrors `STMT_t`). Remove `Ast.cs`.
+6. Update `Snobol4Parser.cs` to emit `IrNode`/`IrStmt` instead of bespoke records.
+7. Update `PatternBuilder.cs` — dispatch on `IrKind`, construct `IByrdBox` instances loaded from `boxes.dll` via `Assembly.LoadFrom` or direct reference.
+8. Update `Executor.cs` — dispatch on `IrKind`, stack machine for Phases 1/4/5.
+9. Build clean. Run hello/empty_string/multi → 3/3 (A01c gate).
+10. Run 19 parse tests → A01b gate.
+11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `MILESTONE-NET-INTERP.md` — updated milestone ladder (MSIL boxes section)
+- `one4all/src/runtime/boxes/build_boxes.sh` — rebuild boxes.dll
+- `one4all/src/runtime/boxes/shared/bb_box.il` — IByrdBox/Spec/MatchState definitions
+- `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase oracle
+- `SESSION-snobol4-net.md §Track B` — session doc
 - `ARCH-ir-tree.md` — n-ary IR tree reference (new this session)
 - `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1 / M-PARSE-1 plan
 - `snobol4jvm/src/SNOBOL4clojure/grammar.clj` — canonical grammar spec (instaparse PEG)
