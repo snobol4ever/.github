@@ -18634,3 +18634,75 @@ Flex body tokeniser matching `syntax.tbl` exactly:
 - `/tmp/refs/snobol4-2.3.3/syntax.tbl` — CSNOBOL4 scan tables (oracle for lex.l)
 - `/tmp/refs/snobol4-2.3.3/v311.sil` EXPR proc — SPITBOL precedence climbing (oracle for parse.y)
 - `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1/M-PARSE-1 milestone plan
+
+---
+
+## J-222 handoff — 2026-04-02
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**M-JVM-INTERP-A01: Lexer.java — COMPLETE. Gate: 31/31 (19/19 file gate).**
+
+Created `src/driver/jvm/Lexer.java` — complete SNOBOL4 one-pass lexer in Java, mirroring `lex.c`/`lex.h` exactly.
+
+#### File created
+- `src/driver/jvm/Lexer.java` — 300 lines. Package `driver.jvm`.
+- `src/driver/jvm/TestLexer.java` — 31-test gate harness.
+
+#### Design mirrors lex.c exactly
+- `TokKind` enum: all 37 kinds from `lex.h` (T_IDENT through T_ERR)
+- `Token` class: `kind`, `sval`, `ival`, `dval`, `lineno` — mirrors `Token` struct
+- `processReader()` — line reader: strips comments (*/!/#/|/; at col-1), joins continuations (+/.), handles `-INCLUDE`
+- `emitLogical()` — structural token emission: T_LABEL (col-1 ident), body tokens, T_GOTO, T_STMT_END
+- `tokeniseBody()` — body tokeniser: strings, numbers, &KEYWORD, idents, **, single-char ops
+- `findGotoColon()` — mirrors C version: returns colon pos / -(semi+1) / -1
+- Two entry points: `openFile(path)` for files, `openBodyString(src, lineno)` for body-only snippets (used by tests/goto-field parsing)
+- `openString(src)` routes through `processReader` via StringReader (full file-mode semantics)
+
+#### Key design note
+`openString` uses `processReader` (file semantics — col-1 = label detection). `openBodyString` calls `tokeniseBody` directly (body semantics — no label). Tests that check bare body snippets must use `openBodyString`.
+
+#### Gate
+```
+=== 31 PASS  0 FAIL ===
+  12 unit tests (Test_214 label, Test_218 goto, Test_231 int, Test_232 str,
+                 Test_220/221/233 ops, keyword, END, real, stmt_end, continuation)
+  19 file gate (4 smoke + 8 assign + 7 arith_new) — 0 lex errors each
+```
+
+Run gate:
+```bash
+cd /home/claude/one4all/src
+javac -d /tmp/jvm_cls driver/jvm/Lexer.java driver/jvm/TestLexer.java
+java -cp /tmp/jvm_cls driver.jvm.TestLexer /home/claude/corpus /home/claude/one4all/test/frontend 2>/dev/null
+```
+
+### Baselines
+- `one4all`: `0db445e`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- No gate — interpreter session, exempt per RULES.md
+
+### J-223 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. No gate — interpreter session, exempt per RULES.md.
+4. Confirm Lexer gate still green (31/31).
+5. **M-JVM-INTERP-A02: Parser.java**
+   - Path: `src/driver/jvm/Parser.java`
+   - Oracle: `src/frontend/snobol4/parse.c` + `MILESTONE-NET-INTERP.md §Pidgin parser`
+   - Parallel: `src/driver/dotnet/Snobol4Parser.cs` (C# implementation to read)
+   - AST nodes: `StmtNode`, `ExprNode` — typed Java classes mirroring `STMT_t`/`EXPR_t` from `ir.h`
+   - Gate: 19/19 parse test cases produce correct AST (pretty-print matches reference)
+6. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-223
+- `src/frontend/snobol4/parse.c` — parser oracle
+- `src/driver/dotnet/Snobol4Parser.cs` — C# parallel implementation
+- `src/driver/dotnet/IrNode.cs` — IrKind enum (mirrors EKind from ir.h)
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A02` — gate criteria
+- `MILESTONE-NET-INTERP.md §Pidgin parser` — parser design notes
