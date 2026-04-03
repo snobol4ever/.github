@@ -20394,3 +20394,90 @@ Fix: added `_cc_stack` parallel to `_pending_cond`. At `CAPT_COND/proceed`: push
 - `.github`: this commit
 - **Broad: 138p/40f**
 
+---
+
+## SJ-16 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 160p/18f — baseline preserved. Three fixes applied; word2/3/4 not yet passing (pat-store roundtrip bug remains).
+
+### What was done (SJ-16)
+
+**Root cause analysis — multi-ARB capture failure (word2/3/4):**
+
+Three bugs found and fixed. None individually sufficient; the pat-store roundtrip issue is the remaining blocker.
+
+**Fix 1 — `sno_engine.js` CAPT_COND/succeed: peek-not-pop `_cc_stack` (commit `a62a812`):**
+
+`CAPT_COND/succeed` was calling `_cc_stack.pop()`. ARB backtracking causes `CAPT_COND/succeed` to fire multiple times for the same CAPT_COND node (ARB tries len=0,1,2,...; each retry produces a new succeed via `SEQ/concede → Ω.pop() → ARB/recede → succeed`). On the second fire, `_cc_stack` was already empty → `snap=0` → `_pending_cond.length=0` → wiped all prior captures (e.g. WHEN).
+
+Fix: `_cc_stack.pop()` → `_cc_stack[_cc_stack.length-1]` (peek). Entry is only popped at concede/recede (final retirement).
+
+Engine-level verified: all three captures (WHEN/WHO/WHAT) correct in isolation via `sno_search()`.
+
+**Fix 2 — `sno-interp.js` assignment RHS pat routing:**
+
+`PAT = LEN(4) . W` was routing through `interp_eval(E_CAPT_COND_ASGN)` → `interp_eval(E_FNC('LEN'))` → "undefined function LEN". The assignment path (line ~1237) called `interp_eval(s.replacement)` unconditionally.
+
+Fix: `let repl = s.replacement ? (_expr_is_pat(s.replacement) ? _build_pat(s.replacement) : interp_eval(s.replacement)) : null;`
+
+Single-line `PAT = LEN(4) . W` confirmed working.
+
+**Fix 3 — `sno-interp.js` continuation T_NEWLINE suppression:**
+
+Lexer emitted `T_NEWLINE` at end of each physical line before checking if the next line started with `+`/`.`. This split multi-line PAT assignments into separate statements — the continuation was processed as a new (malformed) statement.
+
+Fix: at `'\n'` handling, peek ahead skipping blank lines. If next non-blank line starts with `+`/`.`, consume the marker + leading whitespace, clear `_bol`, and `continue` without emitting `T_NEWLINE`.
+
+**Remaining blocker — pat-store roundtrip:**
+
+After all three fixes, word2 produces `" invented the  in "` (empty WHO/WHEN/WHAT). No stderr errors. The pattern is now built and stored correctly in `_vars['PAT']`. At match time, `_build_pat(E_VAR('PAT'))` is called. The fast-path at that case checks `if (val && val.__pat) return val` — so if `PAT_seq(...)` sets `__pat:1`, the stored value is returned directly. But the captures still come out empty.
+
+**Hypothesis for SJ-17:** The `_cc_stack` peek fix in sno_engine.js is correct at the engine level — but `sno-interp.js`'s match path (line ~1219) calls `_build_pat(s.pattern)` where `s.pattern` is `E_VAR('PAT')`, which returns the stored `{__pat:1,...}` object. The `_set_vars_hook` in sno_engine is set globally once. The issue may be that after the multi-line continuation fold, `s.pattern` is the interrogation pattern `? PAT` (i.e. `E_VAR('PAT')`), but the SEQ containing `LEN(4).WHEN ... ARB.WHO ... REM.WHAT` is built at assign time and stored as a flat `PAT_seq` node without preserving the correct `Σ`/`ζ[1]` entry positions across CAPT_COND children. Alternatively: the `_build_pat(E_VAR)` fast-path is not being hit and instead the stored pattern value (a JS object) is being string-coerced somewhere.
+
+**Concrete first debug step:**
+```bash
+node -e "
+const fs = require('fs');
+// Patch _vars to log PAT assignment and match-time retrieval
+" 
+# Instead: add stderr trace to sno-interp.js line 1219:
+# const pat = _build_pat(s.pattern);
+# process.stderr.write('pat built: ' + JSON.stringify(pat)?.slice(0,80) + '\n');
+node src/runtime/js/sno-interp.js corpus/crosscheck/strings/word2.sno \
+  < corpus/crosscheck/strings/word2.input
+```
+
+### SJ-17 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. **Confirm 160p/18f baseline:**
+   ```bash
+   cat > /tmp/sno_js_runner.sh << 'EOF'
+   #!/usr/bin/env bash
+   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
+   EOF
+   chmod +x /tmp/sno_js_runner.sh
+   cd /home/claude/one4all
+   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+   ```
+4. **Diagnose word2 pat-store roundtrip:**
+   - Add temporary stderr trace at sno-interp.js line ~1219 to print `JSON.stringify(pat).slice(0,120)` — confirm `__pat:1` is present and the tree has CAPT_COND nodes
+   - If `__pat:1` missing: `PAT_seq` / `PAT_capt_cond` etc. need to set it — check `sno_engine.js` exports
+   - If `__pat:1` present but captures empty: the `_set_vars_hook` may be firing during the wrong engine call — check if `sno_search` is being called with the stored pat or with a freshly built one
+   - Also check: `_build_pat(E_VAR('PAT'))` fast-path in sno-interp.js — does it return the stored value or call `_str()` on it?
+5. **After word2/3/4 fixed** → run broad → expect ≥165p → tackle `1015_opsyn` and `expr_eval` line-continuation (now partially fixed — verify `+` continuation in expr context works)
+
+### Baselines for SJ-17
+- `one4all`: `a62a812`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 160p/18f**
+
+### Key files
+- `src/runtime/js/sno_engine.js` — CAPT_COND peek-not-pop fix (Fix 1)
+- `src/runtime/js/sno-interp.js` — pat-RHS assignment routing (Fix 2) + continuation fold (Fix 3)
+
