@@ -284,8 +284,13 @@ Before any work: state the inferred session type and ask for confirmation if amb
 | "SNOBOL4 .NET emitter" / "ThreadedExecuteLoop" / "@N bug" | **DOTNET** (Track A, M-NET-P35-FIX) | — |
 | "dynamic Byrd boxes" alone | **DYN-** (snobol4 × x86, scrip-interp.c) | Treating as .NET session |
 | "SNOBOL4 x86" / "scrip-interp.c" | **DYN-** session | — |
+| "SNOBOL4 JVM" alone | Could be TINY JVM emit (emit_jvm.c) OR JVM interpreter (M-JVM-INTERP) — **ask** | Defaulting to emit session |
+| "SNOBOL4 JVM interpreter" / "Java Byrd boxes" / "PatternBuilder.java" / "bb_executor.java" | **TINY JVM interpreter** (M-JVM-INTERP-A01, J- session) | Treating as emit session (emit_jvm.c), running emitter gates |
+| "SNOBOL4 JVM emitter" / "emit_jvm.c" / "Jasmin" | **TINY JVM emit** (J- session, M-JVM-A02+) | — |
 
-**Rule:** The phrase "interpreter" or "C# Byrd boxes" or "scrip-interp.cs" unambiguously identifies NET INTERP (Track B). Confirm and proceed — no gate, no scrip-cc invariants.
+**Rule:** The phrase "interpreter" or "Java Byrd boxes" or "PatternBuilder.java" unambiguously identifies the JVM interpreter path (M-JVM-INTERP). Do NOT open SESSION-snobol4-jvm.md emitter section or run invariants/baselines — that is the wrong session. No gate, no scrip-cc invariants for interpreter work.
+
+The phrase "interpreter" or "C# Byrd boxes" or "scrip-interp.cs" unambiguously identifies NET INTERP (Track B). Confirm and proceed — no gate, no scrip-cc invariants.
 
 ## ⛔ SESSIONS_ARCHIVE.md — APPEND ONLY, NEVER PRUNE
 
