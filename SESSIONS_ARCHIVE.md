@@ -19982,3 +19982,94 @@ Remove `depth==0` and `(` from lookahead (paren has its own rule). Then `flex --
 
 ### Spurious parse error (harmless)
 `snobol4:0: error: parse error: syntax error` fires on every file including hello world. Bison EOF-state artifact. Stderr noise only — execution is correct.
+
+---
+
+## SJ-13 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — pure JS interpreter (`sno-interp.js`). Session prefix: SJ-
+
+### Result: 159p/19f (+1 from SJ-12 baseline of 158p/20f)
+
+### What was done (SJ-13 r1, commit `9f14686` on one4all)
+
+**Bug fixed — OPSYN return value:**
+
+Oracle (`src/runtime/snobol4/snobol4_pattern.c` `opsyn()`) returns `NULVCL` (null) on success. Our JS implementation was returning `dest` (e.g. `"FACTO"`). Fixed to `return null`.
+
+- `differ(opsyn(.facto,'fact')) :f(e002)` — OPSYN returning `"FACTO"` caused DIFFER to succeed → fall through to FAIL line. With `return null`, DIFFER fails → `:f(e002)` fires correctly.
+- Fixes: `1010_func_recursion` ✅
+
+**Root cause investigated — `word1`–`word4`/`wordcount`/`cross` (NOT yet fixed):**
+
+These all fail because `ARB . OUTPUT` (dot-capture via `PAT_capt_cond`) doesn't produce the expected captured text. Traced to SEQ backtracking in `sno_engine.js`:
+
+- `sno_search('She saw the cat of...', PAT_seq([PAT_lit(' the '), PAT_capt_cond(PAT_arb(),'OUTPUT'), PAT_alt(...)]))` → returns `null`
+- `PAT_seq([PAT_lit('the'), PAT_lit(' cat')])` → also returns `null`
+- **SEQ is broken for multi-element sequences**: single `PAT_lit` works; any 2+-element `PAT_seq` fails to match
+
+**SEQ backtracking root cause (diagnosed, not yet fixed):**
+
+`SEQ/concede` pops `Ω` directly. The ARB retry frame is on `Ω`, so popping it reaches `ARB/recede` correctly. However: after `ARB/recede` succeeds (extends by 1), it calls `ζ_up(ζ, δ+len)` where `ζ` is the **ARB frame with Ψ pointing to SEQ frame**. `ζ_up` restores the SEQ frame. Action is `'succeed'` → enters `SEQ/succeed`. But the SEQ frame at this point has stale `Δ` from the *original* descent — `ζ_next_commit` then uses `ζ[3]` (childδ from the ARB frame), which may be correct.
+
+**Actual issue**: The trace `SEQ/p φ=2/2 δ=5 Δ=5 → SEQ/s childδ=5` shows second child (second literal) matching at δ=5 and returning childδ=5 (0 chars consumed). The second `PAT_lit` is the second literal which should fail if not found at position 5. This suggests the child is **not** being tried at the correct string position, or the child's `ζ[3]` (δ) is wrong after `ζ_down`. 
+
+Specifically: `ζ_down` returns `[Σ, Δ, Σ, Δ, child, 1, Ψ+[ζ]]` — child starts at `Δ`, not at the SEQ's current committed `δ`. After `ζ_next_commit`, `Δ` = `childδ` from previous child. But `ζ_down` then uses `Δ` (index 1) for both `Σ` and `Δ` of the child frame. The child's `δ` (slot 3) = `Δ`. This looks right — but the LIT case checks `S.startsWith(pat, δ)` using `ζ[3]`. If `ζ[3]=5` and the string is `'hello world'` with `'world'` at pos 6, it should fail — not return childδ=5.
+
+**Next session should instrument:** add `process.stderr.write('LIT/p δ='+ζ[3]+' pat='+JSON.stringify(ζ[4])+'\\n');` to `LIT/proceed` to confirm whether the second literal is even being attempted, or if SEQ short-circuits.
+
+**Remaining 19 failures:**
+
+| Test | Root cause |
+|------|-----------|
+| `word1`–`word4`, `wordcount`, `cross` | SEQ multi-element backtracking broken in `sno_engine.js` — `PAT_seq([A,B,C])` fails to match even when match exists |
+| `1011_func_redefine` | DEFINE redefine semantics |
+| `1015_opsyn` | OPSYN edge case — may improve now that return value is fixed |
+| `1114_item` | TABLE item iteration not implemented |
+| `212_indirect_array` | `$var<idx>` indirect array combination |
+| `W07_capt_cur` | Cursor capture edge case |
+| `expr_eval` | Line continuation `+` prefix not handled by lexer INITIAL state |
+| `fileinfo`, `triplet`, `test_case`, `test_math`, `test_stack`, `test_string`, `094_data_define_access` | Not yet diagnosed |
+
+### SJ-14 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session, exempt from run_invariants.sh / run_emit_check.sh
+3. **Confirm 159p baseline:**
+   ```bash
+   cat > /tmp/sno_js_runner.sh << 'EOF'
+   #!/usr/bin/env bash
+   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
+   EOF
+   chmod +x /tmp/sno_js_runner.sh
+   cd /home/claude/one4all
+   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null
+   ```
+4. **Fix SEQ multi-element backtracking in `sno_engine.js`:**
+   - Add `LIT/proceed` trace: `process.stderr.write('LIT/p δ='+ζ[3]+' pat='+JSON.stringify(ζ[4].substring(0,10))+'\\n');`
+   - Run: `node src/runtime/js/sno-interp.js /tmp/seq_test.sno` where:
+     ```snobol4
+           X = 'the cat of'
+           X ? 'the ' LEN(3) . Y ' of'
+           output = 'Y=[' Y ']'
+     end
+     ```
+   - Confirm whether LIT for `' of'` is tried at δ=7 (after LEN(3) consumed 3 chars from pos 4)
+   - **Hypothesis**: `ζ_next_commit` in `SEQ/succeed` sets `Δ=childδ` but `ζ_down` uses `ζ[1]` (Σ/Δ) not `ζ[3]` (δ) for child's start position. After commit, `ζ[1]=ζ[3]=childδ` so both agree — but if SEQ frame was **restored from Ω** (not from ζ_up), the Σ/Δ may be the original entry position.
+   - Fix: ensure `ζ_next_commit` correctly advances `ζ[3]` (δ) in addition to `ζ[1]` (Δ), and `ζ_down` uses `ζ[1]` as both parent-Σ and child start.
+5. **Check `1015_opsyn`** — run it; the OPSYN return-null fix may have fixed it already.
+6. **Target: ≥170p**
+
+### Baselines for SJ-14
+- `one4all`: `9f14686`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 159p/19f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — main interpreter (SJ-13 OPSYN fix applied)
+- `src/runtime/js/sno_engine.js` — pattern match engine (SEQ bug here — clean, no debug patches)
+- `src/runtime/js/sno_runtime.js` — value types, builtins
+
+---
