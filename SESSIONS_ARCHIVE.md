@@ -19221,3 +19221,7 @@ scrip-cc build fails on `sno.tab.c` compilation. Pre-existing — not introduced
 - .github: (this commit)
 - test_lex: **54p/0f** ✅
 - Broad: **126p/52f** ⚠️ regression from 169p/9f — DYN-48 first priority
+
+### DYN-47 addendum
+Removed `sno.l` and `lex.c` (scrip-cc two-pass lexer path retired).
+`lex.l`/`lex.yy.c` is the single lexer. one4all HEAD: `c15de9f`.
