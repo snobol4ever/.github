@@ -20219,3 +20219,103 @@ Pattern stored via `PAT = ...` then used as `LINE ? PAT`:
 ### Baselines for D-175
 - `one4all`: `1e01392` · `corpus`: `2f2bbe3` · `.github`: this commit
 - **Broad: 151p/27f**
+
+---
+
+## DYN-54 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 154p/24f — no net change from start (build from scratch this session; baseline confirmed). Partial fix committed.
+
+### What was done (DYN-54)
+
+**Session start from scratch** — repos cloned, libgc-dev installed, scrip-interp built.
+
+**Build issue found and documented:** `src/runtime/boxes/bb_box.h` is a Jasmin bytecode file (not C). The C header lives at `src/runtime/boxes/shared/bb_box.h`. `stmt_exec.c` includes `"../boxes/bb_box.h"` which resolves to the Jasmin file, causing cascading type errors. Workaround: swap files before C compile, restore after (see build script below).
+
+**Baseline confirmed: 154p/24f** (one4all advanced from other sessions; SESSION doc said 115p from DYN-50).
+
+**Root cause diagnosed for word2/3/4/wordcount/cross failures:**
+
+`interp_eval(E_SEQ)` in `scrip-interp.c` always used `CONCAT_fn` (string concat) even when children were pattern nodes (`E_CAPT_COND_ASGN`, `E_ARB`, etc.). When a continuation assignment like:
+```
+PAT = ARB . W1
++     ":" ARB . W2
+```
+…is parsed, the RHS becomes `E_SEQ(E_CAPT_COND_ASGN(ARB,W1), E_CAPT_COND_ASGN_or_nested_SEQ)`. `eval_node(E_SEQ)` was string-concatenating, destroying capture structure. The inline single-statement equivalent works because the statement executor handles the PAT field via `exec_stmt` directly.
+
+**Partial fix applied (commit `f7e9be0`):**
+- Added `_expr_is_pat(EXPR_t*)` static helper in `scrip-interp.c` (mirrors `is_pat()` in `snobol4.y`)
+- `interp_eval(E_SEQ)`: if `_expr_is_pat(e)` → use `pat_cat()` chain; else `CONCAT_fn`
+
+**Deeper issue found via trace — NOT yet fixed:**
+
+The `pat_cat` chain fires correctly (`pat_ctx=1`), but `interp_eval(child[0])` where `child[0]` is `E_CAPT_COND_ASGN(E_ARB, W1)` returns `DT_S=1` (string) instead of `DT_P=3` (pattern). Trace showed `child0kind=0`. This means either:
+- `E_ARB` has enum value 0, and `interp_eval(E_ARB)` is not returning `pat_arb()` — check the `case E_ARB:` branch
+- OR the `E_CAPT_COND_ASGN` case is not being reached before the E_SEQ child dispatch
+
+The `case E_CAPT_COND_ASGN:` at ~line 815 correctly calls `pat_assign_cond()` — but it may not be reached if `E_CAPT_COND_ASGN`'s enum value doesn't match. Verify enum values in `scrip_cc.h`.
+
+### DYN-55 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. **Confirm 154p/24f baseline** (rebuild scrip-interp using build script below)
+4. **Find enum value of `E_CAPT_COND_ASGN` and `E_ARB`:**
+   ```bash
+   grep -n "E_ARB\|E_CAPT_COND_ASGN\|E_NUL\|E_VAR" \
+     /home/claude/one4all/src/frontend/snobol4/scrip_cc.h | head -30
+   ```
+5. **Find `case E_ARB:` in `interp_eval`** — confirm it returns `pat_arb()` not a string
+6. **Fix:** whichever of E_ARB or E_CAPT_COND_ASGN returns DT_S instead of DT_P
+7. **After fix** — rebuild, run: expect word2/3/4/wordcount/cross to pass → ≥159p
+8. **Commit as Lon**, push, update PLAN.md NOW row
+
+### Build script (every DYN- session)
+```bash
+cd /home/claude/one4all
+apt-get install -y libgc-dev 2>/dev/null | tail -1
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; FE="$ROOT/src/frontend/snobol4"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$ROOT/src -DDYN_ENGINE_LINKED"
+mkdir -p /tmp/ib
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$ROOT/src" -w -o /tmp/ib/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib/x86_stubs.o
+for box in lit alt seq arbno pos rpos tab rtab fence abort len span any notany brk breakx arb rem succeed fail eps bal atp capture not interr; do
+  f="$BOXES/$box/bb_${box}.c"
+  [ -f "$f" ] && gcc -O2 -c "$f" $DYNFLAGS -w -o "/tmp/ib/bb_${box}.o"
+done
+gcc -O2 -c "$FE/snobol4.lex.c" -I"$FE" -I"$ROOT/src" -w -o "$FE/lex.o"
+gcc -O2 -c "$FE/snobol4.tab.c" -I"$FE" -I"$ROOT/src" -w -o "$FE/parse.o"
+# bb_box.h swap (Jasmin file at root, C at shared/):
+cp "$BOXES/bb_box.h" /tmp/bb_box_j.h && cp "$BOXES/shared/bb_box.h" "$BOXES/bb_box.h"
+gcc -O2 -c "$RT/dyn/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib/stmt_exec.o
+gcc -O2 -c "$RT/dyn/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
+cp /tmp/bb_box_j.h "$BOXES/bb_box.h"
+gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c "$FE/lex.o" "$FE/parse.o" /tmp/ib/*.o -lgc -lm -o scrip-interp
+# Runner:
+cat > /tmp/dyn_runner.sh << 'EOF'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip-interp "$@"
+EOF
+chmod +x /tmp/dyn_runner.sh
+# Baseline:
+INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+```
+
+### Baselines for DYN-55
+- `one4all`: `f7e9be0`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 154p/24f**
+
+### Key files
+- `src/driver/scrip-interp.c` — `_expr_is_pat` added, `interp_eval(E_SEQ)` pat_ctx fix (partial); `case E_ARB:` needs verification
+- `src/runtime/dyn/stmt_exec.c` — bb_build, exec_stmt (unchanged this session)
+- `src/runtime/boxes/bb_box.h` — Jasmin file (do NOT use for C compile; use `shared/bb_box.h`)
+
