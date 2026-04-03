@@ -6,163 +6,141 @@
 
 ---
 
-## Architecture (authoritative as of J-227 pivot)
+## Architecture (authoritative J-228)
 
-**TINY JVM is a pure-Java tree-walk interpreter whose Byrd box layer uses
-`bb_*.jasmin`-assembled classes (from `boxes.jar`), NOT `bb_*.java` source.**
+**TINY JVM uses Jasmin Byrd boxes exclusively.**
+`bb_*.jasmin` → assembled via `jasmin.jar` → `boxes.jar` (package `bb`) → loaded at runtime.
+`bb_*.java` = human-readable reference only. Never loaded. Never the execution artifact.
 
-Rationale: `emit_jvm.c` (the generator) will emit Jasmin bytecode that calls
-the same `bb_*` class APIs. The interpreter must exercise the exact same
-bytecode artifacts the generator produces — not a Java proxy that will never
-be used in production.
-
-### Execution stack
-
-| Layer | Files | Status |
-|-------|-------|--------|
+| Layer | File(s) | Status |
+|-------|---------|--------|
 | Lexer | `src/driver/jvm/Lexer.java` | ✅ J-221 |
 | Parser | `src/driver/jvm/Parser.java` | ✅ J-221 |
-| Interpreter (Phases 1,4,5) | `src/driver/jvm/Interpreter.java` | ✅ J-225, 136p/42f |
-| PatternBuilder (Phase 2) | `src/driver/jvm/PatternBuilder.java` | ✅ J-226 (shared deferred list) |
-| Byrd box executor (Phase 3) | `boxes.jar` → `bb_executor` | ✅ assembled J-220 |
-| Byrd boxes (25 types) | `boxes.jar` → `bb_*.class` | ✅ assembled J-220 |
+| Interpreter (Ph 1,4,5) | `src/driver/jvm/Interpreter.java` | ✅ 121p/57f on Jasmin boxes |
+| PatternBuilder (Ph 2) | `src/driver/jvm/PatternBuilder.java` | ✅ sharedDeferred J-226 |
+| Byrd box executor (Ph 3) | `boxes.jar` → `bb/bb_executor` (Jasmin) | ✅ 7-arg exec() J-228 |
+| Byrd boxes (25 types) | `boxes.jar` → `bb/bb_*.class` (Jasmin) | ⚠ bb_arbno VerifyError, bb_any/rpos regression |
 
-### boxes.jar — the single source of truth for box classes
+### boxes.jar — single source of truth
 
 ```
-src/runtime/boxes/jasmin/boxes.jar   ← runtime artifact, DO NOT use bb_*.java at runtime
-src/runtime/boxes/jasmin/*.jasmin    ← source for boxes.jar
-src/runtime/boxes/*/bb_*.java        ← human-readable oracle ONLY, never loaded at runtime
+src/runtime/boxes/jasmin/boxes.jar        ← runtime, on classpath at runtime
+src/runtime/boxes/jasmin/*.jasmin         ← flat mirror for bulk assembly
+src/runtime/boxes/<box>/bb_<box>.jasmin   ← per-box authoritative source
+src/runtime/boxes/<box>/bb_<box>.java     ← human-readable reference ONLY
 ```
 
-To rebuild boxes.jar:
+**Rebuild boxes.jar:**
 ```bash
-cd /home/claude/one4all/src/runtime/boxes/jasmin
-java -jar /home/claude/one4all/src/backend/jasmin.jar *.jasmin
-jar cf boxes.jar *.class
+cd src/runtime/boxes/jasmin
+java -jar ../../backend/jasmin.jar -d /tmp/jasmin_out *.jasmin
+cd /tmp/jasmin_out && jar cf /path/to/boxes.jar bb/*.class
 ```
 
-### Jasmin API surface (what Interpreter.java must call)
-
-The Jasmin inner class names differ from Java oracle names — **use the Jasmin names**:
-
-| Java oracle | Jasmin (actual) | Notes |
-|-------------|-----------------|-------|
-| `bb_box.MatchState` | `bb_box$matchstate` | MatchState owned by `bb_executor.exec()` — NOT by PatternBuilder |
-| `bb_box.Spec` | `bb_box$spec` | |
-| `bb_executor.VarStore` | `bb_executor$var_store` | interface |
-| `bb_dvar.BoxResolver` | `bb_dvar$box_resolver` | interface |
-| `bb_capture.VarSetter` | `bb_capture$var_setter` | interface |
-| `bb_atp.IntSetter` | `bb_atp$int_setter` | interface |
-
-### Critical: MatchState ownership model
-
-In the Jasmin `bb_executor.exec(subjVar, sv, root, hasRepl, replStr, anchor)`:
-- `exec()` creates its **own** `bb_box$matchstate` from `sv` internally
-- `exec()` sets `root.ms` (via the shared `ms` field) to this new MatchState
-- **PatternBuilder must NOT pass pms to boxes** — boxes get their MatchState from exec()
-- **PatternBuilder must NOT create MatchState** — just build the box graph
-
-This means Interpreter.java needs refactoring:
-1. Build box graph via PatternBuilder (no MatchState arg needed)  
-2. Call `ex.exec(subjName, sv, root, hasRepl, replStr, anchor)` — exec owns MatchState
-3. Remove all `bb_box.MatchState pms = new bb_box.MatchState(sv)` construction
-4. PatternBuilder: remove `ms` field, pass `null` MatchState to box constructors (exec sets it)
-
-### Compile command (against boxes.jar, not bb_*.java)
-
+**Compile driver (stubs for type-checking, boxes.jar at runtime):**
 ```bash
-cd /home/claude/one4all
-BOXES_JAR=src/runtime/boxes/jasmin/boxes.jar
-DRIVER="src/driver/jvm/Lexer.java src/driver/jvm/Parser.java \
-        src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java"
-mkdir -p /tmp/jvm_jasmin
-javac -cp $BOXES_JAR -d /tmp/jvm_jasmin $DRIVER
-# run:
-java -cp /tmp/jvm_jasmin:$BOXES_JAR driver.jvm.Interpreter <file.sno>
+BB_STUBS=/tmp/bb_stubs
+javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java")
+javac -cp $BB_STUBS -d /tmp/jvm_jasmin src/driver/jvm/Lexer.java \
+  src/driver/jvm/Parser.java src/driver/jvm/Interpreter.java \
+  src/driver/jvm/PatternBuilder.java
+java -cp /tmp/jvm_jasmin:src/runtime/boxes/jasmin/boxes.jar \
+  driver.jvm.Interpreter <file.sno>
 ```
+
+### Jasmin API surface (authoritative — check with javap, not bb_*.java)
+
+| Type | Jasmin class | Notes |
+|------|-------------|-------|
+| MatchState | `bb/bb_box$MatchState` | fields: sigma, delta, omega |
+| Spec | `bb/bb_box$Spec` | fields: start, len |
+| Executor | `bb/bb_executor` | 7-arg exec() is canonical |
+| VarStore | `bb/bb_executor$VarStore` | interface: get/set |
+| BoxResolver | `bb/bb_dvar$BoxResolver` | interface: resolve(String, MatchState) |
+| VarSetter | `bb/bb_capture$VarSetter` | interface: set(String, String) |
+| IntSetter | `bb/bb_atp$IntSetter` | interface: set(String, int) |
+
+**`bb_executor.exec()` 7-arg (canonical):**
+```
+exec(String subjVar, String subjVal, bb/bb_box$MatchState ms,
+     bb/bb_box root, boolean hasRepl, String replStr, boolean anchor)
+```
+All boxes share the `ms` passed here. `exec()` updates `ms.delta = scanPos` each iteration.
+PatternBuilder creates ms, passes it to all box constructors AND to exec().
+
+**`bb_len/pos/rpos/tab/rtab`:** two constructors — `(ms, int)` and `(ms, IntSupplier)`.
+PatternBuilder uses `dynIntArg()` → IntSupplier for variable arguments.
 
 ---
 
-## §NOW — J-227
+## §NOW — J-229
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-227 | one4all `68311b9` | **Pivot to boxes.jar → recompile clean → verify 136p/42f → ARRAY/TABLE** |
+| **TINY JVM** | J-229 | one4all `68311b9` (Jasmin pivot uncommitted) | Fix Jasmin regressions → ≥136p → commit → ARRAY/TABLE → ≥155p |
 
-**Broad baseline: 136p/42f** (178 total). Gate: none (interpreter session, exempt per RULES.md).
+**Broad baseline: 121p/57f** (178 total) on Jasmin boxes.
+**Target: 136p first** (restore pre-pivot baseline), then ≥155p.
 
-### J-227 first actions (mandatory order)
+### J-229 first actions (mandatory order)
 
 ```bash
 cd /home/claude/one4all && git pull --rebase
-# Install JDK if needed: apt-get install -y default-jdk
+apt-get install -y default-jdk 2>/dev/null | tail -1
 
-# 1. Understand the API mismatch — read this section top-to-bottom first
-
-# 2. Refactor PatternBuilder to not own MatchState:
-#    - Remove: bb_box.MatchState ms field
-#    - Remove: pms param from constructors
-#    - Box constructors: pass null for ms (exec() sets it via field write)
-#    - Note: POS/LEN/TAB dynIntArg closures don't use ms, they're fine
-
-# 3. Refactor Interpreter.java:
-#    - Remove: new bb_box.MatchState(sv) construction  
-#    - Remove: pms from ex.exec() call (Jasmin exec takes 6 args not 7)
-#    - VarStore anonymous class → must implement bb_executor$var_store interface
-#    - PatternBuilder varResolver → must implement bb_dvar$box_resolver interface
-#    - Capture varSetter → must implement bb_capture$var_setter interface
-
-# 4. Compile against boxes.jar only (no bb_*.java):
-BOXES_JAR=src/runtime/boxes/jasmin/boxes.jar
-javac -cp $BOXES_JAR -d /tmp/jvm_jasmin \
+# Rebuild stubs + driver
+BB_STUBS=/tmp/bb_stubs && mkdir -p $BB_STUBS
+javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java" | tr '\n' ' ')
+mkdir -p /tmp/jvm_jasmin
+javac -cp $BB_STUBS -d /tmp/jvm_jasmin \
   src/driver/jvm/Lexer.java src/driver/jvm/Parser.java \
   src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java
 
-# 5. Hello gate:
+BOXES_JAR=src/runtime/boxes/jasmin/boxes.jar
 java -cp /tmp/jvm_jasmin:$BOXES_JAR driver.jvm.Interpreter \
   /home/claude/corpus/crosscheck/hello/hello.sno
-
-# 6. Broad crosscheck — target still ≥136p/42f
-# 7. Commit + push. Then: ARRAY/TABLE/DATA builtins → ≥155p
 ```
 
-### Interface implementation pattern
-
-When implementing `bb_executor$var_store`, since it's a Jasmin-assembled interface,
-Java anonymous classes work if you reference the correct class name:
-
-```java
-// This will NOT compile (wrong name):
-new bb_executor.VarStore() { ... }
-
-// Must use the Jasmin interface name — but Java can't directly implement
-// a class named with $ in source. Use a named inner class or a proxy.
-// Simplest: create a named static inner class in Interpreter.java:
-
-static class JasminVarStore implements bb_executor$var_store {
-    // ... get/set
-}
+**Fix 1 — `bb_arbno` VerifyError in `tryBody`:**
+```bash
+javap -c -cp $BOXES_JAR bb.bb_arbno 2>/dev/null | grep -A5 "tryBody"
+# Find the integer type mismatch. Likely a boolean/int confusion in the stack.
+# Fix .limit stack or a type in bb_arbno.jasmin, reassemble, rejar.
 ```
 
-OR: if the Jasmin interface is compatible, use a dynamic proxy. Check first if
-`bb_executor$var_store` can be implemented directly in Java source (it can — the
-$ is just a naming convention Jasmin uses, Java can reference such classes).
+**Fix 2 — `bb_any`/`bb_rpos` logic regression:**
+The `val()` transform in J-228 replaced `getfield .../n I` with `invokevirtual .../val()I`
+across ALL boxes, but `bb_any`/`bb_notany`/`bb_span`/`bb_brk` use a String field `chars`,
+not an int field `n`. Check if the sed accidentally corrupted these boxes.
+```bash
+grep "val()\|getfield.*n I\|invokevirtual.*val" \
+  src/runtime/boxes/jasmin/bb_any.jasmin \
+  src/runtime/boxes/jasmin/bb_span.jasmin | head -10
+```
+
+**Fix 3 — commit everything once ≥136p:**
+```bash
+git add src/runtime/boxes src/driver/jvm
+git commit -m "J-229: Jasmin boxes.jar pivot complete — bb/ package, IntSupplier ctors, exec() 7-arg"
+# Push requires fresh token from Lon
+```
+
+**Then: ARRAY/TABLE/DATA builtins → ≥155p**
 
 ---
 
-## §Pre-pivot milestone status
+## §Milestone status
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M-JVM-INTERP-A00: Jasmin Boxes | ✅ J-220 | boxes.jar complete, 35 classes |
-| M-JVM-INTERP-A01: Lexer | ✅ J-221 | Lexer.java |
-| M-JVM-INTERP-A02: Parser | ✅ J-221 | Parser.java |
-| M-JVM-INTERP-A03: IR Tree | ✅ J-221 | ExprNode/StmtNode |
-| M-JVM-INTERP-A04: Interpreter + boxes.jar | 🔄 J-227 | Pivot to boxes.jar API |
-| M-JVM-INTERP-A05: Baseline ≥155p | ❌ | After A04 pivot + ARRAY/TABLE |
+| M-JVM-INTERP-A00: Jasmin Boxes assembled | ✅ J-220/J-228 | boxes.jar, package bb, 36 classes |
+| M-JVM-INTERP-A01: Lexer | ✅ J-221 | |
+| M-JVM-INTERP-A02: Parser | ✅ J-221 | |
+| M-JVM-INTERP-A03: IR Tree | ✅ J-221 | |
+| M-JVM-INTERP-A04: Interpreter + Jasmin boxes | ⚠ J-228 | 121p — 2 Jasmin bugs to fix |
+| M-JVM-INTERP-A05: Baseline ≥155p | ❌ | After A04 fixed + ARRAY/TABLE |
 
 ---
 
-*SESSION-snobol4-jvm.md — rewritten J-227 pivot to boxes.jar, 2026-04-03.*
-*bb_*.java = oracle only. boxes.jar = runtime. exec() owns MatchState.*
+*SESSION-snobol4-jvm.md — J-228 Jasmin pivot, 2026-04-03.*
+*Jasmin = execution. bb_*.java = reference. boxes.jar = runtime artifact.*
