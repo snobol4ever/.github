@@ -33,13 +33,13 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-47
+## §NOW — DYN-50
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-49 | one4all `0db949d` · corpus `2f2bbe3` | **DYN-50**: (1) Fix eq_pos string-literal skip in snobol4.y → restore >=126p/52f. (2) MONITOR diff scrip-interp vs SPITBOL → 169p/9f. |
+| **DYNAMIC BYRD BOX** | DYN-50 | one4all `16e820a` · corpus `2f2bbe3` | **DYN-51**: Fix remaining 17 failures → ≥125p. word*/cross (&TRIM/INPUT), expr_eval (line-continuation), 1012/1013 (locals/NRETURN), 1015 (OPSYN), 1016 (EVAL). Then MONITOR diff vs SPITBOL → 169p/9f. |
 
-**Broad baseline: 123p/55f** (DYN-49: one-pass lexer, +9 vs DYN-48). eq_pos string-literal skip fix still needed in parse_program_tokens. After fix target >=126p/52f, then 169p/9f.
+**Broad baseline: 115p/17f** (DYN-50 r1: scrip-interp build fixed + 5 lexer/parser fixes).
 
 Remaining failures: `1013/003` · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
 ## scrip-interp build command
