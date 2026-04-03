@@ -19408,3 +19408,59 @@ javac -d /tmp/jvm_cls \
 - corpus: `2f2bbe3` (unchanged)
 - Non-pattern gate still 19/19 (no regressions to non-pattern path)
 >>>>>>> 6322fc7 (J-222 emergency handoff: M-JVM-INTERP-A04 WIP, PatternBuilder written, compile pending)
+
+---
+
+## SJ-10 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript interpreter. Session prefix: SJ-.
+
+### What was done
+
+#### HQ fix (critical — pushed `cb4e721` to .github)
+`SESSION-snobol4-js.md` §BUILD and §TEST were misleading: listed `gcc make` as installs and referenced `run_emit_check.sh` + `run_invariants.sh`. Fixed to clearly state:
+- ⛔ INTERPRETER SESSION — do NOT build scrip-cc, do NOT run make
+- ⛔ Do NOT run `run_emit_check.sh` or `run_invariants.sh`
+- Correct test: `CORPUS=... bash test/run_interp_broad.sh snobol4_js` (but see caveat below)
+
+#### Clarification: two distinct SJ test paths
+**SJ-9's "129/152" was the EMIT path** (`run_invariants.sh snobol4_js`) — scrip-cc compiles `.sno` → `.js`, then runs emitted JS. That requires scrip-cc binary.
+
+**The interpreter** is `src/runtime/js/sno-interp.js` — pure JS lexer+parser+executor, no scrip-cc. `run_interp_broad.sh` calls `./scrip-interp` (C binary), not the JS interpreter. To test JS interpreter directly: `node src/runtime/js/sno-interp.js <file.sno>`.
+
+#### Runtime fixes committed `15a31dc` to one4all
+- **`sno_runtime.js` DATATYPE**: now checks `_is_real(v)` first → `'REAL'`, then integer check, then `'STRING'`. Old code used `typeof v === 'number'` which can't detect tagged real objects `{_r:1, v:number}`.
+- **`sno-interp.js` REAL() builtin**: returns `_real_result(n)` (tagged real) not raw float `n`.
+
+#### Still failing after r1
+- **`081_builtin_datatype`**: STILL FAILS — `3.14` literal parsed as `E_FLIT` → `_real_result(parseFloat(e.sval))` (tagged real ✓), but `DATATYPE` in `sno_runtime.js` is the `_builtins` map, while `sno-interp.js` has its OWN `_call()` DATATYPE case. **Check `sno-interp.js` line ~933 for a second DATATYPE definition that shadows `sno_runtime.js`.**
+- **`910_convert` 910/003**: `CONVERT(2, 'real')` — `sno-interp.js` CONVERT case `if(t==='REAL') return parseFloat(...)` still returns raw float, not `_real_result`. Fix: `return _real_result(parseFloat(_str(v??'')))`.
+- **`1013_func_nreturn`**: NRETURN not implemented. Throw `SnoNReturn(payload)` from NRETURN branch in function return handler; catch in `_call_user()`, use payload as lvalue.
+
+#### Scrip_cc.h regression NOTE
+DYN-47 broke the SNOBOL4 C frontend build (`sno.y` uses `Expr`/`e->args`/`e->nargs` — old pre-REORG API, `scrip_cc.h` now uses `EXPR_t`/`children`/`nchildren`). This is NOT our session's bug — leave for DYN or GRAND_MASTER_REORG session. We reverted our mistaken `Expr` alias addition.
+
+### Baselines for SJ-11
+
+- `one4all`: `402750f`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: `cb4e721`
+- **Interpreter smoke test**: `node src/runtime/js/sno-interp.js corpus/crosscheck/hello/hello.sno` → `HELLO WORLD` ✓
+
+### SJ-11 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session, exempt per RULES.md §68–70
+3. **Fix `081_builtin_datatype`**: find the DATATYPE case inside `sno-interp.js`'s own `_call()` (around line 933) — add `_is_real` check there, not just in `sno_runtime.js`
+4. **Fix `910/003`**: in `sno-interp.js` CONVERT case, `if(t==='REAL') return _real_result(parseFloat(_str(v??'')));`
+5. **Fix `NRETURN`**: implement throw/catch pattern in function call machinery
+6. **Fix `OPSYN`**: `_user_fns[dest] = _user_fns[src] || _builtins[src]`
+7. Run: `node src/runtime/js/sno-interp.js <corpus file>` per-test until green
+8. Target: 081_builtin_datatype, 910_convert, 1013_func_nreturn all PASS
+
+### Key files
+- `src/runtime/js/sno-interp.js` — interpreter (lexer + parser + executor + builtins)
+- `src/runtime/js/sno_runtime.js` — value types, `_is_real`, `_real_result`, `_builtins` map
+- `src/runtime/js/sno_engine.js` — pattern match engine (5-phase executor)
+
