@@ -20073,3 +20073,51 @@ Specifically: `ζ_down` returns `[Σ, Δ, Σ, Δ, child, 1, Ψ+[ζ]]` — child 
 - `src/runtime/js/sno_runtime.js` — value types, builtins
 
 ---
+
+## D-173 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: 149p/29f (baseline confirmed — no regression, refactor + HQ fixes only)
+
+### What was done (D-173 r1)
+
+**Refactor — patnd.h unification (commit `09717e8` on one4all):**
+
+`stmt_exec.c` contained a shadow copy of the `XKIND_t` enum (named `_XKIND_t`) and `PATND_t` struct (named `_PND_t`) that mirrored the definitions in `snobol4_pattern.c`. These were silent land mines — the integer values happened to agree except for `XABRT`/`XSUCF`/`XEPS` (3 mismatches), and any future enum addition to one file would silently break the other.
+
+Fix:
+- `src/runtime/snobol4/patnd.h` — new canonical header; single `XKIND_t` enum + `PATND_t` struct
+- `snobol4.h` — includes `patnd.h` after `DESCR_t` definition (correct order, no circular include); `struct _PATND_t` forward decl retained for `DESCR_t.p` member
+- `snobol4_pattern.c` — local `XKIND_t`/`PATND_t` definitions removed; gets them via `snobol4.h`
+- `stmt_exec.c` — `_XKIND_t`/`_PND_t` shadow block removed; all `_XCHR`/`_XNME`/etc. renamed to canonical `XCHR`/`XNME`/etc.; `_PND_t` → `PATND_t` throughout
+- `bb_atp.c`, `bb_capture.c` — now include `snobol4.h`; removed local extern re-declarations
+- `bb_dvar.c` — note added: real `bb_deferred_var` stays in `stmt_exec.c` until MILESTONE-BOX-UNIFY
+
+**HQ fixes (commit `61ef0d9` on .github):**
+- `SESSION_SETUP.sh` — `scrip-cc` build now skipped for `BACKEND=net`; summary block emits `.NET`-specific instructions (`dotnet build` + `run_interp_broad.sh`) instead of `run_invariants.sh`/`run_emit_check.sh`
+- `SESSION-snobol4-net.md` — §BUILD section explicit: no scrip-cc, no nasm, no x86 tools; canonical build + broad-baseline commands inline
+
+**Note on session routing confusion:** This session was initially mis-routed into DYN- (scrip-interp C build, x86 debug). Corrected mid-session. The DYN- debug work (exec_stmt not firing) found a lead — `interp_eval(s->pattern)` may return `IS_FAIL` for pattern expressions before `exec_stmt` is reached — but this is DYN- territory, not D-. Handed off to DYN-52 via SESSIONS_ARCHIVE.
+
+### D-174 first actions
+1. `git pull --rebase` all repos
+2. `FRONTEND=snobol4 BACKEND=net TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → clean
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+5. Broad → confirm **149p/29f** baseline
+6. Resolve MSIL/net8 ABI: try `dotnet tool install -g dotnet-ilasm` then reassemble `boxes.dll`
+7. Fix `1012_func_locals` — local var save/restore in `callUserFunc`
+8. Fix `word*` — `&TRIM` default wiring; check `&TRIM=1` default in `.NET` interp
+9. Fix `411_arith_unary` — unary `+` parser fix; verify `CoerceNumeric` reaches it
+10. Target ≥ 160p
+
+### Baselines for D-174
+- `one4all`: `09717e8`
+- `corpus`: `2f2bbe3`
+- `.github`: `6e3f759`
+- **Broad: 149p/29f**
+- Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`

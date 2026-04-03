@@ -76,7 +76,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **⭐ TINY JVM** | J-228 | one4all `68311b9` (Jasmin pivot local) | **J-229**: fix bb_arbno VerifyError + bb_any regression → ≥136p → commit → ARRAY/TABLE → ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
-| **⭐ one4all-SNOBOL4-NET** | D-172 | one4all `0ddeb97` | **149p/29f** · MSIL/net8 ABI issue open · D-173: resolve boxes.dll, fix 1012/word*/411 → ≥ 160p |
+| **⭐ one4all-SNOBOL4-NET** | D-173 | one4all `09717e8` · .github `6e3f759` | **149p/29f** · MSIL/net8 ABI open · D-174: resolve boxes.dll, fix 1012/word*/411 → ≥ 160p |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
 
