@@ -74,6 +74,8 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-17 | one4all `ec6c0b3` · .github this | **SJ-18**: fix cross + expr_eval + 1015_opsyn → ≥170p · M-SJ-INTERP |
 | **⭐ TINY JVM** | J-230 | one4all `cdb05a0` | **J-231**: fix 212_indirect/func_recursion/NRETURN/STCOUNT → ≥165p |
+| **SNOBOL4 JS** | SJ-18 | one4all `576862e` · .github this | **SJ-19**: fix cross (DIFFER→'') + expr_eval + 1015_opsyn → ≥170p · M-SJ-INTERP |
+| **⭐ TINY JVM** | J-229 | one4all `4ceba85` · .github `bd9fb05` | **J-230**: fix bb_arbno VerifyError + bb_any/rpos regression → ≥136p → ARRAY/TABLE → ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
 | **⭐ one4all-SNOBOL4-NET** | D-173 | one4all `09717e8` · .github `6e3f759` | **149p/29f** · MSIL/net8 ABI open · D-174: resolve boxes.dll, fix 1012/word*/411 → ≥ 160p |

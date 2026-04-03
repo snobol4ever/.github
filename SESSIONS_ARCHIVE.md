@@ -20603,3 +20603,38 @@ INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_int
 
 ### MONITOR recommendation
 For the continuation capture bug: use two-way MONITOR with scrip-interp vs SPITBOL. Feed `word2.sno` with `word2.input` to both and diff. SPITBOL will show correct WHO/WHAT/WHEN captures; scrip-interp shows empty. This will confirm exactly which patterns fail and guide the `_expr_is_pat` fix scope.
+## SJ-18 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 165p/13f (baseline was 164p/14f, +1)
+
+### What was done (SJ-18)
+
+**Commit `576862e` on one4all:**
+
+1. **`@N` cursor capture binary fix** (`_build_pat`, `E_CAPT_CURSOR`) — The binary `@` operator (`P @ V`) was parsed by `_e5` as `_lbin`, producing `E_CAPT_CURSOR(left=P, right=V)`. `_build_pat` was reading `e.children[0].sval` as the variable name — getting the LHS pattern node's sval (e.g. `'HEL'`) instead of the RHS variable name (`N`). Fix: detect binary form by checking `children[1] !== undefined` → emit `PAT_seq(_build_pat(child[0]), PAT_capt_cursor(child[1].sval))`. Unary prefix `@V` (from `_e14`) unchanged.
+
+2. **IDENT/DIFFER/LT/GE return values** — Investigated. `sno_runtime.js` returns `''`; `sno-interp.js` returns `args[0]`/`args[1]`. Changing to `''` broke test_case, test_math, test_stack, test_string, 911_datatype, 1016_eval, 1017_arg_local. Reverted — corpus apparently depends on the non-standard return values. Needs deeper investigation with specific failing test.
+
+**Fixes: W07_capt_cur (+1)**
+
+### Root cause analysis: `cross` still failing
+
+`cross.sno` pattern: `HC ? @NH ANY(V) . CROSS = '*'` — now correctly captures NH. But output still accumulates `BSNOBOL` instead of `  B`. The `PRINT` loop: `PRINTV ? LEN(1) . C =` removes chars one at a time. `OUTPUT = DIFFER(C,'#') DUPL(' ',NH) C` — `DIFFER(C,'#')` returns `C` (not `''`) when C≠'#', so output is `C + DUPL(' ',NH) + C` instead of `'' + DUPL(' ',NH) + C`. **DIFFER should return `''` but changing it breaks other tests** — the conflict needs resolution per test.
+
+### SJ-19 first actions
+1. `git pull --rebase` all repos
+2. Confirm **165p/13f** baseline
+3. **Diagnose IDENT/DIFFER conflict**: find which of the 7 newly-broken tests use `IDENT`/`DIFFER` returning non-empty, and which use them as pure predicates
+4. Fix `cross`: `DIFFER` must return `''` — find a way to fix it without breaking the other tests (likely those tests use `IDENT(X,Y)` result as a value)
+5. Fix `expr_eval` — line-continuation in expression context
+6. Fix `1015_opsyn`
+7. Target ≥ 170p → M-SJ-INTERP
+
+### Baselines for SJ-19
+- `one4all`: `576862e` · `corpus`: `2f2bbe3` · `.github`: this commit
+- **Broad: 165p/13f**
+- Run: `node src/runtime/js/sno-interp.js <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
