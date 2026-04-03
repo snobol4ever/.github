@@ -136,24 +136,63 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 ---
 
+## §MSIL BOX STRATEGY — D-176 pivot
+
+### Why not static boxes.dll
+
+D-175 assembled `boxes.dll` from IL via native .NET 10 ilasm. D-176 confirmed: Roslyn
+refuses to compile C# that references an ilasm-built DLL. Root cause: Roslyn does not
+unify `System.Runtime` declared in the DLL's manifest with its own implicit framework
+reference — `CS0012: Object defined in unreferenced assembly` on every type from boxes.dll.
+No csproj workaround resolves this reliably across SDK versions.
+
+### Correct approach: Reflection.Emit in-memory
+
+The `.il` source files are **templates**, not build inputs. At interpreter startup:
+
+1. `BoxFactory.cs` — uses `AssemblyBuilder` + `ModuleBuilder` + `TypeBuilder` to define
+   each box class in memory via `System.Reflection.Emit`
+2. `ILGenerator` emits the Alpha/Beta method bodies — opcodes transcribed from the `.il`
+   sources (or driven by a lightweight IL template parser)
+3. `IByrdBox`, `MatchState`, `Spec`, `MatchResult` defined as **plain C# in scrip-interp**
+   — no cross-assembly type identity issue
+4. Box classes implement the C#-defined `IByrdBox` directly — Roslyn never sees them
+
+**Result:** Zero DLL reference conflict. Types are in the same CLR context. The `.il` files
+remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
+
+### Key files for D-177
+
+| File | Role |
+|------|------|
+| `src/driver/dotnet/BoxFactory.cs` | **NEW** — `AssemblyBuilder` scaffold, emits all 25 box types |
+| `src/driver/dotnet/IByrdBox.cs` | **NEW** — `IByrdBox` + `MatchState` + `Spec` + `MatchResult` in C# |
+| `src/runtime/boxes/shared/bb_box.il` | Oracle — Alpha/Beta opcode reference for each box |
+| `src/driver/dotnet/PatternBuilder.cs` | Calls `BoxFactory` instead of `new bb_lit(...)` etc. |
+| `src/driver/dotnet/Executor.cs` | Unchanged — calls `PatternBuilder` |
+
+---
+
 ## §NOW
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-172 | one4all `0ddeb97` | **149p/29f** · MSIL/net8 ABI open (Mono ilasm → .cs bridge) · Fix 1012/word*/411 → ≥ 160p |
+| **NET INTERP** | D-176 | one4all `a4d40cb` | **~99p/79f** (MSIL boxes broken) · **D-177**: implement `BoxFactory.cs` via `Reflection.Emit` → MSIL boxes in-memory → ≥ 151p → fix word1–4/cross + 1012 → ≥ 160p |
 
-**First actions:**
+**D-177 first actions:**
 1. `git pull --rebase` all repos.
-2. `export PATH=/usr/local/dotnet8:$PATH` + `dotnet build src/driver/dotnet/scrip-interp.csproj` → confirm clean.
-3. **M-NET-INTERP-A01a** — Write `Snobol4Lexer.cs`; wire into parser; 19/19 token tests.
-4. **M-NET-INTERP-A01b** — Replace `Ast.cs` with `IrNode.cs` (mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`); update parser; 19/19 parse tests.
-5. **M-NET-INTERP-A01c** — Update `PatternBuilder.cs` + `Executor.cs` to dispatch on `IrKind`; remove `Ast.cs`; build clean; hello/empty_string/multi 3/3.
-6. **M-NET-INTERP-A02** — Stack machine Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind`; rung1 20/20.
-7. **M-NET-INTERP-A03** — Byrd box sequencer Phases 2/3: `PatternBuilder` → `IByrdBox` graph; `ByrdBoxExecutor` trampoline; rung2–5 60/60.
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm `HELLO WORLD` (C# path, 99p baseline).
+3. **Create `IByrdBox.cs`** in `src/driver/dotnet/` — define `IByrdBox`, `MatchState`, `Spec`, `MatchResult` as plain C# (copy from `src/runtime/boxes/shared/bb_box.cs` + `bb_executor.cs`).
+4. **Create `BoxFactory.cs`** — `AssemblyBuilder` + `ModuleBuilder`. Implement `bb_lit` first via `ILGenerator` (trivial: load field, call `MatchesAt`, branch). Smoke: `038_pat_literal` passes.
+5. Implement remaining 24 boxes in `BoxFactory.cs`, using `src/runtime/boxes/*/bb_*.il` as opcode oracle.
+6. Wire `PatternBuilder.cs` to call `BoxFactory.Create*(...)` instead of `new bb_*(...)`.
+7. Remove `boxes.dll` reference from csproj entirely.
+8. Broad → target ≥ 151p.
+9. Fix word1–4/cross (`makeGetPatternVar` trace) + `1012_func_locals` → ≥ 160p.
 
-See **MILESTONE-NET-SNOBOL4.md** for the full chain (Phase A → B → C → O → Z).
+See **MILESTONE-NET-SNOBOL4.md** for the full chain.
 
 ---
 
-*SESSION-snobol4-net.md — rewritten D-165, 2026-04-02, Claude Sonnet 4.6.*
-*Architecture survey: pattern engine = Byrd boxes. EVAL/CODE self-hosted. @N = Phase 3/5 gap.*
+*SESSION-snobol4-net.md — updated D-176, 2026-04-03, Claude Sonnet 4.6.*
+*D-176 pivot: static boxes.dll abandoned; Reflection.Emit in-memory approach adopted.*
