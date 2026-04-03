@@ -19902,3 +19902,39 @@ This aligns the interpreter's value type name with the C runtime convention (`DE
 ### Key files
 - `src/driver/dotnet/SnobolEnv.cs` — `DataGetField` crash fix needed (~line 200, `_dataObjs[(int)(-handle.Int - 1)]` → `_dataObjs[(int)(handle.Int & IDX_MASK)]`)
 - `src/driver/dotnet/Executor.cs` — `E_PLS`, `EvalIdx`, func scoping
+
+---
+
+## J-224 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### Crosscheck: 18p/21f → 28p/11f (+10). functions 8p/0f ✅
+
+### Root fixes
+1. **DEFINE + user-defined functions** — FuncDef registry, callUserFunc() with param/local save-restore, RETURN/FRETURN via goto. functions: 0p/8f → 8p/0f.
+2. **REMDR** builtin — integer remainder.
+3. **&LCASE, &UCASE, &ALPHABET** — constructor defaults. Fixed 089_define_in_pattern.
+4. **FAIL propagation in builtins** — SIZE(INPUT) at EOF now returns FAIL instead of 0.
+5. **Null-replace** — `X pat =` bare `=` deletes matched portion.
+6. **POS(N) variable arg** — VarGetter interface + varGetter field in PatternBuilder; intArg() looks up E_VAR at match time.
+
+### Baselines for J-225
+- `one4all`: `38355f6`
+- `corpus`: `2f2bbe3`
+- Crosscheck: **28p/11f**
+
+### J-225 first actions
+1. `git pull --rebase` all repos
+2. Recompile: `JFILES=$(find src/driver/jvm src/runtime/boxes -name "*.java" | tr '\n' ' ') && javac -d /tmp/jvm_cls $JFILES`
+3. Confirm hello gate passes
+4. Fix POS(N) dynamic: bb_pos takes static int — need Supplier<Integer> variant or rebuild box per-match
+5. Wire varGetter into callUserFunc PatternBuilder constructions (currently missing)
+6. Apply null-replace fix in callUserFunc pattern branch too
+7. Fix INPUT+&TRIM: fileinfo reports 13 chars for "hello\nworld" instead of 10
+8. Run full crosscheck → target ≥35p
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — DEFINE, callUserFunc, REMDR, &LCASE/UCASE, FAIL propagation, null-replace
+- `src/driver/jvm/PatternBuilder.java` — VarGetter, intArg() var lookup
