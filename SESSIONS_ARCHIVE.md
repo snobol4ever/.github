@@ -18447,3 +18447,89 @@ Files committed to `one4all/src/runtime/boxes/jasmin/`:
 - `one4all/src/frontend/snobol4/lex.c` — lexer oracle
 - `MILESTONE-NET-INTERP.md` — parallel C# interpreter (same token structure)
 - `one4all/src/runtime/boxes/jasmin/boxes.jar` — assembled boxes (do not modify)
+
+---
+
+## SJ-7 handoff — 2026-04-02
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript interpreter. Session prefix: SJ-.
+
+### What was done
+
+**Interpreter bug-fix sprint — 106/178 → 153/178 broad (+47).**
+
+The SJ-6 commit `c9bab5d` already contained a complete Lexer + Parser + Interpreter in `sno-interp.js`. This session was incorrectly described in the SJ-6 handoff as "no code written" — in fact the full pipeline was committed. SJ-7 picked up the interpreter and fixed 47 failures.
+
+#### Commits
+- `fda0d8e` — SJ-7 round 1: 106→145
+- `f25a2fc` — SJ-7 round 2: 145→153 (after rebase, HEAD)
+
+#### Fixes applied
+
+**`sno_runtime.js`:**
+- `_vars` Proxy: key normalization to uppercase — SNOBOL4 identifiers are case-insensitive. `double = 2 * s` now correctly writes `_vars['DOUBLE']`, matching `SnoReturn` read.
+- `_str()`: SNOBOL4 real format — `1.0` → `"1."`, `0.5` → `".5"`. Remove trailing zeros after decimal.
+- `_str()`: objects (DATA/ARRAY/TABLE) stringify as `''` instead of crashing.
+
+**`sno-interp.js`:**
+- `define_fn()`: parse locals from spec — `'lfunc(a,b,c)d,e,f'` now registers `d,e,f` as locals.
+- `_call_user()`: save/clear params + locals + fname; init locals to null; restore all on exit.
+- `_build_pat()` `E_VAR`: bare pattern keywords (`FAIL`, `REM`, `SUCCEED`, `FENCE`, `ABORT`, `ARB`, `BAL`) now route to `PAT_*` constructors instead of `PAT_lit('')`.
+- `_build_pat()`: added `E_ILIT`, `E_FLIT`, `E_CAT`, `E_CAPT_CURSOR` cases.
+- `E_IDX`: bounds checking for `__sno_array` objects; `_FAIL` on out-of-bounds.
+- `_assign()`: handles `__sno_array`, `Map`, DATA field setter via `E_FNC`.
+- `ARRAY()`: object with `__sno_array`, `__dims`, `__defval`, `__proto_str` metadata.
+- `DATA()`: registers constructor + field accessors in `func_table`.
+- Added builtins: `DATATYPE`, `LGT`, `LLT`, `LGE`, `LLE`, `LEQ`, `LNE`, `PROTOTYPE`, `VALUE`, `APPLY`.
+- `&STNO` / `&STCOUNT`: incremented per statement in `_exec_from`.
+- `interp_eval()`: handle pre-evaluated `_val` nodes (for APPLY).
+
+**`sno_engine.js`:**
+- `PAT_capt_cursor(v)`: new constructor `{t:'CAPT_CURSOR', v}`.
+- `CAPT_CURSOR/proceed` dispatch: writes cursor position (integer string) to `_vars_set(v, ...)`.
+- Export `PAT_capt_cursor`.
+
+#### Remaining 25 failures (diagnosed)
+
+| Failure | Root cause |
+|---------|-----------|
+| `053_pat_alt_commit` | Pattern stored in var: `P = ('a' \| 'b')` → `E_ALT` as subject, `_build_pat(E_VAR('P'))` returns `PAT_lit('')` not the stored pattern object. Need pattern-value storage. |
+| `W07_capt_cur` | `E_CAPT_CURSOR` wired but `@ pos` in binary position parses as `E_CAPT_CURSOR(E_VAR)` — verify `children[0].sval` extraction. |
+| `412_arith_real`, `413_arith_mixed` | `3.0 / 2.0 = 1.5` failing — `_div` in runtime returns integer when result is whole; `3.0 / 2` promotes wrong. Check `_div` and `_num` type propagation. |
+| `literals` | `1.0` should print `"1."` — `_str` fix applied but `E_FLIT` node stores `1.0` as JS float `1` (integer). Parser produces `expr_dval(E_FLIT, 1.0)` but `1.0` parsed by JS as integer `1`. Need to mark float literals explicitly. |
+| `094_data_define_access` | DATA constructor crash — `_str(DATA_object)` called somewhere before fix; verify fix landed. |
+| `1013_func_nreturn` | `NRETURN` semantics: `ref_a() = 26` requires lvalue return — `SnoNReturn` carries name string `'A'`, caller must use it as lvalue target. Not yet implemented. |
+| `1010_func_recursion`, `1011_func_redefine` | `OPSYN(.facto, 'fact')` — `.facto` is `E_NAME(E_VAR('facto'))` used as lvalue; `OPSYN` needs to create alias in `func_table`. |
+| `1113_table`, `1114_item` | `PROTOTYPE` / `ITEM` builtins for TABLE. |
+| `212_indirect_array` | `$.var<index>` — indirect array subscript: `$` applied to array element. |
+| `expr_eval` | Parser error on `*Push()` — `E_DEFER` applied to `E_FNC`. Unary `*` on function call. |
+| `fileinfo`, `triplet` | INPUT-dependent — need stdin harness. |
+| `word1–4`, `wordcount`, `cross` | Complex programs — likely multiple small issues. |
+| `test_case`, `test_math`, `test_stack`, `test_string` | Unknown — not yet diagnosed in detail. |
+
+### Baselines for SJ-8
+
+- `one4all`: `f25a2fc`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 153/178** (no gate — interpreter session)
+
+### SJ-8 first actions
+
+1. `git pull --rebase` all repos.
+2. No gate (interpreter session, exempt per RULES.md).
+3. **Fix `literals` (`E_FLIT` float marker):** parser `expr_dval(E_FLIT, t.dval)` — JS parses `1.0` as integer `1`. Fix: store `dval` and set a flag, or keep as string `"1.0"` and parse in `_str`.
+4. **Fix `412/413` real division:** `_div` in `sno_runtime.js` — if either operand is float (has `.` in string form or is non-integer JS number), result must be real. Check `_num` type propagation.
+5. **Fix `W07_capt_cur`:** trace `E_CAPT_CURSOR` children structure — `@pos` unary vs binary `expr AT var`.
+6. **Fix `053_pat_alt_commit`:** pattern-value variables — when `_vars['P']` holds a PAT object, `_build_pat(E_VAR('P'))` must return it directly rather than `PAT_lit(_str(P))`.
+7. **Fix `1013_func_nreturn`:** `SnoNReturn` — on catch, treat `ret` as name: `_vars[ret]` is the lvalue target for caller assignment.
+8. **Fix `OPSYN`:** `OPSYN(.facto, 'fact')` → `func_table['FACTO'] = func_table['FACT']`.
+9. Diagnose `test_case/math/stack/string` and `word1–4`.
+10. Commit + push. Update SESSIONS_ARCHIVE.
+
+### Key references
+- `src/runtime/js/sno-interp.js` — all interpreter code (Lexer + Parser + Interpreter)
+- `src/runtime/js/sno_runtime.js` — `_vars`, `_str`, `_num`, builtins
+- `src/runtime/js/sno_engine.js` — pattern match engine, PAT_* constructors
+- `MILESTONE-JS-SNOBOL4.md` — milestone ladder
