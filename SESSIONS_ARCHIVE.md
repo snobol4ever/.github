@@ -20457,3 +20457,61 @@ INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_int
 - **Broad: 164p/14f**
 - Run: `node src/runtime/js/sno-interp.js <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+---
+
+## J-230 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
+
+### Result: 155p/23f — **M-JVM-INTERP-A05 complete** (≥155p). Baseline was 138p/40f.
+
+### What was done (J-230)
+
+**Confirmed J-229 bugs already fixed:** `bb_arbno` VerifyError and `bb_any`/`bb_rpos` val() regression both resolved in J-229 `ecb2bb3`. 138p/40f baseline confirmed.
+
+**ARRAY/TABLE/DATA heap type system:**
+
+Three public static final inner classes added to `Interpreter.java`:
+- `ARRAY` — multi-dim, custom lower bounds (`ARRAY('-1:1,2')`), `lo[]`/`hi[]`/`stride[]`, `linearIndex(int... idxs)`
+- `TABLE` — `LinkedHashMap<String,DESCR>`, default-NUL lookup
+- `DATA` — named type, `fields[]` + mutable `vals[]`; ctor/accessors registered as `__DATA_CTOR__<TYPE>` / `__DATA_FGET__<FIELD>` sentinels in `funcTable`
+
+`VType.ARR/TBL/DAT` added. Static `HEAP: Map<Long,Object>` + `HEAP_SEQ: AtomicLong`. `DESCR` extended with `arr/tbl/dat(id)` factories, `asARR/asTBL/asDATA()` accessors, `ival` repurposed as heap ID.
+
+**E_IDX** wired for read and write in `eval()`, `assignTo()`, and both execution loops. Multi-dim subscripts collect all children.
+
+**E_FNC as lvalue** wired: `x(P) = val` sets DATA field; `item(arr,i) = val` sets array cell.
+
+**DATA field accessor dispatch:** `__DATA_FGET__` only intercepts when arg[0] is `VType.DAT` — otherwise falls through to builtins (fixes `value`/`real` name collisions).
+
+**New builtins:** `ARRAY`, `TABLE`, `DATA`, `ITEM`, `PROTOTYPE`, `VALUE`, `CONVERT` (array↔table), `LCASE`, `UCASE`, `LGT`, `LLT`, `LGE`, `LLE`, `LEQ`, `LNE`.
+
+OOB array access → `FAIL` (was `NUL`).
+
+**Tests newly passing (+17):** 091–096, 1110–1116, 911\_datatype, 914\_lgt.
+
+### J-231 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y default-jdk`
+3. Rebuild stubs + driver (see SESSION-snobol4-jvm.md)
+4. Confirm **155p/23f** baseline:
+   ```bash
+   INTERP=/tmp/jvm_runner.sh CORPUS=/home/claude/corpus TIMEOUT=10 \
+     bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+   ```
+5. Fix `212_indirect_array` — `differ($.a<2>, 'x')` : data is correct (confirmed), DIFFER succeeds spuriously; suspect goto dispatch with E_IDX subject
+6. Fix `1010_func_recursion` — frame-save bug in `callUserFunc` during recursion
+7. Fix `1013_func_nreturn` / `1017_arg_local` — NRETURN + local scoping
+8. Fix `082_keyword_stcount` — STCOUNT off-by-one or double-increment
+9. Target: ≥165p
+
+### Baselines for J-231
+- `one4all`: `cdb05a0`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 155p/23f**
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — all changes (+387 lines net)
