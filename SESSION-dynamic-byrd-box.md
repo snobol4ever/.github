@@ -33,24 +33,27 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-42
+## §NOW — DYN-45
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-42 | one4all `fbc75dd` · corpus `2f2bbe3` | **M-INTERP-A05**: fix 9 remaining failures → ≥175p broad · 142/142 gate |
+| **DYNAMIC BYRD BOX** | DYN-45 | one4all `8d38768` · corpus `2f2bbe3` | **M-LEX-1**: write `lex.l` (flex), replace `lex.c`. Then **M-PARSE-1**: write `parse.y` (bison), replace `parse.c`. Gate + broad at each step. |
 
 **Broad baseline: 169p/9f**
 
-Remaining failures: `1013/003` (NRETURN lvalue-assign) · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
+Remaining failures: `1013/003` · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
+`1013/003` expected to fall naturally after M-PARSE-1 (body-reconstruction bridge eliminated).
 
-**DYN-42 first actions:**
+**DYN-45 first actions:**
 1. `git pull --rebase` all repos.
-2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64` + gate 142/142.
-3. Build scrip-interp (build command below).
-4. Broad → confirm 169p/9f baseline.
-5. Fix `1013/003` — Option A: `skip_ws(lx)` in `parse_expr17` after consuming IDENT, before `T_LPAREN`. Rebuild, run test vs ref → PASS (3/3). Gate + broad → no regression.
-6. Fix `1015_opsyn` — run vs ref, trace.
-7. Target ≥175p. Gate 142/142. Commit + push. Update SESSIONS_ARCHIVE + push .github.
+2. `TOKEN=TOKEN_SEE_LON FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. Build scrip-interp (build command below). Broad → confirm 169p/9f.
+4. `apt-get install -y flex bison`
+5. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer: Test_214 (label), Test_218 (goto), Test_231 (numeric), Test_232 (string), Test_220/221/233 (operators). All pass against existing `lex.c`.
+6. Write `src/frontend/snobol4/lex.l` — M-LEX-1. `flex lex.l` → `lex.yy.c`; wire into build; `test_lex` passes; gate + broad, no regression.
+7. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet Test_Associativity + Test_Precedence. All pass against existing `parse.c`.
+8. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. `bison parse.y` → `parse.tab.c` + `parse.tab.h`; wire into build; `test_parse` passes; gate + broad; `1013/003` now passes.
+9. Commit generated files + .l/.y sources. Push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
 
 ## scrip-interp build command
 
