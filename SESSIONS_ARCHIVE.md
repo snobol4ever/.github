@@ -18180,3 +18180,69 @@ Add `ARCH-ir-tree.md` to ARCH-index.md.
 - `snobol4dotnet/TestSnobol4/TestParser/` — TDD parse tests (assoc + precedence)
 - `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
 - `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
+
+---
+
+## DYN-44 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x64 interpreter. Session prefix: DYN-.
+
+### What was done
+
+**Architecture / planning session. No code written.**
+
+Full parser landscape survey across all SNOBOL4 parser implementations:
+- `snobol4jvm/grammar.clj` — instaparse PEG, the canonical grammar spec
+- `snobol4dotnet/Lexer.cs` — DFA-based one-pass lexer, most complete
+- `snobol4dotnet/TestLexer/` + `TestParser/` — gold-standard TDD corpus (UTF-16LE)
+- C# uploads — Irony (LALR(1) + line scanner), Pidgin, Sprache (parser combinators)
+- `one4all/src/frontend/snobol4/lex.c` / `parse.c` — existing hand-rolled impl
+
+Key decisions confirmed:
+1. **Grammar is CFG** once lexer handles whitespace as significant terminals (_ / __). No ambiguity.
+2. **Parser class: LALR(1)** — SLR too weak for `?` conditional scan op; canonical LR(1) unnecessary. Bison default = correct.
+3. **Tool choice: flex + bison** — eliminates body-reconstruction bridge that causes 1013/003.
+4. **Lexer owns line structure** — label col, body, goto split in lexer. T_LABEL / T_WS / T_GOTO / T_STMT_END contract unchanged.
+5. **INCLUDE** handled transparently via flex buffer stacking (already in lex.c).
+6. **TDD first** — port dotnet TestLexer + TestParser tests to C before writing lex.l / parse.y.
+
+**IR tree documented** — `ARCH-ir-tree.md` committed (`d227adc` .github). Covers:
+- EXPR_t n-ary structure: `children[]` realloc array, `expr_add_child`, accessors
+- All EKind nodes by arity: leaf / unary / binary / n-ary (E_SEQ, E_CAT, E_ALT, E_FNC, E_IDX)
+- E_SEQ vs E_CAT distinction (pattern context vs value context)
+- STMT_t four forms (invoking / matching / assigning / replacing), has_eq discriminator
+- Parse→IR mapping (parse_expr0..parse_expr17 → EKind)
+- Rationale for n-ary over binary (flat children[] = cache-friendly for Byrd-box executor)
+- Relationship to M-LEX-1/M-PARSE-1 (IR shape unchanged by flex/bison rewrite)
+
+`ARCH-index.md` updated — `ARCH-ir-tree.md` added under SNOBOL4 Frontend section.
+
+### Baselines
+- one4all: `8d38768` (unchanged)
+- corpus: `2f2bbe3` (unchanged)
+- .github: `d227adc` (ARCH-ir-tree.md + ARCH-index + this entry)
+
+### DYN-45 first actions
+
+1. `git pull --rebase` all repos.
+2. `TOKEN=ghp_xxx FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. Gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
+4. Build scrip-interp (SESSION-dynamic-byrd-box.md build command). Broad → 169p/9f confirm.
+5. `apt-get install -y flex bison`
+6. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer tests: Test_214 (label), Test_218 (goto), Test_231 (numeric), Test_232 (string), Test_220/221/233 (operators). Build standalone, all pass against existing lex.c.
+7. Write `src/frontend/snobol4/lex.l` — M-LEX-1. `flex lex.l` → `lex.yy.c`; wire into build; gate + broad, no regression.
+8. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet Test_Associativity + Test_Precedence. All pass against existing parse.c.
+9. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. `bison parse.y` → `parse.tab.c` + `parse.tab.h`; wire into build; gate + broad + 1013/003 now passes.
+10. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `ARCH-ir-tree.md` — n-ary IR tree reference (new this session)
+- `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1 / M-PARSE-1 milestone plan
+- `snobol4jvm/src/SNOBOL4clojure/grammar.clj` — canonical instaparse grammar spec
+- `snobol4dotnet/TestSnobol4/TestLexer/` — TDD lex tests (UTF-16LE; use iconv -f UTF-16LE -t UTF-8)
+- `snobol4dotnet/TestSnobol4/TestParser/Test_Associativity.cs` + `Test_Precedence.cs`
+- `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
+- `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
+- `one4all/src/frontend/snobol4/lex.c` — existing one-pass lexer (oracle for lex.l)
+- `one4all/src/frontend/snobol4/parse.c` — existing recursive-descent parser (oracle for parse.y)
