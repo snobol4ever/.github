@@ -68,7 +68,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-6 | one4all `46c6267` | **SJ-6**: Fix emit_js.c _saved%d bug (lines 397/412/313) → wire bb_boxes.js into sno_engine.js build_pattern() → Phase 3 scan loop → M-SJ-B01. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
+| **SNOBOL4 JS** | SJ-6 | one4all `46c6267` | **SJ-6**: Interpreter-first pivot. Phase A: Lexer → Parser → IR → Stack machine + JS Byrd-box sequencer. Emitter (emit_js.c) follows after interpreter proven. Gate: interpreter regression only — no emit-diff, no snobol4_x86 invariants. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
 | **⭐ TINY JVM** | J-220 | one4all `09ac2cb` | **M-JVM-INTERP-A01**: Lexer.java — tokenize SNOBOL4 source. Oracle: lex.c. Then A02 (Parser) → A03 (IR) → A04 (Interpreter). |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
