@@ -7,11 +7,27 @@
 ## What it is
 
 `scrip-interp` is a SNOBOL4 interpreter that reuses the existing frontend
-(lex + parse → `Program*` IR) and executes statements directly via tree-walk,
-without emitting any assembly or bytecode.  It serves two purposes:
+(lex + parse → `Program*` IR) and executes statements by tree-walking the IR.
+It serves two purposes:
 
 1. **Fast corpus runner** — no compile/assemble/link overhead per test
 2. **Debug tool** — run `.sno` programs directly, diff vs SPITBOL oracle
+
+**Architecture (per ARCH-byrd-dynamic.md):**
+
+- Non-pattern statements (assignment, arithmetic, I/O): evaluated directly
+  by `interp_eval()` tree-walking the `EXPR_t` IR.
+- **Pattern statements**: `interp_eval()` evaluates subject and pattern
+  expressions using `snobol4_pattern.c` constructors (`pat_lit`, `pat_cat`,
+  `pat_arb`, etc.) which return `DT_P` descriptors (live `PATND_t` trees).
+  These are handed to **`stmt_exec_dyn()`** which calls **`bb_build()`** to
+  assemble a Byrd box graph, then runs it through the five-phase executor
+  (subject → build pattern → match → replacement → S/F branch).
+
+This means `scrip-interp` DOES use Byrd boxes for pattern execution —
+it just builds them at interpretation time rather than emitting static NASM.
+The `interp_eval` pattern-expression path must NOT attempt to match patterns
+directly; it must always route through `stmt_exec_dyn`.
 
 ---
 
