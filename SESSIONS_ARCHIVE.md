@@ -19622,3 +19622,87 @@ NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — in
 - `src/driver/dotnet/PatternBuilder.cs` — pattern → bb_* graph
 - `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table, array/data stores
 - `MILESTONE-NET-SNOBOL4.md` — milestone chain (Phase A)
+
+---
+
+## DYN-49 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-
+
+### What was done
+
+**Lexer rewritten as true one-pass character-stream lexer (snobol4.l)**
+
+The old snobol4.l was a hybrid: flex was used only as a line-reader, with two large handwritten C functions (`tokenise_body_pending` ~120 lines, `emit_stmt_seg` ~60 lines) doing all the real tokenisation via character loops. These are now deleted entirely and replaced with proper flex RE rules in start conditions.
+
+#### Architecture: old vs new
+
+| Old | New |
+|-----|-----|
+| INITIAL reads lines into `logical[65536]` buffer | INITIAL dispatches on col-1 char directly |
+| `flush_logical()` pushes sub-buffer, switches to BODY | No sub-buffers. One stream. |
+| `tokenise_body_pending()` — handwritten char loop | BODY start condition — RE rules |
+| `emit_stmt_seg()` — handwritten label/goto splitter | LABEL/GT start conditions — RE rules |
+| 475 lines | 262 rules-section lines |
+
+#### Start conditions
+- `INITIAL` — col-1 card dispatch (comment, CTL, continuation, new stmt)
+- `LABEL` — reading label identifier from col-1
+- `BODY` — statement body: all operators/idents/numbers/strings as RE
+- `STR1` / `STR2` — single/double quoted strings with `''`/`""` escape support
+- `GT` — goto field raw text after `:`
+- `SKIP` — discard to end of line (comments, unknown CTL)
+- `INCL` — filename after `-INCLUDE`/`-COPY`
+
+#### Other fixes this session
+- bison directive conflict: `%pure-parser` + `%define api.prefix` incompatible in bison 3.8 → replaced with `%define api.pure full`
+- `%option stack` added so `yy_push_state` is generated (needed by `lex_open_str`)
+- `lex.h` symlink added → `snobol4.h` for `eval_code.c` compat (file was renamed in DYN-48)
+- `sno_error` and `inc_dirs`/`n_inc` moved to user-code section (were wrongly in `%{%}`)
+
+#### Broad result
+- **Before (DYN-48 baseline):** 114p/64f
+- **After (DYN-49 r1, new lexer, no eq_pos fix yet):** 123p/55f (+9)
+
+### Known issue — DYN-50 FIRST ACTION
+
+**eq_pos string-literal skip** in `snobol4.y` `parse_program_tokens` — the loop that finds `=` in `bbuf` does not skip over quoted strings. Bodies containing `=` inside a string literal split at the wrong position. Fix documented in DYN-48 handoff:
+
+```c
+int eq_pos=-1, depth=0;
+for(int i=0;i<bpos;i++){
+    char c=bbuf[i];
+    if(c=='\'' || c=='"') {
+        char q=c; i++;
+        while(i<bpos && bbuf[i]!=q) i++;
+    } else if(c=='('||c=='['||c=='<') depth++;
+    else if(c==')'||c==']'||c=='>') depth--;
+    else if(c=='='&&depth==0){ eq_pos=i; break; }
+}
+```
+
+After fix, broad should reach ≥126p/52f (DYN-48 pre-regression baseline), then continue toward 169p/9f via MONITOR diff.
+
+### Known issue — LABEL state
+
+`LABEL` state rule `[^ \t\n]+` is too greedy — if a line has no space after the label (e.g. label immediately followed by body with no separator) it will consume body content as label text. Next session: verify with corpus, fix if needed by splitting on first non-IDCONT char.
+
+### Baselines for DYN-50
+- one4all: `0db949d`
+- corpus: `2f2bbe3`
+- .github: (this commit)
+- Broad: **123p/55f**
+
+### DYN-50 first actions
+1. `git pull --rebase` all repos
+2. Build: `flex -o snobol4.lex.c snobol4.l && bison -d -o snobol4.tab.c snobol4.y` then full scrip-interp build (see SESSION-dynamic-byrd-box.md build command)
+3. Smoke: `./scrip-interp /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+4. Fix eq_pos string-literal skip in `snobol4.y` `parse_program_tokens`
+5. Run broad → confirm ≥126p/52f
+6. MONITOR diff scrip-interp vs SPITBOL on remaining failures → toward 169p/9f
+
+### Key files
+- `src/frontend/snobol4/snobol4.l` — **rewritten this session**
+- `src/frontend/snobol4/snobol4.y` — eq_pos fix needed here
+- `src/frontend/snobol4/lex.h` — symlink → snobol4.h (new this session)
