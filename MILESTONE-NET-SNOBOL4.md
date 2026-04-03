@@ -140,28 +140,28 @@ Phase O caches, specializes, and ultimately emits IL directly from the interpret
 
 ## Sprint sequence
 
-| Sprint | Milestone | Track |
-|--------|-----------|-------|
-| D-165 | M-NET-BOXES ✅ | Foundation |
-| D-166 | planning | Design |
-| D-167 | M-NET-INTERP-A00 ✅ · IR design locked · unified chain | Design |
-| D-168 | M-NET-INTERP-A01a — Lexer (`Snobol4Lexer.cs`, token stream mirrors `lex.c`) | Phase A |
-| D-169 | M-NET-INTERP-A01b — Parser (Pidgin → `IrStmt[]`; `IrNode.cs` mirrors `ir.h`) | Phase A |
-| D-170 | M-NET-INTERP-A01c — IR verified; `Ast.cs` removed; build clean; 3/3 smoke | Phase A |
-| D-171 | M-NET-INTERP-A02 — Stack machine Phases 1/4/5 | Phase A |
-| D-172 | M-NET-INTERP-A03 — Byrd box sequencer Phases 2/3 | Phase A |
-| D-173 | M-NET-INTERP-A04 — Full corpus vs SPITBOL | Phase A |
-| D-174 | M-NET-INTERP-A05 — All failures closed | Phase A |
-| D-173 | M-NET-INTERP-B01 | Phase B |
-| D-174 | M-NET-INTERP-B02 | Phase B |
-| D-175 | M-NET-INTERP-B03 (EVAL/CODE) | Phase B |
-| D-176 | M-NET-P35-FIX + M-NET-PAT-CAPTURES | Phase C |
-| D-177 | M-NET-PAT-PRIMITIVES | Phase C |
-| D-178 | M-NET-EVAL-COMPLETE + M-NET-NRETURN | Phase C |
-| D-179 | M-NET-OPT-CACHE | Phase O |
-| D-180 | M-NET-OPT-EMIT | Phase O |
-| D-181 | M-NET-OPT-FULL | Phase O |
-| D-182 | M-NET-SNOCONE + M-NET-BOOTSTRAP | Phase Z |
+| Sprint | Milestone |
+|--------|-----------|
+| D-165 | M-NET-BOXES ✅ |
+| D-166 | planning |
+| D-167 | M-NET-INTERP-A00 ✅ · IR design locked · unified chain |
+| D-168 | M-NET-INTERP-A01a — Lexer (`Snobol4Lexer.cs`, token stream mirrors `lex.c`) |
+| D-169 | M-NET-INTERP-A01b — Parser (Pidgin → `IrStmt[]`; `IrNode.cs` mirrors `ir.h`) |
+| D-170 | M-NET-INTERP-A01c — IR verified; `Ast.cs` removed; build clean; 3/3 smoke |
+| D-171 | M-NET-INTERP-A02 — Stack machine Phases 1/4/5 |
+| D-172 | M-NET-INTERP-A03 — Byrd box sequencer Phases 2/3 |
+| D-173 | M-NET-INTERP-A04 — Full corpus vs SPITBOL |
+| D-174 | M-NET-INTERP-A05 — All failures closed |
+| D-175 | M-NET-INTERP-B01 — Captures |
+| D-176 | M-NET-INTERP-B02 — Functions |
+| D-177 | M-NET-INTERP-B03 — EVAL/CODE |
+| D-178 | M-NET-P35-FIX + M-NET-PAT-CAPTURES |
+| D-179 | M-NET-PAT-PRIMITIVES |
+| D-180 | M-NET-EVAL-COMPLETE + M-NET-NRETURN |
+| D-181 | M-NET-OPT-CACHE |
+| D-182 | M-NET-OPT-EMIT |
+| D-183 | M-NET-OPT-FULL |
+| D-184 | M-NET-SNOCONE + M-NET-BOOTSTRAP |
 
 ---
 
