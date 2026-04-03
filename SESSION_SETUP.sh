@@ -12,9 +12,21 @@
 # Usage:
 #   TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 #
-# After this completes, run the two test scripts:
-#   cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_emit_check.sh
-#   cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh
+# ⛔ ALWAYS pass FRONTEND= and BACKEND= — installs only what you need:
+#   FRONTEND=snobol4 BACKEND=jvm  TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+#   FRONTEND=snobol4 BACKEND=x64  TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+#   FRONTEND=snobol4 BACKEND=net  TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+#   (omit FRONTEND/BACKEND only for grand-master / multi-cell sessions)
+#
+# After this completes, run the appropriate test script for your session type:
+#
+#   JVM interpreter sessions (DYN-, J-, one4all-SNOBOL4-NET):
+#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#     (do NOT run run_invariants.sh or run_emit_check.sh for interpreter sessions)
+#
+#   Emit sessions (x86, JVM emitter, .NET):
+#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_jvm
+#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
 #
 # All tool installation is fully automatic. Network access required.
 # Never hardcode the token — TOKEN env var only.
