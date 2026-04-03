@@ -126,7 +126,7 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-172 | one4all `a5b22ff` | **149p/29f** · Fix scrip-interp.csproj → boxes.dll (MSIL) · Fix 1012/word*/411 → target ≥ 160p |
+| **NET INTERP** | D-172 | one4all `0ddeb97` | **149p/29f** · MSIL/net8 ABI open (Mono ilasm → .cs bridge) · Fix 1012/word*/411 → ≥ 160p |
 
 **First actions:**
 1. `git pull --rebase` all repos.
