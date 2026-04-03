@@ -19812,3 +19812,79 @@ Pattern tests (ANY, SPAN, LEN, POS, etc.) produce empty output instead of PASS.
 8. Fix `411_arith_unary` — unary `+` parser fix landed; verify `CoerceNumeric` reaches it
 9. Target ≥ 160p
 
+## DYN-51 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp). Session prefix: DYN-
+
+### Result: 115p/17f (baseline unchanged — root cause found, fix staged for DYN-52)
+
+### What was done (DYN-51 r1, commit `2f146eb` on one4all)
+
+**Environment rebuild (fresh container):**
+1. Installed `libgc-dev`
+2. Re-applied `T_AT_BIN` enum dedup (DYN-50 fix not carried into pre-generated `.tab.c`)
+3. Built `lex.o`/`parse.o` from `snobol4.lex.c` / `snobol4.tab.c`
+4. Rebuilt and linked `scrip-interp` ✅
+5. Hello gate ✅ · 115p/17f confirmed ✅
+
+**Root cause investigation — word1–word4/cross/all capture failures:**
+
+Traced through scrip-interp execution. Pattern statements execute via:
+`exec_stmt()` in `stmt_exec.c` → `bb_build(_PND_t*)` → Byrd Box engine → `g_capture_list[]` → `flush_pending_captures()` → `NV_SET_fn()`
+
+**NOT via `match_pattern()` in `snobol4_pattern.c`.**
+
+**Fix committed (`2f146eb`):** `match_pattern()` and `match_and_replace()` both had the same bug — fresh `MatchCtx` per scan position discarded captures[] registered during `materialise()`. Fixed: reuse `mat_ctx`, reset only `captures[i].start/end` between attempts. Real fix for the `match_pattern` code path; does not affect `exec_stmt` / word1–word4 yet.
+
+**Spurious `:F`/`:S` parse error:** stderr-only noise; execution branches correctly. Not causing any test failures (crosscheck uses `2>/dev/null`).
+
+**Git note:** Between DYN-50 and DYN-51, session `bd56224` landed a T_*/TK_* token naming unification. `snobol4.h` is now just `#include "lex.h"`. Our commit rebased cleanly onto `72fbc5f`.
+
+### True root cause for word1–word4/cross (not yet fixed)
+
+`exec_stmt` Byrd Box path: `_XNME` (pat . var conditional capture) registers a `capture_t*` into `g_capture_list[]` via `register_capture()`. On overall match success, `flush_pending_captures()` should call `NV_SET_fn(c->varname, val)`. Either:
+- `bb_build(_XNME)` doesn't call `register_capture()`, OR
+- `has_pending` is never set to 1 during scan, OR  
+- `g_capture_count` is 0 when `flush_pending_captures()` runs
+
+### DYN-52 first actions
+1. `git pull --rebase` all repos
+2. Rebuild scrip-interp (token rename may affect build — verify hello gate)
+3. Confirm baseline: `bash /tmp/run_crosscheck.sh` (may differ from 115p/17f if other sessions landed fixes)
+4. Add debug prints to isolate `_XNME` path:
+```c
+// In flush_pending_captures() (stmt_exec.c):
+fprintf(stderr, "flush: g_capture_count=%d\n", g_capture_count);
+// In bb_capture execute path (wherever has_pending is set):
+fprintf(stderr, "bb_capture: varname=%s has_pending=1\n", ζ->varname);
+```
+5. Run: `./scrip-interp /tmp/t_len.sno 2>&1` where `t_len.sno` is:
+```snobol4
+     LINE = "abcde"
+     LINE ? LEN(3) . X
+     OUTPUT = X
+END
+```
+6. If `g_capture_count=0`: `bb_build` for `_XNME` isn't calling `register_capture()`
+7. If count>0 but `has_pending=0`: the box execute path isn't setting it
+8. Fix accordingly → target ≥125p
+
+### Remaining 17 failures
+| Test | Root cause |
+|------|-----------|
+| `word1`–`word4`, `wordcount`, `cross` | `_XNME` capture not reaching `flush_pending_captures` in exec_stmt Byrd Box path |
+| `056_pat_star_deref` | `*VAR` deref in pattern not handled in `interp_eval` |
+| `063_capture_null_replace` | null replacement edge case in `exec_stmt` |
+| `expr_eval` | line-continuation `+` prefix — lexer INITIAL state |
+| `1012_func_locals` | local var save/restore in `callUserFunc` |
+| `1013_func_nreturn` | NRETURN handling |
+| `1015_opsyn` | OPSYN alias edge case |
+| `1016_eval` | EVAL builtin via `eval_code.c` |
+| `test_case/math/stack/string` | deeper runtime — undiagnosed |
+
+### Baselines for DYN-52
+- `one4all`: `2f146eb`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 115p/17f**
