@@ -17924,3 +17924,36 @@ The JVM interpreter is a **stack machine + Byrd box sequencer**, not a generic t
 **Design invariant:** Every interpreter operation has a 1:1 correspondence to an emitter operation. Interpreter proves semantics; emit_jvm.c serializes the same ops to Jasmin. No interpreter-only constructs.
 
 MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section updated with full architecture description and revised A03/A04 milestone specs. Committed `001f369` → see next commit below.
+
+---
+
+## J-220 architecture decision — 2026-04-02
+
+### Jasmin boxes — box execution language changed from Java to Jasmin
+
+**Decision:** `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the JVM interpreter.
+
+**Rationale:**
+- Interpreter tests the *actual emitter artifact* — no translation gap between what the interpreter proves and what `emit_jvm.c` generates
+- `bb_*.java` (J-217, committed) becomes human-readable oracle/reference only
+- Both `.java` and `.jasmin` produce identical `.class` files; `jar` and JVM are agnostic to source language
+- Design invariant preserved: interpreter operations map 1:1 to emitter operations — trivially true because the interpreter *runs* the Jasmin bytecode
+
+**Milestone impact:**
+- New first milestone: **M-JVM-INTERP-A00** — write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble → `boxes.jar`
+- Existing A01–A05 renumbered (unchanged in content); sprint sequence shifts by one (J-220=A00, J-221=A01, ...)
+- MILESTONE-JVM-SNOBOL4.md and SESSION-snobol4-jvm.md updated this session
+
+### Baseline for J-220 (unchanged)
+- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: this commit
+- No gate — interpreter session, exempt per RULES.md
+
+### J-220 first tasks (A00)
+1. `git pull --rebase` all repos
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash SESSION_SETUP.sh`
+3. Read `bb_box.java` + `bb_lit.java` as authoring oracle
+4. Write `BbBox.jasmin` (base + Spec + MatchState)
+5. Write `bb_lit.jasmin` — smoke test α/ω
+6. Write remaining 24 boxes from `bb_*.java` oracles
+7. Assemble all → `boxes.jar`; smoke test BbLit instantiation
+8. Commit one4all + push · update SESSIONS_ARCHIVE + push .github

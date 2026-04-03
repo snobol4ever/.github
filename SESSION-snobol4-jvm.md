@@ -38,18 +38,13 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-220 | one4all `09ac2cb` | **M-JVM-INTERP-A01**: Lexer.java — tokenize SNOBOL4 source |
+| **TINY JVM** | J-220 | one4all `09ac2cb` | **M-JVM-INTERP-A00**: `bb_*.jasmin` — 25 Jasmin boxes + BbBox + BbExecutor → `boxes.jar` |
 
-**J-217 landed:**
-- `src/runtime/boxes/bb_*.java` — 29 Java files: all 25 Byrd boxes + `bb_box.java` + `bb_executor.java`
-- Side-by-side with `bb_lit.c`/`.s`/`.cs` — snake_case, same name, same directory
-- `bb_bal.java` is first real BAL (C original is a stub)
-- Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
-
-**J-218 and J-219: no code written** — both sessions burned on routing errors. See SESSIONS_ARCHIVE.
-
-**Milestone ladder is sequential (single track):** M-JVM-INTERP-A01 (Lexer) → A02 (Parser) → A03 (IR) → A04 (Interpreter) → A05 (Baseline) → M-JVM-A02 → ... See MILESTONE-JVM-SNOBOL4.md §Sprint Sequence.
-**This session (J-220) = M-JVM-INTERP-A01.** No gate, no baselines, no emit_jvm.c. Work file: `Lexer.java`. Oracle: `src/frontend/snobol4/lex.c`.
+**Box language decision (J-220):** Boxes execute as Jasmin-assembled `.class` files, not Java.
+- `bb_*.java` — human-readable oracle/reference (J-217 ✅, do not modify)
+- `bb_*.jasmin` — executable form; `jasmin.jar` → `.class` → `boxes.jar`
+- Interpreter loads Jasmin classes → tests real emitter artifact at every iteration
+- `bb_*.java` is the authoring oracle for each `.jasmin` file
 
 **J-220 first actions (mandatory order):**
 
@@ -59,19 +54,18 @@ git log --oneline -3
 
 # No gate — interpreter session, exempt per RULES.md
 
-# 1. Read lexer oracle
-cat src/frontend/snobol4/lex.c
+# 1. Read bb_box.java + one box (bb_lit.java) for structure
+cat src/runtime/boxes/shared/bb_box.java
+cat src/runtime/boxes/lit/bb_lit.java
 
-# 2. Create src/driver/jvm/Lexer.java
-# Token types mirror lex.c token enum
-# Gate: all 19 NET-INTERP parse test inputs tokenize without error
+# 2. Write BbBox.jasmin (base class + Spec + MatchState inner classes)
+# 3. Write bb_lit.jasmin from bb_lit.java oracle — smoke test α/ω
+# 4. Write remaining 24 boxes
+# 5. Assemble: java -jar jasmin.jar *.jasmin → jar cf boxes.jar *.class
+# 6. Smoke: instantiate BbLit, run α on "hello" → Spec(0,5)
 
-# 3. Commit + push one4all
-git add src/driver/jvm/Lexer.java
-git commit -m "J-220: M-JVM-INTERP-A01 — Lexer.java"
-git push
-
-# 4. Update SESSIONS_ARCHIVE + push .github
+# 7. Commit + push one4all
+# 8. Update SESSIONS_ARCHIVE + push .github
 ```
 
 ---
