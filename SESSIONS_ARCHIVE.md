@@ -5309,7 +5309,7 @@ User direction: flatten subdirs, full descriptive names, correct extensions.
 - The `t01_` prefix on test names is the natural parse boundary — no separator needed
 - 580 files renamed in corpus, 23 runner scripts updated
 - Stale rung03 `.c` duplicates removed (artifact of rename step)
-- corpus: `aaa0f9f` rename, `f220364` cleanup · one4all: `5c02ec6` runners
+- corpus: `2f2bbe3aaa0f9f` rename, `f220364` cleanup · one4all: `5c02ec6` runners
 
 ### Final icon corpus layout
 ```
@@ -5353,8 +5353,8 @@ Now:  `rung01_paper_to5.icn`
 - `icon_` prefix: redundant — `.icn` extension and `rung` prefix identify it
 - `_tNN_`: numbering things already named adds no information
 - 575 files renamed, 0 collisions
-- corpus: `c6d2d3e` rename, `d928205` .c artifact cleanup
-- one4all: `9c03cf2` runner globs updated
+- corpus: `2f2bbe3c6d2d3e` rename, `d928205` .c artifact cleanup
+- one4all: `6f8a4e59c03cf2` runner globs updated
 
 #### Final icon corpus layout
 ```
@@ -15728,7 +15728,7 @@ cd /home/claude/corpus && git push
 Then update PLAN.md NOW table (DYN row → DYN-20, milestone M-DYN-S1 ✅), update SESSIONS_ARCHIVE.
 
 ### Baseline
-- one4all: `a31f6c2` · .github: `0c5d1c7` · corpus: `77f476c`
+- one4all: `6f8a4e5a31f6c2` · .github: `0c5d1c7` · corpus: `77f476c`
 - invariants: snobol4_x86 **137p/5f** (word1 word2 word3 word4 cross)
 - emit-diff: retired until post M-DYN-S1
 - No other changes to one4all source — fix is entirely in `emit_x64.c` one block
@@ -15789,9 +15789,9 @@ Then update PLAN.md NOW table (DYN row → DYN-20, milestone M-DYN-S1 ✅), upda
 
 ### Baseline for DYN-21
 
-- one4all: `9e1e769`
+- one4all: `6f8a4e59e1e769`
 - .github: `5a62f5a`
-- corpus: `31ad542`
+- corpus: `2f2bbe331ad542`
 - invariants: snobol4_x86 **142/142** ✅
 - emit-diff: can resume — `run_emit_check.sh --update` completed cleanly
 
@@ -15832,9 +15832,9 @@ See ARCH-byrd-dynamic.md §M-DYN-OPT for the full spec.
 
 ### Baseline for DYN-22
 
-- one4all: `56a9db6`
+- one4all: `6f8a4e556a9db6`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-22 first task — M-DYN-OPT
@@ -15899,9 +15899,9 @@ No M-DYN-OPT work was done. Gate held 142/142 throughout all commits.
 
 ### Baseline for DYN-22
 
-- one4all: `649c407`
+- one4all: `6f8a4e5649c407`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged throughout)
+- corpus: `2f2bbe331ad542` (unchanged throughout)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-22 first task — M-DYN-OPT
@@ -15979,9 +15979,9 @@ in `stmt_exec.c` (search for the same struct name in that file).
 
 ### Baseline for DYN-22 (continued)
 
-- one4all: `38a2fb0`
+- one4all: `6f8a4e538a2fb0`
 - .github: `b647f2a` (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-22 next task — M-DYN-OPT (unchanged from prior handoff)
@@ -16048,9 +16048,9 @@ terse names, Greek-letter field names, and invented names. Additionally,
 
 ### Baseline for DYN-23
 
-- one4all: `38a2fb0`
+- one4all: `6f8a4e538a2fb0`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-23 first task — M-DYN-OPT
@@ -16090,9 +16090,9 @@ All 25 assemble clean (`nasm -f elf64`).
 
 ### Baseline for DYN-24
 
-- one4all: `3a1ee0a`
+- one4all: `6f8a4e53a1ee0a`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-24 first task — Lon review of bb_*.s, then M-DYN-OPT
@@ -16174,9 +16174,9 @@ Key points:
 
 ### Baseline for DYN-24
 
-- one4all: `c368769`
+- one4all: `6f8a4e5c368769`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-24 first tasks (in order)
@@ -16232,9 +16232,9 @@ Gate: snobol4_x86 **142/142** ✅
 
 ### Baseline for DYN-24
 
-- one4all: `27300c5`
+- one4all: `6f8a4e527300c5`
 - .github: (this commit)
-- corpus: `31ad542` (unchanged)
+- corpus: `2f2bbe331ad542` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-24 first tasks (in order)
@@ -16320,9 +16320,9 @@ Generated files are written beside their source in corpus automatically — no m
 
 ### Baseline for DYN-25
 
-- one4all: `fbcd349`
+- one4all: `6f8a4e5fbcd349`
 - .github: (this commit)
-- corpus: `d5058ef` (2 regen'd artifacts from M-DYN-OPT)
+- corpus: `2f2bbe3d5058ef` (2 regen'd artifacts from M-DYN-OPT)
 - invariants: snobol4_x86 **142/142** ✅ (on `d4cc217`; WIP commit not gated)
 
 ### DYN-25 first tasks (in order)
@@ -16370,9 +16370,9 @@ Smoke results:
 
 ### Baseline for DYN-26
 
-- one4all: `200543f`
+- one4all: `6f8a4e5200543f`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-26 first tasks (in order)
@@ -16428,9 +16428,9 @@ Gate: snobol4_x86 **142/142** ✅
 
 ### Baseline for DYN-27
 
-- one4all: `61639ca`
+- one4all: `6f8a4e561639ca`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 
 ### DYN-27 first tasks (in order)
@@ -16482,9 +16482,9 @@ Gate: snobol4_x86 **142/142** ✅
 
 ### Baseline for DYN-28
 
-- one4all: `1ebaa02`
+- one4all: `6f8a4e51ebaa02`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **115p/63f**
 
@@ -16535,9 +16535,9 @@ Gate: snobol4_x86 **142/142** ✅
 
 ### Baseline for DYN-29
 
-- one4all: `bb76582`
+- one4all: `6f8a4e5bb76582`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **139p/19f**
 
@@ -16587,9 +16587,9 @@ Gate: snobol4_x86 **142/142** ✅
 
 ### Baseline for DYN-30
 
-- one4all: `eb273e1`
+- one4all: `6f8a4e5eb273e1`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **120p/25f**
 
@@ -16644,9 +16644,9 @@ Files touched: `stmt_exec.c`, `eval_code.c`, `scrip-interp.c`, `emit_x64.c`, arc
 
 ### Baseline for DYN-31
 
-- one4all: `c27e841`
+- one4all: `6f8a4e5c27e841`
 - .github: (this commit)
-- corpus: `d5058ef` (unchanged)
+- corpus: `2f2bbe3d5058ef` (unchanged)
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **148p/30f** (unchanged — no functional fixes this session)
 
@@ -16727,9 +16727,9 @@ The invariance cache fix (`_XFARB → return 0`) is in, but the bug persists. Tr
 
 ### Baseline for DYN-32
 
-- one4all: `406b507`
+- one4all: `6f8a4e5406b507`
 - .github: (this commit)
-- corpus: `2f2bbe3`
+- corpus: `2f2bbe32f2bbe3`
 - invariants: snobol4_x86 **142/142** ✅
 - emit-diff: **175/0** ✅
 - broad: **146p/32f**
@@ -16862,9 +16862,9 @@ case XNME: {
 
 ### Baseline for DYN-33
 
-- one4all: `406b507` (no new commits yet — changes are local, not pushed)
+- one4all: `6f8a4e5406b507` (no new commits yet — changes are local, not pushed)
 - .github: this commit
-- corpus: `2f2bbe3`
+- corpus: `2f2bbe32f2bbe3`
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **148p/30f** (pre-fix)
 - scrip-interp: built locally, not committed
@@ -16910,8 +16910,8 @@ Fix: when `s->has_eq && !s->replacement`, pass `has_repl=1` with `NULVCL` so mat
 
 ### Baseline for DYN-34
 
-- one4all: `0ba4175`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e50ba4175`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **158p/20f**
@@ -16972,8 +16972,8 @@ not a variable lookup followed by indirection.
 
 ### Baseline for DYN-35
 
-- one4all: `107a0ca`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5107a0ca`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **160p/18f**
@@ -17087,8 +17087,8 @@ DYN-35 functional targets (095_data_field_set, 1110_array_1d) deferred to DYN-36
 
 ### Baseline for DYN-36
 
-- one4all: `b51c202`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5b51c202`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **160p/18f** (unchanged — no scrip-interp functional changes this session)
@@ -17193,8 +17193,8 @@ Output: `10 / 20 / 10` (last should be 99). The setter path `x(P) = 99` is not d
 
 ### Baseline for DYN-37
 
-- one4all: `839282c`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5839282c`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **160p/18f** (unchanged — baseline confirmed)
@@ -17256,8 +17256,8 @@ Gate held 142/142 throughout.
 
 ### Baseline for DYN-38
 
-- one4all: `c61da12`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5c61da12`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **164p/14f**
@@ -17314,8 +17314,8 @@ Gate held 142/142 throughout.
 
 ### Baseline for DYN-39
 
-- one4all: `c70fad0`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5c70fad0`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **166p/12f**
@@ -17373,8 +17373,8 @@ Infrastructure is complete but `facto(4)` still returns empty. Likely cause: `FU
 
 ### Baseline for DYN-40
 
-- one4all: `be60a40`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5be60a40`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **167p/11f**
@@ -17424,8 +17424,8 @@ Bug 2 (retval): even after dispatch fix, `fr->fname = "facto"` but body writes `
 
 ### Baseline for DYN-41
 
-- one4all: `92481bf`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e592481bf`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **169p/9f**
@@ -17513,8 +17513,8 @@ Risk: `call_depth == 0` guard means NRETURN lvalue assign only works at top leve
 
 ### Baseline for DYN-42
 
-- one4all: `d411c48`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5d411c48`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **169p/9f**
@@ -17556,8 +17556,8 @@ Run on `1013_func_nreturn.sno`. If 0 → prescan isn't registering, check `_func
 
 #### Updated baseline for DYN-42
 
-- one4all: `fbc75dd`
-- corpus: `2f2bbe3`
+- one4all: `6f8a4e5fbc75dd`
+- corpus: `2f2bbe32f2bbe3`
 - .github: this commit
 - invariants: **142/142** ✅
 - broad: **169p/9f**
@@ -17594,8 +17594,8 @@ Gate held **142/142** throughout. Broad **169p/9f** — exact baseline, no regre
 
 ### Baseline for DYN-43
 
-- one4all: `09ac2cb`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e509ac2cb`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - invariants: snobol4_x86 **142/142** ✅
 - broad: **169p/9f**
@@ -17627,7 +17627,7 @@ Gate held **142/142**. Broad **169p/9f** — exact baseline, no regression.
 - `1015_opsyn`, `1016_eval`, `cross`, `expr_eval`, `test_case`, `test_math`, `test_stack`, `test_string`
 
 ### Baseline for DYN-43
-- one4all: `09ac2cb` · corpus: `2f2bbe3` · invariants: **142/142** ✅ · broad: **169p/9f**
+- one4all: `6f8a4e509ac2cb` · corpus: `2f2bbe3` · invariants: **142/142** ✅ · broad: **169p/9f**
 
 ### DYN-43 first tasks
 1. `git pull --rebase` all repos. Build scrip-interp. Gate 142/142.
@@ -17654,7 +17654,7 @@ Gate held **142/142**. Broad **169p/9f** — exact baseline, no regression.
 
 ### Baseline for J-219
 
-- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: `7b70b77`
+- one4all: `6f8a4e509ac2cb` · corpus: `2f2bbe3` · .github: `7b70b77`
 - snobol4_x86: **142/142** ✅ · snobol4_jvm: **94p/32f**
 
 ### J-219 first tasks
@@ -17864,7 +17864,7 @@ Seven new files created under `one4all/src/driver/dotnet/`:
 
 ### Baseline for D-168
 
-- one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
+- one4all: `6f8a4e5fb074c9` · corpus: `2f2bbe3` · .github: this commit
 - Gate: snobol4_x86 **142/142** ✅ (confirmed this session)
 - scrip-interp: builds clean · hello/empty_string/multi pass
 
@@ -18097,8 +18097,8 @@ The team has decided to replace the hand-rolled lexer and parser with flex/bison
 
 ### Baseline for DYN-44
 
-- one4all: `8d38768`
-- corpus: `2f2bbe3`
+- one4all: `6f8a4e58d38768`
+- corpus: `2f2bbe32f2bbe3`
 - .github: this commit
 - invariants: **142/142** ✅
 - broad: **169p/9f**
@@ -18156,8 +18156,8 @@ Key decisions confirmed:
 Add `ARCH-ir-tree.md` to ARCH-index.md.
 
 ### Baselines
-- one4all: `8d38768` (unchanged)
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e58d38768` (unchanged)
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 
 ### DYN-45 first actions
@@ -18283,8 +18283,8 @@ Key decisions confirmed:
 `ARCH-index.md` updated — `ARCH-ir-tree.md` added under SNOBOL4 Frontend section.
 
 ### Baselines
-- one4all: `8d38768` (unchanged)
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e58d38768` (unchanged)
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: `d227adc` (ARCH-ir-tree.md + ARCH-index + this entry)
 
 ### DYN-45 first actions
@@ -18603,8 +18603,8 @@ Flex body tokeniser matching `syntax.tbl` exactly:
 - `cross`: `@N` cursor capture + `?` pattern match operator (SPITBOL extension)
 
 ### Baselines
-- one4all: `4763126` (lex.l + lex.h + test_lex.c fixes)
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e54763126` (lex.l + lex.h + test_lex.c fixes)
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: (this commit)
 
 ### DYN-46 first actions
@@ -18729,8 +18729,8 @@ For hard-to-find bugs: run same .sno through scrip-interp AND SPITBOL oracle,
 diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 
 ### Baselines
-- one4all: `49c3077` (lex.l rewrite)
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e549c3077` (lex.l rewrite)
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: (this commit)
 - Broad: **169p/9f** (unchanged — scrip-interp not yet rebuilt with new lex.l)
 ## D-168 handoff — 2026-04-02
@@ -18938,8 +18938,8 @@ diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 - **M-JVM-INTERP-A04**: wire pattern matching via Byrd box executor (bb_*.java oracle + Jasmin boxes.jar)
 
 ### Baselines
-- one4all: `f3049fe`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5f3049fe`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - Interpreter gate: **19/19 PASS** (no-pattern corpus)
 
@@ -19067,14 +19067,13 @@ if (s.pattern != null) {
 ```
 
 ### Baselines
-- one4all: `f3049fe`
-- corpus: `2f2bbe3` (unchanged)
+- one4all: `6f8a4e5f3049fe`
+- corpus: `2f2bbe32f2bbe3` (unchanged)
 - .github: this commit
 - Interpreter gate: **19/19 PASS** (non-pattern corpus — pattern branch still stubbed)
 
 ---
 
-<<<<<<< HEAD
 ## SJ-9 handoff — 2026-04-02
 
 ### Session type
@@ -19217,8 +19216,8 @@ scrip-cc build fails on `sno.tab.c` compilation. Pre-existing — not introduced
 5. **M-PARSE-1**: `parse.y` (bison), replace `parse.c` goto-field handling.
 
 ### Baselines
-- one4all: `df3e3dd`
-- corpus: `2f2bbe3`
+- one4all: `6f8a4e5df3e3dd`
+- corpus: `2f2bbe32f2bbe3`
 - .github: (this commit)
 - test_lex: **54p/0f** ✅
 - Broad: **126p/52f** ⚠️ regression from 169p/9f — DYN-48 first priority
@@ -19286,8 +19285,8 @@ Removed: `sno.l`, `lex.c` (old scrip-cc two-pass lexer), `sno.y`, `sno.tab.c/h`
 - `/tmp/refs/snobol4-2.3.3/v311.sil` EXPR proc — precedence oracle
 
 ### Baselines
-- one4all: `c116c2c`
-- corpus: `2f2bbe3`
+- one4all: `6f8a4e5c116c2c`
+- corpus: `2f2bbe32f2bbe3`
 - .github: (this commit)
 - test_lex: **54p/0f** ✅
 - Broad: **126p/52f** ⚠️ (target: 169p/9f)
@@ -19352,62 +19351,7 @@ Removed: `sno.l`, `lex.c` (old scrip-cc two-pass lexer), `sno.y`, `sno.tab.c/h`
 - `src/driver/dotnet/PatternBuilder.cs` — pattern → IByrdBox graph (BuildSeq fixed this session)
 - `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table
 - `MILESTONE-NET-SNOBOL4.md` — milestone chain (currently Phase A)
-=======
-### J-222 — M-JVM-INTERP-A04 WIP (emergency handoff, context limit)
-
-**HEAD:** one4all `0577741b76325ed2a535952155fa851501c4d840`
-
-**Work done:**
-- All box `.java` files: added `package driver.jvm;` to top of every file
-- All box `.java` files: renamed PascalCase class names to match project convention — **CORRECTION**: class names inside files remain PascalCase (BbLit, BbSeq, etc.) — this is standard Java; filenames are snake_case (bb_lit.java). The rename attempted this session was **wrong** — see below.
-- `SnoVal` → `DESCR` rename throughout `Interpreter.java` and `PatternBuilder.java`
-- `PatternBuilder.java` written (238 lines) in `src/driver/jvm/`
-- `Interpreter.java` pattern stub replaced with full Phase 2–4 Byrd box wiring
-
-**CRITICAL ISSUE FOR NEXT SESSION:**
-The class name rename (BbLit → bb_lit etc.) was demanded by the user as a naming convention fix. BUT the user said "those are not the names I want" / "the names are bb_lit, bb_len" referring to the project convention. The sed rename changed class declarations from `class BbLit` to `class bb_lit` etc. This is now committed. Next session must verify: are the class names correct as `bb_lit` (snake_case) matching C/Jasmin convention, or does Java require reverting to PascalCase? **Check by attempting a clean compile first.**
-
-**Compile status: UNKNOWN — push was WIP**
-
-Last known error before context limit:
-- `EXIT: 1` with no visible error output (pipe masking stderr)
-- Previously was down to 0 errors after `fval` → `dval` fix in PatternBuilder.java
-- Likely clean or 1–2 trivial errors remaining
-
-**First actions next session:**
-```bash
-cd /home/claude/one4all && git pull --rebase
-BOXES=src/runtime/boxes
-javac -d /tmp/jvm_cls \
-  $BOXES/shared/bb_box.java $BOXES/shared/bb_executor.java \
-  $BOXES/capture/bb_capture.java $BOXES/abort/bb_abort.java \
-  $BOXES/alt/bb_alt.java $BOXES/any/bb_any.java $BOXES/arb/bb_arb.java \
-  $BOXES/arbno/bb_arbno.java $BOXES/atp/bb_atp.java $BOXES/bal/bb_bal.java \
-  $BOXES/brk/bb_brk.java $BOXES/breakx/bb_breakx.java $BOXES/dvar/bb_dvar.java \
-  $BOXES/eps/bb_eps.java $BOXES/fail/bb_fail.java $BOXES/fence/bb_fence.java \
-  $BOXES/interr/bb_interr.java $BOXES/len/bb_len.java $BOXES/lit/bb_lit.java \
-  $BOXES/not/bb_not.java $BOXES/notany/bb_notany.java $BOXES/pos/bb_pos.java \
-  $BOXES/rem/bb_rem.java $BOXES/rpos/bb_rpos.java $BOXES/rtab/bb_rtab.java \
-  $BOXES/seq/bb_seq.java $BOXES/span/bb_span.java $BOXES/succeed/bb_succeed.java \
-  $BOXES/tab/bb_tab.java \
-  src/driver/jvm/Lexer.java src/driver/jvm/Parser.java \
-  src/driver/jvm/PatternBuilder.java src/driver/jvm/Interpreter.java
-# Fix any errors, then gate: corpus/crosscheck/patterns/038_pat_literal.sno
-```
-
-**Key decisions made this session:**
-- `package driver.jvm;` added to all box .java files (enables javac to find them from named-package driver files)
-- `DESCR` is the correct value type name (not `SnoVal`)  
-- `dval` is the float field name in ExprNode (not `fval`)
-- `bb_executor.VarStore`, `bb_capture.VarSetter`, `bb_atp.IntSetter`, `bb_dvar.BoxResolver`, `bb_abort.AbortException` are the correct inner interface/class names
-- PatternBuilder takes: `bb_box.MatchState`, `VarSetter`, `IntSetter`, `bb_dvar.BoxResolver`
-- Deferred captures (.var) registered via `ex.registerCapture(cap)` before `ex.exec()`
-
-**Baselines:**
-- one4all: `0577741b76325ed2a535952155fa851501c4d840`
-- corpus: `2f2bbe3` (unchanged)
-- Non-pattern gate still 19/19 (no regressions to non-pattern path)
->>>>>>> 6322fc7 (J-222 emergency handoff: M-JVM-INTERP-A04 WIP, PatternBuilder written, compile pending)
+<<<<<<< HEAD
 
 ---
 
@@ -19464,3 +19408,67 @@ DYN-47 broke the SNOBOL4 C frontend build (`sno.y` uses `Expr`/`e->args`/`e->nar
 - `src/runtime/js/sno_runtime.js` — value types, `_is_real`, `_real_result`, `_builtins` map
 - `src/runtime/js/sno_engine.js` — pattern match engine (5-phase executor)
 
+=======
+
+---
+
+## DYN-48 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 x x86. Session prefix: DYN-
+
+### What was done
+
+**M-PARSE-1 in progress — parse.y written, compiles, links, smoke tests pass**
+
+#### Architecture decisions
+- Pure yacc grammar (parse.y) replacing parse.c hand-rolled RD
+- api.prefix snobol4_ — namespaces bison symbols away from flex yylex
+- Lexer never returns whitespace — grey and white both suppressed in tokenise_body_pending; unary vs binary resolved by grammar position per beauty.sno
+- raw_next_str eliminated — one tokenizer only (tokenise_body_pending in lex.l)
+- lex_open_str pre-tokenizes body strings via tokenise_body_pending into pending queue; no fmemopen, no second scanner
+- T_WS / T_U* variants removed from lex.h and all code
+
+#### Grammar (parse.y)
+- expr0-expr17 match beauty.sno Expr0-Expr17 and BIOPTB/UNOPTB from syntax.tbl
+- 18 shift/reduce conflicts, all resolving correctly via bison shift-default
+- Public API preserved: parse_program_tokens(Lex*), parse_expr_from_str(const char*)
+
+#### Commits
+- 6f8a4e5 — DYN-48 r1: parse.y + lex.l whitespace suppression
+
+### Known regression — DYN-49 FIRST ACTION
+
+**Broad: 114p/64f** (was 126p/52f). Regression = 12 tests.
+
+Root cause: eq_pos scan in parse_program_tokens does not skip string literals.
+A body like  works, but bodies with = inside quoted
+strings split at the wrong position.
+
+Fix in parse.y parse_program_tokens — the eq_pos scan loop must skip quotes:
+
+    for(int i=0;i<bpos;i++) {
+        char c=bbuf[i];
+        if(c==''' || c=='"') {
+            char q=c; i++;
+            while(i<bpos && bbuf[i]!=q) i++;
+        } else if(c=='('||c=='['||c=='<') depth++;
+        else if(c==')'||c==']'||c=='>') depth--;
+        else if(c=='='&&depth==0){ eq_pos=i; break; }
+    }
+
+After fix broad should restore to >= 126p/52f. Then continue MONITOR diff.
+
+### Baselines for DYN-49
+- one4all: 
+- corpus: 
+- .github: (this commit)
+- Broad: **114p/64f** (target after fix: >= 126p/52f)
+
+### DYN-49 first actions
+1. git pull --rebase all repos
+2. Rebuild scrip-interp (session doc build command)
+3. Fix eq_pos string-literal skip in parse_program_tokens (see above)
+4. Rebuild, run broad, confirm >= 126p/52f restored
+5. Commit, then MONITOR diff vs SPITBOL on remaining failures
+>>>>>>> ef3678f (DYN-48 handoff: parse.y M-PARSE-1 in progress, 114p/64f, eq_pos fix documented)
