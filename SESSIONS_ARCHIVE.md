@@ -19738,3 +19738,77 @@ chmod +x /tmp/run_crosscheck.sh
 5. Fix `expr_eval`: line-continuation `+` prefix in INITIAL lexer state
 6. Fix `1012_func_locals`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`
 7. Target: ≥125p
+
+---
+
+## D-172 handoff (final) — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
+
+### Broad: 146p/32f → 149p/29f (+3)
+
+### Commits
+- `a5b22ff` / rebased `72fbc5f` — D-172: parser/executor fixes
+- `529adde` / rebased `0ddeb97` — D-172r: revert csproj (MSIL ABI issue)
+
+### What was done
+
+**Parser fixes (`Snobol4Parser.cs`):**
+1. `ExtractGotos` — `FindMatchingOpenParen()`: quote-aware right-to-left scan. `define('lfunc(a,b,c)d,e,f') :(end)` was finding `(` inside the quoted string instead of `:(end)`. Fixed by building a quoted-char bitmap and skipping those positions.
+2. `ParseSource` — empty-body label preservation: `SplitSemicolons("")` returns zero parts, previously dropping the label. Now emits `(lbl, "")` when parts is empty. Fixes all standalone label lines (e.g. `lfunc_end` on its own line).
+3. `SplitSemicolons` — new method: splits on `;` outside quotes/parens → multi-statement lines.
+4. Unary `+` → `E_PLS` emitted in parser (alongside existing unary `-` → `E_MNS`).
+
+**Executor fixes (`Executor.cs`):**
+5. `E_PLS` → `CoerceNumeric(EvalNode(...))` + `CoerceNumeric` helper (string→int/real).
+6. `&TRIM` applied to `INPUT` reads: checks `&TRIM != 0`, calls `TrimEnd()`.
+7. `&STCOUNT` + `&STNO`: `IncrStcount()` called from main run loop each statement.
+
+**Env fixes (`SnobolEnv.cs`):**
+8. `DefineFunc` locals-after-paren: SNOBOL4 spec is `FUNC(params)locals` not `FUNC(params:locals)`.
+9. `ArrayGet` OOB → `DESCR.Fail` (was `DESCR.Null`).
+10. `IncrStcount()` method added; `&STNO` initialised alongside `&STCOUNT`.
+
+**HQ doc fixes:**
+- `RULES.md` BYRD BOXES rule: MSIL `bb_*.il`→`boxes.dll` canonical; `bb_*.cs` oracle only
+- `MILESTONE-NET-SNOBOL4.md`: "What already exists" table corrected to `.il` files
+
+**Tests newly passing (+3):** `1010_func_recursion` · `1013_func_nreturn` · `082_keyword_stcount`
+
+### ⛔ MSIL/net8 ABI issue — D-173 must resolve
+
+`boxes.dll` built by **Mono 6.8 `ilasm`** causes **149→124p regression** on .NET 8.
+Root cause: `Spec` valuetype and/or `MatchState` class ABI differs between Mono IL and .NET 8.
+Pattern tests (ANY, SPAN, LEN, POS, etc.) produce empty output instead of PASS.
+
+`scrip-interp.csproj` reverted to `bb_boxes.csproj` (.cs oracle) as temporary bridge.
+
+**D-173 fix options (in order of preference):**
+1. Build `boxes.dll` using .NET 8 SDK ILasm: `dotnet tool install -g dotnet-ilasm` then reassemble
+2. Or: embed `.il` as embedded resource, use `System.Reflection.Emit` to load at runtime
+3. Or: keep `.cs` bridge permanently and document as "functionally equivalent" until Phase S
+
+### Remaining failures (29)
+`1011_func_redefine` · `1012_func_locals` · `1015_opsyn` · `1016_eval` · `1017_arg_local` · `1018_apply` · `1110_array_1d` · `1112_array_multi` · `1113_table` · `1114_item` · `1115_data_basic` · `1116_data_overlap` · `212_indirect_array` · `411_arith_unary` · `cross` · `expr_eval` · `fileinfo` · `test_case` · `test_math` · `test_stack` · `test_string` · `triplet` · `word1`–`word4` · `wordcount` · `087_define_freturn` · `096_data_datatype_check`
+
+### Baselines for D-173
+- `one4all`: `0ddeb97`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 149p/29f**
+- Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### D-173 first actions
+1. `git pull --rebase` all repos
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → clean
+3. Smoke: `dotnet /tmp/sni/scrip-interp.dll corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+4. Broad → confirm 149p/29f baseline
+5. Resolve MSIL/net8 ABI: try `dotnet-ilasm` to rebuild `boxes.dll`
+6. Fix `1012_func_locals` — ExtractGotos fix should have resolved it; retrace if still failing
+7. Fix `word*` — `&TRIM` wired but SPITBOL default may be trim-on (`&TRIM=1`); check default
+8. Fix `411_arith_unary` — unary `+` parser fix landed; verify `CoerceNumeric` reaches it
+9. Target ≥ 160p
+
