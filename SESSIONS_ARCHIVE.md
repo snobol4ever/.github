@@ -17822,3 +17822,64 @@ This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecute
 5. Create `one4all/src/driver/jvm/PatternBuilder.java` — walks _PND_t IR → instantiates bb_*.java boxes.
 6. Wire `bb_executor.java` as 5-phase driver. Zero compile+link test loop.
 7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+---
+
+## D-167 handoff — 2026-04-03
+
+### Session type
+**NET INTERP** — SNOBOL4 .NET interpreter (Track B). `scrip-interp.cs` scaffold.
+
+### What was done
+
+**Full M-NET-INTERP-A01 scaffold built and committed.**
+
+Seven new files created under `one4all/src/driver/dotnet/`:
+
+| File | Role |
+|------|------|
+| `scrip-interp.csproj` | Project file; references `bb_boxes` + Pidgin 3.3.0 NuGet |
+| `Ast.cs` | Typed AST: `Stmt`, `Node` hierarchy (SLit, NLit, Var, Cat, Alt, Seq, FncCall, CaptCond, CaptImm, CaptCursor, DeferredPat, IndirectRef, ArrayRef) |
+| `Snobol4Parser.cs` | Logical line splitter, goto extractor, body/subject/pattern/repl splitter, recursive expr parser |
+| `SnobolEnv.cs` | Variable store (`Dictionary<string,SnobolVal>`), user function registry, ~25 builtin dispatch (SIZE, DUPL, SUBSTR, REPLACE, all comparators, CHAR, ORD, etc.) |
+| `PatternBuilder.cs` | Walks `Node` AST → `IByrdBox` graph; re-skin of `ByrdBoxFactory` for Pidgin nodes; all 19 box types wired |
+| `Executor.cs` | 5-phase eval loop (oracle: `scrip-interp.c`); user function calls with save/restore; RETURN/FRETURN/NRETURN via exceptions |
+| `Program.cs` | Entry point — parse file, run, exit 0/1 |
+
+`bb_boxes.csproj` updated: explicit `<Compile Include>` for all 19 box subdirs + `<Compile Remove>` for `bb_factory.cs` (which depends on snobol4dotnet Pattern types not present here).
+
+**Build:** clean, zero errors.
+
+**Smoke tests passing:** `hello`, `empty_string`, `multi` — 3/3 exact match vs `.ref`.
+
+**Known failures in `literals` group (3 diffs):**
+1. Real `1.0` prints as `1` instead of `1.` — `SnobolVal.Of(double)` ToString needs format `"G"` → emit trailing `.` for whole reals
+2. `'' + 1` gives blank instead of `0` — empty string + integer: should coerce to `0`
+3. Arithmetic precedence: `1 + 2 * 3` parses as concat tokens instead of `7` — `ParseConcat`/`ParseAtom` doesn't handle infix `+`/`-`/`*`/`/`/`^`; needs a Pratt or precedence-climbing pass
+
+**Broad corpus run:** not completed (timeout with `dotnet run`; published binary at `/tmp/scrip-interp-bin/` but run was cut short by session end).
+
+### Commits
+- `one4all` `fb074c9` — D-167 scaffold (after rebase onto `c9bab5d`)
+
+### Baseline for D-168
+
+- one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
+- Gate: snobol4_x86 **142/142** ✅ (confirmed this session)
+- scrip-interp: builds clean · hello/empty_string/multi pass
+
+### D-168 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `.NET 8 SDK` is at `/usr/local/dotnet8` — `export PATH=/usr/local/dotnet8:$PATH`. (NOT `/usr/local/dotnet10` — that path does not exist in this environment.)
+3. `dotnet build /home/claude/one4all/src/driver/dotnet/scrip-interp.csproj` → confirm clean.
+4. **Fix arithmetic precedence in `Snobol4Parser.cs`** — `ParseConcat` currently treats `+`/`-`/`*`/`/`/`^` as variable names in a Cat chain. Add a `ParseArith` level between `ParseConcat` and `ParseAtom` that does precedence-climbing: `^` (right, prec 4) > `*`/`/` (left, prec 3) > `+`/`-` (left, prec 2). Emit `FncCall("+", [l, r])` nodes — `Executor.EvalFnc` already handles these correctly.
+5. **Fix real formatting** — in `SnobolVal.ToString()` for `DType.Real`: use `R.ToString("G")` and ensure whole-number reals emit trailing `.` (SNOBOL4 convention: `1.0` → `"1."`).
+6. **Fix empty-string + integer coercion** — in `Executor.Arith`, if either operand is empty string treat as `0`.
+7. Re-run `hello` group → 4/4. Then run full crosscheck corpus.
+8. Target: establish broad baseline number. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key reference
+- `SESSION-snobol4-net.md` §Track B
+- `MILESTONE-NET-INTERP.md` — milestone chain (A01 scaffold ✅ → A02 next after broad baseline)
+- Published binary shortcut: `dotnet publish ... -o /tmp/scrip-interp-bin` then `dotnet /tmp/scrip-interp-bin/scrip-interp.dll <file.sno>`
