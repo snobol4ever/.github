@@ -19550,3 +19550,75 @@ NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — in
 
 ### SPITBOL docs loaded this session
 `spitbol-docs-master.zip` unpacked to `/home/claude/spitbol-docs-master/` — contains `minimal.md`, `M.md` (MINIMAL language spec + OSINT C interface), `green-book.pdf`, `spitbol-manual-v3.7.pdf`. MINIMAL is the portable assembly IR that SPITBOL compiles through; useful as oracle for value representation (SCBLK for strings, ICBLK for integers, RCBLK for reals — tagged blocks). Key insight: SNOBOL4 reals are a distinct type from integers, never implicit — matches our `{_r:1,v:n}` tagged-real design.
+
+---
+
+## D-171 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
+
+### What was done
+
+**Rename (D-171 r1):**
+- All 27 C# Byrd box classes renamed from PascalCase `Bb*` → snake_case `bb_*` (e.g. `BbLit` → `bb_lit`) to mirror C/Java convention. 31 files modified. Build clean, 0 errors.
+
+**Bug fixes (D-171 r2) — 74→81p:**
+
+1. **`ExtractGotos` — combined `:S(X)F(Y)` goto** — bare `F`/`S` after first colon-tagged goto was not recognized. Fixed: right-to-left peeling now accepts bare `S`/`F` when preceding token ends with `)` (i.e. a prior label group was already consumed). Fixes `034_goto_failure`.
+
+2. **`**` exponentiation** — `TopLevelTokens` now emits `**` as a single token; `IsOperatorToken` includes `"**"`; `ParsePower` already matched it. Fixes `027_arith_exponent`.
+
+3. **`&ALPHABET`/`&UCASE`/`&LCASE` keywords** — added to `SnobolEnv` constructor. `&ALPHABET` = 256-char string (ordinals 0–255), `&UCASE` = 26 uppercase letters, `&LCASE` = 26 lowercase letters. Fixes `097`, `006`.
+
+**Bug fixes (D-171 r3) — 81→87p:**
+
+4. **Pattern variables** — `SnobolEnv` gains `_patVars` dict + `SetPattern`/`GetPattern`. Assignment block in `Executor` calls `IsPatternNode(stmt.Replacement)` to detect pattern RHS and stores IR. `PatternBuilder` `getPatternVar` delegate now rebuilds the box graph from stored IR at match time. Fixes `053_pat_alt_commit`.
+
+5. **ARRAY builtin** — `SnobolEnv.ArrayCreate(size)` stores `SnobolVal?[]` in `_arrays` list, returns integer handle. `EvalIdx` routes array reads through `ArrayGet`. Assignment block handles `E_IDX` subject for array element writes (`A<1> = 'first'`). Fixes `091`, `092`.
+
+6. **DATA types** — `SnobolEnv.DataDefine(spec)` registers type+fields. `DataCreate` allocates instance (handle = negative int). `DataGetField`/`DataSetField` by field name. `EvalFnc` routes: (a) field accessor `real(X)` when arg is data obj, (b) constructor `complex(3,-2)` when name matches registered type. Assignment block handles `E_FNC` subject for field setter `x(P) = 99`. Fixes `094`, `095`.
+
+#### Commits
+- `c7d4d5d` → rebased `d20a6d9` — D-171 r1: bb_* rename
+- `e2fcad5` → rebased `df04703` — D-171 r2: goto/exponent/keywords
+- `987d589` — D-171 r3: pattern vars/ARRAY/DATA
+
+### Broad results
+- **Before: 118/178** (full corpus, D-170 baseline)
+- **Subset broad (main dirs): 74→87** (+13 this session)
+
+### Baselines for D-172
+- `one4all`: `987d589`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Subset broad: 87p/6f**
+
+### D-172 first actions
+1. `git pull --rebase` all repos.
+2. `export PATH=/usr/share/dotnet:$PATH && dotnet --version` — confirm dotnet 8.0.
+   Full path: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Debug`
+3. **No gate** (interpreter session, exempt per RULES.md).
+4. Diagnose remaining 6 failures in order:
+
+| Test | Likely root cause |
+|------|------------------|
+| `literals` | String literal edge case — run and diff |
+| `087_define_freturn` | FRETURN from user function — `CallUserFunc` returns `SnobolVal.Fail` path missing |
+| `096_data_datatype_check` | `DATATYPE()` builtin returns wrong string for data objects — returns `"INT"` instead of type name |
+| `081_builtin_datatype` | Same DATATYPE issue |
+| `082_keyword_stcount` | `&STCOUNT` not incremented each statement |
+| `099_lexical_compare` | `LGT`/`LLT`/`LEQ` lexical comparison builtins missing |
+
+5. **`096` quick fix:** `DATATYPE` for data objects must return the type name string, not `"INT"`. In `SnobolEnv.CallBuiltin`: check `IsDataObj(args[0])` → return type name from `_dataObjs` handle.
+6. **`082` quick fix:** increment `&STCOUNT` in `Executor` run loop per statement.
+7. **`099` quick fix:** add `LGT`/`LLT`/`LEQ`/`LGE`/`LLE` to `CallBuiltin` (string comparisons).
+8. Run broad after each cluster, target ≥ 93p subset / 140+/178 full.
+9. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `src/driver/dotnet/Executor.cs` — statement executor + EvalFnc/EvalIdx
+- `src/driver/dotnet/Snobol4Parser.cs` — ExtractGotos, ParsePower, IsOperatorToken
+- `src/driver/dotnet/PatternBuilder.cs` — pattern → bb_* graph
+- `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table, array/data stores
+- `MILESTONE-NET-SNOBOL4.md` — milestone chain (Phase A)
