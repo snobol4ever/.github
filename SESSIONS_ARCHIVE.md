@@ -19472,3 +19472,26 @@ After fix broad should restore to >= 126p/52f. Then continue MONITOR diff.
 4. Rebuild, run broad, confirm >= 126p/52f restored
 5. Commit, then MONITOR diff vs SPITBOL on remaining failures
 >>>>>>> ef3678f (DYN-48 handoff: parse.y M-PARSE-1 in progress, 114p/64f, eq_pos fix documented)
+
+---
+
+## DYN-48 addendum — 2026-04-03 (file renames)
+
+File renames completed this sub-session:
+
+| Original | Current live path |
+|---|---|
+| lex.l | src/frontend/snobol4/snobol4.l |
+| lex.h | src/frontend/snobol4/snobol4.h |
+| lex.yy.c | src/frontend/snobol4/snobol4.lex.c |
+| parse.y | src/frontend/snobol4/snobol4.y |
+| parse.tab.c | src/frontend/snobol4/snobol4.tab.c |
+| parse.tab.h | src/frontend/snobol4/snobol4.tab.h |
+| lex.c (retired) | archive/frontend/lex.c |
+| parse.c (retired) | archive/frontend/parse.c |
+
+Baselines for DYN-49:
+- one4all: `d20a6d9`
+- corpus: `2f2bbe3`
+- Broad: 114p/64f
+- First action: fix eq_pos string-literal skip in snobol4.y parse_program_tokens

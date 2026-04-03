@@ -37,7 +37,7 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-48 | one4all `6f8a4e5` · corpus `2f2bbe3` | **DYN-49**: (1) Fix eq_pos string-literal skip → restore >= 126p/52f. (2) MONITOR diff scrip-interp vs SPITBOL → fix toward 169p/9f. |
+| **DYNAMIC BYRD BOX** | DYN-48 | one4all `d20a6d9` · corpus `2f2bbe3` | **DYN-49**: (1) Fix eq_pos string-literal skip → restore >= 126p/52f. (2) MONITOR diff scrip-interp vs SPITBOL → fix toward 169p/9f. |
 
 **Broad baseline: 114p/64f** — regression from eq_pos bug (see SESSIONS_ARCHIVE DYN-48). Fix is one loop patch in parse_program_tokens. After fix target >= 126p/52f, then 169p/9f.
 
