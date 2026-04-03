@@ -26,10 +26,24 @@
 FRONTEND=snobol4 BACKEND=net TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 ```
 
-Installs: `gcc make mono-complete ilasm`
-.NET 10 SDK at `/usr/local/dotnet10` — always:
+Installs: `gcc make dotnet-sdk-8.0` — **does NOT build scrip-cc or run x86/nasm tools**.
+This is a .NET session. Do not run `run_invariants.sh` or `run_emit_check.sh` (x86 emitter tests).
+
+Build and smoke:
 ```bash
-export PATH=/usr/local/dotnet10:$PATH
+dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni
+dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno
+# → HELLO WORLD
+```
+
+Broad baseline:
+```bash
+cat > /tmp/sni_run.sh << 'RUN'
+#!/bin/bash
+dotnet /tmp/sni/scrip-interp.dll "$1"
+RUN
+chmod +x /tmp/sni_run.sh
+INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh
 ```
 
 ---

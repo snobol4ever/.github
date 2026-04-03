@@ -265,16 +265,21 @@ else
 fi
 
 # ── WHERE — build scrip-cc ────────────────────────────────────────────────────
-step "WHERE — scrip-cc (project compiler)"
-SCRIP_CC=/home/claude/one4all/scrip-cc
-
-if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
-    info "Building scrip-cc from one4all/src/ ..."
-    (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
-        && ok "scrip-cc built" \
-        || fail "scrip-cc — build failed"
+# scrip-cc is the x86/JVM/WASM emit compiler — not used in .NET sessions.
+if need_backend net && ! need_backend all; then
+    step "WHERE — scrip-cc (project compiler)"
+    info "Skipping scrip-cc build (BACKEND=net — .NET sessions use dotnet, not scrip-cc)"
 else
-    ok "scrip-cc (already built)"
+    step "WHERE — scrip-cc (project compiler)"
+    SCRIP_CC=/home/claude/one4all/scrip-cc
+    if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
+        info "Building scrip-cc from one4all/src/ ..."
+        (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
+            && ok "scrip-cc built" \
+            || fail "scrip-cc — build failed"
+    else
+        ok "scrip-cc (already built)"
+    fi
 fi
 
 # jasmin.jar — bundled in repo (JVM backend only)
@@ -299,10 +304,18 @@ info "cat  /home/claude/.github/SETUP-tools.md             # tool matrix (FRONTE
 echo ""
 echo -e "${BOLD}═══════════════════════════════════════════════════════${RESET}"
 if [[ $ERRORS -eq 0 ]]; then
-    echo -e "${GREEN}${BOLD}  SETUP COMPLETE — now run the two test scripts:${RESET}"
-    echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
-    echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_emit_check.sh${RESET}"
-    echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_invariants.sh${RESET}"
+    if need_backend net && ! need_backend all; then
+        echo -e "${GREEN}${BOLD}  SETUP COMPLETE — .NET session, run:${RESET}"
+        echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
+        echo -e "${GREEN}    dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni${RESET}"
+        echo -e "${GREEN}    dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno${RESET}"
+        echo -e "${GREEN}    INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh${RESET}"
+    else
+        echo -e "${GREEN}${BOLD}  SETUP COMPLETE — now run the two test scripts:${RESET}"
+        echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
+        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_emit_check.sh${RESET}"
+        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_invariants.sh${RESET}"
+    fi
 else
     echo -e "${RED}${BOLD}  SETUP COMPLETE — ${ERRORS} problem(s) above — fix before running tests${RESET}"
 fi
