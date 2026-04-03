@@ -20868,3 +20868,82 @@ rule already handles col-1 continuation for depth-0 cases.
 - `src/frontend/snobol4/snobol4.y` — `opt_goto`/`goto_label_expr` rules (~line 65)
 - `src/driver/scrip-interp.c` — `interp_eval_pat()` (~line 990), pattern call site (~line 315)
 - `src/runtime/dyn/stmt_exec.c` — include fix (lines 49, 82)
+
+## DYN-60 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 165p/13f — up from 155p
+
+### What was done (DYN-60)
+
+**Commit `1e4f4a5` on one4all — lexer W/G cleanup:**
+
+**1. Removed all `depth` tracking from snobol4.l**
+`depth` variable was cargo-cult preprocessing — not needed in a BNF-driven YACC lexer.
+`:` cannot appear inside an expression in valid SNOBOL4 (it is the goto delimiter,
+not an operator). Removed: declaration, all `depth=0` assignments, `depth++/--` on
+parens, `if(depth==0)` gates on T_CONCAT and `:` rule.
+
+**2. Comma: `{G}","{G}` per beauty.sno `$','`**
+Was bare `","` — space after comma became stray T_CONCAT, breaking `GT(N, 5)`.
+
+**3. Openers `(` `[` `<`: consume trailing `{G}`**
+Was bare — `f( x)` space after `(` became T_CONCAT before first arg.
+
+**4. Closers `)` `]` `>`: consume leading `{G}`**
+Was bare — space before `)` became T_CONCAT after last arg.
+
+**5. Colon: `{G}":"`  — eats leading whitespace**
+Key insight from user: `:` is the only token with no `{W}` on its left in any
+op rule. Without this fix, bare `{W}` fires T_CONCAT before `:`, breaking all
+gotos. Fix: give `:` a left `{G}` matching beauty.sno `Goto = *Gray ':' *Gray`.
+
+**6. T_CONCAT: remove lookahead, remove dead `{WS}+` rule**
+User insight: lookahead is unnecessary because every special character eats its
+surrounding whitespace. The only whitespace NOT eaten by any op rule is the space
+between two adjacent atom tokens — exactly where T_CONCAT belongs. Lookahead was
+implicit not explicit. Dead `{WS}+` discard rule removed (caused flex warning).
+`{G}":"` fix on colon is what makes bare `{W}` = T_CONCAT safe without lookahead.
+
+**7. T_CONCAT atom-start set**
+Final form: `{W}` bare (no lookahead). Colon eats its own leading G.
+
+### Tests newly passing (DYN-60)
+word3, word4, 056_pat_star_deref, 310_concat_strings, 311_concat_numeric,
+312_concat_null, W04_arbno_*, W07_capt_chain, and ~4 others. 155p→165p.
+
+### Remaining failures (13)
+`063_capture_null_replace` · `expr_eval` · `literals` · `test_case` · `test_math`
+`test_stack` · `test_string` · `1012_func_locals` · `1013_func_nreturn`
+`1015_opsyn` · `1016_eval` · `cross` · `wordcount`
+
+### wordcount status
+Parses now (non-fatal error). `WORD = "'-" NUMERALS &UCASE &LCASE` works.
+`WPAT = BREAK(WORD) SPAN(WORD)` works. Failure is runtime — `LINE ? WPAT =`
+(match-replace with empty replacement) or `&TRIM = 1` keyword not taking effect.
+Investigate runtime path for `?` match-replace statements.
+
+### cross status
+Still failing — likely `&TRIM` or `INPUT` reading issue carried from DYN-59.
+
+### DYN-61 first actions (mandatory order)
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. Rebuild scrip-interp (build command in SESSION-dynamic-byrd-box.md)
+4. Confirm **165p/13f** baseline
+5. Investigate `wordcount` — runtime failure in `?` match-replace or `&TRIM`
+6. Investigate `cross` — likely same `&TRIM`/INPUT issue
+7. Then `1012_func_locals` / `1013_func_nreturn`
+
+### Baselines for DYN-61
+- `one4all`: `1e4f4a5`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 165p/13f**
+
+### Key files
+- `src/frontend/snobol4/snobol4.l` — all lexer changes this session
+- `src/driver/scrip-interp.c` — runtime, `?` match-replace path
+- `src/runtime/dyn/stmt_exec.c` — stmt_exec_dyn five-phase executor
