@@ -18762,3 +18762,112 @@ Created `src/driver/jvm/Parser.java` — full SNOBOL4 recursive-descent parser m
 - `src/backend/emit_jvm.c` — IR instruction kinds + emit patterns
 - `src/driver/dotnet/Executor.cs` — C# parallel implementation (same IR dispatch)
 - `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` — gate criteria
+
+---
+
+## J-222 FINAL HANDOFF — 2026-04-02
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter (Java). Session prefix: J-.
+
+### What was accomplished this session
+
+Two milestones completed in one session:
+
+**M-JVM-INTERP-A01 ✅ — Lexer.java (31/31)**
+**M-JVM-INTERP-A02 ✅ — Parser.java (19/19)**
+
+---
+
+### Files committed
+
+| File | Lines | Description |
+|------|-------|-------------|
+| `src/driver/jvm/Lexer.java` | ~310 | One-pass SNOBOL4 lexer — mirrors `lex.c`/`lex.h` |
+| `src/driver/jvm/TestLexer.java` | ~180 | 31-test gate harness |
+| `src/driver/jvm/Parser.java` | ~490 | Recursive-descent parser — mirrors `parse.c` |
+
+---
+
+### Lexer.java design
+
+- **TokKind enum** — all 37 kinds from `lex.h` (T_IDENT … T_ERR)
+- **Token** class — `kind`, `sval`, `ival`, `dval`, `lineno` (mirrors `Token` struct)
+- **processReader()** — line reader: strips col-1 comments (*/!/#/|/;), joins continuations (+/.), handles `-INCLUDE`
+- **emitLogical()** — emits T_LABEL (col-1 ident), body tokens, T_GOTO, T_STMT_END per logical line
+- **tokeniseBody()** — body tokeniser: strings, numbers, &KEYWORD, idents, **, ops
+- **findGotoColon()** — mirrors C: returns colon pos / -(semi+1) / -1
+- **openFile(path)** — full file mode
+- **openBodyString(src, lineno)** — body-only (no label detection); used by Parser sub-lexers
+- **openString(src)** — full file mode via StringReader (for test .sno strings)
+- **injectToken(t)** — inject pre-built token; used by Parser body re-parser
+
+**Key distinction:** `openString` uses file semantics (col-1 = label). `openBodyString` uses body semantics. Tests for bare body snippets must use `openBodyString`.
+
+---
+
+### Parser.java design
+
+- **EKind enum** — mirrors `IrKind`/`EKind` from `IrNode.cs`/`ir.h` (SNOBOL4 subset)
+- **ExprNode** — `kind`, `sval`, `ival`, `dval`, `children` — mirrors `EXPR_t`
+- **StmtNode** — `label`, `isEnd`, `subject`, `pattern`, `replacement`, `hasEq`, `gotoField`, `lineno`
+- **SnoGoto** — `uncond`, `onsuccess`, `onfailure`
+- **17 expression levels** — parseExpr0–parseExpr17, same WS-gated binary op rule as `parse.c`
+- **parseLbin / parseRbin** — generic left/right-assoc helpers
+- **Buffer-based mark/restore** — `List<Token> buf` + `int pos`; speculative lookahead
+- **parseBodyField()** — injects body tokens into sub-lexer Parser; mirrors `parse_body_field()`
+- **parseGotoField()** — mirrors `parse_goto_field()`: S(label), F(label), unconditional, $COMPUTED
+- **fixupValTree / replIsPatTree** — E_SEQ→E_CAT in value-context trees
+
+---
+
+### Gate results
+
+```
+Lexer:  31/31  (12 unit + 19 file)
+Parser: 19/19  (all corpus gate files produce ≥1 stmt, 0 errors)
+```
+
+Run gates:
+```bash
+cd /home/claude/one4all/src
+javac -d /tmp/jvm_cls driver/jvm/Lexer.java driver/jvm/TestLexer.java driver/jvm/Parser.java
+# Lexer gate:
+java -cp /tmp/jvm_cls driver.jvm.TestLexer /home/claude/corpus /home/claude/one4all/test/frontend 2>/dev/null
+# Parser smoke:
+java -cp /tmp/jvm_cls driver.jvm.Parser /home/claude/corpus/crosscheck/hello/hello.sno 2>/dev/null
+```
+
+---
+
+### Baselines
+- `one4all`: `f361cd4`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: `7a0340e`
+- No gate — interpreter session, exempt per RULES.md
+
+---
+
+### J-223 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. No gate — interpreter session, exempt per RULES.md.
+4. Recompile + confirm both gates green (31/31, 19/19).
+5. Read `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` in full.
+6. Read oracle: `sed -n '407,640p' src/runtime/dyn/stmt_exec.c` — `bb_build()` IR lowering.
+7. Read parallel: `src/driver/dotnet/Executor.cs` — C# IR dispatch.
+8. **M-JVM-INTERP-A03: IrBuilder.java**
+   - Path: `src/driver/jvm/IrBuilder.java`
+   - Input: `StmtNode[]` from Parser
+   - Output: `IrInstr[]` — stack machine instruction list per statement
+   - IR kinds: `PUSH_VAR`, `PUSH_LIT_STR`, `PUSH_LIT_INT`, `PUSH_LIT_REAL`, `PUSH_KEYWORD`, `CALL`, `ASSIGN`, `BRANCH_S`, `BRANCH_F`, `BRANCH_U`, `LABEL`, `HALT`, `PAT_*` (pattern opcodes)
+   - Gate: IR pretty-prints cleanly for all 19 parse gate inputs; each opcode maps to a named `emit_jvm.c` operation
+9. Commit + push one4all. Update SESSIONS_ARCHIVE §NOW + push .github.
+
+### Key references for J-223
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` — gate criteria
+- `src/runtime/dyn/stmt_exec.c` lines 407–640 — `bb_build()` — IR lowering oracle
+- `src/backend/emit_jvm.c` — IR instruction kinds + JVM emit patterns
+- `src/driver/dotnet/Executor.cs` — C# parallel (same IR, different runtime)
+- `src/driver/dotnet/IrNode.cs` — IrKind enum (reference for opcode names)
