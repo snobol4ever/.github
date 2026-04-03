@@ -19995,3 +19995,11 @@ This aligns the interpreter's value type name with the C runtime convention (`DE
 - `src/runtime/js/sno-interp.js` — lexer + parser + executor + builtins
 - `src/runtime/js/sno_engine.js` — pattern match engine (PAT_pred added)
 - `src/runtime/js/sno_runtime.js` — value types, `_FAIL`, `_is_fail`
+
+### DYN-50 addendum — BODY_START fix + 0 conflicts achieved
+
+**BODY_START state**: Leading whitespace after label/col-1 now enters BODY_START, not BODY. BODY_START silently discards whitespace then yyless(0) to BODY. T_CONCAT only fires mid-body. Eliminates spurious T_CONCAT at statement start.
+
+**expr4 $2→$3 fix**: TK_CONCAT is $2; expr5 child is $3.
+
+**Grammar: 0 shift/reduce conflicts ✅**  one4all: `3a4a41c`
