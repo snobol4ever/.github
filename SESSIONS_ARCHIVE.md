@@ -18911,3 +18911,34 @@ diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 - `src/runtime/js/sno_runtime.js` — `_vars`, `_str`, `_num`, builtins, arithmetic
 - `src/runtime/js/sno_engine.js` — pattern match engine, PAT_* constructors
 - `MILESTONE-JS-SNOBOL4.md` — milestone ladder
+
+---
+
+## J-221 handoff — 2026-04-02 (session 2)
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**M-JVM-INTERP-A01** ✅ confirmed (Lexer.java 31/31 gate at session start)
+
+**M-JVM-INTERP-A02** ✅ complete — `TestParser.java` written and passing.
+- 32p/0f: 13 unit tests (E_ADD, E_ALT, E_INDIRECT, E_KEYWORD, E_FNC, E_POW, concat, label, goto, END, assignment) + 19 file gate
+- Commit: `a3897dd` one4all
+
+**M-JVM-INTERP-A03** ✅ complete — `Interpreter.java` written and passing.
+- 19/19 corpus gate (output diff against .ref): all hello/assign/arith_new pass
+- Implements: SnoVal (VType SNUL/STR/INT/REAL/FAIL), NV store, label table, eval (all non-pattern EKind), Phase 1+5 statement executor, goto dispatch, OUTPUT association, builtins (SIZE/TRIM/DUPL/SUBSTR/REPLACE/REVERSE/LPAD/RPAD/INTEGER/REAL/STRING/IDENT/DIFFER/EQ/NE/LT/LE/GT/GE/ABS/EXP/LOG/SQRT/SIN/COS/ATAN/SUCCEED/FAIL/FENCE/ABORT)
+- Fix: SNOBOL4 integer division truncates (10/4=2, not 2.5)
+- Commit: `f3049fe` one4all
+
+### Known stub / next milestone
+- Pattern matching (Phase 2-4) stubbed — always FAIL in Interpreter.java
+- **M-JVM-INTERP-A04**: wire pattern matching via Byrd box executor (bb_*.java oracle + Jasmin boxes.jar)
+
+### Baselines
+- one4all: `f3049fe`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- Interpreter gate: **19/19 PASS** (no-pattern corpus)

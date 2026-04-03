@@ -73,7 +73,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-8 | one4all `e9c1126` | **SJ-9**: Fix 410 regression (5+''→"5.0" — unary E_PLS on '' real-tags), fix literals/412/OPSYN/NRETURN. Broad: 151→160+/178. |
-| **⭐ TINY JVM** | J-221 | one4all `981527b` | **M-JVM-INTERP-A01**: `Lexer.java` — tokenize SNOBOL4 source · oracle: `lex.c` · gate: 19/19 NET-INTERP inputs tokenize clean |
+| **⭐ TINY JVM** | J-221 | one4all `f3049fe` | **M-JVM-INTERP-A04**: pattern match Phase 2-4 via Byrd boxes · oracle: bb_*.java + Jasmin boxes.jar |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
 | **⭐ one4all-SNOBOL4-NET** | D-169 | one4all `a7a2daa` | **M-NET-INTERP-A01b complete**: IrNode/IrStmt migration done, infix arith + goto fix + float fmt — 93/167 broad. **Next**: fix pattern primitives (039–055), captures (058–063), retest literals/ucase/lcase/integer. See SESSION-snobol4-net.md + MILESTONE-NET-SNOBOL4.md. |
