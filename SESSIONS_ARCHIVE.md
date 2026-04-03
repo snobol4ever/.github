@@ -20407,3 +20407,53 @@ INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_int
 - `src/runtime/dyn/stmt_exec.c` — `CommitCaptures()` call site; check when it fires relative to ARB backtrack
 - `src/runtime/boxes/bb_box.h` — Jasmin file (do NOT use for C compile; use `shared/bb_box.h`)
 
+## SJ-17 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 164p/14f (baseline was 160p/18f, +4)
+
+### What was done (SJ-17)
+
+**Commit `ec6c0b3` on one4all:**
+
+1. **`PAT_KINDS` Set** — all pattern-only E_* kinds declared before Parser class. Replaces ad-hoc `.includes()` list in `_expr_is_pat`.
+
+2. **`PAT_FNC_NAMES` Set** — E_FNC names that always yield a pattern: `LEN`, `POS`, `TAB`, `RPOS`, `RTAB`, `ANY`, `NOTANY`, `SPAN`, `BREAK`, `BREAKX`, `ARB`, `ARBNO`, `REM`, `FAIL`, `SUCCEED`, `FENCE`, `ABORT`, `BAL`.
+
+3. **`_expr_is_pat` expanded** — now checks `PAT_KINDS.has(e.kind)` and `E_FNC && PAT_FNC_NAMES`. Correctly classifies `POS(0) LEN(4) . WHEN TAB(6) ARB . WHO` as pattern, routing to `_build_pat` instead of string concat.
+
+4. **Parser `_is_pat` expanded** — added `E_FNC && PAT_FNC_NAMES` check. Needed so S=PR guard can structurally detect pure-pattern RHS at parse time.
+
+5. **S=PR guard `!this._is_pat(rhs)`** — restored with the now-correct `_is_pat`. Prevents `PAT = POS(0) LEN(4) . WHEN ...` from being mis-split into pattern-match statement.
+
+6. **Continuation fold WS fix** — the `+` continuation handler consumed all whitespace after the marker, leaving no WS between end-of-line and start-of-continuation. `_e4` juxtaposition requires T_WS between items, so continuation items (TAB, ARB, REM) were silently dropped. Fix: back up one char after consuming continuation spaces so T_WS is emitted, reconnecting the logical line.
+
+**Fixes: word2, word3, word4, wordcount (+4)**
+
+### Remaining failures for SJ-18
+
+| Test | Root cause |
+|------|-----------|
+| `cross` | Logic bug in cross.sno handling — different issue |
+| `1015_opsyn` | OPSYN not implemented |
+| `expr_eval` | Line-continuation in expr_eval.sno |
+| `W07_capt_cur` | Cursor capture edge case |
+| `094_data_define_access`, `1011_func_redefine`, `1114_item` | DATA/function issues |
+| `test_case`, `test_math`, `test_stack`, `test_string` | Various |
+| `fileinfo`, `triplet`, `212_indirect_array` | Various |
+
+### SJ-18 first actions
+1. `git pull --rebase` all repos
+2. `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh` → confirm **164p/14f**
+3. Fix `cross` — compare output: produces `SNOBOL / BSNOBOL / JBSNOBOL / EJBSNOBOL` vs ref `SNOBOL / B / J / E` — accumulation bug, not capture
+4. Fix `expr_eval` — line-continuation in expression evaluation
+5. Fix `1015_opsyn` — OPSYN builtin
+6. Target ≥ 170p → M-SJ-INTERP
+
+### Baselines for SJ-18
+- `one4all`: `ec6c0b3` · `corpus`: `2f2bbe3` · `.github`: this commit
+- **Broad: 164p/14f**
+- Run: `node src/runtime/js/sno-interp.js <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
