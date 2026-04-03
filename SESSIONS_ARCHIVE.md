@@ -19645,3 +19645,40 @@ chmod +x /tmp/run_crosscheck.sh
 - `src/runtime/boxes/*/bb_*.java` — package bb; + public added
 - `src/driver/jvm/Interpreter.java` — import bb.*; → explicit; bb.bb_*.InnerClass refs
 - `src/driver/jvm/PatternBuilder.java` — same import fixes
+
+---
+
+## DYN-51 handoff — 2026-04-03 (partial: T_* milestone)
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp). Session prefix: DYN-
+
+### What was done (DYN-51 r1, commit `bd56224` on one4all)
+
+**T_* / TK_* unification — token naming cleanup milestone:**
+
+1. `snobol4.y`: renamed all `%token TK_*` → `%token T_*`; regenerated `snobol4.tab.h` so bison's canonical names are now `T_IDENT=258` etc. matching the lexer's own vocabulary
+2. `snobol4.y`: `snobol4_lex()` collapsed from 40-line translation switch → `return t.kind;`
+3. `snobol4.l`: returns `T_*` values directly (258+); includes `snobol4.tab.h`; `#define T_EOF SNOBOL4_EOF`; `mktok(int k,...)` — no `TokKind` cast
+4. `lex.h`: removed duplicate `TokKind` enum entirely; `Token.kind` is plain `int`
+5. `snobol4.h`: collapsed to redirect `#include "lex.h"` (was stale duplicate with same include guard)
+6. Fixed duplicate `T_CONCAT` / `T_AT_BIN` in both `lex.h` and `snobol4.h` (original DYN-50 fix was incomplete)
+7. Fixed `%code requires` includes to be on separate lines (preprocessor choked on same-line `#include`)
+8. Installed `flex` and `bison`; regenerated `snobol4.lex.c` and `snobol4.tab.c/.h`
+
+**Baseline unchanged: 115p/17f**
+
+### Baselines for DYN-52
+- `one4all`: `bd56224`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 115p/17f**
+
+### DYN-52 first actions
+1. `git pull --rebase` all repos
+2. Rebuild scrip-interp (flex/bison now installed; use session doc build command)
+3. Confirm 115p/17f baseline
+4. Fix `word1`–`word4`/`cross`: `LINE = INPUT` reads empty — check `INPUT_fn` in `snobol4.c` and `&TRIM` wiring in `scrip-interp.c`
+5. Fix `expr_eval`: line-continuation `+` prefix in INITIAL lexer state
+6. Fix `1012_func_locals`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`
+7. Target: ≥125p
