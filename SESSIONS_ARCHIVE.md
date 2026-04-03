@@ -17705,3 +17705,56 @@ This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecute
 - `MILESTONE-NET-INTERP.md` — full spec, file list, IR design
 - Oracle: `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase C reference
 - C# boxes already at: `one4all/src/runtime/boxes/*/bb_*.cs`
+
+---
+
+## J-218 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — M-JVM-INTERP-A01: IR bridge (scrip-cc → Java) + PatternBuilder.java using canonical PATND_t.
+
+### What was done
+
+**No code written.** Session was spent on session start protocol, context orientation, and HQ doc fixes.
+
+**Errors caught and corrected:**
+- Claude initially read SESSION-snobol4-jvm.md §NOW (stale — still said M-JVM-A02 / emitter) instead of trusting PLAN.md §NOW (M-JVM-INTERP-A01 / interpreter). Proceeded down emitter path (reading emit_jvm.c, running snobol4_jvm baseline) before being corrected.
+- First fix attempt invented a "two-track" framing in RULES.md and SESSION-snobol4-jvm.md — incorrect, there is ONE sequential J- ladder.
+- Second fix corrected both: §NOW in SESSION-snobol4-jvm.md updated to M-JVM-INTERP-A01; RULES.md routing table updated to name the specific mistake ("reading §NOW as if M-JVM-A02 is active") and explicitly states "do NOT invent two parallel tracks."
+
+**Root cause:** SESSION-snobol4-jvm.md §NOW had not been updated when PLAN.md was changed to M-JVM-INTERP-A01. PLAN.md §NOW is always authoritative.
+
+**HQ commits:**
+- `f098cdb` — first fix (partial, introduced two-track framing error)
+- `00feb31` — corrected fix: single sequential ladder, §NOW updated, routing rule tightened
+
+**Oracle read (preparatory, no code):**
+- `stmt_exec.c bb_build()` lines 407–640 — full _XKIND_t switch, all box instantiations
+- `_PND_t` layout (lines 91–120) — kind/STRVAL_fn/num/left/right/var/args/nargs
+- `bb_box.java` — BbBox base class, Spec, MatchState confirmed present
+- `bb_lit.java` confirmed present in `src/runtime/boxes/lit/`
+
+### Baseline for J-219
+
+- `.github`: `00feb31`
+- `one4all`: `09ac2cb` (unchanged — no code written)
+- `corpus`: `2f2bbe3` (unchanged)
+- **No gate run** — interpreter session, exempt per RULES.md
+
+### J-219 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate, no baseline** — M-JVM-INTERP-A01 is interpreter work, exempt per RULES.md.
+4. Re-read oracle: `sed -n '407,640p' one4all/src/runtime/dyn/stmt_exec.c` (bb_build switch) and `cat one4all/src/runtime/boxes/shared/bb_box.java`.
+5. Create `one4all/src/driver/jvm/PatternBuilder.java` — walks `_PND_t`-equivalent IR from scrip-cc serialization → instantiates `bb_*.java` boxes. Start with the JNI/serialization bridge design decision (JSON vs binary vs JNI direct).
+6. Wire `bb_executor.java` as the 5-phase driver.
+7. Zero compile+link test loop: run one corpus `.sno` file end-to-end through Java interpreter.
+8. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-219
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP` — full spec, IR bridge options
+- `one4all/src/runtime/dyn/stmt_exec.c` — bb_build() oracle (lines 407–640)
+- `one4all/src/runtime/boxes/shared/bb_box.java` — BbBox base + MatchState
+- `one4all/src/runtime/boxes/lit/bb_lit.java` — first box to wire up
+- `one4all/src/runtime/boxes/shared/bb_executor.java` — 5-phase driver already exists
