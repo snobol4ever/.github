@@ -34,11 +34,11 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 ---
 
-## §NOW — J-218
+## §NOW — J-220
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-218 | one4all `09ac2cb` | **M-JVM-INTERP-A01**: IR bridge (scrip-cc → Java) + PatternBuilder using canonical PATND_t → zero compile+link test loop |
+| **TINY JVM** | J-220 | one4all `09ac2cb` | **M-JVM-INTERP-A01**: Lexer.java — tokenize SNOBOL4 source |
 
 **J-217 landed:**
 - `src/runtime/boxes/bb_*.java` — 29 Java files: all 25 Byrd boxes + `bb_box.java` + `bb_executor.java`
@@ -46,46 +46,32 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 - `bb_bal.java` is first real BAL (C original is a stub)
 - Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
 
-**Milestone ladder is sequential (single track):** M-JVM-INTERP-A01 → A02 → A03 → M-JVM-A02 → ... See MILESTONE-JVM-SNOBOL4.md §Sprint Sequence.
-**This session (J-218) = M-JVM-INTERP-A01.** No gate, no baselines, no emit_jvm.c. Work file: PatternBuilder.java. Oracle: stmt_exec.c bb_build().
+**J-218 and J-219: no code written** — both sessions burned on routing errors. See SESSIONS_ARCHIVE.
 
-**J-218 first actions (mandatory order):**
+**Milestone ladder is sequential (single track):** M-JVM-INTERP-A01 (Lexer) → A02 (Parser) → A03 (IR) → A04 (Interpreter) → A05 (Baseline) → M-JVM-A02 → ... See MILESTONE-JVM-SNOBOL4.md §Sprint Sequence.
+**This session (J-220) = M-JVM-INTERP-A01.** No gate, no baselines, no emit_jvm.c. Work file: `Lexer.java`. Oracle: `src/frontend/snobol4/lex.c`.
+
+**J-220 first actions (mandatory order):**
 
 ```bash
 cd /home/claude/one4all && git pull --rebase
-git log --oneline -3   # confirm a74ccd8 or later
+git log --oneline -3
 
-# 1. Baseline
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_jvm 2>&1 | tail -3
-# Expect: 94p/32f
+# No gate — interpreter session, exempt per RULES.md
 
-# 2. Read structural oracle for 2D subscript BEFORE touching code
-grep -n "E_ARY\|nchildren\|children\[1\]\|children\[2\]\|2D\|row.*col" \
-    src/backend/emit_byrd_asm.c | head -10
-sed -n '3530,3570p' src/backend/emit_byrd_asm.c   # x86 2D key emission
-sed -n '2658,2700p' src/backend/emit_jvm.c         # JVM write path — bug is here
+# 1. Read lexer oracle
+cat src/frontend/snobol4/lex.c
 
-# 3. Fix E_IDX write path: build "row,col" for nchildren>=3
-# Mirror exactly what emit_byrd_asm.c does for the 2D case
+# 2. Create src/driver/jvm/Lexer.java
+# Token types mirror lex.c token enum
+# Gate: all 19 NET-INTERP parse test inputs tokenize without error
 
-# 4. Global driver
-INC=demo/inc
-./scrip-cc -jvm -I$INC -I./src/frontend/snobol4 test/beauty/global/driver.sno -o /tmp/drv_global.j
-mkdir -p /tmp/cls_global
-java -jar src/backend/jvm/jasmin.jar -d /tmp/cls_global /tmp/drv_global.j
-timeout 30 java -cp /tmp/cls_global Driver > /tmp/jvm_global_out.txt 2>/dev/null
-diff test/beauty/global/driver.ref /tmp/jvm_global_out.txt
-
-# 5. Invariants
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_jvm 2>&1 | tail -3
-# Target: ≥100p
-
-# 6. Commit
-git add src/backend/emit_jvm.c
-git commit -m "J-217: M-JVM-A02 — 2D subscript fix; pivot to compiled-Byrd-box oracle model"
+# 3. Commit + push one4all
+git add src/driver/jvm/Lexer.java
+git commit -m "J-220: M-JVM-INTERP-A01 — Lexer.java"
 git push
 
-# 7. Update SESSIONS_ARCHIVE + push .github
+# 4. Update SESSIONS_ARCHIVE + push .github
 ```
 
 ---

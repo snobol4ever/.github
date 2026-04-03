@@ -17883,3 +17883,43 @@ Seven new files created under `one4all/src/driver/dotnet/`:
 - `SESSION-snobol4-net.md` §Track B
 - `MILESTONE-NET-INTERP.md` — milestone chain (A01 scaffold ✅ → A02 next after broad baseline)
 - Published binary shortcut: `dotnet publish ... -o /tmp/scrip-interp-bin` then `dotnet /tmp/scrip-interp-bin/scrip-interp.dll <file.sno>`
+
+## J-220 handoff — 2026-04-02
+
+### Session type
+**TINY JVM** — M-JVM-INTERP-A01: Lexer.java (corrected milestone).
+
+### What was done
+
+**No code written.** Session was milestone audit + HQ fix.
+
+**Errors caught and corrected:**
+- MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section described wrong architecture: JNI bridge from scrip-cc → Java, skipping lexer/parser entirely. This is not how an interpreter works.
+- Sprint Sequence table had stale session numbers (J-218/219/220 for A01/A02/A03) — J-218 and J-219 wrote no code, so J-220 is still on A01.
+- Correct sequence: A01=Lexer → A02=Parser → A03=IR tree → A04=Interpreter → A05=Baseline.
+- SESSION-snobol4-jvm.md §NOW updated to J-220 / M-JVM-INTERP-A01 (Lexer).
+- PLAN.md §NOW TINY JVM row updated to J-220.
+
+**HQ commits:** see below.
+
+### Baseline for J-221
+
+- `.github`: see commit below
+- `one4all`: `09ac2cb` (unchanged — no code written)
+- `corpus`: `2f2bbe3` (unchanged)
+- **No gate** — interpreter session, exempt per RULES.md
+
+### J-221 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. Read oracle: `cat one4all/src/frontend/snobol4/lex.c`
+5. Create `one4all/src/driver/jvm/Lexer.java` — tokenize SNOBOL4 source, token types mirror lex.c enum.
+6. Gate: all 19 NET-INTERP parse test inputs tokenize without error.
+7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-221
+- `one4all/src/frontend/snobol4/lex.c` — lexer oracle
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A01` — gate criteria
+- `MILESTONE-NET-INTERP.md` — parallel C# interpreter for structural reference

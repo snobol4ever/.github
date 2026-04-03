@@ -82,39 +82,65 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 
 ## M-JVM-INTERP — Dynamic JVM Byrd Box Interpreter (Phase 0)
 
-**Rationale:** Build a JVM equivalent of the x86 dynamic path (`scrip-interp.c` + `stmt_exec.c`) using **canonical IR structures**. Use `src/runtime/boxes/bb_*.java` directly at runtime instead of emitting Jasmin bytecode. Eliminates compile+link cycle from test loop.
+**Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) + `scrip-interp.cs` (NET INTERP session) in Java. Use `src/runtime/boxes/bb_*.java` directly at runtime instead of emitting Jasmin bytecode. Eliminates compile+link cycle from test loop.
 
-**CRITICAL REQUIREMENT:** Must use the same IR structures (`PATND_t`, `AST_t`, `STMT_t`) as `scrip-cc` and `scrip-interp.c` to ensure emitter portability and semantic consistency.
-
-**Architecture:** Two-phase approach with IR compatibility:
-
+**Pipeline:**
 ```
-Phase A: IR Compatibility Foundation  
-SNOBOL4 source  →  C frontend (scrip-cc)  →  PATND_t/AST_t IR  →  Java interpreter
-
-Phase B: Native Java Frontend (future)
-SNOBOL4 source  →  Java frontend port     →  same IR objects  →  Java interpreter
+.sno file
+  → Java Lexer      → token stream
+  → Java Parser     → StmtNode[] (typed Java AST)
+  → Java IR builder → PATND_t / AST_t / STMT_t equivalent IR nodes
+  → Java eval loop
+      Phase 1: resolve subject → string
+      Phase 2: PatternBuilder.java → bb_*.java graph
+      Phase 3: BbExecutor.java scan loop
+      Phase 4: evaluate replacement expression
+      Phase 5: splice, commit captures, :S/:F branch
+  → output
 ```
+
+**No scrip-cc. No JNI. No Jasmin.** Java frontend produces IR directly.
+
+**Oracles:**
+- `src/frontend/snobol4/lex.c` + `parse.c` — lexer/parser structure oracle
+- `scrip-interp.c` + `stmt_exec.c` — eval loop + bb_build() oracle
+- `MILESTONE-NET-INTERP.md` — parallel C# interpreter (Pidgin + bb_*.cs); same structure
+- `MILESTONE-DYN-INTERP.md` — C reference interpreter milestone chain
 
 **Current milestone count:** 8 total (M-JVM-INTERP + 7 existing milestones A01-PARITY)
 
 **M-JVM-INTERP breakdown:**
 
-### M-JVM-INTERP-A01: IR Bridge + Java Executor
-- JNI wrapper: `scrip-cc` frontend → serialize `PATND_t`/`AST_t` → Java
-- `PatternBuilder.java` walks canonical IR (same structures as `bb_build()` in `stmt_exec.c`)  
-- `BbExecutor.java` integration (5-phase executor already exists ✅)
-- **Oracle:** `one4all/src/runtime/dyn/stmt_exec.c bb_build()` function
+### M-JVM-INTERP-A01: Lexer
+- `src/driver/jvm/Lexer.java` — tokenize SNOBOL4 source
+- Token types mirror `src/frontend/snobol4/lex.c` token enum
+- **Oracle:** `src/frontend/snobol4/lex.c`
+- **Gate:** All 19 NET-INTERP parse test inputs tokenize without error
 
-### M-JVM-INTERP-A02: Test Harness Integration
-- Corpus runner interface matching `snobol4_jvm` target
-- Same IR → same semantics → zero compile+link test iteration  
-- **Gate:** Runs subset of corpus with same results as `scrip-interp.c`
+### M-JVM-INTERP-A02: Parser
+- `src/driver/jvm/Parser.java` — recursive descent, produces `StmtNode[]`
+- Typed Java AST nodes: `StmtNode`, `ExprNode`, `PatNode` (mirror C AST structs)
+- **Oracle:** `src/frontend/snobol4/parse.c` + `MILESTONE-NET-INTERP.md §Pidgin parser`
+- **Gate:** 19/19 parse test cases produce correct AST (pretty-print matches reference)
 
-### M-JVM-INTERP-A03: Baseline Verification
-- Target: match `scrip-interp.c` behavior exactly (same IR → same results)
+### M-JVM-INTERP-A03: IR Tree
+- `src/driver/jvm/IrBuilder.java` — lowers typed AST → canonical IR nodes
+- IR node classes mirror `PATND_t` / `AST_t` / `STMT_t` from `scrip-cc`
+- `PatternBuilder.java` walks IR PatNode → instantiates `bb_*.java` Byrd box graph
+- **Oracle:** `src/runtime/dyn/stmt_exec.c bb_build()` (lines 407–640)
+- **Gate:** IR round-trips cleanly for all 19 parse test inputs
+
+### M-JVM-INTERP-A04: Interpreter + Test Harness
+- `src/driver/jvm/Interpreter.java` — 5-phase eval loop driving `BbExecutor.java`
+- `SnobolEnv.java` — variable store (`Map<String, SnobolValue>`)
+- Corpus runner: `test/run_interp_jvm.sh` — diff vs SPITBOL oracle
+- **Oracle:** `stmt_exec.c` 5-phase loop + `MILESTONE-DYN-INTERP.md`
+- **Gate:** ≥ 20 corpus smoke tests pass (rung1); ready for M-JVM-INTERP-A05
+
+### M-JVM-INTERP-A05: Baseline Verification
+- Target: match `scrip-interp.c` behavior across full corpus
 - Establish interpreter as rapid testbed for M-JVM-A02+ compiled path
-- **Gate:** Ready to proceed to M-JVM-A02 2D subscript fix
+- **Gate:** ≥ 94p broad corpus (matches DYN- baseline); ready to proceed to M-JVM-A02
 
 ---
 
@@ -273,16 +299,18 @@ On JVM: re-enter `scrip-cc -jvm`, emit `.j` snippet, assemble via `jasmin.jar`
 
 | Sprint | Milestone | Key work |
 |--------|-----------|----------|
-| J-218 | M-JVM-INTERP-A01 | IR bridge: scrip-cc → Java serialization · PatternBuilder.java |
-| J-219 | M-JVM-INTERP-A02 | Test harness integration · corpus runner interface |
-| J-220 | M-JVM-INTERP-A03 | Baseline verification vs scrip-interp.c · zero compile+link testbed |
-| J-221 | M-JVM-A02 | 2D subscript fix · rung8 strings · global driver clean |
-| J-222 | M-JVM-A03 part 1 | DATA constructor/field/DATATYPE · rung11 |
-| J-223 | M-JVM-A03 part 2 | DEFINE/functions/RETURN/FRETURN/NRETURN · rung10 |
-| J-224 | M-JVM-B01 | SPAN/BREAK/LEN/POS/TAB/REM/BAL/FENCE/FAIL/REF |
-| J-225 | M-JVM-B02 | β backtrack for SPAN/BREAK/BREAKX/ARBNO |
-| J-226 | M-JVM-C01 | EVAL()/CODE() re-entrant pipeline |
-| J-227 | M-JVM-PARITY | Full corpus sweep + xfail audit |
+| J-220 | M-JVM-INTERP-A01 | Lexer.java — tokenize SNOBOL4 source · oracle: lex.c |
+| J-221 | M-JVM-INTERP-A02 | Parser.java — recursive descent → StmtNode[] · oracle: parse.c |
+| J-222 | M-JVM-INTERP-A03 | IrBuilder.java — AST → IR nodes · PatternBuilder.java → bb_*.java |
+| J-223 | M-JVM-INTERP-A04 | Interpreter.java 5-phase loop · SnobolEnv · corpus runner |
+| J-224 | M-JVM-INTERP-A05 | Baseline verification vs scrip-interp.c · ≥94p broad |
+| J-225 | M-JVM-A02 | 2D subscript fix · rung8 strings · global driver clean |
+| J-226 | M-JVM-A03 part 1 | DATA constructor/field/DATATYPE · rung11 |
+| J-227 | M-JVM-A03 part 2 | DEFINE/functions/RETURN/FRETURN/NRETURN · rung10 |
+| J-228 | M-JVM-B01 | SPAN/BREAK/LEN/POS/TAB/REM/BAL/FENCE/FAIL/REF |
+| J-229 | M-JVM-B02 | β backtrack for SPAN/BREAK/BREAKX/ARBNO |
+| J-230 | M-JVM-C01 | EVAL()/CODE() re-entrant pipeline |
+| J-231 | M-JVM-PARITY | Full corpus sweep + xfail audit |
 
 ---
 
