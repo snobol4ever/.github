@@ -18238,3 +18238,54 @@ SNOBOL4 source  →  C frontend (scrip-cc)  →  PATND_t/AST_t IR  →  Java int
 
 1. Implement M-JVM-INTERP-A01: JNI bridge + PatternBuilder using canonical IR
 2. Maintain perfect structural compatibility with x86 dynamic path
+
+---
+
+## J-218 final handoff — 2026-04-02
+
+### What was accomplished — Complete JVM Dynamic Interpreter Design
+
+**Full milestone planning completed** for JVM SNOBOL4 interpreter path. **11 total milestones** designed in single unified chain: 3 interpreter + 8 compiled.
+
+**Key design decisions locked:**
+1. **IR Compatibility:** Must use canonical `PATND_t`/`AST_t` structures (same as scrip-cc/scrip-interp.c)
+2. **JNI Bridge:** Reuse proven C frontend via scrip-cc → serialize to Java  
+3. **Complete test coverage:** Interpreter runs entire corpus (all rungs, crosscheck, beauty)
+4. **Single milestone chain:** Interpreter phase → compiled phase (unified development path)
+
+**Architecture finalized:**
+```
+SNOBOL4 source  →  scrip-cc C frontend  →  PATND_t/AST_t IR  →  Java interpreter
+                   (proven, 142/142)     (canonical IR)     (bb_*.java + BbExecutor ✅)
+```
+
+**Sprint sequence planned:**
+- **J-218→220:** M-JVM-INTERP (rapid testbed with zero compile+link)
+- **J-221→227:** M-JVM-A02→PARITY (compiled Jasmin production path)
+
+**Components status:**
+- `bb_*.java` files ✅ (29 boxes, complete)
+- `BbExecutor.java` ✅ (5-phase executor, complete)  
+- `PatternBuilder.java` ⚠️ (to implement: walks PATND_t → BbBox objects)
+- JNI IR bridge ⚠️ (to implement: scrip-cc → Java serialization)
+
+**Oracle relationships established:**
+- **Structural oracle:** `stmt_exec.c bb_build()` function  
+- **Semantic oracle:** `snobol4jvm` proven behavior (1,896 tests)
+- **IR oracle:** `scrip-cc` + `scrip-interp.c` canonical structures
+
+#### Baseline
+
+- one4all: `46c6267` (SJ-5 box reorganization)
+- snobol4jvm: `f06baeb` (README updates)
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit (`b22d6ff`)
+- invariants: snobol4_x86 **142/142** ✅ · snobol4_jvm **94p/32f**
+
+### J-219 receives
+
+**Clear implementation path:** M-JVM-INTERP-A01 specification with JNI bridge design, PatternBuilder requirements, and structural oracle (`bb_build()` in `stmt_exec.c`). 
+
+**Goal:** Zero compile+link test cycle for rapid pattern box development using canonical IR and existing Java runtime components.
+
+**Ready for implementation handoff.**
