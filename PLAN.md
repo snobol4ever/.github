@@ -13,7 +13,11 @@ FRONTEND=x BACKEND=y TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 ```
 See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 
-**Step 2 — Gate (snobol4_x86 runtime only — emit-diff retired):**
+**Step 2 — Gate (emit sessions ONLY — interpreter sessions skip this step entirely):**
+
+⛔ **DYN- and NET INTERP sessions: SKIP Step 2. Do NOT run run_invariants.sh or run_emit_check.sh. Go straight to Step 3.**
+
+Emit sessions only:
 ```bash
 cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
