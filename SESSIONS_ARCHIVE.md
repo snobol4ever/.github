@@ -19622,3 +19622,86 @@ NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — in
 - `src/driver/dotnet/PatternBuilder.cs` — pattern → bb_* graph
 - `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table, array/data stores
 - `MILESTONE-NET-SNOBOL4.md` — milestone chain (Phase A)
+
+---
+
+## SJ-12 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript interpreter** — one4all `src/runtime/js/`. Session prefix: SJ-.
+
+### Broad result
+**158p / 20f** (178 total) — +1 from SJ-11 baseline (157p/21f). 053_pat_alt_commit now passes. 1113_table now passes.
+
+### What was done (SJ-12 r1, commit `59e4f25`)
+
+#### Fix 1: `T_STAR` in `_is_cat_start` false list
+`_is_cat_start()` was missing `T_STAR`, so `n * fact(n-1)` parsed as `E_CAT(n, E_DEFER(fact(n-1)))` (string concat) instead of `E_MUL`. Added `case T_STAR:` to the false-return list in `_e4()`.
+
+#### Fix 2: `E_ALT` in value context (`interp_eval`)
+Added `case E_ALT: return _build_pat(e);` before `default:` in `interp_eval`. Fixes `053_pat_alt_commit` and is prerequisite for word* tests (which use pattern variables).
+
+#### Fix 3: `OPSYN` 2-arg alias
+Replaced no-op `case 'OPSYN': return null` with real implementation: copies `func_table[src]` entry to `func_table[dest]`, returns dest name string. Also added `fname` field to `func_table` entries in `define_fn` (stores original definition name). Fixed `_call_user` to use `fd.fname` (definition name) as the return-value variable, supporting aliases where call-site name ≠ definition name.
+
+#### Fix 4: `CONVERT` TABLE↔ARRAY
+Implemented `CONVERT(tbl,'ARRAY')` → 2-column `__sno_array` with `"i,j"` string keys, prototype `"N,2"`. Implemented `CONVERT(arr,'TABLE')` → Map with string-normalized keys from column 1→2 pairs. Fixes `1113_table`.
+
+#### Fix 5: `S = P R` parse split
+In `parse_stmt` `has_eq=true` branch, after `_expr()` returns the RHS, if result is `E_SEQ/E_CAT` with ≥2 children AND first child is `E_FNC`, split: `s.pattern = first N-1 children`, `s.replacement = last child`. This handles `fact = eq(n,1) 1 :s(return)` correctly parsing `eq(n,1)` as pattern and `1` as replacement.
+
+#### Fix 6: `PAT_pred` — predicate pattern type
+Added `PAT_pred(fn)` to `sno_engine.js`: `{__pat:1, t:'PRED', fn}`. Added `case 'PRED/proceed':` in engine: calls `ζ[4].fn()`, if result has `._sno_fail` → concede, else → succeed (zero-width). In `_build_pat` E_FNC default case, replaced eager eval `PAT_lit(_str(_call(...)))` with lazy `PAT_pred(() => _call(sval, ch))`. This makes `eq/ne/gt/lt` in pattern position work as predicates (succeed/fail without consuming input).
+
+### Remaining failures (20) and root causes
+
+| Test | Root cause |
+|------|-----------|
+| `1010_func_recursion` | `differ(opsyn(.facto,'fact')) :f(e002)` fires :f — `differ(fnCall(...))` as statement subject is evaluating to fail. Debug needed: check if `S P R` split is misidentifying `differ(opsyn(...))` as a pattern statement. |
+| `1011_func_redefine` | Same `S P R` parse issue: `myfunc = ne(myfunc, 1) myfunc * myfunc(myfunc-1)` — split fires but result has multi-child pattern. Recursion part now OK (T_STAR fix), but parse split may be incorrect here. |
+| `1015_opsyn` | New failure introduced — OPSYN alias issues (appeared after SJ-11) |
+| `word1`–`word4`, `wordcount`, `cross` | Still timing out or silent — E_ALT fix is in, PAT_pred is in. Likely the `S P R` parse split is mis-splitting something in the pattern statement inside these programs, causing infinite loops. |
+| `1114_item` | TABLE item iteration — CONVERT partially done, item-style access not implemented |
+| `212_indirect_array` | Indirect array `$var<idx>` — E_INDIRECT + E_IDX combination |
+| `W07_capt_cur` | Cursor capture edge case |
+| `fileinfo`, `triplet`, `test_case`, `test_math`, `test_stack`, `test_string` | Various; not yet diagnosed |
+| `expr_eval` | Line continuation `+` prefix — lexer doesn't handle `+` in col-1 as continuation |
+| `094_data_define_access` | DATA type — field access edge case |
+
+### Critical bug to fix first in SJ-13
+
+**The `S P R` parse split heuristic is too aggressive.** It correctly splits `fact = eq(n,1) 1` but may be mis-splitting statements where:
+1. Subject is an E_FNC and the RHS is also E_FNC with concat — `differ(opsyn(...))` has no `=` so shouldn't trigger, but need to verify.
+2. The word* tests likely have a pattern statement where the split breaks the pattern construction, causing an infinite loop.
+
+**SJ-13 first actions (mandatory order):**
+
+1. `git pull --rebase` all repos.
+2. No gate — interpreter session, exempt.
+3. **Diagnose `differ(opsyn(.facto,'fact')) :f(e002)` failure:**
+   ```js
+   // Add stderr trace in execute_program loop:
+   process.stderr.write(`stmt ok=${ok} subj=${s.subject?.kind} pat=${s.pattern?.kind} has_eq=${s.has_eq}\n`);
+   ```
+   Run `1010_func_recursion.sno` with trace. The `:f` fires so `ok=false` somewhere. Check if `s.pattern` is non-null when it should be null (mis-parse of the `differ(...)` line).
+
+4. **Diagnose `word1` infinite loop:**
+   ```bash
+   timeout 3 node src/runtime/js/sno-interp.js corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input 2>&1 | head -20
+   ```
+   Add step counter trace. Likely a PAT_pred or S=PR split is creating an always-succeeding pattern that loops.
+
+5. **Fix `S P R` split to not fire on pure function-call statements with no `=`.** The split is in `has_eq=true` branch — verify it truly only fires there. If `differ(opsyn(...))` has no `=`, split should never trigger. Check parser output by adding `console.error(JSON.stringify({kind:s.subject?.kind, pat:s.pattern?.kind, has_eq:s.has_eq}))` for that statement.
+
+6. Once word* and 1010/1011/1015 fixed: target **≥ 170p**.
+
+### Baselines for SJ-13
+- `one4all`: `59e4f25`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 158p/20f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — lexer + parser + executor + builtins (all SJ work here)
+- `src/runtime/js/sno_engine.js` — pattern match engine (PAT_pred added here)
+- `src/runtime/js/sno_runtime.js` — value types, `_FAIL`, `_is_fail`, builtins map
