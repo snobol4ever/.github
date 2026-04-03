@@ -61,18 +61,18 @@ Emit-diff pins artifacts of the wrong architecture. Do not run it. Do not chase 
 It will be restored when the emitter stabilizes after M-DYN-S1 lands across all 5
 languages × 6 platforms.
 
-**⛔ INTERPRETER SESSION INVARIANT SCOPE — scrip-cc and emit-diff are irrelevant:**
-Sessions working on the tree-walk interpreter (`scrip-interp`, DYN-session) or the
-JVM interpreter (Java Byrd boxes, J-session) do NOT affect the scrip-cc compiler or
-emit-diff artifacts. Do not run `run_emit_check.sh` or chase scrip-cc regressions
-in these sessions — no interpreter change can cause them. Gate for interpreter
-sessions is the runtime invariant for that backend only (`snobol4_jvm` for J-sessions,
-`snobol4_x86` for DYN-sessions). This speeds up development — skip all emit-diff work.
+**⛔ ALL emit/compiler sessions except DYNAMIC BYRD BOX (snobol4 × x86) are FROZEN.**
+No development on JVM, .NET, WASM, JS, Icon, Prolog, Snocone *emitters* until M-DYN-S1
+is complete. The only active gate for emit sessions: `snobol4_x86` runtime invariants.
 
-**⛔ ALL sessions except DYNAMIC BYRD BOX (snobol4 × x86) are FROZEN.**
-No development on JVM, .NET, WASM, JS, Icon, Prolog, Snocone until M-DYN-S1
-is complete and 5-phase stmt_exec_dyn is the sole execution path.
-The only active gate: `snobol4_x86` runtime invariants.
+**⛔ INTERPRETER SESSIONS ARE EXEMPT FROM THE FREEZE AND FROM scrip-cc/emit-diff GATES.**
+`scrip-interp.c` (DYN-) and `scrip-interp.cs` (NET INTERP) are pure tree-walk interpreters.
+They do not invoke scrip-cc, do not emit IL/NASM/JVM, and are not affected by emitter state.
+Gate protocol for interpreter sessions:
+- **Do NOT run `run_invariants.sh` or `run_emit_check.sh`** — they test the scrip-cc emitter pipeline, which is irrelevant to interpreter work.
+- **Gate = broad corpus pass count** for the interpreter under development (e.g. `169p/9f`).
+- Run the interpreter's own test harness only (see the session's §TEST block).
+- Interpreter regressions are isolated: a failure in scrip-interp.cs never affects scrip-cc or emitters.
 
 **⛔ OWN-BACKEND-ONLY INVARIANT POLICY (all sessions, no exceptions):**
 Each session runs invariant cells **only for the backend it owns**. Never install tools
@@ -239,9 +239,16 @@ Violations require a history rewrite (`git filter-repo`) and force-push — expe
 
 ---
 
-## ⛔ BYRD BOXES — mock_engine.c only, no interpreter
+## ⛔ BYRD BOXES — two valid uses; emitter vs interpreter are different sessions
 
-The Byrd-box four-port model (α/β/γ/ω) is emitted as labels + gotos — never as an interpreter loop. Any logic that "runs" IR nodes at emit-time is wrong. Emit code; don't execute it.
+**Emitter sessions (x86/JVM/.NET emit):** Byrd-box ports (α/β/γ/ω) are emitted as labels + gotos — never as an interpreter loop. Any logic that "runs" IR nodes at emit-time is wrong. Emit code; don't execute it. Use `mock_engine.c` only.
+
+**Interpreter sessions (scrip-interp.c / scrip-interp.cs):** Byrd boxes ARE executed at runtime as C/C# function calls. `ByrdBoxExecutor.Run()` (C#) and `stmt_exec_dyn` (C) are the trampolines. This is correct and intentional — the interpreter IS the runtime driver for the IByrdBox graph.
+
+**Do not confuse the two.** Session type determines which model applies:
+- DYN- session (snobol4 × x86 scrip-interp) → C boxes executed via stmt_exec_dyn
+- NET INTERP session (scrip-interp.cs) → C# IByrdBox graph via ByrdBoxExecutor
+- All emit sessions → labels+gotos, no execution at emit-time
 
 ---
 
@@ -263,12 +270,22 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
-**⛔ SNOBOL4 × JVM ≠ DYNAMIC BYRD BOX — common routing error:**
-- `"SNOBOL4 frontend with JVM backend"` → J-session → `SESSION-snobol4-jvm.md` → `emit_jvm.c`
-- `"DYNAMIC BYRD BOX"` → DYN-session → `SESSION-dynamic-byrd-box.md` → `scrip-interp.c` (x86 interpreter)
-- These are completely different sessions. JVM has no scrip-interp. DYN has no Jasmin.
-- The deciding signal: does the human say "JVM"? → J-session. "interpreter" or "dynamic"? → DYN-session.
-- **Never read SESSION-dynamic-byrd-box.md in a JVM session.**
+## ⛔ SESSION ROUTING — Confirm session identity before any work
+
+The human's description at session start may be ambiguous or shorthand. **Do not assume.**
+Before any work: state the inferred session type and ask for confirmation if ambiguous.
+
+**Critical disambiguation table:**
+
+| Human says | Correct session | Common mistake |
+|---|---|---|
+| "SNOBOL4 .NET" | Could be DOTNET (emit) OR NET INTERP (interpreter) — **ask** | Defaulting to emit session |
+| "SNOBOL4 .NET interpreter" / "C# Byrd boxes" / "scrip-interp.cs" | **NET INTERP** (Track B, M-NET-INTERP-A01) | Treating as emit session |
+| "SNOBOL4 .NET emitter" / "ThreadedExecuteLoop" / "@N bug" | **DOTNET** (Track A, M-NET-P35-FIX) | — |
+| "dynamic Byrd boxes" alone | **DYN-** (snobol4 × x86, scrip-interp.c) | Treating as .NET session |
+| "SNOBOL4 x86" / "scrip-interp.c" | **DYN-** session | — |
+
+**Rule:** The phrase "interpreter" or "C# Byrd boxes" or "scrip-interp.cs" unambiguously identifies NET INTERP (Track B). Confirm and proceed — no gate, no scrip-cc invariants.
 
 ## ⛔ SESSIONS_ARCHIVE.md — APPEND ONLY, NEVER PRUNE
 
