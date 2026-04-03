@@ -20638,3 +20638,69 @@ For the continuation capture bug: use two-way MONITOR with scrip-interp vs SPITB
 - **Broad: 165p/13f**
 - Run: `node src/runtime/js/sno-interp.js <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+---
+
+## D-175 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: no score change (151p/27f baseline intact on C# boxes; MSIL path WIP)
+
+### What was done (D-175)
+
+**Commit `a4d40cb` on one4all:**
+
+1. **Shared captures wiring** (`PatternBuilder.cs`, `Executor.cs`) — `sharedCaptures` list (`List<bb_capture>`) created once in `Executor`, threaded into outer `PatternBuilder` AND all inner builders created by `makeGetPatternVar`. `ByrdBoxExecutor` receives `sharedCaptures` instead of `builder.Captures`. Structurally correct; word1–4/cross still fail for a separate reason (see below).
+
+2. **net10.0** — `scrip-interp.csproj` target framework updated from `net8.0` to `net10.0`. .NET 10 SDK installed at `/usr/lib/dotnet/sdk/10.0.104`.
+
+3. **MSIL Byrd boxes pivot** — `scrip-interp.csproj` now references `boxes.dll` (MSIL-assembled) + compiles `bb_executor.cs` directly (trampoline, not a Byrd box). `bb_boxes.csproj` ProjectReference removed.
+
+4. **Native .NET 10 ilasm acquired** — `runtime.linux-x64.Microsoft.NETCore.ILAsm` 10.0.0 fetched to `~/.nuget/packages/runtime.linux-x64.microsoft.netcore.ilasm/10.0.0/runtimes/linux-x64/native/ilasm`. **Flags (Linux):** `-DLL -OUTPUT=<path> <source.il>` (NOT Mono-style `/dll /output:`).
+
+5. **Greek→ASCII rename** — all 24 `bb_*.il` source files: `α`→`Alpha`, `β`→`Beta` in method declarations and `callvirt` sites. `bb_executor.cs` updated: `.Alpha(ms)`/`.Beta(ms)`. `IByrdBox` interface in `bb_box.il` declares `Alpha`/`Beta`.
+
+6. **`boxes.dll` assembles** with .NET 10 ilasm. Build succeeds. No runtime crash on hello.
+
+### BLOCKER: `[mscorlib]` incompatible with .NET Core
+
+All pattern tests fail (even `038_pat_literal`). Root cause: the IL uses `.assembly extern mscorlib {}` for all BCL type references (`System.String`, `System.Object`, etc.). .NET Core uses `System.Runtime` as the primary assembly, not `mscorlib`. Mono assembled against `mscorlib` fine; .NET 10 verifier/loader does not resolve these references correctly at runtime, causing interface dispatch to silently fail.
+
+**Fix:** In `boxes_combined.il`, replace all `[mscorlib]` type references with `[System.Runtime]`. Specifically:
+- `[mscorlib]System.Object` → `[System.Runtime]System.Object`
+- `[mscorlib]System.String` → `[System.Runtime]System.String`
+- `[mscorlib]System.ValueType` → `[System.Runtime]System.ValueType`
+- `[mscorlib]System.Action\`2<...>` → `[System.Runtime]System.Action\`2<...>`
+- `[mscorlib]System.Collections.Generic.*` → `[System.Runtime]System.Collections.Generic.*`
+- `[mscorlib]System.MemoryExtensions` → `[System.Runtime]System.MemoryExtensions`
+- `.assembly extern mscorlib {}` → `.assembly extern System.Runtime {}`
+
+Also add: `.assembly extern System.Memory {}` if `MemoryExtensions.AsSpan` / `SequenceEqual` are used (they live in `System.Memory` on .NET Core).
+
+### word1–4/cross separate bug (independent of MSIL)
+
+`LINE ? PAT` where `PAT` was set via `PAT = ...` — the stored pattern resolves correctly via `getPatternVar` BUT the wrong value prints. Suspect: `LINE` is being printed as a side effect of `OUTPUT` being set somewhere else. Needs a focused debug run: add stderr trace to `makeGetPatternVar` to confirm it fires, and trace what triggers `_output.WriteLine`.
+
+### D-176 first actions
+1. `git pull --rebase` all repos
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → clean
+3. **Fix `[mscorlib]` → `[System.Runtime]`** in `boxes_combined.il` rebuild script — one Python `str.replace` pass, then reassemble with native ilasm, copy to `src/runtime/boxes/shared/boxes.dll`
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll hello.sno` → `HELLO WORLD`; `038_pat_literal` → `matched`
+5. Broad → confirm ≥151p with MSIL boxes
+6. Fix word1–4/cross: trace `makeGetPatternVar` and `OUTPUT` path
+7. Fix `1012_func_locals` — local var save/restore in `callUserFunc`
+8. Target ≥ 160p
+
+### Baselines for D-176
+- `one4all`: `a4d40cb`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad (C# boxes, known good): 151p/27f**
+- **Broad (MSIL boxes, current): ~99p — [mscorlib] dispatch broken**
+- ILASM: `~/.nuget/packages/runtime.linux-x64.microsoft.netcore.ilasm/10.0.0/runtimes/linux-x64/native/ilasm`
+- Build boxes: combine `.il` sources → `$ILASM -DLL -OUTPUT=boxes.dll boxes_combined.il` → `cp` to `shared/`
+- Build interp: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
