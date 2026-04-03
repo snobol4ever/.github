@@ -20352,3 +20352,45 @@ Fix: added `_cc_stack` parallel to `_pending_cond`. At `CAPT_COND/proceed`: push
 - `src/runtime/js/sno_runtime.js` — INPUT byte-at-a-time fix applied here
 - `src/runtime/js/sno-interp.js` — main interpreter (unchanged this session)
 
+
+---
+
+## J-229 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
+
+### Result: 138p/40f — baseline preserved; naming renames complete
+
+### What was done (J-229)
+
+**Greek port rename — commits `2741274` + `1055785` on one4all:**
+- `alpha()` / `beta()` → `α()` / `β()` in ALL box sources: `.j` Jasmin flat, per-box `.j`, `.java` reference, `.cs` (NET), `.il` (MSIL)
+- Constants `ALPHA=0` / `BETA=1` → `Α=0` / `Β=1` in `bb_box.j` and `bb_box.java`
+- Labels `call_beta`→`call_β`, `tryAlpha`→`tryα`, `try_alpha`→`try_α`, `alt_beta`→`alt_β`; `fromAlpha`→`fromα` in bb_seq.cs
+- `boxes.jar` rebuilt and verified — **138p/40f preserved** ✅
+- NOTE: `delta` (MatchState scan-position field) was NOT renamed — it is not a port name
+
+**BbXxx → bb_xxx rename — commit `4ceba85` on one4all:**
+- All 27 CamelCase box class names → snake_case `bb_xxx` across .cs/.il/.java/.j
+- 23 files; smoke test (`hello.sno` → `HELLO WORLD`) passes ✅
+
+**Original J-229 Jasmin bugs — NOT YET FIXED (J-230 first priority):**
+- `bb_arbno` VerifyError in `tryBody` (stack type mismatch in Jasmin)
+- `bb_any`/`bb_rpos` regression from J-228 `val()` sed (String field `chars` corrupted)
+
+### J-230 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y default-jdk`
+3. Rebuild stubs + driver (see SESSION-snobol4-jvm.md §J-229 first actions)
+4. Confirm **138p/40f** baseline
+5. Fix `bb_arbno`: `javap -c -cp boxes.jar bb.bb_arbno | grep -A20 tryBody` — find int/boolean stack mismatch
+6. Fix `bb_any`/`bb_rpos`: check `val()I` incorrectly applied to String `chars` field in jasmin
+7. Reassemble `boxes.jar`, rerun broad → target ≥136p then ≥155p (ARRAY/TABLE)
+
+### Baselines for J-230
+- `one4all`: `4ceba85`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 138p/40f**
+
