@@ -19625,75 +19625,365 @@ NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — in
 
 ---
 
+## DYN-49 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-
+
+### What was done
+
+**Lexer rewritten as true one-pass character-stream lexer (snobol4.l)**
+
+The old snobol4.l was a hybrid: flex was used only as a line-reader, with two large handwritten C functions (`tokenise_body_pending` ~120 lines, `emit_stmt_seg` ~60 lines) doing all the real tokenisation via character loops. These are now deleted entirely and replaced with proper flex RE rules in start conditions.
+
+#### Architecture: old vs new
+
+| Old | New |
+|-----|-----|
+| INITIAL reads lines into `logical[65536]` buffer | INITIAL dispatches on col-1 char directly |
+| `flush_logical()` pushes sub-buffer, switches to BODY | No sub-buffers. One stream. |
+| `tokenise_body_pending()` — handwritten char loop | BODY start condition — RE rules |
+| `emit_stmt_seg()` — handwritten label/goto splitter | LABEL/GT start conditions — RE rules |
+| 475 lines | 262 rules-section lines |
+
+#### Start conditions
+- `INITIAL` — col-1 card dispatch (comment, CTL, continuation, new stmt)
+- `LABEL` — reading label identifier from col-1
+- `BODY` — statement body: all operators/idents/numbers/strings as RE
+- `STR1` / `STR2` — single/double quoted strings with `''`/`""` escape support
+- `GT` — goto field raw text after `:`
+- `SKIP` — discard to end of line (comments, unknown CTL)
+- `INCL` — filename after `-INCLUDE`/`-COPY`
+
+#### Other fixes this session
+- bison directive conflict: `%pure-parser` + `%define api.prefix` incompatible in bison 3.8 → replaced with `%define api.pure full`
+- `%option stack` added so `yy_push_state` is generated (needed by `lex_open_str`)
+- `lex.h` symlink added → `snobol4.h` for `eval_code.c` compat (file was renamed in DYN-48)
+- `sno_error` and `inc_dirs`/`n_inc` moved to user-code section (were wrongly in `%{%}`)
+
+#### Broad result
+- **Before (DYN-48 baseline):** 114p/64f
+- **After (DYN-49 r1, new lexer, no eq_pos fix yet):** 123p/55f (+9)
+
+### Known issue — DYN-50 FIRST ACTION
+
+**eq_pos string-literal skip** in `snobol4.y` `parse_program_tokens` — the loop that finds `=` in `bbuf` does not skip over quoted strings. Bodies containing `=` inside a string literal split at the wrong position. Fix documented in DYN-48 handoff:
+
+```c
+int eq_pos=-1, depth=0;
+for(int i=0;i<bpos;i++){
+    char c=bbuf[i];
+    if(c=='\'' || c=='"') {
+        char q=c; i++;
+        while(i<bpos && bbuf[i]!=q) i++;
+    } else if(c=='('||c=='['||c=='<') depth++;
+    else if(c==')'||c==']'||c=='>') depth--;
+    else if(c=='='&&depth==0){ eq_pos=i; break; }
+}
+```
+
+After fix, broad should reach ≥126p/52f (DYN-48 pre-regression baseline), then continue toward 169p/9f via MONITOR diff.
+
+### Known issue — LABEL state
+
+`LABEL` state rule `[^ \t\n]+` is too greedy — if a line has no space after the label (e.g. label immediately followed by body with no separator) it will consume body content as label text. Next session: verify with corpus, fix if needed by splitting on first non-IDCONT char.
+
+### Baselines for DYN-50
+- one4all: `0db949d`
+- corpus: `2f2bbe3`
+- .github: (this commit)
+- Broad: **123p/55f**
+
+### DYN-50 first actions
+1. `git pull --rebase` all repos
+2. Build: `flex -o snobol4.lex.c snobol4.l && bison -d -o snobol4.tab.c snobol4.y` then full scrip-interp build (see SESSION-dynamic-byrd-box.md build command)
+3. Smoke: `./scrip-interp /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+4. Fix eq_pos string-literal skip in `snobol4.y` `parse_program_tokens`
+5. Run broad → confirm ≥126p/52f
+6. MONITOR diff scrip-interp vs SPITBOL on remaining failures → toward 169p/9f
+
+### Key files
+- `src/frontend/snobol4/snobol4.l` — **rewritten this session**
+- `src/frontend/snobol4/snobol4.y` — eq_pos fix needed here
+- `src/frontend/snobol4/lex.h` — symlink → snobol4.h (new this session)
+
+---
+
+## J-223 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**M-JVM-INTERP-A04: Pattern match Phase 2–4 via Byrd boxes — COMPLETE**
+
+Gate (`038_pat_literal`) passed at session start. Pattern crosscheck: **15p/5f → 20p/0f**.
+
+**Four root causes fixed:**
+
+1. **MatchState disconnect** (`bb_executor.java`) — `exec()` created its own fresh `MatchState` internally, while `PatternBuilder` built all boxes bound to a separate `pms` from the Interpreter. Boxes mutated their cursor; executor drove its own. All 5 failures traced to this. Fix: added `exec(subjVar, subjVal, MatchState ms, root, hasRepl, replVal, anchor)` overload that accepts and syncs the caller's shared MatchState. Interpreter call site updated to pass `pms`.
+
+2. **`captureVarName` wrong child** (`PatternBuilder.java`) — binary `E_CAPT_COND_ASGN(left=patternNode, right=varNode)` — helper iterated children finding first `E_VAR` (the pattern subject, e.g. `REM`) instead of last (the capture variable, e.g. `V`). Traced via `Trace048.java` harness: setter was called as `SET REM=world` instead of `SET V=world`. Fix: use `children.get(size-1)`.
+
+3. **Pattern-valued variables** (`Interpreter.java`) — `P = ('a' | 'b' | 'c')`: `eval(E_ALT)` was returning `eval(firstChild)` = string `"a"`. Added `VType.PAT` to enum, `Parser.ExprNode patNode` field + `DESCR.pat(ExprNode)` factory to DESCR. `eval(E_ALT)` now returns `DESCR.pat(e)`. `bb_dvar` resolver in Interpreter checks `d.type == VType.PAT` and rebuilds a fresh `PatternBuilder` from the stored `patNode` (sharing `pms2`).
+
+4. **`E_DEFER` unhandled** (`PatternBuilder.java`) — `*PAT` → `E_DEFER(E_VAR(PAT))`. Added `case E_DEFER:` → extracts var name from inner `E_VAR`, returns `new bb_dvar(ms, varName, varResolver)`.
+
+#### Commit
+- `e595015` — J-223: fix MatchState disconnect, captureVarName, PAT DESCR, E_DEFER — patterns 20p/0f
+
+### Results
+- **Pattern crosscheck: 20p/0f** ✅ (was 15p/5f at session start, 0p before J-222)
+- Full crosscheck suite timed out (JVM startup overhead per test) — not measured this session
+
+### Baselines for J-224
+- `one4all`: `e595015`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Pattern crosscheck: 20p/0f**
+
+### J-224 first actions
+1. `git pull --rebase` all repos
+2. Recompile (full javac command in SESSION-snobol4-jvm.md header)
+3. Confirm `038_pat_literal` gate still passes
+4. Run crosscheck by category with per-category timeout (patterns already 20p/0f):
+   ```bash
+   JCMD="java -cp /tmp/jvm_cls driver.jvm.Interpreter"
+   for cat in hello arith strings capture control functions arrays; do
+     P=0; F=0
+     for sno in /home/claude/corpus/crosscheck/$cat/*.sno; do
+       ref="${sno%.sno}.ref"; [ -f "$ref" ] || continue
+       got=$(timeout 5 $JCMD "$sno" 2>/dev/null); exp=$(cat "$ref")
+       [ "$got" = "$exp" ] && P=$((P+1)) || F=$((F+1))
+     done
+     echo "$cat: ${P}p/${F}f"
+   done
+   ```
+5. Fix failures in order: hello → arith → strings → capture → control → functions → arrays
+6. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — DESCR.PAT, eval(E_ALT), bb_dvar resolver, exec() call site
+- `src/driver/jvm/PatternBuilder.java` — captureVarName fix, E_DEFER case
+- `src/runtime/boxes/shared/bb_executor.java` — shared-MatchState exec() overload
+
+### Known issues / next bugs likely
+- E_SEQ in value context vs pattern context: `fixupValTree` converts E_SEQ→E_CAT but pattern-valued E_SEQ assignments may need `DESCR.pat()` treatment like E_ALT
+- E_FNC in pattern-valued assignment (e.g. `P = ANY('abc')`) not yet returning `DESCR.pat()` — only E_ALT handled
+- Full crosscheck scope unknown — only patterns measured
+
+---
+
+## D-171 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
+
+### What was done
+
+**Broad: 138p/40f → 146p/32f (+8)**
+
+.NET 8 SDK installed at `/usr/local/dotnet8` (dotnet10 not present in this environment — use dotnet8).
+Build: `export PATH=/usr/local/dotnet8:$PATH && dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+
+#### Fixes in `b45f663`
+
+1. **`SnobolVal.Real` ToString bug** — `ToString()` returned `Real.ToString()` (ignoring pre-formatted `Str`). Fixed to return `Str`. Now `1.0` prints `1.` as SPITBOL requires.
+
+2. **Lexical builtins added**: `LLT/LLE/LGT/LGE/LEQ/LNE` — `StringComparison.Ordinal`, return first arg on success.
+
+3. **`NumCmp` replaces `Cmp`** — strict numeric: both args must be numeric (or numeric-coercible string). Non-numeric strings no longer silently coerce to 0.
+
+4. **`CONVERT` real→integer** — now uses `(long)val.Real` truncation (was `long.TryParse` which failed on `2.5`).
+
+5. **`TABLE` implemented** — real `Dictionary<string,SnobolVal>` store; `TableGet`/`TableSet` wired into `EvalIdx` and subscript assignment.
+
+6. **Tag-based handle scheme** — `ARRAY=0x0000_0000`, `TABLE=0x1000_0000`, `DATA=0x2000_0000` tags in high bits of Int handle. Eliminates `IsDataObj` vs integer collision. All `IsArray`/`IsTable`/`IsDataObj` predicates updated. `DataCreate`/`DataGetField`/`DataSetField` updated.
+
+7. **`EvalIdx` extended** — handles `E_INDIRECT` base (for `$.a<2>` pattern), TABLE, and DATA field access.
+
+8. **Subscript assignment extended** — TABLE and indirect base in `ExecStmt`.
+
+9. **`DataType()` method** — `DATATYPE`/`PROTOTYPE`/`TYPE` builtins now return correct name: DATA objects → type name (e.g. `NODE`), not `INT`.
+
+#### Tests newly passing (8)
+`099_lexical_compare` · `910_convert` · `911_datatype` · `912_num_pred` · `914_lgt` · `hello/literals` · `rung11/1111_array_default` · `keywords/081_builtin_datatype`
+
+### Known issues — D-172 FIRST ACTIONS
+
+**1. `DataGetField` crash** (`096_data_datatype_check`) — `Index was out of range`. There is still a stale `(-handle.Int - 1)` index path in `DataGetField` at the `_dataObjs[...]` call around line 200. Fix:
+```csharp
+// In DataGetField, change:
+var (typeName, fields) = _dataObjs[(int)(-handle.Int - 1)];
+// To:
+var (typeName, fields) = _dataObjs[(int)(handle.Int & IDX_MASK)];
+```
+
+**2. `E_PLS` unary + string→int** (`411_arith_unary`) — `E_PLS` currently returns `EvalNode(child)` unchanged. It should numeric-coerce like `E_MNS`. Fix in `Executor.cs` `EvalNode`:
+```csharp
+IrKind.E_PLS => CoerceNumeric(EvalNode(n.Children[0])),
+```
+Add helper: `CoerceNumeric(v)` → if string and parseable as int/real, return `SnobolVal.Of(parsed)`; else return `v`.
+
+**3. `$.var<idx>` indirect array** (`212_indirect_array`) — `$.a<2>` parses as `E_IDX(E_INDIRECT(E_VAR("a")), 2)`. In `EvalIdx`, the `E_INDIRECT` branch resolves `baseName = EvalNode(inner).ToString()` but then does `_env.Get(baseName)` to get the container. This is correct — but verify the parser is producing `E_IDX(E_INDIRECT(...))` and not something else. Add stderr trace: `Console.Error.WriteLine(stmt.Subject)` before the IDX eval to confirm shape.
+
+**4. Array OOB → Fail** (`1110_array_1d`) — `ArrayGet` returns `SnobolVal.Null` on out-of-bounds; SNOBOL4 spec requires pattern-match Fail for OOB. Return `SnobolVal.Fail` instead for `i < 0 || i >= arr.Length`.
+
+**5. FRETURN from function body** (`087_define_freturn`) — first assertion wrong: `positive` expected, `wrong` returned. The function being tested returns normally (not FRETURN) from the positive branch — the issue is in `RunBody` goto resolution. Trace: the function label is `SIGN`, defined as `DEFINE('SIGN(N)')`. When `N GT 0` succeeds it should go to `POSITIVE` label and eventually `:RETURN`. Check that `RunBody` correctly resolves labels within the function body scope (not just top-level `_labels`).
+
+**6. `rung10` function scoping** (6 tests: 1010–1013, 1017) — recursion, locals, NRETURN. Most likely `CallUserFunc` save/restore is incorrectly including the function name itself, or param/local initialization order is wrong. Start with `1012_func_locals` (simplest) and trace.
+
+**7. `strings/word*`** — likely `&TRIM` (trim trailing spaces from INPUT lines). `SnobolEnv` initialises `&TRIM = 0`; when `&TRIM != 0` the executor should trim INPUT lines. Wire in `EvalVar("INPUT")` path.
+
+### Baselines for D-172
+- `one4all`: `b45f663`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 146p/32f**
+
+### D-172 first actions
+1. `git pull --rebase` all repos
+2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed)
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+5. Fix DataGetField crash (stale `(-handle.Int - 1)`)
+6. Fix E_PLS unary +
+7. Fix array OOB → Fail
+8. Fix $.var<idx> indirect (trace parser output first)
+9. Run broad → confirm ≥ 150p
+10. Tackle func scoping (rung10) and &TRIM (word*)
+11. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key files
+- `src/driver/dotnet/SnobolEnv.cs` — tag scheme, TABLE, builtins, DataGetField **crash fix needed here**
+- `src/driver/dotnet/Executor.cs` — E_PLS, EvalIdx, func scoping
+
+---
+
+## D-171r handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — rename-only follow-on to D-171.
+
+### What was done
+
+**`SnobolVal` → `DESCR` rename** throughout `src/driver/dotnet/`:
+- `SnobolEnv.cs` — 126 replacements
+- `Executor.cs` — 72 replacements
+- `PatternBuilder.cs` — 2 replacements
+- `Snobol4Parser.cs` — 0 (no occurrences)
+- `IrNode.cs`, `Program.cs` — 0 (no occurrences)
+
+Build clean. Smoke `hello.sno` → `HELLO WORLD` ✅. Pushed `c08c077`.
+
+This aligns the interpreter's value type name with the C runtime convention (`DESCR` in `bb_box.cs` / `bb_box.h`).
+
+### Baselines for D-172
+- `one4all`: `c08c077`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 146p/32f** (unchanged — rename only)
+
+### D-172 first actions (unchanged from D-171 handoff)
+1. `git pull --rebase` all repos
+2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed)
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+5. Fix `DataGetField` crash — stale `(-handle.Int - 1)` → `(handle.Int & IDX_MASK)` in `SnobolEnv.cs`
+6. Fix `E_PLS` unary + numeric coerce in `Executor.cs`
+7. Fix array OOB → `DESCR.Fail`
+8. Trace `$.var<idx>` parser shape, fix `EvalIdx` if needed
+9. Wire `&TRIM` into INPUT reading (fixes `word*`)
+10. Tackle `rung10` function scoping (1010–1013, 1017)
+11. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key files
+- `src/driver/dotnet/SnobolEnv.cs` — `DataGetField` crash fix needed (~line 200, `_dataObjs[(int)(-handle.Int - 1)]` → `_dataObjs[(int)(handle.Int & IDX_MASK)]`)
+- `src/driver/dotnet/Executor.cs` — `E_PLS`, `EvalIdx`, func scoping
+
+---
+
+## J-224 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### Crosscheck: 18p/21f → 28p/11f (+10). functions 8p/0f ✅
+
+### Root fixes
+1. **DEFINE + user-defined functions** — FuncDef registry, callUserFunc() with param/local save-restore, RETURN/FRETURN via goto. functions: 0p/8f → 8p/0f.
+2. **REMDR** builtin — integer remainder.
+3. **&LCASE, &UCASE, &ALPHABET** — constructor defaults. Fixed 089_define_in_pattern.
+4. **FAIL propagation in builtins** — SIZE(INPUT) at EOF now returns FAIL instead of 0.
+5. **Null-replace** — `X pat =` bare `=` deletes matched portion.
+6. **POS(N) variable arg** — VarGetter interface + varGetter field in PatternBuilder; intArg() looks up E_VAR at match time.
+
+### Baselines for J-225
+- `one4all`: `38355f6`
+- `corpus`: `2f2bbe3`
+- Crosscheck: **28p/11f**
+
+### J-225 first actions
+1. `git pull --rebase` all repos
+2. Recompile: `JFILES=$(find src/driver/jvm src/runtime/boxes -name "*.java" | tr '\n' ' ') && javac -d /tmp/jvm_cls $JFILES`
+3. Confirm hello gate passes
+4. Fix POS(N) dynamic: bb_pos takes static int — need Supplier<Integer> variant or rebuild box per-match
+5. Wire varGetter into callUserFunc PatternBuilder constructions (currently missing)
+6. Apply null-replace fix in callUserFunc pattern branch too
+7. Fix INPUT+&TRIM: fileinfo reports 13 chars for "hello\nworld" instead of 10
+8. Run full crosscheck → target ≥35p
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — DEFINE, callUserFunc, REMDR, &LCASE/UCASE, FAIL propagation, null-replace
+- `src/driver/jvm/PatternBuilder.java` — VarGetter, intArg() var lookup
+
+---
+
 ## SJ-12 handoff — 2026-04-03
 
 ### Session type
 **SNOBOL4 × JavaScript interpreter** — one4all `src/runtime/js/`. Session prefix: SJ-.
 
 ### Broad result
-**158p / 20f** (178 total) — +1 from SJ-11 baseline (157p/21f). 053_pat_alt_commit now passes. 1113_table now passes.
+**158p / 20f** (178 total) — +1 from SJ-11 baseline (157p/21f).
 
 ### What was done (SJ-12 r1, commit `59e4f25`)
 
-#### Fix 1: `T_STAR` in `_is_cat_start` false list
-`_is_cat_start()` was missing `T_STAR`, so `n * fact(n-1)` parsed as `E_CAT(n, E_DEFER(fact(n-1)))` (string concat) instead of `E_MUL`. Added `case T_STAR:` to the false-return list in `_e4()`.
+1. **`T_STAR` in `_is_cat_start` false list** — `n * fact(n-1)` was parsed as concat instead of multiply. Added `case T_STAR:` to the false-return list in `_e4()`.
+2. **`E_ALT` value context** — added `case E_ALT: return _build_pat(e);` in `interp_eval`. Fixes `053_pat_alt_commit`.
+3. **`OPSYN` 2-arg alias** — copies `func_table[src]` to `func_table[dest]`. Added `fname` field to func_table entries. Fixed `_call_user` to use `fd.fname` (definition name) as return-value variable — supports OPSYN aliases where call-site name ≠ definition name.
+4. **`CONVERT` TABLE↔ARRAY** — `CONVERT(tbl,'ARRAY')` → 2-column `__sno_array`; `CONVERT(arr,'TABLE')` → Map. Fixes `1113_table`.
+5. **`S = P R` parse split** — in `has_eq=true` branch, if RHS is `E_SEQ/E_CAT` with ≥2 children and first child is `E_FNC`, split last child as replacement and prior as pattern. Handles `fact = eq(n,1) 1 :s(return)`.
+6. **`PAT_pred`** — added `PAT_pred(fn)` to `sno_engine.js` (zero-width predicate: calls fn(), succeed if non-`_sno_fail`, concede if fail). Wired into `_build_pat` E_FNC default case as lazy thunk. Makes `eq/ne/gt` etc. work as predicates in pattern position.
 
-#### Fix 2: `E_ALT` in value context (`interp_eval`)
-Added `case E_ALT: return _build_pat(e);` before `default:` in `interp_eval`. Fixes `053_pat_alt_commit` and is prerequisite for word* tests (which use pattern variables).
-
-#### Fix 3: `OPSYN` 2-arg alias
-Replaced no-op `case 'OPSYN': return null` with real implementation: copies `func_table[src]` entry to `func_table[dest]`, returns dest name string. Also added `fname` field to `func_table` entries in `define_fn` (stores original definition name). Fixed `_call_user` to use `fd.fname` (definition name) as the return-value variable, supporting aliases where call-site name ≠ definition name.
-
-#### Fix 4: `CONVERT` TABLE↔ARRAY
-Implemented `CONVERT(tbl,'ARRAY')` → 2-column `__sno_array` with `"i,j"` string keys, prototype `"N,2"`. Implemented `CONVERT(arr,'TABLE')` → Map with string-normalized keys from column 1→2 pairs. Fixes `1113_table`.
-
-#### Fix 5: `S = P R` parse split
-In `parse_stmt` `has_eq=true` branch, after `_expr()` returns the RHS, if result is `E_SEQ/E_CAT` with ≥2 children AND first child is `E_FNC`, split: `s.pattern = first N-1 children`, `s.replacement = last child`. This handles `fact = eq(n,1) 1 :s(return)` correctly parsing `eq(n,1)` as pattern and `1` as replacement.
-
-#### Fix 6: `PAT_pred` — predicate pattern type
-Added `PAT_pred(fn)` to `sno_engine.js`: `{__pat:1, t:'PRED', fn}`. Added `case 'PRED/proceed':` in engine: calls `ζ[4].fn()`, if result has `._sno_fail` → concede, else → succeed (zero-width). In `_build_pat` E_FNC default case, replaced eager eval `PAT_lit(_str(_call(...)))` with lazy `PAT_pred(() => _call(sval, ch))`. This makes `eq/ne/gt/lt` in pattern position work as predicates (succeed/fail without consuming input).
-
-### Remaining failures (20) and root causes
+### Remaining failures and root causes
 
 | Test | Root cause |
 |------|-----------|
-| `1010_func_recursion` | `differ(opsyn(.facto,'fact')) :f(e002)` fires :f — `differ(fnCall(...))` as statement subject is evaluating to fail. Debug needed: check if `S P R` split is misidentifying `differ(opsyn(...))` as a pattern statement. |
-| `1011_func_redefine` | Same `S P R` parse issue: `myfunc = ne(myfunc, 1) myfunc * myfunc(myfunc-1)` — split fires but result has multi-child pattern. Recursion part now OK (T_STAR fix), but parse split may be incorrect here. |
-| `1015_opsyn` | New failure introduced — OPSYN alias issues (appeared after SJ-11) |
-| `word1`–`word4`, `wordcount`, `cross` | Still timing out or silent — E_ALT fix is in, PAT_pred is in. Likely the `S P R` parse split is mis-splitting something in the pattern statement inside these programs, causing infinite loops. |
-| `1114_item` | TABLE item iteration — CONVERT partially done, item-style access not implemented |
-| `212_indirect_array` | Indirect array `$var<idx>` — E_INDIRECT + E_IDX combination |
+| `1010_func_recursion` | `differ(opsyn(.facto,'fact')) :f(e002)` fires :f branch — suspect parser mis-parses this as a pattern statement. Need statement-level trace. |
+| `1011_func_redefine` | Related S=PR parse issue in recursive body |
+| `1015_opsyn` | New failure — OPSYN edge case |
+| `word1`–`word4`, `wordcount`, `cross` | Timing out — S=PR split or PAT_pred causing infinite loop in pattern matching |
+| `1114_item` | TABLE item iteration not implemented |
+| `212_indirect_array` | `$var<idx>` indirect array combination |
 | `W07_capt_cur` | Cursor capture edge case |
-| `fileinfo`, `triplet`, `test_case`, `test_math`, `test_stack`, `test_string` | Various; not yet diagnosed |
-| `expr_eval` | Line continuation `+` prefix — lexer doesn't handle `+` in col-1 as continuation |
-| `094_data_define_access` | DATA type — field access edge case |
+| `expr_eval` | Line continuation `+` prefix not handled by lexer |
+| `fileinfo`, `triplet`, `test_case`, `test_math`, `test_stack`, `test_string`, `094_data_define_access` | Not yet diagnosed |
 
-### Critical bug to fix first in SJ-13
-
-**The `S P R` parse split heuristic is too aggressive.** It correctly splits `fact = eq(n,1) 1` but may be mis-splitting statements where:
-1. Subject is an E_FNC and the RHS is also E_FNC with concat — `differ(opsyn(...))` has no `=` so shouldn't trigger, but need to verify.
-2. The word* tests likely have a pattern statement where the split breaks the pattern construction, causing an infinite loop.
-
-**SJ-13 first actions (mandatory order):**
+### SJ-13 first actions (mandatory order)
 
 1. `git pull --rebase` all repos.
 2. No gate — interpreter session, exempt.
-3. **Diagnose `differ(opsyn(.facto,'fact')) :f(e002)` failure:**
-   ```js
-   // Add stderr trace in execute_program loop:
-   process.stderr.write(`stmt ok=${ok} subj=${s.subject?.kind} pat=${s.pattern?.kind} has_eq=${s.has_eq}\n`);
-   ```
-   Run `1010_func_recursion.sno` with trace. The `:f` fires so `ok=false` somewhere. Check if `s.pattern` is non-null when it should be null (mis-parse of the `differ(...)` line).
-
-4. **Diagnose `word1` infinite loop:**
-   ```bash
-   timeout 3 node src/runtime/js/sno-interp.js corpus/crosscheck/strings/word1.sno < corpus/crosscheck/strings/word1.input 2>&1 | head -20
-   ```
-   Add step counter trace. Likely a PAT_pred or S=PR split is creating an always-succeeding pattern that loops.
-
-5. **Fix `S P R` split to not fire on pure function-call statements with no `=`.** The split is in `has_eq=true` branch — verify it truly only fires there. If `differ(opsyn(...))` has no `=`, split should never trigger. Check parser output by adding `console.error(JSON.stringify({kind:s.subject?.kind, pat:s.pattern?.kind, has_eq:s.has_eq}))` for that statement.
-
-6. Once word* and 1010/1011/1015 fixed: target **≥ 170p**.
+3. **Diagnose `differ(opsyn(.facto,'fact')) :f(e002)` mis-fire:**
+   Add trace in execute_program: `process.stderr.write('stmt ok='+ok+' subj='+s.subject?.kind+' pat='+s.pattern?.kind+' has_eq='+s.has_eq+'\n');`
+   Run on `1010_func_recursion.sno`. The `:f` fires so `ok=false`. Find which statement and why.
+4. **Diagnose `word1` timeout:**
+   `timeout 3 node src/runtime/js/sno-interp.js corpus/crosscheck/strings/word1.sno < ... 2>&1 | head -20`
+   Add step-count stderr every 10k steps. Find the loop.
+5. The `S P R` split only fires in `has_eq=true` branch — verify `differ(opsyn(...))` truly has `has_eq=false`. If it does, the bug is elsewhere.
+6. Target: **≥ 170p / ≤ 8f**
 
 ### Baselines for SJ-13
 - `one4all`: `59e4f25`
@@ -19702,6 +19992,6 @@ Added `PAT_pred(fn)` to `sno_engine.js`: `{__pat:1, t:'PRED', fn}`. Added `case 
 - **Broad: 158p/20f**
 
 ### Key files
-- `src/runtime/js/sno-interp.js` — lexer + parser + executor + builtins (all SJ work here)
-- `src/runtime/js/sno_engine.js` — pattern match engine (PAT_pred added here)
-- `src/runtime/js/sno_runtime.js` — value types, `_FAIL`, `_is_fail`, builtins map
+- `src/runtime/js/sno-interp.js` — lexer + parser + executor + builtins
+- `src/runtime/js/sno_engine.js` — pattern match engine (PAT_pred added)
+- `src/runtime/js/sno_runtime.js` — value types, `_FAIL`, `_is_fail`

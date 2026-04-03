@@ -37,9 +37,9 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-48 | one4all `d20a6d9` · corpus `2f2bbe3` | **DYN-49**: (1) Fix eq_pos string-literal skip → restore >= 126p/52f. (2) MONITOR diff scrip-interp vs SPITBOL → fix toward 169p/9f. |
+| **DYNAMIC BYRD BOX** | DYN-49 | one4all `0db949d` · corpus `2f2bbe3` | **DYN-50**: (1) Fix eq_pos string-literal skip in snobol4.y → restore >=126p/52f. (2) MONITOR diff scrip-interp vs SPITBOL → 169p/9f. |
 
-**Broad baseline: 114p/64f** — regression from eq_pos bug (see SESSIONS_ARCHIVE DYN-48). Fix is one loop patch in parse_program_tokens. After fix target >= 126p/52f, then 169p/9f.
+**Broad baseline: 123p/55f** (DYN-49: one-pass lexer, +9 vs DYN-48). eq_pos string-literal skip fix still needed in parse_program_tokens. After fix target >=126p/52f, then 169p/9f.
 
 Remaining failures: `1013/003` · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
 ## scrip-interp build command
