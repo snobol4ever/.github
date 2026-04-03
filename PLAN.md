@@ -73,7 +73,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-12 | one4all `59e4f25` · .github TBD | **SJ-13**: fix differ(fnCall) :f mis-fire · word* infinite loop · S=PR split refinement. Target ≥170p. |
-| **⭐ TINY JVM** | J-225 | one4all `73e594f` | **J-226**: word* timeout fix · ARRAY/TABLE/DATA builtins · fileinfo · target ≥155p |
+| **⭐ TINY JVM** | J-226 | one4all `68311b9` | **J-227**: verify word* deferred-capture fix · ARRAY/TABLE/DATA builtins · target ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
 | **⭐ one4all-SNOBOL4-NET** | D-171 | one4all `987d589` | **bb_* rename · goto fix · ** · &ALPHABET · pattern vars · ARRAY · DATA — 87p subset broad**. Next: DATATYPE fix, FRETURN, &STCOUNT, LGT/LLT/LEQ → ≥ 93p subset / 140+/178 full. See SESSION-snobol4-net.md + MILESTONE-NET-SNOBOL4.md. |
