@@ -14,6 +14,7 @@ All deep reference docs. Open on demand — never speculatively.
 ### SNOBOL4 Frontend
 | Doc | Contents | Open when |
 |-----|----------|-----------|
+| `ARCH-ir-tree.md` | **n-ary IR tree: EKind catalog, EXPR_t/STMT_t/Program, parse→IR mapping** | Any AST/IR work; flex/bison rewrite; emitter questions |
 | `ARCH-scrip-cc.md` | scrip-cc compiler: parser, IR lowering, emit | scrip-cc internals |
 | `ARCH-snobol4-beauty.md` | beauty.sno two-stack engine, TDD protocol, bug history | beauty sprint deep work |
 | `ARCH-snobol4-beauty-testing.md` | beauty.sno 19-subsystem testing plan, milestone map, driver format | beauty testing protocol |
