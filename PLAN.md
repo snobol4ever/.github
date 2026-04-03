@@ -67,13 +67,13 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-48 | one4all `d20a6d9` · corpus `2f2bbe3` | **DYN-49**: Fix eq_pos string-literal skip → restore >= 126p/52f → MONITOR diff → 169p/9f. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-51 | one4all `bd56224` · corpus `2f2bbe3` | **DYN-52**: word*/cross (&TRIM/INPUT) · expr_eval · locals/NRETURN/OPSYN/EVAL → ≥125p. Then MONITOR vs SPITBOL → 169p/9f. |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-12 | one4all `59e4f25` · .github TBD | **SJ-13**: fix differ(fnCall) :f mis-fire · word* infinite loop · S=PR split refinement. Target ≥170p. |
-| **⭐ TINY JVM** | J-221 | one4all `f3049fe` | **M-JVM-INTERP-A04**: pattern match Phase 2-4 via Byrd boxes · oracle: bb_*.java + Jasmin boxes.jar |
+| **⭐ TINY JVM** | J-228 | one4all `68311b9` (Jasmin pivot local) | **J-229**: fix bb_arbno VerifyError + bb_any regression → ≥136p → commit → ARRAY/TABLE → ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
 | **⭐ one4all-SNOBOL4-NET** | D-172 | one4all `a5b22ff` | **Fix scrip-interp.csproj → boxes.dll (MSIL not .cs) · 149p/29f → target ≥ 160p. See SESSION-snobol4-net.md.** |
