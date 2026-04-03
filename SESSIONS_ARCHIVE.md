@@ -19955,3 +19955,30 @@ END
 | `rung3/310–312` | concat regression — needs investigation |
 | `hello/literals` | case/literal edge case |
 | `rung10/1012–1016` | func locals, NRETURN, OPSYN, EVAL |
+
+---
+
+## DYN-52 supplementary — 2026-04-03 (parallel session, fresh clone)
+
+**Ran independently on fresh clone: `one4all bd56224` / `corpus 2f2bbe3`.**
+
+### Broad result on fresh build: **153p/25f** (178 total)
+
+The 153p vs 129p difference: the other DYN-52 session had a stale binary (build blocker with `bb_atp/capture/dvar` compile errors preventing link). Fresh build using separate `/tmp/ib/*.o` objects gave 153p.
+
+### Critical additional finding: T_CONCAT suppressed inside parens
+
+`src/frontend/snobol4/snobol4.l` line 141:
+```
+<BODY>[ \t]+/[A-Za-z\x80-\xFF0-9\'"(]  { if(depth==0) return T_CONCAT; }
+```
+The `if(depth==0)` guard silently drops concat inside function-call parens. `differ('a' 'b', 'ab')` sees `differ('a', 'ab')` — wrong first arg, no PASS output. **Explains rung3/310–312 failures.**
+
+**DYN-53 fix:**
+```
+<BODY>[ \t]+/[A-Za-z\x80-\xFF0-9\'"]  { return T_CONCAT; }
+```
+Remove `depth==0` and `(` from lookahead (paren has its own rule). Then `flex --reentrant -o snobol4.lex.c snobol4.l`, recompile, relink.
+
+### Spurious parse error (harmless)
+`snobol4:0: error: parse error: syntax error` fires on every file including hello world. Bison EOF-state artifact. Stderr noise only — execution is correct.
