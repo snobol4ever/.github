@@ -18310,3 +18310,86 @@ Key decisions confirmed:
 - `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
 - `one4all/src/frontend/snobol4/lex.c` — existing one-pass lexer (oracle for lex.l)
 - `one4all/src/frontend/snobol4/parse.c` — existing recursive-descent parser (oracle for parse.y)
+
+---
+
+## D-169b handoff — 2026-04-02
+
+### Session type
+**NET INTERP** — SNOBOL4 × .NET C# interpreter. Session prefix: D-.
+
+### What was done
+
+Two deliverables committed this session beyond D-169 MSIL boxes:
+
+**1. `IrNode.cs` written (`fdd0cb7`)**
+
+Complete C# mirror of `ir.h` / `scrip_cc.h`:
+- `IrKind` enum — all EKind node kinds, **identical names** to `ir.h`
+- `IrNode` class — Kind/SVal/IVal/DVal/Children/Id (mirrors `EXPR_t`)
+- `IrStmt` class — Label/Subject/Pattern/Replacement/Go/IsEnd/HasEq (mirrors `STMT_t`)
+- `SnoGoto` class — OnSuccess/OnFailure/Uncond (mirrors `SnoGoto` struct)
+- Convenience: `IrNode.QStr()`, `.Int()`, `.Float()`, `.Var()`, `.Keyword()`, `.Nary()`
+- `IsPattern` predicate covers all 18 pattern-primitive `IrKind` values
+
+**2. `Ast.cs` deleted**
+
+Old bespoke records (`SLit`, `NLit`, `Var`, `Cat`, `Alt`, `FncCall`, etc.) removed.
+`Ast.cs` survives only in git history as reference.
+
+**3. New `Snobol4Parser.cs` drafted (NOT YET WRITTEN TO DISK)**
+
+Complete replacement parser was composed during session but blocked on file-already-exists.
+D-170 must overwrite it. The new parser:
+- Produces `IrNode`/`IrStmt` (not bespoke `Node`/`Stmt`)
+- Handles alternation `|` → `E_ALT`, space-concat → `E_SEQ`, arithmetic `+-*/^`
+- Handles `@var` → `E_CAPT_CURSOR`, `.var` → `E_CAPT_COND_ASGN`, `$var` → `E_CAPT_IMMED_ASGN`
+- Handles `*expr` → `E_DEFER`, `?expr` → `E_INTERROGATE`, `&IDENT` → `E_KEYWORD`
+- Handles function calls `NAME(args)` → `E_FNC`, array refs → `E_IDX`
+- Right-folds space-concat into `E_SEQ` (PatternBuilder/Executor resolve context)
+
+**Note:** build is currently broken — `Snobol4Parser.cs`, `PatternBuilder.cs`, `Executor.cs` still reference deleted `Ast.cs` types. D-170 must fix all three before building.
+
+### Baselines
+- `.github`: (this commit)
+- `one4all`: `fdd0cb7`
+- `corpus`: `2f2bbe3` (unchanged)
+- **Build: BROKEN** — references to deleted Ast.cs types. Fix is D-170 first task.
+
+### D-170 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=net TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. **Overwrite `Snobol4Parser.cs`** with new IrNode-producing version. Key points:
+   - Namespace: `ScripInterp`
+   - Public: `ParseFile(path)` → `IrStmt[]`, `ParseSource(string)` → `IrStmt[]`, `ParseExpr(string)` → `IrNode`
+   - Logical line splitter: handles `*` comments, `+/-` continuation, label col, `END`
+   - Goto extraction: peels `:S(lbl)` `:F(lbl)` `:(lbl)` from right
+   - Expression: `E_ALT` (pipe), `E_SEQ` (space-concat right-fold), `E_ADD/SUB/MUL/DIV/POW`, atoms
+   - Atoms: quoted → `E_QLIT`, `@var` → `E_CAPT_CURSOR`, `.var` → `E_CAPT_COND_ASGN`, `$var` → `E_CAPT_IMMED_ASGN`/`E_INDIRECT`, `*` → `E_DEFER`, `?` → `E_INTERROGATE`, `&` → `E_KEYWORD`, int → `E_ILIT`, float → `E_FLIT`, else → `E_VAR`
+   - No `using Pidgin` — pure hand-recursive, no external parser combinator dependency
+5. **Rewrite `PatternBuilder.cs`** to dispatch on `IrKind` instead of bespoke `Node` types:
+   - Constructor takes same delegates: `setVar`, `getStringVar`, `getPatternVar`, `evalNode` (now `Func<IrNode, SnobolVal>`)
+   - `Build(IrNode pat)` entry → `BuildNode(IrNode)`
+   - Switch on `IrKind`: `E_QLIT`→`BbLit(sval)`, `E_SEQ`→`BbSeq(left,right)`, `E_ALT`→`BbAlt(children)`, `E_ARB`→`BbArb()`, `E_ARBNO`→`BbArbno(child)`, `E_ANY`→`BbAny(charset)`, `E_NOTANY`→`BbNotany`, `E_SPAN`→`BbSpan`, `E_BREAK`→`BbBrk`, `E_BREAKX`→`BbBreakx`, `E_LEN`→`BbLen(n)`, `E_POS`→`BbPos(n)`, `E_RPOS`→`BbRpos(n)`, `E_TAB`→`BbTab(n)`, `E_RTAB`→`BbRtab(n)`, `E_REM`→`BbRem()`, `E_FAIL`→`BbFail()`, `E_SUCCEED`→`BbSucceed()`, `E_FENCE`→`BbFence()`, `E_ABORT`→`BbAbort()`, `E_BAL`→`BbBal()`, `E_CAPT_COND_ASGN`→`BbCapture(child,var,false)`, `E_CAPT_IMMED_ASGN`→`BbCapture(child,var,true)`, `E_CAPT_CURSOR`→`BbAtp(var)`, `E_DEFER`→`BbDvar(var)`, `E_VAR`→resolve then `BbLit`/`BbDvar`
+   - **MSIL boxes loaded from `boxes.dll` via `Assembly.LoadFrom`** — instantiate via reflection or cast via `IByrdBox` interface. The `IByrdBox` interface is defined in `boxes.dll`, so `scrip-interp.csproj` must reference `boxes.dll` directly (not `bb_boxes.csproj`).
+   - Add `<Reference>` to `scrip-interp.csproj`: `<HintPath>../../runtime/boxes/boxes.dll</HintPath>`
+6. **Rewrite `Executor.cs`** to dispatch on `IrKind`:
+   - `Run(IrStmt[])` loop unchanged structure
+   - `EvalExpr(IrNode)` stack machine: `E_QLIT`→push sval, `E_ILIT`→push ival.ToString(), `E_VAR`→push env.Get(sval), `E_KEYWORD`→push GetKeyword(sval), `E_ADD/SUB/MUL/DIV/MOD/POW`→pop 2 push result, `E_MNS/E_PLS`→pop 1 push result, `E_CAT/E_SEQ`(value ctx)→pop n push concat, `E_FNC`→call function, `E_ASSIGN`→set var
+   - `E_SEQ` vs `E_CAT` context: in subject/replacement position → treat as `E_CAT` (value concat); in pattern position → PatternBuilder handles as `BbSeq`
+7. Build clean: `dotnet build src/driver/dotnet/scrip-interp.csproj`
+8. Run hello/empty_string/multi → 3/3 smoke (A01c gate).
+9. Run 19 parse tests → A01b gate.
+10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `one4all/src/driver/dotnet/IrNode.cs` — canonical C# IR types (this session)
+- `one4all/src/runtime/boxes/boxes.dll` — MSIL execution layer (D-169)
+- `one4all/src/runtime/boxes/shared/bb_box.il` — IByrdBox/Spec/MatchState definitions
+- `one4all/src/ir/ir.h` — EKind enum oracle
+- `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t/SnoGoto oracle
+- `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase execution oracle
+- `MILESTONE-NET-INTERP.md` — full milestone ladder
+- `SESSION-snobol4-net.md §Track B` — session routing
