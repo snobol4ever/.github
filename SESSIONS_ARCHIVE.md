@@ -18393,3 +18393,57 @@ D-170 must overwrite it. The new parser:
 - `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase execution oracle
 - `MILESTONE-NET-INTERP.md` — full milestone ladder
 - `SESSION-snobol4-net.md §Track B` — session routing
+
+---
+
+## J-221 handoff — 2026-04-02
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**M-JVM-INTERP-A00 complete.** 32 Jasmin source files written + `boxes.jar` assembled. 6/6 smoke tests pass.
+
+Files committed to `one4all/src/runtime/boxes/jasmin/`:
+- `bb_box.jasmin` — abstract base class
+- `bb_box$spec.jasmin` — Spec inner class (start/len)
+- `bb_box$matchstate.jasmin` — MatchState inner class (sigma/delta/omega)
+- 25 box files: `bb_lit`, `bb_fail`, `bb_succeed`, `bb_fence`, `bb_rem`, `bb_any`, `bb_notany`, `bb_pos`, `bb_rpos`, `bb_len`, `bb_tab`, `bb_rtab`, `bb_span`, `bb_brk`, `bb_breakx`, `bb_arb`, `bb_eps`, `bb_bal`, `bb_abort`, `bb_alt`, `bb_seq`, `bb_arbno`, `bb_atp`, `bb_not`, `bb_interr`, `bb_capture`, `bb_dvar`
+- Inner class/interface files: `bb_abort$abort_exception`, `bb_atp$int_setter`, `bb_capture$var_setter`, `bb_dvar$box_resolver`, `bb_executor$var_store`
+- `bb_executor.jasmin` — 5-phase executor
+- `boxes.jar` — all 35 classes packaged
+
+**Naming convention (hard-won):**
+- Filename = class name, both snake_case: `bb_lit.jasmin` contains `.class public bb_lit`
+- `.inner` simple names also snake_case: `.inner class public static final spec inner bb_box$spec outer bb_box`
+- Inner/interface auxiliary files use `$` separator: `bb_box$spec.jasmin`, `bb_abort$abort_exception.jasmin`
+
+**Executor integration note:**
+`bb_executor.exec()` creates its own internal `bb_box$matchstate` from `subjVal`. Box graphs passed to `exec()` must share that matchstate — `PatternBuilder` must construct boxes using the executor's ms object, not a caller-supplied one. Smoke test #6 verified match (no-repl path) only; replacement path exercised once PatternBuilder wires ms correctly.
+
+### Baselines
+- `.github`: `d79ae59`
+- `one4all`: `981527b`
+- `corpus`: `2f2bbe3` (unchanged)
+- No gate — interpreter session, exempt per RULES.md
+
+### J-222 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. No gate — interpreter session, exempt per RULES.md.
+4. Verify boxes.jar smoke: `cd one4all/src/runtime/boxes/jasmin && javac -cp boxes.jar Smoke.java && java -cp .:boxes.jar Smoke` — expect 6/6 PASS. (Smoke.java in /tmp/smoketest2 or recreate from J-221 handoff.)
+5. **M-JVM-INTERP-A01: Lexer.java**
+   - Path: `one4all/src/driver/jvm/Lexer.java`
+   - Oracle: `one4all/src/frontend/snobol4/lex.c`
+   - Token types mirror `lex.c` token enum
+   - Gate: all 19 NET-INTERP parse test inputs tokenize without error
+   - Read `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A01` before starting
+6. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-222
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A01` — gate criteria
+- `one4all/src/frontend/snobol4/lex.c` — lexer oracle
+- `MILESTONE-NET-INTERP.md` — parallel C# interpreter (same token structure)
+- `one4all/src/runtime/boxes/jasmin/boxes.jar` — assembled boxes (do not modify)
