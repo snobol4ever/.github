@@ -38,7 +38,7 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-220 | one4all `09ac2cb` | **M-JVM-INTERP-A00**: `bb_*.jasmin` — 25 Jasmin boxes + BbBox + BbExecutor → `boxes.jar` |
+| **TINY JVM** | J-221 | one4all `981527b` | **M-JVM-INTERP-A01**: `Lexer.java` — tokenize SNOBOL4 source · oracle: `lex.c` |
 
 **Box language decision (J-220):** Boxes execute as Jasmin-assembled `.class` files, not Java.
 - `bb_*.java` — human-readable oracle/reference (J-217 ✅, do not modify)
