@@ -20727,3 +20727,50 @@ These are correct but incomplete without the `in_pat_ctx` refactor.
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
 - **Broad: 155p/23f**
+
+## D-176 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: no score change — 99p/79f (MSIL path broken, C# path intact at 99p)
+
+### What was done (D-176)
+
+**No new commit** — all work was diagnostic; changes to csproj were exploratory and should be reverted to clean state.
+
+1. **dotnet-sdk-10.0 installed** — `apt-get install -y dotnet-sdk-10.0` (10.0.104). Now on PATH.
+
+2. **native .NET 10 ilasm acquired** — downloaded `runtime.linux-x64.Microsoft.NETCore.ILAsm` 10.0.0 nupkg from nuget, extracted to `/tmp/ilasm_pkg/runtimes/linux-x64/native/ilasm`. Flags: `-DLL -OUTPUT=<path> <source.il>`.
+
+3. **`[mscorlib]` → `[System.Runtime]` fix completed** — combined IL built with correct strong-name:
+   `.publickeytoken = (7C EC 85 D7 BE A7 79 8E)` / `.ver 10:0:0:0` for `System.Runtime`;
+   `(CC 7B 13 FF CD 2D DD 51)` for `System.Memory`. ilasm assembles 32 classes, 0 errors.
+
+4. **CS0012 root cause diagnosed** — Roslyn refuses to compile C# referencing ilasm-built DLL. Even with correct strong-name token/version, Roslyn does not unify the DLL's declared `System.Runtime` extern with its own implicit framework reference. `<Reference>` HintPath workarounds, `<DisableImplicitFrameworkReferences>`, and MSBuild `<Target>` hacks all fail. This is a fundamental Roslyn limitation with non-SDK-built assemblies.
+
+5. **Pivot decision** — Static `boxes.dll` approach abandoned. **Correct approach: `System.Reflection.Emit` in-memory.** IL source files become opcode templates/oracle. `BoxFactory.cs` uses `AssemblyBuilder` + `TypeBuilder` + `ILGenerator` to define all 25 box types at runtime. `IByrdBox`/`MatchState`/`Spec`/`MatchResult` defined as plain C# in scrip-interp — no cross-assembly type conflict possible.
+
+### D-177 first actions
+1. `git pull --rebase` all repos
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → `HELLO WORLD` (C# path)
+3. Confirm baseline: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh` → ~99p
+4. **Revert csproj** to remove exploratory `<Reference>` / `<Target>` cruft — restore to clean D-175 state minus the `boxes.dll` reference entirely
+5. **Create `src/driver/dotnet/IByrdBox.cs`** — `IByrdBox`, `MatchState`, `Spec`, `MatchResult` as plain C#
+6. **Create `src/driver/dotnet/BoxFactory.cs`** — `AssemblyBuilder` scaffold; implement `bb_lit` first; smoke `038_pat_literal`
+7. Implement all 25 boxes using `src/runtime/boxes/*/bb_*.il` as opcode oracle
+8. Wire `PatternBuilder.cs` → `BoxFactory`; remove `boxes.dll` reference from csproj
+9. Broad → ≥ 151p; then word1–4/cross + 1012 → ≥ 160p
+
+### ilasm location (if needed for reference)
+`/tmp/ilasm_pkg/runtimes/linux-x64/native/ilasm` — ephemeral, re-extract from nuget if needed.
+Token probe: `System.Runtime` = `7C EC 85 D7 BE A7 79 8E` ver `10.0.0.0`.
+
+### Baselines for D-177
+- `one4all`: `a4d40cb` (D-175 commit — no new commit this session)
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad (C# boxes path): ~99p/79f**
+- Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
