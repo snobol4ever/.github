@@ -69,11 +69,14 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **SNOBOL4 JS** | SJ-6 | one4all `46c6267` | **SJ-6**: Fix emit_js.c _saved%d bug (lines 397/412/313) → wire bb_boxes.js into sno_engine.js build_pattern() → Phase 3 scan loop → M-SJ-B01. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
 | **⭐ TINY JVM** | J-218 | one4all `46c6267` | **M-JVM-INTERP-A01**: IR bridge (scrip-cc → Java) + PatternBuilder using canonical PATND_t → zero compile+link test loop. Then M-JVM-A02. |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
-| **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md || **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **DOTNET** D-166 (M-NET-P35-FIX — @N Phase 3/5 fix → 80/80) · **NET INTERP** D-166 (M-NET-INTERP-A01 — Pidgin parser scaffold — see MILESTONE-NET-INTERP.md) · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← all unfrozen, resume | see SESSIONS_ARCHIVE for HEAD per session | read own SESSION-*.md for next action |
+| **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
+| **⭐ NET INTERP** | D-166 | — | **M-NET-INTERP-A01**: scrip-interp.cs scaffold + Pidgin parser → 19/19 parse tests. **ACTIVE — exempt from freeze + scrip-cc gate.** See SESSION-snobol4-net.md §Track B. |
+| **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
+| **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
 
 **Invariants (DYN-20 baseline): x86: SNOBOL4 `142/142` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
-**Gate:** Runtime invariants only — `snobol4_x86`. Emit-diff retired until post M-DYN-S1.
+**Gate:** Emit sessions — runtime invariants only (`snobol4_x86`), emit-diff retired until post M-DYN-S1. Interpreter sessions (DYN-, NET INTERP) — broad corpus pass count only; do NOT run run_invariants.sh or run_emit_check.sh.
 
 ---
 
