@@ -67,7 +67,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-51 | one4all `2f146eb` · corpus `2f2bbe3` | **DYN-52**: debug `_XNME`→`flush_pending_captures` in Byrd Box path · fix word1–word4/cross · target ≥125p |
+| **⭐ DYNAMIC BYRD BOX** | DYN-52 | one4all `ce40aab` · corpus `2f2bbe3` | **DYN-53**: fix build (split compile/link) · confirm _XNME enum match (stmt_exec vs snobol4_pattern) · fix word1–word4/cross · target ≥125p |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
