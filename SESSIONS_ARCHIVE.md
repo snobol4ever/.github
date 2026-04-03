@@ -20774,3 +20774,97 @@ Token probe: `System.Runtime` = `7C EC 85 D7 BE A7 79 8E` ver `10.0.0.0`.
 - Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-59 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 155p/23f — baseline held; word2 newly passing; all goto tests pass
+
+### What was done (DYN-59)
+
+**Commit `1c9dff0` on one4all:**
+
+**1. stmt_exec.c include fix:**
+`#include "../boxes/bb_box.h"` → `#include "../boxes/shared/bb_box.h"`.
+The Jasmin `.h` file at `boxes/bb_box.h` was shadowing the C header on both
+include lines (49 and 82). Fixed both via `sed -i`.
+
+**2. interp_eval_pat() — DYN-59 pattern context refactor:**
+Added `static DESCR_t interp_eval_pat(EXPR_t *e)` after `interp_eval`.
+`E_SEQ`/`E_CAT` use `pat_cat` (not `CONCAT_fn`). `E_VAR` for zero-arg
+pattern keywords tries `APPLY_fn` before `NV_GET_fn`. All other nodes
+delegate to `interp_eval`. Pattern call site changed:
+`interp_eval(s->pattern)` → `interp_eval_pat(s->pattern)`.
+Removed `pat_ctx`/`_expr_is_pat` heuristic from `E_SEQ` handler in
+`interp_eval` (wrong layer — context is now passed via separate function).
+**Effect: no score change** — word2/3/4 are lexer bugs, not pattern-context bugs.
+
+**3. W/G white/gray lexer — beauty.sno design:**
+Added `CONT = \n[+.][ \t]*` and `W = ({WS}|{CONT})+` (White, mandatory)
+and `G = ({WS}|{CONT})*` (Gray, optional) to flex definitions section.
+Binary ops now use `{W}OP{W}` — mandatory space both sides, absorbing
+continuation lines. `T_CONCAT` is the sole whitespace-only token: `{W}/atom`.
+Structural tokens (parens, brackets, comma) are bare — spaces consumed by
+preceding rules or by `{WS}+` discard before catchall.
+**Effect: word2 now passes** (continuation lines in pattern assignments work).
+
+**4. T_GOTO eliminated — proper goto BNF:**
+GT lexer state rewritten: instead of collecting raw text into a `T_GOTO`
+blob and re-lexing it in `goto_field()`, the GT state now emits:
+- `T_GOTO_S` / `T_GOTO_F` — case-insensitive `[Ss]`/`[Ff]` before `(`/`<`
+- `T_GOTO_LPAREN` / `T_GOTO_RPAREN` — exclusive to GT state (no S/R conflict)
+- `T_IDENT`, `T_END`, `T_FUNCTION` — label names
+- `T_STMT_END` — on `\n` or `;`
+Grammar: `opt_goto` now real BNF with `goto_label_expr` non-terminal.
+`sno4_stmt_commit_go()` takes `SnoGoto*` directly. `goto_field()`/
+`goto_label()` helpers removed. Zero bison conflicts.
+Case-insensitive S/F fix also recovered all goto tests (031–037, 087).
+
+### word3/word4/wordcount — still failing
+Continuation lines *inside function-call argument lists* across lines.
+Example from word3.sno:
+```
+      PAT = POS(0) BREAK(' ') . WHEN (' ' SPAN(' '))
++            ARB . WHO (' ' SPAN(' :'))
++            REM . WHAT
+```
+The `+` continuation after `)` closes a paren context (depth > 0).
+When `\n` hits in BODY at depth > 0, the current `<BODY>\n` rule fires
+`T_STMT_END` and `BEGIN(INITIAL)` regardless of depth. The next line's
+`+` in INITIAL correctly suppresses statement end — but the `T_STMT_END`
+was already returned. This is the remaining bug.
+
+**Fix for DYN-60:**
+The `<BODY>\n` rule must check `depth > 0` — if inside parens, the newline
+is *always* a continuation regardless of col-1. Add:
+```
+<BODY>\n  { lineno++;
+             if (depth > 0) { /* inside parens — always continuation */ }
+             else BEGIN(INITIAL), return T_STMT_END; }
+```
+Or equivalently: suppress `T_STMT_END` when `depth > 0`. The INITIAL `[+.]`
+rule already handles col-1 continuation for depth-0 cases.
+
+### DYN-60 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. Rebuild scrip-interp (build script in SESSION-dynamic-byrd-box.md)
+4. Confirm **155p/23f** baseline
+5. **Fix `<BODY>\n` depth guard** (see above) — expect word3/word4/wordcount → ≥158p
+6. Then tackle `310/311/312_concat_*` (numeric coerce in `E_CAT`/`E_SEQ`)
+7. Then `W04_arbno_*` and `W07_capt_chain`
+
+### Baselines for DYN-60
+- `one4all`: `1c9dff0`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 155p/23f**
+
+### Key files
+- `src/frontend/snobol4/snobol4.l` — `<BODY>\n` rule (~line 138), W/G defs (~line 65)
+- `src/frontend/snobol4/snobol4.y` — `opt_goto`/`goto_label_expr` rules (~line 65)
+- `src/driver/scrip-interp.c` — `interp_eval_pat()` (~line 990), pattern call site (~line 315)
+- `src/runtime/dyn/stmt_exec.c` — include fix (lines 49, 82)
