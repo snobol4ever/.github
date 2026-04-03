@@ -181,3 +181,95 @@ public sealed class IrStmt {
 
 *MILESTONE-NET-INTERP.md — revised D-167, 2026-04-03, Claude Sonnet 4.6.*
 *D-168 task: replace bespoke Ast.cs with IrNode.cs mirroring ir.h EKind/EXPR_t/STMT_t.*
+
+---
+
+## Execution model (D-167 addendum 2 — stack machine + Byrd box sequencer)
+
+**The interpreter is a stack machine that directly maps to generated code.**
+
+This is not a tree-walk eval loop. It is:
+
+```
+IrStmt[]
+  → for each stmt: 5-phase executor
+      Phase 1: stack machine evaluates subject IrNode subtree → SnobolValue (push/pop)
+      Phase 2: PatternBuilder walks pattern IrNode subtree → IByrdBox graph (in memory)
+      Phase 3: ByrdBoxExecutor — Byrd box sequencer/trampoline (α/β/γ/ω ports)
+      Phase 4: stack machine evaluates replacement IrNode subtree → SnobolValue
+      Phase 5: splice, commit captures, :S/:F branch
+```
+
+### Stack machine (Phases 1 and 4)
+
+Expression evaluation uses an explicit **value stack**, not recursive C# calls.
+Each `IrKind` maps to a stack operation:
+
+| IrKind | Stack operation |
+|--------|----------------|
+| `E_QLIT` / `E_ILIT` / `E_FLIT` / `E_NUL` | PUSH literal |
+| `E_VAR` | PUSH env.Get(sval) |
+| `E_KEYWORD` | PUSH env.GetKeyword(sval) |
+| `E_ADD` / `E_SUB` / `E_MUL` / `E_DIV` / `E_POW` | POP two, PUSH result |
+| `E_MNS` / `E_PLS` | POP one, PUSH result |
+| `E_CAT` (n-ary) | POP n, PUSH concatenated string |
+| `E_FNC` (n-ary) | POP n args, PUSH return value |
+| `E_IDX` | POP base + indices, PUSH element |
+| `E_INDIRECT` | POP name-string, PUSH env.Get(name) |
+| `E_ASSIGN` | POP value + lvalue-name, SET env, PUSH value |
+
+**Why stack machine:** the same IrNode tree that the interpreter walks to push/pop
+is what `emit_net.c` / `emit_x64.c` compile to IL / NASM. The interpreter's stack
+operations are a 1-to-1 preview of the emitted instruction sequence. When Phase S
+(static compile) is added, the emitter walks the same IrNode tree and emits
+the same operations as native instructions. No semantic gap between interpreted
+and compiled execution.
+
+### Byrd box sequencer (Phase 3)
+
+`PatternBuilder` walks the pattern `IrNode` subtree and constructs an `IByrdBox`
+graph in memory — one box per pattern primitive IrKind:
+
+| IrKind | Box |
+|--------|-----|
+| `E_QLIT` (in pattern ctx) | `BbLit` |
+| `E_SEQ` | `BbSeq` (right-fold) |
+| `E_ALT` | `BbAlt` |
+| `E_ANY` | `BbAny` |
+| `E_SPAN` | `BbSpan` |
+| `E_ARB` | `BbArb` |
+| `E_ARBNO` | `BbArbno` |
+| `E_LEN` | `BbLen` |
+| `E_POS` / `E_RPOS` | `BbPos` / `BbRpos` |
+| `E_TAB` / `E_RTAB` | `BbTab` / `BbRtab` |
+| `E_REM` | `BbRem` |
+| `E_FAIL` / `E_SUCCEED` / `E_FENCE` / `E_ABORT` | corresponding boxes |
+| `E_BAL` | `BbBal` |
+| `E_BREAK` / `E_BREAKX` | `BbBrk` / `BbBreakx` |
+| `E_NOTANY` | `BbNotany` |
+| `E_CAPT_COND_ASGN` | `BbCapture(immediate:false)` |
+| `E_CAPT_IMMED_ASGN` | `BbCapture(immediate:true)` |
+| `E_CAPT_CURSOR` | `BbAtp` |
+| `E_DEFER` | `BbDvar` |
+| `E_VAR` (in pattern ctx) | resolve → BbLit(value) or BbDvar |
+
+`ByrdBoxExecutor.Run()` is the sequencer: it drives α/β/γ/ω ports across
+the box graph, advancing the cursor. This is exactly what the static emitter
+generates as inline NASM/IL Byrd box trampolines — the interpreter runs the
+same sequencing logic interpreted rather than compiled.
+
+### Consequence for IrNode.cs
+
+`IrNode` needs a **context flag** (or the executor infers from position):
+`E_VAR` in subject position → stack-machine lookup;
+`E_VAR` in pattern position → PatternBuilder resolves to box.
+`E_QLIT` in subject/repl position → string value;
+`E_QLIT` in pattern position → `BbLit`.
+The executor passes context (`SubjectCtx` / `PatternCtx` / `ReplCtx`) when
+dispatching, not a flag on the node — mirrors how `emit_net.c` uses emission
+context rather than node mutation.
+
+---
+
+*Stack machine + Byrd box sequencer section added D-167 session, 2026-04-03, Claude Sonnet 4.6.*
+*Lon Jones Cherryholmes: "interpreter is a stack machine and Byrd box sequencer/interpreter — maps directly to generated code later."*
