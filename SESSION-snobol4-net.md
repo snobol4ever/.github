@@ -1,10 +1,10 @@
 # SESSION-snobol4-net.md — SNOBOL4 × .NET
 
-⚠️ **TWO TRACKS — read carefully:**
-- **Track A** (DOTNET / D-166): `snobol4dotnet` repo, @N bug fix. FROZEN until M-DYN-S1.
-- **Track B** (NET INTERP / D-168): `scrip-interp.cs` in `one4all`. **ACTIVE.** No `snobol4dotnet` clone needed. No dotnet test. No crosscheck. Interpreter regression only.
+**Session:** one4all · SNOBOL4 · .NET — one unified milestone chain.
+**Active work:** `scrip-interp.cs` in `one4all`. No `snobol4dotnet` clone needed. No dotnet test. Interpreter regression only.
+**D-166 @N fix** (`snobol4dotnet`) is deferred — see `MILESTONE-NET-SNOBOL4.md` Phase C.
 
-**Repo:** snobol4dotnet · **Frontend:** SNOBOL4/SPITBOL · **Backend:** .NET MSIL
+**Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** .NET MSIL
 **Session prefix:** `D` / `N`
 **Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
 
@@ -126,36 +126,18 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY NET** | N-248 — 110/110 ✅ | `425921a` | M-T2-FULL ✅ complete |
-| **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet · one4all `90d5531` | **M-NET-P35-FIX** — wire boxes · fix @N Phase 3/5 → 80/80 |
 | **NET INTERP** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01a** — `Snobol4Lexer.cs` token stream mirrors `lex.c` · 19/19 token tests |
 
-**Two parallel tracks from D-166:**
-
-### Track A — ThreadedExecuteLoop (snobol4dotnet @N fix)
+**First actions:**
 1. `git pull --rebase` all repos.
-2. `export PATH=/usr/local/dotnet10:$PATH` + `dotnet test` → confirm 1911/1913.
-3. Crosscheck → confirm 79/80 baseline.
-4. **Read oracle**: `sed -n '1,50p' src/runtime/dyn/stmt_exec.c` — Phase 5 section.
-5. Add sentinel printouts before/after `CheckGotoFailure`, `Init`, `Finalize`
-   in `ThreadedExecuteLoop.cs`; run `strings/cross`; find the clobber.
-6. Fix. Crosscheck → 80/80. `dotnet test` → ≥1911/1913.
-7. Commit, push, update SESSIONS_ARCHIVE + push .github.
+2. `export PATH=/usr/local/dotnet8:$PATH` + `dotnet build src/driver/dotnet/scrip-interp.csproj` → confirm clean.
+3. **M-NET-INTERP-A01a** — Write `Snobol4Lexer.cs`; wire into parser; 19/19 token tests.
+4. **M-NET-INTERP-A01b** — Replace `Ast.cs` with `IrNode.cs` (mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`); update parser; 19/19 parse tests.
+5. **M-NET-INTERP-A01c** — Update `PatternBuilder.cs` + `Executor.cs` to dispatch on `IrKind`; remove `Ast.cs`; build clean; hello/empty_string/multi 3/3.
+6. **M-NET-INTERP-A02** — Stack machine Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind`; rung1 20/20.
+7. **M-NET-INTERP-A03** — Byrd box sequencer Phases 2/3: `PatternBuilder` → `IByrdBox` graph; `ByrdBoxExecutor` trampoline; rung2–5 60/60.
 
-### Track B — scrip-interp.cs (new interpreter, zero compile/link overhead)
-See **MILESTONE-NET-INTERP.md** and **MILESTONE-NET-SNOBOL4.md** for full spec.
-
-Pipeline: `.sno` → **Lexer** → tokens → **Parser** → `IrNode`/`IrStmt` tree → **5-phase interpreter**
-
-1. **M-NET-INTERP-A01a** — Write `Snobol4Lexer.cs`; token stream mirrors `lex.c`; wire into parser; 19/19 token tests.
-2. **M-NET-INTERP-A01b** — Replace `Ast.cs` with `IrNode.cs` (mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`); update parser to emit `IrNode`/`IrStmt`; 19/19 parse tests.
-3. **M-NET-INTERP-A01c** — Update `PatternBuilder.cs` + `Executor.cs` to dispatch on `IrKind`; remove `Ast.cs`; build clean; hello/empty_string/multi 3/3.
-4. **M-NET-INTERP-A02** — Stack machine Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind`; rung1 20/20.
-5. **M-NET-INTERP-A03** — Byrd box sequencer Phases 2/3: `PatternBuilder` → `IByrdBox` graph; `ByrdBoxExecutor` trampoline; rung2–5 60/60.
-
-**Track B is the recommended starting point for D-166** — it builds momentum
-fast, has no dependency on snobol4dotnet, and the @N bug is avoided structurally
-(captures commit only on Phase 5 :S, by design).
+See **MILESTONE-NET-SNOBOL4.md** for the full chain (Phase A → B → C → O → Z).
 
 ---
 
