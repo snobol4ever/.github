@@ -126,7 +126,7 @@ fall inside that window.  Fix: guard so Phase 3 writes survive Phase 5.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-170 | one4all `cb1b00c` | **118/178 broad** · Fix goto_failure, builtin IDENT/GT, keywords &ALPHABET/&ANCHOR, arith exponent, ALT commit, ARRAY — target ≥ 140/178 |
+| **NET INTERP** | D-171 | one4all `b45f663` | **146/178 broad** · Fix DataGetField crash, E_PLS unary+, $.var<idx> indirect, array OOB→Fail, FRETURN, func scoping → target ≥ 155p |
 
 **First actions:**
 1. `git pull --rebase` all repos.
