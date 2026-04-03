@@ -15,7 +15,7 @@ See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
 
 **Step 2 — Gate (emit sessions ONLY — interpreter sessions skip this step entirely):**
 
-⛔ **DYN- and NET INTERP sessions: SKIP Step 2. Do NOT run run_invariants.sh or run_emit_check.sh. Go straight to Step 3.**
+⛔ **DYN- and one4all-SNOBOL4-NET sessions: SKIP Step 2. Do NOT run run_invariants.sh or run_emit_check.sh. Go straight to Step 3.**
 
 Emit sessions only:
 ```bash
@@ -76,13 +76,13 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **⭐ TINY JVM** | J-221 | one4all `981527b` | **M-JVM-INTERP-A01**: `Lexer.java` — tokenize SNOBOL4 source · oracle: `lex.c` · gate: 19/19 NET-INTERP inputs tokenize clean |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
-| **⭐ NET INTERP** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01b**: replace Ast.cs with IrNode.cs (mirrors ir.h EKind/EXPR_t/STMT_t) → update parser+executor → 19/19 parse tests. **ACTIVE — exempt from freeze + gate. Repo: one4all ONLY — NOT snobol4dotnet.** See SESSION-snobol4-net.md §Track B + MILESTONE-NET-INTERP.md. |
+| **⭐ one4all-SNOBOL4-NET** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01b**: replace Ast.cs with IrNode.cs (mirrors ir.h EKind/EXPR_t/STMT_t) → update parser+executor → 19/19 parse tests. **ACTIVE — exempt from freeze + gate. Repo: one4all ONLY — NOT snobol4dotnet.** See SESSION-snobol4-net.md §Track B + MILESTONE-NET-INTERP.md. |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
 
 **Invariants (DYN-20 baseline): x86: SNOBOL4 `142/142` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
 
-**Gate:** Emit sessions — runtime invariants only (`snobol4_x86`), emit-diff retired until post M-DYN-S1. Interpreter sessions (DYN-, NET INTERP) — broad corpus pass count only; do NOT run run_invariants.sh or run_emit_check.sh.
+**Gate:** Emit sessions — runtime invariants only (`snobol4_x86`), emit-diff retired until post M-DYN-S1. Interpreter sessions (DYN-, one4all-SNOBOL4-NET) — broad corpus pass count only; do NOT run run_invariants.sh or run_emit_check.sh.
 
 ---
 
