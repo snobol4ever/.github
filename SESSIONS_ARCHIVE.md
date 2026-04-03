@@ -19074,6 +19074,7 @@ if (s.pattern != null) {
 
 ---
 
+<<<<<<< HEAD
 ## SJ-9 handoff — 2026-04-02
 
 ### Session type
@@ -19351,3 +19352,59 @@ Removed: `sno.l`, `lex.c` (old scrip-cc two-pass lexer), `sno.y`, `sno.tab.c/h`
 - `src/driver/dotnet/PatternBuilder.cs` — pattern → IByrdBox graph (BuildSeq fixed this session)
 - `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table
 - `MILESTONE-NET-SNOBOL4.md` — milestone chain (currently Phase A)
+=======
+### J-222 — M-JVM-INTERP-A04 WIP (emergency handoff, context limit)
+
+**HEAD:** one4all `0577741b76325ed2a535952155fa851501c4d840`
+
+**Work done:**
+- All box `.java` files: added `package driver.jvm;` to top of every file
+- All box `.java` files: renamed PascalCase class names to match project convention — **CORRECTION**: class names inside files remain PascalCase (BbLit, BbSeq, etc.) — this is standard Java; filenames are snake_case (bb_lit.java). The rename attempted this session was **wrong** — see below.
+- `SnoVal` → `DESCR` rename throughout `Interpreter.java` and `PatternBuilder.java`
+- `PatternBuilder.java` written (238 lines) in `src/driver/jvm/`
+- `Interpreter.java` pattern stub replaced with full Phase 2–4 Byrd box wiring
+
+**CRITICAL ISSUE FOR NEXT SESSION:**
+The class name rename (BbLit → bb_lit etc.) was demanded by the user as a naming convention fix. BUT the user said "those are not the names I want" / "the names are bb_lit, bb_len" referring to the project convention. The sed rename changed class declarations from `class BbLit` to `class bb_lit` etc. This is now committed. Next session must verify: are the class names correct as `bb_lit` (snake_case) matching C/Jasmin convention, or does Java require reverting to PascalCase? **Check by attempting a clean compile first.**
+
+**Compile status: UNKNOWN — push was WIP**
+
+Last known error before context limit:
+- `EXIT: 1` with no visible error output (pipe masking stderr)
+- Previously was down to 0 errors after `fval` → `dval` fix in PatternBuilder.java
+- Likely clean or 1–2 trivial errors remaining
+
+**First actions next session:**
+```bash
+cd /home/claude/one4all && git pull --rebase
+BOXES=src/runtime/boxes
+javac -d /tmp/jvm_cls \
+  $BOXES/shared/bb_box.java $BOXES/shared/bb_executor.java \
+  $BOXES/capture/bb_capture.java $BOXES/abort/bb_abort.java \
+  $BOXES/alt/bb_alt.java $BOXES/any/bb_any.java $BOXES/arb/bb_arb.java \
+  $BOXES/arbno/bb_arbno.java $BOXES/atp/bb_atp.java $BOXES/bal/bb_bal.java \
+  $BOXES/brk/bb_brk.java $BOXES/breakx/bb_breakx.java $BOXES/dvar/bb_dvar.java \
+  $BOXES/eps/bb_eps.java $BOXES/fail/bb_fail.java $BOXES/fence/bb_fence.java \
+  $BOXES/interr/bb_interr.java $BOXES/len/bb_len.java $BOXES/lit/bb_lit.java \
+  $BOXES/not/bb_not.java $BOXES/notany/bb_notany.java $BOXES/pos/bb_pos.java \
+  $BOXES/rem/bb_rem.java $BOXES/rpos/bb_rpos.java $BOXES/rtab/bb_rtab.java \
+  $BOXES/seq/bb_seq.java $BOXES/span/bb_span.java $BOXES/succeed/bb_succeed.java \
+  $BOXES/tab/bb_tab.java \
+  src/driver/jvm/Lexer.java src/driver/jvm/Parser.java \
+  src/driver/jvm/PatternBuilder.java src/driver/jvm/Interpreter.java
+# Fix any errors, then gate: corpus/crosscheck/patterns/038_pat_literal.sno
+```
+
+**Key decisions made this session:**
+- `package driver.jvm;` added to all box .java files (enables javac to find them from named-package driver files)
+- `DESCR` is the correct value type name (not `SnoVal`)  
+- `dval` is the float field name in ExprNode (not `fval`)
+- `bb_executor.VarStore`, `bb_capture.VarSetter`, `bb_atp.IntSetter`, `bb_dvar.BoxResolver`, `bb_abort.AbortException` are the correct inner interface/class names
+- PatternBuilder takes: `bb_box.MatchState`, `VarSetter`, `IntSetter`, `bb_dvar.BoxResolver`
+- Deferred captures (.var) registered via `ex.registerCapture(cap)` before `ex.exec()`
+
+**Baselines:**
+- one4all: `0577741b76325ed2a535952155fa851501c4d840`
+- corpus: `2f2bbe3` (unchanged)
+- Non-pattern gate still 19/19 (no regressions to non-pattern path)
+>>>>>>> 6322fc7 (J-222 emergency handoff: M-JVM-INTERP-A04 WIP, PatternBuilder written, compile pending)
