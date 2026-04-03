@@ -19230,3 +19230,63 @@ Removed `sno.l` and `lex.c` (scrip-cc two-pass lexer path retired).
 Removed `sno.y`, `sno.tab.c`, `sno.tab.h` — old scrip-cc bison parser retired.
 `parse.c` is the single parser. Frontend now: `lex.l` + `lex.yy.c` + `parse.c` only.
 one4all HEAD: `c116c2c`.
+
+---
+
+## DYN-47 final handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-
+
+### What was done
+
+**M-LEX-1 complete — lex.l one-pass lexer wired into scrip-interp**
+
+- Root crash fixed: in reentrant flex `yylineno` expands to
+  `YY_CURRENT_BUFFER_LVALUE->yy_bs_lineno`. In `<<EOF>>` rule,
+  `yypop_buffer_state` sets buffer to NULL; subsequent `yylineno` access
+  segfaults. Fix: `int _ln = yyget_lineno(yyscanner)` before pop.
+- All symbols defined in `lex.l` user-code section — no separate `lex.c`.
+- `lex.h`: `#include <stdio.h>` added for `FILE*`.
+- `lex.yy.c` committed; order-only Makefile rule (rebus pattern).
+- **test_lex: 54p/0f** ✅
+
+**`sno_*` rename** — `snoc_` → `sno_` across all source files.
+
+**Frontend cleaned to three files:**
+- `lex.l` — one-pass lexer source
+- `lex.yy.c` — generated, committed
+- `parse.c` — hand-rolled recursive-descent parser (placeholder until M-PARSE-1)
+
+Removed: `sno.l`, `lex.c` (old scrip-cc two-pass lexer), `sno.y`, `sno.tab.c/h`
+(old scrip-cc bison parser, broken pre-existing — `Expr`/`Stmt` type mismatch).
+
+### NOT YET DONE — DYN-48 first actions
+
+1. `git pull --rebase` all repos.
+2. `TOKEN=... FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. Rebuild scrip-interp (session doc build command).
+4. **Fix broad regression 126p/52f → 169p/9f**:
+   - MONITOR: run a regressed test (e.g. `literals`, `test_case`) through
+     scrip-interp AND `/usr/local/bin/spitbol`, diff output.
+   - Likely cause: `lex.l` token stream differs from old queue path for some
+     body/goto construct. Check `emit_stmt_seg` / `tokenise_body_pending`
+     against what SPITBOL accepts.
+5. **M-PARSE-1**: write `parse.y` (bison) replacing `parse.c`.
+   - Oracle: `syntax.tbl` BIOPTB + `v311.sil` EXPR proc for precedence.
+   - Gate: same IR as `parse.c` on all 169 passing tests.
+   - On success: remove `parse.c`.
+
+### Key references
+- `src/frontend/snobol4/lex.l` — one-pass lexer (397+ lines)
+- `src/frontend/snobol4/lex.yy.c` — flex output, committed
+- `src/frontend/snobol4/parse.c` — current parser (to be replaced by parse.y)
+- `/tmp/refs/snobol4-2.3.3/syntax.tbl` — CSNOBOL4 scan tables (parse.y oracle)
+- `/tmp/refs/snobol4-2.3.3/v311.sil` EXPR proc — precedence oracle
+
+### Baselines
+- one4all: `c116c2c`
+- corpus: `2f2bbe3`
+- .github: (this commit)
+- test_lex: **54p/0f** ✅
+- Broad: **126p/52f** ⚠️ (target: 169p/9f)
