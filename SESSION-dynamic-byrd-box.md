@@ -33,13 +33,13 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | Static .s must call stmt_exec_dyn | `## Static .s Path Must Also Use Five Phases` |
 | Anonymous inline constants | `## Anonymous Inline Pattern Constants` |
 
-## §NOW — DYN-46
+## §NOW — DYN-47
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-47 | one4all `c116c2c` · corpus `2f2bbe3` | **M-LEX-1 broad regression**: 126p/52f vs baseline 169p/9f. DYN-48: MONITOR diff scrip-interp vs SPITBOL on failing tests to find lex.l token-stream divergence. Then M-PARSE-1. |
+| **DYNAMIC BYRD BOX** | DYN-47 | one4all `c116c2c` · corpus `2f2bbe3` | **DYN-48**: (1) MONITOR diff scrip-interp vs SPITBOL on regressed tests → fix broad 126p/52f → 169p/9f. (2) **M-PARSE-1**: write `parse.y` replacing `parse.c`. |
 
-**Broad baseline: 169p/9f** (unchanged — new lex.l not yet compiled in)
+**Broad baseline: 169p/9f** — currently 126p/52f after lex.l wiring. Regression is DYN-48 first priority.
 
 Remaining failures: `1013/003` · `1015_opsyn` · `1016_eval` · `cross` · `expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
 ## scrip-interp build command
