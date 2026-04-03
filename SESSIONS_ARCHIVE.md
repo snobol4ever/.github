@@ -19071,3 +19071,92 @@ if (s.pattern != null) {
 - corpus: `2f2bbe3` (unchanged)
 - .github: this commit
 - Interpreter gate: **19/19 PASS** (non-pattern corpus — pattern branch still stubbed)
+
+---
+
+## SJ-9 handoff — 2026-04-02
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript interpreter. Session prefix: SJ-.
+
+### What was done
+
+**Real-type tagging rewrite + arithmetic fixes — 129p/23f broad (152 tests).**
+
+#### Commits
+- `66b12e6` — SJ-9 r1: real-tag object, fix 410/412/literals — 129p/23f broad
+
+#### Root causes found and fixed
+
+**Bug 1 — `410/009`: `5 + ''` → `"5.0"`**
+- `tok()` had `sval: sval||null` — empty string `''` became `null`
+- `E_QLIT('')` evaluated to `null`; `_is_int(null)` was `false` (no dot check)
+- `_add(5, null)` treated null as real → `_real_result(5)` = `"5.0"`
+- Fix: `tok()` preserves `''`; `_is_int(null)` returns `true` (SNOBOL4 null = integer zero)
+
+**Bug 2 — `412/005`: `3.0 ** 3` → integer `27` not real `27.`**
+- `E_POW` case called `Math.pow(_num(a), _num(b))` directly, losing real-type propagation
+- Fix: `E_POW` now calls `_pow(a, b)` which respects `_is_int`
+
+**Bug 3 — `literals` line 7: `1.0` → `"1.0"` not `"1."`**
+- `OUTPUT` proxy used `String(v)` not `_str(v)` — bypassed SNOBOL4 real formatting entirely
+- Fix: OUTPUT proxy uses `_str(v)`
+
+**Bug 4 — `literals` line 10: `'1.0'` (quoted string) formatted as real `1.`**
+- `_str()` dot-sniffed any string with `.` and formatted as real — wrong for quoted literals
+- Root fix: replaced dot-string real tagging with frozen object `{_r:1, v:number}`
+  - `_real_result(r)` returns `_mkreal(r)` — never a dot-string
+  - `_is_real(v)` detects tagged real objects
+  - `_is_int(v)`: `null→true`, `_is_real→false`, plain strings→`true`
+  - `_str(v)`: only formats `_is_real` objects as SNOBOL4 real; plain strings pass through unchanged
+  - `_num(v)`: unwraps `_is_real` objects via `.v`
+  - `E_FLIT` eval: returns `_real_result(parseFloat(e.sval))` not raw sval string
+
+#### Still failing (23)
+
+| Test | Root cause |
+|------|-----------|
+| `081_builtin_datatype` | `DATATYPE` returns `'STRING'` for real-tagged objects — needs `_is_real` check |
+| `053_pat_alt_commit` | Pattern-value var `__pat` structure — unverified |
+| `1013_func_nreturn` | `NRETURN` not implemented |
+| `1010/1011_func_recursion/redefine` | Likely `OPSYN` not implemented |
+| `1113/1114_table/item` | TABLE builtins incomplete |
+| `212_indirect_array` | `$var<index>` indirect array subscript |
+| `094_data_define_access` | Undiagnosed |
+| `910_convert` | `910/003`: integer→real conversion path |
+| `expr_eval` | `E_DEFER` on function call |
+| `test_case/math/stack/string` | Compile errors (likely `DEFINE`/`DATA` stubs) |
+| `fileinfo`, `triplet` | INPUT-dependent |
+| `word1–4`, `wordcount`, `cross` | Complex programs |
+
+#### Quick wins for SJ-10
+
+1. **Fix `081_builtin_datatype`**: `DATATYPE` must check `_is_real(v)` → return `'REAL'`
+2. **Fix `910/003`**: `CONVERT(n, 'REAL')` — return `_real_result(Number(n))`
+3. **Fix `OPSYN`**: `_user_fns[dest] = _user_fns[src] || _builtins[src]`
+4. **Fix `NRETURN`**: throw `SnoNReturn(payload)`, catch in function call, treat as lvalue
+5. **Fix `DATATYPE` for patterns**: `_is_real` → `'REAL'`, `_engine._is_pat` → `'PATTERN'`
+6. Target: **140+/152**
+
+### Baselines for SJ-10
+
+- `one4all`: `66b12e6`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 129p/23f (152 tests)**
+
+### SJ-10 first actions
+
+1. `git pull --rebase` all repos
+2. No gate (interpreter session, exempt per RULES.md)
+3. Fix `DATATYPE` → `_is_real` check first (1-liner, immediate win)
+4. Fix `CONVERT` real path
+5. Fix `OPSYN`, `NRETURN`
+6. Run broad, target 140+/152
+
+### Key references
+- `src/runtime/js/sno-interp.js` — interpreter
+- `src/runtime/js/sno_runtime.js` — `_vars`, `_str`, `_num`, builtins, arithmetic
+- `src/runtime/js/sno_engine.js` — pattern match engine
+- `MILESTONE-JS-SNOBOL4.md` — milestone ladder
+
