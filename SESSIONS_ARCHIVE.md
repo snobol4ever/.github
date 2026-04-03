@@ -19859,3 +19859,46 @@ Add helper: `CoerceNumeric(v)` → if string and parseable as int/real, return `
 ### Key files
 - `src/driver/dotnet/SnobolEnv.cs` — tag scheme, TABLE, builtins, DataGetField **crash fix needed here**
 - `src/driver/dotnet/Executor.cs` — E_PLS, EvalIdx, func scoping
+
+---
+
+## D-171r handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — rename-only follow-on to D-171.
+
+### What was done
+
+**`SnobolVal` → `DESCR` rename** throughout `src/driver/dotnet/`:
+- `SnobolEnv.cs` — 126 replacements
+- `Executor.cs` — 72 replacements
+- `PatternBuilder.cs` — 2 replacements
+- `Snobol4Parser.cs` — 0 (no occurrences)
+- `IrNode.cs`, `Program.cs` — 0 (no occurrences)
+
+Build clean. Smoke `hello.sno` → `HELLO WORLD` ✅. Pushed `c08c077`.
+
+This aligns the interpreter's value type name with the C runtime convention (`DESCR` in `bb_box.cs` / `bb_box.h`).
+
+### Baselines for D-172
+- `one4all`: `c08c077`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 146p/32f** (unchanged — rename only)
+
+### D-172 first actions (unchanged from D-171 handoff)
+1. `git pull --rebase` all repos
+2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed)
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+5. Fix `DataGetField` crash — stale `(-handle.Int - 1)` → `(handle.Int & IDX_MASK)` in `SnobolEnv.cs`
+6. Fix `E_PLS` unary + numeric coerce in `Executor.cs`
+7. Fix array OOB → `DESCR.Fail`
+8. Trace `$.var<idx>` parser shape, fix `EvalIdx` if needed
+9. Wire `&TRIM` into INPUT reading (fixes `word*`)
+10. Tackle `rung10` function scoping (1010–1013, 1017)
+11. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key files
+- `src/driver/dotnet/SnobolEnv.cs` — `DataGetField` crash fix needed (~line 200, `_dataObjs[(int)(-handle.Int - 1)]` → `_dataObjs[(int)(handle.Int & IDX_MASK)]`)
+- `src/driver/dotnet/Executor.cs` — `E_PLS`, `EvalIdx`, func scoping
