@@ -17911,3 +17911,16 @@ kinds as `scrip-cc` and `scrip-interp.c`.
 - one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
 - Build: clean · hello/empty_string/multi: 3/3 pass
 - Gate: snobol4_x86 142/142 ✅
+
+## J-220 addendum — 2026-04-02
+
+**Architecture clarification (same session, after HQ fix commit):**
+
+The JVM interpreter is a **stack machine + Byrd box sequencer**, not a generic tree-walker:
+
+- **Stack machine** — executes non-pattern operations (Phases 1, 4, 5; assignments, arithmetic, gotos, calls) via typed IR opcodes. Maps 1:1 to JVM stack bytecode in emit_jvm.c later.
+- **Byrd box sequencer** — for pattern matching (Phases 2+3): PatternBuilder.java builds bb_*.java graph from PatNode IR; BbExecutor.java sequences α/β/γ/ω signals through the box graph. Maps 1:1 to labeled-goto Jasmin in emit_jvm.c later.
+
+**Design invariant:** Every interpreter operation has a 1:1 correspondence to an emitter operation. Interpreter proves semantics; emit_jvm.c serializes the same ops to Jasmin. No interpreter-only constructs.
+
+MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section updated with full architecture description and revised A03/A04 milestone specs. Committed `001f369` → see next commit below.
