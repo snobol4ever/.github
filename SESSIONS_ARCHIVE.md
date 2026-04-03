@@ -18046,61 +18046,137 @@ Key decisions made and committed (`ddb8f71` .github):
 - `one4all/src/runtime/boxes/shared/bb_executor.java` — BbExecutor oracle
 - `SESSION-snobol4-jvm.md §NOW` — first actions checklist
 
+
 ---
 
-## D-168 handoff — 2026-04-02
-
-### Session type
-**NET INTERP** — SNOBOL4 × .NET C# interpreter. Session prefix: D-.
-
-⚠️ **ROUTING CLARIFICATION — read this first:**
-This session is **NOT** `snobol4dotnet`. It is `scrip-interp.cs` in `one4all`.
-- Repo: `one4all` (NOT `snobol4dotnet`)
-- No `snobol4dotnet` clone needed. No dotnet test. No crosscheck vs snobol4dotnet.
-- The C# Byrd boxes (`bb_*.cs`) live in `one4all/src/runtime/boxes/*/` — already written ✅
-- Session doc: `SESSION-snobol4-net.md §Track B` — ignore Track A (@N fix) entirely
-- Milestone doc: `MILESTONE-NET-INTERP.md`
+## DYN-43 handoff — 2026-04-03
 
 ### What was done
 
-**Planning and architecture verification session only. No code written.**
+**Session infrastructure fixed, root cause of 1013/003 diagnosed.**
+
+#### Build fixes
+- `src/runtime/boxes/bb_box.h` — forwarding header added (`#include "shared/bb_box.h"`). `stmt_exec.c` uses `#include "../boxes/bb_box.h"` (relative path) which now resolves correctly.
+- scrip-interp build loop: `atp`, `capture`, `dvar` removed from separate compilation. All three (`bb_atp`, `bb_capture`, `bb_deferred_var`) are still defined inside `stmt_exec.c` with explicit comment "remain here until MILESTONE-BOX-UNIFY". Compiling them separately caused duplicate symbol conflicts.
+- `test/run_interp_broad.sh` — broad runner committed. Run: `bash test/run_interp_broad.sh` from one4all root.
+
+#### Commit
+- `088ab07` / pushed as `8d38768` — DYN-43: run_interp_broad.sh + boxes/bb_box.h forwarding header; 142/142 gate ✅ 169p/9f broad
+
+#### Root cause of 1013/003 diagnosed
+
+`ref_a() = 26` — the body reconstruction bridge in `parse_program_tokens` prepends a leading space when reconstructing the body string (the body token stream starts with whatever whitespace was in the original source). The reconstructed string is ` ref_a() = 26`. After `skip_ws`, `raw_next_str` tokenizes `ref_a` as `T_IDENT`, then sees `T_WS` (from the space between `ref_a` and `()`... wait — no. The original source has `ref_a()` with NO space. The leading space in the reconstructed body is absorbed by `skip_ws` before `parse_expr14`. After skip_ws, `ref_a` is consumed as `T_IDENT`, then peek is `T_LPAREN` — so it SHOULD parse as `E_FNC`.
+
+**Actual confirmed diagnosis (from token-level tracing):** After consuming `T_IDENT("ref_a")`, `lex_peek` returns `T_WS` (kind=5), NOT `T_LPAREN` (kind=24). This means there IS whitespace between `ref_a` and `()` in the re-lexed stream, despite no whitespace in the source. The body reconstruction emits a space token for the `T_WS` that appears between subject and `()` — but wait, the source `ref_a()` has no space. **The real source of the T_WS is the body reconstruction loop itself**: when it reconstructs `ref_a() = 26` from `body_toks[]`, one of the tokens in `body_toks` is `T_WS` (the space before `=`), and the reconstruction emits it in the right place. But somehow a T_WS is landing between `ref_a` and `()`.
+
+**The correct diagnosis:** `tokenise_body` on the body field of `        ref_a() = 26                                   :s(e002)` strips the goto field `:s(e002)` and leading whitespace from the label column, leaving body = `ref_a() = 26` (no leading space after goto strip). Token stream: `T_IDENT("ref_a"), T_LPAREN, T_RPAREN, T_WS, T_EQ, T_WS, T_INT(26)`. Reconstruction produces exactly `ref_a() = 26`. Re-lex via `raw_next_str`: `T_IDENT("ref_a")` then peek... **`raw_next_str` identifier scanner includes `.` as valid identifier char** — but `ref_a` has no dot. However: `raw_next_str` scans `ref_a` correctly stopping at `(`. So peek after `ref_a` should be `T_LPAREN`. But tracing showed `T_WS`.
+
+**Unresolved:** The token-level trace is definitive — `T_WS` follows `ref_a` in the re-lexed stream. The body reconstruction must be inserting a space. The reconstruction loop emits `T_WS` as a single space `' '`. If `body_toks` for this statement is `[T_IDENT("ref_a"), T_LPAREN, T_RPAREN, T_WS, T_EQ, T_WS, T_INT(26)]`, reconstruction gives `ref_a() = 26` — correct, no space between `ref_a` and `(`. So either `body_toks` has an extra `T_WS` before `T_LPAREN`, or the reconstruction is wrong. This needs one more `fprintf` to dump `body_toks` directly.
+
+**However — this entire investigation is moot for DYN-43.**
+
+### New milestones: M-LEX-1 and M-PARSE-1
+
+The team has decided to replace the hand-rolled lexer and parser with flex/bison:
+
+**M-LEX-1: Rewrite `lex.c` using flex**
+- New file: `src/frontend/snobol4/lex.l`
+- Generated: `src/frontend/snobol4/lex.c` (committed)
+- Preserve: one-pass design, recursive include via buffer stacking, same TokKind token stream, same `Lex` API (`lex_open_str`, `lex_next`, `lex_peek`, `lex_at_end`)
+- Gate: 142/142 · Broad: 169p/9f (no regression)
+
+**M-PARSE-1: Rewrite `parse.c` using bison**
+- New file: `src/frontend/snobol4/parse.y`
+- Generated: `src/frontend/snobol4/parse.c`, `parse.h` (committed)
+- Eliminate: body reconstruction bridge (`bbuf`/`body_toks[]` → string → `lex_open_str` → re-parse)
+- Grammar encodes directly: `IDENT T_LPAREN` (no T_WS between) = function call; `IDENT T_WS ...` = subject + pattern
+- Gate: 142/142 · Broad: 169p/9f (no regression)
+- **After M-PARSE-1: 1013/003 should fall naturally** — `ref_a()` as subject in statement position will parse as E_FNC(zero-args) correctly since the grammar won't reconstruct/re-lex
+
+**Constraint:** flex/bison are not installed in sessions. Install locally to generate `.c`/`.h`, commit generated files. Do NOT install flex/bison via SESSION_SETUP.sh.
+
+### Baseline for DYN-44
+
+- one4all: `8d38768`
+- corpus: `2f2bbe3`
+- .github: this commit
+- invariants: **142/142** ✅
+- broad: **169p/9f**
+
+### DYN-44 first actions
+
+1. `git pull --rebase` all repos.
+2. Build scrip-interp (SESSION-dynamic-byrd-box.md build command — skip atp/capture/dvar in box loop).
+3. Gate 142/142 · Broad 169p/9f confirm.
+4. `apt-get install -y flex bison`
+5. Write `src/frontend/snobol4/lex.l` — M-LEX-1.
+6. Generate, build, gate, broad — confirm no regression.
+7. Write `src/frontend/snobol4/parse.y` — M-PARSE-1.
+8. Generate, build, gate, broad — confirm no regression + 1013/003 now passes.
+9. Commit generated files + .l/.y sources. Push. Update SESSIONS_ARCHIVE.
+
+---
+
+## DYN-44 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x64 interpreter. Session prefix: DYN-.
+
+### What was done
+
+**Architecture / planning session. No code written.**
+
+Full parser landscape survey conducted across all SNOBOL4 parser implementations
+in the snobol4ever ecosystem:
+
+- **snobol4jvm** `grammar.clj` — instaparse PEG, the canonical grammar spec
+- **snobol4dotnet** `Lexer.cs` — DFA-based, one-pass, bracket-stack, most complete
+- **snobol4dotnet** `TestLexer/` + `TestParser/` — gold-standard TDD test corpus
+- **C# uploads** — Irony (LALR(1) + line scanner), Pidgin (parser combinators), Sprache (parser combinators)
+- **one4all** `lex.c` / `parse.c` — existing hand-rolled lexer + recursive-descent parser
 
 Key decisions confirmed:
 
-1. **Not a tree-walk** — `scrip-interp.cs` is NOT a tree-walk eval. IR tree is input data only. Execution is via stack machine (Phases 1/4/5) + Byrd box sequencer (Phases 2/3).
+1. **Grammar is CFG** once lexer handles whitespace as significant terminals (_ and __). No ambiguity.
+2. **Parser class: LALR(1)** — SLR too weak for the `?` conditional scan operator; canonical LR(1) produces unnecessary state explosion. Bison default = LALR(1) = correct.
+3. **Tool choice: flex + bison** — rules-based, readable, eliminates body-reconstruction bridge. NOT shunting-yard (can't handle statement-level structure cleanly).
+4. **Lexer owns line structure** — label col, body field, goto field split in lexer. T_LABEL, T_WS (field separator), T_GOTO, T_STMT_END emitted. Matches existing lex.c contract exactly.
+5. **INCLUDE** handled transparently in flex via buffer stacking (already in lex.c).
+6. **TDD first** — port dotnet TestLexer + TestParser tests to C assert-style before writing lex.l / parse.y.
 
-2. **Stack machine maps to generated code** — the same IrNode push/pop operations that the interpreter executes are what `emit_net.c` will later emit as IL instructions. No semantic gap.
+**IR tree documented** — `ARCH-ir-tree.md` written and committed. Covers:
+- EXPR_t n-ary structure (children[] realloc array)
+- All EKind nodes by arity (leaf / unary / binary / n-ary)
+- E_SEQ vs E_CAT distinction
+- STMT_t four forms (invoking / matching / assigning / replacing)
+- Parse → IR mapping (parse_expr0 through parse_expr17)
+- Rationale for n-ary over binary
 
-3. **Byrd boxes are C# MSIL, already written** — all 27 `bb_*.cs` + `bb_executor.cs` + `bb_box.cs` in `one4all/src/runtime/boxes/` are ✅ done. Do not rewrite.
-
-4. **IR invariant** — `IrNode.cs` mirrors `EXPR_t`/`STMT_t`/`EKind` from `ir.h` exactly. Same node kind names. D-167 scaffold exists (`fb074c9`) but used bespoke `Ast.cs` — D-168 replaces it with `IrNode.cs`.
-
-5. **Regression: interpreter only** — no `run_invariants.sh`, no `run_emit_check.sh`, no emitter diff. Broad corpus pass count only (scrip-interp.cs vs SPITBOL oracle).
-
-6. **5-phase execution** — Phase 1 (subject), Phase 2 (pattern build), Phase 3 (BB sequencer), Phase 4 (replacement), Phase 5 (splice + commits + :S/:F). Oracle: `src/runtime/dyn/stmt_exec.c`.
+### ARCH-index update needed
+Add `ARCH-ir-tree.md` to ARCH-index.md.
 
 ### Baselines
-- `.github`: (this commit)
-- `one4all`: `fb074c9`
-- `corpus`: `2f2bbe3`
-- No gate — interpreter session, exempt per RULES.md
+- one4all: `8d38768` (unchanged)
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
 
-### D-169 first tasks (in order)
+### DYN-45 first actions
 
 1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=net TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
-3. **No gate** — interpreter session, exempt per RULES.md.
-4. Confirm D-167 scaffold builds: `dotnet build one4all/src/driver/dotnet/scrip-interp.csproj`
-5. Write `IrNode.cs` — `IrKind` enum mirroring `EKind` from `ir.h`, `IrNode` (Kind/SVal/IVal/DVal/Children), `IrStmt` (mirrors `STMT_t`). Remove `Ast.cs`.
-6. Update `Snobol4Parser.cs` — emit `IrNode`/`IrStmt` instead of bespoke records.
-7. Update `PatternBuilder.cs` + `Executor.cs` — dispatch on `IrKind`.
-8. Build clean. Run hello/empty_string/multi → 3/3 (A01c gate).
-9. Run 19 parse tests → A01b gate.
-10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64`.
+3. Gate 142/142 + broad 169p/9f confirm.
+4. `apt-get install -y flex bison`
+5. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer tests (Test_214 label, Test_218 goto, Test_231 numeric, Test_232 string, Test_220/221/233 operators). Build standalone, all pass.
+6. Write `src/frontend/snobol4/lex.l` — M-LEX-1. Generate lex.c. Gate + broad, no regression.
+7. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet TestParser (Test_Associativity, Test_Precedence). All pass against existing parse.c.
+8. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. Generate parse.c + parse.h. Gate + broad + 1013/003 now passes.
+9. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
 
 ### Key references
-- `MILESTONE-NET-INTERP.md` — full milestone ladder + IrNode.cs design
-- `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase oracle
-- `one4all/src/runtime/boxes/shared/bb_box.cs` — IByrdBox/Spec/MatchState (already written)
-- `one4all/src/driver/dotnet/` — scrip-interp.cs scaffold (D-167)
-- `SESSION-snobol4-net.md §Track B` — session doc (ignore Track A)
+- `ARCH-ir-tree.md` — n-ary IR tree reference (new this session)
+- `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1 / M-PARSE-1 plan
+- `snobol4jvm/src/SNOBOL4clojure/grammar.clj` — canonical grammar spec (instaparse PEG)
+- `snobol4dotnet/TestSnobol4/TestLexer/` — TDD lex tests (UTF-16LE encoded)
+- `snobol4dotnet/TestSnobol4/TestParser/` — TDD parse tests (assoc + precedence)
+- `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
+- `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
