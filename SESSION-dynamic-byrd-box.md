@@ -84,3 +84,37 @@ gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_E
 - patterns 048/056/057: E_REM/star-deref/FAIL-builtin not wired in `interp_eval`.
 - capture 060/063: multiple captures / null-replace edge cases.
 - rung10 1010–1018: recursion/NRETURN/OPSYN/EVAL/APPLY — deeper call-stack.
+
+---
+
+## DYN-58 Architecture Clarification (added 2026-04-03)
+
+**Q: Does scrip-interp simulate Byrd box goto by calling bb_*.c functions?**
+**A: YES — this is correct and by design.**
+
+The execution path for pattern statements:
+
+```
+scrip-interp.c: interp_eval(s->pattern)
+  → snobol4_pattern.c: pat_cat/pat_arb/pat_len/... → PATND_t tree (DT_P)
+  → exec_stmt(subj_name, pat_d, ...)           [= stmt_exec_dyn]
+  → stmt_exec.c: bb_build(PATND_t*)
+      → bb_node_t { α fn*, β fn* }             [Byrd box C structs]
+  → five-phase executor drives α/β ports        [Byrd goto via C fn ptrs]
+```
+
+`bb_node_t.α` and `bb_node_t.β` are C function pointers. `stmt_exec.c`
+calls them directly — this IS the Byrd box protocol, implemented in C.
+The `src/runtime/dyn/bb_*.c` files are the C implementations of each box.
+
+**What was wrong in DYN-56/57/58:** `interp_eval` had a `pat_ctx` / `_expr_is_pat`
+workaround in the `E_SEQ` handler trying to dispatch between `pat_cat` and
+`CONCAT_fn` at eval time. This is the wrong layer. The correct fix is:
+`interp_eval` for a pattern expression should always use `pat_cat` for
+concatenation — the caller (`exec_stmt` path) already knows it is a pattern
+context. Pass context down rather than inferring it in `interp_eval`.
+
+**DYN-59 first action:** Remove `pat_ctx` / `_expr_is_pat` from `E_SEQ` handler.
+Instead, add an `int in_pat_ctx` parameter to `interp_eval` (or a global flag
+set before calling `interp_eval(s->pattern)`), so `E_SEQ` and `E_CAT` always
+call `pat_cat` when evaluating a pattern expression. Then re-run corpus.

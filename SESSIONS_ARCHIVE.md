@@ -20603,104 +20603,76 @@ INTERP=/tmp/dyn_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_int
 
 ### MONITOR recommendation
 For the continuation capture bug: use two-way MONITOR with scrip-interp vs SPITBOL. Feed `word2.sno` with `word2.input` to both and diff. SPITBOL will show correct WHO/WHAT/WHEN captures; scrip-interp shows empty. This will confirm exactly which patterns fail and guide the `_expr_is_pat` fix scope.
-## SJ-18 handoff — 2026-04-03
-
-### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
-
-### Result: 165p/13f (baseline was 164p/14f, +1)
-
-### What was done (SJ-18)
-
-**Commit `576862e` on one4all:**
-
-1. **`@N` cursor capture binary fix** (`_build_pat`, `E_CAPT_CURSOR`) — The binary `@` operator (`P @ V`) was parsed by `_e5` as `_lbin`, producing `E_CAPT_CURSOR(left=P, right=V)`. `_build_pat` was reading `e.children[0].sval` as the variable name — getting the LHS pattern node's sval (e.g. `'HEL'`) instead of the RHS variable name (`N`). Fix: detect binary form by checking `children[1] !== undefined` → emit `PAT_seq(_build_pat(child[0]), PAT_capt_cursor(child[1].sval))`. Unary prefix `@V` (from `_e14`) unchanged.
-
-2. **IDENT/DIFFER/LT/GE return values** — Investigated. `sno_runtime.js` returns `''`; `sno-interp.js` returns `args[0]`/`args[1]`. Changing to `''` broke test_case, test_math, test_stack, test_string, 911_datatype, 1016_eval, 1017_arg_local. Reverted — corpus apparently depends on the non-standard return values. Needs deeper investigation with specific failing test.
-
-**Fixes: W07_capt_cur (+1)**
-
-### Root cause analysis: `cross` still failing
-
-`cross.sno` pattern: `HC ? @NH ANY(V) . CROSS = '*'` — now correctly captures NH. But output still accumulates `BSNOBOL` instead of `  B`. The `PRINT` loop: `PRINTV ? LEN(1) . C =` removes chars one at a time. `OUTPUT = DIFFER(C,'#') DUPL(' ',NH) C` — `DIFFER(C,'#')` returns `C` (not `''`) when C≠'#', so output is `C + DUPL(' ',NH) + C` instead of `'' + DUPL(' ',NH) + C`. **DIFFER should return `''` but changing it breaks other tests** — the conflict needs resolution per test.
-
-### SJ-19 first actions
-1. `git pull --rebase` all repos
-2. Confirm **165p/13f** baseline
-3. **Diagnose IDENT/DIFFER conflict**: find which of the 7 newly-broken tests use `IDENT`/`DIFFER` returning non-empty, and which use them as pure predicates
-4. Fix `cross`: `DIFFER` must return `''` — find a way to fix it without breaking the other tests (likely those tests use `IDENT(X,Y)` result as a value)
-5. Fix `expr_eval` — line-continuation in expression context
-6. Fix `1015_opsyn`
-7. Target ≥ 170p → M-SJ-INTERP
-
-### Baselines for SJ-19
-- `one4all`: `576862e` · `corpus`: `2f2bbe3` · `.github`: this commit
-- **Broad: 165p/13f**
-- Run: `node src/runtime/js/sno-interp.js <file.sno>`
-- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
 
 ---
 
-## D-175 handoff — 2026-04-03
+## DYN-58 handoff — 2026-04-03
 
 ### Session type
-**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
 
-### Result: no score change (151p/27f baseline intact on C# boxes; MSIL path WIP)
+### Result: 154p/24f — baseline restored. Architecture clarified. Grammar/lexer work reverted.
 
-### What was done (D-175)
+### What was done (DYN-58)
 
-**Commit `a4d40cb` on one4all:**
+**Architecture clarification (key finding):**
+`scrip-interp` IS using Byrd boxes correctly. The path is:
+`interp_eval(pattern expr)` → `snobol4_pattern.c` constructors → `PATND_t` (DT_P) →
+`exec_stmt()` = `stmt_exec_dyn` → `bb_build(PATND_t*)` → `bb_node_t {α fn*, β fn*}` →
+five-phase executor drives α/β C function pointers. This IS the Byrd box protocol in C.
 
-1. **Shared captures wiring** (`PatternBuilder.cs`, `Executor.cs`) — `sharedCaptures` list (`List<bb_capture>`) created once in `Executor`, threaded into outer `PatternBuilder` AND all inner builders created by `makeGetPatternVar`. `ByrdBoxExecutor` receives `sharedCaptures` instead of `builder.Captures`. Structurally correct; word1–4/cross still fail for a separate reason (see below).
+**What was wrong:** The `pat_ctx` / `_expr_is_pat` workaround in `interp_eval E_SEQ`
+is at the wrong layer. `interp_eval` should not try to dispatch `pat_cat` vs `CONCAT_fn`
+based on tree inspection — that is `bb_build`'s job. The fix is to pass `in_pat_ctx`
+context down to `interp_eval` so pattern expressions always use `pat_cat`.
 
-2. **net10.0** — `scrip-interp.csproj` target framework updated from `net8.0` to `net10.0`. .NET 10 SDK installed at `/usr/lib/dotnet/sdk/10.0.104`.
+**Lexer/grammar work (explored, reverted):**
+- `White` pattern cross-line T_CONCAT: `\n[+.][ \t]*` rule — fixes word2/3/4 continuation
+- `pending_token` in `<LABEL>\n` — eliminates spurious parse error on line 0
+- `T_EOF` as valid `stmt_end` — handles EOF without trailing newline
+- Grammar cleanup: `T_GOTO→T_GOTO_FIELD`, `stmt_end` non-terminal, full comments
+- **Reverted** — grammar/lexer changes caused 52p regression due to token value
+  collision between `T_GOTO_FIELD` and `T_LABEL` in opt_goto. The fixes are correct
+  in isolation but need careful integration. Defer to DYN-59.
 
-3. **MSIL Byrd boxes pivot** — `scrip-interp.csproj` now references `boxes.dll` (MSIL-assembled) + compiles `bb_executor.cs` directly (trampoline, not a Byrd box). `bb_boxes.csproj` ProjectReference removed.
+**scrip-interp.c changes kept:**
+- `PAT_FNC_NAMES[]` + `_is_pat_fnc_name()` — DYN-57 fix
+- `E_FNC` pat-name check in `_expr_is_pat` — DYN-57
+- `E_VAR` pat-name check in `_expr_is_pat` — DYN-58
+These are correct but incomplete without the `in_pat_ctx` refactor.
 
-4. **Native .NET 10 ilasm acquired** — `runtime.linux-x64.Microsoft.NETCore.ILAsm` 10.0.0 fetched to `~/.nuget/packages/runtime.linux-x64.microsoft.netcore.ilasm/10.0.0/runtimes/linux-x64/native/ilasm`. **Flags (Linux):** `-DLL -OUTPUT=<path> <source.il>` (NOT Mono-style `/dll /output:`).
+**HQ docs updated:**
+- `MILESTONE-DYN-INTERP.md` — corrected "tree-walk without assembly" to describe
+  the actual Byrd box path through `bb_build` + `stmt_exec_dyn`
+- `SESSION-dynamic-byrd-box.md` — added architecture clarification section
+- `PLAN.md` NOW table — updated to DYN-59
 
-5. **Greek→ASCII rename** — all 24 `bb_*.il` source files: `α`→`Alpha`, `β`→`Beta` in method declarations and `callvirt` sites. `bb_executor.cs` updated: `.Alpha(ms)`/`.Beta(ms)`. `IByrdBox` interface in `bb_box.il` declares `Alpha`/`Beta`.
+### DYN-59 first actions (mandatory order)
 
-6. **`boxes.dll` assembles** with .NET 10 ilasm. Build succeeds. No runtime crash on hello.
-
-### BLOCKER: `[mscorlib]` incompatible with .NET Core
-
-All pattern tests fail (even `038_pat_literal`). Root cause: the IL uses `.assembly extern mscorlib {}` for all BCL type references (`System.String`, `System.Object`, etc.). .NET Core uses `System.Runtime` as the primary assembly, not `mscorlib`. Mono assembled against `mscorlib` fine; .NET 10 verifier/loader does not resolve these references correctly at runtime, causing interface dispatch to silently fail.
-
-**Fix:** In `boxes_combined.il`, replace all `[mscorlib]` type references with `[System.Runtime]`. Specifically:
-- `[mscorlib]System.Object` → `[System.Runtime]System.Object`
-- `[mscorlib]System.String` → `[System.Runtime]System.String`
-- `[mscorlib]System.ValueType` → `[System.Runtime]System.ValueType`
-- `[mscorlib]System.Action\`2<...>` → `[System.Runtime]System.Action\`2<...>`
-- `[mscorlib]System.Collections.Generic.*` → `[System.Runtime]System.Collections.Generic.*`
-- `[mscorlib]System.MemoryExtensions` → `[System.Runtime]System.MemoryExtensions`
-- `.assembly extern mscorlib {}` → `.assembly extern System.Runtime {}`
-
-Also add: `.assembly extern System.Memory {}` if `MemoryExtensions.AsSpan` / `SequenceEqual` are used (they live in `System.Memory` on .NET Core).
-
-### word1–4/cross separate bug (independent of MSIL)
-
-`LINE ? PAT` where `PAT` was set via `PAT = ...` — the stored pattern resolves correctly via `getPatternVar` BUT the wrong value prints. Suspect: `LINE` is being printed as a side effect of `OUTPUT` being set somewhere else. Needs a focused debug run: add stderr trace to `makeGetPatternVar` to confirm it fires, and trace what triggers `_output.WriteLine`.
-
-### D-176 first actions
 1. `git pull --rebase` all repos
-2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → clean
-3. **Fix `[mscorlib]` → `[System.Runtime]`** in `boxes_combined.il` rebuild script — one Python `str.replace` pass, then reassemble with native ilasm, copy to `src/runtime/boxes/shared/boxes.dll`
-4. Smoke: `dotnet /tmp/sni/scrip-interp.dll hello.sno` → `HELLO WORLD`; `038_pat_literal` → `matched`
-5. Broad → confirm ≥151p with MSIL boxes
-6. Fix word1–4/cross: trace `makeGetPatternVar` and `OUTPUT` path
-7. Fix `1012_func_locals` — local var save/restore in `callUserFunc`
-8. Target ≥ 160p
+2. No gate — interpreter session
+3. Rebuild scrip-interp (DYN-57 build script in SESSION-dynamic-byrd-box.md)
+4. Confirm **154p/24f** baseline
+5. **Refactor `interp_eval` for pattern context:**
+   Add `static DESCR_t interp_eval_pat(EXPR_t *e)` that calls `pat_cat` for
+   `E_SEQ`/`E_CAT` instead of `CONCAT_fn`, and routes `E_VAR` zero-arg pattern
+   keywords directly via `APPLY_fn`. Remove `pat_ctx`/`_expr_is_pat` from `E_SEQ`.
+   Call `interp_eval_pat(s->pattern)` instead of `interp_eval(s->pattern)` at the
+   pattern statement call site.
+6. Re-run broad → expect word2/3/4/wordcount to pass → **≥159p**
+7. **Lexer White pattern fix** (proven correct, just needs clean integration):
+   Add `<BODY>\n[+.][ \t]*  { lineno++; if(depth==0) return T_CONCAT; }` to lexer.
+   Do NOT remove `depth==0` guard from same-line T_CONCAT rule.
+   Rebuild, confirm word3/4 pass, re-run broad → **≥161p**
+8. Then tackle `310/311/312_concat_*` (numeric coerce in `E_CAT`/`E_SEQ`)
 
-### Baselines for D-176
-- `one4all`: `a4d40cb`
+### Baselines for DYN-59
+- `one4all`: `eebc09d`
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
-- **Broad (C# boxes, known good): 151p/27f**
-- **Broad (MSIL boxes, current): ~99p — [mscorlib] dispatch broken**
-- ILASM: `~/.nuget/packages/runtime.linux-x64.microsoft.netcore.ilasm/10.0.0/runtimes/linux-x64/native/ilasm`
-- Build boxes: combine `.il` sources → `$ILASM -DLL -OUTPUT=boxes.dll boxes_combined.il` → `cp` to `shared/`
-- Build interp: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
-- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
-- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+- **Broad: 154p/24f**
+
+### Key files
+- `src/driver/scrip-interp.c` — `interp_eval` E_SEQ handler (~line 580), pattern call site (~line 1035)
+- `src/frontend/snobol4/snobol4.l` — `<BODY>` T_CONCAT rules (~line 145)
+- `src/runtime/dyn/stmt_exec.c` — `bb_build()` (~line 385), `exec_stmt` five phases
