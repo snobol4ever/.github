@@ -20121,3 +20121,82 @@ Fix:
 - Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+---
+
+## SJ-14 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 159p/19f — no regression, M-SJ-B07 partial (PAT-value storage fixed, secondary OUTPUT bug not yet fixed)
+
+### What was done (SJ-14)
+
+**Root cause diagnosed — word1–word4/wordcount/cross:**
+
+The failure was **not** in `sno_engine.js` SEQ backtracking (previous hypothesis was wrong — direct engine tests confirm SEQ works correctly for all cases). The actual root cause was upstream in `sno-interp.js`.
+
+When `PAT = " the " ARB . OUTPUT (" of " | " a ")` is executed:
+- The RHS is an `E_SEQ` node containing pattern children (`E_CAPT_COND_ASGN`, `E_ARB`, `E_ALT`)
+- `interp_eval(E_SEQ)` fell through to string concat: `" the " + "" + "[object Object]"` → stored garbage string in `_vars['PAT']`
+- `LINE ? PAT` then called `_build_pat(E_VAR('PAT'))` → found a string → `PAT_lit(garbage)` → match always fails
+
+**Fix applied — M-SJ-B07 (commit `1692327` on one4all):**
+- Added `_expr_is_pat(e)` — module-level predicate (mirrors parser's `_is_pat()`): returns true if expr tree contains any of `E_ARB, E_ARBNO, E_CAPT_COND_ASGN, E_CAPT_IMMED_ASGN, E_CAPT_CURSOR, E_DEFER`
+- `interp_eval(E_SEQ)`: if `_expr_is_pat(e)` → `return _build_pat(e)` (returns `{__pat:1,...}` pattern object); else fall through to string concat as before
+- `_build_pat(E_VAR)` already had the `__pat` fast-path: if stored value has `__pat` → return directly ✅
+
+**Secondary bug found — NOT yet fixed:**
+
+After the fix, `word1` runs but prints intermediate ARB captures:
+```
+(empty line)
+c
+ca
+cat
+```
+Expected: just `cat`. The `_pending_cond` deferral in `sno_engine.js` is correct — it only commits captures on overall match success. The spurious writes are coming from a **second OUTPUT-writing path** in `sno-interp.js` outside the engine, triggered during pattern evaluation. Not yet traced to exact location.
+
+**SNOBOL4 syntax/semantics learned this session:**
+- Card format: col-1 dispatch (`*!|;`=comment, `-`=CTL, `+.`=continuation, space=body, other=label)
+- Statement form: `LABEL  SUBJECT PATTERN = REPLACEMENT  :GOTO`
+- Operator precedence: `=`/`?` → `&` → `|` → concat(ws) → `@` → `+`/`-` → `#` → `/` → `*` → `%` → `**` → `$`/`.` → `~` → unary → `[]`/`<>` → atoms
+- SPITBOL MINIMAL: machine-independent macro assembly, CFP$A/B/C/F config params, OSINT C interface via `z`-prefix procedures
+
+### SJ-15 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session, exempt from run_invariants.sh / run_emit_check.sh
+3. **Confirm 159p/19f baseline:**
+   ```bash
+   cat > /tmp/sno_js_runner.sh << 'EOF'
+   #!/usr/bin/env bash
+   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
+   EOF
+   chmod +x /tmp/sno_js_runner.sh
+   cd /home/claude/one4all
+   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null
+   ```
+4. **Fix secondary OUTPUT spurious-write bug (complete M-SJ-B07):**
+   - Run: `node src/runtime/js/sno-interp.js /home/claude/corpus/crosscheck/strings/word1.sno < /home/claude/corpus/crosscheck/strings/word1.input`
+   - Observe: prints `""`, `"c"`, `"ca"`, `"cat"` instead of just `"cat"`
+   - The `_pending_cond` deferral in `sno_engine.js` is correct — `CAPT_COND/succeed` pushes to `_pending_cond`, committed only on `engine()` success loop
+   - The spurious writes are from a second path in `sno-interp.js` — search for any code that assigns to `_vars['OUTPUT']` or calls `_vars_set` directly during pattern build/eval
+   - Hypothesis: `interp_eval(E_CAPT_COND_ASGN)` at line 857–858 calls `interp_eval(children[0])` which evaluates `ARB` — check if this triggers side effects when ARB resolves via `_vars` lookup
+   - Fix: ensure no `_vars` writes happen during `_build_pat` or its callees
+5. **After OUTPUT fix confirmed:** re-run broad — expect word1–word4/wordcount/cross to pass → target ≥165p
+6. **Then tackle `1015_opsyn`** — run it; check if already fixed
+7. **Then `expr_eval`** — line continuation `+` prefix not handled by lexer INITIAL state
+
+### Baselines for SJ-15
+- `one4all`: `1692327`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 159p/19f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — main interpreter (M-SJ-B07 partial applied)
+- `src/runtime/js/sno_engine.js` — pattern match engine (clean, SEQ confirmed working)
+- `src/runtime/js/sno_runtime.js` — value types, builtins, I/O (OUTPUT Proxy here)
+
