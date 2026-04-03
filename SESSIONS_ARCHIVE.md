@@ -18706,3 +18706,59 @@ java -cp /tmp/jvm_cls driver.jvm.TestLexer /home/claude/corpus /home/claude/one4
 - `src/driver/dotnet/IrNode.cs` — IrKind enum (mirrors EKind from ir.h)
 - `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A02` — gate criteria
 - `MILESTONE-NET-INTERP.md §Pidgin parser` — parser design notes
+
+---
+
+## J-222 addendum — M-JVM-INTERP-A02 — 2026-04-02
+
+**M-JVM-INTERP-A02: Parser.java — COMPLETE. Gate: 19/19.**
+
+Created `src/driver/jvm/Parser.java` — full SNOBOL4 recursive-descent parser mirroring `parse.c`.
+
+#### File
+- `src/driver/jvm/Parser.java` — 490 lines. Package `driver.jvm`.
+- `src/driver/jvm/Lexer.java` — updated: added `injectToken()` for body re-parsing.
+
+#### Design mirrors parse.c exactly
+- **EKind enum** — mirrors `IrKind`/`EKind` from `IrNode.cs`/`ir.h` (SNOBOL4 subset)
+- **ExprNode** — `kind`, `sval`, `ival`, `dval`, `children` — mirrors `EXPR_t`
+- **StmtNode** — `label`, `isEnd`, `subject`, `pattern`, `replacement`, `hasEq`, `gotoField`, `lineno` — mirrors `STMT_t`
+- **SnoGoto** — `uncond`, `onsuccess`, `onfailure` — mirrors `SnoGoto` struct
+- **17 expression levels** (parseExpr0–parseExpr17) — same WS-gated binary op rule
+- **parseLbin / parseRbin** — generic left/right-assoc helpers matching C version
+- **parseBodyField** — injects body token list into sub-lexer, mirrors `parse_body_field()`
+- **parseGotoField** — mirrors `parse_goto_field()`: S(label), F(label), unconditional
+- **fixupValTree / replIsPatTree** — E_SEQ→E_CAT context fixup, mirrors C version
+- **Buffer-based mark/restore** — `buf` list + `pos` index enables speculative lookahead
+
+#### Gate
+```
+=== 19 PASS  0 FAIL ===
+  hello, empty_string, multi, literals (smoke)
+  009–016 assign (8 tests)
+  023–029 arith_new (7 tests)
+  All produce ≥1 stmt, 0 parse errors
+```
+
+#### one4all HEAD: `f361cd4`
+
+### J-223 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. No gate — interpreter session.
+4. Confirm Lexer+Parser gate: 31/31 lexer, 19/19 parser.
+5. **M-JVM-INTERP-A03: IrBuilder.java**
+   - Path: `src/driver/jvm/IrBuilder.java`
+   - Oracle: `src/runtime/dyn/stmt_exec.c bb_build()` (lines 407–640) + `src/backend/emit_jvm.c`
+   - Lower typed AST (StmtNode/ExprNode) → IR instruction list + PatNode subtrees
+   - Stack machine IR: PUSH_VAR, PUSH_LIT, CALL, ASSIGN, BRANCH_S, BRANCH_F, etc.
+   - Gate: IR pretty-prints cleanly for all 19 parse test inputs
+6. Read `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` before starting.
+7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-223
+- `src/runtime/dyn/stmt_exec.c` lines 407–640 — bb_build() IR lowering oracle
+- `src/backend/emit_jvm.c` — IR instruction kinds + emit patterns
+- `src/driver/dotnet/Executor.cs` — C# parallel implementation (same IR dispatch)
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` — gate criteria
