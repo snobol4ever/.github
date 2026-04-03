@@ -20676,3 +20676,54 @@ These are correct but incomplete without the `in_pat_ctx` refactor.
 - `src/driver/scrip-interp.c` — `interp_eval` E_SEQ handler (~line 580), pattern call site (~line 1035)
 - `src/frontend/snobol4/snobol4.l` — `<BODY>` T_CONCAT rules (~line 145)
 - `src/runtime/dyn/stmt_exec.c` — `bb_build()` (~line 385), `exec_stmt` five phases
+
+## J-231 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
+
+### Result: 155p/23f (no regression from 155p baseline — infrastructure fixes only)
+
+### What was done (J-231)
+
+**Commit `b0adaf7` on one4all:**
+
+1. **`parseExpr14` operand → `parseExpr15`** — prefix unary operators (`$`, `.`, `@`, etc.) were calling `parseExpr14()` recursively for their operand, meaning postfix subscript `<>` bound *less* tightly than prefix `$`. Fixed to call `parseExpr15()` so `$a<2>` parses as `($a)<2>` not `$(a<2>)`. Fixes `212_indirect_array` (PASS).
+
+2. **SP=R split in `parseBodyField`** — `SUBJECT = E_FNC(...) VALUE` is SNOBOL4 SP=R form: the function call is the *pattern*, VALUE is the *replacement*. Added split mirroring JS sno-interp: when `s.replacement` is `E_SEQ/E_CAT` with ≥2 children, first child is `E_FNC`, and rhs is not a pure pattern tree, split last child → replacement, rest → pattern.
+
+3. **`replIsPatTree` extended with `PAT_FNC_NAMES`** — `POS`, `LEN`, `TAB`, `RPOS`, `RTAB`, `ANY`, `NOTANY`, `SPAN`, `BREAK`, `BREAKX`, `ARB`, `ARBNO`, `REM`, `FAIL`, `SUCCEED`, `FENCE`, `ABORT`, `BAL`. Prevents SP=R split misfiring on pure pattern assignments like `PAT = POS(0) LEN(4) . WHO ...`.
+
+4. **All comparison predicates return `DESCR.NUL` on success** — SPITBOL manual Ch.19: *"Primitive functions which return success or failure may be used in the replacement field as predicate functions. Since they return the null string, they do not alter the replacement value."* Fixed: `EQ`, `NE`, `LT`, `LE`, `GT`, `GE`, `LGT`, `LLT`, `LGE`, `LLE`, `LEQ`, `LNE`, `IDENT`, `DIFFER` — all were returning `a0` instead of `DESCR.NUL`.
+
+5. **`PatternBuilder` `ExprEvaluator` interface** — non-primitive `E_FNC` in pattern context (e.g. `eq(n,1)` as SP=R pattern) now evaluates the function at match time via anonymous `bb_box` subclass. Returns `null` (FAIL) → no match; returns string `v` → match literal `v` at current position. Wired at both `PatternBuilder` construction sites in `Interpreter.java`.
+
+**Effect:** `1010_func_recursion` assertions 1+2 now pass (recursive factorial works). Assertion 3 blocked by OPSYN not implemented.
+
+### Remaining failures for J-232
+
+| Test | Root cause |
+|------|-----------|
+| `1010_func_recursion` | OPSYN not implemented (assertions 3+4) |
+| `1013_func_nreturn` | NRETURN not implemented |
+| `082_keyword_stcount` | STCOUNT off-by-one or double-increment |
+| `word1–4`, `wordcount` | Pre-existing (not regressions) |
+| `cross`, `expr_eval`, `1015_opsyn` | OPSYN; continuation edge cases |
+| `1011_func_redefine`, `1016_eval`, `1017_arg_local`, `1018_apply` | Various |
+
+### J-232 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y default-jdk`
+3. Rebuild: `BB_STUBS=/tmp/bb_stubs && mkdir -p $BB_STUBS && javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java" | tr '\n' ' ') && mkdir -p /tmp/jvm_jasmin && javac -cp $BB_STUBS -d /tmp/jvm_jasmin src/driver/jvm/Lexer.java src/driver/jvm/Parser.java src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java`
+4. Runner: `cat > /tmp/jvm_runner.sh << 'RUNNER'\n#!/bin/bash\njava -cp /tmp/jvm_jasmin:/home/claude/one4all/src/runtime/boxes/jasmin/boxes.jar driver.jvm.Interpreter "$1"\nRUNNER\nchmod +x /tmp/jvm_runner.sh`
+5. Confirm **155p/23f**: `INTERP=/tmp/jvm_runner.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Implement **OPSYN** builtin: `opsyn(newname, oldname)` — creates alias in `funcTable`; `opsyn(.name, 'func')` — name-operator form. Check JS impl: `grep -A10 "OPSYN" src/runtime/js/sno-interp.js`
+7. Implement **NRETURN** — branch to NRETURN label returns function name *by name* (lvalue). See SPITBOL manual Ch.9 p.133.
+8. Fix **STCOUNT** — currently incremented in both `execute()` and `callUserFunc()` inner loops. May double-count.
+9. Target: ≥165p → commit → handoff
+
+### Baselines for J-232
+- `one4all`: `b0adaf7`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 155p/23f**
