@@ -17634,3 +17634,35 @@ Gate held **142/142**. Broad **169p/9f** — exact baseline, no regression.
 2. Fix `1013/003`: body_toks for `ref_a() = 26` reconstruct as `"ref_a() = 26"` — `parse_expr17` should see `T_IDENT("ref_a")` then `T_LPAREN` with no whitespace → `E_FNC(nchildren=0)` → line 353 handler fires.
 3. Fix `1015_opsyn` — consult `/home/claude/spitbol-docs-master/M.md`.
 4. Target ≥170p. Gate 142/142. Commit + push.
+
+---
+
+## J-218 session start handoff — 2026-04-03
+
+### What was done
+
+**No code changes.** Session was orientation + HQ fixes only.
+
+**Errors caught and corrected:**
+- Claude initially read `SESSION-dynamic-byrd-box.md` (DYN/x86 interpreter session) instead of `SESSION-snobol4-jvm.md`. Root cause: routing ambiguity between "SNOBOL4 JVM" and "Dynamic Byrd Box" sessions. Fixed in RULES.md.
+- Claude ran x86 gate (`snobol4_x86`) and built `scrip-interp` — both wrong for a JVM session. No harm done (no code committed).
+
+**HQ updates committed (`7b70b77` on .github):**
+1. `RULES.md` — added `⛔ SNOBOL4 × JVM ≠ DYNAMIC BYRD BOX` routing guard under THREE-AXIS ORIENTATION.
+2. `RULES.md` — added `⛔ INTERPRETER SESSION INVARIANT SCOPE` rule: scrip-cc and emit-diff are irrelevant to interpreter/JVM sessions; gate is backend runtime invariants only. Speeds up development.
+3. `SESSION-snobol4-jvm.md` — updated §NOW HEAD to `09ac2cb`, confirmed baseline `94p/32f`, added note that Java Byrd box interpreter (M-INTERP-B03) is visible but not active this sprint.
+
+### Baseline for J-219
+
+- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: `7b70b77`
+- snobol4_x86: **142/142** ✅ · snobol4_jvm: **94p/32f**
+
+### J-219 first tasks
+
+1. `git pull --rebase` all repos.
+2. `TOKEN_SEE_LON FRONTEND=snobol4 BACKEND=jvm bash /home/claude/.github/SESSION_SETUP.sh`
+3. Gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_jvm` → confirm **94p/32f**
+4. Read structural oracle before touching code: `sed -n '3530,3570p' src/backend/emit_byrd_asm.c` (x86 2D key emission) and `sed -n '2658,2700p' src/backend/emit_jvm.c` (JVM write path — bug is here).
+5. Fix `E_IDX` write path in `emit_jvm.c`: build `"row,col"` key for `nchildren>=3`, mirroring `emit_byrd_asm.c`.
+6. Run `snobol4_jvm` invariants → target **≥100p**.
+7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
