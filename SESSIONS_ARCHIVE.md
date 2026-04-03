@@ -20143,3 +20143,34 @@ echo "PASS=$PASS FAIL=$FAIL"; printf "Failures:%b\n" "$FAILS"
 SCRIPT
 chmod +x /tmp/run_crosscheck.sh
 ```
+
+---
+
+## J-226 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### Broad result
+**136p/42f** (178 total) — baseline unchanged; root cause of word* fixed in code.
+
+### What was done (J-226, commit `68311b9` on one4all)
+
+1. **Shared deferred-capture list** — `PatternBuilder` gained a 6-arg constructor accepting an external `sharedDeferred` list. When a stored pattern variable (`PAT = " the " ARB . OUTPUT (...)`) is matched via `LINE ? PAT`, the inner `PatternBuilder` in the `varResolver` lambda now shares the outer pb's deferred list. Previously inner `.var` captures were silently discarded — added to inner pb's private list, never registered with `bb_executor`.
+2. **Both pattern exec paths fixed** — two `if (s.pattern != null)` blocks in Interpreter.java (~line 730 callUserFunc path, ~line 873 main exec path) both now pass `sharedDeferred` to inner builders.
+3. **Root cause of word1–word4 + cross confirmed** — not timeout, but silent capture loss. `ARB . OUTPUT` in stored PAT never fired `nvSet("OUTPUT",...)`.
+
+### J-227 first actions (mandatory order)
+1. `git pull --rebase` all repos
+2. Recompile: `JFILES=$(find src/driver/jvm src/runtime/boxes -name "*.java" | tr '\n' ' ') && javac -d /tmp/jvm_cls $JFILES`
+3. Hello gate → `HELLO WORLD`
+4. **Verify word1**: `java -cp /tmp/jvm_cls driver.jvm.Interpreter .../word1.sno < .../word1.input` → expect `cat\nhouse\n`
+5. If still empty: check `bb_dvar.alpha()` — if it creates a **new** inner `PatternBuilder` on each call, the shared list reference is stale. Fix: `bb_dvar` must hold a reference to the shared list, not recreate inner pb from scratch.
+6. **ARRAY builtin**: `ARRAY(n,val)` → `HashMap<Integer,DESCR>`; `arr<i>` via E_IDX
+7. **TABLE builtin**: `TABLE()` → `HashMap<String,DESCR>`
+8. Target: **≥ 155p / ≤ 23f**
+
+### Baselines for J-227
+- `one4all`: `68311b9`
+- `corpus`: `2f2bbe3`
+- **Broad: 136p/42f**
