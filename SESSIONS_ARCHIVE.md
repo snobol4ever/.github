@@ -18637,237 +18637,99 @@ Flex body tokeniser matching `syntax.tbl` exactly:
 
 ---
 
-## J-222 handoff — 2026-04-02
+## DYN-46 handoff — 2026-04-03
 
 ### Session type
-**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-
 
 ### What was done
 
-**M-JVM-INTERP-A01: Lexer.java — COMPLETE. Gate: 31/31 (19/19 file gate).**
+**Architecture decision: one-pass lexer (confirmed with Lon)**
 
-Created `src/driver/jvm/Lexer.java` — complete SNOBOL4 one-pass lexer in Java, mirroring `lex.c`/`lex.h` exactly.
+User confirmed: one pure pipeline — char stream → lex.l → tokens → parse.c → IR.
+No preprocessing step. `process_file()` + `tokenise_body()` + token queue `Q` all fold
+into `lex.l`. This is the correct architecture.
 
-#### File created
-- `src/driver/jvm/Lexer.java` — 300 lines. Package `driver.jvm`.
-- `src/driver/jvm/TestLexer.java` — 31-test gate harness.
+**CSNOBOL4 oracle — card format fully documented:**
 
-#### Design mirrors lex.c exactly
-- `TokKind` enum: all 37 kinds from `lex.h` (T_IDENT through T_ERR)
-- `Token` class: `kind`, `sval`, `ival`, `dval`, `lineno` — mirrors `Token` struct
-- `processReader()` — line reader: strips comments (*/!/#/|/; at col-1), joins continuations (+/.), handles `-INCLUDE`
-- `emitLogical()` — structural token emission: T_LABEL (col-1 ident), body tokens, T_GOTO, T_STMT_END
-- `tokeniseBody()` — body tokeniser: strings, numbers, &KEYWORD, idents, **, single-char ops
-- `findGotoColon()` — mirrors C version: returns colon pos / -(semi+1) / -1
-- Two entry points: `openFile(path)` for files, `openBodyString(src, lineno)` for body-only snippets (used by tests/goto-field parsing)
-- `openString(src)` routes through `processReader` via StringReader (full file-mode semantics)
+CARDTB (equ.h + snobol4.c NEWCRD):
+- CMT (2): col-1 `* ! | ;` or blank/empty → discard
+- CTL (3): col-1 `-` → control line; `INCLUDE`/`COPY` push file, others silently skipped
+- CNT (4): col-1 `+` or `.` → continuation, join to previous logical line
+- NEW (1): anything else → normal statement
 
-#### Key design note
-`openString` uses `processReader` (file semantics — col-1 = label detection). `openBodyString` calls `tokeniseBody` directly (body semantics — no label). Tests that check bare body snippets must use `openBodyString`.
+CTL directives from snobol4.c L_CTLCRD: INCLUDE, COPY, LIST, UNLIST, EJECT, ERRORS,
+NOERRORS, CASE, SPITBOL, EXEC, NOEXEC, LINE, HIDE, BLOCKS, NOBLOCKS.
+Unknown directives silently treated as comments.
 
-#### Gate
+Also verified from sno.l (scrip-cc): it uses join_file() two-pass preprocessing.
+Our one-pass lex.l is a cleaner design for scrip-interp.
+
+**lex.l rewritten — one-pass unified lexer (committed 49c3077)**
+
+New architecture:
+- INITIAL state: line-at-a-time card dispatch per CARDTB
+- Include depth: `yypush_buffer_state()` / `yypop_buffer_state()` — arbitrary nesting
+- Continuation (+/.): joined in-scanner into `ex->logical[]` accumulator
+- `emit_logical_to_pending()` → `emit_stmt_seg()` → `tokenise_body_pending()`
+  push structured tokens into `FlexExtra.pending[64]` ring buffer
+- `flex_lex_next()` drains `pending[]` before calling `yylex()` again
+- `flex_lex_open(Lex*, FILE*, fname)` — new signature (lex.h updated)
+- `snoc_parse()` now calls `flex_lex_open`/`destroy`, bypasses `process_file`+`Q`
+
+**lex.c snoc_parse patched** to call `flex_lex_open`/`destroy` directly.
+
+**lex.h updated**: `flex_lex_open` now takes `FILE* f, const char *fname`.
+
+### NOT YET DONE — DYN-47 first actions
+
+1. `git pull --rebase` all repos.
+2. `TOKEN=TOKEN_SEE_LON FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. **Two-line patch to `lex.c` `lex_next`/`lex_peek`** — route through `flex_lex_next`
+   when `lx->_scanner != NULL` (currently still falls to `q_pop()`/`q_peek()`):
+
+```c
+Token lex_next(Lex *lx) {
+    if (lx->src) {
+        if (lx->peeked) { lx->peeked=0; return lx->peek; }
+        return raw_next_str(lx);
+    }
+    if (lx->peeked) { lx->peeked=0; return lx->peek; }
+    return lx->_scanner ? flex_lex_next(lx) : q_pop();
+}
+Token lex_peek(Lex *lx) {
+    if (!lx->peeked) {
+        lx->peek = lx->src      ? raw_next_str(lx)  :
+                   lx->_scanner ? flex_lex_next(lx)  : q_peek();
+        lx->peeked = 1;
+    }
+    return lx->peek;
+}
 ```
-=== 31 PASS  0 FAIL ===
-  12 unit tests (Test_214 label, Test_218 goto, Test_231 int, Test_232 str,
-                 Test_220/221/233 ops, keyword, END, real, stmt_end, continuation)
-  19 file gate (4 smoke + 8 assign + 7 arith_new) — 0 lex errors each
-```
 
-Run gate:
-```bash
-cd /home/claude/one4all/src
-javac -d /tmp/jvm_cls driver/jvm/Lexer.java driver/jvm/TestLexer.java
-java -cp /tmp/jvm_cls driver.jvm.TestLexer /home/claude/corpus /home/claude/one4all/test/frontend 2>/dev/null
-```
+4. `cd src/frontend/snobol4 && flex lex.l` → `lex.yy.c`
+5. Add `lex.yy.c` to scrip-interp build (alongside `lex.c` in the gcc link line).
+   Add `-lfl` or ensure `%option noyywrap` (already set).
+6. Rebuild scrip-interp. Run `test_lex` → 54p/0f. Run broad → 169p/9f (no regression).
+7. If regressions: diff failing tests against old Q-based output; likely `lex_next`
+   peeked-state bug or pending[] overflow (cap is 64 — increase if needed).
+8. Commit + push. Update §NOW + SESSIONS_ARCHIVE + push .github.
+9. **M-PARSE-1**: write `parse.y` (bison), replace `parse.c` goto-field handling.
+
+### Key references
+- `src/frontend/snobol4/lex.l` — new unified one-pass lexer (397 lines)
+- `src/frontend/snobol4/lex.h` — updated: `flex_lex_open(Lex*, FILE*, const char*)`
+- `src/frontend/snobol4/lex.c` — `snoc_parse()` patched; `lex_next`/`lex_peek` patch PENDING
+- `/tmp/refs/snobol4-2.3.3/snobol4.c` L_XLATNX/NEWCRD/L_CTLCRD — CARDTB oracle
+- `/tmp/refs/snobol4-2.3.3/equ.h` — CMTTYP(2)/CTLTYP(3)/CNTTYP(4)/NEWTYP(1)
+- `src/frontend/snobol4/sno.l` — scrip-cc's join_file (reference, NOT our approach)
+
+### Two-way MONITOR recommendation
+For hard-to-find bugs: run same .sno through scrip-interp AND SPITBOL oracle,
+diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 
 ### Baselines
-- `one4all`: `0db445e`
-- `corpus`: `2f2bbe3` (unchanged)
-- `.github`: this commit
-- No gate — interpreter session, exempt per RULES.md
-
-### J-223 first tasks (in order)
-
-1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
-3. No gate — interpreter session, exempt per RULES.md.
-4. Confirm Lexer gate still green (31/31).
-5. **M-JVM-INTERP-A02: Parser.java**
-   - Path: `src/driver/jvm/Parser.java`
-   - Oracle: `src/frontend/snobol4/parse.c` + `MILESTONE-NET-INTERP.md §Pidgin parser`
-   - Parallel: `src/driver/dotnet/Snobol4Parser.cs` (C# implementation to read)
-   - AST nodes: `StmtNode`, `ExprNode` — typed Java classes mirroring `STMT_t`/`EXPR_t` from `ir.h`
-   - Gate: 19/19 parse test cases produce correct AST (pretty-print matches reference)
-6. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
-
-### Key references for J-223
-- `src/frontend/snobol4/parse.c` — parser oracle
-- `src/driver/dotnet/Snobol4Parser.cs` — C# parallel implementation
-- `src/driver/dotnet/IrNode.cs` — IrKind enum (mirrors EKind from ir.h)
-- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A02` — gate criteria
-- `MILESTONE-NET-INTERP.md §Pidgin parser` — parser design notes
-
----
-
-## J-222 addendum — M-JVM-INTERP-A02 — 2026-04-02
-
-**M-JVM-INTERP-A02: Parser.java — COMPLETE. Gate: 19/19.**
-
-Created `src/driver/jvm/Parser.java` — full SNOBOL4 recursive-descent parser mirroring `parse.c`.
-
-#### File
-- `src/driver/jvm/Parser.java` — 490 lines. Package `driver.jvm`.
-- `src/driver/jvm/Lexer.java` — updated: added `injectToken()` for body re-parsing.
-
-#### Design mirrors parse.c exactly
-- **EKind enum** — mirrors `IrKind`/`EKind` from `IrNode.cs`/`ir.h` (SNOBOL4 subset)
-- **ExprNode** — `kind`, `sval`, `ival`, `dval`, `children` — mirrors `EXPR_t`
-- **StmtNode** — `label`, `isEnd`, `subject`, `pattern`, `replacement`, `hasEq`, `gotoField`, `lineno` — mirrors `STMT_t`
-- **SnoGoto** — `uncond`, `onsuccess`, `onfailure` — mirrors `SnoGoto` struct
-- **17 expression levels** (parseExpr0–parseExpr17) — same WS-gated binary op rule
-- **parseLbin / parseRbin** — generic left/right-assoc helpers matching C version
-- **parseBodyField** — injects body token list into sub-lexer, mirrors `parse_body_field()`
-- **parseGotoField** — mirrors `parse_goto_field()`: S(label), F(label), unconditional
-- **fixupValTree / replIsPatTree** — E_SEQ→E_CAT context fixup, mirrors C version
-- **Buffer-based mark/restore** — `buf` list + `pos` index enables speculative lookahead
-
-#### Gate
-```
-=== 19 PASS  0 FAIL ===
-  hello, empty_string, multi, literals (smoke)
-  009–016 assign (8 tests)
-  023–029 arith_new (7 tests)
-  All produce ≥1 stmt, 0 parse errors
-```
-
-#### one4all HEAD: `f361cd4`
-
-### J-223 first tasks (in order)
-
-1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
-3. No gate — interpreter session.
-4. Confirm Lexer+Parser gate: 31/31 lexer, 19/19 parser.
-5. **M-JVM-INTERP-A03: IrBuilder.java**
-   - Path: `src/driver/jvm/IrBuilder.java`
-   - Oracle: `src/runtime/dyn/stmt_exec.c bb_build()` (lines 407–640) + `src/backend/emit_jvm.c`
-   - Lower typed AST (StmtNode/ExprNode) → IR instruction list + PatNode subtrees
-   - Stack machine IR: PUSH_VAR, PUSH_LIT, CALL, ASSIGN, BRANCH_S, BRANCH_F, etc.
-   - Gate: IR pretty-prints cleanly for all 19 parse test inputs
-6. Read `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` before starting.
-7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
-
-### Key references for J-223
-- `src/runtime/dyn/stmt_exec.c` lines 407–640 — bb_build() IR lowering oracle
-- `src/backend/emit_jvm.c` — IR instruction kinds + emit patterns
-- `src/driver/dotnet/Executor.cs` — C# parallel implementation (same IR dispatch)
-- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` — gate criteria
-
----
-
-## J-222 FINAL HANDOFF — 2026-04-02
-
-### Session type
-**TINY JVM** — SNOBOL4 × JVM interpreter (Java). Session prefix: J-.
-
-### What was accomplished this session
-
-Two milestones completed in one session:
-
-**M-JVM-INTERP-A01 ✅ — Lexer.java (31/31)**
-**M-JVM-INTERP-A02 ✅ — Parser.java (19/19)**
-
----
-
-### Files committed
-
-| File | Lines | Description |
-|------|-------|-------------|
-| `src/driver/jvm/Lexer.java` | ~310 | One-pass SNOBOL4 lexer — mirrors `lex.c`/`lex.h` |
-| `src/driver/jvm/TestLexer.java` | ~180 | 31-test gate harness |
-| `src/driver/jvm/Parser.java` | ~490 | Recursive-descent parser — mirrors `parse.c` |
-
----
-
-### Lexer.java design
-
-- **TokKind enum** — all 37 kinds from `lex.h` (T_IDENT … T_ERR)
-- **Token** class — `kind`, `sval`, `ival`, `dval`, `lineno` (mirrors `Token` struct)
-- **processReader()** — line reader: strips col-1 comments (*/!/#/|/;), joins continuations (+/.), handles `-INCLUDE`
-- **emitLogical()** — emits T_LABEL (col-1 ident), body tokens, T_GOTO, T_STMT_END per logical line
-- **tokeniseBody()** — body tokeniser: strings, numbers, &KEYWORD, idents, **, ops
-- **findGotoColon()** — mirrors C: returns colon pos / -(semi+1) / -1
-- **openFile(path)** — full file mode
-- **openBodyString(src, lineno)** — body-only (no label detection); used by Parser sub-lexers
-- **openString(src)** — full file mode via StringReader (for test .sno strings)
-- **injectToken(t)** — inject pre-built token; used by Parser body re-parser
-
-**Key distinction:** `openString` uses file semantics (col-1 = label). `openBodyString` uses body semantics. Tests for bare body snippets must use `openBodyString`.
-
----
-
-### Parser.java design
-
-- **EKind enum** — mirrors `IrKind`/`EKind` from `IrNode.cs`/`ir.h` (SNOBOL4 subset)
-- **ExprNode** — `kind`, `sval`, `ival`, `dval`, `children` — mirrors `EXPR_t`
-- **StmtNode** — `label`, `isEnd`, `subject`, `pattern`, `replacement`, `hasEq`, `gotoField`, `lineno`
-- **SnoGoto** — `uncond`, `onsuccess`, `onfailure`
-- **17 expression levels** — parseExpr0–parseExpr17, same WS-gated binary op rule as `parse.c`
-- **parseLbin / parseRbin** — generic left/right-assoc helpers
-- **Buffer-based mark/restore** — `List<Token> buf` + `int pos`; speculative lookahead
-- **parseBodyField()** — injects body tokens into sub-lexer Parser; mirrors `parse_body_field()`
-- **parseGotoField()** — mirrors `parse_goto_field()`: S(label), F(label), unconditional, $COMPUTED
-- **fixupValTree / replIsPatTree** — E_SEQ→E_CAT in value-context trees
-
----
-
-### Gate results
-
-```
-Lexer:  31/31  (12 unit + 19 file)
-Parser: 19/19  (all corpus gate files produce ≥1 stmt, 0 errors)
-```
-
-Run gates:
-```bash
-cd /home/claude/one4all/src
-javac -d /tmp/jvm_cls driver/jvm/Lexer.java driver/jvm/TestLexer.java driver/jvm/Parser.java
-# Lexer gate:
-java -cp /tmp/jvm_cls driver.jvm.TestLexer /home/claude/corpus /home/claude/one4all/test/frontend 2>/dev/null
-# Parser smoke:
-java -cp /tmp/jvm_cls driver.jvm.Parser /home/claude/corpus/crosscheck/hello/hello.sno 2>/dev/null
-```
-
----
-
-### Baselines
-- `one4all`: `f361cd4`
-- `corpus`: `2f2bbe3` (unchanged)
-- `.github`: `7a0340e`
-- No gate — interpreter session, exempt per RULES.md
-
----
-
-### J-223 first tasks (in order)
-
-1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
-3. No gate — interpreter session, exempt per RULES.md.
-4. Recompile + confirm both gates green (31/31, 19/19).
-5. Read `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` in full.
-6. Read oracle: `sed -n '407,640p' src/runtime/dyn/stmt_exec.c` — `bb_build()` IR lowering.
-7. Read parallel: `src/driver/dotnet/Executor.cs` — C# IR dispatch.
-8. **M-JVM-INTERP-A03: IrBuilder.java**
-   - Path: `src/driver/jvm/IrBuilder.java`
-   - Input: `StmtNode[]` from Parser
-   - Output: `IrInstr[]` — stack machine instruction list per statement
-   - IR kinds: `PUSH_VAR`, `PUSH_LIT_STR`, `PUSH_LIT_INT`, `PUSH_LIT_REAL`, `PUSH_KEYWORD`, `CALL`, `ASSIGN`, `BRANCH_S`, `BRANCH_F`, `BRANCH_U`, `LABEL`, `HALT`, `PAT_*` (pattern opcodes)
-   - Gate: IR pretty-prints cleanly for all 19 parse gate inputs; each opcode maps to a named `emit_jvm.c` operation
-9. Commit + push one4all. Update SESSIONS_ARCHIVE §NOW + push .github.
-
-### Key references for J-223
-- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A03` — gate criteria
-- `src/runtime/dyn/stmt_exec.c` lines 407–640 — `bb_build()` — IR lowering oracle
-- `src/backend/emit_jvm.c` — IR instruction kinds + JVM emit patterns
-- `src/driver/dotnet/Executor.cs` — C# parallel (same IR, different runtime)
-- `src/driver/dotnet/IrNode.cs` — IrKind enum (reference for opcode names)
+- one4all: `49c3077` (lex.l rewrite)
+- corpus: `2f2bbe3` (unchanged)
+- .github: (this commit)
+- Broad: **169p/9f** (unchanged — scrip-interp not yet rebuilt with new lex.l)

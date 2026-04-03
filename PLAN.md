@@ -67,13 +67,13 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-42 | one4all `fbc75dd` · corpus `2f2bbe3` | **M-INTERP-A05**: fix 9 remaining failures → ≥175p broad · 142/142 gate |
+| **⭐ DYNAMIC BYRD BOX** | DYN-46 | one4all `49c3077` · corpus `2f2bbe3` | **M-LEX-1 wire**: patch `lex_next`/`lex_peek`, `flex lex.l`, rebuild scrip-interp, `test_lex` 54p/0f, broad 169p/9f. Then **M-PARSE-1**: `parse.y`. |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-7 | one4all `f25a2fc` | **SJ-8**: Fix remaining 25 failures — E_FLIT float marker, real division type, CAPT_CURSOR, pattern-value vars (053), NRETURN lvalue, OPSYN alias, word/cross programs. Broad: 153/178. Gate: interpreter regression only. See MILESTONE-JS-SNOBOL4.md + SESSIONS_ARCHIVE. |
-| **⭐ TINY JVM** | J-223 | one4all `f361cd4` | **M-JVM-INTERP-A03**: `IrBuilder.java` — StmtNode[] → IrInstr[] stack-machine IR · oracle: `stmt_exec.c bb_build()` · gate: IR prints clean for 19 inputs |
+| **⭐ TINY JVM** | J-221 | one4all `981527b` | **M-JVM-INTERP-A01**: `Lexer.java` — tokenize SNOBOL4 source · oracle: `lex.c` · gate: 19/19 NET-INTERP inputs tokenize clean |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
 | **⭐ one4all-SNOBOL4-NET** | D-168 | one4all `fb074c9` | **M-NET-INTERP-A01b**: replace Ast.cs with IrNode.cs (mirrors ir.h EKind/EXPR_t/STMT_t) → update parser+executor → 19/19 parse tests. **ACTIVE — exempt from freeze + gate. Repo: one4all ONLY — NOT snobol4dotnet.** See SESSION-snobol4-net.md + MILESTONE-NET-SNOBOL4.md. |
