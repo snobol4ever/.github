@@ -19225,3 +19225,8 @@ scrip-cc build fails on `sno.tab.c` compilation. Pre-existing — not introduced
 ### DYN-47 addendum
 Removed `sno.l` and `lex.c` (scrip-cc two-pass lexer path retired).
 `lex.l`/`lex.yy.c` is the single lexer. one4all HEAD: `c15de9f`.
+
+### DYN-47 addendum 2
+Removed `sno.y`, `sno.tab.c`, `sno.tab.h` — old scrip-cc bison parser retired.
+`parse.c` is the single parser. Frontend now: `lex.l` + `lex.yy.c` + `parse.c` only.
+one4all HEAD: `c116c2c`.

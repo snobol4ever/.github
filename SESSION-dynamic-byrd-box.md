@@ -37,7 +37,7 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **DYNAMIC BYRD BOX** | DYN-47 | one4all `c15de9f` · corpus `2f2bbe3` | **M-LEX-1 broad regression**: 126p/52f vs baseline 169p/9f. DYN-48: MONITOR diff scrip-interp vs SPITBOL on failing tests to find lex.l token-stream divergence. Then M-PARSE-1. |
+| **DYNAMIC BYRD BOX** | DYN-47 | one4all `c116c2c` · corpus `2f2bbe3` | **M-LEX-1 broad regression**: 126p/52f vs baseline 169p/9f. DYN-48: MONITOR diff scrip-interp vs SPITBOL on failing tests to find lex.l token-stream divergence. Then M-PARSE-1. |
 
 **Broad baseline: 169p/9f** (unchanged — new lex.l not yet compiled in)
 
