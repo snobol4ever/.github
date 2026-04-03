@@ -28,10 +28,7 @@ cat /home/claude/.github/PLAN.md
 ```
 Then read your SESSION-*.md (see Routing table below).
 
-**⛔ ROUTING GUARD — read before picking SESSION-*.md:**
-- `"SNOBOL4 frontend" + "JVM backend" + "interpreter" + "dynamic Byrd boxes"` → **TINY JVM (J- session)** — read `SESSION-snobol4-jvm.md`. JVM qualifier wins. Do NOT route to DYN-.
-- `"dynamic Byrd boxes"` alone (no JVM) → **DYN- session** — read `SESSION-dynamic-byrd-box.md`.
-- When in doubt: check PLAN.md §NOW row and RULES.md §ROUTING disambiguation table.
+**⛔ ROUTING: frontend × backend → `SESSION-<frontend>-<backend>.md`. That is all.**
 
 **Snocone × x86 additionally read:**
 ```

@@ -270,27 +270,14 @@ Every session is defined by three values. Pick them, read three docs, work.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
-## ⛔ SESSION ROUTING — Confirm session identity before any work
+## ⛔ SESSION ROUTING — one rule
 
-The human's description at session start may be ambiguous or shorthand. **Do not assume.**
-Before any work: state the inferred session type and ask for confirmation if ambiguous.
+**frontend × backend → `SESSION-<frontend>-<backend>.md`**
 
-**Critical disambiguation table:**
+Frontends: `snobol4`, `snocone`, `rebus`, `icon`, `prolog`, `scrip`
+Backends: `c`, `x64`, `jvm`, `net`, `js`, `wasm`
 
-| Human says | Correct session | Common mistake |
-|---|---|---|
-| "SNOBOL4 .NET" | Could be DOTNET (emit) OR NET INTERP (interpreter) — **ask** | Defaulting to emit session |
-| "SNOBOL4 .NET interpreter" / "C# Byrd boxes" / "scrip-interp.cs" | **NET INTERP** (Track B, M-NET-INTERP-A01) | Treating as emit session |
-| "SNOBOL4 .NET emitter" / "ThreadedExecuteLoop" / "@N bug" | **DOTNET** (Track A, M-NET-P35-FIX) | — |
-| "dynamic Byrd boxes" alone (no JVM/Java/backend qualifier) | **DYN-** (snobol4 × x86, scrip-interp.c) | Treating as .NET session |
-| "SNOBOL4 x86" / "scrip-interp.c" | **DYN-** session | — |
-| "SNOBOL4 JVM interpreter" / "Java Byrd boxes" / "PatternBuilder.java" | **TINY JVM, M-JVM-INTERP milestone** (J- session, currently J-219) | Reading §NOW of SESSION-snobol4-jvm.md as if M-JVM-A02 (emitter) is active; running snobol4_jvm baselines |
-| "SNOBOL4 frontend" + "JVM backend" + "interpreter" + "dynamic Byrd boxes" | **TINY JVM** (J- session, M-JVM-INTERP milestone) — JVM qualifier wins over "dynamic Byrd boxes" | Routing to DYN- (x86) because "dynamic Byrd boxes" substring matches before JVM qualifier is noticed |
-| "SNOBOL4 JVM emitter" / "emit_jvm.c" / "Jasmin" | **TINY JVM, M-JVM-A02+ milestone** (J- session, future sprint per MILESTONE-JVM-SNOBOL4.md §Sprint Sequence) | — |
-
-**Rule:** There is ONE J- session with a single sequential milestone ladder: M-JVM-INTERP-A01 → A02 → A03 → M-JVM-A02 → ... Check PLAN.md §NOW to see which milestone is active. "Java Byrd boxes" / "interpreter" = M-JVM-INTERP milestone (no gate, no baselines). "emit_jvm.c" / "Jasmin" = M-JVM-A02+ milestone (gate = snobol4_jvm invariants). Do NOT invent two parallel tracks.
-
-The phrase "interpreter" or "C# Byrd boxes" or "scrip-interp.cs" unambiguously identifies NET INTERP (Track B). Confirm and proceed — no gate, no scrip-cc invariants.
+The human will say which frontend and which backend. Read the matching SESSION doc. That is all.
 
 ## ⛔ SESSIONS_ARCHIVE.md — APPEND ONLY, NEVER PRUNE
 
