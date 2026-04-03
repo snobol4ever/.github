@@ -17758,3 +17758,58 @@ This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecute
 - `one4all/src/runtime/boxes/shared/bb_box.java` — BbBox base + MatchState
 - `one4all/src/runtime/boxes/lit/bb_lit.java` — first box to wire up
 - `one4all/src/runtime/boxes/shared/bb_executor.java` — 5-phase driver already exists
+
+---
+
+## SJ-6 final handoff — 2026-04-02
+
+### What was done
+
+**Created `src/runtime/js/sno-interp.js`** — pure JS SNOBOL4 interpreter, no IPC, no scrip-cc.
+
+Architecture:
+- **Lexer** (`class Lexer`): single-pass character-stream. Handles continuation lines (`+`/`.`), comment lines (`*`/`!`/`#`/`|`), control lines (`-INCLUDE`) inline — no preprocessing pass. Emits `T_NEWLINE`, `T_GOTO_SEP`, `T_STMT_SEP` as field-boundary tokens.
+- **Parser** (`class Parser`): recursive-descent 17-level grammar, direct port of `parse.c`. Builds `EXPR_t`/`STMT_t` IR with identical field names (`kind`, `sval`, `ival`, `dval`, `children`) and EKind string constants (`E_QLIT`, `E_VAR`, etc.) matching C enum names exactly.
+- **Executor** (`_exec_from`): tree-walk over `STMT_t` linked list. Pattern engine: `sno_engine.js`. Value ops: `sno_runtime.js`. SNOBOL4 builtins, DEFINE/call-stack, label_table, goto dispatch.
+
+Bugs fixed during session:
+1. `T_GOTO_SEP` checked after `_at_end()` — bare `:(label)` lines swallowed
+2. Trailing WS before `:(goto)` not consumed — goto after replacement lost
+3. `E_SEQ` not in `interp_eval` — whitespace concat inside function args failed
+4. `&ALPHABET` and other keywords not initialized in `_vars`
+
+### Baseline
+
+- one4all HEAD: `c9bab5d`
+- `output/` 8 tests: **8/8 PASS** ✓
+- `rung3/` 3 tests: **0/3 FAIL** — blank-line bug (see below)
+- `rungW01/` 3 tests: **0/3 FAIL** — blank-line bug
+
+### Known bug — SJ-7 first task
+
+**Blank logical lines between statements break label chaining.**
+
+Repro:
+```
+        differ('ab', 'ab')  :f(e001)
+        OUTPUT = 'FAIL'     :(end)
+e001
+                            ← blank line
+        OUTPUT = 'PASS'
+end
+```
+Actual output: *(nothing)*. Expected: `PASS`.
+
+Root cause: `parse_program` skips blank `T_NEWLINE` tokens at the top of its loop, but `parse_stmt` also skips blank newlines at its top — meaning a blank line between `e001` (label-only stmt) and the next real stmt may cause the next stmt to be parsed without being linked as `e001.next`, or label_table points at the label-only no-op stmt whose `next` is null rather than the following statement.
+
+Likely fix: in `parse_program`, after creating a label-only stmt, don't skip the following newlines before creating the next stmt — let the `next` pointer chain correctly through blank lines, OR rewrite `parse_program` to skip blank lines only at top of loop before stmt creation, not inside `parse_stmt`.
+
+### SJ-7 first actions (in order)
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=js` — confirm no nasm needed.
+3. Fix blank-line label chaining bug in `parse_program`/`parse_stmt`.
+4. Re-run: `cd /home/claude/one4all/src/runtime/js && node sno-interp.js <file.sno>` on rung3 and rungW01.
+5. Wire into `run_invariants.sh` under `snobol4_interp` cell.
+6. Target: rung2 + rung3 + rungW01 all green.
+7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
