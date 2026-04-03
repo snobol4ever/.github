@@ -18289,3 +18289,44 @@ SNOBOL4 source  →  scrip-cc C frontend  →  PATND_t/AST_t IR  →  Java inter
 **Goal:** Zero compile+link test cycle for rapid pattern box development using canonical IR and existing Java runtime components.
 
 **Ready for implementation handoff.**
+
+---
+
+## D-167 handoff — 2026-04-02
+
+### Session summary
+
+Design session — no code changes to one4all, snobol4dotnet, or corpus.
+Full SNOBOL4 .NET milestone chain designed, unified, and committed to HQ.
+
+### Work done
+
+**1. IR design locked (M-NET-INTERP-A00 ✅)**
+- One IR, three consumers: scrip-cc (C compiler) · scrip-interp.c (C reference) · scrip-interp.cs (C# interpreter)
+- No C code in interpreter. No generated C#. scrip-cc never invoked at runtime or build time.
+- EVAL/CODE build same IR nodes at runtime that Pidgin parser produces.
+
+**2. Unified SNOBOL4 .NET milestone chain (MILESTONE-NET-SNOBOL4.md rewritten)**
+- Single canonical ladder — no parallel tracks
+- Key principle: interpreter IS the dynamic engine — generates IByrdBox graphs in memory and runs them
+- Phase O caches those graphs, then emits IL from them — dynamic → static → optimized
+- MILESTONE-NET-INTERP.md demoted to annex
+
+**3. Unified chain: 20 milestones across 6 phases**
+- Phase 0 (foundation ✅) → A (dynamic interp, 142/142 full corpus) → B (captures/functions/EVAL/CODE) → C (compiler audit, interp = oracle) → O (optimization: cache→emit→AOT) → Z (bootstrap)
+
+### Baselines
+
+- one4all: `09ac2cb` (DYN-42 — 142/142 gate ✅, 169p/9f broad)
+- corpus: `2f2bbe3`
+- .github: this commit
+- snobol4dotnet: `e1e4d9e` (unchanged)
+
+### D-168 first actions
+
+1. `git pull --rebase` all repos.
+2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=net` + gate 142/142.
+3. Read `MILESTONE-NET-SNOBOL4.md` in full — canonical chain.
+4. M-NET-INTERP-A01: create `scrip-interp.csproj` (Pidgin NuGet) + `Snobol4Parser.cs`.
+5. Parse 19 test cases → 19/19 → commit M-NET-INTERP-A01.
+6. Gate 142/142. Update SESSIONS_ARCHIVE + push .github.
