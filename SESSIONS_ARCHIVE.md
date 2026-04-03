@@ -17666,3 +17666,42 @@ Gate held **142/142**. Broad **169p/9f** — exact baseline, no regression.
 5. Fix `E_IDX` write path in `emit_jvm.c`: build `"row,col"` key for `nchildren>=3`, mirroring `emit_byrd_asm.c`.
 6. Run `snobol4_jvm` invariants → target **≥100p**.
 7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+## D-166 handoff — 2026-04-02
+
+### Session type
+**NET INTERP** — SNOBOL4 .NET interpreter using C# Byrd boxes (`scrip-interp.cs`).
+This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecuteLoop).
+
+### What was done
+
+**No code written this session.** Session was spent on:
+1. Cloning repos (`.github`, `one4all`, `harness`, `corpus`) with provided credential.
+2. Correcting session identity — initially misidentified as DYN- (x86) session, then as DOTNET emit session. Correct identity confirmed: NET INTERP, Track B.
+3. HQ updates committed to `.github` (`f369b80`):
+   - `RULES.md` — new `⛔ SESSION ROUTING` rule with disambiguation table (SNOBOL4 .NET vs DOTNET vs DYN-). New `⛔ BYRD BOXES` rule clarifies emitter vs interpreter sessions. Gate rule updated: interpreter sessions (DYN-, NET INTERP) exempt from freeze, `run_invariants.sh`, and `run_emit_check.sh` — gate = broad corpus pass count only.
+   - `PLAN.md` — NET INTERP given its own ⭐ active row; gate note updated to distinguish emit vs interpreter sessions.
+4. Partial setup: `nasm` + `libgc-dev` installed, `scrip-cc` built. `scrip-interp` (C) build failed — `stmt_exec.c` include path `../boxes/bb_box.h` broken after SJ-5 per-box subdir reorg (should be `../boxes/shared/bb_box.h`). Not relevant to this session.
+
+### Baseline for D-167 (NET INTERP)
+
+- `.github`: `f369b80`
+- `one4all`: `09ac2cb` (unchanged)
+- No code written, no interpreter files created yet.
+- **Gate:** broad corpus pass count (scrip-interp.cs). No invariants, no emit-diff.
+
+### D-167 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. **No SESSION_SETUP, no gate run** — interpreter session, exempt per RULES.md.
+3. Check `.NET 10 SDK` at `/usr/local/dotnet10` — `export PATH=/usr/local/dotnet10:$PATH && dotnet --version`. If absent, install per SESSION-snobol4-net.md §BUILD.
+4. Inspect existing C# box infrastructure: `ls one4all/src/runtime/boxes/shared/` — confirm `bb_box.cs`, `bb_executor.cs`, `bb_factory.cs` present.
+5. Create `one4all/src/driver/dotnet/scrip-interp.csproj` with Pidgin NuGet reference.
+6. Create `Snobol4Parser.cs` — Pidgin parser → typed `StmtNode[]` AST. Target: parse all 19 smoke tests.
+7. Run 19 parse tests → all pass → commit M-NET-INTERP-A01.
+8. Push `one4all`, update `SESSIONS_ARCHIVE` + push `.github`.
+
+### Key references
+- `SESSION-snobol4-net.md` — §Track B, §KEY FILES, §ARCHITECTURE
+- `MILESTONE-NET-INTERP.md` — full spec, file list, IR design
+- Oracle: `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase C reference
+- C# boxes already at: `one4all/src/runtime/boxes/*/bb_*.cs`
