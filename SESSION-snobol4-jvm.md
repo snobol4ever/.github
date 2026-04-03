@@ -48,10 +48,11 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 - `bb_bal.java` is first real BAL (C original is a stub)
 - Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
 
-**⚠️ JVM interpreter work (Java Byrd boxes) is visible in PLAN.md but NOT active this sprint.**
-The Java Byrd boxes (`src/runtime/boxes/bb_*.java`) are wired as a future JVM interpreter path.
-This session (J-218) targets the **compiled emitter** (`emit_jvm.c` → Jasmin). The Java Byrd
-box interpreter is a separate milestone (M-INTERP-B03) — do not conflate with M-JVM-A02.
+**⚠️ Two tracks in this session — read PLAN.md §NOW to know which is active:**
+- **M-JVM-INTERP-A01 (J-218 active sprint):** JVM interpreter using Java Byrd boxes — IR bridge (scrip-cc → Java) + PatternBuilder.java. No gate, no baselines, no emit_jvm.c work.
+- **M-JVM-A02 (future sprint):** Compiled emitter (`emit_jvm.c` → Jasmin) — 2D subscript fix + rung8 strings. Gate = snobol4_jvm invariants.
+
+**Do NOT conflate.** "SNOBOL4 JVM interpreter" / "Java Byrd boxes" = M-JVM-INTERP track. "emit_jvm.c" / "Jasmin" = compiled emitter track. See RULES.md §SESSION ROUTING.
 
 **J-218 first actions (mandatory order):**
 
