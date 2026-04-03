@@ -20292,3 +20292,63 @@ Expected: just `cat`. The `_pending_cond` deferral in `sno_engine.js` is correct
 - `src/runtime/js/sno_engine.js` — pattern match engine (clean, SEQ confirmed working)
 - `src/runtime/js/sno_runtime.js` — value types, builtins, I/O (OUTPUT Proxy here)
 
+
+---
+
+## SJ-15 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 160p/18f — net +1 from SJ-14 baseline (159p/19f). M-SJ-B07 complete.
+
+### What was done (SJ-15)
+
+**Two root cause bugs found and fixed:**
+
+**Fix 1 — `sno_engine.js` CAPT_COND `_cc_stack` (M-SJ-B07 completion, commit `89efe24`):**
+
+The spurious OUTPUT writes in word1/word2/word3/word4/wordcount were traced via stack dump to `sno_engine.js:143` — the `_pending_cond` commit loop inside `engine()`. Root cause: `CAPT_COND/succeed` fired multiple times during ARB backtracking (ARB tries lengths 0,1,2,3... within a single startPos attempt), each time pushing to `_pending_cond` without clearing the stale earlier entry. The `CAPT_COND/concede` path never fires in this scenario because ARB swallows the concede signal internally.
+
+Fix: added `_cc_stack` parallel to `_pending_cond`. At `CAPT_COND/proceed`: push `_pending_cond.length` snapshot onto `_cc_stack`. At `CAPT_COND/succeed`: **pop** the snapshot and truncate `_pending_cond` to that depth before pushing the new capture. At `CAPT_COND/concede/recede`: restore `_pending_cond` to snapshot depth and pop `_cc_stack`. The pop-in-succeed (not peek) is critical — leaving the entry causes imbalance across LOOP iterations.
+
+**Fix 2 — `sno_runtime.js` INPUT reads byte-at-a-time:**
+
+`LINE = INPUT` was silently eating multiple lines per access. Old code: `fs.readSync(0, buf, 0, 4095, null)` read up to 4095 bytes, consuming entire stdin buffer in one call. `replace(/\r?\n$/, '')` stripped only the trailing newline, so subsequent `INPUT` reads returned `_FAIL` (EOF). New code: reads one byte at a time until `\n`. This unblocked the LOOP in word1 (cat+house now correct).
+
+**Remaining word2/3/4/wordcount/cross failures** are a separate issue — multiple named ARB captures where the second ARB in the same pattern gets empty captures. Not the `_cc_stack` bug (that's fixed). Likely the SEQ child-iteration order or a second CAPT_COND within a SEQ where the snapshot from the outer CAPT_COND bleeds into the inner one's depth calculation. Not traced this session.
+
+### SJ-16 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. **Confirm 160p/18f baseline:**
+   ```bash
+   cat > /tmp/sno_js_runner.sh << 'EOF'
+   #!/usr/bin/env bash
+   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
+   EOF
+   chmod +x /tmp/sno_js_runner.sh
+   cd /home/claude/one4all
+   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
+   ```
+4. **Diagnose word2 multiple-ARB capture failure:**
+   ```bash
+   node src/runtime/js/sno-interp.js /home/claude/corpus/crosscheck/strings/word2.sno \
+     < /home/claude/corpus/crosscheck/strings/word2.input 2>/dev/null
+   cat /home/claude/corpus/crosscheck/strings/word2.sno
+   ```
+   word2 uses `NAME ARB . W1 " invented the " ARB . W2 " in " ARB . W3` — three simultaneous CAPT_CONDs in a SEQ. The first ARB captures correct (empty?), W2 and W3 also empty. Check if `_cc_stack` depth is being wrongly shared between sibling CAPT_CONDs.
+5. **After word2/3/4 fixed** → run broad → expect ≥165p → tackle `1015_opsyn` and `expr_eval` line-continuation
+
+### Baselines for SJ-16
+- `one4all`: `89efe24`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 160p/18f**
+
+### Key files
+- `src/runtime/js/sno_engine.js` — CAPT_COND `_cc_stack` fix applied here
+- `src/runtime/js/sno_runtime.js` — INPUT byte-at-a-time fix applied here
+- `src/runtime/js/sno-interp.js` — main interpreter (unchanged this session)
+
