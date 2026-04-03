@@ -19706,3 +19706,69 @@ After fix, broad should reach ≥126p/52f (DYN-48 pre-regression baseline), then
 - `src/frontend/snobol4/snobol4.l` — **rewritten this session**
 - `src/frontend/snobol4/snobol4.y` — eq_pos fix needed here
 - `src/frontend/snobol4/lex.h` — symlink → snobol4.h (new this session)
+
+---
+
+## J-223 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**M-JVM-INTERP-A04: Pattern match Phase 2–4 via Byrd boxes — COMPLETE**
+
+Gate (`038_pat_literal`) passed at session start. Pattern crosscheck: **15p/5f → 20p/0f**.
+
+**Four root causes fixed:**
+
+1. **MatchState disconnect** (`bb_executor.java`) — `exec()` created its own fresh `MatchState` internally, while `PatternBuilder` built all boxes bound to a separate `pms` from the Interpreter. Boxes mutated their cursor; executor drove its own. All 5 failures traced to this. Fix: added `exec(subjVar, subjVal, MatchState ms, root, hasRepl, replVal, anchor)` overload that accepts and syncs the caller's shared MatchState. Interpreter call site updated to pass `pms`.
+
+2. **`captureVarName` wrong child** (`PatternBuilder.java`) — binary `E_CAPT_COND_ASGN(left=patternNode, right=varNode)` — helper iterated children finding first `E_VAR` (the pattern subject, e.g. `REM`) instead of last (the capture variable, e.g. `V`). Traced via `Trace048.java` harness: setter was called as `SET REM=world` instead of `SET V=world`. Fix: use `children.get(size-1)`.
+
+3. **Pattern-valued variables** (`Interpreter.java`) — `P = ('a' | 'b' | 'c')`: `eval(E_ALT)` was returning `eval(firstChild)` = string `"a"`. Added `VType.PAT` to enum, `Parser.ExprNode patNode` field + `DESCR.pat(ExprNode)` factory to DESCR. `eval(E_ALT)` now returns `DESCR.pat(e)`. `bb_dvar` resolver in Interpreter checks `d.type == VType.PAT` and rebuilds a fresh `PatternBuilder` from the stored `patNode` (sharing `pms2`).
+
+4. **`E_DEFER` unhandled** (`PatternBuilder.java`) — `*PAT` → `E_DEFER(E_VAR(PAT))`. Added `case E_DEFER:` → extracts var name from inner `E_VAR`, returns `new bb_dvar(ms, varName, varResolver)`.
+
+#### Commit
+- `e595015` — J-223: fix MatchState disconnect, captureVarName, PAT DESCR, E_DEFER — patterns 20p/0f
+
+### Results
+- **Pattern crosscheck: 20p/0f** ✅ (was 15p/5f at session start, 0p before J-222)
+- Full crosscheck suite timed out (JVM startup overhead per test) — not measured this session
+
+### Baselines for J-224
+- `one4all`: `e595015`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Pattern crosscheck: 20p/0f**
+
+### J-224 first actions
+1. `git pull --rebase` all repos
+2. Recompile (full javac command in SESSION-snobol4-jvm.md header)
+3. Confirm `038_pat_literal` gate still passes
+4. Run crosscheck by category with per-category timeout (patterns already 20p/0f):
+   ```bash
+   JCMD="java -cp /tmp/jvm_cls driver.jvm.Interpreter"
+   for cat in hello arith strings capture control functions arrays; do
+     P=0; F=0
+     for sno in /home/claude/corpus/crosscheck/$cat/*.sno; do
+       ref="${sno%.sno}.ref"; [ -f "$ref" ] || continue
+       got=$(timeout 5 $JCMD "$sno" 2>/dev/null); exp=$(cat "$ref")
+       [ "$got" = "$exp" ] && P=$((P+1)) || F=$((F+1))
+     done
+     echo "$cat: ${P}p/${F}f"
+   done
+   ```
+5. Fix failures in order: hello → arith → strings → capture → control → functions → arrays
+6. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — DESCR.PAT, eval(E_ALT), bb_dvar resolver, exec() call site
+- `src/driver/jvm/PatternBuilder.java` — captureVarName fix, E_DEFER case
+- `src/runtime/boxes/shared/bb_executor.java` — shared-MatchState exec() overload
+
+### Known issues / next bugs likely
+- E_SEQ in value context vs pattern context: `fixupValTree` converts E_SEQ→E_CAT but pattern-valued E_SEQ assignments may need `DESCR.pat()` treatment like E_ALT
+- E_FNC in pattern-valued assignment (e.g. `P = ANY('abc')`) not yet returning `DESCR.pat()` — only E_ALT handled
+- Full crosscheck scope unknown — only patterns measured
