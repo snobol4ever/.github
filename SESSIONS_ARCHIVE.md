@@ -19590,3 +19590,58 @@ chmod +x /tmp/run_crosscheck.sh
 - `one4all`: `68311b9`
 - `corpus`: `2f2bbe3`
 - **Broad: 136p/42f**
+
+---
+
+## J-228 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter, Jasmin boxes pivot. Session prefix: J-.
+
+### Broad result
+**121p/57f** (178 total) — running against Jasmin `boxes.jar`. Regressed from 136p due to 2 Jasmin-specific bugs.
+
+### What was done (J-228, Jasmin pivot — uncommitted locally)
+
+1. **Jasmin package rename** — all 36 `.jasmin` files transformed: `bb_*` → `bb/bb_*`, descriptors `Lbb_*;` → `Lbb/bb_*;`, field/method refs updated. Inner class names camelCased (`matchstate` → `MatchState`, `var_store` → `VarStore`, etc.) to match Java oracle conventions.
+2. **Interface files fixed** — `.interface public bb_executor$VarStore` → `.interface public bb/bb_executor$VarStore`. All 4 interface Jasmin files (`VarStore`, `BoxResolver`, `VarSetter`, `IntSetter`) now produce separate `.class` files.
+3. **7-arg `exec()` added** — `bb_executor.jasmin` gained canonical 7-arg overload: `exec(String, String, bb_box$MatchState, bb_box, boolean, String, boolean)`. Boxes share the ms passed here; exec updates `ms.delta = scanPos` each scan step.
+4. **IntSupplier constructors** — `bb_len/pos/rpos/tab/rtab.jasmin` each got: `dyn` field (`Ljava/util/function/IntSupplier;`), second constructor `(ms, IntSupplier)`, private `val()` method dispatching dyn vs n.
+5. **`bb_capture.commitPending` stack limit** — bumped from 5 to 8.
+6. **Per-box .jasmin files** — copied to each box's subdirectory (e.g. `lit/bb_lit.jasmin`) mirroring `.c/.java/.il` siblings.
+7. **`bb_*.java` package/visibility** — added `package bb;` and `public` modifier to all Java oracle sources so they compile as stubs for `javac -cp bb_stubs`.
+8. **Driver updated** — `package driver.jvm;` restored; explicit imports `import bb.bb_*;`; all inner class refs fully qualified as `bb.bb_box.MatchState` etc.
+9. **boxes.jar running** — hello gate ✅. Crosscheck: 121p/57f.
+
+### Remaining Jasmin bugs (fix first in J-229)
+
+| Bug | Symptom | Fix |
+|-----|---------|-----|
+| `bb_arbno` VerifyError | `tryBody` — Expecting integer on stack | Read tryBody bytecode with `javap -c`; find boolean/int type confusion; fix `.limit stack` or a specific instruction |
+| `bb_any`/`bb_rpos` logic | Wrong output (not exception) | The `val()` sed replaced `getfield .../n I` globally — `bb_any`/`bb_notany`/`bb_span`/`bb_brk` don't have field `n`, they have `chars` (String). Check if sed accidentally emitted `invokevirtual val()I` in these boxes. Revert the bad substitution. |
+
+### J-229 first actions (mandatory order)
+1. `git pull --rebase` one4all (no push yet — token expired)
+2. `apt-get install -y default-jdk` if needed
+3. Rebuild stubs + driver (see SESSION-snobol4-jvm.md §J-229)
+4. Hello gate → HELLO WORLD
+5. Fix bb_arbno VerifyError: `javap -c -cp boxes.jar bb.bb_arbno | grep -A20 tryBody`
+6. Fix bb_any/rpos: `grep "val()\|invokevirtual.*val" src/runtime/boxes/jasmin/bb_any.jasmin`
+7. Reassemble, rejar, recompile, crosscheck → target ≥136p
+8. `git add src/runtime/boxes src/driver/jvm && git commit -m "J-229: Jasmin pivot complete"`
+9. Push with fresh token. Then ARRAY/TABLE builtins → ≥155p.
+
+### Baselines for J-229
+- `one4all`: `68311b9` (Jasmin pivot changes uncommitted locally)
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad on Jasmin boxes.jar: 121p/57f**
+
+### Key files changed (uncommitted)
+- `src/runtime/boxes/jasmin/*.jasmin` — all renamed, packaged, interface fixed
+- `src/runtime/boxes/<box>/bb_<box>.jasmin` — per-box copies
+- `src/runtime/boxes/shared/bb_executor.jasmin` — 7-arg exec() added
+- `src/runtime/boxes/len|pos|rpos|tab|rtab/bb_*.jasmin` — IntSupplier ctor + val()
+- `src/runtime/boxes/*/bb_*.java` — package bb; + public added
+- `src/driver/jvm/Interpreter.java` — import bb.*; → explicit; bb.bb_*.InnerClass refs
+- `src/driver/jvm/PatternBuilder.java` — same import fixes

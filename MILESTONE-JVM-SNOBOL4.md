@@ -82,58 +82,34 @@ sed -n '465,490p' snobol4jvm/src/SNOBOL4clojure/operators.clj   # EVAL dispatch
 
 ## M-JVM-INTERP — Dynamic JVM Byrd Box Interpreter (Phase 0)
 
-**Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) + `scrip-interp.cs` (NET INTERP session) in Java. Use `src/runtime/boxes/bb_*.jasmin` (assembled to `.class`) directly at runtime. This means the interpreter tests the **actual generated artifact** — no proxy, no translation gap. `bb_*.java` serves as human-readable oracle/reference only.
+**Rationale:** Build a JVM equivalent of `scrip-interp.c` (DYN- session) in Java, using `src/runtime/boxes/bb_*.jasmin` (assembled to `boxes.jar`) as the Byrd box execution layer. The interpreter exercises the **exact same Jasmin bytecode** that `emit_jvm.c` generates — no proxy, no translation gap. `bb_*.java` is human-readable reference only, never loaded at runtime.
 
-**Box language decision (J-220):** Jasmin, not Java, is the execution language for boxes.
-- `bb_*.java` — human-readable reference/oracle (already committed J-217) ✅
-- `bb_*.jasmin` — executable form; assembled by `jasmin.jar` → `.class` → packaged into `boxes.jar`
-- Both produce identical `.class` files loadable by the JVM; `jar` is agnostic to source language
-- Interpreter loads Jasmin-assembled classes → tests the real emitter artifact at every iteration
-- **Design invariant preserved:** interpreter proves semantics on the same bytecode `emit_jvm.c` will generate
+**Box execution layer: Jasmin only.** `bb_*.jasmin` → `jasmin.jar` → `bb/bb_*.class` → `boxes.jar`. Package `bb`. Java source compiles against `bb_*.java` stubs for type-checking; at runtime only `boxes.jar` is on the classpath.
 
-**Architecture: stack machine + Byrd box sequencer**
-
-The interpreter has two distinct execution engines that map directly to what the emitter will later compile:
+**Architecture: Java frontend + Jasmin Byrd box sequencer**
 
 ```
-NON-PATTERN execution (Phases 1, 4, 5 + all non-pattern statements):
-  Stack machine — operand stack + IR instruction dispatch
-  IR opcodes: PUSH_VAR, PUSH_LIT, CALL, ASSIGN, BRANCH_S, BRANCH_F, ...
-  Maps directly to JVM stack bytecode in emit_jvm.c later
+NON-PATTERN execution (Phases 1, 4, 5):
+  Java interpreter — NV store, eval(), builtin dispatch
+  Lexer.java → Parser.java → Interpreter.java
 
 PATTERN execution (Phases 2 + 3):
-  Byrd box sequencer — dispatches α/β/γ/ω signals through bb_*.jasmin box graph
-  PatternBuilder.java builds box graph from IR PatNode tree (instantiates Jasmin-assembled classes)
-  BbExecutor.java sequences through boxes: α=proceed, β=backtrack, γ=succeed, ω=fail
-  Maps directly to labeled-goto Jasmin bytecode in emit_jvm.c later — IS that bytecode
+  PatternBuilder.java  — ExprNode IR → bb_*.jasmin box graph
+  bb_executor (Jasmin) — scan loop, updates ms.delta, commits deferred captures on :S
+  Boxes share single bb_box$MatchState; exec() 7-arg canonical form passes ms
 ```
-
-**Pipeline:**
-```
-.sno file
-  → Lexer.java        → token stream
-  → Parser.java       → StmtNode[] (typed Java AST)
-  → IrBuilder.java    → IR instruction list (stack machine ops) + PatNode subtrees
-  → Interpreter.java
-      Phase 1: stack machine resolves subject → String
-      Phase 2: PatternBuilder builds bb_*.jasmin box graph from PatNode IR
-      Phase 3: BbExecutor sequences α/β/γ/ω through Jasmin box graph (scan loop)
-      Phase 4: stack machine evaluates replacement → value
-      Phase 5: stack machine splices, commits captures, takes :S/:F branch
-  → output
-```
-
-**No scrip-cc. No JNI.** Java frontend produces IR directly. Jasmin is the box execution layer.
 
 **Oracles:**
-- `src/frontend/snobol4/lex.c` + `parse.c` — lexer/parser structure oracle
-- `scrip-interp.c` + `stmt_exec.c` — eval loop + bb_build() oracle
-- `bb_*.java` — Jasmin authoring oracle (readable reference for each box)
-- `src/backend/emit_jvm.c` + `emit_byrd_asm.c` — emitter oracle (what interpreter ops must map to)
-- `MILESTONE-NET-INTERP.md` — parallel C# interpreter; same structure
-- `MILESTONE-DYN-INTERP.md` — C reference interpreter milestone chain
+- `src/frontend/snobol4/lex.c` + `parse.c` — lexer/parser structure
+- `scrip-interp.c` + `stmt_exec.c` — eval loop oracle
+- `bb_*.java` — readable reference for each box's α/β logic (NOT the execution artifact)
+- `src/backend/emit_jvm.c` + `emit_byrd_asm.c` — emitter structural oracle
 
-**Current milestone count:** 10 total (M-JVM-INTERP A01–A06 + 7 existing milestones A01-PARITY)
+**Status (J-228):** Interpreter operational at **121p/57f** (178 total) against `boxes.jar`.
+Remaining Jasmin-specific regressions vs 136p Java-stub baseline:
+- `bb_arbno.jasmin` VerifyError in `tryBody` — stack type mismatch
+- `bb_any`/`bb_rpos` logic regression — val() transform hit wrong boxes
+Pre-existing failures (42): ARRAY/TABLE/DATA, rung10 recursion, expr_eval, stcount.
 
 **M-JVM-INTERP breakdown:**
 
@@ -179,30 +155,47 @@ PATTERN execution (Phases 2 + 3):
 
 ---
 
-## Java Byrd Box runtime — `src/runtime/boxes/bb_*.java`
+## Jasmin Byrd Box runtime — `src/runtime/boxes/*/bb_*.jasmin` + `boxes.jar`
 
-**Written J-217. 29 files. one4all `7c35456`.**
+**Assembled J-220, packaged J-227/J-228. one4all `src/runtime/boxes/jasmin/boxes.jar`.**
 
-Every C box (`bb_lit.c`, `bb_seq.c`, ...) now has a Java sibling in the
-same directory (`bb_lit.java`, `bb_seq.java`, ...) plus `bb_box.java`
-(base class, `Spec`, `MatchState`) and `bb_executor.java` (5-phase driver).
+Every box exists in Jasmin source alongside the other language siblings:
 
 ```
-bb_lit.c    bb_lit.s    bb_lit.cs    bb_lit.java
-bb_seq.c    bb_seq.s    bb_seq.cs    bb_seq.java
-... (all 25 boxes, 4 languages, one snake_case name)
-bb_box.h                             bb_box.java
-bb_bal.c    bb_bal.s                 bb_bal.java  ← C stub; Java real
-                                     bb_executor.java
+bb_lit.c    bb_lit.s    bb_lit.cs    bb_lit.java    bb_lit.jasmin  ← EXECUTION
+bb_seq.c    bb_seq.s    bb_seq.cs    bb_seq.java    bb_seq.jasmin
+... (all 25+ boxes)
+shared/bb_box.java      shared/bb_box.jasmin
+shared/bb_executor.java shared/bb_executor.jasmin
 ```
 
-`bb_bal.java` is the first real BAL implementation (C original is a stub).
+**`bb_*.jasmin` is the execution layer. `bb_*.java` is a human-readable reference only — never loaded at runtime.**
 
-**Before wiring into `emit_jvm.c`:** Lon reviews `bb_seq.java` (β wiring)
-and `bb_arbno.java` (64-frame stack) for correctness.
+Jasmin sources live in each box's per-box subdirectory (e.g. `lit/bb_lit.jasmin`)
+and are mirrored to `jasmin/` flat dir for bulk assembly. Package: `bb` (all classes
+in `bb/bb_*.class` inside `boxes.jar`).
 
-**These are the M-JVM-B01 implementation atoms.** Each milestone in Phase 2
-maps directly to instantiating the corresponding Java box class.
+**Key API facts (from assembled bytecode — authoritative):**
+- All box constructors: `(bb/bb_box$MatchState, <args>)V`
+- `bb_executor.exec()` 7-arg canonical: `(String, String, bb/bb_box$MatchState, bb/bb_box, boolean, String, boolean)Z` — boxes share the ms passed here; exec updates ms.delta each scan step
+- `bb_len/pos/rpos/tab/rtab`: two constructors — `(ms, int)` and `(ms, IntSupplier)` for dynamic var args
+- Inner class names: camelCase (`bb_box$MatchState`, `bb_box$Spec`, `bb_executor$VarStore`, etc.)
+- Interfaces in package bb: `bb_executor$VarStore`, `bb_dvar$BoxResolver`, `bb_capture$VarSetter`, `bb_atp$IntSetter`
+
+**Rebuild command:**
+```bash
+cd src/runtime/boxes/jasmin
+java -jar ../../backend/jasmin.jar -d /tmp/jasmin_out *.jasmin
+cd /tmp/jasmin_out && jar cf .../boxes.jar bb/*.class
+```
+
+**Compile driver against bb_*.java stubs (compile-time type-checking only):**
+```bash
+BB_STUBS=/tmp/bb_stubs
+javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java")
+javac -cp $BB_STUBS -d /tmp/jvm_jasmin src/driver/jvm/*.java
+# Run: java -cp /tmp/jvm_jasmin:src/runtime/boxes/jasmin/boxes.jar driver.jvm.Interpreter <file.sno>
+```
 
 ---
 
