@@ -20052,3 +20052,94 @@ This aligns the interpreter's value type name with the C runtime convention (`DE
 - `src/driver/jvm/Interpreter.java` — ARRAY/TABLE/DATA builtins, E_IDX eval, word* timeout
 - `src/driver/jvm/PatternBuilder.java` — dynIntArg (done ✅)
 - `src/runtime/boxes/*/bb_*.java` — Supplier constructors (done ✅)
+
+---
+
+## DYN-50 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp). Session prefix: DYN-.
+
+### Result: 115p/17f (from 38p/87f at session start; DYN-49 baseline was 123p/55f)
+
+### What was done (DYN-50 r1, commit `16e820a`)
+
+**Build fixes (scrip-interp was not building):**
+1. `lex.h` line 43: duplicate `T_CONCAT` renamed → `T_AT_BIN` (dead slot, shadowed by `T_AT_SIGN`)
+2. `snobol4.y` `%code requires`: added `#include "lex.h"` so `Token`/`Lex` types visible; compile with `-include lex.h`
+3. `sno4_stmt_commit` call arity: added `NULL` for missing `pat` EXPR_t* arg (decl=7 args, call was 6)
+
+**Lexer fixes:**
+4. `snobol4.l` `flex_lex_next`: added `T_FUNCTION` to sval-setting cases (strbuf → intern)
+5. `snobol4.l` T_CONCAT rule: suppress when `depth>0` — was firing inside function arg lists (`IDENT('abc','abc')` producing `STR COMMA CONCAT STR`), breaking all multi-arg builtins
+
+**Parser/grammar fixes:**
+6. `snobol4.y` `goto_field` + `goto_label`: accept `T_FUNCTION` alongside `T_IDENT` — `S(YES)` tokenizes as FUNCTION (IDENT immediately followed by `(`)
+7. `snobol4.y` `sno4_stmt_commit` S=PR split:
+   - `E_SCAN(subj, pat)` from `X ? PAT` binary match → split to subject + pattern
+   - `E_SEQ` with first child `E_VAR`/`E_KEYWORD` → subject=first, pattern=rest
+
+### Baselines for DYN-51
+- `one4all`: `16e820a`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 115p/17f**
+
+### DYN-51 first actions
+1. `git pull --rebase` all repos
+2. Rebuild scrip-interp (see SESSION-dynamic-byrd-box.md build command; add `-include src/frontend/snobol4/lex.h` to parse.o compile step)
+3. Smoke: `echo '     OUTPUT = "HELLO WORLD"' > /tmp/h.sno && ./scrip-interp /tmp/h.sno` → `HELLO WORLD`
+4. Run crosscheck: `/tmp/run_crosscheck.sh` → confirm 115p/17f baseline (script at bottom of this entry)
+5. Fix `word1`–`word4`/`cross`: &TRIM/INPUT issue — `LINE = INPUT` reads but produces empty. Check `INPUT_fn` in `snobol4.c` and `&TRIM` wiring in scrip-interp.c
+6. Fix `expr_eval`: line-continuation `+` prefix not handled by lexer (see `snobol4.l` INITIAL state)
+7. Fix `1012_func_locals`: local variable scoping in `callUserFunc`
+8. Fix `1013_func_nreturn`: NRETURN handling
+9. Fix `1015_opsyn`: OPSYN edge case
+10. Fix `1016_eval`: EVAL builtin via `eval_code.c`
+11. Target: **≥125p/≤9f** then MONITOR diff vs SPITBOL
+
+### Remaining 17 failures root causes
+| Test | Root cause |
+|------|-----------|
+| `word1`–`word4`, `wordcount`, `cross` | `LINE = INPUT` reads empty — &TRIM or INPUT_fn not wired |
+| `056_pat_star_deref` | `*VAR` deref in pattern not handled in `interp_eval` |
+| `063_capture_null_replace` | null replacement edge case in `exec_stmt` |
+| `expr_eval` | line continuation `+` prefix — lexer INITIAL state doesn't handle |
+| `1012_func_locals` | local var save/restore in user function calls |
+| `1013_func_nreturn` | NRETURN: return a name/lvalue ref |
+| `1015_opsyn` | OPSYN alias edge case |
+| `1016_eval` | EVAL builtin (eval_code.c path) |
+| `test_case`, `test_math`, `test_stack`, `test_string` | deeper runtime — not yet diagnosed |
+
+### Key files
+- `src/frontend/snobol4/snobol4.l` — lexer (T_CONCAT depth fix, T_FUNCTION sval)
+- `src/frontend/snobol4/snobol4.y` — grammar (S=PR split, goto T_FUNCTION fix)
+- `src/driver/scrip-interp.c` — interpreter (INPUT/&TRIM, EVAL, locals)
+- `src/runtime/snobol4/snobol4.c` — INPUT_fn, &TRIM keyword
+
+### Crosscheck runner used this session
+```bash
+cat > /tmp/run_crosscheck.sh << 'SCRIPT'
+#!/bin/bash
+CORPUS=/home/claude/corpus/crosscheck
+INTERP=/home/claude/one4all/scrip-interp
+PASS=0; FAIL=0; FAILS=""
+for dir in output assign concat arith_new control_new patterns capture strings functions data keywords rung2 rung10 rung11 library arith control coverage; do
+    full="$CORPUS/$dir"
+    [ -d "$full" ] || continue
+    for sno in "$full"/*.sno; do
+        [ -f "$sno" ] || continue
+        ref="${sno%.sno}.ref"; [ -f "$ref" ] || continue
+        name=$(basename "$sno" .sno)
+        inp="${sno%.sno}.inp"; [ -f "$inp" ] || inp="${sno%.sno}.input"
+        if [ -f "$inp" ]; then got=$(timeout 5 "$INTERP" "$sno" < "$inp" 2>/dev/null || true)
+        else got=$(timeout 5 "$INTERP" "$sno" 2>/dev/null || true); fi
+        exp=$(cat "$ref")
+        if [ "$got" = "$exp" ]; then PASS=$((PASS+1))
+        else FAIL=$((FAIL+1)); FAILS="$FAILS\n  $name"; fi
+    done
+done
+echo "PASS=$PASS FAIL=$FAIL"; printf "Failures:%b\n" "$FAILS"
+SCRIPT
+chmod +x /tmp/run_crosscheck.sh
+```
