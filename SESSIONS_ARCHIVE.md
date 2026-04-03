@@ -18195,3 +18195,46 @@ exec_stmt 5-phase    →    BbExecutor.exec 5-phase (already exists ✅)
 1. Implement M-JVM-INTERP per milestone: build scrip-interp/ project
 2. Write PatternBuilder.java using `stmt_exec.c bb_build()` as structural oracle  
 3. Establish interpreter baseline → proceed to M-JVM-A02 compiled path
+
+---
+
+## J-218 design correction — 2026-04-02
+
+### Critical IR requirement enforced
+
+**Design corrected:** M-JVM-INTERP must use **canonical IR structures** (`PATND_t`, `AST_t`, `STMT_t`) matching `scrip-cc` and `scrip-interp.c`. This ensures emitter portability and semantic consistency.
+
+**Updated milestone breakdown:**
+- **M-JVM-INTERP-A01**: IR bridge via JNI (scrip-cc frontend → Java serialization) + PatternBuilder.java  
+- **M-JVM-INTERP-A02**: Test harness integration + corpus runner interface
+- **M-JVM-INTERP-A03**: Baseline verification vs scrip-interp.c behavior
+
+**Sprint sequence updated:** J-218→220 for interpreter, then J-221→227 for compiled milestones.
+
+**Architecture corrected:**
+```
+SNOBOL4 source  →  C frontend (scrip-cc)  →  PATND_t/AST_t IR  →  Java interpreter
+                   (existing, proven)      (canonical IR)     (bb_*.java + BbExecutor)
+```
+
+**Key insight:** PatternBuilder.java walks the same `PATND_t` structures as `stmt_exec.c bb_build()` function — same algorithm, different language. Perfect oracle compatibility.
+
+#### Milestone count: 11 total
+- **M-JVM-INTERP** (3 sub-milestones: A01, A02, A03)  
+- **M-JVM-A01** ✅ (scaffold complete)
+- **M-JVM-A02, A03** (value layer + DATA/functions)
+- **M-JVM-B01, B02** (pattern primitives + backtracking)  
+- **M-JVM-C01** (EVAL/CODE)
+- **M-JVM-PARITY** (full corpus)
+
+#### Baseline (unchanged)
+
+- one4all: `46c6267` 
+- snobol4jvm: `f06baeb`
+- corpus: `2f2bbe3`
+- .github: this commit
+
+### J-219 actions
+
+1. Implement M-JVM-INTERP-A01: JNI bridge + PatternBuilder using canonical IR
+2. Maintain perfect structural compatibility with x86 dynamic path
