@@ -428,25 +428,6 @@ If still failing: check `SNO_CALLDEBUG=1` for garbage vtype — if gone, r12 fix
 If garbage vtype persists: r12 is still being clobbered somewhere else (e.g. user function calls also clobber r12).
 
 ---
-## Session 2026-03-24 B-289 — M-BEAUTIFY-BOOTSTRAP buffer limits + FENCE + r12
-
-**Invariant maintained:** 106/106 ASM corpus ALL PASS ✅  
-**Commit:** `0378dad` B-289 (one4all)
-
-### Completed fixes
-- `NAMED_PAT_MAX 64→512`: Parse/Command/Compiland silently dropped
-- `MAX_BOXES 64→512`, `call_slots 256→4096`, all capacity limits bumped for 420+ named patterns
-- `mock_engine.c`: add `T_FENCE/T_ARBNO` — FENCE always hit `default:→-1`
-- Remove `mock_includes`/`inc_init()`: C mocks were overriding compiled SNOBOL4
-- Binary `E_NAM` fix in `emit_expr`: `epsilon . *PushCounter()` now calls `stmt_concat`
-- `stmt_concat`: handle `DT_N` right operand via `pat_assign_cond`
-- `emit_named_ref`: save/restore `r12` across nested named-pat calls (committed, not yet tested against beauty — context limit hit)
-
-### Next action
-Rebuild beauty from B-289, run, check if garbage `vtype=139...` gone. See SESSIONS_ARCHIVE full entry for exact rebuild commands.
-**Next:** IJ-13 — M-IJ-CORPUS-R4 fires immediately (rung04+05+06=15/15 already PASS). Declare it, then plan next milestone.
----
-
 ## IJ-13 — 2026-03-24
 
 **Milestones:** M-IJ-CORPUS-R4 ✅; M-IJ-CORPUS-R5 ❌ open (t03_to_by VerifyError)
@@ -1952,15 +1933,6 @@ Specifically: the ICN_EVERY β-tableswitch dispatches into the ICN_AND sub-chain
 **Next session (SD-3):** Fix remaining 8 stack-height conflicts. Key insight: the ICN_EVERY β-tableswitch resume path enters the ICN_AND chain's α port at a different stack depth than the normal entry. Fix: in `ij_emit_every`, ensure the β-resume dispatch drains any stale stack before re-entering the generator's α. See `SCRIP_DEMO.md` §NOW for details.
 ---
 
-## SD-2 (Scrip Demo) — Session 2026-03-26
-
-**Date:** 2026-03-26. **HEAD at start:** `a5f01c8` (one4all).
-
-**Fixes:** `ij_emit_relop`/`ij_emit_binop`: `lstore/lload` JVM locals → `putstatic/getstatic` static field relay. ICN_AND `relay_g`: `pop2/pop` → `putstatic` typed static drain fields. `ij_emit_alt`: original behavior preserved. rung28–30: 15/15 PASS ✅.
-
-**Remaining blocker:** 8 stack-height conflicts. ICN_EVERY β-tableswitch re-enters ICN_AND sub-chain at different stack depth than fresh α-entry.
-
-**Next (SD-3):** Drain stale stack at β-resume dispatch. HEAD at handoff: one4all `973a68a`. Context: ~77%.
 ## IJ-45 — M-IJ-SORT WIP (handoff, not committed)
 
 **Date:** 2026-03-26. **Repos:** one4all (working tree only — not pushed). **HEAD unchanged:** `fe87efc`.
@@ -2577,20 +2549,6 @@ REPLACE, IDENT, DIFFER, CONVERT, LT, GT, LE, EQ, LGT, ANY, LEN, POS, RPOS, DATA)
 **Final baseline: 153/153 PASS, 0 xfail. All corpus dirs have harness scripts.**
 
 **Context window at handoff: ~63%.**
-
----
-
-## IJ-53–IJ-55 — M-IJ-RECURSION · M-IJ-INITIAL · M-IJ-STRRET-GEN ✅
-
-**Date:** 2026-03-26. **HEAD (one4all):** `d64d752`.
-
-**IJ-53:** All class-level scratch statics trampled by recursive calls. `ij_static_needs_callsave()` save/restore at every user-proc call site. `fact(5)=120`.
-
-**IJ-54:** Callsave restore overwrote callee persistent locals. Exclude `icn_pv_<other_proc>_*`. `initial` persistence fixed. rung25 7/7.
-
-**IJ-55:** Non-gen proc β → `arg_betas[nargs-1]`. `every write(tag("a"|"b"|"c"))` now yields all values. rung32 5/5.
-
-**Final: 153/153 PASS, 0 xfail. Context window at handoff: ~63%.**
 
 ---
 
@@ -7343,52 +7301,6 @@ A11_capture_dot (058), A11_capture_dollar (059), A11_capture_multiple (060), A11
 
 ---
 
-## SC-2 Session continued (2026-03-30, Claude Sonnet 4.6) — rungA10–A11
-
-**one4all** `c95400f` · **corpus** `fc6f3a5` · **.github** `(this commit)`
-
-### Completed this session
-
-**M-SC-A10 ✅ — rungA10 capture (goto-free) 3/3:**
-A10_capture_replace (062), A10_capture_delete (063), A10_capture_conditional (064) — all pass.
-
-**M-SC-A11 ✅ — rungA11 capture (with-goto rewritten) 4/4:**
-A11_capture_dot (058), A11_capture_dollar (059), A11_capture_multiple (060), A11_capture_loop (061) — all pass.
-
-### Emitter fixes (two bugs, both in pattern/? operator path)
-
-**Bug 1 — emit_x64_snocone.c:** `SNOCONE_QUESTION` binary case was `make_fnc2("DIFFER", l, r)` — a stub. Fixed to `expr_binary(E_MATCH, l, r)`. This made `if (X ? pat)` conditions work immediately (A10_conditional passed after this fix alone).
-
-**Bug 2 — emit_x64_snocone.c:** `assemble_stmt` did not unwrap `E_MATCH` or `ASSIGN(E_MATCH, repl)`. Fixed to split `E_MATCH(subj, pat)` into `st->subject + st->pattern`, and `ASSIGN(E_MATCH(subj,pat), repl)` into `st->subject + st->pattern + st->replacement`. This enabled the scan loop machinery for all remaining tests.
-
-**Bug 3 — emit_x64.c:** `emit_pat_node` had no case for `E_CONCAT` (emitted "UNIMPLEMENTED → ω"). Snocone uses `&&` for pattern sequence which lowers to `E_CONCAT`; SNOBOL4 juxtaposition lowers to `E_SEQ`. Added `case E_CONCAT:` fall-through to `case E_SEQ:` — one line. Fixed A11_capture_multiple and A11_capture_loop.
-
-**Key design note for next session:** Snocone pattern sequences must use `&&` (not juxtaposition). `BREAK(' ') . FIRST && LEN(1) && REM . LAST` is the correct Snocone form.
-
-### Setup notes for this session
-- CSNOBOL4 build fixed: snobol4.org is broken; Lon uploaded tarball. `m4` must be installed first.
-- `SESSION_SETUP.sh` and `RULES.md` updated: never download CSNOBOL4, always ask Lon for tarball.
-- `java`/`javac` + SnoHarness compiled manually (SESSION_SETUP.sh skips JDK for BACKEND=x64; invariants script requires them unconditionally).
-
-### Gate (end of session)
-- **Emit-diff: 718/20** (20 stale artifact .s files with new cset externs — pre-existing, not regressions)
-- **Invariants: snobol4_x86 106/106 ✓ · icon_x86 94p/164f · prolog_x86 13p/94f** (all pre-existing, no regressions)
-
-### Running total: 50p / 1xfail / 51 total (A01–A11)
-
-### Next session execution order
-1. Setup: `FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh`
-   - If CSNOBOL4 needed: ask Lon for `snobol4-2_3_3_tar.gz`; install `m4` first
-   - Compile SnoHarness manually: `cd /home/claude/one4all/test/jvm && javac SnoRuntime.java SnoHarness.java -d .`
-2. Gate: `run_emit_check.sh` (expect 718/20 stale artifacts — not regressions) + `run_invariants.sh snobol4_x86 icon_x86 prolog_x86`
-3. rungA12 — patterns 10 tests from `corpus/crosscheck/patterns/`
-   - Translate SNOBOL4 → Snocone; use `&&` for pattern sequence
-   - `if (X ? pat)` pattern confirmed working
-   - Capture `.` and `$` confirmed working
-4. Fire M-SC-A12 when all 10 pass; update invariant cell count
-
----
-
 ## SW-2 Session 1 — Formal Handoff (2026-03-30, Claude Sonnet 4.6)
 
 **one4all** `7ddc01e` · **.github** this session
@@ -11225,85 +11137,6 @@ Use those outputs to finalize `spitbol_driver.sno` and `parse_dump()`.
 
 **Context discipline for PW-15:** Use `grep -n PATTERN file | head -5` then `sed -n 'N,Mp' file` with tight ranges. Never read a full generated WAT. Never read >30 lines of an emitter file without a specific line target.
 
-## G-10 s2 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all** `231f159` · **harness** `ad593c5` · **.github** `99d193d`
-
-### Session summary
-
-Grand Master Reorg session. Focus: harness generator engine design and first implementation.
-
-### Work completed
-
-**1. `harness/adapters/tiny/Expressions.py` — generator engine appended**
-
-New sections added (no existing code touched):
-
-- `INT_VARS = ['i','j','k','l','m','n']` · `PAT_VARS = ['p','q','r']` · `STR_VARS = ['s','t']` · `ANY_VARS = ['u','v','w','x','y','z']` — typed variable pool convention (first written here)
-- `FailBudget` exception + `_spend()` — global token budget, prunes overly-verbose unparse paths
-- `unparse(tree) → str` — minimal-paren serializer; precedence-aware for `+`,`-`,`*`,`/`
-- `_build_items/elements/factors/terms(size)` — DP exhaustive enumerators by operator count
-- `exhaust_expressions(max_size)` — yields all canonical strings ≤ max_size ops, smallest first
-- `rand_expressions(n, seed, max_depth)` — repaired random engine; reproducible, depth-bounded, draws from `i,j,k` pool
-- `as_output(expr)` / `as_assign(var, expr)` — SNOBOL4 statement wrappers
-
-Smoke test: `max_size=2` → **30,564 expressions**. Random engine with `seed=42` reproducible.
-
-**2. `one4all/doc/HARNESS-GEN.md` + `harness/HARNESS-GEN.md` — design doc committed**
-
-Full design for grammar-driven semantic test generator. Key decisions:
-
-- **Synchronous IPC** — one long-lived SPITBOL process, blocking readline per request. No async. Lesson from Monitor.
-- **Protocol:** Python sends preamble + statement + `__EVAL__\n`; SPITBOL responds with DUMP lines + `__DONE__\n`. One blocking `readline()` loop.
-- **Result classes:** WELL_BEHAVED · NO_EFFECT · ERROR · HANG · CRASH — only WELL_BEHAVED harvested
-- **Shape** = structural AST skeleton ignoring specific vars/literals — dedup key for test suite
-- **Variable pools:** `i..n` integers (preamble-initialized), `u..v..w..x..y..z` untyped/null (test coercion paths)
-- **Milestones M-H0..M-H7:** IPC driver → classifier → shape → preamble → pipeline → crosscheck → x86 gate
-
-### What is NOT done (G-11 picks up here)
-
-**Next milestone: M-H0** — implement the SPITBOL IPC oracle process.
-
-Steps:
-1. Verify `CODE(stmt)()` works in SPITBOL for dynamic statement execution
-2. Write `harness/oracle/spitbol_driver.sno` (loop on INPUT, eval via CODE, dump on `__EVAL__`, sentinel `__DONE__`)
-3. Write `harness/oracle/spitbol_ipc.py` (SpitbolOracle class, synchronous pipe)
-4. Benchmark: target 1000 round-trips/sec on `I = 1 + 2`
-5. Pin the exact `&DUMP` output format to write `parse_dump()`
-
-Then M-H1 (classifier), M-H2 (shape), M-H3 (preamble), M-H4 (yield trees from Expressions.py), M-H5 (full pipeline).
-
-### Open questions (in HARNESS-GEN.md §Open Questions)
-
-1. `CODE()` availability in SPITBOL — verify
-2. `&DUMP` output format — need one sample
-3. State reset between tests — null-assign preamble or process restart?
-4. Hang timeout — 1s sufficient for arithmetic?
-5. `max_size` sweet spot — size=2 gives 30k→~100 shapes; size=3 may suffice for full arith coverage
-
-### G-11 session start (Grand Master Reorg)
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
-done
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # this handoff
-cat /home/claude/.github/RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/one4all/doc/HARNESS-GEN.md           # design doc
-```
-
-**G-11 first action:** M-H0 — SPITBOL IPC oracle. Start with:
-```bash
-# Test CODE() in SPITBOL interactively:
-echo "CODE('OUTPUT = 1 + 2')()\nEND" | spitbol
-# Then: &DUMP format:
-echo "I = 3\n&DUMP = 1\nEND" | spitbol
-```
-Use those outputs to finalize `spitbol_driver.sno` and `parse_dump()`.
-
----
-
 ## IW-13 HANDOFF (2026-03-31, Claude Sonnet 4.6)
 
 **one4all** `8bc5773` · **.github** this commit
@@ -12059,96 +11892,6 @@ Merge `pw-15-wip` into `main`, commit `PW-15: M-PW-B01 ✅ rung05 passes`. Updat
 
 ### Context discipline
 Never read full WAT files. `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'` tight ranges only.
-
----
-
-## IW-16 HANDOFF (2026-03-31, Claude Sonnet 4.6)
-
-**one4all HEAD:** `48be4dd` (main)
-**.github HEAD:** `dacded5`
-
-### Session summary
-
-Implemented M-IW-G01: `E_WHILE` + `E_SUSPEND` four-port WASM emission.
-Gates: emit-diff 981/4 ✅. Manual test: `rung03_suspend_gen` → `1\n2\n3\n4` ✅.
-Invariant harness still reports rung03 as `[output]` fail — harness mismatch
-not yet diagnosed (context limit). All pre-existing failures unchanged.
-
-### What was implemented
-
-**E_WHILE** (`src/backend/emit_wasm_icon.c`):
-- `sa → cond.start`
-- `cond.esucc (cond_ok) → body.start`
-- `body.esucc/efail → loop_top → cond.start`
-- `cond.efail → outer_fail`; `ra → outer_fail`
-
-**E_SUSPEND** (four-port WASM coroutine yield):
-- `sa → val.start`
-- `after_val`: stores `$icn_retval`, arms `$icn_retcont = resume_tramp_idx`,
-  decrements `$icn_frame_depth`, calls `icn_retcont_peek_esucc →
-  return_call_indirect` (peek = non-destructive; frame stays live for
-  multi-yield)
-- `resume_tramp`: re-increments `$icn_frame_depth`, then → `body.start`
-  (if body) or `val.resume` (no body)
-- `ra → resume_tramp`
-- Exhaustion: `outer_fail → icn_proc_{name}_pfail → retcont_pop_fail`
-  (consumes the retcont frame, yields efail_idx back to call-site)
-
-**`$icn_retcont_peek_esucc`**: new WAT helper in `emit_wasm_icon_globals` —
-reads `mem[SP-4]` (top esucc_idx) without decrementing SP or `$icn_frame_depth`.
-
-**`icn_has_suspend()`**: recursive predicate in C; guards `E_EVERY` resume —
-uses `$icn_retcont` path only when child tree contains `E_SUSPEND`. Preserves
-`E_TO`/`E_TO_BY` behaviour (no funcref table needed for simple generators).
-
-### Harness mismatch — IW-17 must diagnose first
-
-`run_invariants.sh icon_wasm` reports `rung03_suspend_gen [output]` fail even
-though `node test/wasm/run_wasm.js` produces correct `1\n2\n3\n4`. The harness
-likely uses a `.ref`-based comparison or a different corpus subdirectory. Check:
-
-```bash
-grep -n "rung03\|\.expected\|\.ref\|icon_wasm" test/run_invariants.sh | head -20
-# or look at the CSV:
-grep rung03 test-results/invariants_latest.csv
-```
-
-Once the harness path is confirmed, rung03 should flip to `[pass]`.
-
-### IW-17 session start
-
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN@github.com/snobol4ever/${repo}.git"
-done
-FRONTEND=icon BACKEND=wasm TOKEN=TOKEN bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # expect 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm # expect ≥3p
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cat /home/claude/.github/SESSION-icon-wasm.md
-```
-
-**IW-17 first actions:**
-
-1. Diagnose harness mismatch — `grep -n "icn\|icon\|\.ref\|\.expected" test/run_invariants.sh | head -30`
-2. Once rung03_suspend_gen passes in harness: next is `rung03_suspend_gen_compose`
-   - compose uses two generators called in sequence: `every write(gen1() | gen2())`
-   - Expected: `1\n2\n3\n1\n2` — the `|` (alt) construct is `E_ALT`; implement E_ALT
-   - Check: `./scrip-cc -icn -wasm -o /tmp/compose.wat corpus/programs/icon/rung03_suspend_gen_compose.icn && grep "stub\|SUSPEND\|ALT" /tmp/compose.wat | head -10`
-3. Next milestone after compose: **M-IW-G02** — `rung03_suspend_gen_filter`
-   (uses `suspend` with conditional body — already passes ✅)
-
-### Consolidation note (for G-10, not IW scope)
-
-Three genuine WASM-trio duplicates identified but NOT extracted (pre-freeze):
-- `prescan_prog()` skeleton: in `emit_wasm.c:194` and `emit_wasm_prolog.c:1260` — same triple-field loop
-- `static void W()` in `emit_wasm_prolog.c:58` vs `#define W` macros in the others
-- `emit_wasm_strlit_reset()` + `intern("")` seed pattern (both SNOBOL4 and Prolog)
-These belong to **M-G10-CON-STRLIT** / **M-G10-AUDIT-CROSS** under G-10 Phase 2-3.
-
-### Context discipline
-Never read WAT files wholesale. Use `grep -n PATTERN file | head -N` then `sed -n 'A,Bp'`.
 
 ---
 
@@ -15210,54 +14953,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js  # expect 52p/
 
 ---
 
-## Session SJ-8 FINAL — 2026-04-01 — E_INDR, comparisons, fallthrough, benchmarks
-
-**HEAD at session end:** one4all `09fb31f` · corpus `8b0f243` · .github this entry
-**Context at handoff: ~68%**
-
-### Gates
-- emit-diff (CELLS=snobol4_js): **0/0** ✅
-- invariants (snobol4_js): **52p/68f** (up from 46p/74f at SJ-7 start)
-
-### Work completed
-
-1. **E_INDR $.var name-form** — `E_CAPT_COND(E_VAR)` inside `E_INDR` emits name string directly. Fixes 210 ✅ 211 ✅.
-2. **E_INDR lvalue** — pure-assignment handler now handles `E_INDR` subject. Fixes 211 ✅.
-3. **Lexical comparisons** — added LGT/LLT/LGE/LLE/LEQ/LNE. Fixes 914 ✅ 099 ✅.
-4. **Comparison return value** — LT/LE/GT/GE/EQ/NE/IDENT/DIFFER now return `''` on success (SPITBOL convention, was returning first arg). Critical for `LT(N,lim) N` benchmark idiom.
-5. **_FAIL propagation** — `_cat`, `_add/_sub/_mul/_div/_pow` short-circuit on `_FAIL`.
-6. **TIME()** — `Date.now()`. Enables all benchmark programs.
-7. **Fallthrough fix** — conditional `:S`-only goto where next stmt is labeled: emit `return goto_NEXTLABEL` before block close. Fixes silent program termination in pattern_bt and all `:S(loop)` + labeled-next patterns.
-
-### Benchmarks (6/7 running — string_pattern needs E_18 value-context pattern)
-
-| Benchmark | JS ms | SPITBOL ms | JS/SPITBOL |
-|-----------|------:|----------:|:----------:|
-| arith_loop (1M) | 464 | 20 | 23× |
-| op_dispatch (1M) | 1,180 | 70 | 17× |
-| var_access (10M) | 11,191 | 910 | 12× |
-| string_concat (100K) | 677 | 200 | 3× |
-| string_manip (5M) | 9,395 | 390 | 24× |
-| pattern_bt (500K) | 1,372 | 480 | 3× |
-
-corpus/BENCHMARKS.md updated with JS column.
-bench_engine.js (one4all vs spipatjs) separate — already recorded SJ-6, 8/8 wins 1.4×–64.9×.
-
-### Bootstrap for SJ-9
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN@github.com/snobol4ever/${repo}"
-done
-FRONTEND=snobol4 BACKEND=js TOKEN=... bash .github/SESSION_SETUP.sh
-cd one4all
-git log --oneline -3   # expect 09fb31f at HEAD
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js  # expect 52p/68f
-# SJ-9 FIRST: DEFINE/RETURN call stack in sno_engine.js
-# Oracle: emit_jvm.c DEFINE handling. See ARCH-scrip-abi.md.
-```
-
----
-
 ## Session SJ-8 ADDENDUM — 2026-04-01 — JS artifacts + emit-diff gate
 
 **HEAD at addendum:** one4all `5f0f36a` · corpus `18a8b70`
@@ -15292,31 +14987,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js          # exp
 # Fixes 1010-1018 timeouts (~8 tests). Oracle: emit_jvm.c DEFINE handling.
 # Then: DATA/ARRAY/TABLE builtins.
 # Then: string_pattern needs E_18 value-context pattern expression.
-```
-
----
-
-## Session SJ-8 ADDENDUM — 2026-04-01 — JS artifacts + emit-diff gate
-
-**HEAD at addendum:** one4all `5f0f36a` · corpus `18a8b70`
-
-### Gates
-- emit-diff (CELLS=snobol4_js): **175/0** ✅ (was 0/0 — JS not wired)
-- invariants (snobol4_js): **52p/68f** (unchanged)
-
-**JS artifacts generated** for all 175 compiling crosscheck tests.
-**run_emit_check.sh wired** — snobol4_js CELLS dispatch + -js js lines.
-
-### Bootstrap for SJ-9
-```bash
-for repo in .github one4all harness corpus; do
-  git clone "https://TOKEN@github.com/snobol4ever/${repo}"
-done
-FRONTEND=snobol4 BACKEND=js TOKEN=... bash .github/SESSION_SETUP.sh
-cd one4all
-CELLS=snobol4_js CORPUS=/home/claude/corpus bash test/run_emit_check.sh   # 175/0
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js          # 52p/68f
-# SJ-9 FIRST: DEFINE/RETURN call stack in sno_engine.js
 ```
 
 ---
@@ -16765,22 +16435,6 @@ DYN-32 baseline and task list in previous entry remain correct.
 
 ---
 
-## DYN-31 CORRECTION (same session, post-handoff)
-
-The handoff note incorrectly stated: *"Static x86 BB emission for invariant patterns is M-DYN-S1 (not yet implemented)."*
-
-**This is wrong.** `expr_eval.s` in corpus/crosscheck proves M-DYN-S1 IS implemented. `P_expr_α`, `P_term_α`, `P_factor_α`, `P_primary_α` are fully static compiled x86 BB sequences with inline `ALT_α`/`SEQ`/`DOL_SAVE`/`DOL_CAPTURE` macros and direct `jmp` between four-port labels — no `exec_stmt` call in their bodies. Mutual recursion between named patterns works via direct `jmp P_term_α` etc.
-
-Two distinct tracks exist in emit_x64.c:
-
-**Track 1 — `scan_named_patterns`** (M-DYN-S1, WORKING): Pattern variables with genuine pattern-building RHS are promoted to named patterns and emitted as static four-port x86 BB sequences. This is what `P_expr_α` is.
-
-**Track 2 — `inv_pats` Pass 2b** (M-DYN-OPT, partial): Simpler invariant PAT= assignments get _PND_t trees pre-built once at startup via pat_* constructors but still matched via exec_stmt at match time.
-
-The 22 corpus .s files contain a mix of DEFINE user-function stubs (P_Push_α etc.) AND statically compiled named patterns (P_expr_α etc.). Both are live. DYN-32 baseline and tasks remain correct.
-
----
-
 ## DYN-32 partial handoff — children array refactor + ARB root cause — 2026-04-02
 
 ### What was done
@@ -17611,32 +17265,6 @@ Gate held **142/142** throughout. Broad **169p/9f** — exact baseline, no regre
 
 ---
 
-## DYN-42 handoff — 2026-04-02
-
-### What was done
-
-**One-pass lexer landed.** `split_line`, `FLUSH` macro, `SnoLine`, `LineArray` all eliminated. New `lex.c` does a single pass: `process_file` → `emit_logical` → `tokenise_body` → token queue. Three synthetic tokens: `T_LABEL`, `T_GOTO`, `T_STMT_END`. `parse.c` has `parse_program_tokens(Lex*)` consuming the queue.
-
-Gate held **142/142**. Broad **169p/9f** — exact baseline, no regression.
-
-#### Commits (one4all)
-- `09ac2cb` — DYN-42: one-pass lexer — T_LABEL/T_GOTO/T_STMT_END; no split_line/FLUSH/SnoLine; 142/142 gate ✅ 169p/9f broad
-
-#### Remaining failures (9) — unchanged from DYN-41
-- `1013_func_nreturn` 003 — NRETURN lvalue assign
-- `1015_opsyn`, `1016_eval`, `cross`, `expr_eval`, `test_case`, `test_math`, `test_stack`, `test_string`
-
-### Baseline for DYN-43
-- one4all: `6f8a4e509ac2cb` · corpus: `2f2bbe3` · invariants: **142/142** ✅ · broad: **169p/9f**
-
-### DYN-43 first tasks
-1. `git pull --rebase` all repos. Build scrip-interp. Gate 142/142.
-2. Fix `1013/003`: body_toks for `ref_a() = 26` reconstruct as `"ref_a() = 26"` — `parse_expr17` should see `T_IDENT("ref_a")` then `T_LPAREN` with no whitespace → `E_FNC(nchildren=0)` → line 353 handler fires.
-3. Fix `1015_opsyn` — consult `/home/claude/spitbol-docs-master/M.md`.
-4. Target ≥170p. Gate 142/142. Commit + push.
-
----
-
 ## J-218 session start handoff — 2026-04-03
 
 ### What was done
@@ -17796,34 +17424,6 @@ This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecute
 - `one4all/src/runtime/boxes/shared/bb_box.java` — BbBox base + MatchState
 - `one4all/src/runtime/boxes/lit/bb_lit.java` — first box to wire up
 - `one4all/src/runtime/boxes/shared/bb_executor.java` — 5-phase driver already exists
-
-## J-219 handoff — 2026-04-03
-
-### Session type
-**TINY JVM** — M-JVM-INTERP-A01: IR bridge (scrip-cc → Java) + PatternBuilder.java.
-
-### What was done
-
-**No code written.** Routing error: Claude routed to DYN-42 (x86) instead of TINY JVM (J-). Root cause: "dynamic Byrd boxes" substring matched DYN- session before JVM qualifier was noticed. RULES.md §ROUTING line 288 already had the correct rule but wasn't consulted early enough.
-
-**HQ fix committed:** PLAN.md — added ⛔ ROUTING GUARD after step 3 surfacing the JVM+interpreter = J- session rule earlier in the protocol.
-
-### Baseline for J-220
-- `.github`: `45c3808` (or latest after rebase)
-- `one4all`: `09ac2cb` (unchanged)
-- `corpus`: `2f2bbe3` (unchanged)
-- **No gate** — interpreter session, exempt per RULES.md
-
-### J-220 first tasks (in order)
-1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
-3. **No gate, no baselines** — M-JVM-INTERP-A01, exempt per RULES.md.
-4. `sed -n '407,640p' one4all/src/runtime/dyn/stmt_exec.c` (bb_build oracle) + `cat one4all/src/runtime/boxes/shared/bb_box.java`
-5. Create `one4all/src/driver/jvm/PatternBuilder.java` — walks _PND_t IR → instantiates bb_*.java boxes.
-6. Wire `bb_executor.java` as 5-phase driver. Zero compile+link test loop.
-7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
-
----
 
 ## D-167 handoff — 2026-04-03
 
@@ -18001,54 +17601,6 @@ Key decisions made and committed (`ddb8f71` .github):
 
 ---
 
-## J-220 handoff — 2026-04-02
-
-### Session type
-**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
-
-### What was done
-
-**No code written.** Architecture and planning session only.
-
-Key decisions made and committed (`ddb8f71` .github):
-
-1. **Jasmin boxes decision** — `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the interpreter. `bb_*.java` (J-217) becomes human-readable oracle/reference only. Rationale: interpreter tests the real emitter artifact; no translation gap; `bb_*.java` and `bb_*.jasmin` both produce identical `.class` files loadable by JVM identically.
-
-2. **Milestone ladder updated** — New first milestone **M-JVM-INTERP-A00** inserted: write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble via `jasmin.jar` → `boxes.jar`. Existing A01–A05 unchanged in content, sprint sequence shifted by one.
-
-3. **Architecture confirmed** — interpreter is stack machine (Phases 1,4,5) + Byrd box sequencer (Phases 2,3). Rolls out: Lexer → Parser → IR → Interpreter. Maps 1:1 to `emit_jvm.c` later. Oracle: `scrip-interp.c`.
-
-4. **Routing guard confirmed** — "dynamic Byrd boxes + JVM" = J- session, NOT DYN-. See RULES.md §ROUTING.
-
-### Baselines
-- `.github`: `ddb8f71`
-- `one4all`: `fb074c9` (unchanged)
-- `corpus`: `2f2bbe3` (unchanged)
-- No gate — interpreter session, exempt per RULES.md
-
-### J-221 first tasks (in order)
-
-1. `git pull --rebase` all repos.
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
-3. **No gate** — interpreter session, exempt per RULES.md.
-4. Read authoring oracle: `cat one4all/src/runtime/boxes/shared/bb_box.java` then `cat one4all/src/runtime/boxes/lit/bb_lit.java`
-5. Write `one4all/src/runtime/boxes/shared/BbBox.jasmin` — base class, `Spec` inner class, `MatchState` inner class. Mirror `bb_box.java` exactly.
-6. Write `one4all/src/runtime/boxes/lit/bb_lit.jasmin` from `bb_lit.java` oracle. Smoke test: assemble, instantiate `BbLit`, run α on `"hello"` → `Spec(0,5)`.
-7. Write remaining 24 boxes from `bb_*.java` oracles (one subfolder each under `src/runtime/boxes/`).
-8. Write `one4all/src/runtime/boxes/shared/BbExecutor.jasmin` from `bb_executor.java` oracle.
-9. Assemble all: `java -jar jasmin.jar *.jasmin` → `jar cf boxes.jar *.class`
-10. Smoke: BbLit α/ω, BbSeq, BbAlt — 3 box types exercised.
-11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
-
-### Key references
-- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A00` — gate criteria
-- `one4all/src/runtime/boxes/*/bb_*.java` — authoring oracle for every box
-- `one4all/src/runtime/boxes/shared/bb_executor.java` — BbExecutor oracle
-- `SESSION-snobol4-jvm.md §NOW` — first actions checklist
-
-
----
-
 ## DYN-43 handoff — 2026-04-03
 
 ### What was done
@@ -18126,58 +17678,60 @@ The team has decided to replace the hand-rolled lexer and parser with flex/bison
 
 **Architecture / planning session. No code written.**
 
-Full parser landscape survey conducted across all SNOBOL4 parser implementations
-in the snobol4ever ecosystem:
-
-- **snobol4jvm** `grammar.clj` — instaparse PEG, the canonical grammar spec
-- **snobol4dotnet** `Lexer.cs` — DFA-based, one-pass, bracket-stack, most complete
-- **snobol4dotnet** `TestLexer/` + `TestParser/` — gold-standard TDD test corpus
-- **C# uploads** — Irony (LALR(1) + line scanner), Pidgin (parser combinators), Sprache (parser combinators)
-- **one4all** `lex.c` / `parse.c` — existing hand-rolled lexer + recursive-descent parser
+Full parser landscape survey across all SNOBOL4 parser implementations:
+- `snobol4jvm/grammar.clj` — instaparse PEG, the canonical grammar spec
+- `snobol4dotnet/Lexer.cs` — DFA-based one-pass lexer, most complete
+- `snobol4dotnet/TestLexer/` + `TestParser/` — gold-standard TDD corpus (UTF-16LE)
+- C# uploads — Irony (LALR(1) + line scanner), Pidgin, Sprache (parser combinators)
+- `one4all/src/frontend/snobol4/lex.c` / `parse.c` — existing hand-rolled impl
 
 Key decisions confirmed:
+1. **Grammar is CFG** once lexer handles whitespace as significant terminals (_ / __). No ambiguity.
+2. **Parser class: LALR(1)** — SLR too weak for `?` conditional scan op; canonical LR(1) unnecessary. Bison default = correct.
+3. **Tool choice: flex + bison** — eliminates body-reconstruction bridge that causes 1013/003.
+4. **Lexer owns line structure** — label col, body, goto split in lexer. T_LABEL / T_WS / T_GOTO / T_STMT_END contract unchanged.
+5. **INCLUDE** handled transparently via flex buffer stacking (already in lex.c).
+6. **TDD first** — port dotnet TestLexer + TestParser tests to C before writing lex.l / parse.y.
 
-1. **Grammar is CFG** once lexer handles whitespace as significant terminals (_ and __). No ambiguity.
-2. **Parser class: LALR(1)** — SLR too weak for the `?` conditional scan operator; canonical LR(1) produces unnecessary state explosion. Bison default = LALR(1) = correct.
-3. **Tool choice: flex + bison** — rules-based, readable, eliminates body-reconstruction bridge. NOT shunting-yard (can't handle statement-level structure cleanly).
-4. **Lexer owns line structure** — label col, body field, goto field split in lexer. T_LABEL, T_WS (field separator), T_GOTO, T_STMT_END emitted. Matches existing lex.c contract exactly.
-5. **INCLUDE** handled transparently in flex via buffer stacking (already in lex.c).
-6. **TDD first** — port dotnet TestLexer + TestParser tests to C assert-style before writing lex.l / parse.y.
+**IR tree documented** — `ARCH-ir-tree.md` committed (`d227adc` .github). Covers:
+- EXPR_t n-ary structure: `children[]` realloc array, `expr_add_child`, accessors
+- All EKind nodes by arity: leaf / unary / binary / n-ary (E_SEQ, E_CAT, E_ALT, E_FNC, E_IDX)
+- E_SEQ vs E_CAT distinction (pattern context vs value context)
+- STMT_t four forms (invoking / matching / assigning / replacing), has_eq discriminator
+- Parse→IR mapping (parse_expr0..parse_expr17 → EKind)
+- Rationale for n-ary over binary (flat children[] = cache-friendly for Byrd-box executor)
+- Relationship to M-LEX-1/M-PARSE-1 (IR shape unchanged by flex/bison rewrite)
 
-**IR tree documented** — `ARCH-ir-tree.md` written and committed. Covers:
-- EXPR_t n-ary structure (children[] realloc array)
-- All EKind nodes by arity (leaf / unary / binary / n-ary)
-- E_SEQ vs E_CAT distinction
-- STMT_t four forms (invoking / matching / assigning / replacing)
-- Parse → IR mapping (parse_expr0 through parse_expr17)
-- Rationale for n-ary over binary
-
-### ARCH-index update needed
-Add `ARCH-ir-tree.md` to ARCH-index.md.
+`ARCH-index.md` updated — `ARCH-ir-tree.md` added under SNOBOL4 Frontend section.
 
 ### Baselines
 - one4all: `6f8a4e58d38768` (unchanged)
 - corpus: `2f2bbe32f2bbe3` (unchanged)
-- .github: this commit
+- .github: `d227adc` (ARCH-ir-tree.md + ARCH-index + this entry)
 
 ### DYN-45 first actions
 
 1. `git pull --rebase` all repos.
-2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=x64`.
-3. Gate 142/142 + broad 169p/9f confirm.
-4. `apt-get install -y flex bison`
-5. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer tests (Test_214 label, Test_218 goto, Test_231 numeric, Test_232 string, Test_220/221/233 operators). Build standalone, all pass.
-6. Write `src/frontend/snobol4/lex.l` — M-LEX-1. Generate lex.c. Gate + broad, no regression.
-7. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet TestParser (Test_Associativity, Test_Precedence). All pass against existing parse.c.
-8. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. Generate parse.c + parse.h. Gate + broad + 1013/003 now passes.
-9. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
+2. `TOKEN=ghp_xxx FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. Gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
+4. Build scrip-interp (SESSION-dynamic-byrd-box.md build command). Broad → 169p/9f confirm.
+5. `apt-get install -y flex bison`
+6. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer tests: Test_214 (label), Test_218 (goto), Test_231 (numeric), Test_232 (string), Test_220/221/233 (operators). Build standalone, all pass against existing lex.c.
+7. Write `src/frontend/snobol4/lex.l` — M-LEX-1. `flex lex.l` → `lex.yy.c`; wire into build; gate + broad, no regression.
+8. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet Test_Associativity + Test_Precedence. All pass against existing parse.c.
+9. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. `bison parse.y` → `parse.tab.c` + `parse.tab.h`; wire into build; gate + broad + 1013/003 now passes.
+10. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
 
 ### Key references
-- `MILESTONE-NET-INTERP.md` — full milestone ladder + IrNode.cs design
-- `one4all/src/runtime/dyn/stmt_exec.c` — 5-phase oracle
-- `one4all/src/runtime/boxes/shared/bb_box.cs` — IByrdBox/Spec/MatchState (already written)
-- `one4all/src/driver/dotnet/` — scrip-interp.cs scaffold (D-167)
-- `SESSION-snobol4-net.md §Track B` — session doc (ignore Track A)
+- `ARCH-ir-tree.md` — n-ary IR tree reference (new this session)
+- `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1 / M-PARSE-1 milestone plan
+- `snobol4jvm/src/SNOBOL4clojure/grammar.clj` — canonical instaparse grammar spec
+- `snobol4dotnet/TestSnobol4/TestLexer/` — TDD lex tests (UTF-16LE; use iconv -f UTF-16LE -t UTF-8)
+- `snobol4dotnet/TestSnobol4/TestParser/Test_Associativity.cs` + `Test_Precedence.cs`
+- `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
+- `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
+- `one4all/src/frontend/snobol4/lex.c` — existing one-pass lexer (oracle for lex.l)
+- `one4all/src/frontend/snobol4/parse.c` — existing recursive-descent parser (oracle for parse.y)
 
 ---
 
@@ -18244,72 +17798,6 @@ Key decisions confirmed and committed:
 - `snobol4dotnet/TestSnobol4/TestParser/` — TDD parse tests (assoc + precedence)
 - `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
 - `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
-
----
-
-## DYN-44 handoff — 2026-04-03
-
-### Session type
-**DYNAMIC BYRD BOX** — SNOBOL4 × x64 interpreter. Session prefix: DYN-.
-
-### What was done
-
-**Architecture / planning session. No code written.**
-
-Full parser landscape survey across all SNOBOL4 parser implementations:
-- `snobol4jvm/grammar.clj` — instaparse PEG, the canonical grammar spec
-- `snobol4dotnet/Lexer.cs` — DFA-based one-pass lexer, most complete
-- `snobol4dotnet/TestLexer/` + `TestParser/` — gold-standard TDD corpus (UTF-16LE)
-- C# uploads — Irony (LALR(1) + line scanner), Pidgin, Sprache (parser combinators)
-- `one4all/src/frontend/snobol4/lex.c` / `parse.c` — existing hand-rolled impl
-
-Key decisions confirmed:
-1. **Grammar is CFG** once lexer handles whitespace as significant terminals (_ / __). No ambiguity.
-2. **Parser class: LALR(1)** — SLR too weak for `?` conditional scan op; canonical LR(1) unnecessary. Bison default = correct.
-3. **Tool choice: flex + bison** — eliminates body-reconstruction bridge that causes 1013/003.
-4. **Lexer owns line structure** — label col, body, goto split in lexer. T_LABEL / T_WS / T_GOTO / T_STMT_END contract unchanged.
-5. **INCLUDE** handled transparently via flex buffer stacking (already in lex.c).
-6. **TDD first** — port dotnet TestLexer + TestParser tests to C before writing lex.l / parse.y.
-
-**IR tree documented** — `ARCH-ir-tree.md` committed (`d227adc` .github). Covers:
-- EXPR_t n-ary structure: `children[]` realloc array, `expr_add_child`, accessors
-- All EKind nodes by arity: leaf / unary / binary / n-ary (E_SEQ, E_CAT, E_ALT, E_FNC, E_IDX)
-- E_SEQ vs E_CAT distinction (pattern context vs value context)
-- STMT_t four forms (invoking / matching / assigning / replacing), has_eq discriminator
-- Parse→IR mapping (parse_expr0..parse_expr17 → EKind)
-- Rationale for n-ary over binary (flat children[] = cache-friendly for Byrd-box executor)
-- Relationship to M-LEX-1/M-PARSE-1 (IR shape unchanged by flex/bison rewrite)
-
-`ARCH-index.md` updated — `ARCH-ir-tree.md` added under SNOBOL4 Frontend section.
-
-### Baselines
-- one4all: `6f8a4e58d38768` (unchanged)
-- corpus: `2f2bbe32f2bbe3` (unchanged)
-- .github: `d227adc` (ARCH-ir-tree.md + ARCH-index + this entry)
-
-### DYN-45 first actions
-
-1. `git pull --rebase` all repos.
-2. `TOKEN=ghp_xxx FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
-3. Gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
-4. Build scrip-interp (SESSION-dynamic-byrd-box.md build command). Broad → 169p/9f confirm.
-5. `apt-get install -y flex bison`
-6. Write `src/frontend/snobol4/test_lex.c` — TDD port of dotnet TestLexer tests: Test_214 (label), Test_218 (goto), Test_231 (numeric), Test_232 (string), Test_220/221/233 (operators). Build standalone, all pass against existing lex.c.
-7. Write `src/frontend/snobol4/lex.l` — M-LEX-1. `flex lex.l` → `lex.yy.c`; wire into build; gate + broad, no regression.
-8. Write `src/frontend/snobol4/test_parse.c` — TDD port of dotnet Test_Associativity + Test_Precedence. All pass against existing parse.c.
-9. Write `src/frontend/snobol4/parse.y` — M-PARSE-1. `bison parse.y` → `parse.tab.c` + `parse.tab.h`; wire into build; gate + broad + 1013/003 now passes.
-10. Commit generated files + .l/.y sources. Push one4all. Update SESSIONS_ARCHIVE + push .github.
-
-### Key references
-- `ARCH-ir-tree.md` — n-ary IR tree reference (new this session)
-- `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1 / M-PARSE-1 milestone plan
-- `snobol4jvm/src/SNOBOL4clojure/grammar.clj` — canonical instaparse grammar spec
-- `snobol4dotnet/TestSnobol4/TestLexer/` — TDD lex tests (UTF-16LE; use iconv -f UTF-16LE -t UTF-8)
-- `snobol4dotnet/TestSnobol4/TestParser/Test_Associativity.cs` + `Test_Precedence.cs`
-- `one4all/src/frontend/snobol4/scrip_cc.h` — STMT_t, Program, EXPR_t allocators
-- `one4all/src/ir/ir.h` — EKind enum, EXPR_t struct
-- `one4all/src/frontend/snobol4/lex.c` — existing one-pass lexer (oracle for lex.l)
-- `one4all/src/frontend/snobol4/parse.c` — existing recursive-descent parser (oracle for parse.y)
 
 ---
 
@@ -19560,68 +19048,83 @@ NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — in
 
 ### What was done
 
-**Rename (D-171 r1):**
-- All 27 C# Byrd box classes renamed from PascalCase `Bb*` → snake_case `bb_*` (e.g. `BbLit` → `bb_lit`) to mirror C/Java convention. 31 files modified. Build clean, 0 errors.
+**Broad: 138p/40f → 146p/32f (+8)**
 
-**Bug fixes (D-171 r2) — 74→81p:**
+.NET 8 SDK installed at `/usr/local/dotnet8` (dotnet10 not present in this environment — use dotnet8).
+Build: `export PATH=/usr/local/dotnet8:$PATH && dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 
-1. **`ExtractGotos` — combined `:S(X)F(Y)` goto** — bare `F`/`S` after first colon-tagged goto was not recognized. Fixed: right-to-left peeling now accepts bare `S`/`F` when preceding token ends with `)` (i.e. a prior label group was already consumed). Fixes `034_goto_failure`.
+#### Fixes in `b45f663`
 
-2. **`**` exponentiation** — `TopLevelTokens` now emits `**` as a single token; `IsOperatorToken` includes `"**"`; `ParsePower` already matched it. Fixes `027_arith_exponent`.
+1. **`SnobolVal.Real` ToString bug** — `ToString()` returned `Real.ToString()` (ignoring pre-formatted `Str`). Fixed to return `Str`. Now `1.0` prints `1.` as SPITBOL requires.
 
-3. **`&ALPHABET`/`&UCASE`/`&LCASE` keywords** — added to `SnobolEnv` constructor. `&ALPHABET` = 256-char string (ordinals 0–255), `&UCASE` = 26 uppercase letters, `&LCASE` = 26 lowercase letters. Fixes `097`, `006`.
+2. **Lexical builtins added**: `LLT/LLE/LGT/LGE/LEQ/LNE` — `StringComparison.Ordinal`, return first arg on success.
 
-**Bug fixes (D-171 r3) — 81→87p:**
+3. **`NumCmp` replaces `Cmp`** — strict numeric: both args must be numeric (or numeric-coercible string). Non-numeric strings no longer silently coerce to 0.
 
-4. **Pattern variables** — `SnobolEnv` gains `_patVars` dict + `SetPattern`/`GetPattern`. Assignment block in `Executor` calls `IsPatternNode(stmt.Replacement)` to detect pattern RHS and stores IR. `PatternBuilder` `getPatternVar` delegate now rebuilds the box graph from stored IR at match time. Fixes `053_pat_alt_commit`.
+4. **`CONVERT` real→integer** — now uses `(long)val.Real` truncation (was `long.TryParse` which failed on `2.5`).
 
-5. **ARRAY builtin** — `SnobolEnv.ArrayCreate(size)` stores `SnobolVal?[]` in `_arrays` list, returns integer handle. `EvalIdx` routes array reads through `ArrayGet`. Assignment block handles `E_IDX` subject for array element writes (`A<1> = 'first'`). Fixes `091`, `092`.
+5. **`TABLE` implemented** — real `Dictionary<string,SnobolVal>` store; `TableGet`/`TableSet` wired into `EvalIdx` and subscript assignment.
 
-6. **DATA types** — `SnobolEnv.DataDefine(spec)` registers type+fields. `DataCreate` allocates instance (handle = negative int). `DataGetField`/`DataSetField` by field name. `EvalFnc` routes: (a) field accessor `real(X)` when arg is data obj, (b) constructor `complex(3,-2)` when name matches registered type. Assignment block handles `E_FNC` subject for field setter `x(P) = 99`. Fixes `094`, `095`.
+6. **Tag-based handle scheme** — `ARRAY=0x0000_0000`, `TABLE=0x1000_0000`, `DATA=0x2000_0000` tags in high bits of Int handle. Eliminates `IsDataObj` vs integer collision. All `IsArray`/`IsTable`/`IsDataObj` predicates updated. `DataCreate`/`DataGetField`/`DataSetField` updated.
 
-#### Commits
-- `c7d4d5d` → rebased `d20a6d9` — D-171 r1: bb_* rename
-- `e2fcad5` → rebased `df04703` — D-171 r2: goto/exponent/keywords
-- `987d589` — D-171 r3: pattern vars/ARRAY/DATA
+7. **`EvalIdx` extended** — handles `E_INDIRECT` base (for `$.a<2>` pattern), TABLE, and DATA field access.
 
-### Broad results
-- **Before: 118/178** (full corpus, D-170 baseline)
-- **Subset broad (main dirs): 74→87** (+13 this session)
+8. **Subscript assignment extended** — TABLE and indirect base in `ExecStmt`.
+
+9. **`DataType()` method** — `DATATYPE`/`PROTOTYPE`/`TYPE` builtins now return correct name: DATA objects → type name (e.g. `NODE`), not `INT`.
+
+#### Tests newly passing (8)
+`099_lexical_compare` · `910_convert` · `911_datatype` · `912_num_pred` · `914_lgt` · `hello/literals` · `rung11/1111_array_default` · `keywords/081_builtin_datatype`
+
+### Known issues — D-172 FIRST ACTIONS
+
+**1. `DataGetField` crash** (`096_data_datatype_check`) — `Index was out of range`. There is still a stale `(-handle.Int - 1)` index path in `DataGetField` at the `_dataObjs[...]` call around line 200. Fix:
+```csharp
+// In DataGetField, change:
+var (typeName, fields) = _dataObjs[(int)(-handle.Int - 1)];
+// To:
+var (typeName, fields) = _dataObjs[(int)(handle.Int & IDX_MASK)];
+```
+
+**2. `E_PLS` unary + string→int** (`411_arith_unary`) — `E_PLS` currently returns `EvalNode(child)` unchanged. It should numeric-coerce like `E_MNS`. Fix in `Executor.cs` `EvalNode`:
+```csharp
+IrKind.E_PLS => CoerceNumeric(EvalNode(n.Children[0])),
+```
+Add helper: `CoerceNumeric(v)` → if string and parseable as int/real, return `SnobolVal.Of(parsed)`; else return `v`.
+
+**3. `$.var<idx>` indirect array** (`212_indirect_array`) — `$.a<2>` parses as `E_IDX(E_INDIRECT(E_VAR("a")), 2)`. In `EvalIdx`, the `E_INDIRECT` branch resolves `baseName = EvalNode(inner).ToString()` but then does `_env.Get(baseName)` to get the container. This is correct — but verify the parser is producing `E_IDX(E_INDIRECT(...))` and not something else. Add stderr trace: `Console.Error.WriteLine(stmt.Subject)` before the IDX eval to confirm shape.
+
+**4. Array OOB → Fail** (`1110_array_1d`) — `ArrayGet` returns `SnobolVal.Null` on out-of-bounds; SNOBOL4 spec requires pattern-match Fail for OOB. Return `SnobolVal.Fail` instead for `i < 0 || i >= arr.Length`.
+
+**5. FRETURN from function body** (`087_define_freturn`) — first assertion wrong: `positive` expected, `wrong` returned. The function being tested returns normally (not FRETURN) from the positive branch — the issue is in `RunBody` goto resolution. Trace: the function label is `SIGN`, defined as `DEFINE('SIGN(N)')`. When `N GT 0` succeeds it should go to `POSITIVE` label and eventually `:RETURN`. Check that `RunBody` correctly resolves labels within the function body scope (not just top-level `_labels`).
+
+**6. `rung10` function scoping** (6 tests: 1010–1013, 1017) — recursion, locals, NRETURN. Most likely `CallUserFunc` save/restore is incorrectly including the function name itself, or param/local initialization order is wrong. Start with `1012_func_locals` (simplest) and trace.
+
+**7. `strings/word*`** — likely `&TRIM` (trim trailing spaces from INPUT lines). `SnobolEnv` initialises `&TRIM = 0`; when `&TRIM != 0` the executor should trim INPUT lines. Wire in `EvalVar("INPUT")` path.
 
 ### Baselines for D-172
-- `one4all`: `987d589`
-- `corpus`: `2f2bbe3`
+- `one4all`: `b45f663`
+- `corpus`: `2f2bbe3` (unchanged)
 - `.github`: this commit
-- **Subset broad: 87p/6f**
+- **Broad: 146p/32f**
 
 ### D-172 first actions
-1. `git pull --rebase` all repos.
-2. `export PATH=/usr/share/dotnet:$PATH && dotnet --version` — confirm dotnet 8.0.
-   Full path: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Debug`
-3. **No gate** (interpreter session, exempt per RULES.md).
-4. Diagnose remaining 6 failures in order:
+1. `git pull --rebase` all repos
+2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed)
+3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
+4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+5. Fix DataGetField crash (stale `(-handle.Int - 1)`)
+6. Fix E_PLS unary +
+7. Fix array OOB → Fail
+8. Fix $.var<idx> indirect (trace parser output first)
+9. Run broad → confirm ≥ 150p
+10. Tackle func scoping (rung10) and &TRIM (word*)
+11. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
 
-| Test | Likely root cause |
-|------|------------------|
-| `literals` | String literal edge case — run and diff |
-| `087_define_freturn` | FRETURN from user function — `CallUserFunc` returns `SnobolVal.Fail` path missing |
-| `096_data_datatype_check` | `DATATYPE()` builtin returns wrong string for data objects — returns `"INT"` instead of type name |
-| `081_builtin_datatype` | Same DATATYPE issue |
-| `082_keyword_stcount` | `&STCOUNT` not incremented each statement |
-| `099_lexical_compare` | `LGT`/`LLT`/`LEQ` lexical comparison builtins missing |
-
-5. **`096` quick fix:** `DATATYPE` for data objects must return the type name string, not `"INT"`. In `SnobolEnv.CallBuiltin`: check `IsDataObj(args[0])` → return type name from `_dataObjs` handle.
-6. **`082` quick fix:** increment `&STCOUNT` in `Executor` run loop per statement.
-7. **`099` quick fix:** add `LGT`/`LLT`/`LEQ`/`LGE`/`LLE` to `CallBuiltin` (string comparisons).
-8. Run broad after each cluster, target ≥ 93p subset / 140+/178 full.
-9. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
-
-### Key references
-- `src/driver/dotnet/Executor.cs` — statement executor + EvalFnc/EvalIdx
-- `src/driver/dotnet/Snobol4Parser.cs` — ExtractGotos, ParsePower, IsOperatorToken
-- `src/driver/dotnet/PatternBuilder.cs` — pattern → bb_* graph
-- `src/driver/dotnet/SnobolEnv.cs` — builtins, value type, keyword table, array/data stores
-- `MILESTONE-NET-SNOBOL4.md` — milestone chain (Phase A)
+### Key files
+- `src/driver/dotnet/SnobolEnv.cs` — tag scheme, TABLE, builtins, DataGetField **crash fix needed here**
+- `src/driver/dotnet/Executor.cs` — E_PLS, EvalIdx, func scoping
 
 ---
 
@@ -19772,93 +19275,6 @@ Gate (`038_pat_literal`) passed at session start. Pattern crosscheck: **15p/5f �
 - E_SEQ in value context vs pattern context: `fixupValTree` converts E_SEQ→E_CAT but pattern-valued E_SEQ assignments may need `DESCR.pat()` treatment like E_ALT
 - E_FNC in pattern-valued assignment (e.g. `P = ANY('abc')`) not yet returning `DESCR.pat()` — only E_ALT handled
 - Full crosscheck scope unknown — only patterns measured
-
----
-
-## D-171 handoff — 2026-04-03
-
-### Session type
-**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter. Session prefix: D-.
-
-### What was done
-
-**Broad: 138p/40f → 146p/32f (+8)**
-
-.NET 8 SDK installed at `/usr/local/dotnet8` (dotnet10 not present in this environment — use dotnet8).
-Build: `export PATH=/usr/local/dotnet8:$PATH && dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
-Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
-
-#### Fixes in `b45f663`
-
-1. **`SnobolVal.Real` ToString bug** — `ToString()` returned `Real.ToString()` (ignoring pre-formatted `Str`). Fixed to return `Str`. Now `1.0` prints `1.` as SPITBOL requires.
-
-2. **Lexical builtins added**: `LLT/LLE/LGT/LGE/LEQ/LNE` — `StringComparison.Ordinal`, return first arg on success.
-
-3. **`NumCmp` replaces `Cmp`** — strict numeric: both args must be numeric (or numeric-coercible string). Non-numeric strings no longer silently coerce to 0.
-
-4. **`CONVERT` real→integer** — now uses `(long)val.Real` truncation (was `long.TryParse` which failed on `2.5`).
-
-5. **`TABLE` implemented** — real `Dictionary<string,SnobolVal>` store; `TableGet`/`TableSet` wired into `EvalIdx` and subscript assignment.
-
-6. **Tag-based handle scheme** — `ARRAY=0x0000_0000`, `TABLE=0x1000_0000`, `DATA=0x2000_0000` tags in high bits of Int handle. Eliminates `IsDataObj` vs integer collision. All `IsArray`/`IsTable`/`IsDataObj` predicates updated. `DataCreate`/`DataGetField`/`DataSetField` updated.
-
-7. **`EvalIdx` extended** — handles `E_INDIRECT` base (for `$.a<2>` pattern), TABLE, and DATA field access.
-
-8. **Subscript assignment extended** — TABLE and indirect base in `ExecStmt`.
-
-9. **`DataType()` method** — `DATATYPE`/`PROTOTYPE`/`TYPE` builtins now return correct name: DATA objects → type name (e.g. `NODE`), not `INT`.
-
-#### Tests newly passing (8)
-`099_lexical_compare` · `910_convert` · `911_datatype` · `912_num_pred` · `914_lgt` · `hello/literals` · `rung11/1111_array_default` · `keywords/081_builtin_datatype`
-
-### Known issues — D-172 FIRST ACTIONS
-
-**1. `DataGetField` crash** (`096_data_datatype_check`) — `Index was out of range`. There is still a stale `(-handle.Int - 1)` index path in `DataGetField` at the `_dataObjs[...]` call around line 200. Fix:
-```csharp
-// In DataGetField, change:
-var (typeName, fields) = _dataObjs[(int)(-handle.Int - 1)];
-// To:
-var (typeName, fields) = _dataObjs[(int)(handle.Int & IDX_MASK)];
-```
-
-**2. `E_PLS` unary + string→int** (`411_arith_unary`) — `E_PLS` currently returns `EvalNode(child)` unchanged. It should numeric-coerce like `E_MNS`. Fix in `Executor.cs` `EvalNode`:
-```csharp
-IrKind.E_PLS => CoerceNumeric(EvalNode(n.Children[0])),
-```
-Add helper: `CoerceNumeric(v)` → if string and parseable as int/real, return `SnobolVal.Of(parsed)`; else return `v`.
-
-**3. `$.var<idx>` indirect array** (`212_indirect_array`) — `$.a<2>` parses as `E_IDX(E_INDIRECT(E_VAR("a")), 2)`. In `EvalIdx`, the `E_INDIRECT` branch resolves `baseName = EvalNode(inner).ToString()` but then does `_env.Get(baseName)` to get the container. This is correct — but verify the parser is producing `E_IDX(E_INDIRECT(...))` and not something else. Add stderr trace: `Console.Error.WriteLine(stmt.Subject)` before the IDX eval to confirm shape.
-
-**4. Array OOB → Fail** (`1110_array_1d`) — `ArrayGet` returns `SnobolVal.Null` on out-of-bounds; SNOBOL4 spec requires pattern-match Fail for OOB. Return `SnobolVal.Fail` instead for `i < 0 || i >= arr.Length`.
-
-**5. FRETURN from function body** (`087_define_freturn`) — first assertion wrong: `positive` expected, `wrong` returned. The function being tested returns normally (not FRETURN) from the positive branch — the issue is in `RunBody` goto resolution. Trace: the function label is `SIGN`, defined as `DEFINE('SIGN(N)')`. When `N GT 0` succeeds it should go to `POSITIVE` label and eventually `:RETURN`. Check that `RunBody` correctly resolves labels within the function body scope (not just top-level `_labels`).
-
-**6. `rung10` function scoping** (6 tests: 1010–1013, 1017) — recursion, locals, NRETURN. Most likely `CallUserFunc` save/restore is incorrectly including the function name itself, or param/local initialization order is wrong. Start with `1012_func_locals` (simplest) and trace.
-
-**7. `strings/word*`** — likely `&TRIM` (trim trailing spaces from INPUT lines). `SnobolEnv` initialises `&TRIM = 0`; when `&TRIM != 0` the executor should trim INPUT lines. Wire in `EvalVar("INPUT")` path.
-
-### Baselines for D-172
-- `one4all`: `b45f663`
-- `corpus`: `2f2bbe3` (unchanged)
-- `.github`: this commit
-- **Broad: 146p/32f**
-
-### D-172 first actions
-1. `git pull --rebase` all repos
-2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed)
-3. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
-4. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
-5. Fix DataGetField crash (stale `(-handle.Int - 1)`)
-6. Fix E_PLS unary +
-7. Fix array OOB → Fail
-8. Fix $.var<idx> indirect (trace parser output first)
-9. Run broad → confirm ≥ 150p
-10. Tackle func scoping (rung10) and &TRIM (word*)
-11. Commit + push one4all. Update §NOW + SESSIONS_ARCHIVE + push .github.
-
-### Key files
-- `src/driver/dotnet/SnobolEnv.cs` — tag scheme, TABLE, builtins, DataGetField **crash fix needed here**
-- `src/driver/dotnet/Executor.cs` — E_PLS, EvalIdx, func scoping
 
 ---
 
