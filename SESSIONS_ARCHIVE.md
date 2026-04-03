@@ -20003,3 +20003,52 @@ This aligns the interpreter's value type name with the C runtime convention (`DE
 **expr4 $2→$3 fix**: TK_CONCAT is $2; expr5 child is $3.
 
 **Grammar: 0 shift/reduce conflicts ✅**  one4all: `3a4a41c`
+
+---
+
+## J-225 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### Crosscheck: 28p/11f (prior subset) → 136p/42f (full 178-test crosscheck confirmed)
+
+### Root fixes
+1. **dynIntArg** — POS/LEN/TAB/RPOS/RTAB now use `IntSupplier` so variable args (e.g. `POS(N)`) re-evaluate at match time. Added `Supplier<Integer>` constructor to all 5 boxes; replaced static `intArg()` call sites with `dynIntArg()` in PatternBuilder.
+2. **varGetter in callUserFunc** — PatternBuilder constructed inside `callUserFunc` now receives varGetter lambda; inner PatternBuilder for PAT-valued variables also gets varGetter.
+3. **INPUT + &TRIM** — `eval(E_VAR INPUT)` and `callBuiltin("INPUT")` both now call `stripTrailing()` when `&TRIM != 0`.
+
+### Baselines for J-226
+- `one4all`: `73e594f`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Crosscheck: 136p/42f (178 total)**
+
+### Remaining failures by category
+| Category | Count | Root cause |
+|----------|-------|------------|
+| strings/word* cross | 6 | timeout — infinite loop in pattern, needs step-count trace |
+| rung10 (1010–1018) | 8 | recursion, NRETURN, OPSYN, EVAL, APPLY |
+| rung11 (1110–1116) | 7 | ARRAY, TABLE, DATA builtins not implemented |
+| data/09x | 6 | same ARRAY/TABLE/DATA |
+| library/test_* | 4 | depend on above |
+| arith/fileinfo, triplet | 2 | fileinfo: SIZE(INPUT) still off; triplet: undiagnosed |
+| capture/061,063 | 2 | arbno capture, null-replace edge case in arbno |
+| keywords/082,100 | 2 | stcount off-by-one, roman_numeral pattern |
+| rung9 (910,911,914) | 3 | CONVERT, DATATYPE, LGT |
+| control/expr_eval | 1 | line continuation `+` prefix in lexer |
+
+### J-226 first actions (mandatory order)
+1. `git pull --rebase` all repos
+2. Recompile: `JFILES=$(find src/driver/jvm src/runtime/boxes -name "*.java" | tr '\n' ' ') && javac -d /tmp/jvm_cls $JFILES`
+3. Hello gate: `java -cp /tmp/jvm_cls driver.jvm.Interpreter corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+4. **Diagnose word1 timeout** — add step-count stderr every 10k steps, run `timeout 3 java ... word1.sno 2>&1 | head -20`
+5. **Implement ARRAY builtin** — `ARRAY(n, val)` → store as `__sno_arr_NAME` map; `arr<i>` indexing in E_IDX
+6. **Implement TABLE builtin** — `TABLE()` → `HashMap<String,DESCR>` stored in nv under special key
+7. **Fix fileinfo** — trace why SIZE(INPUT) returns wrong value
+8. Target: **≥ 155p / ≤ 23f**
+
+### Key files
+- `src/driver/jvm/Interpreter.java` — ARRAY/TABLE/DATA builtins, E_IDX eval, word* timeout
+- `src/driver/jvm/PatternBuilder.java` — dynIntArg (done ✅)
+- `src/runtime/boxes/*/bb_*.java` — Supplier constructors (done ✅)
