@@ -19495,3 +19495,58 @@ Baselines for DYN-49:
 - corpus: `2f2bbe3`
 - Broad: 114p/64f
 - First action: fix eq_pos string-literal skip in snobol4.y parse_program_tokens
+
+---
+
+## SJ-11 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript interpreter. Session prefix: SJ-.
+
+### What was done
+
+#### Fix 1: DATATYPE `_is_real` shadow (committed `df04703`)
+`sno-interp.js`'s own `_call()` DATATYPE case checked `typeof v === 'number'` which cannot distinguish tagged reals `{_r:1, v:number}` from integers. Added `if(_is_real(v)) return 'REAL';` before the typeof branch, simplified integer branch to just `return 'INTEGER'`.
+- **Test**: `081_builtin_datatype` → `STRING/INTEGER/REAL` ✓
+
+#### Fix 2: CONVERT REAL → `_real_result`
+CONVERT case `if(t==='REAL')` returned raw `parseFloat(...)` float, not tagged real. Fixed to `_real_result(n)` with `isFinite` guard. INTEGER path also gets `isFinite` guard.
+- **Test**: `910_convert` 4/4 ✓
+
+#### Fix 3: NRETURN tagged nameref
+NRETURN previously caught `SnoNReturn` and returned `ex.v` as plain value — indistinguishable from a normal return. Fixed with three-part change:
+1. `_call_user` catch for `SnoNReturn`: returns `{__nameref: ex.v}` tagged object (early return, bypasses `finally` restore — which is already done inline)
+2. `interp_eval` E_FNC case: if result has `__nameref`, dereference → `_vars[result.__nameref] ?? null`
+3. `_assign` E_FNC branch: call user fn, if result has `__nameref`, assign `_vars[result.__nameref] = val`
+- **Test**: `1013_func_nreturn` 3/3 ✓
+
+#### Broad corpus result
+**157p / 21f** across all `.sno` tests with `.ref` oracle.
+
+### Baselines for SJ-12
+
+- `one4all`: `df04703`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: update after this push
+
+### SJ-12 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. No gate — interpreter session, exempt per RULES.md §68–70
+3. **Fix `E_ALT` in value context**: add case to `interp_eval`:
+   ```js
+   case E_ALT: return _build_pat(e);  // stores pattern as value
+   ```
+   Affects: `053_pat_alt_commit`, `word1`, `word2`, `word3`, `word4`, `wordcount`, `cross` (7 tests)
+4. **Fix `1010_func_recursion`**: `fact(n-1)` fails — suspect local-var clobber during recursion. Check param save/restore in `_call_user` — `saved` captures `_vars[fname]` before clear but `fname` var holds accumulated result across recursive calls. Likely: `_vars[fname]` is null at wrong moment. Add debug: `node sno-interp.js 1010... 2>&1`.
+5. **Fix `1113_table`/`1114_item`**: integer key roundtrip — `TABLE` Map uses `_str(key)` for set but integer lookup uses raw int. Normalize all TABLE keys to string in set and get.
+6. **Fix OPSYN alias** (`opsyn(.facto, 'fact')` 2-arg nameref form): currently no-ops. Implement: `_user_fns[dest] = _user_fns[src] || _builtins[src]`
+7. Target: ≥ 170p / ≤ 8f
+
+### Key files
+- `src/runtime/js/sno-interp.js` — interpreter (lexer + parser + executor + builtins)
+- `src/runtime/js/sno_runtime.js` — value types, `_is_real`, `_real_result`, `_builtins` map
+- `src/runtime/js/sno_engine.js` — pattern match engine (5-phase executor)
+
+### SPITBOL docs loaded this session
+`spitbol-docs-master.zip` unpacked to `/home/claude/spitbol-docs-master/` — contains `minimal.md`, `M.md` (MINIMAL language spec + OSINT C interface), `green-book.pdf`, `spitbol-manual-v3.7.pdf`. MINIMAL is the portable assembly IR that SPITBOL compiles through; useful as oracle for value representation (SCBLK for strings, ICBLK for integers, RCBLK for reals — tagged blocks). Key insight: SNOBOL4 reals are a distinct type from integers, never implicit — matches our `{_r:1,v:n}` tagged-real design.
