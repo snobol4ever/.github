@@ -18,21 +18,26 @@
 
 ## §BUILD
 
+⛔ **INTERPRETER SESSION — do NOT build scrip-cc, do NOT run make, do NOT touch C sources.**
+Per RULES.md §68–70: interpreter sessions never invoke scrip-cc or the emitter pipeline.
+
+Setup (installs node only — gcc/make are irrelevant here):
 ```bash
 FRONTEND=snobol4 BACKEND=js TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 ```
 
-Installs: `gcc make node`
-Skips: `nasm wabt wat2wasm java javac mono ilasm icont swipl`
+Skips: `nasm wabt wat2wasm java javac mono ilasm icont swipl gcc make`
 
 ---
 
 ## §TEST
 
+⛔ **Do NOT run `run_emit_check.sh` or `run_invariants.sh`** — those test the scrip-cc emitter pipeline. This is an interpreter session.
+
+Run the broad interpreter test instead:
 ```bash
 cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_emit_check.sh           # always 981/4
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_js
+CORPUS=/home/claude/corpus node test/js/run_broad.js
 ```
 
 ---
