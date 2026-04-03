@@ -38,9 +38,7 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-218 | one4all `09ac2cb` | **M-JVM-A02**: 2D subscript fix + rung8 strings → ≥100p |
-
-**Confirmed baseline (J-218 session start):** `snobol4_jvm` **94p/32f** · x86 gate **142/142** ✅
+| **TINY JVM** | J-218 | one4all `09ac2cb` | **M-JVM-INTERP-A01**: IR bridge (scrip-cc → Java) + PatternBuilder using canonical PATND_t → zero compile+link test loop |
 
 **J-217 landed:**
 - `src/runtime/boxes/bb_*.java` — 29 Java files: all 25 Byrd boxes + `bb_box.java` + `bb_executor.java`
@@ -48,11 +46,8 @@ same IR, same corpus.  Read it before writing any new `emit_jvm_pat_node` case.
 - `bb_bal.java` is first real BAL (C original is a stub)
 - Full details + review checklist: `MILESTONE-JVM-SNOBOL4.md §Java Byrd Box runtime`
 
-**⚠️ Two tracks in this session — read PLAN.md §NOW to know which is active:**
-- **M-JVM-INTERP-A01 (J-218 active sprint):** JVM interpreter using Java Byrd boxes — IR bridge (scrip-cc → Java) + PatternBuilder.java. No gate, no baselines, no emit_jvm.c work.
-- **M-JVM-A02 (future sprint):** Compiled emitter (`emit_jvm.c` → Jasmin) — 2D subscript fix + rung8 strings. Gate = snobol4_jvm invariants.
-
-**Do NOT conflate.** "SNOBOL4 JVM interpreter" / "Java Byrd boxes" = M-JVM-INTERP track. "emit_jvm.c" / "Jasmin" = compiled emitter track. See RULES.md §SESSION ROUTING.
+**Milestone ladder is sequential (single track):** M-JVM-INTERP-A01 → A02 → A03 → M-JVM-A02 → ... See MILESTONE-JVM-SNOBOL4.md §Sprint Sequence.
+**This session (J-218) = M-JVM-INTERP-A01.** No gate, no baselines, no emit_jvm.c. Work file: PatternBuilder.java. Oracle: stmt_exec.c bb_build().
 
 **J-218 first actions (mandatory order):**
 
