@@ -18533,3 +18533,104 @@ The SJ-6 commit `c9bab5d` already contained a complete Lexer + Parser + Interpre
 - `src/runtime/js/sno_runtime.js` — `_vars`, `_str`, `_num`, builtins
 - `src/runtime/js/sno_engine.js` — pattern match engine, PAT_* constructors
 - `MILESTONE-JS-SNOBOL4.md` — milestone ladder
+
+---
+
+## DYN-45 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-.
+
+### What was done
+
+**Fix 1: `test/run_invariants.sh` — SJ-5 box reorg (committed f7997dd)**
+
+SJ-5 reorganised boxes from flat `boxes/bb_<n>.c` to per-subdir `boxes/<n>/bb_<n>.c`.
+`run_invariants.sh` cache builder still used old flat paths → BUILD_FAIL on gate.
+Fixed: all 22 box paths, `-I$DYN` → `-I$DYN/shared`, stamp path.
+Gate restored: **142/142**.
+
+**Fix 2: scrip-interp build — atp/capture/dvar not yet split**
+
+`atp`, `capture`, `dvar` boxes are still `static` inside `stmt_exec.c`
+(MILESTONE-BOX-UNIFY pending per comment on line 158). Their per-box `.c` stubs
+need `snobol4.h` types that conflict with `bb_box.h` and cannot compile standalone.
+Build command: skip those three in the box loop. **scrip-interp built; 169p/9f confirmed.**
+
+**M-LEX-1 TDD: `test_lex.c` written and corrected (committed 5c17cff, 4763126)**
+
+Ports dotnet TestLexer tests: Test_214 (label), Test_218 (goto), Test_231 (numeric),
+Test_232 (string), Test_220/221/233 (operators), plus keyword and ident tests.
+
+Two spec errors discovered via SPITBOL oracle + CSNOBOL4 `syntax.tbl`:
+
+1. **Leading-dot real (`.5`)**: NOT valid SNOBOL4. `ELEMTB` has no dot entry.
+   `.` is the naming operator; `.5` = unary-dot on `5`. SPITBOL: error 221.
+   `lex.c` T_DOT+T_INT(5) was correct all along. Test fixed accordingly.
+
+2. **Doubled-quote escape (`'it''s'`)**: NOT valid SNOBOL4. `SQLITB`:
+   `FOR(SQUOTE) STOP; ELSE CONTIN` — stops at first quote, no escape.
+   SPITBOL: error 220. `lex.c` was correct. Test fixed: first token is `T_STR("it")`.
+
+**Result: 54p/0f** (was 50p/3f — all failures were wrong spec, not lex.c bugs).
+
+**M-LEX-1: `lex.l` written (committed 4763126, NOT YET WIRED)**
+
+Flex body tokeniser matching `syntax.tbl` exactly:
+- `SQLITB/DQLITB`: `\'[^']*\'` and `\"[^"]*\"` — stop at first matching quote
+- `INTGTB`: digits then optional `.digits` or exponent — no leading-dot real
+- `VARTB`: `{IDSTART}{IDCONT}*` with unicode bytes ≥0x80 as idcont
+- `**` before `*` (longest match wins)
+- All 14 unary/binary operator chars
+- Interface: `flex_lex_open(lx)` / `flex_lex_next(lx)` / `flex_lex_destroy(lx)`
+- `lex.h`: `Lex` struct gets `_scanner`/`_extra` fields; `flex_lex_*` declared
+
+**SNOBOL4 language semantics learned from docs:**
+- `spitbol-docs-master/` (green book, SPITBOL manual, M.md MINIMAL spec)
+- `snobol4-2.3.3/syntax.tbl` — all CSNOBOL4 scan tables (CARDTB, LBLTB, ELEMTB,
+  INTGTB, FLITB, EXPTB, SQLITB, DQLITB, VARTB, UNOPTB, BIOPTB, FRWDTB, GOTOTB)
+- `v311.sil` — SPITBOL CMPILE + EXPR procedures (precedence-climbing tree parser)
+- Operator precedence confirmed: `** ^` > `$ .` > `~` > `/` > `*` > `+ -` >
+  `@` > space(concat) > `#` > `|` > `&` > `?` > `= _`
+- Pattern primitives, capture (`$ .`), `@cursor`, `NRETURN`/`EVAL`/`OPSYN`
+
+**9 failing tests root-caused:**
+- `test_case/math/stack/string`: `-include` library loading not implemented
+- `1013_func_nreturn`: NRETURN not wired in interpreter
+- `1015_opsyn`: OPSYN builtin not wired
+- `1016_eval`: EVAL builtin not wired
+- `expr_eval`: needs NRETURN + TABLE + deferred expressions
+- `cross`: `@N` cursor capture + `?` pattern match operator (SPITBOL extension)
+
+### Baselines
+- one4all: `4763126` (lex.l + lex.h + test_lex.c fixes)
+- corpus: `2f2bbe3` (unchanged)
+- .github: (this commit)
+
+### DYN-46 first actions
+
+1. `git pull --rebase` all repos.
+2. `TOKEN=TOKEN_SEE_LON FRONTEND=snobol4 BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh`
+3. Gate: `CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86` → 142/142.
+4. Build scrip-interp (skip atp/capture/dvar), confirm 169p/9f.
+5. **Wire lex.l**:
+   - `cd src/frontend/snobol4 && flex lex.l` → `lex.yy.c`
+   - Patch `lex.c`: in `lex_open_str` add `flex_lex_open(lx)` call;
+     replace `raw_next_str(lx)` call sites with `flex_lex_next(lx)`;
+     in `snoc_reset` add `flex_lex_destroy` cleanup path.
+   - Add `lex.yy.c` to scrip-cc build (alongside `lex.c` in Makefile gcc line).
+   - Add `-lfl` or compile with `%option nomain` (already set via `noyywrap`).
+6. Rebuild scrip-cc. Run `test_lex` → **54p/0f**. Gate 142/142. Broad 169p/9f.
+7. Commit `lex.yy.c` + `lex.c` patches. Push.
+8. **M-PARSE-1**: write `test_parse.c` (port dotnet Test_Associativity + Test_Precedence),
+   verify 54p/0f against existing `parse.c`, then write `parse.y`.
+   Key precedence from `syntax.tbl` BIOPTB / `v311.sil` EXPR: see above operator table.
+   `1013/003` expected to pass after M-PARSE-1 (body-reconstruction bridge eliminated).
+
+### Key references
+- `src/frontend/snobol4/lex.l` — flex grammar (written, not yet generated)
+- `src/frontend/snobol4/lex.h` — updated Lex struct + flex_lex_* decls
+- `src/frontend/snobol4/test_lex.c` — TDD harness, 54p/0f
+- `/tmp/refs/snobol4-2.3.3/syntax.tbl` — CSNOBOL4 scan tables (oracle for lex.l)
+- `/tmp/refs/snobol4-2.3.3/v311.sil` EXPR proc — SPITBOL precedence climbing (oracle for parse.y)
+- `SESSION-dynamic-byrd-box.md §NOW` — M-LEX-1/M-PARSE-1 milestone plan
