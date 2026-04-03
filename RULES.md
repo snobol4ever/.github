@@ -61,6 +61,14 @@ Emit-diff pins artifacts of the wrong architecture. Do not run it. Do not chase 
 It will be restored when the emitter stabilizes after M-DYN-S1 lands across all 5
 languages × 6 platforms.
 
+**⛔ INTERPRETER SESSION INVARIANT SCOPE — scrip-cc and emit-diff are irrelevant:**
+Sessions working on the tree-walk interpreter (`scrip-interp`, DYN-session) or the
+JVM interpreter (Java Byrd boxes, J-session) do NOT affect the scrip-cc compiler or
+emit-diff artifacts. Do not run `run_emit_check.sh` or chase scrip-cc regressions
+in these sessions — no interpreter change can cause them. Gate for interpreter
+sessions is the runtime invariant for that backend only (`snobol4_jvm` for J-sessions,
+`snobol4_x86` for DYN-sessions). This speeds up development — skip all emit-diff work.
+
 **⛔ ALL sessions except DYNAMIC BYRD BOX (snobol4 × x86) are FROZEN.**
 No development on JVM, .NET, WASM, JS, Icon, Prolog, Snocone until M-DYN-S1
 is complete and 5-phase stmt_exec_dyn is the sole execution path.
@@ -254,6 +262,13 @@ Every session is defined by three values. Pick them, read three docs, work.
 4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
+
+**⛔ SNOBOL4 × JVM ≠ DYNAMIC BYRD BOX — common routing error:**
+- `"SNOBOL4 frontend with JVM backend"` → J-session → `SESSION-snobol4-jvm.md` → `emit_jvm.c`
+- `"DYNAMIC BYRD BOX"` → DYN-session → `SESSION-dynamic-byrd-box.md` → `scrip-interp.c` (x86 interpreter)
+- These are completely different sessions. JVM has no scrip-interp. DYN has no Jasmin.
+- The deciding signal: does the human say "JVM"? → J-session. "interpreter" or "dynamic"? → DYN-session.
+- **Never read SESSION-dynamic-byrd-box.md in a JVM session.**
 
 ## ⛔ SESSIONS_ARCHIVE.md — APPEND ONLY, NEVER PRUNE
 
