@@ -17759,57 +17759,66 @@ This is Track B of D-166. NOT the DOTNET emit session (Track A / ThreadedExecute
 - `one4all/src/runtime/boxes/lit/bb_lit.java` — first box to wire up
 - `one4all/src/runtime/boxes/shared/bb_executor.java` — 5-phase driver already exists
 
----
+## J-219 handoff — 2026-04-03
 
-## SJ-6 final handoff — 2026-04-02
+### Session type
+**TINY JVM** — M-JVM-INTERP-A01: IR bridge (scrip-cc → Java) + PatternBuilder.java.
 
 ### What was done
 
-**Created `src/runtime/js/sno-interp.js`** — pure JS SNOBOL4 interpreter, no IPC, no scrip-cc.
+**No code written.** Session was: repo clone + session start protocol + routing error + HQ fix.
 
-Architecture:
-- **Lexer** (`class Lexer`): single-pass character-stream. Handles continuation lines (`+`/`.`), comment lines (`*`/`!`/`#`/`|`), control lines (`-INCLUDE`) inline — no preprocessing pass. Emits `T_NEWLINE`, `T_GOTO_SEP`, `T_STMT_SEP` as field-boundary tokens.
-- **Parser** (`class Parser`): recursive-descent 17-level grammar, direct port of `parse.c`. Builds `EXPR_t`/`STMT_t` IR with identical field names (`kind`, `sval`, `ival`, `dval`, `children`) and EKind string constants (`E_QLIT`, `E_VAR`, etc.) matching C enum names exactly.
-- **Executor** (`_exec_from`): tree-walk over `STMT_t` linked list. Pattern engine: `sno_engine.js`. Value ops: `sno_runtime.js`. SNOBOL4 builtins, DEFINE/call-stack, label_table, goto dispatch.
+**Errors caught and corrected:**
+- Claude routed to DYN-42 (x86 interpreter) instead of TINY JVM (J- session). Root cause: user prompt said "SNOBOL4 frontend with JVM backend developing an interpreter using dynamic Byrd boxes" — Claude matched `SESSION-dynamic-byrd-box.md` on "dynamic Byrd boxes" before noticing the JVM qualifier. RULES.md §ROUTING already has the correct rule (line 288) but it was not consulted early enough.
+- Fix: Added ⛔ banner to PLAN.md §SESSION START step 3 reinforcing that "SNOBOL4 + JVM + interpreter" = J- session, not DYN-.
 
-Bugs fixed during session:
-1. `T_GOTO_SEP` checked after `_at_end()` — bare `:(label)` lines swallowed
-2. Trailing WS before `:(goto)` not consumed — goto after replacement lost
-3. `E_SEQ` not in `interp_eval` — whitespace concat inside function args failed
-4. `&ALPHABET` and other keywords not initialized in `_vars`
+### Baseline for J-220
 
-### Baseline
+- `.github`: see commit below
+- `one4all`: `09ac2cb` (unchanged — no code written)
+- `corpus`: `2f2bbe3` (unchanged)
+- **No gate** — interpreter session, exempt per RULES.md
 
-- one4all HEAD: `c9bab5d`
-- `output/` 8 tests: **8/8 PASS** ✓
-- `rung3/` 3 tests: **0/3 FAIL** — blank-line bug (see below)
-- `rungW01/` 3 tests: **0/3 FAIL** — blank-line bug
-
-### Known bug — SJ-7 first task
-
-**Blank logical lines between statements break label chaining.**
-
-Repro:
-```
-        differ('ab', 'ab')  :f(e001)
-        OUTPUT = 'FAIL'     :(end)
-e001
-                            ← blank line
-        OUTPUT = 'PASS'
-end
-```
-Actual output: *(nothing)*. Expected: `PASS`.
-
-Root cause: `parse_program` skips blank `T_NEWLINE` tokens at the top of its loop, but `parse_stmt` also skips blank newlines at its top — meaning a blank line between `e001` (label-only stmt) and the next real stmt may cause the next stmt to be parsed without being linked as `e001.next`, or label_table points at the label-only no-op stmt whose `next` is null rather than the following statement.
-
-Likely fix: in `parse_program`, after creating a label-only stmt, don't skip the following newlines before creating the next stmt — let the `next` pointer chain correctly through blank lines, OR rewrite `parse_program` to skip blank lines only at top of loop before stmt creation, not inside `parse_stmt`.
-
-### SJ-7 first actions (in order)
+### J-220 first tasks (in order)
 
 1. `git pull --rebase` all repos.
-2. `SESSION_SETUP.sh FRONTEND=snobol4 BACKEND=js` — confirm no nasm needed.
-3. Fix blank-line label chaining bug in `parse_program`/`parse_stmt`.
-4. Re-run: `cd /home/claude/one4all/src/runtime/js && node sno-interp.js <file.sno>` on rung3 and rungW01.
-5. Wire into `run_invariants.sh` under `snobol4_interp` cell.
-6. Target: rung2 + rung3 + rungW01 all green.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate, no baselines** — M-JVM-INTERP-A01 is interpreter work, exempt per RULES.md.
+4. Re-read oracle: `sed -n '407,640p' one4all/src/runtime/dyn/stmt_exec.c` (bb_build switch) and `cat one4all/src/runtime/boxes/shared/bb_box.java`.
+5. Create `one4all/src/driver/jvm/PatternBuilder.java` — walks `_PND_t`-equivalent IR → instantiates `bb_*.java` boxes.
+6. Wire `bb_executor.java` as the 5-phase driver.
+7. Zero compile+link test loop: one corpus `.sno` end-to-end through Java interpreter.
+8. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for J-220
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP` — full spec, IR bridge options
+- `one4all/src/runtime/dyn/stmt_exec.c` — bb_build() oracle (lines 407–640)
+- `one4all/src/runtime/boxes/shared/bb_box.java` — BbBox base + MatchState
+- `one4all/src/runtime/boxes/lit/bb_lit.java` — first box to wire up
+- `one4all/src/runtime/boxes/shared/bb_executor.java` — 5-phase driver already exists
+
+## J-219 handoff — 2026-04-03
+
+### Session type
+**TINY JVM** — M-JVM-INTERP-A01: IR bridge (scrip-cc → Java) + PatternBuilder.java.
+
+### What was done
+
+**No code written.** Routing error: Claude routed to DYN-42 (x86) instead of TINY JVM (J-). Root cause: "dynamic Byrd boxes" substring matched DYN- session before JVM qualifier was noticed. RULES.md §ROUTING line 288 already had the correct rule but wasn't consulted early enough.
+
+**HQ fix committed:** PLAN.md — added ⛔ ROUTING GUARD after step 3 surfacing the JVM+interpreter = J- session rule earlier in the protocol.
+
+### Baseline for J-220
+- `.github`: `45c3808` (or latest after rebase)
+- `one4all`: `09ac2cb` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- **No gate** — interpreter session, exempt per RULES.md
+
+### J-220 first tasks (in order)
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate, no baselines** — M-JVM-INTERP-A01, exempt per RULES.md.
+4. `sed -n '407,640p' one4all/src/runtime/dyn/stmt_exec.c` (bb_build oracle) + `cat one4all/src/runtime/boxes/shared/bb_box.java`
+5. Create `one4all/src/driver/jvm/PatternBuilder.java` — walks _PND_t IR → instantiates bb_*.java boxes.
+6. Wire `bb_executor.java` as 5-phase driver. Zero compile+link test loop.
 7. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
