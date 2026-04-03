@@ -18942,3 +18942,132 @@ diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 - corpus: `2f2bbe3` (unchanged)
 - .github: this commit
 - Interpreter gate: **19/19 PASS** (no-pattern corpus)
+
+---
+
+## J-221 handoff — 2026-04-02 (session 3 — context-limit handoff)
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done this session
+
+**M-JVM-INTERP-A02** ✅ — `TestParser.java` (290 lines)
+- 32p/0f: 13 unit tests + 19 file gate
+- Commit: `a3897dd` one4all
+
+**M-JVM-INTERP-A03** ✅ — `Interpreter.java` (681 lines)
+- 19/19 corpus gate (output diff against .ref): hello / assign / arith_new all pass
+- Implements: SnoVal (SNUL/STR/INT/REAL/FAIL), NV store (case-insensitive), label table, eval for all non-pattern EKind nodes, Phase 1+5 statement executor, goto dispatch (:S/:F/unconditional/END), OUTPUT/INPUT association, builtins (SIZE TRIM DUPL SUBSTR REPLACE REVERSE LPAD RPAD INTEGER REAL STRING IDENT DIFFER EQ NE LT LE GT GE ABS EXP LOG SQRT SIN COS ATAN SUCCEED FAIL FENCE ABORT)
+- Key fix: SNOBOL4 integer division truncates (10/4=2)
+- Commit: `f3049fe` one4all
+
+### M-JVM-INTERP-A04 — next milestone (NOT started)
+
+**Goal:** Wire pattern matching (Phase 2–4) using the Java Byrd box sources.
+
+**The approach that was being worked out at context limit:**
+- Do NOT use `boxes.jar` (Jasmin classes use lowercase names like `bb_lit` — incompatible with driver package)
+- DO compile the Java source oracles directly: `src/runtime/boxes/shared/bb_box.java`, `bb_executor.java`, `bb_capture.java` + per-box `bb_*.java` into `/tmp/jvm_cls` alongside the driver package
+- Write `PatternBuilder.java` in `src/driver/jvm/` — walks `Parser.ExprNode` pattern tree → constructs `BbBox` graph
+- Wire into `Interpreter.java`: `s.pattern != null` branch → `PatternBuilder.buildPattern(patExpr, ms)` → `BbExecutor.exec(...)`
+
+**Key files to read at next session start:**
+```bash
+cat one4all/src/runtime/boxes/shared/bb_box.java        # MatchState / Spec / BbBox abstract
+cat one4all/src/runtime/boxes/shared/bb_executor.java   # 5-phase executor API
+cat one4all/src/runtime/boxes/lit/bb_lit.java           # simplest box — LIT oracle
+cat one4all/src/runtime/boxes/alt/bb_alt.java           # ALT oracle
+cat one4all/src/runtime/boxes/eps/bb_seq.java           # SEQ oracle  (was already read)
+```
+
+**PatternBuilder node mapping (EKind → BbBox):**
+| EKind | BbBox class | Notes |
+|-------|------------|-------|
+| E_QLIT | BbLit | `new BbLit(ms, e.sval)` |
+| E_VAR (ARB etc.) | BbArb / BbRem / BbFail / BbSucceed / BbFence / BbAbort | bare keyword patterns |
+| E_SEQ / E_CAT | BbSeq (binary, fold left) | fold list of children into BbSeq chain |
+| E_ALT | BbAlt | `new BbAlt(ms, children...)` |
+| E_FNC LEN | BbLen | `new BbLen(ms, evalInt(arg))` |
+| E_FNC SPAN | BbSpan | `new BbSpan(ms, chars)` |
+| E_FNC ANY | BbAny | `new BbAny(ms, chars)` |
+| E_FNC NOTANY | BbNotany | |
+| E_FNC BREAK | BbBrk | |
+| E_FNC BREAKX | BbBreakx | |
+| E_FNC ARBNO | BbArbno | `new BbArbno(ms, child)` |
+| E_FNC POS | BbPos | |
+| E_FNC RPOS | BbRpos | |
+| E_FNC TAB | BbTab | |
+| E_FNC RTAB | BbRtab | |
+| E_CAPT_IMMED_ASGN | BbCapture (immediate) | `$` — assign on match |
+| E_CAPT_COND_ASGN | BbCapture (deferred) | `.` — assign on :S |
+| E_CAPT_CURSOR | BbAtp | `@var` cursor capture |
+
+**Gate for A04:** run `crosscheck/pattern/` tests (or triplet.sno if no pattern/ dir) through Interpreter, diff vs .ref.
+
+**Build command for next session (compile boxes + driver together):**
+```bash
+cd /home/claude/one4all
+BOXES=src/runtime/boxes
+javac -d /tmp/jvm_cls \
+  $BOXES/shared/bb_box.java \
+  $BOXES/shared/bb_executor.java \
+  $BOXES/shared/bb_capture.java \
+  $BOXES/abort/bb_abort.java \
+  $BOXES/alt/bb_alt.java \
+  $BOXES/any/bb_any.java \
+  $BOXES/arb/bb_arb.java \
+  $BOXES/arbno/bb_arbno.java \
+  $BOXES/atp/bb_atp.java \
+  $BOXES/bal/bb_bal.java \
+  $BOXES/brk/bb_brk.java \
+  $BOXES/breakx/bb_breakx.java \
+  $BOXES/eps/bb_eps.java \
+  $BOXES/eps/bb_seq.java \
+  $BOXES/fail/bb_fail.java \
+  $BOXES/fence/bb_fence.java \
+  $BOXES/len/bb_len.java \
+  $BOXES/lit/bb_lit.java \
+  $BOXES/notany/bb_notany.java \
+  $BOXES/pos/bb_pos.java \
+  $BOXES/rem/bb_rem.java \
+  $BOXES/rpos/bb_rpos.java \
+  $BOXES/rtab/bb_rtab.java \
+  $BOXES/span/bb_span.java \
+  $BOXES/succeed/bb_succeed.java \
+  $BOXES/tab/bb_tab.java \
+  src/driver/jvm/Lexer.java \
+  src/driver/jvm/Parser.java \
+  src/driver/jvm/Interpreter.java \
+  src/driver/jvm/PatternBuilder.java  # to be written
+```
+(Note: all box sources are in the default package — no `package` declaration. Interpreter.java uses them via BbBox/BbLit etc. directly, or via a PatternBuilder adapter that imports nothing — same default package trick used in bb_executor.java.)
+
+**Interpreter.java pattern branch to replace (line ~337):**
+```java
+// Phase 2–4: pattern match (stub — FAIL for now)
+if (s.pattern != null) {
+    // TODO M-JVM-INTERP-A04
+    succeeded = false;
+}
+```
+Replace with:
+```java
+if (s.pattern != null) {
+    String sv = subjVal.toSnoStr();
+    boolean anchor = nvGet("ANCHOR").type == VType.INT && nvGet("ANCHOR").ival != 0;
+    BbBox.MatchState ms = new BbBox.MatchState(sv);
+    BbBox root = PatternBuilder.build(s.pattern, ms, this);
+    String replStr = (s.hasEq && s.replacement != null)
+                     ? eval(s.replacement).toSnoStr() : null;
+    BbExecutor ex = new BbExecutor(varStoreAdapter());
+    succeeded = ex.exec(subjName, sv, root,
+                        replStr != null, replStr != null ? replStr : "", anchor);
+}
+```
+
+### Baselines
+- one4all: `f3049fe`
+- corpus: `2f2bbe3` (unchanged)
+- .github: this commit
+- Interpreter gate: **19/19 PASS** (non-pattern corpus — pattern branch still stubbed)
