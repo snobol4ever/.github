@@ -19160,3 +19160,64 @@ if (s.pattern != null) {
 - `src/runtime/js/sno_engine.js` — pattern match engine
 - `MILESTONE-JS-SNOBOL4.md` — milestone ladder
 
+
+---
+
+## DYN-47 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86. Session prefix: DYN-
+
+### What was done
+
+**M-LEX-1 wired — lex.l one-pass lexer compiled and linked into scrip-interp**
+
+- `lex.l` user-code section now defines all symbols: `sno_error`, `sno_parse`,
+  `sno_reset`, `lex_open_str`, `lex_next`, `lex_peek`, `lex_at_end`,
+  `inc_dirs`/`n_inc`. No `lex.c` glue file needed.
+- Critical bug fixed: `yylineno` in reentrant flex expands to
+  `YY_CURRENT_BUFFER_LVALUE->yy_bs_lineno`. In `<<EOF>>` rule, after
+  `yypop_buffer_state` sets buffer to NULL, `yylineno` dereferences NULL.
+  Fix: `int _ln = yyget_lineno(yyscanner)` captured before pop.
+- `lex.h`: added `#include <stdio.h>` for `FILE*` in `flex_lex_open` declaration.
+- `intern`/`intern_n` conflict resolved: `scrip_cc.h` static-inline versions used;
+  extern declarations removed from `lex.l`.
+- **test_lex: 54p/0f** ✅
+
+**sno_* rename**
+
+All `snoc_` prefixes renamed to `sno_` across: `lex.l`, `lex.h`, `scrip_cc.h`,
+`parse.c`, `sno.l`, `sno.y`, `test_lex.c`, `scrip-interp.c`, `main.c`,
+`eval_code.c`, `emit_byrd_c.c`, `runtime_shim.h`.
+
+**Generated files committed (order-only, rebus pattern)**
+
+- `lex.yy.c` — flex output of `lex.l` (scrip-interp)
+- `lex.c` — flex output of `sno.l` (scrip-cc two-pass path)
+- `sno.tab.c` / `sno.tab.h` — bison output of `sno.y` (scrip-cc)
+- Makefile rules mirror rebus exactly: order-only prereqs, only regenerate if absent.
+
+**Pre-existing breakage noted (not DYN scope)**
+
+`sno.y` uses `Expr`/`Stmt` types from old `snoc.h` which predates IR rename.
+scrip-cc build fails on `sno.tab.c` compilation. Pre-existing — not introduced here.
+
+### NOT YET DONE — DYN-48 first actions
+
+1. `git pull --rebase` all repos.
+2. Run SESSION_SETUP.sh.
+3. **Diagnose broad regression (126p/52f vs 169p/9f)**:
+   - Pick a test that regressed (e.g. `literals`, `test_case`)
+   - Run through scrip-interp, capture output
+   - Run same .sno through SPITBOL (`/usr/local/bin/spitbol`), capture output
+   - Diff — this is the two-way MONITOR approach
+   - Likely cause: `lex.l` token stream differs from old queue path for body/goto parsing
+4. Fix regression, restore 169p/9f baseline.
+5. **M-PARSE-1**: `parse.y` (bison), replace `parse.c` goto-field handling.
+
+### Baselines
+- one4all: `df3e3dd`
+- corpus: `2f2bbe3`
+- .github: (this commit)
+- test_lex: **54p/0f** ✅
+- Broad: **126p/52f** ⚠️ regression from 169p/9f — DYN-48 first priority
