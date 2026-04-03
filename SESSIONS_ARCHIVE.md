@@ -20124,6 +20124,98 @@ Fix:
 
 ---
 
+## DYN-53 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 scrip-interp (C tree-walk interpreter). Session prefix: DYN-
+
+### Result: 154p/24f (up from 115p — +39 passes)
+
+### What was done (DYN-53)
+
+**Build fixed — scrip-interp now builds cleanly:**
+- `src/Makefile` `FRONTEND_SNO`: `parse.c` → `snobol4.tab.c` + `snobol4.lex.c` (parse.c was archived in DYN-48)
+- `snobol4.lex.c`: stubs appended — `int sno_nerrors = 0;` and `void sno_add_include_dir(const char *d)` (declared in scrip_cc.h, called by main.c, never implemented after bison/flex pivot)
+- scrip-cc Makefile collision: both `snobol4.lex.c` and `lex.rebus.c` export default `yy*` flex globals. **Not fixed** — scrip-cc still fails to link. scrip-interp build bypasses this (no rebus in its TU set). Fix for scrip-cc: add `%option prefix="snobol4_yy"` to `snobol4.l` and regenerate.
+- `src/frontend/snobol4/parse.c` restored from `b6471da~1` then left untracked — it is the OLD hand-rolled parser (pre-bison) and is **not used**. Should be deleted or `.gitignore`d next session.
+
+**Grammar fix — T_MATCH stmt rule (root cause of all `?` failures):**
+- `opt_subject` typed as `expr3`; `T_MATCH` lives at `expr0` level — unreachable. Pattern-match statements always parse-errored.
+- Fix: added explicit second `stmt` production:
+  ```
+  stmt: opt_label expr2 T_MATCH opt_pattern opt_repl opt_goto T_STMT_END
+  ```
+- Parser regenerated with bison. **word1 now passes.**
+
+**Milestone: SNOBOL4 never uses E_CAT** (per architect instruction):
+- `fixup_val()` in `snobol4.y` — made a no-op. Was converting `E_SEQ→E_CAT` on subject/replacement subtrees. Now: `static void fixup_val(EXPR_t *e){ (void)e; }`.
+- S=PR split: removed `||subj->kind==E_CAT` — `E_SEQ` only.
+- `scrip-interp.c` DEFINE arg parser: added `|| arg->kind == E_SEQ` alongside `E_CAT`.
+- `interp_eval(E_SEQ)` already calls `CONCAT_fn` which routes `DT_P+DT_P → pat_cat` at runtime. No separate `E_CAT` path needed for SNOBOL4.
+
+**Commit:** `effd6e9` on one4all
+
+### Root cause of word2–4/cross/wordcount — diagnosed, NOT fixed
+
+Pattern assignment with `+` continuation lines loses captures from continuation lines 2+. WHEN (line 1) captures; WHO, WHAT (lines 2–3) do not.
+
+**Confirmed by two-way MONITOR (`/tmp/cont4.sno`):**
+```snobol4
+      PAT      =  POS(0) LEN(4) . WHEN
++                 TAB(6) LEN(4) . WHO
+      LINE = '1769  Watt    rest'
+      LINE  ?  PAT
+      OUTPUT = 'WHO=[' WHO '] WHEN=[' WHEN ']'
+```
+SPITBOL: `WHO=[Watt] WHEN=[1769]`
+scrip-interp: `WHO=[] WHEN=[1769]`
+
+**Hypothesis (not yet confirmed):** `E_CAPT_COND_ASGN` in `interp_eval` requires `nchildren >= 2`. Inline `LEN(4) . WHEN` (no continuation) produces correct 2-child node. With `+` continuation, the `E_SEQ` flatten logic (`expr_add_child`) may be absorbing the `.` RHS variable into the parent `E_SEQ` rather than leaving it as `E_CAPT_COND_ASGN`'s second child — resulting in `nchildren==1` and early `NULVCL` return.
+
+**Next session: add trace `fprintf(stderr, "CAPT nch=%d sval=%s\n", e->nchildren, e->nchildren>=2?e->children[1]->sval:"?")` in `E_CAPT_COND_ASGN` case, run `cont4.sno`, confirm child count.**
+
+### Remaining failures (24)
+
+| Group | Tests | Suspected cause |
+|---|---|---|
+| word2–4, wordcount, cross | continuation-line captures | E_CAPT_COND_ASGN nchildren bug (see above) |
+| W04_arbno_* | arbno backtracking | bb_arbno state reset |
+| 310–312 | concat strings/numeric/null | T_CONCAT / E_SEQ string concat |
+| 1012/1013 | func locals/NRETURN | call stack save/restore |
+| 1015_opsyn | OPSYN edge case | TBD |
+| 1016_eval | EVAL builtin | TBD |
+| expr_eval | line continuation in EVAL | TBD |
+| 056_pat_star_deref | star deref | TBD |
+| 063_capture_null_replace | null replace | TBD |
+| literals, test_case, test_math, test_stack, test_string | misc | TBD |
+| W07_capt_chain | capture chain | TBD |
+
+### DYN-54 first actions (mandatory order)
+
+1. `git pull --rebase` all repos
+2. `FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
+3. Rebuild scrip-interp (DYN build command in SESSION-dynamic-byrd-box.md) — objects in `/tmp/ib/`
+4. Confirm **154p/24f** baseline
+5. Add `nchildren` trace to `E_CAPT_COND_ASGN` in `scrip-interp.c`, run `cont4.sno`
+6. Fix capture child count bug → re-run broad → word2–4/cross/wordcount should pass
+7. Delete or `.gitignore` `src/frontend/snobol4/parse.c` (old pre-bison parser, untracked)
+8. Fix scrip-cc build: add `%option prefix="snobol4_yy"` to `snobol4.l`, regenerate `snobol4.lex.c`, rebuild
+9. Target ≥170p
+
+### Baselines for DYN-54
+- `one4all`: `effd6e9`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 154p/24f**
+- Build: DYN build command (SESSION-dynamic-byrd-box.md §scrip-interp build command)
+- Broad: `INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh`
+
+### Key files (DYN-53 changes)
+- `src/frontend/snobol4/snobol4.y` — T_MATCH stmt rule, no-op fixup_val, E_SEQ-only S=PR split
+- `src/frontend/snobol4/snobol4.tab.c` — regenerated
+- `src/frontend/snobol4/snobol4.lex.c` — sno_nerrors + sno_add_include_dir stubs
+- `src/Makefile` — FRONTEND_SNO updated
+- `src/driver/scrip-interp.c` — E_SEQ added to DEFINE arg parser
 ## SJ-14 handoff — 2026-04-03
 
 ### Session type
