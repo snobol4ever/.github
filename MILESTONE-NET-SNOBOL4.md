@@ -1,275 +1,180 @@
-# MILESTONE-NET-SNOBOL4.md — SNOBOL4 × .NET Milestone Ladder
+# MILESTONE-NET-SNOBOL4.md — SNOBOL4 × .NET Unified Milestone Ladder
 
-**Session:** D · **Repo:** snobol4dotnet · **Runtime:** Jeff Cooper's C# pipeline
-**Invariant cell:** `dotnet test` 1911/1913 · **Crosscheck:** 79/80 (@N bug)
+**Session:** D · **Repos:** one4all · snobol4dotnet
+**Team:** Lon Jones Cherryholmes (arch) · Jeffrey Cooper M.D. (.NET) · Claude Sonnet 4.6 (co-author)
 
 ---
 
-## Organizing principle: the 5-phase statement executor
+## Organizing principle: one unified chain — dynamic → static → optimized
 
-`stmt_exec.c` defines SNOBOL4 execution as five explicit phases.
-`ThreadedExecuteLoop.cs` implements the same five phases implicitly in a
-single opcode dispatch loop — with no clean phase boundaries.  Bugs like the
-`@N` cursor-capture overwrite are a direct consequence of Phase 3 captures
-sharing state with Phase 5 cleanup.
+This is a single ladder from interpreted execution to statically optimized
+code generation.  There are no parallel tracks.
+
+**The key insight:** the interpreter *is* the dynamic execution engine.
+`scrip-interp.cs` generates Byrd box graphs in memory and runs them directly —
+this is not a temporary scaffold, it is Phase D of the full execution model.
+Later phases add optimization: box sequence caching, then full IL emission.
+The same IR and the same IByrdBox graph serve all phases.
 
 ```
-Phase 1: build_subject  — resolve subject variable, set Σ/Δ/Ω for match
-Phase 2: build_pattern  — AbstractSyntaxTree.Build(pattern) → node graph
-Phase 3: run_match      — Scanner.Match() trampoline, collect captures
-Phase 4: build_repl     — replacement already eval'd by opcode sequence
+Phase D (dynamic — interpreted):
+  .sno → Pidgin parser → IR tree → PatternBuilder → IByrdBox graph (in memory) → run
+
+Phase S (static — compiled):
+  .sno → scrip-cc IR → emit_net.c → .il → ilasm → .exe
+  (same IR node shape; same IByrdBox classes reused at runtime)
+
+Phase O (optimized):
+  Cached box sequences · inlined hot paths · AOT IL emission from interpreter
+```
+
+**One IR, three consumers** (D-167 invariant):
+- `scrip-cc` (C compiler) — emits IL from IR
+- `scrip-interp.c` (C interpreter) — tree-walks IR, reference oracle
+- `scrip-interp.cs` (C# interpreter) — tree-walks IR, generates box graphs in memory
+
+No C code in the interpreter.  No generated C# code.  scrip-cc never invoked
+by the interpreter at runtime or build time.  EVAL/CODE build the same IR
+nodes at runtime that the Pidgin parser produces.
+
+---
+
+## What already exists (reuse)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| All 27 C# Byrd boxes | `src/runtime/boxes/*/bb_*.cs` | ✅ M-NET-BOXES |
+| `ByrdBoxExecutor` (Phase 3 trampoline) | `src/runtime/boxes/shared/bb_executor.cs` | ✅ |
+| `ByrdBoxFactory` (pattern tree → IByrdBox) | `src/runtime/boxes/shared/bb_factory.cs` | ✅ partial |
+| `IByrdBox`, `Spec`, `MatchState` | `src/runtime/boxes/shared/bb_box.cs` | ✅ |
+| `ThreadedExecuteLoop.cs` | snobol4dotnet | ✅ Jeff's pipeline (Phase S reference) |
+| `BuildEval` / `BuildCode` | snobol4dotnet | ✅ self-hosted, no Roslyn |
+
+---
+
+## 5-phase statement executor (all phases share this model)
+
+```
+Phase 1: build_subject  — resolve subject variable → Σ/Δ/Ω
+Phase 2: build_pattern  — IR pattern node → IByrdBox graph (PatternBuilder)
+Phase 3: run_match      — ByrdBoxExecutor trampoline, collect captures
+Phase 4: build_repl     — evaluate replacement expression
 Phase 5: perform_repl   — splice into subject, flush captures, :S/:F branch
 ```
 
----
-
-## Architecture notes (D-165 survey)
-
-Jeff's implementation is already remarkably complete — this is a quality
-audit and gap-fill, not a rewrite.
-
-### EVAL and CODE: self-hosted, no Roslyn
-
-`BuildEval()` / `BuildCode()` route back through the **same compiler pipeline**
-that compiled the original program: `ReadCodeInString` → `Lex` → `Parse` →
-`ResolveSlots` → `EmitMsilForAllStatements` → `CompileStarFunctions`.
-
-`CODE` uses `AppendCompile` to live-patch the running `Instruction[]` thread —
-the old `Halt` is replaced with a guard `Jump` and new statements are stitched
-on.  This is a live-patching threaded interpreter (closer to Forth than to
-anything else in the SNOBOL4 world).  No Roslyn needed — the self-hosted
-pipeline is the compiler.
-
-### Pattern engine: already a Byrd box graph
-
-`AbstractSyntaxTreeNode` / `Scanner` / `Pattern` is already a dynamic Byrd
-box graph.  Jeff didn't use that name but the mapping is exact:
-
-| Byrd box concept | Jeff's equivalent |
-|---|---|
-| α port | `TerminalPattern.Scan()` — enters node, tries to match |
-| β / backtrack | `_state.RestoreAlternate()` — pops saved alternate node |
-| γ / success continuation | `node.GetSubsequent()` — follows `Subsequent` index |
-| ω / failure continuation | `MatchResult.Failure` → alternate stack pop |
-| Box graph construction | `AbstractSyntaxTree.Build(pattern)` |
-| Trampoline | `Scanner.Match()` — `while(true)` with Subsequent/alternate dispatch |
-
-`ArbNoPattern.Scan` re-enters the trampoline recursively (≡ `bb_arbno`).
-`UnevaluatedPattern.Scan` evaluates its `DeferredCode` delegate — running
-the pre-compiled `StarFunctionList` entry — then matches the result.  This is
-`*pattern` working correctly via the existing machinery.
-
-### ExpressionVar / DeferredCode / StarFunctionList
-
-When the parser sees a pattern argument containing a variable or expression
-(e.g. `ARBNO(*Command)`), it wraps it as an `ExpressionVar` with a
-`DeferredCode` delegate pointing into `StarFunctionList`.  At match time,
-`UnevaluatedPattern.Scan` calls the delegate — re-running the compiled
-expression in the live `Executive` context — gets a `PatternVar`, then
-recursively matches it.  Runtime pattern composition with zero external
-compilation.
-
-### @N bug anatomy (Phase 3/5 ordering)
-
-`CursorAssignmentPattern.Scan` writes `IdentifierTable["N"] = cursor`
-during Phase 3 (match) — verified correct by sentinel.  Something in
-`ThreadedExecuteLoop`'s `Init` or `Finalize` opcode (or `CheckGotoFailure`)
-resets match state and clobbers it.
-
-**Most likely cause:** `Init` snapshots pre-match variable state; `Finalize`
-or `CheckGotoFailure` restores it on the failure path — and capture writes
-are within that snapshot window.
-
-In `stmt_exec.c` this is solved by an explicit pending-capture list flushed
-only in Phase 5 on `:S`.  The .NET fix is analogous: identify the opcode
-doing the clobber, guard it so Phase 3 capture writes survive into Phase 5.
+Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 
 ---
 
-## Phase 0 — Box library: pure Byrd boxes in C#
+## Milestone chain
 
-### M-NET-BOXES — 26 C# Byrd box classes ✅ one4all `90d5531`
+### Phase 0 — Foundation (complete)
 
-**Delivered:** `src/runtime/dotnet/boxes/` — 24 files, 1246 lines.
-Every box mirrors its `bb_*.c` counterpart exactly.
-Foundation: `IByrdBox` (α/β ports) · `Spec` (match result) · `MatchState` (Σ/Δ/Ω).
-Structural: `BbSeq` `BbAlt` `BbArbno` `BbCapture` `BbDvar` `BbNot` `BbInterr`.
-Primitives: `BbLit` `BbLen` `BbPos` `BbRpos` `BbTab` `BbRtab` `BbRem`
-            `BbAny` `BbNotany` `BbSpan` `BbBrk` `BbBreakx` `BbArb` `BbEps`
-            `BbFence` `BbAbort` `BbFail` `BbSucceed` `BbAtp` `BbBal`.
-Wiring: `ByrdBoxFactory` (Pattern tree → box graph) · `ByrdBoxExecutor` (Phase 3 trampoline).
-
-**Gate:** one4all `90d5531` · side-by-side with C originals ✅
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| **M-NET-BOXES** | 27 C# Byrd boxes · ByrdBoxFactory · ByrdBoxExecutor | ✅ one4all `90d5531` |
+| **M-NET-INTERP-A00** | IR design locked: one IR / three consumers; no C; no generated C#; scrip-cc never invoked; EVAL/CODE build same IR nodes as parser | ✅ .github `aeee9c2` |
 
 ---
 
-## Phase A — Correctness: fix Phase 3/5 capture boundary
+### Phase A — Dynamic interpreter: full corpus
 
-### M-NET-P35-FIX — @N cursor capture survives Phase 5
-
-**Depends on:** D-164 baseline (1911/1913, 79/80 crosscheck)
-**Scope:**
-- Add sentinel `Console.Error.WriteLine($"N={IdentifierTable[\"N\"]}")` before
-  and after `CheckGotoFailure`, `Init`, `Finalize` in `ThreadedExecuteLoop`
-- Run `strings/cross` — identify which opcode writes `N=0` after
-  `CursorAssignmentPattern.Scan` correctly writes cursor
-- Fix: guard that opcode so Phase 3 capture writes are not clobbered
-- Confirm `X ? @N ANY('B')` produces correct N
-
-**Gate:** crosscheck 80/80 ✅ · `dotnet test` ≥1911/1913 ✅
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-INTERP-A01** | Project scaffold + Pidgin parser: `scrip-interp.csproj` · `Snobol4Parser.cs` · parse all 19 test cases · pretty-print AST | 19/19 parse tests pass |
+| **M-NET-INTERP-A02** | Eval loop Phase 1/4/5: assignments · OUTPUT · gotos · labels · END · `SnobolEnv` dict | rung1 smoke (20 tests) pass |
+| **M-NET-INTERP-A03** | Phase 2/3: `PatternBuilder.cs` → IByrdBox graph · `ByrdBoxExecutor` wired · LIT ANY SPAN ARB ARBNO first | rung2–5 (60 tests) pass |
+| **M-NET-INTERP-A04** | Full corpus run · diff vs SPITBOL oracle · all rungs · crosscheck | ≥ 130/142 pass |
+| **M-NET-INTERP-A05** | Remaining failures closed · full corpus clean | 142/142 pass · crosscheck 100% |
 
 ---
 
-### M-NET-POLISH — Cross-test clean + diagnostics + benchmark
+### Phase B — Dynamic interpreter: advanced features
 
-**Depends on:** M-NET-P35-FIX
-**Scope:**
-- 106/106 corpus crosscheck via harness (all rungs)
-- diag1 35/35 regression suite
-- Benchmark grid (ARCH-testing.md)
-
-**Gate:** 106/106 crosscheck ✅ · diag1 35/35 ✅ · benchmark published ✅
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-INTERP-B01** | Captures: `@var` / `.var` / `$var` · Phase 3/5 boundary correct by construction | rung9 capture tests 100% vs SPITBOL |
+| **M-NET-INTERP-B02** | Functions: DEFINE / RETURN / NRETURN / FRETURN / call stack | rung10 function tests pass |
+| **M-NET-INTERP-B03** | EVAL / CODE: Pidgin parser called at runtime · builds live IR → IByrdBox graph · same node shape as static parse | rung10/1016_eval pass · CODE corpus pass |
 
 ---
 
-## Phase B — Coverage: audit Phase 2/3 pattern gaps
+### Phase C — Static compiler: correctness audit (snobol4dotnet / ThreadedExecuteLoop)
 
-### M-NET-PAT-CAPTURES — Phase 3 capture completeness
+*The interpreter (Phase A/B) is the oracle for this phase.
+Any interpreter result that differs from ThreadedExecuteLoop is a compiler bug.*
 
-**Depends on:** M-NET-POLISH
-**Rationale:** After the Phase 3/5 fix, audit all three capture operators
-against `stmt_exec.c`'s pending-capture-list semantics.
-
-**Oracle:** `stmt_exec.c` capture-flush section + `CursorAssignmentPattern`,
-`ConditionalVariableAssociationPattern`, `DollarSign` (immediate capture).
-
-**Scope:**
-- `@var` cursor capture — fixed by M-NET-P35-FIX, confirm clean
-- `.var` conditional capture — flush only on `:S` path
-- `$var` immediate capture — write on each match advance
-- Run rung9 capture tests vs SPITBOL oracle
-
-**Gate:** rung9 capture tests match SPITBOL oracle 100% ✅
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-P35-FIX** | Fix @N Phase 3/5 capture clobber in `ThreadedExecuteLoop.cs` | crosscheck 80/80 · dotnet test ≥ 1911/1913 |
+| **M-NET-PAT-CAPTURES** | Capture audit: `@/./$` vs interpreter + stmt_exec.c oracle | rung9 100% vs SPITBOL |
+| **M-NET-PAT-PRIMITIVES** | 16 pattern primitives vs SPITBOL oracle: LEN POS RPOS TAB RTAB REM ANY NOTANY SPAN BREAK BREAKX FENCE FAIL SUCCEED ABORT BAL | rung2–9 100% · dotnet test 1913/1913 |
+| **M-NET-EVAL-COMPLETE** | EVAL/CODE edge cases: pattern context · CODE across statement boundaries · AppendCompile jump patching | rung10/1016_eval pass · CODE corpus pass |
+| **M-NET-NRETURN** | NRETURN lvalue-assign · follow DYN-42 fix | rung10/1013 pass |
 
 ---
 
-### M-NET-PAT-PRIMITIVES — Phase 2 pattern primitive audit
+### Phase O — Optimization: dynamic → static
 
-**Depends on:** M-NET-PAT-CAPTURES
-**Scope:**
-- Run full pattern corpus (rung2–rung9) vs SPITBOL oracle
-- Audit each of: LEN POS RPOS TAB RTAB REM ANY NOTANY SPAN BREAK BREAKX
-  FENCE FAIL SUCCEED ABORT BAL — `TerminalPattern.Scan` vs x86 reference
-- Fix each delta; add corpus tests for any gap
+*The interpreter generates box graphs in memory and runs them.
+Phase O caches, specializes, and ultimately emits IL directly from the interpreter path.*
 
-**Gate:** rung2–rung9 all pass vs SPITBOL oracle ✅ · `dotnet test` ≥1913/1913 ✅
-
----
-
-## Phase C — Advanced: CODE/EVAL completeness + bootstrap
-
-### M-NET-EVAL-COMPLETE — EVAL/CODE edge cases
-
-**Depends on:** M-NET-PAT-PRIMITIVES
-**Rationale:** `BuildEval` / `BuildCode` exist and work for the common case.
-This milestone audits edge cases: EVAL of a pattern expression, CODE'd blocks
-that use captures, EVAL inside a pattern context (e.g. `ARBNO(EVAL(expr))`).
-
-**Oracle:** `UnevaluatedPattern.Scan` + `ExpressionVar` + `StarFunctionList`
-machinery already in place.  `DeferredExpression = true` routing in
-`ReadCodeInString`.
-
-**Scope:**
-- Run `corpus/crosscheck/rung10/1016_eval.sno` vs SPITBOL oracle
-- Confirm `CODE()` across statement boundaries (label resolution in
-  `AppendCompile` jump patching)
-- Confirm `EVAL()` inside pattern context routes through
-  `UnevaluatedPattern` correctly
-- Fix any gaps
-
-**Gate:** rung10 1016_eval PASS ✅ · CODE corpus tests pass ✅
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-OPT-CACHE** | Box sequence caching: cache compiled IByrdBox graphs keyed by pattern IR node · avoid rebuild on repeat execution | ≥ 2× throughput on loop-heavy corpus |
+| **M-NET-OPT-EMIT** | IL emission from interpreter: hot box sequences → emitted IL stubs · AOT path wired in | selected corpus tests pass via emitted IL |
+| **M-NET-OPT-FULL** | Full AOT IL emission: interpreter drives complete IL generation · replaces emit_net.c path | 142/142 via emitted IL · scrip-cc .NET backend retired |
 
 ---
 
-### M-NET-NRETURN — NRETURN lvalue-assign
+### Phase Z — Bootstrap
 
-**Depends on:** M-NET-EVAL-COMPLETE
-**Rationale:** NRETURN lvalue-assign (`ref_a() = 26`) is the .NET equivalent
-of the DYN-41/42 x86 interpreter bug.  The fix strategy from DYN-42 (Option A:
-parser skip-whitespace before `(`, or Option B: interpreter write-through guard)
-applies here.  Wait for DYN-42 to land; adopt the winning option.
-
-**Oracle:** DYN-42 committed fix in `scrip-interp.c` / `parse_expr17`.
-
-**Scope:**
-- Run `corpus/crosscheck/rung10/1013_func_nreturn.sno` vs SPITBOL oracle
-- Port the DYN-42 fix to C# (`Parser.cs` or `ThreadedExecuteLoop.cs`)
-
-**Gate:** rung10 1013_func_nreturn PASS ✅
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-SNOCONE** | Snocone self-test under .NET interpreter | Snocone self-test ✅ |
+| **M-NET-BOOTSTRAP** | snobol4dotnet compiles itself via interpreter | Self-hosting bootstrap ✅ |
 
 ---
 
-### M-NET-SNOCONE — Snocone self-test
+## Sprint sequence
 
-**Depends on:** M-NET-NRETURN
-**Gate:** Snocone self-test ✅
-
----
-
-### M-NET-BOOTSTRAP — snobol4dotnet compiles itself
-
-**Depends on:** M-NET-SNOCONE
-**Gate:** Self-hosting bootstrap ✅
-
----
-
-## Sprint Sequence — ThreadedExecuteLoop track (snobol4dotnet)
-
-| Sprint | Milestone | Key work |
-|--------|-----------|----------|
-| D-165 | M-NET-BOXES ✅ | 26 C# boxes · ByrdBoxFactory · ByrdBoxExecutor |
-| D-166 | M-NET-P35-FIX | Trace @N clobber · fix Phase 3/5 boundary |
-| D-167 | M-NET-POLISH | 106/106 crosscheck · diag1 · benchmark |
-| D-168 | M-NET-PAT-CAPTURES | Capture audit: @/./$  vs stmt_exec.c |
-| D-169 | M-NET-PAT-PRIMITIVES | 16 primitives vs SPITBOL oracle |
-| D-170 | M-NET-EVAL-COMPLETE | EVAL/CODE edge cases + rung10/1016 |
-| D-171 | M-NET-NRETURN | NRETURN lvalue (follow DYN-42) |
-| D-172 | M-NET-SNOCONE | Snocone self-test |
-| D-173 | M-NET-BOOTSTRAP | Self-hosting bootstrap |
-
-## Sprint Sequence — Interpreter track (scrip-interp.cs)
-
-Parallel track. Eliminates compile+assemble+link from the .NET test loop.
-Uses Pidgin parser + existing C# bb boxes. No MSIL emit. No mono startup per test.
-See **MILESTONE-NET-INTERP.md** for full detail.
-
-| Sprint | Milestone | Key work |
-|--------|-----------|----------|
-| D-166 | M-NET-INTERP-A01 | Pidgin parser scaffold · 19/19 parse tests |
-| D-167 | M-NET-INTERP-A02 | Eval loop: assignments / OUTPUT / goto / END |
-| D-168 | M-NET-INTERP-A03 | Phase 2/3: IByrdBox pattern matching |
-| D-169 | M-NET-INTERP-A04 | Full corpus ≥130/142 vs SPITBOL oracle |
-| D-170 | M-NET-INTERP-B01 | Captures: @/./$  correct by construction |
-| D-171 | M-NET-INTERP-B02 | Functions: DEFINE/RETURN/NRETURN/FRETURN |
-| D-172 | M-NET-INTERP-B03 | EVAL/CODE self-hosted |
+| Sprint | Milestone | Track |
+|--------|-----------|-------|
+| D-165 | M-NET-BOXES ✅ | Foundation |
+| D-166 | planning | Design |
+| D-167 | M-NET-INTERP-A00 ✅ · IR design locked · unified chain | Design |
+| D-168 | M-NET-INTERP-A01 | Phase A |
+| D-169 | M-NET-INTERP-A02 | Phase A |
+| D-170 | M-NET-INTERP-A03 | Phase A |
+| D-171 | M-NET-INTERP-A04 | Phase A |
+| D-172 | M-NET-INTERP-A05 | Phase A |
+| D-173 | M-NET-INTERP-B01 | Phase B |
+| D-174 | M-NET-INTERP-B02 | Phase B |
+| D-175 | M-NET-INTERP-B03 (EVAL/CODE) | Phase B |
+| D-176 | M-NET-P35-FIX + M-NET-PAT-CAPTURES | Phase C |
+| D-177 | M-NET-PAT-PRIMITIVES | Phase C |
+| D-178 | M-NET-EVAL-COMPLETE + M-NET-NRETURN | Phase C |
+| D-179 | M-NET-OPT-CACHE | Phase O |
+| D-180 | M-NET-OPT-EMIT | Phase O |
+| D-181 | M-NET-OPT-FULL | Phase O |
+| D-182 | M-NET-SNOCONE + M-NET-BOOTSTRAP | Phase Z |
 
 ---
 
-## How ThreadedExecuteLoop relates to stmt_exec.c
+## EVAL and CODE: runtime IR construction
 
-| Aspect | x86 (`stmt_exec.c`) | .NET (`ThreadedExecuteLoop.cs`) |
-|--------|---------------------|---------------------------------|
-| Phase 1 subject | `NV_GET_fn` → `spec_t` | `IdentifierTable[slot]` → string |
-| Phase 2 pattern | `PATND_t*` → bb graph | `AbstractSyntaxTree.Build()` → node array |
-| Phase 3 drive | C goto trampoline | `Scanner.Match()` while-loop |
-| Phase 4 repl | `DESCR_t` already eval'd | opcode-evaluated stack value |
-| Phase 5 splice | `memmove` + `NV_SET_fn` | subject assign + `CheckGotoFailure` |
-| Captures | pending list, flush on :S | direct `IdentifierTable` write — **Phase 3/5 bug here** |
-| EVAL/CODE | `eval_code.c` + re-entry | `BuildEval`/`BuildCode` self-hosted pipeline |
-| *pattern | `bb_unevaluated` box | `UnevaluatedPattern.Scan` + `DeferredCode` delegate |
+EVAL parses a SNOBOL4 pattern expression at runtime:
+  `Snobol4Parser.ParsePattern(str)` → same IR node types as static parse
+  → `PatternBuilder.BuildFromNode()` → live IByrdBox graph
+  → `ByrdBoxExecutor` — identical execution path to statically parsed patterns.
+
+CODE does the same for a full statement list.
+
+No special runtime IR.  No Roslyn.  No scrip-cc.  The Pidgin parser *is* the
+runtime compiler for EVAL/CODE.
 
 ---
 
-*MILESTONE-NET-SNOBOL4.md — rewritten D-165, 2026-04-02, Claude Sonnet 4.6.*
-*Architecture survey complete. Pattern engine = Byrd boxes already. EVAL/CODE self-hosted.*
-*@N = Phase 3/5 capture boundary bug. Milestones are audit+gap-fill, not rewrite.*
+*MILESTONE-NET-SNOBOL4.md — unified chain rewritten D-167, 2026-04-02, Claude Sonnet 4.6.*
+*One chain: dynamic (interpreted, in-memory box graphs) → static (IL emission) → optimized.*
+*MILESTONE-NET-INTERP.md is now a detail annex only — this file is canonical for all SNOBOL4 .NET work.*

@@ -1,3 +1,6 @@
+> ⚠️ **ANNEX ONLY** — D-167 unified chain. Canonical doc is `MILESTONE-NET-SNOBOL4.md`.
+> This file kept for detail reference on scrip-interp.cs internals only.
+
 # MILESTONE-NET-INTERP — scrip-interp.cs: SNOBOL4 .NET Interpreter
 
 **Session prefix:** D · **Repo:** one4all (or snobol4dotnet) · **Frontend:** Pidgin parser · **Backend:** C# bb boxes
