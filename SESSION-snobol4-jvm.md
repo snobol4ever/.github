@@ -86,6 +86,9 @@ PatternBuilder uses `dynIntArg()` → IntSupplier for variable arguments.
 
 ```bash
 cd /home/claude/one4all && git pull --rebase
+# Setup (once per fresh env) — JVM only, skips nasm/libgc/x86 entirely:
+FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+
 apt-get install -y default-jdk 2>/dev/null | tail -1
 
 # Rebuild stubs + driver
