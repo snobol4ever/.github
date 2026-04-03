@@ -1,4 +1,8 @@
-# SESSION-snobol4-net.md — SNOBOL4 × .NET (snobol4dotnet)
+# SESSION-snobol4-net.md — SNOBOL4 × .NET
+
+⚠️ **TWO TRACKS — read carefully:**
+- **Track A** (DOTNET / D-166): `snobol4dotnet` repo, @N bug fix. FROZEN until M-DYN-S1.
+- **Track B** (NET INTERP / D-168): `scrip-interp.cs` in `one4all`. **ACTIVE.** No `snobol4dotnet` clone needed. No dotnet test. No crosscheck. Interpreter regression only.
 
 **Repo:** snobol4dotnet · **Frontend:** SNOBOL4/SPITBOL · **Backend:** .NET MSIL
 **Session prefix:** `D` / `N`
