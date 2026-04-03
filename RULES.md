@@ -189,7 +189,7 @@ Each session edits only its own row in PLAN.md NOW and its own L3 docs. **Never 
 A committed-but-not-pushed session lives only on a throwaway container — it is a lost session. Never say "handoff complete" until `git log origin/main --oneline -1` shows your commit hash on the remote. If push fails for any reason: fix it. Ask for credentials if needed. Do not declare done and move on.
 
 End-of-session checklist (in order):
-1. Update platform MD (TINY.md / ARCH-prolog-jvm.md / etc.) — HEAD, sprint status, §NOW next action.
+1. **Update `SESSION-<frontend>-<backend>.md` §NOW** — set sprint to NEXT session number, update HEAD hashes, rewrite first-actions for the next session. ⛔ THIS IS MANDATORY. A stale §NOW causes the next session to work on the wrong milestone. SESSIONS_ARCHIVE has the plan; §NOW in the SESSION doc must match it exactly.
 2. Update PLAN.md NOW table row (your row only).
 3. If milestone fired: move its row to MILESTONE_ARCHIVE.md.
 4. `git add -A && git commit && git push` every touched repo.
@@ -267,6 +267,11 @@ Every session is defined by three values. Pick them, read three docs, work.
 2. Scan RULES.md headers: `grep "^## " RULES.md` — then `cat` only sections relevant to your session. Never `cat` the whole file.
 3. Read `PLAN.md` — NOW table, confirm next milestone.
 4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
+
+**⛔ §NOW STALENESS CHECK — mandatory after step 4:**
+Compare the sprint number in `SESSION-*.md §NOW` against the sprint in your `SESSIONS_ARCHIVE` handoff.
+If they differ, the SESSION doc was not updated at last handoff — **the SESSIONS_ARCHIVE handoff is authoritative**.
+Rewrite `§NOW` from the SESSIONS_ARCHIVE before doing any work.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
