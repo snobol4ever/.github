@@ -17939,81 +17939,109 @@ Seven new files created under `one4all/src/driver/dotnet/`:
 - `src/runtime/js/sno-interp.js` — 1109 lines, statement executor (stack machine)
 - `SESSION-snobol4-js.md §DISPATCH ENCODING` — integer switch encoding (uid<<2|signal)
 
-MILESTONE-JVM-SNOBOL4.md M-JVM-INTERP section updated with full architecture description and revised A03/A04 milestone specs. Committed `001f369` → see next commit below.
-
 ---
 
-## J-220 architecture decision — 2026-04-02
-
-### Jasmin boxes — box execution language changed from Java to Jasmin
-
-**Decision:** `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the JVM interpreter.
-
-**Rationale:**
-- Interpreter tests the *actual emitter artifact* — no translation gap between what the interpreter proves and what `emit_jvm.c` generates
-- `bb_*.java` (J-217, committed) becomes human-readable oracle/reference only
-- Both `.java` and `.jasmin` produce identical `.class` files; `jar` and JVM are agnostic to source language
-- Design invariant preserved: interpreter operations map 1:1 to emitter operations — trivially true because the interpreter *runs* the Jasmin bytecode
-
-**Milestone impact:**
-- New first milestone: **M-JVM-INTERP-A00** — write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble → `boxes.jar`
-- Existing A01–A05 renumbered (unchanged in content); sprint sequence shifts by one (J-220=A00, J-221=A01, ...)
-- MILESTONE-JVM-SNOBOL4.md and SESSION-snobol4-jvm.md updated this session
-
-### Baseline for J-220 (unchanged)
-- one4all: `09ac2cb` · corpus: `2f2bbe3` · .github: this commit
-- No gate — interpreter session, exempt per RULES.md
-
-### J-220 first tasks (A00)
-1. `git pull --rebase` all repos
-2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=... bash SESSION_SETUP.sh`
-3. Read `bb_box.java` + `bb_lit.java` as authoring oracle
-4. Write `BbBox.jasmin` (base + Spec + MatchState)
-5. Write `bb_lit.jasmin` — smoke test α/ω
-6. Write remaining 24 boxes from `bb_*.java` oracles
-7. Assemble all → `boxes.jar`; smoke test BbLit instantiation
-8. Commit one4all + push · update SESSIONS_ARCHIVE + push .github
-
----
-
-## D-168 handoff — 2026-04-02
+## J-220 handoff — 2026-04-02
 
 ### Session type
-**NET INTERP** — SNOBOL4 .NET interpreter (Track B). Milestone planning session.
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
 
 ### What was done
 
-**No code written.** Milestone restructuring only.
+**No code written.** Architecture and planning session only.
 
-Milestone chain corrected to reflect the actual pipeline order:
-`.sno` → **Lexer** → tokens → **Parser** → `IrNode`/`IrStmt` tree → **5-phase interpreter**
+Key decisions made and committed (`ddb8f71` .github):
 
-Previous A01 was a single undifferentiated "scaffold + parser" milestone that skipped
-lexer as a discrete verified step. Split into:
+1. **Jasmin boxes decision** — `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the interpreter. `bb_*.java` (J-217) becomes human-readable oracle/reference only. Rationale: interpreter tests the real emitter artifact; no translation gap; `bb_*.java` and `bb_*.jasmin` both produce identical `.class` files loadable by JVM identically.
 
-- **A01a** — `Snobol4Lexer.cs`: tokenizes `.sno`; token stream mirrors `lex.c`; 19/19 token tests
-- **A01b** — `Snobol4Parser.cs` (Pidgin combinators) → `IrNode`/`IrStmt`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t`; 19/19 parse tests
-- **A01c** — `Ast.cs` removed; `PatternBuilder.cs` + `Executor.cs` dispatch on `IrKind`; build clean; 3/3 smoke
+2. **Milestone ladder updated** — New first milestone **M-JVM-INTERP-A00** inserted: write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble via `jasmin.jar` → `boxes.jar`. Existing A01–A05 unchanged in content, sprint sequence shifted by one.
 
-Updated files: `MILESTONE-NET-SNOBOL4.md` (canonical), `MILESTONE-NET-INTERP.md` (annex), `SESSION-snobol4-net.md`.
+3. **Architecture confirmed** — interpreter is stack machine (Phases 1,4,5) + Byrd box sequencer (Phases 2,3). Rolls out: Lexer → Parser → IR → Interpreter. Maps 1:1 to `emit_jvm.c` later. Oracle: `scrip-interp.c`.
 
-### Baseline for D-169
-- one4all: `fb074c9` · corpus: `2f2bbe3` · .github: this commit
-- Build: clean · hello/empty_string/multi: 3/3 pass (D-167 scaffold)
-- Gate: snobol4_x86 142/142 ✅
+4. **Routing guard confirmed** — "dynamic Byrd boxes + JVM" = J- session, NOT DYN-. See RULES.md §ROUTING.
 
-### D-169 first tasks (in order)
+### Baselines
+- `.github`: `ddb8f71`
+- `one4all`: `fb074c9` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- No gate — interpreter session, exempt per RULES.md
+
+### J-221 first tasks (in order)
+
 1. `git pull --rebase` all repos.
-2. `export PATH=/usr/local/dotnet8:$PATH`
-3. `dotnet build src/driver/dotnet/scrip-interp.csproj` → confirm clean.
-4. **Write `Snobol4Lexer.cs`** — tokenizes `.sno` source; mirrors `lex.c` token kinds.
-5. Wire lexer into `Snobol4Parser.cs`; replace any ad-hoc splitting.
-6. Replace `Ast.cs` with `IrNode.cs`; update parser, PatternBuilder, Executor to `IrKind`.
-7. Build clean. 3/3 smoke. 19/19 parse tests. Commit A01a+A01b+A01c.
-8. Update SESSIONS_ARCHIVE + push .github.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. Read authoring oracle: `cat one4all/src/runtime/boxes/shared/bb_box.java` then `cat one4all/src/runtime/boxes/lit/bb_lit.java`
+5. Write `one4all/src/runtime/boxes/shared/BbBox.jasmin` — base class, `Spec` inner class, `MatchState` inner class. Mirror `bb_box.java` exactly.
+6. Write `one4all/src/runtime/boxes/lit/bb_lit.jasmin` from `bb_lit.java` oracle. Smoke test: assemble, instantiate `BbLit`, run α on `"hello"` → `Spec(0,5)`.
+7. Write remaining 24 boxes from `bb_*.java` oracles (one subfolder each under `src/runtime/boxes/`).
+8. Write `one4all/src/runtime/boxes/shared/BbExecutor.jasmin` from `bb_executor.java` oracle.
+9. Assemble all: `java -jar jasmin.jar *.jasmin` → `jar cf boxes.jar *.class`
+10. Smoke: BbLit α/ω, BbSeq, BbAlt — 3 box types exercised.
+11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
 
-### Key reference
-- `MILESTONE-NET-SNOBOL4.md` — canonical unified chain
-- `MILESTONE-NET-INTERP.md` — annex with D-169 first tasks detail
-- `SESSION-snobol4-net.md` §Track B
->>>>>>> 88694a0 (D-168: split A01 → A01a/b/c (lex→parse→IR); update session+archive)
+### Key references
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A00` — gate criteria
+- `one4all/src/runtime/boxes/*/bb_*.java` — authoring oracle for every box
+- `one4all/src/runtime/boxes/shared/bb_executor.java` — BbExecutor oracle
+- `SESSION-snobol4-jvm.md §NOW` — first actions checklist
+   - `E_QLIT` β port: return ω_outer
+   - `&ANCHOR`: position-0 only when non-zero
+   - Phase 5 (match path): splice matched portion from subject
+   - Add `corpus/crosscheck/rungJ01/` test cases
+7. Commit + push one4all + corpus. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references for SJ-8
+- `MILESTONE-JS-SNOBOL4.md §M-SJ-B01` — full spec
+- `src/runtime/dyn/stmt_exec.c` — oracle for sno_engine.js (5-phase executor)
+- `src/backend/c/emit_byrd_c.c` — oracle for emit_js.c (EKind switch)
+- `src/runtime/js/sno_engine.js` — 552 lines, current pattern engine (iterative state machine, Ψ/Ω stacks)
+- `src/runtime/js/sno-interp.js` — 1109 lines, statement executor (stack machine)
+- `SESSION-snobol4-js.md §DISPATCH ENCODING` — integer switch encoding (uid<<2|signal)
+
+---
+
+## J-220 handoff — 2026-04-02
+
+### Session type
+**TINY JVM** — SNOBOL4 × JVM interpreter. Session prefix: J-.
+
+### What was done
+
+**No code written.** Architecture and planning session only.
+
+Key decisions made and committed (`ddb8f71` .github):
+
+1. **Jasmin boxes decision** — `bb_*.jasmin` (not `bb_*.java`) are the execution layer for the interpreter. `bb_*.java` (J-217) becomes human-readable oracle/reference only. Rationale: interpreter tests the real emitter artifact; no translation gap; `bb_*.java` and `bb_*.jasmin` both produce identical `.class` files loadable by JVM identically.
+
+2. **Milestone ladder updated** — New first milestone **M-JVM-INTERP-A00** inserted: write all 25 `bb_*.jasmin` + `BbBox.jasmin` + `BbExecutor.jasmin`, assemble via `jasmin.jar` → `boxes.jar`. Existing A01–A05 unchanged in content, sprint sequence shifted by one.
+
+3. **Architecture confirmed** — interpreter is stack machine (Phases 1,4,5) + Byrd box sequencer (Phases 2,3). Rolls out: Lexer → Parser → IR → Interpreter. Maps 1:1 to `emit_jvm.c` later. Oracle: `scrip-interp.c`.
+
+4. **Routing guard confirmed** — "dynamic Byrd boxes + JVM" = J- session, NOT DYN-. See RULES.md §ROUTING.
+
+### Baselines
+- `.github`: `ddb8f71`
+- `one4all`: `fb074c9` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- No gate — interpreter session, exempt per RULES.md
+
+### J-221 first tasks (in order)
+
+1. `git pull --rebase` all repos.
+2. `FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh`
+3. **No gate** — interpreter session, exempt per RULES.md.
+4. Read authoring oracle: `cat one4all/src/runtime/boxes/shared/bb_box.java` then `cat one4all/src/runtime/boxes/lit/bb_lit.java`
+5. Write `one4all/src/runtime/boxes/shared/BbBox.jasmin` — base class, `Spec` inner class, `MatchState` inner class. Mirror `bb_box.java` exactly.
+6. Write `one4all/src/runtime/boxes/lit/bb_lit.jasmin` from `bb_lit.java` oracle. Smoke test: assemble, instantiate `BbLit`, run α on `"hello"` → `Spec(0,5)`.
+7. Write remaining 24 boxes from `bb_*.java` oracles (one subfolder each under `src/runtime/boxes/`).
+8. Write `one4all/src/runtime/boxes/shared/BbExecutor.jasmin` from `bb_executor.java` oracle.
+9. Assemble all: `java -jar jasmin.jar *.jasmin` → `jar cf boxes.jar *.class`
+10. Smoke: BbLit α/ω, BbSeq, BbAlt — 3 box types exercised.
+11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+
+### Key references
+- `MILESTONE-JVM-SNOBOL4.md §M-JVM-INTERP-A00` — gate criteria
+- `one4all/src/runtime/boxes/*/bb_*.java` — authoring oracle for every box
+- `one4all/src/runtime/boxes/shared/bb_executor.java` — BbExecutor oracle
+- `SESSION-snobol4-jvm.md §NOW` — first actions checklist
