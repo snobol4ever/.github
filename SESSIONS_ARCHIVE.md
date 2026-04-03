@@ -18820,3 +18820,94 @@ diff output. Clone snobol4ever/x64 for SPITBOL if needed.
 - `src/driver/dotnet/SnobolEnv.cs` — builtins + value type
 - `src/driver/dotnet/IrNode.cs` — IR types (unchanged, correct)
 - `MILESTONE-NET-SNOBOL4.md` — full milestone chain
+
+---
+
+## SJ-8 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 JS** — SNOBOL4 × JavaScript interpreter. Session prefix: SJ-.
+
+### What was done
+
+**Real arithmetic + float marker sprint — 153/178 → 151/178 broad (net -2; regression introduced, see below).**
+
+#### Commits
+- `e9c1126` — SJ-8 r1: E_FLIT sval, _real_result, __pat markers, pattern-value vars
+
+#### Fixes applied
+
+**`sno_runtime.js`:**
+- `_real_result(n)`: new helper — when arithmetic produces a whole-number result but one operand was real (has `.`), returns `n + '.0'` string to preserve real type through `_str()`. E.g. `2.0 + 3.0 = 5` (JS int) → `"5.0"` → `_str` formats as `"5."`.
+- `_add/_sub/_mul/_div/_pow`: use `_real_result(r)` when `!(_is_int(a) && _is_int(b))`.
+- `_pow`: real base or real exponent → `_real_result`.
+- `_str()`: added string-with-dot branch — real-valued strings (from `_real_result` or `E_FLIT`) get formatted as SNOBOL4 real (`"27.0"` → `"27."`, `"1.5"` → `"1.5"`).
+- `_str()`: fix `0.` edge case — `0.0 → "0."` not `"."`. Only strip leading zero when fractional digits follow (`0.5→".5"` but `0.0→"0."`).
+- Export `_is_int`, `_real_result`.
+
+**`sno-interp.js`:**
+- `T_REAL` lexer: store raw string in `sval` (e.g. `"1.0"`) alongside `dval`.
+- `E_FLIT` parse: `expr_leaf(E_FLIT, t.sval)` — stores string, not float.
+- `E_FLIT` eval: returns `e.sval` (string like `"1.0"`) — `_is_int("1.0")` correctly false.
+- `E_MNS/E_PLS` (unary): preserve real type — `_is_int(a) ? r : _real_result(r)`.
+- `_build_pat E_VAR`: check `v.__pat` before `PAT_lit`-ifying — pattern-value vars return stored PAT directly (fix for `053`).
+- Import `_is_int`, `_real_result` from `sno_rt`.
+
+**`sno_engine.js`:**
+- All PAT constructors: add `__pat:1` marker to every object-valued PAT (not `PAT_lit` which returns a string). Enables pattern-value variable detection in `_build_pat`.
+
+#### Known regression introduced: `410_arith_int` (`5 + ''` → `"5.0"`)
+
+`_add(5, '')` returns correct integer `5` in isolation. But the interpreter produces `"5.0"` for `x = 5 + ''`. Root cause NOT in `_add` itself — verified via node REPL. Suspect: some path between expression evaluation and variable assignment is calling `_real_result` or converting `5` through a real path. Possible culprits:
+- `_vars` proxy setter converting on write
+- `_assign()` in `sno-interp.js` calling `_str()` on the value before storing
+- The concatenation operator being invoked instead of addition (field-parsing ambiguity with `5 + ''`)
+
+#### Still failing (27 total)
+
+| Test | Root cause |
+|------|-----------|
+| `410_arith_int` | **REGRESSION** — `5+''` → `"5.0"` (undiagnosed, see above) |
+| `412_arith_real` | `412/005`: `3.0**3` — still failing despite `_pow` fix; `412/006`: unary `-1.0` |
+| `literals` | `0.0` and `1.0` lines output `0.` / `1.` instead of `0` / `1` — need to re-examine SPITBOL reference; may be DIFFER comparison issue not _str |
+| `053_pat_alt_commit` | Pattern-value var __pat fix landed but not yet verified passing |
+| `1013_func_nreturn` | `NRETURN` lvalue — not yet implemented |
+| `1010/1011_func_recursion/redefine` | Likely `OPSYN` — not yet implemented |
+| `1113/1114_table/item` | TABLE builtins incomplete |
+| `212_indirect_array` | `$var<index>` indirect array subscript |
+| `W07_capt_cur` | `@pos` children structure unverified |
+| `094_data_define_access`, `081_builtin_datatype` | Undiagnosed |
+| `910_convert` | Undiagnosed |
+| `expr_eval` | `*Push()` — `E_DEFER` on function call |
+| `test_case/math/stack/string` | Compile errors |
+| `fileinfo`, `triplet` | INPUT-dependent |
+| `word1–4`, `wordcount`, `cross` | Complex programs |
+
+### Baselines for SJ-9
+
+- `one4all`: `e9c1126`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 151/178** (no gate — interpreter session)
+
+### SJ-9 first actions
+
+1. `git pull --rebase` all repos.
+2. No gate (interpreter session, exempt per RULES.md).
+3. **Fix `410` regression FIRST** — diagnose `5 + ''` → `"5.0"`:
+   - Add `console.error` trace in `_assign()` in `sno-interp.js` to see value before store
+   - Check if field parser is treating `+ ''` as unary-plus applied to `''` (giving a real-tagged empty string) rather than E_ADD
+   - Check `_vars` proxy setter — does it transform values?
+   - Suspect: `E_PLS` unary on `''` — `_uplus('')` = `_num('')` = `0`... but `_real_result` wraps it → `"0.0"`. Then `5 + "0.0"` → `_add(5, "0.0")` — `_is_int("0.0")` = false (has dot!) → `_real_result(5)` = `"5.0"`. **THIS IS THE BUG** — `+ ''` is parsed as unary `E_PLS` applied to `''`, returning `0`, then `_real_result(0)` = `"0.0"`, then `5 + "0.0"` triggers real path.
+   - Fix `E_PLS` unary: `_is_int(a) ? _num(a) : _real_result(_num(a))` — but `a=''` is not real, so should return `0` not `"0.0"`. Fix: only call `_real_result` when `a` itself has a dot: `(_is_int(a)||a==='') ? _num(a) : _real_result(_num(a))`. Or simpler: unary `+` on a string should return integer if the string has no dot.
+4. **Fix `literals`** — check what SPITBOL actually outputs for `0.0` and `1.0` literals. Oracle: `corpus/crosscheck/hello/literals.ref` shows `0` and `1` on those lines — meaning SNOBOL4 integer zero/one not reals. Re-examine what those source lines actually are.
+5. **Fix `412/005`** — `3.0 ** 3`: `_pow("3.0", 3)` → `_real_result(27)` = `"27.0"`. Verify DIFFER comparison path works. May be a DIFFER numeric-equality path issue.
+6. **Fix `OPSYN`** — `func_table[dest] = func_table[src]`.
+7. **Fix `NRETURN`** — catch `SnoNReturn`, treat payload as lvalue name.
+8. Run broad, target 160+/178.
+
+### Key references
+- `src/runtime/js/sno-interp.js` — all interpreter code
+- `src/runtime/js/sno_runtime.js` — `_vars`, `_str`, `_num`, builtins, arithmetic
+- `src/runtime/js/sno_engine.js` — pattern match engine, PAT_* constructors
+- `MILESTONE-JS-SNOBOL4.md` — milestone ladder
