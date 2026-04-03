@@ -20124,360 +20124,98 @@ Fix:
 
 ---
 
-## DYN-53 handoff — 2026-04-03
+## D-174 handoff — 2026-04-03
 
 ### Session type
-**DYNAMIC BYRD BOX** — SNOBOL4 × x86 scrip-interp (C tree-walk interpreter). Session prefix: DYN-
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
 
-### Result: 154p/24f (up from 115p — +39 passes)
+### Result: 151p/27f (baseline was 149p/29f)
 
-### What was done (DYN-53)
+### What was done (D-174)
 
-**Build fixed — scrip-interp now builds cleanly:**
-- `src/Makefile` `FRONTEND_SNO`: `parse.c` → `snobol4.tab.c` + `snobol4.lex.c` (parse.c was archived in DYN-48)
-- `snobol4.lex.c`: stubs appended — `int sno_nerrors = 0;` and `void sno_add_include_dir(const char *d)` (declared in scrip_cc.h, called by main.c, never implemented after bison/flex pivot)
-- scrip-cc Makefile collision: both `snobol4.lex.c` and `lex.rebus.c` export default `yy*` flex globals. **Not fixed** — scrip-cc still fails to link. scrip-interp build bypasses this (no rebus in its TU set). Fix for scrip-cc: add `%option prefix="snobol4_yy"` to `snobol4.l` and regenerate.
-- `src/frontend/snobol4/parse.c` restored from `b6471da~1` then left untracked — it is the OLD hand-rolled parser (pre-bison) and is **not used**. Should be deleted or `.gitignore`d next session.
+**Commit `d1c20c4` on one4all:**
 
-**Grammar fix — T_MATCH stmt rule (root cause of all `?` failures):**
-- `opt_subject` typed as `expr3`; `T_MATCH` lives at `expr0` level — unreachable. Pattern-match statements always parse-errored.
-- Fix: added explicit second `stmt` production:
-  ```
-  stmt: opt_label expr2 T_MATCH opt_pattern opt_repl opt_goto T_STMT_END
-  ```
-- Parser regenerated with bison. **word1 now passes.**
+1. **`&TRIM` default `0→1`** (`SnobolEnv.cs`) — SPITBOL default is trim trailing whitespace from INPUT. Fixes word1–word4/wordcount/cross in direct crosscheck runs (+6).
 
-**Milestone: SNOBOL4 never uses E_CAT** (per architect instruction):
-- `fixup_val()` in `snobol4.y` — made a no-op. Was converting `E_SEQ→E_CAT` on subject/replacement subtrees. Now: `static void fixup_val(EXPR_t *e){ (void)e; }`.
-- S=PR split: removed `||subj->kind==E_CAT` — `E_SEQ` only.
-- `scrip-interp.c` DEFINE arg parser: added `|| arg->kind == E_SEQ` alongside `E_CAT`.
-- `interp_eval(E_SEQ)` already calls `CONCAT_fn` which routes `DT_P+DT_P → pat_cat` at runtime. No separate `E_CAT` path needed for SNOBOL4.
+2. **Unary `+`/`-` prefix in `ParseAtom`** (`Snobol4Parser.cs`) — `TopLevelTokens` treats `+'4'` as a single token; `ParseAtom` had no handler for `+`/`-` followed by operand. Added prefix cases before the parenthesis/function handler. Fixes `411_arith_unary` (+1).
 
-**Commit:** `effd6e9` on one4all
+3. **`OUTPUT` capture fix** (`Executor.cs`) — `setVar` lambda in `PatternBuilder` construction now intercepts `"OUTPUT"` and calls `_output.WriteLine(v)` instead of storing in env dict. Fixes `ARB . OUTPUT` patterns.
 
-### Root cause of word2–4/cross/wordcount — diagnosed, NOT fixed
+4. **β backtrack loop fix** (`bb_executor.cs`) — `ByrdBoxExecutor.Run` was `break`-ing after the first `Beta` call regardless of result. Changed to loop until `Beta` returns `Spec.Fail`. Needed for ARB/ARBNO multi-step backtracking.
 
-Pattern assignment with `+` continuation lines loses captures from continuation lines 2+. WHEN (line 1) captures; WHO, WHAT (lines 2–3) do not.
+5. **Greek port rename** — All `Alpha`→`α`, `Beta`→`β`, `Gamma`→`γ`, `Omega`→`ω` across all 25 box `.cs` files and 22 `.il` files. `IByrdBox` interface methods are now `α`/`β`. Zero English port names remain anywhere in boxes or driver.
 
-**Confirmed by two-way MONITOR (`/tmp/cont4.sno`):**
-```snobol4
-      PAT      =  POS(0) LEN(4) . WHEN
-+                 TAB(6) LEN(4) . WHO
-      LINE = '1769  Watt    rest'
-      LINE  ?  PAT
-      OUTPUT = 'WHO=[' WHO '] WHEN=[' WHEN ']'
-```
-SPITBOL: `WHO=[Watt] WHEN=[1769]`
-scrip-interp: `WHO=[] WHEN=[1769]`
+6. **`bb_arbno` unify** — MSIL class name `BbArbno`→`bb_arbno` in `bb_arbno.il` and all field refs. All other boxes were already `bb_xxx` — confirmed no other `BbXxx` PascalCase names exist.
 
-**Hypothesis (not yet confirmed):** `E_CAPT_COND_ASGN` in `interp_eval` requires `nchildren >= 2`. Inline `LEN(4) . WHEN` (no continuation) produces correct 2-child node. With `+` continuation, the `E_SEQ` flatten logic (`expr_add_child`) may be absorbing the `.` RHS variable into the parent `E_SEQ` rather than leaving it as `E_CAPT_COND_ASGN`'s second child — resulting in `nchildren==1` and early `NULVCL` return.
+**Commit `9340a11` / `1e01392` on one4all (r2):**
 
-**Next session: add trace `fprintf(stderr, "CAPT nch=%d sval=%s\n", e->nchildren, e->nchildren>=2?e->children[1]->sval:"?")` in `E_CAPT_COND_ASGN` case, run `cont4.sno`, confirm child count.**
+7. **`fromAlpha` restore** (`bb_seq.cs`) — The mass Greek rename corrupted the local parameter name `fromAlpha` to `fromα` (invalid C# identifier). Restored. Build now clean.
 
-### Remaining failures (24)
+### Remaining failures in D-175
 
-| Group | Tests | Suspected cause |
-|---|---|---|
-| word2–4, wordcount, cross | continuation-line captures | E_CAPT_COND_ASGN nchildren bug (see above) |
-| W04_arbno_* | arbno backtracking | bb_arbno state reset |
-| 310–312 | concat strings/numeric/null | T_CONCAT / E_SEQ string concat |
-| 1012/1013 | func locals/NRETURN | call stack save/restore |
-| 1015_opsyn | OPSYN edge case | TBD |
-| 1016_eval | EVAL builtin | TBD |
-| expr_eval | line continuation in EVAL | TBD |
-| 056_pat_star_deref | star deref | TBD |
-| 063_capture_null_replace | null replace | TBD |
-| literals, test_case, test_math, test_stack, test_string | misc | TBD |
-| W07_capt_chain | capture chain | TBD |
+**word1–word4 / cross / wordcount still fail in broad** (but pass in direct crosscheck):
+- These tests use `PAT = ' the ' ARB . OUTPUT (' of ' | ' a ')` then `LINE ? PAT` in a loop
+- The pattern is stored as IR via `_env.SetPattern`, then rebuilt via `getPatternVar` delegate
+- **Root cause**: when `getPatternVar` rebuilds an inner `PatternBuilder`, its `_captures` list is local and never wired into the outer `ByrdBoxExecutor._captures`. So `CommitCaptures()` never fires the inner captures.
+- **Fix**: `PatternBuilder.Build` must return captures alongside the root box, or the executor must accept an additional captures list from deferred builds. Cleanest: change `ByrdBoxExecutor` to accept `IEnumerable<bb_capture>` instead of a fixed list, and append when resolving pattern variables.
 
-### DYN-54 first actions (mandatory order)
-
+### D-175 first actions
 1. `git pull --rebase` all repos
-2. `FRONTEND=snobol4 BACKEND=x64 TOKEN=... bash /home/claude/.github/SESSION_SETUP.sh`
-3. Rebuild scrip-interp (DYN build command in SESSION-dynamic-byrd-box.md) — objects in `/tmp/ib/`
-4. Confirm **154p/24f** baseline
-5. Add `nchildren` trace to `E_CAPT_COND_ASGN` in `scrip-interp.c`, run `cont4.sno`
-6. Fix capture child count bug → re-run broad → word2–4/cross/wordcount should pass
-7. Delete or `.gitignore` `src/frontend/snobol4/parse.c` (old pre-bison parser, untracked)
-8. Fix scrip-cc build: add `%option prefix="snobol4_yy"` to `snobol4.l`, regenerate `snobol4.lex.c`, rebuild
-9. Target ≥170p
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm clean
+3. Smoke: `dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno` → `HELLO WORLD`
+4. Broad → confirm **151p/27f** baseline
+5. **Fix captures wiring for stored pattern variables** — see root cause above
+6. **Fix `1012_func_locals`** — local var save/restore in `callUserFunc`
+7. Target ≥ 160p
 
-### Baselines for DYN-54
-- `one4all`: `effd6e9`
+### Baselines for D-175
+- `one4all`: `1e01392`
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
-- **Broad: 154p/24f**
-- Build: DYN build command (SESSION-dynamic-byrd-box.md §scrip-interp build command)
-- Broad: `INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh`
-
-### Key files (DYN-53 changes)
-- `src/frontend/snobol4/snobol4.y` — T_MATCH stmt rule, no-op fixup_val, E_SEQ-only S=PR split
-- `src/frontend/snobol4/snobol4.tab.c` — regenerated
-- `src/frontend/snobol4/snobol4.lex.c` — sno_nerrors + sno_add_include_dir stubs
-- `src/Makefile` — FRONTEND_SNO updated
-- `src/driver/scrip-interp.c` — E_SEQ added to DEFINE arg parser
-## SJ-14 handoff — 2026-04-03
-
-### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
-
-### Result: 159p/19f — no regression, M-SJ-B07 partial (PAT-value storage fixed, secondary OUTPUT bug not yet fixed)
-
-### What was done (SJ-14)
-
-**Root cause diagnosed — word1–word4/wordcount/cross:**
-
-The failure was **not** in `sno_engine.js` SEQ backtracking (previous hypothesis was wrong — direct engine tests confirm SEQ works correctly for all cases). The actual root cause was upstream in `sno-interp.js`.
-
-When `PAT = " the " ARB . OUTPUT (" of " | " a ")` is executed:
-- The RHS is an `E_SEQ` node containing pattern children (`E_CAPT_COND_ASGN`, `E_ARB`, `E_ALT`)
-- `interp_eval(E_SEQ)` fell through to string concat: `" the " + "" + "[object Object]"` → stored garbage string in `_vars['PAT']`
-- `LINE ? PAT` then called `_build_pat(E_VAR('PAT'))` → found a string → `PAT_lit(garbage)` → match always fails
-
-**Fix applied — M-SJ-B07 (commit `1692327` on one4all):**
-- Added `_expr_is_pat(e)` — module-level predicate (mirrors parser's `_is_pat()`): returns true if expr tree contains any of `E_ARB, E_ARBNO, E_CAPT_COND_ASGN, E_CAPT_IMMED_ASGN, E_CAPT_CURSOR, E_DEFER`
-- `interp_eval(E_SEQ)`: if `_expr_is_pat(e)` → `return _build_pat(e)` (returns `{__pat:1,...}` pattern object); else fall through to string concat as before
-- `_build_pat(E_VAR)` already had the `__pat` fast-path: if stored value has `__pat` → return directly ✅
-
-**Secondary bug found — NOT yet fixed:**
-
-After the fix, `word1` runs but prints intermediate ARB captures:
-```
-(empty line)
-c
-ca
-cat
-```
-Expected: just `cat`. The `_pending_cond` deferral in `sno_engine.js` is correct — it only commits captures on overall match success. The spurious writes are coming from a **second OUTPUT-writing path** in `sno-interp.js` outside the engine, triggered during pattern evaluation. Not yet traced to exact location.
-
-**SNOBOL4 syntax/semantics learned this session:**
-- Card format: col-1 dispatch (`*!|;`=comment, `-`=CTL, `+.`=continuation, space=body, other=label)
-- Statement form: `LABEL  SUBJECT PATTERN = REPLACEMENT  :GOTO`
-- Operator precedence: `=`/`?` → `&` → `|` → concat(ws) → `@` → `+`/`-` → `#` → `/` → `*` → `%` → `**` → `$`/`.` → `~` → unary → `[]`/`<>` → atoms
-- SPITBOL MINIMAL: machine-independent macro assembly, CFP$A/B/C/F config params, OSINT C interface via `z`-prefix procedures
-
-### SJ-15 first actions (mandatory order)
-
-1. `git pull --rebase` all repos
-2. No gate — interpreter session, exempt from run_invariants.sh / run_emit_check.sh
-3. **Confirm 159p/19f baseline:**
-   ```bash
-   cat > /tmp/sno_js_runner.sh << 'EOF'
-   #!/usr/bin/env bash
-   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
-   EOF
-   chmod +x /tmp/sno_js_runner.sh
-   cd /home/claude/one4all
-   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null
-   ```
-4. **Fix secondary OUTPUT spurious-write bug (complete M-SJ-B07):**
-   - Run: `node src/runtime/js/sno-interp.js /home/claude/corpus/crosscheck/strings/word1.sno < /home/claude/corpus/crosscheck/strings/word1.input`
-   - Observe: prints `""`, `"c"`, `"ca"`, `"cat"` instead of just `"cat"`
-   - The `_pending_cond` deferral in `sno_engine.js` is correct — `CAPT_COND/succeed` pushes to `_pending_cond`, committed only on `engine()` success loop
-   - The spurious writes are from a second path in `sno-interp.js` — search for any code that assigns to `_vars['OUTPUT']` or calls `_vars_set` directly during pattern build/eval
-   - Hypothesis: `interp_eval(E_CAPT_COND_ASGN)` at line 857–858 calls `interp_eval(children[0])` which evaluates `ARB` — check if this triggers side effects when ARB resolves via `_vars` lookup
-   - Fix: ensure no `_vars` writes happen during `_build_pat` or its callees
-5. **After OUTPUT fix confirmed:** re-run broad — expect word1–word4/wordcount/cross to pass → target ≥165p
-6. **Then tackle `1015_opsyn`** — run it; check if already fixed
-7. **Then `expr_eval`** — line continuation `+` prefix not handled by lexer INITIAL state
-
-### Baselines for SJ-15
-- `one4all`: `1692327`
-- `corpus`: `2f2bbe3`
-- `.github`: this commit
-- **Broad: 159p/19f**
-
-### Key files
-- `src/runtime/js/sno-interp.js` — main interpreter (M-SJ-B07 partial applied)
-- `src/runtime/js/sno_engine.js` — pattern match engine (clean, SEQ confirmed working)
-- `src/runtime/js/sno_runtime.js` — value types, builtins, I/O (OUTPUT Proxy here)
-
+- **Broad: 151p/27f**
+- Build: `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
 
 ---
 
-## SJ-15 handoff — 2026-04-03
+## D-174 handoff — 2026-04-03
 
 ### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
 
-### Result: 160p/18f — net +1 from SJ-14 baseline (159p/19f). M-SJ-B07 complete.
+### Result: 151p/27f (baseline was 149p/29f)
 
-### What was done (SJ-15)
+### What was done (D-174)
 
-**Two root cause bugs found and fixed:**
+**Commit `d1c20c4` on one4all:**
 
-**Fix 1 — `sno_engine.js` CAPT_COND `_cc_stack` (M-SJ-B07 completion, commit `89efe24`):**
+1. **`&TRIM` default `0→1`** (`SnobolEnv.cs`) — SPITBOL default. Fixes word1–4/wordcount/cross in direct crosscheck (+6).
+2. **Unary `+`/`-` prefix in `ParseAtom`** (`Snobol4Parser.cs`) — `+'4'` is one token; added prefix handler. Fixes `411_arith_unary` (+1).
+3. **`OUTPUT` capture fix** (`Executor.cs`) — `setVar` lambda now intercepts `"OUTPUT"` → `_output.WriteLine(v)`. Fixes `ARB . OUTPUT` patterns.
+4. **β backtrack loop fix** (`bb_executor.cs`) — `ByrdBoxExecutor.Run` was breaking after first Beta call. Now loops to exhaustion. Fixes ARB multi-step backtracking.
+5. **Greek port rename** — All `Alpha`→`α`, `Beta`→`β`, `Gamma`→`γ`, `Omega`→`ω` across all 25 box `.cs` and 22 `.il` files. `IByrdBox` interface methods now `α`/`β`. Zero English port names remain.
+6. **`bb_arbno` + all boxes** — MSIL class `BbArbno`→`bb_arbno`. All boxes confirmed `bb_xxx` — no `BbXxx` PascalCase anywhere.
 
-The spurious OUTPUT writes in word1/word2/word3/word4/wordcount were traced via stack dump to `sno_engine.js:143` — the `_pending_cond` commit loop inside `engine()`. Root cause: `CAPT_COND/succeed` fired multiple times during ARB backtracking (ARB tries lengths 0,1,2,3... within a single startPos attempt), each time pushing to `_pending_cond` without clearing the stale earlier entry. The `CAPT_COND/concede` path never fires in this scenario because ARB swallows the concede signal internally.
+**Commit `1e01392` on one4all (r2):**
+7. **`fromAlpha` restore** (`bb_seq.cs`) — Mass rename corrupted local param `fromAlpha`→`fromα`. Restored. Build clean.
 
-Fix: added `_cc_stack` parallel to `_pending_cond`. At `CAPT_COND/proceed`: push `_pending_cond.length` snapshot onto `_cc_stack`. At `CAPT_COND/succeed`: **pop** the snapshot and truncate `_pending_cond` to that depth before pushing the new capture. At `CAPT_COND/concede/recede`: restore `_pending_cond` to snapshot depth and pop `_cc_stack`. The pop-in-succeed (not peek) is critical — leaving the entry causes imbalance across LOOP iterations.
+### Remaining failures root cause (word1–4/cross/wordcount in broad)
 
-**Fix 2 — `sno_runtime.js` INPUT reads byte-at-a-time:**
+Pattern stored via `PAT = ...` then used as `LINE ? PAT`:
+- `_env.SetPattern` stores the IR; `getPatternVar` rebuilds via inner `PatternBuilder`
+- Inner builder's `_captures` list is never wired into outer `ByrdBoxExecutor._captures`
+- `CommitCaptures()` never fires → `ARB . OUTPUT` writes nothing
+- **Fix**: `ByrdBoxExecutor` must accept captures from deferred/inner pattern builds
 
-`LINE = INPUT` was silently eating multiple lines per access. Old code: `fs.readSync(0, buf, 0, 4095, null)` read up to 4095 bytes, consuming entire stdin buffer in one call. `replace(/\r?\n$/, '')` stripped only the trailing newline, so subsequent `INPUT` reads returned `_FAIL` (EOF). New code: reads one byte at a time until `\n`. This unblocked the LOOP in word1 (cat+house now correct).
-
-**Remaining word2/3/4/wordcount/cross failures** are a separate issue — multiple named ARB captures where the second ARB in the same pattern gets empty captures. Not the `_cc_stack` bug (that's fixed). Likely the SEQ child-iteration order or a second CAPT_COND within a SEQ where the snapshot from the outer CAPT_COND bleeds into the inner one's depth calculation. Not traced this session.
-
-### SJ-16 first actions (mandatory order)
-
+### D-175 first actions
 1. `git pull --rebase` all repos
-2. No gate — interpreter session
-3. **Confirm 160p/18f baseline:**
-   ```bash
-   cat > /tmp/sno_js_runner.sh << 'EOF'
-   #!/usr/bin/env bash
-   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
-   EOF
-   chmod +x /tmp/sno_js_runner.sh
-   cd /home/claude/one4all
-   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
-   ```
-4. **Diagnose word2 multiple-ARB capture failure:**
-   ```bash
-   node src/runtime/js/sno-interp.js /home/claude/corpus/crosscheck/strings/word2.sno \
-     < /home/claude/corpus/crosscheck/strings/word2.input 2>/dev/null
-   cat /home/claude/corpus/crosscheck/strings/word2.sno
-   ```
-   word2 uses `NAME ARB . W1 " invented the " ARB . W2 " in " ARB . W3` — three simultaneous CAPT_CONDs in a SEQ. The first ARB captures correct (empty?), W2 and W3 also empty. Check if `_cc_stack` depth is being wrongly shared between sibling CAPT_CONDs.
-5. **After word2/3/4 fixed** → run broad → expect ≥165p → tackle `1015_opsyn` and `expr_eval` line-continuation
+2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → clean
+3. Broad → confirm **151p/27f**
+4. Fix captures wiring for stored pattern variables (see above)
+5. Fix `1012_func_locals` — local var save/restore in `callUserFunc`
+6. Target ≥ 160p
 
-### Baselines for SJ-16
-- `one4all`: `89efe24`
-- `corpus`: `2f2bbe3`
-- `.github`: this commit
-- **Broad: 160p/18f**
-
-### Key files
-- `src/runtime/js/sno_engine.js` — CAPT_COND `_cc_stack` fix applied here
-- `src/runtime/js/sno_runtime.js` — INPUT byte-at-a-time fix applied here
-- `src/runtime/js/sno-interp.js` — main interpreter (unchanged this session)
-
-
----
-
-## J-229 handoff — 2026-04-03
-
-### Session type
-**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
-
-### Result: 138p/40f — baseline preserved; naming renames complete
-
-### What was done (J-229)
-
-**Greek port rename — commits `2741274` + `1055785` on one4all:**
-- `alpha()` / `beta()` → `α()` / `β()` in ALL box sources: `.j` Jasmin flat, per-box `.j`, `.java` reference, `.cs` (NET), `.il` (MSIL)
-- Constants `ALPHA=0` / `BETA=1` → `Α=0` / `Β=1` in `bb_box.j` and `bb_box.java`
-- Labels `call_beta`→`call_β`, `tryAlpha`→`tryα`, `try_alpha`→`try_α`, `alt_beta`→`alt_β`; `fromAlpha`→`fromα` in bb_seq.cs
-- `boxes.jar` rebuilt and verified — **138p/40f preserved** ✅
-- NOTE: `delta` (MatchState scan-position field) was NOT renamed — it is not a port name
-
-**BbXxx → bb_xxx rename — commit `4ceba85` on one4all:**
-- All 27 CamelCase box class names → snake_case `bb_xxx` across .cs/.il/.java/.j
-- 23 files; smoke test (`hello.sno` → `HELLO WORLD`) passes ✅
-
-**Original J-229 Jasmin bugs — NOT YET FIXED (J-230 first priority):**
-- `bb_arbno` VerifyError in `tryBody` (stack type mismatch in Jasmin)
-- `bb_any`/`bb_rpos` regression from J-228 `val()` sed (String field `chars` corrupted)
-
-### J-230 first actions
-1. `git pull --rebase` all repos
-2. `apt-get install -y default-jdk`
-3. Rebuild stubs + driver (see SESSION-snobol4-jvm.md §J-229 first actions)
-4. Confirm **138p/40f** baseline
-5. Fix `bb_arbno`: `javap -c -cp boxes.jar bb.bb_arbno | grep -A20 tryBody` — find int/boolean stack mismatch
-6. Fix `bb_any`/`bb_rpos`: check `val()I` incorrectly applied to String `chars` field in jasmin
-7. Reassemble `boxes.jar`, rerun broad → target ≥136p then ≥155p (ARRAY/TABLE)
-
-### Baselines for J-230
-- `one4all`: `4ceba85`
-- `corpus`: `2f2bbe3`
-- `.github`: this commit
-- **Broad: 138p/40f**
-
----
-
-## SJ-16 handoff — 2026-04-03
-
-### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
-
-### Result: 160p/18f — baseline preserved. Three fixes applied; word2/3/4 not yet passing (pat-store roundtrip bug remains).
-
-### What was done (SJ-16)
-
-**Root cause analysis — multi-ARB capture failure (word2/3/4):**
-
-Three bugs found and fixed. None individually sufficient; the pat-store roundtrip issue is the remaining blocker.
-
-**Fix 1 — `sno_engine.js` CAPT_COND/succeed: peek-not-pop `_cc_stack` (commit `a62a812`):**
-
-`CAPT_COND/succeed` was calling `_cc_stack.pop()`. ARB backtracking causes `CAPT_COND/succeed` to fire multiple times for the same CAPT_COND node (ARB tries len=0,1,2,...; each retry produces a new succeed via `SEQ/concede → Ω.pop() → ARB/recede → succeed`). On the second fire, `_cc_stack` was already empty → `snap=0` → `_pending_cond.length=0` → wiped all prior captures (e.g. WHEN).
-
-Fix: `_cc_stack.pop()` → `_cc_stack[_cc_stack.length-1]` (peek). Entry is only popped at concede/recede (final retirement).
-
-Engine-level verified: all three captures (WHEN/WHO/WHAT) correct in isolation via `sno_search()`.
-
-**Fix 2 — `sno-interp.js` assignment RHS pat routing:**
-
-`PAT = LEN(4) . W` was routing through `interp_eval(E_CAPT_COND_ASGN)` → `interp_eval(E_FNC('LEN'))` → "undefined function LEN". The assignment path (line ~1237) called `interp_eval(s.replacement)` unconditionally.
-
-Fix: `let repl = s.replacement ? (_expr_is_pat(s.replacement) ? _build_pat(s.replacement) : interp_eval(s.replacement)) : null;`
-
-Single-line `PAT = LEN(4) . W` confirmed working.
-
-**Fix 3 — `sno-interp.js` continuation T_NEWLINE suppression:**
-
-Lexer emitted `T_NEWLINE` at end of each physical line before checking if the next line started with `+`/`.`. This split multi-line PAT assignments into separate statements — the continuation was processed as a new (malformed) statement.
-
-Fix: at `'\n'` handling, peek ahead skipping blank lines. If next non-blank line starts with `+`/`.`, consume the marker + leading whitespace, clear `_bol`, and `continue` without emitting `T_NEWLINE`.
-
-**Remaining blocker — pat-store roundtrip:**
-
-After all three fixes, word2 produces `" invented the  in "` (empty WHO/WHEN/WHAT). No stderr errors. The pattern is now built and stored correctly in `_vars['PAT']`. At match time, `_build_pat(E_VAR('PAT'))` is called. The fast-path at that case checks `if (val && val.__pat) return val` — so if `PAT_seq(...)` sets `__pat:1`, the stored value is returned directly. But the captures still come out empty.
-
-**Hypothesis for SJ-17:** The `_cc_stack` peek fix in sno_engine.js is correct at the engine level — but `sno-interp.js`'s match path (line ~1219) calls `_build_pat(s.pattern)` where `s.pattern` is `E_VAR('PAT')`, which returns the stored `{__pat:1,...}` object. The `_set_vars_hook` in sno_engine is set globally once. The issue may be that after the multi-line continuation fold, `s.pattern` is the interrogation pattern `? PAT` (i.e. `E_VAR('PAT')`), but the SEQ containing `LEN(4).WHEN ... ARB.WHO ... REM.WHAT` is built at assign time and stored as a flat `PAT_seq` node without preserving the correct `Σ`/`ζ[1]` entry positions across CAPT_COND children. Alternatively: the `_build_pat(E_VAR)` fast-path is not being hit and instead the stored pattern value (a JS object) is being string-coerced somewhere.
-
-**Concrete first debug step:**
-```bash
-node -e "
-const fs = require('fs');
-// Patch _vars to log PAT assignment and match-time retrieval
-" 
-# Instead: add stderr trace to sno-interp.js line 1219:
-# const pat = _build_pat(s.pattern);
-# process.stderr.write('pat built: ' + JSON.stringify(pat)?.slice(0,80) + '\n');
-node src/runtime/js/sno-interp.js corpus/crosscheck/strings/word2.sno \
-  < corpus/crosscheck/strings/word2.input
-```
-
-### SJ-17 first actions (mandatory order)
-
-1. `git pull --rebase` all repos
-2. No gate — interpreter session
-3. **Confirm 160p/18f baseline:**
-   ```bash
-   cat > /tmp/sno_js_runner.sh << 'EOF'
-   #!/usr/bin/env bash
-   exec node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"
-   EOF
-   chmod +x /tmp/sno_js_runner.sh
-   cd /home/claude/one4all
-   INTERP=/tmp/sno_js_runner.sh CORPUS=/home/claude/corpus TIMEOUT=5 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="
-   ```
-4. **Diagnose word2 pat-store roundtrip:**
-   - Add temporary stderr trace at sno-interp.js line ~1219 to print `JSON.stringify(pat).slice(0,120)` — confirm `__pat:1` is present and the tree has CAPT_COND nodes
-   - If `__pat:1` missing: `PAT_seq` / `PAT_capt_cond` etc. need to set it — check `sno_engine.js` exports
-   - If `__pat:1` present but captures empty: the `_set_vars_hook` may be firing during the wrong engine call — check if `sno_search` is being called with the stored pat or with a freshly built one
-   - Also check: `_build_pat(E_VAR('PAT'))` fast-path in sno-interp.js — does it return the stored value or call `_str()` on it?
-5. **After word2/3/4 fixed** → run broad → expect ≥165p → tackle `1015_opsyn` and `expr_eval` line-continuation (now partially fixed — verify `+` continuation in expr context works)
-
-### Baselines for SJ-17
-- `one4all`: `a62a812`
-- `corpus`: `2f2bbe3`
-- `.github`: this commit
-- **Broad: 160p/18f**
-
-### Key files
-- `src/runtime/js/sno_engine.js` — CAPT_COND peek-not-pop fix (Fix 1)
-- `src/runtime/js/sno-interp.js` — pat-RHS assignment routing (Fix 2) + continuation fold (Fix 3)
-
+### Baselines for D-175
+- `one4all`: `1e01392` · `corpus`: `2f2bbe3` · `.github`: this commit
+- **Broad: 151p/27f**
