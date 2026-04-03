@@ -203,6 +203,22 @@ Pattern-free statements skip Phases 2+3.
 
 ---
 
+
+### M-SJ-B07 — PAT-VALUE STORAGE: retire E_SEQ/E_CAT dual-use ambiguity at runtime
+
+**Depends on:** M-SJ-B06
+**Sprint:** SJ-14
+**Oracle:** `scrip-interp.c` — C interpreter stores pattern values as opaque DESCR_t pattern pointers; assignment of a pattern expression stores the pattern, not a string.
+**Scope:**
+- `sno-interp.js` — `_expr_is_pat(e)`: module-level predicate mirroring parser._is_pat()
+- `interp_eval(E_SEQ)`: if `_expr_is_pat(e)` → route to `_build_pat(e)` returning a `{__pat}` object; else fall through to string concat
+- Result: `PAT = " the " ARB . OUTPUT ("..." | "...")` stores a live pattern object in `_vars['PAT']`; subsequent `LINE ? PAT` retrieves it via `_build_pat E_VAR __pat` fast path — no stringify
+- Secondary bug (NOT yet fixed): spurious intermediate OUTPUT writes during ARB backtracking — traced to a second OUTPUT-writing path outside the engine's `_pending_cond` deferral; see SJ-15 first actions
+
+**Gate:** word1–word4 / wordcount / cross passing ✅ *(secondary OUTPUT bug must also be fixed)*
+
+---
+
 ## Phase C — Functions, Data Structures, EVAL
 
 ### M-SJ-C01 — Arrays / Tables / DATA types
@@ -281,7 +297,8 @@ Gates reintroduce emit-diff + `snobol4_js` invariants.
 | SJ-11 | M-SJ-B02–B03 | E_SEQ · E_ALT |
 | SJ-12 | M-SJ-B04–B05 | ARBNO/ARB + all 16 primitives |
 | SJ-13 | M-SJ-B06 | Captures + Phase 5 commit flush |
-| SJ-14 | M-SJ-C01 | ARRAY/TABLE/DATA |
+| SJ-14 | M-SJ-B07 | PAT-value storage — _expr_is_pat + E_SEQ routing (partial) |
+| SJ-15 | M-SJ-B07 (complete) + M-SJ-C01 | Fix spurious OUTPUT + ARRAY/TABLE/DATA |
 | SJ-15 | M-SJ-C02 | DEFINE/user-fns |
 | SJ-16 | M-SJ-C03 | EVAL()/CODE() |
 | SJ-17 | M-SJ-INTERP | Interpreter parity sweep |
