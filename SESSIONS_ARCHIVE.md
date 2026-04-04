@@ -24220,3 +24220,46 @@ gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
 - `one4all`: `3ee7013`
 - `corpus`: `8d5cc6a` (unchanged)
 - `.github`: to be pushed after this entry
+
+## DYN-87b — sn4parse.c: clean actions[] structure restored (2026-04-04)
+
+### What Was Done
+
+Actions[] structure restored to clean inline form — `static acts_t NAME_actions[] = { ... }`
+immediately before each `syntab_t NAME = { ... }`, values matching syn_init.h exactly.
+`go` pointers are static where tables are already declared (e.g. `&TBLKTB`, `&NBLKTB`);
+only four tables with forward references need `init_tables()` wiring:
+`ELEMTB_actions[0..3].go`, `INTGTB_actions[1..2].go`, `FLITB_actions[1].go`, `EXPTB_actions[0].go`.
+LBLXTB forward-declared before LBLTB_actions to satisfy static `&LBLXTB` reference.
+Build clean, SQRT.sno 15 statements, &TRIM/&STLIMIT/string literals all correct.
+
+### Commit
+- `one4all`: `a7a7f96`
+
+### Remaining bug (DYN-88)
+`TIME()`, `LT(N, 1000000)` — "ELEMNT: illegal character" on leading space before args.
+Root cause not yet identified. The two-way STREAM trace oracle is the correct next step.
+
+### Session start for DYN-88
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
+
+# Build CSNOBOL4 with STREAM tracing
+# Instrument lib/stream.c: add fprintf(stderr,"STREAM %s [%.*s]->stype=%d ret=%d\n",...)
+# Compile: cd snobol4-2.3.3 && make CFLAGS="-DTRACE_STREAM"
+# Add identical trace to sn4parse.c stream()
+
+# Diff traces on failing input:
+# echo '    T1 = TIME()' | ./csnobol4_trace 2>/tmp/cs.trace
+# echo '    T1 = TIME()' | ./sn4parse_trace 2>/tmp/sn.trace  
+# diff /tmp/cs.trace /tmp/sn.trace | head -20
+# First divergence = root cause of all arg-whitespace bugs
+```
+
+### Baselines for DYN-88
+- `one4all`: `a7a7f96`
+- `corpus`: `8d5cc6a`
+- `.github`: to be pushed after this entry
