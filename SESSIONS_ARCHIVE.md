@@ -21504,3 +21504,120 @@ But for `*factor . *Unary()` — the `*factor` is a deferred SUB-PATTERN (recurs
 ### Key files
 - `src/runtime/js/sno-interp.js` — _build_pat CAPT/DEFER fixes
 - `src/runtime/js/sno_engine.js` — _pending_cond commit fix
+
+---
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 169p/9f — +3 over 166p baseline. M-DYN-S1 gate (≥169p) MET ✅
+
+### What was done (DYN-63)
+
+**Commit `d2fc0b5` on one4all:**
+
+**1. Fix unary `@var` cursor capture — `src/driver/scrip-interp.c`**
+
+Root cause: `@NH` in `HC ? @NH ANY(V) . CROSS = '*'` parses as **unary** `E_CAPT_CURSOR` (nchildren==1, child=E_VAR "NH"), not binary (nchildren==2). The `interp_eval` handler had:
+```c
+if (e->nchildren < 2) return NULVCL;
+```
+which silently dropped all unary cursor captures. Fixed:
+```c
+case E_CAPT_CURSOR:
+    if (e->nchildren == 1) {
+        const char *nm = e->children[0]->sval;
+        if (!nm) return NULVCL;
+        return pat_at_cursor(nm);   /* unary @var — epsilon + capture */
+    }
+    if (e->nchildren < 2) return NULVCL;
+    DESCR_t left_pat = interp_eval(e->children[0]);
+    const char *nm   = e->children[1]->sval;
+    if (!nm) return left_pat;
+    return pat_cat(left_pat, pat_at_cursor(nm));  /* binary pat @ var */
+```
+
+**2. Fix bare `VAR =` at end-of-line — `src/frontend/snobol4/snobol4.l`**
+
+Root cause: lexer rule `<BODY>{W}"="{W}` requires trailing whitespace after `=`. When `=` is the last non-newline character (`OUTPUT   =\n`), the trailing `{W}` fails — flex falls through to `<BODY>"="` → `T_UN_EQUAL`, which the parser rejects in assignment position. Added:
+```
+<BODY>{W}"="       { return T_ASSIGNMENT; }  /* = at EOL with no trailing space — DYN-63 */
+```
+Flex longest-match ensures `{W}"="{W}` still wins when trailing whitespace is present.
+
+**3. Diagnosis trail (no code changes)**
+
+- Confirmed `bb_atp` α fires correctly for all scan positions (no `done` flag issue).
+- Traced `@NH` silence to unary parse form via grammar inspection (expr14 rule).
+- Traced `cross` zero output to `OUTPUT =` parse failure via `cat -A` showing no trailing spaces.
+
+### Remaining failures (9)
+`expr_eval` · `test_case` · `test_math` · `test_stack` · `test_string`
+`1012_func_locals` · `1013_func_nreturn` · `1015_opsyn` · `1016_eval`
+
+### DYN-64 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `d2fc0b5` at one4all HEAD
+2. No gate — interpreter session
+3. Build with `.s` boxes (command below — unchanged from DYN-62)
+4. Confirm **169p/9f** baseline
+5. **Attack `1012_func_locals`**: run it, diff vs ref, find root cause in `stmt_exec.c` / `scrip-interp.c` local variable scoping
+6. Then `1013_func_nreturn` → target ≥172p
+
+### Baselines for DYN-64
+- `one4all`: `d2fc0b5`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 169p/9f**
+
+### scrip-interp-s build command (unchanged from DYN-62)
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; DYN="$RT/dyn"
+SCRIP_CC_INC="$ROOT/src"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$SCRIP_CC_INC -DDYN_ENGINE_LINKED"
+
+# Install deps if needed: apt-get install -y libgc-dev nasm bison flex
+
+mkdir -p /tmp/ib_s
+
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib_s/x86_stubs.o
+gcc -O2 -c "$DYN/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib_s/stmt_exec.o
+gcc -O2 -c "$DYN/eval_code.c" $DYNFLAGS -w -o /tmp/ib_s/eval_code.o
+
+cat > /tmp/ib_s/gc_shim.s << 'EOF'
+section .note.GNU-stack noalloc noexec nowrite progbits
+section .text
+global GC_MALLOC
+extern GC_malloc
+GC_MALLOC: jmp GC_malloc
+EOF
+nasm -f elf64 /tmp/ib_s/gc_shim.s -o /tmp/ib_s/gc_shim.o
+
+for box in lit alt seq arbno pos rpos tab rtab fence abort \
+           len span any notany brk breakx arb rem succeed fail eps bal \
+           atp capture not interr; do
+  nasm -f elf64 "$BOXES/$box/bb_${box}.s" -o "/tmp/ib_s/bb_${box}.o"
+done
+
+make -C src/frontend/snobol4
+
+gcc -O0 -no-pie -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c \
+    src/frontend/snobol4/snobol4.tab.o src/frontend/snobol4/snobol4.lex.o \
+    /tmp/ib_s/*.o -lgc -lm -o scrip-interp-s
+
+cat > /tmp/dyn_run_s.sh << 'RUNEOF'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip-interp-s "$@"
+RUNEOF
+chmod +x /tmp/dyn_run_s.sh
+```
+
+### Key files
+- `src/driver/scrip-interp.c` — E_CAPT_CURSOR unary fix (this session)
+- `src/frontend/snobol4/snobol4.l` — bare `VAR=` EOL fix (this session)
+- `src/frontend/snobol4/snobol4.tab.c` / `.lex.c` — regenerated

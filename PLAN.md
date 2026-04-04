@@ -67,7 +67,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-63 | one4all `05e4d48` · corpus `2f2bbe3` | **DYN-64**: fix `E_CAPT_CURSOR` — use `interp_eval_pat` for left child (LEN(2) returning DT_I not DT_P) → cross fixed → ≥167p → 1012/1013 → ≥169p · M-DYN-S1 |
+| **⭐ DYNAMIC BYRD BOX** | DYN-63 | one4all `d2fc0b5` · corpus `2f2bbe3` | **DYN-64**: 169p/9f ✅ M-DYN-S1 gate met → attack `1012_func_locals`/`1013_func_nreturn` → ≥172p |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
 | ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
