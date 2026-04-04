@@ -22054,3 +22054,38 @@ fileinfo   triplet   expr_eval   test_case   test_stack
 ### Key files
 - `src/runtime/js/sno-interp.js` — interpreter (all fixes here)
 - `src/runtime/js/sno_runtime.js` — builtins (TABLE/ARRAY suspect for test_stack)
+
+## DYN-67 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 170p/8f → **172p/6f** (+2) — **M-DYN-S1 reached**
+
+### Commits
+- `ae8f78e` — fix 1013_func_nreturn: zero-arg E_FNC NRETURN lvalue assign in execute_program
+- `5702b2a` — fix 1015_opsyn: E_OPSYN dispatch via APPLY_fn + store operator sval in grammar
+
+### What was fixed
+
+**1013_func_nreturn:** `ref_a() = 26` parses as E_FNC(nchildren=0). execute_program had no handler — fell to expression-only, assignment ignored. Fix: new zero-arg E_FNC branch calls call_user_function, follows DT_N return to write through to named variable.
+
+**1015_opsyn:** Two bugs. (1) Grammar discarded operator symbol — E_OPSYN node had no sval. Fix: store "@", "&", "|" in sval at parse time. (2) No E_OPSYN case in interp_eval. Fix: new case dispatches APPLY_fn(e->sval, args, n) — routes to DUPL/SIZE/etc. via register_fn_alias. Also fixed unary `|` which was E_ALT (wrong) → E_OPSYN.
+
+### Remaining failures (6f)
+```
+expr_eval   test_case   test_math   test_stack   test_string   1016_eval
+```
+
+### DYN-68 first actions
+1. `git pull --rebase` all repos
+2. Build scrip-interp-s (search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
+3. Confirm **172p/6f**
+4. Tackle `1016_eval` — EVAL builtin. Trace `eval_expr()` in `eval_code.c` with `EVAL('output = 42')`
+5. Then `test_case/math/stack/string` — `-include` + `_skip_to_eol` / `_prev_ws` length bug in C frontend
+6. `expr_eval` — E_NAME nameref in expression context
+
+### Baselines for DYN-68
+- `one4all`: `5702b2a` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 172p/6f**
+- Run: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
