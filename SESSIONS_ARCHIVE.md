@@ -21813,172 +21813,184 @@ If semicolon fix resolves `1012` + `test_*` (which likely also use `;`), could j
 - `one4all`: `e8c18fb` · `corpus`: `8d5cc6a` · `.github`: this commit
 - **Broad: 169p/9f**
 - Build: `make -C src/frontend/snobol4` + scrip-interp-s link command from archive
-
-## DYN-66 handoff — 2026-04-04
+## D-179 handoff — 2026-04-03
 
 ### Session type
-**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
 
-### Result: 169p/9f → **170p/8f** (+1)
+### Result: 161p → **165p/13f** (target ≥165p ✅)
 
-### What was done (DYN-66)
+### What was done (D-179)
 
-**Commit `8e337ba` on one4all:**
+**Commit `07e9030` on one4all (rebased from `9149c86`):**
 
-**`<BODY>{W}";"` fix — root cause of all semicolon-separated statement parse failures.**
+1. **stdin EOF fix** — `Program.cs`: changed `new Executor(env)` to pass `new StreamReader(Console.OpenStandardInput())` so `ReadLine()` returns `null` on piped EOF. Fixed `fileinfo` and `triplet` hang.
 
-- **Diagnosis path**: DYN-65 added `BEGIN(INITIAL)` to `<BODY>";"` and `<BODY_START>";"` which was correct, but the real blocker was earlier in the token stream. Built a token-dump tool (`tok_dump.c`) calling `flex_lex_next` directly and observed: input `a = 'x' ; output = a` produced `T_IDENT T_ASSIGNMENT T_STR T_CONCAT T_STMT_END ...` — a spurious `T_CONCAT` (kind=301) before `T_STMT_END`.
-- **Root cause**: `<BODY>{W}` (line 146 of `snobol4.l`) matched the space *before* `;` via flex maximal munch, emitting `T_CONCAT`. Then `;` fired `T_STMT_END`. Bison rejected `T_CONCAT` because it's not in the follow-set for `opt_goto` or any expression continuation at statement-end position.
-- **Fix**: Added `<BODY>{W}";"` rule *before* the bare `<BODY>{W}` rule. Flex maximal munch now consumes space+semicolon together, emitting only `BEGIN(INITIAL); return T_STMT_END`. One line added to `snobol4.l`, regenerated `snobol4.lex.c`.
-- **Verified**: `1012_func_locals` passes (7/7). Broad: 170p/8f.
+2. **Arg-fail propagation** — `Executor.cs`: added `if (evalArgs.Any(a => a.IsFail)) return DESCR.Fail;` before `CallBuiltin` and `CallUserFunc`. Previously `SIZE(INPUT)` on EOF swallowed the fail — `INPUT` returned `DESCR.Fail`, but `SIZE` called `ToString()` on it and returned a length, hiding the failure. Fixed `fileinfo` + 2 others.
 
-### Remaining failures (8f)
+3. **ARG/LOCAL builtins** — `SnobolEnv.cs`: added `ArgOrLocal(args, local)` helper. Looks up `FuncDef` by name (from args[0]), returns n-th param or local name (1-based, uppercase), fails on OOB. Fixed `1017_arg_local` (8/8).
+
+4. **`.label` value fix** — `Executor.cs`: `E_CAPT_COND_ASGN` in value context now returns `DESCR.Of(n.Children[0].SVal)` (the variable name as string) instead of evaluating the variable. This allows `.jlab` to pass the string `"JLAB"` to ARG/LOCAL, and `$.a` to pass `"A"` to `$` for indirection.
+
+5. **`$.expr<idx>` parse fix** — `Snobol4Parser.cs`: added `StripTrailingSubscript` helper. When `ParseAtom` sees `$expr<idx>`, it now strips the trailing `<idx>` first, builds `E_INDIRECT(ParseAtom(expr))`, then wraps with `E_IDX`. Previously `$.a<2>` was parsed as `E_INDIRECT(E_CAPT_COND_ASGN(E_IDX(VAR("A"), 2)))` — subscript inside indirect, wrong. Fixed `212_indirect_array`.
+
+6. **`-include` directive** — `Snobol4Parser.cs`: `ParseFile` now passes `baseDir`; `ParseSource` detects `-include 'path'` lines (case-insensitive), resolves path relative to source file, reads and splices logical lines inline before parsing. Allows `test_case/math/stack/string` to load `lib/*.sno` — but those tests still fail because `lib/string.sno`/etc use FRETURN/NRETURN which are pre-existing failures.
+
+### Remaining failures for D-180 (13f)
 
 ```
-expr_eval   test_case   test_math   test_stack   test_string
-1013_func_nreturn   1015_opsyn   1016_eval
+triplet  expr_eval
+test_case  test_math  test_stack  test_string
+1010_func_recursion  1011_func_redefine  1013_func_nreturn
+1015_opsyn  1018_apply
+cross  word1
 ```
 
-**`1013_func_nreturn` partial diagnosis:**
-- Test: `ref_a` defined with `ref_a = .a :(nreturn)`. Calling `ref_a()` should return the *name* `.a` (an lvalue). `ref_a() = 26` should write 26 into `a`.
-- Assertion 001 (reading ref_a() gives a's value=27): **passes** (`:f` branch not taken → `:s` implied).
-- Assertion 002 (lvalue assign `ref_a() = 26` succeeds): **passes**.
-- Assertion 003 (`a` is now 26): **FAILS** — the lvalue write-back did not propagate into `a`.
-- Root cause not yet traced — in `scrip-interp.c`, check `interp_eval` E_ASSIGN handler: when LHS is `E_FNC` returning an NRETURN name, does it dereference the name and write through it?
+- **triplet**: blank-line output — test outputs `0` where ref expects empty line. Likely `OUTPUT = 0` vs `OUTPUT = ''` in the lib or a numeric-to-string issue.
+- **test_case/math/stack/string**: lib functions use FRETURN (`startswith`, `endswith`, `contains`, stack ops). Need FRETURN working.
+- **1013_func_nreturn**: NRETURN not implemented — blocks test_* lib and several other tests.
+- **word1/cross**: pre-existing `. OUTPUT` ARB capture side-effect.
+- **expr_eval**: pre-existing line-continuation issue.
+- **1015_opsyn, 1010/1011/1018**: pre-existing deeper function call issues.
 
-### DYN-67 first actions
-
+### D-180 first actions
 1. `git pull --rebase` all repos
-2. Rebuild scrip-interp-s: `make -C src/frontend/snobol4` then link command below
-3. Confirm **170p/8f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
-4. Trace `1013_func_nreturn`: in `scrip-interp.c`, find E_ASSIGN handler — check what happens when LHS evaluates to a function call that returned via NRETURN. The returned DESCR should carry a name (not a value); the assign needs to follow the name pointer and write into the named variable.
-5. Fix `1013` → `1015_opsyn` → target ≥172p → M-DYN-S1
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. `cat > /tmp/sni_run.sh` + `chmod +x` (see below)
+5. Confirm **165p/13f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Implement FRETURN: in `Executor.cs`, `CallUserFunc` catch `FReturnException` and propagate as statement failure (return `false` from `ExecStmt`). Check `1013_func_nreturn` for NRETURN too.
+7. Fix triplet blank-line: run triplet, find where `0` comes from, likely a numeric OUTPUT issue.
+8. Target ≥170p → then OPSYN+NRETURN → ≥175p.
 
-### Baselines for DYN-67
-- `one4all`: `8e337ba`
-- `corpus`: `8d5cc6a`
-- `.github`: this commit
-- **Broad: 170p/8f**
-- Build: `make -C src/frontend/snobol4` then scrip-interp-s link (see "scrip-interp-s build command (UPDATED)" above)
-- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
-- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
-
-## DYN-66 handoff — 2026-04-04
-
-### Session type
-**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
-
-### Result: 169p/9f → **170p/8f** (+1)
-
-### What was done (DYN-66)
-
-**Commit `8e337ba` on one4all:**
-
-**`<BODY>{W}";"` fix — root cause of all semicolon-separated statement parse failures.**
-
-- **Diagnosis**: Built token-dump tool calling `flex_lex_next` directly. Observed input `a = 'x' ; output = a` produced spurious `T_CONCAT` (kind=301) before `T_STMT_END`. `<BODY>{W}` matched the space before `;` via maximal munch, emitting `T_CONCAT`. Bison rejected it — `T_CONCAT` not in follow-set at statement-end position.
-- **Fix**: Added `<BODY>{W}";"` rule before the bare `<BODY>{W}` rule. Flex maximal munch now consumes space+semicolon together, emitting only `BEGIN(INITIAL); return T_STMT_END`. One line in `snobol4.l`, regenerated `snobol4.lex.c`.
-- **Verified**: `1012_func_locals` passes (7/7). Broad: 170p/8f.
-
-### Remaining failures (8f)
-```
-expr_eval   test_case   test_math   test_stack   test_string
-1013_func_nreturn   1015_opsyn   1016_eval
-```
-
-**`1013_func_nreturn` partial diagnosis:**
-- Assertions 001+002 pass (reading name value; lvalue assign succeeds). Assertion 003 fails (write-back into `a` didn't propagate). Root cause: in `scrip-interp.c` E_ASSIGN handler, when LHS is E_FNC returning NRETURN name, the write doesn't follow the name pointer into the named variable.
-
-### DYN-67 first actions
-1. `git pull --rebase` all repos
-2. `make -C src/frontend/snobol4` then relink scrip-interp-s (see "scrip-interp-s build command (UPDATED)" in this file)
-3. Confirm **170p/8f**
-4. Trace `1013`: E_ASSIGN in `scrip-interp.c` — check lvalue write-back when LHS is NRETURN name
-5. Fix `1013` → `1015_opsyn` → ≥172p → M-DYN-S1
-
-### Baselines for DYN-67
-- `one4all`: `8e337ba` · `corpus`: `8d5cc6a` · `.github`: this commit
-- **Broad: 170p/8f**
-- Build: `make -C src/frontend/snobol4` + scrip-interp-s link (see "scrip-interp-s build command (UPDATED)")
-- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
-- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
-
-## SJ-23 handoff — 2026-04-03
-
-### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
-
-### Result: 171p/7f (baseline held — no regression)
-
-### What was done (SJ-23)
-
-**Commit `e4354a5` on one4all** (rebased):
-
-**Binary/unary lexer rewrite — W-op-W model from beauty.sno/snobol4.l**
-
-Key insight from reading `beauty.sno`: every binary operator is defined as `$op = *White op *White` — White is consumed atomically as part of the operator, not emitted as a separate T_WS token. This exactly mirrors Flex `snobol4.l`'s `{W}op{W}` rules producing distinct `T_ASSIGNMENT` vs `T_UN_EQUAL` tokens.
-
-**Root cause of all prior parse bugs:** The JS lexer emitted a single token kind for each operator character (e.g. `T_EQ` for `=` whether binary or unary), and the parser's `_e14` MAP included `T_EQ→E_ASSIGN` as a *unary* operator. When `OUTPUT = 'hello'` had `OUTPUT` parsed as a label (T_IDENT + T_WS = label), the parser then called `_e14()` for the subject and saw `=` → consumed it as unary → "expected operand after unary operator".
-
-**Fix implemented:**
-- New token constants: `T_BIN_PLUS`..`T_BIN_AMP` (37–53) for whitespace-flanked binary ops
-- WS handler lookahead: after consuming leading whitespace, if next char is binary-eligible op AND followed by whitespace/EOL, consume op + trailing whitespace, emit `T_BIN_*` directly. White is swallowed into binary token atomically.
-- `mark()`/`restore()` now saves/restores `_prev_ws`
-- `_e14` MAP: bare unary tokens only — `T_BIN_*` never appear as unary
-- `_e0/_e3/_e5-_e13/_lbin/_rbin`: direct `T_BIN_*` matching, no WS-peeking
-- `parse_stmt`: `T_BIN_EQ`/`T_BIN_QMARK` direct dispatch; `T_WS` for pattern context
-- `_is_cat_start`: `T_BIN_*` are non-starters (binary, not concatenation)
-
-**Verified working:**
-- `OUTPUT = 'hello'` at col-0 (was: "expected operand after unary operator")
-- `10 / 2 = 5`, `(10 / 2) * 3 = 15` (was: division by zero from unary `/`)
-- Arithmetic: `+`, `-`, `*`, `/`, `%`, `^` all correct
-- 171p/7f — no regression
-
-### Remaining failure: -include/_bol/_prev_ws length-sensitive bug (4 tests blocked)
-
-`test_math`, `test_case`, `test_stack`, `test_string` all fail with "expected operand after unary operator" when the included file has a comment block of >= 2 lines where line 2 is long enough.
-
-**Reproduction:**
+### run wrapper
 ```bash
-printf '*---\n* math.sno  --  Numeric utility functions\n' > /tmp/cm_exact.sno
-# + DEFINE block appended
-# → fails with "expected operand after unary operator" on line after -include
-```
-But:
-```bash
-printf '*---\n* --\n' > /tmp/cm_short.sno  # short line 2 → works
-printf '*---\n' > /tmp/cm_one.sno           # one comment → works
+cat > /tmp/sni_run.sh << 'RUN'
+#!/bin/bash
+dotnet /tmp/sni/scrip-interp.dll "$1"
+RUN
+chmod +x /tmp/sni_run.sh
 ```
 
-**Root cause traced:** `_skip_to_eol()` uses raw `pos++` without touching `_prev_ws`. The WS handler's new lookahead (peek at op char and char after) interacts with the position left by `_skip_to_eol` in a length-sensitive way. Exact mechanism not yet isolated.
-
-### SJ-24 first actions (mandatory order)
-1. `git pull --rebase` all repos — confirm `e4354a5` at one4all HEAD
-2. No gate — interpreter session
-3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
-4. Confirm **171p/7f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
-5. Add `process.stderr.write` tracing at: (a) `_skip_to_eol()` entry — log `pos`, `_prev_ws`; (b) `_skip_to_eol()` exit — log `pos`; (c) WS handler entry — log `pos`, `_prev_ws`, and the lookahead op+after chars
-6. Run `/tmp/sni_run.sh /tmp/test_exact.sno` (the reproducer) and compare trace to `/tmp/test_xx.sno` (the working short-comment version)
-7. Once fixed → expect **175p/3f** (+4: test_math, test_case, test_stack, test_string)
-8. Then tackle `E_NAME(E_IDX)` nameref for `expr_eval` (see SJ-22 handoff for full analysis)
-9. Target **≥176p → M-SJ-INTERP+2**
-
-### Baselines for SJ-24
-- `one4all`: `e4354a5`
+### Baselines for D-180
+- `one4all`: `07e9030`
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
-- **Broad: 171p/7f**
+- **Broad: 165p/13f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
 
-### Key files
-- `src/runtime/js/sno-interp.js` — _skip_to_eol/_prev_ws fix + E_NAME nameref
-- `src/runtime/js/sno_engine.js` — no changes needed
+## D-180 handoff — 2026-04-03
 
-### Reproducer files
-```bash
-# Failing:
-printf '*---\n* math.sno  --  Numeric utility functions\n' > /tmp/cm_exact.sno
-# Passing:
-printf '*---\n* --\n' > /tmp/cm_short.sno
-# Both need a DEFINE block appended and -include wrapper to test
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: 165p/13f → **166p/12f** (triplet fixed; test_case/math/stack/string not yet passing)
+
+### What was done (D-180)
+
+**Commit `e1a66fb` on one4all:**
+
+1. **EQ/LT/GT/GE/LE/NE/LES/LEQ etc. return null string** — `NumCmp` and `LexCmp` in `SnobolEnv.cs` were returning `args[0]` on success. SNOBOL4 spec: comparison predicates return the null string `""`, not their argument. Fixed to `DESCR.Of("")`. This fixed `triplet` (+1): `OUTPUT = EQ(N,0)` was outputting `0` instead of blank line.
+
+2. **`-include` at col 1 was swallowed as continuation** — `SplitLogicalLines` treats col-1 `-` as a continuation line (`+`). Added check: if the `-` line is a `-include` directive, do NOT treat as continuation — emit as a no-label body line instead, so `ParseSource` can handle it as a directive. Previously, `-include` at col 1 was being appended to the previous statement's body and lost.
+
+3. **`-include` col-1 label extraction** — even after fix #2, `-include` at col 1 fell into the label-extraction branch (col1 != space), extracting `"-INCLUDE"` as a label, which caused ParseSource to skip it (directive check requires `lbl == null`). Added explicit guard: if line starts with `-include`, set `curLabel = null` and emit as body.
+
+4. **Parent-dir `-include` search** — when `File.Exists(inclPath)` fails, walk up parent dirs looking for the requested relative path. Allows `test_case.sno` in `crosscheck/library/` to find `lib/case.sno` at `corpus/lib/case.sno`.
+
+### Remaining failures for D-181 (12f)
+
 ```
+expr_eval
+test_case  test_math  test_stack  test_string
+1010_func_recursion  1011_func_redefine  1013_func_nreturn
+1015_opsyn  1018_apply
+cross  word1
+```
+
+- **test_case/math/stack/string**: libs now load correctly (`lwr`/`upr` work). `icase` fails — it builds a pattern recursively using `|` (alternation) and returns it from a function; the pattern-return path appears broken. `cap` uses `:S(RETURN)F(FRETURN)` — FRETURN on the conditional goto. Investigate `icase` pattern-return first (likely the higher-value fix, unlocks all 4 tests).
+- **1013_func_nreturn**: NRETURN not implemented. `ref_a = .a :(nreturn)` — returning a name descriptor. Needs new `FReturnException`-style throw in `CallUserFunc` for NRETURN, returning a name DESCR that acts as lvalue.
+- **word1/cross**: pre-existing `. OUTPUT` ARB capture side-effect.
+- **expr_eval**: pre-existing line-continuation issue.
+- **1010/1011/1015/1018**: deeper function call issues.
+
+### D-181 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. `cat > /tmp/sni_run.sh` + `chmod +x` (see below)
+5. Confirm **166p/12f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Debug `icase` pattern-return: run `test_case.sno` and add tracing to `CallUserFunc` return path for pattern-type DESCRs.
+7. Fix → rerun → target ≥170p
+
+### run wrapper
+```bash
+cat > /tmp/sni_run.sh << 'RUN'
+#!/bin/bash
+dotnet /tmp/sni/scrip-interp.dll "$1"
+RUN
+chmod +x /tmp/sni_run.sh
+```
+
+### Baselines for D-181
+- `one4all`: `e1a66fb`
+- `corpus`: `8d5cc6a`
+- `.github`: `8644fda`
+- **Broad: 166p/12f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## D-180 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: 165p/13f → **166p/12f** (triplet fixed; -include col-1 bug fixed)
+
+### What was done (D-180)
+
+**Commit `e1a66fb` on one4all:**
+
+1. **EQ/LT/GT etc. return null string** — `NumCmp`/`LexCmp` returned `args[0]` on success. SNOBOL4 spec: comparison predicates return `""`. Fixed to `DESCR.Of("")`. Fixed `triplet` (+1).
+
+2. **`-include` col-1 swallowed as continuation** — `SplitLogicalLines` treats col-1 `-` as continuation. Added guard: `-include` lines are emitted as no-label body lines for `ParseSource` to handle as directives.
+
+3. **`-include` col-1 label extraction** — after fix #2, `-include` at col-1 was still extracting `"-INCLUDE"` as a label (causing ParseSource to skip it — directive requires `lbl == null`). Added explicit guard to set `curLabel = null`.
+
+4. **Parent-dir `-include` search** — when include path not found at baseDir, walk up parent dirs. Allows `crosscheck/library/test_case.sno` to find `lib/case.sno` at `corpus/lib/`.
+
+### Remaining failures for D-181 (12f)
+
+- **test_case/math/stack/string**: libs now load, `lwr`/`upr` work. `icase` fails — returns pattern from function, pattern-return path broken. Fix `icase` → unlocks all 4 tests.
+- **1013_func_nreturn**: NRETURN not implemented.
+- **word1/cross**: pre-existing `. OUTPUT` ARB capture.
+- **expr_eval**: pre-existing line-continuation.
+- **1010/1011/1015/1018**: deeper function call issues.
+
+### D-181 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. Setup wrapper: `cat > /tmp/sni_run.sh` (see below) + `chmod +x`
+5. Confirm **166p/12f**
+6. Debug `icase` pattern-return in `CallUserFunc` — function returns pattern DESCR, trace how it's used as match subject
+7. Target ≥170p
+
+### run wrapper
+```bash
+cat > /tmp/sni_run.sh << 'RUN'
+#!/bin/bash
+dotnet /tmp/sni/scrip-interp.dll "$1"
+RUN
+chmod +x /tmp/sni_run.sh
+```
+
+### Baselines for D-181
+- `one4all`: `e1a66fb` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 166p/12f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
