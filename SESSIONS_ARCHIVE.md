@@ -21902,3 +21902,83 @@ expr_eval   test_case   test_math   test_stack   test_string
 - Build: `make -C src/frontend/snobol4` + scrip-interp-s link (see "scrip-interp-s build command (UPDATED)")
 - Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## SJ-23 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 171p/7f (baseline held — no regression)
+
+### What was done (SJ-23)
+
+**Commit `e4354a5` on one4all** (rebased):
+
+**Binary/unary lexer rewrite — W-op-W model from beauty.sno/snobol4.l**
+
+Key insight from reading `beauty.sno`: every binary operator is defined as `$op = *White op *White` — White is consumed atomically as part of the operator, not emitted as a separate T_WS token. This exactly mirrors Flex `snobol4.l`'s `{W}op{W}` rules producing distinct `T_ASSIGNMENT` vs `T_UN_EQUAL` tokens.
+
+**Root cause of all prior parse bugs:** The JS lexer emitted a single token kind for each operator character (e.g. `T_EQ` for `=` whether binary or unary), and the parser's `_e14` MAP included `T_EQ→E_ASSIGN` as a *unary* operator. When `OUTPUT = 'hello'` had `OUTPUT` parsed as a label (T_IDENT + T_WS = label), the parser then called `_e14()` for the subject and saw `=` → consumed it as unary → "expected operand after unary operator".
+
+**Fix implemented:**
+- New token constants: `T_BIN_PLUS`..`T_BIN_AMP` (37–53) for whitespace-flanked binary ops
+- WS handler lookahead: after consuming leading whitespace, if next char is binary-eligible op AND followed by whitespace/EOL, consume op + trailing whitespace, emit `T_BIN_*` directly. White is swallowed into binary token atomically.
+- `mark()`/`restore()` now saves/restores `_prev_ws`
+- `_e14` MAP: bare unary tokens only — `T_BIN_*` never appear as unary
+- `_e0/_e3/_e5-_e13/_lbin/_rbin`: direct `T_BIN_*` matching, no WS-peeking
+- `parse_stmt`: `T_BIN_EQ`/`T_BIN_QMARK` direct dispatch; `T_WS` for pattern context
+- `_is_cat_start`: `T_BIN_*` are non-starters (binary, not concatenation)
+
+**Verified working:**
+- `OUTPUT = 'hello'` at col-0 (was: "expected operand after unary operator")
+- `10 / 2 = 5`, `(10 / 2) * 3 = 15` (was: division by zero from unary `/`)
+- Arithmetic: `+`, `-`, `*`, `/`, `%`, `^` all correct
+- 171p/7f — no regression
+
+### Remaining failure: -include/_bol/_prev_ws length-sensitive bug (4 tests blocked)
+
+`test_math`, `test_case`, `test_stack`, `test_string` all fail with "expected operand after unary operator" when the included file has a comment block of >= 2 lines where line 2 is long enough.
+
+**Reproduction:**
+```bash
+printf '*---\n* math.sno  --  Numeric utility functions\n' > /tmp/cm_exact.sno
+# + DEFINE block appended
+# → fails with "expected operand after unary operator" on line after -include
+```
+But:
+```bash
+printf '*---\n* --\n' > /tmp/cm_short.sno  # short line 2 → works
+printf '*---\n' > /tmp/cm_one.sno           # one comment → works
+```
+
+**Root cause traced:** `_skip_to_eol()` uses raw `pos++` without touching `_prev_ws`. The WS handler's new lookahead (peek at op char and char after) interacts with the position left by `_skip_to_eol` in a length-sensitive way. Exact mechanism not yet isolated.
+
+### SJ-24 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `e4354a5` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **171p/7f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Add `process.stderr.write` tracing at: (a) `_skip_to_eol()` entry — log `pos`, `_prev_ws`; (b) `_skip_to_eol()` exit — log `pos`; (c) WS handler entry — log `pos`, `_prev_ws`, and the lookahead op+after chars
+6. Run `/tmp/sni_run.sh /tmp/test_exact.sno` (the reproducer) and compare trace to `/tmp/test_xx.sno` (the working short-comment version)
+7. Once fixed → expect **175p/3f** (+4: test_math, test_case, test_stack, test_string)
+8. Then tackle `E_NAME(E_IDX)` nameref for `expr_eval` (see SJ-22 handoff for full analysis)
+9. Target **≥176p → M-SJ-INTERP+2**
+
+### Baselines for SJ-24
+- `one4all`: `e4354a5`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 171p/7f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — _skip_to_eol/_prev_ws fix + E_NAME nameref
+- `src/runtime/js/sno_engine.js` — no changes needed
+
+### Reproducer files
+```bash
+# Failing:
+printf '*---\n* math.sno  --  Numeric utility functions\n' > /tmp/cm_exact.sno
+# Passing:
+printf '*---\n* --\n' > /tmp/cm_short.sno
+# Both need a DEFINE block appended and -include wrapper to test
+```
