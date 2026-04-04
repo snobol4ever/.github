@@ -21732,3 +21732,70 @@ expr_eval   test_case   test_math   test_stack   test_string
 - Build: scrip-interp-s — use `.s` build command (search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
 - Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## SJ-22 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 171p/7f (unchanged from baseline — infrastructure session)
+
+### What was done (SJ-22)
+
+**Commit `0e9914b` on one4all** (rebased from `81a9153`):
+
+**PAT_deferred engine node** — new node type `{__pat:1, t:'DEFERRED', fn}` in `sno_engine.js`. Handles DEFERRED/proceed by calling `fn()` at match time, getting a pattern node back, and descending into it via `ζ_down_to`. DEFERRED/concede and DEFERRED/recede both propagate upward as concede. This is the foundation for recursive grammar patterns (`*factor`, `*expr`, `*term` in `expr_eval`). PAT_pred remains zero-width; PAT_deferred is the consuming variant.
+
+**__dcall hook infrastructure** — `_dcall_hook` stub + `_set_dcall_hook` export in `sno_engine.js`. Both `_pending_cond` commit loop and `CAPT_IMM/succeed` now check `v.__dcall` and dispatch via `_dcall_hook` instead of `_vars_set`. `sno-interp.js` registers hook: `_set_dcall_hook((fname, exprs, text) => { const litExpr={kind:E_QLIT,sval:text,children:[]}; _call(fname, exprs.length?exprs:[litExpr]); })`.
+
+**E_DEFER in _build_pat** — explicit case before default: `*FNC()` → `PAT_deferred(() => { result=_call(...); return result.__pat?result:PAT_lit(_str(result)); })`; `*VAR`/other → `interp_eval(inner)` evaluated immediately at build time (fixes `*PAT` where PAT holds a string/pattern value — was previously falling to default which also called interp_eval, so no behavior change there).
+
+**E_CAPT_COND/IMMED in _build_pat** — detect `tgt.kind===E_DEFER && tgt.children[0]?.kind===E_FNC` and store `{__dcall: fname, __exprs: children}` descriptor instead of `tgt?.sval||''`.
+
+### Why expr_eval still fails (precise root cause)
+
+`expr_eval` uses `Push` with NRETURN semantics:
+```snobol
+Push     stk[0]   =  stk[0] + 1
+         Push     =  .stk[stk[0]]    ← E_NAME(E_IDX(stk, stk[0]))
+         $Push    =  x               :(NRETURN)
+```
+`E_NAME(E_IDX(...))` evaluates to `null` in current interp (E_IDX on a string base returns null). So `_vars['Push'] = null`, NRETURN returns `{__nameref: null}`. The `__dcall` hook fires but `_call('Push', [], text)` fails silently — `$Push = text` can't assign because `_vars['Push']` is null.
+
+**Root cause**: `E_NAME` of a subscripted expression needs to produce a **first-class lvalue reference** — an object that represents "the location `stk[stk[0]]`" — not just the variable name string. This is the SNOBOL4 name/reference type (`.X` operator producing a live lvalue, `$X` dereferencing it). Current `E_NAME` case: `return e.children[0]?.sval||null` — only handles simple variable names.
+
+### -include/_bol bug (test_math/test_case/test_stack/test_string — 4 tests blocked)
+
+**Symptom**: `-include 'lib/math.sno'` fails when `math.sno` contains a comment line longer than ~6 characters followed by more content. Error: `expected operand after unary operator` at the line after the include in the calling file.
+
+**Reproduction**:
+```bash
+printf '*------\n* comment 2\n' > /tmp/six_dashes.sno
+# Then -include 'six_dashes.sno' followed by any statement fails
+# But -include of 1-2 short comment lines works fine
+```
+
+**Traced**: `_inject` correctly sets `_bol=true` and splices. The `*---` (long) comment line is processed at BOL correctly. But after the injected content finishes, the first statement of the calling file (`&TRIM=1` or `OUTPUT=42`) gets "expected operand after unary operator". The `*` from the long comment line is being treated as multiplication at some point.
+
+**Likely cause**: The `_skip_to_eol()` → non-BOL newline handler → continuation-peek interaction. The newline handler's `while (peek < len && src[peek] === '\n') peek++` scans over blank lines in the injected suffix. When `src[peek]` lands on something that triggers the continuation fold path, `this.pos` is advanced into the wrong location, breaking subsequent `_bol` state. Needs a fresh trace with `this.pos` and `this._bol` logged at each step through the injected content.
+
+### SJ-23 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `0e9914b` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **171p/7f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Fix `-include` / `_bol` bug — add `process.stderr.write` traces at `_inject` exit and inside the newline-handler continuation-peek loop to track `this.pos`, `_bol`, and `src[peek]` step by step through the `*------\n* comment 2\n` case
+6. Once fixed → rerun broad → expect **175p/3f** (+4: test_math, test_case, test_stack, test_string)
+7. Then tackle `E_NAME(E_IDX)` nameref: `E_NAME` of a subscripted expression must return a live lvalue object `{__nameref_lval: true, base_expr: ..., idx_exprs: [...]}` so that `$Push=x` can write through it into TABLE slots. Implement `_assign_nameref(ref, val)` helper.
+8. Wire nameref lval into `_assign` for `E_INDIRECT` lhs — when `_vars[name]` is a `__nameref_lval`, call `_assign_nameref`
+9. Target **≥176p → M-SJ-INTERP+2**
+
+### Baselines for SJ-23
+- `one4all`: `0e9914b`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 171p/7f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — _inject/_bol fix + E_NAME nameref
+- `src/runtime/js/sno_engine.js` — PAT_deferred already committed (no changes needed)
