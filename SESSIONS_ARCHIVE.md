@@ -23882,3 +23882,70 @@ We're continuing the SCRIP HQ reorganization. Clone github.com/snobol4ever/.gith
 The task is: read each old ARCH-*.md, BACKEND-*.md, FRONTEND-*.md file fully and extract its content into the correct new component docs (BB-GRAPH.md, BB-DRIVER.md, IR.md, EMITTER-*.md, INTERP-*.md, LEXER-*.md, PARSER-*.md, LINKER.md, MONITOR.md, HARNESS.md, TESTING.md, CORPUS.md, BENCHMARK-GRID.md). After each file is fully extracted, move it to the appropriate subfolder (old/, archive/, misc/). Do not create empty stubs. Do not move files before extracting. Read first, extract second, move third. Ask if unsure.
 
 ---
+
+## DYN-83 — HQ Reorganization Execution (2026-04-04)
+
+### Session type
+**Reorganization** — DYN- session. No code written. HQ files reorganized.
+
+### What Was Done
+
+**Extracted all ARCH-*.md, BACKEND-*.md, FRONTEND-*.md into component docs:**
+
+- `ARCH-byrd-dynamic.md` → BB-GEN-X86-BIN.md, BB-GEN-X86-TEXT.md, BB-GEN-LANG.md, BB-DRIVER.md, INTERP-X86.md, RUNTIME.md (new)
+- `ARCH-ir-tree.md` → IR.md (EKind, STMT_t, parse→IR mapping, file locations)
+- `ARCH-sil-heritage.md` → GENERAL-SIL-HERITAGE.md
+- `ARCH-scrip-cc.md` → EMITTER-COMMON.md, LEXER-SNOBOL4.md, PARSER-SNOBOL4.md
+- `ARCH-scrip-abi.md` → GENERAL-SCRIP-ABI.md
+- `ARCH-scrip-vision.md` → GENERAL-SCRIP-VISION-2.md
+- `ARCH-corpus.md` → CORPUS.md
+- `ARCH-monitor.md` → MONITOR.md
+- `ARCH-harness.md` → HARNESS.md
+- `ARCH-testing.md` → TESTING.md
+- `ARCH-grids.md` → BENCHMARK-GRID.md
+- `ARCH-overview.md` → GENERAL-OVERVIEW.md (+ Core Model, Byrd Box Layout from BACKEND-C.md)
+- `ARCH-decisions.md` → GENERAL-DECISIONS.md
+- `ARCH-prolog-jvm.md` → INTERP-JVM.md, EMITTER-JVM.md, PARSER-PROLOG.md
+- `ARCH-x64.md` → EMITTER-X86.md, MISC-SPITBOL-LOAD.md
+- `ARCH-status.md` → MISC-STATUS.md
+- `ARCH-icon-jcon.md` → MISC-ICON-JCON.md
+- History/reorg/beauty ARCH files → existing MISC-*/ARCHIVE-* copies (headers fixed)
+- `BACKEND-C.md` → EMITTER-COMMON.md (four techniques, block fn model, setjmp, decisions)
+- `BACKEND-JS.md` → EMITTER-JS.md, INTERP-JS.md
+- `BACKEND-JVM.md` → EMITTER-JVM.md (10 laws, file map, perf baselines, Clojure-EDN)
+- `BACKEND-NET.md` → INTERP-NET.md
+- `BACKEND-WASM.md` → ARCHIVE-WASM-BACKEND.md
+- `BACKEND-X64.md` → EMITTER-X86.md
+- `FRONTEND-ICON.md` → LEXER-ICON.md, PARSER-ICON.md
+- `FRONTEND-PROLOG.md` → LEXER-PROLOG.md, PARSER-PROLOG.md
+- `FRONTEND-REBUS.md` → LEXER-REBUS.md, PARSER-REBUS.md
+- `FRONTEND-SNOBOL4.md` → PARSER-SNOBOL4.md
+- `FRONTEND-SNOCONE.md` → LEXER-SNOCONE.md, PARSER-SNOCONE.md
+- `FRONTEND-CLOJURE.md` → EMITTER-JVM.md
+- `FRONTEND-CSHARP.md` → MISC-CSHARP-FRONTEND.md
+
+**New component docs created:**
+- `RUNTIME.md` — E=mc² unified execution model, datatype↔executor mapping, EVAL/CODE/EXPRESSION/NAME
+- `MISC-STATUS.md`, `MISC-SPITBOL-LOAD.md`, `MISC-CSHARP-FRONTEND.md`
+
+**PLAN.md updated:** RUNTIME.md added to component map.
+
+**All section headings from all 40 original files verified present in top-level MD files.**
+Note: ARCH-index.md "By Topic" section is obsolete — superseded by PLAN.md component map.
+
+### What Was NOT Done (DYN-84 first actions)
+1. Move remaining flat files into subfolders per subfolder plan:
+   - `old/` ← REPO-*.md, GRAND_MASTER_REORG*.md, SCRIP.md, SCRIP_CONCEPTS.md, SCRIP_DEMOS.md, PLAN-OLD.md, MISC.md, PATCHES.md, RENAME.md, BEAUTY_BUG_HANDOFF.md, BENCH-prolog-jvm.md, SETUP-tools.md, README.md
+   - `archive/` ← ARCHIVE-*.md, HOLD_ARCHIVE.md, MILESTONE_ARCHIVE.md
+   - `misc/` ← MISC-*.md
+2. Then begin DYN-83 original goal: define SM_Instr, write SM-LOWER, write sm_interp dispatch loop, replace tree-walker
+
+### Baselines for DYN-84
+- `one4all`: `1ef6d63` · `corpus`: `8d5cc6a` · `.github`: `f630919`
+- Broad: 177p/1f (tree-walk baseline)
+- Build: SESSION-dynamic-byrd-box.md
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+
+### Session start for DYN-84
+Read SCRIP-SM.md first. Then BB-GRAPH.md, BB-DRIVER.md, IR.md, RUNTIME.md. Then this entry.
+Complete subfolder moves first (old/, archive/, misc/). Then begin SM_Instr work.
