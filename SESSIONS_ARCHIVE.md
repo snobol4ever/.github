@@ -21116,3 +21116,126 @@ Still failing — likely `&TRIM` or `INPUT` reading issue carried from DYN-59.
 - `corpus`: `2f2bbe3`
 - `.github`: this commit
 - **Broad: 159p/19f**
+
+## DYN-62 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 166p/12f — +1 over 165p baseline (wordcount fixed)
+
+### What was done (DYN-62)
+
+**Commit `05e4d48` on one4all:**
+
+**1. Switched scrip-interp to `.s` Byrd boxes (key architectural correction)**
+
+The previous build command used `.c` box implementations. Per user direction, scrip-interp should use the `.s` (x86-64 NASM) boxes — the same ones the emitter generates — so the interpreter exercises the actual assembly implementations.
+
+All 25 `.s` boxes assemble cleanly with NASM. One issue resolved:
+- `bb_capture.s` calls `GC_MALLOC` (uppercase macro name from gc.h), but `libgc` only exports `GC_malloc`. Fix: a NASM trampoline shim (`gc_shim.s`) with `global GC_MALLOC / extern GC_malloc / GC_MALLOC: jmp GC_malloc`.
+- Link requires `-no-pie` (NASM emits 32-bit PC-relative relocs incompatible with PIE).
+- Baseline confirmed identical at **165p/13f** with `.s` boxes.
+
+**2. `opt_repl` empty-replacement grammar fix — `wordcount` passes**
+
+Root cause: `S ? PAT =` (delete matched substring) failed to parse. The lexer rule `{W}"="{W}` consumed `= ` as `T_ASSIGNMENT` (including trailing whitespace before `:`), leaving no `expr0` for the required RHS. Grammar had only `T_ASSIGNMENT expr0 | /* empty */` — the empty alternative only fires when there is no `T_ASSIGNMENT` token at all.
+
+Fix in `snobol4.y`:
+```yacc
+opt_repl : T_ASSIGNMENT expr0  { $$ = $2; }
+         | T_ASSIGNMENT        { EXPR_t*e=expr_new(E_QLIT); e->sval=strdup(""); $$=e; }
+         | /* empty */         { $$ = NULL; }
+```
+`snobol4.tab.c` regenerated with bison 3.8.2 (flex now installed in environment).
+
+**3. `cross` — root cause identified, not yet fixed**
+
+`cross` uses `@NH` (cursor-position capture) inside a scan loop. Debug trace shows `bb_atp.s` fires and stores `DT_I` correctly via `NV_SET_fn`, but when `OUTPUT = ... NH ...` reads it back, `NH` evaluates as empty string instead of the integer value.
+
+Root cause: the `DT_I → string` coercion path. When `Δ=0`, the integer value is `0`. The coercion likely checks `val.i` and produces `""` (treating 0 as falsy / null) instead of `"0"`. This is in `descr_to_str()` or the equivalent path in `scrip-interp.c`.
+
+**4. `bb_dvar.c` excluded from build**
+`bb_dvar.c` calls `bb_build()` / uses `bb_node_t` which are defined only inside `stmt_exec.c` (not a shared header). The C version `bb_deferred_var` is already inlined in `stmt_exec.c` (comment: "remain here until MILESTONE-BOX-UNIFY"). Excluded from build loop — correct per architecture.
+
+### Remaining failures (12)
+`063_capture_null_replace` · `expr_eval` · `literals` · `test_case` · `test_math`
+`test_stack` · `test_string` · `1012_func_locals` · `1013_func_nreturn`
+`1015_opsyn` · `1016_eval` · `cross`
+
+### DYN-63 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `05e4d48` at one4all HEAD
+2. No gate — interpreter session
+3. Build runner (`.s` boxes — see updated build command below)
+4. Confirm **166p/12f** baseline
+5. **Fix `cross` — `DT_I` → string coercion**: find `descr_to_str` or equivalent in `scrip-interp.c`. When `DT_I` value is `0`, must produce `"0"` not `""`. Check: does `NV_GET_fn` return `DT_I` or does it auto-coerce? Does `interp_eval(E_VAR)` call `descr_to_str` on the result? Trace `NH` read path.
+6. After cross: `1012_func_locals` / `1013_func_nreturn`
+7. Target **≥169p → M-DYN-S1**
+
+### Baselines for DYN-63
+- `one4all`: `05e4d48`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 166p/12f** (`.s` boxes, wordcount fixed)
+
+### scrip-interp-s build command (UPDATED — use `.s` boxes)
+
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"; DYN="$RT/dyn"
+SCRIP_CC_INC="$ROOT/src"
+DYNFLAGS="-I$BOXES/shared -I$RT/snobol4 -I$RT -I$SCRIP_CC_INC -DDYN_ENGINE_LINKED"
+
+# Install deps if needed: apt-get install -y libgc-dev nasm bison flex
+
+mkdir -p /tmp/ib_s
+
+# C runtime objects (non-box)
+gcc -O2 -c "$RT/snobol4/snobol4.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/snobol4.o
+gcc -O2 -c "$RT/snobol4/snobol4_pattern.c" -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/pat.o
+gcc -O2 -c "$RT/mock/mock_engine.c"         -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/mock_eng.o
+gcc -O2 -c "$RT/asm/snobol4_stmt_rt.c"     -I"$RT/snobol4" -I"$RT" -I"$SCRIP_CC_INC" -w -o /tmp/ib_s/stmt_rt.o
+gcc -O2 -c "$RT/asm/x86_stubs_interp.c"    -o /tmp/ib_s/x86_stubs.o
+gcc -O2 -c "$DYN/stmt_exec.c" $DYNFLAGS -w -o /tmp/ib_s/stmt_exec.o
+gcc -O2 -c "$DYN/eval_code.c" $DYNFLAGS -w -o /tmp/ib_s/eval_code.o
+
+# GC_MALLOC shim (libgc exports GC_malloc lowercase; .s boxes call GC_MALLOC)
+cat > /tmp/ib_s/gc_shim.s << 'EOF'
+section .note.GNU-stack noalloc noexec nowrite progbits
+section .text
+global GC_MALLOC
+extern GC_malloc
+GC_MALLOC: jmp GC_malloc
+EOF
+nasm -f elf64 /tmp/ib_s/gc_shim.s -o /tmp/ib_s/gc_shim.o
+
+# Assemble .s boxes (skip dvar — inlined in stmt_exec.c until MILESTONE-BOX-UNIFY)
+for box in lit alt seq arbno pos rpos tab rtab fence abort \
+           len span any notany brk breakx arb rem succeed fail eps bal \
+           atp capture not interr; do
+  nasm -f elf64 "$BOXES/$box/bb_${box}.s" -o "/tmp/ib_s/bb_${box}.o"
+done
+
+# Build frontend (bison/flex must be installed)
+make -C src/frontend/snobol4
+
+# Link — -no-pie required for NASM 32-bit PC-relative relocs
+gcc -O0 -no-pie -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    src/driver/scrip-interp.c \
+    src/frontend/snobol4/snobol4.tab.o src/frontend/snobol4/snobol4.lex.o \
+    /tmp/ib_s/*.o -lgc -lm -o scrip-interp-s
+
+# Runner
+cat > /tmp/dyn_run_s.sh << 'RUNEOF'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip-interp-s "$@"
+RUNEOF
+chmod +x /tmp/dyn_run_s.sh
+```
+
+### Key files
+- `src/frontend/snobol4/snobol4.y` — opt_repl fix (this session)
+- `src/frontend/snobol4/snobol4.tab.c` — regenerated
+- `src/runtime/boxes/*/bb_*.s` — canonical Byrd box implementations (use these)
+- `src/driver/scrip-interp.c` — interpreter driver
+- `src/runtime/dyn/stmt_exec.c` — five-phase executor + bb_atp/bb_capture/bb_deferred_var inline
