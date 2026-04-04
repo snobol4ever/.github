@@ -23342,3 +23342,88 @@ Two sub-issues:
 
 ### Key files changed (16aabd1)
 - `src/runtime/dyn/stmt_exec.c` — CC_γ_core: `.` path deferred to flush; flush_pending_callcaps calls hook at commit time; DVAR scoped save/restore with outer+inner merge
+
+## DYN-78 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change; flush ordering experiments; definitive root cause identified
+
+### Commits
+- No new commits — experiments stashed. Baseline remains `16aabd1`.
+
+### Root cause fully diagnosed (DYN-78)
+
+For `expr_eval` "1+2*3" with pattern `term = *constant addop *term . *Binary() | *constant`:
+
+**The DVAR merge produces correct ordering** (outer Push("1"), Push("+"), inner Push("2"), Binary) but the g_callcap_list contains **17 entries** for "1+2" instead of ~4. The excess stale entries (has=0) from failed backtrack arms are polluting the list. The Binary callcap sits at position [6] while Push("2") is at position [16] — meaning 10 stale has=0 entries sit between them.
+
+**Concrete trace for "1+2":**
+```
+[0]  Push has=0  ← stale from failed alt1 probe
+[1]  Push has=0  ← stale
+[2]  Push has=0  ← stale
+[3]  Push has=0  ← stale
+[4]  Push has=1 delta=1  → "1"   ✓
+[5]  Push has=1 delta=1  → "+"   ✓
+[6]  Binary has=1 delta=1        ← WRONG: fires before Push("2")
+[7..15] Push has=0  ← stale from failed recursive attempts
+[16] Push has=1 delta=1  → "2"   ✓ but too late
+```
+
+Binary at [6] calls Pop() which reads stk[0]=2 (only "1" and "+" written so far). Pop reads stk[2]="+", stk[1]="1", stk[0]=0 → wrong operands.
+
+**Root cause of excess callcaps:** The DVAR scoped save/restore accumulates stale entries. When DVAR_α fires for the failed `*constant addop *term` arm of the recursive `*term`, it saves the outer callcaps, resets count=0, runs the child. The child registers Push for "2" at index 0, then addop tries to match but fails (no "+" after "2"). On DVAR_ω, it restores outer+resets inner. But this happens multiple times (once per alt arm probe) accumulating extra callcap_t objects in the list with `has_pending=0`.
+
+### DYN-79 fix (mandatory — one surgical change)
+
+**Fix: deduplicate g_callcap_list before flush.** After exec_stmt's match succeeds (before `flush_pending_callcaps`), compact the list to remove duplicate pointers and keep only the last occurrence of each callcap_t* (the last registration has the correct `has_pending` and `pending` values):
+
+```c
+/* Deduplicate callcap list — keep last occurrence of each pointer */
+static void dedup_callcaps(void) {
+    int out = 0;
+    for (int i = 0; i < g_callcap_count; i++) {
+        int dup = 0;
+        for (int j = i + 1; j < g_callcap_count; j++)
+            if (g_callcap_list[j] == g_callcap_list[i]) { dup = 1; break; }
+        if (!dup) g_callcap_list[out++] = g_callcap_list[i];
+    }
+    g_callcap_count = out;
+}
+```
+
+Call `dedup_callcaps()` immediately before `flush_pending_callcaps()` in exec_stmt Phase 4.
+
+After dedup, the list for "1+2" should be: [Push("1"), Push("+"), Binary, Push("2")] — 4 entries, with Binary still at position 2 before Push("2") at position 3. That's still wrong ordering for Binary.
+
+**Second fix: within deduped list, Binary must come after all Push entries it depends on.** Since Binary is registered by `*Binary()` in `*constant addop *term . *Binary()`, it fires AFTER *term succeeds. The *term DVAR merge should put *term's inner callcaps (Push "2") BEFORE Binary in the outer list. After dedup this ordering should be:
+
+With dedup + correct DVAR merge: [Push("1"), Push("+"), Push("2"), Binary] — flush in order → stk[1]=1, stk[2]=+, stk[3]=2 → Binary pops right=2, op=+, left=1 → EVAL("1 + 2")=3 ✓
+
+**The DVAR merge must put inner BEFORE the outer entries that come AFTER the DVAR call site.** The DVAR for `*term` is called between `addop` and `. *Binary()` in the pattern. So the callcap list at merge time is:
+- outer_before_dvar: [Push("1"), Push("+")]
+- inner (from *term): [Push("2")]
+- outer_after_dvar: [Binary]  ← these are in outer_snap but registered AFTER the DVAR
+
+Problem: the DVAR save snapshots ALL outer callcaps including those registered BEFORE the DVAR. But Binary is registered AFTER DVAR returns (it's in the `*constant addop *term . *Binary()` sequence — Binary fires at the `.` position which is after `*term`). So at DVAR_α entry, outer_snap = [Push("1"), Push("+")] only. Binary is not yet registered. After DVAR_γ returns, Binary registers at the next position.
+
+So the correct sequence: DVAR_α saves [Push("1"), Push("+")], runs *term → inner=[Push("2")]. DVAR_γ merges → restored outer=[Push("1"), Push("+")], inner=[Push("2")] appended → [Push("1"), Push("+"), Push("2")]. Then Binary registers at index 3 → [Push("1"), Push("+"), Push("2"), Binary]. Flush in order → correct!
+
+**Conclusion: the dedup fix alone should be sufficient.** The duplicate stale entries are pushing Binary to an earlier position. After dedup, Binary should naturally appear at the correct position (after all Push entries).
+
+### DYN-79 first actions
+
+1. `git pull --rebase` all repos — confirm `16aabd1` one4all HEAD
+2. Runner + rebuild (SESSION-dynamic-byrd-box.md, omit bb_dvar.c)
+3. Confirm 177p/1f
+4. Add `dedup_callcaps()` function and call before `flush_pending_callcaps()` in Phase 4
+5. Run expr_eval → expect `7\n9\n25.5\n7\n26`
+6. Full broad → **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-79
+- `one4all`: `16aabd1` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` — dedup g_callcap_list before flush (17 entries → ~4 for "1+2")
+- Key insight: dedup alone should fix ordering since Binary registers AFTER DVAR returns
