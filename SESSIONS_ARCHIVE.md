@@ -21292,3 +21292,46 @@ Run `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_
 - Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-63 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 166p/12f (baseline confirmed, no regression)
+
+### What was done (DYN-63)
+
+**No commits** — full session spent diagnosing `cross` (`@N` position capture always returns 0).
+
+#### Investigation trail
+
+1. Confirmed `snobol4:0: error: parse error: syntax error` on stderr is **spurious/cosmetic** — always emitted, program runs fine. Not the actual failure.
+2. `cross` produces empty output — program runs but `@NH ANY(V)` match loop never produces output.
+3. `@N` (cursor capture) always returns 0 regardless of match position. `LEN(2) @N` → `N=0` not `N=2`. `POS(2)` after `LEN(2)` succeeds — so `Δ` IS correct during match.
+4. Confirmed `.s` `bb_atp` (not C version) is linked and called — C debug print never fired.
+5. Confirmed `pat_at_cursor()` builds correct `XATP`/`DT_P` descriptor.
+6. Confirmed `spat_of` correctly unwraps `DT_P` → `PATND_t*`.
+7. Confirmed `patnd_is_invariant` correctly returns 0 for `XATP` — cache not the issue.
+8. **Final narrowing:** `E_CAPT_CURSOR` in `scrip-interp.c:852` calls `interp_eval(children[0])` to get `left_pat`. Suspect: `LEN(2)` — a builtin call — may be evaluated with `interp_eval` in expression context (returning `DT_I=2` integer, not `DT_P`), so `pat_cat(DT_I, DT_P_atp)` has `spat_of(left)=NULL` → `pat_cat` returns `right` (just the `atp` node alone). Then `exec_stmt` runs the bare `atp` node at scan position 0 (before any advance) → `Δ=0` → `N=0`. The `LEN(2)` is lost entirely.
+
+### Root cause (high confidence)
+`interp_eval` for `E_CAPT_CURSOR`'s `children[0]` evaluates `LEN(2)` as an expression, returning `DT_I=2` (the integer 2, LEN's argument), not `DT_P`. `pat_cat(INTVAL(2), atp)` → `spat_of(INTVAL(2))` returns NULL → `pat_cat` returns just `atp` node. `atp` fires at scan start (Δ=0). Fix: `children[0]` of `E_CAPT_CURSOR` must be evaluated **in pattern context** — call `interp_eval_pat(children[0])` not `interp_eval(children[0])`.
+
+### DYN-64 first actions
+1. Confirm: add `fprintf(stderr, "left_pat.v=%d\n", left_pat.v)` in `E_CAPT_CURSOR` handler (scrip-interp.c:862), rebuild, run `LEN(2) @N` test — expect `v=6` (DT_I) not `v=3` (DT_P).
+2. Fix: in `scrip-interp.c` `E_CAPT_CURSOR` case, replace `interp_eval(e->children[0])` with `interp_eval_pat(e->children[0])` (or equivalent pattern-context eval).
+3. Same fix needed for `E_CAPT_IMMED_ASGN` (`$`) — same structure, same bug.
+4. Rebuild scrip-interp-s (use `.s` build command from DYN-62 handoff below).
+5. Test: `echo "SNOBOL" | scrip-interp-s /tmp/t_nh3.sno` → expect `N=2 C=O`.
+6. Run broad → target ≥167p (cross fixed).
+7. Then `1012_func_locals` / `1013_func_nreturn` → ≥169p → M-DYN-S1.
+
+### Baselines for DYN-64
+- `one4all`: `05e4d48` (unchanged)
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 166p/12f**
+- Build: scrip-interp-s — use `.s` build command from DYN-62 handoff (in this file, search "scrip-interp-s build command (UPDATED)")
+- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
