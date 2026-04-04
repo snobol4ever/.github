@@ -20947,3 +20947,63 @@ Still failing — likely `&TRIM` or `INPUT` reading issue carried from DYN-59.
 - `src/frontend/snobol4/snobol4.l` — all lexer changes this session
 - `src/driver/scrip-interp.c` — runtime, `?` match-replace path
 - `src/runtime/dyn/stmt_exec.c` — stmt_exec_dyn five-phase executor
+## SJ-19 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 167p/11f (+2 over 165p baseline)
+
+### What was done (SJ-19)
+
+**Commit `126ae3e` on one4all:**
+
+1. **`SNO_LIB` include path** — `_inject()` now reads `process.env.SNO_LIB` colon-separated dirs, plus their parent dirs (so `SNO_LIB=/home/claude/corpus/lib` lets `lib/case.sno` resolve from corpus root). Runner: `exec env SNO_LIB=/home/claude/corpus/lib node sno-interp.js "$@"`.
+
+2. **`DIFFER`/`IDENT` → return `''`** — per SNOBOL4 spec, both return empty string on success. Old code returned `args[0]`. Fixed.
+
+3. **`ITEM` builtin** — implemented read (`_call`) and lvalue assign (`_assign` E_FNC branch). Works for 1D arrays and TABLEs; multi-dim uses flat comma-key.
+
+4. **Multi-dim `E_IDX`** — both read and assign now handle N indices via flat key `'i1,i2,...'` with per-dimension bounds check.
+
+5. **`opsyn_table`** — new operator override table. `OPSYN('sym', .fn, arity)` with non-word first char → registers in `opsyn_table`. `E_CAPT_CURSOR` (binary `@`) and `E_ALT` (unary `|`) check it before default behavior.
+
+6. **OPSYN function alias** — word dest → `func_table[dk] = {__alias: src}`. `__alias` chain followed in `_call` user-function dispatch.
+
+7. **OPSYN returns `dest`** — so `differ(opsyn(...))` works.
+
+8. **`NE`/`EQ`/`LT`/`LE`/`GT`/`GE` → return `args[0]`** — per SNOBOL4 spec, numeric comparisons return first argument on success (not second). This is needed for `ne(f,1) f * f(f-1)` factorial pattern.
+
+### Fixes gained (+4 tests, -2 regressions from baseline, net +2)
+- `1010_func_recursion` ✅ (OPSYN alias, NE return)
+- `1015_opsyn` ✅ (opsyn_table, operator dispatch)
+- `1114_item` ✅ (ITEM builtin)
+- `1112_array_multi` ✅ (multi-dim bounds check)
+
+### Still failing (11)
+
+- **`cross`** — `LEN(1).C=` in PRINT loop works in isolation but not in full program context. Suspect NEXTH/NEXTV loop interaction with anchor/cursor state. `DIFFER` fix is correct but `NH=0` somewhere.
+- **`1011_func_redefine`** — 001+002 pass, 003 fails. `define('myfunc(myfunc)', .myfunc2)` with param=fn-name. `ne(myfunc,1) myfunc * myfunc(myfunc-1)` gives 26524 not 24. `ne(f,1)` now returns `f` correctly. Bug is elsewhere — S=PR split may be treating `ne(f,1) f * f(f-1)` as a pattern-match statement not an expression assignment.
+- **`212_indirect_array`** — `$.var<N>` parser precedence. `$` applies before `<>` but parse tree has `$` outside subscript. Needs careful fix to avoid breaking other unary ops.
+- **`test_case/math/stack/string`** — blocked on `expr_eval` (line-continuation in expression context). Include resolution works now with SNO_LIB.
+- **`094_data_define_access`**, **`fileinfo`**, **`triplet`**, **`expr_eval`** — pre-existing open issues.
+
+### SJ-20 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `126ae3e` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **167p/11f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. **Fix `1011/003`**: trace why `ne(myfunc,1) myfunc * myfunc(myfunc-1)` gives 26524. The S=PR split (`_expr_is_pat`) may see `myfunc(myfunc-1)` as a pattern (function call) and route the whole RHS through `_build_pat`. Check `_expr_is_pat` — if `E_FNC` whose name is in `PAT_FNC_NAMES` triggers it. `MYFUNC` is not a pattern fn, but the check may be too broad. Add `output` trace inside `myfunc2` body to see what `ne(myfunc,1)` returns and what the concat produces.
+6. **Fix `cross`**: add debug output for `NH` value at PRINT time — verify `@NH` capture survives the NEXTH→NEXTV→PRINT transition.
+7. Target **≥170p → M-SJ-INTERP**
+
+### Baselines for SJ-20
+- `one4all`: `126ae3e`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 167p/11f** (with SNO_LIB runner)
+
+### Key files
+- `src/runtime/js/sno-interp.js` — all interpreter logic
+- `src/runtime/js/sno_runtime.js` — `_FAIL`, `_is_fail`, `_str`, `_num`
+- `src/runtime/js/sno_engine.js` — pattern engine (Byrd boxes)
