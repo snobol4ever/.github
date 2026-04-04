@@ -21239,3 +21239,56 @@ chmod +x /tmp/dyn_run_s.sh
 - `src/runtime/boxes/*/bb_*.s` — canonical Byrd box implementations (use these)
 - `src/driver/scrip-interp.c` — interpreter driver
 - `src/runtime/dyn/stmt_exec.c` — five-phase executor + bb_atp/bb_capture/bb_deferred_var inline
+
+## D-177 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: 99p → **154p/24f** (target ≥151p ✅)
+
+### What was done (D-177)
+
+**Commit `a85517d` on one4all:**
+
+1. **Renamed `src/driver/dotnet` → `src/driver/net`** — canonical path going forward.
+
+2. **IL audit of all 25 Byrd box implementations** — inspected every `.il` file against the tested C# ground truth, then deleted the C# versions:
+   - `bb_notany.il` **created from scratch** (was missing entirely)
+   - `bb_seq.il` **bug fixed** — `_mLen` was accumulating across left-β retries instead of resetting; corrected to store only the current left-match length
+   - All other boxes verified correct (23/25 passed as-is)
+
+3. **`BoxFactory.cs` written** — `System.Reflection.Emit` compiles all Byrd box types at startup via `ILGenerator`. IL oracle files used as opcode reference. Key design:
+   - `BoxFactory.Init()` called once in `Program.cs` before parsing
+   - All `new bb_*()` in `PatternBuilder.cs` replaced with `BoxFactory.Create*()`
+   - `bb_capture`, `bb_atp`, `bb_dvar`, `bb_lit` kept as compiled C# (typed public properties accessed by name)
+   - `MatchState.Cursor` is a **property** not a field — required `MMS_CursorGet`/`MMS_CursorSet` via `GetSetMethod()`/`GetGetMethod()` instead of `Ldfld`/`Stfld`
+
+4. **csproj rewritten** — dropped `boxes.dll` reference entirely; only `bb_box.cs`, `bb_executor.cs`, and the 4 kept C# types compiled.
+
+### Remaining failures for D-178 (24f)
+
+Run `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null` to see current failures. Known pre-existing: word1–4, wordcount, cross, expr_eval, 1015_opsyn, 1010_func_recursion (OPSYN), 1013_func_nreturn (NRETURN), 082_keyword_stcount.
+
+### D-178 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. `cat > /tmp/sni_run.sh << 'RUN'`  
+   `#!/bin/bash`  
+   `dotnet /tmp/sni/scrip-interp.dll "$1"`  
+   `RUN`  
+   `chmod +x /tmp/sni_run.sh`
+5. Confirm **154p/24f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Run broad with full output to identify the 24 failures: `... bash test/run_interp_broad.sh 2>/dev/null | grep "^FAIL:"`
+7. Tackle word1–4/cross (pattern matching regressions) → target ≥160p
+8. Then OPSYN + NRETURN + STCOUNT → target ≥165p
+
+### Baselines for D-178
+- `one4all`: `a85517d`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 154p/24f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
