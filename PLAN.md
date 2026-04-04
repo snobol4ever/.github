@@ -84,7 +84,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | **⭐ TINY JVM** | J-229 | one4all `4ceba85` · .github `bd9fb05` | **J-230**: fix bb_arbno VerifyError + bb_any/rpos regression → ≥136p → ARRAY/TABLE → ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
 | **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
-| **⭐ one4all-SNOBOL4-NET** | D-180 | one4all `e1a66fb` · .github this | **166p/12f** · EQ/cmp return null-str, -include col-1 fixed, parent-dir search · **D-181**: fix icase pattern-return → test_case/math/stack/string → ≥170p → NRETURN → ≥175p |
+| **⭐ one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` (WIP) · .github this | **166p/12f** · icase root-cause complete (str write-back bug + pattern-return infra in WIP) · **D-182**: fix str splice write-back → commit WIP → test_case/math/stack/string ≥170p → NRETURN → ≥175p |
 | **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
 | **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
 
