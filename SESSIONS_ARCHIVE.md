@@ -23148,3 +23148,61 @@ chmod +x /tmp/dyn_run_s.sh
 - `src/driver/scrip-interp.c` — NAME_DEREF/NAME_SET slen branch; inlined lvalue-assign NAME_SET; _usercall_hook
 - `src/runtime/snobol4/snobol4_pattern.c` — deferred_call_fn returns (void*)-1 on failure
 - `src/runtime/dyn/stmt_exec.c` — bb_usercall alpha IS_FAIL_fn check
+
+## DYN-75 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change in count, but substantial recursive pattern infrastructure landed
+
+### Commits
+- `c5560a9` one4all — DYN-75: recursive pattern infra (E_ALT interp_eval_pat + XDSAR + DVAR depth guard + T_VARREF cycle) — 177p/1f, expr_eval callcap-flush delta=0 open for DYN-76
+
+### What was done (DYN-75)
+
+**Root cause of expr_eval:** NOT a C stack overflow (ulimit -s unlimited changed nothing). The real failure was `pat_cat: left is not a pattern (DT=11)` — DT_E (frozen unevaluated expression) reaching pat_cat. Three layered bugs:
+
+**Fix 1 — E_ALT missing from interp_eval_pat** (`src/driver/scrip-interp.c`)
+Pattern alternations `primary = constant | '(' *expr ')'` fell through to `interp_eval` (value context). Added `case E_ALT:` handler calling `pat_alt(interp_eval_pat(...), interp_eval_pat(...))` — mirrors E_SEQ/E_CAT handler.
+
+**Fix 2 — E_DEFER(E_VAR) in interp_eval_pat now emits XDSAR** (`src/driver/scrip-interp.c`)
+Previously resolved variable immediately. Changed to `pat_ref(child->sval)` — emits XDSAR so variable is deferred to match time. Required for self-referential pattern assignments.
+
+**Fix 3 — _expr_is_pat routing in execute_program pure assignment** (`src/driver/scrip-interp.c`)
+Added `_expr_is_pat(s->replacement)` check so pattern-expression RHSs route through `interp_eval_pat`. Ensures `primary =`, `factor =`, `term =`, `expr =` all build correct DT_P values.
+
+**Fix 4 — bb_deferred_var in_progress guard removed** (`src/runtime/dyn/stmt_exec.c`)
+Per-node `in_progress` flag blocked right-recursive re-entry. Changed to depth-cap only (DVAR_MAX_DEPTH=64).
+
+**Fix 5 — XDSAR cycle detection emits T_VARREF instead of epsilon** (`src/runtime/snobol4/snobol4_pattern.c`)
+On cycle during materialise, emits `T_VARREF` (engine-level lazy) rather than epsilon.
+
+**Still failing — expr_eval callcap flush δ=0:**
+For `'1+2'` via recursive `term = *constant addop *term | *constant`, stk[1]=1 ✓, stk[2]=+ ✓, stk[3]=empty ✗ (should be "2"). Push IS called 4 times (stk[0]=4). The recursive `*term` fires and matches "2" (match succeeds), but the `constant . *Push()` XCALLCAP for the recursive "2" flushes with δ=0. Suspect: `bb_deferred_var` rebuilds child graph via `bb_build` on every α — the fresh `callcap_t` registers in `g_callcap_list` but its `pending.δ` is 0 at flush time. Need to trace whether `child_r.δ` is 0 inside `CC_γ_core` for the recursive case.
+
+**Milestone added — M-DYN-REVIEW:**
+Complete architectural review of scrip-interp vs CSNOBOL4 vs SPITBOL: pattern engine, GC, stack discipline, *var deferred ref, NRETURN/lvalue.
+
+### DYN-76 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `c5560a9` at one4all HEAD
+2. Runner: `cat > /tmp/dyn_run_s.sh << 'EOF'` / `#!/bin/bash` / `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"` / `EOF` / `chmod +x /tmp/dyn_run_s.sh`
+3. Full rebuild (SESSION-dynamic-byrd-box.md build command — omit bb_dvar.c)
+4. Confirm **177p/1f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Add to `flush_pending_callcaps` loop: `fprintf(stderr, "flush i=%d has=%d delta=%d ptr=%p\n", i, c->has_pending, c->pending.δ, c->resolved_ptr);` — run `/tmp/dyn_run_s.sh /tmp/test_mini4.sno` (save test: term=*constant addop *term|*constant, input "1+2", print stk[1..4])
+6. If δ=0 for the recursive callcap: trace bb_deferred_var DVAR_γ — verify `DVAR` spec propagates up through alt→seq→callcap chain correctly. The rebuilt child graph from bb_build(constant_PATND) should return a valid spec from bb_span. Add `fprintf(stderr, "DVAR gamma delta=%d\n", DVAR.δ)` at DVAR_γ.
+7. If resolved_ptr=NULL: Push() returned non-DT_N at the recursive call — check call_depth or stk[0] state at recursive Push invocation time.
+8. Fix → rebuild → broad → **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-76
+- `one4all`: `c5560a9` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` — callcap flush δ=0 for recursive constant match
+- Build: scrip-interp — see SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+
+### Key files changed (c5560a9)
+- `src/driver/scrip-interp.c` — E_ALT in interp_eval_pat; E_DEFER(E_VAR)→pat_ref(XDSAR); _expr_is_pat routing in execute_program assignment
+- `src/runtime/snobol4/snobol4_pattern.c` — XDSAR cycle → T_VARREF instead of epsilon
+- `src/runtime/dyn/stmt_exec.c` — bb_deferred_var: in_progress guard removed, depth-cap only
