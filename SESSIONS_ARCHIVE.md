@@ -21335,3 +21335,69 @@ Run `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_
 - Build: scrip-interp-s — use `.s` build command from DYN-62 handoff (in this file, search "scrip-interp-s build command (UPDATED)")
 - Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## SJ-20 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 170p/8f (+3 over 167p baseline) — **M-SJ-INTERP reached**
+
+### What was done (SJ-20)
+
+**Commit `261b43f` on one4all** (rebased over `a85517d` D-177):
+
+Three fixes all in `src/runtime/js/sno-interp.js`:
+
+**1. S=PR split — guard is children[0] only (was slice(0,-1))**
+
+Root cause: for `subj = guard(a,b) expr1 expr2`, the old split took `patKids=kids.slice(0,-1)=[guard,expr1]` and `replKid=expr2`. Wrong: middle children lumped into pattern. Fix: `s.pattern=kids[0]` (guard only); `s.replacement=kids.length===2?kids[1]:E_SEQ(kids.slice(1))`.
+
+Affects any 3+-child S=PR form. Confirmed via parse tree analysis:
+- `ne(myfunc,1) myfunc * myfunc(myfunc-1)` → SEQ[ne(), myfunc, E_MUL] — old split: pat=SEQ[ne,myfunc], repl=E_MUL. New: pat=ne(), repl=SEQ[myfunc,E_MUL]=`myfunc*myfunc(myfunc-1)`.
+- `DIFFER(C,'#') DUPL(' ',NH) C` → SEQ[DIFFER, DUPL, C] — old: pat=SEQ[DIFFER,DUPL], repl=C. New: pat=DIFFER, repl=SEQ[DUPL,C]="  B".
+
+**2. guard_assign flag — new `stmt.guard_assign=true` field**
+
+S=PR path is not pattern-match-splice; it's guard-then-assign. Old executor took `s.pattern` → ran zero-width match on subject string → spliced replacement into subject string. Wrong: `OUTPUT="SNOBOL"` then `OUTPUT=DIFFER(C,'#') DUPL(' ',NH) C` would splice `"  B"` into `"SNOBOL"` giving `"  BSNOBOL"`.
+
+Fix: `guard_assign=true` in S=PR split path. Executor: if `guard_assign`, run guard predicate, then **assign** replacement to subject (not splice).
+
+**3. `$.a<2>` subscript hoist in `_e14`**
+
+SPITBOL oracle (`x64/bin/sbl`) confirms `$.a<2>='x'` when `a=array(3); a<2>='x'`. Correct semantic: `($a)<2>` not `$(a<2>)`.
+
+Root cause: `_e14` calls `_e14` recursively for operand; inner call descends to `_e15` which greedily consumes `<2>`, giving `E_INDIRECT(E_IDX(E_NAME(a),2))=$(a<2>)=$(null)=null`.
+
+Fix: after `expr_unary(uk, op)` in `_e14`, if `uk===E_INDIRECT||uk===E_NAME` and `op.kind===E_IDX`, hoist: rewrite `E_INDIRECT(E_IDX(base,idx...))` → `E_IDX(E_INDIRECT(base),idx...)`. This handles `$.a<2>`, `$.a<i,j>`, and `$.a[k]` uniformly.
+
+### Fixes gained (+3)
+- `1011_func_redefine` ✅ (S=PR split + guard_assign)
+- `cross` ✅ (S=PR split + guard_assign)
+- `212_indirect_array` ✅ ($.a<2> hoist)
+
+### Still failing (8)
+- `fileinfo`, `triplet` — file I/O / system builtins
+- `expr_eval` — line-continuation in expression context
+- `094_data_define_access` — DATA/DEFINE access
+- `test_case`, `test_math`, `test_stack`, `test_string` — blocked on expr_eval (include resolution)
+
+### SJ-21 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `261b43f` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'RUNNER'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `RUNNER` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **170p/8f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Investigate `094_data_define_access` — DATA/DEFINE access pattern
+6. Investigate `expr_eval` — look at what line-continuation in expression context needs
+7. Target **≥172p → M-SJ-INTERP+2**
+
+### Baselines for SJ-21
+- `one4all`: `261b43f`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 170p/8f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — all three fixes this session
+- `src/runtime/js/sno_engine.js` — pattern engine (unchanged)
+- `src/runtime/js/sno_runtime.js` — builtins (unchanged)
