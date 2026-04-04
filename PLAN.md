@@ -73,7 +73,7 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
 | **SNOBOL4 JS** | SJ-17 | one4all `ec6c0b3` · .github this | **SJ-18**: fix cross + expr_eval + 1015_opsyn → ≥170p · M-SJ-INTERP |
-| **⭐ TINY JVM** | J-231 | one4all `b0adaf7` | **J-232**: OPSYN + NRETURN + STCOUNT → ≥165p |
+| **⭐ TINY JVM** | J-232 | one4all `7146a6d` | **J-233**: EVAL + APPLY + 1011_func_redefine → ≥165p |
 | **SNOBOL4 JS** | SJ-19 | one4all `126ae3e` · .github this | **SJ-20**: fix 1011 (ne(f,1) S=PR split) + cross (NH capture) + 212 ($.var<N>) → ≥170p · M-SJ-INTERP |
 | **⭐ TINY JVM** | J-229 | one4all `4ceba85` · .github `bd9fb05` | **J-230**: fix bb_arbno VerifyError + bb_any/rpos regression → ≥136p → ARRAY/TABLE → ≥155p |
 | **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
