@@ -196,3 +196,34 @@ DT_N vs DT_S differences. See DECISIONS.md D-004.
 
 ### FENCE semantics
 CSNOBOL4 has a known FENCE difference. one4all follows SPITBOL FENCE semantics.
+
+---
+
+## Core Model — Statement IS a Byrd Box (Session 27)
+
+```
+label:  subject  pattern  =replacement  :S(x)  :F(y)
+          α          →          γ           γ      ω
+```
+- **α** — evaluate subject → Σ (string), Δ (cursor=0)
+- **pattern** — Byrd box: labeled gotos through match nodes
+- **γ** — success: apply replacement, follow :S() goto
+- **ω** — failure: follow :F() goto
+
+**Hot path:** pure C labeled gotos. Zero overhead. No setjmp on hot path.
+**Cold path:** `longjmp` for ABORT, FENCE bare, runtime errors ONLY.
+
+---
+
+## Byrd Box Layout (Session 16, permanent)
+
+```
+┌─────────────────────────┐
+│  DATA: cursor, locals,  │
+│        captures, ports  │
+├─────────────────────────┤
+│  CODE: α/β/γ/ω gotos   │
+└─────────────────────────┘
+Memory: DATA section: [box0.data | box1.data | ...]
+        TEXT section: [box0.code | box1.code | ...]
+```
