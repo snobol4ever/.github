@@ -1,4 +1,4 @@
-# ARCH-overview.md — Shared Architecture Concepts
+# GENERAL-OVERVIEW.md — Shared Architecture Concepts
 
 Concepts that span all backends. Backend-specific implementation → BACKEND-C.md, BACKEND-JVM.md, BACKEND-NET.md.
 

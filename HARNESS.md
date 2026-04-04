@@ -1,4 +1,4 @@
-# ARCH-harness.md — harness Reference
+# HARNESS.md — harness Reference
 
 **Repo:** https://github.com/snobol4ever/harness  
 **What it is:** Double-trace monitor, cross-engine oracle harness, benchmark pipeline.

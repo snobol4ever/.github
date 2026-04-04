@@ -1,4 +1,4 @@
-# ARCH-scrip-abi.md — SCRIP Cross-Language ABI
+# GENERAL-SCRIP-ABI.md — SCRIP Cross-Language ABI
 
 **Date:** 2026-03-27  
 **Status:** DRAFT — Sprint 1 gate. No cross-language code until this is approved.  

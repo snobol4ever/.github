@@ -1,4 +1,4 @@
-# ARCH-sil-heritage.md — SIL Name Lineage for IR Nodes
+# GENERAL-SIL-HERITAGE.md — SIL Name Lineage for IR Nodes
 
 **Source:** CSNOBOL4 2.3.3, file `v311.sil` (Phil Budne, final revision 2022-02-17)
 **Purpose:** Document the origin of every `E_*` IR node name, connecting it to

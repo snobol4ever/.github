@@ -1,4 +1,4 @@
-# ARCH-testing.md — Four-Paradigm TDD Protocol
+# TESTING.md — Four-Paradigm TDD Protocol
 
 **The goal:** `beauty_full_bin` reads `beauty.sno`, diff vs SPITBOL oracle is empty. **M-BEAUTY-FULL.**
 **Note:** SPITBOL exits error 021 at the END statement in beauty.sno — CSNOBOL4 is used as the reference for beauty.sno output only, as a documented exception to the general rule. See Oracle Index below.
