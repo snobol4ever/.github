@@ -21621,3 +21621,61 @@ chmod +x /tmp/dyn_run_s.sh
 - `src/driver/scrip-interp.c` — E_CAPT_CURSOR unary fix (this session)
 - `src/frontend/snobol4/snobol4.l` — bare `VAR=` EOL fix (this session)
 - `src/frontend/snobol4/snobol4.tab.c` / `.lex.c` — regenerated
+## D-178 handoff — 2026-04-03
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: 154p → **161p/17f** (target ≥160p ✅)
+
+### What was done (D-178)
+
+**Commit `857764d` on one4all:**
+
+1. **Multi-dimensional arrays** — `SnobolArray` class replaces `DESCR?[]`: stores `Proto` string, per-dim `Lo[]`/`Size[]`, flat `Data[]`. `ArrayCreate` parses `"3"`, `"2,2"`, `"-1:1,2"` specs. `ArrayGetMulti`/`ArraySetMulti` via `FlatIdx`. Tests 1110, 1112 now pass.
+
+2. **PROTOTYPE builtin** — was wired to `DataType()` (returned `"ARRAY"`). Now has own `Prototype()`: arrays → dimension string (`"3"`, `"2,2"`), tables → `"TABLE"`, data objects → field name list, strings → length string.
+
+3. **DATA crash fix** — `DataType()` line 383 used `(int)v.Int` without `& IDX_MASK`; `TAG_DATA = 0x2000_0000` caused index out of range. Fixed to `(int)(v.Int & IDX_MASK)`. Tests 1115, 1116 now pass.
+
+4. **ITEM builtin** — added `Item()` (read) and `ItemSet()` (write). E_FNC lvalue path in Executor detects `"ITEM"` and routes to `ItemSet`. Test 1114 now pass.
+
+5. **VALUE builtin** — `VALUE(name)` dereferences variable by string name; fails if unset. Test 1115/005 now pass.
+
+6. **CONVERT table↔array** — table→array produces Nx2 array (key col, value col), prototype `"N,2"`. Array→table reads Nx2 back into dict. Test 1113/005-007 now pass.
+
+7. **`[]` subscript syntax** — parser `ParseAtom` now recognises `name[idx]` as alias for `name<idx>`. Depth tracking updated in all 3 locations. Test 1113/008 now pass.
+
+8. **Executor multi-dim** — `EvalIdx` and assignment path now collect all index children (`[1..]`) and pass as `long[]` to `ArrayGetMulti`/`ArraySetMulti`.
+
+### Remaining failures for D-179 (17f)
+
+```
+fileinfo  triplet  expr_eval
+test_case  test_math  test_stack  test_string
+1010_func_recursion  1011_func_redefine  1013_func_nreturn
+1015_opsyn  1016_eval  1017_arg_local  1018_apply
+212_indirect_array  cross  word1
+```
+
+Known pre-existing: word1/cross (`. OUTPUT` ARB capture), expr_eval (line-continuation), 1015_opsyn, 1013_func_nreturn (NRETURN), 1010/1011 func, 1016/1018 EVAL/APPLY.
+New vs D-177 known list: 1017_arg_local, 212_indirect_array, fileinfo, triplet, test_* — triage needed.
+
+### D-179 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. `cat > /tmp/sni_run.sh` (see D-178 handoff above for content) + `chmod +x`
+5. Confirm **161p/17f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Triage `1017_arg_local`, `212_indirect_array`, `fileinfo`, `triplet`, `test_*` — likely simple missing builtins or edge cases
+7. Fix `word1`/`cross` — `. OUTPUT` side-effect capture: ARB binds matched span but whole line is output instead. Pattern phase 3 capture via `setVar` intercept
+8. Target ≥165p → OPSYN + NRETURN + STCOUNT → ≥170p
+
+### Baselines for D-179
+- `one4all`: `857764d`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 161p/17f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
