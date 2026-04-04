@@ -23284,3 +23284,61 @@ Two approaches for DYN-77:
 - `src/runtime/dyn/eval_code.c` — case E_DEFER: added to eval_node
 - `src/driver/scrip-interp.c` — interp_eval_pat E_DEFER: !_expr_is_pat(child) → DT_E
 - `src/runtime/dyn/stmt_exec.c` — DVAR scoped callcap save/restore (outer+inner merge on success)
+
+## DYN-77 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change in count; CC_γ_core now deferred to flush; expr_eval flush ordering open
+
+### Commits
+- `16aabd1` one4all — DYN-77: CC_gamma_core deferred to flush + DVAR scoped callcap save/restore — 177p/1f; expr_eval flush ordering (Binary before Push) open for DYN-78
+
+### What was done (DYN-77)
+
+**Fix — CC_γ_core deferred to flush_pending_callcaps** (`src/runtime/dyn/stmt_exec.c`)
+Root cause of expr_eval stk corruption: `CC_γ_core` called `g_user_call_hook(Push, ...)` at **match time** to get DT_N lvalue. This fires `stk[0]++` in Push body even during backtracked alt arms. For `term = *constant addop *term | *constant` matching "1+2", the failed `*constant addop *term` recursive arm incremented stk[0] before backtracking, leaving stk[0]=4 with stk[3]=empty.
+
+Fix: `CC_γ_core` (`.` path) no longer calls `g_user_call_hook`. It only sets `ζ->pending=child_r; ζ->has_pending=1`. `flush_pending_callcaps` now calls the hook at commit time to get the DT_N lvalue and writes the span.
+
+**DVAR scoped callcap save/restore** (from DYN-76, now clean):
+In `DVAR_α`: snapshot outer `g_callcap_list`, reset count=0, run child. On success: restore outer + append inner. On failure: discard inner, restore outer with `registered=1`. This allows recursive DVAR invocations to re-register the same cached callcap_t.
+
+**Diagnostic finding for DYN-78 — flush ordering:**
+For expr_eval "1+2", flush trace shows 17 callcaps total (excess from DVAR merge duplicates) with ordering:
+```
+[4] Push has=1 delta=1   → "1"
+[5] Push has=1 delta=1   → "+"
+[6] Binary has=1 delta=1 ← FIRES HERE — before Push("2") at [16]
+[16] Push has=1 delta=1  → "2"
+```
+Binary() calls Pop() 3× at flush time, but stk[3] ("2") hasn't been pushed yet (Push at [16] comes after Binary at [6]). Pop reads stk[3]=empty → wrong operands → EVAL("+ 1 ") → fails → PATTERN output.
+
+Two sub-issues:
+1. **Ordering**: Binary must flush AFTER all its dependent Push callcaps
+2. **Duplicate accumulation**: 17 callcaps for "1+2" (should be ~3–4) — DVAR merge accumulates stale has=0 entries from failed alt arms across multiple DVAR scope transitions
+
+### DYN-78 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `16aabd1` at one4all HEAD
+2. Runner + full rebuild (SESSION-dynamic-byrd-box.md, omit bb_dvar.c)
+3. Confirm **177p/1f**
+4. Fix flush ordering — **two-pass flush**:
+   - Pass 1: flush all `has_pending=1` callcaps whose fnc returns DT_N (Push-like lvalue functions). Heuristic: call hook, check return type — if DT_N, write span to cell. If not DT_N (Binary/Unary return NULVCL), defer to pass 2.
+   - Pass 2: flush remaining `has_pending=1` callcaps (Binary, Unary — they Pop() after Push has written).
+   - Implementation: in flush loop, do two iterations — `for pass in 0,1`: pass 0 processes entries where `g_user_call_hook` returns DT_N; pass 1 processes remainder.
+5. Fix duplicate accumulation — in DVAR merge on success, deduplicate by pointer before appending inner to outer.
+6. Run expr_eval → expect `7\n9\n25.5\n7\n26`
+7. Full broad → **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-78
+- `one4all`: `16aabd1` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` — flush ordering: Binary fires before Push("2"); + DVAR merge duplicate accumulation
+- Build: scrip-interp — SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (16aabd1)
+- `src/runtime/dyn/stmt_exec.c` — CC_γ_core: `.` path deferred to flush; flush_pending_callcaps calls hook at commit time; DVAR scoped save/restore with outer+inner merge
