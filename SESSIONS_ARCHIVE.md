@@ -23693,3 +23693,77 @@ CC_α fires when the SEQ box drives this callcap node with `α`. The SEQ is: `SE
 - `snobol4python-main.zip` — Lon's Python SNOBOL4 engine. **Read `_backend_pure.py` `Δ.γ()` for the reference implementation of conditional capture.** The `cstack` + generator yield/pop IS the Byrd box trail.
 - `spitbol-docs-master.zip` — SPITBOL docs (already in session context)
 - `snobol4-2_3_3_tar.gz` — CSNOBOL4 source (already in session context)
+
+## DYN-82 — Architecture Reset + HQ Reorganization (2026-04-04)
+
+### Session type
+**Planning / Architecture** — DYN- session. No code written. HQ files reorganized.
+
+### The Problem Diagnosed
+
+scrip-interp has been a **tree-walker over IR**, not a stack machine interpreter.
+The SCRIP stack machine instruction set (SM_Program) was never defined, never
+compiled to, never interpreted. 80+ sessions of work were built on this wrong
+foundation. The HQ files preserved the drift instead of correcting it because
+they described what was built, not what was planned.
+
+Two root causes:
+1. SCRIP (the 6th frontend, the unifying product) was not prominently named in
+   the HQ files — sessions could read all docs and miss the central thing.
+2. No single authoritative doc described the stack machine instruction set.
+   Without it, sessions substituted tree-walking for SM dispatch silently.
+
+### What Was Done
+
+**New authoritative component docs (written from scratch):**
+- `SCRIP-SM.md` — THE stack machine: SM_Instr, SM_Program, all instructions,
+  SM-LOWER pass, 1-to-1 mapping to x86/JVM/.NET/JS/WASM. The missing design doc.
+- `BB-GRAPH.md` — Byrd Box graph: 25 boxes, 4-port protocol, assembly via SM_PAT_*
+- `BB-DRIVER.md` — executor called by SM_EXEC_STMT, Phase 3 only
+- `IR.md` — shared IR (authoritative, canonical reference)
+- `INTERP-X86.md` — what scrip-interp must become (⚠️ currently tree-walks)
+- `EMITTER-COMMON.md` — shared emitter architecture
+- `BB-GEN-X86-BIN.md`, `BB-GEN-X86-TEXT.md`, `BB-GEN-LANG.md` — BB generators
+- `INTERP-JVM.md`, `INTERP-NET.md`, `INTERP-JS.md`, `INTERP-WASM.md` — stubs
+- `EMITTER-X86.md`, `EMITTER-JVM.md`, `EMITTER-NET.md`, `EMITTER-JS.md` — stubs
+- `LEXER-*.md`, `PARSER-*.md` (6 each) — stubs for all frontends
+- `LINKER.md`, `CORPUS.md`, `HARNESS.md`, `MONITOR.md`, `TESTING.md`, `BENCHMARK-GRID.md`
+
+**PLAN.md reset:**
+- Opens with architecture reset warning
+- Correct architecture paragraph (SM_Program, SM-LOWER, SM_EXEC_STMT)
+- Component map with status for every component
+- File taxonomy (GENERAL-*, ARCHIVE-*, MISC-*, etc.)
+- Session start protocol now reads SCRIP-SM.md FIRST
+
+**HQ reorganization (61 files, nothing deleted):**
+- `GENERAL-*.md` — cross-cutting reference
+- `ARCHIVE-*.md` — parked/completed (WASM, C backend, histories)
+- `MISC-*.md` — background, beauty, patches, rename, reorg
+- `EMITTER-*.md` — from BACKEND-*.md
+- All originals preserved
+
+**Commit:** `7dab872` on `.github`
+
+### What Exists (correct, reusable)
+- 25 `bb_*.c` boxes — ✅ correct
+- `bb_pool.c`, `bb_emit.c` (TEXT mode) — ✅ correct
+- `stmt_exec.c` (BB-DRIVER) — ✅ correct
+- `scrip-interp` broad corpus: 177p/1f — proves BB-DRIVER + boxes work
+
+### What Does NOT Exist (DYN-83 first actions)
+1. `src/runtime/sm/sm.h` — `SM_Op`, `SM_Instr`, `SM_Program` typedefs
+2. `src/runtime/sm/sm_lower.c` — SM-LOWER: `Program*` → `SM_Program`
+3. `src/runtime/sm/sm_interp.c` — dispatch loop over `SM_Program`
+4. Replace tree-walker in `scrip-interp.c` with SM-LOWER + sm_interp
+
+### Baselines for DYN-83
+- `one4all`: `1ef6d63` · `corpus`: `8d5cc6a` · `.github`: `7dab872`
+- Broad: 177p/1f (tree-walk baseline — target: same or better after SM_Program)
+- Build: SESSION-dynamic-byrd-box.md
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+
+### Session start for DYN-83
+Read SCRIP-SM.md first. Then BB-GRAPH.md, BB-DRIVER.md, IR.md. Then this entry.
+The task is mechanical: define SM_Instr, write SM-LOWER, write dispatch loop,
+replace tree-walker. The BB-DRIVER and boxes do not change.
