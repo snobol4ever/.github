@@ -21007,3 +21007,59 @@ Still failing — likely `&TRIM` or `INPUT` reading issue carried from DYN-59.
 - `src/runtime/js/sno-interp.js` — all interpreter logic
 - `src/runtime/js/sno_runtime.js` — `_FAIL`, `_is_fail`, `_str`, `_num`
 - `src/runtime/js/sno_engine.js` — pattern engine (Byrd boxes)
+
+## DYN-61 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86, scrip-interp (C interpreter). Session prefix: DYN-
+
+### Result: 165p/13f — baseline held (no regression; session was frontend cleanup only)
+
+### What was done (DYN-61)
+
+**Commit `264da8a` on one4all — frontend cleanup:**
+
+**Problem:** `src/frontend/snobol4/` had committed generated artifacts under wrong names:
+`lex.c`, `lex.h`, `parse.c` (broken bison output expecting nonexistent `parse.h`),
+`snobol4.output`. No Makefile. Build was using stale pre-built objects.
+
+**Fix — rebus pattern applied:**
+1. Deleted `lex.c`, `lex.h`, `parse.c`, `snobol4.output` from repo.
+2. `snobol4.h` promoted to real header (absorbed `lex.h` content: Token, Lex, SnoLine types + API). Guard changed to `SNOBOL4_H`.
+3. Generated files now use correct names:
+   - `snobol4.tab.c` / `snobol4.tab.h` — bison defaults (unchanged)
+   - `snobol4.lex.c` — flex's `lex.yy.c` renamed (only mangle applied)
+4. `Makefile` added — builds `snobol4.tab.o` + `snobol4.lex.o`. Works with or without bison/flex: if installed and `.y`/`.l` are newer, regenerates; otherwise uses committed C files directly. Touch `.y`/`.l` to force regeneration.
+5. `src/runtime/dyn/eval_code.c` — removed stale `#include "../../frontend/snobol4/lex.h"` (now covered by `snobol4.h`).
+6. `snobol4.l` — updated to `#include "snobol4.tab.h"` (was already correct; verified).
+
+**scrip-interp build command updated:** now uses `snobol4.tab.o` and `snobol4.lex.o` (not old `lex.o`/`parse.o`).
+
+### Baselines for DYN-62
+- `one4all`: `264da8a`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 165p/13f**
+
+### DYN-62 first actions (mandatory order)
+1. `git pull --rebase` all repos
+2. No gate — interpreter session
+3. `cd one4all && make -C src/frontend/snobol4` then rebuild scrip-interp (build command in SESSION-dynamic-byrd-box.md — use `snobol4.tab.o` and `snobol4.lex.o`)
+4. Confirm **165p/13f** baseline
+5. Investigate `wordcount` — runtime failure in `?` match-replace or `&TRIM` (per DYN-60 notes)
+6. Investigate `cross` — likely same `&TRIM`/INPUT issue
+7. Then `1012_func_locals` / `1013_func_nreturn`
+
+### Remaining failures (13)
+`063_capture_null_replace` · `expr_eval` · `literals` · `test_case` · `test_math`
+`test_stack` · `test_string` · `1012_func_locals` · `1013_func_nreturn`
+`1015_opsyn` · `1016_eval` · `cross` · `wordcount`
+
+### Key files
+- `src/frontend/snobol4/Makefile` — new, builds tab/lex objects
+- `src/frontend/snobol4/snobol4.h` — now the real header
+- `src/frontend/snobol4/snobol4.lex.c` — flex output (lex.yy.c renamed)
+- `src/frontend/snobol4/snobol4.tab.c` / `.tab.h` — bison defaults
+- `src/runtime/dyn/eval_code.c` — lex.h include removed
+- `src/driver/scrip-interp.c` — main interpreter driver
+- `src/runtime/dyn/stmt_exec.c` — five-phase executor

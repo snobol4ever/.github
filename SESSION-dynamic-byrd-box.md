@@ -68,7 +68,7 @@ gcc -O2 -c "$DYN/eval_code.c" $DYNFLAGS -w -o /tmp/ib/eval_code.o
 
 gcc -O0 -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
     src/driver/scrip-interp.c \
-    src/frontend/snobol4/lex.o src/frontend/snobol4/parse.o \
+    src/frontend/snobol4/snobol4.tab.o src/frontend/snobol4/snobol4.lex.o \
     /tmp/ib/*.o -lgc -lm -o scrip-interp
 ```
 
