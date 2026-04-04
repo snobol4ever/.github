@@ -177,22 +177,28 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-176 | one4all `a4d40cb` | **~99p/79f** (MSIL boxes broken) · **D-177**: implement `BoxFactory.cs` via `Reflection.Emit` → MSIL boxes in-memory → ≥ 151p → fix word1–4/cross + 1012 → ≥ 160p |
+| **NET INTERP** | D-181 | one4all `e1a66fb` (WIP uncommitted) | **166p/12f** · icase root-cause complete · **D-182**: fix str write-back in pattern Phase 5 → commit WIP pattern-return infra → test_case/math/stack/string ≥170p → NRETURN → ≥175p |
 
-**D-177 first actions:**
+**D-182 first actions:**
 1. `git pull --rebase` all repos.
-2. `dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni` → confirm `HELLO WORLD` (C# path, 99p baseline).
-3. **Create `IByrdBox.cs`** in `src/driver/dotnet/` — define `IByrdBox`, `MatchState`, `Spec`, `MatchResult` as plain C# (copy from `src/runtime/boxes/shared/bb_box.cs` + `bb_executor.cs`).
-4. **Create `BoxFactory.cs`** — `AssemblyBuilder` + `ModuleBuilder`. Implement `bb_lit` first via `ILGenerator` (trivial: load field, call `MatchesAt`, branch). Smoke: `038_pat_literal` passes.
-5. Implement remaining 24 boxes in `BoxFactory.cs`, using `src/runtime/boxes/*/bb_*.il` as opcode oracle.
-6. Wire `PatternBuilder.cs` to call `BoxFactory.Create*(...)` instead of `new bb_*(...)`.
-7. Remove `boxes.dll` reference from csproj entirely.
-8. Broad → target ≥ 151p.
-9. Fix word1–4/cross (`makeGetPatternVar` trace) + `1012_func_locals` → ≥ 160p.
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni` → confirm `HELLO WORLD`
+4. Setup `/tmp/sni_run.sh` + `chmod +x`
+5. Confirm **166p/12f**
+6. **Do NOT reset WIP** — `git diff src/driver/net/` shows the pattern-return infrastructure.
+7. **Fix str write-back:** in `ExecStmt` Phase 5 (~line 248–258), trace `subjName`, `result.MatchStart`, `result.MatchLength` for the `str POS(0) ANY(...) . letter =` statement. The issue: after the first char is consumed from `str`, subsequent iterations show `IDENT(str)` still failing — `str` is not being updated. Either `subjName=null` (subject parsed as non-VAR) or `MatchLength=0`. Fix the write-back.
+8. Once `icase` works: commit WIP (`git add src/driver/net/Executor.cs src/driver/net/PatternBuilder.cs src/driver/net/SnobolEnv.cs && git commit -m "D-181/182: pattern-return infra + icase fix"`)
+9. Broad → target ≥170p (test_case/math/stack/string)
+10. Then NRETURN → ≥175p
+
+**WIP state (git diff, not committed):**
+- `SnobolEnv.cs`: `TAG_PATTERN`, `_patternObjs List<IByrdBox>`, `PatternCreate/IsPatternObj/GetPatternBox/ClearPattern`
+- `PatternBuilder.cs`: `_resolvePatternVal` callback, `BuildInner()`, `ResolveUserFuncPattern()` in `_` catch-all
+- `Executor.cs`: `CallUserFunc` saves/restores `_patVars[fn]`; RETURN branch eagerly builds box; `makeGetPatternVar` checks `IsPatternObj`; `resolvePatternVal` wired
 
 See **MILESTONE-NET-SNOBOL4.md** for the full chain.
 
 ---
 
-*SESSION-snobol4-net.md — updated D-176, 2026-04-03, Claude Sonnet 4.6.*
-*D-176 pivot: static boxes.dll abandoned; Reflection.Emit in-memory approach adopted.*
+*SESSION-snobol4-net.md — updated D-181, 2026-04-04, Claude Sonnet 4.6.*
+*D-181: pattern-return infra scaffolded; icase str write-back root-caused; WIP uncommitted.*

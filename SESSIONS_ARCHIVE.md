@@ -22416,3 +22416,95 @@ Fix for J-234: in `callBuiltin` `default:` branch, before checking `funcTable`, 
 
 ### Key files changed
 - `src/driver/jvm/Interpreter.java` — E_DEFER freeze, EVAL case, APPLY case
+## D-181 handoff — 2026-04-04
+
+### Session type
+**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+
+### Result: **166p/12f → 166p/12f** (no change — WIP in progress, not committed)
+
+### What was done (D-181)
+
+**No commit this session.** Full investigation of `icase` pattern-return. Infrastructure scaffolded, root cause fully traced. D-182 has a complete diagnosis and a clear 2-line fix.
+
+#### Architecture added (not yet committed — in working tree):
+
+**SnobolEnv.cs:**
+- `TAG_PATTERN = 0x3000_0000L` — new tag slot alongside ARRAY/TABLE/DATA
+- `List<IByrdBox> _patternObjs` — eagerly-resolved box store
+- `PatternCreate(IByrdBox) → DESCR` — tags box as Int DESCR
+- `IsPatternObj(DESCR) → bool`
+- `GetPatternBox(DESCR) → IByrdBox`
+- `ClearPattern(string)` — clears `_patVars` entry (used in `CallUserFunc` save/restore)
+
+**PatternBuilder.cs:**
+- `Func<DESCR, IByrdBox?> _resolvePatternVal` — new callback field
+- `resolvePatternVal` optional ctor param
+- `BuildInner(IrNode)` — like `Build()` but does NOT clear shared captures (for inner builders sharing capture list)
+- `ResolveUserFuncPattern(IrNode)` — `_` catch-all in `BuildFncPattern` now calls `_evalNode(n)` then `_resolvePatternVal(result)` instead of `BoxFactory.CreateLit`
+
+**Executor.cs:**
+- `CallUserFunc`: saves/restores `_patVars[funcName]` around call; clears at entry
+- `RunBody` RETURN branch: eagerly builds `IByrdBox` from `_patVars[fn]` IR before frame unwind; calls `PatternCreate(box)`; throws `ReturnException(patternObjDescr)`
+- `makeGetPatternVar`: checks `IsPatternObj` on var value first, then `_patVars` IR
+- `resolvePatternVal` lambda wired into all `PatternBuilder` construction sites
+
+#### Root cause fully traced:
+
+The `icase` function builds a case-insensitive pattern recursively:
+```snobol
+icase   IDENT(str)                                          :S(RETURN)
+        str POS(0) ANY(&UCASE &LCASE) . letter =            :F(icase1)
+        icase          =   icase (upr(letter) | lwr(letter)) :(icase)
+icase1  str POS(0) LEN(1) . ch =
+        icase          =   icase ch                         :(icase)
+```
+
+**The bug:** `icase` runs as a single `CallUserFunc` frame with a `:(icase)` goto loop — NOT recursive. The assignment `icase = icase (H|h)` is evaluated by `EvalCat` (string context), which does NOT invoke `icase` as a function. `SetPattern("icase", rhs_ir)` IS called correctly. The pattern IR IS stored. The RETURN block IS reached.
+
+**The actual failure:** The `str POS(0) ANY(&UCASE &LCASE) . letter =` pattern match on the second loop iteration succeeds but does NOT write back the modified `str` to the env. After the first char is consumed from `str`, `str` appears empty, but `IDENT(str)` still returns Fail on the next iteration.
+
+**Suspected cause (not yet confirmed — needs one more trace):** `ExecStmt` for the pattern statement writes the new subject via `_env.Set(subjName, DESCR.Of(newSubj))` at line 255. `subjName` is set from `stmt.Subject.SVal` when `stmt.Subject.Kind == E_VAR`. The statement `str POS(0) ANY(...) . letter =` — does the parser set `stmt.Subject = E_VAR("str")` or `E_FNC("str",...)`? If the parser sees `str` as a function call (because it's followed by space and a pattern), `subjName` may be null and the write-back is skipped.
+
+**Confirming trace needed:** Add `Console.Error.WriteLine($"subjName={subjName} subjKind={stmt.Subject?.Kind}")` at line ~99 in ExecStmt for `icase` context.
+
+#### Alternate simpler hypothesis (also plausible):
+
+`stmt.Subject` for `str POS(0) ANY... =` may parse `str` as subject and `POS(0) ANY... . letter` as pattern — correct. But `letter` variable write-back: `.letter` capture writes `letter` during Phase 3. After match, `str` is spliced with `""` replacement. Check line 255: `var newSubj = subject[..result.MatchStart] + "" + subject[(result.MatchStart + result.MatchLength)..]; _env.Set(subjName, DESCR.Of(newSubj))`. If `MatchLength` is wrong (0), `str` never shrinks.
+
+### D-182 first actions
+
+1. `git pull --rebase` all repos
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+4. Setup `/tmp/sni_run.sh` + `chmod +x`
+5. Confirm **166p/12f**
+6. The WIP diff is in the working tree — do NOT stash, do NOT reset. Inspect with `git diff src/driver/net/Executor.cs`.
+7. **Root-cause the str write-back bug:** Add trace to `ExecStmt` around line 248–258 (the pattern Phase 5 splice), specifically: print `subjName`, `result.MatchStart`, `result.MatchLength`, `subject`, `newSubj` when `subjName == "STR"`. Run against `corpus/crosscheck/library/test_case.sno`.
+8. Fix the str write-back (likely 1–2 lines). Confirm `icase` now works.
+9. Then the pattern-return infrastructure (already in WIP) should deliver test_case/math/stack/string. Commit → target ≥170p.
+10. Then tackle NRETURN (`FReturnException`-style) → 1013_func_nreturn.
+
+### Remaining failures for D-182 (12f)
+```
+expr_eval
+test_case  test_math  test_stack  test_string
+1010_func_recursion  1011_func_redefine  1013_func_nreturn
+1015_opsyn  1018_apply
+cross  word1
+```
+
+- **test_case/math/stack/string**: `icase` str write-back bug (1–2 line fix) + pattern-return infra (WIP) → should unlock all 4
+- **1013_func_nreturn**: NRETURN not implemented
+- **word1/cross**: pre-existing `. OUTPUT` ARB capture side-effect
+- **expr_eval**: pre-existing line-continuation issue
+- **1010/1011/1015/1018**: deeper function call issues
+
+### Baselines for D-182
+- `one4all`: `e1a66fb` (WIP uncommitted changes in working tree — see `git diff`)
+- `corpus`: `8d5cc6a`
+- `.github`: this commit
+- **Broad: 166p/12f**
+- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
+- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
+- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
