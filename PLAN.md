@@ -80,7 +80,8 @@ the corpus, the emitter is correct by construction.
 | EMITTER JS | `EMITTER-JS.md` | ⬜ in progress |
 | LINKER | `LINKER.md` | ⬜ in progress |
 | LEXER / PARSER (6× each) | `LEXER-*.md` / `PARSER-*.md` | ⬜ stubs needed |
-| **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-84 |
+| **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
+| **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
@@ -94,7 +95,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | Architecture reset complete. G-11: all sessions adopt new component docs. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-84 | one4all `59ada3d` · corpus `8d5cc6a` | **⭐ M-SN4PARSE**: Fix sn4parse.c bugs (**, FORBLK, pattern, juxtaposition) → SQRT.sno zero errors → then DYN-85: SM_Instr+SM_Program → SM-LOWER → sm_interp → **M-DYN-SM-INTERP** |
+| **⭐ DYNAMIC BYRD BOX** | DYN-85 | one4all `59ada3d` · corpus `8d5cc6a` | **⭐ M-SN4PARSE**: Fix remaining sn4parse.c bugs (TEXTSP globals annotation, NSTTYP closing-paren, expr_prec_continue CATFN) → SQRT.sno zero errors → **M-SN4PARSE-VALIDATE**: Phase 1 corpus sweep → Phase 2 Bison diff → Phase 3 CSNOBOL4 oracle |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **⭐ TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **⭐ one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
