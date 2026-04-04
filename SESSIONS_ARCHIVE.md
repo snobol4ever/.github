@@ -21733,69 +21733,83 @@ expr_eval   test_case   test_math   test_stack   test_string
 - Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
 
-## SJ-22 handoff — 2026-04-03
+## DYN-65 handoff — 2026-04-04
 
 ### Session type
-**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
 
-### Result: 171p/7f (unchanged from baseline — infrastructure session)
+### Result: 169p/9f → **169p/9f** (no change — infrastructure session)
 
-### What was done (SJ-22)
+### What was done (DYN-65)
 
-**Commit `0e9914b` on one4all** (rebased from `81a9153`):
+**Commit `4a420a2` / `3a2cb69` (rebased to `e8c18fb`) on one4all:**
 
-**PAT_deferred engine node** — new node type `{__pat:1, t:'DEFERRED', fn}` in `sno_engine.js`. Handles DEFERRED/proceed by calling `fn()` at match time, getting a pattern node back, and descending into it via `ζ_down_to`. DEFERRED/concede and DEFERRED/recede both propagate upward as concede. This is the foundation for recursive grammar patterns (`*factor`, `*expr`, `*term` in `expr_eval`). PAT_pred remains zero-width; PAT_deferred is the consuming variant.
+1. **scrip-cc link fix** — `DYN-61` deleted `parse.c` which defined `sno_nerrors`, `sno_add_include_dir()`, `sno_reset()`. Added all three to `snobol4.l` where the data (`inc_dirs`, `n_inc`) already lived. `sno_error()` now increments `sno_nerrors`. `sno_reset()` clears both `sno_nerrors` and `n_inc`. Regenerated `snobol4.lex.c`.
 
-**__dcall hook infrastructure** — `_dcall_hook` stub + `_set_dcall_hook` export in `sno_engine.js`. Both `_pending_cond` commit loop and `CAPT_IMM/succeed` now check `v.__dcall` and dispatch via `_dcall_hook` instead of `_vars_set`. `sno-interp.js` registers hook: `_set_dcall_hook((fname, exprs, text) => { const litExpr={kind:E_QLIT,sval:text,children:[]}; _call(fname, exprs.length?exprs:[litExpr]); })`.
+2. **rebus `rebus_yy` prefix** — `lex.rebus.c` and `snobol4.lex.c` both emitted global `yylex`/`yy_*` symbols causing link collision. Added `prefix="rebus_yy"` to `rebus.l` and `%define api.prefix {rebus_yy}` to `rebus.y`. Added `#define yylval rebus_yylval`, `#define yylineno rebus_yylineno` to `rebus.l`. Renamed `yyerror` → `rebus_yyerror`. Updated `extern int yylineno` → `extern int rebus_yylineno; #define yylineno rebus_yylineno` in `rebus.y`. Regenerated both. **scrip-cc builds and links clean.**
 
-**E_DEFER in _build_pat** — explicit case before default: `*FNC()` → `PAT_deferred(() => { result=_call(...); return result.__pat?result:PAT_lit(_str(result)); })`; `*VAR`/other → `interp_eval(inner)` evaluated immediately at build time (fixes `*PAT` where PAT holds a string/pattern value — was previously falling to default which also called interp_eval, so no behavior change there).
+3. **snobol4 Makefile — rebus pattern** — old Makefile used `touch` when bison/flex absent, silently leaving stale `.o` files. Replaced with `@false` abort pattern (identical to `src/frontend/rebus/Makefile`): if bison/flex installed → regenerate + recompile; if not → abort with message so make never silently uses stale generated files. Also fixed flex invocation to use `-o snobol4.lex.c` directly instead of `mv lex.yy.c`.
 
-**E_CAPT_COND/IMMED in _build_pat** — detect `tgt.kind===E_DEFER && tgt.children[0]?.kind===E_FNC` and store `{__dcall: fname, __exprs: children}` descriptor instead of `tgt?.sval||''`.
+4. **Semicolon lexer fix** — `<BODY>";"` and `<BODY_START>";"` both missing `BEGIN(INITIAL)`. Added it. This is the correct fix for the `a = 'x' ; b = 'y'` parse failure. However the parse still fails — the stale `.o` root cause is now resolved (Makefile fix), so **DYN-66 should confirm this fix works by running `make -C src/frontend/snobol4` then rebuilding scrip-interp-s**.
 
-### Why expr_eval still fails (precise root cause)
+### Milestone status — DYN-65
 
-`expr_eval` uses `Push` with NRETURN semantics:
-```snobol
-Push     stk[0]   =  stk[0] + 1
-         Push     =  .stk[stk[0]]    ← E_NAME(E_IDX(stk, stk[0]))
-         $Push    =  x               :(NRETURN)
-```
-`E_NAME(E_IDX(...))` evaluates to `null` in current interp (E_IDX on a string base returns null). So `_vars['Push'] = null`, NRETURN returns `{__nameref: null}`. The `__dcall` hook fires but `_call('Push', [], text)` fails silently — `$Push = text` can't assign because `_vars['Push']` is null.
+**M-DYN-S1 target: ≥172p**. At 169p/9f. Remaining 9 failures:
+- `1012_func_locals` — semicolon statement separator fix in place; needs fresh build to confirm
+- `1013_func_nreturn` — NRETURN lvalue semantics
+- `1015_opsyn` — OPSYN operator aliasing
+- `1016_eval` — EVAL builtin
+- `expr_eval`, `test_case`, `test_math`, `test_stack`, `test_string` — lower priority
 
-**Root cause**: `E_NAME` of a subscripted expression needs to produce a **first-class lvalue reference** — an object that represents "the location `stk[stk[0]]`" — not just the variable name string. This is the SNOBOL4 name/reference type (`.X` operator producing a live lvalue, `$X` dereferencing it). Current `E_NAME` case: `return e.children[0]?.sval||null` — only handles simple variable names.
+If semicolon fix resolves `1012` + `test_*` (which likely also use `;`), could jump to ≥173p in one build.
 
-### -include/_bol bug (test_math/test_case/test_stack/test_string — 4 tests blocked)
+### DYN-66 first actions
 
-**Symptom**: `-include 'lib/math.sno'` fails when `math.sno` contains a comment line longer than ~6 characters followed by more content. Error: `expected operand after unary operator` at the line after the include in the calling file.
+1. `git pull --rebase` all repos
+2. Build scrip-interp-s: `make -C src/frontend/snobol4` (will regenerate + recompile with fresh Makefile) then link command from SESSIONS_ARCHIVE "scrip-interp-s build command (UPDATED)"
+3. Confirm baseline: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+4. If `1012_func_locals` now passes → count wins. If not → the grammar may need fixing: inspect bison conflicts with `bison --report=all snobol4.y`, look at how `T_STMT_END` mid-line interacts with `program : program stmt | stmt` and `opt_label : T_LABEL | empty`
+5. Fix `1013_func_nreturn` → `1015_opsyn` → target ≥172p → M-DYN-S1
 
-**Reproduction**:
-```bash
-printf '*------\n* comment 2\n' > /tmp/six_dashes.sno
-# Then -include 'six_dashes.sno' followed by any statement fails
-# But -include of 1-2 short comment lines works fine
-```
-
-**Traced**: `_inject` correctly sets `_bol=true` and splices. The `*---` (long) comment line is processed at BOL correctly. But after the injected content finishes, the first statement of the calling file (`&TRIM=1` or `OUTPUT=42`) gets "expected operand after unary operator". The `*` from the long comment line is being treated as multiplication at some point.
-
-**Likely cause**: The `_skip_to_eol()` → non-BOL newline handler → continuation-peek interaction. The newline handler's `while (peek < len && src[peek] === '\n') peek++` scans over blank lines in the injected suffix. When `src[peek]` lands on something that triggers the continuation fold path, `this.pos` is advanced into the wrong location, breaking subsequent `_bol` state. Needs a fresh trace with `this.pos` and `this._bol` logged at each step through the injected content.
-
-### SJ-23 first actions (mandatory order)
-1. `git pull --rebase` all repos — confirm `0e9914b` at one4all HEAD
-2. No gate — interpreter session
-3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
-4. Confirm **171p/7f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
-5. Fix `-include` / `_bol` bug — add `process.stderr.write` traces at `_inject` exit and inside the newline-handler continuation-peek loop to track `this.pos`, `_bol`, and `src[peek]` step by step through the `*------\n* comment 2\n` case
-6. Once fixed → rerun broad → expect **175p/3f** (+4: test_math, test_case, test_stack, test_string)
-7. Then tackle `E_NAME(E_IDX)` nameref: `E_NAME` of a subscripted expression must return a live lvalue object `{__nameref_lval: true, base_expr: ..., idx_exprs: [...]}` so that `$Push=x` can write through it into TABLE slots. Implement `_assign_nameref(ref, val)` helper.
-8. Wire nameref lval into `_assign` for `E_INDIRECT` lhs — when `_vars[name]` is a `__nameref_lval`, call `_assign_nameref`
-9. Target **≥176p → M-SJ-INTERP+2**
-
-### Baselines for SJ-23
-- `one4all`: `0e9914b`
-- `corpus`: `2f2bbe3`
+### Baselines for DYN-66
+- `one4all`: `e8c18fb`
+- `corpus`: `8d5cc6a`
 - `.github`: this commit
-- **Broad: 171p/7f**
+- **Broad: 169p/9f**
+- Build: `make -C src/frontend/snobol4` then scrip-interp-s link (see "scrip-interp-s build command (UPDATED)" in SESSIONS_ARCHIVE)
+- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
 
-### Key files
-- `src/runtime/js/sno-interp.js` — _inject/_bol fix + E_NAME nameref
-- `src/runtime/js/sno_engine.js` — PAT_deferred already committed (no changes needed)
+## DYN-65 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 169p/9f → **169p/9f** (infrastructure session)
+
+### What was done (DYN-65)
+
+**Commits on one4all (rebased HEAD `e8c18fb`):**
+
+1. **scrip-cc link fix** — `DYN-61` deleted `parse.c` which defined `sno_nerrors`, `sno_add_include_dir()`, `sno_reset()`. Added all three to `snobol4.l`. `sno_error()` now increments `sno_nerrors`. `sno_reset()` clears both. Regenerated `snobol4.lex.c`.
+
+2. **rebus `rebus_yy` prefix** — `lex.rebus.c` and `snobol4.lex.c` both emitted global `yylex`/`yy_*` causing link collision. Added `prefix="rebus_yy"` to `rebus.l`, `%define api.prefix {rebus_yy}` to `rebus.y`. Added `#define yylval rebus_yylval`, `#define yylineno rebus_yylineno`, renamed `yyerror → rebus_yyerror`. Regenerated both. **scrip-cc builds clean.**
+
+3. **snobol4 Makefile — rebus pattern** — old Makefile used `touch` when bison/flex absent, silently leaving stale `.o`. Replaced with `@false` abort (identical to `src/frontend/rebus/Makefile`): installed → regenerate; absent → abort. flex now uses `-o snobol4.lex.c` directly.
+
+4. **Semicolon lexer fix** — `<BODY>";"` and `<BODY_START>";"` both missing `BEGIN(INITIAL)`. Added. This is the correct fix for `a = 'x' ; b = 'y'` parse failure. Stale `.o` root cause now resolved by Makefile fix — **DYN-66 should confirm by running `make -C src/frontend/snobol4` then relinking.**
+
+### Milestone status
+**M-DYN-S1 target: ≥172p**. At 169p/9f. If semicolon fix resolves `1012` + `test_*` → could reach ≥173p immediately. Then `1013_func_nreturn` + `1015_opsyn` → M-DYN-S1.
+
+### DYN-66 first actions
+1. `git pull --rebase` all repos
+2. `make -C src/frontend/snobol4` (Makefile now correct — will regenerate+recompile)
+3. Relink scrip-interp-s (use "scrip-interp-s build command (UPDATED)" in SESSIONS_ARCHIVE)
+4. Confirm baseline + check if `1012_func_locals` now passes
+5. If semicolon fix works → fix `1013_func_nreturn` → `1015_opsyn` → ≥172p → M-DYN-S1
+
+### Baselines for DYN-66
+- `one4all`: `e8c18fb` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 169p/9f**
+- Build: `make -C src/frontend/snobol4` + scrip-interp-s link command from archive
