@@ -21401,3 +21401,106 @@ Fix: after `expr_unary(uk, op)` in `_e14`, if `uk===E_INDIRECT||uk===E_NAME` and
 - `src/runtime/js/sno-interp.js` — all three fixes this session
 - `src/runtime/js/sno_engine.js` — pattern engine (unchanged)
 - `src/runtime/js/sno_runtime.js` — builtins (unchanged)
+
+## SJ-21 handoff — 2026-04-03
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 171p/7f (+1 over 170p baseline)
+
+### What was done (SJ-21)
+
+**Commit `23fab11` on one4all:**
+
+**DATA field/ctor priority over builtins in `_call`** — DATA field accessors and constructors now checked BEFORE the builtin `switch(fn)` block. Previously `real(X)` for a DATA-defined field named `real` would hit the `REAL()` numeric-conversion builtin, returning empty instead of the field value. Fix: guard block at top of `_call` checks `func_table[fn].__data_field` or `.__data_ctor` and dispatches immediately if found. Fixes `094_data_define_access`.
+
+**Also attempted (NOT committed — in-progress, no regression):**
+Three partial fixes for `expr_eval` (`E_NAME` of `E_IDX` returning `__nameref_obj`, `E_INDIRECT` reading/writing through `__nameref_obj`, `_assign` E_INDIRECT writing slots). These are present in the working tree but the core `expr_eval` failure remains. DO NOT use these — revert them before starting `expr_eval` work (see SJ-22 below).
+
+### Fixes gained (+1)
+- `094_data_define_access` ✅ (DATA priority fix)
+
+### Still failing (7)
+- `expr_eval` — deferred function call `*Push()` as CAPT_COND target (see root cause below)
+- `test_case`, `test_math`, `test_stack`, `test_string` — blocked on `expr_eval` (include resolution)
+- `fileinfo`, `triplet` — file I/O / system builtins
+
+### expr_eval root cause (precise — verified against source)
+
+**Location:** `sno-interp.js` `_build_pat`, lines 1086–1087:
+```js
+case E_CAPT_COND_ASGN:  return PAT_capt_cond(_build_pat(e.children[0]), e.children[1]?.sval||'');
+case E_CAPT_IMMED_ASGN: return PAT_capt_imm(_build_pat(e.children[0]),  e.children[1]?.sval||'');
+```
+
+`e.children[1]?.sval||''` extracts a plain variable NAME string for the capture target. Works for `pat . VAR`. Fails for `pat . *Push()` where `children[1]` is `E_DEFER(E_FNC(Push))` — `.sval` is null, so `v=''`.
+
+**Location:** `sno_engine.js` line ~144, `_pending_cond` commit:
+```js
+for (const {v, text} of _pending_cond)
+    _vars_set(v, text);
+```
+`v` is assumed to be a plain string variable name. Does not call deferred functions.
+
+### SJ-22 fix plan (expr_eval)
+
+**Step 1** — In `sno-interp.js` `_build_pat`, fix both CAPT cases:
+```js
+case E_CAPT_COND_ASGN: {
+  const p = _build_pat(e.children[0]);
+  const tgt = e.children[1];
+  /* If target is E_DEFER(E_FNC(f)), store callable {__dcall:fname, __exprs:children} */
+  if(tgt && tgt.kind===E_DEFER && tgt.children[0]?.kind===E_FNC)
+    return PAT_capt_cond(p, {__dcall: tgt.children[0].sval, __exprs: tgt.children[0].children});
+  return PAT_capt_cond(p, tgt?.sval||'');
+}
+/* same for E_CAPT_IMMED_ASGN */
+```
+
+**Step 2** — In `sno_engine.js`, fix `_pending_cond` commit (~line 144):
+```js
+for (const {v, text} of _pending_cond) {
+    if(v && v.__dcall) {
+        /* deferred call target: call f(text) — Push(text) stores into stk slot */
+        const litExpr = {kind:'E_STR', sval:text, children:[]};
+        _call_from_engine(v.__dcall, [litExpr]);
+    } else {
+        _vars_set(v, text);
+    }
+}
+```
+`_call_from_engine` needs access to `_call` from `sno-interp.js`. Either export `_call` to engine, or handle via a registered hook (like `_set_vars_hook`).
+
+**Step 3** — Also need: `*Push()` in pattern position uses `E_DEFER(E_FNC(Push))`.
+In `_build_pat`, `E_DEFER` is not handled — falls to default → `interp_eval(E_DEFER)` evaluates `E_FNC(Push)` as a function call at BUILD time (returns null/nameref), not at MATCH time. Need:
+```js
+case E_DEFER: {
+  /* *f() in pattern position: call f() at match time, use return as pattern */
+  const sval=e.children[0].sval, ch=e.children[0].children||[];
+  return PAT_pred(() => { _call(sval, ch); return ''; });  /* zero-width, side-effect */
+}
+```
+But for `*factor . *Unary()` — the `*factor` is a deferred SUB-PATTERN (recursive), not just a side-effect call. This requires `PAT_pred` to return the result of `_call` interpreted as a pattern, then matching it. This is the deep part.
+
+### SJ-22 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `23fab11` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **171p/7f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Check working tree: `git diff --stat` — if nameref_obj changes present, `git checkout src/runtime/js/sno-interp.js` to revert to committed state
+6. Fix `_build_pat` E_CAPT_COND/IMMED for `E_DEFER` target (Step 1 above)
+7. Fix `_pending_cond` commit for `__dcall` (Step 2 above)
+8. Fix `_build_pat` `E_DEFER` in pattern position (Step 3 above) — this is the hard part
+9. Test: `/tmp/sni_run.sh corpus/crosscheck/control/expr_eval.sno < corpus/crosscheck/control/expr_eval.input`
+10. Target **≥172p**
+
+### Baselines for SJ-22
+- `one4all`: `23fab11`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 171p/7f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — _build_pat CAPT/DEFER fixes
+- `src/runtime/js/sno_engine.js` — _pending_cond commit fix
