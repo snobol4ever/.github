@@ -22089,3 +22089,61 @@ expr_eval   test_case   test_math   test_stack   test_string   1016_eval
 - `one4all`: `5702b2a` · `corpus`: `8d5cc6a` · `.github`: this commit
 - **Broad: 172p/6f**
 - Run: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-68 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 172p/6f → **177p/1f** (+5)
+
+### Commits
+- `f2b737a` — DYN-68: fix 1016_eval (DT_E freeze/thaw) + -include one-shot lex rules → 173p→176p
+- `8aeac6c` — DYN-68: fix test_case (E_QLIT S=PR split, mixed-mode pat_cat) → 176p→177p
+
+### What was fixed
+
+**1016_eval (+1):** `E_DEFER` (`*expr`) in expression context now produces `DT_E` descriptor (frozen `EXPR_t*`) instead of evaluating eagerly. `EVAL_fn` in `snobol4_pattern.c` has new `DT_E` branch that calls `eval_node(expr.ptr)` to thaw. `eval_node()` made non-static for cross-TU call. `E_CAPT_COND_ASGN` switched to `interp_eval_pat` so `*PAT . V` still works in pattern context. `interp_eval_pat` gets `E_DEFER` case that calls `interp_eval(child)` (value context — returns string/pattern value of variable).
+
+**-include (+3: test_math, test_string, test_stack):** Two-state `INCL` flex approach retired. Root cause: `<INCL>[^\n]*\n` catch-all wins via longest-match over keyword rules every time. Fixed with one-shot `<INITIAL>` rules matching `-include 'filename'\n` atomically in a single pattern — no state transition needed. Also added `sno_add_include_dir()` in `scrip-interp.c main()` for: file's own dir, `SNO_LIB` env var, corpus-root auto-detect (walks up looking for `lib/` subdir). Runner updated: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`.
+
+**test_case (+1):** Two sub-fixes: (1) S=PR split in `sno4_stmt_commit_go` extended to also fire on `E_QLIT` first child — so `'world' icase('hello') :S` is properly parsed as pattern-match statement, not expression statement. (2) `E_SEQ`/`E_CAT` in `interp_eval` now uses `pat_cat` when either operand is `DT_P` — fixes `icase` recursive pattern building where `icase = icase (upr(c)|lwr(c))` accumulated DT_P via CONCAT_fn (wrong) instead of pat_cat (correct).
+
+### Remaining failure (1f)
+```
+expr_eval
+```
+
+**`expr_eval` root cause:** Complex recursive-descent expression evaluator using `Push`/`Pop` stack via TABLE, NRETURN, and `$var = x` indirect lvalue assignment. `Push = .stk[stk[0]]` assigns a DT_N nameref for a **subscripted** table entry. `$Push = x` then needs to write through that DT_N to `stk[stk[0]]`. The DT_N write-through in NRETURN path handles simple `DT_N("varname")` → `NV_SET_fn(name, val)` but does NOT handle compound nameref for subscripted lvalue `stk[idx]`. The `stk` TABLE indexing via nameref is never written.
+
+**Trace:** `Push(42)` → calls user fn → `stk[0] = stk[0]+1` → `stk[0]=1` ✓ → `Push = .stk[1]` (DT_N) ✓ → `$Push = 42` → NRETURN path: `fres.v == DT_N && fres.s = "stk[1]"` → `NV_SET_fn("stk[1]", 42)` — this stores under the **literal key** `"stk[1]"` in the NV table, not into `stk`'s TABLE at index 1.
+
+**Fix needed:** When NRETURN returns DT_N whose name contains `[`, parse it as `base[idx]` and dispatch to `subscript_set`. Or: change the DT_N nameref to carry the subscript separately (DESCR_t pair). Check `E_NAME` of `E_IDX` in `interp_eval` — it should produce a DT_N that can be resolved as a subscript write.
+
+### Makefile note (from Lon)
+Makefile for bison/flex already has correct dependencies (`snobol4.tab.c snobol4.tab.h: snobol4.y` and `snobol4.lex.c: snobol4.l snobol4.tab.h`). Both tools installed (`apt-get install -y bison flex`). Regeneration works: `touch snobol4.y snobol4.l && make`.
+
+**Whitespace rule (from Lon):** Every token must consume its own trailing whitespace — no global whitespace rule. This was the key insight for the -include fix: the two-state approach relied on whitespace-consuming transitions that don't exist.
+
+### DYN-69 first actions
+1. `git pull --rebase` all repos — confirm `8aeac6c` at one4all HEAD
+2. Build scrip-interp-s (search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
+3. Confirm **177p/1f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+4. Debug `expr_eval` — fix DT_N subscript nameref write-through in NRETURN path
+5. Target **178p/0f → M-DYN-INTERP-FULL**
+
+### Baselines for DYN-69
+- `one4all`: `8aeac6c` · `corpus`: `8d5cc6a` (unchanged) · `.github`: this commit
+- **Broad: 177p/1f**
+- Build: scrip-interp-s — use `.s` build command (search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
+- Runner: `cat > /tmp/dyn_run_s.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"` / `EOF` / `chmod +x /tmp/dyn_run_s.sh`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed this session
+- `src/driver/scrip-interp.c` — E_DEFER/DT_E, E_CAPT_COND_ASGN pat ctx, E_SEQ mixed pat_cat, include dirs in main(), E_QLIT S=PR split (via .y)
+- `src/frontend/snobol4/snobol4.l` — -include one-shot INITIAL rules (INCL state retired)
+- `src/frontend/snobol4/snobol4.y` — E_QLIT S=PR split
+- `src/frontend/snobol4/snobol4.lex.c` — regenerated
+- `src/frontend/snobol4/snobol4.tab.c/.h` — regenerated
+- `src/runtime/dyn/eval_code.c` — eval_node() made non-static
+- `src/runtime/snobol4/snobol4_pattern.c` — EVAL_fn DT_E branch
