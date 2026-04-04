@@ -24079,3 +24079,67 @@ echo "	SQRT = Y ** 0.5			:(RETURN)" | ./sn4parse   # must show EXPFN(**)
 ./sn4parse corpus/programs/gimpel/SQRT.sno 2>&1 | grep -E "error|=== [0-9]"
 # Fix expr_prec_continue CATFN, then NSTTYP paren, then run full SQRT
 ```
+
+## DYN-86 — sn4parse.c: M-SN4PARSE gate PASSES (2026-04-04)
+
+### Session type
+**Parser fix** — DYN- session (SNOBOL4 frontend × x86/C backend).
+
+### What Was Done
+
+**M-SN4PARSE gate achieved: `./sn4parse SQRT.sno` → 15 statements, 0 errors.**
+
+Four bugs fixed in sn4parse.c:
+
+**Bug 1 (root — killed ALL binary operators): BINOP() NBTYP check on wrong path.**
+After IBLKTB consumes the leading blank and FRWDTB stops at the operator char,
+STYPE=NBTYP (correct — real token here). Code was checking `if (BRTYPE == NBTYP)`
+using the stale BRTYPE from the previous FORBLK call, not STYPE. This returned 0
+for every operator, including `+`, `*`, `**`, `/`, `|`. Fix: check `stype_after_blank`
+(STYPE immediately after IBLKTB returns ST_STOP) against field delimiters only;
+NBTYP falls through to BIOPTB which correctly reads the operator.
+
+**Bug 2: Bare-label line infinite loop.**
+`CMPILE`: after LBLTB scans the label, FORBLK on empty body returns ST_EOS with
+BRTYPE=0, not BRTYPE=EOSTYP=6. The `if (BRTYPE == 0 || BRTYPE == EOSTYP)` guard
+added. Lines like `SQRT\n` and `SQRT_END\n` now return a label-only statement.
+
+**Bug 3: Goto closing `)` not consumed / `:S(x)F(y)` form broken.**
+CMPGO was calling FORBLK() to consume the closing `)` after each goto label.
+FORBLK uses IBLKTB which expects a leading blank — it errors on `)`. Fix: use
+FORWRD() (FRWDTB) which handles `)` as RPTYP/AC_STOP. For the second goto in
+`:S(SQRT_1)F(RETURN)`, skip optional `:` before checking GOTOTB. Both
+`:S(x)F(y)` and `:S(x):F(y)` forms now parse correctly.
+
+**Bug 4: LBLTB rejects `_` — labels like `SQRT_1`, `SQRT_END` fail.**
+SIL syn.c verbatim LBLTB marks `_` (0x5F) as AC_ERROR (ANSI SNOBOL4 had no `_`
+in labels). SNOBOL4+/SPITBOL and our corpus use underscored labels throughout.
+Fix: LBLTB.chrs[0x5F] = 1 (alphanumeric → continue). When LBLTB errored on `_`,
+stream() returned ST_ERROR without updating XSP — leaving XSP holding the `)` from
+the previous FORWRD call, producing `label: )` on the next statement.
+
+### Commit
+- `one4all`: `07f88dc` — DYN-86: sn4parse.c fixes, pushed.
+
+### What Was NOT Done (DYN-87 first actions)
+1. Corpus Phase 1 sweep — run all .sno files, measure error rate
+2. Label+tab+body-on-same-line (`SQRT_1\tERR = SQRT * SQRT - Y`) — FORBLK errors
+   because after scanning label `SQRT_1`, TEXTSP points at `\tERR...` and FORBLK/
+   IBLKTB sees tab → chains to FRWDTB → `E` → NBTYP. This is correct — NBTYP
+   means subject starts here. CMPILE should handle NBTYP the same as it handles
+   the normal body path. Check CMPILE's BRTYPE dispatch after FORBLK.
+3. `SQRT * SQRT - Y`: precedence — `*` binds tighter than `-`, so
+   `(SQRT * SQRT) - Y`. Verify operator precedence tree is correct.
+4. Begin MILESTONE-SN4PARSE-VALIDATE Phase 1.
+
+### Session start for DYN-87
+```
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-SN4PARSE.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
+./sn4parse corpus/programs/gimpel/SQRT.sno 2>&1 | tail -1  # must say 15 statements
+# Fix label+tab+body (SQRT_1\tERR = ...) — add NBTYP handling after FORBLK in CMPILE
+# Then: for f in corpus/programs/gimpel/*.sno; do timeout 5 ./sn4parse "$f" 2>&1 | tail -1; done
+```
