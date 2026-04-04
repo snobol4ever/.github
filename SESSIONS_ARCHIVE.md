@@ -23206,3 +23206,81 @@ Complete architectural review of scrip-interp vs CSNOBOL4 vs SPITBOL: pattern en
 - `src/driver/scrip-interp.c` — E_ALT in interp_eval_pat; E_DEFER(E_VAR)→pat_ref(XDSAR); _expr_is_pat routing in execute_program assignment
 - `src/runtime/snobol4/snobol4_pattern.c` — XDSAR cycle → T_VARREF instead of epsilon
 - `src/runtime/dyn/stmt_exec.c` — bb_deferred_var: in_progress guard removed, depth-cap only
+
+## DYN-76 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change in count; 1016_eval fixed, expr_eval CC_γ_core side-effect timing open
+
+### Commits
+- `7a64880` one4all — DYN-76: E_DEFER thaw in eval_node + interp_eval_pat DT_E for value exprs + DVAR scoped callcap save/restore → 177p/1f; expr_eval CC_γ_core side-effect timing open for DYN-77
+
+### What was done (DYN-76)
+
+**Fix 1 — E_DEFER case in eval_node** (`src/runtime/dyn/eval_code.c`)
+`eval_node` had no `case E_DEFER:` — fell through to `default: return NULVCL`. Added:
+```c
+case E_DEFER:
+    if (e->nchildren < 1) return NULVCL;
+    return eval_node(e->children[0]);
+```
+This allows `EVAL_fn(DT_E)` → `eval_node(E_DEFER_node)` → recurse into child.
+
+**Fix 2 — interp_eval_pat E_DEFER non-VAR non-FNC path** (`src/driver/scrip-interp.c`)
+Previously the "non-VAR child" arm called `interp_eval(child)` directly, immediately evaluating `*('abc' 'def')` as STRING. Fixed to check `!_expr_is_pat(child)` — if child is a pure value expression, produce `DT_E` (frozen) instead:
+```c
+if (!_expr_is_pat(child)) {
+    DESCR_t d; d.v = DT_E; d.ptr = child; d.slen = 0;
+    return d;
+}
+DESCR_t r = interp_eval_pat(child);
+```
+This fixes `1016_eval` (PASS 3/3): `eval(*('abc' 'def'))` now correctly returns `"abcdef"`.
+
+**Fix 3 — DVAR scoped callcap save/restore** (`src/runtime/dyn/stmt_exec.c`)
+Root cause of expr_eval (partially): DVAR cached the child `bb_node_t` (same PATND_t pointer → no rebuild). Cached `callcap_t` had `registered=1` from outer invocation. Recursive `*term` at depth=2 found same callcap_t with `registered=1` → skipped registration → "2" never flushed.
+Fix: in `DVAR_α`, snapshot outer `g_callcap_list`, reset `registered=0`, run child with fresh count=0. On success: restore outer list then append inner. On failure: discard inner, restore outer with `registered=1`.
+
+**expr_eval remaining bug — CC_γ_core side-effect timing:**
+`Push()` has side-effect: `stk[0] = stk[0] + 1` fires in Push body, which is called from `CC_γ_core` at match-time (to get DT_N lvalue). This happens for ALL match arms including backtracked ones. So for `1+2`:
+- Match attempts `*constant addop *term` (full alt1)
+- Recursive `*term` tries alt1 (`*constant addop *term`) — fails, backtracks
+- Then tries alt2 (`*constant`) — succeeds
+- But Push() was called during the failed alt1 attempt's recursive constant match, incrementing `stk[0]` to 4
+- At flush, only 3 callcaps have `has_pending=1`, but `stk[0]=4` → Pop() reads stk[4]=2, stk[3]=empty, stk[2]=+, gives wrong args to Binary()
+
+The deeper issue: `CC_γ_core` calls `g_user_call_hook(fnc_name, args, nargs)` immediately at match-time (not at flush time) to get the lvalue pointer. For pure lvalue functions (NRETURN returning `.stk[N]`) this side-effect is observable. Fix needed: separate lvalue acquisition from side-effect-heavy functions, OR pass a "probe" flag that suppresses stk[0]++ in Push during lvalue-only calls.
+
+Two approaches for DYN-77:
+**A.** Two-phase callcap: record (fnc_name, args) at CC_γ, call function only at flush_pending_callcaps time. Requires CC_γ_core to NOT call the function — just store pending spec + args.
+**B.** Snapshot/restore `stk` around the failed backtrack arm — but this is impractical in general.
+
+**Approach A is correct.** `CC_γ_core` should NOT call `g_user_call_hook`. Instead, store `pending = child_r` (already done) and let `flush_pending_callcaps` call the function to get the lvalue and write to it.
+
+### DYN-77 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `7a64880` at one4all HEAD
+2. Runner: `cat > /tmp/dyn_run_s.sh << 'EOF' / #!/bin/bash / exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@" / EOF / chmod +x /tmp/dyn_run_s.sh`
+3. Full rebuild (SESSION-dynamic-byrd-box.md build command — omit bb_dvar.c)
+4. Confirm **177p/1f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Implement Approach A — defer function call from CC_γ_core to flush_pending_callcaps:
+   - In `CC_γ_core`: remove `g_user_call_hook` call; just set `ζ->pending = child_r; ζ->has_pending = 1`
+   - In `flush_pending_callcaps`: call `g_user_call_hook(c->fnc_name, c->fnc_args, c->fnc_nargs)` to get DT_N; write `snap` to `*cell`
+   - Remove `ζ->resolved_ptr` field (no longer needed at match time)
+6. Run mini6 test — expect stk[0]=3, stk[1]=1, stk[2]=+, stk[3]=2
+7. Run expr_eval — expect `3 9 25.5 7 26` matching ref
+8. Full broad → **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-77
+- `one4all`: `7a64880` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` — CC_γ_core calls Push() at match-time (side effect stk[0]++), deferred-to-flush fix needed
+- Build: scrip-interp — see SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+
+### Key files changed (7a64880)
+- `src/runtime/dyn/eval_code.c` — case E_DEFER: added to eval_node
+- `src/driver/scrip-interp.c` — interp_eval_pat E_DEFER: !_expr_is_pat(child) → DT_E
+- `src/runtime/dyn/stmt_exec.c` — DVAR scoped callcap save/restore (outer+inner merge on success)
