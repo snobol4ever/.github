@@ -22250,3 +22250,81 @@ After M-DYN-INTERP-FULL, add a beauty sweep milestone: all 19 beauty drivers pas
 - `src/runtime/snobol4/snobol4_pattern.c` — `pat_assign_callcap`
 - `src/runtime/dyn/stmt_exec.c` — `capture_t.var_ptr`, `bb_usercall`, `callcap_t`, `bb_callcap`, `flush_pending_callcaps`, XCALLCAP in `bb_build`, flush call in Phase 5, `g_callcap_count` reset
 - `src/driver/scrip-interp.c` — `interp_eval_ref`, `NAME_DEREF`, `E_NAME`/`E_DEFER`/NRETURN/`$expr` fixes, `E_CAPT_COND_ASGN` using `pat_assign_callcap`, `g_user_call_hook` registration in `main()`
+
+## DYN-70 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 171p/7f → **173p/5f** (+2)
+
+### Commits
+- `6c78780` — DYN-70: revert E_DEFER(E_VAR) immediate-resolve in interp_eval
+- `b45a8e9` — DYN-70: fix double user-function call + LABEL_DONE lexer state
+
+### What was done (DYN-70)
+
+**1. E_DEFER(E_VAR) revert (commit 6c78780)**
+
+DYN-69 added an `E_DEFER(E_VAR)` fast-path in `interp_eval` (value context) that resolved `*var` immediately. This was wrong — in value context `*var` must produce `DT_E` (frozen for EVAL). Only `interp_eval_pat` should resolve `*var` immediately. Reverted. The 6 tests listed in DYN-69 as regressions were pre-existing failures, not caused by this change.
+
+**2. Double user-function call root cause (diagnosed via backtrace)**
+
+Every user-defined function was being called **twice** on each invocation. Root cause in `interp_eval` E_FNC handler:
+- `APPLY_fn(name, args, nargs)` internally dispatches user functions via `call_user_function`
+- After APPLY_fn returned NULVCL, `interp_eval` found the body label and called `call_user_function` again
+- Result: every user function executed twice — all output doubled, all side effects doubled
+
+Fix: check for body label BEFORE calling `APPLY_fn`. If body label found → user-defined → call `call_user_function` directly, skip `APPLY_fn` entirely. Builtins never have body labels; user functions always do (registered by `prescan_defines`).
+
+**3. LABEL_DONE lexer state**
+
+Added `LABEL_DONE` exclusive state in `snobol4.l`. When a label-only line ends with `\n` (i.e. `<LABEL>\n` fires), the lexer now enters `LABEL_DONE` instead of `INITIAL`. `LABEL_DONE` emits `T_STMT_END` before the next line's content is tokenised, preventing the next statement's body from being absorbed into the label-only statement. The parser was structurally correct (program dump confirmed 4 stmts including empty fend); the double-call fix resolved 086 and 1013, not the lexer change — but LABEL_DONE is correct behaviour and kept.
+
+**Fixes confirmed:**
+- `086_define_locals` ✅ — was double-executing swap body; fixed by double-call fix
+- `1013_func_nreturn` ✅ — NRETURN read/write was working; fixed by double-call fix (DIFFER was seeing doubled state)
+
+### Remaining failures for DYN-71 (5f)
+
+```
+expr_eval       — segfault: bb_deferred_var → bb_build recursive depth
+1010_func_recursion — OPSYN alias dispatch: facto(4) fails (opsyn with NAME arg)
+1015_opsyn      — OPSYN operator rebind: '@' as dupl, '|' as size
+1016_eval       — eval(*ident(1,2)) should fail; failure not propagating through EVAL_fn
+1018_apply      — apply(.eq,1,2) should fail; builtin failure not propagating via NAME dispatch
+```
+
+**Quick diagnosis of each:**
+
+`1016_eval`: `eval(fexp)` where fexp=`*ident(1,2)`. `EVAL_fn` calls `eval_node()` on the frozen expr. `ident(1,2)` fails. But `EVAL_fn` returns NULVCL instead of FAILDESCR. Fix: check `IS_FAIL_fn(eval_node(...))` and return FAILDESCR.
+
+`1018_apply`: `apply(.eq,1,2)` — `.eq` is DT_N (name of EQ). `APPLY_fn("APPLY",...)` resolves the first arg as a name → calls EQ(1,2) → EQ fails → APPLY should return FAILDESCR. Check `APPLY_fn` return propagation for builtin predicates returning fail.
+
+`1010_func_recursion/1015_opsyn`: `OPSYN_fn` with NAME descriptor (`.facto`, `.dupl`, `.size`) — the second arg should be the function name. When passed as `DT_N`, `OPSYN_fn` needs to dereference through the name descriptor to get the string. Check `OPSYN_fn` in `snobol4.c` for DT_N handling.
+
+`expr_eval`: `bb_deferred_var` pattern node for `*primary`/`*term`/`*factor` — recursive `bb_build` call overflows. Add depth guard or memoize per `PATND_t*` pointer in `stmt_exec.c`.
+
+### DYN-71 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `b45a8e9` at one4all HEAD
+2. Build scrip-interp-s (UPDATED command — search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
+3. Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+4. Confirm **173p/5f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Fix `1016_eval`: check `IS_FAIL_fn` on `eval_node()` result in `EVAL_fn` → return FAILDESCR
+6. Fix `1018_apply`: check APPLY_fn failure propagation for builtin predicates via NAME
+7. Fix `1010/1015` OPSYN: dereference DT_N in `OPSYN_fn` second arg
+8. Fix `expr_eval` segfault: depth guard in `bb_deferred_var`/`bb_build`
+9. Run broad → target **178p/0f → M-DYN-INTERP-FULL**
+10. After M-DYN-INTERP-FULL: beauty sweep (19 drivers in corpus/programs/snobol4/beauty/)
+
+### Baselines for DYN-71
+- `one4all`: `b45a8e9` · `corpus`: `8d5cc6a` (unchanged) · `.github`: this commit
+- **Broad: 173p/5f**
+- Build: scrip-interp-s — use "scrip-interp-s build command (UPDATED)" from SESSIONS_ARCHIVE
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed
+- `src/driver/scrip-interp.c` — E_DEFER(E_VAR) revert; E_FNC double-call fix (body-label check before APPLY_fn)
+- `src/frontend/snobol4/snobol4.l` — LABEL_DONE exclusive state added
+- `src/frontend/snobol4/snobol4.lex.c` — regenerated
