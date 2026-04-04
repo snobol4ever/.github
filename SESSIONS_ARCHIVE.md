@@ -22763,3 +22763,178 @@ expr_eval  — segfault: recursive *factor/*term/*expr mutual recursion
 - Build: scrip-interp-s — UPDATED command from DYN-62 in SESSIONS_ARCHIVE
 - Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-72 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 173p/5f → **175p/3f** (+2, same net as DYN-71 — re-implemented dropped changes)
+
+### Commits
+- `bf4de1d` — DYN-72: 175p/3f — NAMEVAL/.name fix, NRETURN simplify, g_eval_pat_hook, dvar depth guard
+
+### What was done (DYN-72)
+
+Re-implemented all DYN-71 changes (dropped in push collision with J-233) plus additional fixes:
+
+**1. E_NAME → NAMEVAL (fixes 1010/1015/1018)**
+`E_NAME(E_VAR/E_FNC/E_KEYWORD)` now returns `NAMEVAL(child->sval)` instead of `NAMEPTR(NV_PTR_fn(...))`. Root cause: Boehm conservative GC may not recognise interior pointer `&e->val` as keeping `NV_t` alive → object collected → stale pointer → `NV_name_from_ptr` scan fails → `VARVAL_fn` returns `""` → `APPLY_fn("")` returns NULVCL. NAMEVAL uses the GC-stable string directly.
+
+**2. NAME_DEREF + NAME_SET helpers**
+Both handle NAMEPTR (`.ptr` form) and NAMEVAL (`.s` form). `NAME_DEREF` calls `NV_GET_fn(d.s)` for NAMEVAL. `NAME_SET` calls `NV_SET_fn(nd.s, val)` for NAMEVAL.
+
+**3. NRETURN path simplified**
+`retval = NV_GET_fn(fr->fname)` — returns the DT_N descriptor as-is (NAMEVAL or NAMEPTR). Caller (E_FNC handler) applies `NAME_DEREF(r)` which handles both. This replaces the old branchy logic that confused NAMEVAL's `.s` pointer for a valid NAMEPTR interior pointer (union overlap — `.s` and `.ptr` are the same union slot, so NAMEVAL always has non-null `.ptr`).
+
+**4. VARVAL_fn DT_N case + NV_name_from_ptr** (snobol4.c)
+VARVAL_fn now handles DT_N: `.s` → return name string directly; `.ptr` → NV_name_from_ptr reverse scan.
+
+**5. EVAL_fn fixes** (snobol4_pattern.c)
+- DT_E path: `IS_FAIL_fn` check on `eval_node` result → propagates failure (fixes 1016/001-002)
+- DT_P path: calls `g_eval_pat_hook(expr)` before returning pattern unchanged
+
+**6. g_eval_pat_hook** (scrip-interp.c + snobol4.c + snobol4.h)
+`_eval_pat_impl_fn` runs a DT_P pattern against empty subject via `exec_stmt("", &subj, pat, NULL, 0)`. Returns FAILDESCR if pattern fails, NULVCL if succeeds. Registered in `main()`.
+
+**7. deferred_var_t.in_progress + g_dvar_depth** (stmt_exec.c)
+Per-node `in_progress` flag + global `g_dvar_depth` counter (cap 64) in `bb_deferred_var` α port. Prevents stack overflow from mutually-recursive `*factor`/`*term`/`*expr` patterns.
+
+### Remaining failures for DYN-73 (3f)
+
+```
+1013_func_nreturn  — NRETURN read regression
+1016_eval          — assertion 003: eval(*ident(1,2)) should fail
+expr_eval          — pat_cat: left is not a pattern (DT=11)
+```
+
+### DYN-73 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `bf4de1d` at one4all HEAD
+2. Build scrip-interp-s (UPDATED command from DYN-62 in SESSIONS_ARCHIVE)
+3. Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+4. Confirm **175p/3f**
+5. Fix `1013_func_nreturn`:
+
+   **Diagnosis:** `ref_a = .a :(nreturn)`. `.a` → `NAMEVAL("a")`. `NAMEVAL` macro: `{ .v=DT_N, .s=(char*)(s_) }` — sets the union's `.s` field. Since `.s` and `.ptr` are the same union slot, `nrv.ptr = (void*)"a"` (the string pointer). NRETURN path: `retval = NV_GET_fn(fr->fname)` = NAMEVAL("a"). At E_FNC call site: `NAME_DEREF(NAMEVAL("a"))` — checks `.ptr` first (non-null, it's the string pointer "a"), does `*(DESCR_t*)(void*)"a"` → reads garbage. Result: garbage or segfault.
+
+   **Fix:** `NAME_DEREF` must check the form correctly. Since `.s` and `.ptr` are the same union member, can't distinguish by pointer alone. Need a different approach:
+
+   **Option A:** Add a tag field to DESCR_t to distinguish NAMEVAL from NAMEPTR. **Invasive.**
+
+   **Option B:** In `NAME_DEREF`, check `d.v == DT_N` → always use `VARVAL_fn(d)` to get the name string, then `NV_GET_fn(name)`:
+   ```c
+   static inline DESCR_t NAME_DEREF(DESCR_t d) {
+       if (d.v == DT_N) {
+           /* Use VARVAL_fn to extract name string — works for both NAMEVAL (.s)
+            * and NAMEPTR (.ptr) with NV_name_from_ptr fallback */
+           const char *nm = VARVAL_fn(d);
+           if (nm && *nm) return NV_GET_fn(nm);
+       }
+       return d;
+   }
+   ```
+   This is safe: VARVAL_fn(NAMEVAL("a")) → "a" → NV_GET_fn("a") → 27. ✓
+   VARVAL_fn(NAMEPTR(cell)) → NV_name_from_ptr(cell) → name → NV_GET_fn(name) → value. ✓
+   **Note:** For write-through (NRETURN assign), NAME_SET still needs to write to the right cell. For NAMEVAL: `NV_SET_fn(nd.s, val)` ✓. For NAMEPTR: `*(DESCR_t*)nd.ptr = val` — but ptr is the string pointer for NAMEVAL. So NAME_SET also needs the same fix: use VARVAL_fn to get name, then NV_SET_fn.
+
+   **Option C (simplest):** Change `NAMEVAL` macro to store the name in a separate field. But DESCR_t has no separate field.
+
+   **Option D (recommended):** Don't use NAMEVAL for E_NAME. Instead, always use a DT_S string for passing names to OPSYN/APPLY (they call VARVAL_fn anyway), and keep NAMEPTR for lvalue write-through. Change E_NAME to return `STRVAL(child->sval)` for E_VAR children (not DT_N at all). Then OPSYN/APPLY get DT_S "eq" → VARVAL_fn returns "eq" → works. And NRETURN write-through (`ref_a() = 26`) uses `interp_eval_ref` path directly (not through E_NAME value return).
+
+   **Implement Option D:**
+   In `E_NAME` case of `interp_eval` (~line 544):
+   ```c
+   case E_NAME: {
+       if (e->nchildren < 1) return FAILDESCR;
+       EXPR_t *child = e->children[0];
+       /* For simple names: return DT_S string — OPSYN/APPLY call VARVAL_fn(DT_S) → gets name */
+       if ((child->kind == E_VAR || child->kind == E_FNC || child->kind == E_KEYWORD) && child->sval)
+           return STRVAL((char *)child->sval);
+       /* Complex lvalue (array/table cell): NAMEPTR — parent object keeps cell alive */
+       DESCR_t *cell = interp_eval_ref(child);
+       if (cell) return NAMEPTR(cell);
+       return FAILDESCR;
+   }
+   ```
+   And NRETURN read path in E_FNC:
+   ```c
+   DESCR_t r = call_user_function(e->sval, args, nargs);
+   /* NRETURN: function returns DT_N (name ref) — dereference to get value */
+   if (r.v == DT_N) {
+       /* NAMEPTR form: interior pointer to NV cell */
+       if (r.ptr) return *(DESCR_t*)r.ptr;
+       /* NAMEVAL/STRVAL fallback: look up by name string */
+       if (r.s) return NV_GET_fn(r.s);
+   }
+   return r;
+   ```
+   And NRETURN path in `call_user_function`:
+   ```c
+   /* NRETURN: return a proper NAMEPTR — look up 'a' cell and wrap */
+   DESCR_t nrv = NV_GET_fn(fr->fname);  /* = STRVAL("a") after ref_a=.a (DT_S with Option D) */
+   if (nrv.v == DT_S && nrv.s && *nrv.s) {
+       /* .a in body stored DT_S "a" — get the cell for lvalue return */
+       DESCR_t *cell = NV_PTR_fn(nrv.s);
+       retval = cell ? NAMEPTR(cell) : FAILDESCR;
+   } else if (nrv.v == DT_N && nrv.ptr) {
+       retval = nrv;  /* already NAMEPTR */
+   } else {
+       retval = FAILDESCR;
+   }
+   ```
+   **Caution:** With Option D, `ref_a = .a` stores DT_S("a") not DT_N. The write-through `ref_a() = 26` uses `interp_eval_ref` → `call_user_function` returns NAMEPTR(cell_for_a) → write succeeds. Check this path still works.
+
+6. Fix `1016_eval` assertion 003 — `eval(*ident(1,2))` should fail:
+
+   The `g_eval_pat_hook` is wired. Run the test:
+   ```bash
+   /tmp/dyn_run_s.sh /home/claude/corpus/crosscheck/rung10/1016_eval.sno 2>/dev/null
+   ```
+   If still failing, check: does `_eval_pat_impl_fn` get called? Add `fprintf(stderr, "hook called\n")` trace. Likely issue: `exec_stmt("", &subj, pat, NULL, 0)` — the empty subject may not trigger the XATP node correctly. The XATP pattern `*ident(1,2)` expects to fire `ident(1,2)` at match position 0 on the empty subject. `ident(1,2)` fails → match fails → `exec_stmt` returns 0 → hook returns FAILDESCR. This should work.
+
+   If `exec_stmt` signature mismatch causes compile error, check the actual signature in `stmt_exec.c` line 1073.
+
+7. Fix `expr_eval` — `pat_cat: left is not a pattern (DT=11)`:
+
+   **Diagnosis:** `interp_eval_pat`'s `default:` branch calls `interp_eval(e)`. For some expression node `e` in a pattern context, `interp_eval` returns DT_E (frozen expression). This DT_E then gets passed to `pat_cat`. The DT=11 = DT_E comes from `interp_eval`'s `E_DEFER` handler returning frozen DT_E.
+
+   Which node hits `default:` in `interp_eval_pat`? Likely `E_COND_ASSIGN` or `E_CAPT_IMMED_ASGN` when one of its children is an `E_DEFER(E_FNC)` that `interp_eval` freezes as DT_E instead of building XATP.
+
+   Wait — `interp_eval`'s `E_CAPT_COND_ASGN` handler calls `interp_eval_pat(e->children[0])` for the left pattern. But for the right child (target), if it's `E_DEFER(E_FNC)`, it builds XCALLCAP correctly. So E_CAPT_COND_ASGN is handled.
+
+   The issue is more subtle: `interp_eval_pat`'s `E_SEQ` handler calls `interp_eval_pat` on each child. One of the children is `E_CAPT_COND_ASGN` — which hits `default:` → `interp_eval(E_CAPT_COND_ASGN)`. `interp_eval` handles it at line 925 by calling `interp_eval_pat(e->children[0])` for the left pat. This is correct.
+
+   BUT: `e->children[0]` of `E_CAPT_COND_ASGN` is the pattern before the dot. For `addop *factor . *Unary()`, the structure is `E_SEQ[addop, E_CAPT_COND_ASGN[*factor, *Unary()]]`. When `interp_eval` processes `E_CAPT_COND_ASGN`, it calls `interp_eval_pat(E_DEFER(E_VAR("factor")))` → `*var` path → `interp_eval(E_VAR("factor"))` → DT_P (current value of factor). ✓
+
+   The DT=11 might come from an `E_ALT` node hitting `default:` in `interp_eval_pat`. Add `E_ALT` handling:
+   ```c
+   case E_ALT: {
+       if (e->nchildren == 0) return pat_epsilon();
+       DESCR_t acc = interp_eval_pat(e->children[0]);
+       for (int i = 1; i < e->nchildren; i++)
+           acc = pat_alt(acc, interp_eval_pat(e->children[i]));
+       return acc;
+   }
+   ```
+   **Also add:** `E_CAPT_IMMED_ASGN` case in `interp_eval_pat` (mirrors E_CAPT_COND_ASGN from interp_eval).
+
+   After these fixes, re-run expr_eval. If still failing, run with MONITOR against SPITBOL oracle.
+
+8. Run broad → target **178p/0f → M-DYN-INTERP-FULL**
+9. Commit as single commit, push
+10. After M-DYN-INTERP-FULL: beauty sweep (19 drivers in `corpus/programs/snobol4/beauty/`)
+
+### Baselines for DYN-73
+- `one4all`: `bf4de1d` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 175p/3f**
+- Build: scrip-interp-s — UPDATED command from DYN-62 in SESSIONS_ARCHIVE
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (bf4de1d)
+- `src/driver/scrip-interp.c` — E_NAME NAMEVAL; NAME_DEREF/NAME_SET; NRETURN simplify; _eval_pat_impl_fn; g_eval_pat_hook registration
+- `src/runtime/snobol4/snobol4.c` — VARVAL_fn DT_N case; NV_name_from_ptr; g_eval_pat_hook defined
+- `src/runtime/snobol4/snobol4_pattern.c` — EVAL_fn IS_FAIL_fn + DT_P hook
+- `src/runtime/snobol4/snobol4.h` — NV_name_from_ptr + g_eval_pat_hook declared
+- `src/runtime/dyn/stmt_exec.c` — deferred_var_t.in_progress; g_dvar_depth
