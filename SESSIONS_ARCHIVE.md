@@ -23949,3 +23949,49 @@ Note: ARCH-index.md "By Topic" section is obsolete — superseded by PLAN.md com
 ### Session start for DYN-84
 Read SCRIP-SM.md first. Then BB-GRAPH.md, BB-DRIVER.md, IR.md, RUNTIME.md. Then this entry.
 Complete subfolder moves first (old/, archive/, misc/). Then begin SM_Instr work.
+
+## DYN-84 — SIL Study + sn4parse.c (2026-04-04)
+
+### Session type
+**Architecture study + new standalone tool**. No interpreter changes. Produced `sn4parse.c`.
+
+### What Was Done
+
+**SIL vs scrip-interp comparison (compare/contrast):**
+- Read v311.sil fully: CMPILE, ELEMNT, EXPR, FORWRD/FORBLK, NME/FNME/DNME/ENME/ENMI, EXPVAL, CONVE, ASGN, NAME, INTERP, PATVAL, ARGVAL
+- Read equ.h, syn.c, syn_init.h, lib/stream.c, syntab.h
+- Key findings documented:
+  - EXPRESSION (E=11), CODE (C=8), NAME (N=9) datatypes entirely missing from scrip-interp
+  - Conditional capture (`.`) uses buffered name list committed at Phase 5 — not yet correct in our CAPTURE box
+  - Immediate capture (`$`) assigns live with unravel entry — conflated with `.` in our code
+  - EXPVAL saves/restores full interpreter state (OCBSCL/OCICL + all specs) — re-entrant eval needed for SM dispatch loop
+  - SIL INTERP loop: INCRA OCICL; GETD; TESTF FNC; INVOKE — same as SM dispatch
+
+**sn4parse.c — new file, committed to one4all:**
+- 256-byte chrs[] tables verbatim from snobol4-2.3.3/syn.c (pure data)
+- actions[] ordering verified against syn_init.h (key fix: FRWDTB [0]=EQTYP not NBTYP)
+- stream() verbatim from lib/stream.c
+- FORBLK/FORWRD/BINOP/ELEMNT/EXPR/EXPR1/CMPILE mirror v311.sil procedures
+- Produces tree of NODE structs with SIL STYPE codes throughout
+- Working: labels (column 1), X=1 assignment, LT(Y,0) function args, :S/:F/:( gotos
+- Goal: oracle for exact Bison/Flex grammar derivation
+
+### Remaining bugs in sn4parse.c (DYN-85 first actions)
+1. **`**` exponent not parsed** — STARTB path: BIOPTB `*`→STARTB→`*`→EXPFN/GOTO TBLKTB. expr_prec_continue not looping after first element. Check BINOP save/restore logic.
+2. **FORBLK error after `)` before tab+`:`** — after function call closes `)`, TEXTSP has `\t:S(...)`. FORBLK→IBLKTB sees tab→1→GOTO FRWDTB→`:` which should set CLNTYP. Trace why IBLKTB errors here.
+3. **Pattern field never reached** — `SUBJECT PATTERN :S/:F` form: after subject ELEMNT, FORBLK should return NBTYP for non-blank non-delimiter, triggering pattern parse.
+4. **Juxtaposition (blank-CAT/SEQ)** — BINOP returns 0 on blank; expr_prec_continue exits. Need separate path for blank-separated elements → E_CAT/E_SEQ node.
+
+### Baselines
+- one4all: `59ada3d` (sn4parse.c added)
+- corpus: `8d5cc6a` (unchanged)
+- .github: to be pushed after this entry
+
+### Session start for DYN-85
+```
+cat .github/SCRIP-SM.md
+cat .github/SESSIONS_ARCHIVE.md | tail -80
+# Fix sn4parse.c bugs above in order
+# Then test: ./sn4parse corpus/programs/gimpel/SQRT.sno
+# Target: zero errors on SQRT.sno (13 statements)
+```
