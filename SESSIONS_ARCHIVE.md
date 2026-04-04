@@ -22328,3 +22328,91 @@ expr_eval       — segfault: bb_deferred_var → bb_build recursive depth
 - `src/driver/scrip-interp.c` — E_DEFER(E_VAR) revert; E_FNC double-call fix (body-label check before APPLY_fn)
 - `src/frontend/snobol4/snobol4.l` — LABEL_DONE exclusive state added
 - `src/frontend/snobol4/snobol4.lex.c` — regenerated
+
+## J-233 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
+
+### Result: 159p/19f → **161p/17f** (+2)
+
+### Commit
+- `b8560bb` on one4all — "J-233: EVAL + APPLY builtins, E_DEFER freeze as PAT — 159p→161p"
+
+### What was done (J-233)
+
+**1. E_DEFER — freeze as PAT node (correct DT_E semantics)**
+
+Previous `E_DEFER` handler in `eval()` immediately evaluated the child and dereferenced it as a variable name — wrong. Fix: `E_DEFER` in value context now returns `DESCR.pat(e.children.get(0))`, freezing the child `ExprNode` as a `PAT` descriptor. This is the JVM equivalent of SIL `DT_E`. The frozen node is passed to `EVAL` for later re-evaluation.
+
+**2. EVAL builtin — re-evaluate frozen PAT descriptor**
+
+```java
+case "EVAL": {
+    if (a0.isFail()) return DESCR.FAIL;
+    if (a0.type == VType.PAT && a0.patNode != null) {
+        return eval(a0.patNode);
+    }
+    return a0;
+}
+```
+Fixes `1016_eval` (3/3): concat expr, var ref, failing expr all correct.
+
+**3. APPLY builtin — call named function with args**
+
+```java
+case "APPLY": {
+    if (args.isEmpty()) return DESCR.FAIL;
+    String fn = a0.toSnoStr().trim().toUpperCase();
+    if (fn.isEmpty()) return DESCR.FAIL;
+    return callBuiltin(fn, args.subList(1, args.size()));
+}
+```
+Dispatches through `callBuiltin` which already handles both builtins and user-defined functions via the `default:` branch. Fixes `1018_apply` (3/3).
+
+**4. DEFINE return value — confirmed NUL (not function name)**
+
+Investigated 1011_func_redefine failure. Temporarily changed DEFINE to return `DESCR.str(fname)` — wrong. JS oracle confirms `return null` = `DESCR.NUL`. Reverted. The test `differ(define(...)) :f(e002)` works because: DEFINE returns NUL → DIFFER(NUL, "") → equal → DIFFER fails → `:f` taken = success.
+
+### 1011_func_redefine root cause (not fixed — deferred to J-234)
+
+`myfunc2 myfunc = ne(myfunc, 1) myfunc * myfunc(myfunc - 1)` — parameter name is `myfunc`, same as the function name. `callUserFunc` pushes the frame binding `MYFUNC` as a local parameter, but `callBuiltin("MYFUNC", ...)` in the `default:` branch finds the old `funcTable` entry (the overwritten v1) instead of the new v2. Root cause: `funcTable.put` in DEFINE correctly overwrites, but `callBuiltin` is called before the new frame's local `MYFUNC` shadows the global. The local param `myfunc` holds the arg value (e.g. `4`), but body uses `myfunc` as both the recursion target and the parameter — the frame scoping must shadow `funcTable` lookup with the local stack frame first.
+
+Fix for J-234: in `callBuiltin` `default:` branch, before checking `funcTable`, check the current call frame's local variable store. If `name` matches a local parameter in scope, treat the value as a function call target (APPLY semantics).
+
+### Remaining failures for J-234 (17f)
+
+| Test | Root cause |
+|------|------------|
+| `1011_func_redefine` | Local param shadows funcTable — frame scoping in default: dispatch |
+| `1016_eval` | ✅ Fixed this session |
+| `1018_apply` | ✅ Fixed this session |
+| `word1–4`, `wordcount` | Pre-existing: continuation / INPUT edge cases |
+| `cross`, `expr_eval` | Pre-existing: continuation / OPSYN edge cases |
+| `1017_arg_local` | Arg/local scoping edge case |
+| `910_convert` | CONVERT edge cases |
+| `W07_capt_cur` | Cursor-capture in pattern context |
+| `063_capture_null_replace` | Null-replace capture edge case |
+| `triplet`, `test_*` | Various pre-existing |
+
+### J-234 first actions
+1. `git pull --rebase` all repos — confirm `b8560bb` at one4all HEAD
+2. `apt-get install -y default-jdk`
+3. Rebuild: `BB_STUBS=/tmp/bb_stubs && mkdir -p $BB_STUBS && javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java" | tr '\n' ' ') && mkdir -p /tmp/jvm_jasmin && javac -cp $BB_STUBS -d /tmp/jvm_jasmin src/driver/jvm/Lexer.java src/driver/jvm/Parser.java src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java`
+4. Runner: `printf '#!/bin/bash\njava -cp /tmp/jvm_jasmin:/home/claude/one4all/src/runtime/boxes/jasmin/boxes.jar driver.jvm.Interpreter "$1"\n' > /tmp/jvm_run.sh && chmod +x /tmp/jvm_run.sh`
+5. Confirm **161p/17f**: `INTERP=/tmp/jvm_run.sh CORPUS=/home/claude/corpus TIMEOUT=15 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Fix **1011_func_redefine** frame-scoping: in `callBuiltin` `default:` branch, walk current call stack frames to check if `name` is a local/param before doing `funcTable.get(name)`. The current frame vars are in `callStack` — find the right field and shadow appropriately.
+7. Fix **1017_arg_local** — similar scoping edge case, likely same fix.
+8. Target: ≥165p → commit → handoff
+
+### Baselines for J-234
+- `one4all`: `b8560bb`
+- `corpus`: `2f2bbe3` (unchanged)
+- `.github`: this commit
+- **Broad: 161p/17f**
+- Build: `javac -cp /tmp/bb_stubs -d /tmp/jvm_jasmin src/driver/jvm/Lexer.java src/driver/jvm/Parser.java src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java`
+- Run: `java -cp /tmp/jvm_jasmin:src/runtime/boxes/jasmin/boxes.jar driver.jvm.Interpreter <file.sno>`
+- Broad: `INTERP=/tmp/jvm_run.sh CORPUS=/home/claude/corpus TIMEOUT=15 bash test/run_interp_broad.sh`
+
+### Key files changed
+- `src/driver/jvm/Interpreter.java` — E_DEFER freeze, EVAL case, APPLY case
