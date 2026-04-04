@@ -21994,3 +21994,63 @@ chmod +x /tmp/sni_run.sh
 - Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## SJ-24 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 171p/7f → **173p/5f** (+2)
+
+### What was done (SJ-24)
+
+**Commit `77b1a73` on one4all (rebased):**
+
+**Two root-cause fixes in `sno-interp.js`:**
+
+#### Fix 1: `-include` stale `src` cache (the primary bug)
+
+- **Diagnosis**: `_raw_next()` caches `const src = this.src` at function entry. `_inject()` replaces `this.src` with the spliced string, but the stale `src` local variable means the included text is never seen by the loop. The `continue` after `_inject()` resumed with the old string — include content silently dropped every time.
+- **Traced via**: BOL+inject combined logging showed `INJECT pos_after=21 src_at_pos_now="     "` — the splice was not reflected in `_raw_next`'s view.
+- **Fix**: After `_inject()`, `return this._raw_next()` instead of `continue`. Forces re-entry with fresh `src` capture.
+- **Bonus**: Added `this._prev_ws = true` at end of `_skip_to_eol()` — latent correctness fix for unary context after comment lines.
+
+#### Fix 2: S=PR `GUARD_FNC_NAMES` (wrong heuristic in T_BIN_EQ branch)
+
+- **Diagnosis**: `pad_left = DUPL(c, n-SIZE(s)) s :(RETURN)` returned `s` instead of `DUPL(...)s`. The S=PR heuristic inside `T_BIN_EQ` fired on any leading `E_FNC`, splitting `DUPL(...)` as pattern and `s` as replacement — wrong. `DUPL` is a value function, not a predicate.
+- **Oracle check** (`snobol4.y:216`): The C grammar splits S=PR only when the no-equals subject `E_SEQ` has `E_VAR` as first child. For T_BIN_EQ, the split should only fire for **predicate/guard functions** (EQ, NE, GT, LT, GE, LE, LGT, LLT, LGE, LLE, LEQ, LNE, IDENT, DIFFER, APPLY).
+- **Fix**: Added `GUARD_FNC_NAMES` set. S=PR split in T_BIN_EQ branch now gated on `GUARD_FNC_NAMES.has(fnName)` only. Value functions (DUPL, SIZE, SUBSTR, etc.) pass through as plain concatenation-replacement.
+
+### Tests fixed (+2)
+- `test_math` ✓ (was blocked by -include; lib/math.sno two-comment-line header)
+- `test_string` ✓ (was blocked by DUPL S=PR misfire; pad_left/pad_right now correct)
+
+### Remaining failures (5f)
+```
+fileinfo   triplet   expr_eval   test_case   test_stack
+```
+
+**`test_case`** — one assertion: `'world' icase('hello') :S(bad_ic4)` incorrectly succeeds. `icase` user-defined pattern function matches `'world'` against `'hello'` when it should fail. Likely bug in how user-defined pattern functions are called for no-match cases (pattern succeeds vacuously?).
+
+**`test_stack`** — push/pop return `0` instead of stacked values. Stack is implemented via SNOBOL4 arrays/tables in `lib/stack.sno`. Root cause likely: TABLE or ARRAY indexing bug, or NRETURN not propagating the right value for data-structure accessors.
+
+**`expr_eval`**, **`fileinfo`**, **`triplet`** — pre-existing, not investigated this session.
+
+### SJ-25 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `77b1a73` at one4all HEAD
+2. No gate — interpreter session
+3. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+4. Confirm **173p/5f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Debug `test_stack`: `timeout 10 /tmp/sni_run.sh /home/claude/corpus/crosscheck/library/test_stack.sno` — expected `3 c b 1 a ...`, got `0 0 ...`. Check `lib/stack.sno` push/pop implementation; trace TABLE/ARRAY indexing.
+6. Debug `test_case` no-match: `'world' icase('hello') :S(bad_ic4)` — check `lib/case.sno` icase definition; trace why pattern match succeeds on non-matching string.
+7. Target: **≥175p/3f → M-SJ-INTERP+2**
+
+### Baselines for SJ-25
+- `one4all`: `77b1a73`
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: this commit
+- **Broad: 173p/5f**
+
+### Key files
+- `src/runtime/js/sno-interp.js` — interpreter (all fixes here)
+- `src/runtime/js/sno_runtime.js` — builtins (TABLE/ARRAY suspect for test_stack)
