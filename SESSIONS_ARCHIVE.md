@@ -23088,3 +23088,63 @@ function engine(S, Π, anchorStart) {
 ### Key files
 - `src/runtime/js/sno-interp.js` — all SJ-25 fixes (committed)
 - `src/runtime/js/sno_engine.js` — needs re-entrancy fix in `engine()` function
+
+## DYN-74 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 175p/3f → **177p/1f** (+2: 1013 + 1016 fixed; expr_eval remains)
+
+### Commits
+- `52e21fd` one4all — DYN-74: 1013 NAMEPTR/NAMEVAL slen fix + 1016 _usercall_hook + bb_usercall failure propagation → 177p/1f
+
+### What was done (DYN-74)
+
+**Fix 1 — 1013 NRETURN: NAMEPTR/NAMEVAL slen discriminator**
+Root cause: NAMEPTR and NAMEVAL both occupy `.ptr`/`.s` (same union field). NAME_DEREF checked `d.ptr` first — always non-NULL for NAMEVAL → dereferenced name string as DESCR_t* → garbage (observed: v=97='a'). Second inlined bug at line ~1413: `fres.ptr` check for lvalue assign did same wrong dereference.
+Fix: `slen=1` for NAMEPTR, `slen=0` for NAMEVAL. NAME_DEREF and NAME_SET branch on `slen` not `ptr`. Three-file change:
+- `src/runtime/snobol4/snobol4.h` — NAMEPTR macro adds `.slen=1`, NAMEVAL adds `.slen=0`
+- `src/driver/scrip-interp.c` — NAME_DEREF/NAME_SET use `d.slen` branch; inlined lvalue-assign at ~1413 replaced with `NAME_SET(fres, rv)`
+
+**Fix 2 — 1016/003 EVAL(*ident(1,2)) failure propagation**
+Root cause chain: `*ident(1,2)` → `pat_user_call` → XATP PATND_t → `bb_build` → `bb_usercall`. `bb_usercall` alpha called `g_user_call_hook` and discarded result. Hook was `call_user_function` which returns NULVCL for builtins (no body label). IS_FAIL_fn(NULVCL)=false → always succeeded.
+Three-part fix:
+- `src/runtime/snobol4/snobol4_pattern.c` — `deferred_call_fn` returns `(void*)-1` on FAILDESCR (engine.c T_FUNC sentinel)
+- `src/runtime/dyn/stmt_exec.c` — `bb_usercall` alpha: check `IS_FAIL_fn(_uc_r)` → `goto UC_β`
+- `src/driver/scrip-interp.c` — `_usercall_hook` (new, before main): if `FNCEX_fn(name)` && no body label → `APPLY_fn` (propagates FAILDESCR for builtins like ident); else `call_user_function`. Narrowed to pure builtins to avoid regressing user-defined side-effect calls (Push/Pop/Unary/Binary).
+
+**expr_eval — pre-existing segfault, not caused by DYN-74**
+Segfaults in scrip-interp-s (bf4de1d baseline) too. C stack overflow from recursive-descent pattern (expr→term→factor→expr). DYN-75 work item. Use two-way MONITOR vs SPITBOL oracle.
+
+### DYN-75 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `52e21fd` at one4all HEAD
+2. Runner:
+```bash
+cat > /tmp/dyn_run_s.sh << 'EOF'
+#!/bin/bash
+exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"
+EOF
+chmod +x /tmp/dyn_run_s.sh
+```
+3. Full rebuild (SESSION-dynamic-byrd-box.md build command — skip bb_dvar.c, inline in stmt_exec.c)
+4. Confirm **177p/1f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. Fix expr_eval — two approaches to try in order:
+   a. `ulimit -s unlimited` before running — if that stops the segfault, the fix is to raise C stack in scrip-interp at startup via `setrlimit(RLIMIT_STACK, ...)`
+   b. If genuine infinite recursion: add `g_pat_depth` counter in `interp_eval_pat` E_DEFER(E_VAR) path — cap at ~1000, return FAILDESCR on overflow
+6. Two-way MONITOR: clone `snobol4ever/x64` for SPITBOL oracle, diff against scrip-interp on expr_eval input "1+2"
+7. **178p/0f → M-DYN-INTERP-FULL** → push → update NOW table
+
+### Baselines for DYN-75
+- `one4all`: `52e21fd` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` (C stack overflow — recursive pattern)
+- Build: scrip-interp — see SESSION-dynamic-byrd-box.md (omit bb_dvar.c from box loop)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (52e21fd)
+- `src/runtime/snobol4/snobol4.h` — NAMEPTR slen=1, NAMEVAL slen=0
+- `src/driver/scrip-interp.c` — NAME_DEREF/NAME_SET slen branch; inlined lvalue-assign NAME_SET; _usercall_hook
+- `src/runtime/snobol4/snobol4_pattern.c` — deferred_call_fn returns (void*)-1 on failure
+- `src/runtime/dyn/stmt_exec.c` — bb_usercall alpha IS_FAIL_fn check
