@@ -23588,3 +23588,108 @@ Three CC_ω invalidation approaches were attempted:
 - Build: SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
 - Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
 - Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-81 handoff — 2026-04-04 (session 2)
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no regression; simple-stack rewrite of cc_event mechanism; 4/5 expr_eval cases now correct
+
+### Commits
+- No new commits. All changes are WIP in `src/runtime/dyn/stmt_exec.c` (not committed).
+- Baseline: `one4all` `1ef6d63` · `corpus` `8d5cc6a`
+
+### Key insight from this session (from Lon)
+**The cc_event queue is a do/undo stack — ++ forward, -- backward. Global for each pattern match. No fancy logic inside ALT.**
+
+This insight came from reading `snobol4python-main/src/SNOBOL4python/_backend_pure.py` which was uploaded this session. The Python `Δ.γ()` pattern is the reference implementation:
+```python
+def γ(self):
+    for _1 in self.P.γ():
+        Ϣ[-1].cstack.append(command)   # PUSH  (CC_γ: ++)
+        yield _1                        # suspend
+        Ϣ[-1].cstack.pop()             # POP   (CC_ω: --)
+```
+The `cstack` is the global event stack. Every successful capture appends; every backtrack pops. LIFO is guaranteed by Python generator semantics — each generator frame preserves its own state across yield.
+
+### What was rewritten in stmt_exec.c
+
+**Removed (DYN-79 complexity):**
+- `cc_event_t.has_pending` field usage in events (events are always live — they're on the stack)
+- `dedup_callcaps()` — replaced with no-op (no stale events possible with proper stack discipline)
+- DVAR bulk `cc_event_t` snap/restore (`dvar_ev_save`, `dvar_ev_snap`, `inner_ev_snap`) — eliminated entirely
+- `ζ->pending`, `ζ->resolved_ptr` updates in CC_γ_core (no longer needed)
+
+**Added (DYN-81 simple stack):**
+- `CC_α`: `ζ->has_pending = 0` — clears stale state before fresh attempt. **Critical fix.**
+- `CC_γ`: `g_cc_event_count++` (push) — unchanged structure, simplified
+- `CC_ω`: `if (ζ->has_pending) { g_cc_event_count--; ζ->has_pending = 0; }` — pop on backtrack
+- `flush_pending_callcaps`: simplified — no `has_pending` check needed, all events in queue are live
+- DVAR: removed all `g_cc_event_count` manipulation; only callcap registration (g_callcap_list) saved/restored
+
+### Progress on expr_eval (4/5 correct)
+```
+1+2*3    → PATTERN  (FAIL — still broken)
+4*5+6    → 26       ✓
+(1+2)*3  → 9        ✓
+-3+10    → 7        ✓
+2.5e1+0.5 → 25.5    ✓
+```
+
+### Root cause of remaining 1+2*3 failure — DIAGNOSED, NOT YET FIXED
+
+**Symptom:** The outer `. *Binary()` callcap in `expr`'s first alt (`*term addop *expr . *Binary()`) never fires `CC_γ` for the `1+2*3` case. The push/pop trace shows the inner events (Push(1), Push(+), Push(2), Push(*), Push(3), inner-Binary) correctly built up in the queue (count=6), but the outer Binary event is never appended (count stays 6, not 7).
+
+**Why the outer Binary callcap doesn't fire:**
+
+The pattern `expr = *term addop *expr . *Binary() | *term` is resolved via DVAR.
+
+The outer DVAR for `*expr` (the statement-level dereference) does:
+1. Saves `g_callcap_count` outer registrations (none at start)
+2. Sets `g_callcap_count = 0`
+3. Runs inner expr pattern
+
+Inside the inner expr, the `*expr` recursive DVAR does the SAME:
+1. Saves inner registrations
+2. Sets `g_callcap_count = 0`
+3. Runs innermost pattern
+
+The outer Binary callcap in `*term addop *expr . *Binary()` fires CC_α **after** `*expr` DVAR returns. At that point, `g_callcap_count` has been restored by the DVAR success path to whatever it was before the `*expr` DVAR entered.
+
+**The problem:** The outer Binary callcap's `ζ->registered` flag. After DVAR success restore, `g_callcap_list` is rebuilt with outer+inner callcaps. The outer Binary callcap was NEVER registered before (it comes after `*expr` in the sequence). CC_α fires: `!ζ->registered` → should register → push to `g_callcap_list` → `g_callcap_count++`. CC_γ should fire.
+
+**BUT:** The trace shows it doesn't fire. The hypothesis: `g_callcap_count` after DVAR success restore reaches `MAX_CALLCAPS`, so the registration check `g_callcap_count < MAX_CALLCAPS` fails silently, and CC_γ is skipped because there's no registration slot — but CC_γ should fire regardless of registration.
+
+**Actually CC_γ fires regardless of registration** — the registration is only for the `g_callcap_list` tracking used by `flush_pending_callcaps` to clear `has_pending` and `registered` at end. CC_γ pushes to `g_cc_events[]` unconditionally (only bounded by `MAX_CALLCAPS` on the event array). So the outer Binary CC_γ SHOULD push to `g_cc_events`.
+
+**The real issue (unresolved):** Why does CC_γ not fire for the outer Binary? The trace ends at `+[6]Binary'2*3'` (the inner Binary event). The outer `. *Binary()` in the expr pattern is a callcap node in the PATND_t tree. When does its CC_α fire?
+
+CC_α fires when the SEQ box drives this callcap node with `α`. The SEQ is: `SEQ(*expr, outer_Binary_callcap)`. After `*expr` succeeds, SEQ tries `outer_Binary_callcap` with `α`. CC_α: `ζ->has_pending = 0`. Then `child_fn(α)` — the child of the outer Binary callcap is whatever `*Binary()` resolves to. If `child_fn(α)` returns `spec_empty` → CC_ω (no push). If it returns a spec → CC_γ (push). The child of a CALLCAP node for `. *Binary()` is the DVAR for the matched span — it should return the current span (epsilon or the full "1+2*3" matched so far?).
+
+**Next action for DYN-82:** Add targeted trace at CC_α entry: print `ζ->fnc_name` and `entry`. Determine if CC_α even fires for the outer Binary callcap. If not, the SEQ box is not reaching it. If yes, determine what `child_fn(α)` returns. The child of the outer Binary XCALLCAP node: check what `p->children[0]` is in `bb_build` for this node — it may be NULL (epsilon) or a DVAR. If the child returns `spec_empty`, the outer Binary callcap never fires CC_γ.
+
+### DYN-82 fix plan (surgical)
+
+1. In `bb_build` XCALLCAP case: add trace to see what `p->nchildren` and `p->children[0]` are for the outer Binary callcap
+2. In CC_α: add trace: `fprintf(stderr, "CC_α fn=%s child_r=%d\n", ζ->fnc_name, !spec_is_empty(child_r))`
+3. If child returns empty for outer Binary: the issue is what the callcap child is. The outer Binary in `*term addop *expr . *Binary()` — the `.` operator captures the span of what matched on its left (`*term addop *expr`). The child of the XCALLCAP node should be epsilon (ε) — it just records the span position. If the PATND_t has `p->nchildren == 0` → `bb_build` uses null → epsilon → `bb_eps` → always succeeds returning empty span. That's the correct behavior: epsilon matches, returns the current cursor position as zero-length span. CC_γ should fire.
+4. If CC_α doesn't even fire: the SEQ containing `*expr` and `outer_Binary_callcap` is not structured correctly — the PATND_t for `expr`'s first alt may not include the outer Binary callcap node in the right position.
+
+### Baselines for DYN-82
+- `one4all`: `1ef6d63` (WIP changes NOT committed)
+- `corpus`: `8d5cc6a`
+- `.github`: this commit
+- **Broad: 177p/1f**
+- stmt_exec.c WIP: CC_α resets has_pending=0; CC_ω pops; DVAR drops event snap/restore
+- Build: SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (WIP, not committed)
+- `src/runtime/dyn/stmt_exec.c` — simple stack rewrite: CC_α clears has_pending, CC_ω pops, DVAR drops event memcpy, dedup→no-op, flush simplified
+
+### Reference material uploaded this session
+- `snobol4python-main.zip` — Lon's Python SNOBOL4 engine. **Read `_backend_pure.py` `Δ.γ()` for the reference implementation of conditional capture.** The `cstack` + generator yield/pop IS the Byrd box trail.
+- `spitbol-docs-master.zip` — SPITBOL docs (already in session context)
+- `snobol4-2_3_3_tar.gz` — CSNOBOL4 source (already in session context)
