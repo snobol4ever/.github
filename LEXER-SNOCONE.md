@@ -1,16 +1,15 @@
-# LEXER-SNOCONE.md — SNOCONE Lexer
+# LEXER-SNOCONE.md — Snocone Lexer
 
-**Status:** STUB — to be filled in.
+**Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Date:** 2026-04-04
+**Status:** AUTHORITATIVE
 
-## Role
-Tokenizes SNOCONE source text into a token stream consumed by PARSER-SNOCONE.
+Snocone is a structured language frontend — functionally identical to SNOBOL4
+with C-style syntax. A C programmer who knows SNOBOL4 pattern matching can read it immediately.
 
-## Output
-Token stream: type, value, line/col.
-
-## Files
-TBD — see src/frontend/snocone/
+Lexer status: ✅ JVM (`jvm-snocone-lexer` d1dec27) · ✅ DOTNET (`net-snocone-lexer` dfa0e5b)
 
 ## References
+
 - `PARSER-SNOCONE.md` — consumes this token stream
-- `IR.md` — the IR the parser produces
+- `SESSION-snocone-x64.md` — full language definition, milestone ladder, sprint plan

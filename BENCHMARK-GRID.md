@@ -1,4 +1,4 @@
-# ARCH-grids.md — Comparison Tables
+# BENCHMARK-GRID.md — Comparison Tables
 
 > **STATUS: ALL NUMBERS ARE PLACEHOLDERS.**
 > These tables will be populated from three official milestone runs:

@@ -1,4 +1,4 @@
-# BACKEND-WASM.md — WebAssembly Backend Reference (one4all) ⛔ INACTIVE — parked 2026-03-31
+# ARCHIVE-WASM-BACKEND.md — WebAssembly Backend Reference (one4all) ⛔ INACTIVE — parked 2026-03-31
 
 Pure reference. No session state here.
 **Session state** → `SESSION-snobol4-wasm.md`

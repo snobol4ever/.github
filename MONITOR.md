@@ -1,4 +1,4 @@
-# ARCH-monitor.md — Five-Way Sync-Step Monitor
+# MONITOR.md — Five-Way Sync-Step Monitor
 
 **The core insight:** TRACE output is a deterministic sequential log.
 The first line where any participant diverges from the oracle is the exact

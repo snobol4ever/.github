@@ -1,4 +1,4 @@
-# ARCH-decisions.md — Design Decisions Log
+# GENERAL-DECISIONS.md — Design Decisions Log
 
 Append-only. Each entry: date, decision, rationale, consequences, files affected.
 Reference these IDs in commit messages: `D-001`, `D-002`, etc.

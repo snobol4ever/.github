@@ -153,8 +153,98 @@ the full lineage table connecting every `E_*` to its SIL origin.
 
 ---
 
+---
+
+## STMT_t — SNOBOL4 Detail
+
+The `has_eq` field distinguishes four statement forms (mirrors instaparse grammar `body`):
+
+| Form | subject | pattern | replacement | has_eq |
+|------|---------|---------|-------------|--------|
+| invoking | present | NULL | NULL | 0 |
+| matching | present | present | NULL | 0 |
+| assigning | present | NULL | present | 1 |
+| replacing | present | present | present | 1 |
+
+Full STMT_t fields for SNOBOL4:
+
+```c
+struct STMT_t {
+    char    *label;       // NULL if no label
+    EXPR_t  *subject;     // always present (E_NUL for null-subject stmts)
+    EXPR_t  *pattern;     // NULL if no pattern field
+    EXPR_t  *replacement; // NULL if no replacement field
+    SnoGoto *go;          // NULL if no goto field
+    int      lineno;
+    int      is_end;      // 1 if this is the END statement
+    int      has_eq;      // 1 if '=' was present
+    STMT_t  *next;        // linked list
+};
+```
+
+---
+
+## SNOBOL4 Parse → IR Mapping
+
+```
+parse_expr0   →  E_ASSIGN (binary: subject=children[0], replace=children[1])
+                 or  E_SCAN + conditional assign (mch level)
+parse_expr2   →  binary &  (E_AND — currently folded into E_FNC("and",...))
+parse_expr3   →  E_ALT  n-ary  (|)
+parse_expr4   →  E_CAT  n-ary  (whitespace juxtaposition)
+parse_expr5   →  binary @  (E_CAPT_CURSOR context)
+parse_expr6   →  binary + -
+parse_expr7   →  binary #
+parse_expr8   →  binary /
+parse_expr9   →  binary *
+parse_expr10  →  binary %
+parse_expr11  →  binary ^ ! **  → E_POW (right-assoc)
+parse_expr12  →  binary $ .     → E_CAPT_IMMED_ASGN / E_CAPT_COND_ASGN (right-assoc)
+parse_expr13  →  binary ~  (E_TILDE — user-defined binary)
+parse_expr14  →  unary prefix (@, ~, ?, &, +, -, *, $, ., !, %, /, #, =, |)
+parse_expr15  →  E_IDX postfix subscript  (children[0]=base, [1..]=indices)
+parse_expr17  →  atoms: E_QLIT / E_ILIT / E_FLIT / E_NUL / E_VAR / E_KEYWORD
+                        E_FNC (function call, n-ary args)
+                        E_IDX (array name with subscript)
+                        grouped (E) / conditional (E,list) / invoke E()
+```
+
+---
+
+## E_SEQ vs E_CAT — SNOBOL4 Juxtaposition
+
+Both are n-ary juxtaposition. E_SEQ is pattern context (can fail, wired to Byrd boxes).
+E_CAT is value context (string concatenation, cannot fail). The parser emits E_CAT from
+`parse_expr4`; the backend/lowerer promotes to E_SEQ in pattern context.
+
+**Planned fix (M-DYN-SEQ):** Remove `fixup_val_tree` from SNOBOL4 frontend. Keep a
+single `E_SEQ` node. Add `stmt_seq(DESCR_t, DESCR_t)` runtime dispatcher that branches
+on DT_P at runtime. This correctly handles variables holding DT_P in juxtaposition.
+
+---
+
+## Why N-ary (not binary)
+
+Binary trees for E_ALT and E_CAT would require either left-skewed chains (poor cache
+locality) or a dedicated list-spine node (extra indirection). N-ary children[] with
+realloc gives flat child arrays. The BB-DRIVER and emitters iterate
+`children[0..nchildren-1]` directly — no recursive unwinding of binary spines needed.
+
+---
+
+## Relationship to flex/bison Plan (M-LEX-1, M-PARSE-1)
+
+The IR tree shape does NOT change when `lex.c → lex.l` and `parse.c → parse.y`.
+The bison grammar emits the same EKind nodes via the same `expr_new` / `expr_add_child`
+/ `expr_binary` / `expr_unary` calls. The body-reconstruction bridge (bbuf/body_toks →
+re-lex) is eliminated. IDENT immediately followed by LPAREN (no T_WS) will be
+unambiguously E_FNC in the grammar rule, fixing 1013/003.
+
+---
+
 ## References
 
 - `SCRIP-SM.md` — SM-LOWER compiles IR → SM_Program
 - `PARSER-SNOBOL4.md` through `PARSER-SCRIP.md` — produce this IR
-- `ARCH-sil-heritage.md` → `MISC-SIL-HERITAGE.md` — E_* name origins
+- `MISC-SIL-HERITAGE.md` — E_* name origins
+- `RUNTIME.md` — how CODE_t wraps Program* for runtime execution

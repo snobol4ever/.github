@@ -1,16 +1,13 @@
 # LEXER-SCRIP.md — SCRIP Lexer
 
-**Status:** STUB — to be filled in.
+**Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Date:** 2026-04-04
+**Status:** STUB — SCRIP is the 6th frontend (the unifying product)
 
-## Role
-Tokenizes SCRIP source text into a token stream consumed by PARSER-SCRIP.
-
-## Output
-Token stream: type, value, line/col.
-
-## Files
-TBD — see src/frontend/scrip/
+SCRIP (Snobol4, SnoCone, Rebus, Icon, Prolog) is the polyglot frontend.
+Tokenizes SCRIP source text including fenced multi-language blocks.
 
 ## References
+
 - `PARSER-SCRIP.md` — consumes this token stream
-- `IR.md` — the IR the parser produces
+- `GENERAL-SCRIP-VISION.md` — full SCRIP vision and polyglot model

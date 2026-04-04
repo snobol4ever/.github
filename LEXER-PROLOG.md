@@ -1,16 +1,16 @@
-# LEXER-PROLOG.md — PROLOG Lexer
+# LEXER-PROLOG.md — Prolog Lexer
 
-**Status:** STUB — to be filled in.
+**Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Date:** 2026-04-04
+**Status:** AUTHORITATIVE
 
-## Role
-Tokenizes PROLOG source text into a token stream consumed by PARSER-PROLOG.
+Tokenizes Prolog source text. File: `src/frontend/prolog/pl_lex.c`
 
 ## Output
-Token stream: type, value, line/col.
 
-## Files
-TBD — see src/frontend/prolog/
+Token stream → `PARSER-PROLOG` → IR (Program*)
 
 ## References
+
 - `PARSER-PROLOG.md` — consumes this token stream
-- `IR.md` — the IR the parser produces
+- `IR.md` — the shared IR produced

@@ -80,6 +80,7 @@ the corpus, the emitter is correct by construction.
 | EMITTER JS | `EMITTER-JS.md` | ⬜ in progress |
 | LINKER | `LINKER.md` | ⬜ in progress |
 | LEXER / PARSER (6× each) | `LEXER-*.md` / `PARSER-*.md` | ⬜ stubs needed |
+| **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
 | MONITOR | `MONITOR.md` | ✅ |

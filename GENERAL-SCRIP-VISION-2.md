@@ -1,4 +1,4 @@
-# ARCH-scrip-vision.md — Scrip Platform Vision
+# GENERAL-SCRIP-VISION-2.md — Scrip Platform Vision
 ## From snobol4ever to a Universal Goal-Directed Evaluation Suite
 
 **Date:** 2026-03-25  
