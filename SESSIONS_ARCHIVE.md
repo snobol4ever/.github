@@ -23505,3 +23505,86 @@ This ensures that when a branch backtracks, all its cc_event firings are marked 
 ### Key files changed (1ef6d63)
 - `src/runtime/dyn/stmt_exec.c` — cc_event_t per-firing queue; dedup/flush on events; DVAR save/restore extended; g_cc_event_count reset at stmt start
 - `src/frontend/snobol4/snobol4.tab.c` — parse_expr_from_str: fmemopen + flex_lex_open + 9-space wrapper
+
+## DYN-80 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change; CC_ω scoping fully diagnosed; stmt_exec.c reverted to 1ef6d63 (clean)
+
+### Commits
+- No new commits. Baseline remains `1ef6d63`.
+
+### What was tried and why it failed
+
+Three CC_ω invalidation approaches were attempted:
+
+1. **Invalidate all owner events** — broke because the same callcap_t box (e.g. *term's DVAR) is shared across recursive calls. CC_ω on the inner *term invalidated Push("1") from the outer scope.
+
+2. **Invalidate most recent owner event** — same problem, wrong scope.
+
+3. **`last_event_idx` on callcap_t** — CC_γ stores index of the event it pushed; CC_ω zeroes that slot. Failed because DVAR failure restores `g_cc_event_count = dvar_ev_save`, recycling the slot. The outer box's `last_event_idx` now points to a recycled slot used by a new inner firing → CC_ω zeros a live event.
+
+### Root cause fully understood
+
+`last_event_idx` is the right mechanism but needs one more piece: **on DVAR failure, reset `last_event_idx = -1` for all inner callcap boxes before discarding their events.** This prevents stale indices from persisting into the outer scope where they'd alias recycled slots.
+
+### DYN-81 fix (surgical — two additions to stmt_exec.c from 1ef6d63)
+
+**Addition 1:** Add `last_event_idx` field to `callcap_t` struct:
+```c
+    int          last_event_idx; /* DYN-81: index of cc_event pushed by last CC_γ, or -1 */
+```
+
+**Addition 2:** In CC_γ_core deferred path, store the index:
+```c
+                   int ei = g_cc_event_count;
+                   /* ... fill ev fields ... */
+                   ζ->last_event_idx = ei;
+                   g_cc_event_count++;
+```
+
+**Addition 3:** CC_ω invalidates by stored index:
+```c
+    CC_ω:  ζ->has_pending = 0;
+           if (ζ->last_event_idx >= 0 && ζ->last_event_idx < g_cc_event_count)
+               g_cc_events[ζ->last_event_idx].has_pending = 0;
+           ζ->last_event_idx = -1;
+           return spec_empty;
+```
+
+**Addition 4:** DVAR failure restore — reset inner boxes' `last_event_idx` BEFORE restoring `g_cc_event_count`:
+```c
+                    if (spec_is_empty(DVAR)) {
+                        /* Reset inner boxes' last_event_idx before discarding events */
+                        for (int _ci = 0; _ci < g_callcap_count; _ci++)
+                            g_callcap_list[_ci]->last_event_idx = -1;
+                        /* ... existing restore of g_callcap_list and g_cc_events ... */
+                        goto DVAR_ω;
+                    }
+```
+
+**Addition 5:** Reset `last_event_idx` at statement start and when `g_cc_event_count = 0`:
+```c
+    g_cc_event_count = 0;
+    /* reset last_event_idx on all registered boxes */
+    for (int _ci = 0; _ci < g_callcap_count; _ci++)
+        g_callcap_list[_ci]->last_event_idx = -1;
+```
+(At stmt start, `g_callcap_count` is already 0, so this is a no-op there — add it after the DVAR inner `g_cc_event_count = 0` reset too.)
+
+### Validation sequence for DYN-81
+1. `test_binary3.sno` → `Binary called: left=1 op=+ right=2 → Result: 3` ✓
+2. `test_term.sno` (2*3) → `6` ✓  
+3. `test_precedence.sno` (1+2*3) → `7` ✓
+4. `expr_eval` → `7\n9\n25.5\n7\n26` ✓
+5. Full broad → **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-81
+- `one4all`: `1ef6d63` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- `stmt_exec.c` is at clean `1ef6d63` state (cc_event queue intact, no broken last_event_idx)
+- Build: SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
