@@ -22939,6 +22939,99 @@ expr_eval          — pat_cat: left is not a pattern (DT=11)
 - `src/runtime/snobol4/snobol4.h` — NV_name_from_ptr + g_eval_pat_hook declared
 - `src/runtime/dyn/stmt_exec.c` — deferred_var_t.in_progress; g_dvar_depth
 
+---
+
+## DYN-73 Handoff (Claude Sonnet 4.6, 2026-04-04) — EMERGENCY / CONTEXT EXHAUSTED
+
+**Sprint:** DYN-73 → target 178p/0f (M-DYN-INTERP-FULL)
+**Base:** one4all `bf4de1d` · corpus `8d5cc6a` · broad **175p/3f**
+**WIP commit:** one4all `d8767bf` on branch `dyn-73-wip`
+
+### What PASSED this session
+- **1013_func_nreturn** → **PASSES 3/3** ✅
+  - Root cause: `E_NAME` returned `NAMEVAL(s)` (DT_N with .s=name), but `.s` and `.ptr` are the same union member in DESCR_t. `NAME_DEREF` checked `if (d.ptr)` → true for NAMEVAL too → dereferenced string pointer as DESCR_t* → UB/garbage.
+  - Fix (Option D): `E_NAME` for E_VAR/E_FNC/E_KEYWORD now returns `STRVAL(name)` (DT_S). NRETURN path in `call_user_function`: if `NV_GET_fn(fr->fname)` returns DT_S name string → wrap as `NAMEPTR(NV_PTR_fn(name))` so caller's `NAME_DEREF` does `*cell` correctly. Lvalue write-through works.
+
+### What is NOT yet passing
+
+**1016/003** — `eval(*ident(1,2))` should fail, currently succeeds.
+
+Diagnosis chain:
+1. `*ident(1,2)` → `E_DEFER(E_FNC)` → `pat_user_call("ident",[1,2],2)` → DT_P (XATP node). ✓
+2. `EVAL_fn(DT_P)` → `g_eval_pat_hook(pat)` → `_eval_pat_impl_fn(pat)`. ✓ (confirmed via trace)
+3. `_eval_pat_impl_fn` calls `exec_stmt("", &subj, pat, NULL, 0)` → returns **1** (success). ✗
+
+Root cause: `exec_stmt` (stmt_exec.c) uses `bb_build(PATND_t*)` → `bb_node_t` C-struct α/β port path. This path does NOT go through mock_engine's `match_node`/`T_FUNC` handler. The `T_FUNC` failure protocol (`(void*)-1`) only exists in `mock_engine.c:match_node`. `bb_build` for XATP materialises the function node differently — likely calls the function eagerly at bb_build time (not match time) and ignores failure.
+
+**Fix for DYN-74:** In `_eval_pat_impl_fn`, do NOT use `exec_stmt`. Instead materialise the PATND_t into a `Pattern*` via `exec_stmt`'s internal materialise path and call `match_pattern()` directly:
+```c
+static DESCR_t _eval_pat_impl_fn(DESCR_t pat) {
+    /* Use match_pattern (Pattern* engine) not exec_stmt (bb_build path).
+     * exec_stmt's bb_build path does not propagate T_FUNC failure. */
+    extern int match_pattern(DESCR_t pat, const char *subj);
+    int ok = match_pattern(pat, "");
+    return ok >= 0 ? NULVCL : FAILDESCR;
+}
+```
+Check `match_pattern` signature in `snobol4_pattern.c` — may return match end pos (>=0) or -1 for fail.
+
+**expr_eval** — `Bad input, try again` for all inputs (pattern `expr` never matches).
+
+Diagnosis:
+- `E_FNC` (kind=44) was hitting `default:` in `interp_eval_pat` → confirmed via trace `[interp_eval_pat] default: e->kind=44`
+- Added `case E_FNC:` to `interp_eval_pat` → calls `interp_eval(e)` → returns stored pattern value
+- Still failing. Likely issue: `interp_eval(E_FNC("factor",[]))` for a zero-arg user-defined grammar rule calls the function and returns its value — but in `interp_eval_pat`, if the E_FNC call returns a stored DT_P (the `factor` pattern built at assignment), that should be correct. But if it returns DT_S (string), `pat_cat` gets DT_S not DT_P → "left is not a pattern" (but DT_S IS valid as a literal pattern, so maybe pat_cat rejects DT_S?).
+
+**Fix for DYN-74:** After `interp_eval(e)` in `E_FNC` case of `interp_eval_pat`, if result is DT_S, wrap as literal pattern: `return pat_literal(r.s)` (or equivalent). Check if `pat_cat` accepts DT_S — if not, convert: `if (r.v == DT_S) return pat_lit(r.s, strlen(r.s));`.
+
+Also check: does `interp_eval(E_FNC("factor",[]))` actually call the user-defined `factor` function? If `factor` is a SNOBOL4 label (not a C function), the body executes and returns the `factor` variable value (DT_P). Verify with `fprintf(stderr, "E_FNC result DT=%d\n", r.v)` trace.
+
+### Key files changed (d8767bf)
+- `src/driver/scrip-interp.c` — E_NAME Option D; NRETURN NAMEPTR fix; E_ALT/E_CAPT_*/E_FNC in interp_eval_pat
+- `src/runtime/snobol4/snobol4_pattern.c` — deferred_call_fn returns (void*)-1 on failure
+
+### DYN-74 plan
+1. Fix `_eval_pat_impl_fn` → use `match_pattern()` directly → 1016 passes
+2. Trace expr_eval E_FNC result DT type → fix pat_cat DT_S rejection or function dispatch
+3. Run broad → 178p/0f → squash-merge dyn-73-wip to main → commit as DYN-73 → push
+4. Update NOW table: DYN-73 done, DYN-74 sprint = M-DYN-PATGEN (see SESSION-dynamic-byrd-box.md §M-DYN-PATGEN)
+
+### Runner / build
+```bash
+# Runner:
+cat > /tmp/dyn_run_s.sh << 'EOF'
+#!/bin/bash
+exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"
+EOF
+chmod +x /tmp/dyn_run_s.sh
+
+# Build: (see SESSION-dynamic-byrd-box.md for full command)
+# Broad: INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh
+```
+   }
+   ```
+   **Also add:** `E_CAPT_IMMED_ASGN` case in `interp_eval_pat` (mirrors E_CAPT_COND_ASGN from interp_eval).
+
+   After these fixes, re-run expr_eval. If still failing, run with MONITOR against SPITBOL oracle.
+
+8. Run broad → target **178p/0f → M-DYN-INTERP-FULL**
+9. Commit as single commit, push
+10. After M-DYN-INTERP-FULL: beauty sweep (19 drivers in `corpus/programs/snobol4/beauty/`)
+
+### Baselines for DYN-73
+- `one4all`: `bf4de1d` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 175p/3f**
+- Build: scrip-interp-s — UPDATED command from DYN-62 in SESSIONS_ARCHIVE
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (bf4de1d)
+- `src/driver/scrip-interp.c` — E_NAME NAMEVAL; NAME_DEREF/NAME_SET; NRETURN simplify; _eval_pat_impl_fn; g_eval_pat_hook registration
+- `src/runtime/snobol4/snobol4.c` — VARVAL_fn DT_N case; NV_name_from_ptr; g_eval_pat_hook defined
+- `src/runtime/snobol4/snobol4_pattern.c` — EVAL_fn IS_FAIL_fn + DT_P hook
+- `src/runtime/snobol4/snobol4.h` — NV_name_from_ptr + g_eval_pat_hook declared
+- `src/runtime/dyn/stmt_exec.c` — deferred_var_t.in_progress; g_dvar_depth
+
 ## SJ-25 handoff — 2026-04-04
 
 ### Session type
