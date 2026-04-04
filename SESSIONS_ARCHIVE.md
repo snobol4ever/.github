@@ -23427,3 +23427,81 @@ So the correct sequence: DVAR_α saves [Push("1"), Push("+")], runs *term → in
 - **Broad: 177p/1f**
 - Remaining: `expr_eval` — dedup g_callcap_list before flush (17 entries → ~4 for "1+2")
 - Key insight: dedup alone should fix ordering since Binary registers AFTER DVAR returns
+
+## DYN-79 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × x86 interpreter** — DYN- session. scrip-interp. Session prefix: DYN-
+
+### Result: 177p/1f — no change in score; significant infrastructure progress on callcap machinery
+
+### Commits
+- `1ef6d63` one4all — DYN-79: cc_event per-firing queue + parse_expr_from_str fix
+
+### Two fixes landed
+
+**Fix 1: `parse_expr_from_str` (`src/frontend/snobol4/snobol4.tab.c`)**
+Old impl called `lex_open_str` which pushes BODY state, bypassing INITIAL col-1 dispatch — the full statement parser `snobol4_parse` then errors on bare expressions. Fix: wrap src as `"         <src>\n"` (9 spaces + newline) and use `flex_lex_open` with `fmemopen` so INITIAL state fires. Result: `EVAL('5')=5`, `EVAL('1 + 2')=3`, `EVAL('3 * 4')=12` all now correct.
+
+**Fix 2: `cc_event_t` per-firing event queue (`src/runtime/dyn/stmt_exec.c`)**
+Root cause of callcap ordering bug: a single `callcap_t` struct is shared for all firings of the same box (e.g. `*Push()` inside `constant . *Push()`). When the same pattern variable fires twice — matching "1" then "2" in `*constant addop *constant` — the second CC_γ overwrote `ζ->pending` with "2", losing the "1" capture. The flush then only called Push once.
+
+Fix: introduce `cc_event_t` (per-firing record with fnc_name/args/pending/has_pending/owner) and `g_cc_events[MAX_CALLCAPS]` / `g_cc_event_count`. Each CC_γ_core for the deferred (`.`) path pushes a new event. `flush_pending_callcaps` iterates events in order. `dedup_callcaps` removes only stale (has_pending=0) events when a later event has the same owner. DVAR save/restore extended to snapshot/restore `g_cc_events[]` and `g_cc_event_count` alongside `g_callcap_list[]`.
+
+**Validation:** `test_binary3.sno` (Push/Pop/Binary direct pattern test): `Binary called: left=1 op=+ right=2 → Result: 3` ✓
+
+### expr_eval current output vs expected
+```
+actual:   \n  PATTERN  0.50.50.5  101010  666
+expected:  7  9  25.5  7  26
+```
+Input lines: `1+2*3`, `(1+2)*3`, `2.5e1+0.5`, `-3+10`, `4*5+6`
+
+- `1+2*3` → blank (match fails on recursive `*term mulop *term`)
+- `(1+2)*3` → PATTERN (parenthesized subexpr / `primary = '(' *expr ')'` path)
+- `2.5e1+0.5` → `0.50.50.5` (real number / exponent pattern + multiple event duplication)
+- `-3+10` → `101010` (unary minus / `factor = addop *factor . *Unary()`)
+- `4*5+6` → `666`
+
+### Root cause of remaining failures
+
+**Stale has_pending=0 events from backtracked alt arms are not being zeroed.** When a DVAR child fails (backtrack), `CC_ω` sets `ζ->has_pending = 0` on the callcap_t struct, but the corresponding `cc_event_t` in the event queue still has `has_pending=1`. The DVAR failure path restores `g_cc_event_count = dvar_ev_save` (discarding inner events) — correct for the simple case. But for alt arms (`|`) within a DVAR child, each failed arm's CC_γ firings push events that survive into the outer list via the stale-dedup path.
+
+**Fix for DYN-80 (surgical — one loop):**
+
+In `CC_ω` of `bb_callcap`, after setting `ζ->has_pending = 0`, also mark any pending events owned by `ζ` as stale:
+
+```c
+CC_ω:  ζ->has_pending = 0;
+       /* DYN-80: invalidate any queued events for this box */
+       for (int _ei = 0; _ei < g_cc_event_count; _ei++)
+           if (g_cc_events[_ei].owner == ζ && g_cc_events[_ei].has_pending)
+               g_cc_events[_ei].has_pending = 0;
+       return spec_empty;
+```
+
+This ensures that when a branch backtracks, all its cc_event firings are marked stale and dedup_callcaps will drop them.
+
+**Secondary issue: recursive patterns and nested DVAR.** `term = *factor mulop *term . *Binary()` involves two nested DVAR boxes. The DVAR save/restore correctly snapshots events. But after the inner `*term` DVAR succeeds and returns, the outer Binary's CC_γ fires — at that point the event queue has: [outer Push("4"), outer Push("*"), inner Push("5"), Binary]. For `4*5` that should work. The failure on `4*5+6` producing `666` suggests the `+6` part fires an additional Binary that uses wrong stack state. The `*expr = *term addop *expr . *Binary()` recursive alt may be accumulating extra events.
+
+### DYN-80 first actions
+
+1. `git pull --rebase` all repos — confirm `1ef6d63` one4all HEAD
+2. Rebuild (SESSION-dynamic-byrd-box.md, omit bb_dvar.c)
+3. Confirm 177p/1f
+4. Add CC_ω event invalidation loop (above) to `bb_callcap` in `stmt_exec.c`
+5. Run `test_binary3.sno` → still `Result: 3` ✓
+6. Run `expr_eval` directly — expect improvement toward `7\n9\n25.5\n7\n26`
+7. Full broad → target **178p/0f → M-DYN-INTERP-FULL** → commit → push
+
+### Baselines for DYN-80
+- `one4all`: `1ef6d63` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 177p/1f**
+- Remaining: `expr_eval` — CC_ω stale-event invalidation; then recursive pattern DVAR nesting
+- Build: scrip-interp — SESSION-dynamic-byrd-box.md (omit bb_dvar.c)
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed (1ef6d63)
+- `src/runtime/dyn/stmt_exec.c` — cc_event_t per-firing queue; dedup/flush on events; DVAR save/restore extended; g_cc_event_count reset at stmt start
+- `src/frontend/snobol4/snobol4.tab.c` — parse_expr_from_str: fmemopen + flex_lex_open + 9-space wrapper
