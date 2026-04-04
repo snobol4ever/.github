@@ -118,3 +118,33 @@ context. Pass context down rather than inferring it in `interp_eval`.
 Instead, add an `int in_pat_ctx` parameter to `interp_eval` (or a global flag
 set before calling `interp_eval(s->pattern)`), so `E_SEQ` and `E_CAT` always
 call `pat_cat` when evaluating a pattern expression. Then re-run corpus.
+
+---
+
+## M-DYN-PATGEN — Pattern BB Sequence Generation in Executable Area (added DYN-67)
+
+**Motivation (from Lon, 2026-04-04):** We have DATA+EXE in memory working for simple cases. The pivot: instead of tree-walking patterns at match time, the interpreter should *generate* the Byrd box x86 sequences into the executable pool at pattern-build time. This validates the full bb_pool → bb_emit → bb_seal → call chain under real corpus load, and prepares the code-gen path for the compiler backend.
+
+### What exists (✅)
+- `bb_pool.c` — mmap RW slab, `bb_alloc/bb_seal/bb_free`, M-DYN-0 ✅
+- `bb_emit.c` — dual-mode emitter, `bb_emit_byte/u32/u64/rel32`, label/patch system, M-DYN-1 ✅. All functions have `if (bb_emit_mode == EMIT_TEXT) { ... return; }` guards — binary branches are **empty stubs**.
+- `src/runtime/boxes/*/bb_*.s` — 25 Byrd box implementations in NASM (used by scrip-interp-s via assembly)
+- `stmt_exec.c` — `bb_build(PATND_t*)` → `bb_node_t` C structs, five-phase executor drives α/β ports via C function pointers
+
+### What M-DYN-PATGEN adds
+- **EMIT_BINARY branches in bb_emit.c**: fill in the raw x86-64 byte emission for each primitive (`bb_emit_byte`, `bb_emit_u32`, `bb_emit_rel32`, `bb_insn_call_rax`, `bb_insn_ret`, etc.)
+- **`bb_build_binary(PATND_t*)`**: new function in `stmt_exec.c` or new `bb_build_bin.c` — walks a PATND_t tree and emits x86 bytes via `bb_emit_*` into a `bb_pool` buffer, then `bb_seal()` → RX. Returns an executable function pointer to the α port.
+- **scrip-interp-s integration**: before calling `exec_stmt`, if pattern is invariant (no runtime captures), call `bb_build_binary` instead of `bb_build`. The returned α fn ptr is called directly — no C-struct dispatch overhead.
+- **Gate**: all 178 broad corpus tests pass with `bb_build_binary` active for invariant patterns. Output identical to C-struct path.
+- **Oracle**: the `.s` box files are the spec — `bb_build_binary` must produce semantically equivalent byte sequences.
+
+### Milestone gate
+- 178/178 broad corpus with EMIT_BINARY path active for ≥1 box type (LIT first, then extend)
+- Two-way MONITOR: run failing test through both C-struct path and EMIT_BINARY path — diff must be empty
+
+### First steps for DYN-68+ after M-DYN-INTERP-FULL
+1. Fill in `bb_emit_byte/u32/rel32` binary branches — these are trivial (`memcpy` into pool buf)
+2. Implement `bb_insn_call_imm64` — `mov rax, imm64 / call rax` (10 bytes) for calling C runtime fns
+3. Write `bb_build_lit_binary(const char *s, int len)` — LIT box: α port checks subject[cursor..cursor+len] == s, advances cursor or jumps to ω
+4. Test standalone with a hand-written subject: `bb_pool_alloc → emit LIT bytes → bb_seal → call α`
+5. Wire into scrip-interp-s for E_QLIT pattern nodes → run corpus, compare vs C-struct path
