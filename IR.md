@@ -136,7 +136,7 @@ SM-LOWER) is doing it wrong.
 ## SIL Heritage
 
 The `E_*` node names derive from the SIL (SNOBOL4 Implementation Language)
-token type codes in CSNOBOL4 `v311.sil`. See `ARCH-sil-heritage.md` for
+token type codes in CSNOBOL4 `v311.sil`. See `GENERAL-SIL-HERITAGE.md` for
 the full lineage table connecting every `E_*` to its SIL origin.
 
 ---

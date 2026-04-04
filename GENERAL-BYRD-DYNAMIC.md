@@ -1,4 +1,4 @@
-# ARCH-byrd-dynamic.md — Dynamic Byrd Box Execution Model
+# GENERAL-BYRD-DYNAMIC.md — Dynamic Byrd Box Execution Model
 
 **Date:** 2026-04-01
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
@@ -240,9 +240,9 @@ use for both.
 
 ---
 
-*ARCH-byrd-dynamic.md — first written 2026-04-01, B-292 session.*
-*This document supersedes the static-first framing in ARCH-x64.md.*
-*ARCH-x64.md Technique 2 chain (M-T2-*) is absorbed into M-DYN-* above.*
+*GENERAL-BYRD-DYNAMIC.md — first written 2026-04-01, B-292 session.*
+*This document supersedes the static-first framing in EMITTER-X86.md.*
+*EMITTER-X86.md Technique 2 chain (M-T2-*) is absorbed into M-DYN-* above.*
 
 ---
 
@@ -1088,7 +1088,7 @@ complex expressions is minor compared to the pattern match itself.
 |----|-------------|
 | **M-DYN-S1** | emit_x64.c: replace inline NASM with call stmt_exec_dyn. Stack machine for phases 1/2/4/5. Gate: 142/142 via stmt_exec_dyn. |
 | **M-DYN-S2** | Verify CODE() and compiled .s agree on all 142 tests. |
-| **M-DYN-SEQ** | Unify E_SEQ and E_CONCAT: remove fixup_val_tree from SNOBOL4 frontend; add stmt_seq(DESCR_t,DESCR_t) runtime dispatcher that branches on DT_P at runtime. See ARCH-decisions.md D-010. |
+| **M-DYN-SEQ** | Unify E_SEQ and E_CONCAT: remove fixup_val_tree from SNOBOL4 frontend; add stmt_seq(DESCR_t,DESCR_t) runtime dispatcher that branches on DT_P at runtime. See GENERAL-DECISIONS.md D-010. |
 | **M-DYN-BENCH** | Benchmark: stack machine vs Byrd box for phases 1/2/4/5 on complex patterns. |
 | **M-DYN-BB-EVAL** | (If bench shows >20% gain) Byrd box evaluation phases. 99% stackless. |
 | **M-DYN-B1** | S-binary: bb_emit.c raw x86, r12=DATA, Technique 2. Gate: LIT box binary. |
@@ -1225,7 +1225,7 @@ a gap in it. TDD confirms the model is tight.
 
 ## M-DYN-SEQ — Unify E_SEQ / E_CONCAT (deferred, post M-DYN-S1)
 
-**Decision:** See `ARCH-decisions.md D-010` for the full rationale.
+**Decision:** See `GENERAL-DECISIONS.md D-010` for the full rationale.
 
 ### Problem
 

@@ -5,7 +5,7 @@ JVM/Clojure backend: SNOBOL4 → JVM bytecode via multi-stage pipeline.
 
 → Session doc: [SESSION-snobol4-jvm.md](SESSION-snobol4-jvm.md)
 → Milestone ladder: [MILESTONE-JVM-SNOBOL4.md](MILESTONE-JVM-SNOBOL4.md)
-→ Backend reference: [BACKEND-JVM.md](BACKEND-JVM.md)
+→ Backend reference: [EMITTER-JVM.md](EMITTER-JVM.md)
 
 ---
 

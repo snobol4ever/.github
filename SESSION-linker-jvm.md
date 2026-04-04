@@ -45,7 +45,7 @@ git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinka
 ```
 Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
 
-**Read only:** `ARCH-scrip-abi.md` + `SESSION-linker-jvm.md`. No other docs.
+**Read only:** `GENERAL-SCRIP-ABI.md` + `SESSION-linker-jvm.md`. No other docs.
 
 
 
@@ -117,7 +117,7 @@ git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinka
 - Commit: `LP-JVM-3: M-SCRIP-DEMO ✅`
 - Update this SESSION doc + PLAN.md
 
-**Read only:** `ARCH-scrip-abi.md` + `SESSION-linker-jvm.md`. No other docs.
+**Read only:** `GENERAL-SCRIP-ABI.md` + `SESSION-linker-jvm.md`. No other docs.
 
 ---
 
@@ -196,4 +196,4 @@ bash test/crosscheck/run_crosscheck_jvm_rung.sh /home/claude/corpus/crosscheck/*
 # expect 127 pass
 ```
 
-**Read only:** `ARCH-scrip-abi.md` + `SESSION-linker-jvm.md`. No other docs.
+**Read only:** `GENERAL-SCRIP-ABI.md` + `SESSION-linker-jvm.md`. No other docs.

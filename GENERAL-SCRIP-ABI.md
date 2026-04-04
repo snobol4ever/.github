@@ -354,5 +354,5 @@ both static, neither visible to the linker, no collision.
 
 ---
 
-*ARCH-scrip-abi.md — freeze before Sprint 2 begins.*  
+*GENERAL-SCRIP-ABI.md — freeze before Sprint 2 begins.*  
 *Review checklist: SnoVal definition agreed · x64 register protocol agreed · JVM signature agreed · .NET signature agreed · symbol naming agreed · EXPORT/IMPORT syntax agreed per language.*

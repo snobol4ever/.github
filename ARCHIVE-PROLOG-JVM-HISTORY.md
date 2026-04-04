@@ -1,4 +1,4 @@
-# ARCH-prolog-jvm-history.md — Prolog × JVM Milestone History
+# ARCHIVE-PROLOG-JVM-HISTORY.md — Prolog × JVM Milestone History
 Operational §NOW → SESSION-prolog-jvm.md.
 ## Milestone Table
 

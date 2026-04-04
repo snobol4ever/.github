@@ -1,4 +1,4 @@
-# ARCH-spipat-js.md — spipatjs Architecture Lessons for SNOBOL4×JS
+# MISC-SPIPAT-JS.md — spipatjs Architecture Lessons for SNOBOL4×JS
 
 **Source:** `github.com/philbudne/spipatjs` — ES6 port of GNAT.SPITBOL.PATTERNS
 **Studied:** SJ-3, 2026-04-01, Claude Sonnet 4.6
@@ -237,4 +237,4 @@ spipatjs can generate additional `.ref` candidates for pure-pattern tests.
 
 ---
 
-*ARCH-spipat-js.md — created SJ-3, 2026-04-01, Claude Sonnet 4.6.*
+*MISC-SPIPAT-JS.md — created SJ-3, 2026-04-01, Claude Sonnet 4.6.*

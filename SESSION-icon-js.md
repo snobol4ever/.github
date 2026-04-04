@@ -12,8 +12,8 @@
 
 | Subsystem | Doc |
 |-----------|-----|
-| Icon language / IR | `FRONTEND-ICON.md` |
-| JS backend | `BACKEND-JS.md` |
+| Icon language / IR | `PARSER-ICON.md` |
+| JS backend | `EMITTER-JS.md` |
 | Milestone ladder | `MILESTONE-JS-ICON.md` |
 
 ---
@@ -47,7 +47,7 @@ then collapse it to Figure 2 in the emitter.
 
 **Next milestone: M-IJJ-A01** (requires M-SJ-A01 complete first)
 
-Read: `BACKEND-JS.md` · `MILESTONE-JS-ICON.md` · `FRONTEND-ICON.md`
+Read: `EMITTER-JS.md` · `MILESTONE-JS-ICON.md` · `PARSER-ICON.md`
 Then: `src/backend/emit_wasm_icon.c` IR switch (parked but useful template)
 
 ---

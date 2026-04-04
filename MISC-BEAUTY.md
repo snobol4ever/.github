@@ -1,4 +1,4 @@
-# ARCH-snobol4-beauty.md — beauty.sno Deep Reference
+# MISC-BEAUTY.md — beauty.sno Deep Reference
 Two-stack engine, TDD protocol, diagnostics. Operational → SESSION-snobol4-x64.md.
 ## How beauty.sno Works — The Two-Stack Engine
 

@@ -184,4 +184,4 @@ Three ways to generate the x86 representation of a graph:
 - `BB-DRIVER.md` — the executor that drives this graph
 - `SCRIP-SM.md` — SM_PAT_* instructions that build this graph
 - `BB-GEN-X86-BIN.md`, `BB-GEN-X86-TEXT.md`, `BB-GEN-LANG.md` — generators
-- `ARCH-byrd-dynamic.md` → GENERAL-BYRD-DYNAMIC.md — original full design doc
+- `GENERAL-BYRD-DYNAMIC.md` → GENERAL-BYRD-DYNAMIC.md — original full design doc

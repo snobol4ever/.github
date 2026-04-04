@@ -1,4 +1,4 @@
-# ARCH-reorg-design.md — Grand Master Reorg: Architecture & Design Reference
+# MISC-REORG-DESIGN.md — Grand Master Reorg: Architecture & Design Reference
 *Split from GRAND_MASTER_REORG.md (G-8 session, 2026-03-29) — stable reference, rarely changes.*
 *See GRAND_MASTER_REORG.md for milestone tables and active tracking.*
 
@@ -112,7 +112,7 @@ New node kinds are added to the shared enum only — never in a frontend header.
 **Byrd box node kinds — canonical names (all backends must handle all of these):**
 
 *`E_` prefix = Expression node. Names derived from SIL `xxxTYP` token type codes
-(CSNOBOL4 v311.sil) where applicable. See `ARCH-sil-heritage.md` for full lineage.*
+(CSNOBOL4 v311.sil) where applicable. See `GENERAL-SIL-HERITAGE.md` for full lineage.*
 
 | Kind | Meaning | α | β |
 |------|---------|---|---|

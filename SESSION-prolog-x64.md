@@ -3,14 +3,14 @@
 **Repo:** one4all · **Frontend:** Prolog · **Backend:** x86 (NASM)
 **Session prefix:** `PX` · **Trigger:** "playing with Prolog x64" or "Prolog x86"
 **Driver:** `scrip-cc -pl -asm foo.pl > foo.s` → `nasm -f elf64 foo.s -o foo.o` → `gcc -no-pie foo.o ...srcs... -lm -o foo`
-**Deep reference:** `ARCH-prolog-x64.md` · `FRONTEND-PROLOG.md`
+**Deep reference:** `ARCHIVE-PROLOG-X64-HISTORY.md` · `PARSER-PROLOG.md`
 
 ## Subsystems
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Prolog language, IR nodes | `FRONTEND-PROLOG.md` | parser/AST questions |
-| Historical session notes | `ARCH-prolog-x64.md` | F-212..F-214 design decisions |
+| Prolog language, IR nodes | `PARSER-PROLOG.md` | parser/AST questions |
+| Historical session notes | `ARCHIVE-PROLOG-X64-HISTORY.md` | F-212..F-214 design decisions |
 | JVM emitter (mature reference) | `prolog_emit_jvm.c` | algorithm reference |
 
 ---

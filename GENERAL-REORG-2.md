@@ -147,7 +147,7 @@ Mechanical moves only. No logic changes. One move per milestone.
 until consolidation and folder moves are complete and verified.
 
 Each sub-milestone is a **full 9-class similarity pass** on one file per
-`ARCH-reorg-design.md §THE LAW`. Greek letters replace all ASCII spellings.
+`MISC-REORG-DESIGN.md §THE LAW`. Greek letters replace all ASCII spellings.
 Label schemes unify. Prefix/suffix conventions normalize.
 
 Gate after each: full invariant suite for that backend must hold before the

@@ -4,15 +4,15 @@
 **Session prefix:** `PJ` · **Trigger:** "playing with Prolog JVM"
 **Driver:** `scrip-cc -pl -jvm foo.pl -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
 **Oracle:** `scrip-cc -pl -asm foo.pl` (ASM emitter)
-**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+**Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
 ## Subsystems
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Prolog language, IR nodes | `FRONTEND-PROLOG.md` | parser/AST questions |
-| Full milestone history | `ARCH-prolog-jvm-history.md` | completed work, milestone IDs |
-| JVM Prolog runtime design | `ARCH-prolog-jvm.md` | term encoding, trail, clause dispatch |
+| Prolog language, IR nodes | `PARSER-PROLOG.md` | parser/AST questions |
+| Full milestone history | `ARCHIVE-PROLOG-JVM-HISTORY.md` | completed work, milestone IDs |
+| JVM Prolog runtime design | `INTERP-JVM.md` | term encoding, trail, clause dispatch |
 
 ---
 

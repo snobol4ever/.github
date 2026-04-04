@@ -2,15 +2,15 @@
 
 **Repo:** one4all · **Frontend:** Icon · **Backend:** x86
 **Session prefix:** `IX` · **Trigger:** "playing with Icon x64" or "Icon asm"
-**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+**Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
 ## Subsystems
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Icon language, IR nodes, milestones | `FRONTEND-ICON.md` | parser/AST questions |
-| x64 emitter patterns | `BACKEND-X64.md` | codegen, register model |
-| JCON deep analysis | `ARCH-icon-jcon.md` | four-port templates |
+| Icon language, IR nodes, milestones | `PARSER-ICON.md` | parser/AST questions |
+| x64 emitter patterns | `EMITTER-X86.md` | codegen, register model |
+| JCON deep analysis | `MISC-ICON-JCON.md` | four-port templates |
 
 ---
 

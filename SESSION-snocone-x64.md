@@ -9,8 +9,8 @@
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Snocone language spec | `FRONTEND-SNOCONE.md` | syntax/AST questions |
-| x64 emitter patterns | `BACKEND-X64.md` | codegen, register model |
+| Snocone language spec | `PARSER-SNOCONE.md` | syntax/AST questions |
+| x64 emitter patterns | `EMITTER-X86.md` | codegen, register model |
 
 ---
 

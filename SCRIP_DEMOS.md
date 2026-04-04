@@ -78,7 +78,7 @@ Each `M-SD-N` fires when:
 **Legend:** ✅ pass · ❌ fail · ⏭ skipped (compiler gap) · ⏳ not yet started
 
 **XLINK** — cross-language linked demo: all five languages call each other through
-the SCRIP object/linker model (M-LINK-* track). Gate: `ARCH-scrip-abi.md` frozen.
+the SCRIP object/linker model (M-LINK-* track). Gate: `GENERAL-SCRIP-ABI.md` frozen.
 
 ---
 
@@ -107,7 +107,7 @@ Separate from the demo ladder. Tracks the compile+link infrastructure.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| M-LINK-ABI | `ARCH-scrip-abi.md` frozen — x64, JVM, .NET ABIs agreed | ⏳ DRAFT |
+| M-LINK-ABI | `GENERAL-SCRIP-ABI.md` frozen — x64, JVM, .NET ABIs agreed | ⏳ DRAFT |
 | M-LINK-X64-1 | EXPORT/IMPORT syntax parsed, `.globl` emitted in x64 path | ❌ |
 | M-LINK-X64-2 | Static-by-default for non-exported DEFINEs | ❌ |
 | M-LINK-X64-3 | `scrip compile -c` → `.o` via `as` | ❌ |

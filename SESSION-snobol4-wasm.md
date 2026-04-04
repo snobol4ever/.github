@@ -9,8 +9,8 @@
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| SNOBOL4 language / IR | `FRONTEND-SNOBOL4.md` | pattern/AST questions |
-| WASM emitter patterns | `BACKEND-WASM.md` | WAT codegen |
+| SNOBOL4 language / IR | `PARSER-SNOBOL4.md` | pattern/AST questions |
+| WASM emitter patterns | `ARCHIVE-WASM-BACKEND.md` | WAT codegen |
 
 ---
 

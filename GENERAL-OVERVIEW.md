@@ -1,6 +1,6 @@
 # GENERAL-OVERVIEW.md — Shared Architecture Concepts
 
-Concepts that span all backends. Backend-specific implementation → BACKEND-C.md, BACKEND-JVM.md, BACKEND-NET.md.
+Concepts that span all backends. Backend-specific implementation → EMITTER-COMMON.md, EMITTER-JVM.md, INTERP-NET.md.
 
 ---
 
@@ -21,7 +21,7 @@ The S/F routing is always a two-port exit.
 The five phases of every statement (build subject, build pattern, run match,
 build replacement, perform replacement) each produce live Byrd box graphs in
 executable memory. Static compilation is an optimization of this model, not
-the model itself. Full design and M-DYN-* milestone chain → **ARCH-byrd-dynamic.md**.
+the model itself. Full design and M-DYN-* milestone chain → **GENERAL-BYRD-DYNAMIC.md**.
 
 ---
 
@@ -45,7 +45,7 @@ Four-port wiring connects nodes: γ of one node → α of next, ω chains back.
 ARBNO wires α→γ repeatedly until ω, then proceeds.
 FENCE blocks β — prevents backtrack past this point.
 
-**C implementation:** see BACKEND-C.md §Four Techniques for *X.
+**C implementation:** see EMITTER-COMMON.md §Four Techniques for *X.
 **JVM implementation:** match.clj `loop/case` state machine.
 **.NET implementation:** ThreadedExecuteLoop.cs dispatch.
 
@@ -81,7 +81,7 @@ is superseded by T2 once M-T2-FULL fires.
 
 **Milestone chain:** M-T2-RUNTIME → M-T2-RELOC → M-T2-EMIT-TABLE → M-T2-EMIT-SPLIT →
 M-T2-INVOKE → M-T2-RECUR → M-T2-CORPUS → M-T2-JVM → M-T2-NET → M-T2-FULL.
-**Documented in full:** BACKEND-X64.md §Technique 2.
+**Documented in full:** EMITTER-X86.md §Technique 2.
 
 ---
 

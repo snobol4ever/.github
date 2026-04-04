@@ -3,17 +3,17 @@
 *2026-03-25 — milestones decomposed for incremental safety by Claude Sonnet 4.6 (G-6 session)*
 *2026-03-29 — split into three files (G-8 session):*
 - *This file: milestone tables, dependency graph, success criteria — active tracking*
-- *`ARCH-reorg-design.md`: architecture, IR node table, Naming Law, Invariant Table*
-- *`ARCH-reorg-gentest.md`: Phase 8 grammar-driven test generation full spec*
+- *`MISC-REORG-DESIGN.md`: architecture, IR node table, Naming Law, Invariant Table*
+- *`MISC-REORG-GENTEST.md`: Phase 8 grammar-driven test generation full spec*
 - *G-7/G-8 addenda decision rationale archived to `SESSIONS_ARCHIVE.md`*
 
 ---
 
 ## ⚡ Quick Reference
-- **Architecture, IR node table, Naming Law, Invariant Table** → `ARCH-reorg-design.md`
-- **Phase 8 gen-test full spec** → `ARCH-reorg-gentest.md`
+- **Architecture, IR node table, Naming Law, Invariant Table** → `MISC-REORG-DESIGN.md`
+- **Phase 8 gen-test full spec** → `MISC-REORG-GENTEST.md`
 - **Decision rationale (E_SEQ/E_CONCAT split, WASM encoding)** → `SESSIONS_ARCHIVE.md` (archived addenda section)
-- **WASM backend reference** → `BACKEND-WASM.md`
+- **WASM backend reference** → `ARCHIVE-WASM-BACKEND.md`
 
 ---
 
@@ -73,7 +73,7 @@ the naming pass.
 A regression is immediately localizable to the one file just touched.
 
 **SCOPE (G-9 s22 — full similarity-maximization):** Each M-G3-NAME-* milestone is a
-**similarity-maximization pass** on its file per ARCH-reorg-design.md §THE LAW.
+**similarity-maximization pass** on its file per MISC-REORG-DESIGN.md §THE LAW.
 The goal: after all passes, diffing any two emitter files should show differences
 *only* in the output macro letter and platform-specific code sequences — not in
 naming. Every class of named thing (globals, functions, locals, parameters, generated

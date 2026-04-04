@@ -4,7 +4,7 @@
 **Session prefix:** `PW` · **Trigger:** "Prolog frontend with WASM backend"
 **Driver:** `scrip-cc -pl -wasm foo.pl -o foo.wat` → `wat2wasm --enable-tail-call foo.wat -o foo.wasm` → `node test/wasm/run_wasm.js foo.wasm`
 **Oracle:** `swipl foo.pl` (SWI-Prolog)
-**Deep reference:** `BACKEND-WASM.md` · `FRONTEND-PROLOG.md` · `ARCH-prolog-jvm.md` (Byrd-box wiring)
+**Deep reference:** `ARCHIVE-WASM-BACKEND.md` · `PARSER-PROLOG.md` · `INTERP-JVM.md` (Byrd-box wiring)
 
 ---
 
@@ -12,11 +12,11 @@
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Prolog language, IR nodes | `FRONTEND-PROLOG.md` | parser/AST questions |
-| WASM backend architecture | `BACKEND-WASM.md` | encoding strategy, runtime layout, tail-call model |
+| Prolog language, IR nodes | `PARSER-PROLOG.md` | parser/AST questions |
+| WASM backend architecture | `ARCHIVE-WASM-BACKEND.md` | encoding strategy, runtime layout, tail-call model |
 | WASM SNOBOL4 session (sibling) | `SESSION-snobol4-wasm.md` | shared emit_wasm.c helpers |
 | Prolog JVM (structural oracle) | `SESSION-prolog-jvm.md` | Byrd-box clause dispatch reference |
-| x64 Prolog emitter (structural oracle) | `ARCH-prolog-x64.md` | four-port wiring notes |
+| x64 Prolog emitter (structural oracle) | `ARCHIVE-PROLOG-X64-HISTORY.md` | four-port wiring notes |
 
 ---
 

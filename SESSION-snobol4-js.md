@@ -10,8 +10,8 @@
 
 | Subsystem | Doc |
 |-----------|-----|
-| SNOBOL4 language / IR | `FRONTEND-SNOBOL4.md` |
-| JS backend patterns | `BACKEND-JS.md` |
+| SNOBOL4 language / IR | `PARSER-SNOBOL4.md` |
+| JS backend patterns | `EMITTER-JS.md` |
 | Milestone ladder | `MILESTONE-JS-SNOBOL4.md` |
 
 ---
