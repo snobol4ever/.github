@@ -34,12 +34,18 @@ Then read your SESSION-*.md (see Routing table below).
 
 **⛔ ROUTING: frontend × backend → `SESSION-<frontend>-<backend>.md`. That is all.**
 
+⛔ **DISAMBIGUATION — "dynamic Byrd boxes" is an ARCHITECTURE TERM, not a session name.**
+Both the JVM session (J-) and the x86 interpreter session (DYN-) use dynamic Byrd boxes.
+The user saying "dynamic Byrd boxes written in Jasmin" → **JVM session** (`SESSION-snobol4-jvm.md`).
+The user saying "dynamic Byrd boxes written in C / .s / NASM" → **DYN- session** (`SESSION-dynamic-byrd-box.md`).
+Backend keyword is the tie-breaker: `Jasmin` / `JVM` / `.jasmin` → J- session. `NASM` / `x86` / `.s` → DYN- session.
+
 **Snocone × x86 additionally read:**
 ```
 cat /home/claude/.github/SESSION-snocone-x64.md
 ```
 
-**Dynamic Byrd Box additionally read:**
+**Dynamic Byrd Box (x86 interpreter) additionally read:**
 ```
 cat /home/claude/.github/SESSION-dynamic-byrd-box.md
 # Do NOT cat ARCH-byrd-dynamic.md in full — grep only the section you need
