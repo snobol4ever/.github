@@ -21813,70 +21813,92 @@ If semicolon fix resolves `1012` + `test_*` (which likely also use `;`), could j
 - `one4all`: `e8c18fb` · `corpus`: `8d5cc6a` · `.github`: this commit
 - **Broad: 169p/9f**
 - Build: `make -C src/frontend/snobol4` + scrip-interp-s link command from archive
-## D-179 handoff — 2026-04-03
+
+## DYN-66 handoff — 2026-04-04
 
 ### Session type
-**one4all-SNOBOL4-NET** — SNOBOL4 × .NET interpreter (scrip-interp.csproj). Session prefix: D-
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
 
-### Result: 161p → **165p/13f** (target ≥165p ✅)
+### Result: 169p/9f → **170p/8f** (+1)
 
-### What was done (D-179)
+### What was done (DYN-66)
 
-**Commit `07e9030` on one4all (rebased from `9149c86`):**
+**Commit `8e337ba` on one4all:**
 
-1. **stdin EOF fix** — `Program.cs`: changed `new Executor(env)` to pass `new StreamReader(Console.OpenStandardInput())` so `ReadLine()` returns `null` on piped EOF. Fixed `fileinfo` and `triplet` hang.
+**`<BODY>{W}";"` fix — root cause of all semicolon-separated statement parse failures.**
 
-2. **Arg-fail propagation** — `Executor.cs`: added `if (evalArgs.Any(a => a.IsFail)) return DESCR.Fail;` before `CallBuiltin` and `CallUserFunc`. Previously `SIZE(INPUT)` on EOF swallowed the fail — `INPUT` returned `DESCR.Fail`, but `SIZE` called `ToString()` on it and returned a length, hiding the failure. Fixed `fileinfo` + 2 others.
+- **Diagnosis path**: DYN-65 added `BEGIN(INITIAL)` to `<BODY>";"` and `<BODY_START>";"` which was correct, but the real blocker was earlier in the token stream. Built a token-dump tool (`tok_dump.c`) calling `flex_lex_next` directly and observed: input `a = 'x' ; output = a` produced `T_IDENT T_ASSIGNMENT T_STR T_CONCAT T_STMT_END ...` — a spurious `T_CONCAT` (kind=301) before `T_STMT_END`.
+- **Root cause**: `<BODY>{W}` (line 146 of `snobol4.l`) matched the space *before* `;` via flex maximal munch, emitting `T_CONCAT`. Then `;` fired `T_STMT_END`. Bison rejected `T_CONCAT` because it's not in the follow-set for `opt_goto` or any expression continuation at statement-end position.
+- **Fix**: Added `<BODY>{W}";"` rule *before* the bare `<BODY>{W}` rule. Flex maximal munch now consumes space+semicolon together, emitting only `BEGIN(INITIAL); return T_STMT_END`. One line added to `snobol4.l`, regenerated `snobol4.lex.c`.
+- **Verified**: `1012_func_locals` passes (7/7). Broad: 170p/8f.
 
-3. **ARG/LOCAL builtins** — `SnobolEnv.cs`: added `ArgOrLocal(args, local)` helper. Looks up `FuncDef` by name (from args[0]), returns n-th param or local name (1-based, uppercase), fails on OOB. Fixed `1017_arg_local` (8/8).
-
-4. **`.label` value fix** — `Executor.cs`: `E_CAPT_COND_ASGN` in value context now returns `DESCR.Of(n.Children[0].SVal)` (the variable name as string) instead of evaluating the variable. This allows `.jlab` to pass the string `"JLAB"` to ARG/LOCAL, and `$.a` to pass `"A"` to `$` for indirection.
-
-5. **`$.expr<idx>` parse fix** — `Snobol4Parser.cs`: added `StripTrailingSubscript` helper. When `ParseAtom` sees `$expr<idx>`, it now strips the trailing `<idx>` first, builds `E_INDIRECT(ParseAtom(expr))`, then wraps with `E_IDX`. Previously `$.a<2>` was parsed as `E_INDIRECT(E_CAPT_COND_ASGN(E_IDX(VAR("A"), 2)))` — subscript inside indirect, wrong. Fixed `212_indirect_array`.
-
-6. **`-include` directive** — `Snobol4Parser.cs`: `ParseFile` now passes `baseDir`; `ParseSource` detects `-include 'path'` lines (case-insensitive), resolves path relative to source file, reads and splices logical lines inline before parsing. Allows `test_case/math/stack/string` to load `lib/*.sno` — but those tests still fail because `lib/string.sno`/etc use FRETURN/NRETURN which are pre-existing failures.
-
-### Remaining failures for D-180 (13f)
+### Remaining failures (8f)
 
 ```
-triplet  expr_eval
-test_case  test_math  test_stack  test_string
-1010_func_recursion  1011_func_redefine  1013_func_nreturn
-1015_opsyn  1018_apply
-cross  word1
+expr_eval   test_case   test_math   test_stack   test_string
+1013_func_nreturn   1015_opsyn   1016_eval
 ```
 
-- **triplet**: blank-line output — test outputs `0` where ref expects empty line. Likely `OUTPUT = 0` vs `OUTPUT = ''` in the lib or a numeric-to-string issue.
-- **test_case/math/stack/string**: lib functions use FRETURN (`startswith`, `endswith`, `contains`, stack ops). Need FRETURN working.
-- **1013_func_nreturn**: NRETURN not implemented — blocks test_* lib and several other tests.
-- **word1/cross**: pre-existing `. OUTPUT` ARB capture side-effect.
-- **expr_eval**: pre-existing line-continuation issue.
-- **1015_opsyn, 1010/1011/1018**: pre-existing deeper function call issues.
+**`1013_func_nreturn` partial diagnosis:**
+- Test: `ref_a` defined with `ref_a = .a :(nreturn)`. Calling `ref_a()` should return the *name* `.a` (an lvalue). `ref_a() = 26` should write 26 into `a`.
+- Assertion 001 (reading ref_a() gives a's value=27): **passes** (`:f` branch not taken → `:s` implied).
+- Assertion 002 (lvalue assign `ref_a() = 26` succeeds): **passes**.
+- Assertion 003 (`a` is now 26): **FAILS** — the lvalue write-back did not propagate into `a`.
+- Root cause not yet traced — in `scrip-interp.c`, check `interp_eval` E_ASSIGN handler: when LHS is `E_FNC` returning an NRETURN name, does it dereference the name and write through it?
 
-### D-180 first actions
+### DYN-67 first actions
+
 1. `git pull --rebase` all repos
-2. `apt-get install -y dotnet-sdk-10.0`
-3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
-4. `cat > /tmp/sni_run.sh` + `chmod +x` (see below)
-5. Confirm **165p/13f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
-6. Implement FRETURN: in `Executor.cs`, `CallUserFunc` catch `FReturnException` and propagate as statement failure (return `false` from `ExecStmt`). Check `1013_func_nreturn` for NRETURN too.
-7. Fix triplet blank-line: run triplet, find where `0` comes from, likely a numeric OUTPUT issue.
-8. Target ≥170p → then OPSYN+NRETURN → ≥175p.
+2. Rebuild scrip-interp-s: `make -C src/frontend/snobol4` then link command below
+3. Confirm **170p/8f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+4. Trace `1013_func_nreturn`: in `scrip-interp.c`, find E_ASSIGN handler — check what happens when LHS evaluates to a function call that returned via NRETURN. The returned DESCR should carry a name (not a value); the assign needs to follow the name pointer and write into the named variable.
+5. Fix `1013` → `1015_opsyn` → target ≥172p → M-DYN-S1
 
-### run wrapper
-```bash
-cat > /tmp/sni_run.sh << 'RUN'
-#!/bin/bash
-dotnet /tmp/sni/scrip-interp.dll "$1"
-RUN
-chmod +x /tmp/sni_run.sh
+### Baselines for DYN-67
+- `one4all`: `8e337ba`
+- `corpus`: `8d5cc6a`
+- `.github`: this commit
+- **Broad: 170p/8f**
+- Build: `make -C src/frontend/snobol4` then scrip-interp-s link (see "scrip-interp-s build command (UPDATED)" above)
+- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-66 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 169p/9f → **170p/8f** (+1)
+
+### What was done (DYN-66)
+
+**Commit `8e337ba` on one4all:**
+
+**`<BODY>{W}";"` fix — root cause of all semicolon-separated statement parse failures.**
+
+- **Diagnosis**: Built token-dump tool calling `flex_lex_next` directly. Observed input `a = 'x' ; output = a` produced spurious `T_CONCAT` (kind=301) before `T_STMT_END`. `<BODY>{W}` matched the space before `;` via maximal munch, emitting `T_CONCAT`. Bison rejected it — `T_CONCAT` not in follow-set at statement-end position.
+- **Fix**: Added `<BODY>{W}";"` rule before the bare `<BODY>{W}` rule. Flex maximal munch now consumes space+semicolon together, emitting only `BEGIN(INITIAL); return T_STMT_END`. One line in `snobol4.l`, regenerated `snobol4.lex.c`.
+- **Verified**: `1012_func_locals` passes (7/7). Broad: 170p/8f.
+
+### Remaining failures (8f)
+```
+expr_eval   test_case   test_math   test_stack   test_string
+1013_func_nreturn   1015_opsyn   1016_eval
 ```
 
-### Baselines for D-180
-- `one4all`: `07e9030`
-- `corpus`: `2f2bbe3`
-- `.github`: this commit
-- **Broad: 165p/13f**
-- Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
-- Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
-- Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+**`1013_func_nreturn` partial diagnosis:**
+- Assertions 001+002 pass (reading name value; lvalue assign succeeds). Assertion 003 fails (write-back into `a` didn't propagate). Root cause: in `scrip-interp.c` E_ASSIGN handler, when LHS is E_FNC returning NRETURN name, the write doesn't follow the name pointer into the named variable.
+
+### DYN-67 first actions
+1. `git pull --rebase` all repos
+2. `make -C src/frontend/snobol4` then relink scrip-interp-s (see "scrip-interp-s build command (UPDATED)" in this file)
+3. Confirm **170p/8f**
+4. Trace `1013`: E_ASSIGN in `scrip-interp.c` — check lvalue write-back when LHS is NRETURN name
+5. Fix `1013` → `1015_opsyn` → ≥172p → M-DYN-S1
+
+### Baselines for DYN-67
+- `one4all`: `8e337ba` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 170p/8f**
+- Build: `make -C src/frontend/snobol4` + scrip-interp-s link (see "scrip-interp-s build command (UPDATED)")
+- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
