@@ -23995,3 +23995,87 @@ cat .github/SESSIONS_ARCHIVE.md | tail -80
 # Then test: ./sn4parse corpus/programs/gimpel/SQRT.sno
 # Target: zero errors on SQRT.sno (13 statements)
 ```
+
+## DYN-85 — sn4parse.c: Root-Cause Fix + Full Annotation + Validation Milestone (2026-04-04)
+
+### Session type
+**Parser fix + documentation + milestone design** — DYN- session.
+
+### What Was Done
+
+**Root cause of all four DYN-84 bugs identified and fixed:**
+
+All four known sn4parse.c bugs (** exponent, FORBLK after `)`, pattern field not
+reached, juxtaposition) shared a single root cause: `BINOP()` was calling BIOPTB
+directly on TEXTSP without first consuming the mandatory leading blank.
+
+SIL BINOP (v311.sil:1559) begins with `RCALL ,FORBLK,,BINOP1` — skip leading blank
+first. Our BINOP called `stream(&tok, &TEXTSP, &BIOPTB)` directly. BIOPTB has
+`chrs[' ']=15` (AC_ERROR), so it errored immediately on any blank-prefixed operator,
+returning 0 and making every binary operator silently disappear.
+
+Fix: `BINOP()` rewritten to mirror SIL exactly:
+1. Try `stream(IBLKTB)` to skip leading blank
+2. If ST_ERROR → no blank → BINOP1 path → use FORWRD → check field delimiters → return 0
+3. If blank found → try `stream(BIOPTB)` → on ST_ERROR → return CATFN (juxtaposition)
+4. On success → return STYPE (ADDFN, SUBFN, MPYFN/STARTB→EXPFN, etc.)
+
+Added `#define CATFN 100` for juxtaposition (mirrors SIL's CONCL descriptor).
+
+**Also fixed:** `expr_prec_continue` needs to build CAT node when BINOP returns CATFN.
+**Also needed:** NSTTYP in ELEMNT must call FORWRD() after recursive EXPR() to consume `)`.
+These two fixes are queued for DYN-86 (they require test-driven verification).
+
+**Full annotation pass on sn4parse.c:**
+
+Every cryptic SIL name annotated with inline end-of-line comments derived from:
+- `snobol4-2.3.3/equ.h` — all STYPE numeric codes and their meanings
+- `snobol4-2.3.3/v311.sil` — procedure descriptions, global variable descriptions, data DESCR lines
+- `snobol4-2.3.3/include/syntab.h` — struct/enum descriptions
+- `snobol4-2.3.3/syn_init.h` — action table ordering verification
+
+Annotated sections:
+- File header: SIL acronym explained, v311.sil line refs for each procedure
+- `syntab`/`acts`: `chrs[]`, `put`, `act`, `go`, `stream()` calling convention
+- All `#define` constants: every `*TYP` and `*FN` symbol with v311.sil data-section line
+- `CARDTB` through `GOTOTB`: all 14 tables with purpose, SIL cross-ref, every action entry
+- `TEXTSP`/`XSP`/`BRTYPE`: SIL global descriptor cross-refs
+- `FORWRD`/`FORBLK`: SIL procedure descriptions and FORJRN explanation
+- `CATFN`: CONCL descriptor cross-ref
+- `op_prec`/`op_right_assoc`: SIL CODE+2*DESCR precedence field explanation
+- `stype_name`: context-dependent STYPE code table
+- `ELEMNT`/`EXPR`/`CMPILE`: all SIL branch labels decoded (ELEMND, EXELND, EXOPCL, BOSCL, etc.)
+- `STMT` struct: field-by-field SIL equivalents
+- `init_tables`: why forward references require runtime wiring
+
+**New milestone written:**
+
+`MILESTONE-SN4PARSE-VALIDATE.md` — three-phase validation suite:
+- Phase 1: corpus sweep — 550 .sno + 154 .inc files, zero crashes, ≤5% error rate
+- Phase 2: diff sn4parse IR vs scrip-interp Bison/Flex IR on Gimpel + rung1-5
+- Phase 3: instrument CSNOBOL4 snobol4.c to emit S-expressions; diff vs sn4parse
+
+PLAN.md updated: component map + NOW table updated for DYN-85.
+
+### What Was NOT Done (DYN-86 first actions)
+1. `expr_prec_continue` CAT node for CATFN return — write and test
+2. NSTTYP closing `)` consume via FORWRD() in ELEMNT — write and test
+3. Build and run sn4parse on SQRT.sno — confirm M-SN4PARSE gate passes
+4. Run Phase 1 corpus sweep — establish baseline error count
+
+### Baselines for DYN-86
+- `one4all`: `59ada3d` (sn4parse.c pre-BINOP fix) → push annotated + fixed version
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: to be pushed after this entry
+
+### Session start for DYN-86
+```
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-SN4PARSE.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
+echo "	SQRT = Y ** 0.5			:(RETURN)" | ./sn4parse   # must show EXPFN(**)
+./sn4parse corpus/programs/gimpel/SQRT.sno 2>&1 | grep -E "error|=== [0-9]"
+# Fix expr_prec_continue CATFN, then NSTTYP paren, then run full SQRT
+```
