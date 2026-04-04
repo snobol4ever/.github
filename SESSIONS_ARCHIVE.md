@@ -22508,3 +22508,258 @@ cross  word1
 - Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-71 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 173p/5f → **175p/3f** (+2) — NOT a milestone, work incomplete
+
+### Commits
+- **DROPPED** (rebase --skip during push collision with J-233). Changes must be re-implemented from scratch in DYN-72. See "What was done" below for exact diffs.
+
+### What was done (DYN-71) — changes to RE-IMPLEMENT in DYN-72
+
+**ALL changes go into working tree before commit. Do not commit until 178p/0f.**
+
+#### 1. `src/driver/scrip-interp.c`
+
+**A. `E_NAME` handler — use NAMEVAL for simple vars (fixes 1010/1015/1018)**
+
+Root cause: `E_NAME(E_VAR("eq"))` was returning `NAMEPTR(NV_PTR_fn("eq"))`. Boehm GC is non-moving, but the interior pointer `&e->val` is not recognized as a GC root by the conservative scanner → the NV_t object can be collected → pointer goes stale → `NV_name_from_ptr` scan finds nothing → `VARVAL_fn` returns `""` → `APPLY_fn("")` returns NULVCL instead of failing.
+
+Fix: for `E_VAR`/`E_FNC`/`E_KEYWORD` children of `E_NAME`, return `NAMEVAL(child->sval)` instead of `NAMEPTR(cell)`. `NAMEVAL` stores the name string in `.s` (GC-stable). `NAMEPTR` is still used for `E_IDX` and complex lvalue children (array cells — those pointers ARE kept alive by the array object).
+
+Replace the `E_NAME` case in `interp_eval` (~line 544):
+```c
+case E_NAME: {
+    if (e->nchildren < 1) return FAILDESCR;
+    EXPR_t *child = e->children[0];
+    /* Simple variable/function/keyword: NAMEVAL — GC-stable name string */
+    if ((child->kind == E_VAR || child->kind == E_FNC || child->kind == E_KEYWORD) && child->sval)
+        return NAMEVAL(child->sval);
+    /* Complex lvalue (array cell etc.): NAMEPTR */
+    DESCR_t *cell = interp_eval_ref(child);
+    if (cell) return NAMEPTR(cell);
+    return FAILDESCR;
+}
+```
+
+**B. `NAME_DEREF` and `NAME_SET` helpers — fix NRETURN for NAMEVAL**
+
+Replace the existing `NAME_DEREF` static inline (~line 178):
+```c
+static inline DESCR_t NAME_DEREF(DESCR_t d) {
+    if (d.v == DT_N) {
+        if (d.ptr) return *(DESCR_t*)d.ptr;   /* NAMEPTR form */
+        if (d.s)   return NV_GET_fn(d.s);     /* NAMEVAL form */
+    }
+    return d;
+}
+static inline int NAME_SET(DESCR_t name_d, DESCR_t val) {
+    if (name_d.v == DT_N) {
+        if (name_d.ptr) { *(DESCR_t*)name_d.ptr = val; return 1; }
+        if (name_d.s)   { NV_SET_fn(name_d.s, val);   return 1; }
+    }
+    return 0;
+}
+```
+
+**C. NRETURN read deref in E_FNC (~line 861)**
+```c
+// Replace:
+if (r.v == DT_N && r.ptr) return *(DESCR_t*)r.ptr;
+// With:
+if (r.v == DT_N) return NAME_DEREF(r);
+```
+
+**D. NRETURN write-through in plain assignment (~line 350)**
+```c
+// Replace:
+DESCR_t fres = call_user_function(subj_name, NULL, 0);
+if (fres.v == DT_N && fres.ptr) {
+    *(DESCR_t*)fres.ptr = repl_val; succeeded = 1;
+} else { NV_SET_fn(subj_name, repl_val); succeeded = 1; }
+// With:
+DESCR_t fres = call_user_function(subj_name, NULL, 0);
+if (NAME_SET(fres, repl_val)) { succeeded = 1; }
+else { NV_SET_fn(subj_name, repl_val); succeeded = 1; }
+```
+
+**E. NRETURN write-through in zero-arg fn lvalue assign (~line 403)**
+```c
+// Replace:
+if (fres.v == DT_N && fres.ptr) {
+    DESCR_t rv = ...; if (IS_FAIL_fn(rv)) succeeded=0;
+    else { *(DESCR_t*)fres.ptr = rv; succeeded = 1; }
+} else succeeded = 0;
+// With:
+if (fres.v == DT_N) {
+    DESCR_t rv = ...; if (IS_FAIL_fn(rv)) succeeded=0;
+    else { succeeded = NAME_SET(fres, rv) ? 1 : 0; }
+} else succeeded = 0;
+```
+
+**F. `g_eval_pat_hook` extern for DT_P EVAL (declare only; wire in DYN-72)**
+
+Add after `g_user_call_hook` declaration:
+```c
+DESCR_t (*g_eval_pat_hook)(DESCR_t pat) = NULL;
+```
+And register in `main()` (implementation in DYN-72 — see fix for 1016/003 below).
+
+#### 2. `src/runtime/snobol4/snobol4.c`
+
+**A. `VARVAL_fn` — add `DT_N` case** (before `default:` in switch):
+```c
+case DT_N:
+    if (v.s) return GC_strdup(v.s);      /* NAMEVAL: .s is the name string */
+    if (v.ptr) {
+        const char *nm = NV_name_from_ptr((const DESCR_t *)v.ptr);
+        if (nm) return GC_strdup(nm);
+        DESCR_t inner = *(DESCR_t *)v.ptr;
+        return VARVAL_fn(inner);
+    }
+    return GC_strdup("");
+```
+
+**B. `NV_name_from_ptr` — add after `NV_PTR_fn`:**
+```c
+const char *NV_name_from_ptr(const DESCR_t *ptr) {
+    if (!ptr) return NULL;
+    for (int i = 0; i < VAR_BUCKETS; i++)
+        for (NV_t *e = _var_buckets[i]; e; e = e->next)
+            if (&e->val == ptr) return e->name;
+    return NULL;
+}
+```
+
+#### 3. `src/runtime/snobol4/snobol4.h`
+
+Add after `NV_PTR_fn` declaration:
+```c
+const char *NV_name_from_ptr(const DESCR_t *ptr);
+DESCR_t (*g_eval_pat_hook)(DESCR_t pat);  /* extern — for DT_P eval in EVAL_fn */
+```
+
+#### 4. `src/runtime/snobol4/snobol4_pattern.c`
+
+**`EVAL_fn` — IS_FAIL_fn check on eval_node result (fixes 1016/001-002):**
+```c
+if (expr.v == DT_E) {
+    extern DESCR_t eval_node(void *e);
+    if (!expr.ptr) return FAILDESCR;
+    DESCR_t res = eval_node(expr.ptr);
+    if (IS_FAIL_fn(res)) return FAILDESCR;  // ADD THIS LINE
+    return res;
+}
+```
+
+#### 5. `src/runtime/dyn/stmt_exec.c`
+
+**`deferred_var_t` — add `in_progress` field:**
+```c
+typedef struct { const char *name; bb_box_fn child_fn; void *child_state;
+                 size_t child_size; int in_progress; } deferred_var_t;
+```
+
+**`bb_deferred_var` α port — add depth guard at top of DVAR_α block:**
+```c
+DVAR_α: {
+    if (ζ->in_progress) goto DVAR_ω;
+    ζ->in_progress = 1;
+    /* ... existing code ... */
+}
+// Clear before child call:
+if (!ζ->child_fn) { ζ->in_progress = 0; goto DVAR_ω; }
+DVAR = ζ->child_fn(ζ->child_state, α);
+ζ->in_progress = 0;
+```
+
+---
+
+### Remaining failures for DYN-72 (3f after re-implementing above)
+
+```
+1016_eval  — assertion 003: eval(*ident(1,2)) should fail
+1013_func_nreturn — verify NAMEVAL path works after NAME_DEREF fix
+expr_eval  — segfault: recursive *factor/*term/*expr mutual recursion
+```
+
+### DYN-72 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `b8560bb` at one4all HEAD
+2. Build scrip-interp-s (UPDATED command — search SESSIONS_ARCHIVE "scrip-interp-s build command (UPDATED)")
+3. Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+4. Confirm **173p/5f** baseline
+5. Re-implement ALL changes from "What was done" above into working tree (do NOT commit yet)
+6. Rebuild + confirm **175p/3f** (1010/1015/1018 pass; 1016/1013/expr_eval still fail)
+7. Fix `1016_eval` assertion 003:
+
+   **Root cause:** `*ident(1,2)` → `pat_user_call("ident", [1,2])` → `DT_P`. `EVAL_fn` receives `DT_P`, hits `if (expr.v != DT_S && expr.v != DT_SNUL) return expr;` → returns pattern unchanged → success. Should fail.
+
+   **Fix:** Add `g_eval_pat_hook` wiring:
+   - In `snobol4_pattern.c` `EVAL_fn`, before the `return expr` line for non-S/non-SNUL:
+     ```c
+     if (expr.v == DT_P) {
+         extern DESCR_t (*g_eval_pat_hook)(DESCR_t pat);
+         if (g_eval_pat_hook) return g_eval_pat_hook(expr);
+         return expr;
+     }
+     ```
+   - In `scrip-interp.c`, implement and register:
+     ```c
+     static DESCR_t _eval_pat_impl(DESCR_t pat) {
+         /* Run pattern against empty subject — if pattern fails, EVAL fails */
+         /* exec_stmt signature: exec_stmt(subj_name, pat_d, repl_val, has_repl) */
+         /* Use an empty string subject with anchor on */
+         const char *saved_subj = Σ;
+         Σ = "";
+         int ok = exec_stmt("", pat, NULVCL, 0);
+         Σ = saved_subj;
+         return ok ? NULVCL : FAILDESCR;
+     }
+     // In main(): g_eval_pat_hook = _eval_pat_impl;
+     ```
+   Check actual `exec_stmt` signature in `stmt_exec.c` before coding.
+
+8. Fix `1013_func_nreturn`:
+   After applying NAME_DEREF fix, test: `differ(ref_a(), 27)`.
+   NRETURN path: `nrv = NV_GET_fn("ref_a")` → NAMEVAL("a") → else branch → `VARVAL_fn(nrv)` → `"a"` → `NV_PTR_fn("a")` → cell for `a` → `NAMEPTR(cell_for_a)`. Then E_FNC deref: `NAME_DEREF(NAMEPTR(cell))` → `*(DESCR_t*)ptr` = 27. Should work. If still failing, trace the NRETURN path with a `fprintf(stderr,...)` on `nrv`.
+
+9. Fix `expr_eval` segfault:
+   **Root cause:** `*factor` in `factor`'s own pattern → mutual recursion via bb_deferred_var α → stack overflow. The `in_progress` guard per-ζ is insufficient for mutual recursion between different ζ nodes.
+
+   **Fix:** Global depth counter in `stmt_exec.c`:
+   ```c
+   static int g_dvar_depth = 0;
+   #define DVAR_MAX_DEPTH 64
+   ```
+   In `bb_deferred_var` α port (after `in_progress` check):
+   ```c
+   if (g_dvar_depth >= DVAR_MAX_DEPTH) goto DVAR_ω;
+   g_dvar_depth++;
+   ζ->in_progress = 1;
+   /* ... existing code ... */
+   // Before child call:
+   if (!ζ->child_fn) { ζ->in_progress = 0; g_dvar_depth--; goto DVAR_ω; }
+   DVAR = ζ->child_fn(ζ->child_state, α);
+   ζ->in_progress = 0;
+   g_dvar_depth--;
+   ```
+   Also decrement in β port and at DVAR_ω.
+
+   **Note:** expr_eval uses left-recursive patterns (factor→factor, term→factor, expr→term). The depth cap prevents infinite recursion. The program should still produce correct output for simple inputs like `1+2*3` — the recursive descent terminates naturally before hitting depth 64 for these inputs.
+
+10. Run broad → target **178p/0f → M-DYN-INTERP-FULL**
+11. Commit as single commit, push, then beauty sweep (19 drivers in `corpus/programs/snobol4/beauty/`)
+
+### Baselines for DYN-72
+- `one4all`: `b8560bb` (J-233 landed during DYN-71; our changes NOT committed)
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: this commit
+- **Broad: 173p/5f** (clean tree after re-implementing DYN-71 changes: 175p/3f)
+- Build: scrip-interp-s — UPDATED command from DYN-62 in SESSIONS_ARCHIVE
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
