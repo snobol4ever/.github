@@ -48,7 +48,7 @@ cat /home/claude/.github/SESSION-snocone-x64.md
 **Dynamic Byrd Box (x86 interpreter) additionally read:**
 ```
 cat /home/claude/.github/SESSION-dynamic-byrd-box.md
-# Do NOT cat ARCH-byrd-dynamic.md in full — grep only the section you need
+# Do NOT cat GENERAL-BYRD-DYNAMIC.md in full — grep only the section you need
 ```
 
 ---
@@ -108,14 +108,14 @@ Each session owns exactly one row. Update only your row. `git pull --rebase` bef
 | Snocone | `SESSION-snocone-x64.md` | — | — |
 | Snocone BEAUTY | `SESSION-snocone-beauty.md` | — | — |
 | SNOBOL4 (WASM) | ⛔ PARKED | — | — |
-| SNOBOL4 (JS) | `SESSION-snobol4-js.md` | `BACKEND-JS.md` | — |
-| Icon (JS) | `SESSION-icon-js.md` | `BACKEND-JS.md` | — |
-| Prolog (JS) | `SESSION-prolog-js.md` | `BACKEND-JS.md` | — |
-| Rebus | `FRONTEND-REBUS.md` | — | — |
+| SNOBOL4 (JS) | `SESSION-snobol4-js.md` | `EMITTER-JS.md` | — |
+| Icon (JS) | `SESSION-icon-js.md` | `EMITTER-JS.md` | — |
+| Prolog (JS) | `SESSION-prolog-js.md` | `EMITTER-JS.md` | — |
+| Rebus | `PARSER-REBUS.md` | — | — |
 
-Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md` · `MILESTONE-JVM-SNOBOL4.md`
+Special: `SCRIP_DEMOS.md` · `GENERAL-SCRIP-ABI.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md` · `MILESTONE-JVM-SNOBOL4.md`
 
-**3. Deep reference → ARCH-*.md** (open only when needed — catalog in `ARCH-index.md`)
+**3. Deep reference → ARCH-*.md** (open only when needed — catalog in `PLAN.md`)
 
 ---
 

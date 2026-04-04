@@ -22,7 +22,7 @@ ARCH docs are read in full during session start. Every KB added is context burne
 - Do NOT append brainstorm sections that were useful when being worked out but are now resolved.
 - Resolved design questions → one-line summary in the relevant section, not a new section.
 - If an ARCH doc exceeds 20KB, trim it before the next handoff. `wc -c ARCH-*.md` at handoff.
-- `ARCH-byrd-dynamic.md` is currently over-limit (58KB). DYN-20 must trim it to ≤20KB.
+- `GENERAL-BYRD-DYNAMIC.md` is currently over-limit (58KB). DYN-20 must trim it to ≤20KB.
 
 **SESSION doc is the context budget:**
 Each session type must have a `SESSION-*.md` that is ≤2KB and replaces full ARCH reads.
@@ -115,7 +115,7 @@ SESSION_SETUP.sh never installs bison/flex.
 SPITBOL (snobol4ever/x64, installed at `/usr/local/bin/spitbol`) is the authoritative oracle.
 CSNOBOL4 is not installed, not used, not needed. Do not attempt to build it.
 When deriving `.ref` output for any test: `spitbol -b file.sno > file.ref`.
-**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see ARCH-decisions.md D-003.
+**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
 Note: `.ref` files are pre-baked in corpus — SPITBOL is not required to run the gate.
 
 ---
@@ -260,7 +260,7 @@ Every session is defined by three values. Pick them, read three docs, work.
 **2. Frontend** → `FRONTEND-icon.md` / `FRONTEND-prolog.md` / `FRONTEND-snobol4.md` etc. (pure reference, no §NOW)
 **3. Frontend × Backend** → `SESSION-icon-jvm.md` / `SESSION-prolog-x64.md` etc. (§NOW lives here)
 
-**Deep reference** → `ARCH-*.md` — open only when you hit something unfamiliar. Full catalog in `ARCH-index.md`. Never read speculatively.
+**Deep reference** → `ARCH-*.md` — open only when you hit something unfamiliar. Full catalog in `PLAN.md`. Never read speculatively.
 
 **Session start — four steps (mandatory, in order):**
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
@@ -361,7 +361,7 @@ Training data is wrong. Session memory drifts. HQ docs are ground truth.
 
 **Failure mode:** Claude asserted Icon/JCON uses implicit semicolons (standard Icon
 behaviour). Our lexer explicitly does NOT — "No auto-semicolon insertion" is line 4
-of `icon_lex.c` and documented in RULES.md and ARCH-icon-jcon.md. This caused
+of `icon_lex.c` and documented in RULES.md and MISC-ICON-JCON.md. This caused
 wasted session time diagnosing a non-problem.
 
 **Rule:** When in doubt about ANY system property: `grep` the relevant HQ doc first.
@@ -369,7 +369,7 @@ If the doc doesn't cover it, check the source. Never guess and assert.
 
 ---
 
-*Icon semicolon rules → `ARCH-icon-jcon.md §Auto-semicolon`. JVM null-coerce rules → `SESSION-icon-jvm.md §JVM-NULL`.*
+*Icon semicolon rules → `MISC-ICON-JCON.md §Auto-semicolon`. JVM null-coerce rules → `SESSION-icon-jvm.md §JVM-NULL`.*
 
 ---
 
@@ -386,5 +386,5 @@ using `fixup_val_tree`. This is **wrong** for variables holding DT_P.
 both `E_SEQ` and `E_CONCAT` produce `pat_cat` — correct. In value context
 (`emit_expr`), `E_CONCAT` calls `stmt_concat` which will break if an operand is DT_P.
 
-Fix is `stmt_seq()` runtime dispatcher. See `ARCH-decisions.md D-010` and
-`ARCH-byrd-dynamic.md M-DYN-SEQ`.
+Fix is `stmt_seq()` runtime dispatcher. See `GENERAL-DECISIONS.md D-010` and
+`GENERAL-BYRD-DYNAMIC.md M-DYN-SEQ`.

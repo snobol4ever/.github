@@ -4,7 +4,7 @@
 **Session:** LP-2 (this doc written LP-1)  
 **Date:** 2026-03-27 (revised: JVM before x64)  
 **Goal:** M-LINK-JVM-1 · M-LINK-JVM-2 · M-LINK-JVM-3  
-**Gate:** Read `ARCH-scrip-abi.md` before touching any code.
+**Gate:** Read `GENERAL-SCRIP-ABI.md` before touching any code.
 
 ---
 
@@ -32,7 +32,7 @@ x64 comes after — once the pattern is proven on JVM, the x64 ELF work is mecha
 
 By end of Sprint 1 (LP-2):
 
-1. `ARCH-scrip-abi.md` reviewed, any issues resolved, marked **FROZEN**
+1. `GENERAL-SCRIP-ABI.md` reviewed, any issues resolved, marked **FROZEN**
 2. `EXPORT` / `IMPORT` parsed in `src/frontend/snobol4/parse.c`
 3. `EXPORT NAME` emitted as `public static` method in Jasmin output
 4. Non-exported DEFINEs emitted as `private static` (static-by-default)
@@ -109,7 +109,7 @@ Create `src/runtime/jvm/SnoVal.java`:
 ```java
 /* SnoVal.java — SCRIP universal value type for JVM.
  * Sprint 1 stub. Full union fields + SnoValRT added LP-3.
- * Ref: ARCH-scrip-abi.md §1, §3. */
+ * Ref: GENERAL-SCRIP-ABI.md §1, §3. */
 public class SnoVal {
     public static final int SV_STRING=0, SV_INTEGER=1, SV_REAL=2,
                              SV_PATTERN=3, SV_TABLE=4, SV_ARRAY=5, SV_UNDEF=6;
@@ -355,4 +355,4 @@ on this same pattern.** SCRIP Level 2 is real.
 ---
 
 *SESSION-linker-sprint1.md — revised 2026-03-27: JVM → .NET → x64 order.*  
-*Next session reads this file + ARCH-scrip-abi.md only. Do not read other ARCH docs unless hitting an unfamiliar construct.*
+*Next session reads this file + GENERAL-SCRIP-ABI.md only. Do not read other ARCH docs unless hitting an unfamiliar construct.*

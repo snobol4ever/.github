@@ -1,4 +1,4 @@
-# ARCH-icon-jvm-history.md — Icon × JVM Milestone History
+# ARCHIVE-ICON-JVM-HISTORY.md — Icon × JVM Milestone History
 Operational §NOW → SESSION-icon-jvm.md.
 ### IJ-44 findings — M-IJ-BUILTINS-MISC ✅ (HEAD fe87efc)
 

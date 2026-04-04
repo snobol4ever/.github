@@ -32,8 +32,8 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Icon language, IR nodes, four-port model | `ARCH-icon-jcon.md` | AST/IR questions, Byrd-box wiring |
-| WASM backend architecture | `BACKEND-WASM.md` | encoding strategy, runtime layout, tail-call model |
+| Icon language, IR nodes, four-port model | `MISC-ICON-JCON.md` | AST/IR questions, Byrd-box wiring |
+| WASM backend architecture | `ARCHIVE-WASM-BACKEND.md` | encoding strategy, runtime layout, tail-call model |
 | WASM SNOBOL4 session (sibling) | `SESSION-snobol4-wasm.md` | shared emit_wasm.c helpers |
 | Icon x86 emitter (structural oracle) | `SESSION-icon-x64.md` | four-port wiring reference |
 

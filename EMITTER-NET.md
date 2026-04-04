@@ -1,10 +1,10 @@
-# BACKEND-NET.md — snobol4dotnet Reference
+# INTERP-NET.md — snobol4dotnet Reference
 
 Jeff Cooper's complete SNOBOL4/SPITBOL implementation in C#, targeting .NET/MSIL.
 Compiler pipeline: Lexer → Parser → threaded `Instruction[]` → MSIL delegate JIT.
 Plugin system: C-ABI `.so` extensions, .NET assembly extensions, VB.NET fixtures.
 
-*Session state → DOTNET.md. Testing protocol → ARCH-testing.md.*
+*Session state → DOTNET.md. Testing protocol → TESTING.md.*
 
 ---
 

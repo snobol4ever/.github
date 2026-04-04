@@ -253,7 +253,7 @@ functions, rung11 DATA, 2D subscript).
 - `DATATYPE(N)` for DATA instances → check `__type__` key
 - `DEFINE` / user-defined functions / `RETURN` / `FRETURN` / `NRETURN`
 - Recursive functions: per-invocation stack frame (Near-Term Bridge model
-  from `ARCH-overview.md` — same as x86 `emit_byrd_asm.c`)
+  from `GENERAL-OVERVIEW.md` — same as x86 `emit_byrd_asm.c`)
 
 **Gate:** rung10 (functions) · rung11 (DATA) all pass · ≥ 120p
 

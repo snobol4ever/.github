@@ -4,7 +4,7 @@
 **Session:** LP-4 (parallel with LP-3 JVM proof-of-concept)  
 **Date:** 2026-03-27  
 **Goal:** M-LINK-NET-1 · M-LINK-NET-2 · M-LINK-NET-3 · M-LINK-NET-4  
-**Gate:** Read `ARCH-scrip-abi.md` before touching any code.
+**Gate:** Read `GENERAL-SCRIP-ABI.md` before touching any code.
 
 ---
 
@@ -48,7 +48,7 @@ This does not block M-LINK-NET at all. Separate repo, separate session.
 
 ### Open issues in TINY NET that matter for linker
 
-From BACKEND-NET.md:
+From INTERP-NET.md:
 - `cross` test: `@N` cursor off-by-one (105/106) — **not a linker blocker**
 - Pattern.Bal hang — **not a linker blocker**
 - The 110/110 NET corpus is already green (M-T2-NET ✅)
@@ -73,7 +73,7 @@ Regression invariant: `110/110` NET corpus throughout.
 
 ---
 
-## CIL ABI (from ARCH-scrip-abi.md §4)
+## CIL ABI (from GENERAL-SCRIP-ABI.md §4)
 
 ```csharp
 // Every exported SCRIP procedure compiles to:
@@ -86,7 +86,7 @@ Regression invariant: `110/110` NET corpus throughout.
 - `Action` is `System.Action` — the .NET equivalent of JVM `Runnable`
 - Non-exported methods use `.method private static`
 
-**Thread-local result slot** (from ARCH-scrip-abi.md §4.2):
+**Thread-local result slot** (from GENERAL-SCRIP-ABI.md §4.2):
 ```csharp
 // SnoValRT.cs (new file, src/runtime/net/)
 public static class SnoValRT {
@@ -143,7 +143,7 @@ test/linker/net/
 ```csharp
 // SnoVal.cs — SCRIP universal value type for .NET backend.
 // Sprint 1 stub. Full union fields added LP-5.
-// Ref: ARCH-scrip-abi.md §1, §4.
+// Ref: GENERAL-SCRIP-ABI.md §1, §4.
 public class SnoVal {
     public const int SV_STRING=0, SV_INTEGER=1, SV_REAL=2,
                      SV_PATTERN=3, SV_TABLE=4, SV_ARRAY=5, SV_UNDEF=6;
@@ -161,7 +161,7 @@ public class SnoVal {
 `src/runtime/net/SnoValRT.cs`:
 ```csharp
 // SnoValRT.cs — thread-local result slot for cross-language calls.
-// ABI spec: ARCH-scrip-abi.md §4.2.
+// ABI spec: GENERAL-SCRIP-ABI.md §4.2.
 public static class SnoValRT {
     [System.ThreadStatic] public static SnoVal Result;
 
@@ -366,8 +366,8 @@ written; file as future work once M-NET-POLISH clears.
 ---
 
 *SESSION-linker-net.md — LP-4 pickup document.*  
-*Next session reads this + ARCH-scrip-abi.md only.*  
-*Do not read BACKEND-NET.md or other ARCH docs unless hitting an unfamiliar construct.*
+*Next session reads this + GENERAL-SCRIP-ABI.md only.*  
+*Do not read INTERP-NET.md or other ARCH docs unless hitting an unfamiliar construct.*
 
 ---
 
@@ -413,7 +413,7 @@ Two-part `IMPORT LANG.NAME` also accepted: NAME used as both AssemblyBase and ME
 
 `SNOBOL4_` prefix dropped from assembly/DLL names (YAGNI — the CLR already
 namespaces by file; a caller does not need to know the source language).
-`ARCH-scrip-abi.md` §5 updated accordingly.
+`GENERAL-SCRIP-ABI.md` §5 updated accordingly.
 
 ### IMPORT syntax simplified
 
@@ -444,7 +444,7 @@ proves the cross-assembly ABI without gating on a full Prolog CIL compiler).
 - `test/linker/net/ancestor/`         NEW: ancestor.il + ancestor_main.sno + run.sh
 - `test/linker/net/greet_main.sno`    CHANGE: two-part IMPORT
 - `test/linker/net/run.sh`            CHANGE: drop SNOBOL4_ prefix from filenames
-- `.github/ARCH-scrip-abi.md`         CHANGE: §4.3, §5, §6 revised
+- `.github/GENERAL-SCRIP-ABI.md`         CHANGE: §4.3, §5, §6 revised
 - `.github/SESSION-linker-net.md`     CHANGE: this section
 
 ### Known stubs (next sprint)
@@ -495,7 +495,7 @@ If green: open M-SCRIP-XLINK-1 (all five languages in one linked program).
 
 **Goal:** SNOBOL4 calls a Prolog predicate via .NET ABI.
 
-Read: `ARCH-scrip-abi.md` + this file only.
+Read: `GENERAL-SCRIP-ABI.md` + this file only.
 
 Steps:
 1. Replace `ldnull` gamma/omega stubs with real `Action` delegates — wire `ByrdBoxLinkage.Succeed/Fail` as the continuations
@@ -549,7 +549,7 @@ Regression:  109/110            (056_pat_star_deref @N off-by-one pre-existing)
 ### Next: M-SCRIP-XLINK-1
 
 With M-LINK-NET-8 green, next sprint opens all-five-languages in one linked program.
-Read: `ARCH-scrip-abi.md` + `SESSION-linker-net.md` only.
+Read: `GENERAL-SCRIP-ABI.md` + `SESSION-linker-net.md` only.
 
 ---
 
@@ -681,4 +681,4 @@ All five languages in one linked program. Requires:
 3. Five-language acceptance test
 
 **Next session reads:**
-`ARCH-scrip-abi.md` + `SESSION-linker-net.md` only.
+`GENERAL-SCRIP-ABI.md` + `SESSION-linker-net.md` only.

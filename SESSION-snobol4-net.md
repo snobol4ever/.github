@@ -6,7 +6,7 @@
 
 **Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** .NET MSIL
 **Session prefix:** `D` / `N`
-**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+**Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
 ---
 
@@ -14,7 +14,7 @@
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| SNOBOL4 language | `FRONTEND-SNOBOL4.md` | language questions |
+| SNOBOL4 language | `PARSER-SNOBOL4.md` | language questions |
 | snobol4dotnet repo | `REPO-snobol4dotnet.md` | build, @N bug status, crosscheck cmd |
 | Milestone ladder | `MILESTONE-NET-SNOBOL4.md` | sprint planning, phase gap details |
 

@@ -200,5 +200,5 @@ The Byrd-box wiring logic differs only in output syntax.
 
 ---
 
-*BACKEND-WASM.md — updated SW-1, 2026-03-30, Claude Sonnet 4.6.*
+*ARCHIVE-WASM-BACKEND.md — updated SW-1, 2026-03-30, Claude Sonnet 4.6.*
 *Toolchain confirmed: wabt 1.0.34, node v22.22.0, return_call verified working.*

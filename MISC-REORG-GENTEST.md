@@ -1,4 +1,4 @@
-# ARCH-reorg-gentest.md — Grand Master Reorg: Phase 8 Grammar-Driven Test Generation
+# MISC-REORG-GENTEST.md — Grand Master Reorg: Phase 8 Grammar-Driven Test Generation
 *Split from GRAND_MASTER_REORG.md (G-8 session, 2026-03-29) — Phase 8 full spec.*
 *Milestone tracking for M-G8-* milestones remains in GRAND_MASTER_REORG.md.*
 

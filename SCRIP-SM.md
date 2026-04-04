@@ -258,6 +258,6 @@ They are waiting for SM_EXEC_STMT to call them properly.
 - `IR.md` — the EXPR_t/STMT_t IR that SM-LOWER compiles from
 - `BB-GRAPH.md` — the Byrd Box graph that SM_PAT_* instructions build
 - `BB-DRIVER.md` — the executor called by SM_EXEC_STMT
-- `ARCH-sil-heritage.md` — SIL/MINimal heritage, E_* node origins
+- `GENERAL-SIL-HERITAGE.md` — SIL/MINimal heritage, E_* node origins
 - `INTERP-X86.md` — the C interpreter that dispatches SM_Program
 - `EMITTER-X86.md` — the x86 emitter that compiles SM_Program to native code

@@ -13,7 +13,7 @@ It serves two purposes:
 1. **Fast corpus runner** — no compile/assemble/link overhead per test
 2. **Debug tool** — run `.sno` programs directly, diff vs SPITBOL oracle
 
-**Architecture (per ARCH-byrd-dynamic.md):**
+**Architecture (per GENERAL-BYRD-DYNAMIC.md):**
 
 - Non-pattern statements (assignment, arithmetic, I/O): evaluated directly
   by `interp_eval()` tree-walking the `EXPR_t` IR.
@@ -98,7 +98,7 @@ current exact flags — they may have evolved.)
 ## Routing
 
 - **Session doc:** `SESSION-dynamic-byrd-box.md` (DYN- session)
-- **Deep ref:** `ARCH-byrd-dynamic.md`
+- **Deep ref:** `GENERAL-BYRD-DYNAMIC.md`
 - **Related:** `MILESTONE-NET-INTERP.md` — .NET analogue (Pidgin + C# bb boxes)
 
 ---

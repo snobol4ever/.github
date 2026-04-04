@@ -457,7 +457,7 @@ handle EVAL()/CODE() natively.
 
 **Parked session docs:** SESSION-snobol4-wasm.md · SESSION-icon-wasm.md · SESSION-prolog-wasm.md
 **Parked milestone doc:** MILESTONE-WASM-BYRD.md
-**BACKEND-WASM.md:** retained as historical reference, marked INACTIVE.
+**ARCHIVE-WASM-BACKEND.md:** retained as historical reference, marked INACTIVE.
 
 **Gate at park:** emit-diff 981/4 ✅ · snobol4_wasm 55p/1f ✅
 

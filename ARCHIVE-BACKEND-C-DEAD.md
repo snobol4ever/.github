@@ -1,9 +1,9 @@
-# ARCH-backend-c-dead.md — C Backend (DEAD — archived)
+# ARCHIVE-BACKEND-C-DEAD.md — C Backend (DEAD — archived)
 
 The C backend compiles SNOBOL4 → C code that links against the C runtime (snobol4.c).
 All patterns are compiled Byrd boxes. No interpreter on the hot path.
 
-*Session state → TINY.md. scrip-cc compiler frontend → FRONTEND-SNOBOL4.md.*
+*Session state → TINY.md. scrip-cc compiler frontend → PARSER-SNOBOL4.md.*
 
 ---
 

@@ -1,7 +1,7 @@
 # SESSION-dynamic-byrd-box.md — DYNAMIC BYRD BOX (SNOBOL4 × x86)
 
 **Session prefix:** DYN- · **Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** x86
-**Deep reference:** `ARCH-byrd-dynamic.md` — open only when needed, grep sections, do NOT cat in full.
+**Deep reference:** `GENERAL-BYRD-DYNAMIC.md` — open only when needed, grep sections, do NOT cat in full.
 
 ## The one-line model
 
@@ -23,7 +23,7 @@ No inline NASM Byrd boxes. No named-pattern trampolines. One path.
 | `src/driver/scrip-interp.c` | tree-walk interpreter (M-INTERP-A01 ✅) |
 | `src/runtime/dyn/bb_test.c` | per-box unit test harness (M-INTERP-B01 TODO) |
 
-## ARCH-byrd-dynamic.md — grep, don't cat
+## GENERAL-BYRD-DYNAMIC.md — grep, don't cat
 
 | Task | Section to grep |
 |------|----------------|

@@ -3,7 +3,7 @@
 one4all: multiple frontends, multiple backends.
 **Co-authored by Lon Jones Cherryholmes and Claude Sonnet 4.6.**
 
-→ Rules: [RULES.md](RULES.md) · Beauty plan: [ARCH-snobol4-beauty-testing.md](ARCH-snobol4-beauty-testing.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
+→ Rules: [RULES.md](RULES.md) · Beauty plan: [MISC-BEAUTY-TESTING.md](MISC-BEAUTY-TESTING.md) · History: [SESSIONS_ARCHIVE.md](SESSIONS_ARCHIVE.md)
 
 ---
 

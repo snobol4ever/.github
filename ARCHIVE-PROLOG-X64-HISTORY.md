@@ -1,4 +1,4 @@
-# ARCH-prolog-x64.md — Prolog × x64 Historical Session Notes
+# ARCHIVE-PROLOG-X64-HISTORY.md — Prolog × x64 Historical Session Notes
 Operational §NOW → SESSION-prolog-x64.md.
 ## Session F-212 notes (added 2026-03-22)
 
@@ -56,7 +56,7 @@ This is the direct implementation of E2.fail→E1.resume from Proebsting.
 ### JCON
 
 JCON (Java Icon) was uploaded but NOT read — context was consumed by
-PLAN.md, FRONTEND-PROLOG.md, and prolog_emit.c. Key conceptual note:
+PLAN.md, PARSER-PROLOG.md, and prolog_emit.c. Key conceptual note:
 JCON's engine uses full unification + backtracking for Icon goal-directed
 evaluation — same four-port model. If JCON source is ever examined,
 look at how it wires the β port in its conjunction evaluation — likely
@@ -148,5 +148,5 @@ test/frontend/prolog/corpus/rung10_programs/
 2. Test rungs 1–5: `./scrip-cc -pl test/.../rungN.pl -o /tmp/t.c && gcc ... && ./a.out`
 3. If rung 5 (backtrack/member) passes, rungs 6–8 likely follow
 4. Consider pivot: instead of C backend, target x64 ASM emitter directly
-   (emit native NASM α/β/γ/ω labels). Read ARCH.md + BACKEND-X64.md.
+   (emit native NASM α/β/γ/ω labels). Read ARCH.md + EMITTER-X86.md.
    The C path is good for debugging; ASM is what the design spec calls for.

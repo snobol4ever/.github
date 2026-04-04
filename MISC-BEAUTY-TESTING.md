@@ -1,4 +1,4 @@
-# ARCH-snobol4-beauty-testing.md — beauty.sno Subsystem Testing Plan
+# MISC-BEAUTY-TESTING.md — beauty.sno Subsystem Testing Plan
 
 **The strategy:** Test each of beauty.sno's 19 `-INCLUDE` subsystems independently before
 attempting full self-beautification. Each subsystem gets its own test driver (a small `.sno`
@@ -200,7 +200,7 @@ oracle AND identical to `beauty.sno` input. Fixed point.
 
 ---
 
-*ARCH-snobol4-beauty-testing.md = L3. Sprint content lives here. Milestone rows live in PLAN.md.*
+*MISC-BEAUTY-TESTING.md = L3. Sprint content lives here. Milestone rows live in PLAN.md.*
 
 ---
 

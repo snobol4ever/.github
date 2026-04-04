@@ -1,4 +1,4 @@
-# ARCH-icon-jcon.md — Icon/JCON Deep Analysis
+# MISC-ICON-JCON.md — Icon/JCON Deep Analysis
 
 Analysis from Session I-0 (2026-03-23). Reference material for Icon emitter work.
 Do NOT append sprint content here — this is a static reference doc.
@@ -237,7 +237,7 @@ Every `xN_start:`/`xN_resume:` label structure = directly maps to our α/β nami
 
 ---
 
-### Deltas vs. current FRONTEND-ICON.md plan
+### Deltas vs. current PARSER-ICON.md plan
 
 | Item | Change |
 |------|--------|

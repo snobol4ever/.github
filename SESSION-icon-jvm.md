@@ -4,16 +4,16 @@
 **Session prefix:** `IJ` · **Trigger:** "playing with Icon JVM"
 **Driver:** `icon_driver -jvm foo.icn -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
 **Oracle:** `icon_driver foo.icn -o foo.asm -run` (x64 ASM backend)
-**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+**Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
 ## Subsystems
 
 | Subsystem | Doc | Go there when |
 |-----------|-----|---------------|
-| Icon language, IR nodes, milestones | `FRONTEND-ICON.md` | parser/AST questions |
+| Icon language, IR nodes, milestones | `PARSER-ICON.md` | parser/AST questions |
 | Full milestone history | `ARCH-icon-jvm.md` | completed work, milestone IDs |
-| JCON test analysis | `ARCH-icon-jcon.md` | rung36 oracle, four-port templates |
-| JVM bytecode patterns | `ARCH-overview.md` | Byrd box → JVM mapping |
+| JCON test analysis | `MISC-ICON-JCON.md` | rung36 oracle, four-port templates |
+| JVM bytecode patterns | `GENERAL-OVERVIEW.md` | Byrd box → JVM mapping |
 
 ---
 

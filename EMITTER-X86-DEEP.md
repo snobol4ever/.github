@@ -1,5 +1,5 @@
-# ARCH-x64.md — x64 Backend Deep Reference
-Sprint plans, technique details. Operational → BACKEND-X64.md + SESSION-*-x64.md.
+# EMITTER-X86.md — x64 Backend Deep Reference
+Sprint plans, technique details. Operational → EMITTER-X86.md + SESSION-*-x64.md.
 ## M-ASM-RECUR — Near-Term Bridge (implement now)
 
 **Problem:** current ASM backend has ONE `rbp` frame for the entire program. All

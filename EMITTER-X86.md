@@ -2,7 +2,7 @@
 
 Pure reference. No session state here.
 **Session state** → SESSION-snobol4-x64.md / SESSION-icon-x64.md / SESSION-prolog-x64.md
-**Deep reference:** all ARCH docs cataloged in `ARCH-index.md`
+**Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
 ---
 
@@ -26,7 +26,7 @@ Byrd boxes running forward and backward ARE save and restore.
 
 **Key (B-238):** Technique 2 does NOT require self-hosting.
 `emit_byrd_asm.c` can emit relocation tables at compile time.
-Deep sprint plan → `ARCH-x64.md`
+Deep sprint plan → `EMITTER-X86.md`
 
 ---
 

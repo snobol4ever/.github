@@ -12,8 +12,8 @@
 
 | Subsystem | Doc |
 |-----------|-----|
-| Prolog language / IR | `FRONTEND-PROLOG.md` |
-| JS backend | `BACKEND-JS.md` |
+| Prolog language / IR | `PARSER-PROLOG.md` |
+| JS backend | `EMITTER-JS.md` |
 | Milestone ladder | `MILESTONE-JS-PROLOG.md` |
 
 ---
@@ -55,7 +55,7 @@ instead of string matching, and trail instead of cursor state.
 
 **Next milestone: M-PJJ-A01** (requires M-SJ-A01 complete first)
 
-Read: `BACKEND-JS.md` · `MILESTONE-JS-PROLOG.md` · `FRONTEND-PROLOG.md`
+Read: `EMITTER-JS.md` · `MILESTONE-JS-PROLOG.md` · `PARSER-PROLOG.md`
 
 ---
 
