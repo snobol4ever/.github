@@ -102,3 +102,24 @@ spitbol -b $BEAUTY < $BEAUTY > oracle.sno
 <backend-binary> < $BEAUTY > compiled.sno
 diff oracle.sno compiled.sno   # empty = correct
 ```
+
+---
+
+## Hand-Rolled Parser (replaced Bison, Session 53)
+
+Bison had 20 SR + 139 RR conflicts. Root cause: `*snoWhite` misparsed as function
+call inside `FENCE(...)`. LALR(1) state merging structural — unfixable.
+
+Key invariant: `STAR IDENT` in `parse_pat_atom()` is always `E_DEREF(E_VAR)`.
+`*foo (bar)` = concat(deref(foo), grouped(bar)) — two sequential atoms, no lookahead.
+
+Resume order when `hand-rolled-parser` sprint resumes (after M-BEAUTY-FULL):
+1. `lex.c` (~200 lines) — `sno_charclass[256]` table
+2. `parse.c` (~500 lines) — `parse_expr()` and `parse_pat_expr()` separate functions
+3. Update Makefile — remove bison/flex
+4. Smoke tests: 0/21 → 21/21
+
+Stash `WIP Session 53: partial Bison fixes` — reference only. DO NOT APPLY.
+
+---
+

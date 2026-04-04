@@ -248,3 +248,143 @@ unambiguously E_FNC in the grammar rule, fixing 1013/003.
 - `PARSER-SNOBOL4.md` through `PARSER-SCRIP.md` — produce this IR
 - `MISC-SIL-HERITAGE.md` — E_* name origins
 - `RUNTIME.md` — how CODE_t wraps Program* for runtime execution
+
+---
+
+## EKind — node kinds by arity
+
+### Leaves (nchildren = 0)
+
+| Kind | Meaning | Payload |
+|------|---------|---------|
+| `E_QLIT` | Quoted string / pattern literal | sval=text |
+| `E_ILIT` | Integer literal | ival |
+| `E_FLIT` | Float literal | dval |
+| `E_NUL` | Null / empty value | — |
+| `E_VAR` | Variable reference | sval=name |
+| `E_KEYWORD` | &IDENT keyword | sval=name |
+
+### Unary (nchildren = 1)
+
+| Kind | Meaning | children[0] |
+|------|---------|-------------|
+| `E_MNS` | Unary minus | operand |
+| `E_INDIRECT` | $expr indirect reference | operand |
+| `E_CAPT_CURSOR` | @var cursor capture | var |
+| `E_ITERATE` | !E iterate (Icon/Rebus) | expr |
+| `E_NULL` | /E succeed-if-null | expr |
+
+### Binary (nchildren = 2)
+
+| Kind | Meaning | [0] | [1] |
+|------|---------|-----|-----|
+| `E_ASSIGN` | subject = replacement | subject | replacement |
+| `E_SCAN` | subject ? pattern | subject | pattern |
+| `E_POW` | exponentiation ^ ! ** | base | exp |
+| `E_CAPT_COND_ASGN` | .var conditional capture | pattern | var |
+| `E_CAPT_IMMED_ASGN` | $var immediate capture | pattern | var |
+| `E_ALTERNATE` | Icon alt generator | left | right |
+
+### N-ary (nchildren ≥ 0, grown with expr_add_child)
+
+| Kind | Meaning | children[] |
+|------|---------|------------|
+| `E_SEQ` | Goal-directed sequence (Byrd-box wiring) | elements in order |
+| `E_CAT` | String concatenation (value context) | elements in order |
+| `E_ALT` | Pattern alternation \| | alternatives |
+| `E_FNC` | Function call / builtin | args [0..n-1] |
+| `E_IDX` | Array/table subscript | [0]=base, [1..]=indices |
+
+**E_SEQ vs E_CAT:** Both are n-ary juxtaposition. E_SEQ is pattern
+context (can fail, wired to Byrd boxes). E_CAT is value context
+(string concatenation, cannot fail). The parser emits E_CAT from
+`parse_expr4`; the backend/lowerer promotes to E_SEQ in pattern
+context.
+
+**E_ALT:** Built in `parse_expr3`. Each `|`-separated child is
+appended with `expr_add_child`. Three alternatives → nchildren=3.
+
+**E_FNC:** `sval` = function name. Each argument appended with
+`expr_add_child`. Zero-arg call → nchildren=0.
+
+**E_IDX:** `sval` = array/table name. `children[0]` = base expression.
+`children[1..nchildren-1]` = index expressions (one per `<i,j>` slot).
+
+---
+
+
+---
+
+## STMT_t — the statement node
+
+```c
+struct STMT_t {
+    char    *label;       // NULL if no label
+    EXPR_t  *subject;     // always present (E_NUL for null-subject stmts)
+    EXPR_t  *pattern;     // NULL if no pattern field
+    EXPR_t  *replacement; // NULL if no replacement field
+    SnoGoto *go;          // NULL if no goto field
+    int      lineno;
+    int      is_end;      // 1 if this is the END statement
+    int      has_eq;      // 1 if '=' was present (distinguishes assigning vs matching)
+    STMT_t  *next;        // linked list
+};
+```
+
+Four statement forms (mirrors instaparse grammar `body`):
+
+| Form | subject | pattern | replacement | has_eq |
+|------|---------|---------|-------------|--------|
+| invoking | present | NULL | NULL | 0 |
+| matching | present | present | NULL | 0 |
+| assigning | present | NULL | present | 1 |
+| replacing | present | present | present | 1 |
+
+---
+
+
+---
+
+## Parse → IR mapping (SNOBOL4 frontend)
+
+```
+parse_expr0   →  E_ASSIGN (binary: subject=children[0], replace=children[1])
+                 or  E_SCAN + conditional assign (mch level)
+parse_expr2   →  binary &  (E_AND — currently folded into E_FNC("and",...))
+parse_expr3   →  E_ALT  n-ary  (|)
+parse_expr4   →  E_CAT  n-ary  (whitespace juxtaposition)
+parse_expr5   →  binary @  (E_CAPT_CURSOR context)
+parse_expr6   →  binary + -
+parse_expr7   →  binary #
+parse_expr8   →  binary /
+parse_expr9   →  binary *
+parse_expr10  →  binary %
+parse_expr11  →  binary ^ ! **  → E_POW (right-assoc)
+parse_expr12  →  binary $ .     → E_CAPT_IMMED_ASGN / E_CAPT_COND_ASGN (right-assoc)
+parse_expr13  →  binary ~  (E_TILDE — user-defined binary)
+parse_expr14  →  unary prefix (@, ~, ?, &, +, -, *, $, ., !, %, /, #, =, |)
+parse_expr15  →  E_IDX postfix subscript  (children[0]=base, [1..]=indices)
+parse_expr17  →  atoms: E_QLIT / E_ILIT / E_FLIT / E_NUL / E_VAR / E_KEYWORD
+                        E_FNC (function call, n-ary args)
+                        E_IDX (array name with subscript)
+                        grouped (E) / conditional (E,list) / invoke E()
+```
+
+---
+
+
+---
+
+## File locations
+
+| File | Role |
+|------|------|
+| `src/ir/ir.h` | EKind enum, EXPR_t struct, EKind name table |
+| `src/frontend/snobol4/scrip_cc.h` | STMT_t, Program, expr_new/add_child/binary/unary |
+| `src/frontend/snobol4/parse.c` | Parser: source → EXPR_t/STMT_t/Program |
+| `src/frontend/snobol4/lex.c` | One-pass lexer: source → token queue |
+| `src/ir/ir_print.c` | Debug printer (walks children[]) |
+| `src/driver/scrip-interp.c` | Tree-walk interpreter (DYN session) |
+
+---
+
