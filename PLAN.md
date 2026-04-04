@@ -1,122 +1,127 @@
-# PLAN.md — snobol4ever HQ Plan
+# PLAN.md — snobol4ever / SCRIP HQ Plan
 
-SNOBOL4/SPITBOL compilers targeting JVM, .NET, and native C.
-**Team:** Lon Jones Cherryholmes (arch, MSIL), Jeffrey Cooper M.D. (DOTNET), Claude Sonnet 4.6 (co-author).
+## ⚠️ ARCHITECTURE RESET — 2026-04-04
+## The interpreter must execute SM_Program (stack machine instructions), NOT tree-walk IR.
+## Read SCRIP-SM.md FIRST every session. See Component Map below.
+
+**Product:** SCRIP — Snobol4, SnoCone, Rebus, Icon, Prolog. Ten times faster.
+**Team:** Lon Jones Cherryholmes (arch), Jeffrey Cooper M.D. (DOTNET), Claude Sonnet 4.6 (co-author).
 
 ---
 
 ## ⛔ SESSION START — every session, no exceptions
 
-**Step 1 — Setup (once per fresh environment):**
-```bash
-FRONTEND=x BACKEND=y TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
+**Step 1 — Read in order (always):**
 ```
-See `SETUP-tools.md` for FRONTEND/BACKEND values. Installs only needed tools.
-
-**Step 2 — Gate (emit sessions ONLY — interpreter sessions skip this step entirely):**
-
-⛔ **DYN- and one4all-SNOBOL4-NET sessions: SKIP Step 2. Do NOT run run_invariants.sh or run_emit_check.sh. Go straight to Step 3.**
-
-Emit sessions only:
-```bash
-cd /home/claude/one4all
-CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
-# Target: 142/142. Currently: 137p/5f (word1-4, cross). All other sessions FROZEN.
-```
-
-**Step 3 — Read in order:**
-```
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # last handoff — FIRST
-grep "^## " /home/claude/.github/RULES.md            # scan headers, cat only relevant sections
+cat /home/claude/.github/SCRIP-SM.md          # THE stack machine — read this FIRST, every session
+cat /home/claude/.github/BB-GRAPH.md          # Byrd Box graph
+cat /home/claude/.github/BB-DRIVER.md         # BB executor
+cat /home/claude/.github/IR.md                # shared IR
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 ```
-Then read your SESSION-*.md (see Routing table below).
 
-**⛔ ROUTING: frontend × backend → `SESSION-<frontend>-<backend>.md`. That is all.**
-
-⛔ **DISAMBIGUATION — "dynamic Byrd boxes" is an ARCHITECTURE TERM, not a session name.**
-Both the JVM session (J-) and the x86 interpreter session (DYN-) use dynamic Byrd boxes.
-The user saying "dynamic Byrd boxes written in Jasmin" → **JVM session** (`SESSION-snobol4-jvm.md`).
-The user saying "dynamic Byrd boxes written in C / .s / NASM" → **DYN- session** (`SESSION-dynamic-byrd-box.md`).
-Backend keyword is the tie-breaker: `Jasmin` / `JVM` / `.jasmin` → J- session. `NASM` / `x86` / `.s` → DYN- session.
-
-**Snocone × x86 additionally read:**
+**Step 2 — Read your component docs (session-specific):**
 ```
-cat /home/claude/.github/SESSION-snocone-x64.md
+INTERP-<backend>.md     (interpreter session)
+EMITTER-<backend>.md    (emitter session)
+LEXER-<frontend>.md + PARSER-<frontend>.md  (frontend session)
 ```
 
-**Dynamic Byrd Box (x86 interpreter) additionally read:**
-```
-cat /home/claude/.github/SESSION-dynamic-byrd-box.md
-# Do NOT cat ARCH-byrd-dynamic.md in full — grep only the section you need
-```
+**Step 3 — Read your SESSION-<frontend>-<backend>.md**
 
 ---
 
-## 9 Repos under github.com/snobol4ever
+## The Architecture in One Paragraph
 
-| Repo | Role | Clone path |
-|------|------|------------|
-| `.github` | HQ — PLAN, ARCH, SESSION, FRONTEND docs | `/home/claude/.github/` |
-| `one4all` | Main compiler/runtime — 6 frontends × 4 backends, C | `/home/claude/one4all/` |
-| `snobol4jvm` | SNOBOL4 → JVM, Clojure | `/home/claude/snobol4jvm/` |
-| `snobol4dotnet` | SNOBOL4 → .NET, C# | `/home/claude/snobol4dotnet/` |
-| `corpus` | Test corpus — .sno/.icn/.pl + .ref oracle output | `/home/claude/corpus/` |
-| `harness` | Test infrastructure — corpus runners | `/home/claude/harness/` |
+Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared IR
+(Program* of STMT_t/EXPR_t). SM-LOWER compiles IR to SM_Program — a flat array of stack
+machine instructions. The INTERP executes SM_Program by dispatching instructions. When it
+hits SM_EXEC_STMT, it calls BB-DRIVER which runs the BB-GRAPH built by preceding SM_PAT_*
+instructions. The EMITTER walks the same SM_Program and emits native code (x86, JVM, .NET,
+JS, WASM). Interpreter and emitter share one instruction set. When the interpreter passes
+the corpus, the emitter is correct by construction.
+
+---
+
+## The 6 Frontends × 6 Backends
+
+| | x86 | JVM | .NET | JS | WASM | C |
+|--|:---:|:---:|:----:|:--:|:----:|:-:|
+| SNOBOL4 | DYN | J | D | SJ | ⛔ | — |
+| Icon | IX | IJ | — | IJJ | ⛔ | — |
+| Prolog | PX | PJ | — | PJJ | ⛔ | — |
+| Snocone | SC | — | — | — | — | — |
+| Rebus | — | — | — | — | — | — |
+| **SCRIP** | — | SD | — | — | — | — |
+
+---
+
+## Component Map — one doc per component
+
+| Component | Doc | Status |
+|-----------|-----|--------|
+| **SCRIP Stack Machine** | `SCRIP-SM.md` | ✅ designed · ⬜ SM-LOWER not written |
+| **IR** | `IR.md` | ✅ complete |
+| **BB-GRAPH** | `BB-GRAPH.md` | ✅ 25 boxes complete |
+| **BB-DRIVER** | `BB-DRIVER.md` | ✅ correct (in stmt_exec.c) |
+| BB-GEN x86 binary | `BB-GEN-X86-BIN.md` | ⬜ stubs only |
+| BB-GEN x86 text (.s) | `BB-GEN-X86-TEXT.md` | ✅ boxes exist as .s |
+| BB-GEN languages | `BB-GEN-LANG.md` | ✅ C+Java done · others stub |
+| **INTERP x86 (C)** | `INTERP-X86.md` | ⚠️ tree-walks IR — needs SM_Program |
+| INTERP JVM (Java) | `INTERP-JVM.md` | ⬜ in progress |
+| INTERP .NET (C#) | `INTERP-NET.md` | ⬜ in progress |
+| INTERP JS | `INTERP-JS.md` | ⬜ in progress |
+| INTERP WASM | `INTERP-WASM.md` | ⛔ parked |
+| EMITTER x86 | `EMITTER-X86.md` | ⬜ needs SM_Program input |
+| EMITTER JVM | `EMITTER-JVM.md` | ⬜ in progress |
+| EMITTER .NET | `EMITTER-NET.md` | ⬜ in progress |
+| EMITTER JS | `EMITTER-JS.md` | ⬜ in progress |
+| LINKER | `LINKER.md` | ⬜ in progress |
+| LEXER / PARSER (6× each) | `LEXER-*.md` / `PARSER-*.md` | ⬜ stubs needed |
+| CORPUS | `CORPUS.md` | ✅ |
+| HARNESS | `HARNESS.md` | ✅ |
+| MONITOR | `MONITOR.md` | ✅ |
+| BENCHMARK-GRID | `BENCHMARK-GRID.md` | ⬜ placeholders |
 
 ---
 
 ## ⚡ NOW
 
-Each session owns exactly one row. Update only your row. `git pull --rebase` before every push.
-
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | GRAND_MASTER_REORG_2.md committed — plan official. G-11: wait for all sessions to land current milestone (Phase 0 gate), then call freeze. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-80 | one4all `1ef6d63` · corpus `8d5cc6a` | **177p/1f** · **DYN-81**: last_event_idx + DVAR failure reset inner boxes → expr_eval 1+2*3 → **178p/0f → M-DYN-INTERP-FULL** |
-| **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-B10/B11/B12 done · snocone_x86 160/160 · **SC-15**: fix do-while nested-paren hang → M-SC-SELFTEST · **SCB-1**: BEAUTY ramp — see SESSION-snocone-beauty.md |
-| ~~**SNOBOL4 WASM**~~ | ⛔ PARKED SW-17 | `fdcd636` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| ~~**ICON WASM**~~ | ⛔ PARKED IW-17 | `4d6cb2d` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| ~~**Prolog WASM**~~ | ⛔ PARKED PW-17 | `48461c7` one4all | WASM suspended — see MILESTONE_ARCHIVE.md |
-| **SNOBOL4 JS** | SJ-17 | one4all `ec6c0b3` · .github this | **SJ-18**: fix cross + expr_eval + 1015_opsyn → ≥170p · M-SJ-INTERP |
-| **⭐ TINY JVM** | J-233 | one4all `b8560bb` | **J-234**: 1011_func_redefine frame-scoping + 1017_arg_local → ≥165p |
-| **SNOBOL4 JS** | SJ-25 | one4all `d7cf03e` · .github this | **174p/4f** · **SJ-26**: fix engine re-entrancy (_pending_cond/_cc_stack save/restore in engine()) → test_case → ≥175p → M-SJ-INTERP+2 |
-| **⭐ TINY JVM** | J-229 | one4all `4ceba85` · .github `bd9fb05` | **J-230**: fix bb_arbno VerifyError + bb_any/rpos regression → ≥136p → ARRAY/TABLE → ≥155p |
-| **ICON JS** | IJJ-1 | — | **M-IJJ-A01** (after M-SJ-A01): emit_js_icon.c scaffold. Oracle: Proebsting paper + emit_jvm_icon.c. See MILESTONE-JS-ICON.md |
-| **Prolog JS** | PJJ-1 | — | **M-PJJ-A01** (after M-SJ-A01): emit_js_prolog.c scaffold. Trail+unify runtime. Oracle: emit_jvm_prolog.c. See MILESTONE-JS-PROLOG.md |
-| **⭐ one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` (WIP) · .github this | **166p/12f** · icase root-cause complete (str write-back bug + pattern-return infra in WIP) · **D-182**: fix str splice write-back → commit WIP → test_case/math/stack/string ≥170p → NRETURN → ≥175p |
-| **DOTNET** | D-166 | `e1e4d9e` snobol4dotnet | **M-NET-P35-FIX**: @N Phase 3/5 fix → 80/80 crosscheck. FROZEN until M-DYN-S1. |
-| **Icon JVM** IJ-58 · **Prolog JVM** PJ-84a · **Prolog x64** PX-1 · **ICON x64** IX-18 · **⭐ Scrip Demo** SD-37 · **🌳 Parser pair** PP-1 · **TINY backend** B-292 · **TINY NET** N-253 · **TINY JVM** J-217 · **TINY frontend** F-223 · **README** R-2 · **🔗 LINKER** LP-6 · **🔗 LINKER JVM** LP-JVM-3 | ← resume per session | see SESSIONS_ARCHIVE | read own SESSION-*.md ||
-
-**Invariants (DYN-20 baseline): x86: SNOBOL4 `142/142` · Snocone `160/160` · Icon `95p/163f` · Prolog `13p/94f` | JVM: SNOBOL4 `94p/32f` · Icon `173p/44f` · Prolog `106p/1f` | .NET: `108p/2f` | WASM: SNOBOL4 `28p/1f`
-
-**Gate:** Emit sessions — runtime invariants only (`snobol4_x86`), emit-diff retired until post M-DYN-S1. Interpreter sessions (DYN-, one4all-SNOBOL4-NET) — broad corpus pass count only; do NOT run run_invariants.sh or run_emit_check.sh.
+| **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | Architecture reset complete. G-11: all sessions adopt new component docs. |
+| **⭐ DYNAMIC BYRD BOX** | DYN-81 | one4all `1ef6d63` · corpus `8d5cc6a` | **DYN-82**: Define SM_Instr+SM_Program → write SM-LOWER → write sm_interp dispatch loop → replace tree-walker in scrip-interp.c → 178p/0f → **M-DYN-SM-INTERP** |
+| **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
+| **⭐ TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
+| **⭐ one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
+| **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
 
-## Routing: pick three → read three docs
+## File Taxonomy
 
-**1. Repo** → `REPO-one4all.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
-
-**2. Frontend × Backend → Session doc**
-
-| | x86 | JVM | .NET |
-|--|:---:|:---:|:----:|
-| SNOBOL4 | `SESSION-snobol4-x64.md` | `SESSION-snobol4-jvm.md` | `SESSION-snobol4-net.md` |
-| Icon | `SESSION-icon-x64.md` | `SESSION-icon-jvm.md` | — |
-| Prolog | `SESSION-prolog-x64.md` | `SESSION-prolog-jvm.md` | — |
-| Snocone | `SESSION-snocone-x64.md` | — | — |
-| Snocone BEAUTY | `SESSION-snocone-beauty.md` | — | — |
-| SNOBOL4 (WASM) | ⛔ PARKED | — | — |
-| SNOBOL4 (JS) | `SESSION-snobol4-js.md` | `BACKEND-JS.md` | — |
-| Icon (JS) | `SESSION-icon-js.md` | `BACKEND-JS.md` | — |
-| Prolog (JS) | `SESSION-prolog-js.md` | `BACKEND-JS.md` | — |
-| Rebus | `FRONTEND-REBUS.md` | — | — |
-
-Special: `SCRIP_DEMOS.md` · `ARCH-scrip-abi.md` · `SESSION-linker-sprint1.md` · `SESSION-linker-net.md` · `MILESTONE-JVM-SNOBOL4.md`
-
-**3. Deep reference → ARCH-*.md** (open only when needed — catalog in `ARCH-index.md`)
+| Prefix | Purpose |
+|--------|---------|
+| `SCRIP-SM.md` | Stack machine — THE central design doc |
+| `BB-*.md` | Byrd Box components |
+| `IR.md` | Shared intermediate representation |
+| `INTERP-*.md` | Per-platform interpreters |
+| `EMITTER-*.md` | Per-platform emitters |
+| `LEXER-*.md` | Per-language lexers |
+| `PARSER-*.md` | Per-language parsers |
+| `LINKER.md` | Linker |
+| `CORPUS.md` / `HARNESS.md` / `MONITOR.md` / `TESTING.md` | Test infrastructure |
+| `BENCHMARK-GRID.md` | Benchmark results |
+| `GENERAL-*.md` | Cross-cutting reference (decisions, rules, vision, ABI) |
+| `ARCHIVE-*.md` | Completed or parked work |
+| `MISC-*.md` | Background, reference, one-off docs |
+| `SESSION-*.md` | Per-session operational state |
+| `MILESTONE-*.md` | Milestone ladders |
+| `SESSIONS_ARCHIVE.md` | Append-only session log |
 
 ---
 
-*PLAN.md = routing + NOW only. 3KB max. No sprint content. No completed milestones.*
+*PLAN.md = routing + NOW + component map. No sprint content. No completed milestones.*
+*Architecture reset: DYN-82 session, 2026-04-04, Lon Jones Cherryholmes + Claude Sonnet 4.6.*
