@@ -22938,3 +22938,60 @@ expr_eval          — pat_cat: left is not a pattern (DT=11)
 - `src/runtime/snobol4/snobol4_pattern.c` — EVAL_fn IS_FAIL_fn + DT_P hook
 - `src/runtime/snobol4/snobol4.h` — NV_name_from_ptr + g_eval_pat_hook declared
 - `src/runtime/dyn/stmt_exec.c` — deferred_var_t.in_progress; g_dvar_depth
+
+## SJ-25 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × JavaScript** — interpreter session (sno-interp.js). Session prefix: SJ-
+
+### Result: 173p/5f → **174p/4f** (+1: test_stack fixed; test_case still failing — engine re-entrancy)
+
+### Commits
+- `d7cf03e` one4all — SJ-25: DIFFER unary/DATA + dynamic PAT concat + E_ALT value-arms + PAT_deferred — 174p/4f
+
+### What was done (SJ-25)
+
+**Fix 1 — Unary DIFFER/IDENT + DATA identity**
+`DIFFER(stk)` with one arg compared `_str(slink_obj)===_str(undefined)` — both `''`. Fix: unary form checks `a===null||a===''||a===0`. Binary form: `__datatype` objects use identity (`===`), excluding real-number objects (`{_r:1}`) which compare by `_str()`. `test_stack` now 13/13.
+
+**Fix 2 — Dynamic PAT concat in E_CAT**
+`icase = icase (H|h)` was string-concatenating, losing the PAT (`_str(pat_obj)→''`). Fix: E_CAT evaluates all children; if any is `__pat`, routes to `PAT_seq` with strings wrapped in `PAT_lit`.
+
+**Fix 3 — E_ALT value-function children**
+`(upr(letter)|lwr(letter))` — E_ALT in interp_eval called `_build_pat` on children, making `upr()`/`lwr()` become `PAT_pred`. Fix: E_ALT evaluates non-PAT_KINDS children via `interp_eval`, wraps results with `PAT_lit`.
+
+**Fix 4 — _build_pat E_FNC default: PAT_deferred for user-defined functions**
+Default E_FNC was `PAT_pred` (zero-width) — so `'world' icase('hello')` succeeded because icase returned a non-fail PAT. Fix: user-defined functions (`func_table[fn]` — uppercased key) get `PAT_deferred` (descends into returned PAT at match time). Builtins stay `PAT_pred`.
+
+### Remaining failure: test_case — engine re-entrancy (open for SJ-26)
+
+`'Hello' icase('hello') :F(bad)` fails. Root cause: `PAT_deferred` callback calls `_call('icase',ch)` which internally runs `sno_search(str, POS(0) ANY(...))` — a **nested engine call**. `sno_engine.js` has module-level mutable globals `_pending_cond` (line 124) and `_cc_stack` (line 125) that the nested call corrupts. Engine is not re-entrant.
+
+Stored pattern (`p = icase('hello'); 'Hello' p`) works because icase completes before the outer match starts.
+
+### SJ-26 first actions (mandatory order)
+
+1. `git pull --rebase` all repos — confirm `d7cf03e` at one4all HEAD
+2. Runner: `cat > /tmp/sni_run.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus/lib node /home/claude/one4all/src/runtime/js/sno-interp.js "$@"` / `EOF` / `chmod +x /tmp/sni_run.sh`
+3. Confirm **174p/4f**: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+4. **Fix engine re-entrancy** in `src/runtime/js/sno_engine.js`. Find `function engine(S, Π, anchorStart)` and wrap with save/restore:
+```js
+function engine(S, Π, anchorStart) {
+  const sv_cond = _pending_cond; _pending_cond = [];
+  const sv_cc   = _cc_stack;    _cc_stack   = [];
+  try { return engine_inner(S, Π, anchorStart); }
+  finally { _pending_cond = sv_cond; _cc_stack = sv_cc; }
+}
+```
+   Rename current `engine` body to `engine_inner` (or inline the save/restore at top/bottom).
+5. Run broad — expect test_case passes: **≥175p/≤3f → M-SJ-INTERP+2**
+6. Commit `SJ-26: fix engine re-entrancy → 175p/3f — M-SJ-INTERP+2`, push, update NOW table + SESSIONS_ARCHIVE
+
+### Baselines for SJ-26
+- `one4all`: `d7cf03e` · `corpus`: `8d5cc6a` · `.github`: this commit
+- **Broad: 174p/4f**
+- Remaining: `fileinfo` `triplet` `expr_eval` `test_case`
+
+### Key files
+- `src/runtime/js/sno-interp.js` — all SJ-25 fixes (committed)
+- `src/runtime/js/sno_engine.js` — needs re-entrancy fix in `engine()` function
