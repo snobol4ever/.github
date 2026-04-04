@@ -21679,3 +21679,56 @@ New vs D-177 known list: 1017_arg_local, 212_indirect_array, fileinfo, triplet, 
 - Build: `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni`
 - Run: `dotnet /tmp/sni/scrip-interp.dll <file.sno>`
 - Broad: `INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+## DYN-64 handoff — 2026-04-03
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 166p → **169p/9f** (landed on DYN-63's 169p baseline after rebase)
+
+### What was done (DYN-64)
+
+**Commits on one4all:**
+
+1. **`0cdc763` — n-ary PATND_t**: Replaced binary `left`/`right` fields in `PATND_t` struct with `children[]`/`nchildren` array.
+   - `patnd.h`: drop `left`/`right`, add `PATND_t **children; int nchildren;` + `PATND_CHILD0()` macro
+   - `snobol4_pattern.c`: `pat_cat`/`pat_alt` now flatten eagerly (no left/right-spine chaining). Added `patnd_append_child`, `patnd_set_children`, `pat_to_patnd` helpers. Silent child-drop replaced with stderr diagnostic — catches DT_I/DT_P type errors at construction time.
+   - `stmt_exec.c` `bb_build`: XCAT fold-right loop over children[]; XOR direct children[] iteration (eliminates old right-spine walk); XARBN/XFNME/XNME use children[0]; `patnd_is_invariant` loops children[].
+   - `materialise` (snobol4_pattern.c): XCAT/XOR fold-right loops; XFNCE/XARBN/XFNME/XNME use children[0].
+   - Baseline 166p/12f — no regression.
+
+2. **`ad17595` — Grammar fix: binary @ → E_OPSYN + unary @var cursor capture**:
+   - **Root cause found (SPITBOL manual Chapter 15)**: Binary `@` (whitespace both sides) is a user-definable operator (`&`, `@`, `#`, `%`, `~`) — same as binary `&`. Was wrongly producing `E_CAPT_CURSOR`. Fixed to `E_OPSYN`.
+   - Unary `@var` (no space after `@`) remains `E_CAPT_CURSOR` — correct per manual.
+   - `E_CAPT_CURSOR` handler in `scrip-interp.c` rewritten for unary-only: was `nchildren<2 → NULVCL` (always failed); now `pat_at_cursor(children[0]->sval)`.
+   - Verified: `'VALLEY' 'A' @N ARB 'E' @M` → N=2, M=5 (matches SPITBOL manual p.67 example exactly).
+
+3. **Corpus `8d5cc6a`**: Fixed `W07_capt_cur.sno` — test used `'ABC' @ pos1` (spaces both sides = binary op → SPITBOL error 029). Changed to `'ABC' @pos1` (unary). SPITBOL oracle confirms.
+
+**Note on concurrent sessions**: DYN-63 session pushed `d2fc0b5` during our session with their own cursor capture fix (kept binary 2-child form, fixed unary 1-child). Our commits rebased cleanly on top with `-X ours`. The grammar fix (binary `@` → `E_OPSYN`) is the semantically correct resolution per SPITBOL manual.
+
+### Remaining failures for DYN-65 (9f)
+
+```
+expr_eval   test_case   test_math   test_stack   test_string
+1012_func_locals   1013_func_nreturn   1015_opsyn   1016_eval
+```
+
+### DYN-65 first actions
+
+1. `git pull --rebase` all repos
+2. Build scrip-interp-s (use `.s` build command from SESSIONS_ARCHIVE — search "scrip-interp-s build command (UPDATED)")
+3. Confirm **169p/9f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+4. Tackle `1012_func_locals` — run directly, trace local variable scoping in `call_user_function`
+5. Tackle `1013_func_nreturn` — NRETURN lvalue semantics
+6. Then `1015_opsyn` → target ≥172p → M-DYN-S1
+
+### Baselines for DYN-65
+- `one4all`: `ad17595`
+- `corpus`: `8d5cc6a`
+- `.github`: this commit
+- **Broad: 169p/9f**
+- Build: scrip-interp-s — use `.s` build command (search SESSIONS_ARCHIVE for "scrip-interp-s build command (UPDATED)")
+- Run: `/home/claude/one4all/scrip-interp-s <file.sno>`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
