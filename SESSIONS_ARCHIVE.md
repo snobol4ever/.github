@@ -22147,3 +22147,106 @@ Makefile for bison/flex already has correct dependencies (`snobol4.tab.c snobol4
 - `src/frontend/snobol4/snobol4.tab.c/.h` — regenerated
 - `src/runtime/dyn/eval_code.c` — eval_node() made non-static
 - `src/runtime/snobol4/snobol4_pattern.c` — EVAL_fn DT_E branch
+
+## DYN-69 handoff — 2026-04-04
+
+### Session type
+**DYNAMIC BYRD BOX** — SNOBOL4 × x86 interpreter (scrip-interp-s). Session prefix: DYN-
+
+### Result: 177p/1f → **171p/7f** (regression — revert needed first in DYN-70)
+
+### Commits
+- `3cd8bd2` — DYN-69: NAME datatype SIL semantics + callcap + usercall
+
+### What was done (DYN-69)
+
+**1. NAME datatype — full SIL semantics (core fix)**
+
+Per v311.sil (CSNOBOL4): NAME descriptor's value field is `DESCR_t*` — a live interior pointer to the descriptor cell. `SETVC XPTR,N` stamps type onto computed address; `ASGNVV: PUTDC XPTR,DESCR,YPTR` stores directly through pointer.
+
+- `NAMEPTR(dp_)` macro: `DT_N` with `.ptr=(DESCR_t*)` — replaces string-based `NAMEVAL`
+- `NV_PTR_fn(name)`: find-or-create NV hash entry, return `&e->val`
+- `array_ptr(a, i)`: return `&a->data[idx]` (NULL if OOB)
+- `table_ptr(tbl, key_d)`: find-or-create `TBPAIR_t`, return `&e->val`
+- `interp_eval_ref(e)`: lvalue evaluator — `E_VAR→NV_PTR_fn`, `E_IDX→array_ptr/table_ptr`, `E_NAME→recurse`
+- `E_NAME` in `interp_eval`: calls `interp_eval_ref`, returns `NAMEPTR(cell)`
+- All NRETURN write-through: `*(DESCR_t*)fres.ptr = val` (4 sites)
+- `$expr` read: if result is `DT_N`, dereference ptr; if named var holds `DT_N`, dereference again
+- `NAME_DEREF(d)` inline helper for value-context dereference
+- `capture_t.var_ptr`: `DESCR_t*` for DT_N capture targets in bb_capture + flush_pending_captures
+
+**2. g_user_call_hook — pattern engine calls SNOBOL4 user functions**
+
+`APPLY_fn` was silently returning `NULVCL` for user-defined functions. Fix: `g_user_call_hook` function pointer in `snobol4.c`, set from `main()` to `call_user_function` before `execute_program`. `APPLY_fn` now calls the hook for `fn==NULL` entries.
+
+**3. E_DEFER fixes**
+
+- `E_DEFER(E_FNC)` in both `interp_eval` and `interp_eval_pat`: builds `pat_user_call` XATP node (deferred call at match time). Never calls the function at build time.
+- `E_DEFER(E_VAR)` in `interp_eval`: **resolves immediately** (fetch variable value now). **⚠️ THIS REGRESSES 6 TESTS** — see below.
+
+**4. bb_usercall Byrd box**
+
+`XATP` non-`@` nodes now use `bb_usercall` (not epsilon stub). At α port: calls `g_user_call_hook(name, args, nargs)` for side effect, succeeds epsilon.
+
+**5. XCALLCAP + bb_callcap — `pat . *func()` deferred capture**
+
+Key insight: `constant = integer . *Push()` — the `.` operator's RHS `*Push()` is NOT a side-effect call; it's the NRETURN lvalue target. Push() must be called at match time to get a fresh `DT_N{ptr=&stk[N]}` each time.
+
+- `XCALLCAP` PATND kind added to enum
+- `pat_assign_callcap(child, fnc_name, args, nargs)`: builds XCALLCAP node (function NOT called at build time)
+- `callcap_t` + `bb_callcap`: at γ, calls function → gets `DT_N`, stores `resolved_ptr`; at flush, writes matched text through `*resolved_ptr`
+- `flush_pending_callcaps()`: called in Phase 5 alongside `flush_pending_captures()`
+- `E_CAPT_COND_ASGN` in `interp_eval`: when RHS is `E_DEFER(E_FNC)`, calls `pat_assign_callcap` instead of evaluating the function
+
+**Confirmed working:** `constant = integer . *Push()` correctly stacks matched integers at match time. `Pop()` returns correct values.
+
+### Regression (6 tests broken)
+
+`E_DEFER(E_VAR)` resolving immediately in `interp_eval` broke:
+`086_define_locals`, `1010_func_recursion`, `1013_func_nreturn`, `1015_opsyn`, `1016_eval`, `1018_apply`
+
+These use `*var` in expression context expecting `DT_E` (frozen for EVAL) or in function call paths that relied on the old behavior. The fix is too broad — `*var` in plain expression context (not inside a pattern expression) should still produce `DT_E` for EVAL compatibility.
+
+**`expr_eval` also segfaults** — likely stack overflow in `bb_deferred_var` → `bb_build` recursive pattern resolution for `*primary`/`*term`/`*factor` chains.
+
+### Remaining failures for DYN-70 (7f)
+```
+expr_eval (segfault — recursive *var pattern depth)
+086_define_locals  1010_func_recursion  1013_func_nreturn
+1015_opsyn  1016_eval  1018_apply  (all from E_DEFER regression)
+```
+
+### DYN-70 first actions (mandatory order)
+1. `git pull --rebase` all repos — confirm `3cd8bd2` at one4all HEAD
+2. Build scrip-interp-s (use "scrip-interp-s build command (UPDATED)" from SESSIONS_ARCHIVE)
+3. Runner: `cat > /tmp/dyn_run_s.sh << 'EOF'` / `#!/usr/bin/env bash` / `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"` / `EOF` / `chmod +x /tmp/dyn_run_s.sh`
+4. Confirm **171p/7f**: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+5. **REVERT E_DEFER(E_VAR) change** in `interp_eval` (src/driver/scrip-interp.c ~line 875):
+   Restore the `*var` → `DT_E` path in plain value context. The `*var` immediate-resolve should ONLY happen inside `interp_eval_pat` (already correct there — don't touch that). In `interp_eval`, `E_DEFER` should always produce `DT_E` regardless of child kind.
+   The pattern-building case (`term = *primary`) works correctly because assignment RHS goes through `interp_eval_pat` (the statement executor calls `interp_eval_pat` for the replacement when it detects a pattern context) — verify this is so, or add explicit `interp_eval_pat` call for RHS when pattern context detected.
+6. Rebuild + confirm **177p/1f** recovered
+7. Fix `expr_eval` segfault: `bb_deferred_var` calls `bb_build` recursively. Add iteration depth guard or memoize built patterns per `PATND_t*` pointer. Check `stmt_exec.c` `XDSAR`/`XVAR` handler.
+8. Run full corpus → target **178p/0f → M-DYN-INTERP-FULL**
+9. After M-DYN-INTERP-FULL: assess beauty prereqs (18-19 tests in `/home/claude/corpus/programs/snobol4/beauty/`) — current partial pass on assign/counter/fence/global/io/is/match
+
+### Beauty prereqs note (new milestone)
+Beauty drivers at `/home/claude/corpus/programs/snobol4/beauty/beauty_*_driver.sno` (19 total). Current state with 171p binary:
+- `fence`, `global`, `io`, `match` — partial passes
+- `assign`, `counter`, `is` — failing
+
+After M-DYN-INTERP-FULL, add a beauty sweep milestone: all 19 beauty drivers passing. These use `-include`, NRETURN, TABLE/ARRAY, DATA types, pattern side-effects — all the machinery just built.
+
+### Baselines for DYN-70
+- `one4all`: `3cd8bd2` · `corpus`: `8d5cc6a` (unchanged) · `.github`: this commit
+- **Broad: 171p/7f** (target after revert: 177p/1f, then 178p/0f)
+- Build: scrip-interp-s — use "scrip-interp-s build command (UPDATED)" from SESSIONS_ARCHIVE
+- Runner: `exec env SNO_LIB=/home/claude/corpus /home/claude/one4all/scrip-interp-s "$@"`
+- Broad: `INTERP=/tmp/dyn_run_s.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh`
+
+### Key files changed
+- `src/runtime/snobol4/patnd.h` — `XCALLCAP` enum value
+- `src/runtime/snobol4/snobol4.h` — `NAMEPTR`, `NV_PTR_fn`/`array_ptr`/`table_ptr`/`pat_assign_callcap` decls, `g_user_call_hook` extern
+- `src/runtime/snobol4/snobol4.c` — `NV_PTR_fn`, `array_ptr`, `table_ptr`, `g_user_call_hook`, `APPLY_fn` user-fn dispatch
+- `src/runtime/snobol4/snobol4_pattern.c` — `pat_assign_callcap`
+- `src/runtime/dyn/stmt_exec.c` — `capture_t.var_ptr`, `bb_usercall`, `callcap_t`, `bb_callcap`, `flush_pending_callcaps`, XCALLCAP in `bb_build`, flush call in Phase 5, `g_callcap_count` reset
+- `src/driver/scrip-interp.c` — `interp_eval_ref`, `NAME_DEREF`, `E_NAME`/`E_DEFER`/NRETURN/`$expr` fixes, `E_CAPT_COND_ASGN` using `pat_assign_callcap`, `g_user_call_hook` registration in `main()`
