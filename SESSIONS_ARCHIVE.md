@@ -21063,3 +21063,56 @@ Still failing — likely `&TRIM` or `INPUT` reading issue carried from DYN-59.
 - `src/runtime/dyn/eval_code.c` — lex.h include removed
 - `src/driver/scrip-interp.c` — main interpreter driver
 - `src/runtime/dyn/stmt_exec.c` — five-phase executor
+
+## J-232 handoff — 2026-04-04
+
+### Session type
+**SNOBOL4 × JVM** — interpreter session (Jasmin Byrd boxes). Session prefix: J-
+
+### Result: 159p/19f (+4 from 155p/23f baseline)
+
+### What was done (J-232)
+
+**Commit `7146a6d` on one4all:**
+
+1. **OPSYN builtin — 2-arg alias form** `opsyn(.facto, 'fact')`: copies `FuncDef` reference (preserving `fd.name` so body variable references work correctly). Builtin aliases stored as `__OPSYN__src` sentinel, forwarded in `default:` dispatch via `callBuiltin(realName, args)`. Fixes `1010_func_recursion` assertions 3+4 (OPSYN alias + alternate entry).
+
+2. **OPSYN builtin — 3-arg operator form** `opsyn('@', .dupl, 2)`: populates `opsynTable` (Map keyed by `sym+arity`, e.g. `"@2"`, `"|1"`). `E_CAPT_CURSOR` (binary `@`) and unary `E_ALT` (`|`) check `opsynTable` before default pattern semantics. Fixes `1015_opsyn` (2/2).
+
+3. **NRETURN** — was stub `break` (returned NUL). Now: sets `lastNreturnName` side-channel to the dereferenced name string, returns `nvGet(pointedAt)` for rvalue use. `assignTo(E_FNC)` calls `callUserFunc`, reads `lastNreturnName`, writes `val` to that variable for lvalue use. Fixed guard: `lv.children.isEmpty()` dropped (zero-arg NRETURN functions have no children). Fixes `1013_func_nreturn` (3/3).
+
+4. **`&STNO` keyword** — registered (was missing entirely; test used `&STNO` not `&STCOUNT`). Initialized to 0, updated to `s.lineno` per statement in `execute()`. Fixes `082_keyword_stcount`.
+
+5. **`&STCOUNT` double-increment** — removed duplicate increment from `callUserFunc` inner loop (was also in `execute()`).
+
+### Remaining failures for J-233
+
+| Test | Root cause |
+|------|------------|
+| `word1–4`, `wordcount` | Pre-existing: continuation / INPUT edge cases |
+| `cross`, `expr_eval` | Pre-existing: continuation / OPSYN edge cases |
+| `1011_func_redefine` | DEFINE overwrite semantics |
+| `1016_eval` | EVAL builtin not implemented |
+| `1017_arg_local` | Arg/local scoping edge case |
+| `1018_apply` | APPLY builtin not implemented |
+| `910_convert` | CONVERT edge cases |
+| `W07_capt_cur` | Cursor-capture in pattern context |
+| `063_capture_null_replace` | Null-replace capture edge case |
+| `triplet`, `test_*` | Various pre-existing |
+
+### J-233 first actions
+1. `git pull --rebase` all repos
+2. `apt-get install -y default-jdk`
+3. Rebuild: `BB_STUBS=/tmp/bb_stubs && mkdir -p $BB_STUBS && javac -d $BB_STUBS $(find src/runtime/boxes -name "*.java" | tr '\n' ' ') && mkdir -p /tmp/jvm_jasmin && javac -cp $BB_STUBS -d /tmp/jvm_jasmin src/driver/jvm/Lexer.java src/driver/jvm/Parser.java src/driver/jvm/Interpreter.java src/driver/jvm/PatternBuilder.java`
+4. Runner: `printf '#!/bin/bash\njava -cp /tmp/jvm_jasmin:/tmp/bb_stubs driver.jvm.Interpreter "$1"\n' > /tmp/jvm_runner.sh && chmod +x /tmp/jvm_runner.sh`
+5. Confirm **159p/19f**: `INTERP=/tmp/jvm_runner.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS="`
+6. Implement **EVAL** builtin: parse and execute a SNOBOL4 string as a statement. See JS oracle: `grep -A15 "case 'EVAL'" src/runtime/js/sno-interp.js`
+7. Implement **APPLY** builtin: `apply(fname, args...)` — call named function with args. See JS oracle.
+8. Fix **`1011_func_redefine`**: DEFINE should allow overwriting an existing funcTable entry.
+9. Target: ≥165p → commit → handoff
+
+### Baselines for J-233
+- `one4all`: `7146a6d`
+- `corpus`: `2f2bbe3`
+- `.github`: this commit
+- **Broad: 159p/19f**
