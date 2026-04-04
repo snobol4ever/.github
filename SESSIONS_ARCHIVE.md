@@ -24143,3 +24143,80 @@ gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
 # Fix label+tab+body (SQRT_1\tERR = ...) — add NBTYP handling after FORBLK in CMPILE
 # Then: for f in corpus/programs/gimpel/*.sno; do timeout 5 ./sn4parse "$f" 2>&1 | tail -1; done
 ```
+
+## DYN-87 — sn4parse.c: tables faithful; Phase 1 sweep underway (2026-04-04)
+
+### Session type
+**Parser fix** — DYN- session (SNOBOL4 frontend × x86/C backend).
+
+### What Was Done
+
+**Tables made byte-for-byte faithful to CSNOBOL4 syn.c + syn_init.h.**
+
+All 19 shared chrs[] arrays now match syn.c exactly (verified by Python diff).
+All actions[] inline initializers replaced with forward declarations; `init_tables()`
+replaced with verbatim syn_init.h content. Stub declarations added for unused
+tables (SBIPTB, BBIOPTB, BSBIPTB, EOSTB, NUMBTB, NUMCTB, SPANTB, BRKTB, VARATB, VARBTB).
+NBLKTB given real chrs[] from syn.c (previously all-zero stub caused `&KEYWORD` infinite loop).
+
+**Bugs fixed:**
+1. `&KEYWORD` infinite loop — NBLKTB was stub (all-zero chrs); real chrs[] installed.
+2. UNOP loop only broke on ST_ERROR, not ST_EOS — empty input looped forever. Fixed: `r == ST_ERROR || r == ST_EOS`.
+3. BRTYPE=0 (ST_EOS from FORBLK on empty) not treated as EOS — fell through to pattern field. Fixed.
+4. Bare string literal as subject hung — same BRTYPE=0 issue.
+5. `&TRIM = 1`, `&STLIMIT = ...` — keyword lines now parse correctly.
+
+**Phase 1 sweep result (first 100 files):**
+- 0 timeouts
+- 52/100 files: 0 parse errors
+- 48/100 files: errors remaining (two dominant classes)
+
+**Two dominant remaining error classes (NOT yet fixed — pivot to Phase 3):**
+1. `ELEMNT: illegal character` — `TIME()`, `DATE()` zero-arg functions. Leading space
+   before args, or empty arg list. Root: EXPR does not skip leading whitespace;
+   BINOP's FORBLK advances past space but which BRTYPE path fires is subtle.
+2. `expected ) or , in arg list` — multi-arg functions like `LT(N, 1000000)`.
+   Same root cause: inter-arg whitespace handling.
+
+**Pivot decision:** Rather than patching EXPR/ELEMNT arg whitespace symptom-by-symptom,
+pivot to **Phase 3: two-way MONITOR with CSNOBOL4 oracle**. Instrument STREAM() in both
+snobol4.c and sn4parse.c to emit identical trace lines on every call. Diff traces
+to find first divergence. This is the Leprechaun — finds root cause of all remaining
+arg-parsing bugs in one shot.
+
+### Commit
+- `one4all`: `3ee7013` — pushed.
+
+### What Was NOT Done (DYN-88 first actions)
+1. **Build CSNOBOL4 with STREAM trace** — instrument `lib/stream.c` or wrap STREAM macro
+   to emit: `STREAM <table> <input_hex_or_text> -> <stype> <result>` on stderr.
+   Use `-DTRACE_STREAM` compile flag so normal builds unaffected.
+2. **Add identical trace to sn4parse.c** — same format from `stream()` function.
+3. **Run both on `LT(N, 1000000)` line** — diff traces, find first divergence.
+4. **Fix the root cause** — likely FORBLK/FORWRD interaction inside BINOP when
+   TEXTSP has leading space at arg boundary.
+5. Continue Phase 1 sweep after fix — target 0 errors on first 100 files.
+
+### Session start for DYN-88
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+
+# Build CSNOBOL4 (already built at work/snobol4-2.3.3/snobol4)
+# Build sn4parse
+gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
+
+# The pivot: instrument stream() in CSNOBOL4 lib/stream.c
+# Add: if (g_trace_stream) fprintf(stderr, "STREAM %s [%.*s] -> stype=%d ret=%d\n", ...)
+# Compile with -DTRACE_STREAM
+# Run both on: echo '    X = LT(N, 1000000)' | ./csnobol4_trace
+# Run same through: echo '    X = LT(N, 1000000)' | ./sn4parse_trace
+# diff <(csnobol4_trace 2>&1) <(sn4parse_trace 2>&1) | head -20
+```
+
+### Baselines for DYN-88
+- `one4all`: `3ee7013`
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: to be pushed after this entry
