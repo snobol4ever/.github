@@ -180,3 +180,12 @@ without a separate parse step.
 The EDN cache sprint (`jvm-edn-cache` ✅ `b30f383`) achieved 22× per-program
 speedup by caching parsed EDN representations. This is the primary input path
 for the JVM backend alongside SNOBOL4 text input.
+
+---
+
+## Status: Active (integrated with JVM runtime)
+
+The EDN cache sprint (`jvm-edn-cache` ✅ `b30f383`) achieved 22× per-program speedup
+by caching parsed EDN representations. The Clojure-EDN frontend is the primary
+input path for the JVM backend alongside SNOBOL4 text input.
+

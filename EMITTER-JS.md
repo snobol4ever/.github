@@ -159,3 +159,23 @@ corpus/crosscheck/rung4/410_arith_int.js
 ```
 
 JS-specific pattern rungs: `rungJ01`–`rungJ07`.
+
+---
+
+## The Trampoline Model (oracle: `backend/c/trampoline.h`)
+
+Every SNOBOL4 statement compiles to a zero-argument function returning
+the next function. The engine is identical in C and JS:
+
+```c
+block_fn_t pc = block_START;   /* C */
+while (pc) pc = pc();
+```
+
+```js
+let pc = block_START;          /* JS */
+while (pc) pc = pc();
+```
+
+---
+
