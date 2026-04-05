@@ -229,12 +229,12 @@ SPITBOL identifiers are `[A-Za-z][A-Za-z0-9_]*`. For Unicode:
 | M-SN4PARSE-P1a | Unary+space fix (NBLKTB logic) | — | ✅ already works — was phantom |
 | M-SN4PARSE-P1b | Postfix subscript `f()[i]` | — | ⬜ sprint 91 |
 | M-SN4PARSE-P1c | Qize/io g_error lifecycle | — | ⬜ sprint 91 |
-| **M-SN4PARSE-P2A** | Binary `?` pattern-match operator | P1 | ⬜ |
+| **M-SN4PARSE-P2A** | Binary `?` pattern-match operator | P1 | ✅ sprint 94 |
 | **M-SN4PARSE-P2B** | Alternative eval `(e1,e2,en)` | P1 | ✅ sprint 98-ext |
-| **M-SN4PARSE-P2C** | `[]` subscript = `<>` + postfix subscript | P1 | ⬜ |
+| **M-SN4PARSE-P2C** | `[]` subscript = `<>` + postfix subscript | P1 | ✅ sprint 96 |
 | **M-SN4PARSE-P2D** | Multiple assignment `A=B=C+1` | P1 | ⬜ |
 | M-SN4PARSE-P2E | Embedded match `(B?C=D)` | P2A+P2D | ⬜ |
-| **M-SN4PARSE-P2F** | Semicolon multi-statement | P1 | ⬜ |
+| **M-SN4PARSE-P2F** | Semicolon multi-statement | P1 | ✅ sprint 92 |
 | **M-SN4PARSE-P3A** | UTF8TB dispatch table | P2 | ⬜ |
 | **M-SN4PARSE-P3B** | VARTB_U / ELEMTB_U Unicode idents | P3A | ⬜ |
 | M-SN4PARSE-P3C | UTF-8 string primitives (runtime) | P3A | ⬜ |
