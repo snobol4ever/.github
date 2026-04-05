@@ -25405,3 +25405,56 @@ change. Fix sil_macros.h TESTF and IS_FNC to use these. Fix all sites that
 set slen directly to use D_SET_SLEN or mask correctly.
 
 Sprint 100 first action: add these defines to snobol4.h, fix sil_macros.h.
+
+## SNOBOL4 × x86 sprint 97 — 2026-04-05
+
+**Session:** SNOBOL4 × x86 — sno4parse P2D
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+
+### Baseline
+- `one4all`: `62a2bd2` (carried from sprint 96 handoff, then rebased to `231da87` from other tracks)
+- `corpus`: `8d5cc6a`
+- sno4parse sweep: 84/84 OK (confirmed at session start)
+
+### What Was Done
+
+**M-SN4PARSE-P2D: Assignment inside subscript `A[J=J+1]` fixed** ✅
+
+Root cause (found via two-way MONITOR with CSNOBOL4 oracle):
+- CSNOBOL4's ELEARG loop calls `EXPR`, gets `BRTYPE=EQTYP` after parsing `J`.
+- Since `BRTYPE≠CMATYP`, ELEARG loops back and calls `EXPR` again.
+- IBLKTB (inside BINOP in first EXPR) had already consumed `=` via ACT_STOP.
+- Second EXPR sees TEXTSP at ` J+1]` — UNOP calls FORWRD (v311.sil:2507) to skip space.
+- Result: two separate subscript args `J` and `J+1`, not an ASSIGN node.
+
+Our ELEMNT does NOT call FORWRD at UNOP entry (unlike SIL UNOP). So after EQTYP
+continue, ELEMNT's ELEMTB received the leading space → ACT_ERROR.
+
+Fix (3 sites): in each subscript loop after `node_add(…, sub)`:
+```c
+if (BRTYPE == EQTYP) { FORWRD(); FORWRD(); continue; }
+```
+First FORWRD consumes `=` (FRWDTB ACT_STOP, BRTYPE=EQTYP).
+Second FORWRD skips space to `J` (BRTYPE=NBTYP).
+Continue → next EXPR → ELEMNT → UNOPTB on `J` → ELEMTB on `J` → VARTYP. ✓
+
+Sites fixed:
+1. ELEARY `<>` loop in ELEMNT (~line 1416)
+2. Postfix `[]` loop in expr_prec_continue (~line 1546)
+3. CMPILE subject chained `[]` loop (~line 1709)
+
+Both `A[J=J+1]` and `A<J=J+1>` parse correctly as two-arg subscripts.
+Sweep: **84/84 OK, 0 ERR, 0 HANG** — no regressions.
+
+### Baselines for sprint 98 (sno4parse track)
+- `one4all`: `badbbf9`
+- `corpus`: `8d5cc6a`
+- sno4parse sweep: 84/84
+
+### Sprint 98 first actions (sno4parse track)
+```bash
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+bash one4all/csnobol4/dyn89_sweep.sh   # confirm 84/84
+# P2B: (e1,e2,en) — NSTTYP branch in ELEMNT detects comma → loop → E_SELECT node
+# P2F: semicolon — in parse_program() after ST_EOS on ';', continue same card buffer
+```
