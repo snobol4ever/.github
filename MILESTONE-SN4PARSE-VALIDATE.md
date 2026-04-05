@@ -1,278 +1,273 @@
-# MILESTONE-SN4PARSE-VALIDATE — SN4 Parser Validation Suite
+# MILESTONE-SN4PARSE-VALIDATE.md — sno4parse Parser Validation & Extension Milestones
 
-**Milestone ID:** M-SN4PARSE-VALIDATE  
-**Session type:** DYN- (parser/frontend)  
-**Prerequisite:** M-SN4PARSE (sn4parse.c passes SQRT.sno with zero errors)  
-**Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6  
-**Created:** DYN-85 · 2026-04-04  
-**Gate:** All three phases pass. See Gate Criteria section.
+**Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Date:** 2026-04-04
+**Session:** DYN-89
+**Status:** ACTIVE — Phase 1 in progress
 
 ---
 
-## Why This Exists
+## Context
 
-M-SN4PARSE produced a SIL-faithful standalone parser (`sn4parse.c`) and fixed
-all four root-cause bugs (`**`, FORBLK after `)`, pattern field, juxtaposition).
-Before we use sn4parse as the oracle for SM-LOWER and for replacing scrip-interp's
-lex.c/parse.c, we need to know it parses the full language correctly.
+`sno4parse` is the SNOBOL4 frontend parser for the SCRIP stack. It must parse
+the full SPITBOL-extended dialect used in the corpus, not just standard SNOBOL4.
+The parser replicates CSNOBOL4's `stream()`/syntab mechanism exactly — **the
+256-byte chrs[] table values are authoritative from CSNOBOL4 and must never be
+changed**. All fixes are in code logic, not table bytes.
 
-Three complementary checks cover this:
-
-| Phase | What it tests | What it catches |
-|-------|--------------|-----------------|
-| **1 — Corpus sweep** | sn4parse on all 550+ SNOBOL4 `.sno` and 154 `.inc` files | Crashes, infinite loops, error-rate, edge-case syntax not in SQRT |
-| **2 — Bison/Flex diff** | sn4parse IR tree vs scrip-interp's Bison/Flex IR tree | Semantic divergence between the two parsers on same input |
-| **3 — CSNOBOL4 oracle** | Instrument CSNOBOL4 to emit S-expressions; diff vs sn4parse | Ground-truth: the reference implementation's own parse agrees |
-
-Phase 3 is the strongest check: if CSNOBOL4's CMPILE produces the same tree as
-sn4parse.c, we have confirmed SIL fidelity at the source level.
+The two-way STREAM trace oracle (SNO_TRACE=1) compares sno4parse vs patched
+CSNOBOL4 stream-by-stream. Sweep script: `one4all/csnobol4/dyn89_sweep.sh`.
 
 ---
 
-## Phase 1 — Corpus Sweep
+## DYN-89 Baseline (session start)
 
-### What to run
+| Status | Count |
+|--------|-------|
+| OK     | 14    |
+| ERR    | 71    |
+| HANG   | 0     |
+| Total  | 84    |
 
+---
+
+## Phase 1 — Standard SNOBOL4 Parse Correctness (DYN-89)
+
+**Target: 84/84 OK on corpus/programs/snobol4/**
+
+### Fixes applied this session (DYN-89)
+
+| Fix | Root Cause | Result |
+|-----|-----------|--------|
+| ELEFNC: FORWRD before arg loop | Missing first FORWRD past `(` | arg-whitespace class fixed |
+| ELEFNC: second FORWRD after comma | `F(a, b)` space-after-comma | `, b` now positioned correctly |
+| ELEFNC: empty arg `F(a,,b)` and `F(a, ,b)` | loop entered EXPR on `,` | NULL node emitted |
+| ELEARY: mirror of ELEFNC fixes | `A[i, j]` subscript with space | subscript-whitespace fixed |
+| CMPFRM/CMPASP: FORBLK→FORWRD | `=` already consumed separator | replacement value parsed |
+| EQTYP at statement start | unindented `OUTPUT = 'x'` → label+EQTYP | CMPFRM routed correctly |
+| NSTTYP: FORWRD after `(` | `( SPAN('x') )` space after paren | inner expr positioned correctly |
+| Unary+space: FORWRD after unary chain | `? X` space between op and operand | NBLKTB root cause (see below) |
+
+### DYN-89 end state
+
+| Status | Count |
+|--------|-------|
+| OK     | 73    |
+| ERR    | ~11   |
+| HANG   | 0     |
+
+### Remaining bugs (next session priority order)
+
+**1. NBLKTB root cause — unary+space `? X`, `- X`**
+- NBLKTB chrs[] (authoritative): space=1=ERROR, non-blank=2=STOPSH
+- Intent: after unary op char, space is a TERMINATOR (ERROR), operand is STOPSH
+- This means `? X` (space between ? and operand) is NOT standard SNOBOL4/SPITBOL
+- The corpus uses `? WPAT` — this may be a SPITBOL extension (unary op + space)
+- **Action:** verify against SPITBOL oracle. If SPITBOL accepts `? X`, the fix
+  is in the UNOPTB→NBLKTB chain dispatch, NOT the table bytes.
+- Candidate fix: after UNOPTB fires GOTO→NBLKTB, if NBLKTB returns ST_ERROR
+  (space terminator), call FORWRD() to skip whitespace before ELEMTB.
+
+**2. Postfix subscript on call result `t(c(nd)[1])`**
+- After `c(nd)` parsed as FNCTYP, `[1]` subscript is a postfix operator on the result
+- `expr_prec_continue` does not handle `[` as postfix
+- Fix: detect `[` in BINOP or add postfix-subscript case after ELEMNT returns
+
+**3. `demo/beauty.sno` line 235, `smoke/beauty_oracle.sno` line 235**
+- Both hit "illegal character" at same line — likely same source included
+- Not yet diagnosed; check after fixes 1+2
+
+---
+
+## Phase 2 — SPITBOL Extensions (new syn tables)
+
+### Extensions identified from SPITBOL manual (Appendix C + Chapter 15)
+
+**RULE: All 256-byte chrs[] arrays are authoritative from CSNOBOL4/SPITBOL syn.c.
+New tables get their own fresh chrs[] matching SPITBOL semantics. Never modify
+existing table bytes.**
+
+#### 2A. `?` as binary pattern-match operator (priority 1, left-associative)
+
+From SPITBOL manual §AppC p275-276:
+> The question mark symbol (?) is defined to be an explicit binary pattern-matching
+> operator. It is left associative and has priority lower than all operators except
+> assignment (=). It returns as its value the substring matched from its left argument
+> (a string) by its right argument (a pattern).
+
+```
+ABCD ? LEN(3) $ OUTPUT ? LEN(1) REM $ OUTPUT
+→ prints ABC then BC
+```
+
+- **Current:** `?` is unary only (QUESFN — interrogation, returns null if operand succeeds)
+- **SPITBOL adds:** `?` as BINARY op at priority 1 (between `=`=0 and `|`=3)
+- **Required:**
+  - Add `BISNFN` (already defined as 215 in sno4parse.c) to BIOPTB at priority 1
+  - Disambiguate: unary `?` (prefix) vs binary `?` (infix after an expression)
+  - The parser already distinguishes unary/binary by context — BIOPTB handles binary
+  - Check BIOPTB chrs[63]('?') — currently not in BIOPTB → add if missing
+- **New table needed:** None — modify BIOPTB entry (but chrs[] bytes are authoritative!)
+  - Alternative: BIOPTB is from CSNOBOL4 which does NOT have binary `?`
+  - Therefore a NEW table `BIOPTB_SPITBOL` or an extension mechanism is needed
+  - Or: post-processing in `expr_prec_continue` to recognize `?` as binary op
+
+#### 2B. Alternative evaluation `(e1, e2, e3)` — comma-list in parens
+
+From SPITBOL manual §AppC p275:
+> A selection or alternative construction: (e1, e2, e3, ..., en)
+> Evaluate left to right until one succeeds; failure if all fail.
+
+```snobol4
+A = ( EQ(B,3), GT(B,20) ) B+1
+NEXT = ( INPUT , %EOF )
+```
+
+- **Current:** NSTTYP `(expr)` parses one EXPR. Comma inside parens is only
+  valid inside function arg lists (ELEFNC).
+- **Required:** When ELEMNT sees NSTTYP `(`, parse a comma-separated list of EXPR.
+  Each comma-separated item is an alternative. Build E_ALT node (or new E_SELECT).
+- **IR node:** `E_SELECT` (new EKind) — n-ary, children = alternatives
+- **Execution:** SM_SELECT instruction — try each child, return first success
+- **No new syn table needed** — parsing is code logic in NSTTYP branch of ELEMNT
+
+#### 2C. `[]` square-bracket subscripts as alias for `<>`
+
+From SPITBOL manual §AppC p275:
+> The array brackets [] may be used instead of <> if desired.
+> Thus X[I,J] and X<I,J> are equivalent.
+
+- **Current:** VARTB fires ARYTYP on `<`, nothing on `[`
+- **VARTB chrs[] is authoritative** — cannot add `[` to it
+- **Required:** New `VARTB_SPITBOL` table OR post-processing:
+  - After ELEMTB, if next char is `[`, treat as array subscript
+  - Cleanest: in `expr_prec_continue`, recognize `[` as postfix subscript operator
+  - This also fixes bug #2 (postfix subscript on call result)
+
+#### 2D. Multiple assignment `A = B = C + 1`
+
+From SPITBOL manual §AppC p275:
+> = is treated as a right-associative operator of lowest priority (0).
+> Multiple assignments: A[J=J+1] = INPUT
+
+- **Current:** `=` is handled structurally by CMPILE, not as an expression operator
+- **Required:** In `expr_prec_continue`, treat `=` as right-assoc binary op at priority 0
+- **No new syn table needed** — code logic in BINOP/expr_prec_continue
+
+#### 2E. Embedded pattern match `A = (B ? C = D) + 1`
+
+- Binary `?` inside an expression triggers an embedded match+replace
+- Depends on 2A (binary `?`)
+
+#### 2F. Semicolon `;` as statement separator (multiple statements per line)
+
+From SPITBOL manual §Ch15 p188:
+> The semicolon character may be used to place several statements on one line.
+> Each semicolon terminates the current statement and behaves like a new column one.
+
+- **Current:** `;` is EOSTYP in FRWDTB — treated as end-of-statement
+- **Required:** At the top-level read loop, after a `;` is seen, continue parsing
+  the same line buffer as a new statement
+- **No new syn table needed** — loop logic in `parse_program()`
+
+---
+
+## Phase 3 — UTF-8 / Unicode Support
+
+### Design
+
+SNOBOL4's string model is byte-oriented (each `stream()` call operates on bytes).
+UTF-8 adds multi-byte code points. The syntab mechanism (256-byte chrs[] arrays)
+operates on individual bytes — which is exactly right for UTF-8 prefix bytes.
+
+**Key insight:** UTF-8 byte ranges are disjoint and well-defined:
+- `0x00–0x7F`: ASCII (single-byte, handled by existing tables unchanged)
+- `0xC0–0xDF`: 2-byte sequence lead byte
+- `0xE0–0xEF`: 3-byte sequence lead byte
+- `0xF0–0xF7`: 4-byte sequence lead byte
+- `0x80–0xBF`: continuation bytes
+
+**Strategy: Extension tables, not modification of existing tables.**
+
+### Milestone 3A — UTF8TB: UTF-8 lead-byte dispatcher
+
+New 256-byte table `UTF8TB`:
+- `0x00–0x7F` → ACT_CONTIN (fast path, ASCII unchanged)
+- `0x80–0xBF` → ACT_ERROR (bare continuation byte — malformed)
+- `0xC0–0xDF` → ACT_GOTO → UTF8_2TB (2-byte sequence)
+- `0xE0–0xEF` → ACT_GOTO → UTF8_3TB (3-byte sequence)
+- `0xF0–0xF7` → ACT_GOTO → UTF8_4TB (4-byte sequence)
+- `0xF8–0xFF` → ACT_ERROR (invalid in modern UTF-8)
+
+### Milestone 3B — VARTB_U / ELEMTB_U: Unicode identifiers
+
+SPITBOL identifiers are `[A-Za-z][A-Za-z0-9_]*`. For Unicode:
+- Lead bytes of Unicode letters (U+0080+) should be VARTYP in ELEMTB_U
+- Continuation bytes absorbed by VARTB_U
+- New tables ELEMTB_U and VARTB_U extend the ASCII tables with UTF-8 awareness
+
+### Milestone 3C — String primitives: SIZE, SUBSTR, REPLACE in UTF-8
+
+- `SIZE(s)` → character count (not byte count)
+- `SUBSTR(s,i,n)` → substring by character position
+- Pattern primitives: `LEN(n)` matches n characters (not bytes)
+- Implementation: runtime functions become UTF-8 aware; parser is unaffected
+
+### Milestone 3D — QLITB_U: UTF-8 in quoted string literals
+
+- Quoted strings `'...'` and `"..."` already pass bytes through unchanged
+- SQLITB/DQLITB need no change for parsing
+- Runtime storage: strings are byte arrays; UTF-8 is transparent
+- Only SIZE/SUBSTR/pattern primitives need character-vs-byte awareness
+
+---
+
+## Milestone Summary Table
+
+| Milestone | Description | Deps | Status |
+|-----------|-------------|------|--------|
+| **M-SN4PARSE-P1** | 84/84 standard SNOBOL4 parse | — | ⚠️ 73/84 |
+| M-SN4PARSE-P1a | Unary+space fix (NBLKTB logic) | — | ⬜ |
+| M-SN4PARSE-P1b | Postfix subscript `f()[i]` | — | ⬜ |
+| M-SN4PARSE-P1c | beauty.sno line 235 | — | ⬜ |
+| **M-SN4PARSE-P2A** | Binary `?` pattern-match operator | P1 | ⬜ |
+| **M-SN4PARSE-P2B** | Alternative eval `(e1,e2,en)` | P1 | ⬜ |
+| **M-SN4PARSE-P2C** | `[]` subscript = `<>` + postfix subscript | P1 | ⬜ |
+| **M-SN4PARSE-P2D** | Multiple assignment `A=B=C+1` | P1 | ⬜ |
+| M-SN4PARSE-P2E | Embedded match `(B?C=D)` | P2A+P2D | ⬜ |
+| **M-SN4PARSE-P2F** | Semicolon multi-statement | P1 | ⬜ |
+| **M-SN4PARSE-P3A** | UTF8TB dispatch table | P2 | ⬜ |
+| **M-SN4PARSE-P3B** | VARTB_U / ELEMTB_U Unicode idents | P3A | ⬜ |
+| M-SN4PARSE-P3C | UTF-8 string primitives (runtime) | P3A | ⬜ |
+| M-SN4PARSE-P3D | QLITB_U (transparent, low risk) | P3A | ⬜ |
+
+---
+
+## Implementation Notes
+
+### Table authority rule
+> **The 256-byte chrs[] array of every table that exists in CSNOBOL4 syn.c is
+> authoritative and must not be modified.** All SPITBOL and Unicode extensions
+> use NEW tables with their own chrs[] arrays. Linkage (`.go` pointers) from
+> existing tables to new tables is permitted via `init_tables()` patching.
+
+### BIOPTB extension for binary `?`
+CSNOBOL4's BIOPTB does not include `?`. SPITBOL adds it at priority 1.
+Since we cannot modify BIOPTB chrs[], the approach is:
+- In `BINOP()`, after BIOPTB returns ST_ERROR for `?`, check if current char is `?`
+  and return `BISNFN` (215) with priority 1 as a special case.
+- Or: build `BIOPTB_EXT` that starts from BIOPTB and adds `?`.
+
+### Sweep script
+`one4all/csnobol4/dyn89_sweep.sh` — run against corpus/programs/snobol4/.
+Output: one line per file, OK/ERR/HANG + first error message.
+
+### Session start for next DYN session
 ```bash
 cd /home/claude
-
-# Build
-gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
-
-# Sweep all SNOBOL4 .sno files (exclude icon/prolog/rebus/snocone sub-corpora)
-find corpus -name "*.sno" \
-  | grep -v /icon/ | grep -v /prolog/ | grep -v /rebus/ | grep -v /snocone/ \
-  | sort \
-  | while read f; do
-      result=$(timeout 5 ./sn4parse "$f" 2>&1)
-      errs=$(echo "$result" | grep -c "^line.*:" || true)
-      stmts=$(echo "$result" | grep "=== [0-9]* statements ===" | grep -o "[0-9]*" | head -1)
-      echo "$errs $stmts $f"
-    done | tee /tmp/sn4parse_sweep.txt
-
-# Sweep all .inc files
-find corpus -name "*.inc" | sort \
-  | while read f; do
-      result=$(timeout 5 ./sn4parse "$f" 2>&1)
-      errs=$(echo "$result" | grep -c "^line.*:" || true)
-      echo "$errs $f"
-    done | tee /tmp/sn4parse_sweep_inc.txt
-
-# Summary
-echo "Files with errors:"
-grep -v "^0 " /tmp/sn4parse_sweep.txt | wc -l
-echo "Total files:"
-wc -l < /tmp/sn4parse_sweep.txt
-echo "Total errors:"
-awk '{sum+=$1} END{print sum}' /tmp/sn4parse_sweep.txt
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o one4all/sno4parse one4all/src/frontend/snobol4/sno4parse.c
+bash one4all/csnobol4/dyn89_sweep.sh   # baseline: ~73 OK / 11 ERR / 0 HANG
 ```
-
-### Gate: Phase 1
-
-- Zero crashes (no segfaults, no infinite loops — timeout catches the latter)
-- Error rate ≤ 5% of files (target: 0%; tolerate edge-cases not in SIL grammar)
-- No regressions on the 13 SQRT.sno statements
-
-### Triage protocol for errors
-
-For each erroring file, run:
-```bash
-./sn4parse <file> 2>&1 | head -30
-```
-Classify error as:
-- **BUG-SN4**: sn4parse bug (fix it)
-- **EXT-SPITBOL**: SPITBOL extension not in SNOBOL4 grammar (acceptable, note it)
-- **CORPUS-BAD**: corpus file itself is invalid SNOBOL4 (note it)
-
----
-
-## Phase 2 — Bison/Flex Diff
-
-### What to run
-
-scrip-interp's Bison/Flex parser (`snobol4.y` / `snobol4.l`) produces EXPR_t/STMT_t IR.
-sn4parse.c produces the same tree in S-expression form.
-Add a `-dump` flag to scrip-interp (or use its existing IR printer) to get its S-expression,
-then diff against sn4parse output.
-
-#### Step 2a — Add IR dump mode to scrip-interp
-
-In `one4all/src/driver/scrip-interp.c`, add a flag `--dump-ir` that:
-1. Parses the source file (existing lex+parse path)
-2. Prints the STMT_t/EXPR_t tree as S-expressions to stdout
-3. Exits without interpreting
-
-The S-expression format must match sn4parse's output schema:
-- Nodes printed as `(TYPENAME "text" child1 child2 ...)`
-- Use the same EKind name strings that stype_name() uses
-
-#### Step 2b — Run diff script
-
-```bash
-cd /home/claude
-
-# For each corpus .sno file:
-find corpus/programs/gimpel -name "*.sno" | sort | while read f; do
-    sn4=$(timeout 5 ./sn4parse "$f" 2>/dev/null)
-    interp=$(timeout 5 ./scrip-interp --dump-ir "$f" 2>/dev/null)
-    if [ "$sn4" != "$interp" ]; then
-        echo "DIFF: $f"
-        diff <(echo "$sn4") <(echo "$interp") | head -20
-    fi
-done
-```
-
-#### Step 2c — Resolve each divergence
-
-For each diff:
-1. Run SPITBOL oracle: `snobol4ever/x64/spitbol "$f"` — which parser agrees with SPITBOL?
-2. Fix the wrong parser.
-
-Rule: sn4parse (SIL-faithful) is considered authoritative over scrip-interp
-(lex.c/parse.c hand-written) when they disagree. Exceptions: if scrip-interp
-has been deliberately extended beyond SIL (e.g. for Snocone syntax), note it.
-
-### Gate: Phase 2
-
-- Zero divergences on `corpus/programs/gimpel/*.sno` (13 Gimpel programs)
-- Zero divergences on `corpus/crosscheck/rung1/*.sno` through `rung5/*.sno`
-- Any remaining divergences documented in `PARSER-SNOBOL4.md` as known differences
-
----
-
-## Phase 3 — CSNOBOL4 Oracle Instrumentation
-
-### What to do
-
-Instrument CSNOBOL4 2.3.3 (`/tmp/snobol4-2.3.3/snobol4.c`) to emit S-expression
-parse trees from its own CMPILE loop. This is the strongest possible oracle:
-it is the reference implementation whose parser sn4parse.c faithfully translates.
-
-#### Step 3a — Locate the hook points in snobol4.c
-
-The CMPILE procedure in `/tmp/snobol4-2.3.3/snobol4.c` (line 914) has labeled
-branch points matching v311.sil exactly:
-
-```
-L_CMPIL0  — after STREAM(XSP, TEXTSP, &LBLTB)            → label in XSP
-L_CMPILA  — after FORBLK()                                → body starts
-L_CMPSUB  — after STREAM(XSP, TEXTSP, &ELEMTB) for subj  → subject element
-L_CMPAT2  — pattern field start                            → pattern element
-L_CMPFRM  — = replacement (no pattern)
-L_CMPGO   — after STREAM(XSP, TEXTSP, &GOTOTB)            → goto type
-```
-
-Each `D(...)` / `D_A(...)` macro accesses the SIL descriptor at a named offset.
-`TEXTSP`, `XSP`, `BRTYPE`, `STYPE` are all accessible as SIL globals.
-
-#### Step 3b — Add a `-sexp` command-line flag
-
-In `/tmp/snobol4-2.3.3/main.c`, add flag `-sexp` that:
-1. Sets a global `g_sexp_mode = 1` before the compile loop
-2. After each successful CMPILE call, calls `sexp_print_stmt()` with the
-   just-compiled statement's descriptor block
-
-#### Step 3c — Implement sexp_print_stmt()
-
-```c
-/* Hook in snobol4.c after L_CMPILA completes each statement */
-#ifdef SEXP_MODE
-void sexp_print_stmt(void) {
-    /* Read BOSCL..CMOFCL range of compiled descriptors.
-     * Walk the descriptor array and emit S-expressions.
-     * Output mirrors sn4parse.c print_stmt() exactly. */
-}
-#endif
-```
-
-The descriptor layout per statement (from v311.sil CMPILE object code sequence):
-```
-DESCR[0] = BASE function (block pointer)
-DESCR[1] = INIT function
-DESCR[2] = failure offset (FRNCL)
-DESCR[3] = line number (LNNOCL)
-DESCR[4+] = subject / pattern / replacement / goto nodes
-```
-
-Walking this is the hardest part. Alternative simpler approach: intercept at
-the EXPR/ELEMNT level to capture each sub-expression as it is generated.
-
-#### Simpler alternative: intercept ELEMNT and EXPR return values
-
-Add hooks at the three points where SIL writes the completed nodes:
-- After `ELEMNT` returns (writes ZPTR) — capture element node
-- After `EXPR` returns — capture expression tree
-- After `CMPILE` processes each field — emit field S-expression
-
-These hook points all have C-level equivalents in `snobol4.c` after the
-corresponding `switch (ELEMNT(NORET))` / `switch (EXPR(NORET))` calls.
-
-#### Step 3d — Diff CSNOBOL4 output vs sn4parse output
-
-```bash
-cd /tmp/snobol4-2.3.3
-make && ./snobol4 -sexp /home/claude/corpus/programs/gimpel/SQRT.sno \
-  > /tmp/csnobol4_sqrt.sexp 2>&1
-
-cd /home/claude
-./sn4parse corpus/programs/gimpel/SQRT.sno > /tmp/sn4parse_sqrt.sexp 2>&1
-
-diff /tmp/csnobol4_sqrt.sexp /tmp/sn4parse_sqrt.sexp
-```
-
-### Gate: Phase 3
-
-- Zero diffs on `SQRT.sno` (13 statements)
-- Zero diffs on all Gimpel programs
-- Any remaining diffs analysed: if CSNOBOL4 produces different tree → sn4parse bug
-
----
-
-## Gate Criteria (all three phases)
-
-```
-Phase 1: sn4parse sweeps 550 .sno + 154 .inc with 0 crashes, ≤5% error files
-Phase 2: sn4parse and scrip-interp --dump-ir agree on Gimpel + rung1..rung5 corpus
-Phase 3: sn4parse and instrumented CSNOBOL4 agree on SQRT.sno (13 stmts), then Gimpel
-```
-
-When all three pass: **M-SN4PARSE-VALIDATE is complete.**
-
-Next milestone: replace scrip-interp's lex.c/parse.c with sn4parse's
-CMPILE/ELEMNT/EXPR, then write SM-LOWER → M-DYN-SM-INTERP.
-
----
-
-## Session Start Instructions
-
-```bash
-# Always read first:
-cat /home/claude/.github/SCRIP-SM.md
-cat /home/claude/.github/SESSIONS_ARCHIVE.md | tail -120
-cat /home/claude/.github/PLAN.md
-# Then this file:
-cat /home/claude/.github/MILESTONE-SN4PARSE-VALIDATE.md
-# Build sn4parse:
-cd /home/claude && gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
-# Run Phase 1 sweep immediately to see current baseline.
-```
-
----
-
-## File Locations
-
-| File | Role |
-|------|------|
-| `one4all/src/frontend/snobol4/sn4parse.c` | SIL-faithful standalone parser (this milestone's subject) |
-| `one4all/src/frontend/snobol4/snobol4.y` | Bison grammar (Phase 2 reference) |
-| `one4all/src/frontend/snobol4/snobol4.l` | Flex lexer (Phase 2 reference) |
-| `one4all/src/driver/scrip-interp.c` | Tree-walking interpreter (Phase 2: add --dump-ir) |
-| `/tmp/snobol4-2.3.3/snobol4.c` | CSNOBOL4 compiled C source (Phase 3: instrument) |
-| `/tmp/snobol4-2.3.3/main.c` | CSNOBOL4 main (Phase 3: add -sexp flag) |
-| `corpus/programs/gimpel/` | Primary test suite (13 Gimpel programs) |
-| `corpus/crosscheck/` | Rungs 1-8 regression corpus |
-
----
-
-*Written: DYN-85 · 2026-04-04*  
-*File: MILESTONE-SN4PARSE-VALIDATE.md*
