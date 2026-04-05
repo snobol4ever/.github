@@ -25056,3 +25056,109 @@ violating the GENERAL-RULES ⛔ HANDOFF rule. Corrected in same session:
 - `corpus`: `8d5cc6a`
 - `.github`: see push below
 - scrip-interp: PASS=177 FAIL=1
+
+## scrip-interp × SIL sprint 97 — 2026-04-05
+
+**Session:** Track C — scrip-interpreter / SIL implementation
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+
+### Baseline recovery — SNO_INIT_fn never called (commit ed1f53d)
+
+Root cause of PASS=82 (not 177) in clean container:
+`SNO_INIT_fn()` in `snobol4.c` was never called from `scrip-interp.c` main().
+All builtins (GT, LT, GE, LE, EQ, NE, SIZE, DATATYPE, etc.) were unregistered.
+Calls to unregistered functions returned `NULVCL` (empty string = truthy) → GT(-3,0)
+appeared to succeed. Masked in prior sessions by the old binary persisting
+across container restarts.
+
+Fix: added `SNO_INIT_fn()` call before `stmt_init()` in `main()`.
+Also added `stmt_init()` stub to `x86_stubs_interp.c` for clean-container link.
+
+Also fixed: `x86_stubs_interp.c` had duplicate `NV_SYNC_fn` — removed; already in snobol4.c.
+
+**PASS=177 FAIL=1 restored (commit ed1f53d, pushed).**
+
+### RT-2: argval.c — SIL-faithful typed argument evaluators (commit 62a2bd2)
+
+Created `src/runtime/snobol4/argval.c` with four SIL-faithful evaluators:
+- `VARVAL_d_fn(d)` — SIL VARVAL line 2836: DESCR_t → STRING (or FAIL)
+- `INTVAL_fn(d)` — SIL INTVAL line 2774: DESCR_t → INTEGER (or FAIL)
+- `PATVAL_fn(d)` — SIL PATVAL line 2800: DESCR_t → PATTERN (or FAIL)
+- `VARVUP_fn(d)` — SIL VARVUP line 2867: DESCR_t → uppercase STRING (or FAIL)
+
+Removed duplicate definitions from `invoke.c` (they lived there since RT-1 commit).
+Added `kw_case` global to `snobol4.c` (needed by VARVUP_fn for &CASE check).
+Added `VARVUP_fn` and `kw_case` declarations to `snobol4.h`.
+
+**PASS=177 FAIL=1 — green throughout (commit 62a2bd2, pushed).**
+
+### expr_eval (the one FAIL) — diagnosis
+
+expr_eval.sno uses `ANY('+-') . *Push()` — conditional assignment where target
+is a deferred function call returning a NAME via NRETURN. Current `deferred_call_fn`
+in `snobol4_pattern.c` calls `APPLY_fn` and discards the result — no mechanism
+to relay the NRETURN DT_N back to the bb_capture conditional assignment.
+This requires `XCALLCAP` node support. Deeper than RT-2/3; touches the BB engine.
+EVAL() itself works (EVAL('1+2')=3 ✓). The blocker is the `. *Push()` NAME relay.
+
+### Baselines for sprint 98
+- `one4all`: `62a2bd2`
+- `corpus`: `8d5cc6a`
+- `.github`: see push below
+- scrip-interp: PASS=177 FAIL=1
+
+### Build command (confirmed working, clean container)
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"
+mkdir -p /tmp/ib
+
+for f in src/frontend/snobol4/snobol4.tab.c src/frontend/snobol4/snobol4.lex.c; do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+for f in src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
+         src/runtime/snobol4/invoke.c src/runtime/snobol4/argval.c \
+         src/runtime/dyn/stmt_exec.c src/runtime/dyn/eval_code.c \
+         src/runtime/engine/engine.c; do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+for f in $(find src/runtime/boxes -name "bb_*.c" | grep -v "bb_dvar\|bb_atp\|bb_capture"); do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    -c src/driver/scrip-interp.c -o /tmp/ib/scrip_interp_driver.o
+
+gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+    -c src/runtime/asm/x86_stubs_interp.c -o /tmp/ib/x86_stubs.o
+
+gcc /tmp/ib/*.o -lgc -lm -o scrip-interp
+bash test/run_interp_broad.sh   # confirm PASS=177 FAIL=1
+```
+
+### Sprint 98 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-RT-RUNTIME.md
+
+# Build (see command above)
+# Confirm PASS=177 FAIL=1
+
+# RT-3: NAME type + keyword names
+# File: src/runtime/snobol4/snobol4.c — NAME_fn, ASGNIC_fn, extend NV_GET/SET for DT_K
+# OR: tackle XCALLCAP for expr_eval (. *Push() NAME relay) → PASS=178
+# Lon to decide priority.
+```

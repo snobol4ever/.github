@@ -152,7 +152,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 96 | one4all `07d9bf4` · corpus `8d5cc6a` | **chained `[]` ✅** — 84/84 dyn89 · Listen2\*/WordNet 11/16 — next: P2D EQTYP in subscript `A[J=J+1]` |
+| 97 | one4all `62a2bd2` · corpus `8d5cc6a` | RT-2 ✅ argval.c — PASS=177; next: RT-3 NAME_fn/ASGNIC_fn OR XCALLCAP for expr_eval → PASS=178 |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -210,3 +210,39 @@ Mirrors CSNOBOL4's IBLKTB call between operator and RHS.
 Computed goto `:S($('label' VAR))` requires FORWRD() in SGOTYP and FGOTYP
 branches — not just STOTYP/FTOTYP. One unconditional FORWRD() covers both
 paren and angle-bracket forms.
+
+### Sprint 98 first actions (scrip-interp / SIL track) — appended 2026-04-05
+**Date:** 2026-04-05
+
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-RT-SIL-MACROS.md    # READ FIRST — vocabulary for all RT work
+cat .github/MILESTONE-RT-RUNTIME.md
+cat .github/SESSION-snobol4-x64.md
+
+# Build with argval.c now in the loop:
+# Add src/runtime/snobol4/argval.c to the runtime for-loop in the build command
+# x86_stubs_interp.c provides stmt_init — use instead of snobol4_stmt_rt.c
+# Confirm PASS=177 FAIL=1
+
+# PRIORITY 1: sil_macros.h
+#   Create src/runtime/snobol4/sil_macros.h (Groups 1+2 of MILESTONE-RT-SIL-MACROS.md)
+#   TESTF, VEQLC, DEQL, AEQLC, INCRA, DECRA
+#   IS_INT, IS_REAL, IS_STR, IS_PAT, IS_NAME, IS_KW, IS_EXPR, IS_CODE
+#   SPCINT_fn, SPREAL_fn, REALST_fn, INTSP_fn stubs → forward to RT functions
+
+# PRIORITY 2: SCRIP-SM.md update — 12 new SM ops
+#   SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH, SM_STATE_POP
+#   SM_INCR, SM_DECR, SM_LCOMP, SM_RCOMP, SM_TRIM, SM_ACOMP, SM_SPCINT, SM_SPREAL
+
+# PRIORITY 3: Fix PLS — one line in SNO_INIT_fn in snobol4.c:
+#   register_fn("PLS", _b_pos, 1, 1)
+
+# Commit: "RT-SIL: sil_macros.h + 12 new SM ops + PLS unary fix; PASS=177"
+
+# PRIORITY 4: RT-3 NAME_fn + ASGNIC_fn + DT_K keyword dispatch
+#   src/runtime/snobol4/snobol4.c — use sil_macros.h TESTF/IS_KW from day one
+#   Gate: PASS >= 177
+```
