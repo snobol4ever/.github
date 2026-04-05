@@ -130,7 +130,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 92 | one4all `229b04e` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1 ✅ 84/84** — next: Phase 2 SPITBOL extensions (P2A binary `?`, P2C `[]` subscript, P2F semicolon) |
+| 93 | one4all `174d77e` · corpus `8d5cc6a` | **P2C ✅ ([] subscript, postfix-on-call) · P2F ✅ (semicolon + ;* comment)** — next: P2A binary `?` |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK

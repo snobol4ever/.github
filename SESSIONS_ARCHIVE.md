@@ -24697,3 +24697,54 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 # Next: Phase 2 SPITBOL extensions — start with P2C ([] subscript, easiest)
 # then P2F (semicolon separator), then P2A (binary ?)
 ```
+
+## SNOBOL4 × x86 sprint 93 — 2026-04-04
+
+### What Was Done
+
+**P2C ([] subscript) — confirmed already working from prior sprint** ✅
+- `T['key']` → ARYTYP with string subscript
+- `TABLE()[T['key']]` → IDX(TABLE-call, subscript) — postfix subscript on call result
+- The 6-file bug from sprint 91 was already fixed in the code
+
+**P2F (semicolon statement separator) — implemented** ✅
+- Root cause: `ACT_STOP` consumes `;` (stream.c:94: cp++; len--), so TEXTSP is already past it
+- Fix: when `BRTYPE == EOSTYP && TEXTSP.len > 0` after compile_one_stmt(), prepend space (suppresses LBLTB label scan) and loop
+- `;*` inline comment: break on leading `*` after whitespace skip — recovered global.sno
+- 84/84 sweep maintained throughout
+
+**Full 551-file corpus sweep — first time run** ✅
+- 514/551 OK (without -I flags)
+- 37 ERRs — two main categories:
+  1. Computed goto expressions: `:S($('label' VAR))` — `$` unary in goto context not handled (~10 files, Listen2* + WANG etc.)
+  2. Assignment-inside-subscript: `A[i = i+1, 1]` — EQTYP terminates subscript early — P2D (~10 files)
+- CRLF stripping confirmed working — the 8 Gimpel CRLF files fail for other reasons (computed goto)
+- No phantom stream divergences — all errors are identifiable SPITBOL feature gaps
+
+**Stream sync confirmed:**
+- 84/84 dyn89_sweep confirmed: every stream() call fires in same sequence, same STYPE/BRTYPE, as CSNOBOL4
+- Full 551-file set: 514 pass cleanly, 37 fail on unimplemented SPITBOL features only
+
+### Commits
+- `one4all`: `174d77e` (P2F)
+- `.github`: pushed after this entry
+
+### Baselines for sprint 94
+- `one4all`: `174d77e`
+- `corpus`: `8d5cc6a`
+
+### Sprint 94 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Full 551-file sweep: find corpus -name "*.sno" | sort | while read -r sno; do ... done
+# Next: P2A binary ? — in BINOP(), after BIOPTB returns ST_ERROR for '?',
+#   check current char == '?' and return BISNFN(215) at priority 1
+# OR: computed goto fix — CMPGO needs ELEMNT for $(...) in :S/:F label position
+```
