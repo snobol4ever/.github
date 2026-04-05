@@ -166,29 +166,41 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| **RT-110** (scrip-interp) | one4all `ca77163` · corpus `3fd44d0` · PASS=178/203 | multi-line continuation fix ✅ word2/3/4 ✅ — next: non-ASCII comment fix → 1010_func_recursion PASS≥179 |
-| **P3B** (sno4parse/CMPILE) | one4all `7d41087` · corpus `3fd44d0` · PASS=175 | P2A ✅ P2B ✅ P2C ✅ P2F ✅ P3A ✅ P3B ✅ — next: P2D chained assign OR Unicode sweep verification |
+| RT-109 | one4all `8743f20` · corpus `3fd44d0` · PASS=175/203 | frame-stack nmd.c ✅ CMPILE dot/dollar left+right atom fix ✅ — next: word2/3/4 triage, then Option A non-ASCII comment fix → PASS≥180 |
+| RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
+| RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
+| RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
+| RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
+| 101 (sno4parse) | one4all `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — Phase 2 crosscheck gate ✅ PASSED (sprint 101)
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
-**Next session first actions:**
+**Next session first actions (sprint RT-105 — Track C):**
 ```bash
 cd /home/claude
 apt-get install -y libgc-dev flex
-# ⛔ MANDATORY STALENESS CHECK — do this before reading anything else:
-cd one4all && git log --oneline -3   # verify 7d41087 is HEAD
-cd /home/claude/corpus && git log --oneline -3  # verify 3fd44d0
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
-cd /home/claude/one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
 
-# Track C next: non-ASCII comment fix → unlock 1010_func_recursion → PASS≥179
-# Track A next: P2D chained assignment A=B=C+1 in CMPILE.c expr_prec_continue
+# Step 1: --dump-parse / --dump-parse-flat flags in scrip-interp.c
+#   In main() arg-parse loop, detect --dump-parse / --dump-parse-flat
+#   After cmpile_file() call, walk CMPILE_t list calling cmpile_print(s, stdout, oneline, idx)
+#   Note: scrip-interp still uses sno_parse for the file — add cmpile_file() path alongside
+
+# Step 2: Wire CMPILE as top-level file parser replacing sno_parse
+#   scrip-interp.c: replace sno_parse(f, path) with cmpile_lower(cmpile_file(f, path))
+#   cmpile_lower(): walks CMPILE_t list, calls cmpnd_to_expr() per field, builds Program*
+#   Gate: PASS >= 190 (no regression); expr_eval passing → PASS=191 is the bonus
+
+# Step 3: Test EVAL() explicitly
+#   printf 'OUTPUT = EVAL(\"1 + 2\")\nEND\n' > /tmp/e.sno
+#   SNO_LIB=.../lib ./scrip-interp /tmp/e.sno   # expect: 3
 ```
 
 *(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
