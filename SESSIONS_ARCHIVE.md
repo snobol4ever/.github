@@ -26576,3 +26576,61 @@ SNO_TRACE=1 SNO_LIB=/home/claude/corpus/lib ./scrip-interp --dump-parse /tmp/t_m
 # Fix 4: update MILESTONE-SN4PARSE-VALIDATE.md P3A/P3B status to ✅
 >>>>>>> Stashed changes
 ```
+
+## Sprint HANDOFF-META — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** HQ maintenance — §NOW staleness diagnosis and fix
+
+### Work done
+
+No code changes. Diagnosed the recurring §NOW staleness failure mode:
+
+**Root cause:** Handoff protocol appended "first actions" to SESSIONS_ARCHIVE (correct)
+but never rewrote §NOW in SESSION-snobol4-x64.md or PLAN.md §NOW. Stale tables
+contradicted the archive; new sessions read stale §NOW as ground truth and presented
+it as current state.
+
+**P3B sprint (7d41087) was never reflected in §NOW** — even though the archive's
+first-actions block said "Fix 3: update SESSION-snobol4-x64.md §NOW". That note
+was never enforced.
+
+### HQ fixes committed (6db8eb7 on .github main)
+
+| Doc | Change |
+|-----|--------|
+| `GENERAL-RULES.md` | §NOW STALENESS rule: mandates `git log` verify before trusting §NOW; explicit rule §NOW must be updated on handoff |
+| `PLAN.md` | §NOW updated to 7d41087/ca77163; Step 1 now includes mandatory `git log` staleness check |
+| `SESSION-snobol4-x64.md` | §NOW rewritten to actual state; next-session first-actions updated |
+| `MILESTONE-SN4PARSE-VALIDATE.md` | P3A ✅ P3B ✅ |
+
+### Baseline at session end (verified)
+- one4all HEAD: `7d41087` (P3A/P3B: Unicode idents) · corpus HEAD: `3fd44d0`
+- scrip-interp HEAD: `ca77163` (RT-110: multi-line continuation) · PASS=178/203
+- .github HEAD: `6db8eb7`
+
+### Open milestones
+- Track A (sno4parse): P2D chained assign `A=B=C+1` · P2E embedded match (needs P2D)
+- Track C (scrip-interp): non-ASCII comment fix → 1010_func_recursion → PASS≥179
+
+### Sprint next session first actions
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+# ⛔ MANDATORY STALENESS CHECK:
+cd one4all && git log --oneline -3   # must show 7d41087 or newer
+cd /home/claude/corpus && git log --oneline -3  # must show 3fd44d0 or newer
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd /home/claude/one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Track C: non-ASCII comment fix in cmpile_file_internal()
+#   Skip lines where first char is '*' (CMTTYP) without calling STREAM/ELEMNT
+#   Gate: 1010_func_recursion passes → PASS≥179
+
+# Track A: P2D — A=B=C+1 chained assignment in expr_prec_continue
+#   When BRTYPE==EQTYP in binary op position, recurse expr_prec(0) for RHS chain
+```
