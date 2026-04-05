@@ -25944,3 +25944,79 @@ bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/program
 - corpus HEAD: `65494e7` (unchanged)
 - Sweep: 84/84 OK ERR=0 HANG=0
 - Broader (snobol4+beauty+gimpel): 224 OK / 1 non-sno data ERR / 5 unresolved-include HANGs
+
+---
+
+## Sprint 100 (cont) / Sprint 101 — snobol4 × x86 (CMPILE track) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track A — sno4parse / CMPILE
+
+### Baseline confirmed at session start
+- one4all HEAD: `febd82f` (pre-session) → `601890a` (post-session)
+- corpus HEAD: `65494e7` (unchanged)
+- Sweep: 84/84 OK ERR=0 HANG=0 — confirmed
+
+### Three bugs fixed in CMPILE.c
+
+#### Bug A — unresolved `-INCLUDE` hang (NOT.sno, PEEL.sno, TR.sno)
+**Root cause:** When `fopen()` fails for an `-INCLUDE` directive, both CTLTYP handlers
+(in `forrun()` and `cmpile_file_internal()`) printed to stderr and continued silently,
+leaving `g_io_eof=0` and parse state corrupted. With stdin open, the parser blocked
+waiting for input.
+**Fix:** Call `sil_error()` on include-not-found so `g_error` is set and parse aborts
+cleanly. Both handlers updated.
+
+#### Bug B — UNOPTB ST_EOS infinite loop (ASM360.sno, PEEL.sno, TR.sno)
+**Root cause:** ELEMNT's UNOP `for(;;)` loop called `stream(&tok, &TEXTSP, &UNOPTB)`.
+When TEXTSP was empty (len=0), stream returned `ST_EOS`. The loop only handled
+`ST_ERROR`; `ST_EOS` fell through to node-build code with stale STYPE → infinite loop.
+**Fix:** Add `ST_EOS → TEXTSP = saved; break` at top of UNOP loop. This is a safety
+net; the root cause is actually Bug C below.
+
+#### Bug C — BINOP returns CATFN instead of ORFN when operator at EOL (ASM360.sno)
+**Root cause:** `BIOPTB['|']` action is `{ORFN, ACT_GOTO, &TBLKTB}`. When `|` is the
+last char on a physical line before a continuation, BIOPTB consumes `|` (STYPE=ORFN set)
+then TBLKTB runs and hits ST_EOS (no trailing blank). BINOP saw `ST_EOS` from the
+BIOPTB chain and returned `CATFN` (juxtaposition) unconditionally, discarding STYPE=ORFN.
+`expr_prec_continue` then called `expr_prec()` for the CATFN right operand without
+a `FORWRD()`, so ELEMNT received empty TEXTSP → Bug B triggered.
+**Fix:** In BINOP, when `stream(BIOPTB)` returns `ST_EOS` with `STYPE != 0`, the
+operator was recognised despite running out of input — return `STYPE` (the operator),
+not `CATFN`. The subsequent `FORWRD()` in `expr_prec_continue` then loads the
+continuation line via `forrun()`.
+
+### Sweep results
+| Sweep | Before | After |
+|-------|--------|-------|
+| snobol4/ 84 | 84/84 OK 0 HANG | 84/84 OK 0 HANG ✓ |
+| gimpel/ 145 | 140 OK 1 ERR 4 HANG | 143 OK 2 ERR 0 HANG |
+
+Remaining 2 ERRs: PHRASES.sno (grammar data file, not SNOBOL4 source) and TR.sno
+(unresolved `-INCLUDE "push.sno"` — CSNOBOL4 also errors: Error 30). Both are
+"both error → OK" per correctness model.
+
+### Committed
+- `one4all` `601890a` — three CMPILE fixes + updated binary
+
+### Sprint 102 first actions (CMPILE track)
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+# Confirm 84/84:
+bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; HANG=0; while IFS= read -r f; do ec=0; r=$(timeout 10 "$SNO4" "$f" 2>&1)||ec=$?; [[ $ec -eq 124 ]] && { HANG=$((HANG+1)); continue; }; e=$(echo "$r"|grep -m1 "ELEMNT:\|sil_error\|illegal"||true); [[ -n "$e" ]] && ERR=$((ERR+1)) || OK=$((OK+1)); done < <(find "$CORPUS" -name "*.sno"|sort); echo "=== OK=$OK ERR=$ERR HANG=$HANG ==="'
+# Rebuild from source (wrap.c at /tmp/sno4parse_wrap.c — reconstruct if missing):
+gcc -O0 -g -Wall -Wno-unused-function -I one4all/src/frontend/snobol4 \
+    -o sno4parse one4all/src/frontend/snobol4/CMPILE.c /tmp/sno4parse_wrap.c
+cp sno4parse one4all/sno4parse
+
+# Next: run crosscheck/ suite — Phase 2 validation gate
+# Also: consider broader beauty/demo sweep with -I flags
+```
+
+### Baseline at session end
+- one4all HEAD: `601890a`
+- corpus HEAD: `65494e7`
+- Sweep: 84/84 OK ERR=0 HANG=0
+- Gimpel: 143/145 OK, 2 ERR (both CSNOBOL4-confirmed), 0 HANG
