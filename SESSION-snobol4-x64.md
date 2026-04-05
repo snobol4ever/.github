@@ -46,17 +46,12 @@ cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0"
 ```
 Files: `one4all/csnobol4/stream.c`, `main.c`, `README.md`, `dyn89_sweep.sh`
 
-### BIOPTB_SPITBOL — table extension pattern for SPITBOL ops (sprint 94)
+### P2A — binary `?` operator (sprint 94)
 **Date:** 2026-04-04
 
-SPITBOL extensions are new syntab tables + action arrays only — no new C code.
-Pattern: copy existing chrs[], remap one byte to a new action index, add one actions[] entry.
-
-`BIOPTB_SPITBOL`: identical to BIOPTB except byte 63 (`?`) → action 16 → `{BISNFN, ACT_GOTO, &TBLKTB}`.
-`g_bioptb` pointer (default `&BIOPTB_SPITBOL`) passed to `stream()` in BINOP().
-`op_prec(BISNFN) = 1` and `op_prec(BIQSFN) = 1` — both at lowest binary precedence.
-
-This is the model for all future SPITBOL extension tables (P2B, P2D, etc.).
+`?` (byte 63) was already in BIOPTB chrs[] → action 14 → `BIQSFN` (214).
+The entire fix: `op_prec(BIQSFN) = 1` — lowest binary precedence per SPITBOL spec.
+No new table. No new actions. No g_bioptb pointer. One line.
 
 ### True streaming — no linebuf, no pre-joining (sprint 92)
 **Date:** 2026-04-04
@@ -142,7 +137,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 94 | one4all `3fae7cd` · corpus `8d5cc6a` | **P2A ✅ (BIOPTB_SPITBOL table, `?`→BISNFN via action 16, g_bioptb pointer)** — next: computed goto `$(`...`)` in :S/:F, or P2D assignment-inside-subscript |
+| 94 | one4all `5c1a1d8` · corpus `8d5cc6a` | **P2A ✅ (`op_prec(BIQSFN)=1` — BIOPTB already had `?`; no new table needed)** — next: computed goto `$(...)` in :S/:F, or P2D `A[J=J+1]` |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK

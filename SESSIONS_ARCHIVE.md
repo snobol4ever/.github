@@ -24796,3 +24796,7 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 # Next: computed goto — $(...) in :S/:F label position
 # Or: P2D assignment-inside-subscript A[J=J+1] — EQTYP terminates subscript early
 ```
+
+## SNOBOL4 × x86 sprint 94 addendum — cleanup — 2026-04-04
+
+P2A correct fix: `op_prec(BIQSFN) = 1`. One line. `?` was already in BIOPTB chrs[] → action 14 → BIQSFN(214). No new table needed. BIOPTB_SPITBOL and g_bioptb removed (one4all `5c1a1d8`).
