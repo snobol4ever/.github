@@ -25730,3 +25730,92 @@ bash test/run_interp_broad.sh
 
 # Step 4: If PASS=189, move to RT-3 NAME_fn/ASGNIC_fn per MILESTONE-RT-RUNTIME.md
 ```
+
+---
+
+## Sprint 103 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL (RT-3)
+
+### Baseline confirmed
+- one4all HEAD: `ed1912c` → pushed as `3548683`
+- corpus HEAD: `65494e7` → pushed as `3fd44d0`
+- PASS=188 FAIL=13 (201 total) — confirmed at session start and end
+
+### Build fix (sprint 102 completion)
+- `eval_via_sno4parse`: removed 6 erroneous `extern` declarations (sno4parse.c is `#include`d — same TU)
+- Added `extern DESCR_t eval_node(EXPR_t *e)` forward decl before `eval_via_sno4parse`
+- Removed duplicate `extern DESCR_t eval_node(void *e)` in `EVAL_fn` (wrong `void*` signature)
+- Build now clean
+
+### sil_macros.h — wired to all RT files
+`src/runtime/snobol4/sil_macros.h` existed but was included nowhere. Now `#include`d in:
+- `src/driver/scrip-interp.c` (after `snobol4.h`, before `runtime_shim.h`)
+- `src/runtime/snobol4/snobol4.c`, `argval.c`, `invoke.c` (after `"snobol4.h"`)
+- `src/runtime/dyn/eval_code.c`, `stmt_exec.c`
+
+**Invariant:** All new RT-3+ code uses `IS_NAME(d)`, `IS_INT(d)` etc. from `sil_macros.h`.
+Use `INTVAL(to_int(val))` not `INTVAL_fn(val)` — shim macro `runtime_shim.h` shadows it.
+
+### Makefile added
+`one4all/Makefile` — `make scrip-interp`, `make scrip-cc`, `make test`, `make clean`.
+`make scrip-interp` reproduces the sprint 100 canonical build exactly.
+
+### RT-3 fixes implemented
+
+**ASGNIC — keyword INTVAL coercion** ✅
+`&ANCHOR = '1'` (string) now coerces correctly. Fix: `INTVAL(to_int(repl_val))` before
+`NV_SET_fn` in the `E_KEYWORD` assignment branch of `scrip-interp.c`.
+
+**`$X` runtime indirect** ✅
+`$X` where X="A" now returns value of A (not "A").
+Root cause: `E_INDIRECT(E_VAR("X"))` hit the `E_VAR` branch which immediately returned
+`NV_GET_fn("X")` = "A" without the second lookup. Fix: `had_name_wrap` flag distinguishes
+`$.var` (E_NAME-unwrapped, return directly) from `$X` (no wrap, evaluate X then look up).
+
+**`$NM` DT_N NAMEVAL dereference** ✅
+`$NM` where NM=`.A` (DT_N NAMEVAL) now returns 42.
+Root cause: NAMEVAL (slen=0) and NAMEPTR (slen=1) share the same union field (`.s` / `.ptr`).
+Previous code checked `d.ptr != NULL` — NAMEVAL's `.s` pointer is non-null, so it entered
+the NAMEPTR branch and dereferenced a char* as DESCR_t* → garbage.
+Fix: discriminate by `slen` consistently everywhere (matches `NAME_DEREF`/`NAME_SET`).
+Applied to: `E_VAR` branch, `E_CAPT_COND_ASGN` branch, `$expr` fallthrough.
+
+### New corpus tests
+- `corpus/crosscheck/rung2/213_indirect_name.sno` — 5 assertions: $X, $NM, $X lvalue, $.A, NRETURN read
+- `corpus/crosscheck/keywords/099_keyword_rw.sno` — 5 assertions: &ANCHOR default/int/str-coerce, &STLIMIT datatype, round-trip
+
+### Why PASS=188 unchanged
+`expr_eval` is the gating test. It uses `EVAL(op arg)` (e.g. `EVAL("1 + 2")`).
+The `eval_via_sno4parse` fix from sprint 102 compiles but produces wrong output:
+- `EVAL("1 + 2")` returns PATTERN or concatenated string, not numeric result
+- Root cause: `node_to_expr()` translation from `NODE*` (sno4parse AST) to `EXPR_t*`
+  is not handling arithmetic operators correctly — likely E_ADD/E_MUL nodes are
+  being converted to pattern-concat nodes or string concat nodes
+
+### Sprint 104 first actions (Track C — EVAL fix)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+sed -n '/^## RT-3/,/^## RT-/p' .github/MILESTONE-RT-RUNTIME.md | head -60
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=188
+
+# EVAL fix — node_to_expr() in snobol4_pattern.c
+# 1. Read node_to_expr() — check how E_ADD, E_MUL, E_DIV, E_SUB map from NODE* kinds
+#    sno4parse.c uses: NOD_ADD, NOD_MUL etc. (or NODADD, NODMUL?)
+#    scrip_cc.h uses:  E_ADD, E_MUL etc.
+# 2. Run: SNO_LIB=... ./scrip-interp <(echo "OUTPUT = EVAL('1 + 2')") 2>&1
+#    Expect: 3  Got: wrong → trace node_to_expr output type
+# 3. Fix node_to_expr() arithmetic operator mapping
+# Gate: expr_eval passes → PASS=189
+```
+
+### Baseline at session end
+- one4all HEAD: `3548683`
+- corpus HEAD: `3fd44d0`
+- PASS=188 FAIL=13 (201 total) — unchanged (EVAL fix needed for gate)
