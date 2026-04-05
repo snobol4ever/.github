@@ -1,175 +1,206 @@
 # MILESTONE-RT-SIL-MACROS.md — SIL Macro Classification for SM + scrip-interp
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**Date:** 2026-04-04
+**Date:** 2026-04-05 (revised — dual-axis classification)
 **Status:** DESIGN — feeds RT milestones and SM_Program instruction set
-**Source:** `v311.sil` (CSNOBOL4 2.3.3, Phil Budne)
+**Source:** `v311.sil` (CSNOBOL4 2.3.3, Phil Budne) + `include/macros.h` (C translations)
 
 ---
 
-## The Question
+## The Question (Sharpened)
 
 SIL defines ~130 macro instructions and ~211 named procedures.
-Which of these are **useful to us** — either as:
+For each, we need to know **both**:
 
-1. **SM_Program instructions** (stack machine ops in `SCRIP-SM.md`)
-2. **C runtime functions** called by `scrip-interp` / SM dispatch
-3. **Both** — same name, same semantics, in interpreter AND emitter
+1. **scrip-interp axis** — does it become a C function / C macro in the RT layer?
+   Used by: `snobol4.c`, `argval.c`, `invoke.c`, `nmd.c`, `eval_code.c`, `stmt_exec.c`
+2. **SM_Program axis** — does it become a named SM_Program instruction?
+   Used by: `sm_interp.c` dispatch loop (RT-9) + all emitters (x86, JVM, .NET, JS)
 
-The SIL macro set IS the right model for our stack machine because
-SIL was designed with exactly this property: each macro = one
-portable, composable runtime operation. The SM_Program instruction
-set in SCRIP-SM.md already captures the most important ones. This
-doc fills in what's missing and classifies everything.
+These are **independent axes**. A macro can be:
+- RT only (too low-level for the SM — e.g. field access macros)
+- SM only (pure control flow with no C-level helper needed)
+- BOTH (the SM instruction dispatches to a C RT function — most common)
+- SKIP (GC/compiler/IO internal — irrelevant to our runtime)
 
 ---
 
-## Classification Key
+## Classification Tags
 
 | Tag | Meaning |
 |-----|---------|
-| **SM** | Should be / already is an SM_Program instruction |
-| **RT** | Should be a named C runtime function (called from SM dispatch or scrip-interp) |
-| **BOTH** | SM instruction that also has a C RT function implementing it |
-| **SKIP** | Compiler/GC/IO internal — not useful for our runtime |
-| **DONE** | Already implemented (SM or RT) |
+| **RT** | C macro/inline/function in `sil_macros.h` or RT source file |
+| **SM** | SM_Program instruction in `SM_Op` enum + dispatch case in `sm_interp.c` |
+| **BOTH** | SM instruction whose dispatch calls a C RT function by the same name |
+| **SKIP** | GC/compiler/IO internal — not useful |
+| **DONE** | Already implemented |
 
 ---
 
 ## Group 1 — Descriptor Access (GETD / PUTD family)
 
-These are the SIL memory model — read/write typed descriptors.
-In our model these are C field accesses on `DESCR_t`.
-Not SM instructions (too low-level) but should be C macros/inlines.
+**Axis: RT only.** These are C field accesses on `DESCR_t`.
+Too low-level to be SM instructions — the SM operates on typed values,
+not raw memory offsets. Every RT function uses these.
+C translations are in `include/macros.h` (`D()`, `D_A()`, `D_V()`, `D_F()`).
 
-| SIL Macro | Operation | Our Equivalent | Tag |
-|-----------|-----------|---------------|-----|
-| `GETD d,base,off` | Load descriptor from base+off | `d = *(DESCR_t*)(base+off)` | RT macro |
-| `PUTD base,off,d` | Store descriptor at base+off | `*(DESCR_t*)(base+off) = d` | RT macro |
-| `GETDC d,base,off` | Load from C-struct field | field access on struct | RT macro |
-| `PUTDC base,off,d` | Store to C-struct field | field access on struct | RT macro |
-| `GETAC d,base,off` | Load address (pointer field) | pointer dereference | RT macro |
-| `PUTAC base,off,d` | Store address | pointer store | RT macro |
-| `MOVD dst,src` | Copy descriptor | `dst = src` | RT macro |
-| `MOVDIC dst,doff,src,soff` | Copy descriptor indirect | struct copy | RT macro |
-| `MOVV dst,src` | Copy value field only | `dst.v = src.v` | RT macro |
-| `MOVA dst,src` | Copy address field | `dst.ptr = src.ptr` | RT macro |
-| `MOVBLK dst,src,sz` | Copy block | `memcpy` | RT macro |
+| SIL Macro | SIL Semantics | C Translation | scrip-interp | SM_Program |
+|-----------|---------------|---------------|:---:|:---:|
+| `GETD d,base,off` | d = *(base+off) | `d = *(DESCR_t*)((char*)base+off)` | RT macro | — |
+| `PUTD base,off,d` | *(base+off) = d | `*(DESCR_t*)((char*)base+off) = d` | RT macro | — |
+| `GETDC d,base,off` | d = base->field[off] | struct field access | RT macro | — |
+| `PUTDC base,off,d` | base->field[off] = d | struct field assign | RT macro | — |
+| `GETAC d,base,off` | d = (ptr)base[off] | pointer load | RT macro | — |
+| `PUTAC base,off,d` | base[off] = (ptr)d | pointer store | RT macro | — |
+| `SETAC base,val` | base.a = constant | `d.ptr = (void*)val` | RT macro | — |
+| `SETAV d,src` | d.a = src.v | `d.ptr = (void*)(intptr_t)src.v` | RT macro | — |
+| `MOVD dst,src` | dst = src (full descr) | `dst = src` | RT macro | — |
+| `MOVDIC d,doff,s,soff` | d[doff] = s[soff] | indirect struct copy | RT macro | — |
+| `MOVV dst,src` | dst.v = src.v | `dst.v = src.v` | RT macro | — |
+| `MOVA dst,src` | dst.a = src.a | `dst.ptr = src.ptr` | RT macro | — |
+| `MOVBLK dst,src,sz` | memcpy block | `memmove(dst+DESCR, src+DESCR, sz)` | RT macro | — |
 
-**Decision:** These become a `sil_macros.h` header of C `#define` / `static inline`.
-Not SM instructions. Used by every RT function.
+**sil_macros.h action:** `#define GETDC(d,base,off)`, `#define PUTDC(base,off,d)`, etc.
+Mirror `macros.h` D_A/D_V/D_F field accessors with our `DESCR_t` layout.
 
 ---
 
 ## Group 2 — Type Test and Comparison
 
-| SIL Macro | Operation | SM? | RT? |
-|-----------|-----------|-----|-----|
-| `TESTF d,type,eq,ne` | Test data type flag | — | **RT** `TESTF(d,T)` → bool |
-| `TESTFI d,type,off,eq,ne` | Test type at indirect | — | **RT** |
-| `VEQLC d,type,t,f` | Value (type) == constant? | — | **RT** `VEQLC(d,T)` |
-| `VEQL d1,d2,t,f` | Value types equal? | — | **RT** |
-| `DEQL d1,d2,t,f` | Descriptors identical? | — | **RT** |
-| `AEQLC d,val,t,f` | Address == constant? | — | **RT** |
-| `AEQL d1,d2,t,f` | Addresses equal? | — | **RT** |
-| `ACOMP d1,d2,lt,eq,gt` | Compare addresses (integers) | **SM** `SM_ACOMP` | **RT** |
-| `ACOMPC d,val,lt,eq,gt` | Compare address vs constant | **SM** | **RT** |
-| `LCMP` | Compare lengths | — | **RT** |
-| `LCOMP` | Length compare | — | **RT** |
-| `LEQLC sp,n,t,f` | Length of specifier == n? | — | **RT** |
-| `RCOMP d1,d2,lt,eq,gt` | Compare reals | **SM** `SM_RCOMP` | **RT** |
-| `VCMPIC d,type,off,t,f` | Type compare indirect | — | **RT** |
-| `VCOMPC d,type,t,f` | Value compare constant | — | **RT** |
+**Axis: RT (all); SM (ACOMP, RCOMP, LCOMP only).**
+Type tests are C conditionals in RT functions. Only the three
+compare ops that replace common `SM_CALL` paths earn SM status.
 
-**SM additions from this group:** `SM_ACOMP`, `SM_RCOMP` (integer/real compare for
-arithmetic predicates EQ/GT/LT/etc. — currently these are SM_CALL to builtin;
-making them native SM ops eliminates dispatch overhead).
+| SIL Macro | SIL Semantics | scrip-interp | SM_Program |
+|-----------|---------------|:---:|:---:|
+| `TESTF d,type,eq,ne` | if (d.f & type) goto eq else ne | **RT** `IS_FNC(d)` | — |
+| `TESTFI d,type,off,eq,ne` | indirect type test | **RT** | — |
+| `VEQLC d,T,t,f` | if (d.v == T) goto t else f | **RT** `IS_TYPE(d,T)` | — |
+| `VEQL d1,d2,t,f` | if (d1.v == d2.v) | **RT** `SAME_TYPE(a,b)` | — |
+| `DEQL d1,d2,t,f` | if (d1==d2) full descr equal | **RT** `DEQL(a,b)` | — |
+| `AEQLC d,val,t,f` | if (d.a == constant) | **RT** `AEQLC(d,v)` | — |
+| `AEQL d1,d2,t,f` | if (d1.a == d2.a) | **RT** `AEQL(a,b)` | — |
+| `ACOMP d1,d2,lt,eq,gt` | compare integers/addresses | **RT** `ACOMP(a,b)` | **SM** `SM_ACOMP` |
+| `ACOMPC d,val,lt,eq,gt` | compare address vs constant | **RT** `ACOMPC(d,v)` | — |
+| `RCOMP d1,d2,lt,eq,gt` | compare reals | **RT** `RCOMP(a,b)` | **SM** `SM_RCOMP` |
+| `LEQLC sp,n,t,f` | if (sp.len == n) | **RT** `SP_LEN_EQ(sp,n)` | — |
+| `LCMP sp1,sp2,lt,eq,gt` | compare string lengths | **RT** `LCMP(a,b)` | — |
+| `LCOMP sp1,sp2,lt,eq,gt` | lexicographic compare | **RT** `LCOMP_fn(a,b)` → `lexcmp()` | **SM** `SM_LCOMP` |
+| `VCMPIC d,T,off,t,f` | type compare indirect | **RT** | — |
+| `VCOMPC d,T,t,f` | value compare constant | **RT** | — |
+| `PCOMP d,val,lt,eq,gt` | compare as pointer (unsigned) | **RT** `PCOMP(a,b)` | — |
+
+**SM rationale:** `SM_ACOMP` replaces `SM_CALL "EQ"/"GT"/"LT"` for integer predicates.
+`SM_RCOMP` replaces `SM_CALL "GE"/"LE"` for real predicates.
+`SM_LCOMP` replaces `SM_CALL "LGT"/"LLT"/"LGE"/"LLE"` for string predicates.
+All three are hot paths; making them native SM ops eliminates INVOKE overhead.
+
+**sil_macros.h action:** `IS_INT`, `IS_REAL`, `IS_STR`, `IS_PAT`, `IS_NAME`, `IS_KW`,
+`IS_EXPR`, `IS_CODE`, `IS_FNC`, `TESTF`, `VEQLC`, `DEQL`, `AEQLC`.
 
 ---
 
 ## Group 3 — Arithmetic on Addresses/Integers
 
-| SIL Macro | Operation | SM? | RT? |
-|-----------|-----------|-----|-----|
-| `INCRA d,n` | d += n (address/integer) | **SM** `SM_INCR` | **RT** |
-| `DECRA d,n` | d -= n | **SM** `SM_DECR` | **RT** |
-| `SUM d,a,b` | d = a + b | **SM** `SM_ADD` (DONE) | **RT** |
-| `MULT d,a,b` | d = a * b | **SM** `SM_MUL` (DONE) | **RT** |
-| `MULTC d,a,c` | d = a * constant | — | **RT** |
-| `DIVIDE d,a,b` | d = a / b | **SM** `SM_DIV` (DONE) | **RT** |
-| `SUBTRT d,a,b` | d = a - b | **SM** `SM_SUB` (DONE) | **RT** |
-| `ADDLG d,sp` | d += length of specifier | — | **RT** |
-| `ADREAL d,x,y` | d = x + y (reals) | — | **RT** |
-| `MPREAL d,x,y` | d = x * y (reals) | — | **RT** |
-| `DVREAL d,x,y` | d = x / y (reals) | — | **RT** |
-| `SBREAL d,x,y` | d = x - y (reals) | — | **RT** |
-| `MNSINT d,x,br,ok` | d = -x (integer, overflow→br) | — | **RT** `NEG_I` |
-| `MNREAL d,x` | d = -x (real) | — | **RT** `NEG_R` |
-| `INTRL d,x` | d = (real)x (int→real) | — | **RT** `INT_TO_REAL` |
-| `RLINT d,x,f,ok` | d = (int)x (real→int, fail→f) | — | **RT** `REAL_TO_INT` |
-| `EXREAL d,x,y,err,ok` | d = x**y (reals) | — | **RT** `EXP_R` |
+**Axis: RT (all inline ops); SM (INCR, DECR only as dedicated ops; ADD/SUB/MUL/DIV already DONE).**
+
+| SIL Macro | SIL Semantics | scrip-interp | SM_Program |
+|-----------|---------------|:---:|:---:|
+| `INCRA d,n` | d.a += n | **RT** `INCRA(d,n)` → `d += n` | **SM** `SM_INCR n` |
+| `DECRA d,n` | d.a -= n | **RT** `DECRA(d,n)` → `d -= n` | **SM** `SM_DECR n` |
+| `SUM d,a,b` | d = a + b (integer) | **RT** | SM `SM_ADD` (**DONE**) |
+| `MULT d,a,b` | d = a * b | **RT** | SM `SM_MUL` (**DONE**) |
+| `MULTC d,a,c` | d = a * constant | **RT** | — |
+| `DIVIDE d,a,b` | d = a / b | **RT** | SM `SM_DIV` (**DONE**) |
+| `SUBTRT d,a,b` | d = a - b | **RT** | SM `SM_SUB` (**DONE**) |
+| `ADDLG d,sp` | d += sp.len | **RT** `ADDLG(d,sp)` | — |
+| `ADREAL d,x,y` | d = x + y (real) | **RT** | — (covered by SM_ADD with type dispatch) |
+| `MPREAL d,x,y` | d = x * y (real) | **RT** | — |
+| `DVREAL d,x,y` | d = x / y (real) | **RT** | — |
+| `SBREAL d,x,y` | d = x - y (real) | **RT** | — |
+| `MNSINT d,x` | d = -x (integer, overflow check) | **RT** `NEG_I_fn(d)` | — (SM_NEG handles) |
+| `MNREAL d,x` | d = -x (real) | **RT** `NEG_R_fn(d)` | — |
+| `INTRL d,x` | d = (real)x int→real | **RT** `INT_TO_REAL_fn(d)` | — |
+| `RLINT d,x,f,ok` | d = (int)x real→int, fail→f | **RT** `REAL_TO_INT_fn(d)` | — |
+| `EXREAL d,x,y,err` | d = x**y (reals) | **RT** `EXP_R_fn(d,e)` | — (SM_EXP handles) |
+
+**SM rationale:** `SM_INCR`/`SM_DECR` model SIL's ubiquitous `INCRA OCICL,DESCR` / `DECRA XCL,2*DESCR` — advancing/retreating the instruction pointer and loop counters. These appear literally hundreds of times in v311.sil. As SM ops they let `sm_interp.c` advance its own PC without a full INVOKE.
 
 ---
 
 ## Group 4 — String / Specifier Operations
 
-These are the most directly useful group for SM instructions.
-SIL specifiers = (pointer, length) pairs — our `const char*` + `slen`.
+**Axis: RT (all C function calls); SM (TRIM, SPCINT, SPREAL only).**
+The specifier ops (LOCSP, GETLG, etc.) are C inline helpers.
+Only the three that appear in hot SM-level paths earn SM status.
 
-| SIL Macro | Operation | SM? | RT? |
-|-----------|-----------|-----|-----|
-| `LOCSP sp,d` | Get specifier from descriptor | — | **RT** `DESCR_TO_SP` |
-| `GETSPC d,base,off` | Get specifier at offset | — | **RT** |
-| `PUTSPC base,off,sp` | Store specifier | — | **RT** |
-| `GETLG d,sp` | d = length of specifier | — | **RT** |
-| `PUTLG sp,d` | Set length of specifier | — | **RT** |
-| `GETSIZ d,base` | d = size of block | — | **RT** |
-| `SETSIZ base,d` | Set size of block | — | **RT** |
-| `SETLC sp,n` | Set length to constant | — | **RT** |
-| `SETSP sp1,sp2` | Copy specifier | — | **RT** |
-| `SHORTN sp,n` | Shorten specifier by n | — | **RT** |
-| `FSHRTN sp,n` | Shorten from front by n | — | **RT** |
-| `TRIMSP sp` | Trim trailing blanks | **SM** `SM_TRIM` | **RT** `TRIM_fn` |
-| `REMSP sp1,sp2` | Remove specifier sp2 from sp1 | — | **RT** |
-| `SUBSP sp,d,n` | Substring specifier | — | **RT** `SUBSTR_fn` |
-| `APSP sp1,sp2` | Append sp2 to sp1 | — | **RT** |
-| `APDSP sp1,sp2` | Append and deposit | — | **RT** |
-| `LEXCMP` | Lexicographic compare | **SM** `SM_LCOMP` | **RT** `LGT_fn` etc. |
-| `SPCINT d,sp,f,ok` | Parse integer from specifier | — | **RT** `SPCINT_fn` |
-| `SPREAL d,sp,f,ok` | Parse real from specifier | — | **RT** `SPREAL_fn` |
-| `REALST sp,d` | Format real to string | — | **RT** `REALST_fn` |
-| `INTSP sp,d` | Format integer to string | — | **RT** `INTSP_fn` |
-| `LVALUE` | Get l-value of specifier | — | **RT** |
+| SIL Macro | SIL Semantics | C Translation | scrip-interp | SM_Program |
+|-----------|---------------|---------------|:---:|:---:|
+| `LOCSP sp,d` | sp = specifier from descriptor | `X_LOCSP(sp,d)` in macros.h | **RT** | — |
+| `GETSPC d,base,off` | sp = *(base+off) | struct access | **RT** | — |
+| `PUTSPC base,off,sp` | *(base+off) = sp | struct assign | **RT** | — |
+| `GETLG d,sp` | d = sp.len | `S_L(sp)` | **RT** | — |
+| `PUTLG sp,d` | sp.len = d | `S_L(sp) = d` | **RT** | — |
+| `GETSIZ d,base` | d = block.title.v | `D_V(base)` | **RT** | — |
+| `SETSIZ base,d` | block.title.v = d | `D_V(base) = d` | **RT** | — |
+| `SETLC sp,n` | sp.len = constant | `S_L(sp) = n` | **RT** | — |
+| `SETSP sp1,sp2` | sp1 = sp2 (copy) | `_SPEC(sp1) = _SPEC(sp2)` | **RT** | — |
+| `SHORTN sp,n` | sp.len -= n | `S_L(sp) -= n` | **RT** | — |
+| `FSHRTN sp,n` | sp.off += n; sp.len -= n | `S_O(sp)+=n; S_L(sp)-=n` | **RT** | — |
+| `TRIMSP sp1,sp2` | trim trailing blanks | `trimsp(sp1,sp2)` in macros.h | **RT** `TRIM_fn` | **SM** `SM_TRIM` |
+| `REMSP sp1,sp2` | sp1 = sp2 minus leading sp | `X_REMSP(sp1,sp2,sp)` | **RT** | — |
+| `SUBSP sp,d,n` | substring | `substr(sp,sp2,descr)` | **RT** `SUBSTR_fn` | — |
+| `APDSP sp1,sp2` | append sp2 to sp1 | `APDSP(sp1,sp2)` in macros.h | **RT** | — |
+| `LEXCMP sp1,sp2` | lexicographic compare → int | `lexcmp(sp1,sp2)` | **RT** → `SM_LCOMP` | via SM_LCOMP |
+| `SPCINT d,sp,f,ok` | parse integer from string | `spcint(d,sp)` | **RT** `SPCINT_fn` | **SM** `SM_SPCINT` |
+| `SPREAL d,sp,f,ok` | parse real from string | `spreal(d,sp)` | **RT** `SPREAL_fn` | **SM** `SM_SPREAL` |
+| `REALST sp,d` | format real → string | `realst(sp,d)` | **RT** `REALST_fn` | — |
+| `INTSP sp,d` | format integer → string | `intspc(sp,d)` | **RT** `INTSP_fn` | — |
+| `LVALUE sp,d` | get l-value specifier | `lvalue(sp,d)` | **RT** | — |
+| `LEQLC sp,n,t,f` | sp.len == n? | `S_L(sp) == n` | **RT** | — |
 
----
-
-## Group 5 — Control Flow (SM instructions)
-
-These map 1:1 to SM_Program instructions already in SCRIP-SM.md.
-
-| SIL Macro | Operation | SM Instruction | Status |
-|-----------|-----------|----------------|--------|
-| `BRANCH label` | Unconditional goto | `SM_JUMP` | DONE |
-| `RCALL ret,proc,args,exits` | Call procedure | `SM_CALL` | DONE |
-| `RRTURN ret,n` | Return by exit n | `SM_RETURN` | DONE |
-| `BRANIC d,off` | Branch indirect via descriptor | `SM_JUMP_INDIR` | **ADD** |
-| `SELBRA d,table` | Select branch via table index | `SM_SELBRA` | **ADD** |
-| `PUSH d` | Push descriptor | `SM_PUSH_VAR` / value | DONE |
-| `POP d` | Pop descriptor | `SM_POP` | DONE |
-| `SPUSH sp` | Push specifier | — | **RT** |
-| `SPOP sp` | Pop specifier | — | **RT** |
-| `ISTACKPUSH` | Push interpreter state | `SM_STATE_PUSH` | **ADD** (for EXPVAL) |
-| `PSTACK` | Push pattern stack | — | **RT** (bb_pool) |
-
-**SM additions from this group:** `SM_JUMP_INDIR` (for `:(<CODE_VAR>)` GOTG),
-`SM_SELBRA` (for type-dispatch in INTERP/ARITH), `SM_STATE_PUSH/POP` (for EXPVAL
-save/restore of interpreter registers — this is the key RT-6 mechanism).
+**SM rationale for TRIM/SPCINT/SPREAL:**
+- `SM_TRIM` — appears in VARVAL (string cleanup before use). Very common in pattern matching setup.
+- `SM_SPCINT`/`SM_SPREAL` — appear in INTVAL and EVAL's numeric coercion path. Making them SM ops eliminates a `SM_CALL "spcint"` round-trip. EVAL uses both in sequence; an SM instruction can branch on parse failure directly (the `f_label` operand in SCRIP-SM.md).
 
 ---
 
-## Group 6 — Pattern Building (SM instructions — already in SCRIP-SM.md)
+## Group 5 — Control Flow
 
-All `SM_PAT_*` instructions (DONE in SCRIP-SM.md design):
+**Axis: mostly SM (already DONE); key additions are JUMP_INDIR, SELBRA, STATE_PUSH/POP.**
+
+| SIL Macro | SIL Semantics | scrip-interp | SM_Program |
+|-----------|---------------|:---:|:---:|
+| `BRANCH label` | unconditional goto | goto | SM `SM_JUMP` (**DONE**) |
+| `RCALL ret,proc,args,exits` | call procedure with exit table | call dispatch | SM `SM_CALL` (**DONE**) |
+| `RRTURN ret,n` | return via exit n | return/longjmp | SM `SM_RETURN`/`SM_FRETURN` (**DONE**) |
+| `BRANIC d,off` | branch indirect via descriptor | `((FnPtr)d.ptr)()` | SM **`SM_JUMP_INDIR`** |
+| `SELBRA d,table` | select branch by integer index | switch(d.v){table[i]} | SM **`SM_SELBRA`** |
+| `PUSH d` | push descriptor onto stack | cstack++ | SM `SM_PUSH_VAR`/lit (**DONE**) |
+| `POP d` | pop descriptor from stack | cstack-- | SM `SM_POP` (**DONE**) |
+| `SPUSH sp` | push specifier (2 descriptors) | cstack += SPEC/DESCR | **RT** (used in EXPVAL save) |
+| `SPOP sp` | pop specifier | cstack -= SPEC/DESCR | **RT** (used in EXPVAL restore) |
+| `ISTACKPUSH` | push 14 descriptors + 4 specs | full state save | SM **`SM_STATE_PUSH`** |
+| `PSTACK x` | save pattern stack ptr | `x.a = cstack-1` | **RT** (bb_pool context) |
+| `ISTACK` | init stack pointer | cstack = stack base | **RT** (init only) |
+
+**SM_JUMP_INDIR use:** `GOTG` (`:(<VAR>)` computed goto) — pops a CODE descriptor,
+jumps to its code block. Also `INVK1` `BRANIC INCL,0` — indirect dispatch to function.
+In `sm_interp.c` this is: `pc = (SM_Instr*)descr.ptr; continue;`
+
+**SM_SELBRA use:** `EXPVAL`'s `SELBRA SCL,(FAIL,RTXNAM,RTZPTR)` — selects exit
+based on integer index. In `sm_interp.c`: `goto *exit_table[instr.u.table[d.ival]]`
+or equivalent computed goto. Also used in `INTERP`'s `INVOKE` exit dispatch.
+
+**SM_STATE_PUSH/POP use:** `EXPVAL` saves 14 descriptors + 4 specifiers before
+executing a nested EXPRESSION, restores them after. In `sm_interp.c` this becomes
+a memcpy of the interpreter's register file to a save stack.
+
+---
+
+## Group 6 — Pattern Building (SM — DONE)
+
+All `SM_PAT_*` instructions are already designed in SCRIP-SM.md.
 
 `SM_PAT_LIT`, `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`, `SM_PAT_BREAK`,
 `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`, `SM_PAT_RTAB`,
@@ -177,259 +208,334 @@ All `SM_PAT_*` instructions (DONE in SCRIP-SM.md design):
 `SM_PAT_FAIL`, `SM_PAT_SUCCEED`, `SM_PAT_ALT`, `SM_PAT_CAT`, `SM_PAT_DEREF`,
 `SM_PAT_CAPTURE`.
 
-These map to the SIL runtime procs ANY, BREAK, BREAKX, NOTANY, SPAN, LEN,
-POS, RPOS, RTAB, TAB, ARB, ARBNO, REM, BAL, FENCE.
+SIL equivalents: `ANY`, `BREAK`, `BREAKX`, `NOTANY`, `SPAN`, `LEN`, `POS`,
+`RPOS`, `RTAB`, `TAB`, `ARBNO`.
 
 ---
 
-## Group 7 — Byrd Box Construction (RT functions — DONE)
+## Group 7 — Byrd Box Construction (RT — DONE)
 
-Already implemented as `bb_*.c` boxes. The SIL `NAM` / `DOL` / `SCAN`
-procs are the SIL equivalents of our conditional/immediate assignment
-and scan mechanics. SIL names → our names:
-
-| SIL Proc | SIL Operation | Our BB box | Status |
-|----------|--------------|-----------|--------|
-| `NAM` | `.VAR` conditional assignment | `bb_capture.c` | ✅ |
-| `DOL` | `$VAR` immediate assignment | `bb_capture.c` (immed) | ✅ |
-| `SCAN` / `SJSR` / `SCNR` | Pattern scan loop | `BB-DRIVER` | ✅ |
-| `ATOP` | `@` cursor assignment | `bb_capture.c` (cursor) | ✅ |
-| `ANY` | ANY(S) | `bb_any.c` | ✅ |
-| `BREAK` | BREAK(S) | `bb_break.c` | ✅ |
-| `BREAKX` | BREAKX(S) | `bb_breakx.c` | ✅ |
-| `NOTANY` | NOTANY(S) | `bb_notany.c` | ✅ |
-| `SPAN` | SPAN(S) | `bb_span.c` | ✅ |
-| `LEN` | LEN(N) | `bb_len.c` | ✅ |
-| `POS` | POS(N) | `bb_pos.c` | ✅ |
-| `RPOS` | RPOS(N) | `bb_rpos.c` | ✅ |
-| `RTAB` | RTAB(N) | `bb_rtab.c` | ✅ |
-| `TAB` | TAB(N) | `bb_tab.c` | ✅ |
-| `ARBNO` | ARBNO(P) | `bb_arbno.c` | ✅ |
+| SIL Proc | Our BB box | scrip-interp | SM_Program |
+|----------|-----------|:---:|:---:|
+| `NAM` (.VAR conditional assign) | `bb_capture.c` | **DONE** | — |
+| `DOL` ($VAR immediate assign) | `bb_capture.c` (immed) | **DONE** | — |
+| `SCAN`/`SJSR`/`SCNR` (scan loop) | `BB-DRIVER` | **DONE** | via `SM_EXEC_STMT` |
+| `ATOP` (@ cursor assign) | `bb_capture.c` (cursor) | **DONE** | — |
+| `ANY`/`BREAK`/`BREAKX`/`NOTANY`/`SPAN` | `bb_*.c` | **DONE** | — |
+| `LEN`/`POS`/`RPOS`/`RTAB`/`TAB` | `bb_*.c` | **DONE** | — |
+| `ARBNO` | `bb_arbno.c` | **DONE** | — |
 
 ---
 
-## Group 8 — Named Builtins (RT functions — map to INVOKE table)
+## Group 8 — Named Builtins (RT via INVOKE table)
 
-These are SIL procedures that implement SNOBOL4 builtins.
-All should be registered via `register_fn()` with SIL-matching names.
-Status tracks whether our C implementation matches the SIL logic.
+All become C functions registered via `register_fn()`.
+None are SM instructions — they are called through `SM_CALL name, nargs`.
+SM instruction `SM_CALL` dispatches to the INVOKE table.
 
-| SIL Proc | Builtin | Status | RT milestone |
-|----------|---------|--------|-------------|
-| `INTGER` | `INTEGER(X)` | ✅ `_INTEGER_` | — |
-| `ADD/SUB/MPY/DIV/EXPOP` | arithmetic ops | ✅ `_b_add` etc. | — |
-| `MNS` | unary `-X` | ✅ | — |
-| `PLS` | unary `+X` (not identity!) | ⚠️ missing | RT-2 |
-| `EQ/NE/GT/LT/GE/LE` | numeric predicates | ✅ | — |
-| `LEQ/LNE/LGT/LLT/LGE/LLE` | string predicates | ✅ | — |
-| `DIFFER` | `DIFFER(X,Y)` | ✅ | — |
-| `IDENT` | `IDENT(X,Y)` | ✅ | — |
-| `SIZE` | `SIZE(S)` | ✅ | — |
-| `TRIM` | `TRIM(S)` | ✅ | — |
-| `DUPL` | `DUPL(S,N)` | ✅ | — |
-| `SUBSTR` | `SUBSTR(S,I,N)` | ✅ | — |
-| `RPLACE` | `REPLACE(S1,S2,S3)` | ✅ | — |
-| `REVERS` | `REVERSE(S)` | ✅ | — |
-| `LPAD/RPAD` | `LPAD/RPAD(S,N,C)` | ✅ | — |
-| `CHAR` | `CHAR(N)` | ✅ | — |
-| `QUES` | `?(P)` interrogation | ✅ | — |
-| `NEG` | `?(S)` — succeed if null | partial | RT-2 |
-| `ARRAY` | `ARRAY(D,V)` | ✅ | — |
-| `ASSOC/ASSOCE` | `TABLE(N,V)` | ✅ | — |
-| `ITEM` | `ITEM(A,I[,J])` | ✅ | — |
-| `COPY` | `COPY(X)` | ✅ | — |
-| `APPLY` | `APPLY(F,A1,...,An)` | ✅ | — |
-| `DEFINE` | `DEFINE(spec,entry)` | ✅ | — |
-| `OPSYN` | `OPSYN(new,old,type)` | ✅ | — |
-| `LABEL` | `LABEL(X)` | partial | RT-3 |
-| `EVAL` | `EVAL(X)` | ⚠️ stub | **RT-8** |
-| `CODER` | `CODE(S)` | ⚠️ stub | **RT-7** |
-| `CNVRT` | `CONVERT(X,T)` | partial | **RT-7** |
-| `ASGN` | `X = Y` (embedded assign) | partial | **RT-5** |
-| `NAME` | `.X` NAME type | ⚠️ partial | **RT-3** |
-| `IND` | `$X` indirect | ✅ | — |
-| `KEYWRD` | `&KW` keyword access | partial | **RT-3** |
-| `ARG` | `ARG(F,N)` | ✅ | — |
-| `LOCAL` | `LOCAL(F,N)` | ✅ | — |
-| `FIELD/FIELDS` | `FIELD(D,...)` | ✅ | — |
-| `DATDEF` | `DATA(spec)` | ✅ | — |
-| `FUNCTN` | `FUNCTION(X)` | ✅ | — |
-| `SORT/RSORT` | `SORT(A[,I[,J]])` | ✅ | — |
-| `COLECT` | `COLLECT(N)` | partial | — |
-| `CLEAR` | internal | — | SKIP |
-| `CMA` | internal | — | SKIP |
-| `TRACE` | `TRACE(var,type,fn)` | ⬜ stub | **RT-5** |
-| `STOPTR` | `STOPTR(var,type)` | ⬜ stub | **RT-5** |
-| `DETACH` | `DETACH(X)` | ⬜ stub | future |
-| `SET` | `SET(X,N)` file positioning | ⬜ | future |
-| `LOAD/UNLOAD` | external functions | ⬜ | future |
-| `DMP/DUMP` | `DUMP(N)` | ⬜ | future |
-| `DATE` | `DATE()` | ✅ | — |
-| `TIME` | `TIME()` | ✅ | — |
-| `READ/PRINT` | I/O | ✅ | — |
-| `BKSPCE/ENDFIL/REWIND` | file I/O | partial | future |
-| `FREEZE/THAW` | serialization | ⬜ | future |
-| `PROTO` | prototype | ⬜ | future |
+| SIL Proc | Builtin | scrip-interp | SM_Program | RT milestone |
+|----------|---------|:---:|:---:|------|
+| `INVOKE`/`INVK1`/`INVK2` | dispatch core | **RT** `INVOKE_fn` | via `SM_CALL` | RT-1 |
+| `ARGVAL` | arg evaluator (untyped) | **RT** `ARGVAL_fn` | via SM dispatch | RT-1 |
+| `VARVAL` | arg → STRING | **RT** `VARVAL_fn` | via SM dispatch | RT-2 |
+| `INTVAL` | arg → INTEGER | **RT** `INTVAL_fn` | via SM dispatch | RT-2 |
+| `PATVAL` | arg → PATTERN | **RT** `PATVAL_fn` | via SM dispatch | RT-2 |
+| `VARVUP` | arg → uppercase STRING | **RT** `VARVUP_fn` | via SM dispatch | RT-2 |
+| `NAME` | .X → DT_N descriptor | **RT** `NAME_fn` | via SM dispatch | RT-3 |
+| `ASGN`/`ASGNV`/`ASGNIC` | assignment with hooks | **RT** `ASGN_fn` | via SM dispatch | RT-5 |
+| `NMD`/`NMD1`–`NMD5`/`NMDIC` | naming list commit | **RT** `NMD_fn` | via SM dispatch | RT-4 |
+| `EXPVAL`/`EXPEVL` | EXPRESSION execute | **RT** `EXPVAL_fn` | `SM_STATE_PUSH/POP` | RT-6 |
+| `CONVE`/`CODER` | string→EXPRESSION/CODE | **RT** `CONVE_fn` | via SM dispatch | RT-7 |
+| `CNVRT` | CONVERT(X,T) | **RT** `CONVERT_fn` | via SM dispatch | RT-7 |
+| `EVAL`/`EVAL1` | EVAL() builtin | **RT** `EVAL_fn` | via SM dispatch | RT-8 |
+| `INTERP`/`INTRP0` | interpreter core | `execute_program()` | `sm_interp.c` loop | RT-9 |
+| `INIT` | statement header | per-stmt setup | SM header decode | RT-9 |
+| `GOTO` | offset goto | goto dispatch | `SM_JUMP` target | RT-9 |
+| `GOTL` | label goto + special labels | label lookup | `SM_JUMP` + INVOKE | RT-9 |
+| `GOTG` | `:(<VAR>)` computed goto | — | `SM_JUMP_INDIR` | RT-9 |
+| `BASE` | code basing | — | `SM_CALL` setup | RT-9 |
+| `PLS` | unary +X (NOT identity) | ⚠️ missing | via SM dispatch | RT-2 fix |
+| `INTGER` | INTEGER(X) | ✅ | via SM dispatch | — |
+| `EQ`/`NE`/`GT`/`LT`/`GE`/`LE` | numeric predicates | ✅ | via `SM_ACOMP` | — |
+| `LEQ`/`LNE`/`LGT`/`LLT`/`LGE`/`LLE` | string predicates | ✅ | via `SM_LCOMP` | — |
+| `DIFFER`/`IDENT` | identity tests | ✅ | via SM dispatch | — |
+| `SIZE`/`TRIM`/`DUPL` | string ops | ✅ | via SM dispatch | — |
+| `SUBSTR`/`RPLACE`/`REVERS` | string ops | ✅ | via SM dispatch | — |
+| `LPAD`/`RPAD`/`CHAR` | string ops | ✅ | via SM dispatch | — |
+| `ARRAY`/`ASSOC`/`ITEM` | array/table ops | ✅ | via SM dispatch | — |
+| `COPY`/`APPLY`/`DEFINE`/`OPSYN` | control | ✅ | via SM dispatch | — |
+| `TRACE`/`STOPTR` | trace hooks | ⬜ stub | via SM dispatch | RT-5 |
+| `LABEL` | LABEL(X) | partial | via SM dispatch | RT-3 |
+| `IND` | $X indirect | ✅ | via SM dispatch | — |
+| `KEYWRD` | &KW access | partial | via SM dispatch | RT-3 |
+| `ARG`/`LOCAL`/`FIELD`/`FIELDS` | introspection | ✅ | via SM dispatch | — |
+| `DATDEF`/`FUNCTN`/`SORT`/`RSORT` | meta | ✅ | via SM dispatch | — |
+| `EVAL` stub→full | EVAL() | ⚠️ | via SM dispatch | RT-8 |
+| `DATE`/`TIME` | system | ✅ | via SM dispatch | — |
 
 ---
 
-## Group 9 — BLOCK-mode Operations (SNOBOL4B)
+## Group 9 — BLOCK-mode Operations (SKIP)
 
-Lines 7160–10211 in v311.sil: AFRAME, BCOPY, BHEAD, BLAND, BLANK,
-HEIGHT, WIDTH, DEPTH, BOX, BOXIN, BTAIL, CAE, BCHAR, CIR, CLASS,
-COAG, COMPFR, DISTR, DUP, DUPE, FICOM, FIX, FIXINL, FORCING, INSERT,
-JOIN, LOC, LRECL, LSOHN, MIDREG, MINGLE, MORE, PAR, SER, OVY, MERGE,
-CCATB, PRINTB, REPL, SLAB, SUBBLOCK, REP, NODE, UDCOM, DEF, UNITS,
-WARNING.
-
-**Decision: SKIP for now.** SNOBOL4B block operations are a separate dialect.
-None of our corpus tests use them. Revisit when M-BLOCKS milestone is active.
+Lines 7160–10211 of v311.sil: BLAND, BOX, BOXIN, AFRAME, etc.
+**Decision: SKIP.** No corpus tests use SNOBOL4B blocks.
 
 ---
 
 ## Group 10 — Compiler Internals (SKIP)
 
-These are SIL procedures used by the compiler itself, not the runtime.
-We have our own lex/parse — these are irrelevant:
-
-`AUGATL`, `CODSKP`, `DTREP`, `FINDEX`, `BLOCK` (allocator), `GENVAR`,
-`GNVARI`, `GENVUP`, `CONVAR`, `GNVARS`, `GC` (garbage collector), `GCM`,
-`SPLIT`, `BINOP`, `CMPILE`, `ELEMNT`, `ELEARG`, `EXPR`, `NULNOD`,
-`FORWRD`, `FORRUN`, `FORBLK`, `FILCHK`, `NEWCRD`, `CTLADV`, `TREPUB`,
-`UNOP`, `CDIAG`.
-
-**Decision: SKIP.** These are the lex/parse/compile internals. We have
-`sno4parse.c`. Never touch these.
+`CMPILE`, `ELEMNT`, `EXPR`, `FORWRD`, `FORRUN`, `FORBLK`, `NEWCRD`,
+`CTLADV`, `BLOCK` (allocator), `GC`, `GCM`, `SPLIT`, `BINOP`, etc.
+**Decision: SKIP.** We have `sno4parse.c`.
 
 ---
 
-## New SM Instructions Identified
+## The Two-Axis Master Table — SM Instructions
 
-Beyond what's already in SCRIP-SM.md, this analysis adds:
+These are the SM_Program instructions that exist or are added.
+Each has a `scrip-interp` implementation and an emitter translation.
 
-| New SM Op | Rationale |
-|-----------|-----------|
-| `SM_JUMP_INDIR` | `BRANIC` — indirect goto via CODE descriptor (`:<VAR>`) |
-| `SM_SELBRA` | `SELBRA` — table-driven type dispatch in INTERP/ARITH |
-| `SM_STATE_PUSH` | `ISTACKPUSH` — save interpreter registers for EXPVAL |
-| `SM_STATE_POP` | Restore interpreter registers after EXPVAL |
-| `SM_INCR` | `INCRA` — increment integer/address (common in INTERP loop) |
-| `SM_DECR` | `DECRA` — decrement integer/address |
-| `SM_LCOMP` | `LEXCMP` — string lexicographic compare (LGT/LLT/etc.) |
-| `SM_RCOMP` | `RCOMP` — real numeric compare (replaces CALL to GT/LT/etc.) |
-| `SM_TRIM` | `TRIMSP` — inline TRIM (very common in pattern matching) |
-| `SM_ACOMP` | `ACOMP` — integer compare (replaces CALL to EQ/GT/LT/etc.) |
-| `SM_SPCINT` | `SPCINT` — parse integer from string (inline, no CALL overhead) |
-| `SM_SPREAL` | `SPREAL` — parse real from string |
-| `SM_CONCAT` | `CONCAT` — concatenate (already `SM_CONCAT` in design — confirm DONE) |
+| SM Instruction | SIL Origin | scrip-interp (C) | x86 emitter | Status |
+|----------------|------------|------------------|-------------|--------|
+| `SM_PUSH_LIT_S` | `PUSH` literal | push string descr | `mov`+`call push_str` | DONE |
+| `SM_PUSH_LIT_I` | `PUSH` integer | push int descr | `mov`+`call push_int` | DONE |
+| `SM_PUSH_LIT_F` | `PUSH` real | push real descr | `mov`+`call push_real` | DONE |
+| `SM_PUSH_NULL` | `MOVD d,NULVCL` | push null descr | `call push_null` | DONE |
+| `SM_PUSH_VAR` | `ARGVAL`/`GETDC` | `NV_GET_fn(name)` | `call NV_GET_fn` | DONE |
+| `SM_STORE_VAR` | `PUTDC`/`ASGN` | `NV_SET_fn(name,val)` | `call NV_SET_fn` | DONE |
+| `SM_POP` | `POP` | discard top | `sub rsp,DESCR` | DONE |
+| `SM_ADD` | `SUM` | `add_fn(a,b)` | `call add_fn` | DONE |
+| `SM_SUB` | `SUBTRT` | `sub_fn(a,b)` | `call sub_fn` | DONE |
+| `SM_MUL` | `MULT` | `mul_fn(a,b)` | `call mul_fn` | DONE |
+| `SM_DIV` | `DIVIDE` | `div_fn(a,b)` | `call div_fn` | DONE |
+| `SM_EXP` | `EXREAL` | `exp_fn(a,b)` | `call exp_fn` | DONE |
+| `SM_NEG` | `MNSINT`/`MNREAL` | `neg_fn(a)` | `call neg_fn` | DONE |
+| `SM_CONCAT` | `APDSP` | `concat_fn(a,b)` | `call concat_fn` | DONE |
+| `SM_JUMP` | `BRANCH` | `pc = target` | `jmp target` | DONE |
+| `SM_JUMP_S` | `BRANCH` on success | `if(ok) pc=target` | `test/jnz` | DONE |
+| `SM_JUMP_F` | `BRANCH` on failure | `if(!ok) pc=target` | `test/jz` | DONE |
+| `SM_LABEL` | label def | label table entry | label: | DONE |
+| `SM_HALT` | `BRANCH END` | `return` | `ret` | DONE |
+| `SM_CALL` | `RCALL`/`INVOKE` | `INVOKE_fn(name,args)` | `call invoke_fn` | DONE |
+| `SM_RETURN` | `RRTURN ,6` | longjmp RETURN | `ret`+exit6 | DONE |
+| `SM_FRETURN` | `RRTURN ,4` | longjmp FRETURN | `ret`+exit4 | DONE |
+| `SM_DEFINE` | `DEFINE` call | `register_fn()` | `call register_fn` | DONE |
+| `SM_PAT_*` (21 ops) | pattern procs | `bb_build()` | `call bb_build_*` | DONE |
+| `SM_EXEC_STMT` | `SCAN`/BB-DRIVER | `stmt_exec_dyn()` | `call stmt_exec_dyn` | DONE |
+| **`SM_JUMP_INDIR`** | `BRANIC d,0` | `pc=(SM_Instr*)d.ptr` | `jmp [rax]` | **ADD** |
+| **`SM_SELBRA`** | `SELBRA d,table` | `goto table[d.ival]` | `jmp [table+rax*8]` | **ADD** |
+| **`SM_STATE_PUSH`** | `PUSH (OCBSCL…)` + `SPUSH` | memcpy regs to save-stack | `call state_push` | **ADD** |
+| **`SM_STATE_POP`** | `POP (…)` + `SPOP` | memcpy from save-stack | `call state_pop` | **ADD** |
+| **`SM_INCR`** | `INCRA d,n` | `d += n` (inline) | `add rax,n` | **ADD** |
+| **`SM_DECR`** | `DECRA d,n` | `d -= n` (inline) | `sub rax,n` | **ADD** |
+| **`SM_ACOMP`** | `ACOMP d1,d2` | `cmp_int(a,b)→-1/0/1` | `cmp rax,rbx` | **ADD** |
+| **`SM_RCOMP`** | `RCOMP d1,d2` | `cmp_real(a,b)→-1/0/1` | `ucomisd` | **ADD** |
+| **`SM_LCOMP`** | `LEXCMP sp1,sp2` | `lexcmp(a,b)→-1/0/1` | `call lexcmp` | **ADD** |
+| **`SM_TRIM`** | `TRIMSP sp1,sp2` | `trimsp(sp1,sp2)` | `call trimsp` | **ADD** |
+| **`SM_SPCINT`** | `SPCINT d,sp,f` | `spcint(d,sp)` + branch | `call spcint`+`jz f` | **ADD** |
+| **`SM_SPREAL`** | `SPREAL d,sp,f` | `spreal(d,sp)` + branch | `call spreal`+`jz f` | **ADD** |
 
-These additions are **additive** — they don't change existing SM_Instr layout.
-Add them as new enum values after the current set. SCRIP-SM.md update needed.
+**12 new SM instructions. Additive — no existing SM_Instr layout change.**
 
 ---
 
-## New `sil_macros.h` — C Translation of Group 1 + 2
+## The Two-Axis Master Table — RT Functions (sil_macros.h + RT files)
 
-Create `src/runtime/snobol4/sil_macros.h`:
+Functions that exist only in C, called from scrip-interp and SM dispatch — not SM instructions.
+
+| C Function | SIL Origin | File | Used by SM? | RT milestone |
+|-----------|-----------|------|:---:|------|
+| `TESTF(d,T)` macro | `TESTF` | `sil_macros.h` | dispatch only | now |
+| `VEQLC(d,T)` macro | `VEQLC` | `sil_macros.h` | dispatch only | now |
+| `DEQL(a,b)` macro | `DEQL` | `sil_macros.h` | dispatch only | now |
+| `AEQLC(d,v)` macro | `AEQLC` | `sil_macros.h` | dispatch only | now |
+| `IS_INT/REAL/STR/PAT/…` | type shorthands | `sil_macros.h` | dispatch only | now |
+| `INCRA(d,n)` / `DECRA(d,n)` | `INCRA`/`DECRA` | `sil_macros.h` | `SM_INCR`/`SM_DECR` | now |
+| `SPCINT_fn(d,sp)` | `SPCINT` | `argval.c` | `SM_SPCINT` dispatch | RT-2 |
+| `SPREAL_fn(d,sp)` | `SPREAL` | `argval.c` | `SM_SPREAL` dispatch | RT-2 |
+| `REALST_fn(sp,d)` | `REALST` | `argval.c` | via `SM_CALL` | RT-2 |
+| `INTSP_fn(sp,d)` | `INTSP` / `INTSPC` | `argval.c` | via `SM_CALL` | RT-2 |
+| `TRIM_fn(sp,sp)` | `TRIMSP` | `snobol4.c` | `SM_TRIM` dispatch | now |
+| `LCOMP_fn(sp,sp)` | `LEXCMP` | `snobol4.c` | `SM_LCOMP` dispatch | now |
+| `INVOKE_fn(name,args,n)` | `INVOKE` | `invoke.c` | `SM_CALL` dispatch | RT-1 |
+| `ARGVAL_fn(d)` | `ARGVAL` | `argval.c` | SM arg fetch | RT-1 |
+| `VARVAL_fn(d)` | `VARVAL` | `argval.c` | `SM_PUSH_VAR` coerce | RT-2 |
+| `INTVAL_fn(d)` | `INTVAL` | `argval.c` | `SM_PUSH_VAR`→INT | RT-2 |
+| `PATVAL_fn(d)` | `PATVAL` | `argval.c` | `SM_PAT_DEREF` | RT-2 |
+| `VARVUP_fn(d)` | `VARVUP` | `argval.c` | `SM_CALL "VARVUP"` | RT-2 |
+| `NAME_fn(varname)` | `NAME` | `snobol4.c` | `SM_CALL ".X"` | RT-3 |
+| `ASGNIC_fn(kw,val)` | `ASGNIC` | `snobol4.c` | `SM_STORE_VAR` DT_K | RT-3 |
+| `NAM_push/commit/discard` | `NMD` | `nmd.c` | `SM_EXEC_STMT` | RT-4 |
+| `ASGN_fn(name,val)` | `ASGN` | `snobol4.c` | `SM_STORE_VAR` hook | RT-5 |
+| `EXPVAL_fn(d)` | `EXPVAL` | `eval_code.c` | `SM_STATE_PUSH/POP` | RT-6 |
+| `EXPEVL_fn(d)` | `EXPEVL` | `eval_code.c` | via `SM_CALL` | RT-6 |
+| `CONVE_fn(str_d)` | `CONVE` | `snobol4.c` | via `SM_CALL` | RT-7 |
+| `CODE_fn(args,n)` | `CODER` | `snobol4.c` | via `SM_CALL "CODE"` | RT-7 |
+| `CONVERT_fn(args,n)` | `CNVRT` | `snobol4.c` | via `SM_CALL "CONVERT"` | RT-7 |
+| `EVAL_fn(args,n)` | `EVAL` | `snobol4.c` | via `SM_CALL "EVAL"` | RT-8 |
+| `state_push()`/`state_pop()` | `ISTACKPUSH` | `eval_code.c` | `SM_STATE_PUSH/POP` | RT-6 |
+
+---
+
+## sil_macros.h — Complete Design
+
+Create `src/runtime/snobol4/sil_macros.h`. This is the **RT axis** header.
+The **SM axis** changes are in `sm_interp.c` enum + dispatch (RT-9).
 
 ```c
 /*
- * sil_macros.h — C translations of SIL macro instructions (Groups 1 & 2)
+ * sil_macros.h — C translations of SIL macro instructions
  *
- * Every macro here matches a SIL instruction exactly in semantics.
- * Used by: RT functions (scrip-interp), SM dispatch (sm_interp.c), emitters.
+ * Axis 1 (scrip-interp / RT functions):
+ *   Used by snobol4.c, argval.c, invoke.c, nmd.c, eval_code.c, stmt_exec.c
+ *
+ * Axis 2 (SM_Program dispatch):
+ *   SM_INCR/SM_DECR dispatch calls INCRA/DECRA defined here.
+ *   SM_ACOMP/SM_RCOMP/SM_LCOMP dispatch calls ACOMP/RCOMP/LCOMP.
+ *   SM_TRIM/SM_SPCINT/SM_SPREAL dispatch calls TRIM_fn/SPCINT_fn/SPREAL_fn.
+ *   SM_STATE_PUSH/POP dispatch calls state_push()/state_pop().
  *
  * Authors: Lon Jones Cherryholmes · Claude Sonnet 4.6
- * Date: 2026-04-04
+ * Date: 2026-04-05
  */
+#ifndef SIL_MACROS_H
+#define SIL_MACROS_H
 
-/* ── Type tests ── */
-#define TESTF(d, T)       ((d).v == (T))
-#define VEQLC(d, T)       ((d).v == (T))
-#define DEQL(a, b)        ((a).v == (b).v && (a).ptr == (b).ptr)
+#include "snobol4.h"   /* DESCR_t, DT_* constants */
 
-/* ── Integer/address arithmetic ── */
-#define INCRA(d, n)       ((d) += (n))
-#define DECRA(d, n)       ((d) -= (n))
+/* ── Group 1: Descriptor field access ── */
+#define GETDC(d, base, off)    ((d) = *((DESCR_t*)(base) + (off)/sizeof(DESCR_t)))
+#define PUTDC(base, off, d)    (*((DESCR_t*)(base) + (off)/sizeof(DESCR_t)) = (d))
+#define MOVD(dst, src)         ((dst) = (src))
+#define MOVV(dst, src)         ((dst).v = (src).v)
+#define MOVA(dst, src)         ((dst).ptr = (src).ptr)
+#define SETAC(d, val)          ((d).ptr = (void*)(intptr_t)(val))
+#define SETAV(d, src)          ((d).ptr = (void*)(intptr_t)(src).v)
 
-/* ── String/specifier coercions (call into RT) ── */
-#define SPCINT_fn(d)      sil_spcint(d)     /* string → INTEGER or FAILDESCR */
-#define SPREAL_fn(d)      sil_spreal(d)     /* string → REAL or FAILDESCR */
-#define REALST_fn(d)      sil_realst(d)     /* REAL → STRING */
-#define INTSP_fn(d)       sil_intsp(d)      /* INTEGER → STRING */
+/* ── Group 2: Type tests — scrip-interp RT axis ── */
+#define TESTF(d, T)            ((d).f & (T))
+#define IS_FNC(d)              TESTF((d), FNC)
+#define VEQLC(d, T)            ((d).v == (T))
+#define DEQL(a, b)             ((a).v == (b).v && (a).ptr == (b).ptr)
+#define AEQLC(d, val)          ((intptr_t)(d).ptr == (intptr_t)(val))
+#define AEQL(a, b)             ((a).ptr == (b).ptr)
+#define SAME_TYPE(a, b)        ((a).v == (b).v)
 
-/* ── Type coerce chain (matches SIL VARVAL/INTVAL patterns) ── */
-#define IS_INT(d)         ((d).v == DT_I)
-#define IS_REAL(d)        ((d).v == DT_R)
-#define IS_STR(d)         ((d).v == DT_S || (d).v == DT_SNUL)
-#define IS_PAT(d)         ((d).v == DT_P)
-#define IS_NAME(d)        ((d).v == DT_N)
-#define IS_KW(d)          ((d).v == DT_K)
-#define IS_EXPR(d)        ((d).v == DT_E)
-#define IS_CODE(d)        ((d).v == DT_C)
+/* Type shorthands — use DT_* constants from snobol4.h */
+#define IS_INT(d)    ((d).v == DT_I)
+#define IS_REAL(d)   ((d).v == DT_R)
+#define IS_STR(d)    ((d).v == DT_S || (d).v == DT_SNUL)
+#define IS_PAT(d)    ((d).v == DT_P)
+#define IS_NAME(d)   ((d).v == DT_N)
+#define IS_KW(d)     ((d).v == DT_K)
+#define IS_EXPR(d)   ((d).v == DT_E)
+#define IS_CODE(d)   ((d).v == DT_C)
+#define IS_ARR(d)    ((d).v == DT_A)
+#define IS_TBL(d)    ((d).v == DT_T)
+
+/* ── Group 2: Comparison — both RT and SM dispatch axis ── */
+/* ACOMP: returns -1/0/1 like strcmp; SM_ACOMP dispatches to this */
+static inline int ACOMP(DESCR_t a, DESCR_t b) {
+    intptr_t la = (intptr_t)a.ptr, lb = (intptr_t)b.ptr;
+    return (la > lb) - (la < lb);
+}
+/* ACOMPC: compare descriptor address vs constant */
+#define ACOMPC(d, val) \
+    (((intptr_t)(d).ptr > (intptr_t)(val)) - ((intptr_t)(d).ptr < (intptr_t)(val)))
+
+/* RCOMP: real compare; SM_RCOMP dispatches to this */
+static inline int RCOMP(DESCR_t a, DESCR_t b) {
+    return (a.dval > b.dval) - (a.dval < b.dval);
+}
+
+/* LCOMP: lexicographic string compare; SM_LCOMP dispatches to lexcmp() */
+/* Declaration — defined in snobol4.c or string RT */
+int LCOMP_fn(const char *sp1, int len1, const char *sp2, int len2);
+
+/* ── Group 3: Address arithmetic — SM_INCR/SM_DECR dispatch here ── */
+#define INCRA(d, n)   ((d) += (n))
+#define DECRA(d, n)   ((d) -= (n))
+
+/* ── Group 4: String/specifier coercions — SM_SPCINT/SPREAL dispatch here ── */
+/* Returns 1 on success, 0 on failure (SM_SPCINT branches on 0) */
+int SPCINT_fn(DESCR_t *out, const char *sp, int len);
+int SPREAL_fn(DESCR_t *out, const char *sp, int len);
+/* Format functions */
+int REALST_fn(char *out, int maxlen, DESCR_t d);
+int INTSP_fn(char *out, int maxlen, DESCR_t d);
+/* SM_TRIM dispatches to TRIM_fn */
+void TRIM_fn(const char *in, int inlen, const char **out, int *outlen);
+
+/* ── Group 5: State save/restore — SM_STATE_PUSH/POP dispatch here ── */
+/* For EXPVAL (RT-6): save/restore full interpreter register file */
+void state_push(void);   /* ISTACKPUSH — push OCBSCL,OCICL,… */
+void state_pop(void);    /* restore from state stack */
+
+/* ── Descriptor null/fail sentinels ── */
+/* FAILDESCR: the canonical failure descriptor (DT_FAIL type) */
+extern DESCR_t FAILDESCR;
+extern DESCR_t NULLDESCR;
+
+#endif /* SIL_MACROS_H */
 ```
 
 ---
 
-## Relationship to RT Milestones
+## Relationship to RT Milestones (updated)
 
-| RT Milestone | SIL Macros / Procs Used |
-|-------------|------------------------|
-| RT-1 INVOKE | `BRANIC`, `SELBRA`, `TESTF`, `VEQLC` |
-| RT-2 VARVAL/INTVAL/PATVAL | `SPCINT`, `SPREAL`, `INTRL`, `RLINT`, `REALST`, `LOCSP`, `GETLG` |
-| RT-3 NAME/KEYWORD | `VEQLC` (type K), `GETDC`, `PUTDC` (keyword slot), `NAME` proc |
-| RT-4 NMD naming list | `GETLG`, `ACOMP`, `GETSPC`, `PUTDC`, `SPCINT` (for NMDIC) |
-| RT-5 ASGN | `TESTF`, `VEQLC`, `PUTDC`, `LOCAPV`, `ACOMPC` (TRACE check) |
-| RT-6 EXPVAL | `SM_STATE_PUSH/POP`, `PUSH`/`POP` (full state save/restore) |
-| RT-7 CONVE/CODER | `SPCINT`, `SPREAL`, `LOCSP`, `GETLG` (string→EXPRESSION) |
-| RT-8 EVAL | `VEQLC` (type dispatch), `SPCINT`, `SPREAL`, `CONVE`, `EXPVAL` |
-| RT-9 INTERP | `SM_INCR`, `TESTF`, `BRANIC`, `SELBRA`, `SM_ACOMP/RCOMP` |
+| RT Milestone | Uses (scrip-interp axis) | Uses (SM axis) |
+|-------------|--------------------------|----------------|
+| RT-1 INVOKE | `TESTF`, `VEQLC`, `BRANIC`→`INVOKE_fn` | `SM_CALL` dispatches `INVOKE_fn` |
+| RT-2 VARVAL/INTVAL/PATVAL | `SPCINT_fn`, `SPREAL_fn`, `INTRL`, `RLINT`, `LOCSP`, `GETLG` | `SM_SPCINT`, `SM_SPREAL`, `SM_PUSH_VAR` coerce |
+| RT-3 NAME/KEYWORD | `VEQLC` DT_K, `GETDC`/`PUTDC`, `NAME_fn` | `SM_STORE_VAR` DT_K path, `SM_CALL ".X"` |
+| RT-4 NMD | `GETLG`, `ACOMP`, `GETSPC`, `PUTDC`, `SPCINT_fn` | `SM_EXEC_STMT` calls `NAM_commit`/`NAM_discard` |
+| RT-5 ASGN | `TESTF`, `VEQLC`, `PUTDC`, `AEQLC` trace check | `SM_STORE_VAR` extended with output/trace hooks |
+| RT-6 EXPVAL | `SM_STATE_PUSH/POP`, `SPUSH`/`SPOP` | `SM_STATE_PUSH` + `SM_STATE_POP` instructions |
+| RT-7 CONVE/CODER | `SPCINT_fn`, `SPREAL_fn`, `LOCSP`, `GETLG` | `SM_CALL "CODE"`, `SM_CALL "CONVERT"` |
+| RT-8 EVAL | `VEQLC` dispatch, `SPCINT_fn`, `SPREAL_fn`, `CONVE_fn`, `EXPVAL_fn` | `SM_CALL "EVAL"` → `SM_SPCINT`/`SM_SPREAL` inline |
+| RT-9 INTERP | `INCRA`/`DECRA`, `TESTF`, `BRANIC`, `SELBRA`, `ACOMP`/`RCOMP` | ALL SM instructions — `sm_interp.c` dispatch loop |
 
 ---
 
-## Actions Required
+## Actions Required (Priority Order)
 
-### Immediate (this session)
-1. **Update SCRIP-SM.md** — add `SM_JUMP_INDIR`, `SM_SELBRA`, `SM_STATE_PUSH/POP`,
-   `SM_INCR`, `SM_DECR`, `SM_LCOMP`, `SM_RCOMP`, `SM_TRIM`, `SM_ACOMP`,
-   `SM_SPCINT`, `SM_SPREAL` to the instruction table.
-2. **Create `sil_macros.h`** — Groups 1 and 2 as C macros/inlines.
-3. **Fix PLS** — unary `+X` is not identity (see GENERAL-SIL-HERITAGE.md).
+### Now (this session)
+1. **Create `sil_macros.h`** — the header above. Verified against `macros.h`.
+2. **Update SCRIP-SM.md** — add 12 new SM ops to the instruction table.
+3. **Fix PLS** — `register_fn("PLS", _b_pls, 1, 1)` — unary `+X` is NOT identity.
 
 ### Per RT Milestone
-- Each RT-N milestone reads the corresponding SIL proc from v311.sil,
-  implements it as a C function with the SIL name, uses `sil_macros.h`.
-- All new RT functions go in `src/runtime/snobol4/` with filename
-  matching the SIL proc group (e.g. `argval.c`, `nmd.c`, `asgn.c`).
+Each RT-N reads the corresponding SIL proc from `v311.sil`, implements in C
+using `sil_macros.h` type tests and field accessors, registers in INVOKE table.
 
-### Future (post RT-9)
-- `TRACE` / `STOPTR` / `DETACH` (RT-5 stubs → full implementation)
-- `FREEZE` / `THAW` (serialization)
-- `LOAD` / `UNLOAD` (external function loading)
-- SNOBOL4B block operations (Group 9) — separate milestone
+### RT-9 — sm_interp.c (The Architecture Target)
+When `sm_interp.c` is written, every SM instruction in the master table above
+gets a dispatch case. The 12 new SM ops each call the corresponding RT function
+defined in `sil_macros.h`. The emitter maps each SM op to native code.
 
 ---
 
-## Summary — What's Useful vs What to Skip
+## Summary — Counts by Axis
 
-| Group | Count | Decision |
-|-------|-------|---------|
-| Descriptor access macros | 11 | `sil_macros.h` — C inlines |
-| Type test / compare | 15 | `sil_macros.h` + 4 new SM ops |
-| Arithmetic | 17 | RT functions + 2 new SM ops |
-| String / specifier | 21 | RT functions + 5 new SM ops |
-| Control flow | 11 | SM instructions (mostly DONE) + 3 new |
-| Pattern building | 21 | SM_PAT_* (DONE in SCRIP-SM.md) |
-| Byrd box construction | 15 | bb_*.c (DONE) |
-| Named builtins | ~50 | RT functions via INVOKE table |
-| SNOBOL4B blocks | ~50 | SKIP |
-| Compiler internals | ~25 | SKIP (we have sno4parse) |
+| Group | Count | scrip-interp axis | SM_Program axis |
+|-------|-------|:-:|:-:|
+| Descriptor access macros | 13 | `sil_macros.h` C macros | — |
+| Type test / compare | 16 | `sil_macros.h` + 3 SM ops | `SM_ACOMP`, `SM_RCOMP`, `SM_LCOMP` |
+| Address arithmetic | 2 inline + rest RT | `sil_macros.h` INCRA/DECRA | `SM_INCR`, `SM_DECR` |
+| String / specifier | 21 RT functions | `argval.c`, `snobol4.c` | `SM_TRIM`, `SM_SPCINT`, `SM_SPREAL` |
+| Control flow | 12 | goto/longjmp/call | `SM_JUMP_INDIR`, `SM_SELBRA`, `SM_STATE_PUSH/POP` |
+| Pattern building | 21 | bb_build() | `SM_PAT_*` (DONE) |
+| Byrd box construction | 15 | bb_*.c (DONE) | via `SM_EXEC_STMT` |
+| Named builtins | ~50 | RT functions via INVOKE | via `SM_CALL` |
+| SNOBOL4B blocks | ~50 | SKIP | SKIP |
+| Compiler internals | ~25 | SKIP | SKIP |
 
-**Total useful: ~120 of 211 procedures + 12 new SM instructions.**
-The 12 new SM ops fill real gaps in the current SCRIP-SM.md design.
+**Total useful: ~120 of 211 procedures**
+**SM_Program instructions: 12 new + 36 existing = 48 total**
+**RT-only functions: ~70 (sil_macros.h + argval.c + invoke.c + nmd.c + snobol4.c extensions)**
 
 ---
 
-*MILESTONE-RT-SIL-MACROS.md — created sprint 95, 2026-04-04*
-*Feeds: SCRIP-SM.md (new SM ops), MILESTONE-RT-RUNTIME.md (RT functions),*
-*sil_macros.h (C macro translations), GENERAL-SIL-HERITAGE.md (name lineage).*
+*MILESTONE-RT-SIL-MACROS.md — revised sprint 99, 2026-04-05*
+*Key addition: dual-axis table (scrip-interp vs SM_Program) for every macro.*
+*C translations verified against csnobol4 `include/macros.h` and generated `snobol4.c`.*
