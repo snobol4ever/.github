@@ -26979,3 +26979,63 @@ grep -n "sno_parse\|cmpile_lower\|cmpile_file" src/driver/scrip-interp.c | grep 
 #   Expected output: 7 / 9 / 25.5 / 7 / 26
 #   Gate: PASS >= 179
 ```
+
+## Sprint RT-113 FINAL HANDOFF — 2026-04-05
+
+**one4all HEAD:** `5a7e16e` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** `f3f28ff` · **PASS=178/203**
+
+### Decisions made this session
+
+- M-CMPILE-MERGE is NOT complete — reopened with Phase 2 + Phase 3
+- Both parsers (CMPILE + Bison/Flex) will be kept; `--parser=cmpile|bison` switch planned
+- ir.h has **118 enum entries total; 16 are old aliases** to purge (not 30-50)
+- Confirmed: execution path already uses `cmpile_lower()` — Bison demoted to `--dump-ir-bison` only
+
+### 16 old EKind aliases to purge (Phase 2)
+
+| Old | New |
+|---|---|
+| `E_NULV` | `E_NUL` |
+| `E_VART` | `E_VAR` |
+| `E_STAR` | `E_DEFER` |
+| `E_EXPOP` | `E_POW` |
+| `E_OR` | `E_ALT` |
+| `E_NAM` | `E_NAME` |
+| `E_DOL` | `E_CAPT_IMMED_ASGN` |
+| `E_ATP` | `E_CAPT_CURSOR` |
+| `E_ARY` | `E_IDX` |
+| `E_ASGN` | `E_ASSIGN` |
+| `E_ALT_GEN` | `E_ALTERNATE` |
+| `E_BANG` | `E_ITERATE` |
+| `E_NOT` | `E_INTERROGATE` |
+| `E_NULL` | `E_NUL` |
+| `E_AUGOP` | `E_SCAN_AUGOP` |
+| `E_BANG_BINARY` | `E_ITERATE` |
+
+### Sprint RT-114 first actions (fresh session — Track C)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-CMPILE-MERGE.md   # Phase 2 + Phase 3
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Phase 2 — find all uses of old aliases
+grep -rn \
+  "E_NULV\b\|E_VART\b\|E_STAR\b\|E_EXPOP\b\|E_OR\b\|E_NAM\b\|E_DOL\b\|E_ATP\b\|E_ARY\b\|E_ASGN\b\|E_ALT_GEN\b\|E_BANG\b\|E_NOT\b\|E_NULL\b\|E_AUGOP\b\|E_BANG_BINARY\b" \
+  /home/claude/one4all/src/ | grep -v "\.o:" | grep -v "ekind_name\|was E_\|old\|compat"
+
+# Then sed-replace each (see MILESTONE-CMPILE-MERGE.md Phase 2 Step 2 script)
+# Then delete 16 alias entries from ir.h enum
+# Build: make scrip-interp — gate: zero errors
+# Test:  CORPUS=... bash test/run_interp_broad.sh — gate: PASS=178
+# Commit: "RT-114: Phase 2 — purge 16 old EKind aliases; PASS=178"
+
+# Phase 3 — add --parser=cmpile|bison execution switch (separate commit)
+```
