@@ -190,11 +190,12 @@ A committed-but-not-pushed session lives only on a throwaway container — it is
 
 End-of-session checklist (in order):
 1. **Update `SESSION-<frontend>-<backend>.md` §NOW** — set sprint to NEXT session number, update HEAD hashes, rewrite first-actions for the next session. ⛔ THIS IS MANDATORY. A stale §NOW causes the next session to work on the wrong milestone. SESSIONS_ARCHIVE has the plan; §NOW in the SESSION doc must match it exactly.
-2. Update PLAN.md NOW table row (your row only).
-3. If milestone fired: move its row to MILESTONE_ARCHIVE.md.
-4. `git add -A && git commit && git push` every touched repo.
-5. `git pull --rebase origin main` on .github, then commit + push .github last.
-6. Append session entry to SESSIONS_ARCHIVE.md.
+2. **Append to `SESSION-<frontend>-<backend>.md` §INFO** any invariants stated mid-session (tool locations, oracle setup, don't-do-X, baselines). §INFO is append-only inside the SESSION doc. This is how facts survive across sessions.
+3. Update PLAN.md NOW table row (your row only).
+4. If milestone fired: move its row to MILESTONE_ARCHIVE.md.
+5. `git add -A && git commit && git push` every touched repo.
+6. `git pull --rebase origin main` on .github, then commit + push .github last.
+7. Append session entry to SESSIONS_ARCHIVE.md.
 
 ---
 
@@ -266,9 +267,10 @@ Every session is defined by three values. Pick them, read three docs, work.
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.
 2. Scan RULES.md headers: `grep "^## " RULES.md` — then `cat` only sections relevant to your session. Never `cat` the whole file.
 3. Read `PLAN.md` — NOW table, confirm next milestone.
-4. Read `REPO-*.md` + your `SESSION-*.md`. §NOW lives in the SESSION doc.
+4. Read your `SESSION-<frontend>-<backend>.md` — **§INFO first** (invariants), then **§NOW** (sprint state).
 
-**⛔ §NOW STALENESS CHECK — mandatory after step 4:**
+## ⛔ §NOW STALENESS — fix before any work
+
 Compare the sprint number in `SESSION-*.md §NOW` against the sprint in your `SESSIONS_ARCHIVE` handoff.
 If they differ, the SESSION doc was not updated at last handoff — **the SESSIONS_ARCHIVE handoff is authoritative**.
 Rewrite `§NOW` from the SESSIONS_ARCHIVE before doing any work.
@@ -389,15 +391,12 @@ both `E_SEQ` and `E_CONCAT` produce `pat_cat` — correct. In value context
 Fix is `stmt_seq()` runtime dispatcher. See `GENERAL-DECISIONS.md D-010` and
 `GENERAL-BYRD-DYNAMIC.md M-DYN-SEQ`.
 
-## ⛔ INFO-<frontend>-<backend>.md — session invariants, append-only
+## ⛔ §INFO — session invariants live in SESSION doc, not a separate file
 
-Each frontend×backend session has an `INFO-<frontend>-<backend>.md` in `.github/`.
-- Read it at **Step 3** of every session start (after component docs, before SESSION doc).
-- It contains tool locations, oracle build steps, sweep baselines, and mid-session facts.
-- When Lon states any operational fact mid-session, append it to INFO immediately.
-- **Never re-derive what is already written there.** Never rebuild a tool from scratch
-  if INFO says where the patches live. Never ask for a baseline that INFO already records.
-- Append-only. Never prune. Date every entry.
+Each `SESSION-<frontend>-<backend>.md` has a `## ⛔ §INFO` section at the top.
+- **Read §INFO before touching anything** — tool locations, oracle build steps, sweep baselines, don't-do-X warnings.
+- **Append to §INFO mid-session** when Lon states any operational fact. Write immediately. Commit at handoff.
+- §INFO is append-only. Date every entry. Never re-derive what §INFO already records.
+- Never rebuild a tool from scratch if §INFO says where the patches live.
 
-Current INFO docs: `INFO-snobol4-x64.md` (DYN sessions).
-Other sessions: create `INFO-<frontend>-<backend>.md` on first session, populate as you go.
+"Update HQ" = append the new fact to §INFO in the SESSION doc + commit `.github`.
