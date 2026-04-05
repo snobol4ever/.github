@@ -101,12 +101,12 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **GRAND MASTER REORG** | G-10 s1 | .github `f14c42a` | Architecture reset complete. G-11: all sessions adopt new component docs. |
-| **⭐ DYNAMIC BYRD BOX** | DYN-88 | one4all `a7a7f96` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 3**: two-way STREAM trace oracle → fix arg-whitespace → Phase 1 0 errors |
+| **SNOBOL4 × x86 / sno4parse** | sprint 89 | one4all `280329f` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 3**: two-way STREAM trace oracle → fix arg-whitespace → Phase 1 0 errors |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **⭐ TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **⭐ one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
+| **SNOBOL4 × x86 / TINY** | B-292 | one4all `acbc71e` | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 
 ---
 
