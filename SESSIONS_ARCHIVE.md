@@ -25348,3 +25348,20 @@ TESTF macro as written is wrong for our layout.
 Sprint 100: decide — add a flags field to DESCR_t, OR document that
 FNC/PTR/STTL are permanently routed differently and fix IS_FNC/TESTF
 to reflect reality (invoke table test, not bit test).
+
+### ⚠️ DESCR_t flags decision — sprint 100 architecture choice
+
+Option A (add .f field): evicts .slen. String length needs SPEC (2 descrs = 32
+bytes) or stored in string block title.v like csnobol4. Canonical SIL model.
+Cost: every string op needs SPEC pair or block allocation.
+
+Option B (keep .slen, no .f): FNC via invoke table, PTR/STTL via Boehm.
+Fix IS_FNC to invoke_is_registered(). TESTF only for our own future flag bits.
+Cost: IS_FNC is a table lookup not a bit test. Acceptable given Boehm GC.
+
+Option C (encode flags in .slen high bits): .slen is uint32_t, strings
+<< 2^28 bytes. Use top 4 bits for FNC/PTR/STTL/spare. Keep 28-bit length.
+Cost: masking on every slen access. Clever but fragile.
+
+Lon to decide. Recommendation: Option B — Boehm makes PTR/STTL irrelevant,
+invoke table is already correct for FNC. Document and move on.
