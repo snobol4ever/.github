@@ -24602,3 +24602,31 @@ Replace compile_state_t linebuf with:
 
 ### Commits
 - `.github`: pushed after this entry
+
+## SNOBOL4 × x86 sprint 91 addendum 2 — spec correction, handoff (2026-04-05)
+
+### Spec was wrong, not the implementation
+
+MILESTONE-SN4PARSE.md said "CNTTYP=4 → append to previous".
+sno4parse linebuf pre-join implemented exactly that spec.
+The spec was wrong. Now corrected in MILESTONE-SN4PARSE.md.
+
+### Handoff state
+- one4all: `ae60046` · corpus: `8d5cc6a` · .github: `b6a1bd1`
+- Sweep: 81/84 OK
+- Sprint 92 first action: rip out linebuf, implement true streaming
+
+### Sprint 92 session start
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 81
+# Step 1: read CSNOBOL4 FORWRD/FORRUN/NEWCRD
+sed -n '1831,1930p' /home/claude/snobol4-2.3.3/snobol4.c
+# Step 2: rip linebuf, implement true streaming
+```
