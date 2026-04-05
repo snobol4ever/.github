@@ -46,8 +46,25 @@ cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0"
 ```
 Files: `one4all/csnobol4/stream.c`, `main.c`, `README.md`, `dyn89_sweep.sh`
 
-### Two-way MONITOR correctness criterion
+### True streaming — no linebuf, no pre-joining (sprint 92)
 **Date:** 2026-04-04
+
+CSNOBOL4 XLATNX keeps TEXTSP = one physical line. FORWRD/FORBLK call FORRUN on ST_EOS
+to fetch the next card. NEWCRD dispatches: CNTTYP → strip '+', re-drive; NEWTYP → save
+as pending. We do the same. linebuf pre-join is permanently banned.
+
+SIL STREAM 6-arg convention:
+  `STREAM out, in, table, error_branch, eos_branch, stop_branch`
+  C stream() returns: ST_ERROR→arg4, ST_EOS→arg5, ST_STOP→arg6 (omitted = fall through)
+
+All five stream() call-site bugs fixed in sprint 92 (one4all `229b04e`):
+- FORWRD: ST_EOS → forrun(), not BRTYPE=EOSTYP
+- FORBLK: ST_EOS → forrun(); ST_ERROR = RTN1 (no blank) — leave BRTYPE as-is
+- ELEMTB: ST_EOS + STYPE==0 → sil_error (ELEILI)
+- GOTOTB: ST_EOS → sil_error (CERR12)
+- LBLTB: ST_ERROR → sil_error (CERR1)
+
+Result: 84/84 sweep.
 
 Correctness = **agreement with CSNOBOL4**, not independent correctness:
 - CS succeeds + sno4parse succeeds → OK
@@ -113,7 +130,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 91 | one4all `ae60046` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK · 81/84 now · 3 ERR remain — ⛔ rip out linebuf, implement true streaming first |
+| 92 | one4all `229b04e` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1 ✅ 84/84** — next: Phase 2 SPITBOL extensions (P2A binary `?`, P2C `[]` subscript, P2F semicolon) |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -152,13 +169,8 @@ cd /home/claude
 # 3. BRTYPE=1 postfix subscript: sed -n around ELEFNC + expr_prec_continue '[' detection
 ```
 
-### ⛔ LINEBUF PRE-JOIN IS BANNED
-**Date:** 2026-04-05
+### ✅ LINEBUF PRE-JOIN REMOVED (sprint 92)
+**Date:** 2026-04-05 → implemented 2026-04-04
 
-sno4parse currently pre-joins continuation lines into linebuf before parsing.
-This is an architecture violation. CSNOBOL4 does true streaming (FORWRD calls
-FORRUN/IO_READ on ST_EOS). The linebuf must be eliminated.
-
-Sprint 92 FIRST action: implement true streaming before any other work.
-See SESSIONS_ARCHIVE.md sprint 91 addendum for the design.
+True streaming implemented. linebuf gone. forrun() is the canonical continuation handler.
 
