@@ -85,7 +85,7 @@ For hard bugs: `SNO_TRACE=1` on both, diff `/tmp/sno_csno.trace` vs stderr. Firs
 **Date:** 2026-04-04
 
 ```bash
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/CMPILE.c
 
 IFLAGS="-I/home/claude/corpus/programs/lon/sno \
   -I/home/claude/corpus/programs/lon/rinky \
@@ -147,7 +147,7 @@ The two FORWRDs bridge this gap. Sweep 84/84 confirmed.
 
 | File | Role |
 |------|------|
-| `src/frontend/snobol4/sno4parse.c` | Single-file SNOBOL4 parser / stream oracle |
+| `src/frontend/snobol4/CMPILE.c` | Single-file SNOBOL4 parser / stream oracle |
 | `one4all/csnobol4/` | CSNOBOL4 STREAM trace patches |
 | `src/backend/emit_x64.c` | Pattern statement emission |
 | `src/runtime/snobol4/stmt_exec.c` | `stmt_exec_dyn` — five-phase executor |
@@ -186,7 +186,7 @@ cat > /tmp/sno4parse_wrap.c << 'WRAP'
 int sno4parse_main(int argc, char **argv);
 int main(int argc, char **argv) { return sno4parse_main(argc, argv); }
 WRAP
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c /tmp/sno4parse_wrap.c
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/CMPILE.c /tmp/sno4parse_wrap.c
 cp sno4parse one4all/sno4parse
 cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
 cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c

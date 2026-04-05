@@ -102,7 +102,7 @@ ABCD ? LEN(3) $ OUTPUT ? LEN(1) REM $ OUTPUT
 - **Current:** `?` is unary only (QUESFN — interrogation, returns null if operand succeeds)
 - **SPITBOL adds:** `?` as BINARY op at priority 1 (between `=`=0 and `|`=3)
 - **Required:**
-  - Add `BISNFN` (already defined as 215 in sno4parse.c) to BIOPTB at priority 1
+  - Add `BISNFN` (already defined as 215 in CMPILE.c) to BIOPTB at priority 1
   - Disambiguate: unary `?` (prefix) vs binary `?` (infix after an expression)
   - The parser already distinguishes unary/binary by context — BIOPTB handles binary
   - Check BIOPTB chrs[63]('?') — currently not in BIOPTB → add if missing
@@ -267,6 +267,6 @@ cd /home/claude
 cat .github/SCRIP-SM.md
 tail -120 .github/SESSIONS_ARCHIVE.md
 cat .github/MILESTONE-SN4PARSE-VALIDATE.md
-gcc -O0 -g -Wall -o one4all/sno4parse one4all/src/frontend/snobol4/sno4parse.c
+gcc -O0 -g -Wall -o one4all/sno4parse one4all/src/frontend/snobol4/CMPILE.c
 bash one4all/csnobol4/dyn89_sweep.sh   # baseline: ~73 OK / 11 ERR / 0 HANG
 ```

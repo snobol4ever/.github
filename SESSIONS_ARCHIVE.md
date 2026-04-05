@@ -25866,3 +25866,11 @@ cp sno4parse one4all/sno4parse
 # Next: P2A binary ? operator (BINOP special-case BISNFN at prec=1)
 # Or: P2C [] as alias for <> + postfix subscript on call result
 ```
+
+---
+
+## Rename — 2026-04-05
+
+`src/frontend/snobol4/sno4parse.c` → `src/frontend/snobol4/CMPILE.c`
+
+Per Lon's instruction. SIL procedure name. one4all `febd82f`. Build confirmed clean.
