@@ -26206,3 +26206,76 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
 #   ./scrip-interp --dump-parse /path/to/failing.sno 2>&1
 #   Compare stmt fields against sno_parse IR (add --dump-ir flag if needed)
 ```
+
+## Sprint RT-107 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — cmpile_lower as default path + parser bug fixes
+
+### Baseline at session start
+- one4all HEAD: `081cce9`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (sno_parse path)
+- cmpile_lower path at session start: PASS=107 (non-ASCII bug blocking)
+
+### Fixes committed (one4all `513dbed`)
+
+**CMPILE.c — io_read_raw:**
+- Strip non-ASCII bytes (>0x7F) inline — 7-bit punch-card system; UTF-8
+  em-dash U+2014 in comments/strings no longer reaches ELEMNT/sil_error
+- Return -1 for EOF (fgets returns NULL) vs 0 for blank line — prior code
+  returned 0 for both, causing blank lines to be treated as EOF and
+  breaking the main parse loop after 3 comment lines
+
+**CMPILE.c — forrun():**
+- Guard: `if (g_pending_len > 0) return 1` — prevents second FORWRD call
+  from overwriting a pending line before it is drained. Root cause: ELEARY
+  calls FORWRD after closing '>', which hits EOS and calls forrun(), storing
+  line N+1 in pending. Then CMPGO also calls FORWRD (for goto check), hits
+  EOS again, and forrun() overwrites pending with line N+2. Line N+1 lost.
+- Blank line skip: `if (len == 0) goto retry` before CARDTB dispatch
+
+**CMPILE.c — cmpile_file_internal main loop:**
+- `if (len == 0) continue` before CARDTB — blank lines with len=0 caused
+  STYPE to retain previous value (NEWTYP), triggering compile_one_stmt on
+  empty TEXTSP and silently eating a statement slot
+
+**scrip-interp.c:**
+- Wire cmpile_lower() as default execution path (replaces sno_parse)
+- Wire all include dirs into cmpile_add_include() — mirrors sno_add_include_dir
+  setup (file dir + SNO_LIB env + corpus-root auto-detect + cwd)
+
+### Result
+- PASS=168 FAIL=35 on cmpile_lower path (up from 107)
+- Still 22 short of baseline gate (190)
+
+### Remaining failures (35) — triage for RT-108
+- Pattern bb-box: 046_pat_tab, 048_pat_rem, 052_pat_arbno, 054, 055 — TAB/REM
+  captures wrong substring; runtime bb-box issue not parsing
+- Runtime: 1011_func_redefine (recursive redefine), 1012_func_locals, 1015_opsyn
+- word1-4: likely infinite loop or INPUT-reading pattern (needs investigation)
+- test_case/stack/string: output differences (partial output, trailing lines)
+- beauty drivers: pre-existing (same 13 that failed on sno_parse path + more)
+- demo_treebank, demo_claws5, demo_roman: needs investigation
+
+### Sprint RT-108 first actions
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=168
+
+# Step 1: triage word1-4 (timeout/loop?)
+#   timeout 3 ./scrip-interp corpus/crosscheck/strings/word1.sno 2>&1
+#   --dump-parse to see if parse is correct
+
+# Step 2: triage cmpnd_to_expr gaps — what stypes are hitting the default case?
+#   Add fprintf to default case in cmpnd_to_expr, run test suite, collect unknown stypes
+
+# Step 3: fix dominant cmpnd_to_expr gaps to push PASS toward 190
+#   Gate: PASS >= 190
+```
