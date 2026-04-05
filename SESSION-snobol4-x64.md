@@ -166,6 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| diag-01 | one4all `3a3d91d` · corpus `3fd44d0` · PASS=178/203 | P1c fix (IBLKTB 3-action) OR P2E (E_SCAN eval) OR milestone table update |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
 | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
 | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
@@ -408,3 +409,28 @@ Uncertain (need authoritative mapping):
 `T_PCT`, `T_EQ`, `T_ERR`, `T_WS`, `T_EOF`, `T_BANG`, `T_CARET`, `T_AMPERSAND`,
 `T_AT_SIGN`, `T_LPAREN`, `T_RPAREN`, `T_LBRACK`, `T_LANGLE`, `T_RANGLE`,
 `T_LBRACKET`, `T_RBRACKET`
+
+### P1c — IBLKTB 3-action bug (diagnosed 2026-04-05, diag-01 session)
+**Date:** 2026-04-05
+
+CSNOBOL4 IBLKTB has exactly 3 actions (GOTO FRWDTB / EOSTYP STOP / ERROR).
+Our CMPILE.c has 4 actions: action[3]={NBTYP, ACT_STOPSH} is unreachable because
+no chrs[] value of 4 is assigned. All non-special chars have chrs[x]=3 → actions[2]
+= {EOSTYP, ACT_STOP} — NOT ST_ERROR as CSNOBOL4 does.
+
+Effect: when BINOP calls IBLKTB with TEXTSP at a non-blank char (no leading space
+= BINOP1 path), IBLKTB returns ST_STOP/STYPE=EOSTYP instead of ST_ERROR. BINOP
+misroutes → EXPR() terminates early → NSTTYP force-sets BRTYPE=RPTYP → downstream
+mispositioning → ELEMNT: illegal character on the following token.
+
+**Fix:**
+```c
+static acts_t IBLKTB_actions[] = {
+    {0,      ACT_GOTO,  &FRWDTB},  /* 0: space/tab → FRWDTB */
+    {EOSTYP, ACT_STOP,  NULL},     /* 1: ';' → EOSTYP */
+    {0,      ACT_ERROR, NULL},     /* 2: non-blank → ST_ERROR (BINOP1 path) */
+    /* NO action[3] */
+};
+```
+chrs[] bytes unchanged (authoritative). Only actions[] fixed.
+Verified with two-way MONITOR: SNO_TRACE=1 diff shows IBLKTB divergence on '|'.
