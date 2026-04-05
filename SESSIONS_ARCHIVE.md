@@ -25877,6 +25877,73 @@ Per Lon's instruction. SIL procedure name. one4all `febd82f`. Build confirmed cl
 
 ---
 
+## Sprint 99 — snobol4 × x86 (sno4parse track) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track A — sno4parse
+
+### Baseline confirmed
+- one4all HEAD: `febd82f` · corpus HEAD: `65494e7`
+- Sweep 84/84 OK ERR=0 HANG=0 — confirmed at session start
+- CSNOBOL4 oracle built (m4 installed, patched stream.c/main.c applied)
+
+### Orientation findings — milestone table was stale
+
+Full verification of all open P2 items:
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| P2A binary `?` | ✅ already done | `ABCD ? LEN(3) $ OUTPUT` → `BIQSFN(?)` node; chained `? ? ` → correct right-spine; `?` inside SELECT also correct. BIOPTB chrs[63]=14→BIQSFN, op_prec=1 — both already in place from sprint 94 |
+| P2B SELECT `(e1,e2)` | ✅ already done | sprint 98-ext |
+| P2C `[]` alias for `<>` + postfix on call result | ✅ already done | `A[I,J]` = `A<I,J>` → identical ARYTYP trees; `F(G(X))[1]` → ARYTYP IDX node (synthetic name for anonymous subscript — correct) |
+| P2D `A[J=J+1]` assignment inside subscript | ✅ already done | sprint 97 |
+| P2F `;` statement separator | ✅ already done | `A = 1; B = 2; OUTPUT = A + B` → 3 statements correctly |
+
+MILESTONE-SN4PARSE-VALIDATE.md status table was not updated after sprints 94–98. No new code needed.
+
+### Broader corpus sweep (snobol4 + beauty + gimpel, with -I flags)
+
+| Status | Count | Notes |
+|--------|-------|-------|
+| OK | 224 | |
+| ERR | 1 | `gimpel/PHRASES.sno` — grammar data file, not SNOBOL4 source; not a parser bug |
+| HANG | 5 | `gimpel/` files with unresolved `-INCLUDE` (push.sno etc. not in any -I path) → parser blocks on stdin instead of erroring |
+
+The 5 hangs are an unresolved-include robustness issue: when `-INCLUDE "x.sno"` cannot be found in any include path, the parser should emit an error and abort, not block reading stdin.
+
+### No code committed this session
+All P2 items were already complete. Session was orientation + verification.
+
+### Sprint 100 first actions (sno4parse track)
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/CMPILE.c /tmp/sno4parse_wrap.c
+cp sno4parse one4all/sno4parse
+# Confirm 84/84 sweep (snobol4/ only):
+bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; HANG=0; while IFS= read -r f; do ec=0; r=$(timeout 10 "$SNO4" "$f" 2>&1)||ec=$?; [[ $ec -eq 124 ]] && { HANG=$((HANG+1)); continue; }; e=$(echo "$r"|grep -m1 "ELEMNT:\|sil_error\|illegal"||true); [[ -n "$e" ]] && ERR=$((ERR+1)) || OK=$((OK+1)); done < <(find "$CORPUS" -name "*.sno"|sort); echo "=== OK=$OK ERR=$ERR HANG=$HANG ==="'
+
+# Priority 1: Fix unresolved-include hang
+#   In resolve_include_path() or -INCLUDE handler: if file not found in any inc_dir,
+#   call sil_error() with a "include file not found: X" message and return NULL.
+#   Caller must check NULL and abort parse of current file (not fall through to stdin).
+#   Gate: gimpel/NOT.sno, ASM360.sno etc. → ERR not HANG.
+
+# Priority 2: Update MILESTONE-SN4PARSE-VALIDATE.md
+#   Mark P2A/P2C/P2F as ✅ sprint 94/96/92 respectively.
+#   Add "Broader corpus" section: 224/225 OK, 5 gimpel hangs → unresolved-include bug.
+
+# Priority 3: M-SN4PARSE-VALIDATE Phase 2 — next corpus tier
+#   Run crosscheck/ suite with sno4parse. That's the real validation gate.
+```
+
+### Baseline at session end
+- one4all HEAD: `febd82f` (unchanged — no code committed)
+- corpus HEAD: `65494e7` (unchanged)
+- Sweep: 84/84 OK ERR=0 HANG=0
+- Broader (snobol4+beauty+gimpel): 224 OK / 1 non-sno data ERR / 5 unresolved-include HANGs
 ## Sprint RT-104 — scrip-interp / SIL track — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6

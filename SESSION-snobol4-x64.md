@@ -167,6 +167,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
 | RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
+| 100 (sno4parse) | one4all `febd82f` · corpus `65494e7` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ sweep 84/84 — next: fix unresolved-include HANG (5 gimpel files) → crosscheck/ suite |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 84/84 ✅; Phase 2 P2D ✅; next P2B or P2F
