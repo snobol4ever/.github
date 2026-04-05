@@ -166,6 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
 | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
 | RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
 | RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |

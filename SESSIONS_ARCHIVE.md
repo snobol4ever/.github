@@ -26279,3 +26279,75 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=168
 # Step 3: fix dominant cmpnd_to_expr gaps to push PASS toward 190
 #   Gate: PASS >= 190
 ```
+## Sprint RT-108 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — RT-4 NMD conditional assignment stack
+
+### Baseline confirmed
+- one4all HEAD at session start: `3424405` (RT-107b)
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=187 FAIL=16 (203 total) — functionally equivalent to archived 190;
+  delta is harness discovery order. 213_indirect_name and 099_keyword_rw
+  both PASS when run directly.
+
+### RT-4 NMD naming list — implemented
+
+**nmd.c (new — src/runtime/snobol4/nmd.c):**
+- `NamEntry_t` buffer (NAM_MAX=512): varname/var_ptr/dt/substr/slen
+- `NAM_push(var, ptr, dt, s, len)`: record . capture during match
+- `NAM_save()`: snapshot top → cookie (NHEDCL)
+- `NAM_commit(cookie)`: last-write-wins backwards walk; assigns last push
+  per target; DT_K → ASGNIC_fn (NMDIC); DT_E → stub (RT-6); else NV_SET_fn
+- `NAM_discard(cookie)`: restore top, nothing assigned
+
+**stmt_exec.c wiring:**
+- bb_capture CAP_γ_core: conditional (.) path calls NAM_push() + keeps
+  pending/has_pending for scan-loop bookkeeping
+- exec_stmt Phase 3: NAM_save() before scan loop; NAM_discard(cookie)
+  between scan positions and on failure path
+- exec_stmt Phase 4: NAM_commit(cookie) before flush_pending_captures();
+  flush_pending_captures() now only resets has_pending flags (write removed)
+
+**snobol4.h:** NAM_push/save/commit/discard declarations after ASGNIC_fn
+**Makefile:** nmd.o added to scrip-interp build
+
+**Key bug found and fixed during session:**
+NAM_commit initially walked forward (first-write), causing ARB . OUTPUT to
+emit every intermediate backtrack position (c, ca, cat... instead of cat).
+Fixed: reversed to backwards walk with seen[] dedup → last-write-wins.
+word1.sno (ARB . OUTPUT loop) confirmed PASS after fix.
+
+### Commits this sprint
+- `04fb2d5` RT-108: RT-4 NMD naming list — nmd.c + stmt_exec wiring; PASS=187
+- `f8859c9` gitignore: add scrip-interp binary
+- `b107c67` (post-rebase HEAD) — pushed to origin/main
+
+### Baseline at session end
+- one4all HEAD: `b107c67`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=187 FAIL=16 — baseline held ✅
+
+### Sprint RT-109 first actions (Track C)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=187
+
+# Two candidate next steps — discuss with Lon:
+#
+# Option A: non-ASCII comment fix (cmpile_lower path)
+#   In CMPILE.c cmpile_file_internal() line reader: when physical line
+#   starts with '*' (CNTTYP), skip entire line without calling STREAM/ELEMNT.
+#   Non-ASCII bytes in *-comments never reach lexer.
+#   Gate: 1010_func_recursion.sno --dump-parse non-empty → cmpile_lower PASS≥190.
+#
+# Option B: RT-5 — ASGN with &OUTPUT / &TRACE / keyword assignment hooks
+#   See MILESTONE-RT-RUNTIME.md § RT-5.
+#   NV_SET_fn hook for &OUTPUT (write to stdout), &TRACE enable/disable.
+```

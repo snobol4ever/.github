@@ -112,7 +112,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | 98-ext | one4all `45ad889` · corpus `65494e7` | **M-SN4PARSE-VALIDATE** — P2B ✅ P2D ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BISNFN@prec1) or P2C `[]`=`<>` |
-| **RUNTIME (scrip-interp)** | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | KEYFN+ARYTYP+label/subj ✅ — next: non-ASCII comment fix → cmpile_lower default (107→190) |
+| **RUNTIME (scrip-interp)** | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ — next: Option A non-ASCII comment fix or Option B RT-5 ASGN &OUTPUT |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
