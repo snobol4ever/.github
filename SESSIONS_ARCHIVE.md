@@ -26441,3 +26441,78 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=175
 #   In CMPILE.c cmpile_file_internal(): skip lines where physical line
 #   starts with '*' without calling STREAM/ELEMNT. Gate: PASS≥180
 ```
+## Sprint RT-110 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — multi-line continuation fix in expr_prec_continue
+
+### Baseline at session start
+- one4all HEAD: `8743f20` · corpus HEAD: `3fd44d0` · PASS=175/203
+
+### Work done
+
+**Root cause of word2/word3/word4 failures — multi-line continuation:**
+
+Pattern assignments spanning multiple `+` continuation cards were silently
+dropping all but the last continuation.  e.g. `PAT = POS(0) LEN(4) . WHEN`
+followed by two `+` lines yielded only the first and third segments.
+
+Root cause: `expr_prec_continue` with `min_prec=99` (NAMFN/DOLFN right-arm
+parse) called `FORBLK()` when `TEXTSP.len==0` at end of physical line.
+`FORBLK()` read the continuation card into `g_io_linebuf`/`TEXTSP`, but then
+`CATFN_PREC(10) < min_prec(99)` caused a `break`, discarding that content.
+The outer CAT loop's next `FORBLK()` call then read the *following*
+continuation line, silently skipping line 2.
+
+**Fix in `expr_prec_continue` (`CMPILE.c`):**
+Check `CATFN_PREC < min_prec` **before** calling `FORBLK()`.  Inner frames
+(min_prec=99) simply `break` with `TEXTSP.len==0` intact; the outer CAT loop
+(min_prec=0) then calls `FORBLK()` and handles the continuation correctly.
+
+Three attempted approaches before landing on the correct one:
+1. Fix inside `BINOP()` ST_EOS branch — wrong level, `saved_text` captured stale
+2. Call `FORBLK()` then restore `TEXTSP` — discarded line from `g_io_linebuf`
+3. Check `min_prec` before `FORBLK()` — correct ✅
+
+### Commits this sprint
+- `ca77163` RT-110: multi-line continuation in expr_prec_continue; PASS=178
+
+### Baseline at session end
+- one4all HEAD: `ca77163` · corpus HEAD: `3fd44d0` (unchanged)
+- PASS=178 FAIL=25
+
+### Gains this sprint
+word2 ✅  word3 ✅  word4 ✅
+
+### Remaining failures (25)
+- expr_eval — expected, gate for RT-8
+- test_case — **timeout/infinite loop**; REPLACE implemented; icase recursion
+  suspected; `--dump-parse` + runtime trace needed
+- 1010_func_recursion — non-ASCII comment bug (Option A)
+- 1011/1012/1015/1018 — function semantics
+- beauty_* (14) — pre-existing (`;` separator + &ALPHABET gaps)
+- demo_treebank/claws5/roman — pre-existing
+
+### Sprint RT-111 first actions (Track C)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Step 1: Option A — non-ASCII comment fix → unlock 1010_func_recursion
+#   In CMPILE.c cmpile_file_internal(): when physical line first char is '*'
+#   (CMTTYP), skip entire line without calling STREAM/ELEMNT.
+#   Gate: 1010_func_recursion passes → PASS≥179
+
+# Step 2: triage test_case timeout
+#   ./scrip-interp --dump-parse corpus/crosscheck/library/test_case.sno
+#   Check cap function continuation: REPLACE(SUBSTR...) + REPLACE(SUBSTR...)
+#     now parses correctly with RT-110 fix
+#   Likely cause: icase recursive function hits runtime bug (DEFINE/RETURN/FRETURN)
+#   timeout 5 ./scrip-interp corpus/crosscheck/library/test_case.sno 2>&1 | head -20
+```
