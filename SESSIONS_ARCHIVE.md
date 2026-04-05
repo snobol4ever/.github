@@ -26672,3 +26672,105 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
 # Step 4: Commit "RT-112: RUNTIME-6 complete; expr_eval passes; PASS=179"
 ```
+## Sprint RT-112 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — RUNTIME-6 EXPRESSION datatype (continued from RT-111)
+
+### Baseline at session start
+- one4all HEAD: `1fd0e27` · corpus HEAD: `3fd44d0` · PASS=178/203
+
+### Work done
+
+**Root-cause investigation: expr_eval outputs "Bad input" x5**
+
+The symptom: `pat_cat: left is not a pattern (DT=11)` fires at match
+time during `line POS(0) expr RPOS(0)`.
+
+Three fixes applied (all in `ff74658`):
+
+1. **`pat_to_patnd()` DT_E dispatch** (`snobol4_pattern.c`):
+   Split the DT_E branch into three cases keyed on `frozen->kind`:
+   - `E_FNC` → `pat_user_call()` (XATP): side-effect function deferred to
+     match time. `*Push()` in `addop = ANY('+-') . *Push()` now builds XATP.
+   - `E_VAR` → `var_as_pattern()` (XVAR): deferred variable reference,
+     resolved at match time. Handles self-recursive patterns.
+   - other → `PATVAL_fn()`: thaw expression to a pattern value.
+   Also added `extern DESCR_t eval_node(EXPR_t*)` forward-decl before
+   `pat_to_patnd`, removed the duplicate at old line ~1535.
+
+2. **`var_resolve_callback()` DT_E thaw** (`snobol4_pattern.c`):
+   Added `if (v.v == DT_E) v = PATVAL_fn(v);` before the `DT_P` check,
+   so pattern variables holding DT_E expressions are thawed at match time.
+
+3. **`E_CAT`/`E_SEQ` mixed-mode** (`scrip-interp.c`):
+   Once a pattern operand is detected mid-concat, remaining children are
+   re-evaluated via `interp_eval_pat()` so `*var`/`*func` yield proper
+   XDSAR/XATP nodes instead of frozen DT_E descriptors.
+
+### Remaining blocker — DT_E{ptr=NULL, s=NULL} source unknown
+
+Despite the three fixes, `pat_cat` still receives a bare `DT_E` with
+`ptr=NULL, s=NULL` during the `term`/`expr` assignment phase of
+`expr_eval`. This is NOT from any of the known DT_E-creation paths
+(all set `.ptr`). GDB investigation: the abort fires in the optimised
+build but the breakpoint is never reached in the debug build — the
+process exits at code=1 beforehand, suggesting a different code path
+or inlining difference. Root cause not identified.
+
+**Key diagnostic fact:** `pat_cat(left=DT_E{ptr=NULL,s=NULL}, right=DT_P)`.
+The call stack is: `execute_program` → `interp_eval(E_ALT)` line 976
+→ `interp_eval(E_CAT/E_SEQ)` line 683 → `pat_cat`.
+
+### Commits this sprint
+- `ff74658` RT-112 WIP: RUNTIME-6 DT_E pattern routing — partial; PASS=178 held
+
+### Baseline at session end
+- one4all HEAD: `ff74658` · corpus HEAD: `3fd44d0` (unchanged)
+- PASS=178 FAIL=25 (no regression, no gain)
+
+### Sprint RT-113 first actions (Track C)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex gdb
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# KEY QUESTION: where does DT_E{ptr=NULL,s=NULL} come from?
+#
+# Strategy: add a trap in interp_eval for all DT_E returns with ptr=NULL:
+#   After every `return d;` that produces DT_E, assert d.ptr != NULL.
+#   Add to the E_DEFER case in interp_eval (scrip-interp.c ~line 957):
+#     assert(d.ptr != NULL && "E_DEFER: child is NULL");
+#
+# Alternative: instrument NV_GET_fn to assert result.v != DT_E on return,
+#   since a variable storing DT_E legitimately has ptr set. If ptr==NULL
+#   it means the var table has a corrupted entry.
+#
+# Check: does PATVAL_fn (argval.c) ever produce DT_E? It should not —
+#   it resolves DT_E to DT_P or DT_S. But if EVAL_fn returns DT_E
+#   (e.g. for a CODE descriptor), PATVAL_fn would fall through to VARVAL_d
+#   which might return DT_E again.
+#
+# Simplest first move — add to scrip-interp.c interp_eval E_DEFER (~line 957):
+#   if (!child) return NULVCL;   /* guard NULL child */
+#   d.ptr = child;
+#   assert(d.ptr);
+#   Then run /tmp/dbg2.sno — if no abort, the NULL ptr came from a
+#   NULL child[0] in some E_DEFER node (parser bug).
+#
+# Step 2: Run expr_eval after fixing
+#   SNO_LIB=/home/claude/corpus/lib ./scrip-interp \
+#     corpus/crosscheck/control/expr_eval.sno \
+#     < corpus/crosscheck/control/expr_eval.input
+#   Expected: 7 / 9 / 25.5 / 7 / 26
+#
+# Step 3: Full suite — CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Gate: PASS >= 179
+#
+# Step 4: Commit "RT-113: RUNTIME-6 complete; expr_eval passes; PASS=179"
+```
