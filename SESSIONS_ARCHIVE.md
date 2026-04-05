@@ -27039,3 +27039,48 @@ grep -rn \
 
 # Phase 3 — add --parser=cmpile|bison execution switch (separate commit)
 ```
+
+## Sprint RT-114 HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Final one4all HEAD:** `5a7e16e` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session summary
+
+Orientation-only session (Track C). Full session-start protocol executed.
+Discovered M-CMPILE-MERGE Phases 0–2 are already complete — no code needed:
+
+- **Phase 0** (IR sweep): confirmed COMPLETE from RT-113
+- **Phase 1** (cmpile_lower as live path): confirmed — `scrip-interp.c` line 1804 already calls `cmpile_lower(cl)` for execution; `sno_parse` demoted to `--dump-ir-bison` only
+- **Phase 2** (16 old EKind alias purge): confirmed COMPLETE — all 16 aliases (`E_NULV`, `E_VART`, `E_STAR`, `E_OR`, `E_NAM`, `E_DOL`, `E_ATP`, `E_ARY`, `E_ASGN`, `E_ALT_GEN`, `E_BANG`, `E_NOT`→`E_INTERROGATE`, `E_NULL`→`E_NUL`, `E_AUGOP`, `E_BANG_BINARY`→`E_ITERATE`, `E_EXPOP`) are zero-occurrence in source; `ir.h` canonical names only. Note: `E_NOT`/`E_NULL`/`E_AUGOP`/`E_BANG_BINARY` in Icon files are Icon-canonical, not aliases.
+
+Updated: `MILESTONE-CMPILE-MERGE.md` (Phases 0–2 ✅), `PLAN.md` component map + NOW table, `SESSION-snobol4-x64.md` §NOW.
+
+### RT-115 first actions (fresh session — Track C)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# CHOICE: Phase 3 (--parser switch, ~30 min) OR RUNTIME-6 DT_E blocker (high value)
+#
+# RUNTIME-6 strategy (from RT-112 archive):
+#   DT_E{ptr=NULL, s=NULL} arrives at pat_cat() during expr_eval.sno
+#   Add assert(d.ptr != NULL) after every E_DEFER return in interp_eval
+#   Run: SNO_LIB=/home/claude/corpus/lib ./scrip-interp \
+#     corpus/crosscheck/control/expr_eval.sno \
+#     < corpus/crosscheck/control/expr_eval.input
+#   Expected output: 7 / 9 / 25.5 / 7 / 26
+#   Gate: PASS >= 179
+#
+# Phase 3 (--parser switch):
+#   In scrip-interp.c main() arg-parse, add --parser=cmpile|bison
+#   Default: cmpile (current). bison: call sno_parse() instead of cmpile_lower()
+#   Gate: PASS=178 with --parser=cmpile; PASS=178 with --parser=bison
+```

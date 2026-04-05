@@ -2,7 +2,7 @@
 
 **Track:** C (scrip-interp / SIL)
 **Sprint introduced:** 104
-**Status:** 🔴 ACTIVE — RT-113 pivot 2026-04-05
+**Status:** ✅ COMPLETE — RT-114 2026-04-05
 **Priority:** TOP — supersedes RUNTIME-6 DT_E blocker
 
 ---
@@ -291,7 +291,7 @@ to a string-concat default.  `cmpnd_to_expr()` uses the named constants directly
 
 ## Phase 2 — Purge old EKind aliases
 
-**Status:** ⬜ not started
+**Status:** ✅ COMPLETE — all 16 aliases already purged from ir.h; zero uses in .c/.h source
 **Prerequisite:** Phase 1 confirmed done (cmpile_lower is live path)
 
 The ir.h enum contains ~16 old alias names that must be deleted and replaced
@@ -382,7 +382,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 
 ## Phase 3 — --parser=cmpile|bison execution switch
 
-**Status:** ⬜ not started
+**Status:** ⬜ not started  ← CURRENT next step
 **Prerequisite:** Phase 2 complete (old aliases gone — Bison will need fixing too)
 
 Add `--parser=cmpile` (default) and `--parser=bison` to `scrip-interp` so both
