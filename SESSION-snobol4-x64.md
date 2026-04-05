@@ -137,7 +137,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 95 | one4all `50772a9` · corpus `8d5cc6a` | **P2G ✅ computed goto + binary op RHS FORWRD** — 322/352 OK — next: chained `[]` subscript `T['n']['!']`, then WANG re-check |
+| 95 | one4all `5c1a1d8` · corpus `8d5cc6a` · .github `9691a89` | **scrip-interp RT milestones created** — next: RT-7 `CONVE_fn` + RT-8 `EVAL_fn` → PASS=178; OR continue P2 parser work (computed goto, chained `[]`) |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -195,3 +195,34 @@ Mirrors CSNOBOL4's IBLKTB call between operator and RHS.
 Computed goto `:S($('label' VAR))` requires FORWRD() in SGOTYP and FGOTYP
 branches — not just STOTYP/FTOTYP. One unconditional FORWRD() covers both
 paren and angle-bracket forms.
+
+### Sprint 95 §INFO — RT milestones and SIL macro classification
+**Date:** 2026-04-04
+
+Two new milestone docs created and pushed this session:
+
+**MILESTONE-RT-RUNTIME.md** — 9 SIL-faithful runtime milestones (RT-1 through RT-9).
+Additive shim replacement — scrip-interp stays green (PASS≥177) throughout.
+Critical path: RT-7 (CONVE_fn) → RT-8 (EVAL_fn) → PASS=178, then RT-3→RT-4→RT-5→RT-6→RT-9.
+
+**MILESTONE-RT-SIL-MACROS.md** — classifies all 130+ SIL macros and 211 procedures:
+- sil_macros.h: C inline translations of GETD/PUTD/TESTF/VEQLC/INCRA/DECRA family
+- 12 new SM_Program instructions added to SCRIP-SM.md:
+  SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH/POP,
+  SM_INCR, SM_DECR, SM_ACOMP, SM_RCOMP, SM_LCOMP,
+  SM_SPCINT, SM_SPREAL, SM_TRIM
+- Groups 9-10 (SNOBOL4B blocks, compiler internals): SKIP
+
+**Full milestone order for SNOBOL4×x86 interpreter:**
+Track A (parser): sno4parse complete, P2 extensions in progress.
+Track B (Byrd boxes): ✅ done.
+Track C (scrip-interp RT): C1 sil_macros.h → C2 RT-1 → C3 RT-2 → C4 RT-7 → C5 RT-8
+  → C6 RT-3 → C7 RT-4 → C8 RT-5 → C9 RT-6.
+Track D (SM_Program): D1 SM_Instr struct → D2 SM-LOWER → D3 sm_interp.c → D4 emitter.
+Track D depends on all of Track C.
+
+**expr_eval failure:** Needs RT-7+RT-8. The stub EVAL_fn re-parses through
+sno_parse() (statement parser) instead of parse_expr_from_str() (expression parser).
+CONVE_fn calls parse_expr_from_str(), wraps result as DT_E. ~50 lines of C.
+
+**Baseline:** PASS=177 FAIL=1 (expr_eval). one4all `5c1a1d8`.
