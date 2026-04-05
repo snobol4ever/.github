@@ -48,34 +48,33 @@ CSNOBOL4 stream-by-stream. Sweep script: `one4all/csnobol4/dyn89_sweep.sh`.
 | NSTTYP: FORWRD after `(` | `( SPAN('x') )` space after paren | inner expr positioned correctly |
 | Unary+space: FORWRD after unary chain | `? X` space between op and operand | NBLKTB root cause (see below) |
 
-### DYN-89 end state
+### Fixes applied this session (DYN-90)
+
+| Fix | Root Cause | Result |
+|-----|-----------|--------|
+| CMPGO UTOTYP/STOTYP/FTOTYP: FORWRD before/after EXPR | Space after `<` hit ELEMTB before token | `:< C >` direct goto fixed |
+
+### DYN-90 end state
 
 | Status | Count |
 |--------|-------|
-| OK     | 73    |
-| ERR    | ~11   |
+| OK     | 76    |
+| ERR    | 8     |
 | HANG   | 0     |
 
-### Remaining bugs (next session priority order)
+### Remaining bugs (sprint 91 priority order)
 
-**1. NBLKTB root cause — unary+space `? X`, `- X`**
-- NBLKTB chrs[] (authoritative): space=1=ERROR, non-blank=2=STOPSH
-- Intent: after unary op char, space is a TERMINATOR (ERROR), operand is STOPSH
-- This means `? X` (space between ? and operand) is NOT standard SNOBOL4/SPITBOL
-- The corpus uses `? WPAT` — this may be a SPITBOL extension (unary op + space)
-- **Action:** verify against SPITBOL oracle. If SPITBOL accepts `? X`, the fix
-  is in the UNOPTB→NBLKTB chain dispatch, NOT the table bytes.
-- Candidate fix: after UNOPTB fires GOTO→NBLKTB, if NBLKTB returns ST_ERROR
-  (space terminator), call FORWRD() to skip whitespace before ELEMTB.
+**1. BRTYPE=1 postfix subscript on call result `f(g(x)[i])`** (6 files)
+- In ELEFNC arg loop, after parsing `g(x)`, `[1]` hits BRTYPE=1 (`[`) → error
+- Fix: in `expr_prec_continue`, detect `[` as postfix subscript on any expression
+- Same fix as M-SN4PARSE-P2C ([] alias for <>)
+- Files: beauty_ShiftReduce_driver, beauty_tree_driver, demo/beauty.sno, claws5, TDump, beauty_oracle
 
-**2. Postfix subscript on call result `t(c(nd)[1])`**
-- After `c(nd)` parsed as FNCTYP, `[1]` subscript is a postfix operator on the result
-- `expr_prec_continue` does not handle `[` as postfix
-- Fix: detect `[` in BINOP or add postfix-subscript case after ELEMNT returns
-
-**3. `demo/beauty.sno` line 235, `smoke/beauty_oracle.sno` line 235**
-- Both hit "illegal character" at same line — likely same source included
-- Not yet diagnosed; check after fixes 1+2
+**2. Phantom "illegal character" — Qize.sno, io.sno** (2 files)
+- SNO_TRACE shows full parse completing with no ST_ERROR
+- `sil_error()` fires but parse output looks correct
+- Hypothesis: `g_error` not cleared between statements, OR sweep grep picks up error from earlier statement in same file
+- Action: check `g_error` lifecycle; verify with `grep -c "ELEMNT: illegal" <output>`
 
 ---
 
@@ -226,10 +225,10 @@ SPITBOL identifiers are `[A-Za-z][A-Za-z0-9_]*`. For Unicode:
 
 | Milestone | Description | Deps | Status |
 |-----------|-------------|------|--------|
-| **M-SN4PARSE-P1** | 84/84 standard SNOBOL4 parse | — | ⚠️ 73/84 |
-| M-SN4PARSE-P1a | Unary+space fix (NBLKTB logic) | — | ⬜ |
-| M-SN4PARSE-P1b | Postfix subscript `f()[i]` | — | ⬜ |
-| M-SN4PARSE-P1c | beauty.sno line 235 | — | ⬜ |
+| **M-SN4PARSE-P1** | 84/84 standard SNOBOL4 parse | — | ⚠️ 76/84 |
+| M-SN4PARSE-P1a | Unary+space fix (NBLKTB logic) | — | ✅ already works — was phantom |
+| M-SN4PARSE-P1b | Postfix subscript `f()[i]` | — | ⬜ sprint 91 |
+| M-SN4PARSE-P1c | Qize/io g_error lifecycle | — | ⬜ sprint 91 |
 | **M-SN4PARSE-P2A** | Binary `?` pattern-match operator | P1 | ⬜ |
 | **M-SN4PARSE-P2B** | Alternative eval `(e1,e2,en)` | P1 | ⬜ |
 | **M-SN4PARSE-P2C** | `[]` subscript = `<>` + postfix subscript | P1 | ⬜ |

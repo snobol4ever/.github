@@ -89,7 +89,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 89 | one4all `280329f` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK on corpus/programs/snobol4/ |
+| 90 | one4all `055fa15` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK · 76/84 now · 8 ERR remain |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -111,16 +111,19 @@ cd /home/claude
 
 *(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
 
-**sno4parse next session first actions:**
+**sno4parse next session first actions (sprint 91):**
 ```bash
 cd /home/claude
 cat .github/SCRIP-SM.md
 tail -120 .github/SESSIONS_ARCHIVE.md
-cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
 gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
 cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
 cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
 cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
 cd /home/claude
-# Run two-way MONITOR on a failing file to find next bug class
+# 1. g_error lifecycle: grep -n "g_error\|sil_error" one4all/src/frontend/snobol4/sno4parse.c | head -30
+# 2. SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep "ret=ERROR"
+# 3. BRTYPE=1 postfix subscript: sed -n around ELEFNC + expr_prec_continue '[' detection
 ```
