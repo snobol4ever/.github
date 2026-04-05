@@ -305,3 +305,28 @@ returns `"SELECT"` for it. No conflict with any SIL stype (all ≤ 7).
 
 **Sweep invariant:** always use `bash -c '...'` explicitly — the container
 `/bin/sh` is dash, which rejects `[[` and `((` syntax.
+
+### sil_macros.h — now wired to all RT files (sprint 103)
+**Date:** 2026-04-05
+
+`src/runtime/snobol4/sil_macros.h` is the SIL macro translation header (dual-axis:
+RT functions + SM instruction dispatch). It is now `#include`d in:
+- `src/driver/scrip-interp.c` — after `snobol4.h`, before `runtime_shim.h`
+- `src/runtime/snobol4/snobol4.c`, `argval.c`, `invoke.c` — after `"snobol4.h"`
+- `src/runtime/dyn/eval_code.c`, `stmt_exec.c` — after `"../snobol4/snobol4.h"`
+
+**Rule:** All new RT-3+ code MUST use macros from `sil_macros.h`:
+- Type tests: `IS_NAME(d)`, `IS_INT(d)`, `IS_STR(d)`, `IS_PAT(d)`, `IS_KW(d)`
+- DT_N discriminator: `slen==1` → NAMEPTR (interior ptr); `slen==0` → NAMEVAL (name string)
+  - Do NOT use `d.ptr != NULL` — NAMEVAL's `.s` and `.ptr` alias the same union field
+  - Use `NAME_DEREF(d)` and `NAME_SET(nd, val)` for all DT_N read/write
+- ASGNIC: use `INTVAL(to_int(val))` not `INTVAL_fn(val)` — the shim macro shadows `INTVAL_fn`
+
+### Makefile added (sprint 103)
+**Date:** 2026-04-05
+
+`one4all/Makefile` now builds both targets:
+- `make scrip-interp` — canonical interpreter build (matches sprint 100 canonical build)
+- `make scrip-cc` — delegates to `src/Makefile`
+- `make test` — runs `test/run_interp_broad.sh`
+- `make clean` — removes `/tmp/si_objs` and `scrip-interp`
