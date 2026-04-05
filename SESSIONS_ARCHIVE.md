@@ -27084,3 +27084,57 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #   Default: cmpile (current). bison: call sno_parse() instead of cmpile_lower()
 #   Gate: PASS=178 with --parser=cmpile; PASS=178 with --parser=bison
 ```
+
+## Sprint RT-114 FINAL HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Final one4all HEAD:** `b62c081` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** `3c6b9f2` · **PASS=178/203**
+
+### Work done this session
+
+1. **M-CMPILE-MERGE Phases 0–2 confirmed complete** — no code needed:
+   - Phase 1: `cmpile_lower()` already live execution path at scrip-interp.c:1804
+   - Phase 2: all 16 old EKind aliases already purged from ir.h
+   - Updated: `MILESTONE-CMPILE-MERGE.md`, `PLAN.md`, `SESSION-snobol4-x64.md`
+
+2. **27 T_* Bison token renames → CMPILE SIL names** (one4all `b62c081`):
+   - Files: `snobol4.tab.h`, `snobol4.tab.c`, `snobol4.lex.c`, `test_lex.c`
+   - `T_ADDITION→ADDFN`, `T_SUBTRACTION→SUBFN`, `T_MULTIPLICATION→MPYFN`,
+     `T_DIVISION→DIVFN`, `T_EXPONENTIATION→EXPFN`, `T_ALTERNATION→ORFN`,
+     `T_COND_ASSIGN→NAMFN`, `T_IMMEDIATE_ASSIGN→DOLFN`, `T_CONCAT→CATFN`,
+     `T_MATCH→BIQSFN`, `T_UN_PLUS→PLSFN`, `T_UN_MINUS→MNSFN`,
+     `T_UN_PERIOD→DOTFN`, `T_UN_DOLLAR_SIGN→INDFN`, `T_UN_ASTERISK→STRFN`,
+     `T_UN_AT_SIGN→ATFN`, `T_ASSIGNMENT→EQTYP`, `T_FUNCTION→FNCTYP`,
+     `T_GOTO_S→SGOTYP`, `T_GOTO_F→FGOTYP`, `T_COMMA→CMATYP`, `T_RBRACK→RBTYP`,
+     `T_INT→ILITYP`, `T_STR→QLITYP`, `T_REAL→FLITYP`, `T_IDENT→VARTYP`,
+     `T_STMT_END→EOSTYP`
+   - Remaining T_* tokens (uncertain mapping) documented in SESSION-snobol4-x64.md §INFO
+
+### RT-115 first actions (fresh session — Track C)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO has T_* remaining + RUNTIME state
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# PRIORITY 1: Complete T_* rename — Lon to provide mapping for remaining tokens:
+#   T_LABEL, T_END, T_KEYWORD, T_GOTO, T_GOTO_LPAREN, T_GOTO_RPAREN,
+#   T_UN_AMPERSAND, T_UN_TILDE, T_UN_QUESTION_MARK, T_UN_EXCLAMATION,
+#   T_POUND, T_PERCENT, T_TILDE, T_PIPE, T_PLUS, T_MINUS, T_STAR,
+#   T_STARSTAR, T_SLASH, T_DOT, T_DOLLAR, T_QMARK, T_AT, T_HASH,
+#   T_PCT, T_EQ, T_ERR, T_WS, T_EOF, T_BANG, T_CARET, T_AMPERSAND,
+#   T_AT_SIGN, T_LPAREN, T_RPAREN, T_LBRACK, T_LANGLE, T_RANGLE
+
+# PRIORITY 2: RUNTIME-6 DT_E{ptr=NULL} blocker
+#   DT_E{ptr=NULL} arrives at pat_cat() during expr_eval.sno
+#   Add assert(d.ptr != NULL) after every E_DEFER return in interp_eval
+#   SNO_LIB=/home/claude/corpus/lib ./scrip-interp \
+#     corpus/crosscheck/control/expr_eval.sno \
+#     < corpus/crosscheck/control/expr_eval.input
+#   Gate: PASS >= 179
+```
