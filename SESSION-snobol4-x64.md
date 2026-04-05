@@ -168,10 +168,10 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 |--------|------|----------------|
 | RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
 | RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
-| 100 (sno4parse) | one4all `febd82f` · corpus `65494e7` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ sweep 84/84 — next: fix unresolved-include HANG (5 gimpel files) → crosscheck/ suite |
+| 101 (sno4parse) | one4all `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
 
 **Current milestone docs:**
-- `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 84/84 ✅; Phase 2 P2D ✅; next P2B or P2F
+- `MILESTONE-SN4PARSE-VALIDATE.md` — Phase 2 crosscheck gate ✅ PASSED (sprint 101)
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
 **Next session first actions (sprint RT-105 — Track C):**
@@ -336,3 +336,20 @@ RT functions + SM instruction dispatch). It is now `#include`d in:
 - `eval_via_cmpile()` replaces `eval_via_sno4parse()` — EVAL() builtin path
 - Top-level file parse still uses old bison `sno_parse` — replacement is next sprint
 - one4all HEAD after this sprint: `d16f152`
+
+### BINOP ST_EOS + operator-at-EOL fix (sprint 101)
+**Date:** 2026-04-05
+
+`BIOPTB['|']` action is `{ORFN, ACT_GOTO, &TBLKTB}`. When `|` is the last char
+on a physical line before a continuation, TBLKTB hits ST_EOS (no trailing blank).
+BINOP was returning CATFN unconditionally on ST_EOS, discarding STYPE=ORFN.
+
+**Fix (CMPILE.c BINOP):** `if (or_ == ST_EOS && STYPE != 0) return STYPE;`
+
+Same pattern applies to any operator at EOL before continuation. The subsequent
+`FORWRD()` in `expr_prec_continue` loads the continuation via `forrun()`.
+
+**Also fixed:** unresolved `-INCLUDE` now calls `sil_error()` (abort) not silent continue.
+UNOPTB ST_EOS in UNOP loop now breaks (safety net).
+
+Committed: one4all `601890a`. Sweeps: 84/84 ✅ · crosscheck 181/181 ✅ · gimpel 143/145 0 HANG.
