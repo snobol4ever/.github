@@ -25874,3 +25874,80 @@ cp sno4parse one4all/sno4parse
 `src/frontend/snobol4/sno4parse.c` → `src/frontend/snobol4/CMPILE.c`
 
 Per Lon's instruction. SIL procedure name. one4all `febd82f`. Build confirmed clean.
+
+---
+
+## Sprint RT-104 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL (M-CMPILE-MERGE)
+
+### Baseline confirmed
+- one4all HEAD at session start: `febd82f`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total) — confirmed at session start
+
+### New milestone: M-CMPILE-MERGE
+New top priority for Track C. CMPILE.c (= sno4parse.c renamed in parallel session,
+parse-validated on 500+ SNO corpus files) is now the authoritative SNOBOL4 lex/parser.
+`MILESTONE-CMPILE-MERGE.md` written and added to PLAN.md component map.
+
+### Type renames
+- `NODE` → `CMPND_t` (compile/parse node — parallel to `PATND_t`)
+- `STMT` → `CMPILE_t` (compiled statement — output of one CMPILE() call)
+- `node_new` → `cmpnd_new`, `node_add` → `cmpnd_add`
+
+### CMPILE.c changes
+- Header updated: documents public types and API
+- `sno4parse_main` removed — no standalone executable
+- `compile_one_stmt`: inline `print_stmt` call removed — printing is caller's responsibility
+- `print_node` → `cmpnd_print_sexp(CMPND_t*, FILE*, int oneline, int depth)` — public, non-static
+- `print_stmt` → `cmpile_print(CMPILE_t*, FILE*, int oneline, int idx)` — public, non-static
+- `compile_file` → `cmpile_file_internal` (static, recursive); public wrapper `cmpile_file` added
+- Public API: `cmpile_init`, `cmpile_add_include`, `cmpile_file`, `cmpile_string`, `cmpile_free`
+
+### CMPILE.h — new public header
+Full type declarations for `CMPND_t` and `CMPILE_t` plus all public function prototypes.
+
+### snobol4_pattern.c changes
+- `#include "sno4parse.c"` → `#include "CMPILE.c"`
+- `node_to_expr()` → `cmpnd_to_expr()` — uses named SIL stype constants (ADDFN, MPYFN, etc.)
+  Key fixes vs old version: CATFN→E_CAT (was E_SEQ), PLSFN→E_PLS (was E_ADD),
+  QUESFN→E_INTERROGATE, ATFN→E_CAPT_CURSOR, NSTTYP unwrapped, implicit concat handled
+- `eval_via_sno4parse()` → `eval_via_cmpile()` — same logic, updated name and comment
+
+### Architecture clarification this session
+- `T_*` tokens belong to the old bison parser (snobol4.tab.h) — dead path
+- `PATND_t`/`XKIND_t` already used SIL X-codes — the pattern layer was already correct
+- `E_*` / `EKind` in ir.h is the shared multi-frontend IR — SNOBOL4-origin nodes have SIL
+  heritage in comments; Icon/Prolog nodes have no SIL equivalent
+- Top-level file parse still uses old bison `sno_parse` — replacement is next sprint
+
+### Baseline at session end
+- one4all HEAD: `d16f152`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 (203 total) — baseline held ✅
+- Gate PASS≥190 met ✅
+
+### Sprint RT-105 first actions (Track C — CMPILE top-level wiring)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: --dump-parse / --dump-parse-flat in scrip-interp.c main()
+# Step 2: cmpile_lower() — walk CMPILE_t list → Program* of STMT_t/EXPR_t
+#         replaces sno_parse() as top-level file parser
+# Step 3: Test EVAL('1 + 2') → 3
+# Gate: PASS >= 190; expr_eval passing → PASS=191 bonus
+```
+
+### Baseline at session end
+- one4all HEAD: `d16f152`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total)
