@@ -2,7 +2,7 @@
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04
-**Session:** DYN-89
+**Session:** SNOBOL4 × x86, sprint 89
 **Status:** ACTIVE — Phase 1 in progress
 
 ---

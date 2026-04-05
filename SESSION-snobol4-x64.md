@@ -89,9 +89,27 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 89 (sno4parse) | one4all `280329f` · corpus `8d5cc6a` | M-SN4PARSE-VALIDATE Phase 3: two-way STREAM trace → fix remaining illegal-char class |
+| 89 | one4all `280329f` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK on corpus/programs/snobol4/ |
 
-*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked while sno4parse is active)*
+**Current milestone docs:**
+- `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
+- `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
+
+**Next session first actions:**
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md        # §INFO then §NOW
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md  # current milestone phases + remaining bugs
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude
+```
+
+*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
 
 **sno4parse next session first actions:**
 ```bash
