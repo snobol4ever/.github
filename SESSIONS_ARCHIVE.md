@@ -24800,3 +24800,65 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 ## SNOBOL4 × x86 sprint 94 addendum — cleanup — 2026-04-04
 
 P2A correct fix: `op_prec(BIQSFN) = 1`. One line. `?` was already in BIOPTB chrs[] → action 14 → BIQSFN(214). No new table needed. BIOPTB_SPITBOL and g_bioptb removed (one4all `5c1a1d8`).
+
+## SNOBOL4 × x86 sprint 95 — 2026-04-04
+
+### What Was Done
+
+**P2G — Computed goto :S($('label' VAR)) fixed** ✅
+
+Root cause: CMPGO SGOTYP/FGOTYP branches were missing FORWRD() before EXPR().
+GOTOTB stops with TEXTSP pointing at the space before the label expression.
+Without FORWRD(), UNOPTB in ELEMNT sees the space → ST_ERROR, then ELEMTB
+sees '$' as illegal character.
+Fix: unconditional FORWRD() in both SGOTYP and FGOTYP branches (STOTYP/FTOTYP
+already had it). One line each.
+
+**Binary op RHS FORWRD fix** ✅
+
+Root cause: expr_prec_continue did not call FORWRD() after consuming a binary
+operator before parsing the RHS. CSNOBOL4 calls IBLKTB between operator and RHS.
+With double-space (e.g. 'A'  |  'B'), BIOPTB consumed '|' and left TEXTSP at
+"  'B'". ELEMNT called UNOPTB on the leading space → ST_ERROR → ELEMTB saw
+space → illegal character, RHS parsed as NULL.
+Fix: FORWRD() before expr_prec(next_min) in expr_prec_continue.
+
+**Result:** MONITOR confirmed both fixes. 84/84 sweep holds. Full 352-file corpus:
+308 → 322/352 OK (+14).
+
+### Remaining failures (30 files)
+
+| Category | Count | Example | Root cause |
+|----------|-------|---------|------------|
+| Chained `[]` subscript `T['n']['!']` | ~17 (Listen2\*, WordNet) | line 39/450 | After ARYTYP in ELEMNT, second `[` treated as pattern field not chained subscript |
+| P2D `=` inside `<>` subscript `A[J=J+1]` | 4 (Backtype, rinky, BCPTest, dsw99) | BRTYPE=4 | EQTYP terminates subscript parse early |
+| WANG computed goto | 1 | line 25 | FORWRD fix did not fully resolve — needs MONITOR re-check |
+| PHRASES | 1 | line 1 | `<GOOD>::=` — BNF-style label syntax |
+| Scattered illegals | 7 (PARSER, acc, change, ebnf, ssdb, transl8) | various | Unknown — needs MONITOR |
+
+### Commits
+- `one4all`: `50772a9`
+- `.github`: pushed after this entry
+
+### Baselines for sprint 96
+- `one4all`: `50772a9`
+- `corpus`: `8d5cc6a`
+
+### Sprint 96 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude && cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Next: chained [] subscript T['n']['!'] — fix in ELEMNT after ARYTYP return:
+#   loop on additional '[' before returning to CMPILE field parsing
+# MONITOR: SNO_TRACE=1 on WordNet.sno, diff traces, confirm root cause
+# Then: WANG MONITOR re-check — why did FORWRD fix not resolve it?
+```
