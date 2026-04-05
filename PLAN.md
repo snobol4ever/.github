@@ -99,7 +99,7 @@ the corpus, the emitter is correct by construction.
 | **RUNTIME / RUNTIME-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
 | **RUNTIME / RUNTIME-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
 | **RUNTIME / RUNTIME-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
-| **CMPILE MERGE** | `MILESTONE-CMPILE-MERGE.md` | ⬜ Track C TOP — CMPILE.c stype→EKind wire-up; replaces node_to_expr; fixes EVAL() |
+| **CMPILE MERGE** | `MILESTONE-CMPILE-MERGE.md` | ✅ Phases 0-2 COMPLETE — Phase 3 (--parser switch) pending |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
 | MONITOR | `MONITOR.md` | ✅ |
@@ -112,7 +112,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (scrip-interp)** | RT-113 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | **M-CMPILE-MERGE Phase 0 ✅** — 553 files swept, trees verified correct; RT-114: confirm live path = cmpile_lower → declare done → RUNTIME-6 |
+| **RUNTIME (scrip-interp)** | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE — Phase 3 (--parser switch) or RUNTIME-6 DT_E blocker next |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |

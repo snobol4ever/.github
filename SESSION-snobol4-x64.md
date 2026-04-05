@@ -166,7 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | **M-CMPILE-MERGE Phase 2** — purge 16 old EKind aliases; Phase 3 --parser=cmpile|bison switch; gate PASS=178 both parsers |
+| RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
 | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
 | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
 | RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
