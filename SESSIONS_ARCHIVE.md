@@ -24501,3 +24501,74 @@ cd /home/claude
 - `one4all`: `055fa15`
 - `corpus`: `8d5cc6a` (unchanged)
 - `.github`: to be pushed after this entry
+
+## SNOBOL4 × x86 sprint 91 — postfix [], ELEFNC fall-through, FORWRD/NEWCRD diagnosis (2026-04-05)
+
+### Session type
+**Parser fix** — SNOBOL4 × x86 (one4all frontend).
+
+### Baseline at session start
+- one4all: `055fa15` · corpus: `8d5cc6a`
+- Sweep: 76 OK / 8 ERR
+
+### What Was Done
+
+**Fix 1: Postfix [] subscript on any expression (P2C)** ✅
+Root cause: `[` in FRWDTB → NBTYP/STOPSH → BRTYPE=1 inside ELEFNC arg loop.
+Fix: in `expr_prec_continue`, check TEXTSP directly for `[`; consume as
+ELEARY-style subscript using `]` as terminator.
+Fixes: beauty_ShiftReduce_driver, beauty_tree_driver, TDump
+Commit: `c9b9246`
+
+**Fix 2: ELEFNC fall-through on non-RPTYP/CMATYP (SIL ELEMN2)** ✅
+Root cause: `DIFFER(sno = Pop())` — after `sno`, BRTYPE=EQTYP=4; our code
+errored. SIL ELEMN2 falls through on any non-RPTYP/CMATYP, calling EXPR again.
+Fix: replace sil_error with FORWRD+continue, bailing only on EOSTYP/CLNTYP.
+Fixes: beauty.sno, beauty_oracle.sno
+Commit: `ae60046`
+
+### Sweep results at session end
+
+| Status | Count |
+|--------|-------|
+| OK     | 81    |
+| ERR    | 3     |
+| HANG   | 0     |
+
+### Root cause of remaining 3 errors — FORWRD must call NEWCRD on EOS
+
+All 3 remaining "illegal character" errors (claws5.sno, Qize.sno, io.sno) share
+a common architectural root cause:
+
+SIL v311 FORWRD (line 2214):
+  `STREAM XSP,TEXTSP,FRWDTB,COMP3,FORRUN`
+The 4th/5th args are failure/runout labels. On EOS, FORWRD calls NEWCRD to
+fetch the next source card and continues scanning. This means SIL's expression
+scanner spans physical source lines dynamically.
+
+Our code pre-joins continuation lines into linebuf before parsing. This fails
+when an operator (e.g. `|`) falls on a separate continuation line from its
+left operand — BINOP exhausts TEXTSP at `'a'` (end of that continuation chunk)
+and cannot see the `|` on the next chunk.
+
+The fix: FORWRD/FORBLK must call a `next_card()` callback on EOS to splice
+the next continuation line into TEXTSP and retry, mirroring SIL FORRUN/NEWCRD.
+
+### Commits
+- `one4all`: `ae60046`
+- `.github`: pushed after this entry
+
+### Session start for sprint 92
+```bash
+cd /home/claude
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 81
+# Implement FORWRD/FORBLK NEWCRD callback — see v311.sil lines 2214-2245
+sed -n '2214,2245p' /home/claude/snobol4-2.3.3/v311.sil
+# Then: SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep -B2 "illegal"
+```
+
+### Baselines for sprint 92
+- `one4all`: `ae60046`
+- `corpus`: `8d5cc6a` (unchanged)
