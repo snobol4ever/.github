@@ -99,6 +99,7 @@ the corpus, the emitter is correct by construction.
 | **RUNTIME / RT-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
 | **RUNTIME / RT-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
 | **RUNTIME / RT-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
+| **CMPILE MERGE** | `MILESTONE-CMPILE-MERGE.md` | ⬜ Track C TOP — CMPILE.c stype→EKind wire-up; replaces node_to_expr; fixes EVAL() |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
 | MONITOR | `MONITOR.md` | ✅ |
@@ -111,7 +112,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | 98-ext | one4all `45ad889` · corpus `65494e7` | **M-SN4PARSE-VALIDATE** — P2B ✅ P2D ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BISNFN@prec1) or P2C `[]`=`<>` |
-| **RUNTIME (scrip-interp)** | RT-98 | one4all `888c282` · corpus `65494e7` · PASS=188/201 | **sil_macros.h** → RT-3 NAME_fn/ASGNIC_fn OR NRETURN fix → ~195/201 |
+| **RUNTIME (scrip-interp)** | RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ — next: cmpnd_to_expr() audit → cmpile_lower() as default execution path |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |

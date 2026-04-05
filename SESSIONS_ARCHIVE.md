@@ -25944,47 +25944,166 @@ bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/program
 - corpus HEAD: `65494e7` (unchanged)
 - Sweep: 84/84 OK ERR=0 HANG=0
 - Broader (snobol4+beauty+gimpel): 224 OK / 1 non-sno data ERR / 5 unresolved-include HANGs
+## Sprint RT-104 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL (M-CMPILE-MERGE)
+
+### Baseline confirmed
+- one4all HEAD at session start: `febd82f`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total) — confirmed at session start
+
+### New milestone: M-CMPILE-MERGE
+New top priority for Track C. CMPILE.c (= sno4parse.c renamed in parallel session,
+parse-validated on 500+ SNO corpus files) is now the authoritative SNOBOL4 lex/parser.
+`MILESTONE-CMPILE-MERGE.md` written and added to PLAN.md component map.
+
+### Type renames
+- `NODE` → `CMPND_t` (compile/parse node — parallel to `PATND_t`)
+- `STMT` → `CMPILE_t` (compiled statement — output of one CMPILE() call)
+- `node_new` → `cmpnd_new`, `node_add` → `cmpnd_add`
+
+### CMPILE.c changes
+- Header updated: documents public types and API
+- `sno4parse_main` removed — no standalone executable
+- `compile_one_stmt`: inline `print_stmt` call removed — printing is caller's responsibility
+- `print_node` → `cmpnd_print_sexp(CMPND_t*, FILE*, int oneline, int depth)` — public, non-static
+- `print_stmt` → `cmpile_print(CMPILE_t*, FILE*, int oneline, int idx)` — public, non-static
+- `compile_file` → `cmpile_file_internal` (static, recursive); public wrapper `cmpile_file` added
+- Public API: `cmpile_init`, `cmpile_add_include`, `cmpile_file`, `cmpile_string`, `cmpile_free`
+
+### CMPILE.h — new public header
+Full type declarations for `CMPND_t` and `CMPILE_t` plus all public function prototypes.
+
+### snobol4_pattern.c changes
+- `#include "sno4parse.c"` → `#include "CMPILE.c"`
+- `node_to_expr()` → `cmpnd_to_expr()` — uses named SIL stype constants (ADDFN, MPYFN, etc.)
+  Key fixes vs old version: CATFN→E_CAT (was E_SEQ), PLSFN→E_PLS (was E_ADD),
+  QUESFN→E_INTERROGATE, ATFN→E_CAPT_CURSOR, NSTTYP unwrapped, implicit concat handled
+- `eval_via_sno4parse()` → `eval_via_cmpile()` — same logic, updated name and comment
+
+### Architecture clarification this session
+- `T_*` tokens belong to the old bison parser (snobol4.tab.h) — dead path
+- `PATND_t`/`XKIND_t` already used SIL X-codes — the pattern layer was already correct
+- `E_*` / `EKind` in ir.h is the shared multi-frontend IR — SNOBOL4-origin nodes have SIL
+  heritage in comments; Icon/Prolog nodes have no SIL equivalent
+- Top-level file parse still uses old bison `sno_parse` — replacement is next sprint
+
+### Baseline at session end
+- one4all HEAD: `d16f152`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 (203 total) — baseline held ✅
+- Gate PASS≥190 met ✅
+
+### Sprint RT-105 first actions (Track C — CMPILE top-level wiring)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: --dump-parse / --dump-parse-flat in scrip-interp.c main()
+# Step 2: cmpile_lower() — walk CMPILE_t list → Program* of STMT_t/EXPR_t
+#         replaces sno_parse() as top-level file parser
+# Step 3: Test EVAL('1 + 2') → 3
+# Gate: PASS >= 190; expr_eval passing → PASS=191 bonus
+```
+
+### Baseline at session end
+- one4all HEAD: `d16f152`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total)
+## Sprint RT-105 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL (--dump-parse flags + cmpile_lower stub)
+
+### Baseline confirmed
+- one4all HEAD at session start: `d16f152`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total) — confirmed at session start
+
+### Work done
+
+**--dump-parse / --dump-parse-flat flags** added to `scrip-interp.c main()`:
+- Flag parsing loop before include-dir setup
+- `--dump-parse`: pretty S-expression dump via `cmpile_file()` + `cmpile_print()`
+- `--dump-parse-flat`: one-liner per stmt (oneline=1) for grep/diff
+- Both flags: parse via CMPILE, emit, exit 0 — no execution
+
+**`cmpile_lower()` stub** added to `scrip-interp.c`:
+- Walks `CMPILE_t` linked list → `Program*` / `STMT_t` IR
+- Uses `cmpnd_to_expr()` per field; wires `SnoGoto` from go_s/go_f/go_u
+- Tested: caused regression 190→171 — `cmpnd_to_expr()` has coverage gaps
+  (KEYFN stype 310, FNCTYP call nodes, pattern operators at stmt level)
+- Decision: default execution path stays `sno_parse()`; `cmpile_lower()`
+  only called from `--dump-parse` path (not execution) pending audit
+
+**`cmpnd_to_expr()` made non-static** in `snobol4_pattern.c` (linkable).
+**`CMPILE.h`**: `cmpnd_to_expr()` declared as public symbol.
+
+### Baseline at session end
+- one4all HEAD: `805c390`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 (203 total) — baseline held ✅
+- Gate PASS≥190 met ✅
+
+### Sprint RT-106 first actions (Track C — cmpnd_to_expr audit)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: cmpnd_to_expr() coverage audit
+#   Run --dump-parse on failing tests, collect all stype codes seen
+#   Compare against cmpnd_to_expr() switch cases in snobol4_pattern.c
+#   Key gaps found: KEYFN(310), FNCTYP(5) call nodes, pattern stypes
+#   Add missing cases until cmpile_lower() execution path reaches PASS=190
+
+# Step 2: Wire cmpile_lower() as default execution path
+#   Gate: PASS >= 190 with cmpile_lower() — sno_parse() removed from hot path
+
+# Step 3: --dump-parse regression test
+#   Add to test/run_interp_broad.sh: --dump-parse on known files, diff vs .dump refs
+```
 
 ---
 
-## Sprint 100 (cont) / Sprint 101 — snobol4 × x86 (CMPILE track) — 2026-04-05
+## Sprint 101 — snobol4 × x86 (CMPILE track) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Session type:** Track A — sno4parse / CMPILE
 
 ### Baseline confirmed at session start
-- one4all HEAD: `febd82f` (pre-session) → `601890a` (post-session)
+- one4all HEAD: `febd82f` → `601890a` (post-session)
 - corpus HEAD: `65494e7` (unchanged)
-- Sweep: 84/84 OK ERR=0 HANG=0 — confirmed
+- Sweep: 84/84 OK ERR=0 HANG=0
 
-### Three bugs fixed in CMPILE.c
+### Three bugs fixed in CMPILE.c (one4all `601890a`)
 
-#### Bug A — unresolved `-INCLUDE` hang (NOT.sno, PEEL.sno, TR.sno)
-**Root cause:** When `fopen()` fails for an `-INCLUDE` directive, both CTLTYP handlers
-(in `forrun()` and `cmpile_file_internal()`) printed to stderr and continued silently,
-leaving `g_io_eof=0` and parse state corrupted. With stdin open, the parser blocked
-waiting for input.
-**Fix:** Call `sil_error()` on include-not-found so `g_error` is set and parse aborts
-cleanly. Both handlers updated.
+**Bug A — unresolved `-INCLUDE` hang (NOT, PEEL, TR):**
+fopen() failure in both CTLTYP handlers continued silently with g_io_eof=0 → stdin block.
+Fix: call sil_error() on include-not-found → g_error set → parse aborts cleanly.
 
-#### Bug B — UNOPTB ST_EOS infinite loop (ASM360.sno, PEEL.sno, TR.sno)
-**Root cause:** ELEMNT's UNOP `for(;;)` loop called `stream(&tok, &TEXTSP, &UNOPTB)`.
-When TEXTSP was empty (len=0), stream returned `ST_EOS`. The loop only handled
-`ST_ERROR`; `ST_EOS` fell through to node-build code with stale STYPE → infinite loop.
-**Fix:** Add `ST_EOS → TEXTSP = saved; break` at top of UNOP loop. This is a safety
-net; the root cause is actually Bug C below.
+**Bug B — UNOPTB ST_EOS infinite loop (safety net):**
+UNOP for(;;) only handled ST_ERROR; ST_EOS on empty TEXTSP fell through to node-build → loop.
+Fix: ST_EOS → TEXTSP = saved; break.
 
-#### Bug C — BINOP returns CATFN instead of ORFN when operator at EOL (ASM360.sno)
-**Root cause:** `BIOPTB['|']` action is `{ORFN, ACT_GOTO, &TBLKTB}`. When `|` is the
-last char on a physical line before a continuation, BIOPTB consumes `|` (STYPE=ORFN set)
-then TBLKTB runs and hits ST_EOS (no trailing blank). BINOP saw `ST_EOS` from the
-BIOPTB chain and returned `CATFN` (juxtaposition) unconditionally, discarding STYPE=ORFN.
-`expr_prec_continue` then called `expr_prec()` for the CATFN right operand without
-a `FORWRD()`, so ELEMNT received empty TEXTSP → Bug B triggered.
-**Fix:** In BINOP, when `stream(BIOPTB)` returns `ST_EOS` with `STYPE != 0`, the
-operator was recognised despite running out of input — return `STYPE` (the operator),
-not `CATFN`. The subsequent `FORWRD()` in `expr_prec_continue` then loads the
-continuation line via `forrun()`.
+**Bug C — BINOP returns CATFN instead of operator when operator at EOL (ASM360):**
+BIOPTB['|'] → ACT_GOTO → TBLKTB hits ST_EOS (no trailing blank before EOL).
+BINOP saw ST_EOS and returned CATFN unconditionally, discarding STYPE=ORFN.
+expr_prec_continue called expr_prec() without FORWRD() → Bug B triggered.
+Fix: ST_EOS from BIOPTB chain with STYPE!=0 → return STYPE (the operator).
 
 ### Sweep results
 | Sweep | Before | After |
@@ -25992,31 +26111,18 @@ continuation line via `forrun()`.
 | snobol4/ 84 | 84/84 OK 0 HANG | 84/84 OK 0 HANG ✓ |
 | gimpel/ 145 | 140 OK 1 ERR 4 HANG | 143 OK 2 ERR 0 HANG |
 
-Remaining 2 ERRs: PHRASES.sno (grammar data file, not SNOBOL4 source) and TR.sno
-(unresolved `-INCLUDE "push.sno"` — CSNOBOL4 also errors: Error 30). Both are
-"both error → OK" per correctness model.
-
-### Committed
-- `one4all` `601890a` — three CMPILE fixes + updated binary
+Remaining 2 ERRs: PHRASES.sno (not SNOBOL4 source) and TR.sno (CSNOBOL4 also Error 30).
 
 ### Sprint 102 first actions (CMPILE track)
 ```bash
 cd /home/claude
 tail -120 .github/SESSIONS_ARCHIVE.md
 cat .github/SESSION-snobol4-x64.md
-# Confirm 84/84:
 bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; HANG=0; while IFS= read -r f; do ec=0; r=$(timeout 10 "$SNO4" "$f" 2>&1)||ec=$?; [[ $ec -eq 124 ]] && { HANG=$((HANG+1)); continue; }; e=$(echo "$r"|grep -m1 "ELEMNT:\|sil_error\|illegal"||true); [[ -n "$e" ]] && ERR=$((ERR+1)) || OK=$((OK+1)); done < <(find "$CORPUS" -name "*.sno"|sort); echo "=== OK=$OK ERR=$ERR HANG=$HANG ==="'
-# Rebuild from source (wrap.c at /tmp/sno4parse_wrap.c — reconstruct if missing):
-gcc -O0 -g -Wall -Wno-unused-function -I one4all/src/frontend/snobol4 \
-    -o sno4parse one4all/src/frontend/snobol4/CMPILE.c /tmp/sno4parse_wrap.c
-cp sno4parse one4all/sno4parse
-
+# Rebuild if /tmp/sno4parse_wrap.c missing — reconstruct from CMPILE.h public API
 # Next: run crosscheck/ suite — Phase 2 validation gate
-# Also: consider broader beauty/demo sweep with -I flags
 ```
 
 ### Baseline at session end
-- one4all HEAD: `601890a`
-- corpus HEAD: `65494e7`
-- Sweep: 84/84 OK ERR=0 HANG=0
-- Gimpel: 143/145 OK, 2 ERR (both CSNOBOL4-confirmed), 0 HANG
+- one4all HEAD: `601890a` · corpus HEAD: `65494e7`
+- Sweep: 84/84 OK ERR=0 HANG=0 · Gimpel: 143/145 OK, 2 ERR, 0 HANG
