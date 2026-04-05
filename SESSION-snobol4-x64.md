@@ -356,3 +356,55 @@ Same pattern applies to any operator at EOL before continuation. The subsequent
 UNOPTB ST_EOS in UNOP loop now breaks (safety net).
 
 Committed: one4all `601890a`. Sweeps: 84/84 ✅ · crosscheck 181/181 ✅ · gimpel 143/145 0 HANG.
+
+### T_ Bison token → CMPILE SIL name rename (pending — RT-114)
+**Date:** 2026-04-05
+
+The Bison/Flex files (`snobol4.tab.h`, `snobol4.tab.c`, `snobol4.lex.c`, `test_lex.c`)
+use `T_*` token names that must be renamed to their CMPILE SIL equivalents.
+The authoritative mapping was written in a prior session but not committed to HQ.
+
+**ACTION REQUIRED:** Lon to provide the complete T_ → CMPILE mapping so it can be
+written here and executed. Do NOT attempt this rename without the full mapping —
+multiple T_ tokens sharing a target name is wrong (collapses distinct parser states).
+
+Known-correct subset (1:1, from CMPILE.c #defines):
+| T_ name | CMPILE name |
+|---|---|
+| `T_ADDITION` | `ADDFN` |
+| `T_SUBTRACTION` | `SUBFN` |
+| `T_MULTIPLICATION` | `MPYFN` |
+| `T_DIVISION` | `DIVFN` |
+| `T_EXPONENTIATION` | `EXPFN` |
+| `T_ALTERNATION` | `ORFN` |
+| `T_COND_ASSIGN` | `NAMFN` |
+| `T_IMMEDIATE_ASSIGN` | `DOLFN` |
+| `T_CONCAT` | `CATFN` |
+| `T_MATCH` | `BIQSFN` |
+| `T_UN_PLUS` | `PLSFN` |
+| `T_UN_MINUS` | `MNSFN` |
+| `T_UN_PERIOD` | `DOTFN` |
+| `T_UN_DOLLAR_SIGN` | `INDFN` |
+| `T_UN_ASTERISK` | `STRFN` |
+| `T_UN_AT_SIGN` | `ATFN` |
+| `T_ASSIGNMENT` | `EQTYP` |
+| `T_FUNCTION` | `FNCTYP` |
+| `T_GOTO_S` | `SGOTYP` |
+| `T_GOTO_F` | `FGOTYP` |
+| `T_COMMA` | `CMATYP` |
+| `T_RBRACK` | `RBTYP` |
+| `T_INT` | `ILITYP` |
+| `T_STR` | `QLITYP` |
+| `T_REAL` | `FLITYP` |
+| `T_IDENT` | `VARTYP` |
+| `T_STMT_END` | `EOSTYP` |
+
+Uncertain (need authoritative mapping):
+`T_LABEL`, `T_END`, `T_KEYWORD`, `T_GOTO`, `T_GOTO_LPAREN`, `T_GOTO_RPAREN`,
+`T_UN_AMPERSAND`, `T_UN_TILDE`, `T_UN_QUESTION_MARK`, `T_UN_EXCLAMATION`,
+`T_UN_PERCENT`, `T_UN_SLASH`, `T_UN_POUND`, `T_UN_EQUAL`, `T_UN_VERTICAL_BAR`,
+`T_POUND`, `T_PERCENT`, `T_TILDE`, `T_PIPE`, `T_PLUS`, `T_MINUS`, `T_STAR`,
+`T_STARSTAR`, `T_SLASH`, `T_DOT`, `T_DOLLAR`, `T_QMARK`, `T_AT`, `T_HASH`,
+`T_PCT`, `T_EQ`, `T_ERR`, `T_WS`, `T_EOF`, `T_BANG`, `T_CARET`, `T_AMPERSAND`,
+`T_AT_SIGN`, `T_LPAREN`, `T_RPAREN`, `T_LBRACK`, `T_LANGLE`, `T_RANGLE`,
+`T_LBRACKET`, `T_RBRACKET`
