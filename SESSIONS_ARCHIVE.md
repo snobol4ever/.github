@@ -25405,3 +25405,105 @@ change. Fix sil_macros.h TESTF and IS_FNC to use these. Fix all sites that
 set slen directly to use D_SET_SLEN or mask correctly.
 
 Sprint 100 first action: add these defines to snobol4.h, fix sil_macros.h.
+
+---
+
+## Sprint 100 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** SNOBOL4 × x86 (scrip-interp / SIL track C)
+
+### Baseline confirmed
+- one4all HEAD: `888c282` · corpus HEAD: `65494e7`
+- PASS=188 FAIL=13 (201 total) — confirmed at session start
+
+### Build method (sprint 100 canonical)
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"
+mkdir -p /tmp/ib && rm -f /tmp/ib/*.o
+
+# Prerequisites: apt-get install -y libgc-dev flex
+
+gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+    -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+    -c src/frontend/snobol4/snobol4.lex.c -o /tmp/ib/snobol4.lex.o
+gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+    -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+    -c src/frontend/snobol4/snobol4.tab.c -o /tmp/ib/snobol4.tab.o
+
+for f in src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
+         src/runtime/snobol4/invoke.c src/runtime/snobol4/argval.c \
+         src/runtime/dyn/stmt_exec.c src/runtime/dyn/eval_code.c \
+         src/runtime/asm/x86_stubs_interp.c src/runtime/engine/engine.c; do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+for f in $(find src/runtime/boxes -name "bb_*.c" | grep -v "bb_dvar\|bb_atp\|bb_capture"); do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    -c src/driver/scrip-interp.c -o /tmp/ib/scrip_interp_driver.o
+
+gcc /tmp/ib/*.o -lgc -lm -o scrip-interp
+bash test/run_interp_broad.sh
+```
+⚠️ INCLUDE snobol4_stmt_rt.o is WRONG — omit it. x86_stubs_interp.c provides stmt_init + globals.
+
+### Changes this session
+1. **PLS fix** — `snobol4.c`: added `register_fn("PLS", _b_pos, 1, 1)` after `__num_pos` registration. SIL PLS is unary + which coerces to numeric, NOT identity.
+2. **-INCLUDE transitive dir fix** — `snobol4.l`: all three -INCLUDE/-COPY handlers now extract resolved file's directory and call `sno_add_include_dir()` so transitive includes resolve correctly. Regenerate with `flex --header-file=... -o snobol4.lex.c snobol4.l`.
+
+### Baseline at session end
+PASS=188 FAIL=13 (201 total) — unchanged
+
+### Beauty driver root cause diagnosed
+The beauty failures are NOT a missing-include-file problem. `demo/inc/global.sno` opens fine.
+The parse fails at `line 0` (meaning inside global.sno) on this content:
+```
+    &ALPHABET      POS(0)  LEN(1) . nul    ;* null character
+```
+Two issues:
+1. `;*` inline comment — `;` after a statement body. Parser may treat `;` as statement separator.
+   In SNOBOL4, `;` separates multiple statements on one line. After `;*`, the `*` starts a comment.
+   Our parser does NOT handle multi-statement-per-line (`;` separator) — it's a known gap.
+2. `&ALPHABET` — special SNOBOL4 keyword for defining the character set. Not currently in keyword table.
+
+### Sprint 101 first actions
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex   # if fresh container
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-RT-SIL-MACROS.md
+
+# Build (canonical command above)
+cd one4all && [build] && bash test/run_interp_broad.sh   # confirm PASS=188
+
+# Priority 1: Fix ; (semicolon) statement separator in parser
+#   SNOBOL4 allows: STMT1  ;STMT2  ;*comment
+#   In snobol4.l: ';' in BODY state should emit T_SEMI / restart statement parse
+#   In snobol4.tab.c (parse.y): add rule: program: stmt ';' stmt | stmt ';' '*' ...
+#   Quick approach: in lex BODY state, treat ';' as end-of-statement + restart
+#   Check: does csnobol4 treat ';' as stmt separator? YES — SNOBOL4 spec section 3.
+
+# Priority 2: &ALPHABET keyword support
+#   snobol4.l or parse.c: add &ALPHABET to keyword table, handle assignment to it
+#   (Pattern match on &ALPHABET sets up char class — can stub as no-op initially
+#    since the corpus doesn't test char class matching directly)
+
+# Priority 3: sil_macros.h GETDC/PUTDC fix (Option C flag bits)
+#   See SESSIONS_ARCHIVE sprint 99 ⚠️ notes for DESCR_t layout
+#   Add D_FNC / D_SLEN macros using high bits of slen field
+
+# Priority 4: RT-3 NAME_fn / ASGNIC_fn
+```
+
