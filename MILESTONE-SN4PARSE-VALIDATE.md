@@ -171,6 +171,21 @@ From SPITBOL manual §Ch15 p188:
 
 ---
 
+## Phase 2 Validation — crosscheck/ suite — 2026-04-05 (sprint 101)
+
+**Result: 181/181 OK · 0 ERR · 0 HANG** ✅
+
+All 181 `.sno` files in `corpus/crosscheck/` parse cleanly with zero errors.
+This is the Phase 2 validation gate per MILESTONE plan. **PASSED.**
+
+Broader sweeps:
+- `corpus/programs/snobol4/` — 84/84 OK (baseline)
+- `corpus/programs/gimpel/` — 143/145 OK, 2 ERR (both CSNOBOL4-confirmed), 0 HANG
+  - PHRASES.sno: grammar data file, not SNOBOL4 source
+  - TR.sno: unresolved `-INCLUDE "push.sno"` — CSNOBOL4 Error 30
+
+---
+
 ## Phase 3 — UTF-8 / Unicode Support
 
 ### Design
