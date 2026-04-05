@@ -286,7 +286,7 @@ Lines 7160–10211 of v311.sil: BLAND, BOX, BOXIN, AFRAME, etc.
 
 `CMPILE`, `ELEMNT`, `EXPR`, `FORWRD`, `FORRUN`, `FORBLK`, `NEWCRD`,
 `CTLADV`, `BLOCK` (allocator), `GC`, `GCM`, `SPLIT`, `BINOP`, etc.
-**Decision: SKIP.** We have `sno4parse.c`.
+**Decision: SKIP.** We have `CMPILE.c`.
 
 ---
 
