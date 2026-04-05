@@ -26206,3 +26206,74 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
 #   ./scrip-interp --dump-parse /path/to/failing.sno 2>&1
 #   Compare stmt fields against sno_parse IR (add --dump-ir flag if needed)
 ```
+## Sprint RT-107 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — RT-3 NAME/ASGNIC exports + sil_macros.h sweep
+
+### Baseline confirmed
+- one4all HEAD at session start: `081cce9`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total) — held throughout
+
+### Two commits this sprint
+
+**RT-107 (`e7c46ec`) — NAME_fn + ASGNIC_fn exports**
+
+SIL NAME proc and ASGNIC now proper exported symbols from snobol4.c:
+- `NAME_fn(varname)`: keywords/IO vars → NAMEVAL (GC-safe name string,
+  not addressable); ordinary NV cells → NAMEPTR (interior ptr via NV_PTR_fn).
+- `ASGNIC_fn(kw, val)`: coerces val to INTEGER, writes keyword C global.
+  Protected kws (STCOUNT/STNO/ALPHABET) silently no-op per SIL spec.
+  Returns 0 for non-keywords; caller falls back to NV_SET_fn.
+- `E_NAME` case in interp_eval() delegates to NAME_fn (was inline).
+- Keyword stmt executor delegates to ASGNIC_fn (was inline).
+- Both declared in sil_macros.h cross-index and snobol4.h.
+- Gate: 213_indirect_name PASS (5/5), kw_assign PASS.
+
+**RT-107b (`3424405`) — sil_macros.h macro sweep**
+
+Zero raw `.v == DT_*` comparisons remaining in scrip-interp.c or snobol4.c:
+- scrip-interp.c: 29 replaced → IS_INT/IS_REAL/IS_STR/IS_PAT/IS_NAME/
+  IS_ARR/IS_TBL/IS_NULL/IS_FAIL/IS_NAMEPTR/IS_NAMEVAL/NAME_DEREF_PTR.
+  NAME_DEREF + NAME_SET helpers use IS_NAME/IS_NAMEPTR/IS_NAMEVAL.
+- snobol4.c: 69 replaced with same macro set.
+- sil_macros.h: added IS_DATA(d) (was missing from type-test group),
+  IS_NAMEPTR(d), IS_NAMEVAL(d), NAME_DEREF_PTR(d), NAME_DEREF_VAL(d,fn)
+  as GROUP 6 — DT_N discriminators.
+- Bonus fix: _io_varname() had `d.i` instead of `d.s` — corrected.
+- Gate: 213_indirect_name PASS, kw_assign PASS, 023_arith_add PASS.
+
+### Note on PASS=5 in fresh-clone run_interp_broad.sh
+The broad harness invoked via `/bin/sh` silently fails on bash process
+substitution `< <(...)`. Tests pass correctly when harness run as bash.
+Not a regression — one4all HEAD is correct.
+
+### Baseline at session end
+- one4all HEAD: `3424405`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 — baseline held ✅
+
+### Sprint RT-108 first actions (Track C)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Two candidate next steps — discuss with Lon:
+#
+# Option A: non-ASCII comment fix (cmpile_lower path)
+#   In CMPILE.c cmpile_file_internal() line reader: when physical line
+#   starts with '*' (CNTTYP), skip entire line without calling STREAM/ELEMNT.
+#   Non-ASCII bytes in *-comments never reach lexer.
+#   Gate: 1010_func_recursion.sno --dump-parse non-empty → cmpile_lower PASS≥190.
+#
+# Option B: RT-4 — NMD conditional assignment stack
+#   See MILESTONE-RT-RUNTIME.md § RT-4.
+#   NAM_commit() in nmd.c; conditional assignment via . capture operator.
+```
