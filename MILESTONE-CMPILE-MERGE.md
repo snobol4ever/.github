@@ -286,3 +286,108 @@ to a string-concat default.  `cmpnd_to_expr()` uses the named constants directly
 
 *Introduced sprint 104 · Track C · Lon Jones Cherryholmes + Claude Sonnet 4.6*
 *Phase 0 (IR comparison pre-check) added RT-113 · 2026-04-05*
+
+---
+
+## Phase 2 — Purge old EKind aliases
+
+**Status:** ⬜ not started
+**Prerequisite:** Phase 1 confirmed done (cmpile_lower is live path)
+
+The ir.h enum contains ~16 old alias names that must be deleted and replaced
+with the canonical new names everywhere in the codebase.  No new code should
+emit these names.  Bison emits some of them — this is one reason the
+`--parser=cmpile|bison` switch is needed (so Bison's old-name output can be
+compared and eventually eliminated).
+
+### Old → New mapping (complete)
+
+| Old name | New name |
+|---|---|
+| `E_ALT_GEN` | `E_ALTERNATE` |
+| `E_ARY` | `E_IDX` |
+| `E_ASGN` | `E_ASSIGN` |
+| `E_ATP` | `E_CAPT_CURSOR` |
+| `E_AUGOP` | `E_SCAN_AUGOP` |
+| `E_BANG` | `E_ITERATE` |
+| `E_BANG_BINARY` | `E_ITERATE` |
+| `E_DOL` | `E_CAPT_IMMED_ASGN` |
+| `E_EXPOP` | `E_POW` |
+| `E_NAM` | `E_NAME` |
+| `E_NOT` | `E_INTERROGATE` |
+| `E_NULL` | `E_NUL` |
+| `E_NULV` | `E_NUL` |
+| `E_OR` | `E_ALT` |
+| `E_STAR` | `E_DEFER` |
+| `E_VART` | `E_VAR` |
+
+### Step 1 — Find all uses
+
+```bash
+grep -rn \
+  "E_ALT_GEN\|E_ARY\b\|E_ASGN\b\|E_ATP\b\|E_AUGOP\b\|E_BANG\b\|E_BANG_BINARY\|E_DOL\b\|E_EXPOP\b\|E_NAM\b\|E_NOT\b\|E_NULL\b\|E_NULV\b\|E_OR\b\|E_STAR\b\|E_VART\b" \
+  /home/claude/one4all/src/ | grep -v "\.o:"
+```
+
+### Step 2 — Sed-replace across all source files
+
+One pass per old name — do NOT use a single global sed (E_OR would corrupt E_OPSYN etc.):
+
+```bash
+cd /home/claude/one4all/src
+for pair in \
+  "E_ALT_GEN:E_ALTERNATE" \
+  "E_ARY:E_IDX" \
+  "E_ASGN:E_ASSIGN" \
+  "E_ATP:E_CAPT_CURSOR" \
+  "E_AUGOP:E_SCAN_AUGOP" \
+  "E_BANG_BINARY:E_ITERATE" \
+  "E_BANG:E_ITERATE" \
+  "E_DOL:E_CAPT_IMMED_ASGN" \
+  "E_EXPOP:E_POW" \
+  "E_NAM:E_NAME" \
+  "E_NOT:E_INTERROGATE" \
+  "E_NULL:E_NUL" \
+  "E_NULV:E_NUL" \
+  "E_OR:E_ALT" \
+  "E_STAR:E_DEFER" \
+  "E_VART:E_VAR"; do
+    old="${pair%%:*}"; new="${pair##*:}"
+    grep -rl "\b${old}\b" . | grep -E "\.(c|h)$" | \
+      xargs sed -i "s/\b${old}\b/${new}/g"
+    echo "replaced $old → $new"
+done
+```
+
+### Step 3 — Remove alias entries from ir.h enum
+
+Delete the 16 old enum entries (they are marked as aliases in comments).
+Leave only the canonical names.
+
+### Step 4 — Build and test
+
+```bash
+cd /home/claude/one4all && make scrip-interp 2>&1 | grep "error:" | head -20
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+# Gate: zero compile errors, PASS=178
+```
+
+### Step 5 — Commit
+
+```
+"RT-1NN: Phase 2 — purge old EKind aliases; E_OR→E_ALT, E_STAR→E_DEFER, etc.; PASS=178"
+```
+
+---
+
+## Phase 3 — --parser=cmpile|bison execution switch
+
+**Status:** ⬜ not started
+**Prerequisite:** Phase 2 complete (old aliases gone — Bison will need fixing too)
+
+Add `--parser=cmpile` (default) and `--parser=bison` to `scrip-interp` so both
+parsers drive actual execution, not just IR dump.  Bison's old-name emissions
+will be caught as compile errors after Phase 2, forcing them to be fixed before
+this switch can work.
+
+Gate: `PASS=178` with `--parser=cmpile`; `PASS=178` with `--parser=bison`.
