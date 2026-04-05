@@ -25602,3 +25602,54 @@ bash -c 'SNO4=/home/claude/sno4parse; CORPUS=/home/claude/corpus/programs/snobol
 # P2C: in expr_prec_continue, the [] postfix handler already exists (P2C/P2D work);
 #      confirm it handles the <> alias case from ELEMTB (ARYTYP on '<').
 ```
+
+---
+
+## Sprint 101 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** SNOBOL4 × x86 (scrip-interp / SIL track C)
+
+### Baseline confirmed
+- one4all HEAD: `ca7aa12` · corpus HEAD: `65494e7`
+- PASS=188 FAIL=13 (201 total) — confirmed at session start
+
+### Changes this session
+1. **PLAN.md rewrite** — Step 1 now track-specific. Track C reads 3 docs only.
+   BB-GRAPH/BB-DRIVER/SCRIP-SM/IR.md flagged as Track BB only.
+   Saves ~50% context window per RT session. Pushed as `58b15b8`.
+
+### What was diagnosed (not yet fixed)
+- `expr_eval` failure root cause confirmed: `NRETURN` — function returns DT_N
+  descriptor via `Push = .stk[stk[0]]`, then `$Push = x` writes through it.
+  This is the core RT-3 case. NAME_fn/ASGNIC_fn not yet implemented.
+- beauty failures: `&ALPHABET` parse produces E_SEQ correctly; split logic
+  handles E_KEYWORD at children[0]. Parse error at line 0 is spurious —
+  actual output line runs. Root cause not fully isolated this session.
+
+### Baseline at session end
+PASS=188 FAIL=13 (201 total) — unchanged
+
+### Sprint 102 first actions (Track C — RT-3)
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/PLAN.md
+sed -n '157,203p' .github/MILESTONE-RT-RUNTIME.md   # RT-3 section only
+cat .github/SESSION-snobol4-x64.md                   # §INFO + §NOW only
+
+apt-get install -y libgc-dev flex
+cd one4all && [canonical build] && bash test/run_interp_broad.sh  # confirm PASS=188
+
+# RT-3 work:
+# 1. NAME_fn(varname) in snobol4.c — return DT_N NAMEVAL descriptor
+#    SIL NAME proc: fetch descriptor, test FNC bit, return N-typed descriptor
+#    Wire into E_NAME case in scrip-interp.c (replace interp_eval_ref path)
+# 2. ASGNIC_fn(kw_name, val) — keyword assignment via INTVAL coercion
+#    Extend NV_SET_fn DT_K path (currently routes via kw_set globals correctly,
+#    but needs INTVAL coercion for non-integer values assigned to keywords)
+# 3. NRETURN fix — function return of DT_N descriptor
+#    In call_user_function(): if return val is DT_N, pass through as-is
+#    (currently may be coerced or dropped — needs investigation)
+# Gate: expr_eval passes → PASS=189
+```
