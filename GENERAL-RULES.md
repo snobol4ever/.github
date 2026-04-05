@@ -388,3 +388,16 @@ both `E_SEQ` and `E_CONCAT` produce `pat_cat` — correct. In value context
 
 Fix is `stmt_seq()` runtime dispatcher. See `GENERAL-DECISIONS.md D-010` and
 `GENERAL-BYRD-DYNAMIC.md M-DYN-SEQ`.
+
+## ⛔ INFO-<frontend>-<backend>.md — session invariants, append-only
+
+Each frontend×backend session has an `INFO-<frontend>-<backend>.md` in `.github/`.
+- Read it at **Step 3** of every session start (after component docs, before SESSION doc).
+- It contains tool locations, oracle build steps, sweep baselines, and mid-session facts.
+- When Lon states any operational fact mid-session, append it to INFO immediately.
+- **Never re-derive what is already written there.** Never rebuild a tool from scratch
+  if INFO says where the patches live. Never ask for a baseline that INFO already records.
+- Append-only. Never prune. Date every entry.
+
+Current INFO docs: `INFO-snobol4-x64.md` (DYN sessions).
+Other sessions: create `INFO-<frontend>-<backend>.md` on first session, populate as you go.
