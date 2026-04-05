@@ -20,7 +20,7 @@ cat /home/claude/.github/PLAN.md                      # this file (NOW table + r
 
 **Step 2 — Read your component doc (session-specific, ONE doc):**
 ```
-Track C  scrip-interp / SIL  →  cat MILESTONE-RT-RUNTIME.md   (RT-3 section only — grep "^## RT-3" and read to next "^## RT-")
+Track C  scrip-interp / SIL  →  cat MILESTONE-RT-RUNTIME.md   (RUNTIME-3 section only — grep "^## RUNTIME-3" and read to next "^## RT-")
 Track A  sno4parse            →  cat MILESTONE-SN4PARSE-VALIDATE.md
 Track B  emitter x86          →  cat EMITTER-X86.md
 Track BB Byrd box / SM        →  cat SCRIP-SM.md + BB-GRAPH.md + BB-DRIVER.md + IR.md
@@ -90,15 +90,15 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
-| **RUNTIME / RT-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
-| **RUNTIME / RT-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
-| **RUNTIME / RT-3** | `MILESTONE-RT-RUNTIME.md` | ⬜ NAME type + keyword names |
-| **RUNTIME / RT-4** | `MILESTONE-RT-RUNTIME.md` | ⬜ NMD conditional assignment stack |
-| **RUNTIME / RT-5** | `MILESTONE-RT-RUNTIME.md` | ⬜ ASGN with OUTPUT/TRACE hooks |
-| **RUNTIME / RT-6** | `MILESTONE-RT-RUNTIME.md` | ⬜ EXPVAL / EXPRESSION type execution |
-| **RUNTIME / RT-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
-| **RUNTIME / RT-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
-| **RUNTIME / RT-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
+| **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
+| **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
+| **RUNTIME / RUNTIME-3** | `MILESTONE-RT-RUNTIME.md` | ⬜ NAME type + keyword names |
+| **RUNTIME / RUNTIME-4** | `MILESTONE-RT-RUNTIME.md` | ⬜ NMD conditional assignment stack |
+| **RUNTIME / RUNTIME-5** | `MILESTONE-RT-RUNTIME.md` | ⬜ ASGN with OUTPUT/TRACE hooks |
+| **RUNTIME / RUNTIME-6** | `MILESTONE-RT-RUNTIME.md` | ⬜ EXPVAL / EXPRESSION type execution |
+| **RUNTIME / RUNTIME-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
+| **RUNTIME / RUNTIME-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
+| **RUNTIME / RUNTIME-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
 | **CMPILE MERGE** | `MILESTONE-CMPILE-MERGE.md` | ⬜ Track C TOP — CMPILE.c stype→EKind wire-up; replaces node_to_expr; fixes EVAL() |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |

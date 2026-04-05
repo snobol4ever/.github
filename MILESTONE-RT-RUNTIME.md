@@ -3,7 +3,7 @@
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04
 **Session:** SNOBOL4 × x86, sprint 95+
-**Status:** ACTIVE — RT-1 through RT-9 queued
+**Status:** ACTIVE — RUNTIME-1 through RUNTIME-9 queued
 
 ---
 
@@ -47,19 +47,19 @@ the SIL-faithful version. No big-bang rewrites.
 
 | What gets replaced | Where in code | RT milestone |
 |--------------------|--------------|-------------|
-| `call_user_function()` if/else dispatch | scrip-interp.c | RT-1 |
-| Type coercions inside `interp_eval()` | scrip-interp.c | RT-2 |
-| `interp_eval_ref()` + K-type in NV_SET | scrip-interp.c + snobol4.c | RT-3 |
-| `capture_t` array in stmt_exec.c | stmt_exec.c | RT-4 |
-| `NV_SET_fn` — add output/trace hooks | snobol4.c | RT-5 |
-| `eval_expr()` stub in eval_code.c | eval_code.c | RT-6 |
-| `CODE()` / `CONVERT()` builtins | snobol4.c | RT-7 |
-| `EVAL_fn` stub | snobol4.c | RT-8 |
-| tree-walk `execute_program()` | scrip-interp.c → sm_interp.c | RT-9 |
+| `call_user_function()` if/else dispatch | scrip-interp.c | RUNTIME-1 |
+| Type coercions inside `interp_eval()` | scrip-interp.c | RUNTIME-2 |
+| `interp_eval_ref()` + K-type in NV_SET | scrip-interp.c + snobol4.c | RUNTIME-3 |
+| `capture_t` array in stmt_exec.c | stmt_exec.c | RUNTIME-4 |
+| `NV_SET_fn` — add output/trace hooks | snobol4.c | RUNTIME-5 |
+| `eval_expr()` stub in eval_code.c | eval_code.c | RUNTIME-6 |
+| `CODE()` / `CONVERT()` builtins | snobol4.c | RUNTIME-7 |
+| `EVAL_fn` stub | snobol4.c | RUNTIME-8 |
+| tree-walk `execute_program()` | scrip-interp.c → sm_interp.c | RUNTIME-9 |
 
 ---
 
-## RT-1 — INVOKE Dispatch Table
+## RUNTIME-1 — INVOKE Dispatch Table
 
 **SIL procs:** `INVOKE`, `INVK1`, `INVK2`, `ARGVAL`
 **File:** `src/runtime/snobol4/invoke.c` (new) + hook into `snobol4.c`
@@ -109,12 +109,12 @@ User `DEFINE` registers into the same table.
 
 ### Corpus gate
 
-expr_eval needs NRETURN+EVAL (RT-6/RT-8), not RT-1.
+expr_eval needs NRETURN+EVAL (RUNTIME-6/RUNTIME-8), not RUNTIME-1.
 Gate: no regressions. PASS stays 177.
 
 ---
 
-## RT-2 — VARVAL / INTVAL / PATVAL Typed Argument Evaluators
+## RUNTIME-2 — VARVAL / INTVAL / PATVAL Typed Argument Evaluators
 
 **SIL procs:** `VARVAL`, `INTVAL`, `PATVAL`, `VARVUP`, `XYARGS`
 **File:** `src/runtime/snobol4/argval.c` (new)
@@ -154,7 +154,7 @@ into named functions matching SIL names.
 
 ---
 
-## RT-3 — NAME Type + Keyword Names (K)
+## RUNTIME-3 — NAME Type + Keyword Names (K)
 
 **SIL procs:** `NAME` (`.X`), `ASGNV`, `ASGNIC`, type K dispatch
 **Files:** `src/runtime/snobol4/snobol4.c`, `scrip-interp.c`
@@ -197,11 +197,11 @@ int ASGNIC_fn(const char *kw_name, DESCR_t val);
 
 Replace `interp_eval_ref()` with calls to `NAME_fn` where `.X` is
 needed. Replace raw pointer returns with `DT_N` descriptors.
-`ASGN` (RT-5) then dereferences DT_N via `NAMEPTR`.
+`ASGN` (RUNTIME-5) then dereferences DT_N via `NAMEPTR`.
 
 ---
 
-## RT-4 — Conditional Assignment Stack (NMD / Naming List)
+## RUNTIME-4 — Conditional Assignment Stack (NMD / Naming List)
 
 **SIL procs:** `NMD`, `NMD1`–`NMD5`, `NMDIC`, `NAMEXN`
 **SIL globals:** `NAMICL`, `NHEDCL`, `PDLPTR`, `PDLHED`, `NBSPTR`
@@ -265,7 +265,7 @@ Wire `NAM_commit` / `NAM_discard` into `stmt_exec_dyn` at the S/F branch.
 
 ---
 
-## RT-5 — ASGN with &OUTPUT Association + TRACE + Keyword Assignment
+## RUNTIME-5 — ASGN with &OUTPUT Association + TRACE + Keyword Assignment
 
 **SIL procs:** `ASGN`, `ASGNV`, `ASGNVV`, `ASGNVP`, `ASGNC`, `ASGNIC`
 **File:** `src/runtime/snobol4/snobol4.c` — extend `NV_SET_fn`
@@ -311,7 +311,7 @@ are initially empty. The hooks are wired but inert until
 
 ---
 
-## RT-6 — EXPVAL / EXPEVL — EXPRESSION Type Execution
+## RUNTIME-6 — EXPVAL / EXPEVL — EXPRESSION Type Execution
 
 **SIL procs:** `EXPVAL`, `EXPEVL`, `EXPVC`, `EXPV1`–`EXPV11`
 **File:** `src/runtime/dyn/eval_code.c` — replace stub `eval_expr()`
@@ -373,7 +373,7 @@ The save/restore stack must handle arbitrary nesting.
 
 ---
 
-## RT-7 — CONVE / CODER / CNVRT — Compile to EXPRESSION and CODE
+## RUNTIME-7 — CONVE / CODER / CNVRT — Compile to EXPRESSION and CODE
 
 **SIL procs:** `CONVE`, `CONVEX`, `CODER`, `CNVRT` (= `CONVERT()`),
               `RECOM*` (recompile loop), `CONVR`, `CONVRI`, `CNVIV`,
@@ -425,7 +425,7 @@ wrap the resulting `Program*` in the appropriate DT_C / DT_E descriptor.
 
 ---
 
-## RT-8 — EVAL() Builtin
+## RUNTIME-8 — EVAL() Builtin
 
 **SIL proc:** `EVAL`, `EVAL1`
 **File:** `src/runtime/snobol4/snobol4.c` — replace `EVAL_fn` stub
@@ -477,7 +477,7 @@ This is the milestone that makes `expr_eval` pass (PASS → 178).
 
 ---
 
-## RT-9 — INTERP / INIT / GOTO / GOTL / GOTG — SM_Program Dispatch Loop
+## RUNTIME-9 — INTERP / INIT / GOTO / GOTL / GOTG — SM_Program Dispatch Loop
 
 **SIL procs:** `INTERP`, `INTRP0`, `INIT`, `GOTO`, `GOTL`, `GOTG`, `BASE`
 **File:** `src/driver/sm_interp.c` (new — does NOT modify scrip-interp.c)
@@ -518,7 +518,7 @@ goto targets.
 
 `sm_interp.c`: a fresh file implementing the SM_Program dispatch loop
 over `SM_Instr[]` (from SCRIP-SM.md). This is the component that
-connects the RT-1 through RT-8 subsystems to the SM_Program instruction
+connects the RUNTIME-1 through RUNTIME-8 subsystems to the SM_Program instruction
 set and retires the tree-walker permanently.
 
 `scrip-interp.c` continues running on the tree-walker during this milestone.
@@ -534,20 +534,20 @@ SM_Program execution replaces tree-walking IR.
 
 | Milestone | SIL procs | New file(s) | Gate |
 |-----------|-----------|-------------|------|
-| **RT-1** | `INVOKE`, `INVK1/2`, `ARGVAL` | `invoke.c` | PASS ≥ 177 |
-| **RT-2** | `VARVAL`, `INTVAL`, `PATVAL`, `VARVUP` | `argval.c` | PASS ≥ 177 |
-| **RT-3** | `NAME`, `ASGNIC`, type K dispatch | extend `snobol4.c` | PASS ≥ 177 |
-| **RT-4** | `NMD`, `NMD1-5`, `NMDIC`, `NAMEXN` | `nmd.c` | PASS ≥ 177 |
-| **RT-5** | `ASGN`, `ASGNV`, `ASGNVV`, `ASGNVP` | extend `snobol4.c` | PASS ≥ 177 |
-| **RT-6** | `EXPVAL`, `EXPEVL`, `EXPVC` | extend `eval_code.c` | PASS ≥ 177 |
-| **RT-7** | `CONVE`, `CODER`, `CNVRT` | extend `snobol4.c` | PASS ≥ 177 |
-| **RT-8** | `EVAL`, `EVAL1` | extend `snobol4.c` | **PASS = 178** |
-| **RT-9** | `INTERP`, `INIT`, `GOTO`, `GOTL`, `GOTG` | `sm_interp.c` | PASS ≥ 178 via SM |
+| **RUNTIME-1** | `INVOKE`, `INVK1/2`, `ARGVAL` | `invoke.c` | PASS ≥ 177 |
+| **RUNTIME-2** | `VARVAL`, `INTVAL`, `PATVAL`, `VARVUP` | `argval.c` | PASS ≥ 177 |
+| **RUNTIME-3** | `NAME`, `ASGNIC`, type K dispatch | extend `snobol4.c` | PASS ≥ 177 |
+| **RUNTIME-4** | `NMD`, `NMD1-5`, `NMDIC`, `NAMEXN` | `nmd.c` | PASS ≥ 177 |
+| **RUNTIME-5** | `ASGN`, `ASGNV`, `ASGNVV`, `ASGNVP` | extend `snobol4.c` | PASS ≥ 177 |
+| **RUNTIME-6** | `EXPVAL`, `EXPEVL`, `EXPVC` | extend `eval_code.c` | PASS ≥ 177 |
+| **RUNTIME-7** | `CONVE`, `CODER`, `CNVRT` | extend `snobol4.c` | PASS ≥ 177 |
+| **RUNTIME-8** | `EVAL`, `EVAL1` | extend `snobol4.c` | **PASS = 178** |
+| **RUNTIME-9** | `INTERP`, `INIT`, `GOTO`, `GOTL`, `GOTG` | `sm_interp.c` | PASS ≥ 178 via SM |
 
-Dependencies: RT-3 → RT-4 → RT-5 (NAME before NMD before ASGN hooks).
-RT-6 → RT-7 → RT-8 (EXPVAL before CONVE before EVAL).
-RT-1 and RT-2 are independent — start with RT-1.
-RT-9 depends on all prior milestones and SM-LOWER (see SCRIP-SM.md).
+Dependencies: RUNTIME-3 → RUNTIME-4 → RUNTIME-5 (NAME before NMD before ASGN hooks).
+RUNTIME-6 → RUNTIME-7 → RUNTIME-8 (EXPVAL before CONVE before EVAL).
+RUNTIME-1 and RUNTIME-2 are independent — start with RUNTIME-1.
+RUNTIME-9 depends on all prior milestones and SM-LOWER (see SCRIP-SM.md).
 
 ---
 
@@ -583,4 +583,4 @@ All procedures in `/home/claude/snobol4-2.3.3/v311.sil`:
 ---
 
 *MILESTONE-RT-RUNTIME.md — created sprint 95, 2026-04-04*
-*Baseline: PASS=177 FAIL=1. Target: PASS=178 at RT-8, then SM_Program at RT-9.*
+*Baseline: PASS=177 FAIL=1. Target: PASS=178 at RUNTIME-8, then SM_Program at RUNTIME-9.*
