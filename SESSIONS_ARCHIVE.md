@@ -25387,3 +25387,21 @@ Or use a bitfield struct for .f + .slen packed into uint32_t:
 
 Lon to decide if 16MB string limit is acceptable (almost certainly yes).
 This restores the SIL golden trinity without the SPEC tax.
+
+### ⚠️ DESCR_t flags — FINAL DECISION: Option C (sprint 100 action item)
+
+Use high bits of existing uint32_t slen. Zero struct change. Zero breakage.
+
+  #define D_FNC         (1u << 28)
+  #define D_PTR         (2u << 28)
+  #define D_STTL        (4u << 28)
+  #define D_F(d)        ((d).slen >> 28)
+  #define D_SLEN(d)     ((d).slen & 0x0FFFFFFF)   /* 28 bits = 256MB max */
+  #define IS_FNC(d)     ((d).slen & D_FNC)
+  #define TESTF(d,T)    ((d).slen & (T))
+
+All three golden fields (flag, value, address) present. No SPEC. No layout
+change. Fix sil_macros.h TESTF and IS_FNC to use these. Fix all sites that
+set slen directly to use D_SET_SLEN or mask correctly.
+
+Sprint 100 first action: add these defines to snobol4.h, fix sil_macros.h.
