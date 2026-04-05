@@ -268,13 +268,36 @@ Sprint prefixes are for numbering only; they do not define separate tracks.
 3. Read `PLAN.md` — NOW table, confirm next milestone.
 4. Read your `SESSION-<frontend>-<backend>.md` — **§INFO first** (invariants), then **§NOW** (sprint state).
 
-## ⛔ §NOW STALENESS — fix before any work
+## ⛔ §NOW STALENESS — VERIFY VIA GIT LOG BEFORE TRUSTING, fix before any work
 
-Compare the sprint number in `SESSION-*.md §NOW` against the sprint in your `SESSIONS_ARCHIVE` handoff.
-If they differ, the SESSION doc was not updated at last handoff — **the SESSIONS_ARCHIVE handoff is authoritative**.
-Rewrite `§NOW` from the SESSIONS_ARCHIVE before doing any work.
+**§NOW is frequently stale. Never trust it without verification.**
 
-**§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
+**Mandatory check — run this immediately after reading SESSION-*.md:**
+```bash
+cd /home/claude/one4all && git log --oneline -3
+cd /home/claude/corpus  && git log --oneline -3
+```
+Compare the HEAD hashes from `git log` against what §NOW says.
+If they differ: **§NOW is stale. The git log is ground truth.**
+
+**Why it goes stale:** SESSIONS_ARCHIVE records the sprint correctly (append-only),
+but §NOW in SESSION-*.md and PLAN.md §NOW are only updated when explicitly written.
+If a session ends without updating §NOW, the next session reads stale data.
+Claude then presents stale state as current — this is the #1 recurring failure mode.
+
+**Fix before any work:**
+1. `git log --oneline -3` in one4all and corpus — get real HEADs
+2. Run `make scrip-interp && bash test/run_interp_broad.sh` — get real PASS
+3. Rewrite §NOW in SESSION-*.md with real values
+4. Rewrite the matching row in PLAN.md §NOW table
+5. Then and only then proceed with sprint work
+
+**§NOW and sprint state** live in SESSION-*.md and PLAN.md §NOW only.
+SESSIONS_ARCHIVE.md is append-only — never edit it.
+
+**On handoff (end of session):** §NOW MUST be updated before declaring handoff done.
+The "first actions" block in SESSIONS_ARCHIVE is not a substitute for updating §NOW.
+If §NOW is not updated, the next session WILL present stale state.
 
 ## ⛔ SESSION ROUTING — one rule
 
