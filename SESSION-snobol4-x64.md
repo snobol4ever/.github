@@ -113,7 +113,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 90 | one4all `055fa15` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK · 76/84 now · 8 ERR remain |
+| 91 | one4all `ae60046` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 84/84 OK · 81/84 now · 3 ERR remain — ⛔ rip out linebuf, implement true streaming first |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -151,3 +151,14 @@ cd /home/claude
 # 2. SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep "ret=ERROR"
 # 3. BRTYPE=1 postfix subscript: sed -n around ELEFNC + expr_prec_continue '[' detection
 ```
+
+### ⛔ LINEBUF PRE-JOIN IS BANNED
+**Date:** 2026-04-05
+
+sno4parse currently pre-joins continuation lines into linebuf before parsing.
+This is an architecture violation. CSNOBOL4 does true streaming (FORWRD calls
+FORRUN/IO_READ on ST_EOS). The linebuf must be eliminated.
+
+Sprint 92 FIRST action: implement true streaming before any other work.
+See SESSIONS_ARCHIVE.md sprint 91 addendum for the design.
+
