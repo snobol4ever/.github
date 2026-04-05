@@ -25365,3 +25365,25 @@ Cost: masking on every slen access. Clever but fragile.
 
 Lon to decide. Recommendation: Option B — Boehm makes PTR/STTL irrelevant,
 invoke table is already correct for FNC. Document and move on.
+
+### ⚠️ DESCR_t layout — Option D (sprint 100 recommendation revised)
+
+slen is uint32_t = 4 bytes, NOT in padding. csnobol4 uses 1 byte .f + 3 bytes
+pad. We replaced all 4 bytes with slen, losing flags entirely.
+
+Option D — use the 3 pad bytes for slen (24-bit), restore .f byte:
+  v:    4 bytes  DTYPE_t type tag
+  f:    1 byte   flags (FNC=0x01, PTR=0x02, STTL=0x04)
+  slen: 3 bytes  string length 0..16MB (uint24, enough for all SNOBOL4 strings)
+  union:8 bytes  .i / .r / .s / .ptr
+  TOTAL:16 bytes — same size, all three golden fields, no SPEC needed
+
+Access slen as: (d.slen24[0] | d.slen24[1]<<8 | d.slen24[2]<<16)
+Or use a bitfield struct for .f + .slen packed into uint32_t:
+  uint32_t fs;   /* bits 31-8 = slen (24 bits), bits 7-0 = flags */
+  #define D_F(d)    ((d).fs & 0xFF)
+  #define D_SLEN(d) ((d).fs >> 8)
+  #define D_SET_SLEN(d,n) ((d).fs = ((d).fs & 0xFF) | ((n)<<8))
+
+Lon to decide if 16MB string limit is acceptable (almost certainly yes).
+This restores the SIL golden trinity without the SPEC tax.
