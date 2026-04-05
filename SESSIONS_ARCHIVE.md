@@ -25819,3 +25819,50 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=188
 - one4all HEAD: `3548683`
 - corpus HEAD: `3fd44d0`
 - PASS=188 FAIL=13 (201 total) — unchanged (EVAL fix needed for gate)
+
+---
+
+## Sprint 98-ext — snobol4 × x86 (sno4parse track) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track A — sno4parse
+
+### Baseline confirmed
+- one4all HEAD: `45ad889` · corpus HEAD: `65494e7`
+- Sweep 84/84 OK — confirmed at session start
+
+### P2B bug fixed: SELECT loop double-FORWRD
+
+**Root cause:** After `EXPR()` returns the first alternative in `( e1 , e2 )`,
+`TEXTSP` points to the *space-before-comma* (BINOP restored `saved_text` captured
+before IBLKTB consumed the interfield blank). The comma-skip guard `*TEXTSP.ptr == ','`
+was always false (ptr → space, not comma). One `FORWRD()` consumed the comma via
+FRWDTB ACT_STOP but left `TEXTSP` at a leading space; ELEMTB then fired ACT_ERROR
+on the space → `"ELEMNT: illegal character"`.
+
+**Fix:** Two `FORWRD()` calls in the SELECT while loop:
+- 1st FORWRD: skips space, stops ON `,` (CMATYP ACT_STOP) — consumes it
+- 2nd FORWRD: skips space after comma, STOPSH at next token (NBTYP)
+
+**Previously working:** `( 'a', 'b' )` — quoted literal directly after `(` has no
+leading-space-before-comma issue (the comma follows immediately after the closing quote).
+**Now working:** `( INPUT , 'done' )`, `( EQ(B,3), GT(B,20) )`, all var/keyword forms.
+
+### Changes committed
+- `src/frontend/snobol4/sno4parse.c` — P2B SELECT loop fix → `45ad889`
+
+### Baseline at session end
+- Sweep: 84/84 OK ERR=0 HANG=0 — unchanged
+
+### Sprint 99 first actions (sno4parse track)
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c /tmp/sno4parse_wrap.c
+cp sno4parse one4all/sno4parse
+# Confirm 84/84 sweep
+# Next: P2A binary ? operator (BINOP special-case BISNFN at prec=1)
+# Or: P2C [] as alias for <> + postfix subscript on call result
+```
