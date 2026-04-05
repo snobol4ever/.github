@@ -24862,3 +24862,67 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 # MONITOR: SNO_TRACE=1 on WordNet.sno, diff traces, confirm root cause
 # Then: WANG MONITOR re-check — why did FORWRD fix not resolve it?
 ```
+
+## SNOBOL4 × x86 sprint 95 — 2026-04-04
+
+### What Was Done
+
+**Session-start protocol completed** ✅
+- All repos cloned fresh: .github, one4all, harness, corpus
+- Full read sequence: SCRIP-SM.md → BB-GRAPH.md → BB-DRIVER.md → IR.md → SESSIONS_ARCHIVE tail → GENERAL-RULES headings → PLAN.md → SESSION-snobol4-x64.md → MILESTONE-SN4PARSE-VALIDATE.md
+
+**Baseline confirmed:** PASS=177 FAIL=1 (expr_eval) — scrip-interp broad sweep
+
+**MILESTONE-RT-RUNTIME.md created** ✅
+Nine SIL-faithful runtime milestones:
+- RT-1 INVOKE dispatch table
+- RT-2 VARVAL/INTVAL/PATVAL typed arg evaluators
+- RT-3 NAME type + keyword names (DT_K)
+- RT-4 NMD conditional assignment stack (naming list)
+- RT-5 ASGN with OUTPUT association + TRACE hooks
+- RT-6 EXPVAL / EXPRESSION type execution (save/restore state)
+- RT-7 CONVE / CODER / CONVERT
+- RT-8 EVAL() builtin → PASS=178 target
+- RT-9 INTERP/INIT/GOTO SM_Program dispatch loop
+Principle: additive shim replacement — scrip-interp stays green throughout.
+
+**MILESTONE-RT-SIL-MACROS.md created** ✅
+Classified all 130+ SIL macro instructions and 211 procedures:
+- Groups 1-2 → sil_macros.h (C inline translations of GETD/PUTD/TESTF/VEQLC etc.)
+- Groups 3-5 → RT functions + 12 new SM_Program instructions
+- Group 6 → SM_PAT_* (already in SCRIP-SM.md — confirmed complete)
+- Group 7 → bb_*.c Byrd boxes (confirmed ✅)
+- Group 8 → INVOKE table builtins (~50, status tracked)
+- Groups 9-10 → SKIP (SNOBOL4B blocks, compiler internals)
+~120 of 211 procedures useful; 12 new SM ops added to SCRIP-SM.md.
+
+**SCRIP-SM.md updated** ✅
+Added 12 new SM instructions from SIL macro analysis:
+SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH/POP (for EXPVAL),
+SM_INCR, SM_DECR, SM_ACOMP, SM_RCOMP, SM_LCOMP, SM_SPCINT, SM_SPREAL, SM_TRIM.
+
+**PLAN.md updated** ✅
+- RT-1 through RT-9 in NOW table and component map
+- SIL MACRO MAP row added
+
+### Commits
+- `.github`: `41841d1` (RT milestones) → rebased → `41841d1` on origin
+- `.github`: current push includes SCRIP-SM.md + MILESTONE-RT-SIL-MACROS.md
+
+### Baselines for sprint 96
+- `one4all`: `5c1a1d8` · `corpus`: `8d5cc6a`
+- scrip-interp: PASS=177 FAIL=1
+
+### Sprint 96 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-RT-RUNTIME.md   # new — read RT-7→RT-8 path first
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cd /home/claude/one4all && bash test/run_interp_broad.sh  # confirm 177
+# RT-7: CONVE_fn — compile string to DT_E using parse_expr_from_str()
+# RT-8: EVAL_fn — full SIL EVAL proc (idempotent I/R, CONVE+EXPVAL for S)
+# Target: expr_eval passes → PASS=178
+```
