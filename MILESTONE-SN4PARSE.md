@@ -35,7 +35,7 @@ Layer 1 — Card type (CARDTB)
   NEWTYP=1  → new statement (body follows)
   CMTTYP=2  → comment (* in col 1) → skip
   CTLTYP=3  → control card (- directive) → skip
-  CNTTYP=4  → continuation (+ in col 1) → append to previous
+  CNTTYP=4  → continuation (+ in col 1) → NEWCRD called; strips +, TEXTSP set to remainder; FORWRD restarts on new line (TRUE STREAMING — no pre-joining)
 
 Layer 2 — Inter-field scanning (IBLKTB → FRWDTB)
   FORBLK: stream(IBLKTB) — skips leading blanks, stops at field boundary
