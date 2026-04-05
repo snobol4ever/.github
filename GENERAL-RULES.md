@@ -256,15 +256,11 @@ Violations require a history rewrite (`git filter-repo`) and force-push — expe
 ## ⛔ THREE-AXIS ORIENTATION — Repo × Frontend × Backend
 
 Every session is defined by exactly two values: **Frontend × Backend**.
-That pair determines the SESSION doc, the milestone track, and all the work.
+That pair determines the SESSION doc, the sprint sequence, and all the work.
 There is no other session identity — no nicknames, no prefixes like "DYN" or "B".
-Sprint prefixes (89, B-292) are for numbering only; they do not define session types.
-
-**1. Repo** → `REPO-one4all.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
-**2. Frontend** → `FRONTEND-icon.md` / `FRONTEND-prolog.md` / `FRONTEND-snobol4.md` etc. (pure reference, no §NOW)
-**3. Frontend × Backend** → `SESSION-snobol4-x64.md` / `SESSION-icon-jvm.md` etc. (§INFO + §NOW live here)
-
-Multiple milestone tracks within one Frontend × Backend (e.g. sno4parse track and TINY track both in SNOBOL4 × x86) live as separate rows in the **same** SESSION doc's §NOW table.
+**One track per frontend × backend combo.** One long sequence of sprints.
+Lon rearranges priority by reordering the PLAN.md NOW table — not by switching session types.
+Sprint prefixes are for numbering only; they do not define separate tracks.
 
 **Session start — four steps (mandatory, in order):**
 1. `tail -80 SESSIONS_ARCHIVE.md` — your handoff. Do this FIRST.

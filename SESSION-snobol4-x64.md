@@ -84,10 +84,14 @@ IFLAGS="-I/home/claude/corpus/programs/lon/sno \
 
 ## §NOW
 
-| Track | Sprint | HEAD | Next milestone |
-|-------|--------|------|----------------|
-| **sno4parse / Byrd box** | sprint 89 | one4all `280329f` · corpus `8d5cc6a` | M-SN4PARSE-VALIDATE Phase 3: two-way STREAM trace → fix remaining illegal-char class |
-| **TINY / beauty** | sprint B-292 | one4all `acbc71e` | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
+One track. Current sprint is whatever Lon is working on — the sequence is
+rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
+
+| Sprint | HEAD | Next milestone |
+|--------|------|----------------|
+| 89 (sno4parse) | one4all `280329f` · corpus `8d5cc6a` | M-SN4PARSE-VALIDATE Phase 3: two-way STREAM trace → fix remaining illegal-char class |
+
+*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked while sno4parse is active)*
 
 **sno4parse next session first actions:**
 ```bash
