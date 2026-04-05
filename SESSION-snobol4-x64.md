@@ -152,7 +152,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 98 | one4all `888c282` · corpus `65494e7` | PASS=188/201; next: sil_macros.h → RT-3 NAME_fn/ASGNIC_fn OR NRETURN fix → ~195/201 |
+| 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -246,3 +246,31 @@ cat .github/SESSION-snobol4-x64.md
 #   src/runtime/snobol4/snobol4.c — use sil_macros.h TESTF/IS_KW from day one
 #   Gate: PASS >= 177
 ```
+
+### Sprint 100 §INFO addendum — 2026-04-05
+
+**Beauty driver root cause: `;` separator + `&ALPHABET`**
+
+`demo/inc/global.sno` uses `;*` inline comments:
+```snobol4
+    &ALPHABET      POS(0)  LEN(1) . nul    ;* null character
+```
+Two parser gaps:
+1. `;` as statement separator — SNOBOL4 spec allows multiple stmts per line separated by `;`.
+   After `;`, `*` starts a comment (`;*` = rest-of-line comment). Our parser does not handle `;`.
+   Fix: in lex BODY state, emit end-of-statement on `;`, then check if next char is `*` (→ comment).
+2. `&ALPHABET` — not in our keyword table. Assignment to `&ALPHABET` sets character class.
+   Can stub as no-op (ignore RHS) since corpus tests don't exercise char class matching.
+
+**Build prerequisites (sprint 100+):**
+```bash
+apt-get install -y libgc-dev flex
+```
+`libgc-dev` for Boehm GC headers. `flex` to regenerate `snobol4.lex.c` after `.l` changes.
+
+**Object file rule (CRITICAL):**
+- INCLUDE: `x86_stubs_interp.o` (provides `stmt_init` stub + `subject_data`/`subject_len_val`/`cursor` globals)
+- EXCLUDE: `snobol4_stmt_rt.o` (conflicts on `stmt_init`)
+
+**PLS registered** (sprint 100): `register_fn("PLS", _b_pos, 1, 1)` in `snobol4.c`.
+**-INCLUDE transitive dir** (sprint 100): `snobol4.l` all three handlers add resolved dir to `inc_dirs`.
