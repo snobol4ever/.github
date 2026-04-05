@@ -11,8 +11,32 @@ for sprint numbering only — they do not define separate session types.
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
-### CSNOBOL4 oracle — do NOT rebuild from scratch
-**Date:** 2026-04-04
+### v311.sil and two-way MONITOR script locations
+**Date:** 2026-04-05
+
+When a STREAM table sequence is unknown: **read v311.sil first**, then syn.c for bytes:
+```bash
+/home/claude/snobol4-2.3.3/v311.sil      # SIL procedure bodies
+/home/claude/snobol4-2.3.3/syn.c         # chrs[] table bytes (authoritative)
+/home/claude/snobol4-2.3.3/syn_init.h    # action put/act/go assignments
+```
+
+Two-way MONITOR scripts are checked in beside the csnobol4 patches:
+```bash
+one4all/csnobol4/dyn89_sweep.sh   # sweep corpus/programs/snobol4/
+one4all/csnobol4/stream.c         # CSNOBOL4 patch → /tmp/sno_csno.trace
+one4all/csnobol4/main.c           # CSNOBOL4 patch
+one4all/csnobol4/README.md        # full workflow
+```
+
+Standard diff workflow:
+```bash
+SNO_TRACE=1 /home/claude/snobol4-2.3.3/snobol4 /tmp/x.sno 2>/dev/null  # → /tmp/sno_csno.trace
+SNO_TRACE=1 /home/claude/sno4parse /tmp/x.sno 2>/tmp/sn.trace
+diff /tmp/sno_csno.trace /tmp/sn.trace | head -30
+```
+
+
 
 Patches are checked in. Copy and build — never re-instrument from scratch:
 ```bash
