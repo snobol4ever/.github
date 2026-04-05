@@ -11,25 +11,24 @@
 
 ## ⛔ SESSION START — every session, no exceptions
 
-**Step 1 — Read in order (always):**
+**Step 1 — Orientation only (3 reads max):**
 ```
-cat /home/claude/.github/SCRIP-SM.md          # THE stack machine — read this FIRST, every session
-cat /home/claude/.github/BB-GRAPH.md          # Byrd Box graph
-cat /home/claude/.github/BB-DRIVER.md         # BB executor
-cat /home/claude/.github/IR.md                # shared IR
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # sprint handoff state
+grep "^## " /home/claude/.github/GENERAL-RULES.md    # rules headers only
+cat /home/claude/.github/PLAN.md                      # this file (NOW table + routing)
 ```
 
-**Step 2 — Read your component docs (session-specific):**
+**Step 2 — Read your component doc (session-specific, ONE doc):**
 ```
-INTERP-<backend>.md     (interpreter session)
-EMITTER-<backend>.md    (emitter session)
-LEXER-<frontend>.md + PARSER-<frontend>.md  (frontend session)
+Track C  scrip-interp / SIL  →  cat MILESTONE-RT-RUNTIME.md   (RT-3 section only — grep "^## RT-3" and read to next "^## RT-")
+Track A  sno4parse            →  cat MILESTONE-SN4PARSE-VALIDATE.md
+Track B  emitter x86          →  cat EMITTER-X86.md
+Track BB Byrd box / SM        →  cat SCRIP-SM.md + BB-GRAPH.md + BB-DRIVER.md + IR.md
 ```
+⚠️ BB-GRAPH.md, BB-DRIVER.md, SCRIP-SM.md, IR.md are ONLY for Track BB (emitter/SM work).
+Do NOT read them for Track C (scrip-interp / RT milestone work).
 
-**Step 3 — Read SESSION-<frontend>-<backend>.md (§INFO first, then §NOW)**
+**Step 3 — Read SESSION-<frontend>-<backend>.md §INFO + §NOW only**
 ```
 cat /home/claude/.github/SESSION-<frontend>-<backend>.md
 ```
