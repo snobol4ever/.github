@@ -152,7 +152,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 97 | one4all `62a2bd2` · corpus `8d5cc6a` | RT-2 ✅ argval.c — PASS=177; next: RT-3 NAME_fn/ASGNIC_fn OR XCALLCAP for expr_eval → PASS=178 |
+| 98 | one4all `888c282` · corpus `65494e7` | PASS=188/201; next: sil_macros.h → RT-3 NAME_fn/ASGNIC_fn OR NRETURN fix → ~195/201 |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK

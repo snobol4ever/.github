@@ -25162,3 +25162,70 @@ cat .github/MILESTONE-RT-RUNTIME.md
 # OR: tackle XCALLCAP for expr_eval (. *Push() NAME relay) → PASS=178
 # Lon to decide priority.
 ```
+
+## scrip-interp × SIL sprint 98 — 2026-04-05
+
+**Session:** Track C — scrip-interpreter / SIL implementation
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+
+### RT-98: Extend regression suite — beauty drivers + demo programs
+
+Baseline confirmed at session start: PASS=177 FAIL=1 (178 total, crosscheck only).
+
+**Investigation:** 19 beauty_*_driver.sno files (one per beauty library: stack, counter,
+semantic, global, tree, etc.) lived in corpus/programs/snobol4/beauty/ — outside
+crosscheck/ — and were completely invisible to run_interp_broad.sh. Also missing:
+demo programs claws5.sno, treebank.sno, roman.sno, wordcount.sno.
+
+**Oracle:** Built csnobol4 2.3.3 from source. Generated .ref files for all 23 new tests.
+- roman.ref strips `ms:` timing line (varies between runs/implementations)
+- treebank.ref updated from SPITBOL gold (31369 lines) to csnobol4 oracle (18 lines)
+  — treebank is a parse-tree program; output depends on implementation behaviour
+- claws5.ref: 137 lines from csnobol4 oracle
+
+**Beauty driver audit (before fix):** 8/19 PASS, 11 FAIL.
+Failures cluster into 3 root causes:
+1. NRETURN goto dispatch silent (affects stack, counter, ShiftReduce, Qize, TDump, omega, semantic)
+2. Null byte (0x00) capture via &ALPHABET POS(0): stored as empty string, SIZE=0 not 1
+3. Variable named `tab` resolves to TAB() builtin pattern — name collision
+
+beauty_is_driver excluded from concern (is.sno will not be used in this context).
+
+**Extended run_interp_broad.sh:**
+- 178 crosscheck tests (unchanged)
+- 19 beauty library driver tests
+- 4 demo program tests (wordcount, treebank, claws5, roman)
+- Total: 201 tests
+
+**New baseline: PASS=188 FAIL=13 (201 total)**
+
+FAIL list: expr_eval (existing), beauty_Gen, beauty_Qize, beauty_ShiftReduce,
+beauty_TDump, beauty_XDump, beauty_counter, beauty_global, beauty_is,
+beauty_omega, beauty_semantic, beauty_stack, demo_claws5.
+
+Failing tests are correct regressions — they will show promotion when the
+relevant features (NRETURN, null byte, claws5 pattern bugs) are fixed.
+
+### Baselines for sprint 99
+- `one4all`: `888c282`
+- `corpus`: `65494e7`
+- `.github`: see push below
+- scrip-interp: PASS=188 FAIL=13 (201 total)
+
+### Sprint 99 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-RT-RUNTIME.md
+
+# Build (sprint 97 command — argval.c in loop)
+# Confirm PASS=188 FAIL=13
+
+# Priority 1: sil_macros.h (Groups 1+2 of MILESTONE-RT-SIL-MACROS.md)
+# Priority 2: RT-3 NAME_fn / ASGNIC_fn / DT_K keyword dispatch
+# OR: NRETURN goto fix → promotes beauty_stack, beauty_counter, beauty_semantic,
+#     beauty_omega, beauty_ShiftReduce, beauty_Qize, beauty_TDump (~7 tests)
+# Lon to decide priority.
+```
