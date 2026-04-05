@@ -24418,3 +24418,86 @@ cd /home/claude
 - `one4all`: `a105719`
 - `corpus`: `8d5cc6a` (unchanged)
 - `.github`: `cf7bf98`
+
+## SNOBOL4 × x86 sprint 90 — sno4parse: :<> goto fix; UNOPTB/NBLKTB diagnosis (2026-04-05)
+
+### Session type
+**Parser fix** — SNOBOL4 × x86 (one4all frontend).
+
+### Baseline at session start
+- one4all: `a105719` · corpus: `8d5cc6a`
+- Sweep: 75 OK / 9 ERR (counter bug in sweep script — actual count via grep)
+
+### What Was Done
+
+**Fix 1: Direct goto `:< label >` (UTOTYP/STOTYP/FTOTYP)** ✅
+
+Root cause: after GOTOTB consumes `<`, TEXTSP has a leading space before
+the label. ELEMNT does not call FORBLK at entry — goes straight into
+UNOPTB/ELEMTB — so the space hit ELEMTB → ST_ERROR → "illegal character".
+
+Fix: `FORWRD()` before `EXPR()` in the UTOTYP/STOTYP/FTOTYP handler in
+CMPGO. Also `FORWRD()` after `EXPR()` to consume closing `>`. Applied
+symmetrically to all three direct-goto types and their nested chains.
+
+Fixes: `feat/f13_eval_code.sno` (:< C > direct code goto).
+Commit: `055fa15`
+
+**UNOPTB/NBLKTB diagnosis — no-space unary ops (`*assign`, `*'lit'`)** 🔬
+
+v311.sil scan confirms: UNOPTB uses ACT_GOTO→NBLKTB (same as CSNOBOL4
+syn.c — tables are authoritative and identical). NBLKTB action[0]=ERROR
+(terminators: space, `*`, `)`, `;`, `>`), action[1]=STOPSH (all other
+chars including letters). For `*assign`: UNOPTB sees `*` → GOTO NBLKTB
+→ NBLKTB sees `a` → STOPSH → ST_STOP — op accepted, TEXTSP at `a`.
+**This already works in the reverted code.** Confirmed by SNO_TRACE=1.
+
+The Qize.sno / io.sno "illegal character" errors appear to be phantom:
+SNO_TRACE shows the full parse completing without any ST_ERROR from
+STREAM, yet `sil_error()` fires. Hypothesis: `g_error` is set from a
+prior statement and not cleared before the next, OR the sweep script's
+`grep -m1` picks up an error from a different part of the file.
+**Not fixed this session — needs g_error lifecycle investigation.**
+
+**Sweep results at session end**
+
+| Status | Count | Notes |
+|--------|-------|-------|
+| OK | 76 | +1 from 75 (f13_eval_code) |
+| ERR | 8 | — |
+| HANG | 0 | — |
+
+Remaining 8 errors — two classes:
+- **BRTYPE=1 (6 files):** postfix subscript on call result `f(g(x)[i])` — `[` inside arg list. M-SN4PARSE-P1b. Not started.
+- **illegal character (2 files):** Qize.sno, io.sno — g_error lifecycle or continuation bug. Phantom or pre-existing.
+
+### Commits
+- `one4all`: `055fa15`
+- `.github`: to be pushed after this entry
+
+### What Was NOT Done (sprint 91 first actions)
+1. `g_error` lifecycle: check if `sil_error()` sets `g_error` persistently; verify Qize/io are truly failing or phantom
+2. Postfix subscript `f(g(x)[i])`: BRTYPE=1 in ELEFNC arg loop — detect `[` as subscript postfix on call result, not an arg-list error. Fix in `expr_prec_continue` or ELEFNC handler.
+3. Run sweep after postfix fix — target 82/84.
+
+### Session start for sprint 91
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude
+# 1. grep -n "g_error\|sil_error" one4all/src/frontend/snobol4/sno4parse.c | head -30
+# 2. SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep "ret=ERROR"
+# 3. Tackle BRTYPE=1: sed -n around ELEFNC handler + BIOPTB '[' case
+```
+
+### Baselines for sprint 91
+- `one4all`: `055fa15`
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: to be pushed after this entry
