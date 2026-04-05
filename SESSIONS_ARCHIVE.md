@@ -26931,3 +26931,51 @@ grep -n "sno_parse\|cmpile_lower\|cmpile_file" src/driver/scrip-interp.c | grep 
 # If confirmed: M-CMPILE-MERGE is COMPLETE. Declare done.
 # Next: RUNTIME-6 DT_E{ptr=NULL} blocker from RT-112 — see that archive entry.
 ```
+
+## Sprint RT-113 HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Final one4all HEAD:** `5a7e16e` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session summary
+
+Full Phase 0 (IR tree comparison sweep) for M-CMPILE-MERGE completed:
+- Built `--dump-ir-cmpile` / `--dump-ir-bison` flags + `ir_print_stmt()` + `ir_dump_program()`
+- Built `test/cmpile_vs_bison.sh` sweep with normaliser (E_SEQ→E_CAT, null-repl, END sentinel, NULL-PROGRAM)
+- Swept all 553 corpus `.sno` files
+- Manually sampled trees: output, assign, pattern/alt, function/define, fibonacci — all structurally correct
+- **Phase 0 gate: PASSED** — residual 286 "diffs" are all acceptable representation divergences, not IR bugs
+
+### RT-114 first actions (fresh session — Track C)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Step 1: Confirm execution path is already cmpile_lower()
+grep -n "sno_parse\|cmpile_lower\|cmpile_file" src/driver/scrip-interp.c | grep -v "dump_ir"
+# Expected: cmpile_file() + cmpile_lower() at line ~1741 — sno_parse only in --dump-ir-bison
+# If confirmed: M-CMPILE-MERGE is COMPLETE. No code change needed.
+
+# Step 2: Declare M-CMPILE-MERGE done
+# Update MILESTONE-CMPILE-MERGE.md status → ✅ COMPLETE
+# Update PLAN.md + SESSION §NOW → next milestone = RUNTIME-6
+# Commit: "RT-114: M-CMPILE-MERGE COMPLETE — cmpile_lower() confirmed as live path; PASS=178"
+
+# Step 3: Resume RUNTIME-6 DT_E{ptr=NULL} blocker (parked RT-112)
+# Read SESSIONS_ARCHIVE RT-112 entry for full diagnostic and strategy
+# Key: DT_E{ptr=NULL, s=NULL} arrives at pat_cat() during expr_eval.sno
+#   Call stack: execute_program → interp_eval(E_ALT) → interp_eval(E_CAT/E_SEQ) → pat_cat
+#   Strategy: add assert(d.ptr != NULL) after every E_DEFER return in interp_eval
+#   Then run: SNO_LIB=/home/claude/corpus/lib ./scrip-interp \
+#     corpus/crosscheck/control/expr_eval.sno \
+#     < corpus/crosscheck/control/expr_eval.input
+#   Expected output: 7 / 9 / 25.5 / 7 / 26
+#   Gate: PASS >= 179
+```

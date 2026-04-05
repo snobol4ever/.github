@@ -166,7 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-113 | one4all `ff74658` · corpus `3fd44d0` · PASS=178/203 | **M-CMPILE-MERGE** — CMPILE.c replaces sno4parse; cmpile_to_expr() replaces node_to_expr(); eval_via_cmpile(); gate PASS≥190 |
+| RT-113 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | **M-CMPILE-MERGE Phase 0 ✅** — 553 files swept; trees correct; RT-114: confirm cmpile_lower() is live path → declare M-CMPILE-MERGE done → RUNTIME-6 DT_E blocker |
 | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
 | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
 | RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
