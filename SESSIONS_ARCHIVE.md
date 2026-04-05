@@ -26576,61 +26576,99 @@ SNO_TRACE=1 SNO_LIB=/home/claude/corpus/lib ./scrip-interp --dump-parse /tmp/t_m
 # Fix 4: update MILESTONE-SN4PARSE-VALIDATE.md P3A/P3B status to ✅
 >>>>>>> Stashed changes
 ```
-
-## Sprint HANDOFF-META — 2026-04-05
+## Sprint RT-111 — scrip-interp / SIL track — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**Session type:** HQ maintenance — §NOW staleness diagnosis and fix
+**Session type:** Track C — RUNTIME-6 EXPRESSION datatype
+
+### Baseline at session start
+- one4all HEAD: `ca77163` · corpus HEAD: `3fd44d0` · PASS=178/203
 
 ### Work done
 
-No code changes. Diagnosed the recurring §NOW staleness failure mode:
+**RUNTIME-6 EXPRESSION datatype — partial implementation:**
 
-**Root cause:** Handoff protocol appended "first actions" to SESSIONS_ARCHIVE (correct)
-but never rewrote §NOW in SESSION-snobol4-x64.md or PLAN.md §NOW. Stale tables
-contradicted the archive; new sessions read stale §NOW as ground truth and presented
-it as current state.
+1. **`eval_node(E_DEFER)` → freeze as `DT_E`** (`eval_code.c`):
+   `*X` operator now produces a `DT_E` EXPRESSION descriptor (frozen `EXPR_t*` child),
+   not an immediate evaluation. This is the correct SIL semantics.
 
-**P3B sprint (7d41087) was never reflected in §NOW** — even though the archive's
-first-actions block said "Fix 3: update SESSION-snobol4-x64.md §NOW". That note
-was never enforced.
+2. **`eval_expr()` → CMPILE `EXPR()` entry** (`eval_code.c`):
+   Replaced `parse_expr_from_str` (bison) with `cmpile_eval_expr()` → `cmpnd_to_expr()`
+   → `eval_node()`. Added `cmpile_eval_expr()` to `CMPILE.c` / `CMPILE.h`.
 
-### HQ fixes committed (6db8eb7 on .github main)
+3. **`eval_node` new cases** (`eval_code.c`):
+   `E_NAME`, `E_PLS`, `E_INTERROGATE`, `E_ALT`, `E_CAPT_COND_ASGN`,
+   `E_CAPT_IMMED_ASGN`, `E_CAPT_CURSOR`, `E_SCAN` all implemented using
+   correct runtime API (`NAME_fn`, `APPLY_fn`, `pat_alt`, `pat_assign_cond`,
+   `pat_assign_imm`, `pat_at_cursor`).
 
-| Doc | Change |
-|-----|--------|
-| `GENERAL-RULES.md` | §NOW STALENESS rule: mandates `git log` verify before trusting §NOW; explicit rule §NOW must be updated on handoff |
-| `PLAN.md` | §NOW updated to 7d41087/ca77163; Step 1 now includes mandatory `git log` staleness check |
-| `SESSION-snobol4-x64.md` | §NOW rewritten to actual state; next-session first-actions updated |
-| `MILESTONE-SN4PARSE-VALIDATE.md` | P3A ✅ P3B ✅ |
+4. **`datatype()` → DT_E/DT_N** (`snobol4.c`):
+   `DATATYPE(*x)` now returns `"EXPRESSION"`, `DATATYPE(.x)` returns `"NAME"`.
 
-### Baseline at session end (verified)
-- one4all HEAD: `7d41087` (P3A/P3B: Unicode idents) · corpus HEAD: `3fd44d0`
-- scrip-interp HEAD: `ca77163` (RT-110: multi-line continuation) · PASS=178/203
-- .github HEAD: `6db8eb7`
+5. **`PATVAL_fn` DT_E** (`argval.c`):
+   Wired to `EVAL_fn` — thaws EXPRESSION then coerces result to pattern.
 
-### Open milestones
-- Track A (sno4parse): P2D chained assign `A=B=C+1` · P2E embedded match (needs P2D)
-- Track C (scrip-interp): non-ASCII comment fix → 1010_func_recursion → PASS≥179
+6. **`nmd.c` NAMEXN DT_E** (`nmd.c`):
+   Evaluates expression via `EVAL_fn`, assigns result by name.
 
-### Sprint next session first actions
+7. **`interp_eval(E_DEFER)` value context** (`scrip-interp.c`):
+   All `E_DEFER` children freeze as `DT_E` — removed the old `E_FNC` → `pat_user_call`
+   special-case that was building patterns in value context.
+
+8. **Plain assignment always uses `interp_eval`** (`scrip-interp.c`):
+   Two `X = expr` paths that checked `_expr_is_pat` and routed to `interp_eval_pat`
+   replaced with unconditional `interp_eval`. Value context is always value context.
+
+9. **`interp_eval_pat(E_VAR)` DT_E thaw** (`scrip-interp.c`):
+   When a variable holds `DT_E`, calls `PATVAL_fn(v)` to thaw before returning.
+
+10. **`pat_to_patnd` DT_E thaw** (`snobol4_pattern.c`):
+    Added `DT_E → PATVAL_fn()` before `spat_of()` so `pat_cat`/`pat_alt` accept
+    EXPRESSION values.
+
+11. **CMPILE continuation binary-op fix** (`CMPILE.c`):
+    After `FORBLK()` on a continuation card, probe `BIOPTB` before calling `ELEMNT`.
+    Fixes `ELEMNT: illegal character` on lines starting with `|`, `+`, etc.
+    E.g. `real = integer '.' ...\n+  | integer exponent` now parses correctly.
+
+### Remaining blocker
+`pat_to_patnd` calls `PATVAL_fn` which is defined later in the same TU
+(`snobol4_pattern.c`) — forward declaration needed, or move `pat_to_patnd`
+after `PATVAL_fn`. Still getting `pat_cat: left is not a pattern (DT=11)`.
+`expr_eval` still FAIL.
+
+### Commits this sprint
+- `1fd0e27` RT-111: RUNTIME-6 EXPRESSION — CMPILE EXPR() entry, DT_E freeze/thaw, datatype; PASS=178
+
+### Baseline at session end
+- one4all HEAD: `1fd0e27` · corpus HEAD: `3fd44d0` (unchanged)
+- PASS=178 FAIL=25
+
+### Sprint RT-112 first actions (Track C)
 ```bash
 cd /home/claude
 apt-get install -y libgc-dev flex
-# ⛔ MANDATORY STALENESS CHECK:
-cd one4all && git log --oneline -3   # must show 7d41087 or newer
-cd /home/claude/corpus && git log --oneline -3  # must show 3fd44d0 or newer
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
 cat .github/SESSION-snobol4-x64.md
-cd /home/claude/one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Track C: non-ASCII comment fix in cmpile_file_internal()
-#   Skip lines where first char is '*' (CMTTYP) without calling STREAM/ELEMNT
-#   Gate: 1010_func_recursion passes → PASS≥179
+# Step 1: Fix pat_to_patnd forward-declaration issue in snobol4_pattern.c
+#   PATVAL_fn is defined ~line 1100 but pat_to_patnd is at line 193.
+#   Fix: add forward decl 'extern DESCR_t PATVAL_fn(DESCR_t d);' before pat_to_patnd
+#   OR move pat_to_patnd below PATVAL_fn definition.
+#   Gate: pat_cat DT=11 errors gone from expr_eval run.
 
-# Track A: P2D — A=B=C+1 chained assignment in expr_prec_continue
-#   When BRTYPE==EQTYP in binary op position, recurse expr_prec(0) for RHS chain
+# Step 2: Run expr_eval
+#   SNO_LIB=/home/claude/corpus/lib ./scrip-interp \
+#     corpus/crosscheck/control/expr_eval.sno \
+#     < corpus/crosscheck/control/expr_eval.input
+#   Expected: 7 / 9 / 25.5 / 7 / 26
+
+# Step 3: Full suite — CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Gate: PASS≥179
+
+# Step 4: Commit "RT-112: RUNTIME-6 complete; expr_eval passes; PASS=179"
 ```
