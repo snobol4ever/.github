@@ -24341,3 +24341,80 @@ gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
 - `one4all`: `280329f`
 - `corpus`: `8d5cc6a` (unchanged)
 - `.github`: to be pushed after this entry
+
+## SNOBOL4 × x86 sprint 89 — sno4parse: binary ?, -INCLUDE, -I; HQ restructure (2026-04-04)
+
+### Session type
+**Parser fix** — SNOBOL4 × x86 (one4all frontend).
+
+### What Was Done
+
+**sno4parse fixes (3):**
+
+**1. Binary `?` scan operator** (SIL v311.sil PLB32)
+After `FORBLK()` post-subject, if `BRTYPE==NBTYP` and first char is `?`
+followed by space/tab/end → binary scan op. Consume `?`, set `s->is_scan=1`,
+`FORBLK()` to pattern. Fixed ~66 corpus files (487→551 parsing clean).
+
+**2. `-INCLUDE` directive processing**
+Refactored `main()` into `compile_file()` recursive with `compile_state_t`
+shared state. Resolves paths relative to including file's directory.
+Case-insensitive filename matching via `opendir/readdir`. Depth limit 16.
+Other control cards (`-MODULE`, `-DEFINE`, etc.) still skipped.
+
+**3. `-I` include search path flags**
+`main()` parses `-Idir` or `-I dir`, up to 64 paths.
+`resolve_include_path()` searches: (1) file's own dir, (2) `-I` paths
+in order with case-insensitive fallback.
+Multiple input files accepted as positional args.
+
+**Sweep results:**
+- 551 corpus files, no -I: 486 OK / 65 FAIL
+- 551 corpus files, all -I: 449 OK / 102 FAIL (real bugs, not missing files)
+- 199 unique missing include paths identified (Python analysis)
+
+**HQ restructure (4 commits):**
+
+1. **§INFO in SESSION doc** — session invariants (tool locations, oracle setup,
+   baselines, don't-do-X) now live in `## ⛔ §INFO` section of
+   `SESSION-<frontend>-<backend>.md`. No separate INFO file.
+   "Update HQ" = append to §INFO + commit `.github`.
+
+2. **§NOW staleness fix** — staleness check promoted to `## ⛔ §NOW STALENESS`
+   heading so `grep "^## "` surfaces it at session start. Was buried under
+   non-heading text — never got read.
+
+3. **Killed DYN/B session concept** — `SESSION-dynamic-byrd-box.md` deleted.
+   Merged into `SESSION-snobol4-x64.md`. GENERAL-RULES now states: "no
+   nicknames, no prefixes. Frontend × Backend is the only session identity."
+
+4. **One track per frontend × backend** — collapsed two-row §NOW to single
+   active row. Lon rearranges priority by reordering PLAN.md NOW table.
+
+### Commits
+- `one4all`: `a105719`
+- `.github`: `cf7bf98`
+
+### Remaining bugs (sprint 90 first actions)
+1. NBLKTB unary+space: `? X` — verify against SPITBOL; fix in UNOPTB dispatch
+2. Postfix subscript on call result: `t(c(nd)[1])`
+3. `demo/beauty.sno` + `smoke/beauty_oracle.sno` line 235 — shared source bug
+
+### Session start for sprint 90
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude
+```
+
+### Baselines for sprint 90
+- `one4all`: `a105719`
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: `cf7bf98`
