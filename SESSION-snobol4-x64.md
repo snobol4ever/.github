@@ -166,7 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 99 | one4all `d37df7d` · corpus `8d5cc6a` | P2B ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BINOP special-case BISNFN@prec1) or P2C `[]`=`<>` confirm |
+| 100 | one4all `febd82f` · corpus `65494e7` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ sweep 84/84 — next: fix unresolved-include HANG (5 gimpel files) → crosscheck/ suite |
 | 98-ext | one4all `45ad889` · corpus `65494e7` | P2B bug fixed: SELECT loop double-FORWRD. ( VAR , 'x' ) now works. 84/84 ✅ |
 | 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
 
