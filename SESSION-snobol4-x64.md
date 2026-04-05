@@ -166,7 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 97 | one4all `badbbf9` · corpus `8d5cc6a` | P2D ✅ sweep 84/84 — next: P2B alt-eval `(e1,e2,en)` or P2F `;` multi-stmt |
+| 98 | one4all `d37df7d` · corpus `8d5cc6a` | P2B ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` or P2C `[]`=`<>` postfix subscript |
 | 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
 
 **Current milestone docs:**
