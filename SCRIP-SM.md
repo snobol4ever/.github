@@ -129,6 +129,38 @@ then hands off to BB-DRIVER for Phases 3-5, then resumes at :S or :F.
 | `SM_FRETURN`      | —           | failure return |
 | `SM_DEFINE`       | spec        | register user function |
 
+### Type Dispatch and Indirect Control (SIL BRANIC / SELBRA)
+
+| Instruction       | Operands     | Effect |
+|-------------------|--------------|--------|
+| `SM_JUMP_INDIR`   | —            | pop CODE descriptor, set PC to its code block (SIL `BRANIC` / `GOTG :<VAR>`) |
+| `SM_SELBRA`       | table[], n   | pop integer index, jump to table[index] (SIL `SELBRA` — type dispatch in INTERP/ARITH) |
+
+### Interpreter State Save/Restore (for EXPVAL — RT-6)
+
+| Instruction       | Operands | Effect |
+|-------------------|----------|--------|
+| `SM_STATE_PUSH`   | —        | push full interpreter state: OCBSCL, OCICL, NAMICL, NHEDCL, PDLPTR, PDLHED (SIL `ISTACKPUSH`) |
+| `SM_STATE_POP`    | —        | restore interpreter state from state stack |
+
+### Integer / Address Arithmetic (inline — no SM_CALL overhead)
+
+| Instruction       | Operands | Effect |
+|-------------------|----------|--------|
+| `SM_INCR`         | n        | pop d, push d+n (SIL `INCRA`) |
+| `SM_DECR`         | n        | pop d, push d-n (SIL `DECRA`) |
+| `SM_ACOMP`        | —        | pop r, pop l (integers); push -1/0/1 for l<r/l==r/l>r (SIL `ACOMP` — inline EQ/GT/LT predicates) |
+| `SM_RCOMP`        | —        | pop r, pop l (reals); push -1/0/1 (SIL `RCOMP`) |
+| `SM_LCOMP`        | —        | pop r, pop l (strings); push -1/0/1 lexicographic (SIL `LEXCMP` — inline LGT/LLT/LGE/LLE) |
+
+### String Coercions (inline — eliminates SM_CALL for common numeric-parse paths)
+
+| Instruction       | Operands | Effect |
+|-------------------|----------|--------|
+| `SM_SPCINT`       | f_label  | pop string, push integer; jump f_label if not numeric (SIL `SPCINT`) |
+| `SM_SPREAL`       | f_label  | pop string, push real; jump f_label if not numeric (SIL `SPREAL`) |
+| `SM_TRIM`         | —        | pop string, push with trailing blanks removed (SIL `TRIMSP`) |
+
 ---
 
 ## The Instruction Stream
