@@ -25559,3 +25559,46 @@ cd one4all && [build] && bash test/run_interp_broad.sh   # confirm PASS=188
 # Priority 4: RT-3 NAME_fn / ASGNIC_fn
 ```
 
+
+---
+
+## Sprint 98 — SNOBOL4 × x86 — 2026-04-05
+
+**Session:** snobol4-x64 sprint 98
+**HEAD:** one4all `d37df7d` · corpus `8d5cc6a`
+**Operator:** Claude Sonnet 4.6
+
+### Work done
+
+**P2F confirmed complete** — semicolon multi-stmt loop (lines 2186–2211 of
+sno4parse.c) was already implemented from sprint 97. `demo/inc/global.sno`
+parses 12 stmts cleanly; `;*` inline comments handled correctly.
+
+**P2B implemented** — alternative evaluation `(e1, e2, ..., en)`:
+- Added `#define SELTYP 50` and `"SELECT"` to `stype_name()`
+- Modified NSTTYP branch in `ELEMNT()`: after first `EXPR()`, check
+  `BRTYPE == CMATYP`; if so, build SELECT node and loop.
+- Key bug found and fixed: FRWDTB ACT_STOP does not consume the stopping
+  char — TEXTSP stays AT the `,`. Must manually `TEXTSP.ptr++; TEXTSP.len--`
+  before calling `FORWRD()` inside the while loop.
+- BINOP1 path restores TEXTSP but not BRTYPE, so BRTYPE=CMATYP is the
+  correct signal to enter the SELECT loop.
+- All forms tested: `(A, B)`, `(F(a), F(b), F(c))`, `(EQ(B,3), GT(B,20))`
+
+### Baseline at session end
+SWEEP: 84/84 OK, 0 ERR, 0 HANG — no regressions
+
+### Sprint 99 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+bash -c 'SNO4=/home/claude/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; for sno in $(find "$CORPUS" -name "*.sno" | sort); do result=$(timeout 10 "$SNO4" "$sno" 2>&1); if echo "$result" | grep -qE "ELEMNT:|sil_error|illegal char"; then ERR=$((ERR+1)); else OK=$((OK+1)); fi; done; echo "OK=$OK ERR=$ERR"'
+# Next: P2A (binary ? operator) or P2C ([] = <> postfix subscript)
+# P2A: in BINOP(), after BIOPTB returns ST_ERROR for '?', check if current char is '?'
+#      and return BISNFN (215) with priority 1 as special case.
+# P2C: in expr_prec_continue, the [] postfix handler already exists (P2C/P2D work);
+#      confirm it handles the <> alias case from ELEMTB (ARYTYP on '<').
+```
