@@ -29,7 +29,18 @@ EMITTER-<backend>.md    (emitter session)
 LEXER-<frontend>.md + PARSER-<frontend>.md  (frontend session)
 ```
 
-**Step 3 — Read your SESSION-<frontend>-<backend>.md**
+**Step 3 — Read INFO-<frontend>-<backend>.md (session invariants — mandatory)**
+```
+cat /home/claude/.github/INFO-snobol4-x64.md   # (DYN sessions)
+cat /home/claude/.github/INFO-<frontend>-<backend>.md  # (other sessions)
+```
+This file contains session-specific gotchas, tool locations, oracle build
+instructions, sweep baselines, and hard-won facts that must NOT be
+re-litigated each session. It is **append-only**. When Lon states a fact
+mid-session ("don't rebuild X", "the file is at Y", "baseline is Z"),
+write it to INFO-<frontend>-<backend>.md immediately and commit.
+
+**Step 4 — Read your SESSION-<frontend>-<backend>.md**
 
 ---
 
