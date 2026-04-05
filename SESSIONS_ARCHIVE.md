@@ -24862,3 +24862,64 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 # MONITOR: SNO_TRACE=1 on WordNet.sno, diff traces, confirm root cause
 # Then: WANG MONITOR re-check — why did FORWRD fix not resolve it?
 ```
+
+## SNOBOL4 × x86 sprint 96 — 2026-04-04
+
+### What Was Done
+
+**Chained `[]` subscript `T['n']['!']` fixed** ✅
+
+Root cause: CMPILE calls `ELEMNT()` directly for the subject field (not `EXPR()`), so
+`expr_prec_continue`'s postfix-`[]` handler never ran after a subscripted subject.
+After `ELEARY` closes on `]` (ACT_STOP, BRTYPE=RBTYP=7), `TEXTSP.ptr` points at the
+next `[` correctly, but the postfix handler was never reached.
+
+Key insight: after `ACT_STOP` on `]`, `BRTYPE==RBTYP=7`, not `NBTYP=1`. The check
+`BRTYPE==NBTYP` was the wrong guard — only `TEXTSP.len>0 && *TEXTSP.ptr=='['` needed.
+
+Fix: inline postfix-`[]` loop after `ELEMNT()` in CMPILE's subject path. When
+`TEXTSP.len==0 && BRTYPE==RBTYP` (segment exhausted at closing `]`), call `FORWRD()`
+to advance; otherwise check directly. Loop repeats for triple+ chaining.
+
+Debugging required three passes:
+1. Thought fix belonged in `expr_prec_continue` — wrong, CMPILE never calls EXPR() for subject
+2. Tried `s->subject = EXPR()` — too greedy, absorbed pattern field (Qize regression)  
+3. Inline loop with `BRTYPE==NBTYP` guard — wrong BRTYPE value after ACT_STOP
+4. Drop BRTYPE guard, check only `*TEXTSP.ptr == '['` — correct ✅
+
+### Sweep results
+
+| Sweep | Before | After |
+|-------|--------|-------|
+| dyn89 (84 files) | 84/84 | 84/84 ✅ |
+| Listen2\*/WordNet (16 files) | 1/16 | 11/16 |
+
+Remaining 5 ERR in Listen2\* = P2D (EQTYP in subscript `A[J=J+1]`) — separate bug.
+
+### Commits
+- `one4all`: `07d9bf4`
+- `.github`: pushed after this entry
+
+### Baselines for sprint 97
+- `one4all`: `07d9bf4`
+- `corpus`: `8d5cc6a`
+
+### Sprint 97 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude && cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Validate fix: Listen2*/WordNet -- confirm 11/16
+# Next: P2D — EQTYP inside [] subscript A[J=J+1]
+# MONITOR: SNO_TRACE=1 on Listen2WordPress.sno, diff traces
+# Fix: in ELEARY (and the chained-[] loop), when BRTYPE==EQTYP inside subscript,
+#   parse it as assignment expression rather than terminating the subscript
+```

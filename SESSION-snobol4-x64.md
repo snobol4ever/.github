@@ -114,6 +114,21 @@ IFLAGS="-I/home/claude/corpus/programs/lon/sno \
 
 ---
 
+### Chained [] subscript fix (sprint 96)
+**Date:** 2026-04-04
+
+CMPILE calls `ELEMNT()` for subject, not `EXPR()` — `expr_prec_continue` never runs.
+Fix: inline postfix-`[]` loop after `ELEMNT()` in CMPILE subject path.
+After `ACT_STOP` on `]`, `BRTYPE==RBTYP=7` (not NBTYP=1). Check only
+`TEXTSP.len>0 && *TEXTSP.ptr=='['` — no BRTYPE guard. Loop handles triple+ chaining.
+When `TEXTSP.len==0 && BRTYPE==RBTYP` (segment exhausted), call `FORWRD()` first.
+
+Remaining P2D (`A[J=J+1]`): EQTYP fires inside ELEARY subscript loop → terminates early.
+Fix: when `BRTYPE==EQTYP` inside `[]` subscript parse, treat `=` as assignment op,
+parse `J=J+1` as an expression (call `EXPR()` which handles `=` as binary op if P2D implemented,
+or handle via CMPFRM-style sub-parse). MONITOR on Listen2WordPress.sno first.
+
+
 ## Key files
 
 | File | Role |
@@ -137,7 +152,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 95 | one4all `50772a9` · corpus `8d5cc6a` | **P2G ✅ computed goto + binary op RHS FORWRD** — 322/352 OK — next: chained `[]` subscript `T['n']['!']`, then WANG re-check |
+| 96 | one4all `07d9bf4` · corpus `8d5cc6a` | **chained `[]` ✅** — 84/84 dyn89 · Listen2\*/WordNet 11/16 — next: P2D EQTYP in subscript `A[J=J+1]` |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
