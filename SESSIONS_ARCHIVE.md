@@ -26351,6 +26351,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=187
 #   See MILESTONE-RT-RUNTIME.md § RT-5.
 #   NV_SET_fn hook for &OUTPUT (write to stdout), &TRACE enable/disable.
 ```
+<<<<<<< Updated upstream
 ## Sprint RT-109 — scrip-interp / SIL track — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
@@ -26419,6 +26420,45 @@ word1 ✅  test_string ✅  test_stack ✅
 - demo_treebank/claws5/roman — pre-existing
 
 ### Sprint RT-110 first actions (Track C)
+=======
+_alpha_ranges.h`: AUTO-GENERATED — 657 Unicode L* ranges for codepoints U+0080+.
+- `utf8_decode_first()`: decodes first UTF-8 codepoint, validates overlong sequences.
+- `unicode_is_alpha()`: binary search over 657 ranges. O(log 657).
+- `utf8_is_alpha_start()`: called from ELEMNT VARTYP branch when XSP.ptr[0] >= 0x80.
+  Rejects non-alpha Unicode (×=U+00D7, ÷=U+00F7, Greek punctuation, etc.) with
+  "ELEMNT: non-alpha Unicode identifier start".
+- `VARTB chrs[]`: 0x80-0xBF → 0 (ACT_CONTIN, absorbs continuation bytes in body ✅).
+  0xC0-0xFF → action 6 (chrs value 6, 1-based → actions[5] = ACT_GOTO → UTF8TB, P3B).
+- `VARTB_actions[5]`: VARTYP ACT_GOTO → UTF8TB (wired in init_tables).
+- `IBLKTB_actions[3]`: put=NBTYP ACT_STOPSH — fixes missing put value that caused
+  BRTYPE=0 (treated as blank line) when UTF-8 lead byte was first char after indent.
+  This fix alone raised PASS 166→175.
+- `_` as identifier start: ELEMTB chrs[95]=6 → ACT_ERROR ✅ (reserved for generated code).
+
+### Test results
+- Greek α identifier: `      α = 42 / OUTPUT = α` → prints "42" ✅
+- × (U+00D7) as start: "ELEMNT: non-alpha Unicode identifier start" ✅
+- Bare continuation byte 0xB1 as start: "ELEMNT: illegal character" ✅
+- UTF-8 string literal 'café': preserved as c3 a9 bytes ✅
+- ASCII baseline: PASS=175 FAIL=28 (up from 166) ✅
+
+### Open bugs for next session
+1. **`Xα` mixed identifier** (ASCII start + Unicode continuation) produces no output.
+   Likely VARTB chrs[] 1-based indexing same issue as ELEMTB — verify
+   `VARTB chrs[0xCE]=6` → actions[5] is UTF8TB GOTO. Check with dump-parse.
+2. **`_X` as label**: LBLTB chrs[_]=3 → actions[2]=ACT_ERROR fires label error but
+   parser recovers silently. Acceptable — _ in subject position correctly hits
+   ELEMTB ACT_ERROR. No action needed.
+3. **PASS=175 vs archived 187**: regression is from concurrent RT-track commits
+   (ca77163 RT-110 is now in HEAD). Not a P3 regression.
+
+### Commits this sprint
+- `92ba6ea` P3A: UTF8TB dispatch table; remove io_read_raw strip; PASS=166
+- `7d41087` P3A/P3B: Unicode alpha identifiers; IBLKTB NBTYP fix; PASS=175
+- HEAD pushed: `7d41087` on origin/main
+
+### Sprint P3B-fix first actions (next session)
+>>>>>>> Stashed changes
 ```bash
 cd /home/claude
 apt-get install -y libgc-dev flex
@@ -26429,6 +26469,7 @@ cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=175
 
+<<<<<<< Updated upstream
 # Step 1: triage word2 (different pattern from word1)
 #   ./scrip-interp --dump-parse corpus/crosscheck/strings/word2.sno
 #   Compare NAMFN structure vs word1 — likely multi-dot or $ variant
@@ -26515,4 +26556,23 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #     now parses correctly with RT-110 fix
 #   Likely cause: icase recursive function hits runtime bug (DEFINE/RETURN/FRETURN)
 #   timeout 5 ./scrip-interp corpus/crosscheck/library/test_case.sno 2>&1 | head -20
+=======
+# Fix 1: Xα mixed identifier — dump parse and trace
+python3 -c "
+with open('/tmp/t_mixed.sno','wb') as f:
+    f.write(b'      X\xce\xb1 = 99\n      OUTPUT = X\xce\xb1\nEND\n')
+"
+SNO_TRACE=1 SNO_LIB=/home/claude/corpus/lib ./scrip-interp --dump-parse /tmp/t_mixed.sno 2>&1
+# Expect: VARTB absorbs X, then 0xCE hits VARTB chrs[0xCE]=6 -> actions[5]=UTF8TB GOTO.
+# Verify 1-based: chrs value 6 -> actions[6-1]=actions[5] ✓
+
+# Fix 2: write M-SN4PARSE-P3-VALIDATE milestone into MILESTONE-SN4PARSE-VALIDATE.md
+# Gate: two-way MONITOR sweep on non-ASCII corpus files:
+#   ASCII-identifier files: compare parse trees vs CSNOBOL4 (must match)
+#   Non-ASCII identifier files: SCRIP-only, no CSNOBOL4 baseline
+#   UTF-8 string literal files: verify bytes preserved end-to-end
+
+# Fix 3: update SESSION-snobol4-x64.md §NOW table with P3B sprint
+# Fix 4: update MILESTONE-SN4PARSE-VALIDATE.md P3A/P3B status to ✅
+>>>>>>> Stashed changes
 ```
