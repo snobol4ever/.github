@@ -24263,3 +24263,81 @@ gcc -O0 -g -Wall -o sn4parse one4all/src/frontend/snobol4/sn4parse.c
 - `one4all`: `a7a7f96`
 - `corpus`: `8d5cc6a`
 - `.github`: to be pushed after this entry
+
+## DYN-88 — sno4parse: zero hangs; STREAM trace oracle live (2026-04-05)
+
+### Session type
+**Parser fix** — DYN- session (SNOBOL4 frontend × x86/C backend).
+
+### What Was Done
+
+**Renamed sn4parse.c → sno4parse.c** per Lon's instruction.
+
+**Three hang classes eliminated (32→0 hangs across 84 corpus files):**
+
+1. **FORBLK/FORWRD: ST_EOS → BRTYPE=EOSTYP**
+   Root cause: after subject/pattern consumed to end of line, `stream()` returned
+   `ST_EOS` but `FORBLK`/`FORWRD` left `BRTYPE` stale. Statement parser looped
+   forever. Fix: treat `ST_EOS` same as `BRTYPE=EOSTYP` in both functions.
+   IBLKTB table is correct (identical to CSNOBOL4). Code-only fix.
+
+2. **CMPFRM/CMPASP: null-replacement EOS guard**
+   `SUBJECT PAT =` (no replacement) hit EOS after `=`, fell into `EXPR()` which
+   looped. Fix: check `BRTYPE==EOSTYP` after `FORBLK()` before calling `EXPR()`.
+
+3. **Continuation line joining**
+   Files with `+` continuation lines: parser saw incomplete expression mid-parse.
+   `CNTTYP` stub replaced with real accumulation into `linebuf[65536]`.
+   NEWTYP flushes pending line first; `+` lines stripped and appended.
+
+**Sweep after fixes:** 84 files, OK=14, ERRORS=71, HANGS=0.
+Error surface: 54× `expected ) or , in arg list` + 17× `illegal character` — both
+arg-whitespace, same root cause.
+
+**Two-way STREAM trace oracle built and confirmed working:**
+- `sno4parse`: `SNO_TRACE=1` env var → emits to stderr
+- CSNOBOL4: `TRACE_STREAM` compile flag + `SNO_TRACE=1` env var → writes to `/tmp/sno_csno.trace`
+- Format identical: `STREAM <table> [<input>] -> ret=<ret> stype=<n>`
+
+**Trace diff on `LT(N, 1000000)` — divergence identified:**
+```
+CS:  ... IBLKTB → FRWDTB [X=LT] → ELEMTB [X] → IBLKTB → FRWDTB [LT] → ELEMTB [LT] → FRWDTB [N,] → ELEMTB [N] → FRWDTB [,1000000] → FRWDTB [1000000] → ELEMTB [1000000] → FRWDTB [)]  ✓
+SN4: ... IBLKTB →          ←miss  ELEMTB [X] → IBLKTB → IBLKTB [LT]  → ELEMTB [LT] →              ELEMTB [N]   → FRWDTB [,1000000] → FRWDTB [,1000000] ← double → FRWDTB [1000000] → ERROR
+```
+Fix for DYN-89:
+- After ELEMTB for LT, arg loop must call FORWRD (not FORBLK) to position past `(`
+- FORWRD called once per arg boundary, not twice
+- BINOP restore logic interacts: see trace lines 8-10
+
+### Commits
+- `one4all`: `280329f`
+
+### What Was NOT Done (DYN-89 first actions)
+1. Fix arg loop using trace diff: FORWRD not FORBLK; single call per boundary
+2. Run sweep — target 0 errors on arg-whitespace class (71 files → 0)
+3. Tackle `illegal character` class (17 files) if distinct root cause
+
+### Session start for DYN-89
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+
+# Oracle available:
+# SNO_TRACE=1 ./snobol4-2.3.3/snobol4 /tmp/lt_test.sno  → /tmp/sno_csno.trace
+# echo "    X = LT(N, 1000000)" | SNO_TRACE=1 ./sno4parse /dev/stdin 2>/tmp/sn.trace
+# diff /tmp/sno_csno.trace /tmp/sn.trace
+
+# Trace diff diagnosis (DYN-88):
+# CS line 66: FRWDTB [LT(N,...)] — FORWRD positioning before LT
+# SN line 6:  IBLKTB [LT(N,...)] — wrong: FORBLK used instead of FORWRD
+# CS line 70: FRWDTB [,1000000] once — sno4parse calls it twice (lines 9-10)
+# Fix: arg loop FORWRD call sequence must match CS lines 68-73 exactly
+```
+
+### Baselines for DYN-89
+- `one4all`: `280329f`
+- `corpus`: `8d5cc6a` (unchanged)
+- `.github`: to be pushed after this entry
