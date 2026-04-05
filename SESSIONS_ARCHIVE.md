@@ -24863,68 +24863,65 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 # Then: WANG MONITOR re-check — why did FORWRD fix not resolve it?
 ```
 
-## SNOBOL4 × x86 sprint 95 — 2026-04-04
+## SNOBOL4 × x86 sprint 96 — 2026-04-04
 
 ### What Was Done
 
-**Session-start protocol completed** ✅
-- All repos cloned fresh: .github, one4all, harness, corpus
-- Full read sequence: SCRIP-SM.md → BB-GRAPH.md → BB-DRIVER.md → IR.md → SESSIONS_ARCHIVE tail → GENERAL-RULES headings → PLAN.md → SESSION-snobol4-x64.md → MILESTONE-SN4PARSE-VALIDATE.md
+**Chained `[]` subscript `T['n']['!']` fixed** ✅
 
-**Baseline confirmed:** PASS=177 FAIL=1 (expr_eval) — scrip-interp broad sweep
+Root cause: CMPILE calls `ELEMNT()` directly for the subject field (not `EXPR()`), so
+`expr_prec_continue`'s postfix-`[]` handler never ran after a subscripted subject.
+After `ELEARY` closes on `]` (ACT_STOP, BRTYPE=RBTYP=7), `TEXTSP.ptr` points at the
+next `[` correctly, but the postfix handler was never reached.
 
-**MILESTONE-RT-RUNTIME.md created** ✅
-Nine SIL-faithful runtime milestones:
-- RT-1 INVOKE dispatch table
-- RT-2 VARVAL/INTVAL/PATVAL typed arg evaluators
-- RT-3 NAME type + keyword names (DT_K)
-- RT-4 NMD conditional assignment stack (naming list)
-- RT-5 ASGN with OUTPUT association + TRACE hooks
-- RT-6 EXPVAL / EXPRESSION type execution (save/restore state)
-- RT-7 CONVE / CODER / CONVERT
-- RT-8 EVAL() builtin → PASS=178 target
-- RT-9 INTERP/INIT/GOTO SM_Program dispatch loop
-Principle: additive shim replacement — scrip-interp stays green throughout.
+Key insight: after `ACT_STOP` on `]`, `BRTYPE==RBTYP=7`, not `NBTYP=1`. The check
+`BRTYPE==NBTYP` was the wrong guard — only `TEXTSP.len>0 && *TEXTSP.ptr=='['` needed.
 
-**MILESTONE-RT-SIL-MACROS.md created** ✅
-Classified all 130+ SIL macro instructions and 211 procedures:
-- Groups 1-2 → sil_macros.h (C inline translations of GETD/PUTD/TESTF/VEQLC etc.)
-- Groups 3-5 → RT functions + 12 new SM_Program instructions
-- Group 6 → SM_PAT_* (already in SCRIP-SM.md — confirmed complete)
-- Group 7 → bb_*.c Byrd boxes (confirmed ✅)
-- Group 8 → INVOKE table builtins (~50, status tracked)
-- Groups 9-10 → SKIP (SNOBOL4B blocks, compiler internals)
-~120 of 211 procedures useful; 12 new SM ops added to SCRIP-SM.md.
+Fix: inline postfix-`[]` loop after `ELEMNT()` in CMPILE's subject path. When
+`TEXTSP.len==0 && BRTYPE==RBTYP` (segment exhausted at closing `]`), call `FORWRD()`
+to advance; otherwise check directly. Loop repeats for triple+ chaining.
 
-**SCRIP-SM.md updated** ✅
-Added 12 new SM instructions from SIL macro analysis:
-SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH/POP (for EXPVAL),
-SM_INCR, SM_DECR, SM_ACOMP, SM_RCOMP, SM_LCOMP, SM_SPCINT, SM_SPREAL, SM_TRIM.
+Debugging required three passes:
+1. Thought fix belonged in `expr_prec_continue` — wrong, CMPILE never calls EXPR() for subject
+2. Tried `s->subject = EXPR()` — too greedy, absorbed pattern field (Qize regression)  
+3. Inline loop with `BRTYPE==NBTYP` guard — wrong BRTYPE value after ACT_STOP
+4. Drop BRTYPE guard, check only `*TEXTSP.ptr == '['` — correct ✅
 
-**PLAN.md updated** ✅
-- RT-1 through RT-9 in NOW table and component map
-- SIL MACRO MAP row added
+### Sweep results
+
+| Sweep | Before | After |
+|-------|--------|-------|
+| dyn89 (84 files) | 84/84 | 84/84 ✅ |
+| Listen2\*/WordNet (16 files) | 1/16 | 11/16 |
+
+Remaining 5 ERR in Listen2\* = P2D (EQTYP in subscript `A[J=J+1]`) — separate bug.
 
 ### Commits
-- `.github`: `41841d1` (RT milestones) → rebased → `41841d1` on origin
-- `.github`: current push includes SCRIP-SM.md + MILESTONE-RT-SIL-MACROS.md
+- `one4all`: `07d9bf4`
+- `.github`: pushed after this entry
 
-### Baselines for sprint 96
-- `one4all`: `5c1a1d8` · `corpus`: `8d5cc6a`
-- scrip-interp: PASS=177 FAIL=1
+### Baselines for sprint 97
+- `one4all`: `07d9bf4`
+- `corpus`: `8d5cc6a`
 
-### Sprint 96 first actions
+### Sprint 97 first actions
 ```bash
 cd /home/claude
 cat .github/SCRIP-SM.md
 tail -120 .github/SESSIONS_ARCHIVE.md
 cat .github/SESSION-snobol4-x64.md
-cat .github/MILESTONE-RT-RUNTIME.md   # new — read RT-7→RT-8 path first
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
 gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
-cd /home/claude/one4all && bash test/run_interp_broad.sh  # confirm 177
-# RT-7: CONVE_fn — compile string to DT_E using parse_expr_from_str()
-# RT-8: EVAL_fn — full SIL EVAL proc (idempotent I/R, CONVE+EXPVAL for S)
-# Target: expr_eval passes → PASS=178
+cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
+cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
+cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
+cd /home/claude && cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Validate fix: Listen2*/WordNet -- confirm 11/16
+# Next: P2D — EQTYP inside [] subscript A[J=J+1]
+# MONITOR: SNO_TRACE=1 on Listen2WordPress.sno, diff traces
+# Fix: in ELEARY (and the chained-[] loop), when BRTYPE==EQTYP inside subscript,
+#   parse it as assignment expression rather than terminating the subscript
 ```
 
 ## scrip-interp × SIL sprint 96 — 2026-04-04
