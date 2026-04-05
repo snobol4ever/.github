@@ -25653,3 +25653,80 @@ cd one4all && [canonical build] && bash test/run_interp_broad.sh  # confirm PASS
 #    (currently may be coerced or dropped — needs investigation)
 # Gate: expr_eval passes → PASS=189
 ```
+
+---
+
+## Sprint 102 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL
+
+### Baseline confirmed
+- one4all HEAD: `ca7aa12` → pushed as `ed1912c` · corpus HEAD: `65494e7`
+- PASS=188 FAIL=13 (201 total) — confirmed at session start
+
+### Build fix (permanent)
+Canonical build was missing objects. Full working set:
+```bash
+# Runtime snobol4 (exclude snobol4_stmt_rt)
+for f in src/runtime/snobol4/*.c; do [compile]; done
+# Box objects
+for f in $(find src/runtime/boxes -name "bb_*.c" | grep -v "bb_dvar\|bb_atp\|bb_capture"); do [compile]; done
+# Extra required:
+src/runtime/asm/x86_stubs_interp.c
+src/runtime/dyn/stmt_exec.c
+src/runtime/dyn/eval_code.c
+src/runtime/engine/engine.c
+src/frontend/snobol4/snobol4.tab.c   # parse_program_tokens, parse_expr_from_str
+src/frontend/snobol4/snobol4.lex.c   # sno_parse, sno_add_include_dir
+src/driver/scrip-interp.c
+gcc /tmp/ib/*.o -lgc -lm -o scrip-interp
+```
+
+### EVAL root cause diagnosed and fix committed (ed1912c)
+
+**Root cause:** `EVAL(string)` called `parse_expr_from_str()` which wraps src in a
+full statement (`"         x + 4\n"`) and returns only `prog->head->subject` —
+so `"x + 4"` returns `x` only, discarding `+ 4`.
+
+**SIL says:** CONVEX calls `RCALL FORMND,EXPR` — expression-only parser, not CMPILE.
+
+**Fix:** `sno4parse.c` (the SIL-faithful parser) has `EXPR()` which IS the correct
+expression-only entry point. Shape of `NODE*` is identical to `EXPR_t*` — same
+leaf/unary/binary/n-ary structure, only names differ (VARTYP↔E_VAR etc).
+
+**Changes committed:**
+- `sno4parse.c`: `main` → `sno4parse_main`; `EXPR`/`init_tables` made non-static
+- `snobol4_pattern.c`: `#include "../../frontend/snobol4/sno4parse.c"` at top
+  - `node_to_expr(NODE*) → EXPR_t*`: shape-identical field rename (~30 lines)
+  - `eval_via_sno4parse(const char*)`: sets TEXTSP, calls FORWRD()+EXPR(), eval_node()
+  - `EVAL_fn` string path: `eval_expr(s)` → `eval_via_sno4parse(s)`
+
+### Baseline at session end
+PASS=188 FAIL=13 — unchanged (fix committed but not yet compiled clean)
+
+### Sprint 103 first actions (Track C — EVAL fix completion)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+sed -n '157,203p' .github/MILESTONE-RT-RUNTIME.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all
+
+# Step 1: Fix eval_via_sno4parse — remove 'extern' declarations.
+# TEXTSP, XSP, BRTYPE, STYPE, g_error, FORWRD are static in sno4parse.c
+# but since sno4parse.c is #included into snobol4_pattern.c they are in
+# the SAME translation unit — direct access, no extern needed.
+# In snobol4_pattern.c, eval_via_sno4parse(): delete the 6 extern lines.
+
+# Step 2: Build and check for remaining errors
+[canonical build] 2>&1 | grep "error:" | head -20
+
+# Step 3: Run tests
+bash test/run_interp_broad.sh
+# Gate: expr_eval passes → PASS=189
+
+# Step 4: If PASS=189, move to RT-3 NAME_fn/ASGNIC_fn per MILESTONE-RT-RUNTIME.md
+```
