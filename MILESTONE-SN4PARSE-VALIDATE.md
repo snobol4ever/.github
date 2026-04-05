@@ -250,8 +250,8 @@ SPITBOL identifiers are `[A-Za-z][A-Za-z0-9_]*`. For Unicode:
 | **M-SN4PARSE-P2D** | Multiple assignment `A=B=C+1` | P1 | ⬜ |
 | M-SN4PARSE-P2E | Embedded match `(B?C=D)` | P2A+P2D | ⬜ |
 | **M-SN4PARSE-P2F** | Semicolon multi-statement | P1 | ✅ sprint 92 |
-| **M-SN4PARSE-P3A** | UTF8TB dispatch table | P2 | ⬜ |
-| **M-SN4PARSE-P3B** | VARTB_U / ELEMTB_U Unicode idents | P3A | ⬜ |
+| **M-SN4PARSE-P3A** | UTF8TB dispatch table | P2 | ✅ sprint P3A (92ba6ea) |
+| **M-SN4PARSE-P3B** | VARTB_U / ELEMTB_U Unicode idents | P3A | ✅ sprint P3B (7d41087) |
 | M-SN4PARSE-P3C | UTF-8 string primitives (runtime) | P3A | ⬜ |
 | M-SN4PARSE-P3D | QLITB_U (transparent, low risk) | P3A | ⬜ |
 

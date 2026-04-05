@@ -17,6 +17,13 @@ tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # sprint handoff state
 grep "^## " /home/claude/.github/GENERAL-RULES.md    # rules headers only
 cat /home/claude/.github/PLAN.md                      # this file (NOW table + routing)
 ```
+**⛔ MANDATORY after Step 1 — verify §NOW is not stale:**
+```bash
+cd /home/claude/one4all && git log --oneline -3   # compare to PLAN.md §NOW HEAD
+cd /home/claude/corpus  && git log --oneline -3
+```
+If HEAD hashes differ from §NOW: **§NOW is stale — fix it before proceeding.**
+See GENERAL-RULES.md §NOW STALENESS rule for the fix protocol.
 
 **Step 2 — Read your component doc (session-specific, ONE doc):**
 ```
@@ -111,8 +118,8 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | 98-ext | one4all `45ad889` · corpus `65494e7` | **M-SN4PARSE-VALIDATE** — P2B ✅ P2D ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BISNFN@prec1) or P2C `[]`=`<>` |
-| **RUNTIME (scrip-interp)** | RT-109 | one4all `8743f20` · corpus `3fd44d0` · PASS=175/203 | frame-stack nmd.c ✅ CMPILE dot/dollar fix ✅ — next: word2/3/4 triage → PASS≥180 |
+| **SNOBOL4 × x86** | P3B | one4all `7d41087` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2F ✅ P3A ✅ P3B ✅ PASS=175 — next: P2D chained assign OR verify Unicode sweep |
+| **RUNTIME (scrip-interp)** | RT-110 | one4all `ca77163` · corpus `3fd44d0` · PASS=178/203 | multi-line continuation fix ✅ word2/3/4 ✅ — next: non-ASCII comment fix → 1010_func_recursion → PASS≥179 |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
