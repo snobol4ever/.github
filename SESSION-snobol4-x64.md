@@ -166,38 +166,38 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 100 | one4all `febd82f` · corpus `65494e7` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ sweep 84/84 — next: fix unresolved-include HANG (5 gimpel files) → crosscheck/ suite |
-| 98-ext | one4all `45ad889` · corpus `65494e7` | P2B bug fixed: SELECT loop double-FORWRD. ( VAR , 'x' ) now works. 84/84 ✅ |
-| 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
+| RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
+| RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
+| 100 (sno4parse) | one4all `febd82f` · corpus `65494e7` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ sweep 84/84 — next: fix unresolved-include HANG (5 gimpel files) → crosscheck/ suite |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 84/84 ✅; Phase 2 P2D ✅; next P2B or P2F
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
-**Next session first actions (sprint 99):**
+**Next session first actions (sprint RT-105 — Track C):**
 ```bash
 cd /home/claude
-tail -120 .github/SESSIONS_ARCHIVE.md
-cat .github/SESSION-snobol4-x64.md
-cat .github/MILESTONE-SN4PARSE-VALIDATE.md
 apt-get install -y libgc-dev flex
-# Build: sno4parse_main is the entry point, needs wrapper main
-cat > /tmp/sno4parse_wrap.c << 'WRAP'
-int sno4parse_main(int argc, char **argv);
-int main(int argc, char **argv) { return sno4parse_main(argc, argv); }
-WRAP
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/CMPILE.c /tmp/sno4parse_wrap.c
-cp sno4parse one4all/sno4parse
-cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
-cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
-cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
-cd /home/claude
-# Confirm 84/84 (use bash -c, not sh):
-bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; HANG=0; while IFS= read -r f; do ec=0; r=$(timeout 10 "$SNO4" "$f" 2>&1)||ec=$?; [[ $ec -eq 124 ]] && { HANG=$((HANG+1)); continue; }; e=$(echo "$r"|grep -m1 "ELEMNT:\|sil_error\|illegal"||true); [[ -n "$e" ]] && ERR=$((ERR+1)) || OK=$((OK+1)); done < <(find "$CORPUS" -name "*.sno"|sort); echo "=== OK=$OK ERR=$ERR HANG=$HANG ==="'
-# Gate: 84/84 — then pick:
-# P2A: binary ? — in BINOP(), after BIOPTB ST_ERROR, check *TEXTSP.ptr=='?' return BISNFN(215) prec=1
-#       Test: ABCD ? LEN(3) $ OUTPUT  (SPITBOL manual AppC p275)
-# P2C: [] alias for <> — expr_prec_continue '[' postfix handler already present; verify f(g(x)[i])
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: --dump-parse / --dump-parse-flat flags in scrip-interp.c
+#   In main() arg-parse loop, detect --dump-parse / --dump-parse-flat
+#   After cmpile_file() call, walk CMPILE_t list calling cmpile_print(s, stdout, oneline, idx)
+#   Note: scrip-interp still uses sno_parse for the file — add cmpile_file() path alongside
+
+# Step 2: Wire CMPILE as top-level file parser replacing sno_parse
+#   scrip-interp.c: replace sno_parse(f, path) with cmpile_lower(cmpile_file(f, path))
+#   cmpile_lower(): walks CMPILE_t list, calls cmpnd_to_expr() per field, builds Program*
+#   Gate: PASS >= 190 (no regression); expr_eval passing → PASS=191 is the bonus
+
+# Step 3: Test EVAL() explicitly
+#   printf 'OUTPUT = EVAL(\"1 + 2\")\nEND\n' > /tmp/e.sno
+#   SNO_LIB=.../lib ./scrip-interp /tmp/e.sno   # expect: 3
 ```
 
 *(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
@@ -323,3 +323,16 @@ RT functions + SM instruction dispatch). It is now `#include`d in:
 - `make scrip-cc` — delegates to `src/Makefile`
 - `make test` — runs `test/run_interp_broad.sh`
 - `make clean` — removes `/tmp/si_objs` and `scrip-interp`
+
+### CMPILE.c is now the authoritative parser — sno4parse retired (sprint 104)
+**Date:** 2026-04-05
+
+`sno4parse.c` is gone. `CMPILE.c` is the one SNOBOL4 lex/parser.
+- Types: `CMPND_t` (parse node, was `NODE`), `CMPILE_t` (statement, was `STMT`)
+- Public API in `CMPILE.h`: `cmpile_init`, `cmpile_file`, `cmpile_string`, `cmpile_free`
+- `cmpnd_print_sexp(n, FILE*, oneline, depth)` — S-expression dump, pretty or flat
+- `cmpile_print(s, FILE*, oneline, idx)` — statement dump
+- `snobol4_pattern.c`: `cmpnd_to_expr()` replaces `node_to_expr()` using named SIL stype constants
+- `eval_via_cmpile()` replaces `eval_via_sno4parse()` — EVAL() builtin path
+- Top-level file parse still uses old bison `sno_parse` — replacement is next sprint
+- one4all HEAD after this sprint: `d16f152`
