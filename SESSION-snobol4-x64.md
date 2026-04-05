@@ -137,7 +137,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 94 | one4all `5c1a1d8` · corpus `8d5cc6a` | **P2A ✅ (`op_prec(BIQSFN)=1` — BIOPTB already had `?`; no new table needed)** — next: computed goto `$(...)` in :S/:F, or P2D `A[J=J+1]` |
+| 95 | one4all `50772a9` · corpus `8d5cc6a` | **P2G ✅ computed goto + binary op RHS FORWRD** — 322/352 OK — next: chained `[]` subscript `T['n']['!']`, then WANG re-check |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
@@ -181,3 +181,17 @@ cd /home/claude
 
 True streaming implemented. linebuf gone. forrun() is the canonical continuation handler.
 
+
+### Sprint 95 §INFO addendum
+**Date:** 2026-04-04
+
+**FORWRD must be called before RHS in expr_prec_continue (sprint 95)**
+Binary operators with double-space after them (e.g. `'A'  |  'B'`) lost the
+RHS because ELEMNT was called with TEXTSP pointing at leading whitespace.
+Fix: unconditional `FORWRD()` before `expr_prec(next_min)` in expr_prec_continue.
+Mirrors CSNOBOL4's IBLKTB call between operator and RHS.
+
+**CMPGO SGOTYP/FGOTYP need FORWRD before EXPR (sprint 95)**
+Computed goto `:S($('label' VAR))` requires FORWRD() in SGOTYP and FGOTYP
+branches — not just STOTYP/FTOTYP. One unconditional FORWRD() covers both
+paren and angle-bracket forms.
