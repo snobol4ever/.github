@@ -26351,3 +26351,93 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=187
 #   See MILESTONE-RT-RUNTIME.md § RT-5.
 #   NV_SET_fn hook for &OUTPUT (write to stdout), &TRACE enable/disable.
 ```
+## Sprint RT-109 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — frame-stack nmd.c + CMPILE dot/dollar left-atom fix
+
+### Baseline at session start
+- one4all HEAD: `b107c67`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=166 FAIL=37 (harness discovery delta vs archived 187)
+
+### Work done
+
+**Lon's architectural insight:** Replace flat nam_buf + cookie-int with a
+stack of NAM_sequence frames — push/pop through the CONDITIONAL ASSIGN
+Byrd box. Byrd box get/do/undo for free. Same pattern as snobol4ever Python
+command stack. This drove the full nmd.c rewrite.
+
+**nmd.c — frame-stack refactor (RT-4 redesign):**
+- `NamFrame_t` stack replaces `NamEntry_t nam_buf[512]`
+- `NAM_save()` → push new empty frame, return depth as cookie
+- `NAM_push()` → prepend to frame's linked list; `GC_strdup(var)` fixes
+  dangling pointer bug (old design stored raw `var` ptr into parse tree)
+- `NAM_discard()` → truncate frame entries only (keep frame alive for
+  scan-loop resets); does NOT pop — fixes "frame popped before match" bug
+- `NAM_pop()` → new: pop frame on final failure path only
+- `NAM_commit()` → pop frame, walk head→tail (newest-first = last-write-wins)
+- Re-entrant: each EXPVAL/nested scope gets its own frame
+
+**stmt_exec.c:** add `NAM_pop(nam_cookie)` on `:F` return path
+
+**CMPILE.c — two dot/dollar operator fixes:**
+
+Fix 1 — right operand atom: `NAMFN`/`DOLFN` force `next_min=99` so only
+a single atom is consumed as the capture target. Previously `ARB . OUTPUT
+" of"` parsed as `NAMFN(ARB, CAT(OUTPUT, " of"))` — now `CAT(NAMFN(ARB,
+OUTPUT), " of")`.
+
+Fix 2 — left operand atom: when `left=CATFN` and op is `NAMFN`/`DOLFN`,
+pop last child off the cat and make it the capture's left child. Previously
+`"ab" LEN(2) . OUTPUT` parsed as `NAMFN(CAT("ab",LEN(2)), OUTPUT)` giving
+wrong capture span; now `CAT("ab", NAMFN(LEN(2), OUTPUT))`.
+
+Root cause traced via `--dump-parse` showing PATND structure, then
+`spec_t σ/δ` through `bb_capture CAP_γ_core` (child_r.δ=4 when expected 2).
+
+### Commits this sprint
+- `8743f20` RT-109: frame-stack nmd.c + CMPILE dot/dollar left-atom fix; PASS=175
+
+### Baseline at session end
+- one4all HEAD: `8743f20`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=175 FAIL=28 (+9 from session start)
+
+### Gains this sprint
+word1 ✅  test_string ✅  test_stack ✅
+046_pat_tab ✅  048_pat_rem ✅  052_pat_arbno ✅
+054_pat_arbno_alt ✅  055_pat_concat_seq ✅  060_capture_multiple ✅
+
+### Remaining failures (28)
+- expr_eval — expected, gate for RT-8
+- test_case — needs investigation
+- 1010_func_recursion — non-ASCII comment bug (Option A from RT-108)
+- 1011/1012/1015/1018 — function semantics
+- word2/3/4 — different capture construct, needs --dump-parse triage
+- beauty_* (15) — pre-existing (`;` separator + &ALPHABET gaps)
+- demo_treebank/claws5/roman — pre-existing
+
+### Sprint RT-110 first actions (Track C)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=175
+
+# Step 1: triage word2 (different pattern from word1)
+#   ./scrip-interp --dump-parse corpus/crosscheck/strings/word2.sno
+#   Compare NAMFN structure vs word1 — likely multi-dot or $ variant
+#   Fix in CMPILE.c if new parse bug; else runtime
+
+# Step 2: triage test_case
+#   timeout 5 ./scrip-interp corpus/crosscheck/strings/test_case.sno 2>&1 | head -20
+
+# Step 3: Option A — non-ASCII comment fix → unlock 1010_func_recursion
+#   In CMPILE.c cmpile_file_internal(): skip lines where physical line
+#   starts with '*' without calling STREAM/ELEMNT. Gate: PASS≥180
+```
