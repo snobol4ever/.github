@@ -24748,3 +24748,51 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
 #   check current char == '?' and return BISNFN(215) at priority 1
 # OR: computed goto fix — CMPGO needs ELEMNT for $(...) in :S/:F label position
 ```
+
+## SNOBOL4 × x86 sprint 94 — 2026-04-04
+
+### What Was Done
+
+**P2A — binary `?` operator via BIOPTB_SPITBOL table** ✅
+
+Key insight: `?` (byte 63) was already in BIOPTB chrs[] → action 14 → `BIQSFN` (user-definable).
+SPITBOL needs `?` → `BISNFN` (scan-replace, different runtime semantics).
+Correct approach: new `BIOPTB_SPITBOL` table + new actions array. No new C code.
+
+Changes:
+- `BIOPTB_SPITBOL_actions[]`: 16 entries — same as BIOPTB_actions[1..15] plus entry 16: `{BISNFN, ACT_GOTO, &TBLKTB}`
+- `BIOPTB_SPITBOL` chrs[]: identical to BIOPTB except byte 63 = `16` (was `14`)
+- `g_bioptb = &BIOPTB_SPITBOL` (default SPITBOL mode); BINOP() calls `stream(..., g_bioptb)`
+- `op_prec(BISNFN) = 1`, `op_prec(BIQSFN) = 1` — lowest binary precedence per SPITBOL spec
+
+Extension pattern established: all future SPITBOL table extensions follow this model.
+
+### Sweep results
+
+| Status | Count |
+|--------|-------|
+| OK     | 84    |
+| ERR    | 0     |
+| HANG   | 0     |
+
+### Commits
+- `one4all`: `3fae7cd`
+- `.github`: pushed after this entry
+
+### Baselines for sprint 95
+- `one4all`: `3fae7cd`
+- `corpus`: `8d5cc6a`
+
+### Sprint 95 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Next: computed goto — $(...) in :S/:F label position
+# Or: P2D assignment-inside-subscript A[J=J+1] — EQTYP terminates subscript early
+```
