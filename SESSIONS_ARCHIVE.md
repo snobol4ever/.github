@@ -26774,3 +26774,58 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #
 # Step 4: Commit "RT-113: RUNTIME-6 complete; expr_eval passes; PASS=179"
 ```
+## Sprint RT-113 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — PIVOT to M-CMPILE-MERGE
+
+### Baseline at session start
+- one4all HEAD: `ff74658` · corpus HEAD: `3fd44d0` · PASS=178/203
+
+### Work done
+
+**PIVOT declared:** Active milestone changed from RUNTIME-6 (DT_E{ptr=NULL} blocker)
+to **M-CMPILE-MERGE** — switching the parser/compiler to CMPILE.c as the very next step.
+
+HQ updated:
+- PLAN.md NOW table: RUNTIME row updated to RT-113, milestone → M-CMPILE-MERGE
+- SESSION-snobol4-x64.md §NOW: corrected HEAD to `ff74658`, milestone → M-CMPILE-MERGE
+- MILESTONE-CMPILE-MERGE.md: marked 🔴 ACTIVE, sprint RT-113, 2026-04-05
+
+No code changes this sprint (pivot + HQ update only).
+
+### Baseline at session end
+- one4all HEAD: `ff74658` (unchanged) · corpus HEAD: `3fd44d0` (unchanged)
+- PASS=178 FAIL=25 (no change)
+
+### Sprint RT-114 first actions (Track C — M-CMPILE-MERGE)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-CMPILE-MERGE.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Step 1: implement stype_to_ekind() switch in snobol4_pattern.c
+#   Use the full stype→EKind table from MILESTONE-CMPILE-MERGE.md
+#   Handle NSTTYP (transparent — return single child directly)
+#   Handle VARTYP+nchildren>0 → E_CAT
+#   Default: return E_NUL
+
+# Step 2: implement cmpile_to_expr(CMPND_t *n) — recursive
+#   Mirrors the scaffold in MILESTONE-CMPILE-MERGE.md exactly
+
+# Step 3: rename eval_via_sno4parse() → eval_via_cmpile()
+#   Replace node_to_expr(n) call with cmpile_to_expr(n)
+
+# Step 4: make scrip-interp && confirm no compile errors
+# Step 5: CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Gate: PASS >= 190
+#   Bonus: PASS >= 191 (expr_eval now correctly routes ADDFN=201 → E_ADD)
+
+# Step 6: Commit "RT-114: M-CMPILE-MERGE — cmpile_to_expr replaces node_to_expr; PASS=NNN"
+```

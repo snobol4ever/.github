@@ -112,7 +112,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | 98-ext | one4all `45ad889` · corpus `65494e7` | **M-SN4PARSE-VALIDATE** — P2B ✅ P2D ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BISNFN@prec1) or P2C `[]`=`<>` |
-| **RUNTIME (scrip-interp)** | RT-109 | one4all `8743f20` · corpus `3fd44d0` · PASS=175/203 | frame-stack nmd.c ✅ CMPILE dot/dollar fix ✅ — next: word2/3/4 triage → PASS≥180 |
+| **RUNTIME (scrip-interp)** | RT-113 | one4all `ff74658` · corpus `3fd44d0` · PASS=178/203 | **PIVOT → M-CMPILE-MERGE** — switch parser to CMPILE.c; cmpile_to_expr() replaces node_to_expr(); gate PASS≥190 |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
