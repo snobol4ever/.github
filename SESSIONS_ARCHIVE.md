@@ -26126,3 +26126,83 @@ bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/program
 ### Baseline at session end
 - one4all HEAD: `601890a` · corpus HEAD: `65494e7`
 - Sweep: 84/84 OK ERR=0 HANG=0 · Gimpel: 143/145 OK, 2 ERR, 0 HANG
+## Sprint RT-106 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — cmpnd_to_expr audit + cmpile_lower wiring
+
+### Baseline confirmed
+- one4all HEAD at session start: `805c390`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total)
+
+### SPITBOL manual consulted
+Statement format (per SPITBOL manual v3.7, p.29):
+- Label in column 1 (optional). Must start with letter or digit.
+- Subject field follows label (separated by whitespace).
+- Pattern, replacement, goto all optional.
+- `N = 0` with N in col-1: label=N, subject=NULL, null-subject assign to variable N.
+- `COPY OUTPUT = INPUT`: label=COPY, subject=OUTPUT, replacement=INPUT.
+- CMPILE LBLTB is correct. cmpile_lower() must synthesise E_VAR subject from
+  label text when subject=NULL and body present.
+
+### Fixes committed (one4all `081cce9`)
+
+**cmpnd_to_expr() — snobol4_pattern.c:**
+- KEYFN (stype 310): `n->text` = "UOP_KEY" (operator label); keyword name
+  is in `children[0]->text` (e.g. "STNO"). Fixed to extract from child.
+- ARYTYP (stype 7): E_IDX expects children[0]=base E_VAR, children[1..]=subscripts.
+  CMPILE stores array name in `text`, subscripts as direct children.
+  Fixed: prepend synthetic E_VAR base node before recursing children.
+
+**cmpile_lower() — scrip-interp.c:**
+- label+subject: keep `st->label` for goto resolution; when `s->subject==NULL`
+  and body present, synthesise `E_VAR` from `s->label` as `st->subject`.
+  Confirmed correct against SPITBOL manual statement format.
+
+**CMPILE.c:**
+- `g_error = 0` reset at top of `cmpile_file_internal()` — prior errors
+  in same process no longer poison subsequent file parses.
+
+### cmpile_lower() measurement with sno_parse as fallback removed
+- With cmpile_lower() as sole execution path: PASS=107 FAIL=96
+- Root cause of remaining 96: non-ASCII bytes (UTF-8 em-dash U+2014) in
+  *-comment lines reach ELEMNT via STREAM, trigger sil_error, abort parse.
+  Example: `1010_func_recursion.sno` comment line contains `—` (3 UTF-8 bytes).
+  g_error set on byte 0xE2, file parse returns empty list, prog=NULL, fail.
+
+### Baseline at session end
+- one4all HEAD: `081cce9`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 (sno_parse path) — baseline held ✅
+- cmpile_lower path: PASS=107 (blocked by non-ASCII comment bug)
+
+### Sprint RT-107 first actions (Track C — non-ASCII comment fix)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: Fix non-ASCII in *-comment lines in CMPILE.c
+#   In cmpile_file_internal() line reader: when physical line starts with '*'
+#   (after stripping leading whitespace for NEWCRD/CNTTYP), skip the entire
+#   line without calling STREAM/ELEMNT. Non-ASCII bytes in comments never
+#   reach the lexer. Gate: 1010_func_recursion.sno --dump-parse non-empty.
+
+# Step 2: Wire cmpile_lower() as default execution path
+#   Replace sno_parse(f, input_path) with cmpile_lower path in main()
+#   Gate: PASS >= 190 — must match or exceed sno_parse baseline
+
+# Step 3: If PASS < 190 with cmpile_lower, triage remaining failures
+#   Run --dump-parse on each failing test, collect stype codes, fix gaps
+#   Priority: rung3 concat, rung10 func, rung11 array/table tests
+
+# Diagnosis command for any failure:
+#   ./scrip-interp --dump-parse /path/to/failing.sno 2>&1
+#   Compare stmt fields against sno_parse IR (add --dump-ir flag if needed)
+```
