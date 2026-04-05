@@ -27138,3 +27138,133 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #     < corpus/crosscheck/control/expr_eval.input
 #   Gate: PASS >= 179
 ```
+
+## Sprint HANDOFF — 2026-04-05 (SNOBOL4 × x86 — diagnostic / HQ audit session)
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** SNOBOL4 × x86 — Track A (sno4parse / P1c diagnosis) + HQ audit
+
+### Work done
+
+**HQ audit — milestone table was stale**
+Root cause identified and documented: `MILESTONE-SN4PARSE-VALIDATE.md` milestone
+summary table was never updated after sprints completed. Each sprint committed code
+with a message like "P2D: ..." but the milestone table row was never flipped to ✅.
+The SESSION §NOW and SESSIONS_ARCHIVE are append-only so stay current; the milestone
+summary table requires editing an existing row — that step was systematically skipped.
+
+Correct status determined from `git log` + code inspection:
+
+| Milestone | Actual Status |
+|-----------|---------------|
+| M-SN4PARSE-P1 | ⚠️ 77/84 OK · 4 ERR · 3 HANG |
+| M-SN4PARSE-P1b | ✅ sprint 91/96 — postfix [] on call result done |
+| M-SN4PARSE-P1c | ⬜ active — Qize.sno NSTTYP/FORBLK bug (see below) |
+| M-SN4PARSE-P2A | ✅ sprint 94 |
+| M-SN4PARSE-P2B | ✅ sprint 98-ext |
+| M-SN4PARSE-P2C | ✅ sprint 96 |
+| M-SN4PARSE-P2D | ✅ committed `3a3d91d` + `badbbf9` |
+| M-SN4PARSE-P2E | ⬜ E_SCAN not in scrip-interp.c executor |
+| M-SN4PARSE-P2F | ✅ sprint 92 |
+| M-SN4PARSE-P3A | ✅ committed `7d41087` |
+| M-SN4PARSE-P3B | ✅ committed `7d41087` |
+| M-SN4PARSE-P3C | ✅ committed `6bb499d` |
+| M-SN4PARSE-P3D | ✅ transparent (SQLITB/DQLITB pass 0x80-0xFF) |
+| Phase 2 crosscheck gate | ✅ 181/181 sprint 101 |
+
+**NOTE for HQ maintainers:** `MILESTONE-SN4PARSE-VALIDATE.md` milestone summary
+table must be updated to reflect the above. Not done this session (read-only audit).
+
+**4 ERR / 3 HANG sweep breakdown (corpus/programs/snobol4/, 84 files)**
+- `demo/beauty.sno`, `smoke/beauty_oracle.sno` — -INCLUDE files not found without
+  -I flags. CSNOBOL4 also errors (Error 30). Both-fail = OK per correctness rule.
+- `demo/inc/Qize.sno`, `demo/inc/XDump.sno` — include files with no END statement.
+  CSNOBOL4 errors (Error 32: Missing END). Both-fail = OK.
+  BUT: sno4parse also hits ELEMNT illegal char on line 57 of Qize.sno — a real
+  parse bug that fires before CSNOBOL4 would stop. This is P1c (see below).
+- 3 HANGs: `demo/expression.sno`, `demo/inc/ReadWrite.sno`, `demo/roman.sno` —
+  not parse errors; runtime infinite loops in scrip-interp pattern matching.
+
+**P1c root cause — Qize.sno ELEMNT: illegal character (diagnosed, not fixed)**
+
+Line 57: `Intize  qqstr  POS(0) ("'" | '"') $ qqdlm`
+
+The bug is in IBLKTB_actions[]. CSNOBOL4's IBLKTB has exactly 3 actions:
+```
+0: GOTO FRWDTB  (space/tab)
+1: EOSTYP STOP  (semicolon/EOS)
+2: ERROR        (everything else — non-blank at current pos = ST_ERROR)
+```
+Our CMPILE.c added a spurious 4th action `{NBTYP, ACT_STOPSH}` that is never
+reachable (no chrs[] value of 4 is assigned). Worse, all non-special chars have
+chrs[x]=3 → actions[2] = {EOSTYP, ACT_STOP} instead of ST_ERROR.
+
+When BINOP calls IBLKTB with TEXTSP already at `|` (no leading space — the
+BINOP1 path), IBLKTB should return ST_ERROR. Instead it returns ST_STOP with
+STYPE=EOSTYP=6. BINOP sees stype_after_blank==EOSTYP → TEXTSP=saved; return 0.
+EXPR() terminates early with just the left element. Then NSTTYP's unconditional
+FORWRD() advances past `)` and force-sets BRTYPE=RPTYP, leaving downstream
+parsing mispositioned. The ELEMNT: illegal character fires on the next token.
+
+**Fix (not implemented):** Remove action[3] from IBLKTB_actions[]. Keep exactly
+3 actions matching CSNOBOL4. IBLKTB chrs[x]=3 → actions[2] = ACT_ERROR →
+stream() returns ST_ERROR. BINOP's `if (br == ST_ERROR)` path (BINOP1) then
+correctly handles the no-leading-blank case.
+
+```c
+static acts_t IBLKTB_actions[] = {
+    {0,      ACT_GOTO, &FRWDTB},   /* 0: space/tab → FRWDTB */
+    {EOSTYP, ACT_STOP, NULL},      /* 1: ';' → EOSTYP */
+    {0,      ACT_ERROR, NULL},     /* 2: anything else → ST_ERROR (BINOP1 path) */
+    /* NO action[3] — CSNOBOL4 has exactly 3 actions */
+};
+```
+
+Two-way MONITOR confirmed available and operational:
+- CSNOBOL4 built with patches at `/home/claude/snobol4-2.3.3/snobol4`
+- Patches in `one4all/csnobol4/` (stream.c, main.c)
+- `SNO_TRACE=1` on both → diff `/tmp/sno_csno.trace` vs stderr
+
+### Baseline at session end
+- one4all HEAD: `3a3d91d` · corpus HEAD: `3fd44d0` · PASS=178/203
+- .github HEAD: (this commit)
+- CSNOBOL4 binary: `/home/claude/snobol4-2.3.3/snobol4` (built this session)
+- sno4parse: symlink → `/home/claude/one4all/scrip-interp`
+
+### Open milestones / next session first actions
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+cd one4all && git log --oneline -3   # must show 3a3d91d
+cd /home/claude/corpus && git log --oneline -3  # must show 3fd44d0
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+# Confirm baseline
+cd /home/claude/one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# OPTION A — Fix P1c (IBLKTB 3-action fix, ~10 lines)
+# Edit src/frontend/snobol4/CMPILE.c: remove IBLKTB_actions[3]
+# Change action[2] from {EOSTYP, ACT_STOP} to {0, ACT_ERROR}
+# Rebuild: gcc -O0 -g -Wall -o sno4parse src/frontend/snobol4/CMPILE.c  (or make)
+# Verify: SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep ELEMNT
+# Run sweep: python3 <sweep script> → target 80+/84 OK
+# Gate: Qize.sno and XDump.sno no longer hit ELEMNT errors
+
+# OPTION B — Fix P2E (E_SCAN eval in scrip-interp.c)
+# Add case E_SCAN: in interp_eval() after case E_INTERROGATE: (~line 553)
+# See SESSIONS_ARCHIVE P3C/P2D/P2E session for full pseudocode
+# Gate: S ? LEN(5) → returns 'hello'; PASS=178 unchanged
+
+# OPTION C — Update MILESTONE-SN4PARSE-VALIDATE.md milestone table
+# Flip all completed milestones to ✅ per the audit table above
+# Commit: "HQ: fix stale milestone table in MILESTONE-SN4PARSE-VALIDATE.md"
+```
+
+### Rule to add to GENERAL-RULES.md (not done — propose next session)
+After every milestone sprint commit, the milestone summary table row MUST be
+updated to ✅ in the same commit. SESSIONS_ARCHIVE handoff must include:
+"milestone table updated: yes/no". This prevents stale status recurrence.
