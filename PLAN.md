@@ -111,12 +111,8 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-<<<<<<< HEAD
-| **SNOBOL4 × x86** | 96 | one4all `07d9bf4` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE** — chained `[]` ✅ — next: P2D EQTYP in subscript |
-=======
-| **SNOBOL4 × x86** | 92 | one4all `229b04e` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 2** → P2A binary `?`, P2C `[]`, P2F `;` |
+| **SNOBOL4 × x86** | 97 | one4all `badbbf9` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE** — P2D ✅ sweep 84/84 — next: P2B alt-eval `(e1,e2)` or P2F `;` |
 | **RUNTIME (scrip-interp)** | RT-98 | one4all `888c282` · corpus `65494e7` · PASS=188/201 | **sil_macros.h** → RT-3 NAME_fn/ASGNIC_fn OR NRETURN fix → ~195/201 |
->>>>>>> 8d274a80884bb66726dd5933f84625d48b8dc706
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |

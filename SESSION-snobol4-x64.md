@@ -129,6 +129,20 @@ parse `J=J+1` as an expression (call `EXPR()` which handles `=` as binary op if 
 or handle via CMPFRM-style sub-parse). MONITOR on Listen2WordPress.sno first.
 
 
+### P2D — assignment inside subscript `A[J=J+1]` (sprint 97)
+**Date:** 2026-04-05
+
+`A[J=J+1]` is NOT parsed as an ASSIGN node. CSNOBOL4 ELEARG re-enters EXPR after
+EQTYP: IBLKTB consumed `=`; two `FORWRD()` calls skip past `=` and its trailing
+space; next EXPR yields `J+1` as a second subscript arg. Result: two-arg subscript.
+
+Fix in all three subscript loops (ELEARY `<>`, postfix `[]`, CMPILE subject `[]`):
+```c
+if (BRTYPE == EQTYP) { FORWRD(); FORWRD(); continue; }
+```
+Key: SIL UNOP calls FORWRD before UNOPTB (v311.sil:2507); our ELEMNT does not.
+The two FORWRDs bridge this gap. Sweep 84/84 confirmed.
+
 ## Key files
 
 | File | Role |
@@ -152,10 +166,11 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| 97 | one4all `badbbf9` · corpus `8d5cc6a` | P2D ✅ sweep 84/84 — next: P2B alt-eval `(e1,e2,en)` or P2F `;` multi-stmt |
 | 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
 
 **Current milestone docs:**
-- `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
+- `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 84/84 ✅; Phase 2 P2D ✅; next P2B or P2F
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
 **Next session first actions:**
@@ -170,6 +185,9 @@ cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
 cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
 cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
 cd /home/claude
+bash one4all/csnobol4/dyn89_sweep.sh   # confirm 84/84
+# P2B: (e1,e2,en) alternative eval — NSTTYP branch in ELEMNT, comma-list → E_SELECT
+# P2F: semicolon multi-statement — loop in parse_program() after ST_EOS on ';'
 ```
 
 *(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
