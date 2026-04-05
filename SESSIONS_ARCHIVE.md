@@ -25040,3 +25040,19 @@ git -c user.name='Lon Jones Cherryholmes' -c user.email='lon@snobol4ever.dev' \
 - Two-way MONITOR recommendation: scrip-interp vs CSNOBOL4 for behavioral bugs.
   SPITBOL as optional second channel for extension/edge cases.
 - SIL proc names become C function names. No invention. Faithful translation.
+
+## scrip-interp × SIL sprint 96 — PUSH CORRECTION — 2026-04-04
+
+Sprint 96 handoff was incomplete — RT-1 files were on disk but not committed/pushed,
+violating the GENERAL-RULES ⛔ HANDOFF rule. Corrected in same session:
+
+- `one4all` HEAD after push: `d8e4180`
+- PASS=177 FAIL=1 confirmed with invoke.c linked
+- Build: staged /tmp/ib/*.o with stmt_init stub (snobol4_stmt_rt.c has asm-backend
+  deps incompatible with scrip-interp; stub provides SNO_INIT_fn+NV_SYNC_fn only)
+
+### Correct baselines for sprint 97
+- `one4all`: `d8e4180`  ← RT-1 committed and pushed
+- `corpus`: `8d5cc6a`
+- `.github`: see push below
+- scrip-interp: PASS=177 FAIL=1
