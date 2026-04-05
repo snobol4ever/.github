@@ -26018,3 +26018,61 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
 - one4all HEAD: `d16f152`
 - corpus HEAD: `3fd44d0`
 - PASS=190 FAIL=13 (203 total)
+## Sprint RT-105 — scrip-interp / SIL track — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Session type:** Track C — scrip-interp / SIL (--dump-parse flags + cmpile_lower stub)
+
+### Baseline confirmed
+- one4all HEAD at session start: `d16f152`
+- corpus HEAD: `3fd44d0`
+- PASS=190 FAIL=13 (203 total) — confirmed at session start
+
+### Work done
+
+**--dump-parse / --dump-parse-flat flags** added to `scrip-interp.c main()`:
+- Flag parsing loop before include-dir setup
+- `--dump-parse`: pretty S-expression dump via `cmpile_file()` + `cmpile_print()`
+- `--dump-parse-flat`: one-liner per stmt (oneline=1) for grep/diff
+- Both flags: parse via CMPILE, emit, exit 0 — no execution
+
+**`cmpile_lower()` stub** added to `scrip-interp.c`:
+- Walks `CMPILE_t` linked list → `Program*` / `STMT_t` IR
+- Uses `cmpnd_to_expr()` per field; wires `SnoGoto` from go_s/go_f/go_u
+- Tested: caused regression 190→171 — `cmpnd_to_expr()` has coverage gaps
+  (KEYFN stype 310, FNCTYP call nodes, pattern operators at stmt level)
+- Decision: default execution path stays `sno_parse()`; `cmpile_lower()`
+  only called from `--dump-parse` path (not execution) pending audit
+
+**`cmpnd_to_expr()` made non-static** in `snobol4_pattern.c` (linkable).
+**`CMPILE.h`**: `cmpnd_to_expr()` declared as public symbol.
+
+### Baseline at session end
+- one4all HEAD: `805c390`
+- corpus HEAD: `3fd44d0` (unchanged)
+- PASS=190 FAIL=13 (203 total) — baseline held ✅
+- Gate PASS≥190 met ✅
+
+### Sprint RT-106 first actions (Track C — cmpnd_to_expr audit)
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+
+# Step 1: cmpnd_to_expr() coverage audit
+#   Run --dump-parse on failing tests, collect all stype codes seen
+#   Compare against cmpnd_to_expr() switch cases in snobol4_pattern.c
+#   Key gaps found: KEYFN(310), FNCTYP(5) call nodes, pattern stypes
+#   Add missing cases until cmpile_lower() execution path reaches PASS=190
+
+# Step 2: Wire cmpile_lower() as default execution path
+#   Gate: PASS >= 190 with cmpile_lower() — sno_parse() removed from hot path
+
+# Step 3: --dump-parse regression test
+#   Add to test/run_interp_broad.sh: --dump-parse on known files, diff vs .dump refs
+```
