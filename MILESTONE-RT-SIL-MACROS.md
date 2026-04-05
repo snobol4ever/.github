@@ -15,7 +15,7 @@ For each, we need to know **both**:
 1. **scrip-interp axis** — does it become a C function / C macro in the RT layer?
    Used by: `snobol4.c`, `argval.c`, `invoke.c`, `nmd.c`, `eval_code.c`, `stmt_exec.c`
 2. **SM_Program axis** — does it become a named SM_Program instruction?
-   Used by: `sm_interp.c` dispatch loop (RT-9) + all emitters (x86, JVM, .NET, JS)
+   Used by: `sm_interp.c` dispatch loop (RUNTIME-9) + all emitters (x86, JVM, .NET, JS)
 
 These are **independent axes**. A macro can be:
 - RT only (too low-level for the SM — e.g. field access macros)
@@ -235,26 +235,26 @@ SM instruction `SM_CALL` dispatches to the INVOKE table.
 
 | SIL Proc | Builtin | scrip-interp | SM_Program | RT milestone |
 |----------|---------|:---:|:---:|------|
-| `INVOKE`/`INVK1`/`INVK2` | dispatch core | **RT** `INVOKE_fn` | via `SM_CALL` | RT-1 |
-| `ARGVAL` | arg evaluator (untyped) | **RT** `ARGVAL_fn` | via SM dispatch | RT-1 |
-| `VARVAL` | arg → STRING | **RT** `VARVAL_fn` | via SM dispatch | RT-2 |
-| `INTVAL` | arg → INTEGER | **RT** `INTVAL_fn` | via SM dispatch | RT-2 |
-| `PATVAL` | arg → PATTERN | **RT** `PATVAL_fn` | via SM dispatch | RT-2 |
-| `VARVUP` | arg → uppercase STRING | **RT** `VARVUP_fn` | via SM dispatch | RT-2 |
-| `NAME` | .X → DT_N descriptor | **RT** `NAME_fn` | via SM dispatch | RT-3 |
-| `ASGN`/`ASGNV`/`ASGNIC` | assignment with hooks | **RT** `ASGN_fn` | via SM dispatch | RT-5 |
-| `NMD`/`NMD1`–`NMD5`/`NMDIC` | naming list commit | **RT** `NMD_fn` | via SM dispatch | RT-4 |
-| `EXPVAL`/`EXPEVL` | EXPRESSION execute | **RT** `EXPVAL_fn` | `SM_STATE_PUSH/POP` | RT-6 |
-| `CONVE`/`CODER` | string→EXPRESSION/CODE | **RT** `CONVE_fn` | via SM dispatch | RT-7 |
-| `CNVRT` | CONVERT(X,T) | **RT** `CONVERT_fn` | via SM dispatch | RT-7 |
-| `EVAL`/`EVAL1` | EVAL() builtin | **RT** `EVAL_fn` | via SM dispatch | RT-8 |
-| `INTERP`/`INTRP0` | interpreter core | `execute_program()` | `sm_interp.c` loop | RT-9 |
-| `INIT` | statement header | per-stmt setup | SM header decode | RT-9 |
-| `GOTO` | offset goto | goto dispatch | `SM_JUMP` target | RT-9 |
-| `GOTL` | label goto + special labels | label lookup | `SM_JUMP` + INVOKE | RT-9 |
-| `GOTG` | `:(<VAR>)` computed goto | — | `SM_JUMP_INDIR` | RT-9 |
-| `BASE` | code basing | — | `SM_CALL` setup | RT-9 |
-| `PLS` | unary +X (NOT identity) | ⚠️ missing | via SM dispatch | RT-2 fix |
+| `INVOKE`/`INVK1`/`INVK2` | dispatch core | **RT** `INVOKE_fn` | via `SM_CALL` | RUNTIME-1 |
+| `ARGVAL` | arg evaluator (untyped) | **RT** `ARGVAL_fn` | via SM dispatch | RUNTIME-1 |
+| `VARVAL` | arg → STRING | **RT** `VARVAL_fn` | via SM dispatch | RUNTIME-2 |
+| `INTVAL` | arg → INTEGER | **RT** `INTVAL_fn` | via SM dispatch | RUNTIME-2 |
+| `PATVAL` | arg → PATTERN | **RT** `PATVAL_fn` | via SM dispatch | RUNTIME-2 |
+| `VARVUP` | arg → uppercase STRING | **RT** `VARVUP_fn` | via SM dispatch | RUNTIME-2 |
+| `NAME` | .X → DT_N descriptor | **RT** `NAME_fn` | via SM dispatch | RUNTIME-3 |
+| `ASGN`/`ASGNV`/`ASGNIC` | assignment with hooks | **RT** `ASGN_fn` | via SM dispatch | RUNTIME-5 |
+| `NMD`/`NMD1`–`NMD5`/`NMDIC` | naming list commit | **RT** `NMD_fn` | via SM dispatch | RUNTIME-4 |
+| `EXPVAL`/`EXPEVL` | EXPRESSION execute | **RT** `EXPVAL_fn` | `SM_STATE_PUSH/POP` | RUNTIME-6 |
+| `CONVE`/`CODER` | string→EXPRESSION/CODE | **RT** `CONVE_fn` | via SM dispatch | RUNTIME-7 |
+| `CNVRT` | CONVERT(X,T) | **RT** `CONVERT_fn` | via SM dispatch | RUNTIME-7 |
+| `EVAL`/`EVAL1` | EVAL() builtin | **RT** `EVAL_fn` | via SM dispatch | RUNTIME-8 |
+| `INTERP`/`INTRP0` | interpreter core | `execute_program()` | `sm_interp.c` loop | RUNTIME-9 |
+| `INIT` | statement header | per-stmt setup | SM header decode | RUNTIME-9 |
+| `GOTO` | offset goto | goto dispatch | `SM_JUMP` target | RUNTIME-9 |
+| `GOTL` | label goto + special labels | label lookup | `SM_JUMP` + INVOKE | RUNTIME-9 |
+| `GOTG` | `:(<VAR>)` computed goto | — | `SM_JUMP_INDIR` | RUNTIME-9 |
+| `BASE` | code basing | — | `SM_CALL` setup | RUNTIME-9 |
+| `PLS` | unary +X (NOT identity) | ⚠️ missing | via SM dispatch | RUNTIME-2 fix |
 | `INTGER` | INTEGER(X) | ✅ | via SM dispatch | — |
 | `EQ`/`NE`/`GT`/`LT`/`GE`/`LE` | numeric predicates | ✅ | via `SM_ACOMP` | — |
 | `LEQ`/`LNE`/`LGT`/`LLT`/`LGE`/`LLE` | string predicates | ✅ | via `SM_LCOMP` | — |
@@ -264,13 +264,13 @@ SM instruction `SM_CALL` dispatches to the INVOKE table.
 | `LPAD`/`RPAD`/`CHAR` | string ops | ✅ | via SM dispatch | — |
 | `ARRAY`/`ASSOC`/`ITEM` | array/table ops | ✅ | via SM dispatch | — |
 | `COPY`/`APPLY`/`DEFINE`/`OPSYN` | control | ✅ | via SM dispatch | — |
-| `TRACE`/`STOPTR` | trace hooks | ⬜ stub | via SM dispatch | RT-5 |
-| `LABEL` | LABEL(X) | partial | via SM dispatch | RT-3 |
+| `TRACE`/`STOPTR` | trace hooks | ⬜ stub | via SM dispatch | RUNTIME-5 |
+| `LABEL` | LABEL(X) | partial | via SM dispatch | RUNTIME-3 |
 | `IND` | $X indirect | ✅ | via SM dispatch | — |
-| `KEYWRD` | &KW access | partial | via SM dispatch | RT-3 |
+| `KEYWRD` | &KW access | partial | via SM dispatch | RUNTIME-3 |
 | `ARG`/`LOCAL`/`FIELD`/`FIELDS` | introspection | ✅ | via SM dispatch | — |
 | `DATDEF`/`FUNCTN`/`SORT`/`RSORT` | meta | ✅ | via SM dispatch | — |
-| `EVAL` stub→full | EVAL() | ⚠️ | via SM dispatch | RT-8 |
+| `EVAL` stub→full | EVAL() | ⚠️ | via SM dispatch | RUNTIME-8 |
 | `DATE`/`TIME` | system | ✅ | via SM dispatch | — |
 
 ---
@@ -359,36 +359,36 @@ Functions that exist only in C, called from scrip-interp and SM dispatch — not
 | `AEQLC(d,v)` macro | `AEQLC` | `sil_macros.h` | dispatch only | now |
 | `IS_INT/REAL/STR/PAT/…` | type shorthands | `sil_macros.h` | dispatch only | now |
 | `INCRA(d,n)` / `DECRA(d,n)` | `INCRA`/`DECRA` | `sil_macros.h` | `SM_INCR`/`SM_DECR` | now |
-| `SPCINT_fn(d,sp)` | `SPCINT` | `argval.c` | `SM_SPCINT` dispatch | RT-2 |
-| `SPREAL_fn(d,sp)` | `SPREAL` | `argval.c` | `SM_SPREAL` dispatch | RT-2 |
-| `REALST_fn(sp,d)` | `REALST` | `argval.c` | via `SM_CALL` | RT-2 |
-| `INTSP_fn(sp,d)` | `INTSP` / `INTSPC` | `argval.c` | via `SM_CALL` | RT-2 |
+| `SPCINT_fn(d,sp)` | `SPCINT` | `argval.c` | `SM_SPCINT` dispatch | RUNTIME-2 |
+| `SPREAL_fn(d,sp)` | `SPREAL` | `argval.c` | `SM_SPREAL` dispatch | RUNTIME-2 |
+| `REALST_fn(sp,d)` | `REALST` | `argval.c` | via `SM_CALL` | RUNTIME-2 |
+| `INTSP_fn(sp,d)` | `INTSP` / `INTSPC` | `argval.c` | via `SM_CALL` | RUNTIME-2 |
 | `TRIM_fn(sp,sp)` | `TRIMSP` | `snobol4.c` | `SM_TRIM` dispatch | now |
 | `LCOMP_fn(sp,sp)` | `LEXCMP` | `snobol4.c` | `SM_LCOMP` dispatch | now |
-| `INVOKE_fn(name,args,n)` | `INVOKE` | `invoke.c` | `SM_CALL` dispatch | RT-1 |
-| `ARGVAL_fn(d)` | `ARGVAL` | `argval.c` | SM arg fetch | RT-1 |
-| `VARVAL_fn(d)` | `VARVAL` | `argval.c` | `SM_PUSH_VAR` coerce | RT-2 |
-| `INTVAL_fn(d)` | `INTVAL` | `argval.c` | `SM_PUSH_VAR`→INT | RT-2 |
-| `PATVAL_fn(d)` | `PATVAL` | `argval.c` | `SM_PAT_DEREF` | RT-2 |
-| `VARVUP_fn(d)` | `VARVUP` | `argval.c` | `SM_CALL "VARVUP"` | RT-2 |
-| `NAME_fn(varname)` | `NAME` | `snobol4.c` | `SM_CALL ".X"` | RT-3 |
-| `ASGNIC_fn(kw,val)` | `ASGNIC` | `snobol4.c` | `SM_STORE_VAR` DT_K | RT-3 |
-| `NAM_push/commit/discard` | `NMD` | `nmd.c` | `SM_EXEC_STMT` | RT-4 |
-| `ASGN_fn(name,val)` | `ASGN` | `snobol4.c` | `SM_STORE_VAR` hook | RT-5 |
-| `EXPVAL_fn(d)` | `EXPVAL` | `eval_code.c` | `SM_STATE_PUSH/POP` | RT-6 |
-| `EXPEVL_fn(d)` | `EXPEVL` | `eval_code.c` | via `SM_CALL` | RT-6 |
-| `CONVE_fn(str_d)` | `CONVE` | `snobol4.c` | via `SM_CALL` | RT-7 |
-| `CODE_fn(args,n)` | `CODER` | `snobol4.c` | via `SM_CALL "CODE"` | RT-7 |
-| `CONVERT_fn(args,n)` | `CNVRT` | `snobol4.c` | via `SM_CALL "CONVERT"` | RT-7 |
-| `EVAL_fn(args,n)` | `EVAL` | `snobol4.c` | via `SM_CALL "EVAL"` | RT-8 |
-| `state_push()`/`state_pop()` | `ISTACKPUSH` | `eval_code.c` | `SM_STATE_PUSH/POP` | RT-6 |
+| `INVOKE_fn(name,args,n)` | `INVOKE` | `invoke.c` | `SM_CALL` dispatch | RUNTIME-1 |
+| `ARGVAL_fn(d)` | `ARGVAL` | `argval.c` | SM arg fetch | RUNTIME-1 |
+| `VARVAL_fn(d)` | `VARVAL` | `argval.c` | `SM_PUSH_VAR` coerce | RUNTIME-2 |
+| `INTVAL_fn(d)` | `INTVAL` | `argval.c` | `SM_PUSH_VAR`→INT | RUNTIME-2 |
+| `PATVAL_fn(d)` | `PATVAL` | `argval.c` | `SM_PAT_DEREF` | RUNTIME-2 |
+| `VARVUP_fn(d)` | `VARVUP` | `argval.c` | `SM_CALL "VARVUP"` | RUNTIME-2 |
+| `NAME_fn(varname)` | `NAME` | `snobol4.c` | `SM_CALL ".X"` | RUNTIME-3 |
+| `ASGNIC_fn(kw,val)` | `ASGNIC` | `snobol4.c` | `SM_STORE_VAR` DT_K | RUNTIME-3 |
+| `NAM_push/commit/discard` | `NMD` | `nmd.c` | `SM_EXEC_STMT` | RUNTIME-4 |
+| `ASGN_fn(name,val)` | `ASGN` | `snobol4.c` | `SM_STORE_VAR` hook | RUNTIME-5 |
+| `EXPVAL_fn(d)` | `EXPVAL` | `eval_code.c` | `SM_STATE_PUSH/POP` | RUNTIME-6 |
+| `EXPEVL_fn(d)` | `EXPEVL` | `eval_code.c` | via `SM_CALL` | RUNTIME-6 |
+| `CONVE_fn(str_d)` | `CONVE` | `snobol4.c` | via `SM_CALL` | RUNTIME-7 |
+| `CODE_fn(args,n)` | `CODER` | `snobol4.c` | via `SM_CALL "CODE"` | RUNTIME-7 |
+| `CONVERT_fn(args,n)` | `CNVRT` | `snobol4.c` | via `SM_CALL "CONVERT"` | RUNTIME-7 |
+| `EVAL_fn(args,n)` | `EVAL` | `snobol4.c` | via `SM_CALL "EVAL"` | RUNTIME-8 |
+| `state_push()`/`state_pop()` | `ISTACKPUSH` | `eval_code.c` | `SM_STATE_PUSH/POP` | RUNTIME-6 |
 
 ---
 
 ## sil_macros.h — Complete Design
 
 Create `src/runtime/snobol4/sil_macros.h`. This is the **RT axis** header.
-The **SM axis** changes are in `sm_interp.c` enum + dispatch (RT-9).
+The **SM axis** changes are in `sm_interp.c` enum + dispatch (RUNTIME-9).
 
 ```c
 /*
@@ -475,7 +475,7 @@ int INTSP_fn(char *out, int maxlen, DESCR_t d);
 void TRIM_fn(const char *in, int inlen, const char **out, int *outlen);
 
 /* ── Group 5: State save/restore — SM_STATE_PUSH/POP dispatch here ── */
-/* For EXPVAL (RT-6): save/restore full interpreter register file */
+/* For EXPVAL (RUNTIME-6): save/restore full interpreter register file */
 void state_push(void);   /* ISTACKPUSH — push OCBSCL,OCICL,… */
 void state_pop(void);    /* restore from state stack */
 
@@ -493,15 +493,15 @@ extern DESCR_t NULLDESCR;
 
 | RT Milestone | Uses (scrip-interp axis) | Uses (SM axis) |
 |-------------|--------------------------|----------------|
-| RT-1 INVOKE | `TESTF`, `VEQLC`, `BRANIC`→`INVOKE_fn` | `SM_CALL` dispatches `INVOKE_fn` |
-| RT-2 VARVAL/INTVAL/PATVAL | `SPCINT_fn`, `SPREAL_fn`, `INTRL`, `RLINT`, `LOCSP`, `GETLG` | `SM_SPCINT`, `SM_SPREAL`, `SM_PUSH_VAR` coerce |
-| RT-3 NAME/KEYWORD | `VEQLC` DT_K, `GETDC`/`PUTDC`, `NAME_fn` | `SM_STORE_VAR` DT_K path, `SM_CALL ".X"` |
-| RT-4 NMD | `GETLG`, `ACOMP`, `GETSPC`, `PUTDC`, `SPCINT_fn` | `SM_EXEC_STMT` calls `NAM_commit`/`NAM_discard` |
-| RT-5 ASGN | `TESTF`, `VEQLC`, `PUTDC`, `AEQLC` trace check | `SM_STORE_VAR` extended with output/trace hooks |
-| RT-6 EXPVAL | `SM_STATE_PUSH/POP`, `SPUSH`/`SPOP` | `SM_STATE_PUSH` + `SM_STATE_POP` instructions |
-| RT-7 CONVE/CODER | `SPCINT_fn`, `SPREAL_fn`, `LOCSP`, `GETLG` | `SM_CALL "CODE"`, `SM_CALL "CONVERT"` |
-| RT-8 EVAL | `VEQLC` dispatch, `SPCINT_fn`, `SPREAL_fn`, `CONVE_fn`, `EXPVAL_fn` | `SM_CALL "EVAL"` → `SM_SPCINT`/`SM_SPREAL` inline |
-| RT-9 INTERP | `INCRA`/`DECRA`, `TESTF`, `BRANIC`, `SELBRA`, `ACOMP`/`RCOMP` | ALL SM instructions — `sm_interp.c` dispatch loop |
+| RUNTIME-1 INVOKE | `TESTF`, `VEQLC`, `BRANIC`→`INVOKE_fn` | `SM_CALL` dispatches `INVOKE_fn` |
+| RUNTIME-2 VARVAL/INTVAL/PATVAL | `SPCINT_fn`, `SPREAL_fn`, `INTRL`, `RLINT`, `LOCSP`, `GETLG` | `SM_SPCINT`, `SM_SPREAL`, `SM_PUSH_VAR` coerce |
+| RUNTIME-3 NAME/KEYWORD | `VEQLC` DT_K, `GETDC`/`PUTDC`, `NAME_fn` | `SM_STORE_VAR` DT_K path, `SM_CALL ".X"` |
+| RUNTIME-4 NMD | `GETLG`, `ACOMP`, `GETSPC`, `PUTDC`, `SPCINT_fn` | `SM_EXEC_STMT` calls `NAM_commit`/`NAM_discard` |
+| RUNTIME-5 ASGN | `TESTF`, `VEQLC`, `PUTDC`, `AEQLC` trace check | `SM_STORE_VAR` extended with output/trace hooks |
+| RUNTIME-6 EXPVAL | `SM_STATE_PUSH/POP`, `SPUSH`/`SPOP` | `SM_STATE_PUSH` + `SM_STATE_POP` instructions |
+| RUNTIME-7 CONVE/CODER | `SPCINT_fn`, `SPREAL_fn`, `LOCSP`, `GETLG` | `SM_CALL "CODE"`, `SM_CALL "CONVERT"` |
+| RUNTIME-8 EVAL | `VEQLC` dispatch, `SPCINT_fn`, `SPREAL_fn`, `CONVE_fn`, `EXPVAL_fn` | `SM_CALL "EVAL"` → `SM_SPCINT`/`SM_SPREAL` inline |
+| RUNTIME-9 INTERP | `INCRA`/`DECRA`, `TESTF`, `BRANIC`, `SELBRA`, `ACOMP`/`RCOMP` | ALL SM instructions — `sm_interp.c` dispatch loop |
 
 ---
 
@@ -516,7 +516,7 @@ extern DESCR_t NULLDESCR;
 Each RT-N reads the corresponding SIL proc from `v311.sil`, implements in C
 using `sil_macros.h` type tests and field accessors, registers in INVOKE table.
 
-### RT-9 — sm_interp.c (The Architecture Target)
+### RUNTIME-9 — sm_interp.c (The Architecture Target)
 When `sm_interp.c` is written, every SM instruction in the master table above
 gets a dispatch case. The 12 new SM ops each call the corresponding RT function
 defined in `sil_macros.h`. The emitter maps each SM op to native code.
