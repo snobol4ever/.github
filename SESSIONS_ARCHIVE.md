@@ -24572,3 +24572,33 @@ sed -n '2214,2245p' /home/claude/snobol4-2.3.3/v311.sil
 ### Baselines for sprint 92
 - `one4all`: `ae60046`
 - `corpus`: `8d5cc6a` (unchanged)
+
+## SNOBOL4 × x86 sprint 91 addendum — ARCHITECTURE VIOLATION (2026-04-05)
+
+### ⛔ CRITICAL CORRECTION
+
+The linebuf pre-joining approach is an **architecture violation**.
+
+CSNOBOL4 (confirmed from snobol4.c FORWRD/FORRUN/FORBLK):
+- TEXTSP holds ONE physical line at a time
+- When STREAM returns ST_EOS, FORWRD calls FORRUN which calls IO_READ for the NEXT line
+- CARDTB classifies it; if CNTCRD (continuation), strips '+' and restarts FORWRD
+- TRUE STREAMING — no pre-joining, ever
+
+Our sno4parse linebuf pre-joins continuation lines before CMPILE runs.
+This is wrong. It fails when operators land on different physical lines
+from their operands, and it is structurally incompatible with the SIL model.
+
+### Sprint 92 mandatory first action: rip out linebuf, implement true streaming
+
+Replace compile_state_t linebuf with:
+- TEXTSP = one physical line (rawline buffer, set fresh each IO_READ)
+- FORWRD/FORBLK: on ST_EOS, call next_physical_line():
+  - read next line from file
+  - run CARDTB: if CNTCRD → strip '+', set TEXTSP to remainder, return to FORWRD
+  - if CMTCRD → skip, loop
+  - if NEWTYP → save as pending_line (next statement), return EOSTYP to caller
+- No linebuf. No pre-joining. Ever.
+
+### Commits
+- `.github`: pushed after this entry
