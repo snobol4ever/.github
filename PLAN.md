@@ -90,6 +90,15 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
+| **RUNTIME / RT-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
+| **RUNTIME / RT-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
+| **RUNTIME / RT-3** | `MILESTONE-RT-RUNTIME.md` | ⬜ NAME type + keyword names |
+| **RUNTIME / RT-4** | `MILESTONE-RT-RUNTIME.md` | ⬜ NMD conditional assignment stack |
+| **RUNTIME / RT-5** | `MILESTONE-RT-RUNTIME.md` | ⬜ ASGN with OUTPUT/TRACE hooks |
+| **RUNTIME / RT-6** | `MILESTONE-RT-RUNTIME.md` | ⬜ EXPVAL / EXPRESSION type execution |
+| **RUNTIME / RT-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
+| **RUNTIME / RT-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
+| **RUNTIME / RT-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
 | MONITOR | `MONITOR.md` | ✅ |
@@ -102,6 +111,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | 92 | one4all `229b04e` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 2** → P2A binary `?`, P2C `[]`, P2F `;` |
+| **RUNTIME (scrip-interp)** | RT-1 | one4all `5c1a1d8` · baseline PASS=177 | **RT-1** INVOKE dispatch table → `invoke.c` |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
