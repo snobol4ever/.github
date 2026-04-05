@@ -25327,3 +25327,24 @@ csnobol4's field order (a,f,v). Our DESCR_t has different layout (v,slen,union).
 These macros are safe ONLY when used with known struct offsets from our own
 types. Do NOT use GETDC/PUTDC with csnobol4-derived offsets (ATTRIB=2*DESCR etc).
 Next session: audit usages or replace with typed field access macros.
+
+### ⚠️ FLAGS FIELD — critical addendum (end of sprint 99)
+
+The SIL golden trinity is FLAG, VALUE, ADDRESS — all three are essential.
+
+csnobol4 .f field carries:
+  FNC  — this descriptor is a function (dispatch via BRANIC)
+  PTR  — address field is a GC-traced pointer
+  STTL — this is a block title descriptor (GC block sizing)
+
+Our DESCR_t has NO .f field. We survive because:
+  FNC  → invoke.c table lookup (correct but slower than bit test)
+  PTR  → Boehm GC conservative scan (doesn't need the bit)
+  STTL → Boehm GC (doesn't need the bit)
+
+sil_macros.h IS_FNC(d) returns 0 — THIS IS WRONG.
+TESTF macro as written is wrong for our layout.
+
+Sprint 100: decide — add a flags field to DESCR_t, OR document that
+FNC/PTR/STTL are permanently routed differently and fix IS_FNC/TESTF
+to reflect reality (invoke table test, not bit test).
