@@ -230,7 +230,7 @@ SPITBOL identifiers are `[A-Za-z][A-Za-z0-9_]*`. For Unicode:
 | M-SN4PARSE-P1b | Postfix subscript `f()[i]` | — | ⬜ sprint 91 |
 | M-SN4PARSE-P1c | Qize/io g_error lifecycle | — | ⬜ sprint 91 |
 | **M-SN4PARSE-P2A** | Binary `?` pattern-match operator | P1 | ⬜ |
-| **M-SN4PARSE-P2B** | Alternative eval `(e1,e2,en)` | P1 | ⬜ |
+| **M-SN4PARSE-P2B** | Alternative eval `(e1,e2,en)` | P1 | ✅ sprint 98-ext |
 | **M-SN4PARSE-P2C** | `[]` subscript = `<>` + postfix subscript | P1 | ⬜ |
 | **M-SN4PARSE-P2D** | Multiple assignment `A=B=C+1` | P1 | ⬜ |
 | M-SN4PARSE-P2E | Embedded match `(B?C=D)` | P2A+P2D | ⬜ |

@@ -110,7 +110,7 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | 97 | one4all `badbbf9` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE** — P2D ✅ sweep 84/84 — next: P2B alt-eval `(e1,e2)` or P2F `;` |
+| **SNOBOL4 × x86** | 98-ext | one4all `45ad889` · corpus `65494e7` | **M-SN4PARSE-VALIDATE** — P2B ✅ P2D ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BISNFN@prec1) or P2C `[]`=`<>` |
 | **RUNTIME (scrip-interp)** | RT-98 | one4all `888c282` · corpus `65494e7` · PASS=188/201 | **sil_macros.h** → RT-3 NAME_fn/ASGNIC_fn OR NRETURN fix → ~195/201 |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |

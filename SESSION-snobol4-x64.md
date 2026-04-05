@@ -174,41 +174,33 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 84/84 ✅; Phase 2 P2D ✅; next P2B or P2F
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
-**Next session first actions:**
+**Next session first actions (sprint 99):**
 ```bash
 cd /home/claude
-cat .github/SCRIP-SM.md
-tail -120 .github/SESSIONS_ARCHIVE.md
-cat .github/SESSION-snobol4-x64.md        # §INFO then §NOW
-cat .github/MILESTONE-SN4PARSE-VALIDATE.md  # current milestone phases + remaining bugs
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
-cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
-cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
-cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
-cd /home/claude
-bash one4all/csnobol4/dyn89_sweep.sh   # confirm 84/84
-# P2B: (e1,e2,en) alternative eval — NSTTYP branch in ELEMNT, comma-list → E_SELECT
-# P2F: semicolon multi-statement — loop in parse_program() after ST_EOS on ';'
-```
-
-*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
-
-**sno4parse next session first actions (sprint 91):**
-```bash
-cd /home/claude
-cat .github/SCRIP-SM.md
 tail -120 .github/SESSIONS_ARCHIVE.md
 cat .github/SESSION-snobol4-x64.md
 cat .github/MILESTONE-SN4PARSE-VALIDATE.md
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+apt-get install -y libgc-dev flex
+# Build: sno4parse_main is the entry point, needs wrapper main
+cat > /tmp/sno4parse_wrap.c << 'WRAP'
+int sno4parse_main(int argc, char **argv);
+int main(int argc, char **argv) { return sno4parse_main(argc, argv); }
+WRAP
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c /tmp/sno4parse_wrap.c
+cp sno4parse one4all/sno4parse
 cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
 cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
 cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0" 2>&1 | tail -3
 cd /home/claude
-# 1. g_error lifecycle: grep -n "g_error\|sil_error" one4all/src/frontend/snobol4/sno4parse.c | head -30
-# 2. SNO_TRACE=1 ./sno4parse corpus/programs/snobol4/demo/inc/Qize.sno 2>&1 | grep "ret=ERROR"
-# 3. BRTYPE=1 postfix subscript: sed -n around ELEFNC + expr_prec_continue '[' detection
+# Confirm 84/84 (use bash -c, not sh):
+bash -c 'SNO4=/home/claude/one4all/sno4parse; CORPUS=/home/claude/corpus/programs/snobol4; OK=0; ERR=0; HANG=0; while IFS= read -r f; do ec=0; r=$(timeout 10 "$SNO4" "$f" 2>&1)||ec=$?; [[ $ec -eq 124 ]] && { HANG=$((HANG+1)); continue; }; e=$(echo "$r"|grep -m1 "ELEMNT:\|sil_error\|illegal"||true); [[ -n "$e" ]] && ERR=$((ERR+1)) || OK=$((OK+1)); done < <(find "$CORPUS" -name "*.sno"|sort); echo "=== OK=$OK ERR=$ERR HANG=$HANG ==="'
+# Gate: 84/84 — then pick:
+# P2A: binary ? — in BINOP(), after BIOPTB ST_ERROR, check *TEXTSP.ptr=='?' return BISNFN(215) prec=1
+#       Test: ABCD ? LEN(3) $ OUTPUT  (SPITBOL manual AppC p275)
+# P2C: [] alias for <> — expr_prec_continue '[' postfix handler already present; verify f(g(x)[i])
 ```
+
+*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
 
 ### ✅ LINEBUF PRE-JOIN REMOVED (sprint 92)
 **Date:** 2026-04-05 → implemented 2026-04-04
