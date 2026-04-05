@@ -24630,3 +24630,70 @@ bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 81
 sed -n '1831,1930p' /home/claude/snobol4-2.3.3/snobol4.c
 # Step 2: rip linebuf, implement true streaming
 ```
+
+## SNOBOL4 × x86 sprint 92 — 2026-04-04
+
+### What Was Done
+
+**True streaming + 5 stream() call-site fixes** ✅
+
+Root cause of all 3 remaining ERRs (claws5.sno, Qize.sno, io.sno):
+FORWRD/FORBLK returned BRTYPE=EOSTYP on ST_EOS instead of calling FORRUN to
+fetch the next physical card. Expressions spanning continuation lines failed.
+
+SIL STREAM 6-arg convention confirmed:
+  `STREAM out, in, table, error_branch, eos_branch, stop_branch`
+  C stream() maps: ST_ERROR→arg4, ST_EOS→arg5, ST_STOP→arg6
+
+**Fix 1: FORWRD ST_EOS → forrun()** ✅
+SIL: `STREAM XSP,TEXTSP,FRWDTB,COMP3,FORRUN`
+forrun() reads next physical card, NEWCRD dispatch:
+  CNTTYP → strip '+', update TEXTSP, return 2 (re-drive STREAM)
+  NEWTYP → save in g_pending_*, return 1 (BRTYPE=EOSTYP to caller)
+  CMTTYP/CTLTYP → skip/handle, loop
+
+**Fix 2: FORBLK ST_EOS → forrun()** ✅
+SIL: `STREAM XSP,TEXTSP,IBLKTB,RTN1,FORRUN,FORJRN`
+ST_ERROR=RTN1 (no blank) correctly left as-is (was being conflated with EOS).
+
+**Fix 3: ELEMTB ST_EOS + STYPE==0 → sil_error** ✅
+SIL: ELEILI `AEQLC STYPE,0,,ELEICH`
+
+**Fix 4: GOTOTB ST_EOS → sil_error (CERR12)** ✅
+
+**Fix 5: LBLTB ST_ERROR → sil_error (CERR1)** ✅
+
+**linebuf removed** ✅
+compile_file: no pre-joining, no linebuf. TEXTSP = one raw physical line.
+compile_state_t: linebuf/linebuf_len/stmt_lineno gone; flush_linebuf() gone.
+IO globals: g_io_file, g_io_path, g_io_lineno, g_io_linebuf, g_pending_*.
+
+### Sweep results
+
+| Status | Count |
+|--------|-------|
+| OK     | 84    |
+| ERR    | 0     |
+| HANG   | 0     |
+
+### Commits
+- `one4all`: `229b04e`
+- `.github`: pushed after this entry
+
+### Baselines for sprint 93
+- `one4all`: `229b04e`
+- `corpus`: `8d5cc6a`
+
+### Sprint 93 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/MILESTONE-SN4PARSE-VALIDATE.md
+gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/sno4parse.c
+cp sno4parse one4all/sno4parse
+bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep -c "^OK"  # confirm 84
+# Next: Phase 2 SPITBOL extensions — start with P2C ([] subscript, easiest)
+# then P2F (semicolon separator), then P2A (binary ?)
+```

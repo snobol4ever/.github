@@ -101,7 +101,7 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | 90 | one4all `055fa15` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 1** → 76/84 OK · 8 ERR remain |
+| **SNOBOL4 × x86** | 92 | one4all `229b04e` · corpus `8d5cc6a` | **M-SN4PARSE-VALIDATE Phase 2** → P2A binary `?`, P2C `[]`, P2F `;` |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
