@@ -2,7 +2,8 @@
 
 **Track:** C (scrip-interp / SIL)
 **Sprint introduced:** 104
-**Priority:** NEW TOP — supersedes EVAL fix as first action
+**Status:** 🔴 ACTIVE — RT-113 pivot 2026-04-05
+**Priority:** TOP — supersedes RUNTIME-6 DT_E blocker
 
 ---
 
