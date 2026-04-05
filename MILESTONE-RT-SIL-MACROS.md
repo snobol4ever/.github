@@ -293,9 +293,17 @@ Lines 7160–10211 of v311.sil: BLAND, BOX, BOXIN, AFRAME, etc.
 ## The Two-Axis Master Table — SM Instructions
 
 These are the SM_Program instructions that exist or are added.
-Each has a `scrip-interp` implementation and an emitter translation.
 
-| SM Instruction | SIL Origin | scrip-interp (C) | x86 emitter | Status |
+**Two completely different backends — different languages:**
+- `scrip-interp (C)` column: what `sm_interp.c` does in C when it dispatches
+  this op. Calls C RT functions from `sil_macros.h` / `snobol4.c` / `argval.c`.
+- `x86 emitter` column: the **x86 assembly instructions** that `emit_x64.c`
+  writes into the code buffer when it sees this SM op. `call lexcmp` here means
+  the emitter writes the bytes for an x86 `call` instruction targeting the
+  `lexcmp` runtime symbol — not a C function call. `jmp [rax]` means the emitter
+  writes an indirect-jump encoding. These are assembly mnemonics, not C.
+
+| SM Instruction | SIL Origin | scrip-interp (C) | x86 emitter (asm) | Status |
 |----------------|------------|------------------|-------------|--------|
 | `SM_PUSH_LIT_S` | `PUSH` literal | push string descr | `mov`+`call push_str` | DONE |
 | `SM_PUSH_LIT_I` | `PUSH` integer | push int descr | `mov`+`call push_int` | DONE |
