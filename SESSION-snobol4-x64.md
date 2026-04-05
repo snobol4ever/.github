@@ -166,7 +166,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 98 | one4all `d37df7d` · corpus `8d5cc6a` | P2B ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` or P2C `[]`=`<>` postfix subscript |
+| 99 | one4all `d37df7d` · corpus `8d5cc6a` | P2B ✅ P2F ✅ sweep 84/84 — next: P2A binary `?` (BINOP special-case BISNFN@prec1) or P2C `[]`=`<>` confirm |
 | 100 | one4all `888c282` · corpus `65494e7` | PASS=188/201; beauty blocked by `;` stmt-separator + `&ALPHABET` gaps. Fix `;` first → ~195/201. Then sil_macros.h Option C + RT-3. |
 
 **Current milestone docs:**
@@ -292,3 +292,16 @@ apt-get install -y libgc-dev flex
 
 **PLS registered** (sprint 100): `register_fn("PLS", _b_pos, 1, 1)` in `snobol4.c`.
 **-INCLUDE transitive dir** (sprint 100): `snobol4.l` all three handlers add resolved dir to `inc_dirs`.
+
+### Sprint 98 §INFO addendum — 2026-04-05
+
+**P2B root cause (FRWDTB ACT_STOP does not consume stopping char):**
+Inside the NSTTYP SELECT loop, TEXTSP is positioned AT `,` after BINOP1
+restores it. Must manually `TEXTSP.ptr++; TEXTSP.len--` before `FORWRD()`.
+BRTYPE=CMATYP (not TEXTSP position) is the correct loop trigger.
+
+**SELTYP=50** — new synthetic stype for SELECT/alt-eval nodes. stype_name()
+returns `"SELECT"` for it. No conflict with any SIL stype (all ≤ 7).
+
+**Sweep invariant:** always use `bash -c '...'` explicitly — the container
+`/bin/sh` is dash, which rejects `[[` and `((` syntax.
