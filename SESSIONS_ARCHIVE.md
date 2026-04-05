@@ -24926,3 +24926,120 @@ cd /home/claude/one4all && bash test/run_interp_broad.sh  # confirm 177
 # RT-8: EVAL_fn — full SIL EVAL proc (idempotent I/R, CONVE+EXPVAL for S)
 # Target: expr_eval passes → PASS=178
 ```
+
+## scrip-interp × SIL sprint 96 — 2026-04-04
+
+### Session type
+Track C: scrip-interp with SIL implementation. New session type — no prior SESSION doc existed for this track.
+
+### What Was Done
+
+**Session start protocol completed** ✅
+All mandatory reads: SCRIP-SM.md → BB-GRAPH.md → BB-DRIVER.md → IR.md → SESSIONS_ARCHIVE tail → GENERAL-RULES headings → PLAN.md → INTERP-X86.md → MILESTONE-RT-RUNTIME.md
+
+**Archives extracted** ✅
+- `snobol4-2_3_3_tar.gz` → `/home/claude/snobol4-2.3.3/` (CSNOBOL4 + v311.sil oracle)
+- `x64-main.zip` → `/home/claude/x64/x64-main/` (SPITBOL/MINIMAL oracle)
+
+**MINIMAL vs SIL architectural analysis** ✅
+Deep read of `sbl.min` (29K lines MINIMAL) vs `v311.sil` (12K lines SIL).
+Verdict documented:
+- MINIMAL as implementation language: **No** — SM_Program already IS MINIMAL, cleaner
+- SPITBOL as primary correctness oracle: **No** — CSNOBOL4/SIL stays primary; Lon knows every proc
+- SPITBOL pattern node layout (`p0blk/p1blk/p2blk` = `{pcode,pthen,parm1,parm2}`): confirms our `bb_node_t.α` direct-call model is correct and matches SPITBOL's speed approach
+- SPITBOL as speed design reference for emitter: **Yes**
+- SIL for runtime function semantics: **Yes** — faithful translation to C
+
+**Baseline confirmed** ✅
+Built `scrip-interp` with correct source names (`snobol4.tab.c`, `snobol4.lex.c`).
+PASS=177 FAIL=1 (expr_eval) — matches sprint 95 baseline.
+Build method: staged `/tmp/ib/*.o` compile required (bb_dvar/bb_atp/bb_capture have pre-existing errors; single-pass gcc exits 1 and does not write binary).
+
+**RT-1 written** ✅
+`src/runtime/snobol4/invoke.c` created — 5 SIL-faithful functions:
+- `INVOKE_fn(name, args, nargs)` — universal dispatcher (SIL line 2669)
+- `ARGVAL_fn(d)` — evaluate one argument to value (SIL line 2683)
+- `VARVAL_d_fn(d)` — coerce to STRING (SIL VARVAL, DESCR_t form)
+- `INTVAL_fn(d)` — coerce to INTEGER via SPCINT/RLINT (SIL line 2774)
+- `PATVAL_fn(d)` — coerce to PATTERN via bb_lit/EXPVAL stub (SIL line 2800)
+
+`snobol4.h` updated with declarations for all five functions.
+
+**Not yet done (wiring):**
+`INVOKE_fn` not yet called from `scrip-interp.c` — the builtin dispatch path in `call_user_function` still uses `APPLY_fn` directly via `g_user_call_hook`. Wiring is the first action of next session.
+
+**Not yet committed** — RT-1 files (`invoke.c`, `snobol4.h` change) are on disk, not committed.
+
+### Baselines for sprint 97
+- `one4all`: `50772a9` (no new commit — RT-1 not yet committed)
+- `corpus`: `8d5cc6a`
+- `.github`: `8d274a8`
+- scrip-interp: PASS=177 FAIL=1
+
+### Build command (confirmed working)
+```bash
+cd /home/claude/one4all
+ROOT=$(pwd); RT="$ROOT/src/runtime"; BOXES="$RT/boxes"
+mkdir -p /tmp/ib
+
+# Compile all objects
+gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+    -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+    -c src/frontend/snobol4/snobol4.tab.c -o /tmp/ib/snobol4.tab.o
+gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+    -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+    -c src/frontend/snobol4/snobol4.lex.c -o /tmp/ib/snobol4.lex.o
+
+for f in src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
+         src/runtime/snobol4/invoke.c \
+         src/runtime/dyn/stmt_exec.c src/runtime/dyn/eval_code.c \
+         src/runtime/asm/snobol4_stmt_rt.c src/runtime/engine/engine.c; do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+for f in $(find src/runtime/boxes -name "bb_*.c" | grep -v "bb_dvar\|bb_atp\|bb_capture"); do
+    base=$(basename $f .c)
+    gcc -O0 -g -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types \
+        -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" \
+        -c $f -o /tmp/ib/${base}.o
+done
+
+gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$BOXES/shared" -I "$RT/dyn" -DDYN_ENGINE_LINKED \
+    -c src/driver/scrip-interp.c -o /tmp/ib/scrip_interp_driver.o
+
+gcc /tmp/ib/*.o -lgc -lm -o scrip-interp
+bash test/run_interp_broad.sh   # confirm PASS=177 FAIL=1
+```
+
+### Sprint 97 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-RT-RUNTIME.md
+
+# 1. Build (staged — see build command above)
+# 2. Confirm PASS=177 FAIL=1
+# 3. Wire INVOKE_fn into scrip-interp.c call_user_function:
+#    In the builtin dispatch branch, replace direct APPLY_fn call with INVOKE_fn
+#    (user-body path via g_user_call_hook is unchanged)
+# 4. Rebuild + confirm PASS=177 FAIL=1 (no regression)
+# 5. Commit both files:
+git -c user.name='Lon Jones Cherryholmes' -c user.email='lon@snobol4ever.dev' \
+    add src/runtime/snobol4/invoke.c src/runtime/snobol4/snobol4.h
+git -c user.name='Lon Jones Cherryholmes' -c user.email='lon@snobol4ever.dev' \
+    commit -m "RT-1: INVOKE_fn ARGVAL_fn INTVAL_fn PATVAL_fn VARVAL_d_fn — SIL-faithful dispatch (invoke.c)"
+# 6. RT-2: argval.c — thread VARVAL_d_fn/INTVAL_fn/PATVAL_fn through interp_eval() coercions
+# 7. RT-7 → RT-8 chain is the unlock for expr_eval → PASS=178
+```
+
+### Key architectural decisions this session
+- SM_Program = our own MINIMAL. No porting of MINIMAL language.
+- CSNOBOL4/SIL stays primary oracle. SPITBOL = speed design reference only.
+- bb_node_t.α direct-call = SPITBOL pcode dispatch. Already correct. Already fast.
+- Two-way MONITOR recommendation: scrip-interp vs CSNOBOL4 for behavioral bugs.
+  SPITBOL as optional second channel for extension/edge cases.
+- SIL proc names become C function names. No invention. Faithful translation.

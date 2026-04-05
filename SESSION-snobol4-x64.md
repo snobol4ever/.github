@@ -137,7 +137,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| 95 | one4all `5c1a1d8` · corpus `8d5cc6a` · .github `9691a89` | **scrip-interp RT milestones created** — next: RT-7 `CONVE_fn` + RT-8 `EVAL_fn` → PASS=178; OR continue P2 parser work (computed goto, chained `[]`) |
+| 96 | one4all `50772a9` (RT-1 uncommitted on disk) · corpus `8d5cc6a` · .github `8d274a8` | **RT-1 wire + commit** → RT-2 `argval.c` → RT-7/RT-8 `EVAL_fn` → PASS=178 |
 
 **Current milestone docs:**
 - `MILESTONE-SN4PARSE-VALIDATE.md` — active; Phase 1 at ~73/84 OK
