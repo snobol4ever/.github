@@ -25229,3 +25229,101 @@ cat .github/MILESTONE-RT-RUNTIME.md
 #     beauty_omega, beauty_ShiftReduce, beauty_Qize, beauty_TDump (~7 tests)
 # Lon to decide priority.
 ```
+
+## scrip-interp × SIL sprint 99 — 2026-04-05
+
+**Session:** Track C — scrip-interp / SIL implementation
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+
+### DESCR_t comparison: ours vs csnobol4
+
+**Theirs (csnobol4 `struct descr`, snotypes.h:119):**
+```
+struct descr {
+    union addr a;   /* address — holds int_t i OR real_t f OR ptr */
+    FFLD(f);        /* flags byte (char) — FNC, PTR, STTL bits */
+    VFLD(v);        /* value/type tag — unsigned int (32-bit) */
+};
+/* On x86-64: a=8 bytes, f=1 byte (+3 pad), v=4 bytes = 16 bytes total */
+/* SPEC = two adjacent descrs = 32 bytes (length + address pair) */
+```
+Field order: **a, f, v** — address first, flags second, type last.
+- `D_A(x)` = `x.a.i` (integer or address)
+- `D_F(x)` = `x.f`   (flags: FNC=function, PTR=GC pointer, STTL=title)
+- `D_V(x)` = `x.v`   (type tag: S=1, P=3, A=4, T=5, I=6, R=7, C=8, N=9, K=10, E=11)
+- `D_RV(x)` = `x.a.f` (real value stored in address union)
+- No separate slen — strings use a SPEC (two descrs: length descr + address descr)
+
+**Ours (`DESCR_t`, snobol4.h:49):**
+```c
+typedef struct DESCR_t {
+    DTYPE_t  v;      /* type tag — enum, 4 bytes */
+    uint32_t slen;   /* binary string length (0 = strlen); fills padding */
+    union {
+        char    *s;   int64_t i;   double r;
+        PATND_t *p;   ARBLK_t *arr; TBBLK_t *tbl;
+        DATINST_t *u; void *ptr;
+    };
+} DESCR_t;
+/* On x86-64: v=4, slen=4, union=8 = 16 bytes total — same size */
+```
+Field order: **v, slen, union** — type first, length second, value last.
+- `.v`    = type tag (same values as theirs for S/P/I/R/C/N/K/E/A/T)
+- `.slen` = string byte length packed into padding (our addition — no SPEC needed)
+- `.i`/`.r`/`.s`/`.ptr` = value union
+- **No `.f` flags field** — FNC dispatch via invoke.c table, not flag bit
+
+**Key differences:**
+1. **Field order reversed** — theirs: a,f,v / ours: v,slen,union. `D_V` ≠ `.v` positionally.
+2. **No .f flags** — we have no FNC/PTR/STTL bits. FNC handled by invoke.c lookup.
+3. **slen replaces SPEC** — theirs needs a two-descriptor SPEC for string length; ours packs length into padding alongside .v. No SPEC struct needed.
+4. **Real storage** — theirs: `a.f` (real in address union). Ours: `.r` (real in value union). Same slot logically.
+5. **Type tag values match** — S=1, P=3, I=6, R=7, C=8, N=9, K=10, E=11 identical.
+
+**Consequence for sil_macros.h:** GETDC/PUTDC byte-offset arithmetic from theirs does NOT map to ours. Our macros use struct field access, not raw offsets. The `sil_macros.h` GETDC/PUTDC definitions using byte offsets are wrong for our layout and should only be used where the offset IS a known struct field offset (e.g. ATTRIB, LNKFLD). Direct field access (`.v`, `.i`, `.s`) is always preferred.
+
+### Work done this session
+- Revised MILESTONE-RT-SIL-MACROS.md: dual-axis classification (scrip-interp C vs x86 asm emitter)
+- Created `src/runtime/snobol4/sil_macros.h` — all useful SIL macros, compiles clean
+- Clarified: x86 emitter column = assembly mnemonics, NOT C function calls
+- one4all HEAD: `231da87`  .github HEAD: `6542744`
+
+### Baselines (unchanged — no PASS movement this session)
+- one4all: `231da87` · corpus: `65494e7`
+- scrip-interp: PASS=188 FAIL=13 (201 total)
+
+### Sprint 100 first actions
+```bash
+cd /home/claude
+cat .github/SCRIP-SM.md
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/MILESTONE-RT-SIL-MACROS.md
+cat .github/MILESTONE-RT-RUNTIME.md
+cat .github/SESSION-snobol4-x64.md
+
+# Build — sprint 99 command (argval.c in loop):
+ROOT=$(pwd)/one4all; RT="$ROOT/src/runtime"; BOXES="$RT/boxes"
+mkdir -p /tmp/ib && rm -f /tmp/ib/*.o
+# [full build command from SESSIONS_ARCHIVE sprint 98]
+# Confirm PASS=188 FAIL=13
+
+# Priority 1: fix -INCLUDE parse error blocking beauty_stack/counter/semantic/
+#   omega/ShiftReduce/Qize/TDump (~7 tests → ~195/201)
+#   Debug: SNO_LIB=".../demo/inc" ./scrip-interp beauty_stack_driver.sno 2>&1
+#   "snobol4:0: error: parse error: syntax error" — include chain failing
+
+# Priority 2: fix PLS (one line: register_fn("PLS", _b_pls, 1, 1) in snobol4.c)
+
+# Priority 3: fix GETDC/PUTDC in sil_macros.h — byte-offset versions wrong
+#   for our DESCR_t layout; replace with direct field access versions
+#   or remove and use struct fields directly in RT code
+
+# Priority 4: RT-3 NAME_fn / ASGNIC_fn
+```
+
+### ⚠️ sil_macros.h GETDC/PUTDC caveat (discovered end of session)
+The GETDC/PUTDC macros in sil_macros.h use raw byte offsets matching
+csnobol4's field order (a,f,v). Our DESCR_t has different layout (v,slen,union).
+These macros are safe ONLY when used with known struct offsets from our own
+types. Do NOT use GETDC/PUTDC with csnobol4-derived offsets (ATTRIB=2*DESCR etc).
+Next session: audit usages or replace with typed field access macros.
