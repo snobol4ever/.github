@@ -28036,3 +28036,57 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 # Gate: PASS=178 both paths. Re-run miss_sweep → expect ~55 misses remaining.
 # After XNME: XFNME (same pattern), then XOR, then XSPNC/XANYC/XBRKC.
 ```
+
+## Sprint RT-121 — CONVERT gap-scan + Gap 1 fix — 2026-04-06
+
+**one4all HEAD:** `8c2611c` · **PASS=178/203**
+
+### Build fix (prerequisite)
+- `snobol4.c` had NUL bytes (binary corruption from prior merge) + duplicate `_DATE_`/`_TIME_` definitions.
+- Removed older duplicate block (lines 452-472 in cleaned file), fixed `== ''` → `== '\0'` empty char constants.
+- Build now clean. PASS=178 confirmed.
+
+### Gap audit method: CONVERT vertical (SIL CNVRT procedure, v311.sil:6457)
+Audited all conversion pairs in CNVRT dispatch table against our implementation.
+
+**Covered correctly:** INT↔STR, STR↔REAL, REAL↔INT, STR→CODE, STR→EXPR, NUMERIC.
+**Punted (other session):** TABLE→ARRAY (CNVTA), ARRAY→TABLE (CNVAT).
+**Gap 1 fixed:** `CONVERT(X,"UserTypeName")` and `CONVERT(obj,"STRING")` for DT_DATA.
+
+### Commit `8c2611c` — Gap 1: CONVERT user-defined type idem + CNVRTS stringify
+
+**SIL CNVRT tail paths implemented:**
+- `VEQL ZPTR,XPTR,,RTZPTR` — `CONVERT(obj,"UserType")`: idem if obj already that type, else FAIL.
+- `CNVRTS` path — `CONVERT(obj,"STRING")` for DT_DATA: returns type name string (e.g. `"POINT"`).
+- Forward-decl `_udef_lookup` moved before `_CONVERT_` (was causing implicit-decl conflict at call site).
+
+**Smoke test passed:**
+```
+DATA('POINT(px,py)')  P = POINT(3,7)
+CONVERT(P,"POINT")     → P (idem) ✅
+CONVERT(P,"STRING")    → "POINT"  ✅
+CONVERT(P,"INTEGER")   → FAIL     ✅
+CONVERT(P,"NOSUCHTYPE")→ FAIL     ✅
+```
+
+### Field setter (Gap 2 candidate) — already implemented
+`FIELD_SET_fn` is wired in `scrip-interp.c` at lines 764 (E_ASSIGN/E_FNC) and 1553 (statement subject). Confirmed working with smoke test. No gap.
+
+### Recommended next gaps (next session picks one)
+1. **`PROTOTYPE()` on DT_DATA instances** — currently only handles ARRAY. Should return `"POINT(px,py)"` for user-defined types.
+2. **`COPY()` for DT_DATA** — returns descriptor by value (shared `obj.u` pointer); should allocate new `DATINST_t` and deep-copy fields array.
+3. **`DATATYPE()` for CODE/EXPRESSION** — verify returns `"CODE"`/`"EXPRESSION"` correctly.
+4. **Arithmetic coercion of NAME type** — SIL NAME in arithmetic context.
+
+### RT-122 first actions
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+# Pick a gap from the list above and audit SIL → implement → smoke → PASS=178
+```
