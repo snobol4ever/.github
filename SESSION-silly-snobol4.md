@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-8 | one4all `eeb72188` · .github (this commit) | M15: sil_io.c/h — §15 I/O |
+| SS-9 | one4all `e01c708e` · .github (this commit) | M16: sil_trace.c/h — §16 Tracing |
