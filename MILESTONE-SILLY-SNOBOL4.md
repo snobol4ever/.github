@@ -106,7 +106,10 @@ silly-snobol4/
   sil_load.c / .h       ← M15: LOAD/UNLOAD/LNKFNC
   sil_io.c / .h         ← M16: READ/PRINT/BKSPCE/ENDFIL/REWIND/SET/DETACH/PUTIN/PUTOUT
   sil_trace.c / .h      ← M17: TRACE/STOPTR/FENTR/FENTR2/KEYTR/TRPHND/VALTR/FNEXT2
-  sil_compiler.c / .h   ← M18: BINOP/CMPILE/ELEMNT/EXPR/FORWRD/NEWCRD/TREPUB/UNOP
+  sil_trepub.c / .h    ← M18a: TREPUB + tree node helpers
+  sil_forwrd.c / .h    ← M18b: FORWRD NEWCRD CODSKP FORBLK
+  sil_cmpile.c / .h    ← M18c: CMPILE + CMPGO/CMPFRM/CMPASP + errors
+  sil_expr.c / .h      ← M18d: ELEMNT EXPR BINOP UNOP
   sil_interp.c / .h     ← M19: BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE
   sil_errors.c / .h     ← M20: all error handlers, FTLTST/FTLEND/FTLERR + messages
   sil_main.c            ← M21: BEGIN/INIT program/END/SYSCUT + main()
@@ -1216,7 +1219,10 @@ clean:
 | M15 | `sil_io.c/h` | §15 I/O | 197 | ✅ |
 | M16 | `sil_trace.c/h` | §16 Tracing | 361 | ✅ |
 | M17 | `sil_extern.c/h` | §13 External functions | 172 | ✅ |
-| M18 | `sil_compiler.c/h` | §6 Compiler | 965 | ⬜ |
+| M18a | `sil_trepub.c/h` | §6 TREPUB + tree nodes | ~100 | ⬜ |
+| M18b | `sil_forwrd.c/h` | §6 FORWRD NEWCRD CODSKP FORBLK | ~120 | ⬜ |
+| M18c | `sil_cmpile.c/h` | §6 CMPILE + CMPGO/CMPFRM + errors | ~250 | ⬜ |
+| M18d | `sil_expr.c/h` | §6 ELEMNT EXPR BINOP UNOP | ~500 | ⬜ |
 | M19 | `sil_interp.c/h` | §7 Interpreter | 158 | ⬜ |
 | M20 | `sil_errors.c/h` | §22 Errors + §23 messages | 143+msg | ⬜ |
 | M21 | `sil_main.c` | §2+§3+§21 Init/main/term | ~200 | ⬜ |
