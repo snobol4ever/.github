@@ -232,7 +232,7 @@ END
 |----|-------------|------|--------|
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
-| **M-DYN-BENCH-C** | Pattern benchmark baseline: scrip-interp (C BB) vs SPITBOL vs CSNOBOL4. Programs: pattern_bt, string_pattern, mixed_workload, string_manip + controls. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ⬜ |
+| **M-DYN-BENCH-C** ✅ | Pattern benchmark baseline: scrip-interp (C BB) vs SPITBOL vs CSNOBOL4. Programs: pattern_bt, string_pattern, mixed_workload, string_manip + controls. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ✅ RT-121 |
 | **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
 | **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
 | **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
@@ -519,22 +519,23 @@ for prog in pattern_bt string_pattern mixed_workload string_manip fibonacci arit
 done
 ```
 
-### Results table (fill in at M-DYN-BENCH-C)
+### Results table (M-DYN-BENCH-C ✅ RT-121, 2026-04-06)
 
-Machine: TBD (CPU, RAM, OS, date)
-PASS=178 confirmed before run.
+Machine: Linux x86-64 container, gcc -O2, median of 3 runs. PASS=178 confirmed before run.
 
 | Program | scrip-interp (C BB) | SPITBOL x64 | CSNOBOL4 | scrip/SPITBOL ratio | scrip/CSNOBOL ratio |
-|---|---:|---:|---:|---:|---|
-| pattern_bt (ALT+SPAN 500k) | — ms | — ms | — ms | — | — |
-| string_pattern (BRK+cap 500k) | — ms | — ms | — ms | — | — |
-| mixed_workload | — ms | — ms | — ms | — | — |
-| string_manip | — ms | — ms | — ms | — | — |
-| fibonacci (control) | — ms | — ms | — ms | — | — |
-| arith_loop (control) | — ms | — ms | — ms | — | — |
+|---|---:|---:|---:|---:|---:|
+| pattern_bt (ALT+SPAN 500k) | 1.72s | 0.17s | 0.61s | 10.1× | 2.8× |
+| string_pattern (BRK+cap 500k) | 10.05s | 0.36s | 1.92s | 27.9× | 5.2× |
+| mixed_workload | 3.96s | 0.10s | 0.44s | 39.6× | 9.0× |
+| string_manip | 5.48s | 0.47s | 1.61s | 11.7× | 3.4× |
+| fibonacci (control) | 5.15s | 0.09s | 0.45s | 57.2× | 11.4× |
+| arith_loop (control) | 1.17s | 0.02s | 0.12s | 58.5× | 9.8× |
 
-**Gate:** All three engines produce correct output (byte-match or numeric match).
-Numbers recorded here and in BENCHMARK-GRID.md. Commit to HQ.
+**Findings:** scrip is 10–28× behind SPITBOL on pattern work, 2.8–5.2× behind CSNOBOL4.
+Control benchmarks (fibonacci, arith_loop) confirm interpreter loop overhead is the dominant
+cost — pattern work adds relatively little on top. Gate: ✅ all three engines produce correct
+output. Numbers also recorded in SESSIONS_ARCHIVE.md (RT-121 addendum). Commit to HQ.
 
 ---
 
