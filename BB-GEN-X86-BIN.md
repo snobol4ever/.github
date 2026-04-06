@@ -232,6 +232,7 @@ END
 |----|-------------|------|--------|
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
+| **M-DYN-BENCH-C** | Pattern benchmark baseline: scrip-interp (C BB) vs SPITBOL vs CSNOBOL4. Programs: pattern_bt, string_pattern, mixed_workload, string_manip + controls. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ⬜ |
 | **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
 | **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
 | **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
@@ -246,6 +247,7 @@ END
 | **M-DYN-B11** | `bb_atp_inline(varname)`, `bb_dsar_inline(name)` — varname ptr baked in data; NV_SET_fn/NV_GET_fn called via baked ptr. | PASS=178 | ⬜ |
 | **M-DYN-B12** | `bb_arbn_inline(child_fn)` — ARBNO: child fn ptr + depth + frame stack all in data section. Large buffer (~512 bytes for 64-frame stack). | PASS=178 | ⬜ |
 | **M-DYN-B13** | Coverage audit: ≥95% of DT_P corpus pattern nodes handled by inline blobs. Document any remaining C fallbacks. | PASS=178; coverage report | ⬜ |
+| **M-DYN-BENCH-X86** | Pattern benchmark after inline blobs: identical run to M-DYN-BENCH-C with `SNO_BINARY_BOXES=1`. Compare x86/C speedup and x86/SPITBOL ratio. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern benchmarks; PASS=178 | ⬜ |
 
 ---
 
@@ -445,3 +447,114 @@ to each blob. Leaf blobs (fail=0B, pos=4B, lit=16B) are extremely compact. The s
 overhead is real but acceptable — most corpus patterns are dominated by leaf nodes.
 
 **Gate:** ✅ Table complete. Commit to HQ as M-DYN-B-SPITBOL deliverable.
+
+---
+
+## M-DYN-BENCH-C — Pattern Benchmark Baseline (C BB boxes) (RT-121, 2026-04-06)
+
+**Purpose:** Establish a timed baseline for pattern matching with the current C implementation
+of Byrd boxes before the inline x86 blob work begins. Run identical benchmarks against
+SPITBOL, CSNOBOL4, and scrip-interp. Repeat at M-DYN-BENCH-X86 after M-DYN-B* is complete
+to measure the speedup from native x86 BB blobs.
+
+**Focus: PATTERN performance only.** These benchmarks are chosen because their bottleneck
+is pattern matching (ALT/SPAN/BRK/LIT/ARBNO) not arithmetic or I/O. Non-pattern benchmarks
+(fibonacci, arith_loop) serve as a control — they should show no change between C and x86 runs.
+
+### Engines under test
+
+| Engine | Binary | Build | Notes |
+|---|---|---|---|
+| scrip-interp (C BB) | `/home/claude/one4all/scrip-interp` | `make scrip-interp` | C Byrd box path — **THIS MILESTONE** |
+| scrip-interp (x86 BB) | same binary, `SNO_BINARY_BOXES=1` | same | inline blob path — **M-DYN-BENCH-X86** |
+| SPITBOL x64 | `/home/claude/x64/bin/spitbol` | already built | native compiler oracle |
+| CSNOBOL4 | `/home/claude/snobol4-2.3.3/snobol4` | `cd snobol4-2.3.3 && make` | C interpreter reference |
+
+### Benchmark programs (pattern-focused)
+
+| Program | File | Bottleneck | Iterations |
+|---|---|---|---|
+| `pattern_bt` | `corpus/benchmarks/pattern_bt.sno` | ALT(4) + SPAN + capture, 500k matches | 500,000 |
+| `string_pattern` | `corpus/benchmarks/string_pattern.sno` | BRK + capture, CSV parse, 500k outer | 500,000 |
+| `mixed_workload` | `corpus/benchmarks/mixed_workload.sno` | mixed pattern + string + arith | — |
+| `string_manip` | `corpus/benchmarks/string_manip.sno` | string ops + pattern | — |
+| `fibonacci` | `corpus/benchmarks/fibonacci.sno` | recursion control (non-pattern control) | — |
+| `arith_loop` | `corpus/benchmarks/arith_loop.sno` | tight counter (non-pattern control) | — |
+
+### Run script
+
+```bash
+#!/bin/bash
+# M-DYN-BENCH-C run script
+# Usage: bash bench_c.sh
+set -e
+
+SCRIP=/home/claude/one4all/scrip-interp
+SPITBOL=/home/claude/x64/bin/spitbol
+CSNOBOL=/home/claude/snobol4-2.3.3/snobol4
+BDIR=/home/claude/corpus/benchmarks
+RUNS=3   # take median of 3 runs per program×engine
+
+bench_one() {
+    local engine="$1" bin="$2" prog="$3"
+    # median of $RUNS wall-clock times via /usr/bin/time
+    local times=()
+    for i in $(seq 1 $RUNS); do
+        t=$( { /usr/bin/time -f "%e" "$bin" "$prog" > /dev/null; } 2>&1 )
+        times+=("$t")
+    done
+    # sort and pick middle
+    echo "${times[@]}" | tr ' ' '\n' | sort -n | sed -n '2p'
+}
+
+echo "engine,program,seconds"
+for prog in pattern_bt string_pattern mixed_workload string_manip fibonacci arith_loop; do
+    f="$BDIR/${prog}.sno"
+    [ -f "$f" ] || continue
+    for row in "scrip-C:$SCRIP" "spitbol:$SPITBOL" "csnobol4:$CSNOBOL"; do
+        name="${row%%:*}"; bin="${row##*:}"
+        t=$(bench_one "$name" "$bin" "$f")
+        echo "$name,$prog,$t"
+    done
+done
+```
+
+### Results table (fill in at M-DYN-BENCH-C)
+
+Machine: TBD (CPU, RAM, OS, date)
+PASS=178 confirmed before run.
+
+| Program | scrip-interp (C BB) | SPITBOL x64 | CSNOBOL4 | scrip/SPITBOL ratio | scrip/CSNOBOL ratio |
+|---|---:|---:|---:|---:|---|
+| pattern_bt (ALT+SPAN 500k) | — ms | — ms | — ms | — | — |
+| string_pattern (BRK+cap 500k) | — ms | — ms | — ms | — | — |
+| mixed_workload | — ms | — ms | — ms | — | — |
+| string_manip | — ms | — ms | — ms | — | — |
+| fibonacci (control) | — ms | — ms | — ms | — | — |
+| arith_loop (control) | — ms | — ms | — ms | — | — |
+
+**Gate:** All three engines produce correct output (byte-match or numeric match).
+Numbers recorded here and in BENCHMARK-GRID.md. Commit to HQ.
+
+---
+
+## M-DYN-BENCH-X86 — Pattern Benchmark After Inline Blobs (post M-DYN-B13)
+
+**Identical run** to M-DYN-BENCH-C, with `SNO_BINARY_BOXES=1` added to scrip-interp invocation.
+All other conditions identical (same machine, same programs, same RUNS=3 median).
+
+| Program | scrip-interp (C BB) | scrip-interp (x86 BB) | SPITBOL x64 | x86/C speedup | x86/SPITBOL ratio |
+|---|---:|---:|---:|---:|---|
+| pattern_bt | — | — | — | — | — |
+| string_pattern | — | — | — | — | — |
+| mixed_workload | — | — | — | — | — |
+| string_manip | — | — | — | — | — |
+| fibonacci (control) | — | — | — | — | — |
+| arith_loop (control) | — | — | — | — | — |
+
+**Expected:** control benchmarks (fibonacci, arith_loop) show ≤5% change (noise).
+Pattern benchmarks show measurable speedup from eliminated C call overhead + inlined dispatch.
+SPITBOL ratio improves from C-BB baseline toward 1.0× (or below for leaf-heavy patterns).
+
+**Gate:** x86 BB speedup ≥ 10% on pattern_bt and string_pattern vs C BB baseline.
+PASS=178 with SNO_BINARY_BOXES=1. Numbers committed to HQ.
