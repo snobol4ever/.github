@@ -28167,3 +28167,74 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 # Identify kind=12: check patnd.h enum (0-indexed) — likely XBRKX or XNNYC.
 # Audit: bash /tmp/miss_sweep.sh / bash /tmp/sweep_audit.sh (already present)
 ```
+
+## Sprint RT-119 HANDOFF (M-DYN-B8) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `cbda436` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B8 ✅
+
+**Commit `cbda436`** — `RT-119 M-DYN-B8: SPAN/ANY/BREAK/NOTANY binary trampolines; 68.5% coverage`
+
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
+- `charset_emit_trampoline(void *zeta, bb_box_fn fn)` — shared helper: alloc pool page, emit 22-byte `mov rdi,imm64(z); mov rax,imm64(fn); jmp rax`, seal.
+- `bb_span_emit_binary(chars)` → `cset_span_t` + `bb_span`
+- `bb_any_emit_binary(chars)` → `cset_any_t` + `bb_any`
+- `bb_notany_emit_binary(chars)` → `cset_notany_t` + `bb_notany`
+- `bb_brk_emit_binary(chars)` → `cset_brk_t` + `bb_brk`
+- `case XSPNC/XANYC/XNNYC/XBRKC` wired.
+- `chars` ptr is into PATND_t tree (program-lifetime — no copy needed).
+
+**Coverage audit after B8:**
+- Before: DT_P hits=57 misses=90 · overall=45.5%
+- After:  DT_P hits=95 misses=52 · **overall=68.5%** ✅ (>80% target within reach)
+
+**Remaining miss breakdown (kind → name → count):**
+| Kind | Name | Count |
+|------|------|-------|
+| 12 | XSTAR | 17 |
+| 20 | XOR | 12 |
+| 11 | XARBN | 9 |
+| 24 | XCALLCAP | 5 |
+| 11... | XBRKX(27) | 1 |
+
+**Gate:** PASS=178 both paths ✅
+
+### RT-120 first actions (M-DYN-B9: XOR alternation — 12 misses)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# Audit tools already in place:
+#   bash /tmp/miss_sweep.sh    — corpus miss scan by kind
+#   bash /tmp/sweep_audit.sh   — full hit/miss/% audit
+
+# M-DYN-B9: XOR (alternation, kind=20, 12 misses)
+# Read: src/runtime/boxes/or/bb_or.c  — or_t layout
+# XOR has 2+ children (flat list). Build each recursively;
+# if any child returns NULL, fall back whole node.
+# Fold: or(c[0], or(c[1], ... or(c[n-2], c[n-1])))
+# Use same heap seq_t / trampoline pattern as XCAT but for bb_or.
+# Wire: case XOR -> bb_or_emit_binary(p)
+# Expected: misses 52 -> 40; overall ~72%
+
+# M-DYN-B9b: XSTAR (kind=12, 17 misses)
+# Read patnd.h — XSTAR is ARBNO star (*) quantifier.
+# Read: src/runtime/boxes/star/bb_star.c — star_t layout.
+# Likely needs child fn + recursive build.
+
+# After XOR+XSTAR: should breach 80% target.
+# WARNING — str_replace /* opener hazard: always verify /* survived after inserts near comments.
+```
