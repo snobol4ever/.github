@@ -676,7 +676,7 @@ int SJSR(Scan_ctx *ctx, int32_t pat_off, SPEC *repl_sp,
 
 **Source:** v311.sil §11 NME/ENME/DNME/ENMI + §17 NMD/NMD1-5/NMDIC/NAMEXN
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_nmd.c`
-**Status:** ⬜
+**Status:** ✅ committed one4all `05a53465`
 
 ```c
 /* Naming list entry — mirrors SIL NBSPTR/NAMICL pair-list layout */
@@ -1207,7 +1207,7 @@ clean:
 | M6 | `sil_argval.c/h` | §8 Arg evaluation | 243 | ⬜ |
 | M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ✅ |
 | M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ✅ |
-| M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ⬜ |
+| M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ✅ |
 | M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ⬜ |
 | M11 | `sil_pred.c/h` | §18 Predicates | 219 | ⬜ |
 | M12 | `sil_func.c/h` | §19 Other functions | 715 | ⬜ |

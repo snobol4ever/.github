@@ -30368,3 +30368,35 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_nmd.c → zero warnings
 # Then commit+push one4all, update .github M9 ✅ and push
 ```
+
+## Sprint SS-4 HANDOFF (Silly SNOBOL4 M9 sil_nmd) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `05a53465` · .github (this commit)
+
+### Work done this session
+
+**M9 ✅ sil_nmd.c/h — committed 05a53465**
+NMD_fn: walks name list from NHEDCL to NAMICL, assigns captured substrings.
+NMD1 loop: GETSPC + GETDC per entry; MLENCL overflow check; EXPRESSION
+target (NAMEXN via EXPEVL_fn); KEYWORD target (NMDIC via SPCINT_fn);
+normal string target (GENVAR_fn); PUTDC assignment; OUTPUT/TRACE hooks.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ M7 ✅ M8 ✅ M9 ✅
+M10 ⬜ sil_asgn.c/h  ← NEXT (§17 ASGN CONCAT IND KEYWRD NAME STR, 273 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M10: src/silly/sil_asgn.c + sil_asgn.h
+# Source: v311.sil §17 lines 5828–6101
+# See MILESTONE-SILLY-SNOBOL4.md §M10 for design
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_asgn.c → zero warnings
+# Then commit+push one4all, update .github M10 ✅ and push
+```

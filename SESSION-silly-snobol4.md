@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-2 | one4all `c762e496` · .github `5b28d29` | M9: sil_exec.c/h — §7 Interp Exec (INTERP INIT GOTO BASE GOTG GOTL) |
+| SS-3 | one4all `05a53465` · .github (this commit) | M10: sil_asgn.c/h — §17 ASGN CONCAT IND KEYWRD NAME STR |
