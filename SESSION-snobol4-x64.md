@@ -577,3 +577,72 @@ Keyword vertical audited against v311.sil KNLIST/KVLIST tables.
 - `&DIGITS`: add `NV_SET_fn("DIGITS", STRVAL(digits))` alongside existing "digits"
 - `&PARM`: `NV_SET_fn("PARM", STRVAL(getenv("SNOBOL4_PARM") ?: ""))` in SNO_INIT_fn
 - `&STEXEC`: new kw_stexec, increment in comm_stno() alongside kw_stcount
+
+### M-RT124-A: DATA ctor + unset global → Error 5 (Bug A)
+**Date:** 2026-04-05
+
+**Symptom:** `slink(glob, x)` inside a user-defined function fires Error 5 "Undefined
+function or operation" when `glob` is an unset global variable (NULVCL). The same call
+works fine at top level. Blocks `test_stack`, `test_case`, and any corpus program
+using DATA constructors with global variables inside user-defined functions.
+
+**Repro:**
+```bash
+cat > /tmp/bug_a.sno << 'EOF2'
+        DATA('slink(snext,sval)')
+        DEFINE('f(x)')  :(f_end)
+f       q = slink(glob, x)
+        f = sval(q) :(RETURN)
+f_end
+        OUTPUT = f('hi')
+END
+EOF2
+./scrip-interp /tmp/bug_a.sno
+# Expected: hi
+# Actual:   ** Error 5 in statement 4 / Undefined function or operation
+```
+
+**Investigation path:**
+- `src/driver/scrip-interp.c` E_FNC case (~line 927): add `fprintf(stderr,
+  "E_FNC: name=%s nargs=%d arg[0].v=%d\n", e->sval, nargs, nargs>0?args[0].v:-1)`
+  before the `FNCEX_fn` / `label_lookup` dispatch. Compare output for
+  `slink('literal', x)` (works) vs `slink(glob, x)` (fails).
+- Hypothesis: when arg[0] evaluates to NULVCL (DT_SNUL, v==0), the E_FNC path
+  may short-circuit on a zero-value check or mistake it for a null function pointer.
+- Also check `FNCEX_fn(name)` — does it test arg count against nargs and reject
+  when an arg is NULVCL?
+
+**Gate:** `./scrip-interp /tmp/bug_a.sno` prints `hi`; PASS≥178; `test_stack` and
+`test_case` Error 5 count drops.
+
+---
+
+### M-RT124-B: NRETURN kw_rtntype stale at call site (Bug B)
+**Date:** 2026-04-05
+
+**Symptom:** `scrip-interp.c:949` unconditionally dereferences any DT_N returned by
+a user function (`if (IS_NAME(r)) return NAME_DEREF(r)`). This means a function
+taking `:(NRETURN)` cannot return a NAME descriptor to its caller — the caller always
+gets the dereferenced value instead. The fix `strcasecmp(kw_rtntype,"NRETURN") != 0`
+broke `1013_func_nreturn` and `213_indirect_name` (PASS dropped 178→176), meaning
+`kw_rtntype` is stale or wrong at that call site.
+
+**Read first (before any code change):**
+```bash
+cat /home/claude/corpus/crosscheck/1013_func_nreturn.sno
+cat /home/claude/corpus/crosscheck/213_indirect_name.sno
+```
+Understand what those tests expect — they currently pass with the unconditional
+dereference, so they rely on NAME_DEREF firing even for NRETURN in some cases.
+
+**Investigation path:**
+- `kw_rtntype` is a global set inside `call_user_function`. At line 949 it reflects
+  the MOST RECENT function call's return type — which may be an inner nested call,
+  not the outer one being dispatched. This is the stale-global problem.
+- Fix: pass rtntype out of `call_user_function` as an output parameter, or embed it
+  in the returned DESCR_t (e.g. a wrapper struct), or use a per-call stack.
+- Simplest fix: add `int was_nreturn` local before the `call_user_function` call,
+  set it from `kw_rtntype` immediately after return before any other calls execute.
+
+**Gate:** PASS≥178; `test_stack` NRETURN write-through works correctly;
+`1013_func_nreturn` and `213_indirect_name` still pass.
