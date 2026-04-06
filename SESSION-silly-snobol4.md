@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-16 | one4all `58c3cc8e` · .github (this commit) | ALL 22 TUs COMPLETE — platform layer next |
+| SS-17 | one4all `58c3cc8e` · .github `5c2c454` | PLATFORM LAYER — sil_platform.c next |

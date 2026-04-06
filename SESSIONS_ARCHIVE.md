@@ -30849,3 +30849,122 @@ cd one4all && git pull --rebase && git log --oneline -5
 # Gate: gcc -Wall -Wextra -std=c99 -m32 src/silly/sil_*.c sil_platform.c -lm -o silly-snobol4
 # → successful link = milestone
 ```
+
+## Sprint SS-18 HANDOFF (Context ~67% — handoff only) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `58c3cc8e` · .github `5c2c454`
+
+### State at handoff
+
+All 22 translation units committed and compile-verified:
+```
+sil_arena.c/h   sil_argval.c/h  sil_arith.c/h   sil_arrays.c/h
+sil_asgn.c/h    sil_cmpile.c/h  sil_data.c/h    sil_define.c/h
+sil_errors.c/h  sil_expr.c/h    sil_extern.c/h  sil_forwrd.c/h
+sil_func.c/h    sil_interp.c/h  sil_io.c/h      sil_main.c
+sil_nmd.c/h     sil_patval.c/h  sil_pred.c/h    sil_scan.c/h
+sil_strings.c/h sil_symtab.c/h  sil_trace.c/h   sil_trepub.c/h
+sil_types.h
+```
+Full compile: `gcc -Wall -Wextra -std=c99 -m32 -c src/silly/sil_*.c -I src/silly` → **zero warnings, all 24 .c files**.
+
+### Milestone status
+M0–M21 all ✅ — core SIL→C translation COMPLETE.
+
+### NEXT PHASE: sil_platform.c
+
+The remaining work is writing `sil_platform.c` (plus `sil_data_init()` in `sil_data.c`), which resolves all extern stubs. Priority order:
+
+**Priority 1 — must have to link:**
+- `arena_init()`              — mmap 128MB arena, set global A_BASE
+- `sil_data_init()`           — initialise all DESCR_t globals to their EQU/DESCR values from v311.sil
+- `STREAD_fn(SPEC_t*, DESCR_t)` — read line from fd into SPEC_t (malloc buf or fixed)
+- `STPRNT_fn(int32_t, DESCR_t, SPEC_t*)` — write SPEC_t to output block's fd
+- `XCALL_io_flushall()`       — fflush all open streams
+- `XCALL_MSTIME(DESCR_t*)`    — gettimeofday → real_t milliseconds
+- `XCALL_OUTPUT_fmt(DESCR_t, const char*, ...)` — fprintf to unit's fd
+- `XCALL_ISTACK()`            — no-op (C has native stack)
+- `XCALL_XECOMP()`            — signal compile done to I/O subsystem (no-op initially)
+- `XCALL_ZERBLK(DESCR_t*, DESCR_t)` — memset region to zero
+- `XCALL_GETPARM(SPEC_t*)`    — return argv[1..] joined as string
+- `XCALL_FREEPARM(SPEC_t*)`   — free the above
+- `XCALL_GETPMPROTO(SPEC_t*, int32_t)` — return nth -load argument (stub→FAIL)
+- `XCALL_chk_break(int)`      — check for Ctrl-C (stub→FAIL initially)
+- `XCALL_SBREAL(DESCR_t*, DESCR_t, DESCR_t)` — real subtract
+- `XCALL_IO_FILE(DESCR_t, SPEC_t*)` — get filename for unit (stub)
+
+**Priority 2 — needed for STREAM/compile:**
+- `STREAM_fn(SPEC_t*, SPEC_t*, DESCR_t*, int*)` — character-class scanner
+- Scan tables: FRWDTB IBLKTB CARDTB LBLTB LBLXTB VARATB BIOPTB UNOPTB ELEMTB GOTSTB GOTOTB EOSTB NUMBTB SBIPTB (§24 in v311.sil)
+
+**Priority 3 — needed for execution:**
+- `XCALL_IO_OPENI/O/SEEK/PAD` — file open/seek
+- `XCALL_BKSPCE/ENFILE/REWIND` — tape-style ops
+- `XCALL_LINK/UNLOAD`          — dlopen/dlsym for external functions
+- `XCALL_RELSTRING(DESCR_t)`   — free malloc'd linked string
+- `XCALL_XRAISP(SPEC_t*)`      — toUpper in place
+
+### Key data about scan tables (v311.sil §24)
+STREAM_fn uses character-class tables. Each table entry for a character maps to:
+- 0 = include character in token (keep scanning)
+- >0 = break type (stop, return break type in STYPE)
+The tables are arrays indexed by ASCII value. They live in §24 (approx lines 12000+).
+
+Key table definitions to read:
+```
+grep -n "^FRWDTB\|^IBLKTB\|^CARDTB\|^LBLTB\|^LBLXTB\|^VARATB\|^BIOPTB\|^UNOPTB\|^ELEMTB\|^GOTSTB\|^GOTOTB\|^EOSTB\|^NUMBTB\|^SBIPTB\|^BBIOPTB\|^BSBIPTB" /home/claude/work/snobol4-2.3.3/v311.sil
+```
+
+### STREAM_fn algorithm (v311.sil lines 812–836 §4)
+```c
+// Pseudocode:
+SIL_result STREAM_fn(SPEC_t *res, SPEC_t *src, DESCR_t *tbl, int *stype_out) {
+    const uint8_t *p   = A2P(src->a) + src->o;
+    const uint8_t *end = p + src->l;
+    const uint8_t *t   = A2P(D_A(*tbl));  // table base
+    const uint8_t *tok_start = p;
+    while (p < end) {
+        int cls = t[*p];
+        if (cls != 0) {
+            // Break found
+            *stype_out = cls;
+            res->a = src->a; res->o = src->o; res->l = p - tok_start;
+            src->o += (res->l + 1);  // advance past break char
+            src->l -= (res->l + 1);
+            return OK;
+        }
+        p++;
+    }
+    // Run-out (no break found)
+    *stype_out = 0;
+    res->a = src->a; res->o = src->o; res->l = src->l;
+    src->l = 0;
+    return FAIL;  // triggers error/runout path in caller
+}
+```
+
+### sil_data_init() approach
+Rather than hand-translating all 2000+ DESCR lines from §24/§25, use the
+pattern: read v311.sil EQU + DESCR lines, generate C initialisation code.
+Key constants like ONECL=1, ZEROCL=0, DSCRTW=2*DESCR are already in sil_types.h.
+The runtime globals (OCBSCL, CMOFCL, etc.) initialise to zero naturally.
+The function-code descriptors (ASGNCL, SCANCL, LITCL, etc.) need their
+A-field set to the function's offset in the invoke table.
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5
+
+# 1. Write src/silly/sil_platform.c starting with Priority 1 stubs
+# 2. Add sil_data_init() to src/silly/sil_data.c
+# 3. Attempt link:
+#    gcc -Wall -Wextra -std=c99 -m32 src/silly/sil_*.c -lm -o silly-snobol4
+# 4. Fix linker errors iteratively until clean link
+# 5. Run hello world test: echo 'OUTPUT = "HELLO"
+# END' | ./silly-snobol4
+```
