@@ -30465,3 +30465,33 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_func.c → zero warnings
 # Then commit+push one4all, update .github M12 ✅ and push
 ```
+
+## Sprint SS-7 HANDOFF (Silly SNOBOL4 M12 sil_func) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `3ba82f88` · .github (this commit)
+
+### Work done this session
+
+**M12 ✅ sil_func.c/h — committed 3ba82f88**
+Implemented: SIZE TRIM VDIFFR DUPL REVERS RPLACE SUBSTR DATE DT TIME COLLECT COPY CLEAR CMA APPLY.
+Stubbed (return FAIL, pending deeper infra): OPSYN CONVERT/CODER ARG LOCAL FIELDS DMP DUMP.
+Added §19 globals to sil_data.h: DTATL INCL A2PTR A3PTR DEFCL DT1CL ETMCL DMPPTR DMPSP PROTSP QTSP BLEQSP AMPSP CMASP FORMND.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M12 all ✅
+M13 ⬜ sil_arrays.c/h  ← NEXT (§14 Arrays/Tables, 623 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M13: src/silly/sil_arrays.c + sil_arrays.h
+# Source: v311.sil §14 lines 4644–5267
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_arrays.c → zero warnings
+# Then commit+push one4all, update .github M13 ✅ and push
+```
