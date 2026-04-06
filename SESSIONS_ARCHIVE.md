@@ -27306,3 +27306,56 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 # Gate: PASS=178 unset; PASS=178 with SNO_BINARY_BOXES=1
 ```
+
+## Sprint RT-115 HANDOFF ADDENDUM — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `b62c081` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** `babaeb8` · **PASS=178/203**
+
+### Additional work done this session (after initial handoff entry)
+
+1. **BB-GEN-X86-BIN.md reclassified as Track C (interpreter), not Track BB (emitter/SM)**
+   - M-DYN-* is the interpreter JIT-ing pattern boxes into executable pages at match time
+   - Track B = static emitter (emit_x64.c, writes .s files offline)
+   - Track BB = SM instruction set design (SCRIP-SM, BB-GRAPH, BB-DRIVER)
+   - Track C / M-DYN-* = interpreter sealing bb_pool pages RW→RX at match time
+   - PLAN.md component map updated: BB-GEN-X86-BIN now under "INTERP x86 dynamic boxes"
+   - PLAN.md Track C Step 2 routing updated to include BB-GEN-X86-BIN.md
+   - PLAN.md warning note added: BB-GEN-X86-BIN is Track C, not Track BB
+
+2. **Conflict merge with diag-01 session** — both NOW rows preserved in SESSION-snobol4-x64.md
+
+### RT-116 first actions (M-DYN-B1 — binary LIT box)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cat .github/BB-GEN-X86-BIN.md        # Track C milestone doc
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-DYN-B1 work (three steps, all small):
+#
+# STEP 1 — Makefile: add bb_pool.c + bb_emit.c to scrip-interp target
+#   $(CC) $(CRT) -c $(RT)/asm/bb_pool.c -o $(OBJ)/bb_pool.o
+#   $(CC) $(CRT) -c $(RT)/asm/bb_emit.c -o $(OBJ)/bb_emit.o
+#
+# STEP 2 — Create src/runtime/asm/bb_build_bin.c:
+#   bb_box_fn bb_lit_emit_binary(const char *lit, int len)
+#   Mirrors bb_lit.s exactly using bb_emit_byte/u32/u64 + bb_insn_*
+#   Σ/Δ/Ω via: mov rax, imm64(&global) / mov eax,[rax]
+#   memcmp via: mov rax, imm64(&memcmp) / call rax
+#   lit/len baked as imm64/imm32 (zeta ignored at runtime)
+#   bb_alloc(512) → bb_emit_begin → emit → bb_emit_end → bb_seal → return fn ptr
+#
+# STEP 3 — exec_stmt Phase 2 DT_S branch, behind SNO_BINARY_BOXES=1:
+#   bb_box_fn bfn = bb_lit_emit_binary(pat.s, (int)strlen(pat.s));
+#   if (bfn) { root.fn = bfn; root.ζ = NULL; }
+#
+# GATE: PASS=178 without SNO_BINARY_BOXES; PASS=178 with SNO_BINARY_BOXES=1
+# AFTER: EPS binary, then full bb_build binary walk for DT_P
+```
