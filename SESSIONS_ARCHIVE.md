@@ -28764,3 +28764,45 @@ SPITBOL node block sizes on x64 (d_word = 8 bytes):
 scrip-interp ζ has no pcode (fn ptr is the blob address) and no pthen (graph
 is the XCAT/XOR tree at build time). So ζ is mutable-state-only. Fair comparison
 adds seq nodes for concatenation spine (48 bytes each in scrip vs 16 bytes pthen in SPITBOL).
+
+## Sprint RT-121 HANDOFF (M-DYN-B-SPITBOL complete) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `ac19c92` · **HQ HEAD:** `a4f047e` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- **M-DYN-B-SPITBOL ✅** — Pattern storage comparison table complete. Committed to BB-GEN-X86-BIN.md §SPITBOL Comparison Results (`1f62c74`).
+- SPITBOL oracle built from x64 source (`sbl` → `bin/spitbol`).
+- `SIZE()` probe rejected pattern args (error 189 — string-only builtin). Block sizes extracted from `sbl.min` source (pasi_/pbsi_/pcsi_, d_word=8 on x64).
+- ζ struct sizes measured via C probe: fail=0B, eps/fence=4B, pos=4B, len/tab/arb=8B, any/lit/atp=16B, seq=48B, capture=56B, alt=288B, arbno=1560B.
+
+### Key findings (M-DYN-B-SPITBOL)
+
+**Leaf nodes: scrip wins 8–20B per node** — no pcode (fn ptr = blob start), no pthen (graph is XCAT/XOR tree). Every primitive (fail, pos, len, lit, any, span, breakx...) uses less heap than SPITBOL.
+
+**Structural nodes: SPITBOL wins** — SEQ (−32B), ALT (−264B), ARBNO (−1536B), CAPTURE (−32B). Root cause: scrip allocates explicit XCAT nodes (48B each) where SPITBOL amortizes across the pthen spine; scrip pre-allocates 64-frame arbno stack where SPITBOL grows C stack at runtime.
+
+**Design implication for M-DYN-B*:** inline blobs with data-section ζ are compact for all leaf nodes. SEQ/ALT overhead is real but acceptable — corpus patterns are dominated by leaf nodes. ARBNO frame stack (1536B) is the one area worth revisiting if memory pressure matters.
+
+### Next session first actions (RT-122 — M-DYN-B0)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex nasm
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-DYN-B0: reset bb_build_binary_node() to always return NULL (full C fallback)
+# Remove or #ifdef-out all bb_*_emit_binary() trampoline emitters from prior B1–B10 work
+# Keep bb_pool.c / bb_emit.c / bb_build_bin.c skeleton (do NOT delete infrastructure)
+# Gate: PASS=178 still holds; no trampoline code paths active
+# Then M-DYN-B1: bb_fail_inline() = 5-byte blob (xor eax,eax / xor edx,edx / ret)
+```
+
+### Files changed this session
+- `.github/BB-GEN-X86-BIN.md` — §SPITBOL Comparison Results + milestone ladder ✅
+- `.github/PLAN.md` — M-DYN-B-SPITBOL ✅; NOW → M-DYN-B0
