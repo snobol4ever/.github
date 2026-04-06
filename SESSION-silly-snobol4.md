@@ -113,4 +113,41 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-17 | one4all `58c3cc8e` · .github `5c2c454` | PLATFORM LAYER — sil_platform.c next |
+| SS-19 | one4all `d1d96dcd` · .github `83b9c8f` | **M-SS-DIFF**: section-by-section diff pass of all 22 TUs vs v311.sil — verify correctness before harness |
+
+## ⛔ §INFO additions (2026-04-06)
+
+### Build command — NO -m32
+```bash
+cd /home/claude/one4all
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+```
+Do NOT use `-m32`. The arena uses `int32_t` offsets explicitly; 64-bit build is correct and runs natively.
+
+### Platform layer (SS-19)
+`src/silly/sil_platform.c` is written and linked. It provides:
+- 30 scan tables + `STREAM_fn`/`clertb_fn`/`plugtb_fn` with registry dispatch
+- All 34 operator-fn DESCRs (ADDFN…STRFN)
+- All XCALLs, STREAD_fn, STPRNT_fn, helper stubs
+- `CONTIN`/`STOPSH` as `DESCR_t` globals with `.a.i = AC_CONTIN/AC_STOPSH`
+- `init_syntab()` fills operator-fn put values after arena_init
+
+### Milestone sequence (2026-04-06)
+```
+M-SS-DIFF   → section-by-section diff pass: each of 22 TUs vs v311.sil oracle
+              Goal: find wrong translations before we run anything.
+              Method: for each §, read v311.sil SIL and compare to our C side-by-side.
+              Output: a punch-list of corrections per file.
+
+M-SS-HARNESS → two-way harness: Silly SNOBOL4 vs CSNOBOL4 (snobol4ever/harness)
+               Run same corpus through both; diff outputs.
+               Gate: binary exists, reads stdin, produces stdout, terminates.
+               sil_data_init() must be correct enough to get through BEGIN.
+```
+
+### sil_data_init() status
+Currently a partial stub — computed constants filled, stacks allocated, but the
+2000+ DESCR globals from v311.sil §24 (function descriptors, keyword tables,
+pattern primitives, OBLIST, etc.) are NOT populated from the SIL source.
+The diff pass (M-SS-DIFF) will surface which globals are wrong/missing.
+A generator script (parse §24, emit C) is the right approach for M-SS-HARNESS prep.
