@@ -2,7 +2,7 @@
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04
-**Status:** AUTHORITATIVE DESIGN — ⬜ stubs only, implementation pending M-DYN-B1
+**Status:** ACTIVE — M-DYN-B1 in progress (RT-115, 2026-04-05)
 
 Generates raw x86-64 relocatable bytes for each Byrd Box directly into bb_pool.
 Output: executable function pointers for α/β ports, callable immediately via mprotect.
@@ -95,19 +95,28 @@ mprotect(buf, size, PROT_READ|PROT_EXEC);  // I-cache fence
 ## File Layout
 
 ```
-src/runtime/asm/bb_pool.h/.c       M-DYN-0 ✅  mmap pool
-src/runtime/asm/bb_emit.h/.c       M-DYN-1 ✅  byte/label/patch primitives (TEXT mode done)
-                                               BINARY mode stubs — M-DYN-B1 scope
+src/runtime/asm/bb_pool.h/.c       M-DYN-0 ✅  mmap pool (NOT YET in Makefile — add for M-DYN-B1)
+src/runtime/asm/bb_emit.h/.c       M-DYN-1 ✅  byte/label/patch primitives, BINARY mode implemented
+                                               (NOT YET in Makefile — add for M-DYN-B1)
+src/runtime/asm/bb_build_bin.c     M-DYN-B1 ⬜  bb_lit_emit_binary() — to be created
+src/runtime/dyn/stmt_exec.c        M-DYN-B1 ⬜  Phase 2 DT_S branch: call bb_lit_emit_binary
 ```
+
+## Orientation (verified RT-115, 2026-04-05)
+
+`bb_build` already exists in `stmt_exec.c` — walks `PATND_t` → wired `bb_node_t` C graph.
+`exec_stmt` Phase 3 calls `root.fn(root.ζ, α)` — same signature as the `.s` boxes.
+`bb_emit.c` BINARY mode instruction helpers (`bb_insn_*`) are **fully implemented**, not stubs.
+The only missing piece: `bb_build_bin.c` emitting bytes for each box type, and wiring into Phase 2.
 
 ---
 
 ## Milestone Chain
 
-| ID | Deliverable | Gate |
-|----|-------------|------|
-| **M-DYN-B1** | `bb_emit.c` BINARY mode: raw x86, r12=DATA, Technique 2. Build LIT box binary. | LIT box binary runs, same result as TEXT path |
-| **M-DYN-B2** | Full corpus via binary boxes | Same pass rate as TEXT path |
+| ID | Deliverable | Gate | Status |
+|----|-------------|------|--------|
+| **M-DYN-B1** | `bb_build_bin.c`: `bb_lit_emit_binary()` → sealed x86 buffer; Makefile adds bb_pool+bb_emit; exec_stmt Phase 2 DT_S branch uses it behind `SNO_BINARY_BOXES=1` | PASS=178 both with and without env var | ⬜ active RT-115 |
+| **M-DYN-B2** | `bb_eps_emit_binary()` + full `bb_build_binary()` walk for DT_P (all 25 box types) | Same pass rate as C path | ⬜ |
 
 ---
 

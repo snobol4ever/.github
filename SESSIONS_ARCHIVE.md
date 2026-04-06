@@ -26351,7 +26351,6 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=187
 #   See MILESTONE-RT-RUNTIME.md § RT-5.
 #   NV_SET_fn hook for &OUTPUT (write to stdout), &TRACE enable/disable.
 ```
-<<<<<<< Updated upstream
 ## Sprint RT-109 — scrip-interp / SIL track — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
@@ -26420,7 +26419,6 @@ word1 ✅  test_string ✅  test_stack ✅
 - demo_treebank/claws5/roman — pre-existing
 
 ### Sprint RT-110 first actions (Track C)
-=======
 _alpha_ranges.h`: AUTO-GENERATED — 657 Unicode L* ranges for codepoints U+0080+.
 - `utf8_decode_first()`: decodes first UTF-8 codepoint, validates overlong sequences.
 - `unicode_is_alpha()`: binary search over 657 ranges. O(log 657).
@@ -26458,7 +26456,6 @@ _alpha_ranges.h`: AUTO-GENERATED — 657 Unicode L* ranges for codepoints U+0080
 - HEAD pushed: `7d41087` on origin/main
 
 ### Sprint P3B-fix first actions (next session)
->>>>>>> Stashed changes
 ```bash
 cd /home/claude
 apt-get install -y libgc-dev flex
@@ -26469,7 +26466,6 @@ cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=175
 
-<<<<<<< Updated upstream
 # Step 1: triage word2 (different pattern from word1)
 #   ./scrip-interp --dump-parse corpus/crosscheck/strings/word2.sno
 #   Compare NAMFN structure vs word1 — likely multi-dot or $ variant
@@ -26556,7 +26552,6 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #     now parses correctly with RT-110 fix
 #   Likely cause: icase recursive function hits runtime bug (DEFINE/RETURN/FRETURN)
 #   timeout 5 ./scrip-interp corpus/crosscheck/library/test_case.sno 2>&1 | head -20
-=======
 # Fix 1: Xα mixed identifier — dump parse and trace
 python3 -c "
 with open('/tmp/t_mixed.sno','wb') as f:
@@ -26574,7 +26569,6 @@ SNO_TRACE=1 SNO_LIB=/home/claude/corpus/lib ./scrip-interp --dump-parse /tmp/t_m
 
 # Fix 3: update SESSION-snobol4-x64.md §NOW table with P3B sprint
 # Fix 4: update MILESTONE-SN4PARSE-VALIDATE.md P3A/P3B status to ✅
->>>>>>> Stashed changes
 ```
 ## Sprint RT-111 — scrip-interp / SIL track — 2026-04-05
 
@@ -27237,6 +27231,31 @@ cd /home/claude
 apt-get install -y libgc-dev flex
 cd one4all && git log --oneline -3   # must show 3a3d91d
 cd /home/claude/corpus && git log --oneline -3  # must show 3fd44d0
+## Sprint RT-115 HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**Final one4all HEAD:** `b62c081` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** TBD after push · **PASS=178/203**
+
+### Work done this session
+
+1. **Orientation and prerequisite audit for M-DYN-B1** — verified what is actually built vs missing:
+   - bb_pool.c ✅, bb_emit.c ✅ (BINARY mode instruction helpers fully implemented, not stubs)
+   - bb_build (PATND_t → bb_node_t) ✅ already in stmt_exec.c, drives PASS=178
+   - exec_stmt Phase 3 calls root.fn(root.ζ, α) — same ABI as .s boxes
+   - EVAL_fn ✅ working: DT_E thaw + string → eval_via_cmpile
+   - CODE() ⚠️ uses sno_parse/fmemopen — parse fails; low priority (fix: cmpile_string)
+   - E_SCAN (X ? Y value context) ⬜ stub in eval_node — low priority
+
+2. **HQ updated** — pivoted active milestone to M-DYN-B1:
+   - SESSION-snobol4-x64.md §NOW + §INFO + first-actions updated
+   - BB-GEN-X86-BIN.md: status ACTIVE, File Layout corrected, Milestone Chain clarified
+   - PLAN.md NOW table: RT-115 row pointing to M-DYN-B1
+
+### RT-116 first actions (M-DYN-B1 — binary LIT box)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
@@ -27268,3 +27287,22 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 After every milestone sprint commit, the milestone summary table row MUST be
 updated to ✅ in the same commit. SESSIONS_ARCHIVE handoff must include:
 "milestone table updated: yes/no". This prevents stale status recurrence.
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Step 1: Makefile — add two lines to scrip-interp target:
+#   $(CC) $(CRT) -c $(RT)/asm/bb_pool.c -o $(OBJ)/bb_pool.o
+#   $(CC) $(CRT) -c $(RT)/asm/bb_emit.c -o $(OBJ)/bb_emit.o
+
+# Step 2: Create src/runtime/asm/bb_build_bin.c
+#   bb_box_fn bb_lit_emit_binary(const char *lit, int len)
+#   Mirrors bb_lit.s byte-for-byte using bb_emit_byte/u32/u64 + bb_insn_*
+#   Σ/Δ/Ω accessed via: mov rax, imm64(&global); mov eax,[rax]
+#   memcmp called via: mov rax, imm64(&memcmp); call rax
+#   lit/len baked as imm64/imm32 (no zeta needed at runtime)
+#   bb_alloc(512) → bb_emit_begin → emit → bb_emit_end → bb_seal → return fn ptr
+
+# Step 3: exec_stmt Phase 2 DT_S branch — wire behind SNO_BINARY_BOXES=1
+
+# Gate: PASS=178 unset; PASS=178 with SNO_BINARY_BOXES=1
+```
