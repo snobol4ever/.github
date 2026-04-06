@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-130 | one4all `944cb2a` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-FLAT**: fix 2 bugs (ALT label loop + LEN/TAB/BREAKX eligibility); gate PASS=178 with SNO_BINARY_BOXES=1; then benchmark pattern_bt ≤2× SPITBOL. See RT-130 handoff in SESSIONS_ARCHIVE. |
+| RT-131 | one4all `b0fd962` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U3**: SM-LOWER — write `sm_lower.c`, walk IR → SM_Program; wire `--hybrid` in scrip.c; PASS=178 via SM dispatch. M-DYN-FLAT COMPLETE ✅ (pattern_bt 1.72× flat vs C BB, 5.4× vs SPITBOL). See SCRIP-UNIFIED.md §Phase U3. |
 
 **First actions RT-125:**
 ```bash
