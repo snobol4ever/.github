@@ -438,3 +438,26 @@ Use `/*---...*/` for sub-section boundaries (function group, milestone block).
 
 **Do NOT apply retroactively** to code not being touched in the current milestone.
 Touch-and-reformat only lines you are already editing.
+
+## ⛔ NAMING CONVENTIONS — SIL vs new C names (2026-04-06)
+
+**Three sources of names. Each has exactly one rule.**
+
+| Origin | Rule | Examples |
+|--------|------|---------|
+| SIL label → C function | `NAME_fn` | `APPLY_fn`, `FINDEX_fn`, `CODSKP_fn` |
+| SIL DESCR/SPEC global → C typedef | verbatim + `_t` | `DESCR_t`, `SPEC_t` |
+| SIL named global → C global | verbatim UPPERCASE | `XPTR`, `NEXFCL`, `FNCPL`, `TIMECL` |
+| SIL EQU constant → C `#define` | verbatim UPPERCASE | `FBLKSZ`, `CNODSZ`, `OBSIZ`, `DATSTA` |
+| SIL flag → C `#define` | verbatim UPPERCASE | `FNC`, `PTR`, `FRZN`, `MARK` |
+| SIL data type code → C `#define` | verbatim UPPERCASE | `S`, `I`, `P`, `A`, `DATSTA` |
+| New C struct or enum (our concept, no SIL origin) | `Xxxx_yyy` — ONE uppercase first letter, rest lowercase + underscores | `Sil_result`, `Invoke_entry`, `Scan_ctx` |
+| New C function (our concept, no SIL origin) | `snake_case` | `arena_init`, `genvar_from_descr`, `locapt_fn` |
+| New C variable (our concept, no SIL origin) | `snake_case` | `scan_ctx_g`, `invoke_table` |
+
+**Hard rules:**
+- **Never CamelCase** for anything. `SilResult` ✗  `SIL_result` ✗  `Sil_result` ✓
+- **Never ALL_CAPS for new C structs/enums.** ALL_CAPS is reserved for SIL-derived constants.
+- Names that CONTAIN a SIL name but add C suffixes: `NAME_fn`, `NAME_t` — use verbatim SIL name as prefix.
+- New C helpers that wrap a SIL concept are still new C functions → `snake_case`: `genvar_from_descr()` not `GENVAR_fn_from_descr()`.
+- Derived names (e.g. `locapt_fn`, `locapv_fn`) implement SIL macros LOCAPT/LOCAPV — they are new C functions → `snake_case` ✓.

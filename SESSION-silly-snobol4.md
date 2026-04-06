@@ -151,3 +151,29 @@ Currently a partial stub — computed constants filled, stacks allocated, but th
 pattern primitives, OBLIST, etc.) are NOT populated from the SIL source.
 The diff pass (M-SS-DIFF) will surface which globals are wrong/missing.
 A generator script (parse §24, emit C) is the right approach for M-SS-HARNESS prep.
+
+### Naming conventions — C translation rules (2026-04-06)
+See full table in `GENERAL-RULES.md` under `## ⛔ NAMING CONVENTIONS`.
+Summary:
+- SIL label → `NAME_fn` (`FINDEX_fn`, `CODSKP_fn`)
+- SIL global → verbatim UPPERCASE (`XPTR`, `FNCPL`, `NEXFCL`)
+- SIL EQU/#define → verbatim UPPERCASE (`FBLKSZ`, `CNODSZ`, `DATSTA`)
+- SIL type → verbatim + `_t` (`DESCR_t`, `SPEC_t`)
+- New C struct/enum → `Xxxx_yyy` one-cap-first (`Sil_result`, `Invoke_entry`, `Scan_ctx`)
+- New C function/variable → `snake_case` (`arena_init`, `genvar_from_descr`, `locapt_fn`)
+- **Never CamelCase. Never ALL_CAPS for new C types.**
+
+### M-SS-DIFF punch-list (SS-19, 2026-04-06)
+Fixed this session:
+- `SIL_result` → `Sil_result` everywhere (41 files)
+- `CNODSZS` → `CNODSZ` (SIL verbatim)
+- Added `#define FBLKSZ (10*DESCR)` to `sil_types.h`
+- `FBKLSZ` typo (×2) → `FBLKSZ` in `sil_symtab.c` FINDEX_fn
+- `BLOCK_fn(FBLKSZ, 0)` → `BLOCK_fn(FBLKSZ, B)` (FATBLK, oracle type=B)
+- Dropped `FNCPL_off` shadow — use `D_A(FNCPL)` directly everywhere
+- `GENVAR_fn_from_descr` → `genvar_from_descr` in `sil_main.c`
+- Build confirmed clean (one pre-existing format-truncation warning only)
+
+Still open:
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP)
+- Continue diff pass §6–§23
