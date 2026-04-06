@@ -31100,3 +31100,46 @@ INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 # Test: echo "X = 'hello world' / X ' world' = / OUTPUT = X" | ./scrip --hybrid /dev/stdin
 # Gate: PASS ≥ 162
 ```
+
+## Sprint RT-139b HANDOFF (build/clone tooling) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 — build tooling sprint (no PASS change)
+**HEAD:** one4all `c47922e1` · .github `177eb46`
+
+### Work done this session
+
+**snobol4ever_clone.sh** — canonical bootstrap script, lives in `.github/` root.
+Profiles: `interp` / `jvm` / `dotnet` / `spitbol` / `all`. Explicit repo list also supported.
+Safe to re-run (skips already-cloned repos). No `cd` into `.github` needed.
+
+Correct onboarding flow:
+```bash
+mkdir ~/snobol4ever && cd ~/snobol4ever
+git clone https://TOKEN@github.com/snobol4ever/.github
+bash .github/snobol4ever_clone.sh --token TOKEN interp
+# then open GitHub Desktop and add the folders
+```
+
+**one4all/snobol4ever_clone.sh** — copy for convenience if one4all already cloned.
+**one4all/one4all_clone.sh** — delegates to above, clones into parent dir.
+**one4all/Makefile** — expanded: all, scrip, scrip-cc, setup, test, test-hybrid,
+  test-all, monitor-ipc, run-asm, run-jvm, run-net, clean, distclean.
+  Absorbs snobol4-asm.sh / snobol4-jvm.sh / snobol4-net.sh logic.
+
+### Next session first actions
+
+```bash
+cd ~/snobol4ever/one4all   # or wherever
+tail -120 ../.github/SESSIONS_ARCHIVE.md
+grep "^## " ../.github/GENERAL-RULES.md
+cat ../.github/PLAN.md
+cat ../.github/SESSION-snobol4-x64.md
+git pull --rebase && make scrip
+INTERP="./scrip --hybrid" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Confirm PASS=161 hybrid, PASS=178 --interp
+
+# Next bug: 063_capture_null_replace
+# Root cause: sm_lower.c pushes INTVAL(1) as replacement when has_eq=1, replacement=NULL
+# Fix: emit SM_PUSH_LIT_S "" instead (check if SM_PUSH_LIT_S exists in sm_prog.h first)
+# Gate: PASS >= 162
+```
