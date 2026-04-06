@@ -30144,3 +30144,75 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 23 non-beauty tests remaining.
+## Sprint RT-139 HANDOFF (semicolon separator investigation) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (semicolon P2F / CMPILE track)
+**HEAD:** one4all `686a3d03` · corpus `3fd44d0` · PASS=178 (normal) / PASS=155 (--hybrid, unchanged)
+**No new commits this session — investigation only.**
+
+### Work done this session
+
+**RT-139: Semicolon P2F root cause investigation**
+
+1. **v311.sil mechanism confirmed:** RTN3 from CMPILE → XLATNX → CARDTB re-classifies
+   remaining TEXTSP → NEWTYP → CMPILE again. No semicolon logic inside CMPILE.
+   CARDTB chrs[';'=0x3B]=1 → CMTTYP (comment) — but ';' is already consumed by
+   FORBLK/IBLKTB before CMPILE returns. The remainder starts with space → CARDTB
+   NEWTYP → CMPILE. Pure XLATNX loop. (syn.c verified authoritative.)
+
+2. **Table authority confirmed:** ';' is correctly encoded in FRWDTB chrs[59]=6→EOSTYP
+   ACT_STOP and IBLKTB chrs[59]=2→EOSTYP ACT_STOP. Per HQ rule (MILESTONE-SN4PARSE-
+   VALIDATE.md §Table authority): no chrs[] modification needed or permitted.
+
+3. **Outer P2F loop (cmpile_file_internal line 2511) is structurally correct** — mirrors
+   XLATNX. It fails because TEXTSP.len=0 when checked after compile_one_stmt() returns.
+
+4. **Key mystery:** CMPILE() drains TEXTSP before returning, even though CMPFRM's
+   internal trace showed TEXTSP.len=20 (rem=`[ b='bb' ; d='dd']`) after its FORBLK.
+   CMPFRM-ret probe never fires for the `a='aa'` semicolon line — meaning `a='aa'`
+   takes a different path through CMPILE() that drains TEXTSP.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+apt-get install -y libgc-dev flex
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 178
+
+# PRIORITY 1: Find which return path in CMPILE() handles 'a='aa';b='bb';d='dd''
+# Add SNO_SEMI probe at EVERY return s inside CMPILE() function:
+#   - After LBLTB/FORBLK early returns (BRTYPE==0 or EOSTYP bare label)
+#   - After CMPFRM's FORBLK (the one that fires for our case)
+#   - After CMPASP's FORBLK
+#   - After CMPGO's closing FORWRD() calls
+#   - After the bare-invoke path
+# Run: SNO_SEMI=1 ./scrip --dump-parse /tmp/x.sno where x.sno = just the one line:
+#   "        a = 'aa' ; b = 'bb' ; d = 'dd'"
+# Find which probe fires and whether TEXTSP.len > 0 at that point.
+# Then trace why it becomes 0 before compile_one_stmt() returns.
+#
+# Hypothesis: the 'a='aa'' line has label='a' (LBLTB consumes 'a' as label,
+# not subject). Then CMPILA FORBLK finds '=' → EQTYP → but this is a
+# LABEL-then-EQTYP path, not CMPSUB-then-EQTYP. In CMPILE() the label path
+# goes CMPILA → BRTYPE==EQTYP → goto CMPFRM (line ~1959 in our code).
+# CMPFRM calls FORWRD() (not FORBLK) to skip '=', then EXPR(), then FORBLK().
+# But there's a second FORBLK in CMPFRM's body that may consume past ';'.
+# OR: FORWRD() inside CMPFRM exhausts the physical line and calls forrun(),
+# which reads the NEXT card (lfunc=a b d :(return)) into g_io_linebuf,
+# overwriting the ';b='bb';d='dd'' remainder that TEXTSP still pointed into.
+# That's the clobber. Fix: snapshot TEXTSP.ptr/len before the inner FORWRD(),
+# restore after EXPR() completes.
+#
+# Gate: --dump-parse of 1012_func_locals.sno shows stmts a='aa', b='bb', d='dd'
+#   as 3 separate stmts. ./scrip --interp 1012_func_locals.sno → PASS.
+#   PASS=178 → 179.
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Semicolon fix → PASS=178→179 interp first.
