@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-1 | (not started) | M0: sil_types.h — EQUs, DESCR_t, SPEC_t, flags, type codes |
+| SS-2 | one4all `b4fcc132` · .github `c836322` | M3: sil_strings.c/h |
