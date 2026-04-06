@@ -90,6 +90,7 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
+| **v311.sil faithful C rewrite** | `MILESTONE-V311-C.md` | ⬜ planned — 17 milestones V311-C0 through V311-C16 |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
 | **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
