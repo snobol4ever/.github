@@ -1214,7 +1214,7 @@ clean:
 | M13 | `sil_arrays.c/h` | §14 Arrays/Tables | 623 | ✅ |
 | M14 | `sil_define.c/h` | §12 Defined functions | 230 | ✅ |
 | M15 | `sil_io.c/h` | §15 I/O | 197 | ✅ |
-| M16 | `sil_io.c/h` | §15 I/O | 197 | ⬜ |
+| M16 | `sil_trace.c/h` | §16 Tracing | 361 | ✅ |
 | M17 | `sil_trace.c/h` | §16 Tracing | 361 | ⬜ |
 | M18 | `sil_compiler.c/h` | §6 Compiler | 965 | ⬜ |
 | M19 | `sil_interp.c/h` | §7 Interpreter | 158 | ⬜ |
