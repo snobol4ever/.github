@@ -28447,3 +28447,64 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 #   After inserting near /* comment blocks, verify opener survived.
 #   Symptom: "stray \\342" or "'Build' undeclared" = missing /*)
 ```
+
+## Sprint RT-123 HANDOFF (Error 22 wired; Error 25 deferred) — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `4d56435` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: RT-123 ✅
+
+**Commit `4d56435`** — `RT-123: Error 22 (STLIMIT via sno_runtime_error); revert Error 25 (needs explicit-call flag); PASS=178`
+
+**Error 22 — &STLIMIT exceeded (`comm_stno`):**
+- Was: bare `fprintf(stderr,...) + exit(1)` — bypassed canonical error path
+- Now: `sno_runtime_error(22, NULL)` — uses message table, sets `&ERRTYPE`, follows terminal dispatch
+- SIL: `EXEX SETAC ERRTYP,22`
+
+**Error 25 — wrong arg count — ATTEMPTED AND REVERTED:**
+- Guard `if (nargs != np) sno_runtime_error(25, NULL)` in `call_user_function` caused
+  178→175 regression: beauty suite + func tests all broke.
+- Root cause: `call_user_function` is called from multiple internal paths with 0 args
+  (label-as-function-call, subject-as-function-call) even for functions with params.
+  SIL INVK strict check only fires on explicit parenthesized call; bare invocations
+  silently supply NULVCL for unmatched params.
+- Fix path: wire Error 25 only in the **E_FNC explicit-call path** in `interp_eval`
+  (where `e->nchildren` == caller-supplied count), NOT in `call_user_function` itself.
+
+### RT-124 first actions
+
+**Error 25 — correct fix location:**
+```c
+/* In interp_eval, E_FNC branch (scrip-interp.c ~line 918): */
+int nargs = e->nchildren;
+/* ... evaluate args ... */
+/* Check BEFORE calling call_user_function: */
+int np_expected = FUNC_NPARAMS_fn(e->sval);
+if (np_expected >= 0 && nargs != np_expected && !APPLY_fn_has_builtin(e->sval))
+    { sno_runtime_error(25, NULL); return FAILDESCR; }
+/* Then proceed to call_user_function(e->sval, args, nargs) */
+```
+Key: only check when the function is user-defined (not a builtin registered via
+`register_fn`). Use `FNCEX_fn(e->sval) && !fn_has_builtin(e->sval)` to discriminate.
+Gate: PASS=178.
+
+**Error format gap (next after Error 25):**
+Current:  `"\n** Error %d in statement %d\n   %s\n"`
+SIL FTLCF: `"%v:%d: Error %d in statement %d at level %d\n"`
+Need: filename (track via `g_current_file` in `execute_program`) + `kw_fnclevel`.
+One-liner: add `extern char *g_current_file` and include in `sno_runtime_error` format.
+
+**Remaining error vertical (after above):**
+- Error 6 (erroneous prototype) in `DEFINE_fn` prototype-string parse
+- Error 8 (variable not present) — NAME type used where value required
+- Error 18 (return from level zero) — RETURN/FRETURN at call_depth==0
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+```
