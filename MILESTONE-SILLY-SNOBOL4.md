@@ -33,7 +33,7 @@
 6. **BLOCKS section skipped.** Lines 7038–10208 of v311.sil (3,304 lines,
    `#ifdef BLOCKS`) — no corpus tests use it, skip entirely.
 
-7. **One folder.** `silly-snobol4/` contains every source file. No external
+7. **One folder.** `src/silly/` contains every source file. No external
    headers except `<stdio.h>`, `<stdlib.h>`, `<string.h>`, `<math.h>`,
    `<stdint.h>`, `<setjmp.h>`, `<signal.h>`.
 

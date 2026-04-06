@@ -1,6 +1,6 @@
 # SESSION-silly-snobol4.md — Silly SNOBOL4 Faithful C Rewrite
 
-**Repo:** one4all (subfolder `silly-snobol4/`) · **Track:** standalone rewrite
+**Repo:** one4all (subfolder `src/silly/`) · **Track:** standalone rewrite
 **Trigger:** any message containing "Silly SNOBOL4" starts this session
 **Milestone doc:** `MILESTONE-SILLY-SNOBOL4.md`
 
@@ -11,7 +11,7 @@
 ### What this is (2026-04-06)
 
 A ground-up faithful C rewrite of `v311.sil` (CSNOBOL4 2.3.3, Phil Budne).
-Lives in `one4all/silly-snobol4/` — self-contained, references nothing outside
+Lives in `one4all/src/silly/` — self-contained, references nothing outside
 that folder except system headers.
 
 **Source oracle:** `/home/claude/work/snobol4-2.3.3/v311.sil` (12,293 lines)
@@ -57,7 +57,7 @@ that folder except system headers.
 
 These files from `one4all/src/runtime/snobol4/` contain well-tested logic
 that can be adapted. Adapt, don't copy verbatim — the type system differs
-(one4all uses Boehm GC + 64-bit; silly-snobol4 uses arena + 32-bit).
+(one4all uses Boehm GC + 64-bit; silly uses arena + 32-bit).
 
 | one4all file | Useful for | Adaptation needed |
 |---|---|---|
@@ -70,7 +70,7 @@ that can be adapted. Adapt, don't copy verbatim — the type system differs
 ### Build (2026-04-06)
 
 ```bash
-cd /home/claude/one4all/silly-snobol4
+cd /home/claude/one4all/src/silly
 gcc -Wall -Wextra -std=c99 -m32 -g -O0 -c sil_types.h   # M0 gate
 gcc -Wall -Wextra -std=c99 -m32 -g -O0 -c sil_data.c    # M1 gate
 # etc. — each milestone gates on its file compiling clean
