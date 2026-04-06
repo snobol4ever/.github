@@ -27930,92 +27930,109 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 # If <80%: inspect which PATND kinds dominate misses → plan B7.
 ```
 
-## Sprint RT-121 HANDOFF — 2026-04-05
+## Sprint RT-119 HANDOFF (M-DYN-B6) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `9af851a7e4703c63cdace276b102053533b00aa7` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `386a2af` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Session type: Datatype gap-scan — CONVERT matrix + VARVAL_fn + CODE() parser
+### Milestone completed: M-DYN-B6 ✅
 
-### Method used this session
-Systematic gap-scan: chose CONVERT() as focus (touches every datatype).
-Read v311.sil CNVRT dispatcher + dtype-pair table (DTATL). Built csnobol4
-oracle from tarball. Ran oracle vs scrip-interp side-by-side for each
-conversion pair. Found gaps, fixed incrementally, gated at PASS=178.
+**Commit `386a2af`** — `RT-119 M-DYN-B6: binary coverage audit instrumentation; 21.8% baseline`
 
-### Work done — commit 9af851a
+**Deliverables:**
+- `stmt_exec.c`: `g_bin_hits` / `g_bin_misses` / `g_bin_str_hits` counters wired into Phase 2. `bin_audit_print()` prints audit line to stderr at program end when `SNO_BINARY_BOXES` set.
+- `scrip-interp.c`: calls `bin_audit_print()` before `return 0`.
+- `bb_build_bin.c`: `default:` logs `BIN_MISS: kind=N` when `SNO_BIN_MISS_LOG` set.
 
-#### Fix 1: CONVERT(T,"ARRAY") — TABLE→ARRAY (CNVTA)
-`snobol4.c _CONVERT_` ARRAY branch: was `return FAILDESCR` with bogus comment
-"csnobol4 verified: FAIL". Oracle confirms ARRAY returned. Now implemented:
-walks `tbl->buckets[]`, allocates `array_new2d(1,N,1,2)`, fills `[i,1]=key_descr`
-`[i,2]=val`. Empty table → FAILDESCR (SIL ICNVTA fails on all-null). Order
-follows hash bucket order (unspecified by SNOBOL4 spec; oracle also unordered).
-ARRAY→TABLE correctly stays FAILDESCR (oracle: Error 1 "Illegal data type").
+**Corpus audit (crosscheck, 68 files):**
+- DT_P hits=18 misses=129 · DT_S hits=18 · **overall=21.8%**
 
-#### Fix 2: VARVAL_fn — DT_E and DT_C stringify
-`snobol4.c VARVAL_fn`: added explicit cases before `default:`:
-- `DT_E` → `"EXPRESSION"` (SIL CNVRTS/DTREP path; oracle-verified)
-- `DT_C` → `""` (oracle: CODE blocks stringify to empty string)
-Previously both fell to `default: return ""`, making
-`CONVERT(expr,"STRING")` return `""` instead of `"EXPRESSION"`.
+**Miss breakdown:**
+| Count | Kind | Name |
+|-------|------|------|
+| 74 | XNME (23) | `pat . var` conditional capture ← **biggest win** |
+| 17 | XSPNC (1) | SPAN(chars) |
+| 8 | XANYC (3) | ANY(chars) |
+| 8 | XOR (26) | alternation `\|` |
+| 6 | XARBN (20) | ARBNO(p) |
+| 5 | XFNME (24) | `pat $ var` immediate capture |
+| 3 | XFNCE (22) | FENCE |
+| 3 | XBRKC (11) | BREAK(chars) |
 
-#### Fix 3: code() — retire sno_parse, use cmpile_string + cmpile_lower
-`eval_code.c code()`: replaced `fmemopen → sno_parse` (retired Bison parser,
-failing on ALL input with "parse error: syntax error") with:
-`cmpile_string(src) → cmpile_lower(cl)`.
-`cmpile_lower` de-static'd in `scrip-interp.c` to allow extern reference.
-Broken comment `/* ... Program*/` caused spurious C parse error during fix —
-corrected to `/* ... Program, STMT_t, EXPR_t ... */`.
-`CODE("X = 42")` now returns `DT_C` (was FAILDESCR). `GOTO(C)` dispatch into
-DT_C blocks is a pre-existing RT-7 stub — not addressed this session.
+**Binary path gate wrapper** (harness strips SNO_BINARY_BOXES):
+```bash
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+```
 
-### NOT DONE — pre-existing
-- `GOTO(C)` / exec_code dispatch: DT_C block is parsed correctly but the
-  GOTO statement doesn't dispatch into it. `exec_code()` in eval_code.c is
-  implemented, but scrip-interp.c's goto resolver doesn't call it for DT_C.
-- EVAL(DT_E) dispatch hijack (RT-121 original target): `_EVAL_` wrapper in
-  snobol4.c is never called when E is DT_E. Suspect label_lookup("EVAL")
-  routing to user-function path. Still PASS=178, not fixed this session.
+### RT-120 first actions (M-DYN-B7: XNME trampoline)
 
-### RT-122 first actions — next session pick: continue gap-scan OR fix EVAL dispatch
-
-**Option A — continue gap-scan (next vertical: keywords / &-variables)**
 ```bash
 cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Gap-scan method for keywords:
-# 1. grep v311.sil for all keyword names (AEQLC lines with &-prefixed names)
-# 2. grep our NV_GET_fn/NV_SET_fn for which are implemented vs stubs
-# 3. Cross-check with corpus test failures
+# M-DYN-B7: XNME — pat . var conditional capture (74 misses, biggest win)
+# Read: src/runtime/boxes/nme/bb_nme.c  — see nme_t layout and logic
+# Strategy: trampoline wrapping bb_nme (same as TAB/RTAB/LEN).
+#   nme_t likely has: { bb_node_t child; DESCR_t *var; spec_t matched; }
+#   But child is a bb_node_t (fn+zeta) — need to recurse bb_build_binary_node
+#   on p->children[0] first; if NULL, fall back.
+#   Heap alloc nme_t, wire child fn+zeta, bake var ptr, trampoline to bb_nme.
+# Wire: case XNME → bb_nme_emit_binary(p)
+# Gate: PASS=178 both paths. Re-run miss_sweep — expect DT_P misses ~55.
+
+# After XNME: XFNME (pat $ var) — same structure, trampoline to bb_fnme.
+# Then XOR (alternation) — needs heap or_t with left/right children.
+# Then XSPNC/XANYC/XBRKC (char-set boxes) — trampoline to bb_span/bb_any/bb_brk.
 ```
 
-**Option B — fix EVAL(DT_E) dispatch (RT-121 original)**
+## Sprint RT-119 HANDOFF (M-DYN-B6) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `386a2af` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B6 ✅
+
+**Commit `386a2af`** — `RT-119 M-DYN-B6: binary coverage audit; 21.8% baseline`
+
+**Corpus audit (crosscheck, 68 files):** DT_P hits=18 misses=129 · DT_S hits=18 · **overall=21.8%**
+
+**Miss breakdown (sorted by count):**
+74×XNME(23)  17×XSPNC(1)  8×XANYC(3)  8×XOR(26)  6×XARBN(20)  5×XFNME(24)  3×XFNCE(22)  3×XBRKC(11)
+
+### RT-120 first actions (M-DYN-B7: XNME trampoline — 74 misses, biggest win)
+
 ```bash
-# Per SESSION-snobol4-x64.md §INFO and last handoff:
-# Step 1: add fprintf to _EVAL_ in snobol4.c to confirm it never fires
-# Step 2: check label_lookup("EVAL") in E_FNC dispatch
-# Step 3: add builtin-exempt guard for EVAL/CODE/DATA in E_FNC
-# Gate: CONVERT("2+3","EXPRESSION") → EVAL → 5
-```
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md && grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
 
-**Option C — fix GOTO(C) exec_code dispatch (natural follow-on to Fix 3)**
-```bash
-# In scrip-interp.c execute_program() goto resolver:
-# When goto target is a DESCR_t with v==DT_C, call exec_code(target_descr)
-# and use returned string as next label. Currently only string labels checked.
+# M-DYN-B7: read bb_nme.c for nme_t layout.
+# Recurse bb_build_binary_node on p->children[0]; if NULL fall back.
+# Heap alloc nme_t, wire child fn+zeta, bake var ptr, trampoline to bb_nme.
+# case XNME → bb_nme_emit_binary(p)
+# Gate: PASS=178 both paths. Re-run miss_sweep → expect ~55 misses remaining.
+# After XNME: XFNME (same pattern), then XOR, then XSPNC/XANYC/XBRKC.
 ```
-
-### Gap-scan inventory from this session (for future sessions)
-Confirmed matching oracle: I→S, R→S, S→I, S→R, S→P, S→C, S→E, S→NUMERIC,
-I→R, R→I, A idem, T idem, P idem, P→S returns "PATTERN",
-T→S returns "TABLE(init,inc)", A→S returns "ARRAY('n')",
-DATA-type→S returns type-tag name.
-Fixed this session: T→A, E→S, C→S (partially).
-Remaining suspect: GOTO(C) exec, EVAL(DT_E).
