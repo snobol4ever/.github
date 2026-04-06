@@ -29559,3 +29559,83 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Remaining gap: DEFINE/user-functions (~30 tests), then minor keyword/eval gaps.
+
+## Sprint RT-134 HANDOFF (M-SCRIP-U4 advancing) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `763eadc3` · corpus `3fd44d0` · PASS=178 (normal) / PASS=141 (--hybrid)
+
+### Work done this session
+
+**GENERAL-RULES updates (committed to .github `6cabf9d`):**
+- TOKEN rule corrected: never write to files/commits/disk; fine to use in shell and display in chat. Danger is accidental check-in only.
+- New rule: ⛔ C CODE STYLE — compact, 120-column, horizontal-first. Section dividers `/*====...*/` and `/*----...*/` exactly 120 chars. Brace-on-same-line, short bodies on one line, initialise at declaration, no redundant braces.
+
+**Root cause found and fixed — --hybrid DEFINE/user-function segfault:**
+
+`--hybrid` path in `main()` called `sm_lower(prog)` + `sm_interp_run` without first
+calling `label_table_build(prog)` or `prescan_defines(prog)`. Result:
+- `label_lookup("double")` returned NULL in `call_user_function`
+- `sno_runtime_error(5)` fired and longjmp'd to `g_sno_err_jmp` — never set in hybrid path
+- Crash (segfault / infinite mutual recursion depending on path taken)
+
+**Fix in `src/driver/scrip.c` hybrid block (3 lines added):**
+```c
+label_table_build(prog);
+prescan_defines(prog);
+g_sno_err_active = 1;
+```
+These mirror what `execute_program()` does before its interpreter loop.
+
+**INVOKE_fn (invoke.c):** investigated and reverted. `APPLY_fn` already handles
+fn==NULL (user-defined) via `g_user_call_hook`. The FNCEX_fn gating attempt caused
+infinite mutual recursion (`INVOKE_fn → _usercall_hook → APPLY_fn → _usercall_hook → ...`).
+No change needed in `invoke.c` — reverted to simple `return APPLY_fn(name, args, nargs)`.
+
+**Result:** PASS=128 → PASS=141 under `--hybrid`. +13 tests. All simple DEFINE/user-function tests now passing.
+
+### Remaining --hybrid failures (62 total, 40 unique test names)
+
+| Cluster | Tests | Root cause |
+|---------|-------|------------|
+| Arrays/Tables/DATA | 091–095, 1110–1116 | INVOKE_fn gaps for ARRAY/TABLE/DATA ctors |
+| Func edge cases | 1010, 1012, 1013, 1015–1018 | recursion, locals, NRETURN, OPSYN, APPLY |
+| Indirect `$var` | 210–213 | SM_CALL ASGN_INDIR not fully wired for all cases |
+| word/cross programs | word1–4, wordcount, cross | likely indirect or array dependent |
+| Pattern ALT/ARBNO | 053, 054 | backtracking in SM pat-stack dispatch |
+| Misc | 411_arith_unary, 082_keyword_stcount | unary op gap, keyword write-back |
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO + §NOW
+
+# Re-create wrapper:
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+# Confirm baselines:
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh                            # PASS=178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh  # PASS=141
+
+# Triage next yield cluster — arrays (15 tests if fixed):
+./scrip --hybrid /home/claude/corpus/crosscheck/rung11/1110_array_1d.sno 2>&1 | head -10
+./scrip --hybrid /home/claude/corpus/crosscheck/rung9/091_array_create_access.sno 2>&1 | head -10
+# Likely: ARRAY()/TABLE()/DATA() go through SM_CALL → INVOKE_fn → APPLY_fn → ok
+# But subscript assign (arr<i> = v) lowers to SM_CALL "IDX" + SM_CALL "ASGN"
+# which may not write back correctly. Check sm_interp SM_CALL "IDX" path.
+
+# After arrays: triage 210_indirect_ref (4 tests, indirect cluster):
+./scrip --hybrid /home/claude/corpus/crosscheck/rung2/210_indirect_ref.sno 2>&1 | head -10
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 37 tests remaining after arrays fixed.
