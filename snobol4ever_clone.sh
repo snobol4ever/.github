@@ -2,7 +2,11 @@
 # snobol4ever_clone.sh — clone selected snobol4ever repos
 #
 # Usage:
-#   bash snobol4ever_clone.sh [--token TOKEN] [--ssh] PROFILE_OR_REPOS...
+#   mkdir ~/snobol4ever && cd ~/snobol4ever
+#   git clone https://TOKEN@github.com/snobol4ever/.github
+#   bash .github/snobol4ever_clone.sh --token TOKEN PROFILE_OR_REPOS...
+#
+# Repos are cloned as subdirectories of wherever you run this script.
 #
 # Profiles:
 #   interp     — .github one4all harness corpus
@@ -12,13 +16,12 @@
 #   all        — every repo in the org
 #
 # Or list repos explicitly:
-#   bash snobol4ever_clone.sh one4all corpus harness
+#   bash .github/snobol4ever_clone.sh --token TOKEN one4all corpus harness
 #
 # Options:
 #   --token TOKEN   GitHub PAT (or set GH_TOKEN env var)
 #   --ssh           Clone via SSH instead of HTTPS
 #
-# Run from the directory where you want the repos to appear as subdirectories.
 # Safe to re-run — already-cloned repos are skipped.
 
 set -euo pipefail
