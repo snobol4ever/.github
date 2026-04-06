@@ -27648,3 +27648,84 @@ grep -n "stmt_failed" src/driver/scrip-interp.c
 # Add kw_stexec int64_t global; increment alongside kw_stcount in comm_stno().
 # Gate: PASS=178 throughout.
 ```
+
+## Sprint RT-118 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `a07fab4` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session type: Datatype vertical audit + DT_K gap sweep
+
+### Work done
+
+#### Commit a07fab4 — RT-118: DT_K keyword type fixes + pattern keyword NV registration
+
+**Vertical chosen:** Datatypes — `datatype()`, `to_int()`, `to_real()`, coercion
+chain, argval evaluators. Oracle: v311.sil DTLIST + KVLIST tables.
+
+**snobol4.c:**
+- `datatype()`: added `case DT_K: return "NAME"` — SIL DTLIST maps K→NAMESP
+  (same as N). Previously fell to `default: return "STRING"`.
+- `to_int(DT_K)`: new case — deref via `NV_GET_fn(v.s)` then recurse.
+  Previously hit `default → sno_runtime_error(1)` on any keyword in arithmetic.
+- `to_real(DT_K)`: same pattern as to_int.
+- `SNO_INIT_fn`: registered &ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED
+  as NV pattern-descriptor variables (SIL KVLIST DT_P entries ARBPAT/BALPAT/
+  FNCPAT/ABOPAT/FALPAT/REMPT/SUCPAT). Previously these were registered as
+  *functions only* — `NV_GET_fn("ARB")` returned NULVCL, so `DATATYPE(&ARB)`
+  returned "STRING" and &ARB in pattern position was a null string match.
+  Now DATATYPE(&ARB) → "PATTERN", oracle-confirmed vs SPITBOL.
+
+**invoke.c (ARGVAL_fn):**
+- Added `if (d.v == DT_K && d.s) return NV_GET_fn(d.s)` after DT_N block.
+  DT_K was falling through to `return d` (pass raw descriptor to builtin).
+  Now keywords resolve to their value through function call arg dispatch.
+
+**argval.c (VARVAL_d_fn / INTVAL_fn / PATVAL_fn):**
+- Added `if (d.v == DT_K && d.s) d = NV_GET_fn(d.s)` after DT_N block
+  in all three typed evaluators. Ensures keyword values coerce correctly
+  in string, integer, and pattern argument positions.
+
+**Gate:** PASS=178 ✅ throughout. Oracle-tested vs SPITBOL on &ARB/&FENCE/&FAIL
+DATATYPE, keyword arithmetic, and pattern-position keyword use.
+
+### Remaining gap noted but NOT fixed this session
+
+**`VARVAL_fn` in snobol4.c (the `char*`-returning version) has no `DT_K` case.**
+Falls to `default: return ""`. This affects string-context uses of keywords
+that go through the old VARVAL_fn path (e.g. OUTPUT = &RTNTYPE directly).
+DT_K in string concat, OUTPUT assignment, etc. will silently produce "".
+Fix: add `case DT_K: return VARVAL_fn(NV_GET_fn(v.s));` to VARVAL_fn switch.
+
+**`VARVAL_fn` DT_K missing is the next easy fix.**
+
+### RT-119 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# NEXT EASY FIX — VARVAL_fn DT_K missing case:
+# In snobol4.c, VARVAL_fn switch, after case DT_N block (~line 1242):
+#   case DT_K:
+#       return VARVAL_fn(NV_GET_fn(v.s));
+# This fixes: OUTPUT = &RTNTYPE, string concat with keyword, etc.
+# Gate: PASS=178; oracle test: &RTNTYPE direct output, &TRIM string context.
+
+# THEN: continue datatype vertical audit — next sub-areas:
+# 1. CONVERT() second-pass: CONVERT(X,"NAME") — is it implemented?
+#    grep -n "NAME" src/runtime/snobol4/snobol4.c | grep -i convert
+# 2. DT_E (EXPRESSION) in to_int/to_real — currently hits default→error.
+#    Should thaw via EVAL_fn then retry. Is this needed for any corpus test?
+# 3. DT_DATA in VARVAL_fn — currently returns type->name (tag string).
+#    SIL returns the tag name for user-defined types. Check if correct.
+# 4. Error message vertical — sno_runtime_error format/coverage audit
+#    (GAP 4 stmt_failed label still needs verification per RT-117b handoff).
+```
