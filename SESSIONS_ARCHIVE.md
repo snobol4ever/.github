@@ -28582,3 +28582,53 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
 # OPTION A: next random SIL component audit
 # OPTION B: Error 25 explicit-call path (§NOW)
 ```
+
+## Sprint RT-120 ADDENDUM — M-DYN-B* Architecture Correction (2026-04-06)
+
+**one4all HEAD:** `e41b2aa` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Correction: prior B1–B10 used C trampolines, not x86 inline blobs
+
+All M-DYN-B1 through M-DYN-B10 milestones are VOIDED.
+They implemented 22-byte trampolines dispatching into C box functions (bb_fail.c, bb_fence.c, etc.)
+rather than self-contained x86 code+data blobs as specified.
+
+### New design: inline-blob ABI
+
+Buffer = code section + data section in one sealed pool page.
+`rdi` = buffer base. `r10` = scratch index (no push/pop).
+Mutable state and baked global ptrs live in data section at `[r10+N]`.
+
+### New milestone ladder: M-DYN-B0 through M-DYN-B13
+
+See `BB-GEN-X86-BIN.md` §Milestone Ladder (Redo) for full spec.
+
+**Projected blob sizes (vs old trampoline+C):**
+- FAIL: 5 bytes (was 27 — 5.4× smaller)
+- LIT:  ~132 bytes (was 169 — 1.3× smaller, fully inline)
+- All others: larger blobs but self-contained, no heap ζ, no trampoline dispatch
+
+### RT-121 first actions — M-DYN-B0 + B1
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex nasm
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+
+# M-DYN-B0: reset bb_build_binary_node() — all cases return NULL
+# Verify PASS=178 (C path only, SNO_BINARY_BOXES=1 silently falls through to C)
+# Remove trampoline emitters from bb_build_bin.c
+# Keep: bb_pool.c, bb_emit.c, bb_alloc/bb_emit_begin/bb_emit_end/bb_seal infrastructure
+
+# M-DYN-B1: bb_fail_inline()
+#   bb_alloc(8) → bb_emit_begin
+#   bb_emit_byte(0x31); bb_emit_byte(0xC0)   ; xor eax,eax
+#   bb_emit_byte(0x31); bb_emit_byte(0xD2)   ; xor edx,edx
+#   bb_emit_byte(0xC3)                        ; ret
+#   bb_emit_end() → bb_seal → return fn
+#   Wire: case XFAIL → bb_fail_inline()
+#   Gate: PASS=178 both paths; SNO_BIN_MISS_LOG shows 0 FAIL misses
+```
