@@ -28694,3 +28694,73 @@ Alternatively: **TRACE/STOPTR subsystem** — `_TRACE_` and `_STOPTR_` are regis
 ### Files changed this session
 - `src/runtime/snobol4/snobol4.c` — _REWIND_, _BACKSPACE_, _DETACH_, _io_varname, last_line_len, &TRIM
 - `src/driver/scrip-interp.c` — E_INDIRECT subject assignment channel write fix
+
+## Sprint RT-120 HANDOFF (M-DYN-B-SPITBOL priority set) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `ac19c92` · **HQ HEAD:** `841bed6` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- All 27 `bb_*.s` box files rewritten with correct ABI (no push/pop, .text code only,
+  .data baked ptr constants, heap ζ mutable state). Committed `ac19c92`.
+- M-DYN-B-SIZE ✅: 27-box size grid measured and recorded in BB-GEN-X86-BIN.md.
+- M-DYN-B-SPITBOL milestone added with full comparison design.
+- x64 SPITBOL oracle cloned to `/home/claude/x64`.
+
+### Current priority: M-DYN-B-SPITBOL
+
+Pattern storage size comparison — SPITBOL x64 vs scrip-interp Byrd boxes.
+Apples-to-apples: bytes to *store* a compiled pattern node, not bytes of match code.
+
+### RT-121 first actions
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex nasm
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+
+# M-DYN-B-SPITBOL: build oracle and run SIZE() probe
+cd /home/claude/x64 && make 2>&1 | tail -5
+ls bin/spitbol && echo "oracle ready"
+
+cat > /tmp/pat_sizes.sno << 'SNO'
+        output = 'p0blk ABORT        = ' SIZE(ABORT)
+        output = 'p0blk FAIL         = ' SIZE(FAIL)
+        output = 'p0blk REM          = ' SIZE(REM)
+        output = 'p1blk LEN(5)       = ' SIZE(LEN(5))
+        output = 'p1blk POS(3)       = ' SIZE(POS(3))
+        output = 'p1blk ANY(abc)     = ' SIZE(ANY('abc'))
+        output = 'p1blk SPAN(abc)    = ' SIZE(SPAN('abc'))
+        output = 'p1blk BRK(.,;)     = ' SIZE(BREAK('.,;'))
+        output = 'p2blk LIT(hello)   = ' SIZE('hello')
+        output = 'concat 2 lits      = ' SIZE('hello' ' ' 'world')
+        output = 'alt 3              = ' SIZE('a' | 'b' | 'c')
+        output = 'SPAN LEN ANY       = ' SIZE(SPAN('abc') LEN(3) ANY('xyz'))
+        output = 'ARB                = ' SIZE(ARB)
+        output = 'ARBNO(LEN(1))      = ' SIZE(ARBNO(LEN(1)))
+END
+SNO
+/home/claude/x64/bin/spitbol /tmp/pat_sizes.sno
+
+# Then measure scrip-interp ζ sizeof() for same patterns:
+# grep for sizeof each ζ struct in bb_box.h / stmt_exec.c
+# Build comparison table and add to BB-GEN-X86-BIN.md §SPITBOL Comparison Results
+# Gate: table complete with ratio column; commit to HQ.
+```
+
+### Key design facts for M-DYN-B-SPITBOL
+
+SPITBOL node block sizes on x64 (d_word = 8 bytes):
+- p0blk: pcode(8) + pthen(8) = **16 bytes** — zero-param primitives
+- p1blk: + parm1(8) = **24 bytes** — one-param (LEN/POS/ANY/SPAN/BRK etc.)
+- p2blk: + parm2(8) = **32 bytes** — two-param (LIT: str_ptr + len)
+- String data (scblk) is a separate allocation; node holds ptr. Same as ζ.
+- `pthen` = linked-list spine ptr — 8 bytes overhead per node, not in scrip ζ.
+
+scrip-interp ζ has no pcode (fn ptr is the blob address) and no pthen (graph
+is the XCAT/XOR tree at build time). So ζ is mutable-state-only. Fair comparison
+adds seq nodes for concatenation spine (48 bytes each in scrip vs 16 bytes pthen in SPITBOL).
