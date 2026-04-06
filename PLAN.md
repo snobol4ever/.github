@@ -90,7 +90,7 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
-| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⬜ planned — 22 milestones M0–M21 · trigger: "Silly SNOBOL4" |
+| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-19 — M0–M21 + sil_platform.c ✅ clean link · next: M-SS-DIFF (diff pass) → M-SS-HARNESS (two-way vs CSNOBOL4) |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
 | **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
@@ -115,7 +115,7 @@ the corpus, the emitter is correct by construction.
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
 | **RUNTIME (SCRIP unified)** | RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0** rename scrip-interp→scrip + --interp/--gen flags; then M-DYN-B0 reset trampolines; then M-SCRIP-U1 segment allocator. See SCRIP-UNIFIED.md |
-| **Silly SNOBOL4** | SS-1 | (not started) | M0: sil_types.h |
+| **Silly SNOBOL4** | SS-19 | one4all `d1d96dcd` | M-SS-DIFF: section-by-section diff pass vs v311.sil → then M-SS-HARNESS (two-way harness vs CSNOBOL4) |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
