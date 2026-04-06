@@ -30624,3 +30624,33 @@ cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_extern.c → zero warnings
 # Commit+push one4all, update .github M17 ✅, push
 ```
+
+## Sprint SS-12 HANDOFF (Silly SNOBOL4 M17 sil_extern) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `c72a29e0` · .github (this commit)
+
+### Work done this session
+
+**M17 ✅ sil_extern.c/h — committed c72a29e0**
+UNLOAD_fn: FINDEX + reset to UNDFCL + XCALL_UNLOAD.
+LNKFNC_fn: full argument evaluation + 6-way type coercion (S↔I, S↔R, R↔I) + XCALL_LINK dispatch + return value handling (L/M/normal).
+LOAD_fn: stubbed (requires STREAM/VARATB).
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M17 all ✅
+M18 ⬜ sil_compile.c/h  ← NEXT (§6 Compiler, 966 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
+# Build M18: src/silly/sil_compile.c + sil_compile.h
+# Source: v311.sil §6 lines 1554–2519
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_compile.c → zero warnings
+# Commit+push one4all, update .github M18 ✅, push
+```
