@@ -31022,131 +31022,81 @@ INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 # Then: 063_capture_null_replace — null replacement off-by-one
 ```
 
-## Sprint SS-19 HANDOFF (Context ~64%) — 2026-04-06
+## Sprint RT-139 HANDOFF (SM cursor capture fix) — 2026-04-06
 
-**Session:** Silly SNOBOL4
-**HEAD:** one4all `d1d96dcd` · .github current
+**Session:** SNOBOL4 × x86 (Stack Machine track)
+**HEAD:** one4all `7b99cd96` · corpus `3fd44d0` · PASS=161/203 (--hybrid) · PASS=178/203 (--interp)
 
-### What was done
+### Work done this session
 
-1. **Fixed duplicate `CODSKP_fn`** — removed stale copy from `sil_symtab.c`; authoritative version lives in `sil_forwrd.c`. Committed `12b5fb32`.
+**Bug: @var cursor capture returned empty in --hybrid (W07_capt_cur)**
 
-2. **Wrote `sil_platform.c`** (~1475 lines) — the platform layer:
-   - `struct sil_syntab` + registry dispatch (platform tables live in BSS, not arena; `reg_tbl()` maps DESCR_t → sil_syntab via negative sentinel in `.a.i`)
-   - 30 static scan tables: FRWDTB, CARDTB, IBLKTB, ELEMTB, EOSTB, GOTSTB, GOTOTB, GOTFTB, LBLTB, LBLXTB, NUMBTB, SPANTB, BRKTB, BIOPTB, UNOPTB, STARTB, TBLKTB, NBLKTB, SQLITB, DQLITB, VARTB, VARATB, VARBTB, INTGTB, FLITB, EXPTB, EXPBTB, NUMCTB + BBIOPTB/BSBIPTB stubs
-   - `STREAM_fn`, `stream_fn`, `clertb_fn`, `plugtb_fn` with exact caller signatures
-   - `init_syntab()` — fills operator-fn put values (P2A of ADDFN/SUBFN/… DESCRs) after arena_init
-   - All 34 operator-fn DESCRs (ADDFN, SUBFN, MPYFN, … STRFN) with FNC flag
-   - All XCALLs (MSTIME, ZERBLK, GETPARM, OUTPUT, DATE, SBREAL, XRAISP, io stubs…)
-   - STREAD_fn (reads from stdin), STPRNT_fn (writes to stdout/stderr)
-   - All missing data globals: INCL, LITCL, ITEMCL, EXOPCL, INITCL, ANYCCL, POSICL, RPSICL, RTBCL, TBCL, ARBACK, RNOSP, CERRSP, SPCSP, OFSP, VSP, XFILEN, XSTNOC, CONTIN, STOPSH, IOSP, ISPPTR, +40 more
-   - All helper stubs with exact caller signatures: maknod_fn, lvalue_fn, cpypat_fn, deql_fn, getbal_fn, intspc_fn, realst_fn, stream_fn, xany_fn, DTREP_fn2/3, LOAD2_fn, PSTACK_fn, VPXPTR_fn2, PAD_fn, KEYT_fn, ARGINT_fn, SHORTN_fn
+Root cause (two-level):
 
-3. **Clean 64-bit link** — 25 translation units, zero linker errors, one format-truncation warning (date snprintf). Binary builds as native x86-64.
+1. **sm_lower.c E_CAPT_CURSOR**: unary `@var` (ATFN from parser) produces
+   `E_CAPT_CURSOR` with `nchildren=1` where `children[0]` IS the var-name node.
+   The old code checked `nchildren > 1` for the `SM_PAT_CAPTURE` emit — so it
+   was never emitted for unary `@var`. Instead only `lower_pat_expr(children[0])`
+   fired, treating the var name as a sub-pattern → `SM_PUSH_VAR + SM_PAT_DEREF`
+   → XDSAR on pat-stack → bb_build got kind=21 XDSAR, not the cursor box.
 
-4. **Build command** (no `-m32` needed — arena offsets are int32_t, works fine on 64-bit):
-   ```bash
-   gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o silly-snobol4 -I src/silly
-   ```
+2. **sm_interp.c SM_PAT_CAPTURE kind=2**: even if emitted, the handler called
+   `pat_cat(child, pat_at_cursor(vname))` which is correct in principle but
+   was unreachable due to bug #1.
 
-### Why we did NOT try to run it
+**Fix:**
+- Added `SM_PAT_EPS` opcode (sm_prog.h + sm_prog.c name table + sm_interp.c handler)
+- Fixed `E_CAPT_CURSOR` in sm_lower.c: `nchildren==1` path emits `SM_PAT_EPS`
+  then `SM_PAT_CAPTURE kind=2` with `children[0]->sval` as varname.
+  `nchildren==2` path (binary `X@V`) unchanged.
+- `SM_PAT_CAPTURE kind=2` in sm_interp.c: `pat_cat(child, pat_at_cursor(vname))`
+  is now correct and reachable.
 
-`sil_data_init()` is a partial stub. The 2000+ DESCR initializations from v311.sil §24 (function descriptors, keyword tables, OBLIST, pattern primitives, etc.) are not yet populated. Without them, `BEGIN` would immediately dereference garbage DESCRs. Clean link is the real milestone — runtime is a separate phase.
+PASS: 160 → 161. Commit: `7b99cd96`.
 
-### Next milestone: `sil_data_init()` — populate §24 data
+### Next bug: 063_capture_null_replace — outputs `hello1` instead of `hello`
 
-The path to a running hello world goes through properly initializing all static data from v311.sil §24. Strategy:
+**Test:** `X = 'hello world' / X ' world' = / OUTPUT = X`
+**Expected:** `hello` **Actual (hybrid):** `hello1`
 
-**Option A (script):** Write a Python/awk script that parses v311.sil §24 (lines 10481–12293) and generates C initializers for `sil_data_init()`. This is the right long-term approach.
+**Root cause diagnosed (not yet fixed):**
+`X ' world' =` has `s->has_eq=1`, `s->replacement=NULL` (empty RHS = deletion).
+In `sm_lower.c lower_stmt`, the replacement branch hits:
+```c
+else
+    sm_emit_i(p, SM_PUSH_LIT_I, (int64_t)s->has_eq);  /* pushes INTVAL(1) */
+```
+`SM_EXEC_STMT` then does `repl = sm_pop(st)` → gets `INTVAL(1)`.
+`exec_stmt` sees `has_repl=1` and `repl=INTVAL(1)` → stringifies as `"1"` → `hello1`.
 
-**Option B (manual priority):** Manually initialize only the critical globals needed for compile + execute of `OUTPUT = "HELLO"\nEND`:
-- KNLIST/KVLIST chain (keyword lookup)
-- OBLIST_arr population (built by FINDEX at runtime — may already work)
-- Function descriptors: ASGNCL.a.i = P2A(ASGN_fn) etc.
-- Pattern primitives: ARBPAT, FALPAT, SUCPAT, REMPAT arena nodes
-
-**Recommended:** Option A — the §24 parser script takes ~1 session and gives us everything correctly.
-
-### Key design note: -m32 is wrong
-
-v311.sil uses 32-bit arena offsets (int32_t) but the C rewrite uses int32_t explicitly everywhere. Building with -m32 is unnecessary and breaks on this 64-bit container. Build 64-bit; the arena model is self-consistent.
+**Fix (ready to implement):**
+```c
+if (s->has_eq && s->replacement)
+    lower_expr(p, lt, s->replacement);
+else if (s->has_eq)
+    sm_emit_s(p, SM_PUSH_LIT_S, "");   /* empty replacement = deletion */
+else
+    sm_emit_i(p, SM_PUSH_LIT_I, 0);    /* no replacement */
+```
+Requires `SM_PUSH_LIT_S` — check if it exists in sm_prog.h; add if not.
+Gate: `X ' world' =` → `hello`; PASS ≥ 162.
 
 ### First actions next session
+
 ```bash
 cd /home/claude
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
-cd one4all && git pull --rebase && git log --oneline -3
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO + §NOW only
+cd one4all && git pull --rebase && make scrip
+INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Confirm PASS=161 hybrid, PASS=178 --interp
 
-# Build to confirm clean:
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-
-# Begin sil_data_init() generator:
-python3 - << 'PYEOF'
-# Parse v311.sil §24 (lines 10481–12293) and print C init statements
-import re
-lines = open("/home/claude/work/snobol4-2.3.3/v311.sil").readlines()[10480:12293]
-for line in lines:
-    if re.match(r'\w+\s+DESCR\s+', line):
-        print(line.rstrip())
-PYEOF
-```
-
-## Sprint SS-19 HANDOFF (Context ~88%) — 2026-04-06
-
-**Session:** Silly SNOBOL4
-**HEAD:** one4all `3bf3cb38` · .github `e4b70bc`
-
-### What was done
-
-1. **Extracted oracles** — `snobol4-2.3.3.tar.gz` → `/home/claude/work/snobol4-2.3.3/` (v311.sil 12293 lines, snobol4.c 14293 lines). `spitbol-docs-master.zip` → `/home/claude/work/spitbol-docs-master/`.
-
-2. **Began M-SS-DIFF** — section-by-section diff pass §1–§4 vs v311.sil oracle. Findings:
-
-3. **Applied fixes** (all committed `3bf3cb38`):
-   - `SIL_result` → `Sil_result` everywhere (41 files) — naming rule: new C enum → `Xxxx_yyy`
-   - `CNODSZS` → `CNODSZ` (SIL verbatim EQU)
-   - Added `#define FBLKSZ (10*DESCR)` to `sil_types.h` (was missing entirely)
-   - `FBKLSZ` typo (×2) → `FBLKSZ` in `sil_symtab.c` FINDEX_fn
-   - `BLOCK_fn(FBLKSZ, 0)` → `BLOCK_fn(FBLKSZ, B)` — oracle FATBLK allocates with type B
-   - Dropped `FNCPL_off` shadow variable — use `D_A(FNCPL)` directly everywhere; write-back via `D_A(FNCPL) = AUGATL_fn(D_A(FNCPL), ...)`
-   - `GENVAR_fn_from_descr` → `genvar_from_descr` — new C helper → snake_case
-
-4. **Naming convention rules written to HQ** (`e4b70bc`):
-   - Full table in `GENERAL-RULES.md` under `## ⛔ NAMING CONVENTIONS`
-   - Compact copy in `SESSION-silly-snobol4.md §INFO`
-   - Rule summary: SIL label→`NAME_fn`; SIL global→verbatim UPPERCASE; SIL EQU→verbatim UPPERCASE; SIL type→`NAME_t`; new C struct/enum→`Xxxx_yyy`; new C fn/var→`snake_case`; **never CamelCase**
-
-### Still open on M-SS-DIFF punch-list
-
-- `EXDTSP` declared as `const char[]` in `sil_data.c` — oracle makes it a `STRING` specifier; `DTREP_fn` does `strlen(EXDTSP)` — should be `SPEC_t EXDTSP`
-- Continue diff pass §6 (Compiler/CMPILE) through §23
-
-### Build status
-Clean 64-bit build. One pre-existing format-truncation warning in `sil_platform.c` XCALL_DATE only.
-```bash
-cd /home/claude/one4all
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-```
-
-### First actions next session
-```bash
-cd /home/claude
-tail -120 .github/SESSIONS_ARCHIVE.md
-grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
-cd one4all && git pull --rebase && git log --oneline -3
-
-# Confirm clean build:
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-
-# Extract oracle if not present:
-ls /home/claude/work/snobol4-2.3.3/v311.sil || \
-  tar -xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/work/
-
-# Continue M-SS-DIFF — next: fix EXDTSP, then §6 CMPILE
-# EXDTSP fix: sil_data.c — change const char EXDTSP[] to SPEC_t EXDTSP
-# §6 oracle: sed -n '1554,2519p' /home/claude/work/snobol4-2.3.3/v311.sil | head -80
-# Compare to sil_cmpile.c, sil_expr.c, sil_trepub.c
+# Fix 063_capture_null_replace:
+# grep -n "SM_PUSH_LIT_S\|PUSH_LIT_S" src/runtime/sm/sm_prog.h
+# If missing: add SM_PUSH_LIT_S to enum + name table + sm_interp.c handler
+# Then fix lower_stmt in sm_lower.c (see root cause above)
+# Test: echo "X = 'hello world' / X ' world' = / OUTPUT = X" | ./scrip --hybrid /dev/stdin
+# Gate: PASS ≥ 162
 ```
