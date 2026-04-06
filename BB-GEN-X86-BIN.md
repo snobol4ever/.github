@@ -116,7 +116,10 @@ The only missing piece: `bb_build_bin.c` emitting bytes for each box type, and w
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
 | **M-DYN-B1** | `bb_build_bin.c`: `bb_lit_emit_binary()` → sealed x86 buffer; Makefile adds bb_pool+bb_emit; exec_stmt Phase 2 DT_S branch uses it behind `SNO_BINARY_BOXES=1` | PASS=178 both with and without env var | ✅ RT-116 |
-| **M-DYN-B2** | `bb_eps_emit_binary()` + full `bb_build_binary()` walk for DT_P (all 25 box types) | Same pass rate as C path | ⬜ |
+| **M-DYN-B2** | `bb_eps_emit_binary()` + full `bb_build_binary()` walk for DT_P (all 25 box types) | Same pass rate as C path | ✅ RT-117b |
+| **M-DYN-B3** | `bb_pos_emit_binary(n)` + `bb_rpos_emit_binary(n)` + XCAT trampoline (recursive seq via heap `bin_seq_t` + 22-byte trampoline baking `bb_seq`+ζ) | PASS=178 both paths | ✅ RT-118 |
+| **M-DYN-B4** | TAB/RTAB trampoline emitters (`bb_tab_emit_binary`, `bb_rtab_emit_binary`) using heap ζ + trampoline pattern | PASS=178 both paths | ⬜ |
+| **M-DYN-B5** | LEN(n) trampoline; binary coverage audit (>80% of DT_P matches via binary path) | PASS=178; coverage metric | ⬜ |
 
 ---
 
