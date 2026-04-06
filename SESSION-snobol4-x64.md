@@ -202,7 +202,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| diag-01 | one4all `3a3d91d` · corpus `3fd44d0` · PASS=178/203 | P1c fix (IBLKTB 3-action) OR P2E (E_SCAN eval) OR milestone table update |
+| RT-117  | one4all `a7b3666` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
@@ -496,3 +496,28 @@ static acts_t IBLKTB_actions[] = {
 ```
 chrs[] bytes unchanged (authoritative). Only actions[] fixed.
 Verified with two-way MONITOR: SNO_TRACE=1 diff shows IBLKTB divergence on '|'.
+
+### RT-117 keyword audit findings (2026-04-06)
+
+Keyword vertical audited against v311.sil KNLIST/KVLIST tables.
+
+**Fixed (commit a7b3666):**
+- `&CASE` read/write wired to kw_case (was declared but never dispatched)
+- `&MAXLNGTH` write wired to kw_maxlngth (was going to NV hash)
+- `&FTRACE`, `&ERRLIMIT`, `&CODE` — new globals, fully wired read/write
+- `&FNCLEVEL` — live: kw_fnclevel = call_depth on every push/pop
+- `&RTNTYPE` — live: kw_rtntype set at all 5 return sites in call_user_function
+
+**Still missing (KNLIST — writable):**
+`&TRACE` (TRAPCL), `&OUTPUT` read, `&INPUT` read, `&GTRACE`, `&FATALLIMIT`, `&DUMP` flag, `&ABEND`
+
+**Still missing (KVLIST — protected/read-only):**
+`&ERRTYPE`, `&ERRTEXT`, `&FILE`, `&LINE`, `&LASTFILE`, `&LASTLINE`, `&STFCOUNT`,
+`&LASTNO`, `&PARM`, `&DIGITS` (name-case bug: registered as "digits" not "DIGITS"),
+`&PI` (missing entirely), `&STEXEC`
+
+**Easy one-liners for next session:**
+- `&PI`: `NV_SET_fn("PI", REALVAL(3.14159265358979323846))` in SNO_INIT_fn
+- `&DIGITS`: add `NV_SET_fn("DIGITS", STRVAL(digits))` alongside existing "digits"
+- `&PARM`: `NV_SET_fn("PARM", STRVAL(getenv("SNOBOL4_PARM") ?: ""))` in SNO_INIT_fn
+- `&STEXEC`: new kw_stexec, increment in comm_stno() alongside kw_stcount
