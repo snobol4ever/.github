@@ -594,7 +594,7 @@ int32_t LPRTND(int32_t inner_pat);
 
 **Source:** v311.sil §11 lines 3323–4239: SCAN SJSR SCNR + 27 sub-procedures
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_scan.c`
-**Status:** ⬜ (hardest milestone)
+**Status:** ✅ committed one4all `c762e496` (hardest milestone)
 
 ### Design: C call stack replaces PDLPTR
 
@@ -1206,7 +1206,7 @@ clean:
 | M5 | `sil_arith.c/h` | §9 Arithmetic | 195 | ⬜ |
 | M6 | `sil_argval.c/h` | §8 Arg evaluation | 243 | ⬜ |
 | M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ✅ |
-| M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ⬜ |
+| M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ✅ |
 | M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ⬜ |
 | M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ⬜ |
 | M11 | `sil_pred.c/h` | §18 Predicates | 219 | ⬜ |

@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-1 | (not started) | M0: sil_types.h — EQUs, DESCR_t, SPEC_t, flags, type codes |
+| SS-2 | one4all `c762e496` · .github `5b28d29` | M9: sil_exec.c/h — §7 Interp Exec (INTERP INIT GOTO BASE GOTG GOTL) |
