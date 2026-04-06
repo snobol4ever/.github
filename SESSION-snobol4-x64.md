@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-131 | one4all `b0fd962` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U3**: SM-LOWER — write `sm_lower.c`, walk IR → SM_Program; wire `--hybrid` in scrip.c; PASS=178 via SM dispatch. M-DYN-FLAT COMPLETE ✅ (pattern_bt 1.72× flat vs C BB, 5.4× vs SPITBOL). See SCRIP-UNIFIED.md §Phase U3. |
+| RT-132 | one4all `2a75e4ea` · corpus `3fd44d0` · PASS=178/203 (--interp) | **M-SCRIP-U3 DEBUG**: sm_lower.c + sm_interp.c + sm_prog.c already written and compiled. `--hybrid` wired in scrip.c. BUT: `INTERP="./scrip --hybrid" bash test/run_interp_broad.sh` → PASS=5 FAIL=198. Isolated tests (hello.sno, f01, f02) pass. Regression is in crosscheck suite. Next: spot-check first failing crosscheck test to categorize root cause. Do NOT read SCRIP-UNIFIED.md — already internalized. Do NOT re-read sm_lower.c/sm_interp.c in full — they exist, just run failing tests. |
 
 **First actions RT-125:**
 ```bash

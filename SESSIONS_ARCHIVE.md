@@ -30287,3 +30287,45 @@ cd /home/claude/one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_scan.c → zero warnings
 # Then commit+push one4all, update .github M8 ✅ and push
 ```
+
+## Sprint RT-132 HANDOFF (M-SCRIP-U3 debug — session abandoned at ~72% context) — 2026-04-06
+
+**No code changes this session. PASS=178 (--interp) baseline unchanged.**
+
+### Context bloat post-mortem
+Session start protocol violated: read SCRIP-UNIFIED.md in full (not prescribed), read sm_lower.c in full (~430 lines), read SCRIP-SM.md twice, read SESSION §NOW far beyond prescribed section. Wasted ~25% context on orientation. Lon abandoned session.
+
+### State discovered this session
+- `src/runtime/sm/sm_lower.c` — EXISTS and compiles (written prior session)
+- `src/runtime/sm/sm_interp.c` — EXISTS (~547 lines, compiles)
+- `src/runtime/sm/sm_prog.c` + `sm_prog.h` — EXISTS
+- `--hybrid` flag wired in `src/driver/scrip.c` lines ~1923–1961
+- `make scrip` → clean build as binary `scrip`
+
+### The bug
+`INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh` → **PASS=5 FAIL=198**
+Isolated: `./scrip --hybrid smoke/hello.sno` → PASS. `f01`, `f02` → PASS.
+Crosscheck suite fails at scale. Root cause NOT yet diagnosed (session ended).
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+# Step 3: grep "§NOW" .github/SESSION-snobol4-x64.md — read §NOW row ONLY
+apt-get install -y libgc-dev flex
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 178
+
+# PRIORITY: diagnose --hybrid PASS=5 regression
+# DO NOT read sm_lower.c / sm_interp.c / SCRIP-UNIFIED.md in full
+# Instead: run one failing crosscheck test directly, read stderr
+for t in /home/claude/corpus/crosscheck/arith/*.sno; do
+  ref="${t%.sno}.ref"; [ ! -f "$ref" ] && continue
+  got=$(./scrip --hybrid "$t" 2>/tmp/hybrid_err.txt)
+  exp=$(cat "$ref")
+  [ "$got" != "$exp" ] && echo "FAIL: $(basename $t)" && cat /tmp/hybrid_err.txt | head -5 && break
+done
+# Then grep sm_interp.c for the specific failing opcode/path — targeted read, not full file
+```
