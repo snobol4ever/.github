@@ -27729,3 +27729,25 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 # 4. Error message vertical — sno_runtime_error format/coverage audit
 #    (GAP 4 stmt_failed label still needs verification per RT-117b handoff).
 ```
+
+### RT-118b addendum — VARVAL_fn DT_K fix
+
+**one4all HEAD:** `71c4125` · **PASS=178/203**
+
+**snobol4.c VARVAL_fn:** added `case DT_K: if (v.s) return VARVAL_fn(NV_GET_fn(v.s));`
+after `case DT_N` block. Was: `default: return ""` silently dropped keyword
+values in string output context. Now OUTPUT = &TRIM, string concat with
+keyword, IDENT/DIFFER with keyword all work and match SPITBOL oracle.
+
+This completes the DT_K gap sweep across all five coercion sites:
+  ✅ datatype()        — DT_K → "NAME"
+  ✅ to_int()          — DT_K deref then convert
+  ✅ to_real()         — DT_K deref then convert
+  ✅ ARGVAL_fn         — DT_K deref at call dispatch
+  ✅ VARVAL_d_fn / INTVAL_fn / PATVAL_fn (argval.c) — DT_K deref
+  ✅ VARVAL_fn char*   — DT_K deref then stringify
+  ✅ SNO_INIT_fn       — &ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED as DT_P NV vars
+
+**Next session (RT-119):** Continue datatype vertical or pick new vertical.
+Suggested next: error message coverage audit (sno_runtime_error codes vs
+SIL ERTAB), or CONVERT() second-pass (NAME target type unimplemented).
