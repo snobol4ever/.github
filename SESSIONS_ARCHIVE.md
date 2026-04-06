@@ -28297,3 +28297,83 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 # Then: DETACH coroutine stub (medium priority)
 >>>>>>> 20ec38a (RT-120 handoff: gap-scan session — DEFINE/FIELD wrappers, PATVAL DT_I/DT_R fix)
 ```
+
+## Sprint RT-122 HANDOFF (Error vertical gap-fill) — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `99007cb` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: RT-122 ✅
+
+**Commit `99007cb`** — `RT-122: Error 2 (div-by-zero), Error 14 (neg LEN/POS/TAB), POWER_fn csnobol4-faithful; PASS=178`
+
+**Method:** Vertical gap scan — extracted full error code table from v311.sil (35 codes,
+SETAC ERRTYP,N pattern), confirmed what was already wired in our source, fixed the real gaps.
+
+**What was already wired (not missing):**
+- Error message string table (all 39 entries) ✅
+- `sno_err_is_terminal` / `sno_err_is_fatal` classification ✅
+- Error 1 (illegal data type) — `to_int`/`to_real` ✅
+- Error 3 (array/table ref) — `snobol4_pattern.c` ×2 ✅
+- Error 5 (undefined function) — `scrip-interp.c` + `snobol4.c` ✅
+- Error 7 (unknown keyword) — `NV_SET_fn` ✅
+- Error 24 (erroneous goto) — `scrip-interp.c` ✅
+
+**Fixes applied:**
+
+`snobol4.c` — `DIVIDE_fn`:
+- `b.i == 0` (int path): was `return NULVCL` → now `sno_runtime_error(2, NULL); return FAILDESCR`
+- `denom == 0.0` (real path): same fix
+
+`snobol4.c` — `POWER_fn` (full rewrite to match csnobol4 `expint`):
+- `0 ** negative` → Error 2 (AERROR)
+- `nonzero ** negative` → `INTVAL(0)` (csnobol4 expint exact behaviour)
+- Non-negative int exponent: square-and-multiply loop (was naive `while` loop)
+- Real path: `isinf(r) || isnan(r)` → Error 2
+
+`snobol4_pattern.c` — `pat_len/pat_pos/pat_rpos/pat_tab/pat_rtab`:
+- Added `if (n < 0) { sno_runtime_error(14, NULL); return FAILDESCR; }` guard to all five
+- Mirrors SIL `SCLENR`/`LENERR` → `ERRTYP,14`
+
+**Gate:** PASS=178 both paths ✅
+
+### RT-123 first actions (continue error vertical or pivot)
+
+Error vertical — remaining open items in priority order:
+
+```
+# Errors not yet wired (high value):
+#
+# Error 25 — wrong arg count
+#   Location: call_user_function() in scrip-interp.c
+#   SIL: ARGNER SETAC ERRTYP,25 — fires when nargs != expected
+#   Currently: silently uses wrong arity
+#
+# Error 22 — &STLIMIT exceeded
+#   Location: comm_stno() in snobol4.c — already increments kw_stcount
+#   Fix: add  if (kw_stlimit > 0 && kw_stcount > kw_stlimit) sno_runtime_error(22, NULL);
+#   SIL: EXEX SETAC ERRTYP,22
+#
+# Error 14 — also fires for RTAB with n > strlen(subject) at match time
+#   (not at construction time — RTAB(-3) is caught at construction,
+#    but RTAB(99) on a 5-char string fails silently vs Error 15/14 per spec)
+#   LOW PRIORITY — spec is ambiguous; csnobol4 just fails pattern.
+#
+# Error format gap — output is missing filename and call level:
+#   Current:  "\n** Error %d in statement %d\n   %s\n"
+#   SIL FTLCF: "%v:%d: Error %d in statement %d at level %d\n"
+#   Need: g_current_file (already tracked?), g_call_level (kw_fnclevel)
+#
+# Next vertical candidates (after error vertical exhausted):
+#   - &STLIMIT / &ERRLIMIT / &FTRACE keyword wiring (KNLIST audit from RT-117)
+#   - Error 6 (erroneous prototype) in DEFINE() parsing
+#   - Error 8 (variable not present) — NAME type in illegal context
+#   - Error 18 (return from level zero) in call_user_function RETURN path
+
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+```
