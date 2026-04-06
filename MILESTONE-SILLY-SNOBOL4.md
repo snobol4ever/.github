@@ -1221,7 +1221,7 @@ clean:
 | M17 | `sil_extern.c/h` | §13 External functions | 172 | ✅ |
 | M18a | `sil_trepub.c/h` | §6 TREPUB + tree nodes | ~100 | ⬜ |
 | M18b | `sil_forwrd.c/h` | §6 FORWRD NEWCRD CODSKP FORBLK | ~120 | ✅ |
-| M18c | `sil_cmpile.c/h` | §6 CMPILE + CMPGO/CMPFRM + errors | ~250 | ⬜ |
+| M18c | `sil_cmpile.c/h` | §6 CMPILE + CMPGO/CMPFRM + errors | ~250 | ✅ |
 | M18d | `sil_expr.c/h` | §6 ELEMNT EXPR BINOP UNOP | ~500 | ⬜ |
 | M19 | `sil_interp.c/h` | §7 Interpreter | 158 | ⬜ |
 | M20 | `sil_errors.c/h` | §22 Errors + §23 messages | 143+msg | ⬜ |
