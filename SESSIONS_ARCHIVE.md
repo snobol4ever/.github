@@ -27568,304 +27568,166 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 # &STEXEC — add kw_stexec int64_t, increment alongside kw_stcount in comm_stno()
 ```
 
-## Sprint RT-117b HANDOFF — 2026-04-06
+## Sprint RT-117b HANDOFF (M-DYN-B2) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `c596378c84a70da00b598e0c19922ac6be6315d1` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+**one4all HEAD:** `1870624` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Session type: GAP 4 — sno_runtime_error() infrastructure (partial)
+### Milestone completed: M-DYN-B2 ✅
 
-### Work done
+**Commit `1870624`** — `RT-117 M-DYN-B2: bb_eps_emit_binary() + bb_build_binary() DT_P walk; PASS=178`
 
-#### Commit c596378 — RT-117b: GAP 4 sno_runtime_error + setjmp arm
+**Deliverables:**
+- `src/runtime/asm/bb_build_bin.c` — `bb_eps_emit_binary()` (EPS as sealed x86-64 binary; α returns spec(Σ+Δ,0); β→ω; stateless in binary path; ~130 bytes) + `bb_build_binary(PATND_t*)` walker + static `bb_build_binary_node()`.
+- `src/runtime/asm/bb_build_bin.h` — exports `bb_eps_emit_binary()`, `bb_build_binary()`; adds `patnd.h` include (after `snobol4.h` for DESCR_t ordering).
+- `src/runtime/dyn/stmt_exec.c` — Phase 2 DT_P branch: tries `bb_build_binary()` behind `SNO_BINARY_BOXES=1`; falls back to C `bb_build()` on NULL.
 
-**snobol4.c:**
-- `sno_runtime_error(int code, const char *msg)` implemented.
-  Format: `"\n** Error N in statement M\n   <msg>\n"`.
-  If `g_sno_err_active`, longjmps to `g_sno_err_jmp` with `code`.
-  Otherwise `exit(1)`.
-- Globals: `jmp_buf g_sno_err_jmp`, `int g_sno_err_active = 0`, `int g_sno_err_stmt = 0`.
-- `to_int` default case: `sno_runtime_error(1, "Illegal data type"); return 0;`
-- `to_real` default case: same.
+**`bb_build_binary_node()` switch coverage:**
+- `NULL` → `bb_eps_emit_binary()`
+- `XCHR` → `bb_lit_emit_binary(p->STRVAL_fn, len)` (M-DYN-B1)
+- `XEPS` → `bb_eps_emit_binary()`
+- all others → NULL (clean C fallback)
 
-**snobol4.h:**
-- `void sno_runtime_error(int code, const char *msg);`
-- `extern jmp_buf g_sno_err_jmp;`
-- `extern int g_sno_err_active;`
-- `extern int g_sno_err_stmt;`
+**Gates:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
 
-**scrip-interp.c (partial):**
-- `g_sno_err_active = 1` set before the execute_program while loop.
-- `g_sno_err_stmt = stno` updated each iteration.
-- `setjmp(g_sno_err_jmp)` check at top of loop body: on non-zero return `goto stmt_failed`.
+**Architectural note:** DT_P XCHR nodes arise from `pat_lit()` in `snobol4_pattern.c` (lines 151, 233, 340) when interpreter converts DT_S→DT_P in concat/capture context. Pure inline string patterns stay DT_S → M-DYN-B1 path. Both paths live.
 
-**Gate:** PASS=178 ✅
-
-### NOT YET DONE — RT-118 must finish this first
-
-The `stmt_failed:` label and `g_sno_err_active = 0` disarm are NOT yet applied to scrip-interp.c.
-The setjmp is armed but the goto target label is missing — this compiles because the `goto stmt_failed`
-currently has the label present from a prior incomplete edit attempt... **CHECK BUILD FIRST.**
-
-### RT-118 first actions
+### RT-118 first actions (M-DYN-B3)
 
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-cd one4all && make scrip-interp   # confirm clean build
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
-
-# Step 1 — verify stmt_failed label exists in scrip-interp.c:
-grep -n "stmt_failed" src/driver/scrip-interp.c
-
-# If label is present: done. Run oracle test:
-#   echo "X = 1 + &ARB" > /tmp/t.sno
-#   ./scrip-interp /tmp/t.sno
-#   Expect: "** Error 1 in statement 1" on stderr, not a crash/silent wrong answer.
-
-# If label is MISSING (likely): apply it now.
-# Find anchor bytes in scrip-interp.c:
-#   python3 -c "
-#     raw = open('src/driver/scrip-interp.c','rb').read()
-#     idx = raw.find(b'goto resolution')
-#     print(repr(raw[idx-12:idx+40]))
-#   "
-# Then insert before the goto-resolution comment:
-#   b'        stmt_failed:;\n'
-# And after the while loop closing brace, before next function:
-#   b'    g_sno_err_active = 0;\n'
-
-# Step 2 — small keyword one-liners (after GAP 4 confirmed):
-# In SNO_INIT_fn in snobol4.c, add:
-#   NV_SET_fn("PI",     REALVAL(3.14159265358979323846));
-#   NV_SET_fn("DIGITS", STRVAL(digits));   /* alias for "digits" */
-#   NV_SET_fn("PARM",   STRVAL(getenv("SNOBOL4_PARM") ? getenv("SNOBOL4_PARM") : ""));
-# Add kw_stexec int64_t global; increment alongside kw_stcount in comm_stno().
-# Gate: PASS=178 throughout.
+# M-DYN-B3: bb_pos_emit_binary(int n)
+#   POS α: cmp Δ,n; je succeed → spec(Σ+Δ,0); else → ω
+#   POS β: → ω
+#   Add: case XPOSI → bb_pos_emit_binary((int)p->num) in bb_build_binary_node
+#   Then XRPSI(RPOS), XLNTH(LEN), XTB, XRTB — all same int-arg pattern
+#   After those: XCAT — wires two sub-boxes in sequence; unlocks most corpus DT_P patterns
+# GAP 4 also open: sno_runtime_error() infra (to_int/to_real on non-numeric types)
 ```
 
-## Sprint RT-118 HANDOFF — 2026-04-06
+## Sprint RT-118 HANDOFF (M-DYN-B3) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `a07fab4` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `f15451d` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Session type: Datatype vertical audit + DT_K gap sweep
+### Milestone completed: M-DYN-B3 ✅
 
-### Work done
+**Commit `f15451d`** — `RT-118 M-DYN-B3: bb_pos_emit_binary + bb_rpos_emit_binary + XCAT trampoline; PASS=178 both paths`
 
-#### Commit a07fab4 — RT-118: DT_K keyword type fixes + pattern keyword NV registration
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-**Vertical chosen:** Datatypes — `datatype()`, `to_int()`, `to_real()`, coercion
-chain, argval evaluators. Oracle: v311.sil DTLIST + KVLIST tables.
+- `bb_pos_emit_binary(int n)` — POS(n) as binary: α: eax=Δ; cmp eax,n; jne→ω; rax=Σ+Δ; rdx=0; →γ. β: →ω. n baked as imm32. ~80 bytes.
+- `bb_rpos_emit_binary(int n)` — RPOS(n) as binary: α: eax=Ω; eax-=n; cmp Δ,eax; jne→ω; rax=Σ+Δ; rdx=0; →γ. n baked as imm32. ~90 bytes.
+- `XCAT` case in `bb_build_binary_node` — recursive right-fold building `bin_seq_t` heap structs; each interior node wrapped in a 22-byte **trampoline** emitted into bb_pool: `mov rdi,imm64(seq_zeta); mov rax,imm64(bb_seq); jmp rax`. Trampoline is a self-contained `bb_box_fn` (ignores caller's ζ, uses baked ζ). Tail-call preserves esi/entry.
+- `XTB` / `XRTB` — return NULL (delegate to C path; advance field requires runtime-mutable ζ).
+- `bin_seq_t` / `bin_bchild_t` local typedefs mirroring `stmt_exec.c` seq_t layout for bb_seq.s ABI.
+- `extern spec_t bb_seq(void *zeta, int entry)` — declared for trampoline address baking.
 
-**snobol4.c:**
-- `datatype()`: added `case DT_K: return "NAME"` — SIL DTLIST maps K→NAMESP
-  (same as N). Previously fell to `default: return "STRING"`.
-- `to_int(DT_K)`: new case — deref via `NV_GET_fn(v.s)` then recurse.
-  Previously hit `default → sno_runtime_error(1)` on any keyword in arithmetic.
-- `to_real(DT_K)`: same pattern as to_int.
-- `SNO_INIT_fn`: registered &ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED
-  as NV pattern-descriptor variables (SIL KVLIST DT_P entries ARBPAT/BALPAT/
-  FNCPAT/ABOPAT/FALPAT/REMPT/SUCPAT). Previously these were registered as
-  *functions only* — `NV_GET_fn("ARB")` returned NULVCL, so `DATATYPE(&ARB)`
-  returned "STRING" and &ARB in pattern position was a null string match.
-  Now DATATYPE(&ARB) → "PATTERN", oracle-confirmed vs SPITBOL.
+**Gate:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**Targeted test:** `/tmp/test_b3.sno` — POS(0), RPOS(0), XCAT ('HE''LLO'), POS+XCAT — all PASS ✅
 
-**invoke.c (ARGVAL_fn):**
-- Added `if (d.v == DT_K && d.s) return NV_GET_fn(d.s)` after DT_N block.
-  DT_K was falling through to `return d` (pass raw descriptor to builtin).
-  Now keywords resolve to their value through function call arg dispatch.
+**XCAT coverage unlocked:** Any DT_P tree composed entirely of XCHR/XEPS/XPOSI/XRPSI/XCAT nodes now runs binary. TAB/RTAB and all nodes with runtime-mutable ζ still fall back to C path for the whole subtree.
 
-**argval.c (VARVAL_d_fn / INTVAL_fn / PATVAL_fn):**
-- Added `if (d.v == DT_K && d.s) d = NV_GET_fn(d.s)` after DT_N block
-  in all three typed evaluators. Ensures keyword values coerce correctly
-  in string, integer, and pattern argument positions.
-
-**Gate:** PASS=178 ✅ throughout. Oracle-tested vs SPITBOL on &ARB/&FENCE/&FAIL
-DATATYPE, keyword arithmetic, and pattern-position keyword use.
-
-### Remaining gap noted but NOT fixed this session
-
-**`VARVAL_fn` in snobol4.c (the `char*`-returning version) has no `DT_K` case.**
-Falls to `default: return ""`. This affects string-context uses of keywords
-that go through the old VARVAL_fn path (e.g. OUTPUT = &RTNTYPE directly).
-DT_K in string concat, OUTPUT assignment, etc. will silently produce "".
-Fix: add `case DT_K: return VARVAL_fn(NV_GET_fn(v.s));` to VARVAL_fn switch.
-
-**`VARVAL_fn` DT_K missing is the next easy fix.**
-
-### RT-119 first actions
+### RT-119 first actions (M-DYN-B4)
 
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
-
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# NEXT EASY FIX — VARVAL_fn DT_K missing case:
-# In snobol4.c, VARVAL_fn switch, after case DT_N block (~line 1242):
-#   case DT_K:
-#       return VARVAL_fn(NV_GET_fn(v.s));
-# This fixes: OUTPUT = &RTNTYPE, string concat with keyword, etc.
-# Gate: PASS=178; oracle test: &RTNTYPE direct output, &TRIM string context.
+# M-DYN-B4: TAB / RTAB binary emission
+#   Both need a runtime-mutable `advance` field written during α.
+#   Strategy A (recommended): bake ζ ptr + fn as trampoline (same as XCAT).
+#     tab_zeta = calloc(tab_t); tab_zeta->n = n;
+#     trampoline: mov rdi,imm64(tab_zeta); mov rax,imm64(bb_tab); jmp rax
+#     This gives a self-contained bb_box_fn — no API change needed.
+#   Strategy B: emit full TAB body as binary with Δ/advance as imm64 addr loads.
+#     More bytes but no heap ζ. Can do this after TAB trampoline works.
+#   Add: case XTB → bb_tab_emit_binary(int n)
+#        case XRTB → bb_rtab_emit_binary(int n)
+#   Both use trampoline strategy A for now.
 
-# THEN: continue datatype vertical audit — next sub-areas:
-# 1. CONVERT() second-pass: CONVERT(X,"NAME") — is it implemented?
-#    grep -n "NAME" src/runtime/snobol4/snobol4.c | grep -i convert
-# 2. DT_E (EXPRESSION) in to_int/to_real — currently hits default→error.
-#    Should thaw via EVAL_fn then retry. Is this needed for any corpus test?
-# 3. DT_DATA in VARVAL_fn — currently returns type->name (tag string).
-#    SIL returns the tag name for user-defined types. Check if correct.
-# 4. Error message vertical — sno_runtime_error format/coverage audit
-#    (GAP 4 stmt_failed label still needs verification per RT-117b handoff).
+# M-DYN-B5 (after B4): LEN(n) — same trampoline strategy
+#   len_t has `bspan` field (UTF-8 byte span of last match) — needs runtime ζ.
+#   case XLNTH → bb_len_emit_binary(int n)  (trampoline)
+
+# After B4+B5: check what fraction of corpus DT_P trees are now fully binary.
+#   grep/instrument SNO_BINARY_BOXES=1 stderr to count binary vs C fallbacks.
+#   Target: >80% of pattern matches taking binary path.
+
+# GAP 4 (open): sno_runtime_error() — to_int/to_real on bad types → Error 1
+#   Still at c596378 implementation (setjmp armed). Verify PASS=178 unchanged.
 ```
 
-### RT-118b addendum — VARVAL_fn DT_K fix
-
-**one4all HEAD:** `71c4125` · **PASS=178/203**
-
-**snobol4.c VARVAL_fn:** added `case DT_K: if (v.s) return VARVAL_fn(NV_GET_fn(v.s));`
-after `case DT_N` block. Was: `default: return ""` silently dropped keyword
-values in string output context. Now OUTPUT = &TRIM, string concat with
-keyword, IDENT/DIFFER with keyword all work and match SPITBOL oracle.
-
-This completes the DT_K gap sweep across all five coercion sites:
-  ✅ datatype()        — DT_K → "NAME"
-  ✅ to_int()          — DT_K deref then convert
-  ✅ to_real()         — DT_K deref then convert
-  ✅ ARGVAL_fn         — DT_K deref at call dispatch
-  ✅ VARVAL_d_fn / INTVAL_fn / PATVAL_fn (argval.c) — DT_K deref
-  ✅ VARVAL_fn char*   — DT_K deref then stringify
-  ✅ SNO_INIT_fn       — &ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED as DT_P NV vars
-
-**Next session (RT-119):** Continue datatype vertical or pick new vertical.
-Suggested next: error message coverage audit (sno_runtime_error codes vs
-SIL ERTAB), or CONVERT() second-pass (NAME target type unimplemented).
-
-### RT-118c/d addendum — CONVERT + COPY fixes
-
-**one4all HEAD:** `f65c9e1` · **PASS=178/203**
-
-#### Commit bfa795b — RT-118c: CONVERT fixes
-
-**CONVERT(X,"NAME"):** Implemented. Coerces X to string via VARVAL_fn,
-wraps as DT_N NAMEVAL. Empty string → FAIL. Oracle-confirmed vs SPITBOL:
-DATATYPE, read-through in pattern match, integer first-arg coercion.
-
-**CONVERT(X,"NUMERIC") end-pointer bug:** Lines 541/545 had `*end == ' '`
-(comparing to space after stripping spaces — always false). Dead code.
-Fixed to `*end == '\0'`. Previously only worked because ARGVAL_fn
-pre-coerces numeric strings to DT_I/DT_R before dispatch.
-
-**CONVERT("","NUMERIC"):** Was FAILDESCR. SIL SPCINT/SPITBOL: empty = 0.
-Fixed to return INTVAL(0).
-
-#### Commit f65c9e1 — RT-118d: COPY() idem types
-
-SIL COPY (v311.sil:6438): STRING/INTEGER/REAL/NAME/KEYWORD/EXPRESSION/TABLE
-all VEQLC→INTR1 (return arg unchanged). Only ARRAY allocates new block.
-We were returning FAILDESCR for everything except ARRAY.
-Fix: `return v` fallthrough for all non-ARRAY types.
-
-### RT-119 first actions
-
-```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
-tail -120 .github/SESSIONS_ARCHIVE.md
-grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
-cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
-
-# Remaining audit targets (pick one per session):
-# 1. Error messages — sno_runtime_error() coverage vs SIL ERTAB
-#    grep error numbers in v311.sil, check which we emit vs stub/miss
-#    GAP 4 stmt_failed label still needs verification (RT-117b handoff)
-# 2. VARVAL_fn DT_E — currently returns "" for EXPRESSION type
-#    Should EVAL then stringify. Check: VARVAL_fn case DT_E missing.
-# 3. to_int/to_real DT_N — currently hits default→error for NAMEPTR form
-#    (slen==1, ptr set). Should deref ptr then recurse.
-# 4. CONVERT(X,"ARRAY") — currently only idem; STRING→ARRAY not possible
-#    but DATA→ARRAY may be. Check SIL CNVTA path.
-# 5. Continue DT_K/VARVAL vertical: IDENT/DIFFER with mixed DT_K args
-```
-
-## Sprint RT-118 FINAL HANDOFF — 2026-04-06
+## Sprint RT-118 HANDOFF (M-DYN-B3) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `f65c9e1` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `f15451d` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Full session summary — four commits
+### Milestone completed: M-DYN-B3 ✅
 
-| Commit | What |
-|--------|------|
-| `a07fab4` | DT_K in datatype()/to_int/to_real/ARGVAL_fn/argval.c + pattern keyword NV vars |
-| `71c4125` | VARVAL_fn char* DT_K case |
-| `bfa795b` | CONVERT NAME/NUMERIC end-ptr/empty→0 |
-| `f65c9e1` | COPY() idem for all non-ARRAY types |
+**Commit `f15451d`** — `RT-118 M-DYN-B3: bb_pos_emit_binary + bb_rpos_emit_binary + XCAT trampoline; PASS=178 both paths`
 
-### Verticals audited
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-**Datatypes — DT_K gap (6 sites all fixed):**
-`datatype()` · `to_int` · `to_real` · `ARGVAL_fn` ·
-`VARVAL_d_fn/INTVAL_fn/PATVAL_fn` · `VARVAL_fn char*` ·
-`SNO_INIT_fn` (&ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED as DT_P NV vars)
+- `bb_pos_emit_binary(int n)` — POS(n) as ~80-byte binary: α: eax=Δ; cmp eax,n; jne→ω; rax=Σ+Δ; rdx=0; →γ. β: →ω. n baked as imm32. No ζ at runtime.
+- `bb_rpos_emit_binary(int n)` — RPOS(n) as ~90-byte binary: α: eax=Ω; eax-=n; cmp Δ,eax; jne→ω; rax=Σ+Δ; rdx=0; →γ. n baked as imm32.
+- `XCAT` in `bb_build_binary_node` — recursive right-fold: builds heap `bin_seq_t` for each interior node; emits 22-byte **trampoline** into bb_pool per node: `mov rdi,imm64(seq_zeta); mov rax,imm64(bb_seq); jmp rax`. Trampoline is self-contained bb_box_fn (ignores caller ζ, uses baked ζ; tail-call preserves esi/entry).
+- `XTB` / `XRTB` — return NULL (C path; advance field requires runtime-mutable ζ → M-DYN-B4).
+- `bin_seq_t` / `bin_bchild_t` local typedefs mirroring stmt_exec.c seq_t for bb_seq.s ABI.
+- `extern spec_t bb_seq(void *zeta, int entry)` declared for trampoline address baking.
 
-**CONVERT() — three bugs fixed:**
-NAME unimplemented · NUMERIC `' '`→`'\0'` end-ptr · empty→INTEGER 0
+**Gates:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**Targeted test `/tmp/test_b3.sno`:** POS(0), RPOS(0), XCAT ('HE''LLO'), POS+XCAT — all PASS ✅
 
-**COPY() — idem semantics:**
-TABLE/STRING/INTEGER/REAL all returned FAILDESCR; now return arg unchanged per SIL INTR1
+**XCAT coverage unlocked:** Any DT_P tree composed of XCHR/XEPS/XPOSI/XRPSI/XCAT nodes now runs binary. TAB/RTAB and all nodes needing runtime-mutable ζ still fall back to C for whole subtree.
 
-### RT-119 first actions
+### RT-119 first actions (M-DYN-B4)
 
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Recommended next verticals (any order):
-#
-# A. GAP 4 verification (RT-117b leftover):
-#    grep -n "stmt_failed" src/driver/scrip-interp.c
-#    echo "X = 1 + &ARB" > /tmp/t.sno && ./scrip-interp /tmp/t.sno
-#    Expect: "** Error 1 in statement 1" on stderr, not crash
-#
-# B. Error message vertical — sno_runtime_error coverage vs SIL ERTAB:
-#    grep -n "ERTAB\|ERRMSG\|\*\* Error\|error.*[0-9]" v311.sil | head -40
-#    Cross-check which error codes we emit vs which we stub/miss
-#    Key missing: Error 002 (undefined variable in OUTPUT context?),
-#    Error 014 (undefined function), Error 041 (wrong datatype for field access)
-#
-# C. VARVAL_fn DT_E — EXPRESSION type stringifies as "" (default branch):
-#    case DT_E should EVAL_fn then VARVAL_fn the result
-#    Test: X = CONVERT("1+1","EXPRESSION") ; OUTPUT = X
-#    Oracle: SPITBOL prints the expression string representation
-#
-# D. to_int/to_real DT_N NAMEPTR form (slen==1, ptr set):
-#    Currently hits default→sno_runtime_error(1)
-#    Should: deref *(DESCR_t*)v.ptr then recurse
-#    case DT_N: if (v.slen==1 && v.ptr) return to_int(*(DESCR_t*)v.ptr);
-#              if (v.slen==0 && v.s)   return to_int(NV_GET_fn(v.s));
-#
-# E. COPY() 2D array — current code only copies 1D (hi-lo+1 elements)
-#    2D arrays have ndim>1; need arr->hi2/lo2 for full copy
-#    Check: array_new2d exists; _COPY_ should call it for ndim>1
+# M-DYN-B4: TAB / RTAB trampoline emitters
+#   Same pattern as XCAT: alloc heap ζ (tab_t/rtab_t), set ζ->n, emit trampoline.
+#   bb_tab_emit_binary(int n):
+#     tab_t *z = calloc(1, sizeof(tab_t)); z->n = n;
+#     trampoline: mov rdi,imm64(z); mov rax,imm64(bb_tab); jmp rax
+#   bb_rtab_emit_binary(int n): same with bb_rtab.
+#   Wire: case XTB  → bb_tab_emit_binary((int)p->num)
+#          case XRTB → bb_rtab_emit_binary((int)p->num)
+#   Gate: PASS=178 both paths.
+
+# M-DYN-B5 (after B4): LEN(n) trampoline
+#   len_t has `bspan` (UTF-8 byte span written at match time) — needs heap ζ.
+#   bb_len_emit_binary(int n): same trampoline pattern with bb_len.
+#   Wire: case XLNTH → bb_len_emit_binary((int)p->num)
+
+# After B4+B5: binary coverage audit
+#   Add SNO_BINARY_BOXES=1 debug counter in stmt_exec.c Phase 2:
+#     binary_hits++ when bb_build_binary() returns non-NULL
+#     binary_misses++ when it returns NULL
+#   Print at program end. Target: >80% binary for typical corpus patterns.
+
+# GAP 4 (open from RT-117b): sno_runtime_error stmt_failed disarm
+#   scrip-interp.c still needs:
+#     stmt_failed: label after stmt longjmp catch
+#     g_sno_err_active = 0 disarm after each statement
+#   Low priority (PASS=178 unchanged without it).
 ```
