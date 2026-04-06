@@ -30654,3 +30654,33 @@ cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_compile.c → zero warnings
 # Commit+push one4all, update .github M18 ✅, push
 ```
+
+## Sprint SS-13 HANDOFF (M17 done; M18 split; starting M18a) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `c72a29e0` · .github (this commit)
+
+### Work done this session
+
+M17 committed last sprint. This entry covers the M18 split decision.
+
+M18 (§6 Compiler, 966 lines) split into 4 sub-milestones:
+- M18a sil_trepub.c/h  — TREPUB + tree node helpers (~100 lines, pure C)
+- M18b sil_forwrd.c/h  — FORWRD NEWCRD CODSKP FORBLK (~120 lines)
+- M18c sil_cmpile.c/h  — CMPILE CMPGO CMPFRM CMPASP errors (~250 lines)
+- M18d sil_expr.c/h    — ELEMNT EXPR BINOP UNOP (~500 lines, heaviest STREAM use)
+
+### Milestone status
+M0–M17 ✅ | M18a–d ⬜ | M19–M21 ⬜
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase
+# Build M18a: src/silly/sil_trepub.c + sil_trepub.h
+# Source: v311.sil §6 TREPUB + §4 CODSKP helpers
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_trepub.c → zero warnings
+```
