@@ -27400,3 +27400,90 @@ SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # c
 #   (other box types: fall back to C bb_build for now)
 # Gate: same PASS=178 with SNO_BINARY_BOXES=1; DT_P patterns use binary boxes
 ```
+
+## Sprint RT-116 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `ce3f5c6` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** (see below) · **PASS=178/203**
+
+### Session type: Runtime type-system audit + incremental fixes
+
+This session ran a vertical audit of the interpreter runtime, selecting the
+**datatype / type-coercion** vertical. Three gaps identified from v311.sil
+comparison. Two fixed and committed.
+
+### Work done
+
+#### Commit 937d5ef — GAP 3: ARRAY/TABLE stringify
+- `ARBLK_t`: added `lo2`, `hi2` fields — retired the ndim-as-cols hack.
+- `array_new2d`: stores lo2/hi2 properly; `ndim` restored to actual 2.
+- `array_get2` / `array_set2`: use `lo2` as column origin (was hardcoded 1).
+- `snobol4_pattern.c`: initialise `lo2=1` / `hi2=2` for sort's internal 2-col array.
+- `TBBLK_t`: added `init`, `inc` fields (constructor args).
+- `table_new`: defaults `init=10`, `inc=10`. New `table_new_args(init,inc)`.
+- `_TABLE_` builtin: forwards `TABLE(n,m)` args through.
+- `VARVAL_fn DT_A`: produces `ARRAY('n')`, `ARRAY('lo:hi')`, `ARRAY('lo1:hi1,lo2:hi2')`.
+- `VARVAL_fn DT_T`: produces `TABLE(init,inc)`.
+- Oracle: all 1D/2D/ranged/TABLE variants match csnobol4.
+
+#### Commit 4200cf1 — GAP 2: CONVERT() complete
+- `PATTERN`: idem-conversion; STRING→PATTERN via `pat_lit()`.
+- `CODE`: `code()` wired — SIL CODER/RECOMP path.
+- `EXPRESSION`: new `compile_to_expression(src)` in `snobol4_pattern.c`.
+  Parses string → EXPR_t → freezes as DT_E without evaluating.
+  Key distinction: `EVAL_fn` executes immediately; CONVE defers.
+- `NUMERIC`: integer-first, then real, FAIL if non-numeric string.
+- `INTEGER`/`REAL`: added type guard — DT_P/DT_A/DT_T now correctly FAIL.
+- TABLE/ARRAY cross-convert: FAIL verified against oracle (was already correct).
+- Oracle: conv3.sno and conv4.sno match csnobol4 exactly.
+
+### Gaps identified but NOT yet fixed (audit results)
+
+**GAP 1 (minor):** `coerce_numeric` misses scientific notation strings
+(`"1E3"`, `"1.5E2"`). Arithmetic on these returns correct value but
+may mis-dispatch type. Low priority — no known failing corpus test.
+
+**GAP 4 (next recommended):** `to_int`/`to_real` silently return 0 for
+DT_P/DT_A/DT_T instead of raising runtime error 1 "Illegal data type".
+Needs a `sno_runtime_error(code, msg)` mechanism (longjmp or exit+message).
+Once that exists: arithmetic on non-numeric types aborts correctly.
+csnobol4 prints: `"Error 1 in statement N at level M\nIllegal data type"`.
+
+**GAP 5 (noted):** `COPY()` builtin only copies ARRAYs; TABLE copy returns
+FAILDESCR. SIL CNVAT copies table bucket chains into a new TBBLK_t.
+
+### RT-117 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# GAP 4 — runtime error infrastructure
+# 1. Add to snobol4.h:
+#    void sno_runtime_error(int code, const char *msg);  /* longjmps or exits */
+#    extern jmp_buf g_sno_err_jmp;   /* set by stmt executor before each stmt */
+#    extern int     g_sno_err_stmt;  /* current statement number */
+# 2. Implement in snobol4.c — print csnobol4 format then longjmp/exit
+# 3. to_int: default case → sno_runtime_error(1, "Illegal data type"); return 0;
+# 4. to_real: same
+# 5. Gate: PASS=178 unchanged; oracle match on pat-arithmetic.sno
+
+# GAP 5 (small, do after GAP 4):
+# _COPY_: add TABLE branch — shallow-clone bucket chains into new TBBLK_t
+```
+
+### Audit methodology for next session
+
+The vertical-audit approach worked well. Next session can pick a new vertical:
+- **Keywords** (`&ANCHOR`, `&TRIM`, `&FULLSCAN`, `&STLIMIT`, `&ALPHABET`, etc.)
+  — scan v311.sil keyword table vs our `kw_*` globals
+- **String builtins** (`SUBSTR`, `REPLACE`, `REVERSE`, `DUPL`, `REMDR`, `CHAR`, `LPAD`, `RPAD`)
+  — check edge cases vs oracle
+- **Pattern primitive completeness** — XBAL, XEQFN, XDNME vs our bb_*.c boxes

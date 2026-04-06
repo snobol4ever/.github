@@ -153,6 +153,32 @@ if (BRTYPE == EQTYP) { FORWRD(); FORWRD(); continue; }
 Key: SIL UNOP calls FORWRD before UNOPTB (v311.sil:2507); our ELEMNT does not.
 The two FORWRDs bridge this gap. Sweep 84/84 confirmed.
 
+### RT-116 type-system audit findings (2026-04-06)
+
+Two-pass audit against v311.sil — datatype/coercion vertical.
+
+**GAP 3 ✅ fixed (937d5ef):** ARRAY/TABLE stringify.
+  ARBLK_t gains lo2/hi2; ndim restored to actual dim count.
+  TBBLK_t gains init/inc; table_new_args() wires TABLE(n,m) args.
+  VARVAL_fn DT_A → ARRAY('n') / ARRAY('lo:hi') / ARRAY('lo1:hi1,lo2:hi2').
+  VARVAL_fn DT_T → TABLE(init,inc).
+
+**GAP 2 ✅ fixed (4200cf1):** CONVERT() complete.
+  compile_to_expression(src) in snobol4_pattern.c: parse→DT_E, no eval.
+  NUMERIC: int-first, then real, FAIL otherwise.
+  CODE/EXPRESSION/PATTERN all wired. Type guards on INTEGER/REAL coercions.
+
+**GAP 4 ⬜ next:** sno_runtime_error(code, msg) infrastructure.
+  to_int / to_real on DT_P/DT_A/DT_T → should abort with Error 1.
+  Format: "Error 1 in statement N at level M\nIllegal data type"
+  Mechanism: longjmp from stmt executor jmp_buf, or exit(1) with message.
+
+**GAP 5 ⬜ small:** COPY() TABLE branch missing.
+
+**Audit verticals not yet done:**
+  Keywords (&ANCHOR/&TRIM/&ALPHABET/etc.), string builtin edge cases,
+  pattern primitive completeness (XBAL, XEQFN, XDNME).
+
 ## Key files
 
 | File | Role |
@@ -177,6 +203,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
 | diag-01 | one4all `3a3d91d` · corpus `3fd44d0` · PASS=178/203 | P1c fix (IBLKTB 3-action) OR P2E (E_SCAN eval) OR milestone table update |
+| RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
 | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
