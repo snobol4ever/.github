@@ -27751,3 +27751,53 @@ This completes the DT_K gap sweep across all five coercion sites:
 **Next session (RT-119):** Continue datatype vertical or pick new vertical.
 Suggested next: error message coverage audit (sno_runtime_error codes vs
 SIL ERTAB), or CONVERT() second-pass (NAME target type unimplemented).
+
+### RT-118c/d addendum — CONVERT + COPY fixes
+
+**one4all HEAD:** `f65c9e1` · **PASS=178/203**
+
+#### Commit bfa795b — RT-118c: CONVERT fixes
+
+**CONVERT(X,"NAME"):** Implemented. Coerces X to string via VARVAL_fn,
+wraps as DT_N NAMEVAL. Empty string → FAIL. Oracle-confirmed vs SPITBOL:
+DATATYPE, read-through in pattern match, integer first-arg coercion.
+
+**CONVERT(X,"NUMERIC") end-pointer bug:** Lines 541/545 had `*end == ' '`
+(comparing to space after stripping spaces — always false). Dead code.
+Fixed to `*end == '\0'`. Previously only worked because ARGVAL_fn
+pre-coerces numeric strings to DT_I/DT_R before dispatch.
+
+**CONVERT("","NUMERIC"):** Was FAILDESCR. SIL SPCINT/SPITBOL: empty = 0.
+Fixed to return INTVAL(0).
+
+#### Commit f65c9e1 — RT-118d: COPY() idem types
+
+SIL COPY (v311.sil:6438): STRING/INTEGER/REAL/NAME/KEYWORD/EXPRESSION/TABLE
+all VEQLC→INTR1 (return arg unchanged). Only ARRAY allocates new block.
+We were returning FAILDESCR for everything except ARRAY.
+Fix: `return v` fallthrough for all non-ARRAY types.
+
+### RT-119 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Remaining audit targets (pick one per session):
+# 1. Error messages — sno_runtime_error() coverage vs SIL ERTAB
+#    grep error numbers in v311.sil, check which we emit vs stub/miss
+#    GAP 4 stmt_failed label still needs verification (RT-117b handoff)
+# 2. VARVAL_fn DT_E — currently returns "" for EXPRESSION type
+#    Should EVAL then stringify. Check: VARVAL_fn case DT_E missing.
+# 3. to_int/to_real DT_N — currently hits default→error for NAMEPTR form
+#    (slen==1, ptr set). Should deref ptr then recurse.
+# 4. CONVERT(X,"ARRAY") — currently only idem; STRING→ARRAY not possible
+#    but DATA→ARRAY may be. Check SIL CNVTA path.
+# 5. Continue DT_K/VARVAL vertical: IDENT/DIFFER with mixed DT_K args
+```
