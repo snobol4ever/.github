@@ -2,6 +2,7 @@
 
 **Repo:** one4all (subfolder `silly-snobol4/`) · **Track:** standalone rewrite
 **Trigger:** any message containing "Silly SNOBOL4" starts this session
+**Milestone doc:** `MILESTONE-SILLY-SNOBOL4.md`
 
 ---
 
