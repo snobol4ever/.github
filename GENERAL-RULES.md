@@ -135,11 +135,13 @@ cat /home/claude/.github/GRAND_MASTER_REORG.md      # phase detail
 ```
 
 
-## ⛔ TOKEN — Never write or display the token
+## ⛔ TOKEN — Never write the token to any file or commit
 
-Token is provided once by Lon at session start. Use in shell only. Never on disk, never in chat, never in commit messages, never in handoff summaries. Write `TOKEN_SEE_LON` as placeholder in any file that references it. If token appears in a commit: notify Lon immediately — rotation and history rewriting are Lon's decisions only.
+Token is provided by Lon at session start. Use freely in shell commands. Fine to echo in chat. **Never write to disk, never in commit messages, never in HQ docs, never in handoff summaries.** The danger is accidental check-in: GitHub Push Protection will reject the push and force a history rewrite.
 
-**Bootstrap blocks in SESSIONS_ARCHIVE.md and all other HQ docs must use `TOKEN_SEE_LON` as the placeholder — never the real token. This applies to every `git clone https://...@github.com/...` line without exception. GitHub Push Protection will block the push and force a rewrite if a real PAT is committed.**
+Write `TOKEN_SEE_LON` as placeholder in any file or doc that references a clone URL. This applies to every `git clone https://...@github.com/...` line in SESSIONS_ARCHIVE.md and all other HQ docs without exception.
+
+If token appears in a staged or committed file: notify Lon immediately — rotation and history rewriting are Lon's decisions only.
 
 ---
 
@@ -400,3 +402,39 @@ Each `SESSION-<frontend>-<backend>.md` has a `## ⛔ §INFO` section at the top.
 
 "Update HQ" = append the new fact to §INFO in the SESSION doc + commit `.github`.
 
+
+## ⛔ C CODE STYLE — compact, 120-column, horizontal-first
+
+All C code written or edited in this project follows these rules. No exceptions.
+
+**Line length:** 120 characters maximum. Wrap only when unavoidable. Prefer horizontal
+expansion over vertical stacking. One screen = one logical unit.
+
+**Section dividers — exactly 120 chars wide:**
+```c
+/*====================================================================================================================*/
+/*--------------------------------------------------------------------------------------------------------------------*/
+```
+Use `/*===...*/` for major section boundaries (new file section, top-level subsystem).
+Use `/*---...*/` for sub-section boundaries (function group, milestone block).
+
+**Compact style rules:**
+- Brace on same line: `if (x) {` not `if (x)\n{`
+- Short bodies on one line: `if (!p) return NULL;`
+- Combine related declarations: `int i, j, k;`  `const char *name; int nargs;`
+- Initialise at declaration: `int n = ins->a[1].i;` not declare then assign
+- Omit redundant braces on single-statement arms when body fits on same line
+- Collapse obvious guard+return: `if (!name) return FAILDESCR;`
+- Struct/array initialisers: pack fields horizontally when ≤ 4 fields and fits in 120 chars
+- `for` loop with short body: keep on one line `for (int i=0; i<n; i++) args[i]=sm_pop(st);`
+- Align related assignments in a vertical column only when the block is ≤ 6 lines and alignment aids readability
+
+**Comments:**
+- Inline `/* reason */` preferred over a preceding line comment for short notes
+- Reserve block comments for non-obvious invariants or SIL cross-references
+- No redundant comments that restate what the code already says clearly
+
+**Function signatures:** parameters on one line when ≤ 120 chars; otherwise one param per line aligned after `(`.
+
+**Do NOT apply retroactively** to code not being touched in the current milestone.
+Touch-and-reformat only lines you are already editing.
