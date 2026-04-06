@@ -11,6 +11,16 @@ for sprint numbering only — they do not define separate session types.
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
+### M-DYN-B1 orientation — binary boxes (RT-115, 2026-04-05)
+
+bb_pool.c and bb_emit.c are NOT yet in the Makefile for scrip-interp.
+bb_emit.c BINARY mode instruction helpers (bb_insn_*) are fully implemented — not stubs.
+bb_build (PATND_t → bb_node_t C graph) already lives in stmt_exec.c and drives PASS=178.
+exec_stmt Phase 3 calls root.fn(root.ζ, α) — same signature as .s box files.
+The gap: bb_build_bin.c with bb_lit_emit_binary(), Makefile additions, Phase 2 wiring.
+CODE() uses sno_parse/fmemopen (low priority — fix to cmpile_string later).
+E_SCAN (X ? Y value context) is a stub in eval_node — low priority.
+
 ### v311.sil and two-way MONITOR script locations
 **Date:** 2026-04-05
 
@@ -167,6 +177,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
 | diag-01 | one4all `3a3d91d` · corpus `3fd44d0` · PASS=178/203 | P1c fix (IBLKTB 3-action) OR P2E (E_SCAN eval) OR milestone table update |
+| RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
 | RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
 | RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
@@ -175,10 +186,11 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 | 101 (sno4parse) | one4all `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
 
 **Current milestone docs:**
+- `BB-GEN-X86-BIN.md` — **M-DYN-B1 ACTIVE** (binary LIT box → Phase 2/3 wiring)
 - `MILESTONE-SN4PARSE-VALIDATE.md` — Phase 2 crosscheck gate ✅ PASSED (sprint 101)
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
 
-**Next session first actions (sprint RT-105 — Track C):**
+**Next session first actions (sprint RT-115 — Track BB / binary boxes):**
 ```bash
 cd /home/claude
 apt-get install -y libgc-dev flex
@@ -187,21 +199,44 @@ grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
 cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=190
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
-# Step 1: --dump-parse / --dump-parse-flat flags in scrip-interp.c
-#   In main() arg-parse loop, detect --dump-parse / --dump-parse-flat
-#   After cmpile_file() call, walk CMPILE_t list calling cmpile_print(s, stdout, oneline, idx)
-#   Note: scrip-interp still uses sno_parse for the file — add cmpile_file() path alongside
-
-# Step 2: Wire CMPILE as top-level file parser replacing sno_parse
-#   scrip-interp.c: replace sno_parse(f, path) with cmpile_lower(cmpile_file(f, path))
-#   cmpile_lower(): walks CMPILE_t list, calls cmpnd_to_expr() per field, builds Program*
-#   Gate: PASS >= 190 (no regression); expr_eval passing → PASS=191 is the bonus
-
-# Step 3: Test EVAL() explicitly
-#   printf 'OUTPUT = EVAL(\"1 + 2\")\nEND\n' > /tmp/e.sno
-#   SNO_LIB=.../lib ./scrip-interp /tmp/e.sno   # expect: 3
+# M-DYN-B1: emit LIT box as x86-64 binary, wire into exec_stmt Phase 2
+#
+# ORIENTATION (verified RT-115 session, 2026-04-05):
+#   bb_pool.c  ✅  bb_alloc/bb_seal(mprotect RW→RX)/bb_free — NOT YET in Makefile
+#   bb_emit.c  ✅  bb_emit_byte/u32/u64, bb_insn_*, BINARY label/patch — NOT YET in Makefile
+#   bb_build   ✅  PATND_t → bb_node_t C graph, in stmt_exec.c — working, drives PASS=178
+#   exec_stmt  ✅  5-phase; Phase 3 calls root.fn(root.ζ, α) — C fn ptr today
+#   EVAL_fn    ✅  DT_E thaw + string → eval_via_cmpile — working
+#   CODE()     ⚠️  uses sno_parse (Bison) via fmemopen — low priority, fix later
+#   E_SCAN     ⬜  eval_node E_SCAN stub — low priority
+#
+# STEP 1 — Add bb_pool.c + bb_emit.c to Makefile (2 lines):
+#   $(CC) $(CRT) -c $(RT)/asm/bb_pool.c -o $(OBJ)/bb_pool.o
+#   $(CC) $(CRT) -c $(RT)/asm/bb_emit.c -o $(OBJ)/bb_emit.o
+#
+# STEP 2 — Create src/runtime/asm/bb_build_bin.c:
+#   bb_box_fn bb_lit_emit_binary(const char *lit, int len)
+#   Emits the LIT box as raw x86-64 bytes mirroring bb_lit.s exactly:
+#     push rbx/r12; entry dispatch (cmp esi,0 / je LIT_α / jmp LIT_β);
+#     LIT_α: bounds check (Δ+len > Ω → ω); memcmp via mov rax,&memcmp/call rax;
+#     on match: rax=Σ+Δ, rdx=len, Δ+=len, ret; LIT_β: Δ-=len; LIT_ω: rax=0,rdx=0,ret
+#   Globals Σ/Δ/Ω accessed via: mov rax, imm64(&global) / mov eax,[rax]
+#   bb_alloc(512) → bb_emit_begin → emit bytes → bb_emit_end → bb_seal → return buf
+#   lit/len baked as imm64/imm32 directly into emitted instructions (no zeta needed)
+#
+# STEP 3 — Wire into exec_stmt Phase 2, DT_S branch:
+#   if (getenv("SNO_BINARY_BOXES")) {
+#       bb_box_fn bfn = bb_lit_emit_binary(pat.s, strlen(pat.s));
+#       if (bfn) { root.fn = bfn; root.ζ = NULL; goto phase3; }
+#   }
+#   /* fallback: existing C bb_lit path */
+#
+# GATE: PASS=178 with SNO_BINARY_BOXES unset (no regression)
+#       PASS=178 with SNO_BINARY_BOXES=1 (binary path active for string literals)
+#
+# AFTER LIT WORKS: repeat for EPS, then wire bb_build binary walk for DT_P.
 ```
 
 *(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
