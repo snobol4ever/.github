@@ -30055,3 +30055,92 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 23 non-beauty tests remaining.
+## Sprint RT-138 HANDOFF (1012 semicolon root cause / --hybrid debug) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `686a3d03` · corpus `3fd44d0` · PASS=178 (normal) / PASS=155 (--hybrid, unchanged)
+
+### Work done this session
+
+**RT-138 (no new commit — investigation only, debug prints added then removed):**
+
+1. **Two-way MONITOR wired** — added `SNO_MON=1` fprintf to `sm_interp.c` SM_CALL handler
+   and `call_user_function` body-lookup site in `scrip.c`. Both removed before handoff.
+   Baselines confirmed unchanged: PASS=178 / PASS=155.
+
+2. **1012/004 root cause identified: semicolon statement separator bug in CMPILE.c**
+
+   **Symptom:** `--hybrid` fails `1012/004` (Error 5, fname=d). `--interp` fails `1012/005`.
+   Both fail because the semicolon line `a = 'aa' ; b = 'bb' ; d = 'dd'` only produces
+   ONE statement in the IR (`a = 'aa'`). `b = 'bb'` and `d = 'dd'` are silently dropped.
+   Confirmed via `./scrip --dump-parse`: stmts 10→11 jump from `a='aa'` directly to
+   `lfunc = a b d`, skipping both `b` and `d` assignments. Inside the function,
+   `b` and `d` remain NULVCL, so `a b d` = `'aa'` ≠ `'aabbdd'`.
+
+   The Error 5 (fname=d) in `--hybrid` is a **secondary symptom**: with `b` and `d`
+   both NULVCL, `DIFFER(lfunc('p','q','r'), 'aabbdd')` fails, the test falls to
+   `:f` → next assertion fails → no, actually the Error 5 is from `call_user_function`
+   being re-entered for `d` — this needs re-examination next session.
+
+3. **P2F semicolon loop located:** `cmpile_file_internal` at line 2510 has the loop:
+   ```c
+   while (!st->done && BRTYPE == EOSTYP && TEXTSP.len > 0) { compile_one_stmt(); }
+   ```
+   This loop EXISTS but is NOT firing for the 1012 test case. Root cause: after
+   `compile_one_stmt()` parses `a = 'aa'` and stops on `;`, `BRTYPE` is not `EOSTYP`
+   when the while-loop checks it. The `;` character may be consumed INSIDE CMPILE()
+   before ACT_STOP fires at the outer level — or CMPILE() sets BRTYPE to something
+   other than EOSTYP (e.g. NBTYP=1) when the RHS parser completes normally.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+apt-get install -y libgc-dev flex
+
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"         # 178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 155
+
+# PRIORITY 1: Fix semicolon separator in CMPILE.c
+# Add SNO_SEMI debug print after compile_one_stmt() in cmpile_file_internal (line ~2500):
+#   if (getenv("SNO_SEMI"))
+#       fprintf(stderr, "SEMI: BRTYPE=%d TEXTSP.len=%d ptr='%.*s'\n",
+#               BRTYPE, (int)TEXTSP.len, (int)TEXTSP.len, TEXTSP.ptr ? TEXTSP.ptr : "");
+# Run: SNO_SEMI=1 ./scrip --dump-parse corpus/crosscheck/rung10/1012_func_locals.sno 2>&1
+# Determine why BRTYPE != EOSTYP after 'a = 'aa'' parses and ';' is hit.
+#
+# Hypothesis: CMPILE()'s RHS parser (ELEMNT/EXPR path) stops on ';' via BLKTB→IBLKTB.
+# IBLKTB action[1] = {EOSTYP, ACT_STOP} fires on ';', setting BRTYPE=EOSTYP.
+# BUT: the GOTO section parser (CMPGO) is called after the RHS. If CMPGO checks
+# BRTYPE==EOSTYP and resets it (to NBTYP or 0) before returning, the while-loop
+# sees the wrong value. Check CMPGO for BRTYPE manipulation on EOSTYP.
+#
+# Fix path A (if CMPGO resets BRTYPE): save BRTYPE after CMPILE() returns,
+# check saved value in the while-loop, restore it.
+# Fix path B (if ';' is not reaching IBLKTB): add ';' to BLKTB action table
+# or ensure NSTTYP/ELEMNT paths call FORWRD() which hits BLKTB.
+#
+# Gate: ./scrip --dump-parse corpus/crosscheck/rung10/1012_func_locals.sno
+#        shows 3 statements for the 'a='aa';b='bb';d='dd'' line.
+#        ./scrip --interp corpus/crosscheck/rung10/1012_func_locals.sno → PASS
+#        ./scrip --hybrid corpus/crosscheck/rung10/1012_func_locals.sno → PASS
+#        PASS=178 / PASS≥156
+
+# PRIORITY 2: 1015_opsyn — sm_lower unhandled expr kind 22 (E_BINARY_AT)
+# PRIORITY 3: 053/054 pat_alt/arbno backtracking
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 23 non-beauty tests remaining.
