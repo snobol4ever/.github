@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-132 | one4all `2a75e4ea` · corpus `3fd44d0` · PASS=178/203 (--interp) | **M-SCRIP-U3 DEBUG**: sm_lower.c + sm_interp.c + sm_prog.c already written and compiled. `--hybrid` wired in scrip.c. BUT: `INTERP="./scrip --hybrid" bash test/run_interp_broad.sh` → PASS=5 FAIL=198. Isolated tests (hello.sno, f01, f02) pass. Regression is in crosscheck suite. Next: spot-check first failing crosscheck test to categorize root cause. Do NOT read SCRIP-UNIFIED.md — already internalized. Do NOT re-read sm_lower.c/sm_interp.c in full — they exist, just run failing tests. |
+| RT-138 | one4all `47c64d4a` · corpus `3fd44d0` · PASS=160/203 (--hybrid) · PASS=178/203 (--interp) | **SM regressions**: 22 hybrid-only failures remain. Next: (A) W07_capt_cur — @var cursor capture returns empty (SM_PAT_CAPTURE kind=2 in sm_interp.c); (B) 063_capture_null_replace — null-replace off-by-one. Do NOT re-read SCRIP-UNIFIED.md or sm_lower.c in full. Harness INTERP word-split bug is FIXED — use `INTERP="./scrip --hybrid"` directly now. |
 
 **First actions RT-125:**
 ```bash
