@@ -27929,3 +27929,93 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 # Print via atexit. Run corpus SNO_BINARY_BOXES=1. Target >80% binary hits.
 # If <80%: inspect which PATND kinds dominate misses → plan B7.
 ```
+
+## Sprint RT-121 HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `9af851a7e4703c63cdace276b102053533b00aa7` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session type: Datatype gap-scan — CONVERT matrix + VARVAL_fn + CODE() parser
+
+### Method used this session
+Systematic gap-scan: chose CONVERT() as focus (touches every datatype).
+Read v311.sil CNVRT dispatcher + dtype-pair table (DTATL). Built csnobol4
+oracle from tarball. Ran oracle vs scrip-interp side-by-side for each
+conversion pair. Found gaps, fixed incrementally, gated at PASS=178.
+
+### Work done — commit 9af851a
+
+#### Fix 1: CONVERT(T,"ARRAY") — TABLE→ARRAY (CNVTA)
+`snobol4.c _CONVERT_` ARRAY branch: was `return FAILDESCR` with bogus comment
+"csnobol4 verified: FAIL". Oracle confirms ARRAY returned. Now implemented:
+walks `tbl->buckets[]`, allocates `array_new2d(1,N,1,2)`, fills `[i,1]=key_descr`
+`[i,2]=val`. Empty table → FAILDESCR (SIL ICNVTA fails on all-null). Order
+follows hash bucket order (unspecified by SNOBOL4 spec; oracle also unordered).
+ARRAY→TABLE correctly stays FAILDESCR (oracle: Error 1 "Illegal data type").
+
+#### Fix 2: VARVAL_fn — DT_E and DT_C stringify
+`snobol4.c VARVAL_fn`: added explicit cases before `default:`:
+- `DT_E` → `"EXPRESSION"` (SIL CNVRTS/DTREP path; oracle-verified)
+- `DT_C` → `""` (oracle: CODE blocks stringify to empty string)
+Previously both fell to `default: return ""`, making
+`CONVERT(expr,"STRING")` return `""` instead of `"EXPRESSION"`.
+
+#### Fix 3: code() — retire sno_parse, use cmpile_string + cmpile_lower
+`eval_code.c code()`: replaced `fmemopen → sno_parse` (retired Bison parser,
+failing on ALL input with "parse error: syntax error") with:
+`cmpile_string(src) → cmpile_lower(cl)`.
+`cmpile_lower` de-static'd in `scrip-interp.c` to allow extern reference.
+Broken comment `/* ... Program*/` caused spurious C parse error during fix —
+corrected to `/* ... Program, STMT_t, EXPR_t ... */`.
+`CODE("X = 42")` now returns `DT_C` (was FAILDESCR). `GOTO(C)` dispatch into
+DT_C blocks is a pre-existing RT-7 stub — not addressed this session.
+
+### NOT DONE — pre-existing
+- `GOTO(C)` / exec_code dispatch: DT_C block is parsed correctly but the
+  GOTO statement doesn't dispatch into it. `exec_code()` in eval_code.c is
+  implemented, but scrip-interp.c's goto resolver doesn't call it for DT_C.
+- EVAL(DT_E) dispatch hijack (RT-121 original target): `_EVAL_` wrapper in
+  snobol4.c is never called when E is DT_E. Suspect label_lookup("EVAL")
+  routing to user-function path. Still PASS=178, not fixed this session.
+
+### RT-122 first actions — next session pick: continue gap-scan OR fix EVAL dispatch
+
+**Option A — continue gap-scan (next vertical: keywords / &-variables)**
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# Gap-scan method for keywords:
+# 1. grep v311.sil for all keyword names (AEQLC lines with &-prefixed names)
+# 2. grep our NV_GET_fn/NV_SET_fn for which are implemented vs stubs
+# 3. Cross-check with corpus test failures
+```
+
+**Option B — fix EVAL(DT_E) dispatch (RT-121 original)**
+```bash
+# Per SESSION-snobol4-x64.md §INFO and last handoff:
+# Step 1: add fprintf to _EVAL_ in snobol4.c to confirm it never fires
+# Step 2: check label_lookup("EVAL") in E_FNC dispatch
+# Step 3: add builtin-exempt guard for EVAL/CODE/DATA in E_FNC
+# Gate: CONVERT("2+3","EXPRESSION") → EVAL → 5
+```
+
+**Option C — fix GOTO(C) exec_code dispatch (natural follow-on to Fix 3)**
+```bash
+# In scrip-interp.c execute_program() goto resolver:
+# When goto target is a DESCR_t with v==DT_C, call exec_code(target_descr)
+# and use returned string as next label. Currently only string labels checked.
+```
+
+### Gap-scan inventory from this session (for future sessions)
+Confirmed matching oracle: I→S, R→S, S→I, S→R, S→P, S→C, S→E, S→NUMERIC,
+I→R, R→I, A idem, T idem, P idem, P→S returns "PATTERN",
+T→S returns "TABLE(init,inc)", A→S returns "ARRAY('n')",
+DATA-type→S returns type-tag name.
+Fixed this session: T→A, E→S, C→S (partially).
+Remaining suspect: GOTO(C) exec, EVAL(DT_E).
