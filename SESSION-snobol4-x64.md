@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-138 | one4all `47c64d4a` · corpus `3fd44d0` · PASS=160/203 (--hybrid) · PASS=178/203 (--interp) | **SM regressions**: 22 hybrid-only failures remain. Next: (A) W07_capt_cur — @var cursor capture returns empty (SM_PAT_CAPTURE kind=2 in sm_interp.c); (B) 063_capture_null_replace — null-replace off-by-one. Do NOT re-read SCRIP-UNIFIED.md or sm_lower.c in full. Harness INTERP word-split bug is FIXED — use `INTERP="./scrip --hybrid"` directly now. |
+| RT-139 | one4all `7b99cd96` · corpus `3fd44d0` · PASS=161/203 (--hybrid) · PASS=178/203 (--interp) | **SM regressions**: 21 hybrid-only failures remain. Next: 063_capture_null_replace — empty replacement `X ' world' =` outputs `hello1` instead of `hello`. Root cause: `sm_lower.c` pushes `INTVAL(1)` (has_eq flag) as replacement value when RHS is absent. Fix: emit `SM_PUSH_LIT_S ""` for `has_eq && !replacement`. Check if `SM_PUSH_LIT_S` exists in sm_prog.h first. |
 
 **First actions RT-125:**
 ```bash
