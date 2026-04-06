@@ -29969,3 +29969,89 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 26 tests remaining.
+## Sprint RT-137 HANDOFF (NAME_PUSH NAMEVAL fix / OPSYN alias in --hybrid) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `686a3d03` · corpus `3fd44d0` · PASS=178 (normal) / PASS=155 (--hybrid, +3)
+
+### Work done this session
+
+**RT-137 (commit 686a3d03):**
+
+1. **NAME_PUSH NAMEVAL fix** — Root-caused and fixed OPSYN alias failure in `--hybrid`.
+
+   **Root cause:** `sm_interp` NAME_PUSH handler called `NAME_fn(vname)` which returns
+   `NAMEPTR` (interior cell pointer, slen=1) for ordinary variables. `VARVAL_fn` on a
+   NAMEPTR calls `NV_name_from_ptr()` which reverse-looks up the name in `_var_buckets` —
+   but variables never yet accessed (e.g. `facto` before OPSYN registers it) are not in
+   `_var_buckets`, so it returns NULL → `VARVAL_fn` returns `""`. Result: `register_fn_alias("", "fact")`
+   inserted the alias under hash 5 (for `""`), while `APPLY_fn("facto",...)` searched hash 90 → not found → Error 5.
+
+   **Fix:** NAME_PUSH now emits `NAMEVAL(GC_strdup(vname))` — DT_N with slen=0, name in `.s`.
+   `VARVAL_fn(DT_N NAMEVAL)` returns `v.s` directly, correct regardless of NV table state.
+   NAMEVAL is correct for rvalue `.X` contexts (OPSYN arg, DIFFER, INDFN). NAMEPTR is for
+   lvalue write-through only, handled by ASGN_INDIR/NMD paths via VARVAL_fn anyway.
+
+   **Fixes:** 1010_func_recursion (OPSYN alias test 003), 1015_opsyn (partial — now hits
+   unhandled expr kind 22 = E_BINARY_AT), plus two other tests.
+
+2. **scrip-interp symlink** — added `scrip-interp → scrip` symlink in one4all/ so harness
+   `INTERP=./scrip-interp` default still works after M-SCRIP-U0 rename.
+
+### Remaining --hybrid failures (48 total, down from 51+)
+
+| Cluster | Tests | Root cause |
+|---------|-------|------------|
+| Func edge cases | 1012, 1013 | 1012/004: multi-param func return value wrong; 1013: NRETURN (known gap) |
+| OPSYN advanced | 1015 | sm_lower unhandled expr kind 22 (E_BINARY_AT = `@` binary dupl op) |
+| EVAL | 1016 | EVAL() in SM path |
+| Indirect array | 212 | `$X` where X holds array subscript |
+| Pattern ALT/ARBNO | 053, 054 | backtracking in SM pat-stack dispatch |
+| Arrays/Tables | 1112, 1113, 1114 | multi-dim subscripts; TABLE in SM |
+| DATA | 095, 1115, 1116 | field setter + VALUE() overlap |
+| NRETURN | 1013 | NRETURN return value at call site |
+| Misc | W07, 063 | capture/null-replace edge cases |
+| beauty | ~18 | DEFINE-dependent / complex programs |
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+apt-get install -y libgc-dev flex
+
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"         # 178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 155
+
+# PRIORITY 1: 1012_func_locals/004 — multi-param function return value
+# ./scrip --interp corpus/crosscheck/rung10/1012_func_locals.sno   # PASS
+# ./scrip --hybrid corpus/crosscheck/rung10/1012_func_locals.sno   # FAIL 004
+# Test: define('lfunc(a,b,c)d,e,f') — 3 params, 3 locals
+# Body: lfunc = a b d  :(return)
+# lfunc('p','q','r') should return 'padd' (concat a,b,d)
+# Suspect: call_user_function param setup for 3-arg case, or retval read
+# Use two-way MONITOR: add fprintf to call_user_function retval path
+
+# PRIORITY 2: 1015_opsyn — sm_lower unhandled expr kind 22
+# grep -n "E_BINARY_AT\|kind.*22\|= 22" src/runtime/sm/sm_lower.c
+# Add E_BINARY_AT lowering (@ binary = OPSYN/DUPL op)
+# Check ir.h for kind 22 definition
+
+# PRIORITY 3: 053/054 pat_alt/arbno
+# ./scrip --hybrid corpus/crosscheck/rung1/053_pat_alt_commit.sno
+# ./scrip --hybrid corpus/crosscheck/rung1/054_pat_arbno_alt.sno
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 23 non-beauty tests remaining.
