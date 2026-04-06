@@ -30329,3 +30329,42 @@ for t in /home/claude/corpus/crosscheck/arith/*.sno; do
 done
 # Then grep sm_interp.c for the specific failing opcode/path — targeted read, not full file
 ```
+
+## Sprint SS-3 HANDOFF (Silly SNOBOL4 M8 sil_scan) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `c762e496` · .github (this commit)
+
+### Work done this session
+
+**M8 ✅ sil_scan.c/h — committed c762e496**
+SCAN_fn SJSR_fn SCNR_fn + 36-entry PATBRA dispatch table.
+All XPROC sub-procedures: ANYC ARBF ARBN ATP CHR BAL BALF BRKC BRKX BRKXF
+DNME DNME1 EARB DSAR ENME ENMI FARB FNCE FNME LNTH NME NNYC ONAR ONRF
+POSI RPSI RTB SPNC STAR SUCF TB + dispatch stubs FAIL SALF SCOK RTNUL3.
+Scan_ctx with salt_jmp/salf_jmp/scok_jmp/fail_jmp for backtrack longjmps.
+Operand stack (DESCR_t) + specifier stack (SPEC_t) as file-static arrays.
+
+Also added to sil_types.h: INCRA DECRA SETAC SETVC SETAV SETVA MOVV MOVA
+TESTF AEQLC ACOMPC ACOMP VEQLC SUM SUBTRT DEQL — full SIL arithmetic macro set.
+Added to sil_data.h: NVAL VVAL TAILSP VSP SCFLCL SUCFCL FNMECL UNSCCL
+TBLBCS TBLSCS BRKTB SPANTB RTYPTR RTZPTR NMOVER.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_scan.c → zero warnings.
+
+### Milestone status
+M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ M7 ✅ M8 ✅
+M9 ⬜ sil_nmd.c/h  ← NEXT (§11+§17 NMD naming list, ~150 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M9: src/silly/sil_nmd.c + sil_nmd.h
+# Source: v311.sil §11 NME/ENME/DNME/ENMI + §17 NMD lines 5828-6101
+# See MILESTONE-SILLY-SNOBOL4.md §M9 for Name_entry design
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_nmd.c → zero warnings
+# Then commit+push one4all, update .github M9 ✅ and push
+```
