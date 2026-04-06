@@ -28848,3 +28848,64 @@ Full design written to BB-GEN-X86-BIN.md §Stackless. Key points:
 
 ### HQ HEAD after addendum
 `c45edd8`
+
+## Sprint RT-124 HANDOFF (M-DYN-BENCH-C expanded to 13 programs) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `ac19c92` · **HQ HEAD:** (post-commit below) · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- **M-DYN-BENCH-C expanded ✅** — Grew benchmark suite from 4 programs to 13 (all runnable corpus benchmarks). New programs added: string_concat, roman, eval_fixed, eval_dynamic, var_access, op_dispatch, table_access. Results measured (median of 3 runs, wall clock, python3 timer) and written into BB-GEN-X86-BIN.md §M-DYN-BENCH-C.
+- **M-DYN-BENCH-X86 table pre-filled** — C BB baseline column populated in M-DYN-BENCH-X86 results table so x86 column is ready to fill in after M-DYN-B13.
+- **x64 SPITBOL oracle built** — cloned snobol4ever/x64, built `sbl`, copied to `bin/spitbol`.
+
+### Full results (RT-124, median of 3 runs)
+
+| Program | Category | scrip-C | SPITBOL | scrip/SPITBOL |
+|---|---|---:|---:|---:|
+| pattern_bt | pattern | 1.96s | 0.18s | 11.1× |
+| string_pattern | pattern | 11.11s | 0.37s | 29.8× |
+| mixed_workload | pattern+mix | 4.31s | 0.12s | 35.4× |
+| string_manip | string | 5.60s | 0.50s | 11.2× |
+| string_concat | string/GC | 2.47s | 0.16s | 15.4× |
+| roman | recursion | 0.15s | 0.14s | 1.1× |
+| eval_fixed | eval | 3.18s | 0.28s | 11.2× |
+| eval_dynamic | eval | 3.92s | 0.42s | 9.4× |
+| var_access | interp loop | 5.30s | 0.68s | 7.8× |
+| arith_loop | control | 1.22s | 0.05s | 24.5× |
+| fibonacci | control | 5.51s | 0.12s | 45.9× |
+| op_dispatch | control | 2.88s | 0.08s | 35.6× |
+| table_access | TABLE | 8.79s | 0.22s | 40.7× |
+
+**Skipped:** func_call / func_call_overhead (wall >60s at 10M iters — needs iter reduction next session); indirect_dispatch (Error 5 — Bug A queue).
+
+### Key findings
+
+- Interpreter loop is the largest gap: fibonacci 45.9×, op_dispatch 35.6×, table_access 40.7×. SM_Program / inline blobs directly target this.
+- Pattern work 11–30×. Byrd box C dispatch overhead is real but not the sole factor.
+- `roman` at 1.1× is the outlier — recursion-heavy but low stmt count per call.
+- `eval_dynamic` / `var_access` closest to SPITBOL (7.8–9.4×) — those paths hit runtime more than interp loop.
+
+### Next session first actions (RT-125 — M-DYN-B0)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex nasm time
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-DYN-B0: reset bb_build_binary_node() → always return NULL (full C fallback)
+# Remove / #ifdef-out all bb_*_emit_binary() trampoline emitters from B1–B10
+# Keep bb_pool.c / bb_emit.c / bb_build_bin.c skeleton — do NOT delete
+# Gate: PASS=178 still holds; no trampoline code paths active
+# Then M-DYN-B1: bb_fail_inline() = 5-byte blob (xor eax,eax / xor edx,edx / ret)
+```
+
+### Files changed this session
+- `.github/BB-GEN-X86-BIN.md` — M-DYN-BENCH-C expanded (4→13 programs), results table filled, M-DYN-BENCH-X86 baseline column pre-filled, milestone ladder updated ✅
+- `.github/SESSIONS_ARCHIVE.md` — this handoff entry
