@@ -43,6 +43,31 @@ calloc(1,sizeof *e) and calloc(n,sizeof(EXPR_t*)) in cmpnd_to_expr
 Same audit needed in eval_code.c. Gate: PASS=178; EVAL('2 + 3')=5 via
 DT_E path (not just string path).
 
+### M-DYN-B* REDO — inline-blob ABI, no push/pop (RT-120, 2026-04-06)
+
+Prior B1–B10 work (RT-116 through RT-120) used C-function trampolines.
+VOIDED. New design: self-contained x86 code+data blobs in bb_pool.
+
+**ABI:**
+- `rdi` on entry = buffer base address (fn ptr == buffer start)
+- `esi` = 0 (α) or 1 (β)  
+- `r10`, `r11` = scratch only (caller-saved — zero push/pop)
+- Prologue: `mov r10,rdi(3) + cmp esi,0(3) + je α(2) + jmp β(2)` = 10 bytes
+- Data section appended after code in same sealed RX buffer
+- Baked absolute ptr slots for Σ/Δ/Ω/memcmp in data section
+- Mutable state (done, fired, n, count...) also in data section as writable-before-seal fields
+
+**M-DYN-B0 first actions:**
+```bash
+# Reset bb_build_binary_node() to return NULL for all kinds (full C fallback)
+# Remove or ifdef-out all bb_*_emit_binary() trampoline emitters
+# Keep bb_pool.c / bb_emit.c / bb_build_bin.c skeleton
+# PASS=178 (C path unchanged)
+# Then implement B1: bb_fail_inline() = 5-byte blob
+```
+
+**Milestone B0 = reset + verified C fallback; B1 = FAIL inline; B2 onward per BB-GEN-X86-BIN.md**
+
 ### M-DYN-B10 complete — 100% binary coverage (RT-120, 2026-04-05)
 
 All 25 PATND_t box kinds now handled in bb_build_binary_node(). Zero BIN_MISS

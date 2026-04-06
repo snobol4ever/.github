@@ -113,15 +113,103 @@ The only missing piece: `bb_build_bin.c` emitting bytes for each box type, and w
 
 ## Milestone Chain
 
-| ID | Deliverable | Gate | Status |
-|----|-------------|------|--------|
-| **M-DYN-B1** | `bb_build_bin.c`: `bb_lit_emit_binary()` → sealed x86 buffer; Makefile adds bb_pool+bb_emit; exec_stmt Phase 2 DT_S branch uses it behind `SNO_BINARY_BOXES=1` | PASS=178 both with and without env var | ✅ RT-116 |
-| **M-DYN-B2** | `bb_eps_emit_binary()` + full `bb_build_binary()` walk for DT_P (all 25 box types) | Same pass rate as C path | ✅ RT-117b |
-| **M-DYN-B3** | `bb_pos_emit_binary(n)` + `bb_rpos_emit_binary(n)` + XCAT trampoline (recursive seq via heap `bin_seq_t` + 22-byte trampoline baking `bb_seq`+ζ) | PASS=178 both paths | ✅ RT-118 |
-| **M-DYN-B4** | TAB/RTAB trampoline emitters (`bb_tab_emit_binary`, `bb_rtab_emit_binary`) using heap ζ + trampoline pattern | PASS=178 both paths | ⬜ |
-| **M-DYN-B5** | LEN(n) trampoline; binary coverage audit (>80% of DT_P matches via binary path) | PASS=178; coverage metric | ⬜ |
+## ⚠️ Architecture Correction — M-DYN-B* Redo (RT-120, 2026-04-06)
+
+**Previous B1–B10 work (RT-116 through RT-120) used C-function trampolines, not x86 boxes.**
+All prior B milestones are VOIDED. The trampoline approach (`mov rdi,ζ / mov rax,bb_fn / jmp rax`)
+dispatches into C implementations — correct for correctness, but not the intended design.
+
+**Correct design:** each emitted blob is a **self-contained x86 code+data blob** in the pool page.
+No push/pop callee-save. No heap ζ. No trampoline. No C box call.
+`rdi` on entry = blob base address. `r10` loaded once as index register.
+All ζ state and baked addresses live in a data section appended to the code in the same sealed buffer.
 
 ---
+
+## Inline-Blob ABI (M-DYN-B* Redo)
+
+```
+Buffer layout:
+  [0 .. CODE_END)   x86 code — position-independent via rel8/rel32 jumps
+  [CODE_END .. end) data — mutable state (n, done, fired...) + baked ptr slots (Σ/Δ/Ω/memcmp addrs)
+
+Entry convention:
+  rdi = buffer base (the fn ptr IS the buffer start — same address)
+  esi = 0 (α) or 1 (β)
+  r10, r11 = scratch (caller-saved — no push/pop needed)
+
+Prologue (10 bytes, shared by all stateful boxes):
+  49 89 FA          mov  r10, rdi        ; r10 = blob base
+  83 FE 00          cmp  esi, 0
+  74 dd             je   α
+  EB dd             jmp  β
+
+Data access pattern:
+  4D 8B 42 dd       mov  rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
+  8B 00             mov  eax, [rax]     ; deref to int (Δ, Ω, n...)
+  48 8B 00          mov  rax, [rax]     ; deref to ptr (Σ)
+  45 89 42 dd       mov  [r10+N], eax   ; write int back to data slot (state update)
+```
+
+FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes total.
+
+---
+
+## Milestone Ladder (Redo)
+
+| ID | Deliverable | Gate | Status |
+|----|-------------|------|--------|
+| **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
+| **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
+| **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
+| **M-DYN-B3** | `bb_pos_inline(n)`, `bb_rpos_inline(n)` — n baked in data. ~28–30 bytes code + 4+16 data. | PASS=178 | ⬜ |
+| **M-DYN-B4** | `bb_len_inline(n)`, `bb_tab_inline(n)`, `bb_rtab_inline(n)` — same pattern. | PASS=178 | ⬜ |
+| **M-DYN-B5** | `bb_fence_inline()`, `bb_arb_inline()` — mutable state (fired, count+start) in data slot. | PASS=178 | ⬜ |
+| **M-DYN-B6** | `bb_rem_inline()` — Σ/Δ/Ω ptrs in data; returns spec(Σ+Δ, Ω−Δ). | PASS=178 | ⬜ |
+| **M-DYN-B7** | `bb_any_inline(chars)`, `bb_notany_inline(chars)`, `bb_span_inline(chars)`, `bb_brk_inline(chars)`, `bb_breakx_inline(chars)` — chars string copied inline into data section after ptr slots. | PASS=178 | ⬜ |
+| **M-DYN-B8** | `bb_lit_inline(lit, len)` — full inline: memcmp call via baked ptr, Σ/Δ/Ω/memcmp addrs in data, lit copy in data. ~80 bytes code + 40 bytes data. | PASS=178 | ⬜ |
+| **M-DYN-B9** | `bb_seq_inline(left_fn, right_fn)` — XCAT: calls child fn ptrs baked in data. matched spec stored in data slot. No push/pop (r10–r11 scratch). | PASS=178 | ⬜ |
+| **M-DYN-B10** | `bb_alt_inline(children[], n)` — XOR: child fn ptrs array baked in data. Loop via r10-relative index. | PASS=178 | ⬜ |
+| **M-DYN-B11** | `bb_atp_inline(varname)`, `bb_dsar_inline(name)` — varname ptr baked in data; NV_SET_fn/NV_GET_fn called via baked ptr. | PASS=178 | ⬜ |
+| **M-DYN-B12** | `bb_arbn_inline(child_fn)` — ARBNO: child fn ptr + depth + frame stack all in data section. Large buffer (~512 bytes for 64-frame stack). | PASS=178 | ⬜ |
+| **M-DYN-B13** | Coverage audit: ≥95% of DT_P corpus pattern nodes handled by inline blobs. Document any remaining C fallbacks. | PASS=178; coverage report | ⬜ |
+
+---
+
+## Projected Inline-Blob Sizes
+
+Sizes are estimates based on instruction encoding analysis. Measured actuals to be recorded after each milestone.
+
+| Box | XKIND | Code bytes | Data: payload | Data: ptr slots | **Total blob** | vs old tramp+C |
+|-----|-------|----------:|----------:|----------:|----------:|----------:|
+| bb_fail_inline   | XFAIL  |   5 |  0 |  0 |  **5** | was 27 — **5.4× smaller** |
+| bb_rem_inline    | XSTAR  |  12 |  0 | 24 | **36** | was 29 |
+| bb_pos_inline    | XPOSI  |  28 |  4 | 16 | **48** | was 33 |
+| bb_tab_inline    | XTB    |  30 |  4 | 16 | **50** | was 33 |
+| bb_rpos_inline   | XRPSI  |  30 |  4 | 24 | **58** | was 33 |
+| bb_rtab_inline   | XRTB   |  30 |  4 | 24 | **58** | was 33 |
+| bb_len_inline    | XLNTH  |  35 |  4 | 24 | **63** | was 33 |
+| bb_fence_inline  | XFNCE  |  37 |  4 | 24 | **65** | was 33 |
+| bb_eps_inline    | XEPS   |  38 |  4 | 24 | **66** | was 33 |
+| bb_arb_inline    | XFARB  |  35 |  8 | 24 | **67** | was 33 |
+| bb_any_inline    | XANYC  |  40 |  8+chars | 16 | **~72+** | was 35 |
+| bb_notany_inline | XNNYC  |  40 |  8+chars | 16 | **~72+** | was 35 |
+| bb_brk_inline    | XBRKC  |  42 |  8+chars | 16 | **~74+** | was 37 |
+| bb_span_inline   | XSPNC  |  44 |  8+chars | 16 | **~76+** | was 37 |
+| bb_breakx_inline | XBRKX  |  45 |  8+chars | 16 | **~77+** | was 37 |
+| bb_lit_inline    | XCHR   |  80 | 12+lit   | 40 | **~132+**| was 169 — **1.3× smaller** |
+| bb_seq_inline    | XCAT   |  ~55 | 16+spec | 0 | **~87** | was 45 |
+| bb_alt_inline    | XOR    |  ~60 | 16×N    | 0 | **~76+** | was 41 |
+| bb_arbn_inline   | XARBN  |  ~80 | ~600    | 24 | **~704** | was 45 (excl. heap) |
+
+Notes:
+- `+chars` = NUL-terminated charset string appended inline
+- `+lit`   = literal string bytes appended inline  
+- `+spec`  = 16-byte matched spec slot in data
+- ARBN data section is large (64×{spec_t+int} frame stack) — same size as before but on-pool not heap
+
+---
+
 
 ## Relation to Static Path
 
