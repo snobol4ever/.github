@@ -29639,3 +29639,83 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 37 tests remaining after arrays fixed.
+
+## Sprint RT-135 HANDOFF (M-SCRIP-U4 advancing) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `075b6c95` · corpus `3fd44d0` · PASS=178 (normal) / PASS=147 (--hybrid)
+
+### Work done this session
+
+**Two bugs fixed — PASS 128→141→147:**
+
+**Bug 1 (RT-133, `763eadc3`):** `--hybrid` path missing `label_table_build` + `prescan_defines` + `g_sno_err_active`.
+Without these, `call_user_function` → `label_lookup` returned NULL → `sno_runtime_error(5)` → longjmp crash.
+Fix: 3 lines added before `sm_lower(prog)` in hybrid block of `scrip.c main()`, mirroring `execute_program()` setup.
+**+13 tests** (all simple DEFINE/user-function tests).
+
+**Bug 2 (RT-134, `075b6c95`):** Subscript assign `a<i> = val` not handled in SM.
+`sm_lower` fell into generic `else` branch for `E_IDX` lhs → emitted `IDX 2` + `ASGN 2`.
+Neither `IDX` nor `ASGN` were registered C builtins → `INVOKE_fn` → `sno_runtime_error(5)` → crash.
+Fix in `sm_lower.c`: `E_IDX` lhs with `has_eq` now emits `IDX_SET(nc+1)`.
+Fix in `sm_interp.c`: `SM_CALL` handler: `IDX` (subscript read) and `IDX_SET` (subscript write)
+added as inline pseudo-calls, dispatching to `subscript_get/set`.
+**+6 tests** (1D array assign/read tests).
+
+**GENERAL-RULES (`.github` `6cabf9d`/`b3afeeb`):**
+- TOKEN rule corrected: never write to files/commits; fine in shell and chat.
+- C CODE STYLE rule added: 120-col, compact, `/*====*/`/`/*----*/` dividers (exactly 120 chars).
+
+### Remaining --hybrid failures (56 total)
+
+| Cluster | Tests | Root cause / triage |
+|---------|-------|---------------------|
+| Multi-dim array (1112) | 1 | Custom lo:hi bounds in `sm_lower` E_IDX — needs `lo:hi` subscript parsing |
+| TABLE (1113) | 1 | Error 3 erroneous table ref — TABLE subscript `t[k]` uses `<>` not `[]`; needs separate IDX path for tables |
+| ITEM/DATA (1114–1116, 095) | 4 | Error 5 — DATA/ITEM not registered or field-set not wired in SM |
+| Indirect (210, 211, 213) | 3 | Stack underflow — `$var` lhs lowering: `SM_CALL "ASGN_INDIR"` stack order wrong for indirect read |
+| Func edge cases (1010,1012,1013,1015–1018) | 7 | Recursion/locals/NRETURN/OPSYN — deeper call_user_function edge cases |
+| word1–4, wordcount, cross | 6 | Likely indirect or DATA dependent |
+| ALT/ARBNO (053, 054) | 2 | Pattern backtracking in SM pat-stack |
+| beauty drivers | 7 | DEFINE-dependent complex programs |
+| 411_arith_unary | 1 | Unary plus string→int coercion gap in SM |
+| 082_keyword_stcount | 1 | Keyword write-back via SM_STORE_VAR not routed through keyword handler |
+| misc (fileinfo, triplet, W07, expr_eval) | 4 | Various |
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh                            # PASS=178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh  # PASS=147
+
+# Highest yield next: indirect cluster (210/211/213) — stack underflow
+# Triage:
+./scrip --hybrid /home/claude/corpus/crosscheck/rung2/210_indirect_ref.sno 2>&1
+# "stack underflow" → ASGN_INDIR handler pops wrong number of items
+# Check sm_lower: $var read (E_INDIRECT in expr context) vs $var write (E_INDIRECT in lhs)
+# Read: lower_expr E_INDIRECT → lower child, SM_CALL "ASGN_INDIR"?  Should be SM_CALL "INDIR_GET"
+# Write: lower_stmt E_INDIRECT lhs → already handled; check stack order
+
+# DATA/ITEM cluster (4 tests):
+./scrip --hybrid /home/claude/corpus/crosscheck/rung11/1115_data_basic.sno 2>&1
+# Error 5 → DATA() or field accessor not found as builtin
+# DATA() IS registered; field ctors are dynamically registered via DEFINE_fn
+# Check: does prescan_defines handle DATA('slink(snext,sval)') correctly in hybrid?
+# DATA ctor 'slink' should be registered after DEFINE — verify with DATATYPE(slink(...))
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 31 tests after indirect+DATA fixed (est.).
