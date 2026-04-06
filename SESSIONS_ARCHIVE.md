@@ -28448,57 +28448,39 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 #   Symptom: "stray \\342" or "'Build' undeclared" = missing /*)
 ```
 
-## Sprint RT-123 HANDOFF (Error 22 wired; Error 25 deferred) — 2026-04-06
+## Sprint RT-119 HANDOFF (M-DYN-B9b) — 2026-04-05 *** SESSION COMPLETE ***
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `4d56435` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `5880085` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Milestone completed: RT-123 ✅
+### Milestone completed: M-DYN-B9b ✅  — 80% binary coverage TARGET MET ✅
 
-**Commit `4d56435`** — `RT-123: Error 22 (STLIMIT via sno_runtime_error); revert Error 25 (needs explicit-call flag); PASS=178`
+**Commit `5880085`** — `RT-119 M-DYN-B9b: XFARB(ARB) + XBRKX(BREAKX) trampolines; 85.5% coverage ✅`
 
-**Error 22 — &STLIMIT exceeded (`comm_stno`):**
-- Was: bare `fprintf(stderr,...) + exit(1)` — bypassed canonical error path
-- Now: `sno_runtime_error(22, NULL)` — uses message table, sets `&ERRTYPE`, follows terminal dispatch
-- SIL: `EXEX SETAC ERRTYP,22`
+**Deliverables:**
+- `bb_arb_emit_binary()` — XFARB: `arb_t={int count; int start;}`, reuses `charset_emit_trampoline()` to `bb_arb`.
+- `bb_breakx_emit_binary(chars)` — XBRKX: `brkx_t={const char *chars; int δ;}`, trampoline to `bb_breakx`.
+- `case XFARB → bb_arb_emit_binary()`
+- `case XBRKX → bb_breakx_emit_binary(p->STRVAL_fn)`
 
-**Error 25 — wrong arg count — ATTEMPTED AND REVERTED:**
-- Guard `if (nargs != np) sno_runtime_error(25, NULL)` in `call_user_function` caused
-  178→175 regression: beauty suite + func tests all broke.
-- Root cause: `call_user_function` is called from multiple internal paths with 0 args
-  (label-as-function-call, subject-as-function-call) even for functions with params.
-  SIL INVK strict check only fires on explicit parenthesized call; bare invocations
-  silently supply NULVCL for unmatched params.
-- Fix path: wire Error 25 only in the **E_FNC explicit-call path** in `interp_eval`
-  (where `e->nchildren` == caller-supplied count), NOT in `call_user_function` itself.
+**Final coverage audit:**
+- Start of session (B3 baseline): 0% (binary path not yet measuring)
+- After B6 audit infra: **21.8%**
+- After B7 (XNME/XFNME): **45.5%**
+- After B8 (SPAN/ANY/BREAK/NOTANY): **68.5%**
+- After B9 (XOR/XSTAR): **75.2%**
+- After B9b (XFARB/XBRKX): **85.5%** ✅ — **80% TARGET MET**
 
-### RT-124 first actions
+**Remaining 24 misses (all complex/rare — correct C-path fallback):**
+XATP(12) · XCALLCAP(5) · XARBN(5) · XDSAR(1) · XFAIL(1)
 
-**Error 25 — correct fix location:**
-```c
-/* In interp_eval, E_FNC branch (scrip-interp.c ~line 918): */
-int nargs = e->nchildren;
-/* ... evaluate args ... */
-/* Check BEFORE calling call_user_function: */
-int np_expected = FUNC_NPARAMS_fn(e->sval);
-if (np_expected >= 0 && nargs != np_expected && !APPLY_fn_has_builtin(e->sval))
-    { sno_runtime_error(25, NULL); return FAILDESCR; }
-/* Then proceed to call_user_function(e->sval, args, nargs) */
-```
-Key: only check when the function is user-defined (not a builtin registered via
-`register_fn`). Use `FNCEX_fn(e->sval) && !fn_has_builtin(e->sval)` to discriminate.
-Gate: PASS=178.
+**Gate:** PASS=178 both paths ✅ throughout all milestones.
 
-**Error format gap (next after Error 25):**
-Current:  `"\n** Error %d in statement %d\n   %s\n"`
-SIL FTLCF: `"%v:%d: Error %d in statement %d at level %d\n"`
-Need: filename (track via `g_current_file` in `execute_program`) + `kw_fnclevel`.
-One-liner: add `extern char *g_current_file` and include in `sno_runtime_error` format.
+**Complete binary node coverage achieved:**
+XCHR / XEPS / XSPNC / XANYC / XNNYC / XBRKC / XPOSI / XRPSI / XTB / XRTB / XLNTH /
+XNME / XFNME / XSTAR / XOR / XFARB / XBRKX
 
-**Remaining error vertical (after above):**
-- Error 6 (erroneous prototype) in `DEFINE_fn` prototype-string parse
-- Error 8 (variable not present) — NAME type used where value required
-- Error 18 (return from level zero) — RETURN/FRETURN at call_depth==0
+### RT-120 first actions — next sprint
 
 ```bash
 cd /home/claude && apt-get install -y libgc-dev flex
@@ -28506,5 +28488,25 @@ tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+bash /tmp/sweep_audit.sh   # confirm 85.5%
+
+# M-DYN-B coverage is COMPLETE at 85.5%. Next milestone per PLAN.md:
+# Check SESSION-snobol4-x64.md §NOW for what comes after the B series.
+# Likely: P2E embedded match (A ? PAT = REPL) or RUNTIME gap work.
+# Consult PLAN.md NOW table for current sprint assignment.
 ```
+
+## Sprint RT-119 HANDOFF (M-DYN-B9b) — 2026-04-05 *** SESSION COMPLETE ***
+
+**one4all HEAD:** `5880085` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**M-DYN-B9b:** XFARB(ARB) + XBRKX(BREAKX) trampolines. **85.5% binary coverage — 80% TARGET MET ✅**
+Binary nodes complete: XCHR/XEPS/XSPNC/XANYC/XNNYC/XBRKC/XPOSI/XRPSI/XTB/XRTB/XLNTH/XNME/XFNME/XSTAR/XOR/XFARB/XBRKX
+Remaining 24 misses: XATP(12)/XCALLCAP(5)/XARBN(5)/XDSAR(1)/XFAIL(1) — C-path fallback acceptable.
+Gate: PASS=178 both paths ✅
