@@ -558,3 +558,109 @@ SPITBOL ratio improves from C-BB baseline toward 1.0× (or below for leaf-heavy 
 
 **Gate:** x86 BB speedup ≥ 10% on pattern_bt and string_pattern vs C BB baseline.
 PASS=178 with SNO_BINARY_BOXES=1. Numbers committed to HQ.
+
+---
+
+## Stackless Statement Execution Model (design note — RT-121, 2026-04-06)
+
+### The idea
+
+The five-phase statement executor currently uses the C call stack for every
+sub-operation. The stackless model eliminates all C stack frames for the body
+of a complete SNOBOL4 statement — phases 1–5 are wired together with direct
+jumps, no call/ret overhead, no push/pop.
+
+### Five-phase statement structure
+
+```
+Phase 1: subject eval       → produces (Σ, |Σ|)
+Phase 2: pattern build      → produces root_fn/root_data
+Phase 3: pattern match      → α/β dispatch, full backtracking
+Phase 4: replacement        → writes back on success
+Phase 5: goto ricochet      → S-branch or F-branch dispatch
+```
+
+Each phase can fail. Phase 3 backtracks internally. The goto ricochet
+(phase 5) is the only exit — it dispatches to S-label on success or
+F-label on failure, which is itself just a jump into the next statement's
+entry point.
+
+### Stackless wiring
+
+Every box's α and β entries are **direct jump targets**, not call addresses.
+The match loop becomes:
+
+```
+stmt_entry:
+    ; Phase 1 — subject eval (inline or jmp to eval blob)
+    ; rsi = Σ ptr, rcx = |Σ|
+    
+    ; Phase 2 — pattern already built into root_fn/root_data at load time
+    ;            (or rebuilt here for *P deferred — still no stack)
+    
+    ; Phase 3 — enter root box α
+    jmp  [root_fn]          ; → box_α: tries match, advances Δ
+                            ;   on success: jmp phase4_entry
+                            ;   on backtrack: jmp [root_fn+β_offset]
+                            ;   on total fail: jmp phase5_fail
+
+phase4_entry:
+    ; replacement write-back (inline)
+    ; jmp phase5_success
+
+phase5_success:
+    jmp  [s_label_fn]       ; S-branch — next stmt entry point
+
+phase5_fail:
+    jmp  [f_label_fn]       ; F-branch — next stmt entry point
+```
+
+Boxes signal outcome by jumping to **one of three continuations** passed
+(or baked) per statement invocation:
+- `k_success` — go to phase 4 then phase 5 S-branch
+- `k_backtrack` — re-enter current box at β
+- `k_fail` — go to phase 5 F-branch
+
+These three continuation addresses live in the **statement frame** — a small
+fixed-size struct in a register (e.g. `r13` = stmt frame ptr) for the
+duration of the statement. No stack growth. No heap allocation per statement.
+
+### Backtracking without a stack
+
+SPITBOL uses a match stack. The stackless model uses the **box graph itself**
+as the backtrack structure — each box's β entry knows what to undo and where
+to retry. For SEQ (threaded pthen model): β of right child → β of left child
+→ advance left's position → retry right. This is the Byrd box contract
+already. The "stack" is implicit in the XCAT/XOR graph topology.
+
+For ARBNO: the frame stack (currently heap-allocated in ζ) maps naturally to
+a **fixed-size inline stack in the statement frame** — bounded by max ARBNO
+depth (64 frames × 24B = 1536B per statement frame). One allocation per
+statement, reused across all ARBNO invocations in that statement.
+
+### What this buys
+
+- Zero push/pop inside pattern match — all branches are direct jmps
+- Zero C call overhead for box dispatch — no `call rax` / `ret` pairs
+- No C stack growth during backtracking — safe for deeply nested patterns
+- Statement frame (≤2KB) fits in L1 cache with the hot box blobs
+- SPITBOL comparison: SPITBOL's match loop is also stackless (uses its own
+  match stack register, not C stack). This model reaches parity.
+
+### Relation to M-DYN-B* inline blobs
+
+The inline blob ABI already passes `rdi` = blob base (data section ptr) and
+`esi` = α/β selector. The stackless model adds:
+- `r13` = stmt frame ptr (continuation addrs + ARBNO frame stack)
+- Box success/fail: `jmp [r13 + K_SUCCESS_OFFSET]` / `jmp [r13 + K_FAIL_OFFSET]`
+- No ret instruction inside any box — terminal boxes jump to continuation
+
+This is the **target architecture** for M-DYN-B* redo. Each milestone box
+should be written to this ABI from the start.
+
+### Milestone placeholder
+
+**M-DYN-STACKLESS** — wire stmt_exec_dyn as a stackless trampoline:
+allocate stmt frame on entry (fixed size, stack or static), set k_success/
+k_fail/k_backtrack continuation addresses, enter root box via jmp.
+Gate: PASS=178; no C call frames inside pattern match on stack trace.
