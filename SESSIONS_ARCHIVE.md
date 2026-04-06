@@ -29341,3 +29341,61 @@ See SESSIONS_ARCHIVE RT-128 addendum for SM design (FORTH model, no stack frames
 ```
 
 ### Next milestone after M-DYN-FLAT: M-SCRIP-U3 (SM-LOWER)
+
+## Sprint RT-131 HANDOFF (M-DYN-FLAT COMPLETE) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip-interp
+**HEAD:** one4all `b0fd962` · corpus `3fd44d0` · PASS=178/203 (both normal and SNO_BINARY_BOXES=1)
+
+### M-DYN-FLAT ✅ COMPLETE
+
+**What was built:** `bb_flat.c` / `bb_flat.h` — flat-glob invariant pattern emitter.
+Entire invariant PATND_t tree emitted into ONE buffer. Direct jmps between boxes.
+`r10 = &Δ` loaded once at entry. No `bb_seq`/`bb_alt` trampolines. No `call`/`ret` between sub-boxes.
+
+**Key bugs fixed this session:**
+1. α-before-β layout — all leaf emitters (LIT, POS, RPOS, EPS, FAIL) emit α code first; β label defined after. Entry `je pat_flat_alpha` jumps forward past β trampoline to α.
+2. ALT label alias loop — replaced value-copy `c0_fail=ci_fail` with `alloca` arrays properly indexed.
+3. FENCE excluded from eligibility — `fired` flag is mutable state, unsafe when blob is cached.
+4. Charset (SPAN/ANY/BRK/NOTANY) excluded — mutable `delta` ζ field corrupts across cached reuse.
+5. LEN/TAB/RTAB/BREAKX excluded — no flat emitter written for these.
+6. n>2 XCAT gated — unresolved forward reference bug in n-ary label chain; falls back to `bb_build_binary`.
+
+**Eligible nodes (flat path active):** XCHR(LIT), XEPS, XFAIL, XPOSI, XRPSI, XCAT(≤2 children), XOR(ALT).
+
+**Benchmark results (M-DYN-FLAT vs C BB vs SPITBOL):**
+| Program | scrip-C | scrip-flat | SPITBOL | flat/C | flat/SPITBOL |
+|---|---:|---:|---:|---:|---:|
+| pattern_bt | 1.918s | 1.114s | 0.206s | **1.72×** | 5.4× |
+| string_pattern | 11.109s | 7.358s | 0.389s | **1.51×** | 18.9× |
+| arith_loop | 1.278s | 1.296s | 0.058s | 0.99× | 22.3× |
+| op_dispatch | 3.118s | 2.979s | 0.101s | 1.05× | 29.5× |
+
+**Gate status:** PASS=178 ✅. pattern_bt at 5.4× SPITBOL (gate was ≤2×). Gap not closed — dominant cost is tree-walk interp loop (phases 1/2/4/5), not pattern matching. SM-LOWER is the correct next attack.
+
+### Deferred M-DYN-FLAT work (non-blocking)
+- n>2 XCAT: label chain bug — fix by pre-allocating `alloca` arrays for all mid/beta labels before emitting any child, then defining each `mid[i]` label between children.
+- Charset flat inlining: would need ζ reset on each α call (zero the delta field) instead of caching with stale state.
+- These can be added incrementally; current fallback to `bb_build_binary` is correct.
+
+### Next milestone: M-SCRIP-U3 (SM-LOWER)
+Write `sm_lower.c`: walk IR (Program* of STMT_t/EXPR_t) → emit SM_Program.
+Wire into `scrip.c` `--hybrid` path: sm_lower(ir) → sm_interp_run(sm, &st).
+Gate: PASS=178 via SM dispatch. Diff output vs tree-walk on 5 corpus programs.
+Key files: `one4all/src/runtime/sm/sm_lower.c` (to be created), `sm_prog.h`, `sm_interp.c`.
+See SESSIONS_ARCHIVE RT-128 addendum for SM design (FORTH model, no stack frames).
+See SCRIP-UNIFIED.md §Phase U3 for full spec.
+
+### First actions next session
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/SCRIP-UNIFIED.md   # §Phase U3
+cat /home/claude/one4all/src/runtime/sm/sm_prog.h
+cat /home/claude/one4all/src/runtime/sm/sm_interp.c
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+# Then begin sm_lower.c
+```
