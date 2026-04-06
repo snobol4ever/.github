@@ -1203,7 +1203,7 @@ clean:
 | M2 | `sil_arena.c/h` | §5 Storage/GC | 334 | ✅ |
 | M3 | `sil_strings.c/h` | §5 GENVAR family + §4 DTREP | ~200 | ✅ |
 | M4 | `sil_symtab.c/h` | §4 Support procs | 130 | ✅ |
-| M5 | `sil_arith.c/h` | §9 Arithmetic | 195 | ⬜ |
+| M5 | `sil_arith.c/h` | §9 Arithmetic | 195 | ✅ |
 | M6 | `sil_argval.c/h` | §8 Arg evaluation | 243 | ⬜ |
 | M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ⬜ |
 | M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ⬜ |

@@ -30258,3 +30258,35 @@ ls src/silly/
 #            INTGER_fn EQ_fn NE_fn LT_fn LE_fn GT_fn GE_fn
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_arith.c → zero warnings
 ```
+
+## Sprint SS-2 HANDOFF (Silly SNOBOL4 M5 sil_arith) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `f476f6f3` · .github `42e9654`
+
+### Work done this session
+
+**M5 ✅ sil_arith.c/h — committed f476f6f3**
+ADD_fn DIV_fn EXPOP_fn MPY_fn SUB_fn EQ_fn GE_fn GT_fn LE_fn LT_fn NE_fn REMDR_fn
+INTGER_fn MNS_fn PLS_fn. Shared ARITH_fn dispatcher with type coercion (II/IR/RI/RR/
+string coerce paths). expint/exreal inlined as file-statics. XYARGS_fn/ARGVAL_fn
+forward-declared extern (M6). Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅
+M6 ⬜ sil_argval.c/h  ← NEXT (§8: ARGVAL VARVAL INTVAL PATVAL XYARGS EXPVAL)
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git log --oneline -5 && ls src/silly/
+# Build M6: src/silly/sil_argval.c + sil_argval.h
+# Source: v311.sil §8 lines 2679–2922
+# Functions: ARGVAL_fn VARVAL_fn INTVAL_fn PATVAL_fn XYARGS_fn EXPVAL_fn EXPEVL_fn
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_argval.c → zero warnings
+```
