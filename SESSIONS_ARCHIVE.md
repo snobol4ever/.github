@@ -30290,3 +30290,22 @@ cd /home/claude/one4all && git log --oneline -5 && ls src/silly/
 # Functions: ARGVAL_fn VARVAL_fn INTVAL_fn PATVAL_fn XYARGS_fn EXPVAL_fn EXPEVL_fn
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_argval.c → zero warnings
 ```
+ -Wall -Wextra -std=c99 -m32 -c sil_argval.c → zero warnings.
+
+### Milestone status
+M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅
+M7 ⬜ sil_patval.c/h  ← NEXT (§10 pattern-valued functions)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git log --oneline -5 && ls src/silly/
+# Build M7: src/silly/sil_patval.c + sil_patval.h
+# Source: v311.sil §10 lines 3119–3322
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_patval.c → zero warnings
+# Then commit+push one4all, update .github M7 ✅ and push
+```
