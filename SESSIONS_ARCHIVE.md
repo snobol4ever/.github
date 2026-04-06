@@ -28023,7 +28023,6 @@ tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-<<<<<<< HEAD
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
 cat > /tmp/si_bin.sh << 'WRAP'
 #!/bin/bash
@@ -28284,7 +28283,6 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 
 # After XOR+XSTAR: should breach 80% target.
 # WARNING — str_replace /* opener hazard: always verify /* survived after inserts near comments.
-=======
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 # Next gap-scan vertical: CONVERT() completeness
@@ -28295,7 +28293,6 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #
 # After CONVERT: FREEZE/THAW (share infrastructure with CONVERT array path)
 # Then: DETACH coroutine stub (medium priority)
->>>>>>> 20ec38a (RT-120 handoff: gap-scan session — DEFINE/FIELD wrappers, PATVAL DT_I/DT_R fix)
 ```
 
 ## Sprint RT-122 HANDOFF (Error vertical gap-fill) — 2026-04-06
@@ -29775,6 +29772,65 @@ if (name && strcmp(name, "INDIR_GET") == 0) {
 }
 ```
 Gate: `$.bal` returns `bal`'s value; 210 and 213 assertions 1–2 pass.
+## Sprint RT-135 HANDOFF (FIELD_SET --hybrid fix) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `5851f1c5` · corpus `3fd44d0` · PASS=178 (normal) / PASS=149 (--hybrid)
+
+### Work done this session
+
+**Root cause found and fixed — DATA field setter + ITEM setter in --hybrid path:**
+
+`sm_lower.c` `has_eq` assignment block had no case for `E_FNC` subject (e.g. `x(P) = 99`).
+It fell into the final `else` branch: evaluate `x(P)` as a getter read, then emit
+`SM_CALL "ASGN" 2` — completely wrong. The tree-walk path at line ~1532 of `scrip.c`
+handled it correctly with `FIELD_SET_fn`, but the SM-lowered path did not.
+
+**Fix in `src/runtime/sm/sm_lower.c`** (new `E_FNC` setter branch):
+```c
+} else if (s->subject->kind == E_FNC && s->subject->sval &&
+           s->subject->nchildren >= 1) {
+    int nc = s->subject->nchildren;
+    for (int ci = 0; ci < nc; ci++)
+        lower_expr(p, lt, s->subject->children[ci]);
+    sm_emit_si(p, SM_CALL, "FIELD_SET", (int64_t)(nc + 1));
+    p->instrs[p->count - 1].a[2].s = s->subject->sval;
+}
+```
+
+**Fix in `src/runtime/sm/sm_interp.c`** (new `FIELD_SET` handler in `SM_CALL` dispatch):
+```c
+if (name && strcmp(name, "FIELD_SET") == 0) {
+    const char *fname = ins->a[2].s ? ins->a[2].s : "";
+    int nobj = nargs - 1;
+    DESCR_t oargs[4];
+    for (int k = nobj - 1; k >= 0; k--) oargs[k] = sm_pop(st);
+    DESCR_t val = sm_pop(st);
+    if (strcasecmp(fname, "ITEM") == 0 && nobj >= 2) {
+        if (nobj == 2) subscript_set(oargs[0], oargs[1], val);
+        else           subscript_set2(oargs[0], oargs[1], oargs[2], val);
+    } else {
+        FIELD_SET_fn(oargs[0], fname, val);
+    }
+    sm_push(st, val); st->last_ok = 1;
+    break;
+}
+```
+
+**Result:** PASS=147 → PASS=149 under `--hybrid`. Fixed: 095_data_field_set, 1115_data_basic.
+
+### Remaining --hybrid failures (54 total)
+
+| Cluster | Tests | Root cause |
+|---------|-------|------------|
+| Func edge cases | 1010, 1012, 1013, 1015–1018 | recursion, locals, NRETURN, OPSYN, APPLY |
+| Indirect `$var` | 210–213 | SM_CALL ASGN_INDIR not fully wired |
+| Pattern ALT/ARBNO | 053, 054 | backtracking in SM pat-stack dispatch |
+| Arrays/Tables | 1112, 1113, 1114 | 4D subscripts; TABLE subscript in SM |
+| DATA overlap | 1116 | VALUE() builtin shadowed by DATA field name |
+| word/cross | word1–4, wordcount, cross | likely indirect or array dependent |
+| Misc | 411_arith_unary, 082_keyword_stcount | unary op gap, keyword write-back |
+| beauty drivers | ~15 | DEFINE-dependent / complex programs |
 
 ### First actions next session
 
@@ -29787,6 +29843,9 @@ cat .github/SESSION-snobol4-x64.md
 
 apt-get install -y libgc-dev flex
 
+cat .github/SESSION-snobol4-x64.md   # §INFO + §NOW
+
+# Re-create wrapper:
 cat > /tmp/run_hybrid.sh << 'EOF2'
 #!/usr/bin/env bash
 exec /home/claude/one4all/scrip --hybrid "$@"
@@ -29810,3 +29869,22 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Est. remaining gap after DT_N + keyword fixes: ~50 tests.
+# Confirm baselines:
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh                            # PASS=178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh  # PASS=149
+
+# Next yield cluster — indirect (4 tests: 210, 211, 213 + W07_capt_cur):
+./scrip --hybrid /home/claude/corpus/crosscheck/data/210_indirect_ref.sno 2>&1 | head -10
+./scrip --hybrid /home/claude/corpus/crosscheck/data/211_indirect_assign.sno 2>&1 | head -10
+# Likely: SM_CALL "ASGN_INDIR" pops name_d then val, but ASGN_INDIR in sm_interp
+# does NV_SET but doesn't handle DT_N NAMEPTR write-through (pointer chase).
+# Check sm_interp ASGN_INDIR handler vs tree-walk E_INDIRECT path in scrip.c.
+
+# After indirect: TABLE subscript (1113 — Error 3):
+./scrip --hybrid /home/claude/corpus/crosscheck/rung11/1113_table.sno 2>&1 | head -10
+# TABLE uses same subscript_get/set as ARRAY — check if DT_T is handled there.
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 29 tests remaining after fixing indirect + TABLE.
