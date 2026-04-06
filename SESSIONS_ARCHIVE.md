@@ -28555,3 +28555,30 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 #   Option B: RT-124 Error 25 in E_FNC explicit-call path + error format
 # Consult SESSION-snobol4-x64.md §NOW for Lon's current priority.
 ```
+
+## Sprint RT-124 HANDOFF (string-audit) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `b93cec8` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone: string-audit ✅ — 4 SIL correctness fixes (commit b93cec8)
+
+| Bug | Function(s) | SIL spec | Old behavior | Fix |
+|-----|-------------|----------|--------------|-----|
+| BUG1 | LGT/LLT/LGE/LLE/LEQ/LNE | RETNUL on success | returned a[0] | NULVCL |
+| BUG2 | DUPL(s, n<0) | FAIL | returned "" | FAILDESCR |
+| BUG3 | CHAR(n<0 or n>=256) | error | silently masked | FAILDESCR |
+| BUG4 | SUBSTR(s, p<1, n) | FAIL | clamped p to 1 | FAILDESCR |
+
+Gate: PASS=178. Remaining: &TRIM interaction, LPAD/RPAD &MAXLNGTH, SIZE coercion, REPLACE mismatch.
+
+### RT-125 first actions
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md && grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+# OPTION A: next random SIL component audit
+# OPTION B: Error 25 explicit-call path (§NOW)
+```

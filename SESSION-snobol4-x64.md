@@ -647,3 +647,12 @@ dereference, so they rely on NAME_DEREF firing even for NRETURN in some cases.
 
 **Gate:** PASS≥178; `test_stack` NRETURN write-through works correctly;
 `1013_func_nreturn` and `213_indirect_name` still pass.
+
+### RT-124 string-audit findings — 2026-04-06
+
+4 SIL bugs fixed in one4all `b93cec8`. Random component audit method.
+- **LGT/LLT/LGE/LLE/LEQ/LNE**: `a[0]` → `NULVCL` on success (SIL RETNUL)
+- **DUPL(s,n<0)**: `""` → FAILDESCR (SIL ACOMPC negative→FAIL)
+- **CHAR(out-of-range)**: masked → FAILDESCR (SIL LENERR/INTR30)
+- **SUBSTR(s,p<1,n)**: clamped → FAILDESCR (SIL ACOMPC pos>=1)
+Remaining: &TRIM, LPAD/RPAD &MAXLNGTH, SIZE coercion, REPLACE mismatch.
