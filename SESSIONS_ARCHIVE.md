@@ -27802,3 +27802,89 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 # - &PI, &DIGITS, &PARM — RT-117b remnant small one-liners
 # - stmt_failed: label + g_sno_err_active=0 disarm — GAP 4 remnant from RT-117b
 ```
+
+## Sprint RT-119 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `a040cf9ed4b5596b9488f47cddf258510ff8e4b7` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+
+### Session type: EVAL(DT_E) diagnosis continued
+
+### Work done
+
+#### Commit a040cf9ed4b5596b9488f47cddf258510ff8e4b7 — RT-119: cmpnd_to_expr calloc→GC_MALLOC (partial)
+
+Six `calloc()` calls in `cmpnd_to_expr` replaced with `GC_MALLOC` so frozen
+`EXPR_t` trees are GC-visible. Gate: PASS=178 ✅. But EVAL(DT_E) still returns empty.
+
+### Root cause — FULLY DIAGNOSED, not yet fixed
+
+**`EXPR_t` struct layout mismatch between the two translation units:**
+
+| Field | `scrip_cc.h` EXPR_t | `ir.h` EXPR_t |
+|-------|----------------------|-----------------|
+| `ival` | `long` (32-bit on LP64) | `long long` (64-bit) |
+| `dval` | `double` | `double` (named `fval` in ir.h guard path) |
+| extra fields | none | `nalloc`, `id` |
+
+- `cmpnd_to_expr` lives in `snobol4_pattern.c`, which `#include`s `scrip_cc.h` — uses **scrip_cc.h layout**.
+- `eval_node` lives in `eval_code.c` / `scrip-interp.c`, compiled against **ir.h layout**.
+- `cmpnd_to_expr` allocates `sizeof(scrip_cc.h EXPR_t)` bytes; `eval_node` reads `children` and `nchildren` at **ir.h offsets** — wrong memory → NULL children → `eval_node` returns NULVCL.
+
+### RT-120 fix — two options, pick one
+
+**Option A (preferred — surgical, no TU restructure):**
+In `snobol4_pattern.c`, force `ir.h` to be included BEFORE `scrip_cc.h` so the
+`EXPR_T_DEFINED` guard makes `scrip_cc.h` skip its own definition:
+```bash
+# In snobol4_pattern.c, add before the scrip_cc.h include:
+#   #include "../../ir/ir.h"
+# ir.h guards itself with EXPR_T_DEFINED; scrip_cc.h checks the same guard.
+# Verify with: python3 -c "
+#   import subprocess
+#   r = subprocess.run(['gcc','-E','-I...',
+#       'src/runtime/snobol4/snobol4_pattern.c'], capture_output=True, text=True)
+#   # grep for 'struct EXPR_t' to confirm only one definition
+# "
+```
+
+**Option B (alternative — move cmpnd_to_expr):**
+Move `cmpnd_to_expr` out of `snobol4_pattern.c` into a new file `cmpnd_lower.c`
+that includes `ir.h` first. More invasive, less preferred.
+
+### RT-120 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# Step 1 — Option A: add ir.h include before scrip_cc.h in snobol4_pattern.c
+# Find the include block:
+#   grep -n "scrip_cc.h\|ir.h" src/runtime/snobol4/snobol4_pattern.c
+# Insert:   #include "../../ir/ir.h"
+# above the scrip_cc.h line.
+# Rebuild: make scrip-interp
+
+# Step 2 — Verify fix:
+#   printf "        E = CONVERT('2 + 3', 'EXPRESSION')\n        OUTPUT = EVAL(E)\nEND\n" > /tmp/eval_e.sno
+#   ./scrip-interp /tmp/eval_e.sno   # expect: 5
+#   /home/claude/snobol4-2.3.3/snobol4 /tmp/eval_e.sno  # oracle: 5
+
+# Step 3 — Broader EVAL(DT_E) tests:
+#   CONVERT('SIZE("hello")','EXPRESSION') → EVAL → 5
+#   CONVERT('X','EXPRESSION') with X=42 → EVAL → 42
+#   CONVERT('2 ** 10','EXPRESSION') → EVAL → 1024
+
+# Gate: PASS=178 throughout.
+
+# After EVAL(DT_E) fixed, next gap candidates:
+# - stmt_failed: label + g_sno_err_active=0 disarm (GAP 4 remnant, RT-117b)
+# - &PI, &DIGITS, &PARM, &STEXEC (small one-liners, RT-117b remnant)
+```
