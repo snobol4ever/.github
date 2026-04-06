@@ -392,6 +392,7 @@ executable jump, γ/ω return. Everything else is engineering on top of this.
 | **M-DYN-3** | `stmt_exec.c` — five-phase statement executor, live subject+pattern+replacement | Rung 1–3 corpus via dynamic path |
 | **M-DYN-4** | `*VAR` dynamic dispatch — stored PATTERN SnoVal → jump to α | Rung 6 patterns via dynamic path |
 | **M-DYN-5** | `EVAL(str)` / `CODE(str)` — parse string, call same builder, execute | EVAL/CODE corpus tests pass |
+| **M-DYN-FLAT** | Flat-glob entire invariant PATND_t trees into one buffer. Walk invariant subtree recursively, emit all sub-box code contiguous with direct `jmp`s between boxes (no `call`/`ret`, no `bb_seq` trampoline), shared data section, `r10` set once at pattern entry. XCAT folds into flat label sequence exactly as `.s` emitter does. Gate: pattern_bt ≤2× SPITBOL; PASS=178. | PASS=178; pattern_bt ≤2× SPITBOL |
 | **M-DYN-OPT** | Invariance detection — pre-build provably static boxes at load time | No regression; measurable speedup |
 
 ---

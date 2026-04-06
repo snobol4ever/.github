@@ -29287,3 +29287,57 @@ Wire into `scrip.c` `--hybrid` path: sm_lower(ir) → sm_interp_run(sm, &st).
 Gate: PASS=178 via SM dispatch (not tree-walk). Diff output vs tree-walk on 5 corpus programs.
 Key file: `one4all/src/runtime/sm/sm_lower.c` (to be created).
 See SESSIONS_ARCHIVE RT-128 addendum for SM design (FORTH model, no stack frames).
+
+## Sprint RT-130 HANDOFF (M-DYN-FLAT WIP) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip-interp
+**HEAD:** one4all `944cb2a` · corpus `3fd44d0` · PASS=178 (normal) / 169 (SNO_BINARY_BOXES=1, 9 regressions)
+
+### Conceptual clarification this session
+- **Flat-glob BB blobs** (Phase 3 only) ≠ **Stackless** (phases 1/2/4/5).
+  Flat-glob: entire invariant PATND_t tree in one buffer, direct jmps, r10 once.
+  Stackless: eliminates C stack frames from 5-phase stmt executor. Orthogonal.
+- M-DYN-B1–B13 (prior session) delivered per-node trampolines through bb_seq C function — not true flat-glob. M-DYN-FLAT is the correct milestone for the intended design.
+
+### M-DYN-FLAT milestone added to BB-GEN-X86-BIN.md ✅
+- Gate: PASS=178 with SNO_BINARY_BOXES=1; pattern_bt ≤2× SPITBOL
+
+### Work done
+- `bb_flat.h` / `bb_flat.c` — 603 lines, recursive flat emitter
+- Entry: `mov r10, &Δ` once; `cmp esi,0; je α; jmp β`
+- Covers: XCHR(LIT), XEPS, XFAIL, XPOSI, XRPSI, XCAT(n-ary right-fold), XOR(ALT chain), XSPNC/XANYC/XBRKC/XNNYC (via C call inline)
+- Wired into Phase 2 of stmt_exec.c: `bb_build_flat()` tried first, `bb_build_binary()` fallback
+- Key bug found and partially fixed: **α-before-β layout** — leaf emitters must emit α code first in buffer (entry dispatcher `je pat_flat_alpha` jumps forward past β trampoline to α code)
+
+### 2 remaining bugs (PASS=169, 9 regressions)
+
+**Bug 1 — ALT label loop (W03_alt_*):**
+`flat_emit_alt` n-child loop: `c0_fail = ci_fail` aliases a local `bb_label_t` that goes out of scope. The final `bb_label_define(&c0_fail)` defines a dangling copy, leaving `ci_fail` unresolved. Fix: allocate label array on heap or use `alloca` array indexed properly — never alias `bb_label_t` by value after defining it.
+
+**Bug 2 — LEN/TAB/BREAKX missing emitters (W06_len, W06_tab, W05_breakx):**
+`flat_emit_node` default branch emits double-fail (garbage). LEN, TAB, RTAB, BREAKX are not in the switch. Fix options:
+  A. Add `flat_emit_len(n)`, `flat_emit_tab(n)`, `flat_emit_rtab(n)` — inline via C call like charset (they have heap ζ mutable state).
+  B. Return NULL from `bb_build_flat()` for trees containing these node types, fall through to `bb_build_binary()`. Simpler and correct.
+  Option B is faster — add to `flat_is_eligible()`: `case XLNTH: case XTB: case XRTB: case XBRKX: return 0;`
+
+**Bug 3 — beauty_fence/beauty_match/cross:** likely follow from ALT or from unhandled node types in those patterns. Will resolve once Bug 1+2 fixed.
+
+### First actions next session
+```
+# Fix Bug 2 first (easiest — one line in flat_is_eligible):
+# In bb_flat.c flat_is_eligible(), add to the return-0 switch:
+#   case XLNTH: case XTB: case XRTB: case XBRKX: return 0;
+
+# Fix Bug 1 (ALT label loop):
+# In flat_emit_alt, replace the loop with a properly-indexed alloca array:
+#   bb_label_t *ci_betas = alloca(nc * sizeof(bb_label_t));
+#   bb_label_t *ci_fails = alloca(nc * sizeof(bb_label_t));
+#   for(int i=1;i<nc;i++) { bb_label_initf(&ci_betas[i],...); bb_label_initf(&ci_fails[i],...); }
+#   Then flat_emit_node(children[i], succ, &ci_fails[i], &ci_betas[i])
+#   Then bb_label_define(&ci_fails[i]) after each child
+
+# Gate: PASS=178 with SNO_BINARY_BOXES=1
+# Then benchmark pattern_bt — expect ≤2x SPITBOL gap
+```
+
+### Next milestone after M-DYN-FLAT: M-SCRIP-U3 (SM-LOWER)
