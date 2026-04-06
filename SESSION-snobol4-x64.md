@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0**: rename scrip-interp.c→scrip.c, binary→scrip, add --interp/--gen flag (default --gen stubs to --interp), update Makefile. Gate: PASS=178 with `INTERP=scrip`. Then M-DYN-B0: reset bb_build_binary_node()→NULL, remove trampoline emitters. Then M-SCRIP-U1: scrip_image.c segment allocator. |
+| RT-126 | one4all `abdac62` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U2**: SM dispatch table in SEG_DISPATCH — 5 starter opcodes (SM_PUSH_LIT_S/I, SM_PUSH_VAR, SM_STORE_VAR, SM_ADD, SM_JUMP) as x86 blobs; unit test mini-program; PASS=178. See SCRIP-UNIFIED.md §Phase U2. |
 
 **First actions RT-125:**
 ```bash

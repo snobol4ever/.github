@@ -28976,3 +28976,58 @@ cp src/driver/scrip-interp.c src/driver/scrip.c
 - `.github/PLAN.md` — component map + NOW table updated ✅
 - `.github/SESSION-snobol4-x64.md` — §INFO addendum + §NOW → RT-125 ✅
 - `.github/SESSIONS_ARCHIVE.md` — this handoff entry ✅
+
+## Sprint RT-126 HANDOFF (M-SCRIP-U0 + M-DYN-B0 + M-SCRIP-U1) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `abdac62` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- **M-SCRIP-U0 ✅** — `scrip.c` created from `scrip-interp.c`; `--interp`/`--gen` flags added
+  (--gen stubs to --interp, M-SCRIP-U3 will wire real codegen). Makefile: target renamed
+  `scrip-interp`→`scrip`; backward-compat symlink `scrip-interp→scrip`. PASS=178.
+
+- **M-DYN-B0 ✅** — `bb_build_binary_node()` reset to `return NULL` for all kinds.
+  All prior B1–B10 trampoline emitters gated behind `#ifdef SCRIP_DYN_BLOBS_ENABLE`.
+  Skeleton (bb_pool/bb_emit/bb_build_bin) preserved. PASS=178, no trampoline paths active.
+
+- **M-SCRIP-U1 ✅** — `src/runtime/sm/scrip_image.c/h` implemented.
+  4-segment mmap allocator: SEG_STUBS / SEG_DISPATCH / SEG_CODE / SEG_DATA.
+  API: `scrip_image_init()`, `seg_alloc()`, `seg_byte()`, `seg_u32()`, `seg_u64()`,
+  `seg_offset()`, `seg_patch_u32()`, `seg_seal()`, `seg_stubs_add_ptr()`, `seg_stubs_slot()`.
+  27/27 unit tests PASS including seal→execute roundtrip (mov eax,42 / ret → returns 42).
+
+### Next session first actions (RT-127 — M-SCRIP-U2)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex nasm time
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/SCRIP-UNIFIED.md
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-SCRIP-U2: SM dispatch table (SEG_DISPATCH)
+# Create src/runtime/sm/sm_dispatch.c:
+#   scrip_build_dispatch() — for each SM opcode, emit a small x86 blob into SEG_DISPATCH
+#   Start with 5 opcodes: SM_PUSH_LIT_S, SM_PUSH_VAR, SM_STORE_VAR, SM_ADD, SM_JUMP
+#   Each blob: receives args in rdi/rsi/rdx per x86-64 SysV ABI,
+#              calls the appropriate C runtime fn (via SEG_STUBS ptr),
+#              returns result in rax/rdx (DESCR_t lo/hi halves)
+# Unit test: hand-coded mini SM_Program [push_lit_i(2), push_lit_i(3), add, store_var("X"), halt]
+#            runs via dispatch table; X==5 after exec.
+# Gate: unit test passes; PASS=178 unchanged (dispatch table not yet wired to main interp path)
+```
+
+### Files changed this session
+- `one4all/src/driver/scrip.c` — M-SCRIP-U0 ✅
+- `one4all/Makefile` — M-SCRIP-U0 ✅
+- `one4all/src/runtime/asm/bb_build_bin.c` — M-DYN-B0 ✅
+- `one4all/src/runtime/sm/scrip_image.c` — M-SCRIP-U1 ✅
+- `one4all/src/runtime/sm/scrip_image.h` — M-SCRIP-U1 ✅
+- `one4all/src/runtime/sm/scrip_image_test.c` — M-SCRIP-U1 ✅
+- `.github/SESSIONS_ARCHIVE.md` — this handoff ✅
