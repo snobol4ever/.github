@@ -112,7 +112,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (scrip-interp)** | RT-121 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B0** — reset bb_build_binary_node() to C fallback, remove trampoline shims; then M-DYN-B1 (fail inline blob 5B) |
+| **RUNTIME (scrip-interp)** | RT-121 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-BENCH-C** — pattern benchmark baseline (scrip C-BB vs SPITBOL vs CSNOBOL4); then M-DYN-B0 reset trampolines |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
