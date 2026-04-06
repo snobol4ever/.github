@@ -30710,3 +30710,63 @@ cd one4all && git pull --rebase && git log --oneline -5
 # Source: v311.sil §6 CMPILE CMPGO CMPFRM CMPASP CMPNGO + CERR* labels
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_cmpile.c → zero warnings
 ```
+
+## Sprint SS-15 HANDOFF (M18c done — approaching context limit) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `e4c6535d` · .github (this commit)
+
+### Work done this session
+
+**M16 ✅** sil_trace.c/h `52e9b804` — TRACE STOPTR FENTR KEYTR LABTR TRPHND VALTR SETEXIT
+**M17 ✅** sil_extern.c/h `c72a29e0` — UNLOAD LNKFNC (type coercion + LINK)
+**M18 split** into M18a–d (sil_trepub, sil_forwrd, sil_cmpile, sil_expr)
+**M18a ✅** sil_trepub.c/h `9d152708` — TREPUB tree publisher + ADDSON
+**M18b ✅** sil_forwrd.c/h `9667715b` — CODSKP (full) + FORWRD/FORBLK/NEWCRD/FILCHK
+**M18c ✅** sil_cmpile.c/h `e4c6535d` — CMPILE full statement compiler + CDIAG
+
+### Milestone status
+M0–M18c all ✅
+M18d ⬜ sil_expr.c/h  ← NEXT (§6 ELEMNT EXPR EXPR1 BINOP UNOP, ~500 lines)
+M19  ⬜ sil_interp.c/h
+M20  ⬜ sil_errors.c/h
+M21  ⬜ sil_main.c
+
+### Files in src/silly/ as of this handoff
+sil_arena.c/h  sil_argval.c/h  sil_arith.c/h  sil_arrays.c/h
+sil_asgn.c/h   sil_cmpile.c/h  sil_data.c/h   sil_define.c/h
+sil_extern.c/h sil_forwrd.c/h  sil_func.c/h   sil_io.c/h
+sil_nmd.c/h    sil_patval.c/h  sil_pred.c/h   sil_scan.c/h
+sil_strings.c/h sil_symtab.c/h sil_trace.c/h  sil_trepub.c/h
+sil_types.h    (18 translation units complete + 4 remaining)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
+
+# Build M18d: src/silly/sil_expr.c + sil_expr.h
+# Source: v311.sil §6 ELEMNT EXPR EXPR1 BINOP UNOP lines 1554–2212
+# Key challenge: STREAM calls with VARATB/BIOPTB/UNOPTB tables
+#   → declare tables as extern, stub STREAM calls
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_expr.c → zero warnings
+# Then: M19 sil_interp.c/h (§7 BASE GOTG GOTL GOTO INIT INTERP INVOKE)
+# Then: M20 sil_errors.c/h (§22 error handlers)
+# Then: M21 sil_main.c (§2+§3+§21 init/main/term)
+# Final gate: gcc all .c files together → link attempt
+```
+
+### Key design notes for M18d
+ELEMNT: break a token from TEXTSP, classify, emit to tree.
+  - STREAM VARATB → identifier/number/string literal
+  - Calls BINOP for binary operators, UNOP for unary
+  - Builds DESCR tree nodes with FATHER/LSON/RSIB/CODE fields
+EXPR / EXPR1: recursive descent using ELEMNT + BINOP
+  - CNDSIZ block allocation for each node
+  - Precedence climbing via STYPE comparison
+BINOP: STREAM BIOPTB (or SBIPTB for SPITBOL mode)
+UNOP:  STREAM UNOPTB
+All four can use extern STREAM stubs; rest is pure descriptor manipulation.

@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-13 | one4all `9667715b` | M18c: sil_cmpile.c/h |
+| SS-14 | one4all `e4c6535d` · .github (this commit) | M18d: sil_expr.c/h — §6 ELEMNT EXPR BINOP UNOP |
