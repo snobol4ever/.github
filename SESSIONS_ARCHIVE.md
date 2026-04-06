@@ -30435,3 +30435,33 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_pred.c → zero warnings
 # Then commit+push one4all, update .github M11 ✅ and push
 ```
+
+## Sprint SS-6 HANDOFF (Silly SNOBOL4 M11 sil_pred) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `bcee98ac` · .github (this commit)
+
+### Work done this session
+
+**M11 ✅ sil_pred.c/h — committed bcee98ac**
+DIFFER FUNCTN IDENT LABEL LABELC LEQ LGE LGT LLE LLT LNE NEG QUES CHAR LPAD RPAD.
+Shared lex_compare() for LGE/LGT/LLE/LLT; rpad_common() for LPAD/RPAD.
+NEG saves/restores OCBSCL/OCICL, calls CODSKP on failure path.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M11 all ✅
+M12 ⬜ sil_func.c/h  ← NEXT (§19 Other functions, 715 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M12: src/silly/sil_func.c + sil_func.h
+# Source: v311.sil §19 lines 6322–7037
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_func.c → zero warnings
+# Then commit+push one4all, update .github M12 ✅ and push
+```

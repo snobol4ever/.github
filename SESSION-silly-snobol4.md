@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-4 | one4all `1ec81e7e` · .github (this commit) | M11: sil_pred.c/h — §18 Predicates (DIFFER FUNCTN IDENT LABEL LEQ-LNE NEG QUES CHAR LPAD RPAD) |
+| SS-5 | one4all `bcee98ac` · .github (this commit) | M12: sil_func.c/h — §19 Other functions |

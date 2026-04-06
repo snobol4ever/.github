@@ -762,7 +762,7 @@ SilResult STR(DESCR *result, DESCR *code_d);
 
 **Source:** v311.sil §18 lines 6102–6321
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_pred.c`
-**Status:** ⬜
+**Status:** ✅ committed one4all `bcee98ac`
 
 ```c
 /* All predicates: return OK (result=NULVCL) or FAIL */
@@ -1209,7 +1209,7 @@ clean:
 | M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ✅ |
 | M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ✅ |
 | M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ✅ |
-| M11 | `sil_pred.c/h` | §18 Predicates | 219 | ⬜ |
+| M11 | `sil_pred.c/h` | §18 Predicates | 219 | ✅ |
 | M12 | `sil_func.c/h` | §19 Other functions | 715 | ⬜ |
 | M13 | `sil_arrays.c/h` | §14 Arrays/Tables | 623 | ⬜ |
 | M14 | `sil_define.c/h` | §12 Defined functions | 230 | ⬜ |
