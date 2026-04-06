@@ -27903,3 +27903,31 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #   SIL NONAME → ERRTYP,4 → FTLTST
 #   grep -an "null.*string\|empty.*name\|NONAME\|DEFINE.*empty" src/runtime/snobol4/snobol4.c
 ```
+
+## Sprint RT-119 ADDENDUM (builtin-gap audit) — 2026-04-05
+
+**one4all HEAD:** `66c9788` · **PASS=178/203** (no regression)
+
+This session ran concurrently. Work committed to one4all only.
+
+### Deliverables (commit `66c9788`)
+8 new builtins registered: `DATE TIME RSORT CLEAR SETEXIT FUNCTION LABEL COLLECT`
+- `DATE()` → `strftime` MM/DD/YYYY HH:MM:SS
+- `TIME()` → `clock()*1000/CLOCKS_PER_SEC` integer ms
+- `RSORT(T)` → `sort_fn()` + in-place row reversal (`rsort_fn` in snobol4_pattern.c)
+- `CLEAR()` → `NV_CLEAR_fn()` walks `_var_buckets[512]`, nulls all vals
+- `SETEXIT(lbl)` → stores in `_setexit_label[256]`; `setexit_label_get()` hook
+- `FUNCTION(name)` → `FNCEX_fn(name)` predicate
+- `LABEL(name)` → `_label_exists_hook` wired to `label_lookup()` in scrip-interp
+- `COLLECT()` → `GC_gcollect()` + `GC_get_free_bytes()`
+
+`DEFINE` return value fixed: now returns function name string (was NULVCL).
+Param-name==retname collision fix: `DEFINE('f(f)')` no longer clobbers return slot.
+
+### Diagnosed, not fixed — carry to RT-120
+1. **`define_entry_from_expr` E_QLIT gap** — `DEFINE('f(f)','label')` when nested inside another call: `define_entry_from_expr` checks `E_NAME`/`E_VAR` but not `E_QLIT`. Fix: add `if (arg2->kind == E_QLIT && arg2->sval) return arg2->sval;` as first check. Unlocks 1011 (3/3).
+2. **1012/004 concat of locals** — `lfunc = a b d` where locals init to NULVCL. Verify `VARVAL_fn(NULVCL)` returns `""` not NULL. If NULL, concat short-circuits.
+
+### Remaining builtin gaps (not touched)
+`DETACH FIELD FREEZE THAW LOAD UNLOAD VDIFFER BACKSPACE REWIND SET`
+`TRACE` — only VALUE type; CALL/RETURN/LABEL/KEYWORD missing (blocks beauty_trace_driver)
