@@ -28491,3 +28491,67 @@ END
 #   MAXINT     — INTVAL(LLONG_MAX); 0 args
 #   PI         — REALVAL(M_PI); 0 args (also fix &PI keyword from RT-117 list)
 ```
+
+## Sprint RT-120 HANDOFF (M-DYN-B10) — 2026-04-05 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `e41b2aa` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B10 ✅ — 100% binary coverage TARGET MET ✅
+
+**Commit `e41b2aa`** — `RT-120 M-DYN-B10: XFAIL/XFNCE/XATP/XDSAR/XARBN/XCALLCAP binary trampolines; 100% coverage`
+
+**Deliverables (bb_build_bin.c):**
+- `bb_fail_emit_binary()` — XFAIL: dummy ζ trampoline → `bb_fail`
+- `bb_fence_emit_binary()` — XFNCE: heap `fence_t_bin` trampoline → `bb_fence`
+- `bb_atp_emit_binary(varname)` — XATP @var form: heap `atp_t_bin` → `bb_atp`
+- `bb_dsar_emit_binary(name)` — XDSAR: heap `deferred_var_t_bin` → `bb_deferred_var_exported`
+- `bb_arbn_emit_binary(p)` — XARBN: recursive child + heap `arbno_t_bin` → `bb_arbno`
+- `bb_callcap_emit_binary(p)` — XCALLCAP: recursive child + `bb_callcap_new` → `bb_callcap_exported`
+
+**Deliverables (stmt_exec.c):**
+- `bb_callcap_exported()` / `bb_callcap_new()` — shims placed after `bb_callcap` closes
+- `bb_deferred_var_exported()` / `bb_dvar_bin_new()` — shims placed after `bb_deferred_var` closes
+
+**Makefile:** removed `bb_atp` from box-loop exclusion (exported symbol needed by bb_build_bin.c).
+
+**Coverage progression (full M-DYN-B series):**
+- B1 (RT-116): LIT binary → baseline
+- B2 (RT-117b): EPS + full DT_P walk
+- B3 (RT-118): POS/RPOS/XCAT trampoline
+- B4 (RT-118): TAB/RTAB trampolines
+- B5 (RT-118): LEN trampoline
+- B7 (RT-?): XNME/XFNME captures → **45.5%**
+- B8 (RT-119): SPAN/ANY/BREAK/NOTANY → **68.5%**
+- B9 (RT-119): XOR/XSTAR → **75.2%**
+- B9b (RT-119): XFARB/XBRKX → **85.5%** (80% target met)
+- **B10 (RT-120): XFAIL/XFNCE/XATP/XDSAR/XARBN/XCALLCAP → 100% ✅**
+
+**XATP note:** Only `@var` cursor-capture form handled in binary path (STRVAL_fn=="@").
+Deferred usercall form of XATP falls back to C path (correct — `return NULL` guard in place).
+
+**Gate:** PASS=178 C path ✅ · PASS=178 binary path ✅ · zero BIN_MISS events ✅
+
+### RT-121 first actions — next sprint
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# M-DYN-B series is COMPLETE at 100% binary coverage (RT-120).
+# All 25 box kinds now handled in binary path.
+# Remaining work per §NOW / PLAN.md:
+#   Option A: P2E embedded match (A ? PAT = REPL) — sno4parse/CMPILE track
+#   Option B: RT-124 Error 25 in E_FNC explicit-call path + error format
+# Consult SESSION-snobol4-x64.md §NOW for Lon's current priority.
+```
