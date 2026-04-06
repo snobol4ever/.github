@@ -234,6 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-119 | one4all `c3e78ed` · corpus `3fd44d0` · PASS=178/203 | Error 3 (array bounds) or Error 7 (unknown keyword) — see RT-120 first actions |
 | RT-120 | one4all `4ded4c2` · corpus `3fd44d0` · PASS=178/203 | RT-121: EVAL(DT_E) — add fprintf to _EVAL_ wrapper; check label_lookup("EVAL") not hijacking dispatch |
 | RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
