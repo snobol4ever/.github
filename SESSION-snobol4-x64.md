@@ -11,6 +11,16 @@ for sprint numbering only — they do not define separate session types.
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
+### EVAL(DT_E) bug — calloc/GC mismatch (RT-118, 2026-04-06)
+
+EVAL(CONVERT(s,"EXPRESSION")) returns empty. Root cause: cmpnd_to_expr()
+uses calloc() throughout; Boehm GC cannot see calloc'd memory, so EXPR_t
+children are collected between CONVERT and EVAL. Fix: replace every
+calloc(1,sizeof *e) and calloc(n,sizeof(EXPR_t*)) in cmpnd_to_expr
+(snobol4_pattern.c) with GC_malloc + zero-init (or GC_MALLOC).
+Same audit needed in eval_code.c. Gate: PASS=178; EVAL('2 + 3')=5 via
+DT_E path (not just string path).
+
 ### M-DYN-B1 orientation — binary boxes (RT-115, 2026-04-05)
 
 bb_pool.c and bb_emit.c are NOT yet in the Makefile for scrip-interp.
@@ -202,7 +212,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-117b | one4all `c596378` · corpus `3fd44d0` · PASS=178/203 | GAP 4: finish stmt_failed label + disarm in scrip-interp.c, then &PI/&DIGITS/&PARM/&STEXEC |
+| RT-118 | one4all `8bb4d2c` · corpus `3fd44d0` · PASS=178/203 | RT-119: fix EVAL(DT_E) — cmpnd_to_expr calloc→GC_malloc; then GAP4 stmt_failed + &PI/&DIGITS/&PARM/&STEXEC |
 | RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
