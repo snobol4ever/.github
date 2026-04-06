@@ -11,6 +11,26 @@ for sprint numbering only — they do not define separate session types.
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
+### Architecture: unified SCRIP executable (RT-125, 2026-04-06)
+
+**scrip-interp and scrip-cc are retired as separate concepts.**
+There is now ONE executable: `scrip`, with two modes:
+- `scrip --interp source.sno` — Mode I: interpretive (existing tree-walk, correctness reference)
+- `scrip --gen   source.sno` — Mode G: in-memory generative (x86 bytes → mmap slab → jump in)
+- `scrip          source.sno` — Mode G by default
+
+No .s file emission. No nasm subprocess. No ld subprocess. No disk round-trips.
+`bb_emit.c` EMIT_BINARY mode writes bytes directly into `mmap(MAP_ANON)` slabs.
+`bb_pool.c` segment 3 (Byrd box pool) unchanged. Segments 0–2, 4 are new mmap slabs.
+
+**Read `SCRIP-UNIFIED.md` for full design.** Development sequence: U0 → U1 → U2 → U3 → U4 → U5.
+Two-way MONITOR: `scrip --interp` vs SPITBOL (existing); `scrip --interp` vs `scrip --gen` (new JIT axis).
+
+**HARNESS:** change `INTERP=scrip-interp` → `INTERP=scrip` after M-SCRIP-U0.
+**Binary target in Makefile:** rename `scrip-interp` → `scrip`.
+
+
+
 ### EVAL(DT_E) dispatch hijack suspect (RT-120, 2026-04-06)
 
 ir.h struct fix applied (RT-120), sizeof=56 confirmed. EVAL_fn debug
@@ -271,8 +291,33 @@ Two-pass audit against v311.sil — datatype/coercion vertical.
 
 ## §NOW
 
-One track. Current sprint is whatever Lon is working on — the sequence is
-rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
+One track. Current sprint is whatever Lon is working on.
+
+| Sprint | HEAD | Next milestone |
+|--------|------|----------------|
+| RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0**: rename scrip-interp.c→scrip.c, binary→scrip, add --interp/--gen flag (default --gen stubs to --interp), update Makefile. Gate: PASS=178 with `INTERP=scrip`. Then M-DYN-B0: reset bb_build_binary_node()→NULL, remove trampoline emitters. Then M-SCRIP-U1: scrip_image.c segment allocator. |
+
+**First actions RT-125:**
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
+cat .github/SCRIP-UNIFIED.md         # new unified model
+cd one4all && make scrip-interp       # still builds as scrip-interp until U0
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-SCRIP-U0:
+#   cp src/driver/scrip-interp.c src/driver/scrip.c
+#   Add --interp / --gen argv parsing near top of main() in scrip.c
+#   --gen: set flag, currently falls through to same interp path (stub)
+#   Edit Makefile: s/scrip-interp/scrip/g in target name and output binary
+#   make scrip
+#   INTERP=scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Gate: PASS=178
+```
+
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|

@@ -68,6 +68,7 @@ the corpus, the emitter is correct by construction.
 
 | Component | Doc | Status |
 |-----------|-----|--------|
+| **SCRIP Unified Executable** | `SCRIP-UNIFIED.md` | ✅ designed · U0 rename pending · replaces scrip-interp/scrip-cc split |
 | **SCRIP Stack Machine** | `SCRIP-SM.md` | ✅ designed · ⬜ SM-LOWER not written |
 | **IR** | `IR.md` | ✅ complete |
 | **BB-GRAPH** | `BB-GRAPH.md` | ✅ 25 boxes complete |
@@ -112,7 +113,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (scrip-interp)** | RT-121 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-BENCH-C** — pattern benchmark baseline (scrip C-BB vs SPITBOL vs CSNOBOL4); then M-DYN-B0 reset trampolines |
+| **RUNTIME (SCRIP unified)** | RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0** rename scrip-interp→scrip + --interp/--gen flags; then M-DYN-B0 reset trampolines; then M-SCRIP-U1 segment allocator. See SCRIP-UNIFIED.md |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
