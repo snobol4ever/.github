@@ -27888,3 +27888,60 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 # - stmt_failed: label + g_sno_err_active=0 disarm (GAP 4 remnant, RT-117b)
 # - &PI, &DIGITS, &PARM, &STEXEC (small one-liners, RT-117b remnant)
 ```
+
+## Sprint RT-120 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `4ded4c285d3c6dd321c6b307fdabce91d8a3f966` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+
+### Session type: EVAL(DT_E) continued — struct fix applied, coercion bug isolated
+
+### Work done
+
+#### Commit 4ded4c285d3c6dd321c6b307fdabce91d8a3f966 — RT-120: ir.h before scrip_cc.h in snobol4_pattern.c
+
+Added `#include "../../ir/ir.h"` before `scrip_cc.h` in `snobol4_pattern.c`.
+EXPR_T_DEFINED guard prevents double-definition. `sizeof(EXPR_t)=56` confirmed
+at runtime — ir.h layout (ival=long long) now used throughout cmpnd_to_expr.
+Gate: PASS=178 ✅.
+
+### NOT YET FIXED — next session
+
+EVAL(DT_E) still returns empty. Three layers of diagnosis completed:
+1. ✅ GC: not the cause (GC_MALLOC applied, tree survives)
+2. ✅ Struct layout: not the cause (56-byte ir.h layout confirmed)
+3. 🔍 **EVAL_fn is not being called at all** — debug fprintf in EVAL_fn
+   produced no output, meaning the DT_E descriptor is lost BEFORE reaching
+   `_EVAL_` wrapper in snobol4.c.
+
+### RT-121 diagnosis — next first action
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# Step 1 — add fprintf to _EVAL_ wrapper in snobol4.c:
+#   static DESCR_t _EVAL_(DESCR_t *a, int n) {
+#     fprintf(stderr,"[_EVAL_] n=%d v=%d\n", n, n>0?a[0].v:-1);
+#     return EVAL_fn(n>0?a[0]:NULVCL);
+#   }
+# Run:  ./scrip-interp /tmp/eval_e.sno  (the CONVERT+EVAL test)
+# If [_EVAL_] fires with v != 11 (DT_E=11), APPLY_fn is coercing the arg.
+# If [_EVAL_] does NOT fire at all, the E_FNC dispatch for EVAL() is
+#   going down the user-function path (label_lookup("EVAL") finding something).
+
+# Step 2 — check label_lookup("EVAL"):
+#   grep -n "EVAL" one4all/src/driver/scrip-interp.c | grep "label\|prescan\|DEFINE"
+# EVAL must NOT have a user body label — if prescan_defines registered it,
+# call_user_function gets invoked instead of APPLY_fn, returning NULVCL.
+
+# Step 3 — if label is the culprit: add "EVAL" to a builtin-exempt list
+#   in the E_FNC dispatch so label_lookup is skipped for known builtins.
+
+# Gate: PASS=178. Success: EVAL(CONVERT('2+3','EXPRESSION')) = 5.
+```

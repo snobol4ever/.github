@@ -11,6 +11,16 @@ for sprint numbering only — they do not define separate session types.
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
+### EVAL(DT_E) dispatch hijack suspect (RT-120, 2026-04-06)
+
+ir.h struct fix applied (RT-120), sizeof=56 confirmed. EVAL_fn debug
+shows _EVAL_ wrapper is NOT called at all when EVAL(E) runs with E=DT_E.
+Suspect: E_FNC dispatch in interp_eval checks label_lookup(e->sval) before
+APPLY_fn. If prescan_defines somehow registered "EVAL" as a user label,
+call_user_function runs instead → returns NULVCL, never touches EVAL_fn.
+Fix path: add fprintf to _EVAL_ in snobol4.c; if absent, audit label_lookup
+and add builtin-exempt guard for known builtins (EVAL, CODE, DATA, etc.).
+
 ### EVAL(DT_E) root cause — EXPR_t struct layout mismatch (RT-119, 2026-04-06)
 
 GC_MALLOC fix (RT-119) applied but EVAL(DT_E) still returns empty.
@@ -224,7 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-119 | one4all `a040cf9` · corpus `3fd44d0` · PASS=178/203 | RT-120: fix EVAL(DT_E) struct mismatch — add ir.h before scrip_cc.h in snobol4_pattern.c; then GAP4 + &PI/&DIGITS/&PARM/&STEXEC |
+| RT-120 | one4all `4ded4c2` · corpus `3fd44d0` · PASS=178/203 | RT-121: EVAL(DT_E) — add fprintf to _EVAL_ wrapper; check label_lookup("EVAL") not hijacking dispatch |
 | RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
 | RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
 | RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
