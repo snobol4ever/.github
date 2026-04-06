@@ -29475,3 +29475,87 @@ CORPUS=/home/claude/corpus INTERP="./scrip --hybrid" bash test/run_interp_broad.
 
 ### Next milestone after gate
 M-SCRIP-U5 or benchmark run (arith_loop/op_dispatch/pattern_bt under --hybrid vs --interp vs SPITBOL).
+
+## Sprint RT-133 HANDOFF (M-SCRIP-U4 advancing) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `ca0e33ba` · corpus `3fd44d0` · PASS=178 (normal) / PASS=128 (--hybrid)
+
+### Work done this session
+
+**Bug: INTERP= harness wrapper** — `INTERP="./scrip --hybrid"` fails because bash
+passes the whole string as one argv[0]. Fixed by using a wrapper script:
+```bash
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec ./scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+CORPUS=... INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh
+```
+This unlocked the true PASS count (was showing 5, now shows 100+).
+
+**4 bugs fixed (PASS=100→128):**
+
+1. **SM_EXP integer result** — `2 ** 8` returned `256.` (real). Fixed: int**non-neg-int
+   path now loops to compute INTVAL result; only returns REALVAL for negative exponents.
+
+2. **Assign-null (`X =`)** — `has_eq=1` with no replacement expr failed to clear the var.
+   Fixed: sm_lower pure-assignment path emits `SM_PUSH_NULL` when `s->replacement==NULL`
+   and `s->has_eq==1`.
+
+3. **Indirect lhs assignment (`$'X' = 'hello'`)** — caused stack underflow.
+   Fixed: E_INDIRECT on lhs emits `SM_CALL ASGN_INDIR 2`; sm_interp handles it inline:
+   pops name_descr + val, calls `NV_SET_fn(VARVAL_fn(name_descr), val)`.
+
+4. **SM_PAT_CAPTURE NAME descriptor** — `.V` capture was passing `NV_GET_fn(vname)`
+   (variable's current *value*) to `pat_assign_cond`. Fixed: use `NAME_fn(vname)` to get
+   DT_N l-value descriptor. Also added `a[1].i` kind flag: 0=cond(.V), 1=imm($V),
+   2=cursor(@V); sm_interp dispatches to `pat_assign_cond` vs `pat_assign_imm`.
+
+### Remaining --hybrid failures (75 total)
+
+Cluster analysis:
+| Category | Tests | Root cause |
+|---|---|---|
+| DEFINE/user functions | 083–090 | sm_lower emits SM_DEFINE as stub; user fn calls go to INVOKE_fn which segfaults without SM stack frame setup |
+| Arrays/Tables/DATA | 091–095 | INVOKE_fn gaps (same as tree-walk gaps — not SM-specific) |
+| capture_null_replace | 063 | pat_assign_cond with null replacement edge case |
+| keyword &STCOUNT etc | 082 | keyword write-back via SM_STORE_VAR not routed through keyword handler |
+| expr_eval | — | DT_E / EVAL path not wired in SM |
+| beauty drivers | ~30 | complex programs — will pass once DEFINE works |
+| test_* | 4 | DEFINE-dependent |
+
+### First actions next session
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md   # §INFO + §NOW
+
+# Re-create wrapper:
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+# Confirm baseline:
+cd /home/claude/one4all
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh         # PASS=178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh  # PASS=128
+
+# Fix DEFINE/user functions (highest yield — ~30 beauty tests will unlock):
+# sm_lower: DEFINE stmt → prescan pass that registers function labels before execution
+# sm_interp SM_CALL: when name not found in INVOKE_fn, check if it's a user-defined
+#   function label; jump to that label with args pushed on value stack.
+# Alternatively: wire SM_DEFINE to call the existing prescan_defines() mechanism
+#   already in scrip.c tree-walk path, then route user calls through execute_program
+#   style label lookup.
+# Simplest fix: in SM_CALL handler, if INVOKE_fn returns FAILDESCR with no error,
+#   try g_user_call_hook(name, args, nargs) (already wired in scrip.c).
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Remaining gap: DEFINE/user-functions (~30 tests), then minor keyword/eval gaps.
