@@ -718,7 +718,7 @@ static void NAMEXN(SPEC *substr, DESCR *expr_target);
 
 **Source:** v311.sil §17 lines 5828–6101: ASGN ASGNV ASGNVV ASGNVP ASGNC ASGNIC CONCAT IND KEYWRD LIT NAME NMD STR
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_asgn.c`
-**Status:** ⬜
+**Status:** ✅ committed one4all `1ec81e7e`
 
 ```c
 /* ASGN: full assignment with all SIL hooks */
@@ -1208,7 +1208,7 @@ clean:
 | M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ✅ |
 | M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ✅ |
 | M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ✅ |
-| M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ⬜ |
+| M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ✅ |
 | M11 | `sil_pred.c/h` | §18 Predicates | 219 | ⬜ |
 | M12 | `sil_func.c/h` | §19 Other functions | 715 | ⬜ |
 | M13 | `sil_arrays.c/h` | §14 Arrays/Tables | 623 | ⬜ |

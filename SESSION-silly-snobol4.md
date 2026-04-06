@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-3 | one4all `05a53465` · .github (this commit) | M10: sil_asgn.c/h — §17 ASGN CONCAT IND KEYWRD NAME STR |
+| SS-4 | one4all `1ec81e7e` · .github (this commit) | M11: sil_pred.c/h — §18 Predicates (DIFFER FUNCTN IDENT LABEL LEQ-LNE NEG QUES CHAR LPAD RPAD) |
