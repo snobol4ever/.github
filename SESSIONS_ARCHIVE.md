@@ -29719,3 +29719,94 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 31 tests after indirect+DATA fixed (est.).
+
+## Sprint RT-136 HANDOFF (M-SCRIP-U4 advancing) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `6ec79855` · corpus `3fd44d0` · PASS=178 (normal) / PASS=147 (--hybrid)
+
+### Work done this session
+
+**Root cause analysis: two-stack architecture**
+SM has exactly two stacks: value stack (`st->stack[]`) for operands/results, and pattern
+stack (`g_pat_stack[]`) for composing PATND_t graphs before SM_EXEC_STMT. E_INDIRECT was
+erroneously emitting SM_PAT_DEREF (→ pat-stack) instead of routing through the value stack.
+
+**Three fixes in sm_lower.c + sm_interp.c (`6ec79855`):**
+
+1. **E_INDIRECT → INDIR_GET** (`sm_lower.c` line ~317):
+   Was: `lower_expr(child)` + `SM_PAT_DEREF` (pushed to pat-stack — wrong context)
+   Now: `lower_expr(child)` + `SM_CALL "INDIR_GET" 1`
+   sm_interp SM_CALL handler: pop name_d, `VARVAL_fn` → `NV_GET_fn`, push value.
+   **Result: 211_indirect_assign now passes.**
+
+2. **NRETURN pseudo-label** (`sm_lower.c emit_goto`):
+   Was: unresolved label → `sm_lower: label resolution failed` → abort.
+   Now: `strcmp(target,"NRETURN") == 0` → `SM_RETURN` (tree-walk `call_user_function`
+   owns NRETURN semantics; SM just needs a non-crashing halt).
+
+3. **E_NAME → NAME_PUSH** (`sm_lower.c` line ~442):
+   Was: `lower_expr(child)` + `SM_CALL "NAME" 1` (no handler — underflow).
+   Now: `SM_PUSH_LIT_S(vname)` + `SM_CALL "NAME_PUSH" 1`.
+   sm_interp handler: pop name string, `NAME_fn(vname)`, push DT_N descriptor.
+
+### Remaining bug: INDIR_GET DT_N branch (210, 213 still fail)
+
+`$.bal` lowers to `E_INDIRECT(E_NAME("bal"))`:
+- NAME_PUSH pushes DT_N descriptor for `bal` onto value stack ✓
+- INDIR_GET pops it, calls `VARVAL_fn(name_d)` — but VARVAL_fn on a DT_N returns
+  the string representation of the name value, NOT the variable name itself.
+- `NV_GET_fn("hello")` → null → OUTPUT is empty.
+
+**Fix needed in sm_interp.c INDIR_GET handler:**
+```c
+if (name && strcmp(name, "INDIR_GET") == 0) {
+    DESCR_t name_d = sm_pop(st);
+    DESCR_t val;
+    if (name_d.v == DT_N) {
+        val = NAME_DEREF(name_d);          /* DT_N: dereference directly */
+    } else {
+        const char *vname = VARVAL_fn(name_d);
+        val = (vname && *vname) ? NV_GET_fn(vname) : NULVCL;
+    }
+    sm_push(st, val);
+    st->last_ok = 1;
+    break;
+}
+```
+Gate: `$.bal` returns `bal`'s value; 210 and 213 assertions 1–2 pass.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+apt-get install -y libgc-dev flex
+
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"         # 178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 147
+
+# Fix 1: INDIR_GET DT_N branch (above) → expect 210 + 213 to pass → PASS≥149
+
+# Fix 2: 082_keyword_stcount — SM_STORE_VAR bypasses keyword handler
+./scrip --hybrid /home/claude/corpus/crosscheck/rung1/082_keyword_stcount.sno 2>&1
+# SM_STORE_VAR calls NV_SET_fn directly; &STCOUNT is a keyword → needs kw dispatch
+# In sm_interp SM_STORE_VAR handler: check IS_KW or kw_dispatch(name, val) before NV_SET_fn
+
+# Fix 3: 411_arith_unary — unary plus string→int coercion
+./scrip --hybrid /home/claude/corpus/crosscheck/rung3/411_arith_unary.sno 2>&1
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Est. remaining gap after DT_N + keyword fixes: ~50 tests.
