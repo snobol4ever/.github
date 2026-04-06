@@ -27801,3 +27801,71 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 #    but DATA→ARRAY may be. Check SIL CNVTA path.
 # 5. Continue DT_K/VARVAL vertical: IDENT/DIFFER with mixed DT_K args
 ```
+
+## Sprint RT-118 FINAL HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `f65c9e1` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Full session summary — four commits
+
+| Commit | What |
+|--------|------|
+| `a07fab4` | DT_K in datatype()/to_int/to_real/ARGVAL_fn/argval.c + pattern keyword NV vars |
+| `71c4125` | VARVAL_fn char* DT_K case |
+| `bfa795b` | CONVERT NAME/NUMERIC end-ptr/empty→0 |
+| `f65c9e1` | COPY() idem for all non-ARRAY types |
+
+### Verticals audited
+
+**Datatypes — DT_K gap (6 sites all fixed):**
+`datatype()` · `to_int` · `to_real` · `ARGVAL_fn` ·
+`VARVAL_d_fn/INTVAL_fn/PATVAL_fn` · `VARVAL_fn char*` ·
+`SNO_INIT_fn` (&ARB/&BAL/&FENCE/&ABORT/&FAIL/&REM/&SUCCEED as DT_P NV vars)
+
+**CONVERT() — three bugs fixed:**
+NAME unimplemented · NUMERIC `' '`→`'\0'` end-ptr · empty→INTEGER 0
+
+**COPY() — idem semantics:**
+TABLE/STRING/INTEGER/REAL all returned FAILDESCR; now return arg unchanged per SIL INTR1
+
+### RT-119 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Recommended next verticals (any order):
+#
+# A. GAP 4 verification (RT-117b leftover):
+#    grep -n "stmt_failed" src/driver/scrip-interp.c
+#    echo "X = 1 + &ARB" > /tmp/t.sno && ./scrip-interp /tmp/t.sno
+#    Expect: "** Error 1 in statement 1" on stderr, not crash
+#
+# B. Error message vertical — sno_runtime_error coverage vs SIL ERTAB:
+#    grep -n "ERTAB\|ERRMSG\|\*\* Error\|error.*[0-9]" v311.sil | head -40
+#    Cross-check which error codes we emit vs which we stub/miss
+#    Key missing: Error 002 (undefined variable in OUTPUT context?),
+#    Error 014 (undefined function), Error 041 (wrong datatype for field access)
+#
+# C. VARVAL_fn DT_E — EXPRESSION type stringifies as "" (default branch):
+#    case DT_E should EVAL_fn then VARVAL_fn the result
+#    Test: X = CONVERT("1+1","EXPRESSION") ; OUTPUT = X
+#    Oracle: SPITBOL prints the expression string representation
+#
+# D. to_int/to_real DT_N NAMEPTR form (slen==1, ptr set):
+#    Currently hits default→sno_runtime_error(1)
+#    Should: deref *(DESCR_t*)v.ptr then recurse
+#    case DT_N: if (v.slen==1 && v.ptr) return to_int(*(DESCR_t*)v.ptr);
+#              if (v.slen==0 && v.s)   return to_int(NV_GET_fn(v.s));
+#
+# E. COPY() 2D array — current code only copies 1D (hi-lo+1 elements)
+#    2D arrays have ndim>1; need arr->hi2/lo2 for full copy
+#    Check: array_new2d exists; _COPY_ should call it for ndim>1
+```
