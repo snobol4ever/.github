@@ -463,29 +463,29 @@ SIL uses `SELBRA` on a type-pair index to dispatch arithmetic. In C this is a
    - Failure: return 0  (FAIL — no result)
    - Error:   call sil_error(code), does not return  */
 
-typedef enum { FAIL=0, OK=1 } SilResult;
+typedef enum { FAIL=0, OK=1 } SIL_result;
 
-SilResult ADD(DESCR *result, DESCR *a, DESCR *b);
-SilResult SUB(DESCR *result, DESCR *a, DESCR *b);
-SilResult MPY(DESCR *result, DESCR *a, DESCR *b);
-SilResult DIV(DESCR *result, DESCR *a, DESCR *b);   /* error 2 on zero */
-SilResult EXPOP(DESCR *result, DESCR *a, DESCR *b); /* a**b */
-SilResult REMDR(DESCR *result, DESCR *a, DESCR *b); /* remainder */
-SilResult INTGER(DESCR *result, DESCR *a);          /* INTEGER(x) */
-SilResult MNS(DESCR *result, DESCR *a);             /* unary minus */
-SilResult PLS(DESCR *result, DESCR *a);             /* unary plus (coerces) */
+SIL_result ADD(DESCR *result, DESCR *a, DESCR *b);
+SIL_result SUB(DESCR *result, DESCR *a, DESCR *b);
+SIL_result MPY(DESCR *result, DESCR *a, DESCR *b);
+SIL_result DIV(DESCR *result, DESCR *a, DESCR *b);   /* error 2 on zero */
+SIL_result EXPOP(DESCR *result, DESCR *a, DESCR *b); /* a**b */
+SIL_result REMDR(DESCR *result, DESCR *a, DESCR *b); /* remainder */
+SIL_result INTGER(DESCR *result, DESCR *a);          /* INTEGER(x) */
+SIL_result MNS(DESCR *result, DESCR *a);             /* unary minus */
+SIL_result PLS(DESCR *result, DESCR *a);             /* unary plus (coerces) */
 
 /* Numeric predicates: succeed (result=NULVCL) or fail */
-SilResult EQ(DESCR *result, DESCR *a, DESCR *b);
-SilResult NE(DESCR *result, DESCR *a, DESCR *b);
-SilResult GT(DESCR *result, DESCR *a, DESCR *b);
-SilResult GE(DESCR *result, DESCR *a, DESCR *b);
-SilResult LT(DESCR *result, DESCR *a, DESCR *b);
-SilResult LE(DESCR *result, DESCR *a, DESCR *b);
+SIL_result EQ(DESCR *result, DESCR *a, DESCR *b);
+SIL_result NE(DESCR *result, DESCR *a, DESCR *b);
+SIL_result GT(DESCR *result, DESCR *a, DESCR *b);
+SIL_result GE(DESCR *result, DESCR *a, DESCR *b);
+SIL_result LT(DESCR *result, DESCR *a, DESCR *b);
+SIL_result LE(DESCR *result, DESCR *a, DESCR *b);
 
 /* Internal: coerce DESCR to numeric (integer or real) */
 /* Mirrors SIL ARITH's INTVAL/SPREAL calls */
-static SilResult arith_coerce(DESCR *out, DESCR *d);
+static SIL_result arith_coerce(DESCR *out, DESCR *d);
 ```
 
 ---
@@ -514,32 +514,32 @@ static int         expval_top = 0;
 
 /* ARGVAL: fetch next argument from object code stream */
 /* Mirrors SIL ARGVAL: advances OCICL, handles FNC bit → calls INVOKE */
-SilResult ARGVAL(DESCR *result);
+SIL_result ARGVAL(DESCR *result);
 
 /* VARVAL: coerce DESCR to STRING */
-SilResult VARVAL(DESCR *result, DESCR *d);
+SIL_result VARVAL(DESCR *result, DESCR *d);
 
 /* INTVAL: coerce DESCR to INTEGER */
-SilResult INTVAL(DESCR *result, DESCR *d);
+SIL_result INTVAL(DESCR *result, DESCR *d);
 
 /* PATVAL: coerce DESCR to PATTERN */
-SilResult PATVAL(DESCR *result, DESCR *d);
+SIL_result PATVAL(DESCR *result, DESCR *d);
 
 /* VARVUP: VARVAL + uppercase */
-SilResult VARVUP(DESCR *result, DESCR *d);
+SIL_result VARVUP(DESCR *result, DESCR *d);
 
 /* VPXPTR: fetch and evaluate indirect (for array subscripts) */
-SilResult VPXPTR(DESCR *result);
+SIL_result VPXPTR(DESCR *result);
 
 /* XYARGS: evaluate two arguments for binary operators */
 void XYARGS(DESCR *x, DESCR *y);
 
 /* EXPVAL: execute EXPRESSION type with full state save/restore */
 /* Mirrors SIL EXPVAL's 14-DESCR + 4-SPEC push */
-SilResult EXPVAL(DESCR *result, DESCR *expr_d);
+SIL_result EXPVAL(DESCR *result, DESCR *expr_d);
 
 /* EXPEVL: EXPVAL returning by name (NAMEXN path in NMD) */
-SilResult EXPEVL(DESCR *result, DESCR *expr_d);
+SIL_result EXPEVL(DESCR *result, DESCR *expr_d);
 ```
 
 ---
@@ -731,29 +731,29 @@ static void NAMEXN(SPEC *substr, DESCR *expr_target);
    6. OUTPUT assoc check → PUTOUT
    7. TRACE value check → TRPHND
    8. Return value (for embedded assign)                          */
-SilResult ASGN(DESCR *subject, DESCR *value, DESCR *result);
+SIL_result ASGN(DESCR *subject, DESCR *value, DESCR *result);
 
 /* ASGNIC: keyword assignment — coerce value through INTVAL */
-SilResult ASGNIC(DESCR *kw_descr, DESCR *value);
+SIL_result ASGNIC(DESCR *kw_descr, DESCR *value);
 
 /* CONCAT: string concatenation — mirrors SIL CONCAT */
-SilResult CONCAT(DESCR *result, DESCR *a, DESCR *b);
+SIL_result CONCAT(DESCR *result, DESCR *a, DESCR *b);
 
 /* IND: $X indirect reference */
-SilResult IND(DESCR *result, DESCR *name_d);
+SIL_result IND(DESCR *result, DESCR *name_d);
 
 /* KEYWRD: &KW lookup — returns DESCR by keyword name */
-SilResult KEYWRD(DESCR *result, SPEC *kw_name_sp);
+SIL_result KEYWRD(DESCR *result, SPEC *kw_name_sp);
 
 /* NAME: .X → DT_N descriptor pointing at variable's storage */
-SilResult NAME(DESCR *result, SPEC *var_name_sp);
+SIL_result NAME(DESCR *result, SPEC *var_name_sp);
 
 /* LIT: push literal value (integer, real, or string) */
 /* Mirrors SIL LIT proc */
-SilResult LIT(DESCR *result, DESCR *literal_d);
+SIL_result LIT(DESCR *result, DESCR *literal_d);
 
 /* STR: unevaluated expression — wrap DESCR in CODE type */
-SilResult STR(DESCR *result, DESCR *code_d);
+SIL_result STR(DESCR *result, DESCR *code_d);
 ```
 
 ---
@@ -766,21 +766,21 @@ SilResult STR(DESCR *result, DESCR *code_d);
 
 ```c
 /* All predicates: return OK (result=NULVCL) or FAIL */
-SilResult DIFFER(DESCR *result, DESCR *a, DESCR *b);
-SilResult IDENT(DESCR *result, DESCR *a, DESCR *b);
-SilResult FUNCTN(DESCR *result, DESCR *a);           /* FUNCTION(X) */
-SilResult LABEL(DESCR *result, DESCR *a);            /* LABEL(X) */
-SilResult NEG(DESCR *result, DESCR *a);              /* ~X negation predicate */
-SilResult QUES(DESCR *result, DESCR *a);             /* ?X */
-SilResult LEQ(DESCR *result, DESCR *a, DESCR *b);   /* string <= */
-SilResult LGE(DESCR *result, DESCR *a, DESCR *b);   /* string >= */
-SilResult LGT(DESCR *result, DESCR *a, DESCR *b);   /* string >  */
-SilResult LLE(DESCR *result, DESCR *a, DESCR *b);   /* string <= */
-SilResult LLT(DESCR *result, DESCR *a, DESCR *b);   /* string <  */
-SilResult LNE(DESCR *result, DESCR *a, DESCR *b);   /* string != */
-SilResult CHAR(DESCR *result, DESCR *n_d);           /* CHAR(n) */
-SilResult LPAD(DESCR *result, DESCR *s, DESCR *n);  /* LPAD(s,n) */
-SilResult RPAD(DESCR *result, DESCR *s, DESCR *n);  /* RPAD(s,n) */
+SIL_result DIFFER(DESCR *result, DESCR *a, DESCR *b);
+SIL_result IDENT(DESCR *result, DESCR *a, DESCR *b);
+SIL_result FUNCTN(DESCR *result, DESCR *a);           /* FUNCTION(X) */
+SIL_result LABEL(DESCR *result, DESCR *a);            /* LABEL(X) */
+SIL_result NEG(DESCR *result, DESCR *a);              /* ~X negation predicate */
+SIL_result QUES(DESCR *result, DESCR *a);             /* ?X */
+SIL_result LEQ(DESCR *result, DESCR *a, DESCR *b);   /* string <= */
+SIL_result LGE(DESCR *result, DESCR *a, DESCR *b);   /* string >= */
+SIL_result LGT(DESCR *result, DESCR *a, DESCR *b);   /* string >  */
+SIL_result LLE(DESCR *result, DESCR *a, DESCR *b);   /* string <= */
+SIL_result LLT(DESCR *result, DESCR *a, DESCR *b);   /* string <  */
+SIL_result LNE(DESCR *result, DESCR *a, DESCR *b);   /* string != */
+SIL_result CHAR(DESCR *result, DESCR *n_d);           /* CHAR(n) */
+SIL_result LPAD(DESCR *result, DESCR *s, DESCR *n);  /* LPAD(s,n) */
+SIL_result RPAD(DESCR *result, DESCR *s, DESCR *n);  /* RPAD(s,n) */
 ```
 
 ---
@@ -792,27 +792,27 @@ SilResult RPAD(DESCR *result, DESCR *s, DESCR *n);  /* RPAD(s,n) */
 **Status:** ⬜
 
 ```c
-SilResult APPLY(DESCR *result, DESCR *fname, DESCR *args, int nargs);
-SilResult ARG(DESCR *result, DESCR *fname, DESCR *n);
-SilResult LOCAL(DESCR *result, DESCR *fname, DESCR *n);
-SilResult FIELDS(DESCR *result, DESCR *typename_d);
-SilResult CLEAR(DESCR *result);
-SilResult CMA(DESCR *result, DESCR *a, DESCR *b);   /* string compare */
-SilResult COLECT(DESCR *result);                      /* COLLECT() — force GC */
-SilResult COPY(DESCR *result, DESCR *a);
-SilResult CNVRT(DESCR *result, DESCR *val, DESCR *type_name); /* CONVERT */
-SilResult DATE(DESCR *result, DESCR *opt_fmt);
-SilResult DT(DESCR *result, DESCR *a);               /* DATATYPE(X) */
-SilResult DMP(DESCR *result, DESCR *a);              /* DUMP level */
-SilResult DUMP(DESCR *result, DESCR *a);
-SilResult DUPL(DESCR *result, DESCR *s, DESCR *n);  /* DUPL(s,n) */
-SilResult OPSYN(DESCR *result, DESCR *a, DESCR *b, DESCR *type_d);
-SilResult RPLACE(DESCR *result, DESCR *s, DESCR *p, DESCR *r);
-SilResult REVERS(DESCR *result, DESCR *s);
-SilResult SIZE(DESCR *result, DESCR *s);
-SilResult TIME(DESCR *result);
-SilResult TRIM(DESCR *result, DESCR *s);
-SilResult VDIFFR(DESCR *result, DESCR *a, DESCR *b);/* VDIFFER */
+SIL_result APPLY(DESCR *result, DESCR *fname, DESCR *args, int nargs);
+SIL_result ARG(DESCR *result, DESCR *fname, DESCR *n);
+SIL_result LOCAL(DESCR *result, DESCR *fname, DESCR *n);
+SIL_result FIELDS(DESCR *result, DESCR *typename_d);
+SIL_result CLEAR(DESCR *result);
+SIL_result CMA(DESCR *result, DESCR *a, DESCR *b);   /* string compare */
+SIL_result COLECT(DESCR *result);                      /* COLLECT() — force GC */
+SIL_result COPY(DESCR *result, DESCR *a);
+SIL_result CNVRT(DESCR *result, DESCR *val, DESCR *type_name); /* CONVERT */
+SIL_result DATE(DESCR *result, DESCR *opt_fmt);
+SIL_result DT(DESCR *result, DESCR *a);               /* DATATYPE(X) */
+SIL_result DMP(DESCR *result, DESCR *a);              /* DUMP level */
+SIL_result DUMP(DESCR *result, DESCR *a);
+SIL_result DUPL(DESCR *result, DESCR *s, DESCR *n);  /* DUPL(s,n) */
+SIL_result OPSYN(DESCR *result, DESCR *a, DESCR *b, DESCR *type_d);
+SIL_result RPLACE(DESCR *result, DESCR *s, DESCR *p, DESCR *r);
+SIL_result REVERS(DESCR *result, DESCR *s);
+SIL_result SIZE(DESCR *result, DESCR *s);
+SIL_result TIME(DESCR *result);
+SIL_result TRIM(DESCR *result, DESCR *s);
+SIL_result VDIFFR(DESCR *result, DESCR *a, DESCR *b);/* VDIFFER */
 ```
 
 ---
@@ -837,17 +837,17 @@ SilResult VDIFFR(DESCR *result, DESCR *a, DESCR *b);/* VDIFFER */
      inc  DESCR (increment)
      bin  DESCRs[init*2] (key/val pairs, chained)  */
 
-SilResult ARRAY(DESCR *result, DESCR *bounds_d);      /* ARRAY('lo:hi') */
-SilResult ASSOC(DESCR *result, DESCR *init, DESCR *inc); /* TABLE(n,m) */
-SilResult ITEM(DESCR *result, DESCR *arr_d, DESCR *subs, int nsubs);
-SilResult DATDEF(DESCR *result, DESCR *spec_d);       /* DATA('T(f1,f2)') */
-SilResult PROTO(DESCR *result, DESCR *typename_d);    /* PROTOTYPE(X) */
-SilResult FREEZE(DESCR *result, DESCR *table_d);
-SilResult THAW(DESCR *result, DESCR *table_d);
-SilResult DEFDAT(DESCR *result, DESCR *typename_d, DESCR *args, int nargs);
-SilResult FIELD(DESCR *result, DESCR *obj, DESCR *fieldname_d);
-SilResult RSORT(DESCR *result, DESCR *arr_d, DESCR *fcmp_d);
-SilResult SSORT(DESCR *result, DESCR *arr_d, DESCR *fcmp_d);
+SIL_result ARRAY(DESCR *result, DESCR *bounds_d);      /* ARRAY('lo:hi') */
+SIL_result ASSOC(DESCR *result, DESCR *init, DESCR *inc); /* TABLE(n,m) */
+SIL_result ITEM(DESCR *result, DESCR *arr_d, DESCR *subs, int nsubs);
+SIL_result DATDEF(DESCR *result, DESCR *spec_d);       /* DATA('T(f1,f2)') */
+SIL_result PROTO(DESCR *result, DESCR *typename_d);    /* PROTOTYPE(X) */
+SIL_result FREEZE(DESCR *result, DESCR *table_d);
+SIL_result THAW(DESCR *result, DESCR *table_d);
+SIL_result DEFDAT(DESCR *result, DESCR *typename_d, DESCR *args, int nargs);
+SIL_result FIELD(DESCR *result, DESCR *obj, DESCR *fieldname_d);
+SIL_result RSORT(DESCR *result, DESCR *arr_d, DESCR *fcmp_d);
+SIL_result SSORT(DESCR *result, DESCR *arr_d, DESCR *fcmp_d);
 ```
 
 ---
@@ -869,12 +869,12 @@ SilResult SSORT(DESCR *result, DESCR *arr_d, DESCR *fcmp_d);
 
 /* DEFINE: register user-defined function */
 /* Parses spec 'fname(p1,p2)l1,l2' — mirrors SIL DEFINE proc exactly */
-SilResult DEFINE(DESCR *result, DESCR *spec_d, DESCR *entry_label_d);
+SIL_result DEFINE(DESCR *result, DESCR *spec_d, DESCR *entry_label_d);
 
 /* DEFFNC: invoke a user-defined function */
 /* Sets up new stack frame with params/locals, runs body, handles RETURN */
 /* Mirrors SIL DEFFNC proc + call_user_function logic */
-SilResult DEFFNC(DESCR *result, int32_t fnblk_off, DESCR *args, int nargs);
+SIL_result DEFFNC(DESCR *result, int32_t fnblk_off, DESCR *args, int nargs);
 
 /* Function table lookup by name */
 int32_t fn_lookup(SPEC *name_sp);   /* returns fnblk arena offset or 0 */
@@ -891,14 +891,14 @@ int32_t fn_lookup(SPEC *name_sp);   /* returns fnblk arena offset or 0 */
 ```c
 /* LOAD: load external function via dlopen/dlsym */
 /* Mirrors SIL LOAD proc — parses prototype, opens library, links symbol */
-SilResult LOAD(DESCR *result, DESCR *proto_d, DESCR *lib_d);
+SIL_result LOAD(DESCR *result, DESCR *proto_d, DESCR *lib_d);
 
 /* UNLOAD: unregister external function */
-SilResult UNLOAD(DESCR *result, DESCR *proto_d);
+SIL_result UNLOAD(DESCR *result, DESCR *proto_d);
 
 /* LNKFNC: wire loaded function symbol into function table */
 /* Mirrors SIL LNKFNC — sets FNC bit in function entry DESCR */
-SilResult LNKFNC(int32_t fnblk_off, void *sym);
+SIL_result LNKFNC(int32_t fnblk_off, void *sym);
 ```
 
 ---
@@ -921,15 +921,15 @@ typedef struct {
 #define MAX_UNITS  32
 static Unit units[MAX_UNITS];
 
-SilResult READ(DESCR *result, DESCR *unit_d, SPEC *buf_sp);   /* INPUT */
-SilResult PRINT(DESCR *unit_d, DESCR *fmt_d, SPEC *str_sp);  /* OUTPUT */
-SilResult BKSPCE(DESCR *unit_d);
-SilResult ENDFIL(DESCR *unit_d);
-SilResult REWIND(DESCR *unit_d);
-SilResult SET(DESCR *result, DESCR *unit_d, DESCR *pos_d);
-SilResult DETACH(DESCR *var_d);
-SilResult PUTIN(DESCR *result, DESCR *var_d, SPEC *val_sp);  /* input assoc trigger */
-SilResult PUTOUT(DESCR *var_d, SPEC *val_sp);                 /* output assoc trigger */
+SIL_result READ(DESCR *result, DESCR *unit_d, SPEC *buf_sp);   /* INPUT */
+SIL_result PRINT(DESCR *unit_d, DESCR *fmt_d, SPEC *str_sp);  /* OUTPUT */
+SIL_result BKSPCE(DESCR *unit_d);
+SIL_result ENDFIL(DESCR *unit_d);
+SIL_result REWIND(DESCR *unit_d);
+SIL_result SET(DESCR *result, DESCR *unit_d, DESCR *pos_d);
+SIL_result DETACH(DESCR *var_d);
+SIL_result PUTIN(DESCR *result, DESCR *var_d, SPEC *val_sp);  /* input assoc trigger */
+SIL_result PUTOUT(DESCR *var_d, SPEC *val_sp);                 /* output assoc trigger */
 ```
 
 ---
@@ -941,8 +941,8 @@ SilResult PUTOUT(DESCR *var_d, SPEC *val_sp);                 /* output assoc tr
 **Status:** ⬜
 
 ```c
-SilResult TRACE(DESCR *result, DESCR *var_d, DESCR *type_d, DESCR *tag_d);
-SilResult STOPTR(DESCR *result, DESCR *var_d, DESCR *type_d);
+SIL_result TRACE(DESCR *result, DESCR *var_d, DESCR *type_d, DESCR *tag_d);
+SIL_result STOPTR(DESCR *result, DESCR *var_d, DESCR *type_d);
 void      FENTR(SPEC *fname_sp);            /* function entry trace */
 void      FENTR2(SPEC *fname_sp);           /* alternate entry trace */
 void      KEYTR(SPEC *kw_name_sp);          /* keyword trace */
@@ -1007,8 +1007,8 @@ int FORRUN(void);
 
 ```c
 /* INVOKE dispatch table — indexed by function DESCR's A field */
-/* Each entry is a C function pointer: SilResult (*fn)(DESCR *result, ...) */
-typedef SilResult (*BuiltinFn)(DESCR *result, DESCR *args, int nargs);
+/* Each entry is a C function pointer: SIL_result (*fn)(DESCR *result, ...) */
+typedef SIL_result (*BuiltinFn)(DESCR *result, DESCR *args, int nargs);
 
 typedef struct {
     const char *name;
@@ -1025,7 +1025,7 @@ extern int         invoke_table_size;
 /* Mirrors SIL INVOKE/INVK1/INVK2:
    fetch DESCR at OCBSCL+OCICL; if FNC → call its function;
    else it's a data descriptor → return as argument value */
-SilResult INVOKE(DESCR *result);
+SIL_result INVOKE(DESCR *result);
 
 /* INTERP: main interpreter loop — mirrors SIL INTERP/INTRP0 */
 /* Loops calling INVOKE until non-FNC DESCR or special exit */
