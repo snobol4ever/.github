@@ -30400,3 +30400,38 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_asgn.c → zero warnings
 # Then commit+push one4all, update .github M10 ✅ and push
 ```
+
+## Sprint SS-5 HANDOFF (Silly SNOBOL4 M10 sil_asgn) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `1ec81e7e` · .github (this commit)
+
+### Work done this session
+
+**M10 ✅ sil_asgn.c/h — committed 1ec81e7e**
+ASGN_fn: full subject/object side dispatch (FNC/K/input-assoc/output/trace).
+CONCAT_fn: XYARGS + coerce both args (I/R/E→P wrapping) + type-pair dispatch
+  (CONVV string-string, CONVP/CONPV string-pattern wrapping, CONPP pat concat).
+IND_fn: $X indirect reference (S/N/K/I dispatch, CASECL/VPXPTR).
+KEYWRD_fn: &X lookup on KNATL (unprotected) / KVATL (protected) lists.
+LIT_fn: literal push from object code.
+NAME_fn: .X unary name operator.
+STR_fn: *X unevaluated expression (CODSKP + SETVC E).
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M10 all ✅
+M11 ⬜ sil_pred.c/h  ← NEXT (§18 Predicates, 219 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M11: src/silly/sil_pred.c + sil_pred.h
+# Source: v311.sil §18 lines 6102–6321
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_pred.c → zero warnings
+# Then commit+push one4all, update .github M11 ✅ and push
+```
