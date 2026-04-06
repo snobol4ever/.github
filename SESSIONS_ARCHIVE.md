@@ -29031,3 +29031,52 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 - `one4all/src/runtime/sm/scrip_image.h` — M-SCRIP-U1 ✅
 - `one4all/src/runtime/sm/scrip_image_test.c` — M-SCRIP-U1 ✅
 - `.github/SESSIONS_ARCHIVE.md` — this handoff ✅
+
+## Sprint RT-127 HANDOFF (M-SCRIP-U2: SM_Program + C dispatch loop) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `2d42338` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- **M-SCRIP-U2 ✅** — `sm_prog.h/c`: SM_Instr/SM_Program types, full opcode enum (57 opcodes),
+  builder helpers (sm_emit_*, sm_label, sm_patch_jump). `sm_interp.h/c`: C dispatch loop —
+  SM_LABEL, SM_HALT, SM_JUMP/S/F, SM_PUSH_LIT_S/I/F, SM_PUSH_NULL, SM_PUSH_VAR, SM_STORE_VAR,
+  SM_POP, SM_ADD/SUB/MUL/DIV/EXP, SM_NEG, SM_CONCAT, SM_INCR, SM_DECR, SM_CALL (INVOKE_fn stub).
+  Pattern/exec ops are stubs (M-SCRIP-U4). 10/10 unit tests PASS with stub NV table.
+
+### Next session first actions (RT-128 — M-SCRIP-U3)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex nasm time
+tail -120 .github/SESSIONS_ARCHIVE.md
+cat .github/SCRIP-UNIFIED.md
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-SCRIP-U3: SM-LOWER pass (IR → SM_Program) + wire sm_interp into scrip --interp path
+#
+# Create src/runtime/sm/sm_lower.c:
+#   sm_lower(Program *ir) → SM_Program*
+#   Walks STMT_t list; for each stmt, lowers subject/pattern/replacement EXPR_t trees
+#   to SM_PUSH_*/SM_PAT_*/SM_EXEC_STMT instructions.
+#   Expression lowering: E_LIT_S→SM_PUSH_LIT_S, E_LIT_I→SM_PUSH_LIT_I,
+#   E_VAR→SM_PUSH_VAR, E_ADD→(lower both, SM_ADD), etc.
+#   GOTO labels → SM_JUMP/SM_JUMP_S/SM_JUMP_F.
+#
+# Wire into scrip.c --interp path:
+#   After cmpile_file() → cmpnd_to_ir() → sm_lower() → sm_interp_run()
+#   (replaces the current tree-walk eval_node dispatch)
+#
+# Gate: PASS=178 via SM dispatch loop (not tree-walk)
+# Two-way check: run same program through old tree-walk and sm_interp_run, diff outputs.
+```
+
+### Files changed this session
+- `one4all/src/runtime/sm/sm_prog.h` ✅
+- `one4all/src/runtime/sm/sm_prog.c` ✅
+- `one4all/src/runtime/sm/sm_interp.h` ✅
+- `one4all/src/runtime/sm/sm_interp.c` ✅
+- `one4all/src/runtime/sm/sm_interp_test.c` ✅
+- `.github/SESSIONS_ARCHIVE.md` — this handoff ✅
