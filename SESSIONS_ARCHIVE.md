@@ -31092,3 +31092,61 @@ for line in lines:
         print(line.rstrip())
 PYEOF
 ```
+
+## Sprint SS-19 HANDOFF (Context ~88%) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `3bf3cb38` · .github `e4b70bc`
+
+### What was done
+
+1. **Extracted oracles** — `snobol4-2.3.3.tar.gz` → `/home/claude/work/snobol4-2.3.3/` (v311.sil 12293 lines, snobol4.c 14293 lines). `spitbol-docs-master.zip` → `/home/claude/work/spitbol-docs-master/`.
+
+2. **Began M-SS-DIFF** — section-by-section diff pass §1–§4 vs v311.sil oracle. Findings:
+
+3. **Applied fixes** (all committed `3bf3cb38`):
+   - `SIL_result` → `Sil_result` everywhere (41 files) — naming rule: new C enum → `Xxxx_yyy`
+   - `CNODSZS` → `CNODSZ` (SIL verbatim EQU)
+   - Added `#define FBLKSZ (10*DESCR)` to `sil_types.h` (was missing entirely)
+   - `FBKLSZ` typo (×2) → `FBLKSZ` in `sil_symtab.c` FINDEX_fn
+   - `BLOCK_fn(FBLKSZ, 0)` → `BLOCK_fn(FBLKSZ, B)` — oracle FATBLK allocates with type B
+   - Dropped `FNCPL_off` shadow variable — use `D_A(FNCPL)` directly everywhere; write-back via `D_A(FNCPL) = AUGATL_fn(D_A(FNCPL), ...)`
+   - `GENVAR_fn_from_descr` → `genvar_from_descr` — new C helper → snake_case
+
+4. **Naming convention rules written to HQ** (`e4b70bc`):
+   - Full table in `GENERAL-RULES.md` under `## ⛔ NAMING CONVENTIONS`
+   - Compact copy in `SESSION-silly-snobol4.md §INFO`
+   - Rule summary: SIL label→`NAME_fn`; SIL global→verbatim UPPERCASE; SIL EQU→verbatim UPPERCASE; SIL type→`NAME_t`; new C struct/enum→`Xxxx_yyy`; new C fn/var→`snake_case`; **never CamelCase**
+
+### Still open on M-SS-DIFF punch-list
+
+- `EXDTSP` declared as `const char[]` in `sil_data.c` — oracle makes it a `STRING` specifier; `DTREP_fn` does `strlen(EXDTSP)` — should be `SPEC_t EXDTSP`
+- Continue diff pass §6 (Compiler/CMPILE) through §23
+
+### Build status
+Clean 64-bit build. One pre-existing format-truncation warning in `sil_platform.c` XCALL_DATE only.
+```bash
+cd /home/claude/one4all
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+```
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -3
+
+# Confirm clean build:
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+
+# Extract oracle if not present:
+ls /home/claude/work/snobol4-2.3.3/v311.sil || \
+  tar -xzf /mnt/user-data/uploads/snobol4-2_3_3_tar.gz -C /home/claude/work/
+
+# Continue M-SS-DIFF — next: fix EXDTSP, then §6 CMPILE
+# EXDTSP fix: sil_data.c — change const char EXDTSP[] to SPEC_t EXDTSP
+# §6 oracle: sed -n '1554,2519p' /home/claude/work/snobol4-2.3.3/v311.sil | head -80
+# Compare to sil_cmpile.c, sil_expr.c, sil_trepub.c
+```
