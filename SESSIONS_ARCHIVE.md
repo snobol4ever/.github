@@ -28806,3 +28806,45 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 ### Files changed this session
 - `.github/BB-GEN-X86-BIN.md` — §SPITBOL Comparison Results + milestone ladder ✅
 - `.github/PLAN.md` — M-DYN-B-SPITBOL ✅; NOW → M-DYN-B0
+
+## Sprint RT-121 ADDENDUM (stackless model + benchmarks) — 2026-04-06
+
+### M-DYN-BENCH-C results (baseline, C BB boxes)
+
+Machine: Linux x86-64 container, gcc -O2, median of 3 runs.
+
+| Program | scrip-C | SPITBOL | CSNOBOL4 | scrip/SPITBOL | scrip/CSNOBOL |
+|---|---:|---:|---:|---:|---:|
+| pattern_bt (ALT+SPAN 500k) | 1.72s | 0.17s | 0.61s | 10.1× | 2.8× |
+| string_pattern (BRK+cap 500k) | 10.05s | 0.36s | 1.92s | 27.9× | 5.2× |
+| mixed_workload | 3.96s | 0.10s | 0.44s | 39.6× | 9.0× |
+| string_manip | 5.48s | 0.47s | 1.61s | 11.7× | 3.4× |
+| fibonacci (control) | 5.15s | 0.09s | 0.45s | 57.2× | 11.4× |
+| arith_loop (control) | 1.17s | 0.02s | 0.12s | 58.5× | 9.8× |
+
+scrip is 10–28× behind SPITBOL on pattern work, 2.8–5.2× behind CSNOBOL4.
+Control benchmarks (fibonacci, arith_loop) show the interpreter loop overhead
+is the dominant cost — pattern work adds relatively little on top.
+
+### Stackless statement execution model
+
+Full design written to BB-GEN-X86-BIN.md §Stackless. Key points:
+- 5 phases wired with direct jmps, no call/ret inside pattern match
+- r13 = stmt frame ptr: k_success/k_fail/k_backtrack continuations + ARBNO stack
+- Backtracking implicit in XCAT/XOR graph — no explicit match stack
+- Boxes jump to continuations, never ret
+- Target ABI for all M-DYN-B* inline blobs from the start
+- M-DYN-STACKLESS milestone placeholder added
+
+### SPITBOL comparison clarification (per-invocation model)
+
+- SPITBOL node heap (p*blk) = one-time per pattern value, not per invocation
+- Per-match state lives on SPITBOL's match stack, not in node
+- scrip ζ mutable fields = same: per pattern value, re-initialized per match
+- *P deferred eval = new pattern build each invocation — symmetric in both
+- With threaded next_fn model: leaf node data sections ≈ SPITBOL p*blk data fields
+- SEQ cost: scrip XCAT node (24B) vs SPITBOL pthen (already amortized per leaf)
+- ARBNO/ALT: move frame stack to stmt frame → per-instance data collapses to 8–16B
+
+### HQ HEAD after addendum
+`c45edd8`
