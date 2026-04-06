@@ -27945,3 +27945,104 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
 
 # Gate: PASS=178. Success: EVAL(CONVERT('2+3','EXPRESSION')) = 5.
 ```
+
+### RT-119 session — error infrastructure + Error 5 (2026-04-05)
+
+**one4all HEAD:** `c3e78ed` · **PASS=178/203**
+
+#### Three commits this session:
+
+**Commit 592d1eb — RT-119: error infrastructure wiring + 39-msg table + fatal/soft routing**
+
+Gap: `sno_runtime_error()` existed but was effectively dead — `g_sno_err_stmt`
+always 0, `g_sno_err_active` never set, `longjmp` path never taken.
+Every runtime error was `exit(1)` regardless of `:F` branch.
+
+Fixes:
+- `comm_stno(n)` now writes `g_sno_err_stmt = n` — error messages show
+  correct statement number
+- `execute_program()` sets `g_sno_err_active = 1` before loop and
+  arms `setjmp(g_sno_err_jmp)` at top of each iteration; soft errors
+  longjmp to `:F` branch instead of exit(1)
+- `sno_runtime_error()` gains 39-entry canonical message table verbatim
+  from v311.sil lines 12195–12233; callers pass NULL to use table
+- Three-way routing matching v311.sil exactly:
+    TERMINAL (20,21,22,23,26,27,29,30,31,39): exit(1) immediately (FTLEND)
+    FATAL    (19,24,25,35):                   exit(1), no recovery (FTLERR)
+    SOFT     (1–18,28,32,33,34):              longjmp, :F catchable (FTLTST)
+- `sno_err_is_terminal()` / `sno_err_is_fatal()` static inline classifiers
+  in snobol4.h — mapping derived directly from v311.sil BRANCH targets
+- Error 24 (bad goto): was silent `break`; now `sno_runtime_error(24,NULL)`
+  → exits cleanly with correct message
+- Per-iteration declarations hoisted above `setjmp` to satisfy C99
+  (goto cannot cross initializers)
+
+Smoke verified: Error 1 message + statement number correct; `:F` branch
+taken; Error 24 terminates; PASS=178 no regression.
+
+**Commit c3e78ed — RT-119: Error 5 (undefined function) wired**
+
+Gap: Two silent-swallow paths for undefined functions:
+1. `APPLY_fn`: when not in builtin table and hook returns NULVCL →
+   was `return NULVCL` (phantom success). Now `sno_runtime_error(5,NULL)`.
+2. `call_user_function`: when no body label AND not a registered builtin →
+   fell through to `NV_GET_fn(fr->fname)` (returns empty string = success).
+   Now `sno_runtime_error(5,NULL)` + `goto fn_done` before that path.
+
+Error 5 is soft (SIL UNDF→FTLTST): longjmp taken, `:F` catchable.
+Smoke: `X = NOSUCHFN(42) :F(PASS)` → "PASS: Error 5 caught by :F" ✅
+Statement number correct in error message ✅  PASS=178 ✅
+
+#### Remaining easy wins — error vertical (suggested RT-120 targets):
+
+```
+# Error 2 — arithmetic: divide by zero, integer overflow
+# Currently: C undefined behaviour (no trap). Add check in arithmetic
+# builtins or wrap with signal(SIGFPE). Low corpus impact but correct.
+# v311.sil AERROR → ERRTYP,2 → FTLTST
+
+# Error 3 — erroneous array/table reference
+# Currently: subscript_get/subscript_set return NULVCL on out-of-bounds.
+# Should call sno_runtime_error(3,NULL). Check subscript_get/subscript_set
+# in snobol4.c for the bounds check path.
+# grep -an "subscript_get\|subscript_set" src/runtime/snobol4/snobol4.c
+
+# Error 7 — unknown keyword
+# Currently: NV_SET_fn for unknown &KEYWORD silently does nothing.
+# Should call sno_runtime_error(7,NULL).
+# grep -an "Unknown keyword\|NV_SET.*kw\|unknown.*keyword" src/runtime/snobol4/snobol4.c
+
+# Error 25 — incorrect number of arguments
+# Currently: call_user_function ignores arg count mismatch (extras ignored,
+# missing filled with NULVCL). SIL ARGNER → ERRTYP,25 → FTLERR (fatal).
+# Add check: if nargs > np (declared params), sno_runtime_error(25,NULL).
+# Caveat: varargs builtins must be excluded from this check.
+
+# Error 10 — illegal argument to primitive function
+# Several builtins (LEN, POS, RTAB, etc.) currently silently return FAILDESCR
+# on bad arg. SIL INTR30 → ERRTYP,10 → FTLTST. Wire sno_runtime_error(10,NULL)
+# at negative-int guards in pattern primitives.
+```
+
+### RT-120 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Suggested: Error 3 (array bounds) — subscript_get in snobol4.c
+# grep -an "subscript_get\|out.of.bounds\|DT_A\|DT_T" src/runtime/snobol4/snobol4.c | head -30
+# Find the bounds check, replace silent NULVCL with sno_runtime_error(3,NULL)
+# Gate: PASS=178; smoke: A = ARRAY(3); V = A<99> :S(FAIL)F(PASS)
+
+# OR: Error 7 (unknown keyword) — NV_SET_fn in snobol4.c
+# grep -an "NV_SET_fn\|unknown.*key\|kw_" src/runtime/snobol4/snobol4.c | head -30
+# Find the default: case in keyword dispatch, add sno_runtime_error(7,NULL)
+# Gate: PASS=178; smoke: &NOSUCHKW = 1 :S(FAIL)F(PASS)
+```
