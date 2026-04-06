@@ -79,3 +79,13 @@ cd /home/claude/one4all
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
 # PASS=179 (was 178)
 ```
+
+## Regression note (RT-139b)
+
+The P2F loop was originally in `sno4parse.c` (commit `174d77eb`, sprint 93) and
+**worked** — 84/84 sweep confirmed.  It was copied verbatim to `cmpile_file_internal`
+when CMPILE became the default parser (RT-113/114), but in CMPILE.c `TEXTSP.len==0`
+when the loop checks it.  Something in the CMPILE path between `compile_one_stmt()`
+returning and the loop check drains TEXTSP.  **This is a one-line regression**, not
+a design problem.  Bisect: `git log --oneline 174d77eb..HEAD -- src/frontend/snobol4/CMPILE.c`
+and find the commit that broke `TEXTSP.len`.
