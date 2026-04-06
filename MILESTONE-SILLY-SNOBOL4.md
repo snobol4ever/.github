@@ -1200,7 +1200,7 @@ clean:
 |---|------|---------------|-----------|--------|
 | M0 | `sil_types.h` | §1 Linkage/Equates | 124 | ✅ |
 | M1 | `sil_data.c/h` | §23 Data | 1804 | ✅ |
-| M2 | `sil_arena.c/h` | §5 Storage/GC | 334 | ⬜ |
+| M2 | `sil_arena.c/h` | §5 Storage/GC | 334 | ✅ |
 | M3 | `sil_strings.c/h` | §5 GENVAR family + §4 DTREP | ~200 | ⬜ |
 | M4 | `sil_symtab.c/h` | §4 Support procs | 130 | ⬜ |
 | M5 | `sil_arith.c/h` | §9 Arithmetic | 195 | ⬜ |
