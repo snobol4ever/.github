@@ -27568,46 +27568,83 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 # &STEXEC — add kw_stexec int64_t, increment alongside kw_stcount in comm_stno()
 ```
 
-## Sprint RT-117b HANDOFF (M-DYN-B2) — 2026-04-05
+## Sprint RT-117b HANDOFF — 2026-04-06
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `1870624` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `c596378c84a70da00b598e0c19922ac6be6315d1` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
 
-### Milestone completed: M-DYN-B2 ✅
+### Session type: GAP 4 — sno_runtime_error() infrastructure (partial)
 
-**Commit `1870624`** — `RT-117 M-DYN-B2: bb_eps_emit_binary() + bb_build_binary() DT_P walk; PASS=178`
+### Work done
 
-**Deliverables:**
-- `src/runtime/asm/bb_build_bin.c` — `bb_eps_emit_binary()` (EPS as sealed x86-64 binary; α returns spec(Σ+Δ,0); β→ω; stateless in binary path; ~130 bytes) + `bb_build_binary(PATND_t*)` walker + static `bb_build_binary_node()`.
-- `src/runtime/asm/bb_build_bin.h` — exports `bb_eps_emit_binary()`, `bb_build_binary()`; adds `patnd.h` include (after `snobol4.h` for DESCR_t ordering).
-- `src/runtime/dyn/stmt_exec.c` — Phase 2 DT_P branch: tries `bb_build_binary()` behind `SNO_BINARY_BOXES=1`; falls back to C `bb_build()` on NULL.
+#### Commit c596378 — RT-117b: GAP 4 sno_runtime_error + setjmp arm
 
-**`bb_build_binary_node()` switch coverage:**
-- `NULL` → `bb_eps_emit_binary()`
-- `XCHR` → `bb_lit_emit_binary(p->STRVAL_fn, len)` (M-DYN-B1)
-- `XEPS` → `bb_eps_emit_binary()`
-- all others → NULL (clean C fallback)
+**snobol4.c:**
+- `sno_runtime_error(int code, const char *msg)` implemented.
+  Format: `"\n** Error N in statement M\n   <msg>\n"`.
+  If `g_sno_err_active`, longjmps to `g_sno_err_jmp` with `code`.
+  Otherwise `exit(1)`.
+- Globals: `jmp_buf g_sno_err_jmp`, `int g_sno_err_active = 0`, `int g_sno_err_stmt = 0`.
+- `to_int` default case: `sno_runtime_error(1, "Illegal data type"); return 0;`
+- `to_real` default case: same.
 
-**Gates:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**snobol4.h:**
+- `void sno_runtime_error(int code, const char *msg);`
+- `extern jmp_buf g_sno_err_jmp;`
+- `extern int g_sno_err_active;`
+- `extern int g_sno_err_stmt;`
 
-**Architectural note:** DT_P XCHR nodes arise from `pat_lit()` in `snobol4_pattern.c` (lines 151, 233, 340) when interpreter converts DT_S→DT_P in concat/capture context. Pure inline string patterns stay DT_S → M-DYN-B1 path. Both paths live.
+**scrip-interp.c (partial):**
+- `g_sno_err_active = 1` set before the execute_program while loop.
+- `g_sno_err_stmt = stno` updated each iteration.
+- `setjmp(g_sno_err_jmp)` check at top of loop body: on non-zero return `goto stmt_failed`.
 
-### RT-118 first actions (M-DYN-B3)
+**Gate:** PASS=178 ✅
+
+### NOT YET DONE — RT-118 must finish this first
+
+The `stmt_failed:` label and `g_sno_err_active = 0` disarm are NOT yet applied to scrip-interp.c.
+The setjmp is armed but the goto target label is missing — this compiles because the `goto stmt_failed`
+currently has the label present from a prior incomplete edit attempt... **CHECK BUILD FIRST.**
+
+### RT-118 first actions
 
 ```bash
-cd /home/claude && apt-get install -y libgc-dev flex
+cd /home/claude
+apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
-cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
-SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
 
-# M-DYN-B3: bb_pos_emit_binary(int n)
-#   POS α: cmp Δ,n; je succeed → spec(Σ+Δ,0); else → ω
-#   POS β: → ω
-#   Add: case XPOSI → bb_pos_emit_binary((int)p->num) in bb_build_binary_node
-#   Then XRPSI(RPOS), XLNTH(LEN), XTB, XRTB — all same int-arg pattern
-#   After those: XCAT — wires two sub-boxes in sequence; unlocks most corpus DT_P patterns
-# GAP 4 also open: sno_runtime_error() infra (to_int/to_real on non-numeric types)
+cd one4all && make scrip-interp   # confirm clean build
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# Step 1 — verify stmt_failed label exists in scrip-interp.c:
+grep -n "stmt_failed" src/driver/scrip-interp.c
+
+# If label is present: done. Run oracle test:
+#   echo "X = 1 + &ARB" > /tmp/t.sno
+#   ./scrip-interp /tmp/t.sno
+#   Expect: "** Error 1 in statement 1" on stderr, not a crash/silent wrong answer.
+
+# If label is MISSING (likely): apply it now.
+# Find anchor bytes in scrip-interp.c:
+#   python3 -c "
+#     raw = open('src/driver/scrip-interp.c','rb').read()
+#     idx = raw.find(b'goto resolution')
+#     print(repr(raw[idx-12:idx+40]))
+#   "
+# Then insert before the goto-resolution comment:
+#   b'        stmt_failed:;\n'
+# And after the while loop closing brace, before next function:
+#   b'    g_sno_err_active = 0;\n'
+
+# Step 2 — small keyword one-liners (after GAP 4 confirmed):
+# In SNO_INIT_fn in snobol4.c, add:
+#   NV_SET_fn("PI",     REALVAL(3.14159265358979323846));
+#   NV_SET_fn("DIGITS", STRVAL(digits));   /* alias for "digits" */
+#   NV_SET_fn("PARM",   STRVAL(getenv("SNOBOL4_PARM") ? getenv("SNOBOL4_PARM") : ""));
+# Add kw_stexec int64_t global; increment alongside kw_stcount in comm_stno().
+# Gate: PASS=178 throughout.
 ```
