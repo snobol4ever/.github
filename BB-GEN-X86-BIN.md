@@ -176,39 +176,38 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 
 ---
 
-## Projected Inline-Blob Sizes
+## x86 Box Size Grid (Measured — correct ABI)
 
-Sizes are estimates based on instruction encoding analysis. Measured actuals to be recorded after each milestone.
+Assembled from corrected `.s` files (`da49522`). Sizes from `objdump -h` section headers.
 
-| Box | XKIND | Code bytes | Data: payload | Data: ptr slots | **Total blob** | vs old tramp+C |
-|-----|-------|----------:|----------:|----------:|----------:|----------:|
-| bb_fail_inline   | XFAIL  |   5 |  0 |  0 |  **5** | was 27 — **5.4× smaller** |
-| bb_rem_inline    | XSTAR  |  12 |  0 | 24 | **36** | was 29 |
-| bb_pos_inline    | XPOSI  |  28 |  4 | 16 | **48** | was 33 |
-| bb_tab_inline    | XTB    |  30 |  4 | 16 | **50** | was 33 |
-| bb_rpos_inline   | XRPSI  |  30 |  4 | 24 | **58** | was 33 |
-| bb_rtab_inline   | XRTB   |  30 |  4 | 24 | **58** | was 33 |
-| bb_len_inline    | XLNTH  |  35 |  4 | 24 | **63** | was 33 |
-| bb_fence_inline  | XFNCE  |  37 |  4 | 24 | **65** | was 33 |
-| bb_eps_inline    | XEPS   |  38 |  4 | 24 | **66** | was 33 |
-| bb_arb_inline    | XFARB  |  35 |  8 | 24 | **67** | was 33 |
-| bb_any_inline    | XANYC  |  40 |  8+chars | 16 | **~72+** | was 35 |
-| bb_notany_inline | XNNYC  |  40 |  8+chars | 16 | **~72+** | was 35 |
-| bb_brk_inline    | XBRKC  |  42 |  8+chars | 16 | **~74+** | was 37 |
-| bb_span_inline   | XSPNC  |  44 |  8+chars | 16 | **~76+** | was 37 |
-| bb_breakx_inline | XBRKX  |  45 |  8+chars | 16 | **~77+** | was 37 |
-| bb_lit_inline    | XCHR   |  80 | 12+lit   | 40 | **~132+**| was 169 — **1.3× smaller** |
-| bb_seq_inline    | XCAT   |  ~55 | 16+spec | 0 | **~87** | was 45 |
-| bb_alt_inline    | XOR    |  ~60 | 16×N    | 0 | **~76+** | was 41 |
-| bb_arbn_inline   | XARBN  |  ~80 | ~600    | 24 | **~704** | was 45 (excl. heap) |
+| Box | XKIND | code (.text) | data (.data) | total | insns | Mutable ζ fields |
+|-----|-------|-------------:|-------------:|------:|------:|-----------------|
+| bb_fail    | XFAIL  |   5 |  0 |   **5** |  3 | none |
+| bb_abort   | XABRT  |   5 |  0 |   **5** |  3 | none |
+| bb_fence   | XFNCE  |  48 | 16 |  **64** | 15 | fired(4) |
+| bb_eps     | XEPS   |  61 | 16 |  **77** | 18 | done(4) |
+| bb_pos     | XPOSI  |  56 | 16 |  **72** | 18 | none (n immutable in ζ) |
+| bb_rem     | XSTAR  |  76 | 24 | **100** | 20 | none |
+| bb_rpos    | XRPSI  |  66 | 24 |  **90** | 20 | none (n immutable) |
+| bb_len     | XLNTH  |  90 | 24 | **114** | 26 | bspan(4) |
+| bb_tab     | XTB    |  89 | 16 | **105** | 27 | advance(4) |
+| bb_rtab    | XRTB   | 139 | 24 | **163** | 38 | advance(4) |
+| bb_arb     | XFARB  | 132 | 24 | **156** | 37 | count(4)+start(4) |
+| bb_notany  | XNNYC  | 124 | 32 | **156** | 33 | δ(4) in ζ |
+| bb_brk     | XBRKC  | 141 | 32 | **173** | 40 | δ(4) in ζ |
+| bb_span    | XSPNC  | 148 | 32 | **180** | 42 | δ(4) in ζ |
+| bb_breakx  | XBRKX  | 148 | 32 | **180** | 42 | δ(4) in ζ |
+| bb_lit     | XCHR   | 128 | 32 | **160** | 35 | none (lit/len immutable in ζ) |
+| bb_any     | XANYC  | 151 | 32 | **183** | 38 | δ(4) in ζ |
 
-Notes:
-- `+chars` = NUL-terminated charset string appended inline
-- `+lit`   = literal string bytes appended inline  
-- `+spec`  = 16-byte matched spec slot in data
-- ARBN data section is large (64×{spec_t+int} frame stack) — same size as before but on-pool not heap
+**.data layout** (16–32 bytes depending on box):
+- 16 bytes: `Δ_ptr(8) + Σ_ptr(8)` — boxes needing Σ+Δ return only
+- 24 bytes: adds `Ω_ptr(8)` — boxes checking bounds
+- 32 bytes: adds `strchr_ptr(8)` or `memcmp_ptr(8)` — charset/lit boxes
 
----
+**heap ζ** (separate calloc, always writable):
+- Immutable fields (n, len, lit ptr, chars ptr): set once at build time, read-only in practice
+- Mutable fields (done, fired, count, start, δ, advance, bspan): written on every α/β
 
 
 ## Relation to Static Path
