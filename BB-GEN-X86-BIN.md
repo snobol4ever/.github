@@ -159,6 +159,7 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
+| **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
 | **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
 | **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
@@ -176,38 +177,49 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 
 ---
 
-## x86 Box Size Grid (Measured — correct ABI)
+## x86 Box Size Grid (Measured — ac19c92, all 27 boxes)
 
-Assembled from corrected `.s` files (`da49522`). Sizes from `objdump -h` section headers.
+Correct ABI: `.text` code sealed RX, `.data` baked ptr constants, heap ζ mutable state.
+No push/pop anywhere. `r10`=ζ scratch, `r11`–`r15` caller-saved scratch as needed.
 
-| Box | XKIND | code (.text) | data (.data) | total | insns | Mutable ζ fields |
-|-----|-------|-------------:|-------------:|------:|------:|-----------------|
-| bb_fail    | XFAIL  |   5 |  0 |   **5** |  3 | none |
-| bb_abort   | XABRT  |   5 |  0 |   **5** |  3 | none |
-| bb_fence   | XFNCE  |  48 | 16 |  **64** | 15 | fired(4) |
-| bb_eps     | XEPS   |  61 | 16 |  **77** | 18 | done(4) |
-| bb_pos     | XPOSI  |  56 | 16 |  **72** | 18 | none (n immutable in ζ) |
-| bb_rem     | XSTAR  |  76 | 24 | **100** | 20 | none |
-| bb_rpos    | XRPSI  |  66 | 24 |  **90** | 20 | none (n immutable) |
-| bb_len     | XLNTH  |  90 | 24 | **114** | 26 | bspan(4) |
-| bb_tab     | XTB    |  89 | 16 | **105** | 27 | advance(4) |
-| bb_rtab    | XRTB   | 139 | 24 | **163** | 38 | advance(4) |
-| bb_arb     | XFARB  | 132 | 24 | **156** | 37 | count(4)+start(4) |
-| bb_notany  | XNNYC  | 124 | 32 | **156** | 33 | δ(4) in ζ |
-| bb_brk     | XBRKC  | 141 | 32 | **173** | 40 | δ(4) in ζ |
-| bb_span    | XSPNC  | 148 | 32 | **180** | 42 | δ(4) in ζ |
-| bb_breakx  | XBRKX  | 148 | 32 | **180** | 42 | δ(4) in ζ |
-| bb_lit     | XCHR   | 128 | 32 | **160** | 35 | none (lit/len immutable in ζ) |
-| bb_any     | XANYC  | 151 | 32 | **183** | 38 | δ(4) in ζ |
+| Box | XKIND | code (.text) B | data (.data) B | total B | insns | Mutable ζ fields |
+|-----|-------|---------------:|---------------:|--------:|------:|-----------------|
+| bb_fail      | XFAIL  |   5 |  0 |   **5** |  3 | — |
+| bb_abort     | XABRT  |   5 |  0 |   **5** |  3 | — |
+| bb_bal       | XBAL   |   5 |  0 |   **5** |  3 | — (stub) |
+| bb_fence     | XFNCE  |  48 | 16 |  **64** | 15 | fired(4) |
+| bb_eps       | XEPS   |  61 | 16 |  **77** | 18 | done(4) |
+| bb_pos       | XPOSI  |  56 | 16 |  **72** | 18 | n(4) immutable |
+| bb_succeed   | XSUCF  |  26 | 16 |  **42** |  7 | — |
+| bb_rem       | XSTAR  |  76 | 24 | **100** | 20 | — |
+| bb_rpos      | XRPSI  |  66 | 24 |  **90** | 20 | n(4) immutable |
+| bb_dvar      | XDSAR  |  73 |  8 |  **81** | 25 | child_fn/state(16) |
+| bb_len       | XLNTH  |  90 | 24 | **114** | 26 | bspan(4) |
+| bb_tab       | XTB    |  89 | 16 | **105** | 27 | n(4)+advance(4) |
+| bb_interr    | —      |  83 | 16 |  **99** | 25 | start(4) |
+| bb_not       | —      |  83 | 16 |  **99** | 25 | start(4) |
+| bb_rtab      | XRTB   | 139 | 24 | **163** | 38 | n(4)+advance(4) |
+| bb_arb       | XFARB  | 132 | 24 | **156** | 37 | count(4)+start(4) |
+| bb_atp       | XATP   | 119 | 24 | **143** | 32 | done(4) |
+| bb_notany    | XNNYC  | 124 | 32 | **156** | 33 | δ(4) |
+| bb_brk       | XBRKC  | 141 | 32 | **173** | 40 | δ(4) |
+| bb_lit       | XCHR   | 128 | 32 | **160** | 35 | — (lit/len immutable) |
+| bb_span      | XSPNC  | 148 | 32 | **180** | 42 | δ(4) |
+| bb_breakx    | XBRKX  | 148 | 32 | **180** | 42 | δ(4) |
+| bb_any       | XANYC  | 151 | 32 | **183** | 38 | δ(4) |
+| bb_seq       | XCAT   | 185 | 16 | **201** | 59 | matched spec(16) |
+| bb_capture   | XNME/$ | 191 | 32 | **223** | 56 | pending(16)+has_pending(4) |
+| bb_alt       | XOR    | 241 |  8 | **249** | 63 | current(4)+position(4)+result(16) |
+| bb_arbno     | XARBN  | 298 | 16 | **314** | 81 | depth(4)+stack[64×24B]=1540B |
+| **TOTAL**    |        | **2911** | **528** | **3439** | **818** | |
 
-**.data layout** (16–32 bytes depending on box):
-- 16 bytes: `Δ_ptr(8) + Σ_ptr(8)` — boxes needing Σ+Δ return only
-- 24 bytes: adds `Ω_ptr(8)` — boxes checking bounds
-- 32 bytes: adds `strchr_ptr(8)` or `memcmp_ptr(8)` — charset/lit boxes
+**.data slot sizes:**
+- 8 bytes: 1 ptr (dvar: NV_GET only)
+- 16 bytes: 2 ptrs (Σ+Δ, or Δ+NV_SET, etc.)
+- 24 bytes: 3 ptrs (Σ+Δ+Ω, or Σ+Δ+NV_SET)
+- 32 bytes: 4 ptrs (charset/lit boxes: Σ+Δ+Ω+strchr or Σ+Δ+Ω+memcmp; capture: +GC_malloc)
 
-**heap ζ** (separate calloc, always writable):
-- Immutable fields (n, len, lit ptr, chars ptr): set once at build time, read-only in practice
-- Mutable fields (done, fired, count, start, δ, advance, bspan): written on every α/β
+**Note on arbno:** ζ frame stack = 64 × 24 bytes = 1536 bytes heap, plus fn/state/depth = total ζ ~1556 bytes. Largest ζ by far.
 
 
 ## Relation to Static Path
