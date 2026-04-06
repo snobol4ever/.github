@@ -30218,3 +30218,43 @@ M2 ✅ sil_arena.c/h
 M3 ⬜ sil_strings.c/h  ← NEXT
 M4 ✅ sil_symtab.c/h  
 M5-M21 ⬜
+
+## Sprint SS-2 HANDOFF (Silly SNOBOL4 M3 sil_strings) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `32051f95` · .github `c836322`
+
+### Work done this session
+
+**M3 ✅ sil_strings.c/h — committed 32051f95**
+10 functions: APDSP_fn REMSP_fn TRIMSP_fn LEXCMP_fn SPCINT_fn SPREAL_fn REALST_fn INTSPC_fn LOCSP_fn SUBSP_fn.
+All named NAME_fn per SIL label convention. Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_strings.c → zero warnings.
+Note: locapt_fn / locapv_fn in sil_symtab.c are correct snake_case (no SIL label origin).
+
+### Milestone status
+M0 ✅ sil_types.h
+M1 ✅ sil_data.c/h
+M2 ✅ sil_arena.c/h
+M3 ✅ sil_strings.c/h
+M4 ✅ sil_symtab.c/h
+M5 ⬜ sil_arith.c/h  ← NEXT
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-silly-snobol4.md
+
+cd /home/claude/one4all
+git log --oneline -5
+ls src/silly/
+
+# Build M5: src/silly/sil_arith.c + sil_arith.h
+# Source: v311.sil §9 lines 2923–3118
+# Functions: ADD_fn SUB_fn MPY_fn DIV_fn REMDR_fn MNS_fn PLS_fn
+#            INTGER_fn EQ_fn NE_fn LT_fn LE_fn GT_fn GE_fn
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_arith.c → zero warnings
+```
