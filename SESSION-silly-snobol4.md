@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-2 | one4all `f476f6f3` · .github `42e9654` | M6: sil_argval.c/h |
+| SS-2 | one4all `bddd02a9` · .github `ac68773` | M7: sil_patval.c/h |
