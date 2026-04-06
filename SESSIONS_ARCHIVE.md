@@ -28378,135 +28378,116 @@ cd one4all && make scrip-interp
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 ```
 
-## Sprint RT-119 HANDOFF (M-DYN-B9) — 2026-04-05
+## Sprint RT-123 HANDOFF (Builtin gap-scan session) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `efb4103` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**one4all HEAD:** `f64e0e1` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Milestone completed: M-DYN-B9 ✅
+### Milestone completed: RT-123 ✅
 
-**Commit `efb4103`** — `RT-119 M-DYN-B9: XOR alternation + XSTAR/REM binary trampolines; 75.2% coverage`
+**Commit `f64e0e1`** — `RT-123: NUMERIC() and NAME() builtins; PASS=178`
 
-**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
-- `bb_rem_emit_binary()` — XSTAR (REM): `rem_t={int dummy}`, trampoline to `bb_rem`. No meaningful fields.
-- `bb_alt_emit_binary(PATND_t *p)` — XOR alternation: `bin_alt_t` mirrors `alt_t` layout (`{int n; bin_altchild_t children[16]; int current; int position; spec_t result;}`). Recurses each child (NULL → whole node falls back). Caps at 16. Trampoline to `bb_alt`.
-- `case XSTAR → bb_rem_emit_binary()`
-- `case XOR → bb_alt_emit_binary(p)`
+**Method:** Vertical gap-scan — enumerated all ~105 canonical builtin names from v311.sil
+STRING data section (lines 11783–11930), diffed against our `register_fn()` calls.
+Identified ~30 genuinely missing; implemented the two highest-value isolated ones.
 
-**Coverage audit after B9:**
-- Before: DT_P hits=95  misses=52 · overall=68.5%
-- After:  DT_P hits=106 misses=41 · **overall=75.2%**
+**What was added:**
 
-**Remaining miss breakdown:**
-| Kind | Name | Count | Notes |
-|------|------|-------|-------|
-| 10 | XFARB | 12 | ARB — `arb_t={int count; int start;}` → `bb_arb` — simple trampoline |
-| 26 | XATP | 12 | user-defined pattern fn call — complex, skip for now |
-| 27 | XBRKX | 5 | BREAKX — `brkx_t={const char *chars; int δ;}` → `bb_brkx` — same as BREAK |
-| 11 | XARBN | 5 | ARBNO(p) — needs child recursion |
-| 24 | XCALLCAP | 5 | deferred fn capture — complex, skip |
-| 21 | XDSAR | 1 | deferred var ref — runtime resolve, skip |
-| 14 | XFAIL | 1 | FAIL primitive |
+`snobol4.c` — `_NUMERIC_(a, n)`:
+- IS_INT/IS_REAL → return as-is
+- DT_S/DT_SNUL: trim spaces, strtoll → INTVAL if clean, strtod → REALVAL if clean, else FAILDESCR
+- Empty string → INTVAL(0) per SIL SPCINT
+- Registered: `register_fn("NUMERIC", _NUMERIC_, 1, 1)`
 
-**XFARB + XBRKX together = 17 more hits → expected ~83% (>80% target ✅)**
+`snobol4.c` — `_NAME_(a, n)`:
+- IS_NAME(val) → extract .s as string
+- Fallback: VARVAL_fn coercion
+- Registered: `register_fn("NAME", _NAME_, 1, 1)`
+- Note: full NAME semantics require unevaluated ref passing (compile-time dot); this
+  covers the callable form. Not exercised by current corpus.
 
-### RT-120 first actions (M-DYN-B9b: XFARB + XBRKX → breach 80%)
+**Gate:** PASS=178 both paths ✅
 
+### Bugs diagnosed but NOT yet fixed
+
+**Bug A — DATA constructor fails on unset global arg (NEW, high priority)**
+
+`slink(glob, x)` where `glob` is an unset variable → Error 5 "Undefined function".
+Root cause not yet pinpointed — the constructor `_make_ctor` itself looks correct.
+Suspect: `interp_eval` E_FNC path for DATA constructor calls evaluates arg list,
+gets NULVCL for `glob`, then something in the arg-passing or dispatch mistakes
+NULVCL for a function-not-found condition. Blocks `test_stack` and similar library tests.
+
+Repro:
 ```bash
-cd /home/claude && apt-get install -y libgc-dev flex
-tail -120 .github/SESSIONS_ARCHIVE.md
-grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
-cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # PASS=178
-cat > /tmp/si_bin.sh << 'WRAP'
-#!/bin/bash
-exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
-WRAP
-chmod +x /tmp/si_bin.sh
-INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
-# Audit: bash /tmp/sweep_audit.sh  /  bash /tmp/miss_sweep.sh
-
-# M-DYN-B9b: XFARB (ARB) + XBRKX (BREAKX) — both simple trampolines
-#
-# XFARB: arb_t = { int count; int start; }  (from bb_box.h line 118)
-#   extern spec_t bb_arb(void *zeta, int entry);   (declared in stmt_exec.c line ~119)
-#   bb_arb_emit_binary(): calloc(arb_t), trampoline to bb_arb
-#   case XFARB → bb_arb_emit_binary()
-#
-# XBRKX: brkx_t = { const char *chars; int δ; }  (from bb_box.h line 117)
-#   extern spec_t bb_brkx(void *zeta, int entry);
-#   bb_brkx_emit_binary(chars): calloc(brkx_t), ->chars = p->STRVAL_fn, trampoline to bb_brkx
-#   case XBRKX → bb_brkx_emit_binary(p->STRVAL_fn ? p->STRVAL_fn : "")
-#
-# Both can reuse charset_emit_trampoline() helper already in bb_build_bin.c.
-# Gate: PASS=178 both paths. Run sweep_audit — expect >80% overall.
-# Commit as M-DYN-B9b, update PLAN.md NOW table, write handoff.
-#
-# WARNING — str_replace /* opener hazard (recurring):
-#   After inserting near /* comment blocks, verify opener survived.
-#   Symptom: "stray \\342" or "'Build' undeclared" = missing /*)
+cat > /tmp/bug_a.sno << 'EOF'
+        DATA('slink(snext,sval)')
+        DEFINE('f(x)')  :(f_end)
+f       q = slink(glob, x)    ;* glob unset = NULVCL — Error 5 fires here
+        f = sval(q) :(RETURN)
+f_end
+        OUTPUT = f('hi')
+END
+EOF
+./scrip-interp /tmp/bug_a.sno
 ```
 
-## Sprint RT-119 HANDOFF (M-DYN-B9b) — 2026-04-05 *** SESSION COMPLETE ***
+Investigation path: add fprintf to E_FNC dispatch in `interp_eval` for `slink` calls,
+print arg types before dispatch. Compare NULVCL arg handling vs set-variable arg.
+Look at `FNCEX_fn` — does it reject NULVCL? Check if arg evaluation is somehow
+treating NULVCL as a function call attempt.
 
-**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `5880085` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+**Bug B — NRETURN NAME_DEREF unconditional dereference (diagnosed, revert needed)**
 
-### Milestone completed: M-DYN-B9b ✅  — 80% binary coverage TARGET MET ✅
+`scrip-interp.c:949`: `if (IS_NAME(r)) return NAME_DEREF(r)` fires for ALL returns,
+not just NRETURN. Fix attempt (`strcasecmp(kw_rtntype, "NRETURN") != 0`) broke
+`1013_func_nreturn` and `213_indirect_name` — those tests rely on the current
+dereference behaviour. The NRETURN semantics are more subtle; needs study of those
+two test files before re-attempting.
 
-**Commit `5880085`** — `RT-119 M-DYN-B9b: XFARB(ARB) + XBRKX(BREAKX) trampolines; 85.5% coverage ✅`
+Investigation path: read `corpus/crosscheck/1013_func_nreturn.sno` and
+`corpus/crosscheck/213_indirect_name.sno` to understand expected behaviour.
+The fix is correct in principle but kw_rtntype may not be set correctly at line 949
+(it could be stale from a prior call). Consider passing rtntype out of
+`call_user_function` as a return parameter instead.
 
-**Deliverables:**
-- `bb_arb_emit_binary()` — XFARB: `arb_t={int count; int start;}`, reuses `charset_emit_trampoline()` to `bb_arb`.
-- `bb_breakx_emit_binary(chars)` — XBRKX: `brkx_t={const char *chars; int δ;}`, trampoline to `bb_breakx`.
-- `case XFARB → bb_arb_emit_binary()`
-- `case XBRKX → bb_breakx_emit_binary(p->STRVAL_fn)`
+### RT-124 first actions (continue builtin gap-scan or fix Bug A)
 
-**Final coverage audit:**
-- Start of session (B3 baseline): 0% (binary path not yet measuring)
-- After B6 audit infra: **21.8%**
-- After B7 (XNME/XFNME): **45.5%**
-- After B8 (SPAN/ANY/BREAK/NOTANY): **68.5%**
-- After B9 (XOR/XSTAR): **75.2%**
-- After B9b (XFARB/XBRKX): **85.5%** ✅ — **80% TARGET MET**
-
-**Remaining 24 misses (all complex/rare — correct C-path fallback):**
-XATP(12) · XCALLCAP(5) · XARBN(5) · XDSAR(1) · XFAIL(1)
-
-**Gate:** PASS=178 both paths ✅ throughout all milestones.
-
-**Complete binary node coverage achieved:**
-XCHR / XEPS / XSPNC / XANYC / XNNYC / XBRKC / XPOSI / XRPSI / XTB / XRTB / XLNTH /
-XNME / XFNME / XSTAR / XOR / XFARB / XBRKX
-
-### RT-120 first actions — next sprint
+**Recommended: fix Bug A first** — it blocks `test_stack`, `test_case`, and any
+corpus program using DATA constructors with unset/global args in functions.
 
 ```bash
-cd /home/claude && apt-get install -y libgc-dev flex
+cd /home/claude
+apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
-cat > /tmp/si_bin.sh << 'WRAP'
-#!/bin/bash
-exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
-WRAP
-chmod +x /tmp/si_bin.sh
-INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
-bash /tmp/sweep_audit.sh   # confirm 85.5%
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
-# M-DYN-B coverage is COMPLETE at 85.5%. Next milestone per PLAN.md:
-# Check SESSION-snobol4-x64.md §NOW for what comes after the B series.
-# Likely: P2E embedded match (A ? PAT = REPL) or RUNTIME gap work.
-# Consult PLAN.md NOW table for current sprint assignment.
+# Bug A repro:
+cat > /tmp/bug_a.sno << 'EOF'
+        DATA('slink(snext,sval)')
+        DEFINE('f(x)')  :(f_end)
+f       q = slink(glob, x)
+        f = sval(q) :(RETURN)
+f_end
+        OUTPUT = f('hi')
+END
+./scrip-interp /tmp/bug_a.sno
+
+# Investigation: add trace to interp_eval E_FNC for constructor dispatch
+# File: src/driver/scrip-interp.c — E_FNC case, around line 927
+# Print: fprintf(stderr, "E_FNC: %s, nargs=%d, arg[0].v=%d\n", e->sval, nargs, args[0].v)
+# Then compare slink('literal', x) vs slink(glob, x)
+
+# After Bug A: next builtin candidates (Tier 1 one-liners):
+#   NUMERIC ✅ done
+#   NAME    ✅ done
+#   STRING(x)  — VARVAL coerce, always succeed; ~2 lines
+#   PATTERN(x) — PATVAL coerce; ~2 lines
+#   MAXINT     — INTVAL(LLONG_MAX); 0 args
+#   PI         — REALVAL(M_PI); 0 args (also fix &PI keyword from RT-117 list)
 ```
-
-## Sprint RT-119 HANDOFF (M-DYN-B9b) — 2026-04-05 *** SESSION COMPLETE ***
-
-**one4all HEAD:** `5880085` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
-**M-DYN-B9b:** XFARB(ARB) + XBRKX(BREAKX) trampolines. **85.5% binary coverage — 80% TARGET MET ✅**
-Binary nodes complete: XCHR/XEPS/XSPNC/XANYC/XNNYC/XBRKC/XPOSI/XRPSI/XTB/XRTB/XLNTH/XNME/XFNME/XSTAR/XOR/XFARB/XBRKX
-Remaining 24 misses: XATP(12)/XCALLCAP(5)/XARBN(5)/XDSAR(1)/XFAIL(1) — C-path fallback acceptable.
-Gate: PASS=178 both paths ✅
