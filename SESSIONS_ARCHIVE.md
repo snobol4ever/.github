@@ -27841,3 +27841,65 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 #   Add binary_hits / binary_misses counters in stmt_exec.c Phase 2.
 #   Print at program end. Target: >80% binary for typical corpus patterns.
 ```
+
+### RT-119 addendum — Error 3 + Error 7 (2026-04-05)
+
+**one4all HEAD:** `b753121` · **PASS=178/203**
+
+#### Commit b753121 — Error 3 (bad subscript) + Error 7 (unknown keyword)
+
+**Error 3 — Erroneous array or table reference (SIL NONARY→ERRTYP,3→FTLTST):**
+- `subscript_get` fallthrough for non-DT_A/DT_T subject was `return FAILDESCR`
+  (silent). Now `sno_runtime_error(3, NULL)`.
+- `subscript_set` fallthrough was silent no-op. Now `sno_runtime_error(3, NULL)`.
+- Array OOB *stays* `FAILDESCR` — SIL ARYA11 lines 4877-4878 branch to FAIL
+  directly, not NONARY. Verified: `A = ARRAY(3); V = A<99>` → plain fail ✅
+
+**Error 7 — Unknown keyword (SIL INTR7→ERRTYP,7→FTLTST):**
+- `NV_SET_fn`: writing `&NOSUCHKW = 1` was silently creating a regular NV
+  variable (no error). Fixed with `g_kw_ctx` flag:
+  - `g_kw_ctx` (int, defined in snobol4.c, declared in snobol4.h) is set to 1
+    by the E_KEYWORD assignment path in `execute_program` before calling
+    `NV_SET_fn`, cleared after.
+  - `NV_SET_fn` checks `g_kw_ctx` and validates name against `known_kw[]`
+    table; unknown keyword → `sno_runtime_error(7, NULL)`.
+  - Known keywords list covers all 9 writable C-global keywords plus
+    ALPHABET/UCASE/LCASE/DIGITS/PI/PARM/STEXEC/STCOUNT/STNO/DUMP/ABEND/
+    TRACE/GTRACE/FATALLIMIT/ERRTYPE/ERRTEXT/INPUT/OUTPUT/TERMINAL/PUNCHAR.
+
+**Smoke verified:** both errors print canonical message + correct statement
+number; `:F` branch taken; known keyword write still succeeds. PASS=178 ✅
+
+### RT-120 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Error vertical — remaining easy wins (pick one):
+#
+# Error 2 — arithmetic: division by zero / integer overflow
+#   grep -an "divide\|DIV\|DIVFN\|zero\|overflow" src/runtime/snobol4/snobol4.c | head -20
+#   Find the integer divide builtin (_b_div or similar), add:
+#     if (b == 0) { sno_runtime_error(2, NULL); return FAILDESCR; }
+#   SIL: AERROR → ERRTYP,2 → FTLTST (soft, :F catchable)
+#   Smoke: X = 1 / 0  :S(FAIL)F(PASS)
+#
+# Error 10 — illegal argument to primitive function
+#   LEN(-1), POS(-1), RTAB(-1) etc. currently return FAILDESCR silently.
+#   SIL INTR30 → ERRTYP,10 → FTLTST
+#   grep -an "LEN\|POS\|RTAB\|negative\|LENERR\|INTR30" src/runtime/snobol4/snobol4.c
+#   Add: if (n < 0) { sno_runtime_error(10, NULL); return FAILDESCR; }
+#   Smoke: X = LEN(-1)  :S(FAIL)F(PASS)
+#
+# Error 4 — null string in illegal context
+#   DEFINE("") or APPLY("", ...) — null function name.
+#   SIL NONAME → ERRTYP,4 → FTLTST
+#   grep -an "null.*string\|empty.*name\|NONAME\|DEFINE.*empty" src/runtime/snobol4/snobol4.c
+```
