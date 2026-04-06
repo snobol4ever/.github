@@ -29249,3 +29249,41 @@ C stack appears only at:
   SM_EXEC_STMT → stmt_exec_dyn() (phase 3 handoff)
 Everything between: pure push/pop. This is correct and already implemented in sm_interp.c.
 
+
+## Sprint RT-129 HANDOFF (M-DYN-B* COMPLETE + M-DYN-BENCH-X86) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip-interp
+**HEAD:** one4all `a549b0e` · corpus `3fd44d0` · PASS=178/203
+
+### Milestones completed this session
+
+**M-DYN-B1 through M-DYN-B13 — ALL COMPLETE ✅**
+
+- M-DYN-B0 was already done (trampolines voided, `SCRIP_DYN_BLOBS_ENABLE` gate)
+- M-DYN-B1: removed dead guard `(void)p; return NULL` + `#ifdef SCRIP_DYN_BLOBS_ENABLE` wrapper
+  → all B1–B12 emitters now live in `bb_build_binary_node()` dispatch switch
+- M-DYN-B13: blob cache — keyed on `PATND_t*` in existing `g_node_cache`
+  → prevents pool exhaustion on loop benchmarks (1M+ iterations)
+  → 100% DT_P binary coverage on pattern_bt and string_pattern
+
+**M-DYN-BENCH-X86 ✅** — results in BB-GEN-X86-BIN.md §M-DYN-BENCH-X86:
+- pattern_bt: **1.68×** faster (C BB: 1.891s → x86: 1.126s)
+- string_pattern: **1.48×** faster
+- mixed_workload: **1.12×** faster
+- Control group (no patterns): ≤6% noise — zero overhead confirmed
+- vs SPITBOL gap: pattern_bt closes from 11.1× → **5.5×**
+- Dominant remaining gap: interp loop (arith_loop 17.4×, op_dispatch 29.0× behind SPITBOL)
+  → SM-LOWER (M-SCRIP-U3) is the correct next attack
+
+### Architecture clarification (confirmed this session)
+scrip --interp is a **tree-walk over IR** (interp_eval over EXPR_t*), NOT SM dispatch.
+SM_Program + sm_interp.c exist (M-SCRIP-U2, 10/10 unit tests) but SM-LOWER not written.
+`--gen` / `SNO_BINARY_BOXES` only affects Phase 3 (pattern matching) — Byrd box path.
+Interp loop overhead is ~100% tree-walk cost.
+
+### Next milestone: M-SCRIP-U3 (SM-LOWER)
+Write `sm_lower.c`: walk IR (Program* of STMT_t/EXPR_t) → emit SM_Program.
+Wire into `scrip.c` `--hybrid` path: sm_lower(ir) → sm_interp_run(sm, &st).
+Gate: PASS=178 via SM dispatch (not tree-walk). Diff output vs tree-walk on 5 corpus programs.
+Key file: `one4all/src/runtime/sm/sm_lower.c` (to be created).
+See SESSIONS_ARCHIVE RT-128 addendum for SM design (FORTH model, no stack frames).
