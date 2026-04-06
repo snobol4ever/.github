@@ -234,6 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-123 | one4all `f64e0e1` · corpus `3fd44d0` · PASS=178/203 | RT-124: Bug A — DATA ctor + unset global → Error 5 (blocks test_stack/test_case); Bug B — NRETURN kw_rtntype stale (read 1013_func_nreturn + 213_indirect_name first); then STRING/PATTERN/MAXINT/PI Tier-1 builtins |
 | RT-119 | one4all `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
 | RT-123 | one4all `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
 | RT-122 | one4all `99007cb` · corpus `3fd44d0` · PASS=178/203 | RT-123: Error 25 (wrong arg count) + Error 22 (&STLIMIT) + error format (filename+level) — see RT-123 first actions in SESSIONS_ARCHIVE |
