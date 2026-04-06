@@ -132,6 +132,52 @@ at that point the two paths fully merge.
 
 ---
 
+## x86 Box Size Grid
+
+Sizes measured from assembled `.s` files (NASM elf64).
+**α→ω span** = total bytes from function entry to end of last `ret` in `_ω` path —
+the full x86 body the JIT trampoline (22 bytes) dispatches into.
+**Trampoline overhead** = 22 bytes (3 insns: `mov rdi,imm64` + `mov rax,imm64` + `jmp rax`) — same for every box.
+
+| Box | XKIND | α→ω bytes | α→ω insns | Trampoline | Total (tramp+box) | Notes |
+|-----|-------|----------:|----------:|:----------:|------------------:|-------|
+| bb_fail      | XFAIL  |   5 |  3 | 22 |  27 | xor eax/edx + ret — no ζ read |
+| bb_rem       | XSTAR  |   7 |  3 | 22 |  29 | REM: always succeeds, δ=Ω−Δ |
+| bb_abort     | XABRT  |   7 |  3 | 22 |  29 | xor + ret (like fail) |
+| bb_eps       | XEPS   |  11 |  5 | 22 |  33 | done flag, Σ+Δ return |
+| bb_fence     | XFNCE  |  11 |  5 | 22 |  33 | fired flag, β cuts |
+| bb_len       | XLNTH  |  11 |  5 | 22 |  33 | bounds + advance Δ |
+| bb_pos       | XPOSI  |  11 |  5 | 22 |  33 | cmp Δ==n |
+| bb_rpos      | XRPSI  |  11 |  5 | 22 |  33 | cmp Δ==Ω−n |
+| bb_tab       | XTB    |  11 |  5 | 22 |  33 | advance to n if Δ≤n |
+| bb_rtab      | XRTB   |  11 |  5 | 22 |  33 | advance to Ω−n |
+| bb_arb       | XFARB  |  11 |  5 | 22 |  33 | zero-to-N, count in ζ |
+| bb_interr    | —      |  13 |  6 | 22 |  35 | interrupt/signal box |
+| bb_any       | XANYC  |  13 |  6 | 22 |  35 | strchr test |
+| bb_not       | —      |  13 |  6 | 22 |  35 | negation wrapper |
+| bb_notany    | XNNYC  |  13 |  6 | 22 |  35 | !strchr test |
+| bb_brk       | XBRKC  |  15 |  7 | 22 |  37 | strpbrk-style scan |
+| bb_breakx    | XBRKX  |  15 |  7 | 22 |  37 | BREAKX: scan + retry |
+| bb_span      | XSPNC  |  15 |  7 | 22 |  37 | strspn-style scan |
+| bb_atp       | XATP   |  17 |  7 | 22 |  39 | write Δ→varname, ε succeed |
+| bb_alt       | XOR    |  19 |  8 | 22 |  41 | try each child arm |
+| bb_capture   | XNME/XFNME | 19 |  8 | 22 |  41 | conditional/immediate assign |
+| bb_succeed   | XSUCF  |  20 |  5 | 22 |  42 | always γ, reset on β |
+| bb_arbno     | XARBN  |  23 | 10 | 22 |  45 | greedy loop, depth stack |
+| bb_seq       | XCAT   |  23 | 10 | 22 |  45 | two-child sequence |
+| bb_deferred_var | XDSAR | 26 | 10 | 22 |  48 | re-resolve var on every α |
+| bb_lit       | XCHR   | **147** | **43** | 22 | **169** | full inline: bounds+memcmp+advance; LIT_α@+17 LIT_β@+107 LIT_γ@+118 LIT_ω@+135 |
+
+### Observations
+
+- **Trampoline dominates small boxes**: for FAIL/REM/ABORT (5–7 bytes), the 22-byte trampoline is 3–4× the box body. These could profitably be inlined directly.
+- **Sweet spot**: most boxes (EPS through SPAN) are 11–15 bytes — trampoline is ~1.5× the body. Still worthwhile for code reuse.
+- **LIT is the outlier**: 147-byte body dwarfs the 22-byte trampoline overhead (15%). The binary emitter (M-DYN-B1) already inlines LIT fully — correct decision.
+- **ARBNO/SEQ/DVAR** (23–26 bytes): trampoline overhead ~85% — candidates for future inline emission at M-DYN-OPT.
+- **Executable size estimate**: a 50-node pattern tree ≈ 50×22 (trampolines) + ~600 (box bodies, shared) + heap ζ ≈ ~1700 bytes JIT code. Well within a single 4KB page.
+
+---
+
 ## References
 
 - `BB-GRAPH.md` — the graph structure these binary boxes implement
