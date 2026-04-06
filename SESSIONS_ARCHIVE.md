@@ -31021,3 +31021,74 @@ INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 # Look at SM_PAT_CAPTURE kind=2 (cursor) in sm_interp.c — does it write &cursor to var?
 # Then: 063_capture_null_replace — null replacement off-by-one
 ```
+
+## Sprint SS-19 HANDOFF (Context ~64%) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `d1d96dcd` · .github current
+
+### What was done
+
+1. **Fixed duplicate `CODSKP_fn`** — removed stale copy from `sil_symtab.c`; authoritative version lives in `sil_forwrd.c`. Committed `12b5fb32`.
+
+2. **Wrote `sil_platform.c`** (~1475 lines) — the platform layer:
+   - `struct sil_syntab` + registry dispatch (platform tables live in BSS, not arena; `reg_tbl()` maps DESCR_t → sil_syntab via negative sentinel in `.a.i`)
+   - 30 static scan tables: FRWDTB, CARDTB, IBLKTB, ELEMTB, EOSTB, GOTSTB, GOTOTB, GOTFTB, LBLTB, LBLXTB, NUMBTB, SPANTB, BRKTB, BIOPTB, UNOPTB, STARTB, TBLKTB, NBLKTB, SQLITB, DQLITB, VARTB, VARATB, VARBTB, INTGTB, FLITB, EXPTB, EXPBTB, NUMCTB + BBIOPTB/BSBIPTB stubs
+   - `STREAM_fn`, `stream_fn`, `clertb_fn`, `plugtb_fn` with exact caller signatures
+   - `init_syntab()` — fills operator-fn put values (P2A of ADDFN/SUBFN/… DESCRs) after arena_init
+   - All 34 operator-fn DESCRs (ADDFN, SUBFN, MPYFN, … STRFN) with FNC flag
+   - All XCALLs (MSTIME, ZERBLK, GETPARM, OUTPUT, DATE, SBREAL, XRAISP, io stubs…)
+   - STREAD_fn (reads from stdin), STPRNT_fn (writes to stdout/stderr)
+   - All missing data globals: INCL, LITCL, ITEMCL, EXOPCL, INITCL, ANYCCL, POSICL, RPSICL, RTBCL, TBCL, ARBACK, RNOSP, CERRSP, SPCSP, OFSP, VSP, XFILEN, XSTNOC, CONTIN, STOPSH, IOSP, ISPPTR, +40 more
+   - All helper stubs with exact caller signatures: maknod_fn, lvalue_fn, cpypat_fn, deql_fn, getbal_fn, intspc_fn, realst_fn, stream_fn, xany_fn, DTREP_fn2/3, LOAD2_fn, PSTACK_fn, VPXPTR_fn2, PAD_fn, KEYT_fn, ARGINT_fn, SHORTN_fn
+
+3. **Clean 64-bit link** — 25 translation units, zero linker errors, one format-truncation warning (date snprintf). Binary builds as native x86-64.
+
+4. **Build command** (no `-m32` needed — arena offsets are int32_t, works fine on 64-bit):
+   ```bash
+   gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o silly-snobol4 -I src/silly
+   ```
+
+### Why we did NOT try to run it
+
+`sil_data_init()` is a partial stub. The 2000+ DESCR initializations from v311.sil §24 (function descriptors, keyword tables, OBLIST, pattern primitives, etc.) are not yet populated. Without them, `BEGIN` would immediately dereference garbage DESCRs. Clean link is the real milestone — runtime is a separate phase.
+
+### Next milestone: `sil_data_init()` — populate §24 data
+
+The path to a running hello world goes through properly initializing all static data from v311.sil §24. Strategy:
+
+**Option A (script):** Write a Python/awk script that parses v311.sil §24 (lines 10481–12293) and generates C initializers for `sil_data_init()`. This is the right long-term approach.
+
+**Option B (manual priority):** Manually initialize only the critical globals needed for compile + execute of `OUTPUT = "HELLO"\nEND`:
+- KNLIST/KVLIST chain (keyword lookup)
+- OBLIST_arr population (built by FINDEX at runtime — may already work)
+- Function descriptors: ASGNCL.a.i = P2A(ASGN_fn) etc.
+- Pattern primitives: ARBPAT, FALPAT, SUCPAT, REMPAT arena nodes
+
+**Recommended:** Option A — the §24 parser script takes ~1 session and gives us everything correctly.
+
+### Key design note: -m32 is wrong
+
+v311.sil uses 32-bit arena offsets (int32_t) but the C rewrite uses int32_t explicitly everywhere. Building with -m32 is unnecessary and breaks on this 64-bit container. Build 64-bit; the arena model is self-consistent.
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -3
+
+# Build to confirm clean:
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+
+# Begin sil_data_init() generator:
+python3 - << 'PYEOF'
+# Parse v311.sil §24 (lines 10481–12293) and print C init statements
+import re
+lines = open("/home/claude/work/snobol4-2.3.3/v311.sil").readlines()[10480:12293]
+for line in lines:
+    if re.match(r'\w+\s+DESCR\s+', line):
+        print(line.rstrip())
+PYEOF
+```
