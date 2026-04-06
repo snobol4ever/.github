@@ -30254,3 +30254,36 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PA
 # PRIORITY 2: 053/054 pat_alt/arbno backtracking (--hybrid gap)
 # P2F semicolon: deferred — see MILESTONE-P2F-SEMI.md
 ```
+
+## Sprint SS-2 HANDOFF (Silly SNOBOL4 M7 sil_patval) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `2a75e4ea` · .github `5b28d29`
+
+### Work done this session
+
+**M7 ✅ sil_patval.c/h — committed 2a75e4ea**
+ANY_fn BREAKX_fn BREAK_fn NOTANY_fn SPAN_fn LEN_fn POS_fn RPOS_fn RTAB_fn TAB_fn
+ARBNO_fn ATOP_fn NAM_fn DOL_fn OR_fn.
+pat.c primitives (maknod/cpypat/linkor/lvalue) translated as file-statics using arena offsets.
+GETSIZ_fn replaced with inline x_bksize(). DTCL promoted to global in sil_data.h.
+Added: SNODSZ ARBACK ANYCCL NNYCCL SPNCCL LNTHCL POSICL RPSICL RTBCL TBCL XSIZ YSIZ TSIZ ZSIZ TVAL to sil_data.h.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ M7 ✅
+M8 ⬜ sil_scan.c/h  ← NEXT (§11 pattern matching, 916 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git log --oneline -5 && ls src/silly/
+# Build M8: src/silly/sil_scan.c + sil_scan.h
+# Source: v311.sil §11 lines 3323–4239
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_scan.c → zero warnings
+# Then commit+push one4all, update .github M8 ✅ and push
+```

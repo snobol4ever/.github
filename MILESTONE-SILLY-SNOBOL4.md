@@ -1205,7 +1205,7 @@ clean:
 | M4 | `sil_symtab.c/h` | §4 Support procs | 130 | ⬜ |
 | M5 | `sil_arith.c/h` | §9 Arithmetic | 195 | ⬜ |
 | M6 | `sil_argval.c/h` | §8 Arg evaluation | 243 | ⬜ |
-| M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ⬜ |
+| M7 | `sil_patval.c/h` | §10 Pattern-valued | 203 | ✅ |
 | M8 | `sil_scan.c/h` | §11 Pattern matching | 916 | ⬜ |
 | M9 | `sil_nmd.c/h` | §11+§17 NMD | ~150 | ⬜ |
 | M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ⬜ |
