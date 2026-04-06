@@ -29080,3 +29080,85 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 - `one4all/src/runtime/sm/sm_interp.c` ✅
 - `one4all/src/runtime/sm/sm_interp_test.c` ✅
 - `.github/SESSIONS_ARCHIVE.md` — this handoff ✅
+
+## Sprint RT-128 HANDOFF (session close — context 88%) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `2d42338` · **HQ HEAD:** `a8876c0` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### This session in full (RT-125 through RT-128)
+
+**Architecture decision:** unified SCRIP executable. `scrip-interp` and `scrip-cc` retired.
+One binary `scrip --interp / --gen`. In-memory code generation: x86 bytes → mmap slabs via
+bb_emit.c EMIT_BINARY. No .s files, no nasm, no ld, no disk round-trips. ~10× dev speed.
+Full design: `.github/SCRIP-UNIFIED.md`.
+
+**Milestones landed:**
+- M-SCRIP-U0 ✅ `scrip` binary, --interp/--gen flags, backward-compat symlink; PASS=178
+- M-DYN-B0   ✅ bb_build_binary_node()→NULL; trampolines gated SCRIP_DYN_BLOBS_ENABLE; PASS=178
+- M-SCRIP-U1 ✅ scrip_image.c/h: 4-segment mmap allocator (SEG_STUBS/DISPATCH/CODE/DATA);
+               seg_alloc/seal/patch/stubs API; 27/27 unit tests; seal→execute roundtrip proven
+- M-SCRIP-U2 ✅ sm_prog.h/c: SM_Instr/SM_Program/57-opcode enum/builder helpers
+               sm_interp.h/c: C dispatch loop — arithmetic, push/store, jump, concat, incr/decr;
+               10/10 unit tests PASS with stub NV table
+
+### Next session first actions (RT-128 — M-SCRIP-U3: SM-LOWER)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex nasm time
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/SCRIP-UNIFIED.md
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # must be PASS=178
+
+# M-SCRIP-U3: SM-LOWER pass  (IR → SM_Program)
+#
+# File: src/runtime/sm/sm_lower.c
+# Entry: SM_Program *sm_lower(Program *ir)
+#   Walks ir->stmts list (STMT_t*).
+#   Per stmt: lower subject EXPR_t → SM_PUSH_* sequence
+#             lower pattern EXPR_t → SM_PAT_* sequence
+#             lower replacement EXPR_t → SM_PUSH_* sequence (if present)
+#             emit SM_EXEC_STMT(has_repl, s_label, f_label)
+#             emit SM_JUMP_S / SM_JUMP_F to goto targets
+#   EXPR_t node lowering (expr_to_sm):
+#     E_LIT_S   → SM_PUSH_LIT_S
+#     E_LIT_I   → SM_PUSH_LIT_I
+#     E_LIT_R   → SM_PUSH_LIT_F
+#     E_VAR     → SM_PUSH_VAR
+#     E_ADD     → lower(left), lower(right), SM_ADD
+#     E_SUB     → SM_SUB  (same pattern)
+#     E_MUL/DIV/EXP → same
+#     E_CONCAT  → lower(left), lower(right), SM_CONCAT
+#     E_NEG     → lower(child), SM_NEG
+#     E_FNC     → lower each arg, SM_CALL(name, nargs)
+#     E_PAT_*   → SM_PAT_* (pattern construction)
+#     E_ASSIGN  → lower(rhs), SM_STORE_VAR(name)  [conditional/immediate]
+#   Labels: two-pass — first pass emits all stmts with placeholder jumps,
+#           second pass patches all label references.
+#
+# Wire into scrip.c --interp path (replace tree-walk):
+#   Program *ir = cmpile_to_ir(file);      // existing
+#   SM_Program *sm = sm_lower(ir);         // NEW
+#   SM_State st; sm_state_init(&st);
+#   sm_interp_run(sm, &st);                // NEW (replaces eval_stmts tree-walk)
+#   sm_prog_free(sm);
+#
+# Gate: PASS=178 via SM dispatch (not tree-walk)
+# Verify: diff output of old tree-walk vs sm_interp_run on 5 corpus programs
+```
+
+### Key file locations
+```
+one4all/src/driver/scrip.c                    # unified binary (M-SCRIP-U0)
+one4all/src/runtime/sm/scrip_image.c/h        # segment allocator (M-SCRIP-U1)
+one4all/src/runtime/sm/sm_prog.c/h            # SM_Program types (M-SCRIP-U2)
+one4all/src/runtime/sm/sm_interp.c/h          # C dispatch loop (M-SCRIP-U2)
+one4all/src/runtime/asm/bb_build_bin.c        # blobs gated SCRIP_DYN_BLOBS_ENABLE (M-DYN-B0)
+.github/SCRIP-UNIFIED.md                      # architecture doc
+.github/BB-GEN-X86-BIN.md                     # M-DYN-B* milestone ladder
+```
