@@ -231,7 +231,7 @@ END
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
-| **M-DYN-B-SPITBOL** | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Design below. | Comparison table in HQ | ⬜ |
+| **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
 | **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
 | **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
 | **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
@@ -400,3 +400,48 @@ Technique 2 (mmap+memcpy+relocate for the static path) and the dynamic model sha
 the same infrastructure — both need `bb_alloc` / `bb_seal` / `bb_free` and the x86
 byte emitter. M-DYN-POC through M-DYN-1 build exactly what M-T2-RUNTIME needs.
 These milestone chains merge at M-DYN-1 / M-T2-RUNTIME — implement once, use for both.
+
+---
+
+## §SPITBOL Comparison Results (M-DYN-B-SPITBOL — RT-121, 2026-04-06)
+
+**Method:** SPITBOL node sizes from `sbl.min` source (pasi_/pbsi_/pcsi_ with d_word=8).
+scrip-interp ζ sizes from `sizeof()` on structs in `bb_box.h`/`stmt_exec.c` (measured via probe).
+`SIZE()` builtin rejected pattern args (error 189) — source analysis used instead.
+
+**Key structural difference:**
+- SPITBOL `pthen` (8B per node) = linked-list concatenation spine — already counted inside block sizes.
+- scrip uses explicit `seq` (XCAT) nodes for concatenation — adds 48B per join but eliminates pthen from leaf nodes.
+
+| Pattern node | SPITBOL blk | SPITBOL bytes | scrip ζ bytes | Result | Notes |
+|---|---|---:|---:|---|---|
+| ABORT / FAIL / BAL | `p0blk` | 16 | 0 | **scrip −16B** | scrip: no ζ, 5-byte inline blob; SPITBOL needs pcode+pthen |
+| REM / SUCCEED / FENCE | `p0blk` | 16 | 4 | **scrip −12B** | scrip: 1 int mutable flag |
+| ARB | `p0blk` | 16 | 8 | **scrip −8B** | scrip: count+start (2 ints) |
+| EPS | `p0blk` | 16 | 4 | **scrip −12B** | scrip: done flag |
+| POS / RPOS | `p1blk` | 24 | 4 | **scrip −20B** | scrip: n only (immutable after build) |
+| LEN / TAB / RTAB | `p1blk` | 24 | 8 | **scrip −16B** | scrip: n+advance (2 ints) |
+| ANY / NOTANY / SPAN / BRK / BREAKX | `p1blk`/`p2blk` | 24 | 16 | **scrip −8B** | scrip: chars*(8)+delta(4); SPITBOL charset ptr in parm1 |
+| LIT | `p2blk` | 32 | 16 | **scrip −16B** | scrip: lit*(8)+len(4); SPITBOL: parm1=str_ptr, parm2=len |
+| ATP / capture `.var` | `p1blk` | 24 | 16 | **scrip −8B** | scrip: varname*(8)+done(4) |
+| SEQ (concatenation) | `p0blk` | 16 | 48 | **SPITBOL −32B** | scrip uses explicit XCAT node; SPITBOL uses pthen spine |
+| ALT (alternation) | `p1blk` | 24 | 288 | **SPITBOL −264B** | scrip: n+16 child ptrs+states+cur+pos+result; SPITBOL: binary tree |
+| ARBNO | `p1blk` | 24 | 1560 | **SPITBOL −1536B** | scrip: pre-allocated 64-frame stack; SPITBOL: runtime C stack |
+| CAPTURE (`$/.$`) | `p1blk` | 24 | 56 | **SPITBOL −32B** | scrip: fn+state+varname+pending spec+flags |
+
+### Analysis
+
+**scrip wins on leaf nodes** — every primitive box (fail, pos, len, lit, any, span, etc.) uses
+fewer heap bytes than SPITBOL because: (1) no `pthen` field needed (graph is the XCAT/XOR tree),
+(2) no `pcode` field (fn ptr is the blob start address), (3) mutable state only.
+
+**SPITBOL wins on structural nodes** — SEQ/ALT/ARBNO/CAPTURE are cheaper in SPITBOL because
+SPITBOL amortizes concatenation across the `pthen` spine (one pointer per node, already paid)
+while scrip allocates an explicit XCAT node (48B) per join. ALT and ARBNO are dramatically
+cheaper in SPITBOL because scrip pre-allocates max-depth frames; SPITBOL grows its C stack at runtime.
+
+**For the inline-blob M-DYN-B* redo:** the ζ sizes are the per-instance data section appended
+to each blob. Leaf blobs (fail=0B, pos=4B, lit=16B) are extremely compact. The seq/alt/arbno
+overhead is real but acceptable — most corpus patterns are dominated by leaf nodes.
+
+**Gate:** ✅ Table complete. Commit to HQ as M-DYN-B-SPITBOL deliverable.
