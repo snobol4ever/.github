@@ -30558,3 +30558,36 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_io.c → zero warnings
 # Then commit+push one4all, update .github M15 ✅ and push
 ```
+
+## Sprint SS-10 HANDOFF (Silly SNOBOL4 M15 sil_io) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `e01c708e` · .github (this commit)
+
+### Work done this session
+
+**M15 ✅ sil_io.c/h — committed e01c708e**
+READ PRINT: I/O block allocation, INATL/OUTATL association linking.
+BKSPCE ENDFL REWIND SET: unit op dispatch via ioop().
+DETACH: clears both input and output associations.
+PUTIN: read + TRIM + MAXLNGTH + keyword/string intern.
+PUTOUT: STRING/INTEGER/other type dispatch + STPRNT.
+Platform I/O (STREAD, STPRNT, IO_OPENI etc.) declared as extern stubs.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M15 all ✅
+M16 ⬜ sil_trace.c/h  ← NEXT (§16 Tracing, 361 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
+# Build M16: src/silly/sil_trace.c + sil_trace.h
+# Source: v311.sil §16 lines 5466–5827
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_trace.c → zero warnings
+# Commit+push one4all, update .github M16 ✅, push
+```
