@@ -30770,3 +30770,35 @@ EXPR / EXPR1: recursive descent using ELEMNT + BINOP
 BINOP: STREAM BIOPTB (or SBIPTB for SPITBOL mode)
 UNOP:  STREAM UNOPTB
 All four can use extern STREAM stubs; rest is pure descriptor manipulation.
+
+## Sprint SS-16 HANDOFF (M18c+M18d done) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `a9732e98` · .github (this commit)
+
+### Work done this session
+
+**M18c ✅** sil_cmpile.c/h `e4c6535d` — CMPILE full statement compiler + CDIAG
+**M18d ✅** sil_expr.c/h `a9732e98` — ELEMNT EXPR EXPR1 NULNOD ADDSIB INSERT BINOP UNOP ELEARG
+
+§6 Compiler now complete (M18a–d all ✅).
+
+### Milestone status
+M0–M18d all ✅
+M19 ⬜ sil_interp.c/h  ← NEXT (§7 BASE GOTG GOTL GOTO INIT INTERP INVOKE, 158 lines)
+M20 ⬜ sil_errors.c/h
+M21 ⬜ sil_main.c
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5
+# Build M19: src/silly/sil_interp.c + sil_interp.h
+# Source: v311.sil §7 lines 2520–2678
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_interp.c → zero warnings
+# Then M20 sil_errors.c/h, M21 sil_main.c
+# Final: attempt full link to verify symbol completeness
+```
