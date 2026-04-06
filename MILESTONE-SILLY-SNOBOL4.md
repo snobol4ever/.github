@@ -1211,7 +1211,7 @@ clean:
 | M10 | `sil_asgn.c/h` | §17 Other ops | 273 | ✅ |
 | M11 | `sil_pred.c/h` | §18 Predicates | 219 | ✅ |
 | M12 | `sil_func.c/h` | §19 Other functions | 715 | ✅ |
-| M13 | `sil_arrays.c/h` | §14 Arrays/Tables | 623 | ⬜ |
+| M13 | `sil_arrays.c/h` | §14 Arrays/Tables | 623 | ✅ |
 | M14 | `sil_define.c/h` | §12 Defined functions | 230 | ⬜ |
 | M15 | `sil_load.c/h` | §13 External functions | 172 | ⬜ |
 | M16 | `sil_io.c/h` | §15 I/O | 197 | ⬜ |

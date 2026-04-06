@@ -30495,3 +30495,35 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_arrays.c → zero warnings
 # Then commit+push one4all, update .github M13 ✅ and push
 ```
+
+## Sprint SS-8 HANDOFF (Silly SNOBOL4 M13 sil_arrays) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `99b4022f` · .github (this commit)
+
+### Work done this session
+
+**M13 ✅ sil_arrays.c/h — committed 99b4022f**
+ARRAY_fn: prototype parser (C loop, lo:hi or n dims), block allocation, index fill.
+ASSOC_fn/ASSOCE_fn: table/extent allocation.
+ITEM_fn: N-dimensional array indexing + table hash lookup with extent expansion.
+PROTO FREEZE THAW DEFDAT FIELD: fully translated.
+DATDEF RSORT SORT: stubbed (STREAM/VARATB infra / shell-sort scratch ptrs not yet built).
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M13 all ✅
+M14 ⬜ sil_define.c/h  ← NEXT (§12 Defined functions, 230 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M14: src/silly/sil_define.c + sil_define.h
+# Source: v311.sil §12 lines 4240–4470
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_define.c → zero warnings
+# Then commit+push one4all, update .github M14 ✅ and push
+```
