@@ -115,7 +115,7 @@ The only missing piece: `bb_build_bin.c` emitting bytes for each box type, and w
 
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
-| **M-DYN-B1** | `bb_build_bin.c`: `bb_lit_emit_binary()` → sealed x86 buffer; Makefile adds bb_pool+bb_emit; exec_stmt Phase 2 DT_S branch uses it behind `SNO_BINARY_BOXES=1` | PASS=178 both with and without env var | ⬜ active RT-115 |
+| **M-DYN-B1** | `bb_build_bin.c`: `bb_lit_emit_binary()` → sealed x86 buffer; Makefile adds bb_pool+bb_emit; exec_stmt Phase 2 DT_S branch uses it behind `SNO_BINARY_BOXES=1` | PASS=178 both with and without env var | ✅ RT-116 |
 | **M-DYN-B2** | `bb_eps_emit_binary()` + full `bb_build_binary()` walk for DT_P (all 25 box types) | Same pass rate as C path | ⬜ |
 
 ---

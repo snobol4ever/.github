@@ -27359,3 +27359,44 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 # GATE: PASS=178 without SNO_BINARY_BOXES; PASS=178 with SNO_BINARY_BOXES=1
 # AFTER: EPS binary, then full bb_build binary walk for DT_P
 ```
+
+## Sprint RT-116 HANDOFF — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `8915a2b` · **corpus HEAD:** `3fd44d0` · **.github HEAD:** (updating) · **PASS=178/203**
+
+### M-DYN-B1 COMPLETE ✅
+
+**Deliverables:**
+- `src/runtime/asm/bb_build_bin.c` — `bb_lit_emit_binary(lit, len)` emits LIT box as sealed x86-64 binary into bb_pool. Mirrors bb_lit.s exactly. Σ/Δ/Ω via imm64 absolute loads; memcmp via mov rax,imm64/call rax; lit/len baked as imm64/imm32.
+- `src/runtime/asm/bb_build_bin.h` — public header.
+- `Makefile` — bb_pool.o + bb_emit.o + bb_build_bin.o added to scrip-interp target.
+- `src/runtime/dyn/stmt_exec.c` — Phase 2 DT_S branch calls bb_lit_emit_binary behind SNO_BINARY_BOXES=1; fallback to C bb_lit on NULL.
+- `src/driver/scrip-interp.c` — bb_pool_init() called at startup before SNO_INIT_fn.
+
+**Bugs found and fixed during implementation:**
+1. bb_pool_init() not called → "pool not initialised" abort. Fix: added to scrip-interp.c startup.
+2. All forward jumps in α body used rel8 → overflow (~200 bytes). Fix: switched all forward refs (jg LIT_ω, jne LIT_ω, jmp LIT_γ, jmp LIT_β) to rel32.
+
+**Gates:**
+- PASS=178 without SNO_BINARY_BOXES ✅ (no regression)
+- PASS=178 with SNO_BINARY_BOXES=1 ✅ (zero divergences vs C path across all 173 passing crosscheck tests)
+
+### RT-117 first actions (M-DYN-B2)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# M-DYN-B2: bb_eps_emit_binary() — the EPS box is trivial (α always succeeds, β is nop)
+# Then wire bb_build_binary(PATND_t*) walk for DT_P:
+#   case PATND_LIT  → bb_lit_emit_binary(p->lit, p->len)
+#   case PATND_EPS  → bb_eps_emit_binary()
+#   (other box types: fall back to C bb_build for now)
+# Gate: same PASS=178 with SNO_BINARY_BOXES=1; DT_P patterns use binary boxes
+```
