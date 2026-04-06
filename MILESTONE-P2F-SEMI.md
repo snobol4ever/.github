@@ -82,10 +82,14 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PA
 
 ## Regression note (RT-139b)
 
-The P2F loop was originally in `sno4parse.c` (commit `174d77eb`, sprint 93) and
-**worked** — 84/84 sweep confirmed.  It was copied verbatim to `cmpile_file_internal`
-when CMPILE became the default parser (RT-113/114), but in CMPILE.c `TEXTSP.len==0`
-when the loop checks it.  Something in the CMPILE path between `compile_one_stmt()`
-returning and the loop check drains TEXTSP.  **This is a one-line regression**, not
-a design problem.  Bisect: `git log --oneline 174d77eb..HEAD -- src/frontend/snobol4/CMPILE.c`
-and find the commit that broke `TEXTSP.len`.
+**`sno4parse.c` was renamed to `CMPILE.c`** — same file, same P2F loop (commit
+`174d77eb`, sprint 93, 84/84 sweep confirmed).  A later commit broke `TEXTSP.len`.
+**Fix: `git bisect run` against the 1012 test — one command.**
+
+```bash
+git bisect start HEAD 174d77eb
+git bisect run bash -c 'make scrip -C /home/claude/one4all -s && \
+  /home/claude/one4all/scrip --dump-parse \
+  /home/claude/corpus/crosscheck/rung10/1012_func_locals.sno 2>/dev/null | \
+  grep -q "stmt 11.*b.*bb" && echo good || echo bad'
+```
