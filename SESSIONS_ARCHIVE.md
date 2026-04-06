@@ -30684,3 +30684,29 @@ cd one4all && git pull --rebase
 # Source: v311.sil §6 TREPUB + §4 CODSKP helpers
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_trepub.c → zero warnings
 ```
+
+## Sprint SS-14 HANDOFF (M18a+M18b done) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `9667715b` · .github (this commit)
+
+### Work done this session
+
+**M18a ✅ sil_trepub.c/h `9d152708`** TREPUB (tree walker + buffer spill) + ADDSON.
+**M18b ✅ sil_forwrd.c/h `9667715b`** CODSKP (full) + FORWRD/FORBLK/NEWCRD/FILCHK (STREAM stubs).
+
+### Milestone status
+M0–M18b all ✅
+M18c ⬜ sil_cmpile.c/h ← NEXT (CMPILE + CMPGO/CMPFRM/CMPASP + error handlers)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5
+# Build M18c: src/silly/sil_cmpile.c + sil_cmpile.h
+# Source: v311.sil §6 CMPILE CMPGO CMPFRM CMPASP CMPNGO + CERR* labels
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_cmpile.c → zero warnings
+```

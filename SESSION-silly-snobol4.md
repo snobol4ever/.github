@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-12 | one4all (M18a next) · .github (this commit) | M18a: sil_trepub.c/h |
+| SS-13 | one4all `9667715b` | M18c: sil_cmpile.c/h |
