@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-15 | one4all `a9732e98` · .github (this commit) | M19: sil_interp.c/h — §7 Interpreter |
+| SS-16 | one4all `58c3cc8e` · .github (this commit) | ALL 22 TUs COMPLETE — platform layer next |

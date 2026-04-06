@@ -1223,9 +1223,9 @@ clean:
 | M18b | `sil_forwrd.c/h` | §6 FORWRD NEWCRD CODSKP FORBLK | ~120 | ✅ |
 | M18c | `sil_cmpile.c/h` | §6 CMPILE + CMPGO/CMPFRM + errors | ~250 | ✅ |
 | M18d | `sil_expr.c/h` | §6 ELEMNT EXPR BINOP UNOP | ~500 | ✅ |
-| M19 | `sil_interp.c/h` | §7 Interpreter | 158 | ⬜ |
-| M20 | `sil_errors.c/h` | §22 Errors + §23 messages | 143+msg | ⬜ |
-| M21 | `sil_main.c` | §2+§3+§21 Init/main/term | ~200 | ⬜ |
+| M19 | `sil_interp.c/h` | §7 Interpreter | 158 | ✅ |
+| M20 | `sil_errors.c/h` | §22 Errors + §23 messages | 143+msg | ✅ |
+| M21 | `sil_main.c` | §2+§3+§21 Init/main/term | ~200 | ✅ |
 
 **Total SIL lines translated: ~7,564** (excludes §20 BLOCKS 3,304 lines — skipped)
 
