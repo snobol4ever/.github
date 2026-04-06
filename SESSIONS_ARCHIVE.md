@@ -30527,3 +30527,34 @@ cd one4all && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_define.c → zero warnings
 # Then commit+push one4all, update .github M14 ✅ and push
 ```
+
+## Sprint SS-9 HANDOFF (Silly SNOBOL4 M14 sil_define) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `eeb72188` · .github (this commit)
+
+### Work done this session
+
+**M14 ✅ sil_define.c/h — committed eeb72188**
+DEFINE_fn: C-string prototype parser (fname(arg,...:local,...) format).
+Calls GENVUP_fn for each name, FINDEX for function descriptor, BLOCK for
+definition block, fills block with entry-point + all formals/locals.
+DEFFNC_fn: stubbed — returns FAIL until M19 INTERP is in place.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M14 all ✅
+M15 ⬜ sil_io.c/h  ← NEXT (§15 I/O, 197 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git log --oneline -5 && ls src/silly/
+# Build M15: src/silly/sil_io.c + sil_io.h
+# Source: v311.sil §15 lines 5268–5465
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_io.c → zero warnings
+# Then commit+push one4all, update .github M15 ✅ and push
+```

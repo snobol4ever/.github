@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-7 | one4all `99b4022f` · .github (this commit) | M14: sil_define.c/h — §12 Defined functions |
+| SS-8 | one4all `eeb72188` · .github (this commit) | M15: sil_io.c/h — §15 I/O |
