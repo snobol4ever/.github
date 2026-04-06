@@ -506,10 +506,10 @@ typedef struct {
     DESCR PDLPTR, PDLHED;
     DESCR NAMICL, NHEDCL;
     SPEC  HEADSP, TSP, TXSP, XSP;
-} InterpState;
+} Interp_state;
 
 #define EXPVAL_DEPTH  64
-static InterpState expval_stack[EXPVAL_DEPTH];
+static Interp_state expval_stack[EXPVAL_DEPTH];
 static int         expval_top = 0;
 
 /* ARGVAL: fetch next argument from object code stream */
@@ -610,52 +610,52 @@ typedef struct {
     int32_t     cursor;    /* PDLPTR current position */
     int32_t     anchor;    /* ANCCL (0=unanchored) */
     jmp_buf    *fail_jmp;  /* current failure continuation */
-} ScanCtx;
+} Scan_ctx;
 
 /* SCAN: outer loop — try pattern at each position in subject */
 /* Returns 1 on match (fills match_start, match_end), 0 on failure */
-int SCAN(ScanCtx *ctx, int32_t pat_off,
+int SCAN(Scan_ctx *ctx, int32_t pat_off,
          int32_t *match_start, int32_t *match_end);
 
 /* SCNR: try pattern at current cursor position */
 /* Mirrors SIL SCNR — returns 1 on match, 0 on failure */
-static int SCNR(ScanCtx *ctx, int32_t pat_off);
+static int SCNR(Scan_ctx *ctx, int32_t pat_off);
 
 /* Each SIL scan sub-procedure becomes one C function */
 /* They call SCNR recursively for the successor node */
 /* On failure: longjmp(*ctx->fail_jmp, 1) */
-static int ANYC(ScanCtx *ctx,  int32_t pat_off); /* XANYC */
-static int BRKC(ScanCtx *ctx,  int32_t pat_off); /* XBRKC */
-static int BRKX(ScanCtx *ctx,  int32_t pat_off); /* XBRKX */
-static int BRKXF(ScanCtx *ctx, int32_t pat_off); /* XBRKXF */
-static int NNYC(ScanCtx *ctx,  int32_t pat_off); /* XNNYC */
-static int SPNC(ScanCtx *ctx,  int32_t pat_off); /* XSPNC */
-static int LNTH(ScanCtx *ctx,  int32_t pat_off); /* XLNTH */
-static int POSI(ScanCtx *ctx,  int32_t pat_off); /* XPOSI */
-static int RPSI(ScanCtx *ctx,  int32_t pat_off); /* XRPSI */
-static int TB(ScanCtx *ctx,    int32_t pat_off); /* XTB   */
-static int RTB(ScanCtx *ctx,   int32_t pat_off); /* XRTB  */
-static int ARBN(ScanCtx *ctx,  int32_t pat_off); /* XARBN */
-static int FARB(ScanCtx *ctx,  int32_t pat_off); /* XFARB */
-static int ONAR(ScanCtx *ctx,  int32_t pat_off); /* XONAR */
-static int ATP(ScanCtx *ctx,   int32_t pat_off); /* XATP  */
-static int BAL(ScanCtx *ctx,   int32_t pat_off); /* XBAL  */
-static int BALF(ScanCtx *ctx,  int32_t pat_off); /* XBALF */
-static int CHR(ScanCtx *ctx,   int32_t pat_off); /* XCHR  */
-static int STAR(ScanCtx *ctx,  int32_t pat_off); /* XSTAR */
-static int DSAR(ScanCtx *ctx,  int32_t pat_off); /* XDSAR */
-static int FNCE(ScanCtx *ctx,  int32_t pat_off); /* XFNCE */
-static int NME(ScanCtx *ctx,   int32_t pat_off); /* XNME  */
-static int ENME(ScanCtx *ctx,  int32_t pat_off); /* XENME */
-static int DNME(ScanCtx *ctx,  int32_t pat_off); /* XDNME */
-static int ENMI(ScanCtx *ctx,  int32_t pat_off); /* XENMI */
-static int SUCE(ScanCtx *ctx,  int32_t pat_off); /* XSUCF */
-static int SCOK(ScanCtx *ctx,  int32_t pat_off); /* XSCOK */
-static int SCON(ScanCtx *ctx,  int32_t pat_off); /* XSCON */
-static int FAIL_box(ScanCtx *ctx, int32_t pat_off); /* XFAIL */
+static int ANYC(Scan_ctx *ctx,  int32_t pat_off); /* XANYC */
+static int BRKC(Scan_ctx *ctx,  int32_t pat_off); /* XBRKC */
+static int BRKX(Scan_ctx *ctx,  int32_t pat_off); /* XBRKX */
+static int BRKXF(Scan_ctx *ctx, int32_t pat_off); /* XBRKXF */
+static int NNYC(Scan_ctx *ctx,  int32_t pat_off); /* XNNYC */
+static int SPNC(Scan_ctx *ctx,  int32_t pat_off); /* XSPNC */
+static int LNTH(Scan_ctx *ctx,  int32_t pat_off); /* XLNTH */
+static int POSI(Scan_ctx *ctx,  int32_t pat_off); /* XPOSI */
+static int RPSI(Scan_ctx *ctx,  int32_t pat_off); /* XRPSI */
+static int TB(Scan_ctx *ctx,    int32_t pat_off); /* XTB   */
+static int RTB(Scan_ctx *ctx,   int32_t pat_off); /* XRTB  */
+static int ARBN(Scan_ctx *ctx,  int32_t pat_off); /* XARBN */
+static int FARB(Scan_ctx *ctx,  int32_t pat_off); /* XFARB */
+static int ONAR(Scan_ctx *ctx,  int32_t pat_off); /* XONAR */
+static int ATP(Scan_ctx *ctx,   int32_t pat_off); /* XATP  */
+static int BAL(Scan_ctx *ctx,   int32_t pat_off); /* XBAL  */
+static int BALF(Scan_ctx *ctx,  int32_t pat_off); /* XBALF */
+static int CHR(Scan_ctx *ctx,   int32_t pat_off); /* XCHR  */
+static int STAR(Scan_ctx *ctx,  int32_t pat_off); /* XSTAR */
+static int DSAR(Scan_ctx *ctx,  int32_t pat_off); /* XDSAR */
+static int FNCE(Scan_ctx *ctx,  int32_t pat_off); /* XFNCE */
+static int NME(Scan_ctx *ctx,   int32_t pat_off); /* XNME  */
+static int ENME(Scan_ctx *ctx,  int32_t pat_off); /* XENME */
+static int DNME(Scan_ctx *ctx,  int32_t pat_off); /* XDNME */
+static int ENMI(Scan_ctx *ctx,  int32_t pat_off); /* XENMI */
+static int SUCE(Scan_ctx *ctx,  int32_t pat_off); /* XSUCF */
+static int SCOK(Scan_ctx *ctx,  int32_t pat_off); /* XSCOK */
+static int SCON(Scan_ctx *ctx,  int32_t pat_off); /* XSCON */
+static int FAIL_box(Scan_ctx *ctx, int32_t pat_off); /* XFAIL */
 
 /* Dispatch table indexed by XANYC..XSUCF */
-static int (*scan_dispatch[])(ScanCtx*, int32_t) = {
+static int (*scan_dispatch[])(Scan_ctx*, int32_t) = {
     NULL,    /* 0 unused */
     ANYC, FARB, ARBN, ATP,  CHR,  BAL,  BALF, BRKC,
     BRKX, BRKXF, DNME, DNME, ONAR, DSAR, ENME, ENMI,
@@ -666,7 +666,7 @@ static int (*scan_dispatch[])(ScanCtx*, int32_t) = {
 
 /* SJSR: scan-and-replace — after match, do replacement */
 /* Mirrors SIL SJSR */
-int SJSR(ScanCtx *ctx, int32_t pat_off, SPEC *repl_sp,
+int SJSR(Scan_ctx *ctx, int32_t pat_off, SPEC *repl_sp,
          SPEC *result_subject);
 ```
 
@@ -683,10 +683,10 @@ int SJSR(ScanCtx *ctx, int32_t pat_off, SPEC *repl_sp,
 typedef struct {
     SPEC   substr;      /* captured substring specifier */
     DESCR  target;     /* target variable DESCR (DT_S, DT_K, or DT_E) */
-} NamEntry;
+} Name_entry;
 
 #define NAM_MAX  256
-static NamEntry  nam_buf[NAM_MAX];
+static Name_entry  nam_buf[NAM_MAX];
 static int       NHEDCL_idx = 0;   /* save point (mirrors SIL NHEDCL) */
 static int       NAMICL_idx = 0;   /* current top (mirrors SIL NAMICL) */
 
@@ -1015,10 +1015,10 @@ typedef struct {
     BuiltinFn   fn;
     int         min_args;
     int         max_args;
-} InvokeEntry;
+} Invoke_entry;
 
 /* Built-in function table — mirrors SIL function pair list (FNLIST) */
-extern InvokeEntry invoke_table[];
+extern Invoke_entry invoke_table[];
 extern int         invoke_table_size;
 
 /* INVOKE: dispatch one instruction from object code */
@@ -1097,7 +1097,7 @@ typedef enum {
     ERR_USER_INT        = 34,   /* USRINT  "User interrupt" */
     ERR_NOT_IN_SETEXIT  = 35,   /* CNTERR  "Not in a SETEXIT handler" */
     ERR_CANT_CONTINUE   = 39,   /* CFTERR  "Cannot CONTINUE from FATAL error" */
-} SnoError;
+} SNOBOL4_error;
 
 /* Error message strings — verbatim from v311.sil MSG1..MSG39 */
 extern const char *MSG[];   /* MSG[1]..MSG[39] */
@@ -1107,17 +1107,17 @@ extern const char *EMSG[];
 
 /* FTLEND: fatal error — print message, exit */
 /* Mirrors SIL FTLEND: prints FTLCF format, then exits */
-void FTLEND(SnoError code) __attribute__((noreturn));
+void FTLEND(SNOBOL4_error code) __attribute__((noreturn));
 
 /* FTLTST: non-fatal error — may continue via &ERRLIMIT / SETEXIT */
 /* Mirrors SIL FTLTST → FTERST chain */
-void FTLTST(SnoError code);
+void FTLTST(SNOBOL4_error code);
 
 /* FTLERR: error with FATALLIMIT check — mirrors SIL FTLERR */
-void FTLERR(SnoError code);
+void FTLERR(SNOBOL4_error code);
 
 /* sil_error: internal error dispatch — longjmp to recovery or call FTLTST */
-void sil_error(SnoError code);
+void sil_error(SNOBOL4_error code);
 
 /* Error format — verbatim from v311.sil FTLCF */
 /* "%v:%d: Error %d in statement %d at level %d\n" */
