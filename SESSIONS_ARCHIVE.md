@@ -30802,3 +30802,50 @@ cd one4all && git pull --rebase && git log --oneline -5
 # Then M20 sil_errors.c/h, M21 sil_main.c
 # Final: attempt full link to verify symbol completeness
 ```
+
+## Sprint SS-17 HANDOFF (M19–M21 done — ALL TUs COMPLETE) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `58c3cc8e` · .github (this commit)
+
+### Work done this session
+
+**M19 ✅** sil_interp.c/h `c032c6ee` — BASE GOTG GOTL GOTO INIT INTERP INVOKE + dispatch table
+**M20 ✅** sil_errors.c/h `102ad360` — FTLTST/FTLERR/FTLEND + END SYSCUT + all ~25 error entry points
+**M21 ✅** sil_main.c `58c3cc8e` — BEGIN compile_loop main()
+
+**FULL COMPILE CHECK PASSED:** All 22 translation units compile with -Wall -Wextra -std=c99 -m32 → zero warnings.
+
+### Milestone status — CORE TRANSLATION COMPLETE
+M0–M21 all ✅ (22 translation units)
+
+### What remains before linking
+The following platform stubs need a `sil_platform.c` implementation:
+- STREAD_fn, STPRNT_fn    (I/O: read/print)
+- XCALL_IO_OPENI/O/FILE/SEEK/PAD (file management)
+- XCALL_BKSPCE/ENFILE/REWIND (tape ops)
+- XCALL_MSTIME, XCALL_SBREAL (timing)
+- XCALL_LINK/UNLOAD/LOAD  (external functions — dlopen)
+- XCALL_RELSTRING          (free malloc'd string)
+- XCALL_XRAISP             (uppercase in place)
+- XCALL_GETPARM/FREEPARM/GETPMPROTO (command-line args)
+- XCALL_ZERBLK, XCALL_XECOMP, XCALL_ISTACK, XCALL_chk_break
+- XCALL_OUTPUT_fmt, XCALL_OUTPUT_ERR
+- STREAM_fn with all scan tables (FRWDTB IBLKTB CARDTB LBLTB VARATB etc.)
+- arena_init(), sil_data_init()
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5
+
+# Next phase: write sil_platform.c
+# Start with: arena_init() sil_data_init() STREAD_fn STPRNT_fn
+#   XCALL_io_flushall XCALL_MSTIME XCALL_OUTPUT_fmt
+# Then STREAM_fn with scan tables
+# Gate: gcc -Wall -Wextra -std=c99 -m32 src/silly/sil_*.c sil_platform.c -lm -o silly-snobol4
+# → successful link = milestone
+```
