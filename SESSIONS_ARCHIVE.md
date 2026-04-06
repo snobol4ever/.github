@@ -30216,3 +30216,41 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PA
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Semicolon fix → PASS=178→179 interp first.
+## Sprint RT-139b HANDOFF (semicolon P2F — deferred to milestone) — 2026-04-06
+
+**No code changes. PASS=178/155 baseline unchanged.**
+
+### The SNOBOL4 lines that trigger the bug
+
+```snobol4
+        a = 'aa' ; b = 'bb' ; d = 'dd'
+```
+
+A single physical line with `;`-separated statements.  Only `a = 'aa'` is
+compiled.  `b = 'bb'` and `d = 'dd'` are silently dropped because FORWRD()
+inside CMPFRM calls forrun() which reads the next physical card into
+g_io_linebuf, clobbering the `;b='bb';d='dd'` remainder that TEXTSP.ptr
+still pointed into.  The outer P2F loop in cmpile_file_internal correctly
+checks `BRTYPE==EOSTYP && TEXTSP.len>0` but always sees len=0.
+
+### Fix deferred — see MILESTONE-P2F-SEMI.md
+
+Test 1012_func_locals already counts as FAIL in PASS=178 total.  That is
+correct and expected until milestone is addressed.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+apt-get install -y libgc-dev flex
+cd one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 178
+
+# PRIORITY 1: 1015_opsyn — sm_lower unhandled expr kind 22 (E_BINARY_AT)
+# PRIORITY 2: 053/054 pat_alt/arbno backtracking (--hybrid gap)
+# P2F semicolon: deferred — see MILESTONE-P2F-SEMI.md
+```
