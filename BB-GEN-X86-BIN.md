@@ -155,11 +155,83 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 
 ---
 
+## SPITBOL Pattern Storage Comparison Design (M-DYN-B-SPITBOL)
+
+### What we are comparing
+
+**The question:** how many bytes does it take to *store* one compiled pattern node?
+
+Both systems compile SNOBOL4 patterns into a graph of nodes. Match-routine code is
+shared (one copy of `bb_lit` / `p_lit` in the program) — not the comparison.
+The comparison is **per-instance heap storage** for one pattern node.
+
+```
+SPITBOL:          heap node = { pcode(8) | pthen(8) | [parm1(8)] | [parm2(8)] }
+                               ↑ threaded fn ptr    ↑ linked next ↑ data
+
+scrip-interp:     heap ζ   = { mutable fields only }
+                  shared: .text code blob + .data baked ptr constants (per box type)
+```
+
+### SPITBOL node sizes (snobol4ever/x64 sbl.asm, d_word = 8 bytes on x64)
+
+| Block | Fields | Bytes | Used for |
+|-------|--------|------:|---------|
+| `p0blk` | pcode + pthen | **16** | ARB, ABORT, FAIL, FENCE, REM, SUCCEED, BAL, cursor-save nodes |
+| `p1blk` | pcode + pthen + parm1 | **24** | ANY, BRK, BREAKX, LEN, NOTANY, POS, RPOS, SPAN, TAB, RTAB, ALT, capture |
+| `p2blk` | pcode + pthen + parm1 + parm2 | **32** | LIT (str_ptr + len), two-param nodes |
+
+String data (scblk) is a separate heap allocation; the node holds a pointer. Same as ζ.
+
+### scrip-interp ζ per-instance bytes (mutable fields only, no code)
+
+| Box | ζ bytes | Key mutable fields |
+|-----|---------:|--------------------|
+| fail/abort/bal | ~8 | (calloc'd stub) |
+| rem/succeed | ~8 | (near-empty) |
+| eps/fence | 8 | done(4) or fired(4) |
+| pos/rpos | 8 | n(4) |
+| len/tab/rtab | 12 | n(4)+bspan/advance(4) |
+| arb/atp | 12–16 | count+start or done+varname* |
+| any/notany/span/brk/breakx | 16 | chars*(8)+δ(4) |
+| lit | 16 | lit*(8)+len(4) |
+| seq | 48 | left{fn,state}+right{fn,state}+matched |
+| alt | 288 | n+children[16]+current+position+result |
+| capture | 56 | fn+state+varname*+immediate+pending+has_pending |
+| arbno | ~1556 | fn+state+depth+stack[64×24B] |
+
+Note: scrip-interp has no `pthen` in ζ — the graph spine lives in XCAT (seq) nodes.
+SPITBOL's `pthen` = 8 bytes overhead per node for the linked-list pointer.
+
+### First actions for M-DYN-B-SPITBOL
+
+```bash
+cd /home/claude/x64 && make && echo "oracle ready"
+
+# Probe SPITBOL node sizes via SIZE() builtin
+cat > /tmp/pat_sizes.sno << 'SNO'
+        output = 'p0blk(ABORT)       = ' SIZE(ABORT)
+        output = 'p1blk(LEN(5))      = ' SIZE(LEN(5))
+        output = 'p2blk(LIT hello)   = ' SIZE('hello')
+        output = 'concat(lit lit)    = ' SIZE('hello' 'world')
+        output = 'alt3               = ' SIZE('a' | 'b' | 'c')
+        output = 'SPAN LEN ANY       = ' SIZE(SPAN('abc') LEN(3) ANY('xyz'))
+END
+/home/claude/x64/bin/spitbol /tmp/pat_sizes.sno
+
+# Then measure scrip-interp ζ sizes for same patterns via sizeof() on each struct
+# Build comparison table: pattern → SPITBOL bytes → scrip-interp ζ bytes → ratio
+# Document in BB-GEN-X86-BIN.md §SPITBOL Comparison Results
+```
+
+---
+
 ## Milestone Ladder (Redo)
 
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
+| **M-DYN-B-SPITBOL** | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Design below. | Comparison table in HQ | ⬜ |
 | **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
 | **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
 | **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
