@@ -28037,56 +28037,133 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 # After XNME: XFNME (same pattern), then XOR, then XSPNC/XANYC/XBRKC.
 ```
 
-## Sprint RT-121 — CONVERT gap-scan + Gap 1 fix — 2026-04-06
+## Sprint RT-119 HANDOFF (M-DYN-B7) — 2026-04-05
 
-**one4all HEAD:** `8c2611c` · **PASS=178/203**
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `767cd08` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Build fix (prerequisite)
-- `snobol4.c` had NUL bytes (binary corruption from prior merge) + duplicate `_DATE_`/`_TIME_` definitions.
-- Removed older duplicate block (lines 452-472 in cleaned file), fixed `== ''` → `== '\0'` empty char constants.
-- Build now clean. PASS=178 confirmed.
+### Milestone completed: M-DYN-B7 ✅
 
-### Gap audit method: CONVERT vertical (SIL CNVRT procedure, v311.sil:6457)
-Audited all conversion pairs in CNVRT dispatch table against our implementation.
+**Commit `767cd08`** — `RT-119 M-DYN-B7: bb_nme/fnme_emit_binary + duplicate DATE/TIME removal; 45.5% binary`
 
-**Covered correctly:** INT↔STR, STR↔REAL, REAL↔INT, STR→CODE, STR→EXPR, NUMERIC.
-**Punted (other session):** TABLE→ARRAY (CNVTA), ARRAY→TABLE (CNVAT).
-**Gap 1 fixed:** `CONVERT(X,"UserTypeName")` and `CONVERT(obj,"STRING")` for DT_DATA.
+**Deliverables:**
 
-### Commit `8c2611c` — Gap 1: CONVERT user-defined type idem + CNVRTS stringify
+`stmt_exec.c`:
+- `bb_capture_exported(void *zeta, int entry)` — non-static thin wrapper around static `bb_capture()`, for address baking in trampolines.
+- `bb_capture_new(child_fn, child_state, varname, var_ptr, immediate)` — public `capture_t` constructor.
+- Restored missing `/*` opener for Phase 2 block comment (eaten by earlier str_replace).
 
-**SIL CNVRT tail paths implemented:**
-- `VEQL ZPTR,XPTR,,RTZPTR` — `CONVERT(obj,"UserType")`: idem if obj already that type, else FAIL.
-- `CNVRTS` path — `CONVERT(obj,"STRING")` for DT_DATA: returns type name string (e.g. `"POINT"`).
-- Forward-decl `_udef_lookup` moved before `_CONVERT_` (was causing implicit-decl conflict at call site).
+`bb_build_bin.c`:
+- `capture_t_bin` mirror typedef (must stay in sync with `capture_t` in `stmt_exec.c`).
+- `extern bb_capture_exported` / `extern bb_capture_new` declarations.
+- `bb_nme_emit_binary(PATND_t *p)` — XNME `pat . var`. Recurses child; if child returns NULL, whole node falls back. `bb_capture_new(..., immediate=0)`. 22-byte trampoline to `bb_capture_exported`.
+- `bb_fnme_emit_binary(PATND_t *p)` — XFNME `pat $ var`. Same, `immediate=1`.
+- `case XNME  → bb_nme_emit_binary(p)`
+- `case XFNME → bb_fnme_emit_binary(p)`
 
-**Smoke test passed:**
-```
-DATA('POINT(px,py)')  P = POINT(3,7)
-CONVERT(P,"POINT")     → P (idem) ✅
-CONVERT(P,"STRING")    → "POINT"  ✅
-CONVERT(P,"INTEGER")   → FAIL     ✅
-CONVERT(P,"NOSUCHTYPE")→ FAIL     ✅
-```
+`snobol4.c`:
+- Removed duplicate `_DATE_` / `_TIME_` definitions added by concurrent session (used inferior `clock()` / `GC_strdup`; originals at lines 453/464 are correct).
 
-### Field setter (Gap 2 candidate) — already implemented
-`FIELD_SET_fn` is wired in `scrip-interp.c` at lines 764 (E_ASSIGN/E_FNC) and 1553 (statement subject). Confirmed working with smoke test. No gap.
+**Coverage audit after B7:**
+- Before: DT_P hits=18 misses=129 · overall=21.8%
+- After:  DT_P hits=57 misses=90  · overall=45.5%
+- XNME(23): 74 misses eliminated. Remaining XFNME misses = child nodes not yet binary.
 
-### Recommended next gaps (next session picks one)
-1. **`PROTOTYPE()` on DT_DATA instances** — currently only handles ARRAY. Should return `"POINT(px,py)"` for user-defined types.
-2. **`COPY()` for DT_DATA** — returns descriptor by value (shared `obj.u` pointer); should allocate new `DATINST_t` and deep-copy fields array.
-3. **`DATATYPE()` for CODE/EXPRESSION** — verify returns `"CODE"`/`"EXPRESSION"` correctly.
-4. **Arithmetic coercion of NAME type** — SIL NAME in arithmetic context.
+**Remaining miss breakdown:**
+18×XSPNC(1)  17×XANYC(3)  17×?(12)  9×XARBN(20)  8×XOR(26)  5×XFNME(24 — child fallback)
 
-### RT-122 first actions
+**Gate:** PASS=178 both paths ✅
+
+**Recurring issue — comment `/*` openers eaten by str_replace:**
+When inserting a new block before an existing `/* ══...` or `/* * body` comment,
+the `/*` is silently consumed. Always check line N-1 after str_replace inserts
+near comment blocks. Pattern: errors on lines after the new block with "stray" Unicode = missing `/*`.
+
+### RT-120 first actions (M-DYN-B8: XSPNC/XANYC/XBRKC char-set boxes)
+
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
-# Pick a gap from the list above and audit SIL → implement → smoke → PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# M-DYN-B8: char-set boxes — SPAN, ANY, BREAK, NOTANY (kinds 1,3,11,2)
+# Read: src/runtime/boxes/span/bb_span.c  — span_t layout
+#        src/runtime/boxes/any/bb_any.c   — any_t layout
+#        src/runtime/boxes/brk/bb_brk.c  — brk_t layout
+# All take a const char *chars string — same trampoline strategy as TAB/LEN.
+# bb_span_emit_binary(const char *chars) / bb_any_emit_binary / bb_brk_emit_binary
+# Wire: case XSPNC / XANYC / XBRKC / XNNYC
+# Expected: misses drop from 90 to ~55; overall coverage ~60%+
+#
+# M-DYN-B8b (after char-sets): kind=12 (17 misses) — identify:
+#   grep the patnd.h enum at position 12 (0-indexed from XCHR=0)
+#   Likely XBRKX or similar; check patnd.h enum order.
+#
+# Audit tools (already in place):
+#   SNO_BIN_MISS_LOG=1 SNO_BINARY_BOXES=1 ./scrip-interp file.sno 2>&1 | grep BIN_MISS
+#   bash /tmp/miss_sweep.sh    (already written — reruns corpus miss scan)
+#   bash /tmp/sweep_audit.sh   (full hit/miss/% audit)
+#
+# WARNING — recurring str_replace hazard:
+#   After inserting new code before an existing /* comment block,
+#   always verify the /* opener survived. Errors "stray \\342" or
+#   "'Build' undeclared" after comment text = missing /*.
+#   Fix: str_replace the broken "}\n\n\n * body" → "}\n\n/*\n * header\n * body".
+```
+
+## Sprint RT-119 HANDOFF (M-DYN-B7) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `767cd08` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B7 ✅
+
+**Commit `767cd08`** — `RT-119 M-DYN-B7: bb_nme/fnme_emit_binary; 45.5% binary`
+
+- `bb_capture_exported()` + `bb_capture_new()` exposed from stmt_exec.c
+- `bb_nme_emit_binary(p)` — XNME trampoline, immediate=0
+- `bb_fnme_emit_binary(p)` — XFNME trampoline, immediate=1
+- `case XNME/XFNME` wired in bb_build_binary_node
+- Duplicate `_DATE_/_TIME_` removed from snobol4.c (concurrent session conflict)
+- Coverage: 21.8% → **45.5%** (DT_P hits=57 misses=90)
+
+**Remaining misses:** 18×XSPNC(1)  17×XANYC(3)  17×?(12)  9×XARBN(20)  8×XOR(26)
+
+**GATE:** PASS=178 both paths ✅
+
+**WARNING — str_replace `/*` hazard:** Inserting before `/* ══` comments eats the opener.
+Symptom: "stray \\342" errors, "'Build' undeclared". Fix: restore `/*\n * header\n * body`.
+
+### RT-120 first actions (M-DYN-B8)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md && grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+
+# M-DYN-B8: XSPNC/XANYC/XBRKC/XNNYC char-set boxes (18+17+5+5 misses)
+# Read bb_span.c, bb_any.c, bb_brk.c for struct layouts.
+# All take const char *chars — trampoline to bb_span/bb_any/bb_brk.
+# Wire: case XSPNC/XANYC/XBRKC/XNNYC
+# Target: misses 90 → ~50; overall coverage ~60%+
+#
+# Identify kind=12: check patnd.h enum (0-indexed) — likely XBRKX or XNNYC.
+# Audit: bash /tmp/miss_sweep.sh / bash /tmp/sweep_audit.sh (already present)
 ```
