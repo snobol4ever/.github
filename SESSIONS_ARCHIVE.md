@@ -29399,3 +29399,79 @@ cd /home/claude/one4all && make scrip
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 # Then begin sm_lower.c
 ```
+
+## Sprint RT-132 HANDOFF (M-SCRIP-U3+U4 WIP) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip-interp (SM-LOWER track)
+**HEAD:** one4all `5ee5764e` · corpus `3fd44d0` · PASS=178 (normal) / PASS=5 (--hybrid, expected)
+
+### Work done this session
+
+**M-SCRIP-U3 COMPLETE ✅ — SM-LOWER pass**
+- `src/runtime/sm/sm_lower.c` (593 lines): full IR → SM_Program compiler pass.
+  - Two-pass design: lower all STMT_t, then resolve forward label refs via `LabelTable` (MAX_LABELS=4096, patch table).
+  - `lower_stmt()`: label→SM_LABEL, is_end→SM_HALT, pattern-match path (subject + SM_PAT_* tree + SM_EXEC_STMT with `a[0].s=subj_name`, `a[1].i=has_repl`), pure assignment/expr path, all four goto forms (unconditional, :S, :F, :S+:F, computed stub→SM_JUMP_INDIR).
+  - `lower_pat_expr()`: all 18 IR pattern primitives → correct SM_PAT_* opcodes. Parameterised ones (ANY/SPAN/BREAK/LEN/POS/RPOS/TAB/RTAB) push arg via `lower_expr` first. SM_PAT_LIT uses `a[0].s` operand (no value-stack arg). CAT/ALT: n-ary via repeated SM_PAT_CAT/SM_PAT_ALT. Captures: SM_PAT_CAPTURE with `a[0].s=varname`.
+  - `lower_expr()`: arithmetic, literals, all refs, function calls, relational ops (SM_ACOMP/SM_LCOMP), assignment, scan (SM_EXEC_STMT), swap.
+- `src/runtime/sm/sm_lower.h`: public header.
+- `src/driver/scrip.c`: `#include sm_lower.h/sm_interp.h/sm_prog.h`; `mode_hybrid` flag; `--hybrid` argv clause; dispatch fork at `execute_program` site — `mode_hybrid` → `sm_lower(prog)` + `sm_interp_run`.
+- `Makefile`: added `sm_prog.o`, `sm_interp.o`, `sm_lower.o`.
+
+**M-SCRIP-U4 partial — SM_PAT_* + SM_EXEC_STMT wired in sm_interp.c**
+- `sm_interp.c`: added `g_pat_stack[128]` / `pat_push()` / `pat_pop()` (side stack for pattern construction, reset to 0 after each SM_EXEC_STMT).
+- All SM_PAT_* cases implemented: leaf ops call snobol4_pattern.c constructors (`pat_lit`, `pat_any_cs`, `pat_span`, `pat_break_`, `pat_breakx`, `pat_notany`, `pat_len`, `pat_pos`, `pat_rpos`, `pat_tab`, `pat_rtab`, `pat_arb`, `pat_rem`, `pat_fence`, `pat_fail`, `pat_abort`, `pat_succeed`, `pat_bal`). Binary SM_PAT_CAT/SM_PAT_ALT pop two from pat-stack, push combined. SM_PAT_DEREF coerces value-stack top (DT_P passthrough / DT_S→pat_lit / else→pat_ref). SM_PAT_CAPTURE pops child from pat-stack, wraps with `pat_assign_cond`.
+- SM_EXEC_STMT: pops `repl` then `subj_d` from value stack, pops `pat_d` from pat-stack, calls `exec_stmt(sname, &subj_d, pat_d, has_repl ? &repl : NULL, has_repl)`, sets `st->last_ok`.
+
+### Status
+- Build: clean ✅
+- Baseline `--interp` / default: PASS=178 ✅
+- `--hybrid` smoke tests: hello-world ✅, arithmetic (6×7=42) ✅, goto-loop (1..5) ✅, pattern match ("world" in subject) ✅
+- Full corpus `--hybrid`: PASS=5 / FAIL=198
+
+### Known bug — stack layout mismatch for corpus programs
+
+**Root cause (identified, not yet fixed):**
+`sm_lower` emits for parameterised pattern ops (ANY/SPAN/LEN/etc.):
+```
+lower_expr(arg)    → value stack
+SM_PAT_ANY         → sm_interp pops arg from value stack, pushes to pat-stack
+```
+But for a full pattern-match statement the value stack at SM_EXEC_STMT must have exactly `[subj, repl]`. Corpus programs use patterns like `ANY("aeiou")` or `LEN(3)` whose args go through the value stack — this is correct individually, but the subject push happens first, then the entire pattern tree (with its value-stack args interleaved), then the replacement push. The subject ends up underneath the pattern args, so `sm_pop` for `repl` gets a pattern arg instead of the replacement, and `sm_pop` for `subj_d` gets another pattern arg.
+
+**Fix:** The value stack must be partitioned. Two options:
+- **Option A (simpler):** All SM_PAT_* parameterised ops take their arg from the pat-stack too (lower_expr pushes to value stack, SM_PAT_LEN etc. pop from value stack *before* subject is pushed — i.e. sm_lower evaluates pattern args before pushing the subject). Reorder: emit pattern tree first (all SM_PAT_* with their value-stack args), then push subject, then push replacement, then SM_EXEC_STMT. SM_EXEC_STMT pops repl, subj in that order; pat-stack is already built.
+- **Option B:** Introduce SM_PAT_ARG opcode to move value-stack top to a separate arg register consumed by the next SM_PAT_* op.
+
+**Option A is correct and simpler.** Change `lower_stmt` pattern path to:
+```c
+lower_pat_expr(p, lt, s->pattern);   // emit all SM_PAT_* (builds pat-stack at runtime)
+lower_expr(p, lt, s->subject);       // subject → value stack
+if (has_repl) lower_expr(p, lt, s->replacement); else sm_emit_i(p, SM_PUSH_LIT_I, 0);
+sm_emit(p, SM_EXEC_STMT);
+```
+The pat-stack args (for LEN/POS/ANY/etc.) are consumed by their SM_PAT_* ops *before* subject is pushed, so value stack at SM_EXEC_STMT = `[subj, repl]` cleanly.
+
+### First actions next session
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md   # §INFO + §NOW
+
+# Fix Option A — reorder sm_lower pattern path:
+# In sm_lower.c lower_stmt(), pattern branch, change:
+#   lower_expr(subj) → lower_pat_expr(pat) → lower_expr(repl) → SM_EXEC_STMT
+# to:
+#   lower_pat_expr(pat) → lower_expr(subj) → lower_expr(repl) → SM_EXEC_STMT
+
+# Build + confirm clean:
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh        # must stay PASS=178
+
+# Gate: PASS=178 under --hybrid:
+CORPUS=/home/claude/corpus INTERP="./scrip --hybrid" bash test/run_interp_broad.sh
+# Expect PASS=178 (or close — any remaining delta = sm_lower gaps to fix)
+```
+
+### Next milestone after gate
+M-SCRIP-U5 or benchmark run (arith_loop/op_dispatch/pattern_bt under --hybrid vs --interp vs SPITBOL).
