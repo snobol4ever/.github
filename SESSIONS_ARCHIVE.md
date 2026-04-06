@@ -30968,3 +30968,56 @@ cd one4all && git pull --rebase && git log --oneline -5
 # 5. Run hello world test: echo 'OUTPUT = "HELLO"
 # END' | ./silly-snobol4
 ```
+
+## Sprint RT-138 HANDOFF (Stack Machine hybrid debug) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 (Stack Machine track)
+**HEAD:** one4all `47c64d4a` · corpus `3fd44d0` · PASS=160/203 (--hybrid) · PASS=178/203 (--interp)
+
+### Work done this session
+
+**Bug 0 — §NOW PASS=5 was a harness invocation bug (not a real regression)**
+`INTERP="./scrip --hybrid"` was being passed quoted to `"$INTERP"` in run_interp_broad.sh — bash treats the whole string as a single token, binary not found, all tests silently return empty → PASS=5. True baseline was PASS=154. Fixed by unquoting `$INTERP` so word-split fires.
+Commit: `83e2e48c` (already rebased into `12b5fb32` area)
+
+**Bug 1 — E_ALT missing from lower_expr value-context fallthrough**
+`sm_lower: unhandled expr kind 21` for E_ALT. Added `case E_ALT:` to the pattern-primitives-as-values block in `lower_expr`. No PASS change alone (bug 2 was masking it).
+Commit: part of `47c64d4a`
+
+**Bug 2 — Two-stack gap: pat-stack result not bridged to value-stack**
+Pattern expressions in value context (e.g. `P = ('a' | 'b' | 'c')`) go through `lower_pat_expr` which pushes to `g_pat_stack`. But `SM_STORE_VAR` pops from `st->stack` (value-stack) → underflow/abort.
+Fix: new opcode `SM_PAT_BOXVAL` — pop pat-stack top, push as DT_P onto value-stack.
+Added to sm_prog.h, handler in sm_interp.c, emitted after `lower_pat_expr` call in sm_lower.c.
+PASS: 154 → 160 (+6). Commit: `47c64d4a`
+
+### Remaining 22 hybrid-only regressions (triaged)
+
+| Test | Symptom |
+|------|---------|
+| `063_capture_null_replace` | outputs `hello1` instead of `hello` — off-by-one in null-replace |
+| `W07_capt_cur` | `@var` cursor capture returns empty — cursor value not stored |
+| `1112_array_multi` | custom lower-bound array indexing fails |
+| `cross`, `word1`, `wordcount`, `triplet`, `fileinfo`, `demo_wordcount` | various |
+| `095_data_field_set`, `1113_table`, `1114_item`, `1115_data_basic/overlap`, `212_indirect_array` | data/array/table ops |
+| `1013_func_nreturn`, `1016_eval`, `test_stack` | function/eval |
+| `beauty_assign/fence/io/match_driver` | `-INCLUDE` + Error 5 (also fail under --interp; pre-existing) |
+
+**7 tests that hybrid FIXES vs --interp:** `1010_func_recursion`, `1011_func_redefine`, `1018_apply`, `demo_claws5`, `demo_roman`, `demo_treebank`, `test_case`.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md   # §INFO + §NOW only
+cd one4all && make scrip
+INTERP="./scrip --hybrid" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Confirm PASS=160 hybrid, PASS=178 --interp
+
+# Next bug: W07_capt_cur — @var cursor capture returns empty
+# ./scrip --hybrid corpus/crosscheck/.../W07_capt_cur.sno
+# Look at SM_PAT_CAPTURE kind=2 (cursor) in sm_interp.c — does it write &cursor to var?
+# Then: 063_capture_null_replace — null replacement off-by-one
+```
