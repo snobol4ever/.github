@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-126 | one4all `abdac62` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U2**: SM dispatch table in SEG_DISPATCH — 5 starter opcodes (SM_PUSH_LIT_S/I, SM_PUSH_VAR, SM_STORE_VAR, SM_ADD, SM_JUMP) as x86 blobs; unit test mini-program; PASS=178. See SCRIP-UNIFIED.md §Phase U2. |
+| RT-129 | one4all `a549b0e` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U3**: SM-LOWER — write `sm_lower.c`, walk IR → emit SM_Program; wire `--hybrid` path in scrip.c; gate PASS=178 via SM dispatch. M-DYN-B* + M-DYN-BENCH-X86 COMPLETE ✅ (pattern_bt 1.68× x86 vs C BB; 5.5× gap to SPITBOL). |
 
 **First actions RT-125:**
 ```bash
