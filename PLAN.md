@@ -90,7 +90,7 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
-| **v311.sil faithful C rewrite** | `MILESTONE-V311-C.md` | ⬜ planned — 17 milestones V311-C0 through V311-C16 |
+| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-V311-C.md` · `SESSION-silly-snobol4.md` | ⬜ planned — 22 milestones M0–M21 · trigger: "Silly SNOBOL4" |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
 | **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
@@ -115,6 +115,7 @@ the corpus, the emitter is correct by construction.
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
 | **RUNTIME (SCRIP unified)** | RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0** rename scrip-interp→scrip + --interp/--gen flags; then M-DYN-B0 reset trampolines; then M-SCRIP-U1 segment allocator. See SCRIP-UNIFIED.md |
+| **Silly SNOBOL4** | SS-1 | (not started) | M0: sil_types.h |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |

@@ -306,10 +306,10 @@ typedef struct {
     DESCR_t  PDLPTR, PDLHED;     /* pattern history list */
     DESCR_t  NAMICL, NHEDCL;     /* naming list */
     SPEC_t   HEADSP, TSP, TXSP, XSP;
-} InterpState_t;
+} InterpState;
 
 #define INTERP_STATE_DEPTH 64    /* max EXPVAL nesting */
-static InterpState_t state_stack[INTERP_STATE_DEPTH];
+static InterpState state_stack[INTERP_STATE_DEPTH];
 static int           state_top = 0;
 ```
 
