@@ -234,6 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-123 | one4all `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
 | RT-122 | one4all `99007cb` · corpus `3fd44d0` · PASS=178/203 | RT-123: Error 25 (wrong arg count) + Error 22 (&STLIMIT) + error format (filename+level) — see RT-123 first actions in SESSIONS_ARCHIVE |
 | RT-121 | one4all `8c2611c` · corpus `3fd44d0` · PASS=178/203 | RT-122: PROTOTYPE()/COPY() for DT_DATA, or DATATYPE() audit — see RT-122 first actions in SESSIONS_ARCHIVE |
 | RT-121 | one4all `9af851a` · corpus `3fd44d0` · PASS=178/203 | RT-122: Option A — gap-scan keywords/&-variables; Option B — EVAL(DT_E) _EVAL_ dispatch hijack; Option C — GOTO(C) exec_code wiring |
