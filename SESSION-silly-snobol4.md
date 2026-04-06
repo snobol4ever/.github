@@ -113,4 +113,4 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-5 | one4all `bcee98ac` · .github (this commit) | M12: sil_func.c/h — §19 Other functions |
+| SS-6 | one4all `3ba82f88` · .github (this commit) | M13: sil_arrays.c/h — §14 Arrays/Tables |
