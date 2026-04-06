@@ -30,7 +30,7 @@ that folder except system headers.
 | SIL data type code → C #define | verbatim | `S_TYPE=1`, `I_TYPE=6`, `DATSTA=100` |
 | New C helper struct (no SIL origin) | Mixed_case | `Interp_state`, `Scan_ctx`, `Name_entry`, `Invoke_entry` |
 | New C helper function (no SIL origin) | snake_case | `arena_init()`, `hash_spec()`, `pat_alloc()` |
-| SIL return result enum | CamelCase | `SilResult` (FAIL=0, OK=1) |
+| SIL return result enum | SIL_UPPER_snake | `SIL_result` (FAIL=0, OK=1) |
 | New C error enum (no SIL origin) | UPPER_CASE | `SNOBOL4_error` |
 
 ### Architecture (2026-04-06)
