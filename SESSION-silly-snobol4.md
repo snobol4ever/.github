@@ -28,10 +28,10 @@ that folder except system headers.
 | SIL EQU constant → C #define | verbatim | `OBSIZ`, `CARDSZ`, `ATTRIB`, `LNKFLD` |
 | SIL flag → C #define | verbatim | `FNC`, `TTL`, `STTL`, `MARK`, `PTR`, `FRZN` |
 | SIL data type code → C #define | verbatim | `S_TYPE=1`, `I_TYPE=6`, `DATSTA=100` |
-| New C helper struct (no SIL origin) | CamelCase | `ScanCtx`, `NamFrame`, `InterpState` |
+| New C helper struct (no SIL origin) | Mixed_case | `Interp_state`, `Scan_ctx`, `Name_entry`, `Invoke_entry` |
 | New C helper function (no SIL origin) | snake_case | `arena_init()`, `hash_spec()`, `pat_alloc()` |
 | SIL return result enum | CamelCase | `SilResult` (FAIL=0, OK=1) |
-| New C table entry struct | CamelCase | `InvokeEntry`, `NamEntry` |
+| New C error enum (no SIL origin) | UPPER_CASE | `SNOBOL4_error` |
 
 ### Architecture (2026-04-06)
 
@@ -62,7 +62,7 @@ that can be adapted. Adapt, don't copy verbatim — the type system differs
 | one4all file | Useful for | Adaptation needed |
 |---|---|---|
 | `argval.c` | VARVAL_fn, INTVAL_fn, PATVAL_fn logic | remove GC_strdup, use arena; int32_t not int64_t |
-| `nmd.c` | NAM_save/NAM_push/NAM_commit/NAM_discard design | remove GC_MALLOC, use arena; NamEntry_t → `nam_entry_t` |
+| `nmd.c` | NAM_save/NAM_push/NAM_commit/NAM_discard design | remove GC_MALLOC, use arena; Name_entry → `nam_entry_t` |
 | `invoke.c` | INVOKE_fn / APPLY_fn dispatch pattern | adapt to fn_entry_t table with arena ptrs |
 | `sil_macros.h` | MOVD, SETAC, type-test macros | verify against our DESCR_t layout |
 | `snobol4.c` | arithmetic, string ops, keyword logic | heavy adaptation — different DESCR layout |
