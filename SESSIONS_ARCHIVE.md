@@ -30144,3 +30144,77 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 23 non-beauty tests remaining.
+
+## Sprint SS-2 HANDOFF (Silly SNOBOL4 M3 strings + M18 compiler decision) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `b4fcc132` · .github `c836322`
+
+### Key decisions this session
+
+**BLOCKS (§20, 3,171 lines, 87 procs) — confirmed SKIP.**
+It is Jim Gimpel's SNOBOL4B 2D block/matrix layout extension (SER PAR OVY MERGE
+HOR VER BOX etc). Optional, `-BLOCKS` flag only, zero corpus tests. Correct to skip.
+
+**CMPILE.c relationship to M18:**
+CMPILE.c (`src/frontend/snobol4/CMPILE.c`, 2623 lines) is already a faithful
+translation of v311.sil §6 (CMPILE ELEMNT EXPR FORWRD NEWCRD BINOP UNOP).
+It has 21 of 28 non-BLOCKS syntabs verbatim from syn.c.
+Missing 7 non-BLOCKS tables: EOSTB NUMBTB NUMCTB SPANTB BRKTB VARATB VARBTB
+(all in snobol4-2.3.3/syn.c, straightforward adds).
+Missing 3 BLOCKS tables: SBIPTB BBIOPTB BSBIPTB — skip.
+
+**M18 strategy:** Do NOT reference CMPILE.c as a dependency.
+Cherry-pick logic where cleaner. Write own translation where quicker.
+syn.c chrs[] arrays copy verbatim. stream() copy verbatim from lib/stream.c.
+Switch spec_t→SPEC_t (arena-based), wire to DESCR_t globals.
+
+**M3 note:** MILESTONE doc has M3=sil_strings.c/h, M4=sil_symtab.c/h.
+We wrote symtab code — it was committed as M4 (correct per milestone doc).
+M3 (sil_strings.c/h) still ⬜. Next session starts there.
+
+### M3 — sil_strings.c/h — what to build
+Source: v311.sil §5 string helpers + §4 DTREP string ops.
+Key functions (all already declared in sil_arena.h or needed standalone):
+  apdsp_fn  — append spec to buffer spec (APDSP macro)
+  remsp_fn  — remove leading match (REMSP)
+  trimsp_fn — trim trailing blanks (TRIMSP)  
+  lexcmp_fn — lexicographic compare (LEXCMP)
+  spcint_fn — parse integer from spec (SPCINT)
+  spreal_fn — parse real from spec (SPREAL)
+  realst_fn — format real to spec (REALST)
+  intspc_fn — format integer to spec (INTSPC / INTSP)
+  locsp_fn  — spec from descriptor (LOCSP)
+  subsp_fn  — substring (SUBSP)
+NOTE: x_getlth already in sil_arena.h — do not duplicate.
+NOTE: DTREP_fn already in sil_symtab.c — do not duplicate.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_strings.c PASS zero warnings.
+Then commit+push one4all, then update .github milestone M3 ✅ and push.
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-silly-snobol4.md
+
+cd /home/claude/one4all
+git log --oneline -5
+ls src/silly/
+
+# Build M3: src/silly/sil_strings.c + sil_strings.h
+# Source: snobol4-2.3.3/v311.sil §5 string ops
+# Reference for string layout: sil_arena.h x_getlth, BCDFLD, SP_PTR, SP_LEN
+# After gate: commit+push one4all, then .github M3 ✅
+# Then continue M5 sil_arith.c/h (§9 arithmetic)
+```
+
+### Milestone status
+M0 ✅ sil_types.h  
+M1 ✅ sil_data.c/h  
+M2 ✅ sil_arena.c/h  
+M3 ⬜ sil_strings.c/h  ← NEXT
+M4 ✅ sil_symtab.c/h  
+M5-M21 ⬜
