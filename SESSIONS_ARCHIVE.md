@@ -27970,13 +27970,60 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 ```
 
 ### RT-120 first actions (M-DYN-B7: XNME trampoline)
+## Sprint RT-120 HANDOFF (gap-scan session) — 2026-04-06
 
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `9478915` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Work done
+
+**Methodology:** Gap scan — vertical = Interpreter Runtime / builtin completeness.
+Diffed v311.sil FNLIST (canonical builtin table) against every register_fn() call in
+snobol4.c. Found 9 missing builtins; DEFINE and FIELD were the priority targets.
+
+**Commit `9478915`** — `RT-120: _DEFINE_/_FIELD_ wrappers; PATVAL DT_I/DT_R coerce fix`
+
+- `_DEFINE_(proto, label)` — SNOBOL4-callable wrapper; registered DEFINE(1,2).
+  Note: runtime DEFINE was already handled inline in scrip-interp.c E_FNC case
+  line 900 (correct). Wrapper is redundant but harmless.
+- `_FIELD_(fname, n)` — returns Nth param name of DATA-prototype type;
+  registered FIELD(2,2). Uses same FNCBLK_t params[] as _ARG_.
+- PATVAL fix: interp_eval_pat E_VAR case now routes DT_I and DT_R through
+  PATVAL_fn so integers/reals used as patterns coerce to literal match strings
+  per v311.sil PATVAL PROC. DT_S/DT_P pass through directly.
+  Smoke test: `N=3 / 'abc' N :S` PASS, real coerce PASS.
+- Rebase conflict resolved: upstream RT-119 (767cd08) already removed duplicate
+  DATE/TIME bodies; our comment stub dropped cleanly.
+
+### DEFINE investigation findings (§INFO candidate)
+
+Runtime DEFINE('proto','label') works correctly end-to-end:
+- DEFINE registers fn=NULL + entry_label in FNCBLK_t
+- FUNC_ENTRY_fn(fname) → entry_label → label_lookup → body found
+- Return value: body must assign `funcname = result` (SIL convention)
+- `DEFINE('DOUBLE(X)','DBLBODY')` then `DOUBLE(21)` works when body writes
+  `DOUBLE = X + X` (not `X = X + X`)
+- `FUNCTION('DOUBLE')` after DEFINE returns 'DOUBLE' ✅
+
+### Remaining missing builtins from v311 FNLIST
+
+| Function | Priority |
+|----------|----------|
+| BACKSPACE(N) | low — file I/O |
+| REWIND(N) | low — file I/O |
+| DETACH(V) | medium — coroutine |
+| FREEZE(T) TABLE→ARRAY | medium |
+| THAW(T) ARRAY→TABLE | medium |
+| LOAD(P) / UNLOAD(S) | low — dynamic linking |
+
+### RT-121 first actions (next gap-scan)
 ```bash
 cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
+<<<<<<< HEAD
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
 cat > /tmp/si_bin.sh << 'WRAP'
 #!/bin/bash
@@ -28237,4 +28284,16 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 
 # After XOR+XSTAR: should breach 80% target.
 # WARNING — str_replace /* opener hazard: always verify /* survived after inserts near comments.
+=======
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# Next gap-scan vertical: CONVERT() completeness
+# v311.sil CNVRT proc vs our _CONVERT_ in snobol4.c
+# Key paths to check: CONVERT(V,'ARRAY'), CONVERT(V,'TABLE'),
+# CONVERT(V,'CODE'), CONVERT(V,'EXPRESSION') DT_E path
+# grep -n "_CONVERT_\|CNVRT\|convert_fn" src/runtime/snobol4/snobol4.c
+#
+# After CONVERT: FREEZE/THAW (share infrastructure with CONVERT array path)
+# Then: DETACH coroutine stub (medium priority)
+>>>>>>> 20ec38a (RT-120 handoff: gap-scan session — DEFINE/FIELD wrappers, PATVAL DT_I/DT_R fix)
 ```
