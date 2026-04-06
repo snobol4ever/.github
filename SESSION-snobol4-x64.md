@@ -43,6 +43,23 @@ calloc(1,sizeof *e) and calloc(n,sizeof(EXPR_t*)) in cmpnd_to_expr
 Same audit needed in eval_code.c. Gate: PASS=178; EVAL('2 + 3')=5 via
 DT_E path (not just string path).
 
+### M-DYN-B10 complete — 100% binary coverage (RT-120, 2026-04-05)
+
+All 25 PATND_t box kinds now handled in bb_build_binary_node(). Zero BIN_MISS
+events across full corpus. Key structural facts for future work:
+
+- `bb_callcap_exported()` / `bb_callcap_new()` — in stmt_exec.c, placed AFTER
+  `bb_callcap` closes (~line 563). Do NOT move above bb_callcap definition.
+- `bb_deferred_var_exported()` / `bb_dvar_bin_new()` — in stmt_exec.c, placed
+  AFTER `bb_deferred_var` closes. Same ordering constraint.
+- `bb_atp` removed from Makefile box-loop exclusion list — it is now compiled
+  from boxes/atp/bb_atp.c AND has a static copy inside stmt_exec.c. No linker
+  conflict (static is TU-local). Do NOT re-add bb_atp to the exclusion list.
+- XATP deferred-usercall form (STRVAL_fn != "@") still falls back to C path
+  (returns NULL from bb_atp_emit_binary). This is intentional and correct.
+- Coverage audit: `SNO_BIN_MISS_LOG=1 SNO_BINARY_BOXES=1 scrip-interp file.sno`
+  logs BIN_MISS:kind=N to stderr for any C-path fallback.
+
 ### M-DYN-B1 orientation — binary boxes (RT-115, 2026-04-05)
 
 bb_pool.c and bb_emit.c are NOT yet in the Makefile for scrip-interp.
