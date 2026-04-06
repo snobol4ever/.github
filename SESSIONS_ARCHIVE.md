@@ -30591,3 +30591,36 @@ cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
 # Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_trace.c → zero warnings
 # Commit+push one4all, update .github M16 ✅, push
 ```
+
+## Sprint SS-11 HANDOFF (Silly SNOBOL4 M16 sil_trace) — 2026-04-06
+
+**Session:** Silly SNOBOL4
+**HEAD:** one4all `52e9b804` · .github (this commit)
+
+### Work done this session
+
+**M16 ✅ sil_trace.c/h — committed 52e9b804**
+TRACE STOPTR: type lookup in TRATL, tracep() sub-entry, FUNCTION special case.
+TRPHND: saves/restores full interpreter state, calls INVOKE.
+FENTR/FENTR2: call trace with arg list formatting.
+KEYTR LABTR: keyword/label trace messages.
+VALTR FNEXTR FNEXT2: value/return trace with string/int/type formatting.
+SETEXIT XITHND: error handler install/dispatch.
+Gate: gcc -Wall -Wextra -std=c99 -m32 -c → zero warnings.
+
+### Milestone status
+M0–M16 all ✅
+M17 ⬜ sil_extern.c/h  ← NEXT (§13 External functions, 172 lines)
+
+### First actions next session
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-silly-snobol4.md
+cd one4all && git pull --rebase && git log --oneline -5 && ls src/silly/
+# Build M17: src/silly/sil_extern.c + sil_extern.h
+# Source: v311.sil §13 lines 4471–4643
+# Gate: gcc -Wall -Wextra -std=c99 -m32 -c sil_extern.c → zero warnings
+# Commit+push one4all, update .github M17 ✅, push
+```
