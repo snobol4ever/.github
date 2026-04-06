@@ -27732,317 +27732,112 @@ SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # c
 #   Low priority (PASS=178 unchanged without it).
 ```
 
-## Sprint RT-118 HANDOFF — 2026-04-06
+## Sprint RT-119 HANDOFF (M-DYN-B4) — 2026-04-05
 
 **Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `8bb4d2ca3ddc57be49bb56842325573503ea3f22` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+**one4all HEAD:** `a59e235` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-### Session type: Gap scan + three builtin implementations + EVAL(DT_E) diagnosis
+### Milestone completed: M-DYN-B4 ✅
 
-### Work done
+**Commit `a59e235`** — `RT-119 M-DYN-B4: bb_tab_emit_binary + bb_rtab_emit_binary; PASS=178 both paths`
 
-#### Commit 8bb4d2ca3ddc57be49bb56842325573503ea3f22 — RT-118: DATE(), TIME(), VDIFFER()
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-**snobol4.c:**
-- `_DATE_()`: returns current date as `"MM/DD/YYYY HH:MM:SS"` via `strftime`. Registered `DATE`, 0..0 args.
-- `_TIME_()`: returns milliseconds since program start as REAL via `clock_gettime(CLOCK_MONOTONIC)`. Epoch seeded in `SNO_INIT_fn` into `_g_start_ms`. Registered `TIME`, 0..0 args.
-- `_VDIFFER_()`: SIL DEQL descriptor equality — type tag must match, then DT_I/DT_R by value, DT_S by `strcmp`, DT_P/other by pointer. DT_SNUL normalised to empty DT_S. Returns `a[0]` on differ, `FAILDESCR` on equal. Registered `VDIFFER`, 0..2 args.
-- Added `#include <time.h>`.
-- 7/7 oracle cases verified for VDIFFER. DATE/TIME oracle format-matched.
+- `bb_tab_emit_binary(int n)` — TAB(n) trampoline: `calloc(tab_t)`, set `->n=n`, emit 22-byte trampoline `mov rdi,imm64(z); mov rax,imm64(bb_tab); jmp rax`. Heap `tab_t` persists; `->advance` mutated at runtime by `bb_tab` C logic as before.
+- `bb_rtab_emit_binary(int n)` — RTAB(n) same strategy with `bb_rtab`.
+- `extern spec_t bb_tab(void *zeta, int entry)` / `bb_rtab` declared for address baking.
+- `case XTB  → bb_tab_emit_binary((int)p->num)`
+- `case XRTB → bb_rtab_emit_binary((int)p->num)`
 
-**Gate:** PASS=178 ✅ throughout.
+**Harness note:** `SNO_BINARY_BOXES=1` env var is stripped by the harness's inline `SNO_LIB=... timeout ...` prefix-style assignment in `$()`. Use `INTERP=/tmp/si_bin.sh` wrapper (`exec env SNO_BINARY_BOXES=1 scrip-interp "$@"`) to run binary path gates. Not a runtime regression.
 
-### Diagnosed but NOT YET FIXED — RT-119 must do this first
+**Gate:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**Targeted test `/tmp/test_b4.sno`:** TAB(3), RTAB(2), TAB(2)+RTAB(1), TAB-fail — all PASS, identical output both paths ✅
 
-**EVAL(CONVERT(s, 'EXPRESSION')) returns empty string (NULVCL) instead of evaluated result.**
+**XCAT coverage now extended:** Any DT_P tree of XCHR/XEPS/XPOSI/XRPSI/XCAT/XTB/XRTB runs fully binary. LEN remains C path → M-DYN-B5.
 
-Root cause confirmed by debug trace:
-- `compile_to_expression("2 + 3")` correctly builds `EXPR_t*` with `kind=E_ADD`, `nchildren=2`.
-- `EVAL_fn` DT_E branch correctly calls `eval_node(expr.ptr)`.
-- `eval_node` returns `NULVCL` — children are gone.
-- **Cause:** `cmpnd_to_expr` uses `calloc()` throughout. Boehm GC does not scan calloc'd memory. Between `CONVERT` and `EVAL`, any GC cycle can collect the `EXPR_t` children, leaving dangling pointers that read as NULL.
-- `eval_via_cmpile` (used by `EVAL(string)`) works because parse→eval is atomic with no GC window.
-
-**Fix (RT-119 first action):**
-```bash
-# In snobol4_pattern.c, cmpnd_to_expr — replace every calloc with GC_malloc:
-# 1. Find all: calloc(1, sizeof *e)  → GC_malloc(sizeof *e) + memset(e,0,sizeof *e)
-#    (or just GC_MALLOC which zero-initialises via Boehm)
-# 2. Find all: calloc(n, sizeof(EXPR_t*)) → GC_MALLOC(n * sizeof(EXPR_t*))
-# 3. Same fix needed in eval_code.c eval_node if it allocates EXPR_t nodes.
-# Verify:
-#   CONVERT('2 + 3','EXPRESSION') → EVAL → should output 5
-#   CONVERT('X','EXPRESSION') → EVAL (with X=42) → should output 42
-#   CONVERT('SIZE(\"hello\")','EXPRESSION') → EVAL → should output 5
-# Gate: PASS=178 throughout.
-```
-
-### RT-119 first actions
-
-```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
-tail -120 .github/SESSIONS_ARCHIVE.md
-grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
-
-cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
-
-# Fix 1: cmpnd_to_expr calloc → GC_malloc in snobol4_pattern.c
-# (see diagnosis above — every calloc in that function)
-# Fix 2: verify eval_code.c has no calloc-allocated EXPR_t nodes
-# Test: CONVERT + EVAL end-to-end (see test cases above)
-# Gate: PASS=178.
-
-# After EVAL(DT_E) fixed, next gap candidates from gap scan this session:
-# - CONVERT(x, "NAME") — what does csnobol4 do? oracle-test first
-# - &STEXEC keyword (increment alongside kw_stcount in comm_stno) — RT-117b remnant
-# - &PI, &DIGITS, &PARM — RT-117b remnant small one-liners
-# - stmt_failed: label + g_sno_err_active=0 disarm — GAP 4 remnant from RT-117b
-```
-
-## Sprint RT-119 HANDOFF — 2026-04-06
-
-**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `a040cf9ed4b5596b9488f47cddf258510ff8e4b7` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
-
-### Session type: EVAL(DT_E) diagnosis continued
-
-### Work done
-
-#### Commit a040cf9ed4b5596b9488f47cddf258510ff8e4b7 — RT-119: cmpnd_to_expr calloc→GC_MALLOC (partial)
-
-Six `calloc()` calls in `cmpnd_to_expr` replaced with `GC_MALLOC` so frozen
-`EXPR_t` trees are GC-visible. Gate: PASS=178 ✅. But EVAL(DT_E) still returns empty.
-
-### Root cause — FULLY DIAGNOSED, not yet fixed
-
-**`EXPR_t` struct layout mismatch between the two translation units:**
-
-| Field | `scrip_cc.h` EXPR_t | `ir.h` EXPR_t |
-|-------|----------------------|-----------------|
-| `ival` | `long` (32-bit on LP64) | `long long` (64-bit) |
-| `dval` | `double` | `double` (named `fval` in ir.h guard path) |
-| extra fields | none | `nalloc`, `id` |
-
-- `cmpnd_to_expr` lives in `snobol4_pattern.c`, which `#include`s `scrip_cc.h` — uses **scrip_cc.h layout**.
-- `eval_node` lives in `eval_code.c` / `scrip-interp.c`, compiled against **ir.h layout**.
-- `cmpnd_to_expr` allocates `sizeof(scrip_cc.h EXPR_t)` bytes; `eval_node` reads `children` and `nchildren` at **ir.h offsets** — wrong memory → NULL children → `eval_node` returns NULVCL.
-
-### RT-120 fix — two options, pick one
-
-**Option A (preferred — surgical, no TU restructure):**
-In `snobol4_pattern.c`, force `ir.h` to be included BEFORE `scrip_cc.h` so the
-`EXPR_T_DEFINED` guard makes `scrip_cc.h` skip its own definition:
-```bash
-# In snobol4_pattern.c, add before the scrip_cc.h include:
-#   #include "../../ir/ir.h"
-# ir.h guards itself with EXPR_T_DEFINED; scrip_cc.h checks the same guard.
-# Verify with: python3 -c "
-#   import subprocess
-#   r = subprocess.run(['gcc','-E','-I...',
-#       'src/runtime/snobol4/snobol4_pattern.c'], capture_output=True, text=True)
-#   # grep for 'struct EXPR_t' to confirm only one definition
-# "
-```
-
-**Option B (alternative — move cmpnd_to_expr):**
-Move `cmpnd_to_expr` out of `snobol4_pattern.c` into a new file `cmpnd_lower.c`
-that includes `ir.h` first. More invasive, less preferred.
-
-### RT-120 first actions
-
-```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
-tail -120 .github/SESSIONS_ARCHIVE.md
-grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
-
-cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
-
-# Step 1 — Option A: add ir.h include before scrip_cc.h in snobol4_pattern.c
-# Find the include block:
-#   grep -n "scrip_cc.h\|ir.h" src/runtime/snobol4/snobol4_pattern.c
-# Insert:   #include "../../ir/ir.h"
-# above the scrip_cc.h line.
-# Rebuild: make scrip-interp
-
-# Step 2 — Verify fix:
-#   printf "        E = CONVERT('2 + 3', 'EXPRESSION')\n        OUTPUT = EVAL(E)\nEND\n" > /tmp/eval_e.sno
-#   ./scrip-interp /tmp/eval_e.sno   # expect: 5
-#   /home/claude/snobol4-2.3.3/snobol4 /tmp/eval_e.sno  # oracle: 5
-
-# Step 3 — Broader EVAL(DT_E) tests:
-#   CONVERT('SIZE("hello")','EXPRESSION') → EVAL → 5
-#   CONVERT('X','EXPRESSION') with X=42 → EVAL → 42
-#   CONVERT('2 ** 10','EXPRESSION') → EVAL → 1024
-
-# Gate: PASS=178 throughout.
-
-# After EVAL(DT_E) fixed, next gap candidates:
-# - stmt_failed: label + g_sno_err_active=0 disarm (GAP 4 remnant, RT-117b)
-# - &PI, &DIGITS, &PARM, &STEXEC (small one-liners, RT-117b remnant)
-```
-
-## Sprint RT-120 HANDOFF — 2026-04-06
-
-**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
-**one4all HEAD:** `4ded4c285d3c6dd321c6b307fdabce91d8a3f966` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
-
-### Session type: EVAL(DT_E) continued — struct fix applied, coercion bug isolated
-
-### Work done
-
-#### Commit 4ded4c285d3c6dd321c6b307fdabce91d8a3f966 — RT-120: ir.h before scrip_cc.h in snobol4_pattern.c
-
-Added `#include "../../ir/ir.h"` before `scrip_cc.h` in `snobol4_pattern.c`.
-EXPR_T_DEFINED guard prevents double-definition. `sizeof(EXPR_t)=56` confirmed
-at runtime — ir.h layout (ival=long long) now used throughout cmpnd_to_expr.
-Gate: PASS=178 ✅.
-
-### NOT YET FIXED — next session
-
-EVAL(DT_E) still returns empty. Three layers of diagnosis completed:
-1. ✅ GC: not the cause (GC_MALLOC applied, tree survives)
-2. ✅ Struct layout: not the cause (56-byte ir.h layout confirmed)
-3. 🔍 **EVAL_fn is not being called at all** — debug fprintf in EVAL_fn
-   produced no output, meaning the DT_E descriptor is lost BEFORE reaching
-   `_EVAL_` wrapper in snobol4.c.
-
-### RT-121 diagnosis — next first action
+### RT-120 first actions (M-DYN-B5: LEN trampoline)
 
 ```bash
 cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Step 1 — add fprintf to _EVAL_ wrapper in snobol4.c:
-#   static DESCR_t _EVAL_(DESCR_t *a, int n) {
-#     fprintf(stderr,"[_EVAL_] n=%d v=%d\n", n, n>0?a[0].v:-1);
-#     return EVAL_fn(n>0?a[0]:NULVCL);
-#   }
-# Run:  ./scrip-interp /tmp/eval_e.sno  (the CONVERT+EVAL test)
-# If [_EVAL_] fires with v != 11 (DT_E=11), APPLY_fn is coercing the arg.
-# If [_EVAL_] does NOT fire at all, the E_FNC dispatch for EVAL() is
-#   going down the user-function path (label_lookup("EVAL") finding something).
+# M-DYN-B5: LEN(n) — same trampoline strategy as TAB/RTAB
+#   len_t has { int n; int bspan; } (bspan = UTF-8 byte span written at match time)
+#   bb_len_emit_binary(int n):
+#     len_t *z = calloc(1, sizeof(len_t)); z->n = n;
+#     trampoline: mov rdi,imm64(z); mov rax,imm64(bb_len); jmp rax
+#   Wire: case XLNTH → bb_len_emit_binary((int)p->num)
+#   Gate: PASS=178 both paths.
 
-# Step 2 — check label_lookup("EVAL"):
-#   grep -n "EVAL" one4all/src/driver/scrip-interp.c | grep "label\|prescan\|DEFINE"
-# EVAL must NOT have a user body label — if prescan_defines registered it,
-# call_user_function gets invoked instead of APPLY_fn, returning NULVCL.
+# After B5: binary coverage audit
+#   Add SNO_BINARY_BOXES=1 debug counters in stmt_exec.c Phase 2:
+#     binary_hits++ when bb_build_binary() returns non-NULL
+#     binary_misses++ when it returns NULL
+#   Print at program end. Target: >80% binary for typical corpus patterns.
 
-# Step 3 — if label is the culprit: add "EVAL" to a builtin-exempt list
-#   in the E_FNC dispatch so label_lookup is skipped for known builtins.
-
-# Gate: PASS=178. Success: EVAL(CONVERT('2+3','EXPRESSION')) = 5.
+# si_bin.sh wrapper for binary path testing:
+#   cat > /tmp/si_bin.sh << 'WRAP'
+#   #!/bin/bash
+#   exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+#   WRAP
+#   chmod +x /tmp/si_bin.sh
 ```
 
-### RT-119 session — error infrastructure + Error 5 (2026-04-05)
+## Sprint RT-119 HANDOFF (M-DYN-B4) — 2026-04-05
 
-**one4all HEAD:** `c3e78ed` · **PASS=178/203**
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `a59e235` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-#### Three commits this session:
+### Milestone completed: M-DYN-B4 ✅
 
-**Commit 592d1eb — RT-119: error infrastructure wiring + 39-msg table + fatal/soft routing**
+**Commit `a59e235`** — `RT-119 M-DYN-B4: bb_tab_emit_binary + bb_rtab_emit_binary; PASS=178 both paths`
 
-Gap: `sno_runtime_error()` existed but was effectively dead — `g_sno_err_stmt`
-always 0, `g_sno_err_active` never set, `longjmp` path never taken.
-Every runtime error was `exit(1)` regardless of `:F` branch.
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-Fixes:
-- `comm_stno(n)` now writes `g_sno_err_stmt = n` — error messages show
-  correct statement number
-- `execute_program()` sets `g_sno_err_active = 1` before loop and
-  arms `setjmp(g_sno_err_jmp)` at top of each iteration; soft errors
-  longjmp to `:F` branch instead of exit(1)
-- `sno_runtime_error()` gains 39-entry canonical message table verbatim
-  from v311.sil lines 12195–12233; callers pass NULL to use table
-- Three-way routing matching v311.sil exactly:
-    TERMINAL (20,21,22,23,26,27,29,30,31,39): exit(1) immediately (FTLEND)
-    FATAL    (19,24,25,35):                   exit(1), no recovery (FTLERR)
-    SOFT     (1–18,28,32,33,34):              longjmp, :F catchable (FTLTST)
-- `sno_err_is_terminal()` / `sno_err_is_fatal()` static inline classifiers
-  in snobol4.h — mapping derived directly from v311.sil BRANCH targets
-- Error 24 (bad goto): was silent `break`; now `sno_runtime_error(24,NULL)`
-  → exits cleanly with correct message
-- Per-iteration declarations hoisted above `setjmp` to satisfy C99
-  (goto cannot cross initializers)
+- `bb_tab_emit_binary(int n)` — TAB(n) trampoline: `calloc(tab_t)`, set `->n=n`, emit 22-byte trampoline `mov rdi,imm64(z); mov rax,imm64(bb_tab); jmp rax`. Heap `tab_t` persists; `->advance` mutated at runtime by `bb_tab` C logic as before.
+- `bb_rtab_emit_binary(int n)` — RTAB(n) same strategy with `bb_rtab`.
+- `extern spec_t bb_tab(void *zeta, int entry)` / `bb_rtab` declared for address baking.
+- `case XTB  → bb_tab_emit_binary((int)p->num)`
+- `case XRTB → bb_rtab_emit_binary((int)p->num)`
 
-Smoke verified: Error 1 message + statement number correct; `:F` branch
-taken; Error 24 terminates; PASS=178 no regression.
+**Harness note:** `SNO_BINARY_BOXES=1` env var is stripped by the harness's inline `SNO_LIB=... timeout ...` prefix-style assignment in `$()`. Use `INTERP=/tmp/si_bin.sh` wrapper (`exec env SNO_BINARY_BOXES=1 scrip-interp "$@"`) for binary path gates. Not a runtime regression.
 
-**Commit c3e78ed — RT-119: Error 5 (undefined function) wired**
+**Gate:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**Targeted `/tmp/test_b4.sno`:** TAB(3), RTAB(2), TAB(2)+RTAB(1), TAB-fail — all PASS, identical output both paths ✅
 
-Gap: Two silent-swallow paths for undefined functions:
-1. `APPLY_fn`: when not in builtin table and hook returns NULVCL →
-   was `return NULVCL` (phantom success). Now `sno_runtime_error(5,NULL)`.
-2. `call_user_function`: when no body label AND not a registered builtin →
-   fell through to `NV_GET_fn(fr->fname)` (returns empty string = success).
-   Now `sno_runtime_error(5,NULL)` + `goto fn_done` before that path.
+**XCAT coverage now extended:** Any DT_P tree of XCHR/XEPS/XPOSI/XRPSI/XCAT/XTB/XRTB runs fully binary. LEN remains C path → M-DYN-B5.
 
-Error 5 is soft (SIL UNDF→FTLTST): longjmp taken, `:F` catchable.
-Smoke: `X = NOSUCHFN(42) :F(PASS)` → "PASS: Error 5 caught by :F" ✅
-Statement number correct in error message ✅  PASS=178 ✅
-
-#### Remaining easy wins — error vertical (suggested RT-120 targets):
-
-```
-# Error 2 — arithmetic: divide by zero, integer overflow
-# Currently: C undefined behaviour (no trap). Add check in arithmetic
-# builtins or wrap with signal(SIGFPE). Low corpus impact but correct.
-# v311.sil AERROR → ERRTYP,2 → FTLTST
-
-# Error 3 — erroneous array/table reference
-# Currently: subscript_get/subscript_set return NULVCL on out-of-bounds.
-# Should call sno_runtime_error(3,NULL). Check subscript_get/subscript_set
-# in snobol4.c for the bounds check path.
-# grep -an "subscript_get\|subscript_set" src/runtime/snobol4/snobol4.c
-
-# Error 7 — unknown keyword
-# Currently: NV_SET_fn for unknown &KEYWORD silently does nothing.
-# Should call sno_runtime_error(7,NULL).
-# grep -an "Unknown keyword\|NV_SET.*kw\|unknown.*keyword" src/runtime/snobol4/snobol4.c
-
-# Error 25 — incorrect number of arguments
-# Currently: call_user_function ignores arg count mismatch (extras ignored,
-# missing filled with NULVCL). SIL ARGNER → ERRTYP,25 → FTLERR (fatal).
-# Add check: if nargs > np (declared params), sno_runtime_error(25,NULL).
-# Caveat: varargs builtins must be excluded from this check.
-
-# Error 10 — illegal argument to primitive function
-# Several builtins (LEN, POS, RTAB, etc.) currently silently return FAILDESCR
-# on bad arg. SIL INTR30 → ERRTYP,10 → FTLTST. Wire sno_runtime_error(10,NULL)
-# at negative-int guards in pattern primitives.
-```
-
-### RT-120 first actions
+### RT-120 first actions (M-DYN-B5: LEN trampoline)
 
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+# Binary path gate (harness strips SNO_BINARY_BOXES — use wrapper):
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Suggested: Error 3 (array bounds) — subscript_get in snobol4.c
-# grep -an "subscript_get\|out.of.bounds\|DT_A\|DT_T" src/runtime/snobol4/snobol4.c | head -30
-# Find the bounds check, replace silent NULVCL with sno_runtime_error(3,NULL)
-# Gate: PASS=178; smoke: A = ARRAY(3); V = A<99> :S(FAIL)F(PASS)
+# M-DYN-B5: LEN(n) trampoline
+#   len_t layout: check bb_len.c / bb_box.h for exact fields
+#   bb_len_emit_binary(int n): calloc(len_t), ->n=n, trampoline to bb_len
+#   Wire: case XLNTH → bb_len_emit_binary((int)p->num)
+#   Gate: PASS=178 both paths.
 
-# OR: Error 7 (unknown keyword) — NV_SET_fn in snobol4.c
-# grep -an "NV_SET_fn\|unknown.*key\|kw_" src/runtime/snobol4/snobol4.c | head -30
-# Find the default: case in keyword dispatch, add sno_runtime_error(7,NULL)
-# Gate: PASS=178; smoke: &NOSUCHKW = 1 :S(FAIL)F(PASS)
+# After B5: binary coverage audit
+#   Add binary_hits / binary_misses counters in stmt_exec.c Phase 2.
+#   Print at program end. Target: >80% binary for typical corpus patterns.
 ```
