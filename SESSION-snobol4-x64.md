@@ -234,6 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-119 | one4all `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
 | RT-123 | one4all `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
 | RT-122 | one4all `99007cb` · corpus `3fd44d0` · PASS=178/203 | RT-123: Error 25 (wrong arg count) + Error 22 (&STLIMIT) + error format (filename+level) — see RT-123 first actions in SESSIONS_ARCHIVE |
 | RT-121 | one4all `8c2611c` · corpus `3fd44d0` · PASS=178/203 | RT-122: PROTOTYPE()/COPY() for DT_DATA, or DATATYPE() audit — see RT-122 first actions in SESSIONS_ARCHIVE |
@@ -252,9 +253,24 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 | 101 (sno4parse) | one4all `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
 
 **Current milestone docs:**
-- `BB-GEN-X86-BIN.md` — **M-DYN-B1 ACTIVE** (binary LIT box → Phase 2/3 wiring)
+- `BB-GEN-X86-BIN.md` — **M-DYN-B COMPLETE ✅** — 85.5% binary coverage (RT-119, 2026-04-05)
 - `MILESTONE-SN4PARSE-VALIDATE.md` — Phase 2 crosscheck gate ✅ PASSED (sprint 101)
 - `MILESTONE-SN4PARSE.md` — complete (SIL-faithful parser built)
+
+**Binary node coverage (RT-119 final):**
+XCHR / XEPS / XSPNC / XANYC / XNNYC / XBRKC / XPOSI / XRPSI / XTB / XRTB / XLNTH /
+XNME / XFNME / XSTAR / XOR / XFARB / XBRKX — 85.5% corpus coverage.
+Remaining C-path fallback (acceptable): XATP(12) XCALLCAP(5) XARBN(5) XDSAR(1) XFAIL(1).
+
+**Binary path gate wrapper** (SNO_BINARY_BOXES stripped by harness — always use wrapper):
+```bash
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+```
 
 **Next session first actions (sprint RT-115 — Track BB / binary boxes):**
 ```bash
