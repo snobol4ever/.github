@@ -28377,3 +28377,73 @@ cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 ```
+
+## Sprint RT-119 HANDOFF (M-DYN-B9) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `efb4103` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B9 ✅
+
+**Commit `efb4103`** — `RT-119 M-DYN-B9: XOR alternation + XSTAR/REM binary trampolines; 75.2% coverage`
+
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
+- `bb_rem_emit_binary()` — XSTAR (REM): `rem_t={int dummy}`, trampoline to `bb_rem`. No meaningful fields.
+- `bb_alt_emit_binary(PATND_t *p)` — XOR alternation: `bin_alt_t` mirrors `alt_t` layout (`{int n; bin_altchild_t children[16]; int current; int position; spec_t result;}`). Recurses each child (NULL → whole node falls back). Caps at 16. Trampoline to `bb_alt`.
+- `case XSTAR → bb_rem_emit_binary()`
+- `case XOR → bb_alt_emit_binary(p)`
+
+**Coverage audit after B9:**
+- Before: DT_P hits=95  misses=52 · overall=68.5%
+- After:  DT_P hits=106 misses=41 · **overall=75.2%**
+
+**Remaining miss breakdown:**
+| Kind | Name | Count | Notes |
+|------|------|-------|-------|
+| 10 | XFARB | 12 | ARB — `arb_t={int count; int start;}` → `bb_arb` — simple trampoline |
+| 26 | XATP | 12 | user-defined pattern fn call — complex, skip for now |
+| 27 | XBRKX | 5 | BREAKX — `brkx_t={const char *chars; int δ;}` → `bb_brkx` — same as BREAK |
+| 11 | XARBN | 5 | ARBNO(p) — needs child recursion |
+| 24 | XCALLCAP | 5 | deferred fn capture — complex, skip |
+| 21 | XDSAR | 1 | deferred var ref — runtime resolve, skip |
+| 14 | XFAIL | 1 | FAIL primitive |
+
+**XFARB + XBRKX together = 17 more hits → expected ~83% (>80% target ✅)**
+
+### RT-120 first actions (M-DYN-B9b: XFARB + XBRKX → breach 80%)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # PASS=178
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # PASS=178
+# Audit: bash /tmp/sweep_audit.sh  /  bash /tmp/miss_sweep.sh
+
+# M-DYN-B9b: XFARB (ARB) + XBRKX (BREAKX) — both simple trampolines
+#
+# XFARB: arb_t = { int count; int start; }  (from bb_box.h line 118)
+#   extern spec_t bb_arb(void *zeta, int entry);   (declared in stmt_exec.c line ~119)
+#   bb_arb_emit_binary(): calloc(arb_t), trampoline to bb_arb
+#   case XFARB → bb_arb_emit_binary()
+#
+# XBRKX: brkx_t = { const char *chars; int δ; }  (from bb_box.h line 117)
+#   extern spec_t bb_brkx(void *zeta, int entry);
+#   bb_brkx_emit_binary(chars): calloc(brkx_t), ->chars = p->STRVAL_fn, trampoline to bb_brkx
+#   case XBRKX → bb_brkx_emit_binary(p->STRVAL_fn ? p->STRVAL_fn : "")
+#
+# Both can reuse charset_emit_trampoline() helper already in bb_build_bin.c.
+# Gate: PASS=178 both paths. Run sweep_audit — expect >80% overall.
+# Commit as M-DYN-B9b, update PLAN.md NOW table, write handoff.
+#
+# WARNING — str_replace /* opener hazard (recurring):
+#   After inserting near /* comment blocks, verify opener survived.
+#   Symptom: "stray \\342" or "'Build' undeclared" = missing /*)
+```
