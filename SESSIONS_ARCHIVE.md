@@ -28909,3 +28909,70 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 ### Files changed this session
 - `.github/BB-GEN-X86-BIN.md` — M-DYN-BENCH-C expanded (4→13 programs), results table filled, M-DYN-BENCH-X86 baseline column pre-filled, milestone ladder updated ✅
 - `.github/SESSIONS_ARCHIVE.md` — this handoff entry
+
+## Sprint RT-125 HANDOFF (Unified SCRIP executable — architecture decision) — 2026-04-06 *** SESSION COMPLETE ***
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `ac19c92` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Session deliverables
+
+- **SCRIP-UNIFIED.md** — New architecture document. `scrip-interp` and `scrip-cc` retired.
+  One executable `scrip` with two modes: `--interp` (interpretive, correctness reference)
+  and `--gen` (in-memory generative: x86 bytes emitted directly into mmap slabs via
+  `bb_emit.c` EMIT_BINARY, no .s file, no nasm, no ld, no disk round-trips).
+  Development speed estimate: 10× vs text→assemble→link pipeline.
+- **PLAN.md** — Component map updated: SCRIP-UNIFIED added. NOW table: RT-125 replaces RT-121 row.
+- **SESSION-snobol4-x64.md** — §INFO addendum (unified model invariants). §NOW → RT-125 M-SCRIP-U0.
+
+### Architecture summary
+
+```
+scrip [--interp|--gen] source.sno
+
+Memory image (Mode G — all mmap MAP_ANON slabs):
+  segment 0: runtime stub ptr table (NV_GET_fn, NV_SET_fn, stmt_exec_dyn, GC_malloc...)
+  segment 1: SM dispatch table (one x86 blob per SM instruction kind, shared)
+  segment 2: program body (SM_Program lowered to x86 blobs, concatenated, labels=offsets)
+  segment 3: Byrd box pool (bb_pool.c — per-statement, existing, unchanged)
+  segment 4: data/constants (string literals, GC heap ptr)
+
+Two-way MONITOR axes:
+  scrip --interp vs SPITBOL     (existing — semantic correctness)
+  scrip --interp vs scrip --gen (new — JIT codegen correctness)
+```
+
+### Next session first actions (RT-126 — M-SCRIP-U0)
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex nasm time
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+cat .github/SCRIP-UNIFIED.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+
+# M-SCRIP-U0: rename + flag parsing
+cp src/driver/scrip-interp.c src/driver/scrip.c
+# In scrip.c main(): add --interp / --gen parsing; --gen stubs to --interp path for now
+# Makefile: rename target scrip-interp → scrip
+# make scrip
+# INTERP=scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+# Gate: PASS=178
+#
+# M-DYN-B0: reset bb_build_binary_node() → return NULL for all kinds
+# Remove / ifdef-out all bb_*_emit_binary() trampoline emitters
+# Keep bb_pool.c / bb_emit.c / bb_build_bin.c skeleton
+# Gate: PASS=178, no trampoline active
+#
+# M-SCRIP-U1: scrip_image.c — seg_alloc()/seg_seal()/seg_free() for segments 0-4
+```
+
+### Files changed this session
+- `.github/SCRIP-UNIFIED.md` — new document ✅
+- `.github/PLAN.md` — component map + NOW table updated ✅
+- `.github/SESSION-snobol4-x64.md` — §INFO addendum + §NOW → RT-125 ✅
+- `.github/SESSIONS_ARCHIVE.md` — this handoff entry ✅
