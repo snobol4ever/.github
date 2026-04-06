@@ -234,6 +234,7 @@ rearrangeable at any time. Past sprints live in SESSIONS_ARCHIVE.md.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
+| RT-121 | one4all `9af851a` · corpus `3fd44d0` · PASS=178/203 | RT-122: Option A — gap-scan keywords/&-variables; Option B — EVAL(DT_E) _EVAL_ dispatch hijack; Option C — GOTO(C) exec_code wiring |
 | RT-119 | one4all `b753121` · corpus `3fd44d0` · PASS=178/203 | Error 2 (div-by-zero) or Error 10 (neg LEN/POS) — see RT-120 first actions |
 | RT-119 | one4all `c3e78ed` · corpus `3fd44d0` · PASS=178/203 | Error 3 (array bounds) or Error 7 (unknown keyword) — see RT-120 first actions |
 | RT-120 | one4all `4ded4c2` · corpus `3fd44d0` · PASS=178/203 | RT-121: EVAL(DT_E) — add fprintf to _EVAL_ wrapper; check label_lookup("EVAL") not hijacking dispatch |
