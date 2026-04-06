@@ -27842,92 +27842,90 @@ INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  
 #   Print at program end. Target: >80% binary for typical corpus patterns.
 ```
 
-### RT-119 addendum — Error 3 + Error 7 (2026-04-05)
+## Sprint RT-119 HANDOFF (M-DYN-B5) — 2026-04-05
 
-**one4all HEAD:** `b753121` · **PASS=178/203**
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `e7f5d08` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-#### Commit b753121 — Error 3 (bad subscript) + Error 7 (unknown keyword)
+### Milestone completed: M-DYN-B5 ✅
 
-**Error 3 — Erroneous array or table reference (SIL NONARY→ERRTYP,3→FTLTST):**
-- `subscript_get` fallthrough for non-DT_A/DT_T subject was `return FAILDESCR`
-  (silent). Now `sno_runtime_error(3, NULL)`.
-- `subscript_set` fallthrough was silent no-op. Now `sno_runtime_error(3, NULL)`.
-- Array OOB *stays* `FAILDESCR` — SIL ARYA11 lines 4877-4878 branch to FAIL
-  directly, not NONARY. Verified: `A = ARRAY(3); V = A<99>` → plain fail ✅
+**Commit `e7f5d08`** — `RT-119 M-DYN-B5: bb_len_emit_binary + XLNTH wired; PASS=178 both paths`
 
-**Error 7 — Unknown keyword (SIL INTR7→ERRTYP,7→FTLTST):**
-- `NV_SET_fn`: writing `&NOSUCHKW = 1` was silently creating a regular NV
-  variable (no error). Fixed with `g_kw_ctx` flag:
-  - `g_kw_ctx` (int, defined in snobol4.c, declared in snobol4.h) is set to 1
-    by the E_KEYWORD assignment path in `execute_program` before calling
-    `NV_SET_fn`, cleared after.
-  - `NV_SET_fn` checks `g_kw_ctx` and validates name against `known_kw[]`
-    table; unknown keyword → `sno_runtime_error(7, NULL)`.
-  - Known keywords list covers all 9 writable C-global keywords plus
-    ALPHABET/UCASE/LCASE/DIGITS/PI/PARM/STEXEC/STCOUNT/STNO/DUMP/ABEND/
-    TRACE/GTRACE/FATALLIMIT/ERRTYPE/ERRTEXT/INPUT/OUTPUT/TERMINAL/PUNCHAR.
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-**Smoke verified:** both errors print canonical message + correct statement
-number; `:F` branch taken; known keyword write still succeeds. PASS=178 ✅
+- `bb_len_emit_binary(int n)` — LEN(n) trampoline: `calloc(len_t)`, set `->n=n`, emit 22-byte trampoline `mov rdi,imm64(z); mov rax,imm64(bb_len); jmp rax`. Heap `len_t` persists; `->bspan` (UTF-8 byte span) mutated at match time by `bb_len` C logic (utf8_strlen / utf8_char_bytes).
+- `extern spec_t bb_len(void *zeta, int entry)` declared.
+- `case XLNTH → bb_len_emit_binary((int)p->num)`
 
-### RT-120 first actions
+**Gate:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+**Targeted `/tmp/test_b5.sno`:** LEN(3), LEN(0), LEN-fail, LEN backtrack — all PASS, identical output both paths ✅
+
+**Binary node coverage complete:** XCHR / XEPS / XPOSI / XRPSI / XCAT / XTB / XRTB / XLNTH
+
+### RT-120 first actions (M-DYN-B6: binary coverage audit)
 
 ```bash
-cd /home/claude
-apt-get install -y libgc-dev flex
+cd /home/claude && apt-get install -y libgc-dev flex
 tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
-cat .github/PLAN.md
-cat .github/SESSION-snobol4-x64.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
 cd one4all && make scrip-interp
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+# Binary path gate wrapper:
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 
-# Error vertical — remaining easy wins (pick one):
-#
-# Error 2 — arithmetic: division by zero / integer overflow
-#   grep -an "divide\|DIV\|DIVFN\|zero\|overflow" src/runtime/snobol4/snobol4.c | head -20
-#   Find the integer divide builtin (_b_div or similar), add:
-#     if (b == 0) { sno_runtime_error(2, NULL); return FAILDESCR; }
-#   SIL: AERROR → ERRTYP,2 → FTLTST (soft, :F catchable)
-#   Smoke: X = 1 / 0  :S(FAIL)F(PASS)
-#
-# Error 10 — illegal argument to primitive function
-#   LEN(-1), POS(-1), RTAB(-1) etc. currently return FAILDESCR silently.
-#   SIL INTR30 → ERRTYP,10 → FTLTST
-#   grep -an "LEN\|POS\|RTAB\|negative\|LENERR\|INTR30" src/runtime/snobol4/snobol4.c
-#   Add: if (n < 0) { sno_runtime_error(10, NULL); return FAILDESCR; }
-#   Smoke: X = LEN(-1)  :S(FAIL)F(PASS)
-#
-# Error 4 — null string in illegal context
-#   DEFINE("") or APPLY("", ...) — null function name.
-#   SIL NONAME → ERRTYP,4 → FTLTST
-#   grep -an "null.*string\|empty.*name\|NONAME\|DEFINE.*empty" src/runtime/snobol4/snobol4.c
+# M-DYN-B6: binary coverage audit
+# Add to stmt_exec.c Phase 2 (around line 1224):
+#   static int g_bin_hits = 0, g_bin_misses = 0;
+#   if (bfn) { g_bin_hits++; } else { g_bin_misses++; }
+#   also count DT_S hits separately
+# Print at program end via atexit() or SNO_FINI hook:
+#   fprintf(stderr, "BINARY: hits=%d misses=%d (%.0f%%)\n",
+#           g_bin_hits, g_bin_misses,
+#           100.0*g_bin_hits/(g_bin_hits+g_bin_misses+1e-9));
+# Run corpus under SNO_BINARY_BOXES=1, check >80% target.
+# If <80%: inspect misses (what PATND kinds dominate?) → plan B7.
 ```
 
-## Sprint RT-119 ADDENDUM (builtin-gap audit) — 2026-04-05
+## Sprint RT-119 HANDOFF (M-DYN-B5) — 2026-04-05
 
-**one4all HEAD:** `66c9788` · **PASS=178/203** (no regression)
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `e7f5d08` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
 
-This session ran concurrently. Work committed to one4all only.
+### Milestone completed: M-DYN-B5 ✅
 
-### Deliverables (commit `66c9788`)
-8 new builtins registered: `DATE TIME RSORT CLEAR SETEXIT FUNCTION LABEL COLLECT`
-- `DATE()` → `strftime` MM/DD/YYYY HH:MM:SS
-- `TIME()` → `clock()*1000/CLOCKS_PER_SEC` integer ms
-- `RSORT(T)` → `sort_fn()` + in-place row reversal (`rsort_fn` in snobol4_pattern.c)
-- `CLEAR()` → `NV_CLEAR_fn()` walks `_var_buckets[512]`, nulls all vals
-- `SETEXIT(lbl)` → stores in `_setexit_label[256]`; `setexit_label_get()` hook
-- `FUNCTION(name)` → `FNCEX_fn(name)` predicate
-- `LABEL(name)` → `_label_exists_hook` wired to `label_lookup()` in scrip-interp
-- `COLLECT()` → `GC_gcollect()` + `GC_get_free_bytes()`
+**Commit `e7f5d08`** — `RT-119 M-DYN-B5: bb_len_emit_binary + XLNTH wired; PASS=178 both paths`
 
-`DEFINE` return value fixed: now returns function name string (was NULVCL).
-Param-name==retname collision fix: `DEFINE('f(f)')` no longer clobbers return slot.
+**Deliverables in `src/runtime/asm/bb_build_bin.c`:**
 
-### Diagnosed, not fixed — carry to RT-120
-1. **`define_entry_from_expr` E_QLIT gap** — `DEFINE('f(f)','label')` when nested inside another call: `define_entry_from_expr` checks `E_NAME`/`E_VAR` but not `E_QLIT`. Fix: add `if (arg2->kind == E_QLIT && arg2->sval) return arg2->sval;` as first check. Unlocks 1011 (3/3).
-2. **1012/004 concat of locals** — `lfunc = a b d` where locals init to NULVCL. Verify `VARVAL_fn(NULVCL)` returns `""` not NULL. If NULL, concat short-circuits.
+- `bb_len_emit_binary(int n)` — LEN(n) trampoline: `calloc(len_t)`, set `->n=n`, 22-byte trampoline to `bb_len`. Heap `len_t` persists; `->bspan` mutated at match time by `bb_len` C logic.
+- `case XLNTH → bb_len_emit_binary((int)p->num)`
 
-### Remaining builtin gaps (not touched)
-`DETACH FIELD FREEZE THAW LOAD UNLOAD VDIFFER BACKSPACE REWIND SET`
-`TRACE` — only VALUE type; CALL/RETURN/LABEL/KEYWORD missing (blocks beauty_trace_driver)
+**Gate:** PASS=178 both paths ✅. Targeted `/tmp/test_b5.sno` identical both paths ✅.
+**Binary node coverage:** XCHR / XEPS / XPOSI / XRPSI / XCAT / XTB / XRTB / XLNTH
+
+### RT-120 first actions (M-DYN-B6: binary coverage audit)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+cat > /tmp/si_bin.sh << 'WRAP'
+#!/bin/bash
+exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+WRAP
+chmod +x /tmp/si_bin.sh
+INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+
+# M-DYN-B6: add g_bin_hits/g_bin_misses counters in stmt_exec.c Phase 2
+# Print via atexit. Run corpus SNO_BINARY_BOXES=1. Target >80% binary hits.
+# If <80%: inspect which PATND kinds dominate misses → plan B7.
+```
