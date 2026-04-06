@@ -29162,3 +29162,90 @@ one4all/src/runtime/asm/bb_build_bin.c        # blobs gated SCRIP_DYN_BLOBS_ENAB
 .github/SCRIP-UNIFIED.md                      # architecture doc
 .github/BB-GEN-X86-BIN.md                     # M-DYN-B* milestone ladder
 ```
+
+## Sprint RT-128 ADDENDUM (two execution strategies — architecture decision) — 2026-04-06
+
+**Decision by:** Lon Jones Cherryholmes
+**Recorded by:** Claude Sonnet 4.6
+
+### Two In-Memory Execution Strategies
+
+SCRIP will benchmark two distinct execution strategies for SNOBOL4 statements,
+both running as in-memory x86 blobs (no .s / nasm / ld):
+
+---
+
+#### Strategy S1 — 100% Stackless (SM_STACKLESS)
+
+Every phase of every statement is a self-contained x86 blob sequence.
+No C stack frames inside the statement. No call/ret between phases.
+Pure register-to-register and memory-to-memory within the blob chain.
+The five phases are wired by direct jmps, not call/ret.
+BB-DRIVER runs inline — no C function call for pattern match.
+C stack only touched when crossing into static C helpers (GC_malloc, NV_GET_fn etc.)
+
+This is the design already sketched in BB-GEN-X86-BIN.md §Stackless:
+  r13 = stmt frame ptr (k_success / k_fail / k_backtrack continuations + ARBNO stack)
+  Boxes jump to continuations, never ret.
+  Target: maximum throughput, minimum call overhead.
+
+**Expected winner for:** tight loops, pattern-heavy programs, benchmarks.
+
+---
+
+#### Strategy S2 — SM Phases 1/2/4/5 + BB Phase 3 (SM_HYBRID)
+
+Phases 1, 2, 4, 5: SM dispatch loop (push/pop DESCR_t stack — pure FORTH style).
+  No stack frames. No activation records. Just fetch/execute/pc++ over SM_Program.
+  SM_ADD pops two DESCRs, pushes one. SM_PUSH_VAR pushes one. No frame overhead.
+  C stack only at SM_CALL (recursive sm_interp_run) and SM_EXEC_STMT boundary.
+
+Phase 3: BB-DRIVER → BB-GRAPH (Byrd box blobs from bb_pool, existing M-DYN-B* work).
+
+SM_EXEC_STMT is the clean handoff: SM builds subject+pattern on DESCR stack,
+calls stmt_exec_dyn(), BB-DRIVER runs phase 3, returns S/F, SM jumps to :S/:F label.
+
+**Expected winner for:** debugging, correctness checking, mixed workloads where
+  SM overhead is small relative to pattern match time.
+
+---
+
+### The Benchmark Plan
+
+Once both strategies are implemented, run M-DYN-BENCH suite (13 programs) in three modes:
+
+| Mode | Flag | Strategy |
+|---|---|---|
+| `scrip --interp` | Mode I (C tree-walk, baseline) | existing |
+| `scrip --hybrid` | Mode G, Strategy S2 | SM + BB |
+| `scrip --stackless` | Mode G, Strategy S1 | full stackless |
+
+Compare all three against SPITBOL. The numbers will show exactly where each
+strategy wins and loses. Hypothesis: S1 wins on control/arith loops (no SM
+dispatch overhead); S2 wins on pattern-heavy (BB phase 3 is the bottleneck anyway).
+
+---
+
+### Flag / naming update
+
+`scrip` flags become:
+  `--interp`     Mode I: C tree-walk (existing, correctness reference)
+  `--hybrid`     Mode G S2: SM phases 1/2/4/5 + BB phase 3  (replaces old --gen)
+  `--stackless`  Mode G S1: 100% stackless blobs
+  `--gen`        alias for --hybrid (default for now)
+
+### Development sequence update (SCRIP-UNIFIED.md §Development Sequence)
+
+U3 (SM-LOWER) and U4 (pattern integration) build the --hybrid path.
+After U4 gate (PASS=178 via --hybrid), add --stackless as U5.
+M-DYN-BENCH-X86 runs both --hybrid and --stackless columns.
+
+### SM design note — confirmed FORTH model
+
+SM value stack = flat DESCR_t array, sp pointer only.
+No stack frames. No locals. No return addresses in the SM stack.
+C stack appears only at:
+  SM_CALL → recursive sm_interp_run() (user function call)
+  SM_EXEC_STMT → stmt_exec_dyn() (phase 3 handoff)
+Everything between: pure push/pop. This is correct and already implemented in sm_interp.c.
+
