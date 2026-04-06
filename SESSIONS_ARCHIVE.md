@@ -28632,3 +28632,65 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # PASS=178
 #   Wire: case XFAIL → bb_fail_inline()
 #   Gate: PASS=178 both paths; SNO_BIN_MISS_LOG shows 0 FAIL misses
 ```
+
+## Sprint RT-IO HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `eaf28a7` (local — push blocked by remote diverge; first action next session)
+**corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Concept scanned: I/O system (INPUT/OUTPUT/channel associations)
+
+Gap scan methodology: compared v311.sil SIL procedures (READ/PRINT/PUTIN/PUTOUT/DETACH/REWIND/BKSPCE) against our snobol4.c register_fn table and NV_GET_fn/NV_SET_fn paths.
+
+### Milestones completed ✅
+
+**IO-M1: REWIND(N) + BACKSPACE(N)**
+- Added `last_line_len` field to `io_chan_t` (tracks bytes consumed by last getline)
+- `_REWIND_`: `fseek(fp, 0, SEEK_SET)`, resets `last_line_len`
+- `_BACKSPACE_`: `fseek(fp, -last_line_len, SEEK_CUR)`
+- Registered: `register_fn("REWIND", ..., 1,1)` + `register_fn("BACKSPACE", ..., 1,1)`
+- Gate: read line1, REWIND, re-read → same line ✅; read line1+line2, BACKSPACE, re-read line2 ✅
+
+**IO-M2: DETACH(var)**
+- `_DETACH_`: walks `_io_chan[]` for matching varname, calls `_io_chan_close(ch)`
+- Uses `_io_varname()` helper to resolve STR/NAMEVAL/NAMEPTR arg forms
+- Registered: `register_fn("DETACH", ..., 1,1)`
+- Gate: read from associated var, DETACH, assign plain value → no channel intercept ✅
+
+**IO-M3: &TRIM on channel reads**
+- Applied in `input_read()` (global INPUT var) and `NV_GET_fn` channel read path
+- After `\n` strip: if `kw_trim`, rtrim trailing spaces/tabs in-place
+- Gate: channel-read of `"hello   "` with `&TRIM=1` → `"hello"` ✅
+
+### Structural fixes also in this commit
+
+**`_io_varname()` NAMEPTR fix:**
+Normal variables passed as `.VAR` to INPUT/OUTPUT/DETACH arrive as NAMEPTR (interior pointer), not NAMEVAL. Added `NV_name_from_ptr()` call (already existed in snobol4.c) to reverse-lookup the variable name from the cell pointer.
+
+**E_INDIRECT subject assignment → channel output write (scrip-interp.c):**
+When `.W = 'line1'` executes as a statement, subject is E_INDIRECT, which bypassed `NV_SET_fn` and thus bypassed the channel output check. Fixed: after direct pointer write for NAMEPTR case, also call `NV_SET_fn(nm, val)` so the channel intercept in NV_SET_fn fires.
+
+**Forward decl ordering:** `_io_varname` forward-declared before `_DETACH_` (which uses it).
+
+### Push status
+`git push` blocked — remote diverged while working. **First action next session:**
+```bash
+cd /home/claude/one4all
+git pull --rebase origin main
+git push origin main
+# verify PASS=178 still holds after rebase
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+```
+
+### IO-M4 (deferred)
+**&MAXLNGTH enforcement on reads** — after `getline`, if `len > kw_maxlngth` fire runtime error. Blocked on RT-123 error format infrastructure. Low priority.
+
+### Next gap area to scan (suggestion)
+**&INPUT / &OUTPUT global switches (INSW/OUTSW):** SIL guards every INATL/OUTATL lookup with `AEQLC INSW,0,,skip`. Our code lists them in `known_kw[]` but they have no backing variable or effect. Quick scan + milestone: add `kw_insw`/`kw_outsw` globals, gate NV_GET_fn/NV_SET_fn channel paths on them.
+
+Alternatively: **TRACE/STOPTR subsystem** — `_TRACE_` and `_STOPTR_` are registered but trace internals (TVALL association table, trace handler dispatch) are stubs. A scan of v311.sil TRACE procedure vs our implementation would surface the same kind of gap list.
+
+### Files changed this session
+- `src/runtime/snobol4/snobol4.c` — _REWIND_, _BACKSPACE_, _DETACH_, _io_varname, last_line_len, &TRIM
+- `src/driver/scrip-interp.c` — E_INDIRECT subject assignment channel write fix
