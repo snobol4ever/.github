@@ -27731,3 +27731,74 @@ SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # c
 #     g_sno_err_active = 0 disarm after each statement
 #   Low priority (PASS=178 unchanged without it).
 ```
+
+## Sprint RT-118 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `8bb4d2ca3ddc57be49bb56842325573503ea3f22` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+
+### Session type: Gap scan + three builtin implementations + EVAL(DT_E) diagnosis
+
+### Work done
+
+#### Commit 8bb4d2ca3ddc57be49bb56842325573503ea3f22 — RT-118: DATE(), TIME(), VDIFFER()
+
+**snobol4.c:**
+- `_DATE_()`: returns current date as `"MM/DD/YYYY HH:MM:SS"` via `strftime`. Registered `DATE`, 0..0 args.
+- `_TIME_()`: returns milliseconds since program start as REAL via `clock_gettime(CLOCK_MONOTONIC)`. Epoch seeded in `SNO_INIT_fn` into `_g_start_ms`. Registered `TIME`, 0..0 args.
+- `_VDIFFER_()`: SIL DEQL descriptor equality — type tag must match, then DT_I/DT_R by value, DT_S by `strcmp`, DT_P/other by pointer. DT_SNUL normalised to empty DT_S. Returns `a[0]` on differ, `FAILDESCR` on equal. Registered `VDIFFER`, 0..2 args.
+- Added `#include <time.h>`.
+- 7/7 oracle cases verified for VDIFFER. DATE/TIME oracle format-matched.
+
+**Gate:** PASS=178 ✅ throughout.
+
+### Diagnosed but NOT YET FIXED — RT-119 must do this first
+
+**EVAL(CONVERT(s, 'EXPRESSION')) returns empty string (NULVCL) instead of evaluated result.**
+
+Root cause confirmed by debug trace:
+- `compile_to_expression("2 + 3")` correctly builds `EXPR_t*` with `kind=E_ADD`, `nchildren=2`.
+- `EVAL_fn` DT_E branch correctly calls `eval_node(expr.ptr)`.
+- `eval_node` returns `NULVCL` — children are gone.
+- **Cause:** `cmpnd_to_expr` uses `calloc()` throughout. Boehm GC does not scan calloc'd memory. Between `CONVERT` and `EVAL`, any GC cycle can collect the `EXPR_t` children, leaving dangling pointers that read as NULL.
+- `eval_via_cmpile` (used by `EVAL(string)`) works because parse→eval is atomic with no GC window.
+
+**Fix (RT-119 first action):**
+```bash
+# In snobol4_pattern.c, cmpnd_to_expr — replace every calloc with GC_malloc:
+# 1. Find all: calloc(1, sizeof *e)  → GC_malloc(sizeof *e) + memset(e,0,sizeof *e)
+#    (or just GC_MALLOC which zero-initialises via Boehm)
+# 2. Find all: calloc(n, sizeof(EXPR_t*)) → GC_MALLOC(n * sizeof(EXPR_t*))
+# 3. Same fix needed in eval_code.c eval_node if it allocates EXPR_t nodes.
+# Verify:
+#   CONVERT('2 + 3','EXPRESSION') → EVAL → should output 5
+#   CONVERT('X','EXPRESSION') → EVAL (with X=42) → should output 42
+#   CONVERT('SIZE(\"hello\")','EXPRESSION') → EVAL → should output 5
+# Gate: PASS=178 throughout.
+```
+
+### RT-119 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# Fix 1: cmpnd_to_expr calloc → GC_malloc in snobol4_pattern.c
+# (see diagnosis above — every calloc in that function)
+# Fix 2: verify eval_code.c has no calloc-allocated EXPR_t nodes
+# Test: CONVERT + EVAL end-to-end (see test cases above)
+# Gate: PASS=178.
+
+# After EVAL(DT_E) fixed, next gap candidates from gap scan this session:
+# - CONVERT(x, "NAME") — what does csnobol4 do? oracle-test first
+# - &STEXEC keyword (increment alongside kw_stcount in comm_stno) — RT-117b remnant
+# - &PI, &DIGITS, &PARM — RT-117b remnant small one-liners
+# - stmt_failed: label + g_sno_err_active=0 disarm — GAP 4 remnant from RT-117b
+```
