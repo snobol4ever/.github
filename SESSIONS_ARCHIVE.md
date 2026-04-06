@@ -29888,3 +29888,84 @@ CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.
 
 ### Next milestone
 PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 29 tests remaining after fixing indirect + TABLE.
+## Sprint RT-136 HANDOFF (INDIR_GET DT_N / UOP_* / NRETURN / SM_STNO / error recovery) — 2026-04-06
+
+**Session:** SNOBOL4 × x86 / scrip (SM-LOWER / --hybrid track)
+**HEAD:** one4all `9a5c08dd` · corpus `3fd44d0` · PASS=178 (normal) / PASS=152 (--hybrid)
+
+### Work done this session
+
+**RT-136 (commit d055d745):**
+
+1. **INDIR_GET DT_N fix** — `$.var` now works in `--hybrid`. Added `sil_macros.h` include to `sm_interp.c`. Three-branch INDIR_GET: NAMEPTR → `NAME_DEREF_PTR` directly; NAMEVAL → `NV_GET_fn(name_d.s)`; DT_S → original `VARVAL_fn` path. Fixed 210_indirect_ref (2/2).
+
+2. **UOP_* aliases removed** — Dead `#define UOP_PLS 301 … UOP_ARW 314` block removed from `CMPILE.c`. `uop_names[]` table updated to canonical SIL FN names (`PLSFN`, `DOTFN`, `INDFN`, etc.). `--dump-parse` now shows `INDFN`/`DOTFN` instead of `UOP_IND`/`UOP_DOT`.
+
+3. **NRETURN in `--hybrid`** — `INVOKE_fn` result DT_N deref added to SM_CALL general path (mirrors tree-walk E_FNC line 955). Added `SM_NRETURN` opcode to sm_prog.h; sm_lower emits it for `:(NRETURN)`. Fixed 213/002 ($.var NAMEVAL deref). 213/005 (NRETURN read value) still fails — deferred.
+
+4. **SM_STNO opcode** — New `SM_STNO` opcode emitted by `lower_stmt` at every statement boundary. `sm_interp` calls `comm_stno(++g_sm_stno)`. Fixes `&STCOUNT`/`&STNO` keyword read in `--hybrid`. Fixed 082_keyword_stcount.
+
+5. **SM_COERCE_NUM opcode** — New opcode emitted by E_PLS lowering. Handler in sm_interp: string → `to_int` then `to_real`. Fixed 411_arith_unary (unary `+` string→int).
+
+**RT-136b (commit 9a5c08dd):**
+
+6. **lt_find strcasecmp** — Label lookup in sm_lower was `strcmp` (case-sensitive). Changed to `strcasecmp`. `:(return)` / `:(fact_end)` in lowercase SNOBOL4 source now resolve correctly.
+
+7. **emit_goto strcasecmp** — Special targets `RETURN`/`FRETURN`/`NRETURN` checked with `strcasecmp`.
+
+8. **g_sno_err_jmp armed in hybrid** — `sno_runtime_error → longjmp(g_sno_err_jmp)` was crashing with segfault in `--hybrid` because `g_sno_err_jmp` was never armed with `setjmp`. Fixed: hybrid block now has a `while(1)` loop with `setjmp(g_sno_err_jmp)`. On error: stack reset, pc advanced to next SM_STNO boundary, `sm_interp_run` resumed. Fixed segfault in 1010_func_recursion.
+
+### Remaining --hybrid failures (51 total)
+
+| Cluster | Tests | Root cause |
+|---------|-------|------------|
+| Func edge cases | 1010, 1012, 1013, 1015–1018 | 1010: Error 5 at `ne(fact(5),120)` — `fact` not found during SM execution despite prescan_defines. Suspect: runtime `DEFINE_fn` call overwrites entry_label in function table before body is reached. Needs MONITOR trace. |
+| Indirect array | 212 | `$X` where X holds array subscript |
+| Pattern ALT/ARBNO | 053, 054 | backtracking in SM pat-stack dispatch |
+| Arrays/Tables | 1112, 1113, 1114 | 4D subscripts; TABLE subscript in SM |
+| DATA | 095, 1115, 1116 | field setter + VALUE() overlap |
+| NRETURN | 213/005 | NRETURN function return value read at call site |
+| Misc | W07, 063, expr_eval, fileinfo, triplet | various |
+| beauty/word/cross | ~15 | DEFINE-dependent / complex |
+
+### First actions next session
+
+```bash
+cd /home/claude
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+apt-get install -y libgc-dev flex
+
+cat > /tmp/run_hybrid.sh << 'EOF2'
+#!/usr/bin/env bash
+exec /home/claude/one4all/scrip --hybrid "$@"
+EOF2
+chmod +x /tmp/run_hybrid.sh
+
+cd /home/claude/one4all && make scrip
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"        # 178
+CORPUS=/home/claude/corpus INTERP=/tmp/run_hybrid.sh bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"  # 152
+
+# PRIORITY 1: 1010 Error 5 — use two-way MONITOR
+# Run under --interp (works) vs --hybrid (Error 5):
+# ./scrip --interp corpus/crosscheck/rung10/1010_func_recursion.sno
+# ./scrip --hybrid corpus/crosscheck/rung10/1010_func_recursion.sno
+# Add fprintf to APPLY_fn before sno_runtime_error(5): print name + g_sm_stno
+# Likely: runtime define('fact(n)') :(fact_end) in SM re-registers fact with
+# entry_label=NULL (no body label arg), overwriting prescan_defines' entry.
+# Fix: in DEFINE_fn, if fn==NULL and entry_label already set, preserve it.
+
+# PRIORITY 2: 213/005 NRETURN — SM deref at call site correct but differ sees NAMEPTR
+# Check: ./scrip --hybrid corpus/crosscheck/rung2/213_indirect_name.sno
+# The INVOKE_fn deref in SM_CALL already added — recheck if NRETURN path is correct.
+
+# PRIORITY 3: 053/054 pat_alt/arbno
+# ./scrip --hybrid corpus/crosscheck/rung1/053_pat_alt_commit.sno
+# ./scrip --hybrid corpus/crosscheck/rung1/054_pat_arbno_alt.sno
+```
+
+### Next milestone
+PASS=178 under `--hybrid` (M-SCRIP-U4 gate). Gap: 26 tests remaining.
