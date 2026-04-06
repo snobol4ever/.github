@@ -27567,3 +27567,47 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
 # &PARM  — NV_SET_fn("PARM", STRVAL(getenv("SNOBOL4_PARM") ?: ""))  in SNO_INIT_fn
 # &STEXEC — add kw_stexec int64_t, increment alongside kw_stcount in comm_stno()
 ```
+
+## Sprint RT-117b HANDOFF (M-DYN-B2) — 2026-04-05
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `1870624` · **corpus HEAD:** `3fd44d0` · **PASS=178/203**
+
+### Milestone completed: M-DYN-B2 ✅
+
+**Commit `1870624`** — `RT-117 M-DYN-B2: bb_eps_emit_binary() + bb_build_binary() DT_P walk; PASS=178`
+
+**Deliverables:**
+- `src/runtime/asm/bb_build_bin.c` — `bb_eps_emit_binary()` (EPS as sealed x86-64 binary; α returns spec(Σ+Δ,0); β→ω; stateless in binary path; ~130 bytes) + `bb_build_binary(PATND_t*)` walker + static `bb_build_binary_node()`.
+- `src/runtime/asm/bb_build_bin.h` — exports `bb_eps_emit_binary()`, `bb_build_binary()`; adds `patnd.h` include (after `snobol4.h` for DESCR_t ordering).
+- `src/runtime/dyn/stmt_exec.c` — Phase 2 DT_P branch: tries `bb_build_binary()` behind `SNO_BINARY_BOXES=1`; falls back to C `bb_build()` on NULL.
+
+**`bb_build_binary_node()` switch coverage:**
+- `NULL` → `bb_eps_emit_binary()`
+- `XCHR` → `bb_lit_emit_binary(p->STRVAL_fn, len)` (M-DYN-B1)
+- `XEPS` → `bb_eps_emit_binary()`
+- all others → NULL (clean C fallback)
+
+**Gates:** PASS=178 without `SNO_BINARY_BOXES` ✅ · PASS=178 with `SNO_BINARY_BOXES=1` ✅
+
+**Architectural note:** DT_P XCHR nodes arise from `pat_lit()` in `snobol4_pattern.c` (lines 151, 233, 340) when interpreter converts DT_S→DT_P in concat/capture context. Pure inline string patterns stay DT_S → M-DYN-B1 path. Both paths live.
+
+### RT-118 first actions (M-DYN-B3)
+
+```bash
+cd /home/claude && apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md && cat .github/SESSION-snobol4-x64.md
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh          # confirm PASS=178
+SNO_BINARY_BOXES=1 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# M-DYN-B3: bb_pos_emit_binary(int n)
+#   POS α: cmp Δ,n; je succeed → spec(Σ+Δ,0); else → ω
+#   POS β: → ω
+#   Add: case XPOSI → bb_pos_emit_binary((int)p->num) in bb_build_binary_node
+#   Then XRPSI(RPOS), XLNTH(LEN), XTB, XRTB — all same int-arg pattern
+#   After those: XCAT — wires two sub-boxes in sequence; unlocks most corpus DT_P patterns
+# GAP 4 also open: sno_runtime_error() infra (to_int/to_real on non-numeric types)
+```
