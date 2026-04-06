@@ -252,3 +252,57 @@ the codegen are immediately isolatable from runtime semantic bugs.
 
 *Written: RT-125, 2026-04-06, Lon Jones Cherryholmes + Claude Sonnet 4.6*
 *Replaces: scrip-interp + scrip-cc split*
+
+---
+
+## ⚠️ UPDATE — Two Execution Strategies (RT-128 addendum, 2026-04-06)
+
+SCRIP runs in **three modes**, benchmarked against each other and SPITBOL:
+
+### Mode I — Interpretive (--interp)
+C tree-walk over IR. Existing path. Correctness reference. Baseline for all benchmarks.
+
+### Mode G/S2 — SM Hybrid (--hybrid, default --gen)
+**Phases 1, 2, 4, 5:** Pure FORTH-style SM dispatch over SM_Program.
+Flat DESCR_t value stack. No frames. No activation records.
+fetch → execute → pc++. C stack only at SM_CALL and SM_EXEC_STMT boundary.
+
+**Phase 3:** BB-DRIVER → BB-GRAPH (Byrd box blobs, M-DYN-B* work).
+
+SM_EXEC_STMT = clean handoff point between SM and BB worlds.
+
+### Mode G/S1 — 100% Stackless (--stackless)
+Every phase is a self-contained x86 blob sequence.
+Five phases wired by direct jmps, not call/ret.
+BB-DRIVER inline — no C call for pattern match.
+r13 = stmt frame ptr (continuations + ARBNO stack).
+Boxes jump to continuations, never ret.
+C stack only at static C helper boundaries (GC_malloc, NV_GET_fn...).
+
+### Benchmark plan
+Run 13-program M-DYN-BENCH suite in all three modes + SPITBOL:
+
+| Column | Mode |
+|---|---|
+| scrip-C | `--interp` (existing baseline) |
+| scrip-hybrid | `--hybrid` (SM + BB) |
+| scrip-stackless | `--stackless` (full inline blobs) |
+| SPITBOL | oracle |
+
+Hypothesis: `--stackless` wins control/arith loops; `--hybrid` wins pattern-heavy
+(BB phase 3 dominates anyway, SM overhead is small).
+
+### Updated flag set
+```
+scrip --interp      Mode I: C tree-walk
+scrip --hybrid      Mode G S2: SM phases 1/2/4/5 + BB phase 3   [default]
+scrip --gen         alias for --hybrid
+scrip --stackless   Mode G S1: 100% stackless blobs
+```
+
+### Updated development sequence
+- U3: SM-LOWER (IR → SM_Program)
+- U4: Pattern integration (SM_PAT_* + SM_EXEC_STMT wired to BB-DRIVER)
+- U4 gate: PASS=178 via --hybrid
+- U5: --stackless path (full inline blob chain, no SM dispatch overhead)
+- U5 gate: PASS=178 via --stackless; M-DYN-BENCH-X86 all three columns filled
