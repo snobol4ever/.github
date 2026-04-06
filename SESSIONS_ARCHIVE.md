@@ -27487,3 +27487,83 @@ The vertical-audit approach worked well. Next session can pick a new vertical:
 - **String builtins** (`SUBSTR`, `REPLACE`, `REVERSE`, `DUPL`, `REMDR`, `CHAR`, `LPAD`, `RPAD`)
   — check edge cases vs oracle
 - **Pattern primitive completeness** — XBAL, XEQFN, XDNME vs our bb_*.c boxes
+
+## Sprint RT-117 HANDOFF — 2026-04-06
+
+**Participants:** Lon Jones Cherryholmes · Claude Sonnet 4.6
+**one4all HEAD:** `a7b36664a1677dd601a32989fc0581f71c04ac29` · **corpus HEAD:** `3fd44d01d95e8e2a8dc6c596a9a28019d3f4f116` · **PASS=178/203**
+
+### Session type: Keyword vertical audit + sno_runtime_error (partial)
+
+### Work done
+
+#### Commit a7b3666 — RT-117: keyword audit — 11 missing keywords wired
+
+**snobol4.c** — all four dispatch sites (NV_GET_fn, NV_SET_fn, ASGNIC_fn, NV_PTR_fn, NAME_fn) now cover complete keyword set:
+
+Writable (KNLIST) gaps fixed:
+- `&CASE` — kw_case global existed but was never in read/write dispatch; pattern case-folding was not runtime-controllable. Fixed.
+- `&MAXLNGTH` — kw_maxlngth existed but NV_SET wrote NV hash, not the C global. Fixed.
+- `&FTRACE` — new kw_ftrace global, fully wired read/write. Was silently string var.
+- `&ERRLIMIT` — new kw_errlimit, fully wired.
+- `&CODE` — new kw_code (program exit code), fully wired.
+
+Protected (KVLIST) stubs added:
+- `&FNCLEVEL` — new kw_fnclevel; read returns current call depth. Write silently ignored (protected).
+- `&RTNTYPE` — new kw_rtntype[16]; read returns last return type string.
+
+**snobol4.h** — extern declarations added for all 5 new globals.
+
+**scrip-interp.c** — live wiring:
+- kw_fnclevel = call_depth on every frame push/pop in call_user_function.
+- kw_rtntype set to "RETURN"/"FRETURN"/"NRETURN" at all 5 return sites (explicit RETURN/FRETURN/NRETURN targets, fall-off, longjmp path).
+
+**Gate:** PASS=178 ✅ no regression.
+
+### Still missing from keyword vertical (next session candidates)
+
+Unprotected not yet wired: `&TRACE` (TRAPCL), `&OUTPUT` read, `&INPUT` read, `&GTRACE`, `&FATALLIMIT`, `&DUMP` (as integer flag, not builtin fn), `&ABEND`.
+Protected not yet wired: `&ERRTYPE`, `&ERRTEXT`, `&FILE`, `&LINE`, `&LASTFILE`, `&LASTLINE`, `&STFCOUNT`, `&LASTNO`, `&PARM`, `&DIGITS` (name case bug), `&PI`, `&STEXEC`.
+
+### GAP 4 — sno_runtime_error() (started, not completed)
+
+Next recommended work: implement `sno_runtime_error(int code, const char *msg)` in snobol4.c.
+Format: `"\n** Error N in statement M\n   <msg>\n"` (match csnobol4 output).
+Wire into: to_int/to_real on DT_P/DT_A/DT_T → Error 1 "Illegal data type".
+Mechanism: longjmp from stmt executor jmp_buf (preferred) or exit(1)+message.
+Gate: PASS=178 unchanged; oracle match on pat-arithmetic.sno.
+
+### RT-118 first actions
+
+```bash
+cd /home/claude
+apt-get install -y libgc-dev flex
+tail -120 .github/SESSIONS_ARCHIVE.md
+grep "^## " .github/GENERAL-RULES.md
+cat .github/PLAN.md
+cat .github/SESSION-snobol4-x64.md
+
+cd one4all && make scrip-interp
+CORPUS=/home/claude/corpus bash test/run_interp_broad.sh  # confirm PASS=178
+
+# GAP 4 — sno_runtime_error infrastructure
+# 1. snobol4.h: add
+#    void sno_runtime_error(int code, const char *msg);
+#    extern jmp_buf  g_sno_err_jmp;
+#    extern int      g_sno_err_stmt;
+#    extern int      g_sno_err_active;   /* 1 when jmp_buf is armed */
+# 2. snobol4.c: implement sno_runtime_error():
+#    if (g_sno_err_active) longjmp(g_sno_err_jmp, code);
+#    else { fprintf(stderr, "\n** Error %d ...\n", code, ...); exit(1); }
+# 3. to_int (snobol4.c): default case → sno_runtime_error(1, "Illegal data type"); return 0;
+# 4. to_real: same
+# 5. scrip-interp.c execute_stmt loop: setjmp(g_sno_err_jmp), set g_sno_err_active=1
+#    On longjmp return: print error, take failure branch.
+# 6. Gate: PASS=178; oracle match on arithmetic with non-numeric types.
+
+# NEXT keyword gaps (small, any order):
+# &PI   — register in SNO_INIT_fn: NV_SET_fn("PI", REALVAL(3.14159265358979323846))
+# &DIGITS — NV_SET_fn already registers "digits" (lowercase); add "DIGITS" alias
+# &PARM  — NV_SET_fn("PARM", STRVAL(getenv("SNOBOL4_PARM") ?: ""))  in SNO_INIT_fn
+# &STEXEC — add kw_stexec int64_t, increment alongside kw_stcount in comm_stno()
+```
