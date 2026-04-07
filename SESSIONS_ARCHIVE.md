@@ -31660,3 +31660,34 @@ Gate: flags produce output without crashing; PASS=178 unchanged.
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
+
+---
+
+## Session 2026-04-07j — Correction note (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `8724ed19` · .github `e5df9c5`
+
+### Correction to session i
+`emit_x64.c` (and all other `emit_*.c` backends) ARE compiled into `scrip`.
+The `icn_` prefix fix for symbol collisions in `emit_x64.c` was therefore
+necessary and correct — without it scrip would fail to build.
+
+Previous claim that "emit_x64.c is not compiled into scrip" was wrong.
+
+### State
+- `scrip` builds clean ✅
+- PASS=178 --ir-run ✅, PASS=161 --sm-run ✅
+- All emit_*.c consolidated (one per backend), compiled into scrip
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd ~/snobol4ever/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then begin M-DIAG:
+# Wire --dump-sm, --dump-bb, --trace, --bench in src/driver/scrip.c
+# All flags already parsed — just need implementations
+# Gate: flags produce output without crashing; PASS=178 unchanged
+```
