@@ -32024,32 +32024,77 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 
 ---
 
-## Session 2026-04-07q — M-BB-LIVE-WIRE start (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07q — M-BB-LIVE-WIRE + M-JIT-RUN partial (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `e0c11d5b` · .github `5bfcae4`
+**HEAD:** one4all `9bbbcc2b` · .github `2b782b4`
 
-### Status on entry
-- Cloned all four repos fresh. Installed `wabt` and `libgc-dev` (not present in this env).
-- Built `scrip` successfully.
-- `scrip --ir-run`: PASS=178/203 ✅ (gate confirmed)
+### Environment note
+Fresh clone requires: `apt-get install -y wabt libgc-dev` before `make scrip`.
 
-### Work completed
-- None yet — session interrupted after orientation to update HQ.
+### M-BB-LIVE-WIRE ✅ COMPLETE (committed e35fe0b9)
+- `bb_build.h`: added `bb_mode_t` enum (`BB_MODE_DRIVER`/`BB_MODE_LIVE`) + `extern g_bb_mode`
+- `stmt_exec.c`: defined `g_bb_mode = BB_MODE_DRIVER`; replaced both `getenv("SNO_BINARY_BOXES")` checks with `g_bb_mode == BB_MODE_LIVE`
+- `scrip.c`: include `bb_build.h`; set `g_bb_mode = BB_MODE_LIVE` when `--bb-live`; removed `(void)bb_live`
+- Gate: `--sm-run --bb-live` PASS=161 ✅; trace diff vs `--bb-driver` empty ✅
 
-### Standing instruction
-**Do NOT run `tools/beautify.py` on any source files.** Not a session task.
+### M-JIT-RUN PARTIAL (committed 9bbbcc2b)
+New file `src/runtime/x86/sm_codegen.c` (~690 lines):
+- `sm_codegen()`: emits one x86-64 dispatch stub per opcode into `SEG_DISPATCH`; builds pointer array in `SEG_CODE`
+- `sm_jit_run_plain()`: **pure-C handler dispatch** — active runner, PASS=159/203
+- `sm_jit_run()`: stub-based runner (calls into `SEG_DISPATCH`) — **has stack-alignment bug, not active**
+
+`scrip.c`: `--jit-run` wired via `sm_image_init → sm_codegen → sm_jit_run_plain`
+
+### Baselines
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run --bb-driver`: PASS=161/203 ✅
+- `scrip --jit-run --bb-driver`: PASS=159/203 (2 below target; stub bug deferred)
+
+### M-JIT-RUN stub bug — next session fix
+**Symptom:** `sm_jit_run()` (stub path) segfaults on `NV_SET_fn("OUTPUT", DT_I)`.  
+`sm_jit_run_plain()` (plain C path) handles it correctly → confirms bug is in stub x86 emission.
+
+**Root cause hypothesis:** stack misalignment when calling through the RX stub into `NV_SET_fn`.  
+The stub sequence is:
+```
+push rbp          ; RSP -= 8  (now 16-aligned, since entry RSP was 8-misaligned)
+mov  rbp, rsp
+sub  rsp, 8       ; RSP -= 8  (now 8-misaligned before CALL)
+mov  rax, imm64   ; handler address
+call rax          ; CALL pushes 8 → RSP 16-aligned at handler entry ✓ (seems right)
+add  rsp, 8
+pop  rbp
+ret
+```
+Despite appearing correct, the bug triggers specifically for `NV_SET_fn("OUTPUT", DT_I)` —
+a path that calls `printf`/`fwrite` internally (SSE2 `movaps` requires 16-byte alignment).
+**Fix to try:** change `sub rsp,8` to `sub rsp,24` (align to 16 accounting for the extra
+call frame from `sm_jit_run → stub → handler`), or emit the stub without a frame entirely:
+```
+mov  rax, imm64
+jmp  rax          ; tail-call — no extra frame, alignment unaffected
+```
+The tail-call/jmp approach is simpler and avoids all alignment questions since the stub
+adds no frame at all; the handler runs in the caller's (sm_jit_run's) alignment context.
 
 ### Next session — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+apt-get install -y wabt libgc-dev 2>/dev/null
 cd /home/claude/one4all && git pull && make scrip
-INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
-# Gate: PASS=178. Then implement M-BB-LIVE-WIRE:
-#   1. Add BB_MODE_DRIVER / BB_MODE_LIVE enum + g_bb_mode extern to bb_build.h
-#   2. Define g_bb_mode in stmt_exec.c; replace SNO_BINARY_BOXES getenv() checks
-#      with (g_bb_mode == BB_MODE_LIVE) checks
-#   3. scrip.c: set g_bb_mode = BB_MODE_LIVE when --bb-live; remove (void)bb_live
-#   4. Gate: PASS=178 via scrip --sm-run --bb-live; trace diff vs --bb-driver is empty
+INTERP="./scrip --ir-run"       CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+INTERP="./scrip --jit-run --bb-driver" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gates: --ir-run PASS=178, --jit-run PASS=159.
+#
+# Fix M-JIT-RUN stub bug in sm_codegen.c::emit_dispatch_stub():
+#   Replace push/sub/call/add/pop stub with jmp tail-call stub:
+#     mov rax, imm64   (10 bytes: 0x48 0xb8 + 8-byte addr)
+#     jmp rax          (2 bytes:  0xff 0xe0)
+#   Then in sm_jit_run(), swap sm_jit_run_plain for sm_jit_run.
+#   Gate: --jit-run --bb-driver PASS=161 (matches --sm-run).
+#
+# After gate passes, update sm_codegen.h to remove sm_jit_run_plain declaration,
+# remove sm_jit_run_plain body from sm_codegen.c, commit M-JIT-RUN complete.
 # NOTE: do NOT run tools/beautify.py on any source files.
 ```
 
