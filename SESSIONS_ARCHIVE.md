@@ -31556,3 +31556,62 @@ git push origin --delete runtime-reorg
 - `bb_build.h/c` needed `bb_box.h` (not `../boxes/shared/bb_box.h`) — fixed
 - `bb_flat.h/c`, `stmt_exec.c` same bb_box.h fix — fixed
 - May be a few more stale includes to surface during full build
+
+---
+
+## Session 2026-04-07h — Runtime Flatten + Emit Consolidation (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `84a1eaf5` · .github `5c62081`
+
+### Work completed
+
+**Runtime flatten (from runtime-reorg branch — merged):**
+- `bb_node_t` moved into `bb_box.h`; `bb_build` made non-static + declared there
+- Duplicate `bb_capture_new` removed from `bb_boxes.c`
+- Gate: PASS=178 ✅ · merged to main · branch deleted
+
+**emit_*.c consolidation (one file per backend):**
+- `emit_jvm.c` ← `emit_jvm_icon.c` + `emit_jvm_prolog.c` (23,295 lines)
+- `emit_wasm.c` ← `emit_wasm_icon.c` + `emit_wasm_prolog.c` (5,219 lines)
+- `emit_x64.c` ← `emit_x64_icon.c` + `emit_x64_snocone.c` (9,764 lines)
+- `emit_c.c` ← `emit_byrd_c.c` + `emit_cnode.c` (5,302 lines)
+- `emit_net.c`, `emit_js.c` — already solo, unchanged
+- Makefile BACKEND_* vars updated; old files git-rm'd
+
+**Stale runtime path fixes in test scripts:**
+- `test/crosscheck/`, `test/beauty-sc/`, `test/monitor/`, `test/run_invariants.sh`
+- `runtime/{snobol4,asm,engine,dyn,sm}/` → `runtime/x86/`
+
+### Regression results
+- `scrip --ir-run`: PASS=178/203 ✅ (unchanged)
+- `scrip --sm-run`: PASS=161/203 ✅ (unchanged)
+- `test/crosscheck/run_crosscheck.sh`: still fails on `$RT/mock/mock_includes.c` — **pre-existing** (mock files in `archive/backend/`, never at `$RT/mock/`; script last touched in G-8 session)
+- Icon corpus, Prolog corpus: pre-existing failures unrelated to today's reorg
+
+### Known pre-existing issues (not introduced today)
+- `run_crosscheck.sh` references `$RT/mock/mock_includes.c` — mock files live in `archive/backend/`
+- Icon parser compile fails in `test/scrip/run_corpus_icon.sh`
+- Prolog corpus crash rate >5% in `test/scrip/run_corpus_prolog.sh`
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd ~/snobol4ever/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then begin M-DIAG:
+# Wire --dump-sm, --dump-bb, --trace, --bench in src/driver/scrip.c
+# All flags already parsed — just need implementations
+# Gate: flags produce output without crashing; PASS=178 unchanged
+```
+
+### Next milestone: M-DIAG
+Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
+All flags already parsed — just need implementations.
+Gate: flags produce output without crashing; PASS=178 unchanged.
+
+### Regression baselines (all confirmed this session)
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS/JVM/.NET baselines from session d: JS=175, .NET=172, JVM=164 (not re-run this session — full frontend sweep deferred)
