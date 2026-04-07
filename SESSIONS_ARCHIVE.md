@@ -31459,3 +31459,65 @@ INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/
 Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
 All flags already parsed — just need implementations.
 Gate: flags produce output without crashing; PASS=178 unchanged.
+
+---
+
+## Session 2026-04-07f — Runtime Reorg + Box Consolidation (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `660339cd` · .github `02b34b4` (no .github changes this session)
+
+### Work completed
+
+**Cleanup (committed):**
+- Removed `one4all/snapshots/` (unused, `aaa7264c`)
+- Moved `one4all/doc/` → `one4all/archive/doc/`; fixed 4 source references (`dbc97f65`)
+- Consolidated 27 per-box subfolders into 6 `bb_boxes.*` files (`660339cd`):
+  - `src/runtime/boxes/bb_boxes.c` (629 lines)
+  - `src/runtime/boxes/bb_boxes.s` (1418 lines)
+  - `src/runtime/boxes/bb_boxes.js` (596 lines)
+  - `src/runtime/boxes/bb_boxes.j` (2309 lines)
+  - `src/runtime/boxes/bb_boxes.il` (2581 lines)
+  - Removed jasmin/, shared/, 27 per-box subfolders, loose old .java files
+  - Updated build_boxes.sh, stmt_exec.c comment, promoted correct bb_box.h
+
+**In progress (stashed, NOT committed):**
+- Flatten `src/runtime/` into 5 platform folders: `x86/`, `jvm/`, `net/`, `js/`, `wasm/`
+- All `git mv` operations complete and staged
+- Include path fixes mostly done; build gets to `bb_boxes.c` errors before stash
+- Stash saved as: `WIP on main: 660339cd`
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cd ~/snobol4ever/one4all && git pull --rebase
+git stash pop
+make scrip 2>&1 | grep -E "error:|fatal" | head -20
+# Fix remaining errors (likely a few more stale includes)
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then:
+git add -A && git commit -m "Flatten src/runtime/ into 5 platform folders (x86, jvm, net, js, wasm)"
+git push
+```
+
+### Flat runtime structure (target — locked in)
+```
+src/runtime/
+  x86/   — bb_box.h, bb_boxes.c/s, bb_build.c/h, bb_emit/flat/pool, engine.c/h,
+            engine_runtime.h, eval_code.c, sil_macros.h, sm_image/interp/lower/prog,
+            snobol4.c/h, snobol4_argval/invoke/nmd/patnd/pattern/runtime_shim/stmt_rt/utf8,
+            stmt_exec.c
+  jvm/   — bb_boxes.j, jvm_linkage.j
+  net/   — bb_boxes.il, bb_build.sh, snobol4_lib.il, snobol4_run.il
+  js/    — bb_boxes.js (richer tested version from old js/)
+  wasm/  — bb_boxes.wat, prolog_runtime.wat, snobol4_runtime.wat
+```
+
+### Known remaining issues before commit
+- `bb_boxes.c` needed `snobol4.h` + `stdio.h` added (done in stash)
+- Likely a few more stale include paths will surface during `make scrip`
+- `emit_byrd_c.c` emits `snobol4_runtime_shim.h` string (updated in stash)
+
+### Regression baselines (from session d, unchanged)
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS: 175, .NET: 172, JVM: 164
