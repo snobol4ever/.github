@@ -31407,3 +31407,55 @@ cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
 cd ~/snobol4ever/one4all && git pull --rebase && make scrip
 INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
 ```
+
+---
+
+## Session 2026-04-07e — Handoff (context ~80%)
+
+**HEAD:** one4all `f59fda80` · .github `02b34b4`
+
+No new work this sub-session. Context window at ~80% — handoff called by Lon.
+
+### Full session 2026-04-07 summary (all sub-sessions)
+
+**Reorg:**
+- `src/runtime/archive/` → `archive/backend/`
+- `src/runtime/asm/` → `src/runtime/x86/`
+- `bench_re` → `re_bench`, `bench_pda` → `pda_bench`
+
+**Restore (680+ files):**
+- All JVM, .NET, JS, WASM interpreter sources
+- All 203-test corpus `.sno`/`.il`/`.j`/`.s` files
+- Snocone frontend (8 files)
+- Icon + Prolog test suites
+- JVM `ByrdBoxLinkage.j`
+- WASM `.wat` files (+ Greek→ASCII fix for wabt compat)
+
+**Build fixes:**
+- `scrip`: `asm→x86` paths, restored `engine.c`/`runtime.h`, stubbed `stmt_init`
+- JVM: correct `package bb` structure, compiles clean
+- .NET: `net10→net8` target, `α→alpha` param fix, builds clean
+- JS: works out of box
+- WASM: all 3 `.wat` files compile with `wat2wasm`
+
+**Regression baselines confirmed:**
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS:             PASS=175/203
+- .NET:           PASS=172/203
+- JVM:            PASS=164/203
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
+cd ~/snobol4ever/one4all && git pull --rebase && make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then begin M-DIAG.
+```
+
+### Next milestone: M-DIAG
+Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
+All flags already parsed — just need implementations.
+Gate: flags produce output without crashing; PASS=178 unchanged.
