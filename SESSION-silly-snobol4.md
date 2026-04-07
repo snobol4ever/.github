@@ -205,3 +205,52 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §15 | sil_io.c | ✅ complete (2026-04-07t) — 3 bugs: READ opts lost; DETACH wrong arena base; PUTIN XCL not saved |
 | §16 | sil_trace.c | ⬜ next |
 | §17–§23 | remaining TUs | ⬜ pending |
+
+---
+
+## ⛔ §INFO addition — M-SS-DIFF-RECHECK method (2026-04-07w)
+
+### Three-way diff method
+
+M-SS-DIFF-RECHECK is a **complete scan of all §1–§23** (not limited to any section range).
+It is NOT a re-scan of §16–§19 only. Every TU gets reviewed.
+
+**Method: three-way oracle + generated C + ours**
+
+For each function, compare ALL THREE simultaneously:
+1. `v311.sil` — SIL source oracle (confusing branch convention: arg3=FALSE, arg4=TRUE — reversed)
+2. `snobol4.c` — generated C from CSNOBOL4's own SIL compiler — **THIS IS GROUND TRUTH**
+   - Location: `/home/claude/work/snobol4-2.3.3/snobol4.c` (14,293 lines, 383 fns)
+   - Already resolves all SIL branch ambiguity into plain C if/goto
+   - Use `grep -A N "^FUNCNAME\b" snobol4.c` to pull each function
+3. `src/silly/sil_*.c` — our translation
+
+**Why three-way catches more bugs:**
+- SIL branch convention trips up first-pass reading (arg3=false, arg4=true)
+- Generated C cuts through all ambiguity — DCMP/DCMP in generated = deql() in ours
+- Structural omissions (missing PUTDC, missing appends) visible by line-count comparison
+- Off-by-one (> vs >=) visible by direct comparison
+
+**Bug classes found in §16 recheck that first pass missed:**
+- Structural omissions: TRAC3 link-back, fentr prefix, FNEXT1 return value
+- Wrong register: valtr4 FRETCL ZPTR→XPTR, STOPTR YPTR path
+- Inverted branch: valtr4 VEQLC(S) 
+- Off-by-one: `>` vs `>=` on BUFLEN overflow guards (affects ALL trace functions)
+
+### Future: in-process diff driver
+
+The right approach is a driver that walks snobol4.c and sil_*.c in lockstep, function by function.
+Options:
+- **Static structural diff**: normalize both to (register-touched, branch-taken, global-written) sequences; diff the sequences
+- **Runtime trace diff**: run same input through both, compare register state after each SIL op
+- **Callback/step approach**: both interpreters step through same IR, fire callback on divergence
+
+M-SS-HARNESS (two-way vs CSNOBOL4) catches runtime divergence but requires working inputs.
+Static diff catches structural bugs before any code runs.
+
+### M-SS-DIFF-RECHECK watermark (update each session)
+- §16 sil_trace.c: ✅ 9 bugs fixed
+- §17 sil_asgn.c: ⬜
+- §18 sil_pred.c: ⬜
+- §19 sil_func.c: ⬜
+- §1–§15 (all other TUs): ⬜
