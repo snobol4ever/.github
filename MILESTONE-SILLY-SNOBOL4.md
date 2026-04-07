@@ -1233,3 +1233,49 @@ clean:
 
 *MILESTONES.md — initial design, 2026-04-06*
 *Updated: mark each ⬜ → ✅ when gate passes. Add notes below each entry as work proceeds.*
+
+---
+
+## M-SS-DIFF-RECHECK — Complete Three-Way Re-scan
+
+**Scope: ALL §1–§23 TUs. Not limited to any section range.**
+
+**Method:** For each function in each TU, compare three sources simultaneously:
+- `v311.sil` — SIL oracle (branch convention: arg3=FALSE, arg4=TRUE — confusing)
+- `snobol4.c` — generated C at `/home/claude/work/snobol4-2.3.3/snobol4.c` — **GROUND TRUTH**
+- `src/silly/sil_*.c` — our translation
+
+**The generated C is the authoritative reference.** It resolves all SIL branch ambiguity.
+Use: `grep -A N "^FUNCNAME\b" /home/claude/work/snobol4-2.3.3/snobol4.c`
+
+**Watermark — update each session:**
+
+| TU | Status | Bugs found |
+|----|--------|-----------|
+| sil_trace.c (§16) | ✅ | 9 |
+| sil_asgn.c (§17) | ⬜ | — |
+| sil_pred.c (§18) | ⬜ | — |
+| sil_func.c (§19) | ⬜ | — |
+| sil_nmd.c (§17) | ⬜ | — |
+| sil_scan.c (§11) | ⬜ | — |
+| sil_patval.c (§10) | ⬜ | — |
+| sil_arrays.c (§14) | ⬜ | — |
+| sil_define.c (§12) | ⬜ | — |
+| sil_extern.c (§13) | ⬜ | — |
+| sil_io.c (§15) | ⬜ | — |
+| sil_argval.c (§8) | ⬜ | — |
+| sil_arith.c (§9) | ⬜ | — |
+| sil_symtab.c (§4) | ⬜ | — |
+| sil_strings.c (§3+§5) | ⬜ | — |
+| sil_arena.c (§5) | ⬜ | — |
+| sil_interp.c (§7) | ⬜ | — |
+| sil_errors.c (§22+§23) | ⬜ | — |
+| sil_main.c (§2+§3+§21) | ⬜ | — |
+| sil_cmpile.c (§6) | ⬜ | — |
+| sil_expr.c (§6) | ⬜ | — |
+| sil_data.c (§24) | ⬜ | — |
+
+**Build gate:** `gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly`
+Must be zero warnings, zero errors after each TU batch.
+
+**Commit pattern:** `M-SS-DIFF-RECHECK §NN: fix <summary>`
