@@ -31279,3 +31279,75 @@ cd ~/snobol4ever/one4all && make scrip && echo 'OUTPUT = "hello"' | ./scrip /dev
 node src/backend/js/sno-interp.js /tmp/test.sno
 cd src/driver/net && dotnet bin/Debug/net8.0/scrip-interp.dll /tmp/test.sno
 ```
+
+---
+
+## Session 2026-04-07c — File Audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `72821c23` · .github `e8aa6c8`
+
+### Restoration audit: what was deleted, what was restored, what remains missing
+
+**Fully restored this session (all interpreter/runtime/test sources):**
+- 29 JVM `.java` box files ✅
+- 24 .NET `.cs` per-box files ✅
+- `.il` sources: `snobol4lib.il`, `snobol4run.il` ✅
+- `.wat` sources: `sno_runtime.wat`, `pl_runtime.wat`, `bb_boxes.wat` (+ Greek→ASCII fix) ✅
+- `.js` sources: `bb_boxes.js` (boxes + runtime) ✅
+- ~620 test files (`.il`, `.j`, `.s`, `.sno`) across all snobol4 test categories ✅
+- `src/driver/dotnet/Ast.cs` ✅
+
+**Still missing — grouped by category:**
+
+**Group A — `artifacts/` tree (historical snapshots, low priority)**
+- 22 `artifacts/asm/beauty_prog_session*.s` — x86 emit snapshots from sessions 154-175
+- 5 `beauty_full*.c` at repo root — early whole-program C snapshots
+- ~40 `artifacts/beauty_tramp_session*.c` + `artifacts/trampoline_session*/` — trampoline C snapshots
+- 11 `artifacts/icon/samples/*.j` + `artifacts/prolog/samples/*.j` — Icon/Prolog sample JVM output
+
+**Group B — `reference/snobol4cython/` (3 files, low priority)**
+- `setup.py`, `snobol4c_module.c`, `test_bead.py` — moved to own repo per commit `49d98b72`
+
+**Group C — `src/frontend/snocone/` (8 files, discuss)**
+- `snocone_cf.c/h`, `snocone_driver.c/h`, `snocone_lower.c/h`, `sc_lex.h`, `sc_lower.h`
+- The snocone frontend — deleted at some point, may or may not be superseded
+
+**Group D — `src/frontend/snobol4/` old parser (5 files, discuss)**
+- `lex.c`, `lex.h`, `parse.c`, `sno.tab.c`, `sno.tab.h` — pre-bison lexer/parser, superseded
+
+**Group E — `src/frontend/icon/` (1 file)**
+- `icon_semicolon.c` — Icon semicolon-insertion pass
+
+**Group F — `src/rebus/` (3 files, discuss)**
+- `lex.rebus.c`, `rebus.tab.c`, `rebus.tab.h` — these are the bison/flex generated files for rebus
+  - Note: `src/frontend/rebus/` has the current live versions; `src/rebus/` was the old location
+
+**Group G — `src/runtime/asm/t2_*.c/h` (4 files, discuss)**
+- `t2_alloc.c/h`, `t2_reloc.c/h` — T2 allocator, successor to blk_alloc; may be superseded by SM allocator
+
+**Group H — `src/runtime/jvm/ByrdBoxLinkage.j` (1 file)**
+- Old Jasmin linkage file; may be superseded by current JVM driver structure
+
+**Group I — `src/runtime/snobol4/snoc_helpers.c` + `snoc_runtime.h` (2 files)**
+- snocone runtime helpers; relevance depends on snocone status
+
+**Group J — `src/backend/c/emit.c` (1 file)**
+- Old C emitter; superseded by `emit_byrd_c.c` + `emit_cnode.c`
+
+**Group K — `test/icon/` + `test/prolog/` (discuss)**
+- ~20 Icon test `.j/.s` files, ~16 Prolog test `.j/.s` files
+- These are emitter output tests for the Icon and Prolog frontends
+
+**Group L — `test/frontend/prolog/wrap_swi.py` (1 file)**
+- Deleted intentionally per commit `840e966e` ("canonical approach is raw SWI files")
+
+### Recommendation for discussion
+- **Restore immediately:** Groups C, D, E, F, G, H, I — all live source, not artifacts
+- **Restore if Icon/Prolog frontends are active:** Group K test files
+- **Leave deleted:** Groups A (artifacts), B (moved to own repo), J (superseded), L (intentional)
+
+### Session start checklist
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+```
