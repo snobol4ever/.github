@@ -31740,3 +31740,73 @@ Gate: flags produce output without crashing; PASS=178 unchanged.
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
+
+---
+
+## Session 2026-04-07l — Driver reorg + WASM recovery investigation (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `0b31c2c8` · .github `51c4512`
+
+### Work completed
+
+**Driver folder reorg (`798d48c9`, `0b31c2c8`):**
+- `src/driver/dotnet/Ast.cs` merged into `src/driver/net/` — empty `dotnet/` removed
+- `src/runtime/js/sno-interp.js` → `src/driver/js/sno-interp.js`
+- `src/driver/` now has one subfolder per interpreted platform:
+  - `js/`   — `sno-interp.js` (JS tree-walk interpreter)
+  - `jvm/`  — Java interpreter (Lexer/Parser/Interpreter etc.)
+  - `net/`  — C# interpreter (scrip-interp.csproj, Executor, Parser etc.)
+  - `scrip.c` — universal x86/JIT driver (no subfolder, is the main binary)
+  - `wasm/` — not yet written
+
+**WASM pipeline recovery investigation:**
+- Confirmed no WASM interpreter was ever committed — the "running programs" path was
+  always: `scrip --jit-emit --wasm` (or old `scrip-cc -wasm`) → `.wat` → `wat2wasm` → `node run_wasm.js`
+- All WASM assets confirmed intact:
+  - `src/runtime/wasm/snobol4_runtime.wat` (1271 lines) ✅
+  - `src/runtime/wasm/prolog_runtime.wat` (355 lines) ✅
+  - `src/runtime/wasm/bb_boxes.wat` ✅
+  - `test/wasm/run_wasm.js` — Node runner ✅
+  - `test/run_wasm_corpus_rung.sh` — corpus runner ✅
+  - `src/backend/emit_wasm.c` — emitter compiled into scrip, entry point `emit_wasm()` at line 2088 ✅
+- **Gap:** `target_wasm` is parsed in `scrip.c` (line 1775/1803) but suppressed with `(void)` (line 1832)
+- **Fix needed:** wire `--jit-emit --wasm` to call `emit_wasm(prog, out, filename)` in scrip.c
+- EVAL()/CODE() limitation documented and accepted — pipeline is valid for corpus programs
+
+**Frontend integrity check:**
+- All frontend source directories confirmed intact after today's reorg:
+  - `icon/` (14 files), `prolog/` (20 files), `snocone/` (4 files), `rebus/` (12 files)
+- Only frontend file touched: `prolog_emit.c` line 81 — `emit_pretty.h` → `../../backend/emit_c.h` ✅
+- `emit_wasm_icon.h` content fully preserved in merged `emit_wasm.h` (6 icon symbols confirmed) ✅
+- `emit_x64_snocone_compile` still present at line 9741 of `emit_x64.c` ✅
+
+### Regression baselines (confirmed)
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run`: PASS=161/203 ✅ (not re-run this session)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd ~/snobol4ever/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then:
+# 1. Wire --jit-emit --wasm in scrip.c to call emit_wasm(prog, out, filename)
+#    - Remove (void)target_wasm from line 1832
+#    - Add emit_wasm dispatch block after the ir-run/sm-run blocks
+#    - Build snobol4_runtime.wasm: wat2wasm src/runtime/wasm/snobol4_runtime.wat -o src/runtime/wasm/snobol4_runtime.wasm
+#    - Gate: scrip --jit-emit --wasm corpus/001.sno > /tmp/t.wat && wat2wasm /tmp/t.wat && node test/wasm/run_wasm.js /tmp/t.wasm
+# 2. Create src/driver/wasm/ stub (placeholder, no interpreter — document limitation)
+# 3. Continue reorg or begin M-DIAG
+```
+
+### Next milestone: M-DIAG (after WASM restore)
+Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
+All flags already parsed — just need implementations.
+Gate: flags produce output without crashing; PASS=178 unchanged.
+
+### Regression baselines
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
