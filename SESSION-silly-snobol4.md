@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `4f798aaa` · .github (updated) | **M-SS-DIFF**: §1–§15 complete — next: §16 sil_trace.c (TRACE/STOPTR/TRPHND, v311.sil 5466–5827) |
+| SS-20 | one4all `f2857f54` · .github (updated) | **M-SS-DIFF-RECHECK**: §16–§19 deep re-scan — watermark at §16 start |
 
 ## ⛔ §INFO additions (2026-04-06)
 

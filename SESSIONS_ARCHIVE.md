@@ -32354,3 +32354,57 @@ INTERP="./scrip --jit-run --bb-driver" CORPUS=/home/claude/corpus bash test/run_
 - `--jit-emit --wasm` undeclared globals bug → M-JITEM-WASM
 - `src/driver/wasm/` no interpreter
 - Archive actions (dead files → `archive/`) not yet done
+
+---
+
+## Session 2026-04-07u — M-SS-DIFF §16–§19 + M-SS-DIFF-RECHECK start (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `f2857f54` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF §16 — sil_trace.c (1 bug):**
+- `LABTR_fn`: missing `APDSP BLSP` between XFERSP and label name (KEYTR4 shared path)
+
+**M-SS-DIFF §17 — sil_asgn.c (4 bugs):**
+- `ASGN_fn` ASGNIC path (×2): `INTVAL_fn()` result in XPTR not saved to YPTR before `opop` overwrote it
+- `ASGN_fn` ASGNCV path (×2): success/fail exits collapsed — success (ASGNVCJ) must skip GETDC and go direct to ASGNVV
+- `CONCAT_fn` E-type (×2): `PUTDC_B(XPTR/YPTR, 4*DESCR, XPTR/YPTR)` wrote into expression descriptor; should write into new block `blk_d`
+
+**M-SS-DIFF §18 — sil_pred.c (8 bugs):**
+- Root cause: SIL `DEQL/AEQL/AEQLC A,B,arg3,arg4` — arg3=**false** branch, arg4=**true** branch (reversed from intuitive reading). All deql-based predicates were inverted.
+- `DIFFER_fn`, `FUNCTN_fn`, `IDENT_fn`, `LEQ_fn`, `LNE_fn`: inverted deql branches
+- `LABEL_fn`, `LABELC_fn`: inverted AEQLC branch on final zero-check
+- `CHAR_fn`: `<=0` should be `<0` (CHAR(0)=NUL is valid)
+
+**M-SS-DIFF §19 — sil_func.c (2 bugs):**
+- `COLECT_fn`: `ACOMPC <=0` should be `<0`
+- `APPLY_fn`: `MOVD(XPTR,ZPTR)` direction wrong (INVOKE result already in XPTR)
+
+**M-SS-DIFF §21–§23 — sil_errors.c:** clean, no bugs found.
+
+**Build:** zero warnings, zero errors ✅
+
+### New milestone defined: M-SS-DIFF-RECHECK
+
+High-watermark re-scan of §16–§19 with systematic oracle-vs-C side-by-side comparison at snippet level. Goal: find bugs missed in first pass. Start from §16 watermark=0.
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: systematic oracle-vs-C re-scan §16–§19, high-watermark approach.
+# §16 watermark: TRACE_fn / tracep / STOPTR_fn — continue from there.
+# Use snobol4.c generated C as ground truth alongside v311.sil oracle.
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- M-SS-DIFF-RECHECK §16–§19 in progress
