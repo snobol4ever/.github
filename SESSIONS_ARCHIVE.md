@@ -32112,3 +32112,52 @@ cd src/silly && make
 - silly-snobol4 build: zero warnings, zero errors ✅
 - scrip --ir-run: PASS=178/203 (unchanged)
 - scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07p — M-SS-DIFF §11 extern fix + SCNR_fn backtrack (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `a7bc2739` · .github `a66c031b`
+
+### Work completed
+
+**Extern ABI fix (blocking §11 link gate):**
+- `maknod_fn`/`lvalue_fn`/`cpypat_fn` in `sil_patval.c` were `static` with DESCR_t* signature
+- `sil_scan.c` called them with scalar int32_t ABI (raw arena offsets + return values)
+- Fix: keep helpers static; add exported scalar wrappers `maknod_scalar`/`lvalue_scalar`/`cpypat_scalar` at bottom of `sil_patval.c`
+- Update all 7 call sites in `sil_scan.c`; update externs to declare scalar wrappers
+
+**SCAN_fn bug fixed — SCANV1/SCANV2 REMSP args swapped:**
+- Oracle `LCOMP TXSP,HEADSP,SCANV1,SCANV1`: SCANV1 when `TXSP.l <= HEADSP.l`, SCANV2 otherwise
+- SCANV1: `REMSP XSP,TXSP,HEADSP`; SCANV2: `REMSP XSP,HEADSP,TXSP`
+- Our code had both args swapped AND used `<` instead of `<=` for the branch
+
+**SCNR_fn bug fixed — SALT3 backtrack logic:**
+- Oracle SALT3: `AEQLC LENFCL,0,SALT1` — when lenfcl==0, re-read lenfcl from PDL (SALT1→SALT2)
+- Our code sent both branches to `scan_alf` (SALF path), losing the SALT1 re-read
+- Fixed: when PATICL==0 and lenfcl==0 → re-read lenfcl from PDL slot 2 and re-enter SALT2
+- Fixed: TESTF PATICL,FNC path in SALT2 now correctly re-enters dispatch loop (SCIN3) without double do_SCIN2
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Continue M-SS-DIFF §11 — diff the 36 XPROC sub-procedures (our do_* fns vs oracle lines 3660-4239)
+# Focus: do_SCON, do_STAR, do_ATP, do_ARBN/ARBF/EARB/FARB (the complex ones)
+# Then: diff §12-§23 remaining TUs
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §12–§23 diff not yet started
