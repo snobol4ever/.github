@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `d1d96dcd` · .github `83b9c8f` | **M-SS-DIFF**: section-by-section diff pass of all 22 TUs vs v311.sil — verify correctness before harness |
+| SS-19 | one4all `cccb83e7` · .github `1ae4a7a` | **M-SS-DIFF**: §1–§11 complete (§11 XPROC all 36 diffed 2026-04-07q) — next: §12 sil_define.c (DEFINE/DEFFNC, v311.sil 4240–4470) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -177,3 +177,27 @@ Fixed this session:
 Still open:
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP)
 - Continue diff pass §6–§23
+
+### §11 diff findings — PDL slot conventions (2026-04-07q)
+
+Our `pdl_push3(d0, d1, d2)` stores at offsets `0 / DESCR / 2*DESCR` (0-based).
+Oracle stores at `DESCR / 2*DESCR / 3*DESCR` (1-based, after `INCRA PDLPTR,3*DESCR`).
+Mapping: our slot 0 = oracle slot DESCR (function code), our slot 1 = oracle slot 2*DESCR (cursor), our slot 2 = oracle slot 3*DESCR (lenfcl).
+This is **internally consistent** throughout sil_scan.c. Do NOT change to 1-based.
+
+### §11 diff findings — fullscan nval pattern (2026-04-07q)
+
+Recurring pattern in FARB, BAL, STAR, DSAR:
+- Oracle: `AEQLC FULLCL,0,,PROC1` means fullscan OFF → use nval=0; fullscan ON → use YCL.
+- C: `if (AEQLC(FULLCL, 0)) { nval = 0; } else { nval = D_A(YCL); }`
+- `AEQLC(x,0)` returns true when `x.a.i == 0` (i.e. OFF). The `,,PROC1` means fall-through when OFF — so OFF path sets nval=0. Always verify this pattern when reading oracle `AEQLC FULLCL,0`.
+
+### M-SS-DIFF progress (2026-04-07q)
+
+| § | TU | Status |
+|---|----|--------|
+| §1–§9 | sil_types/data/arith/argval/etc. | ✅ complete (prior sessions) |
+| §10 | sil_patval.c | ✅ complete (2026-04-07o) |
+| §11 | sil_scan.c | ✅ complete (2026-04-07q) |
+| §12 | sil_define.c | ⬜ next |
+| §13–§23 | remaining TUs | ⬜ pending |
