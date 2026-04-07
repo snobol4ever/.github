@@ -32408,3 +32408,34 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
 - M-SS-DIFF-RECHECK §16–§19 in progress
+
+---
+
+## Session 2026-04-07v — M-SS-DIFF-RECHECK scope correction (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `f2857f54` · .github (this commit)
+
+### Milestone scope correction
+
+M-SS-DIFF-RECHECK covers ALL §1–§23, not just §16–§19.
+First pass (§1–§15) found bugs. §16–§19 found more bugs.
+Systematic three-way oracle-vs-generated-C-vs-our-C re-scan of every TU.
+
+High-watermark files (completed §1–§15 in prior sessions, now re-checking):
+- §16 sil_trace.c — BUG FOUND (TRAC3 missing PUTDC yptr,0,TPTR after AUGATL) in progress
+- §17–§23 — pending
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: ALL §1–§23 three-way oracle+snobol4.c+ours.
+# Watermark: §16 sil_trace.c TRAC3 bug identified, fix pending.
+# Fix TRAC3 first: AUGATL result → TPTR → PUTDC yptr,0,TPTR → then RETNUL.
+# Then continue §16 STOPTR/FENTR/KEYTR/VALTR/TRPHND/SETEXIT/XITHND.
+# Then §17 sil_asgn.c, §18 sil_pred.c, §19 sil_func.c, then §1–§15.
+```
