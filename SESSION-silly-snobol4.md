@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `cccb83e7` · .github `1ae4a7a` | **M-SS-DIFF**: §1–§11 complete (§11 XPROC all 36 diffed 2026-04-07q) — next: §12 sil_define.c (DEFINE/DEFFNC, v311.sil 4240–4470) |
+| SS-19 | one4all `7054610c` · .github (updated) | **M-SS-DIFF**: §1–§12 complete — next: §13 sil_extern.c (LOAD/UNLOAD/LNKFNC, v311.sil 4471–4643) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -199,5 +199,6 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §1–§9 | sil_types/data/arith/argval/etc. | ✅ complete (prior sessions) |
 | §10 | sil_patval.c | ✅ complete (2026-04-07o) |
 | §11 | sil_scan.c | ✅ complete (2026-04-07q) |
-| §12 | sil_define.c | ⬜ next |
-| §13–§23 | remaining TUs | ⬜ pending |
+| §12 | sil_define.c | ✅ complete (2026-04-07r) — 1 bug: block-fill off-by-one |
+| §13 | sil_extern.c | ⬜ next |
+| §14–§23 | remaining TUs | ⬜ pending |
