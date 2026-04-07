@@ -32439,3 +32439,56 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 # Then continue §16 STOPTR/FENTR/KEYTR/VALTR/TRPHND/SETEXIT/XITHND.
 # Then §17 sil_asgn.c, §18 sil_pred.c, §19 sil_func.c, then §1–§15.
 ```
+
+---
+
+## Session 2026-04-07w — M-SS-DIFF-RECHECK §16 complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `8471bcae` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §16 — sil_trace.c — 9 bugs found and fixed:**
+
+| # | Function | Bug |
+|---|----------|-----|
+| 1 | tracep TRAC3 | AUGATL return discarded; PUTDC yptr,0,TPTR (TRAC6 link) missing |
+| 2 | STOPTR_fn non-FUNCTION | Missing FAIL when locapt_fn returns 0 (not found) |
+| 3 | STOPTR_fn FUNCTION | Loop continued to RETURN even after CALL not found (should FAIL) |
+| 4 | fentr_common | Missing TRLVSP+LVLCL+TRCLSP before function name in call trace |
+| 5 | fentr_common | Overflow check: > BUFLEN should be >= BUFLEN |
+| 6 | valtr4 entry trace | VEQLC(XPTR,S) branch inverted: S used ZPTR, should use XPTR |
+| 7 | valtr4 | Multiple overflow checks > BUFLEN should be >= |
+| 8 | valtr4 FNEXT1 | FRETCL branch used ZPTR should use XPTR |
+| 9 | valtr4 FNEXT1 | non-FRETCL (RETURN) path missing VALTR3: name + " = " + value |
+
+Also added: TRCLSP SPEC_t to sil_platform.c + extern in sil_data.h (' call of ' string, oracle 10926).
+
+**Build:** zero warnings, zero errors ✅
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ COMPLETE (9 bugs)
+- §17 sil_asgn.c: ⬜ next
+- §18 sil_pred.c: ⬜ pending
+- §19 sil_func.c: ⬜ pending
+- §1–§15: ⬜ pending
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: three-way oracle (v311.sil) + generated C (snobol4.c) + ours.
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+# Watermark: §16 done. Start §17 sil_asgn.c — ASGN_fn, CONCAT_fn, IND_fn, KEYWRD_fn, LIT, NAME, STR.
+# Then §18 sil_pred.c, §19 sil_func.c, then §1–§15 (sil_arith, sil_scan, sil_define, etc).
+# Method: for each function, paste SIL block + generated C block, compare against ours line by line.
+```
+
+### Open items
+- EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
+- M-SS-DIFF-RECHECK §17–§23 + §1–§15 pending
