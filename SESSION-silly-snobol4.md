@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `d1d96dcd` · .github `83b9c8f` | **M-SS-DIFF**: section-by-section diff pass of all 22 TUs vs v311.sil — verify correctness before harness |
+| SS-19 | one4all `aa63f559` · .github (updated) | **M-SS-DIFF**: §1–§14 complete — next: §15 sil_io.c (READ/PRINT/I-O, v311.sil 5268–5465) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -159,13 +159,13 @@ Summary:
 - SIL global → verbatim UPPERCASE (`XPTR`, `FNCPL`, `NEXFCL`)
 - SIL EQU/#define → verbatim UPPERCASE (`FBLKSZ`, `CNODSZ`, `DATSTA`)
 - SIL type → verbatim + `_t` (`DESCR_t`, `SPEC_t`)
-- New C struct/enum → `Xxxx_yyy` one-cap-first (`Sil_result`, `Invoke_entry`, `Scan_ctx`)
+- New C struct/enum → `Xxxx_yyy` one-cap-first (`RESULT_t`, `Invoke_entry`, `Scan_ctx`)
 - New C function/variable → `snake_case` (`arena_init`, `genvar_from_descr`, `locapt_fn`)
 - **Never CamelCase. Never ALL_CAPS for new C types.**
 
 ### M-SS-DIFF punch-list (SS-19, 2026-04-06)
 Fixed this session:
-- `SIL_result` → `Sil_result` everywhere (41 files)
+- `SIL_result` → `RESULT_t` everywhere (41 files)
 - `CNODSZS` → `CNODSZ` (SIL verbatim)
 - Added `#define FBLKSZ (10*DESCR)` to `sil_types.h`
 - `FBKLSZ` typo (×2) → `FBLKSZ` in `sil_symtab.c` FINDEX_fn
@@ -177,3 +177,30 @@ Fixed this session:
 Still open:
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP)
 - Continue diff pass §6–§23
+
+### §11 diff findings — PDL slot conventions (2026-04-07q)
+
+Our `pdl_push3(d0, d1, d2)` stores at offsets `0 / DESCR / 2*DESCR` (0-based).
+Oracle stores at `DESCR / 2*DESCR / 3*DESCR` (1-based, after `INCRA PDLPTR,3*DESCR`).
+Mapping: our slot 0 = oracle slot DESCR (function code), our slot 1 = oracle slot 2*DESCR (cursor), our slot 2 = oracle slot 3*DESCR (lenfcl).
+This is **internally consistent** throughout sil_scan.c. Do NOT change to 1-based.
+
+### §11 diff findings — fullscan nval pattern (2026-04-07q)
+
+Recurring pattern in FARB, BAL, STAR, DSAR:
+- Oracle: `AEQLC FULLCL,0,,PROC1` means fullscan OFF → use nval=0; fullscan ON → use YCL.
+- C: `if (AEQLC(FULLCL, 0)) { nval = 0; } else { nval = D_A(YCL); }`
+- `AEQLC(x,0)` returns true when `x.a.i == 0` (i.e. OFF). The `,,PROC1` means fall-through when OFF — so OFF path sets nval=0. Always verify this pattern when reading oracle `AEQLC FULLCL,0`.
+
+### M-SS-DIFF progress (2026-04-07q)
+
+| § | TU | Status |
+|---|----|--------|
+| §1–§9 | sil_types/data/arith/argval/etc. | ✅ complete (prior sessions) |
+| §10 | sil_patval.c | ✅ complete (2026-04-07o) |
+| §11 | sil_scan.c | ✅ complete (2026-04-07q) |
+| §12 | sil_define.c | ✅ complete (2026-04-07r) — 1 bug: block-fill off-by-one |
+| §13 | sil_extern.c | ✅ complete (2026-04-07s) — 1 bug: LNKFNC entry addr slot 0 not 1 |
+| §14 | sil_arrays.c | ✅ complete (2026-04-07s) — 2 bugs: ARRAY elem slot off-by-one; ITEM multi-dim Horner |
+| §15 | sil_io.c | ⬜ next |
+| §16–§23 | remaining TUs | ⬜ pending |

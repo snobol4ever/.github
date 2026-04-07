@@ -32019,86 +32019,279 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
   → `wat2wasm` fails on programs using keywords. Tracked under M-JITEM-WASM.
 - `src/driver/wasm/` has no interpreter — WASM runs via emit pipeline only.
 - Archive actions (move dead files to `archive/`) not yet done.
-- `tools/beautify.py` exists but **do not run it** — beautification of source dirs is
-  explicitly out of scope for future sessions unless Lon specifically requests it.
+- `tools/beautify.py` not yet run on `src/runtime/`, `src/backend/`, `src/frontend/`, `src/driver/`
+  — can be done any session, each dir independently with `--verify`.
 
 ---
 
-## Session 2026-04-07q — M-BB-LIVE-WIRE + M-JIT-RUN partial (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07o — M-SS-DIFF §10 diff pass (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `9bbbcc2b` · .github `2b782b4`
+**HEAD:** one4all `39a1dfbd` · .github `a66c031b`
 
-### Environment note
-Fresh clone requires: `apt-get install -y wabt libgc-dev` before `make scrip`.
+### Work completed
 
-### M-BB-LIVE-WIRE ✅ COMPLETE (committed e35fe0b9)
-- `bb_build.h`: added `bb_mode_t` enum (`BB_MODE_DRIVER`/`BB_MODE_LIVE`) + `extern g_bb_mode`
-- `stmt_exec.c`: defined `g_bb_mode = BB_MODE_DRIVER`; replaced both `getenv("SNO_BINARY_BOXES")` checks with `g_bb_mode == BB_MODE_LIVE`
-- `scrip.c`: include `bb_build.h`; set `g_bb_mode = BB_MODE_LIVE` when `--bb-live`; removed `(void)bb_live`
-- Gate: `--sm-run --bb-live` PASS=161 ✅; trace diff vs `--bb-driver` empty ✅
+**Rebase:** pulled beautified code (27 files, tools/beautify.py added). Clean build confirmed.
 
-### M-JIT-RUN PARTIAL (committed 9bbbcc2b)
-New file `src/runtime/x86/sm_codegen.c` (~690 lines):
-- `sm_codegen()`: emits one x86-64 dispatch stub per opcode into `SEG_DISPATCH`; builds pointer array in `SEG_CODE`
-- `sm_jit_run_plain()`: **pure-C handler dispatch** — active runner, PASS=159/203
-- `sm_jit_run()`: stub-based runner (calls into `SEG_DISPATCH`) — **has stack-alignment bug, not active**
+**M-SS-DIFF §10 — pattern-valued fns (`sil_patval.c` vs v311.sil 3119–3322):**
 
-`scrip.c`: `--jit-run` wired via `sm_image_init → sm_codegen → sm_jit_run_plain`
+- **`ATOP_fn` bug fixed:** Non-function path (FNC not set) should go straight to MAKNOD —
+  no `nemo()` check. Oracle `TESTF YPTR,FNC,ATOP1` means skip INVOKE when FNC *not* set.
+  Also fixed INVOKE return-value dispatch: `case 2` in oracle (name-return → ATOP1, skip
+  nemo check) maps to `NRETURN=5` in our enum.
+- **Dead code removed:** `XPTR = XPTR;` no-op in `nam_dol()` (line 295).
+- **`Sil_result` enum extended:** Added `NRETURN=5` and `VRETURN=6` to `sil_types.h`.
+  Updated all raw `return 5`/`return 6` in `sil_interp.c` to use named constants.
 
-### Baselines
-- `scrip --ir-run`: PASS=178/203 ✅
-- `scrip --sm-run --bb-driver`: PASS=161/203 ✅
-- `scrip --jit-run --bb-driver`: PASS=159/203 (2 below target; stub bug deferred)
+**Build:** zero warnings, zero errors ✅
 
-### M-JIT-RUN stub bug — next session fix
-**Symptom:** `sm_jit_run()` (stub path) segfaults on `NV_SET_fn("OUTPUT", DT_I)`.  
-`sm_jit_run_plain()` (plain C path) handles it correctly → confirms bug is in stub x86 emission.
-
-**Root cause hypothesis:** stack misalignment when calling through the RX stub into `NV_SET_fn`.  
-The stub sequence is:
-```
-push rbp          ; RSP -= 8  (now 16-aligned, since entry RSP was 8-misaligned)
-mov  rbp, rsp
-sub  rsp, 8       ; RSP -= 8  (now 8-misaligned before CALL)
-mov  rax, imm64   ; handler address
-call rax          ; CALL pushes 8 → RSP 16-aligned at handler entry ✓ (seems right)
-add  rsp, 8
-pop  rbp
-ret
-```
-Despite appearing correct, the bug triggers specifically for `NV_SET_fn("OUTPUT", DT_I)` —
-a path that calls `printf`/`fwrite` internally (SSE2 `movaps` requires 16-byte alignment).
-**Fix to try:** change `sub rsp,8` to `sub rsp,24` (align to 16 accounting for the extra
-call frame from `sm_jit_run → stub → handler`), or emit the stub without a frame entirely:
-```
-mov  rax, imm64
-jmp  rax          ; tail-call — no extra frame, alignment unaffected
-```
-The tail-call/jmp approach is simpler and avoids all alignment questions since the stub
-adds no frame at all; the handler runs in the caller's (sm_jit_run's) alignment context.
+### §11 — sil_scan.c status note
+File is 1170 lines, setjmp/longjmp framework looks structurally sound.
+**Known issue:** extern declarations of `maknod_fn`/`cpypat_fn`/`lvalue_fn` in
+`sil_scan.c` (~line 50) use `int32_t` offset signatures that don't match the
+`static` `DESCR_t*` versions in `sil_patval.c`. These externs are stale and will
+cause link errors when patval helpers are exposed. Must reconcile signatures in §11.
 
 ### Next session — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-apt-get install -y wabt libgc-dev 2>/dev/null
-cd /home/claude/one4all && git pull && make scrip
-INTERP="./scrip --ir-run"       CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
-INTERP="./scrip --jit-run --bb-driver" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
-# Gates: --ir-run PASS=178, --jit-run PASS=159.
-#
-# Fix M-JIT-RUN stub bug in sm_codegen.c::emit_dispatch_stub():
-#   Replace push/sub/call/add/pop stub with jmp tail-call stub:
-#     mov rax, imm64   (10 bytes: 0x48 0xb8 + 8-byte addr)
-#     jmp rax          (2 bytes:  0xff 0xe0)
-#   Then in sm_jit_run(), swap sm_jit_run_plain for sm_jit_run.
-#   Gate: --jit-run --bb-driver PASS=161 (matches --sm-run).
-#
-# After gate passes, update sm_codegen.h to remove sm_jit_run_plain declaration,
-# remove sm_jit_run_plain body from sm_codegen.c, commit M-JIT-RUN complete.
-# NOTE: do NOT run tools/beautify.py on any source files.
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Continue M-SS-DIFF §11 — sil_scan.c vs v311.sil lines 3323–4239
+# First: fix stale extern signatures for maknod_fn/cpypat_fn/lvalue_fn in sil_scan.c
+#   - Make patval helpers non-static (or add a sil_patval_internal.h)
+#   - Align signatures: DESCR_t* style not int32_t offset style
+# Then: diff SCAN_fn / SJSR_fn / SCNR_fn entry logic vs oracle
+# Then: diff the 36 XPROC sub-procedures
 ```
 
-### Open items / known issues (carried forward)
-- `--jit-emit --wasm` undeclared globals bug → M-JITEM-WASM.
-- `src/driver/wasm/` no interpreter.
-- Archive actions (dead files → `archive/`) not yet done.
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07o — M-SS-DIFF §10 diff pass (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `39a1dfbd` · .github `a66c031b`
+
+### Work completed
+
+**Rebase:** pulled beautified code (27 files, tools/beautify.py added). Clean build confirmed.
+
+**M-SS-DIFF §10 — pattern-valued fns (`sil_patval.c` vs v311.sil 3119–3322):**
+
+- **`ATOP_fn` bug fixed:** Non-function path (FNC not set) goes straight to MAKNOD —
+  no `nemo()` check. Oracle `TESTF YPTR,FNC,ATOP1` means skip INVOKE when FNC *not* set.
+  INVOKE return dispatch: `case 2` (name-return → ATOP1) maps to `NRETURN=5` in our enum.
+- **Dead code removed:** `XPTR = XPTR;` no-op in `nam_dol()`.
+- **`Sil_result` enum extended:** Added `NRETURN=5`, `VRETURN=6` to `sil_types.h`.
+  Updated all raw `return 5`/`return 6` in `sil_interp.c` to named constants.
+
+**Build:** zero warnings, zero errors ✅
+
+### §11 open issue
+Stale extern signatures for `maknod_fn`/`cpypat_fn`/`lvalue_fn` in `sil_scan.c`
+(int32_t offsets vs DESCR_t* in patval). Must fix before §11 link gate.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build. Then M-SS-DIFF §11 — sil_scan.c vs v311.sil 3323–4239
+# First: fix stale externs (maknod_fn/cpypat_fn/lvalue_fn) in sil_scan.c
+```
+
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07p — M-SS-DIFF §11 extern fix + SCNR_fn backtrack (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `a7bc2739` · .github `a66c031b`
+
+### Work completed
+
+**Extern ABI fix (blocking §11 link gate):**
+- `maknod_fn`/`lvalue_fn`/`cpypat_fn` in `sil_patval.c` were `static` with DESCR_t* signature
+- `sil_scan.c` called them with scalar int32_t ABI (raw arena offsets + return values)
+- Fix: keep helpers static; add exported scalar wrappers `maknod_scalar`/`lvalue_scalar`/`cpypat_scalar` at bottom of `sil_patval.c`
+- Update all 7 call sites in `sil_scan.c`; update externs to declare scalar wrappers
+
+**SCAN_fn bug fixed — SCANV1/SCANV2 REMSP args swapped:**
+- Oracle `LCOMP TXSP,HEADSP,SCANV1,SCANV1`: SCANV1 when `TXSP.l <= HEADSP.l`, SCANV2 otherwise
+- SCANV1: `REMSP XSP,TXSP,HEADSP`; SCANV2: `REMSP XSP,HEADSP,TXSP`
+- Our code had both args swapped AND used `<` instead of `<=` for the branch
+
+**SCNR_fn bug fixed — SALT3 backtrack logic:**
+- Oracle SALT3: `AEQLC LENFCL,0,SALT1` — when lenfcl==0, re-read lenfcl from PDL (SALT1→SALT2)
+- Our code sent both branches to `scan_alf` (SALF path), losing the SALT1 re-read
+- Fixed: when PATICL==0 and lenfcl==0 → re-read lenfcl from PDL slot 2 and re-enter SALT2
+- Fixed: TESTF PATICL,FNC path in SALT2 now correctly re-enters dispatch loop (SCIN3) without double do_SCIN2
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Continue M-SS-DIFF §11 — diff the 36 XPROC sub-procedures (our do_* fns vs oracle lines 3660-4239)
+# Focus: do_SCON, do_STAR, do_ATP, do_ARBN/ARBF/EARB/FARB (the complex ones)
+# Then: diff §12-§23 remaining TUs
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §12–§23 diff not yet started
+
+---
+
+## Session 2026-04-07q — M-SS-DIFF §11 XPROC diff pass complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `cccb83e7` · .github `6dce83e`
+
+### Work completed
+
+**M-SS-DIFF §11 — all 36 XPROC sub-procedures diffed vs oracle:**
+
+Fixed bugs:
+- `do_ABNS` (ANYC3): Missing CHKVAL guard — skip `ADDLG VSP,ONECL` when cursor already at MAXLEN
+- `do_BRKXF`: XCL read from slot 0 (zero sentinel); oracle slot DESCR = cursor lock. Fixed.
+- `do_STAR`/`do_DSAR`: nval fullscan logic inverted (both instances). Fixed.
+- `do_SCON`: fullscan/lenfcl checks were nested not sequential; missing `SETAC LENFCL,1` before push. Fixed.
+- `do_EARB`: cursor stored at slot 0; oracle `PUTDC PDLPTR,DESCR` → slot 1. Fixed.
+- `do_ONAR`: `ACOMP TVAL,TMVAL,TSCOK,,TSCOK` falls through only on equality (no progress = infinite loop guard); was using `>=` (wrong). Fixed.
+- `do_FARB`: inverted fullscan nval; dead code removed. Fixed.
+- `do_BAL_inner`: same inverted fullscan nval; dead code removed. Fixed.
+- `do_ATP`: output path read `yd` and `nv` both from `XPTR,DESCR`; second read fetched value just written. Fixed to read association via ZPTR.
+- `do_SUCF`: YCL read from slot DESCR (slot 1); oracle `2*DESCR` = slot 2. Fixed.
+
+No bugs found in: `do_BRKC`/`do_BRKX`/`do_NNYC`/`do_SPNC`/`do_ANYC`, `do_LNTH`/`do_POSI`/`do_RPSI`/`do_RTB`/`do_TB`, `do_FNCE`, `do_NME`, `do_FNME`, `do_ENME`/`do_ENME3`, `do_DNME`/`do_DNME1`, `do_ENMI`, `do_CHR`, `do_ARBN`, `do_ARBF`.
+
+**§11 diff pass: COMPLETE**
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §12 — sil_define.c vs v311.sil lines 4240-4470 (DEFINE/DEFFNC)
+# Then §13 sil_extern.c (LOAD/UNLOAD/LNKFNC), §14 sil_arrays.c, etc.
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07r — M-SS-DIFF §12 DEFINE_fn block-fill fix (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `7054610c` · .github `6dce83e`
+
+### Work completed
+
+**M-SS-DIFF §12 — sil_define.c vs v311.sil lines 4240–4470 (DEFINE/DEFFNC):**
+
+**Bug found and fixed — DEFINE_fn block-fill off-by-one:**
+- Oracle `DEF12`: `SUM XPTR,XPTR,XCL` (XPTR = blk + YCL*DESCR), then loop `DECRA XPTR,DESCR / PUTDC XPTR,DESCR,YPTR`
+- This writes args+locals+fn-name into body slots YCL..2 (1-based). Slot 0 = title (written by BLOCK_fn), slot 1 = entry label, slots 2..YCL = fn name + args + locals.
+- Our code: `fill_idx = YCL-1` writing at `fill_idx * DESCR` → landed in slots 1..YCL-1, clobbering entry-label and missing last slot.
+- Fix: `fill_idx = YCL` (after INCRA YCL,2), write at `fill_idx * DESCR` descending to 2. Entry pt popped separately to slot 1 (DESCR offset). Matches oracle exactly.
+
+**DEFFNC_fn:** stub correct — full implementation deferred to M19 (requires INTERP). No changes.
+
+**No other bugs found** in DEFINE_fn structure (VARVAL/VARVUP call order, DEQL/NULVCL check direction, FINDEX call, SETVA DEFCL,YCL, BLOCK_fn call, ZCL update, RETNUL path all correct).
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §13 — sil_extern.c vs v311.sil lines 4471–4643 (LOAD/UNLOAD/LNKFNC)
+# Then §14 sil_arrays.c, etc.
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §13–§23 diff not yet started
+
+---
+
+## Session 2026-04-07s — rename + M-SS-DIFF §13–§14 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `aa63f559` · .github `0a083dc`
+
+### Work completed
+
+**Rename Sil_result → RESULT_t (41 files):**
+- `RESULT_t` treated as SIL-type equivalent — ALL_CAPS + `_t` like `DESCR_t`, `SPEC_t`.
+- GENERAL-RULES.md updated with explicit exception entry.
+- Build: zero warnings, zero errors ✅
+
+**M-SS-DIFF §13 — sil_extern.c (LOAD/UNLOAD/LNKFNC):**
+- `LOAD_fn`: stub correct (STREAM/VARATB dependency). No change.
+- `UNLOAD_fn`: no bugs found.
+- **Bug fixed — LNKFNC_fn entry address slot:** `GETDC_B(zcl2, ZCL_d, DESCR)` was reading slot 1 (arg type), not slot 0 (entry point). LOAD stores entry at `PUTDC XPTR,0,YPTR` = slot 0. Fix: `GETDC_B(zcl2, ZCL_d, 0)`.
+
+**M-SS-DIFF §14 — sil_arrays.c (ARRAY/ASSOC/ITEM/FIELD/DEFDAT):**
+- **Bug 1 — ARRAY_fn element slot off-by-one:** Oracle PUTDC XPTR,DESCR writes first element at blk+(3+ndim)*DESCR. Our code used (2+ndim+i)*DESCR, clobbering last dim-pair. Fix: (3+ndim+i)*DESCR.
+- **Bug 2 — ITEM_fn multi-dim index:** Dead first-pass loop + reverse-order Horner computed wrong index for N>1 dims. Fix: collect to temp array, forward Horner: `linear = linear * extent + k`. Elem offset also corrected to (3+ndim+linear)*DESCR.
+- ASSOC_fn, ASSOCE_fn, PROTO_fn, FREEZE_fn, THAW_fn, DATDEF_fn (stub), DEFDAT_fn, FIELD_fn, RSORT_fn/SORT_fn (stubs): no bugs found.
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §15 — sil_io.c vs v311.sil lines 5268–5465 (READ/PRINT/BKSPCE/ENDFIL/REWIND/SET/DETACH/PUTIN/PUTOUT)
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §15–§23 diff not yet started
