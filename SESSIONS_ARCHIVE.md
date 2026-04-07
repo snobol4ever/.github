@@ -32249,3 +32249,49 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
 - §13–§23 diff not yet started
+
+---
+
+## Session 2026-04-07s — rename + M-SS-DIFF §13–§14 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `aa63f559` · .github `0a083dc`
+
+### Work completed
+
+**Rename Sil_result → RESULT_t (41 files):**
+- `RESULT_t` treated as SIL-type equivalent — ALL_CAPS + `_t` like `DESCR_t`, `SPEC_t`.
+- GENERAL-RULES.md updated with explicit exception entry.
+- Build: zero warnings, zero errors ✅
+
+**M-SS-DIFF §13 — sil_extern.c (LOAD/UNLOAD/LNKFNC):**
+- `LOAD_fn`: stub correct (STREAM/VARATB dependency). No change.
+- `UNLOAD_fn`: no bugs found.
+- **Bug fixed — LNKFNC_fn entry address slot:** `GETDC_B(zcl2, ZCL_d, DESCR)` was reading slot 1 (arg type), not slot 0 (entry point). LOAD stores entry at `PUTDC XPTR,0,YPTR` = slot 0. Fix: `GETDC_B(zcl2, ZCL_d, 0)`.
+
+**M-SS-DIFF §14 — sil_arrays.c (ARRAY/ASSOC/ITEM/FIELD/DEFDAT):**
+- **Bug 1 — ARRAY_fn element slot off-by-one:** Oracle PUTDC XPTR,DESCR writes first element at blk+(3+ndim)*DESCR. Our code used (2+ndim+i)*DESCR, clobbering last dim-pair. Fix: (3+ndim+i)*DESCR.
+- **Bug 2 — ITEM_fn multi-dim index:** Dead first-pass loop + reverse-order Horner computed wrong index for N>1 dims. Fix: collect to temp array, forward Horner: `linear = linear * extent + k`. Elem offset also corrected to (3+ndim+linear)*DESCR.
+- ASSOC_fn, ASSOCE_fn, PROTO_fn, FREEZE_fn, THAW_fn, DATDEF_fn (stub), DEFDAT_fn, FIELD_fn, RSORT_fn/SORT_fn (stubs): no bugs found.
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §15 — sil_io.c vs v311.sil lines 5268–5465 (READ/PRINT/BKSPCE/ENDFIL/REWIND/SET/DETACH/PUTIN/PUTOUT)
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §15–§23 diff not yet started

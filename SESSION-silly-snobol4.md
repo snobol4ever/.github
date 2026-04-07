@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `7054610c` · .github (updated) | **M-SS-DIFF**: §1–§12 complete — next: §13 sil_extern.c (LOAD/UNLOAD/LNKFNC, v311.sil 4471–4643) |
+| SS-19 | one4all `aa63f559` · .github (updated) | **M-SS-DIFF**: §1–§14 complete — next: §15 sil_io.c (READ/PRINT/I-O, v311.sil 5268–5465) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -200,5 +200,7 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §10 | sil_patval.c | ✅ complete (2026-04-07o) |
 | §11 | sil_scan.c | ✅ complete (2026-04-07q) |
 | §12 | sil_define.c | ✅ complete (2026-04-07r) — 1 bug: block-fill off-by-one |
-| §13 | sil_extern.c | ⬜ next |
-| §14–§23 | remaining TUs | ⬜ pending |
+| §13 | sil_extern.c | ✅ complete (2026-04-07s) — 1 bug: LNKFNC entry addr slot 0 not 1 |
+| §14 | sil_arrays.c | ✅ complete (2026-04-07s) — 2 bugs: ARRAY elem slot off-by-one; ITEM multi-dim Horner |
+| §15 | sil_io.c | ⬜ next |
+| §16–§23 | remaining TUs | ⬜ pending |
