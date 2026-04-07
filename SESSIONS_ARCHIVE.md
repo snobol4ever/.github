@@ -32492,3 +32492,55 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
 - M-SS-DIFF-RECHECK §17–§23 + §1–§15 pending
+
+---
+
+## Session 2026-04-07x — M-SS-DIFF-RECHECK §17–§18 complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `f3c1d8a62013021b5a74c515cf8f9463c08288b3` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §17 — sil_asgn.c + sil_nmd.c + sil_scan.c — 8 bugs fixed:**
+
+| # | File | Bug |
+|---|------|-----|
+| 1 | sil_types.h | NEMO=3 missing from RESULT_t enum |
+| 2 | sil_asgn.c ASGN1 | `!ACOMPC(TRAPCL,0)` → `<= 0` (skip trace when ≤ 0, not only == 0) |
+| 3 | sil_nmd.c NMD3 | same TRAPCL bug |
+| 4 | sil_scan.c ×3 | same TRAPCL bug (3 sites) |
+| 5 | sil_asgn.c ASGNC | NEMO exit from INVOKE not handled |
+| 6 | sil_asgn.c ASGNCV ×2 | INVOKE success/fail paths swapped: success→ASGNVP (get-by-name), fail→return FAIL |
+| 7 | sil_asgn.c KEYN | Non-integer keywords set K type instead of N |
+| 8 | sil_pred.c FUNCTN | `deql()` → `D_A()==D_A()` for UNDFCL (AEQL checks A-field only, not full DEQL) |
+
+**M-SS-DIFF-RECHECK §18 — sil_pred.c — 1 bug fixed (see #8 above)**
+
+**Build:** zero warnings, zero errors ✅
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ 9 bugs (prior session)
+- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
+- §18 sil_pred.c: ✅ 1 bug
+- §19 sil_func.c: ⬜ next
+- §1–§15 (all other TUs): ⬜ pending
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §19 sil_func.c — three-way oracle+snobol4.c+ours.
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil (§19 lines 6322–7037)
+# Generated C: grep -n "^APPLY\b\|^ARG\b\|^LOCAL\b\|^FIELDS\b\|^CLEAR\b\|^CMA\b\|^COLECT\b\|^COPY\b\|^CNVRT\b\|^DATE\b\|^DMP\b\|^DUPL\b\|^OPSYN\b\|^RPLACE\b\|^REVERS\b\|^SIZE\b\|^TIME\b\|^TRIM\b\|^VDIFFER\b" snobol4.c
+# Watermark: §19 start (nothing done yet).
+# Then §1–§15 pending after §19.
+```
+
+### Open items
+- EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
+- M-SS-DIFF-RECHECK §19 sil_func.c — start next session
+- M-SS-DIFF-RECHECK §1–§15 — pending after §19
