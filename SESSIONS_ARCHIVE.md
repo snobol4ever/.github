@@ -32019,5 +32019,41 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
   → `wat2wasm` fails on programs using keywords. Tracked under M-JITEM-WASM.
 - `src/driver/wasm/` has no interpreter — WASM runs via emit pipeline only.
 - Archive actions (move dead files to `archive/`) not yet done.
-- `tools/beautify.py` not yet run on `src/runtime/`, `src/backend/`, `src/frontend/`, `src/driver/`
-  — can be done any session, each dir independently with `--verify`.
+- `tools/beautify.py` exists but **do not run it** — beautification of source dirs is
+  explicitly out of scope for future sessions unless Lon specifically requests it.
+
+---
+
+## Session 2026-04-07q — M-BB-LIVE-WIRE start (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `e0c11d5b` · .github `5bfcae4`
+
+### Status on entry
+- Cloned all four repos fresh. Installed `wabt` and `libgc-dev` (not present in this env).
+- Built `scrip` successfully.
+- `scrip --ir-run`: PASS=178/203 ✅ (gate confirmed)
+
+### Work completed
+- None yet — session interrupted after orientation to update HQ.
+
+### Standing instruction
+**Do NOT run `tools/beautify.py` on any source files.** Not a session task.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cd /home/claude/one4all && git pull && make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then implement M-BB-LIVE-WIRE:
+#   1. Add BB_MODE_DRIVER / BB_MODE_LIVE enum + g_bb_mode extern to bb_build.h
+#   2. Define g_bb_mode in stmt_exec.c; replace SNO_BINARY_BOXES getenv() checks
+#      with (g_bb_mode == BB_MODE_LIVE) checks
+#   3. scrip.c: set g_bb_mode = BB_MODE_LIVE when --bb-live; remove (void)bb_live
+#   4. Gate: PASS=178 via scrip --sm-run --bb-live; trace diff vs --bb-driver is empty
+# NOTE: do NOT run tools/beautify.py on any source files.
+```
+
+### Open items / known issues (carried forward)
+- `--jit-emit --wasm` undeclared globals bug → M-JITEM-WASM.
+- `src/driver/wasm/` no interpreter.
+- Archive actions (dead files → `archive/`) not yet done.
