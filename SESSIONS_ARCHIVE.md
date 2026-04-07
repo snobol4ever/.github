@@ -31615,3 +31615,48 @@ Gate: flags produce output without crashing; PASS=178 unchanged.
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS/JVM/.NET baselines from session d: JS=175, .NET=172, JVM=164 (not re-run this session — full frontend sweep deferred)
+
+---
+
+## Session 2026-04-07i — emit_x64 cleanup + pre-reorg regression audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `8724ed19` · .github `7787d69`
+
+### Work completed
+
+**emit_x64.c TU collision fix:**
+- Removed stale `#include "emit_x64_prolog.c"` (prolog content now inlined)
+- Prefixed icon-section colliding statics with `icn_`: `uid`, `next_uid`, `out`, `emit_expr`, `emit_alt`, `emit_seq`
+- Note: `emit_x64.c` is LEGACY — not compiled into `scrip`; `make scrip` was always fine
+
+**Pre-reorg regression audit:**
+- Confirmed `test/crosscheck/run_crosscheck.sh` was ALREADY broken at `660339cd` (pre-reorg) — `$RT/mock/` never existed as a path; mock files have been in `archive/backend/` since before today
+- Icon/Prolog corpus failures also pre-existing
+- Our test script path fixes (`snobol4/`→`x86/` etc.) are correct improvements, not new breakage
+
+### Regression baselines (confirmed)
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run`: PASS=161/203 ✅
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd ~/snobol4ever/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then begin M-DIAG:
+# Wire --dump-sm, --dump-bb, --trace, --bench in src/driver/scrip.c
+# All flags already parsed — just need implementations
+# Gate: flags produce output without crashing; PASS=178 unchanged
+```
+
+### Next milestone: M-DIAG
+Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
+All flags already parsed — just need implementations.
+Gate: flags produce output without crashing; PASS=178 unchanged.
+
+### Regression baselines
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
