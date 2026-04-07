@@ -465,7 +465,7 @@ Non-pattern benchmarks serve as controls — they should show ≤5% change betwe
 
 | Engine | Binary | Build | Notes |
 |---|---|---|---|
-| scrip-interp (C BB) | `/home/claude/one4all/scrip-interp` | `make scrip-interp` | C Byrd box path — **THIS MILESTONE** |
+| scrip-interp (C BB) | `/home/claude/one4all/scrip` | `make scrip` | C Byrd box path — **THIS MILESTONE** |
 | scrip-interp (x86 BB) | same binary, `SNO_BINARY_BOXES=1` | same | inline blob path — **M-DYN-BENCH-X86** |
 | SPITBOL x64 | `/home/claude/x64/bin/spitbol` | `cd x64 && make && cp sbl bin/spitbol` | native compiler oracle |
 | CSNOBOL4 | `/home/claude/snobol4-2.3.3/snobol4` | `cd snobol4-2.3.3 && make` | C interpreter reference |
@@ -498,7 +498,7 @@ Non-pattern benchmarks serve as controls — they should show ≤5% change betwe
 #!/bin/bash
 # M-DYN-BENCH-C run script — all 13 runnable programs
 # Usage: bash bench_c.sh
-SCRIP=/home/claude/one4all/scrip-interp
+SCRIP=/home/claude/one4all/scrip
 SPITBOL=/home/claude/x64/bin/spitbol
 BDIR=/home/claude/corpus/benchmarks
 RUNS=3
@@ -584,7 +584,7 @@ All other conditions identical (same machine, same 13 programs, same RUNS=3 medi
 - **Control group (no patterns): ≤6% noise** — confirming blobs add zero overhead to non-pattern execution. Exactly as predicted.
 - **vs SPITBOL:** pattern_bt gap closes from 11.1× (C BB) to **5.5×** — inline dispatch eliminates one layer of indirection. Remaining gap is the interp-loop overhead (phases 1/2/4/5), which SM-LOWER targets.
 - **Bottleneck identified:** `arith_loop` 17.4× and `op_dispatch` 29.0× behind SPITBOL with *zero* pattern work — pure interp-loop cost. SM dispatch (M-SCRIP-U3) directly addresses this.
-- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--hybrid` path active; target PASS=178 via SM dispatch.
+- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--sm-run` path active; target PASS=178 via SM dispatch.
 
 ---
 

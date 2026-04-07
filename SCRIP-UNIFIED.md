@@ -19,9 +19,10 @@ That pipeline has 4 disk round-trips and 3 process invocations before the progra
 **The new model:** one executable, two execution modes, zero disk round-trips for code.
 
 ```
-scrip [--interp] source.sno      ← Mode I: interpret directly (tree-walk → SM dispatch)
-scrip [--gen]    source.sno      ← Mode G: generate x86 into memory, jump, run
-scrip            source.sno      ← Mode G by default (or --interp for debugging)
+scrip [--ir-run]   source.sno      ← Mode I: IR tree-walk (correctness reference)
+scrip [--sm-run]   source.sno      ← Mode II: SM dispatch loop  [DEFAULT]
+scrip [--jit-run]  source.sno      ← Mode III: x86 bytes → mmap slab → jump in
+scrip              source.sno      ← defaults to --sm-run
 ```
 
 Mode I and Mode G are **the same program**. Same frontend, same IR, same runtime.
@@ -94,7 +95,7 @@ The x86 bytes go from `bb_emit_byte()` directly into executable memory.
 sm_interp(prog);   // dispatch loop: switch(instr->op) { case SM_ADD: ... }
 ```
 
-- Existing tree-walk in `scrip-interp.c` is the prototype.
+- Existing tree-walk in `scrip.c` is the prototype.
 - Target: replace tree-walk with SM dispatch loop (SM-LOWER pass not yet written).
 - Mode I is the **correctness reference**. If Mode G disagrees with Mode I, Mode G has a bug.
 - Mode I runs the corpus to verify semantics before/during Mode G development.
@@ -129,7 +130,7 @@ is emitted inline.
 | `bb_build_bin.c` | ⬜ M-DYN-B* | Emits Byrd box blobs (segment 3) |
 | `CMPILE.c` | ✅ complete | SNOBOL4 frontend → CMPND_t parse tree |
 | `stmt_exec.c` | ✅ complete | Five-phase executor (Mode I and Mode G runtime) |
-| `scrip-interp.c` | ⚠️ tree-walks IR | Becomes `scrip.c` — Mode I dispatch loop |
+| `scrip.c` | ⚠️ tree-walks IR | Becomes `scrip.c` — Mode I dispatch loop |
 | `emit_x64.c` | ⚠️ emits .s text | Replaced by in-memory codegen in scrip.c |
 | SM-LOWER | ⬜ not written | IR → SM_Program (needed before Mode G SM dispatch) |
 | `scrip_codegen()` | ⬜ new | SM_Program → x86 bytes → mprotect → fn ptr |
@@ -144,29 +145,43 @@ SM instruction kind.
 ## Executable Name and Invocation
 
 ```
-scrip [options] source.sno [program-args...]
+scrip [mode] [bb] [target] [options] source.sno [-- program-args...]
 
-Options:
-  --interp    Force interpretive mode (Mode I)
-  --gen       Force in-memory generative mode (Mode G) [default]
-  --dump-sm   Print SM_Program before execution
-  --dump-ir   Print IR before lowering
-  --bench     Print wall-clock time after execution
-  --trace     Enable MONITOR trace output (for two-way diff with SPITBOL)
+Execution modes (default: --sm-run):
+  --ir-run         interpret via IR tree-walk (correctness reference)
+  --sm-run         interpret SM_Program via dispatch loop  [DEFAULT]
+  --jit-run        SM_Program -> x86 bytes -> mmap slab -> jump in
+  --jit-emit       SM_Program -> emit to file (target selects format)
+
+Byrd Box pattern mode (default: --bb-driver):
+  --bb-driver      pattern matching via driver/broker
+  --bb-live        live-wired in exec memory (--jit-run/--jit-emit only)
+
+Target (default: --x64):
+  --x64  --jvm  --net  --js  --c  --wasm
+
+Diagnostic options:
+  --dump-ir        print IR after frontend
+  --dump-sm        print SM_Program after lowering
+  --dump-bb        print BB-GRAPH for each statement
+  --trace          MONITOR trace output (diff vs SPITBOL)
+  --bench          print wall-clock time after execution
+  --dump-parse     dump CMPILE parse tree
+  --dump-ir-bison  dump IR via old Bison/Flex parser
 ```
 
-The `scrip-interp` and `scrip-cc` names are retired. One binary. Two modes.
-The harness calls `scrip` (symlink or rename). Existing test infrastructure
-passes `INTERP=scrip` — no harness changes needed.
+The `scrip-interp` and `scrip-cc` names are retired. One binary.
+The harness calls `scrip`. Existing test infrastructure passes `INTERP=scrip`.
 
 ---
 
 ## Development Sequence
 
-### Phase U0 — Rename and consolidate (M-SCRIP-U0)
-- Rename `scrip-interp.c` → `scrip.c`, rename binary → `scrip`
-- Add `--interp` / `--gen` flag parsing (default `--gen`)
-- Mode G: stub — immediately falls through to Mode I
+### Phase U0 — Rename and consolidate ✅ DONE (2026-04-07, commit 0f316e82)
+- `src/driver/scrip.c` unified driver with new switch set
+- `src/Makefile`: `BIN = ../scrip`
+- Pre-built binaries removed: `scrip-interp`, `scrip-interp-dbg`, `scrip-interp-s`
+- Default mode: `--sm-run` (SM dispatch loop, was `--ir-run`)
 - Gate: PASS=178 with `scrip` binary; harness `INTERP=scrip` works
 
 ### Phase U1 — Segment allocator (M-SCRIP-U1)
@@ -182,44 +197,42 @@ passes `INTERP=scrip` — no harness changes needed.
 - Initially: `SM_PUSH_LIT_S`, `SM_PUSH_VAR`, `SM_STORE_VAR`, `SM_ADD`, `SM_JUMP`
 - Gate: hand-coded mini-program (push 1, push 2, add, print) runs via jump-in
 
-### Phase U3 — SM-LOWER + Mode G codegen (M-SCRIP-U3)
+### Phase U3 — SM-LOWER + `--jit-run` codegen (M-SCRIP-U3)
 - Write SM-LOWER: IR → SM_Program (replaces tree-walk)
 - Write `scrip_codegen()`: SM_Program → segment 2 bytes
-- Mode G activated for simple programs (no pattern match)
-- Gate: arith_loop, var_access, fibonacci benchmarks pass in Mode G; ~10× speedup
+- `--jit-run` activated for simple programs (no pattern match)
+- Gate: arith_loop, var_access, fibonacci benchmarks pass in `--jit-run`; ~10× speedup
 
 ### Phase U4 — Pattern integration (M-SCRIP-U4)
-- SM_EXEC_STMT in Mode G calls `bb_build_binary_node()` (M-DYN-B* blobs)
-- Full corpus in Mode G
-- Gate: PASS=178 in Mode G; pattern_bt / string_pattern within 2× of SPITBOL
+- SM_EXEC_STMT in `--jit-run` calls `bb_build_binary_node()` (M-DYN-B* blobs)
+- Full corpus in `--jit-run --bb-driver`
+- Gate: PASS=178 via `--jit-run`; pattern_bt / string_pattern within 2× of SPITBOL
 
 ### Phase U5 — M-DYN-BENCH-X86 (M-SCRIP-U5)
-- Run 13-program benchmark suite in Mode G
+- Run 13-program benchmark suite in all modes
 - Fill M-DYN-BENCH-X86 results table
-- Gate: ≥10× speedup on control benchmarks vs Mode I; pattern ≥5×
+- Gate: ≥10× speedup on control benchmarks vs `--ir-run`; pattern ≥5×
 
 ---
 
 ## Two-Way MONITOR in the Unified Model
 
-The MONITOR recommendation stands and is now simpler:
-
 ```bash
-# Old: scrip-interp vs SPITBOL
-# New: scrip --interp vs SPITBOL  (or scrip --interp vs scrip --gen)
-
-SNO_TRACE=1 scrip --interp /tmp/x.sno 2>/tmp/interp.trace
+# Mode I (IR tree-walk) vs SPITBOL oracle:
+SNO_TRACE=1 scrip --ir-run  /tmp/x.sno 2>/tmp/ir.trace
 SNO_TRACE=1 /home/claude/x64/bin/spitbol /tmp/x.sno 2>/tmp/spitbol.trace
-diff /tmp/interp.trace /tmp/spitbol.trace | head -30
+diff /tmp/ir.trace /tmp/spitbol.trace | head -30
 
-# Mode G vs Mode I for JIT correctness:
-SNO_TRACE=1 scrip --interp /tmp/x.sno 2>/tmp/interp.trace
-SNO_TRACE=1 scrip --gen    /tmp/x.sno 2>/tmp/gen.trace
-diff /tmp/interp.trace /tmp/gen.trace | head -30
+# SM dispatch vs IR tree-walk (isolate SM bugs from semantic bugs):
+SNO_TRACE=1 scrip --ir-run  /tmp/x.sno 2>/tmp/ir.trace
+SNO_TRACE=1 scrip --sm-run  /tmp/x.sno 2>/tmp/sm.trace
+diff /tmp/ir.trace /tmp/sm.trace | head -30
+
+# JIT vs SM dispatch (isolate codegen bugs):
+SNO_TRACE=1 scrip --sm-run  /tmp/x.sno 2>/tmp/sm.trace
+SNO_TRACE=1 scrip --jit-run /tmp/x.sno 2>/tmp/jit.trace
+diff /tmp/sm.trace /tmp/jit.trace | head -30
 ```
-
-The two-way MONITOR now has a **third axis**: Mode I vs Mode G means bugs in
-the codegen are immediately isolatable from runtime semantic bugs.
 
 ---
 
@@ -234,75 +247,66 @@ the codegen are immediately isolatable from runtime semantic bugs.
 
 ---
 
-## Files to Create / Rename
+## Files Created / Renamed (U0 complete)
 
-| Old | New | Action |
+| Old | New | Status |
 |---|---|---|
-| `src/driver/scrip-interp.c` | `src/driver/scrip.c` | rename + add --interp/--gen |
-| `Makefile` target `scrip-interp` | `scrip` | rename |
-| `src/runtime/asm/scrip_image.c` | (new) | segment allocator |
-| `src/runtime/asm/scrip_image.h` | (new) | header |
-| `src/runtime/sm/sm_lower.c` | (new) | IR → SM_Program |
-| `src/runtime/sm/sm_lower.h` | (new) | header |
-| `src/runtime/sm/sm_codegen.c` | (new) | SM_Program → x86 bytes |
-| `src/runtime/sm/sm_codegen.h` | (new) | header |
-| `emit_x64.c` | retired | no longer needed |
+| `scrip-interp` (binary) | removed | ✅ done |
+| `scrip-interp-dbg` (binary) | removed | ✅ done |
+| `scrip-interp-s` (binary) | removed | ✅ done |
+| `src/driver/scrip.c` | `src/driver/scrip.c` | ✅ unified driver |
+| `Makefile` target `scrip-interp` | `scrip` | ✅ done |
+| `src/runtime/asm/scrip_image.c` | (new) | ⬜ U1 |
+| `src/runtime/asm/scrip_image.h` | (new) | ⬜ U1 |
+| `src/runtime/sm/sm_lower.c` | (new) | ⬜ U3 |
+| `src/runtime/sm/sm_lower.h` | (new) | ⬜ U3 |
+| `src/runtime/sm/sm_codegen.c` | (new) | ⬜ U3 |
+| `src/runtime/sm/sm_codegen.h` | (new) | ⬜ U3 |
+| `emit_x64.c` | kept linked (reference) | — |
 
 ---
 
 *Written: RT-125, 2026-04-06, Lon Jones Cherryholmes + Claude Sonnet 4.6*
-*Replaces: scrip-interp + scrip-cc split*
+*U0 completed: 2026-04-07, commit 0f316e82*
 
 ---
 
-## ⚠️ UPDATE — Two Execution Strategies (RT-128 addendum, 2026-04-06)
+## ⚠️ UPDATE — Switch Set (2026-04-07, U0 complete)
 
-SCRIP runs in **three modes**, benchmarked against each other and SPITBOL:
+SCRIP runs in **four modes** (two implemented, two stub):
 
-### Mode I — Interpretive (--interp)
-C tree-walk over IR. Existing path. Correctness reference. Baseline for all benchmarks.
+### Mode I — IR tree-walk (`--ir-run`)
+C tree-walk over IR. Correctness reference. Baseline for all benchmarks.
 
-### Mode G/S2 — SM Hybrid (--hybrid, default --gen)
-**Phases 1, 2, 4, 5:** Pure FORTH-style SM dispatch over SM_Program.
+### Mode II — SM dispatch (`--sm-run`) ← DEFAULT
+Pure FORTH-style SM dispatch over SM_Program.
 Flat DESCR_t value stack. No frames. No activation records.
 fetch → execute → pc++. C stack only at SM_CALL and SM_EXEC_STMT boundary.
+BB-DRIVER handles pattern matching (phase 3).
 
-**Phase 3:** BB-DRIVER → BB-GRAPH (Byrd box blobs, M-DYN-B* work).
+### Mode III — JIT run (`--jit-run`)
+SM_Program lowered to x86 bytes → mmap slab → mprotect RX → jump in.
+`--bb-driver` (default): BB-DRIVER called for pattern phase.
+`--bb-live`: BB blobs wired inline (M-DYN-B* work, future).
 
-SM_EXEC_STMT = clean handoff point between SM and BB worlds.
-
-### Mode G/S1 — 100% Stackless (--stackless)
-Every phase is a self-contained x86 blob sequence.
-Five phases wired by direct jmps, not call/ret.
-BB-DRIVER inline — no C call for pattern match.
-r13 = stmt frame ptr (continuations + ARBNO stack).
-Boxes jump to continuations, never ret.
-C stack only at static C helper boundaries (GC_malloc, NV_GET_fn...).
+### Mode IV — JIT emit (`--jit-emit`)
+SM_Program → emit to file. Target flag selects format:
+`--x64` (default), `--jvm`, `--net`, `--js`, `--wasm`.
 
 ### Benchmark plan
-Run 13-program M-DYN-BENCH suite in all three modes + SPITBOL:
+Run 13-program M-DYN-BENCH suite + SPITBOL:
 
 | Column | Mode |
 |---|---|
-| scrip-C | `--interp` (existing baseline) |
-| scrip-hybrid | `--hybrid` (SM + BB) |
-| scrip-stackless | `--stackless` (full inline blobs) |
+| scrip `--ir-run` | IR tree-walk baseline |
+| scrip `--sm-run` | SM dispatch (current default) |
+| scrip `--jit-run --bb-driver` | JIT + broker pattern |
+| scrip `--jit-run --bb-live` | JIT + inline blobs |
 | SPITBOL | oracle |
 
-Hypothesis: `--stackless` wins control/arith loops; `--hybrid` wins pattern-heavy
-(BB phase 3 dominates anyway, SM overhead is small).
-
-### Updated flag set
-```
-scrip --interp      Mode I: C tree-walk
-scrip --hybrid      Mode G S2: SM phases 1/2/4/5 + BB phase 3   [default]
-scrip --gen         alias for --hybrid
-scrip --stackless   Mode G S1: 100% stackless blobs
-```
-
-### Updated development sequence
-- U3: SM-LOWER (IR → SM_Program)
-- U4: Pattern integration (SM_PAT_* + SM_EXEC_STMT wired to BB-DRIVER)
-- U4 gate: PASS=178 via --hybrid
-- U5: --stackless path (full inline blob chain, no SM dispatch overhead)
-- U5 gate: PASS=178 via --stackless; M-DYN-BENCH-X86 all three columns filled
+### Development sequence
+- U1: segment allocator (mmap slabs)
+- U2: SM dispatch table blobs
+- U3: SM-LOWER + `--jit-run` codegen; arith/control programs only
+- U4: pattern integration (`--jit-run --bb-driver`); PASS=178
+- U5: `--bb-live` path; M-DYN-BENCH-X86 all columns filled
