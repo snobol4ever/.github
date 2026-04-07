@@ -31810,3 +31810,53 @@ Gate: flags produce output without crashing; PASS=178 unchanged.
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
+
+---
+
+## Session 2026-04-07m — M-DIAG: wire --dump-sm, --dump-bb, --trace, --bench (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `4c77612b` · .github `51c4512`
+
+### Work completed
+
+**M-DIAG (`4c77612b`):**
+- `sm_prog_print(SM_Program*, FILE*)` — new function in `sm_prog.c`, declared in `sm_prog.h`
+  - Disassembles the flat SM instruction array: index, opcode name, operands
+  - Fixed pre-existing `opnames[]` misalignment: `SM_STNO`, `SM_COERCE_NUM`, `SM_NRETURN`, `SM_PAT_BOXVAL` were absent — every opcode was printing one name off
+  - Added `SM_JUMP`/`SM_JUMP_S`/`SM_JUMP_F` jump-target display to switch
+- `patnd_print(PATND_t*, FILE*)` — new function in `snobol4_pattern.c`, declared in `snobol4_patnd.h`
+  - Recursive indented tree: `(KIND "str" num\n  (child)\n)`
+  - `xkind_name()` covers all 29 `XKIND_t` values
+- `scrip.c` wiring:
+  - `g_opt_trace` / `g_opt_dump_bb` globals; set from CLI flags before execution
+  - `--trace`: `fprintf(stderr, "TRACE stmt %d\n", stno)` at each statement boundary in `execute_program()`
+  - `--dump-bb`: calls `patnd_print()` on `pat_d.p` before each pattern match (fires only when `pat_d.v == DT_P`)
+  - `--dump-sm`: calls `sm_prog_print()` after `sm_lower()`, exits — works under both `--sm-run` and `--ir-run`
+  - `--bench`: `clock_gettime(CLOCK_MONOTONIC)` around parse/lower/exec; prints `BENCH parse=Xms lower=Xms exec=Xms total=Xms` to stderr
+  - Removed `(void)` suppressions for all four flags; added `time.h`
+
+### Regression baselines (confirmed)
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run`: PASS=161/203 ✅ (not re-run this session — unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then proceed to WASM restore:
+# 1. Wire --jit-emit --wasm in scrip.c to call emit_wasm(prog, out, filename)
+#    - Remove (void)target_wasm suppression (already done for other targets)
+#    - After sm_lower block, add jit_emit dispatch: if target_wasm call emit_wasm()
+#    - Build snobol4_runtime.wasm: wat2wasm src/runtime/wasm/snobol4_runtime.wat -o src/runtime/wasm/snobol4_runtime.wasm
+#    - Gate: scrip --jit-emit --wasm corpus/.../hello.sno > /tmp/t.wat && wat2wasm /tmp/t.wat && node test/wasm/run_wasm.js /tmp/t.wasm
+# 2. Create src/driver/wasm/ stub (placeholder README, no interpreter)
+# 3. Then M-BB-LIVE-WIRE or continue per PLAN.md
+```
+
+### Regression baselines
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
