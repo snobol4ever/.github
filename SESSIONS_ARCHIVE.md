@@ -32019,41 +32019,96 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
   → `wat2wasm` fails on programs using keywords. Tracked under M-JITEM-WASM.
 - `src/driver/wasm/` has no interpreter — WASM runs via emit pipeline only.
 - Archive actions (move dead files to `archive/`) not yet done.
-- `tools/beautify.py` exists but **do not run it** — beautification of source dirs is
-  explicitly out of scope for future sessions unless Lon specifically requests it.
+- `tools/beautify.py` not yet run on `src/runtime/`, `src/backend/`, `src/frontend/`, `src/driver/`
+  — can be done any session, each dir independently with `--verify`.
 
 ---
 
-## Session 2026-04-07q — M-BB-LIVE-WIRE start (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07o — M-SS-DIFF §10 diff pass (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `e0c11d5b` · .github `5bfcae4`
-
-### Status on entry
-- Cloned all four repos fresh. Installed `wabt` and `libgc-dev` (not present in this env).
-- Built `scrip` successfully.
-- `scrip --ir-run`: PASS=178/203 ✅ (gate confirmed)
+**HEAD:** one4all `39a1dfbd` · .github `a66c031b`
 
 ### Work completed
-- None yet — session interrupted after orientation to update HQ.
 
-### Standing instruction
-**Do NOT run `tools/beautify.py` on any source files.** Not a session task.
+**Rebase:** pulled beautified code (27 files, tools/beautify.py added). Clean build confirmed.
+
+**M-SS-DIFF §10 — pattern-valued fns (`sil_patval.c` vs v311.sil 3119–3322):**
+
+- **`ATOP_fn` bug fixed:** Non-function path (FNC not set) should go straight to MAKNOD —
+  no `nemo()` check. Oracle `TESTF YPTR,FNC,ATOP1` means skip INVOKE when FNC *not* set.
+  Also fixed INVOKE return-value dispatch: `case 2` in oracle (name-return → ATOP1, skip
+  nemo check) maps to `NRETURN=5` in our enum.
+- **Dead code removed:** `XPTR = XPTR;` no-op in `nam_dol()` (line 295).
+- **`Sil_result` enum extended:** Added `NRETURN=5` and `VRETURN=6` to `sil_types.h`.
+  Updated all raw `return 5`/`return 6` in `sil_interp.c` to use named constants.
+
+**Build:** zero warnings, zero errors ✅
+
+### §11 — sil_scan.c status note
+File is 1170 lines, setjmp/longjmp framework looks structurally sound.
+**Known issue:** extern declarations of `maknod_fn`/`cpypat_fn`/`lvalue_fn` in
+`sil_scan.c` (~line 50) use `int32_t` offset signatures that don't match the
+`static` `DESCR_t*` versions in `sil_patval.c`. These externs are stale and will
+cause link errors when patval helpers are exposed. Must reconcile signatures in §11.
 
 ### Next session — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-cd /home/claude/one4all && git pull && make scrip
-INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
-# Gate: PASS=178. Then implement M-BB-LIVE-WIRE:
-#   1. Add BB_MODE_DRIVER / BB_MODE_LIVE enum + g_bb_mode extern to bb_build.h
-#   2. Define g_bb_mode in stmt_exec.c; replace SNO_BINARY_BOXES getenv() checks
-#      with (g_bb_mode == BB_MODE_LIVE) checks
-#   3. scrip.c: set g_bb_mode = BB_MODE_LIVE when --bb-live; remove (void)bb_live
-#   4. Gate: PASS=178 via scrip --sm-run --bb-live; trace diff vs --bb-driver is empty
-# NOTE: do NOT run tools/beautify.py on any source files.
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Continue M-SS-DIFF §11 — sil_scan.c vs v311.sil lines 3323–4239
+# First: fix stale extern signatures for maknod_fn/cpypat_fn/lvalue_fn in sil_scan.c
+#   - Make patval helpers non-static (or add a sil_patval_internal.h)
+#   - Align signatures: DESCR_t* style not int32_t offset style
+# Then: diff SCAN_fn / SJSR_fn / SCNR_fn entry logic vs oracle
+# Then: diff the 36 XPROC sub-procedures
 ```
 
-### Open items / known issues (carried forward)
-- `--jit-emit --wasm` undeclared globals bug → M-JITEM-WASM.
-- `src/driver/wasm/` no interpreter.
-- Archive actions (dead files → `archive/`) not yet done.
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07o — M-SS-DIFF §10 diff pass (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `39a1dfbd` · .github `a66c031b`
+
+### Work completed
+
+**Rebase:** pulled beautified code (27 files, tools/beautify.py added). Clean build confirmed.
+
+**M-SS-DIFF §10 — pattern-valued fns (`sil_patval.c` vs v311.sil 3119–3322):**
+
+- **`ATOP_fn` bug fixed:** Non-function path (FNC not set) goes straight to MAKNOD —
+  no `nemo()` check. Oracle `TESTF YPTR,FNC,ATOP1` means skip INVOKE when FNC *not* set.
+  INVOKE return dispatch: `case 2` (name-return → ATOP1) maps to `NRETURN=5` in our enum.
+- **Dead code removed:** `XPTR = XPTR;` no-op in `nam_dol()`.
+- **`Sil_result` enum extended:** Added `NRETURN=5`, `VRETURN=6` to `sil_types.h`.
+  Updated all raw `return 5`/`return 6` in `sil_interp.c` to named constants.
+
+**Build:** zero warnings, zero errors ✅
+
+### §11 open issue
+Stale extern signatures for `maknod_fn`/`cpypat_fn`/`lvalue_fn` in `sil_scan.c`
+(int32_t offsets vs DESCR_t* in patval). Must fix before §11 link gate.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build. Then M-SS-DIFF §11 — sil_scan.c vs v311.sil 3323–4239
+# First: fix stale externs (maknod_fn/cpypat_fn/lvalue_fn) in sil_scan.c
+```
+
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
