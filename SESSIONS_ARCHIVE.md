@@ -32295,3 +32295,52 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
 - §15–§23 diff not yet started
+
+---
+
+## Session 2026-04-07t — M-SS-DIFF §15 sil_io.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `4f798aaa` · .github (updating)
+
+### Work completed
+
+**M-SS-DIFF §15 — sil_io.c (READ/PRINT/BKSPCE/ENDFL/REWIND/SET/DETACH/PUTIN/PUTOUT):**
+
+**Bug 1 — READ_fn options discarded:**
+- `VARVAL_fn` writes options into XPTR. We popped unit/var off io_stk before capturing options, so ZPTR was stale at `io_push(YPTR); io_push(ZPTR)`.
+- Fix: `MOVD(ZPTR, XPTR)` immediately after `VARVAL_fn()` call. Also added negative-unit UNTERR guard.
+
+**Bug 2 — DETACH_fn wrong arena base:**
+- `locapv_fn` returns absolute arena offset of the matched value DESCR.
+- We used `A2P(D_A(INATL)) + ai + DESCR` (treating ai as relative within list) — wrong.
+- Fix: `A2P(ai) + DESCR` / `A2P(ai) + 2*DESCR` (direct from absolute offset).
+
+**Bug 3 — PUTIN_fn XCL not saved before STREAD:**
+- Oracle `MOVD XCL,IO1PTR` saves recl before STREAD can overwrite IO1PTR with length.
+- We checked global XCL (stale) for the PUTIN4 GENVAR/GNVARS dispatch.
+- Fix: `MOVD(XCL, IO1PTR)` before STREAD. Corrected branch: VLRECL → GENVAR; else → GNVARS.
+
+**No bugs found:** PRINT_fn, ioop/BKSPCE/ENDFL/REWIND/SET, PUTOUT_fn.
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §16 — sil_trace.c vs v311.sil lines 5466–5827 (TRACE/STOPTR/FENTR/FNEXT/KEYTR/TRPHND/VALTR)
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §16–§23 diff not yet started
