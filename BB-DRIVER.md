@@ -85,7 +85,7 @@ itself is trivial.
 ## Existing Implementation (2026-04-04)
 
 `src/runtime/dyn/stmt_exec.c` contains the BB-DRIVER logic but it is
-currently called from the tree-walking `scrip-interp.c` (via `exec_stmt`)
+currently called from the tree-walking `scrip.c` (via `exec_stmt`)
 rather than from an `SM_EXEC_STMT` dispatch. The driver logic itself is
 correct. It needs to be called from the SM dispatch loop instead.
 

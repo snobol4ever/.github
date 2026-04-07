@@ -27,7 +27,7 @@ correctness/performance reference.
 | `scrip-interp` (pre-built, 647KB) | removed | replaced by `scrip --interp` |
 | `scrip-interp-dbg` (pre-built) | removed | replaced by `scrip --interp` + debug flags |
 | `scrip-interp-s` (pre-built) | removed | replaced by `scrip --interp` stripped |
-| `scrip-cc` (Makefile target) | removed | replaced by `scrip --gen` / `--hybrid` |
+| `scrip-cc` (Makefile target) | removed | replaced by `scrip --jit-run` / `--jit-emit` |
 | *(none)* | **`scrip`** | new unified binary |
 | *(future)* | `scrip-jvm` | JVM interpreter (separate milestone) |
 | *(future)* | `scrip-js` | JS interpreter (separate milestone) |

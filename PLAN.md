@@ -20,13 +20,13 @@ cat /home/claude/.github/PLAN.md                      # this file (NOW table + r
 
 **Step 2 — Read your component doc (session-specific, ONE doc):**
 ```
-Track C  scrip-interp / SIL  →  cat MILESTONE-RT-RUNTIME.md   (RUNTIME-3 section only — grep "^## RUNTIME-3" and read to next "^## RT-")
+Track C  scrip / SIL  →  cat MILESTONE-RT-RUNTIME.md   (RUNTIME-3 section only — grep "^## RUNTIME-3" and read to next "^## RT-")
 Track A  sno4parse            →  cat MILESTONE-SN4PARSE-VALIDATE.md
 Track B  emitter x86          →  cat EMITTER-X86.md
 Track BB Byrd box / SM        →  cat SCRIP-SM.md + BB-GRAPH.md + BB-DRIVER.md + IR.md
 ```
 ⚠️ BB-GRAPH.md, BB-DRIVER.md, SCRIP-SM.md, IR.md are ONLY for Track BB (emitter/SM work).
-Do NOT read them for Track C (scrip-interp / RT milestone work).
+Do NOT read them for Track C (scrip / RT milestone work).
 
 **Step 3 — Read SESSION-<frontend>-<backend>.md §INFO + §NOW only**
 ```
@@ -68,7 +68,7 @@ the corpus, the emitter is correct by construction.
 
 | Component | Doc | Status |
 |-----------|-----|--------|
-| **SCRIP Unified Executable** | `SCRIP-UNIFIED.md` | ✅ designed · U0 rename pending · replaces scrip-interp/scrip-cc split |
+| **SCRIP Unified Executable** | `SCRIP-UNIFIED.md` | ✅ designed · U0 complete (2026-04-07) · binary=`scrip` · default=`--sm-run` |
 | **SCRIP Stack Machine** | `SCRIP-SM.md` | ✅ designed · ⬜ SM-LOWER not written |
 | **IR** | `IR.md` | ✅ complete |
 | **BB-GRAPH** | `BB-GRAPH.md` | ✅ 25 boxes complete |
@@ -114,7 +114,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (SCRIP unified)** | RT-125 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U0** rename scrip-interp→scrip + --interp/--gen flags; then M-DYN-B0 reset trampolines; then M-SCRIP-U1 segment allocator. See SCRIP-UNIFIED.md |
+| **RUNTIME (SCRIP unified)** | RT-125 | one4all `0f316e82` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U1** segment allocator; then M-DYN-B0 reset trampolines; then M-SCRIP-U3 SM-LOWER. See SCRIP-UNIFIED.md |
 | **Silly SNOBOL4** | SS-19 | one4all `d1d96dcd` | M-SS-DIFF: section-by-section diff pass vs v311.sil → then M-SS-HARNESS (two-way harness vs CSNOBOL4) |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |

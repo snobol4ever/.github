@@ -238,7 +238,7 @@ Source text
 ```
 
 `SM-LOWER` is the missing component. It replaces the tree-walk in
-`scrip-interp.c` and is the correct foundation for both the interpreter
+`scrip.c` and is the correct foundation for both the interpreter
 and all emitters.
 
 ---
@@ -277,7 +277,7 @@ The x86 column is the SM interpreted natively. Zero semantic gap.
 
 - `SM_Instr` typedef and `SM_Program` struct — **not written**
 - `SM-LOWER` pass (IR → SM_Program) — **not written**
-- Interpreter dispatch loop over `SM_Program` — **not written** (scrip-interp.c tree-walks IR instead)
+- Interpreter dispatch loop over `SM_Program` — **not written** (scrip.c tree-walks IR instead)
 - x86 emitter over `SM_Program` — **not written** (emit_x64.c tree-walks IR instead)
 
 The bb_pool, bb_emit, and all 25 bb_*.c boxes are complete and correct.

@@ -15,7 +15,7 @@ When the interpreter passes the full corpus, the x86 emitter can emit
 the same SM_Program as native x86 code with confidence — because they
 execute the same instruction stream.
 
-**Binary name:** `scrip-interp`
+**Binary name:** `scrip`
 **Language:** C
 **Contains:** SM dispatch loop + BB-DRIVER + all 25 bb_*.c boxes
 
@@ -24,7 +24,7 @@ execute the same instruction stream.
 ## Architecture
 
 ```
-scrip-interp
+scrip
   ├── SM dispatch loop      (src/runtime/sm/sm_interp.c)  ← TO BE WRITTEN
   ├── SM-LOWER              (src/runtime/sm/sm_lower.c)   ← TO BE WRITTEN
   ├── BB-DRIVER             (src/runtime/dyn/stmt_exec.c) ✅
@@ -38,13 +38,13 @@ scrip-interp
 
 ## Current State (2026-04-04)
 
-`scrip-interp` currently exists but tree-walks the IR (`EXPR_t`/`STMT_t`)
+`scrip` currently exists but tree-walks the IR (`EXPR_t`/`STMT_t`)
 directly instead of executing `SM_Program` instructions. This is wrong.
 
 What needs to change:
 1. Write `SM-LOWER`: `Program*` → `SM_Program` (IR → instruction stream)
 2. Write `sm_interp.c`: dispatch loop over `SM_Program`
-3. `scrip-interp.c` driver calls SM-LOWER then sm_interp, not the tree-walker
+3. `scrip.c` driver calls SM-LOWER then sm_interp, not the tree-walker
 
 The BB-DRIVER, bb_*.c boxes, and bb_pool are correct and reusable as-is.
 
@@ -52,7 +52,7 @@ The BB-DRIVER, bb_*.c boxes, and bb_pool are correct and reusable as-is.
 
 ## Corpus Status
 
-With the tree-walking scrip-interp (wrong architecture, but same runtime):
+With the tree-walking `scrip --ir-run` (wrong architecture, but same runtime):
 - Broad corpus: **177p/1f** (DYN-81, 2026-04-04)
 
 This number proves the BB-DRIVER and boxes are correct.
@@ -66,12 +66,12 @@ It will be the baseline for the SM_Program-based interpreter.
 cd /home/claude/one4all
 ROOT=$(pwd); RT="$ROOT/src/runtime"
 gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$RT/boxes/shared" \
-    src/driver/scrip-interp.c \
+    src/driver/scrip.c \
     src/frontend/snobol4/lex.c src/frontend/snobol4/parse.c \
     src/runtime/snobol4/snobol4.c src/runtime/snobol4/snobol4_pattern.c \
     src/runtime/dyn/stmt_exec.c src/runtime/dyn/eval_code.c \
     $(find src/runtime/boxes -name "bb_*.c") \
-    -lgc -lm -o scrip-interp
+    -lgc -lm -o scrip
 ```
 
 ---
@@ -157,7 +157,7 @@ Replace the entire scan-loop + emit_pat_node() + capture block with:
 
 ## Static .s Path Must Use Five Phases
 
-The static `.s` file (output of `scrip-cc -asm`) is a valid output mode —
+The static `.s` file (output of `scrip --jit-emit --x64`) is a valid output mode —
 **but it must call `stmt_exec_dyn()` at runtime for each pattern statement.**
 
 The pattern must NOT be baked inline as NASM Byrd box code. Instead the
