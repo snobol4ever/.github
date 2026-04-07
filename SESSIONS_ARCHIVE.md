@@ -31217,3 +31217,66 @@ cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
 cat /home/claude/.github/MILESTONE-SCRIP-UNIFY-X86.md
 ```
+
+---
+
+## Session 2026-04-07b — Reorg + Restore + Build Verification (Lon + Claude Sonnet 4.6)
+
+**Repos touched:** one4all `9c9f2b23` · .github (this file)
+
+### What was accomplished
+
+**Reorg (cleanup continued from morning session):**
+- `src/runtime/archive/` → `archive/backend/` (8 files: dyn test harnesses + snobol4 smoke tests)
+- `src/runtime/asm/` → `src/runtime/x86/` (8 files: bb_pool, bb_emit, bb_build_bin, bb_flat + headers)
+- `bench/Makefile`: `bench_re` → `re_bench`, `bench_pda` → `pda_bench`
+
+**Restore (680+ files recovered from history):**
+- 29 JVM Byrd Box `.java` files (`src/runtime/boxes/*/bb_*.java`, `package bb`)
+- 24 .NET per-box `.cs` files (`src/runtime/boxes/*/bb_*.cs`)
+- `src/runtime/net/snobol4lib.il`, `snobol4run.il`
+- `src/runtime/wasm/sno_runtime.wat`, `pl_runtime.wat`, `bb_boxes.wat`
+- `src/runtime/js/bb_boxes.js`, `src/runtime/boxes/bb_boxes.js`
+- `src/driver/dotnet/Ast.cs`
+- ~620 test files (`.il`, `.j`, `.s`, `.sno`) across all test categories
+
+**Build verification + fixes:**
+- `scrip` (C/SM/IR): ✅ builds and runs (`hello world` output confirmed)
+  - Restored `src/runtime/engine/engine.c`, `engine.h`, `runtime.h`, `engine/runtime.h`
+  - Fixed Makefile: `$(RT)/asm/` → `$(RT)/x86/` for all 4 bb_* files; added `engine.c`
+  - Fixed `src/runtime/dyn/stmt_exec.c`: `../asm/` → `../x86/` includes
+  - Stubbed `stmt_init()` inline in `scrip.c` (old JIT-path, not needed for SM/IR)
+  - Restored `src/runtime/x86/snobol4_stmt_rt.c` (kept for reference, not compiled)
+- JVM interpreter: ✅ compiles clean (29 bb files + driver via javac)
+  - Restored from commit `b8560bb2` (last known good JVM build)
+  - Package layout: `bb/*.java` compiled with `javac -d . bb/*.java driver/jvm/*.java`
+  - Runs without crash; `OUTPUT =` not wiring to stdout (pre-existing semantic gap)
+- .NET interpreter: ✅ builds (`dotnet build scrip-interp.csproj`)
+  - Fixed: `net10.0` → `net8.0` in `scrip-interp.csproj` (SDK installed is 8.0)
+  - Fixed: `bb_capture.cs` named param `α:` → `alpha:` (Greek vs ASCII mismatch)
+  - Runs without crash; same `OUTPUT` gap as JVM
+- JS interpreter: ✅ builds and runs — `hello world` output confirmed
+  - `node src/backend/js/sno-interp.js file.sno` works
+- WASM: ⚠️ partial
+  - `sno_runtime.wat` ✅ compiles with `wat2wasm`
+  - `pl_runtime.wat` ✅ compiles
+  - `bb_boxes.wat` ❌ — uses Greek identifiers (`$Σ`, `$Δ`, `$Ω`) rejected by wabt 1.0.34
+    Fix: either upgrade wabt or rename globals to ASCII (`$sigma`, `$delta`, `$omega`)
+
+### Open items for next session
+
+1. **bb_boxes.wat Greek identifier fix** — rename `$Σ/$Δ/$Ω` → `$sigma/$delta/$omega` throughout, then `wat2wasm` will accept it
+2. **OUTPUT wiring in JVM + .NET** — investigate why `OUTPUT = "x"` doesn't print; JS works so compare JS exec path
+3. **Makefile targets for JVM + .NET** — add proper `run-jvm` / `run-net` targets that use the direct Java/dotnet interpreters (not the legacy scrip-cc path)
+4. **M-DIAG** — wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` (next milestone per PLAN.md)
+
+### Session start checklist for next session
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
+# Verify builds still green:
+cd ~/snobol4ever/one4all && make scrip && echo 'OUTPUT = "hello"' | ./scrip /dev/stdin
+node src/backend/js/sno-interp.js /tmp/test.sno
+cd src/driver/net && dotnet bin/Debug/net8.0/scrip-interp.dll /tmp/test.sno
+```
