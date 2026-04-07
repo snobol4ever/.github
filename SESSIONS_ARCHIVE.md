@@ -32161,3 +32161,47 @@ cd src/silly && make
 ### Open items
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
 - §12–§23 diff not yet started
+
+---
+
+## Session 2026-04-07q — M-SS-DIFF §11 XPROC diff pass complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `cccb83e7` · .github `6dce83e`
+
+### Work completed
+
+**M-SS-DIFF §11 — all 36 XPROC sub-procedures diffed vs oracle:**
+
+Fixed bugs:
+- `do_ABNS` (ANYC3): Missing CHKVAL guard — skip `ADDLG VSP,ONECL` when cursor already at MAXLEN
+- `do_BRKXF`: XCL read from slot 0 (zero sentinel); oracle slot DESCR = cursor lock. Fixed.
+- `do_STAR`/`do_DSAR`: nval fullscan logic inverted (both instances). Fixed.
+- `do_SCON`: fullscan/lenfcl checks were nested not sequential; missing `SETAC LENFCL,1` before push. Fixed.
+- `do_EARB`: cursor stored at slot 0; oracle `PUTDC PDLPTR,DESCR` → slot 1. Fixed.
+- `do_ONAR`: `ACOMP TVAL,TMVAL,TSCOK,,TSCOK` falls through only on equality (no progress = infinite loop guard); was using `>=` (wrong). Fixed.
+- `do_FARB`: inverted fullscan nval; dead code removed. Fixed.
+- `do_BAL_inner`: same inverted fullscan nval; dead code removed. Fixed.
+- `do_ATP`: output path read `yd` and `nv` both from `XPTR,DESCR`; second read fetched value just written. Fixed to read association via ZPTR.
+- `do_SUCF`: YCL read from slot DESCR (slot 1); oracle `2*DESCR` = slot 2. Fixed.
+
+No bugs found in: `do_BRKC`/`do_BRKX`/`do_NNYC`/`do_SPNC`/`do_ANYC`, `do_LNTH`/`do_POSI`/`do_RPSI`/`do_RTB`/`do_TB`, `do_FNCE`, `do_NME`, `do_FNME`, `do_ENME`/`do_ENME3`, `do_DNME`/`do_DNME1`, `do_ENMI`, `do_CHR`, `do_ARBN`, `do_ARBF`.
+
+**§11 diff pass: COMPLETE**
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §12 — sil_define.c vs v311.sil lines 4240-4470 (DEFINE/DEFFNC)
+# Then §13 sil_extern.c (LOAD/UNLOAD/LNKFNC), §14 sil_arrays.c, etc.
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
