@@ -32295,3 +32295,62 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
 - §15–§23 diff not yet started
+
+---
+
+## Session 2026-04-07q — M-BB-LIVE-WIRE + M-JIT-RUN partial (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `9bbbcc2b` · .github (this commit)
+
+### Environment note
+Fresh clone requires: `apt-get install -y wabt libgc-dev` before `make scrip`.
+
+### M-BB-LIVE-WIRE ✅ COMPLETE (one4all e35fe0b9)
+- `bb_build.h`: `bb_mode_t` enum (`BB_MODE_DRIVER`/`BB_MODE_LIVE`) + `extern g_bb_mode`
+- `stmt_exec.c`: define `g_bb_mode`; replace `getenv("SNO_BINARY_BOXES")` with `g_bb_mode == BB_MODE_LIVE`
+- `scrip.c`: set `g_bb_mode = BB_MODE_LIVE` when `--bb-live`; remove `(void)bb_live`
+- Gate: `--sm-run --bb-live` PASS=161 ✅; trace diff vs `--bb-driver` empty ✅
+
+### M-JIT-RUN PARTIAL (one4all 9bbbcc2b)
+- New `src/runtime/x86/sm_codegen.c` + `sm_codegen.h`
+- `sm_codegen()`: emits x86 dispatch stubs into `SEG_DISPATCH`; pointer array in `SEG_CODE`
+- `sm_jit_run_plain()`: pure-C handler dispatch — **active runner**, PASS=159/203
+- `sm_jit_run()`: stub-based runner — **has stack-alignment bug, inactive**
+- `scrip.c`: `--jit-run` wired via `sm_image_init → sm_codegen → sm_jit_run_plain`
+
+### Baselines
+- `scrip --ir-run`: PASS=178 ✅
+- `scrip --sm-run --bb-driver`: PASS=161 ✅
+- `scrip --jit-run --bb-driver`: PASS=159 (2 below target; stub bug deferred)
+
+### M-JIT-RUN stub bug — next session fix
+`sm_jit_run()` segfaults on `NV_SET_fn("OUTPUT", DT_I)` — called from RX stub.
+`sm_jit_run_plain()` handles it fine → bug is in stub x86 emission, not handler logic.
+
+**Fix:** change `emit_dispatch_stub()` from push/sub/call/add/pop to a tail-call stub:
+```c
+seg_byte(SEG_DISPATCH, 0x48); seg_byte(SEG_DISPATCH, 0xb8);  /* mov rax, imm64 */
+seg_u64(SEG_DISPATCH, (uint64_t)(uintptr_t)fn);
+seg_byte(SEG_DISPATCH, 0xff); seg_byte(SEG_DISPATCH, 0xe0);  /* jmp rax */
+```
+Then swap `sm_jit_run_plain` back to `sm_jit_run` in `scrip.c`.
+Gate: `--jit-run --bb-driver` PASS=161.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+apt-get install -y wabt libgc-dev 2>/dev/null
+cd /home/claude/one4all && git pull && make scrip
+INTERP="./scrip --ir-run"            CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+INTERP="./scrip --jit-run --bb-driver" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gates: --ir-run PASS=178, --jit-run PASS=159.
+# Fix emit_dispatch_stub() in sm_codegen.c to use jmp tail-call (12 bytes, no frame).
+# Swap sm_jit_run_plain -> sm_jit_run in scrip.c.
+# Gate: --jit-run --bb-driver PASS=161. Then commit M-JIT-RUN complete.
+# NOTE: do NOT run tools/beautify.py on any source files.
+```
+
+### Open items / known issues (carried forward)
+- `--jit-emit --wasm` undeclared globals bug → M-JITEM-WASM
+- `src/driver/wasm/` no interpreter
+- Archive actions (dead files → `archive/`) not yet done
