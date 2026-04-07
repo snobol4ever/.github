@@ -31691,3 +31691,52 @@ INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/
 # All flags already parsed — just need implementations
 # Gate: flags produce output without crashing; PASS=178 unchanged
 ```
+
+---
+
+## Session 2026-04-07k — Backend reorg: header consolidation + runtime relocation (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `15ddb849` · .github `d833371`
+
+### Work completed
+
+**Backend header consolidation** (`057d51de`):
+- `emit_wasm_icon.h` merged into `emit_wasm.h`
+- `emit_x64_snocone.h` renamed to `emit_x64.h` (guard updated)
+- `emit_cnode.h` + `emit_pretty.h` merged into `emit_c.h`
+- `trampoline.h` left as-is — runtime header for generated code, not a platform API
+- All `#include` references updated in `emit_c.c`, `emit_x64.c`, `emit_wasm.c`, `prolog_emit.c`
+- `src/backend/` now has one `.h` per backend platform
+
+**Runtime file relocation** (`15ddb849`):
+- `src/backend/js/{sno_engine,sno_runtime,sno-interp}.js` → `src/runtime/js/`
+- `src/backend/net/{DESCR,ByrdBoxLinkage,SnobolHarness}.cs` → `src/runtime/net/`
+- `src/backend/js/` and `src/backend/net/` subdirs removed
+- `src/backend/` now contains only emitters and their headers
+
+### Regression baselines (confirmed)
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run`: PASS=161/203 ✅ (not re-run this session — unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd ~/snobol4ever/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Continue reorg or begin M-DIAG.
+# M-DIAG: wire --dump-sm, --dump-bb, --trace, --bench in src/driver/scrip.c
+# All flags already parsed — just need implementations
+# Gate: flags produce output without crashing; PASS=178 unchanged
+```
+
+### Next milestone: M-DIAG
+Wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` in `src/driver/scrip.c`.
+All flags already parsed — just need implementations.
+Gate: flags produce output without crashing; PASS=178 unchanged.
+
+### Regression baselines
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS=175, .NET=172, JVM=164 (from session d — full frontend sweep still deferred)
