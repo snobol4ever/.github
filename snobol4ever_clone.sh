@@ -3,10 +3,11 @@
 #
 # Usage:
 #   mkdir ~/snobol4ever && cd ~/snobol4ever
-#   git clone https://TOKEN@github.com/snobol4ever/.github
-#   bash .github/snobol4ever_clone.sh --token TOKEN PROFILE_OR_REPOS...
+#   git clone https://github.com/snobol4ever/.github
+#   bash .github/snobol4ever_clone.sh PROFILE_OR_REPOS...
 #
 # Repos are cloned as subdirectories of wherever you run this script.
+# Credentials come from your git config / GitHub Desktop — no token needed.
 #
 # Profiles:
 #   interp     — .github one4all harness corpus
@@ -16,10 +17,10 @@
 #   all        — every repo in the org
 #
 # Or list repos explicitly:
-#   bash .github/snobol4ever_clone.sh --token TOKEN one4all corpus harness
+#   bash .github/snobol4ever_clone.sh one4all corpus harness
 #
 # Options:
-#   --token TOKEN   GitHub PAT (or set GH_TOKEN env var)
+#   --token TOKEN   GitHub PAT (only needed if not using GitHub Desktop / git credential store)
 #   --ssh           Clone via SSH instead of HTTPS
 #
 # Safe to re-run — already-cloned repos are skipped.
