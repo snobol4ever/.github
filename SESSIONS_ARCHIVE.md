@@ -31521,3 +31521,38 @@ src/runtime/
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS: 175, .NET: 172, JVM: 164
+
+---
+
+## Session 2026-04-07g — Handoff update (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `runtime-reorg` branch · .github `1e37757`
+
+### Correction to 2026-04-07f handoff
+
+All WIP is pushed to branch `runtime-reorg` on one4all (not a stash).
+Two commits on that branch:
+- `a210465f` — WIP: file moves + partial include fixes
+- All Makefile, backend, and include path fixes are IN that commit
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cd ~/snobol4ever/one4all
+git fetch && git checkout runtime-reorg && git pull
+make scrip 2>&1 | grep -E "error:|fatal" | head -20
+# Fix remaining errors one by one
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then merge to main:
+git checkout main && git merge runtime-reorg && git push
+git push origin --delete runtime-reorg
+```
+
+### Known remaining build errors (last seen)
+- `bb_boxes.c` needed `snobol4.h` + `stdio.h` — added in session
+- `snobol4.h` needed `snobol4_patnd.h`, `engine_runtime.h` — fixed
+- `snobol4.c` needed `snobol4_utf8.h` — fixed
+- `snobol4_pattern.c` needed `engine.h` (not `../engine.h`) — fixed
+- `bb_build.h/c` needed `bb_box.h` (not `../boxes/shared/bb_box.h`) — fixed
+- `bb_flat.h/c`, `stmt_exec.c` same bb_box.h fix — fixed
+- May be a few more stale includes to surface during full build
