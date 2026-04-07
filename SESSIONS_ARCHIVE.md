@@ -31260,12 +31260,11 @@ cat /home/claude/.github/MILESTONE-SCRIP-UNIFY-X86.md
 - WASM: ⚠️ partial
   - `sno_runtime.wat` ✅ compiles with `wat2wasm`
   - `pl_runtime.wat` ✅ compiles
-  - `bb_boxes.wat` ❌ — uses Greek identifiers (`$Σ`, `$Δ`, `$Ω`) rejected by wabt 1.0.34
-    Fix: either upgrade wabt or rename globals to ASCII (`$sigma`, `$delta`, `$omega`)
+  - `bb_boxes.wat` ✅ — Greek identifiers `$Σ/$Δ/$Ω` renamed to `$sigma/$delta/$omega` (commit 72821c23)
 
 ### Open items for next session
 
-1. **bb_boxes.wat Greek identifier fix** — rename `$Σ/$Δ/$Ω` → `$sigma/$delta/$omega` throughout, then `wat2wasm` will accept it
+1. ~~bb_boxes.wat Greek identifier fix~~ ✅ DONE (72821c23)
 2. **OUTPUT wiring in JVM + .NET** — investigate why `OUTPUT = "x"` doesn't print; JS works so compare JS exec path
 3. **Makefile targets for JVM + .NET** — add proper `run-jvm` / `run-net` targets that use the direct Java/dotnet interpreters (not the legacy scrip-cc path)
 4. **M-DIAG** — wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` (next milestone per PLAN.md)
