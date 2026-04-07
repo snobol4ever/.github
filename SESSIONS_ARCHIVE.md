@@ -31351,3 +31351,59 @@ cd src/driver/net && dotnet bin/Debug/net8.0/scrip-interp.dll /tmp/test.sno
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 cat /home/claude/.github/PLAN.md
 ```
+
+---
+
+## Session 2026-04-07d — Final Restore + Audit Close (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `f59fda80` · .github `34330c8`
+
+### Active frontend/interpreter architecture clarified
+
+**6 active frontends:** SNOBOL4/SPITBOL, Snocone, Rebus, Icon, Prolog, Scrip
+**scrip executable:** interpreter + compiler/translator/generator for all 6 languages × 6 backends (C, x86 asm, JVM bytecodes, MSIL, WASM, JavaScript)
+**Platform-specific interpreters:** JVM, .NET, JS, WASM — each mirrors scrip functionality for non-x86 platforms
+
+### Files restored this sub-session
+
+- `src/frontend/snocone/` (8 files) — Snocone frontend, active ✅
+- `src/runtime/jvm/ByrdBoxLinkage.j` — JVM cross-language linkage ✅
+- `test/icon/` (27 files: `.icn`, `.j`, `.s`) — Icon frontend tests ✅
+- `test/prolog/` (26 files: `.pl`, `.j`, `.s`) — Prolog frontend tests ✅
+
+### Files intentionally NOT restored (correctly left deleted)
+
+- `src/frontend/icon/icon_semicolon.c` — explicitly retired (SD-28b, semicolon now in lexer)
+- `src/runtime/asm/t2_alloc/reloc` — renamed to `blk_alloc/reloc`, lives in archive
+- `src/runtime/snobol4/snoc_helpers.c` + `snoc_runtime.h` — retired (snobol4_inc.c covers all 19 helpers)
+- `src/frontend/snobol4/lex.c`, `parse.c`, `sno.tab.*` — retired (DYN-47/264da8a4)
+- `src/rebus/` — was renamed to `src/frontend/rebus/`, already live
+- `src/backend/c/emit.c` — superseded by `emit_byrd_c.c` + `emit_cnode.c`
+- `reference/snobol4cython/` — moved to own repo
+- `artifacts/` tree — historical snapshots, not source
+- `test/frontend/prolog/wrap_swi.py` — intentionally deleted (raw SWI approach)
+
+### Full restoration complete ✅
+
+All files required for active frontends and interpreter targets are now present.
+Regression baselines confirmed:
+- scrip --ir-run: PASS=178/203
+- scrip --sm-run: PASS=161/203
+- JS:            PASS=175/203
+- .NET:          PASS=172/203
+- JVM:           PASS=164/203
+
+### Next session priorities (in order per PLAN.md)
+
+1. **M-DIAG** — wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench`
+2. **M-BB-LIVE-WIRE** — wire `--bb-live` via `g_bb_mode` global
+3. **M-JIT-RUN** — write `sm_codegen.c`; gate PASS=178 via `--jit-run`
+
+### Session start checklist
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
+cd ~/snobol4ever/one4all && git pull --rebase && make scrip
+INTERP="./scrip --ir-run" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+```
