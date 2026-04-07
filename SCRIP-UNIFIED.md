@@ -155,7 +155,7 @@ Execution modes (default: --sm-run):
 
 Byrd Box pattern mode (default: --bb-driver):
   --bb-driver      pattern matching via driver/broker
-  --bb-live        live-wired in exec memory (--jit-run/--jit-emit only)
+  --bb-live        live-wired BB blobs in exec memory (orthogonal to exec mode; requires M-DYN-B* blobs)
 
 Target (default: --x64):
   --x64  --jvm  --net  --js  --c  --wasm
