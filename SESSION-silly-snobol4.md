@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-19 | one4all `aa63f559` · .github (updated) | **M-SS-DIFF**: §1–§14 complete — next: §15 sil_io.c (READ/PRINT/I-O, v311.sil 5268–5465) |
+| SS-19 | one4all `4f798aaa` · .github (updated) | **M-SS-DIFF**: §1–§15 complete — next: §16 sil_trace.c (TRACE/STOPTR/TRPHND, v311.sil 5466–5827) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -202,5 +202,6 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §12 | sil_define.c | ✅ complete (2026-04-07r) — 1 bug: block-fill off-by-one |
 | §13 | sil_extern.c | ✅ complete (2026-04-07s) — 1 bug: LNKFNC entry addr slot 0 not 1 |
 | §14 | sil_arrays.c | ✅ complete (2026-04-07s) — 2 bugs: ARRAY elem slot off-by-one; ITEM multi-dim Horner |
-| §15 | sil_io.c | ⬜ next |
-| §16–§23 | remaining TUs | ⬜ pending |
+| §15 | sil_io.c | ✅ complete (2026-04-07t) — 3 bugs: READ opts lost; DETACH wrong arena base; PUTIN XCL not saved |
+| §16 | sil_trace.c | ⬜ next |
+| §17–§23 | remaining TUs | ⬜ pending |
