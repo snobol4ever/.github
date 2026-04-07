@@ -159,13 +159,13 @@ Summary:
 - SIL global → verbatim UPPERCASE (`XPTR`, `FNCPL`, `NEXFCL`)
 - SIL EQU/#define → verbatim UPPERCASE (`FBLKSZ`, `CNODSZ`, `DATSTA`)
 - SIL type → verbatim + `_t` (`DESCR_t`, `SPEC_t`)
-- New C struct/enum → `Xxxx_yyy` one-cap-first (`Sil_result`, `Invoke_entry`, `Scan_ctx`)
+- New C struct/enum → `Xxxx_yyy` one-cap-first (`RESULT_t`, `Invoke_entry`, `Scan_ctx`)
 - New C function/variable → `snake_case` (`arena_init`, `genvar_from_descr`, `locapt_fn`)
 - **Never CamelCase. Never ALL_CAPS for new C types.**
 
 ### M-SS-DIFF punch-list (SS-19, 2026-04-06)
 Fixed this session:
-- `SIL_result` → `Sil_result` everywhere (41 files)
+- `SIL_result` → `RESULT_t` everywhere (41 files)
 - `CNODSZS` → `CNODSZ` (SIL verbatim)
 - Added `#define FBLKSZ (10*DESCR)` to `sil_types.h`
 - `FBKLSZ` typo (×2) → `FBLKSZ` in `sil_symtab.c` FINDEX_fn

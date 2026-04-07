@@ -451,13 +451,14 @@ Touch-and-reformat only lines you are already editing.
 | SIL EQU constant → C `#define` | verbatim UPPERCASE | `FBLKSZ`, `CNODSZ`, `OBSIZ`, `DATSTA` |
 | SIL flag → C `#define` | verbatim UPPERCASE | `FNC`, `PTR`, `FRZN`, `MARK` |
 | SIL data type code → C `#define` | verbatim UPPERCASE | `S`, `I`, `P`, `A`, `DATSTA` |
-| New C struct or enum (our concept, no SIL origin) | `Xxxx_yyy` — ONE uppercase first letter, rest lowercase + underscores | `Sil_result`, `Invoke_entry`, `Scan_ctx` |
+| New C struct or enum (our concept, no SIL origin) | `Xxxx_yyy` — ONE uppercase first letter, rest lowercase + underscores | `Invoke_entry`, `Scan_ctx` |
+| **Exception — procedure return-code typedef** | `RESULT_t` — ALL_CAPS + `_t`; treated like a SIL type since every SIL proc returns it | `RESULT_t` |
 | New C function (our concept, no SIL origin) | `snake_case` | `arena_init`, `genvar_from_descr`, `locapt_fn` |
 | New C variable (our concept, no SIL origin) | `snake_case` | `scan_ctx_g`, `invoke_table` |
 
 **Hard rules:**
-- **Never CamelCase** for anything. `SilResult` ✗  `SIL_result` ✗  `Sil_result` ✓
-- **Never ALL_CAPS for new C structs/enums.** ALL_CAPS is reserved for SIL-derived constants.
+- **Never CamelCase** for anything. `SilResult` ✗  `SIL_result` ✗  `Sil_result` ✓ (historical; now `RESULT_t`)
+- **Never ALL_CAPS for new C structs/enums — exception: `RESULT_t`.** ALL_CAPS otherwise reserved for SIL-derived constants.
 - Names that CONTAIN a SIL name but add C suffixes: `NAME_fn`, `NAME_t` — use verbatim SIL name as prefix.
 - New C helpers that wrap a SIL concept are still new C functions → `snake_case`: `genvar_from_descr()` not `GENVAR_fn_from_descr()`.
 - Derived names (e.g. `locapt_fn`, `locapv_fn`) implement SIL macros LOCAPT/LOCAPV — they are new C functions → `snake_case` ✓.
