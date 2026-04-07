@@ -31963,3 +31963,91 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
   Tracked under M-JITEM-WASM in MILESTONE-SCRIP-X86-COMPLETION.md.
 - `src/driver/wasm/` has no interpreter — WASM runs via emit pipeline only.
 - Archive actions from MILESTONE-SCRIP-X86-COMPLETION.md (move dead files to archive/) not yet done.
+
+---
+
+## Session 2026-04-07n — M-SS-DIFF §6–§9 diff pass (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `672a107f` · .github `3982e9b`
+
+### Work completed
+
+**Build hygiene:**
+- `sil_platform.c`: fixed false-positive `-Wformat-truncation` warning in `XCALL_DATE`
+  via `#pragma GCC diagnostic push/pop`. Build now zero warnings, zero errors.
+- `src/silly/Makefile`: created. Targets: `all` (debug `-g -O0`), `release` (`-O2`),
+  `clean`, `check` (smoke test). Invoked as `cd src/silly && make`.
+
+**M-SS-DIFF §6 — NEWCRD CTLCRD dispatcher (`153a5a8a`):**
+- `NEWCRD_fn` CTLCRD branch: replaced stub with faithful translation of
+  v311.sil lines 2313–2461 — all 14 control commands: UNLIST, LIST [LEFT|RIGHT],
+  EJECT, ERRORS, NOERRORS, HIDE, CASE [n], INCLUDE/COPY \<file\>, PLUSOPS [n],
+  EXECUTE, NOEXECUTE, LINE \<n\> [\<file\>]
+- `CTLADV_fn`: new (v311.sil line 2430) — advance to quoted filename, strip quotes
+- 14 `SPEC_t` control-card command globals (UNLSP_sp..LEFTSP_sp) added to
+  `sil_data.c`/`.h`, backed by static char literals, init in `sil_data_init()`
+- `INTGTB` exported from `sil_platform.c` and registered in `init_actions()`
+- Fixed `XCALL_IO_PAD`/`XCALL_IO_FILE` signatures; added `XCALL_XINCLD` stub
+
+**M-SS-DIFF §7 — INTERP/INIT/INVOKE/GOTL (`284225d9`):**
+- `INIT_fn`: STLIMIT check had wrong order and wrong condition. Fixed to match
+  `snobol4.c`: `if (EXLMCL < 0) skip; if (EXNOCL >= EXLMCL) exex; then INCRA`
+- `INIT_fn`, `INTERP_fn`, `GOTL_fn`: TRAPCL checks used `!= 0`; oracle uses `> 0`
+- `INVOKE_fn`: ARGNER error code was 10; oracle line 10344 says 25
+
+**M-SS-DIFF §8 — ARGVAL/VARVAL/RLINT/XYARGS (`672a107f`):**
+- `VARVAL_fn`: removed incorrect REAL→string path. Oracle VARV2 has no R branch —
+  REAL is a type error (INTR1). Only S and I (→GENVIX) valid.
+- `rlint()`: added overflow bounds check before `(int32_t)` cast. Cast of
+  out-of-range float is UB; now returns FAIL for values outside `[-2^31, 2^31-1]`
+- `XYARGS_fn`: XY3 exit condition was inverted. Oracle/snobol4.c:
+  `if (SCL != 0) RTN2`. Fixed: return when `pass != 0` (second arg done)
+- `EXPVAL_fn` SELBRA mapping confirmed correct (SCL 1=FAIL, 2=RTXNAM, 3=RTZPTR)
+
+**M-SS-DIFF §9 — arithmetic (`sil_arith.c`) — no changes needed:**
+- Type routing matrix (ARTHII/VV/VI/IV/IR/RI/RR) verified against `snobol4.c`
+- VV path logically equivalent to oracle (X→I/R, re-route)
+- Integer overflow detection: `math_error_flag` static never raised by signal —
+  known limitation, same as most portable C interpreters; documented, deferred
+
+### Regression baseline
+- Build: zero warnings, zero errors ✅
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+cd src/silly && make
+# Gate: clean build, zero warnings.
+# Continue M-SS-DIFF:
+# §10 — pattern-valued fns: sil_patval.c  vs v311.sil lines 3119–3322
+# §11 — pattern match:      sil_scan.c    vs v311.sil lines 3323–4239
+# §12 — defined fns:        sil_define.c  vs v311.sil lines 4240–4470
+# §13 — external fns:       sil_extern.c  vs v311.sil lines 4471–4643
+# §14 — arrays/tables:      sil_arrays.c  vs v311.sil lines 4644–5267
+# §15 — I/O:                sil_io.c      vs v311.sil lines 5268–5465
+# §16 — tracing:            sil_trace.c   vs v311.sil lines 5466–5827
+# §17 — other ops:          sil_asgn.c    vs v311.sil lines 5828–6101
+# §18 — predicates:         sil_pred.c    vs v311.sil lines 6102–6321
+# §19 — other fns:          sil_func.c    vs v311.sil lines 6322–7037
+# §21 — common code:        sil_interp.c  vs v311.sil lines 10209–10241
+# §22 — termination:        sil_errors.c  vs v311.sil lines 10242–10336
+# §23 — errors:             sil_errors.c  vs v311.sil lines 10337–10480
+# After diff pass complete → M-SS-HARNESS
+```
+
+### Known open items after this session
+- `EXDTSP`/`ALPHSP` and the ~72 lines of `const char SP[]` in `sil_data.c`
+  should eventually be `SPEC_t` globals (see SESSION doc §INFO). Deferred —
+  current `P2A(ptr) + strlen()` usage is semantically correct.
+- `sil_data_init()`: 2000+ DESCR globals from v311.sil §24 not yet populated
+  (function descriptors, keyword tables, pattern primitives, OBLIST).
+  A generator script is the right approach for M-SS-HARNESS prep.
+- `math_error_flag`: integer overflow not signal-detected. Documented above.
+- `XCALL_XINCLD`: stub returns FAIL — INCLUDE not yet implemented.
+
+### Regression baselines
+- silly-snobol4 build: zero warnings, zero errors
+- scrip --ir-run: PASS=178/203 (unchanged this session)
+- scrip --sm-run: PASS=161/203 (unchanged this session)
