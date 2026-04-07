@@ -31143,3 +31143,77 @@ INTERP="./scrip --hybrid" CORPUS=../corpus bash test/run_interp_broad.sh 2>/dev/
 # Fix: emit SM_PUSH_LIT_S "" instead (check if SM_PUSH_LIT_S exists in sm_prog.h first)
 # Gate: PASS >= 162
 ```
+
+---
+
+## Session 2026-04-07 — Reorg + Unification (Lon + Claude Sonnet 4.6)
+
+**Repos touched:** one4all `bc8dfca4` · .github `fa69112` → `d938a40`
+
+### What was accomplished
+
+**U0 — Unified `scrip` binary (COMPLETE)**
+- `scrip-interp`, `scrip-interp-dbg`, `scrip-interp-s` pre-built binaries removed
+- `src/Makefile`: `BIN = ../scrip`
+- `src/driver/scrip.c`: all switches renamed to final spec (see below)
+- Default mode changed from `--ir-run` to `--sm-run`
+- `sno4parse` pre-built binary removed
+
+**Switch set — AUTHORITATIVE (commit fbdd8a24 + 29069275)**
+```
+Execution modes (default: --sm-run):
+  --ir-run         IR tree-walk (correctness reference)
+  --sm-run         SM dispatch loop over SM_Program  [DEFAULT]
+  --jit-run        SM_Program → x86 bytes → mmap → jump in  [stub]
+  --jit-emit       SM_Program → emit to file          [stub, routes to legacy emitters]
+
+Byrd Box pattern mode (default: --bb-driver):
+  --bb-driver      pattern matching via driver/broker
+  --bb-live        live-wired BB blobs (orthogonal to exec mode; needs M-DYN-B* blobs)
+
+Target (default: --x64):
+  --x64  --jvm  --net  --js  --c  --wasm
+
+Diagnostic:
+  --dump-ir  --dump-sm  --dump-bb  --trace  --bench
+  --dump-parse  --dump-parse-flat  --dump-ir-bison
+```
+
+**Runtime reorg (COMPLETE)**
+- Archived: `engine.c/h`, `runtime.c/h`, `mock_engine.c`, `mock_includes.c/h`,
+  `blk_alloc/reloc`, `snobol4_stmt_rt.c` → `archive/backend/`
+- Relocated: `runtime/js/` → `src/backend/js/`, `runtime/net/*.cs` → `src/backend/net/`
+- Deleted: all pre-built binaries, .NET build output, WASM artifacts, DLLs
+- `run-asm` target retired from Makefile (replaced by M-JITEM-X64)
+- Added `run`, `run-ir` targets; `test-hybrid` → `test-ir`
+- LEGACY banner added to all 15 old sub-box emitters in `src/backend/`
+- `.gitignore` updated: build artifacts, binaries, DLLs now blocked
+
+**HQ docs updated**
+- `SCRIP-UNIFIED.md`: fully updated switch set, U0 marked done
+- `PLAN.md`: component map + NOW table updated, HEAD = `0f316e82`
+- `BB-GEN-X86-BIN.md`, `BB-DRIVER.md`, `SCRIP-SM.md`, `INTERP-X86.md`: stale refs fixed
+- `MILESTONE-SCRIP-UNIFY-X86.md`: U0 marked complete
+- `MILESTONE-SCRIP-X86-COMPLETION.md`: NEW — full gap analysis + milestones
+
+### Current state
+- PASS=178/203 (unchanged — no semantic changes this session)
+- `scrip` binary: `--ir-run` and `--sm-run` fully wired, PASS=178 on both
+- `--jit-run`, `--jit-emit`: flags parsed, stubs only
+- `--bb-live`: flag parsed, stub only (blobs exist in bb_build_bin.c, not wired)
+- `--dump-sm`, `--dump-bb`, `--trace`, `--bench`: flags parsed, stubs only
+
+### Next session priorities (in order)
+
+1. **M-DIAG** — wire `--dump-sm`, `--dump-bb`, `--trace`, `--bench` (1 session)
+2. **M-BB-LIVE-WIRE** — wire `--bb-live` to `bb_build_bin.c` via `g_bb_mode` global
+3. **M-JIT-RUN** — write `sm_codegen.c`; `--jit-run` live; PASS=178
+4. **M-JITEM-X64** — new SM-based 3-column `--jit-emit --x64`
+
+### Session start checklist for next session
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SCRIP-X86-COMPLETION.md
+cat /home/claude/.github/MILESTONE-SCRIP-UNIFY-X86.md
+```
