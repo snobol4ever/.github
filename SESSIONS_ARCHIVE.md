@@ -31918,3 +31918,48 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 - scrip --ir-run: PASS=178/203
 - scrip --sm-run: PASS=161/203
 - JS=175, .NET=172, JVM=164 (from session d)
+
+---
+
+## Session 2026-04-07o — HANDOFF (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `77af1050` · .github `5bfcae4`
+
+### This session: no code — handoff only
+
+Context window at ~68%. Clean state, all work committed and pushed.
+
+### What was accomplished across sessions 2026-04-07k through 2026-04-07n
+
+| Session | Work |
+|---------|------|
+| k | Backend header consolidation + runtime file relocation |
+| l | Driver reorg + WASM pipeline recovery investigation |
+| m | **M-DIAG complete** — `--dump-sm`, `--dump-bb`, `--trace`, `--bench` all wired; opnames[] misalignment fixed |
+| n | **WASM restore** — `--jit-emit --wasm` wired; `emit_wasm.c` TU collision bugs fixed; `sno_runtime.wasm` build rule added; `src/driver/wasm/README.md` stub |
+
+### Current baselines
+- `scrip --ir-run`: PASS=178/203 ✅
+- `scrip --sm-run`: PASS=161/203 ✅
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: PASS=178. Then per MILESTONE-SCRIP-X86-COMPLETION.md recommended order:
+# Next: M-BB-LIVE-WIRE
+#   - Add g_bb_mode global: BB_MODE_DRIVER (default) vs BB_MODE_LIVE
+#   - stmt_exec.c: when BB_MODE_LIVE, call bb_build_binary_node() for each pattern node
+#   - scrip.c: set g_bb_mode = BB_MODE_LIVE when --bb-live
+#   - Gate: PASS=178 via scrip --sm-run --bb-live; trace diff vs --bb-driver is empty
+```
+
+### Open items / known issues
+- `--jit-emit --wasm` emits undeclared globals for keyword assignments (`&TRIM`, `&STLIMIT`)
+  → `wat2wasm` fails on programs using keywords. Documented in `src/driver/wasm/README.md`.
+  Tracked under M-JITEM-WASM in MILESTONE-SCRIP-X86-COMPLETION.md.
+- `src/driver/wasm/` has no interpreter — WASM runs via emit pipeline only.
+- Archive actions from MILESTONE-SCRIP-X86-COMPLETION.md (move dead files to archive/) not yet done.
