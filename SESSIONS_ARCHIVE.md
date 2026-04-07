@@ -32205,3 +32205,47 @@ cd src/silly && make
 - silly-snobol4 build: zero warnings, zero errors ✅
 - scrip --ir-run: PASS=178/203 (unchanged)
 - scrip --sm-run: PASS=161/203 (unchanged)
+
+---
+
+## Session 2026-04-07r — M-SS-DIFF §12 DEFINE_fn block-fill fix (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `7054610c` · .github `6dce83e`
+
+### Work completed
+
+**M-SS-DIFF §12 — sil_define.c vs v311.sil lines 4240–4470 (DEFINE/DEFFNC):**
+
+**Bug found and fixed — DEFINE_fn block-fill off-by-one:**
+- Oracle `DEF12`: `SUM XPTR,XPTR,XCL` (XPTR = blk + YCL*DESCR), then loop `DECRA XPTR,DESCR / PUTDC XPTR,DESCR,YPTR`
+- This writes args+locals+fn-name into body slots YCL..2 (1-based). Slot 0 = title (written by BLOCK_fn), slot 1 = entry label, slots 2..YCL = fn name + args + locals.
+- Our code: `fill_idx = YCL-1` writing at `fill_idx * DESCR` → landed in slots 1..YCL-1, clobbering entry-label and missing last slot.
+- Fix: `fill_idx = YCL` (after INCRA YCL,2), write at `fill_idx * DESCR` descending to 2. Entry pt popped separately to slot 1 (DESCR offset). Matches oracle exactly.
+
+**DEFFNC_fn:** stub correct — full implementation deferred to M19 (requires INTERP). No changes.
+
+**No other bugs found** in DEFINE_fn structure (VARVAL/VARVUP call order, DEQL/NULVCL check direction, FINDEX call, SETVA DEFCL,YCL, BLOCK_fn call, ZCL update, RETNUL path all correct).
+
+**Build:** zero warnings, zero errors ✅
+
+### Regression baselines (unchanged)
+- silly-snobol4 build: zero warnings, zero errors ✅
+- scrip --ir-run: PASS=178/203 (unchanged)
+- scrip --sm-run: PASS=161/203 (unchanged)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Begin M-SS-DIFF §13 — sil_extern.c vs v311.sil lines 4471–4643 (LOAD/UNLOAD/LNKFNC)
+# Then §14 sil_arrays.c, etc.
+# Also open: EXDTSP as const char[] → should be SPEC_t (§4 DTREP)
+```
+
+### Open items
+- `EXDTSP` as `const char[]` → should be `SPEC_t` (§4 DTREP) — still open
+- §13–§23 diff not yet started
