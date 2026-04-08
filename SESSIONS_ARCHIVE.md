@@ -33211,3 +33211,45 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Next audit: data.c (line 1), then argval.c, arith.c
 # Three-way: v311.sil §24 + snobol4.c + ours
 ```
+
+---
+
+## Session 2026-04-07f — HANDOFF (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `52e8e061` · .github `69a60c0`
+
+**Build gate:** ✅ clean, zero warnings.
+
+### Full session summary (SS-29 through SS-29d)
+
+**19 bugs fixed across 7 files:**
+
+| Milestone | Bugs | Files |
+|-----------|------|-------|
+| SS-29    | 4 | expr.c, forwrd.c, platform.c |
+| SS-29b   | 5 | errors.c, main.c |
+| SS-29c   | 4 | arena.c |
+| SS-29d   | 6 | strings.c, symtab.c |
+
+**New milestone:** MILESTONE-SS-AUDIT.md — three-way deep audit (v311.sil + snobol4.c + ours).
+
+**M-SS-AUDIT watermark:**
+- arena.c ✅ (572 lines, 4 bugs)
+- strings.c ✅ (230 lines, 2 bugs)
+- symtab.c ✅ (221 lines, 4 bugs)
+- data.c ✅ (558 lines, 0 bugs)
+- **Next: argval.c (line 1)**
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-AUDIT.md   # check watermark
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Continue M-SS-AUDIT: argval.c (line 1)
+# Method: three-way diff — v311.sil §8 + snobol4.c + src/silly/argval.c
+# For each variable: check usage, operations, order, field offsets, return paths.
+```

@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-29 | one4all `9e3c7fd8` · .github (this commit) | **M-SS-DIFF**: §20–§23 diff (sil_main.c common stubs) OR M-SS-HARNESS prep (§24 generator) |
+| SS-29d | one4all `52e8e061` · .github `69a60c0` | **M-SS-AUDIT**: continue deep audit — next file `argval.c` (line 1). See MILESTONE-SS-AUDIT.md watermark. |
 
 ## ⛔ §INFO additions (2026-04-06)
 
