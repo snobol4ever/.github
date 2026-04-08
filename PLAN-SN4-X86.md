@@ -35,7 +35,7 @@ scrip --dump-parse    ✅ WIRED
 
 ## Milestones — Priority Order
 
-### SN4-X86-1: Close corpus gaps — PASS=178 on `--sm-run`
+### SN4-X86-1-CORPUS-GAPS: Close corpus gaps — PASS=178 on `--sm-run`
 **Status:** 🟡 Active (PASS=168, gap=10)
 **File:** MILESTONE-SN4PARSE-VALIDATE.md (P1b/P1c), MILESTONE-P2F-SEMI.md,
          MILESTONE-RT-RUNTIME.md (RT-9), MILESTONE-SILLY-SNOBOL4.md (M-SS-BLOCK)
@@ -53,7 +53,7 @@ Target: **PASS=178**
 
 ---
 
-### SN4-X86-2: Benchmark `--bb-live` vs `--bb-driver`
+### SN4-X86-2-BB-BENCH: Benchmark `--bb-live` vs `--bb-driver`
 **Status:** ⬜ Not started
 **File:** (new section in MILESTONE-SCRIP-X86-COMPLETION.md)
 
@@ -65,7 +65,7 @@ Quick win — one session.
 
 ---
 
-### SN4-X86-3: `--jit-emit --x64` — SM-based x86 text emitter
+### SN4-X86-3-EMIT-X64: `--jit-emit --x64` — SM-based x86 text emitter
 **Status:** ⬜ Not started (old `emit_x64.c` is LEGACY stopgap)
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-X64
 
@@ -76,7 +76,7 @@ Gate: `scrip --jit-emit --x64 corpus/001.sno` produces correct `.s`; `nasm` + `l
 
 ---
 
-### SN4-X86-4: `--jit-emit --jvm` — SM-based Jasmin emitter
+### SN4-X86-4-EMIT-JVM: `--jit-emit --jvm` — SM-based Jasmin emitter
 **Status:** ⬜ Not started
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JVM
 
@@ -85,7 +85,7 @@ Gate: PASS=165 via `scrip --jit-emit --jvm`.
 
 ---
 
-### SN4-X86-5: `--jit-emit --net` — SM-based IL emitter
+### SN4-X86-5-EMIT-NET: `--jit-emit --net` — SM-based IL emitter
 **Status:** ⬜ Not started
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-NET
 
@@ -94,7 +94,7 @@ Gate: PASS=170 via `scrip --jit-emit --net`.
 
 ---
 
-### SN4-X86-6: `--jit-emit --js` — SM-based JS emitter
+### SN4-X86-6-EMIT-JS: `--jit-emit --js` — SM-based JS emitter
 **Status:** ⬜ Not started
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JS
 
@@ -103,7 +103,7 @@ Gate: PASS=174 via `scrip --jit-emit --js`.
 
 ---
 
-### SN4-X86-7: `--jit-emit --c` — SM-based C emitter
+### SN4-X86-7-EMIT-C: `--jit-emit --c` — SM-based C emitter
 **Status:** ⬜ Not started
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-C
 
@@ -112,7 +112,7 @@ Gate: `scrip --jit-emit --c corpus/001.sno` produces C that compiles and runs.
 
 ---
 
-### SN4-X86-8: `--jit-emit --wasm` — SM-based WAT emitter
+### SN4-X86-8-EMIT-WASM: `--jit-emit --wasm` — SM-based WAT emitter
 **Status:** ⬜ Not started
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-WASM
 
@@ -121,22 +121,70 @@ Gate: existing WASM corpus tests pass via new emitter.
 
 ---
 
-### SN4-X86-9: Box unification — clean linker, single-source box architecture
+### SN4-X86-9-BOX-UNIFY: Box unification — clean linker, single-source box architecture
 **Status:** 🟡 Planned (DYN-24 done 11/14 boxes)
 **File:** MILESTONE-BOX-UNIFY.md
 
-Phase 1 (quick): Delete stub `bb_atp.c`, `bb_capture.c`, `bb_dvar.c` — keeps
-complex boxes as `static` in `stmt_exec.c`. Fixes latent linker issue.
+#### What is a Byrd box?
 
-Phase 2 (structural): Extract `bb_node_t` + `bb_build` into `bb_build.h`;
-single canonical `.c` + `.s` + `_emit.c` per box.
+Every SNOBOL4 pattern primitive — `ANY`, `SPAN`, `BREAK`, `LEN`, `ARB`, `ARBNO`,
+captures, alternation, sequence — is implemented as a **Byrd box**: a small C
+function with four ports (α enter, β backtrack, γ succeed, ω fail). Boxes are
+wired into a graph at match time; `exec_stmt` drives the graph by calling α and
+following γ/ω/β transitions until the whole pattern succeeds or fails. There are
+about 25 box types. This architecture is what makes SNOBOL4 pattern matching
+efficient and composable.
 
-Gate Phase 1: `make scrip` links cleanly with no undefined symbol warnings.
-Gate Phase 2: 25/25 C boxes pass unit harness; C/asm parity.
+#### The current problem: three representations, two of them duplicated
+
+Each box currently exists in up to three forms:
+
+| Form | Location | Used by |
+|------|----------|---------|
+| C source (canonical logic) | `src/runtime/boxes/bb_*.c` | `scrip --sm-run`, `--ir-run`, `--jit-run` |
+| NASM text (hand-written asm) | `src/runtime/boxes/bb_*.s` | old `snobol4_x86` runtime (legacy) |
+| asm binary (mmap'd machine code) | not yet implemented | planned JIT path |
+
+DYN-24 session de-duplicated 11 of the 14 simple boxes — `bb_box.h` now owns the
+shared typedefs and `bb_*.c` is canonical for those 11. But 3 complex boxes
+(`bb_atp`, `bb_capture`, `bb_deferred_var`) are still duplicated:
+
+- Their **live implementations** are `static` functions buried inside `stmt_exec.c`
+  (because they need `bb_node_t`, `DESCR_t`, and `bb_build` which are all defined
+  there, and extracting them without a shared header was deferred).
+- Stub files `bb_atp.c`, `bb_capture.c`, `bb_dvar.c` exist but don't compile cleanly
+  — they reference symbols they can't see. The Makefile excludes them from the build,
+  so they're dead weight that causes confusion.
+
+This creates a latent linker hazard: if anyone tries to include the stubs, the build
+breaks with undefined symbol errors. It also makes the codebase misleading — three
+files that look like canonical box implementations but aren't.
+
+#### Phase 1 — Quick fix (one session)
+
+Delete the three broken stub files. Keep the working `static` implementations in
+`stmt_exec.c` exactly where they are. This is option A from MILESTONE-BOX-UNIFY.md:
+no new architecture, just remove the confusion.
+
+Gate: `make scrip` links clean, zero undefined-symbol warnings.
+
+#### Phase 2 — Full single-source architecture (future)
+
+Extract `bb_node_t` + `bb_build` prototype into a new `runtime/dyn/bb_build.h`.
+Include that header in `bb_atp.c`, `bb_capture.c`, `bb_dvar.c` — now they can
+compile on their own. Remove the `static` copies from `stmt_exec.c`. Every box has
+exactly one `.c` file as its canonical home.
+
+Long-term goal (post-JIT): each box also gets a `bb_*_emit.c` — a function that
+writes the box's machine code directly into the mmap pool. One English description
+of the box's matching logic → three mechanical derivations: C source, NASM text,
+binary emitter.
+
+Gate Phase 2: 25/25 C boxes pass unit harness; C/asm parity verified.
 
 ---
 
-### SN4-X86-10: Parser gaps — P1b postfix subscript, P2D multiple assignment
+### SN4-X86-10-PARSER-GAPS: Parser gaps — P1b postfix subscript, P2D multiple assignment
 **Status:** ⬜ Sprint 91 target
 **File:** MILESTONE-SN4PARSE-VALIDATE.md
 
@@ -147,7 +195,7 @@ Gate: 84/84 standard SNOBOL4 sweep clean.
 
 ---
 
-### SN4-X86-11: Dead code archive + LEGACY labels
+### SN4-X86-11-DEAD-CODE: Dead code archive + LEGACY labels
 **Status:** ⬜ Immediate housekeeping (no milestone needed per COMPLETION doc)
 **File:** MILESTONE-SCRIP-X86-COMPLETION.md § Archive Actions
 
