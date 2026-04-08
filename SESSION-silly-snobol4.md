@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-30 | one4all `b71ea93e` · .github `51f9cf3` | **M-SS-DIFF §20–§23 complete** (1 bug fixed). Next: M-SS-AUDIT watermark continues — check MILESTONE-SS-AUDIT.md. |
+| SS-32 | one4all `475fc988` · .github (pending) | **M-SS-AUDIT complete** — all 23 TUs audited. Next: M-SS-HARNESS (build binary, run vs CSNOBOL4). |
 
 ## ⛔ §INFO additions (2026-04-06)
 

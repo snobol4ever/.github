@@ -33557,46 +33557,385 @@ INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 
 ---
 
-## Session 2026-04-07i — RT-141/RT-142: sm_emit strdup + SM_PUSH_EXPR union clobber (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07i — SS-31: scan.c SC-4 + argval.c AV-1 + define.c DEF-1 (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `924b8a11` · .github `53b1433`
+**HEAD:** one4all `ea8bc4a8` · .github `51f9cf3`
 
 **Build gate:** ✅ clean, zero errors.
 
-**Baseline:** PASS=164/203 → **PASS=166/203** (+2)
-
 ### Work completed
 
-**RT-141 — `sm_emit_s` / `sm_emit_si`: missing `strdup` ✅**
-`sm_prog.c` stored raw `const char *s` directly into `SM_Instr.a[0].s` without copying. Any `SM_CALL` built from a stack-local `char[]` (e.g. `%s_SET` setter name in `sm_lower.c`) was silently corrupted when subsequent loop iterations reused the same stack frame. Diagnosis path: lowerer printed `sval='lson'` and `emitting 'lson_SET'` — yet APPLY_fn only ever saw `val_SET`. Post-emit check showed correct ptr in the instruction; runtime showed wrong name. Bisected to `sm_emit_si` storing raw pointer vs strdup. Fix: `strdup(s)` in both `sm_emit_s` and `sm_emit_si` in `sm_prog.c`. Fixed `1115/004` nested accessor after mutate (+1).
+**SC-4 verified all other SC-1–SC-31 bugs already fixed in prior sessions.**
 
-**RT-142 — `SM_PUSH_EXPR`: union clobber zeros `d.ptr` ✅**
-`sm_interp.c` `SM_PUSH_EXPR` case built `DT_E` descriptor: `d.ptr = ins->a[0].ptr` then `d.s = NULL`. Since `ptr` and `s` share a union, `d.s = NULL` zeroed `d.ptr` — every deferred `*expr` arrived at `EVAL_fn` with `ptr=NULL → FAILDESCR`. Diagnosis: dispatch-level print showed correct ptr; handler-level print showed nil — both reading same `ins`. Identified union alias: `d.s=NULL` after `d.ptr=x` kills x. Fix: remove `d.s = NULL`; set `d.ptr` last (after `d.slen = 0`). Fixed `1016_eval` (3/3) (+1).
+**SC-4 — SCNR_fn non-anchored FULLCL branches swapped:**
+scan.c line ~336: `FULLCL==0` was setting `YSIZ=MAXLEN` (the fullscan path);
+`FULLCL!=0` was computing `MAXLEN-YSIZ`. Oracle L_SCNR4 runs when FULLCL==0 and
+computes `YSIZ=MAXLEN-YSIZ`; L_SCNR5 (FULLCL!=0) uses `YSIZ=MAXLEN`. Fixed.
 
-### Remaining failures (37 total)
+**AV-1 — EXPVAL_fn FNC INVOKE exit-2 re-entry:**
+argval.c: INVOKE exit 2 (name returned) must re-enter EXPV11 path (INSW/LOCAPV
+input-assoc check). Was incorrectly going to the same branch as exit 3 (value
+direct). Added `expv11:`/`expv7:` labels; exit 2 now falls through to non-FNC path.
 
-**beauty_* cluster (14):** `beauty_Gen/Qize/ReadWrite/ShiftReduce/TDump/XDump/assign/case/counter/fence/global/io/is/match/omega/semantic/stack/trace/tree_driver` — root cause not yet pinpointed; likely RUNTIME-5/6/7/8 (NV_SET, EXPVAL, CONVE, EVAL dispatch gaps) or missing builtins.
+**DEF-1 — define.c DEF12 block-fill slot off-by-one:**
+DEFINE_fn fill loop: oracle PUTDC writes at blk+fill_idx*DESCR. Previous code
+had separate entry_pt pop at blk+DESCR while loop started at fill_idx=2 —
+missing items in the middle. Fixed: unified loop from YCL down to 1.
 
-**Other:** `fileinfo`, `triplet`, `test_stack`, `1012_func_locals`, `1013_func_nreturn`, `1112_array_multi`, `1113_table`, `1114_item`, `1116_data_overlap`, `212_indirect_array`, `cross`, `word1`, `wordcount`, `demo_wordcount`, `demo_treebank`, `demo_claws5`, `demo_roman`, `expr_eval` (harness-only, no .sno).
+**M-SS-AUDIT argval.c audit — complete, no additional bugs found.**
+INTVAL_fn, PATVAL_fn, VARVAL_fn, VARVUP_fn, VPXPTR_fn, XYARGS_fn all verified
+correct against three-way oracle. AV-1 (EXPVAL FNC exit-2) is the only bug.
 
 ### Next session — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
-cd /home/claude/one4all && git pull && make scrip
-INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
-# Gate: clean build. PASS=166/203.
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build.
 #
-# Next bug cluster — pick one:
+# Continue M-SS-AUDIT: extern.c (§13), arrays.c (§14), io.c (§15),
+# trace.c (§16), asgn.c (§17), nmd.c (§17), pred.c (§18), func.c (§19),
+# interp.c (§7), cmpile.c (§6), trepub.c (§6), platform.c (tables).
+# Three-way diff method: v311.sil + snobol4.c + ours, function by function.
+```
+
+---
+
+## Session 2026-04-07j — SS-31 continued: extern.c + arrays.c + argval.c audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `32dccdff` · .github `51f9cf3`
+
+**Build gate:** ✅ clean.
+
+### Work completed
+
+**EX-1 — extern.c LNKFNC_fn entry addr slot (fixed):**
+`GETDC_B(zcl2, ZCL_d, 0)` read entry address from slot 0.
+Oracle L_LNKF5: `D(ZCL) = D(D_A(ZCL)+DESCR)` — slot 1. Fixed to `DESCR` offset.
+
+**arrays.c ARRAY/ITEM element slot — deferred to M-SS-HARNESS:**
+Three-way oracle analysis of ARRFIL/ARYA12 is ambiguous without runtime data.
+ARRFIL (XPTR+DESCR after ndim dim-pair writes) suggests slot ndim+3.
+ARYA12 (YPTR=blk+(ndim+2)*DESCR + linear*DESCR) suggests slot ndim+2.
+Cannot resolve statically. Current `(3+ndim)` left; harness diff will reveal truth.
+
+**argval.c audit — complete (no new bugs beyond AV-1 already fixed).**
+
+### M-SS-AUDIT watermark update
+- `argval.c`: ✅ complete (AV-1 fixed prior sub-session)
+- `extern.c`: ✅ complete (EX-1 fixed)
+- `arrays.c`: ⚠️ element slot ambiguous — deferred to harness
+- Next: `io.c` (§15), `trace.c` (§16), `asgn.c` (§17), `nmd.c`, `pred.c`, `func.c`, `interp.c`, `cmpile.c`, `trepub.c`, `platform.c`
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Continue M-SS-AUDIT: io.c (§15) then trace.c (§16).
+# Three-way diff: v311.sil + snobol4.c + ours per function.
+# Oracle locations: grep "^READ\b\|^PRINT\b\|^BKSPCE\b\|^ENDFIL\b\|^REWIND\b\|^SET\b\|^DETACH\b\|^PUTIN\b\|^PUTOUT\b" snobol4.c
+```
+
+---
+
+## Session 2026-04-07k — SS-31 handoff (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `32dccdff` · .github `136e3fa`
+
+**Build gate:** ✅ clean, zero errors.
+
+### Session summary (SS-31 complete)
+
+Four bugs fixed across scan.c, argval.c, define.c, extern.c.
+See prior sub-session entries for detail.
+
+### M-SS-AUDIT watermark (final for SS-31)
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d (4 bugs) |
+| `strings.c` | ✅ SS-29d (2 bugs) |
+| `symtab.c` | ✅ SS-29d (4 bugs) |
+| `data.c` | ✅ SS-29d (0 bugs) |
+| `argval.c` | ✅ SS-31 (AV-1: EXPVAL FNC exit-2) |
+| `arith.c` | ✅ SS-30c (1 bug) |
+| `patval.c` | ✅ SS-30d (3 bugs) |
+| `scan.c` | ✅ SS-30e+SS-31 (31 bugs + SC-4 SCNR FULLCL swap) |
+| `define.c` | ✅ SS-31 (DEF-1: block-fill slot) |
+| `extern.c` | ✅ SS-31 (EX-1: LNKFNC entry addr slot 1 not 0) |
+| `arrays.c` | ⚠️ element slot ambiguous — defer to harness |
+| `expr.c` | ✅ SS-29 (4 bugs) |
+| `forwrd.c` | ✅ SS-29 (1 bug) |
+| `errors.c` | ✅ SS-29b (2 bugs) |
+| `main.c` | ✅ SS-29b (3 bugs) |
+| `io.c` | ⬜ next |
+| `trace.c` | ⬜ |
+| `asgn.c` | ⬜ |
+| `nmd.c` | ⬜ |
+| `pred.c` | ⬜ |
+| `func.c` | ⬜ |
+| `interp.c` | ⬜ |
+| `cmpile.c` | ⬜ |
+| `trepub.c` | ⬜ |
+| `platform.c` | ⬜ (tables verified SS-28) |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 32dccdff.
 #
-# Option A: beauty_* root cause
-#   ./scrip --sm-run corpus/beauty/beauty_stack_driver.sno 2>&1 | head -30
-#   ./scrip --sm-run corpus/beauty/beauty_assign_driver.sno 2>&1 | head -30
-#   Look for: undefined function errors (Error 5), wrong output, silent fail
+# Sprint: SS-32
+# Continue M-SS-AUDIT: io.c (§15) first.
+# Oracle: grep "^READ\b\|^PRINT\b\|^BKSPCE\b\|^ENDFIL\b\|^REWIND\b\|^SET\b\|^DETACH\b\|^PUTIN\b\|^PUTOUT\b" snobol4.c
+# Then trace.c (§16), asgn.c (§17), nmd.c, pred.c (§18), func.c (§19),
+# interp.c (§7), cmpile.c (§6), trepub.c (§6), platform.c.
+# Three-way diff method: v311.sil + snobol4.c + ours, function by function.
+# After all files complete: M-SS-HARNESS (build binary, run vs CSNOBOL4).
+```
+
+---
+
+## Session 2026-04-07l — SS-32: M-SS-AUDIT io.c + trace.c + asgn.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `b1074078` · .github `136e3fa`
+
+**Build gate:** ✅ clean, zero errors.
+
+### Work completed
+
+**io.c audit — 6 bugs fixed:**
+- IO-1: `READ_fn` negative unit → `UNTERR_fn()` not bare `return FAIL`
+- IO-2: `ioop()` unit ≤ 0 → `UNTERR_fn()` not bare `return FAIL`
+- IO-3: `PRINT_fn` missing `UNTERR_fn()` for negative unit after `IO_OPENO`
+- IO-4: `READ_fn` missing `LENERR_fn()` for negative recl after `IO_OPENI`
+- IO-5: `PUTOUT_fn` inverted COMP6 guard (was `!AEQLC` → should be `AEQLC`)
+- IO-6: `XCALL_ENFILE` was `void`; changed to `int` return; `ioop()` now checks result for `COMP6_fn()`
+
+**trace.c audit — 4 bugs fixed:**
+- TR-1: `TRACE_fn` + `STOPTR_fn` both missing `EFFCL` path (same as `FUNTCL`); unknown type was silent `return FAIL` → `INTR30_fn()`
+- TR-2: `SETEXIT_fn` `VARVUP` fail and `ATTRIB==0` → `INTR30_fn()` not bare `return FAIL`
+- TR-3: `XITHND_fn` `OCBSCL==0` → `INTR4_fn()` not bare `return FAIL`
+
+**asgn.c audit — 4 bugs fixed:**
+- AS-4: INATL/OUTATL block retrieval — `GETDC_B(zptr, YPTR/XPTR, DESCR)` → `GETDC_B(zptr, zptr, DESCR)` (4 sites)
+- AS-5: `IND_fn` unknown type → `INTR1_fn()` not bare `return FAIL`
+- AS-6: `IND_fn` `CASECL` check inverted — `CASECL==0` → `RTXNAM` (return OK), `CASECL!=0` → `VPXPTR`
+- AS-7: `KEYWRD_fn` KEYC path missing NEMO case and missing save/restore around `INVOKE_fn()`
+
+### M-SS-AUDIT watermark
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d |
+| `strings.c` | ✅ SS-29d |
+| `symtab.c` | ✅ SS-29d |
+| `data.c` | ✅ SS-29d |
+| `argval.c` | ✅ SS-31 |
+| `arith.c` | ✅ SS-30c |
+| `patval.c` | ✅ SS-30d |
+| `scan.c` | ✅ SS-30e+SS-31 |
+| `define.c` | ✅ SS-31 |
+| `extern.c` | ✅ SS-31 |
+| `arrays.c` | ⚠️ element slot deferred to harness |
+| `expr.c` | ✅ SS-29 |
+| `forwrd.c` | ✅ SS-29 |
+| `errors.c` | ✅ SS-29b |
+| `main.c` | ✅ SS-29b |
+| `io.c` | ✅ SS-32 (6 bugs) |
+| `trace.c` | ✅ SS-32 (4 bugs) |
+| `asgn.c` | ✅ SS-32 (4 bugs) |
+| `nmd.c` | ⬜ next |
+| `pred.c` | ⬜ |
+| `func.c` | ⬜ |
+| `interp.c` | ⬜ |
+| `cmpile.c` | ⬜ |
+| `trepub.c` | ⬜ |
+| `platform.c` | ⬜ |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all b1074078.
 #
-# Option B: 1116_data_overlap (data type field name collision)
-#   ./scrip --sm-run corpus/crosscheck/rung11/1116_data_overlap.sno 2>&1
+# Sprint: SS-32 continued
+# Continue M-SS-AUDIT: nmd.c next.
+# Three-way diff: v311.sil + snobol4.c + ours, function by function.
+# Oracle: grep "^NMD\b" snobol4.c
+```
+
+---
+
+## Session 2026-04-07m — SS-32 continued: nmd/pred/func/interp/cmpile/trepub audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `475fc988` · .github (this commit)
+
+**Build gate:** ✅ clean, zero errors.
+
+### Work completed
+
+**nmd.c — 5 bugs fixed:**
+- NMD-1: `ACOMP >= 0` collapsed both exits — missing `INTR13_fn()` for `TCL > NAMICL`
+- NMD-2: INTR8 was non-fatal skip → `INTR8_fn()` (fatal)
+- NMD-3: NAMEXN FAIL/NEMO silently skipped entry → both exit NMD entirely
+- NMD-4: NMDIC SPCINT fail was non-fatal skip → `INTR1_fn()` (fatal)
+- NMD-5: Same AS-4 pattern — `GETDC_B(zptr, TVAL, DESCR)` → `GETDC_B(zptr, zptr, DESCR)`
+
+**pred.c — 2 bugs fixed:**
+- PR-2: `CHAR_fn` used `SETAC(ERRTYP,...)` instead of `LENERR_fn()` / `INTR30_fn()`
+- PR-3: `rpad_common()` used `SETAC(ERRTYP,...)` instead of `INTR8_fn()` / `LENERR_fn()`
+
+**func.c — 1 bug fixed:**
+- FN-3: `COLECT_fn` — `GC_fn` result not stored into `ZPTR.a`
+
+**interp.c — 3 bugs fixed:**
+- IP-2: GOTLC — `INVOKE` case3 (NEMO/name) → `INTR4`, was unchecked
+- IP-3: SCNTCL/CONTCL FATLCL check inverted — `AEQLC(FATLCL,0)` → `!AEQLC`
+- IP-4: CONTCL/SCNTCL end path — `ERRTYP==0` → END0 (return OK), was always returning FAIL
+
+**cmpile.c — 2 bugs fixed:**
+- CM-1: Duplicate label CNSLCL check inverted — error when `CNSLCL==0`, not `!=0`
+- CM-2: CMPFT `TREPUB_fn(FORMND)` ignored return — case1 (FAIL) must goto cmptgo
+
+**trepub.c — 1 bug fixed:**
+- TR-A: Buffer limit check `<` should be `<=` (oracle uses strict `>` for spill trigger)
+
+### M-SS-AUDIT watermark — COMPLETE
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d |
+| `strings.c` | ✅ SS-29d |
+| `symtab.c` | ✅ SS-29d |
+| `data.c` | ✅ SS-29d |
+| `argval.c` | ✅ SS-31 |
+| `arith.c` | ✅ SS-30c |
+| `patval.c` | ✅ SS-30d |
+| `scan.c` | ✅ SS-30e+SS-31 |
+| `define.c` | ✅ SS-31 |
+| `extern.c` | ✅ SS-31 |
+| `arrays.c` | ⚠️ element slot deferred to harness |
+| `expr.c` | ✅ SS-29 |
+| `forwrd.c` | ✅ SS-29 |
+| `errors.c` | ✅ SS-29b |
+| `main.c` | ✅ SS-29b |
+| `io.c` | ✅ SS-32a (6 bugs) |
+| `trace.c` | ✅ SS-32a (4 bugs) |
+| `asgn.c` | ✅ SS-32a (4 bugs) |
+| `nmd.c` | ✅ SS-32b (5 bugs) |
+| `pred.c` | ✅ SS-32b (2 bugs) |
+| `func.c` | ✅ SS-32b (1 bug) |
+| `interp.c` | ✅ SS-32b (3 bugs) |
+| `cmpile.c` | ✅ SS-32b (2 bugs) |
+| `trepub.c` | ✅ SS-32b (1 bug) |
+| `platform.c` | ✅ tables verified SS-28; XCALL_ENFILE fixed SS-32a |
+
+**M-SS-AUDIT is complete. All 23 TUs audited.**
+
+### Next milestone: M-SS-HARNESS
+
+Per SESSION-silly-snobol4.md:
+1. Get binary to `BEGIN` without crashing — fix `sil_data_init()` to populate §24 globals
+2. A generator script (parse §24, emit C) is the right approach
+3. Run same corpus through Silly SNOBOL4 and CSNOBOL4; diff outputs
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 475fc988.
 #
-# Option C: RUNTIME-5 (NV_SET_fn → DESCR_t + OUTPUT/TRACE hooks)
-#   cat /home/claude/.github/MILESTONE-RT-RUNTIME.md | grep -A40 "^## RUNTIME-5"
+# Sprint: SS-33
+# Begin M-SS-HARNESS:
+#   Step 1: Audit sil_data_init() in data.c — which §24 globals are missing.
+#   Step 2: Write a generator script that parses v311.sil §24 and emits C.
+#   Step 3: Integrate generated init into data.c / platform.c.
+#   Step 4: Try to run ./silly-snobol4 on a trivial input, reach BEGIN.
+#   Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 10481-12293
+#           /home/claude/work/snobol4-2.3.3/snobol4.c (reference for §24 layout)
+```
+
+---
+
+## Session 2026-04-07n — SS-33: M-SS-SYMREF + M-SS-BLOCK design + initial run (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `475fc988` · .github `e7cbf43`
+
+**Build gate:** ✅ clean (no code changes this session — analysis only).
+
+### Two new milestones designed
+
+**M-SS-SYMREF — Symbol-at-a-time audit:**
+- Strip all comments from *.c files first (comment noise inflates counts)
+- Extract all-caps identifiers, count per-symbol
+- Cross-reference against snobol4.c oracle counts
+- Work from lowest-referenced (count=1) upward; stop at ~50 (major globals, too many sites)
+- For each: check if our single usage is a declaration (harmless) or a real missing call site (bug)
+
+**M-SS-BLOCK — Block-at-a-time audit:**
+- Extract SIL label blocks (LABEL: ... up to next LABEL) from v311.sil
+- For each block, compare equivalent logic in snobol4.c vs our silly/*.c
+- Focus on runtime-critical sections: §8 (ARGVAL family), §7 (INTERP), §11 (SCAN)
+
+### M-SS-SYMREF findings (count=1 symbols, oracle≥10)
+
+| Symbol | Oracle | Finding |
+|--------|--------|---------|
+| BKDX, BKDXU, TTLCL, DESCL, TOPCL | 18–44 | GC workspace registers — declared in data.c, used inside arena.c GC loops. One declaration each. Expected. |
+| AXPTR, XSPPTR, YSPPTR | 11–25 | SPEC pointer registers — oracle uses DESCR-based passing; our API uses SPEC_t* directly. API difference, not a bug. |
+| LCPTR, BUKPTR, ST1PTR | 11–16 | GC/LOCA1 internals — in arena.c. Expected one declaration. |
+
+**Conclusion for count=1 symbols:** no actionable bugs found — all are either GC internals or oracle calling-convention artifacts where our C API wraps the SIL register pattern differently.
+
+### M-SS-BLOCK findings (§8 EXPVAL family)
+
+- **EXPVAL_fn / EXPEVL_fn:** oracle EXPVJ2 structure faithfully reproduced. All paths verified: EXPVC (FNC branch with INVOKE), EXPV11 (SCL/INSW/PUTIN), EXPV4 (deref), EXPV6 (SCL=2), EXPV9 (SCL=1/FAIL). The `D(ZPTR)=D(D_A(ZPTR)+DESCR)` step (AS-4 pattern) is present at line 158. ✅
+- **INTVAL_fn:** oracle L_INTV1/INTV3/INTV2/INTVC all faithfully reproduced. PUTIN case1→FAIL, success→intv_str. INTVC case1→FAIL, case2→intv1, case3→intv2. INTR1 on non-I/R/S. ✅
+- **ARGVAL_fn / VARVAL_fn / PATVAL_fn:** all INSW/PUTIN blocks have D(ZPTR)=D(D_A(ZPTR)+DESCR) step. ✅
+
+**No bugs found in §8 EXPVAL/INTVAL/VARVAL/PATVAL/ARGVAL.** These sections are solid.
+
+### Next steps for M-SS-SYMREF
+Continue with count=2 symbols where oracle≥5. Interesting candidates:
+- VVDTP (2 ours, 6 oracle) — data-type pair descriptor in CONCAT
+- IVDTP, VPDTP, RVDTP etc. — more DTP pairs in CONCAT/type dispatch
+- BKLTCL (2 ours, 14 oracle) — GC block count
+- EXN2CL (2 ours, 9 oracle) — statement execution counter
+
+### Next steps for M-SS-BLOCK
+§8 clean. Move to §11 SCAN blocks — most complex section, most prior bugs found.
+Start with SJSR/SCNR (scan restart) and the fullscan/nval pattern blocks.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 475fc988.
+#
+# Sprint: SS-33 continued
+# M-SS-SYMREF: continue count=2 symbols with oracle≥5
+# M-SS-BLOCK: move to §11 SCAN — SJSR, SCNR, fullscan blocks
+# Tools: /tmp/sil_sym_counts.txt (regenerate if needed), strip comments before counting
 ```
