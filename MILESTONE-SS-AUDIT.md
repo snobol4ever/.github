@@ -25,7 +25,7 @@
 | `symtab.c` | 221 | §4 FINDEX/GENVUP | ✅ SS-29d (4 bugs) |
 | `data.c` | 558 | §24 init | ✅ SS-29d (0 bugs) |
 | `argval.c` | 412 | §8 | ⬜ |
-| `arith.c` | 311 | §9 | ⬜ |
+| `arith.c` | 311 | §9 | ✅ SS-30c (1 bug) |
 | `patval.c` | 435 | §10 | ⬜ |
 | `scan.c` | 1175 | §11 | ⬜ |
 | `define.c` | 167 | §12 | ⬜ |
@@ -50,10 +50,10 @@
 
 ## Watermark
 
-**Last file audited:** `data.c` (line 558 — complete)
-**Previous files complete:** `arena.c` (572), `strings.c` (230), `symtab.c` (221)
-**Next file:** `argval.c` (line 1)
-**Session:** SS-29d (2026-04-07e)
+**Last file audited:** `arith.c` (line 311 — complete)
+**Previous files complete:** `arena.c`, `strings.c`, `symtab.c`, `data.c`, `argval.c`
+**Next file:** `patval.c` (line 1)
+**Session:** SS-30c (2026-04-07g)
 
 ---
 
@@ -71,3 +71,4 @@
 | Y2  | symtab.c | ~50  | locapv_fn | Returned value-slot not pair-base; FINDEX read wrong offset |
 | Y3  | symtab.c | ~110 | AUGATL_fn | New-block type/value one DESCR too high |
 | Y4  | symtab.c | ~155 | DTREP_fn  | Searched DTLIST instead of DTATL |
+| AR-1 | arith.c | ~95 | ARITH_fn | SCL not saved/restored around XYARGS — XYARGS clobbers SCL (op selector) |
