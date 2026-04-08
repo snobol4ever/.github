@@ -108,6 +108,7 @@ Any interpreter result that differs from ThreadedExecuteLoop is a compiler bug.*
 
 | Milestone | Description | Gate |
 |-----------|-------------|------|
+| **M-NET-SNIPPETS** | ⚠️ **CURRENT** — Gimpel/corpus snippet test factory: mine all 145 Gimpel programs + crosscheck corpus for self-contained building-block tests · generate `CorpusRef_GimpelBits.cs` and related files · fix test-code bugs (roman semicolons, sqrt rename, fib base case, trim assertion, fixed-col TRIM, opsyn arg3=0) · fix D-NET-186 (LGT-RHS → error 212) · fix D-NET-187 (OPSYN builtin lookup) · fix TEST_Abend regression · fix 099 DATATYPE casing (`'integer'` not `'INTEGER'`) | ≥ 2040 passed · 0 failed · crosscheck 80/80 · all GimpelBits green |
 | **M-NET-P35-FIX** | Fix @N Phase 3/5 capture clobber in `ThreadedExecuteLoop.cs` | crosscheck 80/80 · dotnet test ≥ 1911/1913 |
 | **M-NET-PAT-CAPTURES** | Capture audit: `@/./$` vs interpreter + stmt_exec.c oracle | rung9 100% vs SPITBOL |
 | **M-NET-PAT-PRIMITIVES** | 16 pattern primitives vs SPITBOL oracle: LEN POS RPOS TAB RTAB REM ANY NOTANY SPAN BREAK BREAKX FENCE FAIL SUCCEED ABORT BAL | rung2–9 100% · dotnet test 1913/1913 |
