@@ -34234,3 +34234,65 @@ echo 'OUTPUT = "hello world"' | /tmp/silly-snobol4
 # HW-15 fixed. Run hello world, find next crash, fix it.
 # Method: run under gdb or with stderr, find which function crashes, three-way compare.
 ```
+
+---
+
+## Session 2026-04-08g — SS-35: M-SS-HARNESS hang diagnosis + MONITOR proposal (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `b0d4d5b7` · .github `72f8be11` + SS-34 pull
+
+**Build gate:** ✅ clean throughout.
+
+### Work completed
+
+- Confirmed HW-15 (OBLIST_arr into arena) already committed in `b0d4d5b7`.
+- Built CSNOBOL4 2.3.3 oracle from uploaded tarball → `/home/claude/work/snobol4-2.3.3/snobol4` working.
+- Ran silly binary: hangs (SIGTERM after timeout), no ASAN fault — pure CPU loop.
+- strace: read() returns the card then process detaches — hang is computation, not I/O.
+- Instrumented main.c with fprintf traces at: BEGIN_fn complete, xlatrn, xlatnx, CARDTB STREAM result, NEWCRD result, calling CMPILE_fn.
+
+### Hang trace
+
+```
+[TRACE] BEGIN_fn complete          ← arena_init + data_init + BEGIN all OK
+[TRACE] xlatrn                     ← compile_loop entered, card read OK
+[TRACE] xlatnx entered             ← card classify started
+[TRACE] CARDTB STREAM done: crc=1 st2=1   ← NEWTYP (normal card) ✓
+[TRACE] NEWCRD done: 0             ← FAIL = RTN3 = proceed to CMPILE ✓
+[TRACE] calling CMPILE_fn          ← CMPILE entered
+                                   ← HANG — CMPILE_fn never returns
+```
+
+### CMPILE_fn hang analysis
+
+CMPILE_fn calls FORBLK_fn first. FORBLK_fn uses IBLKTB → AC_GOTO → FRWDTB.
+Input `"        OUTPUT = 'hello world'"` starts with spaces — IBLKTB should
+skip them via GOTO→FRWDTB then stop at 'O'. If FORBLK loops, it's because:
+- TEXTSP is being reset between CARDTB and FORBLK (aliasing with NEXTSP?)
+- or FRWDTB is not stopping on 'O' for some reason (table value check needed)
+- or forrun() is reading a new card and returning OK when it shouldn't
+
+**Not yet determined** — session ended before the final trace inside CMPILE/FORBLK.
+
+### MONITOR proposal evaluated
+
+Lon proposed: retool MONITOR sync-step protocol for FUNC enter/exit hooks
+on both CSNOBOL4 and Silly. IPC sync-step would lock-step both at function
+boundaries, first diverging function entry/exit = root cause, automatic.
+
+**Assessment — see §NOW for recommendation.**
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all b0d4d5b7.
+# Sprint: SS-35 continued
+# FORBLK hang: add fprintf inside FORBLK_fn and STREAM_fn (IBLKTB path) to see loop
+# OR: proceed to MONITOR approach if approved — see §NOW.
+```
