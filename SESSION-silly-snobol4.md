@@ -264,3 +264,16 @@ Static diff catches structural bugs before any code runs.
 - §22+§23 sil_errors.c: ✅ 7 bugs fixed (FTLTST/FTLERR/FTERST, PROTER/SIZERR/UNDFFE, missing handlers)
 - §20–§21 (sil_main.c common stubs): ⬜ next
 - §1–§15 (sil_support, sil_arith, sil_interp, sil_cmpile, etc.): ⬜ pending
+
+### M-SS-BLOCK method clarification (2026-04-08b)
+
+**One block at a time. Watermark = SIL line number of last completed block.**
+- Extract the block from v311.sil (label to next `*_`)
+- Find the exact same block in snobol4.c (generated C)
+- Find our equivalent in silly/*.c
+- Compare **logic** instruction by instruction — not just presence
+- Record any divergence as a bug
+- Advance watermark to that SIL line, push
+
+**Current watermark: v311.sil line 955 (BEGIN entry block checked, one cosmetic gap: SOURCF output line missing)**
+**Next block: SPCNVT (v311.sil line 974)**
