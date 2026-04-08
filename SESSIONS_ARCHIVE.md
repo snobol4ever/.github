@@ -34762,3 +34762,47 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Then §12 sil_define.c (DEFINE/DEFFNC, lines 4240–4470).
 # Method: oracle snobol4.c three-way, one block at a time.
 ```
+
+---
+
+## Session 2026-04-08 — SS-43: M-SS-BLOCK §6 cmpile+expr CMPGO/CDIAG/ELEMNT/EXPR/BINOP (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `8a01e140` · .github `(this push)`
+
+**Build gate:** ✅ clean throughout (zero warnings at close).
+
+**M-SS-BLOCK: §6 cmpile.c (CMPGO group) + §6 expr.c (ELEMNT/EXPR/BINOP)**
+
+**Bugs fixed (9 total):**
+
+- **BUG-CMPILE-COMP3 (×5):** All `FORWRD_fn()==FAIL` in cmpile.c → `cerr(ILLEOS)` (compile diag). Oracle: `COMP3` (fatal ERRTYP=17). Fixed: `COMP3_fn(); return OK;` at all 5 sites. Added `#include "errors.h"` to cmpile.c.
+- **BUG-CDIAG-COMP9:** Error-limit path set `ERRTYP=17; return` — missing `DECRA(ESAICL)` and `FTLEND`. Oracle: `COMP9` (ERRTYP=26+DECRA+FTLEND). Fixed: `COMP9_fn(); return;`.
+- **BUG-ELEMN1:** ELEMN1 exit block inverted + no-op MOVD. Oracle: if `ELEMND!=0` → addson+`ZPTR=ELEMND`; else `ZPTR=ELEXND`. Fixed.
+- **BUG-ELEARY-EXIT:** ELEARY path hit `elem_exit` without setting ZPTR. Fixed: `MOVD(ZPTR,ELEMND)` before goto.
+- **BUG-ELEFNC-EXIT:** ELEFNC path hit `elem_exit` without setting ZPTR. Fixed: `MOVD(ZPTR,ELEXND)` after root-climb.
+- **BUG-EXPR3:** Precedence comparison `< 0` should be `> 0`. Oracle branches EXPR4 when `XPTR > EXOPCL` (higher precedence in tree → sibling path).
+- **BUG-EXPR5:** Loop condition `>= 0` should be `> 0` (strict greater, oracle ACOMP).
+- **BUG-BINOP1:** FORBLK-fail collapsed to `return FAIL`; oracle calls FORWRD, switches BRTYPE (2/3/6/7→RTN2, else ILLBIN→RTN1). Fixed with full path.
+- **Include fixes:** `errors.h` → expr.c, `arena.h` → platform.c.
+
+**Watermark: v311.sil line 2210** (end of EXPR/BINOP/NULNOD — all verified).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 8a01e140.
+#
+# Sprint: SS-44
+# M-SS-BLOCK §6 expr.c — next block: UNOP (v311.sil line ~2213).
+#   grep -n "^UNOP\b" v311.sil  → line 2506 (already read SIL above, that was UNOP body)
+#   Check our UNOP_fn in expr.c vs oracle L_UNOP / L_UNOPA / L_UNOPB.
+# Then: FORWRD/FORBLK (v311.sil 2214–2280, forwrd.c).
+# Then: §7 interp.c — BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE blocks.
+# Method: oracle snobol4.c three-way, one block at a time.
+# Watermark advances per block completed.
+```
