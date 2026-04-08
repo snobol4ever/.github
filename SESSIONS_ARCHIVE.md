@@ -34199,3 +34199,38 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Goal: GENVAR_fn survives → "hello world" on stdout.
 # Three-way diff each change against v311.sil LOCA1-LOCA7 + snobol4.c LOCA1 function.
 ```
+
+---
+
+## Session 2026-04-08g — SS-33: HW-15 OBLIST arena fix (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `b0d4d5b7` · .github (this commit)
+
+**Build gate:** ✅ clean.
+
+### Bug fixed — HW-15: OBLIST_arr not in arena
+
+**Root cause:** `OBLIST_arr[OBARY]` was a BSS global. `P2A(&OBLIST_arr[i])` produced garbage arena offsets → LOCA6 link write in GENVAR_fn crashed.
+
+**Fix:**
+- `arena_init()`: allocates `LNKFLD + OBARY*DESCR` bytes in arena, zeroed. Sets `OBPTR.a.i = base`, `OBEND.a.i = base + LNKFLD + DESCR*OBOFF`. Matches oracle: `OBPTR.a = OBLIST = OBSTRT - LNKFLD`.
+- Added `OBSLOT(n)` / `OBSLOT_OFF(n)` macros in arena.c (param `n` not `i` to avoid `.i` field collision).
+- Removed `OBLIST_arr[OBARY]` from data.c and its extern from data.h.
+- Added `DESCR_t OBPTR = D0` to data.c; `extern DESCR_t OBPTR` to data.h.
+- Removed stale `OBEND` init from `sil_data_init()` (now done in `arena_init()`).
+- Fixed `CLEAR_fn` in func.c: `OBLIST_arr[0]` → `OBPTR.a.i + LNKFLD - DESCR`.
+- Committed `b0d4d5b7`.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+echo 'OUTPUT = "hello world"' | /tmp/silly-snobol4
+# Sprint SS-33 / SS-34 continued — M-SS-HARNESS
+# HW-15 fixed. Run hello world, find next crash, fix it.
+# Method: run under gdb or with stderr, find which function crashes, three-way compare.
+```
