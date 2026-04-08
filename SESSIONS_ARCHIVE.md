@@ -33997,3 +33997,35 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # vs our scan.c side by side. Focus on SJSR fullscan/nval patterns.
 # Oracle: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08c — SS-33: M-SS-BLOCK BEGIN/SPCNVT/INITD1 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `228a66c4` · .github `7133cdb`
+
+**Build gate:** ✅ clean.
+
+### Bugs found
+
+**Bug fixed — INITD1 GENVAR failure (main.c, v311.sil line 979):**
+`if (off)` guard silently skipped PUTDC on GENVAR fail. Oracle treats it fatal. Fixed to `FTLEND_fn()`. Committed `228a66c4`.
+
+**Bug logged — SPCNVT loop missing (main.c, v311.sil line 974):**
+Entire nested loop that interns INITLS string specifiers via GENVAR is absent (`(void)ycl`). Needs implementation before binary can reach BEGIN correctly. Add to M-SS-HARNESS punch list.
+
+### M-SS-BLOCK watermark: v311.sil line 1025 (XLATRD — not yet checked)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Sprint SS-33 continued
+# M-SS-BLOCK: resume at v311.sil line 1025 (XLATRD block)
+# Method: read SIL block → snobol4.c → ours, compare LOGIC, fix or log
+# One block at a time. Watermark = SIL line of last completed block.
+```
