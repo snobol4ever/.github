@@ -32662,3 +32662,59 @@ make test 2>&1 | grep "PASS="
 # Then Class C: SNO_LIB=... ./scrip --sm-run beauty_fence_driver.sno — trace why silent.
 # Then Class B: global label table across -INCLUDE files.
 ```
+
+---
+
+## Session 2026-04-08d — M-SS-DIFF-RECHECK §21+§5 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `bec11228` · .github (this commit)
+
+### Work completed
+
+**§21 common stubs — clean by design:**
+RT1NUL, RETNUL, GENVSZ, GENVRZ, GENVIX, A5RTN, ARTN, RTZPTR etc. are all
+single-instruction returns inlined in calling code via our RESULT_t convention.
+No separate functions needed. No bugs.
+
+**§5 arena.c GC — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | **GCLAD cpycl inversion**: `cpycl` advanced for both live AND dead blocks. Oracle advances only for marked (live) blocks. Dead blocks must NOT consume compacted space. Effect: GC was not compacting — FRSGPT never moved correctly after collect. |
+| 2 | **Missing GCBB pass**: entire symtab chain compaction pass was absent. Dead strings remained in OBLIST bins after every GC, causing hash chains to accumulate garbage. |
+
+### M-SS-DIFF-RECHECK watermark
+- §21 common stubs: ✅ clean (inline by design)
+- §5 arena.c GC: ✅ 2 bugs (GCLAD inversion, missing GCBB)
+- §6 expr.c: ✅ 3 bugs
+- §6 cmpile.c: ✅ 4 bugs
+- §8 argval.c: ✅ 4 bugs
+- §7 interp.c: ✅ gaps noted
+- §4 symtab.c: ✅ 2 bugs
+- §16–§19, §22–§23: ✅ previously fixed
+- §1 types/equates: ⬜ next (no functions — just #define/typedef audit)
+- §2 main.c BEGIN: ⚠️ SPCNVT loop stubbed
+- §3 main.c compile loop: ⬜ next
+- §5 GENVAR/BLOCK/SPLIT: ⬜ next (separate from GC)
+- §9–§15: ⬜ pending
+
+### Open items (unchanged)
+- EXDTSP arena-intern before M-SS-HARNESS
+- ERRTKY.a wire to ERRTSP in data_init()
+- INVOKE POP INCL call-site audit
+- INTERP PROGEND enum value
+- SPCNVT loop in BEGIN (blocked on INITLS)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §5 GENVAR/BLOCK/SPLIT diff vs oracle
+# Then §3 main.c compile loop vs oracle
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
