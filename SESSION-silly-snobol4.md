@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-22 | one4all `9af8435d` · .github (updated) | **M-SS-DIFF-RECHECK**: §1–§15 + §20–§21 — start §4 sil_support.c (AUGATL/CODSKP/DTREP/FINDEX) |
+| SS-23 | one4all `7396177c` · .github (this commit) | **M-SS-DIFF-RECHECK**: §8 PATVAL+XYARGS → §6 cmpile.c |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -207,6 +207,9 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §17 | sil_asgn.c + sil_nmd.c + sil_scan.c | ✅ complete (2026-04-07x) — 8 bugs |
 | §18 | sil_pred.c | ✅ complete (2026-04-07x) — 1 bug |
 | §19 | sil_func.c | ✅ complete (2026-04-07y) — 1 bug |
+| §4 | symtab.c | ✅ complete (2026-04-08a) — 2 bugs |
+| §7 | interp.c | ✅ gaps noted (2026-04-08a) — 0 code fixes |
+| §8 | argval.c (partial) | ✅ VARVAL+INTVAL fixed (2026-04-08a) — 2 bugs; PATVAL+XYARGS ⬜ |
 | §20–§23 | remaining TUs | ⬜ next |
 
 ---
