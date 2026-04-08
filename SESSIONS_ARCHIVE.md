@@ -33291,3 +33291,84 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Or: M-SS-HARNESS prep — sil_data_init() §24 generator.
 # As directed by Lon.
 ```
+
+---
+
+## Session 2026-04-07d — RT-139: SM regressions: 4 bugs fixed (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `bc310aa6` · .github `a6e9bcb`
+
+**Build gate:** ✅ clean, zero errors.
+
+**Baseline:** PASS=161/203 → **PASS=163/203** (+2)
+
+### Work completed
+
+**Bug 1 — `063_capture_null_replace` ✅**
+`sm_lower.c`: pattern-match stmt with `has_eq && !replacement` (e.g. `X ' world' =`)
+was emitting `SM_PUSH_LIT_I INTVAL(s->has_eq)` = `INTVAL(1)` as the replacement value.
+Fix: emit `SM_PUSH_LIT_S ""` (empty string) when `has_eq` but no replacement expr.
+
+**Bug 2 — Binary opsyn operators (`@` `#` `%` `&` `~`) ✅**
+`sm_lower.c` E_OPSYN: `e->sval` is mangled `"BIATFN(@)"` etc. from `fn_name()`.
+`APPLY_fn("BIATFN(@)")` not registered → Error 5.
+Fix: extract bare op char between `(` and `)` before emitting `SM_CALL`.
+
+**Bug 3 — Unary opsyn operators (`|` `^`) ✅**
+`BARFN`/`AROWFN` unary op nodes get `n->text = "BARFN"` (no parens) from `uop_names[]`.
+`cmpnd_to_expr` fell through to `default` → `E_VAR` with sval `"BARFN"`.
+Fix: add `BARFN`/`AROWFN` to `E_OPSYN` case in `cmpnd_to_expr` (`snobol4_pattern.c`).
+Add direct bare-name → op-char mapping in `sm_lower.c` E_OPSYN handler.
+Also added `BARFN(|)` / `AROWFN(^)` to `fn_name()` in `CMPILE.c` for future use.
+Test `1015_opsyn` now passes (both `@` binary and `|` unary).
+
+**Bug 4 — `sm_prog.c` name array misalignment ✅**
+`SM_PUSH_EXPR` was missing from the opcode name array, so every opcode from
+`SM_STORE_VAR` onward printed with the wrong name in `--dump-sm`. Display-only
+bug (interpreter uses enum values directly), but caused confusing diagnostics.
+
+### Next bug identified (not yet fixed)
+
+**Field mutator: accessor on LHS of assignment** (`lson(b) = a`)
+`DATA('node(val,lson,rson)')` defines `lson` as field accessor + mutator.
+SM dump for `lson(b) = a`:
+```
+55  SM_PUSH_VAR  "a"
+56  SM_PUSH_VAR  "b"
+57  SM_CALL      "lson" nargs=1     ← reads lson(b) → returns NAME descriptor
+58  SM_CALL      "ASGN" nargs=2    ← ASGN(lson_result, a) → Error 5
+```
+`ASGN` receives the lson return value (a NAME/lvalue descriptor) + `a`, but
+`INVOKE_fn("ASGN")` is not registered or doesn't dispatch to the field-setter
+path. Affects: 1115_data_basic, 1116_data_overlap, 095_data_field_set, test_stack,
+1012_func_locals, 1013_func_nreturn, 1114_item (all Error 5 at stmt 5–10).
+
+Root cause to investigate: check how `sm_lower.c` lowers `E_ASSIGN` when the
+LHS is `E_FNC` (accessor call), and whether `ASGN` is registered in `INVOKE_fn`.
+
+### Remaining failures (40 total)
+- `fileinfo`, `triplet`, `expr_eval`, `1016_eval` — EVAL/expression issues
+- `1112_array_multi` — custom lower bound arrays
+- `1113_table` — Error 3 table reference
+- `212_indirect_array` — indirect array subscript
+- `cross`, `word1`, `wordcount`, `demo_wordcount`, `demo_treebank` — larger programs
+- `beauty_*` (18) — large program suite; likely cascade from core bugs above
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+make scrip
+# Gate: clean build. PASS=163/203.
+#
+# First task: fix field mutator (accessor on LHS)
+#   1. Check sm_lower.c: how is E_ASSIGN lowered when LHS is E_FNC?
+#      Look for E_ASSIGN case — does it emit ASGN correctly?
+#   2. Check snobol4_invoke.c: is "ASGN" registered? What does it do?
+#   3. The lson(b) = a case needs sm_lower to detect E_FNC on LHS
+#      and emit SM_CALL "lson_set" or pass name descriptor to setter.
+#   grep -n "E_ASSIGN\|ASGN\|field.*set\|setter" src/runtime/x86/sm_lower.c
+#   grep -n "\"ASGN\"\|ASGN_fn" src/runtime/x86/snobol4_invoke.c
+```

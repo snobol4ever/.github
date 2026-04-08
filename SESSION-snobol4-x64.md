@@ -295,7 +295,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-139 | one4all `7b99cd96` · corpus `3fd44d0` · PASS=161/203 (--hybrid) · PASS=178/203 (--interp) | **SM regressions**: 21 hybrid-only failures remain. Next: 063_capture_null_replace — empty replacement `X ' world' =` outputs `hello1` instead of `hello`. Root cause: `sm_lower.c` pushes `INTVAL(1)` (has_eq flag) as replacement value when RHS is absent. Fix: emit `SM_PUSH_LIT_S ""` for `has_eq && !replacement`. Check if `SM_PUSH_LIT_S` exists in sm_prog.h first. |
+| RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · PASS=163/203 | **SM regressions**: 40 failures remain. Next: field mutator (accessor on LHS) — `lson(b) = a` emits `SM_CALL "lson" 1` then `SM_CALL "ASGN" 2`; ASGN not registered or wrong dispatch → Error 5. Check `E_ASSIGN` in `sm_lower.c` + `"ASGN"` in `snobol4_invoke.c`. Affects: 1115_data_basic, 1116_data_overlap, 095_data_field_set, test_stack, 1012, 1013, 1114. |
 
 **First actions RT-125:**
 ```bash
