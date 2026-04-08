@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-26 | one4all `bec11228` · .github (this commit) | **M-SS-DIFF-RECHECK**: §5 GENVAR/BLOCK/SPLIT, §3 compile loop |
+| SS-27 | one4all `c04dc8fd` · .github (this commit) | **M-SS-DIFF-RECHECK**: §9 arith.c (ADD/SUB/MPY/DIV/EQ/GE/GT/LE/LT/NE/INTGER/MNS/PLS) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
