@@ -33702,3 +33702,78 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Three-way diff method: v311.sil + snobol4.c + ours, function by function.
 # After all files complete: M-SS-HARNESS (build binary, run vs CSNOBOL4).
 ```
+
+---
+
+## Session 2026-04-07l — SS-32: M-SS-AUDIT io.c + trace.c + asgn.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `b1074078` · .github `136e3fa`
+
+**Build gate:** ✅ clean, zero errors.
+
+### Work completed
+
+**io.c audit — 6 bugs fixed:**
+- IO-1: `READ_fn` negative unit → `UNTERR_fn()` not bare `return FAIL`
+- IO-2: `ioop()` unit ≤ 0 → `UNTERR_fn()` not bare `return FAIL`
+- IO-3: `PRINT_fn` missing `UNTERR_fn()` for negative unit after `IO_OPENO`
+- IO-4: `READ_fn` missing `LENERR_fn()` for negative recl after `IO_OPENI`
+- IO-5: `PUTOUT_fn` inverted COMP6 guard (was `!AEQLC` → should be `AEQLC`)
+- IO-6: `XCALL_ENFILE` was `void`; changed to `int` return; `ioop()` now checks result for `COMP6_fn()`
+
+**trace.c audit — 4 bugs fixed:**
+- TR-1: `TRACE_fn` + `STOPTR_fn` both missing `EFFCL` path (same as `FUNTCL`); unknown type was silent `return FAIL` → `INTR30_fn()`
+- TR-2: `SETEXIT_fn` `VARVUP` fail and `ATTRIB==0` → `INTR30_fn()` not bare `return FAIL`
+- TR-3: `XITHND_fn` `OCBSCL==0` → `INTR4_fn()` not bare `return FAIL`
+
+**asgn.c audit — 4 bugs fixed:**
+- AS-4: INATL/OUTATL block retrieval — `GETDC_B(zptr, YPTR/XPTR, DESCR)` → `GETDC_B(zptr, zptr, DESCR)` (4 sites)
+- AS-5: `IND_fn` unknown type → `INTR1_fn()` not bare `return FAIL`
+- AS-6: `IND_fn` `CASECL` check inverted — `CASECL==0` → `RTXNAM` (return OK), `CASECL!=0` → `VPXPTR`
+- AS-7: `KEYWRD_fn` KEYC path missing NEMO case and missing save/restore around `INVOKE_fn()`
+
+### M-SS-AUDIT watermark
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d |
+| `strings.c` | ✅ SS-29d |
+| `symtab.c` | ✅ SS-29d |
+| `data.c` | ✅ SS-29d |
+| `argval.c` | ✅ SS-31 |
+| `arith.c` | ✅ SS-30c |
+| `patval.c` | ✅ SS-30d |
+| `scan.c` | ✅ SS-30e+SS-31 |
+| `define.c` | ✅ SS-31 |
+| `extern.c` | ✅ SS-31 |
+| `arrays.c` | ⚠️ element slot deferred to harness |
+| `expr.c` | ✅ SS-29 |
+| `forwrd.c` | ✅ SS-29 |
+| `errors.c` | ✅ SS-29b |
+| `main.c` | ✅ SS-29b |
+| `io.c` | ✅ SS-32 (6 bugs) |
+| `trace.c` | ✅ SS-32 (4 bugs) |
+| `asgn.c` | ✅ SS-32 (4 bugs) |
+| `nmd.c` | ⬜ next |
+| `pred.c` | ⬜ |
+| `func.c` | ⬜ |
+| `interp.c` | ⬜ |
+| `cmpile.c` | ⬜ |
+| `trepub.c` | ⬜ |
+| `platform.c` | ⬜ |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all b1074078.
+#
+# Sprint: SS-32 continued
+# Continue M-SS-AUDIT: nmd.c next.
+# Three-way diff: v311.sil + snobol4.c + ours, function by function.
+# Oracle: grep "^NMD\b" snobol4.c
+```
