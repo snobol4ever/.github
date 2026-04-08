@@ -33429,3 +33429,65 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Method: three-way diff — v311.sil §11 + snobol4.c + src/silly/scan.c
 # Note: scan.c was already diff'd in M-SS-DIFF (SS-29 session) — check what was found then
 ```
+
+---
+
+## Session 2026-04-07g (cont) — SS-30e: M-SS-AUDIT scan.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `2add1d3a`
+
+### M-SS-AUDIT: scan.c — 31 bugs found
+
+Three-way diff (v311.sil §11 + snobol4.c + src/silly/scan.c). Two systemic patterns dominate:
+- **FULLCL inversion**: `AEQLC(FULLCL,0)` used where `!AEQLC(FULLCL,0)` needed (9 instances)
+- **PDL slot off-by-one**: push/get uses slot 0 where oracle uses slot DESCR=1 (4 instances)
+
+| # | Function | Bug |
+|---|----------|-----|
+| SC-1 | `SCAN_fn` SCANVB | ANCCL inverted: `AEQLC(ANCCL,0)→FAIL` but oracle `D_A(ANCCL)!=0→FAIL` |
+| SC-2 | `SCAN_fn` SCANVP | Dead else-branch: SIL LCOMP both exits→SCANV1; always `REMSP(XSP,TXSP,HEADSP)` |
+| SC-3 | `SCNR_fn` | ANCCL branch inverted — anchored/unanchored paths (SCFLCL vs SCONCL) swapped |
+| SC-4 | `SCNR_fn` | FULLCL min-length check inverted (check runs when fullscan ON, should skip) |
+| SC-5 | `SJSR_fn` SJVVON | ANCCL inverted (same as SC-1) |
+| SC-6 | `SJSR_fn` INVOKE | Missing case 2→SJSR1 and case 3→NEMO |
+| SC-7 | `do_SCIN2` | FULLCL length-check guard inverted |
+| SC-8 | `do_SCIN1A` | UNSCCL≠0 path falls through to do_SCIN2(); should go to SALT3 (backtrack) |
+| SC-9 | `do_ABNS` ANYC3 | FULLCL guard inverted — VSP setup done when fullscan ON, should skip |
+| SC-10 | `do_ABNS` ANYC3 | +1 guard checks `TXSP.l < MAXLEN`; oracle checks `XSP.l + 0 <= MAXLEN` |
+| SC-11 | `do_LPRRT` POS | n>TXSP.l→TSALT (should→TSALF); n<TXSP.l→TSALF (should→SALT) |
+| SC-12 | `do_LPRRT` RTAB | FULLCL guard inverted — residual check runs when ON, oracle skips |
+| SC-13 | `do_ONAR` | FULLCL inverted — fullscan ON should TSCOK immediately |
+| SC-14 | `do_FARB` | FULLCL inverted — FULLCL==0 should give nval=YCL, gives nval=0 |
+| SC-15 | `do_FARB` | PUTDC cursor in slot DESCR (1), oracle uses slot 2*DESCR (2) |
+| SC-16 | `do_ATP` | TRAPCL check inverted — executes trap when ≤0, should skip |
+| SC-17 | `do_ATP` | Missing full scan-state push/pop (12 regs + 4 specs) around TRPHND |
+| SC-18 | `do_BAL_inner` | FULLCL inverted — FULLCL==0 should give nval=YCL, gives nval=0 |
+| SC-19 | `do_BAL`/`do_BALF` | BAL and BALF have different entry logic but share one function |
+| SC-20 | `do_BAL_inner` | PUTDC cursor in slot DESCR (1), oracle uses slot 2*DESCR (2) |
+| SC-21 | `do_BAL_inner` | BAL1 exit missing PDL underflow check (PDLPTR<PDLHED→INTR13) |
+| SC-22 | `do_BRKXF` | LENFCL inverted — LENFCL==0→SALT, oracle LENFCL!=0→SALT |
+| SC-23 | `do_STAR` STARP | FULLCL inverted — FULLCL==0 should give nval=YCL, gives nval=0 |
+| SC-24 | `do_STAR` STARP | Missing second FULLCL check to skip size check when fullscan ON |
+| SC-25 | `do_STAR` | SCIN case 3 (→RTNUL3) not handled |
+| SC-26 | `do_STAR` | SCIN success → GOTO_TSCOK; oracle → GOTO_SCOK |
+| SC-27 | `do_DSAR` non-P | LENFCL inverted — LENFCL==0→TSALT; oracle LENFCL!=0→TSALT |
+| SC-28 | `do_DSAR` DSARP | FULLCL inverted (same class as SC-14, SC-23) |
+| SC-29 | `do_DSAR` | SCIN1 case 2 (success) vs case 1 (fail) not distinguished |
+| SC-30 | `do_FNCE`/`do_NME`/`do_ENME3` | PDL push to slot 0; oracle uses slot DESCR (1) |
+| SC-31 | `do_SUCF` | Reads XCL from slot 0; oracle reads from slot DESCR (1) |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-AUDIT.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build.
+# Fix scan.c bugs in order: systemic passes first
+#   Pass 1 — FULLCL inversion (SC-4,7,9,12,13,14,18,23,28): flip all AEQLC(FULLCL,0) guards
+#   Pass 2 — PDL slot off-by-one (SC-15,20,30,31): fix push/get slot offsets
+#   Pass 3 — ANCCL inversions (SC-1,3,5): flip ANCCL guards
+#   Pass 4 — individual bugs: SC-2,6,8,10,11,16,17,19,21,22,24,25,26,27,29
+```
