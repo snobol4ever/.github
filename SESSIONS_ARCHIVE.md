@@ -32848,3 +32848,67 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 3119-3322
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08g — M-SS-DIFF-RECHECK §10 patval.c + §1 name audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `0fce9745`
+
+### Work completed
+
+**§10 patval.c — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | `lprtnd` LEN min-length: compared `XPTR.a.i == LNTHCL.a.i` (argument value vs constant). Oracle `DEQL YCL,LNTHCL` compares the fn descriptor. Fix: `DEQL(*ycl, LNTHCL)`. |
+| 2 | `nam_dol` NRETURN path: all non-FAIL INVOKE returns went through `NEMO` check. Oracle NAM4 (NRETURN) restores XPTR and rejoins NAM3 without checking E. Fix: NRETURN skips nemo(), only OK path checks `YPTR.v != E`. |
+
+**§1 types/equates — 1 name-identity fix:**
+- `FBKLSZ` was a spurious duplicate of `FBLKSZ` in types.h. Removed; fixed the one use in data.c.
+- Full audit of all §1 EQU names confirmed clean otherwise.
+
+**§1 broader name-identity audit (partial — session ended at context limit):**
+
+Confirmed misspellings found, NOT YET FIXED:
+
+| Our name | Oracle name | Location |
+|---|---|---|
+| `ARBBACK` | `ARBACK` | data.h/data.c — extra B |
+| `NXFCLS` | `NEXFCL` | data.h/data.c — transposed + extra S |
+| `GCTTLL` | `GCTTTL` | data.h/data.c — missing T, extra L |
+| `ANYCL` | (spurious, no SIL origin) | data.h/data.c — phantom duplicate of ANYCCL |
+| `NNYCL` | (spurious, no SIL origin) | data.h/data.c — phantom duplicate of NNYCCL |
+
+Remaining names from "not in SIL" list not yet fully resolved:
+`BRKYTB`, `FNCECL`, `SALICL`, `STARCCL`, `SUCCCL`, `SNODSZS`, `OCBSVC`, `RTZPTR`, `DSARCL`, `CONTIN`, `STOPSH` — some are legitimate new C helpers, others may be misspellings. Next session must complete this audit before any other work.
+
+**§2 main.c BEGIN SPCNVT:** confirmed blocked on INITLS (§24 generator not written). Open item unchanged.
+
+### M-SS-DIFF-RECHECK watermark (cumulative)
+- §1 types/equates: ✅ clean (FBKLSZ typo fixed; name audit partially done — see above)
+- §2 main.c BEGIN SPCNVT: ⚠️ stubbed — blocked on INITLS
+- §3 main.c compile loop: ✅ 3 bugs
+- §4 symtab.c: ✅ 2 bugs
+- §5 arena.c GC + GENVAR + BLOCK/SPLIT: ✅ 4 bugs
+- §6 expr.c + cmpile.c: ✅ 7 bugs
+- §7 interp.c: ✅ gaps noted
+- §8 argval.c: ✅ 4 bugs
+- §9 arith.c: ✅ clean
+- §10 patval.c: ✅ 2 bugs
+- §11–§19, §21–§23: ✅ complete (prior sessions)
+- §20 BLOCKS: ⛔ skipped
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# FIRST: complete name-identity audit — fix ARBBACK→ARBACK, NXFCLS→NEXFCL,
+#   GCTTLL→GCTTTL, remove ANYCL, remove NNYCL, then resolve remaining list:
+#   BRKYTB, FNCECL, SALICL, STARCCL, SUCCCL, SNODSZS, OCBSVC, RTZPTR, DSARCL, CONTIN, STOPSH
+# THEN: M-SS-HARNESS prep or continue diff pass as directed.
+```
