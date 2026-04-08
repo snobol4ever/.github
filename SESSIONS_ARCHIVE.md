@@ -34605,3 +34605,41 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Then: NRETURN/EVAL fix → TEST_Corpus_control_expr_eval passes
 # Goal: M-NET-CORPUS-TESTS ✅ (0 [Ignore], 0 skipped)
 ```
+
+---
+
+## Session 2026-04-08 — SS-38: M-SS-BLOCK CMPGO cluster (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `97529120` · .github `(pulled before write)`
+
+**Build gate:** ✅ clean throughout.
+
+**M-SS-BLOCK: §6 CMPGO cluster (v311.sil lines 1721–1920)**
+
+syn.c inspection revealed GOTOTB yields 6 types (UGOTYP/SGOTYP/FGOTYP/UTOTYP/STOTYP/FTOTYP).
+Previous diff passes missed the incomplete dispatch because the block *looked* plausible at a glance.
+
+**Bugs fixed:**
+- BUG-CMPGO-1: NBTYP guard inverted — `if (AEQLC(BRTYPE,NBTYP)) error` should be `if (!AEQLC(...)) error`
+- BUG-CMPGO-2: ACOMP used `==` instead of `<=` for GTOCL dispatch (UGOTYP=1,SGOTYP=2 incorrectly fell through)
+- BUG-CMPGO-3: CMPSGO/CMPFGO/CMPILL/CMPFTC/CMPILM/CMPSTC/CMPILN cluster entirely missing — all `:S(L)`, `:F(L)`, `:S(L1)F(L2)` forms would miscompile
+- BUG-CMPGO-4: cdiag_inner ERRTXT generated from CERRSP (assembled error line) instead of EMSGCL (message only)
+- BUG-CDIAG-1: ACOMP ESAICL,ESALIM used `>=` instead of `>` (strict)
+- New globals added: SGOND, FGOND, SRNCL, GOTOCL
+
+**Watermark: v311.sil line 1920** (end of CDIAG/DIAGRN/DIAGIN — closes §6).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 97529120.
+#
+# Sprint: SS-39
+# M-SS-BLOCK: §7 BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE (interp.c, v311.sil lines 2520–2678).
+# Method: ONE labeled block at a time. v311.sil label → oracle snobol4.c → ours.
+```
