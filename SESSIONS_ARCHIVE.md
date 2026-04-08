@@ -34360,3 +34360,79 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Then §7: BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE (interp.c, lines 2520–2678).
 # Rule: annotate model-equiv non-bugs in place; fix real logic bugs; commit each section.
 ```
+
+---
+
+## Session 2026-04-08 — RT-143/RT-144: --sm-run NRETURN + FAIL-guard fixes (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `13bf6dfa` · .github `(pulled before write)`
+
+**Build gate:** ✅ clean build throughout.
+
+**Baseline confirmed:**
+- `--sm-run` PASS=166 (SS-33 scan fix accounts for +3 over archived 163)
+- `--ir-run` PASS=178
+- Gap: 12 tests
+
+**SM-only failures catalogued (15):**
+1013_func_nreturn, 1112_array_multi, 1113_table, 1114_item, 1116_data_overlap,
+212_indirect_array, beauty_Qize_driver, beauty_fence_driver, beauty_io_driver,
+beauty_match_driver, cross, demo_wordcount, triplet, word1, wordcount
+
+**RT-143 — NRETURN lvalue fix (1 test gained: 1013_func_nreturn)**
+
+Root cause: `sm_lower.c` gated the `NRETURN_ASGN` path on `FNCEX_fn()` (function
+already registered). Forward-declared functions (DEFINE appears after call site) fail
+this check at lowering time → fell through to `fname_SET` field-mutator → Error 5.
+
+Fix:
+- `sm_lower.c`: removed `FNCEX_fn`/`FUNC_NPARAMS_fn` gate; all zero-arg E_FNC LHS
+  calls now emit `NRETURN_ASGN` (multi-arg LHS still uses `fname_SET`).
+- `sm_interp.c`: `NRETURN_ASGN` handler: when fn result is not DT_N, fall back to
+  `fname_SET(rhs, result)` field-mutator convention instead of `NV_SET_fn(fname)`.
+
+**RT-144 — SM_STORE_VAR FAIL-guard (1 test gained: cross)**
+
+Root cause: `SM_STORE_VAR` stored FAILDESCR unconditionally. For statements like
+`OUTPUT = DIFFER(X,Y) :S(L)`, when DIFFER fails the FAILDESCR went to
+`output_val()` → `printf("%s\n","")` → spurious blank line. IR tree-walk skips
+assignment when RHS fails; SM didn't.
+
+Fix: `sm_interp.c` `SM_STORE_VAR`: if `val.v == DT_FAIL`, set `last_ok=0` and
+break without calling `NV_SET_fn`.
+
+**Results:**
+- After RT-143: PASS=167
+- After RT-144: PASS=168
+- `--ir-run` PASS=178 (unchanged)
+- Gap reduced: 12 → 10
+
+**Remaining SM-only failures (13):**
+- `triplet`, `word1`, `wordcount`, `demo_wordcount` — pattern/output interaction; triplet produces truncated output
+- `1112_array_multi`, `1113_table`, `1114_item`, `1116_data_overlap`, `212_indirect_array` — array/table SM gaps (Error 3/5)
+- `1012_func_locals` — func locals bug (may be pre-existing or newly surfaced)
+- beauty/demo drivers (many) — IO/SNO_LIB or deeper SM gaps; produce empty output
+- `expr_eval`, `test_stack`, `fileinfo` — SM-specific
+
+**Did NOT start RT-5 (NV_SET_fn → DESCR_t return).** Two opportunistic SM bugs
+consumed the session. RT-5 through RT-8 remain the primary milestone queue.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md | grep -A5 "CURRENT PRIORITY"
+cd /home/claude/one4all && git pull
+make scrip
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"
+# Gate: PASS=168 --sm-run, PASS=178 --ir-run. HEAD one4all 13bf6dfa.
+#
+# Sprint: RT-144 continued / RT-5
+# Option A: investigate triplet (truncated output) — pattern cursor bug?
+#   timeout 5 ./scrip --sm-run corpus/crosscheck/arith/triplet.sno < corpus/crosscheck/arith/triplet.input
+#   diff vs ref; check --dump-sm for triplet
+# Option B: start RT-5 — NV_SET_fn → DESCR_t return + OUTPUT/TRACE hooks
+#   File: src/runtime/x86/snobol4.c line 2080
+#   Gate: no regression (PASS >= 168)
+# Recommend: Option B (RT-5 is the milestone sequence; triplet is opportunistic)
+```
