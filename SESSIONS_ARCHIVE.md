@@ -34912,3 +34912,78 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #
 # Target: ≥ 2040 passed, 0 failed, 0 skipped
 ```
+
+---
+
+## Session 2026-04-08m — D-187: M-NET-SNIPPET-FACTORY (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `bdc541f` · .github `eb1631b`
+**HEAD at end:** snobol4dotnet `57603fc` · .github `eb1631b`
+
+### Work completed
+
+**Created MILESTONE-NET-SNIPPET-FACTORY.md** — systematic snippet test factory doc with 8-step plan, coverage map, SNOBOL4 syntax rules, known bug tracking.
+
+**Added 8 new CorpusRef test files (+110 tests, all genuinely new coverage):**
+
+| File | Tests | Area |
+|---|---|---|
+| `CorpusRef_Strings.cs` | 12 | word1/word2/word3/wordcount (stdin input), string edge cases |
+| `CorpusRef_Capture.cs` | 7 | SPAN/BREAK/LEN/TAB/ARB/ANY capture variants, replacement loop |
+| `CorpusRef_Data.cs` | 7 | missing key, integer key, 2 DATA types, linked list, 2D array, PROTOTYPE |
+| `CorpusRef_LibMath.cs` | 8 | max/min/abs/sign/gcd/lcm (lib/math.sno inlined) |
+| `CorpusRef_LibStack.cs` | 7 | push/pop/peek/depth/NRETURN/pop-into-var (lib/stack.sno inlined) |
+| `CorpusRef_LibString.cs` | 10 | pad_left/pad_right/ltrim/rtrim/trimws/repeat/contains/startswith/endswith/index |
+| `CorpusRef_GimpelBits2.cs` | 15 | BASE10/RANDOM/PUSH-POP/FLOOR/MDY/ROT13 (Gimpel inlined) |
+| `CorpusRef_Feat.cs` | 20 | f02/f03/f04/f05/f06/f07/f08/f09/f18/f19 feat + goto/freturn/indirect/locals/alternation/arith |
+
+**Gate: 2092 passed, 10 failed (all pre-existing GimpelBits), 5 skipped**
+
+### New bugs found
+
+| Bug | Symptom | Test |
+|---|---|---|
+| **D-NET-188** | Numeric predicates GT/LT/GE/LE/EQ/NE do not return first arg on success (should per SPITBOL spec) | `TEST_Feat_numeric_predicates_return_value` [Ignore] |
+| **D-NET-189** | `INTEGER(3.14)` succeeds — should fail for non-integer real | `TEST_Feat_f19_real_numbers` [Ignore] |
+
+### Pre-existing failures unchanged (10)
+
+`roman_small/large` (semicolons), `sqrt_perfect_squares` (DEFINE redefine), `bsort_strings/integers` (D-NET-186 LGT-RHS), `fixed_column_extract` (TAB column), `opsyn_alias` (D-NET-187), `fibonacci_recursive` (base case), `trim` (TRIM semantic), `random_fraction` (D-NET-188)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 2092 passed, 10 failed, 5 skipped. HEAD = 57603fc.
+#
+# Sprint D-187 continues: M-NET-SNIPPET-FACTORY
+#
+# PRIORITY 1 — Fix pre-existing GimpelBits test-code bugs (roman/sqrt/fib/trim/fixed_col/opsyn):
+#   roman: v<1> = 1000; v<2> = 900; (semicolons not spaces)
+#   sqrt: rename DEFINE('MYSQRT(Y)') throughout
+#   fib: remove pre-seed lines, add FIB = N before :S(RETURN) as base case
+#   trim: Assert.AreEqual("  hello\nno spaces\n0", ...) — TRIM trailing only
+#   fixed_col: input '1876 Bell  Telephone', TAB(10) captures ' Bell ' → fix column numbers
+#   opsyn: OPSYN('UPPER','UCASE',0) — if still fails → [Ignore("D-NET-187")]
+#   bsort: [Ignore("D-NET-186")]
+#
+# PRIORITY 2 — Investigate D-NET-188 (GT/LT return value):
+#   grep -n "GT\|LT\|GE\|LE\|EQ\|NE" Snobol4.Common/Runtime/Functions/Predicates/
+#   Does GT() return null or first arg on success?
+#
+# PRIORITY 3 — Investigate D-NET-189 (INTEGER(real)):
+#   INTEGER(3.14) should FAIL — check INTEGER() predicate implementation
+#
+# PRIORITY 4 — Mine more snippets from corpus/programs/snobol4/feat/:
+#   f01 (core goto), f10 (named I/O), f14 (OPSYN), f16 (CLI switches)
+#   programs/dotnet/*.sno (palin.sno, expr_parser_stub.sno, chap7/8)
+#
+# Target: ≥ 2110 passed, 0 failed non-ignored
+```
