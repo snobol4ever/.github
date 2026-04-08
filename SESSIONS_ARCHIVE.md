@@ -34124,3 +34124,78 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # M-SS-BLOCK: resume at v311.sil line 1554 (§6 Compiler — BINOP block)
 # Method: three-way v311.sil + snobol4.c + ours. One block at a time.
 ```
+
+---
+
+## Session 2026-04-08f — SS-34: M-SS-HARNESS first run (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `68fad4a3` · .github `72f8be11` (before this push)
+
+**Build gate:** ✅ clean.
+
+### Work completed — first-ever run of Silly SNOBOL4 on hello world
+
+14 bugs found via 3-way diff (v311.sil + snobol4.c + ours), all fixed and committed.
+Status: reaches GENVAR_fn but crashes on HW-15 (OBLIST_arr not in arena).
+Furthest point reached: ELEMTB STREAM successfully scans 'OUTPUT' (stype=3, l=6)
+and 'hello world' literal (stype=1, l=13). GENVAR_fn segfaults on LOCA6 link write.
+
+### Bug watermark (HW series)
+
+| Bug | File | Description | Status |
+|-----|------|-------------|--------|
+| HW-1 | data.c | `init_syntab()` never called — CARDTB/all scan tables unregistered | ✅ |
+| HW-2 | forwrd.c | `NEWCRD_fn` RTN2/RTN3 returned `OK` (re-read) vs `FAIL` (→CMPILE) | ✅ |
+| HW-3 | platform.c | UNOPTB[14] sentinel `AC_ERROR` → `AC_CONTIN` (arg3=arg4 in all STREAM calls) | ✅ |
+| HW-4 | platform.c | BIOPTB[14] sentinel `AC_ERROR` → `AC_CONTIN` | ✅ |
+| HW-5 | platform.c | SBIPTB[15] sentinel `AC_ERROR` → `AC_CONTIN` | ✅ |
+| HW-6 | platform.c | BBIOPTB[14] sentinel `AC_ERROR` → `AC_CONTIN` | ✅ |
+| HW-7 | platform.c | BSBIPTB[15] sentinel `AC_ERROR` → `AC_CONTIN` | ✅ |
+| HW-8 | platform.c | IBLKTB[2] sentinel `AC_ERROR` → `AC_STOPSH` (non-blank stops, not errors) | ✅ |
+| HW-9 | platform.c | GOTSTB[2] sentinel `AC_ERROR` → `AC_CONTIN` (arg3=arg4 RTZPTR) | ✅ |
+| HW-10 | platform.c | LBLTB[2] sentinel `AC_ERROR` → `AC_CONTIN` (COMP7/COMP7 same exit) | ✅ |
+| HW-11 | platform.c | VARATB[3] sentinel `AC_ERROR` → `AC_CONTIN` (arg3=arg4 PROTER) | ✅ |
+| HW-12 | cmpile.c | `cerr()` stored truncated 64-bit ptr in int32 `EMSGCL`; fixed to intern string into arena as SPEC_t | ✅ |
+| HW-13 | platform.c | `STREAM_fn` ST_EOS path set `sp2->l=0` — destroyed subject (TEXTSP consumed). Fixed: leave sp2 intact on ST_EOS. Oracle: `S_L(sp2) -= len` where len=0 at exhaustion | ✅ |
+| HW-14 | arena.c | `GENVUP_fn` used stack `buf[CARDSZ]` + `P2A(buf)` — garbage arena offset. Fixed: uppercase into arena at FRSGPT, build SPECR1, release after. Oracle: `_SPEC(SPECR1) = _SPEC(AXPTR); RAISE1(SPECR1)` | ✅ |
+| HW-15 | arena.c | `OBLIST_arr` is BSS global, not in arena. `P2A(&OBLIST_arr[bin_idx])` = garbage. LOCA6 link write crashes. | ⬜ NEXT |
+
+### HW-15 analysis (for next session)
+
+**Root cause:** In snobol4.c LOCA1: `D(BUKPTR) = D(OBPTR); D_A(BUKPTR) += D_A(EQUVCL)` —
+OBPTR is an arena offset to the OBLIST region; BUKPTR/LSTPTR are arena offsets throughout.
+In our code `OBLIST_arr` is a C global (BSS), outside arena. `P2A(&OBLIST_arr[bin_idx])`
+gives a huge/negative arena offset → `A2P(lstptr_lnk)` on LOCA6 crashes.
+
+**Fix:** Allocate OBLIST in the arena during `arena_init()`. Store base as `OBPTR.a.i`.
+Replace `OBLIST_arr[bin_idx]` accesses with `*(DESCR_t*)A2P(D_A(OBPTR) + bin_idx*DESCR)`.
+Also need `OBEND` and `OBOFF` constants. Check v311.sil §24 OBLIST data layout.
+
+**v311.sil:** `OBLIST EQU OBSTRT-LNKFLD` — OBLIST is OBSTRT (start of symbol table array)
+minus LNKFLD offset, all in the static data area (which IS in arena-equivalent).
+**snobol4.c LOCA1:** uses `OBPTR` as an arena-offset-based DESCR; LOCA2 loop chains through
+arena offsets; LSTPTR/BUKPTR are DESCR values (arena offsets), never raw C pointers.
+
+### Rebase note
+Conflict in main.c with SS-33 (STREAD_fn EOF/ERR distinction). Resolved by keeping
+SS-33's version (`sread_last_eof` flag, matches oracle IO_EOF→XLATIN / IO_ERR→COMP1).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 68fad4a3.
+#
+# Sprint: SS-35
+# Fix HW-15: OBLIST_arr into arena.
+#   1. In arena_init(): alloc OBSIZ*DESCR bytes at FRSGPT, store offset in OBPTR.a.i
+#   2. In arena.h: replace OBLIST_arr[] accesses with A2P(D_A(OBPTR)+bin*DESCR) macro
+#   3. In data.c: remove static OBLIST_arr declaration; verify OBEND computed from OBPTR
+#   4. Rebuild and run: timeout 10 /tmp/silly-snobol4 /tmp/hello.sno
+# Goal: GENVAR_fn survives → "hello world" on stdout.
+# Three-way diff each change against v311.sil LOCA1-LOCA7 + snobol4.c LOCA1 function.
+```

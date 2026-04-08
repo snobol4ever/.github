@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-32 | one4all `475fc988` · .github (pending) | **M-SS-AUDIT complete** — all 23 TUs audited. Next: M-SS-HARNESS (build binary, run vs CSNOBOL4). |
+| SS-35 | one4all `68fad4a3` · .github (this push) | **Fix HW-15: OBLIST_arr into arena → GENVAR_fn survives → hello world** |
 
 ## ⛔ §INFO additions (2026-04-06)
 
