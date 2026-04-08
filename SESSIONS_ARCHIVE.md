@@ -33022,3 +33022,35 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 # OR: fix FORWRD forrun() CARDTB handling
 # As directed by Lon.
 ```
+
+---
+
+## Session 2026-04-07b — SS-28b: 18 missing tables complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `7a78c7e7`
+
+### Work completed
+
+All 18 missing tables added/corrected. All 31 syn.c tables now oracle-exact.
+
+**Runtime-assigned tables corrected (13):** DQLITB, EXPBTB, EXPTB, FLITB, INTGTB, NBLKTB, NUMCTB, SQLITB, STARTB, TBLKTB, VARATB, VARBTB, VARTB. NUMCTB had 2 wrong positions (comma action 2→1, colon 3→2).
+
+**New static tables added (3 BLOCKS-variant):** SBIPTB, BBIOPTB, BSBIPTB — full chrs[] + actions, oracle-exact.
+
+**BRKTB/SPANTB:** `{ 0 }` stubs confirmed intentional — runtime-filled by clertb/plugtb before any STREAM call.
+
+**gensyn.sno confirmed:** Generates syn.c (chrs[] tables) from procs input. syn_init.h is the actions ground truth.
+
+### Table status: COMPLETE
+All 29 non-runtime tables byte-exact vs oracle. 0 missing.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Next: fix FORWRD forrun() CARDTB return handling, then M-SS-HARNESS prep
+```
