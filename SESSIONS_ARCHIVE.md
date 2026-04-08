@@ -33372,3 +33372,30 @@ make scrip
 #   grep -n "E_ASSIGN\|ASGN\|field.*set\|setter" src/runtime/x86/sm_lower.c
 #   grep -n "\"ASGN\"\|ASGN_fn" src/runtime/x86/snobol4_invoke.c
 ```
+
+---
+
+## Session 2026-04-07g (cont) — SS-30c: M-SS-AUDIT arith.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `2414c89a`
+
+### M-SS-AUDIT: arith.c — 1 bug fixed
+
+| # | Function | Bug |
+|---|----------|-----|
+| AR-1 | ARITH_fn | SCL not saved/restored around XYARGS_fn call — XYARGS clobbers SCL (op selector 1-12) |
+
+All other §9 functions (MNS, PLS, INTGER) confirmed correct.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-AUDIT.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build, zero warnings.
+# Continue M-SS-AUDIT: patval.c (line 1)
+# Method: three-way diff — v311.sil §10 + snobol4.c + src/silly/patval.c
+```
