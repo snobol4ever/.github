@@ -34639,3 +34639,73 @@ INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 # Step 3: gate: stk[1]=[42] for /tmp/dbg_vv.sno; expr_eval outputs 7/9/25.5/7/26
 # Target: PASS > 168
 ```
+
+---
+
+## Session 2026-04-08j — D-184: M-NET-P35-FIX (@N cursor capture) (Lon + Claude Sonnet 4.6)
+
+**HEAD:** snobol4dotnet `20c34e9` · .github `(this commit)`
+
+**Build gate:** ✅ 1954 passed, 0 failed, 2 skipped, 0 warnings.
+
+### Work completed
+
+**D-184: M-NET-P35-FIX — three bugs, one commit:**
+
+**Bug 1 (root cause): Lexer — explicit `?` did not set `_patternMatchFound`**
+- `HC ? @NH ANY(V) . CROSS` — space between `@NH` and `ANY(V)` triggered
+  `ProcessImplicitOperators`. Because `_patternMatchFound` was false (only set
+  by `AddImplicitPatternMatch`, not by the explicit `?` token), the space was
+  treated as an implicit `?`, splitting into TWO pattern matches:
+  `HC ? @NH` (AtSign fires at cursor=0 → NH=0) then `ANY(V) . CROSS` separately.
+- Fix: `ProcessBinaryOperator` sets `_patternMatchFound = true` for `BINARY_QUESTION`.
+- File: `Snobol4.Common/Builder/Lexer.cs`
+
+**Bug 2: AnyPattern / NotAnyPattern — cursor incremented on failure**
+- `scan.Subject[scan.CursorPosition++]` advanced cursor even when char not in
+  charList. Corrupted unanchored retry loop (outer loop skipped positions).
+- Fix: only increment cursor on success.
+- Files: `AnyPattern.cs`, `NotAnyPattern.cs`
+
+**Bug 3: ExecutionCache.SyncVarSlot — runtime-born symbols had no slot**
+- Symbols first created at runtime (e.g. `NH` via `@NH`) had no compile-time
+  slot in `VariableSlots`. `SyncVarSlot` silently skipped them; `PushVar` read
+  stale `VarSlotArray[idx]`.
+- Fix: on miss, add to `Parent.VariableSlots` + `Parent.VariableSlotIndex`,
+  then `ExpandVarSlotArray()`.
+- File: `ExecutionCache.cs`
+
+**Diagnosis path (for the record):**
+- Traced `NH=0` via `SyncVarSlot` — single write at cursor=0
+- Added `[OUTER]` trace to `Scanner.PatternMatch` — revealed two calls at cursor=0
+- Added `[ATSIGN]` and `[ANY]` traces — confirmed `@NH` fired once, ANY retried 3×
+- AST dump showed two separate ASTs: single `AtSign` node + CVA/ANY/CVA2 tree
+- Confirmed `_patternMatchFound` flag was the root cause
+
+**Results:**
+- `TEST_Corpus_strings_cross` — PASS (was [Ignore])
+- Full suite: 1954/1956 (was 1953/1956)
+- Crosscheck: 79/80 (strings/cross now PASS; 099_keyword_rw remains)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 1954 passed, 0 failed, 2 skipped. HEAD = 20c34e9.
+#
+# Sprint: D-185 — ASGNIC string coercion fix
+# Bug: &ANCHOR = '0' → error 208 "keyword value assigned is not integer"
+# Fix location: AssignReplace (=).cs Assign() — when leftVar.IsKeyword and
+#   rightVar is not IntegerVar, attempt Convert(VarType.INTEGER) first.
+#   If conversion succeeds, use the converted value; only error 208 if it fails.
+# Gate: TEST_Corpus_099_keyword_rw PASS → remove [Ignore]
+#       crosscheck: 80/80
+#       1955 passed, 0 failed, 1 skipped
+```

@@ -119,7 +119,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-35 | one4all `b0d4d5b7` | **M-SS-MONITOR**: sync-step func-hook monitor → names CMPILE_fn hang automatically → then M-SS-HARNESS |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-181 | one4all `e1a66fb` | D-182: fix str splice write-back → ≥170p |
+| **one4all-SNOBOL4-NET** | D-185 | snobol4dotnet `20c34e9` | D-185: ASGNIC string coercion fix → 80/80 crosscheck → 1955p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
