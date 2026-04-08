@@ -114,7 +114,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (SCRIP unified)** | RT-125 | one4all `0f316e82` · corpus `3fd44d0` · PASS=178/203 | **M-SCRIP-U1** segment allocator; then M-DYN-B0 reset trampolines; then M-SCRIP-U3 SM-LOWER. See SCRIP-UNIFIED.md |
+| **RUNTIME (SCRIP unified)** | RT-125 | one4all `dab4ca31` · corpus `3fd44d0` · --sm-run PASS=161 / --ir-run PASS=178 | Fix SM Class A: `register_fn_alias("opsyn",...) + "EVAL"→EVAL_fn` in `snobol4_pattern.c` → PASS≥163. Then Class C (silent output), Class B (label resolution). See SESSIONS_ARCHIVE.md 2026-04-07x. |
 | **Silly SNOBOL4** | SS-19 | one4all `d1d96dcd` | M-SS-DIFF: section-by-section diff pass vs v311.sil → then M-SS-HARNESS (two-way harness vs CSNOBOL4) |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
