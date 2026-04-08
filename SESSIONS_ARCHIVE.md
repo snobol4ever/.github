@@ -33491,3 +33491,66 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 #   Pass 3 — ANCCL inversions (SC-1,3,5): flip ANCCL guards
 #   Pass 4 — individual bugs: SC-2,6,8,10,11,16,17,19,21,22,24,25,26,27,29
 ```
+
+---
+
+## Session 2026-04-07h — RT-140: field mutator setter + milestone audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `df8a4a9d` · .github `53b1433`
+
+**Build gate:** ✅ clean, zero errors.
+
+**Baseline:** PASS=163/203 → **PASS=164/203** (+1)
+
+### Work completed
+
+**Milestone audit (PLAN.md + MILESTONE-RT-RUNTIME.md + MILESTONE-SCRIP-X86-COMPLETION.md)**
+Verified actual codebase state against all milestone docs. Found and corrected:
+- MILESTONE-SCRIP-X86-COMPLETION.md: M-DIAG, M-JIT-RUN, M-DYN-B13 all completed but not marked. Removed their sections, updated switch coverage table (all WIRED). Removed M-BB-LIVE-WIRE prose (already ✅).
+- PLAN.md: RT-1–4 marked ✅ (INVOKE_fn, VARVAL/INTVAL/PATVAL, NAME_fn/ASGNIC, NAM_push/commit/discard all live in codebase). RT-5–8 marked ⚠️ CURRENT PRIORITY. NOW table updated to RT-139, PASS=163.
+- MILESTONE-RT-RUNTIME.md: Summary table updated with verified file names and ✅/⚠️ status.
+
+**Bug — RT-140: field mutator `fname(obj) = val` ✅**
+`sm_lower.c` statement-level `has_eq` block: `E_FNC` subject fell through to `lower_expr(subject) + SM_CALL "ASGN" 2` — ASGN not registered, Error 5.
+Fix 1: `sm_lower.c` — detect `s->subject->kind == E_FNC`, emit `lower_expr(obj_arg) + SM_CALL "fname_SET" 2`.
+Fix 2: `snobol4.c` — added `FACC_SET_FN(idx)` macro + 128 setter trampolines + `_facc_set_fns[]` array. In `DATA_fn` registration loop: register `fname_SET` (2-arg: val, obj) alongside `fname` getter (1-arg).
+Test `095_data_field_set` now passes.
+
+### Remaining failures (39 total)
+
+**Field mutator cluster (still failing):**
+- `1115_data_basic/004`: `rson(lson(b))` — nested accessor on mutated object. Not a setter issue — different bug (read path after mutation?).
+- `1116_data_overlap`, `test_stack`, `1012_func_locals`, `1013_func_nreturn`, `1114_item`, `beauty_stack_driver` — likely cascade.
+
+**EVAL cluster:**
+- `1016_eval`, `expr_eval`: `*('abc' 'def')` deferred concat. `SM_PUSH_EXPR` stores `EXPR_t*` in `d.ptr`; `EVAL_fn` calls `eval_node(d.ptr)`. Silent failure — root cause not yet pinpointed.
+
+**Other:** fileinfo, triplet, 1112_array_multi, 1113_table, 212_indirect_array, cross, word1, wordcount, beauty_* (18).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+make scrip
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"
+# Gate: clean build. PASS=164/203.
+#
+# Next bug 1 — nested accessor after mutate (1115/004: rson(lson(b)))
+#   ./scrip --dump-sm corpus/.../1115_data_basic.sno | head -100
+#   Check: does _make_fget return the live field or a copy?
+#   snobol4.c _make_fget line 909: returns obj.u->fields[fidx] by value.
+#   After _make_fset writes fields[fidx], _make_fget on the *result* of fget
+#   needs the inner object — nested call rson(lson(b)) means:
+#     inner = lson(b)  → returns fields[0] of b (a DESCR_t, not a pointer)
+#     rson(inner)      → inner must be a DATA object, not just a value
+#   Check what the test actually stores in lson(b) — is it a nested DATA object?
+#
+# Next bug 2 — EVAL deferred expr (1016_eval/001: eval concat expr)
+#   Add printf to EVAL_fn in snobol4_pattern.c line 1576:
+#     fprintf(stderr, "EVAL_fn: v=%d ptr=%p\n", expr.v, expr.ptr);
+#   Rebuild, run 1016_eval — confirm DT_E arrives with non-NULL ptr.
+#   If ptr is NULL: sm_emit_ptr is not storing the child EXPR_t* correctly.
+#   Check sm_prog.c sm_emit_ptr — does it copy ptr into ins->a[0].ptr?
+#   Then check sm_interp.c SM_PUSH_EXPR — does it read ins->a[0].ptr?
+```
