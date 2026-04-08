@@ -33939,3 +33939,61 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # M-SS-BLOCK: move to §11 SCAN — SJSR, SCNR, fullscan blocks
 # Tools: /tmp/sil_sym_counts.txt (regenerate if needed), strip comments before counting
 ```
+
+---
+
+## Session 2026-04-08b — SS-33: M-SS-SYMREF complete + M-SS-BLOCK §11 start (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `a3b9179a` · .github `e15c815` (pulled)
+
+**Build gate:** ✅ clean throughout.
+
+### M-SS-SYMREF — COMPLETE (mark finished)
+
+Worked count=1 and count=2 symbols with oracle≥5. **One real bug found and fixed:**
+
+- **`scan.c` `realst_fn` → `REALST_fn`** (3 sites: SCANRV, SCANRP, SJSSRP real-type coercion paths). `realst_fn` (platform.c) lacks trailing-dot fix and uses FRSGPT arena instead of static buffer. Fixed to `REALST_fn` (strings.c). Committed `a3b9179a`, pushed, rebased.
+
+All other count=2/oracle≥5 symbols: API differences (SIL labels/registers vs C locals), stubs, or skipped BLOCKS §20.
+
+**⚠️ SYMREF METHOD NOTE — read before next SYMREF session:**
+The count=2 filter was too coarse — most count=2 symbols are SIL branch labels or scratch registers with zero signal. The right filter for finding real bugs is **high oracle/ours ratio where ours is small** (e.g. ours≤5, oracle≥10, ratio≥3×). Also worth filtering out known-API-difference categories: SIL labels (BRANCH targets), SIL scratch registers (A1PTR–A7PTR, XPTR family), SIL stack ops (PUSH/POP). Regenerate with:
+```bash
+# Build ratio table:
+python3 -c "
+import re, subprocess
+ours = {}
+for line in open('/tmp/ours_counts.txt'):
+    c,s = line.split(); ours[s]=int(c)
+oracle = {}
+for line in open('/tmp/oracle_counts.txt'):
+    c,s = line.split(); oracle[s]=int(c)
+rows=[]
+for s,oc in oracle.items():
+    ou = ours.get(s,0)
+    if ou <= 5 and oc >= 10 and ou > 0:
+        rows.append((oc/max(ou,1), s, ou, oc))
+rows.sort(reverse=True)
+for ratio,s,ou,oc in rows[:40]:
+    print(f'{ratio:6.1f}x  {s:20s}  ours={ou}  oracle={oc}')
+"
+# Then manually filter out: PUSH/POP, A[0-9]PTR, BRANCH, known stubs
+```
+
+### M-SS-BLOCK §11 SCAN — started this session
+
+See §NOW below.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Sprint: SS-33 continued
+# M-SS-BLOCK §11: SCAN blocks — work through oracle snobol4.c SCAN/SJSR/SCNR
+# vs our scan.c side by side. Focus on SJSR fullscan/nval patterns.
+# Oracle: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
