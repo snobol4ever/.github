@@ -20,10 +20,10 @@
 
 | File | Lines | § | Status |
 |------|-------|---|--------|
-| `arena.c` | 572 | §5 (GC/BLOCK/GENVAR) | ⬜ |
-| `strings.c` | 230 | §5 helpers | ⬜ |
-| `symtab.c` | 221 | §4 FINDEX/GENVUP | ⬜ |
-| `data.c` | 558 | §24 init | ⬜ |
+| `arena.c` | 572 | §5 (GC/BLOCK/GENVAR) | ✅ SS-29d (4 bugs) |
+| `strings.c` | 230 | §5 helpers | ✅ SS-29d (2 bugs) |
+| `symtab.c` | 221 | §4 FINDEX/GENVUP | ✅ SS-29d (4 bugs) |
+| `data.c` | 558 | §24 init | ✅ SS-29d (0 bugs) |
 | `argval.c` | 412 | §8 | ⬜ |
 | `arith.c` | 311 | §9 | ⬜ |
 | `patval.c` | 435 | §10 | ⬜ |
@@ -50,9 +50,10 @@
 
 ## Watermark
 
-**Last file audited:** —
-**Last line audited:** —
-**Session:** —
+**Last file audited:** `data.c` (line 558 — complete)
+**Previous files complete:** `arena.c` (572), `strings.c` (230), `symtab.c` (221)
+**Next file:** `argval.c` (line 1)
+**Session:** SS-29d (2026-04-07e)
 
 ---
 
@@ -60,4 +61,13 @@
 
 | # | File | Line | Function | Description |
 |---|------|------|----------|-------------|
-| (bugs from this milestone go here) |
+| A4  | arena.c  | ~120 | GENVAR_fn | Missing CONVSW=0 at entry |
+| A10 | arena.c  | ~280 | GC_fn GCBA | GCM pseudo-block forced f=PTR instead of D(ST1PTR) |
+| A13 | arena.c  | ~370 | GC_fn GCLAP | off-by-one: off>=0 should be !=0 (title slot) |
+| A14 | arena.c  | ~420 | GC_fn GCLAT | same off-by-one in permanent-block pass |
+| S1  | strings.c | ~113 | SPCINT_fn | Always stripped whitespace; oracle only when SPITCL!=0 |
+| S2  | strings.c | ~80  | TRIMSP_fn | Used ==' ' only; oracle uses isspace() |
+| Y1  | symtab.c | ~25  | locapt_fn | Returned type-slot not pair-base; AUGATL wrote wrong offsets |
+| Y2  | symtab.c | ~50  | locapv_fn | Returned value-slot not pair-base; FINDEX read wrong offset |
+| Y3  | symtab.c | ~110 | AUGATL_fn | New-block type/value one DESCR too high |
+| Y4  | symtab.c | ~155 | DTREP_fn  | Searched DTLIST instead of DTATL |
