@@ -11,10 +11,10 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `D-185` — fix ASGNIC string coercion → TEST_Corpus_099_keyword_rw passes → 80/80 crosscheck
-**HEAD:** `20c34e9` D-184
-**Invariant:** `dotnet test` → 1954/1956 (2 skipped, 0 failed) before any work
-**Milestone:** D-184 ✅ — M-NET-P35-FIX complete
+**Sprint:** `D-186` — fix Gimpel test bugs + D-NET-187 OPSYN + D-NET-186 LGT-RHS + TEST_Abend regression + 099 DATATYPE casing
+**HEAD:** `bdc541f` D-185
+**Invariant:** `dotnet test` → 2008 passed, 11 failed, 1 skipped before any work
+**Milestone:** D-185 partial — 64 new tests added (54 pass); ASGNIC fix written but 099 still failing (DATATYPE casing)
 
 **⚠ CRITICAL NEXT ACTION — Session D-185:**
 
