@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-23 | one4all `7396177c` · .github (this commit) | **M-SS-DIFF-RECHECK**: §8 PATVAL+XYARGS → §6 cmpile.c |
+| SS-24 | one4all `3fbd1b9d` · .github (this commit) | **M-SS-DIFF-RECHECK**: §6 expr.c — EXPR/ELEMNT/BINOP/UNOP |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -209,7 +209,9 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §19 | sil_func.c | ✅ complete (2026-04-07y) — 1 bug |
 | §4 | symtab.c | ✅ complete (2026-04-08a) — 2 bugs |
 | §7 | interp.c | ✅ gaps noted (2026-04-08a) — 0 code fixes |
-| §8 | argval.c (partial) | ✅ VARVAL+INTVAL fixed (2026-04-08a) — 2 bugs; PATVAL+XYARGS ⬜ |
+| §6 | cmpile.c | ✅ complete (2026-04-08b) — 4 bugs |
+| §6 | expr.c | ⬜ next |
+| §8 | argval.c | ✅ complete (2026-04-08b) — 4 bugs total |
 | §20–§23 | remaining TUs | ⬜ next |
 
 ---
