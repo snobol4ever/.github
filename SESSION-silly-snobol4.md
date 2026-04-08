@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-29d | one4all `52e8e061` · .github `69a60c0` | **M-SS-AUDIT**: continue deep audit — next file `argval.c` (line 1). See MILESTONE-SS-AUDIT.md watermark. |
+| SS-30 | one4all `b71ea93e` · .github `51f9cf3` | **M-SS-DIFF §20–§23 complete** (1 bug fixed). Next: M-SS-AUDIT watermark continues — check MILESTONE-SS-AUDIT.md. |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -212,7 +212,7 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §6 | cmpile.c | ✅ complete (2026-04-08b) — 4 bugs |
 | §6 | expr.c + forwrd.c (CARDTB bug) | ✅ complete (SS-29 / 2026-04-07d) — 4 bugs |
 | §8 | argval.c | ✅ complete (2026-04-08b) — 4 bugs total |
-| §20–§23 | remaining TUs | ⬜ next |
+| §20–§23 | remaining TUs | ✅ complete (SS-30) — 1 bug: END_fn XITHND return path |
 
 ---
 

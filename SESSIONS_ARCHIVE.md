@@ -33253,3 +33253,41 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Method: three-way diff — v311.sil §8 + snobol4.c + src/silly/argval.c
 # For each variable: check usage, operations, order, field offsets, return paths.
 ```
+
+---
+
+## Session 2026-04-07g — SS-30: §20–§23 diff complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `b71ea93e` · .github `51f9cf3`
+
+### M-SS-DIFF §20–§23 — 1 bug fixed
+
+**§21 Common Code (RTN1/RETNUL/RTZPTR/GENVSZ etc.):** ✅ No functions needed — these SIL trampoline labels are correctly inlined as `return` at call sites throughout the tree.
+
+**§22 Termination:**
+- `END_fn` XITHND return path: `!= FAIL` → `== OK`. Oracle `switch(XITHND){case 3: BRANCH(RTNUL3)}` means only a successful handler dispatch (OK) triggers restart; FAIL (no handler) falls through to END0 (flush + normal exit). Prior code returned on any non-FAIL result, skipping termination output.
+- `FTLEND_fn` MSGNO structural note: our `const char*[]` vs oracle's arena DESCR table. Acceptable for now (data_init stub); flagged for M-SS-HARNESS prep.
+- `SYSCUT_fn`: ✅ correct.
+
+**§23 Error handlers:** ✅ all confirmed correct against oracle.
+
+### M-SS-DIFF status: **COMPLETE** (all §1–§23 done)
+
+| Total bugs across M-SS-DIFF | Sessions |
+|-----------------------------|----------|
+| ~60 bugs across 22 TUs | SS-19 through SS-30 |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-AUDIT.md   # check watermark
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build, zero warnings.
+# M-SS-DIFF is COMPLETE. 
+# Next milestone: M-SS-AUDIT (three-way deep audit) — continue from watermark.
+# Or: M-SS-HARNESS prep — sil_data_init() §24 generator.
+# As directed by Lon.
+```
