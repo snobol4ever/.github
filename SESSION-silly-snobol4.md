@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-27 | one4all `c04dc8fd` · .github (this commit) | **M-SS-DIFF-RECHECK**: §9 arith.c (ADD/SUB/MPY/DIV/EQ/GE/GT/LE/LT/NE/INTGER/MNS/PLS) |
+| SS-28 | one4all `c04dc8fd` · .github (this commit) | **M-SS-DIFF-RECHECK**: §10 patval.c pattern-valued fns |
 
 ## ⛔ §INFO additions (2026-04-06)
 
