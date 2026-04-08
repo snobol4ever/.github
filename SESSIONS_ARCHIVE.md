@@ -34530,3 +34530,78 @@ cc -o snobol4-mon isnobol4-injected.o $ALL_OBJS \
 ```
 
 ### §NOW update
+
+---
+
+## Session 2026-04-08i — D-182/183: Jeff Cooper merge + corpus ref tests (Lon + Claude Sonnet 4.6)
+
+**HEAD:** snobol4dotnet `0d3d9e4` · .github `(this commit)`
+
+**Build gate:** ✅ 1953 passed, 0 failed, 3 skipped, 0 warnings throughout.
+
+### Work completed
+
+**Planning session — snobol4dotnet focus:**
+- Reviewed all active milestones for snobol4ever/snobol4dotnet specifically
+- Confirmed platform policy: Windows + Linux target; macOS expected but untested
+- Corrected erroneous "intentionally dropped Windows" claim (was fabricated — git history shows cross-platform work throughout)
+- Updated HQ: REPO-snobol4dotnet.md, INTERP-NET.md platform policy statements
+
+**D-182: Jeff Cooper improvements merged:**
+- Reviewed Jeff's 2026-04-07 ZIP — all changes correct and Linux-safe
+- Key finding: BuilderEmitMsil.cs and BuilderEmitMsilDebug.cs are a matched pair — both Jeff's versions required
+- Fixed pre-existing NOCONV bug: GCHandle.Pinned → GCHandle.Normal for ArrayVar/TableVar
+- Fixed parallel test interference: [DoNotParallelize] on ExtNoconvTests
+- Removed all [Ignore] — 1905/1905 passing, 0 warnings
+- Pushed: `521ee5f`
+
+**D-183: corpus ref tests:**
+- Surveyed 180 corpus .sno+.ref pairs — 51 not yet in test suite
+- Added SetupTests.RunWithInput() using Executive.ReadLineDelegate (18 lines, no Console.SetIn)
+- Added 6 new test classes: Hello(4), Keywords(5), Patterns(2), Misc(5), RungW(26), InputTests(9)
+- 3 [Ignore] with documented bug refs found by new tests:
+  - TEST_Corpus_strings_cross: @N VarSlotArray clobber (M-NET-P35-FIX)
+  - TEST_Corpus_099_keyword_rw: &ANCHOR='0' ASGNIC string coercion throws error 208
+  - TEST_Corpus_control_expr_eval: NRETURN+*func()+EVAL gaps (M-NET-EVAL-COMPLETE)
+- Library tests excluded (need -include path config)
+- Added M-NET-CORPUS-TESTS milestone
+- Pushed: `0d3d9e4`
+
+**@N root cause identified (not yet fixed):**
+AtSign.Scan writes IdentifierTable["NH"] correctly but SyncVarSlot() silently
+skips VarSlotArray update because NH has no compile-time slot (first created at
+runtime). PushVar reads stale VarSlotArray[idx]. Fix: in SyncVarSlot, allocate
+slot on demand when symbol not found in SymbolToSlotIndex.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 1953 passed, 0 failed, 3 skipped. HEAD = 0d3d9e4.
+#
+# Sprint: D-184 — M-NET-P35-FIX
+# Fix: ExecutionCache.cs SyncVarSlot() — allocate slot on demand for new symbols:
+#   if (!SymbolToSlotIndex.TryGetValue(symbol, out var idx))
+#   {
+#       ExpandVarSlotArray();  // picks up any new symbols added to IdentifierTable
+#       if (!SymbolToSlotIndex.TryGetValue(symbol, out idx)) return;
+#   }
+#   VarSlotArray[idx] = value;
+#
+# OR simpler: in AtSign.Scan, after writing IdentifierTable, call ExpandVarSlotArray().
+#
+# Gate: TEST_Corpus_strings_cross passes → remove [Ignore]
+#       crosscheck 80/80
+#       1956 passed, 0 failed, 2 skipped (099_keyword_rw + expr_eval remain)
+#
+# Then: ASGNIC string coercion fix → TEST_Corpus_099_keyword_rw passes
+# Then: NRETURN/EVAL fix → TEST_Corpus_control_expr_eval passes
+# Goal: M-NET-CORPUS-TESTS ✅ (0 [Ignore], 0 skipped)
+```
