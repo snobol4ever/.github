@@ -33399,3 +33399,33 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Continue M-SS-AUDIT: patval.c (line 1)
 # Method: three-way diff — v311.sil §10 + snobol4.c + src/silly/patval.c
 ```
+
+---
+
+## Session 2026-04-07g (cont) — SS-30d: M-SS-AUDIT patval.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `2add1d3a`
+
+### M-SS-AUDIT: patval.c — 3 bugs fixed
+
+| # | Function | Bug |
+|---|----------|-----|
+| PV-1 | ATOP_fn | INVOKE exit 2 (name returned) = OK, was NRETURN |
+| PV-2 | nam_dol | Same INVOKE exit 2 mapping error (NRETURN→OK) |
+| PV-3 | lprtnd | DEQL YCL,LNTHCL sense inverted — LEN skips MOVA (ZCL=0); POS/TAB/RPOS/RTAB set ZCL=N |
+
+Confirmed correct: maknod_fn, linkor_fn, lvalue_fn, cpypat_fn, charz_abnsnd, ARBNO_fn, OR_fn.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-AUDIT.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build, zero warnings.
+# Continue M-SS-AUDIT: scan.c (line 1) — largest file (1175 lines, §11)
+# Method: three-way diff — v311.sil §11 + snobol4.c + src/silly/scan.c
+# Note: scan.c was already diff'd in M-SS-DIFF (SS-29 session) — check what was found then
+```
