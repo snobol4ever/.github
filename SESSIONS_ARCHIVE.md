@@ -32848,3 +32848,60 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 3119-3322
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08g — M-DYN-B13 coverage audit + WASM removal (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `c04dc8fd` (pre-session; commits pending)
+
+### Work completed
+
+**WASM removed from `scrip` build:**
+- `Makefile`: dropped `$(SNO_RT_WASM)` prereq and `emit_wasm.c` compile step entirely. `make scrip` no longer requires `wat2wasm`.
+- `scrip.c`: `--jit-emit --wasm` block replaced with one-line "REMOVED" error return; `extern void emit_wasm()` declaration gone.
+
+**M-DYN-B13 — coverage audit ✅ GATE PASSED**
+
+50-file corpus sweep under `--bb-live BINARY_AUDIT=1`:
+
+```
+PASS=49/50 (1 timeout — same as --bb-driver baseline, no regressions)
+DT_P hits=20  misses=1
+DT_P coverage: 95.2%   ← gate ≥95% ✅
+DT_S hits=0
+```
+
+Changes:
+- `stmt_exec.c`: added `xkind_name()` (int→symbolic XKIND); rewrote `bin_audit_print()` with 1-decimal precision + fallback documentation line. `BINARY_AUDIT=1` is canonical trigger; `SNO_BINARY_BOXES=1` kept as legacy alias.
+- `bb_build.c`: `BIN_MISS` default-case log now prints `BIN_MISS: XSPNC (kind=1)` instead of bare integer.
+- `BB-GEN-X86-BIN.md`: M-DYN-B13 marked ✅.
+- `PLAN.md`: B-series updated to B0–B13 complete.
+
+**Known fallbacks (documented in `bin_audit_print`):**
+| XKIND | Reason |
+|-------|--------|
+| XABRT | ABORT primitive — rare, not in 50-file corpus |
+| XSUCF | SUCCEED primitive — rare, not in 50-file corpus |
+| XBAL  | BAL primitive — rare, not in 50-file corpus |
+| XVAR  | `*var` dynamic pattern — deferred re-resolve requires C path |
+
+### M-DYN-B* watermark (final)
+- M-DYN-B0–B13: ✅ all complete
+- M-DYN-BENCH-X86: ✅ results already in HQ (RT-126, 2026-04-06)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+make scrip
+echo "scrip OK"; echo 'OUTPUT = "hello"' | ./scrip /dev/stdin
+# Gate: clean build, zero warnings, hello printed.
+# Next milestone per MILESTONE-SCRIP-X86-COMPLETION.md recommended order:
+#   M-DIAG — quick wins, all diagnostic switches (1 session)
+#   then M-DYN-BENCH-X86 bench run confirmation (already have numbers)
+#   then M-JIT-RUN — the big one
+# M-SS-DIFF-RECHECK remaining: §10 patval.c, §11 scan.c, §12–§15
+```

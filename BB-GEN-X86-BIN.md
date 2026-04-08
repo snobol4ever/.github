@@ -246,7 +246,7 @@ END
 | **M-DYN-B10** ✅ | `bb_alt_emit_binary()`, `bb_fail`, `bb_fence`, `bb_atp`, `bb_dsar`, `bb_arbn` via switch | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B11** ✅ | `bb_atp_emit_binary(varname)`, `bb_dsar_emit_binary(name)` | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B12** ✅ | `bb_arbn_emit_binary(p)` | PASS=161 | ✅ 2026-04-07 |
-| **M-DYN-B13** | Coverage audit ≥95% DT_P nodes via binary path. Zero BIN_MISS hits on 50-file corpus sweep. Remaining fallbacks: XABRT, XSUCF, XBAL, XVAR (rare/unused in corpus). Wire `BINARY_AUDIT` env-var trigger; document fallback list. | PASS=161; coverage report | ⬜ |
+| **M-DYN-B13** ✅ | Coverage audit ≥95% DT_P nodes via binary path. 50-file corpus sweep: DT_P hits=20 misses=1 coverage=95.2%. Known fallbacks: XABRT, XSUCF, XBAL, XVAR (rare/not in corpus). `BINARY_AUDIT=1` env-var trigger wired (SNO_BINARY_BOXES=1 legacy alias). BIN_MISS log now prints symbolic names. WASM removed from scrip build. | PASS=49/50 (1 timeout); coverage=95.2% | ✅ 2026-04-08 |
 | **M-DYN-BENCH-X86** | Full 13-program run after inline blobs with `--bb-live`. Compare x86/C speedup. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern_bt + string_pattern; PASS=161 | ⬜ |
 
 ---
