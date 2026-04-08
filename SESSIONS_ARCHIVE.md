@@ -34643,3 +34643,42 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # M-SS-BLOCK: §7 BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE (interp.c, v311.sil lines 2520–2678).
 # Method: ONE labeled block at a time. v311.sil label → oracle snobol4.c → ours.
 ```
+
+---
+
+## Session 2026-04-08 — SS-39: M-SS-BLOCK §7 BASE/GOTG/GOTL/GOTO/INIT (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `769d4b5a` · .github `(this push)`
+
+**Build gate:** ✅ clean throughout.
+
+**M-SS-BLOCK: §7 blocks verified (v311.sil lines 2520–2648)**
+
+- BASE_fn: ✅ OK
+- GOTG_fn: ✅ OK (XPTR/OCBSCL register difference is model-equivalent)
+- GOTL_fn: ✅ OK (previously verified SS-36)
+- GOTO_fn: ✅ OK
+- INIT_fn: ✅ Fixed — BUG-INIT-1: FRTNCL loaded from D_A(XCL) instead of D_V(XCL)
+
+**Bugs fixed:**
+- BUG-INIT-1: `SETAV(FRTNCL,XCL)` → `D_A(FRTNCL) = D_V(XCL)` — failure offset lives in V field of XCL
+
+**INTERP_fn and INVOKE_fn: not yet verified this session — next.**
+
+**Watermark: v311.sil line 2648** (end of INIT). Next: INTERP/INVOKE (~lines 2636–2678).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 769d4b5a.
+#
+# Sprint: SS-40
+# M-SS-BLOCK: §7 INTERP/INVOKE (v311.sil lines 2636–2678, interp.c).
+# Then §8: ARGVAL/EXPVAL/EXPEVL/EVAL/INTVAL/PATVAL/VARVAL/VARVUP (argval.c, lines 2679–2922).
+# Method: oracle snobol4.c three-way, one block at a time.
+```
