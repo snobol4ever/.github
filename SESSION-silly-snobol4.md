@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-36 | one4all `96530ca8` · .github (this push) | **M-SS-MON-2: fix inject_snobol4.py (ENTRY placement) → snobol4-mon hello world → oracle trace → M-SS-MON-4 two-way sync** |
+| SS-37 | one4all `e22a0f46` · .github (this push) | **M-SS-MON-5: fix CMPILE_fn segfault after FORBLK returns → hello world from Silly** |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 
