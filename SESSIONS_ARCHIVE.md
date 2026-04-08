@@ -32589,3 +32589,57 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 ### Open items
 - EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
 - §1–§15 recheck pending
+
+---
+
+## Session 2026-04-07z — M-SS-DIFF-RECHECK §22+§23 complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `9af8435d` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §22+§23 — sil_errors.c — 7 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | FTLTST_fn — entirely wrong body (had END logic); fixed: FATLCL=0 → FTLTS2 → FTERST |
+| 2 | FTLERR_fn — was calling FTLTST; fixed: check FTLLCL≤0→FTLEND, FATLCL=1, FTLTS2 |
+| 3 | FTERST_fn — missing entirely; added with ERRLCL check, ERRTEXT intern, TRAPCL/TRPHND, XITHND, SELBRA SCERCL |
+| 4 | INTR31_fn — was calling FTLTST (loses SCERCL=3 pre-set); fixed: call FTERST directly |
+| 5 | PROTER_fn — errtyp was 30; oracle=6 |
+| 6 | SIZERR_fn — was FTLTST; oracle=FTLEND |
+| 7 | UNDFFE_fn — errtyp was 29; oracle=9 |
+
+Also added missing: OVER_fn (21→FTLEND), UNDF_fn (5→FTLTST), UNTERR_fn (12→FTLTST),
+USRINT_fn (34+clear UINTCL→FTLTST), CNTERR_fn (35→FTLERR), CFTERR_fn (39→FTLEND),
+SCERST_fn (SCERCL=1→FTERST), ERRTKY global in sil_platform.c + extern in sil_data.h.
+
+**Build:** zero warnings, zero errors ✅
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ 9 bugs
+- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
+- §18 sil_pred.c: ✅ 1 bug
+- §19 sil_func.c: ✅ 1 bug
+- §22+§23 sil_errors.c: ✅ 7 bugs
+- §1–§15 + §20–§21 (sil_main, sil_support, sil_arith, sil_scan, sil_patval, sil_arrays, sil_io, sil_define, sil_extern, sil_interp, sil_cmpile, sil_trepub, sil_symtab, sil_strings, sil_arena): ⬜ next
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §1–§15 + §20–§21 three-way oracle+snobol4.c+ours.
+# Start with §4 sil_support.c (AUGATL, CODSKP, DTREP, FINDEX) — high-impact helpers.
+# Then §2 sil_main.c BEGIN, §7 sil_interp.c (INTERP/INVOKE/INIT/GOTO).
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
+
+### Open items
+- EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
+- §1–§15 + §20–§21 recheck pending
+- ERRTKY.a not yet wired to interned ERRTSP in sil_data_init() — needed for keyword trace on errors
