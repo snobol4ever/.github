@@ -34436,3 +34436,97 @@ INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 #   Gate: no regression (PASS >= 168)
 # Recommend: Option B (RT-5 is the milestone sequence; triplet is opportunistic)
 ```
+
+---
+
+## Session 2026-04-08h — SS-35: M-SS-MONITOR build + snobol4-mon nearly working (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `96530ca8` · .github `c9ea616`
+
+**Build gate:** ✅ clean throughout (Silly unchanged).
+
+### Work completed
+
+**M-SS-MON-0 ✅** — Infrastructure builds: `mon_hooks.c`, `monitor_sync.py`, `ping_test`.
+
+**M-SS-MON-1 ✅** — Ping test passes end-to-end:
+```
+MATCH  ENTER ping
+MATCH  EXIT ping OK
+EOF [csn]
+EOF [sly]
+PASS — both participants completed 2 steps
+```
+FIFO plumbing confirmed working.
+
+**M-SS-MON-2 ⚠️ — snobol4-mon links, runs, but fails at storage init**
+
+Root cause of prior crashes: inject_snobol4.py was instrumenting non-SIL
+functions (e.g. hash() macro expansion). Fixed by whitelisting against proc.h
+(153/383 functions instrumented — only real SIL functions).
+
+Key build facts learned the hard way:
+- Original build uses `isnobol4.c` (not `snobol4.c`) — SNOBOL4=isnobol4 in Makefile2.tmp
+- Must compile with `-DBLOCKS` — MOVBLK2 macro only defined `#ifdef BLOCKS`
+- Link flags: `-rdynamic -lutil -ldl -lz -lbz2 -lm`
+- All other `.o` files from the original build are reused — only `isnobol4.o` is replaced
+
+Current failure: `Error 23 — Insufficient storage for initialization`
+Root cause: `inject_snobol4.py` inserts `mon_enter(name)` immediately after `{`,
+BEFORE `ENTRY(name)`. The ENTRY macro sets up the call stack. Inserting before
+it likely corrupts the stack frame or triggers an early check that fails.
+
+**One-line fix:** in `inject_snobol4.py`, insert `mon_enter()` AFTER the
+`ENTRY(name)` line, not immediately after `{`.
+
+### Lesson
+
+CSNOBOL4 always builds. Makefile2.tmp has everything. Don't second-guess it.
+Read `grep "^SNOBOL4\b\|^CFLAGS\|^LDFLAGS\|^BLOCKS" Makefile2.tmp` first.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 96530ca8.
+#
+# Sprint: SS-36 — M-SS-MON-2: fix inject_snobol4.py then run oracle trace
+#
+# Step 1: fix inject_snobol4.py — insert mon_enter AFTER ENTRY() line:
+#   In inject_snobol4.py, after appending the opening line, scan forward
+#   for the ENTRY(name) line and insert mon_enter there instead.
+#
+# Step 2: rebuild snobol4-mon:
+cd /home/claude/work/snobol4-2.3.3
+python3 /home/claude/one4all/test/ss-monitor/inject_snobol4.py \
+    isnobol4.c isnobol4-injected.c
+cc -g -O0 -DBLOCKS -I. -Iinclude \
+    -I/home/claude/one4all/test/ss-monitor \
+    -c isnobol4-injected.c -o isnobol4-injected.o
+ALL_OBJS=$(ls *.o | grep -v "^isnobol4\.o$\|^snobol4\.o$\|^isnobol4-injected\.o$\|^snobol4-injected\.o$\|^snobol4-extern" | tr '\n' ' ')
+cc -o snobol4-mon isnobol4-injected.o $ALL_OBJS \
+    /home/claude/one4all/test/ss-monitor/mon_hooks.c \
+    -I/home/claude/one4all/test/ss-monitor \
+    -rdynamic -lutil -ldl -lz -lbz2 -lm
+# Gate: timeout 5 ./snobol4-mon /tmp/hello.sno → "hello world"
+#
+# Step 3: M-SS-MON-2 — run oracle trace alone (no Silly):
+#   mkfifo /tmp/csn.evt /tmp/csn.ack
+#   MON_EVT=/tmp/csn.evt MON_ACK=/tmp/csn.ack ./snobol4-mon /tmp/hello.sno &
+#   (read /tmp/csn.evt line by line, echo G to /tmp/csn.ack after each)
+#   → prints full ENTER/EXIT sequence for hello world — ground truth
+#
+# Step 4: instrument Silly (hand-annotate ~60 *_fn() functions with MON_ENTER/MON_EXIT)
+#   OR: use inject_snobol4.py adapted for our naming convention
+#
+# Step 5: M-SS-MON-4 — run both through monitor_sync.py → first divergence named
+#
+# After M-SS-MON-4: fix whatever diverges, iterate until M-SS-MON-5 (hello world PASS)
+```
+
+### §NOW update
