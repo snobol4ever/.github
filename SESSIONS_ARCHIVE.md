@@ -34096,3 +34096,31 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # M-SS-BLOCK: resume at v311.sil line 1248 (GENVAR block)
 # Method: three-way v311.sil + snobol4.c + ours. One block at a time.
 ```
+
+---
+
+## Session 2026-04-08e — SS-33: M-SS-BLOCK §5 GENVAR/SPLIT (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `3351c158` · .github (pending)
+
+**Build gate:** ✅ clean throughout.
+
+### Blocks checked ✅ (no bugs)
+
+- GENVAR/GNVARI/GENVUP (v311.sil 1248–1320) — symbol table intern; chain walk logic confirmed correct
+- SPLIT (1537–1553) — block splitting; TOP/SETSIZ/SETFI all match oracle
+
+### M-SS-BLOCK watermark: v311.sil line 1553
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Sprint SS-33 continued
+# M-SS-BLOCK: resume at v311.sil line 1554 (§6 Compiler — BINOP block)
+# Method: three-way v311.sil + snobol4.c + ours. One block at a time.
+```
