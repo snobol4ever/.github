@@ -33054,3 +33054,52 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Gate: clean build, zero warnings.
 # Next: fix FORWRD forrun() CARDTB return handling, then M-SS-HARNESS prep
 ```
+
+---
+
+## Session 2026-04-07c — SS-28 HANDOFF (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `7a78c7e7` · .github `a6e9bcb`
+
+**Build gate:** ✅ clean, zero warnings.
+
+### Full session summary (SS-28 + SS-28b)
+
+**Name-identity audit — complete:**
+- ARBBACK→ARBACK, NXFCLS removed, GCTTLL→GCTTTL, ANYCL/NNYCL/SNODSZ/ARBACK removed from data.c (platform.c canonical), OCBSVC removed (phantom), SALICL/STARCCL/DSARCL/FNCECL/SUCCCL removed (dead phantoms), CONTIN/STOPSH kept (legitimate C helpers)
+
+**256-byte table audit — complete:**
+- All 31 syn.c tables now oracle-exact (verified by byte-level diff script)
+- Previously wrong: IBLKTB(253), EOSTB(254), LBLXTB(190), ELEMTB(133), LBLTB(131), GOTFTB/GOTOTB/GOTSTB, NUMBTB, UNOPTB
+- Runtime tables corrected: DQLITB, EXPBTB, EXPTB, FLITB, INTGTB, NBLKTB, NUMCTB, SQLITB, STARTB, TBLKTB, VARATB, VARBTB, VARTB
+- New BLOCKS tables added: SBIPTB, BBIOPTB, BSBIPTB
+- SPANTB/BRKTB: {0} stubs intentional — runtime-filled by clertb/plugtb
+- STREAM_fn confirmed correct: 1-based indexing, D_A(STYPE)=put, EOS=FAIL, break=OK
+- Action arrays verified exact via syn_init.h
+
+### Open items for next session
+1. **FORWRD forrun() bug:** `STREAM XSP,TEXTSP,CARDTB,COMP3,FORRN0` — FAIL (ST_EOS) should take COMP3 (error path), not recurse as "blank card". Currently `if (rc == FAIL) return forrun()` is wrong.
+2. **M-SS-HARNESS prep:** sil_data_init() needs §24 generator before harness can run.
+3. **EXDTSP** arena-intern (open from prior sessions).
+4. **ERRTKY.a** wire to ERRTSP in data_init().
+5. **INVOKE POP INCL** call-site audit.
+6. **RETNUL vs OK** predicate return convention audit in INTERP pass.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# First task: fix FORWRD forrun() CARDTB return handling:
+#   Oracle: STREAM XSP,TEXTSP,CARDTB,COMP3,FORRN0
+#     ST_EOS (ran off end) → COMP3 (error/fail to caller)
+#     ST_STOP (break found) → NEWCRD_fn()
+#     ST_ERROR → error
+#   Our forrun(): if (rc == FAIL) return forrun() — WRONG. FAIL=ST_EOS=COMP3=error.
+#   Fix: if (rc == FAIL) return FAIL; /* COMP3: premature EOS = error */
+#        /* rc == OK: break found, proceed to NEWCRD */
+#        return NEWCRD_fn();
+```
