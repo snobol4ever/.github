@@ -34842,3 +34842,73 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Step 5: Fix 099_keyword_rw assertion 4: change 'INTEGER' → 'integer'
 # Target: ≥2020 passed, 0 failed
 ```
+
+---
+
+## Session 2026-04-08l — D-185/D-186 handoff: M-NET-SNIPPETS milestone created (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `bdc541f` · .github `d562627`
+**HEAD at end:** same (no code changes this sub-session)
+
+### Work completed
+
+**M-NET-SNIPPETS milestone created** and set as current sprint D-186 in:
+- `MILESTONE-NET-SNOBOL4.md` — inserted in Phase C before M-NET-P35-FIX
+- `REPO-snobol4dotnet.md` — sprint + active milestones table updated
+- `PLAN.md` — NOW table row updated to D-186
+
+**SPITBOL spec corrections confirmed** (from spitbol-manual-v3.7.pdf):
+- `TRIM(S)` — trailing blanks/tabs only. Never leading. p.37 + reference confirmed.
+- Multi-statement — semicolons only. Spaces are concatenation operators. p.178.
+- `OPSYN(new,old,i)` — i=0 function synonym, i=1 unused unary op, i=2 unused binary op.
+- `DEFINE('SQRT()')` → error 248 correct: SPITBOL Appendix C item 1 explicitly prohibits redefining system functions (unlike standard SNOBOL4).
+- `TAB(N)` — advances cursor to absolute column N; captures everything since last cursor pos. No dotnet bug.
+
+**Gimpel corpus:** 145 programs total. Only 7 read last session. 138 remain to mine.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 2008 passed, 11 failed, 1 skipped. HEAD = bdc541f.
+#
+# Sprint: D-186 — M-NET-SNIPPETS
+#
+# STEP 1: Fix test-code bugs in CorpusRef_GimpelBits.cs (no dotnet changes needed):
+#   roman_small/large:     v<1>=1000; v<2>=900; ... (semicolons, not spaces)
+#   sqrt_perfect_squares:  rename DEFINE('MYSQRT(Y)') throughout
+#   fibonacci_recursive:   add FIB = N before :S(RETURN) for base case; remove pre-seeding lines
+#   trim:                  Assert.AreEqual("  hello", ...) — trailing only; or use &TRIM=1 + INPUT idiom
+#   fixed_column_extract:  Assert TRIM(NAME) correctly, or fix column numbers in pattern
+#   opsyn_alias:           OPSYN('UPPER', 'UCASE', 0) — arg3=0 for function synonym
+#
+# STEP 2: Investigate D-NET-187 (OPSYN builtin lookup after step 1 fix):
+#   grep -rn "FunctionTable" /home/claude/snobol4dotnet/Snobol4.Common/Runtime/Execution/Executive.cs | head -20
+#   Find where UCASE/LCASE/SIZE etc are registered — what key string?
+#
+# STEP 3: Investigate D-NET-186 (LGT-RHS error 212):
+#   Minimal probe: A=ARRAY(2); A<1>='b'; A<2>='a'; A<1> = LGT(A<2>,'c') A<2>
+#   Parser sees 'LGT(...)' result as subject not RHS value — find in parser/lexer
+#
+# STEP 4: Fix TEST_Abend regression (Expected:1, Actual:0):
+#   grep -n "TEST_Abend" /home/claude/snobol4dotnet/TestSnobol4/Function/Operator/Unary/Keyword\ \(\&\).cs
+#   Run isolated: dotnet test --filter TEST_Abend
+#
+# STEP 5: Fix 099_keyword_rw assertion 4:
+#   Change Assert 'INTEGER' → 'integer' in CorpusRef_Keywords.cs line ~82
+#   Then full test passes → remove remaining [Ignore] / 1 skipped becomes 0
+#
+# STEP 6: Mine more Gimpel programs (138 unread):
+#   Priority targets: HSORT MSORT LSORT TSORT (sort variants), COUNT FIND LIKE (string search),
+#   DAY MDY (date), BASE10 BASEB HEX (number bases), TRIG LOG (math), POKER TICTACTO (games)
+#   All self-contained (no -INCLUDE). Add to CorpusRef_GimpelBits.cs or new file.
+#
+# Target: ≥ 2040 passed, 0 failed, 0 skipped
+```
