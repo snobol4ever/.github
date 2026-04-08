@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-25 | one4all (pending commit) · .github (this commit) | **M-SS-DIFF-RECHECK**: §20-§21 common stubs, then §1-§5 |
+| SS-26 | one4all `bec11228` · .github (this commit) | **M-SS-DIFF-RECHECK**: §5 GENVAR/BLOCK/SPLIT, §3 compile loop |
 
 ## ⛔ §INFO additions (2026-04-06)
 
