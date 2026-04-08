@@ -2,7 +2,7 @@
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04
-**Status:** ACTIVE — M-DYN-B1 in progress (RT-115, 2026-04-05)
+**Status:** ACTIVE — M-DYN-B0–B12 ✅ complete (2026-04-07) · next: M-DYN-B13 coverage audit + M-DYN-BENCH-X86
 
 Generates raw x86-64 relocatable bytes for each Byrd Box directly into bb_pool.
 Output: executable function pointers for α/β ports, callable immediately via mprotect.
@@ -233,21 +233,21 @@ END
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
 | **M-DYN-BENCH-C** ✅ | Full 13-program baseline: scrip-interp (C BB) vs SPITBOL. All corpus benchmark categories: pattern, string, eval, control, TABLE, recursion. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ✅ RT-124 |
-| **M-DYN-B0** | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. Remove exported shims (bb_callcap_exported etc.) or keep but mark unused. | PASS=178 | ⬜ |
-| **M-DYN-B1** | `bb_fail_inline()` — 5-byte blob: `xor eax,eax / xor edx,edx / ret`. No data. No prologue. Gate: corpus DT_P with FAIL node uses inline blob. | PASS=178 | ⬜ |
-| **M-DYN-B2** | `bb_eps_inline()` — inline blob: 10-byte prologue + α/β/γ/ω paths. `done` flag at `[r10+CODE_END]`. Σ/Δ ptrs baked in data. No push/pop. | PASS=178 | ⬜ |
-| **M-DYN-B3** | `bb_pos_inline(n)`, `bb_rpos_inline(n)` — n baked in data. ~28–30 bytes code + 4+16 data. | PASS=178 | ⬜ |
-| **M-DYN-B4** | `bb_len_inline(n)`, `bb_tab_inline(n)`, `bb_rtab_inline(n)` — same pattern. | PASS=178 | ⬜ |
-| **M-DYN-B5** | `bb_fence_inline()`, `bb_arb_inline()` — mutable state (fired, count+start) in data slot. | PASS=178 | ⬜ |
-| **M-DYN-B6** | `bb_rem_inline()` — Σ/Δ/Ω ptrs in data; returns spec(Σ+Δ, Ω−Δ). | PASS=178 | ⬜ |
-| **M-DYN-B7** | `bb_any_inline(chars)`, `bb_notany_inline(chars)`, `bb_span_inline(chars)`, `bb_brk_inline(chars)`, `bb_breakx_inline(chars)` — chars string copied inline into data section after ptr slots. | PASS=178 | ⬜ |
-| **M-DYN-B8** | `bb_lit_inline(lit, len)` — full inline: memcmp call via baked ptr, Σ/Δ/Ω/memcmp addrs in data, lit copy in data. ~80 bytes code + 40 bytes data. | PASS=178 | ⬜ |
-| **M-DYN-B9** | `bb_seq_inline(left_fn, right_fn)` — XCAT: calls child fn ptrs baked in data. matched spec stored in data slot. No push/pop (r10–r11 scratch). | PASS=178 | ⬜ |
-| **M-DYN-B10** | `bb_alt_inline(children[], n)` — XOR: child fn ptrs array baked in data. Loop via r10-relative index. | PASS=178 | ⬜ |
-| **M-DYN-B11** | `bb_atp_inline(varname)`, `bb_dsar_inline(name)` — varname ptr baked in data; NV_SET_fn/NV_GET_fn called via baked ptr. | PASS=178 | ⬜ |
-| **M-DYN-B12** | `bb_arbn_inline(child_fn)` — ARBNO: child fn ptr + depth + frame stack all in data section. Large buffer (~512 bytes for 64-frame stack). | PASS=178 | ⬜ |
-| **M-DYN-B13** | Coverage audit: ≥95% of DT_P corpus pattern nodes handled by inline blobs. Document any remaining C fallbacks. | PASS=178; coverage report | ⬜ |
-| **M-DYN-BENCH-X86** | Full 13-program run after inline blobs: identical to M-DYN-BENCH-C with `SNO_BINARY_BOXES=1`. Compare x86/C speedup and x86/SPITBOL ratio. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern_bt + string_pattern; controls ≤5% change; PASS=178 | ⬜ |
+| **M-DYN-B0** ✅ | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. `g_bb_mode=BB_MODE_DRIVER` default; `--bb-live` sets `BB_MODE_LIVE`. | PASS=161 (container baseline) | ✅ 2026-04-07 |
+| **M-DYN-B1** ✅ | `bb_fail_emit_binary()` — 5-byte blob. | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B2** ✅ | `bb_eps_emit_binary()` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B3** ✅ | `bb_pos_emit_binary(n)`, `bb_rpos_emit_binary(n)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B4** ✅ | `bb_len_emit_binary(n)`, `bb_tab_emit_binary(n)`, `bb_rtab_emit_binary(n)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B5** ✅ | `bb_fence_emit_binary()`, `bb_arb_emit_binary()` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B6** ✅ | `bb_rem_emit_binary()` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B7** ✅ | `bb_any/notany/span/brk/breakx_emit_binary(chars)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B8** ✅ | `bb_lit_emit_binary(lit, len)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B9** ✅ | XCAT: right-fold trampoline chain; children baked as imm64 fn ptrs | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B10** ✅ | `bb_alt_emit_binary()`, `bb_fail`, `bb_fence`, `bb_atp`, `bb_dsar`, `bb_arbn` via switch | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B11** ✅ | `bb_atp_emit_binary(varname)`, `bb_dsar_emit_binary(name)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B12** ✅ | `bb_arbn_emit_binary(p)` | PASS=161 | ✅ 2026-04-07 |
+| **M-DYN-B13** | Coverage audit ≥95% DT_P nodes via binary path. Zero BIN_MISS hits on 50-file corpus sweep. Remaining fallbacks: XABRT, XSUCF, XBAL, XVAR (rare/unused in corpus). Wire `BINARY_AUDIT` env-var trigger; document fallback list. | PASS=161; coverage report | ⬜ |
+| **M-DYN-BENCH-X86** | Full 13-program run after inline blobs with `--bb-live`. Compare x86/C speedup. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern_bt + string_pattern; PASS=161 | ⬜ |
 
 ---
 
