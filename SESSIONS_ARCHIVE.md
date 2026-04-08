@@ -34053,3 +34053,46 @@ Stubs are missing-functionality placeholders (`return FAIL`). They are real func
 
 **On context window management:**
 When context is near full (~90%+), stop working and do the handoff. Do not keep going until nothing can be written.
+
+---
+
+## Session 2026-04-08d — SS-33: M-SS-BLOCK §3/§4/§5 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `2ae63e99` · .github (pending)
+
+**Build gate:** ✅ clean throughout.
+
+### Bugs found and fixed
+
+**Bug 1 — `STREAD_fn` EOF vs I/O error not distinguished** (`main.c`, `forwrd.c`, `platform.c`):
+- Oracle: `IO_EOF → XLATIN (FILCHK)`, `IO_ERR → COMP1`
+- Ours: any FAIL → FILCHK (I/O errors silently routed to file-change logic)
+- Fix: added `int sread_last_eof` global to platform.c; callers check after FAIL. Committed `f6d8105a`.
+
+**Bug 2 — `AUGATL_fn` MOVBLK copy_sz off by DESCR** (`symtab.c`):
+- Oracle: DECRA A4PTR,DESCR twice after `+= 2*DESCR` → copy_sz = old_sz - DESCR
+- Ours: copied old_sz bytes (one DESCR too many)
+- Fix: `copy_sz = old_sz - DESCR`. Committed `2ae63e99`.
+
+### Blocks checked ✅ (no bugs)
+
+- XLATRD/XLATRN/XLATNX/XLATP (v311.sil 1025–1063) — compile loop
+- XLATIN/XLATSC/XLATND (1065–1086) — post-compile dispatch
+- CODSKP/CODFNC (1116–1130) — object code skipping
+- FINDEX/FATNF/FATNXT/FATBLK (1195–1217) — function descriptor lookup
+- BLOCK/BLOGC (1219–1240) — block allocation
+
+### M-SS-BLOCK watermark: v311.sil line 1240
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Sprint SS-33 continued
+# M-SS-BLOCK: resume at v311.sil line 1248 (GENVAR block)
+# Method: three-way v311.sil + snobol4.c + ours. One block at a time.
+```
