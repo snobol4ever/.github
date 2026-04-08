@@ -11,39 +11,39 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `net-polish` — fix `@N` bug → 80/80 crosscheck → diag1 35/35 → benchmark grid → M-NET-POLISH
-**HEAD:** `dbdcba7` D-163
-**Invariant:** `dotnet test` → 1911/1913 (2 skipped) before any work
-**Milestone:** M-NET-SPITBOL-SWITCHES ✅ fired D-163
+**Sprint:** `D-185` — fix ASGNIC string coercion → TEST_Corpus_099_keyword_rw passes → 80/80 crosscheck
+**HEAD:** `20c34e9` D-184
+**Invariant:** `dotnet test` → 1954/1956 (2 skipped, 0 failed) before any work
+**Milestone:** D-184 ✅ — M-NET-P35-FIX complete
 
-**⚠ CRITICAL NEXT ACTION — Session D-165:**
+**⚠ CRITICAL NEXT ACTION — Session D-185:**
 
 ```bash
 cd /home/claude/snobol4dotnet
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-export PATH=/usr/local/dotnet10:$PATH
-git log --oneline -3   # verify HEAD = dbdcba7 D-163
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
-# Expect 1911/1913 — then fix @N bug
+git pull --rebase
+git log --oneline -3   # verify HEAD = 20c34e9 D-184
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Expect 1954 passed, 0 failed, 2 skipped
 
-# @N BUG — diagnosed D-164:
-# `X ? @N ANY('B')` gives N=0 when match is at cursor > 0.
-# AtSign.Scan writes IdentifierTable["N"]=cursor correctly (verified by sentinel),
-# but DUMP shows N=0 after statement. Something overwrites N after AtSign.Scan.
-# Suspects: CheckGotoFailure opcode or statement post-match cleanup.
-# Start: read ThreadedExecuteLoop.cs line 214+ (CheckGotoFailure),
-#        read full opcode sequence for a pattern-match statement in Parser.cs,
-#        find what writes IdentifierTable["N"]=0 after AtSign.Scan writes cursor.
-# Fix → cross test PASS → 80/80 crosscheck → diag1 → benchmark → M-NET-POLISH.
+# ASGNIC BUG (099_keyword_rw):
+# &ANCHOR = '0'  →  error 208 "keyword value assigned is not integer"
+# Fix: in Assign(), when leftVar.IsKeyword and rightVar is StringVar,
+# attempt Convert(VarType.INTEGER) before throwing error 208.
+# File: Snobol4.Common/Runtime/Functions/OperatorsBinary/AssignReplace (=).cs
+# Gate: TEST_Corpus_099_keyword_rw PASS → remove [Ignore]
+#       crosscheck: 80/80 → 1955 passed, 0 failed, 1 skipped
 
-# Crosscheck command:
+# Crosscheck:
 # DOTNET_REPO=/home/claude/snobol4dotnet CORPUS=/home/claude/corpus/crosscheck \
 # DOTNET_ROOT=/usr/local/dotnet10 \
 # bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
-# Currently: 79/80 (1 fail: strings/cross — @N bug)
+# Currently: 79/80 (1 fail: 099_keyword_rw — ASGNIC coercion)
 ```
 
-**CRITICAL:** .NET 10 SDK at `/usr/local/dotnet10`. Always `-p:EnableWindowsTargeting=true`.
+**CRITICAL:** `apt-get install -y dotnet-sdk-10.0`. Always `-p:EnableWindowsTargeting=true`.
 
 ---
 
