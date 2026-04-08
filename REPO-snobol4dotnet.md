@@ -11,7 +11,7 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `D-186` — M-NET-SNIPPETS: fix all GimpelBits test bugs + D-NET-186 + D-NET-187 + TEST_Abend + 099 DATATYPE casing
+**Sprint:** `D-187` — M-NET-SNIPPET-FACTORY: systematic snippet factory — Step 0 fix GimpelBits; Steps 1–8 add Strings/Capture/Data/LibMath/LibStack/LibString/GimpelBits2/Feat → ≥2100p
 **HEAD:** `bdc541f` D-185
 **Invariant:** `dotnet test` → 2008 passed, 11 failed, 1 skipped before any work
 **Milestone:** D-185 partial — 64 new tests added (54 pass); ASGNIC fix written but 099 still failing (DATATYPE casing)
@@ -78,7 +78,7 @@ Full ladder: `MILESTONE-NET-SNOBOL4.md` — organized around 5-phase executor mo
 |----|--------|-------|
 | M-NET-PERF | ✅ | Hotfixes A–D confirmed; baseline published |
 | M-NET-SPITBOL-SWITCHES | ✅ | 1911/1913 D-163 |
-| M-NET-SNIPPETS | ❌ | **CURRENT** — Gimpel/corpus snippet factory · fix GimpelBits test bugs · D-NET-186 · D-NET-187 · TEST_Abend · 099 DATATYPE |
+| M-NET-SNIPPET-FACTORY | ⚠️ | **CURRENT** — Systematic snippet factory: Step 0 fix GimpelBits bugs; Steps 1–8 add Strings/Capture/Data/LibMath/LibStack/LibString/GimpelBits2/Feat · doc: MILESTONE-NET-SNIPPET-FACTORY.md |
 | M-NET-P35-FIX | ❌ | Fix @N Phase 3/5 capture → 80/80 crosscheck |
 | M-NET-POLISH | ❌ | 106/106 + diag1 35/35 + benchmark grid |
 | M-NET-PAT-CAPTURES | ❌ | @/./$var capture audit vs stmt_exec.c |
