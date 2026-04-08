@@ -33640,3 +33640,65 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Three-way diff: v311.sil + snobol4.c + ours per function.
 # Oracle locations: grep "^READ\b\|^PRINT\b\|^BKSPCE\b\|^ENDFIL\b\|^REWIND\b\|^SET\b\|^DETACH\b\|^PUTIN\b\|^PUTOUT\b" snobol4.c
 ```
+
+---
+
+## Session 2026-04-07k — SS-31 handoff (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `32dccdff` · .github `136e3fa`
+
+**Build gate:** ✅ clean, zero errors.
+
+### Session summary (SS-31 complete)
+
+Four bugs fixed across scan.c, argval.c, define.c, extern.c.
+See prior sub-session entries for detail.
+
+### M-SS-AUDIT watermark (final for SS-31)
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d (4 bugs) |
+| `strings.c` | ✅ SS-29d (2 bugs) |
+| `symtab.c` | ✅ SS-29d (4 bugs) |
+| `data.c` | ✅ SS-29d (0 bugs) |
+| `argval.c` | ✅ SS-31 (AV-1: EXPVAL FNC exit-2) |
+| `arith.c` | ✅ SS-30c (1 bug) |
+| `patval.c` | ✅ SS-30d (3 bugs) |
+| `scan.c` | ✅ SS-30e+SS-31 (31 bugs + SC-4 SCNR FULLCL swap) |
+| `define.c` | ✅ SS-31 (DEF-1: block-fill slot) |
+| `extern.c` | ✅ SS-31 (EX-1: LNKFNC entry addr slot 1 not 0) |
+| `arrays.c` | ⚠️ element slot ambiguous — defer to harness |
+| `expr.c` | ✅ SS-29 (4 bugs) |
+| `forwrd.c` | ✅ SS-29 (1 bug) |
+| `errors.c` | ✅ SS-29b (2 bugs) |
+| `main.c` | ✅ SS-29b (3 bugs) |
+| `io.c` | ⬜ next |
+| `trace.c` | ⬜ |
+| `asgn.c` | ⬜ |
+| `nmd.c` | ⬜ |
+| `pred.c` | ⬜ |
+| `func.c` | ⬜ |
+| `interp.c` | ⬜ |
+| `cmpile.c` | ⬜ |
+| `trepub.c` | ⬜ |
+| `platform.c` | ⬜ (tables verified SS-28) |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 32dccdff.
+#
+# Sprint: SS-32
+# Continue M-SS-AUDIT: io.c (§15) first.
+# Oracle: grep "^READ\b\|^PRINT\b\|^BKSPCE\b\|^ENDFIL\b\|^REWIND\b\|^SET\b\|^DETACH\b\|^PUTIN\b\|^PUTOUT\b" snobol4.c
+# Then trace.c (§16), asgn.c (§17), nmd.c, pred.c (§18), func.c (§19),
+# interp.c (§7), cmpile.c (§6), trepub.c (§6), platform.c.
+# Three-way diff method: v311.sil + snobol4.c + ours, function by function.
+# After all files complete: M-SS-HARNESS (build binary, run vs CSNOBOL4).
+```
