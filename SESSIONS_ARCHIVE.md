@@ -34296,3 +34296,67 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # FORBLK hang: add fprintf inside FORBLK_fn and STREAM_fn (IBLKTB path) to see loop
 # OR: proceed to MONITOR approach if approved — see §NOW.
 ```
+
+---
+
+## Session 2026-04-08h — SS-36: M-SS-BLOCK §2–§6 block-by-block audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `1c6bd2ba` · .github (this push)
+
+**Build gate:** ✅ clean.
+
+### Bugs fixed this session
+
+| Bug | Block | File | Description | Status |
+|-----|-------|------|-------------|--------|
+| BUG-SPCNVT | SPCNVT (v311.sil 969) | main.c | Two-level INITLS loop was full stub `(void)ycl` | ✅ |
+| BUG-GC-GCBB | GC GCBB pass (v311.sil ~1450) | arena.c | `st2ptr+LNKFLD` double-offset on bin slot — wrote compacted addr 3*DESCR past bin slot during GC compaction | ✅ |
+| BUG-TREPUB-MOVBLK | TREPUB TREPU6 (v311.sil 2490) | trepub.c | `memcpy` without `+DESCR` offset — overwrote new block title and placed code bytes at wrong positions | ✅ |
+| BUG-BINOP-BIEQFN | BINOP2 (v311.sil 1571) | expr.c | `SETAC(STYPE, D_A(BIEQFN))` set 0 (BSS); fixed to `P2A(&BIEQFN)` matching oracle addr-of-descriptor | ✅ |
+
+### Annotations added (non-bugs, future-proof)
+
+- **main.c**: XLATP ST_ERROR→COMP3 (error()→exit first), FTLEN2 vs FTLEND_fn (-DUMP not needed)
+- **arena.c**: BLOCK/GENVAR/GC PCOMP D_PTR vs D_A model equiv; FRSGPT F/V fields; GCBB lnk_addr pattern
+- **trepub.c**: PCOMP model diff; inverted overflow guard
+- **expr.c**: BINOP1 ST_ERROR unreachable; BINCON full DESCR copy; BINOP3 MOVD
+- **cmpile.c**: CMPIL0 PCOMP spill check; ELEMNT_fn single-FAIL = CDIAG; CMPATN SPITBOL gap (SPITCL==0 standard); TREPUB always returns OK
+
+### Blocks verified (watermark advances)
+
+| Block | v311.sil line | Result |
+|-------|--------------|--------|
+| SPCNVT/SPCNV1/SPCNV2 | 969–977 | ✅ Fixed |
+| INITD1 | 979 | ✅ OK |
+| AUTLOP | 1014 | ✅ OK |
+| XLATRD/XLATRN/XLATNX/XLATP/XLAEND/XLATIN/XLATSC/XLATND | 1025–1087 | ✅ OK + annotated |
+| BLOCK/BLOCK1/BLOGC | 1219 | ✅ OK + annotated |
+| GENVAR/LOCA1–LOCA7 | 1248 | ✅ OK + annotated |
+| GCM/GCM blocks | ~1370 | ✅ OK |
+| GC/GCBA1/GCBA2/GCBA4/GCLAD/GCLAD0/GCLAD7/GCLAD4/GCBB1–5/GCLAP/GCLAT/GCLAM | 1367–1530 | ✅ Fixed (GCBB) |
+| SPLIT | 1535 | ✅ OK |
+| BINOP/BINOP1/BINOP2/BINOP4/BINCON/BINOP5/BINOP6/BINOP7 | 1558–1602 | ✅ Fixed (BIEQFN) |
+| TREPUB/TREPU1/TREPU4/TREPU2/TREPU3/TREPU5/TREPU6 | 2466–2499 | ✅ Fixed (MOVBLK) |
+| CMPILE entry | 1608 | ✅ OK |
+| CMPIL0/CMPILO/CMPILC/CMPILA | 1614–1640 | ✅ OK + annotated |
+| CMPSUB/CMPSB1/CMPATN/CMPAT2/CMPAT1/CMPTGO/CMPNGO | 1657–1720 | ✅ OK + annotated |
+
+**Watermark: v311.sil line 1720.**
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 1c6bd2ba.
+#
+# Sprint: SS-37
+# M-SS-BLOCK: continue block-by-block from v311.sil line 1721 (CMPGO block).
+# Method: ONE labeled block at a time. v311.sil label → oracle snobol4.c → ours.
+# Remaining §6 blocks: CMPGO, CMPFRM, CMPASP, CMPFT (lines 1721–1760 approx).
+# Then §7: BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE (interp.c, lines 2520–2678).
+# Rule: annotate model-equiv non-bugs in place; fix real logic bugs; commit each section.
+```
