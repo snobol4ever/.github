@@ -32711,3 +32711,62 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08b — M-SS-DIFF-RECHECK §8(cont)+§6 CMPILE (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `3fbd1b9d` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §8 argval.c (continued) — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | PATVAL_fn: PUTIN success fell through to patv3 type-coerce. Oracle exit (FAIL,RTXNAM) — return OK directly. |
+| 2 | XYARGS_fn: (a) second-arg completion returned OK, should be NRETURN (RTN2); (b) XYC INVOKE exit routing: case2(name)→XY4→XY1 was merged with default(value)→XY3. |
+
+**M-SS-DIFF-RECHECK §6 cmpile.c — 4 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | HIDECL inversion: incremented CSTNCL when hidden; oracle increments when NOT hidden. |
+| 2 | Code-spill: wrong GOTG bridge offsets (+1/+2/+3 vs +0/+1/+2); spurious memcpy+SPLIT_fn; missing BASECL write + CMBSCL advance into new block; OCLIM now uses CODELT directly. |
+| 3 | Subject-section flow: double AEQLC(NBTYP) always-false; CLNTYP→cmpgo missing; CMPSB1 path now correct. |
+| 4 | CMPFT: TREPUB(FORMND) failure triggered cdiag_inner; oracle sends both exits to CMPTGO. |
+
+### M-SS-DIFF-RECHECK watermark
+- §16 trace.c: ✅ 9 bugs
+- §17 asgn.c + nmd.c + scan.c: ✅ 8 bugs
+- §18 pred.c: ✅ 1 bug
+- §19 func.c: ✅ 1 bug
+- §22+§23 errors.c: ✅ 7 bugs
+- §4 symtab.c: ✅ 2 bugs
+- §6 cmpile.c: ✅ 4 bugs (HIDECL, spill, subject-flow, CMPFT)
+- §6 expr.c (EXPR/ELEMNT/BINOP/UNOP): ⬜ next
+- §7 interp.c: ✅ gaps noted
+- §8 argval.c: ✅ 4 bugs (VARVAL, INTVAL, PATVAL PUTIN exits; XYARGS RTN2+XYC)
+- §2 main.c BEGIN: ⚠️ SPCNVT loop stubbed (blocked on data_init INITLS)
+- §1, §3, §5, §9–§15, §20–§21: ⬜ pending
+
+### Open items
+- EXDTSP.a = P2A(static literal) — not arena-interned; wire before M-SS-HARNESS
+- ERRTKY.a not wired to interned ERRTSP in data_init()
+- INVOKE POP INCL discipline — call-site audit pending
+- INTERP PROGEND (code 4) — add enum value before END statement testing
+- SPCNVT loop in BEGIN — implement once INITLS populated
+- §6 CMPATN binary-? path (SPITCL/EXPR1/ADDSON) — simplified to CMPAT2; acceptable for now
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §6 expr.c — EXPR/ELEMNT/BINOP/UNOP vs oracle
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil (lines 1662-2296)
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c EXPR/ELEMNT/BINOP/UNOP
+```
