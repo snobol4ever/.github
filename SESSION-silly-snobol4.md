@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-20 | one4all `f2857f54` · .github (updated) | **M-SS-DIFF-RECHECK**: §16–§19 deep re-scan — watermark at §16 start |
+| SS-21 | one4all `cc6cb9a7` · .github (updated) | **M-SS-DIFF-RECHECK**: §1–§15 three-way diff — start §1 sil_types/data/main |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -203,8 +203,11 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §13 | sil_extern.c | ✅ complete (2026-04-07s) — 1 bug: LNKFNC entry addr slot 0 not 1 |
 | §14 | sil_arrays.c | ✅ complete (2026-04-07s) — 2 bugs: ARRAY elem slot off-by-one; ITEM multi-dim Horner |
 | §15 | sil_io.c | ✅ complete (2026-04-07t) — 3 bugs: READ opts lost; DETACH wrong arena base; PUTIN XCL not saved |
-| §16 | sil_trace.c | ⬜ next |
-| §17–§23 | remaining TUs | ⬜ pending |
+| §16 | sil_trace.c | ✅ complete (2026-04-07w) — 9 bugs |
+| §17 | sil_asgn.c + sil_nmd.c + sil_scan.c | ✅ complete (2026-04-07x) — 8 bugs |
+| §18 | sil_pred.c | ✅ complete (2026-04-07x) — 1 bug |
+| §19 | sil_func.c | ✅ complete (2026-04-07y) — 1 bug |
+| §20–§23 | remaining TUs | ⬜ next |
 
 ---
 
@@ -250,7 +253,8 @@ Static diff catches structural bugs before any code runs.
 
 ### M-SS-DIFF-RECHECK watermark (update each session)
 - §16 sil_trace.c: ✅ 9 bugs fixed
-- §17 sil_asgn.c: ⬜
-- §18 sil_pred.c: ⬜
-- §19 sil_func.c: ⬜
-- §1–§15 (all other TUs): ⬜
+- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs fixed
+- §18 sil_pred.c: ✅ 1 bug fixed
+- §19 sil_func.c: ✅ 1 bug fixed (APPLY_fn INVOKE return path)
+- §20–§23 (sil_common.c, sil_term.c, sil_errors.c): ⬜ next
+- §1–§15 (all other TUs): ⬜ pending after §20–§23

@@ -32544,3 +32544,48 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 - EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
 - M-SS-DIFF-RECHECK §19 sil_func.c — start next session
 - M-SS-DIFF-RECHECK §1–§15 — pending after §19
+
+---
+
+## Session 2026-04-07y — M-SS-DIFF-RECHECK §19 complete (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `cc6cb9a7` · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §19 — sil_func.c — 1 bug fixed:**
+
+| # | Function | Bug |
+|---|----------|-----|
+| 1 | APPLY_fn | INVOKE return-path wrong: MOVD(ZPTR,XPTR) was backward + no NEMO case. Fixed: case FAIL→return FAIL, case NEMO→MOVD(XPTR,ZPTR); return OK (value path), default→MOVD(XPTR,ZPTR); return OK (name path) |
+
+Non-bugs confirmed: COPY_fn x_bksize correct, CMA_fn CODSKP sequence correct, COLECT_fn <0 check correct, VDIFFR_fn deql() equivalent to DCMP.
+Stubs (acceptable): ARG_fn, LOCAL_fn, FIELDS_fn, DMP_fn/DUMP_fn, CNVRT_fn, CODER_fn, OPSYN_fn.
+
+**Build:** zero warnings, zero errors ✅
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ 9 bugs
+- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
+- §18 sil_pred.c: ✅ 1 bug
+- §19 sil_func.c: ✅ 1 bug
+- §1–§15 (all other TUs): ⬜ next
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §1–§15 three-way oracle+snobol4.c+ours.
+# Start §1 sil_types.h / sil_data.h / sil_main.c (BEGIN, INIT equates).
+# Then §2 sil_main.c BEGIN, §3 sil_main.c XLATRD/XLATSC, §4 sil_support.c, etc.
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
+
+### Open items
+- EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
+- §1–§15 recheck pending
