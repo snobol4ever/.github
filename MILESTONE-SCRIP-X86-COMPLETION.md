@@ -113,18 +113,13 @@ will be replaced milestone by milestone.
 
 ---
 
-### M-BB-LIVE-WIRE — Wire `--bb-live` to `bb_build_bin.c`
-**Switch:** `--bb-live` (all exec modes)
+### M-BB-LIVE-WIRE ✅ — Wire `--bb-live` to `bb_build_bin.c`
+**Completed: 2026-04-07**
 
-`bb_build_bin.c` already has 65 binary blob emitters (M-DYN-B1 ✅).
-`stmt_exec.c` has the 5-phase executor.
-The gap: `stmt_exec.c` currently calls the C box functions directly;
-`--bb-live` should route phase 3 through `bb_build_binary_node()` instead.
-
-- Add `g_bb_mode` global: `BB_MODE_DRIVER` (default) vs `BB_MODE_LIVE`
-- `stmt_exec.c`: when `BB_MODE_LIVE`, call `bb_build_binary_node()` for each pattern node
-- scrip.c: set `g_bb_mode = BB_MODE_LIVE` when `--bb-live`
-- **Gate:** PASS=178 via `scrip --sm-run --bb-live`; trace diff vs `--bb-driver` is empty
+`g_bb_mode` global: `BB_MODE_DRIVER` (default) vs `BB_MODE_LIVE` — in `bb_build.h`.
+`stmt_exec.c`: `BB_MODE_LIVE` routes phase 3 through `bb_build_binary_node()` with PATND cache.
+`scrip.c`: `--bb-live` sets `g_bb_mode = BB_MODE_LIVE`.
+`--bb-driver` vs `--bb-live` trace diff: empty (identical output on full corpus sweep).
 
 ---
 
@@ -207,10 +202,12 @@ M-SCRIP-U3 (SM-LOWER ✅ exists), `sm_codegen.c` (not yet written).
 ## Recommended Execution Order
 
 1. **M-DIAG** — quick wins, all diagnostic switches, 1 session
-2. **M-BB-LIVE-WIRE** — unlocks `--bb-live` benchmarking on existing paths
-3. **M-JIT-RUN** — the performance goal; depends on existing scrip_image + sm_lower
-4. **M-JITEM-X64** — new 3-column SM-based text emitter replaces emit_x64.c
-5. **M-JITEM-JVM / NET / JS / C / WASM** — parallel, lower priority
+2. ~~**M-BB-LIVE-WIRE**~~ ✅ done 2026-04-07
+3. **M-DYN-B13** — coverage audit; wire `BINARY_AUDIT`; document XABRT/XSUCF/XBAL/XVAR fallbacks
+4. **M-DYN-BENCH-X86** — benchmark `--bb-live` vs `--bb-driver`; fill results table
+5. **M-JIT-RUN** — the performance goal; depends on existing scrip_image + sm_lower
+6. **M-JITEM-X64** — new 3-column SM-based text emitter replaces emit_x64.c
+7. **M-JITEM-JVM / NET / JS / C / WASM** — parallel, lower priority
 
 ---
 
