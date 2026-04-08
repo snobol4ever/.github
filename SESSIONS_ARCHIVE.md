@@ -34709,3 +34709,56 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #       crosscheck: 80/80
 #       1955 passed, 0 failed, 1 skipped
 ```
+
+---
+
+## Session 2026-04-08 — SS-41/42: M-SS-BLOCK §9 arith + §10 patval RTZPTR sweep (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `806f4c14` · .github `(this push)`
+
+**Build gate:** ✅ clean throughout (zero warnings at close).
+
+**M-SS-BLOCK: §9 arith.c (v311.sil lines 2923–3118) + §10 patval.c RTZPTR pass**
+
+**Root cause (§9):** Arithmetic ops stored result in ZPTR but never copied to XPTR.
+Oracle `BRANCH(ARTN)→BRANCH(RTZPTR)` = return ZPTR. In our model callers expect XPTR.
+Comparison predicates returned OK without setting XPTR to null string (oracle BRANCH(RETNUL)).
+
+**Bugs fixed (10):**
+- BUG-ARITH-1/3: do_ii + do_rr arithmetic — XPTR=ZPTR before return OK
+- BUG-ARITH-2: integer comparisons (EQ/GE/GT/LE/LT/NE) — check first, then XPTR=NULVCL on success
+- BUG-ARITH-2r: real comparisons — same pattern
+- BUG-INTGER-1: INTEGER() already-integer + converted paths — XPTR=NULVCL (oracle RETNUL)
+- BUG-MNS-1: MNS_fn — XPTR=ZPTR at all 3 ARTN exits (integer/string→int/real)
+- BUG-PLS-1: PLS_fn — XPTR=ZPTR at all ARTN exits
+- BUG-PATVAL-3: charz_abnsnd — XPTR=ZPTR (oracle RTZPTR)
+- BUG-PATVAL-4: lprtnd — XPTR=ZPTR
+- BUG-PATVAL-5: ARBNO_fn — XPTR=ZPTR
+- BUG-PATVAL-6: nam_dol — XPTR=ZPTR
+- BUG-PATVAL-7: ATOP_fn — XPTR=ZPTR
+
+**RTZPTR sweep finding:** asgn.c/func.c/arrays.c RTZPTR functions already correct
+(CONCAT/STR/NAME/LIT/SIZE/TIME/COPY/COLECT/APPLY all have MOVD(XPTR,ZPTR)).
+scan.c SJSR RTZPTR paths not yet verified — next.
+
+**Watermark: v311.sil line 3322** (end §10).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 806f4c14.
+#
+# Sprint: SS-43
+# M-SS-BLOCK §11: scan.c SJSR RTZPTR paths (v311.sil lines 3323–4239).
+#   grep -n "^SJSR\b\|^SCNR\b\|^SCAN\b" v311.sil  → oracle locs
+#   grep -n "BRANCH(RTZPTR)" snobol4.c | awk '$1>=3824 && $1<=4250'  → RTZPTR sites
+#   grep -n "return OK" src/silly/scan.c  → our candidates
+#   Verify each: if result in ZPTR not copied to XPTR → add XPTR=ZPTR.
+# Then §12 sil_define.c (DEFINE/DEFFNC, lines 4240–4470).
+# Method: oracle snobol4.c three-way, one block at a time.
+```
