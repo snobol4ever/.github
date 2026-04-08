@@ -73,7 +73,7 @@ the corpus, the emitter is correct by construction.
 | **IR** | `IR.md` | ✅ complete |
 | **BB-GRAPH** | `BB-GRAPH.md` | ✅ 25 boxes complete |
 | **BB-DRIVER** | `BB-DRIVER.md` | ✅ correct (in stmt_exec.c) |
-| BB-GEN x86 binary | `BB-GEN-X86-BIN.md` | ✅ M-DYN-B0–B12 complete (2026-04-07) · next: M-DYN-B13 coverage audit + M-DYN-BENCH-X86 |
+| BB-GEN x86 binary | `BB-GEN-X86-BIN.md` | ✅ M-DYN-B0–B13 complete (2026-04-08) · next: M-DYN-BENCH-X86 (already have results in HQ) |
 | BB-GEN x86 text (.s) | `BB-GEN-X86-TEXT.md` | ✅ boxes exist as .s |
 | BB-GEN languages | `BB-GEN-LANG.md` | ✅ C+Java done · others stub |
 | **INTERP x86 (C)** | `INTERP-X86.md` | ⚠️ tree-walks IR — needs SM_Program |
