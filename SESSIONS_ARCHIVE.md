@@ -34029,3 +34029,27 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Method: read SIL block → snobol4.c → ours, compare LOGIC, fix or log
 # One block at a time. Watermark = SIL line of last completed block.
 ```
+
+### Lon's instructions from this session (preserve for next Claude)
+
+**M-SS-SYMREF method correction:**
+The count=2 filter was wrong. The right approach is high oracle/ours *ratio* where ours is small. Filter out known API-difference categories first (SIL branch labels, scratch registers, PUSH/POP). Do not mark M-SS-SYMREF finished — there are many more symbols to check with the correct filter.
+
+**M-SS-BLOCK method (Lon explained this carefully):**
+- Break v311.sil into reachable label blocks (label to next `*_`)
+- Since blocks are contiguous, find the exact same block in snobol4.c (the generated C translated from v311.sil) and in our silly/*.c
+- Do ONE block at a time — not a whole function, not 10,000 blocks
+- The watermark is the SIL LINE NUMBER of the last completed block
+- Starts at line 1, advances one block at a time (e.g. line 1 → line 10 → line 20)
+- The job is a PUNCH LIST of fixes — fix small ones immediately, log bigger ones as milestones
+- Do NOT narrate "✅ close enough" — compare the actual logic instruction by instruction and find the bug or move on
+- Pinpoint focus on the block. Do not be verbose.
+
+**On stubs:**
+Stubs are missing-functionality placeholders (`return FAIL`). They are real functions SNOBOL4 programs call (DEFFNC_fn, ARG_fn, LOCAL_fn, CNVRT_fn, SORT1 etc.) whose C bodies are not yet written. They are on the M-SS-HARNESS critical path. The binary needs them to get past BEGIN.
+
+**On what to tell the HARNESS session:**
+"M-SS-HARNESS: get binary to BEGIN. Fix stubs needed to survive init: DEFFNC_fn, sil_data_init §24 globals, then run on trivial input." Point it at SESSION-silly-snobol4.md §NOW and SESSIONS_ARCHIVE.md last entry which has the generator-script approach for §24.
+
+**On context window management:**
+When context is near full (~90%+), stop working and do the handoff. Do not keep going until nothing can be written.
