@@ -26,7 +26,7 @@
 | `data.c` | 558 | §24 init | ✅ SS-29d (0 bugs) |
 | `argval.c` | 412 | §8 | ⬜ |
 | `arith.c` | 311 | §9 | ✅ SS-30c (1 bug) |
-| `patval.c` | 435 | §10 | ⬜ |
+| `patval.c` | 435 | §10 | ✅ SS-30d (3 bugs) |
 | `scan.c` | 1175 | §11 | ⬜ |
 | `define.c` | 167 | §12 | ⬜ |
 | `extern.c` | 164 | §13 | ⬜ |
@@ -50,10 +50,10 @@
 
 ## Watermark
 
-**Last file audited:** `arith.c` (line 311 — complete)
-**Previous files complete:** `arena.c`, `strings.c`, `symtab.c`, `data.c`, `argval.c`
-**Next file:** `patval.c` (line 1)
-**Session:** SS-30c (2026-04-07g)
+**Last file audited:** `patval.c` (line 435 — complete)
+**Previous files complete:** `arena.c`, `strings.c`, `symtab.c`, `data.c`, `argval.c`, `arith.c`
+**Next file:** `scan.c` (line 1)
+**Session:** SS-30d (2026-04-07g)
 
 ---
 
@@ -72,3 +72,6 @@
 | Y3  | symtab.c | ~110 | AUGATL_fn | New-block type/value one DESCR too high |
 | Y4  | symtab.c | ~155 | DTREP_fn  | Searched DTLIST instead of DTATL |
 | AR-1 | arith.c | ~95 | ARITH_fn | SCL not saved/restored around XYARGS — XYARGS clobbers SCL (op selector) |
+| PV-1 | patval.c | ~273 | ATOP_fn | INVOKE exit 2 (name returned) mapped to NRETURN; should be OK |
+| PV-2 | patval.c | ~300 | nam_dol | Same INVOKE exit 2 mapping error (NRETURN→OK) |
+| PV-3 | patval.c | ~210 | lprtnd | DEQL YCL,LNTHCL sense inverted: LEN should skip MOVA (ZCL=0); others should set ZCL=N |
