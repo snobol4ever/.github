@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-21 | one4all `cc6cb9a7` · .github (updated) | **M-SS-DIFF-RECHECK**: §1–§15 three-way diff — start §1 sil_types/data/main |
+| SS-22 | one4all `9af8435d` · .github (updated) | **M-SS-DIFF-RECHECK**: §1–§15 + §20–§21 — start §4 sil_support.c (AUGATL/CODSKP/DTREP/FINDEX) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -256,5 +256,6 @@ Static diff catches structural bugs before any code runs.
 - §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs fixed
 - §18 sil_pred.c: ✅ 1 bug fixed
 - §19 sil_func.c: ✅ 1 bug fixed (APPLY_fn INVOKE return path)
-- §20–§23 (sil_common.c, sil_term.c, sil_errors.c): ⬜ next
-- §1–§15 (all other TUs): ⬜ pending after §20–§23
+- §22+§23 sil_errors.c: ✅ 7 bugs fixed (FTLTST/FTLERR/FTERST, PROTER/SIZERR/UNDFFE, missing handlers)
+- §20–§21 (sil_main.c common stubs): ⬜ next
+- §1–§15 (sil_support, sil_arith, sil_interp, sil_cmpile, etc.): ⬜ pending
