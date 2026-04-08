@@ -21,7 +21,7 @@ code. Dead code is archived. Gaps are milestoned.
 |--------|--------|-------|
 | `--ir-run` | ✅ **WIRED** | `execute_program()` in scrip.c — full, PASS=178 |
 | `--sm-run` | ✅ **WIRED** | `sm_lower()` + `sm_interp_run()` — full, PASS=178 |
-| `--jit-run` | ⬜ **STUB** | flag parsed, `(void)` suppressed — no codegen |
+| `--jit-run` | ✅ **WIRED** | `sm_codegen()` + `sm_jit_run()` — threaded-call JIT, PASS=178 |
 | `--jit-emit` | ⬜ **STUB** | flag parsed, `(void)` suppressed — no codegen |
 
 ### Byrd Box pattern mode
@@ -29,7 +29,7 @@ code. Dead code is archived. Gaps are milestoned.
 | Switch | Status | Notes |
 |--------|--------|-------|
 | `--bb-driver` | ✅ **WIRED** | `exec_stmt()` → BB-DRIVER → BB-GRAPH — works with all exec modes |
-| `--bb-live` | ⬜ **STUB** | flag parsed — blobs exist in `bb_build_bin.c` (65 fns) but not wired to stmt_exec |
+| `--bb-live` | ✅ **WIRED** | `g_bb_mode = BB_MODE_LIVE` → `bb_build_binary_node()` with PATND cache |
 
 ### Targets (for `--jit-emit`)
 
@@ -47,10 +47,10 @@ code. Dead code is archived. Gaps are milestoned.
 | Switch | Status | Notes |
 |--------|--------|-------|
 | `--dump-ir` | ✅ **WIRED** | `ir_dump_program()` — works |
-| `--dump-sm` | ⬜ **STUB** | flag parsed, not dispatched — needs `sm_prog_print()` |
-| `--dump-bb` | ⬜ **STUB** | flag parsed, not dispatched — needs BB-GRAPH print pass |
-| `--trace` | ⬜ **STUB** | flag parsed — `SNO_TRACE=1` env var works; switch needs to set it |
-| `--bench` | ⬜ **STUB** | flag parsed — needs `clock_gettime` wrap around execution |
+| `--dump-sm` | ✅ **WIRED** | `sm_prog_print(sm, stdout)` after `sm_lower()` |
+| `--dump-bb` | ✅ **WIRED** | `g_opt_dump_bb` — prints PATND tree before each match |
+| `--trace` | ✅ **WIRED** | `g_opt_trace` — prints statement number to stderr |
+| `--bench` | ✅ **WIRED** | `clock_gettime(CLOCK_MONOTONIC)` wraps execution dispatch |
 | `--dump-parse` | ✅ **WIRED** | `cmpile_print()` — works |
 | `--dump-parse-flat` | ✅ **WIRED** | works |
 | `--dump-ir-bison` | ✅ **WIRED** | old Bison/Flex path — works |
@@ -102,26 +102,6 @@ will be replaced milestone by milestone.
 
 ## Gap Milestones
 
-### M-DIAG — Wire stub diagnostic switches
-**Switches:** `--dump-sm`, `--dump-bb`, `--trace`, `--bench`
-
-- `--dump-sm`: call `sm_prog_print(sm, stdout)` after `sm_lower()` — write `sm_prog_print()` if not present
-- `--dump-bb`: hook into `exec_stmt()` / BB-DRIVER to print each box graph before match
-- `--trace`: set `SNO_TRACE=1` in environment (or call trace enable fn) when flag is set
-- `--bench`: wrap execution dispatch with `clock_gettime(CLOCK_MONOTONIC)` before/after, print δ
-- **Gate:** all four switches produce output; `--bench` agrees with external `time scrip`
-
----
-
-### M-BB-LIVE-WIRE ✅ — Wire `--bb-live` to `bb_build_bin.c`
-**Completed: 2026-04-07**
-
-`g_bb_mode` global: `BB_MODE_DRIVER` (default) vs `BB_MODE_LIVE` — in `bb_build.h`.
-`stmt_exec.c`: `BB_MODE_LIVE` routes phase 3 through `bb_build_binary_node()` with PATND cache.
-`scrip.c`: `--bb-live` sets `g_bb_mode = BB_MODE_LIVE`.
-`--bb-driver` vs `--bb-live` trace diff: empty (identical output on full corpus sweep).
-
----
 
 ### M-JITEM-X64 — New SM-based `--jit-emit --x64` emitter
 **Switch:** `--jit-emit --x64`
@@ -187,25 +167,13 @@ Replace `emit_wasm.c` with SM_Program → WAT walker.
 
 ---
 
-### M-JIT-RUN — Wire `--jit-run` (in-memory x86 JIT)
-**Switch:** `--jit-run`
-
-This is the big one. Depends on: M-SCRIP-U1 (segment allocator ✅ exists),
-M-SCRIP-U3 (SM-LOWER ✅ exists), `sm_codegen.c` (not yet written).
-
-- New file: `src/runtime/sm/sm_codegen.c` — SM_Program → x86 bytes → segment 2
-- scrip.c: `--jit-run` calls `scrip_image_init()` → `sm_codegen()` → jump to entry
-- **Gate:** PASS=178 via `scrip --jit-run --bb-driver`
-
----
-
 ## Recommended Execution Order
 
-1. **M-DIAG** — quick wins, all diagnostic switches, 1 session
+1. ~~**M-DIAG**~~ ✅ done 2026-04-07
 2. ~~**M-BB-LIVE-WIRE**~~ ✅ done 2026-04-07
-3. **M-DYN-B13** — coverage audit; wire `BINARY_AUDIT`; document XABRT/XSUCF/XBAL/XVAR fallbacks
-4. **M-DYN-BENCH-X86** — benchmark `--bb-live` vs `--bb-driver`; fill results table
-5. **M-JIT-RUN** — the performance goal; depends on existing scrip_image + sm_lower
+3. ~~**M-DYN-B13**~~ ✅ done 2026-04-07
+4. ~~**M-JIT-RUN**~~ ✅ done 2026-04-07
+5. **M-DYN-BENCH-X86** — benchmark `--bb-live` vs `--bb-driver`; fill results table
 6. **M-JITEM-X64** — new 3-column SM-based text emitter replaces emit_x64.c
 7. **M-JITEM-JVM / NET / JS / C / WASM** — parallel, lower priority
 
