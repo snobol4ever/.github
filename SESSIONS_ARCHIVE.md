@@ -34533,152 +34533,216 @@ cc -o snobol4-mon isnobol4-injected.o $ALL_OBJS \
 
 ---
 
-## Session 2026-04-08i — D-182/183: Jeff Cooper merge + corpus ref tests (Lon + Claude Sonnet 4.6)
+## Session 2026-04-08i — SS-36: M-SS-MONITOR complete (Lon + Claude Sonnet 4.6)
 
-**HEAD:** snobol4dotnet `0d3d9e4` · .github `(this commit)`
+**HEAD:** one4all `2c85b3e4` · .github (this push)
 
-**Build gate:** ✅ 1953 passed, 0 failed, 3 skipped, 0 warnings throughout.
+**Build gate:** ✅ clean throughout.
 
 ### Work completed
 
-**Planning session — snobol4dotnet focus:**
-- Reviewed all active milestones for snobol4ever/snobol4dotnet specifically
-- Confirmed platform policy: Windows + Linux target; macOS expected but untested
-- Corrected erroneous "intentionally dropped Windows" claim (was fabricated — git history shows cross-platform work throughout)
-- Updated HQ: REPO-snobol4dotnet.md, INTERP-NET.md platform policy statements
+**M-SS-MON-2 ✅** — `snobol4-mon` built and runs `hello.sno` → `hello world`.
 
-**D-182: Jeff Cooper improvements merged:**
-- Reviewed Jeff's 2026-04-07 ZIP — all changes correct and Linux-safe
-- Key finding: BuilderEmitMsil.cs and BuilderEmitMsilDebug.cs are a matched pair — both Jeff's versions required
-- Fixed pre-existing NOCONV bug: GCHandle.Pinned → GCHandle.Normal for ArrayVar/TableVar
-- Fixed parallel test interference: [DoNotParallelize] on ExtNoconvTests
-- Removed all [Ignore] — 1905/1905 passing, 0 warnings
-- Pushed: `521ee5f`
+Root cause of prior session failure (Error 23): wrong compile flags. Fix:
+- Must inject `isnobol4.c` not `snobol4.c` (Makefile uses `SNOBOL4=isnobol4`)
+- Compile flags: `-Wall -O3 -I./include -I. -DSNOBOL4 -DHAVE_CONFIG_H`
+  (`-DHAVE_CONFIG_H` pulls in `config.h` which defines `BLOCKS=1` → `MOVBLK2` resolves)
+- Link: all `*.o` except `isnobol4.o` + `snobol4.o`, plus `mon_hooks.c`
+- `mon_open()` added as `__attribute__((constructor))` in injected file
 
-**D-183: corpus ref tests:**
-- Surveyed 180 corpus .sno+.ref pairs — 51 not yet in test suite
-- Added SetupTests.RunWithInput() using Executive.ReadLineDelegate (18 lines, no Console.SetIn)
-- Added 6 new test classes: Hello(4), Keywords(5), Patterns(2), Misc(5), RungW(26), InputTests(9)
-- 3 [Ignore] with documented bug refs found by new tests:
-  - TEST_Corpus_strings_cross: @N VarSlotArray clobber (M-NET-P35-FIX)
-  - TEST_Corpus_099_keyword_rw: &ANCHOR='0' ASGNIC string coercion throws error 208
-  - TEST_Corpus_control_expr_eval: NRETURN+*func()+EVAL gaps (M-NET-EVAL-COMPLETE)
-- Library tests excluded (need -include path config)
-- Added M-NET-CORPUS-TESTS milestone
-- Pushed: `0d3d9e4`
+**Design flaw found and fixed:** `inject_snobol4.py` was instrumenting all 383
+functions in `isnobol4.c` — including sub-labels (`LOCA1`, `GNVARI`, `BLAND`,
+`BLOCK`, etc.) that have no counterpart in Silly. These are internal CSNOBOL4
+control-flow labels compiled as C functions, not SIL procedures.
 
-**@N root cause identified (not yet fixed):**
-AtSign.Scan writes IdentifierTable["NH"] correctly but SyncVarSlot() silently
-skips VarSlotArray update because NH has no compile-time slot (first created at
-runtime). PushVar reads stale VarSlotArray[idx]. Fix: in SyncVarSlot, allocate
-slot on demand when symbol not found in SymbolToSlotIndex.
+Fix: whitelist against `proc.h` (158 top-level SIL procedure declarations).
+Result: 153 functions instrumented in CSN (down from 383). Zero sub-label leakage.
+
+**M-SS-MON-3 ✅** — `silly-mon` built. `inject_silly.py` instruments all 153
+`RESULT_t *_fn()` functions in `src/silly/`. `mon_open()` called in `main.c`
+via `getenv("MON_EVT"/"MON_ACK")`.
+
+**M-SS-MON-4 ✅** — Two-way sync-step monitor fires correctly.
+
+Intersection filter (`sly_fns.txt`): 110 functions present in both proc.h and
+Silly's RESULT_t set. Monitor skips CSN events outside this set.
+
+**First divergence at SIL-procedure level:**
+```
+MATCH  (nothing matched — both fire INIT vs STREAD immediately)
+DIVERGE at step 1:
+  CSN: 'ENTER INIT'   ← interpreter running, hello.sno compiled + executing
+  SLY: 'ENTER STREAD' ← still in compile loop
+```
+
+This confirms the known hang: Silly never exits `CMPILE_fn` / compile loop.
+CSNOBOL4 compiles and reaches `INTERP` → `INIT` loop. Silly does not.
 
 ### Next session — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/REPO-snobol4dotnet.md
-cd /home/claude/snobol4dotnet && git pull --rebase
-apt-get install -y dotnet-sdk-10.0
-dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
-# Gate: 1953 passed, 0 failed, 3 skipped. HEAD = 0d3d9e4.
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all 2c85b3e4.
 #
-# Sprint: D-184 — M-NET-P35-FIX
-# Fix: ExecutionCache.cs SyncVarSlot() — allocate slot on demand for new symbols:
-#   if (!SymbolToSlotIndex.TryGetValue(symbol, out var idx))
-#   {
-#       ExpandVarSlotArray();  // picks up any new symbols added to IdentifierTable
-#       if (!SymbolToSlotIndex.TryGetValue(symbol, out idx)) return;
-#   }
-#   VarSlotArray[idx] = value;
+# Sprint: SS-37 — M-SS-MON-5: fix CMPILE_fn hang → hello world from Silly
 #
-# OR simpler: in AtSign.Scan, after writing IdentifierTable, call ExpandVarSlotArray().
-#
-# Gate: TEST_Corpus_strings_cross passes → remove [Ignore]
-#       crosscheck 80/80
-#       1956 passed, 0 failed, 2 skipped (099_keyword_rw + expr_eval remain)
-#
-# Then: ASGNIC string coercion fix → TEST_Corpus_099_keyword_rw passes
-# Then: NRETURN/EVAL fix → TEST_Corpus_control_expr_eval passes
-# Goal: M-NET-CORPUS-TESTS ✅ (0 [Ignore], 0 skipped)
+# The monitor confirmed: Silly hangs in compilation. CSNOBOL4 reaches INTERP/INIT.
+# Next step: isolate the hang in CMPILE_fn.
+# Method: run oracle trace alone to get the CSN RESULT_t call sequence for hello.sno:
+TMP=$(mktemp -d)
+mkfifo $TMP/csn.evt $TMP/csn.ack
+(while IFS= read -r line; do
+    echo "$line"
+    printf 'G' > $TMP/csn.ack
+done < $TMP/csn.evt) &
+MON_EVT=$TMP/csn.evt MON_ACK=$TMP/csn.ack \
+    /home/claude/work/snobol4-2.3.3/snobol4-mon /tmp/hello.sno </dev/null
+# Read: which RESULT_t functions does CSN call during compilation of hello.sno?
+# That sequence is what Silly must reproduce.
+# Then: add fprintf(stderr,...) inside CMPILE_fn / FORBLK_fn / STREAM_fn in Silly
+# to trace where it loops. The monitor + gdb backtrace from prior sessions already
+# pointed to FORBLK → STREAM → forrun loop. Fix that loop first.
 ```
 
 ---
 
-## Session 2026-04-08 — SS-38: M-SS-BLOCK CMPGO cluster (Lon + Claude Sonnet 4.6)
+## Session 2026-04-08j — SS-36b: Monitor working + FORBLK_fn fixed (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `97529120` · .github `(pulled before write)`
+**HEAD:** one4all `e22a0f46` · .github (this push)
 
 **Build gate:** ✅ clean throughout.
 
-**M-SS-BLOCK: §6 CMPGO cluster (v311.sil lines 1721–1920)**
+### Design flaw corrected
 
-syn.c inspection revealed GOTOTB yields 6 types (UGOTYP/SGOTYP/FGOTYP/UTOTYP/STOTYP/FTOTYP).
-Previous diff passes missed the incomplete dispatch because the block *looked* plausible at a glance.
+`inject_snobol4.py` was instrumenting all 383 C functions in `isnobol4.c`
+including sub-labels (`LOCA1`, `GNVARI`, `BLAND`, `BLOCK` etc.) that have no
+Silly counterpart. Correct approach: instrument only top-level SIL procedures.
 
-**Bugs fixed:**
-- BUG-CMPGO-1: NBTYP guard inverted — `if (AEQLC(BRTYPE,NBTYP)) error` should be `if (!AEQLC(...)) error`
-- BUG-CMPGO-2: ACOMP used `==` instead of `<=` for GTOCL dispatch (UGOTYP=1,SGOTYP=2 incorrectly fell through)
-- BUG-CMPGO-3: CMPSGO/CMPFGO/CMPILL/CMPFTC/CMPILM/CMPSTC/CMPILN cluster entirely missing — all `:S(L)`, `:F(L)`, `:S(L1)F(L2)` forms would miscompile
-- BUG-CMPGO-4: cdiag_inner ERRTXT generated from CERRSP (assembled error line) instead of EMSGCL (message only)
-- BUG-CDIAG-1: ACOMP ESAICL,ESALIM used `>=` instead of `>` (strict)
-- New globals added: SGOND, FGOND, SRNCL, GOTOCL
+**The right whitelist is NOT `proc.h`** — proc.h only lists 158 externally-callable
+procedures and omits internal-only ones (`CMPILE`, `ARGVAL`, `INVOKE`, `STREAM`,
+`INTERP`, `FORBLK` etc.) that are genuine SIL PROCs but only called from within
+other SIL procedures.
 
-**Watermark: v311.sil line 1920** (end of CDIAG/DIAGRN/DIAGIN — closes §6).
+**The right approach:** instrument all 383 functions in isnobol4.c (all are SIL
+labels), let the controller filter via `sly_fns.txt` (the intersection of
+isnobol4.c functions ∩ Silly's `RESULT_t *_fn()` set = 143 functions). Sub-labels
+that have no Silly counterpart get auto-acked and skipped.
 
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build. HEAD one4all 97529120.
-#
-# Sprint: SS-39
-# M-SS-BLOCK: §7 BASE/GOTG/GOTL/GOTO/INIT/INTERP/INVOKE (interp.c, v311.sil lines 2520–2678).
-# Method: ONE labeled block at a time. v311.sil label → oracle snobol4.c → ours.
+**Filter is now symmetric:** applies to both CSN and SLY sides. Structural
+position differences (NEWCRD/STREAM called before vs inside CMPILE) are skipped
+on whichever side fires them out of order.
+
+### Variance accounting (final)
+
+| Count | What | Why |
+|---|---|---|
+| 383 | isnobol4.c functions | Every SIL label compiled as C function |
+| 158 | proc.h declarations | Externally-callable only — omits internal PROCs |
+| 154 | Silly unique RESULT_t | 153 SIL PROCs + ARITH shared helper |
+| 143 | sly_fns.txt intersection | isnobol4.c ∩ Silly RESULT_t — the sync set |
+| 41 | CSN-only | §20 BLOCKS (skipped in Silly) + void error stubs |
+| 42 | Silly-only | Structural merges (CMPILE subsumes sub-labels) + platform stubs |
+
+**Why differences MUST remain:**
+- §20 BLOCKS (BOX/VER/HOR/NODE etc.): line-printer formatting, deliberately skipped
+- Error stubs (`ARGNER`, `UNDEF`, `EROR` etc.): `void *_fn()` in Silly, not RESULT_t
+- Structural merges: `CMPILE_fn` in Silly correctly subsumes `CMPIL0`/`CMPILA` etc.
+  via structured C control flow. Reverting to one-function-per-label is wrong.
+- Platform calls (`STREAD`, `NEWCRD`, `STREAM`): called at different loop positions
+  due to Silly's compile_loop vs CSN's XLATRD/XLATRN sub-label structure.
+
+### FORBLK_fn fix (BUG-FORBLK-EXITS)
+
+**Monitor output before fix:**
+```
+MATCH  ENTER CMPILE
+MATCH  ENTER FORBLK
+DIVERGE at step 3:
+  CSN: 'ENTER ELEMNT'
+  SLY: 'EXIT FORBLK OK'
 ```
 
----
+**Root cause:** IBLKTB matches EOS characters (AC_STOP/EOSTYP). STREAM returns:
+- `OK` + stype=EOSTYP → EOS delimiter found → should call forrun (read next card), loop
+- `FAIL` + stype=0 → input exhausted = nonblank content at TEXTSP → return to CMPILE
 
-## Session 2026-04-08 — SS-39: M-SS-BLOCK §7 BASE/GOTG/GOTL/GOTO/INIT (Lon + Claude Sonnet 4.6)
+Original Silly FORBLK had exits **inverted**: returned OK on `rc==OK` (should loop)
+and called forrun on FAIL (should return). Fix: swap the dispatch.
 
-**HEAD:** one4all `769d4b5a` · .github `(this push)`
+**Monitor output after fix:**
+```
+MATCH  ENTER CMPILE
+MATCH  ENTER FORBLK
+TIMEOUT [csn] last='ENTER ELEMNT'  ← SLY segfaulted before matching
+```
 
-**Build gate:** ✅ clean throughout.
+Progress: two MATCHes now. Segfault is new bug.
 
-**M-SS-BLOCK: §7 blocks verified (v311.sil lines 2520–2648)**
+### Current failure: segfault after FORBLK returns
 
-- BASE_fn: ✅ OK
-- GOTG_fn: ✅ OK (XPTR/OCBSCL register difference is model-equivalent)
-- GOTL_fn: ✅ OK (previously verified SS-36)
-- GOTO_fn: ✅ OK
-- INIT_fn: ✅ Fixed — BUG-INIT-1: FRTNCL loaded from D_A(XCL) instead of D_V(XCL)
-
-**Bugs fixed:**
-- BUG-INIT-1: `SETAV(FRTNCL,XCL)` → `D_A(FRTNCL) = D_V(XCL)` — failure offset lives in V field of XCL
-
-**INTERP_fn and INVOKE_fn: not yet verified this session — next.**
-
-**Watermark: v311.sil line 2648** (end of INIT). Next: INTERP/INVOKE (~lines 2636–2678).
+Silly segfaults in CMPILE after FORBLK_fn returns. CSN proceeds to ELEMNT.
+Root cause unknown — likely CMPILE_fn mishandles FORBLK return value, or
+TEXTSP/XSP state is corrupted by the new forrun loop.
 
 ### Next session — start here
+
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/SESSION-silly-snobol4.md
 cd /home/claude/one4all && git pull
 gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build. HEAD one4all 769d4b5a.
+# Gate: clean build. HEAD one4all e22a0f46.
 #
-# Sprint: SS-40
-# M-SS-BLOCK: §7 INTERP/INVOKE (v311.sil lines 2636–2678, interp.c).
-# Then §8: ARGVAL/EXPVAL/EXPEVL/EVAL/INTVAL/PATVAL/VARVAL/VARVUP (argval.c, lines 2679–2922).
-# Method: oracle snobol4.c three-way, one block at a time.
+# Sprint: SS-37 — fix segfault after FORBLK returns → M-SS-MON-5
+#
+# Step 1: get crash location
+gdb -batch -ex "file /tmp/silly-snobol4" \
+    -ex "set args /tmp/hello.sno" \
+    -ex "handle SIGALRM pass" \
+    -ex "run" -ex "bt 15" 2>&1 | tail -25
+#
+# Step 2: check what CMPILE_fn does with FORBLK return value
+grep -A 30 "FORBLK_fn\|FORBLK" /home/claude/one4all/src/silly/cmpile.c | head -35
+# Compare with oracle:
+grep -B2 -A 20 "FORBLK\b" /home/claude/work/snobol4-2.3.3/isnobol4.c | head -30
+#
+# Step 3: rebuild silly-mon, re-run monitor — expect more MATCHes past FORBLK
+# (same commands as run_ss_monitor.sh)
+#
+# Monitor infrastructure state:
+#   snobol4-mon: /home/claude/work/snobol4-2.3.3/snobol4-mon (build cmd in SESSIONS_ARCHIVE)
+#   silly-mon:   rebuild from /tmp/silly-injected/ + mon_hooks.c each session
+#   filter:      /home/claude/one4all/test/ss-monitor/sly_fns.txt (143 entries)
+#   run:         cd /home/claude/one4all/test/ss-monitor && bash run_ss_monitor.sh /tmp/hello.sno
+#
+# Rebuild snobol4-mon (if /tmp/ was cleared):
+#   cd /home/claude/work/snobol4-2.3.3
+#   python3 /home/claude/one4all/test/ss-monitor/inject_snobol4.py isnobol4.c /tmp/isnobol4-injected.c
+#   cc -Wall -O3 -I./include -I. -DSNOBOL4 -DHAVE_CONFIG_H \
+#      -I/home/claude/one4all/test/ss-monitor \
+#      -c /tmp/isnobol4-injected.c -o /tmp/isnobol4-injected.o
+#   ALL_OBJS=$(ls *.o | grep -v "^isnobol4\.o$\|^snobol4\.o$" | tr '\n' ' ')
+#   cc -o snobol4-mon /tmp/isnobol4-injected.o $ALL_OBJS \
+#      /home/claude/one4all/test/ss-monitor/mon_hooks.c \
+#      -I/home/claude/one4all/test/ss-monitor \
+#      -rdynamic -lutil -ldl -lz -lbz2 -lm
+#
+# Rebuild silly-mon (if /tmp/ was cleared):
+#   cd /home/claude/one4all
+#   mkdir -p /tmp/silly-injected
+#   for f in src/silly/*.c; do
+#     python3 test/ss-monitor/inject_silly.py "$f" "/tmp/silly-injected/$(basename $f)" 2>/dev/null
+#   done
+#   cp src/silly/platform.c /tmp/silly-injected/platform.c  # un-injected (STREAD not monitored)
+#   # patch platform.c to add STREAM instrumentation (see SESSIONS_ARCHIVE SS-36)
+#   # patch main.c for mon_open() (see SESSIONS_ARCHIVE SS-36)
+#   gcc -Wall -Wextra -std=c99 -g -O0 -DMON_ENABLED \
+#     -I src/silly -I test/ss-monitor \
+#     /tmp/silly-injected/*.c test/ss-monitor/mon_hooks.c \
+#     -lm -o /tmp/silly-mon
 ```
