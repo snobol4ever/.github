@@ -33872,3 +33872,70 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 #   Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 10481-12293
 #           /home/claude/work/snobol4-2.3.3/snobol4.c (reference for §24 layout)
 ```
+
+---
+
+## Session 2026-04-07n — SS-33: M-SS-SYMREF + M-SS-BLOCK design + initial run (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `475fc988` · .github `e7cbf43`
+
+**Build gate:** ✅ clean (no code changes this session — analysis only).
+
+### Two new milestones designed
+
+**M-SS-SYMREF — Symbol-at-a-time audit:**
+- Strip all comments from *.c files first (comment noise inflates counts)
+- Extract all-caps identifiers, count per-symbol
+- Cross-reference against snobol4.c oracle counts
+- Work from lowest-referenced (count=1) upward; stop at ~50 (major globals, too many sites)
+- For each: check if our single usage is a declaration (harmless) or a real missing call site (bug)
+
+**M-SS-BLOCK — Block-at-a-time audit:**
+- Extract SIL label blocks (LABEL: ... up to next LABEL) from v311.sil
+- For each block, compare equivalent logic in snobol4.c vs our silly/*.c
+- Focus on runtime-critical sections: §8 (ARGVAL family), §7 (INTERP), §11 (SCAN)
+
+### M-SS-SYMREF findings (count=1 symbols, oracle≥10)
+
+| Symbol | Oracle | Finding |
+|--------|--------|---------|
+| BKDX, BKDXU, TTLCL, DESCL, TOPCL | 18–44 | GC workspace registers — declared in data.c, used inside arena.c GC loops. One declaration each. Expected. |
+| AXPTR, XSPPTR, YSPPTR | 11–25 | SPEC pointer registers — oracle uses DESCR-based passing; our API uses SPEC_t* directly. API difference, not a bug. |
+| LCPTR, BUKPTR, ST1PTR | 11–16 | GC/LOCA1 internals — in arena.c. Expected one declaration. |
+
+**Conclusion for count=1 symbols:** no actionable bugs found — all are either GC internals or oracle calling-convention artifacts where our C API wraps the SIL register pattern differently.
+
+### M-SS-BLOCK findings (§8 EXPVAL family)
+
+- **EXPVAL_fn / EXPEVL_fn:** oracle EXPVJ2 structure faithfully reproduced. All paths verified: EXPVC (FNC branch with INVOKE), EXPV11 (SCL/INSW/PUTIN), EXPV4 (deref), EXPV6 (SCL=2), EXPV9 (SCL=1/FAIL). The `D(ZPTR)=D(D_A(ZPTR)+DESCR)` step (AS-4 pattern) is present at line 158. ✅
+- **INTVAL_fn:** oracle L_INTV1/INTV3/INTV2/INTVC all faithfully reproduced. PUTIN case1→FAIL, success→intv_str. INTVC case1→FAIL, case2→intv1, case3→intv2. INTR1 on non-I/R/S. ✅
+- **ARGVAL_fn / VARVAL_fn / PATVAL_fn:** all INSW/PUTIN blocks have D(ZPTR)=D(D_A(ZPTR)+DESCR) step. ✅
+
+**No bugs found in §8 EXPVAL/INTVAL/VARVAL/PATVAL/ARGVAL.** These sections are solid.
+
+### Next steps for M-SS-SYMREF
+Continue with count=2 symbols where oracle≥5. Interesting candidates:
+- VVDTP (2 ours, 6 oracle) — data-type pair descriptor in CONCAT
+- IVDTP, VPDTP, RVDTP etc. — more DTP pairs in CONCAT/type dispatch
+- BKLTCL (2 ours, 14 oracle) — GC block count
+- EXN2CL (2 ours, 9 oracle) — statement execution counter
+
+### Next steps for M-SS-BLOCK
+§8 clean. Move to §11 SCAN blocks — most complex section, most prior bugs found.
+Start with SJSR/SCNR (scan restart) and the fullscan/nval pattern blocks.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 475fc988.
+#
+# Sprint: SS-33 continued
+# M-SS-SYMREF: continue count=2 symbols with oracle≥5
+# M-SS-BLOCK: move to §11 SCAN — SJSR, SCNR, fullscan blocks
+# Tools: /tmp/sil_sym_counts.txt (regenerate if needed), strip comments before counting
+```
