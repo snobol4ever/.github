@@ -34746,3 +34746,42 @@ grep -B2 -A 20 "FORBLK\b" /home/claude/work/snobol4-2.3.3/isnobol4.c | head -30
 #     /tmp/silly-injected/*.c test/ss-monitor/mon_hooks.c \
 #     -lm -o /tmp/silly-mon
 ```
+
+---
+
+## Session 2026-04-08 — SS-40: M-SS-BLOCK §7 INTERP/INVOKE + §8 INCL convention (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `d6d666b2` · .github `(this push)`
+
+**Build gate:** ✅ clean throughout (zero warnings at close).
+
+**M-SS-BLOCK: §7 INTERP/INVOKE + §8 INCL calling convention (v311.sil lines 2651–2922)**
+
+Root cause identified: the oracle's PUSH/POP mechanism (`SAVSTK; PUSH(reg); ... POP(INCL)`)
+was never implemented in our model. Every caller left INCL stale — INVOKE_fn always
+dispatched through whatever residue was in INCL from a previous call.
+
+**Bugs fixed (10):**
+- BUG-INVOKE-1: `GETDC_B(XPTR,INCL,0)` → `memcpy(A2P(D_A(INCL)))` — oracle dereferences INCL.a as direct arena ptr, not +0 offset
+- BUG-INVOKE-2: INVK2 branch inverted — `if (FNC) {} else ARGNER` had empty true-body; fixed to `if (!FNC) → ARGNER`
+- BUG-INTERP-1: INCL not set before INVOKE_fn() in INTERP loop
+- BUG-INTERP-2: switch used raw oracle ints 4/5/6 (RTN1/2/3 undefined); replaced with RESULT_t-aware logic (OK→continue, NRETURN/VRETURN→propagate)
+- BUG-INVOKE-INCL ×9 sites: `INCL = <reg>` added before every INVOKE_fn() call in argval.c (ARGVAL/EXPVAL/INTVAL/PATVAL/VARVAL/XYARGS), asgn.c (ASGNCV×2/ASGNC/KEYWRD/NMD), arrays.c, patval.c (ATOP/NAM), scan.c, trace.c
+- BUG-PATVAL-CASE: `case OK: goto patv1` was lost in a prior edit; restored
+
+**Watermark: v311.sil line 2922** (end §8 XYARGS).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build. HEAD one4all d6d666b2.
+#
+# Sprint: SS-41
+# M-SS-BLOCK: §9 arithmetic (v311.sil lines 2923–3118, arith.c).
+# ADD/DIV/MPY/SUB/EXPOP/EQ/GE/GT/LE/LT/NE/REMDR/INTGER/MNS/PLS — one block at a time.
+```
