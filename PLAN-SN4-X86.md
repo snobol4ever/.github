@@ -35,93 +35,7 @@ scrip --dump-parse    ✅ WIRED
 
 ## Milestones — Priority Order
 
-### SN4-X86-1-CORPUS-GAPS: Close corpus gaps — PASS=178 on `--sm-run`
-**Status:** 🟡 Active (PASS=168, gap=10)
-**File:** MILESTONE-SN4PARSE-VALIDATE.md (P1b/P1c), MILESTONE-P2F-SEMI.md,
-         MILESTONE-RT-RUNTIME.md (RT-9), MILESTONE-SILLY-SNOBOL4.md (M-SS-BLOCK)
-
-The 10 failing tests break into:
-- **expr_eval, test_stack** — NRETURN lvalue semantics in call_user_function; DEFINE arity
-- **1012_func_locals** — semicolon multi-statement (P2F-SEMI fix via git bisect)
-- **1112_array_multi, 1113_table, 1114_item, 1116_data_overlap** — array/table edge cases
-- **212_indirect_array** — indirect array reference
-- **word1, wordcount** — PAT-value storage / spurious OUTPUT (SJ-15 class bug)
-- **cross, triplet, fileinfo** — parser or pattern edge cases
-
-Gate: `INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"`
-Target: **PASS=178**
-
----
-
-### SN4-X86-2-BB-BENCH: Benchmark `--bb-live` vs `--bb-driver`
-**Status:** ⬜ Not started
-**File:** (new section in MILESTONE-SCRIP-X86-COMPLETION.md)
-
-Fill the M-DYN-BENCH-X86 results table. Run the standard corpus with `--bench`
-under both modes; record ops/sec and wall time.
-
-Gate: Results table filled in MILESTONE-SCRIP-X86-COMPLETION.md.
-Quick win — one session.
-
----
-
-### SN4-X86-3-EMIT-X64: `--jit-emit --x64` — SM-based x86 text emitter
-**Status:** ⬜ Not started (old `emit_x64.c` is LEGACY stopgap)
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-X64
-
-New file `src/backend/emit_sm_x64.c`. Walk SM_Program; for each instruction
-emit corresponding x86 blobs in 3-column format (label / instruction / comment).
-
-Gate: `scrip --jit-emit --x64 corpus/001.sno` produces correct `.s`; `nasm` + `ld` + run passes.
-
----
-
-### SN4-X86-4-EMIT-JVM: `--jit-emit --jvm` — SM-based Jasmin emitter
-**Status:** ⬜ Not started
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JVM
-
-New file `src/backend/emit_sm_jvm.c`.
-Gate: PASS=165 via `scrip --jit-emit --jvm`.
-
----
-
-### SN4-X86-5-EMIT-NET: `--jit-emit --net` — SM-based IL emitter
-**Status:** ⬜ Not started
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-NET
-
-New file `src/backend/emit_sm_net.c`.
-Gate: PASS=170 via `scrip --jit-emit --net`.
-
----
-
-### SN4-X86-6-EMIT-JS: `--jit-emit --js` — SM-based JS emitter
-**Status:** ⬜ Not started
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JS
-
-New file `src/backend/emit_sm_js.c`.
-Gate: PASS=174 via `scrip --jit-emit --js`.
-
----
-
-### SN4-X86-7-EMIT-C: `--jit-emit --c` — SM-based C emitter
-**Status:** ⬜ Not started
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-C
-
-New file `src/backend/emit_sm_c.c`.
-Gate: `scrip --jit-emit --c corpus/001.sno` produces C that compiles and runs.
-
----
-
-### SN4-X86-8-EMIT-WASM: `--jit-emit --wasm` — SM-based WAT emitter
-**Status:** ⬜ Not started
-**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-WASM
-
-New file `src/backend/emit_sm_wasm.c`.
-Gate: existing WASM corpus tests pass via new emitter.
-
----
-
-### SN4-X86-9-BOX-UNIFY: Box unification — clean linker, single-source box architecture
+### SN4-X86-1-BOX-UNIFY: Box unification — clean linker, single-source box architecture
 **Status:** 🟡 Planned (DYN-24 done 11/14 boxes)
 **File:** MILESTONE-BOX-UNIFY.md
 
@@ -140,7 +54,7 @@ efficient and composable.
 Each box currently exists in up to three forms:
 
 | Form | Location | Used by |
-|------|----------|---------|
+|------|----------|---------| 
 | C source (canonical logic) | `src/runtime/boxes/bb_*.c` | `scrip --sm-run`, `--ir-run`, `--jit-run` |
 | NASM text (hand-written asm) | `src/runtime/boxes/bb_*.s` | old `snobol4_x86` runtime (legacy) |
 | asm binary (mmap'd machine code) | not yet implemented | planned JIT path |
@@ -184,7 +98,93 @@ Gate Phase 2: 25/25 C boxes pass unit harness; C/asm parity verified.
 
 ---
 
-### SN4-X86-10-PARSER-GAPS: Parser gaps — P1b postfix subscript, P2D multiple assignment
+### SN4-X86-2-CORPUS-GAPS: Close corpus gaps — PASS=178 on `--sm-run`
+**Status:** 🟡 Active (PASS=168, gap=10)
+**File:** MILESTONE-SN4PARSE-VALIDATE.md (P1b/P1c), MILESTONE-P2F-SEMI.md,
+         MILESTONE-RT-RUNTIME.md (RT-9), MILESTONE-SILLY-SNOBOL4.md (M-SS-BLOCK)
+
+The 10 failing tests break into:
+- **expr_eval, test_stack** — NRETURN lvalue semantics in call_user_function; DEFINE arity
+- **1012_func_locals** — semicolon multi-statement (P2F-SEMI fix via git bisect)
+- **1112_array_multi, 1113_table, 1114_item, 1116_data_overlap** — array/table edge cases
+- **212_indirect_array** — indirect array reference
+- **word1, wordcount** — PAT-value storage / spurious OUTPUT (SJ-15 class bug)
+- **cross, triplet, fileinfo** — parser or pattern edge cases
+
+Gate: `INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"`
+Target: **PASS=178**
+
+---
+
+### SN4-X86-3-BB-BENCH: Benchmark `--bb-live` vs `--bb-driver`
+**Status:** ⬜ Not started
+**File:** (new section in MILESTONE-SCRIP-X86-COMPLETION.md)
+
+Fill the M-DYN-BENCH-X86 results table. Run the standard corpus with `--bench`
+under both modes; record ops/sec and wall time.
+
+Gate: Results table filled in MILESTONE-SCRIP-X86-COMPLETION.md.
+Quick win — one session.
+
+---
+
+### SN4-X86-4-EMIT-X64: `--jit-emit --x64` — SM-based x86 text emitter
+**Status:** ⬜ Not started (old `emit_x64.c` is LEGACY stopgap)
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-X64
+
+New file `src/backend/emit_sm_x64.c`. Walk SM_Program; for each instruction
+emit corresponding x86 blobs in 3-column format (label / instruction / comment).
+
+Gate: `scrip --jit-emit --x64 corpus/001.sno` produces correct `.s`; `nasm` + `ld` + run passes.
+
+---
+
+### SN4-X86-5-EMIT-JVM: `--jit-emit --jvm` — SM-based Jasmin emitter
+**Status:** ⬜ Not started
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JVM
+
+New file `src/backend/emit_sm_jvm.c`.
+Gate: PASS=165 via `scrip --jit-emit --jvm`.
+
+---
+
+### SN4-X86-6-EMIT-NET: `--jit-emit --net` — SM-based IL emitter
+**Status:** ⬜ Not started
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-NET
+
+New file `src/backend/emit_sm_net.c`.
+Gate: PASS=170 via `scrip --jit-emit --net`.
+
+---
+
+### SN4-X86-7-EMIT-JS: `--jit-emit --js` — SM-based JS emitter
+**Status:** ⬜ Not started
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-JS
+
+New file `src/backend/emit_sm_js.c`.
+Gate: PASS=174 via `scrip --jit-emit --js`.
+
+---
+
+### SN4-X86-8-EMIT-C: `--jit-emit --c` — SM-based C emitter
+**Status:** ⬜ Not started
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-C
+
+New file `src/backend/emit_sm_c.c`.
+Gate: `scrip --jit-emit --c corpus/001.sno` produces C that compiles and runs.
+
+---
+
+### SN4-X86-9-EMIT-WASM: `--jit-emit --wasm` — SM-based WAT emitter
+**Status:** ⬜ Not started
+**File:** MILESTONE-SCRIP-X86-COMPLETION.md § M-JITEM-WASM
+
+New file `src/backend/emit_sm_wasm.c`.
+Gate: existing WASM corpus tests pass via new emitter.
+
+---
+
+### SN4-X86-10-PARSER-GAPS: Parser gaps — postfix subscript, multiple assignment
 **Status:** ⬜ Sprint 91 target
 **File:** MILESTONE-SN4PARSE-VALIDATE.md
 
@@ -210,8 +210,6 @@ git mv src/runtime/asm/x86_stubs_interp.c    archive/backend/
 Add `/* LEGACY */` comment to top of each old emitter in `src/backend/`.
 
 Gate: `make scrip` still builds; dead files gone from working tree.
-
----
 
 ## Out-of-Scope for This Track (other session tracks)
 
