@@ -34987,3 +34987,59 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #
 # Target: ≥ 2110 passed, 0 failed non-ignored
 ```
+
+---
+
+## Session 2026-04-08n — Milestone cleanup + SNOBOL4 x86 slate clear (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** .github `f5081d0`
+**HEAD at end:** .github `f759df1` · one4all `c30de4ca`
+
+### Work completed
+
+**Archived 17 milestone files → MILESTONES_DIRECTORY.md** (3901 lines, all content preserved):
+BOX-UNIFY, DYN-INTERP, FAST-EMIT-CHECK, FAST-INVARIANTS, JS-BENCH, JS-ICON, JS-PROLOG,
+JS-SNOBOL4, JVM-SNOBOL4, P2F-SEMI, RT-RUNTIME, RT-SIL-MACROS, SCRIP-UNIFY-X86,
+SCRIP-X86-COMPLETION, SN4PARSE-VALIDATE, SN4PARSE, SNO2SC
+
+**Untouched (active sessions):**
+- Silly: MILESTONE-SILLY-SNOBOL4.md, MILESTONE-SS-AUDIT.md, MILESTONE-SS-MONITOR.md, MILESTONE-V311-C.md
+- snobol4dotnet: MILESTONE-NET-INTERP.md, MILESTONE-NET-SNIPPET-FACTORY.md, MILESTONE-NET-SNOBOL4.md
+
+**SNOBOL4 × x86 milestone slate: ZERO milestones defined — blank slate.**
+New milestones need to be written from scratch next session.
+
+**System-wide milestone inventory (actual files, no fabrication):**
+- Silly M0–M21 + M-SS-DIFF-RECHECK (22) — MILESTONE-SILLY-SNOBOL4.md
+- Silly Monitor M-SS-MON-0–5 (6) — MILESTONE-SS-MONITOR.md
+- V311-C C0–C16 (17, all ⬜) — MILESTONE-V311-C.md
+- NET Snippets STEP 0–8 (9) — MILESTONE-NET-SNIPPET-FACTORY.md
+- NET SNOBOL4 Phase 0/A/B/C/O/Z (6) — MILESTONE-NET-SNOBOL4.md
+- NET Interp (3) — MILESTONE-NET-INTERP.md
+- SNOBOL4 × x86: **0** — needs fresh milestones
+
+**Confirmed done (from SESSIONS_ARCHIVE 2026-04-08i/j):**
+RT-5 NV_SET_fn, RT-6 EXPVAL, RT-7 CONVE/CODE, RT-8 EVAL, RT-CAP-FN — all ✅
+
+**Current test baseline:**
+- `--ir-run` PASS=178
+- `--sm-run` PASS=168 (one4all HEAD c30de4ca, CSNOBOL4 oracle installed)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull --rebase
+cd /home/claude/.github && git pull --rebase
+# Baseline: --ir-run PASS=178, --sm-run PASS=168, HEAD=c30de4ca
+#
+# PRIORITY 1: Write fresh SNOBOL4 × x86 milestones from scratch.
+#   - No SN4-X86 milestones exist anywhere on disk.
+#   - Read SCRIP-SM.md + BB-GEN-X86-BIN.md to orient on what is done.
+#   - Goal: home stretch to complete SNOBOL4 × x86 in all modes.
+#
+# PRIORITY 2: Update PLAN.md NOW table — currently stale (references deleted files,
+#   wrong RT-5–8 status, wrong HEAD hashes).
+```
