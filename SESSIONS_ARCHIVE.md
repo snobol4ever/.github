@@ -33554,3 +33554,89 @@ INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 #   Check sm_prog.c sm_emit_ptr — does it copy ptr into ins->a[0].ptr?
 #   Then check sm_interp.c SM_PUSH_EXPR — does it read ins->a[0].ptr?
 ```
+
+---
+
+## Session 2026-04-07i — SS-31: scan.c SC-4 + argval.c AV-1 + define.c DEF-1 (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `ea8bc4a8` · .github `51f9cf3`
+
+**Build gate:** ✅ clean, zero errors.
+
+### Work completed
+
+**SC-4 verified all other SC-1–SC-31 bugs already fixed in prior sessions.**
+
+**SC-4 — SCNR_fn non-anchored FULLCL branches swapped:**
+scan.c line ~336: `FULLCL==0` was setting `YSIZ=MAXLEN` (the fullscan path);
+`FULLCL!=0` was computing `MAXLEN-YSIZ`. Oracle L_SCNR4 runs when FULLCL==0 and
+computes `YSIZ=MAXLEN-YSIZ`; L_SCNR5 (FULLCL!=0) uses `YSIZ=MAXLEN`. Fixed.
+
+**AV-1 — EXPVAL_fn FNC INVOKE exit-2 re-entry:**
+argval.c: INVOKE exit 2 (name returned) must re-enter EXPV11 path (INSW/LOCAPV
+input-assoc check). Was incorrectly going to the same branch as exit 3 (value
+direct). Added `expv11:`/`expv7:` labels; exit 2 now falls through to non-FNC path.
+
+**DEF-1 — define.c DEF12 block-fill slot off-by-one:**
+DEFINE_fn fill loop: oracle PUTDC writes at blk+fill_idx*DESCR. Previous code
+had separate entry_pt pop at blk+DESCR while loop started at fill_idx=2 —
+missing items in the middle. Fixed: unified loop from YCL down to 1.
+
+**M-SS-AUDIT argval.c audit — complete, no additional bugs found.**
+INTVAL_fn, PATVAL_fn, VARVAL_fn, VARVUP_fn, VPXPTR_fn, XYARGS_fn all verified
+correct against three-way oracle. AV-1 (EXPVAL FNC exit-2) is the only bug.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build.
+#
+# Continue M-SS-AUDIT: extern.c (§13), arrays.c (§14), io.c (§15),
+# trace.c (§16), asgn.c (§17), nmd.c (§17), pred.c (§18), func.c (§19),
+# interp.c (§7), cmpile.c (§6), trepub.c (§6), platform.c (tables).
+# Three-way diff method: v311.sil + snobol4.c + ours, function by function.
+```
+
+---
+
+## Session 2026-04-07j — SS-31 continued: extern.c + arrays.c + argval.c audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `32dccdff` · .github `51f9cf3`
+
+**Build gate:** ✅ clean.
+
+### Work completed
+
+**EX-1 — extern.c LNKFNC_fn entry addr slot (fixed):**
+`GETDC_B(zcl2, ZCL_d, 0)` read entry address from slot 0.
+Oracle L_LNKF5: `D(ZCL) = D(D_A(ZCL)+DESCR)` — slot 1. Fixed to `DESCR` offset.
+
+**arrays.c ARRAY/ITEM element slot — deferred to M-SS-HARNESS:**
+Three-way oracle analysis of ARRFIL/ARYA12 is ambiguous without runtime data.
+ARRFIL (XPTR+DESCR after ndim dim-pair writes) suggests slot ndim+3.
+ARYA12 (YPTR=blk+(ndim+2)*DESCR + linear*DESCR) suggests slot ndim+2.
+Cannot resolve statically. Current `(3+ndim)` left; harness diff will reveal truth.
+
+**argval.c audit — complete (no new bugs beyond AV-1 already fixed).**
+
+### M-SS-AUDIT watermark update
+- `argval.c`: ✅ complete (AV-1 fixed prior sub-session)
+- `extern.c`: ✅ complete (EX-1 fixed)
+- `arrays.c`: ⚠️ element slot ambiguous — deferred to harness
+- Next: `io.c` (§15), `trace.c` (§16), `asgn.c` (§17), `nmd.c`, `pred.c`, `func.c`, `interp.c`, `cmpile.c`, `trepub.c`, `platform.c`
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Continue M-SS-AUDIT: io.c (§15) then trace.c (§16).
+# Three-way diff: v311.sil + snobol4.c + ours per function.
+# Oracle locations: grep "^READ\b\|^PRINT\b\|^BKSPCE\b\|^ENDFIL\b\|^REWIND\b\|^SET\b\|^DETACH\b\|^PUTIN\b\|^PUTOUT\b" snobol4.c
+```
