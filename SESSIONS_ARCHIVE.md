@@ -33777,3 +33777,98 @@ cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 
 # Three-way diff: v311.sil + snobol4.c + ours, function by function.
 # Oracle: grep "^NMD\b" snobol4.c
 ```
+
+---
+
+## Session 2026-04-07m — SS-32 continued: nmd/pred/func/interp/cmpile/trepub audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `475fc988` · .github (this commit)
+
+**Build gate:** ✅ clean, zero errors.
+
+### Work completed
+
+**nmd.c — 5 bugs fixed:**
+- NMD-1: `ACOMP >= 0` collapsed both exits — missing `INTR13_fn()` for `TCL > NAMICL`
+- NMD-2: INTR8 was non-fatal skip → `INTR8_fn()` (fatal)
+- NMD-3: NAMEXN FAIL/NEMO silently skipped entry → both exit NMD entirely
+- NMD-4: NMDIC SPCINT fail was non-fatal skip → `INTR1_fn()` (fatal)
+- NMD-5: Same AS-4 pattern — `GETDC_B(zptr, TVAL, DESCR)` → `GETDC_B(zptr, zptr, DESCR)`
+
+**pred.c — 2 bugs fixed:**
+- PR-2: `CHAR_fn` used `SETAC(ERRTYP,...)` instead of `LENERR_fn()` / `INTR30_fn()`
+- PR-3: `rpad_common()` used `SETAC(ERRTYP,...)` instead of `INTR8_fn()` / `LENERR_fn()`
+
+**func.c — 1 bug fixed:**
+- FN-3: `COLECT_fn` — `GC_fn` result not stored into `ZPTR.a`
+
+**interp.c — 3 bugs fixed:**
+- IP-2: GOTLC — `INVOKE` case3 (NEMO/name) → `INTR4`, was unchecked
+- IP-3: SCNTCL/CONTCL FATLCL check inverted — `AEQLC(FATLCL,0)` → `!AEQLC`
+- IP-4: CONTCL/SCNTCL end path — `ERRTYP==0` → END0 (return OK), was always returning FAIL
+
+**cmpile.c — 2 bugs fixed:**
+- CM-1: Duplicate label CNSLCL check inverted — error when `CNSLCL==0`, not `!=0`
+- CM-2: CMPFT `TREPUB_fn(FORMND)` ignored return — case1 (FAIL) must goto cmptgo
+
+**trepub.c — 1 bug fixed:**
+- TR-A: Buffer limit check `<` should be `<=` (oracle uses strict `>` for spill trigger)
+
+### M-SS-AUDIT watermark — COMPLETE
+
+| File | Status |
+|------|--------|
+| `arena.c` | ✅ SS-29d |
+| `strings.c` | ✅ SS-29d |
+| `symtab.c` | ✅ SS-29d |
+| `data.c` | ✅ SS-29d |
+| `argval.c` | ✅ SS-31 |
+| `arith.c` | ✅ SS-30c |
+| `patval.c` | ✅ SS-30d |
+| `scan.c` | ✅ SS-30e+SS-31 |
+| `define.c` | ✅ SS-31 |
+| `extern.c` | ✅ SS-31 |
+| `arrays.c` | ⚠️ element slot deferred to harness |
+| `expr.c` | ✅ SS-29 |
+| `forwrd.c` | ✅ SS-29 |
+| `errors.c` | ✅ SS-29b |
+| `main.c` | ✅ SS-29b |
+| `io.c` | ✅ SS-32a (6 bugs) |
+| `trace.c` | ✅ SS-32a (4 bugs) |
+| `asgn.c` | ✅ SS-32a (4 bugs) |
+| `nmd.c` | ✅ SS-32b (5 bugs) |
+| `pred.c` | ✅ SS-32b (2 bugs) |
+| `func.c` | ✅ SS-32b (1 bug) |
+| `interp.c` | ✅ SS-32b (3 bugs) |
+| `cmpile.c` | ✅ SS-32b (2 bugs) |
+| `trepub.c` | ✅ SS-32b (1 bug) |
+| `platform.c` | ✅ tables verified SS-28; XCALL_ENFILE fixed SS-32a |
+
+**M-SS-AUDIT is complete. All 23 TUs audited.**
+
+### Next milestone: M-SS-HARNESS
+
+Per SESSION-silly-snobol4.md:
+1. Get binary to `BEGIN` without crashing — fix `sil_data_init()` to populate §24 globals
+2. A generator script (parse §24, emit C) is the right approach
+3. Run same corpus through Silly SNOBOL4 and CSNOBOL4; diff outputs
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I .
+# Gate: clean build. HEAD one4all 475fc988.
+#
+# Sprint: SS-33
+# Begin M-SS-HARNESS:
+#   Step 1: Audit sil_data_init() in data.c — which §24 globals are missing.
+#   Step 2: Write a generator script that parses v311.sil §24 and emits C.
+#   Step 3: Integrate generated init into data.c / platform.c.
+#   Step 4: Try to run ./silly-snobol4 on a trivial input, reach BEGIN.
+#   Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 10481-12293
+#           /home/claude/work/snobol4-2.3.3/snobol4.c (reference for §24 layout)
+```
