@@ -33103,3 +33103,56 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 #        /* rc == OK: break found, proceed to NEWCRD */
 #        return NEWCRD_fn();
 ```
+
+---
+
+## Session 2026-04-07d — SS-29: expr.c + forwrd.c diff (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `9e3c7fd8` · .github (this commit)
+
+**Build gate:** ✅ clean, zero warnings.
+
+### Work completed — 4 bugs fixed (three-way diff: v311.sil + snobol4.c + ours)
+
+**Bug 1 — forwrd.c `forrun()` CARDTB ST_ERROR handling:**
+- Was: `if (rc == FAIL) return forrun()` — always loops, conflates ST_ERROR and ST_EOS
+- Oracle: ST_ERROR (stype==0) → COMP3 (fatal); ST_EOS → L_FORRN0 (loop/blank card)
+- Fix: `if (stype == 0) return FAIL; return forrun();`
+- This was already noted as open in prior SESSIONS_ARCHIVE — now closed.
+
+**Bug 2 — expr.c `ELEMNT_fn` switch cases shifted by 2:**
+- Was: cases 0–5 (int/var/nested/fnc/float/array)
+- Oracle ELEMN9: STYPE=2 (ILITYP=int), 3 (var), 4 (nested), 5 (fnc), 6 (float), 7 (array)
+- Fix: all case values corrected to match ELEMTB put values from equ.h/syn_init.h
+
+**Bug 3 — expr.c `EXPR1_fn` BISNFN→BIEQFN:**
+- Was: `deql(EXOPND, BISRFN) || deql(EXOPND, BISNFN)`
+- Oracle L_EXPR12: checks BISRFN then BIEQFN (not BISNFN)
+- Fix: `deql(EXOPND, BISRFN) || deql(EXOPND, BIEQFN)`
+
+**Bug 4 — expr.c `BINOP_fn` + platform.c missing SBIPTB:**
+- Was: always used BIOPTB regardless of SPITBOL mode
+- Oracle L_BINOP5: when SPITCL!=0 and BLOKCL==0, use SBIPTB
+- Fix: added `DESCR_t SBIPTB` handle + `reg_tbl(&SBIPTB, &SBIPTB_st)` + table selection in BINOP_fn
+
+### M-SS-DIFF progress update
+
+| § | TU | Status |
+|---|----|--------|
+| §6 | expr.c | ✅ complete (SS-29) — 4 bugs |
+| §6 | forwrd.c (CARDTB bug) | ✅ fixed (SS-29) |
+| §20–§23 | remaining TUs | ⬜ next |
+| §1–§5, §7–§9 (recheck) | various | ⬜ pending full recheck pass |
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Next: §20–§23 diff (sil_main.c common stubs + sil_errors.c recheck)
+# OR: M-SS-HARNESS prep — sil_data_init() §24 generator
+# As directed by Lon.
+```

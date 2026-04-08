@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-28 | one4all `c04dc8fd` · .github (this commit) | **M-SS-DIFF-RECHECK**: §10 patval.c pattern-valued fns |
+| SS-29 | one4all `9e3c7fd8` · .github (this commit) | **M-SS-DIFF**: §20–§23 diff (sil_main.c common stubs) OR M-SS-HARNESS prep (§24 generator) |
 
 ## ⛔ §INFO additions (2026-04-06)
 
@@ -210,7 +210,7 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 | §4 | symtab.c | ✅ complete (2026-04-08a) — 2 bugs |
 | §7 | interp.c | ✅ gaps noted (2026-04-08a) — 0 code fixes |
 | §6 | cmpile.c | ✅ complete (2026-04-08b) — 4 bugs |
-| §6 | expr.c | ⬜ next |
+| §6 | expr.c + forwrd.c (CARDTB bug) | ✅ complete (SS-29 / 2026-04-07d) — 4 bugs |
 | §8 | argval.c | ✅ complete (2026-04-08b) — 4 bugs total |
 | §20–§23 | remaining TUs | ⬜ next |
 
