@@ -34533,255 +34533,109 @@ cc -o snobol4-mon isnobol4-injected.o $ALL_OBJS \
 
 ---
 
-## Session 2026-04-08i — SS-36: M-SS-MONITOR complete (Lon + Claude Sonnet 4.6)
+## Session 2026-04-08i — RT-5/6/7/8 + SM_PAT_CAPTURE_FN (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `2c85b3e4` · .github (this push)
+**HEAD at start:** one4all `13bf6dfa` · .github `c9ea616`
+**HEAD at end:** one4all `908be184`
 
-**Build gate:** ✅ clean throughout.
+**Build gate:** ✅ clean throughout. **PASS=168 throughout** (no regression).
 
 ### Work completed
 
-**M-SS-MON-2 ✅** — `snobol4-mon` built and runs `hello.sno` → `hello world`.
+**RT-5 ✅** — `NV_SET_fn` `void→DESCR_t` return for embedded assignment (`X = (A = B)`).
+- `snobol4.h`, `snobol4.c`, `sm_codegen.c`, `stmt_exec.c`, `sm_interp_test.c` updated.
+- `SM_STORE_VAR` in `sm_interp.c` now pushes the stored value back for embedded assignment.
+- Commit: `4919c151`
 
-Root cause of prior session failure (Error 23): wrong compile flags. Fix:
-- Must inject `isnobol4.c` not `snobol4.c` (Makefile uses `SNOBOL4=isnobol4`)
-- Compile flags: `-Wall -O3 -I./include -I. -DSNOBOL4 -DHAVE_CONFIG_H`
-  (`-DHAVE_CONFIG_H` pulls in `config.h` which defines `BLOCKS=1` → `MOVBLK2` resolves)
-- Link: all `*.o` except `isnobol4.o` + `snobol4.o`, plus `mon_hooks.c`
-- `mon_open()` added as `__attribute__((constructor))` in injected file
+**RT-6/7/8 ✅** — `EXPVAL_fn`, `CONVE_fn`, `CODE_fn`, `EVAL_fn` full SIL-faithful dispatch.
+- `eval_code.c`: added `EXPVAL_fn` (DT_E execution with NAM save/restore via `NAM_save`+`NAM_discard`+`NAM_pop`), `CONVE_fn` (string→DT_E), `CODE_fn` (string→DT_C).
+- `snobol4_pattern.c`: replaced `EVAL_fn` stub with full RT-8 dispatch: DT_E→EXPVAL_fn, DT_I/DT_R idempotent, numeric-string shortcuts (strtoll/strtod), quoted-string literal, general string→CONVE_fn→EXPVAL_fn.
+- `snobol4.h`: added declarations for EXPVAL_fn, CONVE_fn, CODE_fn.
+- **expr_eval no longer hangs** (was timing out; now exits in <1s).
+- Commit: `bd7ffa40`
 
-**Design flaw found and fixed:** `inject_snobol4.py` was instrumenting all 383
-functions in `isnobol4.c` — including sub-labels (`LOCA1`, `GNVARI`, `BLAND`,
-`BLOCK`, etc.) that have no counterpart in Silly. These are internal CSNOBOL4
-control-flow labels compiled as C functions, not SIL procedures.
-
-Fix: whitelist against `proc.h` (158 top-level SIL procedure declarations).
-Result: 153 functions instrumented in CSN (down from 383). Zero sub-label leakage.
-
-**M-SS-MON-3 ✅** — `silly-mon` built. `inject_silly.py` instruments all 153
-`RESULT_t *_fn()` functions in `src/silly/`. `mon_open()` called in `main.c`
-via `getenv("MON_EVT"/"MON_ACK")`.
-
-**M-SS-MON-4 ✅** — Two-way sync-step monitor fires correctly.
-
-Intersection filter (`sly_fns.txt`): 110 functions present in both proc.h and
-Silly's RESULT_t set. Monitor skips CSN events outside this set.
-
-**First divergence at SIL-procedure level:**
-```
-MATCH  (nothing matched — both fire INIT vs STREAD immediately)
-DIVERGE at step 1:
-  CSN: 'ENTER INIT'   ← interpreter running, hello.sno compiled + executing
-  SLY: 'ENTER STREAD' ← still in compile loop
-```
-
-This confirms the known hang: Silly never exits `CMPILE_fn` / compile loop.
-CSNOBOL4 compiles and reaches `INTERP` → `INIT` loop. Silly does not.
+**RT-CAP-FN ⚠️ WIP** — `. *func()` deferred capture fix.
+- Root cause fully traced across 4 layers:
+  1. `SPAN . *Push()` parses as `E_CAPT_COND_ASGN(SPAN, E_DEFER(E_FNC("Push")))` ✓
+  2. `sm_lower.c` now detects `E_DEFER(E_FNC)` child and emits `SM_PAT_CAPTURE_FN` (new opcode) ✓
+  3. `SM_PAT_CAPTURE_FN` handler in `sm_interp.c` + `sm_codegen.c` builds synthetic `E_FNC` EXPR_t and passes `DT_E` as `var` to `pat_assign_cond` ✓
+  4. `snobol4_pattern.c` XNME materialise: `DT_E` branch detects `efnc->kind == E_FNC`, wires `deferred_call_with_text_fn` as `call_fn` ✓
+  5. `apply_captures`: dispatches `call_fn(data, text, len)` first, before `var_fn` path ✓
+- **Still not firing:** `constant = SPAN . *Push()` emits `SM_EXEC_STMT` at instruction 33, not `SM_PAT_CAPTURE_FN`. The statement is being classified as a match statement (subject=SPAN, pattern=*Push()) rather than a value-building expression being stored to `constant`. The lowering path for this assignment form is not reaching `lower_pat_expr` with the E_CAPT_COND_ASGN node.
+- Commit: `908be184`
 
 ### Next session — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
 cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build. HEAD one4all 2c85b3e4.
+make scrip
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"
+# Gate: PASS=168. HEAD one4all 908be184.
 #
-# Sprint: SS-37 — M-SS-MON-5: fix CMPILE_fn hang → hello world from Silly
+# Sprint: Fix . *func() lowering mis-classification
 #
-# The monitor confirmed: Silly hangs in compilation. CSNOBOL4 reaches INTERP/INIT.
-# Next step: isolate the hang in CMPILE_fn.
-# Method: run oracle trace alone to get the CSN RESULT_t call sequence for hello.sno:
-TMP=$(mktemp -d)
-mkfifo $TMP/csn.evt $TMP/csn.ack
-(while IFS= read -r line; do
-    echo "$line"
-    printf 'G' > $TMP/csn.ack
-done < $TMP/csn.evt) &
-MON_EVT=$TMP/csn.evt MON_ACK=$TMP/csn.ack \
-    /home/claude/work/snobol4-2.3.3/snobol4-mon /tmp/hello.sno </dev/null
-# Read: which RESULT_t functions does CSN call during compilation of hello.sno?
-# That sequence is what Silly must reproduce.
-# Then: add fprintf(stderr,...) inside CMPILE_fn / FORBLK_fn / STREAM_fn in Silly
-# to trace where it loops. The monitor + gdb backtrace from prior sessions already
-# pointed to FORBLK → STREAM → forrun loop. Fix that loop first.
+# Step 1: Add AST dump to understand what 'constant = SPAN . *Push()' parses to.
+#   In sm_lower.c, find where assignment statements are lowered.
+#   The statement 'constant = SPAN . *Push()' has:
+#     subject = E_VAR("constant")
+#     replacement = E_CAPT_COND_ASGN(E_FNC("SPAN",...), E_DEFER(E_FNC("Push")))
+#   But the dump shows SM_EXEC_STMT — meaning the lowerer saw it as a pattern stmt.
+#   The '.' operator in 'SPAN . *Push()' may parse as a binary op, not E_CAPT_COND_ASGN,
+#   when SPAN is a function call (not a variable). Check the actual EXPR_t kind:
+grep -n "E_CAPT_COND_ASGN\|lower_pat_expr\|lower_expr" src/runtime/x86/sm_lower.c | head -20
+#
+# Step 2: Add a temporary fprintf in lower_stmt (sm_lower.c) to print
+#   the replacement EXPR_t kind for 'constant = ...' statements.
+#   Hypothesis: replacement->kind is NOT E_CAPT_COND_ASGN — it may be
+#   E_FNC("SPAN") with children including the . capture, parsed differently.
+#
+# Step 3: Once AST shape is confirmed, add the correct detection in lower_expr
+#   or lower_pat_expr. If the . operator in a replacement expression produces
+#   a different EXPR_t kind than E_CAPT_COND_ASGN, handle that case.
+#
+# Step 4: Gate:
+timeout 5 ./scrip --sm-run /tmp/dbg_vv.sno
+# Expected: plain cap=[42] / ok stk[1]=[42]
+timeout 5 ./scrip --sm-run corpus/crosscheck/control/expr_eval.sno \
+    < corpus/crosscheck/control/expr_eval.input
+# Expected: 7 / 9 / 25.5 / 7 / 26
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"
+# Target: PASS > 168 (expr_eval + test_stack should unlock)
 ```
+
+### §NOW update
 
 ---
 
-## Session 2026-04-08j — SS-36b: Monitor working + FORBLK_fn fixed (Lon + Claude Sonnet 4.6)
+## Session 2026-04-08i — RT-5/6/7/8 + SM_PAT_CAPTURE_FN (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `e22a0f46` · .github (this push)
+**HEAD at start:** one4all `13bf6dfa` · .github `c9ea616`
+**HEAD at end:** one4all `908be184`
 
-**Build gate:** ✅ clean throughout.
+**Build gate:** ✅ clean throughout. **PASS=168 throughout** (no regression).
 
-### Design flaw corrected
+### Work completed
 
-`inject_snobol4.py` was instrumenting all 383 C functions in `isnobol4.c`
-including sub-labels (`LOCA1`, `GNVARI`, `BLAND`, `BLOCK` etc.) that have no
-Silly counterpart. Correct approach: instrument only top-level SIL procedures.
+**RT-5 ✅** — `NV_SET_fn` `void→DESCR_t` for embedded assignment. Commit `4919c151`.
 
-**The right whitelist is NOT `proc.h`** — proc.h only lists 158 externally-callable
-procedures and omits internal-only ones (`CMPILE`, `ARGVAL`, `INVOKE`, `STREAM`,
-`INTERP`, `FORBLK` etc.) that are genuine SIL PROCs but only called from within
-other SIL procedures.
+**RT-6/7/8 ✅** — `EXPVAL_fn`, `CONVE_fn`, `CODE_fn`, `EVAL_fn` full SIL-faithful dispatch. `expr_eval` no longer hangs. Commit `bd7ffa40`.
 
-**The right approach:** instrument all 383 functions in isnobol4.c (all are SIL
-labels), let the controller filter via `sly_fns.txt` (the intersection of
-isnobol4.c functions ∩ Silly's `RESULT_t *_fn()` set = 143 functions). Sub-labels
-that have no Silly counterpart get auto-acked and skipped.
-
-**Filter is now symmetric:** applies to both CSN and SLY sides. Structural
-position differences (NEWCRD/STREAM called before vs inside CMPILE) are skipped
-on whichever side fires them out of order.
-
-### Variance accounting (final)
-
-| Count | What | Why |
-|---|---|---|
-| 383 | isnobol4.c functions | Every SIL label compiled as C function |
-| 158 | proc.h declarations | Externally-callable only — omits internal PROCs |
-| 154 | Silly unique RESULT_t | 153 SIL PROCs + ARITH shared helper |
-| 143 | sly_fns.txt intersection | isnobol4.c ∩ Silly RESULT_t — the sync set |
-| 41 | CSN-only | §20 BLOCKS (skipped in Silly) + void error stubs |
-| 42 | Silly-only | Structural merges (CMPILE subsumes sub-labels) + platform stubs |
-
-**Why differences MUST remain:**
-- §20 BLOCKS (BOX/VER/HOR/NODE etc.): line-printer formatting, deliberately skipped
-- Error stubs (`ARGNER`, `UNDEF`, `EROR` etc.): `void *_fn()` in Silly, not RESULT_t
-- Structural merges: `CMPILE_fn` in Silly correctly subsumes `CMPIL0`/`CMPILA` etc.
-  via structured C control flow. Reverting to one-function-per-label is wrong.
-- Platform calls (`STREAD`, `NEWCRD`, `STREAM`): called at different loop positions
-  due to Silly's compile_loop vs CSN's XLATRD/XLATRN sub-label structure.
-
-### FORBLK_fn fix (BUG-FORBLK-EXITS)
-
-**Monitor output before fix:**
-```
-MATCH  ENTER CMPILE
-MATCH  ENTER FORBLK
-DIVERGE at step 3:
-  CSN: 'ENTER ELEMNT'
-  SLY: 'EXIT FORBLK OK'
-```
-
-**Root cause:** IBLKTB matches EOS characters (AC_STOP/EOSTYP). STREAM returns:
-- `OK` + stype=EOSTYP → EOS delimiter found → should call forrun (read next card), loop
-- `FAIL` + stype=0 → input exhausted = nonblank content at TEXTSP → return to CMPILE
-
-Original Silly FORBLK had exits **inverted**: returned OK on `rc==OK` (should loop)
-and called forrun on FAIL (should return). Fix: swap the dispatch.
-
-**Monitor output after fix:**
-```
-MATCH  ENTER CMPILE
-MATCH  ENTER FORBLK
-TIMEOUT [csn] last='ENTER ELEMNT'  ← SLY segfaulted before matching
-```
-
-Progress: two MATCHes now. Segfault is new bug.
-
-### Current failure: segfault after FORBLK returns
-
-Silly segfaults in CMPILE after FORBLK_fn returns. CSN proceeds to ELEMNT.
-Root cause unknown — likely CMPILE_fn mishandles FORBLK return value, or
-TEXTSP/XSP state is corrupted by the new forrun loop.
+**RT-CAP-FN ⚠️ WIP** — `. *func()` deferred capture fix. All 4 layers wired correctly (sm_lower.c emits SM_PAT_CAPTURE_FN; sm_interp/codegen build DT_E var; XNME materialise fires call_fn; apply_captures dispatches it). **Still not firing** because `constant = SPAN . *Push()` emits SM_EXEC_STMT at the lowering level — the statement is being classified as a match stmt rather than a value-building assignment. The lowering path for the assignment form isn't reaching lower_pat_expr with the E_CAPT_COND_ASGN node. Commit `908be184`.
 
 ### Next session — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build. HEAD one4all e22a0f46.
+cd /home/claude/one4all && git pull && make scrip
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "^PASS"
+# Gate: PASS=168. HEAD one4all 908be184.
 #
-# Sprint: SS-37 — fix segfault after FORBLK returns → M-SS-MON-5
-#
-# Step 1: get crash location
-gdb -batch -ex "file /tmp/silly-snobol4" \
-    -ex "set args /tmp/hello.sno" \
-    -ex "handle SIGALRM pass" \
-    -ex "run" -ex "bt 15" 2>&1 | tail -25
-#
-# Step 2: check what CMPILE_fn does with FORBLK return value
-grep -A 30 "FORBLK_fn\|FORBLK" /home/claude/one4all/src/silly/cmpile.c | head -35
-# Compare with oracle:
-grep -B2 -A 20 "FORBLK\b" /home/claude/work/snobol4-2.3.3/isnobol4.c | head -30
-#
-# Step 3: rebuild silly-mon, re-run monitor — expect more MATCHes past FORBLK
-# (same commands as run_ss_monitor.sh)
-#
-# Monitor infrastructure state:
-#   snobol4-mon: /home/claude/work/snobol4-2.3.3/snobol4-mon (build cmd in SESSIONS_ARCHIVE)
-#   silly-mon:   rebuild from /tmp/silly-injected/ + mon_hooks.c each session
-#   filter:      /home/claude/one4all/test/ss-monitor/sly_fns.txt (143 entries)
-#   run:         cd /home/claude/one4all/test/ss-monitor && bash run_ss_monitor.sh /tmp/hello.sno
-#
-# Rebuild snobol4-mon (if /tmp/ was cleared):
-#   cd /home/claude/work/snobol4-2.3.3
-#   python3 /home/claude/one4all/test/ss-monitor/inject_snobol4.py isnobol4.c /tmp/isnobol4-injected.c
-#   cc -Wall -O3 -I./include -I. -DSNOBOL4 -DHAVE_CONFIG_H \
-#      -I/home/claude/one4all/test/ss-monitor \
-#      -c /tmp/isnobol4-injected.c -o /tmp/isnobol4-injected.o
-#   ALL_OBJS=$(ls *.o | grep -v "^isnobol4\.o$\|^snobol4\.o$" | tr '\n' ' ')
-#   cc -o snobol4-mon /tmp/isnobol4-injected.o $ALL_OBJS \
-#      /home/claude/one4all/test/ss-monitor/mon_hooks.c \
-#      -I/home/claude/one4all/test/ss-monitor \
-#      -rdynamic -lutil -ldl -lz -lbz2 -lm
-#
-# Rebuild silly-mon (if /tmp/ was cleared):
-#   cd /home/claude/one4all
-#   mkdir -p /tmp/silly-injected
-#   for f in src/silly/*.c; do
-#     python3 test/ss-monitor/inject_silly.py "$f" "/tmp/silly-injected/$(basename $f)" 2>/dev/null
-#   done
-#   cp src/silly/platform.c /tmp/silly-injected/platform.c  # un-injected (STREAD not monitored)
-#   # patch platform.c to add STREAM instrumentation (see SESSIONS_ARCHIVE SS-36)
-#   # patch main.c for mon_open() (see SESSIONS_ARCHIVE SS-36)
-#   gcc -Wall -Wextra -std=c99 -g -O0 -DMON_ENABLED \
-#     -I src/silly -I test/ss-monitor \
-#     /tmp/silly-injected/*.c test/ss-monitor/mon_hooks.c \
-#     -lm -o /tmp/silly-mon
-```
-
----
-
-## Session 2026-04-08 — SS-40: M-SS-BLOCK §7 INTERP/INVOKE + §8 INCL convention (Lon + Claude Sonnet 4.6)
-
-**HEAD:** one4all `d6d666b2` · .github `(this push)`
-
-**Build gate:** ✅ clean throughout (zero warnings at close).
-
-**M-SS-BLOCK: §7 INTERP/INVOKE + §8 INCL calling convention (v311.sil lines 2651–2922)**
-
-Root cause identified: the oracle's PUSH/POP mechanism (`SAVSTK; PUSH(reg); ... POP(INCL)`)
-was never implemented in our model. Every caller left INCL stale — INVOKE_fn always
-dispatched through whatever residue was in INCL from a previous call.
-
-**Bugs fixed (10):**
-- BUG-INVOKE-1: `GETDC_B(XPTR,INCL,0)` → `memcpy(A2P(D_A(INCL)))` — oracle dereferences INCL.a as direct arena ptr, not +0 offset
-- BUG-INVOKE-2: INVK2 branch inverted — `if (FNC) {} else ARGNER` had empty true-body; fixed to `if (!FNC) → ARGNER`
-- BUG-INTERP-1: INCL not set before INVOKE_fn() in INTERP loop
-- BUG-INTERP-2: switch used raw oracle ints 4/5/6 (RTN1/2/3 undefined); replaced with RESULT_t-aware logic (OK→continue, NRETURN/VRETURN→propagate)
-- BUG-INVOKE-INCL ×9 sites: `INCL = <reg>` added before every INVOKE_fn() call in argval.c (ARGVAL/EXPVAL/INTVAL/PATVAL/VARVAL/XYARGS), asgn.c (ASGNCV×2/ASGNC/KEYWRD/NMD), arrays.c, patval.c (ATOP/NAM), scan.c, trace.c
-- BUG-PATVAL-CASE: `case OK: goto patv1` was lost in a prior edit; restored
-
-**Watermark: v311.sil line 2922** (end §8 XYARGS).
-
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build. HEAD one4all d6d666b2.
-#
-# Sprint: SS-41
-# M-SS-BLOCK: §9 arithmetic (v311.sil lines 2923–3118, arith.c).
-# ADD/DIV/MPY/SUB/EXPOP/EQ/GE/GT/LE/LT/NE/REMDR/INTGER/MNS/PLS — one block at a time.
+# Sprint: Fix . *func() lowering — find why 'constant = SPAN . *Push()' → SM_EXEC_STMT
+# The '.' in a replacement expression context may parse differently than E_CAPT_COND_ASGN.
+# Step 1: add fprintf in sm_lower.c lower_stmt to print replacement->kind for assignments
+# Step 2: confirm AST shape; fix detection in lower_expr/lower_pat_expr
+# Step 3: gate: stk[1]=[42] for /tmp/dbg_vv.sno; expr_eval outputs 7/9/25.5/7/26
+# Target: PASS > 168
 ```
