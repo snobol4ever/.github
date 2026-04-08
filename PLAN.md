@@ -92,15 +92,15 @@ the corpus, the emitter is correct by construction.
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-19 — M0–M21 + sil_platform.c ✅ clean link · next: M-SS-DIFF (diff pass) → M-SS-HARNESS (two-way vs CSNOBOL4) |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
-| **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ⬜ INVOKE dispatch table |
-| **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ⬜ VARVAL/INTVAL/PATVAL typed arg eval |
-| **RUNTIME / RUNTIME-3** | `MILESTONE-RT-RUNTIME.md` | ⬜ NAME type + keyword names |
-| **RUNTIME / RUNTIME-4** | `MILESTONE-RT-RUNTIME.md` | ⬜ NMD conditional assignment stack |
-| **RUNTIME / RUNTIME-5** | `MILESTONE-RT-RUNTIME.md` | ⬜ ASGN with OUTPUT/TRACE hooks |
-| **RUNTIME / RUNTIME-6** | `MILESTONE-RT-RUNTIME.md` | ⬜ EXPVAL / EXPRESSION type execution |
-| **RUNTIME / RUNTIME-7** | `MILESTONE-RT-RUNTIME.md` | ⬜ CONVE / CODER / CONVERT |
-| **RUNTIME / RUNTIME-8** | `MILESTONE-RT-RUNTIME.md` | ⬜ EVAL() builtin → PASS=178 |
-| **RUNTIME / RUNTIME-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop |
+| **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ✅ INVOKE_fn + ARGVAL_fn — done |
+| **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ✅ VARVAL/INTVAL/PATVAL/VARVUP — done |
+| **RUNTIME / RUNTIME-3** | `MILESTONE-RT-RUNTIME.md` | ✅ NAME_fn + ASGNIC_fn + DT_N/DT_K — done |
+| **RUNTIME / RUNTIME-4** | `MILESTONE-RT-RUNTIME.md` | ✅ NAM_push/commit/discard (snobol4_nmd.c) — done |
+| **RUNTIME / RUNTIME-5** | `MILESTONE-RT-RUNTIME.md` | ⚠️ **CURRENT PRIORITY** — NV_SET_fn→DESCR_t + OUTPUT/TRACE hooks |
+| **RUNTIME / RUNTIME-6** | `MILESTONE-RT-RUNTIME.md` | ⚠️ **CURRENT PRIORITY** — EXPVAL_fn / EXPEVL_fn (declared, not implemented) |
+| **RUNTIME / RUNTIME-7** | `MILESTONE-RT-RUNTIME.md` | ⚠️ **CURRENT PRIORITY** — CONVE_fn + CODE_fn + CONVERT_fn full matrix |
+| **RUNTIME / RUNTIME-8** | `MILESTONE-RT-RUNTIME.md` | ⚠️ **CURRENT PRIORITY** — EVAL_fn full dispatch → PASS=178 gate |
+| **RUNTIME / RUNTIME-9** | `MILESTONE-RT-RUNTIME.md` | ⬜ INTERP/INIT/GOTO SM_Program loop (depends RT-5–8) |
 | **CMPILE MERGE** | `MILESTONE-CMPILE-MERGE.md` | ✅ Phases 0-2 COMPLETE — Phase 3 (--parser switch) pending |
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
@@ -114,7 +114,7 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
-| **RUNTIME (SCRIP unified)** | RT-125 | one4all `dab4ca31` · corpus `3fd44d0` · --sm-run PASS=161 / --ir-run PASS=178 | Fix SM Class A: `register_fn_alias("opsyn",...) + "EVAL"→EVAL_fn` in `snobol4_pattern.c` → PASS≥163. Then Class C (silent output), Class B (label resolution). See SESSIONS_ARCHIVE.md 2026-04-07x. |
+| **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
 | **Silly SNOBOL4** | SS-19 | one4all `d1d96dcd` | M-SS-DIFF: section-by-section diff pass vs v311.sil → then M-SS-HARNESS (two-way harness vs CSNOBOL4) |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |

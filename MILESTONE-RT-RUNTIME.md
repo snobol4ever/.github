@@ -532,22 +532,19 @@ SM_Program execution replaces tree-walking IR.
 
 ## Milestone Summary Table
 
-| Milestone | SIL procs | New file(s) | Gate |
-|-----------|-----------|-------------|------|
-| **RUNTIME-1** | `INVOKE`, `INVK1/2`, `ARGVAL` | `invoke.c` | PASS ≥ 177 |
-| **RUNTIME-2** | `VARVAL`, `INTVAL`, `PATVAL`, `VARVUP` | `argval.c` | PASS ≥ 177 |
-| **RUNTIME-3** | `NAME`, `ASGNIC`, type K dispatch | extend `snobol4.c` | PASS ≥ 177 |
-| **RUNTIME-4** | `NMD`, `NMD1-5`, `NMDIC`, `NAMEXN` | `nmd.c` | PASS ≥ 177 |
-| **RUNTIME-5** | `ASGN`, `ASGNV`, `ASGNVV`, `ASGNVP` | extend `snobol4.c` | PASS ≥ 177 |
-| **RUNTIME-6** | `EXPVAL`, `EXPEVL`, `EXPVC` | extend `eval_code.c` | PASS ≥ 177 |
-| **RUNTIME-7** | `CONVE`, `CODER`, `CNVRT` | extend `snobol4.c` | PASS ≥ 177 |
-| **RUNTIME-8** | `EVAL`, `EVAL1` | extend `snobol4.c` | **PASS = 178** |
-| **RUNTIME-9** | `INTERP`, `INIT`, `GOTO`, `GOTL`, `GOTG` | `sm_interp.c` | PASS ≥ 178 via SM |
+| Milestone | SIL procs | File(s) | Gate |
+|-----------|-----------|---------|------|
+| ~~**RUNTIME-1**~~ ✅ | `INVOKE`, `INVK1/2`, `ARGVAL` | `snobol4_invoke.c` | done |
+| ~~**RUNTIME-2**~~ ✅ | `VARVAL`, `INTVAL`, `PATVAL`, `VARVUP` | `snobol4_invoke.c` | done |
+| ~~**RUNTIME-3**~~ ✅ | `NAME`, `ASGNIC`, type K dispatch | `snobol4_invoke.c` + `sil_macros.h` | done |
+| ~~**RUNTIME-4**~~ ✅ | `NMD`, `NMD1-5`, `NMDIC`, `NAMEXN` | `snobol4_nmd.c` | done |
+| **RUNTIME-5** ⚠️ **CURRENT** | `ASGN`, `ASGNV`, `ASGNVV`, `ASGNVP` | `snobol4_invoke.c` — `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hooks | PASS ≥ 163 |
+| **RUNTIME-6** ⚠️ **CURRENT** | `EXPVAL`, `EXPEVL`, `EXPVC` | `eval_code.c` — implement `EXPVAL_fn`/`EXPEVL_fn` (declared, not implemented) | PASS ≥ 163 |
+| **RUNTIME-7** ⚠️ **CURRENT** | `CONVE`, `CODER`, `CNVRT` | `snobol4_invoke.c` — `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix | PASS ≥ 163 |
+| **RUNTIME-8** ⚠️ **CURRENT** | `EVAL`, `EVAL1` | `snobol4_invoke.c` — replace stub: full DT_E/DT_S/DT_I/DT_R dispatch | **PASS = 178** |
+| **RUNTIME-9** | `INTERP`, `INIT`, `GOTO`, `GOTL`, `GOTG` | `sm_interp.c` (exists, extend) — depends RT-5–8 | PASS ≥ 178 via SM |
 
-Dependencies: RUNTIME-3 → RUNTIME-4 → RUNTIME-5 (NAME before NMD before ASGN hooks).
-RUNTIME-6 → RUNTIME-7 → RUNTIME-8 (EXPVAL before CONVE before EVAL).
-RUNTIME-1 and RUNTIME-2 are independent — start with RUNTIME-1.
-RUNTIME-9 depends on all prior milestones and SM-LOWER (see SCRIP-SM.md).
+Dependencies: RT-5 → RT-6 → RT-7 → RT-8 in order. RT-9 depends on all prior.
 
 ---
 
