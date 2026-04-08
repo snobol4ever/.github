@@ -33554,3 +33554,49 @@ INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 #   Check sm_prog.c sm_emit_ptr — does it copy ptr into ins->a[0].ptr?
 #   Then check sm_interp.c SM_PUSH_EXPR — does it read ins->a[0].ptr?
 ```
+
+---
+
+## Session 2026-04-07i — RT-141/RT-142: sm_emit strdup + SM_PUSH_EXPR union clobber (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `924b8a11` · .github `53b1433`
+
+**Build gate:** ✅ clean, zero errors.
+
+**Baseline:** PASS=164/203 → **PASS=166/203** (+2)
+
+### Work completed
+
+**RT-141 — `sm_emit_s` / `sm_emit_si`: missing `strdup` ✅**
+`sm_prog.c` stored raw `const char *s` directly into `SM_Instr.a[0].s` without copying. Any `SM_CALL` built from a stack-local `char[]` (e.g. `%s_SET` setter name in `sm_lower.c`) was silently corrupted when subsequent loop iterations reused the same stack frame. Diagnosis path: lowerer printed `sval='lson'` and `emitting 'lson_SET'` — yet APPLY_fn only ever saw `val_SET`. Post-emit check showed correct ptr in the instruction; runtime showed wrong name. Bisected to `sm_emit_si` storing raw pointer vs strdup. Fix: `strdup(s)` in both `sm_emit_s` and `sm_emit_si` in `sm_prog.c`. Fixed `1115/004` nested accessor after mutate (+1).
+
+**RT-142 — `SM_PUSH_EXPR`: union clobber zeros `d.ptr` ✅**
+`sm_interp.c` `SM_PUSH_EXPR` case built `DT_E` descriptor: `d.ptr = ins->a[0].ptr` then `d.s = NULL`. Since `ptr` and `s` share a union, `d.s = NULL` zeroed `d.ptr` — every deferred `*expr` arrived at `EVAL_fn` with `ptr=NULL → FAILDESCR`. Diagnosis: dispatch-level print showed correct ptr; handler-level print showed nil — both reading same `ins`. Identified union alias: `d.s=NULL` after `d.ptr=x` kills x. Fix: remove `d.s = NULL`; set `d.ptr` last (after `d.slen = 0`). Fixed `1016_eval` (3/3) (+1).
+
+### Remaining failures (37 total)
+
+**beauty_* cluster (14):** `beauty_Gen/Qize/ReadWrite/ShiftReduce/TDump/XDump/assign/case/counter/fence/global/io/is/match/omega/semantic/stack/trace/tree_driver` — root cause not yet pinpointed; likely RUNTIME-5/6/7/8 (NV_SET, EXPVAL, CONVE, EVAL dispatch gaps) or missing builtins.
+
+**Other:** `fileinfo`, `triplet`, `test_stack`, `1012_func_locals`, `1013_func_nreturn`, `1112_array_multi`, `1113_table`, `1114_item`, `1116_data_overlap`, `212_indirect_array`, `cross`, `word1`, `wordcount`, `demo_wordcount`, `demo_treebank`, `demo_claws5`, `demo_roman`, `expr_eval` (harness-only, no .sno).
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull && make scrip
+INTERP="./scrip --sm-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
+# Gate: clean build. PASS=166/203.
+#
+# Next bug cluster — pick one:
+#
+# Option A: beauty_* root cause
+#   ./scrip --sm-run corpus/beauty/beauty_stack_driver.sno 2>&1 | head -30
+#   ./scrip --sm-run corpus/beauty/beauty_assign_driver.sno 2>&1 | head -30
+#   Look for: undefined function errors (Error 5), wrong output, silent fail
+#
+# Option B: 1116_data_overlap (data type field name collision)
+#   ./scrip --sm-run corpus/crosscheck/rung11/1116_data_overlap.sno 2>&1
+#
+# Option C: RUNTIME-5 (NV_SET_fn → DESCR_t + OUTPUT/TRACE hooks)
+#   cat /home/claude/.github/MILESTONE-RT-RUNTIME.md | grep -A40 "^## RUNTIME-5"
+```
