@@ -33156,3 +33156,58 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # OR: M-SS-HARNESS prep — sil_data_init() §24 generator
 # As directed by Lon.
 ```
+
+---
+
+## Session 2026-04-07e — SS-29 through SS-29d: Deep Audit (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `52e8e061` · .github (this commit)
+
+**New milestone:** MILESTONE-SS-AUDIT.md — line-by-line three-way audit (v311.sil + snobol4.c + ours).
+
+**Total bugs this session (SS-29 through SS-29d):** 19
+
+### SS-29 — expr.c/forwrd.c diff (4 bugs)
+- forwrd.c forrun() CARDTB ST_ERROR vs ST_EOS conflation
+- expr.c ELEMNT_fn switch cases shifted by 2 (0–5 vs oracle 2–7)
+- expr.c EXPR1_fn BISNFN→BIEQFN
+- expr.c BINOP_fn + platform.c missing SBIPTB for SPITBOL mode
+
+### SS-29b — errors.c/main.c diff (5 bugs)
+- errors.c SYSCUT_fn CUTNO check inverted
+- errors.c FTERST_fn MSGNO intern used invalid arena offset
+- main.c XLAEND NERRCL logic inverted
+- main.c XLATNX CARDTB conflation
+- main.c INTERP return cases wrong
+
+### SS-29c — arena.c deep audit (4 bugs)
+- GENVAR_fn missing CONVSW=0 at entry
+- GC GCBA pseudo-block forced f=PTR instead of D(ST1PTR)
+- GC GCLAP off-by-one loop (>=0 should be !=0)
+- GC GCLAT same off-by-one
+
+### SS-29d — strings.c + symtab.c deep audit (6 bugs)
+- SPCINT_fn always stripped whitespace (oracle: only when SPITCL!=0)
+- TRIMSP_fn used ==' ' only (oracle: isspace())
+- locapt_fn returned type-slot not pair-base
+- locapv_fn returned value-slot not pair-base
+- AUGATL_fn new-block type/value one DESCR too high
+- DTREP_fn searched DTLIST instead of DTATL
+
+### Watermark
+- arena.c: ✅ complete (line 572)
+- strings.c: ✅ complete (line 230)
+- symtab.c: ✅ complete (line 221)
+- **Next:** data.c → argval.c → arith.c
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# Next audit: data.c (line 1), then argval.c, arith.c
+# Three-way: v311.sil §24 + snobol4.c + ours
+```
