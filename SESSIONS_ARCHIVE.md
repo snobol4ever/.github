@@ -32783,3 +32783,68 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 2923-3118
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08f — M-SS-DIFF-RECHECK §9 arith.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `c04dc8fd` (no new commits — arith.c clean)
+
+### Work completed
+
+**§9 arith.c — clean. 0 bugs.**
+
+Three-way diff of ADD/DIV/EXPOP/MPY/SUB/EQ/GE/GT/LE/LT/NE/REMDR/INTGER/MNS/PLS:
+- SCL dispatch table: ✅ codes 1-12 match oracle exactly
+- Type-coercion dispatch (ARTHII/IV/VI/VV/RR/IR/RI/VR/RV): ✅ all paths correct
+- Integer ops + overflow detection: ✅
+- Real ops + RMATH_ERROR: ✅
+- REMDR (integer remainder via divide-then-multiply-back): ✅
+- VV double-coerce (ARTHRV/ARTHIV paths): ✅
+- INTGER, MNS, PLS unary functions: ✅ structurally correct
+
+Note: RETNUL vs OK return for predicates (EQ/GE etc.) is a systemic
+convention question, not a per-function bug. To be addressed in INTERP pass.
+
+### M-SS-DIFF-RECHECK watermark (cumulative, final for this run)
+- §3 main.c compile loop: ✅ 3 bugs
+- §4 symtab.c: ✅ 2 bugs
+- §5 arena.c GC: ✅ 2 bugs
+- §5 arena.c GENVAR: ✅ 2 bugs
+- §5 BLOCK, SPLIT: ✅ clean
+- §6 expr.c: ✅ 3 bugs
+- §6 cmpile.c: ✅ 4 bugs
+- §7 interp.c: ✅ gaps noted
+- §8 argval.c: ✅ 4 bugs
+- §9 arith.c: ✅ clean
+- §16–§19, §22–§23: ✅ previously fixed
+- §21 common stubs: ✅ clean
+- §1 types/equates: ⬜ next
+- §2 main.c BEGIN (SPCNVT loop): ⚠️ stubbed
+- §10 patval.c: ⬜ next
+- §11 scan.c: ⬜ next
+- §12–§15: ⬜ pending
+
+### Total bugs fixed this run (SS-25 through SS-27): 15
+expr.c(3) + arena GC(2) + arena GENVAR(2) + main.c(3) + §9(0) + §21/BLOCK/SPLIT(0)
+
+### Open items (unchanged)
+- EXDTSP arena-intern before M-SS-HARNESS
+- ERRTKY.a wire to ERRTSP in data_init()
+- INVOKE POP INCL call-site audit
+- INTERP PROGEND enum value
+- SPCNVT loop in BEGIN (blocked on INITLS)
+- RETNUL vs OK predicate return convention — audit in INTERP pass
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §10 patval.c (ANY/BREAKX/BREAK/NOTANY/SPAN/LEN/POS/RPOS/RTAB/TAB/ARBNO/ATOP/NAM/DOL/OR)
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 3119-3322
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
