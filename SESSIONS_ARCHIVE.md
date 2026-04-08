@@ -32643,3 +32643,71 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 - EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
 - §1–§15 + §20–§21 recheck pending
 - ERRTKY.a not yet wired to interned ERRTSP in sil_data_init() — needed for keyword trace on errors
+
+---
+
+## Session 2026-04-08a — M-SS-DIFF-RECHECK §4+§7+§8 + rename (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `7396177c` · .github `bdc1b80`
+
+### Work completed
+
+**Renames:**
+- All `src/silly/sil_*.c` / `sil_*.h` → `*.c` / `*.h` (49 files)
+- All `sil_` prefixed identifiers stripped (sil_data_init→data_init, sil_acts→acts, etc.) across all 49 TUs
+- Makefile wildcard updated; #includes fixed
+- Build: zero warnings, zero errors ✅
+
+**M-SS-DIFF-RECHECK §4 — symtab.c — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | AUGATL_fn: MOVBLK count was `old_sz-DESCR`, should be `old_sz` (one pair short) |
+| 2 | EXDTSP: was `const char[]`, now `SPEC_t`; ALPHSP likewise. DTREP_fn DTREPE path now does full specifier copy (`DPSP = EXDTSP`). Initialized in data_init() from static literals. |
+
+**M-SS-DIFF-RECHECK §7 — interp.c — gaps noted (no fixes needed yet):**
+- INTERP case 4 (RTN1 = program END): unhandled enum value — non-critical until END hit
+- INVOKE POP INCL discipline: structural pre-existing design choice, flagged for §8 audit
+- GOTL/GOTO/GOTG/BASE/INIT/BASE: correct ✅
+
+**M-SS-DIFF-RECHECK §8 — argval.c — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | VARVAL_fn: PUTIN success was falling through to varv2 type-coerce. Oracle exit (FAIL,RTXNAM) — success must return OK directly. |
+| 2 | INTVAL_fn: PUTIN success was going to intv2 (wrong). Oracle exit (ZPTR,XPTR),FAIL — success falls to INTV (LOCSP/SPCINT/SPREAL string-parse chain). |
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ 9 bugs
+- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
+- §18 sil_pred.c: ✅ 1 bug
+- §19 sil_func.c: ✅ 1 bug
+- §22+§23 sil_errors.c: ✅ 7 bugs
+- §4 symtab.c: ✅ 2 bugs
+- §7 interp.c: ✅ gaps noted
+- §8 argval.c: ✅ 2 bugs (VARVAL + INTVAL PUTIN exits)
+- §2 main.c BEGIN: ⚠️ SPCNVT loop stubbed (blocked on data_init INITLS)
+- §8 argval.c PATVAL + XYARGS: ⬜ next
+- §6 cmpile.c: ⬜ next
+- §1–§3, §5, §9–§15, §20–§21: ⬜ pending
+
+### Open items
+- EXDTSP.a = P2A(static literal) — not arena-interned; fine for now, wire to interned string before M-SS-HARNESS
+- ERRTKY.a not wired to interned ERRTSP in data_init()
+- INVOKE POP INCL discipline — verify full call-site audit in §8
+- INTERP PROGEND (code 4) — add enum value before END statement testing
+- SPCNVT loop in BEGIN — implement once INITLS populated
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §8 PATVAL + XYARGS in argval.c
+# Then §6 cmpile.c (CMPILE/BINOP/ELEMNT/EXPR/FORWRD/NEWCRD/TREPUB)
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
