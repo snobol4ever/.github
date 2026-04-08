@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-24 | one4all `3fbd1b9d` · .github (this commit) | **M-SS-DIFF-RECHECK**: §6 expr.c — EXPR/ELEMNT/BINOP/UNOP |
+| SS-25 | one4all (pending commit) · .github (this commit) | **M-SS-DIFF-RECHECK**: §20-§21 common stubs, then §1-§5 |
 
 ## ⛔ §INFO additions (2026-04-06)
 

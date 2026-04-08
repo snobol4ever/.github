@@ -32770,3 +32770,54 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil (lines 1662-2296)
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c EXPR/ELEMNT/BINOP/UNOP
 ```
+
+---
+
+## Session 2026-04-08c — M-SS-DIFF-RECHECK §6 expr.c (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `3fbd1b9d` (pre-commit) · .github (this commit)
+
+### Work completed
+
+**M-SS-DIFF-RECHECK §6 expr.c — 3 bugs fixed (4 sub-bugs):**
+
+| # | Bug |
+|---|-----|
+| 1 | ELEILI logic: (a) QLITYP branch was empty — now sets EMSGCL=OPNLIT+FAIL; (b) non-zero non-QLITYP stype was erroring — oracle continues to ELEMN9 dispatch (valid element type); (c) restructured guard to match oracle flow exactly |
+| 2 | expr7 (EXPR7/EXPR10): condition exactly backwards — `AEQLC(EXPRND,0)` was triggering ADDSIB (EXPR10); oracle: EXPR10 runs when EXPRND≠0 |
+| 3 | expr_continue (EXPR14/EXPR3): condition exactly backwards — EXPR3 (precedence compare) was running when EXPRND==0; oracle: EXPR3 runs when EXPRND≠0 |
+
+### M-SS-DIFF-RECHECK watermark
+- §16 sil_trace.c: ✅ 9 bugs
+- §17 asgn.c + nmd.c + scan.c: ✅ 8 bugs
+- §18 pred.c: ✅ 1 bug
+- §19 func.c: ✅ 1 bug
+- §22+§23 errors.c: ✅ 7 bugs
+- §4 symtab.c: ✅ 2 bugs
+- §6 cmpile.c: ✅ 4 bugs
+- §6 expr.c: ✅ 3 bugs (4 sub-bugs: ELEILI×2, expr7 inversion, EXPR3/EXPR14 inversion)
+- §7 interp.c: ✅ gaps noted
+- §8 argval.c: ✅ 4 bugs
+- §20–§21 (common stubs): ⬜ next
+- §1–§5, §9–§15: ⬜ pending
+
+### Open items (unchanged)
+- EXDTSP arena-intern before M-SS-HARNESS
+- ERRTKY.a wire to ERRTSP in data_init()
+- INVOKE POP INCL call-site audit
+- INTERP PROGEND enum value
+- SPCNVT loop in BEGIN (blocked on INITLS)
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §20–§21 common stubs (sil_main.c RTN1/FAIL/RETNUL/RTN2/RTN3/BASE/GOTO)
+# Then §1–§5 (sil_types, sil_data, sil_arith, sil_support, sil_storage)
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
