@@ -32718,3 +32718,68 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 # Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
 # Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
 ```
+
+---
+
+## Session 2026-04-08e — M-SS-DIFF-RECHECK §5 GENVAR + §3 compile_loop (Lon + Claude Sonnet 4.6)
+
+**HEAD:** one4all `c04dc8fd` · .github (this commit)
+
+### Work completed
+
+**§5 GENVAR — 2 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | Chain walk sorted-order exit wrong: we exited on `lnk->v != bin_idx` (any non-equal). Oracle uses sorted order: `< bin_idx` → keep walking; `> bin_idx` → stop (overshot = LOCA5). Missing early exit meant walking past insertion point into other bins' overflow entries. |
+| 2 | Insertion point: `lnk_slot->a.i = bin_head` (original head). Should be `bukptr` (node we stopped at — BUKPTR in oracle LOCA6). Effect: new entries were always chained to the original head, breaking sorted order. |
+
+**§5 BLOCK, SPLIT — clean.** ✅
+
+**§3 compile_loop — 3 bugs fixed:**
+
+| # | Bug |
+|---|-----|
+| 1 | CMPILE return dispatch inverted: FAIL (RTN1) was treated as END-reached; RTN2 (fall-through) is the END; RTN3 → continue. Fatal errors (RTN1) should go to COMP3, not insert ENDCL. |
+| 2 | NERRCL check inverted: `!AEQLC(NERRCL,0)` (abort if NOERRORS set). Oracle: abort when NERRCL==0 (NOERRORS clear). |
+| 3 | XLATP: missing second IBLKTB stream after END label parse — oracle checks for trailing junk. |
+
+### M-SS-DIFF-RECHECK watermark (cumulative)
+- §3 main.c compile loop: ✅ 3 bugs
+- §5 arena.c GC: ✅ 2 bugs (GCLAD, GCBB)
+- §5 GENVAR: ✅ 2 bugs (chain walk, insertion point)
+- §5 BLOCK, SPLIT: ✅ clean
+- §21 common stubs: ✅ clean
+- §6 expr.c: ✅ 3 bugs
+- §6 cmpile.c: ✅ 4 bugs
+- §8 argval.c: ✅ 4 bugs
+- §7 interp.c: ✅ gaps noted
+- §4 symtab.c: ✅ 2 bugs
+- §16–§19, §22–§23: ✅ previously fixed
+- §1 types/equates: ⬜ next (no functions — #define/typedef audit)
+- §2 main.c BEGIN (SPCNVT loop): ⚠️ stubbed
+- §9 arith.c: ⬜ next
+- §10 patval.c: ⬜ next
+- §11 scan.c: ⬜ next
+- §12–§15: ⬜ pending
+
+### Open items (unchanged)
+- EXDTSP arena-intern before M-SS-HARNESS
+- ERRTKY.a wire to ERRTSP in data_init()
+- INVOKE POP INCL call-site audit
+- INTERP PROGEND enum value
+- SPCNVT loop in BEGIN (blocked on INITLS)
+- COMP3_fn / COMP7_fn — referenced from compile_loop but may be stub
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/one4all && git pull
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
+# Gate: clean build, zero warnings.
+# M-SS-DIFF-RECHECK: §9 arith.c — ADD/SUB/MPY/DIV/EXPOP/REMDR/EQ/GE/GT/LE/LT/NE/INTGER/MNS/PLS
+# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil lines 2923-3118
+# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+```
