@@ -32547,277 +32547,118 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I
 
 ---
 
-## Session 2026-04-07y — M-SS-DIFF-RECHECK §19 complete (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07x — SM milestone audit + SM bug fixes (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `cc6cb9a7` · .github (this commit)
+**HEAD:** one4all `dab4ca31` · .github `982b449`
 
 ### Work completed
 
-**M-SS-DIFF-RECHECK §19 — sil_func.c — 1 bug fixed:**
+**Milestone cleanup:**
+- M-DYN-B0–B12 marked ✅ in BB-GEN-X86-BIN.md (all emitters already implemented)
+- M-BB-LIVE-WIRE marked ✅ in MILESTONE-SCRIP-X86-COMPLETION.md (already wired)
+- PLAN.md component map updated
+- `setup.sh`: added `wabt` to PKGS (was missing; caused `make scrip` to fail fresh)
+- `scrip-interp` symlink not created by `make scrip` — must do `ln -sf scrip scrip-interp` in fresh container
 
-| # | Function | Bug |
-|---|----------|-----|
-| 1 | APPLY_fn | INVOKE return-path wrong: MOVD(ZPTR,XPTR) was backward + no NEMO case. Fixed: case FAIL→return FAIL, case NEMO→MOVD(XPTR,ZPTR); return OK (value path), default→MOVD(XPTR,ZPTR); return OK (name path) |
+**SM baseline established:**
+- `--ir-run`: PASS=178, `--sm-run`: PASS=161 — gap = 20 SM-only failures (17 net after dedup)
+- SM-only failure categories identified (see below)
 
-Non-bugs confirmed: COPY_fn x_bksize correct, CMA_fn CODSKP sequence correct, COLECT_fn <0 check correct, VDIFFR_fn deql() equivalent to DCMP.
-Stubs (acceptable): ARG_fn, LOCAL_fn, FIELDS_fn, DMP_fn/DUMP_fn, CNVRT_fn, CODER_fn, OPSYN_fn.
+**SM fixes committed (one4all `dab4ca31`):**
+1. `sm_lower.c`: `E_OPSYN` case added — lowers `&`/`@`/`|` operators to `SM_CALL(e->sval, nchildren)` (mirrors ir-run `APPLY_fn(e->sval, args, n)`)
+2. `sm_interp.c`: `st->sp = 0` at `SM_STNO` — resets value stack at each statement boundary (fixes potential stack overflow in looping programs; beauty drivers no longer abort)
+3. `sm_prog.h`: `SM_PUSH_EXPR` opcode added; `void *ptr` field added to `sm_operand_t` union
+4. `sm_prog.c`: `sm_emit_ptr()` emitter added
+5. `sm_lower.c`: `E_DEFER` in value context now emits `SM_PUSH_EXPR(child)` instead of `SM_PAT_DEREF` (was stack underflow; now pushes `DT_E` frozen expr for EVAL to thaw)
+6. `sm_interp.c`: `SM_PUSH_EXPR` handler — pushes `{DT_E, ptr=EXPR_t*}` descriptor
 
-**Build:** zero warnings, zero errors ✅
+**PASS count after fixes: 161 (unchanged)** — fixes are correct but blocked on APPLY_fn registration gap (see below).
 
-### M-SS-DIFF-RECHECK watermark
-- §16 sil_trace.c: ✅ 9 bugs
-- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
-- §18 sil_pred.c: ✅ 1 bug
-- §19 sil_func.c: ✅ 1 bug
-- §1–§15 (all other TUs): ⬜ next
+### SM-only failure root causes (20 tests, 6 classes)
+
+| Class | Tests | Root cause |
+|-------|-------|------------|
+| **A. APPLY_fn name gap** | `1015_opsyn`, `1016_eval`, `1013_func_nreturn` | `opsyn()` and `EVAL()` builtins not registered under those names in the generated `snobol4.c` APPLY_fn table. Fix: add `"opsyn"→opsyn`, `"EVAL"→EVAL_fn` to the builtin dispatch in `snobol4_pattern.c` or `snobol4_invoke.c`, then expose via `register_fn_alias` at startup |
+| **B. Label resolution** | `beauty_Qize_driver` | `sm_lower: unresolved label 'error'` — forward-ref to label defined in `-INCLUDE`d file; label table built per-file, not globally |
+| **C. Silent no output** | `beauty_fence_driver`, `beauty_io_driver`, `beauty_match_driver`, `wordcount` | Programs run but produce no output; likely stmt boundary issue or `OUTPUT` assignment not firing in sm path for certain statement forms |
+| **D. Wrong output** | `063_capture_null_replace`, `triplet`, `cross`, `word1` | SM produces different output than IR; semantic diff, not crash |
+| **E. Array/Table** | `1112_array_multi`, `1113_table`, `1114_item`, `1115_data_basic`, `1116_data_overlap`, `212_indirect_array` | `subscript_get`/`subscript_set` not handling multi-dim or type-converted arrays correctly in SM path |
+| **F. NRETURN** | `1013_func_nreturn` | User function returns DT_N; SM_CALL dereferences it but lvalue assign path missing |
 
 ### Next session — start here
+
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build, zero warnings.
-# M-SS-DIFF-RECHECK: §1–§15 three-way oracle+snobol4.c+ours.
-# Start §1 sil_types.h / sil_data.h / sil_main.c (BEGIN, INIT equates).
-# Then §2 sil_main.c BEGIN, §3 sil_main.c XLATRD/XLATSC, §4 sil_support.c, etc.
-# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
-# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+ln -sf scrip scrip-interp
+make scrip 2>&1 | tail -3
+make test 2>&1 | grep "PASS="
+# Gate: PASS=161 baseline, --ir-run=178.
+#
+# PRIORITY ORDER:
+# 1. Fix Class A (APPLY_fn gap) — opsyn + EVAL registration:
+#    grep -n "register_fn_alias\|opsyn\|EVAL_fn" src/runtime/x86/snobol4_pattern.c
+#    Add at startup: register_fn_alias("opsyn", opsyn); register_fn_alias("EVAL", EVAL_fn)
+#    OR find where APPLY_fn dispatches builtins in the generated snobol4.c binary
+#    (strings grep: strings src/runtime/x86/snobol4.c | grep -i "eval\|opsyn")
+#    Gate: 1015_opsyn + 1016_eval pass → PASS=163+
+#
+# 2. Fix Class C (silent no output) — trace one beauty driver:
+#    SNO_LIB=... ./scrip --sm-run beauty_fence_driver.sno 2>&1 | head -20
+#    Compare SM program dump vs ir-run output statement by statement
+#
+# 3. Fix Class B (label resolution) — global label table across -INCLUDE files
+#
+# 4. Fix Class D (wrong output) — run diff on each, find semantic delta
 ```
 
 ### Open items
 - EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
-- §1–§15 recheck pending
+- M-SS-DIFF-RECHECK §17–§23 + §1–§15 pending
+- M-DYN-B13 coverage audit pending
+- SM PASS gap: 161 vs 178 target (17 SM-only failures, 6 classes above)
 
 ---
 
-## Session 2026-04-07z — M-SS-DIFF-RECHECK §22+§23 complete (Lon + Claude Sonnet 4.6)
+## Session 2026-04-07x — SM milestone audit + SM bug fixes (Lon + Claude Sonnet 4.6)
 
-**HEAD:** one4all `9af8435d` · .github (this commit)
+**HEAD:** one4all `dab4ca31` · .github (this commit)
 
-### Work completed
+**Milestone cleanup:** M-DYN-B0–B12 ✅, M-BB-LIVE-WIRE ✅, setup.sh wabt fix.
 
-**M-SS-DIFF-RECHECK §22+§23 — sil_errors.c — 7 bugs fixed:**
+**SM fixes (one4all `dab4ca31`):**
+1. `sm_lower.c`: `E_OPSYN` → `SM_CALL(e->sval, nchildren)`
+2. `sm_interp.c`: `st->sp = 0` at `SM_STNO` (stack reset at statement boundary)
+3. `sm_prog.h`: `SM_PUSH_EXPR` opcode + `void *ptr` in `sm_operand_t`
+4. `sm_prog.c`: `sm_emit_ptr()` added
+5. `sm_lower.c`: `E_DEFER` value context → `SM_PUSH_EXPR(child)` (was `SM_PAT_DEREF` → underflow)
+6. `sm_interp.c`: `SM_PUSH_EXPR` handler pushes `{DT_E, ptr=EXPR_t*}`
 
-| # | Bug |
-|---|-----|
-| 1 | FTLTST_fn — entirely wrong body (had END logic); fixed: FATLCL=0 → FTLTS2 → FTERST |
-| 2 | FTLERR_fn — was calling FTLTST; fixed: check FTLLCL≤0→FTLEND, FATLCL=1, FTLTS2 |
-| 3 | FTERST_fn — missing entirely; added with ERRLCL check, ERRTEXT intern, TRAPCL/TRPHND, XITHND, SELBRA SCERCL |
-| 4 | INTR31_fn — was calling FTLTST (loses SCERCL=3 pre-set); fixed: call FTERST directly |
-| 5 | PROTER_fn — errtyp was 30; oracle=6 |
-| 6 | SIZERR_fn — was FTLTST; oracle=FTLEND |
-| 7 | UNDFFE_fn — errtyp was 29; oracle=9 |
+**PASS=161 (unchanged)** — fixes correct but blocked on APPLY_fn name registration gap.
 
-Also added missing: OVER_fn (21→FTLEND), UNDF_fn (5→FTLTST), UNTERR_fn (12→FTLTST),
-USRINT_fn (34+clear UINTCL→FTLTST), CNTERR_fn (35→FTLERR), CFTERR_fn (39→FTLEND),
-SCERST_fn (SCERCL=1→FTERST), ERRTKY global in sil_platform.c + extern in sil_data.h.
-
-**Build:** zero warnings, zero errors ✅
-
-### M-SS-DIFF-RECHECK watermark
-- §16 sil_trace.c: ✅ 9 bugs
-- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
-- §18 sil_pred.c: ✅ 1 bug
-- §19 sil_func.c: ✅ 1 bug
-- §22+§23 sil_errors.c: ✅ 7 bugs
-- §1–§15 + §20–§21 (sil_main, sil_support, sil_arith, sil_scan, sil_patval, sil_arrays, sil_io, sil_define, sil_extern, sil_interp, sil_cmpile, sil_trepub, sil_symtab, sil_strings, sil_arena): ⬜ next
+**SM-only failures (20 tests, 6 classes):**
+- **A. APPLY_fn gap** — `opsyn()` and `EVAL()` builtins not registered by name. Fix: `register_fn_alias("opsyn", ...)` + `"EVAL"→EVAL_fn` at startup in `snobol4_pattern.c`.
+- **B. Label resolution** — beauty_Qize_driver: `sm_lower: unresolved label 'error'`; label from -INCLUDE not in global table.
+- **C. Silent no output** — beauty_fence/io/match_driver + wordcount produce no output.
+- **D. Wrong output** — 063_capture_null_replace, triplet, cross, word1.
+- **E. Array/Table** — 1112–1116, 212_indirect_array.
+- **F. NRETURN** — 1013_func_nreturn.
 
 ### Next session — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build, zero warnings.
-# M-SS-DIFF-RECHECK: §1–§15 + §20–§21 three-way oracle+snobol4.c+ours.
-# Start with §4 sil_support.c (AUGATL, CODSKP, DTREP, FINDEX) — high-impact helpers.
-# Then §2 sil_main.c BEGIN, §7 sil_interp.c (INTERP/INVOKE/INIT/GOTO).
-# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
-# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
-```
-
-### Open items
-- EXDTSP as const char[] → should be SPEC_t (§4 DTREP) — still open
-- §1–§15 + §20–§21 recheck pending
-- ERRTKY.a not yet wired to interned ERRTSP in sil_data_init() — needed for keyword trace on errors
-
----
-
-## Session 2026-04-08a — M-SS-DIFF-RECHECK §4+§7+§8 + rename (Lon + Claude Sonnet 4.6)
-
-**HEAD:** one4all `7396177c` · .github `bdc1b80`
-
-### Work completed
-
-**Renames:**
-- All `src/silly/sil_*.c` / `sil_*.h` → `*.c` / `*.h` (49 files)
-- All `sil_` prefixed identifiers stripped (sil_data_init→data_init, sil_acts→acts, etc.) across all 49 TUs
-- Makefile wildcard updated; #includes fixed
-- Build: zero warnings, zero errors ✅
-
-**M-SS-DIFF-RECHECK §4 — symtab.c — 2 bugs fixed:**
-
-| # | Bug |
-|---|-----|
-| 1 | AUGATL_fn: MOVBLK count was `old_sz-DESCR`, should be `old_sz` (one pair short) |
-| 2 | EXDTSP: was `const char[]`, now `SPEC_t`; ALPHSP likewise. DTREP_fn DTREPE path now does full specifier copy (`DPSP = EXDTSP`). Initialized in data_init() from static literals. |
-
-**M-SS-DIFF-RECHECK §7 — interp.c — gaps noted (no fixes needed yet):**
-- INTERP case 4 (RTN1 = program END): unhandled enum value — non-critical until END hit
-- INVOKE POP INCL discipline: structural pre-existing design choice, flagged for §8 audit
-- GOTL/GOTO/GOTG/BASE/INIT/BASE: correct ✅
-
-**M-SS-DIFF-RECHECK §8 — argval.c — 2 bugs fixed:**
-
-| # | Bug |
-|---|-----|
-| 1 | VARVAL_fn: PUTIN success was falling through to varv2 type-coerce. Oracle exit (FAIL,RTXNAM) — success must return OK directly. |
-| 2 | INTVAL_fn: PUTIN success was going to intv2 (wrong). Oracle exit (ZPTR,XPTR),FAIL — success falls to INTV (LOCSP/SPCINT/SPREAL string-parse chain). |
-
-### M-SS-DIFF-RECHECK watermark
-- §16 sil_trace.c: ✅ 9 bugs
-- §17 sil_asgn.c + sil_nmd.c + sil_scan.c: ✅ 8 bugs
-- §18 sil_pred.c: ✅ 1 bug
-- §19 sil_func.c: ✅ 1 bug
-- §22+§23 sil_errors.c: ✅ 7 bugs
-- §4 symtab.c: ✅ 2 bugs
-- §7 interp.c: ✅ gaps noted
-- §8 argval.c: ✅ 2 bugs (VARVAL + INTVAL PUTIN exits)
-- §2 main.c BEGIN: ⚠️ SPCNVT loop stubbed (blocked on data_init INITLS)
-- §8 argval.c PATVAL + XYARGS: ⬜ next
-- §6 cmpile.c: ⬜ next
-- §1–§3, §5, §9–§15, §20–§21: ⬜ pending
-
-### Open items
-- EXDTSP.a = P2A(static literal) — not arena-interned; fine for now, wire to interned string before M-SS-HARNESS
-- ERRTKY.a not wired to interned ERRTSP in data_init()
-- INVOKE POP INCL discipline — verify full call-site audit in §8
-- INTERP PROGEND (code 4) — add enum value before END statement testing
-- SPCNVT loop in BEGIN — implement once INITLS populated
-
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build, zero warnings.
-# M-SS-DIFF-RECHECK: §8 PATVAL + XYARGS in argval.c
-# Then §6 cmpile.c (CMPILE/BINOP/ELEMNT/EXPR/FORWRD/NEWCRD/TREPUB)
-# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
-# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
-```
-
----
-
-## Session 2026-04-08b — M-SS-DIFF-RECHECK §8(cont)+§6 CMPILE (Lon + Claude Sonnet 4.6)
-
-**HEAD:** one4all `3fbd1b9d` · .github (this commit)
-
-### Work completed
-
-**M-SS-DIFF-RECHECK §8 argval.c (continued) — 2 bugs fixed:**
-
-| # | Bug |
-|---|-----|
-| 1 | PATVAL_fn: PUTIN success fell through to patv3 type-coerce. Oracle exit (FAIL,RTXNAM) — return OK directly. |
-| 2 | XYARGS_fn: (a) second-arg completion returned OK, should be NRETURN (RTN2); (b) XYC INVOKE exit routing: case2(name)→XY4→XY1 was merged with default(value)→XY3. |
-
-**M-SS-DIFF-RECHECK §6 cmpile.c — 4 bugs fixed:**
-
-| # | Bug |
-|---|-----|
-| 1 | HIDECL inversion: incremented CSTNCL when hidden; oracle increments when NOT hidden. |
-| 2 | Code-spill: wrong GOTG bridge offsets (+1/+2/+3 vs +0/+1/+2); spurious memcpy+SPLIT_fn; missing BASECL write + CMBSCL advance into new block; OCLIM now uses CODELT directly. |
-| 3 | Subject-section flow: double AEQLC(NBTYP) always-false; CLNTYP→cmpgo missing; CMPSB1 path now correct. |
-| 4 | CMPFT: TREPUB(FORMND) failure triggered cdiag_inner; oracle sends both exits to CMPTGO. |
-
-### M-SS-DIFF-RECHECK watermark
-- §16 trace.c: ✅ 9 bugs
-- §17 asgn.c + nmd.c + scan.c: ✅ 8 bugs
-- §18 pred.c: ✅ 1 bug
-- §19 func.c: ✅ 1 bug
-- §22+§23 errors.c: ✅ 7 bugs
-- §4 symtab.c: ✅ 2 bugs
-- §6 cmpile.c: ✅ 4 bugs (HIDECL, spill, subject-flow, CMPFT)
-- §6 expr.c (EXPR/ELEMNT/BINOP/UNOP): ⬜ next
-- §7 interp.c: ✅ gaps noted
-- §8 argval.c: ✅ 4 bugs (VARVAL, INTVAL, PATVAL PUTIN exits; XYARGS RTN2+XYC)
-- §2 main.c BEGIN: ⚠️ SPCNVT loop stubbed (blocked on data_init INITLS)
-- §1, §3, §5, §9–§15, §20–§21: ⬜ pending
-
-### Open items
-- EXDTSP.a = P2A(static literal) — not arena-interned; wire before M-SS-HARNESS
-- ERRTKY.a not wired to interned ERRTSP in data_init()
-- INVOKE POP INCL discipline — call-site audit pending
-- INTERP PROGEND (code 4) — add enum value before END statement testing
-- SPCNVT loop in BEGIN — implement once INITLS populated
-- §6 CMPATN binary-? path (SPITCL/EXPR1/ADDSON) — simplified to CMPAT2; acceptable for now
-
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build, zero warnings.
-# M-SS-DIFF-RECHECK: §6 expr.c — EXPR/ELEMNT/BINOP/UNOP vs oracle
-# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil (lines 1662-2296)
-# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c EXPR/ELEMNT/BINOP/UNOP
-```
-
----
-
-## Session 2026-04-08c — M-SS-DIFF-RECHECK §6 expr.c (Lon + Claude Sonnet 4.6)
-
-**HEAD:** one4all `3fbd1b9d` (pre-commit) · .github (this commit)
-
-### Work completed
-
-**M-SS-DIFF-RECHECK §6 expr.c — 3 bugs fixed (4 sub-bugs):**
-
-| # | Bug |
-|---|-----|
-| 1 | ELEILI logic: (a) QLITYP branch was empty — now sets EMSGCL=OPNLIT+FAIL; (b) non-zero non-QLITYP stype was erroring — oracle continues to ELEMN9 dispatch (valid element type); (c) restructured guard to match oracle flow exactly |
-| 2 | expr7 (EXPR7/EXPR10): condition exactly backwards — `AEQLC(EXPRND,0)` was triggering ADDSIB (EXPR10); oracle: EXPR10 runs when EXPRND≠0 |
-| 3 | expr_continue (EXPR14/EXPR3): condition exactly backwards — EXPR3 (precedence compare) was running when EXPRND==0; oracle: EXPR3 runs when EXPRND≠0 |
-
-### M-SS-DIFF-RECHECK watermark
-- §16 sil_trace.c: ✅ 9 bugs
-- §17 asgn.c + nmd.c + scan.c: ✅ 8 bugs
-- §18 pred.c: ✅ 1 bug
-- §19 func.c: ✅ 1 bug
-- §22+§23 errors.c: ✅ 7 bugs
-- §4 symtab.c: ✅ 2 bugs
-- §6 cmpile.c: ✅ 4 bugs
-- §6 expr.c: ✅ 3 bugs (4 sub-bugs: ELEILI×2, expr7 inversion, EXPR3/EXPR14 inversion)
-- §7 interp.c: ✅ gaps noted
-- §8 argval.c: ✅ 4 bugs
-- §20–§21 (common stubs): ⬜ next
-- §1–§5, §9–§15: ⬜ pending
-
-### Open items (unchanged)
-- EXDTSP arena-intern before M-SS-HARNESS
-- ERRTKY.a wire to ERRTSP in data_init()
-- INVOKE POP INCL call-site audit
-- INTERP PROGEND enum value
-- SPCNVT loop in BEGIN (blocked on INITLS)
-
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/one4all && git pull
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly
-# Gate: clean build, zero warnings.
-# M-SS-DIFF-RECHECK: §20–§21 common stubs (sil_main.c RTN1/FAIL/RETNUL/RTN2/RTN3/BASE/GOTO)
-# Then §1–§5 (sil_types, sil_data, sil_arith, sil_support, sil_storage)
-# Oracle: /home/claude/work/snobol4-2.3.3/v311.sil
-# Generated C: /home/claude/work/snobol4-2.3.3/snobol4.c
+cd /home/claude/one4all && git pull && ln -sf scrip scrip-interp
+make scrip 2>&1 | tail -3
+make test 2>&1 | grep "PASS="
+# Baseline: --sm-run PASS=161, --ir-run PASS=178, target PASS=178.
+# Fix Class A first:
+#   grep -n "register_fn_alias\|opsyn\|EVAL_fn" src/runtime/x86/snobol4_pattern.c
+#   Ensure "opsyn" and "EVAL" are registered in APPLY_fn at startup.
+#   Gate: 1015_opsyn + 1016_eval pass → PASS≥163
+# Then Class C: SNO_LIB=... ./scrip --sm-run beauty_fence_driver.sno — trace why silent.
+# Then Class B: global label table across -INCLUDE files.
 ```
