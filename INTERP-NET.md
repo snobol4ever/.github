@@ -6,7 +6,10 @@
 
 Jeff Cooper's complete SNOBOL4/SPITBOL implementation in C#, targeting .NET/MSIL.
 Compiler pipeline: Lexer → Parser → threaded `Instruction[]` → MSIL delegate JIT.
-Plugin system: C-ABI `.so` extensions, .NET assembly extensions, VB.NET fixtures.
+Plugin system: C-ABI `.so`/`.dll` extensions, .NET assembly extensions, VB.NET fixtures.
+
+**Platform target:** Windows and Linux. macOS expected to work but untested.
+All native lib paths and export macros must branch on Windows vs Linux. Never hardcode one platform only.
 
 ---
 
@@ -79,7 +82,7 @@ user DATA types `ToLowerInvariant`; `&UCASE`/`&LCASE` = exactly 26 ASCII letters
 | 1 | Pattern.Bal — hangs under threaded execution | Medium |
 | 2 | Deferred expressions `pos(*A)` — TEST_Pos_009 | Low |
 | 3 | TestGoto _DIRECT — CODE() dynamic compilation | Medium |
-| 4 | Function.InputOutput — Linux (hardcoded Windows paths) | Low |
+| 4 | Function.InputOutput — some paths not yet cross-platform (Windows/Linux) | Low |
 | 5 | `cross` test — `@N` cursor value off by one (105/106) | High |
 
 ## Performance Baseline (session159, post-hotfix A–D)
