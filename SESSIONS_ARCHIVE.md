@@ -36110,3 +36110,49 @@ sed -n '2641,2650p' /home/claude/work/snobol4-2.3.3/v311.sil
 grep -n "^INIT1\b" /home/claude/work/snobol4-2.3.3/snobol4.c
 grep -n "INIT1_fn\|init1" /home/claude/one4all/src/silly/interp.c
 ```
+
+## Session 2026-04-09j — D-193/D-194: BUG-4 fix + bsort investigation (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `5bfb487` · **HEAD at end:** snobol4dotnet `180fc98`
+
+### Work done
+
+**BUG-4 fixed (ExecutionCache.cs, OperatorFast general path):**
+Added Failure short-circuit guard scoped to arithmetic/concat ops only:
+`OpAdd | OpSubtract | OpMultiply | OpDivide | OpPower | OpConcat`
+Predicate/pattern ops excluded (they produce the Failure signal, not consume it).
+First attempt applied guard to all ops → 2125p/7f (negation/GT/LT/NE broke).
+Narrowed fix → **2132p / 0f**. Committed `180fc98`.
+
+**bsort investigation (D-NET-186 — still open):**
+Un-ignored `TEST_Gimpel_bsort_strings` + `TEST_Gimpel_bsort_integers_as_strings` → both still fail (output partially sorted but wrong). BUG-4 did not fix them.
+
+Tried `IndexCollection` drain-and-sentinel patch when `Failure=true` — changed output but still wrong, and revealed that the fix interacts badly with the LHS path. Reverted. Re-ignored both bsort tests.
+
+**Theoretical trace of `A<K+1> = LGT(A<K>,V) A<K> :S(BS2)` (Failure path):**
+- `PushVar(A)`, `Push(K+1)`, `IndexCollection` → LHS lvalue
+- `LGT(...)` fails → Failure=true, sentinel pushed
+- `PushVar(A)`, `PushVar(K)`, `IndexCollection(Failure=true)` → early return, leaves ArrayVar+K on stack (no sentinel pushed, no drain)
+- `OpConcat` (BUG-4) → drains 2 items, pushes sentinel — but drains wrong items (ArrayVar+K), leaving LGT sentinel below
+- `_BinaryEquals` → `ExtractArguments(2)` → sees wrong stack shape
+
+**Key open question:** Does `EmitTokenList` route `A<K+1> = LGT(A<K>,V) A<K>` through the MSIL JIT cache (`CallMsil`) rather than the threaded path? If so, BUG-4 is invisible. Check `MsilCache.ContainsKey` before each body emit.
+
+**bsort test state:** re-ignored (D-NET-186). Next: build CLI, run with `TraceStatements=true` to determine threaded vs MSIL path, then fix IndexCollection drain.
+
+### Next session (D-194) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/bin:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
+# Confirm 2132p/0f/4s. Sprint D-194. HEAD snobol4dotnet 180fc98.
+# Build CLI runner:
+dotnet build Snobol4/Snobol4.csproj -c Release -o /tmp/sno4 -p:EnableWindowsTargeting=true
+# Write bsort_mini.sno and run with TraceStatements to see IndexCollection/MSIL path.
+# Fix: IndexCollection must drain ArrayVar+indices and push sentinel when Failure=true.
+# Scope fix carefully — LHS and RHS both call IndexCollection.
+```
