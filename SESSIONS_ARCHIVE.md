@@ -35554,7 +35554,7 @@ cd /home/claude/one4all && git pull --rebase
 
 ---
 
-## Session 2026-04-09e — SS-BLOCK-BACKWARD: §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09e — SSB-1: M-SS-BLOCK-BACKWARD §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5`  
 **HEAD at end:** one4all `79f27173`
@@ -35826,7 +35826,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Sprint D-192. HEAD snobol4dotnet 8e70e15.
 ```
 
-## Session 2026-04-09i — SS-51: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09i — SSB-3: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `979daa1b` · **HEAD at end:** one4all `985665d9`
 
@@ -35895,7 +35895,7 @@ OperatorHandlers![(int)op]!(_reusableArgList);
 Note: drain `argumentCount` (not `+1`) — no fn-name on stack for operators.
 After this fix: expect **2132p / 0f**. Then check `TEST_Gimpel_bsort_*`.
 
-## Session 2026-04-09h — M-SS-BLOCK-BACKWARD: §24 tail blocks verified (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09h — SSB-2: M-SS-BLOCK-BACKWARD §24 tail blocks verified (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `eb96f768`  
 **HEAD at end:** one4all `991caea0`  
@@ -36183,3 +36183,42 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 2701 (ARGV2 complete). Next block: EXPVAL PROC (line 2702).
 sed -n '2702,2720p' /home/claude/work/snobol4-2.3.3/v311.sil
 grep -n "^EXPVAL\b" /home/claude/work/snobol4-2.3.3/snobol4.c```
+
+## Session 2026-04-09l — SS-50: M-SS-BLOCK-FORWARD EXPVAL/EXPVJN/EXPVJ2/EXPV11 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `adec4a10` · **HEAD at end:** one4all `adec4a10` (no code change — all blocks clean)
+
+### Blocks verified
+
+| Block | Lines | Result |
+|-------|-------|--------|
+| EXPVAL PROC | 2702–2703 | ✅ clean — `SETAC SCL,1` → `SCL.a.i = 1` |
+| EXPVJN | 2704 | ✅ clean — `POP XPTR` implicit in C calling convention |
+| EXPVJ2 | 2705–2715 | ✅ clean — 14 DESCR + 4 SPEC saves correct; setup correct |
+| EXPV11 | 2716–2723 | ✅ clean — SCL/INSW/LOCAPV/PUTIN dispatch matches oracle |
+
+**Also this session:** Renumbered all SS-BLOCK-BACKWARD sessions to SSB-N series (SSB-1, SSB-2, SSB-3) to avoid collision with SS-BLOCK-FORWARD numbering.
+
+**Watermark: v311.sil line 2723 (EXPV11 complete). Next block: EXPV4 (line 2724).**
+
+### Next session (FORWARD SS-51) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all adec4a10
+# Watermark: v311.sil line 2723. Next block: EXPV4 (line 2724).
+sed -n '2724,2760p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "L_EXPV4\|L_EXPV6\|L_EXPV9\|L_EXPVC\|L_EXPV5" /home/claude/work/snobol4-2.3.3/snobol4.c | head -20
+```
+
+### Next session (BACKWARD SSB-4) — start here
+
+```bash
+# Check MILESTONE-SS-BLOCK-BACKWARD.md for current watermark and next block
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+```
