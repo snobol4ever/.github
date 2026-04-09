@@ -36253,3 +36253,58 @@ grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
     | awk -F: '$1<11399{print}' | tail -3
 # → FTBLND (11397) then F28FN (11394) etc.
 ```
+
+---
+
+## Session 2026-04-09h — SNOBOL4 × x86: BUG-ZERO-ARG-VAR fix (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `6e802e80` · **HEAD at end:** one4all `00c1809b`
+
+### Work completed
+
+**BUG-ZERO-ARG-VAR** (`src/driver/scrip.c`):
+- `interp_eval(E_VAR x)` called `APPLY_fn(x,NULL,0)` on ANY unset variable.
+- NRETURN path: `Foo=.dummy` → NAME_DEREF → NULVCL in `r` → E_VAR "r" → IS_NULL → APPLY_fn("r") → Error 5.
+- Fix: guard with `FNCEX_fn(e->sval)` — only zero-arg call if name is a registered function.
+- Also: skip `NV_GET_fn(subj_name)` in both execute loops when no pattern (pure assignment).
+
+### Gates
+- `Foo = .dummy` inside DEFINE body: no Error 5 ✅
+- PASS: 169 → **172/203** (+3) ✅
+
+### Remaining blocker for B-3 beauty self-hosting
+- `pat_cat: left is not a pattern (DT=11)` — DT_N (NAME) in pattern concat. beauty times out.
+- Fix: in `pat_cat`/`PATVAL_fn`: deref DT_N via NAME_DEREF before building pattern node.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all 00c1809b
+# PASS=172/203 baseline
+#
+# PRIORITY — Fix pat_cat DT_N (NAME descriptor in pattern context)
+#   Files: src/runtime/x86/snobol4_pattern.c (pat_cat)
+#          src/runtime/x86/snobol4_argval.c  (PATVAL_fn)
+#   When DT_N arrives: NAME_DEREF first, then coerce to pattern.
+#   DT_N slen=1 → NAMEPTR → deref directly. DT_N slen=0 → NV_GET_fn(d.s).
+#
+# Reproducer:
+#   SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
+#       timeout 30 ./scrip --ir-run \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno 2>&1 | head -5
+#   Gate: no "pat_cat: left is not a pattern (DT=11)" lines.
+#
+# After fix: diff vs sbl oracle:
+#   SNO_LIB=... timeout 30 ./scrip --ir-run beauty.sno beauty.sno > /tmp/scrip.txt 2>/dev/null
+#   /home/claude/x64/bin/sbl beauty.sno beauty.sno > /tmp/sbl.txt 2>/dev/null
+#   diff /tmp/sbl.txt /tmp/scrip.txt
+#
+# HARNESS baseline: PASS=172/203
+```
