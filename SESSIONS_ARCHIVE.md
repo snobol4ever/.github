@@ -35510,3 +35510,44 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 2452 (NEWCRD+CTLADV complete). Next block: TREPUB (line 2453).
 # One label at a time. Label → next label. Commit after each block.
 ```
+
+---
+
+## Session 2026-04-09d — SS-46 handoff + milestone split (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `6fb544e5` · .github `0e397b4`  
+**HEAD at end:** one4all `6fb544e5` (no code changes) · .github `56afea2`
+
+### Work done
+
+- Answered: v311.sil = **12,293 lines**, **2,416 labeled blocks**
+- Block counts by section documented
+- Split M-SS-BLOCK into two parallel sessions:
+  - **MILESTONE-SS-BLOCK-FORWARD.md** — watermark 2452, next TREPUB (2466), advances forward
+  - **MILESTONE-SS-BLOCK-BACKWARD.md** — watermark 12293, next R1MCL (12292), retreats backward
+  - §20 BLOCKS (7038–10208) skipped by both
+  - Convergence point not declared — Lon determines it
+
+### Next session (FORWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: 2452. Next block: TREPUB (line 2466). One label at a time.
+```
+
+### Next session (BACKWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: 12293. Next block: R1MCL (line 12292). One label at a time, counting down.
+```
