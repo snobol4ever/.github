@@ -35290,3 +35290,27 @@ make scrip
 # PRIORITY 4 — B-3: triage beauty self-hosting remaining errors after P1+P2+P3
 #   Gate: scrip --ir-run beauty.sno beauty.sno output == csnobol4 output
 ```
+
+---
+
+## Session 2026-04-09a — SS-43: M-SS-MONITOR infra + BUG-STREAM-EOS + BUG-NEWCRD-RTN3 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `b0d4d5b7` · **HEAD at end:** one4all `fef60537`
+
+**BUG-STREAM-EOS (platform.c):** STREAM_fn ST_EOS path omitted `sp2->l = len`. Oracle always decrements even for EOS (len==0). Missing decrement left stale length → next STREAM re-scanned same data → infinite loop. Fix: `sp2->l = len;`.
+
+**BUG-NEWCRD-RTN3 (forwrd.c):** NEWCRD_fn RTN3 (normal card) and RTN2 (continue-card) both returned FAIL. Oracle FORRUN: switch(NEWCRD) case 1 loops, case 2 → FORWRD; RTN3 falls out → L_FOREOS → MOVD(BRTYPE,EOSCL) → RTN2. Silly FAIL aborted FORBLK. Fix: `MOVD(BRTYPE, EOSCL); return OK;` for both paths.
+
+**M-SS-MONITOR M-SS-MON-0..4:** snobol4-mon (isnobol4-wrapped.c 383 fns) + silly-mon built. Ping passes. Two-way sync-step firing. Monitor named both bugs automatically. After both fixes, syncs past NEWCRD. Next divergence unknown — find with raw --timeout 15 run.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull
+# Rebuild silly-mon (inject_silly.py loop + gcc -DMON_ENABLED)
+# Run monitor raw no-filter --timeout 15 on hello.sno → next DIVERGE or TIMEOUT names next bug
+# Sprint: SS-44. HEAD one4all fef60537.
+```
