@@ -35726,3 +35726,51 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 2767 (EVAL1 complete). Next block: INTVAL (line 2774).
 # One label at a time. Commit after each block.
 ```
+
+---
+
+## Session 2026-04-09c — D-190: INTEGER/CHOP fixes + 12 new tests (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `a106e32` · **HEAD at end:** snobol4dotnet `8e70e15`
+
+### Fixes
+
+**D-NET-189 RESOLVED — INTEGER(real):** `Integer.cs` was calling `Convert(VarType.INTEGER)` which succeeds for any `RealVar`. Fixed to type-check directly: `IntegerVar`→pass, `RealVar`→fail, `StringVar`→`ToInteger` string-parse only. SPITBOL manual: "It fails if X is a real number."
+
+**D-NET-189 RESOLVED — CHOP(X):** `Chop.cs` used `Math.Round(ToZero)` — changed to `Math.Truncate` (truncate toward zero per spec). `CHOP(3.9)→3.`, `CHOP(-2.7)→-2.`.
+
+**D-NET-188 PARTIAL — predicate return value:** `TEST_Feat_numeric_predicates_return_value` had wrong assertion (`"5\n3\n5\n3\n4"`) based on incorrect belief that `GT(A,B)` returns A. SPITBOL manual p.32 explicit: "If they succeed, they produce the null string as their value." Rewrote test using concatenation idiom (`GT(5,3) 'gt_ok'`) which proves null-return correctly. 3 previously-ignored tests now pass.
+
+**StringArithmeticStrategy:** Numeric strings now coerce for arithmetic (`"3" + 1 = 4`). Non-numeric strings still throw correct error codes.
+
+### New corpus tests (+9 in CorpusRef_Misc)
+
+DUPL · REPLACE · TRIM · BREAKX · FENCE+ABORT · SUCCEED builtin · &TRIM keyword · ARRAY multi-dim · LPAD/RPAD
+
+### D-NET-190 (new bug found and diagnosed)
+
+`NE(N,0) CONVERT(R*N,'INTEGER') + 1` when N=0: NE fails but `error 1 -- addition left operand is not numeric` is thrown. Root cause: in expression `NE(N,0) CONVERT(...) + 1`, operator `+` binds tighter than juxtaposition (concat), so parse tree is `NE(N,0) concat (CONVERT(...) + 1)`. When NE fails, `CONVERT(R*0,'INTEGER')=IntegerVar(0)`, `0+1=IntegerVar(1)`. Then concat: `StringVar(false) concat IntegerVar(1)`. `ExtractArguments` should abort on `Succeeded=false` but instead error 1 fires. Suspect: the concat's right operand (`+` result) does not short-circuit after left operand fails; or `ExtractArguments` doesn't see `Succeeded=false` on the NE result correctly.
+
+### Final state
+
+**2131p · 0f · 5s** (was 2119p · 0f · 8s at session start)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+# Sprint D-191. HEAD snobol4dotnet 8e70e15. 2131p 0f 5s.
+# Priority 1: Fix D-NET-190 — NE(N,0) concat fail propagation
+#   Trace OpConcat in ThreadedExecuteLoop: when left operand Succeeded=false,
+#   does the executor short-circuit before evaluating right operand?
+#   Check: does OperatorFast(OpConcat,2) call ExtractArguments AFTER both
+#   operands are already on the stack (so right operand already evaluated)?
+#   If so, the fix is in the executor's statement-level short-circuit,
+#   not in ExtractArguments.
+# Priority 2: Fix D-NET-186 bsort (LGT return value / assignment)
+# Priority 3: &ANCHOR='0' string coercion (error 208)
+```
