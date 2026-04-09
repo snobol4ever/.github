@@ -35474,3 +35474,39 @@ make scrip
 #   INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 #   Current baseline: PASS=169/203 (34 failures are pre-existing DATA/NRETURN gaps)
 ```
+
+---
+
+## Session 2026-04-09c — SS-46: M-SS-BLOCK CDIAG→NEWCRD/CTLADV (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `57b29dc2` · **HEAD at end:** one4all `6fb544e5`
+
+### Bugs found and fixed (13 total)
+
+**BUG-CDIAG4** (cmpile.c): UNIT/BRTYPE guard restructured to match oracle two-step (AEQLC UNIT,0,,RTN1 then AEQLC BRTYPE,EOSTYP,,RTN3 distinct).
+**BUG-ELEM10** (expr.c): ELEM10 peek-ahead SGOTYP→ILLBRK error path was missing — oracle AEQLC STYPE,SGOTYP,,ELECMA. Fixed.
+**BUG-EXPR2** (expr.c): BINOP RTN1 (fatal, EMSGCL set) not distinguished from RTN2 (clean end) in expr_continue. Both caused silent break-to-expr7. Fixed by EMSGCL delta check.
+**BUG-FORWRD-COMP3** (forwrd.c): FRWDTB ST_ERROR (stype==0) called forrun() — oracle says COMP3. Fixed.
+**BUG-FORBLK-BRTYPE** (forwrd.c): BRTYPE not set on FORJRN (nonblank-found) exit path. Oracle: MOVD BRTYPE,STYPE. Fixed.
+**BUG-CTLCRD-COMP3** (forwrd.c NEWCRD, ×4 instances): FRWDTB ST_ERROR in CTLCRD, LIST, CASE, PLSOPS all went to cmtclr instead of COMP3. Fixed all.
+**BUG-LINE-COMP3** (forwrd.c NEWCRD LINE): Same FRWDTB ST_ERROR→cmtclr instead of COMP3. Fixed; also ST_EOS→cmtclr (not comp12).
+**BUG-HIDE-UNLIST** (forwrd.c NEWCRD): -HIDE set HIDECL=1 but missed UNLIST fallthrough (LISTCL=0). Oracle L_HIDE falls through to L_UNLIST. Fixed.
+**BUG-CTLADV-RTN2** (forwrd.c CTLADV_fn): RTN2 (non-quoted arg) returned OK — callers couldn't distinguish from RTN3 (quoted). Now returns NRETURN.
+**BUG-INCLUD-CTLADV** (forwrd.c NEWCRD INCLUD): Only rejected CTLADV RTN1 → COMP10; RTN2 also must → COMP10. Fixed (ictmp != OK).
+**BUG-LINE-CTLADV** (forwrd.c NEWCRD LINE): CTLADV RTN1 and RTN2 both skipped GENVAR. Now: RTN3→GENVAR, RTN2→COMP12, RTN1→cmtclr. Fixed.
+
+### Blocks verified clean (no bugs beyond above)
+
+CDIAG2/CDIAG1, DIAGRN/CDIAG7/DIAGIN, all ELEMNT sub-labels (ELEMN9/5/1/6/R/RR/ELEM10/ELEILT/ELEFLT/ELEVBL/ELENST/ELEFNC/ELEMN2/3/4/ELEARY/ELEAR2/ELEARG/ELEICH/ELEILI/ELEINT/ELEDEC/ELECMA), EXPR/EXPNUL, EXPR1/12/17/13/EXPERR, EXPR2/14/3/4/5/11/7/10/9, NULNOD, FORJRN, FORRUN/FORRN0/FORRUR, FOREOS, FORINC, FILCHK, NEWCRD normal-card/CARDL/CMTCRD/CMTCLR/CNTCRD/CARDLL, EJECT (cosmetic diff: STPRNT vs io_printf — no logic fix needed), ERRORS/NOERRS, EXEC/NOEXEC, CTLADV
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 2452 (NEWCRD+CTLADV complete). Next block: TREPUB (line 2453).
+# One label at a time. Label → next label. Commit after each block.
+```
