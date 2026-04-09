@@ -35352,3 +35352,71 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: 1355. Next block: GC (line 1367).
 # One label at a time. Label line → next label line. Commit after each block.
 ```
+
+---
+
+## Session 2026-04-09b — D-189: snobol4dotnet oracle cleanup + 3 new tests (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `10d2b3f` (D-188) · .github `0b837af`
+**HEAD at end:** snobol4dotnet `a106e32` · .github (this commit)
+
+### HQ oracle cleanup (all .github MD files)
+- Established rule across all active docs: **SPITBOL x64** (`/home/claude/x64/bin/sbl`) = sole execution oracle. **CSNOBOL4** = SOURCE REFERENCE ONLY (v311.sil / snobol4.c for Silly SNOBOL4 session only).
+- Exception clearly bannered: SESSION-silly-snobol4 and MILESTONE-SS-MONITOR legitimately run instrumented CSNOBOL4 executable (oracle by construction for Silly).
+- Files updated: GENERAL-RULES.md, RULES.md, GENERAL-DECISIONS.md (D-005 rewritten), GENERAL-OVERVIEW.md, TESTING.md, MONITOR.md, HARNESS.md, BB-GEN-X86-BIN.md, MILESTONE-SN4X86-BEAUTY.md, MILESTONE-SN4X86-SELFHOST.md, MILESTONE-SS-MONITOR.md, SESSION-silly-snobol4.md, PLAN.md
+- **NEW:** MILESTONE-CSNOBOL4-FENCE.md — 5-step ladder to add FENCE() to CSNOBOL4 using SPITBOL as semantic guide
+
+### snobol4dotnet: 2116p → 2119p (+3), 0 failed, 8 skipped
+
+**D-NET-190 closed — STOPTR implemented (StopTr.cs):**
+- `StopTrace()` now removes trace entry for name/type pair from the correct TraceTable* dict
+- Mirrors TRACE switch structure; errors 190/191 on bad args
+- `TEST_Feat_f15_trace_no_crash` un-ignored; assert uses `EndsWith("PASS")` (trace diagnostic lines precede PASS on stderr)
+
+**TEST_Corpus_coverage_sno_nodes added (CorpusRef_Misc.cs):**
+- Exercises every major IR node kind: E_QLIT/ILIT/FLIT/VART/KW/ADD/SUB/MPY/DIV/MNS/EXPOP/CONCAT/NAM/DOL/ATP/SEQ/OR/ARB/ARBNO/STAR/INDR/FNC/IDX/NULV
+- 25-line expected output; oracle-validated via `sbl /tmp/cov2.sno`
+- Fixed: `@POS1` cursor capture (no space), `$VNAME` indirect ref, dropped OPSYN (error 156 in SPITBOL for non-operator names)
+
+**D-NET-187 closed — OPSYN alias test fixed (CorpusRef_GimpelBits.cs):**
+- Bug was in the TEST, not the runtime: `UCASE` is a keyword (`&UCASE`), not a function — error 154 was correct
+- Fixed test: `OPSYN('MYSIZE','SIZE',0)` → `OUTPUT = MYSIZE('hello')` → `5`; un-ignored
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 2119 passed, 0 failed, 8 skipped. HEAD = a106e32.
+#
+# ORACLE: git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+# Oracle binary: /home/claude/x64/bin/sbl -b file.sno
+#
+# REMAINING IGNORED TESTS (7 skipped, 1 random):
+#   D-NET-186 (x2): bsort wrong order — LGT(A<K>,V) assignment bug; skip for now
+#   D-NET-188 (x3): numeric predicates GT/LT/GE/LE/EQ/NE don't return first arg on success;
+#                   NE(N,0) CONVERT(...) chain fails; INTEGER(real) wrong semantics
+#   D-NET-189 (x2): INTEGER(real) succeeds when should fail; CHOP(3.9) wrong
+#   M-NET-PAT-PRIMITIVES: &ANCHOR='0' string coercion (ASGNIC bug)
+#   M-NET-EVAL-COMPLETE: recursive expr evaluator NRETURN + *func() + EVAL
+#
+# PRIORITY 1 — D-NET-188: numeric predicate return value
+#   GT(A,B) should return A on success (first arg), not just succeed
+#   Find predicate implementations: grep -rn "\"GT\"\|\"LT\"\|\"GE\"\|\"LE\"\|\"EQ\"\|\"NE\"" Snobol4.Common/Runtime/ --include="*.cs"
+#   Oracle: printf "        OUTPUT = GT(5,3)\nEND\n" | sbl → 5
+#   Gate: TEST_Feat_numeric_predicates_return_value + TEST_Feat_f19_ne_convert_chain un-ignored
+#
+# PRIORITY 2 — Mine more corpus snippets (oracle-validate first):
+#   - rung11 data structures: check for gaps
+#   - patterns/: FENCE, ABORT, BAL, NOTANY, SPAN, BREAK patterns
+#   - Gimpel programs: COUNT, FIND, LIKE (string search), POKER, TICTACTO
+#   - f13_eval_code (CODE() function), f17_include.sno
+#
+# Target: ≥ 2130 passed, 0 failed non-ignored
+```

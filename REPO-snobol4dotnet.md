@@ -11,10 +11,10 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `D-188` — M-NET-SNIPPET-FACTORY complete + oracle validation via SPITBOL x64
-**HEAD:** `10d2b3f` D-188
-**Invariant:** `dotnet test` → 2116 passed, 0 failed, 10 skipped
-**Milestone:** M-NET-SNIPPET-FACTORY Steps 0–8 ✅ · All assertions oracle-validated via `/home/claude/x64/bin/sbl -b`
+**Sprint:** `D-189` — STOPTR impl + coverage nodes + OPSYN alias fix
+**HEAD:** `a106e32` D-189
+**Invariant:** `dotnet test` → 2119 passed, 0 failed, 8 skipped
+**Milestone:** M-NET-SNIPPET-FACTORY complete · D-189 adds 3 tests
 
 **⚠ CRITICAL NEXT ACTION — Session D-185:**
 
