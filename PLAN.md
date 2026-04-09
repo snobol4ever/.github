@@ -117,7 +117,7 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | BEAUTY | one4all `78016ac1` · corpus `3fd44d0` · INTERP=./scrip PASS=169/203 | B-1 ✅ B-2 ✅ P2 ✅ B-3 ✅ · **NEXT: XATP predicate NULVCL fix** — GT()/LT() in pattern context: NULVCL = zero-width match success. Fix XATP runner in snobol4_pattern.c. Gate: Gen.sno test + beauty self-hosting matches sbl. |
+| **SNOBOL4 × x86** | BEAUTY | one4all `00c1809b` · corpus `3fd44d0` · INTERP=./scrip PASS=172/203 | B-1 ✅ B-2 ✅ P2 ✅ B-3 ⚠️ · **NEXT: pat_cat DT_N fix** — DT_N (NAME) reaching pat_cat. Deref in pat_cat/PATVAL_fn. Gate: beauty runs to completion, diff vs sbl empty. |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
 | **Silly SNOBOL4** | SS-39 | one4all `adec4a10` | **M-SS-BLOCK-FORWARD** (→12293): next EXPV4 line 2724 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
