@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 12293 backward.
 
 ## Watermark (update after each block — counts DOWN)
 
-**Current watermark:** v311.sil line **11738**  
-**Next block:** VLTRFN (line 11740), then LITFN (11739), LABTFN (11738), then backward from 11737
+**Current watermark:** v311.sil line **12125**  
+**Next block:** SUCCPT (line 12120), then work backward
 
 ---
 

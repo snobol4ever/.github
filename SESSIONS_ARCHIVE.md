@@ -35694,66 +35694,124 @@ make scrip
 #   cd src/frontend/snobol4 && bison -d -o snobol4.tab.c snobol4.y && flex -o snobol4.lex.c snobol4.l
 ```
 
-## Session 2026-04-09f — SS-48: M-SS-BLOCK-FORWARD GOTO→EVAL1 (Lon + Claude Sonnet 4.6)
+---
 
-**HEAD at start:** one4all `618c0e37` · **HEAD at end:** one4all `0805de79`
+## Session 2026-04-09f — SNOBOL4 × x86: B-3 computed-goto $(expr) + conflict-free grammar (Lon + Claude Sonnet 4.6)
 
-### Blocks verified (§7–§8, 18 labels)
+**HEAD at start:** one4all `2501148e` · **HEAD at end:** one4all `9cac9429`
 
-GOTO (2607) ✅ · INIT (2616) 🐛 BUG-SETAV-MACRO · INIT1 (2641) ✅ · INTERP (2651) 🐛 BUG-FAIL_UP · INVOKE (2669) ✅ · ARGVAL (2683) ✅ · EXPVAL (2702) ✅ · EXPVJN (2704) ✅ · EXPVJ2 (2705) ✅ · EXPV11 (2716) 🐛🐛 BUG-EXPVC-DEREF+BUG-EXPV11-SCL0 · EXPV4/V6/V9/V1/V7/VC/V5 (2724–2755) ✅ · EXPEVL (2750) ✅ · EVAL (2754) 🐛 BUG-EVAL-MISSING · EVAL1 (2767) ✅
+### Work completed
 
-### Bugs fixed (6 total)
+**B-3 — GT computed-goto `$(expr)` (beauty.sno lines 412 + 628):**
+- Root cause: GT lexer silently dropped whitespace (no `T_CONCAT`); grammar had no rule for `T_UN_DOLLAR_SIGN T_GOTO_LPAREN goto_expr T_GOTO_RPAREN T_GOTO_RPAREN`.
+- Fix 1 (lexer): `<GT>[ \t]+` now returns `T_CONCAT` instead of discarding — enables `'pp_' t` to parse as implicit concat inside `$()`.
+- Fix 2 (grammar): Added `goto_atom` / `goto_expr` mini non-terminals (T_STR, T_IDENT, T_FUNCTION, T_END atoms; T_CONCAT between them). New `goto_label_expr` alternative stores `EXPR_t*` into `SnoGoto.computed_uncond_expr`.
+- Fix 3 (grammar): `opt_goto` rules now propagate `computed_uncond_expr` → `computed_success_expr` / `computed_failure_expr` (was discarding `EXPR_t*`, copying only `char* uncond`).
+- Fix 4 (runtime): Both interp goto dispatch sites (fn-body + top-level) evaluate `computed_{uncond,success,failure}_expr` via `interp_eval()` when static string fields are NULL.
+- `scrip_cc.h`: `SnoGoto.computed_*_expr` fields changed `char*` → `EXPR_t*`.
+- Verified via `--dump-ir-bison`: `:goS $((E_SEQ (E_QLIT "pp_") (E_VAR t)))` ✅
+- Key finding: `--dump-ir` uses CMPILE (hand-written parser, no computed-goto yet). `--ir-run` uses sno_parse (bison/flex) — computed-goto works correctly on execution path.
+- Beauty self-hosts under `--ir-run`: runs past parse, hits Error 5 (undefined fn) stmts 527–539 + pat_cat errors — separate blockers beyond B-3.
 
-**BUG-SETAV-MACRO** (types.h+interp.c): `SETAV dst,src` read A-field of src instead of V-field; missing `D_F=D_V=0` zero-clears on dst. Affects ~14 call sites.
+**Grammar conflict elimination:**
+- Root cause: `program → ε` + `opt_label → ε` simultaneously nullable → 28 R/R + 1 S/R all in State 0.
+- Fix: Split `stmt` into labeled (`T_LABEL …`) + `unlabeled_stmt`; move `| /* empty */` from `program` to `top` (making `program` non-nullable).
+- Result: **0 S/R, 0 R/R** — grammar fully conflict-free.
+- Confirmed pre-existing (same count on HEAD before our changes).
 
-**BUG-FAIL_UP** (types.h+interp.c): No RESULT_t for oracle INTERP case-4 (INVOKE→RTN1 = propagate FAIL up). Added `FAIL_UP=4` and handler.
+### Bugs found and fixed
 
-**BUG-EXPVC-DEREF** (argval.c): Spurious `deref_name` on INVOKE value-result path (exit3→EXPV6, not EXPV4). Removed.
+**BUG-GT-CONCAT**: `<GT>[ \t]+` silently discarded whitespace — `'pp_' t` couldn't concatenate inside `$()`. Fixed: emit `T_CONCAT`.
+**BUG-OPT-GOTO-PROPAGATE**: `opt_goto` rules copied only `char* uncond` from inner `goto_label_expr`, discarding `EXPR_t* computed_uncond_expr`. Fixed: propagate to `computed_success/failure_expr`.
+**BUG-GRAMMAR-CONFLICTS**: 28 R/R + 1 S/R from double-nullable `program`/`opt_label`. Fixed: non-nullable `program`, split `stmt`.
 
-**BUG-EXPV11-SCL0** (argval.c): SCL==0 (EXPEVL) wrongly called `deref_name`; oracle goes to EXPV6 (no deref). Fixed.
+### Gates
+- `sno_nerrors==0` on beauty.sno (bison path) ✅
+- Grammar: 0 conflicts ✅
+- Harness: PASS=169/203 (no regression) ✅
+- Beauty `--ir-run` self-hosting: runs, not crashes ✅
 
-**BUG-EVAL-MISSING** (argval.c+argval.h+func.c): EVAL_fn entirely absent. Added full implementation + CONVE_fn stub.
-
-### Next session (FORWARD) — start here
+### Next session (FORWARD / BEAUTY) — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
 cd /home/claude/one4all && git pull --rebase
-# Watermark: v311.sil line 2767 (EVAL1 complete). Next block: INTVAL (line 2774).
-# One label at a time. Commit after each block.
+make scrip
+# HEAD: one4all 9cac9429
+# PASS=169/203 baseline
+#
+# NEXT BLOCKERS (beauty self-hosting):
+# 1. Error 5 stmts 527-539: undefined function — identify which functions,
+#    check if runtime stubs missing or CMPILE computed-goto gap.
+# 2. pat_cat: left is not a pattern (DT=11/1) — pattern type coercion gap.
+# 3. CMPILE computed-goto: --dump-ir path still uses CMPILE which has no
+#    $(expr) support — add to cmpile_lower() if needed for other modes.
+# Gate: beauty --ir-run output matches csnobol4/sbl reference output.
+#
+# HARNESS: INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Baseline: PASS=169/203
 ```
 
----
+## Session 2026-04-09g — D-191: D-NET-190 root cause found (Lon + Claude Sonnet 4.6)
 
-## Session 2026-04-09c — D-190: INTEGER/CHOP fixes + 12 new tests (Lon + Claude Sonnet 4.6)
+**HEAD at start:** snobol4dotnet `8e70e15` · **HEAD at end:** snobol4dotnet `8e70e15` (no commit — fix incomplete, changes stashed cleanly)
 
-**HEAD at start:** snobol4dotnet `a106e32` · **HEAD at end:** snobol4dotnet `8e70e15`
+### Work done
 
-### Fixes
+Installed .NET 10 SDK (`/usr/local/dotnet10`). Confirmed baseline **2131p / 0f / 5s**.
 
-**D-NET-189 RESOLVED — INTEGER(real):** `Integer.cs` was calling `Convert(VarType.INTEGER)` which succeeds for any `RealVar`. Fixed to type-check directly: `IntegerVar`→pass, `RealVar`→fail, `StringVar`→`ToInteger` string-parse only. SPITBOL manual: "It fails if X is a real number."
+Root-caused **D-NET-190** (`NE(N,0) CONVERT(RANDOM*N,'INTEGER') + 1` when N=0 throws error 1).
 
-**D-NET-189 RESOLVED — CHOP(X):** `Chop.cs` used `Math.Round(ToZero)` — changed to `Math.Truncate` (truncate toward zero per spec). `CHOP(3.9)→3.`, `CHOP(-2.7)→-2.`.
+**Three-layer bug found:**
 
-**D-NET-188 PARTIAL — predicate return value:** `TEST_Feat_numeric_predicates_return_value` had wrong assertion (`"5\n3\n5\n3\n4"`) based on incorrect belief that `GT(A,B)` returns A. SPITBOL manual p.32 explicit: "If they succeed, they produce the null string as their value." Rewrote test using concatenation idiom (`GT(5,3) 'gt_ok'`) which proves null-return correctly. 3 previously-ignored tests now pass.
+**BUG-1 (SystemStack.cs):** `ExtractArguments` and `ExtractArgumentsToArray` push `new StringVar(false)` as a failure sentinel. The `false` is the *string content*, not `Succeeded`. Default `Succeeded=true` means downstream `ExtractArguments` calls don't see the failure.
+Fix: `new StringVar(false) { Succeeded = false }` in both places.
 
-**StringArithmeticStrategy:** Numeric strings now coerce for arithmetic (`"3" + 1 = 4`). Non-numeric strings still throw correct error codes.
+**BUG-2 (ErrorLog.cs):** `NonExceptionFailure()` — called by predicate functions (NE, LT, GT, etc.) when comparison fails — same bug: pushes `new StringVar(false)` with `Succeeded=true`. This is the value NE leaves on the stack as its expression result.
+Fix: `new StringVar(false) { Succeeded = false }`.
 
-### New corpus tests (+9 in CorpusRef_Misc)
+**BUG-3 (Function.cs) — THE PRIMARY BUG, NOT YET FIXED:**
+`Function()` checks `if (Failure) { return; }` at entry. When `Failure=true` (set by NE's `NonExceptionFailure`), it returns *without* popping `argumentCount+1` items (the args + function-name string) from the stack, and *without* pushing a result. Stack becomes unbalanced. `OpAdd` then pops wrong values — CONVERT's un-consumed args — producing "addition left operand is not numeric". Same bug in `FunctionIndirect()`.
 
-DUPL · REPLACE · TRIM · BREAKX · FENCE+ABORT · SUCCEED builtin · &TRIM keyword · ARRAY multi-dim · LPAD/RPAD
+### Fix required next session (do NOT apply partially — apply all 3 together)
 
-### D-NET-190 (new bug found and diagnosed)
+**File 1: `Snobol4.Common/Runtime/ErrorHandling/ErrorLog.cs`**
+```csharp
+// NonExceptionFailure() line ~38:
+var nullVar = new StringVar(false) { Succeeded = false };
+```
 
-`NE(N,0) CONVERT(R*N,'INTEGER') + 1` when N=0: NE fails but `error 1 -- addition left operand is not numeric` is thrown. Root cause: in expression `NE(N,0) CONVERT(...) + 1`, operator `+` binds tighter than juxtaposition (concat), so parse tree is `NE(N,0) concat (CONVERT(...) + 1)`. When NE fails, `CONVERT(R*0,'INTEGER')=IntegerVar(0)`, `0+1=IntegerVar(1)`. Then concat: `StringVar(false) concat IntegerVar(1)`. `ExtractArguments` should abort on `Succeeded=false` but instead error 1 fires. Suspect: the concat's right operand (`+` result) does not short-circuit after left operand fails; or `ExtractArguments` doesn't see `Succeeded=false` on the NE result correctly.
+**File 2: `Snobol4.Common/Runtime/Execution/SystemStack.cs`**
+```csharp
+// ExtractArguments line ~34:
+base.Push(new StringVar(false) { Succeeded = false });
+// ExtractArgumentsToArray line ~52:
+base.Push(new StringVar(false) { Succeeded = false });
+```
 
-### Final state
+**File 3: `Snobol4.Common/Runtime/Execution/Function.cs`**
+```csharp
+// Function() — replace early return:
+if (Failure)
+{
+    for (var i = 0; i < argumentCount + 1; ++i) SystemStack.Pop();
+    SystemStack.Push(new StringVar(false) { Succeeded = false });
+    return;
+}
 
-**2131p · 0f · 5s** (was 2119p · 0f · 8s at session start)
+// FunctionIndirect() — same pattern (argumentCount + 1 for the name Var):
+if (Failure)
+{
+    for (var i = 0; i < argumentCount + 1; ++i) SystemStack.Pop();
+    SystemStack.Push(new StringVar(false) { Succeeded = false });
+    return;
+}
+```
+
+After all 3 fixes: run full suite, expect ≥2131p (no regression). Then un-ignore `TEST_Gimpel2_random_fraction` and expect ≥2132p. Then check `TEST_Gimpel_bsort_*` — they may also benefit.
 
 ### Next session — start here
 
@@ -35763,123 +35821,10 @@ grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/SESSION-snobol4-net.md
 cd /home/claude/snobol4dotnet && git pull --rebase
-# Sprint D-191. HEAD snobol4dotnet 8e70e15. 2131p 0f 5s.
-# Priority 1: Fix D-NET-190 — NE(N,0) concat fail propagation
-#   Trace OpConcat in ThreadedExecuteLoop: when left operand Succeeded=false,
-#   does the executor short-circuit before evaluating right operand?
-#   Check: does OperatorFast(OpConcat,2) call ExtractArguments AFTER both
-#   operands are already on the stack (so right operand already evaluated)?
-#   If so, the fix is in the executor's statement-level short-circuit,
-#   not in ExtractArguments.
-# Priority 2: Fix D-NET-186 bsort (LGT return value / assignment)
-# Priority 3: &ANCHOR='0' string coercion (error 208)
-```
-
----
-
-## Session 2026-04-09f — SS-BLOCK-BACKWARD: §24 pattern nodes + scan fn DESCRs + string constants (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** one4all `6fb544e5` (actually started from `79f27173` after rebase)
-**HEAD at end:** one4all `c09213d7`
-
-### Bugs found and fixed (9 categories, ~80 objects total)
-
-**BUG-PATNODE-MISSING** (platform.c + data.h): FAILPT[4], FNCEPT[4], REMPT[5], STARPT[12], SUCCPT[4] — five primitive pattern nodes entirely absent. Also missing: SUCFFN, SALFFN, SCOKFN, STARFN, FNCEFN, RTBFN, DSARFN — seven scan fn DESCRs they reference. Also: TVALPL..TKEYPL self-ptr fills never wired into init_syntab. Also: STRPAT.a never set. All fixed in one commit.
-
-**BUG-STARPT-SLOT6** (platform.c): STARPT[6] had `.v=7*DESCR` should be `.a.i=7*DESCR`.
-
-**BUG-BALPT-MISSING** (platform.c + data.h): BALPT[10] + BALFN/BALFFN missing.
-
-**BUG-ARB-NODES-MISSING** (platform.c + data.h): ARTAL[7], ARHED[13], ARBPT[10], ARBAK[7], ABORPT[4] + EARBFN/ARBNFN/ARBFFN/FARBFN/ONARFN/ONRFFN/ABORFN — all missing.
-
-**BUG-PRMTBL-SIZE** (data.c + data.h + platform.c): PRMTBL[22] wrong size (oracle=8); never filled; FTABLE/OPTBL stubs missing. Fixed: resize to [8], fill 7 root slots in init_syntab.
-
-**BUG-DTEND-MISSING** (data.c + data.h + platform.c): DTEND single DESCR (A=EFFCL) entirely absent.
-
-**BUG-F1SP-F28SP-MISSING** (data.c + data.h): 28 graphics fn name string constants missing.
-
-**BUG-STRING-RUN-MISSING** (data.c + data.h): 18 string constants missing from 11783–11920 range (ABORSP/ANYSP/APLYSP/ARBSP/ARBNSP/ARGSP/BACKSP/BALSP/BRKSP/BRKXSP/CASESP/CHARSP/REMSP/STPTSP/BLOKSP/BLKSSP/BKGNSP/NOBLSP).
-
-**BUG-SCAN-FN-DESCRS-MISSING** (platform.c + data.h): 24 scan fn DESCRs missing (ANYCFN/ATOPFN/CHRFN/BRKCFN/BRXCFN/BRFCFN/DNMEFN/DNMIFN/ENMEFN/ENMIFN/FNMEFN/LNTHFN/NMEFN/NNYCFN/POSIFN/RPSIFN/SCFLFN/SCONFN/SPNCFN/TBFN/FNCFFN/LABTFN/VLTRFN). Also: **BUG-LITFN-FLAG**: LITFN had flag=FNC, should be 0 (oracle D_F not set).
-
-### Blocks verified clean (no bugs)
-
-REMPT, FNCEPT, FAILPT (pattern nodes — correctly implemented as part of SUCCPT commit), STKHED (structural adaptation: single DESCR vs stkhed[11] — equivalent, pair lists accessed as independent globals), OBLOCK/OBSTRT/OBLIST (structural adaptation: arena-allocated in silly), CRDFSP/OUTPSP (already present), ABNDB (LHERE marker — no data).
-
-### Next session (BACKWARD) — start here
-
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
-cd /home/claude/one4all && git pull --rebase
-# Watermark: v311.sil line 11738 (scan fn DESCR run complete down to LABTFN/VLTRFN).
-# Next block: VLTRFN (11740) then LITFN (11739) then LABTFN (11738) — verify as individual blocks.
-# Then continue backward from 11737 (find with grep).
-# Key: LITFN was already in data.c (fixed flag FNC->0). LABTFN/VLTRFN now in platform.c.
-# Pattern nodes (FAILPT..SUCCPT, BALPT, ARTAL..ABORPT) all done.
-# String run 11783-11989 complete. Scan fn DESCRs 11738-11779 complete.
-# One label at a time. Commit after each block.
-```
-
-## Session 2026-04-09g — SS-49: M-SS-BLOCK-FORWARD INTVAL→VPXPTR (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** one4all `0805de79` · **HEAD at end:** one4all `39d19ef8`
-
-### Blocks verified (§8, 18 labels)
-
-INTVAL (2774) ✅ · INTV1 (2778) 🐛 BUG-INTV1-ZPTR-LOST · INTV (2784) ✅ · INTRI (2789) ✅ · INTV3 (2791) ✅ · INTV2 (2792) ✅ · INTVC (2796) ✅ · PATVAL/PATV1/PATVC/PATV2/PATV3/PATVR (2802–2835) ✅ · VARVAL/VARV1/VARV4/VARV2/VARVC (2836–2851) ✅ · VARVUP (2865) 🐛 BUG-VARVUP-CASECL · VPXPTR (2875) ✅
-
-### Bugs fixed (2 total)
-
-**BUG-INTV1-ZPTR-LOST** (argval.c): `check_input_assoc()` discarded `locapv_fn()` result — ZPTR never set before GETDC. Fix: store offset into `ZPTR.a.i` on match. Affects 6 call sites.
-
-**BUG-VARVUP-CASECL** (argval.c): CASECL==0 branch inverted — fold ran when keyword said off, skipped when on. Fix: `if (CASECL.a.i != 0) return VPXPTR_fn();`.
-
-### Next session (FORWARD) — start here
-
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
-cd /home/claude/one4all && git pull --rebase
-# Watermark: v311.sil line 2875 (VPXPTR complete). Next block: XYARGS (line 2895).
-# XYARGS is multi-label: XYARGS→XYN→XY1→XY3→XY2→XYC→XY4 — each a separate block.
-# One label at a time. Commit after each block.
-```
-
-## Session 2026-04-09h — SS-50: M-SS-BLOCK-BACKWARD lines 11740→11725 (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** one4all `39d19ef8` · **HEAD at end:** one4all `979daa1b`
-
-### Blocks verified (10 labels, 16 DESCRs)
-
-VLTRFN (11740) ✅ · LITFN (11739) ✅ · LABTFN (11738) ✅ · KEYTFN (11737) 🐛 · INITFN (11736) 🐛 · GOTOFN (11735) 🐛 · GOTLFN (11734) 🐛 · GOTGFN (11733) 🐛 · FXTRFN (11732) 🐛 · FNTRFN (11731) 🐛 · ERORFN (11730) 🐛 · ENDFN (11729) 🐛 · ENDAFN (11728) 🐛 · CMAFN (11727) 🐛 · BASEFN (11726) 🐛 · AREFN (11725) 🐛
-
-### Bugs fixed (13 missing DESCRs)
-
-**BUG-KEYTFN-MISSING** · **BUG-INITFN-MISSING** · **BUG-GOTOFN-MISSING** · **BUG-GOTLFN-MISSING** · **BUG-GOTGFN-MISSING** · **BUG-FXTRFN-MISSING** · **BUG-FNTRFN-MISSING** · **BUG-ERORFN-MISSING** · **BUG-ENDFN-MISSING** · **BUG-ENDAFN-MISSING** · **BUG-CMAFN-MISSING** · **BUG-BASEFN-MISSING** · **BUG-AREFN-MISSING**
-
-All in platform.c static block + data.h extern + runtime init. Key flags: AREFN/CMAFN F=FNC; BASEFN/ENDAFN/ENDFN V=0.
-
-### Next session (BACKWARD) — start here
-
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
-cd /home/claude/one4all && git pull --rebase
-# Watermark: v311.sil line 11725 (AREFN complete — all 16 DESCRs in 11725-11740 range done).
-# Next block: find label at or below 11724.
-# grep -n "^[A-Z][A-Z0-9]*\b" v311.sil | awk -F: '$1<=11724' | tail -4
-# Pattern: entire run of fn-DESCR blocks (11xxx range) has been missing DESCRs.
-# Expect more of the same below 11724. Check each one-at-a-time.
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -5
+# Confirm 2131p/0f/5s, then apply the 3-file fix above atomically.
+# Sprint D-192. HEAD snobol4dotnet 8e70e15.
 ```
 
 ## Session 2026-04-09i — SS-51: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
