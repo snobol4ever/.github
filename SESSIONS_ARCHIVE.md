@@ -36217,3 +36217,39 @@ sed -n '3663,3750p' /home/claude/work/snobol4-2.3.3/v311.sil
 grep -n "L_BRKC\|L_BRKX\|L_NNYC\|L_SPNC\|L_ANYC\|L_ABNS\b" /home/claude/work/snobol4-2.3.3/snobol4.c | head -20
 grep -n "do_BRKC\|do_ABNS\|do_ANYC\|do_NNYC\|do_SPNC" /home/claude/one4all/src/silly/scan.c | head -20
 ```
+
+---
+
+## Session SSB-4 — M-SS-BLOCK-BACKWARD (2026-04-09)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at close:** one4all `c9b00402`
+**Milestone:** M-SS-BLOCK-BACKWARD — descending from watermark 11952 toward line 1
+
+### Watermark movement
+- **Start:** 11952 (OUTPSP ✅, carried from SS-45)
+- **End:** 11399 (INITLS ✅)
+
+### Bugs fixed (2)
+- **BUG-CSP** (line 11797): `CSP STRING 'C'` missing from data.c/data.h; spurious `VESP[]` (phantom, unused) removed
+- **BUG-INITLS** (line 11399): INITLS block never initialized — stayed D0; BEGIN loop uses it to walk 8 sublists; fixed: 8-slot arena alloc in init_syntab(), all 8 ptrs filled
+
+### Clean blocks verified
+CRDFSP, F1SP–F28SP, NOBLSP/BKGNSP/BLKSSP, THAWSP–VDIFSP, ABNDSP–ENDSP,
+ENDAFN–VLTRFN (13 interp fn-nodes), ANYCFN–SUCFFN (37 pattern fn-nodes),
+CMAFN/BASEFN/AREFN/OPTBND/STRFN, SLHFN–DOTFN, ADDFN–OPTBL
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all c9b00402
+# BWD watermark: 11399 (INITLS ✅). Next block:
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
+    | awk -F: '$1<11399{print}' | tail -3
+# → FTBLND (11397) then F28FN (11394) etc.
+```
