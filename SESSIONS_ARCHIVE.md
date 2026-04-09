@@ -35754,3 +35754,75 @@ make scrip
 # HARNESS: INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 #   Baseline: PASS=169/203
 ```
+
+## Session 2026-04-09g — D-191: D-NET-190 root cause found (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `8e70e15` · **HEAD at end:** snobol4dotnet `8e70e15` (no commit — fix incomplete, changes stashed cleanly)
+
+### Work done
+
+Installed .NET 10 SDK (`/usr/local/dotnet10`). Confirmed baseline **2131p / 0f / 5s**.
+
+Root-caused **D-NET-190** (`NE(N,0) CONVERT(RANDOM*N,'INTEGER') + 1` when N=0 throws error 1).
+
+**Three-layer bug found:**
+
+**BUG-1 (SystemStack.cs):** `ExtractArguments` and `ExtractArgumentsToArray` push `new StringVar(false)` as a failure sentinel. The `false` is the *string content*, not `Succeeded`. Default `Succeeded=true` means downstream `ExtractArguments` calls don't see the failure.
+Fix: `new StringVar(false) { Succeeded = false }` in both places.
+
+**BUG-2 (ErrorLog.cs):** `NonExceptionFailure()` — called by predicate functions (NE, LT, GT, etc.) when comparison fails — same bug: pushes `new StringVar(false)` with `Succeeded=true`. This is the value NE leaves on the stack as its expression result.
+Fix: `new StringVar(false) { Succeeded = false }`.
+
+**BUG-3 (Function.cs) — THE PRIMARY BUG, NOT YET FIXED:**
+`Function()` checks `if (Failure) { return; }` at entry. When `Failure=true` (set by NE's `NonExceptionFailure`), it returns *without* popping `argumentCount+1` items (the args + function-name string) from the stack, and *without* pushing a result. Stack becomes unbalanced. `OpAdd` then pops wrong values — CONVERT's un-consumed args — producing "addition left operand is not numeric". Same bug in `FunctionIndirect()`.
+
+### Fix required next session (do NOT apply partially — apply all 3 together)
+
+**File 1: `Snobol4.Common/Runtime/ErrorHandling/ErrorLog.cs`**
+```csharp
+// NonExceptionFailure() line ~38:
+var nullVar = new StringVar(false) { Succeeded = false };
+```
+
+**File 2: `Snobol4.Common/Runtime/Execution/SystemStack.cs`**
+```csharp
+// ExtractArguments line ~34:
+base.Push(new StringVar(false) { Succeeded = false });
+// ExtractArgumentsToArray line ~52:
+base.Push(new StringVar(false) { Succeeded = false });
+```
+
+**File 3: `Snobol4.Common/Runtime/Execution/Function.cs`**
+```csharp
+// Function() — replace early return:
+if (Failure)
+{
+    for (var i = 0; i < argumentCount + 1; ++i) SystemStack.Pop();
+    SystemStack.Push(new StringVar(false) { Succeeded = false });
+    return;
+}
+
+// FunctionIndirect() — same pattern (argumentCount + 1 for the name Var):
+if (Failure)
+{
+    for (var i = 0; i < argumentCount + 1; ++i) SystemStack.Pop();
+    SystemStack.Push(new StringVar(false) { Succeeded = false });
+    return;
+}
+```
+
+After all 3 fixes: run full suite, expect ≥2131p (no regression). Then un-ignore `TEST_Gimpel2_random_fraction` and expect ≥2132p. Then check `TEST_Gimpel_bsort_*` — they may also benefit.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -5
+# Confirm 2131p/0f/5s, then apply the 3-file fix above atomically.
+# Sprint D-192. HEAD snobol4dotnet 8e70e15.
+```
