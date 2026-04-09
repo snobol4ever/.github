@@ -36141,7 +36141,28 @@ Tried `IndexCollection` drain-and-sentinel patch when `Failure=true` — changed
 **bsort test state:** re-ignored (D-NET-186). Next: build CLI, run with `TraceStatements=true` to determine threaded vs MSIL path, then fix IndexCollection drain.
 
 ### Next session (D-194) — start here
+## Session 2026-04-09k — SS-49: M-SS-BLOCK-FORWARD INTERP/INVOKE/ARGVAL (Lon + Claude Sonnet 4.6)
 
+**HEAD at start:** one4all `cfe306d0` · **HEAD at end:** one4all `adec4a10`
+
+### Blocks verified
+
+| Block | Lines | Result |
+|-------|-------|--------|
+| INIT1 | 2641–2650 | ✅ clean |
+| INTERP PROC | 2651 | ✅ clean (header only) |
+| INTRP0 | 2652–2668 | 🐛 **BUG-INTRP0-NEMO FIXED** — oracle case 2,3 both loop to L_INTRP0; our dispatch had `if (rc==OK) continue` catching only case 2; NEMO(=3) fell to failure path. Fix: `if (rc==OK \|\| rc==NEMO) continue` |
+| INVOKE PROC | 2669 | ✅ clean (header only) |
+| INVK1 | 2673 | ✅ clean (invoke_table dispatch = correct architectural translation of BRANIC) |
+| INVK2 | 2675–2681 | ✅ clean |
+| ARGVAL PROC | 2683–2686 | ✅ clean |
+| ARGV1 | 2687–2692 | ✅ clean (check_input_assoc correctly bundles INSW+LOCAPV) |
+| ARGVC | 2693 | ✅ clean |
+| ARGV2 | 2695–2701 | ✅ clean (deref_name = GETDC XPTR,XPTR,DESCR) |
+
+**Watermark: v311.sil line 2701. Next block: EXPVAL PROC (line 2702).**
+
+### Next session (FORWARD) — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
@@ -36155,4 +36176,10 @@ dotnet build Snobol4/Snobol4.csproj -c Release -o /tmp/sno4 -p:EnableWindowsTarg
 # Write bsort_mini.sno and run with TraceStatements to see IndexCollection/MSIL path.
 # Fix: IndexCollection must drain ArrayVar+indices and push sentinel when Failure=true.
 # Scope fix carefully — LHS and RHS both call IndexCollection.
-```
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all adec4a10
+# Watermark: v311.sil line 2701 (ARGV2 complete). Next block: EXPVAL PROC (line 2702).
+sed -n '2702,2720p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "^EXPVAL\b" /home/claude/work/snobol4-2.3.3/snobol4.c```
