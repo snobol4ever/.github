@@ -35693,3 +35693,36 @@ make scrip
 # TOOLS: bison and flex are installed. snobol4.y/.l → regenerate with:
 #   cd src/frontend/snobol4 && bison -d -o snobol4.tab.c snobol4.y && flex -o snobol4.lex.c snobol4.l
 ```
+
+## Session 2026-04-09f — SS-48: M-SS-BLOCK-FORWARD GOTO→EVAL1 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `618c0e37` · **HEAD at end:** one4all `0805de79`
+
+### Blocks verified (§7–§8, 18 labels)
+
+GOTO (2607) ✅ · INIT (2616) 🐛 BUG-SETAV-MACRO · INIT1 (2641) ✅ · INTERP (2651) 🐛 BUG-FAIL_UP · INVOKE (2669) ✅ · ARGVAL (2683) ✅ · EXPVAL (2702) ✅ · EXPVJN (2704) ✅ · EXPVJ2 (2705) ✅ · EXPV11 (2716) 🐛🐛 BUG-EXPVC-DEREF+BUG-EXPV11-SCL0 · EXPV4/V6/V9/V1/V7/VC/V5 (2724–2755) ✅ · EXPEVL (2750) ✅ · EVAL (2754) 🐛 BUG-EVAL-MISSING · EVAL1 (2767) ✅
+
+### Bugs fixed (6 total)
+
+**BUG-SETAV-MACRO** (types.h+interp.c): `SETAV dst,src` read A-field of src instead of V-field; missing `D_F=D_V=0` zero-clears on dst. Affects ~14 call sites.
+
+**BUG-FAIL_UP** (types.h+interp.c): No RESULT_t for oracle INTERP case-4 (INVOKE→RTN1 = propagate FAIL up). Added `FAIL_UP=4` and handler.
+
+**BUG-EXPVC-DEREF** (argval.c): Spurious `deref_name` on INVOKE value-result path (exit3→EXPV6, not EXPV4). Removed.
+
+**BUG-EXPV11-SCL0** (argval.c): SCL==0 (EXPEVL) wrongly called `deref_name`; oracle goes to EXPV6 (no deref). Fixed.
+
+**BUG-EVAL-MISSING** (argval.c+argval.h+func.c): EVAL_fn entirely absent. Added full implementation + CONVE_fn stub.
+
+### Next session (FORWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 2767 (EVAL1 complete). Next block: INTVAL (line 2774).
+# One label at a time. Commit after each block.
+```
