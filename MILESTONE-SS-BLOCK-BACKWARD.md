@@ -1,83 +1,82 @@
-# MILESTONE-SS-BLOCK-BACKWARD.md — M-SS-BLOCK Backward Pass (§6 UNOPB→TREPU5)
+# MILESTONE-SS-BLOCK-BACKWARD.md — M-SS-BLOCK Backward Pass
 
-**Track:** Silly SNOBOL4 M-SS-BLOCK  
-**Direction:** BACKWARD — start at UNOPB (last block of §6), work toward watermark  
-**Partner:** MILESTONE-SS-BLOCK-FORWARD.md (starts at TREPUB, moves forward)  
-**Meet-in-middle target:** TREPU3/TREPU5 boundary (~v311.sil line 2481)
-
----
-
-## Context
-
-M-SS-BLOCK verifies each labeled SIL block against the oracle (snobol4.c generated C)
-and our Silly C translation, one label at a time. This session starts at the END of
-§6 and works backward — each session verifies the block just before the previous one.
-
-**Source oracle:** `/home/claude/work/snobol4-2.3.3/snobol4.c`  
-**SIL source:** `/home/claude/work/snobol4-2.3.3/v311.sil`  
-**Silly source:** `/home/claude/one4all/src/silly/`
+**Direction:** BACKWARD — start at v311.sil line 12293, work one block at a time toward line ~2452  
+**Partner:** MILESTONE-SS-BLOCK-FORWARD.md (starts at line 2452, works forward)  
+**Meet-in-middle:** somewhere around line 7000–8000 (to be declared when both sessions converge)
 
 ---
 
-## Remaining §6 Blocks — Backward Order
+## Scope
 
-Work these in reverse order (bottom to top):
+All labeled blocks from v311.sil line 12293 back to where the forward pass reaches, one label at a time.  
+§20 BLOCKS (lines 7038–10208, 328 labels) — **SKIP entirely** per ground rules.  
+Everything else is in scope: §24 Data, §23 Errors, §22 Termination, §21 Common Code, §19–§7.
 
-| Block | SIL line | File | Status |
-|-------|----------|------|--------|
-| UNOPB | 2516 | expr.c | ⬜ **← START HERE** |
-| UNOPA | 2510 | expr.c | ⬜ |
-| UNOP  | 2506 | expr.c | ⬜ |
-| TREPU6 | 2490 | trepub.c | ⬜ |
-| TREPU5 | 2485 | trepub.c | ⬜ **← MEET POINT** |
-
-Stop at TREPU5. Forward session covers TREPU3 and earlier.
+**Approximate block count remaining backward:** ~1,100 (excluding §20)
 
 ---
 
-## Protocol
+## Method (one block per commit)
 
+1. Find the block whose label line is the highest line number not yet verified:
+   ```bash
+   # Get all labels, find the one just at or below current backward watermark
+   grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<=WATERMARK' | tail -2
+   ```
+2. Extract SIL block (label line → line before next label):
+   ```bash
+   sed -n 'START,ENDp' /home/claude/work/snobol4-2.3.3/v311.sil
+   ```
+3. Find oracle block in snobol4.c:
+   ```bash
+   grep -n "L_BLOCKNAME\|^BLOCKNAME(" /home/claude/work/snobol4-2.3.3/snobol4.c
+   ```
+4. Find our Silly equivalent:
+   ```bash
+   grep -rn "BLOCKNAME" /home/claude/one4all/src/silly/
+   ```
+5. Sync-step instruction by instruction. Fix any divergence.
+6. Build clean: `gcc -Wall -Wextra -std=c99 -g -O0 $(find src/silly -name "*.c") -lm -o /tmp/silly-check -I src/silly`
+7. Commit: `git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" commit -m "M-SS-BLOCK-BWD BLOCKNAME: <fix or verified clean>"`
+8. Update watermark below (watermark = label line of block just verified).
+
+---
+
+## Skip rule for §20 BLOCKS
+
+When backward watermark reaches line 10208, jump directly to 7037:
 ```bash
-# Setup every session
-cd /home/claude/work/snobol4-2.3.3   # oracle lives here
-cd /home/claude/one4all               # our code
-
-# For each block (going backward through the list above):
-# 1. Extract SIL block: sed -n 'START,ENDp' v311.sil
-# 2. Find oracle: grep -n "^L_BLOCKNAME\b" snobol4.c → sed -n
-# 3. Find ours: grep -rn "BLOCKNAME\|blockname" src/silly/
-# 4. Sync-step line by line
-# 5. Fix any bug, build clean, commit:
-#    git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" \
-#        commit -m "M-SS-BLOCK-BWD BLOCKNAME: <description>"
-# 6. Push, update watermark here
+# v311.sil lines 7038–10208 = BLOCKS section — SKIP
+# Resume backward from line 7037 (end of §19)
 ```
 
 ---
 
 ## Watermark (update after each block — counts DOWN)
 
-**Current:** v311.sil line 2524 — first block to verify: UNOPB (2516)
+**Current watermark:** v311.sil line **12293** (end of file)  
+**Next block to verify:** last label in file = R1MCL (line 12292) — then work backward
 
 ---
 
-## Commit naming
+## Nature of §24 Data blocks
 
-`M-SS-BLOCK-BWD UNOPB: <fix or "verified clean">` — use `-BWD` suffix to distinguish from forward session commits.
+Most blocks from ~10209 to 12293 are data definitions (FORMAT strings, REAL constants,
+DESCR initializers) — not executable logic. They verify quickly: check the C global
+declaration in `src/silly/data.h` / `sil_data.c` matches the SIL type and initial value.
+The executable logic blocks (§21 Common Code, §22 Termination, §23 Errors) are at
+lines 10209–10480 and are the meaty ones going backward.
 
 ---
 
-## How to find SIL blocks working backward
+## Session start commands
 
 ```bash
-# Find the block boundaries for the block at line N:
-# Block starts at line N (the label line)
-# Block ends at the line BEFORE the next label
-
-# Example: UNOPB at line 2516, next label BASE at 2524
-# So UNOPB block = lines 2516..2523
-sed -n '2516,2523p' /home/claude/work/snobol4-2.3.3/v311.sil
-
-# Find in oracle:
-grep -n "L_UNOPB\|^UNOP\b" /home/claude/work/snobol4-2.3.3/snobol4.c
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md   # this file — get watermark
+cd /home/claude/one4all && git pull --rebase
+# Then: next block = last label at or below watermark line
 ```
