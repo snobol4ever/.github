@@ -316,7 +316,7 @@ Static diff catches structural bugs before any code runs.
 **Current watermark: v311.sil line 955 (BEGIN entry block checked, one cosmetic gap: SOURCF output line missing)**
 **Next block: SPCNVT (v311.sil line 974)**
 
-### M-SS-BLOCK watermark (SS-36, 2026-04-08h)
-**Watermark: v311.sil line 1720** (end of CMPTGO/CMPNGO — last CMPILE sub-block verified).
-Next block: **CMPGO** (v311.sil line 1721, in cmpile.c).
+### M-SS-BLOCK watermark (SS-43, 2026-04-08)
+**Watermark: v311.sil line 2210** (end of EXPR/BINOP/NULNOD — CMPGO group + CDIAG + ELEMNT + EXPR + BINOP all verified).
+Next block: **UNOP** (v311.sil line ~2506, expr.c `UNOP_fn`).
 Bugs found and fixed: BUG-SPCNVT, BUG-GC-GCBB, BUG-TREPUB-MOVBLK, BUG-BINOP-BIEQFN.
