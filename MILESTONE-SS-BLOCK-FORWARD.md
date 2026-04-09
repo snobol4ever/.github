@@ -50,3 +50,10 @@ cat /home/claude/.github/SESSION-silly-snobol4.md
 cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## Session numbering (2026-04-09l)
+
+Forward sessions use **SSF-N** series (SSF-47, SSF-48, SSF-49, SSF-50, ...) symmetric with
+Backward sessions (**SSB-N** series). Next forward session: **SSF-51**.
