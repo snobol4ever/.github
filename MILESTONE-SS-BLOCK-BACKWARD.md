@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 12293 backward.
 
 ## Watermark (update after each block — counts DOWN)
 
-**Current watermark:** v311.sil line **12293**  
-**Next block:** R1MCL (line 12292), then work backward
+**Current watermark:** v311.sil line **12125**  
+**Next block:** SUCCPT (line 12120), then work backward
 
 ---
 

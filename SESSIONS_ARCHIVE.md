@@ -35551,3 +35551,42 @@ cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
 cd /home/claude/one4all && git pull --rebase
 # Watermark: 12293. Next block: R1MCL (line 12292). One label at a time, counting down.
 ```
+
+---
+
+## Session 2026-04-09e — SS-BLOCK-BACKWARD: §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `6fb544e5`  
+**HEAD at end:** one4all `79f27173`
+
+### Bugs found and fixed (8 total across 4 commits)
+
+**BUG-READNO-NAME** (data.c/data.h): `READN0` (digit zero) → `READNO` (letter O). Typo in FORMAT string name — oracle uses READNO in `io_printf(...,READNO,RSTAT)`.
+
+**BUG-KSTSF-NAME** (data.c/data.h): `KSTSTF` (extra T) → `KSTSF`. Oracle: `io_printf(...,KSTSF,FCL)`.
+
+**BUG-ARTHNO-NAME** (data.c/data.h): `ARTHN0` (digit zero) → `ARTHNO` (letter O). Same pattern. Oracle: `io_printf(...,ARTHNO,ARTHCL)`.
+
+**BUG-TRACE-PL-MISSING** (platform.c + data.h): TVALPL, TLABPL, TFENPL, TFEXPL, TKEYPL — five 3-slot pair-list DESCR arrays declared `extern` in data.h but **never defined** anywhere. Oracle initializes each as `{self-ptr, TTL+MARK, 2*DESCR} + 2 zero slots`. Added all five as DESCR_t[3] in platform.c; fixed extern decls from bare `DESCR_t X` to `DESCR_t X[3]` in data.h. Build confirmed clean.
+
+### Blocks verified clean (no bugs)
+
+R1MCL, RZERCL, WRITNO, TITLEF1 (BLOCKS-only correctly omitted), TITLEF, TIMEPS, SYSCMT, SUCCF, STGETM, STGENO, STDMP, STATHD, SOURCF, SCANNO, PRTOVF, PKEYF, NVARF, NRMEND, NODMPF, LASTSF, INTIME, INCGCF, EJECTF, ERRCF, EXNO, FTLCF, GCFMT, ILLEOS, ILLINT, OPNLIT, ALOCFL, CMTIME, EMSG3, EMSG14, ILCHAR, ILLBIN, ILLBRK, ILLDEC, EMSG1, EMSG2, MSG34–MSG35, MSG39 (MSG36–38 BLOCKS-only correctly omitted), MSG26–MSG33, MSG25–MSG18, MSG17–MSG10, MSG9–MSG1, MSGLST (structural adaptation: pointer array vs DESCR array — equivalent), VALBLK (structural adaptation: FIELD_fn takes different path — equivalent)
+
+### Next session (BACKWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 12125 (TVALPL complete). Next block: SUCCPT (line 12120).
+# Then STARPT (12107), REMPT (12101), FNCEPT (12096), FAILPT (12091) — primitive pattern nodes.
+# Key question: are FAILPT/FNCEPT/REMPT/STARPT/SUCCPT arena-allocated (like STRPAT) or
+# need static DESCR definitions (like the trace pair lists just fixed)?
+# Check: grep -rn "FAILPT\|FNCEPT\|REMPT\b\|STARPT\|SUCCPT" /home/claude/one4all/src/silly/
+# Oracle init: data_init.h lines 1972-2012 show full slot-by-slot initialization.
+# One label at a time. Commit after each block.
+```
