@@ -35554,7 +35554,7 @@ cd /home/claude/one4all && git pull --rebase
 
 ---
 
-## Session 2026-04-09e — SSB-1: M-SS-BLOCK-BACKWARD §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09e — SS-BLOCK-BACKWARD: §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5`  
 **HEAD at end:** one4all `79f27173`
@@ -35575,7 +35575,7 @@ R1MCL, RZERCL, WRITNO, TITLEF1 (BLOCKS-only correctly omitted), TITLEF, TIMEPS, 
 
 ### Next session (BACKWARD) — start here
 
-## Session 2026-04-09e — SSF-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09e — SS-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5` · **HEAD at end:** one4all `618c0e37`
 
@@ -35826,7 +35826,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Sprint D-192. HEAD snobol4dotnet 8e70e15.
 ```
 
-## Session 2026-04-09i — SSB-3: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09i — SS-51: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `979daa1b` · **HEAD at end:** one4all `985665d9`
 
@@ -35895,7 +35895,7 @@ OperatorHandlers![(int)op]!(_reusableArgList);
 Note: drain `argumentCount` (not `+1`) — no fn-name on stack for operators.
 After this fix: expect **2132p / 0f**. Then check `TEST_Gimpel_bsort_*`.
 
-## Session 2026-04-09h — SSB-2: M-SS-BLOCK-BACKWARD §24 tail blocks verified (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09h — M-SS-BLOCK-BACKWARD: §24 tail blocks verified (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `eb96f768`  
 **HEAD at end:** one4all `991caea0`  
@@ -36074,151 +36074,87 @@ make scrip
 #   END
 ```
 
-## Session 2026-04-09j — SSF-48: M-SS-BLOCK-FORWARD GOTO + INIT (Lon + Claude Sonnet 4.6)
+---
 
-**HEAD at start:** one4all `991caea0` · **HEAD at end:** one4all `cfe306d0`
+## Session SS-45 — M-SS-BLOCK-BACKWARD (2026-04-09)
 
-### What happened this session
+**Operator:** Claude Sonnet 4.6
+**HEAD at close:** one4all `c20df34c`
+**Milestone:** M-SS-BLOCK-BACKWARD — descending from watermark 12120 toward line 1
 
-**Watermark confusion corrected:** SESSION-silly-snobol4.md contained a false "SS-44 RESET"
-claiming watermark had been rolled back to line 955. SESSIONS_ARCHIVE (ground truth) showed
-forward pass reached line 2606 (GOTLC) in session SS-47. Corrected both docs. Prior sessions
-did find real bugs in the re-covered range (BUG-GCBA1 etc) — no new bugs found on re-scan.
+### Watermark movement
+- **Start:** 12120 (SUCCPT, carried from SS-44)
+- **End:** 11952 (OUTPSP ✅)
+- **Next block:** CRDFSP (line 11951)
 
-### Blocks verified
+### Bugs found and fixed (3 real bugs)
 
-| Block | Lines | Result |
-|-------|-------|--------|
-| GOTO | 2607–2615 | ✅ clean |
-| INIT | 2616–2640 | 🐛 **BUG-INIT-CHKBREAK FIXED** — `chk_break(0)` call missing before STNOKY locapt; STNOKY trace lookup was running unconditionally instead of only when breakpoint active. Fixed: added chk_break guard + `int chk_break(int)` stub (returns 1) in platform.c |
+**BUG-GC-PREAMBLE** (line 1367 — NOTE: FORWARD territory, mislabeled BWD):
+- POP GCREQ, PSTACK BLOCL, SUBTRT BLOCL,BLOCL,STKPTR, SETSIZ STKPTR,BLOCL — all 4 ops absent from GC_fn preamble in arena.c
+- Fixed: added all 4 with correct arena-model semantics
 
-**Watermark: v311.sil line 2640. Next block: INIT1 (line 2641).**
+**BUG-STKHED-GC-ROOTS** (line 12005):
+- PRMTBL had only 8 slots; entire STKHED block (11 GC roots) absent: STKHED, INLIST, OTLIST, INSATL, OTSATL, TFENPL, TFEXPL, TKEYPL, TLABPL, TRLIST, TVALPL
+- PRMDX never initialized (stayed 0) — GCT walked zero roots, GC was blind
+- Fixed: expanded PRMTBL[8]→PRMTBL[19], added slots 8–18, set PRMDX=18\*DESCR
 
-### Next session (FORWARD) — start here
+**BUG-PRMTBL-SIZE** (line 11997):
+- PRMTBL[0].v = 0, must be 18\*DESCR (PRMSIZ) for GC block-size accounting
+- Fixed: PRMTBL[0].v = 18\*DESCR in init
 
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
-cd /home/claude/one4all && git pull --rebase
-# HEAD: one4all cfe306d0
-# Watermark: v311.sil line 2640 (INIT complete). Next block: INIT1 (line 2641).
-# One label at a time. Commit after each block.
-sed -n '2641,2650p' /home/claude/work/snobol4-2.3.3/v311.sil
-grep -n "^INIT1\b" /home/claude/work/snobol4-2.3.3/snobol4.c
-grep -n "INIT1_fn\|init1" /home/claude/one4all/src/silly/interp.c
-```
+### Rule violations this session
+- Early turns worked FORWARD from ~1367 instead of BACKWARD from 12107 (corrected mid-session)
+- Several early commits bundled multiple labels (GCT+GCTDWN, GCBA2+GCBA4, GCLAD family)
+- From STARPT (12107) onward: one label per commit, correct direction ✅
+- GC/GCT/GCTDWN/GCBA*/GCLAD* commits are labeled BWD but belong to FWD territory — not corrected in history
 
-## Session 2026-04-09j — D-193/D-194: BUG-4 fix + bsort investigation (Lon + Claude Sonnet 4.6)
+### Clean blocks verified (no bugs)
+STARPT, REMPT, FNCEPT, FAILPT, BALPT, ARTAL, ARHED, ARBPT, ARBAK, ABORPT, OBLIST, OBSTRT, OBLOCK, BUFLEN, BUFEXT, DTEND, ABNDB, OUTPSP
 
-**HEAD at start:** snobol4dotnet `5bfb487` · **HEAD at end:** snobol4dotnet `180fc98`
-
-### Work done
-
-**BUG-4 fixed (ExecutionCache.cs, OperatorFast general path):**
-Added Failure short-circuit guard scoped to arithmetic/concat ops only:
-`OpAdd | OpSubtract | OpMultiply | OpDivide | OpPower | OpConcat`
-Predicate/pattern ops excluded (they produce the Failure signal, not consume it).
-First attempt applied guard to all ops → 2125p/7f (negation/GT/LT/NE broke).
-Narrowed fix → **2132p / 0f**. Committed `180fc98`.
-
-**bsort investigation (D-NET-186 — still open):**
-Un-ignored `TEST_Gimpel_bsort_strings` + `TEST_Gimpel_bsort_integers_as_strings` → both still fail (output partially sorted but wrong). BUG-4 did not fix them.
-
-Tried `IndexCollection` drain-and-sentinel patch when `Failure=true` — changed output but still wrong, and revealed that the fix interacts badly with the LHS path. Reverted. Re-ignored both bsort tests.
-
-**Theoretical trace of `A<K+1> = LGT(A<K>,V) A<K> :S(BS2)` (Failure path):**
-- `PushVar(A)`, `Push(K+1)`, `IndexCollection` → LHS lvalue
-- `LGT(...)` fails → Failure=true, sentinel pushed
-- `PushVar(A)`, `PushVar(K)`, `IndexCollection(Failure=true)` → early return, leaves ArrayVar+K on stack (no sentinel pushed, no drain)
-- `OpConcat` (BUG-4) → drains 2 items, pushes sentinel — but drains wrong items (ArrayVar+K), leaving LGT sentinel below
-- `_BinaryEquals` → `ExtractArguments(2)` → sees wrong stack shape
-
-**Key open question:** Does `EmitTokenList` route `A<K+1> = LGT(A<K>,V) A<K>` through the MSIL JIT cache (`CallMsil`) rather than the threaded path? If so, BUG-4 is invisible. Check `MsilCache.ContainsKey` before each body emit.
-
-**bsort test state:** re-ignored (D-NET-186). Next: build CLI, run with `TraceStatements=true` to determine threaded vs MSIL path, then fix IndexCollection drain.
-
-### Next session (D-194) — start here
-## Session 2026-04-09k — SSF-49: M-SS-BLOCK-FORWARD INTERP/INVOKE/ARGVAL (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** one4all `cfe306d0` · **HEAD at end:** one4all `adec4a10`
-
-### Blocks verified
-
-| Block | Lines | Result |
-|-------|-------|--------|
-| INIT1 | 2641–2650 | ✅ clean |
-| INTERP PROC | 2651 | ✅ clean (header only) |
-| INTRP0 | 2652–2668 | 🐛 **BUG-INTRP0-NEMO FIXED** — oracle case 2,3 both loop to L_INTRP0; our dispatch had `if (rc==OK) continue` catching only case 2; NEMO(=3) fell to failure path. Fix: `if (rc==OK \|\| rc==NEMO) continue` |
-| INVOKE PROC | 2669 | ✅ clean (header only) |
-| INVK1 | 2673 | ✅ clean (invoke_table dispatch = correct architectural translation of BRANIC) |
-| INVK2 | 2675–2681 | ✅ clean |
-| ARGVAL PROC | 2683–2686 | ✅ clean |
-| ARGV1 | 2687–2692 | ✅ clean (check_input_assoc correctly bundles INSW+LOCAPV) |
-| ARGVC | 2693 | ✅ clean |
-| ARGV2 | 2695–2701 | ✅ clean (deref_name = GETDC XPTR,XPTR,DESCR) |
-
-**Watermark: v311.sil line 2701. Next block: EXPVAL PROC (line 2702).**
-
-### Next session (FORWARD) — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/snobol4dotnet && git pull --rebase
-export PATH=/usr/bin:$PATH
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
-# Confirm 2132p/0f/4s. Sprint D-194. HEAD snobol4dotnet 180fc98.
-# Build CLI runner:
-dotnet build Snobol4/Snobol4.csproj -c Release -o /tmp/sno4 -p:EnableWindowsTargeting=true
-# Write bsort_mini.sno and run with TraceStatements to see IndexCollection/MSIL path.
-# Fix: IndexCollection must drain ArrayVar+indices and push sentinel when Failure=true.
-# Scope fix carefully — LHS and RHS both call IndexCollection.
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
-cd /home/claude/one4all && git pull --rebase
-# HEAD: one4all adec4a10
-# Watermark: v311.sil line 2701 (ARGV2 complete). Next block: EXPVAL PROC (line 2702).
-sed -n '2702,2720p' /home/claude/work/snobol4-2.3.3/v311.sil
-grep -n "^EXPVAL\b" /home/claude/work/snobol4-2.3.3/snobol4.c```
-
-## Session 2026-04-09l — SSF-50: M-SS-BLOCK-FORWARD EXPVAL/EXPVJN/EXPVJ2/EXPV11 (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** one4all `adec4a10` · **HEAD at end:** one4all `adec4a10` (no code change — all blocks clean)
-
-### Blocks verified
-
-| Block | Lines | Result |
-|-------|-------|--------|
-| EXPVAL PROC | 2702–2703 | ✅ clean — `SETAC SCL,1` → `SCL.a.i = 1` |
-| EXPVJN | 2704 | ✅ clean — `POP XPTR` implicit in C calling convention |
-| EXPVJ2 | 2705–2715 | ✅ clean — 14 DESCR + 4 SPEC saves correct; setup correct |
-| EXPV11 | 2716–2723 | ✅ clean — SCL/INSW/LOCAPV/PUTIN dispatch matches oracle |
-
-**Also this session:** Renumbered all SS-BLOCK-BACKWARD sessions to SSB-N series (SSB-1, SSB-2, SSB-3) to avoid collision with SS-BLOCK-FORWARD numbering.
-
-**Watermark: v311.sil line 2723 (EXPV11 complete). Next block: EXPV4 (line 2724).**
-
-### Next session (FORWARD SSF-51) — start here
+### Next session — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
-cd /home/claude/one4all && git pull --rebase
-# HEAD: one4all adec4a10
-# Watermark: v311.sil line 2723. Next block: EXPV4 (line 2724).
-sed -n '2724,2760p' /home/claude/work/snobol4-2.3.3/v311.sil
-grep -n "L_EXPV4\|L_EXPV6\|L_EXPV9\|L_EXPVC\|L_EXPV5" /home/claude/work/snobol4-2.3.3/snobol4.c | head -20
-```
-
-### Next session (BACKWARD SSB-4) — start here
-
-```bash
-# Check MILESTONE-SS-BLOCK-BACKWARD.md for current watermark and next block
 cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all c20df34c
+# BACKWARD watermark: v311.sil line 11952 (OUTPSP ✅)
+# Next block: CRDFSP (line 11951)
+# Command to find it:
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
+    | awk -F: '$1<11952{print}' | tail -1
+```
+
+---
+
+## Session SS-45 — M-SS-BLOCK-BACKWARD (2026-04-09)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at close:** one4all `c20df34c`
+**Milestone:** M-SS-BLOCK-BACKWARD
+
+### Watermark: 12120 → 11952 (OUTPSP ✅). Next: CRDFSP (line 11951)
+
+### Bugs fixed
+- **BUG-GC-PREAMBLE** (1367, FWD territory): POP GCREQ + PSTACK BLOCL + SUBTRT + SETSIZ all missing from GC_fn preamble — fixed
+- **BUG-STKHED-GC-ROOTS** (12005): PRMTBL had 8 slots, missing 11 GC roots (STKHED..TVALPL); PRMDX=0 so GCT walked nothing — fixed: PRMTBL[19], PRMDX=18*DESCR
+- **BUG-PRMTBL-SIZE** (11997): PRMTBL[0].v=0, must be 18*DESCR — fixed
+
+### Rule violations
+- Early turns went FORWARD from 1367 instead of BACKWARD from 12107 (corrected)
+- Several early commits bundled multiple labels (corrected from STARPT onward)
+
+### Next session
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all c20df34c
+# BWD watermark: 11952. Next: CRDFSP (11951)
 ```
