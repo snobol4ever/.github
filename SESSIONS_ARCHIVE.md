@@ -35554,7 +35554,6 @@ cd /home/claude/one4all && git pull --rebase
 
 ---
 
-<<<<<<< HEAD
 ## Session 2026-04-09e — SS-BLOCK-BACKWARD: §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5`  
@@ -35575,7 +35574,7 @@ cd /home/claude/one4all && git pull --rebase
 R1MCL, RZERCL, WRITNO, TITLEF1 (BLOCKS-only correctly omitted), TITLEF, TIMEPS, SYSCMT, SUCCF, STGETM, STGENO, STDMP, STATHD, SOURCF, SCANNO, PRTOVF, PKEYF, NVARF, NRMEND, NODMPF, LASTSF, INTIME, INCGCF, EJECTF, ERRCF, EXNO, FTLCF, GCFMT, ILLEOS, ILLINT, OPNLIT, ALOCFL, CMTIME, EMSG3, EMSG14, ILCHAR, ILLBIN, ILLBRK, ILLDEC, EMSG1, EMSG2, MSG34–MSG35, MSG39 (MSG36–38 BLOCKS-only correctly omitted), MSG26–MSG33, MSG25–MSG18, MSG17–MSG10, MSG9–MSG1, MSGLST (structural adaptation: pointer array vs DESCR array — equivalent), VALBLK (structural adaptation: FIELD_fn takes different path — equivalent)
 
 ### Next session (BACKWARD) — start here
-=======
+
 ## Session 2026-04-09e — SS-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5` · **HEAD at end:** one4all `618c0e37`
@@ -35896,6 +35895,35 @@ OperatorHandlers![(int)op]!(_reusableArgList);
 Note: drain `argumentCount` (not `+1`) — no fn-name on stack for operators.
 After this fix: expect **2132p / 0f**. Then check `TEST_Gimpel_bsort_*`.
 
+## Session 2026-04-09h — M-SS-BLOCK-BACKWARD: §24 tail blocks verified (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `eb96f768`  
+**HEAD at end:** one4all `991caea0`  
+**Commits:** 2 bug fixes
+
+### Blocks verified (backward from line 12293)
+
+| Block | Line | Result |
+|-------|------|--------|
+| SUCCPT | 12120 | ✅ clean |
+| TVALPL | 12125 | ✅ clean |
+| TLABPL | 12128 | ✅ clean |
+| TFENPL | 12131 | ✅ clean |
+| TFEXPL | 12134 | ✅ clean |
+| TKEYPL | 12137 | ✅ clean |
+| VALBLK | 12141 | 🐛 **FIXED** — 7-slot value-type discriminator absent entirely; added DESCR_t VALBLK[7] to platform.c with S/N/K type codes in slots 1/3/5, self-ptr init |
+| MSGLST | 12151 | ✅ clean — const char *MSGNO[] is correct equivalent |
+| MSG1–MSG35, MSG39 | 12195–12233 | ✅ all strings verbatim correct |
+| MSG36–38 | — | ✅ correctly absent (§20 BLOCKS skipped) |
+| EMSG1–EMSG3, EMSG14, ILCHAR–OPNLIT | 12238–12248 | ✅ clean |
+| FORMAT blocks (ALOCFL–WRITNO) | 12254–12288 | ✅ clean — %D/%F→printf is intentional PLB10 translation |
+| RZERCL | 12291 | 🐛 **FIXED** — was real_t bare float; oracle is DESCR_t with .v=R; fixed |
+| R1MCL | 12292 | 🐛 **FIXED** — same; now DESCR_t {.a.f=1e6f, .v=R} |
+
+**Watermark: 12120** (SUCCPT). Next block: STARPT (line 12107).
+
+**Correction to milestone doc:** "No convergence" — both passes run independently to zero. Updated MILESTONE-SS-BLOCK-BACKWARD.md accordingly.
+
 ### Next session — start here
 
 ```bash
@@ -35910,4 +35938,9 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Apply BUG-4 fix above to ExecutionCache.cs OperatorFast() general path.
 # Run suite → expect 2132p / 0f.
 # Then check TEST_Gimpel_bsort_strings / TEST_Gimpel_bsort_integers_as_strings.
+
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Next block: STARPT line 12107
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<12120' | tail -1
 ```

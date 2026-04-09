@@ -119,7 +119,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-38 | one4all `eb96f768` · .github (this push) | **BUG-INTSPC-XSP → BUG-CMPILE-ERRSUB → M-SS-MON-5 hello world** |
+| SS-39 | one4all `991caea0` | **M-SS-BLOCK-BACKWARD** — watermark 12120 (SUCCPT done). Next: STARPT (line 12107). Both passes run independently to zero — no convergence target. |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 
