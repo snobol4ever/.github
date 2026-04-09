@@ -21,8 +21,10 @@ Baseline errors (2026-04-08):
 
 ## B-1 — Tilde `~` unary and binary operator
 
-**Status:** ⬜
-**Depends on:** nothing
+**Status:** ✅ COMPLETE (2026-04-09b)
+- CMPILE UNOPTB chrs[126]=11 (NEGFN) + BIOPTB chrs[126]=13 (BINGFN) were already correct
+- ELEMNT illegal-char errors eliminated by P1 sno_parse switch
+- Bison grammar: T_UN_TILDE→E_NOT, T_TILDE→E_OPSYN(sval="~") fixed
 
 ### Problem
 `~` (ASCII 126) is absent from UNOPTB chrs[] — fires ACT_ERROR (index 15).
@@ -58,8 +60,10 @@ SNO_LIB=.../inc ./scrip --ir-run beauty.sno beauty.sno 2>&1 | grep "ELEMNT: ille
 
 ## B-2 — `&ALPHABET` keyword stub
 
-**Status:** ⬜
-**Depends on:** nothing (independent of B-1)
+**Status:** ✅ COMPLETE (2026-04-09b)
+- Already fully implemented in SNO_INIT_fn (BSTRVAL 256-char)
+- Fixed: nul was STRVAL("") len=0; changed to BSTRVAL(_nul,1) so SIZE(nul)==1 matches oracle
+- beauty_global_driver passes ✅
 
 ### Problem
 `&ALPHABET` appears in `global.sno` lines 2–28+. It is not in the keyword dispatch
@@ -131,6 +135,6 @@ No `** Error` lines. No `ELEMNT` warnings. Exit 0.
 
 | Milestone | Status | Sprint | Notes |
 |-----------|--------|--------|-------|
-| B-1 tilde `~` | ⬜ | — | UNOPTB chrs[126] + BIOPTB + label scan |
-| B-2 &ALPHABET stub | ⬜ | — | NV_SET/NV_GET no-op |
-| B-3 beauty runs | ⬜ | — | triage loop after B-1+B-2 |
+| B-1 tilde `~` | ✅ | 2026-04-09b | CMPILE already correct; Bison E_NOT/E_OPSYN fixed |
+| B-2 &ALPHABET stub | ✅ | 2026-04-09b | Already impl; nul BSTRVAL(1) fix |
+| B-3 beauty runs | ⬜ | — | Blocked on spurious snobol4:0 parse error → TZ undefined |
