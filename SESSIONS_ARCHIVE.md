@@ -35823,3 +35823,31 @@ cd /home/claude/one4all && git pull --rebase
 # String run 11783-11989 complete. Scan fn DESCRs 11738-11779 complete.
 # One label at a time. Commit after each block.
 ```
+
+## Session 2026-04-09g — SS-49: M-SS-BLOCK-FORWARD INTVAL→VPXPTR (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `0805de79` · **HEAD at end:** one4all `39d19ef8`
+
+### Blocks verified (§8, 18 labels)
+
+INTVAL (2774) ✅ · INTV1 (2778) 🐛 BUG-INTV1-ZPTR-LOST · INTV (2784) ✅ · INTRI (2789) ✅ · INTV3 (2791) ✅ · INTV2 (2792) ✅ · INTVC (2796) ✅ · PATVAL/PATV1/PATVC/PATV2/PATV3/PATVR (2802–2835) ✅ · VARVAL/VARV1/VARV4/VARV2/VARVC (2836–2851) ✅ · VARVUP (2865) 🐛 BUG-VARVUP-CASECL · VPXPTR (2875) ✅
+
+### Bugs fixed (2 total)
+
+**BUG-INTV1-ZPTR-LOST** (argval.c): `check_input_assoc()` discarded `locapv_fn()` result — ZPTR never set before GETDC. Fix: store offset into `ZPTR.a.i` on match. Affects 6 call sites.
+
+**BUG-VARVUP-CASECL** (argval.c): CASECL==0 branch inverted — fold ran when keyword said off, skipped when on. Fix: `if (CASECL.a.i != 0) return VPXPTR_fn();`.
+
+### Next session (FORWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 2875 (VPXPTR complete). Next block: XYARGS (line 2895).
+# XYARGS is multi-label: XYARGS→XYN→XY1→XY3→XY2→XYC→XY4 — each a separate block.
+# One label at a time. Commit after each block.
+```
