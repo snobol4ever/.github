@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **2723**  
-**Next block:** EXPV4 (line 2724)
+**Current watermark:** v311.sil line **3662**  
+**Next block:** BRKC (line 3663)
 
 ---
 

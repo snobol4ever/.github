@@ -36158,3 +36158,62 @@ cd /home/claude/one4all && git pull --rebase
 # HEAD: one4all c20df34c
 # BWD watermark: 11952. Next: CRDFSP (11951)
 ```
+
+## Session 2026-04-09m — SSF-51: M-SS-BLOCK-FORWARD EXPV4→SCON1 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `adec4a10` · **HEAD at end:** one4all `9eef60ae`
+
+### Blocks verified
+
+| Block | Lines | Result |
+|-------|-------|--------|
+| EXPV4 | 2724–2748 | ✅ clean |
+| EXPEVL PROC | 2750–2752 | ✅ clean |
+| EVAL PROC | 2754–2769 | 🔧 INTR1_fn() on non-S illegal type |
+| INTVAL PROC | 2774–2796 | 🔧 INTR1_fn() on two INTR1 exits |
+| PATVAL PROC | 2802–2829 | 🔧 INTR1_fn() on non-E illegal type |
+| VARVAL PROC | 2839–2858 | 🔧 INTR1_fn() on non-I/S type |
+| VARVUP/VPXPTR | 2860–2893 | ✅ clean |
+| XYARGS | 2895–2922 | ✅ clean |
+| ADD/DIV/EXPOP/MPY/SUB/EQ/GE/GT/LE/LT/NE/REMDR | 2923–2972 | ✅ clean |
+| ARITH | 2972–3072 | ✅ clean — all 9 type-pair paths + 12 ops |
+| INTGER/MNS/PLS | 3074–3111 | ✅ clean |
+| ANY/NOTANY/SPAN/BREAK/BREAKX/CHARZ/ABNSND | 3119–3160 | ✅ clean |
+| LEN/POS/RPOS/RTAB/TAB/LPRTND | 3161–3183 | ✅ clean |
+| ARBNO | 3185–3228 | ✅ clean |
+| ATOP | 3237–3251 | 🐛 BUG-ATOP-INVOKE: missing FAIL exit + exit-2 name wrongly checked for E |
+| NAM/DOL | 3230–3280 | 🐛 BUG-NAM-EXIT2: exit-2 name result wrongly checked for E type |
+| OR | 3293–3322 | ✅ clean |
+| SCAN PROC | 3327–3377 | ✅ clean |
+| SJSR PROC | 3379–3527 | 🐛 BUG-SJSRC1-INCL: INCL=XPTR→WPTR · 🐛 BUG-SJSR1B-STACK: WPTR double-popped |
+| SCNR PROC | 3529–3569 | ✅ clean |
+| SCIN/SCIN1A/SCIN2/SCIN3/SCIN4 | 3571–3599 | ✅ clean |
+| SALF/SALF1/SALT/SALT1/SALT2/SALT3 | 3600–3622 | ✅ clean |
+| SCOK | scan_ok | 🐛 BUG-SCOK-INVERT: PATICL==0 sense inverted — RTN2 vs SCIN2 swapped |
+| SCON/SCON1 | 3632–3662 | 🐛 BUG-SCON-FULLCL + BUG-SCON-LENFCL: both checks inverted |
+
+**Watermark: v311.sil line 3662 (SCON1 complete). Next block: BRKC (line 3663).**
+
+### Commits this session (one4all)
+- `55112997` EVAL: INTR1_fn() on non-S type
+- `a0e9d9ab` PATVAL/INTVAL/VARVAL/VARVUP: INTR1_fn() on illegal-type exits
+- `7116aa9a` XYARGS/ADD-REMDR/ARITH/INTGER/MNS/PLS: verified clean
+- `afc9f70b` ANY/BREAK/SPAN/LEN/POS/ARBNO/ATOP/NAM/DOL/OR: fix ATOP+NAM INVOKE exits
+- `6cc5a715` SCAN/SJSR: fix SJSRC1 INCL=WPTR; fix SJSR1B stack double-pop
+- `9eef60ae` SCNR/SCIN/SCOK/SCON: fix scan_ok inversion; fix SCON FULLCL+LENFCL inversions
+
+### Next session (FORWARD SSF-52) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all 9eef60ae
+# Watermark: v311.sil line 3662. Next block: BRKC (line 3663).
+sed -n '3663,3750p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "L_BRKC\|L_BRKX\|L_NNYC\|L_SPNC\|L_ANYC\|L_ABNS\b" /home/claude/work/snobol4-2.3.3/snobol4.c | head -20
+grep -n "do_BRKC\|do_ABNS\|do_ANYC\|do_NNYC\|do_SPNC" /home/claude/one4all/src/silly/scan.c | head -20
+```
