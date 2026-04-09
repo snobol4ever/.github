@@ -35404,3 +35404,73 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 1847. Next: CDIAG (line 1848).
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## Session 2026-04-09b — SNOBOL4 × x86: P1 grammar EOF + B-1 tilde + B-2 nul (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `efc6b61a` · .github `f759df1` (post-rebase)
+**HEAD at end:** one4all `b359abc5` · .github (this commit)
+
+### Work completed
+
+**P1 — label-only-at-EOF parse error (two-part fix):**
+- `snobol4.y` line 48: added `| /* empty */` to `program` rule
+- `snobol4.l` `<LABEL_DONE>`: added `<<EOF>>` rule → emits `T_STMT_END` before returning 0.
+  This was the actual root cause: label-only line at EOF left lexer in LABEL_DONE state,
+  returned EOF with no T_STMT_END, grammar could not reduce `stmt`.
+- Gate: `printf "IsTypeEnd\nEND\n" | scrip --dump-ir-bison /dev/stdin` → no parse error ✅
+- Harness: PASS 5 → 169/203 (restored from sno_parse switch regression)
+
+**B-1 — tilde `~` operator:**
+- CMPILE UNOPTB chrs[126]=11 (NEGFN) and BIOPTB chrs[126]=13 (BINGFN) already correct — no change needed
+- ELEMNT illegal-char errors on beauty.sno → **eliminated** by P1 sno_parse switch ✅
+- Bison grammar semantic fixes: `T_UN_TILDE` → `E_NOT` (was `E_INDIRECT`); `T_TILDE` → `E_OPSYN(sval="~")` (was `E_CAPT_COND_ASGN`)
+
+**B-2 — &ALPHABET:**
+- Already fully implemented in `SNO_INIT_fn` (BSTRVAL 256-char). No change needed.
+- Found and fixed: `nul` was `STRVAL("")` (len=0); changed to `BSTRVAL(_nul,1)` so `SIZE(nul)==1` matches oracle
+- `beauty_global_driver` passes ✅
+
+**Remaining beauty issue (B-3 blocked):**
+- One spurious `snobol4:0: error: parse error: syntax error` still fires during beauty self-hosting
+- Source not isolated — individual inc/*.sno files parse cleanly; must be in beauty.sno body or include interaction
+- `sno_nerrors > 0` → runtime aborts → `TZ` (defined in omega.sno) not registered → Error 5 stmt 527
+- Error 5 stmt 527 is a **consequence** of the parse error, not an independent bug
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all b359abc5
+#
+# PRIORITY 1 — Isolate remaining parse error in beauty self-hosting:
+#   The error fires at snobol4:0 (line 0) — this means it comes from fmemopen/string
+#   input or from a file with no line tracking. Likely is.sno label-only EOF edge case
+#   OR a ';' separator in global.sno not handled by sno_parse.
+#   Probe:
+#     for f in corpus/programs/snobol4/demo/inc/*.sno; do
+#       SNO_LIB=.../inc ./scrip --dump-ir-bison "$f" 2>&1 | grep "error" && echo "$f"
+#     done
+#   Then try beauty.sno standalone (no second-arg self-hosting):
+#     SNO_LIB=.../inc ./scrip --dump-ir-bison corpus/.../beauty.sno 2>&1 | grep error
+#   Gate: sno_nerrors == 0 for all included files + beauty.sno
+#
+# PRIORITY 2 — Once parse error gone, rerun beauty self-hosting:
+#   SNO_LIB=.../inc ./scrip --ir-run beauty.sno beauty.sno 2>&1
+#   Expect: Error 5 on stmt 527 (TZ) goes away once DEFINE fires correctly
+#   If new errors appear: triage in order
+#   Reference: /home/claude/corpus/snobol4-2.3.3/snobol4 beauty.sno beauty.sno
+#   (build csnobol4 first if not present: cd corpus && ./configure && make)
+#
+# PRIORITY 3 — Update MILESTONE-SN4X86-BEAUTY.md B-1/B-2 status to ✅
+#
+# HARNESS NOTE: run with INTERP=./scrip (not ./scrip-interp) — binary renamed.
+#   INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Current baseline: PASS=169/203 (34 failures are pre-existing DATA/NRETURN gaps)
+```
