@@ -35630,3 +35630,66 @@ cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 2606 (GOTLC complete). Next block: GOTO (line 2607).
 # One label at a time. Commit after each block.
 ```
+
+---
+
+## Session 2026-04-09c — SNOBOL4 × x86: P2 LABEL_DONE lexer fix + GT computed-goto diagnosis (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `e4d2447d` · **HEAD at end:** one4all `2501148e`
+
+### Work completed
+
+**P2 — LABEL_DONE `[*!|;]` missing `yyless(0)` (root cause of snobol4:0 parse error):**
+- Symptom: `scrip --ir-run beauty.sno beauty.sno` → `snobol4:0: error: parse error: syntax error`
+- Root cause isolated via binary search + token trace: after label-only line `ppAscale`, the `*` starting the next comment line was consumed by `<LABEL_DONE>[*!|;]` without `yyless(0)`. `BEGIN(INITIAL)` then saw the rest of the comment body (e.g. `s4 = p90 + 6, min 40`) as a statement body. `T_COMMA` at top level → parse error.
+- Fix: added `yyless(0)` to `<LABEL_DONE>[*!|;]` rule — mirrors the existing `[^ \t\n*!|;]` rule. Now `*` is put back and `INITIAL` routes it correctly to `SKIP`.
+- Also: `snobol4_lex` `fprintf` was unconditional noise; gated behind `SNO_TOK_TRACE` env var.
+- Committed `snobol4.l`, `snobol4.lex.c`, `snobol4.y`, `snobol4.tab.c/h`.
+- Gate: beauty.sno lines 191–194 (`ppAscale` label-only before `* comment`) parse clean ✅
+
+**GT computed-goto diagnosis (B-3 next blocker):**
+- After P2 fix, one remaining parse error: line 412 `:S($('pp_' t))F(RETURN)`
+- Token trace shows: `T_GOTO_S T_GOTO_LPAREN T_UN_DOLLAR_SIGN T_GOTO_LPAREN ...`
+- GT grammar rule only handles `$(ident)` — not `$(expr)` with arbitrary expressions inside.
+- The `(` after `$` is being returned as a second `T_GOTO_LPAREN` which has no grammar rule.
+- Fix needed: GT state must handle `$(` ... `)` as a computed-label expression, not just `$(IDENT)`.
+
+### Bugs found and fixed
+
+**BUG-P2** (`snobol4.l` LABEL_DONE): `[*!|;]` consumed comment char without `yyless(0)`. Fixed.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all 2501148e
+#
+# PRIORITY 1 — Fix GT computed goto: $(expr) in goto field
+#   Failing line: beauty.sno line 412: :S($('pp_' t))F(RETURN)
+#   Token stream: T_GOTO_S T_GOTO_LPAREN T_UN_DOLLAR_SIGN T_GOTO_LPAREN ...
+#   The second T_GOTO_LPAREN is the '(' in $(...) — grammar needs:
+#     goto_label_expr: T_GOTO_LPAREN T_UN_DOLLAR_SIGN T_GOTO_LPAREN expr T_GOTO_RPAREN T_GOTO_RPAREN
+#   Or: rework GT state so $( enters BODY for the inner expr, returns to GT after ).
+#   Check other computed goto patterns in beauty.sno for completeness before fixing.
+#   Gate: sno_nerrors == 0 on beauty.sno standalone
+#
+# PRIORITY 2 — Run beauty self-hosting once parse is clean:
+#   SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
+#       ./scrip --ir-run \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno 2>&1 | head -40
+#   Reference: /home/claude/x64/bin/sbl beauty.sno beauty.sno
+#
+# PRIORITY 3 — Update MILESTONE-SN4X86-BEAUTY.md B-3 once gates pass
+#
+# HARNESS: INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Baseline: PASS=169/203
+#
+# TOOLS: bison and flex are installed. snobol4.y/.l → regenerate with:
+#   cd src/frontend/snobol4 && bison -d -o snobol4.tab.c snobol4.y && flex -o snobol4.lex.c snobol4.l
+```

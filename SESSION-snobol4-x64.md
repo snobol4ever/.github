@@ -321,7 +321,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-123 | one4all `f64e0e1` · corpus `3fd44d0` · PASS=178/203 | RT-124: Bug A — DATA ctor + unset global → Error 5 (blocks test_stack/test_case); Bug B — NRETURN kw_rtntype stale (read 1013_func_nreturn + 213_indirect_name first); then STRING/PATTERN/MAXINT/PI Tier-1 builtins |
+| RT-123 | one4all `2501148e` · corpus `3fd44d0` · PASS=169/203 | **B-3 NEXT:** fix GT computed-goto `$(expr)` — beauty.sno line 412 `:S($('pp_' t))F(RETURN)` → T_GOTO_S T_GOTO_LPAREN T_UN_DOLLAR_SIGN T_GOTO_LPAREN (second LPAREN unhandled). Grammar rule needed for `$(` expr `)` inside goto field. Once sno_nerrors==0: run self-hosting, diff vs csnobol4. |
 | RT-119 | one4all `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
 | RT-120 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B-SPITBOL ← CURRENT** — SPITBOL vs scrip-interp pattern storage bytes. Build x64 oracle, run SIZE() probe, measure ζ structs, tabulate. See BB-GEN-X86-BIN.md §SPITBOL Comparison Design. |
 | RT-123 | one4all `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
