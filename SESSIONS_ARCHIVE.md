@@ -35881,3 +35881,36 @@ cd /home/claude/one4all && git pull --rebase
 # Pattern: entire run of fn-DESCR blocks (11xxx range) has been missing DESCRs.
 # Expect more of the same below 11724. Check each one-at-a-time.
 ```
+
+## Session 2026-04-09i — SS-51: M-SS-BLOCK-BACKWARD lines 11722→11628 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `979daa1b` · **HEAD at end:** one4all `985665d9`
+
+### Blocks verified (27 labels)
+
+OPTBND (11722) ✅ · STRFN (11720) 🐛 · SLHFN (11718) 🐛 · QUESFN (11716) 🐛 · PRFN (11714) 🐛 · PLSFN (11712) 🐛 · PDFN (11710) ✅ · NEGFN (11708) ✅ · MNSFN (11706) ✅ · KEYFN (11704) ✅ · INDFN (11702) ✅ · DOTFN (11700) ✅ · BARFN (11698) ✅ · ATFN (11696) ✅ · AROWFN (11694) ✅ · SUBFN–DIVFN (11691–11673) 🐛 · CONFN (11670) 🐛 · ASGNFN (11667) 🐛 · BIEQFN (11666) 🐛 · SJSRFN (11663) 🐛 · BISRFN (11662) 🐛 · BIQSFN (11659) 🐛 · SCANFN (11656) 🐛 · BISNFN (11655) 🐛 · BIBRFN–ADDFN (11651–11629) ✅ · OPTBL (11628) 🐛
+
+### Bugs fixed (4 commits)
+
+**BUG-OPFN-FLAGS-0x40** (platform.c): All 34 op-fn DESCRs had invalid flags=0x40; fixed to 0 (real ops) or FNC=1 (definable slots) per oracle.
+
+**BUG-BINFN-PREC-MISSING** (platform.c): 16 binary op-fn DESCRs were single-slot; expanded to DESCR_t[3] with precedence slot from data_init.h oracle. Fixed P2A(&X)→P2A(X) for array decay.
+
+**BUG-SPITBOL-OPS-MISSING** (platform.c, data.h, expr.c): SCANFN/SJSRFN/ASGNFN/CONFN entirely absent; BIQSFN missing 3rd slot; LHERE aliases BISNFN/BISRFN/BIEQFN were wrong standalone DESCRs — made primary array names with SCANFN/SJSRFN/ASGNFN as macros.
+
+**BUG-OPTBL-UNINIT** (data.c): OPTBL table header not initialized; added A=self, F=TTL|MARK in data_init() per oracle.
+
+### Next session (BACKWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 11628 (OPTBL complete).
+# Next block: FNCPLE (11627) — LHERE marker (end of function pair list).
+# Then: FNLIST (11411), INITLS (11399), FTBLND (11397).
+# grep -n "^[A-Z][A-Z0-9]*\b" v311.sil | awk -F: '$1<=11627' | tail -5
+```
