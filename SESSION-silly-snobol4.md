@@ -330,9 +330,6 @@ Static diff catches structural bugs before any code runs.
 - Record any divergence as a bug; fix small ones immediately
 - Advance watermark to that SIL line, push one commit per block
 
-### M-SS-BLOCK watermark (SS-44 RESET, 2026-04-09)
-**Watermark RESET to: v311.sil line 955** (BEGIN — last block verified correctly one-at-a-time).
-**Reason:** From SPCNVT (line 969) onward, multiple labeled blocks were bundled per commit,
-violating the one-label-at-a-time rule. All subsequent "watermarks" through line 2677 are invalid.
-**Watermark now: v311.sil line 1355** (GNVARS verified ✅).
-**Next block: GC (v311.sil line 1367)**.
+### M-SS-BLOCK watermark (FORWARD)
+**Watermark: v311.sil line 2606** (GOTLC verified ✅ — per SESSIONS_ARCHIVE session SS-47 2026-04-09e).
+**Next block: GOTO (v311.sil line 2607)**.
