@@ -91,7 +91,7 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-19 — M0–M21 + sil_platform.c ✅ clean link · M-SS-DIFF ✅ · M-SS-HARNESS ⚠️ hangs in CMPILE_fn |
-| **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⬜ **NEXT** — M-SS-MON-0 (infra) → M-SS-MON-4 (first divergence named) → M-SS-MON-5 (hello world passes) |
+| **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** ⚠️ CSNOBOL4 is oracle here by construction | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⚠️ in progress — M-SS-MON-0..4 complete · M-SS-MON-5 (hello world passes) next |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ✅ INVOKE_fn + ARGVAL_fn — done |
 | **RUNTIME / RUNTIME-2** | `MILESTONE-RT-RUNTIME.md` | ✅ VARVAL/INTVAL/PATVAL/VARVUP — done |
@@ -106,6 +106,7 @@ the corpus, the emitter is correct by construction.
 | CORPUS | `CORPUS.md` | ✅ |
 | HARNESS | `HARNESS.md` | ✅ |
 | MONITOR | `MONITOR.md` | ✅ |
+| **CSNOBOL4 FENCE** | `MILESTONE-CSNOBOL4-FENCE.md` | ⬜ add FENCE() to CSNOBOL4 using SPITBOL as semantic guide |
 | BENCHMARK-GRID | `BENCHMARK-GRID.md` | ⬜ placeholders |
 
 ---

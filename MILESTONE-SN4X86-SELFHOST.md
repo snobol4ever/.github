@@ -5,7 +5,7 @@
 **Status:** ⬜
 
 ## Goal
-`scrip --ir-run beauty.sno beauty.sno` output matches CSNOBOL4 exactly.
+`scrip --ir-run beauty.sno beauty.sno` output matches SPITBOL x64 exactly.
 
 ## Depends on
 MILESTONE-SN4X86-TILDE.md, MILESTONE-SN4X86-ALPHABET.md
@@ -26,4 +26,4 @@ SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
 ```
 
 ## Gate
-Diff scrip output vs CSNOBOL4 output = empty. No `** Error` lines. Exit 0.
+Diff scrip output vs SPITBOL output = empty. No `** Error` lines. Exit 0.

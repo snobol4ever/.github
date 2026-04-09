@@ -467,8 +467,8 @@ Non-pattern benchmarks serve as controls — they should show ≤5% change betwe
 |---|---|---|---|
 | scrip-interp (C BB) | `/home/claude/one4all/scrip` | `make scrip` | C Byrd box path — **THIS MILESTONE** |
 | scrip-interp (x86 BB) | same binary, `SNO_BINARY_BOXES=1` | same | inline blob path — **M-DYN-BENCH-X86** |
-| SPITBOL x64 | `/home/claude/x64/bin/spitbol` | `cd x64 && make && cp sbl bin/spitbol` | native compiler oracle |
-| CSNOBOL4 | `/home/claude/snobol4-2.3.3/snobol4` | `cd snobol4-2.3.3 && make` | C interpreter reference |
+| SPITBOL x64 | `/home/claude/x64/bin/sbl` | `git clone snobol4ever/x64` (pre-built) | **sole execution oracle** |
+| CSNOBOL4 | — source reference only — | do not build/run | v311.sil / snobol4.c are read-only C source for Silly SNOBOL4 |
 
 ### Benchmark programs (all 13 runnable)
 

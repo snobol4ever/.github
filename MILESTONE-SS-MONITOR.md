@@ -1,5 +1,10 @@
 # MILESTONE-SS-MONITOR.md — Silly SNOBOL4 × CSNOBOL4 Sync-Step Function Monitor
 
+⚠️ **ORACLE EXCEPTION:** This milestone runs CSNOBOL4 as an instrumented executable oracle.
+This is correct and intentional for the Silly SNOBOL4 session only — CSNOBOL4 IS the
+reference by construction (Silly is a C rewrite of CSNOBOL4's SIL source). All other
+sessions use SPITBOL x64 (`/home/claude/x64/bin/sbl`) exclusively. See D-005.
+
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Created:** 2026-04-08g session
 **Milestone name:** M-SS-MONITOR

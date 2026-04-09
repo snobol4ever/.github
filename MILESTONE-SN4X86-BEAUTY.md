@@ -42,7 +42,7 @@ Current value: `15`. New value: `11`.
 ### Fix — BIOPTB
 Check BIOPTB chrs[126]. If also 0 or ACT_ERROR, add NEGFN (or a TNOFN) entry.
 Binary `~` in SNOBOL4/SPITBOL = NOT-match: `subject ~ pattern` succeeds if pattern
-FAILS. Wire to whatever function code CSNOBOL4 uses for binary tilde.
+FAILS. Wire to the same negation-match function SPITBOL uses for binary tilde.
 
 ### Fix — label names
 Labels can contain `~` — e.g. `pp_~`. Check LBLTB / label-scan loop to confirm
@@ -109,19 +109,19 @@ SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
 ```
 
 Capture all `** Error` lines. File each as a sub-bug. Fix in order until output
-matches CSNOBOL4 reference run.
+matches SPITBOL reference run.
 
-### Reference run (CSNOBOL4)
+### Reference run (SPITBOL)
 ```bash
-/home/claude/snobol4-2.3.3/snobol4 \
+/home/claude/x64/bin/sbl \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno
 ```
-Diff scrip output vs CSNOBOL4 output — exact match is the gate.
+Diff scrip output vs SPITBOL output — exact match is the gate.
 
 ### Gate
 ```
-scrip --ir-run beauty.sno beauty.sno  output  ==  csnobol4 beauty.sno beauty.sno  output
+scrip --ir-run beauty.sno beauty.sno  output  ==  /home/claude/x64/bin/sbl beauty.sno beauty.sno  output
 ```
 No `** Error` lines. No `ELEMNT` warnings. Exit 0.
 
