@@ -71,3 +71,11 @@ cat /home/claude/.github/SESSION-silly-snobol4.md
 cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## Session numbering (2026-04-09l)
+
+Backward sessions use **SSB-N** series (SSB-1, SSB-2, SSB-3, SSB-4, ...) to avoid
+collision with Forward sessions (SS-47, SS-48, SS-49, SS-50, SS-51, ...).
+Next backward session: **SSB-4**.

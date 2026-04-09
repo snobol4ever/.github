@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **2701**  
-**Next block:** EXPVAL PROC (line 2702)
+**Current watermark:** v311.sil line **2723**  
+**Next block:** EXPV4 (line 2724)
 
 ---
 
