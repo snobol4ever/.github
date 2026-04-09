@@ -35554,6 +35554,7 @@ cd /home/claude/one4all && git pull --rebase
 
 ---
 
+<<<<<<< HEAD
 ## Session 2026-04-09e — SS-BLOCK-BACKWARD: §24 data blocks 12293→12091 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5`  
@@ -35574,6 +35575,37 @@ cd /home/claude/one4all && git pull --rebase
 R1MCL, RZERCL, WRITNO, TITLEF1 (BLOCKS-only correctly omitted), TITLEF, TIMEPS, SYSCMT, SUCCF, STGETM, STGENO, STDMP, STATHD, SOURCF, SCANNO, PRTOVF, PKEYF, NVARF, NRMEND, NODMPF, LASTSF, INTIME, INCGCF, EJECTF, ERRCF, EXNO, FTLCF, GCFMT, ILLEOS, ILLINT, OPNLIT, ALOCFL, CMTIME, EMSG3, EMSG14, ILCHAR, ILLBIN, ILLBRK, ILLDEC, EMSG1, EMSG2, MSG34–MSG35, MSG39 (MSG36–38 BLOCKS-only correctly omitted), MSG26–MSG33, MSG25–MSG18, MSG17–MSG10, MSG9–MSG1, MSGLST (structural adaptation: pointer array vs DESCR array — equivalent), VALBLK (structural adaptation: FIELD_fn takes different path — equivalent)
 
 ### Next session (BACKWARD) — start here
+=======
+## Session 2026-04-09e — SS-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `6fb544e5` · **HEAD at end:** one4all `618c0e37`
+
+### Blocks verified (23 total, all §6–§7)
+
+**TREPUB series (§6, trepub.c):**
+TREPUB/TREPU1/TREPU4/TREPU2/TREPU3/TREPU5/TREPU6 — all ✅ clean.
+Key confirmations: POP→MOVD(YPTR,node) caller convention; MOVBLK macro = memmove(dst+DESCR, src+DESCR, n); ZPTR/new_sz equivalence in TREPU5 spill; D_A vs D_PTR comparison model difference is correct.
+
+**UNOP series (§6, expr.c):**
+UNOP/UNOPA/UNOPB — all ✅ clean.
+Key confirmations: STREAM RTXNAM,RTXNAM = break-to-return-OK; AEQLC XPTR,0,,UNOPB inline with redundant MOVD is harmless.
+
+**BASE (§7, interp.c):** ✅ clean.
+
+**GOTG (§7, interp.c):** ✅ clean.
+Key: ARGVAL writes to XPTR, VEQLC tests XPTR before MOVD to OCBSCL — semantically equivalent to oracle testing OCBSCL directly.
+
+**GOTL series (§7, interp.c):**
+GOTL/GOTLV/GOTLV1/GOTL1/GOTL2 — ✅ clean.
+**GOTL3 — 🐛 BUG-GOTL3 FIXED:** Spurious `SETAC(ERRTYP, 255)` removed; replaced with `FTLEND_fn()` matching oracle `BRANCH FTLEND`. The restored XERRTY value was being overwritten before fatal exit.
+GOTL4/GOTL5/GOTL5B/GOTL6/GOTLC — all ✅ clean.
+GOTL5B: 12-line restore sequence verified exactly against oracle.
+
+### Bugs found and fixed (1 total)
+
+**BUG-GOTL3** (interp.c GOTL_fn ABORCL branch): `SETAC(ERRTYP,255)` spuriously overrode restored XERRTY before FTLEND. Fixed: call `FTLEND_fn()` directly, matching oracle `BRANCH FTLEND`.
+
+### Next session (BACKWARD) — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
@@ -35583,10 +35615,18 @@ cat /home/claude/.github/SESSION-silly-snobol4.md
 cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
 cd /home/claude/one4all && git pull --rebase
 # Watermark: v311.sil line 12125 (TVALPL complete). Next block: SUCCPT (line 12120).
-# Then STARPT (12107), REMPT (12101), FNCEPT (12096), FAILPT (12091) — primitive pattern nodes.
-# Key question: are FAILPT/FNCEPT/REMPT/STARPT/SUCCPT arena-allocated (like STRPAT) or
-# need static DESCR definitions (like the trace pair lists just fixed)?
-# Check: grep -rn "FAILPT\|FNCEPT\|REMPT\b\|STARPT\|SUCCPT" /home/claude/one4all/src/silly/
-# Oracle init: data_init.h lines 1972-2012 show full slot-by-slot initialization.
+# One label at a time. Commit after each block.
+```
+
+### Next session (FORWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 2606 (GOTLC complete). Next block: GOTO (line 2607).
 # One label at a time. Commit after each block.
 ```
