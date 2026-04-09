@@ -35989,3 +35989,87 @@ grep -n "starpt\|STARPT" /home/claude/work/snobol4-2.3.3/data_init.h
 grep -n "STARPT" /home/claude/one4all/src/silly/platform.c
 # Sync-step all 11 slots against oracle data_init.h
 ```
+
+---
+
+## Session 2026-04-09g — SNOBOL4 × x86: BEAUTY label chars + $'str' goto + pat coercion (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `9cac9429` · **HEAD at end:** one4all `78016ac1`
+
+### Work completed
+
+**Label character class fix (snobol4.l):**
+- Root cause: `<LABEL>[A-Za-z0-9_.\\x80-\\xFF]+` stopped at `:`, `~`, `(`, `)` etc.
+- `pp_:()`, `pp_:<>`, `pp_:S()`, `pp_:F<>`, `pp_~` were all mis-parsed: label truncated, remainder became body, `:` triggered GT state → T_GOTO_LPAREN inside statement body → parse error.
+- Fix: `<LABEL>[^ \\t\\n]+` — accumulate all non-whitespace. SNOBOL4 labels terminate at first blank only.
+- Flex warns rule 187 (old catch-all) unreachable — expected, harmless.
+
+**`$'str'` computed goto grammar (snobol4.y):**
+- beauty.sno lines 553/559: `:F($'pp_,1')` and `:($'pp_,0')` — computed goto with dollar + quoted string.
+- Token stream: T_GOTO_LPAREN T_UN_DOLLAR_SIGN T_STR T_GOTO_RPAREN — no grammar rule existed.
+- Fix: new `goto_label_expr` alternative storing E_QLIT into `computed_uncond_expr`.
+
+**pat_to_patnd coercion (snobol4_pattern.c):**
+- E_FNC branch: after `pat_user_call()`, if result is non-pattern fall through to coercion.
+- Bottom coercion: DT_I → snprintf("%lld"), DT_R → snprintf("%.14g"), DT_SNUL → pat_lit("").
+- GT()/LT() etc. in pattern context now produce valid XATP nodes.
+
+### Gates
+- Parse: sno_nerrors==0 on beauty.sno (bison, with SNO_LIB includes) ✅
+- Grammar: 0 S/R, 0 R/R conflicts ✅
+- Harness: PASS=169/203 (no regression) ✅
+- beauty `--ir-run` run completes within 10s ✅
+
+### Bugs found and fixed
+**BUG-LABEL-CHARS**: LABEL state [A-Za-z0-9_.] rejected operator chars. Fixed: [^ \\t\\n]+.
+**BUG-DOLLAR-STR-GOTO**: No grammar rule for `$'str'` in goto field. Fixed.
+**BUG-PAT-COERCE**: pat_to_patnd dropped DT_I/DT_E results. Fixed.
+
+### Root cause of remaining Error 5 in Gen.sno (NOT fixed this session)
+- Gen.sno body stmt 13: `indent  GT($'#L', 0) LEN($'#L' - SIZE($'$X')) . ind`
+- GT() in pattern context → XATP node → fires at MATCH time → returns NULVCL.
+- XATP execution result NULVCL must be treated as "succeed, match zero width".
+- The XATP runner in snobol4_pattern.c needs to handle NULVCL as zero-width match success.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all 78016ac1
+# PASS=169/203 baseline
+#
+# PRIORITY 1 — Fix XATP predicate execution: NULVCL = zero-width match success
+#   File: src/runtime/x86/snobol4_pattern.c
+#   Find the XATP match execution path (grep XATP in match/materialise functions)
+#   When APPLY_fn result is NULVCL: match succeeds, cursor unchanged (zero width).
+#   When result is DT_FAIL: match fails.
+#   When result is DT_S/DT_I: match literal at current cursor position.
+#   When result is DT_P: use as sub-pattern.
+#   Gate: Gen.sno reproducer passes:
+#     SNO_LIB=.../inc ./scrip --ir-run /tmp/test_gen2.sno
+#     Expected: no Error 5, output includes "hello" via Gen buffering.
+#
+# PRIORITY 2 — Once Gen works, run full beauty self-hosting:
+#   SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
+#       ./scrip --ir-run \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno \
+#       /home/claude/corpus/programs/snobol4/demo/beauty.sno
+#   Compare vs: /home/claude/x64/bin/sbl beauty.sno beauty.sno
+#   Gate: outputs match, no Error lines, no pat_cat warnings.
+#
+# HARNESS: INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   Baseline: PASS=169/203
+#
+# KEY REPRODUCER: /tmp/test_gen2.sno (recreate if lost):
+#   -INCLUDE 'Gen.sno'
+#   nl = CHAR(10)
+#   OUTPUT = 'before Gen'
+#   Gen('hello')
+#   OUTPUT = 'after Gen'   :(END)
+#   END
+```
