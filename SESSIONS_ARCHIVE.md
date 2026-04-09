@@ -35851,3 +35851,33 @@ cd /home/claude/one4all && git pull --rebase
 # XYARGS is multi-label: XYARGS→XYN→XY1→XY3→XY2→XYC→XY4 — each a separate block.
 # One label at a time. Commit after each block.
 ```
+
+## Session 2026-04-09h — SS-50: M-SS-BLOCK-BACKWARD lines 11740→11725 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `39d19ef8` · **HEAD at end:** one4all `979daa1b`
+
+### Blocks verified (10 labels, 16 DESCRs)
+
+VLTRFN (11740) ✅ · LITFN (11739) ✅ · LABTFN (11738) ✅ · KEYTFN (11737) 🐛 · INITFN (11736) 🐛 · GOTOFN (11735) 🐛 · GOTLFN (11734) 🐛 · GOTGFN (11733) 🐛 · FXTRFN (11732) 🐛 · FNTRFN (11731) 🐛 · ERORFN (11730) 🐛 · ENDFN (11729) 🐛 · ENDAFN (11728) 🐛 · CMAFN (11727) 🐛 · BASEFN (11726) 🐛 · AREFN (11725) 🐛
+
+### Bugs fixed (13 missing DESCRs)
+
+**BUG-KEYTFN-MISSING** · **BUG-INITFN-MISSING** · **BUG-GOTOFN-MISSING** · **BUG-GOTLFN-MISSING** · **BUG-GOTGFN-MISSING** · **BUG-FXTRFN-MISSING** · **BUG-FNTRFN-MISSING** · **BUG-ERORFN-MISSING** · **BUG-ENDFN-MISSING** · **BUG-ENDAFN-MISSING** · **BUG-CMAFN-MISSING** · **BUG-BASEFN-MISSING** · **BUG-AREFN-MISSING**
+
+All in platform.c static block + data.h extern + runtime init. Key flags: AREFN/CMAFN F=FNC; BASEFN/ENDAFN/ENDFN V=0.
+
+### Next session (BACKWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 11725 (AREFN complete — all 16 DESCRs in 11725-11740 range done).
+# Next block: find label at or below 11724.
+# grep -n "^[A-Z][A-Z0-9]*\b" v311.sil | awk -F: '$1<=11724' | tail -4
+# Pattern: entire run of fn-DESCR blocks (11xxx range) has been missing DESCRs.
+# Expect more of the same below 11724. Check each one-at-a-time.
+```
