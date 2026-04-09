@@ -137,4 +137,5 @@ No `** Error` lines. No `ELEMNT` warnings. Exit 0.
 |-----------|--------|--------|-------|
 | B-1 tilde `~` | ✅ | 2026-04-09b | CMPILE already correct; Bison E_NOT/E_OPSYN fixed |
 | B-2 &ALPHABET stub | ✅ | 2026-04-09b | Already impl; nul BSTRVAL(1) fix |
-| B-3 beauty runs | ⬜ | — | Blocked on spurious snobol4:0 parse error → TZ undefined |
+| P2 LABEL_DONE lexer | ✅ | 2026-04-09c | yyless(0) on [*!|;] — comment char was consumed, rest lexed as body |
+| B-3 beauty runs | ⬜ | — | Blocked on GT computed-goto `$(expr)` — beauty.sno line 412 |
