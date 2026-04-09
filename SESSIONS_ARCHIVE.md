@@ -35859,3 +35859,55 @@ cd /home/claude/one4all && git pull --rebase
 # Then: FNLIST (11411), INITLS (11399), FTBLND (11397).
 # grep -n "^[A-Z][A-Z0-9]*\b" v311.sil | awk -F: '$1<=11627' | tail -5
 ```
+
+## Session 2026-04-09h — D-192: BUG-NET-190 partial fix + BUG-4 found (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `8e70e15` · **HEAD at end:** snobol4dotnet `5bfb487`
+
+### Work done
+
+Confirmed baseline **2131p / 0f / 5s**. Applied 3-file fix from D-191 session notes atomically.
+
+**BUG-1 (SystemStack.cs):** Both `ExtractArguments` and `ExtractArgumentsToArray` sentinel pushes now carry `{ Succeeded = false }`.
+**BUG-2 (ErrorLog.cs):** `NonExceptionFailure()` sentinel now has `{ Succeeded = false }`.
+**BUG-3 (Function.cs):** `Function()` and `FunctionIndirect()` — when `Failure=true` at entry, drain `argumentCount+1` items from stack and push `{ Succeeded = false }` sentinel before returning. Prevents stack imbalance when predicate failure (e.g. `NE`) precedes a function call in the same expression.
+
+No regression: **2131p / 0f** after 3-file fix. Un-ignored `TEST_Gimpel2_random_fraction` — still **failing** (1f).
+
+### BUG-4 found (NOT YET FIXED)
+
+`OperatorFast` has no `Failure` guard before the general path. When `Failure=true`, arithmetic operators (e.g. `RANDOM * N`) are not aborted — `ExtractArguments` checks only `arg.Succeeded`, not the global `Failure` flag. Both operands have `Succeeded=true` so the multiply executes and pushes a real result. This leaves the stack with one extra item relative to what `CONVERT()` (correctly drained by BUG-3 fix) expects. Net result: stack misbalanced, `+ 1` receives wrong operands, error 1.
+
+**Fix required (single site, `ExecutionCache.cs`, `OperatorFast`):**
+```csharp
+// ── General path ──
+_reusableArgList.Clear();
+if (Failure)
+{
+    for (var i = 0; i < argumentCount; ++i) SystemStack.Pop();
+    SystemStack.Push(new StringVar(false) { Succeeded = false });
+    return;
+}
+if (SystemStack.ExtractArguments(argumentCount, _reusableArgList, this))
+    return;
+InputArguments(_reusableArgList);
+OperatorHandlers![(int)op]!(_reusableArgList);
+```
+Note: drain `argumentCount` (not `+1`) — no fn-name on stack for operators.
+After this fix: expect **2132p / 0f**. Then check `TEST_Gimpel_bsort_*`.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -5
+# Confirm 2131p / 1f / 4s (random_fraction un-ignored, still failing)
+# Sprint D-193. HEAD snobol4dotnet 5bfb487.
+# Apply BUG-4 fix above to ExecutionCache.cs OperatorFast() general path.
+# Run suite → expect 2132p / 0f.
+# Then check TEST_Gimpel_bsort_strings / TEST_Gimpel_bsort_integers_as_strings.
+```
