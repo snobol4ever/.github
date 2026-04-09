@@ -35881,3 +35881,22 @@ cd /home/claude/one4all && git pull --rebase
 # Pattern: entire run of fn-DESCR blocks (11xxx range) has been missing DESCRs.
 # Expect more of the same below 11724. Check each one-at-a-time.
 ```
+
+## Session 2026-04-09h — SS-50: M-SS-BLOCK-FORWARD GC§5 (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `39d19ef8` · **HEAD at end:** one4all `00350c0b`
+
+### Blocks verified (§5 GC, 15 labels: lines 1367–1427)
+GC(1367)🐛 · GCT(1375)✅ · GCTDWN(1378)✅ · GCBA1(1381)🐛 · GCBA2(1384)🐛 · GCBA4(1392)✅ · GCLAD(1395)✅ · GCLAD0(1397)✅ · GCLAD7(1404)✅ · GCLAD4(1405)✅ · GCBB1(1413)✅ · GCBB2(1415)✅ · GCBB3(1418)🐛 · GCBB4(1419)✅ · GCBB5(1427)✅
+
+### Bugs fixed (4)
+- **GC**: missing `vm_gc_advise(1)` — added madvise+_GNU_SOURCE
+- **GCBA1**: `< obend` → `<= obend` — last OBLIST bin skipped every GC
+- **GCBA2**: GCBA4 pseudoblock slot SETAC (wrong flags) → D(ST1PTR) copy
+- **GCBB3**: `lnk_addr = st1ptr+LNKFLD` → `new_addr+LNKFLD` — chain into abandoned memory
+
+### Next session
+```bash
+# Watermark: v311.sil line 1427 (GCBB5). Next: GCLAP.
+# grep -n "^GCLAP\b" /home/claude/work/snobol4-2.3.3/v311.sil
+```
