@@ -35774,3 +35774,52 @@ cd /home/claude/snobol4dotnet && git pull --rebase
 # Priority 2: Fix D-NET-186 bsort (LGT return value / assignment)
 # Priority 3: &ANCHOR='0' string coercion (error 208)
 ```
+
+---
+
+## Session 2026-04-09f — SS-BLOCK-BACKWARD: §24 pattern nodes + scan fn DESCRs + string constants (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `6fb544e5` (actually started from `79f27173` after rebase)
+**HEAD at end:** one4all `c09213d7`
+
+### Bugs found and fixed (9 categories, ~80 objects total)
+
+**BUG-PATNODE-MISSING** (platform.c + data.h): FAILPT[4], FNCEPT[4], REMPT[5], STARPT[12], SUCCPT[4] — five primitive pattern nodes entirely absent. Also missing: SUCFFN, SALFFN, SCOKFN, STARFN, FNCEFN, RTBFN, DSARFN — seven scan fn DESCRs they reference. Also: TVALPL..TKEYPL self-ptr fills never wired into init_syntab. Also: STRPAT.a never set. All fixed in one commit.
+
+**BUG-STARPT-SLOT6** (platform.c): STARPT[6] had `.v=7*DESCR` should be `.a.i=7*DESCR`.
+
+**BUG-BALPT-MISSING** (platform.c + data.h): BALPT[10] + BALFN/BALFFN missing.
+
+**BUG-ARB-NODES-MISSING** (platform.c + data.h): ARTAL[7], ARHED[13], ARBPT[10], ARBAK[7], ABORPT[4] + EARBFN/ARBNFN/ARBFFN/FARBFN/ONARFN/ONRFFN/ABORFN — all missing.
+
+**BUG-PRMTBL-SIZE** (data.c + data.h + platform.c): PRMTBL[22] wrong size (oracle=8); never filled; FTABLE/OPTBL stubs missing. Fixed: resize to [8], fill 7 root slots in init_syntab.
+
+**BUG-DTEND-MISSING** (data.c + data.h + platform.c): DTEND single DESCR (A=EFFCL) entirely absent.
+
+**BUG-F1SP-F28SP-MISSING** (data.c + data.h): 28 graphics fn name string constants missing.
+
+**BUG-STRING-RUN-MISSING** (data.c + data.h): 18 string constants missing from 11783–11920 range (ABORSP/ANYSP/APLYSP/ARBSP/ARBNSP/ARGSP/BACKSP/BALSP/BRKSP/BRKXSP/CASESP/CHARSP/REMSP/STPTSP/BLOKSP/BLKSSP/BKGNSP/NOBLSP).
+
+**BUG-SCAN-FN-DESCRS-MISSING** (platform.c + data.h): 24 scan fn DESCRs missing (ANYCFN/ATOPFN/CHRFN/BRKCFN/BRXCFN/BRFCFN/DNMEFN/DNMIFN/ENMEFN/ENMIFN/FNMEFN/LNTHFN/NMEFN/NNYCFN/POSIFN/RPSIFN/SCFLFN/SCONFN/SPNCFN/TBFN/FNCFFN/LABTFN/VLTRFN). Also: **BUG-LITFN-FLAG**: LITFN had flag=FNC, should be 0 (oracle D_F not set).
+
+### Blocks verified clean (no bugs)
+
+REMPT, FNCEPT, FAILPT (pattern nodes — correctly implemented as part of SUCCPT commit), STKHED (structural adaptation: single DESCR vs stkhed[11] — equivalent, pair lists accessed as independent globals), OBLOCK/OBSTRT/OBLIST (structural adaptation: arena-allocated in silly), CRDFSP/OUTPSP (already present), ABNDB (LHERE marker — no data).
+
+### Next session (BACKWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: v311.sil line 11738 (scan fn DESCR run complete down to LABTFN/VLTRFN).
+# Next block: VLTRFN (11740) then LITFN (11739) then LABTFN (11738) — verify as individual blocks.
+# Then continue backward from 11737 (find with grep).
+# Key: LITFN was already in data.c (fixed flag FNC->0). LABTFN/VLTRFN now in platform.c.
+# Pattern nodes (FAILPT..SUCCPT, BALPT, ARTAL..ABORPT) all done.
+# String run 11783-11989 complete. Scan fn DESCRs 11738-11779 complete.
+# One label at a time. Commit after each block.
+```
