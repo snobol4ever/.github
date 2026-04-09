@@ -13,7 +13,7 @@ not CSNOBOL4 2.3.3.
 **Rationale:** CSNOBOL4 has a known FENCE semantic difference that makes it unsuitable
 as the full compatibility target. SPITBOL is the production-grade, industrial-strength
 SNOBOL4 implementation — it defines the language extensions, switches, and HOST()
-behaviour that real programs depend on. CSNOBOL4 has been removed — no longer installed or used and for isolated oracle checks.
+behaviour that real programs depend on. CSNOBOL4 is SOURCE REFERENCE ONLY (v311.sil / snobol4.c for Silly SNOBOL4). Not installed, not executed as a test oracle. See D-005.
 
 **What this means in practice:**
 - All SPITBOL language extensions are supported (HOST, LOAD, OPSYN, CLEAR, indirect
@@ -21,8 +21,7 @@ behaviour that real programs depend on. CSNOBOL4 has been removed — no longer 
 - Command-line switches match SPITBOL identically (`-b`, `-f`, `-P`, `-I`, etc.)
 - `HOST()` function semantics match SPITBOL
 - Runtime error messages match SPITBOL conventions
-- CSNOBOL4 is no longer used or installed.
-  authoritative when it diverges from SPITBOL
+- CSNOBOL4 is SOURCE REFERENCE ONLY — see D-005.
 
 **Exception — datatype names (see D-002).**
 
@@ -114,25 +113,26 @@ ARCH.md §Dialect Notes, this file.
 
 ---
 
-## D-005 — Monitor Oracle: SPITBOL primary, CSNOBOL4 secondary (2026-03-24)
+## D-005 — Oracle: SPITBOL x64 only. CSNOBOL4 = source reference only. (2026-03-24, amended 2026-04-09)
 
-**Decision:** The 3-way monitor uses **SPITBOL as participant 0 (primary oracle)**
-for consensus decisions. CSNOBOL4 has been removed. SPITBOL is the sole oracle.
-when it disagrees with SPITBOL.
+**Decision:** SPITBOL x64 (snobol4ever/x64, `/home/claude/x64/bin/sbl`) is the **sole execution
+oracle** for all sessions. There is no secondary oracle. CSNOBOL4 is not built, not run,
+not installed as a test tool.
 
-**Previous state:** CSNOBOL4 was participant 0 (primary oracle). one4all targeted
-CSNOBOL4 semantics.
+**CSNOBOL4 role:** SOURCE REFERENCE ONLY. The `v311.sil` SIL source and the generated
+`snobol4.c` are read as ground-truth C code for the Silly SNOBOL4 session. They are never
+executed as an oracle. CSNOBOL4 lacks FENCE — any program using FENCE will produce wrong
+answers under CSNOBOL4. A future milestone (M-CSNOBOL4-FENCE) will add FENCE to CSNOBOL4
+using SPITBOL as the semantic guide — see PLAN.md component map.
 
-**New consensus rules:**
-- SPITBOL and one4all agree, CSNOBOL4 diverges → known CSNOBOL4 quirk; not our bug.
-- SPITBOL and CSNOBOL4 agree, one4all diverges → our bug; fix one4all.
-- SPITBOL and CSNOBOL4 disagree, one4all matches SPITBOL → correct; log CSNOBOL4 divergence.
-- SPITBOL and CSNOBOL4 disagree, one4all matches neither → our bug; fix to match SPITBOL.
+**Consensus rule (2-party: SPITBOL vs one4all):**
+- SPITBOL and one4all agree → correct.
+- one4all diverges from SPITBOL → our bug; fix one4all.
 - DATATYPE case differences → ignore-point (D-002, D-003).
 - .NAME type differences → ignore-point (D-004).
 
-**Files updated:** MONITOR.md §Consensus Rules, `test/monitor/run_monitor_3way.sh`
-(swap participant 0 from csn to spl), PLAN.md NOW table.
+**Files updated:** GENERAL-RULES.md, RULES.md, MONITOR.md, TESTING.md, GENERAL-OVERVIEW.md,
+PLAN.md (M-CSNOBOL4-FENCE added).
 
 ---
 

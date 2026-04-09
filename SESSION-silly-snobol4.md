@@ -10,6 +10,12 @@
 
 ### What this is (2026-04-06)
 
+⚠️ **ORACLE EXCEPTION — this session only:** CSNOBOL4 (instrumented executable) IS the
+sync-step oracle for Silly SNOBOL4, by construction. All other sessions use SPITBOL x64
+(`/home/claude/x64/bin/sbl`) as the sole execution oracle (D-005). This session is the
+one legitimate exception: Silly is a C rewrite of CSNOBOL4's own SIL source, so CSNOBOL4
+is the reference. CSNOBOL4 still lacks FENCE — Silly inherits that gap until M-CSNOBOL4-FENCE.
+
 A ground-up faithful C rewrite of `v311.sil` (CSNOBOL4 2.3.3, Phil Budne).
 Lives in `one4all/silly-snobol4/` — self-contained, references nothing outside
 that folder except system headers.

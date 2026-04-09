@@ -23,27 +23,26 @@ identical to the input. A fixed point.
 
 ---
 
-## The Five Participants
+## The Participants
 
 | # | Participant | Role | TRACE stream |
 |---|-------------|------|-------------|
-| 1 | SPITBOL x64 4.0f | **Primary oracle** (D-005) | stdout |
-| 2 | CSNOBOL4 2.3.3 | Secondary reference | stderr |
-| 3 | one4all ASM backend | Compiled target | stderr |
-| 4 | one4all JVM backend | Compiled target | stderr |
-| 5 | one4all NET backend | Compiled target | stderr |
+| 1 | SPITBOL x64 4.0f | **Sole execution oracle** (D-005) | stdout |
+| 2 | one4all ASM backend | Compiled target | stderr |
+| 3 | one4all JVM backend | Compiled target | stderr |
+| 4 | one4all NET backend | Compiled target | stderr |
 
-**Compatibility target: one4all implements SPITBOL. SPITBOL is the primary oracle. (D-001)**
+**CSNOBOL4 is SOURCE REFERENCE ONLY** — v311.sil / snobol4.c are read as ground-truth C
+for the Silly SNOBOL4 session. CSNOBOL4 is never run as a monitor participant. It lacks FENCE.
+
+**Compatibility target: one4all implements SPITBOL semantics. (D-001)**
 - All SPITBOL extensions, switches, HOST() semantics are matched.
 - `DATATYPE()` returns **UPPERCASE** (one4all convention, D-002). SPITBOL lowercase is an ignore-point.
 - `.NAME` is a third dialect matching SPITBOL *observable* behaviour. See D-004.
-- CSNOBOL4 quirks (FENCE semantics, DATATYPE case) do not drive fixes.
 
-**Consensus rules (updated D-005):**
-- SPITBOL and one4all agree, CSNOBOL4 diverges → known CSNOBOL4 quirk; not our bug.
-- SPITBOL and CSNOBOL4 agree, one4all diverges → our bug; fix to match SPITBOL.
-- SPITBOL and CSNOBOL4 disagree, one4all matches SPITBOL → correct.
-- SPITBOL and CSNOBOL4 disagree, one4all matches neither → our bug; fix to SPITBOL.
+**Consensus rules (2-party: SPITBOL vs one4all):**
+- SPITBOL and one4all agree → correct.
+- one4all diverges from SPITBOL → our bug; fix one4all.
 - DATATYPE case differences → ignore-point always (D-002).
 - `.NAME` DT_N vs DT_S differences → ignore-point (D-004).
 
@@ -55,8 +54,7 @@ No stream redirection needed. Each participant writes trace events directly to i
 
 ## IPC Architecture — monitor_ipc.so
 
-**The problem with stderr/stdout:** TERMINAL= callbacks write to stderr (CSNOBOL4) or stdout
-(SPITBOL). Runtime panics, error messages, and trace events all land in the same stream.
+**The problem with stderr/stdout:** TERMINAL= callbacks write to stdout (SPITBOL). Runtime panics, error messages, and trace events all land in the same stream.
 Redirect hacks are fragile. Parallel execution is impossible.
 
 **The solution:** A LOAD'd C shared library that writes trace events to a named FIFO (pipe),
@@ -253,7 +251,7 @@ streams — it just does not count as a divergence.
 ```
 # ignore-point rules in tracepoints.conf
 IGNORE  &TERMINAL     tty\d+         # "tty02" vs "tty05" — session artifact
-IGNORE  DATATYPE(*)   [a-z]+|[A-Z]+  # SPITBOL lowercase vs CSNOBOL4 uppercase
+IGNORE  DATATYPE(*)   [a-z]+|[A-Z]+  # SPITBOL returns lowercase; one4all returns uppercase (D-003 ignore-point)
 IGNORE  &STNO         *              # statement numbers may differ by dialect
 ```
 

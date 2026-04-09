@@ -84,27 +84,22 @@ Run the oracle interpreter and the compiled binary side by side, emit the same e
 ```
 SPITBOL → stdout.
 
-**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on SPITBOL. Use VALUE trace on a probe variable. `&STCOUNT` broken in CSNOBOL4 (always 0) — use literal `&STLIMIT` values for binary search.
+**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on SPITBOL. Use VALUE trace on a probe variable. `&STCOUNT` was broken in old CSNOBOL4 builds (always 0) — use literal `&STLIMIT` values for binary search. (CSNOBOL4 is source reference only; not run as oracle.)
 
 ## Oracle Hierarchy
 
 | Oracle | Role | Invocation |
 |--------|------|-----------|
-| SPITBOL x64 4.0f | **Primary oracle** | `spitbol -b file.sno` |
-| SPITBOL x64 4.0f | Secondary reference | `spitbol -b file.sno` |
+| SPITBOL x64 4.0f | **Sole execution oracle** (D-005) | `/home/claude/x64/bin/sbl -b file.sno` |
 
-**SPITBOL disqualified for beauty.sno** — error 021 at END (indirect function call semantic difference).
+**CSNOBOL4 is NOT an oracle** — SOURCE REFERENCE ONLY. Do not build or invoke for test purposes.
 
 ## Install (if not present)
 
 ```bash
-# CSNOBOL4
-# SPITBOL installed by SESSION_SETUP.sh from snobol4ever/x64
-
-# SPITBOL x64
-apt-get install nasm
-git clone https://github.com/spitbol/x64 spitbol-x64
-cd spitbol-x64 && make && cp sbl /usr/local/bin/spitbol
+# SPITBOL x64 — clone snobol4ever/x64; binary is pre-built
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+# Oracle: /home/claude/x64/bin/sbl -b file.sno
 ```
 
 ## Benchmark Pipeline

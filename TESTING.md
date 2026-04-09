@@ -1,7 +1,7 @@
 # TESTING.md — Four-Paradigm TDD Protocol
 
 **The goal:** `beauty_full_bin` reads `beauty.sno`, diff vs SPITBOL oracle is empty. **M-BEAUTY-FULL.**
-**Note:** SPITBOL exits error 021 at the END statement in beauty.sno — CSNOBOL4 is used as the reference for beauty.sno output only, as a documented exception to the general rule. See Oracle Index below.
+**Oracle:** SPITBOL x64 (snobol4ever/x64, `/home/claude/x64/bin/sbl`) is the sole execution oracle. CSNOBOL4 is SOURCE REFERENCE ONLY (see D-005).
 **The invariant:** 106/106 rungs 1–11 pass after every commit. Regression = rollback.
 
 ---
@@ -61,11 +61,11 @@ When to use: Paradigm 2 finds divergence in recursion → Paradigm 3 shows call/
 What: same program through SPITBOL + compiled. Compiled differs → our bug.
 Tool: `test/crosscheck/triangulate_beauty.sh`
 ```bash
-spitbol -b $BEAUTY < $BEAUTY > oracle_spt.txt
+/home/claude/x64/bin/sbl -b $BEAUTY < $BEAUTY > oracle_spl.txt
 ./beauty_full_bin < $BEAUTY > compiled_out.txt
-diff oracle_csn.txt compiled_out.txt   # empty = M-BEAUTY-FULL
+diff oracle_spl.txt compiled_out.txt   # empty = M-BEAUTY-FULL
 ```
-Note: SPITBOL exits error 021 at END in beauty.sno — CSNOBOL4 is used as the reference for beauty.sno output only. This is a documented exception. SPITBOL remains the primary oracle for everything else.
+Note: SPITBOL x64 is the sole oracle. All `.ref` files are generated from SPITBOL.
 
 ---
 
@@ -97,9 +97,9 @@ Test progression: 101_comment → 102_output → 103_assign → 104_label → 10
 
 | System | Version | Author | Role | Invocation |
 |--------|---------|--------|------|------------|
-| SPITBOL x64 | 4.0f | Dewar / Shields | **Primary oracle** (D-001, D-005) | `spitbol -b file.sno` |
-| CSNOBOL4 | 2.3.3 | Philip L. Budne | Secondary oracle; primary for beauty.sno only (SPITBOL error 021 at END — documented exception) | `snobol4 -f -P256k file.sno` |
-| SPITBOL x32 | — | Dewar | Tertiary (32-bit — not runnable in container) | `spitbol file.sno` |
+| SPITBOL x64 | 4.0f | Dewar / Shields | **Sole execution oracle** (D-001, D-005) | `/home/claude/x64/bin/sbl -b file.sno` |
+| CSNOBOL4 | 2.3.3 | Philip L. Budne | **SOURCE REFERENCE ONLY** — v311.sil / snobol4.c for Silly SNOBOL4. Never executed as oracle. Lacks FENCE. | — do not invoke — |
+| SPITBOL x32 | — | Dewar | Reference (32-bit — not runnable in container) | `spitbol file.sno` |
 | SNOBOL5 | beta 2024-08-29 | Viktors Berstis | 64-bit native SIL port | `snobol5 file.sno` |
 
 | System | Source / Download | GitHub |
@@ -176,27 +176,19 @@ DONE_LASTNO
 
 **Pass condition:** every keyword row in the grid has a live result. No `?` remaining. Each oracle has ≥1 cell in {`&STCOUNT`, `&STEXEC`, `&STNO`, `&LASTNO`} that returns a non-zero-always value.
 
-**Build steps** (see `oracles/spitbol/BUILD.md`):
+**Build steps:**
 ```bash
-# CSNOBOL4 — tarball already at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz
-apt-get install -y build-essential libgmp-dev m4
-# SPITBOL is installed automatically by SESSION_SETUP.sh from snobol4ever/x64
-sed -i '/if (!chk_break(0))/{N;/goto L_INIT1;/d}' snobol4.c isnobol4.c
-./configure --prefix=/usr/local && make -j4 && make install
+# SPITBOL x64 — clone snobol4ever/x64, binary is pre-built at x64/bin/sbl
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+# Oracle: /home/claude/x64/bin/sbl -b file.sno
 
-# SPITBOL x64 — needs x64-main.zip uploaded by Lon
-apt-get install -y nasm
-unzip -q /mnt/user-data/uploads/x64-main.zip -d /home/claude/spitbol-src/
-# apply systm.c patch from oracles/spitbol/BUILD.md
-cd /home/claude/spitbol-src/x64-main && make && cp sbl /usr/local/bin/spitbol
+# CSNOBOL4 — do NOT build as oracle. Source files (v311.sil, snobol4.c) are read-only reference
+# for Silly SNOBOL4 session. Tarball at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz if needed
+# for source inspection only.
 
 # SNOBOL5 — prebuilt binary, no build required
 wget -O /usr/local/bin/snobol5 https://snobol5.org/snobol5
 chmod +x /usr/local/bin/snobol5
-# verify: echo "OUTPUT = 'hello'" | snobol5
-
-# SPITBOL x32 — our fork (not yet built; 32-bit not runnable in this container)
-# https://github.com/snobol4ever/x32  (forked from hardbol/spitbol)
 ```
 
 ---

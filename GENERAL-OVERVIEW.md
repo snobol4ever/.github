@@ -162,15 +162,17 @@ corpus in corpus/crosscheck/. Stop at first failing rung. Fix. Move up.
 
 - All SPITBOL language extensions supported (HOST, LOAD, OPSYN, CLEAR, indirect calls, etc.)
 - Command-line switches match SPITBOL identically
-- CSNOBOL4 is no longer used. SPITBOL is the sole oracle.
-- FENCE semantic difference in CSNOBOL4 was the reason for its removal.
+- SPITBOL x64 (snobol4ever/x64, `/home/claude/x64/bin/sbl`) is the sole execution oracle.
+- CSNOBOL4 is SOURCE REFERENCE ONLY: `v311.sil` and `snobol4.c` are read as ground-truth C
+  for the Silly SNOBOL4 session. CSNOBOL4 lacks FENCE and is never executed as an oracle.
+  See M-CSNOBOL4-FENCE for the milestone to add FENCE to CSNOBOL4.
 
 ## Oracle Hierarchy
 
 | Oracle | Role | Status |
 |--------|------|--------|
-| SPITBOL x64 4.0f | **Primary** — `spitbol -b file.sno` | ✅ installed |
-| CSNOBOL4 2.3.3 | ~~Removed~~ — no longer used. SPITBOL covers all active sessions. | — |
+| SPITBOL x64 4.0f | **Sole execution oracle** — `/home/claude/x64/bin/sbl -b file.sno` | ✅ clone snobol4ever/x64 |
+| CSNOBOL4 2.3.3 | **SOURCE REFERENCE ONLY** — v311.sil / snobol4.c for Silly SNOBOL4. Never executed. | read-only source |
 
 ## Dialect Notes — Known Semantic Differences (D-001, D-002, D-004)
 
@@ -195,7 +197,8 @@ passes, IsSnobol4 fails) via a different internal mechanism. Monitor ignore-poin
 DT_N vs DT_S differences. See DECISIONS.md D-004.
 
 ### FENCE semantics
-CSNOBOL4 has a known FENCE difference. one4all follows SPITBOL FENCE semantics.
+CSNOBOL4 lacks FENCE support. one4all follows SPITBOL FENCE semantics. See M-CSNOBOL4-FENCE
+for the milestone to add FENCE to CSNOBOL4 using SPITBOL as the semantic guide.
 
 ---
 
