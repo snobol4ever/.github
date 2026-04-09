@@ -114,7 +114,7 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | P2D | one4all `3a3d91d` · corpus `3fd44d0` | P2A ✅ P2B ✅ P2C ✅ P2D ✅ P2F ✅ P3A ✅ P3B ✅ P3C ✅ P3D ✅ PASS=178 — next: P2E embedded match `(A ? PAT = REPL)` |
+| **SNOBOL4 × x86** | B-1 | one4all `c30de4ca` · corpus `3fd44d0` · --ir-run PASS=178 · --sm-run PASS=168 | **MILESTONE-SN4X86-BEAUTY.md** — B-1: tilde `~` in UNOPTB/BIOPTB; B-2: &ALPHABET stub; B-3: beauty self-hosting runs clean |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
 | **Silly SNOBOL4** | SS-35 | one4all `b0d4d5b7` | **M-SS-MONITOR**: sync-step func-hook monitor → names CMPILE_fn hang automatically → then M-SS-HARNESS |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
