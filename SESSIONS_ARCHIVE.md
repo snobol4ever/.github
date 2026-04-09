@@ -35314,3 +35314,41 @@ cd /home/claude/one4all && git pull
 # Run monitor raw no-filter --timeout 15 on hello.sno → next DIVERGE or TIMEOUT names next bug
 # Sprint: SS-44. HEAD one4all fef60537.
 ```
+
+---
+
+## Session 2026-04-09 — SS-44: M-SS-BLOCK restart + protocol fix (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `efc6b61a` · .github `75708cf`
+**HEAD at end:** one4all `d75ea71b` · .github `576a329`
+
+### Key correction this session
+
+**M-SS-BLOCK protocol was wrong from the start.** Claude was bundling multiple labeled blocks per commit and misidentifying `*_` as the block boundary. Correct rule written into SESSION-silly-snobol4.md:
+- A labeled block = from a label line up to but NOT INCLUDING the next label line
+- `*_` is NOT a boundary — it's inside a PROC
+- One label = one block = one verification = one commit
+
+Watermark RESET from bogus 2677 back to **955** (BEGIN — last correctly verified block), then resumed properly.
+
+### Blocks verified this session (one label at a time)
+
+SPCNVT(969) SPCNV1(971) SPCNV2(975) INITD1(979) AUTLOP(1012) XLATRD(1025) XLATRN(1027) XLATNX(1033) XLATP(1042) XLAEND(1059) XLATIN(1065) XLATSC(1068) XLATND(1070) CODSKP(1116) CODCNT(1118) CODECR(1121) CODFNC(1125) DTREP(1135) DTARRY(1143) DTARTB(1153) DTABLE(1157) DTABL1(1161) DTABL2(1167) DTREP1(1181) DTREPR(1186) DTREPE(1188) FINDEX(1195) FATBAK(1200) FATNF(1202) FATNXT(1205) FATBLK(1212) BLOCK(1223) BLOCK1(1227) BLOGC(1240) GENVAR(1248) LOCA1(1253) LOCA2(1255) LOCA5(1267) LOCA7(1271) LOCA6(1288) LOCRET(1292) LOCA4(1294) GNVARI(1302) GENVUP(1313) CONVAR(1326) CONVR5(1338) CONVR4(1348) GNVARS(1355)
+
+**Watermark: v311.sil line 1355. Next: GC (line 1367).**
+
+### Bug found and fixed
+
+**BUG-DTABL1** (symtab.c DTREP_fn TABLE path): DTABL1 loop added `a1ptr` (link value, changes each iteration) instead of fixed `a2ptr_base` (A2PTR, constant base). Corrupted item count and extent for TABLE type representation string. Fixed: split into `a3ptr` accumulator + `a2ptr_base` fixed base, matching snobol4.c L_DTABL1 exactly.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: 1355. Next block: GC (line 1367).
+# One label at a time. Label line → next label line. Commit after each block.
+```
