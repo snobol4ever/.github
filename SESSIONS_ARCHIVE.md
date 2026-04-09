@@ -35075,3 +35075,47 @@ cd /home/claude/.github && git pull --rebase
 #
 # PRIORITY 2: Update PLAN.md NOW table — currently stale (references deleted files,
 #   wrong RT-5–8 status, wrong HEAD hashes).```
+
+---
+
+## Session 2026-04-08o — SNOBOL4 × x86 beauty milestones (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `c30de4ca` · .github `f759df1`
+
+### Work completed
+
+**Fixed run_interp_broad.sh:** `scrip-interp` → `scrip` (binary renamed last session, script not updated).
+
+**Ran beauty.sno self-hosting under --ir-run.** Three blockers identified:
+
+| Bug | Symptom | Lines |
+|-----|---------|-------|
+| Tilde `~` missing from UNOPTB chrs[] | `ELEMNT: illegal character` | beauty.sno 337,353,366,385 |
+| `&ALPHABET` keyword not wired | Error 5 / undefined | global.sno 2–28+ |
+| `pp_~` label with `~` | Error 5 statement 479 | beauty.sno 479 |
+
+**Created MILESTONE-SN4X86-BEAUTY.md** — 3 milestones:
+- B-1: tilde `~` unary+binary in UNOPTB/BIOPTB chrs[], plus label scan
+- B-2: `&ALPHABET` stub (no-op write, `""` read)
+- B-3: beauty self-hosting runs clean, output matches CSNOBOL4
+
+**Updated PLAN.md NOW table** — SNOBOL4 × x86 row now points to B-1.
+
+**Context:** NEGFN (311) already defined and in UNOPTB_actions[10]. Fix is purely
+chrs[126] = 11 in UNOPTB. BIOPTB chrs[126] also needs auditing for binary `~`.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# B-1: edit src/frontend/snobol4/CMPILE.c UNOPTB chrs[126]: 15 → 11
+# B-1: audit BIOPTB chrs[126] for binary ~
+# B-1: confirm label scan accepts ~ in label names
+# B-2: add &ALPHABET stub to NV_SET_fn / NV_GET_fn in snobol4.c
+# Gate: SNO_LIB=.../inc ./scrip --ir-run beauty.sno beauty.sno — no ELEMNT errors
+```
