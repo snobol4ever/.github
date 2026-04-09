@@ -1,15 +1,15 @@
 # MILESTONE-SS-BLOCK-FORWARD.md — M-SS-BLOCK Forward Pass
 
-**Direction:** FORWARD — start at v311.sil line 2452, advance one block at a time  
-**Partner:** MILESTONE-SS-BLOCK-BACKWARD.md (starts at line 12293, works backward)  
-**Convergence:** determined by Lon, not declared here
+**Direction:** FORWARD — start at v311.sil line 955 (BEGIN), advance one block at a time to line 12293  
+**Goal:** verify every labeled block from the beginning to the end of v311.sil  
+**Partner:** MILESTONE-SS-BLOCK-BACKWARD.md (runs backward from 12293 to line 1 — independently, no convergence)
 
 ---
 
 ## Scope
 
-All labeled blocks from v311.sil line 2452 forward through 12293.  
-§20 BLOCKS (lines 7038–10208) — **SKIP** per ground rules. Jump watermark from 7037 to 10209.
+All labeled blocks from v311.sil line 955 forward through line 12293.  
+§20 BLOCKS (lines 7038–10208) — **SKIP** per ground rules. Jump watermark from 7037 to 10209 when reached.
 
 ---
 
@@ -17,7 +17,7 @@ All labeled blocks from v311.sil line 2452 forward through 12293.
 
 1. Find next label after watermark:
    ```bash
-   grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1>WATERMARK' | head -2
+   grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1>WATERMARK' | head -1
    ```
 2. Extract SIL block (label line → line before next label):
    ```bash
@@ -33,7 +33,7 @@ All labeled blocks from v311.sil line 2452 forward through 12293.
 
 ---
 
-## Watermark (update after each block)
+## Watermark (update after each block — counts UP toward 12293)
 
 **Current watermark:** v311.sil line **3222**  
 **Next block:** NAM (line 3223)

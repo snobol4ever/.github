@@ -90,7 +90,9 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
-| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-19 — M0–M21 + sil_platform.c ✅ clean link · M-SS-DIFF ✅ · M-SS-HARNESS ⚠️ hangs in CMPILE_fn |
+| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-39 — M-SS-BLOCK-FORWARD: watermark 3222 → 12293 · M-SS-BLOCK-BACKWARD: watermark 12120 → 1 · both run independently to completion |
+| **M-SS-BLOCK-FORWARD** | `MILESTONE-SS-BLOCK-FORWARD.md` | ⚠️ watermark 3222 — next: NAM (line 3223) — runs to 12293 |
+| **M-SS-BLOCK-BACKWARD** | `MILESTONE-SS-BLOCK-BACKWARD.md` | ⚠️ watermark 12120 — next: STARPT (line 12107) — runs to line 1 |
 | **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** ⚠️ CSNOBOL4 is oracle here by construction | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⚠️ in progress — M-SS-MON-0..4 complete · M-SS-MON-5 (hello world passes) next |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ✅ INVOKE_fn + ARGVAL_fn — done |
@@ -117,7 +119,7 @@ the corpus, the emitter is correct by construction.
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | BEAUTY | one4all `9cac9429` · corpus `3fd44d0` · INTERP=./scrip PASS=169/203 | B-1 ✅ B-2 ✅ P2 ✅ B-3 ✅ · **NEXT: beauty self-hosting** — Error 5 stmts 527-539 (undef fn) + pat_cat DT=11 coercion + CMPILE computed-goto gap → match csnobol4 output |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
-| **Silly SNOBOL4** | SS-35 | one4all `b0d4d5b7` | **M-SS-MONITOR**: sync-step func-hook monitor → names CMPILE_fn hang automatically → then M-SS-HARNESS |
+| **Silly SNOBOL4** | SS-39 | one4all `991caea0` | **M-SS-BLOCK-FORWARD** (→12293): next NAM line 3223 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-187 | snobol4dotnet `bdc541f` | D-187: M-NET-SNIPPET-FACTORY — Step 0: fix GimpelBits bugs; Steps 1–8: add Strings/Capture/Data/LibMath/LibStack/LibString/GimpelBits2/Feat corpus files → ≥2100p |

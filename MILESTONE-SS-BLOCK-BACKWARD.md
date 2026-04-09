@@ -1,8 +1,8 @@
 # MILESTONE-SS-BLOCK-BACKWARD.md — M-SS-BLOCK Backward Pass
 
-**Direction:** BACKWARD — start at v311.sil line 12293, work one block at a time toward line 1  
-**Partner:** MILESTONE-SS-BLOCK-FORWARD.md (starts at line 955, works forward)  
-**No convergence target — both passes run to zero independently**
+**Direction:** BACKWARD — start at v311.sil line 12293, work one block at a time to line 1  
+**Goal:** verify every labeled block from the end to the beginning of v311.sil  
+**Partner:** MILESTONE-SS-BLOCK-FORWARD.md (runs forward from 955 to 12293 — independently, no convergence)
 
 ---
 
@@ -15,7 +15,7 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 ## Method (one block per commit)
 
-1. Find the label at or just below current watermark:
+1. Find next label below current watermark:
    ```bash
    grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<WATERMARK' | tail -1
    ```
@@ -36,7 +36,7 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 ## Watermark (update after each block — counts DOWN toward 1)
 
 **Current watermark:** v311.sil line **12120** (SUCCPT verified ✅)  
-**Next block:** STARPT (line 12107), then REMPT (12101), FNCEPT (12096), FAILPT (12091), BALPT (12080) ...
+**Next block:** STARPT (line 12107)
 
 ---
 
@@ -44,14 +44,13 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 | Block | Line | Result |
 |-------|------|--------|
-| R1MCL | 12292 | ✅ fixed — real_t→DESCR_t |
-| RZERCL | 12291 | ✅ fixed — real_t→DESCR_t |
-| WRITNO..TITLEF (FORMAT blocks) | 12254–12288 | ✅ clean |
-| ALOCFL..TIMEPS (FORMAT blocks) | 12254–12282 | ✅ clean |
-| EMSG1/2/3/14, ILCHAR..OPNLIT | 12238–12248 | ✅ clean |
+| R1MCL | 12292 | ✅ fixed — real_t→DESCR_t with .v=R |
+| RZERCL | 12291 | ✅ fixed — real_t→DESCR_t with .v=R |
+| FORMAT blocks (ALOCFL–WRITNO) | 12254–12288 | ✅ clean — %D/%F→printf intentional PLB10 |
+| EMSG1–EMSG3, EMSG14, ILCHAR–OPNLIT | 12238–12248 | ✅ clean |
 | MSG36–38 | — | ✅ correctly absent (BLOCKS skipped) |
-| MSG1–MSG35, MSG39 | 12195–12233 | ✅ all strings verbatim correct |
-| MSGLST | 12151 | ✅ clean |
+| MSG1–MSG35, MSG39 | 12195–12233 | ✅ all verbatim correct |
+| MSGLST | 12151 | ✅ clean — const char *MSGNO[] is correct equivalent |
 | VALBLK | 12141 | 🐛 fixed — 7-slot block entirely absent, added |
 | TKEYPL | 12137 | ✅ clean |
 | TFEXPL | 12134 | ✅ clean |
