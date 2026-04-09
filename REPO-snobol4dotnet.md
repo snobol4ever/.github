@@ -11,10 +11,10 @@ execution, MSIL delegate JIT, pattern engine, plugin system. Polish → beta rel
 
 ## NOW
 
-**Sprint:** `D-187` — M-NET-SNIPPET-FACTORY: systematic snippet factory — Step 0 fix GimpelBits; Steps 1–8 add Strings/Capture/Data/LibMath/LibStack/LibString/GimpelBits2/Feat → ≥2100p
-**HEAD:** `bdc541f` D-185
-**Invariant:** `dotnet test` → 2008 passed, 11 failed, 1 skipped before any work
-**Milestone:** D-185 partial — 64 new tests added (54 pass); ASGNIC fix written but 099 still failing (DATATYPE casing)
+**Sprint:** `D-188` — M-NET-SNIPPET-FACTORY complete + oracle validation via SPITBOL x64
+**HEAD:** `10d2b3f` D-188
+**Invariant:** `dotnet test` → 2116 passed, 0 failed, 10 skipped
+**Milestone:** M-NET-SNIPPET-FACTORY Steps 0–8 ✅ · All assertions oracle-validated via `/home/claude/x64/bin/sbl -b`
 
 **⚠ CRITICAL NEXT ACTION — Session D-185:**
 
