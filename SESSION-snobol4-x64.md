@@ -735,12 +735,6 @@ dereference, so they rely on NAME_DEREF firing even for NRETURN in some cases.
 **Gate:** PASS≥178; `test_stack` NRETURN write-through works correctly;
 `1013_func_nreturn` and `213_indirect_name` still pass.
 
-### ⛔ ORACLE — SPITBOL only, never CSNOBOL4 (2026-04-09)
-
-**SPITBOL x64 (`/usr/local/bin/spitbol`) is the sole oracle for this session.**
-CSNOBOL4 is banned — see GENERAL-RULES.md line 114. Do not build, install, or reference it.
-setup.sh installs spitbol (not csnobol4). Beauty reference output: `spitbol -b beauty.sno beauty.sno`.
-
 ### RT-124 string-audit findings — 2026-04-06
 
 4 SIL bugs fixed in one4all `b93cec8`. Random component audit method.
