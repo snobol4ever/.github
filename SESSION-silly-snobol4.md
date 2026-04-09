@@ -334,5 +334,5 @@ Static diff catches structural bugs before any code runs.
 **Watermark RESET to: v311.sil line 955** (BEGIN — last block verified correctly one-at-a-time).
 **Reason:** From SPCNVT (line 969) onward, multiple labeled blocks were bundled per commit,
 violating the one-label-at-a-time rule. All subsequent "watermarks" through line 2677 are invalid.
-**Watermark now: v311.sil line 1253** (GENVAR/LOCA1 verified ✅).
-**Next block: LOCA2 (v311.sil line 1255)**.
+**Watermark now: v311.sil line 1294** (LOCA2/LOCA5/LOCA7/LOCA6/LOCRET/LOCA4 verified ✅).
+**Next block: GNVARI (v311.sil line 1302)**.
