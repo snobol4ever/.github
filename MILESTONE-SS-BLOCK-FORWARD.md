@@ -1,24 +1,21 @@
 # MILESTONE-SS-BLOCK-FORWARD.md — M-SS-BLOCK Forward Pass
 
-**Direction:** FORWARD — start at v311.sil line ~2452, advance one block at a time toward line 12293  
+**Direction:** FORWARD — start at v311.sil line 2452, advance one block at a time  
 **Partner:** MILESTONE-SS-BLOCK-BACKWARD.md (starts at line 12293, works backward)  
-**Meet-in-middle:** somewhere around line 7000–8000 (to be declared when both sessions converge)
+**Convergence:** determined by Lon, not declared here
 
 ---
 
 ## Scope
 
-All labeled blocks from v311.sil line 2452 onward through line 12293, one label at a time.  
-§20 BLOCKS (lines 7038–10208, 328 labels) — **SKIP entirely** per ground rules.  
-Everything else is in scope: §6 remainder, §7–§19, §21–§24.
-
-**Approximate block count remaining forward:** ~1,100 (excluding §20)
+All labeled blocks from v311.sil line 2452 forward through 12293.  
+§20 BLOCKS (lines 7038–10208) — **SKIP** per ground rules. Jump watermark from 7037 to 10209.
 
 ---
 
 ## Method (one block per commit)
 
-1. Find next label at or after watermark:
+1. Find next label after watermark:
    ```bash
    grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1>WATERMARK' | head -2
    ```
@@ -26,28 +23,13 @@ Everything else is in scope: §6 remainder, §7–§19, §21–§24.
    ```bash
    sed -n 'START,ENDp' /home/claude/work/snobol4-2.3.3/v311.sil
    ```
-3. Find oracle block in snobol4.c:
+3. Find oracle in snobol4.c, find ours in src/silly/, sync-step line by line.
+4. Fix any divergence. Build clean. Commit:
    ```bash
-   grep -n "L_BLOCKNAME\|^BLOCKNAME(" /home/claude/work/snobol4-2.3.3/snobol4.c
+   git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" \
+       commit -m "M-SS-BLOCK-FWD BLOCKNAME: <fix or verified clean>"
    ```
-4. Find our Silly equivalent:
-   ```bash
-   grep -rn "BLOCKNAME" /home/claude/one4all/src/silly/
-   ```
-5. Sync-step instruction by instruction. Fix any divergence.
-6. Build clean: `gcc -Wall -Wextra -std=c99 -g -O0 $(find src/silly -name "*.c") -lm -o /tmp/silly-check -I src/silly`
-7. Commit: `git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" commit -m "M-SS-BLOCK-FWD BLOCKNAME: <fix or verified clean>"`
-8. Update watermark below.
-
----
-
-## Skip rule for §20 BLOCKS
-
-When watermark reaches line 7038, jump directly to 10209:
-```bash
-# v311.sil line 7038 = start of BLOCKS section — SKIP
-# Resume at line 10209 (§21 Common Code)
-```
+5. Update watermark below.
 
 ---
 
@@ -65,7 +47,6 @@ tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md   # this file — get watermark
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 cd /home/claude/one4all && git pull --rebase
-# Then: next block = first label after watermark line
 ```
