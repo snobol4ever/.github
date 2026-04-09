@@ -461,3 +461,17 @@ handle EVAL()/CODE() natively.
 
 **Gate at park:** emit-diff 981/4 ✅ · snobol4_wasm 55p/1f ✅
 
+
+---
+
+## Completed Milestone Files — archived 2026-04-08j
+
+| File | Title | Status | Completed |
+|------|-------|--------|-----------|
+| MILESTONE-CMPILE-MERGE.md | CMPILE.c → scrip-interp swap | ✅ COMPLETE | RT-114, 2026-04-05 |
+| MILESTONE-RECOG-CORPUS.md | M-RECOG-CORPUS | ✅ DONE | 2026-03-27, commit 4b4d71a |
+| MILESTONE-RENAME-ANY2MANY.md | Grand Rename: sno2c→scrip-cc | ✅ COMPLETE | commit bab5b6f |
+| MILESTONE-WASM-ARTIFACTS.md | WASM artifact parity + emit-diff gate | ✅ COMPLETE | 2026-04-01 SJ-8 |
+| MILESTONE-WASM-BYRD.md | SNOBOL4 WASM Full Byrd-Box Rewrite | ⛔ PARKED | 2026-03-31 — WASM suspended |
+
+Full content of each file retained in git history.

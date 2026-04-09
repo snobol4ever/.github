@@ -113,7 +113,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-37 | one4all `e22a0f46` · .github (this push) | **M-SS-MON-5: fix CMPILE_fn segfault after FORBLK returns → hello world from Silly** |
+| SS-38 | one4all `eb96f768` · .github (this push) | **BUG-INTSPC-XSP → BUG-CMPILE-ERRSUB → M-SS-MON-5 hello world** |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 
