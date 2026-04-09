@@ -35030,7 +35030,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 
 ### Work completed
 
-**Archived 17 milestone files → MILESTONES_DIRECTORY.md** (3901 lines, all content preserved):
+**Archived 17 milestone files** (content preserved):
 BOX-UNIFY, DYN-INTERP, FAST-EMIT-CHECK, FAST-INVARIANTS, JS-BENCH, JS-ICON, JS-PROLOG,
 JS-SNOBOL4, JVM-SNOBOL4, P2F-SEMI, RT-RUNTIME, RT-SIL-MACROS, SCRIP-UNIFY-X86,
 SCRIP-X86-COMPLETION, SN4PARSE-VALIDATE, SN4PARSE, SNO2SC
