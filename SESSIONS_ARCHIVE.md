@@ -35119,3 +35119,113 @@ make scrip
 # B-2: add &ALPHABET stub to NV_SET_fn / NV_GET_fn in snobol4.c
 # Gate: SNO_LIB=.../inc ./scrip --ir-run beauty.sno beauty.sno — no ELEMNT errors
 ```
+
+---
+
+## Session 2026-04-09a — D-188: GimpelBits fixes + feat/chap8 + oracle validation (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `57603fc` · .github `eb1631b`
+**HEAD at end:** snobol4dotnet `10d2b3f` · .github (this commit)
+**Gate:** 2116 passed, 0 failed, 10 skipped
+
+### Commits to snobol4dotnet
+
+**c92c53a** — Fix all pre-existing GimpelBits test-code bugs (2098p 0f 9s):
+- `roman_small/large`: spaces between array assignments → semicolons (space = concat in SNOBOL4)
+- `sqrt_perfect_squares`: `DEFINE('SQRT(Y)')` → error 248; renamed to `MYSQRT`
+- `fibonacci_recursive`: removed bad `FIB(0)=0` pre-seeds (calls fn); `FIB=N` base case + `FIB_REC` label
+- `trim`: assertion fixed — `TRIM` removes trailing only → `"  hello\nno spaces\n0"`
+- `fixed_column_extract`: new pattern `LEN(4).YEAR LEN(1) BREAK(' ').NAME SPAN(' ') REM.THING`
+- `opsyn_alias`: fixed arg3 `1→0`; `[Ignore("D-NET-187")]`
+- `bsort_strings/integers`: `[Ignore("D-NET-186")]` initially
+- `random_fraction` (GimpelBits2): `[Ignore("D-NET-188")]` (tag was missing)
+
+**dcdc6fe** — New feat + chap8 tests (+18 tests, 2116p 0f 10s):
+
+`CorpusRef_Feat.cs` additions (+9 tests):
+- `TEST_Feat_f01_core_labels_goto` — :S/:F conditional goto
+- `TEST_Feat_f01_goto_fail_branch` — :F branch on predicate failure
+- `TEST_Feat_f13_eval` — `EVAL('2 + 3')` = 5
+- `TEST_Feat_f13_eval_string_expr` — EVAL with variable references
+- `TEST_Feat_f14_dyn_opt_pattern_cache` — literal pattern reuse in loop ×10
+- `TEST_Feat_f15_trace_no_crash` — **[Ignore D-NET-190]** STOPTR throws NotImplementedException
+- `TEST_Feat_f16_ucase_keyword` — `SIZE(&UCASE)` = 26
+- `TEST_Feat_f20_alphabet_size` — `SIZE(&ALPHABET)` = 256
+- `TEST_Feat_f20_alphabet_contains_letters` — &ALPHABET contains A/z/0
+
+`CorpusRef_Chap8.cs` (new file, +10 tests):
+- `TEST_Chap8_shift_basic/freturn_on_overflow` — LEN(*N) string rotation
+- `TEST_Chap8_swap_strings/integers` — indirect variable exchange via $X/$Y
+- `TEST_Chap8_fact_small/ten` — recursive factorial
+- `TEST_Chap8_asc_basic/freturn_on_null` — ASCII ordinal via &ALPHABET @-capture
+- `TEST_Chap8_roman_basic/large` — digit-by-digit Roman numeral (Chap8 algorithm)
+
+**10d2b3f** — Oracle validation via SPITBOL x64 + fixes:
+- Discovered and corrected: `SHIFT('hello',2)` = `llohe` not `lloh e` (hand-reasoned wrong)
+- D-NET-186 **confirmed as runtime bug**: SPITBOL oracle correctly sorts `apple/avocado/banana/cherry/date`; dotnet produces wrong output. bsort re-ignored with updated note.
+- All other CorpusRef assertions validated against `/home/claude/x64/bin/sbl -b`: LibMath, LibString, LibStack, GimpelBits2 (BASE10/FLOOR/MDY/ROT13), all Feat/Chap8 tests — all match oracle exactly.
+
+### New bugs found
+
+| Bug | Symptom | Test |
+|---|---|---|
+| **D-NET-190** | `STOPTR` throws `NotImplementedException` in `StopTrace.cs` — TRACE/STOPTR not implemented | `TEST_Feat_f15_trace_no_crash` [Ignore] |
+
+### Oracle findings this session
+
+- **D-NET-186 confirmed real runtime bug**: bsort SNOBOL4 algorithm is correct per SPITBOL; `LT(J,N)` loop bound is right (insertion sort needs n-1 passes); dotnet sorts incorrectly.
+- **D-NET-188 re-examined**: GT/LT/GE/LE/EQ/NE/LGT all return **null** on success per SPITBOL MINIMAL SIL (`exnul`), NOT the first argument. `PredicateSuccess()` pushing null is correct. D-NET-188 symptom (`NE(N,0) CONVERT(...) + 1` → error 1) needs further diagnosis — separate from return-value semantics.
+- **LGT return value**: Confirmed null (not first arg) per `v37.min` SIL: `ppm exnul return null if lgt`. Same for GT/EQ/NE etc.
+- **SPITBOL oracle location**: `/home/claude/x64/bin/sbl -b <file>` — clone from `snobol4ever/x64`.
+
+### Current ignores (10 skipped)
+
+| Ignore tag | Test | Reason |
+|---|---|---|
+| D-NET-186 | bsort_strings, bsort_integers | Runtime bug: wrong sort order |
+| D-NET-187 | opsyn_alias | OPSYN function synonym error 154 |
+| D-NET-188 | random_fraction, numeric_predicates_return_value | NE(N,0) CONVERT() expression fails |
+| D-NET-189 | f19_real_numbers, f19_chop | INTEGER(3.14) should fail; CHOP semantics |
+| D-NET-190 | f15_trace_no_crash | STOPTR NotImplementedException |
+| (pre-existing) | control_expr_eval, 099_keyword_rw | Pre-existing failures |
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/REPO-snobol4dotnet.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true --no-build
+# Gate: 2116 passed, 0 failed, 10 skipped. HEAD = 10d2b3f.
+#
+# ORACLE RULE (established this session):
+#   Always validate new SNOBOL4 programs through /home/claude/x64/bin/sbl -b <file>
+#   before writing Assert.AreEqual. Clone x64 repo if not present.
+#
+# PRIORITY 1 — Investigate D-NET-186 (bsort wrong order):
+#   The pattern A<K+1> = LGT(A<K>, V) A<K> :S(BS2) works in simple cases
+#   but fails in the full sort loop. Probe: add OUTPUT tracing inside BSORT
+#   to see what A<K+1> gets assigned at each step vs SPITBOL.
+#   Use harness probe.py paradigm 2 if available.
+#
+# PRIORITY 2 — Fix D-NET-190 (STOPTR NotImplementedException):
+#   cat Snobol4.Common/Runtime/Functions/ProgramControl/StopTr.cs
+#   Add minimal implementation: clear trace entry for variable/type pair.
+#   Find where TRACE entries are stored (TraceTableValue / TraceTableFunctionReturn etc.)
+#   Gate: TEST_Feat_f15_trace_no_crash passes → remove [Ignore].
+#
+# PRIORITY 3 — Mine more corpus snippets (oracle-validate before asserting):
+#   corpus/programs/dotnet/expr_parser_stub.sno — EVAL-based expression parser
+#   corpus/programs/dotnet/chap7.sno — state/capital associative lookup (needs file I/O → skip or embed)
+#   Gimpel programs not yet covered: HSORT MSORT (skip — LGT-based, D-NET-186)
+#   COUNT FIND LIKE (string search patterns), POKER, TICTACTO (games)
+#   feat/f17_include.sno, f13_eval_code (CODE() function)
+#
+# PRIORITY 4 — Update REPO-snobol4dotnet.md §NOW to reflect D-188 state
+#
+# Target: ≥ 2130 passed, 0 failed non-ignored
+```
