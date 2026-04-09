@@ -35944,3 +35944,48 @@ cd /home/claude/one4all && git pull --rebase
 # Next block: STARPT line 12107
 grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<12120' | tail -1
 ```
+
+## Session 2026-04-09i — SS-39 HANDOFF (Lon + Claude Sonnet 4.6)
+
+**HEAD at end:** one4all `991caea0` · .github `2299747`  
+**Context window at handoff:** ~84%
+
+### What was accomplished this session
+
+M-SS-BLOCK-BACKWARD pass, §24 tail (lines 12120→12293):
+
+| Block | Line | Result |
+|-------|------|--------|
+| SUCCPT | 12120 | ✅ clean |
+| TVALPL–TKEYPL (5 blocks) | 12125–12137 | ✅ clean |
+| VALBLK | 12141 | 🐛 **FIXED** — 7-slot discriminator entirely absent; added DESCR_t VALBLK[7] to platform.c |
+| MSGLST | 12151 | ✅ clean |
+| MSG1–MSG35, MSG39 | 12195–12233 | ✅ clean |
+| EMSG/ILCHAR/ILL*/OPNLIT | 12238–12248 | ✅ clean |
+| FORMAT blocks | 12254–12288 | ✅ clean |
+| RZERCL | 12291 | 🐛 **FIXED** — real_t→DESCR_t with .v=R |
+| R1MCL | 12292 | 🐛 **FIXED** — real_t→DESCR_t with .v=R |
+
+**Plan change confirmed by Lon:** Both passes run to completion independently — no convergence.  
+- FORWARD: watermark 3222, runs to **12293**  
+- BACKWARD: watermark 12120, runs to **line 1**  
+
+HQ updated: PLAN.md, MILESTONE-SS-BLOCK-FORWARD.md, MILESTONE-SS-BLOCK-BACKWARD.md, SESSION-silly-snobol4.md §NOW all reflect this.
+
+### Next session — BACKWARD — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+
+# Next block: STARPT (line 12107) — 11-slot pattern node for STAR primitive
+# Method:
+sed -n '12107,12119p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "starpt\|STARPT" /home/claude/work/snobol4-2.3.3/data_init.h
+grep -n "STARPT" /home/claude/one4all/src/silly/platform.c
+# Sync-step all 11 slots against oracle data_init.h
+```
