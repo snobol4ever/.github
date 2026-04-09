@@ -177,14 +177,26 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-191 | snobol4dotnet `8e70e15` | **2131p/0f/5s** · D-191: fix D-NET-190 (NE fail concat propagation) → random_fraction → D-NET-186 bsort |
+| **NET INTERP** | D-181 | one4all `e1a66fb` (WIP uncommitted) | **166p/12f** · icase root-cause complete · **D-182**: fix str write-back in pattern Phase 5 → commit WIP pattern-return infra → test_case/math/stack/string ≥170p → NRETURN → ≥175p |
 
-**D-191 first actions:**
-1. `git pull --rebase` snobol4dotnet.
-2. Confirm **2131p/0f/5s**.
-3. **Fix D-NET-190:** `NE(N,0) CONVERT(R*N,'INTEGER') + 1` when N=0 throws error 1. Parse tree is `NE(N,0) concat (CONVERT(...)+1)`. Right side evaluates fine to `IntegerVar(1)`. Then concat gets `StringVar(false)` (from NE fail) and `IntegerVar(1)`. `ExtractArguments` should abort but error 1 fires instead. Check `ThreadedExecuteLoop`: after each opcode, is `Failure` checked? The right-side `+` evaluates **before** the concat, so NE result isn't visible yet. Fix: `OperatorFast(OpConcat)` must check `Failure` on the left operand peek before evaluating right operand — but both operands are already on the stack by the time concat fires. Real fix: the concat result `StringVar(false)` feeds into `+` as left operand — `OperatorFast(OpAdd)` peeks `next` (the concat result, `StringVar(false)`) → not `IntegerVar` → general path → `ExtractArguments` should detect `Succeeded=false` and abort. Check why `ExtractArguments` calls `LogRuntimeException` instead of just returning the abort null.
-4. Un-ignore `TEST_Gimpel2_random_fraction` → confirm passes.
-5. Target: **≥2133p**.
+**D-182 first actions:**
+1. `git pull --rebase` all repos.
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni` → confirm `HELLO WORLD`
+4. Setup `/tmp/sni_run.sh` + `chmod +x`
+5. Confirm **166p/12f**
+6. **Do NOT reset WIP** — `git diff src/driver/net/` shows the pattern-return infrastructure.
+7. **Fix str write-back:** in `ExecStmt` Phase 5 (~line 248–258), trace `subjName`, `result.MatchStart`, `result.MatchLength` for the `str POS(0) ANY(...) . letter =` statement. The issue: after the first char is consumed from `str`, subsequent iterations show `IDENT(str)` still failing — `str` is not being updated. Either `subjName=null` (subject parsed as non-VAR) or `MatchLength=0`. Fix the write-back.
+8. Once `icase` works: commit WIP (`git add src/driver/net/Executor.cs src/driver/net/PatternBuilder.cs src/driver/net/SnobolEnv.cs && git commit -m "D-181/182: pattern-return infra + icase fix"`)
+9. Broad → target ≥170p (test_case/math/stack/string)
+10. Then NRETURN → ≥175p
+
+**WIP state (git diff, not committed):**
+- `SnobolEnv.cs`: `TAG_PATTERN`, `_patternObjs List<IByrdBox>`, `PatternCreate/IsPatternObj/GetPatternBox/ClearPattern`
+- `PatternBuilder.cs`: `_resolvePatternVal` callback, `BuildInner()`, `ResolveUserFuncPattern()` in `_` catch-all
+- `Executor.cs`: `CallUserFunc` saves/restores `_patVars[fn]`; RETURN branch eagerly builds box; `makeGetPatternVar` checks `IsPatternObj`; `resolvePatternVal` wired
+
+See **MILESTONE-NET-SNOBOL4.md** for the full chain.
 
 ---
 
