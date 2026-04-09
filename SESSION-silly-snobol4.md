@@ -328,4 +328,5 @@ Static diff catches structural bugs before any code runs.
 **Watermark RESET to: v311.sil line 955** (BEGIN — last block verified correctly one-at-a-time).
 **Reason:** From SPCNVT (line 969) onward, multiple labeled blocks were bundled per commit,
 violating the one-label-at-a-time rule. All subsequent "watermarks" through line 2677 are invalid.
-**Next block: SPCNVT (v311.sil line 969)** — restart here, one label at a time.
+**Watermark now: v311.sil line 979** (SPCNVT/SPCNV1/SPCNV2/INITD1 all verified ✅ this session).
+**Next block: AUTLOP (v311.sil line 1012)**.
