@@ -35229,3 +35229,64 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #
 # Target: ≥ 2130 passed, 0 failed non-ignored
 ```
+
+---
+
+## Session 2026-04-09p — SNOBOL4 × x86: switch to Bison/Flex parser (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `c30de4ca` · .github `f759df1` (post-rebase: newer)
+**HEAD at end:** one4all `efc6b61a` · .github (this commit)
+
+### Work completed
+
+**Identified root cause of ELEMNT errors in beauty self-hosting:**
+- `scrip --ir-run` was routing through CMPILE (hand-written parser), not sno_parse (Bison/Flex)
+- CMPILE's ELEMTB chrs[126] = 6 (ACT_ERROR) — `~` rejected as element start
+- UNOPTB/BIOPTB already had `~` correctly wired (chrs[126]=11/13)
+
+**Switched execution path to sno_parse (Bison/Flex):**
+- `scrip.c`: gated `cmpile_file()` on `--dump-parse`/`--dump-ir` only
+- All execution paths (`--ir-run`, `--sm-run`, `--dump-ir-bison`) now route through `sno_parse()`
+- Regenerated `snobol4.tab.c/h` + `snobol4.lex.c` from `.y`/`.l` sources (bison 3.8.2 + flex 2.6.4)
+- Installed: `libgc-dev`, `m4`, `flex`, `bison` in session env
+
+**Result after switch:**
+- ELEMNT errors on beauty.sno: **eliminated** (bison lexer handles `~` natively: T_TILDE/T_UN_TILDE)
+- `scrip --ir-run hello.sno` (properly indented): **works**
+- beauty self-hosting: one remaining `snobol4:0: syntax error` → Error 5/24 in stmt 527
+
+**Root cause of remaining parse error diagnosed:**
+- Source: `is.sno` — a label-only line at EOF (e.g. `IsTypeEnd\n` with no following body)
+- Lexer emits: T_LABEL + T_STMT_END (via LABEL_DONE) then immediately EOF
+- `program` grammar rule has no `| /* empty */` alternative — bison fires syntax error
+- Error is spurious/cosmetic: error recovery keeps all statements; but `sno_nerrors > 0` → runtime aborts
+
+**Confirmed:** `sno_parse` was working at PASS=188 (Sprint ca7aa12f) — the committed `.tab.c`/`.lex.c` were stale, not the grammar. Fresh regeneration restores correct behavior.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all efc6b61a
+#
+# PRIORITY 1 — Fix spurious parse error (one line in snobol4.y):
+#   grep -n "^program\b" src/frontend/snobol4/snobol4.y
+#   Add empty alternative: program: program stmt | stmt | /* empty */
+#   Then: cd src/frontend/snobol4 && bison -d -o snobol4.tab.c snobol4.y && flex -o snobol4.lex.c snobol4.l
+#   Gate: printf "IsTypeEnd\nEND\n" | scrip --dump-ir-bison /dev/stdin  → no snobol4: error
+#   Gate: scrip --ir-run beauty.sno beauty.sno  → no parse error, only runtime errors if any
+#
+# PRIORITY 2 — Run baseline harness to confirm PASS=178 not regressed:
+#   (harness run command from SESSION doc or PLAN.md)
+#
+# PRIORITY 3 — B-2: &ALPHABET stub in NV_SET_fn/NV_GET_fn (snobol4.c)
+#   Already diagnosed — no-op write, "" read
+#
+# PRIORITY 4 — B-3: triage beauty self-hosting remaining errors after P1+P2+P3
+#   Gate: scrip --ir-run beauty.sno beauty.sno output == csnobol4 output
+```
