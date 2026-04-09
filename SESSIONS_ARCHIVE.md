@@ -35575,7 +35575,7 @@ R1MCL, RZERCL, WRITNO, TITLEF1 (BLOCKS-only correctly omitted), TITLEF, TIMEPS, 
 
 ### Next session (BACKWARD) — start here
 
-## Session 2026-04-09e — SS-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09e — SSF-47: M-SS-BLOCK-FORWARD TREPUB→GOTLC (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `6fb544e5` · **HEAD at end:** one4all `618c0e37`
 
@@ -36074,7 +36074,7 @@ make scrip
 #   END
 ```
 
-## Session 2026-04-09j — SS-48: M-SS-BLOCK-FORWARD GOTO + INIT (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09j — SSF-48: M-SS-BLOCK-FORWARD GOTO + INIT (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `991caea0` · **HEAD at end:** one4all `cfe306d0`
 
@@ -36141,7 +36141,7 @@ Tried `IndexCollection` drain-and-sentinel patch when `Failure=true` — changed
 **bsort test state:** re-ignored (D-NET-186). Next: build CLI, run with `TraceStatements=true` to determine threaded vs MSIL path, then fix IndexCollection drain.
 
 ### Next session (D-194) — start here
-## Session 2026-04-09k — SS-49: M-SS-BLOCK-FORWARD INTERP/INVOKE/ARGVAL (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09k — SSF-49: M-SS-BLOCK-FORWARD INTERP/INVOKE/ARGVAL (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `cfe306d0` · **HEAD at end:** one4all `adec4a10`
 
@@ -36184,7 +36184,7 @@ cd /home/claude/one4all && git pull --rebase
 sed -n '2702,2720p' /home/claude/work/snobol4-2.3.3/v311.sil
 grep -n "^EXPVAL\b" /home/claude/work/snobol4-2.3.3/snobol4.c```
 
-## Session 2026-04-09l — SS-50: M-SS-BLOCK-FORWARD EXPVAL/EXPVJN/EXPVJ2/EXPV11 (Lon + Claude Sonnet 4.6)
+## Session 2026-04-09l — SSF-50: M-SS-BLOCK-FORWARD EXPVAL/EXPVJN/EXPVJ2/EXPV11 (Lon + Claude Sonnet 4.6)
 
 **HEAD at start:** one4all `adec4a10` · **HEAD at end:** one4all `adec4a10` (no code change — all blocks clean)
 
@@ -36201,7 +36201,7 @@ grep -n "^EXPVAL\b" /home/claude/work/snobol4-2.3.3/snobol4.c```
 
 **Watermark: v311.sil line 2723 (EXPV11 complete). Next block: EXPV4 (line 2724).**
 
-### Next session (FORWARD SS-51) — start here
+### Next session (FORWARD SSF-51) — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
