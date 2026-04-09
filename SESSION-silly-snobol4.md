@@ -328,5 +328,5 @@ Static diff catches structural bugs before any code runs.
 **Watermark RESET to: v311.sil line 955** (BEGIN — last block verified correctly one-at-a-time).
 **Reason:** From SPCNVT (line 969) onward, multiple labeled blocks were bundled per commit,
 violating the one-label-at-a-time rule. All subsequent "watermarks" through line 2677 are invalid.
-**Watermark now: v311.sil line 1188** (DTARRY/DTARTB/DTABLE/DTABL1/DTABL2/DTREP1/DTREPR/DTREPE verified ✅; BUG-DTABL1 fixed).
-**Next block: FINDEX (v311.sil line 1195)**.
+**Watermark now: v311.sil line 1212** (FINDEX/FATBAK/FATNF/FATNXT/FATBLK verified ✅).
+**Next block: BLOCK (v311.sil line 1223)**.
