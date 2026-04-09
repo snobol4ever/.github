@@ -303,21 +303,29 @@ Static diff catches structural bugs before any code runs.
 - §20–§21 (sil_main.c common stubs): ⬜ next
 - §1–§15 (sil_support, sil_arith, sil_interp, sil_cmpile, etc.): ⬜ pending
 
-### M-SS-BLOCK method clarification (2026-04-08b)
+### M-SS-BLOCK method clarification (2026-04-08b, corrected 2026-04-09)
 
 **One block at a time. Watermark = SIL line number of last completed block.**
-- Extract the block from v311.sil (label to next `*_`)
+
+⛔ **WHAT A LABELED BLOCK IS (critical — Claude got this wrong repeatedly):**
+- A labeled block starts on a line that has a label in column 1.
+- It continues up to but NOT INCLUDING the next line that has a label in column 1.
+- `*_` is NOT the boundary. `*_` is inside a PROC — it marks a fall-through arm end within a block.
+- Each label in SIL is its own block to verify independently.
+- Example: GOTL PROC contains internal labels GOTLV, GOTLV1, GOTL1, GOTL2, GOTL3, GOTL4,
+  GOTL5, GOTL5B, GOTL6, GOTLC — each is a SEPARATE block to verify one at a time.
+- Do NOT bundle multiple labels into one verification pass. One label = one verification = one commit.
+
+**Method:**
+- Extract the single labeled block from v311.sil (from label line up to but not including next label line)
 - Find the exact same block in snobol4.c (generated C)
 - Find our equivalent in silly/*.c
 - Compare **logic** instruction by instruction — not just presence
-- Record any divergence as a bug
-- Advance watermark to that SIL line, push
+- Record any divergence as a bug; fix small ones immediately
+- Advance watermark to that SIL line, push one commit per block
 
-**Current watermark: v311.sil line 955 (BEGIN entry block checked, one cosmetic gap: SOURCF output line missing)**
-**Next block: SPCNVT (v311.sil line 974)**
-
-### M-SS-BLOCK watermark (SS-44, 2026-04-09)
-**Watermark: v311.sil line 2677** (end of INTERP — UNOP/BASE/GOTG/GOTL/GOTO/INIT/INTERP all verified).
-Next block: **INVOKE** (v311.sil line 2652, interp.c `INVOKE_fn`).
-Bugs found and fixed: BUG-SPCNVT, BUG-GC-GCBB, BUG-TREPUB-MOVBLK, BUG-BINOP-BIEQFN.
-No bugs in this session's blocks — all logic correct, annotated with SIL line refs.
+### M-SS-BLOCK watermark (SS-44 RESET, 2026-04-09)
+**Watermark RESET to: v311.sil line 955** (BEGIN — last block verified correctly one-at-a-time).
+**Reason:** From SPCNVT (line 969) onward, multiple labeled blocks were bundled per commit,
+violating the one-label-at-a-time rule. All subsequent "watermarks" through line 2677 are invalid.
+**Next block: SPCNVT (v311.sil line 969)** — restart here, one label at a time.
