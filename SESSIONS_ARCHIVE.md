@@ -36073,3 +36073,40 @@ make scrip
 #   OUTPUT = 'after Gen'   :(END)
 #   END
 ```
+
+## Session 2026-04-09j — SS-48: M-SS-BLOCK-FORWARD GOTO + INIT (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `991caea0` · **HEAD at end:** one4all `cfe306d0`
+
+### What happened this session
+
+**Watermark confusion corrected:** SESSION-silly-snobol4.md contained a false "SS-44 RESET"
+claiming watermark had been rolled back to line 955. SESSIONS_ARCHIVE (ground truth) showed
+forward pass reached line 2606 (GOTLC) in session SS-47. Corrected both docs. Prior sessions
+did find real bugs in the re-covered range (BUG-GCBA1 etc) — no new bugs found on re-scan.
+
+### Blocks verified
+
+| Block | Lines | Result |
+|-------|-------|--------|
+| GOTO | 2607–2615 | ✅ clean |
+| INIT | 2616–2640 | 🐛 **BUG-INIT-CHKBREAK FIXED** — `chk_break(0)` call missing before STNOKY locapt; STNOKY trace lookup was running unconditionally instead of only when breakpoint active. Fixed: added chk_break guard + `int chk_break(int)` stub (returns 1) in platform.c |
+
+**Watermark: v311.sil line 2640. Next block: INIT1 (line 2641).**
+
+### Next session (FORWARD) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: one4all cfe306d0
+# Watermark: v311.sil line 2640 (INIT complete). Next block: INIT1 (line 2641).
+# One label at a time. Commit after each block.
+sed -n '2641,2650p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "^INIT1\b" /home/claude/work/snobol4-2.3.3/snobol4.c
+grep -n "INIT1_fn\|init1" /home/claude/one4all/src/silly/interp.c
+```
