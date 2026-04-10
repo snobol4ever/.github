@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **4647**  
-**Next block:** ARRAY (line 4648)
+**Current watermark:** v311.sil line **5271**  
+**Next block:** READ (line 5272)
 
 ---
 
