@@ -117,6 +117,8 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 ## §NOW
 
+⚠️ BWD session: update only the BWD row. FWD session: update only the FWD row. Never touch the other.
+
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
 | SS-39 BWD | one4all `43ac7934` | **M-SS-BLOCK-BACKWARD** — watermark 11112 (BUKPTR/LSTPTR done). Next: ARG1CL (line 11111). |
