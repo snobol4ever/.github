@@ -36803,3 +36803,94 @@ BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 #
 # Gate: beauty suite 19/19 → B-3 self-hosting
 ```
+
+---
+
+## Session 2026-04-10c — SNOBOL4 × x86: SCRIP-TRACE milestone created (Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `f23ef24c` · corpus `3fd44d0` · **HEAD at end:** `.github` this entry (HQ only)
+**Baseline:** PASS=193/203 · beauty suite 14/19 · **Final:** unchanged (milestone planning session)
+
+### Work done
+
+**Orientation confirmed:**
+- Cloned `.github`, `one4all`, `harness`, `corpus`, `x64`
+- SPITBOL oracle `/home/claude/x64/bin/sbl` live ✅
+- `make scrip` built clean; `--ir-run` PASS=193/203; beauty suite 14/19 confirmed
+
+**Monitor architecture clarified:**
+- `snobol4.c` already has C-native sync-step IPC: `monitor_fd` (ready pipe) + `monitor_ack_fd` (go pipe)
+  opened from `MONITOR_READY_PIPE` / `MONITOR_GO_PIPE` env vars in `SNO_INIT_fn()`
+- `monitor_ipc_spitbol.so` is the SPITBOL-side LOAD()able participant — uses same wire protocol
+- `monitor_ipc_sync.so` is for CSNOBOL4/snobol4 participants
+- `scrip --ir-run` calls `SNO_INIT_fn()` ✅ — FIFOs opened — but `comm_var()` is never called
+  from `scrip.c` assignment sites or `call_user_function()` → monitor sees nothing
+- `monitor_sync.py` controller supports arbitrary N participants; 2-party `spl,scrip` works as-is
+- `inject_traces.py` + `tracepoints.conf` inject `TRACE()` calls into any `.sno` — already exists
+
+**TRACE/STOPTR/DUMP/SETEXIT confirmed fully implemented in `snobol4.c`:**
+- `_TRACE_()`, `_STOPTR_()`, `_DUMP_()`, `_SETEXIT_()` registered via `register_fn()` ✅
+- `trace_set[256]` hash table, `trace_is_active()`, `comm_var()` all present ✅
+- `kw_stcount`, `kw_stlimit`, `kw_ftrace`, `comm_stno()` wired ✅
+- **Only gap: scrip.c never consults trace_set or calls comm_var() at assignment sites**
+
+**New milestone: MILESTONE-SN4X86-SCRIP-TRACE.md** — written to HQ
+- T-0: `set_and_trace()` helper wrapping every `NV_SET_fn()` call in scrip.c
+- T-1: replace manual stcount/stlimit check with `comm_stno(stno)` call
+- T-2: CALL/RETURN hooks in `call_user_function()`
+- T-3: `test/monitor/run_monitor_2way.sh` (SPITBOL + scrip, no compile step)
+- T-4: run monitor on 5 failing beauty drivers — first diverging event names each bug
+- Gate: all 5 EXIT 0 → beauty 19/19 → B-3 self-hosting
+
+**Beauty driver analysis:**
+- TDump 1&2 fail in SPITBOL too (CSNOBOL4-ref); accepted divergence
+- Root of Gen/Qize/XDump/TDump/omega failures: `*NULVCL` as pattern coerces to EPS instead of FAIL
+  (BP-2), DATA field NAMEPTR vs NAMEVAL (BP-1), DATATYPE DT_P (BP-4)
+- Monitor will pinpoint exact first-diverging trace event for each
+
+### Next session (D-201 / SCRIP-TRACE) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-SCRIP-TRACE.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | tail -3
+# HEAD: f23ef24c · PASS=193/203 · beauty 14/19
+#
+# T-0: add set_and_trace() to scrip.c
+#   grep -n "NV_SET_fn" src/driver/scrip.c | grep -v "keyword\|kw_\|retname\|pnames\|lnames"
+#   Add after snobol4.h include:
+#     extern int  trace_is_active(const char *name);
+#     extern void comm_var(const char *name, DESCR_t val);
+#     static inline void set_and_trace(const char *name, DESCR_t val) {
+#         NV_SET_fn(name, val);
+#         if (name && trace_is_active(name)) comm_var(name, val);
+#     }
+#   Replace NV_SET_fn(name, val) → set_and_trace(name, val) at:
+#     assign_to() NAMEVAL path (~line 231)
+#     pattern match replacement sites (~lines 435, 446, 519, 798, 847, 1606, 1639, 1657)
+#   Skip: retname, pnames[i], lnames[i] (internal slots, not user vars)
+#
+# T-1: replace manual stcount/stlimit in ir-run loop with comm_stno(stno)
+#   grep -n "kw_stcount\|kw_stlimit" src/driver/scrip.c
+#   Replace both lines with: extern void comm_stno(int n); comm_stno(stno);
+#
+# T-2: CALL/RETURN hooks (after T-0 gates)
+#   In call_user_function(), after saving retname / before return:
+#     if (kw_ftrace > 0 || trace_fn_active(fname)) comm_call(fname);
+#     ... (body) ...
+#     if (kw_ftrace > 0 || trace_fn_active(fname)) comm_return(fname, retval);
+#
+# T-3: write test/monitor/run_monitor_2way.sh (body in MILESTONE-SN4X86-SCRIP-TRACE.md)
+#
+# T-4: run 2-way monitor on 5 failing drivers
+#   for name in Gen Qize TDump XDump omega; do
+#       bash test/monitor/run_monitor_2way.sh \
+#           /home/claude/corpus/programs/snobol4/beauty/beauty_${name}_driver.sno
+#   done
+#   Read first diverging event → fix → repeat
+```
