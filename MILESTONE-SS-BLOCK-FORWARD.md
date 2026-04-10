@@ -35,8 +35,10 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **6400**  
-**Next block:** ARG1 (line 6362) — ARG/LOCAL/FIELDS body (currently stubbed)
+**Current watermark:** v311.sil line **6783**  
+**Next block:** DUPL (line 6784)
+
+**Deferred (CNVRT stub covers 6457–6675):** CNVRT/CNV1/RECOMP-family/CODER/CONVE/CONVEX/CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS/CNVTA/ICNVTA/CNVAT/CNVAT2 — all unreachable while CNVRT_fn stubs. Implement together when CONVERT is built.
 
 ---
 
