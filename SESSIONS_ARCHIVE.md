@@ -36305,3 +36305,40 @@ sed -n '11095,11132p' /home/claude/work/snobol4-2.3.3/v311.sil
 grep -n "BUKPTR\|DPSP\|HEADSP\|IOSP\|TAILSP\|TEXTSP\|TSP\|TXSP\|VSP\|XSP\|YSP\|ZSP" \
     /home/claude/one4all/src/silly/data.c /home/claude/one4all/src/silly/platform.c
 ```
+
+## Session 2026-04-09l — D-196: BUG-NET-186 fully fixed (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `08135f6` · **HEAD at end:** snobol4dotnet `6889258`
+
+### Root cause found and fixed
+
+**The contamination path for V-stuck-at-'apple':**
+
+`A<K+1> = V :(BS1)` — the array-write branch of `Assign` did:
+```csharp
+rightVar.Key = leftVar.Key;
+rightVar.Collection = leftVar.Collection;
+arrayVar.Data[k+1] = rightVar;
+```
+When rightVar came from `PushVar(slotV)` (i.e. V's own VarSlotArray slot Var), mutating `rightVar.Key` and `rightVar.Collection` in-place also mutated V's slot object. Next iteration: `PushVar(slotV)` returned the now-contaminated Var (Collection=arrayVar, Key=k+1). `Assign`'s `switch(leftVar.Collection)` routed to array branch → `V = A<J>` wrote into the array instead of updating V's scalar slot.
+
+**Fix (AssignReplace =.cs):** Clone rightVar before setting Key/Collection in both the `ArrayVar` and `TableVar` cases. The clone goes into `Data[]`; the original (and any slot pointing to it) is untouched.
+
+### Baseline at end
+- **2134p / 0f / 2s** — both bsort tests pass, zero failures
+- HEAD snobol4dotnet `6889258`
+- 2 skipped: TEST_Corpus_control_expr_eval, TEST_Corpus_099_keyword_rw
+
+### Next session (D-197) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/bin:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
+# Confirm 2134p/0f/2s. HEAD 6889258. Sprint D-197.
+# Next: investigate the 2 skipped tests and find new coverage gaps.
+# grep -r "Ignore\|xfail\|Skip" TestSnobol4/ --include="*.cs" | grep -v bin | head -20
+```
