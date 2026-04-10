@@ -57,3 +57,15 @@ cd /home/claude/one4all && git pull --rebase
 
 Forward sessions use **SSF-N** series (SSF-47, SSF-48, SSF-49, SSF-50, ...) symmetric with
 Backward sessions (**SSB-N** series). Next forward session: **SSF-51**.
+
+---
+
+## ⛔ WATERMARK RULE — READ THIS FIRST, EVERY SESSION
+
+**THE ONLY AUTHORITATIVE WATERMARK IS THE `## Watermark` SECTION ABOVE IN THIS FILE.**
+
+- `SESSION-silly-snobol4.md §NOW` is STALE. Do NOT use it for the watermark.
+- `SESSIONS_ARCHIVE.md` may also be stale. Do NOT use it for the watermark.
+- THIS FILE (`MILESTONE-SS-BLOCK-FORWARD.md`) is updated after every block commit.
+- First command every session: `grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md`
+- If you read any other watermark and it disagrees with this file — THIS FILE WINS.
