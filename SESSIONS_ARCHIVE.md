@@ -36398,3 +36398,39 @@ make scrip
 #   STLIMIT won't catch it (inside exec_stmt) — use pat_cat fprintf instead
 #   Then: beauty self-hosting exits ARBNO loop
 ```
+
+---
+
+## Session 2026-04-09l — SS-BLOCK-BACKWARD: watermark recovery (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `3ebf18fa` · **HEAD at end:** one4all `43ac7934` · .github `fc8eedd`
+**Milestone:** M-SS-BLOCK-BACKWARD
+
+### Work completed
+
+**Watermark disaster discovered and fixed:**
+- Session started at wrong watermark 12120 (SUCCPT) — milestone doc was stale by 66 BWD commits
+- True watermark was 11112 (BUKPTR/LSTPTR) — last BWD commit 3ebf18fa
+- Root cause: step 5 of method (update watermark after each block) was skipped 66 times in a row
+- Additional error: created redundant .ss-state/BACKWARD_WATERMARK.md (two places) — deleted it
+- Additional error: left watermark section in milestone doc alongside SESSION doc (two places again) — deleted it
+- Final fix: ONE place only — SESSION-silly-snobol4.md §NOW watermark line — pushed fc8eedd
+
+**No block work completed this session — entire session consumed by watermark recovery.**
+
+### Rules established
+- Watermark lives in SESSION-silly-snobol4.md §NOW. One place. No exceptions.
+- After every BWD block: update that one line, push .github, then move to next block.
+- Milestone doc watermark section deleted — it is a trap.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md   # §NOW has true watermark: 11112 (BUKPTR). Next: ARG1CL (line 11111)
+cd /home/claude/one4all && git pull --rebase
+# BWD watermark: 11112. Next block: ARG1CL (line 11111)
+# Extract: sed -n '11111,11111p' /home/claude/work/snobol4-2.3.3/v311.sil
+```
