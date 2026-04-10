@@ -122,7 +122,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `adec4a10` | **M-SS-BLOCK-FORWARD** (→12293): next EXPV4 line 2724 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-187 | snobol4dotnet `bdc541f` | D-187: M-NET-SNIPPET-FACTORY — Step 0: fix GimpelBits bugs; Steps 1–8: add Strings/Capture/Data/LibMath/LibStack/LibString/GimpelBits2/Feat corpus files → ≥2100p |
+| **one4all-SNOBOL4-NET** | D-196 | snobol4dotnet `6889258` · **2134p/0f** | D-197: investigate 2 skipped tests + find new corpus coverage gaps → ≥2135p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
