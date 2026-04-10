@@ -36894,3 +36894,40 @@ INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.
 #   done
 #   Read first diverging event → fix → repeat
 ```
+
+---
+
+## Session 2026-04-10 — M-SS-BLOCK-FORWARD SSF-51 (Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `4e0628d0` · `.github` `43fe5a4`
+**HEAD at end:** one4all `ceedbc74` · `.github` `f669ea7`
+**Watermark at start:** 5527 · **Watermark at end:** 6783
+
+### Bugs found and fixed (5 total)
+
+1. **STOPTR (5528):** `MOVD(YPTR,XPTR)` before `tr_pop()` clobbered VARVUP result into YPTR — deleted the erroneous MOVD.
+2. **FNTRLP (5584):** `GETDC_B(ZPTR, XPTR, DESCR)` — source must be ZPTR (SIL: `GETDC ZPTR,ZPTR,DESCR`), not XPTR.
+3. **FNTRLP (5584):** STRING args in function call trace missing DEFTV quotes (`QTSP`/value/`QTSP`) — added full DEFTV path with `continue`.
+4. **CLEAR (6401):** PCOMP boundary `>=` → `>` (oracle: `D_PTR(DMPPTR) > D_PTR(OBEND)`).
+5. **ARG/LOCAL/FIELDS (6345–6398):** Full implementation replacing stubs — `arg2()` shared body covers ARG1/ARG2/ARG4/ARG5 logic with correct stack discipline for all three callers.
+
+### Blocks verified clean (watermark 5527→6783)
+
+STOPTR/STOPT2/STOPT1/STOPTF/STOPTP · FENTR/FENTR3/FNTRLP/DEFTIA-DEFTV/FENTR4-5/FENTR2/FXOVR · KEYTR/KEYTR3-5/LABTR · TRPHND · VALTR/VALTR2/VALTR4/VALTR3/VALTR1/TRI2/TRV/TRPRT/TRI/DEFDT/FNEXTR/FNEXT1/FNEXT2/VXOVR · SETXIT/XITHND · ASGN+all-sub-blocks · CONCAT+all-sub-blocks · IND/INDV · KEYWRD/KEYN/KEYN1/KEYV/KEYC · LIT · NAME · NMD+all-sub-blocks · STR · DIFFER/FUNCTN/IDENT/LABEL/LABELC · LEQ/LGE/LGT/LLE/LLT/LNE · NEG/QUES/CHAR/LPAD/RPAD · APPLY · CMA · CLEAR · COLECT · COPY · DATE · DT · DMP/DUMP
+
+### Deferred
+CNVRT and all sub-blocks (6457–6675) — unreachable while `CNVRT_fn` stubs. Implement together when CONVERT is built.
+
+### Next session — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+# Watermark: 6783. Next block: DUPL (line 6784)
+# grep -n "^DUPL\b" /home/claude/work/snobol4-2.3.3/v311.sil
+# sed -n '6784,ENDP' /home/claude/work/snobol4-2.3.3/v311.sil
+# grep -n "^DUPL(" /home/claude/work/snobol4-2.3.3/snobol4.c
+```
