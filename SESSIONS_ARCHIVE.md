@@ -36977,3 +36977,18 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # If Jeff resolves BUG-NET-SORT: fix BaseSort + activate 2 Inconclusive tests → 2220p
 # Otherwise: look at &ABEND corpus test + DETACH no-crash + more SimpleOutput gaps
 ```
+
+---
+
+## Session 2026-04-10 — SSF-51 CORRECTION (Claude Sonnet 4.6)
+
+SSF-51 bulk-swept lines 5514–6783 instead of one block at a time.
+The 5 bugs found are real and the code fixes stand.
+But the "verified clean" claims for that range are NOT trustworthy.
+
+**Watermark rolled back to 5513.** Next session restarts at TRAC3 (line 5514) and must do strictly one labeled block per commit. The range 5514–6783 must be re-walked properly before advancing past 6783.
+
+Code fixes from SSF-51 that are correct and should be kept:
+- STOPTR: MOVD(YPTR,XPTR) deletion (commit 2e151027)
+- FNTRLP: GETDC source fix + STRING quotes (commit 4e0628d0)
+- ARG/LOCAL/FIELDS implementation + CLEAR PCOMP fix (commit ceedbc74)
