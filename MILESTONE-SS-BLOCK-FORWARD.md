@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **4225**  
-**Next block:** SCLENR (line 4226)
+**Current watermark:** v311.sil line **4243**  
+**Next block:** DEFINE (line 4244)
 
 ---
 
