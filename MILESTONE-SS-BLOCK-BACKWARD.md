@@ -29,7 +29,11 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
    git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" \
        commit -m "M-SS-BLOCK-BWD BLOCKNAME: <fix or verified clean>"
    ```
-5. Update watermark below (set to label line of block just verified).
+5. ⛔ MANDATORY — NO EXCEPTIONS — update watermark in THIS FILE and push .github before touching next block:
+   - Change the "Current watermark" line below to the line number of the block just verified
+   - Change the "Next block" line to the block found by the grep command
+   - `git add MILESTONE-SS-BLOCK-BACKWARD.md && git commit -m "SSB-N watermark→LINENUM (BLOCKNAME)" && git push`
+   - If you skip this step you are broken. The next session will start at the wrong place.
 
 ---
 
