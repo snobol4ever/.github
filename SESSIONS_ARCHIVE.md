@@ -36434,3 +36434,41 @@ cd /home/claude/one4all && git pull --rebase
 # BWD watermark: 11112. Next block: ARG1CL (line 11111)
 # Extract: sed -n '11111,11111p' /home/claude/work/snobol4-2.3.3/v311.sil
 ```
+
+---
+
+## Session D-197 — snobol4dotnet corpus coverage (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `6889258` · **HEAD at end:** snobol4dotnet `da168d6`
+**Baseline:** 2134p / 0f / 2 skipped → **Final: 2169p / 0f / 2 skipped (+35)**
+
+### Work done
+
+| Commit | File | Tests added | Total |
+|--------|------|-------------|-------|
+| `4284dd5` | `CorpusRef_Patterns.cs` | +18 (039–057 all pattern primitives) | 2152p |
+| `7fe2442` | `CorpusRef_Keywords.cs` | +6 (077–081 builtins + 099_lexical_compare) | 2158p |
+| `da168d6` | `CorpusRef_Strings.cs` | +11 (065–075 canonical string builtins) | 2169p |
+
+### Skipped tests investigated
+- `TEST_Corpus_control_expr_eval` → `[Ignore("M-NET-EVAL-COMPLETE")]` — NRETURN + EVAL recursion — deferred
+- `TEST_Corpus_099_keyword_rw` → `[Ignore("M-NET-PAT-PRIMITIVES")]` — &ANCHOR='0' string coercion error 208 — deferred
+
+### Next session (D-198) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -5
+# HEAD: snobol4dotnet da168d6
+# Baseline: 2169p / 0f / 2 skipped
+# Next gaps: crosscheck/coverage/coverage_sno_nodes.sno (not in any test)
+#            crosscheck/strings/word4.sno (needs INPUT harness)
+#            crosscheck/strings/cross.sno (check if covered)
+#            crosscheck/output/ audit (8 programs vs 8 tests — verify exact match)
+```
