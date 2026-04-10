@@ -197,11 +197,11 @@ Then: 179/0 fail. Then run invariants — same 142/142 but now going through stm
 
 ---
 
-## Ground Truth: SPITBOL/CSNOBOL4 Statement Execution
+## Ground Truth: SIL Statement Execution
 
-From `v311.sil` (CSNOBOL4 SIL source — the canonical reference):
+From `v311.sil` (the canonical SIL reference):
 
-CSNOBOL4 is an **interpreter** — it walks compiled object code descriptors
+The SIL interpreter walks compiled object code descriptors
 in a loop (INTRP0: increment offset, get descriptor, invoke). SPITBOL compiles
 to native code but follows the same logical structure.
 

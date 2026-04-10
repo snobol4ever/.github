@@ -49,7 +49,7 @@ any FAIL line names the exact assertion. Numbers leave room for insertion.
 
 ## M-DIAG1 Suite — Rung Coverage Summary
 
-Derived from CSNOBOL4 test/diag1.sno (Phil Budne / Bell Labs — historical attribution). Logic rewritten  
+Derived from snobol4-2.3.3 test/diag1.sno (Phil Budne / Bell Labs — historical attribution). Logic rewritten  
 in original form — one concern per file, topic-named, no verbatim reproduction.  
 All 35 files verified 35/35 PASS under SPITBOL x64.
 

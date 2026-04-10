@@ -84,7 +84,7 @@ Run the oracle interpreter and the compiled binary side by side, emit the same e
 ```
 SPITBOL → stdout.
 
-**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on SPITBOL. Use VALUE trace on a probe variable. `&STCOUNT` was broken in old CSNOBOL4 builds (always 0) — use literal `&STLIMIT` values for binary search. (CSNOBOL4 is source reference only; not run as oracle.)
+**TRACE gotcha:** `TRACE(...,'KEYWORD')` is non-functional on SPITBOL. Use VALUE trace on a probe variable. Use literal `&STLIMIT` values for binary search.
 
 ## Oracle Hierarchy
 
@@ -92,7 +92,7 @@ SPITBOL → stdout.
 |--------|------|-----------|
 | SPITBOL x64 4.0f | **Sole execution oracle** (D-005) | `/home/claude/x64/bin/sbl -b file.sno` |
 
-**CSNOBOL4 is NOT an oracle** — SOURCE REFERENCE ONLY. Do not build or invoke for test purposes.
+**Oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). CSNOBOL4 = Silly track only.
 
 ## Install (if not present)
 

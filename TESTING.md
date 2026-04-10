@@ -1,7 +1,7 @@
 # TESTING.md — Four-Paradigm TDD Protocol
 
 **The goal:** `beauty_full_bin` reads `beauty.sno`, diff vs SPITBOL oracle is empty. **M-BEAUTY-FULL.**
-**Oracle:** SPITBOL x64 (snobol4ever/x64, `/home/claude/x64/bin/sbl`) is the sole execution oracle. CSNOBOL4 is SOURCE REFERENCE ONLY (see D-005).
+**Oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). CSNOBOL4 = Silly track only.
 **The invariant:** 106/106 rungs 1–11 pass after every commit. Regression = rollback.
 
 ---
@@ -181,10 +181,7 @@ DONE_LASTNO
 # SPITBOL x64 — clone snobol4ever/x64, binary is pre-built at x64/bin/sbl
 git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 # Oracle: /home/claude/x64/bin/sbl -b file.sno
-
-# CSNOBOL4 — do NOT build as oracle. Source files (v311.sil, snobol4.c) are read-only reference
-# for Silly SNOBOL4 session. Tarball at /mnt/user-data/uploads/snobol4-2_3_3_tar.gz if needed
-# for source inspection only.
+# CSNOBOL4 = Silly track only. See SESSION-silly-snobol4.md.
 
 # SNOBOL5 — prebuilt binary, no build required
 wget -O /usr/local/bin/snobol5 https://snobol5.org/snobol5

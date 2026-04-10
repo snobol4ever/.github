@@ -114,10 +114,8 @@ SESSION_SETUP.sh never installs bison/flex.
 **⛔ ORACLE: SPITBOL x64 is the sole execution oracle for all sessions.**
 SPITBOL (snobol4ever/x64, cloned to `/home/claude/x64`, binary at `/home/claude/x64/bin/sbl`) is the authoritative oracle.
 When deriving `.ref` output for any test: `/home/claude/x64/bin/sbl -b file.sno > file.ref`.
-**CSNOBOL4 is SOURCE REFERENCE ONLY** — the `v311.sil` SIL source and generated `snobol4.c` are read
-as ground-truth C code for Silly SNOBOL4 (SESSION-silly-snobol4). Do NOT build or execute CSNOBOL4
-as a test oracle. Do not attempt to install it. CSNOBOL4 lacks FENCE — it cannot serve as an
-execution reference for SNOBOL4 programs that rely on FENCE semantics.
+Run with includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
+**CSNOBOL4 is Silly SNOBOL4 track only** — see SESSION-silly-snobol4.md. Never used as oracle.
 **DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
 Note: `.ref` files are pre-baked in corpus — SPITBOL is not required to run the gate.
 
