@@ -36254,114 +36254,54 @@ grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
 # → FTBLND (11397) then F28FN (11394) etc.
 ```
 
----
+## Session SSB-5 — M-SS-BLOCK-BACKWARD (2026-04-09)
 
-## Session 2026-04-09h — SNOBOL4 × x86: BUG-ZERO-ARG-VAR fix (Lon + Claude Sonnet 4.6)
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `c9b00402`
+**HEAD at close:** one4all `4940be20`
+**Milestone:** M-SS-BLOCK-BACKWARD — descending from watermark 11399 toward line 1
 
-**HEAD at start:** one4all `6e802e80` · **HEAD at end:** one4all `00c1809b`
+### Watermark movement
+- **Start:** 11399 (INITLS ✅, carried from SSB-4)
+- **End:** 11132 (GCBLK cluster ✅)
 
-### Work completed
+### Bugs fixed (5)
+- **BUG-GCXTTL-MISSING** (11155): GCBLK.A was D0 (→ arena base). Allocated 2-DESCR TTL buffer in `init_syntab()`; set `GCBLK.a.i = gcxttl_off`. GCM string-marking now points at a valid buffer.
+- **BUG-XSTNO-PHANTOM**: `XSTNO` in platform.c had no SIL origin and was never used — removed.
+- **BUG-GCGOT-TYPE** (11136): `GCGOT = D0` should be `D(0,0,I)` — SIL says `DESCR 0,0,I`. Fixed in data.c.
+- **BUG-PRMPTR-UNWIRED** (11143): `PRMPTR.a.i` never set to `P2A(PRMTBL)`. GC root walk used address 0 (arena base) — critical. Fixed in `init_syntab()`.
+- **BUG-TWOCL-MISSING** (11149): `TWOCL` declared in data.h but never defined. Added `D(2*8, 0, B)` in data.c.
 
-**BUG-ZERO-ARG-VAR** (`src/driver/scrip.c`):
-- `interp_eval(E_VAR x)` called `APPLY_fn(x,NULL,0)` on ANY unset variable.
-- NRETURN path: `Foo=.dummy` → NAME_DEREF → NULVCL in `r` → E_VAR "r" → IS_NULL → APPLY_fn("r") → Error 5.
-- Fix: guard with `FNCEX_fn(e->sval)` — only zero-arg call if name is a registered function.
-- Also: skip `NV_GET_fn(subj_name)` in both execute loops when no pattern (pure assignment).
+### Clean blocks verified (N/A)
+- FTBLND (11397): pure LHERE — no C equivalent
+- F1FN–F28FN (11340–11394): inside `.IF BLOCKS` conditional — not assembled
+- All FTABLE fn-pair DESCRs (11183–11337): csnobol4 static `res` struct only; Silly uses dynamic FINDEX
+- FATAL (11171): matches FATLCL D0 design
+- XLSTNC (11167): dead variable, never referenced in generated code
 
-### Gates
-- `Foo = .dummy` inside DEFINE body: no Error 5 ✅
-- PASS: 169 → **172/203** (+3) ✅
+### Deferred (cosmetic / stub)
+- LSTPTR/BKPTR/ST1PTR/ST2PTR/TEMPCL initial F=PTR,V=S — overwritten on first use, no runtime impact
+- FRDSCL (4*DESCR size constant) — only used in stubbed RSORT, not a runtime bug yet
+- EQUVCL — translated inline as local variable in arena.c, functionally correct
 
-### Remaining blocker for B-3 beauty self-hosting
-- `pat_cat: left is not a pattern (DT=11)` — DT_N (NAME) in pattern concat. beauty times out.
-- Fix: in `pat_cat`/`PATVAL_fn`: deref DT_N via NAME_DEREF before building pattern node.
+### Commits
+- `cd3a2c7d` GCXTTL/XSTNO: allocate GCXTTL buffer; wire GCBLK.A; remove phantom XSTNO
+- `4940be20` GCBLK-TLSGP1: fix GCGOT; add PRMPTR.a=P2A(PRMTBL); define TWOCL
 
 ### Next session — start here
-
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
 cd /home/claude/one4all && git pull --rebase
-make scrip
-# HEAD: one4all 00c1809b
-# PASS=172/203 baseline
-#
-# PRIORITY — Fix pat_cat DT_N (NAME descriptor in pattern context)
-#   Files: src/runtime/x86/snobol4_pattern.c (pat_cat)
-#          src/runtime/x86/snobol4_argval.c  (PATVAL_fn)
-#   When DT_N arrives: NAME_DEREF first, then coerce to pattern.
-#   DT_N slen=1 → NAMEPTR → deref directly. DT_N slen=0 → NV_GET_fn(d.s).
-#
-# Reproducer:
-#   SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
-#       timeout 30 ./scrip --ir-run \
-#       /home/claude/corpus/programs/snobol4/demo/beauty.sno \
-#       /home/claude/corpus/programs/snobol4/demo/beauty.sno 2>&1 | head -5
-#   Gate: no "pat_cat: left is not a pattern (DT=11)" lines.
-#
-# After fix: diff vs sbl oracle:
-#   SNO_LIB=... timeout 30 ./scrip --ir-run beauty.sno beauty.sno > /tmp/scrip.txt 2>/dev/null
-#   /home/claude/x64/bin/sbl beauty.sno beauty.sno > /tmp/sbl.txt 2>/dev/null
-#   diff /tmp/sbl.txt /tmp/scrip.txt
-#
-# HARNESS baseline: PASS=172/203
-```
-
-## Session 2026-04-09k — D-194/D-195: array pass-by-ref + aliasing root-cause (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** snobol4dotnet `180fc98` · **HEAD at end:** snobol4dotnet `08135f6`
-
-### Work done
-
-**Root-cause of D-NET-186 bsort found: three layered bugs**
-
-**BUG-A (Define.cs):** `ExecuteProgramDefinedFunction` cloned ALL arguments including `ArrayVar`/`TableVar`. SNOBOL4 arrays are reference types — must be passed by reference. Fix: skip Clone() for ArrayVar/TableVar, just rebind `.Symbol`. Result: 4-element bsort_integers_as_strings now passes (un-ignored).
-
-**BUG-B (PatternConcatenation):** Identity concat (`"" concat X`) pushed `arguments[1]` directly — no clone. Two expressions could share the same Var object. Fix: clone in the identity cases.
-
-**BUG-C (Array.cs / Table.cs):** `IndexArray` and `IndexTable` mutated `.Key` and `.Collection` **in-place on the object stored in `Data[]`**. This caused the Var in the array slot to be aliased to the stack push. `IndexArray` fix: push `Data[i].Clone()` with Key/Collection set on the clone. `IndexTable` fix: same.
-
-**BUG-D (AssignReplace — partially fixes V-stuck):** When `V = A<J>` runs, `rightVar` (clone from IndexArray) carries `.Collection=arrayVar` and `.Key=j-1`. `Assign` clones it into `newVar` (preserving those fields), stores at `VarSlotArray[slotV]`. Next iteration, `PushVar(slotV)` returns newVar with `Collection=arrayVar` → `Assign` routes to **array write branch** instead of scalar update → V never updates. Fix: in scalar default branch, clear Key/Collection on newVar unless it's NameVar/ArrayVar/TableVar.
-
-**5-element bsort still failing:** The AssignReplace fix does NOT resolve V-stuck in CLI testing despite the test suite showing 2133p/1f (no regression). The Assign Collection-clear is not being triggered in the MSIL delegate path inside `ExecuteProgramDefinedFunction`. The MSIL delegate calls `_BinaryEquals` → `Assign` — the fix should fire but CLI shows V='apple' still at J=3,4,5. Next session must add trace to confirm whether Assign's default branch fires for `V = A<J>` inside the function.
-
-### Baseline at handoff
-- **2133p / 0f / 2s** — `bsort_integers_as_strings` passes, `bsort_strings` still fails (1f shown in suite because it's un-ignored)
-- HEAD snobol4dotnet `08135f6`
-
-### Next session (D-196) — start here
-
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/snobol4dotnet && git pull --rebase
-export PATH=/usr/bin:$PATH
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
-# Confirm 2133p/1f. HEAD 08135f6. Sprint D-196.
-dotnet build Snobol4/Snobol4.csproj -c Release -o /tmp/sno4 -p:EnableWindowsTargeting=true 2>&1 | tail -2
-
-# KEY INVESTIGATION: Why does AssignReplace Collection-clear not fix V inside function?
-# Add temporary Console.Error.WriteLine to Assign default branch:
-#   Console.Error.WriteLine($"Assign scalar: {targetSymbol} leftColl={leftVar.Collection?.GetType().Name} newVarColl={newVar.Collection?.GetType().Name}");
-# Run /tmp/bsort5.sno — if "Assign scalar: V" doesn't appear, _BinaryEquals is not
-# reaching the default branch for V=A<J> inside the function.
-# If it does appear but Collection is still set, clone is not clearing it.
-
-# ALTERNATIVE HYPOTHESIS: The MSIL delegate for the function body may have been compiled
-# at a time when V's VarSlotArray slot held a Var with Collection=arrayVar.
-# PushVarBySlot(slotV) returns that contaminated Var as leftVar.
-# leftVar.Collection=arrayVar → Assign goes to ARRAY branch (not default).
-# The scalar clear code never runs. Fix location: BEFORE the switch(leftVar.Collection),
-# check if leftVar's Collection-target symbol matches leftVar.Symbol (i.e. it's a 
-# genuine array lvalue vs a contaminated scalar). If mismatch → treat as scalar.
-
-# CLEANEST FIX: In _BinaryEquals/Assign, before switch(leftVar.Collection), add:
-#   if (leftVar.Collection != null && leftVar.Symbol != "" &&
-#       leftVar.Key == null)  // scalar contaminated
-#       leftVar = leftVar.Clone(); leftVar.Collection = null; leftVar.Key = null;
-# OR: in ExpandVarSlotArray, initialize slots with fresh StringVar.Null() not
-# IdentifierTable[sym] which may carry stale Collection.
+# HEAD: one4all 4940be20
+# BWD watermark: 11132 (GCBLK cluster ✅). Next block:
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
+    | awk -F: '$1<11132{print}' | tail -3
+# → BUKPTR (11112), then specifier cluster DPSP–ZSP (11097–11107)
+sed -n '11095,11132p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "BUKPTR\|DPSP\|HEADSP\|IOSP\|TAILSP\|TEXTSP\|TSP\|TXSP\|VSP\|XSP\|YSP\|ZSP" \
+    /home/claude/one4all/src/silly/data.c /home/claude/one4all/src/silly/platform.c
 ```
