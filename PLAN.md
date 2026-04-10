@@ -117,7 +117,7 @@ the corpus, the emitter is correct by construction.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 × x86** | BEAUTY | one4all `00c1809b` · corpus `3fd44d0` · INTERP=./scrip PASS=172/203 | B-1 ✅ B-2 ✅ P2 ✅ B-3 ⚠️ · **NEXT: pat_cat DT_N fix** — DT_N (NAME) reaching pat_cat. Deref in pat_cat/PATVAL_fn. Gate: beauty runs to completion, diff vs sbl empty. |
+| **SNOBOL4 × x86** | BEAUTY | one4all `4aab6512` · corpus `3fd44d0` · INTERP=./scrip PASS=172/203 · beauty suite 10/19 | **CURRENT: MILESTONE-SN4X86-BEAUTY-PREREQS** — 19 beauty drivers must pass before B-3 self-hosting. BP-0: wire &STLIMIT/&STCOUNT in ir-run loop (scrip.c). BP-1: DATA field .field(x) → NAMEPTR not NAMEVAL (fixes stack/counter/ShiftReduce/semantic/TDump). BP-2: null DT_E upstream source → NULVCL (fixes Gen infinite output + beauty timeout). BP-3: empty-string prefix in Qize/XDump (follows BP-2). BP-4: omega DATATYPE PATTERN vs STRING. Gate: PASS=19/19 → then B-3. |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
 | **Silly SNOBOL4** | SS-39 | one4all `adec4a10` | **M-SS-BLOCK-FORWARD** (→12293): next EXPV4 line 2724 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |

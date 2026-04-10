@@ -36275,3 +36275,61 @@ cd /home/claude/one4all && git pull --rebase
 # Next block: SUCE (line 4204)
 grep -n "^SUCE\b" /home/claude/work/snobol4-2.3.3/v311.sil
 ```
+
+---
+
+## Session 2026-04-09i — SNOBOL4 × x86: BEAUTY-PREREQS diagnosed (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `00c1809b` · **HEAD at end:** one4all `4aab6512`
+**Milestone:** MILESTONE-SN4X86-BEAUTY-PREREQS created
+
+### Work completed
+
+**Diagnostic: pat_cat DT=11 root cause**
+- DT=11 is DT_E (EXPRESSION), not DT_N — corrected from session notes
+- `pat_to_patnd`: frozen ptr is NULL → `PATVAL_fn` returns DT_FAIL → drop
+- Silencing with epsilon causes ARBNO infinite loop (matches empty forever)
+- Correct fix: return NULL (propagate failure); upstream source must be fixed
+
+**Committed (4aab6512):**
+- `pat_to_patnd`: DT_N deref branch (NAMEPTR/NAMEVAL) — correct though not the active bug
+- `pat_to_patnd`: null DT_E returns NULL (not epsilon)
+- `interp_eval_pat E_VAR`: DT_N deref + null DT_E → NULVCL guard
+- PASS=172/203 held
+
+**Beauty suite baseline established: 10/19 PASS**
+- PASS: ReadWrite, assign, case, fence, global, io, is, match, trace, tree
+- FAIL: counter, stack, omega, semantic, Gen, Qize, ShiftReduce, TDump, XDump
+
+**Root causes identified:**
+- BP-0: &STLIMIT not wired in top-level ir-run loop (kw_stlimit declared, never checked)
+- BP-1: `.field(x)` in dot context returns NAMEVAL not NAMEPTR → NAME_DEREF goes to NV store → empty (fixes 5 drivers)
+- BP-2: null DT_E upstream → Gen infinite output + beauty self-hosting timeout
+- BP-3: empty-string prefix in Qize/XDump (likely follows BP-2)
+- BP-4: omega DATATYPE PATTERN vs STRING
+
+**New milestone:** MILESTONE-SN4X86-BEAUTY-PREREQS.md created
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY-PREREQS.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all 4aab6512 · PASS=172/203 · beauty suite 10/19
+#
+# BP-0 FIRST: wire &STLIMIT in scrip.c ir-run top-level loop
+#   grep -n "for.*STMT_t.*s.*=.*prog" src/driver/scrip.c   # find the loop
+#   Add: kw_stcount++; if (kw_stlimit>0 && kw_stcount>kw_stlimit) { fprintf+break; }
+#   Gate: infinite loop terminates with "Termination by statement limit"
+#
+# BP-1: data_field_ptr() + E_NAME/E_FNC → NAMEPTR
+#   grep -n "E_NAME\|case E_NAME" src/driver/scrip.c
+#   When child->kind==E_FNC and nchildren==1: eval arg, call data_field_ptr(fname, inst)
+#   data_field_ptr: inst.v>=DT_DATA → lookup field index → return &inst.u->fields[idx]
+#   Gate: beauty_stack_driver PASS 1-3
+```
