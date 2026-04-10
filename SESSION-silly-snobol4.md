@@ -121,7 +121,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 BWD | one4all `d1d7ea1a` | **M-SS-BLOCK-BACKWARD** — watermark 10764 (ANYCCL done). Next: STRPAT (line 10760). |
+| SS-39 BWD | one4all `8c17dfaf` | **M-SS-BLOCK-BACKWARD** — watermark 10760 (STRPAT done). Next: ARBACK/ARHEAD/ARTAIL cluster (line 10757). |
 | SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — watermark 2606 (GOTLC done). Next: NAM (line 3223). |
 
 ### MONITOR func-hook proposal (2026-04-08g)
