@@ -32,8 +32,7 @@ identical to the input. A fixed point.
 | 3 | one4all JVM backend | Compiled target | stderr |
 | 4 | one4all NET backend | Compiled target | stderr |
 
-**CSNOBOL4 is SOURCE REFERENCE ONLY** — v311.sil / snobol4.c are read as ground-truth C
-for the Silly SNOBOL4 session. CSNOBOL4 is never run as a monitor participant. It lacks FENCE.
+**Oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). CSNOBOL4 = Silly track only.
 
 **Compatibility target: one4all implements SPITBOL semantics. (D-001)**
 - All SPITBOL extensions, switches, HOST() semantics are matched.

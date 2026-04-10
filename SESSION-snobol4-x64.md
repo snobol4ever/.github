@@ -125,30 +125,8 @@ When a STREAM table sequence is unknown: **read v311.sil first**, then syn.c for
 /home/claude/snobol4-2.3.3/syn_init.h    # action put/act/go assignments
 ```
 
-Two-way MONITOR scripts are checked in beside the csnobol4 patches:
-```bash
-one4all/csnobol4/dyn89_sweep.sh   # sweep corpus/programs/snobol4/
-one4all/csnobol4/stream.c         # CSNOBOL4 patch → /tmp/sno_csno.trace
-one4all/csnobol4/main.c           # CSNOBOL4 patch
-one4all/csnobol4/README.md        # full workflow
-```
-
-Standard diff workflow:
-```bash
-SNO_TRACE=1 /home/claude/snobol4-2.3.3/snobol4 /tmp/x.sno 2>/dev/null  # → /tmp/sno_csno.trace
-SNO_TRACE=1 /home/claude/sno4parse /tmp/x.sno 2>/tmp/sn.trace
-diff /tmp/sno_csno.trace /tmp/sn.trace | head -30
-```
-
-
-
-Patches are checked in. Copy and build — never re-instrument from scratch:
-```bash
-cp one4all/csnobol4/stream.c snobol4-2.3.3/lib/stream.c
-cp one4all/csnobol4/main.c   snobol4-2.3.3/main.c
-cd snobol4-2.3.3 && make -j$(nproc) COPT="-DTRACE_STREAM -g -O0"
-```
-Files: `one4all/csnobol4/stream.c`, `main.c`, `README.md`, `dyn89_sweep.sh`
+**Oracle: SPITBOL x64 only** — `/home/claude/x64/bin/sbl`
+CSNOBOL4 is Silly SNOBOL4 track only. See SESSION-silly-snobol4.md. Not used here.
 
 ### P2A — binary `?` operator (sprint 94)
 **Date:** 2026-04-04
@@ -160,7 +138,7 @@ No new table. No new actions. No g_bioptb pointer. One line.
 ### True streaming — no linebuf, no pre-joining (sprint 92)
 **Date:** 2026-04-04
 
-CSNOBOL4 XLATNX keeps TEXTSP = one physical line. FORWRD/FORBLK call FORRUN on ST_EOS
+SIL XLATNX keeps TEXTSP = one physical line. FORWRD/FORBLK call FORRUN on ST_EOS
 to fetch the next card. NEWCRD dispatches: CNTTYP → strip '+', re-drive; NEWTYP → save
 as pending. We do the same. linebuf pre-join is permanently banned.
 
@@ -177,13 +155,7 @@ All five stream() call-site bugs fixed in sprint 92 (one4all `229b04e`):
 
 Result: 84/84 sweep.
 
-Correctness = **agreement with CSNOBOL4**, not independent correctness:
-- CS succeeds + sno4parse succeeds → OK
-- CS errors + sno4parse errors → OK (both reject — positive AND negative tests count)
-- CS succeeds + sno4parse errors → **BUG**
-- CS errors + sno4parse succeeds → **BUG** (too permissive)
-
-For hard bugs: `SNO_TRACE=1` on both, diff `/tmp/sno_csno.trace` vs stderr. First divergence = root cause.
+Correctness = **agreement with SPITBOL** (`/home/claude/x64/bin/sbl`). sno4parse era complete.
 
 ### sno4parse build and -I flags
 **Date:** 2026-04-04
@@ -236,7 +208,7 @@ or handle via CMPFRM-style sub-parse). MONITOR on Listen2WordPress.sno first.
 ### P2D — assignment inside subscript `A[J=J+1]` (sprint 97)
 **Date:** 2026-04-05
 
-`A[J=J+1]` is NOT parsed as an ASSIGN node. CSNOBOL4 ELEARG re-enters EXPR after
+`A[J=J+1]` is NOT parsed as an ASSIGN node. SIL ELEARG re-enters EXPR after
 EQTYP: IBLKTB consumed `=`; two `FORWRD()` calls skip past `=` and its trailing
 space; next EXPR yields `J+1` as a second subscript arg. Result: two-arg subscript.
 
@@ -278,7 +250,6 @@ Two-pass audit against v311.sil — datatype/coercion vertical.
 | File | Role |
 |------|------|
 | `src/frontend/snobol4/CMPILE.c` | Single-file SNOBOL4 parser / stream oracle |
-| `one4all/csnobol4/` | CSNOBOL4 STREAM trace patches |
 | `src/backend/emit_x64.c` | Pattern statement emission |
 | `src/runtime/snobol4/stmt_exec.c` | `stmt_exec_dyn` — five-phase executor |
 | `src/runtime/asm/bb_pool.c` | mmap pool ✅ |
@@ -425,7 +396,7 @@ True streaming implemented. linebuf gone. forrun() is the canonical continuation
 Binary operators with double-space after them (e.g. `'A'  |  'B'`) lost the
 RHS because ELEMNT was called with TEXTSP pointing at leading whitespace.
 Fix: unconditional `FORWRD()` before `expr_prec(next_min)` in expr_prec_continue.
-Mirrors CSNOBOL4's IBLKTB call between operator and RHS.
+Mirrors SIL IBLKTB call between operator and RHS.
 
 **CMPGO SGOTYP/FGOTYP need FORWRD before EXPR (sprint 95)**
 Computed goto `:S($('label' VAR))` requires FORWRD() in SGOTYP and FGOTYP
@@ -619,10 +590,10 @@ Uncertain (need authoritative mapping):
 ### P1c — IBLKTB 3-action bug (diagnosed 2026-04-05, diag-01 session)
 **Date:** 2026-04-05
 
-CSNOBOL4 IBLKTB has exactly 3 actions (GOTO FRWDTB / EOSTYP STOP / ERROR).
+SIL IBLKTB has exactly 3 actions (GOTO FRWDTB / EOSTYP STOP / ERROR).
 Our CMPILE.c has 4 actions: action[3]={NBTYP, ACT_STOPSH} is unreachable because
 no chrs[] value of 4 is assigned. All non-special chars have chrs[x]=3 → actions[2]
-= {EOSTYP, ACT_STOP} — NOT ST_ERROR as CSNOBOL4 does.
+= {EOSTYP, ACT_STOP} — NOT ST_ERROR as SIL does.
 
 Effect: when BINOP calls IBLKTB with TEXTSP at a non-blank char (no leading space
 = BINOP1 path), IBLKTB returns ST_STOP/STYPE=EOSTYP instead of ST_ERROR. BINOP
