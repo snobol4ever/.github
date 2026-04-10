@@ -36308,3 +36308,60 @@ make scrip
 #
 # HARNESS baseline: PASS=172/203
 ```
+
+## Session 2026-04-09k — D-194/D-195: array pass-by-ref + aliasing root-cause (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** snobol4dotnet `180fc98` · **HEAD at end:** snobol4dotnet `08135f6`
+
+### Work done
+
+**Root-cause of D-NET-186 bsort found: three layered bugs**
+
+**BUG-A (Define.cs):** `ExecuteProgramDefinedFunction` cloned ALL arguments including `ArrayVar`/`TableVar`. SNOBOL4 arrays are reference types — must be passed by reference. Fix: skip Clone() for ArrayVar/TableVar, just rebind `.Symbol`. Result: 4-element bsort_integers_as_strings now passes (un-ignored).
+
+**BUG-B (PatternConcatenation):** Identity concat (`"" concat X`) pushed `arguments[1]` directly — no clone. Two expressions could share the same Var object. Fix: clone in the identity cases.
+
+**BUG-C (Array.cs / Table.cs):** `IndexArray` and `IndexTable` mutated `.Key` and `.Collection` **in-place on the object stored in `Data[]`**. This caused the Var in the array slot to be aliased to the stack push. `IndexArray` fix: push `Data[i].Clone()` with Key/Collection set on the clone. `IndexTable` fix: same.
+
+**BUG-D (AssignReplace — partially fixes V-stuck):** When `V = A<J>` runs, `rightVar` (clone from IndexArray) carries `.Collection=arrayVar` and `.Key=j-1`. `Assign` clones it into `newVar` (preserving those fields), stores at `VarSlotArray[slotV]`. Next iteration, `PushVar(slotV)` returns newVar with `Collection=arrayVar` → `Assign` routes to **array write branch** instead of scalar update → V never updates. Fix: in scalar default branch, clear Key/Collection on newVar unless it's NameVar/ArrayVar/TableVar.
+
+**5-element bsort still failing:** The AssignReplace fix does NOT resolve V-stuck in CLI testing despite the test suite showing 2133p/1f (no regression). The Assign Collection-clear is not being triggered in the MSIL delegate path inside `ExecuteProgramDefinedFunction`. The MSIL delegate calls `_BinaryEquals` → `Assign` — the fix should fire but CLI shows V='apple' still at J=3,4,5. Next session must add trace to confirm whether Assign's default branch fires for `V = A<J>` inside the function.
+
+### Baseline at handoff
+- **2133p / 0f / 2s** — `bsort_integers_as_strings` passes, `bsort_strings` still fails (1f shown in suite because it's un-ignored)
+- HEAD snobol4dotnet `08135f6`
+
+### Next session (D-196) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/bin:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
+# Confirm 2133p/1f. HEAD 08135f6. Sprint D-196.
+dotnet build Snobol4/Snobol4.csproj -c Release -o /tmp/sno4 -p:EnableWindowsTargeting=true 2>&1 | tail -2
+
+# KEY INVESTIGATION: Why does AssignReplace Collection-clear not fix V inside function?
+# Add temporary Console.Error.WriteLine to Assign default branch:
+#   Console.Error.WriteLine($"Assign scalar: {targetSymbol} leftColl={leftVar.Collection?.GetType().Name} newVarColl={newVar.Collection?.GetType().Name}");
+# Run /tmp/bsort5.sno — if "Assign scalar: V" doesn't appear, _BinaryEquals is not
+# reaching the default branch for V=A<J> inside the function.
+# If it does appear but Collection is still set, clone is not clearing it.
+
+# ALTERNATIVE HYPOTHESIS: The MSIL delegate for the function body may have been compiled
+# at a time when V's VarSlotArray slot held a Var with Collection=arrayVar.
+# PushVarBySlot(slotV) returns that contaminated Var as leftVar.
+# leftVar.Collection=arrayVar → Assign goes to ARRAY branch (not default).
+# The scalar clear code never runs. Fix location: BEFORE the switch(leftVar.Collection),
+# check if leftVar's Collection-target symbol matches leftVar.Symbol (i.e. it's a 
+# genuine array lvalue vs a contaminated scalar). If mismatch → treat as scalar.
+
+# CLEANEST FIX: In _BinaryEquals/Assign, before switch(leftVar.Collection), add:
+#   if (leftVar.Collection != null && leftVar.Symbol != "" &&
+#       leftVar.Key == null)  // scalar contaminated
+#       leftVar = leftVar.Clone(); leftVar.Collection = null; leftVar.Key = null;
+# OR: in ExpandVarSlotArray, initialize slots with fresh StringVar.Null() not
+# IdentifierTable[sym] which may carry stale Collection.
+```
