@@ -45,6 +45,21 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 | Block | Line | Result |
 |-------|------|--------|
+| NAMGCL/NERRCL/SCERCL/SPITCL/STATCL | 10713–10717 | ✅ clean |
+| BLOKCL | 10719 | 🐛 fixed — missing entirely, added D(0,0,I) + extern [PLB117] |
+| CHARCL/ARBSIZ | 10724–10725 | ✅ clean |
+| EXTVAL | 10731 | 🐛 fixed — wrong name EXTVSL→EXTVAL |
+| CNDSIZ/CODELT/DSCRTW/EOSCL/ESALIM | 10726–10730 | ✅ clean |
+| LNODSZ/IOBLSZ/INCLSZ/GTOCL/GOBRCL/FBLKRQ | 10732–10737 | ✅ clean |
+| NODSIZ/OBEND/OCALIM/ONECL/OUTBLK/ERRBLK | 10738–10744 | ✅ clean |
+| STARSZ/SNODSZ/SIZLMT | 10745–10747 | ✅ clean |
+| ZEROCL | 10748 | ✅ clean |
+| TRSKEL | 10749 | 🐛 fixed — wrong name TRSKELS→TRSKEL + .a=P2A(TRCBLK) missing |
+| COMDCT | 10750 | ✅ clean |
+| COMREG | 10751 | 🐛 fixed — .a=P2A(&ELEMND) missing |
+| ARBACK/ARHEAD/ARTAIL | 10757–10759 | 🐛 fixed — .a.i and .v=P both missing on ARHEAD/ARTAIL; .a.i=0 on ARBACK |
+| STRPAT | 10760 | 🐛 fixed — .v=P missing |
+| ANYCCL + fn-descriptor cluster | 10764–12119 | 🐛 fixed — 14 fn-descriptor bugs (SSB-1–3) |
 | R1MCL | 12292 | ✅ fixed — real_t→DESCR_t with .v=R |
 | RZERCL | 12291 | ✅ fixed — real_t→DESCR_t with .v=R |
 | FORMAT blocks (ALOCFL–WRITNO) | 12254–12288 | ✅ clean — %D/%F→printf intentional PLB10 |

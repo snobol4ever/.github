@@ -36644,3 +36644,46 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #   — gate: TEST_Math_sort_array_ascending + TEST_Math_rsort_array_descending → Passed
 # Priority 2: More coverage gaps — Function/ dirs not yet hit by corpus tests
 ```
+
+---
+
+## Session 2026-04-10 — Silly SNOBOL4 M-SS-BLOCK-BACKWARD SSB-4 (Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `d1d7ea1a` · **HEAD at end:** one4all `f23ef24c`
+**HQ HEAD at end:** `.github` (watermark→10713)
+**Watermark at start:** 10764 (ANYCCL). **Watermark at end:** 10713 (BLOKCL/NAMGCL cluster).
+
+### Blocks verified this session (10764 → 10713, newest first)
+
+| Block | Line | Result |
+|-------|------|--------|
+| STRPAT | 10760 | 🐛 fixed — .v=P missing |
+| ARBACK/ARHEAD/ARTAIL | 10757–10759 | 🐛 fixed — .a.i=0, .v=P missing |
+| COMREG | 10751 | 🐛 fixed — .a=P2A(&ELEMND) missing |
+| COMDCT | 10750 | ✅ clean |
+| TRSKEL | 10749 | 🐛 fixed — TRSKELS→TRSKEL rename + .a=P2A(TRCBLK) |
+| ZEROCL | 10748 | ✅ clean |
+| STARSZ/SNODSZ/SIZLMT/NODSIZ/OBEND/OCALIM/ONECL/OUTBLK/ERRBLK | 10738–10747 | ✅ clean |
+| LNODSZ/IOBLSZ/INCLSZ/GTOCL/GOBRCL/FBLKRQ | 10732–10737 | ✅ clean |
+| EXTVAL | 10731 | 🐛 fixed — EXTVSL→EXTVAL rename |
+| CNDSIZ/CODELT/DSCRTW/EOSCL/ESALIM | 10726–10730 | ✅ clean |
+| CHARCL/ARBSIZ | 10724–10725 | ✅ clean |
+| BLOKCL | 10719 | 🐛 fixed — missing entirely, added D(0,0,I) |
+| STATCL/SPITCL/SCERCL/NERRCL/NAMGCL | 10713–10717 | ✅ clean |
+
+### Pattern observed
+This §24 data region is dense with pointer-type DESCRs (A=node, V=P) that were
+initialized with A only, leaving V=0. Three renames caught: TRSKELS, EXTVSL, BLOKCL (absent).
+
+### Next session — start here
+```
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+# HEAD: f23ef24c · watermark 10713
+# Next block: grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10713' | tail -5
+# Continue down through §24 data blocks
+```
