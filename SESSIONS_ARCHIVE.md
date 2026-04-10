@@ -36535,3 +36535,70 @@ INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "
 #
 # Gate: PASS=19/19 → proceed to MILESTONE-SN4X86-BEAUTY.md B-3 (beauty self-hosting)
 ```
+
+---
+
+## Session 2026-04-10 — SNOBOL4 × x86: HQ CSNOBOL4 purge + TLump diagnosis (Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `250ef613` · corpus `3fd44d0` · **HEAD at end:** one4all `250ef613` (no code changes)
+**HQ HEAD at end:** `.github` `cc9e1f9`
+**Baseline:** PASS=172/203 · beauty suite 14/19 · **Final:** unchanged (HQ-only session)
+
+### Work done
+
+**HQ: CSNOBOL4 purged from all operational docs (`cc9e1f9`)**
+- Files cleaned: GENERAL-RULES, SESSION-snobol4-x64, HARNESS, MONITOR, TESTING, CORPUS, INTERP-X86, IR
+- Each now says: "CSNOBOL4 = Silly track only. See SESSION-silly-snobol4.md."
+- GENERAL-DECISIONS.md D-001/D-005 retained (policy history, intentional)
+- TESTING.md comparison tables retained (factual, not instructional)
+- SESSION-snobol4-x64: removed csnobol4 monitor/sweep block, streaming correctness block, IBLKTB refs — all replaced with SIL or SPITBOL equivalents
+
+**SPITBOL oracle confirmed:** `/home/claude/x64/bin/sbl` (snobol4ever/x64 already cloned)
+- Invocation: `cd $INC && $SBL /tmp/file.sno` (SPITBOL resolves -INCLUDE from CWD)
+- No -I flag; run from the include directory
+
+**TLump root cause diagnosed (no code fix yet):**
+- Failing drivers: Gen, Qize, TDump, XDump, omega (5 of 19)
+- TDump: `NULL *IDENT(n(x)) :F(TLump0)` — driver comment says SPITBOL always takes F branch for tree DATA objects
+- Our runtime takes S branch → falls into TValue → returns raw field value instead of `(TypeName)`
+- Hypothesis: `*expr` pattern at match time — `IDENT(n(x))` returns `NULVCL`; SPITBOL treats NULVCL-as-pattern as match-fail; we coerce to `""` which matches empty subject
+- SPITBOL oracle probe written (`/tmp/tlump_probe.sno`) but hit quote-in-string syntax error in P7; P1–P6 and P8–P12 are correct
+- **Next session: fix quote issue, run probe, read P3 result, implement fix**
+
+### Rules established
+- CSNOBOL4 is NEVER the oracle for this track. SPITBOL x64 only.
+- SPITBOL include path: run from CWD = INC directory (no -I flag exists)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY-PREREQS.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "PASS="
+# HEAD: one4all 250ef613 · PASS=172/203 · beauty suite 14/19
+# Remaining: Gen/Qize/TDump/XDump (BP-2/BP-3) · omega (BP-4)
+#
+# STEP 1 — Run SPITBOL oracle probe (fix quote issue first):
+#   INC=/home/claude/corpus/programs/snobol4/demo/inc
+#   SBL=/home/claude/x64/bin/sbl
+#   # Fix P7 labels: replace '' inside strings with empty or rename
+#   cd $INC && $SBL /tmp/tlump_probe.sno 2>/dev/null
+#   # Key probe: P3 — does NULL *IDENT(n(leaf0)) go S or F in SPITBOL?
+#   # If F: our IDENT/pattern eval is wrong for NULVCL-as-pattern
+#   # Fix site: interp_eval *expr (E_UNEVALUATED?) pattern match path in scrip.c
+#
+# STEP 2 — After oracle confirms F: find where *expr result is used as pattern
+#   grep -n "E_UNEVALUATED\|NULVCL.*pat\|pat.*NULVCL\|uneval" src/driver/scrip.c
+#   The fix: when *expr result is NULVCL (function success, not a string),
+#   treat as pattern match FAIL (not match empty string)
+#
+# STEP 3 — BP-2 (Gen infinite loop): null DT_E → ARBNO
+#   SNO_LIB=$INC timeout 3 ./scrip --ir-run corpus/programs/snobol4/beauty/beauty_Gen_driver.sno 2>&1 | head -20
+#
+# Gate: beauty suite 19/19 → B-3 self-hosting
+```
