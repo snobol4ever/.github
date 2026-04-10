@@ -37169,3 +37169,46 @@ Added prerequisite comment to `run_monitor_2way.sh` instead:
   `cd /home/claude/x64 && make bootsbl`  (takes seconds, needs nasm+gcc)
 
 one4all HEAD: `be0e8c85`  x64 HEAD: `4df1cc3`
+
+---
+
+## SSB-4 — 2026-04-10 — M-SS-BLOCK-BACKWARD watermark 10713→10612
+
+**Session:** M-SS-BLOCK-BACKWARD (SSB-4)
+**HEAD at close:** one4all `09107beb`
+**Watermark advanced:** 10713 → 10612
+
+### Blocks verified (backward) — 22 bugs fixed
+
+Clean: LLIST(10712), LISTCL/LENFCL/INICOM/HIDECL(10708–11), TIMECL–FNVLCL×10(10695–707),
+ARTHCL/RSTAT/SCNCL/WSTAT(10691–94), RIDTP–VVDTP(10679–89), ATDTP–PVDTP(10671–78)
+
+Bugs fixed:
+- UNITI=1→5, UNITO=2→6, UNITP=7, UNITT=8 added (wrong in data.h)
+- OUTPUT: 1→2 slots; TERMIN: 1→2 slots
+- PUNCH/INPUT/DFLSIZ: .a fields were 0, now correct unit numbers
+- PCHFST/OTSATL/INSATL/INLIST/OTLIST: missing entirely — all added
+- TRLIST: missing 2-slot block; VALTRS: missing 3-slot block
+- TRCBLK[0].a self-ref was 0; LIT1CL: 1→4 slots
+- ATRHD/ATPRCL/ATEXCL: all missing, all added
+- TFNCLP: extern-only→2-slot; TFNRLP: extern-only→14-slot
+- Ripple: D_A(TVALL[0]/TKEYL[0]/TLABL[0]) across 6 files; TFNCLP[0]/TFNRLP[0]/VALTRS[0] in trace.c
+
+### Rules established
+- Self-ref table headers need .a=self AND .v=body-size in data_init
+- Multi-slot SIL blocks → C arrays; all D_A(X)/MOVD(dst,X) callers need [0]
+- Unit numbers: UNITI=5 UNITO=6 UNITP=7 UNITT=8 (from oracle include/units.h)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -Isrc/silly 2>&1 | grep "error:"
+# HEAD: one4all 09107beb · BWD watermark 10612 · next: line 10611 and below
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10612' | tail -5
+```

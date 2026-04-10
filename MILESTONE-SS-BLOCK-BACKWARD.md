@@ -45,6 +45,30 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 | Block | Line | Result |
 |-------|------|--------|
+| OTLIST | 10617 | 🐛 fixed — missing entirely (self-ref TTL header) |
+| INLIST | 10612 | 🐛 fixed — missing entirely (self-ref TTL header) [PLB36] |
+| OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
+| OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
+| PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
+| PCHFST | 10626 | 🐛 fixed — missing entirely |
+| INSATL | 10627 | 🐛 fixed — missing entirely (self-ref TTL header) |
+| INPUT | 10628 | 🐛 fixed — .a was 0, now D(UNITI,0,I) |
+| DFLSIZ | 10629 | 🐛 fixed — .a was 0, now D(VLRECL,0,I) |
+| TERMIN | 10630 | 🐛 fixed — 1-slot→2-slot; slot[1]=VLRECL,0,I |
+| TRLIST | 10633 | 🐛 fixed — missing entirely (2-slot self-ref+TVALL) |
+| VALTRS | 10635 | 🐛 fixed — missing entirely (3-slot block) |
+| TFNCLP | 10638 | 🐛 fixed — extern-only→2-slot array; both .a wired |
+| TFNRLP | 10640 | 🐛 fixed — extern-only→14-slot array; all .a wired |
+| TRCBLK | 10656 | 🐛 fixed — slot[0].a self-ref was 0 |
+| LIT1CL | 10658 | 🐛 fixed — 1-slot→4-slot; .a[0],[2]=P2A(&LITFN) |
+| ATRHD | 10663 | 🐛 fixed — missing entirely |
+| ATPRCL | 10664 | 🐛 fixed — missing entirely (3-slot block) |
+| ATEXCL | 10667 | 🐛 fixed — missing entirely |
+| ATDTP/IIDTP–PVDTP | 10671–10678 | ✅ clean |
+| RIDTP–VVDTP/ARTHCL/RSTAT/SCNCL/WSTAT | 10679–10694 | ✅ clean |
+| TIMECL–FNVLCL cluster (10 blocks) | 10695–10707 | ✅ clean |
+| HIDECL/INICOM/LENFCL/LISTCL | 10708–10711 | ✅ clean |
+| LLIST | 10712 | ✅ clean |
 | NAMGCL/NERRCL/SCERCL/SPITCL/STATCL | 10713–10717 | ✅ clean |
 | BLOKCL | 10719 | 🐛 fixed — missing entirely, added D(0,0,I) + extern [PLB117] |
 | CHARCL/ARBSIZ | 10724–10725 | ✅ clean |
@@ -94,4 +118,4 @@ cd /home/claude/one4all && git pull --rebase
 
 Backward sessions use **SSB-N** series (SSB-1, SSB-2, SSB-3, SSB-4, ...) to avoid
 collision with Forward sessions (SS-47, SS-48, SS-49, SS-50, SS-51, ...).
-Next backward session: **SSB-4**.
+Next backward session: **SSB-5**.
