@@ -36220,125 +36220,58 @@ grep -n "do_BRKC\|do_ABNS\|do_ANYC\|do_NNYC\|do_SPNC" /home/claude/one4all/src/s
 
 ---
 
-## Session SSB-4 — M-SS-BLOCK-BACKWARD (2026-04-09)
+## Session SSF-52 — M-SS-BLOCK-FORWARD (2026-04-09)
 
 **Operator:** Claude Sonnet 4.6
-**HEAD at close:** one4all `c9b00402`
-**Milestone:** M-SS-BLOCK-BACKWARD — descending from watermark 11952 toward line 1
+**HEAD at start:** one4all `9eef60ae` · **HEAD at end:** one4all `78cf5ca2`
+**Milestone:** M-SS-BLOCK-FORWARD
 
-### Watermark movement
-- **Start:** 11952 (OUTPSP ✅, carried from SS-45)
-- **End:** 11399 (INITLS ✅)
+### Watermark: 3662 → 4203 (ENMI complete). Next: SUCE (line 4204).
 
-### Bugs fixed (2)
-- **BUG-CSP** (line 11797): `CSP STRING 'C'` missing from data.c/data.h; spurious `VESP[]` (phantom, unused) removed
-- **BUG-INITLS** (line 11399): INITLS block never initialized — stayed D0; BEGIN loop uses it to walk 8 sublists; fixed: 8-slot arena alloc in init_syntab(), all 8 ptrs filled
+### Blocks verified
 
-### Clean blocks verified
-CRDFSP, F1SP–F28SP, NOBLSP/BKGNSP/BLKSSP, THAWSP–VDIFSP, ABNDSP–ENDSP,
-ENDAFN–VLTRFN (13 interp fn-nodes), ANYCFN–SUCFFN (37 pattern fn-nodes),
-CMAFN/BASEFN/AREFN/OPTBND/STRFN, SLHFN–DOTFN, ADDFN–OPTBL
-
-### Next session — start here
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
-cd /home/claude/one4all && git pull --rebase
-# HEAD: one4all c9b00402
-# BWD watermark: 11399 (INITLS ✅). Next block:
-grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
-    | awk -F: '$1<11399{print}' | tail -3
-# → FTBLND (11397) then F28FN (11394) etc.
-```
-
-## Session SSB-5 — M-SS-BLOCK-BACKWARD (2026-04-09)
-
-**Operator:** Claude Sonnet 4.6
-**HEAD at start:** one4all `c9b00402`
-**HEAD at close:** one4all `4940be20`
-**Milestone:** M-SS-BLOCK-BACKWARD — descending from watermark 11399 toward line 1
-
-### Watermark movement
-- **Start:** 11399 (INITLS ✅, carried from SSB-4)
-- **End:** 11132 (GCBLK cluster ✅)
-
-### Bugs fixed (5)
-- **BUG-GCXTTL-MISSING** (11155): GCBLK.A was D0 (→ arena base). Allocated 2-DESCR TTL buffer in `init_syntab()`; set `GCBLK.a.i = gcxttl_off`. GCM string-marking now points at a valid buffer.
-- **BUG-XSTNO-PHANTOM**: `XSTNO` in platform.c had no SIL origin and was never used — removed.
-- **BUG-GCGOT-TYPE** (11136): `GCGOT = D0` should be `D(0,0,I)` — SIL says `DESCR 0,0,I`. Fixed in data.c.
-- **BUG-PRMPTR-UNWIRED** (11143): `PRMPTR.a.i` never set to `P2A(PRMTBL)`. GC root walk used address 0 (arena base) — critical. Fixed in `init_syntab()`.
-- **BUG-TWOCL-MISSING** (11149): `TWOCL` declared in data.h but never defined. Added `D(2*8, 0, B)` in data.c.
-
-### Clean blocks verified (N/A)
-- FTBLND (11397): pure LHERE — no C equivalent
-- F1FN–F28FN (11340–11394): inside `.IF BLOCKS` conditional — not assembled
-- All FTABLE fn-pair DESCRs (11183–11337): csnobol4 static `res` struct only; Silly uses dynamic FINDEX
-- FATAL (11171): matches FATLCL D0 design
-- XLSTNC (11167): dead variable, never referenced in generated code
-
-### Deferred (cosmetic / stub)
-- LSTPTR/BKPTR/ST1PTR/ST2PTR/TEMPCL initial F=PTR,V=S — overwritten on first use, no runtime impact
-- FRDSCL (4*DESCR size constant) — only used in stubbed RSORT, not a runtime bug yet
-- EQUVCL — translated inline as local variable in arena.c, functionally correct
+| Block | SIL Lines | Result |
+|-------|-----------|--------|
+| BRKC/BRKX/NNYC/SPNC/ANYC | 3663–3680 | ✅ clean |
+| ABNS…ANYC7 | 3682–3742 | 🔧 BUG-STREAM-EOS: stream_fn returned 0 for EOS; should →SALT. Fixed: returns -1 |
+| BRKXF | 3743–3756 | 🔧 BUG-BRKXF-SLOT: GETDC slot DESCR→2*DESCR; BUG-BRKXF-CHKVAL: >→>= |
+| SPNV/SPNC3 | 3758–3772 | ✅ clean |
+| LNTH/LPRRT…TBI stubs | 3778–3856 | 🔧 BUG-RPSII: TSALT/TSALF swapped in RPOS |
+| ARBN/ARBF/EARB/ONAR | 3859–3883 | ✅ clean |
+| ONAR2 | 3885 | 🔧 BUG-ONAR2: LENFCL inversion (==0→TSALT was !=0→TSALT) |
+| ONRF/FARB | 3888–3909 | ✅ clean |
+| FARB2 | 3898 | 🔧 BUG-FARB2: LENFCL inversion |
+| FARB1/ATP/BAL/BALF | 3911–3975 | ✅ clean |
+| CHR | 3981 | 🔧 BUG-CHR-ADDLG: sp_addlg used YPTR.a (arena addr) not TSP.l |
+| STAR/STARP3 | 3997 | 🔧 BUG-STAR-STARP3: LENFCL inversion in fail path |
+| DSAR | 4044 | 🔧 BUG-DSAR-DISPATCH: unknown type→STARP3 not SCDTER; BUG-DSAR-STARP3: LENFCL inversion |
+| FNCE | 4067 | 🔧 BUG-FNCE-OVERFLOW: >=→> |
+| NME/FNME | 4086 | 🔧 BUG-NME-OVERFLOW: >=→>; BUG-FNME: LENFCL inversion |
+| ENME/ENME3 | 4105 | 🔧 BUG-ENME3-OVERFLOW: >=→> |
+| DNME/DNME1 | 4138 | ✅ clean |
+| ENMI | 4148 | 🔧 BUG-ENMI-TRAPCL: <=0→>0; BUG-ENMI2-SLOT1: DNMECL→DNMICL |
 
 ### Commits
-- `cd3a2c7d` GCXTTL/XSTNO: allocate GCXTTL buffer; wire GCBLK.A; remove phantom XSTNO
-- `4940be20` GCBLK-TLSGP1: fix GCGOT; add PRMPTR.a=P2A(PRMTBL); define TWOCL
+- `85636034` ABNS stream_fn EOS + BRKC–ANYC clean
+- `a245b38e` BRKXF slot + CHKVAL
+- `c4911186` SPNV clean
+- `15e8c306` RPSII swap
+- `73f9aeb0` ONAR2 + FARB2 LENFCL
+- `b863d500` CHR ADDLG + STAR STARP3
+- `47eeaa7a` DSAR/FNCE/NME/FNME/ENME3
+- `78cf5ca2` ENMI TRAPCL + DNMICL slot1
 
-### Next session — start here
+### Next session (SSF-53) — start here
+
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/SESSION-silly-snobol4.md
-cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 cd /home/claude/one4all && git pull --rebase
-# HEAD: one4all 4940be20
-# BWD watermark: 11132 (GCBLK cluster ✅). Next block:
-grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil \
-    | awk -F: '$1<11132{print}' | tail -3
-# → BUKPTR (11112), then specifier cluster DPSP–ZSP (11097–11107)
-sed -n '11095,11132p' /home/claude/work/snobol4-2.3.3/v311.sil
-grep -n "BUKPTR\|DPSP\|HEADSP\|IOSP\|TAILSP\|TEXTSP\|TSP\|TXSP\|VSP\|XSP\|YSP\|ZSP" \
-    /home/claude/one4all/src/silly/data.c /home/claude/one4all/src/silly/platform.c
-```
-
-## Session 2026-04-09l — D-196: BUG-NET-186 fully fixed (Lon + Claude Sonnet 4.6)
-
-**HEAD at start:** snobol4dotnet `08135f6` · **HEAD at end:** snobol4dotnet `6889258`
-
-### Root cause found and fixed
-
-**The contamination path for V-stuck-at-'apple':**
-
-`A<K+1> = V :(BS1)` — the array-write branch of `Assign` did:
-```csharp
-rightVar.Key = leftVar.Key;
-rightVar.Collection = leftVar.Collection;
-arrayVar.Data[k+1] = rightVar;
-```
-When rightVar came from `PushVar(slotV)` (i.e. V's own VarSlotArray slot Var), mutating `rightVar.Key` and `rightVar.Collection` in-place also mutated V's slot object. Next iteration: `PushVar(slotV)` returned the now-contaminated Var (Collection=arrayVar, Key=k+1). `Assign`'s `switch(leftVar.Collection)` routed to array branch → `V = A<J>` wrote into the array instead of updating V's scalar slot.
-
-**Fix (AssignReplace =.cs):** Clone rightVar before setting Key/Collection in both the `ArrayVar` and `TableVar` cases. The clone goes into `Data[]`; the original (and any slot pointing to it) is untouched.
-
-### Baseline at end
-- **2134p / 0f / 2s** — both bsort tests pass, zero failures
-- HEAD snobol4dotnet `6889258`
-- 2 skipped: TEST_Corpus_control_expr_eval, TEST_Corpus_099_keyword_rw
-
-### Next session (D-197) — start here
-
-```bash
-tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
-grep "^## " /home/claude/.github/GENERAL-RULES.md
-cat /home/claude/.github/PLAN.md
-cd /home/claude/snobol4dotnet && git pull --rebase
-export PATH=/usr/bin:$PATH
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
-# Confirm 2134p/0f/2s. HEAD 6889258. Sprint D-197.
-# Next: investigate the 2 skipped tests and find new coverage gaps.
-# grep -r "Ignore\|xfail\|Skip" TestSnobol4/ --include="*.cs" | grep -v bin | head -20
+# HEAD: one4all 78cf5ca2
+# Watermark: v311.sil line 4203 (ENMI complete)
+# Next block: SUCE (line 4204)
+grep -n "^SUCE\b" /home/claude/work/snobol4-2.3.3/v311.sil
 ```
