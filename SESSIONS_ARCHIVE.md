@@ -37143,3 +37143,29 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #           all produce SPITBOL-correct results with ordinal comparison
 # Then: continue coverage gap hunting
 ```
+
+---
+
+## Session 2026-04-10 — CORRECTION: x64 bootsbl revert
+
+Force-committed `bootsbl` binary to x64 repo in previous session — **wrong**.
+Build artifacts belong in .gitignore; the source is already in the repo.
+
+Reverted: x64 `4df1cc3` removes the binary.
+Added prerequisite comment to `run_monitor_2way.sh` instead:
+  `cd /home/claude/x64 && make bootsbl`  (takes seconds, needs nasm+gcc)
+
+one4all HEAD: `be0e8c85`  x64 HEAD: `4df1cc3`
+
+---
+
+## Session 2026-04-10 — CORRECTION: x64 bootsbl revert
+
+Force-committed `bootsbl` binary to x64 repo in previous handoff — **wrong**.
+Build artifacts belong in .gitignore; source is already in the repo.
+
+Reverted: x64 `4df1cc3` removes the binary.
+Added prerequisite comment to `run_monitor_2way.sh` instead:
+  `cd /home/claude/x64 && make bootsbl`  (takes seconds, needs nasm+gcc)
+
+one4all HEAD: `be0e8c85`  x64 HEAD: `4df1cc3`
