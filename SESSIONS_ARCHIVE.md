@@ -36472,3 +36472,66 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #            crosscheck/strings/cross.sno (check if covered)
 #            crosscheck/output/ audit (8 programs vs 8 tests — verify exact match)
 ```
+
+---
+
+## Session 2026-04-09k — SNOBOL4 × x86: BEAUTY-PREREQS BP-1 + IDENT/DIFFER/concat (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `bea4045f` · **HEAD at end:** one4all `8a437433`
+**Milestone:** MILESTONE-SN4X86-BEAUTY-PREREQS — beauty suite 10/19 → 14/19
+
+### Work completed
+
+**BP-1: DATA field `.field(x)` → NAMEPTR (`8200be31`)**
+- Added `data_field_ptr(fname, inst)` helper: walks `inst.u->type->fields[]` with `strcasecmp`, returns `&inst.u->fields[i]`
+- Patched `E_NAME` case: intercepts `child->kind == E_FNC` with one child before generic `NAME_fn()` fallback; evaluates arg, calls `data_field_ptr`, returns `NAMEPTR(cell)`
+- Removed `E_FNC` from the generic `NAME_fn()` branch (prevents spurious name-table lookup)
+- **beauty_stack** ✅ now passes
+
+**IDENT/DIFFER strict semantics + null-concat identity (`71bfdbeb` → `8a437433`)**
+
+Root cause chain: `DIFFER($'#N') value($'#N')` in counter.sno — `DIFFER` returns NULVCL, then `NULVCL CONCAT INTEGER(3)` was coercing to `STRING('3')`. `IDENT(TopCounter(), 3)` then failed because our runtime compared strings not types+values.
+
+Three fixes from SPITBOL manual (spitbol-manual-v3.7.pdf):
+1. **Null-concat identity**: when LHS is `DT_SNUL` (true null), return RHS unchanged — preserves INTEGER/DATA type through `DIFFER(x) expr` patterns. Condition narrowed to `DT_SNUL` only (not `IS_NULL_fn` which also matches `DT_S("")` and broke 167 corpus tests).
+2. **IDENT strict**: same data type AND same value. `IDENT(3,'3')` FAILS. Null normalization: `DT_SNUL` and `DT_S("")` treated as equal null for comparison.
+3. **DIFFER strict**: exact opposite of IDENT. 1-arg: succeeds (NULVCL) if non-null. 2-arg: succeeds (NULVCL) if differ in type OR value.
+
+**beauty suite:** 10/19 → **14/19** · **PASS=172/203 held**
+
+New passes: stack, counter, ShiftReduce, semantic, assign (5 drivers)
+
+**Remaining failures (5):**
+- Gen, Qize, XDump — BP-2: null DT_E upstream → ARBNO infinite loop
+- TDump — likely another DATA field path (BP-1 adjacent)
+- omega — BP-4: DATATYPE returns STRING instead of PATTERN
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY-PREREQS.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "PASS="
+# HEAD: one4all 8a437433 · PASS=172/203 · beauty suite 14/19
+#
+# TDump FIRST (likely BP-1 adjacent, quick win):
+#   SNO_LIB=.../inc ./scrip --ir-run beauty_TDump_driver.sno 2>/dev/null
+#   TLump uses tree fields — check if .field(x) path works for tree DATA type
+#   May need multi-child E_FNC in E_NAME (current fix only handles nchildren==1)
+#
+# BP-2 NEXT: null DT_E → Gen/Qize/XDump infinite loop
+#   Add fprintf in pat_to_patnd at !frozen guard (already prescribed in milestone)
+#   SNO_LIB=.../inc timeout 3 ./scrip --ir-run beauty_Gen_driver.sno 2>&1 | grep "pat_to_patnd"
+#   Find which interp_eval path emits {DT_E, NULL} → fix to return NULVCL
+#
+# BP-4 LAST: omega DATATYPE PATTERN vs STRING
+#   SNO_LIB=.../inc ./scrip --ir-run beauty_omega_driver.sno 2>/dev/null
+#   Trace DATATYPE() call on pattern value — likely VARVAL coercion stripping DT_P
+#
+# Gate: PASS=19/19 → proceed to MILESTONE-SN4X86-BEAUTY.md B-3 (beauty self-hosting)
+```
