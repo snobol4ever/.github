@@ -36687,3 +36687,34 @@ cd /home/claude/one4all && git pull --rebase
 # Next block: grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10713' | tail -5
 # Continue down through §24 data blocks
 ```
+
+---
+
+## Session D-200 — snobol4dotnet coverage (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** `aa8c873` (2200p/4s) · **HEAD at end:** `c696848` (2211p/4s) · **+11**
+
+### Commits
+| Commit | File | Tests | Total |
+|--------|------|-------|-------|
+| `649df45` | BUG-NET-SORT analysis (no test change) | 0 | 2200p/4s |
+| `71a4a9d` | CorpusRef_PatternControl NEW: BAL/FENCE/ABORT/SUCCEED | +8 | 2208p |
+| `c696848` | CorpusRef_Data: FIELD + DATA roundtrip + PROTOTYPE | +3 | 2211p |
+
+### BUG-NET-SORT clarified
+1D SORT is structural no-op in current impl (all elements go in one matrix row).
+Fix breaks TEST_Sort004 which expects 1D SORT to be a no-op per its oracle.
+Needs spec decision from Jeff before fixing. Inconclusive markers remain.
+
+### Next session (D-201) — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: c696848 · 2211p/0f/4s
+# Next: audit TestCommandLine / TestGoto / TestParser / TestPredicate for corpus gaps
+# Then: &FULLSCAN, &TRIM, &MAXLNGTH keyword-assignment corpus tests
+```
