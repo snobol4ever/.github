@@ -37100,3 +37100,46 @@ cd /home/claude/one4all && git pull --rebase
 
 # Gate: all 5 beauty drivers PASS under run_monitor_2way.sh → beauty 19/19 → B-3
 ```
+
+---
+
+## Session D-202 — BUG-NET-SORT fix + StringComparison ordinal (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** `04d9b04` (2218p) · **HEAD at end:** `269d5f9` (2220p) · **+2 net (+4 skip→pass)**
+
+### Root cause analysis (from spitbol-docs-master manual)
+SPITBOL manual §SORT: "sort one column of an array... if omitted, defaults to smallest column number."
+For 1D vectors, the second arg defaults to column 1 — sort IS performed, it is NOT a no-op.
+String comparison: SPITBOL uses byte-order (ordinal), not culture-aware comparison.
+
+### Fixes
+1. **BaseSort.cs** — 1D arrays: each element becomes its own row (N rows × 1 col).
+   Previously: all N elements in one row → sort had nothing to compare → no-op.
+2. **StringComparisonStrategy.cs** — `CultureInfo.CurrentCulture` → `StringComparison.Ordinal`
+   (normalized to -1/0/1). Culture-aware comparison reorders uppercase vs lowercase
+   differently from SPITBOL's byte-order sort.
+
+### Test changes
+- `CorpusRef_Math.cs`: SORT/RSORT tests activated (was `Inconclusive`) → now **PASS**
+- `Sort.cs TEST_Sort004`: rewritten to test 1D string sort with SPITBOL oracle
+- `Sort001`/`ReverseSort001`: expected values updated to SPITBOL ordinal sort oracle
+
+### Important note for D-203
+The `StringComparisonStrategy` change affects **all** string comparisons (LGT, LLT, LEQ, LNE,
+and any other lexical operations). The LGT/LLT/LEQ/LNE corpus tests we added in D-199
+still pass — good sign. But audit the full `Function/StringComparison/` test suite to
+confirm all expected values are ordinal-correct.
+
+### Next session (D-203) — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 269d5f9 · 2220p/0f/2s
+# Priority: audit Function/StringComparison/ tests — verify LGT/LLT/LEQ/LNE
+#           all produce SPITBOL-correct results with ordinal comparison
+# Then: continue coverage gap hunting
+```
