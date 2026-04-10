@@ -36602,3 +36602,45 @@ INTERP=./scrip CORPUS=/home/claude/corpus bash test/run_interp_broad.sh | grep "
 #
 # Gate: beauty suite 19/19 → B-3 self-hosting
 ```
+
+---
+
+## Session D-198/D-199 — snobol4dotnet corpus coverage (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `da168d6` (2169p) · **HEAD at end:** snobol4dotnet `aa8c873` (2200p)
+**Final: 2200p / 0f / 4 skipped (+31 this block, +66 total from D-197)**
+
+### Commits
+
+| Commit | File | Tests | Total |
+|--------|------|-------|-------|
+| `8138eb9` | CorpusRef_Feat: f20_alphabet_size_256 | +1 | 2170p |
+| `87e4b60` | CorpusRef_LibCase NEW: lwr/upr/cap/icase | +8 | 2178p |
+| `90f74ef` | Rung2_Indirect: 213_indirect_name | +1 | 2179p |
+| `cddee28` | CorpusRef_Builtins NEW: VALUE/CLEAR/COLLECT/CHAR | +11 | 2190p |
+| `aa8c873` | CorpusRef_Math NEW: SQRT/EXP/LN/SIN/COS/TAN/ATAN/LGE/LLE + BUG-NET-SORT | +10/+2skip | 2200p/4s |
+
+### BUG-NET-SORT discovered
+`SORT`/`RSORT` builtins produce incorrect/truncated results for **1D arrays**.
+Working unit tests (Function/ArraysTables/Sort.cs) all use 2D arrays — explains why the bug was undetected.
+`CorpusRef_Math.cs` marks SORT/RSORT tests as `Inconclusive` to track without failing.
+Root cause: `BaseSort` constructs matrix then copies to new `ArrayVar` — off-by-one in 1D case.
+
+### Next session (D-200) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -5
+# HEAD: aa8c873 · Baseline: 2200p/0f/4s
+# Priority 1: Fix BUG-NET-SORT in BaseSort.cs for 1D arrays
+#   — unit tests in Function/ArraysTables/Sort.cs all use 2D; write 1D test first
+#   — fix: BaseSort matrix construction for Dimensions==1 case
+#   — gate: TEST_Math_sort_array_ascending + TEST_Math_rsort_array_descending → Passed
+# Priority 2: More coverage gaps — Function/ dirs not yet hit by corpus tests
+```
