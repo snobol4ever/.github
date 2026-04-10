@@ -36919,6 +36919,45 @@ STOPTR/STOPT2/STOPT1/STOPTF/STOPTP · FENTR/FENTR3/FNTRLP/DEFTIA-DEFTV/FENTR4-5/
 CNVRT and all sub-blocks (6457–6675) — unreachable while `CNVRT_fn` stubs. Implement together when CONVERT is built.
 
 ### Next session — start here
+## Session D-201 — snobol4dotnet corpus coverage (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** `c696848` (2211p) · **HEAD at end:** `04d9b04` (2218p) · **+7**
+
+### Commits
+| Commit | File | Tests | Total |
+|--------|------|-------|-------|
+| `99b6431` | CorpusRef_Keywords: &FNCLEVEL/&RTNTYPE/&FULLSCAN/&MAXLNGTH | +4 | 2215p |
+| `04d9b04` | CorpusRef_Keywords: DATE()/TIME()/&LASTNO | +3 | 2218p |
+
+### Session summary (D-197 through D-201)
+Started at **2134p/0f/2s**, ended at **2218p/0f/4s** — **+84 tests** across this session block.
+
+| File created/modified | Tests added |
+|----------------------|-------------|
+| CorpusRef_Patterns.cs | +18 (039–057 all pattern primitives) |
+| CorpusRef_Keywords.cs | +13 (077–081, lexical compare, &FNCLEVEL/&RTNTYPE/&FULLSCAN/&MAXLNGTH, DATE/TIME/&LASTNO) |
+| CorpusRef_Strings.cs | +11 (065–075 canonical builtins) |
+| CorpusRef_LibCase.cs NEW | +8 (lwr/upr/cap/icase) |
+| CorpusRef_Builtins.cs NEW | +11 (VALUE/CLEAR/COLLECT/CHAR) |
+| CorpusRef_Math.cs NEW | +10 +2skip (SQRT/EXP/LN/SIN/COS/TAN/ATAN/LGE/LLE + BUG-NET-SORT) |
+| CorpusRef_PatternControl.cs NEW | +8 (BAL/FENCE/ABORT/SUCCEED) |
+| CorpusRef_Data.cs | +3 (FIELD/roundtrip/PROTOTYPE) |
+| CorpusRef_Feat.cs | +1 (f20_alphabet_size_256) |
+| Rung2_Indirect.cs | +1 (213_indirect_name) |
+
+### 4 skipped tests
+- `TEST_Corpus_control_expr_eval` — M-NET-EVAL-COMPLETE (NRETURN+EVAL recursion)
+- `TEST_Corpus_099_keyword_rw` — M-NET-PAT-PRIMITIVES (&ANCHOR string coercion error 208)
+- `TEST_Math_sort_array_ascending` — BUG-NET-SORT: 1D SORT is no-op
+- `TEST_Math_rsort_array_descending` — BUG-NET-SORT: 1D RSORT is no-op
+
+### BUG-NET-SORT — needs Jeff decision
+`BaseSort` puts all 1D array elements in one matrix row → sort has nothing to compare.
+Fix (make each element its own row) breaks `TEST_Sort004` which expects 1D SORT to be a no-op.
+**Question for Jeff:** Should `SORT(1D_array, 1)` actually sort the vector, or is it undefined?
+
+### Next session (D-202) — start here
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
 grep "^## " /home/claude/.github/GENERAL-RULES.md
@@ -36930,4 +36969,11 @@ cd /home/claude/one4all && git pull --rebase
 # grep -n "^DUPL\b" /home/claude/work/snobol4-2.3.3/v311.sil
 # sed -n '6784,ENDP' /home/claude/work/snobol4-2.3.3/v311.sil
 # grep -n "^DUPL(" /home/claude/work/snobol4-2.3.3/snobol4.c
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 04d9b04 · Baseline: 2218p/0f/4s
+# If Jeff resolves BUG-NET-SORT: fix BaseSort + activate 2 Inconclusive tests → 2220p
+# Otherwise: look at &ABEND corpus test + DETACH no-crash + more SimpleOutput gaps
 ```
