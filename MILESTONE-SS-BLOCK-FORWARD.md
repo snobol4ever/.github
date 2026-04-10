@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **5469**  
-**Next block:** TRACE (line 5470)
+**Current watermark:** v311.sil line **5480**  
+**Next block:** TRAC5 (line 5481)
 
 ---
 
