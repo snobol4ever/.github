@@ -36992,3 +36992,38 @@ Code fixes from SSF-51 that are correct and should be kept:
 - STOPTR: MOVD(YPTR,XPTR) deletion (commit 2e151027)
 - FNTRLP: GETDC source fix + STRING quotes (commit 4e0628d0)
 - ARG/LOCAL/FIELDS implementation + CLEAR PCOMP fix (commit ceedbc74)
+
+---
+
+## Session 2026-04-10 — SSF-51 HANDOFF (Claude Sonnet 4.6)
+
+**one4all HEAD:** `ceedbc74`
+**HQ HEAD:** `300c45f`
+**Watermark:** 5513 (rolled back from 6783)
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+```
+
+**First block: TRAC3 (v311.sil line 5514)**
+
+```bash
+SIL=/home/claude/work/snobol4-2.3.3/v311.sil
+# Find TRAC3 block end (next label after 5514):
+grep -n "^[A-Z][A-Z0-9]*\b" $SIL | awk -F: '$1>5514' | head -1
+# Extract block:
+sed -n '5514,ENDLINEp' $SIL
+# Oracle:
+grep -n "^TRAC3(" /home/claude/work/snobol4-2.3.3/snobol4.c
+# Ours:
+grep -n "TRAC3\|trac3" /home/claude/one4all/src/silly/trace.c
+```
+
+**RULE: one labeled block = one focused read = one commit. No batching. No bundling.**
