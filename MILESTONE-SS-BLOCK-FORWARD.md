@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **5634**  
-**Next block:** KEYTR (line 5635)
+**Current watermark:** v311.sil line **5831**  
+**Next block:** ASGN (line 5832)
 
 ---
 
