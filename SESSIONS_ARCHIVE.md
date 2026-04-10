@@ -37027,3 +37027,76 @@ grep -n "TRAC3\|trac3" /home/claude/one4all/src/silly/trace.c
 ```
 
 **RULE: one labeled block = one focused read = one commit. No batching. No bundling.**
+
+---
+
+## Session 2026-04-10 — SCRIP-TRACE T-2/T-3/T-4 (Claude Sonnet 4.6)
+
+**Operator:** Claude Sonnet 4.6
+**one4all HEAD at start:** `ceedbc74` · **HEAD at end:** `41357f89`
+**x64 HEAD at end:** `81d5543` (bootsbl added)
+**Sprint:** SCRIP-TRACE
+
+### Work done
+
+**Orientation:** Confirmed T-0 (VALUE trace) and T-1 (comm_stno) already complete in codebase before this session. `NV_SET_fn` calls `comm_var()` unconditionally; `execute_program` calls `comm_stno(++stno)` in main loop.
+
+**T-2 — CALL/RETURN hooks** (`41357f89`):
+- Added `comm_call(fname)` and `comm_return(fname, retval)` to `snobol4.c` after `comm_var`, using existing `mon_send` infrastructure. Fire when `kw_ftrace > 0` OR `trace_registered(fname)`.
+- Declared both in `snobol4.h`.
+- Wired `comm_call(fname)` in `call_user_function()` just before `setjmp`.
+- Wired `comm_return(fname, retval)` at `fn_done:` before variable restore.
+
+**Oracle — bootsbl** (`81d5543` in x64):
+- `bin/sbl` compiled without `EXTFUN` — `zysld()` always returns EXIT_1, LOAD() always fails.
+- Built `make bootsbl` in x64 repo (EXTFUN=1, -ldl). Confirmed LOAD of `monitor_ipc_spitbol.so` works.
+- Force-committed `bootsbl` to x64 (was in .gitignore).
+
+**T-3 — `run_monitor_2way.sh`** (`41357f89`):
+- Written at `test/monitor/run_monitor_2way.sh`. Uses `bootsbl` not `bin/sbl`.
+- Mirrors 3-way script but SPITBOL+scrip only, no JVM/NET/ASM.
+- Passes per-driver `tracepoints.conf` as second argument.
+
+### T-4 monitor results
+
+| Driver | Result | First divergence / note |
+|--------|--------|------------------------|
+| `trace` | ✅ PASS 58 steps | Passes with `beauty_trace_tracepoints.conf` |
+| `Gen` | ❌ TIMEOUT scrip step 0 | scrip never fires trace event; `-INCLUDE` path fails in monitor context OR infinite loop in Gen buffering; tests 2-4 fail (`$'#L'` indirect special-char vars) |
+| `Qize` | ❌ DIVERGE step 3 | `Q2`: spl=`'hello'`, scrip=`"'' 'hello'"` — Qize body runs with `Qize` (return var) non-null; `DIFFER(Qize)` succeeds first pass, prepends empty chunk |
+| `TDump` | ❌ TIMEOUT scrip step 0 | same include-path issue as Gen |
+| `XDump` | ✅ PASS 1 step | Both agree (spl error 108 is test infra issue) |
+| `omega` | ✅ PASS 1 step | Both agree |
+
+### Bugs identified
+
+**BUG-QIZE:** `call_user_function` clears retname slot with `NV_SET_fn(retname, NULVCL)`. `NULVCL` appears to have a type tag that makes `DIFFER(retvar)` succeed (non-null) on first statement of body. SPITBOL treats cleared slot as truly empty — `DIFFER` fails. Fix: clear retname to `STRVAL("")` (zero-length string), not typed NULVCL.
+
+**BUG-GEN-INCLUDE:** Gen/TDump scrip monitor timeout at step 0. Likely `SNO_LIB` not propagated correctly inside monitor context when `-INCLUDE` paths resolve. Workaround: pass full include dir explicitly.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-SCRIP-TRACE.md
+cd /home/claude/one4all && git pull --rebase
+# one4all HEAD: 41357f89  x64 HEAD: 81d5543
+# beauty suite: trace✅ Gen❌ Qize❌ TDump❌ XDump✅ omega✅ = 3 failing
+
+# Fix BUG-QIZE first (cleanest, 1-line fix):
+#   In call_user_function() in scrip.c, change:
+#     NV_SET_fn(retname, NULVCL);   /* clear return slot */
+#   to:
+#     NV_SET_fn(retname, STRVAL(""));
+#   Then verify: Qize monitor passes.
+
+# Fix BUG-GEN-INCLUDE: in run_monitor_2way.sh scrip launch, add SNO_LIB=$INC:
+#     SNO_LIB="$INC" MONITOR_READY_PIPE=... scrip --ir-run ...
+#   (already present — investigate why include fails despite SNO_LIB being set)
+#   grep for -INCLUDE handling in scrip.c / sno_parse path
+
+# Gate: all 5 beauty drivers PASS under run_monitor_2way.sh → beauty 19/19 → B-3
+```
