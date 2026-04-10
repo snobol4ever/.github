@@ -47,6 +47,7 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 |-------|------|--------|
 | OTLIST | 10617 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | INLIST | 10612 | 🐛 fixed — missing entirely (self-ref TTL header) [PLB36] |
+| KVEND | 10610 | ✅ clean — LHERE sentinel, no C equivalent needed |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
 | PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
