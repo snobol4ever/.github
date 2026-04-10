@@ -119,7 +119,8 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 | one4all `43ac7934` | **M-SS-BLOCK-BACKWARD** — watermark 11112 (BUKPTR/LSTPTR done). Next: ARG1CL (line 11111). Both passes run independently to zero — no convergence target. |
+| SS-39 BWD | one4all `43ac7934` | **M-SS-BLOCK-BACKWARD** — watermark 11112 (BUKPTR/LSTPTR done). Next: ARG1CL (line 11111). |
+| SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — watermark 2606 (GOTLC done). Next: NAM (line 3223). |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 
