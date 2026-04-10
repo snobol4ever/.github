@@ -37,14 +37,7 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 ---
 
-## Watermark (update after each block — counts DOWN toward 1)
-
-**Current watermark:** v311.sil line **11112** (BUKPTR/LSTPTR verified ✅ — commit 3ebf18fa)  
-**Next block:** ARG1CL (line 11111)
-
-⚠️ **SSB-4 CORRECTION:** Milestone doc was stale at 12120 — 66 BWD commits had happened since.
-True watermark always derivable via: `git log --oneline | grep BWD | head -1` then look up that block's line in v311.sil.
-Persistent state also stored in `one4all/.ss-state/BACKWARD_WATERMARK.md`.
+⚠️ **Watermark lives in SESSION-silly-snobol4.md §NOW — one place only. Do not add it here.**
 
 ---
 
