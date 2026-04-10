@@ -36333,3 +36333,68 @@ make scrip
 #   data_field_ptr: inst.v>=DT_DATA → lookup field index → return &inst.u->fields[idx]
 #   Gate: beauty_stack_driver PASS 1-3
 ```
+
+---
+
+## Session 2026-04-09j — SNOBOL4 × x86: BP-0 &STLIMIT wired (Lon + Claude Sonnet 4.6)
+
+**HEAD at start:** one4all `4aab6512` · **HEAD at end:** one4all `bea4045f`
+**Milestone:** MILESTONE-SN4X86-BEAUTY-PREREQS BP-0 ✅
+
+### Work completed
+
+**BP-0: &STLIMIT / &STCOUNT fully wired in scrip.c execute_program**
+
+Root cause: `kw_stlimit`/`kw_stcount` were fully implemented in `snobol4.c`
+(NV_GET/NV_SET dispatch, `comm_stno()` incrementing and firing Error 22) but
+`execute_program` used hardcoded `step_limit = 10000000` and the `setjmp`
+handler treated Error 22 as a soft failure (`:F` branch) not a loop exit.
+
+Fix (bea4045f):
+- `execute_program`: removed `step_limit = 10000000`; `while (s)` unbounded
+- `setjmp` handler: `if (sno_err_is_terminal(_err)) break;` for Error 22
+- `call_user_function`: removed `step_limit = 5000000`; `while (s)` unbounded
+- `&STLIMIT = 1` terminates at statement 2 ✅
+
+**Beauty statement count investigation:**
+- `&STLIMIT = 100` → Error 22 at stmt 101 (init runs ~100 stmts)
+- `&STLIMIT = 1000..10000000` → **no Error 22, timeout** — the infinite loop
+  is inside `exec_stmt`/`ARBNO` pattern match, NOT at top-level statement
+  dispatch. `comm_stno` is only called from the top-level loop; inner pattern
+  matching spins without incrementing `kw_stcount`.
+- Beauty executes ~100 top-level statements then enters an ARBNO pattern loop
+  that never terminates (null DT_E epsilon issue — BP-2).
+
+**STLIMIT limitation noted:**
+BP-0 follow-up: `exec_stmt` / `ARBNO` inner loops do not call `comm_stno`.
+A future improvement would wire a step counter inside the pattern match engine.
+For now, `&STLIMIT` covers top-level statement dispatch correctly.
+
+**PASS=172/203 held.**
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cat /home/claude/.github/MILESTONE-SN4X86-BEAUTY-PREREQS.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+# HEAD: one4all bea4045f · PASS=172/203 · beauty suite 10/19
+#
+# BP-1 NEXT: DATA field .field(x) → NAMEPTR not NAMEVAL
+#   grep -n "case E_NAME" src/driver/scrip.c
+#   When child->kind==E_FNC && nchildren==1:
+#     inst = interp_eval(child->children[0])
+#     cell = data_field_ptr(child->sval, inst)  ← new helper needed
+#     if (cell) return NAMEPTR(cell)
+#   data_field_ptr: inst.v>=DT_DATA → lookup field idx → &inst.u->fields[idx]
+#   Gate: beauty_stack_driver PASS 1-3 (Top() returns 42)
+#
+# BP-2 NEXT (after BP-1): null DT_E upstream — add fprintf at !frozen guard
+#   Trace which interp_eval path produces {DT_E, NULL}
+#   STLIMIT won't catch it (inside exec_stmt) — use pat_cat fprintf instead
+#   Then: beauty self-hosting exits ARBNO loop
+```

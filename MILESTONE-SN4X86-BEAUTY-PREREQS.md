@@ -29,7 +29,7 @@ echo "--- PASS=$PASS FAIL=$FAIL"
 
 ## BP-0 — &STLIMIT / &STCOUNT wired in ir-run loop
 
-**Status:** ⬜
+**Status:** ✅ COMPLETE (bea4045f) — execute_program + call_user_function hardcoded limits removed; sno_err_is_terminal break wired
 **Priority:** FIRST — needed for all debugging of infinite loops
 
 `kw_stlimit` and `kw_stcount` are declared in `snobol4.h` and exist in `snobol4.c`
