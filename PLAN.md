@@ -123,7 +123,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `adec4a10` | **M-SS-BLOCK-FORWARD** (→12293): next EXPV4 line 2724 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-200 | snobol4dotnet `c696848` · **2211p/0f/4s** | D-201: DUMP corpus test + TestCommandLine/TestGoto/TestParser gap audit → ≥2212p |
+| **one4all-SNOBOL4-NET** | D-201 | snobol4dotnet `04d9b04` · **2218p/0f/4s** | D-202: BUG-NET-SORT spec clarification from Jeff (1D sort semantics) + explore &ABEND/DETACH corpus tests → ≥2219p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
