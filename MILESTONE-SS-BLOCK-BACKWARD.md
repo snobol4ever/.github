@@ -63,6 +63,22 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | ALPHVL | 10584 | ✅ clean — D0 correct |
 | STNOKY | 10583 | ✅ clean (covered by cluster fix) |
 | STNOCL/LNNOCL/FILENM | 10582 | 🐛 fixed — D0→D(0,0,I/I/S) missing type tags |
+| RETPCL | 10580 | ✅ clean — D(0,0,S) correct |
+| LSTNCL | 10578 | ✅ clean — D(0,0,I) correct |
+| FALCL | 10576 | ✅ clean |
+| FALKY | 10577 | ✅ clean (cluster fix) |
+| SUCPAT+PAT cluster | 10574 | 🐛 fixed — D0→D(0,0,P) on 7 PAT cells |
+| SUCCKY | 10575 | ✅ clean (cluster fix) |
+| REMPAT | 10572 | ✅ clean |
+| REMKY | 10573 | ✅ clean (cluster fix) |
+| LSLNCL | 10570 | ✅ clean |
+| LSFLNM | 10568 | ✅ clean |
+| LNNOCL | 10566 | ✅ clean (fixed earlier) |
+| FILENM | 10564 | ✅ clean (fixed earlier) |
+| FNCPAT–FAILKY cluster | 10558–63 | ✅ clean |
+| ARBPAT–BALKY | 10554–57 | ✅ clean |
+| ERRTXT | 10552 | ✅ clean |
+| ETXTKY | 10553 | 🐛 fixed — missing definition added |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
 | PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
