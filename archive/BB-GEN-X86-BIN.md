@@ -126,35 +126,6 @@ All ζ state and baked addresses live in a data section appended to the code in 
 
 ---
 
-## Inline-Blob ABI (M-DYN-B* Redo)
-
-```
-Buffer layout:
-  [0 .. CODE_END)   x86 code — position-independent via rel8/rel32 jumps
-  [CODE_END .. end) data — mutable state (n, done, fired...) + baked ptr slots (Σ/Δ/Ω/memcmp addrs)
-
-Entry convention:
-  rdi = buffer base (the fn ptr IS the buffer start — same address)
-  esi = 0 (α) or 1 (β)
-  r10, r11 = scratch (caller-saved — no push/pop needed)
-
-Prologue (10 bytes, shared by all stateful boxes):
-  49 89 FA          mov  r10, rdi        ; r10 = blob base
-  83 FE 00          cmp  esi, 0
-  74 dd             je   α
-  EB dd             jmp  β
-
-Data access pattern:
-  4D 8B 42 dd       mov  rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
-  8B 00             mov  eax, [rax]     ; deref to int (Δ, Ω, n...)
-  48 8B 00          mov  rax, [rax]     ; deref to ptr (Σ)
-  45 89 42 dd       mov  [r10+N], eax   ; write int back to data slot (state update)
-```
-
-FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes total.
-
----
-
 ## SPITBOL Pattern Storage Comparison Design (M-DYN-B-SPITBOL)
 
 ### What we are comparing
