@@ -65,6 +65,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 
 ## Rules
 
+- **⛔ CSNOBOL4 build required here only:** This is the only goal that may build the CSNOBOL4 executable (`./configure && make`). All other goals must skip that build entirely. See RULES.md.
 - Test gate passes before every commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
