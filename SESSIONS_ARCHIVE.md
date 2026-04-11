@@ -38902,3 +38902,11 @@ The previous entries wrongly deleted §NOW from all SESSION docs and from PLAN.m
 **The real fix to prevent recurrence:** At handoff, always update §NOW in the SESSION doc to match PLAN.md NOW table. A stale §NOW is caught by the §NOW STALENESS rule — SESSIONS_ARCHIVE handoff is authoritative when they differ.
 
 **No code changes.**
+
+## Session D-215 — G-11 HQ redesign captured (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+
+Lon directed a pivot: the NOW/milestone system is broken. New design: GOALS → TASKS (ordered) → MILESTONES (checkpoints only). Full spec in GRAND_MASTER_REORG_2.md under "HQ Redesign — GOALS → TASKS (G-11)". Next session: implement M-G11-DESIGN first — write GOALS.md and get Lon approval.
+
+**Prompt to use:** "grand master reorg"

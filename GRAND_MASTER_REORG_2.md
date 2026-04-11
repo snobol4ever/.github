@@ -408,3 +408,44 @@ harness/
 | **M-G10-HARNESS-MIGRATE** | Remove test scripts from `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/`. All tests run from harness only. | Full suite PASS via harness; no orphaned scripts |
 | **M-G10-HARNESS-LAYOUT** | Write `LAYOUT.md` describing all four methods, adapter convention, and grid. | Doc matches reality |
 
+
+---
+
+## HQ Redesign — GOALS → TASKS (G-11)
+
+**Triggered:** D-215, 2026-04-11, Lon Jones Cherryholmes
+**Problem:** The NOW concept has failed repeatedly for 3-4 weeks. Claude picks the wrong work because there is no principled ordering mechanism. SESSION §NOW blobs are freeform and go stale. "Milestones" are misnamed — they are actually goals with task lists.
+
+**New primitives:**
+
+| Term | Definition |
+|------|-----------|
+| **GOAL** | Lon specifies it when he thinks of it. Has a name, a repo/frontend/backend, and an ordered task list. |
+| **TASK** | One unit of work inside a goal. Tasks are strictly ordered — task N cannot start until task N-1 is done. |
+| **MILESTONE** | A checkpoint only — not a work item. A set of tasks is complete and something is provable (test count, binary runs, diff clean). |
+
+**What changes:**
+- Current `MILESTONE-*.md` files are actually GOAL files — rename and restructure
+- Each GOAL file has a single ordered task list (T-1, T-2, T-3 …)
+- SESSION docs have §INFO only — no §NOW, no sprint state blob
+- PLAN.md NOW table points to the active GOAL and the current task number
+- "What do I work on?" is answered by: find active GOAL → find first incomplete task → do it
+
+**What stays the same:**
+- Session type = frontend × backend (still valid, still routes to SESSION doc)
+- SESSION doc §INFO (invariants, tool locations, baselines)
+- SESSIONS_ARCHIVE (append-only log)
+- GENERAL-RULES, RULES.md
+
+**Milestones for this redesign:**
+
+| ID | Action | Verify |
+|----|--------|--------|
+| **M-G11-DESIGN** | Write GOALS.md: defines GOAL/TASK/MILESTONE primitives, file format, naming conventions, how PLAN.md NOW table points to active goal+task. Get Lon approval. | Lon says "looks right" |
+| **M-G11-CONVERT** | Convert all active MILESTONE-*.md files to GOAL-*.md format with ordered task lists. Archive completed/dead milestone files. | All active work representable as GOAL+tasks |
+| **M-G11-PLAN** | Rewrite PLAN.md NOW table to point at GOAL + task number instead of freeform sprint blobs. | Fresh Claude reads PLAN.md and knows exactly what to do next with no ambiguity |
+| **M-G11-SESSION** | Strip §NOW from all SESSION docs (replace with pointer to PLAN.md). §INFO only in SESSION docs. | SESSION docs contain no sprint state |
+| **M-G11-RULES** | Update GENERAL-RULES HANDOFF section: "update GOAL file current task pointer" replaces "update §NOW". | GENERAL-RULES consistent with new system |
+| **M-G11-VERIFY** | Run one full session under new system. Fresh Claude reads PLAN.md, finds goal, finds task, does it, no confusion. | Session completes correct work first try |
+
+**Start here next session:** `grep "M-G11" /home/claude/.github/GRAND_MASTER_REORG_2.md`
