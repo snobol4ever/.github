@@ -8,7 +8,7 @@
 
 ## Watermark (update after each stub fixed)
 
-**Current stub:** `KEYT_fn` (#10)  
+**Current stub:** `XCALL_IO_FILE` / `XCALL_XINCLD` (#8/#9)
 **Next stub:** `XCALL_IO_FILE` / `XCALL_XINCLD` (#8/#9)
 
 ---
@@ -39,7 +39,7 @@
 |---|----------|------|-------|-----------|--------|
 | 1 | `DMK_fn` | func.c | §19 | 6747–6783 | ✅ implemented `2b07b9b4` |
 | 2 | `DMP_fn` / `DUMP_fn` | func.c | §19 | 6699–6746 | ✅ implemented `2b07b9b4` |
-| 3 | `DATDEF_fn` | arrays.c | §14 | ~4947 | ⬜ stub returns FAIL |
+| 3 | `DATDEF_fn` | arrays.c | §14 | 4748 | ✅ implemented `3e4a1ae5` |
 | 4 | `RSORT_fn` / `SORT_fn` | arrays.c | §14 | ~5220–5267 | ⬜ stub returns FAIL |
 | 5 | `LOAD_fn` | extern.c | §13 | 4471–4520 | ⬜ stub returns FAIL |
 | 6 | `LOAD2_fn` | platform.c | §13 | (platform) | ⬜ stub returns FAIL |

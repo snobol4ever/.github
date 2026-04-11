@@ -38343,36 +38343,94 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 ---
 
-## Session D-213 — coverage hunting: At, Bal, Dupl, Apply, Concat, UPLO (2026-04-11)
+## Session SSB-11 — M-SS-STUBS DATDEF_fn (2026-04-11)
 
 **Operator:** Claude Sonnet 4.6
-**HEAD at start:** snobol4dotnet `917915b` · corpus `5c8aa22` · 2330p/0f/2s
-**HEAD at end:** snobol4dotnet `5b5c912` · 2347p/0f/2s
+**HEAD at start:** one4all `6e81f5d5` · .github `5ec5480`
+**HEAD at end:** one4all `3e4a1ae5` · .github (pending push below)
 
-### Tests added — +17 tests across 6 files
+### Work done
 
-| File | Added | New count |
-|------|-------|-----------|
-| `Function/Pattern/At.cs` | +3 (At_006, At_007, At_008) | 8 |
-| `Function/Pattern/Bal.cs` | +3 (Bal_006 empty parens, Bal_007 unbalanced fails, Bal_008 preceded-by-lit) | 8 |
-| `Function/ObjectCreation/Dupl.cs` | +3 (Dupl_005 large, Dupl_006 size, Dupl_007 single char) | 7 |
-| `Function/FunctionControl/Apply.cs` | +3 (Apply_006 replace, Apply_007 size, Apply_008 ident) | 8 |
-| `Corpus/Rung3_Concat.cs` | +3 (315 in-pattern, 316 int coerce, 317 loop accumulate) | 8 |
-| `Gimpel/UPLO.cs` | +2 (UPLO3 double-apply identity, UPLO4 digits/symbols unchanged) | 5 |
+**M-SS-STUBS — DATDEF_fn implemented:**
 
-### Bugs caught during development
+Three-way sync (v311.sil 4748, snobol4.c:6135, arrays.c):
 
-- **DIFFER logic inverted in 316**: wrote `differ(r,'answer=42') :f(fail)` — this goes to fail when equal, which is the success case. Fixed to use `ident(r,'answer=42') :s(ok)f(fail)`.
-- **APPLY error 22 with user-defined functions**: `apply(fn, arg)` where `fn` is a user-defined function name fails with error 22 at runtime. Not a test bug — appears to be a known implementation gap. All Apply tests use built-in functions only.
-- **Missing `using Snobol4.Common;`** in Dupl.cs — needed for `IntegerVar` type.
+| Item | Change | Notes |
+|------|--------|-------|
+| `DESCR_t VARATB` | added to platform.c | registered by `reg_tbl` in `init_syntab` |
+| `DESCR_t DATSEG` | added to platform.c | `{0,0,DATSTA}` — bumped by DATDEF |
+| `DESCR_t FLDCL` | added to platform.c | `{P2A(FIELD_fn),0,1}` — patched in `init_syntab` |
+| `reg_tbl(&VARATB,&VARATB_st)` | `init_syntab()` | so STREAM_fn can resolve it |
+| `FLDCL.a = P2A(FIELD_fn)` | `init_syntab()` | runtime patch after arena init |
+| `DATDEF_fn` full implementation | arrays.c | `3e4a1ae5` |
 
-### Next session (D-214) — start here
+**Key insight from syn.c:** CSNOBOL4 exposes `VARATB` as a plain `struct syntab` global (extern in syn.h). Our model routes through `DESCR_t` + `reg_tbl` + `lookup_tbl`. Fix: add `DESCR_t VARATB` and register it — same semantic result.
+
+**PSTACK/MOVBLK mapping:**
+- Oracle: `PSTACK(WPTR)` → `D_A(WPTR)=cstack-1` (in-arena stack pointer)
+- Ours: `int wptr_idx = ar_top` (index into local `ar_stk[]`)
+- Oracle: `MOVBLK(ZPTR,WPTR+DESCR,YCL)` → copies from stack into block
+- Ours: loop `memcpy(&ar_stk[wptr_idx+1+i])` into block slots
+
+**Build:** 0 errors · 0 warnings · HEAD `3e4a1ae5`
+
+**M-SS-BLOCK-BACKWARD:** No blocks verified this session (context exhausted on DATDEF_fn).
+
+### Next session (SSB-12) — start here
 
 ```bash
-cd /home/claude/snobol4dotnet && git pull --rebase
-export PATH=/usr/local/dotnet10:$PATH
-dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
-# confirm 2347p/0f/2s, then run thin-file finder (see SESSION-snobol4-net.md §NOW)
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
+# HEAD: 3e4a1ae5 · 0 errors · 0 warnings
+# SS-STUBS next: RSORT_fn/SORT_fn (#4) — v311.sil §14 ~5220-5267
+# BWD next: COLECT block (v311.sil line 6427)
+# Sources: /home/claude/snobol4-2.3.3/v311.sil + snobol4.c (already extracted)
 ```
 
-**Remaining thin targets (< 8 tests):** Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), Backspace(4), Detach(3), Eject(4), Endfile(5), Rewind(5), Prototype(4), Rsort(5), Rung2_Indirect(5), Rung4_Arith(7), Date(3), Size(5), Time(5), Collect(5), Dump(5)
+**Remaining stubs:** RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
+**M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
+**BWD watermark:** 6438 (COPY) — next: COLECT (6427)
+
+---
+
+## Session SSB-11 — M-SS-STUBS DATDEF_fn (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `6e81f5d5` · .github `5ec5480`
+**HEAD at end:** one4all `3e4a1ae5`
+
+### Work done
+
+**M-SS-STUBS — DATDEF_fn implemented (`3e4a1ae5`):**
+- `DESCR_t VARATB` added to platform.c + `reg_tbl(&VARATB,&VARATB_st)` in `init_syntab`
+- `DESCR_t DATSEG={0,0,DATSTA}` + `DESCR_t FLDCL={P2A(FIELD_fn),0,1}` added to platform.c
+- `FLDCL.a=P2A(FIELD_fn)` patched in `init_syntab` after arena init
+- Full `DATDEF_fn` in arrays.c — three-way faithful (v311.sil 4748, snobol4.c:6135)
+- PSTACK→`wptr_idx=ar_top`; MOVBLK→copy loop from `ar_stk[wptr_idx+1..]`
+- Key insight: syn.c shows `VARATB` is plain `struct syntab` in CSNOBOL4; our `DESCR_t`+`reg_tbl` model is equivalent
+
+**Build:** 0 errors · 0 warnings · HEAD `3e4a1ae5`
+**BWD:** No blocks this session (context used by DATDEF_fn).
+
+### Next session (SSB-12) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
+# HEAD: 3e4a1ae5 · 0 errors · 0 warnings
+# SS-STUBS next: RSORT_fn/SORT_fn (#4) — v311.sil §14 ~5220-5267
+# BWD next: COLECT (v311.sil line 6427)
+# Sources: /home/claude/snobol4-2.3.3/v311.sil + snobol4.c already extracted
+```
+
+**Remaining stubs:** RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
+**M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
+**BWD watermark:** 6438 — next: COLECT (6427)
