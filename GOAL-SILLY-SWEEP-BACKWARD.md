@@ -17,6 +17,16 @@ Three columns simultaneous for every SIL instruction:
 
 **Skip:** §20 BLOCKS (lines 7038–10208) — when watermark reaches 10209, jump to 7037.
 
+## Setup (extract only — do NOT build CSNOBOL4)
+
+Lon supplies `snobol4-2_3_3_tar.gz`. Extract, then stop — no `./configure`, no `make`:
+```bash
+apt-get install -y m4
+mkdir -p /home/claude/work
+tar -xzf snobol4-2_3_3_tar.gz -C /home/claude/work
+# Done. v311.sil and snobol4.c are the only files needed.
+```
+
 ## Key paths
 
 ```
