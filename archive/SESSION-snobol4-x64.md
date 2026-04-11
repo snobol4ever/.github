@@ -245,21 +245,6 @@ Two-pass audit against v311.sil — datatype/coercion vertical.
   Keywords (&ANCHOR/&TRIM/&ALPHABET/etc.), string builtin edge cases,
   pattern primitive completeness (XBAL, XEQFN, XDNME).
 
-## Key files
-
-| File | Role |
-|------|------|
-| `src/frontend/snobol4/CMPILE.c` | Single-file SNOBOL4 parser / stream oracle |
-| `src/backend/emit_x64.c` | Pattern statement emission |
-| `src/runtime/snobol4/stmt_exec.c` | `stmt_exec_dyn` — five-phase executor |
-| `src/runtime/asm/bb_pool.c` | mmap pool ✅ |
-| `src/runtime/asm/bb_emit.c` | byte/label/patch primitives ✅ |
-| `src/runtime/dyn/` | bb_*.c — 25 C box implementations ✅ frozen |
-| `src/driver/scrip-interp.c` | tree-walk interpreter |
-| `src/backend/emit_x64.c` | x64 emitter |
-
----
-
 ## §NOW
 
 One track. Current sprint is whatever Lon is working on.
