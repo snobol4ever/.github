@@ -38687,3 +38687,36 @@ Labels to translate: DEFF1..DEFF20, DEFFF, DEFFC, DEFFN, DEFFNR, DEFFGO, DEFFVX,
 - C reference: `/home/claude/work/snobol4-2.3.3/snobol4.c`
 - Silly source: `/home/claude/one4all/src/silly/`
 - Milestone: `/home/claude/.github/MILESTONE-SS-COMPLETE.md`
+
+## Session SSB-14c — M-SS-STUBS superseded, handoff (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `67460124` · .github `58970e7`
+**HEAD at end:** one4all `67460124` · .github `53ec787`
+
+### Work done
+
+- M-SS-STUBS marked ⛔ SUPERSEDED by M-SS-COMPLETE in MILESTONE-SS-STUBS.md
+- PLAN.md NOW table updated: Silly SNOBOL4 row now references M-SS-COMPLETE, HEAD `67460124`
+- No code changes this sub-session
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-COMPLETE.md
+cd /home/claude/one4all && git pull --rebase
+cd /home/claude/one4all/src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 | grep -E "error:|warning:"
+# HEAD one4all: 67460124
+# HEAD .github: 53ec787
+```
+
+### Priority order
+
+1. **M-SS-COMPLETE A2** — fix extern.c LOAD_fn: add 3 extern decls, move spec_eq_rparen before LOAD_fn
+2. **M-SS-COMPLETE A3** — translate RECOMJ/CODER/CONVE/CONVEX in func.c (v311.sil 6492-6551)
+3. **M-SS-COMPLETE A4** — translate DEFFNC_fn in define.c (v311.sil 4310-4470)
+4. **M-SS-BLOCK-FORWARD** — next block: DMPK1 (line 6750)
+5. **M-SS-BLOCK-BACKWARD** — next block: COLECT (line 6427)
+6. **BLOCKS** — last, after FWD+BWD both complete
