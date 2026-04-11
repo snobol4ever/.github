@@ -38910,3 +38910,27 @@ The previous entries wrongly deleted §NOW from all SESSION docs and from PLAN.m
 Lon directed a pivot: the NOW/milestone system is broken. New design: GOALS → TASKS (ordered) → MILESTONES (checkpoints only). Full spec in GRAND_MASTER_REORG_2.md under "HQ Redesign — GOALS → TASKS (G-11)". Next session: implement M-G11-DESIGN first — write GOALS.md and get Lon approval.
 
 **Prompt to use:** "grand master reorg"
+
+## Session HQ-001 — Global rules update (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**Goal:** HQ maintenance — update global rules
+
+### What was done
+- `RULES.md`: Added section "CSNOBOL4 — never build the executable" — ⛔ do not run `./configure && make`.
+- `RULES.md`: Oracle section rewritten — SPITBOL x64 is the primary oracle for all goals and all testing.
+- `RULES.md`: Added "Rules belong in RULES.md" — ⛔ do not add rules to PLAN.md.
+- `RULES.md`: Handoff section updated — ⛔ do not push any repo until "perform hand off" is called; added SESSIONS_ARCHIVE append step.
+- `PLAN.md`: SESSION START now mandates reading RULES.md in full as step 3 (before any work).
+- `GOAL-SILLY-SYNC-MONITOR.md`: Added explicit ⛔ build rule — this is the only goal permitted to build CSNOBOL4.
+
+### Violations discovered this session
+- Pushed .github after every tiny edit instead of holding until handoff. Fix: push rule now in RULES.md and enforced by PLAN.md session start.
+- Added rules to PLAN.md instead of RULES.md. Fix: "Rules belong in RULES.md" section added.
+
+### Next session start
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git /home/claude/.github
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/RULES.md
+```
