@@ -177,7 +177,7 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-214 | snobol4dotnet `9f929dd` · corpus `5c8aa22` · **2364p/0f/2s** | D-215: continue coverage hunting → ≥2375p |
+| **NET CORPUS** | D-214b | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
 
 **D-215 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
