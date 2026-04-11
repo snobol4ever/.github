@@ -37361,3 +37361,31 @@ cd /home/claude/one4all && git pull --rebase
 - Two cells missing entirely (FNCLKY, ETXTKY, BKGNCL)
 - GCTTTL was single slot; needed real-type + MAXICL cell for &MAXINT
 - DIGSVL: dead PI_val real_t replaced with proper PIVCL DESCR_t
+
+---
+
+## Session SSF-52 — M-SS-BLOCK-FORWARD §18 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `e9f71ed6`  **HEAD at end:** `03320fb0`
+**Watermark advanced:** 6100 → 6319 (+219 lines — §18 Predicates complete)
+
+### Blocks verified — all clean, 0 bugs
+
+§18 Predicates (6102–6319): DIFFER, FUNCTN, IDENT, LABEL, LABELC, LEQ, LGE, LGT, LLE, LLT, LNE, NEG, QUES, CHAR, LPAD, RPAD, RPAD0 — all ✅
+
+### Key findings this session
+
+- **SIL LEXCMP arg order confirmed:** GT=arg3, EQ=arg4, LT=arg5 (reversed from intuition). Verified against LLT ("LEXCMP XSP,YSP,FAIL,FAIL,RETNUL" + "if LEXCMP<0 RETNUL" in generated C).
+- **SIL ACOMP/ACOMPC arg order confirmed:** GT=arg3, EQ=arg4, LT=arg5 (same reversed convention). Verified via line 2631 comment "Done if &STLIMIT < 0" with arg5=RTNUL3.
+- **DEQL branch convention confirmed:** arg3=FALSE, arg4=TRUE (as documented).
+- **shared lex_compare() helper correct** for all four ordering predicates — null-X → -1, null-Y → +1 maps correctly through each function's sign test.
+- No code changes needed — all 17 blocks verified clean.
+
+### Next session (SSF-53) — start here
+
+```bash
+grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+# FWD watermark 6319 · next: APPLY (line 6322) — §19 Other Fns
+cd /home/claude/one4all && git pull --rebase
+```
