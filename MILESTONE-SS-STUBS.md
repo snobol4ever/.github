@@ -11,10 +11,6 @@
 **Current stub:** `XCALL_IO_FILE` / `XCALL_XINCLD` (#8/#9)
 **Next stub:** `XCALL_IO_FILE` / `XCALL_XINCLD` (#8/#9)
 
----
-
-## Priority Order (as of 2026-04-11)
-
 1. ~~**OPSYN_fn** (#15)~~ ✅ implemented `1ed4862f`
 2. ~~**CNVRT_fn** (#13) + **CODER_fn** (#14)~~ ✅ CNVRT_fn implemented `c84aa12e`; CODER_fn TODO M19
 3. ~~**XCALL_RPLACE** (#17)~~ ✅ implemented `101b9f87`
@@ -24,8 +20,8 @@
 7. **XCALL_IO_FILE** (#9) — file I/O attach
 8. **XCALL_XINCLD** (#8) — include file
 9. **XCALL_GETPMPROTO** (#7) — get prototype string
-10. **DATDEF_fn** (#3) — array DATA definition
-11. **RSORT_fn / SORT_fn** (#4) — sort arrays
+10. ~~**DATDEF_fn** (#3)~~ ✅ implemented `3e4a1ae5`
+11. ~~**RSORT_fn / SORT_fn** (#4)~~ ✅ implemented `58545e92`
 12. **LOAD_fn / LOAD2_fn** (#5/#6) — dynamic load
 13. **DEFFNC_fn** (#16) — TODO M19 (compiler re-entry required)
 14. **CONVE_fn** — TODO M19
@@ -40,7 +36,7 @@
 | 1 | `DMK_fn` | func.c | §19 | 6747–6783 | ✅ implemented `2b07b9b4` |
 | 2 | `DMP_fn` / `DUMP_fn` | func.c | §19 | 6699–6746 | ✅ implemented `2b07b9b4` |
 | 3 | `DATDEF_fn` | arrays.c | §14 | 4748 | ✅ implemented `3e4a1ae5` |
-| 4 | `RSORT_fn` / `SORT_fn` | arrays.c | §14 | ~5220–5267 | ⬜ stub returns FAIL |
+| 4 | `RSORT_fn` / `SORT_fn` | arrays.c | §14 | 5004–5271 | ✅ implemented `58545e92` |
 | 5 | `LOAD_fn` | extern.c | §13 | 4471–4520 | ⬜ stub returns FAIL |
 | 6 | `LOAD2_fn` | platform.c | §13 | (platform) | ⬜ stub returns FAIL |
 | 7 | `XCALL_GETPMPROTO` | platform.c | §13 | (platform) | ⬜ stub returns FAIL |
