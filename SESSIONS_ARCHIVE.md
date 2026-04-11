@@ -38099,3 +38099,67 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Thin areas: CorpusRef_Hello(4), Rung2(6-done), Pattern/Fail(5), Date(4-done)
 # Check: GimpelBits, Griswold, any CorpusRef files with <6 tests
 ```
+
+---
+
+## HANDOFF NOTE — D-212 complete / CHAT SESSION HANDOFF (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `917915b` · corpus `5c8aa22` · **2330p/0f/2s**
+**Gate ≥2330p: CLEARED ✅**
+
+### This session's work (D-212)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `Rung4 415/416` | 2 | exponentiation, string-coerce arithmetic |
+| `Hello 005/006` | 2 | concat in output, arithmetic precedence |
+| `BASEB2/3` | 2 | binary small, octal 64/511 |
+| `UPLO2` | 1 | sentence + mixed swap |
+| `ROMAN5` | 1 | powers of 10 (X, C, M, L) |
+| `Fail_006/007` | 2 | ARBNO+capture, standalone fail |
+| **Total** | **+10p** | **2320 → 2330p** |
+
+### Full chat-session summary (D-206 through D-212)
+
+| Session | Delta | End |
+|---------|-------|-----|
+| D-206 | +6  | 2270p |
+| D-207 | +11 | 2281p |
+| D-208 | +11 | 2292p |
+| D-209 | +8  | 2300p |
+| D-210 | +10 | 2310p |
+| D-211 | +10 | 2320p |
+| D-212 | +10 | 2330p |
+| **Total** | **+66** | **2264 → 2330p** |
+
+### Setup note (for all future sessions)
+- dotnet 10 NOT pre-installed — install via:
+  `wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh && chmod +x /tmp/dotnet-install.sh && /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/local/dotnet10`
+- Then: `export PATH=/usr/local/dotnet10:$PATH`
+
+### Next session (D-213) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+# Install dotnet 10 if needed (see setup note above)
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 917915b · 2330p/0f/2s
+# Gate target: ≥2340p
+# Remaining thin files (run this to find them):
+#   python3 -c "
+#   import os
+#   for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables','Corpus','Gimpel']:
+#       base=f'/home/claude/snobol4dotnet/TestSnobol4/{subdir}'
+#       if not os.path.exists(base): continue
+#       for f in sorted(os.listdir(base)):
+#           p=base+'/'+f
+#           if not p.endswith('.cs'): continue
+#           with open(p,'rb') as fh: c=fh.read().decode('utf-8-sig','replace')
+#           n=c.count('[TestMethod]')
+#           if n < 6: print(n, subdir+'/'+f)
+#   "
+```
