@@ -7,12 +7,19 @@
 
 ## ⛔ SESSION START — every session, no exceptions
 
-1. Read this file top to bottom.
-2. Find your active Goal in the table below.
-3. Open that Goal file. Find the first incomplete Step (`- [ ]`). Do it.
-4. If you need invariants, tool paths, or don't-do-X warnings: read the REPO file (see Repos below).
+Lon names a goal. You:
 
-That is your entire orientation. Do not read archive/ unless a step explicitly says to.
+1. Clone `.github`:
+   ```bash
+   git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git /home/claude/.github
+   ```
+2. Read `PLAN.md` (this file). Find the named goal in the table below.
+3. Open that Goal file. It names the repo. Open that repo's REPO file.
+4. Follow the REPO file `## Session Start` section to clone and build.
+5. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
+6. Read `RULES.md` if you need handoff or naming rules.
+
+Do not read `archive/` unless a step explicitly says to.
 
 ---
 
@@ -33,24 +40,15 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 
 ## Repos
 
-| Repo | File | Clone path |
-|------|------|------------|
-| one4all | `REPO-one4all.md` | `/home/claude/one4all` |
-| snobol4dotnet | `REPO-snobol4dotnet.md` | `/home/claude/snobol4dotnet` |
-| snobol4jvm | `REPO-snobol4jvm.md` | `/home/claude/snobol4jvm` |
-| snobol4python | `REPO-snobol4python.md` | `/home/claude/snobol4python` |
-| snobol4csharp | `REPO-snobol4csharp.md` | `/home/claude/snobol4csharp` |
-| corpus | `REPO-corpus.md` | `/home/claude/corpus` |
-| harness | `REPO-harness.md` | `/home/claude/harness` |
-
----
-
-## Rules
-
-- Commit as `LCherryholmes` / `lcherryh@yahoo.com`. Never as Claude.
-- Never write the token to disk or in any commit.
-- Rebase before every `.github` push: `git pull --rebase origin main && git push`
-- A Goal is done or not done. No other status.
+| Repo | File |
+|------|------|
+| one4all | `REPO-one4all.md` |
+| snobol4dotnet | `REPO-snobol4dotnet.md` |
+| snobol4jvm | `REPO-snobol4jvm.md` |
+| snobol4python | `REPO-snobol4python.md` |
+| snobol4csharp | `REPO-snobol4csharp.md` |
+| corpus | `REPO-corpus.md` |
+| harness | `REPO-harness.md` |
 
 ---
 
@@ -64,3 +62,4 @@ The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native co
 ---
 
 *archive/ holds all prior HQ docs. Full git history is the permanent record.*
+*RULES.md — commit identity, handoff checklist, oracle, naming conventions.*

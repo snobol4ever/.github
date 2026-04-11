@@ -1,8 +1,45 @@
 # REPO-one4all.md — one4all
 
 **What:** All 6 frontends × 6 backends in one compiler/interpreter/runtime.
-**Clone:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git /home/claude/one4all`
-**Path:** `/home/claude/one4all`
+**Repo:** `snobol4ever/one4all`
+
+---
+
+## Session Start
+
+```bash
+# Git identity — always first
+git config --global user.name "LCherryholmes"
+git config --global user.email "lcherryh@yahoo.com"
+
+# Clone repos
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git /home/claude/corpus
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64
+
+# Install tools (adjust for your goal's backend)
+apt-get install -y gcc make libgc-dev    # always needed for scrip
+# x86:  apt-get install -y nasm
+# JVM:  apt-get install -y default-jdk
+# .NET: apt-get install -y mono-complete
+# WASM: apt-get install -y wabt
+
+# Build scrip
+cd /home/claude/one4all && make scrip
+```
+
+**For Silly goals — also need CSNOBOL4:**
+Lon supplies `snobol4-2_3_3_tar.gz` (snobol4.org is broken — do not attempt to download).
+```bash
+apt-get install -y m4
+mkdir -p /home/claude/work
+tar -xzf snobol4-2_3_3_tar.gz -C /home/claude/work
+cd /home/claude/work/snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install
+# Oracle paths after build:
+#   /home/claude/work/snobol4-2.3.3/v311.sil      (12,293 lines — SIL spec)
+#   /home/claude/work/snobol4-2.3.3/snobol4.c     (14,293 lines — generated C ground truth)
+#   /home/claude/work/snobol4-2.3.3/snobol4        (binary oracle)
+```
 
 ---
 
@@ -10,14 +47,13 @@
 
 ```bash
 cd /home/claude/one4all && git pull --rebase
-git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 
-# scrip (unified executable — default mode is --sm-run):
+# scrip:
 make scrip
 
 # Silly SNOBOL4:
 gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
-# must be zero errors, zero warnings
+# must be zero errors, zero warnings — required before every commit
 ```
 
 ---
@@ -27,7 +63,7 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 **scrip broad corpus:**
 ```bash
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
-# current baseline: PASS=193/203
+# baseline: PASS=193/203
 ```
 
 **scrip beauty suite (19 drivers):**
@@ -42,44 +78,23 @@ for sno in "$BEAUTY"/beauty_*_driver.sno; do
     [ "$got" = "$(cat $ref)" ] && { echo "PASS $name"; PASS=$((PASS+1)); } \
                                || { echo "FAIL $name"; FAIL=$((FAIL+1)); }
 done; echo "--- PASS=$PASS FAIL=$FAIL"
-# current baseline: 14/19
+# baseline: 14/19
 ```
 
-**Silly SNOBOL4 build gate:**
+**Silly build gate (before every commit):**
 ```bash
 gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
-# must be clean before every commit
 ```
-
----
-
-## Tools by backend
-
-| Backend | Tools needed |
-|---------|-------------|
-| x86 | `nasm`, `libgc-dev` |
-| JVM | `java`, `javac`, `jasmin.jar` (bundled) |
-| .NET | `mono`, `ilasm` |
-| JS | node (pre-installed) |
-| WASM | `wabt` (`apt-get install -y wabt`) |
-| C | gcc only |
-
-Install: `apt-get install -y <tools>`
-Never install bison or flex — generated parser files are committed.
 
 ---
 
 ## Oracle
 
 SPITBOL x64: `/home/claude/x64/bin/sbl`
-Clone: `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64`
+Derive .ref: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
+With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
-**Silly SNOBOL4 exception:** CSNOBOL4 is the oracle for Silly goals only.
-```
-/home/claude/work/snobol4-2.3.3/snobol4     # CSNOBOL4 binary
-/home/claude/work/snobol4-2.3.3/v311.sil    # SIL source (12,293 lines)
-/home/claude/work/snobol4-2.3.3/snobol4.c   # generated C ground truth (14,293 lines, 383 fns)
-```
+**Silly exception:** CSNOBOL4 is oracle for Silly goals only. See above for build.
 
 ---
 
@@ -89,31 +104,13 @@ Clone: `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/cla
 |------|------|
 | `src/frontend/snobol4/CMPILE.c` | SNOBOL4 parser |
 | `src/driver/scrip.c` | unified scrip executable |
-| `src/runtime/snobol4/snobol4.c` | SNOBOL4 runtime (TRACE, comm_var, monitor hooks) |
+| `src/runtime/snobol4/snobol4.c` | runtime (TRACE, comm_var, monitor hooks) |
 | `src/runtime/snobol4/stmt_exec.c` | 5-phase statement executor |
 | `src/runtime/asm/bb_pool.c` | mmap pool for binary Byrd boxes |
 | `src/runtime/asm/bb_emit.c` | byte/label/patch primitives |
 | `src/runtime/dyn/` | bb_*.c — 25 C box implementations |
 | `src/silly/` | Silly SNOBOL4 faithful C rewrite |
 | `test/monitor/` | sync-step monitor infrastructure |
-| `test/monitor/monitor_sync.py` | 2-participant barrier controller |
-| `test/monitor/inject_traces.py` | trace preamble injector |
-
----
-
-## Silly SNOBOL4 specifics
-
-**What:** Ground-up faithful C rewrite of v311.sil (CSNOBOL4 2.3.3, Phil Budne).
-**Model:** 32-bit on 64-bit platform. Arena model (128MB mmap slab). No Boehm GC.
-- `int_t = int32_t`, `real_t = float`
-- `A2P(off)` = pointer from arena offset; `P2A(ptr)` = offset from pointer
-- Zero gotos. `if`/`while`/`for`/`switch` only.
-- SIL RCALL → C function call. SIL RRTURN → `return`.
-- Pattern backtracking: C call stack + `setjmp`/`longjmp` in `sil_scan.c`
-- BLOCKS (v311.sil lines 7038–10208): NOT IMPLEMENTED, skipped in all passes
-
-**Three-way diff rule:** v311.sil + snobol4.c + our code, all three simultaneously.
-snobol4.c is ground truth — it resolves all SIL branch ambiguity.
 
 ---
 
@@ -121,23 +118,34 @@ snobol4.c is ground truth — it resolves all SIL branch ambiguity.
 
 | Flag | Mode |
 |------|------|
-| `scrip --ir-run file.sno` | IR interpreter (tree-walk, correctness reference) |
-| `scrip --sm-run file.sno` | Stack machine interpreter (default) |
-| `scrip --gen file.sno` | In-memory x86 code generation |
+| `scrip --ir-run file.sno` | IR tree-walk interpreter |
+| `scrip --sm-run file.sno` | Stack machine (default) |
+| `scrip --gen file.sno` | In-memory x86 generation |
 
 ---
 
-## Monitor infrastructure (for GOAL-SCRIP-BEAUTY)
+## Monitor infrastructure
 
 ```bash
-# 2-way monitor: SPITBOL vs scrip --ir-run
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 bash test/monitor/run_monitor_2way.sh $BEAUTY/beauty_trace_driver.sno
-
-# Inject traces into a .sno file:
-python3 test/monitor/inject_traces.py file.sno test/monitor/tracepoints.conf > instrumented.sno
 ```
 
-SPITBOL IPC: `x64/monitor_ipc_spitbol.so` (LOAD() path)
+SPITBOL IPC: `x64/monitor_ipc_spitbol.so`
 scrip IPC: C-native in `snobol4.c` (`comm_var()`, `comm_stno()`, `monitor_fd`/`monitor_ack_fd`)
+
+---
+
+## Tools by backend
+
+| Backend | Tools |
+|---------|-------|
+| x86 | `nasm`, `libgc-dev` |
+| JVM | `default-jdk`, `jasmin.jar` (bundled) |
+| .NET | `mono-complete` |
+| WASM | `wabt` |
+| C | gcc only |
+| JS | node (pre-installed) |
+
+Never install bison or flex — generated parser files are committed.
