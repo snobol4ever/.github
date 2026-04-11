@@ -48,7 +48,7 @@ Handoff checklist:
 
 ---
 
-## Oracle — SPITBOL x64 is the sole execution oracle
+## Oracle — SPITBOL x64 is the primary oracle for all testing
 
 ```
 /home/claude/x64/bin/sbl          # binary
@@ -58,8 +58,12 @@ Handoff checklist:
 Derive .ref output: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
-**Exception:** CSNOBOL4 is the oracle for Silly SNOBOL4 only (by construction —
-Silly is a C rewrite of CSNOBOL4's SIL source). See REPO-one4all.md §Silly.
+SPITBOL is the **primary oracle for all goals and all testing** across the project.
+
+**Narrow exception:** CSNOBOL4 is the oracle for Silly SNOBOL4 *sync-step monitoring only*
+(SS-MONITOR / GOAL-SILLY-SYNC-MONITOR), because Silly is a C rewrite of CSNOBOL4's SIL
+source and the monitor compares them live. This exception does NOT extend to sweep goals
+or any other goal — use SPITBOL there.
 
 DATATYPE note: SPITBOL returns lowercase (`"name"`, `"pattern"`).
 one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional — SNOBOL4 spec.
@@ -98,6 +102,17 @@ other docs — all potentially stale. The Goal file wins.
 Before asserting anything about how a component works — build commands,
 calling conventions, oracle location, file layout — check the relevant
 REPO or ARCH file first. Training data is wrong. Verify before asserting.
+
+---
+
+## CSNOBOL4 — never build the executable
+
+⛔ Do **not** build the CSNOBOL4 executable (`./configure && make`) during normal sessions.
+Building it wastes container time and is never needed for sweep or other goals.
+
+**Only exception:** `GOAL-SILLY-SYNC-MONITOR` (SS-MONITOR) requires CSNOBOL4 built
+as the live oracle for the sync-step monitor. That goal will say so explicitly.
+All other goals: skip the CSNOBOL4 build entirely.
 
 ---
 

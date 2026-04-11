@@ -52,6 +52,13 @@ Do not read `archive/` unless a step explicitly says to.
 
 ---
 
+## Oracle
+
+**SPITBOL x64 is the primary oracle for all testing.** Use `/home/claude/x64/bin/sbl`.
+CSNOBOL4 is used only in GOAL-SILLY-SYNC-MONITOR (SS-MONITOR). See RULES.md for details.
+
+---
+
 ## Architecture (one paragraph)
 
 Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared IR.
