@@ -38879,3 +38879,26 @@ dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>
 # Run beauty suite — confirm 7/19, then fix B-BEAUTY-0 (FENCE redefinition)
 git log origin/main --oneline -1
 ```
+
+## Session D-215 — RETRACTION: §NOW belongs in SESSION docs (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+
+**RETRACTION of previous three D-215 HQ entries.**
+
+The previous entries wrongly deleted §NOW from all SESSION docs and from PLAN.md Step 3. This was wrong. GENERAL-RULES is unambiguous:
+
+- HANDOFF rule: "Update SESSION-*.md §NOW — mandatory"
+- THREE-AXIS step 4: "Read SESSION doc — §INFO first, then §NOW"
+- §NOW STALENESS rule: "Compare sprint in SESSION-*.md §NOW against SESSIONS_ARCHIVE"
+- "§NOW and sprint state live in SESSION-*.md only. Never in PLAN.md"
+
+**The actual bug** was a stale §NOW in SESSION-snobol4-net.md that said "coverage hunting" when PLAN.md NOW table said BEAUTY-19. The fix was to update the stale §NOW — which was done correctly in commit 8943ae1. Everything after that was wrong.
+
+**Reverted:** commits 1088f74, 0bab613, e2bb455 (deleted §NOW from SESSION docs).
+**Restored:** §NOW in all 16 SESSION docs. PLAN.md Step 3 §NOW bullet restored.
+**SESSION-snobol4-net.md §NOW** still correctly says BEAUTY-19 (from 8943ae1 — untouched).
+
+**The real fix to prevent recurrence:** At handoff, always update §NOW in the SESSION doc to match PLAN.md NOW table. A stale §NOW is caught by the §NOW STALENESS rule — SESSIONS_ARCHIVE handoff is authoritative when they differ.
+
+**No code changes.**
