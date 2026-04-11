@@ -38490,3 +38490,46 @@ grep -n "BUG-QIZE\|retname\|NV_SET_fn(retname" /home/claude/one4all/src/driver/s
 
 **SCRIP-TRACE watermark:** T-3 done · T-4 in progress.
 **Next bug:** `call_user_function()` return-slot default `''` → should be function name.
+
+---
+
+## Session D-214 — Coverage hunting (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `5b5c912` · .github (pre-pull)
+**HEAD at end:** snobol4dotnet `9f929dd` · .github (pending push below)
+
+### Work done
+
+**+17 tests across 10 thin files → 2364p/0f/2s**
+
+| File | Added | New total |
+|------|-------|-----------|
+| Reverse.cs | +3 (palindrome, numeric-string, spaces) | 9 |
+| Trim.cs | +3 (all-spaces→empty, multiple trailing, empty-string) | 9 |
+| Size.cs | +3 (integer arg, after-reverse, after-dupl) | 8 |
+| Char.cs | +1 (size-of-char-is-one) | 8 |
+| LEq.cs | +1 (null==null succeeds) | 8 |
+| LGe.cs | +1 (nonempty>=null succeeds) | 8 |
+| LLe.cs | +1 (null<=nonempty succeeds) | 8 |
+| LNe.cs | +1 (same-string fails) | 8 |
+| Rung11_DataStructures.cs | +1 (copy-array independence) | 8 |
+| Rung2_Indirect.cs | +2 (indirect-loop-assign, double-indirect-chain) | 8 |
+
+**Behavioral findings:**
+- TRIM removes trailing tabs as well as spaces (Trim_008 initially assumed tab not trimmed — corrected)
+- CODE(CHAR(n)) does NOT roundtrip to n (Char_8 initially tested roundtrip — replaced with SIZE(CHAR(n))=1)
+- DIFFER(A,B) semantics trap: Rung2_216 initially used DIFFER where IDENT was needed
+
+### Next session (D-215) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# Confirm 2364p/0f/2s, then run thin-file finder and expand
+```
+
+**Remaining thin (< 8):** Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files (Backspace 4, Detach 3, Eject 4, Endfile 5, Rewind 5), Prototype(4), Rsort(5), Date(3), Eval(0), Time(5), Arg(5), FunctionControl files, Gimpel (BASEB 4, ROMAN 5, UPLO 5), Operator (Field 3, ConditionalAssoc 6, Negation 6, Interrogation 6)
