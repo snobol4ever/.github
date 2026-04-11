@@ -37389,3 +37389,79 @@ grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 # FWD watermark 6319 · next: APPLY (line 6322) — §19 Other Fns
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## Session SCRIP-TRACE-1 — T-0 monitor wiring + MONVAL double-fire fix (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** `03320fb0` · **HEAD at end:** `e52e498c` · **one4all +1 commit**
+
+### What was done
+
+**Environment setup:**
+- Cloned: `.github`, `one4all`, `harness`, `corpus`
+- Built `x64/bootsbl` from bootstrap ASM (`make bootsbl` — nasm + gcc, warnings only)
+- Confirmed `bootsbl -b` → `SPITBOL oracle alive`
+- Baseline: `scrip --ir-run` PASS=194/203
+
+**T-0 fix (set_and_trace — scrip.c):**
+- `set_and_trace()` body was dead: comment falsely claimed `NV_SET_fn` calls `comm_var`. Fixed to actually call `comm_var(name, val)` when `trace_is_active(name)` and `name[0]!='&'`
+- Added forward declaration so `NAME_SET` (defined before `set_and_trace`) can call it
+- Wired `set_and_trace()` at all 6 statement-level assignment sites (both ir-run loops, NAME_SET NAMEVAL path, pattern-match subject, indirect variable)
+- Inner-expr sites (E_ASSIGN, CAPT_COND_ASGN) left as `NV_SET_fn` — SIL: VALUE trace fires on statement-level only
+
+**MONVAL double-fire fix (snobol4.c):**
+- Root cause of step-2 divergence: 4-arg `TRACE(var,'VALUE','','MONVAL')` caused scrip to BOTH register into C `trace_set` (→ `comm_var` fires) AND run SNOBOL4 `MONVAL` callback (→ second event). Two events per assignment; SPITBOL sends one.
+- Fix in `_TRACE_()`: when arg[3] (callback fn) is non-empty, skip `trace_register()`. MONVAL handles the event exclusively via the SNOBOL4 path.
+- Patched via Python binary replace (snobol4.c has 2 embedded NUL bytes, grep/sed fail on it)
+
+### Monitor results (beauty drivers)
+
+| Driver | Result | Steps |
+|--------|--------|-------|
+| beauty_trace_driver | ✅ PASS | 58 |
+| beauty_Qize_driver | ✅ PASS | 11 |
+| beauty_XDump_driver | ✅ PASS | 1 |
+| beauty_omega_driver | ✅ PASS | 1 |
+| beauty_Gen_driver | ⛔ TIMEOUT | 0 (pre-existing BP-1 infinite output) |
+| beauty_TDump_driver | ⛔ TIMEOUT | 0 (pre-existing BP-1 infinite output) |
+
+Gen and TDump hit infinite output loops before any TRACE event fires. Root cause: BP-1 (`$outNm = outline` where `outNm = .OUTPUT` — name indirection via `.field` not returning NAMEPTR). This is a pre-existing runtime bug, not a monitor wiring issue.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cd /home/claude/one4all && git pull --rebase
+make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>&1 | tail -2
+# HEAD: e52e498c · PASS=194/203
+
+# BP-1: Gen/TDump infinite loop — .field(x) NRETURN idiom
+# Gen.sno:  IncLevel = .dummy   → function returns name .dummy (NAMEPTR)
+#           outNm = IDENT(outNm) .OUTPUT  → outNm gets DT_N pointing to OUTPUT
+#           $outNm = outline  → indirect write through outNm = .OUTPUT → assign OUTPUT
+# Scrip bug: $name_var = val where name_var holds DT_N(.OUTPUT) may not resolve
+# correctly — either NAMEPTR deref is wrong or indirect assignment via $-of-DT_N fails.
+#
+# Debug path:
+cat > /tmp/bp1_minimal.sno << 'SNO'
+        DEFINE('f()')         :(fEnd)
+f       f = .OUTPUT
+        :(NRETURN)
+fEnd
+        nm = f()
+        $nm = 'hello from indirect'
+END
+SNO
+./scrip --ir-run /tmp/bp1_minimal.sno
+# Expected: hello from indirect
+# If blank/error: BP-1 confirmed — fix NAMEPTR deref in indirect assignment path
+
+# Gate for Gen/TDump monitor pass: run_monitor_2way.sh on Gen and TDump → EXIT 0
+# Gate for milestone: all 5 beauty drivers → EXIT 0 → beauty suite 19/19 → B-3
+```
