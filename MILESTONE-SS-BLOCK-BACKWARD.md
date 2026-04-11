@@ -47,8 +47,8 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 
 ## Watermark (update after each block — counts DOWN toward 1)
 
-**Current watermark:** v311.sil line **6928**  
-**Next block:** BNBF (line 6920)
+**Current watermark:** v311.sil line **6699**  
+**Next block:** DT (line 6684)
 
 ⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
@@ -180,6 +180,10 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 | TFENPL | 12131 | ✅ clean |
 | TLABPL | 12128 | ✅ clean |
 | TVALPL | 12125 | ✅ clean |
+| DMP/DUMP cluster (DMPB/DMPA/DMPX/DMPV/DMPRT/DMPI/DMPOVR) | 6699 | 🐛 fixed — DMPX+DMPV SUM YCL,YCL,XCL: used DMPSP.l instead of saved name-length; overflow check fired bleqsp.l bytes too early |
+| DMK/DMPK1 | 6747 | ✅ clean |
+| DUPL/DUPL1 | 6784 | ✅ clean — redundant MLENCL check harmless dead code |
+| OPSYN cluster (BNBF/BNCN/BNAF/BNCF3/BNCF5/BNCF2/BNCF4/BNCF/BNYOP3/BNYOP5/BNYOP2/BNYOP4/BNYOP/UNAF/UNCF/UNYOP/OPPD/UNBF/OPSYN) | 6805–6920 | ⚠️ stub — OPSYN_fn returns FAIL; all internal labels unimplemented |
 | RPLACE | 6928 | ✅ clean |
 | REVERS | 6954 | ✅ clean |
 | SIZE | 6969 | ✅ clean |
