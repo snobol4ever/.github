@@ -86,6 +86,22 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | ERRLCL–ABNDCL | 10535–45 | ✅ clean (batch) |
 | OUTSW/MLENCL/INSW/GCTRCL | 10517–23 | ✅ clean |
 | TRACL/FTLLCL | 10527–33 | ✅ clean |
+| NONARY | 10414 | ✅ clean — ERR_FTLTST(3) |
+| OVER | 10417 | ✅ clean — ERR_FTLEND(21) |
+| PROTER | 10420 | ✅ clean — ERR_FTLTST(6) |
+| SIZERR | 10423 | ✅ clean — ERR_FTLEND(23) |
+| UNDF | 10426 | ✅ clean — ERR_FTLTST(5) |
+| UNDFFE | 10429 | ✅ clean — ERR_FTLTST(9) |
+| UNKNKW | 10432 | ✅ clean — ERR_FTLTST(7) |
+| UNTERR | 10435 | ✅ clean — ERR_FTLTST(12) |
+| USRINT | 10438 | ✅ clean — ERR_FTLTST(34)+UINTCL=0 |
+| CNTERR | 10442 | ✅ clean — ERR_FTLERR(35) |
+| SCERST | 10448 | ✅ clean — SETAC(SCERCL,1)+FTERST |
+| FTLERR | 10453 | ✅ clean — ACOMPC+DECRA+SETAC+FTLTS2 |
+| FTLTST | 10458 | ✅ clean — SETAC(FATLCL,0)+FTLTS2 |
+| FTLTS2 | 10459 | ✅ clean — SETAC(SCERCL,2)+FTERST |
+| FTERST | 10460 | ✅ clean — inlined in error handler |
+| FTERBR | 10476 | ✅ clean — XITHND+SELBRA inlined |
 | DTLIST | 10482 | 🐛 fixed — arena pair list built; ARRSP/ASSCSP added; header .a/.v wired; DTATL wired |
 | DTLEND | 10507 | ✅ LHERE sentinel |
 | KNLIST header | 10510 | 🐛 noted — BUG-KNLIST-PAIRLIST (header .a/.v=0; pairs absent; KNATL.a=0) |

@@ -37606,3 +37606,51 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 - 2 permanent skips: TEST_Corpus_control_expr_eval + TEST_Corpus_099_keyword_rw
 - All 6 L*.cs use string.CompareOrdinal() (BUG-NET-STRCOMP fixed D-203)
 - rung8 complete 810-816, rung9 complete 910-919, rungs 2-11 all covered
+
+---
+## SSB-6 — 2026-04-10 — M-SS-BLOCK-BACKWARD — Lon + Claude Sonnet 4.6
+
+**one4all HEAD at start:** `c4146296` → **at end:** `4200574a`
+**.github HEAD at end:** `3c77c08`
+**Watermark start:** 10525 (FULLCL/BKGNCL) **Watermark end:** 10414 (NONARY)
+**Next block:** NONAME — v311.sil line 10411
+
+### Blocks verified this session (newest→oldest)
+| Block | Line | Result |
+|-------|------|--------|
+| NONARY | 10414 | ✅ clean |
+| OVER | 10417 | ✅ clean |
+| PROTER | 10420 | ✅ clean |
+| SIZERR | 10423 | ✅ clean |
+| UNDF | 10426 | ✅ clean |
+| UNDFFE | 10429 | ✅ clean |
+| UNKNKW | 10432 | ✅ clean |
+| UNTERR | 10435 | ✅ clean |
+| USRINT | 10438 | ✅ clean |
+| CNTERR | 10442 | ✅ clean |
+| SCERST | 10448 | ✅ clean |
+| FTLERR | 10453 | ✅ clean |
+| FTLTST | 10458 | ✅ clean |
+| FTLTS2 | 10459 | ✅ clean |
+| FTERST | 10460 | ✅ clean |
+| FTERBR | 10476 | ✅ clean |
+| DTLIST | 10482 | 🐛 fixed — 5 bugs: arena pair list built, ARRSP/ASSCSP added, header .a/.v/DTATL wired |
+| DTLEND | 10507 | ✅ LHERE skip |
+| KNLIST header | 10510 | 🐛 BUG-KNLIST-PAIRLIST noted — header/pairs/KNATL all zero |
+| EXLMCL–ABNDCL | 10515–10545 | ✅ value cells correct; name-spec systemic gap (BUG-KNLIST-PAIRLIST) |
+
+### Bug tally: 1 bug fixed (DTLIST), 1 systemic noted (KNLIST pairlist)
+
+### Key process fix this session
+- Root cause of session-looping identified: milestone completed table was never updated, causing next session to redo work
+- Milestone table now updated per-session as part of handoff
+- Per-block commit discipline restored: one block → one watermark commit → push before next block
+
+### Next session (SSB-7)
+```bash
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10414' | tail -1
+# → NONAME line 10411
+cd /home/claude/one4all && git pull --rebase
+```
+Remaining blocks to §20 skip boundary (10209): ~30 SETAC error entries + ENDALL/END/FTLEND cluster + GENVSZ/GENVRZ/GENVIX + RTN* trampolines.
+After 10209: watermark jumps to 7037.
