@@ -38723,3 +38723,24 @@ cd /home/claude/one4all/src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -
 
 ## ⛔ Standing rule added 2026-04-11
 Every next-session block must include: `git log origin/main --oneline -1  # confirm push before handoff`
+
+## Session D-215 — Coverage hunting (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `b280881` · corpus `5c8aa22` · .github `0f7f41a`
+**Baseline:** 2375p/0f/2s (confirmed)
+**Goal:** ≥2390p (+15 tests minimum)
+
+### Setup note
+`apt-get install -y dotnet-sdk-10.0` works directly — `/usr/local/dotnet10` path from older session docs is obsolete. SESSION-snobol4-net.md §NOW updated to reflect this.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md   # §INFO + §NOW
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+git log origin/main --oneline -1  # confirm push before handoff
+```

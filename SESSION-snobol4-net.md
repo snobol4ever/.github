@@ -177,12 +177,12 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-214b | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
+| **NET CORPUS** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
 
 **D-215 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
-2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2364p/0f/2s**
+2. `apt-get install -y dotnet-sdk-10.0`  (dotnet-install.sh not needed — apt works)
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2375p/0f/2s**
 4. Target thin areas — run the thin-file finder then expand:
 ```python
 python3 -c "
@@ -205,7 +205,7 @@ for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables'
 - rung8 complete 810-818, rung9 complete 910-919
 - Gimpel: UPLO(5), BASEB(4), ROMAN(5) — still thin
 - Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — still thin
-- dotnet 10 at /usr/local/dotnet10 (install via dotnet-install.sh if missing)
+- dotnet 10: `apt-get install -y dotnet-sdk-10.0` (apt works; /usr/local/dotnet10 path obsolete)
 - APPLY with user-defined functions via APPLY() fails error 22 — known gap, use built-ins only
 - DIFFER(A,B) FAILS when A==B, SUCCEEDS when A!=B — double-check before writing tests
 - TRIM removes trailing tabs as well as spaces (confirmed D-214)
@@ -213,5 +213,5 @@ for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables'
 - D-214 expanded: Reverse(+3→9), Trim(+3→9), Size(+3→8), Char(+1→8), LEq/LGe/LLe/LNe(+1→8 each), Rung11(+1→8), Rung2(+2→8)
 - Remaining thin (< 8): Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files, Prototype(4), Rsort(5), Date(3), Eval(0/placeholder), Time(5), Arg(5), FunctionControl files, Gimpel files, Operator files
 
-*SESSION-snobol4-net.md — updated D-214, 2026-04-11, Claude Sonnet 4.6.*
-*D-214: Reverse+3, Trim+3, Size+3, Char+1, LEq/LGe/LLe/LNe+1 each, Rung11+1, Rung2+2; +17 tests; 2364p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-215, 2026-04-11, Claude Sonnet 4.6.*
+*D-215 start: 2375p/0f/2s. apt dotnet-sdk-10.0 confirmed working (replaces /usr/local/dotnet10 path).*
