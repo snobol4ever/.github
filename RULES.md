@@ -131,3 +131,25 @@ regenerate on your own machine and commit the C files.
 | Procedure return typedef | `RESULT_t` | always |
 
 Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
+
+---
+
+## Session trigger phrases
+
+**"perform hand off"** — normal end of session:
+1. Mark completed steps in Goal file (`- [x]`)
+2. Update state variables (watermark, HEAD hash, pass counts, current step)
+3. Update Current Step in PLAN.md goals table
+4. `git add -A && git commit -m "clear description of what was done"` on all touched repos
+5. `git pull --rebase && git push` — code repos first, .github last
+6. Confirm: `git log origin/main --oneline -1` shows your hash on remote
+7. Done — the commit message IS the session record
+
+**"perform emergency hand off"** — same as above but:
+- Note what is broken or incomplete at the top of the commit message
+- Mark any incomplete step clearly in the Goal file (leave as `- [ ]`, add a note below it)
+- Still push everything — a broken push is better than no push
+
+**"here we go"** — session starting, Lon has named a goal, execute session start protocol from PLAN.md
+
+**"grand master reorg"** — the goal is improving the HQ system itself

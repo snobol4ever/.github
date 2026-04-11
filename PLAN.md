@@ -63,3 +63,14 @@ The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native co
 
 *archive/ holds all prior HQ docs. Full git history is the permanent record.*
 *RULES.md — commit identity, handoff checklist, oracle, naming conventions.*
+
+---
+
+## Session trigger phrases
+
+| Lon says | Meaning |
+|----------|---------|
+| "perform hand off" | Normal end of session — update goal state, commit all repos, push .github last, write clear commit message |
+| "perform emergency hand off" | Same as above but something is broken or incomplete — note the breakage explicitly in the commit message and goal file state |
+| "here we go" | Session is starting — Lon has named a goal, proceed with session start protocol |
+| "grand master reorg" | HQ system work — the goal is improving the HQ itself |

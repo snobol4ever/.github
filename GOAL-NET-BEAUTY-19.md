@@ -54,3 +54,10 @@ symlink `demo/inc/*` into beauty/ once per machine.
 - [ ] **S-9** — Fix semantic driver (tests 1-3). Gate: semantic passes → **18/19**
 
 - [ ] **S-10** — Fix ShiftReduce UNEXPECTED EXCEPTION. Gate: ShiftReduce passes → **19/19** ✅
+
+## Rules
+
+- Test gate passes before every commit.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
+- Rebase before every .github push.
+- See RULES.md for full rules including handoff checklist.
