@@ -37938,4 +37938,55 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Gate target: ≥2310p
 # Thin files remaining: Pattern/At(3), Pattern/Rem(4), ArraysTables/Rsort(3)
 # Also check: StringSynthesis, Numeric for any <5-test files
+## Session SSF-54 — M-SS-BLOCK-FORWARD §19 CNVRT chain (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `1c68cac3`  **HEAD at end:** `a1532872`
+**Watermark advanced:** 6479 → 6698 (+219 lines)
+
+### HQ fixes this session
+1. **Watermark consolidation** — watermarks now live ONLY in milestone files. SESSION-silly-snobol4.md §NOW rows replaced with pointer commands. GENERAL-RULES.md new rule added. Both milestone files updated. (commit `abef53b` on .github)
+2. **Three-way diff rule** — GENERAL-RULES.md + both milestone Method sections now explicitly require all three columns (v311.sil + snobol4.c + ours) simultaneously. Two-way walk explicitly forbidden. Failure mode documented: SSF-51–53 (~966 lines) were two-way only. (commit `98772a2` on .github)
+
+### Blocks verified — 10 bugs fixed
+
+| Block | SIL line | Result | Action |
+|-------|----------|--------|--------|
+| RECOMP/RECOMJ/RECOMZ | 6491 | ✅ stubs confirmed | compiler re-entry required |
+| CODER | 6530 | ✅ stub confirmed | — |
+| CONVE | 6534 | ✅ stub confirmed | — |
+| CONVEX | 6538 | ✅ stub confirmed | — |
+| CONVR | 6546 | 🐛 fixed | entirely absent — implemented |
+| CONIR | 6551 | 🐛 fixed | entirely absent — inlined in CONVR_fn |
+| CONRI | 6554 | 🐛 fixed | entirely absent — implemented |
+| CNVIV | 6557 | 🐛 fixed | entirely absent — implemented |
+| CNVVI | 6560 | 🐛 fixed | entirely absent — implemented |
+| CNVRTS | 6564 | 🐛 fixed | entirely absent — implemented |
+| FRDSCL | 11131 | 🐛 fixed | missing global — found via v311.sil third column; added data.c + data.h |
+| ICNVTA | 6606 | 🐛 fixed | wrong extern sig (DESCR_t tbl param); now implemented in arrays.c |
+| CNVTA | 6568 | 🐛 fixed | entirely absent — implemented in arrays.c |
+| CNVAT | 6642 | 🐛 fixed | entirely absent — implemented in arrays.c |
+| DATE | 6675 | ✅ clean | — |
+| DT/DTRTN/DTEXTN | 6684 | ✅ clean | — |
+
+### Key finding: three-way catches what two-way misses
+FRDSCL (v311.sil line 11131) was only visible because v311.sil was the live third column.
+snobol4.c uses it (`MOVBLK(D_A(ZPTR),D_A(ATRHD),D_A(FRDSCL))`) but both C sides would
+have agreed on a compile error — the three-way walk surfaced the missing definition.
+
+### Commits (one4all)
+- `6ca0761b` CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS: 6 missing fns implemented
+- `d3a83b06` FRDSCL: missing global added
+- `a1532872` ICNVTA/CNVTA/CNVAT: TABLE<->ARRAY conversions implemented
+
+### Next session (SSF-55) — start here
+```bash
+grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+# watermark 6698 · next: DMP (line 6699)
+cd /home/claude/one4all && git pull --rebase
+cd /home/claude/one4all && git config user.email "lon@snobol4ever.com" && git config user.name "Lon Jones Cherryholmes"
+sed -n '6699,6760p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "^DMP\b" /home/claude/work/snobol4-2.3.3/snobol4.c
+grep -n "DMP_fn\|DUMP_fn" /home/claude/one4all/src/silly/func.c
+# Three-way walk: v311.sil + snobol4.c + ours — all three simultaneously
 ```

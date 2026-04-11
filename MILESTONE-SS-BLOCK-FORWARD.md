@@ -39,8 +39,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **6675**  
-**Next block:** DATE (line 6676)
+**Current watermark:** v311.sil line **6698**  
+**Next block:** DMP (line 6699)
 
 ---
 
