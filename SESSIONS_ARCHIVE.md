@@ -38066,3 +38066,36 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 **STUBS watermark:** DATDEF_fn (#3) — next to implement
 **BWD watermark:** 7018 (TIME block read/analyzed but not committed — verify and commit first thing)
+
+---
+
+## HANDOFF NOTE — D-211 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `876a14e` · corpus `5c8aa22` · **2320p/0f/2s**
+**Gate ≥2320p: CLEARED ✅**
+
+### This session's work (D-211)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `Rung3 313/314` | 2 | mixed-type concat, 3-var concat |
+| `Rung2 214/215` | 2 | indirect chain $$A, indirect pattern match |
+| `Concatenate 005/006` | 2 | 3-part sequence, order matters |
+| `Bal 004/005` | 2 | single char, in expression |
+| `Rem 005/006` | 2 | entire string, empty subject |
+| **Total** | **+10p** | **2310 → 2320p** |
+
+### Next session (D-212) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 876a14e · 2320p/0f/2s
+# Gate target: ≥2330p
+# Thin areas: CorpusRef_Hello(4), Rung2(6-done), Pattern/Fail(5), Date(4-done)
+# Check: GimpelBits, Griswold, any CorpusRef files with <6 tests
+```
