@@ -21,10 +21,7 @@ Lon names a goal. You:
 
 Do not read `archive/` unless a step explicitly says to.
 
-> ⛔ **CSNOBOL4 — never build the executable.** The REPO file for Silly goals says to
-> `tar -xzf` the source (Lon supplies the tarball) and use `v311.sil` and `snobol4.c`
-> directly as reference files. Stop at extraction. Do **not** run `./configure`, `make`,
-> or `make install`. The binary is never needed — the two source files are the spec.
+
 
 ---
 
