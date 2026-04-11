@@ -124,7 +124,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `4200574a` | **CURRENT: M-SS-STUBS** — 17 stubs to implement (DMK_fn first). BWD: watermark 7018, next TIME (7007). FWD: watermark 2606, next GOTO (2607). |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-211 | snobol4dotnet `876a14e` · corpus `5c8aa22` · **2320p/0f/2s** | D-212: continue coverage hunting → ≥2330p |
+| **one4all-SNOBOL4-NET** | D-212 | snobol4dotnet `917915b` · corpus `5c8aa22` · **2330p/0f/2s** | D-213: continue coverage hunting → ≥2340p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
