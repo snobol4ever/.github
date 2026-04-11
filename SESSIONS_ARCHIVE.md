@@ -38587,3 +38587,47 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 ```
 
 **Remaining thin (< 8):** Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files (Backspace 4, Detach 3, Eject 4, Endfile 5, Rewind 5), Prototype(4), Rsort(5), Date(3), Eval(0), Time(5), Arg(5), FunctionControl files, Gimpel (BASEB 4, ROMAN 5, UPLO 5), Operator (Field 3, ConditionalAssoc 6, Negation 6, Interrogation 6)
+
+---
+
+## Session D-214b — SPITBOL verification + wrong-expected fixes (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `9f929dd`
+**HEAD at end:** snobol4dotnet `b280881`
+
+### Work done
+
+**Installed SPITBOL oracle** from snobol4ever/x64 prebuilt binary → `/usr/local/bin/spitbol`
+
+**Verified both permanent skips are real interpreter bugs:**
+- `control_expr_eval`: SPITBOL produces `7\n9\n25.5\n7\n26` ✅ — snobol4dotnet fails (NRETURN/*func()/EVAL gap)
+- `099_keyword_rw`: SPITBOL passes 4/5 — fails on `&STLIMIT` DATATYPE case (lowercase vs uppercase); snobol4dotnet throws error 208 on `&ANCHOR='0'` string coercion
+
+**Fixed 3 tests with wrong expected values (SPITBOL-verified):**
+
+| Test | Was | Correct | Reason |
+|------|-----|---------|--------|
+| Abort_007 | `bad` | `ok` | ARBNO always succeeds (zero-length match); ABORT never fires |
+| Concatenate_007 | `abc` | `c` | `.` capture binds to last pattern element only |
+| Concatenate_008 | `x123` | `123` | `.` capture binds to SPAN match, not preceding literal |
+
+**Key SNOBOL4 semantics confirmed via SPITBOL:**
+- `pat1 pat2 . var` — the `.` capture binds to `pat2` only, not the concatenation
+- `ARBNO(pat)` always succeeds; it matches zero repetitions if needed
+
+**Result:** 2375p / 0f / 2s (+11 net from D-214 baseline of 2364)
+
+### Next session (D-215) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# Confirm 2375p/0f/2s, then run thin-file finder and expand
+# SPITBOL oracle available at /usr/local/bin/spitbol — verify semantics before asserting
+```
+
+**Remaining thin (< 8):** Abort(8 now fixed), Arb(6), ArbNo(6), Fail(6), Fence(6), Rem(6), InputOutput (Backspace 4, Detach 3, Eject 4, Endfile 5, Rewind 5), Prototype(4), Rsort(5), Date(3), Eval(0/placeholder), Time(5), Arg(5), FunctionControl files, Gimpel (BASEB 4, ROMAN 5, UPLO 5), Operator (Field 3, ConditionalAssoc 6, Negation 6, Interrogation 6)
