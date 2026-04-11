@@ -117,6 +117,15 @@ Any interpreter result that differs from ThreadedExecuteLoop is a compiler bug.*
 
 ---
 
+### Phase B2 — Beauty suite (snobol4dotnet)
+
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-BEAUTY-19** | All 19 beauty drivers pass — B-BEAUTY-0 (FENCE redef) → B-BEAUTY-9 (ShiftReduce). Ladder in `MILESTONE-NET-BEAUTY-19.md`. Baseline: 7/19. | 19/19 pass |
+| **M-NET-BEAUTY-SELF** | beauty.sno self-beautifies: reads itself as INPUT, writes itself to OUTPUT, output matches input exactly. Gates on M-NET-BEAUTY-19. | output == input |
+
+---
+
 ### Phase O — Optimization: dynamic → static
 
 *The interpreter generates box graphs in memory and runs them.
@@ -159,7 +168,9 @@ Phase O caches, specializes, and ultimately emits IL directly from the interpret
 | D-178 | M-NET-P35-FIX + M-NET-PAT-CAPTURES |
 | D-179 | M-NET-PAT-PRIMITIVES |
 | D-180 | M-NET-EVAL-COMPLETE + M-NET-NRETURN |
-| D-181 | M-NET-OPT-CACHE |
+| D-215 | M-NET-BEAUTY-19 — beauty suite 19/19 (B-BEAUTY-0 → B-BEAUTY-9) |
+| D-216 | M-NET-BEAUTY-SELF — beauty.sno self-hosting |
+| D-217 | M-NET-OPT-CACHE |
 | D-182 | M-NET-OPT-EMIT |
 | D-183 | M-NET-OPT-FULL |
 | D-184 | M-NET-SNOCONE + M-NET-BOOTSTRAP |
