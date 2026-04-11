@@ -38268,3 +38268,75 @@ cd /home/claude/one4all && git pull --rebase
 
 **SCRIP-TRACE watermark:** T-0 (set_and_trace) — not yet started
 **SS-STUBS watermark:** DATDEF_fn (#3) — not yet started this session
+
+---
+
+## Session SSB-10 — M-SS-STUBS sprint (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6  
+**HEAD at start:** one4all `22e1bd79` · .github `cec843d`  
+**HEAD at end:** one4all `6e81f5d5` · .github `5ec5480`
+
+### Work done
+
+**M-SS-WARNINGS (new milestone, immediately completed):**
+- Created `MILESTONE-SS-WARNINGS.md` — baseline 48 warnings
+- Commit `98a5c215`: zero warnings achieved
+  - `INTR1_fn` implicit decl → `#include "errors.h"` in argval.c
+  - `chk_break` implicit decl → `extern int chk_break(int x)` in interp.c
+  - `FRZNSTR` unused → removed from platform.c
+  - 36× `-Wmissing-braces`/`-Wmissing-field-initializers` → all `{.a={.i=0},.f=0,.v=0}`
+
+**M-SS-STUBS — 7 stubs implemented this session:**
+
+| Stub | Commit | Notes |
+|------|--------|-------|
+| `OPSYN_fn` | `1ed4862f` | Full N=0/1/2: function synonym, unary op, binary op via FINDEX+STREAM+op-tables |
+| `CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS` | `1ed4862f` | Individual conversion helpers |
+| `CNVRT_fn` | `c84aa12e` | Full dispatcher: S↔I, S↔R, I↔R, A↔T, NUMERIC; RECOMP TODO M19; NUMSP non-arena fix |
+| `XCALL_RPLACE` | `101b9f87` | 256-entry char translation table, faithful to lib/replace.c |
+| `getbal_fn` | `101b9f87` | Faithful bal.c translation — balanced-paren scanner |
+| `DTREP_fn2/3` | `101b9f87` | Delegate to DTREP_fn, set out->a.i = P2A(sp) |
+| `KEYT_fn` | `6e81f5d5` | KNATL/KVATL keyword lookup for trace |
+
+**M-SS-BLOCK-BACKWARD — SSB-9 blocks verified:**
+
+| Block | Line | Result |
+|-------|------|--------|
+| TIME | 7007 | 🐛 XCALL_MSTIME/SBREAL wrote R into .f flag byte |
+| SUBSTR | 6981 | 🐛 XCALL_XSUBSTR missing len arg |
+| SIZE | 6969 | ✅ |
+| REVERS | 6954 | ✅ |
+| RPLACE | 6928 | ✅ |
+| OPSYN cluster | 6805–6920 | ⚠️ stub (now implemented) |
+| DUPL/DUPL1 | 6784 | ✅ |
+| DMK/DMPK1 | 6747 | ✅ |
+| DMP/DUMP cluster | 6699 | 🐛 SUM YCL,YCL,XCL used DMPSP.l wrong |
+| DT/DTRTN/DTEXTN | 6684 | ✅ |
+| DATE | 6675 | ✅ |
+| CNVRT cluster | 6457–6674 | ⚠️ stub (now partially implemented) |
+| COPY | 6438 | ✅ |
+
+**BWD watermark:** 6438 (COPY) — next: COLECT (6427)
+
+### Next session (SSB-11) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
+# HEAD: 6e81f5d5 · 0 errors · 0 warnings
+# Priority: M-SS-STUBS — next stub: DATDEF_fn
+# DATDEF_fn needs:
+#   1. PSTACK_fn: fix stub — set pos->a.i = fn_top (record stack depth)
+#   2. VARATB DESCR_t: expose VARATB_st as global DESCR_t VARATB (add to platform.c + data.h)
+#   3. DATDEF_fn: ~80-line implementation from snobol4.c lines 6135–6230
+# After DATDEF: RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO
+# BWD: watermark 6438, next COLECT (6427)
+```
+
+**Remaining stubs:** DATDEF_fn, RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn  
+**M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn  
+**Build:** 0 errors · 0 warnings · HEAD `6e81f5d5`
