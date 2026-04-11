@@ -126,7 +126,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `67460124` | **#1: M-SS-COMPLETE** (supersedes M-SS-STUBS) — A2: fix LOAD_fn · A3: RECOMJ+CODER+CONVE+CONVEX · A4: DEFFNC_fn · then FWD+BWD passes · BLOCKS last |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-214b | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
+| **one4all-SNOBOL4-NET** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
