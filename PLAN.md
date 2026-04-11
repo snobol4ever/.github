@@ -37,6 +37,7 @@ Do not read `archive/` unless a step explicitly says to.
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
+| Archive Cleanup | `GOAL-ARCHIVE-CLEANUP.md` | .github | S-1 (delete superseded files) | ☐ |
 
 ---
 
