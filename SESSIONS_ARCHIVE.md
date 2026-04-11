@@ -37465,3 +37465,37 @@ SNO
 # Gate for Gen/TDump monitor pass: run_monitor_2way.sh on Gen and TDump → EXIT 0
 # Gate for milestone: all 5 beauty drivers → EXIT 0 → beauty suite 19/19 → B-3
 ```
+
+---
+
+## Session D-205 — +9 tests, rung8 complete, Size/Char edges (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `2b06d32` · **2255p/0f/2s**
+**HEAD at end:** snobol4dotnet `b79f9ec` · corpus `5c8aa22` · **2264p/0f/2s** · **+9 net**
+
+### Tests added (+9)
+
+- `Rung8_StringOps`: TEST_Corpus_813_reverse, 814_trim, 815_lpad, 816_rpad
+  (4 corpus-style PASS/FAIL tests, each with 4 DIFFER assertions)
+- `Miscellaneous/Size`: +2 (empty string → 0, single char → 1)
+- `Miscellaneous/Char`: +3 (CHAR(32)=space, CHAR(65)='A', CHAR(0) size=1)
+
+### Corpus programs added (rung8/)
+`813_reverse.sno` `814_trim.sno` `815_lpad.sno` `816_rpad.sno` + matching `.ref` files
+
+### Next session (D-206) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: b79f9ec · 2264p/0f/2s
+# Coverage gaps remaining:
+#   rung8: 817_substr, 818_char (corpus programs — follow 813-816 pattern)
+#   Function/Miscellaneous/Datatype.cs (14 tests — check for integer/real/pattern gaps)
+#   Function/StringSynthesis/Trim.cs (6 tests — check for tabs, mixed whitespace)
+#   Gimpel/ programs — UPLO(1 test), BASEB(1 test), ROMAN(2 tests) — expand
+```
