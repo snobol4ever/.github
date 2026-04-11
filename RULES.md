@@ -51,6 +51,7 @@ Multiple sessions may push .github simultaneously. Never `git push --force`.
 
 ⛔ Do **not** push any repo until "perform hand off" is called. Hold all commits locally.
 One clean commit at handoff — this IS the session record. No piecemeal pushes.
+**Exception:** unless Lon specifically directs resuming periodic pushes.
 
 A committed-but-not-pushed session is lost when the container dies.
 Never declare handoff complete until `git log origin/main --oneline -1` shows
