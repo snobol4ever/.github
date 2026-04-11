@@ -68,15 +68,6 @@ Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 
 ## Milestone chain
 
-### Phase B2 — Beauty suite (snobol4dotnet) ⚠️ CURRENT
-
-| Milestone | Description | Gate |
-|-----------|-------------|------|
-| **M-NET-BEAUTY-19** | ⚠️ **NOW** — All 19 beauty drivers pass. B-BEAUTY-0 (FENCE redef) → B-BEAUTY-9 (ShiftReduce). Ladder in `MILESTONE-NET-BEAUTY-19.md`. Baseline: 7/19. | 19/19 pass |
-| **M-NET-BEAUTY-SELF** | **NEXT** — beauty.sno self-beautifies: reads itself as INPUT, writes itself to OUTPUT, output matches input exactly. Gates on M-NET-BEAUTY-19. | output == input |
-
----
-
 ### Phase 0 — Foundation (complete)
 
 | Milestone | Description | Status |
@@ -107,6 +98,8 @@ Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 | **M-NET-INTERP-B01** | Captures: `@var` / `.var` / `$var` · Phase 3/5 boundary correct by construction | rung9 capture tests 100% vs SPITBOL |
 | **M-NET-INTERP-B02** | Functions: DEFINE / RETURN / NRETURN / FRETURN / call stack | rung10 function tests pass |
 | **M-NET-INTERP-B03** | EVAL / CODE: Pidgin parser called at runtime · builds live IR → IByrdBox graph · same node shape as static parse | rung10/1016_eval pass · CODE corpus pass |
+| **M-NET-BEAUTY-19** | ⚠️ **NOW** — All 19 beauty drivers pass. B-BEAUTY-0 (FENCE redef) → B-BEAUTY-9 (ShiftReduce). Ladder in `MILESTONE-NET-BEAUTY-19.md`. Baseline: 7/19. | 19/19 pass |
+| **M-NET-BEAUTY-SELF** | **NEXT** — beauty.sno self-beautifies: reads itself as INPUT, writes itself to OUTPUT, output matches input exactly. Gates on M-NET-BEAUTY-19. | output == input |
 
 ---
 
