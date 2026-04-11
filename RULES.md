@@ -107,7 +107,7 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ## CSNOBOL4 — never build the executable
 
-⛔ Do **not** build the CSNOBOL4 executable (`./configure && make`) during normal sessions.
+⛔ Do **not** build the CSNOBOL4 executable (`./configure && make`).
 
 ---
 
