@@ -109,10 +109,7 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ⛔ Do **not** build the CSNOBOL4 executable (`./configure && make`) during normal sessions.
 Building it wastes container time and is never needed for sweep or other goals.
-
-**Only exception:** `GOAL-SILLY-SYNC-MONITOR` (SS-MONITOR) requires CSNOBOL4 built
-as the live oracle for the sync-step monitor. That goal will say so explicitly.
-All other goals: skip the CSNOBOL4 build entirely.
+The goal that requires it will say so explicitly.
 
 ---
 
