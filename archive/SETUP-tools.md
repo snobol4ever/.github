@@ -30,18 +30,6 @@ TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SET
 
 ---
 
-## Backend requirements
-
-| BACKEND= | Tools required | Notes |
-|----------|---------------|-------|
-| `x64` | `nasm`, `libgc-dev` | NASM assembler + Boehm GC for linking |
-| `jvm` | `java` (JRE), `javac` (JDK), `jasmin.jar` | JVM bytecode assembly; jasmin.jar bundled in repo |
-| `net` | `mono`, `ilasm` | .NET IL assembly + runtime |
-| `wasm` | `wabt` (wat2wasm), `node` | `apt-get install -y wabt`; node pre-installed on Ubuntu 24 |
-| `c` | *(none beyond gcc)* | C backend — gcc already required |
-
----
-
 ## Frontend oracle requirements
 
 Each frontend has a reference oracle used to generate `.ref` expected output for corpus tests.
@@ -56,37 +44,3 @@ Each frontend has a reference oracle used to generate `.ref` expected output for
 | `scrip` | *(self-hosted)* | scrip-cc itself | Scrip demos use scrip-cc as oracle |
 
 ---
-
-## Combination matrix — what SESSION_SETUP.sh installs
-
-| FRONTEND | BACKEND | Always | + Backend | + Oracle | Skip |
-|----------|---------|--------|-----------|---------|------|
-| `snocone` | `x64` | gcc make curl unzip | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl spitbol |
-| `snobol4` | `x64` | " | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl spitbol |
-| `icon` | `x64` | " | nasm libgc-dev | icont iconx | java javac mono ilasm snobol4 swipl spitbol |
-| `prolog` | `x64` | " | nasm libgc-dev | swipl | java javac mono ilasm snobol4 icont spitbol |
-| `snobol4` | `jvm` | " | java javac jasmin.jar | spitbol | nasm libgc-dev mono ilasm icont swipl spitbol |
-| `icon` | `jvm` | " | java javac jasmin.jar | icont iconx | nasm libgc-dev mono ilasm snobol4 swipl spitbol |
-| `prolog` | `jvm` | " | java javac jasmin.jar | swipl | nasm libgc-dev mono ilasm snobol4 icont spitbol |
-| `snobol4` | `net` | " | mono ilasm | spitbol | nasm libgc-dev java javac icont swipl spitbol |
-| `snobol4` | `wasm` | " | wabt(wat2wasm) node | spitbol | nasm libgc-dev java javac mono ilasm icont swipl spitbol |
-| *(omitted)* | *(omitted)* | " | ALL backends | ALL oracles | nothing — full install |
-
-**SPITBOL** is never required for any current session — it is an alternative SNOBOL4 oracle
-SPITBOL is the oracle. SESSION_SETUP.sh installs it from snobol4ever/x64.
-only when FRONTEND is omitted (full install mode).
-
----
-
-## Quick reference — Snocone × x86 (most common SC session)
-
-```bash
-TOKEN=ghp_xxx FRONTEND=snocone BACKEND=x64 bash /home/claude/.github/SESSION_SETUP.sh
-```
-
-Installs: `gcc make curl unzip nasm libgc-dev spitbol`
-Skips:    `java javac mono ilasm icont swipl spitbol` — saves ~5–10 min
-
----
-
-*SETUP-tools.md — reference only. SESSION_SETUP.sh is the authoritative implementation.*
