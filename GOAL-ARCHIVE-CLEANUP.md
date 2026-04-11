@@ -1,79 +1,200 @@
 # GOAL-ARCHIVE-CLEANUP — Clean the Archive
 
 **Repo:** .github (archive/ folder only)
-**Done when:** all content that was extracted into live GOAL/REPO/ARCH files has been
-deleted from its source location in archive/. No live content duplicated in archive/.
+**Catch phrase:** "clean the archive"
+**Done when:** all content extracted into live GOAL/REPO/ARCH files deleted from archive/
 
-## What was extracted and where it came from
+## Already done (do not repeat)
 
-| Extracted into | Source in archive/ | What to delete |
-|---------------|-------------------|----------------|
-| `GOAL-SILLY-SWEEP-FORWARD.md` | `archive/MILESTONE-SS-BLOCK-FORWARD.md` | Entire file — fully superseded |
-| `GOAL-SILLY-SWEEP-BACKWARD.md` | `archive/MILESTONE-SS-BLOCK-BACKWARD.md` | Entire file — fully superseded |
-| `GOAL-SILLY-SYNC-MONITOR.md` | `archive/MILESTONE-SS-MONITOR.md` | Entire file — fully superseded |
-| `GOAL-SCRIP-BEAUTY.md` | `archive/MILESTONE-SN4X86-SCRIP-TRACE.md` | Implementation order table (T-0 through T-4) + Gap sections |
-| `GOAL-SCRIP-BEAUTY.md` | `archive/MILESTONE-SN4X86-BEAUTY-PREREQS.md` | BP-1 through BP-5 step descriptions |
-| `GOAL-NET-BEAUTY-19.md` | `archive/MILESTONE-NET-BEAUTY-19.md` | Entire file — fully superseded |
-| `GOAL-NET-BEAUTY-SELF.md` | `archive/MILESTONE-NET-BEAUTY-SELF.md` | Entire file — fully superseded |
-| `GOAL-NET-SNIPPETS.md` | `archive/MILESTONE-NET-SNIPPET-FACTORY.md` | Entire file — fully superseded |
-| `GOAL-NET-OPTIMIZE.md` | `archive/MILESTONE-NET-SNOBOL4.md` | M-NET-OPT-* rows from milestone chain table |
-| `REPO-one4all.md` | `archive/SESSION-silly-snobol4.md` | §INFO build command, §INFO architecture block, §INFO naming conventions |
-| `REPO-one4all.md` | `archive/REPO-one4all.md` | §BUILD and §TEST sections |
-| `REPO-one4all.md` | `archive/SETUP-tools.md` | Backend requirements table, combination matrix |
-| `REPO-snobol4dotnet.md` | `archive/REPO-snobol4dotnet.md` | §BUILD, §TEST, NOW section |
-| `REPO-snobol4dotnet.md` | `archive/SESSION-snobol4-net.md` | §BUILD and §TEST sections |
-| `REPO-snobol4jvm.md` | `archive/REPO-snobol4jvm.md` | Entire file — fully superseded |
-| `ARCH-SILLY.md` | `archive/SESSION-silly-snobol4.md` | §INFO architecture block, naming conventions table |
-| `ARCH-SNOBOL4.md` | `archive/SESSION-snobol4-x64.md` | §INFO parser notes, monitor hooks |
-| `ARCH-IR.md` | `archive/IR.md` | EXPR_t struct, EKind table, STMT_t struct, five phases table |
-| `ARCH-x86.md` | `archive/BB-GEN-X86-BIN.md` | ABI section |
-| `ARCH-x86.md` | `archive/SCRIP-UNIFIED.md` | scrip modes table |
-| `ARCH-JVM.md` | `archive/REPO-snobol4jvm.md` | Pipeline stages, oracle role section |
-| `ARCH-NET.md` | `archive/SESSION-snobol4-net.md` | §KEY FILES table |
-| `RULES.md` | `archive/GENERAL-RULES.md` | All rules that were copied verbatim |
+- ✅ S-1: `git rm` 6 superseded MILESTONE files (SS-BLOCK-FORWARD, SS-BLOCK-BACKWARD, SS-MONITOR, NET-BEAUTY-19, NET-BEAUTY-SELF, NET-SNIPPET-FACTORY)
+- ✅ S-2: `git rm` 3 superseded REPO files (REPO-one4all, REPO-snobol4dotnet, REPO-snobol4jvm)
+- ✅ S-3: Removed Gap 1/2/3 sections + Implementation order table from `MILESTONE-SN4X86-SCRIP-TRACE.md` (lines 48-222 deleted)
+- ✅ S-4: Removed BP-1 through BP-5 from `MILESTONE-SN4X86-BEAUTY-PREREQS.md` (lines 74-239 deleted)
+- ✅ S-5: Removed M-NET-OPT-CACHE/EMIT/FULL rows + D-217/218/219 sprint rows from `MILESTONE-NET-SNOBOL4.md`
 
-## Method
+## Steps remaining
 
-For each row above:
-1. Open the archive source file
-2. Locate the extracted section
-3. Delete that section (or the entire file if marked "fully superseded")
-4. Commit with message: `archive-cleanup: remove <what> from <source file>`
+---
 
-For "entire file" deletions: `git rm archive/<filename>`
-For partial deletions: edit the file, remove the section, save.
+### S-6 — archive/SESSION-silly-snobol4.md
 
-## Steps
+Extracted into: `ARCH-SILLY.md` and `REPO-one4all.md`
 
-- [ ] **S-1** — Delete fully superseded milestone files:
-  `git rm archive/MILESTONE-SS-BLOCK-FORWARD.md archive/MILESTONE-SS-BLOCK-BACKWARD.md archive/MILESTONE-SS-MONITOR.md archive/MILESTONE-NET-BEAUTY-19.md archive/MILESTONE-NET-BEAUTY-SELF.md archive/MILESTONE-NET-SNIPPET-FACTORY.md`
+Delete these sections (exact line numbers as of last check — verify with grep before cutting):
 
-- [ ] **S-2** — Delete superseded repo files:
-  `git rm archive/REPO-one4all.md archive/REPO-snobol4dotnet.md archive/REPO-snobol4jvm.md`
+```bash
+# Verify current line numbers first:
+grep -n "^### What this is\|^### Architecture\|^### Naming conv\|^### Build (2026\|^### Cherry-picks\|^### Build command — NO\|^### Platform layer\|^### Milestone seq\|^### sil_data_init\|^### Naming conventions — C trans\|^### Three-way diff method" archive/SESSION-silly-snobol4.md
+```
 
-- [ ] **S-3** — Remove extracted sections from `archive/MILESTONE-SN4X86-SCRIP-TRACE.md`: delete the Implementation order table (T-0 through T-4) and the three Gap sections.
+Sections to delete:
+- `### What this is (2026-04-06)` through end of that block (~lines 11-26) → in ARCH-SILLY.md
+- `### Architecture (2026-04-06)` through end (~lines 42-61) → in ARCH-SILLY.md
+- `### Naming conventions (2026-04-06)` through end (~lines 27-41) → in ARCH-SILLY.md
+- `### Cherry-picks from one4all (2026-04-06)` through end (~lines 62-75) → in REPO-one4all.md
+- `### Build (2026-04-06)` — the build command block (~lines 76-83) → in REPO-one4all.md
+- `### Build command — NO -m32` (~lines 167-173) → in REPO-one4all.md
+- `### Naming conventions — C translation rules (2026-04-06)` (~lines 202-212) → in ARCH-SILLY.md
+- `### Three-way diff method` (~lines 268-305) → in ARCH-SILLY.md
 
-- [ ] **S-4** — Remove extracted sections from `archive/MILESTONE-SN4X86-BEAUTY-PREREQS.md`: delete BP-1 through BP-5 step descriptions.
+Keep: Platform layer (SS-19), Milestone sequence, sil_data_init status, M-SS-DIFF punch-list, M-SS-DIFF-RECHECK watermark, handoff rule, §NOW — these are historical session state not extracted.
 
-- [ ] **S-5** — Remove M-NET-OPT-* rows from milestone chain table in `archive/MILESTONE-NET-SNOBOL4.md`.
+```bash
+cd /home/claude/.github
+# Edit archive/SESSION-silly-snobol4.md — delete the sections listed above
+git add archive/SESSION-silly-snobol4.md
+git commit -m "archive-cleanup S-6: remove extracted sections from SESSION-silly-snobol4"
+git pull --rebase origin main && git push
+```
 
-- [ ] **S-6** — Remove extracted §INFO sections from `archive/SESSION-silly-snobol4.md`: build command block, architecture block, naming conventions table.
+---
 
-- [ ] **S-7** — Remove extracted §BUILD and §TEST sections from `archive/SESSION-snobol4-net.md` and §KEY FILES table.
+### S-7 — archive/SESSION-snobol4-net.md
 
-- [ ] **S-8** — Remove extracted §BUILD, §TEST, NOW section from `archive/SESSION-snobol4-x64.md`.
+Extracted into: `REPO-snobol4dotnet.md`
 
-- [ ] **S-9** — Remove backend requirements table and combination matrix from `archive/SETUP-tools.md`.
+```bash
+grep -n "^## §BUILD\|^## §TEST\|^## §KEY FILES\|^## §SUBSYSTEMS\|^## §NOW" archive/SESSION-snobol4-net.md
+```
 
-- [ ] **S-10** — Remove EXPR_t struct, EKind table, STMT_t struct, five phases table from `archive/IR.md`.
+Delete:
+- `## §BUILD` section (lines ~23-50) → in REPO-snobol4dotnet.md
+- `## §TEST` section (lines ~51-67) → in REPO-snobol4dotnet.md
+- `## §KEY FILES` table (lines ~68-90) → in REPO-snobol4dotnet.md
 
-- [ ] **S-11** — Remove ABI section from `archive/BB-GEN-X86-BIN.md`. Remove scrip modes table from `archive/SCRIP-UNIFIED.md`.
+Keep: §SUBSYSTEMS, §NOW, everything after §NOW — session state not extracted.
 
-- [ ] **S-12** — Audit: scan all remaining archive/ files for any content that duplicates live GOAL/REPO/ARCH files. Delete any found. Gate: no live content duplicated in archive/.
+```bash
+git add archive/SESSION-snobol4-net.md
+git commit -m "archive-cleanup S-7: remove §BUILD §TEST §KEY FILES from SESSION-snobol4-net"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-8 — archive/SESSION-snobol4-x64.md
+
+Extracted into: `REPO-one4all.md` and `ARCH-SNOBOL4.md`
+
+```bash
+grep -n "^## Key files\|^## §NOW" archive/SESSION-snobol4-x64.md
+```
+
+Delete:
+- `## Key files` table (~lines 248-262) → in REPO-one4all.md
+
+Keep: all §INFO sections (tool paths, sprint notes, bug findings) — session history not extracted. Keep §NOW.
+
+```bash
+git add archive/SESSION-snobol4-x64.md
+git commit -m "archive-cleanup S-8: remove Key files table from SESSION-snobol4-x64"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-9 — archive/SETUP-tools.md
+
+Extracted into: `REPO-one4all.md`
+
+```bash
+grep -n "^## Backend req\|^## Combination matrix\|^## Always req\|^## Rebus frontend\|^## Frontend oracle" archive/SETUP-tools.md
+```
+
+Delete:
+- `## Backend requirements` table → in REPO-one4all.md
+- `## Combination matrix` table → in REPO-one4all.md
+
+Keep: `## Always required`, `## Rebus frontend only`, `## Frontend oracle requirements` — referenced by SESSION_SETUP.sh logic.
+
+```bash
+git add archive/SETUP-tools.md
+git commit -m "archive-cleanup S-9: remove backend requirements + combination matrix from SETUP-tools"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-10 — archive/IR.md
+
+Extracted into: `ARCH-IR.md`
+
+```bash
+grep -n "^## What It Is\|^## EXPR_t\|^## EKind\|^## STMT_t\|^## Five phases\|^## SM_Program\|^## The Five" archive/IR.md
+```
+
+Delete:
+- `## What It Is` section → in ARCH-IR.md
+- `## EXPR_t` section (struct + accessor macros) → in ARCH-IR.md
+- `## EKind` table → in ARCH-IR.md
+- `## STMT_t` section → in ARCH-IR.md
+- Five phases table → in ARCH-IR.md
+
+Keep: anything beyond the five phases table — lower-level SM_Program detail not yet extracted.
+
+```bash
+git add archive/IR.md
+git commit -m "archive-cleanup S-10: remove EXPR_t/EKind/STMT_t/five-phases from IR.md (moved to ARCH-IR)"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-11a — archive/BB-GEN-X86-BIN.md
+
+Extracted into: `ARCH-x86.md` (ABI section)
+
+```bash
+grep -n "^## ABI\|^### ABI\|rdi.*entry\|esi.*alpha\|r10.*scratch\|Prologue.*mov" archive/BB-GEN-X86-BIN.md | head -10
+```
+
+Delete the ABI block (inline blob ABI description) → in ARCH-x86.md
+
+```bash
+git add archive/BB-GEN-X86-BIN.md
+git commit -m "archive-cleanup S-11a: remove ABI section from BB-GEN-X86-BIN (moved to ARCH-x86)"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-11b — archive/SCRIP-UNIFIED.md
+
+Extracted into: `ARCH-x86.md` (scrip modes table)
+
+```bash
+grep -n "^## Modes\|^| --interp\|^| --gen\|scrip.*mode\|three modes" archive/SCRIP-UNIFIED.md | head -10
+```
+
+Delete the scrip modes table → in ARCH-x86.md
+
+```bash
+git add archive/SCRIP-UNIFIED.md
+git commit -m "archive-cleanup S-11b: remove scrip modes table from SCRIP-UNIFIED (moved to ARCH-x86)"
+git pull --rebase origin main && git push
+```
+
+---
+
+### S-12 — Final audit
+
+```bash
+# Check no live content duplicated across archive/ and live files
+# Spot-check key terms that appear in live files:
+grep -rl "set_and_trace\|GOAL-\|## Session Start\|watermark 6749\|watermark 6438" archive/ | head -20
+```
+
+For any hits: read the context, determine if it's duplication of live content, delete if so.
+
+```bash
+git add -A
+git commit -m "archive-cleanup S-12: final audit, remove remaining duplicates"
+git pull --rebase origin main && git push
+```
 
 ## Rules
 
-- Edit archive/ files carefully — do not delete content that was NOT extracted into the new system.
-- Commit after each step. Message: `archive-cleanup: <description>`
+- Verify line numbers with grep before every delete — line numbers shift after each edit.
+- Never delete content that was NOT extracted into the new system.
+- One commit per step. Push after each commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
-- See RULES.md for full rules.
