@@ -23,7 +23,11 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
    ```bash
    sed -n 'START,ENDp' /home/claude/work/snobol4-2.3.3/v311.sil
    ```
-3. Find oracle in snobol4.c, find ours in src/silly/, sync-step line by line.
+3. **THREE-WAY sync-step — all three simultaneously, one SIL line at a time:**
+   - Column 1: `v311.sil` — the SIL instruction (the spec)
+   - Column 2: `snobol4.c` — generated C (ground truth, resolves branch ambiguity)
+   - Column 3: `src/silly/sil_*.c` — our translation
+   ⛔ Using v311.sil only for block boundaries = TWO-WAY. That is wrong. See GENERAL-RULES.md.
 4. Fix any divergence. Build clean. Commit:
    ```bash
    git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" \
