@@ -9,10 +9,21 @@
 
 1. Read this file top to bottom.
 2. Find your active Goal in the table below.
-3. Open that Goal file. Find the first incomplete Step. Do it.
-4. If you need invariants, tool paths, or don't-do-X warnings for your repo: read the REPO file for that repo (see Repos section below).
+3. Open that Goal file. Find the first incomplete Step (`- [ ]`). Do it.
+4. If you need invariants, tool paths, or don't-do-X warnings: read the REPO file (see Repos below).
 
 That is your entire orientation. Do not read archive/ unless a step explicitly says to.
+
+---
+
+## Active Goals
+
+| Goal | File | Repo | Current Step | Done? |
+|------|------|------|--------------|-------|
+| Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6749 → next: DMPK1 | ☐ |
+| Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6438 → next: COLECT | ☐ |
+| Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
+| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all + snobol4dotnet | S-1 (set_and_trace) | ☐ |
 
 ---
 
@@ -28,22 +39,16 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 | corpus | `REPO-corpus.md` | `/home/claude/corpus` |
 | harness | `REPO-harness.md` | `/home/claude/harness` |
 
----
-
-## Active Goals
-
-| Goal | File | Repo | Current Step | Done? |
-|------|------|------|--------------|-------|
-| *(none yet — goals to be defined)* | — | — | — | — |
+*(Repo files to be populated from archive/ as needed.)*
 
 ---
 
 ## Rules
 
-- Commit as `LCherryholmes / lcherryh@yahoo.com`. Never as Claude.
-- Never write the token to disk or commit it.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`. Never as Claude.
+- Never write the token to disk or in any commit.
 - Rebase before every `.github` push: `git pull --rebase origin main && git push`
-- Append to `SESSIONS_ARCHIVE.md` (in archive/) at handoff. Never prune it.
+- Append to `archive/SESSIONS_ARCHIVE.md` at handoff. Never prune it.
 - A Goal is done or not done. No other status.
 
 ---
@@ -52,9 +57,9 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 
 Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared IR.
 SM-LOWER compiles IR to SM_Program — a flat array of stack machine instructions.
-The INTERP executes SM_Program. The EMITTER walks the same SM_Program and emits
-native code (x86, JVM, .NET, JS, WASM). Interpreter and emitter share one instruction set.
+The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native code
+(x86, JVM, .NET, JS, WASM). Interpreter and emitter share one instruction set.
 
 ---
 
-*archive/ holds all prior HQ docs. Content is extracted from there as needed to populate Goal and Repo files.*
+*archive/ holds all prior HQ docs. Full git history is the permanent record.*
