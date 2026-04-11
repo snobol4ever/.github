@@ -38434,3 +38434,60 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 **Remaining stubs:** RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
 **M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
 **BWD watermark:** 6438 — next: COLECT (6427)
+
+---
+
+## Session SSB-12 — M-SS-STUBS RSORT_fn/SORT_fn (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `3e4a1ae5` · .github `98c5fc8`
+**HEAD at end:** one4all `58545e92` · .github (pending push below)
+
+### Work done
+
+**M-SS-STUBS — RSORT_fn/SORT_fn implemented (`58545e92`):**
+
+Three-way sync (v311.sil 5004–5271, snobol4.c L_RSORT/L_SORT, arrays.c):
+
+| Item | Change | Notes |
+|------|--------|-------|
+| `sort_body(reverse)` | arrays.c | shared body; RSORT→reverse=1, SORT→reverse=0 |
+| SORT1 | argval + table→array via ICNVTA_fn | faithful |
+| SORT2 | dimension unpack, 1-d/2-d | faithful |
+| SORT3/3A/3B/3C | second-arg: int/real/string/field-fn | faithful |
+| SORT4/4A | column bounds check + offset multiply | faithful |
+| SORT5+SORTT* | table index build | faithful |
+| SORTA/SORTA1 | array index build + new array alloc | faithful |
+| SORTGO/SORT6–11 | shell-sort on index | faithful |
+| CVV/CII/CRR/CIRX/CRI | comparators | faithful |
+| COTH/COTH0/COTH2 | user-type / field-block compare | faithful |
+| CMPEQ/CMPGT/CMPLT/SWAP | tie-break by position, direction by SCL | faithful |
+| SORT12–14 | unravel sorted index into new array | faithful |
+| `A1PTR`, `A4PTR`–`A7PTR`, `F1PTR`, `F2PTR` | defined in platform.c + extern in data.h | were declared but undefined |
+| `errors.h`, `math.h` | added to arrays.c includes | for INTR1/INTR30/isnan |
+
+**Build:** 0 errors · 0 warnings · HEAD `58545e92`
+**BWD:** No blocks this session (context used by RSORT/SORT implementation).
+
+**Remaining stubs:** XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
+**M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
+**BWD watermark:** 6438 — next: COLECT (6427)
+
+### Next session (SSB-13) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
+# HEAD: 58545e92 · 0 errors · 0 warnings
+# SS-STUBS next: XCALL_IO_FILE (#9) — platform.c
+# BWD next: COLECT (v311.sil line 6427)
+# Sources: /home/claude/work/snobol4-2.3.3/v311.sil + snobol4.c
+```
+
+**Remaining stubs:** XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
+**M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
+**BWD watermark:** 6438 — next: COLECT (6427)
