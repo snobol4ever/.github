@@ -30,3 +30,10 @@ export PATH=/usr/local/dotnet10:$PATH
 cd /home/claude/snobol4dotnet
 dotnet run --project Benchmarks/Benchmarks.csproj -c Release
 ```
+
+## Rules
+
+- Test gate passes before every commit.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
+- Rebase before every .github push.
+- See RULES.md for full rules including handoff checklist.

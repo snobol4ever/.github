@@ -58,3 +58,10 @@ done; echo "--- PASS=$PASS FAIL=$FAIL"
 ## Commit identity
 
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+## Rules
+
+- Test gate passes before every commit.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
+- Rebase before every .github push.
+- See RULES.md for full rules including handoff checklist.

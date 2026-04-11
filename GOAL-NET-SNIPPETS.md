@@ -25,3 +25,10 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 - [ ] **S-3** — Corpus snippet factory: fill remaining coverage gaps in `TestSnobol4/` identified by S-2 audit. Gate: ≥ 2400 passed, 0 failed.
 
 - [ ] **S-4** — Full gate: crosscheck 80/80 + unit tests ≥ 2400p/0f. ✅
+
+## Rules
+
+- Test gate passes before every commit.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
+- Rebase before every .github push.
+- See RULES.md for full rules including handoff checklist.

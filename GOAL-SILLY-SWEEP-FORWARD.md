@@ -58,3 +58,11 @@ After each commit: update watermark in THIS FILE. Push .github. Then next block.
 ## Commit identity
 
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+## Rules
+
+- Three-way diff: v311.sil + snobol4.c + ours, all three simultaneously, every SIL line. Never two-way.
+- Watermark in THIS file is sole authority. All other sources are stale.
+- Build gate clean before every commit: zero errors, zero warnings.
+- One block per commit. Update watermark and push .github before next block.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`. See RULES.md for full rules.

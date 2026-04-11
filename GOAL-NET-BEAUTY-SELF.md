@@ -35,3 +35,10 @@ diff /tmp/beauty_self_clean.txt beauty.sno && echo "SELF-HOST PASS" || echo "SEL
 - [ ] **S-2** — Fix root cause. If beauty.sno bug: patch beauty.sno (with SPITBOL confirming fix). If snobol4dotnet bug: fix in runtime.
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty.sno` is empty. Output: `SELF-HOST PASS`. ✅
+
+## Rules
+
+- Test gate passes before every commit.
+- Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
+- Rebase before every .github push.
+- See RULES.md for full rules including handoff checklist.
