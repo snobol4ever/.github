@@ -177,21 +177,18 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-203 | snobol4dotnet `f77c4ec` · corpus `231ea48` · **2243p/0f/2s** | D-204: continue coverage hunting — thin areas: Pattern/ (Fail=1, ArbNo=2), FunctionControl/ (Load=1, Unload=1), Miscellaneous/ (Time=1), Operator/ stubs → ≥2244p |
+| **NET CORPUS** | D-206 | snobol4dotnet `83598f9` · corpus `5c8aa22` · **2270p/0f/2s** | D-207: continue coverage hunting — Function/Miscellaneous/Datatype.cs thin areas, Operator/ stubs, any remaining rung gaps → ≥2280p |
 
-**D-204 first actions:**
+**D-207 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
 2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2243p/0f/2s**
-4. Fill thin test areas: Pattern/Fail, Pattern/ArbNo, FunctionControl/Load, Miscellaneous/Time
-5. Check Operator/ stubs — add TestMethod content
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2270p/0f/2s**
+4. Find next thin coverage areas (Datatype, Operator stubs, any uncovered builtins)
 
-**Key facts for D-204:**
-- BUG-NET-STRCOMP fixed: all 6 L*.cs now use `string.CompareOrdinal()` — matches SPITBOL exactly
-- `StringComparisonStrategy` + all L*.cs both ordinal-correct
-- `BaseSort` 1D fix in place
-- 2 permanent skips: `M-NET-EVAL-COMPLETE` (EVAL recursion) + `M-NET-PAT-PRIMITIVES` (&ANCHOR='0' error 208)
-- rung9 now complete: 910–919 all have corpus programs + C# tests
+**Key facts:**
+- 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
+- All 6 L*.cs use `string.CompareOrdinal()` (BUG-NET-STRCOMP fixed D-203)
+- rung8 complete 810-818, rung9 complete 910-919, Gimpel: UPLO(2), BASEB(2), ROMAN(4)
 
-*SESSION-snobol4-net.md — updated D-203, 2026-04-10, Claude Sonnet 4.6.*
-*D-203: BUG-NET-STRCOMP fixed (6 L*.cs CurrentCulture→CompareOrdinal); +23 tests; 2243p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-206, 2026-04-10, Claude Sonnet 4.6.*
+*D-206: 817_substr+818_char+UPLO1+BASEB1+ROMAN3+ROMAN4; +6 tests; 2270p/0f/2s.*
