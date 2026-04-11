@@ -38163,3 +38163,59 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #           if n < 6: print(n, subdir+'/'+f)
 #   "
 ```
+
+---
+
+## Session SSF-55 — M-SS-BLOCK-FORWARD DMP cluster (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `2b07b9b4` · .github `5c1dced` (FWD watermark 6698)
+**HEAD at end:** one4all `17ed4e12` · .github `473e570` (FWD watermark 6749)
+
+### Blocks verified — 2 bugs fixed
+
+| Block | SIL line | Result | Action |
+|-------|----------|--------|--------|
+| DMP | 6699 | ✅ clean | — |
+| DUMP | 6702 | ✅ clean | — |
+| DMPB | 6704 | ✅ clean | — |
+| DMPA | 6707 | ✅ clean | — |
+| DMPX | 6722 | 🐛 fixed | YCL running total: `ycl+=xcl` not `DMPSP.l+xcl` (SUM YCL,YCL,XCL); same fix applied to DMPV |
+| DMPV | 6731 | ✅ clean (fixed in DMPX commit) | — |
+| DMPRT | 6738 | ✅ clean | — |
+| DMPI | 6741 | ✅ clean | — |
+| DMPOVR | 6744 | ✅ clean | — |
+| DMK | 6747 | 🐛 fixed | `GETSIZ XCL,KNLIST` must deref `KNLIST.a` then read v-field, not `KNLIST.v` directly |
+
+### Bug details
+
+**DMPX (6722) — YCL running total wrong:**
+- SIL: `SUM YCL,YCL,XCL` — YCL accumulates name_len, then += value_len
+- snobol4.c: `D_A(YCL) += D_A(XCL)` — confirmed cumulative
+- Ours (broken): `ycl2.a.i = DMPSP.l + xcl.a.i` — reconstructed from DMPSP, missed name_len
+- Fix: lift `ycl` out of inner block scope; `ycl.a.i += xcl.a.i` at DMPX; same fix in DMPV
+
+**DMK (6747) — GETSIZ dereference missing:**
+- SIL: `GETSIZ XCL,KNLIST` — get size of pair list
+- snobol4.c: `D_A(XCL) = D_V(D_A(KNLIST))` — deref KNLIST.a, read v-field of array object
+- Ours (broken): `xcl.a.i = KNLIST.v` — read KNLIST's own v-field, no dereference
+- Fix: `DESCR_t *kn = A2P(KNLIST.a.i); xcl.a.i = kn->v;`
+
+### Commits (one4all)
+- `3d354985` DMPX: YCL running total fix (+ DMPV)
+- `17ed4e12` DMK: GETSIZ dereference fix
+
+### Next session (SSF-56) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+# watermark 6749 · next: DMPK1 (line 6750)
+cd /home/claude/one4all && git pull --rebase
+sed -n '6750,6763p' /home/claude/work/snobol4-2.3.3/v311.sil
+grep -n "^L_DMPK1:" /home/claude/work/snobol4-2.3.3/snobol4.c
+grep -n "L_DMPK1" /home/claude/one4all/src/silly/func.c
+# Three-way walk: DMPK1 block (6750-6763), then DMPK2 (6764), DMPKV/DMPK3 (BLOCKS — skip)
+```
+
+**FWD watermark: 6749. Next: DMPK1 (6750).**
