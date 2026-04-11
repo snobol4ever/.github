@@ -37571,3 +37571,38 @@ bash test/monitor/run_monitor_2way.sh \
 - `monitor_ipc_spitbol.so` already in x64 repo (pre-built, correct)
 - `INC` must be `/home/claude/corpus/programs/snobol4/demo/inc` (not snobol4ever_corpus)
 - `scrip --ir-run` is the correctness path; `--sm-run` is default but incomplete
+
+---
+
+## Session D-206 HANDOFF NOTE — context window at 85%, performing handoff (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `b79f9ec` · corpus `5c8aa22` · **2264p/0f/2s**
+**No new commits this segment — handoff only.**
+
+### This session's full work (D-203 through D-205)
+
+| Session | Delta | Key work |
+|---------|-------|----------|
+| D-203 | +23 | BUG-NET-STRCOMP: all 6 L*.cs had CurrentCulture — fixed to CompareOrdinal. Corpus 915-919. |
+| D-204 | +12 | Pattern thin areas: Fail/ArbNo/Abort/Concat. Time/Collect edges. |
+| D-205 | +9  | Rung8 813-816 (reverse/trim/lpad/rpad). Size/Char edges. |
+| **Total** | **+44** | **2220 → 2264p** |
+
+### Next session (D-206) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: b79f9ec · 2264p/0f/2s
+# Priority: rung8 817_substr + 818_char corpus programs + Gimpel expansion
+# Gate target: ≥2275p
+```
+
+### Key invariants
+- 2 permanent skips: TEST_Corpus_control_expr_eval + TEST_Corpus_099_keyword_rw
+- All 6 L*.cs use string.CompareOrdinal() (BUG-NET-STRCOMP fixed D-203)
+- rung8 complete 810-816, rung9 complete 910-919, rungs 2-11 all covered
