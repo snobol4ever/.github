@@ -37906,3 +37906,36 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 **BWD watermark:** 6747 (DMK — implementation started, commit pending after build clean)
 **STUBS watermark:** DMK_fn WIP — fix dup-def, build, commit, then DATDEF_fn next
+
+---
+
+## HANDOFF NOTE — D-209 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `2060a67` · corpus `5c8aa22` · **2300p/0f/2s**
+**Gate ≥2300p: CLEARED ✅**
+
+### This session's work (D-209)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `Eject_002/003/004` | 3 | arg=0, no-arg, multiple calls |
+| `Endfile_happy_path/numeric_channel` | 2 | write+endfile, channel name as string |
+| `Fail_005` | 1 | FAIL in alternation — real pattern wins |
+| `Rem_004` | 1 | REM after prefix captures rest |
+| `Bal_003` | 1 | BAL matches nested parens |
+| **Total** | **+8p** | **2292 → 2300p** |
+
+### Next session (D-210) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 2060a67 · 2300p/0f/2s
+# Gate target: ≥2310p
+# Thin files remaining: Pattern/At(3), Pattern/Rem(4), ArraysTables/Rsort(3)
+# Also check: StringSynthesis, Numeric for any <5-test files
+```
