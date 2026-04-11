@@ -2,6 +2,13 @@
 
 ---
 
+## Rules belong in RULES.md
+
+⛔ Do **not** add rules to `PLAN.md`. Global rules live in `RULES.md` only.
+`PLAN.md` is navigation and state. `RULES.md` is rules.
+
+---
+
 ## Commit identity — always Lon, never Claude
 
 ```bash
@@ -34,6 +41,9 @@ Multiple sessions may push .github simultaneously. Never `git push --force`.
 ---
 
 ## Handoff — push must succeed
+
+⛔ Do **not** push any repo until "perform hand off" is called. Hold all commits locally.
+One clean commit at handoff — this IS the session record. No piecemeal pushes.
 
 A committed-but-not-pushed session is lost when the container dies.
 Never declare handoff complete until `git log origin/main --oneline -1` shows
