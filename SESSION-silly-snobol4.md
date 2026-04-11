@@ -57,7 +57,7 @@ that folder except system headers.
 - Multiple SIL exits: either `sno_rc_t` enum return or out-params.
 - Pattern backtracking: C call stack + `setjmp`/`longjmp` in `sil_scan.c`.
 
-**BLOCKS section:** v311.sil lines 7038–10208 — skipped entirely.
+**BLOCKS section:** v311.sil lines 7038–10208 — verified block by block like everything else.
 
 ### Cherry-picks from one4all (2026-04-06)
 
@@ -107,7 +107,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 | §17 Other Ops | 5828–6101 | ASGN CONCAT IND KEYWRD LIT NAME NMD STR |
 | §18 Predicates | 6102–6321 | DIFFER FUNCTN IDENT LABEL LEQ-LNE NEG QUES CHAR LPAD RPAD |
 | §19 Other Fns | 6322–7037 | APPLY ARG LOCAL FIELDS CLEAR CMA COLECT COPY CNVRT DATE DT DMP DUMP DUPL OPSYN RPLACE REVERS SIZE TIME TRIM VDIFFR |
-| §20 BLOCKS | 7038–10208 | **SKIP** |
+| §20 BLOCKS | 7038–10208 | ⬜ pending (BWD pass) |
 | §21 Common Code | 10209–10241 | RTN1 FAIL RETNUL RTN2 RTN3 etc. |
 | §22 Termination | 10242–10336 | END FTLEND SYSCUT |
 | §23 Errors | 10337–10480 | all error handlers |
