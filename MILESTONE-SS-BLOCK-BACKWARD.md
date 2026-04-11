@@ -86,6 +86,10 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | ERRLCL–ABNDCL | 10535–45 | ✅ clean (batch) |
 | OUTSW/MLENCL/INSW/GCTRCL | 10517–23 | ✅ clean |
 | TRACL/FTLLCL | 10527–33 | ✅ clean |
+| DTLIST | 10482 | 🐛 fixed — arena pair list built; ARRSP/ASSCSP added; header .a/.v wired; DTATL wired |
+| DTLEND | 10507 | ✅ LHERE sentinel |
+| KNLIST header | 10510 | 🐛 noted — BUG-KNLIST-PAIRLIST (header .a/.v=0; pairs absent; KNATL.a=0) |
+| EXLMCL–ABNDCL (13 blocks) | 10515–10545 | ✅ all value cells correct; name-spec companions systemic KNLIST gap |
 | FULLCL | 10525 | 🐛 fixed — D0→D(0,0,I) |
 | BKGNCL | 10530 | 🐛 fixed — missing entirely |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
