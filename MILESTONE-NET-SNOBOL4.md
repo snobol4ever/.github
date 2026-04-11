@@ -68,6 +68,15 @@ Captures commit **only on Phase 5 :S** — by construction, no @N bug.
 
 ## Milestone chain
 
+### Phase B2 — Beauty suite (snobol4dotnet) ⚠️ CURRENT
+
+| Milestone | Description | Gate |
+|-----------|-------------|------|
+| **M-NET-BEAUTY-19** | ⚠️ **NOW** — All 19 beauty drivers pass. B-BEAUTY-0 (FENCE redef) → B-BEAUTY-9 (ShiftReduce). Ladder in `MILESTONE-NET-BEAUTY-19.md`. Baseline: 7/19. | 19/19 pass |
+| **M-NET-BEAUTY-SELF** | **NEXT** — beauty.sno self-beautifies: reads itself as INPUT, writes itself to OUTPUT, output matches input exactly. Gates on M-NET-BEAUTY-19. | output == input |
+
+---
+
 ### Phase 0 — Foundation (complete)
 
 | Milestone | Description | Status |
@@ -114,15 +123,6 @@ Any interpreter result that differs from ThreadedExecuteLoop is a compiler bug.*
 | **M-NET-PAT-PRIMITIVES** | 16 pattern primitives vs SPITBOL oracle: LEN POS RPOS TAB RTAB REM ANY NOTANY SPAN BREAK BREAKX FENCE FAIL SUCCEED ABORT BAL | rung2–9 100% · dotnet test 1913/1913 |
 | **M-NET-EVAL-COMPLETE** | EVAL/CODE edge cases: pattern context · CODE across statement boundaries · AppendCompile jump patching | rung10/1016_eval pass · CODE corpus pass |
 | **M-NET-NRETURN** | NRETURN lvalue-assign · follow DYN-42 fix | rung10/1013 pass |
-
----
-
-### Phase B2 — Beauty suite (snobol4dotnet)
-
-| Milestone | Description | Gate |
-|-----------|-------------|------|
-| **M-NET-BEAUTY-19** | All 19 beauty drivers pass — B-BEAUTY-0 (FENCE redef) → B-BEAUTY-9 (ShiftReduce). Ladder in `MILESTONE-NET-BEAUTY-19.md`. Baseline: 7/19. | 19/19 pass |
-| **M-NET-BEAUTY-SELF** | beauty.sno self-beautifies: reads itself as INPUT, writes itself to OUTPUT, output matches input exactly. Gates on M-NET-BEAUTY-19. | output == input |
 
 ---
 
