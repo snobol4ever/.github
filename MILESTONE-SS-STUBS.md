@@ -8,8 +8,26 @@
 
 ## Watermark (update after each stub fixed)
 
-**Current stub:** `DATDEF_fn` (#4)  
-**Next stub:** `RSORT_fn` / `SORT_fn` (#5)
+**Current stub:** `OPSYN_fn` (#15) — implement full operator synonym logic  
+**Next stub:** `CNVRT_fn` (#13) — implement non-compiler conversion paths (S↔I, S↔R, I↔R, TABLE→ARRAY; RECOMP/CODE/EXPRESSION → TODO M19)
+
+---
+
+## Priority Order (as of 2026-04-11)
+
+1. **OPSYN_fn** (#15) — all infrastructure present (FINDEX_fn, STREAM_fn, BIOPTB/UNOPTB/SBIPTB tables live). Implement fully.
+2. **CNVRT_fn** (#13) + **CODER_fn** (#14) — implement S↔I, S↔R, I↔R, TABLE→ARRAY, NUMERIC string paths. RECOMP/CONVEX (CODE/EXPRESSION) → stub with `/* TODO M19 */`.
+3. **XCALL_RPLACE** (#17) — currently no-op; implement char-by-char replacement loop.
+4. **DATDEF_fn** (#3) — array DATA definition.
+5. **RSORT_fn / SORT_fn** (#4) — sort arrays.
+6. **DTREP_fn2 / DTREP_fn3** (#12) — type representation for non-scalar types.
+7. **getbal_fn** (#11) — BAL pattern implementation.
+8. **KEYT_fn** (#10) — keyword trace.
+9. **XCALL_IO_FILE** (#9) — file I/O attach.
+10. **XCALL_XINCLD** (#8) — include file.
+11. **XCALL_GETPMPROTO** (#7) — get prototype string.
+12. **LOAD_fn / LOAD2_fn** (#5/#6) — dynamic load.
+13. **DEFFNC_fn** (#16) — TODO M19 (compiler re-entry required).
 
 ---
 
