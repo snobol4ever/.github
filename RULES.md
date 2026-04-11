@@ -109,7 +109,6 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ⛔ Do **not** build the CSNOBOL4 executable (`./configure && make`) during normal sessions.
 Building it wastes container time and is never needed for sweep or other goals.
-The goal that requires it will say so explicitly.
 
 ---
 
