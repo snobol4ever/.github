@@ -47,8 +47,8 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 
 ## Watermark (update after each block — counts DOWN toward 1)
 
-**Current watermark:** v311.sil line **6684**  
-**Next block:** DATE (line 6675)
+**Current watermark:** v311.sil line **6457**  
+**Next block:** COPY (line 6438)
 
 ⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
@@ -180,6 +180,8 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 | TFENPL | 12131 | ✅ clean |
 | TLABPL | 12128 | ✅ clean |
 | TVALPL | 12125 | ✅ clean |
+| CNVRT cluster (CODER/CONVE/CONVEX/CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS/CNVTA/ICNVTA/CNVTA1-8/CNVAT/CNVAT2) | 6457–6674 | ⚠️ stub — CNVRT_fn/CODER_fn/CONVE_fn all return FAIL |
+| DATE | 6675 | ✅ clean |
 | DT/DTRTN/DTEXTN | 6684 | ✅ clean |
 | DMP/DUMP cluster (DMPB/DMPA/DMPX/DMPV/DMPRT/DMPI/DMPOVR) | 6699 | 🐛 fixed — DMPX+DMPV SUM YCL,YCL,XCL: used DMPSP.l instead of saved name-length; overflow check fired bleqsp.l bytes too early |
 | DMK/DMPK1 | 6747 | ✅ clean |
