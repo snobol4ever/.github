@@ -37499,3 +37499,75 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #   Function/StringSynthesis/Trim.cs (6 tests — check for tabs, mixed whitespace)
 #   Gimpel/ programs — UPLO(1 test), BASEB(1 test), ROMAN(2 tests) — expand
 ```
+
+---
+
+## HANDOFF NOTE — SCRIP-TRACE-1 close (2026-04-10)
+
+**one4all HEAD:** `e52e498c`  **x64 HEAD:** `4df1cc3`  **PASS=194/203**
+
+### Immediate next action: BP-1
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cd /home/claude && git -C x64 log --oneline -1
+cd /home/claude/one4all && git pull --rebase
+make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>&1 | tail -2
+# Expect: PASS=194/203
+
+# BP-1 minimal repro (confirmed broken):
+cat > /tmp/bp1_minimal.sno << 'SNO'
+        DEFINE('f()')         :(fEnd)
+f       f = .OUTPUT
+        :(NRETURN)
+fEnd
+        nm = f()
+        $nm = 'hello from indirect'
+END
+SNO
+./scrip --ir-run /tmp/bp1_minimal.sno
+# Expected output: hello from indirect
+# Actual: (silence) — $nm where nm=DT_N(.OUTPUT) does not assign OUTPUT
+
+# BP-1 root cause to investigate:
+# Gen.sno uses NRETURN idiom: function sets retvar = .OUTPUT (DT_N nameptr)
+# then :(NRETURN) — caller gets DT_N descriptor back.
+# Then: $outNm = outline — this is E_INDIRECT subject assignment.
+# In scrip.c second ir-run loop, E_INDIRECT subject path (line ~1660):
+#   name_d = interp_eval(subject->children[0])  → evaluates outNm → gets DT_N
+#   nm = VARVAL_fn(name_d)  → should return "OUTPUT" from the DT_N
+# Bug hypothesis: VARVAL_fn on a DT_N (NAMEPTR) returns the pointed-to value's
+# string, not the variable NAME "OUTPUT". Need NAME resolution, not value.
+# Fix: if IS_NAMEPTR(name_d), use the name the ptr points to, not its value.
+# Check: VARVAL_fn vs a dedicated name-extraction path for DT_N in indirect assign.
+
+# After BP-1 fix, rerun monitor:
+INC=/home/claude/corpus/programs/snobol4/demo/inc X64=/home/claude/x64 \
+MONITOR_TIMEOUT=20 \
+bash test/monitor/run_monitor_2way.sh \
+    /home/claude/corpus/programs/snobol4/beauty/beauty_Gen_driver.sno \
+    /home/claude/corpus/programs/snobol4/beauty/beauty_Gen_tracepoints.conf
+
+# Gate: Gen + TDump → EXIT 0 → beauty 19/19 → B-3
+```
+
+### Monitor status at handoff
+
+| Driver | Monitor | Steps |
+|--------|---------|-------|
+| beauty_trace | ✅ PASS | 58 |
+| beauty_Qize | ✅ PASS | 11 |
+| beauty_XDump | ✅ PASS | 1 |
+| beauty_omega | ✅ PASS | 1 |
+| beauty_Gen | ⛔ BP-1 | 0 |
+| beauty_TDump | ⛔ BP-1 | 0 |
+
+### Infra notes for next session
+- `x64/bootsbl` must be rebuilt: `cd /home/claude/x64 && make bootsbl` (nasm+gcc, ~5s)
+- `monitor_ipc_spitbol.so` already in x64 repo (pre-built, correct)
+- `INC` must be `/home/claude/corpus/programs/snobol4/demo/inc` (not snobol4ever_corpus)
+- `scrip --ir-run` is the correctness path; `--sm-run` is default but incomplete
