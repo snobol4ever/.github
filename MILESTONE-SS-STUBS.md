@@ -1,5 +1,7 @@
 # MILESTONE-SS-STUBS.md — Silly SNOBOL4 Stub Implementation
 
+⛔ **SUPERSEDED by MILESTONE-SS-COMPLETE.md** — all remaining work tracked there. Do not update this file.
+
 **Goal:** Implement every stubbed function in `one4all/src/silly/`. No stubs remain when done.  
 **Method:** One stub at a time. Build clean after each. Commit per stub.  
 **Gate:** All stubs replaced by real SIL-faithful implementations. Build clean.
