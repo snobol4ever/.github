@@ -38776,3 +38776,73 @@ Fix: allow `DEFINE('FENCE(FENCE)')` to redefine FENCE as user function.
 File: function definition handler in ThreadedExecuteLoop.cs or Define.cs.
 Gate: beauty_fence + beauty_Gen + beauty_io pass → 10/19.
 See MILESTONE-NET-BEAUTY-19.md for full ladder.
+
+## Session SSB-15 — M-SS-COMPLETE A2 (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `67460124` · .github `53ec787`
+**HEAD at end:** one4all `ec9b1fb0` · .github (no code changes)
+
+### Work done
+
+**A2 — LOAD_fn full translation (extern.c) — COMPLETE ✅**
+- Added `extern DESCR_t LODCL` to `data.h`
+- Added `DESCR_t LODCL = {.a={.i=0},.f=FNC,.v=0}` to `platform.c` near GOTOCL
+- Patched `data_init()` in `data.c` to set `LODCL.a.i = P2A(LNKFNC_fn)`
+- Added `symtab.h` include to `extern.c`
+- Replaced LOAD_fn stub with full translation of v311.sil 4475–4548 / snobol4.c 5666–5792
+- Fixed XCALL_LINK / XCALL_UNLOAD / XCALL_RELSTRING signatures in `platform.c` to match `extern.c` declarations
+- Added `XCALL_LOAD` stub to `platform.c`
+- Build: 0 errors, 0 warnings
+- Committed: `ec9b1fb0` "M-SS-COMPLETE A2: LOAD_fn full translation + LODCL + XCALL_LOAD stub"
+- Pushed to origin ✅
+
+### Next session — start here
+
+```bash
+cd /home/claude/one4all && git pull --rebase
+cd /home/claude/one4all/src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 | grep -E "error:|warning:"
+# HEAD one4all: ec9b1fb0 — 0 errors 0 warnings
+cat /home/claude/dotgithub/MILESTONE-SS-COMPLETE.md
+git log origin/main --oneline -1
+```
+
+**DO NOT read SESSIONS_ARCHIVE, PLAN.md, GENERAL-RULES, or SESSION docs. Go straight to work.**
+
+### A3 — RECOMJ cluster (func.c) — DO THIS NEXT
+
+Replace two stubs in func.c:
+- Line ~662: `RESULT_t CODER_fn(void) { return FAIL; }`
+- Line ~845: `RESULT_t CONVE_fn(void) { return FAIL; }`
+
+Write in func.c (after existing includes, all deps already present):
+
+```c
+/* RECOMJ_fn / RECOMT / RECOM1..RECOMZ / CODER_fn / CONVE_fn / CONVEX_fn
+ * v311.sil 6492–6551  ·  snobol4.c RECOMJ 8848 / RECOMZ 8901 / CODER 8921 / CONVE 8933 / CONVEX 8940 */
+```
+
+Logic (sync-stepped against snobol4.c 8848–8955):
+- `RECOMJ_fn`: LOCSP TEXTSP,ZPTR → RECOMT loop: GETLG OCALIM,TEXTSP; if 0→RECOMN; ×DESCR +6×DESCR; v=C; BLOCK→CMBSCL; OCLIM=CMBSCL+OCALIM−6×DESCR; CMOFCL=0; ESAICL=0; PUSH CMBSCL; if SCL==2→CONVEX_fn()
+- RECOM1: if TEXTSP.l==0→RECOM2; CMPILE_fn(): rc=1→RECOMF, rc=3→RECOM1
+- RECOM2: SCL=3; RECOMQ: CMOFCL+=DESCR; mem[CMBSCL+CMOFCL]=ENDCL; POP ZPTR; →RECOMZ
+- RECOMF: SCL=1; →RECOMQ
+- RECOMN: TEXTSP=BLSP; →RECOMT
+- `RECOMZ_fn`: CMBSCL+=CMOFCL; SPLIT_fn(CMBSCL.a.i); OCLIM=0; LPTR=0; XCALL_ZERBLK(&COMREG,COMDCT); SCL==1→FAIL, SCL==2→INTR10_fn()+FAIL, SCL==3→OK (RTZPTR)
+- `CODER_fn`: VARVAL_fn() into ZPTR (rc==1→FAIL, rc==2→RECOMJ); fall into RECOMJ_fn()
+- `CONVE_fn`: SCL.a.i=2; →RECOMJ_fn()
+- `CONVEX_fn`: EXPR_fn()→FORMND (FAIL→FAIL); TEXTSP.l!=0→FAIL; TREPUB_fn(FORMND); ZPTR=CMBSCL; ZPTR.v=E; SCL=3; →RECOMZ_fn()
+
+All globals confirmed in data.h: CMBSCL, CMOFCL, OCALIM, OCLIM, ESAICL, LPTR, SCL, BLSP, ENDCL, COMREG, COMDCT, FORMND, TEXTSP.
+XCALL_ZERBLK: `extern void XCALL_ZERBLK(DESCR_t *region, DESCR_t count);` — already in main.c, add same extern to func.c.
+
+### A4 — DEFFNC_fn (define.c) — after A3
+
+SIL 4310–4470 · snobol4.c ~5500–5665. ~80 SIL lines.
+Labels: DEFF1..DEFF20, DEFFF, DEFFC, DEFFN, DEFFNR, DEFFGO, DEFFVX, DEFFS1, DEFFS2.
+INTERP_fn exists in interp.c. Full arg-binding save/restore + INTERP call.
+
+### Priority order
+1. A3 RECOMJ cluster (func.c) — ~40 lines C
+2. A4 DEFFNC_fn (define.c) — ~150 lines C
+3. BLOCKS — last, after FWD+BWD passes complete
