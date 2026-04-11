@@ -339,11 +339,4 @@ Static diff catches structural bugs before any code runs.
 - BWD: `grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md`
 
 ## ⛔ §INFO addition — handoff rule (2026-04-11)
-
-Before declaring any handoff complete:
-1. `git push` both `one4all` and `.github`
-2. `git log origin/main --oneline -1` — confirm your commit hash appears on the remote
-3. Only then say "handoff complete"
-
-A committed-but-not-pushed session is lost when the container dies. This rule exists in
-GENERAL-RULES.md `## ⛔ HANDOFF — Push must succeed before handoff is declared`.
+Push both repos and confirm with `git log origin/main --oneline -1` before saying handoff complete.

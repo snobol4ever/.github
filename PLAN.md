@@ -14,14 +14,9 @@
 **Step 1 — Orientation only (3 reads max):**
 ```
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # sprint handoff state
-grep "^## " /home/claude/.github/GENERAL-RULES.md    # rules headers only
+grep "^## " /home/claude/.github/GENERAL-RULES.md    # rules headers only — ⛔ includes HANDOFF rule
 cat /home/claude/.github/PLAN.md                      # this file (NOW table + routing)
 ```
-⛔ **HANDOFF RULE — read this now, before any work:**
-```
-grep -A6 "HANDOFF — Push" /home/claude/.github/GENERAL-RULES.md
-```
-Never declare handoff complete until `git log origin/main --oneline -1` confirms your commit hash is on the remote. Push both repos. Verify. Then say done.
 
 **Step 2 — Read your component doc (session-specific, ONE doc):**
 ```

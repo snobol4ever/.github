@@ -38720,3 +38720,6 @@ cd /home/claude/one4all/src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -
 4. **M-SS-BLOCK-FORWARD** — next block: DMPK1 (line 6750)
 5. **M-SS-BLOCK-BACKWARD** — next block: COLECT (line 6427)
 6. **BLOCKS** — last, after FWD+BWD both complete
+
+## ⛔ Standing rule added 2026-04-11
+Every next-session block must include: `git log origin/main --oneline -1  # confirm push before handoff`
