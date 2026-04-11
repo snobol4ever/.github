@@ -32,7 +32,7 @@ Track BB Byrd box / SM        →  cat SCRIP-SM.md + BB-GRAPH.md + BB-DRIVER.md 
 ⚠️ BB-GRAPH.md, BB-DRIVER.md, SCRIP-SM.md, IR.md are ONLY for Track BB (emitter/SM work).
 Do NOT read them for Track C (scrip / RT milestone work).
 
-**Step 3 — Read SESSION-<frontend>-<backend>.md §INFO only (§NOW is in PLAN.md above, never in SESSION docs)**
+**Step 3 — Read SESSION-<frontend>-<backend>.md §INFO + §NOW only**
 ```
 cat /home/claude/.github/SESSION-<frontend>-<backend>.md
 ```
