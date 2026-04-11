@@ -122,11 +122,11 @@ the corpus, the emitter is correct by construction.
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | BEAUTY | one4all `f23ef24c` · corpus `3fd44d0` · INTERP=./scrip --ir-run PASS=193/203 · beauty suite 14/19 | **CURRENT: MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor (SPITBOL vs scrip --ir-run) into ir-run path. T-0: `set_and_trace()` helper at all NV_SET sites in scrip.c. T-1: replace manual stcount/stlimit with `comm_stno()`. T-2: CALL/RETURN hooks in call_user_function(). T-3: `run_monitor_2way.sh`. T-4: run monitor on 5 failing beauty drivers → first diverging event names each bug. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
+| **one4all-SNOBOL4-NET** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
 | **Silly SNOBOL4** | SS-39 | one4all `67460124` | **#1: M-SS-COMPLETE** (supersedes M-SS-STUBS) — A2: fix LOAD_fn · A3: RECOMJ+CODER+CONVE+CONVEX · A4: DEFFNC_fn · then FWD+BWD passes · BLOCKS last |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---
