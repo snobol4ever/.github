@@ -1,0 +1,133 @@
+# RULES.md — snobol4ever Working Rules
+
+---
+
+## Commit identity — always Lon, never Claude
+
+```bash
+git config user.name "LCherryholmes"
+git config user.email "lcherryh@yahoo.com"
+```
+
+Set in every repo at session start. Every commit in every repo.
+
+---
+
+## Token — never on disk
+
+Token is provided by Lon at session start. Use freely in shell commands.
+Never write to any file. Never in commit messages. Never in HQ docs.
+Use `TOKEN_SEE_LON` as placeholder in any doc that references a clone URL.
+
+---
+
+## Rebase before every .github push
+
+```bash
+cd /home/claude/.github
+git pull --rebase origin main
+git push
+```
+
+Multiple sessions may push .github simultaneously. Never `git push --force`.
+
+---
+
+## Handoff — push must succeed
+
+A committed-but-not-pushed session is lost when the container dies.
+Never declare handoff complete until `git log origin/main --oneline -1` shows
+your commit hash on the remote. Confirm both the code repo and .github.
+
+Handoff checklist:
+1. Update state variables in the Goal file (steps, watermarks, HEAD hash, pass counts)
+2. Update Current Step in PLAN.md goals table
+3. `git add -A && git commit` on all touched repos
+4. `git pull --rebase && git push` — code repos first, .github last
+5. Write a clear commit message on .github — this IS the session record
+
+---
+
+## Oracle — SPITBOL x64 is the sole execution oracle
+
+```
+/home/claude/x64/bin/sbl          # binary
+/home/claude/x64/                 # repo (snobol4ever/x64)
+```
+
+Derive .ref output: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
+With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
+
+**Exception:** CSNOBOL4 is the oracle for Silly SNOBOL4 only (by construction —
+Silly is a C rewrite of CSNOBOL4's SIL source). See REPO-one4all.md §Silly.
+
+DATATYPE note: SPITBOL returns lowercase (`"name"`, `"pattern"`).
+one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional — SNOBOL4 spec.
+`.ref` files are pre-baked in corpus. SPITBOL not required to run test gates.
+
+---
+
+## Test gate before every commit
+
+Run the gate for your goal before committing. Do not commit broken builds.
+The gate is defined in the Goal file or REPO file for your repo.
+
+---
+
+## Three-way diff for sweep goals
+
+For GOAL-SILLY-SWEEP-FORWARD and GOAL-SILLY-SWEEP-BACKWARD:
+All three sources simultaneously, one SIL instruction at a time:
+1. `v311.sil` — the spec
+2. `snobol4.c` — generated C ground truth (resolves all branch ambiguity)
+3. `src/silly/sil_*.c` — our translation
+
+Two-way (SIL + ours only) is wrong. All three, every line, no exceptions.
+
+---
+
+## Watermarks — Goal file is sole authority
+
+Watermarks live only in their Goal file. SESSIONS_ARCHIVE, commit messages,
+other docs — all potentially stale. The Goal file wins.
+
+---
+
+## HQ docs are the only reliable memory
+
+Before asserting anything about how a component works — build commands,
+calling conventions, oracle location, file layout — check the relevant
+REPO or ARCH file first. Training data is wrong. Verify before asserting.
+
+---
+
+## bison and flex — never install
+
+`rebus.tab.c`, `rebus.tab.h`, and `lex.rebus.c` are committed and always current.
+Never run apt-get to install bison or flex. If you modify `rebus.y` or `rebus.l`,
+regenerate on your own machine and commit the C files.
+
+---
+
+## C code style — compact, 120-column, horizontal-first
+
+- 120 character line maximum
+- Brace on same line: `if (x) {`
+- Short bodies on one line: `if (!p) return NULL;`
+- Section dividers exactly 120 chars: `/*====...*/` major, `/*----...*/` minor
+
+---
+
+## Naming conventions (one4all C code)
+
+| Origin | Convention | Example |
+|--------|-----------|---------|
+| SIL label → C function | `NAME_fn` | `APPLY_fn`, `FINDEX_fn` |
+| SIL DESCR global → C typedef | verbatim + `_t` | `DESCR_t`, `SPEC_t` |
+| SIL named global → C global | verbatim UPPERCASE | `XPTR`, `NEXFCL` |
+| SIL EQU constant → C `#define` | verbatim UPPERCASE | `FBLKSZ`, `OBSIZ` |
+| New C struct/enum (no SIL origin) | `Xxxx_yyy` one-cap | `Invoke_entry`, `Scan_ctx` |
+| New C function (no SIL origin) | `snake_case` | `arena_init`, `genvar_from_descr` |
+| Procedure return typedef | `RESULT_t` | always |
+
+Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
