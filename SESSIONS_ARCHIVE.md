@@ -38889,3 +38889,11 @@ git log origin/main --oneline -1
 **Rule:** SESSION docs NEVER contain §NOW. If §NOW appears in a SESSION doc, delete it immediately.
 
 **No code changes. No HEAD changes.**
+
+## Session D-215 — PLAN.md Step 3 fixed (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+
+PLAN.md SESSION START Step 3 said "Read SESSION doc §INFO + §NOW only". That instruction was the root cause — it told Claude to look for §NOW in the SESSION doc. §NOW has been deleted from SESSION docs. Step 3 now says "§INFO only — §NOW is in PLAN.md, never in SESSION docs".
+
+**No code changes. No HEAD changes.**
