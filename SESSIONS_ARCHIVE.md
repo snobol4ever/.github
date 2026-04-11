@@ -37844,3 +37844,65 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Gate target: ≥2300p
 # Find next thin areas: check Function/ subdirs for files with <5 tests
 ```
+
+---
+
+## Session SSB-7 — M-SS-BLOCK-BACKWARD + M-SS-STUBS kickoff (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `4200574a` · .github `98772a2`
+**HEAD at end:** one4all `4200574a` (no one4all commits — stubs WIP) · .github `5c1dced`
+
+### Work done
+
+**HQ fixes:**
+- Removed bogus §20 BLOCKS skip rule (added/removed/re-added correctly)
+- Final state: §20 BLOCKS = NOT IMPLEMENTED (optional feature), skipped both passes
+- Created `MILESTONE-SS-STUBS.md` — 17 stubs to implement, wired into PLAN.md
+
+**M-SS-BLOCK-BACKWARD blocks verified (all ✅ clean):**
+| Block | SIL Line |
+|-------|----------|
+| NONAME–COMP5 (24 blocks) | 10338–10411 |
+| SYSCUT, ENDALL, END | 10243–10327 |
+| FTLEND/FTLEN2 cluster | 10261–10279 (acknowledged gap) |
+| §21 trampolines RT1NUL…A5RTN, GENVSZ/GENVRZ/GENVIX | 10209–10239 |
+| §20 BLOCKS 7038–10208 | NOT IMPLEMENTED — skipped |
+| VDIFFR, TRIM | 7018–7029 |
+| TIME, SUBSTR/SSNOFX, REVERS, SIZE, RPLACE | 6954–7007 |
+| OPSYN | 6805 | ⚠️ stub noted |
+| DUPL | 6784 | ✅ clean (AERROR→FAIL acceptable) |
+| DMK | 6747 | 🐛 missing — implementation started in M-SS-STUBS |
+
+**M-SS-STUBS stub #1 (DMK_fn/DMP_fn/DUMP_fn) — WIP:**
+- DMK_fn written in func.c (faithfully follows snobol4.c)
+- DMP_fn/DUMP_fn upgraded from no-op to real output
+- DMPSP defined in platform.c (was extern-only)
+- DMK_fn declared in func.h
+- Build blocked by pre-existing dup-def: INSATL/OTSATL in both data.c and platform.c
+- Fix: remove dups from platform.c, then build clean, then commit
+
+**Stub audit complete — 17 stubs identified:**
+DMP/DUMP/DMK, DATDEF, RSORT/SORT, LOAD/LOAD2, XCALL_GETPMPROTO, XCALL_XINCLD,
+XCALL_IO_FILE, KEYT_fn, getbal_fn, DTREP_fn2/3, CNVRT, CODER, OPSYN, DEFFNC, XCALL_RPLACE
+
+### Next session (SSB-8) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cd /home/claude/one4all && git pull --rebase
+
+# Fix pre-existing dup-def first:
+grep -n "INSATL\|OTSATL" src/silly/platform.c src/silly/data.c
+# Remove the platform.c definitions (keep data.c ones)
+
+# Then build clean:
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep "error:"
+
+# Then commit DMK/DMP/DUMP stub #1, advance to DATDEF stub #2
+```
+
+**BWD watermark:** 6747 (DMK — implementation started, commit pending after build clean)
+**STUBS watermark:** DMK_fn WIP — fix dup-def, build, commit, then DATDEF_fn next
