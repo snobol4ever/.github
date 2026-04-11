@@ -37169,3 +37169,77 @@ Added prerequisite comment to `run_monitor_2way.sh` instead:
   `cd /home/claude/x64 && make bootsbl`  (takes seconds, needs nasm+gcc)
 
 one4all HEAD: `be0e8c85`  x64 HEAD: `4df1cc3`
+
+---
+
+## Session 2026-04-10 — D-204: T-0/BUG-QIZE monitor wiring + discovery
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** `be0e8c85` · **HEAD at end:** `13e035e7` · **+1 commit**
+
+### What was done
+
+**Infrastructure built:**
+- `bootsbl` (SPITBOL oracle) built at `/home/claude/x64/bootsbl` via `make bootsbl` ✅
+- `scrip` binary built at `/home/claude/one4all/scrip` via `make scrip` ✅
+
+**BUG-QIZE fix (`scrip.c`):**
+- `NV_SET_fn(retname, NULVCL)` → `NV_SET_fn(retname, STRVAL(""))` in `call_user_function()`
+- DIFFER(retvar) now sees empty string on function entry, matching SPITBOL semantics
+
+**T-0 investigation — key discovery:**
+- `NV_SET_fn` already calls `comm_var()` unconditionally (RT-5 hook, `snobol4.c` ~line 2104)
+- `comm_var()` gates internally on `trace_registered(name)` and `monitor_fd`
+- **T-0 was already complete** — `set_and_trace` wrapper was redundant and caused double-fires
+- Added `trace_is_active()` export to `snobol4.c`/`snobol4.h` (used by `set_and_trace` dead code)
+- `set_and_trace()` defined in `scrip.c` but has no call sites — intentionally left for reference
+
+### Monitor state after D-204
+
+| Driver | Result | First divergence / note |
+|--------|--------|------------------------|
+| Qize | ❌ step 5 | `q3`: scrip=`"it's"`, SPITBOL=`"it'" 's'` — single-quote split logic in Qize.sno body |
+| Gen | ❌ step 10 | Test 5 buffering (was step-0 timeout — real progress from BUG-GEN-INCLUDE partial fix) |
+| TDump | ❌ step 2 | Not yet diagnosed |
+| XDump | ❌ step 1 | `OUTPUT`: `'x = integer()'` vs `'x = 42'` — DATATYPE display format divergence |
+| omega | ❌ step 1 | EPSILON fired in scrip; SPITBOL already at EOF — trace ordering/termination |
+
+### Next session (D-205) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-SCRIP-TRACE.md
+
+cd /home/claude/x64 && make bootsbl          # rebuild oracle if needed
+cd /home/claude/one4all && git pull --rebase && make scrip
+
+INC=/home/claude/corpus/programs/snobol4/demo/inc
+X64=/home/claude/x64
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+
+# Diagnose XDump step 1 first (cleanest divergence):
+#   SPITBOL: OUTPUT = 'x = integer()'
+#   scrip:   OUTPUT = 'x = 42'
+#   XDump() prints DATATYPE of its argument, not the value.
+#   Check inc/XDump.sno for the DATATYPE call and how scrip handles it.
+cat $BEAUTY/beauty_XDump_driver.sno
+cat /home/claude/corpus/programs/snobol4/demo/inc/XDump.sno
+
+# Diagnose omega step 1:
+#   SPITBOL reaches EOF (no trace events); scrip fires VALUE EPSILON = ''
+#   EPSILON is likely being set by the monitor preamble (&STLIMIT = ...) or
+#   some initialisation path. Check if omega driver has any assignments.
+cat $BEAUTY/beauty_omega_driver.sno
+
+# After diagnosing, run all 5:
+for name in Qize Gen TDump XDump omega; do
+    echo "=== $name ==="
+    INC=$INC X64=$X64 bash test/monitor/run_monitor_2way.sh \
+        $BEAUTY/beauty_${name}_driver.sno 2>&1 | grep -E "PASS|DIVERGE|step|oracle|FAIL" | head -4
+done
+
+# Gate: all 5 EXIT 0 → beauty 19/19 → B-3
+```
+
+**one4all HEAD: `13e035e7` · x64 HEAD: `4df1cc3`**
