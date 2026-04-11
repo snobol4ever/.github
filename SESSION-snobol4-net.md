@@ -177,12 +177,12 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-213 | snobol4dotnet `5b5c912` · corpus `5c8aa22` · **2347p/0f/2s** | D-214: continue coverage hunting → ≥2360p |
+| **NET CORPUS** | D-214 | snobol4dotnet `9f929dd` · corpus `5c8aa22` · **2364p/0f/2s** | D-215: continue coverage hunting → ≥2375p |
 
-**D-214 first actions:**
+**D-215 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
 2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2347p/0f/2s**
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2364p/0f/2s**
 4. Target thin areas — run the thin-file finder then expand:
 ```python
 python3 -c "
@@ -203,12 +203,15 @@ for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables'
 - 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
 - All 6 L*.cs use `string.CompareOrdinal()` (BUG-NET-STRCOMP fixed D-203)
 - rung8 complete 810-818, rung9 complete 910-919
-- Gimpel: UPLO(5), BASEB(4), ROMAN(5) — expanded D-213
-- Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — expanded D-207
+- Gimpel: UPLO(5), BASEB(4), ROMAN(5) — still thin
+- Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — still thin
 - dotnet 10 at /usr/local/dotnet10 (install via dotnet-install.sh if missing)
-- D-213 expanded: At(+3→8), Bal(+3→8), Dupl(+3→7), Apply(+3→8), Rung3_Concat(+3→8), UPLO(+2→5)
 - APPLY with user-defined functions via APPLY() fails error 22 — known gap, use built-ins only
-- DIFFER(A,B) FAILS when A==B, SUCCEEDS when A!=B — double-check logic before writing tests
+- DIFFER(A,B) FAILS when A==B, SUCCEEDS when A!=B — double-check before writing tests
+- TRIM removes trailing tabs as well as spaces (confirmed D-214)
+- CODE(CHAR(n)) does NOT roundtrip to n in snobol4dotnet (confirmed D-214)
+- D-214 expanded: Reverse(+3→9), Trim(+3→9), Size(+3→8), Char(+1→8), LEq/LGe/LLe/LNe(+1→8 each), Rung11(+1→8), Rung2(+2→8)
+- Remaining thin (< 8): Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files, Prototype(4), Rsort(5), Date(3), Eval(0/placeholder), Time(5), Arg(5), FunctionControl files, Gimpel files, Operator files
 
-*SESSION-snobol4-net.md — updated D-213, 2026-04-11, Claude Sonnet 4.6.*
-*D-213: At+3, Bal+3, Dupl+3, Apply+3, Concat+3, UPLO+2; +17 tests; 2347p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-214, 2026-04-11, Claude Sonnet 4.6.*
+*D-214: Reverse+3, Trim+3, Size+3, Char+1, LEq/LGe/LLe/LNe+1 each, Rung11+1, Rung2+2; +17 tests; 2364p/0f/2s.*
