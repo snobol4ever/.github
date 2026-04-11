@@ -123,7 +123,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `adec4a10` | **M-SS-BLOCK-FORWARD** (→12293): next EXPV4 line 2724 · **M-SS-BLOCK-BACKWARD** (→line 1): next STARPT line 12107 · both independent, no convergence |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-206 | snobol4dotnet `83598f9` · corpus `5c8aa22` · **2270p/0f/2s** | D-207: Datatype/Operator thin areas, more coverage hunting → ≥2280p |
+| **one4all-SNOBOL4-NET** | D-207 | snobol4dotnet `5d252aa` · corpus `5c8aa22` · **2281p/0f/2s** | D-208: continue coverage — ObjectCreation(7), Memory(16) thin areas → ≥2290p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---

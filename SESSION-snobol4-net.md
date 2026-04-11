@@ -177,18 +177,21 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-206 | snobol4dotnet `83598f9` · corpus `5c8aa22` · **2270p/0f/2s** | D-207: continue coverage hunting — Function/Miscellaneous/Datatype.cs thin areas, Operator/ stubs, any remaining rung gaps → ≥2280p |
+| **NET CORPUS** | D-207 | snobol4dotnet `5d252aa` · corpus `5c8aa22` · **2281p/0f/2s** | D-208: ObjectCreation, Memory thin areas → ≥2290p |
 
-**D-207 first actions:**
+**D-208 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
 2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2270p/0f/2s**
-4. Find next thin coverage areas (Datatype, Operator stubs, any uncovered builtins)
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2281p/0f/2s**
+4. Target thin areas: ObjectCreation(7 tests), Memory(16 tests) — find gaps and add cases
 
 **Key facts:**
 - 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
 - All 6 L*.cs use `string.CompareOrdinal()` (BUG-NET-STRCOMP fixed D-203)
-- rung8 complete 810-818, rung9 complete 910-919, Gimpel: UPLO(2), BASEB(2), ROMAN(4)
+- rung8 complete 810-818, rung9 complete 910-919
+- Gimpel: UPLO(2), BASEB(2), ROMAN(4) — all expanded D-206
+- Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — expanded D-207
+- dotnet 10 at /usr/local/dotnet10 (install via dotnet-install.sh if missing)
 
-*SESSION-snobol4-net.md — updated D-206, 2026-04-10, Claude Sonnet 4.6.*
-*D-206: 817_substr+818_char+UPLO1+BASEB1+ROMAN3+ROMAN4; +6 tests; 2270p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-207, 2026-04-10, Claude Sonnet 4.6.*
+*D-207: Interrogation×3+Negation×3+ConditionalAssoc×3+Field×2; +11 tests; 2281p/0f/2s.*

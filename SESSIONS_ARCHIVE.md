@@ -37725,3 +37725,36 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #   - Any builtins not yet tested (IDENT, DIFFER edge cases, APPLY, etc.)
 # Gate target: ≥2280p
 ```
+
+---
+
+## HANDOFF NOTE — D-207 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `5d252aa` · corpus `5c8aa22` · **2281p/0f/2s**
+**Gate ≥2280p: CLEARED ✅**
+
+### This session's work (D-207)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `TEST_Interrogation_003/004/005` | 3 | Unary ? — differ/succeed/fail paths, value suppression |
+| `TEST_Negation_004/005/006` | 3 | Unary ~ — differ flip, double-negation, ident-negate |
+| `TEST_ConditionalVariableAssociation_004/005/006` | 3 | Binary . — ARB capture, LEN span, no-match stays empty |
+| `TEST_Field_002/003` | 2 | FIELD — 3-field type, out-of-range fails |
+| **Total** | **+11p** | **2270 → 2281p** |
+
+### Next session (D-208) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 5d252aa · 2281p/0f/2s
+# Priority thin areas:
+#   ObjectCreation/ (7 tests) — find gaps
+#   Memory/ (16 tests) — find gaps
+# Gate target: ≥2290p
+```
