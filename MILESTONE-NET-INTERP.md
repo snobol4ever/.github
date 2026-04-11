@@ -168,21 +168,21 @@ public sealed class IrStmt {
 
 | Milestone | Description | Gate |
 |-----------|-------------|------|
-| **M-NET-INTERP-A00** | IR design: one IR / three consumers; IrNode mirrors EXPR_t | ✅ |
-| **M-NET-INTERP-A01a** | **Lexer** — `Snobol4Lexer.cs` tokenizes `.sno`; token stream mirrors `lex.c` on 19 test cases | 19/19 token stream tests pass |
-| **M-NET-INTERP-A01b** | **Parser** — Pidgin combinators consume token stream → `IrStmt[]`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t` | 19/19 parse tests pass |
-| **M-NET-INTERP-A01c** | **IR verified** — `IrNode`/`IrStmt` shape confirmed vs `ir.h`; `Ast.cs` removed; build clean; hello/empty_string/multi pass | 3/3 smoke ✅ (D-167 scaffold needs IrNode.cs revision) |
-| **M-NET-INTERP-A02** | **Stack machine** — Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind` | rung1 20/20 |
-| **M-NET-INTERP-A03** | **Byrd box sequencer** — Phase 2/3: PatternBuilder on `IrKind` → `IByrdBox`; ByrdBoxExecutor trampoline; LIT ANY SPAN ARB ARBNO wired | rung2–5 60/60 |
-| **M-NET-INTERP-A04** | Full corpus vs SPITBOL | ≥ 130/142 |
-| **M-NET-INTERP-A05** | All failures closed | 142/142 |
-| **M-NET-INTERP-B01** | Captures @var/.var/$var correct by construction | rung9 100% |
-| **M-NET-INTERP-B02** | DEFINE/RETURN/NRETURN/FRETURN call stack | rung10 pass |
-| **M-NET-INTERP-B03** | EVAL/CODE: Pidgin called at runtime → live IrNode tree | 1016_eval pass |
+| **M-INTERP-A00** | IR design: one IR / three consumers; IrNode mirrors EXPR_t | ✅ |
+| **M-INTERP-A01a** | **Lexer** — `Snobol4Lexer.cs` tokenizes `.sno`; token stream mirrors `lex.c` on 19 test cases | 19/19 token stream tests pass |
+| **M-INTERP-A01b** | **Parser** — Pidgin combinators consume token stream → `IrStmt[]`; `IrNode.cs` mirrors `ir.h` `EKind`/`EXPR_t`/`STMT_t` | 19/19 parse tests pass |
+| **M-INTERP-A01c** | **IR verified** — `IrNode`/`IrStmt` shape confirmed vs `ir.h`; `Ast.cs` removed; build clean; hello/empty_string/multi pass | 3/3 smoke ✅ (D-167 scaffold needs IrNode.cs revision) |
+| **M-INTERP-A02** | **Stack machine** — Phases 1/4/5: assignments, OUTPUT, gotos, labels, END, arithmetic via explicit value stack on `IrKind` | rung1 20/20 |
+| **M-INTERP-A03** | **Byrd box sequencer** — Phase 2/3: PatternBuilder on `IrKind` → `IByrdBox`; ByrdBoxExecutor trampoline; LIT ANY SPAN ARB ARBNO wired | rung2–5 60/60 |
+| **M-INTERP-A04** | Full corpus vs SPITBOL | ≥ 130/142 |
+| **M-INTERP-A05** | All failures closed | 142/142 |
+| **M-INTERP-B01** | Captures @var/.var/$var correct by construction | rung9 100% |
+| **M-INTERP-B02** | DEFINE/RETURN/NRETURN/FRETURN call stack | rung10 pass |
+| **M-INTERP-B03** | EVAL/CODE: Pidgin called at runtime → live IrNode tree | 1016_eval pass |
 
 ---
 
-## D-168 first tasks — target M-NET-INTERP-A01a (Lexer)
+## D-168 first tasks — target M-INTERP-A01a (Lexer)
 
 1. `git pull --rebase` all repos.
 2. `export PATH=/usr/local/dotnet8:$PATH` (NOT dotnet10 — not installed).
