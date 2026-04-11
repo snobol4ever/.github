@@ -9,6 +9,13 @@
 
 ---
 
+## No append-only huge files
+
+⛔ Do **not** create or maintain append-only accumulating files (e.g. `SESSIONS_ARCHIVE.md`).
+The git commit log is the permanent session record. HQ docs are state, not history.
+
+---
+
 ## Commit identity — always Lon, never Claude
 
 ```bash
@@ -54,8 +61,7 @@ Handoff checklist:
 2. Update Current Step in PLAN.md goals table
 3. `git add -A && git commit` on all touched repos
 4. `git pull --rebase && git push` — code repos first, .github last
-5. Append a session entry to `SESSIONS_ARCHIVE.md` — operator, goal, what was done, any bugs found/fixed, next session start commands
-6. Write a clear commit message on .github — this IS the session record
+5. Write a clear commit message on .github — this IS the session record
 
 ---
 
