@@ -37812,3 +37812,35 @@ SNO
 # Then: grep exec_stmt stmt_exec.c for subject-length handling on indirect subjects
 # Fix → beauty_Gen passes → run 2-way monitor → Gate: beauty 19/19 → B-3
 ```
+
+---
+
+## HANDOFF NOTE — D-208 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `c9dc3e1` · corpus `5c8aa22` · **2292p/0f/2s**
+**Gate ≥2290p: CLEARED ✅**
+
+### This session's work (D-208)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `Copy_004/005/006` | 3 | Value equality, null copy, integer copy |
+| `Collect_004/005` | 2 | Twice, both-nonneg |
+| `Dump_004/005` | 2 | zero no-op, with array |
+| `Date_002/003` | 2 | non-empty, consistent |
+| `Time_004/005` | 2 | is-integer, used-in-arith |
+| **Total** | **+11p** | **2281 → 2292p** |
+
+### Next session (D-209) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: c9dc3e1 · 2292p/0f/2s
+# Gate target: ≥2300p
+# Find next thin areas: check Function/ subdirs for files with <5 tests
+```
