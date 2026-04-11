@@ -121,8 +121,8 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 BWD | one4all `4200574a` | **M-SS-BLOCK-BACKWARD** — watermark 10414 (NONARY clean). Next: NONAME (line 10411). |
-| SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — watermark 2606 (GOTLC done). Next: NAM (line 3223). |
+| SS-39 BWD | one4all `4200574a` | **M-SS-BLOCK-BACKWARD** — see `MILESTONE-SS-BLOCK-BACKWARD.md § Watermark` (sole authority — never store here) |
+| SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — see `MILESTONE-SS-BLOCK-FORWARD.md § Watermark` (sole authority — never store here) |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 
@@ -333,6 +333,7 @@ Static diff catches structural bugs before any code runs.
 - Record any divergence as a bug; fix small ones immediately
 - Advance watermark to that SIL line, push one commit per block
 
-### M-SS-BLOCK watermark (FORWARD)
-**Watermark: v311.sil line 2606** (GOTLC verified ✅ — per SESSIONS_ARCHIVE session SS-47 2026-04-09e).
-**Next block: GOTO (v311.sil line 2607)**.
+### M-SS-BLOCK watermark
+⛔ Watermarks are stored ONLY in their milestone files. Never copy them here.
+- FWD: `grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md`
+- BWD: `grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md`

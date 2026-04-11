@@ -37,7 +37,12 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 ---
 
-⚠️ **Watermark lives in SESSION-silly-snobol4.md §NOW — one place only. Do not add it here.**
+## Watermark (update after each block — counts DOWN toward 1)
+
+**Current watermark:** v311.sil line **10414**  
+**Next block:** NONAME (line 10411)
+
+⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
 ---
 
