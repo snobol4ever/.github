@@ -14,10 +14,10 @@ Lon names a goal. You:
    git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git /home/claude/.github
    ```
 2. Read `PLAN.md` (this file). Find the named goal in the table below.
-3. Open that Goal file. It names the repo. Open that repo's REPO file.
-4. Follow the REPO file `## Session Start` section to clone and build.
-5. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
-6. Read `RULES.md` if you need handoff or naming rules.
+3. Read `RULES.md` in full — commit rules, push rules, oracle, naming. No exceptions.
+4. Open that Goal file. It names the repo. Open that repo's REPO file.
+5. Follow the REPO file `## Session Start` section to clone and build.
+6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
 
 Do not read `archive/` unless a step explicitly says to.
 
