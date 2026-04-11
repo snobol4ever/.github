@@ -117,7 +117,50 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 ## §NOW
 
-⛔ §NOW lives only in PLAN.md. Never in SESSION docs.
+⚠️ BWD session: update only the BWD row. FWD session: update only the FWD row. Never touch the other.
+
+| Sprint | HEAD | Next milestone |
+|--------|------|----------------|
+| SS-39 BWD | one4all `4200574a` | **M-SS-BLOCK-BACKWARD** — see `MILESTONE-SS-BLOCK-BACKWARD.md § Watermark` (sole authority — never store here) |
+| SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — see `MILESTONE-SS-BLOCK-FORWARD.md § Watermark` (sole authority — never store here) |
+
+### MONITOR func-hook proposal (2026-04-08g)
+
+**The idea:** Retool MONITOR sync-step protocol for C function enter/exit hooks on both
+CSNOBOL4 (compiled C via snobol4.c) and Silly (our C rewrite). Instead of SNOBOL4
+TRACE() hooks, instrument at the C level:
+- CSNOBOL4: wrap each function in `snobol4.c` with `mon_enter(name)` / `mon_exit(name, result)` calls
+- Silly: same wrappers on each `*_fn()` function
+- Sync-step barrier: both write to named FIFO, block on ACK
+- Controller: read one event from each, compare, send G or S
+- First diverging function name/result = exact bug location
+
+**Why it would work brilliantly:**
+- Both are C — no SNOBOL4 LOAD() plumbing needed, just `#include "mon_hooks.h"`
+- snobol4.c has 383 functions, our silly has ~60 — manageable
+- AC_GOTO table transitions show up as STREAM_fn calls — would catch the IBLKTB loop instantly
+- Sync-step means first divergence stops both — no bisecting, no guessing
+- CSNOBOL4 is the oracle by construction — it IS the reference for Silly
+
+**Readiness assessment:**
+- CSNOBOL4 available and builds ✅ (in /home/claude/work/snobol4-2.3.3/)
+- Silly builds clean ✅
+- MONITOR sync-step protocol fully designed in MONITOR.md ✅ (two FIFOs per participant)
+- The adaptation from SNOBOL4 TRACE() hooks to C function hooks is straightforward
+- **Gap:** The sync-step implementation (monitor_ipc_sync.c + monitor_sync.py) exists in
+  design doc but may not be built yet — check test/monitor/ before starting
+- **Gap:** snobol4.c has 383 functions — a code-gen script to wrap them all is needed,
+  not hand-editing
+- **Scope:** This is a 1-session infrastructure build + 1-session first-run payoff
+
+**Recommendation:** YES, do it — but in a dedicated M-SS-MONITOR sprint:
+1. Check test/monitor/ for existing sync-step code
+2. Write mon_hooks.h (FIFO open, atomic write, ACK read — ~50 lines)
+3. Write wrap_snobol4.py: parse snobol4.c function signatures → emit wrapped version
+4. Hand-annotate the ~60 Silly functions (manageable) OR write a similar wrapper script
+5. Write monitor_sync.py controller (2-participant version — simpler than 5-way)
+6. Run on hello.sno → first diverging function = bug name
+Then fix, re-run, next divergence, repeat. Each iteration is near-instant.
 
 ## ⛔ §INFO additions (2026-04-06)
 
