@@ -79,6 +79,15 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | ARBPAT–BALKY | 10554–57 | ✅ clean |
 | ERRTXT | 10552 | ✅ clean |
 | ETXTKY | 10553 | 🐛 fixed — missing definition added |
+| ERRTKY | 10551 | ✅ clean (cluster fix) |
+| ERRTYP | 10550 | ✅ clean — D(0,0,I) |
+| KVLIST | 10549 | ⚠️ systemic TTL header gap — noted |
+| KNEND | 10547 | ✅ clean — LHERE sentinel |
+| ERRLCL–ABNDCL | 10535–45 | ✅ clean (batch) |
+| OUTSW/MLENCL/INSW/GCTRCL | 10517–23 | ✅ clean |
+| TRACL/FTLLCL | 10527–33 | ✅ clean |
+| FULLCL | 10525 | 🐛 fixed — D0→D(0,0,I) |
+| BKGNCL | 10530 | 🐛 fixed — missing entirely |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
 | PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
