@@ -11,12 +11,9 @@
 
 ## ⛔ SESSION START — every session, no exceptions
 
-**Step 0 — Check NOW table first (one grep, 10 seconds):**
-```
-grep -A2 "^| \*\*Silly SNOBOL4\*\*\|^| \*\*RUNTIME\|^| \*\*SNOBOL4 × x86" /home/claude/.github/PLAN.md
-```
-If the NOW row tells you exactly what to do next (HEAD + next action), **skip Steps 1–3 and start working immediately.**
-Only read Steps 1–3 if the NOW row is ambiguous or you need broader context.
+**Step 0 — You have already read PLAN.md. Find your session row in the ⚡ NOW table below and execute the commands there. That is your entire orientation. Do not read any other doc unless the NOW row explicitly says to.**
+
+Only proceed to Steps 1–3 if the NOW row is missing or says "see SESSION doc".
 
 **Step 1 — Orientation only (3 reads max, SKIP if Step 0 was sufficient):**
 ```
@@ -133,7 +130,7 @@ the corpus, the emitter is correct by construction.
 | **SNOBOL4 × x86** | BEAUTY | one4all `f23ef24c` · corpus `3fd44d0` · INTERP=./scrip --ir-run PASS=193/203 · beauty suite 14/19 | **CURRENT: MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor (SPITBOL vs scrip --ir-run) into ir-run path. T-0: `set_and_trace()` helper at all NV_SET sites in scrip.c. T-1: replace manual stcount/stlimit with `comm_stno()`. T-2: CALL/RETURN hooks in call_user_function(). T-3: `run_monitor_2way.sh`. T-4: run monitor on 5 failing beauty drivers → first diverging event names each bug. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
 | **one4all-SNOBOL4-NET** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | **NEXT: MILESTONE-NET-BEAUTY-19** (7/19 → 19/19) · then MILESTONE-NET-BEAUTY-SELF |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
-| **Silly SNOBOL4** | SS-39 | one4all `ec9b1fb0` | **#1: M-SS-COMPLETE** — A2 ✅ · **A3 NEXT: RECOMJ cluster in func.c** (v311.sil 6492–6551) · A4: DEFFNC_fn · then FWD+BWD · BLOCKS last |
+| **Silly SNOBOL4** | SS-39 | one4all `ec9b1fb0` | **#1: M-SS-COMPLETE A3** — `cd /home/claude/one4all && git pull --rebase && cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 \| grep -E "error:\|warning:"` — then replace stubs `CODER_fn` (~line 662) and `CONVE_fn` (~line 845) in func.c with full RECOMJ/RECOMT/RECOM1/RECOM2/RECOMQ/RECOMF/RECOMN/RECOMZ/CODER/CONVE/CONVEX translation. SIL: v311.sil 6492–6551. C ref: snobol4.c 8848–8955. After A3: A4 DEFFNC_fn (define.c, SIL 4310–4470, snobol4.c ~5500–5665). BLOCKS last. |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
