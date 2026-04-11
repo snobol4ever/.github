@@ -8,26 +8,28 @@
 
 ## Watermark (update after each stub fixed)
 
-**Current stub:** `OPSYN_fn` (#15) — implement full operator synonym logic  
-**Next stub:** `CNVRT_fn` (#13) — implement non-compiler conversion paths (S↔I, S↔R, I↔R, TABLE→ARRAY; RECOMP/CODE/EXPRESSION → TODO M19)
+**Current stub:** `KEYT_fn` (#10)  
+**Next stub:** `XCALL_IO_FILE` / `XCALL_XINCLD` (#8/#9)
 
 ---
 
 ## Priority Order (as of 2026-04-11)
 
-1. **OPSYN_fn** (#15) — all infrastructure present (FINDEX_fn, STREAM_fn, BIOPTB/UNOPTB/SBIPTB tables live). Implement fully.
-2. **CNVRT_fn** (#13) + **CODER_fn** (#14) — implement S↔I, S↔R, I↔R, TABLE→ARRAY, NUMERIC string paths. RECOMP/CONVEX (CODE/EXPRESSION) → stub with `/* TODO M19 */`.
-3. **XCALL_RPLACE** (#17) — currently no-op; implement char-by-char replacement loop.
-4. **DATDEF_fn** (#3) — array DATA definition.
-5. **RSORT_fn / SORT_fn** (#4) — sort arrays.
-6. **DTREP_fn2 / DTREP_fn3** (#12) — type representation for non-scalar types.
-7. **getbal_fn** (#11) — BAL pattern implementation.
-8. **KEYT_fn** (#10) — keyword trace.
-9. **XCALL_IO_FILE** (#9) — file I/O attach.
-10. **XCALL_XINCLD** (#8) — include file.
-11. **XCALL_GETPMPROTO** (#7) — get prototype string.
-12. **LOAD_fn / LOAD2_fn** (#5/#6) — dynamic load.
-13. **DEFFNC_fn** (#16) — TODO M19 (compiler re-entry required).
+1. ~~**OPSYN_fn** (#15)~~ ✅ implemented `1ed4862f`
+2. ~~**CNVRT_fn** (#13) + **CODER_fn** (#14)~~ ✅ CNVRT_fn implemented `c84aa12e`; CODER_fn TODO M19
+3. ~~**XCALL_RPLACE** (#17)~~ ✅ implemented `101b9f87`
+4. ~~**getbal_fn** (#11)~~ ✅ implemented `101b9f87`
+5. ~~**DTREP_fn2 / DTREP_fn3** (#12)~~ ✅ implemented `101b9f87`
+6. **KEYT_fn** (#10) — keyword trace
+7. **XCALL_IO_FILE** (#9) — file I/O attach
+8. **XCALL_XINCLD** (#8) — include file
+9. **XCALL_GETPMPROTO** (#7) — get prototype string
+10. **DATDEF_fn** (#3) — array DATA definition
+11. **RSORT_fn / SORT_fn** (#4) — sort arrays
+12. **LOAD_fn / LOAD2_fn** (#5/#6) — dynamic load
+13. **DEFFNC_fn** (#16) — TODO M19 (compiler re-entry required)
+14. **CONVE_fn** — TODO M19
+15. **CODER_fn** — TODO M19
 
 ---
 
@@ -80,7 +82,16 @@
 |---|----------|--------|
 | 1 | `DMK_fn` | ✅ `2b07b9b4` — full keyword dump loop |
 | 2 | `DMP_fn` / `DUMP_fn` | ✅ `2b07b9b4` — full OBLIST walk with type dispatch |
-| pre | INSATL/OTSATL dup-def | ✅ `ff18a0a1` — removed from platform.c |
-| pre | DMPSP definition | ✅ `ff18a0a1` — added to platform.c |
-| pre | QTSP/AMPSP/BLEQSP/BLSP/FRZNSP init | ✅ `2b07b9b4` — data_init() |
+| 11 | `getbal_fn` | ✅ `101b9f87` — faithful bal.c translation |
+| 12 | `DTREP_fn2` / `DTREP_fn3` | ✅ `101b9f87` — delegate to DTREP_fn |
+| 13 | `CNVRT_fn` | ✅ `c84aa12e` — full dispatch (S/I/R/TABLE/ARRAY/NUMERIC); RECOMP TODO M19 |
+| 14 | `CODER_fn` | ⬜ TODO M19 — requires compiler re-entry |
+| 15 | `OPSYN_fn` | ✅ `1ed4862f` — full N=0/1/2 implementation |
+| 16 | `DEFFNC_fn` | ⬜ TODO M19 |
+| 17 | `XCALL_RPLACE` | ✅ `101b9f87` — 256-entry table, translate in place |
+| pre | INSATL/OTSATL dup-def | ✅ `ff18a0a1` |
+| pre | DMPSP definition | ✅ `ff18a0a1` |
+| pre | QTSP/AMPSP/BLEQSP/BLSP/FRZNSP init | ✅ `2b07b9b4` |
+| warn | 48 warnings → 0 | ✅ `98a5c215` — MILESTONE-SS-WARNINGS complete |
+| sub | CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS helpers | ✅ `1ed4862f` |
 
