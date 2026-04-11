@@ -8,8 +8,7 @@
 
 ## Scope
 
-All labeled blocks from v311.sil line 12293 backward to line 1.  
-§20 BLOCKS (lines 7038–10208) — **SKIP** per ground rules. Jump watermark from 10209 to 7037 when reached.
+All labeled blocks from v311.sil line 12293 backward to line 1. No ranges skipped.
 
 ---
 
@@ -43,8 +42,8 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 
 ## Watermark (update after each block — counts DOWN toward 1)
 
-**Current watermark:** v311.sil line **10414**  
-**Next block:** NONAME (line 10411)
+**Current watermark:** v311.sil line **10209**  
+**Next block:** WARNING (line 10196)
 
 ⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
@@ -95,6 +94,12 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | ERRLCL–ABNDCL | 10535–45 | ✅ clean (batch) |
 | OUTSW/MLENCL/INSW/GCTRCL | 10517–23 | ✅ clean |
 | TRACL/FTLLCL | 10527–33 | ✅ clean |
+| §21 trampolines (RT1NUL…A5RTN, GENVSZ, GENVRZ, GENVIX) | 10209–10239 | ✅ all clean — inlined at call sites |
+| END | 10243 | ✅ clean — ERRLCL check + XITHND + END0 path |
+| FTLEND/FTLEN2/FTLEN4/FTLEN1/DMPNO/DMPK/END0/END1/END2/AVTIME/ENDALL/SYSCUT | 10253–10327 | ✅ clean — timing/dump/stats gap acknowledged |
+| MAIN1 | 10405 | ✅ clean — ERR_FTLEND(18) |
+| NEMO | 10408 | ✅ clean — ERR_FTLTST(8) |
+| NONAME | 10411 | ✅ clean — ERR_FTLTST(4) |
 | NONARY | 10414 | ✅ clean — ERR_FTLTST(3) |
 | OVER | 10417 | ✅ clean — ERR_FTLEND(21) |
 | PROTER | 10420 | ✅ clean — ERR_FTLTST(6) |
@@ -158,7 +163,7 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | RZERCL | 12291 | ✅ fixed — real_t→DESCR_t with .v=R |
 | FORMAT blocks (ALOCFL–WRITNO) | 12254–12288 | ✅ clean — %D/%F→printf intentional PLB10 |
 | EMSG1–EMSG3, EMSG14, ILCHAR–OPNLIT | 12238–12248 | ✅ clean |
-| MSG36–38 | — | ✅ correctly absent (BLOCKS skipped) |
+| MSG36–38 | — | ✅ correctly absent (not present in v311.sil) |
 | MSG1–MSG35, MSG39 | 12195–12233 | ✅ all verbatim correct |
 | MSGLST | 12151 | ✅ clean — const char *MSGNO[] is correct equivalent |
 | VALBLK | 12141 | 🐛 fixed — 7-slot block entirely absent, added |
