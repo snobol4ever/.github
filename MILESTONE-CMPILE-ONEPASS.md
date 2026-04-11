@@ -151,4 +151,4 @@ bash test/monitor/run_monitor_2way.sh \
 
 ## Status
 
-⬜ Not started. Prerequisite: none. Can run in parallel with SCRIP-TRACE work.
+⬜ Not started. **LOWEST PRIORITY.** Do not begin until all other milestones are complete.
