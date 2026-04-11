@@ -91,10 +91,10 @@ the corpus, the emitter is correct by construction.
 | **SN4PARSE oracle** | `MILESTONE-SN4PARSE.md` | ⚠️ in progress — DYN-85 |
 | **SN4PARSE validation** | `MILESTONE-SN4PARSE-VALIDATE.md` | ⬜ next after M-SN4PARSE |
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
-| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-39 — M-SS-BLOCK-FORWARD: watermark 3222 → 12293 · M-SS-BLOCK-BACKWARD: watermark 12120 → 1 · both run independently to completion |
+| **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-39 — M-SS-BLOCK-FORWARD: watermark 3222 → 12293 · M-SS-BLOCK-BACKWARD: watermark 6438 → 1 · both run independently to completion |
+| **M-SS-STUBS** | `MILESTONE-SS-STUBS.md` | ⚠️ **#1 PRIORITY** — translate every stub from v311.sil; OPSYN_fn + CNVRT_fn(partial) next; 15 remain |
+| **M-SS-BLOCK-BACKWARD** | `MILESTONE-SS-BLOCK-BACKWARD.md` | ⚠️ watermark 6438 (COPY) — next: COLECT (6427) — runs to line 1 |
 | **M-SS-BLOCK-FORWARD** | `MILESTONE-SS-BLOCK-FORWARD.md` | ⚠️ watermark 3222 — next: NAM (line 3223) — runs to 12293 |
-| **M-SS-BLOCK-BACKWARD** | `MILESTONE-SS-BLOCK-BACKWARD.md` | ⚠️ watermark 7018 (TRIM) — next: TIME (7007) — runs to line 1 |
-| **M-SS-STUBS** | `MILESTONE-SS-STUBS.md` | ⚠️ **CURRENT** — 17 stubs to implement; first: DMK_fn |
 | **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** ⚠️ CSNOBOL4 is oracle here by construction | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⚠️ in progress — M-SS-MON-0..4 complete · M-SS-MON-5 (hello world passes) next |
 | **SIL MACRO MAP** | `MILESTONE-RT-SIL-MACROS.md` | ✅ classified — 12 new SM ops, sil_macros.h design |
 | **RUNTIME / RUNTIME-1** | `MILESTONE-RT-RUNTIME.md` | ✅ INVOKE_fn + ARGVAL_fn — done |
@@ -122,7 +122,7 @@ the corpus, the emitter is correct by construction.
 |---------|--------|------|----------------|
 | **SNOBOL4 × x86** | BEAUTY | one4all `f23ef24c` · corpus `3fd44d0` · INTERP=./scrip --ir-run PASS=193/203 · beauty suite 14/19 | **CURRENT: MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor (SPITBOL vs scrip --ir-run) into ir-run path. T-0: `set_and_trace()` helper at all NV_SET sites in scrip.c. T-1: replace manual stcount/stlimit with `comm_stno()`. T-2: CALL/RETURN hooks in call_user_function(). T-3: `run_monitor_2way.sh`. T-4: run monitor on 5 failing beauty drivers → first diverging event names each bug. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
-| **Silly SNOBOL4** | SS-39 | one4all `4200574a` | **CURRENT: M-SS-STUBS** — 17 stubs to implement (DMK_fn first). BWD: watermark 7018, next TIME (7007). FWD: watermark 2606, next GOTO (2607). |
+| **Silly SNOBOL4** | SS-39 | one4all `22e1bd79` | **#1: M-SS-STUBS** — OPSYN_fn full + CNVRT_fn partial (non-compiler paths) next. BWD: watermark 6438, next COLECT (6427). FWD: watermark 3222, next NAM (3223). |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **one4all-SNOBOL4-NET** | D-212 | snobol4dotnet `917915b` · corpus `5c8aa22` · **2330p/0f/2s** | D-213: continue coverage hunting → ≥2340p |
