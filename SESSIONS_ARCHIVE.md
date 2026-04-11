@@ -37686,3 +37686,42 @@ grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 # FWD watermark 6479 · next: RECOMP (line 6491) — §19 STRING-CODE conversion chain
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## HANDOFF NOTE — D-206 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `83598f9` · corpus `5c8aa22` · **2270p/0f/2s**
+
+### This session's work (D-206)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `TEST_Corpus_817_substr` | 6 | Rung8 — SUBSTR: middle, full, to-end (len=0), first, last, 4-from-2 |
+| `TEST_Corpus_818_char` | 6 | Rung8 — CHAR: 65=A, 97=a, 48=0, 90=Z, size=1, concat |
+| `UPLO1` | 5 | Gimpel — edge cases: empty, all-upper, all-lower, digits/punct, mixed |
+| `BASEB1` | 4 | Gimpel — base10, base2(8), base16(255=FF), base36 |
+| `ROMAN3` | 4 | Gimpel — boundary: 1, 3999, 400(CD), 900(CM) |
+| `ROMAN4` | 4 | Gimpel — historical years: 1066, 1492, 1984, 2000 |
+| **Total** | **+6p** | **2264 → 2270p** |
+
+### Setup note
+- dotnet 10 installed via dotnet-install.sh to /usr/local/dotnet10 (not pre-installed)
+- `export PATH=/usr/local/dotnet10:$PATH` required each session
+
+### Next session (D-207) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 83598f9 · 2270p/0f/2s
+# Priority: find next thin coverage areas
+#   - Function/Miscellaneous/Datatype.cs (check for gaps)
+#   - Operator/ stubs (check for empty TestMethod bodies)
+#   - Any builtins not yet tested (IDENT, DIFFER edge cases, APPLY, etc.)
+# Gate target: ≥2280p
+```
