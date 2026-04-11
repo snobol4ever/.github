@@ -173,9 +173,18 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 ---
 
-## §KEY FACTS
+## §NOW
 
-**⛔ §NOW lives only in PLAN.md. Never here.**
+| Session | Sprint | HEAD | Next milestone |
+|---------|--------|------|----------------|
+| **NET BEAUTY** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s · beauty 7/19** | **⚠️ PRIORITY #1: MILESTONE-NET-BEAUTY-19** (7/19 → 19/19) · then MILESTONE-NET-BEAUTY-SELF |
+
+**D-215 first actions:**
+1. `cd /home/claude/snobol4dotnet && git pull --rebase`
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3`
+4. Run beauty suite — confirm **7/19** (see MILESTONE-NET-BEAUTY-19.md for run script)
+5. **First fix: B-BEAUTY-0** — allow `DEFINE('FENCE(FENCE)')` to redefine FENCE → gates fence + Gen + io → **10/19**
 
 **Key facts:**
 - 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
@@ -192,5 +201,4 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 - Remaining thin (< 8): Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files, Prototype(4), Rsort(5), Date(3), Eval(0/placeholder), Time(5), Arg(5), FunctionControl files, Gimpel files, Operator files
 
 *SESSION-snobol4-net.md — updated D-215, 2026-04-11, Claude Sonnet 4.6.*
-*D-215: §NOW removed — §NOW lives only in PLAN.md, never in SESSION docs.*
-*D-215 start: 2375p/0f/2s · beauty 7/19. apt dotnet-sdk-10.0 confirmed working.*
+*D-215 start: 2375p/0f/2s. apt dotnet-sdk-10.0 confirmed working (replaces /usr/local/dotnet10 path).*

@@ -38879,13 +38879,3 @@ dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>
 # Run beauty suite — confirm 7/19, then fix B-BEAUTY-0 (FENCE redefinition)
 git log origin/main --oneline -1
 ```
-
-## Session D-215 — §NOW removed from SESSION doc (2026-04-11)
-
-**Operator:** Claude Sonnet 4.6
-
-§NOW cannot exist in two places. It is physically impossible to have two sources of truth for NOW. SESSION-snobol4-net.md §NOW section deleted entirely. PLAN.md is the one and only §NOW. SESSION docs contain §INFO (invariants) and §KEY FACTS only.
-
-**Rule:** SESSION docs NEVER contain §NOW. If §NOW appears in a SESSION doc, delete it immediately.
-
-**No code changes. No HEAD changes.**
