@@ -121,7 +121,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 BWD | one4all `c4146296` | **M-SS-BLOCK-BACKWARD** — watermark 10510 (KNLIST+KNLIST-body verified; BUG-KNLIST-PAIRLIST noted). Next: DTLEND/DTLIST (line 10507/10482). |
+| SS-39 BWD | one4all `4200574a` | **M-SS-BLOCK-BACKWARD** — watermark 10482 (DTLIST fixed: arena pair list built, ARRSP/ASSCSP added, header wired). Next: FTERBR (line 10476). |
 | SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — watermark 2606 (GOTLC done). Next: NAM (line 3223). |
 
 ### MONITOR func-hook proposal (2026-04-08g)
