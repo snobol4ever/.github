@@ -37758,3 +37758,57 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 #   Memory/ (16 tests) — find gaps
 # Gate target: ≥2290p
 ```
+
+---
+
+## HANDOFF NOTE — BP-1 fixed, beauty_Gen BREAK bug identified (2026-04-11)
+
+**one4all HEAD:** `e2a34640`  **x64 HEAD:** `4df1cc3`  **PASS=203/212**
+
+### What was done this session
+
+**BP-1 FIXED** — `scrip.c` plain-assignment path now preserves DT_N from NRETURN.
+
+Root cause: `interp_eval(E_FNC)` unconditionally called `NAME_DEREF` on NRETURN result,
+so `nm = f()` stored a dereferenced value instead of the DT_N. Fix: after
+`interp_eval(s->replacement)` in the plain-assign branch, if
+`strcasecmp(kw_rtntype,"NRETURN")==0` and replacement is `E_FNC`, re-fetch
+`NV_GET_fn(s->replacement->sval)` to get the raw DT_N. Value contexts
+(builtins, patterns, differ) still get NAME_DEREF at E_FNC.
+
+Tests: BP-1 minimal ✅, `1013_func_nreturn (3/3)` ✅, `213_indirect_name (5/5)` ✅
+Suite: PASS=203/212 — no regression.
+
+**Oracle built:** `/home/claude/x64/bootsbl` live.
+
+### Next bug: beauty_Gen BREAK vacuous match on indirect subject
+
+In Gen.sno: `$'$B' BREAK(nl) . outline nl REM . $'$B'  :F(NRETURN)` succeeds with
+`outline=''` when `$'$B'` contains spaces+hello (no newline). Should FAIL.
+Bug is specific to indirect-variable subjects — isolated BREAK on literals works.
+
+### Next session first actions
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-snobol4-x64.md
+cd /home/claude/one4all && git pull --rebase && make scrip
+INTERP="./scrip --ir-run" CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>&1 | grep -E "^(PASS|  FAIL)"
+# Expect PASS=203 FAIL=9
+
+# Repro BREAK/indirect bug:
+cat > /tmp/break_indirect.sno << 'SNO'
+        &ALPHABET POS(10) LEN(1) . nl
+        $'$B' = DUPL(' ', 5) 'hello'
+        $'$B' BREAK(nl) . outline nl REM . $'$B'   :F(brk_fail)
+        OUTPUT = 'BUG: outline=[' outline ']'  :(done)
+brk_fail OUTPUT = 'CORRECT: BREAK failed'
+done
+END
+SNO
+./scrip --ir-run /tmp/break_indirect.sno
+# Then: grep exec_stmt stmt_exec.c for subject-length handling on indirect subjects
+# Fix → beauty_Gen passes → run 2-way monitor → Gate: beauty 19/19 → B-3
+```
