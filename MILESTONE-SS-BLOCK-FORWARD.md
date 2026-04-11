@@ -35,8 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **6319**  
-**Next block:** APPLY (line 6322) — §19 Other Fns
+**Current watermark:** v311.sil line **6479**  
+**Next block:** RECOMP (line 6491) — §19 STRING-CODE conversion chain
 
 ---
 
