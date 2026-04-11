@@ -47,8 +47,8 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 
 ## Watermark (update after each block — counts DOWN toward 1)
 
-**Current watermark:** v311.sil line **7007**  
-**Next block:** SUBSTR (line 6981)
+**Current watermark:** v311.sil line **6981**  
+**Next block:** SIZE (line 6969)
 
 ⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
@@ -180,6 +180,7 @@ When the backward pass watermark reaches 10209, jump directly to 7037 and contin
 | TFENPL | 12131 | ✅ clean |
 | TLABPL | 12128 | ✅ clean |
 | TVALPL | 12125 | ✅ clean |
+| SUBSTR | 6981 | 🐛 fixed — XCALL_XSUBSTR called with 3 args; len (D_A(ZPTR)) was missing; extern decl corrected |
 | TIME | 7007 | 🐛 fixed — XCALL_MSTIME/XCALL_SBREAL set .f (flag byte) to R; should be 0; also .a.f union used correctly now |
 | SUCCPT | 12120 | ✅ clean |
 
