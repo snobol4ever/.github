@@ -177,27 +177,14 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | D-215: continue coverage hunting → ≥2390p |
+| **NET BEAUTY** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s · beauty 7/19** | **⚠️ PRIORITY #1: MILESTONE-NET-BEAUTY-19** (7/19 → 19/19) · then MILESTONE-NET-BEAUTY-SELF |
 
 **D-215 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
-2. `apt-get install -y dotnet-sdk-10.0`  (dotnet-install.sh not needed — apt works)
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2375p/0f/2s**
-4. Target thin areas — run the thin-file finder then expand:
-```python
-python3 -c "
-import os
-for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables','Function/Numeric','Function/StringComparison','Function/Miscellaneous','Function/FunctionControl','Function/StringSynthesis','Corpus','Gimpel']:
-    base=f'TestSnobol4/{subdir}'
-    if not os.path.exists(base): continue
-    for f in sorted(os.listdir(base)):
-        p=base+'/'+f
-        if not p.endswith('.cs'): continue
-        with open(p,'rb') as fh: c=fh.read().decode('utf-8-sig','replace')
-        n=c.count('[TestMethod]')
-        if n < 8: print(n, subdir+'/'+f)
-"
-```
+2. `apt-get install -y dotnet-sdk-10.0`
+3. `dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3`
+4. Run beauty suite — confirm **7/19** (see MILESTONE-NET-BEAUTY-19.md for run script)
+5. **First fix: B-BEAUTY-0** — allow `DEFINE('FENCE(FENCE)')` to redefine FENCE → gates fence + Gen + io → **10/19**
 
 **Key facts:**
 - 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
