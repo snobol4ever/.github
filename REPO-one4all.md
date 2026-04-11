@@ -101,6 +101,21 @@ With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/
 
 ---
 
+## Silly SNOBOL4 — cherry-picks from one4all
+
+Files in `one4all/src/runtime/snobol4/` with well-tested logic to adapt.
+Adapt, don't copy verbatim — one4all uses Boehm GC + 64-bit; silly uses arena + 32-bit.
+
+| one4all file | Useful for | Adaptation needed |
+|---|---|---|
+| `argval.c` | VARVAL_fn, INTVAL_fn, PATVAL_fn logic | remove GC_strdup, use arena; int32_t not int64_t |
+| `nmd.c` | NAM_save/NAM_push/NAM_commit/NAM_discard design | remove GC_MALLOC, use arena; Name_entry → `nam_entry_t` |
+| `invoke.c` | INVOKE_fn / APPLY_fn dispatch pattern | adapt to fn_entry_t table with arena ptrs |
+| `sil_macros.h` | MOVD, SETAC, type-test macros | verify against our DESCR_t layout |
+| `snobol4.c` | arithmetic, string ops, keyword logic | heavy adaptation — different DESCR layout |
+
+---
+
 ## scrip modes
 
 | Flag | Mode |
