@@ -17,9 +17,6 @@
 | **M-NET-PAT-PRIMITIVES** | 16 pattern primitives vs SPITBOL oracle: LEN POS RPOS TAB RTAB REM ANY NOTANY SPAN BREAK BREAKX FENCE FAIL SUCCEED ABORT BAL | rung2–9 100% · dotnet test 1913/1913 |
 | **M-NET-EVAL-COMPLETE** | EVAL/CODE edge cases: pattern context · CODE across statement boundaries · AppendCompile jump patching | rung10/1016_eval pass · CODE corpus pass |
 | **M-NET-NRETURN** | NRETURN lvalue-assign | rung10/1013 pass |
-| **M-NET-OPT-CACHE** | `ExecutionCache.cs` — cache compiled pattern graphs · avoid rebuild on repeat execution | ≥ 2× throughput on loop-heavy corpus |
-| **M-NET-OPT-EMIT** | `BuilderEmitMsil.cs` — hot paths → emitted IL delegates | selected corpus tests pass via emitted IL |
-| **M-NET-OPT-FULL** | Full AOT IL emission · all corpus via emitted IL | 142/142 via emitted IL |
 | **M-NET-SNOCONE** | Snocone self-test under snobol4dotnet | Snocone self-test ✅ |
 | **M-NET-BOOTSTRAP** | snobol4dotnet compiles itself | Self-hosting bootstrap ✅ |
 
@@ -34,9 +31,6 @@
 | D-180 | M-NET-EVAL-COMPLETE + M-NET-NRETURN |
 | D-215 | M-NET-BEAUTY-19 ⚠️ NOW |
 | D-216 | M-NET-BEAUTY-SELF |
-| D-217 | M-NET-OPT-CACHE |
-| D-218 | M-NET-OPT-EMIT |
-| D-219 | M-NET-OPT-FULL |
 | D-220 | M-NET-SNOCONE + M-NET-BOOTSTRAP |
 
 ---
