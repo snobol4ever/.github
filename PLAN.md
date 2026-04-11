@@ -68,6 +68,8 @@ the corpus, the emitter is correct by construction.
 
 | Component | Doc | Status |
 |-----------|-----|--------|
+| **⭐ NET — Beauty Suite 19/19** | `MILESTONE-NET-BEAUTY-19.md` | ⚠️ **CURRENT PRIORITY #1** — snobol4dotnet passes all 19 beauty drivers. Baseline D-214b established. Session D-215. |
+| **⭐ NET — Beauty Self-Hosting** | `MILESTONE-NET-BEAUTY-SELF.md` | ⚠️ **CURRENT PRIORITY #2** — beauty.sno self-beautifies via snobol4dotnet. Gates on MILESTONE-NET-BEAUTY-19 (19/19). |
 | **⭐ SNOBOL4 × x86 — SCRIP TRACE/MONITOR** | `MILESTONE-SN4X86-SCRIP-TRACE.md` | ⚠️ **CURRENT** — Wire TRACE/STOPTR/DUMP/comm_var/monitor into scrip --ir-run. T-0: set_and_trace(). T-1: comm_stno(). T-2: CALL/RETURN hooks. T-3: run_monitor_2way.sh. T-4: monitor 5 failing beauty drivers. Gate: beauty 19/19 → B-3. |
 | **SCRIP Unified Executable** | `SCRIP-UNIFIED.md` | ✅ designed · U0 complete (2026-04-07) · binary=`scrip` · default=`--sm-run` |
 | **SCRIP Stack Machine** | `SCRIP-SM.md` | ✅ designed · ⬜ SM-LOWER not written |
