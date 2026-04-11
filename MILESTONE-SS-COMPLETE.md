@@ -1,5 +1,16 @@
 # MILESTONE-SS-COMPLETE.md — 100% SIL Translation, No Exceptions
 
+## ⚡ NEXT ACTION (update after each step)
+**A3 — Write RECOMJ cluster in func.c**
+```bash
+cd /home/claude/one4all && git pull --rebase
+cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 | grep -E "error:|warning:"
+# Then replace stubs: CODER_fn (line ~662) and CONVE_fn (line ~845) in func.c
+# SIL ref: v311.sil 6492–6551  C ref: snobol4.c 8848–8955
+# Commit: git -c user.name="Lon Jones Cherryholmes" -c user.email="lon@snobol4ever.com" commit -m "M-SS-COMPLETE A3: RECOMJ+CODER+CONVE+CONVEX"
+```
+**Remaining:** A3 RECOMJ ⬜ → A4 DEFFNC_fn ⬜ → BLOCKS ⬜
+
 **Goal:** Every single line of v311.sil (all 12,293 lines) has a corresponding C translation
 in src/silly/. No stubs. No skipped sections. No excuses. BLOCKS included.
 

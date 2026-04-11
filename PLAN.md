@@ -11,7 +11,14 @@
 
 ## ⛔ SESSION START — every session, no exceptions
 
-**Step 1 — Orientation only (3 reads max):**
+**Step 0 — Check NOW table first (one grep, 10 seconds):**
+```
+grep -A2 "^| \*\*Silly SNOBOL4\*\*\|^| \*\*RUNTIME\|^| \*\*SNOBOL4 × x86" /home/claude/.github/PLAN.md
+```
+If the NOW row tells you exactly what to do next (HEAD + next action), **skip Steps 1–3 and start working immediately.**
+Only read Steps 1–3 if the NOW row is ambiguous or you need broader context.
+
+**Step 1 — Orientation only (3 reads max, SKIP if Step 0 was sufficient):**
 ```
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md   # sprint handoff state
 grep "^## " /home/claude/.github/GENERAL-RULES.md    # rules headers only — ⛔ includes HANDOFF rule
@@ -95,7 +102,7 @@ the corpus, the emitter is correct by construction.
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-39 — M-SS-BLOCK-FORWARD: watermark 3222 → 12293 · M-SS-BLOCK-BACKWARD: watermark 6438 → 1 · both run independently to completion |
 | **M-SS-WARNINGS** | `MILESTONE-SS-WARNINGS.md` | ✅ **DONE** `98a5c215` — zero warnings: INTR1_fn/chk_break decls, FRZNSTR removed, DESCR_t initialisers explicit |
-| **M-SS-COMPLETE** | `MILESTONE-SS-COMPLETE.md` | ⚠️ **#1 PRIORITY** — A1 ✅ `67460124` · A2: fix LOAD_fn · A3: RECOMJ+CODER+CONVE+CONVEX · A4: DEFFNC_fn · BLOCKS last (after FWD+BWD done) |
+| **M-SS-COMPLETE** | `MILESTONE-SS-COMPLETE.md` | ⚠️ **#1 PRIORITY** — A1 ✅ A2 ✅ `ec9b1fb0` · **A3 NEXT: RECOMJ+CODER+CONVE+CONVEX in func.c** · A4: DEFFNC_fn · BLOCKS last (after FWD+BWD done) |
 | **M-SS-BLOCK-BACKWARD** | `MILESTONE-SS-BLOCK-BACKWARD.md` | ⚠️ watermark 6438 (COPY) — next: COLECT (6427) — runs to line 1 |
 | **M-SS-BLOCK-FORWARD** | `MILESTONE-SS-BLOCK-FORWARD.md` | ⚠️ watermark 3222 — next: NAM (line 3223) — runs to 12293 |
 | **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** ⚠️ CSNOBOL4 is oracle here by construction | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⚠️ in progress — M-SS-MON-0..4 complete · M-SS-MON-5 (hello world passes) next |
@@ -126,7 +133,7 @@ the corpus, the emitter is correct by construction.
 | **SNOBOL4 × x86** | BEAUTY | one4all `f23ef24c` · corpus `3fd44d0` · INTERP=./scrip --ir-run PASS=193/203 · beauty suite 14/19 | **CURRENT: MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor (SPITBOL vs scrip --ir-run) into ir-run path. T-0: `set_and_trace()` helper at all NV_SET sites in scrip.c. T-1: replace manual stcount/stlimit with `comm_stno()`. T-2: CALL/RETURN hooks in call_user_function(). T-3: `run_monitor_2way.sh`. T-4: run monitor on 5 failing beauty drivers → first diverging event names each bug. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
 | **one4all-SNOBOL4-NET** | D-215 | snobol4dotnet `b280881` · corpus `5c8aa22` · **2375p/0f/2s** | **NEXT: MILESTONE-NET-BEAUTY-19** (7/19 → 19/19) · then MILESTONE-NET-BEAUTY-SELF |
 | **RUNTIME (SCRIP unified)** | RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · --sm-run PASS=163 / --ir-run PASS=178 | **CURRENT PRIORITY: RUNTIME-5 → RUNTIME-8 in order.** RT-5: `NV_SET_fn` → `DESCR_t` + OUTPUT/TRACE hook tables. RT-6: implement `EXPVAL_fn`/`EXPEVL_fn` in `eval_code.c`. RT-7: `CONVE_fn` + `CODE_fn` + full `CONVERT_fn` matrix. RT-8: `EVAL_fn` full DT_E/DT_S/DT_I/DT_R dispatch → PASS=178 gate. Then: field mutator LHS fix (`lson(b) = a`). |
-| **Silly SNOBOL4** | SS-39 | one4all `67460124` | **#1: M-SS-COMPLETE** (supersedes M-SS-STUBS) — A2: fix LOAD_fn · A3: RECOMJ+CODER+CONVE+CONVEX · A4: DEFFNC_fn · then FWD+BWD passes · BLOCKS last |
+| **Silly SNOBOL4** | SS-39 | one4all `ec9b1fb0` | **#1: M-SS-COMPLETE** — A2 ✅ · **A3 NEXT: RECOMJ cluster in func.c** (v311.sil 6492–6551) · A4: DEFFNC_fn · then FWD+BWD · BLOCKS last |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
