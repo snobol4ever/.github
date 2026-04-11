@@ -38630,3 +38630,60 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 - A2: LOAD_fn compile fix (15 min)
 - A3: RECOMJ/CODER/CONVE/CONVEX translation (30 SIL lines)
 - A4: DEFFNC_fn translation (80 SIL lines)
+
+## Session SSB-14b — Housekeeping + handoff (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `67460124` · .github `a9ed3c1`
+**HEAD at end:** one4all `67460124` · .github `0f7f41a`
+
+### Work done
+
+- Renamed `MILESTONES_DIRECTORY.md` → `MILESTONE_BONE_PILE.md`
+- Fixed title inside the file (was still `# MILESTONES_DIRECTORY.md`)
+- Added `⛔ READ-ONLY ARCHIVE` warning — never append or update this file
+- MILESTONE-SS-COMPLETE.md: clarified BLOCKS deferred until after FWD+BWD passes complete
+- PLAN.md: updated component map to reference M-SS-COMPLETE as #1 priority
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-COMPLETE.md
+cd /home/claude/one4all && git pull --rebase
+cd /home/claude/one4all/src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 | grep -E "error:|warning:"
+# HEAD one4all: 67460124 · 0 errors · known warnings in extern.c (LOAD_fn broken)
+# HEAD .github: 0f7f41a
+```
+
+### Priority order for next session (M-SS-COMPLETE Phase 1)
+
+**A2 — Fix LOAD_fn compile errors in extern.c (do first):**
+Add these three lines near top of extern.c (after existing includes):
+```c
+extern RESULT_t STREAM_fn(SPEC_t *sp1, SPEC_t *sp2, DESCR_t *tbl, int *stype_out);
+extern DESCR_t VARATB;
+extern DESCR_t LODCL;
+```
+Move `spec_eq_rparen()` function definition to BEFORE `LOAD_fn()`.
+Remove `static` from `spec_eq_rparen`.
+Then build clean.
+
+**A3 — Translate RECOMJ path in func.c (~30 SIL lines, v311.sil 6492-6551):**
+Blocks: RECOMJ/RECOMT/RECOM1/RECOM2/RECOMF/RECOMN/RECOMZ/RECOMQ + CODER_fn + CONVE_fn + CONVEX.
+All called functions exist: CMPILE_fn, SPLIT_fn, EXPR_fn, TREPUB_fn, BLOCK_fn.
+Nothing blocks this translation. "M19" was false reasoning — delete those comments.
+
+**A4 — Translate DEFFNC_fn in define.c (~80 SIL lines, v311.sil 4310-4470):**
+INTERP_fn already exists in interp.c. Nothing blocks this translation.
+Full argument-binding save/restore + INTERP call.
+Labels to translate: DEFF1..DEFF20, DEFFF, DEFFC, DEFFN, DEFFNR, DEFFGO, DEFFVX, DEFFS1, DEFFS2.
+
+**BLOCKS: deferred — do LAST, after M-SS-BLOCK-FORWARD and M-SS-BLOCK-BACKWARD both complete.**
+
+### Key files
+- SIL oracle: `/home/claude/work/snobol4-2.3.3/v311.sil`
+- C reference: `/home/claude/work/snobol4-2.3.3/snobol4.c`
+- Silly source: `/home/claude/one4all/src/silly/`
+- Milestone: `/home/claude/.github/MILESTONE-SS-COMPLETE.md`
