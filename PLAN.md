@@ -40,6 +40,7 @@ The SESSION doc has two mandatory sections:
 - `## ⛔ §INFO` — session invariants (tool locations, oracle setup, baselines,
   don't-do-X warnings). Append-only. Read before touching anything.
 - `## §NOW` — current sprint, HEAD hashes, next milestone, first actions.
+- `## §NOW` — current sprint, HEAD hashes, next milestone, first actions.
 
 ---
 
