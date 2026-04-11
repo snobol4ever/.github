@@ -1,5 +1,6 @@
 # MILESTONE_BONE_PILE.md — Archived Milestone Reference
 
+⛔ READ-ONLY ARCHIVE — never append or update this file.
 **Status:** Parked — cleared 2026-04-08 to focus on SNOBOL4 × x86 home stretch.
 **Active sessions:** Silly SNOBOL4 (MILESTONE-SS-*, MILESTONE-SILLY-*, MILESTONE-V311-*) and snobol4dotnet (MILESTONE-NET-*) are NOT here — they remain active in their own files.
 **Purpose:** Preserve milestone content for future use when x86 track is complete and other tracks reopen.
