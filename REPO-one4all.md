@@ -151,3 +151,20 @@ scrip IPC: C-native in `snobol4.c` (`comm_var()`, `comm_stno()`, `monitor_fd`/`m
 | JS | node (pre-installed) |
 
 Never install bison or flex — generated parser files are committed.
+
+## Combination matrix — what SESSION_SETUP.sh installs
+
+| FRONTEND | BACKEND | Always | + Backend | + Oracle | Skip |
+|----------|---------|--------|-----------|---------|------|
+| `snocone` | `x64` | gcc make curl unzip | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl |
+| `snobol4` | `x64` | ″ | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl |
+| `icon` | `x64` | ″ | nasm libgc-dev | icont iconx | java javac mono ilasm swipl spitbol |
+| `prolog` | `x64` | ″ | nasm libgc-dev | swipl | java javac mono ilasm icont spitbol |
+| `snobol4` | `jvm` | ″ | java javac jasmin.jar | spitbol | nasm libgc-dev mono ilasm icont swipl |
+| `icon` | `jvm` | ″ | java javac jasmin.jar | icont iconx | nasm libgc-dev mono ilasm swipl spitbol |
+| `prolog` | `jvm` | ″ | java javac jasmin.jar | swipl | nasm libgc-dev mono ilasm icont spitbol |
+| `snobol4` | `net` | ″ | mono ilasm | spitbol | nasm libgc-dev java javac icont swipl |
+| `snobol4` | `wasm` | ″ | wabt node | spitbol | nasm libgc-dev java javac mono ilasm icont swipl |
+| *(omitted)* | *(omitted)* | ″ | ALL backends | ALL oracles | nothing — full install |
+
+SPITBOL is the oracle. SESSION_SETUP.sh installs it from snobol4ever/x64.
