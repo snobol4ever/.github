@@ -8,8 +8,8 @@
 
 ## Watermark (update after each stub fixed)
 
-**Current stub:** `DMK_fn` (missing entirely — called from DUMP path)  
-**Next stub:** see table below
+**Current stub:** `DATDEF_fn` (#4)  
+**Next stub:** `RSORT_fn` / `SORT_fn` (#5)
 
 ---
 
@@ -17,8 +17,8 @@
 
 | # | Function | File | SIL § | SIL lines | Status |
 |---|----------|------|-------|-----------|--------|
-| 1 | `DMK_fn` | func.c | §19 | 6747–6783 | ⬜ missing entirely |
-| 2 | `DMP_fn` / `DUMP_fn` | func.c | §19 | 6699–6746 | ⬜ stub — no actual dump |
+| 1 | `DMK_fn` | func.c | §19 | 6747–6783 | ✅ implemented `2b07b9b4` |
+| 2 | `DMP_fn` / `DUMP_fn` | func.c | §19 | 6699–6746 | ✅ implemented `2b07b9b4` |
 | 3 | `DATDEF_fn` | arrays.c | §14 | ~4947 | ⬜ stub returns FAIL |
 | 4 | `RSORT_fn` / `SORT_fn` | arrays.c | §14 | ~5220–5267 | ⬜ stub returns FAIL |
 | 5 | `LOAD_fn` | extern.c | §13 | 4471–4520 | ⬜ stub returns FAIL |
@@ -60,5 +60,9 @@
 
 | # | Function | Status |
 |---|----------|--------|
-| — | — | — |
+| 1 | `DMK_fn` | ✅ `2b07b9b4` — full keyword dump loop |
+| 2 | `DMP_fn` / `DUMP_fn` | ✅ `2b07b9b4` — full OBLIST walk with type dispatch |
+| pre | INSATL/OTSATL dup-def | ✅ `ff18a0a1` — removed from platform.c |
+| pre | DMPSP definition | ✅ `ff18a0a1` — added to platform.c |
+| pre | QTSP/AMPSP/BLEQSP/BLSP/FRZNSP init | ✅ `2b07b9b4` — data_init() |
 

@@ -38023,3 +38023,46 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # Remaining thin files: Pattern/Concatenate(4), Pattern/At(5-done), Bal(4), Rem(5)
 # Also check: Corpus/ for any uncovered programs, GimpelBits for expansion
 ```
+
+---
+
+## Session SSB-8 — M-SS-STUBS #1-3 complete (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `4200574a` · .github `5c1dced`
+**HEAD at end:** one4all `2b07b9b4` · .github (pending push below)
+
+### Work done
+
+**Pre-work fixes (commit `ff18a0a1`):**
+- Removed duplicate `INSATL`/`OTSATL` definitions from platform.c (canonical in data.c)
+- Added `DMPSP` definition to platform.c (was extern-only in data.h)
+- Build now links clean
+
+**M-SS-STUBS #1-3 (commit `2b07b9b4`):**
+- `FRZNSP` SPEC_t + static string added to platform.c
+- `extern SPEC_t FRZNSP` added to data.h
+- All static string SPECs initialized in `data_init()`: `QTSP`, `AMPSP`, `BLEQSP`, `BLSP`, `FRZNSP` (were all `{0}` — latent bug fixed)
+- `STPRNT_fn` extern corrected in func.c (`void*` → `DESCR_t`)
+- `stdio.h` added to func.c includes
+- `DMP_fn` — full implementation: INTVAL → zero check → DUMP fallthrough
+- `DUMP_fn` — full OBLIST arena walk: PCOMP/INCRA/GETAC link-follow/GETDC value/null-skip/APDSP line build/DTREP for non-S-I types/FRZN flag/STPRNT print
+- `DMK_fn` — full keyword dump: PKEYF caption/KNLIST pair-list walk/INTSPC+LOCSP/APDSP build/STPRNT print
+- `DMK_fn` declared in func.h
+
+**Build:** clean (0 errors)
+
+### Next session (SSB-9) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SS-STUBS.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep "error:"
+# Next stub: DATDEF_fn (#3 in table, arrays.c ~line 4947)
+# Read v311.sil lines ~4947, snobol4.c DATDEF function, then implement
+```
+
+**STUBS watermark:** DATDEF_fn (#3) — next to implement
+**BWD watermark:** 7018 (TIME block read/analyzed but not committed — verify and commit first thing)
