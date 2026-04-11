@@ -37292,3 +37292,16 @@ grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
 # FWD watermark 6100 · next: DIFFER (line 6102) §18 Predicates
 cd /home/claude/one4all && git pull --rebase
 ```
+
+---
+
+## SSF-51 HANDOFF NOTE (2026-04-10)
+
+**one4all HEAD at handoff:** `e9f71ed6` (merged with SSB session commits)
+**.github HEAD at handoff:** `3165c0c`
+**FWD watermark confirmed:** 6100 · next block: DIFFER (line 6102)
+
+### Open items for SSF-52
+1. **BUG-ASGN-PUTIN** (`asgn.c` line ~102): PUTIN_fn always returns OK and does PUTDC internally. SIL RCALL case0→ASGNV1 (GETDC needed), case2→ASGNVV direct. Split PUTIN into two phases or restructure.
+2. **KEYT stub** (`platform.c`): Returns FAIL. Real: `POP XPTR; BRANCH KEYN` — implement as `KEYT_fn(DESCR_t xptr) { MOVD(XPTR,xptr); return KEYN_path(); }` or restructure KEYWRD_fn to expose KEYN sub-entry.
+3. **Next blocks** (§18 Predicates, starting line 6102): DIFFER, FUNCTN, IDENT, LABEL, LEQ, LGT, LLT, LNE, NEG, QUES, CHAR, LPAD, RPAD
