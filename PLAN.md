@@ -54,8 +54,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 ## Oracle
 
-**SPITBOL x64 is the primary oracle for all testing.** Use `/home/claude/x64/bin/sbl`.
-CSNOBOL4 is used only in GOAL-SILLY-SYNC-MONITOR (SS-MONITOR). See RULES.md for details.
+**SPITBOL x64 is the primary oracle for all testing.** Use `/home/claude/x64/bin/sbl`. See RULES.md for details.
 
 ---
 
