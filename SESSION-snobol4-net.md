@@ -177,28 +177,20 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET INTERP** | D-181 | one4all `e1a66fb` (WIP uncommitted) | **166p/12f** · icase root-cause complete · **D-182**: fix str write-back in pattern Phase 5 → commit WIP pattern-return infra → test_case/math/stack/string ≥170p → NRETURN → ≥175p |
+| **NET CORPUS** | D-202 | snobol4dotnet `269d5f9` · **2220p/0f/2s** | D-203: audit LGT/LLT/LEQ/LNE correctness with ordinal comparison + continue corpus coverage → ≥2221p |
 
-**D-182 first actions:**
-1. `git pull --rebase` all repos.
-2. `apt-get install -y dotnet-sdk-10.0`
-3. `dotnet build src/driver/net/scrip-interp.csproj -c Release -o /tmp/sni` → confirm `HELLO WORLD`
-4. Setup `/tmp/sni_run.sh` + `chmod +x`
-5. Confirm **166p/12f**
-6. **Do NOT reset WIP** — `git diff src/driver/net/` shows the pattern-return infrastructure.
-7. **Fix str write-back:** in `ExecStmt` Phase 5 (~line 248–258), trace `subjName`, `result.MatchStart`, `result.MatchLength` for the `str POS(0) ANY(...) . letter =` statement. The issue: after the first char is consumed from `str`, subsequent iterations show `IDENT(str)` still failing — `str` is not being updated. Either `subjName=null` (subject parsed as non-VAR) or `MatchLength=0`. Fix the write-back.
-8. Once `icase` works: commit WIP (`git add src/driver/net/Executor.cs src/driver/net/PatternBuilder.cs src/driver/net/SnobolEnv.cs && git commit -m "D-181/182: pattern-return infra + icase fix"`)
-9. Broad → target ≥170p (test_case/math/stack/string)
-10. Then NRETURN → ≥175p
+**D-203 first actions:**
+1. `cd /home/claude/snobol4dotnet && git pull --rebase`
+2. `export PATH=/usr/local/dotnet10:$PATH`
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2220p/0f/2s**
+4. Audit `Function/StringComparison/` — run all Lgt/Llt/Leq/Lne tests, verify vs SPITBOL ordinal oracle
+5. Find next corpus coverage gap and write tests
 
-**WIP state (git diff, not committed):**
-- `SnobolEnv.cs`: `TAG_PATTERN`, `_patternObjs List<IByrdBox>`, `PatternCreate/IsPatternObj/GetPatternBox/ClearPattern`
-- `PatternBuilder.cs`: `_resolvePatternVal` callback, `BuildInner()`, `ResolveUserFuncPattern()` in `_` catch-all
-- `Executor.cs`: `CallUserFunc` saves/restores `_patVars[fn]`; RETURN branch eagerly builds box; `makeGetPatternVar` checks `IsPatternObj`; `resolvePatternVal` wired
+**Key facts for D-203:**
+- `StringComparisonStrategy` now uses `Ordinal` (byte-order) — matches SPITBOL exactly
+- `BaseSort` 1D fix: each element is its own row — 1D SORT now works
+- 2 permanent skips: `M-NET-EVAL-COMPLETE` (EVAL recursion) + `M-NET-PAT-PRIMITIVES` (&ANCHOR='0' error 208)
+- No WIP uncommitted changes — clean HEAD
 
-See **MILESTONE-NET-SNOBOL4.md** for the full chain.
-
----
-
-*SESSION-snobol4-net.md — updated D-181, 2026-04-04, Claude Sonnet 4.6.*
-*D-181: pattern-return infra scaffolded; icase str write-back root-caused; WIP uncommitted.*
+*SESSION-snobol4-net.md — updated D-202, 2026-04-10, Claude Sonnet 4.6.*
+*D-202: BUG-NET-SORT fixed; StringComparison ordinal; 2220p/0f/2s.*
