@@ -177,7 +177,7 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-209 | snobol4dotnet `2060a67` · corpus `5c8aa22` · **2300p/0f/2s** | D-210: continue coverage hunting → ≥2310p |
+| **NET CORPUS** | D-210 | snobol4dotnet `9a21905` · corpus `5c8aa22` · **2310p/0f/2s** | D-211: continue coverage hunting → ≥2320p |
 
 **D-208 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
@@ -193,5 +193,5 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 - Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — expanded D-207
 - dotnet 10 at /usr/local/dotnet10 (install via dotnet-install.sh if missing)
 
-*SESSION-snobol4-net.md — updated D-209, 2026-04-10, Claude Sonnet 4.6.*
-*D-209: Eject×3+Endfile×2+Fail+Rem+Bal; +8 tests; 2300p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-210, 2026-04-10, Claude Sonnet 4.6.*
+*D-210: At×2+Rsort×2+Reverse×2+ArbNo×2+Abort×2; +10 tests; 2310p/0f/2s.*
