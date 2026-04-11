@@ -21,20 +21,23 @@ struct EXPR_t {
 
 **Leaves:** E_QLIT, E_ILIT, E_FLIT, E_NUL, E_VAR, E_KEYWORD
 **Unary:** E_MNS, E_NOT, E_IND (indirect $), E_NAME (.), E_ATP (@), E_STR (*), E_TILDE
-**Binary:** E_ADD, E_SUB, E_MUL, E_DIV, E_POW, E_CAT, E_SEQ, E_OR, E_CONCAT, E_ASSIGN, E_COND_ASSIGN, E_IMM_ASSIGN, E_MATCH
-**N-ary:** E_FNC (function call), E_IDX (subscript), E_SELECT (alternation)
+**Binary:** E_ADD, E_SUB, E_MUL, E_DIV, E_EXP, E_SEQ, E_CAT, E_ALT, E_CAPT_COND_ASGN, E_CAPT_IMM_ASGN, E_IDX, E_CHOICE (Icon/Prolog), E_CLAUSE (Prolog), E_UNIFY (Prolog), E_CUT (Prolog)
+**N-ary:** E_FNC (function call), E_CONCAT (string concat chain), E_LIST, E_APPLY
 **Pattern:** E_ARBNO, E_ARBN, E_SCAN, E_POS, E_RPOS, E_LEN, E_RLEN
 
 ## STMT_t — the statement
+
+⚠️ Field names vary across doc versions — verify against `src/ir/ir.h` before coding.
+Canonical version in `archive/IR.md §STMT_t — SNOBOL4 Detail` uses `replacement` and `SnoGoto *go`.
 
 ```c
 struct STMT_t {
     char    *label;
     EXPR_t  *subject;
     EXPR_t  *pattern;
-    EXPR_t  *replace;
-    EXPR_t  *goto_s;    /* :S(label) */
-    EXPR_t  *goto_f;    /* :F(label) */
+    EXPR_t  *replacement;  /* NULL if no replacement */
+    EXPR_t  *goto_s;       /* :S(label) — verify field name in ir.h */
+    EXPR_t  *goto_f;       /* :F(label) — verify field name in ir.h */
     STMT_t  *next;
 };
 ```
