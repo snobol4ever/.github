@@ -28,19 +28,6 @@ apt-get install -y gcc make libgc-dev    # always needed for scrip
 cd /home/claude/one4all && make scrip
 ```
 
-**For Silly goals — also need CSNOBOL4:**
-Lon supplies `snobol4-2_3_3_tar.gz` (snobol4.org is broken — do not attempt to download).
-```bash
-apt-get install -y m4
-mkdir -p /home/claude/work
-tar -xzf snobol4-2_3_3_tar.gz -C /home/claude/work
-cd /home/claude/work/snobol4-2.3.3 && ./configure --prefix=/usr/local && make -j$(nproc) && make install
-# Oracle paths after build:
-#   /home/claude/work/snobol4-2.3.3/v311.sil      (12,293 lines — SIL spec)
-#   /home/claude/work/snobol4-2.3.3/snobol4.c     (14,293 lines — generated C ground truth)
-#   /home/claude/work/snobol4-2.3.3/snobol4        (binary oracle)
-```
-
 ---
 
 ## Build
