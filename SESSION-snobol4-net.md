@@ -177,21 +177,38 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-212 | snobol4dotnet `917915b` · corpus `5c8aa22` · **2330p/0f/2s** | D-213: continue coverage hunting → ≥2340p |
+| **NET CORPUS** | D-213 | snobol4dotnet `5b5c912` · corpus `5c8aa22` · **2347p/0f/2s** | D-214: continue coverage hunting → ≥2360p |
 
-**D-208 first actions:**
+**D-214 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
 2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2281p/0f/2s**
-4. Target thin areas: ObjectCreation(7 tests), Memory(16 tests) — find gaps and add cases
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2347p/0f/2s**
+4. Target thin areas — run the thin-file finder then expand:
+```python
+python3 -c "
+import os
+for subdir in ['Function/Pattern','Function/InputOutput','Function/ArraysTables','Function/Numeric','Function/StringComparison','Function/Miscellaneous','Function/FunctionControl','Function/StringSynthesis','Corpus','Gimpel']:
+    base=f'TestSnobol4/{subdir}'
+    if not os.path.exists(base): continue
+    for f in sorted(os.listdir(base)):
+        p=base+'/'+f
+        if not p.endswith('.cs'): continue
+        with open(p,'rb') as fh: c=fh.read().decode('utf-8-sig','replace')
+        n=c.count('[TestMethod]')
+        if n < 8: print(n, subdir+'/'+f)
+"
+```
 
 **Key facts:**
 - 2 permanent skips: `TEST_Corpus_control_expr_eval` + `TEST_Corpus_099_keyword_rw`
 - All 6 L*.cs use `string.CompareOrdinal()` (BUG-NET-STRCOMP fixed D-203)
 - rung8 complete 810-818, rung9 complete 910-919
-- Gimpel: UPLO(2), BASEB(2), ROMAN(4) — all expanded D-206
+- Gimpel: UPLO(5), BASEB(4), ROMAN(5) — expanded D-213
 - Operator: Interrogation(6), Negation(6), ConditionalAssoc(6), Field(3) — expanded D-207
 - dotnet 10 at /usr/local/dotnet10 (install via dotnet-install.sh if missing)
+- D-213 expanded: At(+3→8), Bal(+3→8), Dupl(+3→7), Apply(+3→8), Rung3_Concat(+3→8), UPLO(+2→5)
+- APPLY with user-defined functions via APPLY() fails error 22 — known gap, use built-ins only
+- DIFFER(A,B) FAILS when A==B, SUCCEEDS when A!=B — double-check logic before writing tests
 
-*SESSION-snobol4-net.md — updated D-212, 2026-04-10, Claude Sonnet 4.6.*
-*D-212: Rung4×2+Hello×2+BASEB×2+UPLO+ROMAN+Fail×2; +10 tests; 2330p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-213, 2026-04-11, Claude Sonnet 4.6.*
+*D-213: At+3, Bal+3, Dupl+3, Apply+3, Concat+3, UPLO+2; +17 tests; 2347p/0f/2s.*

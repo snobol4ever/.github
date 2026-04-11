@@ -126,7 +126,7 @@ the corpus, the emitter is correct by construction.
 | **Silly SNOBOL4** | SS-39 | one4all `22e1bd79` | **#1: M-SS-STUBS** — OPSYN_fn full + CNVRT_fn partial (non-compiler paths) next. BWD: watermark 6438, next COLECT (6427). FWD: watermark 3222, next NAM (3223). |
 | **Snocone x86** | SC-14 | `05a50e8` one4all · `7729763` corpus | M-SC-SELFTEST |
 | **TINY JVM** | J-233 | one4all `b8560bb` | J-234: 1011_func_redefine + 1017_arg_local → ≥165p |
-| **one4all-SNOBOL4-NET** | D-212 | snobol4dotnet `917915b` · corpus `5c8aa22` · **2330p/0f/2s** | D-213: continue coverage hunting → ≥2340p |
+| **one4all-SNOBOL4-NET** | D-213 | snobol4dotnet `5b5c912` · corpus `5c8aa22` · **2347p/0f/2s** | D-214: continue coverage hunting → ≥2360p |
 | **SNOBOL4 JS** | SJ-26 | one4all `d7cf03e` | 174p/4f · SJ-27: engine re-entrancy fix → ≥175p |
 
 ---

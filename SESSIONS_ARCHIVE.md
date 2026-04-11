@@ -38340,3 +38340,39 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 **Remaining stubs:** DATDEF_fn, RSORT_fn/SORT_fn, XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn  
 **M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn  
 **Build:** 0 errors · 0 warnings · HEAD `6e81f5d5`
+
+---
+
+## Session D-213 — coverage hunting: At, Bal, Dupl, Apply, Concat, UPLO (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `917915b` · corpus `5c8aa22` · 2330p/0f/2s
+**HEAD at end:** snobol4dotnet `5b5c912` · 2347p/0f/2s
+
+### Tests added — +17 tests across 6 files
+
+| File | Added | New count |
+|------|-------|-----------|
+| `Function/Pattern/At.cs` | +3 (At_006, At_007, At_008) | 8 |
+| `Function/Pattern/Bal.cs` | +3 (Bal_006 empty parens, Bal_007 unbalanced fails, Bal_008 preceded-by-lit) | 8 |
+| `Function/ObjectCreation/Dupl.cs` | +3 (Dupl_005 large, Dupl_006 size, Dupl_007 single char) | 7 |
+| `Function/FunctionControl/Apply.cs` | +3 (Apply_006 replace, Apply_007 size, Apply_008 ident) | 8 |
+| `Corpus/Rung3_Concat.cs` | +3 (315 in-pattern, 316 int coerce, 317 loop accumulate) | 8 |
+| `Gimpel/UPLO.cs` | +2 (UPLO3 double-apply identity, UPLO4 digits/symbols unchanged) | 5 |
+
+### Bugs caught during development
+
+- **DIFFER logic inverted in 316**: wrote `differ(r,'answer=42') :f(fail)` — this goes to fail when equal, which is the success case. Fixed to use `ident(r,'answer=42') :s(ok)f(fail)`.
+- **APPLY error 22 with user-defined functions**: `apply(fn, arg)` where `fn` is a user-defined function name fails with error 22 at runtime. Not a test bug — appears to be a known implementation gap. All Apply tests use built-in functions only.
+- **Missing `using Snobol4.Common;`** in Dupl.cs — needed for `IntegerVar` type.
+
+### Next session (D-214) — start here
+
+```bash
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# confirm 2347p/0f/2s, then run thin-file finder (see SESSION-snobol4-net.md §NOW)
+```
+
+**Remaining thin targets (< 8 tests):** Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), Backspace(4), Detach(3), Eject(4), Endfile(5), Rewind(5), Prototype(4), Rsort(5), Rung2_Indirect(5), Rung4_Arith(7), Date(3), Size(5), Time(5), Collect(5), Dump(5)
