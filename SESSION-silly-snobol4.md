@@ -121,7 +121,7 @@ Prereq for -m32: `apt-get install -y gcc-multilib`
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 BWD | one4all `09107beb` | **M-SS-BLOCK-BACKWARD** — watermark 10600 (EXN2CL clean). Next: DIGSVL (line 10596). |
+| SS-39 BWD | one4all `09107beb` | **M-SS-BLOCK-BACKWARD** — watermark 10596 (DIGSVL fixed). Next: PARMVL (line 10594). |
 | SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — watermark 2606 (GOTLC done). Next: NAM (line 3223). |
 
 ### MONITOR func-hook proposal (2026-04-08g)
