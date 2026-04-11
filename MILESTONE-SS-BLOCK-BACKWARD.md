@@ -54,6 +54,11 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | EXN2CL | 10600 | ✅ clean — D(0,0,I) correct; name-spec is systemic KVLIST gap |
 | DIGSVL | 10596 | 🐛 fixed — PI_val dead real_t→PIVCL DESCR_t with .v=R |
 | PARMVL | 10594 | ✅ clean — D(0,0,S) correct |
+| UCASVL | 10592 | ✅ clean — D0 correct |
+| LCASVL | 10590 | ✅ clean — D0 correct |
+| FNCLKY | 10589 | 🐛 fixed — missing definition added (extern-only→D0) |
+| LVLCL | 10588 | ✅ clean — D(0,0,I) correct |
+| STCTKY+cluster | 10587 | 🐛 fixed — TTL|MARK→0 on all 10 _KY name-spec DESCRs |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
 | PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
