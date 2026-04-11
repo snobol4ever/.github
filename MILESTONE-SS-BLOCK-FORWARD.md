@@ -35,10 +35,8 @@ All labeled blocks from v311.sil line 955 forward through line 12293.
 
 ## Watermark (update after each block — counts UP toward 12293)
 
-**Current watermark:** v311.sil line **5513**  
-**Next block:** TRAC3 (line 5514) — re-verify from here, one block at a time
-
-**⚠️ REDO REQUIRED: lines 5514–6783 were swept in bulk this session (SSF-51) and do not meet the one-block-one-commit standard. Roll back watermark to 5513 and redo from TRAC3 forward.**
+**Current watermark:** v311.sil line **6100**  
+**Next block:** DIFFER (line 6102) — §18 Predicates
 
 ---
 

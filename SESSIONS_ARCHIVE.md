@@ -37212,3 +37212,44 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -Isrc/
 # HEAD: one4all 09107beb · BWD watermark 10612 · next: line 10611 and below
 grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10612' | tail -5
 ```
+
+---
+
+## Session SSF-51 — M-SS-BLOCK-FORWARD §16–§17 (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `43ac7934`  **HEAD at end:** `f1ec078c`
+**Watermark advanced:** 5513 → 6100 (+587 lines)
+
+### Blocks verified (forward) — 1 bug fixed, 1 bug noted
+
+**§16 Tracing (5514–5827):**
+- TRAC3/TRAC6/TRAC4: ✅ clean
+- STOPTR/STOPT2/STOPT1/STOPTF/STOPTP: ✅ clean
+- FENTR: ✅ clean
+- FENTR3/FNTRLP/DEFTIA/DEFTI/DEFTV/DEFDTT/FENTR4/FENTR5: **BUG FIXED** — missing `MOVD(ZPTR,XPTR)` after `ARGINT_fn` call; SIL RCALL result register not populated
+- FENTR2/FXOVR: ✅ clean
+- KEYTR/KEYTR3/KEYTR4/KEYTR5/LABTR/TRPHND: ✅ clean
+- VALTR/VALTR2/VALTR4/VALTR3/VALTR1/TRV/TRI/TRI2/TRPRT/DEFDT/FNEXTR/FNEXT1: ✅ clean
+- FNEXT2/VXOVR/SETXIT/SETXI2/XITHND: ✅ clean
+
+**§17 Other Ops (5832–6100):**
+- ASGN/ASGNV/ASGNVN/ASGNV1/ASGNVV/ASGN1/ASGNC/ASGNCV/ASGNCJ/ASGNVP/ASGNIC: **BUG NOTED** — `BUG-ASGN-PUTIN`: PUTIN case0 vs case2 structural mismatch (comment added)
+- CONCAT/CON4I/CON4R/CON5/CON5R/CON5I/CON7/CONVP/CONPP/CONPV/CONVV: ✅ clean
+- IND/INDV: ✅ clean
+- KEYWRD/KEYN/KEYV/KEYC: ✅ clean
+- KEYT: stub noted — platform.c returns FAIL; needs `POP XPTR; BRANCH KEYN`
+- LIT/NAME/STR: ✅ clean
+- NMD/NMD1-5/NMDIC/NAMEXN: ✅ clean
+
+### Next session (SSF-52) — start here
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/SESSION-silly-snobol4.md
+grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -Isrc/silly 2>&1 | grep "^src.*error:"
+# HEAD: f1ec078c · FWD watermark 6100 · next: DIFFER (line 6102) §18 Predicates
+```
