@@ -37990,3 +37990,36 @@ grep -n "^DMP\b" /home/claude/work/snobol4-2.3.3/snobol4.c
 grep -n "DMP_fn\|DUMP_fn" /home/claude/one4all/src/silly/func.c
 # Three-way walk: v311.sil + snobol4.c + ours — all three simultaneously
 ```
+
+---
+
+## HANDOFF NOTE — D-210 complete (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at handoff:** snobol4dotnet `9a21905` · corpus `5c8aa22` · **2310p/0f/2s**
+**Gate ≥2310p: CLEARED ✅**
+
+### This session's work (D-210)
+
+| Added | Tests | Notes |
+|-------|-------|-------|
+| `At_004/005` | 2 | Cursor pos after LEN(2)=2, at start=0 |
+| `ReverseSort004/005` | 2 | 1-row table, 2-row ascending alpha |
+| `Reverse_N/N+1` | 2 | Single char identity, double-reverse identity |
+| `ArbNo_005/006` | 2 | One rep capture, zero-reps always succeeds |
+| `Abort_005/006` | 2 | Abort stops backtrack, alternation without abort |
+| **Total** | **+10p** | **2300 → 2310p** |
+
+### Next session (D-211) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: 9a21905 · 2310p/0f/2s
+# Gate target: ≥2320p
+# Remaining thin files: Pattern/Concatenate(4), Pattern/At(5-done), Bal(4), Rem(5)
+# Also check: Corpus/ for any uncovered programs, GimpelBits for expansion
+```
