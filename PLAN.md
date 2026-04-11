@@ -112,6 +112,7 @@ the corpus, the emitter is correct by construction.
 | MONITOR | `MONITOR.md` | ✅ |
 | **CSNOBOL4 FENCE** | `MILESTONE-CSNOBOL4-FENCE.md` | ⬜ add FENCE() to CSNOBOL4 using SPITBOL as semantic guide |
 | BENCHMARK-GRID | `BENCHMARK-GRID.md` | ⬜ placeholders |
+| **CMPILE ONE-PASS** | `MILESTONE-CMPILE-ONEPASS.md` | ⬜ LOWEST PRIORITY — do not begin until all other milestones complete |
 
 ---
 
