@@ -37172,74 +37172,43 @@ one4all HEAD: `be0e8c85`  x64 HEAD: `4df1cc3`
 
 ---
 
-## Session 2026-04-10 — D-204: T-0/BUG-QIZE monitor wiring + discovery
+## SSB-4 — 2026-04-10 — M-SS-BLOCK-BACKWARD watermark 10713→10612
 
-**Operator:** Claude Sonnet 4.6
-**HEAD at start:** `be0e8c85` · **HEAD at end:** `13e035e7` · **+1 commit**
+**Session:** M-SS-BLOCK-BACKWARD (SSB-4)
+**HEAD at close:** one4all `09107beb`
+**Watermark advanced:** 10713 → 10612
 
-### What was done
+### Blocks verified (backward) — 22 bugs fixed
 
-**Infrastructure built:**
-- `bootsbl` (SPITBOL oracle) built at `/home/claude/x64/bootsbl` via `make bootsbl` ✅
-- `scrip` binary built at `/home/claude/one4all/scrip` via `make scrip` ✅
+Clean: LLIST(10712), LISTCL/LENFCL/INICOM/HIDECL(10708–11), TIMECL–FNVLCL×10(10695–707),
+ARTHCL/RSTAT/SCNCL/WSTAT(10691–94), RIDTP–VVDTP(10679–89), ATDTP–PVDTP(10671–78)
 
-**BUG-QIZE fix (`scrip.c`):**
-- `NV_SET_fn(retname, NULVCL)` → `NV_SET_fn(retname, STRVAL(""))` in `call_user_function()`
-- DIFFER(retvar) now sees empty string on function entry, matching SPITBOL semantics
+Bugs fixed:
+- UNITI=1→5, UNITO=2→6, UNITP=7, UNITT=8 added (wrong in data.h)
+- OUTPUT: 1→2 slots; TERMIN: 1→2 slots
+- PUNCH/INPUT/DFLSIZ: .a fields were 0, now correct unit numbers
+- PCHFST/OTSATL/INSATL/INLIST/OTLIST: missing entirely — all added
+- TRLIST: missing 2-slot block; VALTRS: missing 3-slot block
+- TRCBLK[0].a self-ref was 0; LIT1CL: 1→4 slots
+- ATRHD/ATPRCL/ATEXCL: all missing, all added
+- TFNCLP: extern-only→2-slot; TFNRLP: extern-only→14-slot
+- Ripple: D_A(TVALL[0]/TKEYL[0]/TLABL[0]) across 6 files; TFNCLP[0]/TFNRLP[0]/VALTRS[0] in trace.c
 
-**T-0 investigation — key discovery:**
-- `NV_SET_fn` already calls `comm_var()` unconditionally (RT-5 hook, `snobol4.c` ~line 2104)
-- `comm_var()` gates internally on `trace_registered(name)` and `monitor_fd`
-- **T-0 was already complete** — `set_and_trace` wrapper was redundant and caused double-fires
-- Added `trace_is_active()` export to `snobol4.c`/`snobol4.h` (used by `set_and_trace` dead code)
-- `set_and_trace()` defined in `scrip.c` but has no call sites — intentionally left for reference
+### Rules established
+- Self-ref table headers need .a=self AND .v=body-size in data_init
+- Multi-slot SIL blocks → C arrays; all D_A(X)/MOVD(dst,X) callers need [0]
+- Unit numbers: UNITI=5 UNITO=6 UNITP=7 UNITT=8 (from oracle include/units.h)
 
-### Monitor state after D-204
-
-| Driver | Result | First divergence / note |
-|--------|--------|------------------------|
-| Qize | ❌ step 5 | `q3`: scrip=`"it's"`, SPITBOL=`"it'" 's'` — single-quote split logic in Qize.sno body |
-| Gen | ❌ step 10 | Test 5 buffering (was step-0 timeout — real progress from BUG-GEN-INCLUDE partial fix) |
-| TDump | ❌ step 2 | Not yet diagnosed |
-| XDump | ❌ step 1 | `OUTPUT`: `'x = integer()'` vs `'x = 42'` — DATATYPE display format divergence |
-| omega | ❌ step 1 | EPSILON fired in scrip; SPITBOL already at EOF — trace ordering/termination |
-
-### Next session (D-205) — start here
+### Next session — start here
 
 ```bash
 tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+grep "^## " /home/claude/.github/GENERAL-RULES.md
 cat /home/claude/.github/PLAN.md
-cat /home/claude/.github/MILESTONE-SN4X86-SCRIP-TRACE.md
-
-cd /home/claude/x64 && make bootsbl          # rebuild oracle if needed
-cd /home/claude/one4all && git pull --rebase && make scrip
-
-INC=/home/claude/corpus/programs/snobol4/demo/inc
-X64=/home/claude/x64
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-
-# Diagnose XDump step 1 first (cleanest divergence):
-#   SPITBOL: OUTPUT = 'x = integer()'
-#   scrip:   OUTPUT = 'x = 42'
-#   XDump() prints DATATYPE of its argument, not the value.
-#   Check inc/XDump.sno for the DATATYPE call and how scrip handles it.
-cat $BEAUTY/beauty_XDump_driver.sno
-cat /home/claude/corpus/programs/snobol4/demo/inc/XDump.sno
-
-# Diagnose omega step 1:
-#   SPITBOL reaches EOF (no trace events); scrip fires VALUE EPSILON = ''
-#   EPSILON is likely being set by the monitor preamble (&STLIMIT = ...) or
-#   some initialisation path. Check if omega driver has any assignments.
-cat $BEAUTY/beauty_omega_driver.sno
-
-# After diagnosing, run all 5:
-for name in Qize Gen TDump XDump omega; do
-    echo "=== $name ==="
-    INC=$INC X64=$X64 bash test/monitor/run_monitor_2way.sh \
-        $BEAUTY/beauty_${name}_driver.sno 2>&1 | grep -E "PASS|DIVERGE|step|oracle|FAIL" | head -4
-done
-
-# Gate: all 5 EXIT 0 → beauty 19/19 → B-3
+cat /home/claude/.github/SESSION-silly-snobol4.md
+cat /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+cd /home/claude/one4all && git pull --rebase
+gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -Isrc/silly 2>&1 | grep "error:"
+# HEAD: one4all 09107beb · BWD watermark 10612 · next: line 10611 and below
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10612' | tail -5
 ```
-
-**one4all HEAD: `13e035e7` · x64 HEAD: `4df1cc3`**
