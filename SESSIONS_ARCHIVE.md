@@ -38897,9 +38897,3 @@ git log origin/main --oneline -1
 PLAN.md SESSION START Step 3 said "Read SESSION doc §INFO + §NOW only". That instruction was the root cause — it told Claude to look for §NOW in the SESSION doc. §NOW has been deleted from SESSION docs. Step 3 now says "§INFO only — §NOW is in PLAN.md, never in SESSION docs".
 
 **No code changes. No HEAD changes.**
-
-## Session D-215 — §NOW purged from all SESSION docs (2026-04-11)
-
-**Operator:** Claude Sonnet 4.6
-
-15 SESSION docs still had live `## §NOW` sections. All replaced with tombstone: "⛔ §NOW lives only in PLAN.md. Never in SESSION docs." §NOW now exists in exactly one place: PLAN.md.
