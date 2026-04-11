@@ -8,7 +8,12 @@
 
 ## Scope
 
-All labeled blocks from v311.sil line 12293 backward to line 1. No ranges skipped.
+All labeled blocks from v311.sil line 12293 backward to line 1.
+
+**§20 BLOCKS (lines 7038–10208) — NOT IMPLEMENTED. Skip entirely.**
+BLOCKS is a conditionally-compiled (.IF BLOCKS / .FI) optional subsystem — a block-layout
+interpreter separate from core SNOBOL4. Silly SNOBOL4 does not implement this feature.
+When the backward pass watermark reaches 10209, jump directly to 7037 and continue.
 
 ---
 
@@ -42,8 +47,8 @@ All labeled blocks from v311.sil line 12293 backward to line 1. No ranges skippe
 
 ## Watermark (update after each block — counts DOWN toward 1)
 
-**Current watermark:** v311.sil line **10209**  
-**Next block:** WARNING (line 10196)
+**Current watermark:** v311.sil line **7018**  
+**Next block:** TIME (line 7007)
 
 ⛔ **THIS FILE is the sole authority for the BWD watermark. Never store or reference the watermark in SESSION-silly-snobol4.md, SESSIONS_ARCHIVE.md, or any other file.**
 
@@ -94,6 +99,9 @@ All labeled blocks from v311.sil line 12293 backward to line 1. No ranges skippe
 | ERRLCL–ABNDCL | 10535–45 | ✅ clean (batch) |
 | OUTSW/MLENCL/INSW/GCTRCL | 10517–23 | ✅ clean |
 | TRACL/FTLLCL | 10527–33 | ✅ clean |
+| VDIFFR | 7029 | ✅ clean — XYARGS + DEQL/RTXPTR/FAIL |
+| TRIM | 7018 | ✅ clean — VARVAL+LOCSP+TRIMSP+GENVRZ |
+| **§20 BLOCKS 7038–10208** | — | ⛔ NOT IMPLEMENTED — optional feature, skipped |
 | §21 trampolines (RT1NUL…A5RTN, GENVSZ, GENVRZ, GENVIX) | 10209–10239 | ✅ all clean — inlined at call sites |
 | END | 10243 | ✅ clean — ERRLCL check + XITHND + END0 path |
 | FTLEND/FTLEN2/FTLEN4/FTLEN1/DMPNO/DMPK/END0/END1/END2/AVTIME/ENDALL/SYSCUT | 10253–10327 | ✅ clean — timing/dump/stats gap acknowledged |
