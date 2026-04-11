@@ -368,6 +368,29 @@ When the frontend produces an IR node the backend cannot yet emit, do not add a 
 
 ---
 
+## ⛔ M-SS-BLOCK THREE-WAY DIFF — all three sources, every line, no exceptions
+
+When walking any labeled SIL block during M-SS-BLOCK-FORWARD or M-SS-BLOCK-BACKWARD,
+you MUST sync-step all three sources simultaneously — one SIL instruction at a time:
+
+1. **v311.sil** — the SIL source line (the spec — what it MUST do)
+2. **snobol4.c** — the generated C (ground truth — resolves branch ambiguity)
+3. **src/silly/sil_*.c** — our translation (what we are verifying)
+
+**For each SIL instruction:** find it in snobol4.c → find our equivalent → compare all three.
+
+⛔ Using v311.sil only for block *boundaries* and then comparing snobol4.c vs ours
+is TWO-WAY, not three-way. This misses bugs where both snobol4.c and ours share
+the same misreading of SIL (e.g. dropped instructions, wrong branch polarity in SIL
+that both C translations silently agree on, SIL lines with no generated C equivalent).
+
+**Failure mode:** SSF-51 through SSF-53 (~966 SIL lines, 5514–6479) were walked
+two-way only. v311.sil was consulted for block boundaries but not as a live column.
+Three sessions of degraded verification before the error was caught (2026-04-10).
+
+**Rule:** If you cannot show the v311.sil line, the snobol4.c line, AND our line
+side-by-side for each instruction, you are not doing the three-way diff. Stop and fix.
+
 ## ⛔ HQ DOCS ARE THE ONLY RELIABLE MEMORY — Verify before asserting
 
 Before making any factual claim about how a component works — lexer behaviour,
