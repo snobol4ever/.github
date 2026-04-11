@@ -37654,3 +37654,35 @@ cd /home/claude/one4all && git pull --rebase
 ```
 Remaining blocks to §20 skip boundary (10209): ~30 SETAC error entries + ENDALL/END/FTLEND cluster + GENVSZ/GENVRZ/GENVIX + RTN* trampolines.
 After 10209: watermark jumps to 7037.
+
+---
+
+## Session SSF-53 — M-SS-BLOCK-FORWARD §19 partial (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `03320fb0`  **HEAD at end:** `1c68cac3`
+**Watermark advanced:** 6319 → 6479 (+160 lines)
+
+### Blocks verified — 5 bugs fixed, 3 cosmetic, 1 stub noted
+
+| Block | SIL line | Result | Action |
+|-------|----------|--------|--------|
+| APPLY | 6326 | 🐛 fixed | `UNDF_fn()` not called on locapv miss — bare FAIL returned instead |
+| ARG | 6345 | ✅ cosmetic | Tautological `D_A(ONECL)?ONECL:ONECL` → `ONECL` |
+| ARGINT | 6349 | 🐛 fixed | Entire `ARGINT_fn` missing; wrong-sig stub in platform.c removed |
+| LOCAL | 6354 | ✅ clean | — |
+| FIELDS | 6359 | 🐛 fixed | `DATCL` declared extern but never defined — added in arrays.c |
+| ARG1 | 6362 | ✅ clean | — |
+| ARG2/ARG4/ARG5 | 6368 | ✅ cosmetic | `.f`/`.v` not zeroed after MULTC/SETAV on XCL,YCL — now zeroed |
+| CLEAR | 6396 | 🐛 fixed | `SETAC DMPPTR,OBLIST-DESCR` used `+LNKFLD` offset — arithmetic bug |
+| CMA | 6412 | ✅ clean | — |
+| COLECT | 6427 | ✅ clean | — |
+| COPY | 6438 | 🐛 fixed | GETSIZ used `x_bksize()` (V+DESCR) instead of `x_bkdata()` (raw V) |
+| CNVRT/CNV1 | 6457 | ⚠️ stub | `CNVRT_fn` returns FAIL — acknowledged gap |
+
+### Next session (SSF-54) — start here
+```bash
+grep -A2 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+# FWD watermark 6479 · next: RECOMP (line 6491) — §19 STRING-CODE conversion chain
+cd /home/claude/one4all && git pull --rebase
+```
