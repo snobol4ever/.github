@@ -9,12 +9,31 @@ Each pattern node compiles to a self-contained x86 code+data blob in `bb_pool`.
 Four ports: α (proceed), β (resume), γ (succeed), ω (fail).
 
 **ABI:**
-- `rdi` on entry = buffer base address (fn ptr == buffer start)
-- `esi` = 0 (α) or 1 (β)
-- `r10`, `r11` = scratch only (zero push/pop)
-- Prologue: `mov r10,rdi(3) + cmp esi,0(3) + je α(2) + jmp β(2)` = 10 bytes
-- Data section appended after code in same sealed RX buffer
-- Baked absolute ptr slots for Σ/Δ/Ω/memcmp in data section
+
+```
+Buffer layout:
+  [0 .. CODE_END)   x86 code — position-independent via rel8/rel32 jumps
+  [CODE_END .. end) data — mutable state (n, done, fired...) + baked ptr slots (Σ/Δ/Ω/memcmp addrs)
+
+Entry convention:
+  rdi = buffer base (fn ptr IS the buffer start — same address)
+  esi = 0 (α) or 1 (β)
+  r10, r11 = scratch (caller-saved — no push/pop needed)
+
+Prologue (10 bytes, shared by all stateful boxes):
+  49 89 FA          mov  r10, rdi        ; r10 = blob base
+  83 FE 00          cmp  esi, 0
+  74 dd             je   α
+  EB dd             jmp  β
+
+Data access pattern:
+  4D 8B 42 dd       mov  rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
+  8B 00             mov  eax, [rax]     ; deref to int (Δ, Ω, n...)
+  48 8B 00          mov  rax, [rax]     ; deref to ptr (Σ)
+  45 89 42 dd       mov  [r10+N], eax   ; write int back to data slot (state update)
+```
+
+FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes total.
 
 **Pool:**
 - `bb_pool.c` — `bb_alloc/bb_seal(mprotect RW→RX)/bb_free`
