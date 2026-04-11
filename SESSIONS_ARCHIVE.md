@@ -37212,3 +37212,63 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -Isrc/
 # HEAD: one4all 09107beb · BWD watermark 10612 · next: line 10611 and below
 grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1<10612' | tail -5
 ```
+
+---
+
+## Session D-203 — BUG-NET-STRCOMP fix + 23 new tests (2026-04-10)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `269d5f9` · **2220p/0f/2s**
+**HEAD at end:** snobol4dotnet `f77c4ec` · corpus `231ea48` · **2243p/0f/2s** · **+23 net**
+
+### Root cause: BUG-NET-STRCOMP
+
+D-202 fixed `StringComparisonStrategy.cs` to use `string.CompareOrdinal()`.
+But all 6 individual L*.cs function implementations had their own inline
+`string.Compare(..., StringComparison.CurrentCulture)` — never updated.
+Result: LGT/LLT/LGE/LLE/LEQ/LNE all used culture-aware comparison internally,
+so `llt('A','a')` was FAILING (culture treats 'A'≈'a') instead of SUCCEEDING
+(ordinal: 65 < 97).
+
+### Fix
+
+`Leq.cs` `Lge.cs` `Lgt.cs` `Lle.cs` `Llt.cs` `Lne.cs`:
+`string.Compare(..., StringComparison.CurrentCulture)` → `string.CompareOrdinal()`
+
+### New tests (+23)
+
+**Rung9_TypesPredicates.cs** — 5 corpus-style tests:
+- `TEST_Corpus_915_llt` (6 assertions, ordinal 'A'<'a' gate)
+- `TEST_Corpus_916_leq` (5 assertions, ordinal 'A'≠'a' gate)
+- `TEST_Corpus_917_lne` (5 assertions, ordinal 'A'≠'a' gate)
+- `TEST_Corpus_918_lge` (6 assertions, ordinal 'a'≥'A' gate)
+- `TEST_Corpus_919_lle` (6 assertions, ordinal 'A'≤'a' gate)
+
+**StringComparison unit tests** — 13 new ordinal/edge tests:
+- LGt: +3 (ordinal upper>lower, lower>upper fails, nonempty>null)
+- LLt: +3 (ordinal upper<lower, lower<upper fails, null<nonempty)
+- LEq: +2 (ordinal 'A'≠'a', null==null)
+- LNe: +2 (ordinal 'A'≠'a', null==null fails)
+- LGe: +2 (ordinal 'a'≥'A', null≥null)
+- LLe: +2 (ordinal 'A'≤'a', null≤null)
+
+**Edge cases** — 4 new:
+- Reverse: empty string → '' ; single char → same
+- Dupl: count 0 → '' ; count 1 → original
+
+**Corpus programs added** (rung9/):
+`915_llt.sno` `916_leq.sno` `917_lne.sno` `918_lge.sno` `919_lle.sno` + matching `.ref` files
+
+### Next session (D-204) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+export PATH=/usr/local/dotnet10:$PATH
+cd /home/claude/snobol4dotnet && git pull --rebase
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# HEAD: f77c4ec · 2243p/0f/2s
+# Continue coverage hunting: thin areas are Pattern/ (Fail=1, ArbNo=2, Bal=2),
+# FunctionControl/ (Unload=1, Load=1), Miscellaneous/ (Time=1, Collect=1),
+# and Operator/ tests (all empty stubs — need TestMethod content).
+```

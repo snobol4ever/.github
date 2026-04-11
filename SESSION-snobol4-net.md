@@ -177,20 +177,21 @@ remain as the ground-truth spec/oracle for each box's Alpha/Beta logic.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **NET CORPUS** | D-202 | snobol4dotnet `269d5f9` · **2220p/0f/2s** | D-203: audit LGT/LLT/LEQ/LNE correctness with ordinal comparison + continue corpus coverage → ≥2221p |
+| **NET CORPUS** | D-203 | snobol4dotnet `f77c4ec` · corpus `231ea48` · **2243p/0f/2s** | D-204: continue coverage hunting — thin areas: Pattern/ (Fail=1, ArbNo=2), FunctionControl/ (Load=1, Unload=1), Miscellaneous/ (Time=1), Operator/ stubs → ≥2244p |
 
-**D-203 first actions:**
+**D-204 first actions:**
 1. `cd /home/claude/snobol4dotnet && git pull --rebase`
 2. `export PATH=/usr/local/dotnet10:$PATH`
-3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2220p/0f/2s**
-4. Audit `Function/StringComparison/` — run all Lgt/Llt/Leq/Lne tests, verify vs SPITBOL ordinal oracle
-5. Find next corpus coverage gap and write tests
+3. `dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4` — confirm **2243p/0f/2s**
+4. Fill thin test areas: Pattern/Fail, Pattern/ArbNo, FunctionControl/Load, Miscellaneous/Time
+5. Check Operator/ stubs — add TestMethod content
 
-**Key facts for D-203:**
-- `StringComparisonStrategy` now uses `Ordinal` (byte-order) — matches SPITBOL exactly
-- `BaseSort` 1D fix: each element is its own row — 1D SORT now works
+**Key facts for D-204:**
+- BUG-NET-STRCOMP fixed: all 6 L*.cs now use `string.CompareOrdinal()` — matches SPITBOL exactly
+- `StringComparisonStrategy` + all L*.cs both ordinal-correct
+- `BaseSort` 1D fix in place
 - 2 permanent skips: `M-NET-EVAL-COMPLETE` (EVAL recursion) + `M-NET-PAT-PRIMITIVES` (&ANCHOR='0' error 208)
-- No WIP uncommitted changes — clean HEAD
+- rung9 now complete: 910–919 all have corpus programs + C# tests
 
-*SESSION-snobol4-net.md — updated D-202, 2026-04-10, Claude Sonnet 4.6.*
-*D-202: BUG-NET-SORT fixed; StringComparison ordinal; 2220p/0f/2s.*
+*SESSION-snobol4-net.md — updated D-203, 2026-04-10, Claude Sonnet 4.6.*
+*D-203: BUG-NET-STRCOMP fixed (6 L*.cs CurrentCulture→CompareOrdinal); +23 tests; 2243p/0f/2s.*
