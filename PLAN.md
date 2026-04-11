@@ -93,7 +93,7 @@ the corpus, the emitter is correct by construction.
 | **RUNTIME** | `RUNTIME.md` | ✅ E=mc² model, EVAL/CODE/EXPRESSION/NAME |
 | **Silly SNOBOL4 — faithful C rewrite of v311.sil** | `MILESTONE-SILLY-SNOBOL4.md` · `SESSION-silly-snobol4.md` | ⚠️ SS-39 — M-SS-BLOCK-FORWARD: watermark 3222 → 12293 · M-SS-BLOCK-BACKWARD: watermark 6438 → 1 · both run independently to completion |
 | **M-SS-WARNINGS** | `MILESTONE-SS-WARNINGS.md` | ✅ **DONE** `98a5c215` — zero warnings: INTR1_fn/chk_break decls, FRZNSTR removed, DESCR_t initialisers explicit |
-| **M-SS-STUBS** | `MILESTONE-SS-STUBS.md` | ⚠️ **#1 PRIORITY** — OPSYN_fn ✅ + CONVR/CONIR/CONRI/CNVIV/CNVVI/CNVRTS ✅ · CNVRT_fn dispatcher + CNVTA/ICNVTA/CNVAT next |
+| **M-SS-COMPLETE** | `MILESTONE-SS-COMPLETE.md` | ⚠️ **#1 PRIORITY** — A1 ✅ `67460124` · A2: fix LOAD_fn · A3: RECOMJ+CODER+CONVE+CONVEX · A4: DEFFNC_fn · BLOCKS last (after FWD+BWD done) |
 | **M-SS-BLOCK-BACKWARD** | `MILESTONE-SS-BLOCK-BACKWARD.md` | ⚠️ watermark 6438 (COPY) — next: COLECT (6427) — runs to line 1 |
 | **M-SS-BLOCK-FORWARD** | `MILESTONE-SS-BLOCK-FORWARD.md` | ⚠️ watermark 3222 — next: NAM (line 3223) — runs to 12293 |
 | **Silly SNOBOL4 × CSNOBOL4 Sync-Step Monitor** ⚠️ CSNOBOL4 is oracle here by construction | `MILESTONE-SS-MONITOR.md` · `SESSION-silly-snobol4.md` | ⚠️ in progress — M-SS-MON-0..4 complete · M-SS-MON-5 (hello world passes) next |
