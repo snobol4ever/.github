@@ -38491,3 +38491,99 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 **Remaining stubs:** XCALL_IO_FILE, XCALL_XINCLD, XCALL_GETPMPROTO, LOAD_fn/LOAD2_fn
 **M19-blocked:** CODER_fn, CONVE_fn, DEFFNC_fn
 **BWD watermark:** 6438 — next: COLECT (6427)
+## Session SSB-10 — 2-way monitor wired, first divergence found (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `3e4a1ae5` · .github `2cd0b7d`
+**HEAD at end:** one4all `85c2834b` · .github (this entry)
+
+### Work done
+
+**Infrastructure built this session:**
+- `x64/bootsbl` — built from bootstrap via `make bootsbl` ✅
+- `x64/bin/sbl` — already present, smoke-tested ✅
+- `one4all/scrip` — built via `make` ✅
+- `test/monitor/monitor_ipc_sync.so` — built from `monitor_ipc_sync.c` ✅
+
+**Root cause of monitor timeout (3 compounding issues):**
+1. `scan_sno()` only read the driver file — all `DEFINE()` calls are in `-INCLUDE`'d files
+2. 4-arg TRACE calls skip `trace_set[]` → C-native `comm_var` never fires
+3. SPITBOL needs SNOBOL callback path; scrip needs C-native — were mutually exclusive
+
+**Fix (commit `85c2834b` on one4all):**
+- `inject_traces.py`: `scan_sno()` follows `-INCLUDE` recursively via `SNO_LIB`/`INC`
+- `build_trace_registrations()`: dual-path — `&FTRACE` + 2-arg TRACE (scrip) AND 4-arg TRACE callbacks (SPITBOL)
+- `run_monitor_2way.sh`: scrip launch drops `MONITOR_SO` (C-native needs none)
+
+**Monitor result:** OPERATIONAL — steps 1–3 agree, step 4 diverges:
+- oracle [spl]: `RETURN INCLEVEL = 'dummy'`
+- scrip:        `RETURN INCLEVEL = ''`
+
+### Next session (SSB-11) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cd /home/claude/one4all && git pull --rebase
+# Binaries: scrip at /home/claude/one4all/scrip · bootsbl at /home/claude/x64/bootsbl
+# INC=/home/claude/corpus/programs/snobol4/demo/inc
+# BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+
+# BUG: return-slot default wrong in call_user_function()
+grep -n "BUG-QIZE\|retname\|NV_SET_fn(retname" /home/claude/one4all/src/driver/scrip.c | head -10
+# SNOBOL4 spec: unset return slot = function name string (not '').
+# Fix: remove the NV_SET_fn(retname, STRVAL("")) clear, or set to STRVAL(fname).
+# Then: make && run monitor on Gen → should reach EXIT 0.
+# Then run all 5 failing drivers:
+#   for name in Gen Qize TDump XDump omega; do
+#     MONITOR_TIMEOUT=30 INC=$INC X64=/home/claude/x64 \
+#       bash test/monitor/run_monitor_2way.sh \
+#       $BEAUTY/beauty_${name}_driver.sno \
+#       $BEAUTY/beauty_${name}_tracepoints.conf
+#   done
+```
+
+**SCRIP-TRACE watermark:** T-3 done · T-4 in progress.
+**Next bug:** `call_user_function()` return-slot default `''` → should be function name.
+
+---
+
+## Session D-214 — Coverage hunting (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `5b5c912` · .github (pre-pull)
+**HEAD at end:** snobol4dotnet `9f929dd` · .github (pending push below)
+
+### Work done
+
+**+17 tests across 10 thin files → 2364p/0f/2s**
+
+| File | Added | New total |
+|------|-------|-----------|
+| Reverse.cs | +3 (palindrome, numeric-string, spaces) | 9 |
+| Trim.cs | +3 (all-spaces→empty, multiple trailing, empty-string) | 9 |
+| Size.cs | +3 (integer arg, after-reverse, after-dupl) | 8 |
+| Char.cs | +1 (size-of-char-is-one) | 8 |
+| LEq.cs | +1 (null==null succeeds) | 8 |
+| LGe.cs | +1 (nonempty>=null succeeds) | 8 |
+| LLe.cs | +1 (null<=nonempty succeeds) | 8 |
+| LNe.cs | +1 (same-string fails) | 8 |
+| Rung11_DataStructures.cs | +1 (copy-array independence) | 8 |
+| Rung2_Indirect.cs | +2 (indirect-loop-assign, double-indirect-chain) | 8 |
+
+**Behavioral findings:**
+- TRIM removes trailing tabs as well as spaces (Trim_008 initially assumed tab not trimmed — corrected)
+- CODE(CHAR(n)) does NOT roundtrip to n (Char_8 initially tested roundtrip — replaced with SIZE(CHAR(n))=1)
+- DIFFER(A,B) semantics trap: Rung2_216 initially used DIFFER where IDENT was needed
+
+### Next session (D-215) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+export PATH=/usr/local/dotnet10:$PATH
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# Confirm 2364p/0f/2s, then run thin-file finder and expand
+```
+
+**Remaining thin (< 8):** Abort(6), Arb(6), ArbNo(6), Concatenate(6), Fail(6), Fence(6), Rem(6), InputOutput files (Backspace 4, Detach 3, Eject 4, Endfile 5, Rewind 5), Prototype(4), Rsort(5), Date(3), Eval(0), Time(5), Arg(5), FunctionControl files, Gimpel (BASEB 4, ROMAN 5, UPLO 5), Operator (Field 3, ConditionalAssoc 6, Negation 6, Interrogation 6)
