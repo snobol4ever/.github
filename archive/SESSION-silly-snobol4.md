@@ -8,82 +8,6 @@
 
 ## ⛔ §INFO — session invariants (append-only, read every session)
 
-### What this is (2026-04-06)
-
-⚠️ **ORACLE EXCEPTION — this session only:** CSNOBOL4 (instrumented executable) IS the
-sync-step oracle for Silly SNOBOL4, by construction. All other sessions use SPITBOL x64
-(`/home/claude/x64/bin/sbl`) as the sole execution oracle (D-005). This session is the
-one legitimate exception: Silly is a C rewrite of CSNOBOL4's own SIL source, so CSNOBOL4
-is the reference. CSNOBOL4 still lacks FENCE — Silly inherits that gap until M-CSNOBOL4-FENCE.
-
-A ground-up faithful C rewrite of `v311.sil` (CSNOBOL4 2.3.3, Phil Budne).
-Lives in `one4all/silly-snobol4/` — self-contained, references nothing outside
-that folder except system headers.
-
-**Source oracle:** `/home/claude/work/snobol4-2.3.3/v311.sil` (12,293 lines)
-**Generated C reference:** `/home/claude/work/snobol4-2.3.3/snobol4.c` (14,293 lines, 383 fns)
-**SPITBOL docs:** `/home/claude/work/spitbol-docs-master/`
-
-### Naming conventions (2026-04-06)
-
-| Thing | Convention | Example |
-|-------|-----------|---------|
-| SIL label → C function | `NAME_fn` | `APPLY_fn`, `GENVAR_fn`, `FINDEX_fn` |
-| SIL DESCR global → C typedef | `NAME_t` | `DESCR_t`, `SPEC_t`, `PATND_t` |
-| SIL named global → C global | verbatim | `XPTR`, `OCICL`, `TRIMCL`, `MSG1` |
-| SIL EQU constant → C #define | verbatim | `OBSIZ`, `CARDSZ`, `ATTRIB`, `LNKFLD` |
-| SIL flag → C #define | verbatim | `FNC`, `TTL`, `STTL`, `MARK`, `PTR`, `FRZN` |
-| SIL data type code → C #define | verbatim | `S_TYPE=1`, `I_TYPE=6`, `DATSTA=100` |
-| New C helper struct (no SIL origin) | Mixed_case | `Interp_state`, `Scan_ctx`, `Name_entry`, `Invoke_entry` |
-| New C helper function (no SIL origin) | snake_case | `arena_init()`, `hash_spec()`, `pat_alloc()` |
-| SIL return result enum | CamelCase | `SilResult` (FAIL=0, OK=1) |
-| New C error enum (no SIL origin) | UPPER_CASE | `SNOBOL4_error` |
-
-### Architecture (2026-04-06)
-
-**32-bit on 64-bit platform.**
-- `int_t  = int32_t`  (SIL integer / address field)
-- `real_t = float`    (SIL real — 32-bit, matching original)
-- Arena model: one 128 MB `mmap` slab. All DESCR A-fields hold 32-bit arena offsets.
-- `A2P(off)` = `(void*)(arena_base + (off))` — raw pointer from offset
-- `P2A(ptr)` = `(int32_t)((char*)(ptr) - arena_base)` — offset from pointer
-- Boehm GC: NOT used. Arena is manual mark-compact matching v311.sil GC/GCM/SPLIT exactly.
-
-**Control flow rules:**
-- Zero gotos anywhere. Zero computed BRANCHes.
-- `if`/`while`/`for`/`switch` only.
-- SIL RCALL → C function call with typed params and return.
-- SIL RRTURN → `return` (with value or `sno_rc_t` code).
-- Multiple SIL exits: either `sno_rc_t` enum return or out-params.
-- Pattern backtracking: C call stack + `setjmp`/`longjmp` in `sil_scan.c`.
-
-**BLOCKS section:** v311.sil lines 7038–10208 — NOT IMPLEMENTED. BLOCKS is a separate optional feature (.IF BLOCKS / .FI) not part of Silly SNOBOL4. Skipped in both FWD and BWD passes.
-
-### Cherry-picks from one4all (2026-04-06)
-
-These files from `one4all/src/runtime/snobol4/` contain well-tested logic
-that can be adapted. Adapt, don't copy verbatim — the type system differs
-(one4all uses Boehm GC + 64-bit; silly-snobol4 uses arena + 32-bit).
-
-| one4all file | Useful for | Adaptation needed |
-|---|---|---|
-| `argval.c` | VARVAL_fn, INTVAL_fn, PATVAL_fn logic | remove GC_strdup, use arena; int32_t not int64_t |
-| `nmd.c` | NAM_save/NAM_push/NAM_commit/NAM_discard design | remove GC_MALLOC, use arena; Name_entry → `nam_entry_t` |
-| `invoke.c` | INVOKE_fn / APPLY_fn dispatch pattern | adapt to fn_entry_t table with arena ptrs |
-| `sil_macros.h` | MOVD, SETAC, type-test macros | verify against our DESCR_t layout |
-| `snobol4.c` | arithmetic, string ops, keyword logic | heavy adaptation — different DESCR layout |
-
-### Build (2026-04-06)
-
-```bash
-cd /home/claude/one4all/silly-snobol4
-gcc -Wall -Wextra -std=c99 -m32 -g -O0 -c sil_types.h   # M0 gate
-gcc -Wall -Wextra -std=c99 -m32 -g -O0 -c sil_data.c    # M1 gate
-# etc. — each milestone gates on its file compiling clean
-```
-
-Prereq for -m32: `apt-get install -y gcc-multilib`
-
 ### SIL source line ranges by section (2026-04-06)
 
 | Section | Lines | Content |
@@ -164,13 +88,6 @@ Then fix, re-run, next divergence, repeat. Each iteration is near-instant.
 
 ## ⛔ §INFO additions (2026-04-06)
 
-### Build command — NO -m32
-```bash
-cd /home/claude/one4all
-gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c -lm -o /tmp/silly-snobol4 -I src/silly
-```
-Do NOT use `-m32`. The arena uses `int32_t` offsets explicitly; 64-bit build is correct and runs natively.
-
 ### Platform layer (SS-19)
 `src/silly/sil_platform.c` is written and linked. It provides:
 - 30 scan tables + `STREAM_fn`/`clertb_fn`/`plugtb_fn` with registry dispatch
@@ -198,17 +115,6 @@ Currently a partial stub — computed constants filled, stacks allocated, but th
 pattern primitives, OBLIST, etc.) are NOT populated from the SIL source.
 The diff pass (M-SS-DIFF) will surface which globals are wrong/missing.
 A generator script (parse §24, emit C) is the right approach for M-SS-HARNESS prep.
-
-### Naming conventions — C translation rules (2026-04-06)
-See full table in `GENERAL-RULES.md` under `## ⛔ NAMING CONVENTIONS`.
-Summary:
-- SIL label → `NAME_fn` (`FINDEX_fn`, `CODSKP_fn`)
-- SIL global → verbatim UPPERCASE (`XPTR`, `FNCPL`, `NEXFCL`)
-- SIL EQU/#define → verbatim UPPERCASE (`FBLKSZ`, `CNODSZ`, `DATSTA`)
-- SIL type → verbatim + `_t` (`DESCR_t`, `SPEC_t`)
-- New C struct/enum → `Xxxx_yyy` one-cap-first (`RESULT_t`, `Invoke_entry`, `Scan_ctx`)
-- New C function/variable → `snake_case` (`arena_init`, `genvar_from_descr`, `locapt_fn`)
-- **Never CamelCase. Never ALL_CAPS for new C types.**
 
 ### M-SS-DIFF punch-list (SS-19, 2026-04-06)
 Fixed this session:
@@ -264,44 +170,6 @@ Recurring pattern in FARB, BAL, STAR, DSAR:
 ---
 
 ## ⛔ §INFO addition — M-SS-DIFF-RECHECK method (2026-04-07w)
-
-### Three-way diff method
-
-M-SS-DIFF-RECHECK is a **complete scan of all §1–§23** (not limited to any section range).
-It is NOT a re-scan of §16–§19 only. Every TU gets reviewed.
-
-**Method: three-way oracle + generated C + ours**
-
-For each function, compare ALL THREE simultaneously:
-1. `v311.sil` — SIL source oracle (confusing branch convention: arg3=FALSE, arg4=TRUE — reversed)
-2. `snobol4.c` — generated C from CSNOBOL4's own SIL compiler — **THIS IS GROUND TRUTH**
-   - Location: `/home/claude/work/snobol4-2.3.3/snobol4.c` (14,293 lines, 383 fns)
-   - Already resolves all SIL branch ambiguity into plain C if/goto
-   - Use `grep -A N "^FUNCNAME\b" snobol4.c` to pull each function
-3. `src/silly/sil_*.c` — our translation
-
-**Why three-way catches more bugs:**
-- SIL branch convention trips up first-pass reading (arg3=false, arg4=true)
-- Generated C cuts through all ambiguity — DCMP/DCMP in generated = deql() in ours
-- Structural omissions (missing PUTDC, missing appends) visible by line-count comparison
-- Off-by-one (> vs >=) visible by direct comparison
-
-**Bug classes found in §16 recheck that first pass missed:**
-- Structural omissions: TRAC3 link-back, fentr prefix, FNEXT1 return value
-- Wrong register: valtr4 FRETCL ZPTR→XPTR, STOPTR YPTR path
-- Inverted branch: valtr4 VEQLC(S) 
-- Off-by-one: `>` vs `>=` on BUFLEN overflow guards (affects ALL trace functions)
-
-### Future: in-process diff driver
-
-The right approach is a driver that walks snobol4.c and sil_*.c in lockstep, function by function.
-Options:
-- **Static structural diff**: normalize both to (register-touched, branch-taken, global-written) sequences; diff the sequences
-- **Runtime trace diff**: run same input through both, compare register state after each SIL op
-- **Callback/step approach**: both interpreters step through same IR, fire callback on divergence
-
-M-SS-HARNESS (two-way vs CSNOBOL4) catches runtime divergence but requires working inputs.
-Static diff catches structural bugs before any code runs.
 
 ### M-SS-DIFF-RECHECK watermark (update each session)
 - §16 sil_trace.c: ✅ 9 bugs fixed
