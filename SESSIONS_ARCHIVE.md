@@ -38846,3 +38846,36 @@ INTERP_fn exists in interp.c. Full arg-binding save/restore + INTERP call.
 1. A3 RECOMJ cluster (func.c) — ~40 lines C
 2. A4 DEFFNC_fn (define.c) — ~150 lines C
 3. BLOCKS — last, after FWD+BWD passes complete
+
+## Session D-215 — HQ fix: §NOW pivot correction (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+
+### Root cause of recurring wrong-task error
+
+SESSION-snobol4-net.md §NOW said **"NET CORPUS / coverage hunting → ≥2390p"**.
+PLAN.md §NOW said **BEAUTY-19 is CURRENT PRIORITY #1**.
+
+Claude read both, followed SESSION doc §NOW, and began coverage hunting instead of beauty-19 work. This happened at least twice.
+
+**Why:** The SESSION doc §NOW was stale — it was written when coverage hunting was the active sprint and was never updated when the pivot to BEAUTY-19 was declared. PLAN.md was updated but SESSION doc was not.
+
+**Fix applied:**
+- SESSION-snobol4-net.md §NOW rewritten: now says BEAUTY-19 as PRIORITY #1, beauty run script as step 4, B-BEAUTY-0 as first fix.
+- Coverage hunting content removed from §NOW (key facts retained below §NOW as reference).
+
+**Rule reinforced:** PLAN.md §NOW is authoritative. If SESSION §NOW conflicts with PLAN.md §NOW, SESSION doc is stale — fix it immediately, do not follow it.
+
+**No code changes. No HEAD changes.**
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md   # §INFO + §NOW
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
+# Run beauty suite — confirm 7/19, then fix B-BEAUTY-0 (FENCE redefinition)
+git log origin/main --oneline -1
+```
