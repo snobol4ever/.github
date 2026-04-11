@@ -37305,3 +37305,59 @@ cd /home/claude/one4all && git pull --rebase
 1. **BUG-ASGN-PUTIN** (`asgn.c` line ~102): PUTIN_fn always returns OK and does PUTDC internally. SIL RCALL case0→ASGNV1 (GETDC needed), case2→ASGNVV direct. Split PUTIN into two phases or restructure.
 2. **KEYT stub** (`platform.c`): Returns FAIL. Real: `POP XPTR; BRANCH KEYN` — implement as `KEYT_fn(DESCR_t xptr) { MOVD(XPTR,xptr); return KEYN_path(); }` or restructure KEYWRD_fn to expose KEYN sub-entry.
 3. **Next blocks** (§18 Predicates, starting line 6102): DIFFER, FUNCTN, IDENT, LABEL, LEQ, LGT, LLT, LNE, NEG, QUES, CHAR, LPAD, RPAD
+
+---
+## SSB-5 — 2026-04-10 — M-SS-BLOCK-BACKWARD — Lon + Claude Sonnet 4.6
+
+**one4all HEAD:** `b7be244e` (pre-session) → `c4146296` (end of session)
+**Watermark start:** 10612 (INLIST) **Watermark end:** 10525 (FULLCL/BKGNCL)
+**Next block:** EXLMCL — v311.sil line 10515
+
+### Blocks verified this session (newest→oldest)
+| Block | Line | Result |
+|-------|------|--------|
+| KVEND | 10610 | ✅ LHERE sentinel |
+| FATLCL | 10608 | ✅ clean |
+| CSTNCL | 10606 | 🐛 D0→D(0,0,I) |
+| GCTTTL | 10602 | 🐛 real slot + MAXICL added + dead GCTTTL_val removed |
+| EXN2CL | 10600 | ✅ clean |
+| DIGSVL | 10596 | 🐛 PI_val dead real_t → PIVCL DESCR_t (.v=R) |
+| PARMVL | 10594 | ✅ clean |
+| UCASVL | 10592 | ✅ clean |
+| LCASVL | 10590 | ✅ clean |
+| FNCLKY | 10589 | 🐛 missing definition added |
+| LVLCL  | 10588 | ✅ clean |
+| STCTKY+cluster | 10587 | 🐛 TTL\|MARK→0 on all 11 _KY name-spec DESCRs |
+| EXNOCL | 10586 | ✅ clean |
+| ALPHVL | 10584 | ✅ clean |
+| STNOKY | 10583 | ✅ clean (cluster fix) |
+| STNOCL/LNNOCL/FILENM | 10582 | 🐛 D0→D(0,0,I/I/S) |
+| RETPCL | 10580 | ✅ clean |
+| LSTNCL | 10578 | ✅ clean |
+| FALCL/FALKY | 10576-77 | ✅ clean |
+| SUCPAT+PAT cluster | 10574 | 🐛 D0→D(0,0,P) on 7 PAT keyword cells |
+| SUCCKY | 10575 | ✅ clean |
+| REMPAT/REMKY | 10572-73 | ✅ clean |
+| LSLNCL/LSFLNM | 10568-70 | ✅ clean |
+| LNNOCL/FILENM | 10564-66 | ✅ (fixed on line 10582 pass) |
+| FNCPAT–FAILKY | 10558-63 | ✅ clean |
+| ARBPAT–BALKY | 10554-57 | ✅ clean |
+| ERRTXT | 10552 | ✅ clean |
+| ETXTKY | 10553 | 🐛 missing definition added |
+| ERRTKY | 10551 | ✅ clean |
+| ERRTYP | 10550 | ✅ clean |
+| KVLIST | 10549 | ⚠️ systemic TTL header gap noted |
+| KNEND | 10547 | ✅ LHERE sentinel |
+| ERRLCL–ABNDCL | 10535-45 | ✅ clean (batch) |
+| OUTSW/MLENCL/INSW/GCTRCL/TRACL/FTLLCL | 10517-33 | ✅ clean |
+| FULLCL | 10525 | 🐛 D0→D(0,0,I) |
+| BKGNCL | 10530 | 🐛 missing entirely, added |
+
+### Bug tally: 13 bugs fixed this session
+### Key systemic findings:
+- All 11 _KY name-spec DESCRs had spurious TTL|MARK — now 0
+- All 7 PAT keyword cells missing .v=P type tag
+- Several KVLIST value cells missing integer/string/real type tags (CSTNCL, STNOCL, LNNOCL, FILENM, FULLCL)
+- Two cells missing entirely (FNCLKY, ETXTKY, BKGNCL)
+- GCTTTL was single slot; needed real-type + MAXICL cell for &MAXINT
+- DIGSVL: dead PI_val real_t replaced with proper PIVCL DESCR_t
