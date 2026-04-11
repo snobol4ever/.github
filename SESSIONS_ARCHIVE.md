@@ -38219,3 +38219,52 @@ grep -n "L_DMPK1" /home/claude/one4all/src/silly/func.c
 ```
 
 **FWD watermark: 6749. Next: DMPK1 (6750).**
+
+---
+
+## Session SSB-9 — parser dispatch fix + CMPILE-ONEPASS milestone (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** one4all `2b07b9b4` · .github `5c1dced`
+**HEAD at end:** one4all `2b07b9b4` (no one4all commits) · .github `2cd0b7d`
+
+### Work done
+
+**SPITBOL oracle built:**
+- Cloned `snobol4ever/x64`
+- Built via `make bootsbl` then `make BASEBOL=./bootsbl spitbol`
+- Binary: `/home/claude/x64/bin/sbl` — smoke-tested ✅
+
+**Parser dispatch fix in `scrip.c`:**
+- `--dump-ir` was wrongly routing through CMPILE (`cmpile_lower`)
+- Fixed: `--dump-ir` and `--dump-ir-bison` both now use Bison/Flex (`sno_parse`)
+- CMPILE only active for `--dump-parse` and `--dump-parse-flat` (dormant otherwise)
+- Added `--dump-ir-cmpile`: dumps IR via CMPILE path for diffing against Bison/Flex
+
+**MILESTONE-CMPILE-ONEPASS created and added to PLAN.md:**
+- CSNOBOL4 is one-pass — no persistent tree. `CMPND_t`/`CMPILE_t` are our invention.
+- Milestone: refactor CMPILE.c to emit `EXPR_t`/`STMT_t` directly; delete both tree types.
+- Placed as LOWEST PRIORITY (last row) in PLAN.md Component Map.
+
+### Key insight established
+CSNOBOL4 `CMPILE`/`ELEMNT`/`EXPR` emit object code directly into flat buffer.
+`TREPUB` flattens transient operator-precedence nodes immediately — nothing retained.
+Our `CMPND_t` tree is an invention with no SIL basis.
+Bison/Flex is correct by design — it already goes straight to IR.
+
+### Next session (SSB-10) — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/MILESTONE-SN4X86-SCRIP-TRACE.md
+cd /home/claude/one4all && git pull --rebase
+# SPITBOL oracle: /home/claude/x64/bin/sbl (already built)
+# Current milestone: MILESTONE-SN4X86-SCRIP-TRACE
+# Next task: T-0 — add set_and_trace() helper in scrip.c
+#   find all NV_SET_fn call sites in scrip.c, replace with set_and_trace()
+# Pre-existing build issue: backend/emit_c.h #error — investigate before building
+```
+
+**SCRIP-TRACE watermark:** T-0 (set_and_trace) — not yet started
+**SS-STUBS watermark:** DATDEF_fn (#3) — not yet started this session
