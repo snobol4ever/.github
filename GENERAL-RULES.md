@@ -279,6 +279,18 @@ Rewrite `§NOW` from the SESSIONS_ARCHIVE before doing any work.
 
 **§NOW and sprint state** live in SESSION-*.md only. Never in PLAN.md, RULES.md, or FRONTEND-*/BACKEND-* docs. SESSIONS_ARCHIVE.md is append-only.
 
+## ⛔ WATERMARKS — one file, one place, never SESSION files
+
+**Each milestone's watermark lives ONLY in its own milestone file**, in the `## Watermark` section.  
+SESSION files and SESSIONS_ARCHIVE.md must NEVER store a watermark value — only a pointer command:
+
+```bash
+grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-FORWARD.md
+grep -A3 "^## Watermark" /home/claude/.github/MILESTONE-SS-BLOCK-BACKWARD.md
+```
+
+**Rule:** if you see a watermark line number in any SESSION file or SESSIONS_ARCHIVE handoff note, it is stale. Ignore it. The milestone file wins. Never write watermark numbers into SESSION docs.
+
 ## ⛔ SESSION ROUTING — one rule
 
 **frontend × backend → `SESSION-<frontend>-<backend>.md`**
