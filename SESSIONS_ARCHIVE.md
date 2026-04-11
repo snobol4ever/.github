@@ -38744,3 +38744,35 @@ apt-get install -y dotnet-sdk-10.0
 dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
 git log origin/main --oneline -1  # confirm push before handoff
 ```
+
+## Session D-215 — HQ reorganization handoff (2026-04-11)
+
+**Operator:** Claude Sonnet 4.6
+**HEAD at start:** snobol4dotnet `b280881` · corpus `5c8aa22` · .github `4327d23`
+**HEAD at end:** snobol4dotnet `b280881` (no code changes) · .github `d34c679`
+**Baseline confirmed:** 2375p/0f/2s
+
+### Work done
+- PLAN.md: NET row advanced to D-215, BEAUTY-19+BEAUTY-SELF as next milestones
+- MILESTONE-NET-SNOBOL4.md: scoped to snobol4dotnet only — Phases 0/A/B01-B03 (one4all/scrip-interp.cs) removed; BEAUTY-19+BEAUTY-SELF added as milestones 1+2; all 13 remaining milestones verified as snobol4dotnet
+- MILESTONE-NET-INTERP.md: renamed M-NET-INTERP-* → M-INTERP-* to avoid naming confusion with snobol4dotnet M-NET-* milestones
+- SESSION-snobol4-net.md: D-215 start, dotnet apt install note fixed
+- No code written. No tests added. Baseline unchanged.
+
+### Next session — start here
+
+```bash
+tail -120 /home/claude/.github/SESSIONS_ARCHIVE.md
+cat /home/claude/.github/SESSION-snobol4-net.md
+cd /home/claude/snobol4dotnet && git pull --rebase
+apt-get install -y dotnet-sdk-10.0
+dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -4
+# Confirm 2375p/0f/2s
+git log origin/main --oneline -1  # confirm push before handoff
+```
+
+### First task: B-BEAUTY-0 — FENCE redefinition
+Fix: allow `DEFINE('FENCE(FENCE)')` to redefine FENCE as user function.
+File: function definition handler in ThreadedExecuteLoop.cs or Define.cs.
+Gate: beauty_fence + beauty_Gen + beauty_io pass → 10/19.
+See MILESTONE-NET-BEAUTY-19.md for full ladder.
