@@ -23,7 +23,11 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6749 → next: DMPK1 | ☐ |
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6438 → next: COLECT | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
-| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all + snobol4dotnet | S-1 (set_and_trace) | ☐ |
+| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-1 (set_and_trace) | ☐ |
+| NET Beauty 19/19 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-1 (FENCE redef) | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
+| NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
+| NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 
 ---
 
@@ -39,8 +43,6 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 | corpus | `REPO-corpus.md` | `/home/claude/corpus` |
 | harness | `REPO-harness.md` | `/home/claude/harness` |
 
-*(Repo files to be populated from archive/ as needed.)*
-
 ---
 
 ## Rules
@@ -48,7 +50,6 @@ That is your entire orientation. Do not read archive/ unless a step explicitly s
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`. Never as Claude.
 - Never write the token to disk or in any commit.
 - Rebase before every `.github` push: `git pull --rebase origin main && git push`
-- Append to `archive/SESSIONS_ARCHIVE.md` at handoff. Never prune it.
 - A Goal is done or not done. No other status.
 
 ---
