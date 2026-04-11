@@ -59,6 +59,10 @@ All labeled blocks from v311.sil line 12293 backward to line 1.
 | FNCLKY | 10589 | 🐛 fixed — missing definition added (extern-only→D0) |
 | LVLCL | 10588 | ✅ clean — D(0,0,I) correct |
 | STCTKY+cluster | 10587 | 🐛 fixed — TTL|MARK→0 on all 10 _KY name-spec DESCRs |
+| EXNOCL | 10586 | ✅ clean — D(0,0,I) correct |
+| ALPHVL | 10584 | ✅ clean — D0 correct |
+| STNOKY | 10583 | ✅ clean (covered by cluster fix) |
+| STNOCL/LNNOCL/FILENM | 10582 | 🐛 fixed — D0→D(0,0,I/I/S) missing type tags |
 | OTSATL | 10622 | 🐛 fixed — missing entirely (self-ref TTL header) |
 | OUTPUT | 10623 | 🐛 fixed — 1-slot→2-slot; slot[1].a=OUTPSP |
 | PUNCH | 10625 | 🐛 fixed — .a was 0, now D(UNITP,0,I) |
