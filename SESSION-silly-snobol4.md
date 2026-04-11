@@ -57,7 +57,7 @@ that folder except system headers.
 - Multiple SIL exits: either `sno_rc_t` enum return or out-params.
 - Pattern backtracking: C call stack + `setjmp`/`longjmp` in `sil_scan.c`.
 
-**BLOCKS section:** v311.sil lines 7038–10208 — verified block by block like everything else.
+**BLOCKS section:** v311.sil lines 7038–10208 — NOT IMPLEMENTED. BLOCKS is a separate optional feature (.IF BLOCKS / .FI) not part of Silly SNOBOL4. Skipped in both FWD and BWD passes.
 
 ### Cherry-picks from one4all (2026-04-06)
 
