@@ -25,14 +25,18 @@ identical to the input. A fixed point.
 
 ## The Participants
 
-| # | Participant | Role | TRACE stream |
-|---|-------------|------|-------------|
-| 1 | SPITBOL x64 4.0f | **Sole execution oracle** (D-005) | stdout |
-| 2 | one4all ASM backend | Compiled target | stderr |
-| 3 | one4all JVM backend | Compiled target | stderr |
-| 4 | one4all NET backend | Compiled target | stderr |
+| # | Participant | Role | TRACE stream | Binary |
+|---|-------------|------|-------------|--------|
+| 1 | SPITBOL x64 4.0f | **Primary oracle** (D-005) | stdout | `/home/claude/x64/bin/sbl` |
+| 2 | one4all ASM backend | Compiled target | stderr | `scrip --gen` |
+| 3 | one4all JVM backend | Compiled target | stderr | `scrip --jvm` |
+| 4 | one4all NET backend | Compiled target | stderr | `scrip --net` |
+| 5 | CSNOBOL4 2.3.3 | **Second oracle** | stderr | `/home/claude/csnobol4/snobol4` |
+| 6 | Silly SNOBOL4 | Silly target | stderr | `/tmp/silly-snobol4` |
 
-**Oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). CSNOBOL4 = Silly track only.
+**Primary oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). Build: `bash /home/claude/one4all/build/build_spitbol.sh`
+**Second oracle:** CSNOBOL4 (`/home/claude/csnobol4/snobol4`). Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY-*) — Silly is a C rewrite of CSNOBOL4's SIL.
 
 **Compatibility target: one4all implements SPITBOL semantics. (D-001)**
 - All SPITBOL extensions, switches, HOST() semantics are matched.
