@@ -81,3 +81,9 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
 - See RULES.md for full handoff checklist.
+
+---
+
+## Final HEAD references
+- harness: ef24086
+- corpus: 73f8b1e
