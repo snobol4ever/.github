@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-1 (add to Makefile) | ☐ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1 (add to Makefile) | ☐ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-3 (interp_eval Prolog dispatch) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (DATA field .field(x) NAMEPTR fix) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-10 (NameVar recursive deref in GetProgramDefinedDataField) + S-8B + S-9 | ☐ |
