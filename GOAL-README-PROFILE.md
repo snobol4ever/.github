@@ -23,34 +23,44 @@ with actual repo state. No stale test counts, milestone names, or architectural 
 
 ---
 
+## Verification Technique
+
+Claude reads the README sentence by sentence (or claim by claim for tables/counts).
+For each, Claude presents it clearly and asks: **T or F?**
+
+- **T** — sentence is true and accurate. Move to next.
+- **F** — sentence is false or stale. Claude drops into fix mode:
+  1. Diagnose what is wrong (run commands if needed to get ground truth)
+  2. Draft the corrected sentence
+  3. Ask Lon to confirm the fix before moving on
+  4. Apply the fix, then continue the loop
+
+Claude works through the entire file top to bottom. No edits are made until
+a sentence is confirmed false and the fix is confirmed. At the end, Claude
+commits the corrected README.
+
+---
 ## Steps
 
-- [ ] **S-1** — Clone all repos. Run current test suites and record actual counts:
-  - `dotnet test` on snobol4dotnet → record passing/total
-  - `lein test` on snobol4jvm → record tests/assertions/failures
-  - `bash test/run_interp_broad.sh` on one4all → record PASS count
-  - Gate: numbers in hand before touching a single line of README.
+- [ ] **S-1** — Begin T/F verification loop through README top to bottom.
+  Present each sentence to Lon. T = move on. F = diagnose, fix, confirm, continue.
+  Gate: all sentences verified T (or corrected and confirmed).
 
-- [ ] **S-2** — Audit every sentence in the README top to bottom. For each sentence:
-  - Mark: ✅ accurate | ⚠️ stale | ❌ wrong | 📝 needs wording improvement
-  - Produce a marked-up list before making any edits.
-  - Gate: complete sentence-by-sentence audit list produced.
-
-- [ ] **S-3** — Fix all ⚠️ stale items: test counts, milestone status markers, binary names.
+- [ ] **S-2** — Fix all ⚠️ stale items: test counts, milestone status markers, binary names.
   Gate: no stale numbers remain.
 
-- [ ] **S-4** — Fix all ❌ wrong items: corpus description, scrip-interp references,
+- [ ] **S-3** — Fix all ❌ wrong items: corpus description, scrip-interp references,
   CSNOBOL4 FENCE status, harness omission.
   Gate: no factually incorrect sentences remain.
 
-- [ ] **S-5** — Add harness to the repo listing with accurate description.
+- [ ] **S-4** — Add harness to the repo listing with accurate description.
   Gate: harness section present and accurate.
 
-- [ ] **S-6** — Verify all links (`GRIDS.md`, repo links, badge URLs) resolve correctly.
+- [ ] **S-5** — Verify all links (`GRIDS.md`, repo links, badge URLs) resolve correctly.
   Fix any broken links.
   Gate: all links valid.
 
-- [ ] **S-7** — Final read-through: every sentence accurate, consistent with PLAN.md
+- [ ] **S-6** — Final read-through: every sentence accurate, consistent with PLAN.md
   active goal states, and consistent with what a visitor to github.com/snobol4ever sees.
   Gate: Lon approves.
 
