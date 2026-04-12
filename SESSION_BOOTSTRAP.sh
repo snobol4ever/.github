@@ -76,7 +76,8 @@ clone_or_pull() {
     else
         git clone --quiet "$GH/${repo}" "$dir" && ok "$dir (cloned)"
     fi
-    install_push_guard "$dir"
+    # snobol4dotnet is Jeff's repo — no push guard there
+    [[ "$dir" != *"snobol4dotnet"* ]] && install_push_guard "$dir"
 }
 
 clone_or_pull ".github"  ".github"
