@@ -87,3 +87,6 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 ## Final HEAD references
 - harness: ef24086
 - corpus: 73f8b1e
+- one4all: f4a9ccb6
+- snobol4dotnet: 2371e14
+- snobol4jvm: cde8d09
