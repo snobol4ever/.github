@@ -36,4 +36,5 @@ dotnet run --project Benchmarks/Benchmarks.csproj -c Release
 - Test gate passes before every commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
+- **Windows compatibility:** never use bare `'\n'` as a line separator in C# source; always use `Environment.NewLine`. This bit us in bc19645 (200+ Windows test failures). Every string built with newlines must use `Environment.NewLine`.
 - See RULES.md for full rules including handoff checklist.
