@@ -161,9 +161,9 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ---
 
-## No ad-hoc builds — use checked-in build artifacts
+## No ad-hoc builds — use checked-in build scripts in one4all/build
 
-⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in build artifact: a `Makefile`, a `build_*.sh` script, or equivalent checked-in build tool file. If none exists, write one and check it in first, then run it.
+⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in script in `one4all/build/`. Script names must be prefixed `build_`. If no script exists, write one, check it into `one4all/build/`, then run it.
 
 ---
 
