@@ -9,11 +9,15 @@
 - `scrip --ir-run` PASS=193/203
 - Beauty suite: **14/19** passing
 
-## Current state (session 2025-04-12)
+## Current state (session 2026-04-12)
 
-- one4all HEAD: `825f053c`
+- one4all HEAD: `c86bbc09`
 - Beauty suite: **14/18** passing (18 drivers in corpus, not 19)
 - Failing: Gen, TDump, XDump, omega
+- ⚠️ BUILD BLOCKER: `emit_jvm.c` has pre-existing redefinition errors (J, JI, JL, JC, out,
+  classname, find_import, set_classname, prog) from consolidation commit 84a1eaf5. Masked by
+  cached .o files in prior sessions; exposed on fresh container. Must fix before beauty work.
+  emit_c.c PRETTY_OUT fix committed (c86bbc09).
 
 ## Run command
 
@@ -73,6 +77,7 @@ done; echo "--- PASS=$PASS FAIL=$FAIL"
 
 ## Next session priorities
 
+0. **BUILD FIX FIRST**: Fix emit_jvm.c — prefix Icon section helpers icn_J/icn_JI/icn_JL/icn_JC/icn_out/icn_classname/icn_find_import/icn_set_classname, and Prolog section pl_J/pl_JI/pl_JL/pl_JC/pl_out/pl_prog. Pattern: emit_x64.c uses icn_out for its Icon section. Do `make clean && make scrip` to confirm fix before any beauty work.
 1. **TDump S-6/S-10**: Isolate TValue/TLump DATA field ordering — `tree('Name','foo',,)` t/v positions. Check if t(x)/v(x) accessor order matches DATA spec.
 2. **omega S-9**: Add `g_eval_string_pat_hook` — set in scrip.c main() to a function that calls `interp_eval_pat` on the parsed expression from cmpile_eval_expr, returning DT_P.
 3. **Gen S-7**: Trace ARBNO null DT_E source.
