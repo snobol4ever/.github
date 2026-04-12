@@ -2,32 +2,30 @@
 
 **Repo:** one4all
 **Done when:** `.icn` files run correctly via `scrip --ir-run file.icn`, passing
-the existing Icon corpus rung tests.
+rung01–rung11 of the Icon corpus ladder.
 
 ---
 
-## Current state (diagnosed 2026-04-12)
+## Current state (2026-04-12, one4all a34ef96d)
 
-Icon frontend files exist and are complete:
+S-1 through S-4 complete. `icon_interp.c` (289 lines) mirrors `emit_x64.c` one-to-one.
 
-| Component | File | State |
-|-----------|------|-------|
-| Lexer | `src/frontend/icon/icon_lex.c` | ✅ |
-| Parser | `src/frontend/icon/icon_parse.c` | ✅ |
-| IR lowerer | `src/frontend/icon/icon_lower.c` | ✅ — produces `EXPR_t**` (one per procedure) |
-| Driver | `src/frontend/icon/icn_main.c` | ✅ — originally standalone, needs wiring |
-| Emitter (x64/JVM/WASM) | `src/backend/emit_x64.c` etc. | ✅ — emit path exists |
-| scrip.c wiring | `src/driver/scrip.c` | ❌ `.icn` not routed — hits SNOBOL4 parser |
-| Makefile | `Makefile` | ❌ icon frontend files not in scrip build |
+**Baseline: 17/42 tests PASS across rungs 01–11**
 
-**Key difference from Snocone:** `icon_lower_file()` returns `EXPR_t**` (array of
-procedure trees), NOT `Program*`. The ir-run interpreter expects `Program*`.
-Need a thin wrapper: allocate `Program*`, walk `EXPR_t**` procedures, wrap each
-as a `STMT_t`, link into `prog->head`.
-
-**Existing test scripts** (use emitter path, not ir-run):
-`test/frontend/icon/run_rung01.sh` … `run_rung36.sh` — these currently drive
-`scrip --jit-emit --x64`. Goal is to make `--ir-run` work first (simpler).
+| Rung | Feature | PASS | FAIL | Notes |
+|------|---------|------|------|-------|
+| rung01 | generators (paper examples) | 6/6 | 0 | ✅ complete |
+| rung02_arith_gen | arithmetic generators | 5/5 | 0 | ✅ complete |
+| rung02_proc | user procedures, params, return | 0/3 | 3 | return value wrong |
+| rung03 | suspend / user generators | 0/5 | 5 | suspend not implemented |
+| rung04_string | string concat | 4/5 | 1 | `||` augmented concat chain |
+| rung05 | string scanning (`?`) | 1/5 | 4 | scan operator not wired |
+| rung06 | cset builtins (any/many/upto) | 1/5 | 4 | scan-context builtins missing |
+| rung07 | control flow (not, repeat/break, seq, `==`) | 2/5 | 3 | string eq, break, seq missing |
+| rung08 | string builtins (find, match, move, tab) | 0/5 | 5 | scan-context builtins missing |
+| rung09 | loops (repeat/break, until, while) | 0/5 | 5 | repeat/break/until missing |
+| rung10 | augmented ops (`:=+`, `:=*` etc.) | 0/5 | 5 | aug-assign not wired |
+| rung11 | `||=` augmented concat, `!` bang | 0/5 | 5 | aug-concat, bang missing |
 
 ---
 
@@ -41,49 +39,103 @@ Claude presents each test result and asks: **T or F?**
 
 ## Steps
 
-- [ ] **S-1** — Add Icon frontend files to Makefile scrip target.
-  Files: `icon_lex.c`, `icon_parse.c`, `icon_lower.c`, `icon_ast.c`,
-  `icon_runtime.c`, `icn_main.c`.
-  Include path: `-I$(SRC)/frontend/snobol4` (for scrip_cc.h).
+All steps mirror the corresponding `emit_*` function in `emit_x64.c`.
+
+- [x] **S-1** — Add Icon frontend files to Makefile.
   Gate: `make scrip` clean.
 
-- [ ] **S-2** — Write `src/frontend/icon/icon_driver.h` + `icon_driver.c`:
-  ```c
-  Program *icon_compile(const char *source, const char *filename);
-  ```
-  Pipeline: `icn_lex_init()` → `icon_parse_file()` → `icon_lower_file()` →
-  wrap `EXPR_t**` into `Program*` (one `STMT_t` per procedure, kind=`E_FNC` or
-  a new `E_ICON_PROC` wrapper — confirm with existing ir-run dispatch).
-  Gate: `icon_compile()` returns non-NULL on a trivial `.icn` program.
+- [x] **S-2** — Write `icon_driver.c/h`: `icon_compile()` wraps `EXPR_t**` → `Program*`.
+  Gate: `icon_compile()` returns non-NULL.
 
-- [ ] **S-3** — Wire `.icn` extension in `scrip.c main()`:
-  Detect `.icn` suffix → call `icon_compile()` → proceed to `--ir-run` dispatch.
-  Gate: `./scrip --ir-run test/icon/hello.icn` produces output.
+- [x] **S-3** — Wire `.icn` extension in `scrip.c`, route to `icon_execute_program()`.
+  Gate: `hello.icn` produces `Hello, World!`.
 
-- [ ] **S-4** — Run rung01 tests via `--ir-run`. Fix any ir-run dispatch gaps
-  (Icon-specific IR node kinds not handled in `interp_eval()`).
-  Gate: rung01 PASS count ≥ prior emitter baseline.
+- [x] **S-4** — Implement `icn_exec()` + `icn_collect()` generator cross-product.
+  Gate: rung01 6/6, rung02_arith_gen 5/5.
 
-- [ ] **S-5** — Run rung01–rung11 (full corpus ladder). Fix failures.
-  Gate: PASS count matches or exceeds prior emitter-path baseline.
+- [ ] **S-5** — Fix user procedure `return` value (rung02_proc).
+  `return expr` in Icon sets the procedure result. Currently returning 0 instead of
+  the expression value. Check `E_RETURN` handling in `icn_exec()` vs emitter.
+  Gate: rung02_proc 3/3.
 
-- [ ] **S-6** — Update PLAN.md ☑ done.
+- [ ] **S-6** — Implement augmented assignment operators (rung10, rung11 partial).
+  `x +:= 5` = `x := x + 5`. Check `E_AUGOP` / `E_AUG*` node kinds in `ir.h`.
+  Mirror `emit_augop()` in `emit_x64.c`.
+  Gate: rung10 5/5.
+
+- [ ] **S-7** — Implement `repeat`/`break`/`until` loops (rung09).
+  `repeat body` loops until `break`. `until cond do body` = while not cond.
+  Check `E_REPEAT`, `E_BREAK`, `E_UNTIL` in `ir.h`. Mirror `emit_repeat()` etc.
+  Gate: rung09 5/5.
+
+- [ ] **S-8** — Implement string equality `==` / `~==` and `not` (rung07).
+  String comparisons are `E_SEQ`, `E_SNE`, `E_SLT` etc. — distinct from `E_EQ`.
+  `not E` = `E_NOT`. Mirror `emit_strrelop()`, `emit_not()`.
+  Gate: rung07 5/5.
+
+- [ ] **S-9** — Implement augmented concat `||=` and bang `!list` (rung11).
+  `s ||:= t` appends. `!list` generates list elements.
+  Check `E_AUGCAT`, `E_BANG` in `ir.h`. Mirror `emit_augcat()`, `emit_bang()`.
+  Gate: rung11 5/5.
+
+- [ ] **S-10** — Implement string scanning operator `?` (rung05, rung06, rung08).
+  `s ? expr` sets scan subject/position. Builtins `any(cs)`, `many(cs)`, `upto(cs)`,
+  `find(s1,s2)`, `match(s1,s2)`, `move(n)`, `tab(n)` operate on scan position.
+  Mirror `emit_scan()`, `icn_any()`, `icn_many()`, `icn_upto()`, `icn_match()` etc.
+  Gate: rung05 5/5, rung06 5/5, rung08 5/5.
+
+- [ ] **S-11** — Implement `suspend` / user-defined generators (rung03).
+  `suspend expr do body` yields expr then executes body on resume.
+  Requires coroutine-style resumption — most complex step.
+  Approach: collect all suspend values via recursive `icn_collect()` extension,
+  or use `setjmp/longjmp` for genuine coroutine semantics.
+  Mirror `emit_suspend()`, `emit_every()` generator composition.
+  Gate: rung03 5/5.
+
+- [ ] **S-12** — Fix rung04 concat chain and any remaining rung04/rung07 failures.
+  Gate: rung04 5/5, rung07 5/5.
+
+- [ ] **S-13** — Run full rung01–rung11. All pass.
+  Gate: 42/42.
+
+- [ ] **S-14** — Add `test/frontend/icon/run_icon_ir_rung.sh` runner script.
+  Wraps `scrip --ir-run` as the binary for the existing rung runner scripts.
+  Gate: script runs clean.
+
+- [ ] **S-15** — Update PLAN.md ☑ done.
+
+---
+
+## Phase 2 — Stack Machine and x86 Byrd Box execution
+
+Once `--ir-run` passes the full rung ladder, Icon graduates to:
+
+- [ ] **S-16** — Wire Icon IR through `sm_lower.c`:
+  Add cases for `E_TO`, `E_TO_BY`, `E_EVERY`, `E_SUSPEND`, `E_WHILE` etc.
+  Gate: `./scrip --sm-run hello.icn` produces `Hello, World!`.
+
+- [ ] **S-17** — Wire Icon IR through `sm_codegen.c` (x86 JIT).
+  Gate: `./scrip --jit-run hello.icn` produces `Hello, World!`.
+
+- [ ] **S-18** — Run full rung ladder on `--jit-run`. Fix failures.
+  Gate: PASS matches `--ir-run` baseline.
 
 ---
 
 ## Key files
 | File | Role |
 |------|------|
-| `src/frontend/icon/icon_lower.c` | `icon_lower_file()` → `EXPR_t**` |
-| `src/frontend/icon/icn_main.c` | old standalone driver — reference |
-| `src/driver/scrip.c` | needs `.icn` wiring (S-3) |
-| `test/frontend/icon/run_rung01.sh` … | existing rung runners |
-| `corpus/crosscheck/` (Icon rungs) | test programs |
+| `src/frontend/icon/icon_interp.c` | Interpreter — mirror of `emit_x64.c` |
+| `src/frontend/icon/icon_driver.c` | `icon_compile()` entry point |
+| `src/backend/emit_x64.c` | Emitter — canonical reference for all semantics |
+| `src/ir/ir.h` | EKind enum — all Icon-specific node kinds |
+| `corpus/programs/icon/rung*` | Test programs |
+| `test/frontend/icon/run_rung*.sh` | Rung runners |
 
 ---
 
 ## Rules
 - No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
-- SPITBOL is oracle for SNOBOL4; for Icon use existing `.ref` files in corpus.
-- No ad-hoc builds — use/extend `Makefile` and `test/` scripts.
+- Build gate: `make scrip` clean + SNOBOL4 PASS=204 unchanged after every commit.
+- Mirror `emit_x64.c` one-to-one — consult it before implementing any node kind.
