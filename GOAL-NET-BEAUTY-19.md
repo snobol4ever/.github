@@ -46,6 +46,29 @@ done; echo "$PASS/18"
 Note: OUTPUT goes to stderr. Include files must be findable from CWD —
 symlink `demo/inc/*` into beauty/ once per machine.
 
+## State after BEAUTY-19 session 5
+
+- corpus HEAD: 4048345
+- snobol4dotnet HEAD: 45f3e1b
+- Unit tests: 14f/2075p (14f pre-existing, not introduced this session)
+- Beauty suite: **15/18** (unchanged — omega/semantic/ShiftReduce still failing)
+
+## Work done session 5
+
+1. **`__~` binary tilde operator implemented**: New file `PatternAnnotation (Tilde).cs`.
+   `pat ~ label` returns pat as PatternVar; label is parse-tree annotation (ignored at match time).
+   Wired in Executive.cs replacing `Undefined`. Zero new unit test failures.
+
+2. **Omega driver DATATYPE case-portable**: Rewrote all 10 `IDENT(DATATYPE(px),'PATTERN'/'STRING')`
+   checks using `REPLACE(...,&LCASE,&UCASE)` vs `dPATTERN`/`dSTRING` runtime tokens.
+   Per RULES.md — tests must never hardcode DATATYPE case strings.
+
+3. **S-8 sub-problem B still open**: `*LEQ(tx,'name')` inside EVAL inside DEFINE'd TX/TV/TW
+   fires error 22 (undefined function). Tests 6-10 of omega still fail.
+   Root cause: StarFunctionList index compiled at EVAL time misaligns with outer
+   StarFunctionList when EVAL runs inside a user-defined function context.
+   `.ref` NOT rebaked — output still broken.
+
 ## State after BEAUTY-19 session 4
 
 - corpus HEAD: f6f24bb
@@ -130,12 +153,13 @@ making the result a PatternVar wrapping a deferred call. Investigate:
 - [x] **S-7** — `INPUT(.varName, unit, filename)` unit-file association for reading. Fix: silent failure on bad file open — `Input.cs` and `Output.cs` catch blocks now set `AmpErrorType` and call `NonExceptionFailure()` instead of `LogRuntimeException` + print. Gate: ReadWrite passes → **15/18** ✅
 
 - [ ] **S-8** — Fix omega driver. Two sub-problems:
-  (A) Driver hardcodes uppercase `'PATTERN'` in IDENT(DATATYPE(...)) checks — violates RULES.
-      Fix: rewrite omega driver to use case-portable DATATYPE (REPLACE with &LCASE/&UCASE).
-      Rebake omega .ref under snobol4dotnet after fix.
-  (B) `*LEQ(...)` in EVAL'd pattern string crashes or misbehaves — `_/` OpUnarySlash handler
-      is `Undefined`; investigate whether `*func(args)` in EVAL context compiles as PushExpr
-      or OpUnarySlash, and fix dispatch so LEQ is called correctly as a pattern predicate.
+  (A) DONE: Driver rewritten with case-portable DATATYPE (REPLACE/dPATTERN/dSTRING).
+  (B) OPEN: `*LEQ(...)` in EVAL'd pattern string inside DEFINE'd function fires error 22.
+      StarFunctionList index compiled by EVAL misaligns with outer list when EVAL
+      runs inside user-defined function context. Investigate `BuildEval` / `CompileStarFunctions`
+      — when EVAL compiles a new star expression, the PushExpr index it emits must match
+      `StarFunctionList[idx]` at runtime. Check if `PreviousStarFunctionCount` or
+      `ExpressionList` offset is wrong in the DEFINE'd-function EVAL path.
       Gate: omega passes → **16/18**
 
 - [ ] **S-9** — Fix semantic driver (same DATATYPE case issue as omega — check and fix same way).
