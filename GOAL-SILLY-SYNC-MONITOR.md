@@ -70,3 +70,36 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
 - See RULES.md for full rules including handoff checklist.
+
+## Participant table
+
+| # | Participant | Role | Binary |
+|---|-------------|------|--------|
+| 1 | CSNOBOL4 2.3.3 | **Oracle** | `/home/claude/work/snobol4-2.3.3/snobol4` |
+| 2 | Silly SNOBOL4 | **Target** | `/tmp/silly-snobol4` |
+
+CSNOBOL4 is oracle by construction — it IS the reference for Silly. When they agree: correct. When they diverge: Silly is wrong.
+
+## FIFO protocol (per function hook)
+
+```
+csn.evt  ← CSNOBOL4 writes events, controller reads
+csn.ack  ← controller writes G/S, CSNOBOL4 blocks reading
+sly.evt  ← Silly writes events, controller reads
+sly.ack  ← controller writes G/S, Silly blocks reading
+```
+
+Per hook:
+1. Participant writes `"ENTER funcname\n"` or `"EXIT funcname result\n"` to `*.evt`
+2. Participant **blocks** on `read()` from `*.ack`
+3. Controller reads one event from each `*.evt`
+4. Same function name and kind? → write `G` to both `*.ack`
+5. Diverges? → write `S` to both, print divergence, stop
+
+Infinite loop detection: FIFO silent for >10 seconds = that participant is looping. Last event before silence names the function entered but never returned.
+
+## Invariants
+
+- Build gate throughout: `gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly` clean
+- Never modify `snobol4.c` logic — only add wrapper layer
+- Monitor infrastructure lives in `test/ss-monitor/` — never mixed into `src/`
