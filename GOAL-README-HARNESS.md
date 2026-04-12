@@ -14,10 +14,28 @@ runner scripts, how to use it, and what engines/adapters are supported.
 - CSNOBOL4 adapter added in GOAL-CSNOBOL4-HARNESS — not in README
 - one4all/test/ currently has ~60 scripts that should eventually migrate here
 
+## Verification Technique
+
+Claude reads the README sentence by sentence (or claim by claim for tables/counts).
+For each, Claude presents it clearly and asks: **T or F?**
+
+- **T** — sentence is true and accurate. Move to next.
+- **F** — sentence is false or stale. Claude drops into fix mode:
+  1. Diagnose what is wrong (run commands if needed to get ground truth)
+  2. Draft the corrected sentence
+  3. Ask Lon to confirm the fix before moving on
+  4. Apply the fix, then continue the loop
+
+Claude works through the entire file top to bottom. No edits are made until
+a sentence is confirmed false and the fix is confirmed. At the end, Claude
+commits the corrected README.
+
+---
 ## Steps
 
-- [ ] **S-1** — Read full current `README.md`. Mark every sentence: ✅ accurate | ⚠️ stale | ❌ wrong.
-  Gate: audit list produced.
+- [ ] **S-1** — Begin T/F verification loop through README top to bottom.
+  Present each sentence to Lon. T = move on. F = diagnose, fix, confirm, continue.
+  Gate: all sentences verified T (or corrected and confirmed).
 
 - [ ] **S-2** — Document adapters/: one section per adapter (csnobol4, dotnet, jvm, spitbol, tiny, tiny_net).
   For each: what engine it wraps, how to invoke, what env vars it respects.

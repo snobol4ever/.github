@@ -15,11 +15,28 @@ and how to use it.
 - Should document csnobol4-suite/ (116 Budne programs + exclusion list)
 - Should document beauty/, gimpel/, demo/ structure
 
+## Verification Technique
+
+Claude reads the README sentence by sentence (or claim by claim for tables/counts).
+For each, Claude presents it clearly and asks: **T or F?**
+
+- **T** — sentence is true and accurate. Move to next.
+- **F** — sentence is false or stale. Claude drops into fix mode:
+  1. Diagnose what is wrong (run commands if needed to get ground truth)
+  2. Draft the corrected sentence
+  3. Ask Lon to confirm the fix before moving on
+  4. Apply the fix, then continue the loop
+
+Claude works through the entire file top to bottom. No edits are made until
+a sentence is confirmed false and the fix is confirmed. At the end, Claude
+commits the corrected README.
+
+---
 ## Steps
 
-- [ ] **S-1** — Read full current `README.md`. Mark every sentence: ✅ accurate | ⚠️ stale | ❌ wrong.
-  Run `find corpus -name "*.sh"` — document which scripts are present and shouldn't be.
-  Gate: audit list produced.
+- [ ] **S-1** — Begin T/F verification loop through README top to bottom.
+  Present each sentence to Lon. T = move on. F = diagnose, fix, confirm, continue.
+  Gate: all sentences verified T (or corrected and confirmed).
 
 - [ ] **S-2** — Rewrite README to accurately describe directory structure:
   `crosscheck/` (test programs by category), `programs/` (suites by language/tool),
