@@ -11,8 +11,8 @@
 
 ## Current state (session 2026-04-12)
 
-- one4all HEAD: `e7ed6cab`
-- Beauty suite: **14/18** passing (18 drivers in corpus, not 19)
+- one4all HEAD: `d882bca9`
+- Beauty suite: **14/18** passing
 - Failing: Gen, TDump, XDump, omega
 - ✅ BUILD BLOCKER FIXED: emit_jvm.c/emit_x64.c redefinitions resolved; duplicate Makefile
   scrip: target removed. scrip builds clean on fresh container. Committed e7ed6cab.
