@@ -7,6 +7,8 @@
 
 ## ⛔ SESSION START — every session, no exceptions
 
+⛔ **DO NOT PUSH ANY REPO AT ANY TIME during the session. Push happens ONLY when Lon says "perform hand off" or "perform emergency hand off". No exceptions. Not even one repo. Not even to test. Hold all commits locally.**
+
 Lon names a goal. You:
 
 1. Clone `.github`:

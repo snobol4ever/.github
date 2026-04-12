@@ -1,34 +1,34 @@
 # GOAL-CSNOBOL4-HARNESS — Wire CSNOBOL4 Tests into Harness Drivers
 
-**Repo:** harness (`adapters/csnobol4/`, `crosscheck/`)
-**Done when:** all 128 CSNOBOL4 tests run through harness drivers against CSNOBOL4 and SPITBOL oracle.
+**Repo:** harness (`adapters/csnobol4/`, `crosscheck/`), plus test classes in one4all, snobol4dotnet, snobol4jvm
+**Done when:** all 126 tests (116 Budne + 10 FENCE) are wired into harness and into each runtime's native test suite, with baselines recorded.
 
 ---
 
 ## What this is
 
-Two sets of programs now live in corpus:
+Two sets of programs live in corpus:
 
 | Set | Location | Count | Harness-ready |
 |-----|----------|-------|---------------|
 | FENCE tests | `crosscheck/patterns/058–067` | 10 | Yes — already in crosscheck dirs |
-| Budne suite | `programs/csnobol4-suite/` | 124 | 118 (6 excluded: bench, genc, ndbm, sleep, time, line2) |
+| Budne suite | `programs/csnobol4-suite/` | 124 | 116 (8 excluded — see below) |
 
-**Missing:** `adapters/csnobol4/run.sh` and `run_crosscheck_csnobol4.sh`.
-Everything else is already in place.
+**Excluded (8):** `bench.sno` (no .ref), `breakline.sno` (record-size file I/O hangs SPITBOL), `genc.sno` (file output), `k.sno` (record-size file I/O hangs SPITBOL), `ndbm.sno` (library), `sleep.sno` / `time.sno` (time-dependent, -INCLUDE), `line2.sno` (no .ref).
 
-**Excluded (8):** `bench.sno` (no .ref), `breakline.sno` (record-size file I/O hangs SPITBOL), `genc.sno` (file output), `k.sno` (record-size file I/O hangs SPITBOL), `ndbm.sno` (library),
-`sleep.sno` / `time.sno` (time-dependent, -INCLUDE), `line2.sno` (no .ref).
+**Tests that read from INPUT (stdin is embedded in .sno after END):**
+`atn.sno`, `crlf.sno`, `longrec.sno`, `rewind1.sno`, `sudoku.sno`, `trim0.sno`, `trim1.sno`, `uneval2.sno` — for these, stdin data lives below the `END` line in the .sno file itself; each runtime's test must feed that data as stdin.
 
 ---
 
 ## Repos needed
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness  /home/claude/harness
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus   /home/claude/corpus
-# CSNOBOL4 binary must be built — see harness/oracles/csnobol4/BUILD.md
-# SPITBOL oracle: /home/claude/x64/bin/sbl (clone snobol4ever/x64)
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness      /home/claude/harness
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus       /home/claude/corpus
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all      /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4dotnet /home/claude/snobol4dotnet
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4jvm   /home/claude/snobol4jvm
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 ```
 
@@ -43,41 +43,53 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
   prints `matched`.
 
 - [x] **S-2** — Verify 10 FENCE tests pass under `crosscheck.sh --engine csnobol4 --filter pat_fence`.
-  These are already in `corpus/crosscheck/patterns/` which is in `crosscheck.sh` DIRS list.
   Gate: `crosscheck.sh --engine csnobol4 --filter pat_fence` → 0 failures (SPITBOL) /
   10 failures expected (CSNOBOL4, since FENCE(P) not yet implemented) — document baseline.
 
 - [x] **S-3** — Add `adapters/csnobol4/run_crosscheck_csnobol4.sh` to harness.
   Walks `corpus/programs/csnobol4-suite/`, runs each `.sno`, diffs stdout vs `.ref`.
-  Skips: `bench.sno genc.sno ndbm.sno sleep.sno time.sno line2.sno`.
-  Model: `adapters/dotnet/run_crosscheck_dotnet.sh`.
+  Skips the 8 excluded files.
   Gate: script runs to completion against SPITBOL oracle, reports pass/fail counts.
 
 - [x] **S-4** — Run S-3 script against SPITBOL oracle. Record baseline pass count.
-  Gate: `SPITBOL_PASS=N` recorded in this file (expected ~118/118).
 
 - [x] **S-5** — Run S-3 script against CSNOBOL4. Record baseline pass count.
-  Gate: `CSNOBOL4_PASS=N` recorded in this file.
-  Any failures vs SPITBOL are tracked as known deltas.
 
 - [x] **S-6** — Add `csnobol4` to `crosscheck.sh` DIRS scan and engine list documentation.
   Update harness README to mention csnobol4 adapter.
-  Gate: `crosscheck.sh --engine csnobol4` runs all pattern/hello/etc dirs cleanly.
+
+- [ ] **S-7** — Add `test/run_csnobol4_suite.sh` to **one4all**.
+  Shell runner using `scrip-interp`. Runs 116 Budne tests + 10 FENCE tests.
+  Model: `test/run_interp_broad.sh`.
+  For tests with stdin data embedded below END: extract it and feed as stdin.
+  Gate: script runs to completion, reports PASS/FAIL counts.
+
+- [ ] **S-8** — Add `CorpusRef_FenceTests.cs` and `CorpusRef_Csnobol4Suite.cs` to **snobol4dotnet**.
+  Pattern: match `CorpusRef_Patterns.cs` exactly — inline the .sno source as a C# verbatim string, inline the .ref as the expected value.
+  For tests with stdin embedded below END: split at END, pass the tail as `inputText` to `RunWithInput`.
+  Read every .sno and .ref before writing a single test method.
+  Gate: `dotnet test` compiles and all 126 test methods are present.
+
+- [ ] **S-9** — Add `test_csnobol4_suite.clj` to **snobol4jvm**.
+  Pattern: match `test_runtime.clj` — inline source string, `CODE`/`RUN`/`with-out-str`, `is (= expected actual)`.
+  For tests with stdin: verify how snobol4jvm handles INPUT before writing those tests.
+  Read every .sno and .ref before writing a single test.
+  Gate: `lein test SNOBOL4clojure.test-csnobol4-suite` compiles clean.
 
 ---
 
-## Baseline (fill in at S-4/S-5)
+## Baseline (recorded at S-4/S-5)
 
-- SPITBOL oracle — Budne suite: `45/116` (116 = 124 minus 8 skipped)
-- CSNOBOL4 — Budne suite: `47/116` (116 = 124 minus 8 skipped)
-- SPITBOL oracle — FENCE tests: `7/10` (3 fail: 061 seal, 064 capture, 065 decimal — SPITBOL bugs, not FENCE(P))
-- CSNOBOL4 — FENCE tests: `1/10` (058 FENCE keyword passes; 059-067 fail until GOAL-CSNOBOL4-FENCE complete)
+- SPITBOL oracle — Budne suite: `45/116`
+- CSNOBOL4 — Budne suite: `47/116`
+- SPITBOL oracle — FENCE tests: `7/10` (3 fail: 061 seal, 064 capture, 065 decimal — SPITBOL bugs)
+- CSNOBOL4 — FENCE tests: `1/10` (058 keyword passes; 059–067 fail until GOAL-CSNOBOL4-FENCE complete)
 
 ---
 
 ## Rules
 
-- Commit after each step.
+- Commit after each step. No pushing until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
 - See RULES.md for full handoff checklist.
@@ -87,6 +99,3 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 ## Final HEAD references
 - harness: ef24086
 - corpus: 73f8b1e
-- one4all: f4a9ccb6
-- snobol4dotnet: 2371e14
-- snobol4jvm: cde8d09
