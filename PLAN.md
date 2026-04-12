@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-1 (set_and_trace) | ☐ |
-| NET Beauty 19/19 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-1 (FENCE redef) | ☐ |
+| NET Beauty 19/19 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-3 (DATATYPE/NRETURN trace) | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
