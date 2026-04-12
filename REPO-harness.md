@@ -7,6 +7,23 @@ benchmark pipeline. Shared across all repos.
 
 ---
 
+## Session Start
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness /home/claude/harness
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus /home/claude/corpus
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4 /home/claude/csnobol4
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
+```
+
+**Build:**
+```bash
+bash /home/claude/one4all/build/build_packages.sh
+bash /home/claude/one4all/build/build_csnobol4.sh   # second oracle
+bash /home/claude/one4all/build/build_spitbol.sh    # primary oracle
+```
+
 ## Key adapters
 
 ```

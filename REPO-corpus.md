@@ -7,6 +7,19 @@ plus `.ref` expected output files. Used by all repos.
 
 ---
 
+## Session Start
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus /home/claude/corpus
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+```
+
+**Build:** none — corpus is data only.
+```bash
+bash /home/claude/one4all/build/build_spitbol.sh    # to regenerate .ref files
+bash /home/claude/one4all/build/build_csnobol4.sh   # if crosschecking CSNOBOL4
+```
+
 ## Layout
 
 ```
