@@ -11,13 +11,11 @@
 
 ## Current state (session 2026-04-12)
 
-- one4all HEAD: `c86bbc09`
+- one4all HEAD: `e7ed6cab`
 - Beauty suite: **14/18** passing (18 drivers in corpus, not 19)
 - Failing: Gen, TDump, XDump, omega
-- ⚠️ BUILD BLOCKER: `emit_jvm.c` has pre-existing redefinition errors (J, JI, JL, JC, out,
-  classname, find_import, set_classname, prog) from consolidation commit 84a1eaf5. Masked by
-  cached .o files in prior sessions; exposed on fresh container. Must fix before beauty work.
-  emit_c.c PRETTY_OUT fix committed (c86bbc09).
+- ✅ BUILD BLOCKER FIXED: emit_jvm.c/emit_x64.c redefinitions resolved; duplicate Makefile
+  scrip: target removed. scrip builds clean on fresh container. Committed e7ed6cab.
 
 ## Run command
 
