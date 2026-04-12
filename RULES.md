@@ -263,6 +263,15 @@ in a DATATYPE comparison is **invalid** and must be rewritten before it can pass
 
 ---
 
+## ⛔ "Perform hand off" MEANS PUSH — NO EXCEPTIONS
+
+When Lon says "perform hand off" or "perform emergency hand off", pushing to GitHub
+IS the handoff. A committed-but-not-pushed session is a LOST session when the container dies.
+Do NOT withhold the push because of earlier rules about not pushing mid-session.
+"Perform hand off" overrides everything. Push immediately. No hesitation.
+
+---
+
 ## ⛔ NO PUSH WITHOUT EXPLICIT HANDOFF — ENFORCED
 
 Claude has pushed repos mid-session without Lon saying "perform hand off".
