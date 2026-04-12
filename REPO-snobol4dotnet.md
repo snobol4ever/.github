@@ -93,3 +93,11 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 - Unit tests: 2375p/0f/2s
 - Beauty suite: 7/19
 - Crosscheck: 79/80
+
+## SPITBOL oracle semantics
+
+SPITBOL MINIMAL is the authoritative oracle.
+
+- `DATATYPE()` builtins → lowercase; user DATA types → `ToLowerInvariant`
+- `&UCASE` / `&LCASE` = exactly 26 ASCII letters
+- `@N` cursor position is **0-based**
