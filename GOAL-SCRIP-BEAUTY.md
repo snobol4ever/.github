@@ -9,11 +9,30 @@
 - `scrip --ir-run` PASS=193/203
 - Beauty suite: **14/19** passing
 
-## Current state (session 2026-04-12, session 2)
+## Current state (session 2026-04-12, session 3)
 
-- one4all HEAD: `211675cf`
-- Beauty suite: **14/18** passing (no change — fixes incomplete)
+- one4all HEAD: `c3317c49`
+- Beauty suite: **14/18** passing (no regression)
 - Failing: Gen, TDump, XDump, omega
+
+## Next session — E_INDIRECT subject NV case-fold bug (BLOCKS ALL 4)
+
+**Root cause pinpointed:** `$'XX' BREAK(' ') . out` — subject `NV_GET_fn("XX")`
+returns DT_SNUL during the pattern-match statement even though `SIZE(XX)=11`.
+Likely: NV table stores keys lowercase; `ic->sval` from E_QLIT preserves
+original case. Assignment path case-folds; subject lookup does not (or vice versa).
+
+**Debug approach:**
+1. Add `fprintf(stderr, "NV GET [%s] → v=%d\n", subj_name, subj_val.v)` at
+   execute_program line ~1638 (after `subj_val = NV_GET_fn(subj_name)`).
+2. Check `NV_GET_fn` / `NV_SET_fn` in snobol4.c for case folding.
+3. Fix: normalize `subj_name` to same case used by NV store before `NV_GET_fn`.
+
+**Once subject fetch fixed:**
+- `REM . $'$B'` write-back via `exec_stmt` Phase 5 `NV_SET_fn(subj_name, new_val)` should work.
+- Gen buffer drain unblocked → Gen driver progress.
+- TDump tests 4/5 unblocked (call Gen internally).
+- Then tackle omega EVAL(string)→DT_P hook (S-9) and XDump array bounds (S-8).
 
 ## Run command
 
