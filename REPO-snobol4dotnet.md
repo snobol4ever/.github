@@ -89,7 +89,7 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `b280881`
+- HEAD: `2371e14`
 - Unit tests: 2375p/0f/2s
 - Beauty suite: 7/19
 - Crosscheck: 79/80
