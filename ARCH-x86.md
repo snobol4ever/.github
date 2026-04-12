@@ -41,10 +41,33 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 
 ## scrip unified executable
 
-One binary: `scrip`, three modes:
-- `scrip --ir-run file.sno` — IR tree-walk interpreter
-- `scrip --sm-run file.sno` — stack machine interpreter (default)
-- `scrip --gen file.sno` — in-memory x86 generation
+One binary. `scrip-interp` and `scrip-cc` names are retired. Harness passes `INTERP=scrip`.
+
+```
+scrip [mode] [bb] [target] [options] source.sno [-- program-args...]
+
+Execution modes (default: --sm-run):
+  --ir-run         interpret via IR tree-walk (correctness reference)
+  --sm-run         interpret SM_Program via dispatch loop  [DEFAULT]
+  --jit-run        SM_Program -> x86 bytes -> mmap slab -> jump in
+  --jit-emit       SM_Program -> emit to file (target selects format)
+
+Byrd Box pattern mode (default: --bb-driver):
+  --bb-driver      pattern matching via driver/broker
+  --bb-live        live-wired BB blobs in exec memory (requires M-DYN-B* blobs)
+
+Target (default: --x64):
+  --x64  --jvm  --net  --js  --c  --wasm
+
+Diagnostic options:
+  --dump-ir        print IR after frontend
+  --dump-sm        print SM_Program after lowering
+  --dump-bb        print BB-GRAPH for each statement
+  --trace          MONITOR trace output (diff vs SPITBOL)
+  --bench          print wall-clock time after execution
+  --dump-parse     dump CMPILE parse tree
+  --dump-ir-bison  dump IR via old Bison/Flex parser
+```
 
 ## Binary box coverage (current)
 
