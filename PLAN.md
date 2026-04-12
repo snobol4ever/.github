@@ -46,7 +46,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
-| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-1 (add to Makefile) | ☐ |
+| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5 (rung01–rung11 full ladder) | ☐ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10 (rung01 corpus tests) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (DATA field .field(x) NAMEPTR fix) | ☐ |
