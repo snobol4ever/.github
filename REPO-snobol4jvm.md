@@ -7,6 +7,22 @@ Role: semantic oracle for `emit_jvm.c` (one4all JVM backend).
 
 ---
 
+## Session Start
+
+```bash
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4jvm /home/claude/snobol4jvm
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
+```
+
+**Build:**
+```bash
+bash /home/claude/one4all/build/build_packages.sh
+bash /home/claude/one4all/build/build_java.sh       # Java + Jasmin
+bash /home/claude/one4all/build/build_spitbol.sh    # primary oracle
+bash /home/claude/one4all/build/build_scrip.sh      # one4all compiler
+```
+
 ## Oracle role
 
 `snobol4jvm` and `emit_jvm.c` both target JVM but use different models:
