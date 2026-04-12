@@ -59,7 +59,7 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
   Update harness README to mention csnobol4 adapter.
 
 - [x] **S-7** — Add `test/run_csnobol4_suite.sh` to **one4all**.
-  Shell runner using `scrip-interp`. Runs 116 Budne tests + 10 FENCE tests.
+  Shell runner using `scrip`. Runs 116 Budne tests + 10 FENCE tests.
   Model: `test/run_interp_broad.sh`.
   For tests with stdin data embedded below END: extract it and feed as stdin.
   Gate: script runs to completion, reports PASS/FAIL counts.
@@ -100,9 +100,9 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 - harness: ef24086
 - corpus: 73f8b1e
 
-## Baseline (S-7 scrip-interp)
+## Baseline (S-7 scrip)
 
-- scrip-interp — Budne + FENCE: `8/126` (10 FENCE all fail; scrip FENCE(P) not yet impl)
+- scrip — Budne + FENCE: `8/126` (10 FENCE all fail; scrip FENCE(P) not yet impl)
 
 ## Final HEAD references (updated)
 - one4all: 7321eebb
