@@ -23,10 +23,10 @@ The pipeline exists in pieces but is not connected:
 |-----------|------|-------|
 | Lexer | `src/frontend/snocone/snocone_lex.c` | ✅ exists |
 | Parser (shunting-yard → RPN) | `src/frontend/snocone/snocone_parse.c` | ✅ exists |
-| IR lowerer (RPN → EXPR_t/STMT_t) | `src/frontend/snocone/snocone_lower.c` | ❌ does not exist |
-| scrip.c wiring | `src/driver/scrip.c` | ❌ not wired — `.sc` files hit `sno_parse()` (SNOBOL4 parser), get parse error |
-| Makefile | `Makefile` | ❌ snocone files not in build |
-| Subsystem runner | `test/beauty-sc/run_beauty_sc_subsystem.sh` | ❌ uses `-sc -x86` flags that don't exist; must be `--jit-emit --x64` |
+| IR lowerer (RPN → EXPR_t/STMT_t) | `src/frontend/snocone/snocone_lower.c` | ✅ restored from git history |
+| scrip.c wiring | `src/driver/scrip.c` | ✅ `.sc` extension → `snocone_compile()` |
+| Makefile | `Makefile` | ✅ snocone files added |
+| Subsystem runner | `test/beauty-sc/run_beauty_sc_subsystem.sh` | ✅ rewritten for `--ir-run` |
 
 **Correct invocation (once wired):**
 ```bash
@@ -52,28 +52,34 @@ Claude presents each test result or diff line and asks: **T or F?**
 
 ## Steps
 
-- [ ] **S-1** — Fix `run_beauty_sc_subsystem.sh`: replace `-sc -x86` flags with
+- [x] **S-1** — Fix `run_beauty_sc_subsystem.sh`: replace `-sc -x86` flags with
   `--jit-emit --x64`. Update invocation line.
   Gate: script no longer errors on flag parsing (will still fail — Snocone not wired).
 
-- [ ] **S-2** — Add snocone files to Makefile:
+- [x] **S-2** — Add snocone files to Makefile:
   `src/frontend/snocone/snocone_lex.c` and `src/frontend/snocone/snocone_parse.c`
   added to the `scrip` object list. Rebuild clean.
   Gate: `make scrip` succeeds with snocone objects included.
 
-- [ ] **S-3** — Wire `.sc` extension detection in `scrip.c main()`:
+- [x] **S-3** — Wire `.sc` extension detection in `scrip.c main()`:
   After `input_path` is known, detect `*.sc` suffix → set `lang_snocone = 1`.
   In parse block: if `lang_snocone`, call `snocone_lex()` + `snocone_parse()`
   instead of `sno_parse()`. Stub out IR lowering with a TODO for now.
   Gate: `./scrip --jit-emit --x64 driver.sc` reaches the snocone parser without
   crashing (parse result may be empty/stub).
 
-- [ ] **S-4** — Write `src/frontend/snocone/snocone_lower.c`:
+- [x] **S-4** — Write `src/frontend/snocone/snocone_lower.c`:
   Takes `ScParseResult` (RPN token array from snocone_parse) → produces
   `EXPR_t/STMT_t` IR identical in shape to what `sno_parse()` produces.
   Start with the simplest subsystem driver (assign) and work up.
   Model: `src/frontend/snobol4/scrip_cc.c` (`cmpile_lower()`).
   Gate: `assign` subsystem driver compiles, assembles, links, runs, passes diff.
+
+## Baseline (2026-04-12, one4all a8e8680e)
+
+- assign ✅  fence ✅  roman ✅ — **3/14 PASS**
+- counter/stack/ShiftReduce/semantic: logic correct, output mismatch — likely DATATYPE case issue in IDENT comparisons
+- match/strings/arith/trace/global/ReadWrite: partial passes within suite
 
 - [ ] **S-5** — Fix each remaining subsystem driver one at a time (simplest first):
   match, counter, stack, tree, ShiftReduce, TDump, ReadWrite, XDump,
