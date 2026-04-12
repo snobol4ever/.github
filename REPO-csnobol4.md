@@ -9,10 +9,12 @@ CSNOBOL4 2.3.3 — Philip L. Budne's C port of the original Bell Labs SIL macro 
 Forked here as the base for snobol4ever SNOBOL4 compatibility work.
 
 Key files:
-- `v311.sil` — SIL source, the canonical spec (12293 lines)
-- `snobol4.c` — main interpreter (generated C + hand-edited, ~14000 lines)
-- `isnobol4.c` — instrumented variant
-- `data_init.c` — runtime initialization
+- `v311.sil` — SIL source, the canonical spec
+- `isnobol4.c` — main interpreter (compiled by Makefile2; hand-edited for FENCE(P))
+- `snobol4.c` — alternate/reference C translation (not compiled by default build)
+- `proc.h` / `proc.h2` — function extern declarations
+- `data_init.h` — static data initialization
+- `res.h` — resource descriptor layout
 - `test/fence_function/` — FENCE(P) test suite (10 tests)
 
 ## Session Start
@@ -27,25 +29,44 @@ git config user.email "lcherryh@yahoo.com"
 git log --oneline -3
 ```
 
-⛔ Do NOT run `./configure` or `make`. See RULES.md.
-
 ## Build
 
-Regenerate `snobol4.c` from updated SIL using SPITBOL, then build:
+⛔ **Use only the checked-in build script. No other build method. No exceptions.**
 
 ```bash
-cd /home/claude/csnobol4
-/home/claude/x64/bin/sbl genc.sno v311.sil > snobol4.c.new
-# inspect snobol4.c.new, then replace if good:
-mv snobol4.c.new snobol4.c
-./configure && make
+bash /home/claude/one4all/build/build_csnobol4.sh
+# output: /home/claude/csnobol4/snobol4
 ```
 
-Oracle (clone separately if not present):
-```bash
-cd /home/claude && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64
-# binary at /home/claude/x64/bin/sbl
-```
+This runs `make -f Makefile2 xsnobol4 -j4` against the committed source.
+All generated C files (`isnobol4.c`, `proc.h`, `data_init.h`, etc.) are
+**committed and correct** — do not regenerate them.
+
+### Why not `./configure && make` or `genc.sno`?
+
+`make snobol4` / `make all` try to regenerate C from SIL using an already-installed
+`snobol4` binary — a bootstrapping dependency that does not exist in a fresh session.
+`genc.sno` via SPITBOL produces a listing/assembly dump, not valid C.
+
+The committed C files (`isnobol4.c`, `snobol4.c`, `proc.h`, `data_init.h`, `res.h`)
+are the authoritative hand-maintained translation of `v311.sil`. When you edit `v311.sil`,
+you must also manually update the corresponding C — there is no automatic regeneration path
+in this environment. See FENCE.md for an example of what changed files look like.
+
+### If you edit v311.sil
+
+You must hand-edit the corresponding C files to match. Key correspondences:
+
+| v311.sil construct | C files to update |
+|--------------------|-------------------|
+| New XPROC (pattern node) | `isnobol4.c` + `snobol4.c`: add `L_XNAME:` block in dispatch; add top-level `XNAME(ret_t retval)` if used as fn pointer |
+| New PROC (function builder) | `isnobol4.c` + `snobol4.c`: add top-level `NAME(ret_t retval) { ENTRY(NAME) ... }` |
+| New EQU opcode | `equ.h`: add `#define XNAME (N)` |
+| New function extern | `proc.h` + `proc.h2`: add `extern int NAME(ret_t);` |
+| New descriptor cell | `res.h` + `res.h2`: add struct field + `#define` |
+| New static init | `data_init.h` + `data_init.h2`: add `D_A(res.name) = ...` |
+
+After editing, rebuild with the build script and run the gate for your goal.
 
 ## Run fence tests
 
@@ -58,4 +79,4 @@ make diff      # side-by-side comparison
 
 ## Active goals using this repo
 
-- GOAL-CSNOBOL4-FENCE.md — implement FENCE(P) 1-argument function
+- GOAL-CSNOBOL4-FENCE.md — FENCE(P) 1-argument function ✑ DONE

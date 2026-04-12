@@ -103,7 +103,7 @@ make csnobol4  # run against CSNOBOL4 (fails until impl complete)
 
 - [x] **S-8** — snobol4.c is translated from SIL; no hand-edits. SIL is the implementation. Step complete by definition once SIL is done.
 
-- [ ] **S-9** — Run oracle diff.
+- [x] **S-9** — Run oracle diff.
   ```bash
   cd test/fence_function && make diff
   ```
@@ -111,7 +111,7 @@ make csnobol4  # run against CSNOBOL4 (fails until impl complete)
   Fix any discrepancies.
   Gate: `make diff` shows MATCH for all 10.
 
-- [ ] **S-10** — Run full existing CSNOBOL4 test suite to confirm no regressions.
+- [x] **S-10** — Run full existing CSNOBOL4 test suite to confirm no regressions.
   ```bash
   cd /home/claude/csnobol4/test && bash run.sh 2>&1 | tail -5
   ```
@@ -121,10 +121,10 @@ make csnobol4  # run against CSNOBOL4 (fails until impl complete)
 
 ## State
 
-**HEAD:** `7654cda` (FENCE(P) SIL implementation S-1 through S-7)
-**Tests passing (CSNOBOL4):** pending S-9
+**HEAD:** `5990456` (FENCE(P): fix S-9 bugs — 10/10 tests pass)
+**Tests passing (CSNOBOL4):** 10/10
 **Tests passing (SPITBOL oracle):** 10/10
-**Current step:** S-9
+**Current step:** DONE ✑
 
 ---
 
