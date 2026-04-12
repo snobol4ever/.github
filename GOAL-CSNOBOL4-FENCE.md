@@ -49,7 +49,6 @@ cd /home/claude && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobo
 cd /home/claude/csnobol4
 git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
-# DO NOT run ./configure or make — see RULES.md
 ```
 
 Oracle (already built):
@@ -132,7 +131,7 @@ make csnobol4  # run against CSNOBOL4 (fails until impl complete)
 ## Rules
 
 - Commit after each step as `LCherryholmes` / `lcherryh@yahoo.com`.
-- Never build the CSNOBOL4 executable via `./configure && make` — see RULES.md.
+
 - SPITBOL oracle is always right.
 - Rebase before every .github push.
 - See RULES.md for full handoff checklist.

@@ -29,6 +29,18 @@ git log --oneline -3
 
 ⛔ Do NOT run `./configure` or `make`. See RULES.md.
 
+## Build
+
+Regenerate `snobol4.c` from updated SIL using SPITBOL, then build:
+
+```bash
+cd /home/claude/csnobol4
+/home/claude/x64/bin/sbl genc.sno v311.sil > snobol4.c.new
+# inspect snobol4.c.new, then replace if good:
+mv snobol4.c.new snobol4.c
+./configure && make
+```
+
 Oracle (clone separately if not present):
 ```bash
 cd /home/claude && git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64
