@@ -161,7 +161,13 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ---
 
-## bison and flex — never install
+## No building without a checked-in shell script
+
+⛔ Do **not** build anything — no `./configure`, no `make`, no compiler invocations — unless there is a shell script checked into the repo that does it. If no build script exists, write one, check it in, then run it.
+
+---
+
+
 
 `rebus.tab.c`, `rebus.tab.h`, and `lex.rebus.c` are committed and always current.
 Never run apt-get to install bison or flex. If you modify `rebus.y` or `rebus.l`,
