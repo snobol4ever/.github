@@ -321,3 +321,41 @@ Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
    to `shift` in semantic.sno; `shift()` calls inner EVAL with `*Shift(...)` adding
    another star slot. The outer EVAL's *LEQ slot index may misalign. Needs further
    investigation in BuildEval / star slot assignment (session 7 JIT hypothesis still open).
+
+## State after BEAUTY-19 session 10
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: b515d73
+- Unit tests: 14f/2075p (14f pre-existing, no regressions)
+- Beauty suite: **15/18** (unchanged — ShiftReduce/omega/semantic still failing)
+
+## Work done session 10
+
+**S-10 deep diagnosis — root cause of InvalidCastException fully traced:**
+
+The crash `NameVar → ProgramDefinedDataVar` at `GetProgramDefinedDataField` is caused
+by a lvalue-bookkeeping cycle. When `c[i] = Pop()` runs in Reduce, `AssignReplace`
+stamps `Key=i, Collection=c` onto the cloned Pop return value before storing it in
+`c.Data[i]`. That bookkeeping-tagged value propagates into `link.value` field via
+`Push(r) → link($'@S', x)`. Later `Top() → .value($'@S')` wraps the field result in
+a NameVar; dereferencing that NameVar returns the field value which still carries
+`Collection=c(ArrayVar), Key=1` — making it look like another collection reference.
+Dereferencing again returns `c.Data[1]` which is the same bookkeeping-tagged object.
+True cycle confirmed by debug: NameVar(Pointer='x', Collection=ArrayVar, Key=1) →
+ArrayVar.Data[1] → same NameVar, indefinitely.
+
+**Fix applied:** `CreateProgramDefinedDataInstance` now strips Key/Collection from
+non-NameVar arguments before storing into DATA field slots. NameVars are preserved.
+Zero new unit test failures. However ShiftReduce still crashes — the tagged value
+is reaching the link's field slot via a path not covered by this fix, or the link
+being accessed by `Top()` is not the one just built by `Push(r)`.
+
+**Remaining hypothesis (next session):**
+The MSIL fast path may be reading `$'@S'` from a stale VarSlotArray slot.
+After `$'@S' = link($'@S', x)` inside Push, VarSlotArray for '@S' must be
+synced before `.value($'@S')` is evaluated. If indirection assignment ($) does
+not call SyncVarSlot for the *target* variable (the one @S resolves to), the
+subsequent read of $'@S' in the Name expression sees the old link.
+**Recommended first step next session:** temporarily force `ThreadIsMsilOnly = false`
+for the ShiftReduce test and see if the threaded (non-MSIL) path passes.
+If it does, the bug is definitively in MSIL VarSlotArray sync for $ indirection.
