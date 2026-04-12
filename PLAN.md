@@ -19,7 +19,18 @@ Lon names a goal. You:
 3. Read `RULES.md` in full — commit rules, push rules, oracle, naming. No exceptions.
 4. Open that Goal file. It names the repo. Open that repo's REPO file.
 5. Follow the REPO file `## Session Start` section to clone and build.
-6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
+6. **Install push guard in every cloned repo** (containers reset between sessions):
+   ```bash
+   for repo in /home/claude/.github /home/claude/one4all /home/claude/snobol4dotnet \
+               /home/claude/snobol4jvm /home/claude/corpus /home/claude/harness; do
+     [ -d "$repo/.git" ] || continue
+     mkdir -p "$repo/.git/hooks"
+     printf '#!/bin/bash\nif [ ! -f /tmp/handoff_authorized ]; then\n  echo "PUSH BLOCKED — say perform hand off first."; exit 1\nfi\nrm -f /tmp/handoff_authorized\n' > "$repo/.git/hooks/pre-push"
+     chmod +x "$repo/.git/hooks/pre-push"
+   done
+   rm -f /tmp/handoff_authorized
+   ```
+7. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
 
 Do not read `archive/` unless a step explicitly says to.
 
