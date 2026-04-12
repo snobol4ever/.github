@@ -9,13 +9,11 @@
 - `scrip --ir-run` PASS=193/203
 - Beauty suite: **14/19** passing
 
-## Current state (session 2026-04-12)
+## Current state (session 2026-04-12, session 2)
 
-- one4all HEAD: `d882bca9`
-- Beauty suite: **14/18** passing
+- one4all HEAD: `211675cf`
+- Beauty suite: **14/18** passing (no change — fixes incomplete)
 - Failing: Gen, TDump, XDump, omega
-- ✅ BUILD BLOCKER FIXED: emit_jvm.c/emit_x64.c redefinitions resolved; duplicate Makefile
-  scrip: target removed. scrip builds clean on fresh container. Committed e7ed6cab.
 
 ## Run command
 
@@ -75,10 +73,24 @@ done; echo "--- PASS=$PASS FAIL=$FAIL"
 
 ## Next session priorities
 
-0. **BUILD FIX FIRST**: Fix emit_jvm.c — prefix Icon section helpers icn_J/icn_JI/icn_JL/icn_JC/icn_out/icn_classname/icn_find_import/icn_set_classname, and Prolog section pl_J/pl_JI/pl_JL/pl_JC/pl_out/pl_prog. Pattern: emit_x64.c uses icn_out for its Icon section. Do `make clean && make scrip` to confirm fix before any beauty work.
-1. **TDump S-6/S-10**: Isolate TValue/TLump DATA field ordering — `tree('Name','foo',,)` t/v positions. Check if t(x)/v(x) accessor order matches DATA spec.
-2. **omega S-9**: Add `g_eval_string_pat_hook` — set in scrip.c main() to a function that calls `interp_eval_pat` on the parsed expression from cmpile_eval_expr, returning DT_P.
-3. **Gen S-7**: Trace ARBNO null DT_E source.
+0. **E_INDIRECT subject bug (blocks TDump + Gen)**: The real subject kind at
+   execute_program runtime is NOT E_INDIRECT — the branch never fires. Add:
+   ```c
+   fprintf(stderr, "DBG subj kind=%d\n", s->subject->kind);
+   ```
+   at line ~1615 in execute_program (scrip.c) for statements with a pattern.
+   E_INDIRECT enum = 58 (ir.h). Find actual kind, add matching branch.
+   Suspect: prescan_defines or label_table_build transforms subject node kind.
+   Once fixed, BREAK(nl) . outline nl REM . $'$B' will drain $'$B' correctly,
+   unblocking TDump tests 4/5 and Gen driver.
+
+1. **TDump S-6/S-10**: After E_INDIRECT fix, check remaining TDump failures.
+   Isolate TValue/TLump DATA field ordering — `tree('Name','foo',,)` t/v positions.
+
+2. **omega S-9**: `EVAL(string)` returns DT_S not DT_P. Add `g_eval_string_pat_hook`.
+
+3. **Gen S-7**: After E_INDIRECT fix, trace ARBNO null DT_E source.
+
 4. **XDump S-8**: Fix array bounds format `1` → `1:1` in XDump pretty-printer.
 
 ## Commit identity
