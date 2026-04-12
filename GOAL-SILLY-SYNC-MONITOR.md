@@ -17,7 +17,7 @@ Silly is a faithful C rewrite of CSNOBOL4's SIL source. All other sessions use S
 ## Key paths
 
 ```
-/home/claude/work/snobol4-2.3.3/snobol4   # CSNOBOL4 oracle binary
+/home/claude/csnobol4/snobol4   # CSNOBOL4 oracle binary
 /home/claude/one4all/src/silly/            # Silly source
 /home/claude/one4all/test/ss-monitor/      # monitor infrastructure (to be built)
 ```
@@ -65,7 +65,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 
 ## Rules
 
-- **⛔ CSNOBOL4 build required here only:** This is the only goal that may build the CSNOBOL4 executable (`./configure && make`). All other goals must skip that build entirely. See RULES.md.
+- Build CSNOBOL4: `bash /home/claude/one4all/build/build_csnobol4.sh`. See REPO-csnobol4.md.
 - Test gate passes before every commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
@@ -75,7 +75,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 
 | # | Participant | Role | Binary |
 |---|-------------|------|--------|
-| 1 | CSNOBOL4 2.3.3 | **Oracle** | `/home/claude/work/snobol4-2.3.3/snobol4` |
+| 1 | CSNOBOL4 2.3.3 | **Oracle** | `/home/claude/csnobol4/snobol4` |
 | 2 | Silly SNOBOL4 | **Target** | `/tmp/silly-snobol4` |
 
 CSNOBOL4 is oracle by construction — it IS the reference for Silly. When they agree: correct. When they diverge: Silly is wrong.

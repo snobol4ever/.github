@@ -72,11 +72,14 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 ## Oracle
 
-SPITBOL x64: `/home/claude/x64/bin/sbl`
+**Primary oracle** — SPITBOL x64: `/home/claude/x64/bin/sbl`
+Build: `bash /home/claude/one4all/build/build_spitbol.sh`
 Derive .ref: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
-**Silly exception:** CSNOBOL4 is oracle for Silly goals only. See above for build.
+**Second oracle** — CSNOBOL4: `/home/claude/csnobol4/snobol4`
+Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY-*).
 
 ---
 
@@ -123,13 +126,28 @@ Adapt, don't copy verbatim — one4all uses Boehm GC + 64-bit; silly uses arena 
 
 ## Monitor infrastructure
 
+The sync-step monitor harnesses compare multiple runtimes event-by-event.
+SPITBOL is primary oracle; CSNOBOL4 is second oracle (added as participant 5 below).
+
 ```bash
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 bash test/monitor/run_monitor_2way.sh $BEAUTY/beauty_trace_driver.sno
 ```
 
+### Participant table (up to 6-way)
+
+| # | Participant | Role | Binary |
+|---|-------------|------|--------|
+| 1 | SPITBOL x64 | **Primary oracle** | `/home/claude/x64/bin/sbl` |
+| 2 | one4all ASM | Target | `scrip --gen` |
+| 3 | one4all JVM | Target | `scrip --jvm` |
+| 4 | one4all NET | Target | `scrip --net` |
+| 5 | CSNOBOL4 2.3.3 | **Second oracle** | `/home/claude/csnobol4/snobol4` |
+| 6 | Silly SNOBOL4 | Silly target | `/tmp/silly-snobol4` |
+
 SPITBOL IPC: `x64/monitor_ipc_spitbol.so`
+CSNOBOL4 IPC: `csnobol4/monitor_ipc_csnobol4.so` (same ABI as SPITBOL IPC)
 scrip IPC: C-native in `snobol4.c` (`comm_var()`, `comm_stno()`, `monitor_fd`/`monitor_ack_fd`)
 
 ---

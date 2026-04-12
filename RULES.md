@@ -87,26 +87,39 @@ Handoff checklist:
 
 ---
 
-## Oracle — SPITBOL x64 is the primary oracle for all testing
+## Oracles — SPITBOL x64 (primary) and CSNOBOL4 (secondary)
 
+### SPITBOL x64 — primary oracle
 ```
 /home/claude/x64/bin/sbl          # binary
 /home/claude/x64/                 # repo (snobol4ever/x64)
 ```
+Build: `bash /home/claude/one4all/build/build_spitbol.sh`
 
 Derive .ref output: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
 SPITBOL is the **primary oracle for all goals and all testing** across the project.
 
-**Narrow exception:** CSNOBOL4 is the oracle for Silly SNOBOL4 *sync-step monitoring only*
-(SS-MONITOR / GOAL-SILLY-SYNC-MONITOR), because Silly is a C rewrite of CSNOBOL4's SIL
-source and the monitor compares them live. This exception does NOT extend to sweep goals
-or any other goal — use SPITBOL there.
+### CSNOBOL4 2.3.3 — second oracle
+```
+/home/claude/csnobol4/snobol4     # binary
+/home/claude/csnobol4/            # repo (snobol4ever/csnobol4)
+```
+Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+
+CSNOBOL4 is a **second oracle** — used alongside SPITBOL in the sync-step monitor harness
+and for any goal where CSNOBOL4 compatibility is explicitly required.
+When SPITBOL and CSNOBOL4 agree: correct. When they disagree: investigate; SPITBOL wins
+on ambiguous cases unless the goal explicitly targets CSNOBOL4 behaviour.
+
+**Silly exception:** CSNOBOL4 is the sole oracle for Silly SNOBOL4 goals (SS-MONITOR,
+GOAL-SILLY-*) because Silly is a faithful C rewrite of CSNOBOL4's SIL source.
 
 DATATYPE rules (authoritative):
 
-- **SPITBOL** (oracle): returns lowercase — `"integer"`, `"pattern"`, `"string"`, etc.
+- **SPITBOL** (primary oracle): returns lowercase — `"integer"`, `"pattern"`, `"string"`, etc.
+- **CSNOBOL4** (second oracle): returns uppercase — `"INTEGER"`, `"PATTERN"`, `"STRING"`, etc.
 - **snobol4dotnet**: returns lowercase — same as SPITBOL. This is intentional.
 - **one4all**: returns uppercase — `"NAME"`, `"PATTERN"`, `"STRING"`, etc. This is intentional — SIL SNOBOL4 spec.
 
@@ -122,7 +135,6 @@ SNOBOL4 from SPITBOL in snobol4dotnet. Any test depending on `IsSnobol4()` or `I
 to gate behavior is invalid for snobol4dotnet.
 
 `.ref` files are pre-baked in corpus. SPITBOL not required to run test gates.
-
 ---
 
 ## Test gate before every commit
