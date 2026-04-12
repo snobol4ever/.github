@@ -83,8 +83,23 @@ SPITBOL is the **primary oracle for all goals and all testing** across the proje
 source and the monitor compares them live. This exception does NOT extend to sweep goals
 or any other goal — use SPITBOL there.
 
-DATATYPE note: SPITBOL returns lowercase (`"name"`, `"pattern"`).
-one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional — SNOBOL4 spec.
+DATATYPE rules (authoritative):
+
+- **SPITBOL** (oracle): returns lowercase — `"name"`, `"pattern"`, `"string"`, etc.
+- **snobol4dotnet**: returns lowercase — same as SPITBOL. This is intentional.
+- **one4all**: returns uppercase — `"NAME"`, `"PATTERN"`, `"STRING"`, etc. This is intentional — SIL SNOBOL4 spec.
+
+**Valid test rule:** Any test that checks a DATATYPE result must be portable across case.
+Do NOT hardcode `IDENT(DATATYPE(x), 'string')` or `IDENT(DATATYPE(x), 'STRING')`.
+Instead compare against a runtime-derived token: `dSTRING = DATATYPE('')`, `dNAME = DATATYPE(.x)`, etc.
+Tests that hardcode DATATYPE case strings are **invalid** and must be rewritten.
+
+**is.sno invalid:** `IsSnobol4()` / `IsSpitbol()` use `IDENT/DIFFER(.NAME, 'NAME')` to
+discriminate dialect. This check is no longer valid — snobol4dotnet uses lowercase DATATYPE
+like SPITBOL but `.NAME` yields `'NAME'`. The `.NAME` trick cannot reliably distinguish
+SNOBOL4 from SPITBOL in snobol4dotnet. Any test depending on `IsSnobol4()` or `IsSpitbol()`
+to gate behavior is invalid for snobol4dotnet.
+
 `.ref` files are pre-baked in corpus. SPITBOL not required to run test gates.
 
 ---
