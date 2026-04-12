@@ -47,25 +47,20 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 ## Test gates
 
-**scrip broad corpus:**
+**smoke (3 programs, all pass = build is sane):**
 ```bash
-CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
-# baseline: PASS=193/203
+bash test/smoke.sh
 ```
 
-**scrip beauty suite (19 drivers):**
+**regression (full corpus vs .ref, interpreter mode):**
 ```bash
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-INC=/home/claude/corpus/programs/snobol4/demo/inc
-PASS=0; FAIL=0
-for sno in "$BEAUTY"/beauty_*_driver.sno; do
-    name=$(basename "$sno" .sno); ref="$BEAUTY/${name}.ref"
-    [ ! -f "$ref" ] && continue
-    got=$(SNO_LIB="$INC" timeout 10 ./scrip --ir-run "$sno" 2>/dev/null)
-    [ "$got" = "$(cat $ref)" ] && { echo "PASS $name"; PASS=$((PASS+1)); } \
-                               || { echo "FAIL $name"; FAIL=$((FAIL+1)); }
-done; echo "--- PASS=$PASS FAIL=$FAIL"
-# baseline: 14/19
+CORPUS=/home/claude/corpus bash test/regression.sh
+# baseline: PASS=41/149
+```
+
+**crosscheck (all backends — x86, JVM, NET, WASM — same programs, outputs must agree):**
+```bash
+CORPUS=/home/claude/corpus bash test/crosscheck.sh
 ```
 
 **Silly build gate (before every commit):**

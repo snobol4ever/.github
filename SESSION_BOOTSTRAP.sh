@@ -7,7 +7,7 @@
 #   WHERE — clones/updates all required repos
 #   WHERE — installs ALL required tools (apt + build from source, internet)
 #   WHY   — prints the four docs to read before coding
-#   HOW   — runs emit-diff check then full 7-cell invariant gate
+#   HOW   — runs emit-diff check then full 7-cell crosscheck gate
 #
 # Usage:
 #   TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
@@ -198,21 +198,21 @@ info "cat  /home/claude/.github/RULES.md                   # mandatory rules"
 info "cat  /home/claude/.github/PLAN.md                    # NOW table"
 info "cat  /home/claude/.github/GRAND_MASTER_REORG.md      # phase detail"
 
-# ── HOW — invariant gate ──────────────────────────────────────────────────────
+# ── HOW — crosscheck gate ──────────────────────────────────────────────────────
 step "HOW — emit-diff (493/0 baseline)"
 cd /home/claude/one4all
-if SCRIP_CC="$SCRIP_CC" bash test/run_emit_check.sh 2>&1; then
+if SCRIP_CC="$SCRIP_CC" bash test/crosscheck.sh 2>&1; then
     ok "Emit-diff: green"
 else
     fail "Emit-diff: mismatches — do not proceed"
 fi
 
-step "HOW — 7-cell runtime invariant gate"
+step "HOW — 7-cell runtime crosscheck gate"
 if SCRIP_CC="$SCRIP_CC" CORPUS=/home/claude/corpus \
-   bash test/run_invariants.sh 2>&1; then
-    ok "All invariants: PASS"
+   bash test/crosscheck.sh 2>&1; then
+    ok "All crosschecks: PASS"
 else
-    fail "Invariants: failures present — review matrix above"
+    fail "Crosscheck: failures present — review matrix above"
 fi
 
 # ── SUMMARY ───────────────────────────────────────────────────────────────────

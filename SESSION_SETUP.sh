@@ -22,11 +22,11 @@
 #
 #   JVM interpreter sessions (DYN-, J-, one4all-SNOBOL4-NET):
 #     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
-#     (do NOT run run_invariants.sh or run_emit_check.sh for interpreter sessions)
+#     (do NOT run crosscheck.sh or crosscheck.sh for interpreter sessions)
 #
 #   Emit sessions (x86, JVM emitter, .NET):
-#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_jvm
-#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
+#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_jvm
+#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_x86
 #
 # All tool installation is fully automatic. Network access required.
 # Never hardcode the token — TOKEN env var only.
@@ -325,8 +325,8 @@ if [[ $ERRORS -eq 0 ]]; then
     else
         echo -e "${GREEN}${BOLD}  SETUP COMPLETE — now run the two test scripts:${RESET}"
         echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
-        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_emit_check.sh${RESET}"
-        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/run_invariants.sh${RESET}"
+        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/crosscheck.sh${RESET}"
+        echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/crosscheck.sh${RESET}"
     fi
 else
     echo -e "${RED}${BOLD}  SETUP COMPLETE — ${ERRORS} problem(s) above — fix before running tests${RESET}"
