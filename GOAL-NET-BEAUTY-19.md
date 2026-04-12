@@ -202,6 +202,38 @@ Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
 3. Determine whether MSIL delegate has stale `PushExprByIndex(N)` while StarFunctionList has grown, or vice versa.
 4. Fix accordingly.
 
+## State after BEAUTY-19 session 9
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: 88fc365
+- Unit tests: 2075p/14f (14f pre-existing, no regressions)
+- Beauty suite: **15/18** (unchanged)
+
+## Work done session 9
+
+1. **S-10 partial — NameVar dereference fix applied** (two files):
+   - `Data.cs` `GetProgramDefinedDataField`: added `is NameVar` guard — dereferences
+     NameVar before casting to ProgramDefinedDataVar. Handles `t(nd)` where `nd = Top()`
+     returns a NAME (`.value($'@S')`).
+   - `NameVar.cs` `Dereference()`: added `ProgramDefinedDataVar` arm to collection switch
+     so NameVars backed by a ProgramDefinedDataVar field slot resolve via `FieldValues.Data[index]`.
+   - Fix is committed but ShiftReduce still crashes. The MSIL JIT path
+     (`Snobol4_Expr` → `CallFuncBySlot`) still throws `InvalidCastException` at Data.cs:169.
+     Minimal reproducer `t(nd)` where `nd = .s` (simple name) works fine.
+     Minimal reproducer with `Top()` also passes in isolation.
+     Failure is specific to the full driver after `Reduce()` creates a new tree node.
+
+2. **S-10 next-session plan**:
+   - Determine exactly what Dereference returns for the NameVar produced by `Top()`
+     after a `Reduce()` call. Add a debug probe: print `arg0.GetType().Name` before cast.
+   - Hypothesis: after `Reduce`, the tree stored in `value($'@S')` may itself be a
+     NameVar (the `.v(s)` return from Shift when v is non-empty, or the `r` local from
+     Reduce which is assigned `tree(t,,n,c)` then Push(r)). If `Push` stores a NameVar
+     wrapping the tree rather than the tree itself, Dereference returns a NameVar, not
+     the tree, and the cast fails at line 170 (reported as 169 by PDB sequence points).
+   - Fix: add recursive dereference loop (while arg0 is NameVar, dereference again)
+     or ensure Push stores the dereferenced value, not the name.
+
 ## Steps
 
 - [x] **S-1** — FENCE redefinition: allow `DEFINE('FENCE(FENCE)')` to redefine FENCE as user function in `Define.cs`; also allow `OPSYN('INPUT',...)` / `OPSYN('OUTPUT',...)` in `Opsyn.cs` (unblocks io.sno). Gate: fence + Gen + io pass → **10/19** ✅
