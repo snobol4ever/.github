@@ -9,6 +9,26 @@
 
 ---
 
+## Never touch DATATYPE case behavior
+
+⛔ Do **not** modify DATATYPE return case in any runtime. This is intentional per architecture:
+- **SPITBOL / snobol4dotnet**: returns lowercase — `"integer"`, `"string"`, `"pattern"`, etc.
+- **one4all / snobol4jvm**: returns uppercase — `"INTEGER"`, `"STRING"`, `"PATTERN"`, etc.
+
+`.sno` source that compares DATATYPE results must handle both cases portably using
+`REPLACE(DATATYPE(x), &LCASE, &UCASE)` before comparing against uppercase literals.
+
+---
+
+## Never patch corpus source to work around runtime bugs
+
+⛔ Do **not** modify `.sno` or `.inc` source files to work around a problem in the runtime
+unless the source itself is syntactically or semantically wrong **and** that wrongness is
+confirmed by running the program under SPITBOL (the oracle). If SPITBOL runs it correctly,
+the bug is in the runtime — fix the runtime, not the source.
+
+---
+
 ## No append-only huge files
 
 ⛔ Do **not** create or maintain append-only accumulating files (e.g. `SESSIONS_ARCHIVE.md`).
@@ -85,7 +105,7 @@ or any other goal — use SPITBOL there.
 
 DATATYPE rules (authoritative):
 
-- **SPITBOL** (oracle): returns lowercase — `"name"`, `"pattern"`, `"string"`, etc.
+- **SPITBOL** (oracle): returns lowercase — `"integer"`, `"pattern"`, `"string"`, etc.
 - **snobol4dotnet**: returns lowercase — same as SPITBOL. This is intentional.
 - **one4all**: returns uppercase — `"NAME"`, `"PATTERN"`, `"STRING"`, etc. This is intentional — SIL SNOBOL4 spec.
 

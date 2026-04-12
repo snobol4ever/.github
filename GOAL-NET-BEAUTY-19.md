@@ -15,16 +15,16 @@
 - Unit tests: 2375p/0f/2s
 - Beauty suite: **11/19** passing
 
-## State after BEAUTY-19 session 2
+## State after BEAUTY-19 session 3
 
-- corpus HEAD: `a2d280b`
-- snobol4dotnet HEAD: `7724129` (unchanged)
+- corpus HEAD: `c940be1`
+- snobol4dotnet HEAD: `9ef6def`
 - Unit tests: 2375p/0f/2s
-- Beauty suite: **12/18** passing
+- Beauty suite: **14/18** passing
 
-## Passing (12)
+## Passing (14)
 
-beauty_Gen, beauty_Qize, beauty_assign, beauty_case, beauty_counter, beauty_fence, beauty_global, beauty_io, beauty_match, beauty_stack, beauty_trace, beauty_tree
+beauty_Gen, beauty_Qize, beauty_TDump, beauty_XDump, beauty_assign, beauty_case, beauty_counter, beauty_fence, beauty_global, beauty_io, beauty_match, beauty_stack, beauty_trace, beauty_tree
 
 ## Run command
 
@@ -56,9 +56,9 @@ symlink `demo/inc/*` into beauty/ once per machine.
 
 - [x] **S-4** — ~~`&VERSION` / `is.sno` IsSnobol4 check~~ ELIMINATED. `is.sno` removed from corpus entirely. `IsSnobol4`/`IsSpitbol` discriminator is invalid for snobol4dotnet. Suite reduced from 19 to 18 drivers. ✅
 
-- [ ] **S-5** — `FIELD(datatypeName, index)` returns field name at given index for DATA-defined type. Gate: XDump passes → **13/18**
+- [x] **S-5** — `FIELD(datatypeName, index)` returns field name at given index for DATA-defined type. Gate: XDump passes → **13/18** ✅
 
-- [ ] **S-6** — TLump node format: `(BinOp x 42)` not `.x.42`. Gate: TDump passes → **14/18**
+- [x] **S-6** — TLump node format: `(BinOp x 42)` not `.x.42`. Gate: TDump passes → **14/18** ✅
 
 - [ ] **S-7** — `INPUT(.varName, unit, filename)` unit-file association for reading. Gate: ReadWrite passes → **15/18**
 
