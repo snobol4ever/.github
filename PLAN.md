@@ -39,6 +39,7 @@ Do not read `archive/` unless a step explicitly says to.
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 | CSNOBOL4 FENCE(P) | `GOAL-CSNOBOL4-FENCE.md` | csnobol4 | S-1 (opcodes + EQUs) | ☐ |
+| CSNOBOL4 Harness | `GOAL-CSNOBOL4-HARNESS.md` | harness | S-1 (csnobol4 adapter) | ☐ |
 | Archive Cleanup | `GOAL-ARCHIVE-CLEANUP.md` | .github | S-12 complete | ☑ |
 
 ---
