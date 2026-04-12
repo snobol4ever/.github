@@ -58,19 +58,19 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 - [x] **S-6** — Add `csnobol4` to `crosscheck.sh` DIRS scan and engine list documentation.
   Update harness README to mention csnobol4 adapter.
 
-- [ ] **S-7** — Add `test/run_csnobol4_suite.sh` to **one4all**.
+- [x] **S-7** — Add `test/run_csnobol4_suite.sh` to **one4all**.
   Shell runner using `scrip-interp`. Runs 116 Budne tests + 10 FENCE tests.
   Model: `test/run_interp_broad.sh`.
   For tests with stdin data embedded below END: extract it and feed as stdin.
   Gate: script runs to completion, reports PASS/FAIL counts.
 
-- [ ] **S-8** — Add `CorpusRef_FenceTests.cs` and `CorpusRef_Csnobol4Suite.cs` to **snobol4dotnet**.
+- [x] **S-8** — Add `CorpusRef_FenceTests.cs` and `CorpusRef_Csnobol4Suite.cs` to **snobol4dotnet**.
   Pattern: match `CorpusRef_Patterns.cs` exactly — inline the .sno source as a C# verbatim string, inline the .ref as the expected value.
   For tests with stdin embedded below END: split at END, pass the tail as `inputText` to `RunWithInput`.
   Read every .sno and .ref before writing a single test method.
   Gate: `dotnet test` compiles and all 126 test methods are present.
 
-- [ ] **S-9** — Add `test_csnobol4_suite.clj` to **snobol4jvm**.
+- [x] **S-9** — Add `test_csnobol4_suite.clj` to **snobol4jvm**.
   Pattern: match `test_runtime.clj` — inline source string, `CODE`/`RUN`/`with-out-str`, `is (= expected actual)`.
   For tests with stdin: verify how snobol4jvm handles INPUT before writing those tests.
   Read every .sno and .ref before writing a single test.
@@ -99,3 +99,12 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 ## Final HEAD references
 - harness: ef24086
 - corpus: 73f8b1e
+
+## Baseline (S-7 scrip-interp)
+
+- scrip-interp — Budne + FENCE: `8/126` (10 FENCE all fail; scrip FENCE(P) not yet impl)
+
+## Final HEAD references (updated)
+- one4all: 7321eebb
+- snobol4jvm: f35d392
+- snobol4dotnet: 1414bb0
