@@ -216,3 +216,44 @@ Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
 **"here we go"** — session starting, Lon has named a goal, execute session start protocol from PLAN.md
 
 **"grand master reorg"** — the goal is improving the HQ system itself
+
+---
+
+## No duplicate corpus source files
+
+⛔ Do **not** have two copies of the same source file anywhere in corpus.
+Applies to all corpus source: `.sno`, `.inc`, `.pl`, `.icn`, and any other
+program source extension.
+
+If a duplicate is discovered: keep the more authoritative copy (beauty/ over demo/inc/,
+crosscheck/ over a redundant subfolder, etc.) and delete the other. Never resolve
+duplication with symlinks — symlinks break when targets move or are deleted.
+Use real files only. The canonical location is wherever the test harness expects to find it.
+
+---
+
+## No symlinks in shell scripts
+
+⛔ Do **not** use `ln -s` or any symlink creation in shell scripts, Makefiles, or CI.
+Symlinks break silently when targets move or are deleted (see corpus fbab26b incident).
+Use real files, copies, or path variables instead.
+If a script currently creates symlinks, replace with `cp` or direct path references.
+
+---
+
+## snobol4dotnet DATATYPE always returns lowercase
+
+`DATATYPE()` in snobol4dotnet always returns lowercase: `'string'`, `'integer'`,
+`'pattern'`, `'array'`, `'table'`, `'name'`, `'code'`, `'expression'`.
+User-defined DATA type names are also lowercased via `ToLowerInvariant()`.
+
+⛔ Do **not** change this. It is intentional architecture.
+⛔ Do **not** write tests that hardcode uppercase or lowercase DATATYPE strings.
+Use case-portable comparisons:
+```snobol4
+dPATTERN = REPLACE(DATATYPE(LEN(1)), &LCASE, &UCASE)
+...
+IDENT(REPLACE(DATATYPE(x), &LCASE, &UCASE), dPATTERN)  :S(ok)F(fail)
+```
+Any `.ref` file or driver that hardcodes `'PATTERN'`, `'STRING'`, `'INTEGER'` etc.
+in a DATATYPE comparison is **invalid** and must be rewritten before it can pass.
