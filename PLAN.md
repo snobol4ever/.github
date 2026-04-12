@@ -38,7 +38,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-1 (add to Makefile) | ☐ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1 (add to Makefile) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
-| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (DATA field .field(x) NAMEPTR fix) | ☐ |
+| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (E_INDIRECT subj NV case-fold bug — NV_GET_fn returns DT_SNUL) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-10 (NameVar recursive deref in GetProgramDefinedDataField) + S-8B + S-9 | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
