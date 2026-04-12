@@ -20,10 +20,12 @@ Icon frontend files exist and are complete:
 | scrip.c wiring | `src/driver/scrip.c` | ❌ `.icn` not routed — hits SNOBOL4 parser |
 | Makefile | `Makefile` | ❌ icon frontend files not in scrip build |
 
-**Key difference from Snocone:** `icon_lower_file()` returns `EXPR_t**` (array of
-procedure trees), NOT `Program*`. The ir-run interpreter expects `Program*`.
-Need a thin wrapper: allocate `Program*`, walk `EXPR_t**` procedures, wrap each
-as a `STMT_t`, link into `prog->head`.
+**Current state (2026-04-12, one4all a34ef96d):** S-1 through S-4 complete.
+`icon_driver.c` wraps `EXPR_t**` → `Program*`. `icon_interp.c` (289 lines)
+mirrors `emit_x64.c` one-to-one. rung01: **6/6 PASS**. SNOBOL4: PASS=204 unchanged.
+
+`icn_collect()` drives E_TO/binops as value streams (cross-product of generators),
+mirroring the alpha/beta Byrd box wiring in the emitter.
 
 **Existing test scripts** (use emitter path, not ir-run):
 `test/frontend/icon/run_rung01.sh` … `run_rung36.sh` — these currently drive
@@ -41,13 +43,13 @@ Claude presents each test result and asks: **T or F?**
 
 ## Steps
 
-- [ ] **S-1** — Add Icon frontend files to Makefile scrip target.
+- [x] **S-1** — Add Icon frontend files to Makefile scrip target.
   Files: `icon_lex.c`, `icon_parse.c`, `icon_lower.c`, `icon_ast.c`,
   `icon_runtime.c`, `icn_main.c`.
   Include path: `-I$(SRC)/frontend/snobol4` (for scrip_cc.h).
   Gate: `make scrip` clean.
 
-- [ ] **S-2** — Write `src/frontend/icon/icon_driver.h` + `icon_driver.c`:
+- [x] **S-2** — Write `src/frontend/icon/icon_driver.h` + `icon_driver.c`:
   ```c
   Program *icon_compile(const char *source, const char *filename);
   ```
@@ -56,11 +58,11 @@ Claude presents each test result and asks: **T or F?**
   a new `E_ICON_PROC` wrapper — confirm with existing ir-run dispatch).
   Gate: `icon_compile()` returns non-NULL on a trivial `.icn` program.
 
-- [ ] **S-3** — Wire `.icn` extension in `scrip.c main()`:
+- [x] **S-3** — Wire `.icn` extension in `scrip.c main()`:
   Detect `.icn` suffix → call `icon_compile()` → proceed to `--ir-run` dispatch.
   Gate: `./scrip --ir-run test/icon/hello.icn` produces output.
 
-- [ ] **S-4** — Run rung01 tests via `--ir-run`. Fix any ir-run dispatch gaps
+- [x] **S-4** — Run rung01 tests via `--ir-run`. Fix any ir-run dispatch gaps
   (Icon-specific IR node kinds not handled in `interp_eval()`).
   Gate: rung01 PASS count ≥ prior emitter baseline.
 
