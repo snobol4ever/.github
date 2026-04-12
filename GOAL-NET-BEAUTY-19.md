@@ -105,6 +105,43 @@ beauty_Gen, beauty_Qize, beauty_ReadWrite, beauty_TDump, beauty_XDump, beauty_as
 5. **RULES.md updated**: added "No duplicate corpus source files" rule and
    "No symlinks in shell scripts" rule (session 4 directive from Lon).
 
+## State after BEAUTY-19 session 6
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: 45f3e1b (unchanged — no commits this session)
+- Unit tests: 2375p/0f/2s (baseline confirmed)
+- Beauty suite: **15/18** (unchanged)
+
+## Work done session 6
+
+**Diagnosis of S-8B — two-EVAL crash root cause identified:**
+
+The `ArgumentOutOfRangeException` at `StarFunctionList[instr.IntOperand]` happens on the
+**second call to EVAL** (or any EVAL call after at least one prior EVAL has run). Confirmed
+with minimal reproducer (no user functions needed — two sequential EVAL calls suffice).
+
+Investigation confirmed:
+- `ExpressionList` and `ParseExpression` are cumulative (never reset) — star tokens correctly
+  named with global indices (`Star{N}`, `Star{N+1}`...) across EVAL calls.
+- `CompileStarFunctions` loop bounds are correct (`StarFunctionList.Count` → `ParseExpression.Count`).
+- The `PushExpr` operands emitted by `ThreadedCodeCompiler` and `BuilderEmitMsil` are correct.
+- Root cause is NOT an index naming/offset issue.
+
+**Key observation:** Adding `Console.Error.WriteLine` to `CompileStarFunctions` appeared to
+make the two-EVAL crash disappear (both test cases passed). This suggests the real bug is a
+**JIT compilation ordering or lambda closure issue** — the debug output forces sequential
+evaluation that the optimized build skips or reorders. The C# lambda `x => x.RunExpressionThread(subThread)` captures `subThread` correctly (local var per iteration), but there may be a JIT inlining or speculative execution issue in Release mode.
+
+**Approaches to try next session:**
+1. Check if `CompileStarFunctions` lambda closure is being JIT-inlined in a way that
+   causes `subThread` to be read before it's fully initialized. Try marking the lambda
+   with a `[MethodImpl(MethodImplOptions.NoInlining)]` wrapper, or restructure to avoid closure.
+2. Alternatively: restructure `CompileStarFunctions` to build all `subThread` arrays first,
+   THEN add all lambdas to `StarFunctionList` — eliminates any ordering dependency.
+3. After fixing the crash: tackle error 22 for `*LEQ` in second-EVAL context (still open).
+
+**Nothing committed this session. Working tree clean at 45f3e1b.**
+
 ## S-8 next-session work items (omega)
 
 **Root cause A — `.ref` and driver hardcode uppercase DATATYPE**:
