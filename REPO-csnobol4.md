@@ -17,16 +17,31 @@ Key files:
 - `res.h` — resource descriptor layout
 - `test/fence_function/` — FENCE(P) test suite (10 tests)
 
+Modifications vs vanilla CSNOBOL4 2.3.3:
+- **FENCE(P)** — 1-arg form implemented (opcodes 37–40, FNCP builder). See FENCE.md.
+- **STNO trace patch** — `chk_break(0)` early-out removed from `isnobol4.c`, `snobol4.c`,
+  and `v311.sil`. This makes &STNO tracing fire unconditionally, required for the
+  sync-step monitor harness. No functional difference for normal programs.
+
 ## Session Start
 
 ```bash
 git config --global --add safe.directory /home/claude/csnobol4
 cd /home/claude
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
 cd csnobol4
 git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
 git log --oneline -3
+```
+
+**Build:**
+```bash
+bash /home/claude/one4all/build/build_packages.sh
+bash /home/claude/one4all/build/build_csnobol4.sh   # primary target
+bash /home/claude/one4all/build/build_spitbol.sh    # oracle
 ```
 
 ## Build

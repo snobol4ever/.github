@@ -12,21 +12,25 @@
 git config --global user.name "LCherryholmes"
 git config --global user.email "lcherryh@yahoo.com"
 
-# Clone repos
+# Clone repos (adjust to your goal)
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git /home/claude/one4all
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git /home/claude/corpus
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64
-
-# Install tools (adjust for your goal's backend)
-apt-get install -y gcc make libgc-dev    # always needed for scrip
-# x86:  apt-get install -y nasm
-# JVM:  apt-get install -y default-jdk
-# .NET: apt-get install -y mono-complete
-# WASM: apt-get install -y wabt
-
-# Build scrip
-cd /home/claude/one4all && make scrip
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude/csnobol4
 ```
+
+**Build — run only what your goal needs:**
+
+| Goal type | Scripts to run |
+|-----------|---------------|
+| x86 / ASM | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` |
+| JVM | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` `build_java.sh` |
+| .NET / NET | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` |
+| Monitor / Silly | `build_packages.sh` `build_csnobol4.sh` `build_spitbol.sh` `build_monitor_ipc.sh` |
+| Full environment | `bash /home/claude/one4all/build/build_setup.sh` |
+
+All scripts are in `/home/claude/one4all/build/`. Each is idempotent.
+
 
 ---
 
