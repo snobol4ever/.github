@@ -1,98 +1,106 @@
-# GOAL-SNOCONE-BEAUTY — Get beauty.sc (Snocone port of beauty.sno) Working
+# GOAL-SNOCONE-BEAUTY — Get beauty.sc Working via scrip x86
 
 **Repo:** one4all
-**Blocked by:** GOAL-SCRIP-BEAUTY — beauty.sno must pass all 18/18 drivers first.
-**Done when:** `beauty.sc` self-beautifies correctly via `scrip -sc -x86`, producing
-output byte-for-byte identical to the SPITBOL oracle on `beauty.sc` itself.
+**Done when:** `beauty.sc` self-beautifies correctly via `scrip --jit-emit --x64`,
+producing output byte-for-byte identical to the SPITBOL oracle on `beauty.sc` itself.
 
 ---
 
-## What this is
+## No prerequisite — starting now
 
-`beauty.sc` is a Snocone port of `beauty.sno` — the SNOBOL4 beautifier written in
-SNOBOL4, now expressed in Snocone's structured C-like syntax. It lives at:
-
-```
-one4all/test/beauty-sc/beauty/beauty.sc
-```
-
-The subsystem test infrastructure already exists:
-- `test/beauty-sc/run_beauty_sc_subsystem.sh` — compiles `.sc` via `scrip -sc -x86`,
-  assembles with NASM, links against runtime archive, runs, diffs vs `.ref`
-- Individual subsystem drivers in `test/beauty-sc/<subsystem>/driver.sc` + `driver.ref`
-  covering: assign, match, counter, stack, tree, ShiftReduce, TDump, ReadWrite, XDump,
-  semantic, omega, trace, fence, global, strings, arith, roman
-
-The full `beauty.sc` (main program body) includes all library procedures via `-sc` includes.
+`beauty.sno` success is NOT required first. We are doing this in parallel.
+The Snocone x86 path is independent of the SNOBOL4 interpreter path.
 
 ---
 
-## Prerequisite check
+## Current state (diagnosed at goal creation, 2026-04-12)
 
-Before starting any step, confirm GOAL-SCRIP-BEAUTY is ☑ done in PLAN.md.
-If not done, stop and work on GOAL-SCRIP-BEAUTY first.
+**The Snocone frontend is NOT wired into scrip.c.**
 
+The pipeline exists in pieces but is not connected:
+
+| Component | File | State |
+|-----------|------|-------|
+| Lexer | `src/frontend/snocone/snocone_lex.c` | ✅ exists |
+| Parser (shunting-yard → RPN) | `src/frontend/snocone/snocone_parse.c` | ✅ exists |
+| IR lowerer (RPN → EXPR_t/STMT_t) | `src/frontend/snocone/snocone_lower.c` | ❌ does not exist |
+| scrip.c wiring | `src/driver/scrip.c` | ❌ not wired — `.sc` files hit `sno_parse()` (SNOBOL4 parser), get parse error |
+| Makefile | `Makefile` | ❌ snocone files not in build |
+| Subsystem runner | `test/beauty-sc/run_beauty_sc_subsystem.sh` | ❌ uses `-sc -x86` flags that don't exist; must be `--jit-emit --x64` |
+
+**Correct invocation (once wired):**
 ```bash
-grep "SCRIP-BEAUTY" /home/claude/.github/PLAN.md
+./scrip --jit-emit --x64 driver.sc -o driver.s
+nasm -f elf64 -I src/runtime/x86/ driver.s -o driver.o
+gcc -no-pie driver.o <rt_archive> -lgc -lm -o driver_bin
+./driver_bin
 ```
+
+**beauty.sc location:** `one4all/test/beauty-sc/beauty/beauty.sc`
+Main program body only. Library procedures included via `-sc` include mechanism.
 
 ---
 
 ## Verification Technique
 
-Claude reads the output / test result sentence by sentence (or diff line by line).
-For each issue, Claude presents it clearly and asks: **T or F?**
+Claude presents each test result or diff line and asks: **T or F?**
 
-- **T** — assessment is correct. Proceed with fix.
-- **F** — assessment is wrong. Claude re-diagnoses before proceeding.
+- **T** — assessment correct. Proceed with fix.
+- **F** — assessment wrong. Claude re-diagnoses before proceeding.
 
 ---
 
 ## Steps
 
-- [ ] **S-1** — Confirm prerequisite: GOAL-SCRIP-BEAUTY ☑ done.
-  Gate: `grep "Scrip Beauty" PLAN.md` shows ☑.
+- [ ] **S-1** — Fix `run_beauty_sc_subsystem.sh`: replace `-sc -x86` flags with
+  `--jit-emit --x64`. Update invocation line.
+  Gate: script no longer errors on flag parsing (will still fail — Snocone not wired).
 
-- [ ] **S-2** — Run all subsystem drivers to establish baseline:
+- [ ] **S-2** — Add snocone files to Makefile:
+  `src/frontend/snocone/snocone_lex.c` and `src/frontend/snocone/snocone_parse.c`
+  added to the `scrip` object list. Rebuild clean.
+  Gate: `make scrip` succeeds with snocone objects included.
+
+- [ ] **S-3** — Wire `.sc` extension detection in `scrip.c main()`:
+  After `input_path` is known, detect `*.sc` suffix → set `lang_snocone = 1`.
+  In parse block: if `lang_snocone`, call `snocone_lex()` + `snocone_parse()`
+  instead of `sno_parse()`. Stub out IR lowering with a TODO for now.
+  Gate: `./scrip --jit-emit --x64 driver.sc` reaches the snocone parser without
+  crashing (parse result may be empty/stub).
+
+- [ ] **S-4** — Write `src/frontend/snocone/snocone_lower.c`:
+  Takes `ScParseResult` (RPN token array from snocone_parse) → produces
+  `EXPR_t/STMT_t` IR identical in shape to what `sno_parse()` produces.
+  Start with the simplest subsystem driver (assign) and work up.
+  Model: `src/frontend/snobol4/scrip_cc.c` (`cmpile_lower()`).
+  Gate: `assign` subsystem driver compiles, assembles, links, runs, passes diff.
+
+- [ ] **S-5** — Fix each remaining subsystem driver one at a time (simplest first):
+  match, counter, stack, tree, ShiftReduce, TDump, ReadWrite, XDump,
+  semantic, omega, trace, fence, global, strings, arith, roman.
+  For each: run subsystem script, diagnose failure, fix lowerer or runtime, retest.
+  Gate: all present subsystem drivers PASS (skipped ones noted).
+
+- [ ] **S-6** — Run `beauty.sc` end-to-end self-beautification:
   ```bash
   cd /home/claude/one4all
-  CORPUS=/home/claude/corpus bash test/beauty-sc/run_beauty_sc_subsystem.sh \
-      assign match counter stack tree ShiftReduce TDump ReadWrite XDump \
-      semantic omega trace fence global strings arith roman
-  ```
-  Record PASS/FAIL/SKIP counts. These are the starting failures.
-  Gate: baseline counts in hand.
-
-- [ ] **S-3** — Fix each failing subsystem one at a time, in order of simplest first.
-  For each failure: compile error → fix Snocone frontend or runtime; output mismatch →
-  diagnose via SPITBOL oracle diff; link error → fix runtime archive.
-  Gate: all subsystem drivers PASS.
-
-- [ ] **S-4** — Run `beauty.sc` self-beautification end-to-end:
-  ```bash
-  cd /home/claude/one4all
-  # Compile beauty.sc with all includes
-  ./scrip -sc -x86 test/beauty-sc/beauty/beauty.sc -o /tmp/beauty_sc.s
+  ./scrip --jit-emit --x64 test/beauty-sc/beauty/beauty.sc -o /tmp/beauty_sc.s
   nasm -f elf64 -I src/runtime/x86/ /tmp/beauty_sc.s -o /tmp/beauty_sc.o
   gcc -no-pie /tmp/beauty_sc.o out/rt_cache/snocone_rt.a -lgc -lm -o /tmp/beauty_sc_bin
-  # Self-beautify
   /tmp/beauty_sc_bin < test/beauty-sc/beauty/beauty.sc > /tmp/beauty_sc_out.sc
-  # Oracle: SPITBOL on beauty.sno self-beautifies
   /home/claude/x64/bin/sbl -b \
       /home/claude/corpus/programs/snobol4/beauty/beauty.sno \
       < /home/claude/corpus/programs/snobol4/beauty/beauty.sno \
-      > /tmp/beauty_sno_oracle.txt
-  diff /tmp/beauty_sc_out.sc /tmp/beauty_sno_oracle.txt
+      > /tmp/beauty_oracle.txt
+  diff /tmp/beauty_sc_out.sc /tmp/beauty_oracle.txt
   ```
-  Gate: diff is empty — byte-for-byte match with SPITBOL oracle.
+  Gate: diff is empty.
 
-- [ ] **S-5** — Add `run_beauty_sc_full.sh` to `one4all/test/beauty-sc/`:
-  End-to-end runner that compiles, assembles, links, and self-beautifies.
-  Diffs against SPITBOL oracle. Reports PASS or FAIL.
-  Gate: script runs cleanly, PASS reported.
+- [ ] **S-7** — Add `test/beauty-sc/run_beauty_sc_full.sh`: end-to-end runner
+  that compiles, assembles, links, self-beautifies, diffs oracle. Reports PASS/FAIL.
+  Gate: script runs clean, PASS reported.
 
-- [ ] **S-6** — Update PLAN.md: mark this goal ☑ done.
-  Gate: handoff committed.
+- [ ] **S-8** — Update PLAN.md: mark ☑ done.
 
 ---
 
@@ -100,11 +108,15 @@ For each issue, Claude presents it clearly and asks: **T or F?**
 
 | File | Role |
 |------|------|
-| `one4all/test/beauty-sc/beauty/beauty.sc` | Main program (Snocone port of beauty.sno) |
-| `one4all/test/beauty-sc/run_beauty_sc_subsystem.sh` | Subsystem test runner |
-| `one4all/test/beauty-sc/<subsystem>/driver.sc` | Per-subsystem Snocone test driver |
-| `one4all/test/beauty-sc/<subsystem>/driver.ref` | Expected output (SNOBOL4 golden) |
-| `corpus/programs/snobol4/beauty/beauty.sno` | SNOBOL4 original (oracle reference) |
+| `one4all/test/beauty-sc/beauty/beauty.sc` | Main program body (Snocone port of beauty.sno) |
+| `one4all/test/beauty-sc/<sub>/driver.sc` | Per-subsystem Snocone test drivers |
+| `one4all/test/beauty-sc/<sub>/driver.ref` | Expected output |
+| `one4all/test/beauty-sc/run_beauty_sc_subsystem.sh` | Subsystem test runner (needs S-1 fix) |
+| `one4all/src/frontend/snocone/snocone_lex.c` | Lexer ✅ |
+| `one4all/src/frontend/snocone/snocone_parse.c` | Shunting-yard parser ✅ |
+| `one4all/src/frontend/snocone/snocone_lower.c` | IR lowerer ❌ to be written in S-4 |
+| `one4all/src/driver/scrip.c` | Main driver — needs `.sc` wiring in S-3 |
+| `one4all/Makefile` | Needs snocone objects added in S-2 |
 
 ---
 
@@ -112,4 +124,6 @@ For each issue, Claude presents it clearly and asks: **T or F?**
 - Do not push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - SPITBOL (`/home/claude/x64/bin/sbl`) is the oracle.
-- No ad-hoc builds — use or extend scripts in `one4all/build/` or `test/beauty-sc/`.
+- No ad-hoc builds — use or extend `one4all/Makefile` and `test/beauty-sc/` scripts.
+- Build gate before every commit: `make scrip` clean + `run_interp_broad.sh` PASS count
+  must not regress.
