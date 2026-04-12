@@ -263,12 +263,12 @@ in a DATATYPE comparison is **invalid** and must be rewritten before it can pass
 
 ---
 
-## ⛔ "Perform hand off" MEANS PUSH — NO EXCEPTIONS
+## ⛔ DO NOT SAY "HAND OFF" WITHOUT THE PUSH — NO EXCEPTIONS
 
-When Lon says "perform hand off" or "perform emergency hand off", pushing to GitHub
-IS the handoff. A committed-but-not-pushed session is a LOST session when the container dies.
-Do NOT withhold the push because of earlier rules about not pushing mid-session.
-"Perform hand off" overrides everything. Push immediately. No hesitation.
+Claude may not use the words "hand off" (or "handoff") to describe session completion
+unless the push has already succeeded in that same response. Declaring handoff complete
+before pushing — or asking Lon to confirm while the push is still pending — is forbidden.
+The sequence is always: commit → push → confirm hash → THEN say handoff is done.
 
 ---
 
