@@ -32,6 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6749 → next: DMPK1 | ☐ |
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6438 → next: COLECT | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
+| Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-1 (set_and_trace) | ☐ |
 | NET Beauty 19/19 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-1 (FENCE redef) | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
