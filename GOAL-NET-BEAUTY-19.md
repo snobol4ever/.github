@@ -240,3 +240,52 @@ Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
 - Rebase before every .github push.
 - **Windows compatibility:** never use bare `'\n'` as a line separator in C# source; always use `Environment.NewLine`.
 - See RULES.md for full rules including handoff checklist.
+
+## State after BEAUTY-19 session 8
+
+- corpus HEAD: 36ba89b
+- snobol4dotnet HEAD: 45f3e1b (unchanged)
+- Unit tests: 14f/2075p (14f pre-existing)
+- Beauty suite: **15/18** (unchanged)
+
+## Work done session 8
+
+1. **DATATYPE case audit** — checked all beauty .sno files and dependents for hardcoded
+   DATATYPE strings. Found violations in: assign.sno, ShiftReduce.sno,
+   beauty_semantic_driver.sno. XDump.sno already portable. TDump.sno t(x) fields
+   are application type strings not DATATYPE results (not a violation).
+
+2. **assign.sno fixed**: `IDENT(DATATYPE(expression),'EXPRESSION')` →
+   `IDENT(REPLACE(DATATYPE(expression),&LCASE,&UCASE),'EXPRESSION')`
+
+3. **ShiftReduce.sno fixed** (lines 21/23): both EXPRESSION checks now portable.
+
+4. **beauty_semantic_driver.sno fixed**: added `dPATTERN`/`dINTEGER` runtime tokens;
+   tests 1/2/3/8 now use `REPLACE(DATATYPE(x),&LCASE,&UCASE)` comparisons.
+   Tests 1/2/3 now PASS. Tests 5/6/8 still fail — separate runtime bug (below).
+
+5. **S-9 root cause identified** — semantic driver tests 5/6/8 fail due to star-function
+   NRETURN side effects not persisting. When `*PushCounter()`/`*IncCounter()` run as
+   star-functions during pattern matching, their global variable assignments
+   (`$'#N' = link_counter(...)`, `value($'#N') = value($'#N') + 1`) are lost.
+   Verified: calling PushCounter() directly works; only the star-function path fails.
+   The assign.sno star path (`*assign(.x,'after')`) also fails to persist side effects.
+   This is a broader snobol4dotnet runtime bug: NRETURN inside star-functions does
+   not commit side effects. Fix requires investigation in Scanner.cs / ThreadedExecuteLoop.cs.
+
+6. **S-10 root cause confirmed** — ShiftReduce crashes at `GetProgramDefinedDataField`
+   (Data.cs line 169): `InvalidCastException: NameVar→ProgramDefinedDataVar`.
+   Cause: Top() returns `.value($'@S')` (a NAME); caller assigns `nd = Top()` storing
+   the NAME; then `t(nd)` calls DATA field accessor with a NameVar instead of the tree.
+   Fix: in `GetProgramDefinedDataField`, dereference NameVar before cast:
+   ```csharp
+   var arg0 = arguments[0] is NameVar nv ? nv.Dereference(this) : arguments[0];
+   var programDefinedDataVar = (ProgramDefinedDataVar)arg0;
+   ```
+
+7. **S-8B bisect complete** — omega failure triggered by semantic.sno include.
+   Exact reproducer: call TZ(0,'lbl',LEN(1)) then TX(0,LEN(5),'hello') doParseTree=TRUE.
+   TX EVAL string `"(pat ~ 'identifier') $ tx *LEQ(tx,'hello')"` — the `~` is OPSYN'd
+   to `shift` in semantic.sno; `shift()` calls inner EVAL with `*Shift(...)` adding
+   another star slot. The outer EVAL's *LEQ slot index may misalign. Needs further
+   investigation in BuildEval / star slot assignment (session 7 JIT hypothesis still open).
