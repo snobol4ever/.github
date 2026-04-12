@@ -38,6 +38,7 @@ Do not read `archive/` unless a step explicitly says to.
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
+| CSNOBOL4 FENCE(P) | `GOAL-CSNOBOL4-FENCE.md` | csnobol4 | S-1 (opcodes + EQUs) | ☐ |
 | Archive Cleanup | `GOAL-ARCHIVE-CLEANUP.md` | .github | S-12 complete | ☑ |
 
 ---
@@ -51,6 +52,7 @@ Do not read `archive/` unless a step explicitly says to.
 | snobol4jvm | `REPO-snobol4jvm.md` |
 | snobol4python | `REPO-snobol4python.md` |
 | snobol4csharp | `REPO-snobol4csharp.md` |
+| csnobol4 | `REPO-csnobol4.md` |
 | corpus | `REPO-corpus.md` |
 | harness | `REPO-harness.md` |
 
