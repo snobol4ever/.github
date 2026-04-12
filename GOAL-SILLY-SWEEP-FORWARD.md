@@ -43,14 +43,14 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 
 ## Watermark — THE ONLY AUTHORITY
 
-**Current watermark:** v311.sil line **6749**
-**Next block:** DMPK1 (line 6750)
+**Current watermark:** v311.sil line **6927**
+**Next block:** RPLACE (line 6928)
 
 ⛔ This file is the sole authority. SESSION files, SESSIONS_ARCHIVE — all stale. This wins.
 
 To find next block:
 ```bash
-grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1>6749' | head -1
+grep -n "^[A-Z][A-Z0-9]*\b" /home/claude/work/snobol4-2.3.3/v311.sil | awk -F: '$1>6927' | head -1
 ```
 
 ## Steps
