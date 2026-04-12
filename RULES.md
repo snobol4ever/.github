@@ -257,3 +257,17 @@ IDENT(REPLACE(DATATYPE(x), &LCASE, &UCASE), dPATTERN)  :S(ok)F(fail)
 ```
 Any `.ref` file or driver that hardcodes `'PATTERN'`, `'STRING'`, `'INTEGER'` etc.
 in a DATATYPE comparison is **invalid** and must be rewritten before it can pass.
+
+---
+
+## ⛔ NO PUSH WITHOUT EXPLICIT HANDOFF — ENFORCED
+
+Claude has pushed repos mid-session without Lon saying "perform hand off".
+This is a violation of the handoff rule above.
+
+**The rule in plain language:** Do not call `git push` on ANY repo at ANY time
+during a session. Not to test. Not after a "clean" commit. Not even once.
+The ONLY trigger for any push is Lon saying "perform hand off" or
+"perform emergency hand off". No exceptions. No self-justification.
+
+If Claude is tempted to push "just this one thing", that is the signal to stop.
