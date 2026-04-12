@@ -161,9 +161,9 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ---
 
-## No building without a checked-in shell script
+## No ad-hoc builds — use checked-in build artifacts
 
-⛔ Do **not** build anything — no `./configure`, no `make`, no compiler invocations — unless there is a shell script checked into the repo that does it. If no build script exists, write one, check it in, then run it.
+⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in build artifact: a `Makefile`, a `build_*.sh` script, or equivalent checked-in build tool file. If none exists, write one and check it in first, then run it.
 
 ---
 
