@@ -173,6 +173,35 @@ making the result a PatternVar wrapping a deferred call. Investigate:
 - Check `ThreadedCodeCompiler` for how `*` prefix before a function call is handled in patterns.
 - If `_/` Handler = Undefined is wrong, it should call the TOS as a predicate pattern.
 
+## State after BEAUTY-19 session 7
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: 45f3e1b (unchanged — no commits this session)
+- Unit tests: 2375p/0f/2s (baseline confirmed)
+- Beauty suite: **15/18** (unchanged)
+
+## Work done session 7
+
+**S-8B diagnosis advanced — root cause narrowed:**
+
+Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
+
+- Error fires in `Function.cs` when `FunctionTable[functionStringVar.Data]` returns null.
+- `LEQ` is registered under both `"LEQ"` and `"leq"` in FunctionTable — case is not the issue.
+- Star-function index naming confirmed correct: `$"Star{ExpressionList.Count:D8}"` is cumulative; `CompileStarFunctions` loop starts at `StarFunctionList.Count` — both lists grow in sync.
+- `CompileSubExpression` returns `Instruction[]` via `ToArray()` — closure capture of `subThread` is correct.
+- `RunExpressionThread` runs `useFastPath: false` (threaded, not MSIL).
+
+**Key finding:** A probe reproducing tests 1–6 (TZ×2, TY×2, TX×2) with only the omega.sno includes **passes all 6**. The failure only occurs in the full driver which additionally `-INCLUDE`s `counter.sno`, `stack.sno`, `tree.sno`, `ShiftReduce.sno`, `Gen.sno`, `semantic.sno` before any test runs.
+
+**Hypothesis:** Those include files contain star-expressions compiled at load time, shifting ExpressionList/StarFunctionList indices. If any include calls EVAL at load time, the slot count diverges between what the MSIL main thread expects and what StarFunctionList contains at runtime when TX's EVAL fires.
+
+**Next session plan:**
+1. Add missing includes to probe one at a time; find which triggers the failure.
+2. Examine that include for EVAL calls or `*`-expressions at load time.
+3. Determine whether MSIL delegate has stale `PushExprByIndex(N)` while StarFunctionList has grown, or vice versa.
+4. Fix accordingly.
+
 ## Steps
 
 - [x] **S-1** — FENCE redefinition: allow `DEFINE('FENCE(FENCE)')` to redefine FENCE as user function in `Define.cs`; also allow `OPSYN('INPUT',...)` / `OPSYN('OUTPUT',...)` in `Opsyn.cs` (unblocks io.sno). Gate: fence + Gen + io pass → **10/19** ✅
