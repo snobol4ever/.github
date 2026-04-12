@@ -81,8 +81,9 @@ Handoff checklist:
 1. Update state variables in the Goal file (steps, watermarks, HEAD hash, pass counts)
 2. Update Current Step in PLAN.md goals table
 3. `git add -A && git commit` on all touched repos
-4. `git pull --rebase && git push` — code repos first, .github last
-5. Write a clear commit message on .github — this IS the session record
+4. `touch /tmp/handoff_authorized`  ← MUST do this before any push
+5. `git pull --rebase && git push` — code repos first, .github last
+6. Write a clear commit message on .github — this IS the session record
 
 ---
 

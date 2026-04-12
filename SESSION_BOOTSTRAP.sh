@@ -53,6 +53,20 @@ info "Grand Master Reorg (G-9): infrastructure hardened; M-G4-SHARED-OR next"
 step "WHERE — repos"
 cd /home/claude
 
+install_push_guard() {
+    local dir="$1"
+    mkdir -p "$dir/.git/hooks"
+    cat > "$dir/.git/hooks/pre-push" << 'HOOK'
+#!/bin/bash
+if [ ! -f /tmp/handoff_authorized ]; then
+    echo "⛔ PUSH BLOCKED — Lon has not said 'perform hand off'."
+    echo "   Do not push until handoff is called."
+    exit 1
+fi
+HOOK
+    chmod +x "$dir/.git/hooks/pre-push"
+}
+
 clone_or_pull() {
     local repo="$1" dir="$2"
     if [[ -d "$dir/.git" ]]; then
@@ -62,6 +76,7 @@ clone_or_pull() {
     else
         git clone --quiet "$GH/${repo}" "$dir" && ok "$dir (cloned)"
     fi
+    install_push_guard "$dir"
 }
 
 clone_or_pull ".github"  ".github"

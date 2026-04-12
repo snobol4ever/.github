@@ -333,3 +333,25 @@ else
 fi
 echo -e "${BOLD}═══════════════════════════════════════════════════════${RESET}"
 exit $ERRORS
+
+# ── PUSH GUARD — install in every cloned repo ─────────────────────────────────
+# Blocks git push unless /tmp/handoff_authorized exists.
+# That file is created only by the handoff procedure when Lon says "perform hand off".
+install_push_guard() {
+    local repo="$1"
+    mkdir -p "$repo/.git/hooks"
+    cat > "$repo/.git/hooks/pre-push" << 'HOOK'
+#!/bin/bash
+if [ ! -f /tmp/handoff_authorized ]; then
+    echo "⛔ PUSH BLOCKED — Lon has not said 'perform hand off'."
+    echo "   Do not push until handoff is called."
+    exit 1
+fi
+HOOK
+    chmod +x "$repo/.git/hooks/pre-push"
+}
+
+# Call this at the START of handoff procedure, before any git push:
+authorize_push() {
+    touch /tmp/handoff_authorized
+}
