@@ -6,20 +6,16 @@ rung01–rung11 of the Icon corpus ladder.
 
 ---
 
-## Current state (2026-04-13, session in progress)
+## Current state (2026-04-13)
 
-**Score: 49/59 PASS**
+**Score: 59/59 PASS — rung01–rung11 complete.**
 
-Icon runs through unified `interp_eval()` in `scrip.c`. `icn_interp_eval` is
-a 3-line delegator. All Icon IR nodes handled in `interp_eval` unified switch.
-Icon variables use name-based NV store with save/restore around procedure calls
-(no slot arrays, no icn_env). NUMREL fixed to return right operand per SIL spec.
+S-8 ✅ &subject/&pos fixed. S-8B ✅ E_SCAN shared confirmed. S-13 ✅ runner script.
+S-11 ✅ suspend via ucontext. S-12 ✅ 59/59 — E_ALTERNATE + nested_to cross-product.
 
-**Remaining failures (10):**
-- rung01 nested_to (1): pre-existing
-- rung03 suspend (3): E_SUSPEND needs setjmp/longjmp (S-11)
-- rung05 scan (5): &subject keyword + nested scan restore (S-8/S-10)
-- rung08 match (1): pre-existing
+**Architectural pivot (Lon, 2026-04-13):** All goal-directed backtracking must route
+through brokered Byrd boxes mirroring SNOBOL4's interp_eval_pat + exec_stmt + bb_build.
+See GOAL-ICN-BROKER.md for the plan.
 
 | Rung | Feature | PASS | FAIL | Notes |
 |------|---------|------|------|-------|
@@ -153,9 +149,18 @@ infrastructure.
   Gate: make scrip clean + 49/59 PASS unchanged. ✅
 
 - [ ] **S-8** — Fix `&subject` / `&pos` in scan context (rung05).
-  Trace &subject: icon_parse.c → icon_lower.c → icn_exec.
-  Is it E_KEYWORD("subject") or E_VAR("&subject")? Verify node kind emitted.
-  Gate: rung05 5/5.
+  Root cause: `&subject` parsed as E_VAR("&subject") in icon_parse.c (line 136),
+  but interp_eval E_VAR does NV store lookup — not icn_scan_subj global.
+  Fix: in interp_eval E_VAR case, if sval starts with '&', dispatch to E_KEYWORD logic.
+  Gate: rung05 t01–t04 PASS (t05 nested deferred to S-10).
+
+- [x] **S-8B** — Verify Icon/SNOBOL4 IR sharing. ✅ CONFIRMED — no work needed.
+  E_SCAN is already shared: SNOBOL4 parser (snobol4.tab.c) emits E_SCAN(subj,pat) for
+  pattern match; icon_lower.c emits E_SCAN(subj,body) for expr?body. Same node.
+  Scan builtins (any/upto/many/tab/move/match) are correctly handled as E_FNC name
+  dispatch in interp_eval — mirroring exactly what x64/JVM/NET emitters do (strcmp
+  inside E_FNC case). No E_PAT_* nodes exist in the IR; E_FNC name dispatch IS the
+  architecture. No refactor needed.
 
 - [ ] **S-9** — Fix `&` conjunction short-circuit (rung06_cset_any_fail).
   `any(cs) & expr` must not execute expr if any() fails.
@@ -165,13 +170,31 @@ infrastructure.
 - [ ] **S-10** — Fix nested scan subject restore (rung05_scan_nested).
   Gate: rung05 5/5.
 
-- [ ] **S-11** — Translate `emit_suspend` → C using setjmp/longjmp.
-  `suspend expr` = yield expr, resume body on β re-entry.
-  This is the only node requiring genuine coroutine semantics.
-  Mirror emit_suspend() + emit_every() composition in emit_x64.c.
-  Gate: rung03 5/5.
+- [x] **S-11** — Translate `emit_suspend` → C using ucontext coroutines.
+  Each generator proc call gets its own 256KB stack via makecontext/swapcontext.
+  icn_coro_table keyed by E_FNC call node pointer (unique per call site).
+  E_SUSPEND yields via swapcontext; caller resumes via swapcontext back.
+  Gate: rung03 5/5. ✅ Score: 57/59.
 
-- [ ] **S-12** — Full rung01–rung11 pass. Gate: 59/59.
+- [x] **S-12** — Full rung01–rung11 pass. ✅ 59/59 PASS.
+  E_ALTERNATE added (Icon | — try left, if FAIL try right).
+  nested_to fixed (icn_drive E_TO cross-product: iterate all lo × all hi values).
+  Next: GOAL-ICN-BROKER (broker pivot).
+
+- [ ] **S-12B** — PIVOT: Route all goal-directed backtracking through brokered Byrd boxes.
+  **Architectural mandate (Lon, 2026-04-13):** Icon scan/generators and SNOBOL4 pattern
+  match are the same Byrd-box model — all backtracking must go through the broker.
+  **Architectural reality:** exec_stmt/bb_build use PATND_t + spec_t (string-cursor typed).
+  Icon generators produce DESCR_t values, not spec_t substrings. Therefore:
+  - E_SCAN (Icon ?) → exec_stmt (already correct — string match in scan context)
+  - E_TO / E_ITERATE / E_SUSPEND (value generators) → need DESCR_t-typed Byrd boxes
+  Plan:
+  1. Define icn_box_fn: DESCR_t fn(void *zeta, int entry) — value-typed Byrd box
+  2. Implement icn_bb_to, icn_bb_iterate, icn_bb_suspend as icn_box_fn boxes
+  3. Implement icn_broker: drives icn_box_fn α→β*→ω loop (replaces icn_drive)
+  4. E_EVERY in interp_eval: call icn_broker(gen_box, body_fn)
+  5. Remove icn_drive, icn_gen_stack, icn_coro_table — all backtracking via broker
+  Gate: 59/59 PASS; no ad-hoc gen machinery remaining in scrip.c.
 - [ ] **S-13** — Add run_icon_ir_rung.sh runner script.
 - [ ] **S-14** — Update PLAN.md done.
 
@@ -188,7 +211,7 @@ infrastructure.
 ## Key files
 | File | Role |
 |------|------|
-| `src/frontend/icon/icon_interp.c` | Interpreter — translate emit_x64.c to C |
+| `src/frontend/icon/icon_interp.c` | **DEAD CODE** — delete per S-5C note (S-8 session) |
 | `src/backend/emit_x64.c` | **Canonical reference — read before every node** |
 | `src/runtime/x86/engine.h` | Byrd-box engine template (PROCEED/SUCCEED/CONCEDE/RECEDE) |
 | `src/runtime/x86/engine.c` | Byrd-box engine implementation — study this |
