@@ -49,6 +49,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5C (unified interp in scrip.c; 45/59 PASS) | ☐ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unify: eliminate prolog_interp.c, wire into execute_program) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
+| Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-1 (fix generator bugs) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (parser fix done; E_INDIRECT capture write-back bug — BREAK captures empty, REM write-back silent) | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
