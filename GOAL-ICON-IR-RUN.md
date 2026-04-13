@@ -118,8 +118,8 @@ infrastructure.
   Fixes `every total := total + (1 to n)` and cross-product generators.
   Gate: rung02_proc 3/3. ✅ Score: 46/59 on old fork.
 
-- [ ] **S-5C** — Unify Icon IR interpreter into scrip.c (one interpreter).
-  **IN PROGRESS — 45/59 PASS.** One IR, one interpreter.
+- [x] **S-5C** — Unify Icon IR interpreter into scrip.c (one interpreter).
+  **DONE — 47/59 PASS.** One IR, one interpreter.
   Implemented in scrip.c:
   - `icn_execute_program_unified`: proc table + call main
   - `icn_interp_eval(root,e)→DESCR_t`: all Icon node kinds
@@ -132,9 +132,12 @@ infrastructure.
   Remaining: delete `icon_interp.c` fork once 46/59+ reached.
   Gate: 46/59+ PASS through unified path; `icon_execute_program` deleted.
 
-- [ ] **S-6** — Translate `emit_bang` → C for-loop over string chars.
+- [x] **S-6** — Translate `emit_bang` → C for-loop over string chars.
   `!str` generates each character; β = advance position.
-  Gate: rung11 5/5.
+  Implemented: `E_ITERATE` case in `icn_drive` (for-loop over positions) +
+  `E_ITERATE` case in `icn_interp_eval` (returns single-char string via gen_stack sval).
+  Added `sval` field to `IcnGenEntry_d`; added `icn_gen_lookup_sv` helper.
+  Gate: rung11 5/5. ✅ Score: 47/59.
 
 - [ ] **S-7** — Translate `emit_find` (find() builtin) → C for-loop over positions.
   `find(pat,str)` generates all match positions; β = advance past last match.
