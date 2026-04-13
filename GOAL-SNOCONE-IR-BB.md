@@ -154,3 +154,20 @@ we just need snocone_lower to emit the right STMT_t nodes.
 Baseline: 3/14 beauty-sc PASS (assign, fence, global).
 Root cause: snocone_lower skips all control-flow tokens; no subject?pattern lowering.
 Next session starts at **SC-1** (procedure / DEFINE lowering).
+
+---
+
+## Updated state (session 2026-04-13, one4all HEAD dc221b2b)
+
+SC-1 partial — struct lowering done, _builtin_DATA wired in scrip.c.
+- do_struct() in snocone_cf.c: 'struct name { f1,f2 }' → DATA('name(f1,f2)') STMT_t
+- _builtin_DATA in scrip.c calls DEFDAT_fn(spec); registered via register_fn
+
+BLOCKER: field accessors (x(p)) fail — FNCEX_fn('x') returns 0 for post-DEFDAT names;
+APPLY_fn path not reached. Fix: in interp_eval E_FNC, when no body label exists,
+call APPLY_fn unconditionally (remove/bypass FNCEX_fn gate at line ~1766 scrip.c).
+
+**Next session: fix FNCEX_fn gate.** Search for `FNCEX_fn(e->sval)` in scrip.c,
+remove the guard so APPLY_fn is always called when no body label found.
+Gate: `./scrip --ir-run /tmp/test_struct2.sc` → outputs 3 and 4.
+Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
