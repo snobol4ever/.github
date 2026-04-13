@@ -46,78 +46,32 @@ Target architecture:
 
 ### Phase 1 — Define the universal type in bb_box.h (no code changes yet)
 
-- [ ] **U-1** — Add `univ_box_fn` typedef to `bb_box.h`.
-  ```c
-  typedef DESCR_t (*univ_box_fn)(void *zeta, int entry);
-  ```
-  Add `BrokerMode` enum:
-  ```c
-  typedef enum { BB_SCAN, BB_PUMP, BB_ONCE } BrokerMode;
-  ```
-  Keep `bb_box_fn` (`spec_t` return) and `icn_box_fn` (`DESCR_t` return) as deprecated
-  aliases — no callers changed yet. Header compiles clean.
-  Gate: `make scrip` clean; `bash test/smoke.sh` passes.
+- [x] **U-1** — Add `univ_box_fn` typedef and `BrokerMode` enum to `bb_box.h`. DONE.
 
-- [ ] **U-2** — Add `descr_from_spec(spec_t s)` and `spec_from_descr(DESCR_t d)` converters.
-  ```c
-  static inline DESCR_t descr_from_spec(spec_t s) {
-      if (spec_is_empty(s)) return FAILDESCR;
-      return (DESCR_t){ .v = DT_S, .slen = (uint32_t)s.δ, .s = s.σ };
-  }
-  static inline spec_t spec_from_descr(DESCR_t d) {
-      if (d.v != DT_S || !d.s) return spec_empty;
-      return spec(d.s, (int)d.slen);
-  }
-  ```
-  Gate: `make scrip` clean; smoke passes.
+- [x] **U-2** — Add converters `descr_from_spec` / `spec_from_descr` in `bb_convert.h`. DONE.
 
 ---
 
 ### Phase 2 — Implement `bb_broker` alongside the three existing brokers
 
-- [ ] **U-3** — Add `bb_broker()` to a new file `src/runtime/x86/bb_broker.c`.
-  Signature:
-  ```c
-  int bb_broker(bb_node_t root, BrokerMode mode,
-                void (*body_fn)(DESCR_t val, void *arg), void *arg);
-  ```
-  Three modes:
-  - `BB_SCAN`: scan Δ=0..Ω; call `root.fn(root.ζ, α)`; on γ: body_fn + break; advance scan.
-    Mirrors Phase 3 of `stmt_exec.c` exactly.
-  - `BB_PUMP`: call `root.fn(root.ζ, α)`; on γ: body_fn; β-loop until ω.
-    Mirrors `icn_broker` exactly.
-  - `BB_ONCE`: call `root.fn(root.ζ, α)`; on γ: body_fn once; done.
-    Mirrors `pl_exec_goal` exactly.
-  Returns tick count (values/matches produced).
-  Root fn called via `univ_box_fn` cast — caller is responsible for box type match.
-  Gate: `make scrip` clean; smoke passes. (No callers yet — just compilation.)
+- [x] **U-3** — `bb_broker()` implemented in `src/runtime/x86/bb_broker.c`. DONE.
 
-- [ ] **U-4** — Write a self-contained unit test in `test/test_bb_broker.c`.
-  Build three hand-wired boxes (one per mode), drive with `bb_broker`, assert tick counts.
-  No frontends involved — pure broker test.
-  Gate: `gcc test/test_bb_broker.c src/runtime/x86/bb_broker.c ... && ./a.out` exits 0.
+- [x] **U-4** — Unit test `test/test_bb_broker.c` — 22/22 PASS all three modes. DONE.
 
 ---
 
 ### Phase 3 — Convert SNOBOL4 boxes to return DESCR_t
 
-- [ ] **U-5** — Convert `bb_box_fn` typedef in `bb_box.h` to return `DESCR_t`.
-  Before: `typedef spec_t (*bb_box_fn)(void *zeta, int entry);`
-  After:  `typedef DESCR_t (*bb_box_fn)(void *zeta, int entry);`
-  This is the breaking change. All 27 `bb_*` functions in `bb_boxes.c` must be updated.
-  Internal box state (`seq_t.matched`, `arbno_frame_t`, etc.) that stores `spec_t`
-  for cursor bookkeeping stays as `spec_t` — those are internal, not return values.
-  Return sites: `return spec(...)` → `return descr_from_spec(spec(...))`.
-  Return sites: `return spec_empty` → `return FAILDESCR`.
-  Phase 3 in `stmt_exec.c`: reads result as `spec_t` today — switch to `spec_from_descr()`.
-  Gate: `make scrip` clean; `bash test/smoke.sh` passes; `bash test/regression.sh` non-regressing.
+- [x] **U-5** — All 27 C boxes return DESCR_t. new descr.h breaks circular include.
+  stmt_exec.c, pl_broker.c updated. regression PASS=49/149 vs baseline 41. DONE.
 
-- [ ] **U-6** — Update `bb_boxes.s` (assembly boxes) to return `DESCR_t`.
-  The assembly boxes (`bb_atp`, `bb_nv_set`, `bb_nv_get` etc.) return via rax:rdx.
-  `spec_t` layout: rax=σ ptr, rdx=δ int.
-  `DESCR_t` layout: rax=low qword {v,slen}, rdx=high qword {s or i}.
-  Update each asm box return sequence to pack `DESCR_t` correctly.
-  Gate: `make scrip` clean; smoke + regression non-regressing.
+- [ ] **U-6** — Update `bb_boxes.s` assembly boxes to return `DESCR_t`. PARTIAL.
+  DONE: 26 ω failure returns: xor eax,eax → mov eax,99 (DT_FAIL=99). rdx already 0.
+  REMAINING: 27 γ success returns still use spec_t packing (rax=σ ptr, rdx=δ int).
+  Must repack to DESCR_t: rax=low qword {DT_S=1 in bits 0-31, slen=δ in bits 32-63},
+  rdx=high qword {s=σ ptr}. Each box has unique stack layout — do one at a time.
+  Only affects --bb-live x86 path (pre-existing failure). Interpreter unaffected.
+  Gate: make scrip clean; smoke + regression non-regressing.
 
 ---
 
