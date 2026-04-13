@@ -5,7 +5,8 @@
 
 ---
 
-## SESSION START — every session, no exceptions
+## ⛔ SESSION START — every session, no exceptions
+
 
 Lon names a goal. You:
 
@@ -33,19 +34,15 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-1 (add univ_box_fn + BrokerMode to bb_box.h) | ☐ |
-| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
-| Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1C-5 BROKEN 7/14 PASS — pivot to BB Byrd next session | ☐ |
-| Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | S-BB-8 (body-loop replacement; cenv-capture fix needed) | ☐ |
-| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ |
+| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-7 (find() generator; 47/59 PASS) | ☐ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unified interp — Phase 1B first) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
+| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (parser fix done; E_INDIRECT capture write-back bug — BREAK captures empty, REM write-back silent) | ☐ |
-| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | DONE (18/18) | ☑ |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 (fix nTop() RETURN→NRETURN in pattern context) | ☐ |
-| OPSYN error 248 | `GOAL-NET-OPSYN-248.md` | corpus/snobol4dotnet | S-1 (audit which names SPITBOL protects) | ☐ |
+| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
@@ -105,7 +102,7 @@ The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native co
 
 | Lon says | Meaning |
 |----------|---------|
-| "perform hand off" | Normal end of session — update goal state, commit all repos, push .github last, write clear commit message |
+| "perform hand off" | End of session — update goal state, commit all repos, push .github last, write clear commit message |
 | "perform emergency hand off" | Same as above but something is broken or incomplete — note the breakage explicitly in the commit message and goal file state |
 | "here we go" | Session is starting — Lon has named a goal, proceed with session start protocol |
 | "grand master reorg" | HQ system work — the goal is improving the HQ itself |
