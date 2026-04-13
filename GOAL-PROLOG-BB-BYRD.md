@@ -82,13 +82,13 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Steps
 
-- [ ] **S-BB-1** — Define `Pl_GoalBox` and `pl_exec_goal()` in new
+- [x] **S-BB-1** — Define `Pl_GoalBox` and `pl_exec_goal()` in new
   `src/frontend/prolog/pl_broker.c` + `pl_broker.h`.
   `pl_exec_goal` calls `root.fn(root.zeta, α)`, returns 1 on γ, 0 on ω.
   Add `pl_broker.o` to Makefile.
   Gate: `make scrip` clean; rung01–rung11 unaffected (old path still active).
 
-- [ ] **S-BB-2** — Implement leaf boxes in `pl_broker.c`:
+- [x] **S-BB-2** — Implement leaf boxes in `pl_broker.c`:
   `pl_box_true()`: γ on α, ω on β (succeed once).
   `pl_box_fail()`: ω on both (always fail).
   `pl_box_builtin()`: α calls `interp_exec_pl_builtin()`; β returns ω.
@@ -172,5 +172,8 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Current state
 
-Not started. Awaiting S-1C-5 completion as prerequisite.
-Next: S-BB-1 (define Pl_GoalBox and pl_exec_goal broker).
+S-BB-1 and S-BB-2 complete. one4all HEAD 2e1f89ca.
+pl_broker.c/h created. pl_exec_goal(), pl_box_true(), pl_box_fail(), pl_box_builtin() implemented.
+interp_exec_pl_builtin() promoted non-static; prolog_builtin.h updated with EXPR_T_DEFINED guard.
+make scrip clean. hello.pl → Hello, World! baseline holds.
+Next: S-BB-3 (CAT/AND-box).
