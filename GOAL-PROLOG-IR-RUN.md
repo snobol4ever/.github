@@ -8,37 +8,29 @@ the existing Prolog corpus rung tests.
 
 ## Current state (2026-04-12, one4all HEAD)
 
-S-1 through S-9 complete. S-10 in progress: S-10a and S-10b done this session.
-prolog_interp.c rewritten as proper Byrd box four-port mirror of prolog_emit.c:
-- pl_call(): resumable dispatcher; cut is LOCAL — never propagates past predicate boundary
-- pl_exec_clause(): unify head args, execute body
-- pl_exec_body(): retry loop rebuilds args from env each iteration (trail-unwind safe)
-- pl_exec_goal(): all builtins including ;/N ->/N \+/1 functor/3 arg/3 =../2 (all n-ary aware)
-- Predicate table: hash map keyed by functor/arity string
-
-Corpus rung results: PASS=12/107 (session start: 10).
+S-1 through S-9 complete. S-10a and S-10b complete. S-10c in progress.
+PASS=12/107 (baseline restored after session-end truncation recovery).
 Passing: rung01 rung02 rung03 rung04 rung06 rung07 rung08 rung09
          rung14_retract_all rung14_retract_nonexistent rung22_print rung23_max_min.
 
-Key architectural findings this session:
-- Lowerer emits ,/;/-> as n-ary E_FNC (right-spine flattened) — interp must handle any arity.
-- cut must NOT short-circuit forward body execution — only prevents retry.
-- Proebsting retry-loop (start=r+1) fails for recursive predicates: after clause 2
-  (recursive) succeeds once, start advances to 3 (nonexistent) instead of re-entering
-  clause 2's inner backtrack tree. member/2 on [a,b,c] finds only a and b, not c.
+This session: recovered from truncated prolog_interp.c (pl_exec_body was cut mid-write
+at prior session end). Restored exact prior working state from git commit 02439a1a.
+PASS=12/107 confirmed.
 
-S-10c diagnosis — recursive backtracking:
-  The retry loop in pl_exec_body drives choice at the CALL SITE level (which clause
-  of the predicate to try). Recursive predicates need re-entry into the INNER body
-  of the successful clause — i.e., the recursive sub-call must be retried, not the
-  outer clause restarted. This requires either:
-    (a) A global WAM-style choice point stack where each pl_call registers a CP,
-        failure pops to the innermost CP and longjmps back to its retry loop; or
-    (b) CPS transform: pl_exec_body takes a continuation and calls it; on failure
-        the loop retries — but continuation must be re-enterable across C frames.
-  Option (a) is the right approach. See ChoicePoint struct already added to file.
-  Next session: implement global CP stack properly — push CP before pl_call,
-  longjmp on failure from pl_exec_body when retry loop exhausted, pop on success.
+S-10c diagnosis — recursive backtracking (CONFIRMED, not yet fixed):
+  Root cause: pl_call() runs a clause's entire body to exhaustion before returning.
+  member(X,[a,b,c]) clause 1 internally finds both b and c but pl_call returns -1
+  (ω) after exhausting all of them. The outer pl_exec_body retry loop never sees
+  individual b and c successes — only sees failure.
+  
+  Fix: pl_exec_body user-call section must setjmp before calling the continuation.
+  When continuation fails (from anywhere deep), longjmp back to the setjmp point
+  in pl_exec_body to retry the next clause. pl_fail_to_cp() must be wired into
+  pl_exec_goal for fail/0 and into user-call failure path.
+  
+  ChoicePoint struct and cp_stack[] already in file from prior attempt.
+  Next session: wire setjmp into pl_exec_body user-call loop; wire longjmp into
+  pl_exec_goal fail/0 and user-call ω path; pop CP correctly on cut/ω.
 
 SNOBOL4 smoke: sm-run PASS, ir-run PASS (x86 emit pre-existing failure).
 
