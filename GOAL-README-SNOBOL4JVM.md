@@ -48,5 +48,4 @@ commits the corrected README.
 - [ ] **S-6** — Final read-through. Every sentence accurate. Lon approves.
 
 ## Rules
-- Do not push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.

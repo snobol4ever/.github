@@ -222,7 +222,6 @@ infrastructure.
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Build gate: `make scrip` clean + SNOBOL4 PASS=204 unchanged after every commit.
 - **Read `emit_x64.c` for the node BEFORE implementing it.**

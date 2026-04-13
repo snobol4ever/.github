@@ -103,7 +103,6 @@ This goal replaces all of it with the brokered architecture.
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 - Build gate: make scrip clean + rung01-11 score non-regressing after every step.
 - Mirror bb_box.h / exec_stmt architecture exactly — same four signals, same loop.

@@ -97,7 +97,6 @@ suite can be written and run.
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - S-1 must be complete before S-2 through S-5 can be written.
 - Oracle: swipl for Prolog output, icont for Icon output, SPITBOL for SNOBOL4.

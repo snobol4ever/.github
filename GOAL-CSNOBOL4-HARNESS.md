@@ -89,7 +89,6 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 
 ## Rules
 
-- Commit after each step. No pushing until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
 - See RULES.md for full handoff checklist.

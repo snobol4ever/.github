@@ -127,7 +127,6 @@ Claude presents each test result or diff line and asks: **T or F?**
 ---
 
 ## Rules
-- Do not push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - SPITBOL (`/home/claude/x64/bin/sbl`) is the oracle.
 - No ad-hoc builds — use or extend `one4all/Makefile` and `test/beauty-sc/` scripts.

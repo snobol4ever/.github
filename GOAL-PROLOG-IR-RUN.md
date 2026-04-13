@@ -291,7 +291,6 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Build gate before every commit: `make scrip` + `run_interp_broad.sh` must not regress.
 - No ad-hoc builds — use/extend `Makefile` and `test/` scripts.

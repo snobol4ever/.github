@@ -264,17 +264,6 @@ in a DATATYPE comparison is **invalid** and must be rewritten before it can pass
 
 ---
 
-## ⛔ DO NOT SAY "HAND OFF" WITHOUT THE PUSH — NO EXCEPTIONS
+## Handoff sequence
 
-before pushing — or asking Lon to confirm while the push is still pending — is forbidden.
 The sequence is always: commit → push → confirm hash → THEN say handoff is done.
-
----
-
-## ⛔ NO PUSH WITHOUT EXPLICIT HANDOFF — ENFORCED
-
-
-**The rule in plain language:** Do not call `git push` on ANY repo at ANY time
-during a session. Not to test. Not after a "clean" commit. Not even once.
-
-If Claude is tempted to push "just this one thing", that is the signal to stop.
