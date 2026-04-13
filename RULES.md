@@ -49,9 +49,7 @@ Set in every repo at session start. Every commit in every repo.
 
 ## Token — never on disk
 
-Token is provided by Lon at session start. Use freely in shell commands.
-Never write to any file. Never in commit messages. Never in HQ docs.
-Use `TOKEN_SEE_LON` as placeholder in any doc that references a clone URL.
+Never write the token to disk.
 
 ---
 
