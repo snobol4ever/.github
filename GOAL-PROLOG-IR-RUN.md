@@ -33,7 +33,7 @@ S-10c DONE: recursive backtracking fixed via continuation-passing interpreter.
   pl_exec_body() is a wrapper calling pl_exec_body_k(..., cont_done).
   pl_call() unchanged — used by pl_exec_goal for \+ and single-shot calls.
 
-Next: S-10d findall/3.
+Next: **S-1B-1** (Phase 1B — unified interpreter). Do NOT resume S-10d until Phase 1B complete.
 
 SNOBOL4 smoke: sm-run PASS, ir-run PASS (x86 emit pre-existing failure).
 
@@ -98,7 +98,62 @@ Claude presents each test result and asks: **T or F?**
   on failure pop and resume. Mirror pl_call's clause loop but save continuation across C stack frames.
   Gate: rung05 PASS (member/2 with fail-loop finds all 3 solutions).
 
+---
+
+## Phase 1B — Unify: eliminate prolog_interp.c, wire Prolog into execute_program()
+
+**⛔ DO THIS BEFORE the S-10x builtin ladder. This is the architectural foundation.**
+
+**Architectural correction.** SCRIP has one IR and one `--ir-run` interpreter:
+`execute_program()` in `scrip.c`. The six Prolog IR nodes (`E_CHOICE`, `E_CLAUSE`,
+`E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`) are already canonical in
+`ir.h` alongside SNOBOL4 and Icon nodes. The separate `pl_execute_program()` /
+`prolog_interp.c` tree-walker is wrong — it duplicates interpreter infrastructure
+that belongs in one place. These steps eliminate it.
+
+All Prolog runtime helpers (unify, trail, term, atom, builtin) remain as support
+libraries — only the top-level dispatch loop and clause/choice execution move into
+`execute_program()`.
+
+- [ ] **S-1B-1** — Add Prolog runtime state to `execute_program()`:
+  Trail, atom table, predicate table (functor/arity → E_CHOICE*), CP stack.
+  Build predicate table by walking `prog->head` stmts at program start,
+  identical to what `pl_execute_program()` does today.
+  Gate: compiles clean; no behaviour change yet.
+
+- [ ] **S-1B-2** — Add `interp_eval_prolog_term()` to `scrip.c`:
+  Converts `EXPR_t*` → `Term*` using a per-clause variable env.
+  Mirrors `pl_term_from_expr()` from `prolog_interp.c` — move, don't duplicate.
+  Gate: compiles clean.
+
+- [ ] **S-1B-3** — Add `E_CHOICE` / `E_CLAUSE` handling to `execute_program()`
+  statement loop. When the top-level stmt subject is `E_CHOICE` (predicate
+  definition), register it in the predicate table. When stmt subject is `E_CLAUSE`
+  (a bare clause at top level), execute it directly. Entry point: call `main/0`
+  after all stmts are registered, using the shared CP-stack dispatcher.
+  Gate: `./scrip --ir-run hello.pl` prints `Hello, World!`.
+
+- [ ] **S-1B-4** — Add `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`,
+  `E_FNC` (Prolog builtins) to `interp_eval()` in `scrip.c`.
+  These are goal-context evaluations: return success/failure signal rather than
+  a DESCR_t value. Add a `interp_exec_goal()` wrapper that dispatches by kind.
+  Gate: rung01–rung04 still PASS, rung07 still PASS.
+
+- [ ] **S-1B-5** — Delete `prolog_interp.c` and `prolog_interp.h`.
+  Remove `pl_execute_program()` call from `scrip.c` main dispatch.
+  Remove `lang_prolog` branch that called `pl_execute_program()` — Prolog now
+  falls through to the unified `execute_program()` path.
+  Gate: `make scrip` clean; all previously passing rungs still PASS.
+
+- [ ] **S-1B-6** — Run full rung01–rung09 regression. Fix any delta.
+  Gate: PASS count ≥ 13/107 (session-start baseline).
+
+---
+
+## S-10x builtin ladder — do AFTER Phase 1B complete
+
 - [ ] **S-10d** — `findall/3`: save trail mark, call Goal collecting solutions, restore trail.
+  Note: partial implementation exists in prolog_interp.c (3/5 rung11); reimplement cleanly in scrip.c.
   Gate: rung11 5/5 PASS.
 
 - [ ] **S-10e** — `assertz/asserta/retract/abolish`: dynamic predicate table mutation.
@@ -159,54 +214,6 @@ Claude presents each test result and asks: **T or F?**
   Gate: script runs clean, results reproducible.
 
 - [ ] **S-13** — Update PLAN.md ☑ done.
-
----
-
-## Phase 1B — Unify: eliminate prolog_interp.c, wire Prolog into execute_program()
-
-**Architectural correction.** SCRIP has one IR and one `--ir-run` interpreter:
-`execute_program()` in `scrip.c`. The six Prolog IR nodes (`E_CHOICE`, `E_CLAUSE`,
-`E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`) are already canonical in
-`ir.h` alongside SNOBOL4 and Icon nodes. The separate `pl_execute_program()` /
-`prolog_interp.c` tree-walker is wrong — it duplicates interpreter infrastructure
-that belongs in one place. These steps eliminate it.
-
-All Prolog runtime helpers (unify, trail, term, atom, builtin) remain as support
-libraries — only the top-level dispatch loop and clause/choice execution move into
-`execute_program()`.
-
-- [ ] **S-1B-1** — Add Prolog runtime state to `execute_program()`:
-  Trail, atom table, predicate table (functor/arity → E_CHOICE*), CP stack.
-  Build predicate table by walking `prog->head` stmts at program start,
-  identical to what `pl_execute_program()` does today.
-  Gate: compiles clean; no behaviour change yet.
-
-- [ ] **S-1B-2** — Add `interp_eval_prolog_term()` to `scrip.c`:
-  Converts `EXPR_t*` → `Term*` using a per-clause variable env.
-  Mirrors `pl_term_from_expr()` from `prolog_interp.c` — move, don't duplicate.
-  Gate: compiles clean.
-
-- [ ] **S-1B-3** — Add `E_CHOICE` / `E_CLAUSE` handling to `execute_program()`
-  statement loop. When the top-level stmt subject is `E_CHOICE` (predicate
-  definition), register it in the predicate table. When stmt subject is `E_CLAUSE`
-  (a bare clause at top level), execute it directly. Entry point: call `main/0`
-  after all stmts are registered, using the shared CP-stack dispatcher.
-  Gate: `./scrip --ir-run hello.pl` prints `Hello, World!`.
-
-- [ ] **S-1B-4** — Add `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`,
-  `E_FNC` (Prolog builtins) to `interp_eval()` in `scrip.c`.
-  These are goal-context evaluations: return success/failure signal rather than
-  a DESCR_t value. Add a `interp_exec_goal()` wrapper that dispatches by kind.
-  Gate: rung01–rung04 still PASS, rung07 still PASS.
-
-- [ ] **S-1B-5** — Delete `prolog_interp.c` and `prolog_interp.h`.
-  Remove `pl_execute_program()` call from `scrip.c` main dispatch.
-  Remove `lang_prolog` branch that called `pl_execute_program()` — Prolog now
-  falls through to the unified `execute_program()` path.
-  Gate: `make scrip` clean; all previously passing rungs still PASS.
-
-- [ ] **S-1B-6** — Run full rung01–rung09 regression. Fix any delta.
-  Gate: PASS count ≥ 12/107 (session-start baseline).
 
 ---
 
