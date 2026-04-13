@@ -167,15 +167,66 @@ Claude presents each test result and asks: **T or F?**
 
 ---
 
+## Phase 1B — Unify: eliminate prolog_interp.c, wire Prolog into execute_program()
+
+**Architectural correction.** SCRIP has one IR and one `--ir-run` interpreter:
+`execute_program()` in `scrip.c`. The six Prolog IR nodes (`E_CHOICE`, `E_CLAUSE`,
+`E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`) are already canonical in
+`ir.h` alongside SNOBOL4 and Icon nodes. The separate `pl_execute_program()` /
+`prolog_interp.c` tree-walker is wrong — it duplicates interpreter infrastructure
+that belongs in one place. These steps eliminate it.
+
+All Prolog runtime helpers (unify, trail, term, atom, builtin) remain as support
+libraries — only the top-level dispatch loop and clause/choice execution move into
+`execute_program()`.
+
+- [ ] **S-1B-1** — Add Prolog runtime state to `execute_program()`:
+  Trail, atom table, predicate table (functor/arity → E_CHOICE*), CP stack.
+  Build predicate table by walking `prog->head` stmts at program start,
+  identical to what `pl_execute_program()` does today.
+  Gate: compiles clean; no behaviour change yet.
+
+- [ ] **S-1B-2** — Add `interp_eval_prolog_term()` to `scrip.c`:
+  Converts `EXPR_t*` → `Term*` using a per-clause variable env.
+  Mirrors `pl_term_from_expr()` from `prolog_interp.c` — move, don't duplicate.
+  Gate: compiles clean.
+
+- [ ] **S-1B-3** — Add `E_CHOICE` / `E_CLAUSE` handling to `execute_program()`
+  statement loop. When the top-level stmt subject is `E_CHOICE` (predicate
+  definition), register it in the predicate table. When stmt subject is `E_CLAUSE`
+  (a bare clause at top level), execute it directly. Entry point: call `main/0`
+  after all stmts are registered, using the shared CP-stack dispatcher.
+  Gate: `./scrip --ir-run hello.pl` prints `Hello, World!`.
+
+- [ ] **S-1B-4** — Add `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`,
+  `E_FNC` (Prolog builtins) to `interp_eval()` in `scrip.c`.
+  These are goal-context evaluations: return success/failure signal rather than
+  a DESCR_t value. Add a `interp_exec_goal()` wrapper that dispatches by kind.
+  Gate: rung01–rung04 still PASS, rung07 still PASS.
+
+- [ ] **S-1B-5** — Delete `prolog_interp.c` and `prolog_interp.h`.
+  Remove `pl_execute_program()` call from `scrip.c` main dispatch.
+  Remove `lang_prolog` branch that called `pl_execute_program()` — Prolog now
+  falls through to the unified `execute_program()` path.
+  Gate: `make scrip` clean; all previously passing rungs still PASS.
+
+- [ ] **S-1B-6** — Run full rung01–rung09 regression. Fix any delta.
+  Gate: PASS count ≥ 12/107 (session-start baseline).
+
+---
+
 ## Key files
 | File | Role |
 |------|------|
-| `src/frontend/prolog/prolog_lower.c` | `prolog_lower()` → `Program*` |
-| `src/frontend/prolog/prolog_lower.h` | E_CLAUSE layout documentation |
-| `src/frontend/prolog/prolog_unify.c` | `unify()`, `trail_*` — use as-is |
-| `src/frontend/prolog/prolog_runtime.h` | `Trail`, `EnvLayout` types |
-| `src/frontend/prolog/term.h` | `Term` type |
-| `src/driver/scrip.c` | Add `pl_*` interpreter functions here (S-3–S-9) |
+| `src/ir/ir.h` | Canonical IR node kinds — 6 Prolog nodes already defined |
+| `src/driver/scrip.c` | `execute_program()` — THE one IR interpreter; Prolog goes here |
+| `src/frontend/prolog/prolog_lower.c` | `prolog_lower()` → `Program*` (frontend, keep) |
+| `src/frontend/prolog/prolog_lower.h` | E_CLAUSE layout documentation (keep) |
+| `src/frontend/prolog/prolog_unify.c` | `unify()`, `trail_*` — runtime support, keep |
+| `src/frontend/prolog/prolog_runtime.h` | `Trail`, `EnvLayout` types — keep |
+| `src/frontend/prolog/term.h` | `Term` type — keep |
+| `src/frontend/prolog/prolog_interp.c` | DELETE after Phase 1B complete |
+| `src/frontend/prolog/prolog_interp.h` | DELETE after Phase 1B complete |
 | `test/prolog/hello.pl` | Primary smoke test |
 | `test/prolog/palindrome.pl` | Secondary smoke test |
 
