@@ -67,6 +67,5 @@ commits the corrected README.
 ---
 
 ## Rules
-- Do not push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before .github push: `git pull --rebase origin main && git push`.

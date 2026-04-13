@@ -114,7 +114,6 @@ BASELINE=?       # run_interp_broad.sh PASS count before this goal (set in S-1)
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - No ad-hoc builds — use `make scrip` and scripts in `one4all/build/`.
 - Do not modify corpus `.sno` source to work around any regression.

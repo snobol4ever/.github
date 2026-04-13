@@ -64,7 +64,6 @@ dynamically-evaluated SNOBOL4 strings. This is the last live use.
 ---
 
 ## Rules
-- No push until "perform hand off".
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
 - `CMPILE.c` and `CMPILE.h` stay on disk — do not delete them.
 
