@@ -34,9 +34,12 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
-| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-7 (find() generator; 47/59 PASS) | ☐ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unified interp — Phase 1B first) | ☐ |
-| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-6 PARTIAL (ω done; γ repack remaining) | ☐ |
+| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
+| Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1C-5 BROKEN 7/14 PASS — pivot to BB Byrd next session | ☐ |
+| Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | S-BB-8 (body-loop replacement; cenv-capture fix needed) | ☐ |
+| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
 | Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
