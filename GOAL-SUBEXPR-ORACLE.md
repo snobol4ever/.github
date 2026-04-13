@@ -440,3 +440,71 @@ Setting `&STLIMIT = &STCOUNT - 1` in the test stops execution one statement
 before the bomb — which is exactly before the target line on iteration N.
 The test inherits state from N-1 prior iterations, not just iteration 1.
 
+
+---
+
+## Probe technique clarifications (session 10)
+
+### Single counter is sufficient for nested loops
+
+For nested loops you only need ONE counter at the target line.
+Each pass through that line — regardless of which outer/inner
+iteration caused it — increments the same counter.
+"Fire on the 5th crossing of this line" captures exactly the
+5th time execution reaches it, automatically accounting for
+however many outer/inner iterations led there.
+
+Multiple counters (or state checks) are for more specific conditions:
+fire only when BOTH `x > 10` AND this line has been hit 3 times.
+That is general predicate-gated firing, not just loop counting.
+
+General form of the bomb:
+```snobol4
+        SNBcnt = SNBcnt + 1          * increment crossing counter
+        EQ(SNBcnt, N)     :F(SNBsk)  * fire on Nth crossing only
+*       (optional extra predicates before the OUTPUT)
+        IDENT(somevar, 'badval') :F(SNBsk)  * additional condition
+        OUTPUT = 'XBOMB' &STCOUNT 'XBOMBEND'
+SNBsk
+```
+
+### SETEXIT for crash/exception location
+
+When scrip crashes (interpreter exception, divide by zero, assertion
+failure) during execution of stmt N, the SNOBOL4 statement number
+is not directly available from the C side. But in SNOBOL4 you can:
+
+1. Register a SETEXIT handler at the top of the program:
+```snobol4
+        SETEXIT('SNBexitHandler')
+        ...program...
+SNBexitHandler
+        OUTPUT = 'CRASH at &STCOUNT=' &STCOUNT ' &LASTNO=' &LASTNO
+        OUTPUT = 'CRASH &LASTFILE=' &LASTFILE ' &LASTLINE=' &LASTLINE
+END
+```
+
+2. When the interpreter crashes or hits an untrapped error, SETEXIT
+fires. `&STCOUNT` at that point tells you exactly which statement
+was executing. `&LASTNO`/`&LASTLINE`/`&LASTFILE` give the source
+location of the last completed statement.
+
+3. Use `&STCOUNT` from SETEXIT as the bomb target: run again with a
+counter bomb at `&LASTLINE` in `&LASTFILE`, fire when counter = 1.
+That gives you the stlimit to stop just before the crash.
+
+### How interpreter exceptions propagate to SNOBOL4
+
+A SNOBOL4 divide-by-zero or similar runtime error raises error code
+in `&ERRTYPE`/`&CODE`. If `&ERRLIMIT > 0`, execution resumes at
+next statement. SETEXIT catches untrapped errors and abends.
+
+For scrip (our interpreter): C-level crashes (segfault, assertion) do
+NOT propagate to SETEXIT — they are OS signals. For those, the
+stlimit approach is the only option: binary-search the crash point
+by varying `&STLIMIT` until the crash just barely doesn't happen.
+
+The counter bomb at the crashing line with `EQ(SNBcnt, N)` lets you
+stop at exactly the Nth crossing — one before the crash — with full
+state captured for the gauntlet.
+
