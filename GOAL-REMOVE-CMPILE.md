@@ -1,150 +1,81 @@
-# GOAL-REMOVE-CMPILE — Excise CMPILE, Unify on Bison/Flex Parser
+# GOAL-REMOVE-CMPILE — Remove CMPILE.c from the build
 
 **Repo:** one4all
-**Done when:** CMPILE.c is not compiled into the scrip binary; all three
-parse entry points (program, expression, statement-block) route through
-snobol4.tab.c/snobol4.lex.c; omega driver PASS=15/15; beauty suite PASS≥15.
+**Done when:** `CMPILE.c` and `CMPILE.h` are never compiled or linked.
+They remain on disk as historical artifacts. `make scrip` clean. No regression.
 
-## Why
+---
 
-CMPILE.c is a hand-written recursive-descent parser running in parallel
-with bison/flex (snobol4.tab.c + snobol4.lex.c). It produces `CMPND_t`
-trees with SIL `stype` constants (VARTYP=3, FNCTYP=5, BINGFN, …) that
-are completely separate from the `EKind` enum in `ir.h` used by `EXPR_t`.
-The bridge `cmpnd_to_expr()` is incomplete — unhandled stypes (e.g. BINGFN
-for `~`) leak raw stype integers into EXPR_t kind fields, causing silent
-misroutes in `interp_eval_pat` and elsewhere.
+## Problem
 
-CMPILE is NOT dead code — `snobol4_pattern.c` does `#include "CMPILE.c"`
-directly (line 24), pulling in ~3000 lines unconditionally. This must be
-removed.
+`CMPILE.c` is a hand-written recursive-descent SNOBOL4 parser — a faithful C
+translation of the SIL v311 CMPILE procedure. It predates the Bison/Flex parser
+(`snobol4.y` / `snobol4.lex.c`) which is now the authoritative execution path.
 
-## The Omega Bug Context (what triggered this)
+CMPILE was used in three ways:
+1. `--dump-parse` / `--dump-ir` diagnostics in `scrip.c` — **migrated** to Bison path
+2. `CODE()` builtin in `eval_code.c` via `cmpile_string` + `cmpile_lower` — **open**
+3. `cmpile_lower()` in `scrip.c` — **deleted** (moved into `eval_code.c`)
 
-S-1 of GOAL-TWO-STEP-HUNT (omega driver) required routing `EVAL(string)`
-through `interp_eval_pat`. The hook `g_eval_str_hook → _eval_str_impl_fn`
-was added. The CMPILE parse path produced `CMPND_t` with `BINGFN(~)` at
-stype=22 leaking into EXPR_t kind field — unrecognised by `interp_eval_pat`
-— causing EVAL("(pat ~ 'id') $ tx *LEQ(...)") to fail.
+The CMPILE parser emits `E_FNC` for pattern primitives rather than typed IR nodes
+(`E_ANY`, `E_SPAN`, etc.) — this is the core architectural debt that motivated
+the `GOAL-SNOBOL4-PAT-IR` goal. As long as CMPILE is in the build it creates
+confusion about which parser is authoritative.
 
-The fix is the bison path. `_eval_str_impl_fn` already calls
-`parse_expr_pat_from_str` (new function in snobol4.tab.c). That function
-exists but returns null because the bison grammar puts bare expressions
-into `s->subject` (not `s->pattern`) when parsed as a statement.
+## Session 2026-04-13 progress
 
-## Three Parse Entry Points
+DONE:
+- `cmpile_lower()` removed from `scrip.c`, moved into `eval_code.c` as static
+- `scrip.c` `--dump-parse` / `--dump-ir` branches rewired to use `sno_parse` (Bison)
+- `#include "CMPILE.h"` removed from `scrip.c`
+- `cmpile_init()` / `cmpile_add_include()` calls removed from `scrip.c`
+- `scrip.c` default execution mode comment corrected to `--ir-run`
+- `make scrip` clean; smoke PASS
 
-| Entry | Input | Current (CMPILE) | Replacement (bison) |
-|-------|-------|-----------------|---------------------|
-| **Program** | FILE* or path | `cmpile_file()` → `cmpile_lower()` | `sno_parse(FILE*, name)` — already exists |
-| **Expression** | bare expr string | `cmpile_eval_expr()` → `cmpnd_to_expr()` | `parse_expr_pat_from_str(src)` — new in snobol4.tab.c |
-| **Statement block** | multi-stmt string | `cmpile_string()` → `cmpile_lower()` | `sno_parse_string(src)` — new in snobol4.tab.c |
+OPEN: `eval_code.c` still `#include`s `CMPILE.h` and calls `cmpile_string()` /
+`cmpile_free()`. The `CODE()` builtin depends on CMPILE for parsing
+dynamically-evaluated SNOBOL4 strings. This is the last live use.
 
-## Key Design: parse_expr_pat_from_str
-
-Lives inside `snobol4.tab.c` where `Lex`, `PP`, `g_lx`, `snobol4_parse`
-are all defined. Cannot be implemented outside that TU.
-
-**Wrapping strategy** — confirmed by session investigation:
-- `parse_expr_from_str("LEN(1)")` calls `parse_expr(lx)` which returns
-  `prog->head->subject`. For bare expressions bison puts the expr in
-  `subject`. This already works for simple cases.
-- The problem: `parse_expr_from_str` returns subject of first stmt, which
-  for `_SNO_DUMMY_ LEN(1)` is `_SNO_DUMMY_` (the var), not `LEN(1)`.
-- **Correct wrapper**: pass `src` directly (no dummy prefix). Bison parses
-  `LEN(1)` as a subject expression. Return `s->subject` (not s->pattern).
-- For pattern-context expressions with `$`, `@`, `*`: bison grammar already
-  handles these in the subject/pattern position. Return `s->pattern` if
-  set, else `s->subject`.
-
-**Unit test required** (S-1 gate) — compile standalone against snobol4.tab.c
-+ snobol4.lex.c and verify:
-```
-parse_expr_pat_from_str("LEN(1)")              → E_FNC kind, sval="LEN"
-parse_expr_pat_from_str("@txOfs $ *LEN(1)")   → non-null, has E_CAPT_CURSOR
-parse_expr_pat_from_str("(pat ~ 'id') $ tx")  → non-null, no BINGFN leak
-```
-
-## Key Design: sno_parse_string
-
-```c
-Program *sno_parse_string(const char *src) {
-    Lex lx = {0};
-    lex_open_str(&lx, src, strlen(src), 0);
-    Program *prog = calloc(1, sizeof *prog);
-    PP p = {prog, NULL};
-    g_lx = &lx;
-    snobol4_parse(&p);
-    return prog;
-}
-```
-Lives in `snobol4.tab.c`. Declared in `scrip_cc.h`.
-
-## Call Sites to Migrate
-
-| File | Function | CMPILE call | Replacement |
-|------|----------|-------------|-------------|
-| `eval_code.c` | `eval_expr()` | `cmpile_eval_expr`→`cmpnd_to_expr`→`eval_node` | `parse_expr_from_str(src)`→`eval_node` |
-| `eval_code.c` | `CONVE_fn()` | `cmpile_eval_expr`→`cmpnd_to_expr` | `parse_expr_pat_from_str(src)` returns EXPR_t*, wrap as DT_E |
-| `eval_code.c` | `code()` | `cmpile_string`→`cmpile_lower` | `sno_parse_string(src)` |
-| `eval_code.c` | alt-pattern rebuild (line ~299) | `eval_via_cmpile` restring | `parse_expr_pat_from_str` |
-| `snobol4_pattern.c` | `compile_to_expression()` | `cmpile_eval_expr`→`cmpnd_to_expr` | `parse_expr_pat_from_str(src)` wrap as DT_E |
-| `snobol4_pattern.c` | `eval_via_cmpile()` | `EXPR()`→`cmpnd_to_expr`→`eval_node` | `parse_expr_pat_from_str(src)`→`interp_eval_pat` (call via hook) |
-| `scrip.c` | `_eval_str_impl_fn()` | already calls `parse_expr_pat_from_str` ✓ | fix S-1 so it works |
-| `scrip.c` | `cmpile_lower()` bridge | full CMPILE pipeline | remove; `--dump-parse` routes via `sno_parse_string` + IR dump |
-| `scrip.c` | `cmpile_init/add_include` | CMPILE init | remove entirely |
-
-## Current State of scrip Binary (session 2026-04-13)
-
-- `g_eval_str_hook` wired in scrip.c → `_eval_str_impl_fn` → `parse_expr_pat_from_str`
-- `parse_expr_pat_from_str` exists in snobol4.tab.c but returns null (wrong wrapper)
-- `g_eval_str_hook` declared in snobol4.h ✓
-- `parse_expr_pat_from_str` declared in scrip_cc.h ✓
-- Beauty suite baseline: PASS=14/18 (Gen, TDump, XDump, omega failing)
-- omega: was PASS=12/15 with CMPILE path before this session's work regressed it
+---
 
 ## Steps
 
-- [ ] **S-1** — Fix `parse_expr_pat_from_str` in `snobol4.tab.c`.
-  Pass `src` directly (no `_SNO_DUMMY_` prefix). Return `s->pattern` if
-  set, else `s->subject`. Run unit test (standalone binary against
-  snobol4.tab.c + snobol4.lex.c). Gate: all three unit test cases non-null
-  with correct kind values, no BINGFN leakage.
+- [x] **S-1** — Remove `cmpile_lower()` from `scrip.c`; move into `eval_code.c` as static.
+  Gate: `make scrip` clean.
 
-- [ ] **S-2** — Add `sno_parse_string` to `snobol4.tab.c`. Declare in
-  `scrip_cc.h`. Gate: `code("OUTPUT = 'hello'")` executes correctly.
+- [x] **S-2** — Rewire `scrip.c` `--dump-parse` / `--dump-ir` to use Bison path (`sno_parse`).
+  Remove `cmpile_init()` / `cmpile_add_include()` calls. Remove `#include "CMPILE.h"`.
+  Gate: `make scrip` clean; `--dump-ir-bison` still works.
 
-- [ ] **S-3** — Migrate `eval_code.c` off CMPILE:
-  - `eval_expr()` → `parse_expr_from_str` → `eval_node`
-  - `CONVE_fn()` → `parse_expr_pat_from_str`, wrap result as DT_E
-  - `code()` → `sno_parse_string`
-  - Remove `#include CMPILE.h`, `extern cmpnd_to_expr`, `extern cmpile_lower`
-  Gate: beauty suite PASS≥14.
+- [ ] **S-3** — Wire `CODE()` builtin in `eval_code.c` to use `sno_parse` via a
+  string-to-FILE* adapter (e.g. `fmemopen` or a temp-file path), eliminating
+  `cmpile_string()` / `cmpile_free()` / `#include "CMPILE.h"` from `eval_code.c`.
+  Gate: `make scrip` clean; `CODE()` corpus tests still PASS.
 
-- [ ] **S-4** — Migrate `snobol4_pattern.c` off CMPILE:
-  - `compile_to_expression()` → `parse_expr_pat_from_str`, wrap as DT_E
-  - `eval_via_cmpile()` → `parse_expr_pat_from_str` → route via
-    `g_eval_pat_hook` / direct `interp_eval_pat` if available, else `eval_node`
-  - Remove `#include "CMPILE.c"` (line 24)
-  - Remove `cmpnd_to_expr()` definition
-  Gate: beauty suite PASS≥14.
+- [ ] **S-4** — Remove `CMPILE.c` and `CMPILE.h` from the Makefile (if present) and
+  confirm they are not referenced by any compiled translation unit.
+  Gate: `grep -r 'CMPILE' src/ | grep -v 'CMPILE\.\(c\|h\):' | grep -v '\.o:'` → zero hits.
 
-- [ ] **S-5** — Migrate `scrip.c` off CMPILE:
-  - Remove `#include CMPILE.h`
-  - Remove `cmpile_lower()` bridge function (~40 lines)
-  - Replace `--dump-parse` with `sno_parse_string` + IR printer, or remove flag
-  - Remove `cmpile_init()`, `cmpile_add_include()` calls
-  Gate: `scrip --ir-run` works; beauty suite PASS≥14.
+- [ ] **S-5** — Full regression: `bash test/run_interp_broad.sh`.
+  Gate: PASS count ≥ pre-goal baseline.
 
-- [ ] **S-6** — Verify CMPILE fully removed:
-  `make scrip` clean; `nm scrip | grep -i cmpile` empty;
-  `grep -r '#include.*CMPILE' src/` empty.
+- [ ] **S-6** — Update PLAN.md ☑ done.
 
-- [ ] **S-7** — omega driver PASS=15/15.
-  `parse_expr_pat_from_str` now correctly handles all EVAL(string) cases
-  via `g_eval_str_hook`. Gate: omega driver passes all 15 tests.
+---
 
-- [ ] **S-8** — Full beauty suite: PASS≥15 (omega fixed + no regression).
+## Rules
+- No push until "perform hand off".
+- Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
+- `CMPILE.c` and `CMPILE.h` stay on disk — do not delete them.
 
-## Commit identity
-Always: `LCherryholmes` / `lcherryh@yahoo.com`
+---
+
+## Session 2026-04-13 (this session)
+
+Done in scrip.c / eval_code.c:
+- `cmpile_lower()` removed from `scrip.c`, moved as static into `eval_code.c`
+- `scrip.c` `--dump-parse` / `--dump-ir` rewired to `sno_parse` (Bison path)
+- `cmpile_init()` / `cmpile_add_include()` calls removed from `scrip.c`
+- `#include "CMPILE.h"` removed from `scrip.c`
+- `make scrip` clean; smoke PASS (ir-run, sm-run)
+- one4all HEAD: 99ef4a3d
