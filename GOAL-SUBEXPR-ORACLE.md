@@ -296,3 +296,147 @@ PATTERN type: assert DATATYPE = 'pattern'.
 EXPRESSION type: assert DATATYPE = 'expression'.
 String/integer: assert actual value.
 
+
+---
+
+## Extended Probe Harness (session 8 design)
+
+### Architecture: three techniques unified
+
+**Technique A — Bomb sentinel for lower bound**
+
+Place one OUTPUT sentinel after all `-INCLUDE` lines in the probe program.
+Run it. Capture `&STCOUNT` = lower bound N_lo.
+Any stlimit ≥ N_lo guarantees all functions are defined.
+No sentinel injection into subsystem source files needed.
+
+```snobol4
+-INCLUDE 'global.sno'
+-INCLUDE 'Gen.sno'         ← last include
+        OUTPUT = 'XLOWER' &STCOUNT 'XLOWER'   ← bomb fires here
+        ...driver body continues...
+```
+
+For Gen driver + Gen.sno: N_lo = 413 stmts.
+
+**Technique B — &LASTFILE/&LASTNO for line identification**
+
+`&LASTFILE` and `&LASTLINE` give the file and line of the last completed
+statement when execution stops. Useful as a diagnostic but unreliable for
+finding the exact subsystem line when stlimit fires mid-statement.
+`&LASTFILE` tracks the CALLER not the callee when stlimit fires inside
+a function. Use for diagnostics only, not for line selection.
+
+**Technique C — Replace statement with gauntlet (in-place)**
+
+Instead of appending gauntlet after driver body, replace the target
+statement inline. Driver runs naturally to that line, gauntlet fires
+in its place, exits. Context is exact.
+
+Implementation: write a modified version of the subsystem .sno file
+where the target line is replaced with the gauntlet. Use line number
+(integer) for substitution — no fragile path-based find/replace.
+
+```python
+lines = Path(subsys_file).read_text().splitlines()
+lines[target_line_no - 1] = gauntlet_snobol4  # exact line replacement
+```
+
+**Technique D — Random stlimit sampling (current approach)**
+
+Pick random stlimit in [N_lo, N_hi], pick random subsystem statement,
+probe sub-expressions. Decouples context from statement choice.
+Simple, robust, no sentinel injection into subsystem files.
+
+### Key insight: line number is stable, path is fragile
+
+Finding the stlimit for a specific line:
+- BAD: inject sentinel text, do string find/replace in source (fragile)  
+- GOOD: use line number directly for array indexing
+  `lines.insert(target_line_no - 1, sentinel)` — exact, no path matching
+
+For the extended probe harness (Technique C), the in-place replacement
+is simply: `lines[n-1] = gauntlet`. No file path matching needed.
+
+### Integration point
+
+When a scrip bug is found (FAIL N in a test), the extended probe harness
+activates automatically:
+1. The failing test identifies: file, line_no, stlimit, failing temp Tn
+2. Extended probe: replace line_no in subsystem file with a finer gauntlet
+   that breaks Tn's expression into even smaller pieces
+3. Run under SPITBOL → oracle; run under scrip → find exact divergence
+4. This narrows the bug to a single primitive operation
+
+
+---
+
+## Extended Probe Harness — additional techniques (session 9)
+
+### Inline vs Isolated — two outputs from one oracle run
+
+The oracle gauntlet produces OUTPUT lines with sub-expression values.
+The same run can produce TWO kinds of tests:
+
+**Inline test** (already implemented):
+- Driver runs to stlimit=N
+- Target statement replaced by gauntlet inline
+- SSA chain + SNBassert in driver context
+- `.sno` includes full driver prefix
+
+**Isolated test** (new):
+- Parse the gauntlet OUTPUT lines to get `{expr: value}` pairs
+- For each scalar in `&DUMP`: emit `varname = value` assignment
+- Generate standalone `.sno` with NO driver, NO includes, NO stlimit
+- Just assignments + SSA chain + SNBassert
+- Portable: runs without the beauty corpus at all
+
+Same oracle run → two files: `NAME_inline.sno` and `NAME_iso.sno`.
+Isolated fails when DATA structs needed (fallback to inline only).
+Both have `.ref = PASS`.
+
+### Nth-iteration sentinel — targeting specific loop iterations
+
+**Problem:** A bug manifests only on the 3rd call to `Gen()` inside a loop.
+Simple sentinel fires on every call. We want the 3rd only.
+
+**Solution:** Counter-gated bomb sentinel.
+
+Instrument the target location with a counter. Fire the bomb only when
+counter reaches N:
+
+```snobol4
+* Injected at target line (by line number, not find/replace):
+SNBcnt = SNBcnt + 1
+EQ(SNBcnt, 3)                :F(SNBskip)
+OUTPUT = 'XBOMB' &STCOUNT 'XBOMBEND'
+SNBskip
+```
+
+Run under SPITBOL → `XBOMB...XBOMBEND` captures `&STCOUNT` at iteration 3.
+That `&STCOUNT` - 1 = the `&STLIMIT` that stops at exactly iteration 3.
+
+**Double-nested loops:** use two counters and AND condition:
+
+```snobol4
+SNBout = SNBout + 1
+SNBin  = SNBin + 1
+EQ(SNBout, 2) EQ(SNBin, 4)   :F(SNBskip)
+OUTPUT = 'XBOMB' &STCOUNT 'XBOMBEND'
+SNBskip
+```
+
+Fires only when outer loop = 2nd iteration AND inner = 4th.
+
+**Implementation in generator:**
+- `find_nth_stlimit(driver_src, source_file, line_no, n, counters=None)`
+- Injects counter block before target line using line number indexing
+- Runs probe, extracts `&STCOUNT` from `XBOMB...XBOMBEND` marker
+- Returns stlimit for exactly the Nth crossing of that line
+
+**Why `&STCOUNT` is what you want:**
+When the bomb fires, `&STCOUNT` is the statement count AT THAT EXACT MOMENT.
+Setting `&STLIMIT = &STCOUNT - 1` in the test stops execution one statement
+before the bomb — which is exactly before the target line on iteration N.
+The test inherits state from N-1 prior iterations, not just iteration 1.
+
