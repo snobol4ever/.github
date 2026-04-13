@@ -198,42 +198,49 @@ python3 test/beauty_subexpr_gen.py --run \
 
 ## Steps
 
-- [x] **S-1** — Prior generator: 55 tests from counter/stack/assign, all pass
-  SPITBOL. Committed `2bde52fb`. Superseded by new design.
+- [x] **S-1** — Prior generator: 55 tests, superseded by new design.
 
-- [ ] **S-2** — Fix four bugs blocking clean snippet output. Gate: Gen.sno
-  line 45 produces one snippet that passes under SPITBOL self-check.
+- [x] **S-2** — Generator rewritten with correct design:
+  - Full statement parsing (subject/pattern/replacement fields)
+  - SNBprobe helper for oracle gauntlet (one call per sub-expr)
+  - SSA temp chain with interleaved assign+assert+fail (Tn = rhs :F(SNBfn) / SNBassert(...))
+  - Compact FAIL N labels — position is the diagnosis
+  - crash-include stripping (FENCE.sno, io.sno)
+  - find_stlimit uses safe_driver + sentinel injection
+  - Gen.sno line 45: 4/4 sub-expressions captured, PASS under SPITBOL ✓
 
-  **Bug 1:** FAIL message embeds `$'$B'` inside string literal → parser error.
-  Fix: FAIL messages use test number only: `OUTPUT = 'FAIL 1'`.
+- [ ] **S-3** — Solve "nothing to emit" problem for functions not exercised by safe_driver.
+  Root cause: sentinel injected before target line never fires because the
+  enclosing function is never called in the safe_driver context.
+  Fix options (pick one or combine):
+  A. **Synthetic exerciser**: for each target line, detect enclosing function
+     via `enclosing_function()`, inject a minimal call with dummy args into
+     the probe program after global/subsystem setup.
+  B. **Cross-driver**: for each subsystem file, try ALL drivers that include
+     it (not just the matching one) — a different driver may call the function.
+  C. **Direct call**: always append a dummy call to the enclosing function
+     in the sentinel probe, regardless of driver (already implemented in
+     `enclosing_function()` but disabled when we switched to safe_driver).
+  Gate: Gen.sno lines 27, 43, 52 all emit tests; stack.sno line 16 emits.
 
-  **Bug 2:** Non-printable DUMP values produce unclosed string literals
-  (`cr = '\`, `nl = '\n` etc.).
-  Fix: `dump_val_to_snobol` detects non-printable bytes → emits `CHAR(N)`.
-  Known non-printable names: `nl lf cr bs ht vt ff nul` and the `x0xxxxxxx`
-  charset strings.
+- [ ] **S-4** — Populate: run generator across all beauty subsystem files.
+  Target: ≥5 tests per subsystem file, ≥100 tests total, all pass SPITBOL.
+  Subsystem files: Gen.sno, omega.sno, stack.sno, assign.sno, counter.sno,
+  tree.sno, Qize.sno, ShiftReduce.sno, TDump.sno, XDump.sno, ReadWrite.sno,
+  trace.sno, match.sno, io.sno, global.sno, case.sno, semantic.sno, FENCE.sno.
+  For each: pick 5-10 statements with interesting expressions (not just DEFINE).
+  Gate: SPITBOL self-check PASS=N FAIL=0 for all generated tests.
 
-  **Bug 3:** stlimit heuristic (50% of total) too early — `Gen()` not yet
-  called at stlimit=250, so `BREAK(nl)` in pattern context gets no oracle value.
-  Fix: `find_stlimit_for_line` does real instrumentation — add a sentinel
-  `OUTPUT` line before the target line in a probe run, binary-search for the
-  stlimit where that sentinel fires.
+- [ ] **S-5** — Run suite under scrip --ir-run.
+  Gate: suite runs without crash; PASS/FAIL counts per test.
+  First FAILs pinpoint exact expression nodes broken in scrip.
 
-  **Bug 4:** `$'$B'` alias logic inverted — emits `$SNBxl = 0` (wrong order).
-  Fix: in `emit_snippet`, create alias variable first (`bB = '$B'`), then
-  assign value via alias (`$bB = '...'`). Separate the two operations.
+- [ ] **S-6** — Map FAILs to known bugs in GOAL-SCRIP-BEAUTY.
+  Document which SSA temp number / which expression corresponds to
+  Gen ARBNO bug, TDump DATA field bug, omega EVAL(string) bug, XDump format bug.
 
-- [ ] **S-3** — Run generator on failing subsystem files: Gen.sno, omega.sno,
-  TDump.sno, XDump.sno. Gate: ≥50 snippets, all pass SPITBOL self-check.
+- [ ] **S-7** — Commit final generator + corpus tests. Gate: `make scrip` clean.
 
-- [ ] **S-4** — Run snippet suite under scrip --ir-run. Gate: runs without
-  crash; PASS/FAIL per test printed.
-
-- [ ] **S-5** — Map FAILs to known bugs in GOAL-SCRIP-BEAUTY S-6..S-9.
-
-- [ ] **S-6** — Extend to all 18 subsystem files. Gate: ≥200 tests, all pass SPITBOL.
-
-- [ ] **S-7** — Commit final generator. Gate: `make scrip` clean.
 
 ---
 
