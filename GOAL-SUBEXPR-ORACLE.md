@@ -549,3 +549,57 @@ Next session:
 2. Get first diverging line from monitor output
 3. `find_nth_stlimit(safe_driver, file, line, n=1)`
 4. Run gauntlet → read FAIL N → that is the broken node
+
+---
+
+## Session 10 addendum — what is NOT yet in HQ
+
+### eval_node FAILDESCR from EXPVAL_fn — next debug step
+
+`eval_node(E_FNC("LEN",[1]))` returns FAILDESCR when called from inside
+`EXPVAL_fn`. Direct `APPLY_fn("LEN",[1])` returns DT_P correctly.
+Difference: `EXPVAL_fn` calls `eval_node` (eval_code.c walker) while
+direct call goes through `interp_eval` (scrip.c walker).
+
+`eval_code.c eval_node E_FNC` evaluates args via `eval_node(child)`.
+For `E_VAR("nl")`: `eval_node` calls `NV_GET_fn("nl")` — but `nl` may
+not be in scope in the `eval_node` context (eval_code.c has no access
+to the running program's variable store in the same way scrip.c does).
+
+**Most likely cause:** `NV_GET_fn("nl")` returns empty/FAIL inside
+`eval_node` because `nl` was set by `global.sno` in the driver but the
+`eval_node` context (eval_code.c) uses a different NV store or the
+variable lookup fails for a different reason.
+
+**Next debug step:** In `eval_code.c eval_node E_FNC`, print what
+`eval_node(E_VAR("nl"))` returns before passing to `APPLY_fn`.
+
+### Two-Step Dance protocol (authoritative)
+
+**THE CORRECT WORKFLOW for finding and fixing scrip bugs:**
+
+```
+Step 1: bash test/monitor/run_monitor_2way.sh DRIVER.sno
+        → Monitor reports: file=X.sno line=N value=expected vs actual
+
+Step 2: python3 test/beauty_subexpr_gen.py \
+            --source X.sno --driver DRIVER.sno --line N \
+            --out corpus/.../subexpr/ --verbose
+        → Generates SSA chain test
+        → Run under scrip: FAIL K → SNBtK is the broken node
+        → SNBtK = exact sub-expression that diverges
+
+Step 3: Fix scrip for that sub-expression. Re-run beauty suite.
+```
+
+The monitor is already implemented. The probe generator is already
+implemented. They just need to be connected by the two-step workflow.
+
+### EVAL WIP — do NOT revert
+
+The intercept `EVAL` in `interp_eval` is correct direction. Do not remove.
+The inner `eval_node` FAILDESCR is a separate bug in eval_code.c.
+`EVAL('LEN(1)')` currently: intercept fires → EVAL_fn → CONVE_fn(DT_E) →
+EXPVAL_fn → eval_node(E_FNC("LEN",[nl_value])) → FAILDESCR.
+Likely: `nl` variable lookup fails inside eval_node context.
+
