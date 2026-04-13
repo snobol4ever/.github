@@ -6,40 +6,23 @@ the existing Prolog corpus rung tests.
 
 ---
 
-## Current state (2026-04-12, one4all 2f32fba5)
+## Current state (2026-04-12, one4all 6d7a1c46)
 
-S-1 through S-9 complete (prolog_interp.c, one4all 4b4e7b3c).
-hello.pl: PASS. palindrome.pl: needs string_chars/2. queens.pl: needs format/2.
-SNOBOL4 regression: PASS=204 unchanged.
+S-1 through S-9 complete. S-10 in progress.
+prolog_interp.c rewritten as proper Byrd box four-port mirror of prolog_emit.c:
+- pl_call(): resumable four-port dispatcher (α=start 0, β=retry, γ=return ci, ω=-1)
+- pl_exec_clause(): unify head args, execute body
+- pl_exec_body(): Proebsting retry chain for user calls
+- pl_exec_goal(): all builtins including ;/2 ->/2 \+/1 functor/3 arg/3 =../2
+- Predicate table: hash map keyed by functor/arity string
 
-```
-./scrip --ir-run test/prolog/hello.pl
-→ Error 5 in statement 1  (E_CHOICE not handled in interp_eval)
-```
-
-**IR structure produced by `prolog_lower()`:**
-- One `STMT_t` per predicate, subject = `E_CHOICE` node
-- `E_CHOICE`: `sval="foo/2"`, children = `E_CLAUSE` nodes (one per clause)
-- `E_CLAUSE`: `ival=n_vars`, `dval=n_args`,
-  `children[0..n_args-1]` = head arg terms,
-  `children[n_args..]` = body goals
-- Body goals: `E_FNC` (calls), `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`
-- Terms: `E_QLIT` (atoms), `E_ILIT` (integers), `E_VAR` (ival=slot index),
-  `E_FNC` (compound terms / calls)
-
-**Runtime infrastructure already available:**
-- `Trail`, `trail_init()`, `trail_push()`, `trail_unwind()`, `trail_mark()` — `prolog_unify.c`
-- `unify(t1, t2, trail)` — full Robinson unification with trail — `prolog_unify.c`
-- `Term` heap type — `term.h`
-
-**Execution model needed:** mini-WAM interpreter in `scrip.c`:
-- Variable env = `Term*[]` array, one slot per `n_vars`
-- Call stack for goal continuation
-- `E_CHOICE` α/β: try clauses in order, backtrack on fail
-- `E_CLAUSE` α: unify head args, execute body goals in sequence
-- `E_UNIFY`: call `unify()` on two lowered terms
-- `E_CUT`: seal β port of enclosing choice (no more backtrack past here)
-- `E_TRAIL_MARK` / `E_TRAIL_UNWIND`: save/restore trail top
+Corpus rung results: PASS=10/107 (was 3 before this session).
+Passing: rung01 rung03 rung04 rung06 rung07 rung08 rung09 + 3 more.
+Remaining failures: findall/3, assertz/retract/abolish, atom builtins,
+  @</>/=</=< comparisons, sort/msort, succ/plus, format/2, numbervars,
+  char_type, write_canonical, arith_ext, string_io, term_string,
+  copy_term/concat_atom, aggregate, exceptions, float ops, DCG.
+SNOBOL4 smoke: sm-run PASS, ir-run PASS (x86 emit pre-existing failure).
 
 ---
 
