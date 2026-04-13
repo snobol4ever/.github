@@ -234,6 +234,33 @@ Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
    - Fix: add recursive dereference loop (while arg0 is NameVar, dereference again)
      or ensure Push stores the dereferenced value, not the name.
 
+## State after BEAUTY-19 session 12
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: 3b3f696
+- Unit tests: 2075p/14f (14f pre-existing, no regressions)
+- Beauty suite: **16/18** (omega/semantic still failing — S-8B/S-9 open)
+
+## Passing (16)
+
+beauty_Gen, beauty_Qize, beauty_ReadWrite, beauty_ShiftReduce, beauty_TDump, beauty_XDump, beauty_assign, beauty_case, beauty_counter, beauty_fence, beauty_global, beauty_io, beauty_match, beauty_stack, beauty_trace, beauty_tree
+
+## Work done session 12
+
+**S-10 DONE — ShiftReduce now passes (16/18):**
+
+Root cause: `c[i] = Pop()` in Reduce stored a NameVar (NRETURN'd from Shift) directly
+into `arrayVar.Data[i]`, then AssignReplace stamped `Key=i/Collection=c` onto it —
+making `c.Data[i]` a NameVar pointing back to `c.Data[i]`. True self-referential cycle.
+
+Fix 1 — `AssignReplace (=).cs`: Dereference any NameVar rvalue before storing into
+ArrayVar or TableVar slot. Same fix applied to TableVar case for consistency.
+
+Fix 2 — `Data.cs GetProgramDefinedDataField`: Multi-strategy NameVar resolution:
+pointer NameVar (Collection=null) → simple IdentifierTable deref; collection-backed
+NameVar whose Collection IS already a ProgramDefinedDataVar → use that directly;
+last-resort: 8-level dereference loop.
+
 ## Steps
 
 - [x] **S-1** — FENCE redefinition: allow `DEFINE('FENCE(FENCE)')` to redefine FENCE as user function in `Define.cs`; also allow `OPSYN('INPUT',...)` / `OPSYN('OUTPUT',...)` in `Opsyn.cs` (unblocks io.sno). Gate: fence + Gen + io pass → **10/19** ✅
@@ -263,7 +290,7 @@ Confirmed baseline 15/18. Traced S-8B error 22 through the full call chain:
 - [ ] **S-9** — Fix semantic driver (same DATATYPE case issue as omega — check and fix same way).
       Gate: semantic passes → **17/18**
 
-- [ ] **S-10** — Fix ShiftReduce UNEXPECTED EXCEPTION. Gate: ShiftReduce passes → **18/18** ✅
+- [x] **S-10** — Fix ShiftReduce UNEXPECTED EXCEPTION. Gate: ShiftReduce passes → **16/18** ✅
 
 ## Rules
 
