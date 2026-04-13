@@ -508,3 +508,44 @@ The counter bomb at the crashing line with `EQ(SNBcnt, N)` lets you
 stop at exactly the Nth crossing — one before the crash — with full
 state captured for the gauntlet.
 
+
+---
+
+## Session 10 findings — EVAL bug + Two-Step Dance
+
+### EVAL(string) root cause (WIP)
+
+Binary `snobol4.o` contains `_EVAL_` stub that returns its argument unchanged
+(identity function). `EVAL("LEN(1)")` → `APPLY_fn("EVAL",...)` → `_EVAL_` →
+returns `DT_S` without calling `EVAL_fn` in `snobol4_pattern.c`.
+
+Fix applied: intercept `EVAL` in `scrip.c` `interp_eval` E_FNC case:
+```c
+if (strcasecmp(e->sval, "EVAL") == 0) {
+    extern DESCR_t EVAL_fn(DESCR_t);
+    return EVAL_fn(args[0]);
+}
+```
+Intercept fires. `EVAL_fn` calls `CONVE_fn("LEN(1)")` → `DT_E` (compiled).
+`EXPVAL_fn(DT_E)` → `eval_node(E_FNC("LEN",[1]))` → **FAILDESCR**.
+`eval_node` fails for function calls from inside `EXPVAL_fn` context.
+Root cause of this inner failure not yet identified.
+
+### The Two-Step Dance (Lon's insight)
+
+**Step 1 — Monitor:** Run 2-way monitor (SPITBOL vs scrip) on the failing
+beauty driver. Monitor reports first diverging event: file, line, statement
+number, expected vs actual value.
+
+**Step 2 — Probe:** Take that exact file + line from the monitor.
+Use `find_nth_stlimit()` on that line. Run gauntlet. SSA chain pinpoints
+exactly which sub-expression node diverges.
+
+No random sampling. No guessing. The monitor hands you the line;
+the probe dissects it.
+
+Next session:
+1. `bash test/monitor/run_monitor_2way.sh beauty_omega_driver.sno`
+2. Get first diverging line from monitor output
+3. `find_nth_stlimit(safe_driver, file, line, n=1)`
+4. Run gauntlet → read FAIL N → that is the broken node
