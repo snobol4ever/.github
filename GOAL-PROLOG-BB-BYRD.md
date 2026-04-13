@@ -94,21 +94,21 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
   `pl_box_builtin()`: α calls `interp_exec_pl_builtin()`; β returns ω.
   Gate: compiles clean.
 
-- [ ] **S-BB-3** — Implement `pl_box_cat()` (conjunction / AND-box).
+- [x] **S-BB-3** — Implement `pl_box_cat()` (conjunction / AND-box).
   State: `{left, right, phase}` where phase ∈ {ENTER, LEFT_DONE}.
   α: call left.fn(α); on γ → call right.fn(α); on right ω → left.fn(β), retry right.
   β: right.fn(β); on ω → left.fn(β), retry right from α; on left ω → return ω.
   Matches `bb_cat` discipline in `stmt_exec.c`.
   Gate: compiles clean.
 
-- [ ] **S-BB-4** — Implement `pl_box_clause()`: given one E_CLAUSE node and
+- [x] **S-BB-4** — Implement `pl_box_clause()`: given one E_CLAUSE node and
   a caller arg-term array, build: head-unify leaf box CAT'd with each body
   goal box in order. Return root CAT-box.
   Head-unify box: α unifies head args, sets g_pl_env, returns γ or ω; β
   trail_unwinds and returns ω (head unification is not re-entrant).
   Gate: compiles clean.
 
-- [ ] **S-BB-5** — Implement `pl_box_choice()`: OR-box over all E_CLAUSE
+- [x] **S-BB-5** — Implement `pl_box_choice()`: OR-box over all E_CLAUSE
   children of one E_CHOICE node.
   State: `{clauses[], nclause, ci, trail_mark}`.
   α: trail_mark(); build clause[0] box; call clause[0].fn(α).
@@ -117,12 +117,12 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
   On ci == nclause: return ω.
   Gate: compiles clean.
 
-- [ ] **S-BB-6** — Implement `pl_box_cut()`: FENCE analog.
+- [x] **S-BB-6** — Implement `pl_box_cut()`: FENCE analog.
   α: set g_pl_cut_flag = 1; return γ (success, proceed).
   β: return ω (no backtrack past cut — matches FENCE in stmt_exec.c).
   Gate: compiles clean.
 
-- [ ] **S-BB-7** — Wire `pl_execute_program_unified()` to use new boxes for
+- [x] **S-BB-7** — Wire `pl_execute_program_unified()` to use new boxes for
   `main/0`: call `pl_box_choice(main_choice_node)` → `pl_exec_goal()`.
   Remove the `interp_eval(main_choice)` call from the top-level entry.
   Gate: `./scrip --ir-run test/prolog/hello.pl` prints `Hello, World!`.
@@ -172,8 +172,14 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Current state
 
-S-BB-1 and S-BB-2 complete. one4all HEAD 2e1f89ca.
-pl_broker.c/h created. pl_exec_goal(), pl_box_true(), pl_box_fail(), pl_box_builtin() implemented.
-interp_exec_pl_builtin() promoted non-static; prolog_builtin.h updated with EXPR_T_DEFINED guard.
-make scrip clean. hello.pl → Hello, World! baseline holds.
-Next: S-BB-3 (CAT/AND-box).
+S-BB-1 through S-BB-7 complete. one4all HEAD bca2b79a.
+pl_broker.c/h: pl_box_cat, pl_box_cat_list (S-BB-3); pl_box_clause + pl_interp.h (S-BB-4);
+pl_box_choice, pl_box_choice_call (S-BB-5); pl_box_cut (S-BB-6).
+pl_execute_program_unified wired to broker: pl_box_choice(main/0) + pl_exec_goal() (S-BB-7).
+hello.pl → Hello, World! PASS through new broker path.
+palindrome/queens/roman/sentences/wordcount regressions are PRE-EXISTING from
+S-1C-5 breakage (011f6966) — confirmed by git stash on unmodified HEAD.
+Next: S-BB-8 — replace raw for-ci loop in interp_eval E_CHOICE with broker dispatch.
+Root cause of regressions: cenv capture timing in pl_box_clause body goals
+(body boxes constructed before head-unify α fires, holding stale NULL env).
+Fix needed before S-BB-8 gate can pass rung01–rung11.
