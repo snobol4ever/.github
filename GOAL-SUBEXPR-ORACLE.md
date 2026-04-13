@@ -603,3 +603,60 @@ The inner `eval_node` FAILDESCR is a separate bug in eval_code.c.
 EXPVAL_fn → eval_node(E_FNC("LEN",[nl_value])) → FAILDESCR.
 Likely: `nl` variable lookup fails inside eval_node context.
 
+
+---
+
+## GOAL-TWO-STEP-DANCE — Systematic Bug Hunt (new goal, session 10)
+
+See also: GOAL-SCRIP-BEAUTY.md for the four failing drivers.
+
+### What we proved this session
+
+The Two-Step Dance works end-to-end:
+
+1. **Monitor** (diff SPITBOL vs scrip output): omega driver test 2 diverges.
+   `TZ xTrace=1` → SPITBOL: PATTERN, scrip: STRING.
+   First diverging line: `omega.sno:41` — `TZ = EVAL(omega)`.
+
+2. **Inline probe** (Technique C — replace line 41 in-place):
+   - `omega` value: identical in SPITBOL and scrip.
+     `[@txOfs $ *T8Trace(1, '?' 'lbl', txOfs) pat $ tz ...]`
+   - `EVAL(omega)`: SPITBOL → pattern. scrip → MISSING (silent fail).
+
+3. **Bug pinpointed**: `EVAL(string)` where string contains complex
+   pattern operators (`$ *T8Trace(...)`) fails silently in scrip.
+   `eval_node` inside `EXPVAL_fn` returns FAILDESCR for the compiled tree.
+   The `*` (deferred call) and `$` (cursor/immediate assign) operators
+   in the compiled expression are not handled by `eval_code.c eval_node`.
+
+### Proposed new GOAL: GOAL-TWO-STEP-HUNT
+
+**Target:** For each of the 4 failing beauty drivers (Gen, TDump, XDump, omega)
+AND beauty self-host: apply the Two-Step Dance to find and fix one bug per session.
+
+**Protocol per session:**
+1. Pick one failing driver (or beauty self-host)
+2. Diff SPITBOL vs scrip output → find first diverging test
+3. Identify the subsystem line causing that test to fail
+4. Inline probe that line (Technique C: replace in-place)
+5. Identify exact diverging sub-expression
+6. Fix in scrip source
+7. Re-run beauty suite → new pass count
+8. Commit
+
+**Bug queue so far:**
+- **omega:** `EVAL(string)` with complex pattern expressions fails.
+  `eval_node` in `eval_code.c` missing handlers for `*` (E_DEFER) and
+  `$` (cursor/immediate assign) operators when compiled via `CONVE_fn`.
+  Fix: add E_DEFER and pattern-operator cases to `eval_code.c eval_node`,
+  OR route `EVAL(string)` through `interp_eval` instead of `eval_node`.
+- **Gen:** ARBNO upstream null DT_E (from GOAL-SCRIP-BEAUTY S-7)
+- **TDump:** DATA field ordering t/v (from GOAL-SCRIP-BEAUTY S-6/S-10)
+- **XDump:** array bounds format `1` vs `1:1` (from GOAL-SCRIP-BEAUTY S-8)
+- **beauty self-host:** unknown — apply dance to find
+
+**Why this is better than the old approach:**
+Old: pick a step in GOAL-SCRIP-BEAUTY, guess at the fix.
+New: monitor tells you the FIRST diverging line. Probe tells you the EXACT
+sub-expression. No guessing. Fix is surgical.
+
