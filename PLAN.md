@@ -49,8 +49,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5B (icn_drive Byrd-box generator; 45/59 PASS) | ☐ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unify: eliminate prolog_interp.c, wire into execute_program) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
-| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (E_INDIRECT subj NV case-fold bug — NV_GET_fn returns DT_SNUL) | ☐ |
-| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot) + S-9 (semantic NRETURN side-effects) | ☐ |
+| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (parser fix done; E_INDIRECT capture write-back bug — BREAK captures empty, REM write-back silent) | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |

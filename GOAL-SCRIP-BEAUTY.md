@@ -9,30 +9,37 @@
 - `scrip --ir-run` PASS=193/203
 - Beauty suite: **14/19** passing
 
-## Current state (session 2026-04-12, session 3)
+## Current state (session 2026-04-12, session 4)
 
-- one4all HEAD: `c3317c49`
+- one4all HEAD: `0f369ff8`
 - Beauty suite: **14/18** passing (no regression)
 - Failing: Gen, TDump, XDump, omega
 
-## Next session — E_INDIRECT subject NV case-fold bug (BLOCKS ALL 4)
+## Next session — E_INDIRECT capture write-back bug (BLOCKS Gen/TDump)
 
-**Root cause pinpointed:** `$'XX' BREAK(' ') . out` — subject `NV_GET_fn("XX")`
-returns DT_SNUL during the pattern-match statement even though `SIZE(XX)=11`.
-Likely: NV table stores keys lowercase; `ic->sval` from E_QLIT preserves
-original case. Assignment path case-folds; subject lookup does not (or vice versa).
+**Root cause found (session 4):** `snobol4.y` S=PR split only accepted
+E_VAR/E_KEYWORD/E_QLIT as first-child subject. E_INDIRECT missing — entire
+`$'$B' BREAK(nl) . outline nl REM . $'$B'` became one E_SEQ subject, no pattern.
+**Fixed in commit 0f369ff8** (one line, snobol4.y:241).
 
-**Debug approach:**
-1. Add `fprintf(stderr, "NV GET [%s] → v=%d\n", subj_name, subj_val.v)` at
-   execute_program line ~1638 (after `subj_val = NV_GET_fn(subj_name)`).
-2. Check `NV_GET_fn` / `NV_SET_fn` in snobol4.c for case folding.
-3. Fix: normalize `subj_name` to same case used by NV store before `NV_GET_fn`.
+**Remaining bug:** After parser fix, match now runs but:
+- `BREAK(nl) . outline` captures empty string (outline = "")
+- `REM . $'$B'` write-back does not fire ($'$B' unchanged after match)
+- Match "succeeds" (does not take :F) but captures nothing
 
-**Once subject fetch fixed:**
-- `REM . $'$B'` write-back via `exec_stmt` Phase 5 `NV_SET_fn(subj_name, new_val)` should work.
-- Gen buffer drain unblocked → Gen driver progress.
-- TDump tests 4/5 unblocked (call Gen internally).
-- Then tackle omega EVAL(string)→DT_P hook (S-9) and XDump array bounds (S-8).
+**Two suspects:**
+1. `BREAK(nl)` receives `nl` evaluated as string "nl" (variable name) not
+   "\n" (its value) inside `interp_eval_pat` — BREAK needs a cset arg.
+2. `REM . $'$B'` — target is `E_CAPT_COND_ASGN(E_INDIRECT(E_QLIT "$B"))`.
+   scrip.c line 1200 handles E_INDIRECT capture targets — may not be
+   committing correctly via NAM_commit / flush_pending_captures.
+
+**Debug approach next session:**
+1. Test `BREAK(nl)` with literal: replace nl with CHAR(10) in minimal test.
+   If outline gets "hello", bug is nl evaluation inside pat context.
+2. If BREAK works with literal, trace E_INDIRECT capture target at scrip.c:1200
+   through NAM_commit to find why write-back does not fire.
+3. Once Gen buffer drain works: Gen driver unblocked, TDump tests 4/5 unblocked.
 
 ## Run command
 
