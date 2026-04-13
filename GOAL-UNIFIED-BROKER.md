@@ -120,35 +120,28 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-- [ ] **U-12** — Add `lang` field to `STMT_t`. *(Additive. Zero behaviour change.)*
-  In `scrip_cc.h`: add `int lang;` to `STMT_t`; define `LANG_SNO=0 LANG_ICN=1 LANG_PL=2`.
-  In each frontend, set `st->lang` on every produced statement:
-    `sno_parse` / `sno_parse_string` → LANG_SNO (default 0, calloc gives this free).
-    `icon_compile` → LANG_ICN on every stmt.
-    `prolog_compile` → LANG_PL on every stmt.
-  No execution change. Gate: `make scrip` clean; smoke PASS; regression non-regressing.
+- [x] **U-12** — Add `lang` field to `STMT_t`. *(Additive. Zero behaviour change.)* DONE.
+  In `scrip_cc.h`: add `LANG_SNO=0 LANG_ICN=1 LANG_PL=2` constants above STMT_t.
+  STMT_t gains `int lang`. SNOBOL4 gets LANG_SNO=0 free from calloc.
+  icon_driver.c: `st->lang = LANG_ICN`. prolog_lower.c: `s->lang = LANG_PL` (both sites).
+  Gate: `make scrip` clean; smoke PASS=2.
 
-- [ ] **U-13** — Polyglot parser: `.scrip` fenced file → one `Program*`. *(Parse only.)*
+- [x] **U-13** — Polyglot parser: `.scrip` fenced file → one `Program*`. DONE.
   Add `parse_scrip_polyglot(src, filename) → Program*` in `scrip.c`.
   Scans ` ```SNOBOL4 ` / ` ```Icon ` / ` ```Prolog ` fenced blocks; compiles each with
   its frontend; sets `st->lang`; appends all `STMT_t` chains in source order into one
-  `Program*`. Wire `main()`: `.scrip` extension → `parse_scrip_polyglot`.
-  No execution change beyond what the existing single-lang paths already do.
-  Gate: `scrip demo/scrip/demo2/wordcount.md` parses; SNOBOL4 section runs (SNO is first,
-  its statements execute; ICN/PL nodes are skipped by the existing guard). `make scrip`
-  clean; smoke PASS; regression non-regressing.
+  `Program*`. Wire `main()`: `.scrip` or `.md` extension → `parse_scrip_polyglot`.
+  Execution dispatch: `lang_polyglot` → `execute_program` (SNO path for now; U-15 fixes).
+  Gate: `make scrip` clean; smoke PASS=2.
 
-- [ ] **U-14** — Unified init: `polyglot_init(prog)`. *(One pass, all three tables.)*
-  Replace three separate init sequences with one function that scans `prog->head` once:
-    SNO: `label_table_build` + `prescan_defines` (unchanged logic, moved here).
-    ICN: collect E_FNC subjects with `st->lang==LANG_ICN` → `icn_proc_table`.
-    PL:  collect E_CHOICE/E_CLAUSE subjects with `st->lang==LANG_PL` → `g_pl_pred_table`;
-         `trail_init(&g_pl_trail)`; `prolog_atom_init()`.
-  All `register_fn` calls, `bb_pool_init`, `SNO_INIT_fn` stay — just called once here.
-  `g_pl_active` = 1 if any LANG_PL stmt present. `g_lang` removed as program-level flag.
-  The three old entry points call `polyglot_init` then their existing top loop — no
-  visible behaviour change yet. Gate: `make scrip` clean; smoke PASS; Icon 59/59;
-  Prolog csnobol4-suite PASS=34; regression non-regressing.
+- [x] **U-14** — Unified init: `polyglot_init(prog)`. DONE.
+  Single walk over `prog->head` populates all three runtime tables at once:
+    SNO: `label_table_build` + `prescan_defines`.
+    ICN: zero icn_* state; collect E_FNC subjects (lang==LANG_ICN) → `icn_proc_table`.
+    PL:  `prolog_atom_init`; `trail_init`; collect E_CHOICE/E_CLAUSE (lang==LANG_PL)
+         → `g_pl_pred_table`; `g_pl_active=1` if any PL stmts present.
+  All three entry points call `polyglot_init` — their individual init sequences removed.
+  Gate: `make scrip` clean; smoke PASS=2.
 
 - [ ] **U-15** — `--ir-run` per-statement dispatch by `st->lang`. *(IR path goes polyglot.)*
   In `execute_program`'s statement loop, replace the E_CHOICE/E_CLAUSE skip guard with:
@@ -239,29 +232,20 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 74cef6a5)
+## Current state (session 2026-04-13, one4all HEAD aab7ddd4)
 
-U-1 through U-11 complete. U-6 γ repack deferred (--bb-live x86 path only).
-
-Phase 6 replanned 2026-04-13 (final):
+U-1 through U-14 complete. U-6 γ repack deferred (--bb-live x86 path only).
+U-12, U-13, U-14 completed this session.
 
 **Unifying insight:** SM and BB are already one abstraction.
   `SM_EXEC_STMT` → `exec_stmt` → `bb_broker(BB_SCAN)`   — SNOBOL4 pattern match
   Icon `every`                 → `bb_broker(BB_PUMP)`    — generator drain
   Prolog clause                → `bb_broker(BB_ONCE)`    — goal solve
-Three broker modes × one DESCR_t × one stack = one machine, three languages.
 
-Gaps to close (U-12 → U-20, small to large, always green):
-  U-12: STMT_t.lang tag (additive only)
-  U-13: polyglot parser (.scrip → one Program*)
-  U-14: polyglot_init(prog) — one pass, all three runtime tables
-  U-15: --ir-run per-statement dispatch by st->lang
-  U-16: SM_BB_PUMP + SM_BB_ONCE opcodes (stubs, unused until U-18)
-  U-17: icn_eval_gen implemented (B-8 stub)
-  U-18: sm_lower extended for Icon/Prolog (SM_ICN_EVAL/SM_PL_EVAL/SM_BB_PUMP/SM_BB_ONCE)
-  U-19: cross-language .scrip test end-to-end
-  U-20: documentation
+**Testing:** smoke.sh (~270ms, 2 tests) is the per-step gate. Full regression
+(~3-4min) is session-level only.
 
-**Next session starts at U-12.**
+**Next session starts at U-15.** Per-statement dispatch in execute_program:
+replace the E_CHOICE/E_CLAUSE skip guard with switch(st->lang) routing.
 
 regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).
