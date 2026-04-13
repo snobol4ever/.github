@@ -76,7 +76,7 @@ This goal replaces all of it with the brokered architecture.
   Non-generators: wrap interp_eval result as a one-shot box.
   Gate: icn_eval_gen covers all nodes hit by rung01-11.
 
-- [ ] **B-9** — Wire E_EVERY in interp_eval through icn_broker.
+- [x] **B-9** — Wire E_EVERY in interp_eval through icn_broker.
   STATE: E_EVERY routed to broker. BLOCKED: icn_eval_gen receives full
   gen subtree (e.g. E_FNC(write, E_TO(1,5))), not bare generator node.
   Need recursive generator-scan in icn_eval_gen: find generator arg inside
@@ -87,12 +87,12 @@ This goal replaces all of it with the brokered architecture.
   Remove icn_drive, icn_gen_stack, icn_gen_push/pop, icn_gen_active.
   Gate: rung01-11 59/59 PASS via broker; no icn_drive remaining.
 
-- [ ] **B-10** — Remove all ad-hoc backtracking machinery from scrip.c.
+- [x] **B-10** — Remove all ad-hoc backtracking machinery from scrip.c.
   Delete: icn_drive, icn_gen_stack/depth/push/pop/active/lookup,
           icn_has_suspend_call, icn_coro_table direct dispatch in E_FNC.
   Gate: make scrip clean; 59/59 PASS; SNOBOL4 regression unchanged.
 
-- [ ] **B-11** — Update PLAN.md and GOAL-ICON-IR-RUN.md done.
+- [x] **B-11** — Update PLAN.md and GOAL-ICON-IR-RUN.md done.
 
 ---
 
