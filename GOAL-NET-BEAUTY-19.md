@@ -3,6 +3,42 @@
 **Repo:** snobol4dotnet
 **Done when:** all 18 beauty drivers pass (beauty_is removed — suite reduced from 19 to 18)
 
+## State after BEAUTY-19 session 14
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: e82dce3
+- Unit tests: 2074p/14f (14f pre-existing, no regressions)
+- Beauty suite: **17/18** (omega still failing — S-8B error 22 open)
+
+## Work done session 14
+
+**Error 248 DATA re-definition fixed (S-8B partial):**
+DATA() now silently no-ops when re-registering an identical DATA type
+(CreateProgramDefinedDataInstance handler already present in FunctionTable).
+SPITBOL allows identical DATA re-definition; snobol4dotnet was crashing with
+error 248, blocking omega tests 6+ because TX's EVAL chain re-ran
+counter.sno's DATA('link_counter(next,value)') call.
+
+**Error 22 root cause confirmed (S-8B still open):**
+Minimal reproducer built: TX function with EVAL("(pat ~ 'identifier') $ tx *LEQ(tx,'name')")
+fails with error 22 ONLY when semantic.sno is included before TX is called.
+semantic.sno's shift_ function body calls EVAL at load time, adding star-expressions
+to StarFunctionList/ParseExpression. This shifts the indices so that the PushExpr
+instruction emitted by BuildEval for TX's *LEQ slot points to the wrong
+StarFunctionList entry at runtime. The MSIL-compiled thread has a stale PushExpr(N)
+that was baked in when N was correct, but additional EVALs have since shifted
+the runtime StarFunctionList, causing *LEQ to call the wrong function → error 22.
+
+**Next session plan (S-8B error 22):**
+Investigate BuildEval's MSIL emission path (BuilderEmitMsil.cs) for PushExpr.
+The threaded path uses token name "Star{N:D8}" → int.Parse → PushExpr(N).
+When EVAL runs inside a UDF called after semantic.sno has added its own star-slots,
+the MSIL PushExpr(N) emitted by BuildEval may use a stale base index.
+Check whether BuilderEmitMsil.cs PushExpr emission uses ExpressionList.Count
+at EVAL time vs the actual StarFunctionList index that CompileStarFunctions assigns.
+Possible fix: ensure PushExpr indices emitted by MSIL path are relative to
+the StarFunctionList snapshot taken at EVAL compilation time, not absolute.
+
 ## Baseline
 
 - HEAD: `b280881`
