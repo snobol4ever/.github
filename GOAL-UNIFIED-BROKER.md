@@ -108,72 +108,97 @@ Target architecture:
 
 ---
 
-### Phase 6 — Program-level unification (polyglot Program*)
+### Phase 6 — One SM, one BB, three languages simultaneously
 
-The broker and interpreter are already unified (U-1..U-11). The remaining gap is at the
-**program level**: scrip.c dispatches by file extension to one of three execute_program
-entry points. A polyglot `.scrip` file cannot yet be parsed or executed as a single
-Program*. These steps fix that — small, always runnable, gate after each.
+**The unifying insight:** SM and BB are already one abstraction.
+`SM_EXEC_STMT` → `exec_stmt` → `bb_broker(BB_SCAN)`.
+Icon `every` → `bb_broker(BB_PUMP)`.
+Prolog clause → `bb_broker(BB_ONCE)`.
 
-- [ ] **U-12** — Tag STMT_t with source language.
-  Add `int lang;` field to `STMT_t` in `scrip_cc.h` (0=SNOBOL4, 1=Icon, 2=Prolog).
-  Define `LANG_SNO=0 LANG_ICN=1 LANG_PL=2` constants there.
-  Each frontend sets `st->lang` on every statement it produces:
-    - `sno_parse` (Bison/Flex path in `sno_parse.y` or shim): set LANG_SNO.
-    - `icon_compile`: set LANG_ICN.
-    - `prolog_compile`: set LANG_PL.
-  Existing single-language paths are unchanged — lang tag is just ignored for now.
-  Gate: `make scrip` clean; smoke PASS; regression non-regressing.
+Three broker modes × one DESCR_t value type × one stack = one machine for all languages.
+The steps below build toward that incrementally — always green, always runnable.
 
-- [ ] **U-13** — Polyglot parser in scrip.c: parse a `.scrip` file into one Program*.
-  A `.scrip` file is a sequence of fenced blocks (` ```SNOBOL4 `, ` ```Icon `, ` ```Prolog `).
-  Add `parse_scrip_polyglot(const char *src, const char *filename) -> Program*` in scrip.c.
-  Algorithm: scan for fence open/close, extract each block's text, compile with the
-  matching frontend (sno_parse_string / icon_compile / prolog_compile), append all
-  resulting STMT_t chains into one Program* with lang tags set.
-  Wire `main()`: detect `.scrip` extension, call parse_scrip_polyglot.
-  Gate: `scrip demo/scrip/demo2/wordcount.md` (treated as polyglot — runs its SNOBOL4
-  section only for now, Icon/Prolog sections parsed but not yet dispatched). `make scrip`
+---
+
+- [ ] **U-12** — Add `lang` field to `STMT_t`. *(Additive. Zero behaviour change.)*
+  In `scrip_cc.h`: add `int lang;` to `STMT_t`; define `LANG_SNO=0 LANG_ICN=1 LANG_PL=2`.
+  In each frontend, set `st->lang` on every produced statement:
+    `sno_parse` / `sno_parse_string` → LANG_SNO (default 0, calloc gives this free).
+    `icon_compile` → LANG_ICN on every stmt.
+    `prolog_compile` → LANG_PL on every stmt.
+  No execution change. Gate: `make scrip` clean; smoke PASS; regression non-regressing.
+
+- [ ] **U-13** — Polyglot parser: `.scrip` fenced file → one `Program*`. *(Parse only.)*
+  Add `parse_scrip_polyglot(src, filename) → Program*` in `scrip.c`.
+  Scans ` ```SNOBOL4 ` / ` ```Icon ` / ` ```Prolog ` fenced blocks; compiles each with
+  its frontend; sets `st->lang`; appends all `STMT_t` chains in source order into one
+  `Program*`. Wire `main()`: `.scrip` extension → `parse_scrip_polyglot`.
+  No execution change beyond what the existing single-lang paths already do.
+  Gate: `scrip demo/scrip/demo2/wordcount.md` parses; SNOBOL4 section runs (SNO is first,
+  its statements execute; ICN/PL nodes are skipped by the existing guard). `make scrip`
   clean; smoke PASS; regression non-regressing.
 
-- [ ] **U-14** — Per-statement language dispatch in execute_program.
-  `execute_program` currently assumes all statements are SNOBOL4.
-  Add a dispatch wrapper: before executing each STMT_t, check `st->lang`.
-  LANG_ICN statements: set g_lang=1, push fresh icn_env frame, call icn_interp_eval,
-  restore g_lang=0, icn_env=NULL on exit.
-  LANG_PL statements: route through the existing Prolog interp_eval path.
-  LANG_SNO: existing path unchanged.
-  Gate: `scrip --ir-run demo/scrip/demo2/wordcount.md` produces correct wordcount output
-  for the SNOBOL4 section; Icon/Prolog sections execute without crashing (output may
-  differ — correctness of cross-section state sharing is a later step).
+- [ ] **U-14** — Unified init: `polyglot_init(prog)`. *(One pass, all three tables.)*
+  Replace three separate init sequences with one function that scans `prog->head` once:
+    SNO: `label_table_build` + `prescan_defines` (unchanged logic, moved here).
+    ICN: collect E_FNC subjects with `st->lang==LANG_ICN` → `icn_proc_table`.
+    PL:  collect E_CHOICE/E_CLAUSE subjects with `st->lang==LANG_PL` → `g_pl_pred_table`;
+         `trail_init(&g_pl_trail)`; `prolog_atom_init()`.
+  All `register_fn` calls, `bb_pool_init`, `SNO_INIT_fn` stay — just called once here.
+  `g_pl_active` = 1 if any LANG_PL stmt present. `g_lang` removed as program-level flag.
+  The three old entry points call `polyglot_init` then their existing top loop — no
+  visible behaviour change yet. Gate: `make scrip` clean; smoke PASS; Icon 59/59;
+  Prolog csnobol4-suite PASS=34; regression non-regressing.
+
+- [ ] **U-15** — `--ir-run` per-statement dispatch by `st->lang`. *(IR path goes polyglot.)*
+  In `execute_program`'s statement loop, replace the E_CHOICE/E_CLAUSE skip guard with:
+    `LANG_SNO`: existing path (subject / pattern / replacement / goto).
+    `LANG_ICN`: save `icn_env`/`icn_env_n`/`icn_returning`; call `icn_interp_eval(st->subject, st->subject)`; restore.
+    `LANG_PL`:  call `interp_eval(st->subject)` with `g_pl_active=1`.
+  Gate: `scrip --ir-run demo/scrip/demo2/wordcount.md` executes all three sections and
+  each produces correct output. `make scrip` clean; smoke PASS; regression non-regressing.
+
+- [ ] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. *(SM sees BB modes.)*
+  In `sm_prog.h`: add `SM_BB_PUMP` and `SM_BB_ONCE` after `SM_EXEC_STMT`.
+  `SM_BB_PUMP`: pops a `bb_node_t*` from value stack; calls `bb_broker(root, BB_PUMP, body_fn, arg)`;
+               pushes tick count. For Icon `every` / generator loops.
+  `SM_BB_ONCE`: pops a `bb_node_t*`; calls `bb_broker(root, BB_ONCE, NULL, NULL)`;
+               sets `st->last_ok`. For Prolog goal dispatch.
+  Note: `SM_EXEC_STMT` already calls `bb_broker(BB_SCAN)` via `exec_stmt` — that is the
+  third mode, already wired. No lowering yet — just the opcode stubs in `sm_interp`.
+  Gate: `make scrip` clean; smoke PASS; regression non-regressing (opcodes unused yet).
+
+- [ ] **U-17** — Implement `icn_eval_gen` in `scrip.c` (B-8 stub in `icon_gen.h`).
+  `icn_eval_gen(EXPR_t *e) → bb_node_t`: walk Icon IR, return a drivable `bb_node_t`.
+  E_TO → `{icn_bb_to, alloc icn_to_state_t}`.
+  E_TO_BY → `{icn_bb_to_by, alloc icn_to_by_state_t}`.
+  E_ITERATE → `{icn_bb_iterate, alloc icn_iterate_state_t}`.
+  E_FNC (user proc) → `{icn_bb_suspend, coroutine wrapping icn_call_proc}`.
+  Fallback: one-shot box wrapping `icn_interp_eval` result.
+  Gate: `make scrip` clean; smoke PASS; Icon rung01-11 59/59; regression non-regressing.
+
+- [ ] **U-18** — Extend `sm_lower` to lower Icon and Prolog nodes. *(SM goes polyglot.)*
+  `sm_lower` currently SNOBOL4-only. Extend `lower_stmt` to check `s->lang`:
+    LANG_ICN: emit `SM_PUSH_EXPR(frozen EXPR_t*)` + `SM_ICN_EVAL`. `sm_interp` handles
+              `SM_ICN_EVAL` by calling `icn_interp_eval(frozen, frozen)`.
+              For generator statements (E_EVERY): emit `SM_PUSH_EXPR` + `SM_BB_PUMP`.
+    LANG_PL:  emit `SM_PUSH_EXPR` + `SM_PL_EVAL`. `sm_interp` handles `SM_PL_EVAL` by
+              calling `interp_eval(frozen)` with `g_pl_active=1`.
+              For goals (E_CHOICE): emit `SM_PUSH_EXPR` + `SM_BB_ONCE`.
+  Gate: `scrip --sm-run demo/scrip/demo2/wordcount.md` runs all three sections correctly.
   `make scrip` clean; smoke PASS; regression non-regressing.
 
-- [ ] **U-15** — Implement `icn_eval_gen` in scrip.c (the B-8 stub declared in icon_gen.h).
-  `icn_eval_gen(EXPR_t *e) -> bb_node_t`: walk an Icon IR expression and return a live
-  bb_node_t that bb_broker can drive.
-  Cases needed for cross-language demos: E_TO → {icn_bb_to, allocated icn_to_state_t};
-  E_TO_BY → {icn_bb_to_by, ...}; E_ITERATE → {icn_bb_iterate, ...};
-  E_FNC (user proc call) → {icn_bb_suspend, coroutine wrapping icn_call_proc}.
-  Fallback: wrap icn_interp_eval result as a one-shot constant box.
-  Gate: `make scrip` clean; smoke PASS; regression non-regressing; Icon rung01-11 59/59.
-
-- [ ] **U-16** — Cross-language test at box level (standalone C).
-  Write `test/test_cross_lang.c`: call `icn_eval_gen` on a hand-built E_TO(1,3) node,
-  drive result with `bb_broker(..., BB_PUMP, collect_int, &c)`, assert 3 ticks and
-  values {1,2,3}. Also: build a `bb_lit` box, drive with BB_ONCE, assert 1 tick on match.
-  Gate: test compiles and exits 0; `make scrip` clean.
-
-- [ ] **U-17** — Cross-language call at .scrip file level.
-  Write `test/cross_lang.scrip`: SNOBOL4 section defines a pattern that delegates to an
-  Icon generator box (via `icn_eval_gen` + `bb_broker` wired into interp_eval_pat for
-  E_EVERY nodes tagged LANG_ICN). Icon section produces values consumed by SNOBOL4 OUTPUT.
-  Gate: `scrip test/cross_lang.scrip` exits 0 and matches expected output.
+- [ ] **U-19** — Cross-language `.scrip` test. *(Proof of concept end-to-end.)*
+  Write `test/cross_lang.scrip`: Icon section defines a `1 to 3` generator; SNOBOL4
+  section drives it via `bb_broker(BB_PUMP)` (using `icn_eval_gen`) and prints each value.
+  Prolog section asserts a simple fact that SNOBOL4 queries via `bb_broker(BB_ONCE)`.
+  Gate: `scrip test/cross_lang.scrip` output matches `.ref`; `scrip --sm-run` matches too.
   `make scrip` clean; smoke PASS; regression non-regressing.
 
-- [ ] **U-18** — Documentation.
-  Update PLAN.md Active Goals table. Update `ARCH-IR.md` to document the polyglot
-  Program*, per-statement lang tag, and the single execute_program dispatch loop.
-  Gate: none — documentation only.
+- [ ] **U-20** — Documentation.
+  `ARCH-IR.md`: document polyglot `Program*`, `STMT_t.lang`, `polyglot_init`,
+  `SM_BB_PUMP`/`SM_BB_ONCE` as the three broker modes in one SM.
+  Update PLAN.md. Gate: none.
 
 ---
 
@@ -216,14 +241,27 @@ Program*. These steps fix that — small, always runnable, gate after each.
 
 ## Current state (session 2026-04-13, one4all HEAD 74cef6a5)
 
-U-1 through U-11 complete. U-6 γ repack still deferred (only affects --bb-live x86 path).
-smoke.sh x86 emit block replaced with SKIP (SM/BB box-by-box emitter pending).
+U-1 through U-11 complete. U-6 γ repack deferred (--bb-live x86 path only).
 
-Phase 6 replanned 2026-04-13: program-level unification first, then box-level cross-lang.
-Key insight: one interpreter (interp_eval) and one broker (bb_broker) already exist.
-The gap is at the Program* level — no lang tag on STMT_t, no polyglot parser, no
-per-statement dispatch. icn_eval_gen (B-8) declared in icon_gen.h but not yet implemented.
+Phase 6 replanned 2026-04-13 (final):
 
-**Next session starts at U-12.** Tag STMT_t with source language (add lang field).
+**Unifying insight:** SM and BB are already one abstraction.
+  `SM_EXEC_STMT` → `exec_stmt` → `bb_broker(BB_SCAN)`   — SNOBOL4 pattern match
+  Icon `every`                 → `bb_broker(BB_PUMP)`    — generator drain
+  Prolog clause                → `bb_broker(BB_ONCE)`    — goal solve
+Three broker modes × one DESCR_t × one stack = one machine, three languages.
+
+Gaps to close (U-12 → U-20, small to large, always green):
+  U-12: STMT_t.lang tag (additive only)
+  U-13: polyglot parser (.scrip → one Program*)
+  U-14: polyglot_init(prog) — one pass, all three runtime tables
+  U-15: --ir-run per-statement dispatch by st->lang
+  U-16: SM_BB_PUMP + SM_BB_ONCE opcodes (stubs, unused until U-18)
+  U-17: icn_eval_gen implemented (B-8 stub)
+  U-18: sm_lower extended for Icon/Prolog (SM_ICN_EVAL/SM_PL_EVAL/SM_BB_PUMP/SM_BB_ONCE)
+  U-19: cross-language .scrip test end-to-end
+  U-20: documentation
+
+**Next session starts at U-12.**
 
 regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).
