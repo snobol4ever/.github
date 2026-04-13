@@ -35,7 +35,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-7 (find() generator; 47/59 PASS) | ☐ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unified interp — Phase 1B first) | ☐ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10d (findall/3; Phase 1B complete) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
 | Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-1 (fix parse_expr_pat_from_str: pass src direct, return subject/pattern) | ☐ |
@@ -48,6 +48,8 @@ Do not read `archive/` unless a step explicitly says to.
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 (unit test) | ☐ |
 | DATATYPE Portable Tests | `GOAL-DATATYPE-PORTABLE-TESTS.md` | corpus | S-1 (audit) | ☐ |
+| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-3 (CODE() builtin; S-1/S-2 done) | ☐ |
+| SNOBOL4 Pat IR | `GOAL-SNOBOL4-PAT-IR.md` | one4all | S-2 (grammar actions done; S-1 skipped) | ☐ |
 | README: profile | `GOAL-README-PROFILE.md` | .github | S-1 (audit) | ☐ |
 | README: one4all | `GOAL-README-ONE4ALL.md` | one4all | S-1 (audit) | ☐ |
 | README: snobol4dotnet | `GOAL-README-SNOBOL4DOTNET.md` | snobol4dotnet | S-1 (audit) | ☐ |

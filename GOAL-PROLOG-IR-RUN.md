@@ -6,37 +6,21 @@ the existing Prolog corpus rung tests.
 
 ---
 
-## Current state (2026-04-12, one4all HEAD)
+## Current state (2026-04-13, one4all HEAD)
 
-S-1 through S-9 complete. S-10a, S-10b, S-10c complete.
-PASS=13/107.
+S-1 through S-10c complete. Phase 1B complete (S-1B-1 through S-1B-6).
+PASS=16/107.
 Passing: rung01 rung02 rung03 rung04 rung05 rung06 rung07 rung08 rung09
+         rung11_findall_basic rung11_findall_empty rung11_findall_filter
          rung14_retract_all rung14_retract_nonexistent rung22_print rung23_max_min.
 
-S-10c DONE: recursive backtracking fixed via continuation-passing interpreter.
-  Root cause: the flat retry-loop in pl_exec_body exhausted inner recursive calls
-  before retrying outer clauses. The CP for inner member(X,[b,c]) was popped before
-  the suffix (write,nl,fail) ran, so longjmp on fail hit the outer CP at the wrong
-  clause index.
+Phase 1B DONE: `prolog_interp.c` and `prolog_interp.h` deleted. All Prolog exec
+logic now lives in `scrip.c`: `pl_execute_program_unified()`,
+`pl_unified_exec_body_k()`, `pl_unified_exec_goal()`, `interp_eval_prolog_term()`.
+Pred table (Pl_PredTable), Trail, and CP stack (Pl_ChoicePoint/pl_cp_stack) are
+file-statics in `scrip.c`. No behaviour change; 16/107 baseline confirmed.
 
-  Fix: replaced pl_exec_body with pl_exec_body_k — a continuation-passing interpreter.
-  For each user call U followed by suffix S:
-    - Push CP with setjmp (retry point for this call site).
-    - Build Body_cont(S, caller_env, outer_cont) as the continuation.
-    - Run clause body via pl_exec_body_k(body, clause_env, ..., &suffix_bc).
-    - suffix_bc invokes S in caller_env when body succeeds.
-    - S failure longjmps back to the setjmp, advancing cp->next_clause.
-  This mirrors emit_body's retry_N label pattern exactly: the suffix is
-  inlined on the C stack below the inner CP, so failure propagates correctly.
-
-  Architecture: Cont_t / Body_cont struct in prolog_interp.c.
-  pl_exec_body() is a wrapper calling pl_exec_body_k(..., cont_done).
-  pl_call() unchanged — used by pl_exec_goal for \+ and single-shot calls.
-
-Next: **S-1B-1** (Phase 1B — unified interpreter). Do NOT resume S-10d until Phase 1B complete.
-
-SNOBOL4 smoke: sm-run PASS, ir-run PASS (x86 emit pre-existing failure).
-
+Next: **S-10d** (findall/3 improvements).
 ---
 
 ## Verification Technique
