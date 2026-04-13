@@ -28,6 +28,7 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude
 | .NET / NET | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` |
 | Monitor / Silly | `build_packages.sh` `build_csnobol4.sh` `build_spitbol.sh` `build_monitor_ipc.sh` |
 | Full environment | `bash /home/claude/one4all/build/build_setup.sh` |
+| After editing .y/.l | `bash /home/claude/one4all/build/build_regenerate.sh` then `make scrip` |
 
 All scripts are in `/home/claude/one4all/build/`. Each is idempotent.
 
