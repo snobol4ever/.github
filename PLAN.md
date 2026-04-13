@@ -46,7 +46,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
-| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5..S-12 partial (38/42 PASS; 1 segfault) | ☐ |
+| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5B (icn_drive Byrd-box generator; 45/59 PASS) | ☐ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10 (rung01 corpus tests) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (E_INDIRECT subj NV case-fold bug — NV_GET_fn returns DT_SNUL) | ☐ |
