@@ -6,24 +6,24 @@ rung01–rung11 of the Icon corpus ladder.
 
 ---
 
-## Current state (2026-04-12, one4all f6439fd7)
+## Current state (2026-04-13, session in progress)
 
-**Score: 45/59 PASS through unified interpreter in scrip.c**
+**Score: 48/59 PASS**
 
-Icon now runs through `icn_execute_program_unified` → `icn_interp_eval` →
-`icn_call_proc` in `scrip.c` — same file as SNOBOL4 `execute_program` /
-`interp_eval`. One IR, one interpreter.
+Icon runs through `icn_execute_program_unified` → `icn_interp_eval` in `scrip.c`.
+SNOBOL4 runs through `execute_program` → `interp_eval` in the same file.
+These are **separate eval functions** — S-7B/C/D/E will unify them into one switch.
+Note: S-5C's claim of "one interpreter" meant same file, not same eval loop.
 
-Old fork (`icon_execute_program` / `icn_exec` / `IcnVal` in `icon_interp.c`)
-is superseded but not yet deleted — kept until unified path reaches 46/59+.
+`g_lang` (0=SNOBOL4, 1=Icon) and `g_icn_root` globals added as unification scaffolding.
 
-**Unified path failures (14):**
-- rung03 suspend (3): E_SUSPEND needs setjmp/longjmp (S-11)
-- rung05 scan (5): &subject keyword + nested scan restore
+**Remaining failures (11):**
+- rung03 suspend (4): E_SUSPEND needs setjmp/longjmp (S-11)
+- rung05 scan (3): &subject keyword + nested scan restore (S-8/S-10)
 - rung06_cset_any_fail (1): & conjunction short-circuit (S-9)
-- rung08 find_gen + match (2): find() generator form (S-7) + scan pos reset
-- rung11 bang (2): E_ITERATE / !str not yet implemented (S-6)
-- rung01_nested_to (1): nested every cross-product generator
+- rung08 match (1): scan pos reset (pre-existing, scan-related)
+- rung10 break_while (1): pre-existing
+- rung11 bang/list (1): pre-existing
 
 | Rung | Feature | PASS | FAIL | Notes |
 |------|---------|------|------|-------|
@@ -139,9 +139,32 @@ infrastructure.
   Added `sval` field to `IcnGenEntry_d`; added `icn_gen_lookup_sv` helper.
   Gate: rung11 5/5. ✅ Score: 47/59.
 
-- [ ] **S-7** — Translate `emit_find` (find() builtin) → C for-loop over positions.
+- [x] **S-7** — Translate `emit_find` (find() builtin) → C for-loop over positions.
   `find(pat,str)` generates all match positions; β = advance past last match.
-  Gate: rung08 5/5.
+  Fixed bug: ICN_CALL nodes have `sval=NULL`; name is in `children[0]->sval`.
+  Added `g_lang` / `g_icn_root` globals; set at both execute entry points.
+  Gate: rung08 find_gen PASS. ✅ Score: 48/59.
+
+- [ ] **S-7B** — Interp unification prep: make `icn_interp_eval(root,e)` set globals then delegate to `interp_eval(e)`.
+  `interp_eval` gains Icon-only cases gated on `g_lang==1`.
+  No behavioral change — all tests pass at each micro-step.
+  Gate: make scrip clean + rung08 4/5 + SNOBOL4 PASS=204 unchanged.
+
+- [ ] **S-7C** — Migrate shared cases one at a time from `icn_interp_eval` into `interp_eval`.
+  Order: E_ILIT/E_FLIT/E_QLIT/E_NUL → E_SEQ → E_NOT → E_MNS → arithmetic/relops →
+  E_ASSIGN → E_VAR (dispatch on g_lang) → E_KEYWORD → E_FNC → E_CAT/E_LCONCAT.
+  Each case: add to `interp_eval` gated on `g_lang`, remove from `icn_interp_eval`, build+test.
+  Gate: make scrip clean + all prior rungs unchanged after every case moved.
+
+- [ ] **S-7D** — Migrate Icon-only cases into `interp_eval` gated on `g_lang==1`.
+  Order: E_EVERY → E_WHILE → E_UNTIL → E_REPEAT → E_TO_BY → E_IF → E_RETURN →
+  E_SCAN → E_SUSPEND → E_ITERATE → E_AUGOP → E_CSET → E_LOOP_BREAK.
+  Gate: make scrip clean + all rungs unchanged after every case moved.
+
+- [ ] **S-7E** — Delete `icn_interp_eval` body; replace with 3-line wrapper:
+  `g_icn_root=root; g_lang=1; return interp_eval(e);`
+  Delete forward decl. One unified eval loop.
+  Gate: make scrip clean + 48/59 PASS unchanged.
 
 - [ ] **S-8** — Fix `&subject` / `&pos` in scan context (rung05).
   Trace &subject: icon_parse.c → icon_lower.c → icn_exec.
