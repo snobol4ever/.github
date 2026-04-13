@@ -77,14 +77,14 @@ Target architecture:
 
 ### Phase 4 — Unify icn_box_fn and Pl_GoalBox into bb_node_t
 
-- [ ] **U-7** — Retire `icn_box_fn` / `icn_gen_t` — replace with `bb_box_fn` / `bb_node_t`.
+- [x] **U-7** — Retire `icn_box_fn` / `icn_gen_t` — replace with `bb_box_fn` / `bb_node_t`. DONE.
   In `icon_gen.h`: `icn_box_fn` → `bb_box_fn`; `icn_gen_t` → `bb_node_t`.
   In `icon_gen.c`: update all box constructors to return `bb_node_t`.
   `icn_broker` now calls `bb_broker(root, BB_PUMP, body_fn, arg)` internally — or is
   replaced by a thin wrapper around `bb_broker`.
   Gate: `make scrip` clean; Icon rung01-11 59/59 PASS.
 
-- [ ] **U-8** — Retire `Pl_GoalBox` — replace with `bb_node_t`.
+- [x] **U-8** — Retire `Pl_GoalBox` — replace with `bb_node_t`. DONE.
   In `pl_broker.h`: `Pl_GoalBox` → `bb_node_t`; `.fn`/`.zeta` field names already match.
   `pl_exec_goal` now calls `bb_broker(root, BB_ONCE, NULL, NULL)` — returns 1 if ticks>0.
   Gate: `make scrip` clean; Prolog regression non-regressing.
@@ -93,7 +93,7 @@ Target architecture:
 
 ### Phase 5 — Wire `bb_broker` as the single call site in all three paths
 
-- [ ] **U-9** — Replace Phase 3 in `stmt_exec.c` with `bb_broker(root, BB_SCAN, ...)`.
+- [x] **U-9** — Replace Phase 3 in `stmt_exec.c` with `bb_broker(root, BB_SCAN, ...)`. DONE.
   The scan body_fn extracts match start/end from the `DESCR_t` val via `spec_from_descr`.
   Remove the inline scan loop from `stmt_exec.c`.
   Gate: `make scrip` clean; full regression non-regressing; crosscheck passes.
@@ -164,21 +164,12 @@ Target architecture:
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 9fc8e599)
+## Current state (session 2026-04-13, one4all HEAD 3e85c721)
 
-U-1 through U-5 complete. U-6 partial (ω returns done; γ success repacking remaining —
-only affects --bb-live x86 path which was pre-existing failure; interpreter unaffected).
+U-1 through U-9 complete. U-6 γ repack still deferred (only affects --bb-live x86 path).
 
-**Next session starts at U-7.** U-6 γ repack can be deferred — it only affects the
-native x86 emit path, not --ir-run. Do U-7 through U-11 first to complete broker
-unification across all three language interpreter paths, then return to U-6 if needed.
+**Next session starts at U-10.** Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c`
+with `bb_broker(..., BB_PUMP, ...)`. Remove `icn_broker` function entirely.
+Gate: `make scrip` clean; Icon ir-run PASS=48/59 (non-regressing).
 
-Context for U-7: `icn_box_fn` in `icon_gen.h` needs to become `bb_box_fn`;
-`icn_gen_t` becomes `bb_node_t`. Then `icn_broker` becomes a thin wrapper around
-`bb_broker(..., BB_PUMP, ...)`. Gate: Icon 59/59 PASS after change.
-
-Context for U-8: `Pl_GoalBox` in `pl_broker.h` becomes `bb_node_t`. `.fn`/`.zeta`
-field names already match. `pl_exec_goal` becomes `bb_broker(..., BB_ONCE, ...)`.
-Gate: Prolog regression non-regressing (PASS=149 baseline).
-
-regression baseline: run_interp_broad.sh PASS=149.
+regression baseline: run_interp_broad.sh PASS=156 (improved from 149 after U-9).
