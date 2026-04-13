@@ -9,37 +9,54 @@
 - `scrip --ir-run` PASS=193/203
 - Beauty suite: **14/19** passing
 
-## Current state (session 2026-04-12, session 4)
+## Current state (session 2026-04-13, session 5)
 
-- one4all HEAD: `0f369ff8`
-- Beauty suite: **14/18** passing (no regression)
-- Failing: Gen, TDump, XDump, omega
+- one4all HEAD: `29a703ea` (no code commits this session — diagnosis only)
+- Beauty suite: **10/18** passing (regressed from 14 due to prior UNIFIED-BROKER work)
+- Failing: Gen, TDump, XDump, Qize, ReadWrite, case, global, semantic
 
-## Next session — E_INDIRECT capture write-back bug (BLOCKS Gen/TDump)
+## ROOT CAUSE FOUND — ALL PATTERN CAPTURES BROKEN
 
-**Root cause found (session 4):** `snobol4.y` S=PR split only accepted
-E_VAR/E_KEYWORD/E_QLIT as first-child subject. E_INDIRECT missing — entire
-`$'$B' BREAK(nl) . outline nl REM . $'$B'` became one E_SEQ subject, no pattern.
-**Fixed in commit 0f369ff8** (one line, snobol4.y:241).
+**Single bug blocks all 8 failing drivers.**
 
-**Remaining bug:** After parser fix, match now runs but:
-- `BREAK(nl) . outline` captures empty string (outline = "")
-- `REM . $'$B'` write-back does not fire ($'$B' unchanged after match)
-- Match "succeeds" (does not take :F) but captures nothing
+`bb_box_fn` was changed to return `DESCR_t` in commit `452889dd`
+(UNIFIED-BROKER U-5: "all SNOBOL4 boxes return DESCR_t"). But the SNOBOL4
+box functions in `stmt_exec.c` (`bb_capture`, `bb_len`, `bb_pos`, `bb_span`,
+etc.) were **never migrated** — they still return `spec_t`.
 
-**Two suspects:**
-1. `BREAK(nl)` receives `nl` evaluated as string "nl" (variable name) not
-   "\n" (its value) inside `interp_eval_pat` — BREAK needs a cset arg.
-2. `REM . $'$B'` — target is `E_CAPT_COND_ASGN(E_INDIRECT(E_QLIT "$B"))`.
-   scrip.c line 1200 handles E_INDIRECT capture targets — may not be
-   committing correctly via NAM_commit / flush_pending_captures.
+The exec_stmt Phase 3 scan loop calls:
+```c
+spec_t result = spec_from_descr(root.fn(root.ζ, α));
+```
 
-**Debug approach next session:**
-1. Test `BREAK(nl)` with literal: replace nl with CHAR(10) in minimal test.
-   If outline gets "hello", bug is nl evaluation inside pat context.
-2. If BREAK works with literal, trace E_INDIRECT capture target at scrip.c:1200
-   through NAM_commit to find why write-back does not fire.
-3. Once Gen buffer drain works: Gen driver unblocked, TDump tests 4/5 unblocked.
+`root.fn` returns a `spec_t` reinterpreted as `DESCR_t`. `spec_from_descr`
+checks `d.v != DT_S || !d.s` — always true on a misinterpreted `spec_t` —
+so it always returns `spec_empty`. **Every pattern match fails silently.**
+
+Confirmed by debug: `LEN(1) . letter` on `'hi'` — NAM_push fires (bb_capture
+γ-port runs, child match succeeds internally), but outer scan loop sees
+spec_empty and discards it. NAM_commit never reached.
+
+## Next session — Fix bb_box_fn return type mismatch (THE fix)
+
+**Option A (preferred — minimal, safe):** In exec_stmt Phase 3 only, cast
+the return at the call site in `stmt_exec.c`:
+```c
+// Change Phase 3 scan loop from:
+spec_t result = spec_from_descr(root.fn(root.ζ, α));
+// To:
+spec_t result = ((spec_t(*)(void*,int))root.fn)(root.ζ, α);
+```
+All box functions in `stmt_exec.c` correctly return `spec_t` — only the
+call-site wrapper `spec_from_descr` is wrong. The binary/live path
+(`bb_build_flat`/`bb_build_binary`) is already in the DESCR_t world and is
+unaffected (it uses a separate code path that never calls `spec_from_descr`).
+
+**Option B:** Migrate all ~20 box functions in `stmt_exec.c` to return
+`DESCR_t` via `descr_from_spec(...)` wrappers. More invasive, higher risk.
+
+**Gate after fix:** Run full beauty suite — expect recovery to 14+ passing.
+Update pass count here.
 
 ## Run command
 
