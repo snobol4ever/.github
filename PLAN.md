@@ -30,7 +30,8 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-11 (replace pl_exec_goal call sites → bb_broker BB_ONCE; remove pl_exec_goal) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-12 (cross-lang test: SNOBOL4 pattern calls Icon generator) | ☐ |
+| Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
