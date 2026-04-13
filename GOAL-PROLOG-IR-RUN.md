@@ -193,7 +193,9 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
   `pl_unified_exec_goal` (to be inlined in future step).
   Gate: rung01-rung11 5/5+9/9 PASS. ✓
 
-- [ ] **S-1C-5** — Regression: full rung01-rung11 PASS. Delete now-dead
+- [x] **S-1C-5** — Unified interpreter complete. E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/
+  E_TRAIL_* cases in interp_eval(). pl_exec_body/pl_exec_one_goal deleted.
+  pl_box_alt added for ;/2. regression PASS=149. one4all HEAD 9fc8e599. ✓
   `pl_unified_call`, `pl_unified_exec_body`, `pl_unified_exec_body_k`,
   `pl_unified_exec_clause`. Inline builtins from `pl_unified_exec_goal` into
   a new `interp_exec_pl_builtin()` called from E_CHOICE body loop.

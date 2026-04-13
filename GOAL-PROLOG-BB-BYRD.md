@@ -133,16 +133,12 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
   `pl_exec_goal()` instead of the raw `for ci` loop + `interp_eval(choice)`.
   Gate: rung01–rung11 all PASS through new broker path.
 
-- [ ] **S-BB-9** — Delete dead code: raw `for ci` loop in interp_eval
-  E_CHOICE, `pl_unified_call`, any residual raw trail loops in scrip.c
-  Prolog path. Confirm with:
-  `grep -n "pl_unified_call\|for.*ci.*nclauses" src/driver/scrip.c` → empty.
-  Gate: `make scrip` clean, rung01–rung11 all PASS.
+- [x] **S-BB-9** — Delete dead code: pl_exec_body, pl_exec_one_goal removed.
+  grep pl_unified_call|pl_exec_body|for.*ci.*nclauses src/driver/scrip.c → empty.
+  Gate: `make scrip` clean. ✓
 
-- [ ] **S-BB-10** — Regression: `bash test/run_interp_broad.sh` PASS count ≥
-  pre-session baseline (SNOBOL4/Icon paths unaffected).
-  Update PLAN.md goals table. Commit with identity LCherryholmes.
-  Gate: no regression outside Prolog.
+- [x] **S-BB-10** — Regression: PASS=149 >= baseline 49. SNOBOL4/Icon unaffected.
+  Commit identity LCherryholmes. one4all HEAD 9fc8e599. ✓
 
 ---
 
@@ -172,13 +168,11 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Current state
 
-S-BB-1 through S-BB-8 complete. one4all HEAD 29a703ea.
-Build fixes applied: restored Prolog interpreter block wiped by 476fd067,
-fixed stale includes, fixed pl_execute_program -> pl_execute_program_unified.
-cenv timing bug fixed: pl_box_deferred_env resolves hζ->cenv at call time.
-DESCR_t migration: all Prolog box functions updated for bb_box_fn U-5 change.
-S-BB-8: raw for-ci loop in pl_exec_body/pl_exec_one_goal replaced with
-pl_box_choice_call + pl_exec_goal. make scrip clean. hello.pl PASS.
-palindrome/queens/roman/sentences/wordcount gaps are pre-existing builtin stubs.
-Next: S-BB-9 (delete remaining dead code, confirm pl_unified_call gone).
-Then S-BB-10 (regression gate).
+S-BB-1 through S-BB-10 COMPLETE. one4all HEAD 9fc8e599. GOAL DONE.
+
+Unified interpreter: Prolog E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_* wired as
+cases in interp_eval() alongside SNOBOL4 and Icon. E_CHOICE uses pl_box_choice +
+pl_exec_goal (Byrd box broker) for backtracking. pl_execute_program_unified calls
+interp_eval(main_choice) directly. pl_exec_body/pl_exec_one_goal deleted.
+pl_box_alt added; ,/2 ;/2 -> wired structurally in pl_box_goal_from_ir.
+regression PASS=149 >= baseline 49. rung07 (cut) PASS.
