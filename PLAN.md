@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-7 (retire icn_box_fn/icn_gen_t → bb_box_fn/bb_node_t) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-10 (replace icn_broker call sites → bb_broker BB_PUMP; remove icn_broker) | ☐ |
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
