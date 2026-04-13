@@ -47,7 +47,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-5B (icn_drive Byrd-box generator; 45/59 PASS) | ☐ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10 (PASS=10/107; prolog_interp.c Byrd box rewrite done; next: findall/assertz/atom builtins) | ☐ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10c (recursive backtracking — WAM choice point stack) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (E_INDIRECT subj NV case-fold bug — NV_GET_fn returns DT_SNUL) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-10 (clone field-slot in GetProgramDefinedDataField to prevent Collection stamp cycle) + S-8B + S-9 | ☐ |
