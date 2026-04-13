@@ -6,22 +6,40 @@ the existing Prolog corpus rung tests.
 
 ---
 
-## Current state (2026-04-12, one4all 6d7a1c46)
+## Current state (2026-04-12, one4all HEAD)
 
-S-1 through S-9 complete. S-10 in progress.
+S-1 through S-9 complete. S-10 in progress: S-10a and S-10b done this session.
 prolog_interp.c rewritten as proper Byrd box four-port mirror of prolog_emit.c:
-- pl_call(): resumable four-port dispatcher (α=start 0, β=retry, γ=return ci, ω=-1)
+- pl_call(): resumable dispatcher; cut is LOCAL — never propagates past predicate boundary
 - pl_exec_clause(): unify head args, execute body
-- pl_exec_body(): Proebsting retry chain for user calls
-- pl_exec_goal(): all builtins including ;/2 ->/2 \+/1 functor/3 arg/3 =../2
+- pl_exec_body(): retry loop rebuilds args from env each iteration (trail-unwind safe)
+- pl_exec_goal(): all builtins including ;/N ->/N \+/1 functor/3 arg/3 =../2 (all n-ary aware)
 - Predicate table: hash map keyed by functor/arity string
 
-Corpus rung results: PASS=10/107 (was 3 before this session).
-Passing: rung01 rung03 rung04 rung06 rung07 rung08 rung09 + 3 more.
-Remaining failures: findall/3, assertz/retract/abolish, atom builtins,
-  @</>/=</=< comparisons, sort/msort, succ/plus, format/2, numbervars,
-  char_type, write_canonical, arith_ext, string_io, term_string,
-  copy_term/concat_atom, aggregate, exceptions, float ops, DCG.
+Corpus rung results: PASS=12/107 (session start: 10).
+Passing: rung01 rung02 rung03 rung04 rung06 rung07 rung08 rung09
+         rung14_retract_all rung14_retract_nonexistent rung22_print rung23_max_min.
+
+Key architectural findings this session:
+- Lowerer emits ,/;/-> as n-ary E_FNC (right-spine flattened) — interp must handle any arity.
+- cut must NOT short-circuit forward body execution — only prevents retry.
+- Proebsting retry-loop (start=r+1) fails for recursive predicates: after clause 2
+  (recursive) succeeds once, start advances to 3 (nonexistent) instead of re-entering
+  clause 2's inner backtrack tree. member/2 on [a,b,c] finds only a and b, not c.
+
+S-10c diagnosis — recursive backtracking:
+  The retry loop in pl_exec_body drives choice at the CALL SITE level (which clause
+  of the predicate to try). Recursive predicates need re-entry into the INNER body
+  of the successful clause — i.e., the recursive sub-call must be retried, not the
+  outer clause restarted. This requires either:
+    (a) A global WAM-style choice point stack where each pl_call registers a CP,
+        failure pops to the innermost CP and longjmps back to its retry loop; or
+    (b) CPS transform: pl_exec_body takes a continuation and calls it; on failure
+        the loop retries — but continuation must be re-enterable across C frames.
+  Option (a) is the right approach. See ChoicePoint struct already added to file.
+  Next session: implement global CP stack properly — push CP before pl_call,
+  longjmp on failure from pl_exec_body when retry loop exhausted, pop on success.
+
 SNOBOL4 smoke: sm-run PASS, ir-run PASS (x86 emit pre-existing failure).
 
 ---
@@ -72,8 +90,72 @@ Claude presents each test result and asks: **T or F?**
 - [x] **S-9** — Implement `E_TRAIL_MARK` / `E_TRAIL_UNWIND` in body goals.
   Gate: multi-clause predicates with backtracking work.
 
-- [ ] **S-10** — Run rung01 Prolog corpus tests. Fix failures one at a time.
-  Gate: rung01 PASS count ≥ prior JVM-emitter baseline.
+- [x] **S-10a** — Fix `,/N`, `;/N`, `->/N` arity guards in pl_exec_goal (lowerer emits n-ary).
+  Gate: rung02 PASS.
+
+- [x] **S-10b** — Fix cut scope: cut must not short-circuit forward body execution;
+  only prevents retry. pl_call uses own local cut_flag, never propagates past predicate boundary.
+  Gate: rung07 PASS. ✓
+
+- [ ] **S-10c** — Replace Proebsting retry-loop with proper choice point stack for recursive backtracking.
+  Flat retry-loop (start++) cannot backtrack into recursive sub-calls (e.g. member/2, append/3).
+  Implement ChoicePoint struct {clause_idx, trail_mark, env snapshot} pushed on each user call;
+  on failure pop and resume. Mirror pl_call's clause loop but save continuation across C stack frames.
+  Gate: rung05 PASS (member/2 with fail-loop finds all 3 solutions).
+
+- [ ] **S-10d** — `findall/3`: save trail mark, call Goal collecting solutions, restore trail.
+  Gate: rung11 5/5 PASS.
+
+- [ ] **S-10e** — `assertz/asserta/retract/abolish`: dynamic predicate table mutation.
+  Gate: rung13 5/5, rung14 5/5, rung15 5/5.
+
+- [ ] **S-10f** — atom builtins: `atom_length/2`, `atom_chars/2`, `atom_codes/2`, `atom_concat/3`.
+  Gate: rung12 5/5.
+
+- [ ] **S-10g** — `@</2`, `@>/2`, `@=</2`, `@>=/2` term ordering comparisons.
+  Gate: rung16 5/5.
+
+- [ ] **S-10h** — `sort/2`, `msort/2`.
+  Gate: rung17 5/5.
+
+- [ ] **S-10i** — `succ/2`, `plus/3`.
+  Gate: rung18 5/5.
+
+- [ ] **S-10j** — `format/2` (`~w`, `~a`, `~d`, `~i`, `~n`).
+  Gate: rung19 5/5.
+
+- [ ] **S-10k** — `numbervars/3`.
+  Gate: rung20 5/5.
+
+- [ ] **S-10l** — `char_type/2`.
+  Gate: rung21 5/5.
+
+- [ ] **S-10m** — `write_canonical/1`, `writeq/1`, `print/1`.
+  Gate: rung22 5/5.
+
+- [ ] **S-10n** — arith ext: bitwise ops, `max/min`, `**`, `sign`, `truncate/round/floor/ceiling`.
+  Gate: rung23 5/5.
+
+- [ ] **S-10o** — string/IO builtins: `atom_string`, `number_string`, `string_concat`, `string_length`, `string_lower/upper`.
+  Gate: rung24 5/5.
+
+- [ ] **S-10p** — `term_string/2`, `term_to_atom/2`.
+  Gate: rung25 5/5.
+
+- [ ] **S-10q** — `copy_term/2`, `concat_atom/2`, `atom_to_term/3`.
+  Gate: rung26 5/5.
+
+- [ ] **S-10r** — aggregate: `nb_setval/nb_getval`, `aggregate_all`.
+  Gate: rung27 5/5.
+
+- [ ] **S-10s** — exceptions: `throw/1`, `catch/3`.
+  Gate: rung28 5/5.
+
+- [ ] **S-10t** — float ops: `float/1`, `float_integer_part`, `float_fractional_part`, `sin/cos/exp/log`, `gcd`.
+  Gate: rung29 5/5.
+
+- [ ] **S-10u** — DCG: `phrase/2,3`, `-->` rule expansion.
+  Gate: rung30 5/5.
 
 - [ ] **S-11** — Run rung01–rung05 full Prolog corpus ladder.
   Gate: PASS count matches or exceeds prior JVM-emitter baseline.
