@@ -212,3 +212,29 @@ python3 test/beauty_subexpr_gen.py --run \
 ## Commit identity
 
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+---
+
+## Session 6 addendum — known issues for S-2 completion
+
+Generator proof-of-concept works (Gen.sno line 45 → snippet emitted, 163 scalars).
+Four bugs block clean snippet output:
+
+1. **FAIL message embeds `$'$B'` inside string literal** — breaks SPITBOL parser.
+   Fix: omit expr text from FAIL string entirely; use test number label only.
+   `OUTPUT = 'FAIL test 1'` not `OUTPUT = 'FAIL [$'$B'] got=...'`
+
+2. **Control-char DUMP values produce unclosed string literals.**
+   `cr = '\` (carriage return mid-string), `nl = '\n` etc.
+   Fix: in `dump_val_to_snobol`, detect non-printable chars and emit `CHAR(N)`
+   or `CHAR(13)` etc. instead of embedding the raw byte.
+
+3. **stlimit heuristic (50%) too early** — `BREAK(nl)` gets no oracle value
+   because `Gen()` hasn't been called yet at stlimit=250.
+   Fix: `find_stlimit_for_line` needs real instrumentation — inject a counter
+   that fires when the target line's label/position is reached, binary search.
+
+4. **`$'$B'` alias logic inverted** — emits `$SNBxl = 0` instead of
+   `SNBxB = '$B'` then `$SNBxB = '...'`.
+   Fix: rewrite alias block in `emit_snippet` — create alias FIRST,
+   then assign via `$alias = value`.
