@@ -161,3 +161,24 @@ Target architecture:
 - Build gate: `make scrip` clean + smoke + regression non-regressing after every step.
 - One step per commit. Gate before committing.
 - Follow RULES.md naming conventions: new C functions in `snake_case`, new types `Xxxx_yyy`.
+
+---
+
+## Current state (session 2026-04-13, one4all HEAD 9fc8e599)
+
+U-1 through U-5 complete. U-6 partial (ω returns done; γ success repacking remaining —
+only affects --bb-live x86 path which was pre-existing failure; interpreter unaffected).
+
+**Next session starts at U-7.** U-6 γ repack can be deferred — it only affects the
+native x86 emit path, not --ir-run. Do U-7 through U-11 first to complete broker
+unification across all three language interpreter paths, then return to U-6 if needed.
+
+Context for U-7: `icn_box_fn` in `icon_gen.h` needs to become `bb_box_fn`;
+`icn_gen_t` becomes `bb_node_t`. Then `icn_broker` becomes a thin wrapper around
+`bb_broker(..., BB_PUMP, ...)`. Gate: Icon 59/59 PASS after change.
+
+Context for U-8: `Pl_GoalBox` in `pl_broker.h` becomes `bb_node_t`. `.fn`/`.zeta`
+field names already match. `pl_exec_goal` becomes `bb_broker(..., BB_ONCE, ...)`.
+Gate: Prolog regression non-regressing (PASS=149 baseline).
+
+regression baseline: run_interp_broad.sh PASS=149.
