@@ -170,9 +170,19 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 
 
-`rebus.tab.c`, `rebus.tab.h`, and `lex.rebus.c` are committed and always current.
-Never run apt-get to install bison or flex. If you modify `rebus.y` or `rebus.l`,
-regenerate on your own machine and commit the C files.
+## Parser/lexer regeneration — bison and flex are available
+
+`bison` and `flex` are installed by `build_packages.sh` and are available in every session.
+
+**When you edit a `.y` or `.l` file:**
+1. Run `bash build/build_regenerate.sh` — regenerates `.tab.c`, `.tab.h`, `.lex.c`.
+2. Commit the `.y`/`.l` source AND the updated generated files together in one commit.
+3. Never edit `.tab.c` or `.lex.c` directly for grammar/lexer logic — edit the `.y`/`.l` source.
+   Exception: epilogue functions hand-written directly in `.tab.c` (e.g. `sno_parse_string`)
+   should be migrated to the `.y` epilogue section so they regenerate correctly.
+
+The generated files are committed so normal builds never require bison/flex at build time.
+`build_regenerate.sh` is only needed after `.y`/`.l` changes.
 
 ---
 

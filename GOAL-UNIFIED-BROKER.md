@@ -143,13 +143,14 @@ The steps below build toward that incrementally — always green, always runnabl
   All three entry points call `polyglot_init` — their individual init sequences removed.
   Gate: `make scrip` clean; smoke PASS=2.
 
-- [ ] **U-15** — `--ir-run` per-statement dispatch by `st->lang`. *(IR path goes polyglot.)*
-  In `execute_program`'s statement loop, replace the E_CHOICE/E_CLAUSE skip guard with:
+- [x] **U-15** — `--ir-run` per-statement dispatch by `st->lang`. DONE.
+  In `execute_program`'s statement loop, replaced E_CHOICE/E_CLAUSE skip guard with:
     `LANG_SNO`: existing path (subject / pattern / replacement / goto).
-    `LANG_ICN`: save `icn_env`/`icn_env_n`/`icn_returning`; call `icn_interp_eval(st->subject, st->subject)`; restore.
+    `LANG_ICN`: skip inline (E_FNC defs registered by polyglot_init); call icn_call_proc(main) post-loop.
     `LANG_PL`:  call `interp_eval(st->subject)` with `g_pl_active=1`.
-  Gate: `scrip --ir-run demo/scrip/demo2/wordcount.md` executes all three sections and
-  each produces correct output. `make scrip` clean; smoke PASS; regression non-regressing.
+  Also fixed `sno_parse_string` to use `lex_open_str_initial` (INITIAL start state) so
+  indented/labelled SNOBOL4 blocks parse correctly in polyglot context.
+  Gate: SNO wordcount outputs 9; smoke PASS=2. one4all HEAD 5a6d8124.
 
 - [ ] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. *(SM sees BB modes.)*
   In `sm_prog.h`: add `SM_BB_PUMP` and `SM_BB_ONCE` after `SM_EXEC_STMT`.
@@ -232,20 +233,16 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD aab7ddd4)
+## Current state (session 2026-04-13, one4all HEAD 5a6d8124)
 
-U-1 through U-14 complete. U-6 γ repack deferred (--bb-live x86 path only).
-U-12, U-13, U-14 completed this session.
+U-1 through U-15 complete. U-6 γ repack deferred (--bb-live x86 path only).
 
-**Unifying insight:** SM and BB are already one abstraction.
-  `SM_EXEC_STMT` → `exec_stmt` → `bb_broker(BB_SCAN)`   — SNOBOL4 pattern match
-  Icon `every`                 → `bb_broker(BB_PUMP)`    — generator drain
-  Prolog clause                → `bb_broker(BB_ONCE)`    — goal solve
+**This session completed:**
+- U-15: per-stmt polyglot dispatch in execute_program (switch on st->lang).
+- sno_parse_string fix: lex_open_str_initial (INITIAL start) for polyglot blocks.
+- Build infrastructure: build_packages.sh (bison+flex), build_regenerate.sh (new),
+  build_setup.sh (new master session startup). RULES.md bogus bison/flex ban removed.
 
-**Testing:** smoke.sh (~270ms, 2 tests) is the per-step gate. Full regression
-(~3-4min) is session-level only.
-
-**Next session starts at U-15.** Per-statement dispatch in execute_program:
-replace the E_CHOICE/E_CLAUSE skip guard with switch(st->lang) routing.
+**Next session starts at U-16.** Add SM_BB_PUMP and SM_BB_ONCE opcodes to SM.
 
 regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).

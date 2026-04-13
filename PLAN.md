@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-15 (per-stmt dispatch in execute_program — switch(st->lang)) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-16 (SM_BB_PUMP / SM_BB_ONCE opcode stubs) | ☐ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
