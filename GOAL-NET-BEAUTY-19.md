@@ -359,3 +359,68 @@ subsequent read of $'@S' in the Name expression sees the old link.
 **Recommended first step next session:** temporarily force `ThreadIsMsilOnly = false`
 for the ShiftReduce test and see if the threaded (non-MSIL) path passes.
 If it does, the bug is definitively in MSIL VarSlotArray sync for $ indirection.
+
+## State after BEAUTY-19 session 11
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: b515d73 (unchanged — no commits this session)
+- Unit tests: 2075p/14f (14f pre-existing, no regressions)
+- Beauty suite: **15/18** (unchanged — ShiftReduce/omega/semantic still failing)
+
+## Work done session 11
+
+**S-10 deep diagnosis continued — root cause of NameVar cycle fully traced:**
+
+The `InvalidCastException` in `GetProgramDefinedDataField` for `t(nd)` after test 1 runs
+before test 2 is confirmed **NOT MSIL-specific** — reproduces in the threaded path too
+(verified by forcing `ThreadIsMsilOnly = false`). The crash fires inside a pattern-match
+sub-expression thread (`CallFuncBySlot` via `Snobol4_Expr`).
+
+**The crash path:** `Top = .value($'@S') :(NRETURN)` — the CVA sub-expression evaluates
+`value($'@S')` via `GetProgramDefinedDataField`. The argument passed is the current
+`VarSlotArray[slot_top]` = NameVar from test 1's `Top()` result (Collection=old_link.FieldValues,
+Key=1). Dereferencing gives `old_link.FieldValues.Data[1]`. After test 1 that slot contains
+a NameVar (from how `Shift` NRETURN interacts with Push), causing the cycle:
+`NameVar → ArrayVar.Data[1] → NameVar → ...`
+
+**Multi-level dereference loop** in `GetProgramDefinedDataField` was tried (guard=16)
+but exhausts all iterations — the cycle is genuine, not just 2 levels deep.
+
+**`AssignReplace` NameVar routing fix** was tried (route NameVars to scalar branch always)
+but broke field writes for `c[i] = Pop()` in Reduce — reverted.
+
+**Both changes reverted. Working tree clean at b515d73.**
+
+## S-10 next-session plan (REVISED)
+
+The fundamental issue: `link($'@S', x)` in Push stores `x` into the link's `value` field.
+After `Shift('Id','foo')` + `nd=Top()`, test 1 accesses `t(nd)` and `v(nd)`.
+The `v(nd)` call (field accessor) stamps `.Collection` and `.Key` lvalue bookkeeping
+onto the returned field-slot Var, **which is the same object stored in the link's field array**.
+If that Var is then used as an lvalue (assigned through), it writes into the link array slot
+via the ArrayVar branch of Assign — and the new value stored there may be a NameVar
+(from a CVA commit), creating the cycle.
+
+**Recommended approach:**
+In `GetProgramDefinedDataField`, instead of stamping `Collection`/`Key` onto the
+**live field-slot object**, stamp them onto a **clone**:
+```csharp
+var v = programDefinedDataVar.FieldValues.Data[(int)(long)index].Clone();
+v.Key = index;
+v.Collection = programDefinedDataVar.FieldValues;
+SystemStack.Push(v);
+```
+This prevents the live field-slot object from accumulating lvalue bookkeeping that
+then confuses subsequent reads. The clone is what goes on the stack as the lvalue;
+the original in the array stays clean.
+
+**Caution:** ArrayVar and TableVar field values must NOT be cloned (reference semantics).
+Use the same guard as CreateProgramDefinedDataInstance:
+```csharp
+var raw = programDefinedDataVar.FieldValues.Data[(int)(long)index];
+var v = raw is ArrayVar or TableVar or ProgramDefinedDataVar ? raw : raw.Clone();
+v.Key = index;
+v.Collection = programDefinedDataVar.FieldValues;
+SystemStack.Push(v);
+```
+Run full unit test gate after applying. If it passes, run beauty suite — expect 16/18.

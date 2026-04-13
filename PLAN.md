@@ -50,7 +50,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10 (rung01 corpus tests) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (DATA field .field(x) NAMEPTR fix) | ☐ |
-| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-10 (MSIL $-indirection VarSlotArray sync suspect) + S-8B + S-9 | ☐ |
+| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-10 (clone field-slot in GetProgramDefinedDataField to prevent Collection stamp cycle) + S-8B + S-9 | ☐ |
 | NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-1 (diagnose error 021) | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
