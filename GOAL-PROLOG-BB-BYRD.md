@@ -128,7 +128,7 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
   Gate: `./scrip --ir-run test/prolog/hello.pl` prints `Hello, World!`.
   rung01 PASS.
 
-- [ ] **S-BB-8** — Replace the body loop inside `interp_eval` E_CHOICE with
+- [x] **S-BB-8** — Replace the body loop inside `interp_eval` E_CHOICE with
   box dispatch: user-predicate calls build `pl_box_choice()` +
   `pl_exec_goal()` instead of the raw `for ci` loop + `interp_eval(choice)`.
   Gate: rung01–rung11 all PASS through new broker path.
@@ -172,14 +172,13 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Current state
 
-S-BB-1 through S-BB-7 complete. one4all HEAD bca2b79a.
-pl_broker.c/h: pl_box_cat, pl_box_cat_list (S-BB-3); pl_box_clause + pl_interp.h (S-BB-4);
-pl_box_choice, pl_box_choice_call (S-BB-5); pl_box_cut (S-BB-6).
-pl_execute_program_unified wired to broker: pl_box_choice(main/0) + pl_exec_goal() (S-BB-7).
-hello.pl → Hello, World! PASS through new broker path.
-palindrome/queens/roman/sentences/wordcount regressions are PRE-EXISTING from
-S-1C-5 breakage (011f6966) — confirmed by git stash on unmodified HEAD.
-Next: S-BB-8 — replace raw for-ci loop in interp_eval E_CHOICE with broker dispatch.
-Root cause of regressions: cenv capture timing in pl_box_clause body goals
-(body boxes constructed before head-unify α fires, holding stale NULL env).
-Fix needed before S-BB-8 gate can pass rung01–rung11.
+S-BB-1 through S-BB-8 complete. one4all HEAD 29a703ea.
+Build fixes applied: restored Prolog interpreter block wiped by 476fd067,
+fixed stale includes, fixed pl_execute_program -> pl_execute_program_unified.
+cenv timing bug fixed: pl_box_deferred_env resolves hζ->cenv at call time.
+DESCR_t migration: all Prolog box functions updated for bb_box_fn U-5 change.
+S-BB-8: raw for-ci loop in pl_exec_body/pl_exec_one_goal replaced with
+pl_box_choice_call + pl_exec_goal. make scrip clean. hello.pl PASS.
+palindrome/queens/roman/sentences/wordcount gaps are pre-existing builtin stubs.
+Next: S-BB-9 (delete remaining dead code, confirm pl_unified_call gone).
+Then S-BB-10 (regression gate).

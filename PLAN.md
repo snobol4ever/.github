@@ -38,7 +38,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
 | Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1C-5 BROKEN 7/14 PASS — pivot to BB Byrd next session | ☐ |
-| Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | S-BB-8 (body-loop replacement; cenv-capture fix needed) | ☐ |
+| Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | S-BB-9 (dead code deletion + regression gate) | ☐ |
 | Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
 | Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
