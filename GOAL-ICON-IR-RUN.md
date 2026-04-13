@@ -211,7 +211,7 @@ infrastructure.
 ## Key files
 | File | Role |
 |------|------|
-| `src/frontend/icon/icon_interp.c` | **DEAD CODE** — delete per S-5C note (S-8 session) |
+| `src/frontend/icon/icon_interp.c` | **DELETED** — removed per S-5C note (handoff 2026-04-13) |
 | `src/backend/emit_x64.c` | **Canonical reference — read before every node** |
 | `src/runtime/x86/engine.h` | Byrd-box engine template (PROCEED/SUCCEED/CONCEDE/RECEDE) |
 | `src/runtime/x86/engine.c` | Byrd-box engine implementation — study this |
