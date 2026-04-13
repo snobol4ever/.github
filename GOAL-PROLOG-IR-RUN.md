@@ -6,17 +6,23 @@ the existing Prolog corpus rung tests.
 
 ---
 
-## Current state (2026-04-13, one4all HEAD f65323c0)
+## Current state (2026-04-13, one4all HEAD e81aa76f)
 
 S-1 through S-10c complete. Phase 1B complete (S-1B-1 through S-1B-6).
 PASS=9/9 rung01-rung09 confirmed after merge.
+findall/3 5/5 rung11 PASS (arith+template bugs fixed in Phase 1B rewrite).
 
-Phase 1B DONE: `prolog_interp.c` and `prolog_interp.h` deleted. All Prolog exec
-logic now lives in `scrip.c` as `pl_execute_program_unified()` with full
-CP-stack backtracking, findall/3, and arithmetic compound term support.
-E_SUB/ADD/MUL/DIV/MOD handled as compound terms in pl_unified_term_from_expr.
+Phase 1B DONE: `prolog_interp.c` and `prolog_interp.h` deleted. Prolog exec
+logic consolidated into `scrip.c` as `pl_execute_program_unified()` + `pl_unified_*`
+helpers. This was consolidation INTO scrip.c, NOT unification into `interp_eval()`.
+The `lang_prolog` dispatch branch still calls a separate interpreter family
+(`pl_unified_call` etc.) — it does NOT go through `interp_eval()` like Icon does.
+Phase 1B steps S-1B-3/S-1B-4 were OVERCLAIMED: Prolog was never wired into
+`execute_program()` or `interp_eval()`. Phase 1C below corrects this.
 
-Next: **S-10d** (findall/3 — 3/5 rung11 passing; arith and template bugs remain).
+Next: **Phase 1C** — wire Prolog goals into `interp_eval()` using file-scope
+globals (Trail, PredTable, CP stack), matching how Icon uses `icn_proc_table`
+and calls `interp_eval` directly. Eliminate `pl_unified_exec_goal` and friends.
 ---
 
 ## Verification Technique
@@ -130,11 +136,76 @@ libraries — only the top-level dispatch loop and clause/choice execution move 
 
 ---
 
-## S-10x builtin ladder — do AFTER Phase 1B complete
+## Phase 1C — Wire Prolog into interp_eval() (true one-interpreter goal)
 
-- [ ] **S-10d** — `findall/3`: save trail mark, call Goal collecting solutions, restore trail.
-  Note: partial implementation exists in prolog_interp.c (3/5 rung11); reimplement cleanly in scrip.c.
-  Gate: rung11 5/5 PASS.
+**Why:** Phase 1B consolidated `pl_unified_*` into `scrip.c` but left Prolog as
+a separate interpreter family. Icon calls `interp_eval()` directly from
+`icn_call_proc`. Prolog must do the same: `E_CHOICE`, `E_CLAUSE`, `E_UNIFY`,
+`E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND` must become cases in `interp_eval()`'s
+switch, using file-scope globals (Trail, PredTable, CP stack) exactly as Icon
+uses `icn_proc_table`, `icn_returning`, `icn_return_val`, `icn_gen_stack`.
+
+**The model:** `icn_execute_program_unified()` builds proc table → calls
+`icn_call_proc()` → calls `interp_eval()`. Prolog's `pl_execute_program_unified()`
+must become: build pred table (globals) → call `pl_call_goal()` → which dispatches
+through `interp_eval()` for every Prolog IR node. `pl_unified_exec_goal` and all
+`pl_unified_*` helpers that duplicate what `interp_eval` already does are deleted.
+
+**What stays:** Trail, Term, unify(), prolog_atom_*, pl_write, pl_env_new,
+pl_pred_table_*, pl_cp_stack. These are support infrastructure, not interpreter.
+
+**What moves into interp_eval():**
+- `E_CHOICE` → register in g_pl_pred_table (at program-load time, not eval time)
+- `E_CLAUSE` → execute clause: unify head args into env, run body via interp_eval
+- `E_UNIFY`  → call unify(t1,t2,g_pl_trail); return INTVAL(1) or FAILDESCR
+- `E_CUT`    → set g_pl_cut_flag; return INTVAL(1)
+- `E_TRAIL_MARK` / `E_TRAIL_UNWIND` → operate on g_pl_trail; return NULVCL
+- `E_FNC` (Prolog goal context) → dispatch via new `interp_exec_pl_goal()` called
+  from interp_eval when g_pl_active is set
+
+**File-scope globals to add (near icn_proc_table block):**
+```c
+static Pl_PredTable g_pl_pred_table;
+static Trail        g_pl_trail;
+static int          g_pl_cut_flag = 0;
+static Term       **g_pl_env      = NULL;   /* current clause env */
+static int          g_pl_active   = 0;      /* 1 when executing Prolog */
+```
+
+- [x] **S-1C-1** — Promote Trail and PredTable to file-scope globals `g_pl_trail`,
+  `g_pl_pred_table`, `g_pl_cut_flag`, `g_pl_env`, `g_pl_active`.
+  Added near `icn_proc_table` block. `pl_execute_program_unified()` inits globals.
+  Gate: compiles clean, rung01-rung09 9/9 PASS. ✓
+
+- [x] **S-1C-2** — Add `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND` cases
+  to `interp_eval()` switch. Forward decls added for `pl_unified_term_from_expr`,
+  `pl_env_new`, `pl_pred_table_lookup`, `is_pl_user_call`, `pl_unified_exec_goal`.
+  Gate: compiles clean, rung01-rung09 9/9 PASS. ✓
+
+- [x] **S-1C-3** — Add `E_CHOICE` case to `interp_eval()`: iterates E_CLAUSE children
+  with backtracking via `g_pl_trail`. `E_CLAUSE` is not a standalone case — handled
+  inline by E_CHOICE. `pl_execute_program_unified` now calls `interp_eval(main_choice)`
+  directly instead of `pl_unified_call`.
+  Gate: hello.pl passes through new path. ✓
+
+- [x] **S-1C-4** — User-defined predicate calls in body loop now route through
+  `interp_eval(choice_node)` instead of `pl_unified_call`. Builtins still through
+  `pl_unified_exec_goal` (to be inlined in future step).
+  Gate: rung01-rung11 5/5+9/9 PASS. ✓
+
+- [ ] **S-1C-5** — Regression: full rung01-rung11 PASS. Delete now-dead
+  `pl_unified_call`, `pl_unified_exec_body`, `pl_unified_exec_body_k`,
+  `pl_unified_exec_clause`. Inline builtins from `pl_unified_exec_goal` into
+  a new `interp_exec_pl_builtin()` called from E_CHOICE body loop.
+  Gate: make scrip clean, rung01-rung11 all PASS, no pl_unified_call remaining.
+
+---
+
+## S-10x builtin ladder — do AFTER Phase 1C complete
+
+- [x] **S-10d** — `findall/3`: 5/5 rung11 PASS (fixed in Phase 1B rewrite).
+  Note: findall currently in `pl_unified_exec_goal`; moves to `interp_exec_pl_goal`
+  in Phase 1C.
 
 - [ ] **S-10e** — `assertz/asserta/retract/abolish`: dynamic predicate table mutation.
   Gate: rung13 5/5, rung14 5/5, rung15 5/5.
