@@ -240,3 +240,52 @@ python3 test/beauty_subexpr_gen.py --run \
 ## Commit identity
 
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+---
+
+## Design refinements (session 7)
+
+### Statement parsing: full three-field parse
+
+A SNOBOL4 statement has three semantic fields:
+`[label]  subject  [pattern]  [= replacement]  [:goto]`
+
+Parse all three separately. The largest sub-expression in each field
+is `SubP.parse_top()` on that field. Don't just split on `=`.
+
+### Side effects: conditional and immediate assignment
+
+`BREAK(nl) . outline` — matching this pattern SETS `outline`.
+`*Push($'x')` — evaluating this in pattern context CALLS Push.
+
+The gauntlet must exercise these to capture the side-effected values.
+For pattern statements (no `=`), the subject IS the string to match against.
+Run the pattern match on the actual subject, then probe the captured variables.
+
+For conditional assignment `. var`: after the match, probe `var`.
+For immediate assignment `*expr`: after the match, probe the function's effects.
+
+### Single-line probe function
+
+Define a helper function once at the top of the gauntlet:
+
+```snobol4
+        DEFINE('SNBprobe(SNBx)SNBdt')              :(SNBprobeEnd)
+SNBprobe
+        SNBdt = DATATYPE(SNBx)
+        OUTPUT = 'XGSSTART|' SNBdt '|' SNBx '|XGSEND'
+        SNBprobe = SNBdt                            :(NRETURN)
+SNBprobeEnd
+```
+
+Each probe is then one line: `SNBprobe(expr)` — compact, no helper labels per probe.
+Pattern objects in the `SNBx` slot: concatenated into OUTPUT as 'pattern' (fine).
+The output line `XGSSTART|type|value|XGSEND` parses cleanly.
+
+### DUMP captures PATTERN/EXPRESSION types
+
+Still useful — confirms scrip constructs the right type.
+PATTERN type: assert DATATYPE = 'pattern'.
+EXPRESSION type: assert DATATYPE = 'expression'.
+String/integer: assert actual value.
+
