@@ -181,7 +181,7 @@ infrastructure.
   nested_to fixed (icn_drive E_TO cross-product: iterate all lo × all hi values).
   Next: GOAL-ICN-BROKER (broker pivot).
 
-- [ ] **S-12B** — PIVOT: Route all goal-directed backtracking through brokered Byrd boxes.
+- [x] **S-12B** — PIVOT: Route all goal-directed backtracking through brokered Byrd boxes. DONE via GOAL-ICN-BROKER.
   **Architectural mandate (Lon, 2026-04-13):** Icon scan/generators and SNOBOL4 pattern
   match are the same Byrd-box model — all backtracking must go through the broker.
   **Architectural reality:** exec_stmt/bb_build use PATND_t + spec_t (string-cursor typed).
