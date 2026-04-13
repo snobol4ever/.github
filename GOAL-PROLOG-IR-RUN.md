@@ -199,6 +199,11 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
   a new `interp_exec_pl_builtin()` called from E_CHOICE body loop.
   Gate: make scrip clean, rung01-rung11 all PASS, no pl_unified_call remaining.
 
+  ⚠️ Session 2026-04-13: INCOMPLETE. Dead functions deleted, interp_exec_pl_builtin
+  written, but pl_exec_body (wrong approach) introduced regression: 7/14 PASS
+  (rung02/05/07/11 fail). one4all HEAD 1bfdd9c9. PIVOT next session to
+  GOAL-PROLOG-BB-BYRD — remove pl_exec_body, wire backtracking via Byrd boxes.
+
 ---
 
 ## S-10x builtin ladder — do AFTER Phase 1C complete
