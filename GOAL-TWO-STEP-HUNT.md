@@ -45,7 +45,7 @@ python3 test/beauty_subexpr_gen.py \
 
 | Driver | First diverging test | Subsystem:line | Bug | Status |
 |--------|---------------------|----------------|-----|--------|
-| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` fails for complex pattern exprs — `eval_node` in eval_code.c missing E_DEFER/$ handlers | ☐ |
+| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` fails for complex pattern exprs — `eval_node` in eval_code.c missing E_DEFER/$ handlers. Fix: g_eval_str_hook → interp_eval_pat | ☐ |
 | Gen | test ? | ? | ARBNO upstream null DT_E | ☐ |
 | TDump | test ? | ? | DATA field ordering t/v | ☐ |
 | XDump | test ? | ? | Array bounds format `1` vs `1:1` | ☐ |
