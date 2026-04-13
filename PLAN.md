@@ -33,6 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-1 (add univ_box_fn + BrokerMode to bb_box.h) | ☐ |
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
 | Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1C-5 BROKEN 7/14 PASS — pivot to BB Byrd next session | ☐ |
