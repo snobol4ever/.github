@@ -108,21 +108,71 @@ Target architecture:
 
 ---
 
-### Phase 6 — Cross-language calls
+### Phase 6 — Program-level unification (polyglot Program*)
 
-- [ ] **U-12** — Prove cross-language call at IR level: SNOBOL4 pattern calls Icon generator.
-  Write a test in `test/test_cross_lang.c`: build an Icon `icn_bb_to` box (1 to 3),
-  drive it with `bb_broker(..., BB_PUMP, ...)` from SNOBOL4 context. Assert 3 ticks.
-  No new IR nodes needed — this is a direct box construction test.
-  Gate: test compiles and exits 0.
+The broker and interpreter are already unified (U-1..U-11). The remaining gap is at the
+**program level**: scrip.c dispatches by file extension to one of three execute_program
+entry points. A polyglot `.scrip` file cannot yet be parsed or executed as a single
+Program*. These steps fix that — small, always runnable, gate after each.
 
-- [ ] **U-13** — Prove cross-language call at IR level: Prolog goal drives SNOBOL4 pattern.
-  Write a test: build a `bb_lit` box, drive it with `bb_broker(..., BB_ONCE, ...)`.
-  Assert 1 tick on match, 0 on mismatch.
-  Gate: test compiles and exits 0.
+- [ ] **U-12** — Tag STMT_t with source language.
+  Add `int lang;` field to `STMT_t` in `scrip_cc.h` (0=SNOBOL4, 1=Icon, 2=Prolog).
+  Define `LANG_SNO=0 LANG_ICN=1 LANG_PL=2` constants there.
+  Each frontend sets `st->lang` on every statement it produces:
+    - `sno_parse` (Bison/Flex path in `sno_parse.y` or shim): set LANG_SNO.
+    - `icon_compile`: set LANG_ICN.
+    - `prolog_compile`: set LANG_PL.
+  Existing single-language paths are unchanged — lang tag is just ignored for now.
+  Gate: `make scrip` clean; smoke PASS; regression non-regressing.
 
-- [ ] **U-14** — Update PLAN.md: add this goal to Active Goals table.
-  Update `ARCH-IR.md` or `ARCH-x86.md` to document the unified broker.
+- [ ] **U-13** — Polyglot parser in scrip.c: parse a `.scrip` file into one Program*.
+  A `.scrip` file is a sequence of fenced blocks (` ```SNOBOL4 `, ` ```Icon `, ` ```Prolog `).
+  Add `parse_scrip_polyglot(const char *src, const char *filename) -> Program*` in scrip.c.
+  Algorithm: scan for fence open/close, extract each block's text, compile with the
+  matching frontend (sno_parse_string / icon_compile / prolog_compile), append all
+  resulting STMT_t chains into one Program* with lang tags set.
+  Wire `main()`: detect `.scrip` extension, call parse_scrip_polyglot.
+  Gate: `scrip demo/scrip/demo2/wordcount.md` (treated as polyglot — runs its SNOBOL4
+  section only for now, Icon/Prolog sections parsed but not yet dispatched). `make scrip`
+  clean; smoke PASS; regression non-regressing.
+
+- [ ] **U-14** — Per-statement language dispatch in execute_program.
+  `execute_program` currently assumes all statements are SNOBOL4.
+  Add a dispatch wrapper: before executing each STMT_t, check `st->lang`.
+  LANG_ICN statements: set g_lang=1, push fresh icn_env frame, call icn_interp_eval,
+  restore g_lang=0, icn_env=NULL on exit.
+  LANG_PL statements: route through the existing Prolog interp_eval path.
+  LANG_SNO: existing path unchanged.
+  Gate: `scrip --ir-run demo/scrip/demo2/wordcount.md` produces correct wordcount output
+  for the SNOBOL4 section; Icon/Prolog sections execute without crashing (output may
+  differ — correctness of cross-section state sharing is a later step).
+  `make scrip` clean; smoke PASS; regression non-regressing.
+
+- [ ] **U-15** — Implement `icn_eval_gen` in scrip.c (the B-8 stub declared in icon_gen.h).
+  `icn_eval_gen(EXPR_t *e) -> bb_node_t`: walk an Icon IR expression and return a live
+  bb_node_t that bb_broker can drive.
+  Cases needed for cross-language demos: E_TO → {icn_bb_to, allocated icn_to_state_t};
+  E_TO_BY → {icn_bb_to_by, ...}; E_ITERATE → {icn_bb_iterate, ...};
+  E_FNC (user proc call) → {icn_bb_suspend, coroutine wrapping icn_call_proc}.
+  Fallback: wrap icn_interp_eval result as a one-shot constant box.
+  Gate: `make scrip` clean; smoke PASS; regression non-regressing; Icon rung01-11 59/59.
+
+- [ ] **U-16** — Cross-language test at box level (standalone C).
+  Write `test/test_cross_lang.c`: call `icn_eval_gen` on a hand-built E_TO(1,3) node,
+  drive result with `bb_broker(..., BB_PUMP, collect_int, &c)`, assert 3 ticks and
+  values {1,2,3}. Also: build a `bb_lit` box, drive with BB_ONCE, assert 1 tick on match.
+  Gate: test compiles and exits 0; `make scrip` clean.
+
+- [ ] **U-17** — Cross-language call at .scrip file level.
+  Write `test/cross_lang.scrip`: SNOBOL4 section defines a pattern that delegates to an
+  Icon generator box (via `icn_eval_gen` + `bb_broker` wired into interp_eval_pat for
+  E_EVERY nodes tagged LANG_ICN). Icon section produces values consumed by SNOBOL4 OUTPUT.
+  Gate: `scrip test/cross_lang.scrip` exits 0 and matches expected output.
+  `make scrip` clean; smoke PASS; regression non-regressing.
+
+- [ ] **U-18** — Documentation.
+  Update PLAN.md Active Goals table. Update `ARCH-IR.md` to document the polyglot
+  Program*, per-statement lang tag, and the single execute_program dispatch loop.
   Gate: none — documentation only.
 
 ---
@@ -169,7 +219,11 @@ Target architecture:
 U-1 through U-11 complete. U-6 γ repack still deferred (only affects --bb-live x86 path).
 smoke.sh x86 emit block replaced with SKIP (SM/BB box-by-box emitter pending).
 
-**Next session starts at U-12.** Prove cross-language call at IR level: SNOBOL4 pattern calls Icon generator.
-Write test in `test/test_cross_lang.c`.
+Phase 6 replanned 2026-04-13: program-level unification first, then box-level cross-lang.
+Key insight: one interpreter (interp_eval) and one broker (bb_broker) already exist.
+The gap is at the Program* level — no lang tag on STMT_t, no polyglot parser, no
+per-statement dispatch. icn_eval_gen (B-8) declared in icon_gen.h but not yet implemented.
+
+**Next session starts at U-12.** Tag STMT_t with source language (add lang field).
 
 regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).
