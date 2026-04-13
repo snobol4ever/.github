@@ -152,15 +152,10 @@ The steps below build toward that incrementally — always green, always runnabl
   indented/labelled SNOBOL4 blocks parse correctly in polyglot context.
   Gate: SNO wordcount outputs 9; smoke PASS=2. one4all HEAD 5a6d8124.
 
-- [ ] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. *(SM sees BB modes.)*
-  In `sm_prog.h`: add `SM_BB_PUMP` and `SM_BB_ONCE` after `SM_EXEC_STMT`.
-  `SM_BB_PUMP`: pops a `bb_node_t*` from value stack; calls `bb_broker(root, BB_PUMP, body_fn, arg)`;
-               pushes tick count. For Icon `every` / generator loops.
-  `SM_BB_ONCE`: pops a `bb_node_t*`; calls `bb_broker(root, BB_ONCE, NULL, NULL)`;
-               sets `st->last_ok`. For Prolog goal dispatch.
-  Note: `SM_EXEC_STMT` already calls `bb_broker(BB_SCAN)` via `exec_stmt` — that is the
-  third mode, already wired. No lowering yet — just the opcode stubs in `sm_interp`.
-  Gate: `make scrip` clean; smoke PASS; regression non-regressing (opcodes unused yet).
+- [x] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. DONE. one4all HEAD 886aa7d0.
+  `sm_prog.h`: SM_BB_PUMP and SM_BB_ONCE added after SM_EXEC_STMT with full comment.
+  `sm_interp.c`: stub handlers (set last_ok=0); unused until U-18.
+  Gate: make scrip clean; smoke PASS=2.
 
 - [ ] **U-17** — Implement `icn_eval_gen` in `scrip.c` (B-8 stub in `icon_gen.h`).
   `icn_eval_gen(EXPR_t *e) → bb_node_t`: walk Icon IR, return a drivable `bb_node_t`.
@@ -233,16 +228,9 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 5a6d8124)
+## Current state (session 2026-04-13, one4all HEAD 886aa7d0)
 
-U-1 through U-15 complete. U-6 γ repack deferred (--bb-live x86 path only).
-
-**This session completed:**
-- U-15: per-stmt polyglot dispatch in execute_program (switch on st->lang).
-- sno_parse_string fix: lex_open_str_initial (INITIAL start) for polyglot blocks.
-- Build infrastructure: build_packages.sh (bison+flex), build_regenerate.sh (new),
-  build_setup.sh (new master session startup). RULES.md bogus bison/flex ban removed.
-
-**Next session starts at U-16.** Add SM_BB_PUMP and SM_BB_ONCE opcodes to SM.
+U-1 through U-16 complete. U-6 γ repack deferred (--bb-live x86 path only).
+Next session starts at U-17.
 
 regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).
