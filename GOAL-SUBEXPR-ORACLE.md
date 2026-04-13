@@ -1,75 +1,213 @@
 # GOAL-SUBEXPR-ORACLE — Sub-Expression Oracle Test Suite
 
 **Repo:** one4all + corpus
-**Done when:** Generator produces ≥200 passing tests across all 18 beauty drivers under SPITBOL; suite runs under scrip --ir-run and pinpoints divergences.
+**Done when:** Generator produces ≥200 isolated snippet tests across beauty
+subsystem files; all pass under SPITBOL self-check; suite runs under
+scrip --ir-run and pinpoints divergences in the failing drivers.
+
+---
 
 ## Motivation
 
-The 19 beauty drivers are coarse — a single driver failure could have 100+ possible root causes. Sub-expression oracle tests decompose each expression bottom-up (innermost sub-expression first) and capture the oracle value at a real execution sample point. When scrip diverges, you get: exact expression, exact stlimit (execution context), expected vs actual value. Far fewer places to look.
+The 19 beauty drivers are coarse — a single FAIL could have 100+ root causes.
+Sub-expression oracle tests decompose each statement bottom-up (innermost
+sub-expression first) and assert the oracle value of each node. When scrip
+diverges you get: exact expression, exact state, expected vs actual. Tiny
+reproduction case, minimal places to look.
 
-## Technique
+---
 
-1. **Sample:** For each beauty driver, pick K stlimit values spread across its execution (determined by running it fully first to get &STCOUNT).
-2. **Probe:** Build a program that runs the driver to stlimit=N (live context — globals, DATA structures, function definitions all established), then evaluates each sub-expression and outputs a marked result.
-3. **Oracle:** Run probe under SPITBOL x64. Capture oracle values.
-4. **Emit:** One .sno + .ref per (driver, stlimit, sub-expression).
-5. **Regress:** Run same .sno under scrip --ir-run. PASS/FAIL vs .ref.
+## Full Design (authoritative)
 
-**Key insight:** No state restoration needed. The driver runs to stlimit=N and stops (stlimit exhausted). Probe evaluations then run with unlimited stlimit. This handles function calls, DATA structures, indirect variables, patterns — everything.
+### What to extract sub-expressions from
+
+The sub-expression source is the **beauty subsystem files** themselves:
+`Gen.sno`, `omega.sno`, `stack.sno`, `assign.sno`, etc. — NOT the drivers.
+The drivers only call these functions; the interesting expression shapes live
+in the subsystem bodies.
+
+Pick statements selectively or randomly from those files.
+One target statement → one test.
+
+### Expression grammar covered
+
+Full SNOBOL4 — all six forms:
+
+| Form | Example |
+|------|---------|
+| Literals / vars | `'x'`  `42`  `epsilon`  `$'x'`  `$bname` |
+| Nameref / cursor | `.dummy`  `.'$B'`  `@txOfs` |
+| Unary | `-x`  `+x`  `*Push($'x')` (immediate value) |
+| Arithmetic | `$'#L' + delta`  `pos - SIZE($'$X') - 1` |
+| Concatenation | `$'$B' str`  `$'$C' ind outline` |
+| Pattern ops | `BREAK(nl) . outline`  `nl REM . $'$B'`  `A \| B` |
+
+### Two-run protocol
+
+**Run 1 — Oracle gauntlet (inside the driver, live context):**
+
+1. Run the beauty driver with the target subsystem included.
+2. `&STLIMIT = N` stops execution just *before* the target statement executes.
+   All context is established: globals, DATA structures, function definitions.
+3. `&DUMP = 2` fires automatically at stlimit cutoff — prints every variable.
+4. After the dump, the gauntlet runs (unlimited stlimit):
+   ```snobol4
+   OUTPUT = 'nl=|' nl '|'
+   OUTPUT = 'BREAK(nl)=|' DATATYPE(BREAK(nl)) '|'
+   OUTPUT = 'outline=|' outline '|'
+   OUTPUT = 'BREAK(nl) . outline=|' DATATYPE(BREAK(nl) . outline) '|'
+   ...inside-out to the full expression...
+   ```
+5. Parse the gauntlet output to collect `{expr: value}` pairs.
+6. Parse the DUMP output to collect `{varname: scalar_value}` pairs.
+
+**Run 2 — Isolated snippet (the actual regression test):**
+
+The generated `.sno` is **completely self-contained** — no driver, no includes,
+no stlimit tricks. Just:
+
+1. **State block:** assign every scalar variable from the DUMP directly.
+   ```snobol4
+   nl     = CHAR(10)
+   outline = ''
+   bname  = '$B'
+   $bname = '    hello world and more text'
+   ind    = '    '
+   dummy  = ''
+   ```
+   DATA structures (linked lists, trees) cannot be reconstructed from DUMP text.
+   Statements whose sub-expressions require live DATA objects fall back to the
+   stlimit-in-context approach (run driver to N, probe inline — no snippet).
+
+2. **Assert block:** one assert per sub-expression, innermost first.
+   ```snobol4
+   IDENT(DATATYPE(BREAK(nl)), 'pattern')              :S(T1)F(F1)
+   F1      OUTPUT = 'FAIL BREAK(nl) got=' DATATYPE(BREAK(nl))  :(END)
+   T1      IDENT(DATATYPE(BREAK(nl) . outline), 'pattern')     :S(T2)F(F2)
+   F2      OUTPUT = 'FAIL BREAK(nl) . outline got=' DATATYPE(BREAK(nl) . outline)  :(END)
+   T2      OUTPUT = 'PASS'
+   END
+   ```
+3. `.ref` = `PASS\n`.
+
+**Why two runs?**
+- Run 1 (oracle gauntlet) *measures* — it discovers what each sub-expression
+  evaluates to in the real execution context.
+- Run 2 (isolated snippet) *tests* — it asserts those values in isolation,
+  with no driver noise, no includes, no stlimit complexity. Portable, fast,
+  debuggable. When it fails under scrip, the assert pinpoints exactly which
+  node in the expression tree is wrong.
+
+### Handling variables with $ in their names
+
+Variables like `$'$B'`, `$'#L'`, `$'@S'` use indirection.
+In generated SNOBOL4 source, always use a named alias:
+```snobol4
+* In state block:
+bB  = '$B'
+$bB = '    hello world...'
+bL  = '#L'
+$bL = 4
+* In gauntlet/asserts, use the alias:
+OUTPUT = '$B=|' $bB '|'
+IDENT($bL, 4)   :S(T1)F(F1)
+```
+
+### Fallback: stlimit-in-context (for DATA structs)
+
+When the target statement's sub-expressions require live DATA objects
+(e.g. `value($'#N')` needing a real `link_counter`), emit a context test:
+- No state block
+- Driver runs to stlimit=N inline in the test
+- Gauntlet asserts follow immediately after
+- `.ref` = `PASS\n`
+This is less isolated but still one statement → one test.
+
+---
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `one4all/test/beauty_subexpr_gen.py` | Generator: probes all 18 drivers, emits .sno + .ref |
-| `corpus/programs/snobol4/subexpr/` | Generated test pairs (not committed — regenerate) |
+| `one4all/test/beauty_subexpr_gen.py` | Generator (Python): picks statements, runs oracle, emits snippets |
+| `corpus/programs/snobol4/subexpr/` | Generated .sno + .ref pairs (not committed — regenerate each session) |
+| `corpus/programs/snobol4/subexpr/.gitkeep` | Keeps directory in repo |
+
+---
 
 ## Run commands
 
 ```bash
-# Generate tests (all 18 drivers, 10 sample points, 8 sub-exprs each):
+# Generate isolated snippet tests from Gen.sno line 45:
 cd /home/claude/one4all
 python3 test/beauty_subexpr_gen.py \
-    --beauty /home/claude/corpus/programs/snobol4/beauty \
-    --out /home/claude/corpus/programs/snobol4/subexpr \
-    --samples 10 --subs 8 --verbose
+    --source /home/claude/corpus/programs/snobol4/beauty/Gen.sno \
+    --driver /home/claude/corpus/programs/snobol4/beauty/beauty_Gen_driver.sno \
+    --line 45 \
+    --out /home/claude/corpus/programs/snobol4/subexpr/
 
-# Run generated tests under scrip --ir-run:
-python3 test/beauty_subexpr_gen.py --run \
-    --beauty /home/claude/corpus/programs/snobol4/beauty \
-    --out /home/claude/corpus/programs/snobol4/subexpr
-
-# Run a single driver's subexpr tests:
+# Generate from all subsystem files, random statement sampling:
 python3 test/beauty_subexpr_gen.py \
-    --drivers omega --samples 10 --subs 8 --run --verbose
+    --beauty /home/claude/corpus/programs/snobol4/beauty \
+    --out /home/claude/corpus/programs/snobol4/subexpr/ \
+    --samples 20 --verbose
+
+# Run all generated tests under scrip --ir-run:
+python3 test/beauty_subexpr_gen.py --run \
+    --out /home/claude/corpus/programs/snobol4/subexpr/
 ```
 
-## Current State (session 2026-04-12, session 5)
+---
 
-- one4all HEAD: `03e3b600`
-- Generator written: `one4all/test/beauty_subexpr_gen.py`
-- Probe mechanism verified correct (SPITBOL probe pattern works)
-- Sub-expression extractor verified correct (tokenizer + recursive bottom-up)
-- **Bugs to fix before generator produces valid tests** (see S-1 below)
+## Current State (session 2026-04-12, session 6)
+
+- one4all HEAD: `2bde52fb`
+- Prior generator (session 5): extracts from driver RHS only — **superseded**
+- New design settled (session 6): subsystem files, full expression grammar,
+  two-run protocol (oracle gauntlet → isolated snippet with assert block)
+- Sub-expression extractor: tokenizer + recursive descent written, covers
+  all six forms including `*expr`, `. B`, `$ B`, `| B`
+- Probe mechanism verified: `&STLIMIT = N` + `&DUMP = 2` works in SPITBOL
+- `$'$B'` indirection in generated source: use alias variable (shell $ expansion
+  bug found and fixed — always write .sno via Python, never shell heredoc)
+- **Nothing committed this session yet** — generator rewrite in progress
+
+---
 
 ## Steps
 
-- [ ] **S-1** — Fix four generator bugs:
-  1. `global.sno` double-include: `build_driver_source` prepends global.sno AND driver keeps its own `-INCLUDE 'global.sno'`. Deduplicate: strip explicit global.sno from driver lines since we prepend it.
-  2. Single-quote in FAIL message: `OUTPUT = 'FAIL [Pop('dummy')]...'` breaks SPITBOL parser. Escape or strip quotes from subexpr text in the FAIL string.
-  3. `count_driver_stmts` uses stlimit=2000000 but returns 200 (hits early stlimit from driver itself). Fix: strip `&STLIMIT` lines from driver before inserting into counter program, set outer stlimit to 10000000.
-  4. Early samples fail: stlimit=33 lands inside global.sno UTF table init, before any driver functions defined. Fix: start sampling after the driver's own `&STLIMIT = 1000000` line (first ~100 stmts are global.sno setup, skip them).
-  Gate: `python3 test/beauty_subexpr_gen.py --drivers counter --samples 5 --subs 6 --verbose` produces ≥20 tests, all pass under SPITBOL.
+- [x] **S-1** — Prior generator: four bugs fixed, 55 tests from counter/stack/assign,
+  all pass SPITBOL self-check (session 5). Generator committed as
+  `2bde52fb`. **Superseded by new design.**
 
-- [ ] **S-2** — Run generator on all 18 beauty drivers. Gate: ≥200 tests generated, all pass under SPITBOL (they are oracle-derived by construction).
+- [ ] **S-2** — Rewrite generator for new design:
+  1. Source = subsystem files (Gen.sno, omega.sno, etc.), not drivers
+  2. Full expression grammar tokenizer + SubP recursive extractor
+     (covers `*expr`, `. B`, `$ B`, `| B`, alternation)
+  3. Run 1: oracle gauntlet — driver to stlimit=N, DUMP, gauntlet OUTPUT lines
+  4. Parse DUMP → scalar state dict; parse gauntlet → expr→value dict
+  5. Run 2: emit isolated snippet — state block (scalars from DUMP) +
+     assert block (one IDENT assert per sub-expression innermost-first)
+  6. Fallback: if DATA structs needed, emit stlimit-in-context test instead
+  Gate: `Gen.sno line 45` produces one snippet that passes under SPITBOL.
 
-- [ ] **S-3** — Run test suite under scrip --ir-run. Triage failures by driver. Gate: suite runs without crash; PASS/FAIL counts printed per driver.
+- [ ] **S-3** — Run generator on all failing-driver subsystem files:
+  `Gen.sno`, `omega.sno`, `TDump.sno`, `XDump.sno`.
+  Gate: ≥50 isolated snippet tests generated, all pass SPITBOL self-check.
 
-- [ ] **S-4** — Map sub-expression failures to known bugs in GOAL-SCRIP-BEAUTY. Each FAIL should identify which of Gen/TDump/XDump/omega bugs it exercises (or reveal a new bug). Document mapping in this file.
+- [ ] **S-4** — Run snippet suite under scrip `--ir-run`.
+  Gate: suite runs without crash; PASS/FAIL printed per test.
+  First FAILs pinpoint exact expressions broken in scrip.
 
-- [ ] **S-5** — Use sub-expression failures to guide fixes in S-6..S-9 of GOAL-SCRIP-BEAUTY. Gate: fixing one scrip bug causes a cluster of sub-expression tests to flip from FAIL to PASS.
+- [ ] **S-5** — Map FAILs to known bugs in GOAL-SCRIP-BEAUTY S-6..S-9.
+  Document mapping here. Use FAILs to drive fix order.
 
-- [ ] **S-6** — Commit generator to one4all; add corpus/programs/snobol4/subexpr/.gitkeep. Gate: `make scrip` still passes; beauty suite still 14/18.
+- [ ] **S-6** — Extend to all 18 drivers' subsystem files. Gate: ≥200 tests,
+  all pass SPITBOL.
+
+- [ ] **S-7** — Commit final generator + .gitkeep. Gate: `make scrip` clean.
+
+---
 
 ## Commit identity
 
