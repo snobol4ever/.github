@@ -6,9 +6,24 @@ rung01–rung11 of the Icon corpus ladder.
 
 ---
 
-## Current state (2026-04-12, one4all b7a40eda)
+## Current state (2026-04-12, one4all f6439fd7)
 
-**Score: 45/59 PASS**
+**Score: 45/59 PASS through unified interpreter in scrip.c**
+
+Icon now runs through `icn_execute_program_unified` → `icn_interp_eval` →
+`icn_call_proc` in `scrip.c` — same file as SNOBOL4 `execute_program` /
+`interp_eval`. One IR, one interpreter.
+
+Old fork (`icon_execute_program` / `icn_exec` / `IcnVal` in `icon_interp.c`)
+is superseded but not yet deleted — kept until unified path reaches 46/59+.
+
+**Unified path failures (14):**
+- rung03 suspend (3): E_SUSPEND needs setjmp/longjmp (S-11)
+- rung05 scan (5): &subject keyword + nested scan restore
+- rung06_cset_any_fail (1): & conjunction short-circuit (S-9)
+- rung08 find_gen + match (2): find() generator form (S-7) + scan pos reset
+- rung11 bang (2): E_ITERATE / !str not yet implemented (S-6)
+- rung01_nested_to (1): nested every cross-product generator
 
 | Rung | Feature | PASS | FAIL | Notes |
 |------|---------|------|------|-------|
@@ -98,13 +113,24 @@ infrastructure.
 - [x] **S-5** — E_RETURN, E_IF, ICN_GLOBAL lowering, scope/slots, E_KEYWORD.
   (rung04, rung07, rung09 now complete; rung02_proc 2/3)
 
-- [ ] **S-5B** — Translate `emit_to` → C for-loop β re-entry.
-  Fixes `every total := total + (1 to n)` accumulation (rung02_proc_locals).
-  In `icn_exec` E_EVERY case: instead of icn_collect, call a new
-  `icn_exec_every(gen, env, nenv, body)` that loops:
-    for lo..hi: exec full gen-expression each tick with cur substituted.
-  Consult `emit_every` + `emit_to` in `emit_x64.c`.
-  Gate: rung02_proc 3/3.
+- [x] **S-5B** — Translate `emit_to` → C for-loop β re-entry.
+  Implemented `icn_exec_driven` with gen-substitution stack (gen_stack[16]).
+  Fixes `every total := total + (1 to n)` and cross-product generators.
+  Gate: rung02_proc 3/3. ✅ Score: 46/59 on old fork.
+
+- [ ] **S-5C** — Unify Icon IR interpreter into scrip.c (one interpreter).
+  **IN PROGRESS — 45/59 PASS.** One IR, one interpreter.
+  Implemented in scrip.c:
+  - `icn_execute_program_unified`: proc table + call main
+  - `icn_interp_eval(root,e)→DESCR_t`: all Icon node kinds
+  - `icn_call_proc`: frame push/pop with `icn_scope_patch`
+  - `icn_scope_patch`: adds ALL E_VAR names to scope (including undeclared)
+  - `icn_drive`: β re-entry gen stack using DESCR_t
+  - `icn_scan_subj/pos/stack/depth`, `icn_loop_break` globals
+  - String relops (E_LEQ/LNE/LLT/LLE/LGT/LGE), scan builtins in E_FNC
+  Key bug fixed: E_FNC name in children[0]->sval; undeclared vars added to scope.
+  Remaining: delete `icon_interp.c` fork once 46/59+ reached.
+  Gate: 46/59+ PASS through unified path; `icon_execute_program` deleted.
 
 - [ ] **S-6** — Translate `emit_bang` → C for-loop over string chars.
   `!str` generates each character; β = advance position.
