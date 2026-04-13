@@ -277,3 +277,11 @@ identical to what `sm_codegen.c` emits for SNOBOL4 patterns. The mapping is:
 
 These SM opcodes may need to be added to `sm_prog.h` if not already present.
 Check `sm_prog.h` and `sm_lower.c` before starting S-14.
+
+---
+## Session 2026-04-13 note
+
+S-10d findall/3 PARTIAL: 3/5 rung11 PASS (basic, empty, filter pass; arith and template fail).
+Bugs: conjunction goal breaks cont chain; template vars unbound at snapshot time (fa_trail isolation).
+Session pivot requested: next goal is Phase 1B unified interpreter loop.
+one4all HEAD: d2d1affe
