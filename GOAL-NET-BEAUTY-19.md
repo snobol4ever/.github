@@ -1,5 +1,40 @@
 # GOAL-NET-BEAUTY-19 — snobol4dotnet Beauty 18/18
 
+## State after BEAUTY-19 session 15
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: e0d2e03
+- Unit tests: 2075p/14f (14f pre-existing, no regressions)
+- Beauty suite: **18/18** (ALL PASSING — GOAL DONE)
+
+## Work done session 15
+
+**S-8B DONE — omega now passes (18/18):**
+
+Root cause of error 22 finally identified and fixed across two sites:
+
+**Root cause:** `OPSYN('~', 'shift', 2)` causes `FunctionTable["__~"]` to be set to
+`shift`'s handler (`ExecuteProgramDefinedFunction`). When `pat ~ 'identifier'` is
+executed at pattern-match time, `OperatorFast(OpTilde, 2)` dispatches directly to the
+handler with only the two operands `[pat, 'identifier']`. But `ExecuteProgramDefinedFunction`
+expects `arguments[^1]` to be a function-name StringVar (appended by `Function()` in
+the normal call path). Since `OperatorFast` bypasses `Function()`, `arguments[^1]` was
+`'identifier'` (the annotation label/second operand), which was misread as the function
+name — causing `FunctionTable['identifier']` to return null → error 22.
+
+**Fix 1 — ExecutionCache.cs `OperatorFast`:** When the handler is
+`ExecuteProgramDefinedFunction`, append a function-name StringVar before dispatching.
+The name is resolved via opcode→key reverse-lookup, then `UserFunctionTable` lookup
+to find the original function name (e.g. `'shift'` for `'__~'`).
+
+**Fix 2 — Opsyn.cs case 2 (binary operators):** Mirror case 0 — copy the
+`UserFunctionTableEntry` under the operator name (`'__~'`) so that
+`ExecuteProgramDefinedFunction` can find the definition on lookup, preventing the
+early-return guard from firing and dispatching to the raw handler recursively.
+
+**GOAL NET-BEAUTY-19 COMPLETE: 18/18**
+
+
 **Repo:** snobol4dotnet
 **Done when:** all 18 beauty drivers pass (beauty_is removed — suite reduced from 19 to 18)
 
@@ -313,7 +348,7 @@ last-resort: 8-level dereference loop.
 
 - [x] **S-7** — `INPUT(.varName, unit, filename)` unit-file association for reading. Fix: silent failure on bad file open — `Input.cs` and `Output.cs` catch blocks now set `AmpErrorType` and call `NonExceptionFailure()` instead of `LogRuntimeException` + print. Gate: ReadWrite passes → **15/18** ✅
 
-- [ ] **S-8** — Fix omega driver. Two sub-problems:
+- [x] **S-8** — Fix omega driver. Two sub-problems:
   (A) DONE: Driver rewritten with case-portable DATATYPE (REPLACE/dPATTERN/dSTRING).
   (B) OPEN: `*LEQ(...)` in EVAL'd pattern string inside DEFINE'd function fires error 22.
       StarFunctionList index compiled by EVAL misaligns with outer list when EVAL
