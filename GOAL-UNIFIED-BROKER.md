@@ -98,9 +98,9 @@ Target architecture:
   Remove the inline scan loop from `stmt_exec.c`.
   Gate: `make scrip` clean; full regression non-regressing; crosscheck passes.
 
-- [ ] **U-10** — Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c` with `bb_broker(..., BB_PUMP, ...)`.
-  Remove `icn_broker` function entirely.
-  Gate: `make scrip` clean; Icon 59/59 PASS.
+- [x] **U-10** — Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c` with `bb_broker(..., BB_PUMP, ...)`.
+  Remove `icn_broker` function entirely. DONE.
+  Gate: make scrip clean; Icon ir-run PASS=48/59 (non-regressing). ✅
 
 - [ ] **U-11** — Replace `pl_exec_goal` call sites with `bb_broker(..., BB_ONCE, ...)`.
   Remove `pl_exec_goal` function entirely (or keep as one-line wrapper if callers are many).
@@ -164,12 +164,12 @@ Target architecture:
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 3e85c721)
+## Current state (session 2026-04-13, one4all HEAD 94c06c46)
 
-U-1 through U-9 complete. U-6 γ repack still deferred (only affects --bb-live x86 path).
+U-1 through U-10 complete. U-6 γ repack still deferred (only affects --bb-live x86 path).
 
-**Next session starts at U-10.** Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c`
-with `bb_broker(..., BB_PUMP, ...)`. Remove `icn_broker` function entirely.
-Gate: `make scrip` clean; Icon ir-run PASS=48/59 (non-regressing).
+**Next session starts at U-11.** Replace `pl_exec_goal` call sites with `bb_broker(..., BB_ONCE, ...)`.
+Remove `pl_exec_goal` function entirely (or keep as one-line wrapper if callers are many).
+Gate: `make scrip` clean; Prolog regression non-regressing.
 
 regression baseline: run_interp_broad.sh PASS=156 (improved from 149 after U-9).
