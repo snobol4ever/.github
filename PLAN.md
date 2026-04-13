@@ -50,6 +50,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-1B-1 (unified interp — Phase 1B first) | ☐ |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
+| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-1 (fix parse_expr_pat_from_str: pass src direct, return subject/pattern) | ☐ |
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (parser fix done; E_INDIRECT capture write-back bug — BREAK captures empty, REM write-back silent) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
