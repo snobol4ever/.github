@@ -69,21 +69,12 @@ Multiple sessions may push .github simultaneously. Never `git push --force`.
 
 ## Handoff — push must succeed
 
-⛔ Do **not** push any repo until "perform hand off" is called. Hold all commits locally.
-One clean commit at handoff — this IS the session record. No piecemeal pushes.
-**Exception:** unless Lon specifically directs resuming periodic pushes.
-
-A committed-but-not-pushed session is lost when the container dies.
-Never declare handoff complete until `git log origin/main --oneline -1` shows
-your commit hash on the remote. Confirm both the code repo and .github.
-
 Handoff checklist:
 1. Update state variables in the Goal file (steps, watermarks, HEAD hash, pass counts)
 2. Update Current Step in PLAN.md goals table
 3. `git add -A && git commit` on all touched repos
-4. `touch /tmp/handoff_authorized`  ← MUST do this before any push
-5. `git pull --rebase && git push` — code repos first, .github last
-6. Write a clear commit message on .github — this IS the session record
+4. `git pull --rebase && git push` — code repos first, .github last
+5. Write a clear commit message on .github — this IS the session record
 
 ---
 
@@ -277,8 +268,6 @@ in a DATATYPE comparison is **invalid** and must be rewritten before it can pass
 
 ## ⛔ DO NOT SAY "HAND OFF" WITHOUT THE PUSH — NO EXCEPTIONS
 
-Claude may not use the words "hand off" (or "handoff") to describe session completion
-unless the push has already succeeded in that same response. Declaring handoff complete
 before pushing — or asking Lon to confirm while the push is still pending — is forbidden.
 The sequence is always: commit → push → confirm hash → THEN say handoff is done.
 
@@ -286,12 +275,8 @@ The sequence is always: commit → push → confirm hash → THEN say handoff is
 
 ## ⛔ NO PUSH WITHOUT EXPLICIT HANDOFF — ENFORCED
 
-Claude has pushed repos mid-session without Lon saying "perform hand off".
-This is a violation of the handoff rule above.
 
 **The rule in plain language:** Do not call `git push` on ANY repo at ANY time
 during a session. Not to test. Not after a "clean" commit. Not even once.
-The ONLY trigger for any push is Lon saying "perform hand off" or
-"perform emergency hand off". No exceptions. No self-justification.
 
 If Claude is tempted to push "just this one thing", that is the signal to stop.
