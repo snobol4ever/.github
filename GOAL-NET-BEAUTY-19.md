@@ -287,8 +287,10 @@ last-resort: 8-level dereference loop.
       `ExpressionList` offset is wrong in the DEFINE'd-function EVAL path.
       Gate: omega passes → **16/18**
 
-- [ ] **S-9** — Fix semantic driver (same DATATYPE case issue as omega — check and fix same way).
-      Gate: semantic passes → **17/18**
+- [x] **S-9** — Fix semantic driver. Root cause was RunExpressionThread swapping Thread=subThread,
+      causing UDF bodies called from star-functions to re-enter main program instead of executing.
+      Fixed via overrideThread parameter on ThreadedExecuteLoop + entry-label suppression.
+      Gate: semantic passes → **17/18** ✅
 
 - [x] **S-10** — Fix ShiftReduce UNEXPECTED EXCEPTION. Gate: ShiftReduce passes → **16/18** ✅
 
@@ -451,3 +453,65 @@ v.Collection = programDefinedDataVar.FieldValues;
 SystemStack.Push(v);
 ```
 Run full unit test gate after applying. If it passes, run beauty suite — expect 16/18.
+
+## State after BEAUTY-19 session 13
+
+- corpus HEAD: 4048345 (unchanged)
+- snobol4dotnet HEAD: 22eebd9
+- Unit tests: 2075p/14f (14f pre-existing, no regressions)
+- Beauty suite: **17/18** (omega still failing — S-8B open)
+
+## Passing (17)
+
+beauty_Gen, beauty_Qize, beauty_ReadWrite, beauty_ShiftReduce, beauty_TDump, beauty_XDump, beauty_assign, beauty_case, beauty_counter, beauty_fence, beauty_global, beauty_io, beauty_match, beauty_semantic, beauty_stack, beauty_trace, beauty_tree
+
+## Work done session 13
+
+**S-9 DONE — semantic now passes (17/18):**
+
+Root cause of star-function side-effect bug (affected semantic + omega):
+  RunExpressionThread swapped `Thread = subThread` before calling ThreadedExecuteLoop.
+  When the sub-thread invoked a user-defined function (e.g. IncCounter, PushCounter),
+  ExecuteProgramDefinedFunction called ExecuteLoop(labelIndex) → ThreadedExecuteLoop(startInstr).
+  That nested call captured `thread = Thread!` = subThread (3 instructions) and ran the
+  tiny sub-expression array from a StatementInstructionStarts index valid only in the main
+  program — re-entering the main program from statement 1, never running the UDF body,
+  no side effects ever persisted.
+
+Fix (StatementControl.cs + ThreadedExecuteLoop.cs):
+  - Added `Instruction[]? overrideThread` parameter to ThreadedExecuteLoop.
+    When provided, the local `thread` uses overrideThread instead of `this.Thread`,
+    so the sub-expression loop runs the right instructions.
+  - Suppressed the entry-label IP override when `overrideThread != null`.
+  - RunExpressionThread no longer swaps Thread. Passes subThread as overrideThread,
+    clears Failure=false. Thread stays = main program thread throughout.
+
+**S-8B status after fix:**
+omega test 6 now hits two new errors:
+  1. error 22 — `*LEQ(...)` undefined when called from inside EVAL inside TX/TV/TW.
+     This is the original S-8B issue (star-slot index misalignment in EVAL context).
+  2. error 248 — `DATA('link_counter(next,value)')` attempted redefinition.
+     This is NEW: counter.sno DATA call now runs correctly (previously silently skipped
+     due to the star-function bug), but `link_counter` is already registered from the
+     initial load. The EVAL inside TX re-executes the included counter.sno definitions.
+     Root cause: the EVAL string inside TX/TV/TW calls functions that trigger re-execution
+     of include-level initialization code. Fix needed: DATA() should silently no-op on
+     re-registration of identical type, or the EVAL path must not re-run include init.
+
+## S-8B next-session work items (omega)
+
+**Issue 1 — error 248 DATA redefinition:**
+When TX(doParseTree=TRUE) fires, it EVALs a string containing `*Shift(...)`.
+With the star-function fix, Shift() now actually executes. Shift() calls EVAL which
+includes semantic.sno definitions at EVAL time — those include counter.sno DATA call.
+DATA('link_counter(next,value)') hits error 248 because link_counter is already defined.
+Fix options:
+  (a) Make DATA() silently succeed (no-op) when the identical prototype is re-defined.
+  (b) Investigate whether the EVAL string is incorrectly re-running include-level code.
+
+**Issue 2 — error 22 *LEQ undefined in EVAL context:**
+After fixing error 248, the *LEQ star-slot misalignment in EVAL context remains.
+See session 6/7/8 notes for prior diagnosis. With the RunExpressionThread fix in place,
+the star-function execution path is now correct — the remaining issue is purely the
+StarFunctionList slot index alignment when EVAL compiles new star expressions inside
+a user-defined function (TX/TV/TW) that was itself called from inside a pattern match.
