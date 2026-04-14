@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-5 next (JIT step limit in sm_codegen.c) | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-7 next (wire --monitor flag in scrip.c) | ☐ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next (rung12 string relops --ir-run) | ☐ |

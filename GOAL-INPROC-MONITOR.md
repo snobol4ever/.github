@@ -153,14 +153,14 @@ This is a significant refactor — after the monitor works with snapshot/restore
   `SM_STNO` already fires per statement — add step counter there.
   Gate: `sm_interp_run_steps(prog, st, 1)` executes exactly 1 statement.
 
-- [ ] **IM-5** — Add step limit to JIT path in `sm_codegen.c`.
+- [x] **IM-5** — Add step limit to JIT path in `sm_codegen.c`.
   JIT emits a call to a C trampoline at each `SM_STNO` boundary.
   Trampoline checks step counter and longjmps out when reached.
   Gate: `jit_run_steps(prog, 1)` executes exactly 1 statement.
 
 ### Phase 3 — Sync comparator
 
-- [ ] **IM-6** — Write `sync_monitor_run(Program *prog, int verbose)`.
+- [x] **IM-6** — Write `sync_monitor_run(Program *prog, int verbose)`.
   For each statement N = 1..nstmts:
     1. `exec_snapshot_restore(&baseline)` — reset to clean state
     2. `execute_program_steps(prog, N)` → take `ir_snap`
@@ -264,16 +264,19 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 38470db1)
+## Current state (2026-04-14, one4all HEAD bf85b7df)
 
-IM-1 through IM-4 complete. IM-5 through IM-12 open.
+IM-1 through IM-6 complete. IM-7 through IM-12 open.
 
-Pre-existing build breakage also fixed this session:
-- sm_lower.c: old EKind names renamed to current ir.h names; stale duplicate
-  case blocks removed from lower_expr() switch.
-- Makefile: added icn_runtime.c, pl_runtime.c, rebus frontend files;
-  excluded rebus_main.c (has own main()).
+IM-5 (sm_codegen.c): g_jit_step_limit/g_jit_steps_done/g_jit_step_jmp globals;
+h_stno() longjmps when limit reached; sm_jit_run_steps() wrapper added.
+sm_codegen.h updated with extern declarations + sm_jit_run_steps prototype.
 
-Next: IM-5 — JIT step limit in sm_codegen.c (emit C trampoline call at each
-SM_STNO boundary; check g_jit_step_limit; longjmp to g_jit_step_jmp when
-reached). Then IM-6: sync_monitor_run() comparator loop in sync_monitor.c.
+IM-6 (sync_monitor.c): sync_monitor_run(void *prog, int verbose) written.
+For each stmt N: restore baseline, run IR/SM/JIT to N, snapshot, compare via
+snap_diff(). On first divergence: prints DIVERGE report with variable diffs.
+sync_monitor.h updated with sync_monitor_run declaration.
+Gate: PASS=31 FAIL=0 throughout.
+
+Next: IM-7 — wire --monitor flag in scrip.c main():
+  ./scrip --monitor file.sno  →  calls sync_monitor_run(prog, 1); exit 0 on agree.
