@@ -89,10 +89,10 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `a39f9c3`
-- Unit tests: 2075p/14f/0s (14 pre-existing failures, not introduced by S-2 fix)
-- Beauty suite: 7/19
-- Crosscheck: 79/80
+- HEAD: `826d4ff`
+- Unit tests: not re-run this session (build clean)
+- Beauty suite: not re-run this session (build clean)
+- Crosscheck: 79/80 (unchanged)
 
 ## SPITBOL oracle semantics
 

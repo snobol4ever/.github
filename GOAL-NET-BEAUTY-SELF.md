@@ -34,14 +34,30 @@ rm -f beauty_selftest.sno
     ARBNO(*Command) also loops under snobol4dotnet — same root cause or related.
   - corpus HEAD: 0074bc5
 
-- [ ] **S-2** — Fix root cause: self-host Parse hangs on label-only statements.
-  FIXED (partial, a39f9c3): UnevaluatedPattern infinite backtrack loop.
-  Root cause was UnevaluatedPattern._reScan=true calling SaveAlternate unconditionally;
-  zero-length match created infinite C# loop. Fix: guard with mr.PostCursor > 0.
-  Beauty suite still 18/18. No longer hangs.
-  REMAINING: Parse("START\n") now returns "Parse Error" instead of hanging.
-  The Stmt pattern still does not match label-only statements correctly under dotnet.
-  Next: debug why *Stmt fails on "START\n" (no RPOS constraint) and fix.
+- [ ] **S-2** — Fix root cause: self-host Parse fails on label-only statements.
+  ROOT CAUSE CONFIRMED (826d4ff): UnevaluatedPattern.Scan creates a child Scanner
+  to match *X. ARBNO's backtracking alternates are saved in the child scanner's state,
+  then discarded when the child returns its first success. The outer scanner can never
+  backtrack into ARBNO for more iterations. Result: nPush() ARBNO(*Command) always
+  matches only one Command; 'START\n' (label-only statement) causes Parse Error.
+
+  Minimal repro confirmed:
+    'AB' POS(0) *Parse RPOS(0) FAILS when Parse = nPush() ARBNO(LEN(1))
+    'AB' POS(0)  Parse RPOS(0) PASSES (direct, no * indirection)
+
+  FIX APPROACH - Graft (826d4ff, INCOMPLETE):
+    UnevaluatedPattern.Scan evaluates *X, grafts the result's nodes into the
+    RUNNING scanner's AST (remapped indices, dangling Subsequent=-1 wired to the
+    node following *X), returns GOTO so Match jumps inline. All alternates stay
+    in one unified stack. MatchResult.cs + AbstractSyntaxTree.cs scaffolded.
+
+  NEXT SESSION must complete:
+    1. Add Scanner.Graft(Pattern, int successorNode) -> int graftedStart
+    2. Handle GOTO in Scanner.Match loop
+    3. Rewrite UnevaluatedPattern.Scan to use Graft + MatchResult.Goto
+    4. Build + verify minimal repro passes
+    5. Run beauty suite gate (must stay 18/18)
+    6. Run unit tests + commit + push
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty_selftest.sno` is empty. Output: `SELF-HOST PASS`. ✅
 
