@@ -187,11 +187,14 @@ Register in `icn_eval_gen()` switch.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-14, one4all HEAD a22ffac2)
 
-IC-1 done (rung01–11 59/59 --ir-run). IC-2 through IC-20 open.
-rung12–36 scripts exist but most rungs are partial.
-Next: IC-2 — rung12 string relational ops under --ir-run.
+IC-1 done. IC-2 in progress: 54/59 rung01-11 PASS.
+Relop fix done (NUMREL/STRREL return right operand — oracle confirmed).
+Suspend skeleton in place (icn_drive_fnc, IcnFrame.suspending, E_WHILE breaks on suspend)
+but every-body not yet receiving suspended value — rung03 still failing.
+Root cause: debug icn_drive_node/val passthrough and every_body capture in icn_drive_fnc.
+Next: IC-2 — fix suspend every-body passthrough, get rung03 PASS, then rung12 str relops.
 
 ---
 
