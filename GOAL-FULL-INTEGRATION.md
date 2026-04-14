@@ -77,14 +77,14 @@ Do NOT change this.
 
 ## Phase 1 — Wire Rebus (unblocks Rebus frontend session)
 
-- [ ] **FI-1A** — Write `rebus_compile()` wrapper.
+- [x] **FI-1A** — Write `rebus_compile()` wrapper.
   In `rebus_lower.c`, add function `rebus_compile(const char *src, const char *filename)`:
   call `rebus_parse()` then `rebus_lower()`, set `st->lang = LANG_REB` on each STMT_t,
   return `Program*`. Mirror the pattern of `icon_compile()` exactly.
   Expose in `rebus_lower.h`: `Program *rebus_compile(const char *src, const char *filename);`
   Gate: `make scrip` clean (Rebus not yet callable from main but must link cleanly).
 
-- [ ] **FI-1B** — Wire Rebus into `scrip.c` `main()` and `polyglot_execute()`.
+- [x] **FI-1B** — Wire Rebus into `scrip.c` `main()` and `polyglot_execute()`.
   In `scrip.c`:
   - Add `#include "../frontend/rebus/rebus_lower.h"` to includes.
   - Add `lang_rebus` flag via `.reb` extension detection (same 2-line pattern as lang_icon).
