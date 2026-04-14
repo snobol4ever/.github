@@ -230,7 +230,10 @@ explicit `-e module_name` flag to select, like ld).
 
 ---
 
-**U-21** — Formal module concept in-memory.
+**U-21** — Formal module concept in-memory. DONE. one4all HEAD 7fd3135d.
+  `ScripModule`/`ScripModuleRegistry` added to scrip.c; `g_registry` populated
+  by `polyglot_init` in same pass as flat tables. Additive — zero behaviour change.
+  Gate: unified_broker PASS=13 FAIL=0.
   Each fenced block = a `ScripModule`:
   ```c
   typedef struct {
@@ -254,7 +257,7 @@ explicit `-e module_name` flag to select, like ld).
   same flat table views — registry is additive.
   Gate: make scrip clean; smoke PASS=2; unified_broker PASS=13.
 
-**U-22** — Cross-call hook: SNO → ICN/PL.
+- [ ] **U-22** — Cross-call hook: SNO → ICN/PL. PARTIAL.
   `_usercall_hook` in scrip.c currently routes unknown function names to
   `call_user_function` (SNO labels). Extend: if name not found in SNO
   label table, check `icn_proc_table` (call `icn_call_proc`) then
@@ -314,11 +317,33 @@ explicit `-e module_name` flag to select, like ld).
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD d15c4186)
+## Current state (session 2026-04-14, one4all HEAD — see below)
 
-U-1 through U-20 complete. GOAL-UNIFIED-BROKER is DONE.
-U-6 γ repack deferred (--bb-live x86 path only — pre-existing failure, not a regression).
-Phase 7 (module system, U-21..U-24) brainstormed and captured above — next goal.
+U-1 through U-21 complete. U-22 partial — committed to one4all but cross-call
+not yet verified working.
+
+**U-21 done** (one4all HEAD 7fd3135d):
+ScripModule/ScripModuleRegistry added; polyglot_init populates g_registry.
+Gate: unified_broker PASS=13 FAIL=0.
+
+**U-22 partial** (not yet committed cleanly):
+- _usercall_hook extended with ICN/PL cross-call fallback (correct).
+- E_FNC interp_eval handler extended with ICN/PL cross-call fallback (correct).
+- Root cause found: `polyglot_init` was using `proc->children[0]->sval` to get
+  the Icon proc name, but `icon_lower` stores the name in `proc->sval`.
+  Fix applied in source (use `proc->sval`). Gate not yet re-run after fix.
+- Secondary issue: Icon-first polyglot files produce empty output (Icon block
+  not reaching polyglot_init loop). SNO-first works. Root cause not yet nailed.
+- Test file: `test/test_crosscall.scrip` created (SNO calls Icon `double(21)`).
+- Also noted: `test_scrip_demos.sh` `.expected` files for demos 1–10 have only
+  one line each but should have three (one per language section). Pre-existing bug.
+
+**Next session starts at U-22**: rebuild after proc->sval fix, run gate, if
+cross-call works commit and close. If Icon-first polyglot still empty, file
+as separate bug (GOAL-POLYGLOT-ORDER-BUG or note in repo), do not block U-22.
+
+U-6 γ repack deferred (--bb-live x86 path only — pre-existing failure).
+Phase 7 (module system, U-21..U-24) in progress: U-21 done, U-22 in progress.
 
 U-19 fixes applied this session:
 - Missing closing ``` fence in polyglot blocks caused prolog_compile to never run.
