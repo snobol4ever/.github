@@ -30,7 +30,8 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-17 (icn_eval_gen — B-8 stub in icon_gen.h) | ☐ |
+| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-18 (sm_lower polyglot: LANG_ICN/LANG_PL nodes) | ☐ |
+| Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | SC-1 (audit) | ☐ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
