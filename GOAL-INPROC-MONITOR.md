@@ -332,7 +332,7 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 92ea99cd)
+## Current state (2026-04-14, one4all HEAD 27bd07c6)
 
 IM-1 through IM-12 complete. Phases 1–5 done.
 
