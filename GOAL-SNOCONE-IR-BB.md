@@ -207,3 +207,37 @@ Next session fix (SC-1):
   (b) In _builtin_DATA, always return NULVCL (never FAILDESCR).
   Option (b) is simplest and correct — DATA() in SNOBOL4 never fails on valid spec.
   Then confirm sc_dat_register is called, run beauty-sc stack/trace gate.
+
+---
+
+## Session state (2026-04-14, one4all HEAD f6c3a97b)
+
+Score: 6/14 PASS (assign fence roman semantic stack counter). Was 3/14 at session start
+(the test script path bug masked true baseline — test_beauty_snocone_subsystems.sh SCRIPT_DIR
+was pointing at scripts/ instead of test/beauty-sc/).
+
+Fixes landed this session:
+1. snocone_lower.c PERIOD: unary . → E_NAME(E_VAR) — eliminates all stack underflows on .var
+2. snocone_lower.c TILDE: ~ → E_NOT() node — fixes Error 5 on ~DIFFER() inside procedures
+3. scrip.c sc_dat_construct: union clobber fix — r.s=NULL was overwriting r.u=inst
+4. scrip.c _usercall_hook: sc_dat constructor/field lookup added before label search
+5. scripts/test_beauty_snocone_subsystems.sh: SCRIPT_DIR path fixed
+
+Remaining failures — root causes identified:
+
+| Subsystem | Root cause |
+|-----------|-----------|
+| tree | MakeNode: array field (kids) round-trip — c(nd)[1] subscript on DATA array field |
+| ShiftReduce | Reduce 2/3 children: same array-field subscript issue |
+| arith | IsPrime(17)/Sieve(20): while loop with integer iteration — investigate |
+| strings | TrimLeft/TrimRight/Trim: SPAN/BREAK pattern functions not wired in sc context |
+| match | ANY/notmatch: pattern wiring (SC-5 not yet done) |
+| trace | T8Pos / t8MaxLast: table field access or TABLE() not wired |
+| global | Error 3 erroneous array/table ref on statements 30-31 |
+| ReadWrite | Empty output — I/O builtins (Read/Write) not wired in sc context |
+
+Next session starts at SC-1 continued:
+  Fix tree/ShiftReduce array-field subscript: c(nd)[1] where c() returns an ARRAY field.
+  In interp_eval E_IDX, when base is obtained from sc_dat_field_get and is DT_A, subscript
+  should work via subscript_get — check whether DATA array fields survive NV round-trip.
+  Gate: beauty-sc tree ShiftReduce PASS.
