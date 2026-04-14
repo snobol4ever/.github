@@ -51,13 +51,13 @@ regexes, type system, `use` module imports.
 
 ### Phase 1 — Lexer and parser
 
-- [ ] **RK-1** — `src/frontend/raku/raku_lex.c` + `raku_lex.h`.
+- [x] **RK-1** — `src/frontend/raku/raku_lex.c` + `raku_lex.h`.
   Tokens: integer/string literals, `$`-sigil vars, `@`-sigil arrays,
   keywords (`gather`, `take`, `for`, `my`, `say`, `print`, `if`, `while`),
   operators (`+ - * / ~ = := ==`), punctuation `{ } ( ) ; ,`.
   Gate: tokeniser round-trips test snippets correctly.
 
-- [ ] **RK-2** — `src/frontend/raku/raku_parse.c` + `raku_parse.h`.
+- [x] **RK-2** — `src/frontend/raku/raku_parse.c` + `raku_parse.h`.
   Recursive descent. Produces a `RakuNode*` AST (same pattern as Icon's
   `IcnNode*`). Parses the supported subset from RK-1.
   Gate: parses `gather { take $_ for 1..5 }` without error.
@@ -123,8 +123,71 @@ The acronym question (SCRIPR?) is Lon's call.
 
 ---
 
+## Tiny-Raku Agreed Subset
+
+Decided 2026-04-14. Flex + Bison for lexer/parser (raku.l, raku.y).
+
+**In scope — Phase 1:**
+- Literals: integer, float, single- and double-quoted strings (flat, no interpolation)
+- Variables: `$scalar`, `@array`
+- Keywords: `my say print if else while for sub gather take return`
+- Arithmetic: `+ - * / %`
+- String concat: `~`
+- Numeric compare: `== != < > <= >=`
+- String compare: `eq ne`
+- Assignment: `=`
+- Range: `..` (inclusive only)
+- Logic: `&&` `||` `!`
+- Pointy block: `->`
+- Comments: `#` to end of line
+- Semicolons required everywhere
+
+**In scope — Phase 2 (after Phase 1 green):**
+- `gather { ... }` / `take expr` → BB_PUMP
+- `for RANGE -> $var { ... }` / `for @arr -> $var { ... }`
+- `$_` implicit topic variable
+
+**Deliberately out of scope (Tiny-Raku forever):**
+- String interpolation inside `"..."` (treated as flat literal)
+- Raku `grammar`/`rule`/`token` keywords
+- Junctions, hyper-operators, OO, types, `use` imports
+- `given`/`when`, smart match `~~`
+- LTM `|` alternation (only `||` ordered-choice in combinator demo)
+
+**Combinator parser demo (do last):**
+A Tiny-Raku program using `gather`/`take` to implement an ordered-choice
+PEG combinator parser — demonstrating BB_PUMP is powerful enough to
+express a grammar engine without any new syntax.
+
+**Grammar note:**
+Raku's `|` in grammars is NOT PEG — it uses Longest Token Matching (LTM),
+a non-deterministic NFA over declarative prefixes. `||` is ordered-choice
+(PEG-style). This distinction is irrelevant to our frontend (Flex/Bison
+handles Raku source) and to our combinator demo (which uses `||` semantics
+via sequential `gather` tries).
+
+## Incremental TDD Rungs
+
+- Rung 0: Skeleton — stub driver, `say "hello world"` prints. Build green.
+- Rung 1: Flex lexer (raku.l) — all Phase 1 tokens, lex test passes.
+- Rung 2: Bison parser (raku.y) — parses `say "hello"`, direct eval.
+- Rung 3: Arithmetic + `my $x = expr; say $x;`
+- Rung 4: String concat `~`, single-quoted strings.
+- Rung 5: Range `..` + `for` loop, direct eval.
+- Rung 6: Lower to IR (raku_lower.c) — hello world via --ir-run.
+- Rung 7: `gather`/`take` → BB_PUMP, `for 1..5` via generator.
+- Rung 8: Full driver, `.raku` extension, LANG_RAKU=3, smoke test.
+- Rung 9: Combinator parser demo (do last).
+
 ## Current state
 
-Goal created 2026-04-14. No steps started.
-Prerequisite: GOAL-UNIFIED-BROKER complete (U-1..U-20 done ✓).
-Recommended: U-22 complete before RK-6 (cross-call).
+## Current state
+
+Session 2026-04-14: RK-1 and RK-2 DONE (Rung 0-5 green, 17/17 PASS).
+Flex/Bison frontend complete: raku.l (prefix=raku_yy), raku.y
+(api.prefix=raku_yy), raku_ast.h/c, raku_driver.h/c.
+Supports: say/print, my $x=expr, arithmetic, string concat ~,
+for RANGE->$var {}, if/else, while loop.
+Fixed pre-existing U-22 bug: DESCR_t.type -> .v in scrip.c.
+HEAD: ecc21def (one4all)
+Next: RK-3 (IR lowering — raku_lower.c), then RK-7 (gather/take BB_PUMP).
