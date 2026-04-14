@@ -138,7 +138,7 @@ src/runtime/interp/
                        pl_pred_table_*, pl_unify, pl_box_choice, pl_trail_*, pl_ helpers
 ```
 
-- [ ] **FI-4** — Extract Icon runtime to `src/runtime/interp/icn_runtime.c`.
+- [x] **FI-4** — Extract Icon runtime to `src/runtime/interp/icn_runtime.c`.
   Move from scrip.c: `IcnFrame`, `icn_frame_stack`, `icn_frame_depth`, `ICN_CUR`,
   `icn_gen_*`, `icn_scan_*`, `icn_global_*`, `icn_proc_table`, `icn_call_proc`,
   `icn_drive`, `icn_eval_gen`, `icn_oneshot_box`, `icn_scope_add`, `icn_scope_patch`.
@@ -281,8 +281,9 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD bd0f983d)
+## Current state (updated 2026-04-14, one4all HEAD 2cbe48d8)
 
-FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3 done.
+FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4 done.
 Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
-Next: FI-4 — Extract Icon runtime to src/runtime/interp/icn_runtime.c.
+scrip.c reduced from 4187 → 3837 lines.
+Next: FI-5 — Extract Prolog runtime to src/runtime/interp/pl_runtime.c.
