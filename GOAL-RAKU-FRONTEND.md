@@ -242,7 +242,7 @@ All new corpus files go in `test/raku/`. All new harness entries in `test_raku_i
 
 ### Sprint 4 — Hashes
 
-- [ ] **RK-15** — Hash operations: `%h<key>`, `%h{$k}`, `keys`, `values`, `exists`.
+- [x] **RK-15** — Hash operations: `%h<key>`, `%h{$k}`, `keys`, `values`, `exists`.
   Runtime: hash table in interpreter. New E_HASH_GET / E_HASH_SET or builtins.
   Test: `rk_hashes.raku` — set/get/keys/exists.
   Gate: PASS=12.
@@ -460,3 +460,19 @@ test/raku/rk_arrays.raku + .expected: int+string arrays, push/pop/index.
 Gate: PASS=11 FAIL=0 raku; smoke PASS=29 FAIL=0.
 one4all HEAD: 51fe9434
 Next: RK-15 (hashes: %h<key>, %h{$k}, keys, values, exists).
+
+Session 2026-04-14 (continued): RK-15 DONE.
+
+Hash operations: %h<key>/%h{$k} sigil syntax + hash_get/set/exists/keys/values builtins.
+Storage: \x02-separated "key\x03value" pair strings (distinct from array \x01 separator).
+raku.l: '%' sigil -> VAR_HASH token.
+raku.y: VAR_HASH token declared; my %h = expr; %h<key>=val; %h{expr}=val stmt rules;
+  %h<key> and %h{expr} atom rules.
+raku_ast.h/c: RK_HASH_GET + RK_HASH_SET enums + raku_node_hash_get/set() constructors.
+raku_lower.c: strip_sigil extended to %; RK_HASH_GET/SET -> E_FNC(hash_get/set).
+scrip.c: hash_set (upsert), hash_get, hash_exists, hash_keys (\x01-sep), hash_values (\x01-sep).
+  Uses interp_eval (OE-5 landscape — icn_interp_eval is now a forwarder).
+test/raku/rk_hashes.raku + .expected: set/get/exists/update + sigil syntax (9 assertions).
+Gate: PASS=12 FAIL=0 raku; smoke PASS=30 FAIL=0.
+one4all HEAD: dacec523
+Next: RK-16 (for @arr -> $x with real array variable).
