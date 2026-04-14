@@ -103,7 +103,7 @@ rung12 and beyond are the ladder for this goal.
   `write_canonical/1`, `writeq/1`, bitwise ops, `max/min`, `**`, `sign`.
   Gate: rung22 5/5, rung23 5/5.
 
-- [ ] **PL-9** — S-10o/p: string/IO builtins, `term_string/2`.
+- [x] **PL-9** — S-10o/p: string/IO builtins, `term_string/2`.
   Gate: rung24 5/5, rung25 5/5.
 
 - [ ] **PL-10** — S-10q/r/s: `copy_term/2`, `nb_setval/nb_getval`,
@@ -193,9 +193,9 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-14, one4all HEAD ee025919)
+## Current state (2026-04-14, one4all HEAD defe8621)
 
-PL-1 through PL-8 done. --ir-run ladder:
+PL-1 through PL-9 done. --ir-run ladder:
 - rung01–11 14/14 PASS (PL-1)
 - rung12 5/5 PASS atom builtins (PL-4)
 - rung13 5/5 PASS assertz (PL-3)
@@ -209,11 +209,15 @@ PL-1 through PL-8 done. --ir-run ladder:
 - rung21 5/5 PASS char_type (PL-7)
 - rung22 5/5 PASS write_canonical/writeq (PL-8)
 - rung23 5/5 PASS bitwise/sign/** (PL-8)
-Next: PL-9 — string/IO builtins, term_string/2 (rung24/25).
+- rung24 5/5 PASS term_string (PL-9)
+- rung25 5/5 PASS number_codes/chars/char_code/upcase/downcase (PL-9)
+Next: PL-10 — copy_term/2, nb_setval/nb_getval, throw/1, catch/3 (rung26/27/28).
 
 NOTE: build_scrip.sh skips rebuild when scrip exists. Use
   touch src/frontend/prolog/<file>.c && make -C src -j4
-after editing .c files.
+(or manual compile+relink) after editing .c files.
+Smoke: PASS=24 FAIL=10 — Raku failures pre-exist (raku.lex KW_EXISTS/KW_DELETE
+from RK-17 session; not caused by Prolog work).
 
 ---
 
