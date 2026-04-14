@@ -122,7 +122,7 @@ parse_scrip_polyglot()
   Gate: `make scrip` clean; unified_broker PASS=13; Icon rung01-11 59/59;
   regression non-regressing.
 
-- [ ] **OE-6** — Delete `icn_interp_eval` entirely.
+- [x] **OE-6** — Delete `icn_interp_eval` entirely.
   Update all call sites (`icn_call_proc`, `icn_drive`, `icn_eval_gen`,
   `icn_oneshot_box`) to call `interp_eval(e)` directly.
   Gate: `make scrip` clean; unified_broker PASS=13; Icon rung01-11 59/59;
@@ -252,7 +252,17 @@ Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
 2. Fix until gate PASS=29 FAIL=0
 3. Commit clean OE-5, proceed to OE-6
 
-## Current state (session 2026-04-14 #2 final, one4all HEAD 38e49bb3)
+## Current state (session 2026-04-14 #3, one4all HEAD 289d9a03)
+
+OE-6 DONE. Gate PASS=30 FAIL=0. Next: OE-7.
+
+**OE-6 DONE**: icn_interp_eval deleted entirely. All 14 call sites in icn_drive,
+icn_eval_gen, and icn_call_proc now call interp_eval(e) directly. Forward decl
+and one-liner body removed. Zero references to icn_interp_eval remain in scrip.c.
+
+Gate: make scrip clean; unified_broker PASS=30 FAIL=0.
+
+
 
 OE-5 DONE. Gate PASS=29 FAIL=0. Next: OE-6.
 
