@@ -31,6 +31,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-23 PARTIAL (PL dispatch broken; SNO->ICN bridge done) | ☐ |
+| One Eval | `GOAL-ONE-EVAL.md` | one4all | OE-1 (IcnFrame struct; merge icn_interp_eval into interp_eval) | ☐ |
 | Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-3 (IR lowering) | ☐ |
 | Polyglot Calc Demo | `GOAL-POLYGLOT-CALC-DEMO.md` | one4all | PC-1 (Icon generator) | ☐ |
 | Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
