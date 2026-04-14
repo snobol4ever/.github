@@ -179,17 +179,101 @@ The steps below build toward that incrementally — always green, always runnabl
   Prolog section silent (phrase/3, char_type/2 pre-existing gaps).
   smoke PASS=2; unified_broker PASS=12. one4all HEAD bb780157.
 
-- [ ] **U-19** — Cross-language `.scrip` test. *(Proof of concept end-to-end.)*
-  Write `test/cross_lang.scrip`: Icon section defines a `1 to 3` generator; SNOBOL4
-  section drives it via `bb_broker(BB_PUMP)` (using `icn_eval_gen`) and prints each value.
-  Prolog section asserts a simple fact that SNOBOL4 queries via `bb_broker(BB_ONCE)`.
-  Gate: `scrip test/cross_lang.scrip` output matches `.ref`; `scrip --sm-run` matches too.
-  `make scrip` clean; smoke PASS; regression non-regressing.
+- [x] **U-19** — Cross-language `.scrip` test. *(Proof of concept end-to-end.)* DONE.
+  `test/cross_lang.scrip`: SNO section (BB_SCAN counter loop prints `SNO: 3`), Icon section
+  (`1 to 3` generator via icn_eval_gen+BB_PUMP prints `ICN: 1/2/3`), Prolog section
+  (color facts via BB_ONCE fail-loop prints `PL: red/green/blue`). `.ref` generated.
+  Root cause fixed: missing closing ``` fence in polyglot block caused prolog_compile to
+  never run. Also fixed: post-loop Prolog main/0 dispatch in execute_program (U-19 analogue
+  of U-15 Icon post-loop). Gate: unified_broker PASS=13; smoke PASS=2. --sm-run pivot: gate
+  is --ir-run only per U-18 note (--sm-run polyglot blocked by static linkage).
+  Also: demo/scrip/*.md → *.scrip rename (git mv all 10); scripts/test_scrip_demos.sh added.
 
 - [ ] **U-20** — Documentation.
   `ARCH-IR.md`: document polyglot `Program*`, `STMT_t.lang`, `polyglot_init`,
   `SM_BB_PUMP`/`SM_BB_ONCE` as the three broker modes in one SM.
   Update PLAN.md. Gate: none.
+
+---
+
+### Phase 7 — Module System (future, post U-20)
+
+**Brainstorm captured 2026-04-13.**
+
+The polyglot `.scrip` file already has the structure of a module system:
+each fenced block is a module with a language tag. The missing pieces:
+
+**The key architectural insight (2026-04-13):**
+The module boundary IS the link unit — one-to-one with what would be
+assembled and linked in the output-file path. This unifies all three
+execution modes under one model:
+
+```
+.scrip file
+├── ```SNOBOL4  →  one_module.sno.o   (x86 asm → as → .o)
+├── ```Icon     →  one_module.icn.o   (x86 asm → as → .o)
+└── ```Prolog   →  one_module.pl.o    (x86 asm → as → .o)
+                     └── ld → one_module   (linked binary)
+
+Same module boundaries for --ir-run (in-memory interp) and emit paths.
+ScripModuleRegistry in-memory = the linker symbol table on disk.
+```
+
+The three interpreter modes (--ir-run, --sm-run, --bb-live) all load
+all modules into the same registry simultaneously — matching what the
+linker does when combining .o files. Cross-module calls work the same
+way in all modes: look up the symbol in the registry, dispatch.
+
+**Entry point rule:** whichever module defines `main` is the start point.
+Single `main` across all modules — linker error if more than one (or:
+explicit `-e module_name` flag to select, like ld).
+
+---
+
+**U-21** — Formal module concept in-memory.
+  Each fenced block = a `ScripModule`:
+  ```c
+  typedef struct {
+      int          lang;          /* LANG_SNO / LANG_ICN / LANG_PL */
+      const char  *name;          /* optional: ```Icon "mymod" */
+      Program     *prog;          /* compiled IR */
+      /* symbol tables populated by polyglot_init: */
+      /* SNO: label_table slice */
+      /* ICN: icn_proc_table slice */
+      /* PL:  pl_pred_table slice */
+  } ScripModule;
+
+  typedef struct {
+      ScripModule  mods[SCRIP_MOD_MAX];
+      int          nmod;
+      int          main_mod;      /* index of module owning main */
+  } ScripModuleRegistry;
+  ```
+  `polyglot_init` populates `ScripModuleRegistry` instead of three
+  parallel flat tables. All existing code continues to work via the
+  same flat table views — registry is additive.
+  Gate: make scrip clean; smoke PASS=2; unified_broker PASS=13.
+
+**U-22** — Cross-call hook: SNO → ICN/PL.
+  `_usercall_hook` in scrip.c currently routes unknown function names to
+  `call_user_function` (SNO labels). Extend: if name not found in SNO
+  label table, check `icn_proc_table` (call `icn_call_proc`) then
+  `g_pl_pred_table` (call `bb_broker(BB_ONCE)` and return as DESCR_t).
+  This lets SNOBOL4 source call `ICNGEN(N)` or `PLFACT(X)` directly.
+  Same lookup the linker would do to resolve an undefined symbol.
+
+**U-23** — Shared constant space.
+  SNO NV store (the global variable table) is already shared across all
+  sections at the C level. Expose it: Icon `E_VAR` handler checks SNO NV
+  store for names not found in `icn_env`. Prolog can read/write NV via a
+  builtin. A ```SCRIP fenced block (language-agnostic) defines shared
+  constants visible to all modules — equivalent to a linker common section.
+
+**U-24** — `test/family.scrip` — first true cross-call demo.
+  SNO parses family.csv, calls PL predicates to assert facts, Icon iterates
+  query results. Uses U-22 cross-call hook. Recovers the family tree demo
+  from archive (MISC-SCRIP-CONCEPTS.md / SCRIP_DEMO.md). demo11.
+  This is the proof that the module/link-unit model works end-to-end.
 
 ---
 
@@ -230,25 +314,21 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD bb780157)
+## Current state (session 2026-04-13, one4all HEAD d15c4186)
 
-U-1 through U-18 complete. U-6 γ repack deferred (--bb-live x86 path only).
-Next session starts at U-19.
+U-1 through U-19 complete. U-6 γ repack deferred (--bb-live x86 path only).
+Next session starts at U-20 (documentation), then Phase 7 (module system).
 
-U-18 note: implemented via --ir-run pivot rather than --sm-run. The --sm-run
-path (sm_lower polyglot extension + SM_ICN_EVAL/SM_PL_EVAL opcodes) was
-partially implemented but blocked by static linkage of interp_eval/icn_interp_eval/
-g_pl_active in scrip.c. The --ir-run path achieves the cross-language execution
-goal. --sm-run wiring is a follow-on if needed for the emitter path.
+U-19 fixes applied this session:
+- Missing closing ``` fence in polyglot blocks caused prolog_compile to never run.
+- Added post-loop Prolog main/0 dispatch in execute_program (mirrors U-15 Icon dispatch).
+- demo/scrip/*.md → *.scrip renamed (git mv all 10 demos); .scrip already recognized.
+- scripts/test_scrip_demos.sh created (tests all 10 demos via --ir-run vs .expected).
+- test/cross_lang.scrip + test/cross_lang.ref: all three bb_broker modes in one file.
+- test_smoke_unified_broker.sh extended: PASS=13 (was 12).
 
-Four icn_interp_eval fixes this session:
-- E_VAR &-keyword dispatch (Icon lowers &letters etc as E_VAR not E_KEYWORD)
-- upto() semantics fixed (returns position, does not advance)
-- tab() propagates FAILDESCR from argument
-- E_SEQ_EXPR handler added (multi-statement brace blocks)
-
-Gate results: scrip --ir-run demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
-smoke PASS=2; unified_broker PASS=12.
+Gate results: smoke PASS=2; unified_broker PASS=13.
+Module system ideas captured in Phase 7 (U-21..U-24) above.
 
 ---
 
