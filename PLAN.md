@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 in progress: relops fixed (54/59); suspend every-body passthrough open | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-2 next (install SWI+GNU test suites) | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-7 next (numbervars/3, char_type/2; rung20/21); PL-2..PL-6 done | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-16 next (for @arr -> $x real array) | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-2 next (fix procedure lowering) | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
