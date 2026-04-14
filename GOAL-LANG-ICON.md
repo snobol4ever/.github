@@ -24,6 +24,7 @@ Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_icon.sh             # PASS=5
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_icon.sh       # 3-mode divergence check
 bash /home/claude/one4all/scripts/test_icon_ir_all_rungs.sh      # check baseline
 ```
 
