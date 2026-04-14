@@ -434,3 +434,15 @@ test/raku/rk_interp.raku + .expected: 6 interpolation cases.
 Gate: PASS=9 FAIL=0 (raku harness); smoke PASS=27 FAIL=0.
 HEAD: 2e0d5d46 (one4all)
 Next: RK-13 (given/when scalar smart-match).
+
+Session 2026-04-14 (continued): RK-13 DONE.
+
+given/when scalar smart-match lowered to nested E_IF chain.
+raku.l: given, when, default, elsif keywords.
+raku.y: given_stmt + when_list grammar rules; %type decls added.
+raku_ast.h/c: RK_GIVEN/RK_WHEN/RK_DEFAULT; raku_node_given/raku_node_when constructors.
+raku_lower.c: RK_GIVEN -> right-to-left E_IF chain; string when -> E_LEQ, int -> E_EQ.
+test/raku/rk_given.raku + .expected: 6 cases (int + string when, default).
+Gate: PASS=10 FAIL=0 raku; smoke PASS=28 FAIL=0.
+one4all HEAD: 75ba531b
+Next: RK-14 (arrays: push/pop/elems/index).
