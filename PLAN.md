@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-13 next (build SPITBOL as linkable archive); Phase 5 done (IM-9..12) | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-15b next (add per-stmt hook to CSNOBOL4 snobol4.c + build_csnobol4_archive.sh); infra committed (csnobol4_shim.c stub, scrip-monitor target, SPITBOL shim removed) | ☐ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 in progress: 54/59; control-flow dispatch fixed; every_body root cause isolated; next: verify icn_drive recursion into args | ☐ |
