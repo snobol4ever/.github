@@ -34,12 +34,14 @@ rm -f beauty_selftest.sno
     ARBNO(*Command) also loops under snobol4dotnet — same root cause or related.
   - corpus HEAD: 0074bc5
 
-- [ ] **S-2** — Fix root cause in beauty.sno: nTop() called in pattern context.
-  Options:
-  A) Change nTop() to use NRETURN (return a name) so pattern context works.
-  B) Restructure Parse pattern to call nTop() outside pattern match context.
-  Confirm fix under SPITBOL (error 021 gone) and dotnet (no infinite loop).
-  Run beauty suite gate: dotnet 18/18, SPITBOL 15/18.
+- [ ] **S-2** — Fix root cause: self-host Parse hangs on label-only statements.
+  FIXED (partial, a39f9c3): UnevaluatedPattern infinite backtrack loop.
+  Root cause was UnevaluatedPattern._reScan=true calling SaveAlternate unconditionally;
+  zero-length match created infinite C# loop. Fix: guard with mr.PostCursor > 0.
+  Beauty suite still 18/18. No longer hangs.
+  REMAINING: Parse("START\n") now returns "Parse Error" instead of hanging.
+  The Stmt pattern still does not match label-only statements correctly under dotnet.
+  Next: debug why *Stmt fails on "START\n" (no RPOS constraint) and fix.
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty_selftest.sno` is empty. Output: `SELF-HOST PASS`. ✅
 
