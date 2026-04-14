@@ -61,10 +61,10 @@ RK-16 is next per PLAN.md.
   non-E_TO generators. raku.tab.c regenerated from raku.y.
   Gate: rk_for_array PASS under --ir-run. PASS=13 total.
 
-- [ ] **RK-17** — Hash `%h<key>` and `%h{$k}` full support.
-  RK-15 added hash basics. This rung: `keys %h`, `values %h`, `pairs %h`,
-  `exists %h<k>`, `delete %h<k>`.
-  Gate: hash test suite PASS.
+- [x] **RK-17** — Hash `%h<key>` and `%h{$k}` full support.
+  Added KW_EXISTS/KW_DELETE tokens + lexer rules. VAR_HASH as standalone expr.
+  exists %h<k> / delete %h<k> grammar rules. hash_pairs and hash_delete in
+  interp.c. Gate: rk_hash17 PASS, test_raku_ir_rungs PASS=14 FAIL=0.
 
 - [ ] **RK-18** — `given/when` (Raku switch).
   Maps to E_CASE → BB_PUMP chain.
@@ -148,10 +148,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD — post RK-16)
+## Current state (2026-04-14, one4all HEAD — post RK-17)
 
-RK-1 through RK-16 done. PASS=13 --ir-run.
-RK-17 next: Hash `%h<key>` / `%h{$k}` full support (keys/values/pairs/exists/delete).
+RK-1 through RK-17 done. PASS=14 --ir-run.
+RK-18 next: `given/when` (Raku switch) — maps to E_CASE → BB_PUMP chain.
 
 ---
 
