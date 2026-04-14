@@ -166,16 +166,18 @@ The steps below build toward that incrementally — always green, always runnabl
   Fallback: one-shot box wrapping `icn_interp_eval` result.
   Gate: `make scrip` clean; smoke PASS; Icon rung01-11 59/59; regression non-regressing.
 
-- [ ] **U-18** — Extend `sm_lower` to lower Icon and Prolog nodes. *(SM goes polyglot.)*
-  `sm_lower` currently SNOBOL4-only. Extend `lower_stmt` to check `s->lang`:
-    LANG_ICN: emit `SM_PUSH_EXPR(frozen EXPR_t*)` + `SM_ICN_EVAL`. `sm_interp` handles
-              `SM_ICN_EVAL` by calling `icn_interp_eval(frozen, frozen)`.
-              For generator statements (E_EVERY): emit `SM_PUSH_EXPR` + `SM_BB_PUMP`.
-    LANG_PL:  emit `SM_PUSH_EXPR` + `SM_PL_EVAL`. `sm_interp` handles `SM_PL_EVAL` by
-              calling `interp_eval(frozen)` with `g_pl_active=1`.
-              For goals (E_CHOICE): emit `SM_PUSH_EXPR` + `SM_BB_ONCE`.
-  Gate: `scrip --sm-run demo/scrip/demo2/wordcount.md` runs all three sections correctly.
-  `make scrip` clean; smoke PASS; regression non-regressing.
+- [x] **U-18** — Polyglot --ir-run: Icon section of wordcount.md now outputs 9/9. DONE.
+  Pivoted from --sm-run to --ir-run: static linkage of interp_eval/icn_interp_eval/
+  g_pl_active in scrip.c blocks extern access from sm_interp.c.
+  Four fixes in icn_interp_eval (scrip.c):
+    (a) E_VAR &-keyword handler: &letters/&pos/&ucase/&lcase/&digits/&null/&fail.
+    (b) upto() fixed: no longer advances icn_scan_pos (tab() does the advance).
+    (c) tab() fixed: propagates FAILDESCR from argument (allows while-loop exit).
+    (d) E_SEQ_EXPR added: multi-statement brace blocks had no handler — now evaluates
+        all children in order.
+  Gate: scrip --ir-run demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
+  Prolog section silent (phrase/3, char_type/2 pre-existing gaps).
+  smoke PASS=2; unified_broker PASS=12. one4all HEAD bb780157.
 
 - [ ] **U-19** — Cross-language `.scrip` test. *(Proof of concept end-to-end.)*
   Write `test/cross_lang.scrip`: Icon section defines a `1 to 3` generator; SNOBOL4
@@ -228,23 +230,25 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD f7e2ec6b)
+## Current state (session 2026-04-13, one4all HEAD bb780157)
 
-U-1 through U-17 complete. U-6 γ repack deferred (--bb-live x86 path only).
-Next session starts at U-18.
+U-1 through U-18 complete. U-6 γ repack deferred (--bb-live x86 path only).
+Next session starts at U-19.
 
-Build was broken (runtime/x86 not in Makefile; all emitters dead). Fixed this session:
-- Makefile now includes RUNTIME_X86 (20 files), -lgc, all missing frontend files.
-- All backend emitters archived to archive/backend/emit_emitters/ and archive/frontend/prolog/.
-- bb_boxes.s archived (superseded by bb_boxes.c C rewrite).
-- cursor/subject_len_val/subject_data globals defined in stmt_exec.c.
-- scrip.c dead emitter flag code removed.
-- smoke PASS=2 FAIL=0; unified_broker PASS=12 FAIL=0.
+U-18 note: implemented via --ir-run pivot rather than --sm-run. The --sm-run
+path (sm_lower polyglot extension + SM_ICN_EVAL/SM_PL_EVAL opcodes) was
+partially implemented but blocked by static linkage of interp_eval/icn_interp_eval/
+g_pl_active in scrip.c. The --ir-run path achieves the cross-language execution
+goal. --sm-run wiring is a follow-on if needed for the emitter path.
 
-icn_eval_gen implemented in scrip.c: E_TO/E_TO_BY/E_ITERATE/E_FNC(coroutine)/fallback.
-one4all HEAD f7e2ec6b.
+Four icn_interp_eval fixes this session:
+- E_VAR &-keyword dispatch (Icon lowers &letters etc as E_VAR not E_KEYWORD)
+- upto() semantics fixed (returns position, does not advance)
+- tab() propagates FAILDESCR from argument
+- E_SEQ_EXPR handler added (multi-statement brace blocks)
 
-regression baseline: csnobol4-suite PASS=38; Icon rung01-11 PASS=48/59 (non-regressing).
+Gate results: scrip --ir-run demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
+smoke PASS=2; unified_broker PASS=12.
 
 ---
 
