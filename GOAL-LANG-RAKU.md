@@ -54,11 +54,13 @@ RK-16 is next per PLAN.md.
 
 - [x] **RK-1 through RK-15** — PASS=12 --ir-run. (done)
 
-- [ ] **RK-16** — `for @arr -> $x` real array iteration.
-  E_EVERY + E_BANG on list/array. Add `icn_bb_bang` to icon_gen.c (also
-  needed by Icon IC-18 — write once, both sessions benefit).
-  Gate: for-array test PASS under --ir-run.
-  Test: `scripts/test_raku_ir_rung_16_for_array.sh`.
+- [x] **RK-16** — `for @arr -> $x` real array iteration.
+  E_ITERATE extended in icn_drive (icn_runtime.c): detects loop variable name
+  stored in E_ITERATE->sval (set by raku.y grammar action), splits SOH-delimited
+  array string, binds each element to the frame slot via icn_scope_get.
+  E_EVERY fixed in interp.c: sets body_root before calling icn_drive for
+  non-E_TO generators. raku.tab.c regenerated from raku.y.
+  Gate: rk_for_array PASS under --ir-run. PASS=13 total.
 
 - [ ] **RK-17** — Hash `%h<key>` and `%h{$k}` full support.
   RK-15 added hash basics. This rung: `keys %h`, `values %h`, `pairs %h`,
@@ -147,11 +149,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-14, one4all HEAD — post RK-16)
 
-RK-1 through RK-15 done. PASS=12 --ir-run.
-RK-16 next: for @arr -> $x real array iteration.
-RK-16 shares icn_bb_bang with GOAL-LANG-ICON IC-18 — coordinate.
+RK-1 through RK-16 done. PASS=13 --ir-run.
+RK-17 next: Hash `%h<key>` / `%h{$k}` full support (keys/values/pairs/exists/delete).
 
 ---
 
