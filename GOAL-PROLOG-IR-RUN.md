@@ -343,32 +343,25 @@ These SM opcodes may need to be added to `sm_prog.h` if not already present.
 Check `sm_prog.h` and `sm_lower.c` before starting S-14.
 
 ---
-## Current state (2026-04-14, one4all HEAD 5576ea9d)
+## Current state (2026-04-14, one4all HEAD d37dc9ef)
 
-S-1 through S-1C-5 complete. Phase 1C done. BB-BYRD done.
+S-1 through S-1C-5 complete. Phase 1C done. BB-BYRD done. rung11 5/5.
 
-**Session 2026-04-14 fixes (commit 5576ea9d):**
+**Session 2026-04-14 fixes (commit d37dc9ef):**
 
-**Bug A — FIXED:** `pl_box_goal_from_ir` in `pl_broker.c` had `nchildren==2` guards
-on `,` and `;` but `prolog_lower.c` emits n-ary nodes for both. Fix: removed ==2 guard;
-n-ary `,` folded via `pl_box_cat_list`; n-ary `;` folded right-to-left via `pl_box_alt`;
-n-ary `->` folded via `pl_box_cat_list`. This fixed rung02 (facts fail-loop) and rung05
-(member backtracking). rung01–09: **9/9 PASS**.
+**Bug C — FIXED:** `pl_write` in `prolog_builtin.c` wrapped every binary operator
+compound in unconditional parens, producing `[(a-1),(b-2),(c-3)]` instead of `[a-1,b-2,c-3]`.
+Fix: replaced simple ops[] table with a full precedence-aware table. Added file-scope
+`pl_op_prec(name,arity)` helper returning standard Prolog operator precedence. Binary op
+printing now only adds parens when an argument is an operator with higher prec number
+(lower binding) or same prec + wrong associativity. Alphabetic operators get spaces.
+rung11: **5/5 PASS**. rung01–09: **9/9 PASS** (no regression).
 
-**Bug B — FIXED:** `findall/3` was one-shot (single `interp_eval` call). Fixed: build
-`bb_node_t` for goal via `pl_box_goal_from_ir`, drive α/β retry loop to exhaustion,
-snapshot template on each success. `pl_box_goal_from_ir` promoted from static to exported
-in `pl_broker.h`. Sub-trail isolation: save `g_pl_trail` by value (not pointer) to avoid
-self-alias bug. rung11: **4/5 PASS**.
+**Score: PASS=19/107** (was 18). rung01–11 scope: **14/14 PASS**.
 
-**Remaining rung11 failure:** `findall_template` — outputs `[(a-1),(b-2),(c-3)]` vs
-`[a-1,b-2,c-3]`. `pl_write` in `prolog_builtin.c` parenthesizes binary `-` compound
-instead of printing it infix. Fix: teach `pl_write` to recognise standard operators
-(`-`, `+`, `*`, `/`, `is`, `=`, `\=`, `<`, `>`, `=<`, `>=`, `==`, `\==`, `->`).
-
-**Score: PASS=18/107** (was 13). rung01–11 scope: **13/14 PASS**.
-
-**Next step:** Fix `pl_write` operator printing → rung11 5/5. Then S-10e (assertz/retract).
+**Next step:** S-10e — assertz/asserta/retract/abolish dynamic predicate table mutation.
+assertz/asserta/retract are currently stubs (return 1 always) in `interp_exec_pl_goal`
+in scrip.c (~line 3083). Gate: rung13 5/5, rung14 5/5, rung15 5/5.
 
 ---
 

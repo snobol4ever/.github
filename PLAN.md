@@ -44,7 +44,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
 | Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
 | Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | rung01-09 9/9 PASS, rung11 4/5 — next: pl_write operator parens (template), then S-10e+ builtins | ☐ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | rung01-11 14/14 PASS, next: S-10e assertz/retract/abolish | ☐ |
 | Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | DONE | ☑ |
 | Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | S-5 (fix subsystem failures; 3/14 PASS) | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
