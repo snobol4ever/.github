@@ -247,7 +247,65 @@ Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
 
 ---
 
-## Session trigger phrases
+## Parallel frontend sessions  (FI-11)
+
+Each frontend now owns a distinct subtree. Six sessions can develop simultaneously
+with zero shared-file conflicts on the hot path, provided these rules are followed.
+
+### Inner-loop gate (per-session, before every commit)
+Run only the smoke script for the frontend you are working on:
+
+| Session | Gate script |
+|---------|-------------|
+| SNOBOL4 | `bash scripts/test_smoke_snobol4.sh` |
+| Icon    | `bash scripts/test_smoke_icon.sh` |
+| Prolog  | `bash scripts/test_smoke_prolog.sh` |
+| Raku    | `bash scripts/test_smoke_raku.sh` |
+| Snocone | `bash scripts/test_smoke_snocone.sh` |
+| Rebus   | `bash scripts/test_smoke_rebus.sh` |
+
+### Merge gate (required before pushing shared files)
+Run the full suite before any commit that touches a shared file:
+
+```bash
+bash scripts/test_smoke_unified_broker.sh   # must be PASS=31+ FAIL=0
+```
+
+### File ownership — who touches what
+| Path | Owner | Merge gate required? |
+|------|-------|----------------------|
+| `src/frontend/snobol4/` | SNOBOL4 session | No — smoke only |
+| `src/frontend/icon/` | Icon session | No — smoke only |
+| `src/frontend/prolog/` | Prolog session | No — smoke only |
+| `src/frontend/raku/` | Raku session | No — smoke only |
+| `src/frontend/snocone/` | Snocone session | No — smoke only |
+| `src/frontend/rebus/` | Rebus session | No — smoke only |
+| `src/runtime/interp/icn_runtime.c` | Icon session | Yes |
+| `src/runtime/interp/pl_runtime.c` | Prolog session | Yes |
+| `src/driver/interp.c` | Shared — coordinate | Yes |
+| `src/driver/polyglot.c` | Shared — coordinate | Yes |
+| `src/driver/scrip.c` | Shared — rarely touched | Yes |
+| `src/ir/ir.h` | Shared — coordinate | Yes |
+| `src/runtime/x86/sm_lower.c` | Shared x86 backend | Yes |
+| `src/runtime/x86/sm_interp.c` | Shared x86 backend | Yes |
+| `src/runtime/x86/bb_broker.c` | **Frozen — do not modify** | — |
+
+### EKind additions
+Before adding a new EKind to `ir/ir.h`, open a `.github` issue naming:
+- the frontend requiring the new kind
+- the goal it belongs to
+- the SM/BB classification (functional → SM opcode, generator → BB pump)
+
+Coordinate with any session that touches `sm_lower.c` or `interp.c`.
+
+### Commit discipline
+- Commits to `src/frontend/<lang>/` only: smoke gate sufficient.
+- Commits to any shared file: full broker suite must pass before push.
+- Never force-push. Rebase before pushing `.github`.
+
+---
+
+
 
 **"perform hand off"** — normal end of session:
 1. Mark completed steps in Goal file (`- [x]`)

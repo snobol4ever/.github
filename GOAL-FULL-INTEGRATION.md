@@ -169,7 +169,7 @@ src/runtime/interp/
 
 ## Phase 4 — Lazy runtime init
 
-- [ ] **FI-8** — Make `polyglot_init` language-selective.
+- [x] **FI-8** — Make `polyglot_init` language-selective.
   Signature: `polyglot_init(Program *prog, uint32_t lang_mask)`.
   `lang_mask` computed from actual `STMT_t.lang` values present in `prog`.
   Icon frame stack only reset if `lang_mask & (1u << LANG_ICN)`.
@@ -181,7 +181,7 @@ src/runtime/interp/
 
 ## Phase 5 — Per-frontend smoke scripts and SM coverage
 
-- [ ] **FI-9** — Add per-frontend smoke scripts.
+- [x] **FI-9** — Add per-frontend smoke scripts.
   ```
   scripts/test_smoke_snobol4.sh
   scripts/test_smoke_icon.sh
@@ -192,14 +192,14 @@ src/runtime/interp/
   ```
   Each < 2s, tests only its frontend. Gate: each exits 0 in < 2s on a clean build.
 
-- [ ] **FI-10** — Extend SM lower to cover Icon, Prolog, Raku, Rebus EKinds.
+- [x] **FI-10** — Extend SM lower to cover Icon, Prolog, Raku, Rebus EKinds.
   Currently sm_lower.c handles 73 of 105 EKinds. Missing 32 are all non-SNOBOL4 kinds.
   After this step --sm-run works for all six languages.
   Implement per language in sub-steps, guided by the icn_runtime.h / pl_runtime.h
   interfaces established in Phase 3.
   Gate: smoke_unified_broker PASS=31 FAIL=0; each frontend smoke passes under --sm-run.
 
-- [ ] **FI-11** — Document parallel session protocol in RULES.md.
+- [x] **FI-11** — Document parallel session protocol in RULES.md.
   Add section: "Parallel frontend sessions".
   Per-frontend smoke = inner-loop gate. Full broker suite = merge gate.
   Commits to shared files (interp.c, polyglot.c, icn_runtime.c, pl_runtime.c) require
@@ -281,10 +281,12 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD d38e07dc)
+## Current state (updated 2026-04-14, one4all HEAD 43dc03da)
 
-FI-0A through FI-7 done. Phase 3 complete.
+FI-0A through FI-11 done. ALL steps complete.
 Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
 scrip.c: 478 lines — main() + arg parse + frontend dispatch only.
 interp.c: 2768 lines. polyglot.c: 301 lines. interp.h + polyglot.h: public interfaces.
-Next: FI-8 — Make polyglot_init language-selective (lazy init via lang_mask).
+FI-8: polyglot_init language-selective (lang_mask). FI-9: 6 per-frontend smoke scripts.
+FI-10: SM+BB lowering for all 55 non-SNOBOL4 EKinds. FI-11: parallel session protocol in RULES.md.
+GOAL COMPLETE.
