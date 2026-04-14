@@ -189,7 +189,7 @@ The steps below build toward that incrementally — always green, always runnabl
   is --ir-run only per U-18 note (--sm-run polyglot blocked by static linkage).
   Also: demo/scrip/*.md → *.scrip rename (git mv all 10); scripts/test_scrip_demos.sh added.
 
-- [ ] **U-20** — Documentation.
+- [x] **U-20** — Documentation. DONE.
   `ARCH-IR.md`: document polyglot `Program*`, `STMT_t.lang`, `polyglot_init`,
   `SM_BB_PUMP`/`SM_BB_ONCE` as the three broker modes in one SM.
   Update PLAN.md. Gate: none.
@@ -316,8 +316,9 @@ explicit `-e module_name` flag to select, like ld).
 
 ## Current state (session 2026-04-13, one4all HEAD d15c4186)
 
-U-1 through U-19 complete. U-6 γ repack deferred (--bb-live x86 path only).
-Next session starts at U-20 (documentation), then Phase 7 (module system).
+U-1 through U-20 complete. GOAL-UNIFIED-BROKER is DONE.
+U-6 γ repack deferred (--bb-live x86 path only — pre-existing failure, not a regression).
+Phase 7 (module system, U-21..U-24) brainstormed and captured above — next goal.
 
 U-19 fixes applied this session:
 - Missing closing ``` fence in polyglot blocks caused prolog_compile to never run.
