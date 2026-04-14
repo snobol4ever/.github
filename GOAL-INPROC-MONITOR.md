@@ -48,138 +48,172 @@ In monitor mode: hook = comparator.
 
 ---
 
-## Architecture
+## The Shared State Problem
+
+Running IR → SM → JIT sequentially over the same `Program*` is not trivially
+correct because all three executors share global mutable state. After IR runs
+N statements, the NV store is mutated, `kw_stcount` is incremented, and the
+ICN frame stack may have residue. SM starts in a corrupted world.
+
+### What needs snapshot/restore
 
 ```
-Program *prog = parse(file);
+READ-ONLY after polyglot_init (safe to share, no restore needed):
+  label_table        — built once, never mutated during execution
+  icn_proc_table     — built once, never mutated
+  g_pl_pred_table    — built once, never mutated
 
-SyncCtx ctx = {0};
-ctx.hook = sync_compare;
-
-// Thread 1 (or just sequential):
-ir_run_with_hook(prog,  &ctx.ir_state,  ctx.hook);   // interp.c
-sm_run_with_hook(prog,  &ctx.sm_state,  ctx.hook);   // sm_interp.c
-jit_run_with_hook(prog, &ctx.jit_state, ctx.hook);   // sm_codegen.c
-
-// After each statement, hook fires for that executor.
-// Comparator waits until all three have fired for stmt N, then diffs.
+MUTABLE during execution (must snapshot/restore between runs):
+  NV store           — NV_GET_fn/NV_SET_fn — all program variables
+  kw_stcount         — statement counter
+  kw_stlimit         — statement limit
+  kw_anchor          — pattern anchor flag
+  icn_frame_stack[]  — Icon/Raku local variable frames
+  icn_frame_depth    — frame pointer
+  icn_scan_subj/pos  — scan cursor state
+  g_pl_trail         — Prolog trail (bindings made during execution)
+  g_pl_env           — current Prolog clause environment
+  g_pl_cut_flag      — Prolog cut flag
+  g_pl_active        — Prolog active flag
 ```
 
-Single-threaded first implementation: run all three sequentially stmt-by-stmt,
-stepping each one statement at a time using a step-mode flag.
+### The solution: ExecSnapshot + restore between runs
+
+```c
+typedef struct {
+    /* NV store snapshot — flat array of name→DESCR_t */
+    NvPair  *pairs;   int npairs;
+    /* Keyword state */
+    int64_t  kw_stcount, kw_stlimit, kw_anchor;
+    /* ICN frame stack — top frame only for step-mode */
+    int      icn_frame_depth;
+    /* Prolog trail mark — restore by unwinding */
+    int      pl_trail_mark;
+} ExecSnapshot;
+
+void exec_snapshot_take(ExecSnapshot *s);
+void exec_snapshot_restore(const ExecSnapshot *s);
+```
+
+`exec_snapshot_restore` calls `nv_reset()` then replays all pairs via
+`NV_SET_fn`, resets keyword globals, unwinds ICN frame stack to depth 0,
+unwinds Prolog trail to `pl_trail_mark`.
+
+This is ~100 lines. `nv_reset()` already exists in the test stub —
+add it to the production NV implementation in `snobol4.c`.
+
+### Step-mode: one statement at a time
+
+Run IR to stmt N (using step_limit = N). Snapshot. Restore.
+Run SM to stmt N. Snapshot. Restore.
+Run JIT to stmt N. Snapshot. Restore.
+Compare all three snapshots.
+
+Each executor gets a `step_limit` parameter. IR uses a counter in
+`execute_program()`. SM uses `SM_STNO` count in `sm_interp_run()`.
+JIT emits a check at each statement boundary in the trampoline.
+
+### Future upgrade: Option B (shadow structs)
+
+Long-term, wrapping all mutable globals in an `ExecState` struct and
+passing `ExecState*` to each executor enables true parallel execution
+on separate threads and makes the implicit shared interface explicit.
+This is a significant refactor — after the monitor works with snapshot/restore.
 
 ---
 
 ## Steps
 
-### Phase 1 — Per-statement hook in IR interpreter
+### Phase 1 — NV store reset + snapshot
 
-- [ ] **IM-1** — Add `g_sync_hook` function pointer to `interp.c`.
+- [ ] **IM-1** — Add `nv_reset()` and `nv_snapshot()` / `nv_restore()` to
+  the production NV store in `snobol4.c`.
   ```c
-  extern sync_hook_fn g_sync_hook;   /* NULL in production */
-  extern void        *g_sync_arg;
+  void    nv_reset(void);                          /* clear all variables */
+  int     nv_snapshot(NvPair **out);               /* returns count */
+  void    nv_restore(const NvPair *pairs, int n);  /* replay via NV_SET_fn */
   ```
-  In `execute_program()` statement loop, after each stmt executes:
-  ```c
-  if (g_sync_hook) {
-      SyncState ss = { stno, last_ok, label_idx };
-      g_sync_hook(&ss, g_sync_arg);
-  }
-  ```
-  Gate: make scrip clean; PASS=31 FAIL=0; g_sync_hook=NULL is zero-overhead.
+  Gate: make scrip clean; PASS=31 FAIL=0; nv_reset() clears all variables.
 
-- [ ] **IM-2** — Add `g_sync_hook` to `sm_interp_run()` in `sm_interp.c`.
-  `SM_STNO` already fires per statement — attach hook there.
-  Gate: make scrip clean; PASS=31 FAIL=0.
+- [ ] **IM-2** — Write `ExecSnapshot` struct and `exec_snapshot_take()` /
+  `exec_snapshot_restore()` in `src/driver/sync_monitor.c`.
+  Captures: NV pairs, kw_stcount, kw_stlimit, kw_anchor, icn_frame_depth,
+  pl_trail_mark. Restore: nv_reset + replay, reset keywords, unwind frames.
+  Gate: take snapshot, mutate state, restore, confirm state matches original.
 
-- [ ] **IM-3** — Add `g_sync_hook` to `sm_codegen.c` JIT path.
-  JIT emits a call to a C hook trampoline at each statement boundary.
-  Gate: make scrip clean; --jit-run hello.sno still works.
+### Phase 2 — Step-mode for all three executors
 
-### Phase 2 — NV store snapshot
+- [ ] **IM-3** — Add `step_limit` to `execute_program()` in `interp.c`.
+  When `step_limit > 0`: stop after exactly `step_limit` statements.
+  Use a flag: `int g_ir_step_limit = 0; int g_ir_steps_done = 0;`
+  After each stmt: if `g_ir_steps_done++ >= g_ir_step_limit` longjmp out.
+  Gate: `execute_program_steps(prog, 1)` executes exactly 1 statement.
 
-- [ ] **IM-4** — Add `nv_snapshot(NvSnapshot *out)` to NV store.
-  Captures all currently bound name→DESCR_t pairs into a flat array.
-  ```c
-  typedef struct { const char *name; DESCR_t val; } NvPair;
-  typedef struct { NvPair *pairs; int n; } NvSnapshot;
-  void nv_snapshot(NvSnapshot *out);
-  void nv_snapshot_free(NvSnapshot *s);
-  int  nv_snapshot_diff(const NvSnapshot *a, const NvSnapshot *b,
-                        char *buf, size_t bufsz);
-  ```
-  Gate: make scrip clean.
+- [ ] **IM-4** — Add `step_limit` to `sm_interp_run()` in `sm_interp.c`.
+  `SM_STNO` already fires per statement — add step counter there.
+  Gate: `sm_interp_run_steps(prog, st, 1)` executes exactly 1 statement.
+
+- [ ] **IM-5** — Add step limit to JIT path in `sm_codegen.c`.
+  JIT emits a call to a C trampoline at each `SM_STNO` boundary.
+  Trampoline checks step counter and longjmps out when reached.
+  Gate: `jit_run_steps(prog, 1)` executes exactly 1 statement.
 
 ### Phase 3 — Sync comparator
 
-- [ ] **IM-5** — Write `src/driver/sync_monitor.c` + `sync_monitor.h`.
-  ```c
-  /* Run prog through all three modes, stepping stmt-by-stmt.
-   * On first divergence: print statement number, label, differing vars.
-   * Returns 0 if all three agree throughout. */
-  int sync_monitor_run(Program *prog, SyncMonitorOpts *opts);
-  ```
-  Single-threaded: IR runs to stmt N, takes snapshot. SM runs to stmt N,
-  takes snapshot. JIT runs to stmt N, takes snapshot. Compare all three.
-  On divergence: print report, return 1.
+- [ ] **IM-6** — Write `sync_monitor_run(Program *prog, int verbose)`.
+  For each statement N = 1..nstmts:
+    1. `exec_snapshot_restore(&baseline)` — reset to clean state
+    2. `execute_program_steps(prog, N)` → take `ir_snap`
+    3. `exec_snapshot_restore(&baseline)`
+    4. `sm_interp_run_steps(prog, st, N)` → take `sm_snap`
+    5. `exec_snapshot_restore(&baseline)`
+    6. `jit_run_steps(prog, N)` → take `jit_snap`
+    7. Compare ir_snap vs sm_snap vs jit_snap via `nv_snapshot_diff()`
+    8. On divergence: print report, return stmt N
+  Returns 0 if all agree throughout, stmt number of first divergence otherwise.
+  Gate: runs correctly on a pure-SNO program that passes all three modes.
 
-  Step-mode implementation: add `step_limit` to each executor so it runs
-  exactly N statements then suspends (via longjmp or return).
-  Gate: sync_monitor_run on a pure-SNO program that passes all three modes
-  returns 0.
-
-- [ ] **IM-6** — Wire `--monitor` flag in `scrip.c` main().
+- [ ] **IM-7** — Wire `--monitor` flag in `scrip.c` main().
   ```
   ./scrip --monitor file.sno
   ./scrip --monitor file.pl
   ./scrip --monitor file.icn
   ```
-  Calls `sync_monitor_run(prog, &opts)`.
-  Opts: `--monitor-vars X,Y,Z` — only track named variables.
-  Gate: `./scrip --monitor test/sno/hello.sno` exits 0 (all agree).
+  Gate: `./scrip --monitor test/sno/hello.sno` exits 0.
 
 ### Phase 4 — Divergence reporting
 
-- [ ] **IM-7** — Rich divergence report format.
+- [ ] **IM-8** — Rich divergence report.
   ```
-  DIVERGE at stmt 14 [label: FOO]
+  DIVERGE at stmt 14 [label: FOO, line 42]
     IR:  X = "hello", Y = 42, last_ok = 1
     SM:  X = "hello", Y = 43, last_ok = 1   ← Y differs
     JIT: X = "hello", Y = 43, last_ok = 1
   ```
-  Print all vars that differ between any two executors.
-  Print the STMT_t source if available (label + line number).
-  Gate: deliberately introduce a bug in sm_interp.c, run --monitor,
-  verify it points to the correct statement.
+  Gate: introduce deliberate bug in sm_interp.c, --monitor finds it.
 
-- [ ] **IM-8** — Label path tracing.
-  Track sequence of labels reached by each executor.
-  On divergence: print label path up to that point.
+- [ ] **IM-9** — Label path tracing.
+  Track sequence of labels reached by each executor in the snapshot.
   ```
-  IR  path: [START] → [LOOP] → [MATCH] → [END]
-  SM  path: [START] → [LOOP] → [NOMATCH] → ...   ← diverged here
+  IR  path: [START] → [LOOP] → [MATCH]
+  SM  path: [START] → [LOOP] → [NOMATCH]  ← diverged here
   ```
-  Gate: label path printed correctly for a program with multiple branches.
+  Gate: label path printed correctly for branching programs.
 
 ### Phase 5 — All-language support
 
-- [ ] **IM-9** — Wire ICN frame state into snapshot.
-  For Icon/Raku programs: include `icn_frame_stack` top-of-stack local vars
-  in the NV snapshot. `ICN_CUR.env[i]` → name from `icn_proc_table`.
-  Gate: `./scrip --monitor file.icn` works.
+- [ ] **IM-10** — ICN frame locals in snapshot.
+  For Icon/Raku: include `ICN_CUR.env[0..env_n]` in snapshot, named
+  from `icn_proc_table[icn_frame_depth-1]`.
+  Gate: `./scrip --monitor file.icn` shows Icon local variables.
 
-- [ ] **IM-10** — Wire Prolog trail state into snapshot.
-  For Prolog programs: include bound variables from `g_pl_env` in snapshot.
-  Gate: `./scrip --monitor file.pl` works.
-
-- [ ] **IM-11** — Write `scripts/test_monitor_inproc_snobol4.sh`.
-  Runs --monitor on beauty drivers and the known-failing programs.
-  Gate: SNOBOL4 programs that pass all three modes exit 0.
-  Gate: Programs known to diverge are caught and reported.
+- [ ] **IM-11** — Prolog trail state in snapshot.
+  For Prolog: include bound variables from `g_pl_env` in snapshot.
+  Gate: `./scrip --monitor file.pl` shows Prolog bound variables.
 
 - [ ] **IM-12** — Write `scripts/test_monitor_inproc_all_langs.sh`.
-  Runs --monitor on one program per language.
-  Gate: all programs that pass all three modes exit 0.
+  Runs --monitor on one program per language. Gate: all exit 0 (modes agree)
+  for known-good programs; reports divergence for known-broken programs.
 
 ---
 
