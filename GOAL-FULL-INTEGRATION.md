@@ -152,7 +152,7 @@ src/runtime/interp/
   Create `pl_runtime.h`.
   Gate: `make scrip` clean; Prolog smoke PASS intact; PASS=31 FAIL=0.
 
-- [ ] **FI-6** — Extract interpreter loop to `src/driver/interp.c`.
+- [x] **FI-6** — Extract interpreter loop to `src/driver/interp.c`.
   Move from scrip.c: `interp_eval()`, `interp_eval_pat()`, `interp_eval_ref()`,
   `execute_program()`, and all static helpers they call (label_table_*, prescan_defines,
   call_user_function, SC-1 DATA registry, g_lang, g_sno_err_*, etc.).
@@ -281,9 +281,10 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 678cbd23)
+## Current state (updated 2026-04-14, one4all HEAD 64dc0b93)
 
-FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4, FI-5 done.
+FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4, FI-5, FI-6 done.
 Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
-scrip.c reduced from 4187 → 3452 lines (-735 total across FI-4+FI-5).
-Next: FI-6 — Extract interpreter loop to src/driver/interp.c.
+scrip.c reduced from 4187 → ~300 lines of logic (polyglot_init, polyglot_execute,
+parse_scrip_polyglot, main). interp.c: 2768 lines. interp.h: public interface.
+Next: FI-7 — Extract polyglot layer to src/driver/polyglot.c.
