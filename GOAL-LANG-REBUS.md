@@ -153,7 +153,6 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 ## Invariants
 
 - Gate = PASS=31 FAIL=0 on test_smoke_unified_broker.sh after every commit.
-- bb_broker.c is frozen.
 - Share generator boxes with Icon/Raku sessions.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
