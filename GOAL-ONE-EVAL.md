@@ -116,7 +116,7 @@ parse_scrip_polyglot()
   uses `ICN_CUR` globals rather than a `root` parameter.
   Gate: `make scrip` clean; unified_broker PASS=13; Icon rung01-11 59/59.
 
-- [ ] **OE-5** — Redirect `icn_interp_eval` to `interp_eval`.
+- [x] **OE-5** — Redirect `icn_interp_eval` to `interp_eval`.
   Replace body of `icn_interp_eval` with `return interp_eval(e);`.
   Confirm all call sites still compile. Run full gate.
   Gate: `make scrip` clean; unified_broker PASS=13; Icon rung01-11 59/59;
@@ -251,3 +251,15 @@ Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
 1. Diagnose each of 16 failures — diff icn_interp_eval cases vs interp_eval Icon dispatch (E_MNS, string ops, Raku EKinds)
 2. Fix until gate PASS=29 FAIL=0
 3. Commit clean OE-5, proceed to OE-6
+
+## Current state (session 2026-04-14 #2 final, one4all HEAD 38e49bb3)
+
+OE-5 DONE. Gate PASS=29 FAIL=0. Next: OE-6.
+
+**OE-5 DONE**: icn_interp_eval replaced with 1-line forwarder to interp_eval.
+interp_eval has Icon early-dispatch block (icn_frame_depth>0 guard) for E_VAR,
+E_ASSIGN, E_FNC (including RK-14 array builtins push/pop/elems/arr_get/arr_set).
+Shared switch additions: E_MOD (integer modulo), E_RETURN (with ICN_CUR frame semantics).
+src/Makefile fix: FRONTEND_RAKU added (raku_compile link fix on fresh clone).
+
+Gate: make scrip clean; unified_broker PASS=29 FAIL=0.
