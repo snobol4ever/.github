@@ -218,6 +218,91 @@ This is a significant refactor — after the monitor works with snapshot/restore
   Runs --monitor on one program per language. Gate: all exit 0 (modes agree)
   for known-good programs; reports divergence for known-broken programs.
 
+### Phase 6 — SPITBOL in-process (the Eureka)
+
+The existing monitor runs IR / SM / JIT — all three are one4all executors sharing
+the same IR. SPITBOL is the primary oracle but lives outside the process (fork+exec,
+file I/O, IPC). This phase links SPITBOL's object files directly into scrip so it
+becomes a 4th in-process executor with the same zero-IPC, zero-file-I/O step loop.
+
+**Why this works:**
+- SPITBOL x64 is pure C (osint/*.c) plus a hand-assembled runtime (sbl.min → sbl.asm).
+  The assembly is already compiled to an `.o` (bootstrap/sbl.o). We link both.
+- SPITBOL has `zyspl()` in `osint/syspl.c` — called before every statement when
+  `WA=0` (polling) or `WA=2` (step completion). With `-DENGINE=1` the polling
+  interval is under our control. We replace `zyspl()` with our own that fires the
+  sync hook every statement.
+- SPITBOL's NV store is its own block allocator (scblk/icblk). We expose variable
+  state via a new `spl_nv_snapshot()` function (reads the global name table the same
+  way `DUMP` does) and plug it into `ExecSnapshot`.
+- SPITBOL's `main()` is renamed `spitbol_main()` via `-Dmain=spitbol_main` or a
+  thin wrapper. It takes a `.sno` file path; we write the source to a temp file,
+  call `spitbol_main()` in step mode, and the hook fires per statement.
+
+**Result:** `--monitor` compares IR / SM / JIT / SPITBOL statement by statement,
+in-process. First divergence between any of the four is caught immediately with
+full variable state, label path, and last_ok. Beauty failures that only manifest
+as output divergence from SPITBOL are caught at the exact statement they first
+split — no TRACE, no IPC, no &STCOUNT gymnastics.
+
+- [ ] **IM-13** — Build SPITBOL as a linkable archive.
+  Add `scripts/build_spitbol_archive.sh`:
+  ```bash
+  # Compiles osint/*.c with -DENGINE=1 -Dmain=spitbol_main -fPIC
+  # Assembles bootstrap/sbl.o (already in repo; nasm if needed)
+  # Produces x64/libspitbol.a (ar rcs)
+  ```
+  Gate: `libspitbol.a` produced; `nm libspitbol.a | grep spitbol_main` shows symbol.
+  No changes to x64 source — all flags passed via compiler command line.
+
+- [ ] **IM-14** — Replace `zyspl()` with sync hook shim.
+  Add `src/driver/spitbol_shim.c` to one4all:
+  ```c
+  /* spitbol_shim.c — replaces osint/syspl.c when linking SPITBOL in-process.
+   * zyspl() fires before every SPITBOL statement (WA=0 polling, WA=2 step).
+   * We use it as the per-statement hook for sync_monitor. */
+  #include "port.h"                   /* from x64/osint — included via -I */
+  typedef void (*spl_step_fn)(int stno, void *arg);
+  spl_step_fn g_spl_step_hook = NULL;
+  void       *g_spl_step_arg  = NULL;
+  static int  g_spl_stno      = 0;
+  int zyspl(void) {
+      if (g_spl_step_hook)
+          g_spl_step_hook(++g_spl_stno, g_spl_step_arg);
+      SET_WA(1);          /* re-arm: call again after 1 statement */
+      return NORMAL_RETURN;
+  }
+  void spl_step_reset(void) { g_spl_stno = 0; }
+  ```
+  Also add `spl_nv_snapshot()` — walks SPITBOL's global name table (same path as
+  DUMP/SYSDT) and returns an `NvPair[]` in the same format as `nv_snapshot()`.
+  Gate: compiles cleanly against x64/osint headers; `nm` shows `zyspl` and
+  `spl_nv_snapshot`.
+
+- [ ] **IM-15** — Wire SPITBOL executor into `sync_monitor_run()`.
+  Add `spitbol_run_steps(const char *sno_src, int n, ExecSnapshot *out)`:
+  - Writes `sno_src` to a `tmpfile`
+  - Sets `g_spl_step_hook` to a counter that longjmps at step n
+  - Calls `spitbol_main(argc, argv)` with the temp file path
+  - On longjmp: calls `spl_nv_snapshot()` → fills `out->nv_pairs`
+  - Returns
+  Add `spl` leg to the per-statement loop in `sync_monitor_run()`:
+  ```
+  ir_snap / sm_snap / jit_snap / spl_snap
+  ```
+  Divergence report gains a `SPL` column.
+  Gate: `./scrip --monitor test/snobol4/arith_new/023_arith_add.sno` exits 0,
+  all four executors agree.
+
+- [ ] **IM-16** — Beauty smoke via `--monitor`.
+  Add `scripts/test_monitor_beauty_smoke.sh`:
+  Runs `--monitor` on the first 10 failing beauty programs (from
+  `test_smoke_unified_broker.sh` known failures or the beauty corpus).
+  For each: prints the first diverging statement between one4all and SPITBOL.
+  Gate: script exits 0 (it reports divergences but does not fail — it is a
+  diagnostic tool, not a pass/fail gate). Commit the divergence report as a
+  comment in the script for reference.
+
 ---
 
 ## Replaces
@@ -270,6 +355,7 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 ## Current state (2026-04-14, one4all HEAD b40d6f05)
 
 IM-1 through IM-8 complete. IM-9 through IM-12 open.
+IM-13 through IM-16 added this session: SPITBOL in-process executor (Phase 6).
 
 IM-8: ExecSnapshot.last_ok added; SM/JIT last_ok captured from SM_State after
 each step run; diverge header includes lineno; per-executor last_ok printed;
