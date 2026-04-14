@@ -126,7 +126,7 @@ This is a significant refactor — after the monitor works with snapshot/restore
 
 ### Phase 1 — NV store reset + snapshot
 
-- [ ] **IM-1** — Add `nv_reset()` and `nv_snapshot()` / `nv_restore()` to
+- [x] **IM-1** — Add `nv_reset()` and `nv_snapshot()` / `nv_restore()` to
   the production NV store in `snobol4.c`.
   ```c
   void    nv_reset(void);                          /* clear all variables */
@@ -135,7 +135,7 @@ This is a significant refactor — after the monitor works with snapshot/restore
   ```
   Gate: make scrip clean; PASS=31 FAIL=0; nv_reset() clears all variables.
 
-- [ ] **IM-2** — Write `ExecSnapshot` struct and `exec_snapshot_take()` /
+- [x] **IM-2** — Write `ExecSnapshot` struct and `exec_snapshot_take()` /
   `exec_snapshot_restore()` in `src/driver/sync_monitor.c`.
   Captures: NV pairs, kw_stcount, kw_stlimit, kw_anchor, icn_frame_depth,
   pl_trail_mark. Restore: nv_reset + replay, reset keywords, unwind frames.
@@ -143,13 +143,13 @@ This is a significant refactor — after the monitor works with snapshot/restore
 
 ### Phase 2 — Step-mode for all three executors
 
-- [ ] **IM-3** — Add `step_limit` to `execute_program()` in `interp.c`.
+- [x] **IM-3** — Add `step_limit` to `execute_program()` in `interp.c`.
   When `step_limit > 0`: stop after exactly `step_limit` statements.
   Use a flag: `int g_ir_step_limit = 0; int g_ir_steps_done = 0;`
   After each stmt: if `g_ir_steps_done++ >= g_ir_step_limit` longjmp out.
   Gate: `execute_program_steps(prog, 1)` executes exactly 1 statement.
 
-- [ ] **IM-4** — Add `step_limit` to `sm_interp_run()` in `sm_interp.c`.
+- [x] **IM-4** — Add `step_limit` to `sm_interp_run()` in `sm_interp.c`.
   `SM_STNO` already fires per statement — add step counter there.
   Gate: `sm_interp_run_steps(prog, st, 1)` executes exactly 1 statement.
 
@@ -264,7 +264,16 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 11d9e9c9)
+## Current state (2026-04-14, one4all HEAD 38470db1)
 
-IM-1 through IM-12 all open.
-Next: IM-1 — add g_sync_hook to execute_program() statement loop.
+IM-1 through IM-4 complete. IM-5 through IM-12 open.
+
+Pre-existing build breakage also fixed this session:
+- sm_lower.c: old EKind names renamed to current ir.h names; stale duplicate
+  case blocks removed from lower_expr() switch.
+- Makefile: added icn_runtime.c, pl_runtime.c, rebus frontend files;
+  excluded rebus_main.c (has own main()).
+
+Next: IM-5 — JIT step limit in sm_codegen.c (emit C trampoline call at each
+SM_STNO boundary; check g_jit_step_limit; longjmp to g_jit_step_jmp when
+reached). Then IM-6: sync_monitor_run() comparator loop in sync_monitor.c.
