@@ -195,7 +195,7 @@ This is a significant refactor — after the monitor works with snapshot/restore
   Gate: deliberate SM_ADD+1 bug found at stmt 1; report shows label, line,
   last_ok per executor, variable diffs. ✅
 
-- [ ] **IM-9** — Label path tracing.
+- [x] **IM-9** — Label path tracing.
   Track sequence of labels reached by each executor in the snapshot.
   ```
   IR  path: [START] → [LOOP] → [MATCH]
@@ -205,7 +205,7 @@ This is a significant refactor — after the monitor works with snapshot/restore
 
 ### Phase 5 — All-language support
 
-- [ ] **IM-10** — ICN frame locals in snapshot.
+- [x] **IM-10** — ICN frame locals in snapshot.
   For Icon/Raku: include `ICN_CUR.env[0..env_n]` in snapshot, named
   from `icn_proc_table[icn_frame_depth-1]`.
   Gate: `./scrip --monitor file.icn` shows Icon local variables.
@@ -354,12 +354,13 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ## Current state (2026-04-14, one4all HEAD b40d6f05)
 
-IM-1 through IM-8 complete. IM-9 through IM-12 open.
-IM-13 through IM-16 added this session: SPITBOL in-process executor (Phase 6).
+IM-1 through IM-10 complete. IM-11 through IM-12 open.
+IM-13 through IM-16 open: SPITBOL in-process executor (Phase 6).
 
-IM-8: ExecSnapshot.last_ok added; SM/JIT last_ok captured from SM_State after
-each step run; diverge header includes lineno; per-executor last_ok printed;
-ok_diverge catches SM vs JIT last_ok mismatch when NV agrees.
-Gate: SM_ADD+1 bug found, report correct. PASS=31 FAIL=0.
+IM-10: IcnScope moved above IcnFrame in icn_runtime.h; IcnFrame.sc field added;
+f->sc = sc stored in icn_call_proc after scope build; ExecSnapshot gains
+icn_locals/icn_locals_count (heap NvPair[]); exec_snapshot_take walks all active
+frames recording named slots; exec_snapshot_free frees array; diverge report
+prints ICN locals when frames active. Gate: PASS=31 FAIL=0.
 
-Next: IM-9 — label path tracing (sequence of labels reached per executor).
+Next: IM-11 — Prolog trail state in snapshot (bound variables from g_pl_env).
