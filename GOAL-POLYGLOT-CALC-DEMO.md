@@ -13,9 +13,12 @@ parses and evaluates each one, printing the result. Output is deterministic
 The unified broker makes cross-language calls natural. This demo makes that
 concrete and compelling: two languages doing what each does best in one file.
 
-- **Icon** — generator idiom. `every` + random number generation produces a
-  lazy stream of expression strings. BB_PUMP drives the generator; each tick
-  yields one expression to the Snocone section.
+- **Icon** — generator idiom. Each BNF production is an Icon procedure that
+  suspends (`suspend`) once per alternative. Productions compose: calling a
+  production from another production chains generators, so the whole grammar
+  is a lazy generator tree driven by BB_PUMP. This is the classic Icon
+  "BNF-as-generators" pattern — each nonterminal is a procedure that yields
+  every string it can derive, on demand.
 - **Snocone** — pattern/parse idiom. Snocone's recursive descent grammar
   parses the expression string, evaluates it, prints `expr = result`.
 
@@ -27,34 +30,66 @@ naming convention and the `.scrip` fenced-block format.
 ## Architecture
 
 ```
-Icon section (BB_PUMP generator)
-  every generate_expr(seed) →  "3 + 47 * 2"
-                             →  "12 - 5 * 3"
-                             →  ... (N expressions)
+Icon section (BB_PUMP generator tree — BNF-as-generators)
+
+  procedure expr()          ← nonterminal: every derivation of <expr>
+      suspend (term() || " + " || term())
+      suspend (term() || " - " || term())
+
+  procedure term()          ← nonterminal: every derivation of <term>
+      suspend (factor() || " * " || factor())
+      suspend factor()
+
+  procedure factor()        ← nonterminal: every leaf
+      suspend string(?(1 + ?98))   ← random integer 1..99
+
+  every write(expr())       ← drives the generator; each tick = one expression
+        ↓  yields: "3 + 47 * 2",  "12 - 5 * 3", ...
         ↓  cross-call (U-22)
 Snocone section
   parse_and_eval(expr_str)  →  "3 + 47 * 2 = 97"
                              →  "12 - 5 * 3 = -3"
-                             → print result
+                             →  print result
 ```
 
-The Icon section drives; the Snocone section is called per-expression.
-Both sections live in one `.scrip` file. No host language needed.
+Each Icon procedure IS a BNF production. `suspend` makes it a generator.
+Composing productions composes generators — the full expression language
+falls out of the structure, not from explicit iteration. The broker (BB_PUMP)
+drives the whole tree without any explicit loop at the call site.
+
+---
+
+## BNF being generated
+
+```
+<expr>   ::= <term> "+" <term>
+           | <term> "-" <term>
+
+<term>   ::= <factor> "*" <factor>
+           | <factor>
+
+<factor> ::= integer (1..99, seeded RNG)
+```
+
+Phase 1: depth-1 (one operator). Each production has 1–2 alternatives.
+Future: add division, parenthesised subexpressions (recursive), variables.
 
 ---
 
 ## Steps
 
-### Phase 1 — Icon generator
+### Phase 1 — Icon generator (BNF-as-generators)
 
 - [ ] **PC-1** — Write `demo/scrip/demo11/calc_demo.scrip` Icon section.
-  `procedure generate_expr(seed, n)`: uses a simple LCG (seed-based) to
-  produce `n` infix expressions over `+`, `-`, `*` with integer operands
-  1–99. Each expression is a string. `every` suspends after each one.
-  No floating point — integer arithmetic only. Keep expressions to depth 1
-  (two operands, one operator) for Phase 1 simplicity.
-  Gate: Icon section standalone (`scrip --ir-run` with a `main` that calls
-  `generate_expr` and `write`s each) produces expected output.
+  Three procedures: `factor()`, `term()`, `expr()`. Each is a BNF production
+  implemented as an Icon generator using `suspend`. `factor()` yields a
+  random integer string (seeded LCG so output is deterministic). `term()`
+  yields `factor() || " * " || factor()` and plain `factor()`. `expr()`
+  yields `term() || " + " || term()` and `term() || " - " || term()`.
+  Top-level: `every generate(n)` calls `expr()` and suspends each result,
+  stopping after `n` expressions.
+  Gate: Icon section standalone (`scrip --ir-run` with a `main` that drives
+  `generate(5)` and writes each) produces 5 deterministic expression strings.
 
 ### Phase 2 — Snocone parser/evaluator
 
@@ -103,12 +138,21 @@ PC-1 and PC-2 can proceed independently.
 
 ## Notes
 
+- **BNF-as-generators** is the key architectural insight: in Icon, a grammar
+  production and a generator are the same thing. `suspend` inside a procedure
+  makes it yield one derivation per call. Composing productions composes
+  generators — no explicit iteration, no list accumulation. This is Icon
+  doing what it was designed for. The broker (BB_PUMP) drives the whole
+  derivation tree from outside.
 - Seed the Icon RNG so output is deterministic and `.ref`-testable.
 - Snocone is the right parser here — its pattern primitives (BREAK/SPAN/LEN)
   are exactly suited to tokenising infix expressions. SNOBOL4 could do it too
   but Snocone is cleaner for structured parsing.
-- Future: extend to depth-2 expressions (nested parens) once PC-4 is green.
-- Future: PROLOG section validates results via arithmetic predicates (is/2).
+- Future: extend `expr()` to recursive depth (parenthesised subexpressions).
+  Each level of recursion is just another `suspend` alternative — the BNF
+  structure maps directly.
+- Future: add a PROLOG section that validates results via `is/2` arithmetic.
+  Three languages, three roles: Icon generates, Snocone parses, Prolog verifies.
 
 ---
 
