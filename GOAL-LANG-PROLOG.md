@@ -189,7 +189,6 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 ## Invariants
 
 - Gate = PASS=31 FAIL=0 on test_smoke_unified_broker.sh after every commit.
-- bb_broker.c is frozen.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 ---

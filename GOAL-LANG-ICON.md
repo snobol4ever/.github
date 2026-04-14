@@ -183,7 +183,6 @@ Register in `icn_eval_gen()` switch.
 
 - Gate = PASS=31 FAIL=0 on test_smoke_unified_broker.sh after every commit.
 - Never modify icn_proc_table layout — Raku shares it.
-- bb_broker.c is frozen — do not modify.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 ---

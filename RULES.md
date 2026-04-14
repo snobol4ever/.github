@@ -288,7 +288,7 @@ bash scripts/test_smoke_unified_broker.sh   # must be PASS=31+ FAIL=0
 | `src/ir/ir.h` | Shared — coordinate | Yes |
 | `src/runtime/x86/sm_lower.c` | Shared x86 backend | Yes |
 | `src/runtime/x86/sm_interp.c` | Shared x86 backend | Yes |
-| `src/runtime/x86/bb_broker.c` | **Frozen — do not modify** | — |
+| `src/runtime/x86/bb_broker.c` | Shared x86 backend | Yes |
 
 ### EKind additions
 Before adding a new EKind to `ir/ir.h`, open a `.github` issue naming:
