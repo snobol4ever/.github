@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 in progress: 54/59; control-flow dispatch fixed; every_body root cause isolated; next: verify icn_drive recursion into args | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-2 next (install SWI+GNU test suites) | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-9 next (term_string/2, string/IO builtins; rung24/25); PL-2..PL-8 done | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-18 next (given/when switch); RK-17 done: hash keys/values/pairs/exists/delete, PASS=14 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 next (fix NV/TRIM keyword collision blocking strings tests 7-8; fix match miss; 11/14 PASS) | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
