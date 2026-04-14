@@ -188,35 +188,40 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD afe90855)
+## Current state (2026-04-14, one4all HEAD edaf76ca)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS.
   Fixed: global, arith, ReadWrite (all needed break in while loops).
   Commit: afe90855
 
-SC-3 next: fix remaining 3 failures before advancing ladder.
+SC-3 in progress: investigating match miss failures (tests 2,3,9).
 
-### Remaining failures (11/14 PASS baseline)
+### Binary ? lowering fix (committed, NOT yet effective)
+  ROOT CAUSE IDENTIFIED: binary `?` in snocone_lower.c lower_token()
+  was emitting DIFFER(l,r) instead of a proper pattern match node.
+  Fix applied: now emits E_SCAN(l,r); assemble_stmt detects E_SCAN
+  and routes to stmt->subject + stmt->pattern for BB_SCAN path.
+  Forward declaration of free_expr added before assemble_stmt.
 
-**strings tests 7-8 (Trim procedure)** — ROOT CAUSE CONFIRMED:
-  `Trim`/`TRIM` is a SNOBOL4 keyword variable (&TRIM) exposed via NV without
-  the & prefix. NV_GET_fn("Trim") returns the integer keyword value (1),
-  not a user variable. NV_SET_fn("Trim", 'hello') writes to the keyword slot.
-  SPITBOL allows user procedures named TRIM to shadow &TRIM — our NV does not.
-  Fix: in NV_GET_fn / NV_SET_fn, when inside a user function call frame whose
-  retname matches a keyword, skip the keyword intercept and use the plain NV
-  cell. Or: detect DEFINE'd function names and exempt them from keyword lookup.
-  File: src/runtime/x86/snobol4.c (NV_GET_fn / NV_SET_fn implementation).
+### BLOCKER: debug prints not firing
+  Added fprintf(stderr,...) to snocone_cf_compile(), do_stmt(),
+  compile_paren_expr() and lower_token() QUESTION case — NONE printed
+  when running ./scrip --ir-run test/beauty-sc/match/driver.sc 2>&1.
+  This means the failing match cases are NOT going through
+  snocone_cf_compile at all — some other code path handles them.
+  NEXT SESSION must find that path before the E_SCAN fix can be validated.
 
-**trace test 11** — output "0? pd" vs expected "0  upd".
-  The 'u' is being stripped from the string 'upd' inside T8Trace procedure,
-  likely a pattern replacement (?=) or SUBSTR off-by-one consuming the first
-  char. Lower priority.
+  Hypothesis: the `if (subject ? pattern)` inside a procedure body may
+  be going through a different compile route (e.g. snocone_lower directly
+  on a sub-expression, or the SNOBOL4 bison parser picking up .sc somehow).
+  Check: add debug to scrip.c dispatch (lang_snocone detection) to confirm
+  which branch executes for driver.sc.
 
-**match miss cases 2, 3, 9** — notmatch / pattern miss paths returning wrong
-  result. Likely related to freturn propagation from pattern match failure.
-  Needs isolation.
+### Remaining failures (11/14 PASS baseline, unchanged)
+  strings 7-8: NV/TRIM keyword collision (see below)
+  trace 11: 'u' stripped from 'upd'
+  match 2,3,9: miss paths — fix committed but not yet effective
 
 ---
 
