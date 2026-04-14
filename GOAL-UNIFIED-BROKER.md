@@ -157,7 +157,7 @@ The steps below build toward that incrementally — always green, always runnabl
   `sm_interp.c`: stub handlers (set last_ok=0); unused until U-18.
   Gate: make scrip clean; smoke PASS=2.
 
-- [ ] **U-17** — Implement `icn_eval_gen` in `scrip.c` (B-8 stub in `icon_gen.h`).
+- [x] **U-17** — Implement `icn_eval_gen` in `scrip.c` (B-8 stub in `icon_gen.h`).
   `icn_eval_gen(EXPR_t *e) → bb_node_t`: walk Icon IR, return a drivable `bb_node_t`.
   E_TO → `{icn_bb_to, alloc icn_to_state_t}`.
   E_TO_BY → `{icn_bb_to_by, alloc icn_to_by_state_t}`.
@@ -230,7 +230,13 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ## Current state (session 2026-04-13, one4all HEAD 886aa7d0)
 
-U-1 through U-16 complete. U-6 γ repack deferred (--bb-live x86 path only).
-Next session starts at U-17.
+U-1 through U-17 complete. U-6 γ repack deferred (--bb-live x86 path only).
+Next session starts at U-18.
 
-regression baseline: csnobol4-suite PASS=34 (non-regressing through U-11).
+icn_eval_gen implemented in scrip.c: E_TO/E_TO_BY/E_ITERATE/E_FNC(coroutine)/fallback.
+E_FNC suspend gap noted: wired at U-18 via SM_BB_PUMP.
+New gate: test/smoke_unified_broker.sh PASS=13 (self-contained, no env vars).
+one4all HEAD 49708c39.
+
+regression baseline: csnobol4-suite PASS=38 (was 34, improved);
+Icon rung01-11 PASS=48/59 (non-regressing).
