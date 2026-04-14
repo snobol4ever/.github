@@ -266,21 +266,29 @@ Still open:
 Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
 and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
 
-## Current state (2026-04-14 session 3, one4all HEAD dd1ef05f)
+## Current state (2026-04-14 session 4, one4all HEAD 19eccadf)
 
-IC-1 achieved 59/59 then PIVOT ordered. IC-2a Byrd box pivot in progress.
-PASS=41 FAIL=18 TOTAL=59. Broker baseline 30/33 pre-existing.
+IC-2a in progress. PASS=41 FAIL=18 TOTAL=59 (unchanged — boxes written, wiring next).
 
-Architecture validated vs archive/emit_jvm.c + emit_x64.c:
-- E_EVERY: icn_eval_gen + BB_PUMP (no body → box side-effects are the work)
-- icn_bb_fnc_gen: composite box for builtin E_FNC with generative arg
-- icn_call_builtin: dispatch write/user-procs with pre-resolved args
-- icn_call_proc fallthrough → FAILDESCR (Icon semantics)
-- E_ALTERNATE wired in icn_frame_depth>0 switch
+Completed this session:
+- icn_bb_binop_gen box written (icon_gen.c/h): ADD/SUB/MUL/DIV/MOD + relational
+  LT/LE/GT/GE/EQ/NE + CONCAT. Arithmetic β: advance right, on exhaustion advance
+  left + reset right. Relational β: goal-directed retry (JCON §4.3).
+- icn_bb_alternate box written (icon_gen.c/h): try gen[0] until ω, switch to gen[1].
+- icn_binop_gen_state_t, icn_alternate_state_t, IcnBinopKind in icon_gen.h.
+- Build clean. Smoke PASS=5 FAIL=0.
+- corpus cloned (/home/claude/corpus). raku parser regenerated (bison/flex installed).
 
-Next IC-2a:
-1. icn_bb_binop_gen for E_MUL/ADD/LT/etc with gen children (rung01_compound/mult/lt)
-2. icn_bb_alternate box for E_ALTERNATE as generator (relfilter, nested_filter)
-3. Verify icn_bb_suspend for user proc generators (rung03_suspend_*)
-4. rung10_break_repeat, rung11_bang_concat investigation
-5. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12
+NOT YET DONE — next session IC-2a wire-up:
+1. Wire icn_bb_binop_gen into icn_eval_gen() in icn_runtime.c:
+   - E_ADD/SUB/MUL/DIV when either child kind is in {E_TO, E_TO_BY, E_ALTERNATE, E_FNC}
+   - E_LT/LE/GT/GE/EQ/NE same detection (is_relop=1)
+   - E_TO with generative lo/hi → use icn_bb_binop_gen with ICN_BINOP_ADD trick?
+     Actually: build icn_bb_to_nested: lo_box + hi_box, outer loop lo, inner to hi.
+     See rung01_paper_nested_to: (1 to 2) to (2 to 3) → needs special nested-to box.
+2. Wire icn_bb_alternate into icn_eval_gen() for E_ALTERNATE.
+3. Fix E_AUGOP in interp.c: drive RHS through icn_eval_gen when RHS is generator
+   (fixes rung10_augop_break_repeat sum+=1..5 and rung11 result||:=!s).
+4. rung03_suspend_* — verify icn_bb_suspend coroutine passthrough.
+5. rung02_proc_* — user proc call path investigation.
+6. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12.
