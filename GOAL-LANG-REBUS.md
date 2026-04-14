@@ -164,3 +164,44 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 RB-1 done: PASS=4 (output, arith, var, concat) --ir-run.
 RB-2 next: control flow verification.
 RB-6 (alternation generator) coordinates with GOAL-LANG-ICON IC-18 (icn_bb_alt_gen).
+
+---
+
+## --monitor: in-process sync comparator (IM-7/IM-8 complete)
+
+`--monitor` runs IR, SM, and JIT step-by-step over the same program,
+snapshot/restoring all mutable state between runs, and reports the first
+statement where any two executors diverge.
+
+```bash
+./scrip --monitor file.sno    # SNOBOL4
+./scrip --monitor file.icn    # Icon
+./scrip --monitor file.pl     # Prolog
+./scrip --monitor file.raku   # Raku
+./scrip --monitor file.snc    # Snocone
+./scrip --monitor file.reb    # Rebus
+```
+
+**On agreement:** prints per-stmt progress, exits 0.
+**On divergence:** exits 1 and prints:
+```
+DIVERGE at stmt N [label: LABEL, line LL]
+  IR   last_ok=?
+  SM   last_ok=1
+  JIT  last_ok=1
+  IR vs SM (N var(s) differ):
+    VARNAME    IR=<value>    SM=<value>
+```
+
+**Workflow for finding bugs:**
+1. Run `./scrip --monitor suspect.sno` to find the first diverging statement.
+2. The statement number + variable name pinpoint the root cause.
+3. Fix in the appropriate layer (interp.c for IR bugs, sm_interp.c or
+   sm_codegen.c for SM/JIT bugs).
+4. Re-run `--monitor` to confirm divergence is gone.
+5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
+
+**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
+(it drives all three internally). ICN frame locals (IM-10) and Prolog trail
+variables (IM-11) are not yet in the snapshot — coming in future IM steps.
+

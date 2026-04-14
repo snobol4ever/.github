@@ -191,3 +191,44 @@ running the SNOBOL4 version under SPITBOL.
 
 SC-1 done: 3/14 PASS (assign, fence, global).
 SC-2 next: fix procedure lowering in snocone_lower.c.
+
+---
+
+## --monitor: in-process sync comparator (IM-7/IM-8 complete)
+
+`--monitor` runs IR, SM, and JIT step-by-step over the same program,
+snapshot/restoring all mutable state between runs, and reports the first
+statement where any two executors diverge.
+
+```bash
+./scrip --monitor file.sno    # SNOBOL4
+./scrip --monitor file.icn    # Icon
+./scrip --monitor file.pl     # Prolog
+./scrip --monitor file.raku   # Raku
+./scrip --monitor file.snc    # Snocone
+./scrip --monitor file.reb    # Rebus
+```
+
+**On agreement:** prints per-stmt progress, exits 0.
+**On divergence:** exits 1 and prints:
+```
+DIVERGE at stmt N [label: LABEL, line LL]
+  IR   last_ok=?
+  SM   last_ok=1
+  JIT  last_ok=1
+  IR vs SM (N var(s) differ):
+    VARNAME    IR=<value>    SM=<value>
+```
+
+**Workflow for finding bugs:**
+1. Run `./scrip --monitor suspect.sno` to find the first diverging statement.
+2. The statement number + variable name pinpoint the root cause.
+3. Fix in the appropriate layer (interp.c for IR bugs, sm_interp.c or
+   sm_codegen.c for SM/JIT bugs).
+4. Re-run `--monitor` to confirm divergence is gone.
+5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
+
+**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
+(it drives all three internally). ICN frame locals (IM-10) and Prolog trail
+variables (IM-11) are not yet in the snapshot — coming in future IM steps.
+
