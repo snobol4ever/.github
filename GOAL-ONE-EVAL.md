@@ -62,7 +62,7 @@ parse_scrip_polyglot()
 
 ### Phase 1 — Promote Icon call context to IcnFrame struct
 
-- [ ] **OE-1** — Define `IcnFrame` and a frame stack in `scrip.c`.
+- [x] **OE-1** — Define `IcnFrame` and a frame stack in `scrip.c`.
   ```c
   typedef struct {
       DESCR_t  env[ICN_SLOT_MAX];   /* local variable slots */
@@ -88,7 +88,7 @@ parse_scrip_polyglot()
   (it already only accesses `icn_gen_stack` via globals).
   Gate: `make scrip` clean; unified_broker PASS=13 FAIL=0; smoke PASS=2.
 
-- [ ] **OE-2** — Remove the `root` parameter from `icn_interp_eval`.
+- [x] **OE-2** — Remove the `root` parameter from `icn_interp_eval`.
   Signature becomes `static DESCR_t icn_interp_eval(EXPR_t *e)`.
   All internal recursive calls updated. `icn_drive` updated (it called
   `icn_interp_eval(root, root)` for body re-entry; now just `icn_interp_eval(e)`
@@ -99,7 +99,7 @@ parse_scrip_polyglot()
 
 ### Phase 2 — Merge Icon EKinds into interp_eval
 
-- [ ] **OE-3** — Add shared EKinds from `icn_interp_eval` to `interp_eval`:
+- [x] **OE-3** — Add shared EKinds from `icn_interp_eval` to `interp_eval`:
   `E_CSET`, `E_EVERY`, `E_WHILE`, `E_UNTIL`, `E_REPEAT`, `E_LOOP_BREAK`,
   `E_SEQ_EXPR`, `E_IF`, `E_AUGOP`, `E_SCAN` (Icon string scan).
   These have no SNO/PL equivalent cases — pure addition, no conflict.
@@ -109,7 +109,7 @@ parse_scrip_polyglot()
   compatible (they are: same DESCR_t semantics, same arithmetic).
   Gate: `make scrip` clean; unified_broker PASS=13; Icon rung01-11 59/59.
 
-- [ ] **OE-4** — Add generator EKinds: `E_TO`, `E_TO_BY`, `E_ITERATE`, `E_SUSPEND`.
+- [x] **OE-4** — Add generator EKinds: `E_TO`, `E_TO_BY`, `E_ITERATE`, `E_SUSPEND`.
   These require `ICN_CUR.gen[]` stack and drive loop — added inside `interp_eval`
   under a `/* Icon generators */` comment block.
   `icn_drive` is inlined or kept as a static helper; either way it now
@@ -220,9 +220,20 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state
+## Current state (session 2026-04-14, one4all HEAD fb80f0c3)
 
-Not started. OE-1 is the first step.
+OE-1 through OE-4 complete. Next: OE-5 (redirect icn_interp_eval body to interp_eval).
 
-Note: OE-7 subsumes and closes the U-23 PL dispatch bug from GOAL-UNIFIED-BROKER.
-When OE-7 is done, update GOAL-UNIFIED-BROKER U-23 state accordingly.
+**OE-1 DONE**: IcnFrame struct replaces flat globals. icn_frame_stack[256], ICN_CUR macro.
+icn_call_proc pushes/pops frame. polyglot_init resets frame_depth=0.
+
+**OE-2 DONE**: root param removed from icn_interp_eval and icn_drive. IcnFrame gains
+body_root field. icn_call_proc sets ICN_CUR.body_root per statement. ~50 call sites updated.
+
+**OE-3 DONE**: Icon EKinds added to interp_eval: E_CSET, E_TO, E_TO_BY, E_EVERY,
+E_WHILE, E_UNTIL, E_REPEAT, E_SEQ_EXPR, E_IF, E_AUGOP, E_LOOP_BREAK, E_SCAN,
+E_ITERATE, E_SUSPEND. All call interp_eval recursively.
+
+**OE-4 DONE**: Generator EKinds (E_TO, E_TO_BY, E_ITERATE, E_SUSPEND) covered by OE-3.
+
+Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
