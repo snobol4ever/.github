@@ -76,24 +76,24 @@ rung12 and beyond are the ladder for this goal.
 
 - [x] **PL-1** — rung01–11: 14/14 PASS --ir-run. (done)
 
-- [ ] **PL-2** — Install SWI + GNU test suites.
+- [x] **PL-2** — Install SWI + GNU test suites.
   Write `scripts/install_swi_prolog_tests.sh` and
   `scripts/install_gnu_prolog_tests.sh`. Run both.
   Gate: test files present in corpus.
 
-- [ ] **PL-3** — S-10e: `assertz/asserta/retract/abolish`.
+- [x] **PL-3** — S-10e: `assertz/asserta/retract/abolish`.
   Dynamic pred table mutation in `interp_exec_pl_goal`.
   Gate: rung13 5/5, rung14 5/5, rung15 5/5.
 
-- [ ] **PL-4** — S-10f: atom builtins.
+- [x] **PL-4** — S-10f: atom builtins.
   `atom_length/2`, `atom_chars/2`, `atom_codes/2`, `atom_concat/3`.
   Gate: rung12 5/5.
 
-- [ ] **PL-5** — S-10g/h: term ordering + sort.
+- [x] **PL-5** — S-10g/h: term ordering + sort.
   `@</2`, `@>/2`, `@=</2`, `@>=/2`, `sort/2`, `msort/2`.
   Gate: rung16 5/5, rung17 5/5.
 
-- [ ] **PL-6** — S-10i/j: `succ/2`, `plus/3`, `format/2`.
+- [x] **PL-6** — S-10i/j: `succ/2`, `plus/3`, `format/2`.
   Gate: rung18 5/5, rung19 5/5.
 
 - [ ] **PL-7** — S-10k/l: `numbervars/3`, `char_type/2`.
@@ -193,12 +193,19 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-14, one4all HEAD 631ca856)
 
-PL-1 done. rung01–11 14/14 PASS --ir-run.
-PL-2 through PL-19 open.
-Next: PL-2 — write install scripts for SWI and GNU test suites.
-Then PL-3 — assertz/asserta/retract/abolish (rung13/14/15).
+PL-1 through PL-6 done. --ir-run ladder:
+- rung01–11 14/14 PASS (PL-1)
+- rung12 5/5 PASS atom builtins (PL-4)
+- rung13 5/5 PASS assertz (PL-3)
+- rung14 5/5 PASS asserta (PL-3)
+- rung15 5/5 PASS retract/abolish (PL-3)
+- rung16 5/5 PASS term ordering (PL-5)
+- rung17 5/5 PASS sort/msort (PL-5)
+- rung18 5/5 PASS succ/plus (PL-6)
+- rung19 5/5 PASS format (PL-6)
+Next: PL-7 — numbervars/3, char_type/2 (rung20/21).
 
 ---
 
