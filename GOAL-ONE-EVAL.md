@@ -252,6 +252,24 @@ Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
 2. Fix until gate PASS=29 FAIL=0
 3. Commit clean OE-5, proceed to OE-6
 
+## Current state (session 2026-04-14 #4, one4all HEAD 737bbdfe)
+
+⚠️ OE-7 INCOMPLETE. Gate PASS=30 FAIL=0. Do NOT proceed to OE-8.
+
+**polyglot_execute() added** to scrip.c; main() routes lang_polyglot through it.
+**g_lang=1 fix** added to U-23 ICN dispatch block.
+**BUG**: DBG probe in U-23 guard never fires — sm_lower warnings suggest .scrip
+polyglot path hits SM codepath before execute_program. Next session: check whether
+lang_sm and lang_polyglot are both set; if so, SM path runs instead of execute_program.
+Remove debug fprintf before committing clean OE-7.
+
+**Next session must:**
+1. Find why U-23 guard is not reached (check lang_sm vs lang_polyglot flag interaction)
+2. Remove debug fprintf probe from U-23 block
+3. Fix dispatch so polyglot_execute reaches execute_program's U-23 block
+4. Confirm test_shared_nv.scrip outputs all 6 expected lines
+5. Gate PASS=31 FAIL=0, commit clean OE-7
+
 ## Current state (session 2026-04-14 #3, one4all HEAD 289d9a03)
 
 OE-6 DONE. Gate PASS=30 FAIL=0. Next: OE-7.
