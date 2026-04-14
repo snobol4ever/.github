@@ -236,3 +236,32 @@ DIVERGE at stmt N [label: LABEL, line LL]
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
+
+---
+
+## Current state (2026-04-14 session 2, one4all HEAD 5438115c)
+
+IC-2 still in progress: 54/59 rung01-11.
+
+Root cause isolated this session:
+- `every write(upto(4))` parses as E_EVERY with ONE child: gen=write(upto(4)), no do-body.
+- icn_drive(write(upto(4))) must recurse into args to find upto(4) as drivable E_FNC.
+- ICN_CUR.body_root must be set to gen itself (body?body:gen) so icn_drive_fnc 
+  captures the right every_body to re-execute per suspend tick.
+- CRITICAL: bash_tool swallows stderr, so fprintf(stderr,...) debug was invisible.
+  Next session: write debug to /tmp/dbg.txt and cat it, or use a flag file.
+
+Fixes landed (committed, smoke PASS=32 FAIL=0):
+- E_EVERY, E_WHILE, E_UNTIL, E_REPEAT, E_SUSPEND, E_SEQ_EXPR, E_IF,
+  E_BREAK, E_RETURN, E_FAIL, E_ALT added to icn_frame_depth>0 switch.
+- E_EVERY sets body_root = body ? body : gen.
+- icn_drive_fnc: every_body captured before frame push; run in caller frame.
+- E_ALT: Icon value alternation (try left, else right). Smoke +1 pass.
+
+Still open:
+- suspend every-body passthrough (rung03 x3)
+- nested to: (1 to 2) to (2 to 3) (rung01_paper_nested_to)
+- match() at pos returning falsy 0: guard icn_scan_pos>0 → icn_scan_subj!=NULL (rung08_match)
+
+Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
+and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
