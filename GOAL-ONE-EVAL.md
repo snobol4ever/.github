@@ -237,3 +237,17 @@ E_ITERATE, E_SUSPEND. All call interp_eval recursively.
 **OE-4 DONE**: Generator EKinds (E_TO, E_TO_BY, E_ITERATE, E_SUSPEND) covered by OE-3.
 
 Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
+
+## Current state (session 2026-04-14 #2, one4all HEAD 770c5a01)
+
+⚠️ BROKEN — gate PASS=13 FAIL=16. OE-5 incomplete. Do NOT proceed to OE-6.
+
+**Session summary:**
+- src/Makefile fix: FRONTEND_RAKU added (raku_compile link failure on fresh clone — correct fix, keep)
+- OE-5 attempted: icn_interp_eval redirected to interp_eval; Icon early-dispatch block (icn_frame_depth>0) added for E_VAR/E_ASSIGN/E_FNC
+- Regression: origin landed RK-13/14/prolog mid-session (PASS 26→29); our OE-5 brought it to PASS=13
+
+**Next session must:**
+1. Diagnose each of 16 failures — diff icn_interp_eval cases vs interp_eval Icon dispatch (E_MNS, string ops, Raku EKinds)
+2. Fix until gate PASS=29 FAIL=0
+3. Commit clean OE-5, proceed to OE-6
