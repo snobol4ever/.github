@@ -265,3 +265,22 @@ Still open:
 
 Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
 and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
+
+## Current state (2026-04-14 session 3, one4all HEAD dd1ef05f)
+
+IC-1 achieved 59/59 then PIVOT ordered. IC-2a Byrd box pivot in progress.
+PASS=41 FAIL=18 TOTAL=59. Broker baseline 30/33 pre-existing.
+
+Architecture validated vs archive/emit_jvm.c + emit_x64.c:
+- E_EVERY: icn_eval_gen + BB_PUMP (no body → box side-effects are the work)
+- icn_bb_fnc_gen: composite box for builtin E_FNC with generative arg
+- icn_call_builtin: dispatch write/user-procs with pre-resolved args
+- icn_call_proc fallthrough → FAILDESCR (Icon semantics)
+- E_ALTERNATE wired in icn_frame_depth>0 switch
+
+Next IC-2a:
+1. icn_bb_binop_gen for E_MUL/ADD/LT/etc with gen children (rung01_compound/mult/lt)
+2. icn_bb_alternate box for E_ALTERNATE as generator (relfilter, nested_filter)
+3. Verify icn_bb_suspend for user proc generators (rung03_suspend_*)
+4. rung10_break_repeat, rung11_bang_concat investigation
+5. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12
