@@ -205,12 +205,135 @@ Our hand-written corpus covers the Tiny-Raku subset only.
   Integrated into `test_smoke_unified_broker.sh`.
   Gate: PASS=7 FAIL=0; smoke total PASS=24 FAIL=0.
 
-- [ ] **RK-11** — Combinator parser demo: `test/raku/rk_combinator.raku`.
+- [x] **RK-11** — Combinator parser demo: `test/raku/rk_combinator.raku`.
   PEG ordered-choice parser using `gather`/`take`. Parses simple expressions.
   Demonstrates BB_PUMP as a grammar engine with no new syntax.
   Gate: correct parse output; added to harness (PASS=8).
 
-## Current state
+---
+
+## Phase 5 — Full Raku Implementation (incremental sprints, easy → hard)
+
+Each sprint adds one language feature. Gate: existing PASS count + new tests green.
+All new corpus files go in `test/raku/`. All new harness entries in `test_raku_ir_rungs.sh`.
+
+### Sprint 1 — String interpolation
+
+- [ ] **RK-12** — String interpolation inside `"..."`: `$var` and `@arr[$i]`.
+  Lexer: detect `"` strings with `$`-sigils inside; emit RK_INTERP_STR node.
+  Lower: RK_INTERP_STR → E_CAT chain (split literal segments + E_VAR lookups).
+  Test: `rk_interp.raku` — `my $name = 'world'; say("hello $name");` → `hello world`.
+  Gate: PASS=9.
+
+### Sprint 2 — `given`/`when`
+
+- [ ] **RK-13** — `given $x { when val { ... } default { ... } }`.
+  Scalar smart-match only (no type dispatch yet). Lower to if/elsif/else chain.
+  Test: `rk_given.raku` — classify integer via given/when.
+  Gate: PASS=10.
+
+### Sprint 3 — Arrays
+
+- [ ] **RK-14** — Array operations: `push`/`pop`/`shift`/`unshift`, `elems`, `@arr[$i]`.
+  Runtime: dynamic array backing in icn_interp_eval. New E_ARR_GET / E_ARR_SET nodes
+  or reuse E_FNC("push"/"pop"/"elems") builtins.
+  Test: `rk_arrays.raku` — push/pop/index round-trip.
+  Gate: PASS=11.
+
+### Sprint 4 — Hashes
+
+- [ ] **RK-15** — Hash operations: `%h<key>`, `%h{$k}`, `keys`, `values`, `exists`.
+  Runtime: hash table in interpreter. New E_HASH_GET / E_HASH_SET or builtins.
+  Test: `rk_hashes.raku` — set/get/keys/exists.
+  Gate: PASS=12.
+
+### Sprint 5 — `for` over arrays
+
+- [ ] **RK-16** — `for @arr -> $x { ... }` with real array variable (not just range).
+  Requires RK-14. Wire E_EVERY(E_ITERATE(@arr)) to iterate array elements.
+  Test: `rk_for_array.raku` — iterate pushed array, print each element.
+  Gate: PASS=13.
+
+### Sprint 6 — Multiple dispatch (arity)
+
+- [ ] **RK-17** — `multi sub f($a) { }` / `multi sub f($a, $b) { }`.
+  Arity-only dispatch — no type constraints yet. Lexer: `multi` keyword.
+  Lower: emit separate icn_proc_table entries keyed by name+arity; dispatch
+  selects by nargs at call site.
+  Test: `rk_multi.raku` — `multi sub greet($n)` / `multi sub greet($n,$title)`.
+  Gate: PASS=14.
+
+### Sprint 7 — Named/default parameters
+
+- [ ] **RK-18** — Named params `:$opt = default` in sub signatures.
+  Lexer/parser: `:` prefix on param, `=` default expr.
+  Lower: emit default-init E_ASSIGN at sub entry if arg absent.
+  Test: `rk_named_params.raku` — `sub greet($name, :$title = 'Mr')`.
+  Gate: PASS=15.
+
+### Sprint 8 — Type constraints (compile-time)
+
+- [ ] **RK-19** — Type annotations on params: `Int`, `Str`, `Num`.
+  Parser: parse `Int $x` / `Str $s` param syntax. Lower: emit E_TYPE_CHECK
+  node at sub entry (or inline guard) — fail with message if type mismatch.
+  Test: `rk_types.raku` — type-checked sub, correct call passes, wrong type caught.
+  Gate: PASS=16.
+
+### Sprint 9 — Junctions
+
+- [ ] **RK-20** — `any($a,$b,$c)`, `all($a,$b,$c)`, `one($a,$b,$c)`.
+  Lower: `any(...)` → E_OR chain; `all(...)` → E_AND chain; `one(...)` → XOR chain.
+  Test: `rk_junctions.raku` — `if any(1,2,3) == 2 { say('yes') }`.
+  Gate: PASS=17.
+
+### Sprint 10 — Hyper-operators
+
+- [ ] **RK-21** — `@a >>+<< @b` (element-wise), `@a >>.method` (method map).
+  Requires RK-14. Lower: emit E_EVERY loop over zip of two arrays, apply op.
+  Test: `rk_hyper.raku` — `my @r = (1,2,3) >>*<< (4,5,6); say(@r[0]);` → `4`.
+  Gate: PASS=18.
+
+### Sprint 11 — `for`-over-gather (standalone BB_PUMP)
+
+- [ ] **RK-22** — Wire `for GATHER -> $v { }` in standalone `--ir-run`.
+  Currently E_EVERY over E_ITERATE(gather-body) is not driven in standalone mode.
+  Fix: in `icn_interp_eval` E_EVERY handler, detect E_ITERATE child whose body
+  contains E_SUSPEND nodes; drive via setjmp/longjmp coroutine or collect-then-iterate.
+  Test: `rk_for_gather.raku` — `for gather { take 1; take 2; take 3; } -> $v { say($v); }`.
+  Gate: PASS=19. This unlocks true BB_PUMP in pure Raku context.
+
+### Sprint 12 — Basic OO
+
+- [ ] **RK-23** — `class Foo { has $!attr; method bar() { } }`, `Foo.new(attr => val)`.
+  Lexer: `class`, `has`, `method`, `!`-twigil. Parser: class body block.
+  Lower: class → struct in icn_proc_table; `new` → E_FNC("new") allocating hash;
+  method call `$obj.bar()` → E_FNC("bar") with self as first arg.
+  Test: `rk_oo.raku` — simple Point class with x/y and a `str` method.
+  Gate: PASS=20.
+
+### Sprint 13 — Roles
+
+- [ ] **RK-24** — `role Printable { method print() { } }` / `class Foo does Printable { }`.
+  Requires RK-23. Lower: role methods merged into class method table at `does` site.
+  Test: `rk_roles.raku` — role with default method, class that does it.
+  Gate: PASS=21.
+
+### Sprint 14 — `grammar`/`rule`/`token` → BB_ONCE
+
+- [ ] **RK-25** — `grammar G { rule top { <digit>+ }; token digit { <[0..9]> } }`.
+  Requires RK-22. This is the original GOAL motivation: grammar/rule → BB_ONCE + OR-retry.
+  Lexer: `grammar`, `rule`, `token`, `<name>` subrule call, `<[...]>` char class.
+  Lower: each `rule` → a sub that tries alternatives via BB_ONCE broker mode.
+  Test: `rk_grammar.raku` — simple grammar parsing digit sequences.
+  Gate: PASS=22.
+
+### Sprint 15 — Lazy lists and infinite ranges
+
+- [ ] **RK-26** — `lazy gather { ... }`, `take-while`, infinite range `1..*`.
+  Requires RK-22. `lazy` keyword defers gather evaluation. `1..*` lowers to
+  E_TO with sentinel. `take-while { cond }` → E_SUSPEND inside E_WHILE.
+  Test: `rk_lazy.raku` — `my @fibs = lazy gather { ... }; say(@fibs[10]);`.
+  Gate: PASS=23.
 
 ## Current state
 
@@ -278,3 +401,20 @@ Our corpus is hand-written Tiny-Raku subset only — roast is full Raku.
 
 Next: RK-11 (combinator parser demo — gather/take as PEG engine).
 HEAD: 8646d030 (one4all)
+
+Session 2026-04-14 (continued): RK-11 DONE.
+
+Combinator parser demo: test/raku/rk_combinator.raku
+PEG ordered-choice parser for digit (op digit)* — parses "3+4*2".
+p_digit/p_addop/p_mulop/p_op combinators with ordered-choice via if/else (|| PEG semantics).
+gather { take tok } block structurally present as BB_PUMP-ready generator.
+In standalone --ir-run, emit() (say) produces token stream directly.
+In polyglot broker context, take() would suspend and yield to E_EVERY consumer.
+Gate: PASS=8 FAIL=0 (raku harness); smoke PASS=26 FAIL=0.
+HEAD: TBD (commit pending)
+Next: RK-12 (string interpolation).
+
+Phase 5 plan (RK-12..RK-26) added: 15 sprints, easy→hard.
+Sprint map: interp(12,13) → collections(14,15,16) → dispatch(17,18,19) →
+  junctions(20) → hyper(21) → BB_PUMP standalone(22) → OO(23,24) →
+  grammar/BB_ONCE(25) → lazy(26).
