@@ -173,7 +173,7 @@ parse_scrip_polyglot()
   Pop `bb_node_t*`; call `bb_broker(root, BB_ONCE, NULL, NULL)`.
   Gate: `make scrip` clean; at least one Prolog `--sm-run` test produces correct output.
 
-- [ ] **OE-12** — Gate: `test/smoke_unified_broker.sh` PASS=13+ FAIL=0;
+- [x] **OE-12** — Gate: `test/smoke_unified_broker.sh` PASS=13+ FAIL=0;
   regression non-regressing; add `--sm-run` polyglot smoke test.
   Update PLAN.md ☑ done.
 
@@ -325,3 +325,19 @@ Fix sm_lower LANG_ICN path to emit SM_PUSH_EXPR(s->subject) instead of
 lower_expr(s->subject), so SM_BB_PUMP handler receives EXPR_t* and can call
 icn_eval_gen() to build the bb_node_t. Then implement SM_BB_PUMP handler
 in sm_interp.c: cast to EXPR_t*, call icn_eval_gen, call bb_broker(BB_PUMP).
+
+## Current state (session 2026-04-14 #8, one4all HEAD 9d062108)
+
+GOAL-ONE-EVAL COMPLETE. All 12 steps done. Gate PASS=31 FAIL=0.
+
+**OE-10/11 DONE**: SM_BB_PUMP handler: pops DT_E (EXPR_t* in .ptr), calls
+icn_eval_gen(), bb_broker(BB_PUMP, pump_print). SM_BB_ONCE: same pattern,
+BB_ONCE, sets last_ok from tick count. pump_print prints each value to stdout.
+sm_lower LANG_ICN path fixed to emit SM_PUSH_EXPR(s->subject) not lower_expr.
+
+**OE-12 DONE**: --sm-run polyglot smoke test added to test_smoke_unified_broker.sh.
+test_shared_nv.scrip with --sm-run produces all 6 lines. PASS=31 FAIL=0.
+
+**GOAL COMPLETE**: icn_execute_program_unified eliminated. All five language
+frontends evaluate via single interp_eval() switch. SM_BB_PUMP/ONCE have real
+handlers. sm_lower is language-aware. One top-level entry point: polyglot_execute().
