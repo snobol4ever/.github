@@ -228,18 +228,23 @@ The steps below build toward that incrementally — always green, always runnabl
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 886aa7d0)
+## Current state (session 2026-04-13, one4all HEAD f7e2ec6b)
 
 U-1 through U-17 complete. U-6 γ repack deferred (--bb-live x86 path only).
 Next session starts at U-18.
 
-icn_eval_gen implemented in scrip.c: E_TO/E_TO_BY/E_ITERATE/E_FNC(coroutine)/fallback.
-E_FNC suspend gap noted: wired at U-18 via SM_BB_PUMP.
-New gate: test/smoke_unified_broker.sh PASS=13 (self-contained, no env vars).
-one4all HEAD 49708c39.
+Build was broken (runtime/x86 not in Makefile; all emitters dead). Fixed this session:
+- Makefile now includes RUNTIME_X86 (20 files), -lgc, all missing frontend files.
+- All backend emitters archived to archive/backend/emit_emitters/ and archive/frontend/prolog/.
+- bb_boxes.s archived (superseded by bb_boxes.c C rewrite).
+- cursor/subject_len_val/subject_data globals defined in stmt_exec.c.
+- scrip.c dead emitter flag code removed.
+- smoke PASS=2 FAIL=0; unified_broker PASS=12 FAIL=0.
 
-regression baseline: csnobol4-suite PASS=38 (was 34, improved);
-Icon rung01-11 PASS=48/59 (non-regressing).
+icn_eval_gen implemented in scrip.c: E_TO/E_TO_BY/E_ITERATE/E_FNC(coroutine)/fallback.
+one4all HEAD f7e2ec6b.
+
+regression baseline: csnobol4-suite PASS=38; Icon rung01-11 PASS=48/59 (non-regressing).
 
 ---
 
