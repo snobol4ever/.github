@@ -19,18 +19,60 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude/csnobol4
 ```
 
-**Build — run only what your goal needs:**
-
-| Goal type | Scripts to run |
-|-----------|---------------|
-| x86 / ASM | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` |
-| JVM | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` `install_java_and_jasmin.sh` |
-| .NET / NET | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` |
-| Monitor / Silly | `install_system_packages.sh` `build_csnobol4_oracle.sh` `build_spitbol_oracle.sh` `build_monitor_ipc_shared_library.sh` |
-| Full environment | `bash /home/claude/one4all/scripts/build_full_session_environment.sh` |
-| After editing .y/.l | `bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh` then `make scrip` |
+**Build — run exactly what your goal's `## Session Setup` section lists. No more.**
 
 All scripts are in `/home/claude/one4all/scripts/`. Each is idempotent.
+
+---
+
+## Session Setup
+
+Run exactly the scripts listed in the Goal file's `## Session Setup` section.
+If a Goal file has no `## Session Setup` yet, use the matching category below.
+
+### Interp / compiler goals (scrip, IR, SM, ASM backends)
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```
+
+### Interp + cross-check goals (needs both oracles)
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+```
+
+### Silly / Monitor goals (CSNOBOL4 is sole oracle for Silly)
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_monitor_ipc_shared_library.sh
+bash /home/claude/one4all/scripts/build_ss_monitor_harness.sh
+```
+
+### JVM goals
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/install_java_and_jasmin.sh
+```
+
+### Full one-shot install (not for per-goal sessions)
+```bash
+bash /home/claude/one4all/scripts/install_everything_full_stack.sh
+```
+
+### After editing .y/.l parser/lexer sources
+```bash
+bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh
+# then rebuild:
+bash /home/claude/one4all/scripts/build_scrip.sh
+```
 
 
 ---
@@ -170,19 +212,4 @@ scrip IPC: C-native in `snobol4.c` (`comm_var()`, `comm_stno()`, `monitor_fd`/`m
 
 Never install bison or flex — generated parser files are committed.
 
-## Combination matrix — what SESSION_SETUP.sh installs
-
-| FRONTEND | BACKEND | Always | + Backend | + Oracle | Skip |
-|----------|---------|--------|-----------|---------|------|
-| `snocone` | `x64` | gcc make curl unzip | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl |
-| `snobol4` | `x64` | ″ | nasm libgc-dev | spitbol | java javac mono ilasm icont swipl |
-| `icon` | `x64` | ″ | nasm libgc-dev | icont iconx | java javac mono ilasm swipl spitbol |
-| `prolog` | `x64` | ″ | nasm libgc-dev | swipl | java javac mono ilasm icont spitbol |
-| `snobol4` | `jvm` | ″ | java javac jasmin.jar | spitbol | nasm libgc-dev mono ilasm icont swipl |
-| `icon` | `jvm` | ″ | java javac jasmin.jar | icont iconx | nasm libgc-dev mono ilasm swipl spitbol |
-| `prolog` | `jvm` | ″ | java javac jasmin.jar | swipl | nasm libgc-dev mono ilasm icont spitbol |
-| `snobol4` | `net` | ″ | mono ilasm | spitbol | nasm libgc-dev java javac icont swipl |
-| `snobol4` | `wasm` | ″ | wabt node | spitbol | nasm libgc-dev java javac mono ilasm icont swipl |
-| *(omitted)* | *(omitted)* | ″ | ALL backends | ALL oracles | nothing — full install |
-
-SPITBOL is the oracle. SESSION_SETUP.sh installs it from snobol4ever/x64.
+SPITBOL is the primary oracle. See `## Session Setup` above for per-goal script lists.
