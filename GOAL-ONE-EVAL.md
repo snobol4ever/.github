@@ -311,3 +311,17 @@ entirely. main() call sites updated to call polyglot_execute() directly for
 lang_icon and lang_prolog paths. polyglot_execute() inlines ICN/PL single-lang
 dispatch, detecting language from prog->head->lang (LANG_ICN / LANG_PL).
 polyglot_execute() is now the single top-level entry point for all non-SNO paths.
+
+## Current state (session 2026-04-14 #7, one4all HEAD 0a63cad6)
+
+OE-9 DONE. Gate PASS=30 FAIL=0. Next: OE-10.
+
+**OE-9 DONE**: sm_lower.c now language-aware. lower_stmt() checks s->lang before
+the SNO path: LANG_ICN emits lower_expr(subject)+SM_BB_PUMP; LANG_PL emits
+lower_expr(subject)+SM_BB_ONCE. LANG_SNO path unchanged.
+
+**OE-10 NOTE**: SM_BB_PUMP handler needs EXPR_t* not DESCR_t on stack.
+Fix sm_lower LANG_ICN path to emit SM_PUSH_EXPR(s->subject) instead of
+lower_expr(s->subject), so SM_BB_PUMP handler receives EXPR_t* and can call
+icn_eval_gen() to build the bb_node_t. Then implement SM_BB_PUMP handler
+in sm_interp.c: cast to EXPR_t*, call icn_eval_gen, call bb_broker(BB_PUMP).
