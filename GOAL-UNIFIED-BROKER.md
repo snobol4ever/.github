@@ -320,18 +320,30 @@ explicit `-e module_name` flag to select, like ld).
 
 ---
 
-## Current state (session 2026-04-14, one4all HEAD 78e2c8f0)
+## Current state (session 2026-04-14, one4all HEAD 9713bc70)
 
-U-1 through U-22 complete. Next step: U-23 (shared constant space).
+U-1 through U-22 complete. U-23 PARTIAL.
 
-**U-22 done** (one4all HEAD 78e2c8f0):
-Cross-call SNO->ICN/PL working. Two bugs fixed: .type->.v in _usercall_hook;
-stray DBG printf removed from polyglot_init. Icon-first polyglot ordering
-confirmed working. Proof: test/test_crosscall.scrip -> CROSSCALL: 42.
-Gate: unified_broker PASS=13 FAIL=0; smoke PASS=2 FAIL=0.
+**U-22 done** (one4all HEAD 78e2c8f0): cross-call SNO->ICN/PL working.
+
+**U-23 PARTIAL** (one4all HEAD 9713bc70):
+- icn_global_names[] table + helpers added; polyglot_init collects Icon `global X` decls
+- icn_scope_patch skips slot for globals; E_VAR read/write falls back to NV_GET/SET_fn
+- LANG_SCRIP=4 added to scrip_cc.h (coexists with LANG_RAKU=3 added by Raku goal)
+- g_polyglot global + section-ordered polyglot dispatch in execute_program
+- SNO->ICN bridge VERIFIED: SHARED_VAL flows SNO->ICN via global declaration
+- nv_get/2 + nv_set/2 builtins implemented in interp_exec_pl_builtin
+- BROKEN: PL section not dispatching in 3-section polyglot (SNO+ICN+PL)
+  nv_get/2 never called; root cause = PL module not reached in registry walk
+  when ICN module precedes it. Needs investigation.
+- test/test_shared_nv.scrip created but NOT passing (SNO+ICN output only, PL silent)
+- Gate: unified_broker PASS=13 FAIL=0; smoke PASS=2 FAIL=0 (existing tests unaffected)
+
+**Next session starts at U-23**: fix PL dispatch in 3-section polyglot, verify
+test_shared_nv.scrip passes all 6 expected lines, run gate, commit clean U-23.
 
 U-6 gamma repack deferred (--bb-live x86 path only -- pre-existing failure).
-Phase 7 (module system, U-23..U-24) next.
+Phase 7 (module system, U-23..U-24) in progress.
 
 ---
 
