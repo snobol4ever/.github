@@ -236,8 +236,35 @@ Remaining failures — root causes identified:
 | global | Error 3 erroneous array/table ref on statements 30-31 |
 | ReadWrite | Empty output — I/O builtins (Read/Write) not wired in sc context |
 
+## Session state (2026-04-14, one4all HEAD 16457e83)
+
+Score: 8/14 PASS (assign fence roman stack counter semantic tree ShiftReduce). Was 6/14.
+
+Two bugs fixed:
+
+Bug 1 — snocone_lower.c SNOCONE_ARRAY_REF:
+E_IDX node was built with only index children; base expression discarded (stored as sval
+only, never as a child). interp_eval E_IDX evaluated the index as the base and found no
+children[1], returning FAILDESCR silently. Fix: preserve full base expr as children[0];
+indices as children[1+]. Both rvalue reads and lvalue writes now work.
+
+Bug 2 — snocone_parse.c SNOCONE_LBRACKET:
+Bare '[' not after IDENT was pushed as FRAME_GROUP instead of FRAME_ARRAY, so expr[i]
+forms (c(nd)[1], f(x)[2]) were never emitted as SNOCONE_ARRAY_REF. Fix: always push
+FRAME_ARRAY for '['.
+
+Remaining failures and root causes:
+
+| Subsystem | Root cause |
+|-----------|------------|
+| arith     | IsPrime/Sieve: while loop with integer iteration — investigate |
+| strings   | TrimLeft/TrimRight/Trim: SPAN/BREAK pattern functions not wired in sc context |
+| match     | ANY/notmatch: pattern wiring (SC-5 not yet done) |
+| trace     | T8Pos / t8MaxLast: table field access or TABLE() not wired |
+| global    | Error 3 erroneous array/table ref on statements 30-31 |
+| ReadWrite | Empty output — I/O builtins (Read/Write) not wired in sc context |
+
 Next session starts at SC-1 continued:
-  Fix tree/ShiftReduce array-field subscript: c(nd)[1] where c() returns an ARRAY field.
-  In interp_eval E_IDX, when base is obtained from sc_dat_field_get and is DT_A, subscript
-  should work via subscript_get — check whether DATA array fields survive NV round-trip.
-  Gate: beauty-sc tree ShiftReduce PASS.
+  Fix arith: IsPrime(17) and Sieve(20) fail — while loop with integer index.
+  Investigate: does while(i <= n) work when i is DT_I? Check LE operator in sc context.
+  Gate: beauty-sc arith PASS.
