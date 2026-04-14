@@ -179,6 +179,37 @@ via sequential `gather` tries).
 - Rung 8: Full driver, `.raku` extension, LANG_RAKU=3, smoke test.
 - Rung 9: Combinator parser demo (do last).
 
+## Steps — Phase 4: Test Harness (added 2026-04-14)
+
+roast reference: https://github.com/Raku/roast — official Raku test suite,
+organized into S02-literals, S03-operators, S04-statements, S06-parameters, etc.
+Our hand-written corpus covers the Tiny-Raku subset only.
+
+- [x] **RK-8** — Fix three bugs in scrip.c / raku_lower.c:
+  1. `E_MOD` missing from `icn_interp_eval` arithmetic switch → added `case E_MOD: ri?INTVAL(li%ri):FAILDESCR`
+  2. `E_LEQ`/`E_CAT` double-`VARVAL_fn` static-buffer aliasing → use `.s` directly for `DT_S`
+  3. `RK_SUBDEF` param wiring — `e->ival` was hardcoded 0, params never loaded into frame;
+     fixed to set `e->ival=np` and emit sigil-stripped E_VAR param children matching icon_lower layout.
+  Gate: `check('hello','world')` prints `diff`; `10 % 3` prints `1`; 24/24 smoke PASS.
+
+- [x] **RK-9** — Hand-written Raku test corpus in `test/raku/`:
+  `rk_arith.raku`, `rk_strings.raku`, `rk_vars.raku`, `rk_control.raku`,
+  `rk_subs.raku`, `rk_forloop.raku`, `rk_gather.raku`. Each with `.expected`.
+  roast-inspired coverage of Tiny-Raku subset (literals, arithmetic, string eq/concat,
+  variables, if/else, while, sub params, return values).
+  Gate: all 7 files produce correct output.
+
+- [x] **RK-10** — `scripts/test_raku_ir_rungs.sh` — self-contained harness
+  mirroring `test_icon_ir_all_rungs.sh`. Runs all `test/raku/*.raku` against
+  `scrip --ir-run`, compares to `.expected`. SKIP-safe if binary/dir missing.
+  Integrated into `test_smoke_unified_broker.sh`.
+  Gate: PASS=7 FAIL=0; smoke total PASS=24 FAIL=0.
+
+- [ ] **RK-11** — Combinator parser demo: `test/raku/rk_combinator.raku`.
+  PEG ordered-choice parser using `gather`/`take`. Parses simple expressions.
+  Demonstrates BB_PUMP as a grammar engine with no new syntax.
+  Gate: correct parse output; added to harness (PASS=8).
+
 ## Current state
 
 ## Current state
@@ -225,3 +256,25 @@ RK-7: test/raku_gather.scrip + test/raku_gather.ref written and checked in.
       1 polyglot file test). PASS=17 FAIL=0 (was 13).
 HEAD: f2da733d (one4all)
 All steps complete: RK-1 through RK-7. Done when clause satisfied.
+
+Session 2026-04-14 (continued): RK-8, RK-9, RK-10 DONE.
+
+Three bugs fixed in scrip.c / raku_lower.c:
+  - E_MOD missing from icn_interp_eval → modulo now works
+  - E_LEQ/E_CAT VARVAL_fn static-buffer aliasing → use .s directly for DT_S
+  - RK_SUBDEF param wiring: e->ival was hardcoded 0; fixed to wire nparams
+    and emit sigil-stripped E_VAR param children (icon_lower layout).
+    Root cause: $x in body stripped to "x"; param node had "$x" → different
+    scope slot → frame never populated → all params read as NULVCL.
+
+Test corpus: test/raku/ — 7 files × (raku + expected):
+  rk_arith, rk_strings, rk_vars, rk_control, rk_subs, rk_forloop, rk_gather.
+
+scripts/test_raku_ir_rungs.sh: self-contained harness, PASS=7 FAIL=0.
+Integrated into test_smoke_unified_broker.sh: PASS=24 FAIL=0 (was 17).
+
+roast (github.com/Raku/roast) identified as official Raku test suite reference.
+Our corpus is hand-written Tiny-Raku subset only — roast is full Raku.
+
+Next: RK-11 (combinator parser demo — gather/take as PEG engine).
+HEAD: 8646d030 (one4all)
