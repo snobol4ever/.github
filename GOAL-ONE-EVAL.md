@@ -143,7 +143,7 @@ parse_scrip_polyglot()
   Gate: `make scrip` clean; unified_broker PASS=13 → PASS=14 (U-23 fixed);
   `test/test_shared_nv.scrip` outputs all 6 expected lines.
 
-- [ ] **OE-8** — Retire `icn_execute_program_unified` and
+- [x] **OE-8** — Retire `icn_execute_program_unified` and
   `pl_execute_program_unified`. Each becomes a one-line wrapper:
   ```c
   static void icn_execute_program_unified(Program *p) { polyglot_execute(p); }
@@ -301,3 +301,13 @@ dispatch chain, above mode_sm_run default. Root cause: mode_sm_run=1 is set by
 default so lang_polyglot branch was unreachable. Fix: 3-line restructure.
 Debug fprintf probe (DBG U-23) removed. test_shared_nv.scrip outputs all 6
 expected lines, exact .ref match.
+
+## Current state (session 2026-04-14 #6, one4all HEAD 4911d963)
+
+OE-8 DONE. Gate PASS=30 FAIL=0. Next: OE-9.
+
+**OE-8 DONE**: icn_execute_program_unified and pl_execute_program_unified deleted
+entirely. main() call sites updated to call polyglot_execute() directly for
+lang_icon and lang_prolog paths. polyglot_execute() inlines ICN/PL single-lang
+dispatch, detecting language from prog->head->lang (LANG_ICN / LANG_PL).
+polyglot_execute() is now the single top-level entry point for all non-SNO paths.
