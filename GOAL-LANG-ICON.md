@@ -57,6 +57,27 @@ Rung 12–36 are the ladder for this goal.
 
 - [x] **IC-1** — rung01–11: 59/59 PASS --ir-run. (done, GOAL-ICN-BROKER)
 
+- [ ] **IC-2b** — Complete ALL goal-directed-evaluation ops as BB boxes in `icon_gen.c`
+  and wire into `icn_eval_gen()`. No rung work until every GDE op has a box.
+  Raku shares `icn_eval_gen`; this unblocks both ladders.
+
+  Missing boxes to write (all in `src/frontend/icon/icon_gen.c` + declared in `icon_gen.h`,
+  registered in `icn_eval_gen()` switch in `src/runtime/interp/icn_runtime.c`):
+
+  Note: `E_SCAN` is the **same IR node as SNOBOL4 matching** — shared implementation,
+  already handled correctly by the oneshot fallback in `icn_eval_gen`. Do NOT add a scan box.
+
+  | Op | Box to write | State struct | Notes |
+  |---|---|---|---|
+  | `E_LIMIT` | `icn_bb_limit` | `icn_limit_state_t: gen, max, count` | `E \ N`: drive gen, yield each value, stop after N |
+  | `E_EVERY` | `icn_bb_every` | `icn_every_state_t: gen, body (EXPR_t*)` | drive gen to exhaustion, eval body per tick |
+  | `E_BANG_BINARY` | `icn_bb_bang_binary` | `icn_bang_binary_state_t: proc_expr, arg_box, cur_arg` | `E1 ! E2`: call E1 with successive values from E2 |
+  | `E_SEQ_EXPR` | `icn_bb_seq_expr` | `icn_seq_state_t: children[], n, last_box` | `(E1;E2;…;En)`: eval prefix, last child is the generator |
+
+  Gate: `bash scripts/test_smoke_icon.sh` still PASS=5; all five new boxes compile clean;
+  `icn_eval_gen` returns a valid box (not `icn_oneshot_box` fallthrough) for each op.
+  Smoke test for each box added to `icon_gen.c` unit test block.
+
 - [ ] **IC-2** — rung12: string relational ops (`<<`, `>>`, `<=`, `>=`, `==`, `~=`),
   `*s` (string size).
   Gate: test_icon_ir_rung_12_strrelop_size.sh PASS.
@@ -266,7 +287,17 @@ Still open:
 Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
 and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
 
-## Current state (2026-04-14 session 5, one4all HEAD c319d09f)
+## Current state (2026-04-14 session 6, one4all HEAD 1483a6c8)
+
+IC-2b DONE. All GDE ops now have BB boxes wired into icn_eval_gen:
+  E_LIMIT → icn_bb_limit, E_EVERY → icn_bb_every,
+  E_BANG_BINARY → icn_bb_bang_binary, E_SEQ_EXPR → icn_bb_seq_expr.
+  E_SCAN: intentionally no box — same IR node as SNOBOL4 matching, oneshot fallback correct.
+Build clean. Icon smoke PASS=5. Unified broker PASS=31 FAIL=2 (pre-existing).
+Raku ladder unblocked (shares icn_eval_gen).
+
+Next: IC-2 (rung03 suspend/every-body passthrough debug, then rung12 str relops).
+Debug note: bash_tool swallows stderr — write debug to /tmp/dbg.txt, not fprintf(stderr,...).
 
 IC-2a wire-up DONE. PASS=41 FAIL=18 TOTAL=59 (wiring complete; remaining failures
 are pre-wiring bugs — not regressions from this session).
