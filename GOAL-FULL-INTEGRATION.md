@@ -58,7 +58,7 @@ Do NOT change this.
 
 **Do Phase 0 before any other phase. Header-only changes, zero logic change, zero risk.**
 
-- [ ] **FI-0A** — Unify `EXPR_t` definition: `ir.h` is the sole owner.
+- [x] **FI-0A** — Unify `EXPR_t` definition: `ir.h` is the sole owner.
   Problem: `scrip_cc.h` defines its own `EXPR_t` guarded by `EXPR_T_DEFINED`; `ir.h`
   defines a second copy with the same guard. Two definitions of the same struct is a lie.
   Fix: remove the `EXPR_t` struct body from `scrip_cc.h`; add `#include "ir.h"` (with a
@@ -67,7 +67,7 @@ Do NOT change this.
   consistent (it is: both use `dval`).
   Gate: `make scrip` clean; PASS=31 FAIL=0.
 
-- [ ] **FI-0B** — Add `LANG_REB` constant to `scrip_cc.h`.
+- [x] **FI-0B** — Add `LANG_REB` constant to `scrip_cc.h`.
   Add after LANG_SCRIP = 4:
     `#define LANG_REB   5   /* Rebus   */`
   Update the comment on `STMT_t.lang` to list all six languages.
@@ -281,7 +281,7 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (rewritten 2026-04-14, one4all HEAD 9d062108)
+## Current state (updated 2026-04-14, one4all HEAD 8da00ffb)
 
-No steps started. Gate baseline: PASS=31 FAIL=0.
-Start with FI-0A (EXPR_t unification — header only, zero risk).
+FI-0A and FI-0B done. Gate baseline: PASS=31 FAIL=0.
+Next: FI-1A — write rebus_compile() wrapper in rebus_lower.c.
