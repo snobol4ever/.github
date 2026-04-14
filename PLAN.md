@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-11 next (Prolog trail state in snapshot); IM-9..10 done; IM-13..16 open (SPITBOL in-process) | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-13 next (build SPITBOL as linkable archive); Phase 5 done (IM-9..12) | ☐ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next (rung12 string relops --ir-run) | ☐ |
