@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
 | One Eval | `GOAL-ONE-EVAL.md` | one4all | OE-5 next (redirect icn_interp_eval → interp_eval) | ☐ |
-| Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-11 (combinator demo; RK-8/9/10 done: bug fixes, corpus 7/7, harness PASS=24) | ☐ |
+| Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-12 next (string interpolation); RK-11 done: combinator demo, harness PASS=26 | ☐ |
 | Polyglot Calc Demo | `GOAL-POLYGLOT-CALC-DEMO.md` | one4all | PC-1 (Icon generator) | ☐ |
 | Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
 | Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | DONE | ☑ |
