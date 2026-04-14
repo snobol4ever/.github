@@ -111,7 +111,7 @@ The IcnKind→EKind and RakuKind→EKind tables are 1-to-1 renames — move them
   `icon_driver.c` calls `icon_parse()` → `Program*` directly; lower step disappears.
   Gate: `make scrip` clean; Icon rung01-11 59/59; smoke PASS=31 FAIL=0.
 
-- [ ] **FI-3** — Eliminate `RakuNode` / `raku_ast.c` from Raku frontend.
+- [x] **FI-3** — Eliminate `RakuNode` / `raku_ast.c` from Raku frontend.
   Rewrite `raku.y` grammar actions to build `EXPR_t`/`STMT_t` directly.
   The `RakuKind → EKind` table in `raku_lower.c` is the translation guide.
   Delete: `raku_ast.c`, `raku_ast.h`, `raku_lower.c`, `raku_lower.h`.
@@ -281,9 +281,8 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD e513f3b6)
+## Current state (updated 2026-04-14, one4all HEAD bd0f983d)
 
-FI-0A, FI-0B, FI-1A, FI-1B, FI-2 done.
-Smoke: PASS=31 FAIL=1 (pre-existing ICN rung01_compound failure, not a regression from FI-2).
-Icon rungs: PASS=48 FAIL=11 (pre-existing, same count as HEAD before FI-2; confirmed by stash test).
-Next: FI-3 — eliminate RakuNode/raku_ast.c from Raku frontend.
+FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3 done.
+Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
+Next: FI-4 — Extract Icon runtime to src/runtime/interp/icn_runtime.c.
