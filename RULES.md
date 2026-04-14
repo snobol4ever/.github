@@ -162,9 +162,36 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ---
 
-## No ad-hoc builds — use checked-in build scripts in one4all/build
+## Self-contained scripts — all scripts in one4all/scripts/
 
-⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in script in `one4all/scripts/`. Scripts use snake_case prefixes: `install_`, `build_`, `regenerate_`, `test_`, `run_`, `util_`. If no script exists, write one, check it into `one4all/scripts/`, then run it.
+All scripts live in `one4all/scripts/`. One flat directory. No scripts elsewhere except fixture-local glue scripts co-located with their test assets.
+
+⛔ Do **not** build or test anything by typing ad-hoc shell commands. Every action must be driven by a checked-in script in `one4all/scripts/`. If no script exists, write one, check it in, then run it.
+
+**Naming — prefix declares type, snake_case, descriptive phrases:**
+
+| Prefix | Meaning |
+|--------|---------|
+| `install_` | Fetch packages, clone repos, set up environment |
+| `build_` | Compile source, produce binaries |
+| `regenerate_` | Derive generated files from source (parser/lexer) |
+| `run_` | Compile + execute a single file via a specific backend |
+| `test_` | Run a test suite, report PASS/FAIL |
+| `util_` | Ad-hoc developer tools, sweeps, one-off runners |
+
+**Every script must be self-contained:**
+
+1. **Paths derived from `$0`**, never from env vars:
+   ```bash
+   HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+   SCRIP="${SCRIP:-$HERE/scrip}"
+   ```
+2. **Every `scrip` call gets `< /dev/null`** unless the test explicitly needs stdin — scrip only blocks when the *program itself* reads `INPUT`. Use `< /dev/null` unconditionally; it's zero cost and prevents hangs on unknown corpus programs.
+3. **Every `scrip` call gets `timeout N`** — 8s for unit/smoke tests, 30s for corpus runners.
+4. **Corpus path hardcoded to `/home/claude/corpus`**. If missing: print a clear SKIP message and exit 0. Never fail silently, never fail hard.
+5. **Oracle paths hardcoded**: SPITBOL = `/home/claude/x64/bin/sbl`, CSNOBOL4 = `/home/claude/csnobol4/snobol4`. Same SKIP rule.
+6. **`build_*` and `install_*` scripts are idempotent** — running twice is safe. Check before acting.
+7. **No script sources another script's env** — each is fully standalone.
 
 ---
 
