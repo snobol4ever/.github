@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 in progress: 54/59; control-flow dispatch fixed; every_body root cause isolated; next: verify icn_drive recursion into args | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-2 next (install SWI+GNU test suites) | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-16 next (for @arr -> $x real array) | ☐ |
-| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-2 next (fix procedure lowering) | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 next (fix NV/TRIM keyword collision blocking strings tests 7-8; fix match miss; 11/14 PASS) | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |

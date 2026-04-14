@@ -75,10 +75,11 @@ Root cause of failures: control-flow lowering missing in snocone_lower.c.
 
 - [x] **SC-1** — assign, fence, global: 3/14 PASS. (done)
 
-- [ ] **SC-2** — Fix procedure lowering in snocone_lower.c.
+- [x] **SC-2** — Fix procedure lowering in snocone_lower.c.
   `procedure F(args) { body }` must emit: DEFINE stmt + labeled body + RETURN.
   Write `test/snocone/test_proc.sc` by translating a simple SNOBOL4 function.
   Gate: test_proc.sc PASS under --ir-run.
+  NOTE: Actual fix was break lowering in snocone_cf.c (break_stack). 8→11/14.
 
 - [ ] **SC-3** — Fix `if/else` lowering.
   `if (cond) { then } else { else }` → E_IF in IR (already in interp_eval).
@@ -187,10 +188,35 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-14, one4all HEAD afe90855)
 
-SC-1 done: 3/14 PASS (assign, fence, global).
-SC-2 next: fix procedure lowering in snocone_lower.c.
+SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
+SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS.
+  Fixed: global, arith, ReadWrite (all needed break in while loops).
+  Commit: afe90855
+
+SC-3 next: fix remaining 3 failures before advancing ladder.
+
+### Remaining failures (11/14 PASS baseline)
+
+**strings tests 7-8 (Trim procedure)** — ROOT CAUSE CONFIRMED:
+  `Trim`/`TRIM` is a SNOBOL4 keyword variable (&TRIM) exposed via NV without
+  the & prefix. NV_GET_fn("Trim") returns the integer keyword value (1),
+  not a user variable. NV_SET_fn("Trim", 'hello') writes to the keyword slot.
+  SPITBOL allows user procedures named TRIM to shadow &TRIM — our NV does not.
+  Fix: in NV_GET_fn / NV_SET_fn, when inside a user function call frame whose
+  retname matches a keyword, skip the keyword intercept and use the plain NV
+  cell. Or: detect DEFINE'd function names and exempt them from keyword lookup.
+  File: src/runtime/x86/snobol4.c (NV_GET_fn / NV_SET_fn implementation).
+
+**trace test 11** — output "0? pd" vs expected "0  upd".
+  The 'u' is being stripped from the string 'upd' inside T8Trace procedure,
+  likely a pattern replacement (?=) or SUBSTR off-by-one consuming the first
+  char. Lower priority.
+
+**match miss cases 2, 3, 9** — notmatch / pattern miss paths returning wrong
+  result. Likely related to freturn propagation from pattern match failure.
+  Needs isolation.
 
 ---
 
