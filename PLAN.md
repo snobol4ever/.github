@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2a in progress: Byrd box pivot PASS=41/59; next: icn_bb_binop_gen + icn_bb_alternate boxes | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-9 next (term_string/2, string/IO builtins; rung24/25); PL-2..PL-8 done | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-18 next (given/when switch); RK-17 done: hash keys/values/pairs/exists/delete, PASS=14 | ☐ |
-| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 next (fix NV/TRIM keyword collision blocking strings tests 7-8; fix match miss; 11/14 PASS) | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 in progress: binary ? fix committed (E_SCAN) but debug shows snocone_cf_compile NOT called for match driver — must find actual dispatch path next session; 11/14 PASS | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
