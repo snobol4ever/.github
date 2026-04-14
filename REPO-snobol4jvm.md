@@ -17,10 +17,10 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
 
 **Build:**
 ```bash
-bash /home/claude/one4all/build/build_packages.sh
-bash /home/claude/one4all/build/build_java.sh       # Java + Jasmin
-bash /home/claude/one4all/build/build_spitbol.sh    # primary oracle
-bash /home/claude/one4all/build/build_scrip.sh      # one4all compiler
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/install_java_and_jasmin.sh    # Java + Jasmin
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # primary oracle
+bash /home/claude/one4all/scripts/build_scrip.sh             # one4all compiler
 ```
 
 ## Oracle role

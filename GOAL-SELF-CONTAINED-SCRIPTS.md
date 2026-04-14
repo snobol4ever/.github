@@ -1,7 +1,7 @@
 # GOAL-SELF-CONTAINED-SCRIPTS.md — All test/build scripts self-contained
 
 **Repo:** one4all (test scripts), .github (doc)
-**Done when:** Every script under `one4all/test/` and `one4all/build/` runs
+**Done when:** Every script under `one4all/scripts/` runs
 correctly with zero setup: no env vars to export, no stdin to pipe, no
 external paths to configure. Run the script, get a result. That's it.
 
@@ -64,9 +64,9 @@ All three are solved the same way: the script itself handles it.
   Enforces non-regression floors: Icon PASS>=48, csnobol4 PASS>=34.
   Gate: `bash test/broad_unified_broker.sh` from repo root, no setup, < 60s.
 
-- [ ] **SC-7** — Audit `one4all/build/` scripts for idempotency and hardcoded paths.
+- [ ] **SC-7** — Audit `one4all/scripts/` build_ and install_ scripts for idempotency and hardcoded paths.
   Fix any that require env vars or fail on second run.
-  Gate: each `build/build_*.sh` can be run twice safely.
+  Gate: each `scripts/build_*.sh` and `scripts/install_*.sh` can be run twice safely.
 
 - [ ] **SC-8** — Update RULES.md: add "Self-contained scripts" rule section.
   All future scripts must follow the SC rules above.
@@ -77,7 +77,7 @@ All three are solved the same way: the script itself handles it.
 ## Current state
 
 SC-1 through SC-8: not started.
-`test/smoke_unified_broker.sh` already self-contained (model for all others).
+`scripts/test_smoke_unified_broker.sh` already self-contained (model for all others).
 
 ---
 
@@ -85,10 +85,10 @@ SC-1 through SC-8: not started.
 
 | File | Status |
 |------|--------|
-| `test/smoke_unified_broker.sh` | ✅ already self-contained — use as template |
-| `test/smoke.sh` | needs `< /dev/null` + timeout |
-| `test/run_csnobol4_suite.sh` | needs hardcoded paths + auto-clone |
-| `test/run_interp_broad.sh` | needs hardcoded paths + stdin fix + timeout |
-| `test/frontend/icon/run_icon_ir_rung.sh` | needs hardcoded defaults |
-| `test/broad_unified_broker.sh` | deleted — rebuild in SC-6 |
-| `build/build_*.sh` | audit in SC-7 |
+| `scripts/test_smoke_unified_broker.sh` | ✅ already self-contained — use as template |
+| `scripts/test_smoke_scrip_all_modes.sh` | needs `< /dev/null` + timeout |
+| `scripts/test_csnobol4_budne_suite.sh` | needs hardcoded paths + auto-clone |
+| `scripts/test_interp_broad_corpus_and_beauty.sh` | needs hardcoded paths + stdin fix + timeout |
+| `scripts/test_icon_ir_all_rungs.sh` | needs hardcoded defaults |
+| `scripts/test_smoke_unified_broker.sh` | deleted — rebuild in SC-6 |
+| `scripts/build_*.sh`, `scripts/install_*.sh` | audit in SC-7 |

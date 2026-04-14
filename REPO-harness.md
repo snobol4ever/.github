@@ -19,9 +19,9 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
 
 **Build:**
 ```bash
-bash /home/claude/one4all/build/build_packages.sh
-bash /home/claude/one4all/build/build_csnobol4.sh   # second oracle
-bash /home/claude/one4all/build/build_spitbol.sh    # primary oracle
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # second oracle
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # primary oracle
 ```
 
 ## Key adapters
