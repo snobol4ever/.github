@@ -411,10 +411,26 @@ gather { take tok } block structurally present as BB_PUMP-ready generator.
 In standalone --ir-run, emit() (say) produces token stream directly.
 In polyglot broker context, take() would suspend and yield to E_EVERY consumer.
 Gate: PASS=8 FAIL=0 (raku harness); smoke PASS=26 FAIL=0.
-HEAD: TBD (commit pending)
+HEAD: 2e0d5d46 (one4all)
 Next: RK-12 (string interpolation).
 
 Phase 5 plan (RK-12..RK-26) added: 15 sprints, easy→hard.
 Sprint map: interp(12,13) → collections(14,15,16) → dispatch(17,18,19) →
   junctions(20) → hyper(21) → BB_PUMP standalone(22) → OO(23,24) →
   grammar/BB_ONCE(25) → lazy(26).
+
+Session 2026-04-14 (continued): RK-12 DONE.
+
+String interpolation in double-quoted strings: "hello $name" → expanded at runtime.
+raku.l: LIT_INTERP_STR token emitted when closing " and buffer contains $.
+raku.y: LIT_INTERP_STR token declared; atom rule → raku_node_interp_str().
+raku_ast.h/c: RK_INTERP_STR enum value + raku_node_interp_str() constructor.
+raku_lower.c: RK_INTERP_STR → walk raw string, split on $ident boundaries,
+  build left-associative E_CAT(E_QLIT, E_VAR, ...) chain.
+  Bug fixed: original while(i<=len) caused infinite loop; fixed to while(i<len)
+  with trailing literal flush after loop exit.
+scripts/regenerate_parser_and_lexer_from_sources.sh: raku section added.
+test/raku/rk_interp.raku + .expected: 6 interpolation cases.
+Gate: PASS=9 FAIL=0 (raku harness); smoke PASS=27 FAIL=0.
+HEAD: 2e0d5d46 (one4all)
+Next: RK-13 (given/when scalar smart-match).
