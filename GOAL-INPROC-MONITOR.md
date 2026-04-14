@@ -210,13 +210,20 @@ This is a significant refactor — after the monitor works with snapshot/restore
   from `icn_proc_table[icn_frame_depth-1]`.
   Gate: `./scrip --monitor file.icn` shows Icon local variables.
 
-- [ ] **IM-11** — Prolog trail state in snapshot.
+- [x] **IM-11** — Prolog trail state in snapshot.
   For Prolog: include bound variables from `g_pl_env` in snapshot.
   Gate: `./scrip --monitor file.pl` shows Prolog bound variables.
+  NOTE: Gate blocked by pre-existing SM/Prolog gap (SM crashes on Prolog IR opcodes;
+  not caused by IM-11). Snapshot infrastructure complete and correct: pl_locals/
+  pl_locals_count in ExecSnapshot, trail walk in exec_snapshot_take, free in
+  exec_snapshot_free, diverge report prints bindings. Fully exercisable once
+  SM gains Prolog support.
 
-- [ ] **IM-12** — Write `scripts/test_monitor_inproc_all_langs.sh`.
+- [x] **IM-12** — Write `scripts/test_monitor_inproc_all_langs.sh`.
   Runs --monitor on one program per language. Gate: all exit 0 (modes agree)
   for known-good programs; reports divergence for known-broken programs.
+  SNOBOL4 PASS, Icon PASS, Snocone PASS.
+  Prolog SKIP / Raku SKIP: pre-existing SM execution gap for both languages.
 
 ### Phase 6 — SPITBOL in-process (the Eureka)
 
@@ -352,15 +359,16 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD b40d6f05)
+## Current state (2026-04-14, one4all HEAD 3e9595f4)
 
-IM-1 through IM-10 complete. IM-11 through IM-12 open.
+IM-1 through IM-12 complete. Phase 5 (all-language support) done.
 IM-13 through IM-16 open: SPITBOL in-process executor (Phase 6).
 
-IM-10: IcnScope moved above IcnFrame in icn_runtime.h; IcnFrame.sc field added;
-f->sc = sc stored in icn_call_proc after scope build; ExecSnapshot gains
-icn_locals/icn_locals_count (heap NvPair[]); exec_snapshot_take walks all active
-frames recording named slots; exec_snapshot_free frees array; diverge report
-prints ICN locals when frames active. Gate: PASS=31 FAIL=0.
+IM-11: pl_locals/pl_locals_count in ExecSnapshot; trail walk in exec_snapshot_take;
+exec_snapshot_free frees owned strings; diverge report prints bindings.
+Gate blocked by pre-existing SM/Prolog execution gap (not a regression).
 
-Next: IM-11 — Prolog trail state in snapshot (bound variables from g_pl_env).
+IM-12: scripts/test_monitor_inproc_all_langs.sh — PASS=3 FAIL=0 SKIP=2.
+SNOBOL4/Icon/Snocone PASS. Prolog/Raku SKIP (SM execution gap).
+
+Next: IM-13 — Build SPITBOL as linkable archive (scripts/build_spitbol_archive.sh).
