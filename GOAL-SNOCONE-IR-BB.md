@@ -180,3 +180,30 @@ Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
+
+---
+
+## Session state (2026-04-14, one4all HEAD 04082b69)
+
+Changes landed:
+- scrip.c: snocone dispatch → snocone_cf_compile (control-flow lowering active)
+- snocone_cf.h: fix scrip_cc.h include path
+- scrip.c: ScDatType registry (sc_dat_register/find_type/find_field/construct/field_get)
+- scrip.c: _builtin_DATA calls sc_dat_register after DEFDAT_fn
+- scrip.c: _builtin_print (output_val per arg), registered as 'print'
+- scrip.c: DATA constructor/field-accessor intercept in E_FNC before APPLY_fn
+
+BLOCKER for SC-1: do_struct emits DATA call as bare STMT_t subject.
+The stmt has no goto — if _builtin_DATA returns FAILDESCR the interp silently
+skips forward on the fail branch, so sc_dat_register is never called.
+Verified: DATA('...') called as expression works fine; print() works;
+Point(3,4) succeeds when struct registers correctly (confirmed by placing
+DATA call inline in .sc source).
+
+Next session fix (SC-1):
+  In do_struct (snocone_cf.c), after prog_append(st, s) for the DATA stmt,
+  ensure it cannot silently fail. Two options:
+  (a) Wire the DATA STMT_t go->onfailure = "FRETURN" so failure is loud, OR
+  (b) In _builtin_DATA, always return NULVCL (never FAILDESCR).
+  Option (b) is simplest and correct — DATA() in SNOBOL4 never fails on valid spec.
+  Then confirm sc_dat_register is called, run beauty-sc stack/trace gate.

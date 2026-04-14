@@ -37,7 +37,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
 | Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | DONE | ☑ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
-| Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |
+| Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 partial (struct DATA stmt fail path) | ☐ |
 | Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
 | Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
