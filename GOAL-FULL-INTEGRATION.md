@@ -145,7 +145,7 @@ src/runtime/interp/
   Create `icn_runtime.h` with all declarations needed by `interp.c` and `polyglot.c`.
   Gate: `make scrip` clean; Icon rung01-11 59/59; PASS=31 FAIL=0.
 
-- [ ] **FI-5** — Extract Prolog runtime to `src/runtime/interp/pl_runtime.c`.
+- [x] **FI-5** — Extract Prolog runtime to `src/runtime/interp/pl_runtime.c`.
   Move from scrip.c: `Pl_PredTable`, `g_pl_env`, `g_pl_trail`, `g_pl_cut_flag`,
   `g_pl_active`, `pl_pred_table_*`, `pl_unify_*`, `pl_box_choice`, `pl_trail_*`,
   all `pl_` helpers, Prolog Term→DESCR_t bridge functions.
@@ -281,9 +281,9 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 2cbe48d8)
+## Current state (updated 2026-04-14, one4all HEAD 678cbd23)
 
-FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4 done.
+FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4, FI-5 done.
 Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
-scrip.c reduced from 4187 → 3837 lines.
-Next: FI-5 — Extract Prolog runtime to src/runtime/interp/pl_runtime.c.
+scrip.c reduced from 4187 → 3452 lines (-735 total across FI-4+FI-5).
+Next: FI-6 — Extract interpreter loop to src/driver/interp.c.
