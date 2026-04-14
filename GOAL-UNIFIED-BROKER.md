@@ -322,28 +322,42 @@ explicit `-e module_name` flag to select, like ld).
 
 ## Current state (session 2026-04-14, one4all HEAD 9713bc70)
 
-U-1 through U-22 complete. U-23 PARTIAL.
+U-1 through U-22 complete. U-23 PARTIAL — two bugs found and partially fixed.
 
 **U-22 done** (one4all HEAD 78e2c8f0): cross-call SNO->ICN/PL working.
 
-**U-23 PARTIAL** (one4all HEAD 9713bc70):
-- icn_global_names[] table + helpers added; polyglot_init collects Icon `global X` decls
-- icn_scope_patch skips slot for globals; E_VAR read/write falls back to NV_GET/SET_fn
-- LANG_SCRIP=4 added to scrip_cc.h (coexists with LANG_RAKU=3 added by Raku goal)
-- g_polyglot global + section-ordered polyglot dispatch in execute_program
-- SNO->ICN bridge VERIFIED: SHARED_VAL flows SNO->ICN via global declaration
-- nv_get/2 + nv_set/2 builtins implemented in interp_exec_pl_builtin
-- BROKEN: PL section not dispatching in 3-section polyglot (SNO+ICN+PL)
-  nv_get/2 never called; root cause = PL module not reached in registry walk
-  when ICN module precedes it. Needs investigation.
-- test/test_shared_nv.scrip created but NOT passing (SNO+ICN output only, PL silent)
-- Gate: unified_broker PASS=13 FAIL=0; smoke PASS=2 FAIL=0 (existing tests unaffected)
+**U-23 PARTIAL** (one4all HEAD 9713bc70 + uncommitted changes in pl_broker.c):
 
-**Next session starts at U-23**: fix PL dispatch in 3-section polyglot, verify
-test_shared_nv.scrip passes all 6 expected lines, run gate, commit clean U-23.
+Diagnosis complete this session. Two bugs found:
+
+**BUG 1 — FIXED (not yet committed):** `nv_get` and `nv_set` missing from
+`pl_is_builtin_goal()` list in `src/frontend/prolog/pl_broker.c`.
+When the Prolog body calls `nv_get('SHARED_VAL', V)`, `pl_box_goal_from_ir`
+fell through to `pl_box_choice_call` (treating it as a user predicate).
+No `nv_get/2` clause exists → immediate failure → PL silent.
+Fix applied: added `"nv_get","nv_set"` to the builtins[] array in pl_broker.c.
+
+**BUG 2 — OPEN (segfault after BUG 1 fix):** After fixing BUG 1, `nv_get` is now
+reached but crashes. Likely cause: `trail_mark`/`trail_push` called on an
+uninitialised or zero-capacity Trail inside `unify()` when binding the output
+variable `V`. `trail_init` is called in `polyglot_init` — need to verify it
+allocates a buffer, not just zeroes the struct. If `Trail.buf` starts NULL and
+`trail_push` does `buf[top++]` without allocation, that is the crash.
+
+**Next session starts at U-23 BUG 2**: check `trail_init` allocates `Trail.buf`.
+If zero-capacity: add initial alloc in `trail_init`. Then verify
+`test/test_shared_nv.scrip` outputs all 6 expected lines. Run gate. Commit.
+
+Current file state:
+- `src/frontend/prolog/pl_broker.c`: BUG 1 fix applied (nv_get/nv_set in builtins[])
+- `src/driver/scrip.c`: clean (all debug prints removed)
+- Gate: unified_broker PASS=13 FAIL=0 (existing tests unaffected; U-23 test not yet passing)
 
 U-6 gamma repack deferred (--bb-live x86 path only -- pre-existing failure).
 Phase 7 (module system, U-23..U-24) in progress.
+
+New goal added this session: GOAL-ONE-EVAL.md — merge icn_interp_eval into
+interp_eval, one polyglot_execute entry point, SM lang-aware lowering (12 steps).
 
 ---
 
