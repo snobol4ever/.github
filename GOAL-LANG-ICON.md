@@ -287,7 +287,30 @@ Still open:
 Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
 and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
 
-## Current state (2026-04-14 session 6, one4all HEAD 1483a6c8)
+## Current state (2026-04-14 session 7, one4all HEAD 4cd0bd1b)
+
+IC-2b DONE. E_SCAN_AUGOP removed (dead IR node — never emitted, never handled).
+Suspend coroutine fix PARTIAL:
+- icn_active_ss global + trampoline sets it + icn_call_proc swapcontexts on suspending.
+- FIXED: write(gen()) with bare suspends works (10/20/30 correct).
+- BROKEN: every write(upto(4)) outputs only '4' instead of '1 2 3 4'.
+  Root cause: after swapcontext resumes in icn_call_proc, re-calling interp_eval(st)
+  on a while-stmt restarts the loop from the top instead of resuming mid-loop.
+  Fix needed: pin i on while-stmt type, do NOT re-call interp_eval — let the
+  while loop's own iteration handle re-entry. Just swapcontext and continue the
+  outer for-loop; the while will re-check its condition naturally on the next
+  interp_eval(st) call that the for-loop issues (i does not advance).
+
+Next IC-2 step:
+1. Fix i-pinning in icn_call_proc: when ICN_CUR.suspending fires inside a
+   loop stmt (E_WHILE/E_REPEAT/E_UNTIL), decrement i before continuing so
+   the outer for-loop re-enters the same stmt. Remove the inner
+   result=interp_eval(st) re-call entirely.
+2. Verify every write(upto(4)) → 1 2 3 4.
+3. Run full rung01-11 suite, target PASS=59.
+4. Then rung12 str relops (IC-2 proper).
+
+Debug note: bash_tool swallows stderr — write debug to /tmp/dbg.txt.
 
 IC-2b DONE. All GDE ops now have BB boxes wired into icn_eval_gen:
   E_LIMIT → icn_bb_limit, E_EVERY → icn_bb_every,
