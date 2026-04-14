@@ -173,13 +173,15 @@ This is a significant refactor — after the monitor works with snapshot/restore
   Returns 0 if all agree throughout, stmt number of first divergence otherwise.
   Gate: runs correctly on a pure-SNO program that passes all three modes.
 
-- [ ] **IM-7** — Wire `--monitor` flag in `scrip.c` main().
+- [x] **IM-7** — Wire `--monitor` flag in `scrip.c` main().
   ```
   ./scrip --monitor file.sno
   ./scrip --monitor file.pl
   ./scrip --monitor file.icn
   ```
-  Gate: `./scrip --monitor test/sno/hello.sno` exits 0.
+  Gate: `./scrip --monitor test/snobol4/arith_new/023_arith_add.sno` exits 0. ✅
+  Also fixed: sync_monitor.c prog->stmts[] bug (Program uses linked list, not array).
+  Also fixed: Makefile missing driver/sync_monitor.c in SRCS.
 
 ### Phase 4 — Divergence reporting
 
@@ -264,19 +266,13 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD bf85b7df)
+## Current state (2026-04-14, one4all HEAD 815991e3)
 
-IM-1 through IM-6 complete. IM-7 through IM-12 open.
+IM-1 through IM-7 complete. IM-8 through IM-12 open.
 
-IM-5 (sm_codegen.c): g_jit_step_limit/g_jit_steps_done/g_jit_step_jmp globals;
-h_stno() longjmps when limit reached; sm_jit_run_steps() wrapper added.
-sm_codegen.h updated with extern declarations + sm_jit_run_steps prototype.
+IM-7 (scrip.c): --monitor flag wired. sync_monitor_run(prog, 1) called;
+exits 0 on agreement, 1 on divergence. Gate: 023_arith_add.sno exits 0,
+PASS=31 FAIL=0. Also fixed: Makefile missing sync_monitor.c; sync_monitor.c
+prog->stmts[] array access replaced with linked-list walk via prog->head.
 
-IM-6 (sync_monitor.c): sync_monitor_run(void *prog, int verbose) written.
-For each stmt N: restore baseline, run IR/SM/JIT to N, snapshot, compare via
-snap_diff(). On first divergence: prints DIVERGE report with variable diffs.
-sync_monitor.h updated with sync_monitor_run declaration.
-Gate: PASS=31 FAIL=0 throughout.
-
-Next: IM-7 — wire --monitor flag in scrip.c main():
-  ./scrip --monitor file.sno  →  calls sync_monitor_run(prog, 1); exit 0 on agree.
+Next: IM-8 — rich divergence report (DIVERGE at stmt N [label: FOO, line 42]).
