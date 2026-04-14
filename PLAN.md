@@ -31,7 +31,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
-| One Eval | `GOAL-ONE-EVAL.md` | one4all | OE-9 next — make sm_lower language-aware (LANG_ICN→SM_BB_PUMP, LANG_PL→SM_BB_ONCE) | ☐ |
+| One Eval | `GOAL-ONE-EVAL.md` | one4all | OE-10 next — implement SM_BB_PUMP handler in sm_interp.c | ☐ |
 | Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-16 next (for @arr -> $x real array); RK-15 done: hashes %h<key>/%h{$k}, PASS=12, smoke PASS=30 | ☐ |
 | Polyglot Calc Demo | `GOAL-POLYGLOT-CALC-DEMO.md` | one4all | PC-1 (Icon generator) | ☐ |
 | Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
