@@ -446,3 +446,17 @@ test/raku/rk_given.raku + .expected: 6 cases (int + string when, default).
 Gate: PASS=10 FAIL=0 raku; smoke PASS=28 FAIL=0.
 one4all HEAD: 75ba531b
 Next: RK-14 (arrays: push/pop/elems/index).
+
+Session 2026-04-14 (continued): RK-14 DONE.
+
+Arrays: push/pop/elems/arr_get/arr_set builtins; @arr[$i] get/set syntax.
+Storage: \x01-separated strings in normal DESCR_t slots (no new runtime structs).
+scrip.c: push writes back to caller env slot; pop removes last segment;
+  arr_get walks segments by \x01; arr_set rebuilds string with replacement.
+raku.y: @arr[$i] atom -> RK_ARR_GET; @arr[$i]=expr stmt -> RK_ARR_SET.
+raku_ast.h/c: RK_ARR_GET + RK_ARR_SET + constructors.
+raku_lower.c: both -> E_FNC("arr_get"/"arr_set") calls.
+test/raku/rk_arrays.raku + .expected: int+string arrays, push/pop/index.
+Gate: PASS=11 FAIL=0 raku; smoke PASS=29 FAIL=0.
+one4all HEAD: 51fe9434
+Next: RK-15 (hashes: %h<key>, %h{$k}, keys, values, exists).
