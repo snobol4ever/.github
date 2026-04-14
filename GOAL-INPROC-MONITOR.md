@@ -185,14 +185,15 @@ This is a significant refactor — after the monitor works with snapshot/restore
 
 ### Phase 4 — Divergence reporting
 
-- [ ] **IM-8** — Rich divergence report.
+- [x] **IM-8** — Rich divergence report.
   ```
   DIVERGE at stmt 14 [label: FOO, line 42]
     IR:  X = "hello", Y = 42, last_ok = 1
     SM:  X = "hello", Y = 43, last_ok = 1   ← Y differs
     JIT: X = "hello", Y = 43, last_ok = 1
   ```
-  Gate: introduce deliberate bug in sm_interp.c, --monitor finds it.
+  Gate: deliberate SM_ADD+1 bug found at stmt 1; report shows label, line,
+  last_ok per executor, variable diffs. ✅
 
 - [ ] **IM-9** — Label path tracing.
   Track sequence of labels reached by each executor in the snapshot.
@@ -266,13 +267,13 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 815991e3)
+## Current state (2026-04-14, one4all HEAD b40d6f05)
 
-IM-1 through IM-7 complete. IM-8 through IM-12 open.
+IM-1 through IM-8 complete. IM-9 through IM-12 open.
 
-IM-7 (scrip.c): --monitor flag wired. sync_monitor_run(prog, 1) called;
-exits 0 on agreement, 1 on divergence. Gate: 023_arith_add.sno exits 0,
-PASS=31 FAIL=0. Also fixed: Makefile missing sync_monitor.c; sync_monitor.c
-prog->stmts[] array access replaced with linked-list walk via prog->head.
+IM-8: ExecSnapshot.last_ok added; SM/JIT last_ok captured from SM_State after
+each step run; diverge header includes lineno; per-executor last_ok printed;
+ok_diverge catches SM vs JIT last_ok mismatch when NV agrees.
+Gate: SM_ADD+1 bug found, report correct. PASS=31 FAIL=0.
 
-Next: IM-8 — rich divergence report (DIVERGE at stmt N [label: FOO, line 42]).
+Next: IM-9 — label path tracing (sequence of labels reached per executor).
