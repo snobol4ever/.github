@@ -132,7 +132,7 @@ parse_scrip_polyglot()
 
 ### Phase 3 — One top-level entry point
 
-- [ ] **OE-7** — Add `polyglot_execute(Program *prog)` to `scrip.c`.
+- [x] **OE-7** — Add `polyglot_execute(Program *prog)` to `scrip.c`.
   Replaces the post-loop registry walk currently at the bottom of
   `execute_program`. Dispatches all modules in registry order:
     SNO: run statement loop (existing path).
@@ -291,3 +291,13 @@ Shared switch additions: E_MOD (integer modulo), E_RETURN (with ICN_CUR frame se
 src/Makefile fix: FRONTEND_RAKU added (raku_compile link fix on fresh clone).
 
 Gate: make scrip clean; unified_broker PASS=29 FAIL=0.
+
+## Current state (session 2026-04-14 #5, one4all HEAD 6c63a82d)
+
+OE-7 DONE. Gate PASS=30 FAIL=0. Next: OE-8.
+
+**OE-7 DONE**: polyglot dispatch fixed — lang_polyglot promoted to top of main()
+dispatch chain, above mode_sm_run default. Root cause: mode_sm_run=1 is set by
+default so lang_polyglot branch was unreachable. Fix: 3-line restructure.
+Debug fprintf probe (DBG U-23) removed. test_shared_nv.scrip outputs all 6
+expected lines, exact .ref match.
