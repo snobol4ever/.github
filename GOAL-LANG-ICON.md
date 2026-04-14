@@ -266,29 +266,36 @@ Still open:
 Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
 and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
 
-## Current state (2026-04-14 session 4, one4all HEAD 19eccadf)
+## Current state (2026-04-14 session 5, one4all HEAD c319d09f)
 
-IC-2a in progress. PASS=41 FAIL=18 TOTAL=59 (unchanged — boxes written, wiring next).
+IC-2a wire-up DONE. PASS=41 FAIL=18 TOTAL=59 (wiring complete; remaining failures
+are pre-wiring bugs — not regressions from this session).
 
 Completed this session:
-- icn_bb_binop_gen box written (icon_gen.c/h): ADD/SUB/MUL/DIV/MOD + relational
-  LT/LE/GT/GE/EQ/NE + CONCAT. Arithmetic β: advance right, on exhaustion advance
-  left + reset right. Relational β: goal-directed retry (JCON §4.3).
-- icn_bb_alternate box written (icon_gen.c/h): try gen[0] until ω, switch to gen[1].
-- icn_binop_gen_state_t, icn_alternate_state_t, IcnBinopKind in icon_gen.h.
-- Build clean. Smoke PASS=5 FAIL=0.
-- corpus cloned (/home/claude/corpus). raku parser regenerated (bison/flex installed).
+- icn_eval_gen (icn_runtime.c): E_ALTERNATE → icn_bb_alternate wired.
+- icn_eval_gen (icn_runtime.c): E_ADD/SUB/MUL/DIV/MOD/LT/LE/GT/GE/EQ/NE →
+  icn_bb_binop_gen wired (fires only when ≥1 child is generator kind).
+- E_AUGOP (interp.c): RHS driven through icn_eval_gen α/β pump when RHS is
+  generator (fixes rung10/rung11 augop patterns in principle; still blocked by
+  underlying suspend issues for rung03 cases).
+- Build clean. Smoke icon PASS=5. Unified broker PASS=31 FAIL=2 (pre-existing).
+- JCON studied: vClosure/Resume pattern confirmed as direct analogue of icn_bb_* boxes.
+- Prolog BB box history recovered (commit 7adca486): pl_box_true/fail/builtin/cat/
+  choice/cut all documented; current pl_broker.c is live unified-ABI successor.
 
-NOT YET DONE — next session IC-2a wire-up:
-1. Wire icn_bb_binop_gen into icn_eval_gen() in icn_runtime.c:
-   - E_ADD/SUB/MUL/DIV when either child kind is in {E_TO, E_TO_BY, E_ALTERNATE, E_FNC}
-   - E_LT/LE/GT/GE/EQ/NE same detection (is_relop=1)
-   - E_TO with generative lo/hi → use icn_bb_binop_gen with ICN_BINOP_ADD trick?
-     Actually: build icn_bb_to_nested: lo_box + hi_box, outer loop lo, inner to hi.
-     See rung01_paper_nested_to: (1 to 2) to (2 to 3) → needs special nested-to box.
-2. Wire icn_bb_alternate into icn_eval_gen() for E_ALTERNATE.
-3. Fix E_AUGOP in interp.c: drive RHS through icn_eval_gen when RHS is generator
-   (fixes rung10_augop_break_repeat sum+=1..5 and rung11 result||:=!s).
+Remaining open bugs blocking PASS=59:
+- rung03 x3: suspend every-body passthrough. CRITICAL DEBUG NOTE: bash_tool swallows
+  stderr — write debug to /tmp/dbg.txt and cat it, NOT fprintf(stderr,...).
+  Root: icn_drive must recurse into upto(4) arg; every_body must be non-NULL and
+  passthrough must fire per tick.
+- rung01 x1: nested-to (1 to 2) to (2 to 3) — needs icn_bb_to_nested or special
+  handling in icn_eval_gen for E_TO where lo/hi are themselves E_TO.
+- rung08 x1: match() at pos returning falsy 0 — guard: icn_scan_pos>0 → icn_scan_subj!=NULL.
+- rung02 x?: user proc call path investigation.
+- rung11 x1: bang_augconcat_bang_concat (want: xy| got: y|) — augop/bang ordering.
+
+Next IC-2a step: write debug to /tmp/dbg.txt, confirm icn_drive is called and
+recurses into upto(4) arg; verify every_body non-NULL and passthrough fires (rung03).
 4. rung03_suspend_* — verify icn_bb_suspend coroutine passthrough.
 5. rung02_proc_* — user proc call path investigation.
 6. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12.
