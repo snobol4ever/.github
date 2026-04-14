@@ -225,87 +225,61 @@ This is a significant refactor — after the monitor works with snapshot/restore
   SNOBOL4 PASS, Icon PASS, Snocone PASS.
   Prolog SKIP / Raku SKIP: pre-existing SM execution gap for both languages.
 
-### Phase 6 — SPITBOL in-process (the Eureka)
+### Phase 6 — CSNOBOL4 in-process (4th executor)
 
-The existing monitor runs IR / SM / JIT — all three are one4all executors sharing
-the same IR. SPITBOL is the primary oracle but lives outside the process (fork+exec,
-file I/O, IPC). This phase links SPITBOL's object files directly into scrip so it
-becomes a 4th in-process executor with the same zero-IPC, zero-file-I/O step loop.
+CSNOBOL4 is a pure-C SNOBOL4 interpreter. Because it is pure C, the same
+per-statement hook + longjmp approach used for IR/SM/JIT works without any
+assembly stack hazard.
 
-**Why this works:**
-- SPITBOL x64 is pure C (osint/*.c) plus a hand-assembled runtime (sbl.min → sbl.asm).
-  The assembly is already compiled to an `.o` (bootstrap/sbl.o). We link both.
-- SPITBOL has `zyspl()` in `osint/syspl.c` — called before every statement when
-  `WA=0` (polling) or `WA=2` (step completion). With `-DENGINE=1` the polling
-  interval is under our control. We replace `zyspl()` with our own that fires the
-  sync hook every statement.
-- SPITBOL's NV store is its own block allocator (scblk/icblk). We expose variable
-  state via a new `spl_nv_snapshot()` function (reads the global name table the same
-  way `DUMP` does) and plug it into `ExecSnapshot`.
-- SPITBOL's `main()` is renamed `spitbol_main()` via `-Dmain=spitbol_main` or a
-  thin wrapper. It takes a `.sno` file path; we write the source to a temp file,
-  call `spitbol_main()` in step mode, and the hook fires per statement.
+The goal: link CSNOBOL4's object files directly into scrip so it becomes
+a 4th in-process executor driven by the same step loop. Zero IPC, zero file I/O.
 
-**Result:** `--monitor` compares IR / SM / JIT / SPITBOL statement by statement,
+**Why CSNOBOL4:**
+- Pure C — no hand-assembled runtime, no separate stack base, safe longjmp.
+- CSNOBOL4 `snobol4.c` has a natural per-statement dispatch loop — we add a
+  hook call there the same way we added hooks to `execute_program()` and
+  `sm_interp_run()`.
+- CSNOBOL4's NV store (variable table) is accessible via its C globals —
+  we expose a `csn_nv_snapshot()` function that reads them into `NvPair[]`.
+- `csnobol4_main()` is renamed via `-Dmain=csnobol4_main` or a thin wrapper.
+
+**Result:** `--monitor` compares IR / SM / JIT / CSNOBOL4 statement by statement,
 in-process. First divergence between any of the four is caught immediately with
-full variable state, label path, and last_ok. Beauty failures that only manifest
-as output divergence from SPITBOL are caught at the exact statement they first
-split — no TRACE, no IPC, no &STCOUNT gymnastics.
+full variable state, label path, and last_ok.
 
-- [x] **IM-13** — Build SPITBOL as a linkable archive.
-  Add `scripts/build_spitbol_archive.sh`:
-  ```bash
-  # Compiles osint/*.c with -DENGINE=1 -Dmain=spitbol_main -fPIC
-  # Assembles bootstrap/sbl.o (already in repo; nasm if needed)
-  # Produces x64/libspitbol.a (ar rcs)
-  ```
-  Gate: `libspitbol.a` produced; `nm libspitbol.a | grep spitbol_main` shows symbol.
-  No changes to x64 source — all flags passed via compiler command line.
-
-- [x] **IM-14** — Replace `zyspl()` with sync hook shim.
-  Add `src/driver/spitbol_shim.c` to one4all:
+- [ ] **IM-15b** — Add per-statement hook to CSNOBOL4 `snobol4.c` + build archive.
+  In CSNOBOL4's main statement dispatch loop, insert:
   ```c
-  /* spitbol_shim.c — replaces osint/syspl.c when linking SPITBOL in-process.
-   * zyspl() fires before every SPITBOL statement (WA=0 polling, WA=2 step).
-   * We use it as the per-statement hook for sync_monitor. */
-  #include "port.h"                   /* from x64/osint — included via -I */
-  typedef void (*spl_step_fn)(int stno, void *arg);
-  spl_step_fn g_spl_step_hook = NULL;
-  void       *g_spl_step_arg  = NULL;
-  static int  g_spl_stno      = 0;
-  int zyspl(void) {
-      if (g_spl_step_hook)
-          g_spl_step_hook(++g_spl_stno, g_spl_step_arg);
-      SET_WA(1);          /* re-arm: call again after 1 statement */
-      return NORMAL_RETURN;
-  }
-  void spl_step_reset(void) { g_spl_stno = 0; }
+  if (g_csn_step_hook)
+      g_csn_step_hook(++g_csn_stno, g_csn_step_arg);
   ```
-  Also add `spl_nv_snapshot()` — walks SPITBOL's global name table (same path as
-  DUMP/SYSDT) and returns an `NvPair[]` in the same format as `nv_snapshot()`.
-  Gate: compiles cleanly against x64/osint headers; `nm` shows `zyspl` and
-  `spl_nv_snapshot`.
-
-- [x] **IM-15** *(infrastructure complete; gate blocked — see note below)* — Wire SPITBOL executor into `sync_monitor_run()`.
-  Add `spitbol_run_steps(const char *sno_src, int n, ExecSnapshot *out)`:
-  - Writes `sno_src` to a `tmpfile`
-  - Sets `g_spl_step_hook` to a counter that longjmps at step n
-  - Calls `spitbol_main(argc, argv)` with the temp file path
-  - On longjmp: calls `spl_nv_snapshot()` → fills `out->nv_pairs`
-  - Returns
-  Add `spl` leg to the per-statement loop in `sync_monitor_run()`:
+  Add `src/driver/csnobol4_shim.c` to one4all:
+  ```c
+  typedef void (*csn_step_fn)(int stno, void *arg);
+  csn_step_fn g_csn_step_hook = NULL;
+  void       *g_csn_step_arg  = NULL;
+  static int  g_csn_stno      = 0;
+  void csn_step_reset(void) { g_csn_stno = 0; }
+  /* csn_nv_snapshot() — reads CSNOBOL4 variable table into NvPair[] */
+  int csn_nv_snapshot(NvPair **out);
   ```
-  ir_snap / sm_snap / jit_snap / spl_snap
-  ```
-  Divergence report gains a `SPL` column.
+  Add `csnobol4_run_steps(const char *sno_src, int n, ExecSnapshot *out)`:
+  - Writes `sno_src` to a tmpfile
+  - Sets `g_csn_step_hook` to a counter that longjmps at step n
+  - Calls `csnobol4_main(argc, argv)` with the temp file path
+  - On longjmp: calls `csn_nv_snapshot()` → fills `out->nv_pairs`
+  Add `scripts/build_csnobol4_archive.sh`:
+  - Compiles CSNOBOL4 source with `-Dmain=csnobol4_main -fPIC`
+  - Produces `csnobol4/libcsnobol4.a`
+  Wire `csn` leg into `sync_monitor_run()`. Divergence report gains a `CSN` column.
   Gate: `./scrip --monitor test/snobol4/arith_new/023_arith_add.sno` exits 0,
-  all four executors agree.
+  all four executors (IR / SM / JIT / CSN) agree.
 
 - [ ] **IM-16** — Beauty smoke via `--monitor`.
   Add `scripts/test_monitor_beauty_smoke.sh`:
   Runs `--monitor` on the first 10 failing beauty programs (from
   `test_smoke_unified_broker.sh` known failures or the beauty corpus).
-  For each: prints the first diverging statement between one4all and SPITBOL.
+  For each: prints the first diverging statement between one4all and CSNOBOL4.
   Gate: script exits 0 (it reports divergences but does not fail — it is a
   diagnostic tool, not a pass/fail gate). Commit the divergence report as a
   comment in the script for reference.
@@ -316,15 +290,11 @@ split — no TRACE, no IPC, no &STCOUNT gymnastics.
 
 | Old script | Replaced by |
 |-----------|-------------|
-| `test_monitor_2way_spitbol_vs_ir.sh` | `--monitor` (IR vs SM vs JIT, in-process) |
+| `test_monitor_2way_spitbol_vs_ir.sh` | `--monitor` (IR vs SM vs JIT vs CSN, in-process) |
 | `test_monitor_3way.sh` | `--monitor` |
 | `test_monitor_5way_ipc.sh` | `--monitor` |
 | `test_monitor_sync_step.sh` | `--monitor` step mode |
 | External diff files | NV snapshot diff in-memory |
-
-Note: SPITBOL oracle comparison is different — that compares against an
-external ground truth and is still valuable. `--monitor` compares our
-three internal modes against each other.
 
 ---
 
@@ -332,12 +302,15 @@ three internal modes against each other.
 
 | File | Role |
 |------|------|
-| `src/driver/interp.c` | IR executor — add hook at stmt loop |
+| `src/driver/interp.c` | IR executor — hook at stmt loop |
 | `src/runtime/x86/sm_interp.c` | SM executor — hook at SM_STNO |
 | `src/runtime/x86/sm_codegen.c` | JIT executor — hook trampoline |
-| `src/driver/sync_monitor.c` | New: comparator + step driver |
-| `src/driver/sync_monitor.h` | New: public interface |
-| `src/driver/scrip.c` | Add --monitor flag dispatch |
+| `src/driver/sync_monitor.c` | Comparator + step driver |
+| `src/driver/sync_monitor.h` | Public interface |
+| `src/driver/csnobol4_shim.c` | CSNOBOL4 hook shim + csn_nv_snapshot() |
+| `src/driver/scrip.c` | --monitor flag dispatch |
+| `csnobol4/libcsnobol4.a` | CSNOBOL4 built as linkable archive |
+| `scripts/build_csnobol4_archive.sh` | Builds libcsnobol4.a |
 
 ---
 
@@ -361,37 +334,13 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ## Current state (2026-04-14, one4all HEAD 92ea99cd)
 
-IM-13 DONE: build_spitbol_archive.sh produces x64/libspitbol.a (520KB).
-  - int.asm assembled separately (register globals); sysej.o excluded from archive.
-  - Gate: nm libspitbol.a | grep spitbol_main → PASS.
+IM-1 through IM-12 complete. Phases 1–5 done.
 
-IM-14 DONE: spitbol_shim.c — zyspl() hook, zysej() longjmp override,
-  close_all() stub, spl_nv_snapshot() (walks hshtb..state vrblk hash table),
-  spitbol_run_steps(path, N, &pairs, &count).
-  Gate: compiles cleanly vs x64/osint headers; nm shows zyspl + spl_nv_snapshot → PASS.
+Phase 6 design: CSNOBOL4 pure-C in-process 4th executor.
+Previous approach (SPITBOL) abandoned: spitbol_main() calls assembly start()
+which sets its own stack base; longjmp out of that frame → segfault. Pure-C
+CSNOBOL4 has no such hazard.
 
-IM-15 INFRASTRUCTURE DONE — gate blocked by spitbol_main assembly stack:
-  - sync_monitor_run() gains sno_path param + SPL comparison leg.
-  - sync_monitor.h: SplNvPair typedef + prototypes.
-  - Makefile: SPL_CC/SPL_A vars; spitbol_shim.o linked before libspitbol.a.
-  - scrip.c: passes input_path to sync_monitor_run().
-  - Smoke gate: PASS=31 FAIL=0 (IR/SM/JIT unaffected).
-  BLOCKED: spitbol_main() calls assembly start() which sets its own stack base.
-  longjmp out of that frame → segfault. spitbol_run_steps() must be refactored
-  to fork+exec + pipe instead of calling spitbol_main() in-process.
+Smoke gate: PASS=31 FAIL=0 (IR/SM/JIT unaffected).
 
-IM-15 next session: replace spitbol_main() call with fork()+exec("sbl") +
-  stdout pipe to capture NV snapshot (or use sbl -dump output). All shim/
-  snapshot/Makefile infrastructure stays; only spitbol_run_steps() changes.
-
-IM-1 through IM-12 complete. Phase 5 (all-language support) done.
-IM-13 through IM-16 open: SPITBOL in-process executor (Phase 6).
-
-IM-11: pl_locals/pl_locals_count in ExecSnapshot; trail walk in exec_snapshot_take;
-exec_snapshot_free frees owned strings; diverge report prints bindings.
-Gate blocked by pre-existing SM/Prolog execution gap (not a regression).
-
-IM-12: scripts/test_monitor_inproc_all_langs.sh — PASS=3 FAIL=0 SKIP=2.
-SNOBOL4/Icon/Snocone PASS. Prolog/Raku SKIP (SM execution gap).
-
-Next: IM-13 — Build SPITBOL as linkable archive (scripts/build_spitbol_archive.sh).
+**Next: IM-15b** — add per-stmt hook to CSNOBOL4 snobol4.c + build_csnobol4_archive.sh.
