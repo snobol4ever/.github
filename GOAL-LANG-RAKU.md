@@ -25,6 +25,7 @@ Gate after setup:
 bash /home/claude/one4all/scripts/test_smoke_raku.sh              # PASS=5
 bash /home/claude/one4all/scripts/test_raku_ir_rungs.sh           # PASS=12
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_raku.sh       # 3-mode divergence check
 ```
 
 ---

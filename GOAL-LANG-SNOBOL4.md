@@ -24,6 +24,7 @@ Gate after setup (must be clean before any work):
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh       # 3-mode divergence check
 ```
 
 ---

@@ -24,6 +24,7 @@ Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_rebus.sh            # PASS=4
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_rebus.sh       # 3-mode divergence check
 ```
 
 ---

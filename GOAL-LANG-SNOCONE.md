@@ -27,6 +27,7 @@ Gate after setup:
 bash /home/claude/one4all/scripts/test_smoke_snocone.sh           # PASS=5
 bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_snocone.sh       # 3-mode divergence check
 ```
 
 ---

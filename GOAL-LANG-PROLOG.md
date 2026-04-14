@@ -26,6 +26,7 @@ Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_prolog.sh             # PASS=5
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh     # PASS=31
+bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh       # 3-mode divergence check
 ```
 
 ---
