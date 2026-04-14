@@ -51,3 +51,12 @@ commits the corrected README.
 
 ## Rules
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+```

@@ -86,3 +86,12 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 - One block per commit. Update watermark and push .github before next block.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`. See RULES.md for full rules.
 
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+```

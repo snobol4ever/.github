@@ -152,3 +152,13 @@ Lives in `snobol4.tab.c`. Declared in `scrip_cc.h`.
 
 ## Commit identity
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```

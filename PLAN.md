@@ -17,7 +17,7 @@ Lon names a goal. You:
 2. Read `PLAN.md` (this file). Find the named goal in the table below.
 3. Read `RULES.md` in full — commit rules, push rules, oracle, naming. No exceptions.
 4. Open that Goal file. It names the repo. Open that repo's REPO file.
-5. Follow the REPO file `## Session Start` section to clone and build.
+5. Run the scripts listed in the Goal file's `## Session Setup` section. If the Goal file has no `## Session Setup` yet, fall back to the matching category in `REPO-one4all.md ## Session Setup`.
 6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
 
 Do not read `archive/` unless a step explicitly says to.
@@ -31,7 +31,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-18 (sm_lower polyglot: LANG_ICN/LANG_PL nodes) | ☐ |
-| Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | SR-1 (rename install_everything_full_stack) | ☐ |
+| Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
 | Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | DONE | ☑ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |

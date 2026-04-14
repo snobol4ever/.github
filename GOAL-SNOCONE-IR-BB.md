@@ -171,3 +171,12 @@ call APPLY_fn unconditionally (remove/bypass FNCEX_fn gate at line ~1766 scrip.c
 remove the guard so APPLY_fn is always called when no body label found.
 Gate: `./scrip --ir-run /tmp/test_struct2.sc` → outputs 3 and 4.
 Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+```

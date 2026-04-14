@@ -132,3 +132,13 @@ Claude presents each test result or diff line and asks: **T or F?**
 - No ad-hoc builds — use or extend `one4all/Makefile` and `test/beauty-sc/` scripts.
 - Build gate before every commit: `make scrip` clean + `run_interp_broad.sh` PASS count
   must not regress.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```

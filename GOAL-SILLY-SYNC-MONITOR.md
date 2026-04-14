@@ -103,3 +103,15 @@ Infinite loop detection: FIFO silent for >10 seconds = that participant is loopi
 - Build gate throughout: `gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly` clean
 - Never modify `snobol4.c` logic — only add wrapper layer
 - Monitor infrastructure lives in `test/ss-monitor/` — never mixed into `src/`
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_monitor_ipc_shared_library.sh
+bash /home/claude/one4all/scripts/build_ss_monitor_harness.sh
+```

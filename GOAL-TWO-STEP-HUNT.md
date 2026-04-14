@@ -119,3 +119,13 @@ OR: add a global hook `g_eval_str_hook` that scrip.c sets to point to
 ## Commit identity
 
 Always: `LCherryholmes` / `lcherryh@yahoo.com`
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```
