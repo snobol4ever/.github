@@ -89,8 +89,8 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `2371e14`
-- Unit tests: 2375p/0f/2s
+- HEAD: `a39f9c3`
+- Unit tests: 2075p/14f/0s (14 pre-existing failures, not introduced by S-2 fix)
 - Beauty suite: 7/19
 - Crosscheck: 79/80
 
