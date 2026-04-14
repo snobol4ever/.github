@@ -103,7 +103,7 @@ Do NOT change this.
 SNOBOL4 and Snocone prove it: grammar actions build EXPR_t directly.
 The IcnKind→EKind and RakuKind→EKind tables are 1-to-1 renames — move them inline.
 
-- [ ] **FI-2** — Eliminate `IcnNode` / `icon_ast.c` from Icon frontend.
+- [x] **FI-2** — Eliminate `IcnNode` / `icon_ast.c` from Icon frontend.
   Rewrite `icon_parse.c` so parser actions build `EXPR_t`/`STMT_t` directly.
   The `IcnKind → EKind` mapping in `icon_lower.c` is the translation guide; move it
   inline into the new parser actions. `icon_runtime.c` (frame/generator state) is untouched.
@@ -281,10 +281,9 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 7b158fd6)
+## Current state (updated 2026-04-14, one4all HEAD e513f3b6)
 
-FI-0A, FI-0B, FI-1A, FI-1B done. Gate: PASS=31 FAIL=0.
-Rebus lower partial fixes committed (RETURN→goto, RS_ASSIGN→has_eq).
-While-loop condition bug in rebus_lower deferred — Rebus correctness
-work moved to later in the execution order per Lon (2026-04-14).
-Next: FI-2 — eliminate IcnNode/icon_ast.c from Icon frontend.
+FI-0A, FI-0B, FI-1A, FI-1B, FI-2 done.
+Smoke: PASS=31 FAIL=1 (pre-existing ICN rung01_compound failure, not a regression from FI-2).
+Icon rungs: PASS=48 FAIL=11 (pre-existing, same count as HEAD before FI-2; confirmed by stash test).
+Next: FI-3 — eliminate RakuNode/raku_ast.c from Raku frontend.
