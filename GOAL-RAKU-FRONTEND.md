@@ -82,19 +82,19 @@ regexes, type system, `use` module imports.
 
 ### Phase 3 — Integration
 
-- [ ] **RK-5** — Add `LANG_RAKU = 3` to `scrip_cc.h`.
+- [x] **RK-5** — Add `LANG_RAKU = 3` to `scrip_cc.h`.
   Add `.raku` extension detection in `scrip.c` main.
   Add ` ```Raku ` fence tag to `parse_scrip_polyglot`.
   Add `LANG_RAKU` dispatch in `execute_program` (same as LANG_ICN path —
   `gather` blocks register as generators, `main` called post-loop).
   Gate: `make scrip` clean; smoke PASS non-regressing.
 
-- [ ] **RK-6** — `polyglot_init` support for LANG_RAKU.
+- [x] **RK-6** — `polyglot_init` support for LANG_RAKU.
   Collect Raku procedure definitions into `icn_proc_table` (reuse Icon's
   table — Raku procs lower to the same E_FNC shape).
   Gate: Raku proc callable from SNOBOL4 via U-22 cross-call hook.
 
-- [ ] **RK-7** — Smoke test: `test/raku_gather.scrip`.
+- [x] **RK-7** — Smoke test: `test/raku_gather.scrip`.
   Raku section: `gather { take $_ for 1..5 }` driven by BB_PUMP.
   SNOBOL4 section: receives each value, prints `RAKU: n`.
   Expected output: `RAKU: 1` through `RAKU: 5`.
@@ -213,6 +213,15 @@ RK-4 (raku_compile, --ir-run): DONE. HEAD e43b8dcc
   - Gates: hello world, arithmetic, concat, for 1..5 -> $i, if, while
   - Smoke: PASS=2 FAIL=0; lower gate: 28/28 PASS
 
-Next: RK-5 (LANG_RAKU in scrip_cc.h confirmed=3, .raku extension confirmed,
-      add ```Raku fence tag to parse_scrip_polyglot, LANG_RAKU dispatch
-      in execute_program; smoke non-regressing)
+Session 2026-04-14 (continued): RK-5, RK-6, RK-7 DONE. GOAL COMPLETE.
+
+RK-5: Raku fence tag added to parse_scrip_polyglot; LANG_RAKU compile
+      dispatch added; all other dispatch paths confirmed already present.
+      make scrip clean.
+RK-6: polyglot_init already handled LANG_RAKU via icn_proc_table sharing
+      from RK-4. Confirmed. No new code needed.
+RK-7: test/raku_gather.scrip + test/raku_gather.ref written and checked in.
+      test_smoke_unified_broker.sh extended with Raku section (3 inline +
+      1 polyglot file test). PASS=17 FAIL=0 (was 13).
+HEAD: f2da733d (one4all)
+All steps complete: RK-1 through RK-7. Done when clause satisfied.
