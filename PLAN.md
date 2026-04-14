@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | FI-6 next (extract interp loop → src/driver/interp.c) | ☐ |
+| Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | FI-7 next (extract polyglot layer → src/driver/polyglot.c) | ☐ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
 | One Eval | `GOAL-ONE-EVAL.md` | one4all | DONE | ☑ |
 | Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-16 next (for @arr -> $x real array); RK-15 done: hashes %h<key>/%h{$k}, PASS=12, smoke PASS=30 | ☐ |
