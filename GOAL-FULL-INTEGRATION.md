@@ -281,7 +281,10 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 8da00ffb)
+## Current state (updated 2026-04-14, one4all HEAD 7b158fd6)
 
-FI-0A and FI-0B done. Gate baseline: PASS=31 FAIL=0.
-Next: FI-1A — write rebus_compile() wrapper in rebus_lower.c.
+FI-0A, FI-0B, FI-1A, FI-1B done. Gate: PASS=31 FAIL=0.
+Rebus lower partial fixes committed (RETURN→goto, RS_ASSIGN→has_eq).
+While-loop condition bug in rebus_lower deferred — Rebus correctness
+work moved to later in the execution order per Lon (2026-04-14).
+Next: FI-2 — eliminate IcnNode/icon_ast.c from Icon frontend.
