@@ -31,6 +31,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-18 (sm_lower polyglot: LANG_ICN/LANG_PL nodes) | ☐ |
+| Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | SR-1 (rename install_everything_full_stack) | ☐ |
 | Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | DONE | ☑ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (procedure/DEFINE lowering) | ☐ |
