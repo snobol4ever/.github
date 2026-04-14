@@ -9,6 +9,25 @@
 
 ---
 
+## Never build SPITBOL or libspitbol.a during a goal session
+
+⛔ Do **not** run `build_spitbol_oracle.sh`, `build_spitbol_archive.sh`, or any
+step that compiles SPITBOL or produces `libspitbol.a` unless the active goal
+explicitly requires it (e.g. GOAL-INPROC-MONITOR).
+
+The pre-built `sbl` binary at `/home/claude/x64/bin/sbl` is sufficient for all
+oracle use. Building SPITBOL from source takes time, is fragile (ASM/header
+generation issues in the sandbox), and is never needed for frontend ladder goals
+(GOAL-LANG-RAKU, GOAL-LANG-ICON, etc.) which use `--ir-run` only.
+
+Session setup for frontend ladder goals is just:
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+```
+
+---
+
 ## Never touch DATATYPE case behavior
 
 ⛔ Do **not** modify DATATYPE return case in any runtime. This is intentional per architecture:

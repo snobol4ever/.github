@@ -17,7 +17,6 @@ Share fixes via main — no branches.
 ```bash
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 ```
 
 Gate after setup:
