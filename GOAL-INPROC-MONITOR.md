@@ -252,7 +252,7 @@ full variable state, label path, and last_ok. Beauty failures that only manifest
 as output divergence from SPITBOL are caught at the exact statement they first
 split — no TRACE, no IPC, no &STCOUNT gymnastics.
 
-- [ ] **IM-13** — Build SPITBOL as a linkable archive.
+- [x] **IM-13** — Build SPITBOL as a linkable archive.
   Add `scripts/build_spitbol_archive.sh`:
   ```bash
   # Compiles osint/*.c with -DENGINE=1 -Dmain=spitbol_main -fPIC
@@ -262,7 +262,7 @@ split — no TRACE, no IPC, no &STCOUNT gymnastics.
   Gate: `libspitbol.a` produced; `nm libspitbol.a | grep spitbol_main` shows symbol.
   No changes to x64 source — all flags passed via compiler command line.
 
-- [ ] **IM-14** — Replace `zyspl()` with sync hook shim.
+- [x] **IM-14** — Replace `zyspl()` with sync hook shim.
   Add `src/driver/spitbol_shim.c` to one4all:
   ```c
   /* spitbol_shim.c — replaces osint/syspl.c when linking SPITBOL in-process.
@@ -286,7 +286,7 @@ split — no TRACE, no IPC, no &STCOUNT gymnastics.
   Gate: compiles cleanly against x64/osint headers; `nm` shows `zyspl` and
   `spl_nv_snapshot`.
 
-- [ ] **IM-15** — Wire SPITBOL executor into `sync_monitor_run()`.
+- [x] **IM-15** *(infrastructure complete; gate blocked — see note below)* — Wire SPITBOL executor into `sync_monitor_run()`.
   Add `spitbol_run_steps(const char *sno_src, int n, ExecSnapshot *out)`:
   - Writes `sno_src` to a `tmpfile`
   - Sets `g_spl_step_hook` to a counter that longjmps at step n
@@ -359,7 +359,30 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 3e9595f4)
+## Current state (2026-04-14, one4all HEAD 92ea99cd)
+
+IM-13 DONE: build_spitbol_archive.sh produces x64/libspitbol.a (520KB).
+  - int.asm assembled separately (register globals); sysej.o excluded from archive.
+  - Gate: nm libspitbol.a | grep spitbol_main → PASS.
+
+IM-14 DONE: spitbol_shim.c — zyspl() hook, zysej() longjmp override,
+  close_all() stub, spl_nv_snapshot() (walks hshtb..state vrblk hash table),
+  spitbol_run_steps(path, N, &pairs, &count).
+  Gate: compiles cleanly vs x64/osint headers; nm shows zyspl + spl_nv_snapshot → PASS.
+
+IM-15 INFRASTRUCTURE DONE — gate blocked by spitbol_main assembly stack:
+  - sync_monitor_run() gains sno_path param + SPL comparison leg.
+  - sync_monitor.h: SplNvPair typedef + prototypes.
+  - Makefile: SPL_CC/SPL_A vars; spitbol_shim.o linked before libspitbol.a.
+  - scrip.c: passes input_path to sync_monitor_run().
+  - Smoke gate: PASS=31 FAIL=0 (IR/SM/JIT unaffected).
+  BLOCKED: spitbol_main() calls assembly start() which sets its own stack base.
+  longjmp out of that frame → segfault. spitbol_run_steps() must be refactored
+  to fork+exec + pipe instead of calling spitbol_main() in-process.
+
+IM-15 next session: replace spitbol_main() call with fork()+exec("sbl") +
+  stdout pipe to capture NV snapshot (or use sbl -dump output). All shim/
+  snapshot/Makefile infrastructure stays; only spitbol_run_steps() changes.
 
 IM-1 through IM-12 complete. Phase 5 (all-language support) done.
 IM-13 through IM-16 open: SPITBOL in-process executor (Phase 6).
