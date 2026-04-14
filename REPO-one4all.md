@@ -23,14 +23,14 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude
 
 | Goal type | Scripts to run |
 |-----------|---------------|
-| x86 / ASM | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` |
-| JVM | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` `build_java.sh` |
-| .NET / NET | `build_packages.sh` `build_scrip.sh` `build_spitbol.sh` `build_csnobol4.sh` |
-| Monitor / Silly | `build_packages.sh` `build_csnobol4.sh` `build_spitbol.sh` `build_monitor_ipc.sh` |
-| Full environment | `bash /home/claude/one4all/build/build_setup.sh` |
-| After editing .y/.l | `bash /home/claude/one4all/build/build_regenerate.sh` then `make scrip` |
+| x86 / ASM | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` |
+| JVM | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` `install_java_and_jasmin.sh` |
+| .NET / NET | `install_system_packages.sh` `build_scrip.sh` `build_spitbol_oracle.sh` `build_csnobol4_oracle.sh` |
+| Monitor / Silly | `install_system_packages.sh` `build_csnobol4_oracle.sh` `build_spitbol_oracle.sh` `build_monitor_ipc_shared_library.sh` |
+| Full environment | `bash /home/claude/one4all/scripts/build_full_session_environment.sh` |
+| After editing .y/.l | `bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh` then `make scrip` |
 
-All scripts are in `/home/claude/one4all/build/`. Each is idempotent.
+All scripts are in `/home/claude/one4all/scripts/`. Each is idempotent.
 
 
 ---
@@ -78,12 +78,12 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 ## Oracle
 
 **Primary oracle** — SPITBOL x64: `/home/claude/x64/bin/sbl`
-Build: `bash /home/claude/one4all/build/build_spitbol.sh`
+Build: `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
 Derive .ref: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
 **Second oracle** — CSNOBOL4: `/home/claude/csnobol4/snobol4`
-Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY-*).
 
 ---

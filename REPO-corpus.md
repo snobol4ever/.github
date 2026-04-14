@@ -16,8 +16,8 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4
 
 **Build:** none — corpus is data only.
 ```bash
-bash /home/claude/one4all/build/build_spitbol.sh    # to regenerate .ref files
-bash /home/claude/one4all/build/build_csnobol4.sh   # if crosschecking CSNOBOL4
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # to regenerate .ref files
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # if crosschecking CSNOBOL4
 ```
 
 ## Layout

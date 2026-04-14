@@ -83,7 +83,7 @@ Handoff checklist:
 /home/claude/x64/bin/sbl          # binary
 /home/claude/x64/                 # repo (snobol4ever/x64)
 ```
-Build: `bash /home/claude/one4all/build/build_spitbol.sh`
+Build: `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
 
 Derive .ref output: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
@@ -95,7 +95,7 @@ SPITBOL is the **primary oracle for all goals and all testing** across the proje
 /home/claude/csnobol4/snobol4     # binary
 /home/claude/csnobol4/            # repo (snobol4ever/csnobol4)
 ```
-Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 
 CSNOBOL4 is a **second oracle** — used alongside SPITBOL in the sync-step monitor harness
 and for any goal where CSNOBOL4 compatibility is explicitly required.
@@ -164,7 +164,7 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ## No ad-hoc builds — use checked-in build scripts in one4all/build
 
-⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in script in `one4all/build/`. Script names must be prefixed `build_`. If no script exists, write one, check it into `one4all/build/`, then run it.
+⛔ Do **not** build anything by typing ad-hoc shell commands. Every build must be driven by a checked-in script in `one4all/scripts/`. Scripts use snake_case prefixes: `install_`, `build_`, `regenerate_`, `test_`, `run_`, `util_`. If no script exists, write one, check it into `one4all/scripts/`, then run it.
 
 ---
 
@@ -175,7 +175,7 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 `bison` and `flex` are installed by `build_packages.sh` and are available in every session.
 
 **When you edit a `.y` or `.l` file:**
-1. Run `bash build/build_regenerate.sh` — regenerates `.tab.c`, `.tab.h`, `.lex.c`.
+1. Run `bash scripts/regenerate_parser_and_lexer_from_sources.sh` — regenerates `.tab.c`, `.tab.h`, `.lex.c`.
 2. Commit the `.y`/`.l` source AND the updated generated files together in one commit.
 3. Never edit `.tab.c` or `.lex.c` directly for grammar/lexer logic — edit the `.y`/`.l` source.
    Exception: epilogue functions hand-written directly in `.tab.c` (e.g. `sno_parse_string`)

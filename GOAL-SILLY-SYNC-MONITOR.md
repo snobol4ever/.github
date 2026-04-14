@@ -65,7 +65,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 
 ## Rules
 
-- Build CSNOBOL4: `bash /home/claude/one4all/build/build_csnobol4.sh`. See REPO-csnobol4.md.
+- Build CSNOBOL4: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`. See REPO-csnobol4.md.
 - Test gate passes before every commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.

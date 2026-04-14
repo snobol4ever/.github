@@ -39,9 +39,9 @@ git log --oneline -3
 
 **Build:**
 ```bash
-bash /home/claude/one4all/build/build_packages.sh
-bash /home/claude/one4all/build/build_csnobol4.sh   # primary target
-bash /home/claude/one4all/build/build_spitbol.sh    # oracle
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # primary target
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # oracle
 ```
 
 ## Build
@@ -49,7 +49,7 @@ bash /home/claude/one4all/build/build_spitbol.sh    # oracle
 ⛔ **Use only the checked-in build script. No other build method. No exceptions.**
 
 ```bash
-bash /home/claude/one4all/build/build_csnobol4.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 # output: /home/claude/csnobol4/snobol4
 ```
 
