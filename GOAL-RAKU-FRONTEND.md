@@ -64,7 +64,7 @@ regexes, type system, `use` module imports.
 
 ### Phase 2 — Lowering to IR
 
-- [ ] **RK-3** — `src/frontend/raku/raku_lower.c` + `raku_lower.h`.
+- [x] **RK-3** — `src/frontend/raku/raku_lower.c` + `raku_lower.h`.
   `raku_lower_file(RakuNode**, int, int*) → EXPR_t**`.
   Key mappings:
   - `gather { ... }` → `E_ITERATE` wrapping body (mirrors Icon `every`)
@@ -75,7 +75,7 @@ regexes, type system, `use` module imports.
   Gate: lowers `gather { take $_ for 1..3 }` to IR that `icn_eval_gen`
   can drive via BB_PUMP.
 
-- [ ] **RK-4** — `src/frontend/raku/raku_driver.c` + `raku_driver.h`.
+- [x] **RK-4** — `src/frontend/raku/raku_driver.c` + `raku_driver.h`.
   `raku_compile(src, filename) → Program*`.
   Sets `st->lang = LANG_RAKU` on each STMT_t.
   Gate: `scrip --ir-run file.raku` runs a hello-world snippet.
@@ -191,3 +191,28 @@ for RANGE->$var {}, if/else, while loop.
 Fixed pre-existing U-22 bug: DESCR_t.type -> .v in scrip.c.
 HEAD: ecc21def (one4all)
 Next: RK-3 (IR lowering — raku_lower.c), then RK-7 (gather/take BB_PUMP).
+
+Session 2026-04-14 (continued): RK-3 and RK-4 DONE.
+
+RK-3 (raku_lower.c): 28/28 PASS. HEAD 77ef905d
+  - raku_lower.h / raku_lower.c: full AST→IR lowering pass
+  - All key mappings: literals, vars, arithmetic, strcat, comparisons,
+    logic, assignment, say→E_FNC("write"), take→E_SUSPEND,
+    gather→E_ITERATE, for RANGE→E_SEQ_EXPR(init,E_WHILE) [explicit loop],
+    if/while/block/sub/call lowered correctly
+  - E_FNC call layout: children[0]=E_VAR(name), children[1..]=args
+    (matches icn_interp_eval expectation)
+  - raku_lower_file: subs first, top-level stmts in synthetic "main" E_FNC
+    with icon_lower layout (ival=nparams=0, children[0]=name-node)
+
+RK-4 (raku_compile, --ir-run): DONE. HEAD e43b8dcc
+  - raku_compile(src,filename)→Program* added to raku_driver.c/h
+  - scrip.c: .raku files now use raku_compile() → full --ir-run path
+  - LANG_RAKU shares icn_proc_table with LANG_ICN (same E_FNC shape)
+  - polyglot_init, execute loop, post-loop dispatch all handle LANG_RAKU
+  - Gates: hello world, arithmetic, concat, for 1..5 -> $i, if, while
+  - Smoke: PASS=2 FAIL=0; lower gate: 28/28 PASS
+
+Next: RK-5 (LANG_RAKU in scrip_cc.h confirmed=3, .raku extension confirmed,
+      add ```Raku fence tag to parse_scrip_polyglot, LANG_RAKU dispatch
+      in execute_program; smoke non-regressing)
