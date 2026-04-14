@@ -99,7 +99,7 @@ rung12 and beyond are the ladder for this goal.
 - [x] **PL-7** — S-10k/l: `numbervars/3`, `char_type/2`.
   Gate: rung20 5/5, rung21 5/5.
 
-- [ ] **PL-8** — S-10m/n: write variants, bitwise arith ext.
+- [x] **PL-8** — S-10m/n: write variants, bitwise arith ext.
   `write_canonical/1`, `writeq/1`, bitwise ops, `max/min`, `**`, `sign`.
   Gate: rung22 5/5, rung23 5/5.
 
@@ -193,9 +193,9 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-14, one4all HEAD b0a05d07)
+## Current state (2026-04-14, one4all HEAD ee025919)
 
-PL-1 through PL-7 done. --ir-run ladder:
+PL-1 through PL-8 done. --ir-run ladder:
 - rung01–11 14/14 PASS (PL-1)
 - rung12 5/5 PASS atom builtins (PL-4)
 - rung13 5/5 PASS assertz (PL-3)
@@ -207,7 +207,13 @@ PL-1 through PL-7 done. --ir-run ladder:
 - rung19 5/5 PASS format (PL-6)
 - rung20 5/5 PASS numbervars (PL-7)
 - rung21 5/5 PASS char_type (PL-7)
-Next: PL-8 — write_canonical/writeq, bitwise ops, max/min/sign/** (rung22/23).
+- rung22 5/5 PASS write_canonical/writeq (PL-8)
+- rung23 5/5 PASS bitwise/sign/** (PL-8)
+Next: PL-9 — string/IO builtins, term_string/2 (rung24/25).
+
+NOTE: build_scrip.sh skips rebuild when scrip exists. Use
+  touch src/frontend/prolog/<file>.c && make -C src -j4
+after editing .c files.
 
 ---
 
