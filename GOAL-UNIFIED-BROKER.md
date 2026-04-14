@@ -240,3 +240,14 @@ one4all HEAD 49708c39.
 
 regression baseline: csnobol4-suite PASS=38 (was 34, improved);
 Icon rung01-11 PASS=48/59 (non-regressing).
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+```

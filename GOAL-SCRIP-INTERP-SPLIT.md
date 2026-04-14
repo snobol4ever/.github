@@ -101,3 +101,12 @@ Approximately scrip.c lines 98–2635 (as of commit 74cef6a5):
 ## Current state
 
 IS-1 not started. `ir_interp.h` stub exists (created GOAL-UNIFIED-BROKER U-11 session, commit 74cef6a5).
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+```

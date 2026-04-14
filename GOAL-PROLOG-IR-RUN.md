@@ -349,3 +349,13 @@ S-10d findall/3 PARTIAL: 3/5 rung11 PASS (basic, empty, filter pass; arith and t
 Bugs: conjunction goal breaks cont chain; template vars unbound at snapshot time (fa_trail isolation).
 Session pivot requested: next goal is Phase 1B unified interpreter loop.
 one4all HEAD: d2d1affe
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```

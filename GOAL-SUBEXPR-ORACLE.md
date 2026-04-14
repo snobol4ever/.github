@@ -660,3 +660,13 @@ Old: pick a step in GOAL-SCRIP-BEAUTY, guess at the fix.
 New: monitor tells you the FIRST diverging line. Probe tells you the EXACT
 sub-expression. No guessing. Fix is surgical.
 
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```

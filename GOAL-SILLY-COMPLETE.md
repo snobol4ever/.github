@@ -262,3 +262,12 @@ REP      NODE      UDCOM    DEF      UNITS    WARNING
 3. `grep -rn "return FAIL; /\* TODO\|return FAIL; /\* STUB" src/silly/*.c` — empty.
 4. Every `NAME(ret_t retval)` in snobol4.c lines 1–9684 has implementation in src/silly/.
 5. Every `NAME(ret_t retval)` in snobol4.c lines 9685+ has `_fn` in sil_blocks.c.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+```

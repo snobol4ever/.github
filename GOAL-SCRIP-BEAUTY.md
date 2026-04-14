@@ -146,3 +146,13 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
 - See RULES.md for full rules including handoff checklist.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+```

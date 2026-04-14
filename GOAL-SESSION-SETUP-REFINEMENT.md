@@ -44,18 +44,18 @@ to script lists, but:
 
 ## Steps
 
-- [ ] **SR-1** — Rename `scripts/build_full_session_environment.sh` to
+- [x] **SR-1** — Rename `scripts/build_full_session_environment.sh` to
   `scripts/install_everything_full_stack.sh`. Update internal references.
   Update REPO-one4all.md reference. Commit one4all.
   Gate: file renamed, old name gone, docs updated.
 
-- [ ] **SR-2** — Add `## Session Setup` to REPO-one4all.md replacing the
+- [x] **SR-2** — Add `## Session Setup` to REPO-one4all.md replacing the
   generic goal-type table. New format: named categories with literal script
   lists. Each category maps to a family of goals (interp, x86, jvm, net,
   monitor/silly). Canonical — Goal files reference this for the full picture.
   Gate: REPO-one4all.md has clean per-category setup blocks.
 
-- [ ] **SR-3** — Add `## Session Setup` section to each active Goal file.
+- [x] **SR-3** — Add `## Session Setup` section to each active Goal file.
   List only the scripts that goal actually needs. No more.
   Active goals to update (from PLAN.md ☐ column):
 
@@ -79,14 +79,14 @@ to script lists, but:
 
   Gate: every active ☐ goal file has a `## Session Setup` section.
 
-- [ ] **SR-4** — Update RULES.md: add "Session setup" rule.
+- [x] **SR-4** — Update RULES.md: add "Session setup" rule.
   Content: "Session setup is defined in the Goal file's `## Session Setup`
   section. Run exactly those scripts, no more. Do not run
   `install_everything_full_stack.sh` for a specific goal unless the goal
   explicitly lists it."
   Gate: RULES.md rule added and pushed.
 
-- [ ] **SR-5** — Update PLAN.md `## ⛔ SESSION START` section.
+- [x] **SR-5** — Update PLAN.md `## ⛔ SESSION START` section.
   Step 5 currently says "Follow the REPO file `## Session Start` section".
   Clarify: "Run the scripts listed in the Goal file's `## Session Setup`
   section. If the Goal file has no `## Session Setup` yet, fall back to the
@@ -118,5 +118,4 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 
 ## Current state
 
-SR-1 through SR-5: not started.
-Design decisions recorded above. Ready to execute in a fresh session.
+SR-1 through SR-5: DONE. All steps complete this session (2026-04-13).

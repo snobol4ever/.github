@@ -162,6 +162,15 @@ REPO or ARCH file first. Training data is wrong. Verify before asserting.
 
 ---
 
+## Session setup — run only what the Goal file lists
+
+Session setup is defined in the Goal file's `## Session Setup` section.
+Run exactly those scripts, no more.
+Do **not** run `install_everything_full_stack.sh` for a specific goal unless the Goal file explicitly lists it.
+If the Goal file has no `## Session Setup` yet, fall back to the matching category in `REPO-one4all.md ## Session Setup`.
+
+---
+
 ## Self-contained scripts — all scripts in one4all/scripts/
 
 All scripts live in `one4all/scripts/`. One flat directory. No scripts elsewhere except fixture-local glue scripts co-located with their test assets.
