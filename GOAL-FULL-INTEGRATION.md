@@ -159,7 +159,7 @@ src/runtime/interp/
   Create `interp.h`. `scrip.c` #includes `interp.h`.
   Gate: `make scrip` clean; PASS=31 FAIL=0.
 
-- [ ] **FI-7** — Extract polyglot layer to `src/driver/polyglot.c`.
+- [x] **FI-7** — Extract polyglot layer to `src/driver/polyglot.c`.
   Move from scrip.c: `polyglot_init()`, `polyglot_execute()`, `ScripModule`,
   `g_registry`, `parse_scrip_polyglot()`, `g_polyglot`.
   Create `polyglot.h`. After this step scrip.c is main() + arg parse + dispatch only (~400 lines).
@@ -281,10 +281,10 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 64dc0b93)
+## Current state (updated 2026-04-14, one4all HEAD d38e07dc)
 
-FI-0A, FI-0B, FI-1A, FI-1B, FI-2, FI-3, FI-4, FI-5, FI-6 done.
+FI-0A through FI-7 done. Phase 3 complete.
 Smoke: PASS=31 FAIL=0. Raku --ir-run: PASS=12 FAIL=0.
-scrip.c reduced from 4187 → ~300 lines of logic (polyglot_init, polyglot_execute,
-parse_scrip_polyglot, main). interp.c: 2768 lines. interp.h: public interface.
-Next: FI-7 — Extract polyglot layer to src/driver/polyglot.c.
+scrip.c: 478 lines — main() + arg parse + frontend dispatch only.
+interp.c: 2768 lines. polyglot.c: 301 lines. interp.h + polyglot.h: public interfaces.
+Next: FI-8 — Make polyglot_init language-selective (lazy init via lang_mask).
