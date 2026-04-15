@@ -110,7 +110,7 @@ rung12 and beyond are the ladder for this goal.
   `throw/1`, `catch/3`.
   Gate: rung26 5/5, rung27 5/5, rung28 5/5.
 
-- [ ] **PL-11** — S-10t/u: float ops, DCG `-->` expansion, `phrase/2,3`.
+- [x] **PL-11** — S-10t/u: float ops, DCG `-->` expansion, `phrase/2,3`.
   Gate: rung29 5/5, rung30 5/5.
 
 - [ ] **PL-12** — SWI conformance suite run.
@@ -193,9 +193,9 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 900dc815)
+## Current state (2026-04-15, one4all HEAD 65c72f76)
 
-PL-1 through PL-10 fully done. --ir-run ladder:
+PL-1 through PL-11 fully done. --ir-run ladder:
 - rung01–11 14/14 PASS (PL-1)
 - rung12 5/5 PASS atom builtins (PL-4)
 - rung13 5/5 PASS assertz (PL-3)
@@ -213,22 +213,22 @@ PL-1 through PL-10 fully done. --ir-run ladder:
 - rung25 5/5 PASS number_codes/chars/char_code/upcase/downcase (PL-9)
 - rung26 5/5 PASS copy_term/2, atomic_list_concat/2,3, concat_atom/2,
                string_to_atom/2 (PL-10)
-- rung27 5/5 PASS nb_setval/getval, aggregate_all count/sum/max/min (PL-10) ✅ FIXED
+- rung27 5/5 PASS nb_setval/getval, aggregate_all count/sum/max/min (PL-10)
 - rung28 5/5 PASS throw/1, catch/3 including rethrow (PL-10)
-Next: PL-11 — float ops, DCG --> expansion, phrase/2,3 (rung29, rung30).
+- rung29 5/5 PASS float ops: sqrt/sin/cos/exp/log/float_integer_part/
+               float_fractional_part/truncate/round/ceiling/floor/float/gcd,
+               constants pi/e (PL-11)
+- rung30 5/5 PASS DCG --> expansion (parse-time), phrase/2,3 (PL-11)
+Next: PL-12 — SWI conformance suite run.
 
-FIXED BUG — wildcard _ in pl_box_choice_call (PL-10 finish):
-  E_VAR ival==-1 now gets term_new_var(g_wildcard_slot++) with unique positive
-  slot so bind() trails it and trail_unwind() resets it between OR-box retries.
-  Fix in pl_broker.c. Smoke: prolog 5/5, unified_broker 36/1 (cross_lang pre-existing).
+KEY FIX (PL-11): pl_runtime.c pl_unified_eval_arith was integer-only (long).
+  Replaced with pl_unified_eval_arith_term (returns Term*, float-aware).
+  is/2 now unifies Term* directly. Both evaluator paths (pl_runtime.c and
+  prolog_builtin.c) now handle float_fractional_part and gcd.
 
-KEY BUG LEARNED: pl_is_builtin_goal() in pl_broker.c AND is_pl_user_call() in
-pl_runtime.c are PARALLEL lists that must be kept in sync. Adding a builtin to
-only one causes silent failure — the pred table lookup fires first and returns 0.
-
-NOTE: build_scrip.sh skips rebuild when scrip exists. Use
-  touch src/frontend/prolog/pl_broker.c && make -C src -j4
-after editing .c files.
+NOTE: DCG --> expansion was already correct in prolog_parse.c (parse-time).
+  Only phrase/2,3 was missing. phrase dispatches via pred-table lookup with
+  rule-arity+2 args (appending S0, S1). Added to both builtin lists.
 
 ---
 
