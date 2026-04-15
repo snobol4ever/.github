@@ -198,6 +198,34 @@ Register in `icn_eval_gen()` switch.
 | `scripts/test_icon_ir_rung_NN.sh` | Per-rung gates |
 | `corpus/programs/icon/` | Icon corpus |
 
+## JCON reference — goldmine for every BB box
+
+**`corpus/programs/icon/jcon-ref/irgen.icn`** — 1,559-line Icon program from the
+JCON compiler (Proebsting 1996) that generates Byrd Box four-port IR from AST nodes.
+Every `ir_a_Foo` procedure is the **canonical four-port wiring** (α start / β resume /
+ω fail / γ succeed) for one Icon construct. This is the ground truth for every
+`icn_bb_*` box in `icon_gen.c`.
+
+Key procedures and their construct:
+
+| `irgen.icn` procedure | Icon construct | Our box |
+|---|---|---|
+| `ir_a_BinOp` | `+` `-` `*` `/` `%` relops `\|\|` | `icn_bb_binop_gen` |
+| `ir_a_To` | `E1 to E2` | `icn_bb_to` |
+| `ir_a_ToBy` | `E1 to E2 by E3` | `icn_bb_to_by` |
+| `ir_a_Every` | `every E do body` | `icn_bb_every` |
+| `ir_a_Alt` | `E1 \| E2` alternation | `icn_bb_alternate` |
+| `ir_a_Limit` | `E \ N` limitation | `icn_bb_limit` |
+| `ir_a_Suspend` | `suspend E do body` | `icn_bb_suspend` |
+| `ir_a_While` / `ir_a_Until` / `ir_a_Repeat` | loop forms | interp.c loop handling |
+| `ir_a_If` | `if E then T else F` | indirect-goto gate |
+| `ir_a_Scan` | `E ? body` | shared SNOBOL4 scan (no box needed) |
+| `ir_a_Not` | `not E` | oneshot fallback |
+| `ir_a_Call` | procedure/function call | `icn_call_proc` |
+| `ir_a_Augop` | augmented assignment `:=` `+:=` … | `icn_bb_binop_gen` augop path |
+
+Full analysis with wiring diagrams: `.github/archive/MISC-ICON-JCON.md`.
+
 ---
 
 ## Invariants
