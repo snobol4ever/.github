@@ -35,6 +35,28 @@ rm -f beauty_selftest.sno
   - corpus HEAD: 0074bc5
 
 - [ ] **S-2** — Fix root cause: self-host Parse fails on label-only statements.
+  FRETURN PROPAGATION — PARTIAL FIX (snobol4dotnet 80381fb, INCOMPLETE):
+    Confirmed bug: FRETURN from user-defined function does not abort calling statement.
+    Two fix sites identified and partially patched:
+    (A) BuilderEmitMsil.cs: earlyExit label added; after CallFuncBySlot emits
+        Failure check + Brtrue earlyExit; earlyExit marked before FinalizeStatementMsil.
+    (B) ThreadedExecuteLoop.cs: CallFunc/CallFuncIndirect now scan to next Finalize
+        when Failure=true.
+    BLOCKER: When function defined via runtime DEFINE() (not compile-time visible),
+    it is absent from FunctionSlotIndex. MSIL emitter R_PAREN_FUNCTION returns false
+    -> statement falls back to threaded opcodes. But ThreadIsMsilOnly=true for whole
+    program -> fast path runs -> threaded CallFunc fix never fires; MSIL fix also
+    never fires (statement not cached). Test still fails.
+
+  NEXT SESSION — two options to complete the fix:
+    Option 1 (preferred): Fix MsilHelpers.cs CallFuncBySlot() — after entry.Handler()
+      sets Failure=true, pop SystemStack back to StatementSeparator immediately.
+      Fires regardless of MSIL vs threaded path. Then remove threaded scan-forward.
+    Option 2: When R_PAREN_FUNCTION falls back, emit a CallMsil wrapper that calls
+      the runtime function then checks Failure, keeping ThreadIsMsilOnly=true.
+
+  After fix: run /tmp/test_step2.sno ('D after ffail' must NOT print),
+  beauty 17/17, then self-host.
   ROOT CAUSE CONFIRMED (826d4ff): UnevaluatedPattern.Scan creates a child Scanner
   to match *X. ARBNO's backtracking alternates are saved in the child scanner's state,
   then discarded when the child returns its first success. The outer scanner can never
