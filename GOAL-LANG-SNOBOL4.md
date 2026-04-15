@@ -297,15 +297,16 @@ SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
   Also: subscript_set/set2 changed void→int with ARBLK bounds check.
   Broker gate after fix: PASS=36 FAIL=1 (pre-existing Icon gap).
 
-SN-2 BLOCKED: Gen driver — IR/SM missing flushed lines from Gen('str' nl).
+SN-2 BLOCKED: Gen driver — IR/SM/JIT missing flushed lines from Gen('str' nl).
   Root cause isolated: $'$B' BREAK(nl) . outline nl REM . $'$B' :F(NRETURN)
   BREAK(nl) fails when subject is $'$B' (indirect variable) in pattern statement.
-  Bug is NOT: OPSYN of OUTPUT (confirmed skipped). NOT: nl value (correct CHAR(10)).
-  NOT: BREAK with plain variable (works). SPECIFIC to $'name' indirect subject
-  in pattern match statement — exec_stmt called with subj_name="$B", NV_GET_fn
-  may return descriptor where descr_slen gives wrong length for string with \n.
-  Next step: compare descr_slen / Ω value for NV_GET_fn("$B") vs plain variable
-  fetch; add PAT_DEBUG probe or check VARVAL_d_fn path for indirect-named vars.
+  Confirmed NOT caused by io.sno (removed from beauty_Gen_driver.sno — corpus 054ecb1).
+  io.sno analysis: only ReadWrite.sno needs it (3-arg INPUT/OUTPUT calls).
+  Bug is specific to $'name' indirect subject in exec_stmt pattern match:
+  subj_name="$B", NV_GET_fn may return descriptor where descr_slen/Ω wrong.
+  BREAK with plain variable works. BREAK(nl) with plain var works. Only fails
+  when subject is fetched via NV_GET_fn("$B") for a $'name' indirect subject.
+  Next step: add PAT_DEBUG or probe descr_slen(NV_GET_fn("$B")) vs plain var.
 
 Next session: SN-2 — fix BREAK(nl) on $'$B' indirect subject, then cycle Gen driver.
 Broker gate: PASS=36 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
