@@ -89,7 +89,7 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `826d4ff`
+- HEAD: `080e19c`
 - Unit tests: not re-run this session (build clean)
 - Beauty suite: not re-run this session (build clean)
 - Crosscheck: 79/80 (unchanged)
