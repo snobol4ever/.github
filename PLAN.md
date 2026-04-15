@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: 7 failures remain (nested-to, relop filter, proc augop, find_gen, augop_break_repeat, bang_concat); PASS=52/59; HEAD f5b3950b | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-10 next (copy_term/2, nb_setval/nb_getval, throw/1, catch/3; rung26/27/28); PL-2..PL-9 done | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
-| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 in progress: 12/14 PASS (match now passing). Two failures: (1) strings 7-8: user proc named "Trim" collides with &TRIM keyword in NV store — NV_SET writes keyword slot, NV_GET on RETURN reads 0; fix in call_user_function retname save/restore. (2) fence: LEN(1).X\|FENCE alternation fails — IR not yet inspected. | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-4 next (while loop lowering); SC-3 done: 14/14 PASS, KW-RETFIX + E_ALT/E_SEQ fix, HEAD b1e0c7a4 | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |

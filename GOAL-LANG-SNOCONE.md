@@ -81,7 +81,7 @@ Root cause of failures: control-flow lowering missing in snocone_lower.c.
   Gate: test_proc.sc PASS under --ir-run.
   NOTE: Actual fix was break lowering in snocone_cf.c (break_stack). 8→11/14.
 
-- [ ] **SC-3** — Fix `if/else` lowering.
+- [x] **SC-3** — Fix `if/else` lowering.
   `if (cond) { then } else { else }` → E_IF in IR (already in interp_eval).
   Write `test/snocone/test_if.sc`.
   Gate: PASS under --ir-run.
@@ -188,66 +188,33 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 4cd0bd1b)
+## Current state (2026-04-14, one4all HEAD b1e0c7a4)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
-SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS.
-  Fixed: global, arith, ReadWrite (all needed break in while loops).
-  Commit: afe90855
+SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
+SC-3 done: **14/14 PASS** (beauty SKIP expected, no driver.sc). Commit: b1e0c7a4
 
-SC-3 in progress: **12/14 PASS** (match now passing — E_SCAN fix effective).
-  Remaining failures: fence, strings 7-8.
-  trace is now PASS (was listed as failing previously).
+### Two fixes in SC-3:
 
-### Actual baseline as of this session
-  PASS: assign, global, arith, ReadWrite, stack, trace, counter,
-        match, roman, semantic, ShiftReduce, tree  (12/14)
-  FAIL: fence, strings
+**KW-RETFIX (interp.c):** User procedure named same as a SNOBOL4 keyword
+  (e.g. "Trim" / &TRIM) caused NV_SET_fn in body to write keyword slot
+  (integer), then NV_GET_fn on RETURN read back 0.
+  Fix: added retval_cell/retval_set to CallFrame; set_and_trace captures
+  body assignments matching fr->fname into frame cell; all RETURN/NRETURN
+  readback sites use fr->retval_cell when retval_set=1.
+
+**FENCE / E_ALT (snocone_lower.c):** SNOCONE_PIPE (|) was emitting E_CAT
+  instead of E_ALT. In Snocone, | is always pattern alternation; || and &&
+  are concat. Fixed to emit n-ary E_ALT. Also fixed SNOCONE_CONCAT (&&) to
+  emit E_SEQ (matching SNOBOL4 juxtaposition) — lower level handles
+  value-context string concat from E_SEQ correctly.
+
+### Baseline after SC-3
+  PASS: assign, fence, global, arith, ReadWrite, stack, trace, counter,
+        match, roman, semantic, ShiftReduce, tree, strings  (14/14)
   SKIP: beauty (no driver.sc)
 
-### Strings 7-8 — ROOT CAUSE IDENTIFIED (not yet fixed)
-  Symptom: `procedure Trim(s) { Trim = expr; return; }` — body runs
-  correctly (confirmed via debug OUTPUT inside body), assignment executes,
-  but caller receives `0` (integer).
-
-  Root cause: `TRIM` is both a SNOBOL4 builtin function AND a SNOBOL4
-  keyword (`&TRIM`, backed by `kw_trim int64_t` in snobol4.h).
-  When the body executes `Trim = <value>`, `NV_SET_fn("Trim", ...)` 
-  stores into the `&TRIM` keyword slot (integer, default 0) rather than
-  the per-call return-value NV cell. Then `NV_GET_fn(fr->fname)` on
-  RETURN reads back `0` from the keyword slot.
-
-  The collision: user procedure named "Trim" shadows the builtin/keyword
-  "TRIM", but the NV store routes writes to the keyword cell.
-
-  Fix approach: in `call_user_function` in interp.c, save/restore the
-  return-value NV slot using a **mangled key** (e.g. `"Trim\x01"` or
-  a frame-local cell) so it doesn't collide with keyword storage.
-  Alternatively: detect at prescan time if retname clashes with a keyword,
-  and mangle the retname used for save/restore/readback while keeping
-  the body's assignment path through `set_and_trace` working.
-  
-  Simplest fix: in `call_user_function`, after the body runs, read retval
-  from the saved `svals[0]`-slot directly rather than re-fetching via
-  `NV_GET_fn(fr->fname)` — but that's wrong (it reads the pre-call value).
-  Better: use a unique per-frame scratch key for the return slot.
-
-  Confirmed minimal repro:
-    procedure TrimRight(s) { TrimRight = s && 'R'; return; }
-    procedure TrimLeft(s)  { TrimLeft  = s && 'L'; return; }
-    procedure Trim(s)      { Trim = TrimLeft(TrimRight(s)); return; }
-    OUTPUT = '[' && Trim('x') && ']';   // gives [0], expect [xRL]
-  Renaming to Trim2 fixes it immediately.
-
-  Other names to watch: any user procedure whose name matches a SNOBOL4
-  keyword (TRIM, SIZE, etc.) will have the same collision.
-
-### Fence failure — ROOT CAUSE not yet identified
-  Symptom: `if ('ab' ? (LEN(1) . X | FENCE)) { ... }` — fails, 'ab'
-  does not match `LEN(1) . X | FENCE` even though LEN(1) should succeed.
-  Pattern alternation `|` in a paren-expr inside `if (? pat)` may not
-  be lowering correctly to E_ALT. Not yet investigated.
-  Next: print IR for fence/driver.sc to inspect the alternation node.
+### Next: SC-4 — Fix `while` loop lowering
 
 ---
 
