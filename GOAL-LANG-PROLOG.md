@@ -193,9 +193,9 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-14, one4all HEAD defe8621)
+## Current state (2026-04-14, one4all HEAD ca146a8d)
 
-PL-1 through PL-9 done. --ir-run ladder:
+PL-1 through PL-10 done except one sub-item. --ir-run ladder:
 - rung01–11 14/14 PASS (PL-1)
 - rung12 5/5 PASS atom builtins (PL-4)
 - rung13 5/5 PASS assertz (PL-3)
@@ -211,13 +211,34 @@ PL-1 through PL-9 done. --ir-run ladder:
 - rung23 5/5 PASS bitwise/sign/** (PL-8)
 - rung24 5/5 PASS term_string (PL-9)
 - rung25 5/5 PASS number_codes/chars/char_code/upcase/downcase (PL-9)
-Next: PL-10 — copy_term/2, nb_setval/nb_getval, throw/1, catch/3 (rung26/27/28).
+- rung26 5/5 PASS copy_term/2, atomic_list_concat/2,3, concat_atom/2,
+               string_to_atom/2 (PL-10)
+- rung27 4/5 PASS nb_setval/getval, aggregate_all sum/max/min (PL-10)
+  FAIL: aggregate_count — wildcard _ backtrack bug in OR-box (see below)
+- rung28 5/5 PASS throw/1, catch/3 including rethrow (PL-10)
+Next: PL-10 finish — fix wildcard _ in pl_box_choice_call (rung27 5/5), then PL-11.
+
+OPEN BUG — aggregate_all(count, Goal(_), N) returns 1 instead of correct count:
+  Root cause: anonymous _ (var_slot=-1) in pl_unified_term_from_expr returns a
+  fresh TT_VAR that is NEVER trailed. The OR-box in pl_box_choice_call
+  (pl_broker.c ~line 466) unwinds trail between clauses — with nothing trailed
+  for _, it stops after clause 1 and returns ω.
+  Fix: in pl_box_choice_call, when building cargs[] from goal->children[i],
+  replace any E_VAR with ival==-1 (wildcard) with a fresh Term* in a local
+  temp slot that IS in scope for the clause head unification. The OR-box then
+  unwinds properly between clauses.
+  Confirmed: findall(X, fruit(X), L) → [apple,banana,cherry] PASS.
+             findall(_, fruit(_), L) → FAIL (same root bug, pre-existing).
+
+KEY BUG LEARNED: pl_is_builtin_goal() in pl_broker.c AND is_pl_user_call() in
+pl_runtime.c are PARALLEL lists that must be kept in sync. Adding a builtin to
+only one causes silent failure — the pred table lookup fires first and returns 0.
 
 NOTE: build_scrip.sh skips rebuild when scrip exists. Use
-  touch src/frontend/prolog/<file>.c && make -C src -j4
-(or manual compile+relink) after editing .c files.
-Smoke: PASS=24 FAIL=10 — Raku failures pre-exist (raku.lex KW_EXISTS/KW_DELETE
-from RK-17 session; not caused by Prolog work).
+  touch src/runtime/interp/pl_runtime.c && make -C src -j4
+after editing .c files.
+Smoke: PASS=35 FAIL=2 — ICN rung01 compound (pre-existing IC-2b 4cd0bd1b);
+cross_lang.scrip (pre-existing). No regressions from PL-10 work.
 
 ---
 
