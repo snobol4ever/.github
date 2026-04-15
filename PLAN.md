@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-3 IN PROGRESS: shadow table implemented, not yet firing — debug intercept next session; HEAD 31b916ea | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 next: swap, str subscript, lists, initial, records; IC-3/IC-4 DONE; HEAD 4a5f382d | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: multi-file scrip done, plunit.pl shim done, plunit prescan hook done; BLOCKER: Prolog directive stmts don't execute before main/0 in polyglot_execute — fix non-E_CHOICE LANG_PL stmts then wire test_prolog_swi_suite.sh; HEAD 15b06871 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive loop fixed (interp_exec_pl_builtin); assertz/write directives now fire before main/0; SWI .ref files baked (57 suites); NEXT: fix plunit output format to PASS/FAIL suitename, gate >=80%; HEAD d0b2cf69 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-23 next (regex $s ~~ /pattern/); RK-22 done: substr/index/rindex/uc/lc/trim/chars PASS=18, HEAD 08a5ef8a | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
