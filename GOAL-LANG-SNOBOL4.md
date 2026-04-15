@@ -258,11 +258,11 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 ### Phase 4 — Pattern IR typing (GOAL-SNOBOL4-PAT-IR prerequisite)
 
-- [ ] **SN-14** — Pattern primitives as typed EKind nodes (E_ANY, E_SPAN, etc.).
+- [x] **SN-14** — Pattern primitives as typed EKind nodes (E_ANY, E_SPAN, etc.).
   Rewrite parser actions: E_FNC("ANY",...) → E_ANY(...) immediately post-parse.
   Gate: make scrip clean; PASS=31; no strcasecmp(e->sval,"ANY") anywhere.
 
-- [ ] **SN-15** — Verify all three modes still pass after SN-14.
+- [x] **SN-15** — Verify all three modes still pass after SN-14.
   Gate: SN-6, SN-10, SN-13 gates still hold.
 
 ---
@@ -294,12 +294,14 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 ## Current state (2026-04-15, one4all HEAD 099fe2d4)
 
 SN-1 through SN-13 all open. beauty.sno self-host fails.
-Known blockers: EVAL(string), ARBNO null DT_E, DATA field ordering.
+SN-14 and SN-15 DONE: pattern primitives fully wired as typed EKind nodes
+through parser → sm_lower → sm_interp → sm_codegen. No E_FNC fallback for
+pattern names anywhere active. Gate: PASS=35 FAIL=1, PASS=7 FAIL=0.
+Known blockers for SN-1/SN-2: EVAL(string), ARBNO null DT_E, DATA field ordering.
 See GOAL-TWO-STEP-HUNT for detailed bug queue.
 
-Next session: SN-2 — use scrip-monitor + beauty.sno/beauty_omega_driver.sno
-to find first IR vs CSNOBOL4 divergence, then fix root cause in interp.c.
-Use the "--monitor with CSNOBOL4" workflow above.
+Next session: SN-2 — use scrip-monitor + beauty_omega_driver.sno divergence
+cycling loop (see "--monitor with CSNOBOL4" section above).
 Broker gate: PASS=35 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
 
 ---
