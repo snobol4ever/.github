@@ -66,16 +66,11 @@ These are the two blockers. Fix them in order.
   beauty.sc: 0 underflows (was 9). one4all HEAD db91b92c.
 
 - [ ] **SB-4** — Run beauty.sc on a trivial SNOBOL4 input, compare to SPITBOL oracle.
-
-  **IN PROGRESS (2026-04-15):** beauty.sc silently produces no output.
-  Root cause diagnosed: Snocone parser silently fails on something inside
-  `if (DIFFER(ppAutoMode)) {` block (lines 45–97), discarding rest of file.
-  Binary search confirmed: lines 1–44 + sentinel fires; lines 1–45 + sentinel does not.
-  Exact failing construct not yet pinpointed — use bisect script in HANDOFF file.
-  Polyglot invocation (all .sno libs except ReadWrite + beauty.sc) is correct approach.
-  ReadWrite.sno excluded: has unresolved `err` label (sm_lower bug); beauty.sc
-  never calls Read() or Write() directly so exclusion is safe.
-  See HANDOFF-SNOCONE-BEAUTY-SB4.md for exact next steps and bisect script.
+  ```bash
+  echo '        X = 1' | ./scrip --ir-run test/beauty-sc/beauty/beauty.sc
+  /home/claude/x64/bin/sbl -b /home/claude/one4all/test/beauty-sc/beauty/beauty.sno <<< '        X = 1'
+  ```
+  Gate: outputs match. (beauty.sno path TBD — may need corpus clone.)
 
 - [ ] **SB-5** — Self-beautify: feed beauty.sc to itself, compare to SPITBOL oracle
   running beauty.sno on beauty.sc.

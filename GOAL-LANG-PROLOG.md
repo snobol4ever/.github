@@ -193,30 +193,47 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-15, one4all HEAD d0b2cf69)
+## Current state (2026-04-15, one4all HEAD ea80bd8d, corpus HEAD e587489)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS.
 
 PL-12 work done this session:
-- polyglot.c: directive loop added — iterates prog->head stmts before main/0,
-  executes non-E_CHOICE/E_CLAUSE LANG_PL stmts via interp_exec_pl_builtin().
-  Key: must use interp_exec_pl_builtin() NOT interp_eval() — interp_eval()
-  routes through SNOBOL4 dispatch which silently drops Prolog builtins.
-- Verified: :- write(X). and :- assertz(foo(1)). now fire before main/0.
-  assertz persists across directive→main boundary. BLOCKER IS RESOLVED.
-- corpus: 9 SWI test .pl files + swipl-baked .ref files (57 suites) added.
-  .ref normalized to PASS/FAIL suitename per suite.
-- scripts/test_prolog_swi_suite.sh: written, wired to corpus-repo swi_tests/.
-- build_scrip.sh SKIP guard bug: script skips make if scrip binary exists.
-  Workaround this session: run make -j4 directly. NEEDS FIX next session.
+- build_scrip.sh: SKIP-if-exists guard removed (always runs make). DONE.
+- pl_runtime.c: directive no-ops added (dynamic, module, use_module, include,
+  discontiguous, style_check, if/endif, etc.) so SWI test directives don't
+  crash. DONE.
+- pl_runtime.c: user-call dispatch added at top of E_FNC in
+  interp_exec_pl_builtin — routes user predicates via interp_eval before
+  builtin fallthrough. Expanded is_pl_user_call builtins list. DONE.
+- test_prolog_swi_suite.sh: corpus-repo path fixed to corpus; loop uses
+  test_*_main.pl wrappers; passes plunit.pl+testfile+main to scrip. DONE.
+- corpus/plunit.pl: fully rewritten (136 lines). Multi-clause cut-based
+  dispatch; findall-based test collection (no fail-loop); pj_run_* naming.
+  DONE but BLOCKER remains (see below).
+
+BLOCKER: -> (if-then) operator fails silently inside single-clause user
+predicates when called cross-file via interp_eval/BB_ONCE.
+  Symptom: ( SF =:= 0 -> format('PASS ~w~n',[Suite]) ; format('FAIL ...') )
+  inside pj_suite_verdict produces NO output at all.
+  Root cause hypothesis: interp_exec_pl_builtin is called with wrong env
+  pointer when dispatching -> from inside a clause body executed by
+  bb_broker. The -> cond check calls interp_exec_pl_builtin(cond, env)
+  where env is the clause arg array — but =:=/2 or format/2 may be
+  mis-evaluating the args.
+  Minimal repro: foo :- nb_setval(x,0), nb_getval(x,V),
+                        ( V =:= 0 -> writeln(ok) ; writeln(fail) ).
+                 main :- foo.
+  Test this in isolation first.
 
 NEXT SESSION PL-12:
-  1. Fix build_scrip.sh: remove SKIP-if-exists guard (always run make).
-  2. Wire plunit shim output to produce PASS/FAIL suitename lines.
-     corpus plunit.pl run_suite() prints "% PL-Unit: NAME" + per-test
-     detail. Need it to print "PASS NAME" / "FAIL NAME" per suite to match
-     .ref. Add suite-verdict writeln at end of run_suite().
-  3. Run test_prolog_swi_suite.sh and gate >= 80% suites PASS.
+  1. Run minimal repro above to confirm -> bug.
+  2. In interp_exec_pl_builtin, trace the ; -> branch:
+     left->children[0] is V =:= 0, left->children[1] is writeln(ok).
+     Check that pl_unified_term_from_expr(V, env) resolves V correctly
+     when env is the clause's arg array vs NULL.
+  3. Fix: likely need to thread g_pl_env (global) through instead of
+     local env param, or unify env with g_pl_env before calling.
+  4. Once -> fixed: run test_prolog_swi_suite.sh, gate >= 80%.
 
 ---
 

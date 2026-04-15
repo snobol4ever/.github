@@ -32,10 +32,10 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=~208/228; dead engine removed (HEAD 7e81bf6e); next: *var indirect (070,074) — *PAT @cursor seq bug | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 IN PROGRESS: rung15 PASS=5/5; rung16-29 PASS=53 FAIL=24; next: neg subscript fix, initial persistence, !list bang box, table default, records; HEAD 9bcbe7a8 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive loop fixed (interp_exec_pl_builtin); assertz/write directives now fire before main/0; SWI .ref files baked (57 suites); NEXT: fix plunit output format to PASS/FAIL suitename, gate >=80%; HEAD d0b2cf69 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-25 next (do/try/CATCH); RK-24 done: map/grep/sort PASS=20, HEAD 0afab367 | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-3 IN PROGRESS: bare T_IDENT→E_VAR fix + &CASE=1 default; re-run SPITBOL diff next; HEAD 6a68bf35 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 next: swap, str subscript, lists, initial, records; IC-3/IC-4 DONE; HEAD 4a5f382d | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive no-ops+user-call dispatch in pl_runtime.c; plunit.pl rewritten; suite script fixed; BLOCKER: -> operator fails silently cross-file in interp_exec_pl_builtin (env mismatch); HEAD ea80bd8d | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-23 next (regex $s ~~ /pattern/); RK-22 done: substr/index/rindex/uc/lc/trim/chars PASS=18, HEAD 08a5ef8a | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
@@ -55,13 +55,13 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | rung01-11 14/14 PASS, next: S-10e assertz/retract/abolish | ☐ |
 | Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | DONE | ☑ |
-| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | SB-4 IN PROGRESS: polyglot invocation confirmed; beauty.sc silent — Snocone parser silently fails inside if block lines 45-97; bisect script in HANDOFF file; HEAD db91b92c | ☐ |
+| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | SB-4 next (run beauty.sc on trivial input, compare to SPITBOL oracle); SB-1..SB-3 DONE: 0 underflows, HEAD db91b92c | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
 | Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (ROOT CAUSE: bb_box_fn spec_t→DESCR_t mismatch breaks ALL captures in --ir-run; fix spec_from_descr call site in stmt_exec.c Phase 3) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: crash reproduced minimally (letter~'Letter' + Pop() → PatternVar); *P/Graft working; NEXT: test tree('X','Y') partial-arg DATA call, check Shift NRETURN residue; beauty 17/17 | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: FRETURN propagation confirmed bug + partial fix (80381fb INCOMPLETE); blocker: runtime-DEFINE'd fns not in FunctionSlotIndex so MSIL/threaded fixes don't fire; fix MsilHelpers.cs CallFuncBySlot next; beauty 17/17 | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
