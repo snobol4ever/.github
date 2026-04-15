@@ -193,40 +193,30 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 15b06871)
+## Current state (2026-04-15, one4all HEAD d0b2cf69)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS.
 
 PL-12 work done this session:
-- scrip.c: multi-file support (U-MULTIFILE) — loop over all argv files,
-  compile each by extension, merge Program* chains. Enables:
-    scrip --ir-run plunit.pl test_arith.pl entry.pl
-- prolog_lower.c: Pass 0 plunit prescan — tracks begin_tests/end_tests,
-  emits assertz(pj_test(Suite,Name,Opts,Goal)) stmts for each test/1,2 clause
-- corpus/programs/prolog/plunit.pl: full plunit shim
+- polyglot.c: directive loop added — iterates prog->head stmts before main/0,
+  executes non-E_CHOICE/E_CLAUSE LANG_PL stmts via interp_exec_pl_builtin().
+  Key: must use interp_exec_pl_builtin() NOT interp_eval() — interp_eval()
+  routes through SNOBOL4 dispatch which silently drops Prolog builtins.
+- Verified: :- write(X). and :- assertz(foo(1)). now fire before main/0.
+  assertz persists across directive→main boundary. BLOCKER IS RESOLVED.
+- corpus: 9 SWI test .pl files + swipl-baked .ref files (57 suites) added.
+  .ref normalized to PASS/FAIL suitename per suite.
+- scripts/test_prolog_swi_suite.sh: written, wired to corpus-repo swi_tests/.
+- build_scrip.sh SKIP guard bug: script skips make if scrip binary exists.
+  Workaround this session: run make -j4 directly. NEEDS FIX next session.
 
-BLOCKER for PL-12: Prolog directive stmts (assertz, write, etc.) do not
-  execute in the single-lang .pl path. polyglot_execute for LANG_PL only
-  calls interp_eval(main/0) directly — non-E_CHOICE LANG_PL stmts are never
-  run as directives. Fix: in polyglot_execute's LANG_PL branch, iterate
-  prog->head stmts and execute non-E_CHOICE LANG_PL stmts before calling
-  main/0. This will make assertz-in-directives persist and enable plunit.
-
-NEXT SESSION PL-12 FIX (3 lines in polyglot.c):
-  In polyglot_execute, find the `slang == LANG_PL` branch (~line 213):
-    g_pl_active = 1;
-    EXPR_t *main_choice = pl_pred_table_lookup(&g_pl_pred_table, "main/0");
-    if (main_choice) interp_eval(main_choice);
-    else fprintf(stderr, "prolog: no main/0 predicate\n");
-    g_pl_active = 0;
-  Add before interp_eval(main_choice): run all non-E_CHOICE LANG_PL stmts:
-    for (STMT_t *_s = prog->head; _s; _s = _s->next) {
-        if (_s->lang != LANG_PL) continue;
-        if (!_s->subject) continue;
-        if (_s->subject->kind == E_CHOICE || _s->subject->kind == E_CLAUSE) continue;
-        interp_eval(_s->subject);
-    }
-  Then wire test_prolog_swi_suite.sh and run gate >= 80%.
+NEXT SESSION PL-12:
+  1. Fix build_scrip.sh: remove SKIP-if-exists guard (always run make).
+  2. Wire plunit shim output to produce PASS/FAIL suitename lines.
+     corpus plunit.pl run_suite() prints "% PL-Unit: NAME" + per-test
+     detail. Need it to print "PASS NAME" / "FAIL NAME" per suite to match
+     .ref. Add suite-verdict writeln at end of run_suite().
+  3. Run test_prolog_swi_suite.sh and gate >= 80% suites PASS.
 
 ---
 
