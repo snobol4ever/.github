@@ -502,3 +502,37 @@ IC-5 IN PROGRESS: real output + pow + E_TO_BY real done; remaining rung15-29 wor
 
 Rung baseline rung12-29: PASS=35 FAIL=62 before this session → after: rung17/19/26 pow/real fixed.
 Next: IC-5 — swap() builtin, string subscript s[i] and section s[i:j], list builtins (push/pop/put/get), initial block fix, records.
+
+## Current state (2026-04-15 session 10, one4all HEAD 9bcbe7a8)
+
+IC-5 IN PROGRESS: rung15 PASS=5/5. Rung16-29: PASS=53 FAIL=24 (was 31/77, +22).
+Broker: PASS=38 FAIL=0. Rung01-11: 59/59.
+
+Implemented: E_SWAP, E_LCONCAT, E_MAKELIST, E_SECTION, E_INITIAL, E_RECORD;
+subscript_get/get2 DT_S; E_SIZE/E_ITERATE DT_DATA icnlist; 20+ builtins.
+
+Next: neg subscript fix, initial persistence, !list BB box, table default, records, read().
+
+## Current state (2026-04-15 session 11, one4all HEAD da83ab23)
+
+IC-5 IN PROGRESS: rung01-29 PASS=137 FAIL=19 TOTAL=156. Broker PASS=39 FAIL=0.
+
+Fixes this session:
+1. E_RECORD: sc_dat_register(spec) so type enters dispatch table; once-guard ival=1.
+2. E_FIELD read (case E_FIELD in interp_eval) + write (interp_eval_ref case E_FIELD).
+3. E_INITIAL persistence: file-scope icn_init_tab[64] keyed on e->id; snapshot updated
+   by icn_init_update_snapshot() at call_user_function exit before NV restore.
+4. E_ALTERNATE n-ary: left-recursive chain of binary boxes for 3+ children.
+5. !list (E_ITERATE DT_DATA icnlist): icn_bb_list_iterate + icn_list_iterate_state_t.
+6. table default: TBBLK_t.dflt field; table(dflt) wires it; subscript_get miss returns dflt.
+7. neg subscript off-by-one: slen+1+i+1 → slen+i+1.
+8. read()/reads(): fgets/fread from stdin, fail on EOF.
+
+Remaining 19 failures — next session priority:
+  1. rung24 records (5): E_FIELD/E_RECORD landed but point(3,4) still blank — debug
+     whether Icon E_FNC call routes through icn_call_proc (bypasses sc_dat_find_type).
+  2. rung21/25 initial (4): icn_frame_depth=0 in NV path — snapshot restores to NV
+     but Icon frame env slot not updated; check icn_call_proc vs call_user_function routing.
+  3. rung13 alt filter/nested (2): alternation with generator operands.
+  4. rung22 put_bang (1), rung23 key (1), rung16 sub_every (1).
+  5. rung18 relop_goal (1), rung19 pow_real (1), rung28 trim_map (1), rung29 image (1).
