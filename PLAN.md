@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 IR PASS (bb_capture spec_t→DESCR_t fix, HEAD eb145018); next: verify SM/JIT diffs vs SPITBOL for Gen driver, then SN-3 TDump | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-3 next: rung13 tables (table(), key lookup, !T iteration); IC-2 DONE; HEAD 9fe56be3 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-11 next: float ops, DCG --> expansion, phrase/2,3 (rung29, rung30); PL-10 done: rung27 5/5 wildcard _ fix, HEAD 900dc815 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 next: SWI conformance suite run; PL-11 DONE: rung29 5/5 float ops, rung30 5/5 DCG/phrase, HEAD 65c72f76 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-17 next (pattern_suite.sc exhaustive ARB/SPAN/BREAK/ANY/LEN); SC-7..SC-16 done: sm_push_null fix, E_SCAN sm fix, fibonacci/palindrome/wordcount/quicksort, HEAD 995f1294 | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
