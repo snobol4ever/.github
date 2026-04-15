@@ -113,9 +113,14 @@ RK-16 is next per PLAN.md.
   Higher-order functions using E_FNC + BB_PUMP generators.
   Gate: map/grep/sort test PASS.
 
-- [ ] **RK-25** — `do`/`try`/`CATCH` exception handling.
-  Maps to E_CHOICE (try) + E_CUT (on success). Basic throw/catch.
-  Gate: try/catch test PASS.
+- [x] **RK-25** — `try`/`CATCH`/`die` exception handling.
+  Lexer: "try","catch"/"CATCH","die" keywords. Grammar: try block and
+  try block CATCH block as block-level stmts (no semicolon).
+  Interp: g_raku_exception global; raku_die sets it; raku_try fires
+  CATCH only when g_raku_exception non-empty (distinguishes real die
+  from Icon fall-off-end FAILDESCR).
+  Also fixed SN-6 build break: match_pattern_at stub in snobol4_stmt_rt.c.
+  Gate: rk_try_catch25 PASS, rungs PASS=21 FAIL=0, broker PASS=40. HEAD 839ef99e.
 
 - [ ] **RK-26** — `class` / `method` / `new` basic OO.
   Raku OO maps to E_RECORD (class def) + E_FIELD (method call).
@@ -165,10 +170,18 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-22)
+## Current state (2026-04-15, one4all HEAD — post RK-25)
 
-RK-1 through RK-22 done. PASS=18 --ir-run, broker PASS=37.
-RK-23 next: basic regex $s ~~ /pattern/ — maps to E_SCAN + pattern IR nodes (shared with SNOBOL4).
+RK-1 through RK-25 done. PASS=21 --ir-run, broker PASS=40. HEAD 839ef99e.
+RK-26 next: class/method/new basic OO — E_RECORD (class def) + E_FIELD (method call).
+
+Session RK-22..RK-25 summary:
+  RK-22: substr/index/rindex/uc/lc/trim/chars string ops
+  RK-23: $s ~~ /pattern/ regex match (context-sensitive / lexing)
+  RK-24: map/grep/sort list ops (closure rule, $_ frame-slot binding,
+          INTVAL elem coercion, grep truthy=!IS_FAIL)
+  RK-25: try/CATCH/die (g_raku_exception distinguishes die from fall-off-end)
+  Also fixed SN-6 build break: match_pattern_at stub in snobol4_stmt_rt.c
 
 ---
 
