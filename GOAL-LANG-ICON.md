@@ -57,7 +57,7 @@ Rung 12–36 are the ladder for this goal.
 
 - [x] **IC-1** — rung01–11: 59/59 PASS --ir-run. (done, GOAL-ICN-BROKER)
 
-- [ ] **IC-2b** — Complete ALL goal-directed-evaluation ops as BB boxes in `icon_gen.c`
+- [x] **IC-2b** — Complete ALL goal-directed-evaluation ops as BB boxes in `icon_gen.c`
   and wire into `icn_eval_gen()`. No rung work until every GDE op has a box.
   Raku shares `icn_eval_gen`; this unblocks both ladders.
 
@@ -318,7 +318,31 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 4, one4all HEAD 461e3935)
+## Current state (2026-04-15 session 5, one4all HEAD f892c784)
+
+IC-2b DONE. IC-2 (rung01-11) DONE: PASS=59 FAIL=0 TOTAL=59.
+
+Three final root causes fixed this session:
+
+1. **rung01_paper_nested_to**: Added `icn_bb_to_nested` box (icon_gen.c/h).
+   `icn_eval_gen(E_TO)` now detects generative lo/hi children via `icn_is_gen`
+   and routes to cross-product box that pre-collects all lo/hi values.
+
+2. **rung08_strbuiltins_find_gen**: Added explicit `find()` scalar-arg detector
+   in `icn_eval_gen` before generic E_FNC block — builds `icn_bb_find` box directly.
+
+3. **rung02_proc_locals**: Added `icn_find_leaf_gen()` in interp.c.
+   `E_EVERY` with `E_ASSIGN(var, compound+gen)` now drives the leaf generator
+   (e.g. `E_TO`) alone, injects each tick via `icn_drive_node/icn_drive_val`,
+   and re-evaluates the full assignment so frame slot reads are fresh per tick.
+   Universal `icn_drive_node` interception added at top of `interp_eval`.
+   `E_AUGOP` excluded from E_EVERY special-case (has its own icn_is_gen path).
+
+Gates: test_smoke_icon PASS=5, test_icon_ir_all_rungs PASS=59 FAIL=0,
+test_smoke_unified_broker PASS=36 FAIL=1 (cross_lang pre-existing).
+
+Next: IC-2 — rung12 string relational ops (`<<`, `>>`, `<=`, `>=`, `==`, `~=`), `*s`.
+
 
 IC-2 in progress: PASS=56 FAIL=3 TOTAL=59 (+4 this session, 2026-04-15 session 4).
 
