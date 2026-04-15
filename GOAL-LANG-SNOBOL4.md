@@ -432,25 +432,29 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD 6a68bf35)
+## Current state (2026-04-15, one4all HEAD f5a11217)
 
-SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE (HEAD 738a266e).
+SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
+SN-6 IN PROGRESS: PASS=~208/228.
+Dead engine removal DONE (HEAD 7e81bf6e).
+Orphaned bb_deferred_var duplicate removed from bb_boxes.c (HEAD f5a11217).
+Broker gate: PASS=40 FAIL=0. Smoke PASS=7 FAIL=0.
+BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS.
 
-SN-3 IN PROGRESS — two fixes landed this session (HEAD 6a68bf35):
+### 070/074 — *var inside ARBNO (IN PROGRESS, NOT FIXED)
 
-Fix 1 — snobol4.y bare T_IDENT always emits E_VAR:
-  pat_prim_kind() was applied to every bare identifier, so 'len','any','span',
-  'pos','rem','tab','arb','fail' etc. became typed pattern IR nodes instead of
-  variable references. GT(len,0) in TLump(x,len) was read as GT(LEN(),0) →
-  "Illegal data type" → FRETURN. Root cause of all TDump driver FAILs.
-  Pattern keyword dispatch only applies to function-call form (already correct).
+Root cause NOT yet found. What is known:
+- `*DIGIT` alone works. `ARBNO(ANY(...))` with inline pattern works.
+- `ARBNO(*DIGIT)` fails — bb_arbno receives br.δ=0 from child even though
+  bb_any should return δ=1 and advance Δ.
+- bb_boxes.c had an orphaned non-static bb_deferred_var (dvar_t, no callcap
+  save/restore) — removed. stmt_exec.c static version is sole correct impl,
+  always used by bb_build XDSAR via C static linkage.
+- Binary path NOT active for --ir-run (g_bb_mode != BB_MODE_LIVE).
+- Next probe: sizeof(DESCR_t) in bb_boxes.c vs stmt_exec.c TUs — suspect
+  DESCR_t ABI mismatch causing spec_from_descr in bb_arbno to misread v field.
 
-Fix 2 — polyglot.c kw_case=1 in polyglot_init() SNO block:
-  scrip defaulted &CASE=0 (fold); SPITBOL oracle defaults &CASE=1 (sensitive).
-  Added extern int64_t kw_case + kw_case=1 in polyglot_init().
-
-Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
-Stmt 152 IR vs SM/JIT divergence (i: IR=1, SM=2/JIT=2) still present.
-
-Next session: re-run SN-3 Step 2 SPITBOL diff for beauty_TDump_driver.sno.
-If output diff empty → investigate stmt 152 SM/JIT → mark SN-3 done → SN-4.
+Remaining SN-6 failures after 070/074:
+  ARRAY/TABLE: 1112,1113,1114,1115,1116,212
+  Beauty: XDump, trace, tree drivers
+  Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
