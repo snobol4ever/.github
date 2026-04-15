@@ -45,6 +45,16 @@ rm -f beauty_selftest.sno
     'AB' POS(0) *Parse RPOS(0) FAILS when Parse = nPush() ARBNO(LEN(1))
     'AB' POS(0)  Parse RPOS(0) PASSES (direct, no * indirection)
 
+  SIDE WORK THIS SESSION (snobol4dotnet d4e523f, corpus 4c044d2):
+    - FENCE(p) sealing bug fixed: new SealPattern + ScannerState.SealAlternates() (-2 sentinel)
+    - Structure now: AlternatePattern(ConcatenatePattern(p, SealPattern()), AbortPattern())
+    - 7 new corpus tests added: crosscheck/patterns/068-074 (*var and FENCE coverage)
+    - 061_pat_fence_fn_seal now PASSES; all 12 FENCE corpus tests pass (058-069)
+    - Fixed pre-existing wrong assertions in TEST_Fence_064/065
+    - Pre-existing failures unchanged: 14 TEST_Csnobol4_* unit tests, 099_keyword_rw
+    - ALSO FOUND: ARBNO(*fn()) crashes Stack empty in ConditionalVariableAssociationPattern
+      (separate bug, same Graft fix needed)
+
   FIX APPROACH - Graft (826d4ff, INCOMPLETE):
     UnevaluatedPattern.Scan evaluates *X, grafts the result's nodes into the
     RUNNING scanner's AST (remapped indices, dangling Subsequent=-1 wired to the
