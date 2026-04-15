@@ -318,40 +318,36 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-14 session 3, one4all HEAD f5b3950b)
+## Current state (2026-04-15 session 4, one4all HEAD 461e3935)
 
-IC-2 in progress: PASS=52 FAIL=7 TOTAL=59 (+8 this session).
+IC-2 in progress: PASS=56 FAIL=3 TOTAL=59 (+4 this session, 2026-04-15 session 4).
 
-Two root causes fixed:
+Three root causes fixed:
 
-1. **icn_bb_suspend yield bug** (icon_gen.c + icon_gen.h): Plain-return procs
-   set `exhausted=1` before swapping back, so `icn_bb_suspend` returned
-   FAILDESCR instead of the return value on first resume. Added
-   `yielded_returned` flag: deliver `z->yielded` once even when exhausted,
-   then FAILDESCR on next call. Fixes: rung02_proc_add_proc, rung02_proc_fact.
+1. **icn_is_gen exported** (icn_runtime.c/h): made non-static so interp.c can use it.
 
-2. **icn_is_gen recursive helper** (icn_runtime.c): `icn_bb_fnc_gen` and
-   binop-gen dispatch used a flat list of generator EKinds that missed
-   compound generator expressions like `(1 to 3) * (1 to 2)` (E_MUL whose
-   children are E_TO nodes). Added `icn_is_gen()` recursive subtree walker.
-   Both binop-gen and builtin-arg-gen dispatch now use it.
-   Fixes: rung01_paper_compound, _lt, _mult, _paper_expr,
-          rung02_arith_gen_nested_add, _paper_mul, _range.
+2. **E_AUGOP per-tick accumulation** (interp.c): was collecting last RHS generator value;
+   now re-reads LHS and applies op for each RHS tick.
+   Fixed: rung10_augop_break_repeat, rung11_bang_augconcat_bang_concat.
 
-Broker gate: PASS=32 FAIL=2 (pre-existing, no regressions).
+3. **icn_lazy_box for E_VAR/literals** (icn_runtime.c): icn_eval_gen(E_VAR) now returns a
+   lazy box that re-evaluates interp_eval(e) on every alpha pump instead of capturing once.
+   Fixed: rung02_arith_gen_relfilter, rung02_arith_gen_nested_filter.
 
-Remaining 7 failures for next session:
-- **rung01_paper_nested_to**: `(1 to 2) to (3 to 4)` — lo/hi are themselves
-  generators; `icn_bb_to` evals lo/hi eagerly. Need `icn_bb_to_nested` or
-  lazy eval of lo/hi through their own boxes.
-- **rung02_arith_gen_nested_filter**: relop filter on nested generator expr
-- **rung02_arith_gen_relfilter**: `5 > (1 to 3)` — relop with scalar left,
-  gen right. `icn_is_gen` should now detect this; may be augop path issue.
-- **rung02_proc_locals**: `every total +:= (1 to n)` inside proc — augop
-  with generative RHS not going through icn_eval_gen path.
-- **rung08_strbuiltins_find_gen**: `find()` only returns first result.
-- **rung10_augop_break_repeat**: augop accumulation in repeat/break (gets 5, wants 15).
-- **rung11_bang_augconcat_bang_concat**: bang+augconcat ordering (gets y|, wants xy|).
+Broker gate: PASS=36 FAIL=1 (cross_lang pre-existing — no regression).
+
+Remaining 3 failures for next session:
+- **rung01_paper_nested_to**: `(1 to 2) to (2 to 3)` — icn_eval_gen(E_TO) evals lo/hi
+  eagerly via interp_eval; need to detect icn_is_gen(child[0])||icn_is_gen(child[1])
+  and build a cross-product box (iterate lo_gen x hi_gen, inner lo..hi each pair).
+- **rung02_proc_locals**: `every total := total + (1 to n)` inside a proc — E_ASSIGN
+  wrapping E_ADD(E_VAR(total), E_TO(1,n)); lazy box may not propagate through E_ADD
+  into binop_gen left child when called from within icn_call_proc frame.
+  Debug: add fprintf to /tmp/dbg.txt to trace icn_lazy_box alpha calls and left_val.
+- **rung08_strbuiltins_find_gen**: `every write(find("a","banana"))` — find() builtin
+  with scalar args hits oneshot fallback; needs dedicated generator path in icn_eval_gen
+  (mirror the icn_drive find-generator: strstr loop, successive 1-based positions).
+  Add before generic E_FNC builtin path in icn_eval_gen.
 
 IC-2b DONE. E_SCAN_AUGOP removed (dead IR node — never emitted, never handled).
 Suspend coroutine fix PARTIAL:
