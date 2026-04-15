@@ -247,7 +247,7 @@ a 4th in-process executor driven by the same step loop. Zero IPC, zero file I/O.
 in-process. First divergence between any of the four is caught immediately with
 full variable state, label path, and last_ok.
 
-- [ ] **IM-15b** — Add per-statement hook to CSNOBOL4 `snobol4.c` + build archive.
+- [x] **IM-15b** — Add per-statement hook to CSNOBOL4 `snobol4.c` + build archive.
   In CSNOBOL4's main statement dispatch loop, insert:
   ```c
   if (g_csn_step_hook)
@@ -332,15 +332,22 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 27bd07c6)
+## Current state (2026-04-14, one4all HEAD 9d85dcdc)
 
-IM-1 through IM-12 complete. Phases 1–5 done.
+IM-1 through IM-15b complete. Phases 1–6 (partial) done.
 
-Phase 6 design: CSNOBOL4 pure-C in-process 4th executor.
-Previous approach (SPITBOL) abandoned: spitbol_main() calls assembly start()
-which sets its own stack base; longjmp out of that frame → segfault. Pure-C
-CSNOBOL4 has no such hazard.
+IM-15b COMPLETE:
+- csnobol4/isnobol4.c patched: per-stmt hook in INIT() after D_A(EXNOCL)++
+- scripts/build_csnobol4_archive.sh: builds csnobol4/libcsnobol4.a (731K, -fPIC -Dmain=csnobol4_main)
+- src/driver/csnobol4_shim.c: real impl — hook globals, csnobol4_run_steps(),
+  csn_nv_snapshot() walking OBSTRT/LNKFLD hash, csn_descr_to_str() S/I/R/null
+- src/driver/sync_monitor.c: WITH_CSNOBOL4 branch has CsnNvPair typedef + decls
+- Makefile: scrip-monitor target builds and links cleanly
+- Gate PASS: ./scrip-monitor --monitor 023_arith_add.sno exits 0 (all 4 agree)
 
-Smoke gate: PASS=31 FAIL=0 (IR/SM/JIT unaffected).
+**Next: IM-16** — Beauty smoke via --monitor.
+Add scripts/test_monitor_beauty_smoke.sh: runs --monitor on first 10 failing
+beauty programs, prints first diverging statement between one4all and CSNOBOL4.
+Gate: script exits 0 (diagnostic tool, not pass/fail).
 
-**Next: IM-15b** — add per-stmt hook to CSNOBOL4 snobol4.c + build_csnobol4_archive.sh.
+Smoke gate: PASS=35 FAIL=1 (cross_lang.scrip = pre-existing Icon gap).
