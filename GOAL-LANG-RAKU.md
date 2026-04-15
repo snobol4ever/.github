@@ -66,9 +66,18 @@ RK-16 is next per PLAN.md.
   exists %h<k> / delete %h<k> grammar rules. hash_pairs and hash_delete in
   interp.c. Gate: rk_hash17 PASS, test_raku_ir_rungs PASS=14 FAIL=0.
 
-- [ ] **RK-18** — `given/when` (Raku switch).
-  Maps to E_CASE → BB_PUMP chain.
-  Gate: given/when test PASS.
+- [x] **RK-18** — Byrd box wiring + `given/when` smartmatch proper.
+  **Root cause:** icn_drive() hand-rolls E_TO/E_TO_BY/E_ITERATE inline in C,
+  bypassing the bb_broker/BB_PUMP Byrd box machinery that already exists in
+  icon_gen.c. All generators must flow through bb_broker(BB_PUMP) to support
+  --sm-run, --jit-run, and goal-directed backtracking.
+  Sub-steps:
+  - [x] RK-18a: icn_drive E_TO  → bb_broker(icn_bb_to, BB_PUMP, body_cb, &ctx)
+  - [x] RK-18b: icn_drive E_TO_BY → bb_broker(icn_bb_to_by, BB_PUMP, body_cb, &ctx)
+  - [x] RK-18c: icn_drive E_ITERATE → bb_broker(icn_bb_iterate, BB_PUMP, body_cb, &ctx)
+  - [x] RK-18d: add icn_bb_smartmatch Byrd box in icon_gen.c; given/when uses it
+  - [x] RK-18e: gate: smoke PASS=5, rungs PASS=14+, broker PASS=31
+  Gate: all gates green after Byrd box refactor.
 
 - [ ] **RK-19** — Typed variables: `my Int $x`, `my Str $s`.
   Type annotations parsed and stored in E_VART; runtime ignores type
@@ -151,7 +160,8 @@ RK-16 is next per PLAN.md.
 ## Current state (2026-04-14, one4all HEAD — post RK-17)
 
 RK-1 through RK-17 done. PASS=14 --ir-run.
-RK-18 next: `given/when` (Raku switch) — maps to E_CASE → BB_PUMP chain.
+RK-18 DONE (commit 896c5d85). PASS=15 FAIL=0 —ir-run, broker PASS=33.
+RK-19 next: typed variables my Int $x / my Str $s — parse clean, runtime ignores type.
 
 ---
 
