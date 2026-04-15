@@ -168,50 +168,90 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-15, one4all HEAD 099fe2d4)
 
 SN-1 through SN-13 all open. beauty.sno self-host fails.
 Known blockers: EVAL(string), ARBNO null DT_E, DATA field ordering.
 See GOAL-TWO-STEP-HUNT for detailed bug queue.
-Next: SN-2 — fix EVAL(string) in interp.c via two-step monitor.
+
+Next session: SN-2 — use scrip-monitor + beauty.sno/beauty_omega_driver.sno
+to find first IR vs CSNOBOL4 divergence, then fix root cause in interp.c.
+Use the "--monitor with CSNOBOL4" workflow above.
+Broker gate: PASS=35 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
 
 ---
 
-## --monitor: in-process sync comparator (IM-7/IM-8 complete)
+## --monitor with CSNOBOL4: beauty.sno divergence hunting (IM-16 technique)
 
-`--monitor` runs IR, SM, and JIT step-by-step over the same program,
-snapshot/restoring all mutable state between runs, and reports the first
-statement where any two executors diverge.
+`scrip-monitor` (built with `make scrip-monitor CSN_A=...`) adds CSNOBOL4 as a
+4th in-process executor. At the final statement it compares one4all IR/SM/JIT NV
+state against CSNOBOL4's NV state and reports any variable that differs.
 
+**Build scrip-monitor (once per session):**
 ```bash
-./scrip --monitor file.sno    # SNOBOL4
-./scrip --monitor file.icn    # Icon
-./scrip --monitor file.pl     # Prolog
-./scrip --monitor file.raku   # Raku
-./scrip --monitor file.snc    # Snocone
-./scrip --monitor file.reb    # Rebus
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 ```
 
-**On agreement:** prints per-stmt progress, exits 0.
-**On divergence:** exits 1 and prints:
-```
-DIVERGE at stmt N [label: LABEL, line LL]
-  IR   last_ok=?
-  SM   last_ok=1
-  JIT  last_ok=1
-  IR vs SM (N var(s) differ):
-    VARNAME    IR=<value>    SM=<value>
+**Run on a single beauty subsystem file:**
+```bash
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+/home/claude/one4all/scrip-monitor --monitor $BEAUTY/beauty_omega_driver.sno
 ```
 
-**Workflow for finding bugs:**
-1. Run `./scrip --monitor suspect.sno` to find the first diverging statement.
-2. The statement number + variable name pinpoint the root cause.
-3. Fix in the appropriate layer (interp.c for IR bugs, sm_interp.c or
-   sm_codegen.c for SM/JIT bugs).
-4. Re-run `--monitor` to confirm divergence is gone.
-5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
+**What the output means:**
+- `IR=SM=JIT agree` per-stmt → all three one4all executors match (good)
+- `DIVERGE at stmt N` → one4all executors diverge from each other at stmt N
+- `IR vs CSN (N var(s) differ)` → one4all IR final state differs from CSNOBOL4 at
+  program end; lists each variable with IR value and CSN value side by side
 
-**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
-(it drives all three internally). ICN frame locals (IM-10) and Prolog trail
-variables (IM-11) are not yet in the snapshot — coming in future IM steps.
+**Workflow for beauty.sno divergences:**
+
+1. Run the beauty smoke script to see which programs diverge:
+   ```bash
+   bash /home/claude/one4all/scripts/test_monitor_beauty_smoke.sh
+   ```
+
+2. For any DIVERGE, run `--monitor` directly on that file:
+   ```bash
+   /home/claude/one4all/scrip-monitor --monitor <file.sno> 2>&1 | grep -A5 "DIVERGE"
+   ```
+   The output names the exact statement number, label, line, and differing variables.
+
+3. For beauty.sno with `SNO_LIB` includes, the driver file is the entry point:
+   ```bash
+   # beauty_omega_driver.sno INCLUDEs the subsystem files via SNO_LIB
+   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+       $BEAUTY/beauty_omega_driver.sno 2>&1 | grep -A 10 "DIVERGE"
+   ```
+
+4. Cross-check diverging variable against SPITBOL oracle:
+   ```bash
+   SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_omega_driver.sno \
+       > /tmp/spitbol.out 2>/dev/null
+   ```
+   The CSNOBOL4 value in the `IR vs CSN` report is a second reference point.
+   When IR≠CSN: one4all has a bug. When IR=CSN≠SPITBOL: CSNOBOL4 also has the bug
+   (use SPITBOL as the authoritative oracle; CSNOBOL4 is secondary).
+
+5. Use Technique C (inline OUTPUT probes) to isolate the root cause in the
+   subsystem file, then fix in `interp.c`, `sm_lower.c`, or `bb_boxes.c`.
+
+**Known limitations of scrip-monitor + beauty.sno:**
+- CSN comparison is final-state only (not per-stmt) — identifies WHICH variable
+  diverged but not exactly WHICH statement caused it for the CSN leg.
+- OPSYN and indirect references may crash CSNOBOL4 (SKIP, not one4all bug).
+- beauty.sno uses `SNO_LIB` for includes — pass the env var to scrip-monitor.
+- Per-stmt IR/SM/JIT comparison still works fully for finding one4all-internal
+  divergences even when the CSN leg is skipped.
+
+**Known divergences from IM-16 session (2026-04-15):**
+```
+032_goto_loop_count.sno  — DIVERGE at stmt 4  [label: -, line 0]
+1110_array_1d.sno        — DIVERGE at stmt 8  [label: e002, line 16]  (ARRAY indexing)
+1113_table.sno           — DIVERGE at stmt 8  [label: e002, line 16]  (TABLE indexing)
+```
+These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing beauty.sno
+subsystems that exercise ARRAY or TABLE operations.
+
 
