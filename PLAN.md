@@ -30,7 +30,7 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-15b next (add per-stmt hook to CSNOBOL4 snobol4.c + build_csnobol4_archive.sh); infra committed (csnobol4_shim.c stub, scrip-monitor target, SPITBOL shim removed) | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 next (beauty smoke via --monitor); IM-15b done: 4th executor CSNOBOL4 linked in-process, gate PASS | ☐ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: 7 failures remain (nested-to, relop filter, proc augop, find_gen, augop_break_repeat, bang_concat); PASS=52/59; HEAD f5b3950b | ☐ |
