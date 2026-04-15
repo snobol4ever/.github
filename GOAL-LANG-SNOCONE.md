@@ -152,19 +152,19 @@ running the SNOBOL4 version under SPITBOL.
 
 ### Phase 3 — SM-run (x86)
 
-- [ ] **SC-19** — All 14 beauty-sc subsystems under --sm-run.
-  Gate: 14/14 PASS.
+- [x] **SC-19** — All 14 beauty-sc subsystems under --sm-run.
+  Gate: 14/14 PASS. Script: test_beauty_snocone_all_modes.sh. Commit: 6a63a77b.
 
-- [ ] **SC-20** — Hand suite under --sm-run.
-  Gate: PASS=5.
+- [x] **SC-20** — Hand suite under --sm-run.
+  Gate: PASS=5 (covered by test_snocone_hand_suite.sh). Commit: 6a63a77b.
 
 ### Phase 4 — JIT-run (x86 in-memory)
 
-- [ ] **SC-21** — All 14 beauty-sc subsystems under --jit-run.
-  Gate: 14/14 PASS.
+- [x] **SC-21** — All 14 beauty-sc subsystems under --jit-run.
+  Gate: 14/14 PASS. Script: test_beauty_snocone_all_modes.sh. Commit: 6a63a77b.
 
-- [ ] **SC-22** — Hand suite under --jit-run.
-  Gate: PASS=5.
+- [x] **SC-22** — Hand suite under --jit-run.
+  Gate: PASS=5 (covered by test_snocone_hand_suite.sh). Commit: 6a63a77b.
 
 ---
 
@@ -189,7 +189,7 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD f32434a5)
+## Current state (2026-04-15, one4all HEAD 6a63a77b)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
@@ -208,6 +208,8 @@ SC-14 done: palindrome.sc all 3 modes. Commit: 995f1294
 SC-15 done: wordcount.sc all 3 modes. Commit: 995f1294
 SC-16 done: quicksort.sc all 3 modes. Commit: 995f1294
 
+### GOAL COMPLETE — all 22 steps done, all phases PASS
+
 ### Next: SC-19 — all 14 beauty-sc subsystems under --sm-run (14/14 PASS)
 
 ### Known deferred issue
@@ -218,7 +220,9 @@ fixed in the SNOBOL4 session (shared snobol4_pattern.c). Not a Snocone-specific 
 SC-17 done: pattern_suite.sc PASS all 3 modes. 21 cases: ARB(3), SPAN(3), BREAK(4), ANY(3), LEN(4), COMBO(4). Commit: f32434a5
 SC-18 done: test_snocone_hand_suite.sh PASS=15 (5 tests × 3 modes). Commit: f32434a5
 
-### Session 2026-04-15 completed: SC-7..SC-18
+SC-19..SC-22 done: test_beauty_snocone_all_modes.sh; beauty 42/42 PASS (14 subsystems × 3 modes); hand_suite PASS=15. Commit: 6a63a77b
+
+### Session 2026-04-15 completed: SC-7..SC-22 — GOAL COMPLETE
 
 ---
 
