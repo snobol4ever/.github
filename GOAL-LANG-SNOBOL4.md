@@ -144,7 +144,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
   Gate: all three diffs (--ir-run, --sm-run, --jit-run vs SPITBOL) are empty.
 
-- [ ] **SN-2** — beauty gen driver: --ir-run PASS.
+- [x] **SN-2** — beauty gen driver: --ir-run PASS.
   Two-step dance every iteration unconditionally.
   Known blocker: BREAK(nl) fails when subject is $'$B' (indirect variable) in
   exec_stmt pattern match. NV_GET_fn("$B") returns descriptor where
@@ -324,7 +324,18 @@ SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
   Also: subscript_set/set2 changed void→int with ARBLK bounds check.
   Broker gate after fix: PASS=37 FAIL=0.
 
-SN-2 IR PASS: Gen driver IR diff vs SPITBOL now empty.
+SN-2 DONE: Gen driver IR/SM/JIT all clean vs SPITBOL (HEAD 738a266e).
+  Two fixes:
+  - Dynamic stacks: eliminated all fixed MAX arrays throughout runtime
+    (SM_State.stack, pat stacks, LabelTable, abort stack, alt_t/arbno_t,
+    callcap/cc_event arrays, DVAR snap arrays, NV test table).
+  - h_store_var bug: JIT h_store_var was not pushing stored result after
+    NV_SET_fn, unlike sm_interp SM_STORE_VAR which pushes for chained asgn.
+    Global.sno preamble (~150 assignments) caused accumulating stack imbalance
+    until JIT overflowed at 256. Fix: PUSH(stored) in h_store_var.
+  Broker gate: PASS=37 FAIL=0.
+
+Next: SN-3 TDump driver.
   Root cause fixed (HEAD eb145018):
     stmt_exec.c: static spec_t bb_capture() had wrong return type — bb_box_fn
     expects DESCR_t since U-5. The spec_t bytes were misinterpreted as DESCR_t
