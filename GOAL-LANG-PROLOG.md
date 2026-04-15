@@ -193,42 +193,40 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 65c72f76)
+## Current state (2026-04-15, one4all HEAD 15b06871)
 
-PL-1 through PL-11 fully done. --ir-run ladder:
-- rung01–11 14/14 PASS (PL-1)
-- rung12 5/5 PASS atom builtins (PL-4)
-- rung13 5/5 PASS assertz (PL-3)
-- rung14 5/5 PASS asserta (PL-3)
-- rung15 5/5 PASS retract/abolish (PL-3)
-- rung16 5/5 PASS term ordering (PL-5)
-- rung17 5/5 PASS sort/msort (PL-5)
-- rung18 5/5 PASS succ/plus (PL-6)
-- rung19 5/5 PASS format (PL-6)
-- rung20 5/5 PASS numbervars (PL-7)
-- rung21 5/5 PASS char_type (PL-7)
-- rung22 5/5 PASS write_canonical/writeq (PL-8)
-- rung23 5/5 PASS bitwise/sign/** (PL-8)
-- rung24 5/5 PASS term_string (PL-9)
-- rung25 5/5 PASS number_codes/chars/char_code/upcase/downcase (PL-9)
-- rung26 5/5 PASS copy_term/2, atomic_list_concat/2,3, concat_atom/2,
-               string_to_atom/2 (PL-10)
-- rung27 5/5 PASS nb_setval/getval, aggregate_all count/sum/max/min (PL-10)
-- rung28 5/5 PASS throw/1, catch/3 including rethrow (PL-10)
-- rung29 5/5 PASS float ops: sqrt/sin/cos/exp/log/float_integer_part/
-               float_fractional_part/truncate/round/ceiling/floor/float/gcd,
-               constants pi/e (PL-11)
-- rung30 5/5 PASS DCG --> expansion (parse-time), phrase/2,3 (PL-11)
-Next: PL-12 — SWI conformance suite run.
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS.
 
-KEY FIX (PL-11): pl_runtime.c pl_unified_eval_arith was integer-only (long).
-  Replaced with pl_unified_eval_arith_term (returns Term*, float-aware).
-  is/2 now unifies Term* directly. Both evaluator paths (pl_runtime.c and
-  prolog_builtin.c) now handle float_fractional_part and gcd.
+PL-12 work done this session:
+- scrip.c: multi-file support (U-MULTIFILE) — loop over all argv files,
+  compile each by extension, merge Program* chains. Enables:
+    scrip --ir-run plunit.pl test_arith.pl entry.pl
+- prolog_lower.c: Pass 0 plunit prescan — tracks begin_tests/end_tests,
+  emits assertz(pj_test(Suite,Name,Opts,Goal)) stmts for each test/1,2 clause
+- corpus/programs/prolog/plunit.pl: full plunit shim
 
-NOTE: DCG --> expansion was already correct in prolog_parse.c (parse-time).
-  Only phrase/2,3 was missing. phrase dispatches via pred-table lookup with
-  rule-arity+2 args (appending S0, S1). Added to both builtin lists.
+BLOCKER for PL-12: Prolog directive stmts (assertz, write, etc.) do not
+  execute in the single-lang .pl path. polyglot_execute for LANG_PL only
+  calls interp_eval(main/0) directly — non-E_CHOICE LANG_PL stmts are never
+  run as directives. Fix: in polyglot_execute's LANG_PL branch, iterate
+  prog->head stmts and execute non-E_CHOICE LANG_PL stmts before calling
+  main/0. This will make assertz-in-directives persist and enable plunit.
+
+NEXT SESSION PL-12 FIX (3 lines in polyglot.c):
+  In polyglot_execute, find the `slang == LANG_PL` branch (~line 213):
+    g_pl_active = 1;
+    EXPR_t *main_choice = pl_pred_table_lookup(&g_pl_pred_table, "main/0");
+    if (main_choice) interp_eval(main_choice);
+    else fprintf(stderr, "prolog: no main/0 predicate\n");
+    g_pl_active = 0;
+  Add before interp_eval(main_choice): run all non-E_CHOICE LANG_PL stmts:
+    for (STMT_t *_s = prog->head; _s; _s = _s->next) {
+        if (_s->lang != LANG_PL) continue;
+        if (!_s->subject) continue;
+        if (_s->subject->kind == E_CHOICE || _s->subject->kind == E_CLAUSE) continue;
+        interp_eval(_s->subject);
+    }
+  Then wire test_prolog_swi_suite.sh and run gate >= 80%.
 
 ---
 
