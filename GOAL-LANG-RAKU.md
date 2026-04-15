@@ -90,10 +90,14 @@ RK-16 is next per PLAN.md.
   repeat → E_REPEAT(body) grammar wired (runtime test deferred — needs 'last').
   Gate: rk_unless_until PASS, test_raku_ir_rungs PASS=17 FAIL=0.
 
-- [ ] **RK-21** — `gather { take $_ for @list }` end-to-end.
-  gather → E_SUSPEND box (coroutine). take → suspend with value.
-  for → E_EVERY + E_BANG. Full polyglot .scrip test.
-  Gate: raku_gather.scrip PASS under --ir-run.
+- [x] **RK-21** — `gather { take $_ for @list }` end-to-end.
+  gather → anonymous proc __gather_N registered in icn_proc_table.
+  E_ITERATE(E_FNC_call) in icn_eval_gen → icn_bb_suspend via icn_gather_trampoline
+  (proc stored in ss->gather_proc, bypassing icn_coro_stage staging race).
+  E_EVERY saves caller_depth before pump; body runs at caller_depth so
+  E_VAR reads hit caller frame, not suspended coroutine frame.
+  raku.tab.c/raku.lex.c regenerated. rk_gather.raku/.expected replaced with
+  real gather/take test. Gate: PASS=17 smoke PASS=5 broker PASS=36. HEAD 915680ce.
 
 - [ ] **RK-22** — String ops: `substr`, `index`, `rindex`, `uc`, `lc`, `trim`.
   Wire to existing SNOBOL4 builtins or write Raku-specific wrappers.
@@ -159,14 +163,16 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-20)
+## Current state (2026-04-15, one4all HEAD — post RK-21)
 
-RK-1 through RK-20 done. PASS=17 --ir-run, broker PASS=35 (cross_lang.scrip pre-existing FAIL).
-RK-21 next: gather/take end-to-end.
-  DIAGNOSIS: gather grammar maps to E_ITERATE (wrong) — must emit an anonymous E_FNC
-  wrapping the block, driven as BB_PUMP coroutine collecting E_SUSPEND (take) values.
-  Current raku_gather.scrip/.ref are stubs (while loop, not real gather). Both must be
-  replaced once real gather/take works. --dump-ir standalone crashes (pre-existing, unrelated).
+RK-1 through RK-21 done. PASS=17 --ir-run, broker PASS=36.
+RK-22 next: string ops substr/index/rindex/uc/lc/trim.
+  Wire to existing SNOBOL4 builtins or write Raku-specific wrappers.
+
+NOTE: build_scrip.sh skips bison/flex if scrip already exists. After any
+raku.y/raku.l change, regenerate manually:
+  cd src/frontend/raku && bison -d -o raku.tab.c raku.y && flex -o raku.lex.c raku.l
+  cd src && make -j4
 
 ---
 

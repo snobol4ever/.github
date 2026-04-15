@@ -35,7 +35,7 @@ Do not read `archive/` unless a step explicitly says to.
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 DONE (dynamic stacks + h_store_var fix, HEAD 738a266e); next: SN-3 TDump driver | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-3 next: rung13 tables (table(), key lookup, !T iteration); IC-2 DONE; HEAD 9fe56be3 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: multi-file scrip done, plunit.pl shim done, plunit prescan hook done; BLOCKER: Prolog directive stmts don't execute before main/0 in polyglot_execute — fix non-E_CHOICE LANG_PL stmts then wire test_prolog_swi_suite.sh; HEAD 15b06871 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-22 next (string ops: substr/index/rindex/uc/lc/trim); RK-21 done: gather/take PASS=17, HEAD 915680ce | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
