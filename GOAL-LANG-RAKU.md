@@ -113,9 +113,14 @@ RK-16 is next per PLAN.md.
   Gate: rk_regex23 PASS (8 assertions incl. division-still-works),
   rungs PASS=19 FAIL=0, broker PASS=38. HEAD 8595f581.
 
-- [ ] **RK-24** — `map`, `grep`, `sort` list ops.
-  Higher-order functions using E_FNC + BB_PUMP generators.
-  Gate: map/grep/sort test PASS.
+- [x] **RK-24** — `map`, `grep`, `sort` list ops.
+  Grammar: closure rule '{' expr '}' (no semicolons); KW_MAP/GREP/SORT tokens.
+  Interp: raku_map/raku_grep iterate SOH arrays, bind $_ via frame slot
+  (sval stored as "_" not "$_" after scope_patch — tree-walk checks both).
+  grep truthy = !IS_FAIL (E_EQ returns RHS INTVAL(0) on true; old zero-check wrong).
+  Elem type: INTVAL for numeric strings so modulo/comparison work.
+  raku_sort: lex/numeric auto-detect; block comparator with $a/$b.
+  Gate: rk_map_grep_sort24 PASS, rungs PASS=20 FAIL=0, broker PASS=39. HEAD 0afab367.
 
 - [ ] **RK-25** — `do`/`try`/`CATCH` exception handling.
   Maps to E_CHOICE (try) + E_CUT (on success). Basic throw/catch.
@@ -169,10 +174,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-23)
+## Current state (2026-04-15, one4all HEAD — post RK-24)
 
-RK-1 through RK-23 done. PASS=19 --ir-run, broker PASS=38.
-RK-24 next: map/grep/sort list ops — higher-order functions using E_FNC + BB_PUMP generators.
+RK-1 through RK-24 done. PASS=20 --ir-run, broker PASS=39.
+RK-25 next: do/try/CATCH exception handling — maps to E_CHOICE (try) + E_CUT (on success).
 
 NOTE: build_scrip.sh skips bison/flex if scrip already exists. After any
 raku.y/raku.l change, regenerate manually:
