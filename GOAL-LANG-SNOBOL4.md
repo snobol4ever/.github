@@ -84,38 +84,8 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 ### Phase 1 — IR-run (tree-walk interpreter)
 
-- [ ] **SN-1** — beauty.sno self-host: --ir-run.
-  Run beauty.sno on itself under scrip-monitor. Cycle through all divergences
-  until diff vs SPITBOL is empty. Full loop per divergence:
-
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-
-  # Step A — find first divergence (IR vs SM vs JIT vs CSNOBOL4):
-  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
-
-  # Step B — compare one4all vs SPITBOL output:
-  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty.sno \
-      > /tmp/spitbol.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-      $BEAUTY/beauty.sno > /tmp/scrip.out 2>/dev/null
-  diff /tmp/spitbol.out /tmp/scrip.out | head -40
-
-  # Step C — isolate with OUTPUT probes in the diverging subsystem file
-  #          (Technique C — never stlimit tricks, never modify corpus source
-  #           except temporary OUTPUT probes that are reverted after diagnosis)
-
-  # Step D — fix root cause in interp.c / bb_boxes.c / sm_lower.c
-  # Step E — make scrip && make scrip-monitor; re-run Step A and Step B
-  # Step F — broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
-  # Step G — commit; repeat from Step A until diff is empty
-  ```
-
-  Gate: `diff /tmp/spitbol.out /tmp/scrip.out` is empty.
-
-- [ ] **SN-2** — beauty omega driver: --ir-run PASS.
-  Same divergence-cycling loop as SN-1 but on beauty_omega_driver.sno.
+- [ ] **SN-1** — beauty omega driver: --ir-run PASS.
+  Divergence-cycling loop until diff vs SPITBOL is empty.
   Known blocker: EVAL(string) via interp_eval_pat (see GOAL-TWO-STEP-HUNT).
 
   ```bash
@@ -123,7 +93,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
   # Outer loop — repeat until diff is empty:
 
-  # Step A — find first divergence:
+  # Step A — find first divergence (IR vs SM vs JIT vs CSNOBOL4):
   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
       $BEAUTY/beauty_omega_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
 
@@ -135,12 +105,14 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   # Step C — OUTPUT probe in diverging subsystem to isolate root cause
+  #          (Technique C — never stlimit tricks, never modify corpus source
+  #           except temporary OUTPUT probes reverted after diagnosis)
   # Step D — fix in interp.c / bb_boxes.c
   # Step E — rebuild: make scrip && make scrip-monitor
-  # Step F — broker gate: PASS=35 FAIL=1
+  # Step F — broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
   # Step G — commit; go back to Step A
 
-  # When diff is empty: Step H — run SM and JIT too:
+  # When --ir-run diff is empty: Step H — run SM and JIT too:
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
       $BEAUTY/beauty_omega_driver.sno > /tmp/sm.out 2>/dev/null
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
@@ -151,7 +123,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
   Gate: all three diffs (--ir-run, --sm-run, --jit-run vs SPITBOL) are empty.
 
-- [ ] **SN-3** — beauty gen driver: --ir-run PASS.
+- [ ] **SN-2** — beauty gen driver: --ir-run PASS.
   Same divergence-cycling loop. Known blocker: ARBNO upstream null DT_E.
 
   ```bash
@@ -164,11 +136,11 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
       $BEAUTY/beauty_gen_driver.sno > /tmp/scrip.out 2>/dev/null
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
-  # Fix → rebuild → broker gate → commit → repeat
+  # Fix → rebuild → broker gate → commit → repeat; then check --sm-run/--jit-run
   ```
   Gate: diff empty (all three modes).
 
-- [ ] **SN-4** — beauty tdump driver: --ir-run PASS.
+- [ ] **SN-3** — beauty tdump driver: --ir-run PASS.
   Same divergence-cycling loop. Known blocker: DATA field ordering t/v.
 
   ```bash
@@ -181,11 +153,11 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
       $BEAUTY/beauty_tdump_driver.sno > /tmp/scrip.out 2>/dev/null
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
-  # Fix → rebuild → broker gate → commit → repeat
+  # Fix → rebuild → broker gate → commit → repeat; then check --sm-run/--jit-run
   ```
   Gate: diff empty (all three modes).
 
-- [ ] **SN-5** — beauty alpha + beta + gamma drivers: --ir-run PASS.
+- [ ] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
   Same divergence-cycling loop on each driver in turn.
 
   ```bash
@@ -201,12 +173,21 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: all three diffs empty (all three modes).
 
-- [ ] **SN-5b** — beauty.sno self-hosts: ALL drivers pass, all three modes.
-  This is the "beauty self-hosts" completion gate for Phase 1.
-  Run every driver and confirm all diffs empty:
+- [ ] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
+  Run-ups (SN-1..SN-4) must all be green first. Then confirm beauty.sno
+  self-hosts (runs beauty.sno on itself) and all drivers pass:
 
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+
+  # Self-host check:
+  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty.sno \
+      > /tmp/spitbol_self.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+      $BEAUTY/beauty.sno > /tmp/scrip_self.out 2>/dev/null
+  diff /tmp/spitbol_self.out /tmp/scrip_self.out | head -40
+
+  # Full 18-combination gate (all drivers × all modes):
   ALL_PASS=1
   for DRIVER in omega gen tdump alpha beta gamma; do
     for MODE in --ir-run --sm-run --jit-run; do
@@ -225,35 +206,33 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   [[ $ALL_PASS -eq 1 ]] && echo "BEAUTY SELF-HOSTS"
   ```
 
-  Gate: all 18 combinations PASS, script prints "BEAUTY SELF-HOSTS".
+  Gate: self-host diff empty AND all 18 driver combinations PASS.
+  Script prints "BEAUTY SELF-HOSTS".
 
 - [ ] **SN-6** — Full corpus --ir-run: run test_interp_broad_corpus_and_beauty.sh.
   Gate: PASS count matches or exceeds prior baseline; no new failures.
 
 ### Phase 2 — SM-run (stack machine interpreter, x86)
 
-- [ ] **SN-7** — beauty.sno self-host: --sm-run.
-  Gate: diff vs SPITBOL empty.
+- [ ] **SN-7** — beauty omega + gen + tdump drivers: --sm-run PASS.
+  Fix any sm_lower.c or sm_interp.c divergence. Same cycling loop.
+  Gate: all diffs empty vs SPITBOL.
 
-- [ ] **SN-8** — beauty omega driver: --sm-run PASS.
-  Fix any sm_lower.c or sm_interp.c divergence. Use Step 3 protocol above.
-  Gate: diff empty.
+- [ ] **SN-8** — beauty alpha + beta + gamma drivers + self-host: --sm-run PASS.
+  Gate: all diffs empty.
 
-- [ ] **SN-9** — beauty gen + tdump drivers: --sm-run PASS.
-  Gate: both diffs empty.
-
-- [ ] **SN-10** — Full corpus --sm-run.
+- [ ] **SN-9** — Full corpus --sm-run.
   Gate: PASS count matches --ir-run baseline.
 
 ### Phase 3 — JIT-run (in-memory x86 code generation)
 
-- [ ] **SN-11** — beauty.sno self-host: --jit-run.
-  Gate: diff vs SPITBOL empty.
+- [ ] **SN-10** — beauty omega + gen + tdump drivers: --jit-run PASS.
+  Gate: all diffs empty vs SPITBOL.
 
-- [ ] **SN-12** — beauty omega + gen + tdump drivers: --jit-run PASS.
+- [ ] **SN-11** — beauty alpha + beta + gamma drivers + self-host: --jit-run PASS.
   Gate: all diffs empty.
 
-- [ ] **SN-13** — Full corpus --jit-run.
+- [ ] **SN-12** — Full corpus --jit-run.
   Gate: PASS count matches --sm-run baseline.
 
 ### Phase 4 — Pattern IR typing (GOAL-SNOBOL4-PAT-IR prerequisite)
@@ -300,8 +279,7 @@ pattern names anywhere active. Gate: PASS=35 FAIL=1, PASS=7 FAIL=0.
 Known blockers for SN-1/SN-2: EVAL(string), ARBNO null DT_E, DATA field ordering.
 See GOAL-TWO-STEP-HUNT for detailed bug queue.
 
-Next session: SN-2 — use scrip-monitor + beauty_omega_driver.sno divergence
-cycling loop (see "--monitor with CSNOBOL4" section above).
+Next session: SN-1 — omega driver divergence cycling loop.
 Broker gate: PASS=35 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
 
 ---
