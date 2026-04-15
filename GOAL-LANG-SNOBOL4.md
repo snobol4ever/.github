@@ -85,24 +85,147 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 ### Phase 1 — IR-run (tree-walk interpreter)
 
 - [ ] **SN-1** — beauty.sno self-host: --ir-run.
-  Run beauty.sno on itself. Compare output to SPITBOL.
-  Gate: diff empty.
+  Run beauty.sno on itself under scrip-monitor. Cycle through all divergences
+  until diff vs SPITBOL is empty. Full loop per divergence:
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+
+  # Step A — find first divergence (IR vs SM vs JIT vs CSNOBOL4):
+  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+      $BEAUTY/beauty.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+
+  # Step B — compare one4all vs SPITBOL output:
+  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty.sno \
+      > /tmp/spitbol.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+      $BEAUTY/beauty.sno > /tmp/scrip.out 2>/dev/null
+  diff /tmp/spitbol.out /tmp/scrip.out | head -40
+
+  # Step C — isolate with OUTPUT probes in the diverging subsystem file
+  #          (Technique C — never stlimit tricks, never modify corpus source
+  #           except temporary OUTPUT probes that are reverted after diagnosis)
+
+  # Step D — fix root cause in interp.c / bb_boxes.c / sm_lower.c
+  # Step E — make scrip && make scrip-monitor; re-run Step A and Step B
+  # Step F — broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
+  # Step G — commit; repeat from Step A until diff is empty
+  ```
+
+  Gate: `diff /tmp/spitbol.out /tmp/scrip.out` is empty.
 
 - [ ] **SN-2** — beauty omega driver: --ir-run PASS.
-  Two-step monitor to find divergence. Fix root cause in interp.c.
+  Same divergence-cycling loop as SN-1 but on beauty_omega_driver.sno.
   Known blocker: EVAL(string) via interp_eval_pat (see GOAL-TWO-STEP-HUNT).
-  Gate: diff /tmp/spitbol.out /tmp/scrip.out is empty.
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+
+  # Outer loop — repeat until diff is empty:
+
+  # Step A — find first divergence:
+  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+      $BEAUTY/beauty_omega_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+
+  # Step B — compare one4all vs SPITBOL:
+  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_omega_driver.sno \
+      > /tmp/spitbol.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+      $BEAUTY/beauty_omega_driver.sno > /tmp/scrip.out 2>/dev/null
+  diff /tmp/spitbol.out /tmp/scrip.out | head -40
+
+  # Step C — OUTPUT probe in diverging subsystem to isolate root cause
+  # Step D — fix in interp.c / bb_boxes.c
+  # Step E — rebuild: make scrip && make scrip-monitor
+  # Step F — broker gate: PASS=35 FAIL=1
+  # Step G — commit; go back to Step A
+
+  # When diff is empty: Step H — run SM and JIT too:
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
+      $BEAUTY/beauty_omega_driver.sno > /tmp/sm.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
+      $BEAUTY/beauty_omega_driver.sno > /tmp/jit.out 2>/dev/null
+  diff /tmp/spitbol.out /tmp/sm.out | head -20
+  diff /tmp/spitbol.out /tmp/jit.out | head -20
+  ```
+
+  Gate: all three diffs (--ir-run, --sm-run, --jit-run vs SPITBOL) are empty.
 
 - [ ] **SN-3** — beauty gen driver: --ir-run PASS.
-  Known blocker: ARBNO upstream null DT_E (see GOAL-TWO-STEP-HUNT).
-  Gate: diff empty.
+  Same divergence-cycling loop. Known blocker: ARBNO upstream null DT_E.
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+  # Repeat until diff empty:
+  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+      $BEAUTY/beauty_gen_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_gen_driver.sno \
+      > /tmp/spitbol.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+      $BEAUTY/beauty_gen_driver.sno > /tmp/scrip.out 2>/dev/null
+  diff /tmp/spitbol.out /tmp/scrip.out | head -40
+  # Fix → rebuild → broker gate → commit → repeat
+  ```
+  Gate: diff empty (all three modes).
 
 - [ ] **SN-4** — beauty tdump driver: --ir-run PASS.
-  Known blocker: DATA field ordering t/v (see GOAL-TWO-STEP-HUNT).
-  Gate: diff empty.
+  Same divergence-cycling loop. Known blocker: DATA field ordering t/v.
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+  # Repeat until diff empty:
+  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+      $BEAUTY/beauty_tdump_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_tdump_driver.sno \
+      > /tmp/spitbol.out 2>/dev/null
+  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+      $BEAUTY/beauty_tdump_driver.sno > /tmp/scrip.out 2>/dev/null
+  diff /tmp/spitbol.out /tmp/scrip.out | head -40
+  # Fix → rebuild → broker gate → commit → repeat
+  ```
+  Gate: diff empty (all three modes).
 
 - [ ] **SN-5** — beauty alpha + beta + gamma drivers: --ir-run PASS.
-  Gate: all three diffs empty.
+  Same divergence-cycling loop on each driver in turn.
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+  for DRIVER in alpha beta gamma; do
+    SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
+        $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol_${DRIVER}.out 2>/dev/null
+    SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
+        $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip_${DRIVER}.out 2>/dev/null
+    diff /tmp/spitbol_${DRIVER}.out /tmp/scrip_${DRIVER}.out | head -20
+  done
+  # For each non-empty diff: scrip-monitor --monitor → fix → rebuild → commit → repeat
+  ```
+  Gate: all three diffs empty (all three modes).
+
+- [ ] **SN-5b** — beauty.sno self-hosts: ALL drivers pass, all three modes.
+  This is the "beauty self-hosts" completion gate for Phase 1.
+  Run every driver and confirm all diffs empty:
+
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+  ALL_PASS=1
+  for DRIVER in omega gen tdump alpha beta gamma; do
+    for MODE in --ir-run --sm-run --jit-run; do
+      SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
+          $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/ref.out 2>/dev/null
+      SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip $MODE \
+          $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/out.out 2>/dev/null
+      DIFF=$(diff /tmp/ref.out /tmp/out.out)
+      if [[ -n "$DIFF" ]]; then
+        echo "FAIL $DRIVER $MODE"; ALL_PASS=0
+      else
+        echo "PASS $DRIVER $MODE"
+      fi
+    done
+  done
+  [[ $ALL_PASS -eq 1 ]] && echo "BEAUTY SELF-HOSTS"
+  ```
+
+  Gate: all 18 combinations PASS, script prints "BEAUTY SELF-HOSTS".
 
 - [ ] **SN-6** — Full corpus --ir-run: run test_interp_broad_corpus_and_beauty.sh.
   Gate: PASS count matches or exceeds prior baseline; no new failures.
