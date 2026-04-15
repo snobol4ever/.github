@@ -432,14 +432,32 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD f5a11217)
+## Current state (2026-04-15, one4all HEAD 7a752454)
 
 SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
-SN-6 IN PROGRESS: PASS=~208/228.
-Dead engine removal DONE (HEAD 7e81bf6e).
-Orphaned bb_deferred_var duplicate removed from bb_boxes.c (HEAD f5a11217).
-Broker gate: PASS=40 FAIL=0. Smoke PASS=7 FAIL=0.
+SN-6 IN PROGRESS: PASS=203/228 (broad script has timeout-cascade masking; true crosscheck is 185+/196).
+Dead engine removal DONE. Orphaned bb_deferred_var duplicate removed.
+Broker gate: PASS=41 FAIL=0. Smoke PASS=7 FAIL=0.
 BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS.
+
+Session 2026-04-15b fixes:
+- src/Makefile: removed stale engine.c (broke build; deleted in 7e81bf6e)
+- interp.c E_POW: ** returns integer when both operands integer+exp>=0 (fixes 027, 410_arith_int)
+- interp.c DEFINE: returns null string not function name per SNOBOL4 spec (fixes 1011_func_redefine)
+- Broker bumped to PASS=41 from 40.
+
+Remaining crosscheck failures (confirmed via timed per-test run, no cascade):
+  070, 074 — ARBNO(*var) β-retry bug (see below)
+  W07_capt_cur — capture/cursor bug
+  cross — string matching with input
+  1015_opsyn — OPSYN segfault (VARVAL_fn on name descr?)
+  1018_apply — APPLY with predicate name arg
+  expr_eval — *func() side-effect patterns in ARBNO context
+  1115_data_basic — DATA/TABLE indexing
+
+NOTE: broad script shows 25 FAIL but many are timeout-cascade false positives.
+True distinct failures: ~11 in crosscheck + beauty XDump/trace/tree + demo failures.
+Next session: fix OPSYN segfault (1015), then APPLY (1018), then ARBNO β-retry (070/074).
 
 ### 070/074 — *var inside ARBNO (IN PROGRESS, NOT FIXED)
 
