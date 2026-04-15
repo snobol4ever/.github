@@ -105,9 +105,13 @@ RK-16 is next per PLAN.md.
   INDEX/RINDEX written from scratch in C (no APPLY_fn equivalent).
   Gate: rk_str22 PASS, rungs PASS=18 FAIL=0, broker PASS=37. HEAD 08a5ef8a.
 
-- [ ] **RK-23** — Regex basic: `$s ~~ /pattern/`.
-  Maps to E_SCAN + pattern IR nodes (shared with SNOBOL4).
-  Gate: basic regex match test PASS.
+- [x] **RK-23** — Regex basic: `$s ~~ /pattern/`.
+  Lexer: `~~` → OP_SMATCH (sets after_smatch flag); `/` context-sensitive —
+  enters STR_RE state after ~~, else returns '/' for division.
+  Grammar: cmp_expr rule emits make_call("raku_match", subj, E_QLIT(pat)).
+  Interp: raku_match — strstr for literals, match_pattern() for DT_P.
+  Gate: rk_regex23 PASS (8 assertions incl. division-still-works),
+  rungs PASS=19 FAIL=0, broker PASS=38. HEAD 8595f581.
 
 - [ ] **RK-24** — `map`, `grep`, `sort` list ops.
   Higher-order functions using E_FNC + BB_PUMP generators.
@@ -165,10 +169,15 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-22)
+## Current state (2026-04-15, one4all HEAD — post RK-23)
 
-RK-1 through RK-22 done. PASS=18 --ir-run, broker PASS=37.
-RK-23 next: basic regex $s ~~ /pattern/ — maps to E_SCAN + pattern IR nodes (shared with SNOBOL4).
+RK-1 through RK-23 done. PASS=19 --ir-run, broker PASS=38.
+RK-24 next: map/grep/sort list ops — higher-order functions using E_FNC + BB_PUMP generators.
+
+NOTE: build_scrip.sh skips bison/flex if scrip already exists. After any
+raku.y/raku.l change, regenerate manually:
+  cd src/frontend/raku && bison -d -o raku.tab.c raku.y && flex -o raku.lex.c raku.l
+  cd src && make -j4
 
 ---
 
