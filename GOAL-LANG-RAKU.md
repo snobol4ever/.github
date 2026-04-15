@@ -159,10 +159,14 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD — post RK-20)
+## Current state (2026-04-15, one4all HEAD — post RK-20)
 
 RK-1 through RK-20 done. PASS=17 --ir-run, broker PASS=35 (cross_lang.scrip pre-existing FAIL).
-RK-21 next: gather { take $_ for @list } end-to-end.
+RK-21 next: gather/take end-to-end.
+  DIAGNOSIS: gather grammar maps to E_ITERATE (wrong) — must emit an anonymous E_FNC
+  wrapping the block, driven as BB_PUMP coroutine collecting E_SUSPEND (take) values.
+  Current raku_gather.scrip/.ref are stubs (while loop, not real gather). Both must be
+  replaced once real gather/take works. --dump-ir standalone crashes (pre-existing, unrelated).
 
 ---
 
