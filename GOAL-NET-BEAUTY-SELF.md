@@ -72,12 +72,45 @@ rm -f beauty_selftest.sno
     - Self-host: crash gone; now truncates at ARBNO(*Command) — known S-2 graft bug remains.
     - corpus HEAD: 7d26569
 
-  SESSION WORK (this session — diagnosis only, no code changes):
+  SESSION WORK (prior session — diagnosis only, no code changes):
     - Minimal repro 'AB' POS(0) *Parse RPOS(0) where Parse = nPush() ARBNO(LEN(1))
       now PASSES — Graft fix is working for that case.
     - Self-host still FAILS with new symptom: InvalidCastException PatternVar→ProgramDefinedDataVar
       in GetProgramDefinedDataField (Data.cs:206) when pp(sno) calls t(sno) and sno is a PatternVar.
     - Root cause fully diagnosed (see below).
+
+  SESSION WORK (this session — diagnosis deeper, no code committed):
+    - Confirmed crash site: t(Pop()) in pp(), sno = Pop() returns PatternVar not tree node.
+    - Mini repro confirmed: minimal program with Label/Command/Parse/ARBNO reproduces the bug.
+    - DumpStack() after match shows $'@S' is EMPTY — Shift never pushed any tree nodes.
+    - Attempted Graft fix in ArbNoPattern.Scan (two variants): first caused infinite loop (wired
+      graft end back to ARBNO node itself), second gave only 1 iteration. Both reverted.
+    - ArbNoPattern.Scan currently uses child scanner (reScan = new Scanner(scan.Exec)) —
+      Exec IS shared, so $'@S' globals are accessible; Shift should fire correctly in child.
+    - New hypothesis: FRETURN propagation bug in nested function call args. When $'@S' = '',
+      DIFFER($'@S') → DIFFER('','') → fails → FRETURN from Pop(). But DATATYPE(Pop()) in
+      the OUTPUT statement still outputs 'pattern' instead of failing silently. This suggests
+      snobol4dotnet does not correctly propagate FRETURN through nested function-call arguments.
+    - ALSO: confirmed $'@S' is empty after match — meaning Shift() was never called at all.
+      The semantic actions inside ARBNO(*Command) are not firing.
+    - snobol4dotnet HEAD: 080e19c (unchanged)
+    - corpus HEAD: 7d26569 (unchanged)
+    - beauty suite: 17/17 confirmed at session start
+
+  NEXT SESSION must investigate TWO things:
+    A. Why Shift() is never called inside ARBNO(*Command). Add OUTPUT tracing directly into
+       Shift_ body (not guarded by xTrace) to confirm whether Shift fires at all during the
+       ARBNO match. If it doesn't fire, the *Label ~ 'Label' semantic action isn't executing —
+       meaning UnevaluatedPattern inside the child scanner is not triggering semantic side-effects.
+    B. FRETURN propagation: write a standalone test:
+         DEFINE('ffail()', 'ffail_')
+         ffail_  :(FRETURN)
+         OUTPUT = 'before: ' DATATYPE(ffail())
+         OUTPUT = 'should not print'
+       If 'before: pattern' prints, there is a FRETURN propagation bug in output/function-arg
+       context. Fix would be in the function-call evaluation path (MsilHelpers or Executive).
+    C. If (A) shows Shift does fire but $'@S' is still empty, check if child scanner's Graft
+       for *Shift(...) is failing silently (error 103 from re_ EVAL) rather than executing Shift.
     - snobol4dotnet HEAD: 080e19c (unchanged this session)
     - corpus HEAD: 7d26569 (unchanged this session)
 
