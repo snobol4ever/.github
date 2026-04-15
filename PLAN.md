@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 IR PASS (bb_capture spec_t→DESCR_t fix, HEAD eb145018); next: verify SM/JIT diffs vs SPITBOL for Gen driver, then SN-3 TDump | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 DONE (dynamic stacks + h_store_var fix, HEAD 738a266e); next: SN-3 TDump driver | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-3 next: rung13 tables (table(), key lookup, !T iteration); IC-2 DONE; HEAD 9fe56be3 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: multi-file scrip done, plunit.pl shim done, plunit prescan hook done; BLOCKER: Prolog directive stmts don't execute before main/0 in polyglot_execute — fix non-E_CHOICE LANG_PL stmts then wire test_prolog_swi_suite.sh; HEAD 15b06871 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
