@@ -179,3 +179,29 @@ rm -f beauty_selftest.sno
 - Rebase before every .github push.
 - **Windows compatibility:** never use bare `'\n'` as a line separator in C# source; always use `Environment.NewLine`.
 - See RULES.md for full rules including handoff checklist.
+
+  SESSION WORK (this session — diagnosis deeper, WIP patch):
+    - Beauty gate confirmed 17/17 at session start (HEAD 080e19c)
+    - FRETURN propagation test: "D after ffail" does NOT print — appears fixed
+    - Self-host test run: crashes InvalidCastException PatternVar→ProgramDefinedDataVar
+      at Data.cs:206 (same as prior session)
+    - NEW FINDING: ARBNO(*P) semantic actions never fire. Confirmed minimal repro:
+        ARBNO(LEN(1) *inc()) leaves count=0 even though Exec is shared
+        This is NOT an ExpressionVar unwrap issue — inline patterns also fail
+    - WIP patch: UnevaluatedPattern.Scan — unwrap ExpressionVar one level before
+      Convert(PATTERN). Correct in principle but does NOT fix the ARBNO issue.
+    - Beauty gate: 17/17 still passes with WIP patch
+    - snobol4dotnet HEAD: ec59eeb (WIP, INCOMPLETE)
+    - corpus HEAD: 7d26569 (unchanged)
+
+  NEXT SESSION must:
+    A. ArbNoPattern.Scan: add tracing to confirm whether UnevaluatedPattern.Scan
+       fires for *inc() inside child scanner. Suspect: child scanner PatternMatch
+       with anchor=true on sliced subject causes silent failure before reaching *inc()
+    B. Check ARBNO Structure(): Null | ArbNo(p) — the _arbPattern stored is the
+       INNER pattern p, not the Structure wrapper. Confirm this is correct.
+    C. Key question: does ARBNO(LEN(1) *inc()) actually match the subject at all,
+       or does it silently produce zero iterations? If zero iters, the child scanner
+       is failing on LEN(1) somehow with sliced subject + anchor=true.
+    D. Revert WIP ExpressionVar patch if it causes regressions; keep if neutral.
+
