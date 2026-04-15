@@ -459,4 +459,43 @@ Remaining 32 failures (next session — SN-6 continued):
   Beauty drivers: ReadWrite, XDump, tree — require further investigation
   Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
 
-Next: Fix FENCE(fn) (high yield — ~7 tests). Then *var indirect. Then ARRAY/TABLE.
+Next: Fix *var indirect (070,074) — *PAT alone works; *PAT @cursor sequence fails.
+Cursor (Δ) handoff between bb_deferred_var γ-return and following XATP box is broken.
+Then ARRAY/TABLE (1112-1116,212).
+
+---
+
+## Dead code removal — snobol4_pattern.c (deferred, next opportunity)
+
+Archive copies already in `archive/backend/` (HEAD 155f7360).
+
+**What is dead:** The old match engine inside `snobol4_pattern.c` — approximately
+lines 405–1140: `Pattern`/`MatchCtx`/`PatternList` typedefs, `make_seq`, `make_alt`,
+`make_epsilon`, `make_func`, `materialise()`, `capture_callback`, `match_pattern()`,
+`match_and_replace()`, `match_pattern_at()`. These all feed `engine_match_ex` which
+is only called from within this same dead block.
+
+**What is live and must stay:**
+- Lines 1–404: all `pat_*` builder functions (pat_lit, pat_cat, pat_fence_p, etc.),
+  PATND_t tree constructors, `var_as_pattern`, `g_eval_str_hook`
+- Lines ~1366+: `subscript_get`, `subscript_get2`, `subscript_set`, `subscript_set2`,
+  `EVAL_fn`, `patnd_print` — actively called from interp.c, eval_code.c, etc.
+
+**`engine.c` + `engine.h`:** Entirely dead — only called by the dead block above.
+
+**Steps to execute the surgical removal:**
+1. In `snobol4_pattern.c`: delete lines ~405–1140 (dead engine block only).
+   Keep everything above (pat_* builders) and below (subscript_*/EVAL_fn/patnd_print).
+2. Remove `#include "engine.h"` from `snobol4_pattern.c` line 21.
+3. Remove `engine.c` compile line from `Makefile` (~line 73).
+4. Delete `src/runtime/x86/engine.c` and `src/runtime/x86/engine.h`.
+5. Remove `match_pattern`, `match_pattern_at`, `match_and_replace` declarations
+   from `snobol4.h` (3 lines in the "Pattern matching" block).
+6. In `snobol4_runtime_shim.h`: remove `SnoMatch`, `_snoc_match`, `_snoc_replace`,
+   `MATCH_fn`, `REPLACE_fn` — they call dead `match_pattern`/`match_and_replace`.
+7. In `interp.c` raku_match (~line 1216): replace `match_pattern(pd, subj)` with
+   `exec_stmt(NULL, &sv, pd, NULL, 0)` via the live bb_broker path.
+8. Build clean. Run smoke + broker gates. Commit.
+
+**⛔ Do NOT truncate snobol4_pattern.c at line 405** — kills subscript_*/EVAL_fn.
+Use precise line-range deletion of the dead block only.
