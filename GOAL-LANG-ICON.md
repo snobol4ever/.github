@@ -78,7 +78,7 @@ Rung 12–36 are the ladder for this goal.
   `icn_eval_gen` returns a valid box (not `icn_oneshot_box` fallthrough) for each op.
   Smoke test for each box added to `icon_gen.c` unit test block.
 
-- [ ] **IC-2** — rung12: string relational ops (`<<`, `>>`, `<=`, `>=`, `==`, `~=`),
+- [x] **IC-2** — rung12: string relational ops (`<<`, `>>`, `<=`, `>=`, `==`, `~=`),
   `*s` (string size).
   Gate: test_icon_ir_rung_12_strrelop_size.sh PASS.
 
@@ -318,7 +318,20 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 6, one4all HEAD 06bd87da)
+## Current state (2026-04-15 session 7, one4all HEAD TBD)
+
+IC-2 DONE: rung12 all 5 tests PASS (seq/sge/slt/sne/size).
+
+Fix: E_SIZE had no case in interp.c — fell through to default, returned nothing.
+Added E_SIZE handler: string → strlen (or v.slen if set); SOH-delimited array → element count.
+String relational ops (<<, >>=, ==, ~==) were already handled by existing STRREL/NUMREL
+infrastructure — all 4 passed without changes.
+
+Gates: test_smoke_icon PASS=5, test_icon_ir_all_rungs PASS=59 FAIL=0,
+test_smoke_unified_broker PASS=37 FAIL=0.
+
+Next: IC-3 — rung13: tables (`table()`, key lookup, `!T` iteration).
+
 
 IC-2b DONE. IC-2 (rung01-11) DONE: PASS=59 FAIL=0 TOTAL=59.
 cross_lang broker fix DONE: PASS=37 FAIL=0 (was PASS=36 FAIL=1).
