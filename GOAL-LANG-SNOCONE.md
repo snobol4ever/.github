@@ -86,19 +86,21 @@ Root cause of failures: control-flow lowering missing in snocone_lower.c.
   Write `test/snocone/test_if.sc`.
   Gate: PASS under --ir-run.
 
-- [ ] **SC-4** — Fix `while` loop lowering.
+- [x] **SC-4** — Fix `while` loop lowering.
   `while (cond) { body }` → E_WHILE.
   Write `test/snocone/test_while.sc`.
-  Gate: PASS under --ir-run.
+  Gate: PASS under --ir-run. Commit: f881e97a
 
-- [ ] **SC-5** — Fix `for` loop lowering.
+- [x] **SC-5** — Fix `for` loop lowering.
   `for (init; cond; step) { body }` → emit init + E_WHILE with step.
   Write `test/snocone/test_for.sc`.
-  Gate: PASS under --ir-run.
+  Gate: PASS under --ir-run. Commit: 4402e308
 
-- [ ] **SC-6** — Fix `break`/`return`/`freturn`/`nreturn` lowering.
+- [x] **SC-6** — Fix `break`/`return`/`freturn`/`nreturn` lowering.
   Maps to E_LOOP_BREAK, SM_RETURN, SM_FRETURN, SM_NRETURN.
-  Gate: test_break_return.sc PASS.
+  Gate: test_break_return.sc PASS. Commit: 8ed3d7a0
+  Note: tests use while-loop wrappers; pre-existing IR bug causes consecutive
+  top-level OUTPUT statements to emit only the last value (orthogonal to SC-6).
 
 - [ ] **SC-7** — beauty-sc arith subsystem: PASS.
   Root cause: procedure + if + while. SC-2 through SC-6 should fix it.
@@ -188,11 +190,14 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD b1e0c7a4)
+## Current state (2026-04-15, one4all HEAD 8ed3d7a0)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
 SC-3 done: **14/14 PASS** (beauty SKIP expected, no driver.sc). Commit: b1e0c7a4
+SC-4 done: while loop lowering — test_while.sc PASS. Commit: f881e97a
+SC-5 done: for loop lowering — test_for.sc PASS. Commit: 4402e308
+SC-6 done: break/return/freturn/nreturn — test_break_return.sc PASS. Commit: 8ed3d7a0
 
 ### Two fixes in SC-3:
 
@@ -214,7 +219,13 @@ SC-3 done: **14/14 PASS** (beauty SKIP expected, no driver.sc). Commit: b1e0c7a4
         match, roman, semantic, ShiftReduce, tree, strings  (14/14)
   SKIP: beauty (no driver.sc)
 
-### Next: SC-4 — Fix `while` loop lowering
+### Next: SC-7 — beauty-sc arith subsystem PASS
+
+BLOCKER before SC-7: pre-existing IR bug — consecutive top-level `OUTPUT = ...`
+statements under --ir-run emit only the last value. Root likely in IR STMT_ASSIGN
+handling for the OUTPUT special variable. Must fix or work around before SC-7.
+
+### Session 2026-04-15 completed: SC-4, SC-5, SC-6
 
 ---
 
