@@ -32,9 +32,9 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: 3 failures remain (nested-to, proc-locals, find_gen); PASS=56/59; HEAD 461e3935 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-11 next: float ops, DCG --> expansion, phrase/2,3 (rung29, rung30); PL-10 done: rung27 5/5 wildcard _ fix, HEAD 900dc815 | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-1 DONE (omega all 3 modes clean); SN-2 next: fix BREAK(nl) on $'$B' indirect subject in Gen driver | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: 7 failures remain (nested-to, relop filter, proc augop, find_gen, augop_break_repeat, bang_concat); PASS=52/59; HEAD f5b3950b | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-10 finish next: fix wildcard _ in pl_box_choice_call (rung27 4/5→5/5); rung26 5/5, rung28 5/5 done; one4all ca146a8d | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-4 next (while loop lowering); SC-3 done: 14/14 PASS, KW-RETFIX + E_ALT/E_SEQ fix, HEAD b1e0c7a4 | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
@@ -61,7 +61,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (ROOT CAUSE: bb_box_fn spec_t→DESCR_t mismatch breaks ALL captures in --ir-run; fix spec_from_descr call site in stmt_exec.c Phase 3) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 next (Graft impl: Scanner.Graft + GOTO in Match loop + rewrite UnevaluatedPattern.Scan); FENCE fully fixed 080e19c (FAIL not ABORT); 7 new tests 068-074 | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 next (Graft impl: Scanner.Graft + GOTO in Match loop + rewrite UnevaluatedPattern.Scan); FENCE seal fixed d4e523f; 7 new tests 068-074 | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
