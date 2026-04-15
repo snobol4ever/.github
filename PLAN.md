@@ -35,8 +35,7 @@ Do not read `archive/` unless a step explicitly says to.
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: rung02_proc_* user proc call path, then rung01 binop backtracking; PASS=44/59; HEAD 0908edb4 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-10 next (copy_term/2, nb_setval/nb_getval, throw/1, catch/3; rung26/27/28); PL-2..PL-9 done | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-19 next (typed variables); RK-18 done: Byrd box wiring + given/when → E_CASE, PASS=15 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-18 next (given/when switch); RK-17 done: hash keys/values/pairs/exists/delete, PASS=14 | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-20 next (unless/until/repeat-until); RK-19 done: typed vars my Int $x/my Str $s, PASS=16 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 in progress: 12/14 PASS (match now passing). Two failures: (1) strings 7-8: user proc named "Trim" collides with &TRIM keyword in NV store — NV_SET writes keyword slot, NV_GET on RETURN reads 0; fix in call_user_function retname save/restore. (2) fence: LEN(1).X\|FENCE alternation fails — IR not yet inspected. | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |

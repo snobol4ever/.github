@@ -79,10 +79,10 @@ RK-16 is next per PLAN.md.
   - [x] RK-18e: gate: smoke PASS=5, rungs PASS=14+, broker PASS=31
   Gate: all gates green after Byrd box refactor.
 
-- [ ] **RK-19** — Typed variables: `my Int $x`, `my Str $s`.
-  Type annotations parsed and stored in E_VART; runtime ignores type
-  (no type enforcement yet — just parse clean).
-  Gate: typed var programs parse and run correctly.
+- [x] **RK-19** — Typed variables: `my Int $x`, `my Str $s`.
+  Added 6 grammar rules to raku.y: typed scalar/array/hash with and without initialiser.
+  Type annotation (IDENT token) consumed and free()'d at parse time — no IR change needed.
+  raku.tab.c regenerated. Gate: rk_typed_vars PASS, test_raku_ir_rungs PASS=16 FAIL=0.
 
 - [ ] **RK-20** — `unless`, `until`, `repeat/until`.
   Maps to E_UNTIL, E_REPEAT already in interp_eval (shared with Icon).
@@ -157,11 +157,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD — post RK-17)
+## Current state (2026-04-14, one4all HEAD — post RK-19)
 
-RK-1 through RK-17 done. PASS=14 --ir-run.
-RK-18 DONE (commit 896c5d85). PASS=15 FAIL=0 —ir-run, broker PASS=33.
-RK-19 next: typed variables my Int $x / my Str $s — parse clean, runtime ignores type.
+RK-1 through RK-19 done. PASS=16 --ir-run, broker PASS=34 (cross_lang.scrip pre-existing FAIL, unrelated).
+RK-20 next: unless / until / repeat-until.
 
 ---
 
