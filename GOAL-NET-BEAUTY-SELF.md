@@ -72,14 +72,48 @@ rm -f beauty_selftest.sno
     - Self-host: crash gone; now truncates at ARBNO(*Command) — known S-2 graft bug remains.
     - corpus HEAD: 7d26569
 
-  NEXT SESSION must complete:
-    1. Write minimal repro: DEFINE('nPush()','nPush') / Parse = nPush() ARBNO(LEN(1)) /
-       'AB' POS(0) *Parse RPOS(0) -- verify PASS vs FAIL
-    2. If repro fails: debug Scanner.Graft + GOTO path in Match loop
-    3. Build + verify minimal repro passes
-    4. Run beauty suite gate (must stay 17/17)
-    5. Run self-host test: SELF-HOST PASS
-    6. Run unit tests + commit + push snobol4dotnet
+  SESSION WORK (this session — diagnosis only, no code changes):
+    - Minimal repro 'AB' POS(0) *Parse RPOS(0) where Parse = nPush() ARBNO(LEN(1))
+      now PASSES — Graft fix is working for that case.
+    - Self-host still FAILS with new symptom: InvalidCastException PatternVar→ProgramDefinedDataVar
+      in GetProgramDefinedDataField (Data.cs:206) when pp(sno) calls t(sno) and sno is a PatternVar.
+    - Root cause fully diagnosed (see below).
+    - snobol4dotnet HEAD: 080e19c (unchanged this session)
+    - corpus HEAD: 7d26569 (unchanged this session)
+
+  ROOT CAUSE (newly diagnosed):
+    When *P is used where P holds a pattern built by reduce() (e.g. the ("'Parse'" & '...') term),
+    the UnevaluatedPattern compiled for *P re-evaluates the BUILD-TIME expression that created P
+    at match time, rather than simply reading P's current value (the already-built PatternVar).
+    This re-invokes re_ (the build-time reduce function) with pattern arguments instead of strings
+    → error 103 in re_'s EVAL → no pattern returned → Shift is never called → $'@S' is empty
+    → Pop() returns '' (empty string) → pp(sno) calls t('') → GetProgramDefinedDataField crashes
+    casting StringVar to ProgramDefinedDataVar.
+
+    Evidence:
+      - Trace confirms re_ fires at match time (not build time) when *P is matched
+      - Shift() is never called during the match — no tree nodes pushed
+      - Pop() returns 'string' not 'treeNode'
+      - Standalone EVAL tests confirm re_ and sh_ EVALs both work correctly when P is a global
+        variable — the bug is specific to how ConvertUnaryStarOperatorsToDeferredExpressions /
+        ExtractStarExpressions in Lexer.cs compiles *P references.
+
+    Hypothesis: ExtractStarExpressions captures the full RHS expression tree that initialized P
+    (the reduce(...) call) as the deferred expression for *P, rather than a simple variable load.
+    This is correct for inline *EXPR but wrong for *P where P is a plain variable already holding
+    a pattern.
+
+  NEXT SESSION must:
+    1. In Lexer.cs ExtractStarExpressions: verify what DeferredCode is generated for *P
+       when P is a simple IDENTIFIER token (not a compound expression). It should emit
+       a plain variable-load, not replay the expression that last assigned P.
+    2. Write unit test: assign P = somePattern; match 'x' *P — verify P's value is read,
+       not P's initializer re-evaluated.
+    3. Fix ExtractStarExpressions (or the MSIL emitter) so *P for a simple variable
+       emits a variable load, not expression replay.
+    4. Run beauty suite gate (must stay 17/17).
+    5. Run self-host test: SELF-HOST PASS.
+    6. Run unit tests + commit + push snobol4dotnet.
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty_selftest.sno` is empty. Output: `SELF-HOST PASS`. ✅
 
