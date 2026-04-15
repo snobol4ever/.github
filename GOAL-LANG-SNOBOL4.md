@@ -44,35 +44,54 @@ Oracle: SPITBOL x64 at /home/claude/x64/bin/sbl.
 
 ---
 
-## Two-Step Monitor Protocol (use this every session)
+## scrip-monitor Protocol — PRIMARY TOOL FOR EVERY LADDER RUN
 
-**Step 1 — Monitor diff:**
+⛔ **scrip-monitor is used on EVERY failing run of every ladder rung, without exception.**
+The ladder IS the divergence-fix cycle. Every test goes through scrip-monitor.
+Never skip scrip-monitor to "just diff" — divergence hunting IS the work.
+
+**Build scrip-monitor (once per session, after build_scrip.sh):**
+```bash
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+```
+
+**Standard run for any driver:**
 ```bash
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 DRIVER=omega   # or: gen, tdump, alpha, beta, gamma, ...
+
+# Step 1 — scrip-monitor: IR vs SM vs JIT vs CSNOBOL4 NV-state
+SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+    $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+
+# Step 2 — SPITBOL oracle diff (confirms correct output)
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno \
     > /tmp/spitbol.out 2>/dev/null
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
+
+# Step 3 — Inline probe (Technique C) to isolate root cause
+# Replace diverging line in subsystem file with OUTPUT probes.
+# Run under both oracles. Compare. Never stlimit tricks.
+# Revert probes after diagnosis.
+
+# Step 4 — Fix in interp.c / bb_boxes.c / sm_lower.c
+# Step 5 — Rebuild: make scrip && make scrip-monitor CSN_A=...
+# Step 6 — Broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
+# Step 7 — Commit; go back to Step 1
 ```
 
-**Step 2 — Inline probe (Technique C):**
-Replace the diverging line in the subsystem file with OUTPUT probes.
-Run under both oracles. Compare. Never stlimit tricks.
-
-**Step 3 — SM-run diff:**
+**SM-run and JIT-run (after IR-run is clean):**
 ```bash
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/sm.out 2>/dev/null
-diff /tmp/spitbol.out /tmp/sm.out | head -40
-```
-
-**Step 4 — JIT-run diff:**
-```bash
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/jit.out 2>/dev/null
-diff /tmp/spitbol.out /tmp/jit.out | head -40
+diff /tmp/spitbol.out /tmp/sm.out | head -20
+diff /tmp/spitbol.out /tmp/jit.out | head -20
+# Any divergence → scrip-monitor again on that mode
 ```
 
 ---
@@ -270,17 +289,26 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 099fe2d4)
+## Current state (2026-04-15, one4all HEAD 1a6812b4)
 
-SN-1 through SN-13 all open. beauty.sno self-host fails.
-SN-14 and SN-15 DONE: pattern primitives fully wired as typed EKind nodes
-through parser → sm_lower → sm_interp → sm_codegen. No E_FNC fallback for
-pattern names anywhere active. Gate: PASS=35 FAIL=1, PASS=7 FAIL=0.
-Known blockers for SN-1/SN-2: EVAL(string), ARBNO null DT_E, DATA field ordering.
-See GOAL-TWO-STEP-HUNT for detailed bug queue.
+SN-14 and SN-15 DONE (prior session).
+SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
+  Fix: ASGN_INDIR last_ok hardcoded=1 in sm_interp.c + sm_codegen.c.
+  Also: subscript_set/set2 changed void→int with ARBLK bounds check.
+  Broker gate after fix: PASS=36 FAIL=1 (pre-existing Icon gap).
 
-Next session: SN-1 — omega driver divergence cycling loop.
-Broker gate: PASS=35 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
+SN-2 BLOCKED: Gen driver — IR/SM missing flushed lines from Gen('str' nl).
+  Root cause isolated: $'$B' BREAK(nl) . outline nl REM . $'$B' :F(NRETURN)
+  BREAK(nl) fails when subject is $'$B' (indirect variable) in pattern statement.
+  Bug is NOT: OPSYN of OUTPUT (confirmed skipped). NOT: nl value (correct CHAR(10)).
+  NOT: BREAK with plain variable (works). SPECIFIC to $'name' indirect subject
+  in pattern match statement — exec_stmt called with subj_name="$B", NV_GET_fn
+  may return descriptor where descr_slen gives wrong length for string with \n.
+  Next step: compare descr_slen / Ω value for NV_GET_fn("$B") vs plain variable
+  fetch; add PAT_DEBUG probe or check VARVAL_d_fn path for indirect-named vars.
+
+Next session: SN-2 — fix BREAK(nl) on $'$B' indirect subject, then cycle Gen driver.
+Broker gate: PASS=36 FAIL=1 (cross_lang.scrip pre-existing Icon gap).
 
 ---
 
