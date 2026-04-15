@@ -82,14 +82,17 @@ Rung 12–36 are the ladder for this goal.
   `*s` (string size).
   Gate: test_icon_ir_rung_12_strrelop_size.sh PASS.
 
-- [ ] **IC-3** — rung13: tables (`table()`, key lookup, `!T` iteration).
-  Gate: test_icon_ir_rung_13.sh PASS.
+- [x] **IC-3** — rung13: tables (`table()`, key lookup, `!T` iteration).
+  Gate: test_icon_ir_rung_13_tables.sh PASS=5/5. DONE 2026-04-15.
+  Bugs fixed: table() union clobber (d.s=NULL after d.tbl), delete() wrong hash (h*31 vs djb2), Icon E_ASSIGN missing E_IDX branch.
 
-- [ ] **IC-4** — rung14: lists (`list(n,v)`, subscript, `push/pop/put/get`).
-  Gate: test_icon_ir_rung_14.sh PASS.
+- [x] **IC-4** — rung14: limit (E \ N) — corpus rung14 is limit tests, not lists.
+  Gate: test_icon_ir_rung_14_limit.sh PASS=5/5. DONE 2026-04-15.
 
-- [ ] **IC-5** — rung15: sets (`set()`, `member`, `insert`, `delete`).
-  Gate: test_icon_ir_rung_15.sh PASS.
+- [ ] **IC-5** — rung15+: real output format, pow (always real), E_TO_BY real step, swap(), string subscript/section, list builtins, global/initial, records, str/type builtins.
+  IN PROGRESS: real output (icn_real_str) DONE, E_POW DONE, E_TO_BY real DONE.
+  Remaining: rung15 swap, rung16 str subscript, rung20 section, rung21/25 initial, rung22 lists, rung23 table default/key, rung24 records, rung28/29 builtins.
+  Gate: test_icon_ir_rung_15.sh (to be written) PASS.
 
 - [ ] **IC-6** — rung16: `for @arr -> $x` real array iteration (E_BANG on list).
   Gate: test_icon_ir_rung_16.sh PASS.
@@ -481,3 +484,21 @@ recurses into upto(4) arg; verify every_body non-NULL and passthrough fires (run
 4. rung03_suspend_* — verify icn_bb_suspend coroutine passthrough.
 5. rung02_proc_* — user proc call path investigation.
 6. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12.
+
+## Current state (2026-04-15 session 9, one4all HEAD 4a5f382d)
+
+IC-3 DONE: rung13 tables PASS=5/5. Three bugs fixed this session:
+1. table() DESCR_t union clobber: d.s=NULL after d.tbl=tbl overwrote pointer (same union).
+2. delete() wrong hash: was h*31+c, binary uses djb2 (init=0x1505, h*33^c, &0xFF).
+3. Icon E_ASSIGN missing E_IDX branch: t["p"]:=7 had no handler; added subscript_set path.
+
+IC-4 DONE: rung14 limit PASS=5/5. Already passing via icn_bb_limit (IC-2b).
+New gate script: test_icon_ir_rung_14_limit.sh.
+
+IC-5 IN PROGRESS: real output + pow + E_TO_BY real done; remaining rung15-29 work ahead.
+- icn_real_str helper: write/writes format reals with decimal point (%.15g + .0 if needed).
+- E_POW: always returns DT_R now (was delegating to SNOBOL4 POWER_fn → int for int^int).
+- icn_bb_to_by_real: new box for E_TO_BY with real step/bounds; icn_eval_gen routes there when any arg is DT_R.
+
+Rung baseline rung12-29: PASS=35 FAIL=62 before this session → after: rung17/19/26 pow/real fixed.
+Next: IC-5 — swap() builtin, string subscript s[i] and section s[i:j], list builtins (push/pop/put/get), initial block fix, records.

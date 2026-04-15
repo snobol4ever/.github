@@ -33,7 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-3 IN PROGRESS: shadow table implemented, not yet firing — debug intercept next session; HEAD 31b916ea | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-3 next: rung13 tables (table(), key lookup, !T iteration); IC-2 DONE; HEAD 9fe56be3 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 next: swap, str subscript, lists, initial, records; IC-3/IC-4 DONE; HEAD 4a5f382d | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: multi-file scrip done, plunit.pl shim done, plunit prescan hook done; BLOCKER: Prolog directive stmts don't execute before main/0 in polyglot_execute — fix non-E_CHOICE LANG_PL stmts then wire test_prolog_swi_suite.sh; HEAD 15b06871 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-22 next (string ops: substr/index/rindex/uc/lc/trim); RK-21 done: gather/take PASS=17, HEAD 915680ce | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
