@@ -106,7 +106,7 @@ rung12 and beyond are the ladder for this goal.
 - [x] **PL-9** — S-10o/p: string/IO builtins, `term_string/2`.
   Gate: rung24 5/5, rung25 5/5.
 
-- [ ] **PL-10** — S-10q/r/s: `copy_term/2`, `nb_setval/nb_getval`,
+- [x] **PL-10** — S-10q/r/s: `copy_term/2`, `nb_setval/nb_getval`,
   `throw/1`, `catch/3`.
   Gate: rung26 5/5, rung27 5/5, rung28 5/5.
 
@@ -193,9 +193,9 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-14, one4all HEAD ca146a8d)
+## Current state (2026-04-15, one4all HEAD 900dc815)
 
-PL-1 through PL-10 done except one sub-item. --ir-run ladder:
+PL-1 through PL-10 fully done. --ir-run ladder:
 - rung01–11 14/14 PASS (PL-1)
 - rung12 5/5 PASS atom builtins (PL-4)
 - rung13 5/5 PASS assertz (PL-3)
@@ -213,32 +213,22 @@ PL-1 through PL-10 done except one sub-item. --ir-run ladder:
 - rung25 5/5 PASS number_codes/chars/char_code/upcase/downcase (PL-9)
 - rung26 5/5 PASS copy_term/2, atomic_list_concat/2,3, concat_atom/2,
                string_to_atom/2 (PL-10)
-- rung27 4/5 PASS nb_setval/getval, aggregate_all sum/max/min (PL-10)
-  FAIL: aggregate_count — wildcard _ backtrack bug in OR-box (see below)
+- rung27 5/5 PASS nb_setval/getval, aggregate_all count/sum/max/min (PL-10) ✅ FIXED
 - rung28 5/5 PASS throw/1, catch/3 including rethrow (PL-10)
-Next: PL-10 finish — fix wildcard _ in pl_box_choice_call (rung27 5/5), then PL-11.
+Next: PL-11 — float ops, DCG --> expansion, phrase/2,3 (rung29, rung30).
 
-OPEN BUG — aggregate_all(count, Goal(_), N) returns 1 instead of correct count:
-  Root cause: anonymous _ (var_slot=-1) in pl_unified_term_from_expr returns a
-  fresh TT_VAR that is NEVER trailed. The OR-box in pl_box_choice_call
-  (pl_broker.c ~line 466) unwinds trail between clauses — with nothing trailed
-  for _, it stops after clause 1 and returns ω.
-  Fix: in pl_box_choice_call, when building cargs[] from goal->children[i],
-  replace any E_VAR with ival==-1 (wildcard) with a fresh Term* in a local
-  temp slot that IS in scope for the clause head unification. The OR-box then
-  unwinds properly between clauses.
-  Confirmed: findall(X, fruit(X), L) → [apple,banana,cherry] PASS.
-             findall(_, fruit(_), L) → FAIL (same root bug, pre-existing).
+FIXED BUG — wildcard _ in pl_box_choice_call (PL-10 finish):
+  E_VAR ival==-1 now gets term_new_var(g_wildcard_slot++) with unique positive
+  slot so bind() trails it and trail_unwind() resets it between OR-box retries.
+  Fix in pl_broker.c. Smoke: prolog 5/5, unified_broker 36/1 (cross_lang pre-existing).
 
 KEY BUG LEARNED: pl_is_builtin_goal() in pl_broker.c AND is_pl_user_call() in
 pl_runtime.c are PARALLEL lists that must be kept in sync. Adding a builtin to
 only one causes silent failure — the pred table lookup fires first and returns 0.
 
 NOTE: build_scrip.sh skips rebuild when scrip exists. Use
-  touch src/runtime/interp/pl_runtime.c && make -C src -j4
+  touch src/frontend/prolog/pl_broker.c && make -C src -j4
 after editing .c files.
-Smoke: PASS=35 FAIL=2 — ICN rung01 compound (pre-existing IC-2b 4cd0bd1b);
-cross_lang.scrip (pre-existing). No regressions from PL-10 work.
 
 ---
 
