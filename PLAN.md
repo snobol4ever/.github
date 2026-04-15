@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-3 next: rung13 tables (table(), key lookup, !T iteration); IC-2 DONE; HEAD 9fe56be3 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: multi-file scrip done, plunit.pl shim done, plunit prescan hook done; BLOCKER: Prolog directive stmts don't execute before main/0 in polyglot_execute — fix non-E_CHOICE LANG_PL stmts then wire test_prolog_swi_suite.sh; HEAD 15b06871 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
-| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-17 next (pattern_suite.sc exhaustive ARB/SPAN/BREAK/ANY/LEN); SC-7..SC-16 done: sm_push_null fix, E_SCAN sm fix, fibonacci/palindrome/wordcount/quicksort, HEAD 995f1294 | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-19 next (all 14 beauty-sc subsystems --sm-run); SC-17+SC-18 done: pattern_suite.sc+hand_suite PASS=15, HEAD f32434a5 | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
