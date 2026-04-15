@@ -262,32 +262,35 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ## Current state (2026-04-14 session 2, one4all HEAD 5438115c)
 
-IC-2 still in progress: 54/59 rung01-11.
+IC-2 in progress: PASS=44 FAIL=15 TOTAL=59.
 
-Root cause isolated this session:
-- `every write(upto(4))` parses as E_EVERY with ONE child: gen=write(upto(4)), no do-body.
-- icn_drive(write(upto(4))) must recurse into args to find upto(4) as drivable E_FNC.
-- ICN_CUR.body_root must be set to gen itself (body?body:gen) so icn_drive_fnc 
-  captures the right every_body to re-execute per suspend tick.
-- CRITICAL: bash_tool swallows stderr, so fprintf(stderr,...) debug was invisible.
-  Next session: write debug to /tmp/dbg.txt and cat it, or use a flag file.
+Two root causes fixed this session:
 
-Fixes landed (committed, smoke PASS=32 FAIL=0):
-- E_EVERY, E_WHILE, E_UNTIL, E_REPEAT, E_SUSPEND, E_SEQ_EXPR, E_IF,
-  E_BREAK, E_RETURN, E_FAIL, E_ALT added to icn_frame_depth>0 switch.
-- E_EVERY sets body_root = body ? body : gen.
-- icn_drive_fnc: every_body captured before frame push; run in caller frame.
-- E_ALT: Icon value alternation (try left, else right). Smoke +1 pass.
+1. icn_call_proc body loop (icn_runtime.c): was using for(i) + inner while(suspending)
+   that called interp_eval(st) to re-enter loops — restarted loop from scratch and never
+   ran the do-clause. Fixed: replaced with stmt-pinned while loop matching icn_drive_fnc,
+   running do-clause on resume, pinning stmt index for E_WHILE/E_REPEAT/E_UNTIL.
 
-Still open:
-- suspend every-body passthrough (rung03 x3)
-- nested to: (1 to 2) to (2 to 3) (rung01_paper_nested_to)
-- match() at pos returning falsy 0: guard icn_scan_pos>0 → icn_scan_subj!=NULL (rung08_match)
+2. E_WHILE/E_UNTIL/E_REPEAT in interp.c: neither Icon-context block checked
+   ICN_CUR.suspending as an exit condition. E_WHILE kept looping internally when
+   E_SUSPEND fired, never returning to icn_call_proc's suspend handler.
+   Fixed: added !ICN_CUR.suspending to while conditions and post-body break in
+   both copies (SNOBOL4-context and Icon-context) of all three loop kinds.
 
-Next IC-2 step: write debug to file (not stderr), confirm icn_drive is called
-and recurses into upto(4) arg. Then verify every_body is non-NULL and passthrough fires.
+New passes: rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter.
+Broker PASS=31 FAIL=3 (FAIL=3 confirmed pre-existing baseline — no regressions).
 
-## Current state (2026-04-14 session 7, one4all HEAD 4cd0bd1b)
+Remaining 15 failures:
+- rung01 x4: binop generator backtracking (3 < ((1 to 3) * (1 to 2)), nested-to, etc.)
+- rung02 x5: user proc calls + nested arithmetic generators
+- rung08 x1: find() generator (only first result, not all)
+- rung10 x1: break in repeat with augop (gets 5, wants 15)
+- rung11 x1: bang+augconcat ordering (gets y|, wants xy|)
+
+Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
+call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
+
+## Current state (2026-04-15 session 8, one4all HEAD 0908edb4)
 
 IC-2b DONE. E_SCAN_AUGOP removed (dead IR node — never emitted, never handled).
 Suspend coroutine fix PARTIAL:
