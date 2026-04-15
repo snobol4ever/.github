@@ -188,40 +188,66 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD edaf76ca)
+## Current state (2026-04-14, one4all HEAD 4cd0bd1b)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS.
   Fixed: global, arith, ReadWrite (all needed break in while loops).
   Commit: afe90855
 
-SC-3 in progress: investigating match miss failures (tests 2,3,9).
+SC-3 in progress: **12/14 PASS** (match now passing — E_SCAN fix effective).
+  Remaining failures: fence, strings 7-8.
+  trace is now PASS (was listed as failing previously).
 
-### Binary ? lowering fix (committed, NOT yet effective)
-  ROOT CAUSE IDENTIFIED: binary `?` in snocone_lower.c lower_token()
-  was emitting DIFFER(l,r) instead of a proper pattern match node.
-  Fix applied: now emits E_SCAN(l,r); assemble_stmt detects E_SCAN
-  and routes to stmt->subject + stmt->pattern for BB_SCAN path.
-  Forward declaration of free_expr added before assemble_stmt.
+### Actual baseline as of this session
+  PASS: assign, global, arith, ReadWrite, stack, trace, counter,
+        match, roman, semantic, ShiftReduce, tree  (12/14)
+  FAIL: fence, strings
+  SKIP: beauty (no driver.sc)
 
-### BLOCKER: debug prints not firing
-  Added fprintf(stderr,...) to snocone_cf_compile(), do_stmt(),
-  compile_paren_expr() and lower_token() QUESTION case — NONE printed
-  when running ./scrip --ir-run test/beauty-sc/match/driver.sc 2>&1.
-  This means the failing match cases are NOT going through
-  snocone_cf_compile at all — some other code path handles them.
-  NEXT SESSION must find that path before the E_SCAN fix can be validated.
+### Strings 7-8 — ROOT CAUSE IDENTIFIED (not yet fixed)
+  Symptom: `procedure Trim(s) { Trim = expr; return; }` — body runs
+  correctly (confirmed via debug OUTPUT inside body), assignment executes,
+  but caller receives `0` (integer).
 
-  Hypothesis: the `if (subject ? pattern)` inside a procedure body may
-  be going through a different compile route (e.g. snocone_lower directly
-  on a sub-expression, or the SNOBOL4 bison parser picking up .sc somehow).
-  Check: add debug to scrip.c dispatch (lang_snocone detection) to confirm
-  which branch executes for driver.sc.
+  Root cause: `TRIM` is both a SNOBOL4 builtin function AND a SNOBOL4
+  keyword (`&TRIM`, backed by `kw_trim int64_t` in snobol4.h).
+  When the body executes `Trim = <value>`, `NV_SET_fn("Trim", ...)` 
+  stores into the `&TRIM` keyword slot (integer, default 0) rather than
+  the per-call return-value NV cell. Then `NV_GET_fn(fr->fname)` on
+  RETURN reads back `0` from the keyword slot.
 
-### Remaining failures (11/14 PASS baseline, unchanged)
-  strings 7-8: NV/TRIM keyword collision (see below)
-  trace 11: 'u' stripped from 'upd'
-  match 2,3,9: miss paths — fix committed but not yet effective
+  The collision: user procedure named "Trim" shadows the builtin/keyword
+  "TRIM", but the NV store routes writes to the keyword cell.
+
+  Fix approach: in `call_user_function` in interp.c, save/restore the
+  return-value NV slot using a **mangled key** (e.g. `"Trim\x01"` or
+  a frame-local cell) so it doesn't collide with keyword storage.
+  Alternatively: detect at prescan time if retname clashes with a keyword,
+  and mangle the retname used for save/restore/readback while keeping
+  the body's assignment path through `set_and_trace` working.
+  
+  Simplest fix: in `call_user_function`, after the body runs, read retval
+  from the saved `svals[0]`-slot directly rather than re-fetching via
+  `NV_GET_fn(fr->fname)` — but that's wrong (it reads the pre-call value).
+  Better: use a unique per-frame scratch key for the return slot.
+
+  Confirmed minimal repro:
+    procedure TrimRight(s) { TrimRight = s && 'R'; return; }
+    procedure TrimLeft(s)  { TrimLeft  = s && 'L'; return; }
+    procedure Trim(s)      { Trim = TrimLeft(TrimRight(s)); return; }
+    OUTPUT = '[' && Trim('x') && ']';   // gives [0], expect [xRL]
+  Renaming to Trim2 fixes it immediately.
+
+  Other names to watch: any user procedure whose name matches a SNOBOL4
+  keyword (TRIM, SIZE, etc.) will have the same collision.
+
+### Fence failure — ROOT CAUSE not yet identified
+  Symptom: `if ('ab' ? (LEN(1) . X | FENCE)) { ... }` — fails, 'ab'
+  does not match `LEN(1) . X | FENCE` even though LEN(1) should succeed.
+  Pattern alternation `|` in a paren-expr inside `if (? pat)` may not
+  be lowering correctly to E_ALT. Not yet investigated.
+  Next: print IR for fence/driver.sc to inspect the alternation node.
 
 ---
 
