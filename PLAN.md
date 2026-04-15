@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=~208/228; dead engine + orphaned dvar dup removed (HEAD f5a11217); 070/074 *var-in-ARBNO unresolved — br.δ=0 mystery; next: sizeof(DESCR_t) ABI probe | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=~208/228; dead engine + orphaned dvar dup removed (HEAD f5a11217); 070/074 ARBNO(*var) β-retry bug — zero match correct, backtrack iteration broken | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 next: swap, str subscript, lists, initial, records; IC-3/IC-4 DONE; HEAD 4a5f382d | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive no-ops+user-call dispatch in pl_runtime.c; plunit.pl rewritten; suite script fixed; BLOCKER: -> operator fails silently cross-file in interp_exec_pl_builtin (env mismatch); HEAD ea80bd8d | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-26 next (class/method/new OO); RK-25 done: try/CATCH/die PASS=21, HEAD 839ef99e | ☐ |
