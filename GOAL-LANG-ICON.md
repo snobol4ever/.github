@@ -318,7 +318,18 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 5, one4all HEAD f892c784)
+## Current state (2026-04-15 session 6, one4all HEAD 06bd87da)
+
+IC-2b DONE. IC-2 (rung01-11) DONE: PASS=59 FAIL=0 TOTAL=59.
+cross_lang broker fix DONE: PASS=37 FAIL=0 (was PASS=36 FAIL=1).
+
+cross_lang root cause: E_CAT absent from icn_is_gen's recursive check.
+every write("ICN: " || (1 to 3)) produced only ICN: 1 — oneshot fallback.
+Fix: E_CAT added to icn_is_gen; icn_bb_cat_gen box pumps leaf gen,
+injects via icn_drive_node, re-evaluates concat per tick.
+
+Next: IC-2 — rung12 string relational ops (`<<`, `>>`, `<=`, `>=`, `==`, `~=`), `*s`.
+
 
 IC-2b DONE. IC-2 (rung01-11) DONE: PASS=59 FAIL=0 TOTAL=59.
 

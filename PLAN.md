@@ -33,7 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-1 DONE; SN-2 next: BREAK(nl) fails on $'$B' indirect subject in exec_stmt (io.sno removed from Gen driver, bug independent) | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: rung12 str relops (`<<`,`>>`,`==`,`~==`,`*s`); PASS=59/59; HEAD f892c784 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: rung12 str relops (`<<`,`>>`,`==`,`~==`,`*s`); PASS=59/59; broker PASS=37/37; HEAD 06bd87da | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-11 next: float ops, DCG --> expansion, phrase/2,3 (rung29, rung30); PL-10 done: rung27 5/5 wildcard _ fix, HEAD 900dc815 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-7 next (beauty-sc arith PASS); SC-4/5/6 done: while/for/break/return/freturn/nreturn, HEAD 8ed3d7a0. BLOCKER: pre-existing IR bug — consecutive top-level OUTPUT statements emit only last value; investigate before SC-7 | ☐ |
