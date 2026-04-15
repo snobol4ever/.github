@@ -432,3 +432,25 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
+## Current state (2026-04-15, one4all HEAD 6a68bf35)
+
+SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE (HEAD 738a266e).
+
+SN-3 IN PROGRESS — two fixes landed this session (HEAD 6a68bf35):
+
+Fix 1 — snobol4.y bare T_IDENT always emits E_VAR:
+  pat_prim_kind() was applied to every bare identifier, so 'len','any','span',
+  'pos','rem','tab','arb','fail' etc. became typed pattern IR nodes instead of
+  variable references. GT(len,0) in TLump(x,len) was read as GT(LEN(),0) →
+  "Illegal data type" → FRETURN. Root cause of all TDump driver FAILs.
+  Pattern keyword dispatch only applies to function-call form (already correct).
+
+Fix 2 — polyglot.c kw_case=1 in polyglot_init() SNO block:
+  scrip defaulted &CASE=0 (fold); SPITBOL oracle defaults &CASE=1 (sensitive).
+  Added extern int64_t kw_case + kw_case=1 in polyglot_init().
+
+Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
+Stmt 152 IR vs SM/JIT divergence (i: IR=1, SM=2/JIT=2) still present.
+
+Next session: re-run SN-3 Step 2 SPITBOL diff for beauty_TDump_driver.sno.
+If output diff empty → investigate stmt 152 SM/JIT → mark SN-3 done → SN-4.
