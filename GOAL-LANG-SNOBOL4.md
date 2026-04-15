@@ -257,6 +257,9 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 - [ ] **SN-6** — Full corpus --ir-run: run test_interp_broad_corpus_and_beauty.sh.
   Gate: PASS count matches or exceeds prior baseline; no new failures.
+  Baseline established this session: SM-run PASS=194/228, IR-run PASS=203/228.
+  Script had INTERP path bug ($HERE/scrip → fixed to $HERE/../scrip) — fix committed.
+  Next: investigate the 25 IR-run failures to raise baseline before marking done.
 
 ### Phase 2 — SM-run (stack machine interpreter, x86)
 
@@ -439,7 +442,7 @@ SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
 BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS (omega/gen/tdump/alpha/beta/gamma × IR/SM/JIT).
 Self-host diff vs SPITBOL: empty. Broker gate: PASS=37 FAIL=0.
 
-Next: SN-6 — full corpus --ir-run (test_interp_broad_corpus_and_beauty.sh).
+Next: SN-6 — investigate 25 IR-run failures (PASS=203/228), fix to raise baseline.
 
 Prior session fixes (HEAD 6a68bf35) still in tree:
 
