@@ -84,9 +84,11 @@ RK-16 is next per PLAN.md.
   Type annotation (IDENT token) consumed and free()'d at parse time — no IR change needed.
   raku.tab.c regenerated. Gate: rk_typed_vars PASS, test_raku_ir_rungs PASS=16 FAIL=0.
 
-- [ ] **RK-20** — `unless`, `until`, `repeat/until`.
-  Maps to E_UNTIL, E_REPEAT already in interp_eval (shared with Icon).
-  Gate: unless/until test PASS.
+- [x] **RK-20** — `unless`, `until`, `repeat/until`.
+  Added KW_UNLESS/KW_UNTIL/KW_REPEAT tokens to raku.l and raku.y.
+  unless → E_IF(E_NOT(cond), body); until → E_UNTIL(cond, body);
+  repeat → E_REPEAT(body) grammar wired (runtime test deferred — needs 'last').
+  Gate: rk_unless_until PASS, test_raku_ir_rungs PASS=17 FAIL=0.
 
 - [ ] **RK-21** — `gather { take $_ for @list }` end-to-end.
   gather → E_SUSPEND box (coroutine). take → suspend with value.
@@ -157,10 +159,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD — post RK-19)
+## Current state (2026-04-14, one4all HEAD — post RK-20)
 
-RK-1 through RK-19 done. PASS=16 --ir-run, broker PASS=34 (cross_lang.scrip pre-existing FAIL, unrelated).
-RK-20 next: unless / until / repeat-until.
+RK-1 through RK-20 done. PASS=17 --ir-run, broker PASS=35 (cross_lang.scrip pre-existing FAIL).
+RK-21 next: gather { take $_ for @list } end-to-end.
 
 ---
 
