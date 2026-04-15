@@ -435,30 +435,28 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD db91b92c)
+## Current state (2026-04-15, one4all HEAD 8a81c724)
 
 SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
+SN-6 IN PROGRESS: PASS=196/228 (was 194 at session start).
 
 BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS (omega/gen/tdump/alpha/beta/gamma × IR/SM/JIT).
-Self-host diff vs SPITBOL: empty. Broker gate: PASS=37 FAIL=0.
+Broker gate: PASS=39 FAIL=0. Smoke PASS=7 FAIL=0.
 
-Next: SN-6 — investigate 25 IR-run failures (PASS=203/228), fix to raise baseline.
+Fix this session — &ANCHOR Σlen/Ω split (HEAD 8a81c724):
+  Root cause: Ω served double duty — true subject length inside box fns AND
+  max scan-start (clamped to 0 by kw_anchor). Clamping Ω=0 broke ALL box
+  bounds checks (LIT, ANY, SPAN, BREAK, LEN, REM, RPOS, RTAB), so anchored
+  matches failed even when pattern was at position 0.
+  Fix: new global Σlen = true subject length (never clamped); Ω = scan-start
+  limit only. Updated bb_box.h, stmt_exec.c, bb_boxes.c, bb_build.c, bb_flat.c.
+  Tests recovered: 098_keyword_anchor, 099_keyword_rw (both IR and SM).
 
-Prior session fixes (HEAD 6a68bf35) still in tree:
+Remaining 32 failures (next session — SN-6 continued):
+  FENCE(fn):  060,063,064,065,066,067,069 — FENCE(P) takes S instead of F when P fails
+  ARBNO/star: 070,074 — *var indirect pattern deref not working in ARBNO/*PAT context
+  ARRAY/TABLE: 1112,1113,1114,1115,1116,212 — aggregate type indexing gaps
+  Beauty drivers: ReadWrite, XDump, tree — require further investigation
+  Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
 
-Fix 1 — snobol4.y bare T_IDENT always emits E_VAR:
-  pat_prim_kind() was applied to every bare identifier, so 'len','any','span',
-  'pos','rem','tab','arb','fail' etc. became typed pattern IR nodes instead of
-  variable references. GT(len,0) in TLump(x,len) was read as GT(LEN(),0) →
-  "Illegal data type" → FRETURN. Root cause of all TDump driver FAILs.
-  Pattern keyword dispatch only applies to function-call form (already correct).
-
-Fix 2 — polyglot.c kw_case=1 in polyglot_init() SNO block:
-  scrip defaulted &CASE=0 (fold); SPITBOL oracle defaults &CASE=1 (sensitive).
-  Added extern int64_t kw_case + kw_case=1 in polyglot_init().
-
-Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
-Stmt 152 IR vs SM/JIT divergence (i: IR=1, SM=2/JIT=2) still present.
-
-Next session: re-run SN-3 Step 2 SPITBOL diff for beauty_TDump_driver.sno.
-If output diff empty → investigate stmt 152 SM/JIT → mark SN-3 done → SN-4.
+Next: Fix FENCE(fn) (high yield — ~7 tests). Then *var indirect. Then ARRAY/TABLE.
