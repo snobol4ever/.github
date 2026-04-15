@@ -46,44 +46,47 @@ Oracle: SPITBOL x64 at /home/claude/x64/bin/sbl.
 
 ## scrip-monitor Protocol — PRIMARY TOOL FOR EVERY LADDER RUN
 
-⛔ **scrip-monitor is used on EVERY failing run of every ladder rung, without exception.**
-The ladder IS the divergence-fix cycle. Every test goes through scrip-monitor.
-Never skip scrip-monitor to "just diff" — divergence hunting IS the work.
+⛔ **Both switches are run on EVERY iteration, unconditionally — not just when something fails.**
+⛔ **Never run only one switch. Never skip either switch. No exceptions.**
+The ladder IS the divergence-fix cycle. Both switches together are the unit of work.
 
-**Build scrip-monitor (once per session, after build_scrip.sh):**
+### The two-step dance (both steps, every iteration, always)
+
+**Build scrip-monitor once per session (after build_scrip.sh):**
 ```bash
 bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
 make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 ```
 
-**Standard run for any driver:**
+**Step 1 — `scrip-monitor --monitor`: IR vs SM vs JIT vs CSNOBOL4 NV-state**
+Finds internal one4all divergences (IR/SM/JIT disagree) AND one4all vs CSNOBOL4 gaps.
+Run this first, every time, whether or not you expect a problem.
 ```bash
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-DRIVER=omega   # or: gen, tdump, alpha, beta, gamma, ...
-
-# Step 1 — scrip-monitor: IR vs SM vs JIT vs CSNOBOL4 NV-state
 SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-    $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+    $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+```
 
-# Step 2 — SPITBOL oracle diff (confirms correct output)
-SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno \
-    > /tmp/spitbol.out 2>/dev/null
+**Step 2 — SPITBOL diff: confirm correct output**
+SPITBOL is the primary oracle. Diff confirms correctness and measures progress.
+Run this second, every time, immediately after Step 1.
+```bash
+SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
+    $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
-
-# Step 3 — Inline probe (Technique C) to isolate root cause
-# Replace diverging line in subsystem file with OUTPUT probes.
-# Run under both oracles. Compare. Never stlimit tricks.
-# Revert probes after diagnosis.
-
-# Step 4 — Fix in interp.c / bb_boxes.c / sm_lower.c
-# Step 5 — Rebuild: make scrip && make scrip-monitor CSN_A=...
-# Step 6 — Broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
-# Step 7 — Commit; go back to Step 1
 ```
 
-**SM-run and JIT-run (after IR-run is clean):**
+**After fix — rebuild then run both steps again before committing:**
+```bash
+make -C /home/claude/one4all scrip && \
+make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+# Then: Step 1 → Step 2 → broker gate → commit
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh
+```
+
+**SM-run and JIT-run (after IR-run diff is empty):**
+Run both steps again for each mode:
 ```bash
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/sm.out 2>/dev/null
@@ -91,7 +94,7 @@ SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
     $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/jit.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/sm.out | head -20
 diff /tmp/spitbol.out /tmp/jit.out | head -20
-# Any divergence → scrip-monitor again on that mode
+# Any divergence → back to Step 1 (scrip-monitor --monitor) on that mode
 ```
 
 ---
@@ -104,34 +107,33 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 ### Phase 1 — IR-run (tree-walk interpreter)
 
 - [ ] **SN-1** — beauty omega driver: --ir-run PASS.
-  Divergence-cycling loop until diff vs SPITBOL is empty.
+  Two-step dance every iteration unconditionally until diff is empty.
   Known blocker: EVAL(string) via interp_eval_pat (see GOAL-TWO-STEP-HUNT).
 
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 
-  # Outer loop — repeat until diff is empty:
+  # Repeat until both steps are clean:
 
-  # Step A — find first divergence (IR vs SM vs JIT vs CSNOBOL4):
+  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4 NV-state)
   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_omega_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+      $BEAUTY/beauty_omega_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
 
-  # Step B — compare one4all vs SPITBOL:
+  # Step 2 — ALWAYS: SPITBOL diff (primary oracle, confirms correct output)
   SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_omega_driver.sno \
       > /tmp/spitbol.out 2>/dev/null
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
       $BEAUTY/beauty_omega_driver.sno > /tmp/scrip.out 2>/dev/null
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
-  # Step C — OUTPUT probe in diverging subsystem to isolate root cause
-  #          (Technique C — never stlimit tricks, never modify corpus source
-  #           except temporary OUTPUT probes reverted after diagnosis)
-  # Step D — fix in interp.c / bb_boxes.c
-  # Step E — rebuild: make scrip && make scrip-monitor
-  # Step F — broker gate: bash scripts/test_smoke_unified_broker.sh (PASS=35)
-  # Step G — commit; go back to Step A
+  # Diagnose — OUTPUT probe in diverging subsystem (Technique C):
+  #   never stlimit tricks, never modify corpus source permanently
+  # Fix in interp.c / bb_boxes.c / sm_lower.c
+  # Rebuild: make scrip && make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+  # Broker gate: bash scripts/test_smoke_unified_broker.sh
+  # Commit; go back to Step 1
 
-  # When --ir-run diff is empty: Step H — run SM and JIT too:
+  # When --ir-run diff is empty — run SM and JIT (two-step for each):
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
       $BEAUTY/beauty_omega_driver.sno > /tmp/sm.out 2>/dev/null
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
@@ -143,52 +145,73 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   Gate: all three diffs (--ir-run, --sm-run, --jit-run vs SPITBOL) are empty.
 
 - [ ] **SN-2** — beauty gen driver: --ir-run PASS.
-  Same divergence-cycling loop. Known blocker: ARBNO upstream null DT_E.
+  Two-step dance every iteration unconditionally.
+  Known blocker: BREAK(nl) fails when subject is $'$B' (indirect variable) in
+  exec_stmt pattern match. NV_GET_fn("$B") returns descriptor where
+  descr_slen/Ω is wrong. BREAK with plain var works; only fails for $'name'
+  indirect subject. Next probe: compare descr_slen(NV_GET_fn("$B")) vs plain var.
 
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-  # Repeat until diff empty:
+  # Repeat until both steps are clean:
+
+  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4 NV-state)
   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_gen_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+      $BEAUTY/beauty_gen_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+
+  # Step 2 — ALWAYS: SPITBOL diff (primary oracle, confirms correct output)
   SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_gen_driver.sno \
       > /tmp/spitbol.out 2>/dev/null
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
       $BEAUTY/beauty_gen_driver.sno > /tmp/scrip.out 2>/dev/null
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
-  # Fix → rebuild → broker gate → commit → repeat; then check --sm-run/--jit-run
+
+  # Fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → broker gate → commit → repeat
+  # When --ir-run diff empty: run --sm-run and --jit-run diffs too (two-step each)
   ```
   Gate: diff empty (all three modes).
 
 - [ ] **SN-3** — beauty tdump driver: --ir-run PASS.
-  Same divergence-cycling loop. Known blocker: DATA field ordering t/v.
+  Two-step dance every iteration unconditionally. Known blocker: DATA field ordering t/v.
 
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-  # Repeat until diff empty:
+  # Repeat until both steps are clean:
+
+  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4 NV-state)
   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_tdump_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
+      $BEAUTY/beauty_tdump_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+
+  # Step 2 — ALWAYS: SPITBOL diff (primary oracle, confirms correct output)
   SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_tdump_driver.sno \
       > /tmp/spitbol.out 2>/dev/null
   SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
       $BEAUTY/beauty_tdump_driver.sno > /tmp/scrip.out 2>/dev/null
   diff /tmp/spitbol.out /tmp/scrip.out | head -40
-  # Fix → rebuild → broker gate → commit → repeat; then check --sm-run/--jit-run
+
+  # Fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → broker gate → commit → repeat
+  # When --ir-run diff empty: run --sm-run and --jit-run diffs too (two-step each)
   ```
   Gate: diff empty (all three modes).
 
 - [ ] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
-  Same divergence-cycling loop on each driver in turn.
+  Two-step dance every iteration unconditionally, for each driver in turn.
 
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/beauty
   for DRIVER in alpha beta gamma; do
+    # Step 1 — ALWAYS: scrip-monitor --monitor
+    SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+        $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+
+    # Step 2 — ALWAYS: SPITBOL diff
     SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
         $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol_${DRIVER}.out 2>/dev/null
     SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
         $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip_${DRIVER}.out 2>/dev/null
     diff /tmp/spitbol_${DRIVER}.out /tmp/scrip_${DRIVER}.out | head -20
   done
-  # For each non-empty diff: scrip-monitor --monitor → fix → rebuild → commit → repeat
+  # For each non-empty diff: fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → commit → repeat
   ```
   Gate: all three diffs empty (all three modes).
 
