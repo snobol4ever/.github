@@ -445,14 +445,15 @@ BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS.
 
 Root cause NOT yet found. What is known:
 - `*DIGIT` alone works. `ARBNO(ANY(...))` with inline pattern works.
-- `ARBNO(*DIGIT)` fails — bb_arbno receives br.δ=0 from child even though
-  bb_any should return δ=1 and advance Δ.
-- bb_boxes.c had an orphaned non-static bb_deferred_var (dvar_t, no callcap
-  save/restore) — removed. stmt_exec.c static version is sole correct impl,
-  always used by bb_build XDSAR via C static linkage.
-- Binary path NOT active for --ir-run (g_bb_mode != BB_MODE_LIVE).
-- Next probe: sizeof(DESCR_t) in bb_boxes.c vs stmt_exec.c TUs — suspect
-  DESCR_t ABI mismatch causing spec_from_descr in bb_arbno to misread v field.
+- `ARBNO(*DIGIT)` returns empty match — THIS IS CORRECT SNOBOL4 BEHAVIOR.
+  ARBNO matches zero-or-more; the zero-match succeeds first. The outer
+  pattern (RPOS(0), or . capture) must force backtracking via β to drive
+  ARBNO to try more iterations. The bug is therefore in the β path:
+  ARBNO(*DIGIT) does not correctly retry with *DIGIT on backtrack, OR
+  the subject/cursor state is wrong when *DIGIT is re-evaluated inside ARBNO β.
+- Next probe: run ARBNO(*DIGIT) with RPOS(0) forcing backtrack; trace
+  ARBNO_β → ARBNO_try cycle; check that bb_deferred_var is called correctly
+  on the β-driven retry iteration.
 
 Remaining SN-6 failures after 070/074:
   ARRAY/TABLE: 1112,1113,1114,1115,1116,212
