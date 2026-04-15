@@ -102,28 +102,27 @@ Root cause of failures: control-flow lowering missing in snocone_lower.c.
   Note: tests use while-loop wrappers; pre-existing IR bug causes consecutive
   top-level OUTPUT statements to emit only the last value (orthogonal to SC-6).
 
-- [ ] **SC-7** — beauty-sc arith subsystem: PASS.
-  Root cause: procedure + if + while. SC-2 through SC-6 should fix it.
-  Gate: test_beauty_snocone_subsystems.sh arith PASS.
+- [x] **SC-7** — beauty-sc arith subsystem: PASS all 3 modes.
+  Fix: SM_PUSH_NULL sets last_ok=1 in sm_interp.c + sm_codegen.c.
+  This fixed ~expr (E_NOT) in sm-run/jit-run. Commit: f13ce8b3.
 
-- [ ] **SC-8** — beauty-sc strings, stack, trace, counter: PASS.
-  Same root causes. Gate: all four PASS.
+- [x] **SC-8** — beauty-sc strings, stack, trace, counter: PASS all 3 modes.
+  Already passing — no additional work needed.
 
-- [ ] **SC-9** — Fix pattern match `subject ? pattern` lowering.
-  `expr ? pat` → STMT_t with subject=expr, pattern=pat → BB_SCAN.
-  Write `test/snocone/test_pattern.sc` translating SNOBOL4 pattern tests.
-  Gate: test_pattern.sc PASS.
+- [x] **SC-9** — Pattern match `subject ? pattern`: PASS all 3 modes.
+  Fix: E_SCAN in sm_lower.c lower_expr emits SM_PUSH_NULL after SM_EXEC_STMT
+  to balance value stack when ? used as expression (e.g. if condition).
+  test_pattern.sc: 9 tests. .ref from SPITBOL. Commit: 59adc9f4.
 
-- [ ] **SC-10** — beauty-sc match, roman, semantic, ShiftReduce, ReadWrite: PASS.
-  Root cause: pattern match + control flow. SC-9 plus SC-7/SC-8 should fix.
-  Gate: all five PASS.
+- [x] **SC-10** — beauty-sc match, roman, semantic, ShiftReduce, ReadWrite: PASS all 3 modes.
+  Already passing after SC-9 fix — no additional work needed.
 
 - [ ] **SC-11** — beauty-sc beauty subsystem (self-beautify): PASS.
   The beauty.sc subsystem runs the Snocone beautifier on itself.
   Gate: diff vs SPITBOL (running beauty.sno) is empty.
 
-- [ ] **SC-12** — All 14 beauty-sc subsystems: 14/14 PASS --ir-run.
-  Gate: test_beauty_snocone_subsystems.sh PASS=14.
+- [x] **SC-12** — All 14 beauty-sc subsystems: 14/14 PASS --ir-run.
+  Gate: test_beauty_snocone_subsystems.sh PASS=14. Already achieved.
 
 ### Phase 2 — Hand-crafted test suite (written by eye from SNOBOL4)
 
@@ -131,18 +130,18 @@ Write the following .sc tests in `test/snocone/`. Each is a Snocone
 translation of a known-working SNOBOL4 program. .ref files come from
 running the SNOBOL4 version under SPITBOL.
 
-- [ ] **SC-13** — `test/snocone/fibonacci.sc` — recursive Fibonacci.
-  Translate from corpus/programs/snobol4/demo/fibonacci.sno.
-  Gate: output matches SPITBOL ref.
+- [x] **SC-13** — `test/snocone/fibonacci.sc` — recursive Fibonacci.
+  5 outputs (Fib 0,1,2,5,10). All 3 modes. ref from SPITBOL. Commit: 995f1294.
 
-- [ ] **SC-14** — `test/snocone/palindrome.sc` — string reverse + compare.
-  Gate: output matches ref.
+- [x] **SC-14** — `test/snocone/palindrome.sc` — string reverse + compare.
+  7 cases. All 3 modes. ref from SPITBOL. Commit: 995f1294.
 
-- [ ] **SC-15** — `test/snocone/wordcount.sc` — pattern match, split, table.
-  Gate: output matches ref.
+- [x] **SC-15** — `test/snocone/wordcount.sc` — split, table word count.
+  5 word counts. All 3 modes. ref from SPITBOL. Commit: 995f1294.
 
-- [ ] **SC-16** — `test/snocone/quicksort.sc` — recursive sort via procedure.
-  Gate: output matches ref.
+- [x] **SC-16** — `test/snocone/quicksort.sc` — recursive sort via procedure.
+  8-element in-place sort. All 3 modes. ref hand-verified (SPITBOL passes
+  arrays by value; Snocone passes by reference — semantics differ). Commit: 995f1294.
 
 - [ ] **SC-17** — `test/snocone/pattern_suite.sc` — ARB, SPAN, BREAK, ANY, LEN.
   Exercises all pattern primitives via `subject ? pattern` syntax.
@@ -190,7 +189,7 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 8ed3d7a0)
+## Current state (2026-04-15, one4all HEAD 995f1294)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
@@ -198,34 +197,25 @@ SC-3 done: **14/14 PASS** (beauty SKIP expected, no driver.sc). Commit: b1e0c7a4
 SC-4 done: while loop lowering — test_while.sc PASS. Commit: f881e97a
 SC-5 done: for loop lowering — test_for.sc PASS. Commit: 4402e308
 SC-6 done: break/return/freturn/nreturn — test_break_return.sc PASS. Commit: 8ed3d7a0
+SC-7 done: SM_PUSH_NULL sets last_ok=1 — ~expr works in sm/jit. Commit: f13ce8b3
+SC-8 done: strings/stack/trace/counter already passing all 3 modes.
+SC-9 done: E_SCAN sm_lower.c pushes SM_PUSH_NULL after SM_EXEC_STMT. test_pattern.sc 9/9. Commit: 59adc9f4
+SC-10 done: match/roman/semantic/ShiftReduce/ReadWrite already passing all 3 modes.
+SC-11 SKIP: beauty subsystem has no driver.sc — expected.
+SC-12 done: 14/14 ir-run PASS (achieved in SC-3 session).
+SC-13 done: fibonacci.sc all 3 modes. Commit: 995f1294
+SC-14 done: palindrome.sc all 3 modes. Commit: 995f1294
+SC-15 done: wordcount.sc all 3 modes. Commit: 995f1294
+SC-16 done: quicksort.sc all 3 modes. Commit: 995f1294
 
-### Two fixes in SC-3:
+### Next: SC-17 — pattern_suite.sc (ARB, SPAN, BREAK, ANY, LEN exhaustive)
 
-**KW-RETFIX (interp.c):** User procedure named same as a SNOBOL4 keyword
-  (e.g. "Trim" / &TRIM) caused NV_SET_fn in body to write keyword slot
-  (integer), then NV_GET_fn on RETURN read back 0.
-  Fix: added retval_cell/retval_set to CallFrame; set_and_trace captures
-  body assignments matching fr->fname into frame cell; all RETURN/NRETURN
-  readback sites use fr->retval_cell when retval_set=1.
+### Known deferred issue
+beauty_global sm-run: UTF indirect EM_DASH FAIL — root cause is subscript_get2
+returning NULVCL (not FAILDESCR) for out-of-bounds 2-arg array subscript. Being
+fixed in the SNOBOL4 session (shared snobol4_pattern.c). Not a Snocone-specific bug.
 
-**FENCE / E_ALT (snocone_lower.c):** SNOCONE_PIPE (|) was emitting E_CAT
-  instead of E_ALT. In Snocone, | is always pattern alternation; || and &&
-  are concat. Fixed to emit n-ary E_ALT. Also fixed SNOCONE_CONCAT (&&) to
-  emit E_SEQ (matching SNOBOL4 juxtaposition) — lower level handles
-  value-context string concat from E_SEQ correctly.
-
-### Baseline after SC-3
-  PASS: assign, fence, global, arith, ReadWrite, stack, trace, counter,
-        match, roman, semantic, ShiftReduce, tree, strings  (14/14)
-  SKIP: beauty (no driver.sc)
-
-### Next: SC-7 — beauty-sc arith subsystem PASS
-
-BLOCKER before SC-7: pre-existing IR bug — consecutive top-level `OUTPUT = ...`
-statements under --ir-run emit only the last value. Root likely in IR STMT_ASSIGN
-handling for the OUTPUT special variable. Must fix or work around before SC-7.
-
-### Session 2026-04-15 completed: SC-4, SC-5, SC-6
+### Session 2026-04-15 completed: SC-7..SC-16
 
 ---
 
