@@ -61,13 +61,25 @@ rm -f beauty_selftest.sno
     node following *X), returns GOTO so Match jumps inline. All alternates stay
     in one unified stack. MatchResult.cs + AbstractSyntaxTree.cs scaffolded.
 
+  SESSION WORK (corpus fixes, io.sno removal):
+    - Removed -INCLUDE 'io.sno' from demo/beauty.sno, demo/expression.sno, smoke/beauty_oracle.sno
+    - Deleted beauty_io_driver.sno + .ref (tested io.sno only)
+    - Fixed feat/f10_io_basic.sno, feat/f11_io_file.sno: 4-arg SNOBOL4+ -> 3-arg SPITBOL protocol
+    - Fixed demo/beauty.sno + smoke/beauty_oracle.sno: output__/input__ -> OUTPUT/INPUT (3-arg)
+      This eliminated the InvalidCastException crash in --auto two-pass mode
+    - Graft scaffolding (Scanner.Graft, GOTO in Match loop, UnevaluatedPattern.Scan) already
+      complete in code from prior session (826d4ff). Beauty suite: 17/17 (was 18/18 with io driver).
+    - Self-host: crash gone; now truncates at ARBNO(*Command) — known S-2 graft bug remains.
+    - corpus HEAD: 7d26569
+
   NEXT SESSION must complete:
-    1. Add Scanner.Graft(Pattern, int successorNode) -> int graftedStart
-    2. Handle GOTO in Scanner.Match loop
-    3. Rewrite UnevaluatedPattern.Scan to use Graft + MatchResult.Goto
-    4. Build + verify minimal repro passes
-    5. Run beauty suite gate (must stay 18/18)
-    6. Run unit tests + commit + push
+    1. Write minimal repro: DEFINE('nPush()','nPush') / Parse = nPush() ARBNO(LEN(1)) /
+       'AB' POS(0) *Parse RPOS(0) -- verify PASS vs FAIL
+    2. If repro fails: debug Scanner.Graft + GOTO path in Match loop
+    3. Build + verify minimal repro passes
+    4. Run beauty suite gate (must stay 17/17)
+    5. Run self-host test: SELF-HOST PASS
+    6. Run unit tests + commit + push snobol4dotnet
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty_selftest.sno` is empty. Output: `SELF-HOST PASS`. ✅
 
