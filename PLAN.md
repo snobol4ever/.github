@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=196/228; &ANCHOR fixed (Σlen/Ω split, HEAD 8a81c724); next: FENCE(fn) ~7 tests, *var indirect, ARRAY/TABLE | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=203/228; FENCE(fn) fixed all 10 tests (HEAD 54b73db9); next: *var indirect (070,074), ARRAY/TABLE | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 IN PROGRESS: rung15 PASS=5/5; rung16-29 PASS=53 FAIL=24; next: neg subscript fix, initial persistence, !list bang box, table default, records; HEAD 9bcbe7a8 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive loop fixed (interp_exec_pl_builtin); assertz/write directives now fire before main/0; SWI .ref files baked (57 suites); NEXT: fix plunit output format to PASS/FAIL suitename, gate >=80%; HEAD d0b2cf69 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-24 next (map/grep/sort list ops); RK-23 done: $s ~~ /pattern/ PASS=19, HEAD 8595f581 | ☐ |
