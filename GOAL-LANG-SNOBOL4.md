@@ -316,7 +316,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 01b3af41)
+## Current state (2026-04-15, one4all HEAD eb145018)
 
 SN-14 and SN-15 DONE (prior session).
 SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
@@ -324,23 +324,26 @@ SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
   Also: subscript_set/set2 changed void→int with ARBLK bounds check.
   Broker gate after fix: PASS=37 FAIL=0.
 
-SN-2 BLOCKED: Gen driver — pattern sequence failure in IR.
-  Root cause isolated: BREAK(nl) . pre nl REM . post fails in IR but passes SPITBOL.
-  Minimal repro confirmed:
-    nl = CHAR(10)
-    B = 'hello' nl 'world'
-    B BREAK(nl) . pre nl REM . post   :F(FAIL)  → IR takes :F, SPITBOL takes :S
-  Fixes this session (HEAD 01b3af41):
-    - execute_program E_INDIRECT assignment: restructured to eval repl_val first,
-      then eval child expr for variable name string (fixes $UTF_Array[i,2] = val).
-    - Reverted erroneous !has_eq guard on S=PR split (broke pattern smoke test).
-    - Comment clarifications to E_QLIT subj_name resolution ($'name' semantics).
-  Still broken: exec_stmt BB pattern engine — sequential pattern
-    BREAK(nl) . capture, nl, REM . capture fails at the nl literal match
-    after BREAK advances cursor. Investigate bb_broker/seq_t cursor handling.
-  Gate: PASS=7 FAIL=0 (smoke), PASS=37 FAIL=0 (broker)
+SN-2 IR PASS: Gen driver IR diff vs SPITBOL now empty.
+  Root cause fixed (HEAD eb145018):
+    stmt_exec.c: static spec_t bb_capture() had wrong return type — bb_box_fn
+    expects DESCR_t since U-5. The spec_t bytes were misinterpreted as DESCR_t
+    by bb_seq's spec_from_descr() call, silently failing every . and $ capture
+    in the IR path. Fix: return type → DESCR_t, return descr_from_spec(child_r),
+    FAILDESCR on ω. Also fixed bb_capture_exported extern decl in bb_build.c.
+  Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
+  IR diff vs SPITBOL for beauty_Gen_driver.sno: empty ✅
 
-Next session: SN-2 — fix BREAK(nl) . pre nl REM . post sequence in BB engine.
+  Remaining divergence: stmt 152 IR=1 vs SM=2/JIT=2 for variable 'i'.
+    IR path is correct (matches SPITBOL). SM/JIT have a separate bug.
+    The SM/JIT capture path (bb_build_binary XNME trampoline → bb_capture_exported)
+    now gets DESCR_t correctly, but stmt 152 still shows SM/JIT divergence.
+    Next: run SM and JIT diff vs SPITBOL; if non-empty investigate stmt 152
+    SM/JIT path. If SM/JIT output also matches SPITBOL, divergence is benign
+    internal state difference only.
+
+Next session: SN-2 — verify SM and JIT diffs vs SPITBOL for Gen driver;
+  if clean, mark SN-2 done and proceed to SN-3 (TDump driver).
 
 ---
 
