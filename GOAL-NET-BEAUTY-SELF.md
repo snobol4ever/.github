@@ -158,17 +158,37 @@ rm -f beauty_selftest.sno
     This is correct for inline *EXPR but wrong for *P where P is a plain variable already holding
     a pattern.
 
+  SESSION WORK (this session — diagnosis, no code changes):
+    - *P (simple variable) and Graft are working correctly for straightforward cases.
+      Earlier confusion was a test error — LEN(1) on 'AB' legitimately fails.
+    - FRETURN with explicit :F goto works. FRETURN with no goto also works correctly
+      (next stmt runs, which is correct SNOBOL4 semantics).
+    - FRETURN in nested call (DATATYPE(ffail())) still broken — but lower priority.
+    - Reproduced the self-host crash in a minimal program:
+        -INCLUDE stack.sno / tree.sno / ShiftReduce.sno / semantic.sno
+        DATA('link(next,value)') / InitStack
+        letter = ANY(&UCASE &LCASE)
+        cmd = letter ~ 'Letter'   (calls shift_ → EVAL("p . thx . *Shift('Letter', thx)"))
+        'A' cmd RPOS(0) → PASS but Pop() returns PatternVar not treeNode → crash
+    - Shift DOES fire (shiftFired counter increments) when using stub Shift.
+    - With real ShiftReduce.sno Shift: Push(s) where s = tree(t, v) — suspect tree()
+      with partial args (2 of 4) may return PatternVar instead of ProgramDefinedDataVar,
+      OR Shift's NRETURN leaves a pattern residue on the stack that Pop() picks up.
+    - Hang observed when testing without tree.sno stub (infinite loop in ShiftReduce.sno,
+      possibly Pop() on empty stack or pattern match loop).
+    - snobol4dotnet HEAD: 80381fb (unchanged)
+    - corpus HEAD: unchanged
+    - beauty suite: 17/17 confirmed
+
   NEXT SESSION must:
-    1. In Lexer.cs ExtractStarExpressions: verify what DeferredCode is generated for *P
-       when P is a simple IDENTIFIER token (not a compound expression). It should emit
-       a plain variable-load, not replay the expression that last assigned P.
-    2. Write unit test: assign P = somePattern; match 'x' *P — verify P's value is read,
-       not P's initializer re-evaluated.
-    3. Fix ExtractStarExpressions (or the MSIL emitter) so *P for a simple variable
-       emits a variable load, not expression replay.
-    4. Run beauty suite gate (must stay 17/17).
-    5. Run self-host test: SELF-HOST PASS.
-    6. Run unit tests + commit + push snobol4dotnet.
+    1. Test tree('X','Y') directly — does it return ProgramDefinedDataVar or PatternVar?
+       DATA('tree(t,v,n,c)') with 2-arg call tree(t,v) — does snobol4dotnet allow partial
+       DATA constructor args? If not, tree() returns '' or errors → Push('') → Pop() gives ''.
+    2. Check Shift's NRETURN path: does NRETURN from Shift leave any pattern residue on
+       SystemStack that Pop() could pick up instead of the tree node from $'@S'?
+    3. Add OUTPUT tracing inside real Shift_ body to confirm tree(t,v) value.
+    4. Fix the root cause, run beauty 17/17 gate, then run self-host test.
+    5. Commit + push snobol4dotnet if code changes made.
 
 - [ ] **S-3** — Gate: `diff /tmp/beauty_self_clean.txt beauty_selftest.sno` is empty. Output: `SELF-HOST PASS`. ✅
 
