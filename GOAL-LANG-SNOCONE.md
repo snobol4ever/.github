@@ -143,12 +143,12 @@ running the SNOBOL4 version under SPITBOL.
   8-element in-place sort. All 3 modes. ref hand-verified (SPITBOL passes
   arrays by value; Snocone passes by reference — semantics differ). Commit: 995f1294.
 
-- [ ] **SC-17** — `test/snocone/pattern_suite.sc` — ARB, SPAN, BREAK, ANY, LEN.
+- [x] **SC-17** — `test/snocone/pattern_suite.sc` — ARB, SPAN, BREAK, ANY, LEN.
   Exercises all pattern primitives via `subject ? pattern` syntax.
-  Gate: output matches ref.
+  Gate: output matches ref. Commit: f32434a5 (rebased). PASS all 3 modes.
 
-- [ ] **SC-18** — Write `scripts/test_snocone_hand_suite.sh`.
-  Runs SC-13 through SC-17. Gate: PASS=5.
+- [x] **SC-18** — Write `scripts/test_snocone_hand_suite.sh`.
+  Runs SC-13 through SC-17. Gate: PASS=15 (5 tests × 3 modes). Commit: f32434a5.
 
 ### Phase 3 — SM-run (x86)
 
@@ -189,7 +189,7 @@ running the SNOBOL4 version under SPITBOL.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 995f1294)
+## Current state (2026-04-15, one4all HEAD f32434a5)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
@@ -208,14 +208,17 @@ SC-14 done: palindrome.sc all 3 modes. Commit: 995f1294
 SC-15 done: wordcount.sc all 3 modes. Commit: 995f1294
 SC-16 done: quicksort.sc all 3 modes. Commit: 995f1294
 
-### Next: SC-17 — pattern_suite.sc (ARB, SPAN, BREAK, ANY, LEN exhaustive)
+### Next: SC-19 — all 14 beauty-sc subsystems under --sm-run (14/14 PASS)
 
 ### Known deferred issue
 beauty_global sm-run: UTF indirect EM_DASH FAIL — root cause is subscript_get2
 returning NULVCL (not FAILDESCR) for out-of-bounds 2-arg array subscript. Being
 fixed in the SNOBOL4 session (shared snobol4_pattern.c). Not a Snocone-specific bug.
 
-### Session 2026-04-15 completed: SC-7..SC-16
+SC-17 done: pattern_suite.sc PASS all 3 modes. 21 cases: ARB(3), SPAN(3), BREAK(4), ANY(3), LEN(4), COMBO(4). Commit: f32434a5
+SC-18 done: test_snocone_hand_suite.sh PASS=15 (5 tests × 3 modes). Commit: f32434a5
+
+### Session 2026-04-15 completed: SC-7..SC-18
 
 ---
 
