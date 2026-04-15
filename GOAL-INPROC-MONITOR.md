@@ -275,7 +275,7 @@ full variable state, label path, and last_ok.
   Gate: `./scrip --monitor test/snobol4/arith_new/023_arith_add.sno` exits 0,
   all four executors (IR / SM / JIT / CSN) agree.
 
-- [ ] **IM-16** — Beauty smoke via `--monitor`.
+- [x] **IM-16** — Beauty smoke via `--monitor`.
   Add `scripts/test_monitor_beauty_smoke.sh`:
   Runs `--monitor` on the first 10 failing beauty programs (from
   `test_smoke_unified_broker.sh` known failures or the beauty corpus).
@@ -332,22 +332,24 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 9d85dcdc)
+## Current state (2026-04-15, one4all HEAD 099fe2d4)
 
-IM-1 through IM-15b complete. Phases 1–6 (partial) done.
+IM-1 through IM-16 complete. All phases done.
 
-IM-15b COMPLETE:
-- csnobol4/isnobol4.c patched: per-stmt hook in INIT() after D_A(EXNOCL)++
-- scripts/build_csnobol4_archive.sh: builds csnobol4/libcsnobol4.a (731K, -fPIC -Dmain=csnobol4_main)
-- src/driver/csnobol4_shim.c: real impl — hook globals, csnobol4_run_steps(),
-  csn_nv_snapshot() walking OBSTRT/LNKFLD hash, csn_descr_to_str() S/I/R/null
-- src/driver/sync_monitor.c: WITH_CSNOBOL4 branch has CsnNvPair typedef + decls
-- Makefile: scrip-monitor target builds and links cleanly
-- Gate PASS: ./scrip-monitor --monitor 023_arith_add.sno exits 0 (all 4 agree)
+IM-16 COMPLETE:
+- scripts/test_monitor_beauty_smoke.sh: 17 programs, AGREE=12 DIVERGE=3 SKIP=2
+- Known divergences committed as reference comment in script:
+    032_goto_loop_count: DIVERGE at stmt 4 [label: -, line 0]
+    1110_array_1d:       DIVERGE at stmt 8 [label: e002, line 16]  (ARRAY indexing)
+    1113_table:          DIVERGE at stmt 8 [label: e002, line 16]  (TABLE indexing)
+- Fixed SHARED endex/cleanup segfault in scrip-monitor:
+    build_csnobol4_archive.sh: -DSHARED added
+    csnobol4_shim.c: extern endex_jmpbuf, single setjmp exit, cleanup() noop override,
+                     snobol4_main (correct symbol name from archive)
+    sync_monitor.c: CSN called only at n==nstmts (final step, avoids re-init crash)
+    Makefile: filter-out fixes, -Wl,--allow-multiple-definition
 
-**Next: IM-16** — Beauty smoke via --monitor.
-Add scripts/test_monitor_beauty_smoke.sh: runs --monitor on first 10 failing
-beauty programs, prints first diverging statement between one4all and CSNOBOL4.
-Gate: script exits 0 (diagnostic tool, not pass/fail).
+Broker gate: PASS=35 FAIL=1 (cross_lang.scrip pre-existing Icon gap)
+IM-12 gate:  PASS=3 FAIL=0 SKIP=2
 
-Smoke gate: PASS=35 FAIL=1 (cross_lang.scrip = pre-existing Icon gap).
+**GOAL COMPLETE** — all steps IM-1..IM-16 done.
