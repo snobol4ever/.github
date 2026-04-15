@@ -318,19 +318,39 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 7, one4all HEAD TBD)
+## Current state (2026-04-15 session 8, one4all HEAD 09dbff9c)
 
-IC-2 DONE: rung12 all 5 tests PASS (seq/sge/slt/sne/size).
+IC-3 IN PROGRESS: table builtins written, DT_T frame slot coercion bug blocks gate.
 
-Fix: E_SIZE had no case in interp.c — fell through to default, returned nothing.
-Added E_SIZE handler: string → strlen (or v.slen if set); SOH-delimited array → element count.
-String relational ops (<<, >>=, ==, ~==) were already handled by existing STRREL/NUMREL
-infrastructure — all 4 passed without changes.
+What was done:
+- interp.c: table()/insert()/delete()/member() builtins added in Icon E_FNC dispatch
+- interp.c: E_SIZE handles DT_T via tbl->size; E_ITERATE oneshot handles DT_T first-value
+- icon_gen.h: icn_tbl_iterate_state_t + icn_bb_tbl_iterate decl; snobol4.h included
+- icon_gen.c: icn_bb_tbl_iterate box (B-5b) walks TABLE_BUCKETS, yields entry->val
+- icn_runtime.c: icn_eval_gen E_ITERATE routes DT_T to icn_bb_tbl_iterate
+- scripts/test_icon_ir_rung_13_tables.sh: gate script (5 tests)
+- corpus: rung13_table_*.icn + .expected (5 tests, semicolons required by parser)
 
-Gates: test_smoke_icon PASS=5, test_icon_ir_all_rungs PASS=59 FAIL=0,
-test_smoke_unified_broker PASS=37 FAIL=0.
+BLOCKER — DT_T frame slot coercion bug:
+  table() returns TABLE_VAL(tbl) with .v=DT_T correctly.
+  But t["x"] after t:=table() gives Error 3 (erroneous array/table reference).
+  Root cause: ICN_CUR.env[slot] stores DESCR_t directly — DT_T should survive
+  since it is just a struct. Suspect: E_VAR retrieval in Icon frame context, or
+  subscript_get(base, idx) receiving base.v != DT_T due to silent coercion.
 
-Next: IC-3 — rung13: tables (`table()`, key lookup, `!T` iteration).
+Debug plan for next session:
+  1. In E_ASSIGN (Icon frame path, interp.c ~line 780): fprintf to /tmp/dbg.txt
+     printing val.v after storing to env[slot].
+  2. In E_IDX handler: fprintf base.v after interp_eval(e->children[0]).
+  3. Confirm whether DT_T survives the env round-trip.
+  4. If yes: problem is in subscript_get — check IS_TBL(base) branch.
+  5. If no: find where coercion strips DT_T (possibly VARVAL_fn or NAME_DEREF).
+
+Gate status: test_icon_ir_rung_13_tables.sh PASS=0 FAIL=5 (blocker above)
+Smoke: test_smoke_icon.sh PASS=5 FAIL=0 (no regression)
+
+Next: IC-3 — fix DT_T frame slot bug, get rung13 PASS=5.
+
 
 
 IC-2b DONE. IC-2 (rung01-11) DONE: PASS=59 FAIL=0 TOTAL=59.
