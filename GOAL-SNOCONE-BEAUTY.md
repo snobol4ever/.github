@@ -25,12 +25,12 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=36
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 6a63a77b)
+## Current state (2026-04-15, one4all HEAD db91b92c)
 
-All 14 beauty-sc subsystems PASS all 3 modes. beauty.sc itself does NOT run.
-
-**Root cause:** `snocone_lower.c` hits stack underflow on constructs in beauty.sc
-that the subsystem drivers don't use:
+SB-1 DONE: 9 underflow sites diagnosed — dollar-quoted idents + scan+replacement.
+SB-2 DONE: $'...' lexer fix — both lex loops patched. Gate passes.
+SB-3 DONE: ~(subj ? pat) parser fix + scan+replacement lowerer fix. 0 underflows.
+beauty.sc runs to completion (no underflows). Next: SB-4 — compare output to oracle.
 
 1. **`$'...'` dollar-quoted identifiers** — e.g. `$'=' = *White && '=' && *White;`
    The lexer treats `$` as an identifier character but does not tokenize `$'...'`
@@ -46,24 +46,24 @@ These are the two blockers. Fix them in order.
 
 ## Steps
 
-- [ ] **SB-1** — Diagnose: confirm the two blockers above are the only lowerer
-  failures. Add a `--parse-only` or line-number annotation to snocone_lower.c
-  to print the offending statement before underflow. Run beauty.sc, collect
-  all underflow sites, map to line numbers.
-  Gate: list of failing constructs is complete and matches the two categories above.
+- [x] **SB-1** — Diagnose: confirmed 9 underflow sites — two categories:
+  (a) `$'...'` dollar-quoted identifiers (lines 477,489,517,523,525)
+  (b) `subject ? pattern = ;` scan+replacement (lines 21,25,28,64).
+  Added line-number annotation to es_pop() for diagnosis. one4all HEAD db91b92c.
 
-- [ ] **SB-2** — Fix `$'...'` dollar-quoted identifier lexing.
-  In `snocone_lex.c`: when lexer sees `$` followed immediately by `'`, read
-  the quoted string content as the identifier name. Emit a NAME token whose
-  spelling is e.g. `$=`, `$?`, `$|` etc.
-  In `snocone_lower.c`: treat dollar-name tokens as ordinary variable names
-  (they already are — just need the lexer to produce the right token).
-  Gate: `$'=' = 'hello';  OUTPUT = $'=';` in a trivial .sc file prints `hello`.
+- [x] **SB-2** — Fix `$'...'` dollar-quoted identifier lexing.
+  snocone_lex.c: intercept `$'` before operator longest-match in both lex
+  loops; emit SNOCONE_IDENT with spelling `$<content>` (e.g. `$=`, `$Id`).
+  Gate: `$'=' = 'hello'; OUTPUT = $'=';` prints `hello`. ✅
 
-- [ ] **SB-3** — Fix `*deref` in replacement context.
-  `subject ?= *pat_var <- repl` and `subject ? (*pat_var . cap) = ;` forms.
-  The lowerer must handle E_DEREF on the pattern side of a replacement stmt.
-  Gate: a small .sc test using `*deref` replacement passes --ir-run.
+- [x] **SB-3** — Fix scan+replacement lowering (two fixes):
+  1. snocone_parse.c parse_operand_into: grouping paren now fully recurses
+     into balanced interior via snocone_parse() — fixes `~(subject ? pat)`.
+  2. snocone_lower.c SNOCONE_ASSIGN handler: detects empty-LHS postfix and
+     builds E_ASSIGN(E_SCAN, empty-repl); assemble_stmt unwraps into proper
+     scan+replacement STMT. Fixes `subject ? pat = ;` form.
+  Gate: `s ? SPAN('abc') = ; OUTPUT = s;` prints `def`. ✅
+  beauty.sc: 0 underflows (was 9). one4all HEAD db91b92c.
 
 - [ ] **SB-4** — Run beauty.sc on a trivial SNOBOL4 input, compare to SPITBOL oracle.
   ```bash
