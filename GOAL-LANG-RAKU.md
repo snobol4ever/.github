@@ -99,9 +99,11 @@ RK-16 is next per PLAN.md.
   raku.tab.c/raku.lex.c regenerated. rk_gather.raku/.expected replaced with
   real gather/take test. Gate: PASS=17 smoke PASS=5 broker PASS=36. HEAD 915680ce.
 
-- [ ] **RK-22** — String ops: `substr`, `index`, `rindex`, `uc`, `lc`, `trim`.
-  Wire to existing SNOBOL4 builtins or write Raku-specific wrappers.
-  Gate: string rung PASS.
+- [x] **RK-22** — String ops: `substr`, `index`, `rindex`, `uc`, `lc`, `trim`, `chars`/`length`.
+  Implemented in interp.c E_FNC dispatch block (same site as arr_get/hash_get).
+  All ops use correct Raku semantics (0-based indexing, both-ends trim).
+  INDEX/RINDEX written from scratch in C (no APPLY_fn equivalent).
+  Gate: rk_str22 PASS, rungs PASS=18 FAIL=0, broker PASS=37. HEAD 08a5ef8a.
 
 - [ ] **RK-23** — Regex basic: `$s ~~ /pattern/`.
   Maps to E_SCAN + pattern IR nodes (shared with SNOBOL4).
@@ -163,16 +165,10 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-21)
+## Current state (2026-04-15, one4all HEAD — post RK-22)
 
-RK-1 through RK-21 done. PASS=17 --ir-run, broker PASS=36.
-RK-22 next: string ops substr/index/rindex/uc/lc/trim.
-  Wire to existing SNOBOL4 builtins or write Raku-specific wrappers.
-
-NOTE: build_scrip.sh skips bison/flex if scrip already exists. After any
-raku.y/raku.l change, regenerate manually:
-  cd src/frontend/raku && bison -d -o raku.tab.c raku.y && flex -o raku.lex.c raku.l
-  cd src && make -j4
+RK-1 through RK-22 done. PASS=18 --ir-run, broker PASS=37.
+RK-23 next: basic regex $s ~~ /pattern/ — maps to E_SCAN + pattern IR nodes (shared with SNOBOL4).
 
 ---
 
