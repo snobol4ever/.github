@@ -173,7 +173,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: diff empty (all three modes).
 
-- [ ] **SN-3** — beauty tdump driver: --ir-run PASS.
+- [x] **SN-3** — beauty tdump driver: --ir-run PASS.
   Two-step dance every iteration unconditionally. Known blocker: DATA field ordering t/v.
 
   ```bash
@@ -198,7 +198,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: diff empty (all three modes).
 
-- [ ] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
+- [x] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
   Two-step dance every iteration unconditionally, for each driver in turn.
 
   ```bash
@@ -219,7 +219,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: all three diffs empty (all three modes).
 
-- [ ] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
+- [x] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
   Run-ups (SN-1..SN-4) must all be green first. Then confirm beauty.sno
   self-hosts (runs beauty.sno on itself) and all drivers pass:
 
@@ -432,11 +432,16 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD 6a68bf35)
+## Current state (2026-04-15, one4all HEAD db91b92c)
 
-SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE (HEAD 738a266e).
+SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
 
-SN-3 IN PROGRESS — two fixes landed this session (HEAD 6a68bf35):
+BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS (omega/gen/tdump/alpha/beta/gamma × IR/SM/JIT).
+Self-host diff vs SPITBOL: empty. Broker gate: PASS=37 FAIL=0.
+
+Next: SN-6 — full corpus --ir-run (test_interp_broad_corpus_and_beauty.sh).
+
+Prior session fixes (HEAD 6a68bf35) still in tree:
 
 Fix 1 — snobol4.y bare T_IDENT always emits E_VAR:
   pat_prim_kind() was applied to every bare identifier, so 'len','any','span',

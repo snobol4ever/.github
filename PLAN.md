@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-3 IN PROGRESS: bare T_IDENT→E_VAR fix + &CASE=1 default; re-run SPITBOL diff next; HEAD 6a68bf35 | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-5 DONE: BEAUTY SELF-HOSTS 18/18 all modes; SN-6 next (full corpus --ir-run); HEAD db91b92c | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 next: swap, str subscript, lists, initial, records; IC-3/IC-4 DONE; HEAD 4a5f382d | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive loop fixed (interp_exec_pl_builtin); assertz/write directives now fire before main/0; SWI .ref files baked (57 suites); NEXT: fix plunit output format to PASS/FAIL suitename, gate >=80%; HEAD d0b2cf69 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-23 next (regex $s ~~ /pattern/); RK-22 done: substr/index/rindex/uc/lc/trim/chars PASS=18, HEAD 08a5ef8a | ☐ |
