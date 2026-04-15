@@ -173,7 +173,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: diff empty (all three modes).
 
-- [x] **SN-3** — beauty tdump driver: --ir-run PASS.
+- [ ] **SN-3** — beauty tdump driver: --ir-run PASS.
   Two-step dance every iteration unconditionally. Known blocker: DATA field ordering t/v.
 
   ```bash
@@ -198,7 +198,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: diff empty (all three modes).
 
-- [x] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
+- [ ] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
   Two-step dance every iteration unconditionally, for each driver in turn.
 
   ```bash
@@ -219,7 +219,7 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
   ```
   Gate: all three diffs empty (all three modes).
 
-- [x] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
+- [ ] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
   Run-ups (SN-1..SN-4) must all be green first. Then confirm beauty.sno
   self-hosts (runs beauty.sno on itself) and all drivers pass:
 
@@ -257,9 +257,6 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 - [ ] **SN-6** — Full corpus --ir-run: run test_interp_broad_corpus_and_beauty.sh.
   Gate: PASS count matches or exceeds prior baseline; no new failures.
-  Baseline established this session: SM-run PASS=194/228, IR-run PASS=203/228.
-  Script had INTERP path bug ($HERE/scrip → fixed to $HERE/../scrip) — fix committed.
-  Next: investigate the 25 IR-run failures to raise baseline before marking done.
 
 ### Phase 2 — SM-run (stack machine interpreter, x86)
 
@@ -435,31 +432,25 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD 7e81bf6e)
+## Current state (2026-04-15, one4all HEAD 6a68bf35)
 
-SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
-SN-6 IN PROGRESS: PASS=~208/228 (was 196 at prior session start).
-Dead engine removal DONE this session (HEAD 7e81bf6e).
+SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE (HEAD 738a266e).
 
-BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS (omega/gen/tdump/alpha/beta/gamma × IR/SM/JIT).
-Broker gate: PASS=40 FAIL=0. Smoke PASS=7 FAIL=0.
+SN-3 IN PROGRESS — two fixes landed this session (HEAD 6a68bf35):
 
-Remaining failures (next: fix *var indirect 070,074):
-  ARBNO/star: 070,074 — *PAT @cursor sequence fails; cursor (Δ) handoff between
-    bb_deferred_var γ-return and following XATP box is broken.
-  ARRAY/TABLE: 1112,1113,1114,1115,1116,212 — aggregate type indexing gaps
-  Beauty drivers: ReadWrite, XDump, trace, tree — require investigation
-  Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
+Fix 1 — snobol4.y bare T_IDENT always emits E_VAR:
+  pat_prim_kind() was applied to every bare identifier, so 'len','any','span',
+  'pos','rem','tab','arb','fail' etc. became typed pattern IR nodes instead of
+  variable references. GT(len,0) in TLump(x,len) was read as GT(LEN(),0) →
+  "Illegal data type" → FRETURN. Root cause of all TDump driver FAILs.
+  Pattern keyword dispatch only applies to function-call form (already correct).
 
----
+Fix 2 — polyglot.c kw_case=1 in polyglot_init() SNO block:
+  scrip defaulted &CASE=0 (fold); SPITBOL oracle defaults &CASE=1 (sensitive).
+  Added extern int64_t kw_case + kw_case=1 in polyglot_init().
 
-## Dead code removal — snobol4_pattern.c ✅ DONE (HEAD 7e81bf6e)
+Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
+Stmt 152 IR vs SM/JIT divergence (i: IR=1, SM=2/JIT=2) still present.
 
-Archive copies already in `archive/backend/` (HEAD 155f7360).
-Removal executed (HEAD 7e81bf6e): engine.c/h/engine_runtime.h deleted; 886-line
-materialisation block excised from snobol4_pattern.c; match_pattern/match_and_replace/
-SnoMatch shims removed from snobol4.h and snobol4_runtime_shim.h; raku_match in
-interp.c ported to exec_stmt; Makefile engine.c compile line removed.
-Smoke PASS=7 FAIL=0. Broker PASS=40 FAIL=0.
-
-
+Next session: re-run SN-3 Step 2 SPITBOL diff for beauty_TDump_driver.sno.
+If output diff empty → investigate stmt 152 SM/JIT → mark SN-3 done → SN-4.

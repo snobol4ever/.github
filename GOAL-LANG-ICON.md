@@ -90,19 +90,9 @@ Rung 12–36 are the ladder for this goal.
   Gate: test_icon_ir_rung_14_limit.sh PASS=5/5. DONE 2026-04-15.
 
 - [ ] **IC-5** — rung15+: real output format, pow (always real), E_TO_BY real step, swap(), string subscript/section, list builtins, global/initial, records, str/type builtins.
-  IN PROGRESS: rung15 PASS=5/5. Rung16-29 PASS=53 FAIL=24 (was 31/77, +22). HEAD 9bcbe7a8.
-  Done: E_SWAP, E_LCONCAT, E_MAKELIST, E_SECTION, E_INITIAL, E_RECORD, subscript_get DT_S,
-    subscript_get2 DT_S, E_SIZE/E_ITERATE DT_DATA icnlist, builtins: integer/real/string/
-    numeric/char/ord/left/right/center/repl/reverse/map/trim/type/image/copy/key/push/put/get/pull.
-  Remaining 24 failures — priority fix list:
-    1. neg subscript off-by-one: i<0 → i=slen+i+1 (not slen+1+i+1)
-    2. initial persistence: e->ival reset each call; use static hash on node ptr
-    3. rung22 !list bang: add icn_bb_bang_list box in icn_eval_gen for DT_DATA icnlist
-    4. rung23 table default: side array of (tbl*,dflt); check in subscript_get DT_T miss
-    5. rung24 records: verify DEFDAT_fn fires before DATCON_fn; fix E_DOT field access
-    6. rung27 read(): fgets from stdin, strip newline, fail on EOF
-    7. rung28/29: image format for records/lists; trim/map edge cases
-  Gate: test_icon_ir_rung_15.sh PASS=5/5.
+  IN PROGRESS: real output (icn_real_str) DONE, E_POW DONE, E_TO_BY real DONE.
+  Remaining: rung15 swap, rung16 str subscript, rung20 section, rung21/25 initial, rung22 lists, rung23 table default/key, rung24 records, rung28/29 builtins.
+  Gate: test_icon_ir_rung_15.sh (to be written) PASS.
 
 - [ ] **IC-6** — rung16: `for @arr -> $x` real array iteration (E_BANG on list).
   Gate: test_icon_ir_rung_16.sh PASS.
@@ -512,14 +502,3 @@ IC-5 IN PROGRESS: real output + pow + E_TO_BY real done; remaining rung15-29 wor
 
 Rung baseline rung12-29: PASS=35 FAIL=62 before this session → after: rung17/19/26 pow/real fixed.
 Next: IC-5 — swap() builtin, string subscript s[i] and section s[i:j], list builtins (push/pop/put/get), initial block fix, records.
-
-## Current state (2026-04-15 session 10, one4all HEAD 9bcbe7a8)
-
-IC-5 IN PROGRESS: rung15 PASS=5/5. Rung16-29: PASS=53 FAIL=24 (was 31/77, +22).
-Broker: PASS=38 FAIL=0. Rung01-11: 59/59.
-
-Implemented this session: E_SWAP, E_LCONCAT, E_MAKELIST, E_SECTION, E_INITIAL,
-E_RECORD; subscript_get/get2 DT_S; E_SIZE/E_ITERATE DT_DATA icnlist; 20+ builtins.
-
-Next: neg subscript fix, initial persistence, !list BB box, table default side-array,
-record DATCON_fn dispatch, read() stdin, rung28/29 polish.
