@@ -33,7 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-15b next (add per-stmt hook to CSNOBOL4 snobol4.c + build_csnobol4_archive.sh); infra committed (csnobol4_shim.c stub, scrip-monitor target, SPITBOL shim removed) | ☐ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-2 next (beauty omega --ir-run: fix EVAL(string)) | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: rung02_proc_* user proc call path, then rung01 binop backtracking; PASS=44/59; HEAD 0908edb4 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-2 next: 7 failures remain (nested-to, relop filter, proc augop, find_gen, augop_break_repeat, bang_concat); PASS=52/59; HEAD f5b3950b | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-10 next (copy_term/2, nb_setval/nb_getval, throw/1, catch/3; rung26/27/28); PL-2..PL-9 done | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-21 next (gather/take: fix grammar E_ITERATE→anon E_FNC+BB_PUMP coroutine); RK-20 done: unless/until PASS=17 | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-3 in progress: 12/14 PASS (match now passing). Two failures: (1) strings 7-8: user proc named "Trim" collides with &TRIM keyword in NV store — NV_SET writes keyword slot, NV_GET on RETURN reads 0; fix in call_user_function retname save/restore. (2) fence: LEN(1).X\|FENCE alternation fails — IR not yet inspected. | ☐ |

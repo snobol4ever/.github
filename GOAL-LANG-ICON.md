@@ -318,7 +318,40 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 8, one4all HEAD 0908edb4)
+## Current state (2026-04-14 session 3, one4all HEAD f5b3950b)
+
+IC-2 in progress: PASS=52 FAIL=7 TOTAL=59 (+8 this session).
+
+Two root causes fixed:
+
+1. **icn_bb_suspend yield bug** (icon_gen.c + icon_gen.h): Plain-return procs
+   set `exhausted=1` before swapping back, so `icn_bb_suspend` returned
+   FAILDESCR instead of the return value on first resume. Added
+   `yielded_returned` flag: deliver `z->yielded` once even when exhausted,
+   then FAILDESCR on next call. Fixes: rung02_proc_add_proc, rung02_proc_fact.
+
+2. **icn_is_gen recursive helper** (icn_runtime.c): `icn_bb_fnc_gen` and
+   binop-gen dispatch used a flat list of generator EKinds that missed
+   compound generator expressions like `(1 to 3) * (1 to 2)` (E_MUL whose
+   children are E_TO nodes). Added `icn_is_gen()` recursive subtree walker.
+   Both binop-gen and builtin-arg-gen dispatch now use it.
+   Fixes: rung01_paper_compound, _lt, _mult, _paper_expr,
+          rung02_arith_gen_nested_add, _paper_mul, _range.
+
+Broker gate: PASS=32 FAIL=2 (pre-existing, no regressions).
+
+Remaining 7 failures for next session:
+- **rung01_paper_nested_to**: `(1 to 2) to (3 to 4)` — lo/hi are themselves
+  generators; `icn_bb_to` evals lo/hi eagerly. Need `icn_bb_to_nested` or
+  lazy eval of lo/hi through their own boxes.
+- **rung02_arith_gen_nested_filter**: relop filter on nested generator expr
+- **rung02_arith_gen_relfilter**: `5 > (1 to 3)` — relop with scalar left,
+  gen right. `icn_is_gen` should now detect this; may be augop path issue.
+- **rung02_proc_locals**: `every total +:= (1 to n)` inside proc — augop
+  with generative RHS not going through icn_eval_gen path.
+- **rung08_strbuiltins_find_gen**: `find()` only returns first result.
+- **rung10_augop_break_repeat**: augop accumulation in repeat/break (gets 5, wants 15).
+- **rung11_bang_augconcat_bang_concat**: bang+augconcat ordering (gets y|, wants xy|).
 
 IC-2b DONE. E_SCAN_AUGOP removed (dead IR node — never emitted, never handled).
 Suspend coroutine fix PARTIAL:
