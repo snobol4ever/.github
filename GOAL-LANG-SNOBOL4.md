@@ -435,67 +435,31 @@ These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing bea
 subsystems that exercise ARRAY or TABLE operations.
 
 
-## Current state (2026-04-15, one4all HEAD 8a81c724)
+## Current state (2026-04-15, one4all HEAD 7e81bf6e)
 
 SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
-SN-6 IN PROGRESS: PASS=196/228 (was 194 at session start).
+SN-6 IN PROGRESS: PASS=~208/228 (was 196 at prior session start).
+Dead engine removal DONE this session (HEAD 7e81bf6e).
 
 BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS (omega/gen/tdump/alpha/beta/gamma × IR/SM/JIT).
-Broker gate: PASS=39 FAIL=0. Smoke PASS=7 FAIL=0.
+Broker gate: PASS=40 FAIL=0. Smoke PASS=7 FAIL=0.
 
-Fix this session — &ANCHOR Σlen/Ω split (HEAD 8a81c724):
-  Root cause: Ω served double duty — true subject length inside box fns AND
-  max scan-start (clamped to 0 by kw_anchor). Clamping Ω=0 broke ALL box
-  bounds checks (LIT, ANY, SPAN, BREAK, LEN, REM, RPOS, RTAB), so anchored
-  matches failed even when pattern was at position 0.
-  Fix: new global Σlen = true subject length (never clamped); Ω = scan-start
-  limit only. Updated bb_box.h, stmt_exec.c, bb_boxes.c, bb_build.c, bb_flat.c.
-  Tests recovered: 098_keyword_anchor, 099_keyword_rw (both IR and SM).
-
-Remaining 32 failures (next session — SN-6 continued):
-  FENCE(fn):  060,063,064,065,066,067,069 — FENCE(P) takes S instead of F when P fails
-  ARBNO/star: 070,074 — *var indirect pattern deref not working in ARBNO/*PAT context
+Remaining failures (next: fix *var indirect 070,074):
+  ARBNO/star: 070,074 — *PAT @cursor sequence fails; cursor (Δ) handoff between
+    bb_deferred_var γ-return and following XATP box is broken.
   ARRAY/TABLE: 1112,1113,1114,1115,1116,212 — aggregate type indexing gaps
-  Beauty drivers: ReadWrite, XDump, tree — require further investigation
+  Beauty drivers: ReadWrite, XDump, trace, tree — require investigation
   Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
-
-Next: Fix *var indirect (070,074) — *PAT alone works; *PAT @cursor sequence fails.
-Cursor (Δ) handoff between bb_deferred_var γ-return and following XATP box is broken.
-Then ARRAY/TABLE (1112-1116,212).
 
 ---
 
-## Dead code removal — snobol4_pattern.c (deferred, next opportunity)
+## Dead code removal — snobol4_pattern.c ✅ DONE (HEAD 7e81bf6e)
 
 Archive copies already in `archive/backend/` (HEAD 155f7360).
+Removal executed (HEAD 7e81bf6e): engine.c/h/engine_runtime.h deleted; 886-line
+materialisation block excised from snobol4_pattern.c; match_pattern/match_and_replace/
+SnoMatch shims removed from snobol4.h and snobol4_runtime_shim.h; raku_match in
+interp.c ported to exec_stmt; Makefile engine.c compile line removed.
+Smoke PASS=7 FAIL=0. Broker PASS=40 FAIL=0.
 
-**What is dead:** The old match engine inside `snobol4_pattern.c` — approximately
-lines 405–1140: `Pattern`/`MatchCtx`/`PatternList` typedefs, `make_seq`, `make_alt`,
-`make_epsilon`, `make_func`, `materialise()`, `capture_callback`, `match_pattern()`,
-`match_and_replace()`, `match_pattern_at()`. These all feed `engine_match_ex` which
-is only called from within this same dead block.
 
-**What is live and must stay:**
-- Lines 1–404: all `pat_*` builder functions (pat_lit, pat_cat, pat_fence_p, etc.),
-  PATND_t tree constructors, `var_as_pattern`, `g_eval_str_hook`
-- Lines ~1366+: `subscript_get`, `subscript_get2`, `subscript_set`, `subscript_set2`,
-  `EVAL_fn`, `patnd_print` — actively called from interp.c, eval_code.c, etc.
-
-**`engine.c` + `engine.h`:** Entirely dead — only called by the dead block above.
-
-**Steps to execute the surgical removal:**
-1. In `snobol4_pattern.c`: delete lines ~405–1140 (dead engine block only).
-   Keep everything above (pat_* builders) and below (subscript_*/EVAL_fn/patnd_print).
-2. Remove `#include "engine.h"` from `snobol4_pattern.c` line 21.
-3. Remove `engine.c` compile line from `Makefile` (~line 73).
-4. Delete `src/runtime/x86/engine.c` and `src/runtime/x86/engine.h`.
-5. Remove `match_pattern`, `match_pattern_at`, `match_and_replace` declarations
-   from `snobol4.h` (3 lines in the "Pattern matching" block).
-6. In `snobol4_runtime_shim.h`: remove `SnoMatch`, `_snoc_match`, `_snoc_replace`,
-   `MATCH_fn`, `REPLACE_fn` — they call dead `match_pattern`/`match_and_replace`.
-7. In `interp.c` raku_match (~line 1216): replace `match_pattern(pd, subj)` with
-   `exec_stmt(NULL, &sv, pd, NULL, 0)` via the live bb_broker path.
-8. Build clean. Run smoke + broker gates. Commit.
-
-**⛔ Do NOT truncate snobol4_pattern.c at line 405** — kills subscript_*/EVAL_fn.
-Use precise line-range deletion of the dead block only.
