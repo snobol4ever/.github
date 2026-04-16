@@ -19,13 +19,28 @@ bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
 
-Gate after setup:
+Gate after setup — run all four, all must pass:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_raku.sh              # PASS=5
-bash /home/claude/one4all/scripts/test_raku_ir_rungs.sh           # PASS=12
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_raku.sh       # 3-mode divergence check
+bash /home/claude/one4all/scripts/test_smoke_raku.sh              # PASS=5  (hello/arith/var/while/concat)
+bash /home/claude/one4all/scripts/test_raku_ir_rungs.sh           # PASS=29 (all rk_* fixtures, --ir-run)
+bash /home/claude/one4all/scripts/test_raku_ir_full_suite.sh      # PASS=29 per mode, all 3 modes
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=48 FAIL=0
 ```
+
+Additional targeted scripts (run when working on specific subsystems):
+```bash
+bash /home/claude/one4all/scripts/test_raku_fileio.sh             # RK-38/39/56: open/slurp/lines/spurt/$*STDIN
+bash /home/claude/one4all/scripts/test_crosscheck_raku.sh         # 3-mode divergence check
+bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh  # after .y/.l edits
+```
+
+Rules:
+- After every .y or .l edit: run regenerate_parser_and_lexer_from_sources.sh first, then build_scrip.sh.
+- After every commit touching shared files (interp.c, ir.h, sm_lower.c, bb_broker.c):
+  run test_smoke_unified_broker.sh before pushing.
+- Never run ad-hoc shell commands for build/test — always use a script in scripts/.
+- If a new test fixture is added, add a matching .expected file and verify it runs
+  in test_raku_ir_rungs.sh (auto-discovered by glob).
 
 ---
 
@@ -444,20 +459,24 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD — post RK-34)
+## Current state (2026-04-16, one4all HEAD -- post RK-38/39/56)
 
-RK-32 through RK-34 complete. PASS=25 FAIL=0 under all three modes.
-Broker PASS=44 FAIL=0.
-HEAD (one4all): see git log — RK-34 commit.
+RK-32 through RK-39 complete (RK-36 deferred). PASS=29 FAIL=0 all three modes.
+Broker PASS=48 FAIL=0.
+HEAD (one4all): dce09689
 
-Session RK-32..RK-34 summary:
-  RK-32: raku_re.c/raku_re.h — Thompson NFA compiler, Nfa_state[] flat table.
-  RK-33: raku_nfa_match() — parallel active-set simulation, anchor-aware closure.
+Session summary:
+  RK-32: raku_re.c/raku_re.h -- Thompson NFA compiler, Nfa_state[] flat table.
+  RK-33: raku_nfa_match() -- parallel active-set simulation, anchor-aware closure.
   RK-34: NK_CAP_OPEN/CLOSE, Cap_snap, leftmost-longest, VAR_CAPTURE, raku_capture().
-  RK-35: <n>(...) named groups, VAR_NAMED_CAPTURE, raku_named_capture() builtin.
-  RK-36: deferred (NFA infra committed, executor wiring skipped).
+  RK-35: <n>(...) named groups, VAR_NAMED_CAPTURE, raku_named_capture().
+  RK-36: deferred -- NFA infra (NK_CODE_ASSERT/PRED/SUB_CALL) committed, executor skipped.
   RK-37: m:g/pat/ global match + s/pat/repl/[g] substitution.
-  Next: RK-38 — file I/O: open/close/slurp/lines.
+  RK-38: open/close/slurp/lines, raku_fh_table, scripts/test_raku_fileio.sh.
+  RK-39: $*STDIN/$*STDOUT/$*STDERR as handle indices 0/1/2, print/say($fh,str).
+  RK-56: spurt(path,content) done alongside RK-38.
+  Makefiles: both Makefile and src/Makefile updated with raku_re.c.
+  Next: RK-47 -- last/next/redo loop control.
 
 ---
 
