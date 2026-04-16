@@ -170,11 +170,14 @@ RK-16 is next per PLAN.md.
   unless ^ present. raku_match interp.c dispatch upgraded from strstr to NFA.
   Gate: rk_re33 PASS (all patterns match/reject correctly). ✅
 
-- [ ] **RK-34** — Captures: `(...)` positional, `$0`, `$1`.
-  Augment Nfa_state with capture-open/capture-close tags (Thompson with captures).
-  On accept, walk capture tag list → populate `$/`: `$/[0]` = full match,
-  `$/[1]` = first group. `$0` aliases `$/[0]`.
-  Gate: rk_re34 PASS (`$0`/`$1` correct for nested groups).
+- [x] **RK-34** — Captures: `(...)` positional, `$0`, `$1`.
+  NK_CAP_OPEN/NK_CAP_CLOSE states added to Nfa_state (cap_idx field).
+  Cap_snap struct carries per-thread group_start/group_end through ss_add.
+  raku_nfa_exec() does leftmost-longest: records best_end/best_snap across
+  full active-set exhaustion (fixes early-exit bug where + exited after 1 char).
+  VAR_CAPTURE token ($0/$1) added to raku.l/raku.y; raku_capture(n) builtin
+  in interp.c slices g_raku_subject using g_raku_match group offsets.
+  Gate: rk_re34 PASS ($0/$1 correct, two-group match correct). ✅
 
 - [ ] **RK-35** — Named captures `<n>` and `$<n>`.
   Raku syntax `(<n> ...)` → named slot in `$/` hash.
@@ -436,19 +439,18 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-33)
+## Current state (2026-04-16, one4all HEAD — post RK-34)
 
-RK-32 + RK-33 complete. PASS=24 FAIL=0 under all three modes.
-Broker PASS=43 FAIL=0.
-HEAD (one4all): see git log — RK-32/RK-33 commit.
+RK-32 through RK-34 complete. PASS=25 FAIL=0 under all three modes.
+Broker PASS=44 FAIL=0.
+HEAD (one4all): see git log — RK-34 commit.
 
-Session RK-32..RK-33 summary:
-  RK-32: raku_re.c/raku_re.h — table-driven NFA compiler (Thompson construction).
-         Nfa_state[] flat table, bb_id reserved for Phase-3 BB lifter.
-         Patterns: literals, ., \d\w\s, [cls], ^$, *+?, |, ()
-  RK-33: raku_nfa_match() — parallel active-set simulation, anchor-aware epsilon-closure.
-         raku_match in interp.c upgraded from strstr to full NFA.
-  Next: RK-34 — positional captures ($0, $1) via capture-tag augmented NFA.
+Session RK-32..RK-34 summary:
+  RK-32: raku_re.c/raku_re.h — Thompson NFA compiler, Nfa_state[] flat table.
+  RK-33: raku_nfa_match() — parallel active-set simulation, anchor-aware closure.
+  RK-34: NK_CAP_OPEN/CLOSE, Cap_snap per-thread tracking, leftmost-longest fix,
+         VAR_CAPTURE token ($0/$1), raku_capture() builtin, g_raku_match global.
+  Next: RK-35 — named captures <n> and $<n>.
 
 ---
 
