@@ -383,18 +383,9 @@ Always invoke SPITBOL as:
 
 `-b` suppresses the version/date banner. Never omit it.
 
-SPITBOL case sensitivity:
-- Default (no flag): case-**insensitive** labels (`Push_list` == `push_list`) → duplicate label errors when using the double-function trick.
-- `-F`: explicitly fold (case-insensitive) — same as default.
-- `-f`: case-sensitive — but broken in v4.0f x86-64: "No END statement found" on all files.
-
-**Workaround for double-function trick:** Use a SINGLE NRETURN function with args.
-Call it two ways in the pattern:
-- With captured variable: `(word . tag) . *push_list(tag)`
-- With literal:           `(epsilon . *push_list('BANK'))`
-
-This avoids the uppercase/lowercase wrapper pair entirely.
-Both forms call the same `push_list(v)` function at match time.
+SPITBOL `-f` (case-sensitive) is broken in v4.0f x86-64: causes "No END statement found".
+Use CSNOBOL4 `-bf` for programs requiring case-sensitive labels (double-function trick).
+See: **Case sensitivity — always run case-sensitive** section below.
 
 ---
 
@@ -418,3 +409,44 @@ Actually: assigning to the function name IS required when called via `. *fn()`
 (the dot-star form) because `.` needs a NAME result. Use `.dummy` as the return.
 Error 021 only triggers if the function is called as a bare `*fn()` without `.`.
 Safe form: always use `(epsilon . *fn())` or `(pat . tag) . *fn(tag)`.
+
+---
+
+## Case sensitivity — always run case-sensitive
+
+**Always use case-sensitive mode for both oracles.**
+
+### CSNOBOL4 — use `-bf` always
+```bash
+/home/claude/csnobol4/snobol4 -bf file.sno
+```
+`-b` suppresses banner. `-f` toggles folding OFF → case-sensitive.
+Default is case-insensitive (fold to upper). Always override with `-f`.
+
+### SPITBOL x64 — `-f` is broken in v4.0f
+`-f` (don't fold) causes "No END statement found" on all files in SPITBOL x64 v4.0f.
+**Workaround:** SPITBOL cannot be used case-sensitively with this build.
+Use CSNOBOL4 `-bf` as the case-sensitive oracle.
+Use SPITBOL `-b` (no `-f`) only for programs that do not require case-sensitive labels.
+
+### Always uppercase END
+SNOBOL4 `END` statement must always be uppercase regardless of oracle or flag.
+```snobol4
+END          ← correct
+end          ← never
+End          ← never
+```
+This applies in all .sno files, all dialects, always.
+
+### Double-function trick requires case-sensitive mode
+The pattern:
+```snobol4
+               DEFINE('push_list(v)')
+               DEFINE('Push_list(vs)')                      :(push_list_end)
+push_list      dummy          =  stk_push_frame(v)
+               push_list      =  .dummy                     :(NRETURN)
+Push_list      Push_list      =  EVAL("epsilon . *push_list(" vs ")")  :(RETURN)
+push_list_end
+```
+`push_list` and `Push_list` are distinct labels only under case-sensitive mode.
+Run these programs with CSNOBOL4 `-bf`. Never with SPITBOL (broken `-f`).
