@@ -522,3 +522,48 @@ Remaining SN-6 failures after 070/074:
   ARRAY/TABLE: 1112,1113,1114,1115,1116,212
   Beauty: XDump, trace, tree drivers
   Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
+
+## Current state (2026-04-15c, one4all HEAD f33686e9)
+
+SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=206/228.
+Smoke PASS=7 FAIL=0. Broker PASS=41 FAIL=0.
+
+Session 2026-04-15c fixes (3 commits):
+
+**007bfb9e** — opsyn(): extract var name from DT_N via NV_name_from_ptr
+  Root cause: VARVAL_fn(.dupl) returned "" (derefs cell value, not name).
+  Fix: DT_N NAMEPTR → NV_name_from_ptr(); DT_N NAMEVAL → .s directly.
+  Test: PASS 1015_opsyn (2/2).
+
+**ba112358** — _APPLY_(): same DT_N name-extraction fix
+  apply(.eq,1,2) was passing "" to APPLY_fn → Error 5 Undefined function.
+  Test: PASS 1018_apply (3/3).
+
+**f33686e9** — Fix @cursor (074), ARBNO(*var) (070), bb_atp/bb_arbno U-5
+
+  1. bb_atp return type spec_t → DESCR_t (U-5 migration incomplete).
+     Binary trampoline called bb_atp; broker got garbage DESCR_t → always fail.
+     Fix: bb_atp returns DESCR_t. extern decl in bb_build.c updated.
+     Test: 074_pat_star_var_cursor PASS.
+
+  2. bb_arbn_emit_binary: use bb_arbno_new() instead of arbno_t_bin mirror.
+     arbno_t_bin had spec_t_bin.delta=size_t vs spec_t.delta=int → frame
+     size mismatch → corrupt stack indexing in bb_arbno.
+
+  3. DYN-12 extended: memset guard in bb_deferred_var covers all config-only
+     boxes (bb_any, bb_notany, bb_span, bb_brk), not just bb_lit.
+     Zeroing chars ptr → strchr(NULL) → silent fail on ARBNO retry.
+
+  4. E_ARBNO body context: interp_eval → interp_eval_pat (ROOT CAUSE of 070).
+     interp_eval on E_DEFER(E_VAR) returns frozen DT_E, not pat_ref(name).
+     pat_arbno(DT_E) built XDSAR with empty STRVAL_fn → bb_build returned
+     bb_eps → ARBNO body always matched zero width.
+     Test: 070_pat_arbno_star_var_digits PASS (V=123).
+
+Remaining SN-6 failures (FAIL=22):
+  ARRAY/TABLE: 1112,1113,1114,1115,1116,212
+  Beauty: XDump, trace, tree drivers
+  Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
+  expr_eval — *func() side-effect patterns in ARBNO context
+
+Next session: fix ARRAY/TABLE indexing (1112–1116, 212), then Beauty XDump/trace/tree.
