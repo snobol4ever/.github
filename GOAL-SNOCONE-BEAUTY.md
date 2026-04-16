@@ -18,49 +18,80 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh        # PASS=5
-bash /home/claude/one4all/scripts/test_beauty_snocone_all_modes.sh  # PASS=42 SKIP=3
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=36
+bash /home/claude/one4all/scripts/test_smoke_snocone.sh              # PASS=5
+bash /home/claude/one4all/scripts/test_beauty_snocone_all_modes.sh   # PASS=42 SKIP=3
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh       # PASS=44
+```
+
+## SB-4 Scripts (use these — no ad-hoc shell)
+
+```bash
+# 1. Assemble beauty/driver.sc from all subsystem .sc files:
+bash scripts/util_assemble_beauty_driver.sh
+#    writes test/beauty-sc/beauty/driver.sc
+#    --output PATH   write to a different path
+#    --dry-run       print to stdout only
+
+# 2. Binary-search for the line that causes a hang:
+bash scripts/util_bisect_beauty_hang.sh
+#    --driver PATH   assembled driver (default: test/beauty-sc/beauty/driver.sc)
+#    --lines N       single probe at line N instead of bisecting
+#    --timeout N     seconds per probe (default: 5)
+#    --mode MODE     --ir-run | --sm-run | --jit-run
+
+# 3. Run SPITBOL oracle on a .sno input (cd to beauty/ include dir automatically):
+bash scripts/util_run_beauty_oracle.sh --input FILE
+#    --output FILE   write ref to file
+#    --corpus PATH   corpus root (default: /home/claude/corpus)
+
+# 4. Run beauty/driver.sc via scrip; optionally diff against oracle:
+bash scripts/util_run_beauty_sc.sh --input FILE
+#    --compare       also run oracle, print PASS/FAIL + diff
+#    --ref FILE      diff against pre-baked .ref instead of running oracle
+#    --mode MODE     --ir-run | --sm-run | --jit-run
 ```
 
 ---
 
-## Current state (2026-04-16, one4all HEAD 9e81b9da)
+## Current state (2026-04-16, one4all HEAD 18952c2d)
 
 SB-1 DONE: 9 underflow sites diagnosed — dollar-quoted idents + scan+replacement.
 SB-2 DONE: $'...' lexer fix — both lex loops patched. Gate passes.
 SB-3 DONE: ~(subj ? pat) parser fix + scan+replacement lowerer fix. 0 underflows.
-SB-4 IN PROGRESS: beauty.sc needs missing Snocone library ports to produce any output.
+SB-4 IN PROGRESS: missing Snocone library ports written; assembly hang being fixed.
 
-BONUS FIX (this session): subscript_get — unset TABLE slot as direct fn arg
-returned FAILDESCR instead of NULVCL. Fix: snobol4_pattern.c line ~442,
-return NULVCL not FAILDESCR when table has no entry and no default.
-This fixed trace subsystem regression (FAIL=3→0). beauty gate now PASS=42 FAIL=0 SKIP=3.
+Gates: smoke PASS=5, beauty PASS=42 SKIP=3, broker PASS=44.
+corpus repo cloned to /home/claude/corpus (oracle include files confirmed present).
 
-SPITBOL oracle: beauty.sc is Snocone syntax — SPITBOL cannot run it.
-Oracle for SB-4 is: sbl beauty.sno (SNOBOL4 version) on same input.
-beauty.sno is in corpus (not yet cloned). corpus path: snobol4ever/corpus.
+New .sc files written this session (in test/beauty-sc/beauty/):
+  Qize.sc    — Qize/SQize/DQize/SqlSQize/Intize/Extize/LEQ/Ucvt
+  TDump.sc   — TValue/TDump/TLump
+  XDump.sc   — XDump
+  omega.sc   — TV/TW/TX/TY/TZ
+  io.sc      — stub (INPUT/OUTPUT already built-in under scrip)
 
-Subsystem .sc files available as driver.sc per test/beauty-sc/ subdirectory:
-  PORTED (driver.sc exists): global, fence, assign, case, match, counter,
-    stack, tree, ShiftReduce, ReadWrite, semantic, trace, strings, arith, roman
-  IN beauty dir: Gen.sc, case.sc (ported HEAD 853fb992)
-  STILL NEEDED: Qize.sc, TDump.sc, XDump.sc, omega.sc, is.sc, io.sc
+New scripts written (in scripts/):
+  util_assemble_beauty_driver.sh  — assembles driver.sc from subsystem parts
+  util_bisect_beauty_hang.sh      — binary-searches for hang line in assembled file
+  util_run_beauty_oracle.sh       — runs SPITBOL oracle from correct include dir
+  util_run_beauty_sc.sh           — runs beauty/driver.sc via scrip, optional compare
 
-BLOCKER: combining subsystem libraries into one scrip invocation hangs at
-duplicate `struct link` declaration. struct link is defined in both
-stack/driver.sc and ShiftReduce/driver.sc. Fix: deduplicate before combining —
-define struct link once in a shared preamble, strip from individual files.
+BLOCKER (active): util_assemble_beauty_driver.sh still produces a hang.
+Root cause confirmed via util_bisect_beauty_hang.sh:
+  ShiftReduce/driver.sc re-emits InitStack/Push/Pop/Top bodies already present
+  from stack/driver.sc. Second definition of InitStack at assembled line ~169 hangs.
+  struct link dedup works. Proc-body dedup in strip_stack_procs() awk is broken:
+  single-line proc "procedure Foo() { ... }" — awk depth counter resets skip=0
+  but outer `next` is never reached; multi-line bodies also not stripped correctly.
 
-1. **`$'...'` dollar-quoted identifiers** — e.g. `$'=' = *White && '=' && *White;`
-   The lexer treats `$` as an identifier character but does not tokenize `$'...'`
-   as a quoted-name literal. The parser/lowerer never sees a valid lvalue.
-
-2. **`*deref` in replacement position** — e.g. `ppArgs ? ('--' && *ppTokNamePat . ppTokName) = ;`
-   Indirect pattern reference on the LHS of a replacement. The lowerer's
-   expression stack underflows when it tries to pop the replacement target.
-
-These are the two blockers. Fix them in order.
+NEXT STEP (SB-4 continued):
+  Fix strip_stack_procs() in util_assemble_beauty_driver.sh so it correctly
+  strips all four proc bodies (single-line and multi-line) from ShiftReduce section.
+  Then re-run util_bisect_beauty_hang.sh — should report "no hang found".
+  Then run: bash scripts/util_run_beauty_sc.sh --input test/beauty-sc/beauty/beauty.sc
+             bash scripts/util_run_beauty_oracle.sh --input corpus/programs/snobol4/demo/beauty.sno
+             (note: oracle needs trivial .sno input, not beauty.sc itself at this stage)
+  Then compare outputs.
 
 ---
 
