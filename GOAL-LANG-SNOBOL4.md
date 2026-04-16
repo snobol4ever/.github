@@ -459,19 +459,45 @@ NOTE: broad script shows 25 FAIL but many are timeout-cascade false positives.
 True distinct failures: ~11 in crosscheck + beauty XDump/trace/tree + demo failures.
 Next session: fix OPSYN segfault (1015), then APPLY (1018), then ARBNO β-retry (070/074).
 
-### 1015_opsyn — OPSYN segfault ROOT CAUSE (diagnosed 2026-04-15, NOT YET FIXED)
+### 1015_opsyn — OPSYN segfault ROOT CAUSE (re-diagnosed 2026-04-15b, NOT YET FIXED)
 
-`opsyn('@', .dupl, 2)` passes `.dupl` as a DT_N (name descriptor) with `.slen=0, .s="dupl"`.
-`VARVAL_fn` in snobol4.c has NO `case DT_N:` branch — falls through, returns NULL.
-`register_fn_alias("@", NULL)` creates `@` as a no-op entry with `fn=NULL`.
-`APPLY_fn("@",...)` sees `fn==NULL` → calls `g_user_call_hook("@",...)` →
-`_usercall_hook` sees `FNCEX_fn("@")` true → calls `APPLY_fn("@",...)` → infinite recursion → segfault.
+**gdb-confirmed infinite recursion:** `APPLY_fn("@")` → `g_user_call_hook` →
+`_usercall_hook` line 3881 `FNCEX_fn("@")==1 && !_body` → `APPLY_fn("@")` → loop → stack overflow.
 
-**Fix:** Add `case DT_N:` to `VARVAL_fn` switch in snobol4.c:
-    When `v.v == DT_N && v.slen == 0`: return `GC_strdup(v.s)`.  (name string is in .s)
-    When `v.v == DT_N && v.slen == 1`: dereference `.ptr` to get the target DESCR_t, then stringify.
-This makes `VARVAL_fn(.dupl)` return `"dupl"`, so `register_fn_alias("@","dupl")` copies DUPL's fn correctly.
-Then `APPLY_fn("@",...)` calls fn directly — no hook, no loop.
+**Why fn==NULL for "@":** `opsyn('@', .dupl, 2)` calls `VARVAL_fn(oldname)` where `oldname`
+is a NAMEPTR descriptor (`DT_N`, `slen=1`, `s=NULL`, `ptr→NV cell for dupl`).
+`VARVAL_fn` case DT_N: checks `if (v.s)` — **`v.s` is NULL for a NAMEPTR** — so falls to
+`NV_name_from_ptr(v.ptr)` which fails, then dereferences the NV cell *value* of `dupl`
+(unset → empty string `""`). So `VARVAL_fn(.dupl)` returns `""`, not `"dupl"`.
+`register_fn_alias("@", "")` finds no entry for `""` → creates `@` with `fn=NULL`.
+
+**VARVAL_fn already has `case DT_N:` — the bug is the s==NULL guard skipping the ptr path.**
+
+**Fix location:** `src/runtime/x86/snobol4_pattern.c`, `opsyn()` function (~line 790).
+Do NOT use `VARVAL_fn` on the oldname arg — it stringifies the variable's *value*.
+Instead extract the variable *name* from the DT_N descriptor directly:
+
+```c
+DESCR_t opsyn(DESCR_t newname, DESCR_t oldname, DESCR_t type) {
+    (void)type;
+    const char *nm  = VARVAL_fn(newname);
+    /* oldname is typically .dupl — a NAMEPTR (DT_N, slen=1, ptr→NV cell).
+     * VARVAL_fn dereferences to the cell's value, not the name. Extract name: */
+    const char *old = NULL;
+    if (oldname.v == DT_N) {
+        if (oldname.slen == 0 && oldname.s && *oldname.s)
+            old = oldname.s;                          /* NAMEVAL: name is in .s */
+        else if (oldname.slen == 1 && oldname.ptr)
+            old = NV_name_from_ptr((const DESCR_t *)oldname.ptr); /* NAMEPTR */
+    }
+    if (!old) old = VARVAL_fn(oldname);               /* fallback: string value */
+    if (!nm || !old || !*old) return FAILDESCR;
+    register_fn_alias(nm, old);
+    return NULVCL;
+}
+```
+
+`NV_name_from_ptr` is already declared in `snobol4.h` — no new header needed.
 
 Rebuild: `make -C /home/claude/one4all scrip`
 Test: `timeout 8 ./scrip --ir-run /home/claude/corpus/crosscheck/rung10/1015_opsyn.sno < /dev/null`
