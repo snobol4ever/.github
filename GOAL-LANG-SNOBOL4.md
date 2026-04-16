@@ -115,36 +115,26 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-16e, one4all HEAD 31bb2268)
+## Current state (2026-04-16f, one4all HEAD b2ca50a6)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
-SN-6 IN PROGRESS: PASS=215/228 (recount pending — expect higher after recent fixes).
-Smoke PASS=7. Broker PASS=47.
+SN-6 IN PROGRESS: PASS=219/228. Smoke PASS=7. Broker PASS=49.
 
 **Prior fixes summary (compressed):** Dynamic stacks; h_store_var JIT stack balance;
 bb_capture return type DESCR_t; E_POW integer path; DEFINE return null string;
 E_KEYWORD uppercase for &lcase/&ucase (IR+SM); DATA field accessor/mutator SM+JIT;
-ARBNO SM_PAT_ARBNO opcode; ITEM/_SET in _usercall_hook; N-dim IDX/IDX_SET
-(sm_interp+sm_codegen nargs>=4 now routes through INVOKE_fn ITEM/ITEM_SET);
-ARRAY 'lo:hi,N' parsing (bare N → lo2=1 hi2=N, was zero-width cols).
+ARBNO SM_PAT_ARBNO opcode; ITEM/_SET in _usercall_hook; N-dim IDX/IDX_SET;
+ARRAY 'lo:hi,N' parsing; CONVERT array→table (1113); $.var<idx> SM/JIT lowering (212).
 
 **Next session:**
-1. Fix 1113/006: `convert(ta,'table')` array→table integer key roundtrip fails SM/JIT.
-   IR succeeds. Probe `ata<7>` vs `ata<'7'>` — likely int key stringified during
-   conversion. Look at `CONVERT_fn` array→table path in `snobol4.c`.
-2. Fix 212_indirect_array: `$.var<index>` indirect then subscript in SM/JIT.
-3. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
-4. expr_eval, beauty_XDump driver.
-5. Full broad corpus recount.
+1. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
+2. expr_eval.
+3. beauty_XDump driver.
+4. fileinfo, triplet (newly appeared in recount).
+5. Full broad corpus recount to confirm 219+.
 
-**Remaining SN-6 failures (~9 real):**
-- TABLE: 1113
-- Indirect array: 212
+**Remaining SN-6 failures (9):**
+- fileinfo, triplet (new)
+- expr_eval
 - Beauty: XDump driver
 - Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
-- expr_eval
-
-**Known divergences (IM-16, not yet fixed):**
-- 032_goto_loop_count — DIVERGE stmt 4
-- 1110_array_1d — DIVERGE stmt 8 (ARRAY indexing)
-- 1113_table — DIVERGE stmt 8 (TABLE indexing)
