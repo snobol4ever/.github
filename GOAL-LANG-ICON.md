@@ -653,3 +653,36 @@ IC-8 baseline (rung36 JCON): PASS=2 FAIL=50 XFAIL=23 TOTAL=75
 
 Next IC-7: fix rung30 builtins first (abs/max/min/sqrt/seq in icn_runtime.c E_FNC dispatch),
 then rung31 sort/sortf, then rung33 case, then rung34 null-test, then rung32 strret_every.
+
+## Current state (2026-04-16 session 15, one4all HEAD 9eb8c669)
+
+IC-7 IN PROGRESS. Broker PASS=49 FAIL=0. Smoke PASS=5. Rung01-29 PASS=156/156.
+
+Fixes this session (interp.c + icn_runtime.c):
+1. abs/max/min/sqrt added to Icon E_FNC dispatch.
+2. seq() added as E_FNC builtin (returns first value) AND as icn_bb_to_by infinite
+   generator in icn_eval_gen (every write(seq(1) \\ 3) → 1 2 3).
+3. sort(L)/sortf(L,n) — insertion sort over icnlist; sortf uses DATINST_t->fields[n-1].
+4. E_CASE rewritten: Icon pairs layout [val,body]...[default_body].
+   Raku triples detected by (nchildren-1)%3==0 AND child[1] is E_ILIT/E_NUL.
+5. E_NULL (/E) and E_NONNULL (\E) added to interp_eval.
+   E_NONNULL added to icn_is_gen + icn_eval_gen pass-through via icn_bb_limit
+   so every write(\(1 to 3)) → 1 2 3.
+6. User-proc-with-gen-arg box wired in icn_eval_gen (before oneshot fallback):
+   detects first generative arg of a user proc, builds icn_fnc_gen_state_t.
+
+IC-7 rung30-35 results:
+  rung30 5/5 DONE — abs/max/min/sqrt/seq
+  rung31 5/5 DONE — sort/sortf
+  rung32 4/5 OPEN — strret_every: every write(tag("a"|"b"|"c")) yields only first value
+  rung33 5/5 DONE — case expressions
+  rung34 5/5 DONE — null/nonnull tests
+  rung35 7/7 DONE — already passing (no new work)
+
+rung32 open root cause: icn_bb_fnc_gen calls icn_call_builtin → icn_call_proc
+for user procs. icn_call_proc returns after first `return` statement — not a
+coroutine. Fix: in icn_bb_fnc_gen, when call targets a user proc, build a fresh
+icn_bb_suspend coroutine each tick with the substituted arg, instead of calling
+icn_call_builtin.
+
+Next IC-7: fix rung32 strret_every (1 test), then IC-8 rung36 JCON suite.
