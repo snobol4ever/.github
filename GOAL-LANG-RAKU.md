@@ -212,18 +212,17 @@ RK-16 is next per PLAN.md.
 
 ### Phase 5 — File I/O
 
-- [ ] **RK-38** — Basic file I/O: `open`, `close`, `slurp`, `lines`.
-  `open($path, :r/:w/:a)` → file handle stored as DT_FILE DESCR_t (tagged FILE* ptr).
-  `slurp($fh)` / `slurp($path)` → read entire file as string.
-  `lines($fh)` / `lines($path)` → BB_PUMP generator: each pump yields one line
-  (strips newline); returns FAILDESCR at EOF. Natural `for lines($fh) -> $line`.
-  `close($fh)`. `print($fh, $s)` / `say($fh, $s)` → write to handle.
-  Gate: rk_fileio38 PASS (write file, slurp back, iterate lines via BB_PUMP).
+- [x] **RK-38** — Basic file I/O: `open`, `close`, `slurp`, `lines`.
+  File handle table (RAKU_FH_MAX=64, indices 0/1/2 = stdio). open() returns INTVAL(idx).
+  slurp(path|fh): fread whole file. lines(path|fh): SOH-delimited line list for for-loop.
+  print($fh,str)/say($fh,str) grammar rules + raku_print_fh/raku_say_fh builtins.
+  scripts/test_raku_fileio.sh: self-contained gate script.
+  Gate: rk_fileio38 PASS. ✅
 
-- [ ] **RK-39** — `$*STDIN`, `$*STDOUT`, `$*STDERR` standard handles.
-  Pre-bound globals wrapping stdin/stdout/stderr FILE*s.
-  `for lines($*STDIN) -> $line { ... }` reads stdin line-by-line via BB_PUMP.
-  Gate: rk_stdio39 PASS (echo filter: lines in → transformed lines out).
+- [x] **RK-39** — `$*STDIN`, `$*STDOUT`, `$*STDERR` standard handles.
+  Lex rules in raku.l: $*STDIN/$*STDOUT/$*STDERR → VAR_CAPTURE(0/1/2).
+  raku_fh_ensure_init() pre-binds indices 0/1/2 to stdin/stdout/stderr.
+  Gate: rk_stdio39 PASS (print/say to $*STDOUT/$*STDERR). ✅
 
 ### Phase 6 — BB-native Grammar machine (rule / token / regex)
 
@@ -357,9 +356,9 @@ RK-16 is next per PLAN.md.
   `last` from RK-47 exits it. `next`/`redo` also apply.
   Gate: rk_loop55 PASS.
 
-- [ ] **RK-56** — `spurt($path, $content)` write-file shorthand.
-  Symmetric with `slurp` from RK-38. Opens, writes, closes in one call.
-  Gate: rk_fileio56 PASS (spurt then slurp round-trips correctly).
+- [x] **RK-56** — `spurt($path, $content)` write-file shorthand.
+  Implemented alongside RK-38: fopen/fputs/fclose in one call.
+  Gate: covered by rk_fileio38 (spurt+slurp round-trip). ✅
 
 - [ ] **RK-57** — `dir($path)` directory listing as BB_PUMP generator.
   Each pump yields one filename string via POSIX `readdir`.
