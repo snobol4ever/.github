@@ -392,7 +392,27 @@ RK-16 is next per PLAN.md.
   Stored as dispatch table in icn_proc_table keyed by `"name/arity"`.
   Gate: rk_multi63 PASS (dispatch by argument count correct).
 
-- [ ] **RK-64** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-63.
+- [ ] **RK-65** — `<rulename=other>` subrule alias syntax.
+  `<name=otherrule>` inside a rule → call `otherrule` BB proc, bind result to `$/<name>`.
+  Gate: rk_alias65 PASS (alias capture binds under correct name).
+
+- [ ] **RK-66** — `$/` full Match object interface.
+  `.Str` = matched substring. `.from` = start pos. `.to` = end pos.
+  `.prematch` = subject before match. `.postmatch` = subject after match.
+  Implemented as field accessors on the Match hash DESCR_t.
+  Gate: rk_match_obj66 PASS (all five accessors correct).
+
+- [ ] **RK-67** — `lazy` / `eager` adverbs on lists.
+  `lazy @list` → wraps list in a demand-driven BB_PUMP (no evaluation until consumed).
+  `eager @list` → forces full evaluation of a lazy list into a concrete array.
+  Gate: rk_lazy_eager67 PASS (lazy defers work; eager forces it).
+
+- [ ] **RK-68** — `produce` named triangle-scan generator.
+  `produce &op, @list` → like `[\op] @list` but as a named builtin.
+  Each pump yields the next partial result: produce(+, 1,2,3,4) → 1,3,6,10.
+  Gate: rk_produce68 PASS.
+
+- [ ] **RK-69** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-68.
   Gate: PASS=N FAIL=0 per mode, all three modes.
 ---
 
