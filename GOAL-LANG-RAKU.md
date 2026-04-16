@@ -179,10 +179,15 @@ RK-16 is next per PLAN.md.
   in interp.c slices g_raku_subject using g_raku_match group offsets.
   Gate: rk_re34 PASS ($0/$1 correct, two-group match correct). ✅
 
-- [ ] **RK-35** — Named captures `<n>` and `$<n>`.
-  Raku syntax `(<n> ...)` → named slot in `$/` hash.
-  Nfa_state capture tag carries name string. On accept, populate `$/<n>`.
-  Gate: rk_re35 PASS (`$<word>`, `$<digits>` correct).
+- [x] **RK-35** — Named captures `<n>` and `$<n>`.
+  `<n>(...)` syntax parsed in raku_re.c parse_atom: collects name, assigns gidx,
+  stores in nfa->group_name[gidx]. group_name[MAX_GROUPS][64] added to Raku_nfa.
+  group_name copied to Raku_match at commit. raku_nfa_group_by_name() lookup.
+  VAR_NAMED_CAPTURE token in raku.l: `$<n>` -> sval name.
+  VAR_NAMED_CAPTURE rule in raku.y -> make_call("raku_named_capture", name).
+  raku_named_capture(name) builtin in interp.c: linear scan of group_name[].
+  Mix of named + positional groups in same pattern works correctly.
+  Gate: rk_re35 PASS ($<word>/$<first>/$<last>/$<num> all correct). ✅
 
 - [ ] **RK-36** — Code assertions inside RE: `{ }`, `<{ }>`, `<?{ }>`, `<!{ }>`, `<&sub>`.
   `{ code }` — unconditional side-effect at match pos; always succeeds.
@@ -197,12 +202,13 @@ RK-16 is next per PLAN.md.
   (NFA states with code edges run serially, not in parallel).
   Gate: rk_re36 PASS (all five forms fire correctly, predicate failure backtracks).
 
-- [ ] **RK-37** — Global match generator `m:g/pat/` and substitution `s/pat/repl/`.
-  `$s ~~ m:g/pat/` → BB_PUMP generator: each pump advances past last match, yields `$/`.
-  Natural `for $s ~~ m:g/\d+/ -> $m { say $m<0>; }` loop.
-  `$s ~~ s/pat/repl/` → single replace; `:g` → replace all.
-  Replacement string may reference `$0`/`$<n>`.
-  Gate: rk_re37 PASS (global match yields all; substitution single and global).
+- [x] **RK-37** — Global match `m:g/pat/` and substitution `s/pat/repl/[g]`.
+  LIT_MATCH_GLOBAL token (raku.l: m:g/ prefix sets raku_match_global flag).
+  LIT_SUBST token: s/.../.../ lexed as "pat\x01repl\x01flag" single token.
+  raku_match_global() builtin: NFA exec loop, collects SOH-delimited match list
+  for for-loop iteration. raku_subst() builtin: single and global replace,
+  updates frame variable in-place. Parser regen'd.
+  Gate: rk_re37 PASS (global match yields all digits; single and global subst). ✅
 
 ### Phase 5 — File I/O
 
@@ -448,9 +454,11 @@ HEAD (one4all): see git log — RK-34 commit.
 Session RK-32..RK-34 summary:
   RK-32: raku_re.c/raku_re.h — Thompson NFA compiler, Nfa_state[] flat table.
   RK-33: raku_nfa_match() — parallel active-set simulation, anchor-aware closure.
-  RK-34: NK_CAP_OPEN/CLOSE, Cap_snap per-thread tracking, leftmost-longest fix,
-         VAR_CAPTURE token ($0/$1), raku_capture() builtin, g_raku_match global.
-  Next: RK-35 — named captures <n> and $<n>.
+  RK-34: NK_CAP_OPEN/CLOSE, Cap_snap, leftmost-longest, VAR_CAPTURE, raku_capture().
+  RK-35: <n>(...) named groups, VAR_NAMED_CAPTURE, raku_named_capture() builtin.
+  RK-36: deferred (NFA infra committed, executor wiring skipped).
+  RK-37: m:g/pat/ global match + s/pat/repl/[g] substitution.
+  Next: RK-38 — file I/O: open/close/slurp/lines.
 
 ---
 

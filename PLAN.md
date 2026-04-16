@@ -35,7 +35,7 @@ Do not read `archive/` unless a step explicitly says to.
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228; root cause found for 1114/005 (IDX nargs>=4 dead else in sm_interp+sm_codegen); fix plan documented; next: wire N-dim IDX/IDX_SET; HEAD 66f99531 | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=156/156; broker PASS=43; rung13 alt-gen DONE (icn_bb_assign_gen + E_CAT cross-product); next: corpus rung16-29 recount | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-35 next: named captures <n> and $<n>; RK-34 done: $0/$1 positional captures, leftmost-longest, PASS=25 all 3 modes | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-38 next: file I/O; RK-37 done: m:g global match + s/pat/repl/ subst, PASS=27 all 3 modes | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
