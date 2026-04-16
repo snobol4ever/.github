@@ -146,133 +146,207 @@ RK-16 is next per PLAN.md.
 - [x] **RK-31** — RK-16 through RK-24 under --jit-run.
   Gate: all diffs vs --sm-run empty. ✅
 
-### Phase 4 — Regex with captures (PCRE2)
+### Phase 4 — BB-native RE engine (NFA simulation)
 
-- [ ] **RK-32** — PCRE2 integration: `$s ~~ /pattern/` with full regex syntax.
-  Link with `-lpcre2-8`. Replace `strstr` stub in `raku_match` (interp.c) with
-  `pcre2_match()`. Return INTVAL(1) on match, FAILDESCR on no match.
-  No captures yet — just correctness for quantifiers, alternation, anchors.
-  Gate: rk_regex32 PASS (tests `\d+`, `[a-z]+`, `^anchor$`, `a|b`, `.*`).
+  **Architecture: BB-native NFA, not PCRE2 for the core.**
+  Classical RE (no backrefs, no code assertions) → NFA → parallel BB_PUMP simulation.
+  Each NFA state is a BB box. Epsilon transitions = BB_PUMP yields without consuming.
+  Character transitions = BB_PUMP consumes one char, advances pos, or returns FAILDESCR.
+  Parallel active-state-set = E_ALTERNATE over N active BB generators → O(n) match.
+  PCRE2 kept as fallback only for `regex` keyword (full backtracking, code assertions).
+  Lon has existing NFA/DFA C code — integrate as the compiler from pattern AST → NFA graph.
 
-- [ ] **RK-33** — Regex captures: `$/`, `$0`, `$1`, named `$<name>`.
-  After pcre2_match(), populate `$/` hash with numbered and named captures.
-  `$0` = full match string. `$<name>` = named group via `(?<name>...)` or Raku
-  `<name>` syntax (map `<name>` → `(?<name>...)` in pattern compiler).
-  Gate: rk_regex33 PASS (captures correct values, `$0`/`$1`/`$<word>`).
+- [ ] **RK-32** — RE compiler: pattern syntax → NFA BB-graph.
+  Parse `/pattern/` syntax in raku.l/raku.y: literals, `.`, `\d\w\s`, `[cls]`,
+  `^`/`$` anchors, `*`/`+`/`?` quantifiers, `|` alternation, grouping `(...)`.
+  Compile to NFA graph: array of Nfa_state structs, each with char-class edge
+  (advances pos) or epsilon edge (free), accept flag, BB box index.
+  Integrate Lon's existing NFA code here — adapt struct layout to Nfa_state.
+  Gate: rk_re32 PASS (NFA built for `\d+`, `[a-z]+`, `a|b`, `.*`, `^x$`;
+  print state count to confirm compilation; no execution yet).
 
-- [ ] **RK-34** — Regex in list context: `$s ~~ m:g/pattern/` global match generator.
-  Maps to BB_PUMP: each pump step advances the match offset, yields next `$/`.
-  `for $s ~~ m:g/\d+/ -> $m { say $m<0>; }` — natural BB_PUMP loop.
-  Gate: rk_regex34 PASS (global match yields all matches in order).
+- [ ] **RK-33** — NFA simulation via BB_PUMP parallel execution.
+  `raku_match(subject, nfa)` → spawn one BB_PUMP per initial epsilon-closure state.
+  Each pump step: consume one char, advance to next states, kill dead states.
+  E_ALTERNATE drives active-state pool; accept state = INTVAL(match_end_pos).
+  `$s ~~ /pat/` returns INTVAL(1) on match, FAILDESCR on no match.
+  Gate: rk_re33 PASS (all patterns from RK-32 match/reject correctly).
 
-- [ ] **RK-35** — Regex substitution: `$s ~~ s/pattern/replacement/`.
-  Modifier `:g` for global replace. Replacement can reference `$0`/`$<name>`.
-  Implemented as `pcre2_substitute()`.
-  Gate: rk_regex35 PASS (single and global substitution correct).
+- [ ] **RK-34** — Captures: `(...)` positional, `$0`, `$1`.
+  Augment Nfa_state with capture-open/capture-close tags (Thompson with captures).
+  On accept, walk capture tag list → populate `$/`: `$/[0]` = full match,
+  `$/[1]` = first group. `$0` aliases `$/[0]`.
+  Gate: rk_re34 PASS (`$0`/`$1` correct for nested groups).
+
+- [ ] **RK-35** — Named captures `<n>` and `$<n>`.
+  Raku syntax `(<n> ...)` → named slot in `$/` hash.
+  Nfa_state capture tag carries name string. On accept, populate `$/<n>`.
+  Gate: rk_re35 PASS (`$<word>`, `$<digits>` correct).
+
+- [ ] **RK-36** — Code assertions inside RE: `{ }`, `<{ }>`, `<?{ }>`, `<!{ }>`, `<&sub>`.
+  `{ code }` — unconditional side-effect at match pos; always succeeds.
+    Maps to E_CAPT_COND_ASGN-style side-effect fired during NFA step.
+  `<{ code }>` — predicate: evaluate code; fail NFA branch if false.
+    Maps to E_INTERROGATE on NFA epsilon edge; kills that state on false.
+  `<?{ code }>` — zero-width lookahead predicate (no pos advance).
+  `<!{ code }>` — negative: E_NOT wrapping E_INTERROGATE.
+  `<&sub>` — call named sub as rule; E_DEFER(E_FNC) at match time
+    (pat_user_call infrastructure already in interp.c line 2627).
+  When code assertions present: pattern falls back to BB-backtrack mode
+  (NFA states with code edges run serially, not in parallel).
+  Gate: rk_re36 PASS (all five forms fire correctly, predicate failure backtracks).
+
+- [ ] **RK-37** — Global match generator `m:g/pat/` and substitution `s/pat/repl/`.
+  `$s ~~ m:g/pat/` → BB_PUMP generator: each pump advances past last match, yields `$/`.
+  Natural `for $s ~~ m:g/\d+/ -> $m { say $m<0>; }` loop.
+  `$s ~~ s/pat/repl/` → single replace; `:g` → replace all.
+  Replacement string may reference `$0`/`$<n>`.
+  Gate: rk_re37 PASS (global match yields all; substitution single and global).
 
 ### Phase 5 — File I/O
 
-- [ ] **RK-36** — Basic file I/O: `open`, `close`, `slurp`, `lines`.
-  `open($path, :r)` / `open($path, :w)` / `open($path, :a)` — returns a file handle
-  stored as a tagged DESCR_t (DT_FILE or reuse DT_I with pointer tag).
-  `slurp($fh)` / `slurp($path)` — read entire file as string.
-  `lines($fh)` / `lines($path)` — BB_PUMP generator: each pump yields one line
-  (natural goal-directed: `for lines($fh) -> $line { ... }`).
-  `close($fh)`. `print($fh, $s)` / `say($fh, $s)` — write to handle.
-  Gate: rk_fileio36 PASS (write file, slurp it back, iterate lines).
+- [ ] **RK-38** — Basic file I/O: `open`, `close`, `slurp`, `lines`.
+  `open($path, :r/:w/:a)` → file handle stored as DT_FILE DESCR_t (tagged FILE* ptr).
+  `slurp($fh)` / `slurp($path)` → read entire file as string.
+  `lines($fh)` / `lines($path)` → BB_PUMP generator: each pump yields one line
+  (strips newline); returns FAILDESCR at EOF. Natural `for lines($fh) -> $line`.
+  `close($fh)`. `print($fh, $s)` / `say($fh, $s)` → write to handle.
+  Gate: rk_fileio38 PASS (write file, slurp back, iterate lines via BB_PUMP).
 
-- [ ] **RK-37** — `$*STDIN`, `$*STDOUT`, `$*STDERR` standard handles.
-  Pre-bound globals. `for lines($*STDIN) -> $line { ... }` — reads stdin via
-  BB_PUMP, each line one pump step.
-  Gate: rk_stdio37 PASS (pipe input through lines generator).
+- [ ] **RK-39** — `$*STDIN`, `$*STDOUT`, `$*STDERR` standard handles.
+  Pre-bound globals wrapping stdin/stdout/stderr FILE*s.
+  `for lines($*STDIN) -> $line { ... }` reads stdin line-by-line via BB_PUMP.
+  Gate: rk_stdio39 PASS (echo filter: lines in → transformed lines out).
 
-### Phase 6 — Grammar / rule / token (PEG machine)
+### Phase 6 — BB-native Grammar machine (rule / token / regex)
 
-  **Architecture decision: PEG, not SNOBOL4 patterns.**
-  Raku `grammar` is fundamentally PEG with named recursive rules and captures.
-  SNOBOL4 patterns backtrack freely; Raku `token` is atomic (no backtracking within).
-  Each `rule`/`token`/`regex` compiles to a BB_PUMP generator sub in icn_proc_table.
-  A `<subrule>` call inside a rule = a BB_PUMP sub-call that yields a match object.
-  Named captures (`<name>`) bind to `$/` hash slots — same mechanism as RK-33.
+  **Architecture: BB-native grammar — every rule/token/regex is a BB_PUMP proc.**
+  Each `rule`/`token`/`regex` definition compiles to a named BB_PUMP proc registered
+  in icn_proc_table. Signature: (subject_str, pos_int) → new_pos_int | FAILDESCR.
+  This is identical to rk_combinator.raku — the combinator demo already proved the shape.
 
-- [ ] **RK-38** — Grammar skeleton: `grammar`, `rule`, `token`, `regex` keywords.
-  Lexer: add KW_GRAMMAR/KW_RULE/KW_TOKEN/KW_REGEX. Grammar: parse class-like body
-  where methods are replaced by rule/token/regex definitions.
-  Each rule/token/regex compiles to a proc in icn_proc_table taking ($subject, $pos)
-  returning new $pos on match or FAILDESCR on failure — same shape as rk_combinator.raku.
-  Gate: grammar parses without error; no execution yet.
+  Primitive matchers inside a rule body are BB boxes in raku_re.c:
+    Literal `'foo'`      → bb_lit(subject, pos, "foo") — strncmp, advance or FAILDESCR
+    Char class `<[a..z]>`→ bb_cls(subject, pos, range) — single char test
+    `.` any char         → bb_dot(subject, pos) — advance 1 or FAILDESCR at end
+    `\d`, `\w`, `\s`  → bb_cls variants
+    `^` / `$`            → bb_anchor — zero-width, checks pos==0 or pos==len
 
-- [ ] **RK-39** — PEG primitives inside rule/token/regex bodies.
-  Literal strings: `'foo'` → strncmp at pos.
-  Char classes: `<[a..z]>` → PCRE2 char class or manual range check.
-  Quantifiers: `*`, `+`, `?` → BB_PUMP loops (greedy).
-  Alternation: `||` (ordered choice, PEG semantics — no backtrack across).
-  Concatenation: juxtaposition → sequential match advancing pos.
-  Gate: rk_peg39 PASS (rule matching literals, quantifiers, alternation).
+  Quantifiers are BB_PUMP loops:
+    `pat*` → bb_star: E_ALTERNATE(match | epsilon); `token` variant: possessive (no retry)
+    `pat+` → bb_plus: match once then bb_star
+    `pat?` → bb_opt:  E_ALTERNATE(match | epsilon)
 
-- [ ] **RK-40** — Subrule calls `<rulename>` and named captures.
-  `<rulename>` inside a rule → call the rule's BB_PUMP proc, bind result to `$/<rulename>`.
-  `<rulename=other>` alias. Recursive rules supported via icn_proc_table call.
-  Gate: rk_peg40 PASS (grammar with 2+ mutually referencing rules, captures correct).
+  Alternation:
+    `token`/`rule`: `||` ordered choice — try left; if FAILDESCR try right; done
+    `regex`:        `|`  full E_ALTERNATE backtrack
 
-- [ ] **RK-41** — `token` vs `rule` vs `regex` semantics.
-  `token`: no implicit whitespace, no backtracking within (atomic).
-  `rule`: implicit `<.ws>` between terms (whitespace-significant PEG).
-  `regex`: full backtracking (closest to PCRE2 semantics).
-  Implement `<.ws>` as built-in rule matching `\s*`.
-  Gate: rk_peg41 PASS (token/rule/regex behave differently on ws-sensitive input).
+  Subrule call `<rulename>`:
+    Look up BB proc in icn_proc_table, call with (subject, pos).
+    Result pos = new pos. Bind matched substring to `$/<rulename>`.
 
-- [ ] **RK-42** — `grammar.parse($string)` top-level entry point.
-  `MyGrammar.parse("input string")` → calls TOP rule, returns Match object or Nil.
-  Match object: hash-like, `$/<name>` gives named capture, `$/[0]` positional.
-  Gate: rk_grammar42 PASS (end-to-end parse of simple arithmetic grammar).
+  `rule` implicit whitespace:
+    Juxtaposition `a b` in a `rule` inserts `<.ws>` (bb_ws = `\s*` box) between terms.
+    `token` juxtaposition: no implicit ws.
+
+  `regex` full backtracking:
+    Uses E_ALTERNATE retry chain — same as Icon/SNOBOL4 pattern backtracking.
+    Code assertions `<{ }>` from Phase 4 active.
+
+  Match object (`$/`):
+    Hash DESCR_t: `$/[0]` = full matched substring, `$/<n>` = named subrule capture,
+    `$/[n]` = positional group. Populated as each subrule call succeeds.
+
+- [ ] **RK-40** — Grammar skeleton: keywords + BB proc registration.
+  Lexer: KW_GRAMMAR / KW_RULE / KW_TOKEN / KW_REGEX in raku.l.
+  Grammar (raku.y): `grammar Name { rule/token/regex Name { body } ... }`.
+  Each definition lowers to a BB_PUMP proc registered in icn_proc_table as
+  `"GrammarName::RuleName"`.
+  Gate: grammar declaration parses and registers procs; no body execution yet.
+
+- [ ] **RK-41** — Primitive BB boxes for rule bodies (new file: raku_re.c).
+  Implement bb_lit, bb_cls, bb_dot, bb_anchor, bb_ws in raku_re.c.
+  Wire into interp.c E_FNC dispatch under names `raku_bb_lit` etc.
+  Gate: rk_grammar41 PASS (token matching literal strings and char classes).
+
+- [ ] **RK-42** — Quantifier BB boxes: `*`, `+`, `?`.
+  bb_star / bb_plus / bb_opt as BB_PUMP loops in raku_re.c.
+  `token` variant: possessive (no retry after consuming input).
+  `regex` variant: backtracking via E_ALTERNATE retry.
+  Gate: rk_grammar42 PASS (quantifiers correct in token and regex modes).
+
+- [ ] **RK-43** — Alternation and subrule calls `<rulename>`.
+  `token`/`rule` ordered choice `||`: try left, FAILDESCR → try right, done.
+  `regex` alternation `|`: full E_ALTERNATE backtrack.
+  `<rulename>`: icn_proc_table lookup + call, bind `$/<rulename>`.
+  Recursive rules: mutual recursion through icn_proc_table (no special handling).
+  Gate: rk_grammar43 PASS (2+ mutually recursive rules, captures correct).
+
+- [ ] **RK-44** — `token` vs `rule` vs `regex` full semantics.
+  `token`: atomic, no backtrack within, no implicit ws.
+  `rule`: `<.ws>` inserted between juxtaposed terms.
+  `regex`: full backtracking, code assertions from Phase 4 active.
+  Gate: rk_grammar44 PASS (same input, different results under token/rule/regex).
+
+- [ ] **RK-45** — `grammar.parse($string)` and Match object.
+  `MyGrammar.parse("input")` → call TOP rule BB proc with (subject, pos=0).
+  Success: return Match object (hash DESCR_t, `$/` populated). Failure: return Nil.
+  `$match<rulename>` → named sub-capture. `$match[0]` → full matched string.
+  Gate: rk_grammar45 PASS (end-to-end parse of arithmetic grammar, captures correct).
+
+- [ ] **RK-46** — Grammar actions: `{ code }` blocks in rules.
+  `rule expr { <term> '+' <term> { make($<term>[0].ast + $<term>[1].ast) } }`
+  `{ code }` after match → side-effect BB node, runs unconditionally.
+  `make($value)` → sets `$/.ast` on current match object.
+  Gate: rk_grammar46 PASS (grammar with actions builds AST via `make`).
 
 ### Phase 7 — Goal-directed features (all natural with BB_PUMP)
 
-- [ ] **RK-43** — `last` / `next` / `redo` in loops.
+- [ ] **RK-47** — `last` / `next` / `redo` in loops.
   E_LOOP_BREAK and E_LOOP_NEXT already in ir.h — wire in raku.y and interp.c.
   `last` = break out of innermost `for`/`while`/`loop`.
-  `next` = restart loop body (next iteration).
-  `redo` = restart loop body without re-evaluating condition.
-  Gate: rk_loop_control43 PASS.
+  `next` = skip to next iteration (restart condition check).
+  `redo` = restart loop body without re-evaluating condition or iterator.
+  Gate: rk_loop_control47 PASS.
 
-- [ ] **RK-44** — `first` — stop-at-first-match generator consumer.
-  `first { condition } @list` — drives BB_PUMP until predicate succeeds, returns
-  that element. Natural early-exit from E_EVERY loop.
-  Gate: rk_first44 PASS.
+- [ ] **RK-48** — `first` — stop-at-first generator consumer.
+  `first { pred } @list` → drive BB_PUMP until predicate true, return that element.
+  Natural early-exit from E_EVERY — kill pump on first success.
+  Gate: rk_first48 PASS.
 
-- [ ] **RK-45** — Junctions: `any()`, `all()`, `one()`, `none()`.
-  Goal-directed: `any(1,2,3) == 2` — BB_PUMP over elements, succeed on first match.
-  `all(@list) > 0` — BB_PUMP, fail on first non-match.
-  `none(@list) == 0` — BB_PUMP, fail on first match.
-  Maps to E_EVERY + predicate + E_ALTERNATE for the junction generator.
-  Gate: rk_junctions45 PASS (all four junction types, numeric and string predicates).
+- [ ] **RK-49** — Junctions: `any()`, `all()`, `one()`, `none()`.
+  Goal-directed smartmatch over a set:
+    `any(1,2,3) == 2` → E_ALTERNATE over elements, succeed on first match.
+    `all(@list) > 0`  → E_EVERY, fail immediately on first non-match.
+    `none(@list) == 0`→ E_EVERY, fail immediately on first match.
+    `one(@list) == x` → E_EVERY counting matches, succeed only if count == 1.
+  Gate: rk_junctions49 PASS (all four types, numeric and string predicates).
 
-- [ ] **RK-46** — Lazy infinite lists and ranges.
-  `(1 .. Inf)`, `(1, 3 ... *)` — E_TO_BY with sentinel upper bound (INT_MAX).
-  Driven by BB_PUMP demand — only generates values as consumed.
-  `(1..Inf).first({ $_ > 100 })` — terminates correctly via early exit.
-  Gate: rk_lazy46 PASS (infinite range, first 5 elements, early termination).
+- [ ] **RK-50** — Lazy infinite lists and ranges.
+  `(1..Inf)`, `(1, 3 ... *)` → E_TO_BY with sentinel upper bound (INTMAX).
+  BB_PUMP demand-driven: only generates values as consumed by loop body.
+  `(1..Inf).first({ $_ > 100 })` terminates correctly via early pump kill.
+  Gate: rk_lazy50 PASS (infinite range, take first N, early termination).
 
-- [ ] **RK-47** — `reduce` meta-operator `[op] @list`.
-  `[+] @list`, `[*] @list`, `[max] @list` — fold over BB_PUMP generator.
-  `[\+] @list` — triangle reduction, yields intermediate values (BB_PUMP generator).
-  Gate: rk_reduce47 PASS (sum, product, triangle scan).
+- [ ] **RK-51** — `reduce` meta-operator `[op] @list`.
+  `[+] @list`, `[*] @list`, `[max] @list` → fold over BB_PUMP generator.
+  `[\+] @list` → triangle scan: yields intermediate partial results as new generator.
+  Gate: rk_reduce51 PASS (sum, product, triangle scan).
 
-- [ ] **RK-48** — `zip` and `roundrobin` multi-source generators.
-  `zip(@a, @b)` — interleaves two BB_PUMP sources pairwise, yields pairs.
-  `roundrobin(@a, @b, @c)` — round-robin across N sources until all exhausted.
-  Gate: rk_zip48 PASS.
+- [ ] **RK-52** — `zip` and `roundrobin` multi-source generators.
+  `zip(@a, @b)` → paired BB_PUMP: each pump pulls one from each source, yields pair.
+  Stops when shortest source exhausts.
+  `roundrobin(@a, @b, @c)` → cycles sources until all exhausted.
+  Gate: rk_zip52 PASS.
 
-- [ ] **RK-49** — `hyper` operators `>>.method` and `>>op<<`.
-  `@list>>.uc` — apply method to each element, return new list.
-  `@a >>+<< @b` — element-wise op on two lists of equal length.
-  Implemented as map over BB_PUMP — no new IR nodes needed.
-  Gate: rk_hyper49 PASS.
+- [ ] **RK-53** — `hyper` operators `>>.method` and `>>op<<`.
+  `@list>>.uc` → map method over BB_PUMP elements, return new list.
+  `@a >>+<< @b` → element-wise op on two equal-length lists via BB_PUMP.
+  No new IR nodes needed.
+  Gate: rk_hyper53 PASS.
 
-- [ ] **RK-50** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-50.
+- [ ] **RK-54** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-54.
   Gate: PASS=N FAIL=0 per mode, all three modes.
-
 ---
 
 ## Key files
