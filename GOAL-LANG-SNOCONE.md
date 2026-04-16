@@ -166,6 +166,44 @@ running the SNOBOL4 version under SPITBOL.
 - [x] **SC-22** — Hand suite under --jit-run.
   Gate: PASS=5 (covered by test_snocone_hand_suite.sh). Commit: 6a63a77b.
 
+### Phase 5 — ENG685 real programs (claws5.sc + treebank.sc)
+
+Programs: `corpus/programs/snobol4/demo/claws5.sc` and `treebank.sc`
+Input: `CLAWS5inTASA.dat` and `treebank.input` (same directory)
+Reference: `claws5.ref` and `treebank.ref` (same directory)
+Both .sno versions PASS sbl -b (corpus HEAD 1437ea2).
+
+Run gate:
+```bash
+SCRIP=/home/claude/one4all/scrip
+head -3 /home/claude/corpus/programs/snobol4/demo/CLAWS5inTASA.dat \
+  | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/claws5.sc
+cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
+  | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/treebank.sc
+```
+
+- [ ] **SC-23** — Fix scrip runtime bug: `(PAT . var) . *fn(var)` evaluates
+  `var` for the `*fn()` arg BEFORE the inner `.` assignment commits.
+  Oracle: SPITBOL `(word . tag) . *show(tag)` — show sees `tag=NP`. ✓
+  Scrip (broken): same pattern — show sees `tag=[]`. ✗
+  Fix in pattern engine: `src/runtime/x86/snobol4_pattern.c` or `bb_boxes.c`.
+  The dot-operator must commit LHS variable before evaluating RHS *fn(args).
+  Gate: `bash scripts/test_smoke_snocone.sh` PASS=5.
+  Gate: `bash scripts/test_smoke_unified_broker.sh` PASS=31.
+
+- [ ] **SC-24** — claws5.sc passes under --ir-run.
+  After SC-23: `(SPAN(DIGITS) . num) && (epsilon . *new_sent())` works correctly.
+  Gate: `head -3 CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref subset.
+
+- [ ] **SC-25** — treebank.sc passes under --ir-run.
+  After SC-23: `(word . tag) . *push_list(tag)` works correctly.
+  Gate: `cat treebank.input | scrip --ir-run treebank.sc` matches treebank.ref.
+
+- [ ] **SC-26** — Both programs pass under --sm-run and --jit-run.
+
+- [ ] **SC-27** — Write `scripts/test_eng685_sc.sh` running both programs
+  under all 3 modes vs .ref files. Gate: PASS=6 FAIL=0.
+
 ---
 
 ## Key files
