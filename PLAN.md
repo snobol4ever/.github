@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228; root cause found for 1114/005 (IDX nargs>=4 dead else in sm_interp+sm_codegen); fix plan documented; next: wire N-dim IDX/IDX_SET; HEAD 66f99531 | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228 (pre-recount); 1114 PASS 7/7, 1112 PASS 5/5 fixed; next: 1113 array→table int key SM/JIT, 212, demo suite; HEAD 31bb2268 | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=156/156; broker PASS=43; rung13 alt-gen DONE (icn_bb_assign_gen + E_CAT cross-product); next: corpus rung16-29 recount | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-38 next: file I/O; RK-37 done: m:g global match + s/pat/repl/ subst, PASS=27 all 3 modes | ☐ |
