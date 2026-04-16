@@ -459,6 +459,25 @@ NOTE: broad script shows 25 FAIL but many are timeout-cascade false positives.
 True distinct failures: ~11 in crosscheck + beauty XDump/trace/tree + demo failures.
 Next session: fix OPSYN segfault (1015), then APPLY (1018), then ARBNO β-retry (070/074).
 
+### 1015_opsyn — OPSYN segfault ROOT CAUSE (diagnosed 2026-04-15, NOT YET FIXED)
+
+`opsyn('@', .dupl, 2)` passes `.dupl` as a DT_N (name descriptor) with `.slen=0, .s="dupl"`.
+`VARVAL_fn` in snobol4.c has NO `case DT_N:` branch — falls through, returns NULL.
+`register_fn_alias("@", NULL)` creates `@` as a no-op entry with `fn=NULL`.
+`APPLY_fn("@",...)` sees `fn==NULL` → calls `g_user_call_hook("@",...)` →
+`_usercall_hook` sees `FNCEX_fn("@")` true → calls `APPLY_fn("@",...)` → infinite recursion → segfault.
+
+**Fix:** Add `case DT_N:` to `VARVAL_fn` switch in snobol4.c:
+    When `v.v == DT_N && v.slen == 0`: return `GC_strdup(v.s)`.  (name string is in .s)
+    When `v.v == DT_N && v.slen == 1`: dereference `.ptr` to get the target DESCR_t, then stringify.
+This makes `VARVAL_fn(.dupl)` return `"dupl"`, so `register_fn_alias("@","dupl")` copies DUPL's fn correctly.
+Then `APPLY_fn("@",...)` calls fn directly — no hook, no loop.
+
+Rebuild: `make -C /home/claude/one4all scrip`
+Test: `timeout 8 ./scrip --ir-run /home/claude/corpus/crosscheck/rung10/1015_opsyn.sno < /dev/null`
+Expected: `PASS 1015_opsyn (2/2)`
+Gate after: `bash scripts/test_smoke_snobol4.sh` PASS=7, `bash scripts/test_smoke_unified_broker.sh` PASS=41.
+
 ### 070/074 — *var inside ARBNO (IN PROGRESS, NOT FIXED)
 
 Root cause NOT yet found. What is known:
