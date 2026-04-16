@@ -97,8 +97,16 @@ Rung 12–36 are the ladder for this goal.
   rung16 sub_every(1), rung18 relop(1), rung19 pow(1), rung28 trim_map(1), rung29 image(1).
   Gate: smoke PASS=5, broker PASS=41, rung01-11 PASS=59. HEAD 7a64e8f9.
 
-- [ ] **IC-6** — rung16: `for @arr -> $x` real array iteration (E_BANG on list).
-  Gate: test_icon_ir_rung_16.sh PASS.
+- [ ] **IC-6** — rung13 alt-gen DONE (2026-04-16): rung01-29 PASS=156/156, broker PASS=43 FAIL=0.
+  Two fixes in icn_runtime.c:
+  1. icn_bb_assign_gen box: E_ASSIGN with generative RHS pumps RHS gen per tick, writes var slot.
+     Fixes: every (x:=alt)>2 & write(x) — rung13_alt_filter.
+  2. E_CAT both-generative → cross-product via icn_bb_binop_gen (ICN_BINOP_CONCAT).
+     Fixes: every write(("a"|"b") || ("x"|"y")) — rung13_alt_nested.
+  New gate: test_icon_ir_rung_13_alt.sh PASS=2/2.
+  Remaining IC-6: rung22 put_bang(1), rung23 key(1), rung16 sub_every(1),
+  rung18 relop(1), rung19 pow(1), rung28 trim_map(1), rung29 image(1).
+  Next: run corpus rung16–29 to recount then continue.
 
 - [ ] **IC-7** — rung17–20: real arithmetic, section `s[i:j]`, seq expressions.
   Gate: rung17–20 all PASS.
@@ -579,3 +587,29 @@ OPEN (2 failures, next session IC-6 priority):
   icn_eval_gen fires before the binop_map loop and intercepts E_LCONCAT
   (E_CAT and E_LCONCAT share the icn_is_gen case but E_CAT block only
   checks e->kind == E_CAT). Verify: add E_LCONCAT check to E_CAT block guard.
+## Current state (2026-04-16 session 13, one4all HEAD 37d45f96)
+
+IC-6 rung13 alt-gen DONE: rung01-29 PASS=156/156 FAIL=0. Broker PASS=43 FAIL=0. Smoke PASS=5.
+
+Two root causes fixed this session:
+
+1. **icn_bb_assign_gen** (icn_runtime.c): New box for E_ASSIGN with generative RHS.
+   Pumps RHS generator on each α/β tick, writes result to target var slot (or NV),
+   returns value so enclosing binop_gen can test it per tick.
+   Added: icn_assign_gen_state_t typedef, icn_bb_assign_gen() static function,
+   E_ASSIGN case in icn_eval_gen() before E_VAR lazy box.
+   Fixes: rung13_alt_filter — every (x:=(1|2|3|4))>2 & write(x) → 3\n4.
+
+2. **E_CAT cross-product** (icn_runtime.c): E_CAT block in icn_eval_gen now detects
+   when BOTH children are generative and routes to icn_bb_binop_gen (ICN_BINOP_CONCAT)
+   for full cross-product instead of one-side icn_bb_cat_gen pump.
+   Fixes: rung13_alt_nested — every write(("a"|"b")||("x"|"y")) → ax\nay\nbx\nby.
+   Note: "||" is E_CAT (string concat), not E_LCONCAT ("|||" list concat) — the prior
+   diagnosis in session 12 had the kind name wrong but the fix is correct.
+
+New script: scripts/test_icon_ir_rung_13_alt.sh PASS=2/2 (inline, no corpus).
+
+Next IC-6: run corpus rung16–29 with corpus cloned to recount remaining open failures.
+Without corpus the rung all-rungs script SKIPs. Remaining known open (from session 12):
+rung22 put_bang(1), rung23 key(1), rung16 sub_every(1), rung18 relop(1),
+rung19 pow(1), rung28 trim_map(1), rung29 image(1).
