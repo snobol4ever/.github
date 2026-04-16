@@ -305,3 +305,75 @@ NEXT SESSION PL-12:
   Approach: run suite with raw output, identify first 5 failing suites,
   fix builtins/semantics causing those failures one at a time.
   Start with: rem (modulo), arg/2, length/2, snip (cut-in-if-then), phrase/2.
+
+---
+
+## Current state (2026-04-15, one4all HEAD f33686e9, corpus HEAD e587489)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% coverage. Baseline unchanged.
+
+Session 2026-04-15 work (this session — diagnosis only, no net commit to one4all):
+
+### Root cause diagnosed: catch(Var, _, Recovery) bug
+
+`catch(Goal, _, Recovery)` where `Goal` is an E_VAR (Prolog variable bound at
+runtime to an atom like `fail`) always succeeds instead of propagating Goal's
+failure. Root cause: in the `!threw` branch of catch/3 in pl_runtime.c, when
+`goal_e->kind == E_VAR`, the code falls through to
+`interp_exec_pl_builtin(goal_e, env)`. That function's `switch(goal->kind)`
+has no E_VAR case, hits `default: return 1` — always success regardless of
+what Goal is bound to.
+
+Confirmed minimal repro:
+```prolog
+wrapper(Goal) :- catch(Goal, _, true), !, writeln(first_clause).
+wrapper(_)    :- writeln(second_clause).
+main :- wrapper(fail).
+% Expected: second_clause   Actual (buggy): first_clause
+```
+
+This is why arg:zero / arg:two / arg:big / snip all fail: plunit's
+`pj_do_fail(Suite, Name, Goal)` uses exactly this two-clause cut pattern with
+`catch(Goal, _, true)`.
+
+### Fix approach (NOT yet committed — regression discovered):
+
+Added `pl_invoke_term(Term *t, Term **env)` to dereference a runtime Term and
+call it as a goal. Wired into catch/3 E_VAR branch. Fix is structurally
+correct BUT causes regressions in arg:unify, arg:one, bips_occurs_check_error
+because `pl_invoke_term` for user-pred calls passes `term_deref(args[i])` as
+uenv — raw dereferenced pointers instead of fresh trail-linked var cells that
+interp_eval expects. The deep-copy alternative also breaks trailing.
+
+### NEXT SESSION PL-12 fix plan:
+
+1. In pl_runtime.c catch/3 E_VAR branch, add:
+   ```c
+   if (goal_e->kind == E_VAR) {
+       Term *gt = pl_unified_term_from_expr(goal_e, env);
+       ok = pl_invoke_term(gt, env);
+   } else if (is_pl_user_call(goal_e)) { ...
+   ```
+
+2. In pl_invoke_term compound branch, for user-pred calls:
+   DO NOT pass raw term_deref(args[i]) or deep copies.
+   Instead allocate fresh var cells and UNIFY them with the args:
+   ```c
+   Term **uenv = pl_env_new(arity);
+   Trail *trail = &g_pl_trail;
+   for (int i = 0; i < arity; i++) {
+       int mark = trail_mark(trail);
+       unify(uenv[i], t->compound.args[i], trail);
+       // don't unwind — keep bindings
+   }
+   ```
+   This preserves trailing so interp_eval sees properly linked vars.
+
+3. Also handle atom goals that are user-defined 0-arity predicates.
+
+4. Gate: suite must stay at 71% with fix, THEN arg:zero/two/big pass → net gain.
+
+5. After arg fixed, address: snip (cut-in-if-then), bips errors, length/2,
+   rem:allq (maplist-as-generator), phrase/2, string/string_bytes.
+
+NEXT SESSION starts at step 1 above. DO NOT re-diagnose — go straight to fix.
