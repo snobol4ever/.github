@@ -230,3 +230,42 @@ rm -f beauty_selftest.sno
     - snobol4dotnet HEAD: ec59eeb (unchanged)
     - corpus HEAD: 7d26569 (unchanged)
 
+  SESSION WORK (this session — crash localized to BuildMain, not match time):
+    - Beauty gate confirmed 17/17 at session start (HEAD ec59eeb)
+    - FRETURN investigation: confirmed FRETURN works for standalone calls with
+      explicit :S/:F goto. For calls embedded in RHS with no goto, statement
+      correctly fails and falls through. No FRETURN bug affecting self-host.
+    - Added stack-unwind in CallFuncBySlot (MsilHelpers.cs) after handler sets
+      Failure=true: unwinds SystemStack to StatementSeparator. Beauty 17/17 still
+      passes. Committed as dcf6457.
+    - KEY FINDING: crash at Data.cs:206 fires at BUILD TIME (BuildMain), not
+      during match. Confirmed by xTrace experiment: crash happens before any
+      Reduce/Shift trace fires, during parser pattern construction in beauty.sno.
+    - Stack trace: BuildMain → ExecuteLoop → (pattern build stmt) →
+      CallFuncBySlot → ExecuteProgramDefinedFunction → ExecuteLoop →
+      (treeNode field accessor t/v/n/c) → CallFuncBySlot →
+      GetProgramDefinedDataField → PatternVar cast crash at line 206.
+    - The crash is during OPSYN/reduce()/shift() calls that build patterns at
+      load time — something in the pattern construction chain calls t()/v()/n()/c()
+      with a PatternVar argument.
+    - Prior session hypothesis about *P reading P's build-time initializer is
+      likely correct; needs confirmation in Lexer.cs ExtractStarExpressions /
+      CreateSimpleStarExpression.
+
+  NEXT SESSION must:
+    1. Add logging at Data.cs:206 (the else branch before the cast) to print
+       DATATYPE(arg0) and the field name being accessed. Run self-host to
+       capture which field accessor is called with a PatternVar and what
+       statement in beauty.sno triggers it.
+    2. Alternatively: harden Data.cs:206 else-branch to FRETURN instead of crash
+       when arg0 is not a ProgramDefinedDataVar. Then run self-host to see if
+       beauty output becomes correct (may be sufficient fix).
+    3. If output not correct after hardening: trace which build-time pattern
+       construction call passes PatternVar to a field accessor. Suspect:
+       reduce()/shift() EVAL chain constructing patterns for Stmt/Command/Parse
+       in beauty.sno initialisation.
+    4. Run beauty gate (must stay 17/17), then self-host gate.
+
+    - snobol4dotnet HEAD: dcf6457
+    - corpus HEAD: 7d26569 (unchanged)
+
