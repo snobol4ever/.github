@@ -122,29 +122,29 @@ RK-16 is next per PLAN.md.
   Also fixed SN-6 build break: match_pattern_at stub in snobol4_stmt_rt.c.
   Gate: rk_try_catch25 PASS, rungs PASS=21 FAIL=0, broker PASS=40. HEAD 839ef99e.
 
-- [ ] **RK-26** — `class` / `method` / `new` basic OO.
+- [x] **RK-26** — `class` / `method` / `new` basic OO.
   Raku OO maps to E_RECORD (class def) + E_FIELD (method call).
-  Gate: basic class test PASS.
+  Gate: basic class test PASS. HEAD 99ce25fa.
 
-- [ ] **RK-27** — Write `scripts/test_raku_ir_full_suite.sh`.
-  Runs all RK-1 through RK-26 tests. Gate: all PASS.
+- [x] **RK-27** — Write `scripts/test_raku_ir_full_suite.sh`.
+  Runs all RK-1 through RK-26 tests in all 3 modes.
+  Gate: PASS=22 FAIL=0 per mode, all three modes. ✅
 
 ### Phase 2 — SM-run (BB_PUMP, x86)
 
-- [ ] **RK-28** — rk_hello through rk_vars under --sm-run.
-  Gate: PASS=12.
+- [x] **RK-28** — rk_hello through rk_vars under --sm-run.
+  Gate: PASS=22 FAIL=0. ✅ (covered by test_raku_ir_full_suite.sh)
 
-- [ ] **RK-29** — RK-16 through RK-24 under --sm-run.
-  Fix sm_lower.c gaps as needed.
-  Gate: all rungs passing under --ir-run also pass under --sm-run.
+- [x] **RK-29** — RK-16 through RK-24 under --sm-run.
+  Gate: all rungs passing under --ir-run also pass under --sm-run. ✅
 
 ### Phase 3 — JIT-run (x86 in-memory)
 
-- [ ] **RK-30** — rk_hello through rk_vars under --jit-run.
-  Gate: PASS=12.
+- [x] **RK-30** — rk_hello through rk_vars under --jit-run.
+  Gate: PASS=22 FAIL=0. ✅ (covered by test_raku_ir_full_suite.sh)
 
-- [ ] **RK-31** — RK-16 through RK-24 under --jit-run.
-  Gate: all diffs vs --sm-run empty.
+- [x] **RK-31** — RK-16 through RK-24 under --jit-run.
+  Gate: all diffs vs --sm-run empty. ✅
 
 ---
 
@@ -170,18 +170,18 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-25)
+## Current state (2026-04-15, one4all HEAD — post RK-27, LADDER COMPLETE)
 
-RK-1 through RK-25 done. PASS=21 --ir-run, broker PASS=40. HEAD 839ef99e.
-RK-26 next: class/method/new basic OO — E_RECORD (class def) + E_FIELD (method call).
+ALL PHASES DONE. RK-1 through RK-31 complete.
+PASS=22 FAIL=0 under --ir-run, --sm-run, --jit-run (all three modes).
+Broker PASS=41 FAIL=0. Crosscheck PASS=26 FAIL=0.
+HEAD (one4all): see git log — RK-27 commit.
 
-Session RK-22..RK-25 summary:
-  RK-22: substr/index/rindex/uc/lc/trim/chars string ops
-  RK-23: $s ~~ /pattern/ regex match (context-sensitive / lexing)
-  RK-24: map/grep/sort list ops (closure rule, $_ frame-slot binding,
-          INTVAL elem coercion, grep truthy=!IS_FAIL)
-  RK-25: try/CATCH/die (g_raku_exception distinguishes die from fall-off-end)
-  Also fixed SN-6 build break: match_pattern_at stub in snobol4_stmt_rt.c
+Session RK-26..RK-27 summary:
+  RK-26: class/method/new basic OO (E_RECORD + E_FIELD), HEAD 99ce25fa
+  RK-27: test_raku_ir_full_suite.sh written — PASS=22/mode all 3 modes
+  Phases 2+3 (SM-run, JIT-run): all rungs already passing; confirmed by full suite.
+  Goal DONE — Raku rung ladder reaches rung-30+ under all three modes.
 
 ---
 
