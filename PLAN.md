@@ -30,36 +30,55 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228; next: 1113 array→table int key SM/JIT, 212, demo suite; HEAD 31bb2268 | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=156/156; next: rung16-29 recount | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-47 next: last/next/redo; file I/O done, PASS=29 | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
+| &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=211/228; DATA field accessor/mutator SM+JIT fixed; next: ARBNO β-retry (052/054/070), ARRAY/TABLE; HEAD 18952c2d | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=154/156; broker PASS=42; 2 open: rung13_alt_filter (E_SEQ+E_ASSIGN drive), rung13_alt_nested (E_LCONCAT/E_CAT guard); HEAD 57d51c88 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/RK-33 done: table-driven NFA compiler + simulator, PASS=24 all 3 modes | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
+| Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
-| Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-16 next (for @arr -> $x real array) | ☐ |
+| One Eval | `GOAL-ONE-EVAL.md` | one4all | DONE | ☑ |
+| Raku Frontend | `GOAL-RAKU-FRONTEND.md` | one4all | RK-16 next (for @arr -> $x real array); RK-15 done: hashes %h<key>/%h{$k}, PASS=12, smoke PASS=30 | ☐ |
 | Polyglot Calc Demo | `GOAL-POLYGLOT-CALC-DEMO.md` | one4all | PC-1 (Icon generator) | ☐ |
+| Session Setup Refinement | `GOAL-SESSION-SETUP-REFINEMENT.md` | .github + one4all | DONE | ☑ |
+| Self-Contained Scripts | `GOAL-SELF-CONTAINED-SCRIPTS.md` | one4all | DONE | ☑ |
 | Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 (create ir_interp.c) | ☐ |
-| Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 (8/14 PASS; next: arith while-loop) | ☐ |
-| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | SB-4 IN PROGRESS: PASS=42; BLOCKER: struct link dedup + Qize/TDump/omega; HEAD 9e81b9da | ☐ |
-| Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927, next: RPLACE | ☐ |
-| Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427, next: CMA2 | ☐ |
+| Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 continued (8/14 PASS; next: arith while-loop integer iteration) | ☐ |
+| Silly Forward Sweep | `GOAL-SILLY-SWEEP-FORWARD.md` | one4all | watermark 6927 → next: RPLACE | ☐ |
+| Silly Backward Sweep | `GOAL-SILLY-SWEEP-BACKWARD.md` | one4all | watermark 6427 → next: CMA2 | ☐ |
 | Silly Sync Monitor | `GOAL-SILLY-SYNC-MONITOR.md` | one4all | S-1 (infrastructure) | ☐ |
 | Silly Complete | `GOAL-SILLY-COMPLETE.md` | one4all | P1-A1 (RECOMJ/CODER/CONVE) | ☐ |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10e next: assertz/retract/abolish | ☐ |
-| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prereq: Prolog Phase 1C) | ☐ |
-| Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator) | ☐ |
-| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅; next: S-7/S-8 gate) | ☐ |
-| Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string)) | ☐ |
-| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (ROOT CAUSE: spec_t→DESCR_t mismatch in stmt_exec.c) | ☐ |
-| &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 (audit keyword dispatch in interp.c) | ☐ |
-| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (error 22 open: MSIL PushExpr index misalignment) | ☐ |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: beauty 17/17; next: Reduce(Stmt,7) crash; HEAD ec59eeb | ☐ |
+| Icon IR-run | `GOAL-ICON-IR-RUN.md` | one4all | S-12 DONE (59/59; broker pivot → GOAL-ICN-BROKER) | ☑ |
+| Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
+| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | rung01-11 14/14 PASS, next: S-10e assertz/retract/abolish | ☐ |
+| Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | DONE | ☑ |
+| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | SB-4 IN PROGRESS: Qize/TDump/XDump/omega/io.sc written; assemble+bisect+oracle scripts added; BLOCKER: strip_stack_procs awk broken — ShiftReduce re-emits InitStack/Push/Pop/Top, hangs at line ~169; HEAD 18952c2d | ☐ |
+| Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
+| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
+| Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
+| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (ROOT CAUSE: bb_box_fn spec_t→DESCR_t mismatch breaks ALL captures in --ir-run; fix spec_from_descr call site in stmt_exec.c Phase 3) | ☐ |
+| NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: ARBNO+Graft sound; crash=Reduce(Stmt,7) pops PatternVar on label-only input; next: trace which Stmt slot wrong; HEAD ec59eeb beauty 17/17 | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
+| No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 (unit test) | ☐ |
-| No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit) | ☐ |
 | DATATYPE Portable Tests | `GOAL-DATATYPE-PORTABLE-TESTS.md` | corpus | S-1 (audit) | ☐ |
-| READMEs (all repos) | GOAL-README-*.md | various | S-1 (audit) — profile, one4all, dotnet, jvm, corpus, harness, python, csharp, artifact | ☐ |
+| README: profile | `GOAL-README-PROFILE.md` | .github | S-1 (audit) | ☐ |
+| README: one4all | `GOAL-README-ONE4ALL.md` | one4all | S-1 (audit) | ☐ |
+| README: snobol4dotnet | `GOAL-README-SNOBOL4DOTNET.md` | snobol4dotnet | S-1 (audit) | ☐ |
+| README: snobol4jvm | `GOAL-README-SNOBOL4JVM.md` | snobol4jvm | S-1 (audit) | ☐ |
+| README: corpus | `GOAL-README-CORPUS.md` | corpus | S-1 (audit) | ☐ |
+| README: harness | `GOAL-README-HARNESS.md` | harness | S-1 (audit) | ☐ |
+| README: snobol4python | `GOAL-README-SNOBOL4PYTHON.md` | snobol4python | S-1 (audit) | ☐ |
+| README: snobol4csharp | `GOAL-README-SNOBOL4CSHARP.md` | snobol4csharp | S-1 (audit) | ☐ |
+| README: snobol4artifact | `GOAL-README-SNOBOL4ARTIFACT.md` | snobol4artifact | S-1 (audit) | ☐ |
+| CSNOBOL4 FENCE(P) | `GOAL-CSNOBOL4-FENCE.md` | csnobol4 | DONE | ☑ |
+| CSNOBOL4 Harness | `GOAL-CSNOBOL4-HARNESS.md` | harness | S-9 complete + scrip-cc→scrip | ☑ |
+| Archive Cleanup | `GOAL-ARCHIVE-CLEANUP.md` | .github | S-12 complete | ☑ |
 
 ---
 
