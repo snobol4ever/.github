@@ -115,11 +115,11 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-16h, one4all HEAD 09261c1d)
+## Current state (2026-04-16i, one4all HEAD 09261c1d)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
-SN-6 IN PROGRESS: PASS=219/228 (broad corpus); crosscheck PASS=206 FAIL=1.
-Smoke PASS=7. Broker PASS=49.
+SN-6 IN PROGRESS: PASS=218/228 (broad corpus, confirmed with corpus cloned this session).
+Smoke PASS=7. Broker PASS=48.
 
 **Prior fixes summary (compressed):** Dynamic stacks; h_store_var JIT stack balance;
 bb_capture return type DESCR_t; E_POW integer path (interp.c — was always DT_R per Icon
@@ -133,19 +133,26 @@ both set args[0].s=buf then args[0].ptr=NULL, zeroing the string pointer because
 share the same union in DESCR_t; removed both .ptr=NULL assignments).
 
 **Next session:**
-1. Fix XCALLCAP+RPOS(0) cursor threading so expr_eval passes.
+1. Fix SM-run SIZE(INPUT) EOF hang: `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — when INPUT
+   is used directly as a function arg (not first assigned to a variable), the EOF failure
+   branch does not propagate in SM-run, causing infinite loop. IR-run works correctly.
+   Likely: SM lowering of E_KEYWORD(INPUT) inside function-arg position doesn't emit
+   the failure-branch path. Investigate sm_lower.c keyword/arg lowering + failure threading.
+   Affects: fileinfo, word1 (timeout), triplet (truncated output), wordcount (wrong count+format).
+2. Fix XCALLCAP+RPOS(0) cursor threading so expr_eval passes.
    Root cause: `pat RPOS(0)` fails when pat contains `. *Push()`; pat alone works.
    bb_seq is not threading cursor from XCALLCAP output into next box. Investigate
    bb_seq / bb_callcap spec_t return value in bb_boxes.c when followed by RPOS/POS.
-2. Investigate demo_claws5 (*** no match — real pattern failure).
-3. Add missing wordcount.sno and roman.sno to corpus/programs/snobol4/demo/.
-4. Investigate beauty_XDump driver.
-5. Full broad corpus recount (fileinfo/triplet/word1/wordcount pass individually —
-   likely test-script artefact; expect 221+ after expr_eval fix).
+3. Investigate demo_claws5 (*** no match — real pattern failure).
+4. Add missing wordcount.sno and roman.sno to corpus/programs/snobol4/demo/.
+5. Investigate beauty_XDump driver.
 
-**Remaining SN-6 failures (7 real):**
-- expr_eval: XCALLCAP+RPOS(0) cursor threading (see next session #1)
-- Beauty: XDump driver
+**Remaining SN-6 failures (10, reassessed this session):**
+- fileinfo, word1: SM-run INPUT-as-arg EOF hang (infinite loop; IR-run correct)
+- triplet: SM-run truncates output (related — INPUT EOF threading in SM)
+- wordcount: SM-run wrong count + trailing dot format bug
+- expr_eval: XCALLCAP+RPOS(0) cursor threading
+- beauty_XDump_driver: unknown
 - demo_wordcount, demo_roman: .sno source MISSING from corpus/programs/snobol4/demo/
+- demo_treebank: *group self-ref not deferred (pre-existing)
 - demo_claws5: *** no match — real pattern failure
-- fileinfo, triplet, word1, wordcount: pass individually; test-script artefact
