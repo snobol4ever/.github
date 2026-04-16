@@ -614,7 +614,7 @@ Remaining SN-6 failures (11 real + 2 stdin-hang non-failures):
 ## Current state (2026-04-16c, one4all HEAD 66f99531)
 
 SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=215/228.
-Smoke PASS=7 FAIL=0. Broker PASS=44 FAIL=0.
+Smoke PASS=7 FAIL=0. Broker PASS=45 FAIL=0.
 
 Session 2026-04-16c fix (1 commit):
 
@@ -625,9 +625,34 @@ Session 2026-04-16c fix (1 commit):
   1114_item: 4/5 pass now (was 0/5). Fails at 005: 4D subscript (>2D unsupported).
   No net PASS gain (1114 still fails overall) but foundation correct.
 
+## Session 2026-04-16d — diagnosis only, no commits (context window exhausted)
+
+ROOT CAUSE FOUND for 1114/005 (ama<1,2,1,2> SM-run fail):
+
+- array('2,2,2,2') creates a flat 1D ARBLK (all dims collapsed to total size 16).
+- ITEM(arr,i,j,k,l) works via _usercall_hook → INVOKE_fn path in interp.c.
+- ama<1,2,1,2> in SM-run: E_IDX with nchildren=5, emits SM_CALL "IDX" nargs=5.
+  sm_interp.c IDX handler: only handles nargs==2 (1D) and nargs==3 (2D).
+  nargs>=4 falls to: else { sm_push(FAILDESCR); last_ok=0; } — silent fail.
+- ama<1,2,1,2>=val in SM-run: IDX_SET nargs=6 similarly falls to dead else.
+- sm_codegen.c has the same gap for JIT.
+
+FIX PLAN (next session — do this first):
+  sm_interp.c IDX handler: add else branch for nargs>=4:
+    pop (nargs-1) indices into DESCR_t idx_arr[], pop base, call INVOKE_fn("ITEM", args, nargs-1)
+    where args[0]=base, args[1..nargs-2]=indices (already route through working _usercall_hook).
+  sm_interp.c IDX_SET handler: add else branch for nargs>=5:
+    pop (nargs-2) indices, pop base, pop val (bottom), call INVOKE_fn("ITEM_SET", args, nargs-1)
+    where args[0]=val(rhs), args[1]=base, args[2..]=indices.
+  sm_codegen.c: same pattern for JIT path (search for IDX and IDX_SET in sm_codegen.c).
+  Also fix interp.c ITEM hook: currently nargs>=3 calls subscript_get2 (2D only).
+    For nargs>=4: build args array and route through _usercall_hook or INVOKE_fn("ITEM",...).
+    Actually ITEM works in IR-run already for 4D — check _usercall_hook again; the
+    ITEM hook in interp.c is the _g_user_call_hook path, not the direct hook. Confirm
+    before touching it.
+
 Next session:
-  1. Fix 4D subscript (subscript_get/set currently only handle 1D and 2D).
-     1114/005: ama<1,2,1,2> — 4 indices. Need N-dimensional subscript dispatch.
+  1. Fix N-dim IDX/IDX_SET in sm_interp.c and sm_codegen.c (see FIX PLAN above).
   2. Fix 1112_array_multi/003: custom lower bound (-1:1 range) assign/read in SM.
   3. Fix 1113_table/006: array→table int key roundtrip (CONVERT function).
   4. Fix 212_indirect_array: $.var<index> indirect then subscript in SM.
