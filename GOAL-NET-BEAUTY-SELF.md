@@ -252,20 +252,29 @@ rm -f beauty_selftest.sno
       likely correct; needs confirmation in Lexer.cs ExtractStarExpressions /
       CreateSimpleStarExpression.
 
-  NEXT SESSION must:
-    1. Add logging at Data.cs:206 (the else branch before the cast) to print
-       DATATYPE(arg0) and the field name being accessed. Run self-host to
-       capture which field accessor is called with a PatternVar and what
-       statement in beauty.sno triggers it.
-    2. Alternatively: harden Data.cs:206 else-branch to FRETURN instead of crash
-       when arg0 is not a ProgramDefinedDataVar. Then run self-host to see if
-       beauty output becomes correct (may be sufficient fix).
-    3. If output not correct after hardening: trace which build-time pattern
-       construction call passes PatternVar to a field accessor. Suspect:
-       reduce()/shift() EVAL chain constructing patterns for Stmt/Command/Parse
-       in beauty.sno initialisation.
-    4. Run beauty gate (must stay 17/17), then self-host gate.
+  SESSION WORK (this session — Data.cs hardened, self-host now reaches Parse Error):
+    - Data.cs:206 hardened: guarded pattern match replaces hard cast.
+      PatternVar (or any non-ProgramDefinedDataVar) now returns FRETURN cleanly.
+    - Beauty gate: 17/17 PASS (unchanged)
+    - Self-host: InvalidCastException eliminated. Now outputs 26 lines then
+      'Parse Error' — mainErr1 path fires on 'START\n' (label-only statement).
+    - Root cause: ARBNO(*Command) fails to parse label-only stmt in Parse pattern.
+      Stmt has epsilon ~ '' for all optional slots; Reduce('Stmt', 7) may receive
+      a bad type (PatternVar?) for one of the 7 slots when all are epsilon.
+    - snobol4dotnet HEAD: 1c27d52
+    - corpus HEAD: 7d26569 (unchanged)
 
-    - snobol4dotnet HEAD: dcf6457
+  NEXT SESSION must:
+    1. Instrument Reduce() in ShiftReduce.sno: add OUTPUT of DATATYPE of each
+       popped item when xTrace > 0. Run self-host on 'START\n' with xTrace=1.
+       Identify which of the 7 Reduce('Stmt',7) pops returns a PatternVar.
+    2. Trace which sub-pattern of Stmt produces the bad value for empty match.
+       Stmt slots: Label, White, Expr14, (pattern|assignment), Goto, Gray → 7.
+       For 'START\n': Label='START', all else epsilon.
+       Verify epsilon ~ 'tag' produces a proper null/empty tree node, not PatternVar.
+    3. Fix: ensure epsilon ~ 'tag' gives a correct tree node for empty matches.
+    4. Run beauty gate (must stay 17/17), then self-host gate (SELF-HOST PASS).
+
+    - snobol4dotnet HEAD: 1c27d52
     - corpus HEAD: 7d26569 (unchanged)
 
