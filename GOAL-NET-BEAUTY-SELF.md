@@ -180,28 +180,53 @@ rm -f beauty_selftest.sno
 - **Windows compatibility:** never use bare `'\n'` as a line separator in C# source; always use `Environment.NewLine`.
 - See RULES.md for full rules including handoff checklist.
 
-  SESSION WORK (this session — diagnosis deeper, WIP patch):
-    - Beauty gate confirmed 17/17 at session start (HEAD 080e19c)
-    - FRETURN propagation test: "D after ffail" does NOT print — appears fixed
-    - Self-host test run: crashes InvalidCastException PatternVar→ProgramDefinedDataVar
-      at Data.cs:206 (same as prior session)
-    - NEW FINDING: ARBNO(*P) semantic actions never fire. Confirmed minimal repro:
-        ARBNO(LEN(1) *inc()) leaves count=0 even though Exec is shared
-        This is NOT an ExpressionVar unwrap issue — inline patterns also fail
-    - WIP patch: UnevaluatedPattern.Scan — unwrap ExpressionVar one level before
-      Convert(PATTERN). Correct in principle but does NOT fix the ARBNO issue.
-    - Beauty gate: 17/17 still passes with WIP patch
-    - snobol4dotnet HEAD: ec59eeb (WIP, INCOMPLETE)
-    - corpus HEAD: 7d26569 (unchanged)
+  SESSION WORK (this session — deep diagnostic, no code changes, HEAD unchanged ec59eeb):
+    - Beauty gate confirmed 17/17 at session start (HEAD ec59eeb)
+    - Self-host crash with 'START\n' as input: same InvalidCastException at Data.cs:206
 
-  NEXT SESSION must:
-    A. ArbNoPattern.Scan: add tracing to confirm whether UnevaluatedPattern.Scan
-       fires for *inc() inside child scanner. Suspect: child scanner PatternMatch
-       with anchor=true on sliced subject causes silent failure before reaching *inc()
-    B. Check ARBNO Structure(): Null | ArbNo(p) — the _arbPattern stored is the
-       INNER pattern p, not the Structure wrapper. Confirm this is correct.
-    C. Key question: does ARBNO(LEN(1) *inc()) actually match the subject at all,
-       or does it silently produce zero iterations? If zero iters, the child scanner
-       is failing on LEN(1) somehow with sliced subject + anchor=true.
-    D. Revert WIP ExpressionVar patch if it causes regressions; keep if neutral.
+    KEY FINDING: ARBNO + *fn() semantic actions are NOT broken in general.
+    Exhaustive tests show all these work correctly:
+      - ARBNO(LEN(1) *inc()) on 'ABC' POS(0)..RPOS(0) → count=3 ✓
+      - ARBNO(*cmd) where cmd = LEN(1) *inc() → count=3 ✓
+      - *Parse where Parse = *Push() ARBNO(*Command) *Top() → stack correct ✓
+      - FENCE + alternates inside ARBNO → correct ✓
+      - *Parse (via Graft) with ARBNO inside → correct ✓
+    The prior session's "ARBNO(*P) semantic actions never fire" finding was
+    a test artifact: 'ABC' ARBNO(p) (no anchoring) succeeds with 0 iterations
+    because ARBNO(epsilon) matches at position 0. With POS(0)/RPOS(0) forcing
+    full-string match, it works correctly. The Graft fix is sound.
+
+    ROOT CAUSE IS ELSEWHERE — narrowed to beauty.sno's Stmt/Command/Reduce interaction:
+    - Command = nInc() FENCE(*Comment~'Comment'(..)nl | *Control~'Control'(..)nl | *Stmt(..)7 nl)
+    - *Stmt arm calls Reduce('Stmt', 7) — pops 7 items from the tree stack
+    - For input 'START\n' (label-only statement), some of the 7 slots are empty/wrong type
+    - Reduce() pops a PatternVar (one of the OPSYN'd operators stored as pattern)
+      instead of a tree node — that PatternVar lands in a tree child slot
+    - Later pp() calls t(x) → GetProgramDefinedDataField → PatternVar cast crash
+
+    ARCHITECTURE NOTE — semantic.sno OPSYN design:
+    - OPSYN('~', 'shift', 2): p ~ 'Label' calls shift(p, 'Label') at BUILD TIME
+      → returns pattern: p . thx . *Shift('Label', thx)
+    - OPSYN('&', 'reduce', 2): p & 'nTop()' calls reduce(p, 'nTop()') at BUILD TIME
+      → returns pattern: epsilon . *Reduce('Parse', nTop())  [n is a string, evaluated at match time]
+    - nPush/nInc/nTop/nPop all return PATTERNS (epsilon . *PushCounter() etc.)
+      evaluated at BUILD TIME; side effects fire at MATCH TIME via *fn()
+
+    NEXT SESSION must:
+    1. Instrument Reduce() in ShiftReduce.sno to OUTPUT the DATATYPE of each
+       popped item when xTrace > 0. Run self-host on 'START\n' with xTrace=1.
+       Identify which of the 7 pops returns a PatternVar.
+    2. Trace which sub-pattern of Stmt produces the bad value. Stmt parses:
+       Label + White + Expr14 + (pattern|assignment) + Goto + Gray → 7 slots.
+       For 'START\n': Label='START', everything else is epsilon/empty.
+       Verify each ~ 'tag' call correctly produces a tree node for empty matches.
+    3. Fix: ensure epsilon ~ 'tag' produces a proper null/empty tree node,
+       not a PatternVar, when the matched value is empty.
+    4. ALTERNATIVELY (simpler): harden GetProgramDefinedDataField in Data.cs:206
+       to handle PatternVar gracefully (return null/empty tree) rather than crashing,
+       then check if beauty output becomes correct.
+    5. Run beauty gate (must stay 17/17), then self-host.
+
+    - snobol4dotnet HEAD: ec59eeb (unchanged)
+    - corpus HEAD: 7d26569 (unchanged)
 
