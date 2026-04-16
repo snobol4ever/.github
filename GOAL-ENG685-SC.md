@@ -1,28 +1,25 @@
 # GOAL-ENG685-SC.md — ENG685 Snocone (.sc) Conversions
 
-**Repo:** corpus  
-**Done when:** claws5.sc and treebank.sc pass under scrip --ir-run, --sm-run, --jit-run.
+**Repo:** one4all (test/demo/) + corpus (programs/snobol4/demo/)
+**Done when:** claws5.sc and treebank.sc pass under scrip --ir-run, --sm-run, --jit-run, output matches .sno SPITBOL output.
 
 ---
 
 ## Context
 
-SNOBOL4 versions (corpus/programs/snobol4/demo/):
-- `claws5.sno` — PASS under SPITBOL x64. HEAD fd21aa6 on corpus.
-- `treebank.sno` — PASS under SPITBOL x64. HEAD fd21aa6 on corpus.
+Source files (one4all/test/demo/):
+- `claws5.sno`   — PASS under SPITBOL -b. Clean, Python names.
+- `treebank.sno` — PASS under SPITBOL -b. Clean, Python names.
+- `claws5.sc`    — Written. pp_mem loop termination broken (sk[si,1] exhaustion check).
+- `treebank.sc`  — Written. Untested (scrip binary path issue at session end).
 
-Both use the one-big-pattern technique: `(PAT . tx)  (epsilon . *func())`
-as in beauty.sno ShiftReduce. See assignment3.py for the Python originals.
+Both use the one-big-pattern technique with NRETURN side-effect functions.
+Function names match Python assignment3.py exactly.
 
-SNOCONE package: uploaded as SNOCONE.zip. Key dialect facts:
-- Comments: `//`
-- String concat: `&&`
-- Procedures: `procedure name(args, locals) { body }`
-- File I/O: `input__(.var, unit, '', filename)` (NOT `INPUT(.var, unit, file)`)
-- goto: `goto LABEL;` (one word, unlike Snocone spec's `go to`)
-- nreturn: `nreturn;` keyword (for pattern side-effect hooks)
-- DATATYPE: scrip returns uppercase ('STRING', 'INTEGER', etc.)
-- Pattern operators: identical to SNOBOL4
+Key pattern technique (see RULES.md):
+- Single NRETURN function, two call forms:
+  `(word . tag) . *push_list(tag)`   — deferred call with captured arg
+  `(epsilon . *push_list('BANK'))`   — zero-width hook with literal
 
 ---
 
@@ -30,76 +27,59 @@ SNOCONE package: uploaded as SNOCONE.zip. Key dialect facts:
 
 ```bash
 bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_scrip.sh          # also: apt-get install -y libgc-dev
 bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 ```
 
-Test data (create in working dir):
-```bash
-# For claws5:
-echo "1_CRD :_PUN the_AT1 cat_NN1 sat_VVD 2_CRD :_PUN running_VVG is_VBZ fun_JJ " \
-  > /tmp/claws_test/CLAWS5inTASA.dat
+Test data locations:
+- claws5:    /home/claude/corpus/programs/snobol4/demo/CLAWS5inTASA.dat
+- treebank:  /home/claude/one4all/test/demo/VBGinTASA.dat  (copy of treebank.input)
 
-# For treebank:
-cat > /tmp/tb_test/VBGinTASA.dat << 'DAT'
-(S (NP (DT The) (NN cat)) (VP (VBZ is) (VP (VBG running) (NP (DT the) (NN race)))))
-DAT
+Run .sno files from data directory:
+```bash
+cd /home/claude/corpus/programs/snobol4/demo && /home/claude/x64/bin/sbl -b /home/claude/one4all/test/demo/claws5.sno
+cd /home/claude/one4all/test/demo            && /home/claude/x64/bin/sbl -b treebank.sno
 ```
 
-Run tests:
+Run .sc files (stdin):
 ```bash
-cd /tmp/claws_test && timeout 10 /home/claude/one4all/scrip --ir-run /path/to/claws5.sc
-cd /tmp/tb_test   && timeout 10 /home/claude/one4all/scrip --ir-run /path/to/treebank.sc
+SCRIP=/home/claude/one4all/scrip
+head -3 /home/claude/corpus/programs/snobol4/demo/CLAWS5inTASA.dat | timeout 30 $SCRIP --ir-run /home/claude/one4all/test/demo/claws5.sc
+cat /home/claude/one4all/test/demo/VBGinTASA.dat | timeout 30 $SCRIP --ir-run /home/claude/one4all/test/demo/treebank.sc
 ```
 
 ---
 
 ## Steps
 
-- [ ] **SC-1** — Fix claws5.sc:
-  1. Replace `+num` with `INTEGER(num)` in `ci_new_sent()`
-  2. Fix `goto ci_done` label in `ci_add_tok()` — may need `ci_done:` on its own line
-     outside the if-else chain in scrip's clause parser
-  3. Fix `pp_mem()` — Error 5 (undefined function) at statement 16; likely
-     the nested while loop with `DIFFER(sk[si,1])` needs explicit variable assignment
-     rather than inline array index test. Use: `sk_key = sk[si,1]; if (~DIFFER(sk_key))`
-  4. Verify: pattern fires ci_init, ci_new_sent, ci_add_tok correctly on stub data
-  5. Gate: output matches claws5.sno SPITBOL output on same stub input
-
-- [ ] **SC-2** — Write treebank.sc:
-  - DATA('list(head,tail)') — same as .sno version
-  - All stack procedures: stk_push_frame, stk_push_item, stk_pop_into_parent, stk_pop_final
-  - All λ hooks: tb_init, tb_push_bank, tb_push_root, tb_push_list, tb_push_item,
-    tb_pop_list, tb_pop_final
-  - group pattern with *group recursive reference (identical to .sno)
-  - treebank_pat one big pattern (identical to .sno)
-  - pp_node: REPLACE(DATATYPE(node), &LCASE, &UCASE) vs 'STRING' for portability
-    (scrip returns uppercase so IDENT(DATATYPE(node), 'STRING') also works directly)
-  - File I/O: input__(.rdch, 8, '', 'VBGinTASA.dat')
-  - Gate: output matches treebank.sno SPITBOL output on same stub input
-
-- [ ] **SC-3** — Test all 3 modes: --ir-run, --sm-run, --jit-run for both files
+- [x] **SC-1** — claws5.sno working under SPITBOL -b. Python names: init(), new_sent(), add_tok().
+- [x] **SC-2** — treebank.sno working under SPITBOL -b. Python names: init_list(v), push_list(v), push_item(v), pop_list(), pop_final(v).
+- [ ] **SC-3** — Fix claws5.sc pp_mem loop: SORT returns 2-col array; loop terminates when sk[si,1] is empty. Use explicit variable `sk1 = sk[si,1]; if (~DIFFER(sk1)) goto done` — already in code but check the DIFFER logic ordering vs GT(si,1) guard. Also confirm scrip binary at /home/claude/one4all/scrip.
+- [ ] **SC-4** — Test treebank.sc --ir-run. DATA('list(head,tail)') syntax, push_list/push_item nreturn pattern, DATATYPE check uses REPLACE(&LCASE,&UCASE) for portability.
+- [ ] **SC-5** — Test both under --sm-run and --jit-run. Gate: output matches SPITBOL ref.
+- [ ] **SC-6** — (stretch) beauty.sno under SPITBOL -b from beauty/ directory with all -INCLUDE files.
 
 ---
 
-## Known issues from previous session (2026-04-16)
+## Known issues
 
-claws5.sc debugging findings:
-- `input__(.rdch, 8, '', filename)` is the correct file-open form
-- `+num` (unary +) does NOT work in scrip for string→integer; use `INTEGER(num)`
-- Pattern side-effects (`epsilon . *fn()`) work correctly in scrip Snocone
-- `goto ci_done` inside `ci_add_tok` — clause parser may misparse label inside
-  if/else; test with label on its own statement line
-- `pp_mem()` Error 5 at stmt 16 — SORT works; issue is in nested while loops
-  using array index expressions as DIFFER argument
+**claws5.sc pp_mem:** SORT produces an N×2 array. The termination check `if (~DIFFER(sk1))` should work when si exceeds array bounds (returns empty). But the loop has a GT(si,1) OUTPUT guard that may fire before the DIFFER check. Fix: move DIFFER check to top of loop before the GT guard. Pattern in .sno:
+```
+pp_s   si = si + 1
+       sk[si,1]          :F(pp_s_done)   ← termination: :F when out of bounds
+       si GT(si,1) OUTPUT = '   },'      ← only if si > 1
+```
+In .sc: `if (~DIFFER(sk1)) { goto pp_s_done; }` then `if (GT(si, 1)) { OUTPUT = ...; }`.
 
-The pattern itself (`claws_pat`) was verified MATCHED on inline string test data.
-The file-slurp path (`input__` → while loop → `src = src && line && ' '`) was
-not yet verified to produce the correct `src` string.
+**treebank.sc DATA():** Confirm `DATA('list(head,tail)');` works in scrip. If not, use struct: `struct list { head, tail }`.
+
+**scrip binary:** Always at `/home/claude/one4all/scrip` after `build_scrip.sh`. Requires `libgc-dev` installed.
+
+---
 
 ## State (2026-04-16 session end)
 
-claws5.sno: PASS SPITBOL. corpus HEAD fd21aa6.  
-treebank.sno: PASS SPITBOL. corpus HEAD fd21aa6.  
-claws5.sc: pattern logic verified on inline data. File I/O + pp_mem still broken.  
-treebank.sc: not yet written.  
+claws5.sno:   PASS SPITBOL -b. one4all/test/demo/. HEAD: (see commit)
+treebank.sno: PASS SPITBOL -b. one4all/test/demo/. HEAD: (see commit)
+claws5.sc:    Written, pp_mem broken. SC-3 next.
+treebank.sc:  Written, untested.  SC-4 next.

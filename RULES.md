@@ -371,3 +371,50 @@ in a DATATYPE comparison is **invalid** and must be rewritten before it can pass
 ## Handoff sequence
 
 The sequence is always: commit → push → confirm hash → THEN say handoff is done.
+
+---
+
+## SPITBOL oracle — always run with -b flag
+
+Always invoke SPITBOL as:
+```bash
+/home/claude/x64/bin/sbl -b file.sno
+```
+
+`-b` suppresses the version/date banner. Never omit it.
+
+SPITBOL case sensitivity:
+- Default (no flag): case-**insensitive** labels (`Push_list` == `push_list`) → duplicate label errors when using the double-function trick.
+- `-F`: explicitly fold (case-insensitive) — same as default.
+- `-f`: case-sensitive — but broken in v4.0f x86-64: "No END statement found" on all files.
+
+**Workaround for double-function trick:** Use a SINGLE NRETURN function with args.
+Call it two ways in the pattern:
+- With captured variable: `(word . tag) . *push_list(tag)`
+- With literal:           `(epsilon . *push_list('BANK'))`
+
+This avoids the uppercase/lowercase wrapper pair entirely.
+Both forms call the same `push_list(v)` function at match time.
+
+---
+
+## NRETURN functions — do not assign return value when called via *fn()
+
+When a function is called via `*fn()` in a pattern (indirect call), assigning
+to the function name triggers SPITBOL error 021 ("function called by name
+returned a value"). Use a separate dummy variable or omit the assignment:
+
+```snobol4
+* WRONG — triggers error 021 when called as *push_list(v):
+push_list   dummy = stk_push_frame(v)
+            push_list = .dummy        :(NRETURN)
+
+* RIGHT — used after . operator: (word . tag) . *push_list(tag)
+push_list   dummy = stk_push_frame(v)
+            push_list = .dummy        :(NRETURN)
+```
+
+Actually: assigning to the function name IS required when called via `. *fn()`
+(the dot-star form) because `.` needs a NAME result. Use `.dummy` as the return.
+Error 021 only triggers if the function is called as a bare `*fn()` without `.`.
+Safe form: always use `(epsilon . *fn())` or `(pat . tag) . *fn(tag)`.
