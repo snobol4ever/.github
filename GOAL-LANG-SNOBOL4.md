@@ -553,3 +553,29 @@ Next session:
      Beauty: XDump, trace, tree drivers
      Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
      expr_eval — *func() side-effect patterns in ARBNO context
+
+## Current state (2026-04-15e, one4all HEAD 94149cf5)
+
+SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=206/228 (corpus not available to recount; expected improvement).
+Smoke PASS=7 FAIL=0. Broker PASS=41 FAIL=0.
+
+Session 2026-04-15e fix (1 commit):
+
+**94149cf5** — sm_lower.c E_KEYWORD: uppercase name before SM_PUSH_VAR and SM_STORE_VAR
+  Root cause: same as interp.c fix (f7d181a2) — lexer lowercases keyword names
+  but NV stores them uppercase. Fixed both read path (SM_PUSH_VAR) and write
+  path (SM_STORE_VAR) in sm_lower.c. Added <ctype.h>.
+  Effect: &lcase/&ucase now work correctly under --sm-run and --jit-run.
+  All keyword tests IR=SM consistent. corpus not available for broad recount.
+
+Next session:
+  1. Clone corpus (snobol4ever/corpus → /home/claude/corpus) and re-run
+     test_interp_broad_corpus_and_beauty.sh to get updated PASS count.
+  2. Fix OPSYN segfault (1015_opsyn) — fix location and code documented
+     above in "1015_opsyn — OPSYN segfault ROOT CAUSE" section.
+  3. Fix APPLY (1018), then ARBNO β-retry (070/074).
+  4. Remaining SN-6 failures:
+     ARRAY/TABLE: 1112,1113,1114,212
+     Beauty: XDump, trace, tree drivers
+     Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
+     expr_eval — *func() side-effect patterns in ARBNO context
