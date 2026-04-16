@@ -69,7 +69,7 @@ Do not read `archive/` unless a step explicitly says to.
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 (unit test) | ☐ |
 | DATATYPE Portable Tests | `GOAL-DATATYPE-PORTABLE-TESTS.md` | corpus | S-1 (audit) | ☐ |
-| ENG685 claws5+treebank SC | `GOAL-ENG685-SC.md` | one4all | SC-3 next: fix claws5.sc pp_mem loop; SC-4: test treebank.sc; both .sno PASS sbl -b | ☐ |
+| ENG685 claws5+treebank SC | `GOAL-ENG685-SC.md` | corpus | SC-3 next: claws5.sc scan-replace rewrite; SC-4: treebank.sc procedural rewrite; both .sno PASS sbl -b | ☐ |
 | README: profile | `GOAL-README-PROFILE.md` | .github | S-1 (audit) | ☐ |
 | README: one4all | `GOAL-README-ONE4ALL.md` | one4all | S-1 (audit) | ☐ |
 | README: snobol4dotnet | `GOAL-README-SNOBOL4DOTNET.md` | snobol4dotnet | S-1 (audit) | ☐ |
