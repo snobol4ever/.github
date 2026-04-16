@@ -33,8 +33,8 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=206/228; HEAD f33686e9; fixes: opsyn DT_N, apply DT_N, bb_atp U-5, ARBNO(*var) interp_eval_pat; next: ARRAY/TABLE (1112–1116) | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 IN PROGRESS: rung01-29 PASS=137/156 FAIL=19; fixed E_FIELD/E_RECORD/E_INITIAL/E_ALTERNATE-nary/!list/table_dflt/neg-subscript/read(); next: rung24 records(5), initial(4), alt-gen(2), put_bang/key/sub_every/misc; HEAD da83ab23 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive no-ops+user-call dispatch in pl_runtime.c; plunit.pl rewritten; suite script fixed; BLOCKER: -> operator fails silently cross-file in interp_exec_pl_builtin (env mismatch); HEAD ea80bd8d | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 DONE: rung24 records PASS=5, rung21/25 initial PASS=12; IC-6 next: rung13 alt-gen(2), rung22/23/16/18/19/28/29 misc(6); HEAD 7a64e8f9 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-26 next (class/method/new OO); RK-25 done: try/CATCH/die PASS=21, HEAD 839ef99e | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
@@ -61,7 +61,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 (ROOT CAUSE: bb_box_fn spec_t→DESCR_t mismatch breaks ALL captures in --ir-run; fix spec_from_descr call site in stmt_exec.c Phase 3) | ☐ |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B (omega *LEQ EVAL star-slot — error 248 fixed, error 22 open: MSIL PushExpr index misalignment after semantic.sno load-time EVALs) | ☐ |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: ARBNO(*P) semantic actions never fire (count=0 even inline); WIP ExpressionVar unwrap patch ec59eeb; beauty 17/17 | ☐ |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2 IN PROGRESS: ARBNO+Graft sound; crash=Reduce(Stmt,7) pops PatternVar on label-only input; next: trace which Stmt slot wrong; HEAD ec59eeb beauty 17/17 | ☐ |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 (@N fix) | ☐ |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 (ExecutionCache) | ☐ |
 | No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 (audit corpus) | ☐ |
