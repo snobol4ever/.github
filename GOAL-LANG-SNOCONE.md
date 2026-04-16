@@ -182,26 +182,47 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/treebank.sc
 ```
 
-- [ ] **SC-23** — Fix scrip runtime bug: `(PAT . var) . *fn(var)` evaluates
+- [x] **SC-23** — treebank.sno: double-function pattern (Push_list/push_list etc.)
+  using Lon's naming. Reads from stdin. DATATYPE check portable.
+  PASS: CSNOBOL4 -bf ✓  output matches treebank.ref.
+  FAIL: SPITBOL — duplicate label errors (case-folding, -f broken in v4.0f).
+
+- [ ] **SC-24** — claws5.sno: rewrite with double-function pattern + stdin I/O.
+  Current claws5.sno uses INPUT(.rdch, 8, file) = SPITBOL-only.
+  CSNOBOL4 does not support 3-arg INPUT().
+  Fix: convert main loop to slurp from stdin (like treebank.sno).
+  Gate: `cat CLAWS5inTASA.dat | csnobol4 -bf claws5.sno` matches claws5.ref.
+
+- [ ] **SC-25** — Both programs under SPITBOL.
+  SPITBOL -f (case-sensitive) is broken in v4.0f: "No END statement found".
+  SPITBOL cannot run double-function programs without case-sensitivity.
+  Options:
+  (a) Fix SPITBOL -f in x64 build (requires x64 source change).
+  (b) Accept CSNOBOL4 -bf as sole oracle for double-function programs.
+  (c) Use -CASE directive in source if supported.
+  Check: does SPITBOL x64 support a &CASE keyword or -CASE directive?
+  ```bash
+  grep -r "CASE\|case.fold\|fold" /home/claude/x64/
+  ```
+  If no fix available: document SPITBOL limitation and accept CSNOBOL4 -bf only.
+
+- [ ] **SC-26** — Fix scrip runtime bug: `(PAT . var) . *fn(var)` evaluates
   `var` for the `*fn()` arg BEFORE the inner `.` assignment commits.
-  Oracle: SPITBOL `(word . tag) . *show(tag)` — show sees `tag=NP`. ✓
-  Scrip (broken): same pattern — show sees `tag=[]`. ✗
+  Oracle: CSNOBOL4 -bf `(word . tag) Push_list('tag')` → push_list sees `tag=NP`. ✓
+  Scrip (broken): same pattern → push_list sees `tag=[]`. ✗
   Fix in pattern engine: `src/runtime/x86/snobol4_pattern.c` or `bb_boxes.c`.
-  The dot-operator must commit LHS variable before evaluating RHS *fn(args).
-  Gate: `bash scripts/test_smoke_snocone.sh` PASS=5.
-  Gate: `bash scripts/test_smoke_unified_broker.sh` PASS=31.
+  Gate: `bash scripts/test_smoke_snocone.sh` PASS=5 FAIL=0.
+  Gate: `bash scripts/test_smoke_unified_broker.sh` PASS=31 FAIL=0.
 
-- [ ] **SC-24** — claws5.sc passes under --ir-run.
-  After SC-23: `(SPAN(DIGITS) . num) && (epsilon . *new_sent())` works correctly.
-  Gate: `head -3 CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref subset.
+- [ ] **SC-27** — claws5.sc passes under --ir-run (after SC-24 + SC-26).
+  Gate: `cat CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref.
 
-- [ ] **SC-25** — treebank.sc passes under --ir-run.
-  After SC-23: `(word . tag) . *push_list(tag)` works correctly.
+- [ ] **SC-28** — treebank.sc passes under --ir-run (after SC-26).
   Gate: `cat treebank.input | scrip --ir-run treebank.sc` matches treebank.ref.
 
-- [ ] **SC-26** — Both programs pass under --sm-run and --jit-run.
+- [ ] **SC-29** — Both programs pass under --sm-run and --jit-run.
 
-- [ ] **SC-27** — Write `scripts/test_eng685_sc.sh` running both programs
+- [ ] **SC-30** — Write `scripts/test_eng685_sc.sh` running both programs
   under all 3 modes vs .ref files. Gate: PASS=6 FAIL=0.
 
 ---
