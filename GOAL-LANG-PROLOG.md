@@ -377,3 +377,76 @@ interp_eval expects. The deep-copy alternative also breaks trailing.
    rem:allq (maplist-as-generator), phrase/2, string/string_bytes.
 
 NEXT SESSION starts at step 1 above. DO NOT re-diagnose — go straight to fix.
+
+---
+
+## Current state (2026-04-16 session 2, one4all HEAD f33686e9, corpus HEAD e587489)
+
+PL-12 IN PROGRESS — 71% (41/57). Baseline unchanged from previous session.
+
+### Key findings this session
+
+**The 71% baseline is partially vacuous.**
+test_exception / test_list / test_misc pass with ZERO tests actually executed
+(the test/2 clauses are loaded but collection via findall produces empty list
+due to an OR-box crash when test(N,Opts) is called with two unbound vars on
+multi-clause predicates with complex head patterns). These three suites "pass"
+only because no tests run and plunit prints PASS vacuously.
+
+**test_call, test_arith, test_term, test_dcg DO run real tests.**
+
+### Actual real per-suite status (what scrip currently produces vs .ref):
+
+| Suite | Actual | Ref | Delta |
+|-------|--------|-----|-------|
+| test_arith | rem FAIL, float_zero FAIL, float_special FAIL, moded_int FAIL | all PASS except float_compare | -4 |
+| test_bips | DUPLICATED OUTPUT (runs twice) | PASS bips/arg/eq/length/is_most_general_term | broken |
+| test_call | snip FAIL | all PASS | -1 |
+| test_dcg | phrase FAIL, steadfastness FAIL, context FAIL | all PASS | -3 |
+| test_exception | PASS throw, PASS ex_coroutining (vacuous) | same | = |
+| test_list | PASS memberchk (vacuous) | same | = |
+| test_misc | PASS misc (vacuous) | same | = |
+| test_string | NO OUTPUT | PASS string, PASS string_bytes | -2 |
+| test_term | term_singletons FAIL | PASS | -1 |
+
+### Root cause: test_bips duplication
+test_bips_main.pl does `:- include('test_bips.pl')` but the suite script
+already passes test_bips.pl as a separate file. The test module is loaded
+twice, running all suites twice. Fix: remove the include from _main.pl OR
+make the suite script not pass the .pl separately.
+
+### catch(Var,_,Recovery) bug — still present, fix approach validated
+The E_VAR fix (pl_invoke_term) is structurally correct and passes the
+minimal repro. It doesn't cause regressions by itself — the regression
+seen earlier was caused by combining E_VAR fix with deep-copy of args.
+The correct fix (fresh vars + unify via trail) needs one more iteration.
+This fix will unblock: arg:zero/two/big, snip (via pj_do_fail), and
+any other test using the two-clause cut pattern in plunit.
+
+### NEXT SESSION PL-12 — ordered task list:
+
+1. **Fix test_bips_main.pl** — remove `:- include('test_bips.pl').` line.
+   Commit to corpus repo. This stops double-run.
+
+2. **Fix test_string no-output** — run test_string manually, diagnose.
+   Likely string builtins (string_to_atom, atom_string, etc.) missing.
+
+3. **Apply catch(Var,_,Recovery) fix** — surgical, in pl_runtime.c:
+   a. Add pl_invoke_term(Term *t) before interp_exec_pl_builtin.
+   b. For user-pred compound calls: pl_env_new(arity), then for each i:
+      unify(uenv[i], t->compound.args[i], trail) — keep binding, no unwind.
+   c. In catch/3 !threw branch: if (goal_e->kind == E_VAR) { gt = pl_unified_term_from_expr(goal_e,env); ok = pl_invoke_term(gt); }
+   d. Verify suite stays >= 71%. arg:zero/two/big should now pass.
+
+4. **Fix snip** — cut inside if-then. One test in test_call.
+
+5. **Fix steadfastness/context** — DCG tests. Investigate phrase/2 first.
+
+6. **Fix rem:allq** — maplist(between(-50,50),[X,Y]) as backtracking generator.
+   Our maplist only verifies, doesn't generate. Add generating path.
+
+7. **Fix term_singletons** — inspect what term_singletons/2 does, implement.
+
+Gate: >= 80% (46/57). Currently 41. Need 5 more.
+Quickest path: fix test_bips (+5 suites if duplication resolved and
+bips/arg/length/eq/is_most_general_term pass) or fix catch bug (+arg suite).
