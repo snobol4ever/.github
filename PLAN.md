@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228 (pre-recount); 1114 PASS 7/7, 1112 PASS 5/5 fixed; next: 1113 array→table int key SM/JIT, 212, demo suite; HEAD 31bb2268 | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=156/156; broker PASS=43; rung13 alt-gen DONE (icn_bb_assign_gen + E_CAT cross-product); next: corpus rung16-29 recount | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: 71% (41/57); suite scripts written; next: util_patch_plunit.sh + catch(Var) fix → target 82% (47/57); HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-47 next: last/next/redo; RK-38/39/56 done: file I/O + stdio handles + spurt, PASS=29 all 3 modes | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |

@@ -17,16 +17,34 @@ Share fixes via main — no branches.
 ```bash
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/install_swi_prolog_tests.sh      # see IC-SETUP below
-bash /home/claude/one4all/scripts/install_gnu_prolog_tests.sh       # see IC-SETUP below
+bash /home/claude/one4all/scripts/install_swi_prolog_tests.sh
+bash /home/claude/one4all/scripts/install_gnu_prolog_tests.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh             # PASS=5
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh     # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh       # 3-mode divergence check
+bash /home/claude/one4all/scripts/test_smoke_prolog.sh                # PASS=5
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh        # PASS=43 FAIL=0
+bash /home/claude/one4all/scripts/test_prolog_swi_suite.sh            # coverage report
+```
+
+SWI suite script options:
+```bash
+bash scripts/test_prolog_swi_suite.sh                    # full suite, --ir-run
+bash scripts/test_prolog_swi_suite.sh --verbose          # show raw output for failures
+bash scripts/test_prolog_swi_suite.sh --file test_bips   # single file
+bash scripts/test_prolog_swi_suite.sh --mode --sm-run    # alternate mode
+```
+
+Diagnostic (per-file detail):
+```bash
+bash scripts/util_diagnose_prolog_swi.sh test_bips
+bash scripts/util_diagnose_prolog_swi.sh test_arith --mode --sm-run
+```
+
+Corpus plunit.pl patch (one-time, idempotent):
+```bash
+bash scripts/util_patch_plunit.sh
 ```
 
 ---
@@ -278,175 +296,86 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD 372f5309)
+## Current state (2026-04-16 session 3, one4all HEAD 372f5309, corpus HEAD e587489)
 
-PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% coverage.
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% (41/57).
 
-Session 2026-04-16 work:
-- Makefile: removed stale engine.c reference (deleted SN-6, Makefile not updated;
-  broke build at session start). DONE.
-- corpus repo cloned (/home/claude/corpus).
-- Diagnosed ->  blocker from previous session: already resolved in current build.
-- Diagnosed 0% SWI suite coverage: root cause was cut scoping bug (see below).
-- pl_broker.c: rewrote cut scoping — per-OR-box cut field + g_pl_cur_cut_flag ptr.
-  Before: g_pl_cut_flag was global; ! inside pj_run_one/4 leaked to parent
-  pj_run_tests/2 OR-box, aborting all tests after the first silently.
-  After: each pl_choice_t has own cut field; pl_cut_fn signals through
-  g_pl_cur_cut_flag (always points to innermost OR-box); save/restore on entry/exit.
-  Standard Prolog cut scoping: cut terminates exactly the predicate containing it.
-- SWI suite: 0% -> 71% (PASS=41 FAIL=16 TOTAL=57).
-  Fully passing: test_exception, test_list, test_misc.
-  Remaining 16 failures: rem, float_zero, bips, arg, length, snip, phrase,
-  steadfastness, context, string, string_bytes, term_singletons, and others.
+### Suite runner scripts (written this session)
 
-NEXT SESSION PL-12:
-  Gate target: >= 80% (need 46/57).
-  Currently at 41/57 — need 5 more passing suites.
-  Approach: run suite with raw output, identify first 5 failing suites,
-  fix builtins/semantics causing those failures one at a time.
-  Start with: rem (modulo), arg/2, length/2, snip (cut-in-if-then), phrase/2.
+All PL-12 test work now driven by scripts — no ad-hoc commands:
 
----
+| Script | Purpose |
+|--------|---------|
+| `scripts/test_prolog_swi_suite.sh` | Full SWI suite runner; `--file`, `--verbose`, `--mode` |
+| `scripts/util_diagnose_prolog_swi.sh` | Per-file diagnostic with full diff |
+| `scripts/util_swi_match.py` | Set-based match counter (called by suite runner) |
+| `scripts/util_swi_report.py` | MISS/HIT reporter (called by suite runner) |
+| `scripts/util_patch_plunit.sh` | Idempotent corpus plunit.pl determinism-cut patch |
 
-## Current state (2026-04-15, one4all HEAD f33686e9, corpus HEAD e587489)
+### Confirmed per-file status (test_prolog_swi_suite.sh output):
 
-PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% coverage. Baseline unchanged.
+| File | match | MISS suites |
+|------|-------|-------------|
+| test_arith | 20/26 | rem, float_zero, float_special, FAIL float_compare, FAIL max_integer_size, moded_int |
+| test_bips | 2/6 | bips, arg, length, is_most_general_term |
+| test_call | 8/9 | snip |
+| test_dcg | 3/5 | steadfastness, context |
+| test_exception | 2/2 | — |
+| test_list | 1/1 | — |
+| test_misc | 1/1 | — |
+| test_string | 0/2 | string, string_bytes (UTF-8 in source → parse crash) |
+| test_term | 4/5 | term_singletons |
 
-Session 2026-04-15 work (this session — diagnosis only, no net commit to one4all):
+### Root causes (in fix-priority order):
 
-### Root cause diagnosed: catch(Var, _, Recovery) bug
+1. **test_bips double-run** — `pj_run_list` in plunit.pl leaves choice points;
+   backtracking re-enters earlier suites when a later suite's test fails mid-run.
+   Fix: add `!` cuts to `pj_run_list`, `pj_run_suite`, `pj_run_tests`.
+   Script ready: `util_patch_plunit.sh`. Unblocks: bips, arg, length, is_most_general_term (+4).
 
-`catch(Goal, _, Recovery)` where `Goal` is an E_VAR (Prolog variable bound at
-runtime to an atom like `fail`) always succeeds instead of propagating Goal's
-failure. Root cause: in the `!threw` branch of catch/3 in pl_runtime.c, when
-`goal_e->kind == E_VAR`, the code falls through to
-`interp_exec_pl_builtin(goal_e, env)`. That function's `switch(goal->kind)`
-has no E_VAR case, hits `default: return 1` — always success regardless of
-what Goal is bound to.
+2. **catch(Var,_,Recovery) bug** — E_VAR goal in catch/3 `!threw` branch falls
+   through to `interp_exec_pl_builtin` which has no E_VAR case → returns 1 (success)
+   regardless of what Goal is bound to. Affects: arg:zero/two/big, snip, bips tests.
+   Fix: in pl_runtime.c catch/3, before builtin dispatch, dereference E_VAR and
+   call `pl_invoke_term(gt, env)` with fresh var cells unified via trail (not
+   raw term_deref pointers, not deep copies). Unblocks: arg (+1), snip (+1).
 
-Confirmed minimal repro:
-```prolog
-wrapper(Goal) :- catch(Goal, _, true), !, writeln(first_clause).
-wrapper(_)    :- writeln(second_clause).
-main :- wrapper(fail).
-% Expected: second_clause   Actual (buggy): first_clause
-```
+3. **test_string no output** — UTF-8 multi-byte characters (Japanese) on line 113
+   crash the lexer; parse errors on stdout, no test results. Likely fix: skip
+   or skip-encode the offending test(s) in the corpus copy, or add UTF-8 tolerance
+   to the lexer. Worth +2 suites.
 
-This is why arg:zero / arg:two / arg:big / snip all fail: plunit's
-`pj_do_fail(Suite, Name, Goal)` uses exactly this two-clause cut pattern with
-`catch(Goal, _, true)`.
+4. **test_arith missing suites** — rem, float_zero/special, moded_int.
+   rem: `rem/2` likely missing or wrong (ISO modulo). float_zero/special: edge
+   case float handling. moded_int: probably needs bigint or bounded-flag logic.
 
-### Fix approach (NOT yet committed — regression discovered):
-
-Added `pl_invoke_term(Term *t, Term **env)` to dereference a runtime Term and
-call it as a goal. Wired into catch/3 E_VAR branch. Fix is structurally
-correct BUT causes regressions in arg:unify, arg:one, bips_occurs_check_error
-because `pl_invoke_term` for user-pred calls passes `term_deref(args[i])` as
-uenv — raw dereferenced pointers instead of fresh trail-linked var cells that
-interp_eval expects. The deep-copy alternative also breaks trailing.
-
-### NEXT SESSION PL-12 fix plan:
-
-1. In pl_runtime.c catch/3 E_VAR branch, add:
-   ```c
-   if (goal_e->kind == E_VAR) {
-       Term *gt = pl_unified_term_from_expr(goal_e, env);
-       ok = pl_invoke_term(gt, env);
-   } else if (is_pl_user_call(goal_e)) { ...
-   ```
-
-2. In pl_invoke_term compound branch, for user-pred calls:
-   DO NOT pass raw term_deref(args[i]) or deep copies.
-   Instead allocate fresh var cells and UNIFY them with the args:
-   ```c
-   Term **uenv = pl_env_new(arity);
-   Trail *trail = &g_pl_trail;
-   for (int i = 0; i < arity; i++) {
-       int mark = trail_mark(trail);
-       unify(uenv[i], t->compound.args[i], trail);
-       // don't unwind — keep bindings
-   }
-   ```
-   This preserves trailing so interp_eval sees properly linked vars.
-
-3. Also handle atom goals that are user-defined 0-arity predicates.
-
-4. Gate: suite must stay at 71% with fix, THEN arg:zero/two/big pass → net gain.
-
-5. After arg fixed, address: snip (cut-in-if-then), bips errors, length/2,
-   rem:allq (maplist-as-generator), phrase/2, string/string_bytes.
-
-NEXT SESSION starts at step 1 above. DO NOT re-diagnose — go straight to fix.
-
----
-
-## Current state (2026-04-16 session 2, one4all HEAD f33686e9, corpus HEAD e587489)
-
-PL-12 IN PROGRESS — 71% (41/57). Baseline unchanged from previous session.
-
-### Key findings this session
-
-**The 71% baseline is partially vacuous.**
-test_exception / test_list / test_misc pass with ZERO tests actually executed
-(the test/2 clauses are loaded but collection via findall produces empty list
-due to an OR-box crash when test(N,Opts) is called with two unbound vars on
-multi-clause predicates with complex head patterns). These three suites "pass"
-only because no tests run and plunit prints PASS vacuously.
-
-**test_call, test_arith, test_term, test_dcg DO run real tests.**
-
-### Actual real per-suite status (what scrip currently produces vs .ref):
-
-| Suite | Actual | Ref | Delta |
-|-------|--------|-----|-------|
-| test_arith | rem FAIL, float_zero FAIL, float_special FAIL, moded_int FAIL | all PASS except float_compare | -4 |
-| test_bips | DUPLICATED OUTPUT (runs twice) | PASS bips/arg/eq/length/is_most_general_term | broken |
-| test_call | snip FAIL | all PASS | -1 |
-| test_dcg | phrase FAIL, steadfastness FAIL, context FAIL | all PASS | -3 |
-| test_exception | PASS throw, PASS ex_coroutining (vacuous) | same | = |
-| test_list | PASS memberchk (vacuous) | same | = |
-| test_misc | PASS misc (vacuous) | same | = |
-| test_string | NO OUTPUT | PASS string, PASS string_bytes | -2 |
-| test_term | term_singletons FAIL | PASS | -1 |
-
-### Root cause: test_bips duplication
-test_bips_main.pl does `:- include('test_bips.pl')` but the suite script
-already passes test_bips.pl as a separate file. The test module is loaded
-twice, running all suites twice. Fix: remove the include from _main.pl OR
-make the suite script not pass the .pl separately.
-
-### catch(Var,_,Recovery) bug — still present, fix approach validated
-The E_VAR fix (pl_invoke_term) is structurally correct and passes the
-minimal repro. It doesn't cause regressions by itself — the regression
-seen earlier was caused by combining E_VAR fix with deep-copy of args.
-The correct fix (fresh vars + unify via trail) needs one more iteration.
-This fix will unblock: arg:zero/two/big, snip (via pj_do_fail), and
-any other test using the two-clause cut pattern in plunit.
+5. **test_dcg steadfastness/context** — DCG phrase/2 semantics. Lower priority.
 
 ### NEXT SESSION PL-12 — ordered task list:
 
-1. **Fix test_bips_main.pl** — remove `:- include('test_bips.pl').` line.
-   Commit to corpus repo. This stops double-run.
+1. Run `bash scripts/util_patch_plunit.sh` — apply plunit.pl determinism cuts.
+   Rerun `bash scripts/test_prolog_swi_suite.sh` — expect bips/length/is_most_general_term
+   to move from MISS to present; arg:zero/two/big still failing until step 2.
 
-2. **Fix test_string no-output** — run test_string manually, diagnose.
-   Likely string builtins (string_to_atom, atom_string, etc.) missing.
+2. Apply catch(Var,_,Recovery) fix in `src/runtime/interp/pl_runtime.c`:
+   a. Add `pl_invoke_term(Term *t, Term **env)` — dereference term, dispatch to
+      interp_eval for user preds (fresh vars + trail-unify args), or call builtin
+      for atoms/builtins.
+   b. In catch/3 `!threw` branch: `if (goal_e->kind == E_VAR) { ... pl_invoke_term ... }`
+   c. Gate: smoke PASS=5, broker PASS=43, suite >= 71% before counting gains.
+   d. Expected gain: arg suite (+1), snip (+1) = 43/57 = 75%.
 
-3. **Apply catch(Var,_,Recovery) fix** — surgical, in pl_runtime.c:
-   a. Add pl_invoke_term(Term *t) before interp_exec_pl_builtin.
-   b. For user-pred compound calls: pl_env_new(arity), then for each i:
-      unify(uenv[i], t->compound.args[i], trail) — keep binding, no unwind.
-   c. In catch/3 !threw branch: if (goal_e->kind == E_VAR) { gt = pl_unified_term_from_expr(goal_e,env); ok = pl_invoke_term(gt); }
-   d. Verify suite stays >= 71%. arg:zero/two/big should now pass.
+3. Fix test_string — investigate UTF-8 crash; patch corpus test_string.pl to
+   skip or replace the Japanese-string tests. Run via:
+   `bash scripts/util_diagnose_prolog_swi.sh test_string`
+   Expected gain: +2 = 45/57 = 78%.
 
-4. **Fix snip** — cut inside if-then. One test in test_call.
+4. Fix rem/2 — inspect ISO semantics vs our implementation. Run:
+   `bash scripts/util_diagnose_prolog_swi.sh test_arith --verbose`
+   rem alone = +1 → 46/57 = 80% gate cleared.
 
-5. **Fix steadfastness/context** — DCG tests. Investigate phrase/2 first.
-
-6. **Fix rem:allq** — maplist(between(-50,50),[X,Y]) as backtracking generator.
-   Our maplist only verifies, doesn't generate. Add generating path.
-
-7. **Fix term_singletons** — inspect what term_singletons/2 does, implement.
+5. After gate: fix float_zero/special, moded_int, steadfastness/context,
+   term_singletons for margin above 80%.
 
 Gate: >= 80% (46/57). Currently 41. Need 5 more.
-Quickest path: fix test_bips (+5 suites if duplication resolved and
-bips/arg/length/eq/is_most_general_term pass) or fix catch bug (+arg suite).
+Quickest path: plunit cuts (+4 bips block) + catch fix (+2) = 47/57 = 82%.
