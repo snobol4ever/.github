@@ -33,7 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=206/228 (corpus absent; SM &keyword fix done); next: clone corpus + recount, then OPSYN fix; HEAD 94149cf5 | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 DONE: rung24 records PASS=5, rung21/25 initial PASS=12; IC-6 next: rung13 alt-gen(2), rung22/23/16/18/19/28/29 misc(6); HEAD 7a64e8f9 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=154/156; broker PASS=42; 2 open: rung13_alt_filter (E_SEQ+E_ASSIGN drive), rung13_alt_nested (E_LCONCAT/E_CAT guard); HEAD 57d51c88 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/RK-33 done: table-driven NFA compiler + simulator, PASS=24 all 3 modes | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |

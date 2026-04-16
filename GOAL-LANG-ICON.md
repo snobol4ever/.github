@@ -539,3 +539,43 @@ Remaining 19 failures — next session priority:
   3. rung13 alt filter/nested (2): alternation with generator operands.
   4. rung22 put_bang (1), rung23 key (1), rung16 sub_every (1).
   5. rung18 relop_goal (1), rung19 pow_real (1), rung28 trim_map (1), rung29 image (1).
+
+## Current state (2026-04-15 session 12, one4all HEAD 57d51c88)
+
+IC-6 IN PROGRESS: rung01-29 PASS=154 FAIL=2 TOTAL=156. Broker PASS=42 FAIL=0. Smoke PASS=5.
+
+Fixes this session (rung12-29: 79→154 PASS, +75):
+
+1. icn_real_str: shortest round-trip precision (try %.15g..%.17g, stop when strtod round-trips).
+   Fixes: rung15 real_literal, rung17 string_conv, rung29 image (3.14 not 3.1400000000000001).
+2. E_POW: always returns DT_R (Icon semantics). Fixes: rung19 pow_int, rung26 ×4.
+3. image(): string returns value without quotes. Fixes: rung29 type_image.
+4. trim(): g_lang==1 → Icon trailing-only; else Raku both-sides. Fixes: rung28, rk_str22.
+5. push()/put(): read n from icn_size (not ea.v==DT_I which was always 0). Fixes: rung22 put_bang.
+6. icn_bb_list_iterate: store live list_obj DESCR_t, re-read each tick. Fixes: rung22 put_bang.
+7. icn_bb_tbl_key_iterate: new box; key(T) wired in icn_eval_gen. Fixes: rung23 table_key.
+8. icn_is_gen: added E_IDX (gen if index child gen), E_ASSIGN (gen if RHS gen).
+9. icn_eval_gen: E_IDX routes to icn_bb_cat_gen (drive leaf, re-eval subscript). Fixes: rung16 sub_every.
+10. icn_eval_gen: E_LCONCAT added to binop_map for cross-product concat.
+11. icn_oneshot_box: reset fired=0 on alpha so cross-product can replay scalar arms.
+12. icn_binop_apply: relops return actual rv DESCR_t (not INTVAL cast). Fixes: rung18 real_relop_goal.
+13. icn_binop_apply: real-aware arithmetic. Fixes: rung17 real_arith.
+14. E_EVERY: E_SEQ conjunction special case added. Partial fix for rung13 filter.
+15. test_icon_ir_all_rungs.sh: extended to rung01-29; added .stdin support. Fixes: rung27 ×4.
+
+OPEN (2 failures, next session IC-6 priority):
+
+- rung13_alt_alt_filter: every (x:=alt)>2 & write(x).
+  E_SEQ special case fires icn_eval_gen(E_GT(E_ASSIGN(x,alt),2)).
+  icn_bb_binop_gen pumps E_ASSIGN as left box — but E_ASSIGN side-effect
+  (writing x into frame slot) is not replayed per tick; needs icn_drive_node
+  injection the same way the E_ASSIGN special case in E_EVERY does it.
+  Fix: in E_EVERY E_SEQ path, detect E_GT/relop with E_ASSIGN left child;
+  drive the alt leaf directly via icn_drive_node, re-eval the full filter each tick.
+
+- rung13_alt_alt_nested: every write(("a"|"b") || ("x"|"y")).
+  E_LCONCAT with two E_ALTERNATE children should route to icn_bb_binop_gen
+  cross-product. icn_oneshot reset fixed. Root cause: E_CAT handler in
+  icn_eval_gen fires before the binop_map loop and intercepts E_LCONCAT
+  (E_CAT and E_LCONCAT share the icn_is_gen case but E_CAT block only
+  checks e->kind == E_CAT). Verify: add E_LCONCAT check to E_CAT block guard.
