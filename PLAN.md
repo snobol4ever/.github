@@ -30,10 +30,13 @@ Do not read `archive/` unless a step explicitly says to.
 
 | Goal | File | Repo | Current Step | Done? |
 |------|------|------|--------------|-------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=219/228; next: demo suite, expr_eval, XDump, fileinfo, triplet; HEAD b2ca50a6 | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-6 IN PROGRESS: rung01-29 PASS=156/156; broker PASS=42; next: rung13 alt-filter/alt-nested; HEAD 57d51c88 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
-| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/33 done: NFA compiler+sim, PASS=24 | ☐ |
+| In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
+| &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=215/228; ITEM SM-run partial (4/5); next: 4D subscript, 1112/1113/212, demo suite; HEAD 66f99531 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 next: rung30 abs/max/min/sqrt/seq; rung31 sort/sortf; rung33 case; rung34 null-test; rung32 strret_every; rung35 7/7 PASS; rung36 JCON PASS=2 XFAIL=23 | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
+| Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-35 next: named captures <n> and $<n>; RK-34 done: $0/$1 positional captures, leftmost-longest, PASS=25 all 3 modes | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
@@ -52,7 +55,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Gen Broker | `GOAL-ICN-BROKER.md` | one4all | B-11 DONE | ☑ |
 | Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | rung01-11 14/14 PASS, next: S-10e assertz/retract/abolish | ☐ |
 | Prolog BB Byrd | `GOAL-PROLOG-BB-BYRD.md` | one4all | DONE | ☑ |
-| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | PIVOT: no assembly/awk/Python; write clean per-subsystem .sc files by hand; SB-4 next; HEAD 311ec18c | ☐ |
+| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 (prerequisite: Prolog Phase 1C) | ☐ || Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | one4all | SB-4 IN PROGRESS: BONUS: TABLE slot NULVCL fix restores beauty gate PASS=42; BLOCKER: struct link dedup + Qize/TDump/omega still needed; HEAD 9e81b9da | ☐ |
 | Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 (rewrite generator: subsystem files, full grammar, two-run protocol) | ☐ |
 | Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 (omega 15/15 ✅ — S-1..S-6 done; next: confirm S-7/S-8 gate, rebuild after prolog_interp.h fix) | ☐ |
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 (fix omega EVAL(string) via interp_eval_pat) | ☐ |
