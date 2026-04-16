@@ -25,12 +25,24 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=36
 
 ---
 
-## Current state (2026-04-15, one4all HEAD db91b92c)
+## Current state (2026-04-15, one4all HEAD 853fb992)
 
 SB-1 DONE: 9 underflow sites diagnosed — dollar-quoted idents + scan+replacement.
 SB-2 DONE: $'...' lexer fix — both lex loops patched. Gate passes.
 SB-3 DONE: ~(subj ? pat) parser fix + scan+replacement lowerer fix. 0 underflows.
-beauty.sc runs to completion (no underflows). Next: SB-4 — compare output to oracle.
+SB-4 IN PROGRESS: beauty.sc needs missing Snocone library ports to produce any output.
+
+SPITBOL oracle confirmed working:
+  cd /home/claude/corpus/programs/snobol4/beauty
+  /home/claude/x64/bin/sbl /home/claude/corpus/programs/snobol4/demo/beauty.sno < /home/claude/corpus/programs/snobol4/demo/beauty.sno
+  exit=0, 25 lines output
+
+Gen.sc and case.sc ported (HEAD 853fb992). Still needed: Qize.sc.
+
+BLOCKER: combining subsystem libraries into one scrip invocation hangs at
+duplicate `struct link` declaration (~line 127 of combined file). struct link
+is defined in both stack/driver.sc and ShiftReduce/driver.sc. Fix: deduplicate
+before combining — define struct link once in a shared preamble.
 
 1. **`$'...'` dollar-quoted identifiers** — e.g. `$'=' = *White && '=' && *White;`
    The lexer treats `$` as an identifier character but does not tokenize `$'...'`
