@@ -345,7 +345,54 @@ RK-16 is next per PLAN.md.
   No new IR nodes needed.
   Gate: rk_hyper53 PASS.
 
-- [ ] **RK-54** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-54.
+- [ ] **RK-55** — `loop { }` bare infinite loop.
+  Wire KW_LOOP in raku.l/raku.y → E_REPEAT (already in ir.h).
+  `last` from RK-47 exits it. `next`/`redo` also apply.
+  Gate: rk_loop55 PASS.
+
+- [ ] **RK-56** — `spurt($path, $content)` write-file shorthand.
+  Symmetric with `slurp` from RK-38. Opens, writes, closes in one call.
+  Gate: rk_fileio56 PASS (spurt then slurp round-trips correctly).
+
+- [ ] **RK-57** — `dir($path)` directory listing as BB_PUMP generator.
+  Each pump yields one filename string via POSIX `readdir`.
+  Natural `for dir('.') -> $f { say $f; }` loop.
+  Gate: rk_dir57 PASS.
+
+- [ ] **RK-58** — `flat` / `slip` list flattening.
+  `flat(@nested)` → BB_PUMP that recurses into sub-lists, yields scalars.
+  `slip(@a)` inside a list constructor flattens one level inline.
+  Gate: rk_flat58 PASS.
+
+- [ ] **RK-59** — `unique` / `squish` deduplication generators.
+  `unique(@list)` → BB_PUMP with seen-hash filter; yields only first occurrence of each value.
+  `squish(@list)` → yields only when value differs from previous (run-length dedup).
+  Gate: rk_unique59 PASS.
+
+- [ ] **RK-60** — `rotor($n)` and `batch($n)` chunking generators.
+  `@list.rotor(3)` → BB_PUMP yielding N-element sublists; partial final chunk included.
+  `batch($n)` = rotor but drops partial final chunk.
+  Gate: rk_rotor60 PASS.
+
+- [ ] **RK-61** — `pairs` iterator.
+  `@arr.pairs` → BB_PUMP yielding (index => value) Pair objects.
+  `%hash.pairs` → (key => value) Pair objects.
+  Natural `for @arr.pairs -> $p { say "$p.key: $p.value"; }`.
+  Gate: rk_pairs61 PASS.
+
+- [ ] **RK-62** — `combinations($n)` and `permutations()` combinatoric generators.
+  `@list.combinations(2)` → BB_PUMP over all k-element subsets in order.
+  `@list.permutations` → BB_PUMP over all orderings.
+  Each pump step advances the combinatoric cursor — pure GDE, no special runtime needed.
+  Gate: rk_combgen62 PASS.
+
+- [ ] **RK-63** — `multi sub` / `multi method` basic dispatch.
+  Multiple subs with same name, different signatures — dispatch by arity first
+  (type enforcement deferred to full type system).
+  Stored as dispatch table in icn_proc_table keyed by `"name/arity"`.
+  Gate: rk_multi63 PASS (dispatch by argument count correct).
+
+- [ ] **RK-64** — Full suite update: `test_raku_ir_full_suite.sh` extended to RK-63.
   Gate: PASS=N FAIL=0 per mode, all three modes.
 ---
 
