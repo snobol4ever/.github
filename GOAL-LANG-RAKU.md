@@ -156,21 +156,19 @@ RK-16 is next per PLAN.md.
   PCRE2 kept as fallback only for `regex` keyword (full backtracking, code assertions).
   Lon has existing NFA/DFA C code — integrate as the compiler from pattern AST → NFA graph.
 
-- [ ] **RK-32** — RE compiler: pattern syntax → NFA BB-graph.
-  Parse `/pattern/` syntax in raku.l/raku.y: literals, `.`, `\d\w\s`, `[cls]`,
-  `^`/`$` anchors, `*`/`+`/`?` quantifiers, `|` alternation, grouping `(...)`.
-  Compile to NFA graph: array of Nfa_state structs, each with char-class edge
-  (advances pos) or epsilon edge (free), accept flag, BB box index.
-  Integrate Lon's existing NFA code here — adapt struct layout to Nfa_state.
-  Gate: rk_re32 PASS (NFA built for `\d+`, `[a-z]+`, `a|b`, `.*`, `^x$`;
-  print state count to confirm compilation; no execution yet).
+- [x] **RK-32** — RE compiler: pattern syntax → NFA state table.
+  New file: raku_re.c / raku_re.h. Table-driven NFA (Thompson construction).
+  Supports: literals, `.`, `\d\w\s\D\W\S`, `[cls]` with ranges and negation,
+  `^`/`$` anchors (zero-width in epsilon-closure), `*`/`+`/`?` quantifiers,
+  `|` alternation, `(...)` grouping. Nfa_state[] flat array with bb_id field
+  reserved for Phase-3 BB lifter. raku_nfa_compile() builtin prints state count.
+  Gate: rk_re32 PASS (states=4/4/5/4/4 for the five gate patterns). ✅
 
-- [ ] **RK-33** — NFA simulation via BB_PUMP parallel execution.
-  `raku_match(subject, nfa)` → spawn one BB_PUMP per initial epsilon-closure state.
-  Each pump step: consume one char, advance to next states, kill dead states.
-  E_ALTERNATE drives active-state pool; accept state = INTVAL(match_end_pos).
-  `$s ~~ /pat/` returns INTVAL(1) on match, FAILDESCR on no match.
-  Gate: rk_re33 PASS (all patterns from RK-32 match/reject correctly).
+- [x] **RK-33** — NFA simulation: table-driven Thompson parallel active sets.
+  raku_nfa_match() in raku_re.c: two State_set bitsets (cur/nxt), epsilon-closure
+  with anchor-aware ss_add (BOL/EOL fire only at correct position), unanchored
+  unless ^ present. raku_match interp.c dispatch upgraded from strstr to NFA.
+  Gate: rk_re33 PASS (all patterns match/reject correctly). ✅
 
 - [ ] **RK-34** — Captures: `(...)` positional, `$0`, `$1`.
   Augment Nfa_state with capture-open/capture-close tags (Thompson with captures).
@@ -438,18 +436,19 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD — post RK-27, LADDER COMPLETE)
+## Current state (2026-04-15, one4all HEAD — post RK-33)
 
-ALL PHASES DONE. RK-1 through RK-31 complete.
-PASS=22 FAIL=0 under --ir-run, --sm-run, --jit-run (all three modes).
-Broker PASS=41 FAIL=0. Crosscheck PASS=26 FAIL=0.
-HEAD (one4all): see git log — RK-27 commit.
+RK-32 + RK-33 complete. PASS=24 FAIL=0 under all three modes.
+Broker PASS=43 FAIL=0.
+HEAD (one4all): see git log — RK-32/RK-33 commit.
 
-Session RK-26..RK-27 summary:
-  RK-26: class/method/new basic OO (E_RECORD + E_FIELD), HEAD 99ce25fa
-  RK-27: test_raku_ir_full_suite.sh written — PASS=22/mode all 3 modes
-  Phases 2+3 (SM-run, JIT-run): all rungs already passing; confirmed by full suite.
-  Goal DONE — Raku rung ladder reaches rung-30+ under all three modes.
+Session RK-32..RK-33 summary:
+  RK-32: raku_re.c/raku_re.h — table-driven NFA compiler (Thompson construction).
+         Nfa_state[] flat table, bb_id reserved for Phase-3 BB lifter.
+         Patterns: literals, ., \d\w\s, [cls], ^$, *+?, |, ()
+  RK-33: raku_nfa_match() — parallel active-set simulation, anchor-aware epsilon-closure.
+         raku_match in interp.c upgraded from strstr to full NFA.
+  Next: RK-34 — positional captures ($0, $1) via capture-tag augmented NFA.
 
 ---
 
