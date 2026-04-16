@@ -23,9 +23,17 @@ bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_icon.sh             # PASS=5
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_icon.sh       # 3-mode divergence check
-bash /home/claude/one4all/scripts/test_icon_ir_all_rungs.sh      # check baseline
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=45
+bash /home/claude/one4all/scripts/test_crosscheck_icon.sh        # PASS=4 (3-mode divergence check)
+bash /home/claude/one4all/scripts/test_icon_ir_all_rungs.sh      # rung01-36; --rung RUNG to target one
+# Per-rung gates for IC-7:
+bash /home/claude/one4all/scripts/test_icon_ir_rung_30.sh        # abs/max/min/sqrt/seq
+bash /home/claude/one4all/scripts/test_icon_ir_rung_31.sh        # sort/sortf
+bash /home/claude/one4all/scripts/test_icon_ir_rung_32.sh        # string retval every
+bash /home/claude/one4all/scripts/test_icon_ir_rung_33.sh        # case expressions
+bash /home/claude/one4all/scripts/test_icon_ir_rung_34.sh        # null/nonnull test
+bash /home/claude/one4all/scripts/test_icon_ir_rung_35.sh        # block bodies + table str/str
+bash /home/claude/one4all/scripts/test_icon_ir_rung_36.sh        # JCON suite (xfail=23 expected)
 ```
 
 ---
@@ -97,31 +105,35 @@ Rung 12–36 are the ladder for this goal.
   rung16 sub_every(1), rung18 relop(1), rung19 pow(1), rung28 trim_map(1), rung29 image(1).
   Gate: smoke PASS=5, broker PASS=41, rung01-11 PASS=59. HEAD 7a64e8f9.
 
-- [ ] **IC-6** — rung13 alt-gen DONE (2026-04-16): rung01-29 PASS=156/156, broker PASS=43 FAIL=0.
-  Two fixes in icn_runtime.c:
-  1. icn_bb_assign_gen box: E_ASSIGN with generative RHS pumps RHS gen per tick, writes var slot.
-     Fixes: every (x:=alt)>2 & write(x) — rung13_alt_filter.
-  2. E_CAT both-generative → cross-product via icn_bb_binop_gen (ICN_BINOP_CONCAT).
-     Fixes: every write(("a"|"b") || ("x"|"y")) — rung13_alt_nested.
-  New gate: test_icon_ir_rung_13_alt.sh PASS=2/2.
-  Remaining IC-6: rung22 put_bang(1), rung23 key(1), rung16 sub_every(1),
-  rung18 relop(1), rung19 pow(1), rung28 trim_map(1), rung29 image(1).
-  Next: run corpus rung16–29 to recount then continue.
+- [x] **IC-6** — rung01–29 PASS=156/156 FAIL=0 confirmed (2026-04-16, session 14).
+  Corpus recount: all 7 suspected remaining failures (rung22 put_bang, rung23 key,
+  rung16 sub_every, rung18 relop, rung19 pow, rung28 trim_map, rung29 image) were
+  already passing from session 13 fixes. No new work needed.
+  Gates: smoke PASS=5, broker PASS=45 FAIL=0, rung01-29 PASS=156/156. HEAD 37d45f96.
 
-- [ ] **IC-7** — rung17–20: real arithmetic, section `s[i:j]`, seq expressions.
-  Gate: rung17–20 all PASS.
+- [ ] **IC-7** — rung30–35: misc builtins, sort/sortf, string retval every, case, null-test, block bodies.
+  Baseline (2026-04-16): rung30 0/5, rung31 0/5, rung32 4/5, rung33 1/5, rung34 1/5, rung35 7/7.
+  Gate scripts (all rewritten for --ir-run, self-contained, xfail-aware):
+    `bash scripts/test_icon_ir_rung_30.sh`  — abs/max/min/sqrt/seq builtins
+    `bash scripts/test_icon_ir_rung_31.sh`  — sort(L) / sortf(L,n)
+    `bash scripts/test_icon_ir_rung_32.sh`  — string-return-value in every
+    `bash scripts/test_icon_ir_rung_33.sh`  — case/of/default expressions
+    `bash scripts/test_icon_ir_rung_34.sh`  — null test (\x, \=x)
+    `bash scripts/test_icon_ir_rung_35.sh`  — block bodies + table str/str (PASS=7/7 already)
+  Overall gate: `bash scripts/test_icon_ir_all_rungs.sh` — now covers rung01–36,
+    xfail-aware, --rung/--scrip/--corpus switches, timeout 30s for rung36.
+  Known root causes to fix:
+    rung30: abs()/max()/min()/sqrt()/seq() builtins missing from Icon E_FNC dispatch
+    rung31: sort()/sortf() builtins missing
+    rung32 (1 fail): strret_every — proc returning string, every over call yields only first
+    rung33 (4 fail): E_CASE not evaluated (case_no_default passes — parse ok, dispatch missing)
+    rung34 (4 fail): \x (null test) and \=x (nonnull test) unimplemented
 
-- [ ] **IC-8** — rung21: `global` declarations and `initial` blocks.
-  Gate: test_icon_ir_rung_21_global_initial.sh PASS.
-
-- [ ] **IC-9** — rung22–25: `type()`, `image()`, `copy()`, `ord()`/`char()`.
-  Gate: rung22–25 all PASS.
-
-- [ ] **IC-10** — rung26–30: `reads()`, `read()`, file I/O, `open()`/`close()`.
-  Gate: rung26–30 all PASS.
-
-- [ ] **IC-11** — rung31–36: co-expressions, `@c`, `create`, `activate`.
-  Gate: rung31–36 all PASS (or SKIP with note if co-expressions are post-scope).
+- [ ] **IC-8** — rung36: JCON integration suite (75 tests).
+  Baseline (2026-04-16): PASS=2 FAIL=50 XFAIL=23 TOTAL=75.
+  Gate: `bash scripts/test_icon_ir_rung_36.sh` — xfail=23 known-unimplemented (co-expressions,
+    large integers, &error trapping, etc.). Goal: reduce FAIL toward 0; XFAIL is acceptable.
+  Note: test_icon_ir_rung_36.sh rewritten for --ir-run (was JVM-era jasmin script).
 
 ### Phase 2 — Icon standard library procedures
 
@@ -613,3 +625,31 @@ Next IC-6: run corpus rung16–29 with corpus cloned to recount remaining open f
 Without corpus the rung all-rungs script SKIPs. Remaining known open (from session 12):
 rung22 put_bang(1), rung23 key(1), rung16 sub_every(1), rung18 relop(1),
 rung19 pow(1), rung28 trim_map(1), rung29 image(1).
+
+## Current state (2026-04-16 session 14, one4all HEAD 37d45f96)
+
+IC-6 DONE: rung01-29 PASS=156/156 confirmed with corpus. Broker PASS=45 FAIL=0. Smoke PASS=5.
+Crosscheck PASS=4. All suspected IC-6 failures were already fixed from session 13.
+
+Scripts rewritten/extended this session (all in one4all/scripts/, self-contained, --ir-run):
+  test_icon_ir_rung_30.sh  — abs/max/min/sqrt/seq   (was JVM/jasmin stub)
+  test_icon_ir_rung_31.sh  — sort/sortf              (was JVM/jasmin stub)
+  test_icon_ir_rung_32.sh  — string retval every     (was JVM/jasmin stub)
+  test_icon_ir_rung_33.sh  — case expressions        (was JVM/jasmin stub)
+  test_icon_ir_rung_34.sh  — null/nonnull test       (was JVM/jasmin stub)
+  test_icon_ir_rung_35.sh  — block bodies + str/str  (was JVM/jasmin stub)
+  test_icon_ir_rung_36.sh  — JCON suite 75 tests     (was JVM/jasmin stub)
+  test_icon_ir_all_rungs.sh — extended rung01-36, xfail-aware, --rung/--scrip/--corpus switches
+
+IC-7 baseline (rung30-35):
+  rung30 0/5 — abs/max/min/sqrt/seq missing from E_FNC dispatch
+  rung31 0/5 — sort()/sortf() missing
+  rung32 4/5 — strret_every: every over proc yielding string returns only first value
+  rung33 1/5 — E_CASE dispatch not implemented (parse ok, eval missing)
+  rung34 1/5 — \x null-test and \=x nonnull-test unimplemented
+  rung35 7/7 — ALREADY PASSING (no work needed)
+
+IC-8 baseline (rung36 JCON): PASS=2 FAIL=50 XFAIL=23 TOTAL=75
+
+Next IC-7: fix rung30 builtins first (abs/max/min/sqrt/seq in icn_runtime.c E_FNC dispatch),
+then rung31 sort/sortf, then rung33 case, then rung34 null-test, then rung32 strret_every.
