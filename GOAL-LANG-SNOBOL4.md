@@ -610,3 +610,32 @@ Remaining SN-6 failures (11 real + 2 stdin-hang non-failures):
   Beauty: XDump driver
   Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
   expr_eval
+
+## Current state (2026-04-16c, one4all HEAD 66f99531)
+
+SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=215/228.
+Smoke PASS=7 FAIL=0. Broker PASS=44 FAIL=0.
+
+Session 2026-04-16c fix (1 commit):
+
+**66f99531** — ITEM builtin SM-run: ITEM read + ITEM_SET write wired (partial)
+  ITEM(arr,i[,j])=val was E_FNC → SM_CALL "ITEM" → Error 5.
+  _usercall_hook: ITEM → subscript_get/get2; ITEM_SET → subscript_set/set2.
+  sm_lower.c: ITEM on LHS pushes all children, emits ITEM_SET with full nargs.
+  1114_item: 4/5 pass now (was 0/5). Fails at 005: 4D subscript (>2D unsupported).
+  No net PASS gain (1114 still fails overall) but foundation correct.
+
+Next session:
+  1. Fix 4D subscript (subscript_get/set currently only handle 1D and 2D).
+     1114/005: ama<1,2,1,2> — 4 indices. Need N-dimensional subscript dispatch.
+  2. Fix 1112_array_multi/003: custom lower bound (-1:1 range) assign/read in SM.
+  3. Fix 1113_table/006: array→table int key roundtrip (CONVERT function).
+  4. Fix 212_indirect_array: $.var<index> indirect then subscript in SM.
+  5. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
+  6. expr_eval, beauty_XDump.
+
+Remaining SN-6 failures (11 real + 2 stdin-hang):
+  ARRAY/TABLE: 1112, 1113, 1114, 212
+  Beauty: XDump driver
+  Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
+  expr_eval
