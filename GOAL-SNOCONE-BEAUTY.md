@@ -25,24 +25,32 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=36
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 853fb992)
+## Current state (2026-04-16, one4all HEAD 9e81b9da)
 
 SB-1 DONE: 9 underflow sites diagnosed — dollar-quoted idents + scan+replacement.
 SB-2 DONE: $'...' lexer fix — both lex loops patched. Gate passes.
 SB-3 DONE: ~(subj ? pat) parser fix + scan+replacement lowerer fix. 0 underflows.
 SB-4 IN PROGRESS: beauty.sc needs missing Snocone library ports to produce any output.
 
-SPITBOL oracle confirmed working:
-  cd /home/claude/corpus/programs/snobol4/beauty
-  /home/claude/x64/bin/sbl /home/claude/corpus/programs/snobol4/demo/beauty.sno < /home/claude/corpus/programs/snobol4/demo/beauty.sno
-  exit=0, 25 lines output
+BONUS FIX (this session): subscript_get — unset TABLE slot as direct fn arg
+returned FAILDESCR instead of NULVCL. Fix: snobol4_pattern.c line ~442,
+return NULVCL not FAILDESCR when table has no entry and no default.
+This fixed trace subsystem regression (FAIL=3→0). beauty gate now PASS=42 FAIL=0 SKIP=3.
 
-Gen.sc and case.sc ported (HEAD 853fb992). Still needed: Qize.sc.
+SPITBOL oracle: beauty.sc is Snocone syntax — SPITBOL cannot run it.
+Oracle for SB-4 is: sbl beauty.sno (SNOBOL4 version) on same input.
+beauty.sno is in corpus (not yet cloned). corpus path: snobol4ever/corpus.
+
+Subsystem .sc files available as driver.sc per test/beauty-sc/ subdirectory:
+  PORTED (driver.sc exists): global, fence, assign, case, match, counter,
+    stack, tree, ShiftReduce, ReadWrite, semantic, trace, strings, arith, roman
+  IN beauty dir: Gen.sc, case.sc (ported HEAD 853fb992)
+  STILL NEEDED: Qize.sc, TDump.sc, XDump.sc, omega.sc, is.sc, io.sc
 
 BLOCKER: combining subsystem libraries into one scrip invocation hangs at
-duplicate `struct link` declaration (~line 127 of combined file). struct link
-is defined in both stack/driver.sc and ShiftReduce/driver.sc. Fix: deduplicate
-before combining — define struct link once in a shared preamble.
+duplicate `struct link` declaration. struct link is defined in both
+stack/driver.sc and ShiftReduce/driver.sc. Fix: deduplicate before combining —
+define struct link once in a shared preamble, strip from individual files.
 
 1. **`$'...'` dollar-quoted identifiers** — e.g. `$'=' = *White && '=' && *White;`
    The lexer treats `$` as an identifier character but does not tokenize `$'...'`
