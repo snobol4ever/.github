@@ -34,7 +34,7 @@ Do not read `archive/` unless a step explicitly says to.
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=203/228 broad; HEAD 7a752454; broker PASS=41; OPSYN root cause re-diagnosed: opsyn() calls VARVAL_fn(.dupl) which returns "" (NAMEPTR has s=NULL, ptr→NV cell value not name); fix: in opsyn() extract name from DT_N descriptor directly using NV_name_from_ptr — see GOAL file for exact patch | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 IN PROGRESS: rung01-29 PASS=137/156 FAIL=19; fixed E_FIELD/E_RECORD/E_INITIAL/E_ALTERNATE-nary/!list/table_dflt/neg-subscript/read(); next: rung24 records(5), initial(4), alt-gen(2), put_bang/key/sub_every/misc; HEAD da83ab23 | ☐ |
-| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: directive no-ops+user-call dispatch in pl_runtime.c; plunit.pl rewritten; suite script fixed; BLOCKER: -> operator fails silently cross-file in interp_exec_pl_builtin (env mismatch); HEAD ea80bd8d | ☐ |
+| Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-26 next (class/method/new OO); RK-25 done: try/CATCH/die PASS=21, HEAD 839ef99e | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |

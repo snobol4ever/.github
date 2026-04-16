@@ -275,3 +275,33 @@ DIVERGE at stmt N [label: LABEL, line LL]
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
+
+---
+
+## Current state (2026-04-16, one4all HEAD 372f5309)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% coverage.
+
+Session 2026-04-16 work:
+- Makefile: removed stale engine.c reference (deleted SN-6, Makefile not updated;
+  broke build at session start). DONE.
+- corpus repo cloned (/home/claude/corpus).
+- Diagnosed ->  blocker from previous session: already resolved in current build.
+- Diagnosed 0% SWI suite coverage: root cause was cut scoping bug (see below).
+- pl_broker.c: rewrote cut scoping — per-OR-box cut field + g_pl_cur_cut_flag ptr.
+  Before: g_pl_cut_flag was global; ! inside pj_run_one/4 leaked to parent
+  pj_run_tests/2 OR-box, aborting all tests after the first silently.
+  After: each pl_choice_t has own cut field; pl_cut_fn signals through
+  g_pl_cur_cut_flag (always points to innermost OR-box); save/restore on entry/exit.
+  Standard Prolog cut scoping: cut terminates exactly the predicate containing it.
+- SWI suite: 0% -> 71% (PASS=41 FAIL=16 TOTAL=57).
+  Fully passing: test_exception, test_list, test_misc.
+  Remaining 16 failures: rem, float_zero, bips, arg, length, snip, phrase,
+  steadfastness, context, string, string_bytes, term_singletons, and others.
+
+NEXT SESSION PL-12:
+  Gate target: >= 80% (need 46/57).
+  Currently at 41/57 — need 5 more passing suites.
+  Approach: run suite with raw output, identify first 5 failing suites,
+  fix builtins/semantics causing those failures one at a time.
+  Start with: rem (modulo), arg/2, length/2, snip (cut-in-if-then), phrase/2.
