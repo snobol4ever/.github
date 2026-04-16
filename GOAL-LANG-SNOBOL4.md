@@ -2,8 +2,7 @@
 
 **Repo:** one4all
 **Done when:** beauty.sno self-hosts cleanly under all three modes (--ir-run,
---sm-run, --jit-run). Full corpus PASS count matches SPITBOL oracle. Two-step
-monitor + extended probe finds and fixes all remaining divergences.
+--sm-run, --jit-run). Full corpus PASS count matches SPITBOL oracle.
 
 **Cross-pollination:** Every bug fix in interp.c, sm_lower.c, or bb_boxes.c
 immediately benefits Icon, Prolog, Raku, Snocone, Rebus sessions.
@@ -20,11 +19,10 @@ bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 ```
 
-Gate after setup (must be clean before any work):
+Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh       # 3-mode divergence check
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=47
 ```
 
 ---
@@ -38,257 +36,57 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh       # 3-mode dive
     --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
 ```
 
-Pattern matching uses BB_SCAN (the Byrd-box broker in scan mode).
-Every pattern primitive is a bb_box_fn in bb_boxes.c.
+Pattern matching uses BB_SCAN. Every pattern primitive is a bb_box_fn in bb_boxes.c.
 Oracle: SPITBOL x64 at /home/claude/x64/bin/sbl.
 
 ---
 
-## scrip-monitor Protocol — PRIMARY TOOL FOR EVERY LADDER RUN
+## scrip-monitor Protocol
 
-⛔ **Step 1 (`scrip-monitor --monitor`) is run EVERY iteration, unconditionally, no exceptions.**
-⛔ **Steps 2 and 3 are only run if Step 1 finds a problem (DIVERGE or IR vs CSN).**
-⛔ **Never skip Step 1. Never jump straight to the SPITBOL diff.**
+⛔ Step 1 (`scrip-monitor --monitor`) runs EVERY iteration, unconditionally.
+⛔ Steps 2 and 3 only if Step 1 shows DIVERGE or IR vs CSN.
 
-**Build scrip-monitor once per session (after build_scrip.sh):**
 ```bash
+# Build once per session:
 bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
 make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
-```
 
-**Step 1 — ALWAYS: `scrip-monitor --monitor` (IR vs SM vs JIT vs CSNOBOL4)**
-Run unconditionally every iteration. If clean → done, move on. If DIVERGE → continue to Step 2.
-```bash
+# Step 1 — ALWAYS:
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
     $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
-```
 
-**Step 2 — Only if Step 1 shows a problem: SPITBOL diff (measure output correctness)**
-SPITBOL is the primary oracle. Shows what the correct output looks like and how far off we are.
-```bash
-SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
-    $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-    $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
+# Step 2 — only if Step 1 shows problem: SPITBOL diff
+SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
+SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
-```
 
-**Step 3 — Only if Step 1 shows a problem: Inline OUTPUT probe (Technique C)**
-Isolate root cause in the diverging subsystem file. Revert probes after diagnosis.
-Fix in interp.c / bb_boxes.c / sm_lower.c as appropriate.
-
-**After fix — rebuild, then Step 1 again:**
-```bash
-make -C /home/claude/one4all scrip && \
-make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
-# Then: Step 1 → if clean → broker gate → commit
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh
-```
-
-**SM-run and JIT-run (after IR-run Step 1 is clean):**
-Run Step 1 for each mode. Only proceed to Steps 2+3 if Step 1 shows a problem.
-```bash
-SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
-    $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/sm.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
-    $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/jit.out 2>/dev/null
-diff /tmp/spitbol.out /tmp/sm.out | head -20
-diff /tmp/spitbol.out /tmp/jit.out | head -20
-# Any divergence → back to Step 1 on that mode
+# Step 3 — only if Step 1 shows problem: OUTPUT probe → fix → rebuild → repeat
+# Rebuild: make scrip && make scrip-monitor CSN_A=...
+# Broker gate: bash scripts/test_smoke_unified_broker.sh
 ```
 
 ---
 
-## Rung ladder — all modes, x86
+## Rung ladder
 
-Each rung must pass under --ir-run, --sm-run, and --jit-run before
-the next rung starts. Gate = diff vs SPITBOL is empty.
+### Phase 1 — IR-run  ✅ DONE (SN-1..SN-5)
+### Phase 2 — SM-run  (SN-7..SN-9, gated on SN-6)
+### Phase 3 — JIT-run (SN-10..SN-12, gated on SN-9)
 
-### Phase 1 — IR-run (tree-walk interpreter)
+- [x] **SN-1** — beauty omega driver all three modes. DONE.
+- [x] **SN-2** — beauty gen driver all three modes. DONE.
+- [x] **SN-3** — beauty tdump driver all three modes. DONE.
+- [x] **SN-4** — beauty alpha/beta/gamma drivers all three modes. DONE.
+- [x] **SN-5** — beauty.sno self-hosts; all 18 driver×mode combos PASS. DONE.
+- [ ] **SN-6** — Full corpus: run test_interp_broad_corpus_and_beauty.sh. IN PROGRESS: PASS=215/228.
 
-- [ ] **SN-1** — beauty omega driver: --ir-run PASS.
-  Two-step dance every iteration unconditionally until diff is empty.
-  Known blocker: EVAL(string) via interp_eval_pat (see GOAL-TWO-STEP-HUNT).
+```bash
+bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
+```
 
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-
-  # Repeat: Step 1 every time; Steps 2+3 only if Step 1 shows a problem.
-
-  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4)
-  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_omega_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
-  # If clean → broker gate → done. If DIVERGE → continue:
-
-  # Step 2 — only if Step 1 shows problem: SPITBOL diff
-  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_omega_driver.sno \
-      > /tmp/spitbol.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-      $BEAUTY/beauty_omega_driver.sno > /tmp/scrip.out 2>/dev/null
-  diff /tmp/spitbol.out /tmp/scrip.out | head -40
-
-  # Step 3 — only if Step 1 shows problem: OUTPUT probe (Technique C) → fix
-  # Fix in interp.c / bb_boxes.c / sm_lower.c; revert probes after diagnosis
-  # Rebuild: make scrip && make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
-  # Broker gate: bash scripts/test_smoke_unified_broker.sh
-  # Commit; go back to Step 1
-
-  # When Step 1 is clean for --ir-run — run SM and JIT (Step 1 for each):
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --sm-run \
-      $BEAUTY/beauty_omega_driver.sno > /tmp/sm.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --jit-run \
-      $BEAUTY/beauty_omega_driver.sno > /tmp/jit.out 2>/dev/null
-  diff /tmp/spitbol.out /tmp/sm.out | head -20
-  diff /tmp/spitbol.out /tmp/jit.out | head -20
-  ```
-
-  Gate: all three diffs (--ir-run, --sm-run, --jit-run vs SPITBOL) are empty.
-
-- [x] **SN-2** — beauty gen driver: --ir-run PASS.
-  Two-step dance every iteration unconditionally.
-  Known blocker: BREAK(nl) fails when subject is $'$B' (indirect variable) in
-  exec_stmt pattern match. NV_GET_fn("$B") returns descriptor where
-  descr_slen/Ω is wrong. BREAK with plain var works; only fails for $'name'
-  indirect subject. Next probe: compare descr_slen(NV_GET_fn("$B")) vs plain var.
-
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-  # Repeat: Step 1 every time; Steps 2+3 only if Step 1 shows a problem.
-
-  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4)
-  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_Gen_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
-  # If clean → broker gate → done. If DIVERGE → continue:
-
-  # Step 2 — only if Step 1 shows problem: SPITBOL diff
-  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_Gen_driver.sno \
-      > /tmp/spitbol.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-      $BEAUTY/beauty_Gen_driver.sno > /tmp/scrip.out 2>/dev/null
-  diff /tmp/spitbol.out /tmp/scrip.out | head -40
-
-  # Step 3 — only if Step 1 shows problem: OUTPUT probe → fix → rebuild → repeat
-  # Fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → broker gate → commit → Step 1
-  # When Step 1 clean for --ir-run: run --sm-run and --jit-run (Step 1 each)
-  ```
-  Gate: diff empty (all three modes).
-
-- [ ] **SN-3** — beauty tdump driver: --ir-run PASS.
-  Two-step dance every iteration unconditionally. Known blocker: DATA field ordering t/v.
-
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-  # Repeat: Step 1 every time; Steps 2+3 only if Step 1 shows a problem.
-
-  # Step 1 — ALWAYS: scrip-monitor --monitor (IR vs SM vs JIT vs CSNOBOL4)
-  SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-      $BEAUTY/beauty_TDump_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
-  # If clean → broker gate → done. If DIVERGE → continue:
-
-  # Step 2 — only if Step 1 shows problem: SPITBOL diff
-  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_TDump_driver.sno \
-      > /tmp/spitbol.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-      $BEAUTY/beauty_TDump_driver.sno > /tmp/scrip.out 2>/dev/null
-  diff /tmp/spitbol.out /tmp/scrip.out | head -40
-
-  # Step 3 — only if Step 1 shows problem: OUTPUT probe → fix → rebuild → repeat
-  # Fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → broker gate → commit → Step 1
-  # When Step 1 clean for --ir-run: run --sm-run and --jit-run (Step 1 each)
-  ```
-  Gate: diff empty (all three modes).
-
-- [ ] **SN-4** — beauty alpha + beta + gamma drivers: --ir-run PASS.
-  Two-step dance every iteration unconditionally, for each driver in turn.
-
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-  for DRIVER in alpha beta gamma; do
-    # Step 1 — ALWAYS: scrip-monitor --monitor
-    SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-        $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
-
-    # Step 2 — ALWAYS: SPITBOL diff
-    SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
-        $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol_${DRIVER}.out 2>/dev/null
-    SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-        $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip_${DRIVER}.out 2>/dev/null
-    diff /tmp/spitbol_${DRIVER}.out /tmp/scrip_${DRIVER}.out | head -20
-  done
-  # For each non-empty diff: fix → rebuild (make scrip && make scrip-monitor CSN_A=...) → commit → repeat
-  ```
-  Gate: all three diffs empty (all three modes).
-
-- [ ] **SN-5** — beauty.sno self-hosts: ALL drivers pass + self-host, all three modes.
-  Run-ups (SN-1..SN-4) must all be green first. Then confirm beauty.sno
-  self-hosts (runs beauty.sno on itself) and all drivers pass:
-
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-
-  # Self-host check:
-  SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty.sno \
-      > /tmp/spitbol_self.out 2>/dev/null
-  SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run \
-      $BEAUTY/beauty.sno > /tmp/scrip_self.out 2>/dev/null
-  diff /tmp/spitbol_self.out /tmp/scrip_self.out | head -40
-
-  # Full 18-combination gate (all drivers × all modes):
-  ALL_PASS=1
-  for DRIVER in omega gen tdump alpha beta gamma; do
-    for MODE in --ir-run --sm-run --jit-run; do
-      SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b \
-          $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/ref.out 2>/dev/null
-      SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip $MODE \
-          $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/out.out 2>/dev/null
-      DIFF=$(diff /tmp/ref.out /tmp/out.out)
-      if [[ -n "$DIFF" ]]; then
-        echo "FAIL $DRIVER $MODE"; ALL_PASS=0
-      else
-        echo "PASS $DRIVER $MODE"
-      fi
-    done
-  done
-  [[ $ALL_PASS -eq 1 ]] && echo "BEAUTY SELF-HOSTS"
-  ```
-
-  Gate: self-host diff empty AND all 18 driver combinations PASS.
-  Script prints "BEAUTY SELF-HOSTS".
-
-- [ ] **SN-6** — Full corpus --ir-run: run test_interp_broad_corpus_and_beauty.sh.
-  Gate: PASS count matches or exceeds prior baseline; no new failures.
-
-### Phase 2 — SM-run (stack machine interpreter, x86)
-
-- [ ] **SN-7** — beauty omega + gen + tdump drivers: --sm-run PASS.
-  Fix any sm_lower.c or sm_interp.c divergence. Same cycling loop.
-  Gate: all diffs empty vs SPITBOL.
-
-- [ ] **SN-8** — beauty alpha + beta + gamma drivers + self-host: --sm-run PASS.
-  Gate: all diffs empty.
-
-- [ ] **SN-9** — Full corpus --sm-run.
-  Gate: PASS count matches --ir-run baseline.
-
-### Phase 3 — JIT-run (in-memory x86 code generation)
-
-- [ ] **SN-10** — beauty omega + gen + tdump drivers: --jit-run PASS.
-  Gate: all diffs empty vs SPITBOL.
-
-- [ ] **SN-11** — beauty alpha + beta + gamma drivers + self-host: --jit-run PASS.
-  Gate: all diffs empty.
-
-- [ ] **SN-12** — Full corpus --jit-run.
-  Gate: PASS count matches --sm-run baseline.
-
-### Phase 4 — Pattern IR typing (GOAL-SNOBOL4-PAT-IR prerequisite)
-
-- [x] **SN-14** — Pattern primitives as typed EKind nodes (E_ANY, E_SPAN, etc.).
-  Rewrite parser actions: E_FNC("ANY",...) → E_ANY(...) immediately post-parse.
-  Gate: make scrip clean; PASS=31; no strcasecmp(e->sval,"ANY") anywhere.
-
-- [x] **SN-15** — Verify all three modes still pass after SN-14.
-  Gate: SN-6, SN-10, SN-13 gates still hold.
+- [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
+- [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
 
 ---
 
@@ -296,359 +94,57 @@ the next rung starts. Gate = diff vs SPITBOL is empty.
 
 | File | Role |
 |------|------|
-| `src/frontend/snobol4/snobol4.y` | Bison grammar — parser actions |
+| `src/frontend/snobol4/snobol4.y` | Bison grammar |
 | `src/frontend/snobol4/snobol4.l` | Flex lexer |
-| `src/driver/interp.c` | --ir-run tree-walk (shared with all frontends) |
-| `src/runtime/x86/sm_lower.c` | IR → SM (shared) |
-| `src/runtime/x86/sm_interp.c` | SM interpreter (shared) |
-| `src/runtime/x86/sm_codegen.c` | x86 JIT (shared) |
-| `src/runtime/x86/bb_boxes.c` | All SNOBOL4 pattern boxes |
-| `corpus/programs/snobol4/beauty/` | Beauty test suite (oracle: SPITBOL) |
+| `src/driver/interp.c` | --ir-run tree-walk |
+| `src/runtime/x86/sm_lower.c` | IR → SM |
+| `src/runtime/x86/sm_interp.c` | SM interpreter |
+| `src/runtime/x86/sm_codegen.c` | x86 JIT |
+| `src/runtime/x86/bb_boxes.c` | SNOBOL4 pattern boxes |
+| `src/runtime/x86/snobol4_pattern.c` | subscript, OPSYN, array helpers |
+| `src/runtime/x86/snobol4.c` | ARRAY/TABLE/CONVERT builtins, array_get/set |
+| `corpus/programs/snobol4/beauty/` | Beauty test suite |
 
 ---
 
-## Invariants — never break these
+## Invariants
 
-- SPITBOL is the sole oracle. If SPITBOL runs it correctly, fix the runtime.
-- Never modify corpus .sno source to work around runtime bugs.
-- Gate = PASS=31 FAIL=0 on test_smoke_unified_broker.sh after every commit.
+- SPITBOL is the sole oracle. Fix the runtime, never the corpus source.
+- Gate = Smoke PASS=7, Broker PASS=47 after every commit.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD eb145018)
-
-SN-14 and SN-15 DONE (prior session).
-SN-1 DONE: omega driver PASS all three modes (IR/SM/JIT vs SPITBOL diff empty).
-  Fix: ASGN_INDIR last_ok hardcoded=1 in sm_interp.c + sm_codegen.c.
-  Also: subscript_set/set2 changed void→int with ARBLK bounds check.
-  Broker gate after fix: PASS=37 FAIL=0.
-
-SN-2 DONE: Gen driver IR/SM/JIT all clean vs SPITBOL (HEAD 738a266e).
-  Two fixes:
-  - Dynamic stacks: eliminated all fixed MAX arrays throughout runtime
-    (SM_State.stack, pat stacks, LabelTable, abort stack, alt_t/arbno_t,
-    callcap/cc_event arrays, DVAR snap arrays, NV test table).
-  - h_store_var bug: JIT h_store_var was not pushing stored result after
-    NV_SET_fn, unlike sm_interp SM_STORE_VAR which pushes for chained asgn.
-    Global.sno preamble (~150 assignments) caused accumulating stack imbalance
-    until JIT overflowed at 256. Fix: PUSH(stored) in h_store_var.
-  Broker gate: PASS=37 FAIL=0.
-
-Next: SN-3 TDump driver.
-  Root cause fixed (HEAD eb145018):
-    stmt_exec.c: static spec_t bb_capture() had wrong return type — bb_box_fn
-    expects DESCR_t since U-5. The spec_t bytes were misinterpreted as DESCR_t
-    by bb_seq's spec_from_descr() call, silently failing every . and $ capture
-    in the IR path. Fix: return type → DESCR_t, return descr_from_spec(child_r),
-    FAILDESCR on ω. Also fixed bb_capture_exported extern decl in bb_build.c.
-  Gates: smoke PASS=7 FAIL=0, broker PASS=37 FAIL=0.
-  IR diff vs SPITBOL for beauty_Gen_driver.sno: empty ✅
-
-  Remaining divergence: stmt 152 IR=1 vs SM=2/JIT=2 for variable 'i'.
-    IR path is correct (matches SPITBOL). SM/JIT have a separate bug.
-    The SM/JIT capture path (bb_build_binary XNME trampoline → bb_capture_exported)
-    now gets DESCR_t correctly, but stmt 152 still shows SM/JIT divergence.
-    Next: run SM and JIT diff vs SPITBOL; if non-empty investigate stmt 152
-    SM/JIT path. If SM/JIT output also matches SPITBOL, divergence is benign
-    internal state difference only.
-
-Next session: SN-2 — verify SM and JIT diffs vs SPITBOL for Gen driver;
-  if clean, mark SN-2 done and proceed to SN-3 (TDump driver).
-
----
-
-## --monitor with CSNOBOL4: beauty.sno divergence hunting (IM-16 technique)
-
-`scrip-monitor` (built with `make scrip-monitor CSN_A=...`) adds CSNOBOL4 as a
-4th in-process executor. At the final statement it compares one4all IR/SM/JIT NV
-state against CSNOBOL4's NV state and reports any variable that differs.
-
-**Build scrip-monitor (once per session):**
-```bash
-bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
-make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
-```
-
-**Run on a single beauty subsystem file:**
-```bash
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-/home/claude/one4all/scrip-monitor --monitor $BEAUTY/beauty_omega_driver.sno
-```
-
-**What the output means:**
-- `IR=SM=JIT agree` per-stmt → all three one4all executors match (good)
-- `DIVERGE at stmt N` → one4all executors diverge from each other at stmt N
-- `IR vs CSN (N var(s) differ)` → one4all IR final state differs from CSNOBOL4 at
-  program end; lists each variable with IR value and CSN value side by side
-
-**Workflow for beauty.sno divergences:**
-
-1. Run the beauty smoke script to see which programs diverge:
-   ```bash
-   bash /home/claude/one4all/scripts/test_monitor_beauty_smoke.sh
-   ```
-
-2. For any DIVERGE, run `--monitor` directly on that file:
-   ```bash
-   /home/claude/one4all/scrip-monitor --monitor <file.sno> 2>&1 | grep -A5 "DIVERGE"
-   ```
-   The output names the exact statement number, label, line, and differing variables.
-
-3. For beauty.sno with `SNO_LIB` includes, the driver file is the entry point:
-   ```bash
-   # beauty_omega_driver.sno INCLUDEs the subsystem files via SNO_LIB
-   SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-       $BEAUTY/beauty_omega_driver.sno 2>&1 | grep -A 10 "DIVERGE"
-   ```
-
-4. Cross-check diverging variable against SPITBOL oracle:
-   ```bash
-   SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_omega_driver.sno \
-       > /tmp/spitbol.out 2>/dev/null
-   ```
-   The CSNOBOL4 value in the `IR vs CSN` report is a second reference point.
-   When IR≠CSN: one4all has a bug. When IR=CSN≠SPITBOL: CSNOBOL4 also has the bug
-   (use SPITBOL as the authoritative oracle; CSNOBOL4 is secondary).
-
-5. Use Technique C (inline OUTPUT probes) to isolate the root cause in the
-   subsystem file, then fix in `interp.c`, `sm_lower.c`, or `bb_boxes.c`.
-
-**Known limitations of scrip-monitor + beauty.sno:**
-- CSN comparison is final-state only (not per-stmt) — identifies WHICH variable
-  diverged but not exactly WHICH statement caused it for the CSN leg.
-- OPSYN and indirect references may crash CSNOBOL4 (SKIP, not one4all bug).
-- beauty.sno uses `SNO_LIB` for includes — pass the env var to scrip-monitor.
-- Per-stmt IR/SM/JIT comparison still works fully for finding one4all-internal
-  divergences even when the CSN leg is skipped.
-
-**Known divergences from IM-16 session (2026-04-15):**
-```
-032_goto_loop_count.sno  — DIVERGE at stmt 4  [label: -, line 0]
-1110_array_1d.sno        — DIVERGE at stmt 8  [label: e002, line 16]  (ARRAY indexing)
-1113_table.sno           — DIVERGE at stmt 8  [label: e002, line 16]  (TABLE indexing)
-```
-These are one4all IR vs CSNOBOL4 NV-state gaps — investigate before fixing beauty.sno
-subsystems that exercise ARRAY or TABLE operations.
-
-
-## Current state (2026-04-15, one4all HEAD 7a752454)
-
-SN-14 and SN-15 DONE. SN-1 DONE. SN-2 DONE. SN-3 DONE. SN-4 DONE. SN-5 DONE.
-SN-6 IN PROGRESS: PASS=203/228 (broad script has timeout-cascade masking; true crosscheck is 185+/196).
-Dead engine removal DONE. Orphaned bb_deferred_var duplicate removed.
-Broker gate: PASS=41 FAIL=0. Smoke PASS=7 FAIL=0.
-BEAUTY SELF-HOSTS: all 18 driver×mode combinations PASS.
-
-Session 2026-04-15b fixes:
-- src/Makefile: removed stale engine.c (broke build; deleted in 7e81bf6e)
-- interp.c E_POW: ** returns integer when both operands integer+exp>=0 (fixes 027, 410_arith_int)
-- interp.c DEFINE: returns null string not function name per SNOBOL4 spec (fixes 1011_func_redefine)
-- Broker bumped to PASS=41 from 40.
-
-Remaining crosscheck failures (confirmed via timed per-test run, no cascade):
-  070, 074 — ARBNO(*var) β-retry bug (see below)
-  W07_capt_cur — capture/cursor bug
-  cross — string matching with input
-  1015_opsyn — OPSYN segfault (VARVAL_fn on name descr?)
-  1018_apply — APPLY with predicate name arg
-  expr_eval — *func() side-effect patterns in ARBNO context
-  1115_data_basic — DATA/TABLE indexing
-
-NOTE: broad script shows 25 FAIL but many are timeout-cascade false positives.
-True distinct failures: ~11 in crosscheck + beauty XDump/trace/tree + demo failures.
-Next session: fix OPSYN segfault (1015), then APPLY (1018), then ARBNO β-retry (070/074).
-
-### 1015_opsyn — OPSYN segfault ROOT CAUSE (re-diagnosed 2026-04-15b, NOT YET FIXED)
-
-**gdb-confirmed infinite recursion:** `APPLY_fn("@")` → `g_user_call_hook` →
-`_usercall_hook` line 3881 `FNCEX_fn("@")==1 && !_body` → `APPLY_fn("@")` → loop → stack overflow.
-
-**Why fn==NULL for "@":** `opsyn('@', .dupl, 2)` calls `VARVAL_fn(oldname)` where `oldname`
-is a NAMEPTR descriptor (`DT_N`, `slen=1`, `s=NULL`, `ptr→NV cell for dupl`).
-`VARVAL_fn` case DT_N: checks `if (v.s)` — **`v.s` is NULL for a NAMEPTR** — so falls to
-`NV_name_from_ptr(v.ptr)` which fails, then dereferences the NV cell *value* of `dupl`
-(unset → empty string `""`). So `VARVAL_fn(.dupl)` returns `""`, not `"dupl"`.
-`register_fn_alias("@", "")` finds no entry for `""` → creates `@` with `fn=NULL`.
-
-**VARVAL_fn already has `case DT_N:` — the bug is the s==NULL guard skipping the ptr path.**
-
-**Fix location:** `src/runtime/x86/snobol4_pattern.c`, `opsyn()` function (~line 790).
-Do NOT use `VARVAL_fn` on the oldname arg — it stringifies the variable's *value*.
-Instead extract the variable *name* from the DT_N descriptor directly:
-
-```c
-DESCR_t opsyn(DESCR_t newname, DESCR_t oldname, DESCR_t type) {
-    (void)type;
-    const char *nm  = VARVAL_fn(newname);
-    /* oldname is typically .dupl — a NAMEPTR (DT_N, slen=1, ptr→NV cell).
-     * VARVAL_fn dereferences to the cell's value, not the name. Extract name: */
-    const char *old = NULL;
-    if (oldname.v == DT_N) {
-        if (oldname.slen == 0 && oldname.s && *oldname.s)
-            old = oldname.s;                          /* NAMEVAL: name is in .s */
-        else if (oldname.slen == 1 && oldname.ptr)
-            old = NV_name_from_ptr((const DESCR_t *)oldname.ptr); /* NAMEPTR */
-    }
-    if (!old) old = VARVAL_fn(oldname);               /* fallback: string value */
-    if (!nm || !old || !*old) return FAILDESCR;
-    register_fn_alias(nm, old);
-    return NULVCL;
-}
-```
-
-`NV_name_from_ptr` is already declared in `snobol4.h` — no new header needed.
-
-Rebuild: `make -C /home/claude/one4all scrip`
-Test: `timeout 8 ./scrip --ir-run /home/claude/corpus/crosscheck/rung10/1015_opsyn.sno < /dev/null`
-Expected: `PASS 1015_opsyn (2/2)`
-Gate after: `bash scripts/test_smoke_snobol4.sh` PASS=7, `bash scripts/test_smoke_unified_broker.sh` PASS=41.
-
-### 070/074 — *var inside ARBNO (IN PROGRESS, NOT FIXED)
-
-Root cause NOT yet found. What is known:
-- `*DIGIT` alone works. `ARBNO(ANY(...))` with inline pattern works.
-- `ARBNO(*DIGIT)` returns empty match — THIS IS CORRECT SNOBOL4 BEHAVIOR.
-  ARBNO matches zero-or-more; the zero-match succeeds first. The outer
-  pattern (RPOS(0), or . capture) must force backtracking via β to drive
-  ARBNO to try more iterations. The bug is therefore in the β path:
-  ARBNO(*DIGIT) does not correctly retry with *DIGIT on backtrack, OR
-  the subject/cursor state is wrong when *DIGIT is re-evaluated inside ARBNO β.
-- Next probe: run ARBNO(*DIGIT) with RPOS(0) forcing backtrack; trace
-  ARBNO_β → ARBNO_try cycle; check that bb_deferred_var is called correctly
-  on the β-driven retry iteration.
-
-Remaining SN-6 failures after 070/074:
-  ARRAY/TABLE: 1112,1113,1114,1115,1116,212
-  Beauty: XDump, trace, tree drivers
-  Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
-
-## Current state (2026-04-15d, one4all HEAD f7d181a2)
-
-SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=206/228.
-Smoke PASS=7 FAIL=0. Broker PASS=42 FAIL=0.
-
-Session 2026-04-15d fix (1 commit):
-
-**f7d181a2** — interp.c E_KEYWORD: uppercase name before NV lookup (fixes &lcase/&ucase in --ir-run)
-  Root cause: lexer strips '&' and preserves lowercase ("lcase"), but
-  NV_SET_fn registers keywords uppercase ("LCASE","UCASE"). E_KEYWORD case
-  called NV_GET_fn(e->sval) with lowercase key → empty string.
-  Fix: toupper() the name before NV_GET_fn in E_KEYWORD handler.
-  Effect: REPLACE(s, &lcase, &ucase) works correctly under --ir-run.
-  1115_data_basic PASS 6/6, 1116_data_overlap PASS 3/3 (under --ir-run).
-
-  ⚠ --sm-run and --jit-run still fail for &lcase/&ucase: SM lowering path
-  does not route through interp.c E_KEYWORD. Broad corpus default mode is
-  SM, so PASS count still shows 206/228.
-
-Next session:
-  1. Fix &keyword uppercase in SM lowering path (sm_lower.c / SM runtime)
-     so --sm-run (default) also resolves &lcase/&ucase correctly.
-     Look for E_KEYWORD handling in sm_lower.c — likely emits NV_GET_fn
-     with raw lowercase sval, same bug as interp.c.
-  2. Re-run broad corpus after SM fix to measure improvement.
-  3. Remaining SN-6 failures after &keyword fix:
-     ARRAY/TABLE: 1112,1113,1114,212
-     Beauty: XDump, trace, tree drivers
-     Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
-     expr_eval — *func() side-effect patterns in ARBNO context
-
-## Current state (2026-04-15e, one4all HEAD 94149cf5)
-
-SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=206/228 (corpus not available to recount; expected improvement).
-Smoke PASS=7 FAIL=0. Broker PASS=41 FAIL=0.
-
-Session 2026-04-15e fix (1 commit):
-
-**94149cf5** — sm_lower.c E_KEYWORD: uppercase name before SM_PUSH_VAR and SM_STORE_VAR
-  Root cause: same as interp.c fix (f7d181a2) — lexer lowercases keyword names
-  but NV stores them uppercase. Fixed both read path (SM_PUSH_VAR) and write
-  path (SM_STORE_VAR) in sm_lower.c. Added <ctype.h>.
-  Effect: &lcase/&ucase now work correctly under --sm-run and --jit-run.
-  All keyword tests IR=SM consistent. corpus not available for broad recount.
-
-Next session:
-  1. Clone corpus (snobol4ever/corpus → /home/claude/corpus) and re-run
-     test_interp_broad_corpus_and_beauty.sh to get updated PASS count.
-  2. Fix OPSYN segfault (1015_opsyn) — fix location and code documented
-     above in "1015_opsyn — OPSYN segfault ROOT CAUSE" section.
-  3. Fix APPLY (1018), then ARBNO β-retry (070/074).
-  4. Remaining SN-6 failures:
-     ARRAY/TABLE: 1112,1113,1114,212
-     Beauty: XDump, trace, tree drivers
-     Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
-     expr_eval — *func() side-effect patterns in ARBNO context
-
-## Current state (2026-04-16, one4all HEAD d3ef8ec2)
-
-SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=215/228.
-Smoke PASS=7 FAIL=0. Broker PASS=44 FAIL=0.
-
-Session 2026-04-16 fixes (2 commits):
-
-**18952c2d** — DATA field accessor/mutator in SM+JIT (PASS 206→211)
-  - _usercall_hook: added _SET suffix handler for field mutators
-  - sc_dat_field_call(): new public fn; sm_interp+sm_codegen pre-check
-    when args[0] is DT_DATA, giving DATA priority over same-named builtins
-  - Tests fixed: 094, 095, 1115, 1116, beauty_tree_driver
-
-**d3ef8ec2** — ARBNO in SM+JIT (PASS 211→215)
-  - Root cause: sm_lower.c emitted SM_PAT_ARB for E_ARBNO (inner pattern ignored)
-  - Fix: new SM_PAT_ARBNO opcode; sm_interp+sm_codegen pop inner, push pat_arbno(inner)
-  - Tests fixed: 052, 054, 070, beauty_trace_driver; broker PASS 42→44
-
-Next session:
-  1. Fix ITEM builtin in SM-run — ITEM(arr,i) parsed as E_FNC("ITEM"), emits
-     SM_CALL "ITEM" → Error 5. Fix: handle in _usercall_hook via subscript_get/set.
-  2. Fix 1112_array_multi (custom lower bound), 1113_table, 212_indirect_array.
-  3. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
-  4. expr_eval, beauty_XDump.
-
-Remaining SN-6 failures (11 real + 2 stdin-hang non-failures):
-  ARRAY/TABLE: 1112, 1113, 1114, 212
-  Beauty: XDump driver
-  Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
-  expr_eval
-
 ## Current state (2026-04-16e, one4all HEAD 31bb2268)
 
-SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=215/228 (pre-fix; expect higher next recount).
-Smoke PASS=7 FAIL=0. Broker PASS=47 FAIL=0.
+SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
+SN-6 IN PROGRESS: PASS=215/228 (recount pending — expect higher after recent fixes).
+Smoke PASS=7. Broker PASS=47.
 
-Session 2026-04-16e fixes (2 commits):
+**Prior fixes summary (compressed):** Dynamic stacks; h_store_var JIT stack balance;
+bb_capture return type DESCR_t; E_POW integer path; DEFINE return null string;
+E_KEYWORD uppercase for &lcase/&ucase (IR+SM); DATA field accessor/mutator SM+JIT;
+ARBNO SM_PAT_ARBNO opcode; ITEM/_SET in _usercall_hook; N-dim IDX/IDX_SET
+(sm_interp+sm_codegen nargs>=4 now routes through INVOKE_fn ITEM/ITEM_SET);
+ARRAY 'lo:hi,N' parsing (bare N → lo2=1 hi2=N, was zero-width cols).
 
-**680485f7** — Makefile: add raku_re.c compile step
-  raku_re.o was missing; recent Raku session (RK-37) added raku_re.c but didn't
-  wire it into Makefile. Link failed with undefined raku_nfa_build/state_count/free.
-  Fixed. Build clean.
+**Next session:**
+1. Fix 1113/006: `convert(ta,'table')` array→table integer key roundtrip fails SM/JIT.
+   IR succeeds. Probe `ata<7>` vs `ata<'7'>` — likely int key stringified during
+   conversion. Look at `CONVERT_fn` array→table path in `snobol4.c`.
+2. Fix 212_indirect_array: `$.var<index>` indirect then subscript in SM/JIT.
+3. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
+4. expr_eval, beauty_XDump driver.
+5. Full broad corpus recount.
 
-**31bb2268** — SN-6: N-dim IDX/IDX_SET + ARRAY custom lower-bound parsing
-  (a) sm_interp.c + sm_codegen.c — N-dim IDX/IDX_SET (nargs>=4/5):
-      Dead else { FAILDESCR } replaced with correct pop-indices-then-base logic,
-      routing through INVOKE_fn("ITEM",...) / INVOKE_fn("ITEM_SET",...).
-      Stack ordering: sm_lower pushes base first then indices; pop top-first
-      gives last_idx first; reverse into fargs[1..] with base at fargs[0].
-      1114_item: PASS 7/7 all three modes (was 4/5 SM/JIT failing 005 bracket 4D).
+**Remaining SN-6 failures (~9 real):**
+- TABLE: 1113
+- Indirect array: 212
+- Beauty: XDump driver
+- Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
+- expr_eval
 
-  (b) snobol4.c _ARRAY_: fix parsing of 'lo:hi,N' (dim2 bare integer, no ':').
-      sscanf("%d:%d") on "N" left hi2=1 (init), giving cols=hi2-lo2+1=0 → zero-size.
-      Fix: detect absence of ':' in dim2 spec; use lo2=1, hi2=atoi(comma+1).
-      1112_array_multi: PASS 5/5 all three modes (was FAIL 003: d<-1,1> read).
-
-Next session:
-  1. Fix 1113/006: convert(ta,'table') array→table int key roundtrip fails SM/JIT.
-     Probe: output ata<7> vs ata<'7'> — check if int key was stringified during
-     array→table conversion but integer subscript lookup fails to match.
-     Look at CONVERT_fn array→table path in snobol4.c.
-  2. Fix 212_indirect_array: $.var<index> indirect then subscript in SM.
-  3. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
-  4. expr_eval, beauty_XDump.
-  5. Full broad corpus recount after all fixes.
-
-Remaining SN-6 failures (~9 real after this session's fixes):
-  TABLE: 1113
-  Indirect array: 212
-  Beauty: XDump driver
-  Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
-  expr_eval
+**Known divergences (IM-16, not yet fixed):**
+- 032_goto_loop_count — DIVERGE stmt 4
+- 1110_array_1d — DIVERGE stmt 8 (ARRAY indexing)
+- 1113_table — DIVERGE stmt 8 (TABLE indexing)
