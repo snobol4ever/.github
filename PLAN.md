@@ -33,7 +33,7 @@ Do not read `archive/` unless a step explicitly says to.
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=203/228 broad; HEAD 7a752454; broker PASS=41; OPSYN root cause re-diagnosed: opsyn() calls VARVAL_fn(.dupl) which returns "" (NAMEPTR has s=NULL, ptr→NV cell value not name); fix: in opsyn() extract name from DT_N descriptor directly using NV_name_from_ptr — see GOAL file for exact patch | ☐ |
-| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 IN PROGRESS: rung01-29 PASS=137/156 FAIL=19; fixed E_FIELD/E_RECORD/E_INITIAL/E_ALTERNATE-nary/!list/table_dflt/neg-subscript/read(); next: rung24 records(5), initial(4), alt-gen(2), put_bang/key/sub_every/misc; HEAD da83ab23 | ☐ |
+| Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-5 DONE: rung24 records PASS=5, rung21/25 initial PASS=12; IC-6 next: rung13 alt-gen(2), rung22/23/16/18/19/28/29 misc(6); HEAD 7a64e8f9 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: cut scoping fixed (per-OR-box flag); SWI suite 71% (41/57); need 5 more for 80% gate; HEAD 372f5309 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-26 next (class/method/new OO); RK-25 done: try/CATCH/die PASS=21, HEAD 839ef99e | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all | SC-22 DONE: beauty 42/42 + hand_suite 15/15 all 3 modes; HEAD 6a63a77b | ☑ |

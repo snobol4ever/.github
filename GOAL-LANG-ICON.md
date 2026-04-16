@@ -89,10 +89,13 @@ Rung 12–36 are the ladder for this goal.
 - [x] **IC-4** — rung14: limit (E \ N) — corpus rung14 is limit tests, not lists.
   Gate: test_icon_ir_rung_14_limit.sh PASS=5/5. DONE 2026-04-15.
 
-- [ ] **IC-5** — rung15+: real output format, pow (always real), E_TO_BY real step, swap(), string subscript/section, list builtins, global/initial, records, str/type builtins.
-  IN PROGRESS: real output (icn_real_str) DONE, E_POW DONE, E_TO_BY real DONE.
-  Remaining: rung15 swap, rung16 str subscript, rung20 section, rung21/25 initial, rung22 lists, rung23 table default/key, rung24 records, rung28/29 builtins.
-  Gate: test_icon_ir_rung_15.sh (to be written) PASS.
+- [x] **IC-5** — rung15+: real output format, pow (always real), E_TO_BY real step, swap(), string subscript/section, list builtins, global/initial, records, str/type builtins.
+  DONE 2026-04-16: rung24 records PASS=5/5, rung21/25 initial PASS=12/12.
+  Fixes: polyglot_init E_RECORD registration, ICN E_FNC sc_dat_find_type lookup,
+  ICN E_ASSIGN E_FIELD lvalue, icn_init_save_frame() for initial persistence.
+  Remaining IC-6: rung13 alt-gen(2), rung22 put_bang(1), rung23 key(1),
+  rung16 sub_every(1), rung18 relop(1), rung19 pow(1), rung28 trim_map(1), rung29 image(1).
+  Gate: smoke PASS=5, broker PASS=41, rung01-11 PASS=59. HEAD 7a64e8f9.
 
 - [ ] **IC-6** — rung16: `for @arr -> $x` real array iteration (E_BANG on list).
   Gate: test_icon_ir_rung_16.sh PASS.
