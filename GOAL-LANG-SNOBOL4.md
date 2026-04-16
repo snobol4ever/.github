@@ -579,3 +579,34 @@ Next session:
      Beauty: XDump, trace, tree drivers
      Demo/cross: wordcount, word1, cross, demo_claws5, demo_roman, demo_wordcount, W07_capt_cur
      expr_eval — *func() side-effect patterns in ARBNO context
+
+## Current state (2026-04-16, one4all HEAD d3ef8ec2)
+
+SN-14, SN-15, SN-1..SN-5 DONE. SN-6 IN PROGRESS: PASS=215/228.
+Smoke PASS=7 FAIL=0. Broker PASS=44 FAIL=0.
+
+Session 2026-04-16 fixes (2 commits):
+
+**18952c2d** — DATA field accessor/mutator in SM+JIT (PASS 206→211)
+  - _usercall_hook: added _SET suffix handler for field mutators
+  - sc_dat_field_call(): new public fn; sm_interp+sm_codegen pre-check
+    when args[0] is DT_DATA, giving DATA priority over same-named builtins
+  - Tests fixed: 094, 095, 1115, 1116, beauty_tree_driver
+
+**d3ef8ec2** — ARBNO in SM+JIT (PASS 211→215)
+  - Root cause: sm_lower.c emitted SM_PAT_ARB for E_ARBNO (inner pattern ignored)
+  - Fix: new SM_PAT_ARBNO opcode; sm_interp+sm_codegen pop inner, push pat_arbno(inner)
+  - Tests fixed: 052, 054, 070, beauty_trace_driver; broker PASS 42→44
+
+Next session:
+  1. Fix ITEM builtin in SM-run — ITEM(arr,i) parsed as E_FNC("ITEM"), emits
+     SM_CALL "ITEM" → Error 5. Fix: handle in _usercall_hook via subscript_get/set.
+  2. Fix 1112_array_multi (custom lower bound), 1113_table, 212_indirect_array.
+  3. Demo suite: wordcount, word1, demo_wordcount, demo_claws5, demo_roman.
+  4. expr_eval, beauty_XDump.
+
+Remaining SN-6 failures (11 real + 2 stdin-hang non-failures):
+  ARRAY/TABLE: 1112, 1113, 1114, 212
+  Beauty: XDump driver
+  Demo/cross: wordcount, word1, demo_wordcount, demo_claws5, demo_roman
+  expr_eval
