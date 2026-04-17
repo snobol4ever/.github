@@ -707,3 +707,30 @@ Phase 2 — claws_pat_2 match per captured sentence body.
 No sentinel insertion. No split loop. No TRIM. No BREAKX(SEP).
 The (POS(0) | CHAR(10)) gate ensures only BOL boundaries are matched.
 Mid-line N_CRD :_PUN occurrences are silently ignored.
+
+## Current state (2026-04-17 session 6, one4all HEAD 1194e57d, corpus HEAD cb9cbca)
+
+SC-24c DONE: claws5 rewritten as clean one-phase program.
+
+KEY DECISION: match Python assignment3.py exactly. No sentinel, no two-phase,
+no flag assignments (&TRIM/&ANCHOR/&FULLSCAN removed from all 6 demo files).
+Lines joined bare (no separator) — each .dat line already ends with trailing
+space, giving clean space-separated token stream. RPOS(0) lands on final space.
+
+Pattern is a faithful one-for-one SNOBOL4 translation of Python claws_info:
+  ARBNO( (header -> new_sent()) | (token -> add_tok()) )  ' '
+
+Memory switch: -P 34000 required for full CLAWS5inTASA.dat (989 lines, ARBNO
+over ~50K char string). claws5.input (4 sentences) needs no -P flag.
+Document: csnobol4 -bf -P 34000 claws5.sno < CLAWS5inTASA.dat
+
+Test corpus trimmed to 4 sentences each:
+  claws5.input  — first 4 sentences of CLAWS5inTASA.dat
+  treebank.input — 4 hand-written S-expressions
+  claws5.ref, treebank-list.ref, treebank-array.ref — regenerated.
+
+claws5.sc: Snocone one-phase port of claws5.sno. Not yet tested under scrip
+(SC-26 capture bug still open). Structure mirrors .sno exactly.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
