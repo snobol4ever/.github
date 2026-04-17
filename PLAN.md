@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=218/228; BAL landed; treebank/claws5 spun to parallel goals; SM INPUT EOF next; HEAD post-BAL | ☠ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=218/228; two --ir-run fixes landed (E_SEQ/E_CAT stale-acc on mode switch + E_ALT value-ctx); expr_eval now blocked on Bug #1c (XCALLCAP passes wrong matched text); smoke PASS=7, broker PASS=49 | ☠ |
 | SNO treebank-array | `GOAL-SNO-TREEBANK-ARRAY.md` | one4all | TA-1 DONE (landed via C5 session HEAD 6ee09b7f); TA-2 next | ☐ |
 | SNO treebank-list | `GOAL-SNO-TREEBANK-LIST.md` | one4all | TL-2 IN PROGRESS: prior callcap hypothesis disproved; new root cause: FUNC_*_fn accessors in snobol4.c use strcasecmp, so Push_list dispatches via push_list's entry_label — wrong body runs. Fix: strcasecmp→strcmp in snobol4.c:2826-2877 (six accessors). 22-line repro captured in goal file. | ☐ |
 | SNO claws5 | `GOAL-SNO-CLAWS5.md` | one4all | C5-2 PARTIAL: NAM_commit callcap-boundary fix landed; sentence 1 byte-perfect, 830 good lines on 142-line input; C5-3 (pp_mem SEGV at sent 37) + C5-4 (numeric key sort) next; HEAD 58e642f1 | ☐ |
