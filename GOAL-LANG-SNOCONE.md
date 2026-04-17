@@ -386,3 +386,14 @@ SC-24b done: claws5.sc rewritten goto-free. treebank-list.sc and treebank-array.
   Not yet tested under scrip — SC-26 (. *fn() capture bug) must come first.
 
 Next: SC-26 (fix pattern engine: (PAT . var) . *fn(var) arg evaluation order).
+
+## Current state (2026-04-16 session 3, one4all HEAD 1194e57d, corpus HEAD 0bb62ad)
+
+claws5.sno + claws5.sc: pp_mem replaced with recursive pp_table(tbl, depth, key).
+  Recursive, depth-driven indent (3 * depth spaces). Works for any nesting level.
+  Verified: csnobol4 -bf -P 2000000 < CLAWS5inTASA.dat → zero diff vs claws5.ref (17386 lines).
+  corpus HEAD 0bb62ad.
+
+treebank-list.sc + treebank-array.sc: pp_node already recursive with indent parameter. Clean.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
