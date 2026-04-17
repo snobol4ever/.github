@@ -36,7 +36,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 IN PROGRESS: rung30 5/5, rung31 5/5, rung33 5/5, rung34 5/5, rung35 7/7; rung32 4/5 open (strret_every); broker PASS=49; HEAD 9eb8c669 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: 71% (41/57); suite scripts + plunit.pl v2 patch committed; BLOCKER: cut scope drops length verdict; next: once() fix + catch(Var) fix; HEAD 0d112d50 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/RK-33 done: table-driven NFA compiler + simulator, PASS=24 all 3 modes | ☐ |
-| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | FINDING: 32 mid-line N_CRD markers are tagging errors; true sentinel=POS(0) SPAN(DIGITS) '_CRD :_PUN '; new Phase 1 = tight loop no slurp; claws5.ref needs regen | ☐ |
+| Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | SC-24c DONE: claws5 one-phase clean port of Python claws_info; OPEN: pprint format mismatch in .ref files; SC-26 next (PAT.var capture bug); corpus HEAD 2b7caa6 | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
 | Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 next (family.scrip cross-call demo) | ☐ |
