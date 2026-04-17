@@ -688,3 +688,22 @@ No line-by-line loop needed. One slurp, one pattern scan.
 This is cleaner than line-by-line AND correct. Two passes:
   Pass 1: slurp all lines (no space append — keep newlines), split on sentinel.
   Pass 2: claws_pat_2 per sentence (strip header, parse tokens).
+
+## Final architecture (handoff 4c)
+
+Slurp entire file into one string (concatenate lines as-is, preserving newlines).
+
+Phase 1 — ONE match on full string:
+  POS(0)
+  ARBNO(
+    (POS(0) | CHAR(10)) SPAN(DIGITS) '_CRD :_PUN '
+    (BREAKX(CHAR(10)) | REM) . body
+    (epsilon . *cap())
+  )
+  RPOS(0)
+
+Phase 2 — claws_pat_2 match per captured sentence body.
+
+No sentinel insertion. No split loop. No TRIM. No BREAKX(SEP).
+The (POS(0) | CHAR(10)) gate ensures only BOL boundaries are matched.
+Mid-line N_CRD :_PUN occurrences are silently ignored.
