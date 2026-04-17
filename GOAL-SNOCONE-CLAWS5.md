@@ -94,67 +94,62 @@ side-effect firing).
 
 ---
 
-## Current state (corpus HEAD pending, one4all HEAD abf17001)
+## Current state (2026-04-17 post-probe — corpus 5d75439, one4all 6c63908)
 
-All 3 .sno oracles pass diff-zero under csnobol4 -bf:
-  claws5.sno            95/95 lines (used -P 34000)
-  treebank-list.sno     24/24 lines
-  treebank-array.sno    24/24 lines
+**CL-1 diagnosis from prior session was based on a false positive.**
 
-CL-1 diagnosis complete. Findings:
+**Bug A — SC-26 is NOT fixed.** The prior snapshot read `test_capture_call.sc`
+test 3 as PASS. That was spurious — see Bug B. The real behavior of
+`(PAT . var) . *fn(var)`:
+  * Minimal repro `/tmp/body_ran.sc`: procedure body writes a constant
+    global `body_ran = 'YES'`, ignoring its argument. After
+    `'foobar' ? ((LEN(3) . w) . *show(w))`: top-level `body_ran` is
+    still `'NO'` and `w` is still `''`. The procedure body never ran;
+    even the inner capture didn't commit the value of `w` either.
+  * Plain `(LEN(3) . w)` without the trailing `. *fn(...)` — writes
+    `w = 'foo'` correctly. So `.` capture works; the chained callcap
+    box breaks both the `*fn` call and its inner capture commit.
+  * Commit f9995d0 (SN-6 Bug #1c, NAM_commit callcap writes matched
+    text) did NOT fix SC-26 for Snocone. Scope of that fix was the
+    immediate `$` path in SNOBOL4 only. SC-26 remains open.
 
-  1. `?= <-` is not a Koenig/Snocone operator (not in his `bconv` table)
-     and is also not in our lexer. It was a proposed tertiary for the
-     SNOBOL4 `subj pat = repl` statement-as-boolean idiom. Unimplemented.
-     REMOVED from the two sites that used it:
-       claws5.sc line 75  -> plain `line = INPUT; while (DIFFER(line)) { ... }`
-       treebank-array.sc line 128 -> `while (src ? (spat && REM . rest))`
-                                      with src = rest after match.
+**Bug B — Snocone `==` on strings is broken in --ir-run.**
+  * Minimal repro `/tmp/eq_sanity.sc`:
+      `'' == 'foo'`    → TRUE  (wrong — should be FALSE)
+      `'ZZZ' == 'foo'` → TRUE  (wrong — should be FALSE)
+      `'foo' == 'foo'` → TRUE  (coincidentally right)
+  * Root cause located: `snocone_lower.c:242` lowers `==` to
+    `make_fnc2("EQ", l, r)` — the SNOBOL4 numeric-EQ function. Two
+    non-numeric strings both coerce to 0, so `EQ(0,0)` is TRUE.
+  * Correct lowering: `==` on strings must dispatch to IDENT (string
+    equality). Choices: (a) always lower to a new `SEQ` runtime
+    helper that dispatches on type, (b) lower to IDENT and let it
+    coerce integers via SPITBOL semantics, (c) keep EQ but have
+    the runtime fall back to IDENT on non-numeric args. (a) is the
+    cleanest per SNOBOL4 type model.
+  * Side note: direct call `r = EQ('ZZZ', 'foo')` silently
+    terminates the Snocone program — EQ fails and failure propagates.
+    Bug B needs fixing before test_capture_call.sc can diagnose
+    anything reliably; every `==` check in the test was spurious.
 
-  2. `test/snocone/test_capture_call.sc` created with 5 numbered tests
-     (epsilon-star, plain capture, capture-call, alt-wrd, alt-num).
-     Under scrip --ir-run: 4 PASS (1, 2, 3, 4a). 4b missing — program
-     terminated silently mid-test with no output. Still to diagnose.
+**Bug C (Lon-confirmed non-bug):** I initially speculated Snocone had
+local procedure scope. Wrong. All Snocone vars are global, SNOBOL4
+style. Retracted. The appearance of "local scope" was Bug A masquerading
+as a scope issue — since the procedure body never runs, no assignment
+ever happens, and the outer variable naturally keeps its initial value.
 
-  3. Minimal `(LEN(3) . w) . *show(w)` in isolation: scrip matches but
-     does NOT invoke `show`. Both SPITBOL -b and CSNOBOL4 -bf invoke it
-     (verified: prints `got: foo`). So the SC-26 bug is real and the
-     symptom is `*fn` not firing at all, not an argument-value bug as
-     the prior goal-file text said. The earlier text was wrong.
+---
 
-  4. claws5.sc hangs (timeout 124) under both --ir-run and --sm-run,
-     with `Error 3 in statement 9 — erroneous array or table reference`
-     on stderr and empty stdout. Root cause traced: Error 3 originates in
-     snobol4_pattern.c NONARY path (lines 475, 492) — subscript on
-     non-array/non-table. Fires because *new_sent() never runs (SC-26),
-     so sentno/mem[sentno] are uninitialized when add_tok() tries to
-     subscript them. Error 3 is non-fatal (FTLTST); hang is separate.
+## Order of attack for CL-2 (revised)
 
-  5. treebank-array.sc (post-tertiary-removal) exits cleanly but prints
-     `stmt_exec: unimplemented XKIND 17 — using epsilon` — XBAL is not
-     implemented in the runtime. That is a SEPARATE missing feature,
-     owned by the treebank goals, not by CLAWS5.
-
-  6. pp_mem in claws5.sc produces different output format from claws5.sno
-     pp_mem. The .sno pp_mem produces the compact Python-dict pprint in
-     claws5.ref. The .sc pp_mem uses a different indented format and will
-     NOT match .ref even when the tokenizer is fixed. claws5.sc pp_mem
-     must be rewritten as a faithful Snocone translation of the .sno
-     pp_mem before CL-3 can pass.
-
-  7. bb_boxes.c reviewed. The capture box (bb_capture) correctly buffers
-     pending spec on γ. The callcap / chained-call box is the next focus:
-     need to find where (PAT . var) . *fn(var) lowers to in bb_boxes.c
-     and snobol4_pattern.c — the outer *fn call is not being constructed
-     or invoked at match commit time.
-
-Snocone extensions vs Koenig (answered Q): binary ops 28 -> 39 (+11:
-six compound assigns, `**`, `&`, `@`, `~`, `:`); unary ops unchanged;
-keywords 11 -> 14 (+3: break, continue, struct); comments gained `//`.
-
-Blocker: SC-26 — `. *fn(arg)` chained after `(PAT . var)` not firing.
-Next: CL-2 — find the callcap/chained-call box in bb_boxes.c (truncated
-last session at line 155). Read the full capture/callcap section. Trace
-how (PAT . var) . *fn(var) lowers through snocone_lower.c into IR, then
-into bb_build.c. Fix the missing *fn invocation. Then rewrite pp_mem in
-claws5.sc to match .sno pp_mem output format.
+1. Fix Bug B (`==` lowering) FIRST. One-site change in
+   `snocone_lower.c:240-262`. Without it, no test can be trusted.
+2. Re-run `test_capture_call.sc` with real equality. If SC-26 still
+   reproduces (likely), proceed to step 3.
+3. Fix Bug A (SC-26 — callcap not firing in chained form). Trace:
+   `snocone_lower.c` → IR E_CALLCAP (if it exists) → `bb_build.c`
+   BB_CALLCAP → `bb_boxes.c` bb_callcap. Previous session's CL-1
+   said "truncated last session at line 155" of bb_boxes.c —
+   continue that read.
+4. Rewrite claws5.sc pp_mem to match .sno pp_mem output format
+   (unchanged from prior plan).
