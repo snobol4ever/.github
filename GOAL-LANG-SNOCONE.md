@@ -759,6 +759,28 @@ NEXT SESSION START:
 
 NOTE: snobol4python-main.zip was uploaded by Lon this session.
 
+## Current state (handoff 7, corpus HEAD 1ddb066, one4all HEAD 1194e57d)
+
+treebank-list.sno and treebank-array.sno: pp_node() rewritten to match Python
+PrettyPrinter(indent=2, width=80) exactly. Algorithm: node_repr() builds full
+inline repr; pp_node(node, indent, suffix) checks indent + SIZE(repr) <= 80;
+fits -> one line; wraps -> suffix-threading (closing ) rides last child's last
+line). Both files produce identical output. diff vs Python pprint: zero.
+treebank-list.ref and treebank-array.ref regenerated (24 lines, pprint format).
+assignment3.py added to corpus/programs/snobol4/demo/.
+
+NEXT: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
+
+NEXT SESSION START:
+1. bash /home/claude/one4all/scripts/install_system_packages.sh
+2. bash /home/claude/one4all/scripts/build_scrip.sh
+3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+5. Gate: bash /home/claude/one4all/scripts/test_smoke_snocone.sh  # PASS=5
+6. Tackle SC-26: find (PAT . var) . *fn(var) bug in pattern engine
+   (bb_boxes.c or snobol4_pattern.c — capture value not passed correctly to fn)
+
 ## Current state (handoff 6, corpus HEAD 52c4e3b, one4all HEAD 1194e57d)
 
 claws5.sno: pp_mem restored to pprint-equivalent (SC-31 version). claws5.ref
