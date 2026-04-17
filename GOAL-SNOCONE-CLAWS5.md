@@ -59,10 +59,12 @@ Key pattern construct:
 
 ## Known blocker going in
 
-SC-26: `(PAT . var) . *fn(var)` — the captured value of `var` is not correctly
-passed as the argument to `fn` at match time. This is a pattern engine bug in
-bb_boxes.c or snobol4_pattern.c. The `.sno` version works under csnobol4
-because csnobol4 evaluates the capture before the indirect call. scrip does not.
+SC-26: `(PAT . var) . *fn(var)` — the chained outer indirect call `*fn`
+is NOT invoked at match time under scrip. Both SPITBOL and CSNOBOL4 do
+invoke it. Earlier description ("arg not passed correctly") was wrong;
+the call itself never fires. Bug lives in the pattern engine —
+likely bb_boxes.c (XCALLCAP lowering) or snobol4_pattern.c (match-time
+side-effect firing).
 
 ---
 
@@ -98,8 +100,42 @@ All 3 .sno oracles pass diff-zero under csnobol4 -bf:
   claws5.sno            95/95 lines (used -P 34000)
   treebank-list.sno     24/24 lines
   treebank-array.sno    24/24 lines
-Input renamed: claws5_4.input -> claws5.input (corpus).
-claws5.sno pp_mem pfx conditional rewritten to match last_sent style
-(no branching, no dead code): two unconditional predicate-gated assignments.
-Blocker: SC-26 pattern engine bug — (PAT . var) . *fn(var) arg not passed correctly.
-Next: CL-1 — build scrip, run claws5.sc, isolate first failing capture-call.
+
+CL-1 diagnosis partial. Findings:
+
+  1. `?= <-` is not a Koenig/Snocone operator (not in his `bconv` table)
+     and is also not in our lexer. It was a proposed tertiary for the
+     SNOBOL4 `subj pat = repl` statement-as-boolean idiom. Unimplemented.
+     REMOVED from the two sites that used it:
+       claws5.sc line 75  -> plain `line = INPUT; while (DIFFER(line)) { ... }`
+       treebank-array.sc line 128 -> `while (src ? (spat && REM . rest))`
+                                      with src = rest after match.
+
+  2. `test/snocone/test_capture_call.sc` created with 5 numbered tests
+     (epsilon-star, plain capture, capture-call, alt-wrd, alt-num).
+     Under scrip --ir-run: 4 PASS (1, 2, 3, 4a). 4b missing — program
+     terminated silently mid-test with no output. Still to diagnose.
+
+  3. Minimal `(LEN(3) . w) . *show(w)` in isolation: scrip matches but
+     does NOT invoke `show`. Both SPITBOL -b and CSNOBOL4 -bf invoke it
+     (verified: prints `got: foo`). So the SC-26 bug is real and the
+     symptom is `*fn` not firing at all, not an argument-value bug as
+     the prior goal-file text said. The earlier text was wrong.
+
+  4. claws5.sc now hangs (timeout 124) under both --ir-run and --sm-run,
+     with `Error 3 in statement 9 — erroneous array or table reference`
+     on stderr and empty stdout. Error 3 alone is not fatal (small
+     repros survive it) — the hang is additional.
+
+  5. treebank-array.sc (post-tertiary-removal) exits cleanly but prints
+     `stmt_exec: unimplemented XKIND 17 — using epsilon` — XBAL is not
+     implemented in the runtime. That is a SEPARATE missing feature,
+     owned by the treebank goals, not by CLAWS5.
+
+Snocone extensions vs Koenig (answered Q): binary ops 28 -> 39 (+11:
+six compound assigns, `**`, `&`, `@`, `~`, `:`); unary ops unchanged;
+keywords 11 -> 14 (+3: break, continue, struct); comments gained `//`.
+
+Blocker: SC-26 — `. *fn(arg)` chained after `(PAT . var)` not firing.
+Next: CL-1 finish — instrument bb_boxes.c / snobol4_pattern.c to trace
+why the outer `. *fn()` box is discarded when chained with inner `. var`.
