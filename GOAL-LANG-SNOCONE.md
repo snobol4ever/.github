@@ -519,3 +519,22 @@ structure for Lon's SPAN(DIGITS) '_CRD' sentinel approach but BREAKX alone
 cannot bridge end-of-string without a digit present. Deferred for future session.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+
+## Current state (2026-04-16 session 5, one4all HEAD 1194e57d, corpus HEAD b236605)
+
+treebank-list.ref and treebank-array.ref added — generated from csnobol4 -bf.
+Old treebank.ref was stale (different format from old program). New refs zero-diff.
+
+assignment3.py reviewed: uses SNOBOL4python library. claws_info pattern builds
+mem with int(num) sentence keys from _CRD tokens — matches our claws5.sno exactly.
+versus/classify phase uses VBGinTASA.dat parse trees (separate data source).
+Our claws5.sno correctly replicates the claws_info mem-building step.
+
+BREAKX backtracking investigation: BREAKX does participate in backtracking
+(extends past stop-chars when following pattern forces retry) but requires
+a non-trivial following element. POS(0) ARBNO(SPAN(DIGITS) hdr BREAKX(DIGITS)|RPOS(0)) RPOS(0)
+is the correct Lon-insight pattern but ARBNO zero-matches with ANCHOR=0 even
+with POS(0)...RPOS(0) wrapper — both oracles confirm FAIL. Root cause not
+fully resolved; deferred. TRIM fix remains the working solution.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
