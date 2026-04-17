@@ -592,3 +592,17 @@ SC-31b IN PROGRESS: pp_mem ported to claws5.sc (Snocone syntax). Committed corpu
   Not yet tested under scrip — scrip build fails: gc.h missing (install_system_packages.sh needed).
   SC-26 (. *fn() capture bug) also required before claws5.sc can produce correct output.
   Next session: run install_system_packages.sh, build scrip, then tackle SC-26.
+
+## Current state (handoff 2, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+
+Investigated Lon's proposed single-pass Phase 1 pattern:
+  POS(0) ARBNO(SPAN(DIGITS) '_CRD :_PUN ' (BREAKX(DIGITS) | ARBNO(NOTANY(DIGITS)) RPOS(0)) RPOS(0))
+  Result: MATCH on full CLAWS5inTASA.dat in <1ms, no -P flag needed.
+  However: claws5.sno two-phase already validated — zero diff vs Python pprint(mem).
+  claws5.sc mirrors claws5.sno (two-phase + pp_mem) but untested.
+
+Blockers for claws5.sc testing:
+  1. SC-26 — (PAT . var) . *fn(var) capture bug in pattern engine
+  2. scrip build broken — gc.h missing (run install_system_packages.sh first)
+
+Next session: install_system_packages.sh → build scrip → SC-26.
