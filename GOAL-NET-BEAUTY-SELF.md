@@ -278,3 +278,83 @@ rm -f beauty_selftest.sno
     - snobol4dotnet HEAD: 1c27d52
     - corpus HEAD: 7d26569 (unchanged)
 
+
+  SESSION WORK (this session — MINIMAL REPRO FOUND, prior theory invalidated):
+    Beauty gate 17/17 confirmed at session start (HEAD 1c27d52).
+
+    INSTRUMENTATION RESULT invalidates prior hypothesis:
+      Added unconditional OUTPUT trace to both Shift() and Reduce() in ShiftReduce.sno.
+      Ran self-host with input '&FULLSCAN = 1\n' (simpler than 'START\n' — same failure).
+      Confirmed "DEBUG: ShiftReduce.sno loaded" fires at load time.
+      Then Parse Error fires.
+      NEITHER Shift NOR Reduce is ever called. Zero semantic actions during Parse.
+      Prior "Reduce('Stmt',7) pops a bad PatternVar" hypothesis is WRONG —
+      Reduce never runs, so it can't pop anything.
+
+    BISECTED TO SHARP MINIMAL REPRO — 2-arg DEFINE kills pattern callbacks:
+
+    REPRO-FAILS (Shift callback never fires during match):
+           DEFINE('Shift(t,v)')
+           DEFINE('shift(p,t)','shift_')                         :(setup_end)
+    Shift  OUTPUT = 'SHIFT(' t ', v=[' v '])'                    :(NRETURN)
+    shift_ shift = EVAL("p . thx . *Shift('" t "', thx)")        :(RETURN)
+    setup_end
+           x = 'ABC' CHAR(10)
+           L1 = shift(BREAK(' ' CHAR(10) ';'), 'Label')
+           x POS(0) L1                                           :S(ok)F(fail)
+    ok     OUTPUT = 'match passed'                               :(END)
+    fail   OUTPUT = 'match failed'
+    END
+    Result: prints 'match passed' but never 'SHIFT(...)'.
+
+    REPRO-WORKS (identical body, only DEFINE form differs):
+           DEFINE('Shift(t,v)')
+           DEFINE('shift1(p,t)')                                 :(setup_end)
+    Shift  OUTPUT = 'SHIFT(' t ', v=[' v '])'                    :(NRETURN)
+    shift1 shift1 = EVAL("p . thx . *Shift('" t "', thx)")       :(RETURN)
+    setup_end
+           x = 'ABC' CHAR(10)
+           L1 = shift1(BREAK(' ' CHAR(10) ';'), 'Label')
+           x POS(0) L1                                           :S(ok)F(fail)
+    Result: prints 'SHIFT(Label, v=[ABC])' then 'match passed'.
+
+    QUIRK — when BOTH 1-arg and 2-arg defined functions appear in the same program,
+    BOTH fire correctly regardless of call order. Feels like MSIL / ExecutionCache
+    decides something on the whole-program function set. Consistent with prior
+    session's "R_PAREN_FUNCTION falls back / ThreadIsMsilOnly=true / MSIL fix
+    never fires" note.
+
+    CONCLUSION — THIS is S-2's root cause.
+    semantic.sno uses 2-arg DEFINE for EVERY helper:
+      DEFINE('shift(p,t)',  'shift_')
+      DEFINE('reduce(t,n)', 'reduce_')
+      DEFINE('pop()',       'pop_')
+      DEFINE('nPush()',     'nPush_')   etc.
+    So every *Shift, *Reduce, *PushCounter, *IncCounter, *TopCounter, *PopCounter,
+    *PopDummy callback embedded in every parser pattern built via ~ or & silently
+    fails to fire during match. Parse matches structurally (ARBNO accepts 0 Commands),
+    stack stays empty, Pop() returns '', pp('') crashes or errors downstream.
+
+  NEXT SESSION must:
+    1. Instrument the runtime to confirm: what's different in the pattern graph
+       compiled for a 2-arg vs 1-arg DEFINE'd function that returns a pattern with
+       a *Callback reference?
+       Likely places:
+         - Builder.cs / DefineImpl — how the function entry is registered
+         - FunctionSlotIndex — is 2-arg slot populated differently?
+         - BuilderEmitMsil.cs R_PAREN_FUNCTION — prior session noted the MSIL
+           fallback doesn't wire properly when function is DEFINE'd at runtime
+           (2-arg form is runtime DEFINE).
+         - ExecutionCache.cs — is the pattern being cached with a stale version
+           missing the callback?
+    2. Try: run snobol4dotnet with MSIL cache / ThreadIsMsilOnly disabled on
+       repro19.sno. If Shift then fires, that confirms MSIL is the culprit.
+    3. Minimal fix attempt: in DefineImpl, ensure 2-arg form creates the same
+       FunctionSlotIndex entry shape as 1-arg form.
+    4. Beauty gate 17/17 must still pass after fix.
+    5. Self-host gate: SELF-HOST PASS.
+
+    - snobol4dotnet HEAD: 1c27d52 (unchanged — this session diagnosis only, no code)
+    - corpus HEAD: 7d26569 (unchanged)
+    - Beauty gate: 17/17 PASS (verified end-of-session)
+
