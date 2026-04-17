@@ -206,7 +206,17 @@ All scripts live in `one4all/scripts/`. One flat directory. No scripts elsewhere
 
 
 
-## Parser/lexer regeneration — bison and flex are available
+## SNOBOL4 pattern matching globals — always set both
+
+Always set both of these at program start, no exceptions:
+
+```snobol4
+               &ANCHOR         =  0
+               &FULLSCAN       =  1
+```
+
+⛔ Do **not** set `&ANCHOR = 1` anywhere. Ever. Not in test code, not in production.
+⛔ Do **not** omit `&FULLSCAN = 1`. It must always be set.
 
 `bison` and `flex` are installed by `build_packages.sh` and are available in every session.
 
