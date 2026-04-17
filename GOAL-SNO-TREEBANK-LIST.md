@@ -105,3 +105,32 @@ likely because push/pop mis-dispatch (same root as treebank-array).
 ## Current state (2026-04-17, one4all HEAD — post-BAL commit)
 
 TL-1 next. BAL on main. label_lookup fix pending (may arrive from treebank-array session).
+
+---
+
+## Session 2026-04-17 progress
+
+**TL-1 DONE.**
+- `label_lookup` in `src/driver/interp.c:148`: `strcasecmp` → `strcmp`.
+- Smoke PASS=7, Broker PASS=49. Committed on main.
+
+**TL-2 IN PROGRESS — blocker found, partial fix applied.**
+
+Root cause of empty output: `*fn(args)` called via `pat . *fn(args)` in pattern context
+was prepending the matched substring as `args[0]`, shifting all explicit args by 1.
+So `*set_it('bank')` called `set_it("", "bank")` → `var=""` instead of `var="bank"`.
+
+Fixed in two callcap dispatch sites (NAM_commit in snobol4_nmd.c,
+flush_pending_callcaps in stmt_exec.c). These sites are now correct.
+
+**Remaining blocker:** `epsilon . *fn(vs)` inside a SNOBOL4 function body called
+from pattern does NOT go through NAM_commit or flush_pending_callcaps.
+It fires through a third path — likely `bb_callcap` in `bb_boxes.c` or
+a separate cc_event path in stmt_exec.c (around the XCALLCAP/CC_γ_core area).
+Debug confirmed: NAM_commit never fires for `epsilon . *set_it(vs)`.
+
+**Next session TL-2:**
+1. Add debug stderr print inside CC_γ_core (stmt_exec.c ~line 593) to confirm
+   that path fires and identify which sub-branch handles `epsilon . *fn(vs)`.
+2. Apply same no-prepend fix to that path.
+3. Re-run treebank-list diff.
