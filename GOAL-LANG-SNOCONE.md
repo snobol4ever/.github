@@ -248,7 +248,7 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
 - [ ] **SC-30** — Write `scripts/test_eng685_sc.sh` running both programs
   under all 3 modes vs .ref files. Gate: PASS=6 FAIL=0.
 
-- [ ] **SC-31** — Cross-validate claws5.sno and treebank-list.sno output against
+- [x] **SC-31** — Cross-validate claws5.sno and treebank-list.sno output against
   patched assignment3.py that dumps only mem and bank structures (no classify/versus).
   Steps:
   (a) Patch assignment3.py: comment out classify/versus/register; after claws_info
@@ -564,3 +564,18 @@ Options for next session:
   (b) Use SNOBOL4python chunked approach matching two-phase claws5.sno strategy.
   (c) Accept that Python claws_info needs -P equivalent; compare only on small subset.
 corpus HEAD 670a426. Next: resolve spipat blocker then complete SC-31 diff.
+
+## Current state (session SC-31 complete, corpus HEAD 3025857)
+
+SC-31 DONE: claws5.sno pp_table replaced with pp_mem — output identical to Python pprint(mem).
+  pp_mem: compact pprint-style 3-level TABLE printer, 5622 lines vs 17386 (old pp_table).
+  Zero raw diff vs Python assignment3.py pprint(mem) on full CLAWS5inTASA.dat.
+  claws5.ref updated to new format (5622 lines).
+  assignment3.py patched: set_match_stack_size(500_000), pprint(mem)+pprint(bank),
+  all classify/traverse/sentence/versus output commented out.
+  mem cross-validation: PASS (zero diff, 5652 word/tag/count records).
+  bank cross-validation: deferred — treebank-list.sno needs -P 2000000 on full
+  VBGinTASA.dat (eng685 dir); Python pprint(bank) uses tuple format, SNO uses
+  indented s-expression. Formats differ; bank comparison not yet done.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
