@@ -73,13 +73,20 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
 
 ## Steps
 
-- [ ] **C5-1** — Confirm `label_lookup` fix is on main. If not, apply it.
-  Rebuild. Run smoke + broker. Re-run claws5 — expect non-empty output.
+- [x] **C5-1** — `label_lookup` strcasecmp→strcmp applied. BB-3 (bb_callcap
+  DESCR_t return type UB) also fixed. Both landed on main HEAD 6ee09b7f.
+  Gates: smoke PASS=7, broker PASS=49. claws5 now produces output.
 
 - [ ] **C5-2** — Diff claws5 output against ref. Fix divergences.
-  If TABLE-of-TABLE subscript fails, write a minimal reproducer and fix in
-  interp.c / snobol4.c. Gate: diff clean; smoke PASS=7; broker PASS=49;
-  `test_interp_broad_corpus_and_beauty` PASS improves.
+  BLOCKER: first ARBNO iteration delivers empty wrd/tag to add_tok().
+  Subsequent iterations correct. Minimal reproducer:
+    ARBNO( (NOTANY('_') BREAK('_')) . wrd '_' (ANY(UCASE) SPAN(DIGITS UCASE)) . tag
+           (epsilon . *add_tok()) ' ' )
+  on 'That_CJT the_AT0 ' — first iteration: wrd=[], tag=[] (scrip) vs
+  wrd=[That], tag=[CJT] (oracle).
+  Root cause: bb_arbno iteration-boundary save/restore in stmt_exec.c ~line 908
+  appears to shadow first-iteration captures before NAM_commit fires callcap.
+  Investigate bb_arbno, focus on capture state at ARBNO iteration 1 vs 2+.
 
 ---
 
@@ -105,6 +112,7 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
 
 ---
 
-## Current state (2026-04-17, one4all HEAD — post-BAL commit)
+## Current state (2026-04-17, one4all HEAD 6ee09b7f)
 
-C5-1 next. BAL on main. label_lookup fix pending (may arrive from treebank-array session).
+C5-2 next. C5-1 done + BB-3 (bb_callcap UB) fixed.
+BLOCKER: ARBNO first-iteration captures empty in scrip — see C5-2 above.
