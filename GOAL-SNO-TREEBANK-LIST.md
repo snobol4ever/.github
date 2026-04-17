@@ -69,7 +69,7 @@ likely because push/pop mis-dispatch (same root as treebank-array).
 
 ## Steps
 
-- [ ] **TL-1** — Confirm `label_lookup` fix is on main (may be landed by
+- [x] **TL-1** — Confirm `label_lookup` fix is on main (may be landed by
   GOAL-SNO-TREEBANK-ARRAY session). If not, apply it: change `strcasecmp` to
   `strcmp` in `label_lookup` in `src/driver/interp.c`. Rebuild. Run smoke + broker.
 
@@ -102,111 +102,140 @@ likely because push/pop mis-dispatch (same root as treebank-array).
 
 ---
 
-## Current state (2026-04-17, one4all HEAD — post-BAL commit)
+## Current state (2026-04-17, one4all HEAD f3d64bdb — post case-sensitivity commit)
 
-TL-1 next. BAL on main. label_lookup fix pending (may arrive from treebank-array session).
+TL-1 DONE. TL-2 IN PROGRESS: case-sensitivity refactor extended across function
+registry; remaining divergence is deferred-arg evaluation for `*fn(var)` callcaps.
+Full treebank-list: 1 line of 24 expected (was: empty). Smoke PASS=7, broker PASS=49.
 
 ---
 
-## Session 2026-04-17 progress
+## Session 2026-04-17 progress (latest)
 
-**TL-1 DONE.**
-- `label_lookup` in `src/driver/interp.c:148`: `strcasecmp` → `strcmp`.
-- Smoke PASS=7, Broker PASS=49. Committed on main.
+**TL-1 DONE (carried from prior session).** `label_lookup` at `src/driver/interp.c:148`
+uses `strcmp`. Smoke PASS=7, broker PASS=49.
 
-**TL-2 IN PROGRESS — root cause re-diagnosed; prior hypothesis disproved.**
+**TL-2 partial — case-sensitivity refactor landed, remaining bug isolated.**
 
-Prior session hypothesized the remaining bug was in a `bb_callcap`/`CC_γ_core` path for
-`epsilon . *fn(vs)` that was still prepending matched text as args[0]. **That hypothesis
-is wrong.** All four user-call dispatch sites (`bb_usercall`, `bb_callcap` `$`-immediate,
-`flush_pending_callcaps`, `NAM_commit`) were instrumented with TL_TRACE env-gated stderr
-prints and none of them fire for the failing case. The bug is upstream.
+### Case-sensitivity fix (committed f3d64bdb)
 
-**Minimal 22-line reproducer:** `/home/claude/tl_repro.sno` (attached below in full so
-next session can recreate quickly — NOT checked into corpus since rule says no
-speculative test files; recreate locally).
+Prior session hypothesized six `FUNC_*_fn` accessors needed `strcasecmp`→`strcmp`.
+Root cause was broader: **`DEFINE_fn` at `snobol4.c:2630` also used `strcasecmp`** for
+its "same function?" check, so `DEFINE('Push_list(vs)')` arriving after
+`DEFINE('push_list(v)')` overwrote the first FNCBLK's `spec/fn/nparams/params/nlocals/locals`
+in place — but left `e->name` unchanged. Result: one hybrid entry with `name="push_list"`
+but `params=["vs"]`. `FUNC_ENTRY_fn("Push_list")` then returned the stored `"push_list"`,
+and the now-case-sensitive `label_lookup` jumped to the wrong body.
+
+Fix flipped 11 `strcasecmp(e->name, ...)` sites → `strcmp` in `snobol4.c`:
+`DEFINE_fn` (2630), `DEFINE_fn_entry` (2653), `fn_has_builtin` (2516), `APPLY_fn` (2714),
+`_ARG_` (2744), `_LOCAL_` (2766), `_FIELD_` (2813), `register_fn_alias` (2672, 2695),
+and the six `FUNC_*_fn` accessors (2831, 2841, 2849, 2857, 2866, 2875).
+`_func_hash` still uppercases so case-colliding names share a bucket — but they now
+get distinct FNCBLKs and same-name checks distinguish them correctly.
+
+22-line repro (`tl_repro.sno`, same as prior session):
+```
+before fix:   push_list called with v=""                 (wrong body)
+              MATCH
+after fix:    Push_list called with vs="tag"             (correct body)
+              push_list called with v=""                 (new downstream bug)
+              MATCH
+oracle:       Push_list called with vs="tag"
+              push_list called with v="NP"
+              MATCH
+```
+
+Full treebank-list: `''` → `('ROOT')` — 1 line of 24 expected. Gates green.
+
+### Remaining divergence — deferred-arg evaluation for *fn(var) callcaps
+
+The residual `push_list called with v=""` is a separate bug from case-sensitivity.
+Isolated to a clean 10-line repro with no double-function trick:
 
 ```snobol4
                &ANCHOR        =  0
                &FULLSCAN      =  1
-               DEFINE('push_list(v)')
-               DEFINE('Push_list(vs)')                      :(push_list_end)
-push_list      OUTPUT         =  'push_list called with v="' v '"'
-               push_list      =  .dummy                     :(NRETURN)
-Push_list      OUTPUT         =  'Push_list called with vs="' vs '"'
-               Push_list      =  EVAL("epsilon . *push_list(" vs ")")  :(RETURN)
-push_list_end
+               DEFINE('cb(x)')                              :(cb_end)
+cb             OUTPUT         =  'cb called with x="' x '"'
+               cb             =  .dummy                     :(NRETURN)
+cb_end
                word           =  NOTANY('( )') BREAK('( )')
-               pat            =  '(' (word . tag) Push_list('tag') ')'
+               pat            =  '(' (word . tag) . *cb(tag) ')'
                '(NP)'  pat                                  :F(nomatch)
                OUTPUT         =  'MATCH'                    :(END)
 nomatch        OUTPUT         =  'NOMATCH'
 END
 ```
-
-Oracle (CSNOBOL4 -bf) output:
 ```
-Push_list called with vs="tag"
-push_list called with v="NP"
-MATCH
-```
-
-scrip output (same program):
-```
-push_list called with v=""
-MATCH
+oracle: cb called with x="NP"
+        MATCH
+scrip:  cb called with x=""
+        MATCH
 ```
 
-**Smoking gun from TL_TRACE instrumentation on `call_user_function`:**
+**Probe to confirm semantics** (`tl_probe.sno`, pre-assigns `tag="INITIAL"`):
 ```
-[cuf] fname="Push_list" nargs=1 a0={v=1 s="tag"}
-push_list called with v=""
-MATCH
+oracle: tag before match: "INITIAL"
+        cb called with x="NP"           ← flush-time lookup of tag
+        tag after match: "NP"
+        MATCH
 ```
 
-`Push_list` IS entered with `fname="Push_list"` and `args[0]="tag"` — the entry is
-correct. But the `OUTPUT = 'Push_list called with vs="..."'` line inside its body
-**never fires**. Instead, lowercase `push_list`'s body executes (its OUTPUT fires with
-`v=""` because `v` is unset in the `Push_list` frame — only `vs` is set).
+Oracle evaluates `*cb(tag)` arg at **flush time** — after `(word . tag)` has
+committed the capture. scrip currently snapshots args at pattern-build time
+(which for embedded EVALs means when `tag` is still unset → empty string).
 
-**Strong inferred root cause (needs one final trace to confirm):** every `FUNC_*_fn`
-metadata accessor in `src/runtime/x86/snobol4.c` lines 2826-2877 uses `strcasecmp`:
-`FNCEX_fn` (2831), `FUNC_NPARAMS_fn` (2841), `FUNC_NLOCALS_fn` (2849),
-`FUNC_PARAM_fn` (2857), `FUNC_LOCAL_fn` (2866), `FUNC_ENTRY_fn` (2875). In a
-case-sensitive program with both `push_list` and `Push_list` DEFINEd, `_func_hash`
-puts them in the same bucket and `strcasecmp` returns the first entry that matches
-case-insensitively. Then `call_user_function` at `src/driver/interp.c:548` does:
-```c
-const char *entry = FUNC_ENTRY_fn(fname);   // returns push_list's entry, not Push_list's
-STMT_t *body = entry ? label_lookup(entry) : NULL;   // now labels case-sensitive — jumps to push_list body
-```
-TL-1 fixed `label_lookup` to be case-sensitive, but the function-registry lookup
-that *feeds* the entry name into `label_lookup` is still case-insensitive. So we
-jump to the wrong body with `vs="tag"` in NV, and `push_list`'s body reads `v`
-(unset → `""`).
+**Two code paths involved:**
 
-**Next session TL-2:**
-1. Confirm hypothesis: add a one-line trace at `src/driver/interp.c:548-551`
-   printing `fname`, `entry` from `FUNC_ENTRY_fn(fname)`, and which of the three
-   fallbacks (`entry`, `fname`, `ufname`) actually resolved the body. Expected:
-   for `fname="Push_list"`, `FUNC_ENTRY_fn` returns `"push_list"` (lowercase),
-   body is found via that entry, lowercase `push_list` body runs.
-2. Apply symmetric TL-1 fix to the function registry: change `strcasecmp` → `strcmp`
-   in all six accessors in `src/runtime/x86/snobol4.c` (lines 2831, 2841, 2849, 2857,
-   2866, 2875). This is the natural completion of TL-1.
-3. Rebuild. Rerun the 22-line reproducer — expect oracle-matching output.
-4. Rerun full treebank-list diff. If clean: done. If not, continue from there.
-5. Smoke PASS=7, Broker PASS=49 must still hold. `strcasecmp` → `strcmp` on
-   function registry may break case-insensitive callers elsewhere — watch broker
-   and the full broad_corpus run for regressions.
+1. **IR direct path** — `src/driver/interp.c:3077` and `:3090`:
+   `av[i] = interp_eval(fnc->children[i])` at build time. Wrong semantics
+   (eager), but not the immediate scrip `--ir-run` symptom since that path
+   uses SM lowering, not direct IR exec, for this case.
 
-**Risk note:** Changing `strcasecmp` → `strcmp` in `FNCEX_fn` in particular is
-risky. `FNCEX_fn` is called in many places (grep shows ~15 sites) and some callers
-may pass an uppercased name. Safest patch may be narrower: fix only `FUNC_ENTRY_fn`
-plus the `FUNC_NPARAMS_fn`/`FUNC_PARAM_fn`/`FUNC_NLOCALS_fn`/`FUNC_LOCAL_fn` four
-— the ones that matter for dispatching to the correct body's parameter frame.
-Leave `FNCEX_fn` case-insensitive and see if broker still passes. If yes, that's
-the right scope. If treebank still fails, widen.
+2. **SM lowering path** (actual scrip `--ir-run` culprit) — `src/runtime/x86/sm_lower.c:282, 302`:
+   **discards args entirely.** `SM_PAT_CAPTURE_FN` op carries only `a[0].s = fname` and
+   `a[1].i = kind`. `h_pat_capture_fn` in `sm_codegen.c:382` and `sm_interp.c:474` both
+   call `pat_assign_callcap(child, fname, NULL, 0)` — hardcoded NULL args, 0 nargs.
+   That's why `ζ->fnc_args` is empty in `bb_callcap` `CC_γ_core`.
 
-**State:** instrumentation reverted; tree clean; no commits made this session
-beyond the doc update you're reading. SPITBOL + CSNOBOL4 both built locally.
+### Next session TL-2 plan
+
+1. **Extend SM_PAT_CAPTURE_FN** to carry arg specs. For the common case
+   `*fn(var1, var2, ...)`, arg specs are simple variable names. Storage:
+   `a[2].s` = comma-separated arg names (or new `a[n].s` slots if count is bounded).
+   For arbitrary sub-expressions, defer to a fallback or (future) thunk mechanism.
+   Start with var-name-only support — that's what treebank-list needs.
+
+2. **Extend `pat_assign_callcap` and `callcap_t`** to store unevaluated arg
+   specs alongside (or in place of) the current `DESCR_t *fnc_args` snapshot.
+   Add `char **fnc_arg_names; int fnc_nargs;` for the var-name-only path.
+
+3. **Resolve args at flush time in `bb_callcap`'s `CC_γ_core`:** for each
+   `fnc_arg_names[i]`, do `NV_GET_fn(name)` → DESCR_t, pass to `g_user_call_hook`.
+   This is the flush-time lookup that matches oracle semantics.
+
+4. **Update SM lowering** (`sm_lower.c:282/302`) to walk `var_expr->children[0]->children[]`
+   (the args to the inner E_FNC) and emit their names into the new opcode slots.
+
+5. **Update `h_pat_capture_fn`** in `sm_codegen.c` and `sm_interp.c` to read the
+   arg-name slots and pass them through to `pat_assign_callcap`.
+
+6. **Also fix the IR direct path** (`interp.c:3077, 3090`) to produce unevaluated
+   arg-name specs when the child is a plain `E_VAR`, so both execution paths have
+   consistent semantics. For non-E_VAR args, continue eager eval (best-effort until
+   a thunk mechanism is added).
+
+7. Gate: 22-line repro matches oracle; smoke PASS=7; broker PASS=49; treebank-list
+   diff shrinks toward clean.
+
+### State at end of session
+
+- HEAD one4all `f3d64bdb` (this session's commit)
+- No uncommitted changes in one4all, corpus, or .github
+- Reproducers left at `/home/claude/tl_repro.sno` (22-line), `/home/claude/tl_simple.sno`
+  (10-line isolation of the callcap-arg bug), `/home/claude/tl_probe.sno` (flush-time
+  semantics probe) — NOT checked into corpus (per rule: no speculative test files;
+  recreate from this doc if needed).
+- SPITBOL + CSNOBOL4 both built locally at `/home/claude/x64/bin/sbl` and
+  `/home/claude/csnobol4/snobol4`.
