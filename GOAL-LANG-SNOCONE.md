@@ -758,3 +758,30 @@ NEXT SESSION START:
 7. Then tackle SC-26 — fix (PAT . var) . *fn(var) arg evaluation order.
 
 NOTE: snobol4python-main.zip was uploaded by Lon this session.
+
+## Current state (handoff 6, corpus HEAD 52c4e3b, one4all HEAD 1194e57d)
+
+claws5.sno: pp_mem restored to pprint-equivalent (SC-31 version). claws5.ref
+regenerated. corpus HEAD 52c4e3b.
+
+OPEN: treebank-list.ref and treebank-array.ref are in s-expression format,
+NOT Python ppr.pprint(bank) format. The correct ref is PrettyPrinter(indent=2,
+width=80) output of the nested tuple bank structure.
+
+assignment3_dump.py (corpus/programs/snobol4/demo/) dumps:
+  mem  -> TSV (sentno TAB wrd TAB tag TAB count) — NOT what claws5.ref uses
+  bank -> ppr.pprint(bank) — this is the correct treebank ref format
+
+NEXT SESSION START:
+1. Install snobol4python:
+   cd /home/claude && unzip -q /mnt/user-data/uploads/snobol4python-main.zip
+   pip install -e snobol4python-main/ --break-system-packages -q
+2. Run assignment3_dump.py on treebank4.input (4 sentences from VBGinTASA.dat)
+   to capture ppr.pprint(bank) output -> treebank-list.ref and treebank-array.ref
+3. Fix treebank-list.sno and treebank-array.sno pp_node() to match that format.
+4. Regen refs from csnobol4 -bf output.
+5. Then SC-26 — fix (PAT . var) . *fn(var) capture bug in pattern engine.
+
+NOTE: claws5.ref is now correct pprint format (95 lines for 4 sentences).
+NOTE: treebank4.input has 4 hand-written S-expressions (not from VBGinTASA.dat).
+      May want to use first 4 lines of VBGinTASA.dat instead for true oracle match.
