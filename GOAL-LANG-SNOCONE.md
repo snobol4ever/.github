@@ -720,7 +720,7 @@ space, giving clean space-separated token stream. RPOS(0) lands on final space.
 Pattern is a faithful one-for-one SNOBOL4 translation of Python claws_info:
   ARBNO( (header -> new_sent()) | (token -> add_tok()) )  ' '
 
-Memory switch: -P 34000 required for full CLAWS5inTASA.dat (989 lines, ARBNO
+Memory switch: -P 34000 required ONLY for claws5.sno on full CLAWS5inTASA.dat (989 lines, ARBNO
 over ~50K char string). claws5.input (4 sentences) needs no -P flag.
 Document: csnobol4 -bf -P 34000 claws5.sno < CLAWS5inTASA.dat
 
