@@ -118,13 +118,19 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-17, one4all HEAD f4c8b833 — post Bug #1c + Bug #1d partial)
+## Current state (2026-04-17, one4all HEAD 6e98862f — post-session re-diagnosis of Bug #1d remainder)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
 SN-6 IN PROGRESS: PASS=218/228. treebank-array/list/claws5 spun to parallel goals.
 Smoke PASS=7. Broker PASS=49.
 
-**This session (GOAL-LANG-SNOBOL4 — Bug #1c fixed; Bug #1d partial):**
+**This session (GOAL-LANG-SNOBOL4 — investigated Bug #1d remainder; NO commits to one4all):**
+
+Attempted the bb_seq NAM-rollback fix sketched in the prior session's "Fix strategy for bb_seq" block. Built, instrumented, and verified that the rollback fires on the critical path for `1+2*3`. **Result: behavior unchanged.** expr_eval still 4/5; the `2` output and the parse-error stderr are identical to the baseline. The NAM-rollback theory is insufficient — or addresses a parallel issue but not this one. Working tree reverted; HEAD 6e98862f is unchanged.
+
+**Revised root-cause diagnosis (see "Remaining `1+2*3 → 2` case" below).** The real bug is a semantic mismatch with SPITBOL: our engine invokes `*fn()` calls at **match-time**, but the SPITBOL manual specifies deferred (commit-time) invocation. In `expr_eval.sno`, `Push()` has un-backtrackable side effects on `stk`; rolling back the NAM frame on backtrack does not unwind those mutations.
+
+**Prior-session fixes still stand (landed before this session, HEAD f4c8b833):**
 
 ### Bug #1c (`(PAT . *fn())` stored wrong value in target cell) — FIXED
 
@@ -181,41 +187,106 @@ Verification
 - Smoke PASS=7, Broker PASS=49, SN-6 PASS=218/228 — no regressions
 - Cross-pollinates to Icon, Prolog, Raku, Snocone, Rebus (all use bb_alt)
 
-### Remaining `1+2*3 → 2` case — diagnosed, not yet fixed
+### Remaining `1+2*3 → 2` case — RE-DIAGNOSED (bb_seq rollback is NOT the cause)
 
-Same absence-of-rollback pattern, but at the **bb_seq** level.
+The prior session's hypothesis (absence of intra-match NAM rollback in
+bb_seq) was tested and **falsified**. Mirroring the bb_alt rollback
+pattern into bb_seq (adding `pre_left_mark` to `seq_t`, marking at
+`SEQ_α`, rolling back at `right_ω` before `left.β`) compiles cleanly,
+the rollback fires repeatedly on the `1+2*3` critical path (verified
+with instrumentation), and yields **identical** output (`2` + parse
+error on stderr) to the baseline. The NAM-rollback-in-bb_seq fix may
+still be needed for other cases — it was not regression-tested — but
+it does not address this failure.
 
-In outer `expr = *term addop *expr . *Binary() | *term`, matching
-`1+2*3`: outer arm1's `*term` matches `1`; `addop` matches `+`;
-`*expr` on `2*3` recurses. Inner `*expr`'s arm1 is `*term addop *expr
-. *Binary()`. Its `*term` matches `2*3` fully (queueing pushes
-[2,*,3] and an inner Binary callcap), but then the SEQ's next child
-`addop` fails (no input left). bb_seq then calls `left.fn(...,β)` to
-β-retry the left child (*term) — BUT the NAM entries left already
-appended during its α (the [2,*,3, inner-Binary-cc] quartet) are not
-rolled back, and any entries left's β attempt may add just stack on
-top. Bad state then bubbles up to the outer NAM_commit walk.
+**True root cause: `*fn()` is invoked at match-time; SPITBOL defers to commit-time.**
 
-At commit time, stk sees one extra entry between inner and outer
-Binary, so inner Binary computes `(+ · 2 · 6)` instead of `(1 + 6)`,
-EVAL parses as garbage, FAIL, top pop yields the leftover "2".
+From the SPITBOL v3.7 Manual (Tutorial, NRETURN section, ~p.133–134),
+discussing `'ABCDE' ? LEN(2) . *PUSH() 'D' LEN(1) . *PUSH()`:
 
-Fix strategy for bb_seq (NOT in this commit — β semantics need care):
-- Add `void *pre_left_mark, *pre_right_mark` to `seq_t`.
-- On `SEQ_α`: `pre_left_mark = NAM_mark()`.
-- After `left_γ` (left just succeeded): `pre_right_mark = NAM_mark()`.
-- On `right_ω` before calling `left.β`: `NAM_rollback_to
-  (pre_right_mark)` — drop right's attempted entries; keep left's α
-  entries while its β is attempted (they are valid up to the moment
-  of β). On left.β success, new left_γ runs and pre_right_mark will
-  be reset before right.α — so left's α entries that will be
-  superseded by the β result need to go too. Cleanest: on `right_ω`
-  rollback to `pre_left_mark` (drop both left-α and right-α entries)
-  before calling `left.β`. Validate no regression in C5 sessions, as
-  this is the hottest pattern primitive.
-- On `left_ω` / `SEQ_ω`: parent box handles the outer rollback (bb_alt
-  already does). If bb_seq is the top box, the statement-level
-  NAM_discard covers it.
+> "Without it [the `*`], PUSH() is called when the pattern is first
+> constructed. In the modified example, the calls to PUSH() are
+> **deferred until assignment takes place**, and new stack entries
+> are **allocated only if the pattern match succeeds**."
+
+Current one4all semantics (as documented in the Bug #1c writeup above):
+*"`*fn()` is invoked at match-time and returns a NAME descriptor..."*
+— this disagrees with SPITBOL. In `expr_eval.sno`, `Push()` has
+un-backtrackable side effects (it increments `stk[0]` and writes
+`$Push = x`). When a speculative pattern arm calls `Push()` and then
+the arm fails and backtracks, the stk-mutations persist. NAM-frame
+rollback cleans up the deferred assignments but does nothing to the
+already-executed Push() calls.
+
+Behavioral evidence (all on HEAD 6e98862f, --ir-run):
+
+| Input    | scrip | SPITBOL | Notes |
+|----------|-------|---------|-------|
+| `2+3`    | 5     | 5       | No backtracking in outer SEQ |
+| `2*3`    | 6     | 6       | No backtracking |
+| `1*2+3`  | 5     | 5       | Wait — should be 7! See below |
+| `1+2*3`  | 2     | 7       | Fails (parse error + leftover stk entry) |
+| `1+2+3`  | 2     | 5       | Fails identically — not in .input file; Claude's own probe |
+| `1*2*3`  | 2     | 6       | Fails identically — Claude's own probe |
+
+Note `1*2+3 → 5` is ALSO wrong per SPITBOL (should be 7); flag for
+re-oracle check, but the symptom class is the same bug.
+
+### Fix strategy for next session
+
+Move `*fn()` invocation from match-time (bb_callcap α/γ path) to
+commit-time (NAM_commit callcap branch). The plumbing for this is
+already half-built:
+
+- `bb_callcap` currently calls `g_user_call_hook(fname, args, 0)` at
+  match-time to get a NAME back. This must stop happening at match-time.
+- Instead, `bb_callcap` should just **record a pending callcap** in the
+  NAM frame (similar to what NAM_push_callcap already does for the
+  assignment portion) without invoking the user function.
+- `NAM_commit`'s callcap branch should be extended to invoke the user
+  function at commit time, use the returned NAME descriptor as the
+  target cell, and write the matched substring (`cc_substr`/`cc_slen`)
+  into that cell. The Bug #1c fix (DT_S from cc_substr/cc_slen) already
+  assumes commit-time dispatch — it just needs to make the call itself
+  happen at commit time too.
+- Arg evaluation timing: check manual for `*fn(args)` — args are
+  presumably captured by value at pattern construction time (or at
+  match time by value). Verify against SPITBOL before deciding.
+
+**Key file sites** (from `grep -n 'callcap' src/runtime/x86/*.c`):
+- `snobol4_nmd.c:92` — `g_user_call_hook` hook site; likely where
+  match-time invocation currently happens.
+- `snobol4_nmd.c:173` — `NAM_push_callcap` — already records deferred
+  entries.
+- `snobol4_nmd.c:209+` — `NAM_commit` — callcap branch needs extended
+  to actually call the user function.
+- `src/runtime/x86/bb_build.c:1212+` — bb_callcap_exported / binary
+  emitter; understand what state callcap_t currently carries.
+- `src/runtime/x86/stmt_exec.c` — callcap_t definition; possibly
+  bb_callcap body.
+
+**Validation after the fix:**
+1. `expr_eval` should be 5/5.
+2. `1+2+3`, `1*2*3`, `1*2+3` should all produce SPITBOL-agreeing values.
+3. SN-6 should reach 219/228 (only expr_eval in the delta per goal file).
+4. Smoke PASS=7, Broker PASS=49 — no regression.
+5. Beauty self-host (18 combos) — no regression.
+6. Re-run all GOAL-SNO-* parallel goal gates (treebank-array,
+   treebank-list, claws5) — callcap is central to their tests.
+
+**Warning:** This is a semantic change to one of the hottest primitives.
+Consider landing behind a feature flag first if any beauty/broker
+regressions appear, and/or bisecting corpus programs that may (wrongly)
+depend on match-time invocation.
+
+### NAM-rollback-in-bb_seq status
+
+The prior session's proposed bb_seq rollback was NOT committed.
+Working tree left clean at HEAD 6e98862f. The fix may still have
+merit for other failure modes — revisit AFTER the match-time/commit-time
+semantics are corrected and test impact is understood against a
+correct callcap model.
+
 
 ### Files touched this session
 
@@ -233,29 +304,35 @@ Two `--ir-run` fixes in `src/driver/interp.c`:
 
 ### Next session (GOAL-LANG-SNOBOL4)
 
-1. Finish Bug #1d by extending NAM rollback into `bb_seq` (strategy
-   above). Minimal repro: `1+2*3` against full `expr_eval.sno`
-   expected `7` scrip gives `2`. After this fix, expect expr_eval
-   5/5 and SN-6 PASS=219/228.
-2. Audit other backtracking boxes — `bb_arbno`, `bb_pos_alt`,
-   `bb_deferred_var` — for the same rollback gap. Each should take
-   a mark on α and roll back when its α-trial fails (parent may also
-   roll back, but local rollback is the clean pattern).
-3. SM-run `SIZE(INPUT)` EOF hang (fileinfo, word1, triplet, wordcount).
+1. **Bug #1d remainder — implement commit-time `*fn()` dispatch.**
+   See "Remaining `1+2*3 → 2` case" section above for strategy and
+   file-site index. Move the `g_user_call_hook` invocation out of
+   bb_callcap's match-time path and into `NAM_commit`'s callcap
+   branch. Validation: expr_eval 5/5, SN-6 PASS=219/228, Smoke=7,
+   Broker=49, beauty self-host 18/18, all SNO-* parallel gates green.
+2. **Re-evaluate NAM-rollback-in-bb_seq** after (1) lands. Prior
+   session's theory (add `pre_left_mark` to seq_t, rollback at
+   `right_ω`) was falsified in isolation for `1+2*3` but may
+   still be needed for other classes of bug once callcap is
+   correctly deferred. Do not land speculatively; drive with a
+   concrete failing test case that isn't fixed by (1).
+3. Audit other backtracking boxes — `bb_arbno`, `bb_pos_alt`,
+   `bb_deferred_var` — for rollback gaps once (1) is in place.
+4. SM-run `SIZE(INPUT)` EOF hang (fileinfo, word1, triplet, wordcount).
    `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — EOF failure branch not
    propagated in SM-run. Investigate sm_lower.c keyword/arg lowering
    + failure threading.
-4. Investigate beauty_XDump driver.
-5. Add missing wordcount.sno and roman.sno to
+5. Investigate beauty_XDump driver.
+6. Add missing wordcount.sno and roman.sno to
    corpus/programs/snobol4/demo/.
 
-### Remaining SN-6 failures (10 — count unchanged; expr_eval now 4/5)
+### Remaining SN-6 failures (10 — count unchanged; expr_eval still 4/5)
 
 - fileinfo, word1: SM INPUT-as-arg EOF hang
 - triplet: SM truncated output (same root)
 - wordcount: SM wrong count + format
-- expr_eval: Bug #1d remainder — bb_seq rollback missing (4/5 of
-  input now passes; only `1+2*3` still wrong)
+- expr_eval: Bug #1d remainder — match-time vs commit-time `*fn()`
+  dispatch (re-diagnosed this session; see above). `1+2*3` still wrong.
 - beauty_XDump_driver: unknown
 - demo_wordcount, demo_roman: .sno source MISSING
 - demo_treebank: *group self-ref (pre-existing)
