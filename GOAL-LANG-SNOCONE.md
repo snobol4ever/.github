@@ -182,10 +182,16 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/treebank.sc
 ```
 
-- [x] **SC-23** — treebank.sno: double-function pattern (Push_list/push_list etc.)
-  using Lon's naming. Reads from stdin. DATATYPE check portable.
-  PASS: CSNOBOL4 -bf ✓  output matches treebank.ref.
-  FAIL: SPITBOL — duplicate label errors (case-folding, -f broken in v4.0f).
+- [x] **SC-23** — treebank corpus files: four versions side by side in
+  corpus/programs/snobol4/demo/:
+    treebank-prepend.sno / treebank-prepend.sc  — LISP-style cons-list + list_reverse
+    treebank-append.sno  / treebank-append.sc   — TABLE-based append, no reversal
+  treebank-append.sno uses two-step BAL: carve S-expressions then parse each.
+  Requires -P 200k (vs -P 2m single-pass). All 265 S-expressions parse clean.
+  OPEN BUG in treebank-append.sno: parse_fail path pops ROOT unconditionally —
+  16 sentences produce spurious extra ROOT/) in output vs prepend version.
+  Fix: discard partial ROOT frame on group failure instead of popping into parent.
+  corpus HEAD d2161b3. one4all HEAD 1194e57d.
 
 - [ ] **SC-24** — claws5.sno: rewrite with double-function pattern + stdin I/O.
   Current claws5.sno uses INPUT(.rdch, 8, file) = SPITBOL-only.
@@ -323,3 +329,20 @@ DIVERGE at stmt N [label: LABEL, line LL]
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
+---
+
+## Current state (2026-04-16, one4all HEAD 1194e57d, corpus HEAD d2161b3)
+
+SC-23 done: four treebank files in corpus/programs/snobol4/demo/:
+  treebank-prepend.sno + treebank-prepend.sc  (LISP-style cons-list + list_reverse)
+  treebank-append.sno  + treebank-append.sc   (TABLE-based append, no reversal)
+  Two-step BAL approach in append version: carve with BAL, parse each with group.
+  -P 200k sufficient. All 265 S-expressions parse. 16 spurious ROOT/) open bug.
+
+OPEN BUG — treebank-append.sno parse_fail path:
+  stk_pop_into_parent() called unconditionally on group failure.
+  16 sentences produce extra ROOT/) in output vs prepend version.
+  Fix: on parse_fail, discard the partial ROOT frame by popping stk directly
+  (stk = tail(stk)) without calling stk_pop_into_parent().
+
+SC-24 next: claws5.sno stdin+double-fn rewrite.
