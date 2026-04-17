@@ -424,3 +424,32 @@ Phase 1 correct: CHAR(1) sentinel + BREAKX(SEP) -> sent[1..244]. ~356ms.
 Phase 2 BLOCKER: claws_pat_2 hangs on ARRAY element subjects in CSNOBOL4.
   Fix to try: s = sent[i] (copy to plain var) before match.
   If fast: ship. If still slow: investigate CSNOBOL4 ANCHOR/cursor internals.
+
+## Current state (2026-04-17 session 3, one4all HEAD 1194e57d, corpus HEAD 8a64bc8)
+
+SC-24c DONE: claws5.sno two-phase verified correct. corpus HEAD 8a64bc8.
+
+Root cause of Phase 2 hang: sentinel replacement consumed the space before
+each sentence-boundary token (' N_CRD :_PUN ' -> SEP + 'N_CRD :_PUN '),
+leaving split pieces with no trailing space. ARBNO token pattern needs
+trailing ' ' for each token; RPOS(0) then failed.
+
+Fix: TRIM(piece) ' ' in split_loop and split_last.
+  TRIM removes any existing trailing spaces (prevents double-space on last
+  sentence which retains trailing space from slurp); append exactly one ' '.
+
+Verified: csnobol4 -bf < CLAWS5inTASA.dat -> zero diff vs claws5.ref (17386 lines).
+No -P flag. Runtime ~450ms. No pattern match failures.
+
+All three .sno programs working:
+  treebank-list.sno  -- PASS (tested vs treebank-array output, agree)
+  treebank-array.sno -- PASS
+  claws5.sno         -- PASS (zero diff vs claws5.ref)
+
+All three .sc programs structurally ready for testing (goto-free, TRIM fix applied):
+  treebank-list.sc   -- ready
+  treebank-array.sc  -- ready
+  claws5.sc          -- ready (TRIM fix + s=sent[i] copy in Phase 2)
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+  OR: test the three .sc files under scrip (pending SC-26 fix for claws5.sc).
