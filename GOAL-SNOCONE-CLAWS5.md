@@ -94,14 +94,14 @@ side-effect firing).
 
 ---
 
-## Current state (corpus HEAD pending, one4all HEAD 1194e57d)
+## Current state (corpus HEAD pending, one4all HEAD abf17001)
 
 All 3 .sno oracles pass diff-zero under csnobol4 -bf:
   claws5.sno            95/95 lines (used -P 34000)
   treebank-list.sno     24/24 lines
   treebank-array.sno    24/24 lines
 
-CL-1 diagnosis partial. Findings:
+CL-1 diagnosis complete. Findings:
 
   1. `?= <-` is not a Koenig/Snocone operator (not in his `bconv` table)
      and is also not in our lexer. It was a proposed tertiary for the
@@ -122,20 +122,39 @@ CL-1 diagnosis partial. Findings:
      symptom is `*fn` not firing at all, not an argument-value bug as
      the prior goal-file text said. The earlier text was wrong.
 
-  4. claws5.sc now hangs (timeout 124) under both --ir-run and --sm-run,
+  4. claws5.sc hangs (timeout 124) under both --ir-run and --sm-run,
      with `Error 3 in statement 9 — erroneous array or table reference`
-     on stderr and empty stdout. Error 3 alone is not fatal (small
-     repros survive it) — the hang is additional.
+     on stderr and empty stdout. Root cause traced: Error 3 originates in
+     snobol4_pattern.c NONARY path (lines 475, 492) — subscript on
+     non-array/non-table. Fires because *new_sent() never runs (SC-26),
+     so sentno/mem[sentno] are uninitialized when add_tok() tries to
+     subscript them. Error 3 is non-fatal (FTLTST); hang is separate.
 
   5. treebank-array.sc (post-tertiary-removal) exits cleanly but prints
      `stmt_exec: unimplemented XKIND 17 — using epsilon` — XBAL is not
      implemented in the runtime. That is a SEPARATE missing feature,
      owned by the treebank goals, not by CLAWS5.
 
+  6. pp_mem in claws5.sc produces different output format from claws5.sno
+     pp_mem. The .sno pp_mem produces the compact Python-dict pprint in
+     claws5.ref. The .sc pp_mem uses a different indented format and will
+     NOT match .ref even when the tokenizer is fixed. claws5.sc pp_mem
+     must be rewritten as a faithful Snocone translation of the .sno
+     pp_mem before CL-3 can pass.
+
+  7. bb_boxes.c reviewed. The capture box (bb_capture) correctly buffers
+     pending spec on γ. The callcap / chained-call box is the next focus:
+     need to find where (PAT . var) . *fn(var) lowers to in bb_boxes.c
+     and snobol4_pattern.c — the outer *fn call is not being constructed
+     or invoked at match commit time.
+
 Snocone extensions vs Koenig (answered Q): binary ops 28 -> 39 (+11:
 six compound assigns, `**`, `&`, `@`, `~`, `:`); unary ops unchanged;
 keywords 11 -> 14 (+3: break, continue, struct); comments gained `//`.
 
 Blocker: SC-26 — `. *fn(arg)` chained after `(PAT . var)` not firing.
-Next: CL-1 finish — instrument bb_boxes.c / snobol4_pattern.c to trace
-why the outer `. *fn()` box is discarded when chained with inner `. var`.
+Next: CL-2 — find the callcap/chained-call box in bb_boxes.c (truncated
+last session at line 155). Read the full capture/callcap section. Trace
+how (PAT . var) . *fn(var) lowers through snocone_lower.c into IR, then
+into bb_build.c. Fix the missing *fn invocation. Then rewrite pp_mem in
+claws5.sc to match .sno pp_mem output format.
