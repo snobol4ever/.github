@@ -453,3 +453,19 @@ All three .sc programs structurally ready for testing (goto-free, TRIM fix appli
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
   OR: test the three .sc files under scrip (pending SC-26 fix for claws5.sc).
+
+## Current state (2026-04-17 session 4, one4all HEAD 1194e57d, corpus HEAD 8a64bc8)
+
+Investigated cleaner alternatives to TRIM fix in claws5.sno. Root cause of
+complexity: (epsilon . *new_sent()) calls new_sent() at PATTERN BUILD TIME
+(not match time), which fails with "Null string in illegal context" when num
+is unset (+num fails on empty string). Various approaches tried — all hung or
+failed. The TRIM fix remains the correct working solution.
+
+DECISION: TRIM(piece) ' ' stays. claws5.sno verified: zero diff vs claws5.ref
+(17386 lines), ~450ms, no -P flag. corpus HEAD 8a64bc8 unchanged.
+
+claws5.sc: structurally mirrors .sno with TRIM fix. Ready for scrip testing.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+  Then test all three .sc files under scrip.
