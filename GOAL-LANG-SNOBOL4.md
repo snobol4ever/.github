@@ -88,6 +88,28 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 - [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
 - [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
 
+- [ ] **SN-16** — `demo_treebank-array` PASS (--ir-run). Root cause: `XBAL` (XKIND 17) is
+  unimplemented in `bb_boxes.c` (stub only) and falls through in `stmt_exec.c`. treebank-array.sno
+  uses BAL to match balanced parentheses when parsing s-expressions. Implement `bb_xbal_fn` in
+  `bb_boxes.c`: scan forward matching `(…)` nesting depth, succeed at balanced close, fail
+  otherwise. Wire into `stmt_exec.c` case `XBAL`. Gate: `demo_treebank-array` matches
+  `treebank-array.ref` under `--ir-run`; smoke PASS=7; broker PASS=49.
+
+- [ ] **SN-17** — `demo_treebank-list` PASS (--ir-run). treebank-list.sno uses the
+  double-function trick (`push_list`/`Push_list`, `init_list`/`Init_list`) requiring
+  case-sensitive label dispatch, and also uses BAL (same as SN-16 — gated on SN-16).
+  Once BAL works, run under scrip with case-sensitive routing and confirm output matches
+  `treebank-list.ref`. If case-sensitive DEFINE dispatch is broken in the frontend, fix
+  label lookup in the interpreter. Gate: `demo_treebank-list` matches ref; smoke+broker clean.
+
+- [ ] **SN-18** — `demo_claws5` PASS (--ir-run). claws5.sno builds a tag-frequency TABLE of
+  TABLE; it uses BAL (gated on SN-16) and also the double-function trick for `push_list`/`Push_list`
+  (gated on SN-17). Current scrip output is `Pattern match failed`. After SN-16+SN-17 land,
+  run scrip --ir-run and diff against `claws5.ref`. The ref was generated with CSNOBOL4 -bf
+  -P 500k; confirm SPITBOL also produces matching output on the first sentence before
+  accepting the ref. Gate: `demo_claws5` matches ref; smoke PASS=7; broker PASS=49;
+  test_interp_broad_corpus_and_beauty PASS=221/228 (or better).
+
 ---
 
 ## Key files
@@ -115,11 +137,12 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-16i, one4all HEAD 09261c1d)
+## Current state (2026-04-17, one4all HEAD abf17001)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
 SN-6 IN PROGRESS: PASS=218/228 (broad corpus, confirmed with corpus cloned this session).
-Smoke PASS=7. Broker PASS=48.
+SN-16..SN-18 added this session: BAL implementation + treebank-array/list/claws5 demo ladder.
+Smoke PASS=7. Broker PASS=49.
 
 **Prior fixes summary (compressed):** Dynamic stacks; h_store_var JIT stack balance;
 bb_capture return type DESCR_t; E_POW integer path (interp.c — was always DT_R per Icon
