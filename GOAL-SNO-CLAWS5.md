@@ -77,16 +77,34 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
   DESCR_t return type UB) also fixed. Both landed on main HEAD 6ee09b7f.
   Gates: smoke PASS=7, broker PASS=49. claws5 now produces output.
 
-- [ ] **C5-2** — Diff claws5 output against ref. Fix divergences.
-  BLOCKER: first ARBNO iteration delivers empty wrd/tag to add_tok().
-  Subsequent iterations correct. Minimal reproducer:
-    ARBNO( (NOTANY('_') BREAK('_')) . wrd '_' (ANY(UCASE) SPAN(DIGITS UCASE)) . tag
-           (epsilon . *add_tok()) ' ' )
-  on 'That_CJT the_AT0 ' — first iteration: wrd=[], tag=[] (scrip) vs
-  wrd=[That], tag=[CJT] (oracle).
-  Root cause: bb_arbno iteration-boundary save/restore in stmt_exec.c ~line 908
-  appears to shadow first-iteration captures before NAM_commit fires callcap.
-  Investigate bb_arbno, focus on capture state at ARBNO iteration 1 vs 2+.
+- [~] **C5-2 PARTIAL** — Root cause found and fixed; two more issues remain.
+  Root cause was NOT bb_arbno save/restore as suspected. It was SC-26's
+  last-write-wins look-ahead in NAM_commit (snobol4_nmd.c).  When the NAM list
+  contains CAPTURE wrd, CAPTURE tag, CALLCAP add_tok, CAPTURE wrd, CAPTURE tag,
+  CALLCAP add_tok (two ARBNO iterations), the look-ahead skipped iter-1's
+  wrd/tag writes because iter-2 also writes them — but add_tok() reads them
+  as LIVE GLOBALS at callcap fire time, and fires BEFORE iter-2's writes.
+  Fix: break look-ahead when a NAM_KIND_CALLCAP entry is encountered.
+  Committed as part of HEAD 58e642f1.
+
+  Evidence it works:
+    * Minimal ARBNO + *show() reproducer: wrd=[That] tag=[CJT] then
+      wrd=[the] tag=[AT0] per iteration — correct.
+    * claws5 sentence 1 output matches claws5.ref byte-for-byte.
+    * 142-line input prefix: 830 lines correct content (pre-fix: 2 junk lines).
+
+- [ ] **C5-3** — pp_mem SIGSEGV around sentence 37 on full CLAWS5inTASA.dat input.
+  Boundary: 142 input lines OK (exit 0); 143 lines SEGV (exit 139, output cut
+  at ~617 lines mid-sentence 37).  Crash is in pretty-printing, AFTER all
+  matching completes.  Likely GC / deep recursion in pp_mem or TABLE value
+  walk.  Investigate SORT(mem) + recursive pp_mem dispatch on TABLE-of-TABLE.
+
+- [ ] **C5-4** — mem sentno keys sort as strings, not integers.
+  Output orders sentences 1, 10, 11, 12, ..., 19, 2, 20, ... — string sort.
+  Ref (CSNOBOL4) orders 1, 2, 3, ..., 10, 11, ... — numeric.
+  Likely `sentno = +num` doesn't produce an integer key, or TABLE subscripting
+  coerces the key to string before storing.  Check NV_SET_fn / TABLE_SET path
+  for preserving DT_I keys.
 
 ---
 
@@ -112,7 +130,9 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 6ee09b7f)
+## Current state (2026-04-17, one4all HEAD 58e642f1)
 
-C5-2 next. C5-1 done + BB-3 (bb_callcap UB) fixed.
-BLOCKER: ARBNO first-iteration captures empty in scrip — see C5-2 above.
+C5-2 PARTIAL done (NAM_commit callcap-boundary fix landed).
+C5-3 and C5-4 next — pretty-printer SIGSEGV and numeric-key sort.
+Core ARBNO/callcap matching is now CORRECT; remaining failures are
+in pp_mem (pretty-print) and TABLE key typing.
