@@ -94,13 +94,59 @@ side-effect firing).
 
 ---
 
-## Current state (2026-04-17 post-probe — corpus 5d75439, one4all 6c63908)
+## Current state (2026-04-17 post Bug B fix)
 
-**CL-1 diagnosis from prior session was based on a false positive.**
+**Design decision (Lon):** Keep three-tier comparison operators
+(`== != < > <= >=` → numeric; `:==: :!=: :<: :>: :<=: :>=:` → lexical;
+`:: :!:` → identity). Collapse was considered and rejected — users
+practice discipline by selecting the right operator. So `==` stays
+lowered to `EQ`. Bug B is therefore a runtime bug in `_EQ_`, not a
+lowering bug.
 
-**Bug A — SC-26 is NOT fixed.** The prior snapshot read `test_capture_call.sc`
-test 3 as PASS. That was spurious — see Bug B. The real behavior of
-`(PAT . var) . *fn(var)`:
+**Bug B FIXED (runtime, shared by SNOBOL4 + Snocone).**
+  * Root cause: `to_real()` in snobol4.c:1693 used `strtod(s, NULL)`,
+    which swallows parse failures — any non-numeric string coerced
+    to 0.0. `_EQ_` fell through `IS_INT` fast-path into
+    `to_real(a)==to_real(b)`, so `EQ('foo','foo')` returned TRUE.
+  * Fix: added `is_numeric_like(DESCR_t)` helper and `NUM_GUARD(fn)`
+    macro at snobol4.c:157–210. Applied to all six numeric compare
+    functions `_EQ_ _NE_ _LT_ _GT_ _LE_ _GE_`. Guard raises soft
+    error 1 ("Illegal data type") with a SPITBOL-style message like
+    "EQ first argument is not numeric" when args are non-numeric.
+    `is_numeric_like` accepts DT_I, DT_R, DT_SNUL, whitespace-only
+    strings (→ 0), and strings that `strtod` consumes fully up to
+    trailing whitespace. DT_K resolved via NV_GET_fn and rechecked.
+  * Verified: `EQ('42', 42)` succeeds, `EQ(' 42 ', 42)` succeeds,
+    `EQ('foo','foo')` raises error 1 (no more silent TRUE),
+    `EQ(42, 43)` fails normally.
+  * Gates after patch:
+      - test_smoke_snocone.sh         PASS=5   FAIL=0 (unchanged)
+      - test_smoke_snobol4.sh         PASS=7   FAIL=0 (unchanged)
+      - test_smoke_unified_broker.sh  PASS=49  FAIL=0 (unchanged)
+      - test_interp_broad_corpus_and_beauty.sh PASS=172 FAIL=56
+        (same as pre-patch — zero regressions from this fix)
+      - demo_claws5: claws5.sno --ir-run still byte-matches claws5.ref
+        (diff=0) on full 989-line CLAWS5inTASA.dat — C5-4 preserved.
+
+**Observation during probe (not part of this fix).** When `_EQ_`
+raises soft error 1 inside a Snocone `if (EQ(s,t)) {A} else {B}`
+block, neither A nor B runs — AND statements after the if do not run
+either. The driver's `execute_program` setjmp loop in interp.c:4024
+should take `:F` and continue, but in Snocone `--ir-run` the longjmp
+appears to abandon the tail of the program. Worth investigating when
+attacking Bug A — means users currently must call IDENT() explicitly
+for string equality inside an if, not rely on `==` to gracefully fail.
+
+**Pre-existing state-of-world discrepancy (not caused by this fix):**
+Goal file previously asserted broad corpus 219/228 at HEAD 6c63908a
+(post C5-4). Today's HEAD 6e98862f (TL-2 landing) gives 172/228
+pre-patch. Something between those two commits regressed ~47 tests
+in the broad suite. Out of scope for this session; flagging for
+awareness. The smoke/broker/claws5 gates are all still green.
+
+**Bug A — SC-26 still UNFIXED.** The prior snapshot read
+`test_capture_call.sc` test 3 as PASS. That was spurious (tied to
+Bug B). The real behavior of `(PAT . var) . *fn(var)`:
   * Minimal repro `/tmp/body_ran.sc`: procedure body writes a constant
     global `body_ran = 'YES'`, ignoring its argument. After
     `'foobar' ? ((LEN(3) . w) . *show(w))`: top-level `body_ran` is
@@ -112,44 +158,28 @@ test 3 as PASS. That was spurious — see Bug B. The real behavior of
   * Commit f9995d0 (SN-6 Bug #1c, NAM_commit callcap writes matched
     text) did NOT fix SC-26 for Snocone. Scope of that fix was the
     immediate `$` path in SNOBOL4 only. SC-26 remains open.
+  * Sister goal GOAL-SNOCONE-TREEBANK-LIST has diagnosed this as
+    three sub-bugs; Bugs 1 and 2 fixed, Bug 3 (bb_callcap spec_t→
+    DESCR_t return type UB) pending TB-2. Fixing Bug 3 should
+    unblock both CLAWS5 and TREEBANK-LIST.
 
-**Bug B — Snocone `==` on strings is broken in --ir-run.**
-  * Minimal repro `/tmp/eq_sanity.sc`:
-      `'' == 'foo'`    → TRUE  (wrong — should be FALSE)
-      `'ZZZ' == 'foo'` → TRUE  (wrong — should be FALSE)
-      `'foo' == 'foo'` → TRUE  (coincidentally right)
-  * Root cause located: `snocone_lower.c:242` lowers `==` to
-    `make_fnc2("EQ", l, r)` — the SNOBOL4 numeric-EQ function. Two
-    non-numeric strings both coerce to 0, so `EQ(0,0)` is TRUE.
-  * Correct lowering: `==` on strings must dispatch to IDENT (string
-    equality). Choices: (a) always lower to a new `SEQ` runtime
-    helper that dispatches on type, (b) lower to IDENT and let it
-    coerce integers via SPITBOL semantics, (c) keep EQ but have
-    the runtime fall back to IDENT on non-numeric args. (a) is the
-    cleanest per SNOBOL4 type model.
-  * Side note: direct call `r = EQ('ZZZ', 'foo')` silently
-    terminates the Snocone program — EQ fails and failure propagates.
-    Bug B needs fixing before test_capture_call.sc can diagnose
-    anything reliably; every `==` check in the test was spurious.
-
-**Bug C (Lon-confirmed non-bug):** I initially speculated Snocone had
-local procedure scope. Wrong. All Snocone vars are global, SNOBOL4
-style. Retracted. The appearance of "local scope" was Bug A masquerading
-as a scope issue — since the procedure body never runs, no assignment
-ever happens, and the outer variable naturally keeps its initial value.
+**Bug C (Lon-confirmed non-bug):** initial speculation about local
+procedure scope was wrong. All Snocone vars are global, SNOBOL4
+style. Retracted.
 
 ---
 
 ## Order of attack for CL-2 (revised)
 
-1. Fix Bug B (`==` lowering) FIRST. One-site change in
-   `snocone_lower.c:240-262`. Without it, no test can be trusted.
+1. ~~Fix Bug B (`==` lowering) FIRST.~~ DONE — Bug B fixed at runtime
+   level, not lowering level. `==` still lowers to `EQ`; `_EQ_` now
+   rejects non-numeric args per SPITBOL manual p.221.
 2. Re-run `test_capture_call.sc` with real equality. If SC-26 still
    reproduces (likely), proceed to step 3.
 3. Fix Bug A (SC-26 — callcap not firing in chained form). Trace:
    `snocone_lower.c` → IR E_CALLCAP (if it exists) → `bb_build.c`
-   BB_CALLCAP → `bb_boxes.c` bb_callcap. Previous session's CL-1
-   said "truncated last session at line 155" of bb_boxes.c —
-   continue that read.
+   BB_CALLCAP → `bb_boxes.c` bb_callcap. Coordinate with TB-2 in
+   GOAL-SNOCONE-TREEBANK-LIST — one fix serves both goals (change
+   `bb_callcap` return type from `spec_t` to `DESCR_t`).
 4. Rewrite claws5.sc pp_mem to match .sno pp_mem output format
    (unchanged from prior plan).
