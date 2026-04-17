@@ -674,3 +674,17 @@ STEPS:
   (f) Zero diff is the gate.
 
 corpus HEAD 14362c0. one4all HEAD 1194e57d.
+
+## Correction (handoff 4b)
+
+True sentinel pattern (on slurped string, NOT line-by-line):
+  (POS(0) | CHAR(10)) SPAN(DIGITS) '_CRD :_PUN '
+
+POS(0) matches start of string (sentence 1).
+CHAR(10) matches newline — all subsequent sentences follow a newline.
+Mid-line N_CRD :_PUN occurrences are NOT preceded by newline → not matched.
+No line-by-line loop needed. One slurp, one pattern scan.
+
+This is cleaner than line-by-line AND correct. Two passes:
+  Pass 1: slurp all lines (no space append — keep newlines), split on sentinel.
+  Pass 2: claws_pat_2 per sentence (strip header, parse tokens).
