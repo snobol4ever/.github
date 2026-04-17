@@ -645,3 +645,32 @@ STEP TO IMPLEMENT (replaces old Phase 1 if (a) proven):
   No slurp. No sentinel insertion. No TRIM/split complexity.
 
 corpus HEAD 14362c0. one4all HEAD 1194e57d.
+
+## Current state (handoff 4, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+
+FINDING: The .dat file has faulty sentence boundary annotations — 32 of the
+N_CRD :_PUN markers appear mid-line and are TAGGING ERRORS, not real sentence
+boundaries. Stripping tags from the text around line 25 shows one coherent
+paragraph — "Mrs. Stanton was waging her campaign..." is a single sentence,
+not split at "Mrs." The sentence numbers injected mid-line are wrong.
+
+CONSEQUENCE: The true sentinel is POS(0) SPAN(DIGITS) '_CRD :_PUN ' — only
+at beginning of line. The slurp+scan approach is WRONG — it splits on faulty
+mid-line markers. claws5.ref is WRONG. Python assignment3.py has the same flaw.
+
+NEW PHASE 1 — two patterns, no slurping:
+  Pattern 1 (per line): POS(0) SPAN(DIGITS) '_CRD :_PUN '
+    If matches → flush buf as completed sentence, start new buf with this line.
+    If no match → accumulate line into buf.
+  Pattern 2 (per sentence): existing claws_pat_2 — unchanged.
+  Tight read loop. No CHAR(1) sentinel. No BREAKX/split. No ARB scan.
+
+STEPS:
+  (a) Implement new Phase 1 in claws5.sno — tight loop, POS(0) sentinel.
+  (b) Run on CLAWS5inTASA.dat, capture output as new claws5.ref.
+  (c) Patch assignment3.py to use same BOL-only boundary detection.
+  (d) Verify claws5.sno output matches patched assignment3.py output.
+  (e) Port new Phase 1 to claws5.sc.
+  (f) Zero diff is the gate.
+
+corpus HEAD 14362c0. one4all HEAD 1194e57d.
