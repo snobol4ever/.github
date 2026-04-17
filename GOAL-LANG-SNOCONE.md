@@ -262,6 +262,12 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   Note: sentence keys in Python are int(num) from _CRD; our SNOBOL4 uses +num — same.
   Note: VBGinTASA.dat required for treebank; confirm it exists in corpus demo dir.
 
+- [ ] **SC-31b** — Port pp_mem to claws5.sc (Snocone syntax).
+  claws5.sc currently has the old pp_table call. Replace with pp_mem translated to
+  Snocone: procedure pp_mem(mem) { ... } matching the SNOBOL4 pp_mem logic exactly.
+  Gate: `cat CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref (5622 lines).
+  Depends on SC-26 (. *fn() capture bug) being fixed first for claws5.sc to run at all.
+
 ---
 
 ## Key files
@@ -579,3 +585,10 @@ SC-31 DONE: claws5.sno pp_table replaced with pp_mem — output identical to Pyt
   indented s-expression. Formats differ; bank comparison not yet done.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+
+## Current state (handoff, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+
+SC-31b IN PROGRESS: pp_mem ported to claws5.sc (Snocone syntax). Committed corpus HEAD 14362c0.
+  Not yet tested under scrip — scrip build fails: gc.h missing (install_system_packages.sh needed).
+  SC-26 (. *fn() capture bug) also required before claws5.sc can produce correct output.
+  Next session: run install_system_packages.sh, build scrip, then tackle SC-26.
