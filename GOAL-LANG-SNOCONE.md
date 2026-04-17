@@ -193,11 +193,12 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   Fix: discard partial ROOT frame on group failure instead of popping into parent.
   corpus HEAD d2161b3. one4all HEAD 1194e57d.
 
-- [ ] **SC-24** — claws5.sno: rewrite with double-function pattern + stdin I/O.
-  Current claws5.sno uses INPUT(.rdch, 8, file) = SPITBOL-only.
-  CSNOBOL4 does not support 3-arg INPUT().
-  Fix: convert main loop to slurp from stdin (like treebank.sno).
-  Gate: `cat CLAWS5inTASA.dat | csnobol4 -bf claws5.sno` matches claws5.ref.
+- [x] **SC-24** — claws5.sno: stdin I/O rewrite.
+  Replaced INPUT(.rdch, 8, file) with stdin slurp (line = INPUT :F(slurp_done)).
+  No double-function needed: plain (epsilon . *fn()) calls work under both oracles.
+  Requires -P 2000000 for full 989-line corpus.
+  Fresh claws5.ref generated from CSNOBOL4 -bf (17386 lines); SPITBOL matches.
+  corpus commit: 3943493.
 
 - [ ] **SC-25** — Both programs under SPITBOL.
   SPITBOL -f (case-sensitive) is broken in v4.0f: "No END statement found".
@@ -345,4 +346,7 @@ OPEN BUG — treebank-append.sno parse_fail path:
   Fix: on parse_fail, discard the partial ROOT frame by popping stk directly
   (stk = tail(stk)) without calling stk_pop_into_parent().
 
-SC-24 next: claws5.sno stdin+double-fn rewrite.
+SC-24 done: claws5.sno stdin rewrite (no double-fn needed). Fresh claws5.ref (17386 lines).
+  Requires -P 2000000. Both oracles match. corpus HEAD 3943493.
+
+SC-25 next: both programs under SPITBOL (investigate -f workaround or accept CSNOBOL4 -bf only).
