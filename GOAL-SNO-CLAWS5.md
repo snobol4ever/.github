@@ -45,20 +45,19 @@ timeout 30 /home/claude/one4all/scrip --ir-run $DEMO/claws5.sno \
 
 ---
 
-## Known state (2026-04-17 — post C5-3)
+## Known state (2026-04-17 — post C5-4)
 
 **BAL is implemented** on main. Pull at session start.
 
-**C5-3 FIXED** (bb_seq accumulation bug, see step below).
-**C5-4 DIAGNOSED NOT FIXED** — typed SORT comparator landed, but keys reach
-sort as DT_S because `_aset_impl` uses `table_set` (string-coerce) rather than
-`table_set_descr`. Next session: route `_aset_impl` through `table_set_descr`
-with the live key descriptor.
+**C5-1, C5-2, C5-3, C5-4 all DONE.**
 
-**ref file note:** `claws5.ref` is currently 95 lines (sentences 1-4 only).
-Full 989-line input under scrip now runs to completion producing 5622 lines.
-To validate the whole output, extend claws5.ref against CSNOBOL4 `-bf -P 500k`
-after C5-4 lands (string vs numeric sort order will otherwise differ).
+**claws5.ref note:** extended from 95 lines (scoped to sentences 1-4) to the
+full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. one4all
+`--ir-run` and `--sm-run` are byte-identical to the oracle across the full
+989-line input.
+
+**demo_claws5 now PASS** in `test_interp_broad_corpus_and_beauty.sh`
+(219/228, up from 218/228 baseline). Goal complete.
 
 ---
 
@@ -90,26 +89,33 @@ after C5-4 lands (string vs numeric sort order will otherwise differ).
     * smoke PASS=7, broker PASS=49, broad corpus+beauty PASS=218/228 (unchanged)
     * Both `--ir-run` and default SM-mode benefit (shared box code).
 
-- [~] **C5-4 PARTIAL** — Typed SORT comparator written in
-  `src/runtime/x86/snobol4_pattern.c` per SPITBOL manual pp.240–241
-  (int-int algebraic, str-str lex, cross-type by type-rank ordering
-  `array, code, expression, integer, keyword, name, pattern, real, string, table`).
-  Preserves DESCR_t key types in result array col 1.
-  Compiles clean, no regressions.
-  **BUT output still in string order** because the outer `mem[sentno]=TABLE()`
-  store coerces the DT_I key to DT_S before it reaches the table.
-  Minimal repro:
-  ```snobol4
-    T=TABLE(); T[1]='a'; T[10]='b'; T[2]='c'; S=SORT(T)
-    * DATATYPE(S[1,1]) → 'STRING' in both --ir-run and SM modes
-  ```
-  Root cause: `stmt_aset` → `_aset_impl` → `table_set` (string-coerce),
-  not `table_set_descr`. `table_ptr` (used by other paths) already
-  preserves the descriptor.
-  Next session: edit `_aset_impl` (in `snobol4.c`, binary-flagged file —
-  use `grep -an` on already-located call chain) to call `table_set_descr`
-  with the original key DESCR when setting a TABLE slot. Then re-run
-  full 989-line input and regenerate `claws5.ref` from CSNOBOL4.
+- [x] **C5-4 DONE** — subscript_set (snobol4_pattern.c) now preserves key
+  descriptor for DT_T, routing through `table_set_descr(tbl, k, idx, val)`
+  instead of `table_set(tbl, VARVAL_fn(idx), val)` which hardcoded
+  key_descr to STRING.
+
+  **Diagnosis differed from prior C5-4 plan.** Previous plan targeted
+  `_aset_impl` in `snobol4_runtime_shim.h`, but instrumentation proved
+  `_aset_impl` is off the path for statement-level T<k>=v: both --ir-run
+  and --sm-run flow through `subscript_set()` in `snobol4_pattern.c:481`.
+  `_aset_impl` already calls `table_set_descr` correctly but is dead code
+  for this path. The one-line fix was at `snobol4_pattern.c:489` (plus
+  explanatory comment).
+
+  Typed SORT comparator (landed earlier in C5-4 partial) now sees typed
+  keys and applies SPITBOL pp.240-241 ordering (int-int algebraic,
+  str-str lex, type-rank cross-type).
+
+  Verified:
+    * Minimal repro T<1>='a';T<10>='b';T<2>='c';S=SORT(T):
+      DATATYPE(S<i,1>) = INTEGER (was STRING); sort order 1,2,10 (was 1,10,2);
+      byte-match vs CSNOBOL4 -bf in both --ir-run and --sm-run.
+    * claws5 full 989-line CLAWS5inTASA.dat:
+      --ir-run == --sm-run == CSNOBOL4 oracle (5622 lines, diff = 0).
+    * `claws5.ref` extended from 95 lines (sentences 1-4) to authoritative
+      5622-line CSNOBOL4 `-bf -P 500k` output.
+    * smoke PASS=7, broker PASS=49 (unchanged).
+    * broad corpus+beauty 219/228 (was 218/228 — demo_claws5 now PASS).
 
 ---
 
@@ -138,10 +144,12 @@ after C5-4 lands (string vs numeric sort order will otherwise differ).
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 2fa59c88 — post C5-3)
+## Current state (2026-04-17, one4all HEAD 6c63908 — post C5-4)
 
-C5-3 DONE. C5-4 partial (typed sort landed; store-side key-descr
-preservation in `_aset_impl` next). Full 989-line CLAWS5inTASA.dat
-now runs to completion in both --ir-run and --sm-run with 5622 lines of
-well-formed output. Byte-match vs the scoped 4-sentence ref is preserved
-on the 16-line input prefix in both modes.
+C5-4 DONE. Fix: `subscript_set` (snobol4_pattern.c:489) preserves key
+descriptor through `table_set_descr` instead of stringifying via
+`VARVAL_fn(idx)` → `table_set`. Both interpreter modes now byte-match
+CSNOBOL4 oracle across the full 989-line CLAWS5inTASA.dat (5622 lines,
+diff = 0). `claws5.ref` regenerated from oracle.
+
+Goal complete. demo_claws5 PASS in broad corpus suite (219/228).
