@@ -614,3 +614,34 @@ Always set at program start:
 &ANCHOR   = 0    (never set to 1, ever)
 &FULLSCAN = 1    (always)
 ```
+
+## Current state (handoff 3, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+
+INVESTIGATION: claws5.sno Phase 1 (slurp+sentinel) may be splitting incorrectly.
+Key question: does every sentence boundary in CLAWS5inTASA.dat appear ONLY at
+start-of-line, or do some genuine sentence boundaries appear mid-line?
+
+Evidence:
+- 212 lines start with SPAN(DIGITS) '_CRD :_PUN' at BOL
+- 32 sentence numbers (7, 21, 33, 39, 47, 49, 59, 61, 68, 70, 77...) do NOT start at BOL
+- Example line 25: 'mrs._NN0 7_CRD :_PUN Stanton_NP0...' — is this a mid-line
+  sentence start or is Mrs. Stanton the end of one sentence run-on?
+- Current slurp approach splits on ALL SPAN(DIGITS) '_CRD :_PUN' occurrences,
+  including mid-line ones. Zero diff vs Python — but Python may have same flaw.
+
+Next session must resolve one of:
+  (a) Prove all genuine sentence boundaries are at BOL → use tight line-by-line
+      loop with POS(0) sentinel; ignore mid-line N_CRD :_PUN occurrences.
+  (b) Prove some genuine sentence boundaries are mid-line → slurp+scan is correct
+      and mid-line splits like 'mrs._NN0 7_CRD :_PUN' are real boundaries.
+
+Method: inspect the actual English text for sentences 6, 7, 8 around line 25.
+Look at raw corpus to see if sentence 7 genuinely starts with "Stanton was waging"
+or if "Mrs. Stanton was waging" is one sentence incorrectly split.
+
+STEP TO IMPLEMENT (replaces old Phase 1 if (a) proven):
+  Tight loop: read line; if POS(0) SPAN(DIGITS) '_CRD :_PUN' matches, flush buf
+  as previous sentence, start new buf with this line. Else accumulate into buf.
+  No slurp. No sentinel insertion. No TRIM/split complexity.
+
+corpus HEAD 14362c0. one4all HEAD 1194e57d.
