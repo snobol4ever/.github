@@ -118,62 +118,95 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-17, one4all HEAD — post-IR-eval-pat-ctx fixes)
+## Current state (2026-04-17, one4all HEAD f9995d0b — post Bug #1c fix)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
 SN-6 IN PROGRESS: PASS=218/228. treebank-array/list/claws5 spun to parallel goals.
 Smoke PASS=7. Broker PASS=49.
 
-**This session (GOAL-LANG-SNOBOL4 — expr_eval.sno drill-down):**
+**This session (GOAL-LANG-SNOBOL4 — Bug #1c fixed; Bug #1d localized):**
 
-Focus: `test/snobol4/control/expr_eval.sno` — a recursive-descent arithmetic
-calculator built entirely from SNOBOL4 patterns with `*fn()` side-effects.
-SPITBOL oracle confirmed: `1+2*3→7, (1+2)*3→9, 2.5e1+0.5→25.5, -3+10→7, 4*5+6→26`.
+### Bug #1c (`(PAT . *fn())` stored wrong value in target cell) — FIXED
 
-Landed two `--ir-run` fixes in `src/driver/interp.c`:
+Root cause located in `src/runtime/x86/snobol4_nmd.c`, `NAM_commit()`,
+NAM_KIND_CALLCAP branch (previously lines 270–273).
 
-1. **E_SEQ/E_CAT stale-acc on mode switch.** In the value-ctx handler, when
-   a pattern operand arrives mid-concat, the code re-evaluated the current
-   child in pat ctx but left the accumulator pointing at frozen DT_E values
-   from prior children. In `expr = *term integer`, `*term` produced
-   DT_E(E_VAR) via interp_eval's value-ctx E_DEFER path, then when `integer`
-   (DT_P) arrived, `pat_cat(acc, nxt)` hit DT_E with a ptr that had been
-   flattened to NULL during descriptor copy — emitting
-   `pat_cat: left is not a pattern (DT=11) — dropping` and silently
-   producing wrong patterns. Fix: on mode switch, re-accumulate
-   children[0..i-1] via `interp_eval_pat` before continuing.
+The prior session's framing was slightly off: `(PAT . *fn())` does NOT pass
+the matched text to `fn` as a function argument. Instead, `*fn()` is invoked
+at match-time and returns a NAME descriptor (`DT_N`) whose `.ptr` points at
+the cell that should receive the matched substring — the `.` operator then
+conditionally assigns PAT's matched text via that NAME (SNOBOL4 `$`-style
+indirection). The matched text was already captured correctly into the
+NamEntry's `cc_substr`/`cc_slen` by `bb_callcap` (stmt_exec.c:612).
 
-2. **E_ALT value-ctx.** E_ALT used `interp_eval` on arms, so `*term` alone
-   on an alt arm became DT_E → silently coerced by `var_as_pattern` to
-   `pat_lit("term")` (a literal 4-char match for the word "term"). Fix:
-   use `interp_eval_pat` for all arms — pattern alternation is inherently
-   a pattern op.
+The bug: NAM_commit's callcap branch called the function to get the target
+cell, then did `*cell = name_d` — storing the **NAME descriptor itself**
+back into the cell instead of the matched text. The stale `slen`/`s` union
+fields of that DT_N descriptor yielded a 1-byte fragment (commonly `\t`)
+in every callcap target.
 
-Gates post-fix: Smoke PASS=7, Broker PASS=49. No regressions.
+Fix: build a DT_S descriptor from `e->cc_substr` / `e->cc_slen` and write
+that into the cell. Mirrors the already-correct `immediate` ($) path in
+stmt_exec.c:605–607.
 
-**SN-6 remaining `expr_eval` failure is now a different bug (Bug #1c).**
-Isolated minimal: `constant = integer . *Push()` matching `"12"` calls
-`Push` with `\t` (a tab character) instead of `"12"`. SPITBOL calls Push
-with `"12"` correctly. This is the `XCALLCAP+RPOS(0)` cursor-threading
-issue already flagged in prior session notes.
+Verification:
+- Minimal repro (one `constant = integer . *Push()` on `"12"`):
+  before — `stk[1]="^I"` SIZE=1; after — `stk[1]="12"` SIZE=2 (matches SPITBOL)
+- Three-push probe on `2+3`: all three pushes fire left-to-right with correct
+  values (`"2"`, `"+"`, `"3"`) — byte-perfect against SPITBOL
+- Smoke PASS=7, Broker PASS=49, SN-6 PASS=218/228 — no regressions
 
-**Next session (GOAL-LANG-SNOBOL4):**
-1. Fix XCALLCAP matched-text capture for `. *fn()` — look at
-   `stmt_exec.c:942` (XCALLCAP match-time handler). The matched substring
-   is not being passed as the function argument; a cursor/offset byte (tab)
-   is reaching the function instead.
-2. Re-run `expr_eval.sno` full input; expect `7 / 9 / 25.5 / 7 / 26`.
-3. Fix SM-run SIZE(INPUT) EOF hang — affects fileinfo, word1, triplet, wordcount.
-   `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — EOF failure branch not propagated in SM-run.
-   Investigate sm_lower.c keyword/arg lowering + failure threading.
+### Bug #1d (expr_eval top-level `*expr` / `*Binary()` handling) — localized, unfixed
+
+Post-Bug-#1c, `expr_eval.sno` on input `2+3` now prints `PATTERN` instead of
+the expected `5`. Pushes are verified correct in isolation, so the failure
+is downstream — in either the top-level `expr` alternation (`*term addop
+*expr . *Binary() | *term`) or in how `Binary` consumes the stack when
+called via `. *Binary()`. The `"PATTERN"` output means `Pop()` is returning
+a DT_P at least once, which is then fed to `EVAL(left ' ' op ' ' right)`
+and round-trips to the literal string "PATTERN".
+
+Hypothesis to test first: the forward-reference `*expr` inside `expr` (direct
+recursion through an alt arm) is constructing a DT_P at pattern-build time
+and that pattern value is leaking onto the stack as if it were the matched
+text. Related to the same E_ALT / *varref value-ctx area touched earlier
+this ladder.
+
+### Prior in-ladder fixes (context)
+
+Two earlier `--ir-run` fixes in `src/driver/interp.c` landed ahead of this
+session (unchanged):
+1. E_SEQ/E_CAT stale-acc on mode switch (pat_cat dropped DT=11)
+2. E_ALT value-ctx: use `interp_eval_pat` for all alt arms
+
+### Files touched this session
+
+- `src/runtime/x86/snobol4_nmd.c` — NAM_commit NAM_KIND_CALLCAP branch
+  now writes matched text (DT_S) into the target cell rather than the NAME
+  descriptor.
+
+### Next session (GOAL-LANG-SNOBOL4)
+
+1. Diagnose Bug #1d. First reduce `expr_eval.sno` to the smallest input
+   producing `PATTERN` output (already reduced to `2+3`). Instrument
+   `Pop()` in-source to print `DATATYPE` of each value popped — identifies
+   which push leaked a DT_P. Then walk back to the pattern construction:
+   likely `src/driver/interp.c` `interp_eval_pat` on the `expr` alt
+   containing `*expr`, or `bb_build` of `addop *expr . *Binary()`.
+2. After Bug #1d fixes expr_eval: re-run full corpus, expect PASS=219/228.
+3. SM-run `SIZE(INPUT)` EOF hang (fileinfo, word1, triplet, wordcount).
+   `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — EOF failure branch not
+   propagated in SM-run. Investigate sm_lower.c keyword/arg lowering +
+   failure threading.
 4. Investigate beauty_XDump driver.
 5. Add missing wordcount.sno and roman.sno to corpus/programs/snobol4/demo/.
 
-**Remaining SN-6 failures (10):**
+### Remaining SN-6 failures (10 — unchanged count, expr_eval root-caused shift)
+
 - fileinfo, word1: SM INPUT-as-arg EOF hang
 - triplet: SM truncated output (same root)
 - wordcount: SM wrong count + format
-- expr_eval: XCALLCAP passes wrong matched text (Bug #1c — narrowed this session)
+- expr_eval: Bug #1d — `*expr`/`*Binary()` leaks DT_P onto pattern stack
 - beauty_XDump_driver: unknown
 - demo_wordcount, demo_roman: .sno source MISSING
 - demo_treebank: *group self-ref (pre-existing)
