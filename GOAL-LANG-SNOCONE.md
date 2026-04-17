@@ -469,3 +469,31 @@ claws5.sc: structurally mirrors .sno with TRIM fix. Ready for scrip testing.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
   Then test all three .sc files under scrip.
+
+## Current state (2026-04-17 session 5, one4all HEAD 1194e57d, corpus HEAD c336507)
+
+SC-24c IN PROGRESS: clean two-phase carving pattern (Lon's insight).
+
+KEY INSIGHT (from Lon):
+  SPAN(' ' nl) as the anchor — finds sentence boundaries whether at line
+  start OR mid-line. No sentinel character needed. Newline is the natural delimiter.
+
+Current spat:
+  spat = SPAN(' ' nl)
+         (SPAN(DIGITS).num) '_' SPAN(LETTERS) SPAN(' ' nl) ':' BREAKX(' ') ' '
+         (BREAKX(nl).first)
+         (ARBNO(cont).rest)
+  cont = nl NOTANY(DIGITS) BREAKX(nl)
+
+PROBLEM: ARBNO(cont).rest captures 0 continuation lines because SNOBOL4
+ARBNO always succeeds with zero matches (ANCHOR=0 accepts zero-match at pos 0).
+cont_loop workaround (inner loop) grabs continuation lines but violates
+the "one pattern, no loop" requirement.
+
+NEXT: fold continuation lines into spat itself. No cont_loop.
+  body = (BREAKX(nl) nl ARBNO(nl NOTANY(DIGITS) BREAKX(nl) nl)) . body
+  OR: use a single BREAKX-to-next-boundary expression.
+  Missing sentences 7, 21, 33 are mid-line boundaries -- spat handles them
+  for the header match but body capture still stops at first line.
+
+REQUIREMENT: one pattern (spat) applied in a loop. No inner loop. No sentinel.
