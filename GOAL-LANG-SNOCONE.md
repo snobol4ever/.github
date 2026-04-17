@@ -200,18 +200,34 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   Fresh claws5.ref generated from CSNOBOL4 -bf (17386 lines); SPITBOL matches.
   corpus commit: 3943493.
 
-- [ ] **SC-25** — Both programs under SPITBOL.
-  SPITBOL -f (case-sensitive) is broken in v4.0f: "No END statement found".
-  SPITBOL cannot run double-function programs without case-sensitivity.
-  Options:
-  (a) Fix SPITBOL -f in x64 build (requires x64 source change).
-  (b) Accept CSNOBOL4 -bf as sole oracle for double-function programs.
-  (c) Use -CASE directive in source if supported.
-  Check: does SPITBOL x64 support a &CASE keyword or -CASE directive?
-  ```bash
-  grep -r "CASE\|case.fold\|fold" /home/claude/x64/
-  ```
-  If no fix available: document SPITBOL limitation and accept CSNOBOL4 -bf only.
+- [ ] **SC-24b** — Write claws5.sc matching the new claws5.sno (stdin, no double-fn).
+  Translate claws5.sno to Snocone syntax in corpus/programs/snobol4/demo/claws5.sc.
+  Draft written this session. Do NOT test under scrip yet — SC-26 (. *fn() capture bug)
+  and the two-phase memory issue (SC-24c) must be resolved first.
+  No new .ref needed — claws5.sc will share claws5.ref.
+
+- [ ] **SC-24c** — Two-phase rewrite for claws5.sno and claws5.sc (memory).
+  Single-pass ARBNO over 989 concatenated lines hits pattern stack overflow
+  (same problem as treebank-append: needs -P 2000000 in CSNOBOL4).
+  Scrip will hit the same wall.
+  Fix: two-phase like treebank-append:
+    Phase 1 — split src into sentences using sentence-boundary pattern
+              (N_CRD :_PUN ... next-N_CRD or RPOS(0)) → array of sentence strings.
+    Phase 2 — run token pattern on each sentence string individually.
+  This bounds pattern stack per sentence, not per whole corpus.
+  Gate: output matches claws5.ref under CSNOBOL4 -bf (no -P flag needed).
+  Write claws5-twophase.sno first; if correct, fold back into claws5.sno + claws5.sc.
+
+- [ ] **SC-25** — Fix SPITBOL -f (case-sensitive) switch in x64 build.
+  Current: SPITBOL v4.0f -f causes "No END statement found" on all files.
+  Investigate root cause in x64 source; patch if possible.
+  Steps:
+  (a) grep x64 source for fold/case handling: `grep -rn "fold\|FOLD\|case_fold\|-f" /home/claude/x64/`
+  (b) Identify where -f flag is parsed and where label folding is applied.
+  (c) Patch so -f disables folding without breaking END detection.
+  (d) Rebuild: `cd /home/claude/x64 && make` (or equivalent).
+  (e) Confirm: `echo 'OUTPUT = "ok"' > /tmp/t.sno && echo 'END' >> /tmp/t.sno && /home/claude/x64/bin/sbl -bf /tmp/t.sno` prints "ok".
+  If no fix is feasible after investigation: document limitation in RULES.md and accept CSNOBOL4 -bf as sole oracle for double-function programs.
 
 - [ ] **SC-26** — Fix scrip runtime bug: `(PAT . var) . *fn(var)` evaluates
   `var` for the `*fn()` arg BEFORE the inner `.` assignment commits.
@@ -332,7 +348,7 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD 1194e57d, corpus HEAD d2161b3)
+## Current state (2026-04-16, one4all HEAD 1194e57d, corpus HEAD 3943493)
 
 SC-23 done: four treebank files in corpus/programs/snobol4/demo/:
   treebank-prepend.sno + treebank-prepend.sc  (LISP-style cons-list + list_reverse)
@@ -349,4 +365,13 @@ OPEN BUG — treebank-append.sno parse_fail path:
 SC-24 done: claws5.sno stdin rewrite (no double-fn needed). Fresh claws5.ref (17386 lines).
   Requires -P 2000000. Both oracles match. corpus HEAD 3943493.
 
-SC-25 next: both programs under SPITBOL (investigate -f workaround or accept CSNOBOL4 -bf only).
+SC-24b in progress: claws5.sc draft written this session (not tested).
+  SC-26 (. *fn() capture bug) and SC-24c (two-phase memory) must come first.
+
+SC-24c added: two-phase approach needed — same memory problem as treebank-append.
+  Single ARBNO over 989 lines needs -P 2000000; scrip will hit same wall.
+  Plan: Phase 1 splits src by sentence boundary; Phase 2 runs token pattern per sentence.
+
+SC-25 added: fix SPITBOL -f broken switch in x64 build.
+
+SC-24b next: complete after SC-24c + SC-26.
