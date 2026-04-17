@@ -413,3 +413,14 @@ Phase 2 BLOCKER: claws_pat_2 (ANCHOR=1, BREAKX('_').wrd '_' BREAKX(' ').tag per 
   switch causes pathological backtracking on stored strings.
   Next step: copy sent[i] to plain variable s before matching; test if s claws_pat_2 is fast.
   If that fixes it: add s = sent[i] in ph2_loop and ship.
+
+## Current state (2026-04-17 session 2, one4all HEAD 1194e57d, corpus HEAD 0844598)
+
+SC-24c IN PROGRESS: claws5-twophase.sno promoted to canonical claws5.sno + claws5.sc.
+  Single-pass versions gone. Only two-phase approach remains.
+  corpus HEAD 0844598.
+
+Phase 1 correct: CHAR(1) sentinel + BREAKX(SEP) -> sent[1..244]. ~356ms.
+Phase 2 BLOCKER: claws_pat_2 hangs on ARRAY element subjects in CSNOBOL4.
+  Fix to try: s = sent[i] (copy to plain var) before match.
+  If fast: ship. If still slow: investigate CSNOBOL4 ANCHOR/cursor internals.
