@@ -88,27 +88,8 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 - [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
 - [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
 
-- [ ] **SN-16** — `demo_treebank-array` PASS (--ir-run). Root cause: `XBAL` (XKIND 17) is
-  unimplemented in `bb_boxes.c` (stub only) and falls through in `stmt_exec.c`. treebank-array.sno
-  uses BAL to match balanced parentheses when parsing s-expressions. Implement `bb_xbal_fn` in
-  `bb_boxes.c`: scan forward matching `(…)` nesting depth, succeed at balanced close, fail
-  otherwise. Wire into `stmt_exec.c` case `XBAL`. Gate: `demo_treebank-array` matches
-  `treebank-array.ref` under `--ir-run`; smoke PASS=7; broker PASS=49.
-
-- [ ] **SN-17** — `demo_treebank-list` PASS (--ir-run). treebank-list.sno uses the
-  double-function trick (`push_list`/`Push_list`, `init_list`/`Init_list`) requiring
-  case-sensitive label dispatch, and also uses BAL (same as SN-16 — gated on SN-16).
-  Once BAL works, run under scrip with case-sensitive routing and confirm output matches
-  `treebank-list.ref`. If case-sensitive DEFINE dispatch is broken in the frontend, fix
-  label lookup in the interpreter. Gate: `demo_treebank-list` matches ref; smoke+broker clean.
-
-- [ ] **SN-18** — `demo_claws5` PASS (--ir-run). claws5.sno builds a tag-frequency TABLE of
-  TABLE; it uses BAL (gated on SN-16) and also the double-function trick for `push_list`/`Push_list`
-  (gated on SN-17). Current scrip output is `Pattern match failed`. After SN-16+SN-17 land,
-  run scrip --ir-run and diff against `claws5.ref`. The ref was generated with CSNOBOL4 -bf
-  -P 500k; confirm SPITBOL also produces matching output on the first sentence before
-  accepting the ref. Gate: `demo_claws5` matches ref; smoke PASS=7; broker PASS=49;
-  test_interp_broad_corpus_and_beauty PASS=221/228 (or better).
+*(treebank-array, treebank-list, claws5 promoted to independent parallel goals:
+GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
@@ -137,45 +118,29 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-17, one4all HEAD abf17001)
+## Current state (2026-04-17, one4all HEAD — post-BAL commit)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
-SN-6 IN PROGRESS: PASS=218/228 (broad corpus, confirmed with corpus cloned this session).
-SN-16..SN-18 added this session: BAL implementation + treebank-array/list/claws5 demo ladder.
+SN-6 IN PROGRESS: PASS=218/228. treebank-array/list/claws5 spun to parallel goals.
 Smoke PASS=7. Broker PASS=49.
 
-**Prior fixes summary (compressed):** Dynamic stacks; h_store_var JIT stack balance;
-bb_capture return type DESCR_t; E_POW integer path (interp.c — was always DT_R per Icon
-comment; fixed to int**int→int for non-negative exponents, matching SPITBOL);
-DEFINE return null string; E_KEYWORD uppercase for &lcase/&ucase (IR+SM);
-DATA field accessor/mutator SM+JIT; ARBNO SM_PAT_ARBNO opcode; ITEM/_SET in _usercall_hook;
-N-dim IDX/IDX_SET; ARRAY 'lo:hi,N' parsing; CONVERT array→table (1113);
-$.var<idx> SM/JIT lowering (212);
-callcap union clobber (stmt_exec.c — flush_pending_callcaps and bb_callcap immediate branch
-both set args[0].s=buf then args[0].ptr=NULL, zeroing the string pointer because .s/.ptr
-share the same union in DESCR_t; removed both .ptr=NULL assignments).
+**BAL landed this session:** `bb_bal` implemented in `bb_boxes.c`, `bal_t` in `bb_box.h`,
+XBAL wired in `stmt_exec.c`. Builds clean. Parallel sessions inherit it.
 
-**Next session:**
-1. Fix SM-run SIZE(INPUT) EOF hang: `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — when INPUT
-   is used directly as a function arg (not first assigned to a variable), the EOF failure
-   branch does not propagate in SM-run, causing infinite loop. IR-run works correctly.
-   Likely: SM lowering of E_KEYWORD(INPUT) inside function-arg position doesn't emit
-   the failure-branch path. Investigate sm_lower.c keyword/arg lowering + failure threading.
-   Affects: fileinfo, word1 (timeout), triplet (truncated output), wordcount (wrong count+format).
-2. Fix XCALLCAP+RPOS(0) cursor threading so expr_eval passes.
-   Root cause: `pat RPOS(0)` fails when pat contains `. *Push()`; pat alone works.
-   bb_seq is not threading cursor from XCALLCAP output into next box. Investigate
-   bb_seq / bb_callcap spec_t return value in bb_boxes.c when followed by RPOS/POS.
-3. Investigate demo_claws5 (*** no match — real pattern failure).
+**Next session (GOAL-LANG-SNOBOL4):**
+1. Fix SM-run SIZE(INPUT) EOF hang — affects fileinfo, word1, triplet, wordcount.
+   `CHARS = CHARS + SIZE(INPUT) :F(DONE)` — EOF failure branch not propagated in SM-run.
+   Investigate sm_lower.c keyword/arg lowering + failure threading.
+2. Fix XCALLCAP+RPOS(0) cursor threading — affects expr_eval.
+3. Investigate beauty_XDump driver.
 4. Add missing wordcount.sno and roman.sno to corpus/programs/snobol4/demo/.
-5. Investigate beauty_XDump driver.
 
-**Remaining SN-6 failures (10, reassessed this session):**
-- fileinfo, word1: SM-run INPUT-as-arg EOF hang (infinite loop; IR-run correct)
-- triplet: SM-run truncates output (related — INPUT EOF threading in SM)
-- wordcount: SM-run wrong count + trailing dot format bug
-- expr_eval: XCALLCAP+RPOS(0) cursor threading
+**Remaining SN-6 failures (10):**
+- fileinfo, word1: SM INPUT-as-arg EOF hang
+- triplet: SM truncated output (same root)
+- wordcount: SM wrong count + format
+- expr_eval: XCALLCAP+RPOS(0)
 - beauty_XDump_driver: unknown
-- demo_wordcount, demo_roman: .sno source MISSING from corpus/programs/snobol4/demo/
-- demo_treebank: *group self-ref not deferred (pre-existing)
-- demo_claws5: *** no match — real pattern failure
+- demo_wordcount, demo_roman: .sno source MISSING
+- demo_treebank: *group self-ref (pre-existing)
+- demo_claws5: tracked in GOAL-SNO-CLAWS5.md

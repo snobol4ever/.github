@@ -1,0 +1,107 @@
+# GOAL-SNO-TREEBANK-ARRAY.md — demo_treebank-array PASS
+
+**Repo:** one4all
+**Parallel:** This goal runs in its own session simultaneously with GOAL-SNO-TREEBANK-LIST
+and GOAL-SNO-CLAWS5. All three sessions share main — pull --rebase before every push.
+Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
+
+**Done when:** `demo_treebank-array` passes in `test_interp_broad_corpus_and_beauty.sh`;
+output matches `corpus/programs/snobol4/demo/treebank-array.ref` under `--ir-run`.
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+```
+
+Gate after setup:
+```bash
+bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+```
+
+---
+
+## Program
+
+```
+corpus/programs/snobol4/demo/treebank-array.sno
+Input:  corpus/programs/snobol4/demo/VBGinTASA.dat
+Ref:    corpus/programs/snobol4/demo/treebank-array.ref
+Oracle: CSNOBOL4 -bf -P 200k  (double-function trick; SPITBOL -f is broken)
+```
+
+Run to test:
+```bash
+DEMO=/home/claude/corpus/programs/snobol4/demo
+timeout 30 /home/claude/one4all/scrip --ir-run $DEMO/treebank-array.sno \
+    < $DEMO/VBGinTASA.dat 2>/dev/null | diff - $DEMO/treebank-array.ref
+```
+
+---
+
+## Known state (2026-04-17)
+
+**BAL is implemented** — `bb_bal` in `bb_boxes.c`, `XBAL` wired in `stmt_exec.c`.
+This fix is already on main; pull it at session start.
+
+**Remaining blocker: double-function trick / case-sensitive label dispatch.**
+treebank-array.sno uses `Push_list`/`push_list`, `Push_item`/`push_item`,
+`Pop_list`/`pop_list` (uppercase = EVAL-wrapper, lowercase = body).
+`label_lookup()` in `src/driver/interp.c` line 148 uses `strcasecmp` — so
+`Push_list` resolves to `push_list`. Fix: change `label_lookup` to `strcmp`
+(exact match). Special labels `RETURN`, `FRETURN`, `NRETURN`, `END` are caught
+before `label_lookup` in the goto-dispatch path and are unaffected.
+
+Also check `FUNC_ENTRY_fn` / `FNCEX_fn` registration — function names are stored
+via `DEFINE_fn`; verify they are keyed case-sensitively.
+
+Current symptom: `('ROOT')` with no children — push/pop fire but route to wrong
+function, so children are never appended.
+
+---
+
+## Steps
+
+- [ ] **TA-1** — Fix `label_lookup` in `src/driver/interp.c`: change `strcasecmp`
+  to `strcmp`. Verify `RETURN`/`FRETURN`/`NRETURN`/`END` still work (they are
+  matched before `label_lookup` in goto dispatch — confirm by grepping the callers).
+  Rebuild. Run smoke PASS=7, broker PASS=49. Run treebank-array; confirm children
+  appear in output.
+
+- [ ] **TA-2** — Diff treebank-array output against ref. Fix any remaining
+  divergences. Gate: diff clean; smoke PASS=7; broker PASS=49;
+  `test_interp_broad_corpus_and_beauty` PASS improves.
+
+---
+
+## Key files
+
+| File | Role |
+|------|------|
+| `src/driver/interp.c` | `label_lookup`, `call_user_function` |
+| `src/runtime/x86/bb_boxes.c` | `bb_bal` (already implemented) |
+| `src/runtime/x86/stmt_exec.c` | XBAL wiring (already done) |
+| `corpus/programs/snobol4/demo/treebank-array.sno` | Program under test |
+| `corpus/programs/snobol4/demo/treebank-array.ref` | Expected output |
+
+---
+
+## Invariants
+
+- CSNOBOL4 `-bf -P 200k` is oracle (SPITBOL `-f` broken for case-sensitive labels).
+- Never patch corpus source. Fix the runtime.
+- Smoke PASS=7, Broker PASS=49 after every commit.
+- Commit identity: LCherryholmes / lcherryh@yahoo.com.
+- Pull --rebase before every push (parallel sessions active).
+
+---
+
+## Current state (2026-04-17, one4all HEAD — post-BAL commit)
+
+TA-1 next. BAL on main. label_lookup strcasecmp→strcmp fix not yet done.

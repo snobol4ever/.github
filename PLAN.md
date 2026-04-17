@@ -32,7 +32,10 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=218/228; SN-16..SN-18 added (BAL/treebank-array/treebank-list/claws5); SM INPUT-as-arg EOF hang next; HEAD abf17001 | ☠ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 IN PROGRESS: PASS=218/228; BAL landed; treebank/claws5 spun to parallel goals; SM INPUT EOF next; HEAD post-BAL | ☠ |
+| SNO treebank-array | `GOAL-SNO-TREEBANK-ARRAY.md` | one4all | TA-1 next: label_lookup strcasecmp→strcmp | ☐ |
+| SNO treebank-list | `GOAL-SNO-TREEBANK-LIST.md` | one4all | TL-1 next: label_lookup fix (may arrive from treebank-array session) | ☐ |
+| SNO claws5 | `GOAL-SNO-CLAWS5.md` | one4all | C5-1 next: label_lookup fix (may arrive from treebank-array session) | ☐ |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 IN PROGRESS: rung30 5/5, rung31 5/5, rung33 5/5, rung34 5/5, rung35 7/7; rung32 4/5 open (strret_every); broker PASS=49; HEAD 9eb8c669 | ☐ |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: 71% (41/57); suite scripts + plunit.pl v2 patch committed; BLOCKER: cut scope drops length verdict; next: once() fix + catch(Var) fix; HEAD 0d112d50 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/RK-33 done: table-driven NFA compiler + simulator, PASS=24 all 3 modes | ☐ |
