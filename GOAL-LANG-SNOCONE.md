@@ -552,3 +552,15 @@ with POS(0)...RPOS(0) wrapper — both oracles confirm FAIL. Root cause not
 fully resolved; deferred. TRIM fix remains the working solution.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+
+## Current state (2026-04-16 session 6, one4all HEAD 1194e57d, corpus HEAD 670a426)
+
+SC-31 IN PROGRESS: assignment3_dump.py written and committed to corpus.
+BLOCKER: spipat exception (pattern stack overflow) in SNOBOL4python C backend
+when running claws_info on full 989-line CLAWS5inTASA.dat — same -P problem
+as original assignment3.py. The dump script is correct but cannot run on full corpus.
+Options for next session:
+  (a) Feed claws_data sentence-by-sentence (split on \n before joining) to stay under stack limit.
+  (b) Use SNOBOL4python chunked approach matching two-phase claws5.sno strategy.
+  (c) Accept that Python claws_info needs -P equivalent; compare only on small subset.
+corpus HEAD 670a426. Next: resolve spipat blocker then complete SC-31 diff.
