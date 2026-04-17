@@ -740,3 +740,21 @@ Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
 Housekeeping: VBGinTASA.dat restored (real 1977-line corpus, was 1-line placeholder).
 Test inputs renamed: claws5.input -> claws5_4.input, treebank.input -> treebank4.input.
 Refs regenerated from renamed inputs. corpus HEAD 2b7caa6.
+
+## Current state (handoff 5, corpus HEAD 2b7caa6, one4all HEAD 1194e57d)
+
+OPEN: claws5.ref and treebank-list.ref / treebank-array.ref are NOT in Python
+pprint format. They are in pp_mem / pp_node format. Need to match Python pprint
+exactly for the test suite refs.
+
+NEXT SESSION START:
+1. Install snobol4python: pip install -e snobol4python-main/ --break-system-packages
+   (zip is at /mnt/user-data/uploads/snobol4python-main.zip if not already installed)
+2. Run assignment3.py on claws5_4.input to get true Python pprint(mem) output -> claws5.ref
+3. Run treebank portion of assignment3.py on treebank4.input -> treebank-list.ref and treebank-array.ref
+4. Update pp_mem() in claws5.sno to match Python pprint(mem) format exactly.
+5. Update pp_node() in treebank-list.sno / treebank-array.sno to match Python pprint format.
+6. Regen all three .ref files from csnobol4 -bf output.
+7. Then tackle SC-26 — fix (PAT . var) . *fn(var) arg evaluation order.
+
+NOTE: snobol4python-main.zip was uploaded by Lon this session.
