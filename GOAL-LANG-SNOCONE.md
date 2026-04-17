@@ -206,7 +206,7 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   and the two-phase memory issue (SC-24c) must be resolved first.
   No new .ref needed — claws5.sc will share claws5.ref.
 
-- [ ] **SC-24c** — Two-phase rewrite for claws5.sno and claws5.sc (memory).
+- [x] **SC-24c** — Two-phase rewrite for claws5.sno and claws5.sc (memory).
   Single-pass ARBNO over 989 concatenated lines hits pattern stack overflow
   (same problem as treebank-array: needs -P 2000000 in CSNOBOL4).
   Scrip will hit the same wall.
@@ -497,3 +497,25 @@ NEXT: fold continuation lines into spat itself. No cont_loop.
   for the header match but body capture still stops at first line.
 
 REQUIREMENT: one pattern (spat) applied in a loop. No inner loop. No sentinel.
+
+## Current state (2026-04-16 session 4, one4all HEAD 1194e57d, corpus HEAD 0d13092)
+
+SC-24c DONE: restored TRIM fix claws5.sno. Zero diff vs claws5.ref (17386 lines).
+corpus HEAD 0d13092.
+
+Investigated ARB + nxt put-back two-pattern approach this session:
+- Phase 1 carving with ARB works correctly (237 sentences, fast).
+- False boundary problem: next_sent = nl SPAN(DIGITS) '_' matches mid-token
+  sequences like '.05.03_CRD' in sentence 9 data.
+- next_sent = nl SPAN(DIGITS) '_CRD' narrows it but ARB is too slow on full src.
+- tok_pat with POS(0) ARBNO(...) RPOS(0) zero-matches (ANCHOR=0 problem).
+- Original one-pattern claws_pat (commit 3943493) is correct but needs -P 2000000.
+- TRIM fix version is fast, correct, no -P flag. Keep it.
+
+BREAKX backtracking note: BREAKX(S) does participate in backtracking (extends
+past stop-chars when following pattern fails) but requires a following pattern
+element that forces retry. POS(0)...RPOS(0) wrapper + ARBNO is the right
+structure for Lon's SPAN(DIGITS) '_CRD' sentinel approach but BREAKX alone
+cannot bridge end-of-string without a digit present. Deferred for future session.
+
+Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
