@@ -168,9 +168,9 @@ running the SNOBOL4 version under SPITBOL.
 
 ### Phase 5 — ENG685 real programs (claws5.sc + treebank.sc)
 
-Programs: `corpus/programs/snobol4/demo/claws5.sc` and `treebank.sc`
-Input: `CLAWS5inTASA.dat` and `treebank.input` (same directory)
-Reference: `claws5.ref` and `treebank.ref` (same directory)
+Programs: `corpus/programs/snobol4/demo/claws5.sc`, `treebank-list.sc`, `treebank-array.sc`
+Input: `CLAWS5inTASA.dat` and `VBGinTASA.dat` (same directory)
+Reference: `claws5.ref`, `treebank-list.ref`, `treebank-array.ref` (same directory)
 Both .sno versions PASS sbl -b (corpus HEAD 1437ea2).
 
 Run gate:
@@ -184,12 +184,12 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
 
 - [x] **SC-23** — treebank corpus files: four versions side by side in
   corpus/programs/snobol4/demo/:
-    treebank-prepend.sno / treebank-prepend.sc  — LISP-style cons-list + list_reverse
-    treebank-append.sno  / treebank-append.sc   — TABLE-based append, no reversal
-  treebank-append.sno uses two-step BAL: carve S-expressions then parse each.
+    treebank-list.sno / treebank-list.sc   — LISP-style cons-list + list_reverse
+    treebank-array.sno / treebank-array.sc — TABLE-based append, no reversal
+  treebank-array.sno uses two-step BAL: carve S-expressions then parse each.
   Requires -P 200k (vs -P 2m single-pass). All 265 S-expressions parse clean.
-  OPEN BUG in treebank-append.sno: parse_fail path pops ROOT unconditionally —
-  16 sentences produce spurious extra ROOT/) in output vs prepend version.
+  OPEN BUG in treebank-array.sno: parse_fail path pops ROOT unconditionally —
+  16 sentences produce spurious extra ROOT/) in output vs list version.
   Fix: discard partial ROOT frame on group failure instead of popping into parent.
   corpus HEAD d2161b3. one4all HEAD 1194e57d.
 
@@ -200,17 +200,17 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
   Fresh claws5.ref generated from CSNOBOL4 -bf (17386 lines); SPITBOL matches.
   corpus commit: 3943493.
 
-- [ ] **SC-24b** — Write claws5.sc matching the new claws5.sno (stdin, no double-fn).
+- [x] **SC-24b** — Write claws5.sc matching the new claws5.sno (stdin, no double-fn).
   Translate claws5.sno to Snocone syntax in corpus/programs/snobol4/demo/claws5.sc.
-  Draft written this session. Do NOT test under scrip yet — SC-26 (. *fn() capture bug)
+  Rewritten goto-free (zero gotos). Do NOT test under scrip yet — SC-26 (. *fn() capture bug)
   and the two-phase memory issue (SC-24c) must be resolved first.
   No new .ref needed — claws5.sc will share claws5.ref.
 
 - [ ] **SC-24c** — Two-phase rewrite for claws5.sno and claws5.sc (memory).
   Single-pass ARBNO over 989 concatenated lines hits pattern stack overflow
-  (same problem as treebank-append: needs -P 2000000 in CSNOBOL4).
+  (same problem as treebank-array: needs -P 2000000 in CSNOBOL4).
   Scrip will hit the same wall.
-  Fix: two-phase like treebank-append:
+  Fix: two-phase like treebank-array:
     Phase 1 — split src into sentences using sentence-boundary pattern
               (N_CRD :_PUN ... next-N_CRD or RPOS(0)) → array of sentence strings.
     Phase 2 — run token pattern on each sentence string individually.
@@ -351,14 +351,14 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 ## Current state (2026-04-16, one4all HEAD 1194e57d, corpus HEAD 3943493)
 
 SC-23 done: four treebank files in corpus/programs/snobol4/demo/:
-  treebank-prepend.sno + treebank-prepend.sc  (LISP-style cons-list + list_reverse)
-  treebank-append.sno  + treebank-append.sc   (TABLE-based append, no reversal)
+  treebank-list.sno + treebank-list.sc   (LISP-style cons-list + list_reverse)
+  treebank-array.sno + treebank-array.sc (TABLE-based append, no reversal)
   Two-step BAL approach in append version: carve with BAL, parse each with group.
   -P 200k sufficient. All 265 S-expressions parse. 16 spurious ROOT/) open bug.
 
-OPEN BUG — treebank-append.sno parse_fail path:
+OPEN BUG — treebank-array.sno parse_fail path:
   stk_pop_into_parent() called unconditionally on group failure.
-  16 sentences produce extra ROOT/) in output vs prepend version.
+  16 sentences produce extra ROOT/) in output vs list version.
   Fix: on parse_fail, discard the partial ROOT frame by popping stk directly
   (stk = tail(stk)) without calling stk_pop_into_parent().
 
@@ -375,3 +375,14 @@ SC-24c added: two-phase approach needed — same memory problem as treebank-appe
 SC-25 added: fix SPITBOL -f broken switch in x64 build.
 
 SC-24b next: complete after SC-24c + SC-26.
+## Current state (2026-04-16 session 2, one4all HEAD 1194e57d, corpus HEAD dbcb4fb)
+
+RENAME done: treebank-prepend→treebank-list, treebank-append→treebank-array.
+  All four files renamed in corpus. Headers updated. corpus HEAD dbcb4fb.
+
+SC-24b done: claws5.sc rewritten goto-free. treebank-list.sc and treebank-array.sc
+  also rewritten goto-free (zero gotos in all three .sc files).
+  Techniques used: while(DIFFER(...)), while(src ?= pat <- ''), if/else.
+  Not yet tested under scrip — SC-26 (. *fn() capture bug) must come first.
+
+Next: SC-26 (fix pattern engine: (PAT . var) . *fn(var) arg evaluation order).
