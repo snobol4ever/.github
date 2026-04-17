@@ -45,29 +45,20 @@ timeout 30 /home/claude/one4all/scrip --ir-run $DEMO/claws5.sno \
 
 ---
 
-## Known state (2026-04-17)
+## Known state (2026-04-17 — post C5-3)
 
 **BAL is implemented** on main. Pull at session start.
 
-**Blocker 1: case-sensitive label dispatch.**
-claws5.sno uses `push_list`/`Push_list` (and `push_item`/`Push_item`,
-`pop_list`/`Pop_list`). Same root cause as treebank-array/list.
-`label_lookup()` in `src/driver/interp.c` uses `strcasecmp` — fix to `strcmp`.
-Check if GOAL-SNO-TREEBANK-ARRAY has already landed this; pull and check.
+**C5-3 FIXED** (bb_seq accumulation bug, see step below).
+**C5-4 DIAGNOSED NOT FIXED** — typed SORT comparator landed, but keys reach
+sort as DT_S because `_aset_impl` uses `table_set` (string-coerce) rather than
+`table_set_descr`. Next session: route `_aset_impl` through `table_set_descr`
+with the live key descriptor.
 
-**Blocker 2: TABLE of TABLE subscript (claws5-specific).**
-claws5.sno builds `tag_freq[sentence][word/tag]` — a TABLE whose values are
-TABLEs, subscripted with string keys. Verify this works after the label fix;
-isolate if a further bug exists.
-
-**Current scrip symptom:** `Pattern match failed` — the main parse pattern
-fails entirely, producing no output. Likely the `push_list`/`Pop_list` mis-dispatch
-causes the pattern-function stack to corrupt, which then causes a match failure.
-After the label fix, re-run and re-diagnose.
-
-**ref file note:** `claws5.ref` was verified against CSNOBOL4 `-bf -P 500k`.
-The ref contains output for the full `CLAWS5inTASA.dat` input (5622 lines in ref).
-SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
+**ref file note:** `claws5.ref` is currently 95 lines (sentences 1-4 only).
+Full 989-line input under scrip now runs to completion producing 5622 lines.
+To validate the whole output, extend claws5.ref against CSNOBOL4 `-bf -P 500k`
+after C5-4 lands (string vs numeric sort order will otherwise differ).
 
 ---
 
@@ -77,34 +68,48 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
   DESCR_t return type UB) also fixed. Both landed on main HEAD 6ee09b7f.
   Gates: smoke PASS=7, broker PASS=49. claws5 now produces output.
 
-- [~] **C5-2 PARTIAL** — Root cause found and fixed; two more issues remain.
-  Root cause was NOT bb_arbno save/restore as suspected. It was SC-26's
-  last-write-wins look-ahead in NAM_commit (snobol4_nmd.c).  When the NAM list
-  contains CAPTURE wrd, CAPTURE tag, CALLCAP add_tok, CAPTURE wrd, CAPTURE tag,
-  CALLCAP add_tok (two ARBNO iterations), the look-ahead skipped iter-1's
-  wrd/tag writes because iter-2 also writes them — but add_tok() reads them
-  as LIVE GLOBALS at callcap fire time, and fires BEFORE iter-2's writes.
-  Fix: break look-ahead when a NAM_KIND_CALLCAP entry is encountered.
-  Committed as part of HEAD 58e642f1.
+- [x] **C5-2** — NAM_commit callcap-boundary fix landed. Sentence 1
+  byte-perfect; 830 good lines on 142-line input prefix.
+  HEAD 58e642f1.
 
-  Evidence it works:
-    * Minimal ARBNO + *show() reproducer: wrd=[That] tag=[CJT] then
-      wrd=[the] tag=[AT0] per iteration — correct.
-    * claws5 sentence 1 output matches claws5.ref byte-for-byte.
-    * 142-line input prefix: 830 lines correct content (pre-fix: 2 junk lines).
+- [x] **C5-3 DONE** — bb_seq `left_γ` now replaces ζ->matched with the latest
+  left result instead of accumulating via spec_cat.
+  Root cause: on the `SEQ_β → right_ω → left_γ` retry loop,
+  `ζ->matched = spec_cat(ζ->matched, lr)` added left's absolute-length
+  result to the prior matched δ each iteration, producing runaway match
+  lengths (δ=22 on 7-char subject "enough'"). That made
+  `match_start = Δ − δ = −15`, passed as `size_t` to memcpy in
+  stmt_exec.c Phase 5 → SEGV mid-pp_mem at sentence 37. The canonical
+  Boehm signature `Failed to expand heap by 0x3FFFFFFFFFFFFC KiB` came
+  from the matching `GC_MALLOC((size_t)new_len + 1)` where new_len = −15.
+  Fix: single-line change, `ζ->matched = lr` at left_γ (bb_boxes.c).
+  Verified:
+    * 16-line input: byte-match vs ref preserved
+    * 143-line input: was SEGV 617 trunc → now exit 0, 837 lines
+    * full 989-line input: was SEGV 0 lines → now exit 0, 5622 lines
+    * smoke PASS=7, broker PASS=49, broad corpus+beauty PASS=218/228 (unchanged)
+    * Both `--ir-run` and default SM-mode benefit (shared box code).
 
-- [ ] **C5-3** — pp_mem SIGSEGV around sentence 37 on full CLAWS5inTASA.dat input.
-  Boundary: 142 input lines OK (exit 0); 143 lines SEGV (exit 139, output cut
-  at ~617 lines mid-sentence 37).  Crash is in pretty-printing, AFTER all
-  matching completes.  Likely GC / deep recursion in pp_mem or TABLE value
-  walk.  Investigate SORT(mem) + recursive pp_mem dispatch on TABLE-of-TABLE.
-
-- [ ] **C5-4** — mem sentno keys sort as strings, not integers.
-  Output orders sentences 1, 10, 11, 12, ..., 19, 2, 20, ... — string sort.
-  Ref (CSNOBOL4) orders 1, 2, 3, ..., 10, 11, ... — numeric.
-  Likely `sentno = +num` doesn't produce an integer key, or TABLE subscripting
-  coerces the key to string before storing.  Check NV_SET_fn / TABLE_SET path
-  for preserving DT_I keys.
+- [~] **C5-4 PARTIAL** — Typed SORT comparator written in
+  `src/runtime/x86/snobol4_pattern.c` per SPITBOL manual pp.240–241
+  (int-int algebraic, str-str lex, cross-type by type-rank ordering
+  `array, code, expression, integer, keyword, name, pattern, real, string, table`).
+  Preserves DESCR_t key types in result array col 1.
+  Compiles clean, no regressions.
+  **BUT output still in string order** because the outer `mem[sentno]=TABLE()`
+  store coerces the DT_I key to DT_S before it reaches the table.
+  Minimal repro:
+  ```snobol4
+    T=TABLE(); T[1]='a'; T[10]='b'; T[2]='c'; S=SORT(T)
+    * DATATYPE(S[1,1]) → 'STRING' in both --ir-run and SM modes
+  ```
+  Root cause: `stmt_aset` → `_aset_impl` → `table_set` (string-coerce),
+  not `table_set_descr`. `table_ptr` (used by other paths) already
+  preserves the descriptor.
+  Next session: edit `_aset_impl` (in `snobol4.c`, binary-flagged file —
+  use `grep -an` on already-located call chain) to call `table_set_descr`
+  with the original key DESCR when setting a TABLE slot. Then re-run
+  full 989-line input and regenerate `claws5.ref` from CSNOBOL4.
 
 ---
 
@@ -113,9 +118,12 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
 | File | Role |
 |------|------|
 | `src/driver/interp.c` | `label_lookup`, TABLE/array eval |
-| `src/runtime/x86/bb_boxes.c` | `bb_bal` (already implemented) |
+| `src/runtime/x86/bb_boxes.c` | `bb_seq` (C5-3 fix), `bb_bal` |
+| `src/runtime/x86/snobol4_pattern.c` | `sort_fn` (C5-4 typed comparator) |
+| `src/runtime/x86/snobol4.c` | `table_set` / `table_set_descr` / `table_ptr` / `_aset_impl` (C5-4 store-side fix target) |
+| `src/runtime/x86/snobol4_stmt_rt.c` | `stmt_aset` / `stmt_aset2` |
 | `corpus/programs/snobol4/demo/claws5.sno` | Program under test |
-| `corpus/programs/snobol4/demo/claws5.ref` | Expected output |
+| `corpus/programs/snobol4/demo/claws5.ref` | Expected output (currently scoped to sentences 1-4) |
 | `corpus/programs/snobol4/demo/CLAWS5inTASA.dat` | Input data |
 
 ---
@@ -130,9 +138,10 @@ SPITBOL cannot run claws5.sno (broken `-f`); CSNOBOL4 is the sole oracle.
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 58e642f1)
+## Current state (2026-04-17, one4all HEAD 2fa59c88 — post C5-3)
 
-C5-2 PARTIAL done (NAM_commit callcap-boundary fix landed).
-C5-3 and C5-4 next — pretty-printer SIGSEGV and numeric-key sort.
-Core ARBNO/callcap matching is now CORRECT; remaining failures are
-in pp_mem (pretty-print) and TABLE key typing.
+C5-3 DONE. C5-4 partial (typed sort landed; store-side key-descr
+preservation in `_aset_impl` next). Full 989-line CLAWS5inTASA.dat
+now runs to completion in both --ir-run and --sm-run with 5622 lines of
+well-formed output. Byte-match vs the scoped 4-sentence ref is preserved
+on the 16-line input prefix in both modes.
