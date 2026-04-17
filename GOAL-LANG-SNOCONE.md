@@ -606,3 +606,11 @@ Blockers for claws5.sc testing:
   2. scrip build broken — gc.h missing (run install_system_packages.sh first)
 
 Next session: install_system_packages.sh → build scrip → SC-26.
+
+## Rules (Snocone/SNOBOL4 pattern globals)
+
+Always set at program start:
+```
+&ANCHOR   = 0    (never set to 1, ever)
+&FULLSCAN = 1    (always)
+```
