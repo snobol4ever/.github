@@ -734,3 +734,9 @@ claws5.sc: Snocone one-phase port of claws5.sno. Not yet tested under scrip
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
 Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
+
+## Current state (2026-04-17 session 7, corpus HEAD 2b7caa6)
+
+Housekeeping: VBGinTASA.dat restored (real 1977-line corpus, was 1-line placeholder).
+Test inputs renamed: claws5.input -> claws5_4.input, treebank.input -> treebank4.input.
+Refs regenerated from renamed inputs. corpus HEAD 2b7caa6.
