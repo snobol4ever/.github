@@ -37,7 +37,7 @@ Do not read `archive/` unless a step explicitly says to.
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 IN PROGRESS: 71% (41/57); suite scripts + plunit.pl v2 patch committed; BLOCKER: cut scope drops length verdict; next: once() fix + catch(Var) fix; HEAD 0d112d50 | ☐ |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 next: positional captures ($0, $1); RK-32/RK-33 done: table-driven NFA compiler + simulator, PASS=24 all 3 modes | ☐ |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | SC-26 next: fix (PAT . var) . *fn(var) arg eval order; treebank .sc pp_node clean (no branches, pprint-exact); corpus HEAD 71bedd0 | ☐ |
-| Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-1 next (diagnose SC-26 for claws5.sc, isolate test case) | ☐ |
+| Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-1 next: build scrip, run claws5.sc, isolate first failing capture-call; 3 .sno oracles diff-zero; claws5_4.input renamed to claws5.input; claws5.sno pfx regression fixed | ☐ |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 next (diagnose SC-26 for treebank-list.sc, isolate test case) | ☐ |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 next (control flow verification) | ☐ |
 | Full Integration | `GOAL-FULL-INTEGRATION.md` | one4all | ALL STEPS DONE (FI-8..FI-11 complete) | ☑ |
