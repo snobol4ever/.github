@@ -248,6 +248,20 @@ cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
 - [ ] **SC-30** — Write `scripts/test_eng685_sc.sh` running both programs
   under all 3 modes vs .ref files. Gate: PASS=6 FAIL=0.
 
+- [ ] **SC-31** — Cross-validate claws5.sno and treebank-list.sno output against
+  patched assignment3.py that dumps only mem and bank structures (no classify/versus).
+  Steps:
+  (a) Patch assignment3.py: comment out classify/versus/register; after claws_info
+      match, print mem as sorted JSON (integer keys, sorted words/tags). After
+      treebank match, print bank structure. Save as assignment3_dump.py in corpus/.
+  (b) Run assignment3_dump.py on CLAWS5inTASA.dat + VBGinTASA.dat; capture output.
+  (c) Run claws5.sno under csnobol4 -bf; normalize output format to match Python dump.
+  (d) Run treebank-list.sno under csnobol4 -bf; normalize; compare.
+  (e) Diff both. Any divergence = bug in SNOBOL4 or normalization.
+  Gate: zero diff on mem structure; zero diff on bank structure.
+  Note: sentence keys in Python are int(num) from _CRD; our SNOBOL4 uses +num — same.
+  Note: VBGinTASA.dat required for treebank; confirm it exists in corpus demo dir.
+
 ---
 
 ## Key files
