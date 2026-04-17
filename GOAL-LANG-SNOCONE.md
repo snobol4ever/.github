@@ -759,6 +759,29 @@ NEXT SESSION START:
 
 NOTE: snobol4python-main.zip was uploaded by Lon this session.
 
+## Current state (handoff 8, corpus HEAD 71bedd0, one4all HEAD 1194e57d)
+
+treebank-list.sc and treebank-array.sc: pp_node updated to pprint-exact
+suffix-threading algorithm. No if/else inside loops, no gotos — pure control
+flow. Loop handles non-last children (suffix ','), last child falls out of
+loop naturally (suffix ')' && outer_suffix). Both .sc files structurally
+clean and match .sno algorithm exactly.
+
+Status under scrip: still failing — SC-26 (PAT . var) . *fn(var) arg eval
+order bug is the blocker. pp_node algorithm is correct.
+
+NEXT: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
+
+NEXT SESSION START:
+1. bash /home/claude/one4all/scripts/install_system_packages.sh
+2. bash /home/claude/one4all/scripts/build_scrip.sh
+3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+5. Gate: bash /home/claude/one4all/scripts/test_smoke_snocone.sh  # PASS=5
+6. Tackle SC-26: find (PAT . var) . *fn(var) bug in pattern engine
+   (bb_boxes.c or snobol4_pattern.c — capture value not passed correctly to fn)
+
 ## Current state (handoff 7, corpus HEAD 1ddb066, one4all HEAD 1194e57d)
 
 treebank-list.sno and treebank-array.sno: pp_node() rewritten to match Python
