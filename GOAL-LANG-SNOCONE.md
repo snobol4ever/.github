@@ -397,3 +397,19 @@ claws5.sno + claws5.sc: pp_mem replaced with recursive pp_table(tbl, depth, key)
 treebank-list.sc + treebank-array.sc: pp_node already recursive with indent parameter. Clean.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
+
+## Current state (2026-04-17, one4all HEAD 1194e57d, corpus HEAD 5a832d4)
+
+SC-24c IN PROGRESS: claws5-twophase.sno draft committed (corpus HEAD 5a832d4).
+
+Phase 1 working:
+  Slurp all lines to full string.
+  Insert CHAR(1) sentinel before each SPAN(DIGITS) '_CRD :_PUN ' (iterative replacement, ~356ms).
+  Split on sentinel with BREAKX(SEP) into sent[1..244]. Correct.
+
+Phase 2 BLOCKER: claws_pat_2 (ANCHOR=1, BREAKX('_').wrd '_' BREAKX(' ').tag per token)
+  hangs when subject is sent[i] from ARRAY. Same pattern on hardcoded string literal = 23ms.
+  Hypothesis: ARRAY element subject retains ANCHOR=0 cursor state, or &ANCHOR 0->1
+  switch causes pathological backtracking on stored strings.
+  Next step: copy sent[i] to plain variable s before matching; test if s claws_pat_2 is fast.
+  If that fixes it: add s = sent[i] in ph2_loop and ship.
