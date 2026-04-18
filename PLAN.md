@@ -32,7 +32,7 @@ Do not read `archive/` unless a step explicitly says to.
 |------|------|------|--------------|-------|
 | In-Process Sync Monitor | `GOAL-INPROC-MONITOR.md` | one4all | IM-16 DONE: beauty smoke script added; AGREE=12 DIVERGE=3 SKIP=2; known divergences: loop_count stmt 4, array/table stmt 8 | ☑ |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 next (audit keyword dispatch in interp.c) | ☐ |
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-7 next: re-verify beauty self-host 18 combos after Bug #1d fixes (bb_usercall deferred + bb_bal, HEAD 25ab6fe7) | ☐ |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-7 next: beauty.sno self-host bootstrap — first-ever pass under --ir-run; all 18 driver×mode combos diff=0 vs SPITBOL oracle | ☐ |
 | SNO treebank-array | `GOAL-SNO-TREEBANK-ARRAY.md` | one4all | TA-2 DONE: diff=0; bb_usercall deferred via NAM_push_callcap + bb_bal premature-break fix; HEAD 25ab6fe7 | ☑ |
 | SNO treebank-list | `GOAL-SNO-TREEBANK-LIST.md` | one4all | TL-2 DONE: scrip --ir-run treebank-list diff-clean on treebank.input; frame-identity guard on NAM_mark + nam_mark in arbno_frame_t + aframe_t shadow-struct sync in stmt_exec.c; smoke=7 broker=49 broad=172 (zero regression) | ☑ |
 | SNO claws5 | `GOAL-SNO-CLAWS5.md` | one4all | C5-4 DONE: subscript_set preserves key descriptor via table_set_descr (not _aset_impl as prior plan suggested — that path is dead for this case); --ir-run == --sm-run == CSNOBOL4 oracle across full 989-line input (5622 lines, diff=0); claws5.ref regenerated; demo_claws5 PASS in broad 219/228 | ☑ |
