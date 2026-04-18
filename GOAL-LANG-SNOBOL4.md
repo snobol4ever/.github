@@ -92,7 +92,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 ```
 
-- [ ] **SN-19** — **Case folding belongs in the lexer, not the runtime.** Pivot.
+- [x] **SN-19** — **Case folding belongs in the lexer, not the runtime.** DONE.
 
   **Problem.** SNOBOL4's default mode is case-insensitive; case-sensitive is opt-in
   (CSNOBOL4 `-f`). The correct architecture is: in case-insensitive mode the lexer
