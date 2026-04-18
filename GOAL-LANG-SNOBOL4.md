@@ -94,6 +94,17 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 - [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
 - [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
+- [x] **SN-16** — Porter (1980) stemmer demo (`corpus/programs/snobol4/demo/porter.sno`).
+  Faithful translation of the CSCE-5200 Project 1 Python snobol4python PATTERN form; 95%+
+  line-for-line correspondence. Oracle: tartarus.org/martin/PorterStemmer voc.txt + output.txt.
+  Gate under SPITBOL: 23,531/23,531 = 100.0000% accuracy. DONE.
+
+```bash
+/home/claude/x64/bin/sbl -b /home/claude/corpus/programs/snobol4/demo/porter.sno \
+    < /home/claude/corpus/programs/snobol4/demo/porter.input \
+  | diff - /home/claude/corpus/programs/snobol4/demo/porter.ref | head
+```
+
 
 *(treebank-array, treebank-list, claws5 promoted to independent parallel goals:
 GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
