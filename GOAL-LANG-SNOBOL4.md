@@ -190,11 +190,60 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 6e98862f — post-session re-diagnosis of Bug #1d remainder)
+## Current state (2026-04-17, one4all HEAD 25ab6fe7 — two new observations on Bug #1d remainder)
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
 SN-6 IN PROGRESS: PASS=218/228. treebank-array/list/claws5 spun to parallel goals.
 Smoke PASS=7. Broker PASS=49.
+
+**This session (GOAL-LANG-SNOBOL4 — investigated Bug #1d remainder further; NO commits to one4all, working tree clean, HEAD 25ab6fe7):**
+
+Two new observations that revise the prior strategy.
+
+### Observation 1 — stderr parse error is LOAD-TIME, not runtime
+
+`snobol4:0: error: parse error: syntax error` appears on stderr **before any program output**. Confirmed by separating stdout/stderr redirection: the error fires at source parse time, not during SNOBOL4 execution. One pattern alternative in `expr_eval.sno` is therefore MISSING at runtime — which alone could explain wrong output, independent of any callcap timing theory.
+
+Reduced test files replicating the full structural features of expr_eval.sno (including `+` continuation lines with `| *primary`, `| *factor`, `| *term`; nested `(real | integer) . *Push()`; DEFINE-before-use of recursive pattern vars) parse cleanly. The specific trigger in the real source was not isolated. Candidate trigger lines in `corpus/crosscheck/control/expr_eval.sno`:
+- line 35: `+                 |  integer exponent`
+- line 44: `+                 |  *primary`
+- line 47: `+                 |  *factor`
+- line 50: `+                 |  *term`
+
+### Observation 2 — Push() call counts disagree with SPITBOL post-first-Binary
+
+For input `1+2+3`:
+- scrip: 6 Push calls total (Push, Push, Push, Push, Push, Binary, **Push**, **Push**, Binary, Push, Push) → output `2`
+- SPITBOL: 4 Push calls total (Push, Push, Push, Push, Push, Binary, Push, Binary, Push) → output `6`
+
+The first 5 Pushes + first Binary match exactly. The divergence is that scrip fires 2 EXTRA Push calls after the first Binary — suggesting an alternative pattern arm gets retried whose committed `Binary()` side-effects (`stk[0]++`, `stk[0]--`) cannot be undone by any NAM-frame rollback.
+
+### Prior "match-time → commit-time *fn() dispatch" plan — ALREADY IN PLACE for the `.` path
+
+Re-reading `src/runtime/x86/stmt_exec.c:578 bb_callcap` confirms: the `.` (non-immediate) branch already defers via `NAM_push_callcap_named` WITHOUT calling `g_user_call_hook`. The hook is only invoked at `NAM_commit` time (snobol4_nmd.c:312). **Do not re-implement this — it exists.** The remaining bug is elsewhere.
+
+### Speculative fix attempted and REVERTED
+
+Hypothesis: `bb_deferred_var` doesn't checkpoint the NAM frame, so when a recursive `*expr` lookup's child match fails, the child's queued (.) captures and callcap entries leak into the outer commit. Added `NAM_mark()` before the child α call and `NAM_rollback_to(mark)` on the α-failure path (before the existing g_callcap/g_cc_events restore block). File touched: `src/runtime/x86/stmt_exec.c`, bb_deferred_var DVAR_α.
+
+Build succeeded. Push trace was **identical** to baseline — rollback did not fire on the critical path, or the extra Pushes originate elsewhere. Reverted via `git checkout src/runtime/x86/stmt_exec.c`. Working tree clean at HEAD 25ab6fe7.
+
+### Revised strategy for next session
+
+1. **FIRST: isolate the load-time parser error.** Binary-search `expr_eval.sno` by copying to `/tmp/` and deleting one `+` continuation at a time until the error vanishes. The error message `snobol4:0:` gives line 0 which is unhelpful — improve parser error reporting to print the actual offending line/token, or add instrumentation in `snobol4.y` / `snobol4.tab.c`. This is very likely the PRIMARY bug — fix it and `1+2*3` may work without any runtime change.
+2. **Only if (1) is fixed and `1+2*3` still fails:** instrument `NAM_mark`/`NAM_rollback_to`/`NAM_push_callcap_named` with fprintf traces to identify which rollback path actually fires during `1+2+3` match. Count NAM entries leaking into NAM_commit vs the SPITBOL-expected count. This will tell us whether the leak is in bb_alt (already has nam_mark), bb_deferred_var (no nam_mark currently), bb_seq (no nam_mark — prior session's rejected theory may need revisiting), or elsewhere.
+3. Do NOT re-implement match-time → commit-time `*fn()` dispatch — it's already done for the `.` path (see stmt_exec.c:636-649).
+
+### Files to read first next session
+
+- `src/frontend/snobol4/snobol4.y` — find where "parse error: syntax error" is emitted, add line/token info
+- `src/runtime/x86/stmt_exec.c:578 bb_callcap` — confirm current deferral behaviour before touching
+- `src/runtime/x86/stmt_exec.c:1151 bb_deferred_var` — entry point for *expr recursive lookups
+- `src/runtime/x86/bb_boxes.c` — bb_alt (has nam_mark), bb_seq (no nam_mark), bb_arbno (has nam_mark)
+
+---
+
+## Prior state (2026-04-17 earlier, one4all HEAD 6e98862f — superseded by above)
 
 **This session (GOAL-LANG-SNOBOL4 — investigated Bug #1d remainder; NO commits to one4all):**
 
