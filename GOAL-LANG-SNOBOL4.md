@@ -263,7 +263,52 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 session 8, SM arithmetic SNUL coercion)
+## Current state (2026-04-18 — SN-6 session 9, SM last_ok bleed + DT_FAIL propagation)
+
+**HEAD:** one4all `90a5e221` — SM last_ok bleed fixed; DT_FAIL propagates through
+arithmetic and SM_CALL args; opnames[] table corrected.
+
+**Gates this session:**
+- Smoke PASS=7, broker PASS=49 — both green
+- Broad suite **221/225** — up from 218; three new passes: triplet, fileinfo, wordcount
+
+### SN-6 bugs fixed this session
+
+**Bug 1 — SM_PUSH_VAR never set last_ok.**
+`last_ok=0` from a failing EQ in one statement bled into the next loop iteration.
+When INPUT succeeded on the second pass, `last_ok` was still 0, so `:F(END)` fired
+and killed the loop. Fix: `SM_PUSH_VAR` now sets `last_ok = (val.v != DT_FAIL)`.
+
+**Bug 2 — SM_STORE_VAR left last_ok unchanged on success.**
+Same bleed: prior failure survived through the assignment into the next statement's
+branch selector. Fix: successful `SM_STORE_VAR` now sets `last_ok = 1`.
+
+**Bug 3 — DT_FAIL not propagated through arithmetic or SM_CALL arguments.**
+`CHARS + SIZE(INPUT) :F(DONE)` infinite-looped: INPUT EOF returned FAILDESCR,
+but `SIZE(FAILDESCR)` returned INTVAL(0) and SM_ADD proceeded normally.
+Fix: SM_ADD/SUB/MUL/DIV/EXP short-circuit to FAILDESCR if either operand is FAIL.
+SM_CALL short-circuits to FAILDESCR if any argument is FAIL.
+
+**Bonus — opnames[] table in sm_prog.c corrected.**
+Was missing SM_PAT_CAPTURE_FN, SM_BB_PUMP, SM_BB_ONCE — causing `--dump-sm`
+to print wrong opcode names for all opcodes from index 46 onward
+(SM_CALL printed as "SM_NRETURN", etc.). Diagnostic only, no runtime impact.
+
+### SN-6 remaining failures (4 of 225)
+
+- `word1` — `ARB . OUTPUT` immediate-assignment side-effect not firing in SM.
+  Pattern `" the " ARB . OUTPUT (" of " | " a ")` produces no output under
+  `--sm-run`. The `.` capture fires at match time under `--ir-run` but not SM.
+  Same root cause as SN-17 Porter / NAM commit-time dispatch (expr_eval).
+- `expr_eval` — EVAL() / commit-time `*fn()` dispatch (unchanged)
+- `beauty_XDump_driver` — `sm_lower: unresolved label 'ERROR'` (×4) +
+  ARRAY subscript formatting wrong (`'1'` vs `'1:1'`). Not yet investigated.
+- `demo_claws5` — see GOAL-SNO-CLAWS5.md (separate goal)
+
+**Next session starts with:** `beauty_XDump_driver` (unresolved ERROR label in
+sm_lower — likely a goto to a runtime error handler that has no corresponding
+SNOBOL4 label), then `word1` / NAM commit-time dispatch.
+
 
 **HEAD:** one4all `607c4dfb` — SM arithmetic operands coerce DT_SNUL to
 INTVAL(0), matching SPITBOL and --ir-run.
