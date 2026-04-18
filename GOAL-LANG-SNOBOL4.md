@@ -92,6 +92,78 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 ```
 
+- [ ] **SN-19** — **Case folding belongs in the lexer, not the runtime.** Pivot.
+
+  **Problem.** SNOBOL4's default mode is case-insensitive; case-sensitive is opt-in
+  (CSNOBOL4 `-f`). The correct architecture is: in case-insensitive mode the lexer
+  folds every identifier-ish token (variable names, function names, labels, keyword
+  names) to a single canonical case (uppercase by convention) before it enters the
+  token stream. Downstream — parser, IR, SM_Program, every runtime dispatch — sees
+  only the canonical form and uses plain `strcmp`. In case-sensitive mode the lexer
+  preserves spelling.
+
+  **Current state is wrong.** The codebase carries mixed-case identifiers all the
+  way through to runtime dispatch, and then every lookup site does its own
+  `strcasecmp` / `toupper` band-aid. This is how the `differ(3+2,5)` vs `DIFFER(3+2,5)`
+  divergence — working under `--ir-run`, failing under `--sm-run` with "Error 5:
+  Undefined function or operation" — exists in the first place. Two dispatch paths,
+  each doing (or forgetting to do) its own case normalization independently, will
+  eventually disagree. The SN-18 broad-suite regression (218 → 172) is a symptom
+  of this, not a bug in the bb_usercall ABI fix. Bisecting the three-file diff is
+  the wrong response — the real fix is upstream.
+
+  **Supersedes SN-18 bisect.** Do not bisect the SN-18 commit. Keep the SN-18 ABI fix
+  (bb_usercall spec_t→DESCR_t) — that work is correct and restores 83% Porter
+  accuracy. Fix SN-19 at the source, and expect the SN-18 regression to dissolve
+  along with a long tail of other latent case-sensitivity bugs.
+
+  **Plan:**
+  1. Audit `src/frontend/snobol4/snobol4.l` — does it already have a fold branch?
+     If yes, is it consistently applied to every identifier-emitting rule? If no,
+     add `yytext` uppercase-fold for identifier tokens before building the token value.
+  2. Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4 `-f`).
+     Default = fold-to-upper (case-insensitive). Flag-on = preserve.
+  3. Audit every runtime site that does `strcasecmp` or runtime `toupper` on
+     identifier names — `snobol4.c` (APPLY_fn, _func_hash, fn_has_builtin, _ARG_
+     and others), `stmt_exec.c`, `sm_interp.c` `INVOKE_fn`, `interp.c` E_FNC
+     dispatch, label_lookup in `snobol4.c`. With folding done at lex time, these
+     must become plain `strcmp` / plain hash. Every removed `toupper` is one more
+     place the bug can never recur.
+  4. The `.sno` source in corpus has mixed-case identifiers (per SPITBOL convention
+     a program can write `Push()` and `push()` interchangeably in default mode).
+     That convention continues to work because the lexer is folding; no corpus
+     changes.
+  5. Regenerate parser/lexer via
+     `bash scripts/regenerate_parser_and_lexer_from_sources.sh` after any `.l` edit.
+     Commit `.l` source AND generated files together (per RULES.md).
+  6. Gate: smoke PASS=7, broker PASS=49, SN-6 broad suite back to 218+/228,
+     Porter --ir-run stays at 83.46%, Porter --sm-run improves (no longer
+     handicapped by bifurcated case handling), the minimal `differ(3+2,5)`
+     repro passes under all modes.
+  7. Case-sensitive mode validation: the double-function trick in RULES.md
+     (`push_list` vs `Push_list`) must still work under the case-sensitive flag.
+     Run a targeted test that uses the trick; it must behave correctly.
+
+  **Key files to read first:**
+  - `src/frontend/snobol4/snobol4.l` — lexer, the place to fix
+  - `src/frontend/snobol4/snobol4.y` — confirm token value plumbing
+  - `src/runtime/x86/snobol4.c` `_func_hash` / `APPLY_fn` / `fn_has_builtin`
+  - `src/runtime/x86/sm_interp.c` `INVOKE_fn` call at SM_CALL
+  - `src/driver/interp.c` E_FNC / E_VAR resolution
+
+  **Minimal repro (must pass all three modes after the fix):**
+  ```snobol4
+                 &ANCHOR   = 0
+                 &FULLSCAN = 1
+                 differ(3 + 2, 5)   :F(NEQ)
+                 OUTPUT    = 'equal'  :(END)
+  NEQ            OUTPUT    = 'differ'
+  END
+  ```
+  Expected output: `differ` under `--ir-run`, `--sm-run`, and `--jit-run`. Currently
+  `--sm-run` emits `** Error 5 in statement 3 / Undefined function or operation`
+  before the output because the lowercase `differ` reaches SM_CALL verbatim.
+
 - [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
 - [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
 - [x] **SN-16** — Porter (1980) stemmer demo (`corpus/programs/snobol4/demo/porter.sno`).
