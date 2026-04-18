@@ -263,21 +263,71 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18)
+## Current state (2026-04-18 — SN-19 in progress)
 
-**HEAD:** one4all `caac661f` (SN-18 committed, unpushed — keep as-is)
-**Gates:** smoke PASS=7, broker PASS=49, broad 172/228 (SM regression, expected to
-dissolve with SN-19)
+**HEAD:** one4all `caac661f` (SN-18) + 1 uncommitted SN-19 partial commit (this handoff)
 
-**Next step:** SN-19 — case folding in the lexer (see rung ladder).
+**Gates after SN-19 lex fold (this session):**
+- Smoke PASS=7, broker PASS=49 — both green
+- Broad suite **183/228** (up from 172, target 218+)
+- `differ(3+2,5)` minimal repro **PASSES all three modes** (was failing `--sm-run`)
 
-**Porter accuracy (SPITBOL oracle = 23,531/23,531 = 100%):**
+### SN-19 — what's done in this session
 
-| Mode          | Matches | Accuracy |
-|---------------|---------|----------|
-| scrip --ir-run  | 19,639 / 23,531 | 83.46% |
-| scrip --sm-run  | 14,269 / 23,531 | 60.64% |
-| scrip --jit-run | 12,796 / 23,531 | 54.38% *(SM_PUSH_EXPR opcode unimplemented at pc 997/1698 — SN-10..SN-12 scope)* |
+1. Lexer fold implemented in `src/frontend/snobol4/snobol4.l`:
+   - `sno_fold_on` flag (default 1), `fold_strbuf()` helper
+   - Applied in `flex_lex_next()` post-lex switch for identifier-class
+     tokens: `T_LABEL`, `T_IDENT`, `T_END`, `T_KEYWORD`, `T_FUNCTION`,
+     `T_GOTO_S`, `T_GOTO_F`
+   - Applied inline in the two `<BODY>{ALPHA}{IDCONT}*` rules; rule-level
+     `END` discrimination uses `strcmp` after fold
+   - `T_STR` left unfolded (user data must never fold)
+2. CLI flag `--case-sensitive` added to `src/driver/scrip.c`, wired to
+   `sno_set_case_sensitive()` before `sno_parse()`
+3. Public API declared in `src/frontend/snobol4/scrip_cc.h`:
+   `sno_set_case_sensitive`, `sno_get_case_sensitive`, `sno_fold_name`
+4. `sno_fold_name(char *)` runtime helper defined (in `snobol4.l` alongside
+   the flag) — **declared but not yet called anywhere**
+5. `regenerate_parser_and_lexer_from_sources.sh` run; `snobol4.lex.c` regenerated
+
+### SN-19 — what's left (next session starts here)
+
+The remaining 45 broad-suite FAILs cluster around `DEFINE('fn(...)')` tests
+(`083_define_*`, `1010_func_*`, `1115_data_*`). Root cause confirmed:
+`DEFINE` takes the function name from a user-data string, which bypasses
+the lexer, so it's stored in source case (e.g. `double`). Call sites are
+lexer-folded (`DOUBLE`). The `strcmp` in `APPLY_fn` (snobol4.c:2763)
+mismatches.
+
+**Fix plan (ready to execute):**
+1. In `src/runtime/x86/snobol4.c`, `_parse_define_spec` (line 2581):
+   after populating `fe->name`, `fe->params[i]`, `fe->locals[i]`, call
+   `sno_fold_name()` on each. Header include: add
+   `#include "../../frontend/snobol4/scrip_cc.h"` or a local extern.
+2. Fold `entry_label` arg in `DEFINE_fn_entry` (line 2695).
+3. Fold `newname`/`oldname` in `register_fn_alias` (line 2713) — OPSYN path.
+4. Audit other runtime sites that accept a name-from-string:
+   keyword name in `kw_get`/`kw_set` at runtime, `NV_GET`/`NV_SET` via
+   indirect assignment `$name`, TABLE/ARRAY field names in `CONVERT()`.
+5. Rebuild, rerun 083 test + broad suite.
+6. Then stage-2 cleanup: remove the now-redundant `strcasecmp`/`toupper`
+   at confirmed-canonical lookup sites (the scattered band-aids the step
+   was designed to eliminate).
+7. Case-sensitive mode validation: double-function trick (`push_list`
+   vs `Push_list`) under `--case-sensitive` — must keep working.
+
+**Gate for SN-19 completion:** smoke PASS=7, broker PASS=49,
+broad ≥218/228, `differ` minimal repro all three modes, double-function
+trick still passes under `--case-sensitive`.
+
+### Porter accuracy — not remeasured this session
+
+| Mode          | Matches         | Accuracy |
+|---------------|-----------------|----------|
+| SPITBOL (oracle) | 23,531 / 23,531 | 100.00% |
+| scrip --ir-run  | 19,639 / 23,531 (pre-SN-19) | 83.46% |
+| scrip --sm-run  | 14,269 / 23,531 (pre-SN-19) | 60.64% |
+| scrip --jit-run | 12,796 / 23,531 (pre-SN-19) | 54.38% *(SM_PUSH_EXPR opcode unimplemented at pc 997/1698 — SN-10..SN-12 scope)* |
 
 **SN-18 ABI fix kept** — `bb_usercall` returns `DESCR_t` (was `spec_t`); all
 `extern spec_t bb_*` forward declarations across `stmt_exec.c` / `bb_build.c` /
