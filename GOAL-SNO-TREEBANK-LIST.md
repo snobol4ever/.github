@@ -396,3 +396,60 @@ ARBNO_γ_now: NAM_rollback_to(ζ->stack[ζ->depth].nam_mark);
 - `/tmp/gate_diff.sh` exists as a helper for full-corpus before/after diffs
   (not checked in; recreate if needed — it's 25 lines).
 
+
+---
+
+## Session 2026-04-17 part 4 (narrow-fix experiment — claws5 still crashes)
+
+Tried the narrowest possible fix: keep the `nam_mark` field in `arbno_frame_t`
+and the `NAM_mark()` snapshot at `ARBNO_try`, but rollback ONLY at `body_ω`
+(skip `ARBNO_γ_now` and `ARBNO_β`).
+
+Result: treebank-list PASSES byte-clean; claws5 STILL aborts with the same
+`Aborted` + empty stdout. So the regression is specifically from the
+`body_ω` rollback — not from the `γ_now` or `β` sites.
+
+### New hypothesis (needs next-session verification)
+
+The `NAM_rollback_to` implementation does list surgery:
+```c
+new_tail->next  = NULL;        /* mutate the frame entry at mark time       */
+nam_stack->tail = new_tail;    /* set CURRENT frame's tail                  */
+```
+
+If `bb_arbno`'s `ARBNO_try` saved `NAM_mark()` inside the outer scan-sweep
+frame (the one pushed by `stmt_exec.c:1528`), and then the body's execution
+internally pushed+popped user-function NAM frames via `eval_code.c:553` (for
+`*EXPR` evaluation) and those inner frames' lifecycle left the outer
+`nam_stack` pointer intact — then the rollback should be safe.
+
+BUT: if body execution triggers an intermediate `NAM_commit` on the outer
+frame (e.g., because bb_alt or bb_arbno nested inside the body called
+commit-and-pop to finalize an inner pattern's matches), then by the time
+we return to our `bb_arbno`'s `body_ω`, the frame we originally marked
+into has been popped. `new_tail->next = NULL` would then write into freed
+list memory, corrupting the GC heap. That matches the `Aborted`
+(glibc/`GC_MALLOC` heap-check trip) symptom precisely.
+
+To test next session:
+
+1. Add printf before and after the `NAM_rollback_to` call in body_ω:
+   - `nam_depth` before and after
+   - `nam_stack` pointer identity vs. the one at mark time
+   - `mark` value
+2. If the frame identity changed between mark and rollback, the theory is
+   confirmed; the fix becomes: store *both* the frame pointer and the tail
+   pointer in `nam_mark`, and skip rollback if the frame pointer no longer
+   matches (effectively: "the frame we would rollback into is already gone;
+   nothing to do").
+3. Alternatively: expose `NAM_current_frame()` as a separate accessor and
+   have `bb_arbno` store `(frame, tail)` pairs, with the rollback being a
+   no-op if `NAM_current_frame() != saved_frame`.
+
+The `('ROOT')` treebank symptom is entirely consistent with this model too:
+ARBNO trial pushed a callcap, then whatever commit/pop sequence happened
+during the body's failed downstream sub-pattern did NOT pop the outer
+frame — so for treebank, the mark is still valid at body_ω and the rollback
+does its job correctly. claws5 hits the case where the mark is stale.
+
+Code remains reverted. Working tree clean at HEAD `9a43cddd`.
