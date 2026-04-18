@@ -802,3 +802,116 @@ Recommended path forward for D-1:
    - `scrip --case-sensitive --jit-run` (fastest)
    per the goal's three-mode requirement.
 
+## Current state (2026-04-18 session 3, one4all HEAD 5535b229, corpus HEAD e13b336)
+
+**ARCHITECTURAL FIX LANDED — `--case-sensitive` no longer needed for non-SNOBOL4 frontends.**
+
+Lon observation: "There should be no requirement to run Snocone, Icon, Raku,
+or Prolog with case-sensitive switch. The code should know this already."
+Correct. Fix extends commit 8aa5803b's principle ("case policy is a frontend
+concern", formerly only applied to DATATYPE) to name-folding.
+
+**Change (5 files, 25 lines added, one4all `5535b229`):**
+Each non-SNOBOL4 frontend's `*_compile()` entry now calls
+`sno_set_case_sensitive(1)`:
+  - `snocone_cf.c :: snocone_cf_compile`
+  - `icon_driver.c :: icon_compile`
+  - `raku_driver.c :: raku_compile`
+  - `prolog_driver.c :: prolog_compile`
+  - `rebus_lower.c :: rebus_compile`
+
+Their lexers preserve case; the shared runtime's name-ingest sites (DEFINE,
+`$name`, indirect-call lookup via `*fn()`, DATATYPE) must therefore not fold.
+The SNOBOL4 frontend is unchanged — keeps default fold-on, so the
+`push_list`/`Push_list` double-function trick still works when SNOBOL4 is
+invoked with `--case-sensitive` (per RULES.md).
+
+**Gates (post-fix, post-rebase on top of another session's 83447fd2):**
+  test_smoke_snocone.sh           PASS=4→5 FAIL=0   (`procedure` now passes)
+  test_smoke_snobol4.sh           PASS=7 FAIL=0
+  test_smoke_icon.sh              PASS=5 FAIL=0
+  test_smoke_prolog.sh            PASS=5 FAIL=0
+  test_smoke_raku.sh              PASS=5 FAIL=0
+  test_smoke_rebus.sh             PASS=4 FAIL=0
+  test_smoke_unified_broker.sh    PASS=49 FAIL=0    (gate requires 31+)
+
+**Follow-up the fix MAKES POSSIBLE (not done this session):**
+test_smoke_snocone.sh script itself can drop `--case-sensitive` from its
+scrip invocation when/if it ever gets added (currently doesn't pass it).
+The smoke's `procedure` test was the canary — it's green. All scripts
+under `test_beauty_snocone_*` that invoked with `--case-sensitive` can
+drop the flag; this is a cleanup sweep, deferrable.
+
+**D-1 (porter.sc) — UPDATED STATE:**
+
+Handoff-2's narrative ("porter.sc hangs on user labels mV1/mV/mC0/mC1/mC
+in procedures, needs goto-free rewrite, SC-27 is the blocker") is STALE.
+The committed porter.sc at corpus HEAD `e13b336` is ALREADY goto-free
+(zero `goto`, zero bare labels verified via grep). The rewrite those notes
+called for was in fact done in-place before/during that commit.
+
+With the architectural fix landed, SC-27 is no longer on the critical
+path for D-1 — porter.sc has no user labels anywhere to trip it.
+
+**NEW D-1 bugs found this session (under `scrip --ir-run porter.sc`, no flags):**
+
+On full `porter.input` (23531 lines): process runs until 4 GiB container OOM.
+On first-20-word prefix via `head -20 porter.input | scrip --ir-run porter.sc`:
+  - timeout at 30s (RC=124) after producing ~340 KB of output
+  - output first 20 lines: `a aaron abaissiez abandon abandon abas abash ab ab abat abat ab abbess abbei abbei abbomin abbot abbot abbrevi ab`
+  - SPITBOL running `porter.sno` on the same 20-line input: zero diff vs `porter.ref`, 120 bytes, instant
+  - expected 8th line: "abat", actual: "ab" — correctness bug, not just performance
+  - repeated "ab" lines suggest infinite-loop-like replay or stem-truncation bug in one of p1a/p1b's cleanup path
+
+So `porter.ref` and `porter.input` are CORRECT (oracle agrees on tiny input).
+Bug lives in `porter.sc` — either in a helper (`cons`, `m`, `vowelinstem`,
+`doublec`, `cvc`, `porter_step1ab_cleanup`, `porter_m_full_ll`) or in how
+guards `*g_*()` and pattern assignments `@ "stem"` interact under Snocone
+lowering.
+
+**Reference materials Lon supplied this session:**
+- `/mnt/user-data/uploads/CSCE_5200_Project_1.ipynb` — Python reference
+  implementation (`make_porter_stemmer()` in cell 14). Python is clean,
+  goto-free, all helpers use `while`/`if`/`return`; pattern tables
+  p1a/p1b/p1c/p2/p3/p4/p5a/p5b are verbatim Porter rules. Use this as
+  the semantic ground truth when diagnosing what `porter.sc` is doing wrong.
+- `/mnt/user-data/uploads/SNOCONE.zip` — Koenig-faithful Snocone compiler
+  (`snocone.sc`/`snocone.sno`/`snocone.snobol4`) for syntax reference.
+- `/mnt/user-data/uploads/spitbol-docs-master.zip` — SPITBOL v3.7 manual
+  + green book + minimal.md for SNOBOL4 semantics.
+
+### NEXT SESSION START
+
+1. `bash /home/claude/one4all/scripts/install_system_packages.sh`
+2. `bash /home/claude/one4all/scripts/build_scrip.sh`
+3. `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
+4. `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+5. Gate: `bash /home/claude/one4all/scripts/test_smoke_snocone.sh` — must PASS=5
+6. Debug D-1 correctness/perf bug in porter.sc:
+   (a) Feed 1 word at a time: `echo caresses | scrip --ir-run porter.sc`.
+       Expected output "caress". Check each helper individually if wrong.
+   (b) Add OUTPUT debugging inside each helper (`cons`, `m`, `vowelinstem`,
+       `doublec`, `cvc`) to trace entry/exit and argument values.
+   (c) Compare helper-by-helper with the Python reference (cell 14 of the
+       `.ipynb`). Semantics must match exactly.
+   (d) Suspect areas: `@ "stem"` assignment in pattern — does it restore
+       on backtrack? Interaction of RTAB/RPOS with Snocone's pattern build.
+       The p1a/p1b/etc. tables use `RTAB(k) @ "stem" + σ('...') + ...`
+       form — if `stem` is set during a trial alternative that later
+       backtracks, subsequent guards see the wrong stem. Check whether
+       `scrip --ir-run porter.sno` exhibits the same bug (isolates .sc
+       lowering vs shared runtime issue).
+   (e) Once correct on a single word: test on head -20, head -100, then full.
+7. Goal gate: `scrip --ir-run porter.sc < porter.input | diff - porter.ref` zero.
+8. After D-1 green, also verify `--sm-run` and `--jit-run` per goal spec.
+
+### Known follow-ups (file as issues when touched)
+- **SC-27**: labels inside procedures mis-lowered and/or hang parser.
+  Not on D-1 critical path anymore (porter.sc is goto-free) but will block
+  any `.sc` file that uses labels in procedures.
+- **SC-28**: `procedure f(x) (i)` locals syntax emits `DEFINE("foo(x)i")`
+  missing comma. Bug site: `snocone_lower.c` or `snocone_parse.c`.
+- **Smoke cleanup**: test_beauty_snocone_* and any other test scripts can
+  drop `--case-sensitive` flag from their scrip invocations (no behavior
+  change required, flag is now redundant for .sc).
+
