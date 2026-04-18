@@ -263,19 +263,15 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 near-complete, three sessions)
+## Current state (2026-04-18 — SN-19 stage-2 cleanup continues, four sessions)
 
-**HEAD:** one4all next-commit after `6514649c` (SN-19 session 2 landed); this
-session adds session 3 (sm_interp.c folds + interp.c second-dispatch folds +
-stage-2 band-aid cleanup).
+**HEAD:** one4all next-commit after `6068acd6` (SN-19 session 3 landed); this
+session 4 continues stage-2 band-aid cleanup in `snobol4.c` + `interp.c`.
 
 **Gates after this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/227** (up from 216/227 at session start — hit target)
+- Broad suite **218/227** (held steady — no regressions from any cleanup)
 - `differ(3+2,5)` minimal repro **PASSES all three modes**
-- `210_indirect_ref` — **PASSES both `--ir-run` and `--sm-run`**
-- `211_indirect_assign` — **PASSES both `--ir-run` and `--sm-run`**
-- `1115_data_basic`, `1116_data_overlap`, `test_stack` — **PASS both modes**
 
 ### SN-19 — principle (authoritative)
 
@@ -292,46 +288,62 @@ This replaces the earlier plan's suggestion to sprinkle `strcasecmp`/
 `toupper` compensations in the runtime — those remain the band-aids to
 remove, never to add to.
 
-### SN-19 — session 3 additions (stage-1 missing folds + stage-2 cleanup)
+### SN-19 — session 4 additions (stage-2 band-aid cleanup continued)
 
-**Stage-1 — SM path folds** (`src/runtime/x86/sm_interp.c`):
- 13. `INDIR_GET` IS_NAMEVAL branch — fold before `NV_GET_fn`
- 14. `INDIR_GET` VARVAL_fn/string branch — fold before `NV_GET_fn`
- 15. `ASGN_INDIR` IS_NAMEVAL branch — fold before `NV_SET_fn`
- 16. `ASGN_INDIR` VARVAL_fn/string branch — fold before `NV_SET_fn`
- 17. `NAME_PUSH` — fold the pushed name so downstream NV_GET sees canonical
+**snobol4.c:**
+ 23. `fn_has_builtin` (~2559) — dropped duplicate `toupper`-based hash;
+     delegates to `_func_hash` via forward decl. Names arrive canonical.
+ 24. `_ARG_` (~2795) — dropped `toupper` loop on returned param name;
+     `_parse_define_spec` folds params at ingest.
+ 25. `_LOCAL_` (~2815) — dropped `toupper` loop on returned local name;
+     locals folded at ingest via `_parse_define_spec`.
+ 26. `_FIELD_` (~2861) — dropped `toupper` loop on returned field name;
+     fields folded at ingest via `DEFDAT_fn` (session 3 fix).
 
-**Stage-1 — interp.c second dispatch loop** (~line 4100):
- 18. E_INDIRECT subject resolver (~line 4126) — fold `subj_name` after resolve
- 19. Indirect assignment site (~line 4233) — fold `nm` before `set_and_trace`
+**interp.c:**
+ 27. `shadow_get` / `shadow_set_cur` / `shadow_has` (~232/240/252) —
+     `strcasecmp` → `strcmp`. Names in call frames arrive canonical via
+     `_parse_define_spec` and AST `sval`.
+ 28. `set_and_trace` (~371) — `strcasecmp(name, fr->fname)` → `strcmp`.
+     Both canonical via parse-define and lexer fold.
+ 29. `call_user_function` entry_pre compare (~474) — `strcasecmp` → `strcmp`.
+ 30. `_is_pat_fnc_name` (~390) — `strcasecmp` → `strcmp` against uppercase
+     PAT_FNC_NAMES table. AST `sval` arrives canonical from lexer.
+ 31. `APPLY_fn` `_SET` suffix check (~4463) — `strcasecmp` → `strcmp`.
+     Both `name` (from APPLY_fn dispatch) and `"_SET"` (code-generated
+     literal from sm_lower) are canonical uppercase.
 
-These were the handlers the session-2 commit missed. They explain why `210
---sm-run` and `211 --ir-run` were still failing after session 2 finished.
+No broad-suite regressions from any session-4 change (218/227 after each).
 
-**Stage-2 — band-aid cleanup** (`src/runtime/x86/snobol4.c`):
- 20. 40 `strcasecmp(name, "LITERAL")` → `strcmp` in NV_GET_fn / NV_SET_fn /
-     NV_PTR_fn keyword fast-paths and the `known_kw` loop (names arrive
-     canonical after stage-1)
- 21. `DEFDAT_fn`: hard `toupper` replaced with `sno_fold_name` (mode-aware);
-     field names folded at ingest
- 22. `_func_hash`: dropped internal `toupper` — plain case-sensitive hash
-     (names in the function table arrive canonical via prior ingest folds)
+### SN-19 — attempted but reverted this session
 
-No broad-suite regressions from any stage-2 change (218/227 held after each).
+- **`data_field_ptr`** (interp.c ~417) — `strcasecmp` → `strcmp` caused
+  218 → 206 regression (DATA tests 094/095/096/1115/1116/test_stack plus
+  several beauty drivers). **Diagnostic finding:** field names arrive
+  non-canonical at `data_field_ptr` despite `DEFDAT_fn` folding `blk->fields[]`
+  at ingest. Either `fname` (the lookup key) is not being folded somewhere,
+  or a second path populates `DATBLK_t->fields[]` without folding. Worth
+  investigating in a future session but not blocking. Reverted to
+  `strcasecmp` for now.
 
 ### SN-19 — what's left (next session starts here)
 
-**Stage-2 cleanup still to do** (broad suite as regression gate, one at a time):
-- `fn_has_builtin` (snobol4.c ~2559) — still has internal `toupper` loop
-  duplicated from `_func_hash`; now redundant, drop it
-- `APPLY_fn` (snobol4.c ~2767) and sibling dispatch sites — any internal
-  case-folding is now redundant
-- `interp.c` frame-shadow `strcasecmp` compares (~232/240/252) — names in
-  call frames arrive folded via `_parse_define_spec`, plain `strcmp` suffices
-- `interp.c` explicit `toupper` loop (~458) — check context; likely
-  removable
-- `set_and_trace` (~370) `strcasecmp(name, fr->fname)` — both names are
-  canonical, use `strcmp`
+**Stage-2 cleanup still to do:**
+- Diagnose the `data_field_ptr` regression — trace how field names and
+  DATBLK field entries enter. Likely a non-lex path (SC-1 `sc_dat_register`
+  or similar) that bypasses `sno_fold_name`. Fix at that ingest site, then
+  `data_field_ptr` becomes plain `strcmp` safely.
+- `interp.c` keyword/control-flow compares against uppercase literals
+  (~lines 620/670/754/755/760/765): `strcasecmp(target, "END"|"RETURN"|
+  "FRETURN"|"NRETURN")`, `strcasecmp(kw_rtntype, "NRETURN")`,
+  `strcasecmp(s->subject->sval, "ITEM")`. AST `sval` and `target` arrive
+  canonical; these can be `strcmp`. Not attempted this session to keep
+  regression domain narrow.
+- `interp.c` ~line 496 DATA field `strcasecmp(pnames[i], retname)` — same
+  DATA-path risk as `data_field_ptr`; defer until `data_field_ptr` is
+  resolved.
+- `ufname` construction + uppercase fallback (~454–460, 541, 544) — defensive
+  belt-and-suspenders; leave for case-sensitive mode work to validate.
 
 **Case-sensitive mode validation still to do:**
 - Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4
@@ -340,10 +352,10 @@ No broad-suite regressions from any stage-2 change (218/227 held after each).
   under the flag.
 
 **Gate for SN-19 completion:** smoke PASS=7, broker PASS=49, broad ≥218/227,
-`differ` minimal repro all three modes, 210 + 211 + 1115 + 1116 + test_stack
-all pass both modes ✅ **ALL MET THIS SESSION** except:
-- Full stage-2 cleanup not finished (still have redundant `toupper`/`strcasecmp`
-  in `fn_has_builtin`, `APPLY_fn`, interp.c frame-shadow, `set_and_trace`)
+`differ` minimal repro all three modes all pass ✅ **ALL MET THIS SESSION**
+except:
+- Full stage-2 cleanup not finished (`data_field_ptr` + keyword literal
+  compares remain; DATA-path non-canonical ingest to diagnose)
 - Case-sensitive mode CLI flag + double-function-trick validation not done
 
 ### Porter accuracy — not remeasured this session
@@ -361,7 +373,7 @@ all pass both modes ✅ **ALL MET THIS SESSION** except:
 Do **not** revert.
 
 **Open issues tracked elsewhere:**
-- SN-6 remaining failures (same 9 as session 2): fileinfo/word1/triplet/wordcount
+- SN-6 remaining failures (same 9 as session 3): fileinfo/word1/triplet/wordcount
   (SM INPUT-EOF hang), expr_eval `1+2*3 → 2` (match-time vs commit-time
   `*fn()` dispatch), beauty_XDump_driver (unknown), demo_wordcount/demo_roman
   (source MISSING in corpus), demo_claws5 (see GOAL-SNO-CLAWS5.md)
@@ -369,3 +381,5 @@ Do **not** revert.
   ALT arms; NAM rollback needs to cover NAM_KIND_CALLCAP entries
 - SN-17 Porter --sm-run gap (60.64% vs --ir-run 83.46%) — SM lowering has its
   own issues around correctly-deferred usercall
+- `data_field_ptr` DATA-path non-canonical ingest (discovered session 4)
+
