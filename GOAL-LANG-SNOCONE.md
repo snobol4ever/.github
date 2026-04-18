@@ -830,3 +830,130 @@ NEXT SESSION START:
 NOTE: claws5.ref is now correct pprint format (95 lines for 4 sentences).
 NOTE: treebank4.input has 4 hand-written S-expressions (not from VBGinTASA.dat).
       May want to use first 4 lines of VBGinTASA.dat instead for true oracle match.
+
+## Current state (2026-04-18 session — PIVOT)
+
+**Major pivot decision by Lon:** retire `&&` as explicit concat operator; make
+Snocone Koenig-faithful (per Andrew Koenig's original spec). Whitespace-sensitive
+implicit concatenation. Drop C comparison operators (==, !=, <=, >=, <, >) in
+favor of SNOBOL4 builtins (EQ, NE, LE, GE, LT, GT). SNOBOL4 programmers are
+already used to it.
+
+**Also mooted:** a new top-level language `SCRIPT` (name TBD) that unifies
+Snocone++/Prolog/Icon in one grammar with block mode-switch delineation
+(replacing SCRIPtix's fenced-chunk packaging). See hand-off notes for design
+sketch — to be written up as `GOAL-LANG-SCRIPT.md` in a future session.
+
+**Session work (pushed):**
+- corpus HEAD 293eab6: trimmed `claws5.ref` from 5622 → 95 lines to match
+  `claws5.input` (16 lines, 4 sentences); removed stale `treebank.ref`.
+  All three .sno programs verified zero-diff between scrip --ir-run and
+  CSNOBOL4 -bf under the trimmed refs.
+- one4all HEAD 78e6e337: wired `--dump-ir` for Snocone .sc files in
+  `src/driver/scrip.c`. Investigation aid — used in this session to confirm
+  that Snocone parser is behaving per spec (requires explicit && per Koenig
+  reference implementation `snocone.sc` with 104 && occurrences).
+
+**SC-26 reframed by session findings:**
+The original SC-26 hypothesis was a runtime pattern-engine bug in
+`(PAT . var) . *fn(var)` arg evaluation. That hypothesis is **wrong**:
+the identical pattern works correctly under scrip --ir-run for .sno
+programs (verified with /tmp/cap.sno: `show_arg=foo` correctly).
+
+Under current Snocone spec (`&&` required), the three .sc demo programs
+fail from three distinct causes:
+
+1. **claws5.sc**: Contains three juxtaposition-instead-of-&& bugs in
+   pp_mem() at lines 33, 40, 46-47. Patches drafted and reverted (moot
+   under Koenig-Snocone pivot which re-allows juxtaposition). Even with
+   juxtaposition fixed, claws5.sc hangs (timeout 120s) on Phase 1 pattern
+   match — separate issue, not yet diagnosed.
+
+2. **treebank-list.sc**: Top-level match fails with "Pattern match failed".
+   Bisected to failure on `ARBNO(*group) && *delim && RPOS(0)` portion;
+   the `.sno` equivalent using `Init_list("'bank'")` wrapper-style (EVAL
+   at pattern-build time) passes both oracles and scrip. The `.sc` uses
+   inline `(epsilon . *init_list('bank'))` form. Root cause in pattern
+   engine or lowering still open.
+
+3. **treebank-array.sc**: Every parse fails with "Parse failed on: ..."
+   then `** Error 5 in statement 106: Undefined function or operation`.
+   Not yet diagnosed.
+
+**Oracle note:** SPITBOL x64 cannot run any of the three .sno programs.
+claws5.sno uses CSNOBOL4 bracket subscript `mem[sentno]`; treebank-*.sno
+uses mixed-case labels (Push_list vs push_list) that collide under
+SPITBOL's default fold mode, and SC-25 documents that `-f` (case-sensitive)
+is broken on the x64 build. **CSNOBOL4 -bf is the sole working oracle
+for these three programs.** All three .sno programs run with zero diff
+between scrip --ir-run and CSNOBOL4 -bf.
+
+**Parser/grammar analysis:**
+- Confirmed via `/home/claude/SNOCONE_docs/SNOCONE/snocone.sc` (Koenig-style
+  Snocone self-compiler) that && is used 104 times for concatenation —
+  the current Snocone implementation correctly requires explicit &&.
+- Ran a Bison mockup of a C-like grammar with implicit concat: 42 S/R
+  conflicts, 14 R/R conflicts. Real conflict classes: `f(x)` vs `f (x)`,
+  unary/binary `-`, subscript `a[i]` vs `a [i]`. All resolvable with
+  whitespace-sensitive lexer that emits CONCAT tokens only between
+  non-operator adjacencies, emits IDENT_LPAREN for `f(` (no space), etc.
+- Conclusion: Koenig-faithful Snocone with implicit concat IS feasible
+  with a whitespace-aware lexer; parser stays simple once the lexer
+  handles adjacency disambiguation.
+
+## Next session — proposed steps SK-1..SK-13 for Koenig Snocone
+
+- [ ] **SK-1** — Copy current `src/frontend/snocone/` to a preserved location
+  (e.g. `src/frontend/snocone_plus/`) so the current working enhanced version
+  isn't lost. Wire extension/tag dispatch if both dialects need to coexist.
+
+- [ ] **SK-2** — Obtain and commit Andrew Koenig's original Snocone spec
+  to `.github/SPEC-snocone-koenig.md`. Reference implementation already
+  present at `/mnt/user-data/uploads/SNOCONE.zip` → `snocone.sc` (the
+  Koenig-style self-compiler; 104 `&&` occurrences confirming the spec
+  *as-written* still uses explicit &&, but Lon wants Snocone-the-language
+  to retire `&&` in favor of implicit concat).
+
+- [ ] **SK-3** — Lexer: implement whitespace-aware adjacency. Emit
+  IDENT_LPAREN when `IDENT(` (no space); emit IDENT_LBRACKET when
+  `IDENT[`; emit synthetic CONCAT between adjacent operand-producing
+  tokens separated by whitespace. Document rules in SPEC-snocone-koenig.md.
+
+- [ ] **SK-4** — Lexer: drop `&&`, `||` as operators. Keep `|` for
+  alternation. Drop `==`, `!=`, `<=`, `>=`, `<`, `>` as relational operators.
+
+- [ ] **SK-5** — Parser: remove SNOCONE_CONCAT, SNOCONE_OR, and all
+  C-style relational tokens from precedence table and lower_token switch.
+  Keep E_SEQ emission; now driven by lexer-synthesized CONCAT.
+
+- [ ] **SK-6** — Control flow: decide which C-style forms survive.
+  Koenig spec (per snocone.sc reference) keeps `if`, `else`, `while`,
+  `procedure`, `goto`, `return`, `freturn`, `nreturn`. No `for`, no
+  `break` (use goto). Revert SC-5 (for loops) and SC-6 (break) if
+  needed to match spec.
+
+- [ ] **SK-7** — Port the three demo programs (claws5.sc,
+  treebank-list.sc, treebank-array.sc) to Koenig-Snocone syntax:
+  strip all `&&`, replace `==` with `EQ()`, etc. Gate: each runs
+  under scrip --ir-run matching its .ref with zero diff.
+
+- [ ] **SK-8** — Port the 14 beauty-sc subsystems to Koenig Snocone.
+  Gate: `test_beauty_snocone_subsystems.sh` PASS=14.
+
+- [ ] **SK-9** — All 14 beauty-sc under --sm-run, --jit-run.
+  Gate: PASS=42.
+
+- [ ] **SK-10** — Port hand suite (fibonacci.sc, palindrome.sc,
+  wordcount.sc, quicksort.sc, pattern_suite.sc) to Koenig Snocone.
+  Gate: `test_snocone_hand_suite.sh` PASS=15.
+
+- [ ] **SK-11** — Three .sc demos under all three modes.
+  Gate: `test_eng685_sc.sh` PASS=9.
+
+- [ ] **SK-12** — Update GOAL-LANG-SNOCONE.md to reflect Koenig spec
+  as active definition. Old SC-26 closed as "not a bug — Snocone-plus
+  required &&; Koenig Snocone removes this requirement entirely."
+
+- [ ] **SK-13** — Draft `GOAL-LANG-SCRIPT.md` for the umbrella
+  unification language (Snocone++/Prolog/Icon in one grammar with
+  block mode-switch delineation — replacing SCRIPtix fence packaging).
