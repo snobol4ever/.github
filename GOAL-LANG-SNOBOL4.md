@@ -263,100 +263,95 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 stage-2 cleanup continues, four sessions)
+## Current state (2026-04-18 — SN-19 session 5, architectural fix landed)
 
-**HEAD:** one4all next-commit after `6068acd6` (SN-19 session 3 landed); this
-session 4 continues stage-2 band-aid cleanup in `snobol4.c` + `interp.c`.
+**HEAD:** one4all next-commit after `12b63f6f` (SN-19 session 4 landed);
+session 5 resolves the `data_field_ptr` regression architecturally.
 
 **Gates after this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/227** (held steady — no regressions from any cleanup)
+- Broad suite **218/227** — held steady
 - `differ(3+2,5)` minimal repro **PASSES all three modes**
+- `data_field_ptr` now plain `strcmp` — no remaining `strcasecmp` on the
+  DATA field-lookup hot path
 
-### SN-19 — principle (authoritative)
+### SN-19 — principle (sharpened this session)
 
-Case folding happens **only in the lexer**, with one clean extension: the
-lexer's fold primitive (`sno_fold_name`) is invoked at the specific runtime
-ingest points where a name-shaped string enters the namespace from
-user-data — `DEFINE`/`DATA` prototype strings, `OPSYN` arguments, `VALUE`
-argument, and the `$name` indirection handlers. Structurally this is "the
-lexer running again on deferred input" — same DFA rule, same mode-aware
-flag, not new runtime logic. Never fold inside `NV_GET_fn` / `NV_SET_fn` /
-`APPLY_fn` hash-table machinery; those see canonical names by construction.
+Case folding is a **frontend concern**, not a shared-runtime concern. Each
+language owns its own case policy:
 
-This replaces the earlier plan's suggestion to sprinkle `strcasecmp`/
-`toupper` compensations in the runtime — those remain the band-aids to
-remove, never to add to.
+| Frontend | Case policy | Where enforced |
+|----------|-------------|----------------|
+| SNOBOL4  | Default fold-to-upper (CSNOBOL4 `-f` reserved for future) | Lexer `snobol4.l` via `sno_fold_name`; SNOBOL4-originated runtime ingest (`_builtin_DATA`, `_DATA_`) pre-folds spec before calling shared runtime |
+| Icon     | Case-sensitive | Verbatim — no folding anywhere |
+| Raku     | Case-sensitive | Verbatim — no folding anywhere |
 
-### SN-19 — session 4 additions (stage-2 band-aid cleanup continued)
+Shared runtime (`DEFDAT_fn`, `sc_dat_register`, `data_field_ptr`,
+`DATCON_fn`, name-table ops) is **case-policy-neutral**: stores names
+verbatim, compares with plain `strcmp`. Within a single language the ingest
+side and the lookup side use the same case convention by construction, so
+`strcmp` is correct for all three.
 
-**snobol4.c:**
- 23. `fn_has_builtin` (~2559) — dropped duplicate `toupper`-based hash;
-     delegates to `_func_hash` via forward decl. Names arrive canonical.
- 24. `_ARG_` (~2795) — dropped `toupper` loop on returned param name;
-     `_parse_define_spec` folds params at ingest.
- 25. `_LOCAL_` (~2815) — dropped `toupper` loop on returned local name;
-     locals folded at ingest via `_parse_define_spec`.
- 26. `_FIELD_` (~2861) — dropped `toupper` loop on returned field name;
-     fields folded at ingest via `DEFDAT_fn` (session 3 fix).
+The earlier "fold in `DEFDAT_fn`" approach (session 3) was wrong — it
+imposed SNOBOL4's fold-to-upper on Icon and Raku records, which only kept
+working because `data_field_ptr` used `strcasecmp` as a safety net. Removing
+that net exposed the architectural conflict (rk_class26 regression).
 
-**interp.c:**
- 27. `shadow_get` / `shadow_set_cur` / `shadow_has` (~232/240/252) —
-     `strcasecmp` → `strcmp`. Names in call frames arrive canonical via
-     `_parse_define_spec` and AST `sval`.
- 28. `set_and_trace` (~371) — `strcasecmp(name, fr->fname)` → `strcmp`.
-     Both canonical via parse-define and lexer fold.
- 29. `call_user_function` entry_pre compare (~474) — `strcasecmp` → `strcmp`.
- 30. `_is_pat_fnc_name` (~390) — `strcasecmp` → `strcmp` against uppercase
-     PAT_FNC_NAMES table. AST `sval` arrives canonical from lexer.
- 31. `APPLY_fn` `_SET` suffix check (~4463) — `strcasecmp` → `strcmp`.
-     Both `name` (from APPLY_fn dispatch) and `"_SET"` (code-generated
-     literal from sm_lower) are canonical uppercase.
+### SN-19 — session 5 additions
 
-No broad-suite regressions from any session-4 change (218/227 after each).
+**Architectural correction (snobol4.c + interp.c):**
 
-### SN-19 — attempted but reverted this session
+ 32. `DEFDAT_fn` (snobol4.c ~2018) — reverted session-3 `sno_fold_name` on
+     both typename (line 2032) and field name (line 2051). Now case-policy-
+     neutral: stores names exactly as given. Comment documents the invariant.
+ 33. `sc_dat_register` (interp.c ~4644) — also case-policy-neutral (never
+     had a fold before session 5's experiment; the experiment was reverted
+     together with DEFDAT_fn's fold).
+ 34. `_builtin_DATA` (interp.c ~4767) — new SNOBOL4 ingest pre-fold. The
+     `VARVAL_fn(args[0])` spec string is user-data crossing the SNOBOL4
+     boundary; `sno_fold_name` applied here before handing to shared runtime.
+     Matches the SN-19 principle's "lexer running again on deferred input".
+ 35. `_DATA_` (snobol4.c ~1176) — same pre-fold at SNOBOL4's other runtime
+     DATA ingest point. Spec folded once before `DEFDAT_fn`; per-field
+     `sno_fold_name` calls at ~1198 (typename) and ~1209 (field) retained
+     because the typename drives `register_fn(uname, ...)` which itself
+     must agree with downstream lexer-folded identifier lookups.
+ 36. `data_field_ptr` (interp.c ~417) — `strcasecmp` → `strcmp`. Now safe
+     because every ingest path (SNOBOL4 `_builtin_DATA`/`_DATA_` pre-folds,
+     Icon/Raku `E_RECORD` evaluation in `interp.c:3790` passes verbatim,
+     `sc_dat_register` passes verbatim) matches its corresponding lookup
+     path by construction.
 
-- **`data_field_ptr`** (interp.c ~417) — `strcasecmp` → `strcmp` caused
-  218 → 206 regression (DATA tests 094/095/096/1115/1116/test_stack plus
-  several beauty drivers). **Diagnostic finding:** field names arrive
-  non-canonical at `data_field_ptr` despite `DEFDAT_fn` folding `blk->fields[]`
-  at ingest. Either `fname` (the lookup key) is not being folded somewhere,
-  or a second path populates `DATBLK_t->fields[]` without folding. Worth
-  investigating in a future session but not blocking. Reverted to
-  `strcasecmp` for now.
+No broad-suite regressions (218/227 held); rk_class26 restored to PASS.
 
 ### SN-19 — what's left (next session starts here)
 
 **Stage-2 cleanup still to do:**
-- Diagnose the `data_field_ptr` regression — trace how field names and
-  DATBLK field entries enter. Likely a non-lex path (SC-1 `sc_dat_register`
-  or similar) that bypasses `sno_fold_name`. Fix at that ingest site, then
-  `data_field_ptr` becomes plain `strcmp` safely.
 - `interp.c` keyword/control-flow compares against uppercase literals
   (~lines 620/670/754/755/760/765): `strcasecmp(target, "END"|"RETURN"|
   "FRETURN"|"NRETURN")`, `strcasecmp(kw_rtntype, "NRETURN")`,
   `strcasecmp(s->subject->sval, "ITEM")`. AST `sval` and `target` arrive
-  canonical; these can be `strcmp`. Not attempted this session to keep
-  regression domain narrow.
-- `interp.c` ~line 496 DATA field `strcasecmp(pnames[i], retname)` — same
-  DATA-path risk as `data_field_ptr`; defer until `data_field_ptr` is
-  resolved.
+  canonical; these can be `strcmp`. Straightforward now that the
+  architectural uncertainty is resolved.
+- `interp.c` ~line 496 DATA field `strcasecmp(pnames[i], retname)` — now
+  safe: SNOBOL4-side both canonical via `_parse_define_spec` + DEFDAT pre-
+  fold through `_builtin_DATA`/`_DATA_`.
 - `ufname` construction + uppercase fallback (~454–460, 541, 544) — defensive
   belt-and-suspenders; leave for case-sensitive mode work to validate.
 
 **Case-sensitive mode validation still to do:**
 - Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4
   `-f`). Default = fold-to-upper (case-insensitive). Flag-on = preserve.
+  With the architectural fix landed, the CLI flag only needs to toggle
+  `sno_fold_on` in the SNOBOL4 lexer and the two SNOBOL4 ingest pre-folds
+  (`_builtin_DATA`, `_DATA_`) — everything else is already neutral.
 - Double-function trick (`push_list` vs `Push_list`) must keep working
   under the flag.
 
 **Gate for SN-19 completion:** smoke PASS=7, broker PASS=49, broad ≥218/227,
 `differ` minimal repro all three modes all pass ✅ **ALL MET THIS SESSION**
-except:
-- Full stage-2 cleanup not finished (`data_field_ptr` + keyword literal
-  compares remain; DATA-path non-canonical ingest to diagnose)
-- Case-sensitive mode CLI flag + double-function-trick validation not done
+plus the previously-blocking `data_field_ptr` band-aid resolved. Remaining
+work is incremental stage-2 cleanup + CLI-flag ergonomics, not blockers.
 
 ### Porter accuracy — not remeasured this session
 
@@ -373,7 +368,7 @@ except:
 Do **not** revert.
 
 **Open issues tracked elsewhere:**
-- SN-6 remaining failures (same 9 as session 3): fileinfo/word1/triplet/wordcount
+- SN-6 remaining failures (same 9 as session 4): fileinfo/word1/triplet/wordcount
   (SM INPUT-EOF hang), expr_eval `1+2*3 → 2` (match-time vs commit-time
   `*fn()` dispatch), beauty_XDump_driver (unknown), demo_wordcount/demo_roman
   (source MISSING in corpus), demo_claws5 (see GOAL-SNO-CLAWS5.md)
@@ -381,5 +376,4 @@ Do **not** revert.
   ALT arms; NAM rollback needs to cover NAM_KIND_CALLCAP entries
 - SN-17 Porter --sm-run gap (60.64% vs --ir-run 83.46%) — SM lowering has its
   own issues around correctly-deferred usercall
-- `data_field_ptr` DATA-path non-canonical ingest (discovered session 4)
 
