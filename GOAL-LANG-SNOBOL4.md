@@ -190,13 +190,85 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 25ab6fe7 — two new observations on Bug #1d remainder)
+## Current state (2026-04-18, session end — SN-18 IN PROGRESS, broad suite regressed)
+
+**CURRENT STEP: SN-18 — Convert ALL BB boxes to return DESCR_t (bb_box_fn ABI).**
+
+### ⚠️ EMERGENCY HANDOFF — broad suite regressed 218 → 172
+
+This session made progress on Porter (54% → 83% on --ir-run) by fixing the root-cause ABI bug, but introduced a `--sm-run` regression in the broad corpus suite. **Do not push to main as-is** without either fixing or narrowly reverting the offending change. Next session must begin by bisecting the regression.
+
+### Root cause found and point-fixed
+
+`bb_usercall` in `src/runtime/x86/stmt_exec.c` was declared `static spec_t bb_usercall(...)` but invoked through `bb_box_fn` which returns `DESCR_t`. The two 16-byte structs have **different layouts**:
+
+| Offset | `spec_t`        | `DESCR_t`                   |
+|--------|-----------------|-----------------------------|
+| 0..7   | `const char *σ` | `DTYPE_t v; uint32_t slen`  |
+| 8..15  | `int δ` (+pad)  | union (s/i/r/ptr/…)         |
+
+When `bb_usercall` returned `spec(Σ+Δ, 0)`, the caller (e.g. `bb_seq` via `spec_from_descr`) read the low 32 bits of the `Σ+Δ` pointer as `d.v`, saw it wasn't `DT_S`, and treated the successful epsilon-match as failure. **Any pattern of the form `*fn() X` silently failed** — exactly Porter's guard idiom `*g_m_gt_0() (epsilon . *action())`. That's why Porter only fired step 1a and stayed at 54%.
+
+### Fix landed (session commit)
+
+1. `bb_usercall` changed to `static DESCR_t bb_usercall(...)` returning `descr_from_spec(UC)` / `FAILDESCR`.
+2. Fixed **all `extern spec_t bb_*` forward declarations** → `extern DESCR_t bb_*` across `stmt_exec.c`, `bb_build.c`, `bb_flat.c`. These declarations were lying to every TU that used them — the definitions in `bb_boxes.c` already returned `DESCR_t`. The `-w` Makefile flag silenced all the `-Wincompatible-pointer-types` warnings.
+3. Stripped ~30 identity `(bb_box_fn)bb_*` casts in `stmt_exec.c` so the compiler can catch future mismatches. All changed files now compile cleanly under `-Wincompatible-pointer-types`.
+4. Legitimate casts preserved: `(bb_box_fn)buf` / `(bb_box_fn)tbuf` in `bb_build.c`/`bb_flat.c` (these cast `void *` trampoline buffers to function pointer — genuinely needed).
+
+### Measured results
+
+| Mode                       | Before fix        | After fix         |
+|----------------------------|-------------------|-------------------|
+| Porter --ir-run accuracy   | 12,796/23,531 54.38% | 19,639/23,531 83.46% |
+| Porter --sm-run accuracy   | 12,796/23,531 54.38% | 14,269/23,531 60.64% |
+| Smoke PASS                 | 7                 | 7                 |
+| Broker PASS                | 49                | 49                |
+| Broad corpus PASS          | 218/228           | **172/228 ⚠️**    |
+
+### Regression signature
+
+Broad suite regressed under default `--sm-run` mode. Minimal repro:
+```bash
+cd /home/claude/corpus/crosscheck/rung4
+/home/claude/one4all/scrip --sm-run 410_arith_int.sno < /dev/null
+# Output: ** Error 5 in statement 1 / Undefined function or operation / FAIL 410/001: 3+2
+```
+`--ir-run` on the same file passes. The regression is isolated to the SM interpreter path. Trivially `3+2` broken.
+
+### Next session action plan
+
+1. **Bisect the regression.** The `git diff` on one4all touches three files:
+   ```
+   src/runtime/x86/bb_build.c    |  36 +/-
+   src/runtime/x86/bb_flat.c     |   8 +/-
+   src/runtime/x86/stmt_exec.c   | 143 +/-
+   ```
+   Revert each one at a time (`git checkout -- <file>`), rebuild, re-run broad suite. The diffs in `bb_build.c` and `bb_flat.c` are purely `extern spec_t → DESCR_t` — those should be safe. The `stmt_exec.c` diff contains the bb_usercall fix **plus** identity-cast removal. Most likely suspect: one of the sed-stripped `(bb_box_fn)X` casts was not purely identity — e.g., if any `X` was actually something like `bb_seq_wrapper` declared differently, the cast had been silently re-interpreting.
+
+2. Alternative suspect: the `extern DESCR_t bb_tab` etc. in `bb_build.c` change what `bb_build.c`'s trampoline emission sees at compile time for argument/return ABI. SM lowering emits trampolines via `bb_build.c`; if the codegen depends on the spec_t size/layout assumption somewhere, switching the extern changes behavior at runtime.
+
+3. Once regression is localized, either keep the fix and adjust the trampoline code, or narrowly revert the specific sed change that broke it.
+
+4. After broad suite returns to 218+/228 AND Porter stays at 83%+, re-audit: consider adding `-Wincompatible-pointer-types` permanently to the Makefile (currently `-w` silences everything).
+
+5. Address the remaining Porter gap — `feed`-class leak from failed ALT arms (NAM rollback needs to cover NAM_KIND_CALLCAP entries pushed by bb_usercall, not just capture entries). This is the orthogonal bug that blocks the final 100%.
+
+6. Address the `--sm-run` accuracy gap (60.64% vs 83.46% under --ir-run) — likely separate from above, indicates SM lowering has its own issues around the now-correctly-deferred usercall.
+
+### Files touched this session (uncommitted on one4all working tree)
+
+- `src/runtime/x86/stmt_exec.c` — `bb_usercall` spec_t→DESCR_t fix + 30 identity-cast strips + extern fixes
+- `src/runtime/x86/bb_build.c` — `extern spec_t → extern DESCR_t` (~18 declarations) + comment fix
+- `src/runtime/x86/bb_flat.c` — `extern spec_t → extern DESCR_t` (~3 declarations)
+
+### Prior context kept below — SN-17 porter, older Bug #1d analysis
 
 SN-1..SN-5 DONE. BEAUTY SELF-HOSTS (all 18 driver×mode combos).
-SN-6 IN PROGRESS: PASS=218/228. treebank-array/list/claws5 spun to parallel goals.
-Smoke PASS=7. Broker PASS=49.
+SN-6 broad suite at session start: 218/228. Session-end: 172/228 ⚠️.
+Smoke PASS=7 (held). Broker PASS=49 (held). Session start HEAD: 25ab6fe7. **Session end HEAD: caac661f** (includes this session's SN-18 work + regression).
 
-**This session (GOAL-LANG-SNOBOL4 — investigated Bug #1d remainder further; NO commits to one4all, working tree clean, HEAD 25ab6fe7):**
+**Previous session notes (superseded by the ABI diagnosis above):**
 
 Two new observations that revise the prior strategy.
 
