@@ -263,17 +263,30 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 session 5, architectural fix landed)
+## Current state (2026-04-18 — SN-19 session 6, stage-2 strcasecmp→strcmp)
 
-**HEAD:** one4all next-commit after `12b63f6f` (SN-19 session 4 landed);
-session 5 resolves the `data_field_ptr` regression architecturally.
+**HEAD:** one4all `83447fd2` — SN-19 stage-2 strcasecmp→strcmp on AST-token sites.
 
 **Gates after this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/227** — held steady
+- Broad suite **218/227** — held steady (same 9 known failures)
 - `differ(3+2,5)` minimal repro **PASSES all three modes**
-- `data_field_ptr` now plain `strcmp` — no remaining `strcasecmp` on the
-  DATA field-lookup hot path
+
+### SN-19 stage-2 — completed this session
+
+Converted 20 `strcasecmp → strcmp` calls in `interp.c` on sites where the
+compared string is an AST token (sval, always uppercase from the lexer) or
+a value set exclusively by `strncpy` with an uppercase literal (kw_rtntype).
+Sites audited and converted: pnames/retname, kw_rtntype/NRETURN, subject->sval
+vs ITEM (two call paths), lv->sval vs ITEM, target vs END/RETURN/FRETURN/NRETURN
+(fn-body loop and top-level do_goto), subj/e->sval vs DEFINE (two functions),
+e->sval vs EVAL/CODE/IDENT/DIFFER, _usercall_hook name vs IDENT/DIFFER/DATA/ITEM/ITEM_SET.
+
+Left as strcasecmp (correct — cross-language or runtime-user strings):
+- ~196, ~3777: Icon init-table name comparisons
+- ~1836: DATA field lookup key from VARVAL_fn (may be user quoted string)
+- ~4692, ~4700: sc_dat_find_type/find_field (multi-language registry)
+- ~4756: _SET suffix on runtime-provided name
 
 ### SN-19 — principle (sharpened this session)
 
@@ -326,18 +339,8 @@ No broad-suite regressions (218/227 held); rk_class26 restored to PASS.
 
 ### SN-19 — what's left (next session starts here)
 
-**Stage-2 cleanup still to do:**
-- `interp.c` keyword/control-flow compares against uppercase literals
-  (~lines 620/670/754/755/760/765): `strcasecmp(target, "END"|"RETURN"|
-  "FRETURN"|"NRETURN")`, `strcasecmp(kw_rtntype, "NRETURN")`,
-  `strcasecmp(s->subject->sval, "ITEM")`. AST `sval` and `target` arrive
-  canonical; these can be `strcmp`. Straightforward now that the
-  architectural uncertainty is resolved.
-- `interp.c` ~line 496 DATA field `strcasecmp(pnames[i], retname)` — now
-  safe: SNOBOL4-side both canonical via `_parse_define_spec` + DEFDAT pre-
-  fold through `_builtin_DATA`/`_DATA_`.
-- `ufname` construction + uppercase fallback (~454–460, 541, 544) — defensive
-  belt-and-suspenders; leave for case-sensitive mode work to validate.
+**Stage-2 cleanup — DONE (session 6, 2026-04-18).** 20 strcasecmp→strcmp
+conversions in interp.c. No regressions. See commit 83447fd2.
 
 **Case-sensitive mode validation still to do:**
 - Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4
