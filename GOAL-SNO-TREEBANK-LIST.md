@@ -102,13 +102,31 @@ likely because push/pop mis-dispatch (same root as treebank-array).
 
 ---
 
-## Current state (2026-04-17, one4all HEAD pending — TL-2 flush-time arg resolution landed)
+## Current state (2026-04-17, one4all HEAD 9a43cddd — TL-2 ARBNO rollback attempted, reverted)
 
-TL-1 DONE. TL-2 SUBSTANTIAL PROGRESS: deferred-arg evaluation for `*fn(var)` callcaps
-is now fixed for both the SM path and the IR-direct path, and the 10-line reproducer
-matches oracle byte-for-byte. Full treebank-list still crashes with heap corruption
-(different/downstream bug — see below). Smoke PASS=7, broker PASS=49, broad corpus
-172/228 unchanged from baseline (no regression).
+TL-1 DONE. TL-2 SUBSTANTIAL PROGRESS. Prior session landed flush-time arg-name
+resolution (HEAD `9a43cddd`). This session:
+
+1. **Diagnosed the `('ROOT')` symptom precisely** — see section below. Root cause
+   is `bb_arbno` missing the NAM_mark/NAM_rollback_to discipline that `bb_alt`
+   already has. ARBNO body iterations can push callcap entries that leak into the
+   outer NAM_commit when the iteration is later abandoned. This is the ARBNO
+   sibling of SN-6 Bug #1d.
+2. **Fixture correction**: the actual fixture for `treebank-list.ref` is
+   `treebank.input` (4 simple hand-crafted sentences), NOT `VBGinTASA.dat` as the
+   "Run to test" block above states. The oracle itself errors on `VBGinTASA.dat`
+   (CSNOBOL4 Error 16 at stmt 143 even with `-P 500k`). The `VBGinTASA.dat` heap
+   corruption noted in the prior session is a separate downstream issue on a test
+   vector the oracle can't complete either; it is NOT the TL-2 blocker.
+3. **Attempted fix: add NAM_mark/NAM_rollback_to to `bb_arbno` in
+   `src/runtime/x86/bb_boxes.c`** (mirror of the existing `bb_alt` pattern).
+   Treebank-list PASSED byte-for-byte under `scrip --ir-run` on `treebank.input`.
+   Smoke=7 ✓, Broker=49 ✓.  BUT: `demo_claws5` regressed from PASS to crash (172→171
+   in broad gate). Fix has been **reverted**; working tree is clean at HEAD
+   `9a43cddd`. The fix shape is correct but the rollback is over-aggressive for
+   claws5's pattern flow and needs refinement.
+
+Smoke PASS=7, broker PASS=49, broad corpus 172/228 — unchanged from baseline.
 
 ---
 
@@ -214,3 +232,167 @@ construct that the small reproducer doesn't exercise.
   corpus; recreate from this doc if needed.
 - SPITBOL + CSNOBOL4 both built locally at `/home/claude/x64/bin/sbl` and
   `/home/claude/csnobol4/snobol4`.
+
+---
+
+## Session 2026-04-17 part 3 (TL-2 ARBNO rollback — diagnosis complete, attempted fix reverted)
+
+### Fixture correction (important — update `Run to test` block above)
+
+The reference output `treebank-list.ref` corresponds to `treebank.input` (4 simple
+sentences: "The cat sits", "A dog runs", "She saw the man…", "The old man knows…"),
+NOT to `VBGinTASA.dat` (1977 lines of real Penn Treebank text). Verified:
+```bash
+/home/claude/csnobol4/snobol4 -bf -P 500k treebank-list.sno < treebank.input
+# exit 0, output byte-identical to treebank-list.ref
+/home/claude/csnobol4/snobol4 -bf -P 500k treebank-list.sno < VBGinTASA.dat
+# Error 16 at stmt 143 — pattern-matching overflow even at -P 500k
+```
+
+### Symptom under baseline (HEAD 9a43cddd)
+
+On `treebank.input`, scrip emits only `('ROOT')` (1 line) vs. the full 24-line ref.
+Not a crash. Not a hang. A clean semantic divergence.
+
+### Trace-diff root cause
+
+With a local copy instrumented with `OUTPUT =` at the top of each
+`stk_push_frame` / `stk_push_item` / `stk_pop_into_parent` / `stk_pop_final` /
+`init_list` body, a single-sentence input `(S (NP (DT The) (NN cat)) (VP (VBZ sits)))`
+produces identical push/pop sequences between oracle and scrip through all useful
+work — with one extra entry at the tail on scrip:
+
+```
+scrip (last 3 trace lines):             oracle (last 2 trace lines):
+  > pop_into_parent                       > pop_into_parent
+  > push_frame v="ROOT"  ← LEAK           > pop_final var="bank"
+  > pop_final var="bank"
+```
+
+The spurious `push_frame v="ROOT"` is from the 2nd trial of the outer ARBNO —
+`Push_list("'ROOT'")` fires at pattern-match time, the iteration's later
+sub-patterns fail, ARBNO commits with 1 iteration, but the trial's NAM callcap
+entry survives and fires at outer NAM_commit. Pop_final then reverses a
+bogus 1-element frame and prints `('ROOT')`.
+
+### Mechanism (code reading of `snobol4_nmd.c` and `bb_boxes.c`)
+
+The NAM (Naming List) system in `src/runtime/x86/snobol4_nmd.c` is designed
+exactly for this problem:
+- `NAM_push_callcap_named` queues a `NAM_KIND_CALLCAP` entry (deferred call).
+- `NAM_commit` walks oldest→newest and fires captures and callcaps at commit time.
+- `NAM_mark()` / `NAM_rollback_to(mark)` provide an intra-frame checkpoint so
+  that a backtracking combinator can trim entries from a failed trial.
+
+`bb_alt` uses this pattern correctly (see `alt_t.nam_mark` at bb_boxes.c:76,
+set at ALT_α, rolled back at child_α_ω). This is the landed Bug #1d fix.
+
+`bb_arbno` does **NOT** use NAM_mark/NAM_rollback_to. When an ARBNO iteration's
+body partially matches (pushing callcaps) and then fails downstream, `bb_arbno`
+rolls back `Δ` (cursor) via `spec`/`fr->start`, but never trims the NAM list.
+The leaked callcap fires at outer commit. This is the direct cause of
+the `('ROOT')` symptom.
+
+### Attempted fix (reverted)
+
+Single file, ~12 lines. Added `void *nam_mark` to `arbno_frame_t`.  At
+`ARBNO_try`, snapshot `NAM_mark()` into the current frame before calling the
+body.  Rollback at three sites:
+
+- `body_ω`  (body failed this trial — stop iterating successfully)
+- `ARBNO_γ_now` (body matched empty — anti-infinite-loop path)
+- `ARBNO_β` (outer asks for a shorter match — drop one iteration's entries)
+
+### Result
+
+- `scrip --ir-run treebank-list.sno < treebank.input` diffs **byte-clean** vs.
+  `treebank-list.ref` (24/24 lines) ✓
+- `test_smoke_snobol4.sh` — PASS=7 ✓
+- `test_smoke_unified_broker.sh` — PASS=49 ✓
+- Full broad corpus before/after diff: `demo_claws5` regressed PASS→crash (Aborted,
+  empty stdout). Broad 172→171. Exactly one test regressed.
+
+Fix was reverted. Working tree is clean at HEAD `9a43cddd`. `/tmp/gate_diff.sh`
+holds a test-script variant that prints all PASS/FAIL labels (the repo's
+`test_interp_broad_corpus_and_beauty.sh` truncates at 40 FAIL lines, hiding
+regressions in the tail).
+
+### Why claws5 likely regresses
+
+claws5's pattern structure involves outer ARBNO over line-by-line parsing
+that DOES want per-iteration callcaps to survive (the table-building side
+effects ARE the point of the program; ARBNO commits with as many iterations
+as succeed, and those iterations' side effects are semantically kept).
+The blanket rollback at `body_ω` is likely dropping the LAST kept iteration's
+callcap when ARBNO terminates on a body-failure-means-done transition —
+which IS the common case. Need to think about this more carefully: perhaps
+the right invariant is "rollback on the NOT-counted trial only" and the
+current code conflates "trial that failed" with "iteration that was counted."
+
+Look at body_γ vs body_ω boundary: when body returns a non-empty match,
+we accumulate. When body returns empty-or-fail, ARBNO terminates. The
+"terminated because failed" trial's entries should go; the "terminated
+because matched empty" trial's entries should also go (anti-loop).
+The PREVIOUSLY KEPT iterations' entries must stay. The current fix
+is correct on that axis. So why does claws5 break?
+
+Hypothesis to test next session: `spec_is_empty(br)` returns true for BOTH
+a FAILDESCR-body and a zero-length-success body. The existing code uses the
+same `body_ω` path for both. If claws5 has an outer ARBNO body that
+LEGITIMATELY succeeds with zero-length match on its last iteration while
+pushing callcaps (which would be correct SNOBOL4 semantics, e.g., a trailing
+optional section), my rollback wipes those legitimate effects.
+
+### Next session TL-2 plan (remaining)
+
+1. Reproduce the fix locally (replay the str_replace on bb_boxes.c — patch
+   below). Build. Verify treebank-list PASSES. Verify claws5 CRASHES.
+2. Add tracing in bb_arbno to print `[arbno mark=%p, trial#%d, body=%s]` for
+   each entry. Run claws5 to see which trial's NAM entries get wrongly rolled
+   back.
+3. Decide: is the fix for ARBNO a two-state machine (distinguish FAIL from
+   empty-success in the body return, by having body_fn return a richer
+   status, not just spec_t), or is it a side-effect model change (callcaps
+   that are meant to survive should be committed at body_γ time rather than
+   only at NAM_commit time)?
+4. Alternate approach: since bb_alt's fix IS known-good, consider leaving
+   bb_arbno alone and instead wrap the ARBNO body so it becomes an
+   "ALT-like" sequence — but that's invasive.
+5. Gate: treebank-list diff-clean; smoke=7; broker=49; broad corpus stays
+   at ≥172/228 (no regression).
+
+### The patch (for replay)
+
+```c
+/* src/runtime/x86/bb_boxes.c  around line 140 */
+
+/* OLD */
+typedef struct { spec_t matched; int start; } arbno_frame_t;
+
+/* NEW */
+typedef struct { spec_t matched; int start; void *nam_mark; } arbno_frame_t;
+
+/* Inside bb_arbno — add NAM_mark / NAM_rollback_to at these points: */
+ARBNO_try: ζ->stack[ζ->depth].nam_mark = NAM_mark();
+           br = spec_from_descr(ζ->fn(ζ->state, α));
+           ...
+ARBNO_β:   if (ζ->depth<=0) goto ARBNO_ω;
+           NAM_rollback_to(ζ->stack[ζ->depth].nam_mark);
+           ζ->depth--; ...
+body_ω:    NAM_rollback_to(ζ->stack[ζ->depth].nam_mark);
+           ARBNO = ζ->stack[ζ->depth].matched; goto ARBNO_γ;
+ARBNO_γ_now: NAM_rollback_to(ζ->stack[ζ->depth].nam_mark);
+             ARBNO = ζ->stack[ζ->depth].matched; goto ARBNO_γ;
+```
+
+### State at end of session
+
+- HEAD one4all: `9a43cddd` (prior session's TL-2 work). Working tree clean.
+- No commits this session on any repo.
+- `.github`: this file updated with the diagnosis; next session should push.
+- Reproducer: `/home/claude/corpus/programs/snobol4/demo/treebank.input` is the
+  correct fixture. `treebank-list.sno < treebank.input` produces `('ROOT')`
+  instead of the 24-line ref.
+- `/tmp/gate_diff.sh` exists as a helper for full-corpus before/after diffs
+  (not checked in; recreate if needed — it's 25 lines).
+
