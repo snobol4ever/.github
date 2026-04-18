@@ -263,18 +263,43 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 session 7, SN-6 triage)
+## Current state (2026-04-18 — SN-19 session 8, SM arithmetic SNUL coercion)
 
-**HEAD:** one4all `83447fd2` — SN-19 stage-2 strcasecmp→strcmp on AST-token sites
-(carried from session 6; this session made no runtime changes).
+**HEAD:** one4all `607c4dfb` — SM arithmetic operands coerce DT_SNUL to
+INTVAL(0), matching SPITBOL and --ir-run.
 
 **Gates this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/225** — up from stale 218/227 (two orphan FAILs removed
-  by corpus commit `e087410` already in HEAD; this session discovered and
-  documented the current accurate figure). Same 7 real FAILs remain — see
-  Open issues below for per-test triage.
-- `differ(3+2,5)` minimal repro — not remeasured, stable from session 6
+- Broad suite **218/225** — unchanged; one latent bug fixed but the test
+  it affects (`wordcount`) still fails due to a separate bug.
+
+### SN-6 bug fix this session — DT_SNUL in SM arithmetic
+
+**Symptom.** Under `--sm-run`, `N = N + 1` where `N` is unset produced a
+REAL value (printed as `1.` with `&TRIM=1`) instead of integer `1`. Stable
+repro:
+```snobol4
+         &TRIM = 1
+         N = N + 1
+         OUTPUT = N ' words'
+```
+Expected `1 words`, got `1. words`. `--ir-run` and SPITBOL both correct.
+
+**Root cause.** `sm_interp.c` SM_ADD/SUB/MUL/DIV/EXP dispatch coerced
+`DT_S` operands to integer but had no case for `DT_SNUL`. Unset descriptors
+fell through to `sm_arith`'s real-arithmetic fallback, which read garbage
+from the union as a double (0.0 because zero-initialised) and emitted a
+REAL result.
+
+**Fix.** Two lines at the dispatch site (sm_interp.c ~311): `if (l.v ==
+DT_SNUL) l = INTVAL(0); if (r.v == DT_SNUL) r = INTVAL(0);` — applied to
+all five arithmetic opcodes since they share the same pre-dispatch block.
+
+**Verified.** Minimal repro now prints `1 words`; smoke/broker/broad all
+hold green with zero regressions. The `wordcount` crosscheck test still
+fails because a **separate** pattern-match bug produces the wrong count
+(9 instead of 14), but with this fix the count field at least renders as
+an integer.
 
 ### SN-19 stage-2 — completed this session
 
@@ -385,10 +410,11 @@ Do **not** revert.
   - `triplet` — `--sm-run` prints only first line, exits 0; `--ir-run` PASSES.
     Loop terminates after iteration 1 (possibly :F-on-INPUT firing prematurely
     on non-empty subsequent lines, or `:(LOOP)` not re-executing).
-  - `wordcount` — `--sm-run` prints `9. words` instead of `14 words`;
-    `--ir-run` PASSES. TWO distinct bugs visible: (a) bare integer prints with
-    trailing `.` under `&TRIM=1` in SM (formatting), (b) pattern-match loop
-    counts 9 instead of 14 (BREAK/SPAN boundary or line-advance).
+  - `wordcount` — `--sm-run` prints `9 words` instead of `14 words`;
+    `--ir-run` PASSES. Originally TWO bugs: (a) trailing `.` on bare integer
+    under `&TRIM=1` — **FIXED session 8** (DT_SNUL coercion in sm_arith);
+    (b) pattern-match loop counts 9 instead of 14 — still open, likely a
+    BREAK/SPAN boundary or line-advance issue under SM.
   - `expr_eval` — `1+2*3 → 2` (match-time vs commit-time `*fn()` dispatch;
     same root cause as SN-17 Porter gap)
   - `beauty_XDump_driver` — not yet investigated
