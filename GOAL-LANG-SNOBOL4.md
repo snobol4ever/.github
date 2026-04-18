@@ -81,6 +81,13 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [x] **SN-5** — beauty.sno self-hosts; all 18 driver×mode combos PASS. DONE.
 - [ ] **SN-6** — Full corpus: run test_interp_broad_corpus_and_beauty.sh. IN PROGRESS: PASS=215/228.
 
+- [ ] **SN-7** — Re-verify beauty.sno self-host after Bug #1d fixes (bb_usercall
+  deferred + bb_bal fix, one4all HEAD 25ab6fe7). SN-5 passed 18/18 before these
+  fixes; confirm no regression and check if any previously-failing beauty cases
+  now pass. Mirror of GOAL-NET-BEAUTY-SELF.md focus for the x86/--ir-run backend.
+  Run: for each of the 6 drivers, diff scrip --ir-run output vs SPITBOL oracle.
+  Gate: smoke PASS=7, broker PASS=49, all 18 combos diff=0.
+
 ```bash
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 ```
