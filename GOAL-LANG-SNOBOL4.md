@@ -263,62 +263,108 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 in progress)
+## Current state (2026-04-18 — SN-19 in progress, two sessions)
 
-**HEAD:** one4all `caac661f` (SN-18) + 1 uncommitted SN-19 partial commit (this handoff)
+**HEAD:** one4all `b0bec703` (SN-19 partial from prior session) + 1 uncommitted
+SN-19 progress commit (this handoff).
 
-**Gates after SN-19 lex fold (this session):**
+**Gates after this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **183/228** (up from 172, target 218+)
-- `differ(3+2,5)` minimal repro **PASSES all three modes** (was failing `--sm-run`)
+- Broad suite **216/227** (up from 183 this session; target 218+)
+- `differ(3+2,5)` minimal repro **PASSES all three modes**
+- `1115_data_basic` **PASSES both `--ir-run` and `--sm-run`**
+- `210_indirect_ref` **PASSES `--ir-run`**; still fails `--sm-run`
+- `211_indirect_assign` still fails both modes
 
-### SN-19 — what's done in this session
+### SN-19 — principle (authoritative)
 
-1. Lexer fold implemented in `src/frontend/snobol4/snobol4.l`:
-   - `sno_fold_on` flag (default 1), `fold_strbuf()` helper
-   - Applied in `flex_lex_next()` post-lex switch for identifier-class
-     tokens: `T_LABEL`, `T_IDENT`, `T_END`, `T_KEYWORD`, `T_FUNCTION`,
-     `T_GOTO_S`, `T_GOTO_F`
-   - Applied inline in the two `<BODY>{ALPHA}{IDCONT}*` rules; rule-level
-     `END` discrimination uses `strcmp` after fold
-   - `T_STR` left unfolded (user data must never fold)
-2. CLI flag `--case-sensitive` added to `src/driver/scrip.c`, wired to
-   `sno_set_case_sensitive()` before `sno_parse()`
-3. Public API declared in `src/frontend/snobol4/scrip_cc.h`:
-   `sno_set_case_sensitive`, `sno_get_case_sensitive`, `sno_fold_name`
-4. `sno_fold_name(char *)` runtime helper defined (in `snobol4.l` alongside
-   the flag) — **declared but not yet called anywhere**
-5. `regenerate_parser_and_lexer_from_sources.sh` run; `snobol4.lex.c` regenerated
+Case folding happens **only in the lexer**, with one clean extension: the
+lexer's fold primitive (`sno_fold_name`) is invoked at the specific runtime
+ingest points where a name-shaped string enters the namespace from
+user-data — `DEFINE`/`DATA` prototype strings, `OPSYN` arguments, `VALUE`
+argument, and the `$name` indirection handlers. Structurally this is "the
+lexer running again on deferred input" — same DFA rule, same mode-aware
+flag, not new runtime logic. Never fold inside `NV_GET_fn` / `NV_SET_fn` /
+`APPLY_fn` hash-table machinery; those see canonical names by construction.
+
+This replaces the earlier plan's suggestion to sprinkle `strcasecmp`/
+`toupper` compensations in the runtime — those remain the band-aids to
+remove, never to add to.
+
+### SN-19 — what's done in this session (prior: flex-side fold)
+
+Runtime name-ingest folds landed (each is lexer-running-on-runtime-input):
+
+**`src/runtime/x86/snobol4.c`** — `#include "../../frontend/snobol4/scrip_cc.h"` added:
+  1. `_parse_define_spec` — fold `fe->name` (all three assignment sites),
+     fold each `fe->params[i]`, fold each `fe->locals[i]`
+  2. `DEFINE_fn_entry` — fold `entry_label` before storage
+  3. `register_fn_alias` (OPSYN) — fold both `newname` and `oldname` at entry
+  4. `_VALUE_` — fold name arg before `NV_GET_fn`
+  5. `_DATA_` — replaced hard unconditional `toupper` on typename with
+     mode-aware `sno_fold_name`; fold each field name; register constructor
+     under folded name
+
+**`src/runtime/x86/eval_code.c`** (scrip_cc.h already included):
+  6. `E_ASSIGN` with `E_INDIRECT` lvalue — fold runtime-sourced name before
+     `NV_SET_fn`
+  7. `E_INDIRECT` value read — fold before `NV_GET_fn`
+  8. `E_CAPT_COND_ASGN` and `E_CAPT_IMMED_ASGN` with `E_INDIRECT` target —
+     fold before `NAME_fn` construction
+
+**`src/driver/interp.c`** (scrip_cc.h already included):
+  9. Statement-level `$name = val` (E_INDIRECT subject) — fold before NV_SET
+ 10. Inner-expr E_ASSIGN to E_INDIRECT — fold before NV_SET
+ 11. `interp_eval` E_INDIRECT all paths: `$X` (runtime indirect), `$.var`
+     runtime inner-E_VAR branch, inner-eval fallback, `$expr` generic
+     fallback — each folds the extracted name before NV_GET/dereference
+ 12. `interp_eval_pat` E_INDIRECT — fold before `NV_PTR_fn`
 
 ### SN-19 — what's left (next session starts here)
 
-The remaining 45 broad-suite FAILs cluster around `DEFINE('fn(...)')` tests
-(`083_define_*`, `1010_func_*`, `1115_data_*`). Root cause confirmed:
-`DEFINE` takes the function name from a user-data string, which bypasses
-the lexer, so it's stored in source case (e.g. `double`). Call sites are
-lexer-folded (`DOUBLE`). The `strcmp` in `APPLY_fn` (snobol4.c:2763)
-mismatches.
+**Remaining 11 broad-suite FAILs** — triaged:
+
+Pre-existing, not SN-19 scope (tracked as SN-6 open issues): `fileinfo`,
+`triplet`, `word1`, `wordcount`, `beauty_XDump_driver`, `demo_wordcount`,
+`demo_roman`, `demo_claws5`, `expr_eval`.
+
+SN-19-class, still to do:
+- `210_indirect_ref` — `--sm-run` fails (`--ir-run` now passes). SM path has
+  its own `$name` handler in `sm_interp.c` that needs folding at each
+  name-ingest site — same pattern as the interp.c fixes, different file.
+- `211_indirect_assign` — fails both modes. Need to find the assign path
+  in `interp.c` I missed (there are E_INDIRECT sites near lines ~4100,
+  ~4200 in addition to ~560, ~700, ~2705, ~3877) and the equivalent SM
+  path in `sm_interp.c`.
+- `test_stack` — needs investigation; likely same ingest-site family.
+- `1116_data_overlap`, `beauty_ReadWrite_driver`, `beauty_assign_driver`,
+  `beauty_stack_driver` — should re-run first; some may now pass given
+  the DATA path fix.
 
 **Fix plan (ready to execute):**
-1. In `src/runtime/x86/snobol4.c`, `_parse_define_spec` (line 2581):
-   after populating `fe->name`, `fe->params[i]`, `fe->locals[i]`, call
-   `sno_fold_name()` on each. Header include: add
-   `#include "../../frontend/snobol4/scrip_cc.h"` or a local extern.
-2. Fold `entry_label` arg in `DEFINE_fn_entry` (line 2695).
-3. Fold `newname`/`oldname` in `register_fn_alias` (line 2713) — OPSYN path.
-4. Audit other runtime sites that accept a name-from-string:
-   keyword name in `kw_get`/`kw_set` at runtime, `NV_GET`/`NV_SET` via
-   indirect assignment `$name`, TABLE/ARRAY field names in `CONVERT()`.
-5. Rebuild, rerun 083 test + broad suite.
-6. Then stage-2 cleanup: remove the now-redundant `strcasecmp`/`toupper`
-   at confirmed-canonical lookup sites (the scattered band-aids the step
-   was designed to eliminate).
-7. Case-sensitive mode validation: double-function trick (`push_list`
-   vs `Push_list`) under `--case-sensitive` — must keep working.
+1. Re-run the broad suite fresh — confirm true residual count after
+   the eval_code.c + interp.c folds; some listed failures may have
+   already fallen out.
+2. `grep -n 'E_INDIRECT\|indirect\|\\$.*NV_GET\\|\\$.*NV_SET' src/runtime/x86/sm_interp.c` —
+   locate SM `$name` handlers. Fold at each name-ingest site before the
+   hash lookup, mirroring the interp.c edits.
+3. Re-run `210_indirect_ref --sm-run` and `211_indirect_assign` both modes
+   until PASS.
+4. Stage-2 cleanup: the `strcasecmp`/`toupper` band-aids in `NV_GET_fn`
+   special-variable branches (2153–2177, 2197–2210 of pre-session
+   snobol4.c), `APPLY_fn` case folding, interp frame-shadow compares
+   (interp.c ~232/240/252), the explicit `toupper` loop at interp.c
+   ~458. Every one of these is now replaceable with plain `strcmp` /
+   plain hash because the name arriving is already canonical. Remove
+   them one at a time with the broad suite as the regression gate; any
+   site that still matters after removal is a missing fold ingest point
+   and goes to step 2's list.
+5. Case-sensitive mode validation: double-function trick
+   (`push_list` vs `Push_list`) under `--case-sensitive` — must keep working.
 
-**Gate for SN-19 completion:** smoke PASS=7, broker PASS=49,
-broad ≥218/228, `differ` minimal repro all three modes, double-function
-trick still passes under `--case-sensitive`.
+**Gate for SN-19 completion:** smoke PASS=7, broker PASS=49, broad ≥218/228,
+`differ` minimal repro all three modes, 210 + 211 + 1115 + 1116 all pass
+both modes, double-function trick still passes under `--case-sensitive`.
 
 ### Porter accuracy — not remeasured this session
 
@@ -335,10 +381,11 @@ trick still passes under `--case-sensitive`.
 Do **not** revert.
 
 **Open issues tracked elsewhere:**
-- SN-6 remaining failures (10): fileinfo/word1/triplet/wordcount (SM INPUT-EOF
-  hang), expr_eval `1+2*3 → 2` (match-time vs commit-time `*fn()` dispatch),
-  beauty_XDump_driver (unknown), demo_wordcount/demo_roman (source MISSING in
-  corpus), demo_treebank (`*group` self-ref), demo_claws5 (see GOAL-SNO-CLAWS5.md)
+- SN-6 remaining failures (see list above): fileinfo/word1/triplet/wordcount
+  (SM INPUT-EOF hang), expr_eval `1+2*3 → 2` (match-time vs commit-time
+  `*fn()` dispatch), beauty_XDump_driver (unknown), demo_wordcount/demo_roman
+  (source MISSING in corpus), demo_treebank (`*group` self-ref), demo_claws5
+  (see GOAL-SNO-CLAWS5.md)
 - SN-17 Porter --ir-run gap to 100% — cluster of `feed`-class leaks from failed
   ALT arms; NAM rollback needs to cover NAM_KIND_CALLCAP entries
 - SN-17 Porter --sm-run gap (60.64% vs --ir-run 83.46%) — SM lowering has its
