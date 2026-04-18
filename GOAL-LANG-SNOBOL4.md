@@ -105,6 +105,60 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
   | diff - /home/claude/corpus/programs/snobol4/demo/porter.ref | head
 ```
 
+- [ ] **SN-17** — Porter stemmer under one4all — close the SPITBOL gap.
+
+  **Current state (measured this session on one4all HEAD 770172e4):**
+
+  | Mode             | Matches tartarus oracle | Accuracy |
+  |------------------|-------------------------|----------|
+  | SPITBOL `-b`     | 23,531 / 23,531         | 100.0000% |
+  | one4all `--ir-run` | 12,796 / 23,531       |  54.38%   |
+  | one4all `--sm-run` | 12,796 / 23,531       |  54.38%   |
+  | one4all `--jit-run`| 12,796 / 23,531 *     |  54.38%   |
+
+  `* --jit-run` additionally emits `sm_codegen: unimplemented opcode 11 (SM_PUSH_EXPR)`
+  at sm-pc 997 and 1698 — known SN-10..SN-12 gap, not on this step's critical path.
+
+  `--ir-run` and `--sm-run` produce byte-identical output to each other (`diff = 0`).
+
+  **Symptom:** Only step 1a (plural stripping via `(epsilon . *s_empty())` and friends)
+  appears to fire. Steps 1b, 1c, 2, 3, 4, 5a, 5b — all of which require a guard like
+  `*g_m_gt_0()` preceding the commit-time action — silently do nothing. Example:
+
+  ```
+  input       tartarus   one4all
+  abandoned   abandon    abandoned
+  abate       abat       abate
+  abbey       abbei      abbey          (step 1c: y->i fails to fire)
+  ```
+
+  **Root cause (already diagnosed in SN-6 Bug #1d):** one4all invokes `*fn()` at
+  match-time; SPITBOL defers to commit-time (manual p.133–134). The Porter rules
+  use the idiom `RTAB(n) $ stem 'suf' *guard() (epsilon . *action())` throughout.
+  When the guard evaluates at match-time, the stem immediate-assignment `$` has
+  fired, but on arms that later lose to another alt arm or fail outright, the
+  `$` side effect leaks. More critically, the `(epsilon . *action())` never fires
+  to set `target`, so the pipeline sees `target = 'UNSET'` and leaves the token
+  alone — silent no-op.
+
+  **Fix plan:** Resolve SN-6 Bug #1d (commit-time `*fn()` dispatch in NAM_commit,
+  per GOAL-LANG-SNOBOL4 "Remaining 1+2*3 → 2 case" fix strategy). Expected
+  outcome: porter accuracy under --ir-run and --sm-run jumps to match SPITBOL's
+  100%. If any gap remains, bisect on the failing words (they will cluster by
+  which Porter step the failing rule belongs to, which isolates the exact
+  primitive still misbehaving).
+
+  **Gate:**
+  ```bash
+  cd /home/claude/corpus/programs/snobol4/demo
+  /home/claude/one4all/scrip --ir-run porter.sno < porter.input \
+    | diff - porter.ref | wc -l            # expect 0
+  /home/claude/one4all/scrip --sm-run porter.sno < porter.input \
+    | diff - porter.ref | wc -l            # expect 0
+  ```
+
+  Expected numerics after fix: 23,531 / 23,531 under --ir-run and --sm-run.
+
 
 *(treebank-array, treebank-list, claws5 promoted to independent parallel goals:
 GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
