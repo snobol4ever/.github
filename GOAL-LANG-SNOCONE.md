@@ -66,207 +66,41 @@ Oracle for .ref: run the equivalent .sno under SPITBOL.
 
 ---
 
-## Rung ladder — all modes, x86
+## Steps
 
-Current baseline: 3/14 beauty-sc subsystems PASS (assign, fence, global).
-Root cause of failures: control-flow lowering missing in snocone_lower.c.
+- [ ] **D-1** — Porter stemmer: `porter.sc`.
+  `corpus/programs/snobol4/demo/porter.sno` exists (417 lines).
+  `porter.input` and `porter.ref` exist (23531 lines each).
+  `porter.sc` does NOT yet exist — must be created by translating
+  `porter.sno` to Snocone per the SNOBOL4 → Snocone translation table above.
+  (a) Run `porter.sno` under oracle to confirm `.ref` is current.
+  (b) Translate `porter.sno` → `porter.sc` in
+      `corpus/programs/snobol4/demo/porter.sc`.
+  (c) Gate: `cat porter.input | scrip --ir-run porter.sc | diff - porter.ref`
+      zero diff.
+  (d) Do not patch corpus source to work around runtime bugs (per RULES.md).
 
-### Phase 1 — IR-run: fix control flow lowering
+- [ ] **D-2** — claws5: `claws5.sc` PASS.
+  `claws5.sc` already exists (82 lines) but fails.
+  Oracle: CSNOBOL4 `-bf` (SPITBOL `-f` broken on x64 build).
+  Reference: `claws5.ref` (95 lines, trimmed to match `claws5.input`).
+  Gate: `cat claws5.input | scrip --ir-run claws5.sc | diff - claws5.ref`
+  zero diff.
 
-- [x] **SC-1** — assign, fence, global: 3/14 PASS. (done)
+- [ ] **D-3** — treebank-list: `treebank-list.sc` PASS.
+  `treebank-list.sc` already exists (127 lines) but fails.
+  The `.sno` equivalent passes both oracles and scrip.
+  Oracle: CSNOBOL4 `-bf`.
+  Reference: `treebank-list.ref`.
+  Gate: `cat treebank.input | scrip --ir-run treebank-list.sc | diff - treebank-list.ref`
+  zero diff.
 
-- [x] **SC-2** — Fix procedure lowering in snocone_lower.c.
-  `procedure F(args) { body }` must emit: DEFINE stmt + labeled body + RETURN.
-  Write `test/snocone/test_proc.sc` by translating a simple SNOBOL4 function.
-  Gate: test_proc.sc PASS under --ir-run.
-  NOTE: Actual fix was break lowering in snocone_cf.c (break_stack). 8→11/14.
-
-- [x] **SC-3** — Fix `if/else` lowering.
-  `if (cond) { then } else { else }` → E_IF in IR (already in interp_eval).
-  Write `test/snocone/test_if.sc`.
-  Gate: PASS under --ir-run.
-
-- [x] **SC-4** — Fix `while` loop lowering.
-  `while (cond) { body }` → E_WHILE.
-  Write `test/snocone/test_while.sc`.
-  Gate: PASS under --ir-run. Commit: f881e97a
-
-- [x] **SC-5** — Fix `for` loop lowering.
-  `for (init; cond; step) { body }` → emit init + E_WHILE with step.
-  Write `test/snocone/test_for.sc`.
-  Gate: PASS under --ir-run. Commit: 4402e308
-
-- [x] **SC-6** — Fix `break`/`return`/`freturn`/`nreturn` lowering.
-  Maps to E_LOOP_BREAK, SM_RETURN, SM_FRETURN, SM_NRETURN.
-  Gate: test_break_return.sc PASS. Commit: 8ed3d7a0
-  Note: tests use while-loop wrappers; pre-existing IR bug causes consecutive
-  top-level OUTPUT statements to emit only the last value (orthogonal to SC-6).
-
-- [x] **SC-7** — beauty-sc arith subsystem: PASS all 3 modes.
-  Fix: SM_PUSH_NULL sets last_ok=1 in sm_interp.c + sm_codegen.c.
-  This fixed ~expr (E_NOT) in sm-run/jit-run. Commit: f13ce8b3.
-
-- [x] **SC-8** — beauty-sc strings, stack, trace, counter: PASS all 3 modes.
-  Already passing — no additional work needed.
-
-- [x] **SC-9** — Pattern match `subject ? pattern`: PASS all 3 modes.
-  Fix: E_SCAN in sm_lower.c lower_expr emits SM_PUSH_NULL after SM_EXEC_STMT
-  to balance value stack when ? used as expression (e.g. if condition).
-  test_pattern.sc: 9 tests. .ref from SPITBOL. Commit: 59adc9f4.
-
-- [x] **SC-10** — beauty-sc match, roman, semantic, ShiftReduce, ReadWrite: PASS all 3 modes.
-  Already passing after SC-9 fix — no additional work needed.
-
-- [ ] **SC-11** — beauty-sc beauty subsystem (self-beautify): PASS.
-  The beauty.sc subsystem runs the Snocone beautifier on itself.
-  Gate: diff vs SPITBOL (running beauty.sno) is empty.
-
-- [x] **SC-12** — All 14 beauty-sc subsystems: 14/14 PASS --ir-run.
-  Gate: test_beauty_snocone_subsystems.sh PASS=14. Already achieved.
-
-### Phase 2 — Hand-crafted test suite (written by eye from SNOBOL4)
-
-Write the following .sc tests in `test/snocone/`. Each is a Snocone
-translation of a known-working SNOBOL4 program. .ref files come from
-running the SNOBOL4 version under SPITBOL.
-
-- [x] **SC-13** — `test/snocone/fibonacci.sc` — recursive Fibonacci.
-  5 outputs (Fib 0,1,2,5,10). All 3 modes. ref from SPITBOL. Commit: 995f1294.
-
-- [x] **SC-14** — `test/snocone/palindrome.sc` — string reverse + compare.
-  7 cases. All 3 modes. ref from SPITBOL. Commit: 995f1294.
-
-- [x] **SC-15** — `test/snocone/wordcount.sc` — split, table word count.
-  5 word counts. All 3 modes. ref from SPITBOL. Commit: 995f1294.
-
-- [x] **SC-16** — `test/snocone/quicksort.sc` — recursive sort via procedure.
-  8-element in-place sort. All 3 modes. ref hand-verified (SPITBOL passes
-  arrays by value; Snocone passes by reference — semantics differ). Commit: 995f1294.
-
-- [x] **SC-17** — `test/snocone/pattern_suite.sc` — ARB, SPAN, BREAK, ANY, LEN.
-  Exercises all pattern primitives via `subject ? pattern` syntax.
-  Gate: output matches ref. Commit: f32434a5 (rebased). PASS all 3 modes.
-
-- [x] **SC-18** — Write `scripts/test_snocone_hand_suite.sh`.
-  Runs SC-13 through SC-17. Gate: PASS=15 (5 tests × 3 modes). Commit: f32434a5.
-
-### Phase 3 — SM-run (x86)
-
-- [x] **SC-19** — All 14 beauty-sc subsystems under --sm-run.
-  Gate: 14/14 PASS. Script: test_beauty_snocone_all_modes.sh. Commit: 6a63a77b.
-
-- [x] **SC-20** — Hand suite under --sm-run.
-  Gate: PASS=5 (covered by test_snocone_hand_suite.sh). Commit: 6a63a77b.
-
-### Phase 4 — JIT-run (x86 in-memory)
-
-- [x] **SC-21** — All 14 beauty-sc subsystems under --jit-run.
-  Gate: 14/14 PASS. Script: test_beauty_snocone_all_modes.sh. Commit: 6a63a77b.
-
-- [x] **SC-22** — Hand suite under --jit-run.
-  Gate: PASS=5 (covered by test_snocone_hand_suite.sh). Commit: 6a63a77b.
-
-### Phase 5 — ENG685 real programs (claws5.sc + treebank.sc)
-
-Programs: `corpus/programs/snobol4/demo/claws5.sc`, `treebank-list.sc`, `treebank-array.sc`
-Input: `CLAWS5inTASA.dat` and `VBGinTASA.dat` (same directory)
-Reference: `claws5.ref`, `treebank-list.ref`, `treebank-array.ref` (same directory)
-Both .sno versions PASS sbl -b (corpus HEAD 1437ea2).
-
-Run gate:
-```bash
-SCRIP=/home/claude/one4all/scrip
-head -3 /home/claude/corpus/programs/snobol4/demo/CLAWS5inTASA.dat \
-  | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/claws5.sc
-cat /home/claude/corpus/programs/snobol4/demo/treebank.input \
-  | timeout 30 $SCRIP --ir-run /home/claude/corpus/programs/snobol4/demo/treebank.sc
-```
-
-- [x] **SC-23** — treebank corpus files: four versions side by side in
-  corpus/programs/snobol4/demo/:
-    treebank-list.sno / treebank-list.sc   — LISP-style cons-list + list_reverse
-    treebank-array.sno / treebank-array.sc — TABLE-based append, no reversal
-  treebank-array.sno uses two-step BAL: carve S-expressions then parse each.
-  Requires -P 200k (vs -P 2m single-pass). All 265 S-expressions parse clean.
-  OPEN BUG in treebank-array.sno: parse_fail path pops ROOT unconditionally —
-  16 sentences produce spurious extra ROOT/) in output vs list version.
-  Fix: discard partial ROOT frame on group failure instead of popping into parent.
-  corpus HEAD d2161b3. one4all HEAD 1194e57d.
-
-- [x] **SC-24** — claws5.sno: stdin I/O rewrite.
-  Replaced INPUT(.rdch, 8, file) with stdin slurp (line = INPUT :F(slurp_done)).
-  No double-function needed: plain (epsilon . *fn()) calls work under both oracles.
-  Requires -P 2000000 for full 989-line corpus.
-  Fresh claws5.ref generated from CSNOBOL4 -bf (17386 lines); SPITBOL matches.
-  corpus commit: 3943493.
-
-- [x] **SC-24b** — Write claws5.sc matching the new claws5.sno (stdin, no double-fn).
-  Translate claws5.sno to Snocone syntax in corpus/programs/snobol4/demo/claws5.sc.
-  Rewritten goto-free (zero gotos). Do NOT test under scrip yet — SC-26 (. *fn() capture bug)
-  and the two-phase memory issue (SC-24c) must be resolved first.
-  No new .ref needed — claws5.sc will share claws5.ref.
-
-- [x] **SC-24c** — Two-phase rewrite for claws5.sno and claws5.sc (memory).
-  Single-pass ARBNO over 989 concatenated lines hits pattern stack overflow
-  (same problem as treebank-array: needs -P 2000000 in CSNOBOL4).
-  Scrip will hit the same wall.
-  Fix: two-phase like treebank-array:
-    Phase 1 — split src into sentences using sentence-boundary pattern
-              (N_CRD :_PUN ... next-N_CRD or RPOS(0)) → array of sentence strings.
-    Phase 2 — run token pattern on each sentence string individually.
-  This bounds pattern stack per sentence, not per whole corpus.
-  Gate: output matches claws5.ref under CSNOBOL4 -bf (no -P flag needed).
-  Write claws5-twophase.sno first; if correct, fold back into claws5.sno + claws5.sc.
-
-- [ ] **SC-25** — Fix SPITBOL -f (case-sensitive) switch in x64 build.
-  Current: SPITBOL v4.0f -f causes "No END statement found" on all files.
-  Investigate root cause in x64 source; patch if possible.
-  Steps:
-  (a) grep x64 source for fold/case handling: `grep -rn "fold\|FOLD\|case_fold\|-f" /home/claude/x64/`
-  (b) Identify where -f flag is parsed and where label folding is applied.
-  (c) Patch so -f disables folding without breaking END detection.
-  (d) Rebuild: `cd /home/claude/x64 && make` (or equivalent).
-  (e) Confirm: `echo 'OUTPUT = "ok"' > /tmp/t.sno && echo 'END' >> /tmp/t.sno && /home/claude/x64/bin/sbl -bf /tmp/t.sno` prints "ok".
-  If no fix is feasible after investigation: document limitation in RULES.md and accept CSNOBOL4 -bf as sole oracle for double-function programs.
-
-- [ ] **SC-26** — Fix scrip runtime bug: `(PAT . var) . *fn(var)` evaluates
-  `var` for the `*fn()` arg BEFORE the inner `.` assignment commits.
-  Oracle: CSNOBOL4 -bf `(word . tag) Push_list('tag')` → push_list sees `tag=NP`. ✓
-  Scrip (broken): same pattern → push_list sees `tag=[]`. ✗
-  Fix in pattern engine: `src/runtime/x86/snobol4_pattern.c` or `bb_boxes.c`.
-  Gate: `bash scripts/test_smoke_snocone.sh` PASS=5 FAIL=0.
-  Gate: `bash scripts/test_smoke_unified_broker.sh` PASS=31 FAIL=0.
-
-- [ ] **SC-27** — claws5.sc passes under --ir-run (after SC-24 + SC-26).
-  Gate: `cat CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref.
-
-- [ ] **SC-28** — treebank.sc passes under --ir-run (after SC-26).
-  Gate: `cat treebank.input | scrip --ir-run treebank.sc` matches treebank.ref.
-
-- [ ] **SC-29** — Both programs pass under --sm-run and --jit-run.
-
-- [ ] **SC-30** — Write `scripts/test_eng685_sc.sh` running both programs
-  under all 3 modes vs .ref files. Gate: PASS=6 FAIL=0.
-
-- [x] **SC-31** — Cross-validate claws5.sno and treebank-list.sno output against
-  patched assignment3.py that dumps only mem and bank structures (no classify/versus).
-  Steps:
-  (a) Patch assignment3.py: comment out classify/versus/register; after claws_info
-      match, print mem as sorted JSON (integer keys, sorted words/tags). After
-      treebank match, print bank structure. Save as assignment3_dump.py in corpus/.
-  (b) Run assignment3_dump.py on CLAWS5inTASA.dat + VBGinTASA.dat; capture output.
-  (c) Run claws5.sno under csnobol4 -bf; normalize output format to match Python dump.
-  (d) Run treebank-list.sno under csnobol4 -bf; normalize; compare.
-  (e) Diff both. Any divergence = bug in SNOBOL4 or normalization.
-  Gate: zero diff on mem structure; zero diff on bank structure.
-  Note: sentence keys in Python are int(num) from _CRD; our SNOBOL4 uses +num — same.
-  Note: VBGinTASA.dat required for treebank; confirm it exists in corpus demo dir.
-
-- [ ] **SC-31b** — Port pp_mem to claws5.sc (Snocone syntax).
-  claws5.sc currently has the old pp_table call. Replace with pp_mem translated to
-  Snocone: procedure pp_mem(mem) { ... } matching the SNOBOL4 pp_mem logic exactly.
-  Gate: `cat CLAWS5inTASA.dat | scrip --ir-run claws5.sc` matches claws5.ref (5622 lines).
-  Depends on SC-26 (. *fn() capture bug) being fixed first for claws5.sc to run at all.
+- [ ] **D-4** — treebank-array: `treebank-array.sc` PASS.
+  `treebank-array.sc` already exists (140 lines) but fails.
+  Oracle: CSNOBOL4 `-bf`.
+  Reference: `treebank-array.ref`.
+  Gate: `cat treebank.input | scrip --ir-run treebank-array.sc | diff - treebank-array.ref`
+  zero diff.
 
 ---
 
@@ -901,59 +735,3 @@ between scrip --ir-run and CSNOBOL4 -bf.
   with a whitespace-aware lexer; parser stays simple once the lexer
   handles adjacency disambiguation.
 
-## Next session — proposed steps SK-1..SK-13 for Koenig Snocone
-
-- [ ] **SK-1** — Copy current `src/frontend/snocone/` to a preserved location
-  (e.g. `src/frontend/snocone_plus/`) so the current working enhanced version
-  isn't lost. Wire extension/tag dispatch if both dialects need to coexist.
-
-- [ ] **SK-2** — Obtain and commit Andrew Koenig's original Snocone spec
-  to `.github/SPEC-snocone-koenig.md`. Reference implementation already
-  present at `/mnt/user-data/uploads/SNOCONE.zip` → `snocone.sc` (the
-  Koenig-style self-compiler; 104 `&&` occurrences confirming the spec
-  *as-written* still uses explicit &&, but Lon wants Snocone-the-language
-  to retire `&&` in favor of implicit concat).
-
-- [ ] **SK-3** — Lexer: implement whitespace-aware adjacency. Emit
-  IDENT_LPAREN when `IDENT(` (no space); emit IDENT_LBRACKET when
-  `IDENT[`; emit synthetic CONCAT between adjacent operand-producing
-  tokens separated by whitespace. Document rules in SPEC-snocone-koenig.md.
-
-- [ ] **SK-4** — Lexer: drop `&&`, `||` as operators. Keep `|` for
-  alternation. Drop `==`, `!=`, `<=`, `>=`, `<`, `>` as relational operators.
-
-- [ ] **SK-5** — Parser: remove SNOCONE_CONCAT, SNOCONE_OR, and all
-  C-style relational tokens from precedence table and lower_token switch.
-  Keep E_SEQ emission; now driven by lexer-synthesized CONCAT.
-
-- [ ] **SK-6** — Control flow: decide which C-style forms survive.
-  Koenig spec (per snocone.sc reference) keeps `if`, `else`, `while`,
-  `procedure`, `goto`, `return`, `freturn`, `nreturn`. No `for`, no
-  `break` (use goto). Revert SC-5 (for loops) and SC-6 (break) if
-  needed to match spec.
-
-- [ ] **SK-7** — Port the three demo programs (claws5.sc,
-  treebank-list.sc, treebank-array.sc) to Koenig-Snocone syntax:
-  strip all `&&`, replace `==` with `EQ()`, etc. Gate: each runs
-  under scrip --ir-run matching its .ref with zero diff.
-
-- [ ] **SK-8** — Port the 14 beauty-sc subsystems to Koenig Snocone.
-  Gate: `test_beauty_snocone_subsystems.sh` PASS=14.
-
-- [ ] **SK-9** — All 14 beauty-sc under --sm-run, --jit-run.
-  Gate: PASS=42.
-
-- [ ] **SK-10** — Port hand suite (fibonacci.sc, palindrome.sc,
-  wordcount.sc, quicksort.sc, pattern_suite.sc) to Koenig Snocone.
-  Gate: `test_snocone_hand_suite.sh` PASS=15.
-
-- [ ] **SK-11** — Three .sc demos under all three modes.
-  Gate: `test_eng685_sc.sh` PASS=9.
-
-- [ ] **SK-12** — Update GOAL-LANG-SNOCONE.md to reflect Koenig spec
-  as active definition. Old SC-26 closed as "not a bug — Snocone-plus
-  required &&; Koenig Snocone removes this requirement entirely."
-
-- [ ] **SK-13** — Draft `GOAL-LANG-SCRIPT.md` for the umbrella
-  unification language (Snocone++/Prolog/Icon in one grammar with
-  block mode-switch delineation — replacing SCRIPtix fence packaging).
