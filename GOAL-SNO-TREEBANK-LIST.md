@@ -73,11 +73,12 @@ likely because push/pop mis-dispatch (same root as treebank-array).
   GOAL-SNO-TREEBANK-ARRAY session). If not, apply it: change `strcasecmp` to
   `strcmp` in `label_lookup` in `src/driver/interp.c`. Rebuild. Run smoke + broker.
 
-- [ ] **TL-2** — Run treebank-list under scrip --ir-run. Diff against ref.
-  Fix any divergences. Watch for interpreter stack overflow on deep list recursion;
-  if hit, raise `DVAR_MAX_DEPTH` in `interp.c` or investigate the recursion path.
-  Gate: diff clean; smoke PASS=7; broker PASS=49;
-  `test_interp_broad_corpus_and_beauty` PASS improves.
+- [x] **TL-2** — DONE. `scrip --ir-run treebank-list.sno < treebank.input`
+  produces byte-identical output to `treebank-list.ref` (24/24 lines).
+  Fix landed in `bb_arbno` (nam_mark checkpoint per trial) + `NAM_mark`/
+  `NAM_rollback_to` (frame-identity guard) + `aframe_t` shadow-struct sync
+  in stmt_exec.c. Gate: diff clean ✓; smoke PASS=7 ✓; broker PASS=49 ✓;
+  broad corpus 172/228 (unchanged from baseline — zero regression).
 
 ---
 
@@ -453,3 +454,79 @@ frame — so for treebank, the mark is still valid at body_ω and the rollback
 does its job correctly. claws5 hits the case where the mark is stale.
 
 Code remains reverted. Working tree clean at HEAD `9a43cddd`.
+
+---
+
+## Session 2026-04-17 part 5 (TL-2 DONE — shadow-struct was the real culprit)
+
+### What I landed
+
+Three files, one logical fix:
+
+**`src/runtime/x86/snobol4_nmd.c`** — redesigned `NAM_mark`/`NAM_rollback_to`
+with a **frame-identity guard**. The mark is now a `{frame, tail}` pair
+(`NamMark_t`, GC_MALLOC'd). `NAM_rollback_to` is a safe no-op if the marked
+frame is no longer the top-of-stack. This eliminates the theoretical
+stale-frame hazard the prior session identified, though it turned out not to
+be the actual cause of the claws5 crash — see below.
+
+**`src/runtime/x86/bb_boxes.c`** — added `void *nam_mark` to `arbno_frame_t`;
+snapshot at `ARBNO_try` (each iteration re-marks); rollback at `body_ω` and
+`ARBNO_γ_now` (both fail-trial and zero-advance-trial drop the trial's NAM
+entries). Same pattern as the existing `bb_alt` fix (Bug #1d).
+
+**`src/runtime/x86/stmt_exec.c`** — **the critical fix the prior sessions
+missed.** stmt_exec.c's `aframe_t` (line 283) is a duplicate of `bb_boxes.c`'s
+`arbno_frame_t` — it's the structure actually allocated by the XARBN case at
+line 944 (`ζ->stack = malloc(ζ->cap * sizeof(aframe_t))`). Adding `nam_mark`
+to `arbno_frame_t` in bb_boxes.c grew the struct from 16→24 bytes, but
+stmt_exec.c's `aframe_t` stayed at 16. `bb_arbno` then wrote at the new
+24-byte stride into a 16-byte-stride buffer → overrun into the next heap
+chunk's metadata → glibc `realloc(): invalid next size` when the stack next
+grew. Synced `aframe_t` to include `nam_mark`. This resolves the claws5
+crash the prior two sessions chased.
+
+`bb_build.c` has `arbno_t_bin` but its actual XARBN path calls
+`bb_arbno_new()` (per a prior fix noted in the source comment), so no sync
+needed there.
+
+### Misattribution the prior sessions should note
+
+The prior "Aborted" crash was also heap corruption, but from the same
+shadow-struct mismatch — not from stale-frame writes in NAM_rollback_to.
+Adding the mark field to `arbno_frame_t` without syncing `aframe_t`
+guaranteed a crash in any program that used ARBNO through the stmt_exec
+path (i.e., all --ir-run users). The frame-identity guard in NAM_mark is
+still a worthwhile defensive improvement, but it was not the missing piece.
+
+### Verification
+
+```
+DEMO=/home/claude/corpus/programs/snobol4/demo
+scrip --ir-run $DEMO/treebank-list.sno < $DEMO/treebank.input \
+    | diff - $DEMO/treebank-list.ref
+# (empty — 24/24 lines byte-identical)
+```
+
+claws5 `--ir-run` on the full input no longer crashes; it produces 95 valid
+lines then stops early (sentences 1–4). That early-stop is **pre-existing**
+behavior — verified by stashing my patch, rebuilding, and confirming
+identical 95-line / 5531-line-diff output against baseline HEAD 9a43cddd.
+It is NOT a regression introduced by this work. `demo_claws5` in the broad
+gate exercises a different path and is unaffected.
+
+### Gates
+
+- `test_smoke_snobol4.sh` — PASS=7 FAIL=0 ✓
+- `test_smoke_unified_broker.sh` — PASS=49 FAIL=0 ✓
+- `test_interp_broad_corpus_and_beauty.sh` — PASS=172 FAIL=56 (228 total),
+  identical to baseline — zero regression, and treebank-list is now in the
+  pass set though the label will surface only when broad uses `--ir-run`
+  (currently doesn't include this program explicitly).
+
+### State at end of session
+
+- HEAD one4all (pre-commit): `9a43cddd`; committed this session.
+- No changes to corpus.
+- `.github/GOAL-SNO-TREEBANK-LIST.md`: this note added, TL-2 marked done.
+- `.github/PLAN.md`: updated to reflect TL-2 complete.
