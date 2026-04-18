@@ -735,3 +735,70 @@ between scrip --ir-run and CSNOBOL4 -bf.
   with a whitespace-aware lexer; parser stays simple once the lexer
   handles adjacency disambiguation.
 
+## Current state (2026-04-18 session 2, one4all HEAD 6068acd6, corpus HEAD e13b336)
+
+D-1 IN PROGRESS: porter.sc exists (342 lines, committed e13b336). D-1(a) verified:
+SPITBOL x64 running porter.sno < porter.input gives zero diff vs porter.ref (23531 lines).
+Ref is current.
+
+D-1(c) BLOCKED: `scrip --case-sensitive --ir-run porter.sc` hangs before producing
+any IR output. Bisected: hang triggered by user-defined labels (`mV1:`, `mV:`, etc.)
+inside procedures — porter.sc has 7 such labels across cons(), m(), and neighbors.
+
+Session surfaced two Snocone frontend bugs:
+
+**Bug SC-27 — user labels inside procedures mis-lowered and/or hang parser:**
+  Minimal repro that HANGS scrip compile stage (zero output, timeout):
+    procedure foo() (i) {
+    L1:
+        if (GT(i, 3)) { return; }
+        i = i + 1;
+    }
+  Minimal repro that PARSES but lowers label incorrectly:
+    procedure foo() { L1: return; }  ->  IR contains (STMT :subj (E_VAR L1))
+    instead of (STMT :lbl L1). Goto targets silently become bare variable refs.
+  Fix site: snocone_parse.c rule for `IDENT COLON`, and snocone_cf.c label handling.
+  Separately: snocone_cf.c appears to loop when reaching a label after an
+  if-with-return branch; needs investigation.
+
+**Bug SC-28 — `procedure f(x) (i)` locals syntax miscompiled:**
+  `procedure foo(x) (i) { return; }` emits `DEFINE("foo(x)i")` (no separator).
+  _parse_define_spec expects `"foo(x),i"` (comma before locals).
+  Fix site: snocone_lower.c or snocone_parse.c procedure-head emission.
+
+**Case-folding note:**
+  Snocone must be invoked with `--case-sensitive` because Snocone's lexer
+  preserves case while SNOBOL4's folds. Without it, `procedure Double(n)` binds
+  the spec as `DOUBLE`/`N` (folded by _parse_define_spec) but the body references
+  `Double`/`n` (unfolded by Snocone lexer) — arg passing silently fails, function
+  returns 0. Smoke gate `test_smoke_snocone.sh` currently FAILS on `procedure`
+  test for this reason; smoke script needs `--case-sensitive` added to the
+  scrip invocation, OR the Snocone driver should auto-enable case-sensitive
+  for `.sc` files.
+
+Recommended path forward for D-1:
+  Per Lon: "No gotos if at all possible." Rewrite porter.sc goto-free using
+  while/if/else/break (same house style as claws5.sc / treebank-list.sc /
+  treebank-array.sc). This bypasses SC-27 entirely and gets D-1 green without
+  touching shared Snocone frontend files. SC-27 + SC-28 + smoke-case-sensitive
+  filed as follow-up.
+
+### NEXT SESSION START
+1. bash /home/claude/one4all/scripts/install_system_packages.sh
+2. bash /home/claude/one4all/scripts/build_scrip.sh
+3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+5. Rewrite porter.sc in corpus/programs/snobol4/demo/ goto-free:
+   - Convert each `procedure ... { L0: ... goto L1; L1: ... }` cluster into
+     nested `while (...) { if (...) { ... } else { break; } }` form.
+   - cons(), m(), vowelinstem(), doublec(), cvc() each have internal labels.
+   - Keep procedure locals syntax clean (use `,` form to avoid SC-28):
+     DEFINE('foo(x)local1,local2') path — in Snocone this means NOT using
+     `(locals)` paren-wrapper if that syntax is still broken; check first.
+6. Gate: `timeout 300 scrip --case-sensitive --ir-run porter.sc < porter.input
+   | diff - porter.ref`  must be zero.
+7. If performance inadequate on 23531-line input, consider:
+   - `scrip --case-sensitive --sm-run` (faster than --ir-run)
+   - `scrip --case-sensitive --jit-run` (fastest)
+   per the goal's three-mode requirement.
+
