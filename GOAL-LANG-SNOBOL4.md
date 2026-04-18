@@ -79,7 +79,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [x] **SN-3** — beauty tdump driver all three modes. DONE.
 - [x] **SN-4** — beauty alpha/beta/gamma drivers all three modes. DONE.
 - [x] **SN-5** — beauty.sno self-hosts; all 18 driver×mode combos PASS. DONE.
-- [ ] **SN-6** — Full corpus: run test_interp_broad_corpus_and_beauty.sh. IN PROGRESS: PASS=215/228.
+- [ ] **SN-6** — Full corpus: run test_interp_broad_corpus_and_beauty.sh. IN PROGRESS: PASS=218/225.
 
 - [ ] **SN-7** — beauty.sno self-host bootstrap: make beauty.sno parse and
   pretty-print itself correctly for the FIRST TIME under scrip --ir-run.
@@ -263,14 +263,18 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-19 session 6, stage-2 strcasecmp→strcmp)
+## Current state (2026-04-18 — SN-19 session 7, SN-6 triage)
 
-**HEAD:** one4all `83447fd2` — SN-19 stage-2 strcasecmp→strcmp on AST-token sites.
+**HEAD:** one4all `83447fd2` — SN-19 stage-2 strcasecmp→strcmp on AST-token sites
+(carried from session 6; this session made no runtime changes).
 
-**Gates after this session:**
+**Gates this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/227** — held steady (same 9 known failures)
-- `differ(3+2,5)` minimal repro **PASSES all three modes**
+- Broad suite **218/225** — up from stale 218/227 (two orphan FAILs removed
+  by corpus commit `e087410` already in HEAD; this session discovered and
+  documented the current accurate figure). Same 7 real FAILs remain — see
+  Open issues below for per-test triage.
+- `differ(3+2,5)` minimal repro — not remeasured, stable from session 6
 
 ### SN-19 stage-2 — completed this session
 
@@ -371,10 +375,27 @@ work is incremental stage-2 cleanup + CLI-flag ergonomics, not blockers.
 Do **not** revert.
 
 **Open issues tracked elsewhere:**
-- SN-6 remaining failures (same 9 as session 4): fileinfo/word1/triplet/wordcount
-  (SM INPUT-EOF hang), expr_eval `1+2*3 → 2` (match-time vs commit-time
-  `*fn()` dispatch), beauty_XDump_driver (unknown), demo_wordcount/demo_roman
-  (source MISSING in corpus), demo_claws5 (see GOAL-SNO-CLAWS5.md)
+- SN-6 remaining failures (session 7, 2026-04-18 triage — 218/225, down from
+  stale 218/227 after corpus commit `e087410` removed demo_wordcount /
+  demo_roman orphan `.ref` files):
+  - `fileinfo` — `--sm-run` INFINITE LOOP (exit 124); `--ir-run` PASSES.
+    INPUT in loop never signals EOF under SM.
+  - `word1` — `--sm-run` clean exit, NO output; `--ir-run` PASSES. `ARB . OUTPUT`
+    immediate-assignment side-effect not firing in SM.
+  - `triplet` — `--sm-run` prints only first line, exits 0; `--ir-run` PASSES.
+    Loop terminates after iteration 1 (possibly :F-on-INPUT firing prematurely
+    on non-empty subsequent lines, or `:(LOOP)` not re-executing).
+  - `wordcount` — `--sm-run` prints `9. words` instead of `14 words`;
+    `--ir-run` PASSES. TWO distinct bugs visible: (a) bare integer prints with
+    trailing `.` under `&TRIM=1` in SM (formatting), (b) pattern-match loop
+    counts 9 instead of 14 (BREAK/SPAN boundary or line-advance).
+  - `expr_eval` — `1+2*3 → 2` (match-time vs commit-time `*fn()` dispatch;
+    same root cause as SN-17 Porter gap)
+  - `beauty_XDump_driver` — not yet investigated
+  - `demo_claws5` — see GOAL-SNO-CLAWS5.md
+  **Pattern:** 4 of 7 real failures are `--sm-run`-only; `--ir-run` is clean
+  on those same programs. SM lowering / SM interpreter path has multiple
+  distinct bugs around I/O loops and pattern-match side effects.
 - SN-17 Porter --ir-run gap to 100% — cluster of `feed`-class leaks from failed
   ALT arms; NAM rollback needs to cover NAM_KIND_CALLCAP entries
 - SN-17 Porter --sm-run gap (60.64% vs --ir-run 83.46%) — SM lowering has its
