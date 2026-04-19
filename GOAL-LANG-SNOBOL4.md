@@ -757,10 +757,47 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Ladder SN-23a..g:**
 
-  - [ ] **SN-23a** -- Introduce `NAME_ctx_t`, `NAME_ctx_enter`,
+  - [x] **SN-23a** -- Introduce `NAME_ctx_t`, `NAME_ctx_enter`,
     `NAME_ctx_leave` in snobol4_nmd.c.  Keep old API working alongside
     (new ctx takes precedence if non-NULL; else falls through to
-    legacy g_stack).  Smoke+Broker green.
+    legacy g_stack).  Smoke+Broker green.  **Done 2026-04-19.**
+
+    **Landed changes:**
+
+    - `snobol4_nmd.c`: added `struct NAME_ctx_s { entries, cap, top,
+      parent }`.  Declared a file-scope static `g_root_ctx` that owns
+      what used to be the legacy `g_stack` / `g_cap` / `g_top`
+      globals, and a `g_ctx_current` pointer that starts at `&g_root_ctx`.
+      Added `NAME_ctx_enter(ctx)` and `NAME_ctx_leave()`.
+    - Refactored the five internal ops (`NAME_push`, `NAME_pop`,
+      `NAME_top`, `NAME_pop_above`, `NAME_commit` walk) to read through
+      `g_ctx_current` instead of the file-scope globals.  Added a
+      small internal helper `ctx_ensure_capacity(ctx, need)` replacing
+      the old `ensure_capacity(need)`.
+    - `snobol4.h`: forward-declared `typedef struct NAME_ctx_s
+      NAME_ctx_t;` and added prototypes for `NAME_ctx_enter` /
+      `NAME_ctx_leave` alongside the existing bracket API.
+    - Legacy shims (`NAME_save` / `NAME_commit` / `NAME_discard` /
+      `NAME_push_callcap*`) untouched in shape — still the same entry
+      points — but all now route through `g_ctx_current`.
+
+    **Design note — why a static root ctx instead of a NULL fallback:**
+    The original plan said "new ctx takes precedence if non-NULL; else
+    falls through to legacy g_stack."  Landed version wraps the legacy
+    globals in a statically-allocated `g_root_ctx` and makes
+    `g_ctx_current` always non-NULL.  That eliminates a NULL-check
+    branch from the hot path of every NAME_push / NAME_pop and keeps
+    the five internal ops as one code path, not two.  Behavioral
+    equivalent: nothing calls `NAME_ctx_enter` yet, so every op still
+    operates on the root ctx == what used to be the global stack.
+
+    **Gates after SN-23a:**
+    - Smoke PASS=7 (unchanged)
+    - Broker PASS=49 (unchanged)
+    - Broad corpus PASS=223/225 (unchanged — expr_eval, demo_claws5
+      remain the only fails)
+    - Porter `--ir-run` and `--sm-run` both byte-identical to SPITBOL
+      ref (0-line diff / 23531)
 
   - [ ] **SN-23b** -- stmt_exec.c Phase 3: wrap the scan in
     `NAME_ctx_enter/leave`.  `NAME_commit()` now walks `g_ctx_current`
@@ -832,13 +869,32 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `adf296eb` (SN-6b — DT_E thaw gap closed).  Gates:
-Smoke 7, Broker **49**, Broad corpus 223/225 (unchanged — `expr_eval`
-and `demo_claws5` remain, as anticipated).  Porter `--ir-run` and
-`--sm-run` still both at **100.00%** / 23531.
+**HEAD:** one4all @ `c1597a67` (SN-23a — per-ctx NAM stack layer).  Gates: Smoke 7, Broker
+**49**, Broad corpus 223/225 (unchanged — `expr_eval` and `demo_claws5`
+remain, as anticipated).  Porter `--ir-run` and `--sm-run` still both
+at **100.00%** / 23531.
 
-**What SN-6c diagnosis session (2026-04-19) delivered** — no code
-committed; clean tree.  SN-6c is NOT an arithmetic bug:
+**What SN-23a delivered (2026-04-19):**
+
+- Introduced `NAME_ctx_t` struct and `NAME_ctx_enter` / `NAME_ctx_leave`
+  in `snobol4_nmd.c`, declared in `snobol4.h`.
+- Refactored the five internal NAM ops (`NAME_push`, `NAME_pop`,
+  `NAME_top`, `NAME_pop_above`, `NAME_commit` walk) to operate on the
+  ctx pointed to by `g_ctx_current` rather than file-scope globals.
+- The legacy `g_stack` / `g_cap` / `g_top` triple was folded into a
+  statically-allocated `g_root_ctx`; `g_ctx_current` starts (and, for
+  now, stays) pointing at it.  No caller has been rewired to create
+  child ctxs yet — that's SN-23b / SN-23c.
+- All gates green, no regression.
+
+**Next step:** **SN-23b** — stmt_exec.c Phase 3 wraps the scan in
+`NAME_ctx_enter/leave`.  `NAME_commit()` then walks `g_ctx_current`
+entries instead of using the cookie range.  Callers of `NAME_save()`
+in stmt_exec.c replace their cookie-based bracket with ctx
+enter/leave.  Gate: Smoke, Broker, Broad corpus must not regress.
+
+**SN-6c diagnosis session (2026-04-19)** — no code committed; clean
+tree.  SN-6c is NOT an arithmetic bug:
 
 1. Minimal 7-line repro isolated (see SN-6c body above) — a recursive
    pattern `rec = 'a' . *Push('A') *rec | 'a' . *Push('B')` on input
