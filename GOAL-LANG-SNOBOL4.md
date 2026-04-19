@@ -214,10 +214,13 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
          NameKind_t.  JIT trampolines in `bb_build.c` updated to
          `bb_cap` / `bb_cap_new`.  Old `bb_callcap` still present but
          untouched — collapsed in SN-21d.  Smoke 7, Broker 48.
-  - [ ] **SN-21d** -- Collapse `bb_callcap` into `bb_cap` with
+  - [x] **SN-21d** -- Collapse `bb_callcap` into `bb_cap` with
          `NAME_t { kind = NM_CALL }`.  `bb_build.c` nme + callcap
-         emitters converge on `bb_cap_new`.  `bb_deferred_var` in
-         `stmt_exec.c` likewise.  Gate after: Smoke 7, Broker 48.
+         emitters converge on `bb_cap_new` / `bb_cap_new_call`.  XCALLCAP
+         in `stmt_exec.c` routes through `bb_cap_new_call`.  `bb_callcap`
+         and friends left defined but unreached — SN-21e deletes them.
+         HEAD `2f5cd02d`.  Gates: Smoke 7, Broker 48, broad corpus
+         PASS=223/225 (same known-unresolved set as pre-SN-21d).
   - [ ] **SN-21e** -- Delete legacy: `bb_callcap`, `bb_callcap_new*`,
          `capture_t`, `callcap_t`, `NAM_KIND_*`, shim names.  Update
          all call sites to the `NAME_*` names directly.  Gate after:
@@ -282,11 +285,11 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ---
 
-## Current state (2026-04-19 -- SN-21d CURRENT, Gates PASS=7/48)
+## Current state (2026-04-19 -- SN-21e CURRENT, Gates PASS=7/48)
 
-**HEAD:** one4all @ `c634526f`.
+**HEAD:** one4all @ `2f5cd02d`.
 
-**Gates:** Smoke PASS=7, Broker PASS=48.
+**Gates:** Smoke PASS=7, Broker PASS=48, broad corpus PASS=223/225.
 
 SN-21a (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
 name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
@@ -298,25 +301,35 @@ Python generator `push; yield; pop` idiom; combinator helpers
 NAME_top / NAME_pop_above serve bb_alt next-arm and bb_arbno escape
 paths.  All NAM_* legacy names remain as thin shims delegating to
 the new API (deleted in SN-21e).  Per-slot legacy_dt preserves
-DT_S / DT_K / DT_E dispatch.  Ad-hoc probe (capture / ARBNO /
-callcap) identical to pre-SN-21b in all three modes.
+DT_S / DT_K / DT_E dispatch.
 
-SN-21c: bb_capture → bb_cap in bb_boxes.c; capture_t → cap_t with
-embedded NAME_t replacing the {varname, var_ptr} pair.  Immediate
-($) writes route through name_commit_value; deferred (.) writes use
-NAME_push / NAME_pop directly (bypassing the NAM_push shim).
-Constructor bb_cap_new builds the NAME_t via name_init_as_ptr /
-name_init_as_var.  JIT trampolines in bb_build.c point at bb_cap.
-stmt_exec.c XNME / XFNME dispatchers use bb_cap_new.  bb_callcap
-still owns the NM_CALL case — collapsed in SN-21d.  Sanity probe
-($ / . / failure-rollback) identical across --ir-run, --sm-run,
---jit-run; twopat=EDC (*var-DT_E thaw gap) remains as documented
-in SN-20 — expected closure at SN-21e.
+SN-21c (`c634526f`): bb_capture → bb_cap in bb_boxes.c; capture_t →
+cap_t with embedded NAME_t replacing the {varname, var_ptr} pair.
+Immediate ($) writes route through name_commit_value; deferred (.)
+writes use NAME_push / NAME_pop directly (bypassing the NAM_push shim).
+bb_cap_new builds the NAME_t via name_init_as_ptr / name_init_as_var.
+JIT trampolines in bb_build.c point at bb_cap.  bb_callcap still owns
+the NM_CALL case.
 
-SN-21d next: collapse bb_callcap into bb_cap with NAME_t { kind =
-NM_CALL }.  bb_build.c nme + callcap emitters converge on bb_cap_new.
-bb_deferred_var in stmt_exec.c likewise.  Gate after: Smoke 7,
-Broker 48.
+SN-21d (`2f5cd02d`): XCALLCAP now lowers to bb_cap with NM_CALL.
+bb_cap_new_call constructor added (name_init_as_call).  stmt_exec.c
+XCALLCAP + bb_build.c bb_callcap_emit_binary both route through
+bb_cap_new_call; neither touches the old bb_callcap path anymore.
+bb_callcap / bb_callcap_new* / bb_callcap_exported / callcap_t /
+cc_event_t / dedup_callcaps / flush_pending_callcaps all remain
+defined but unreached.  Dead-code finding: flush_pending_callcaps
+and dedup_callcaps had zero callers since SN-20 session 18; their
+functionality was already owned by NAM_commit → name_commit_value.
+Callcap sanity probes match SPITBOL byte-for-byte across three modes.
+
+SN-21e next: delete everything listed in the SN-21d residue paragraph
+above, plus NAM_* legacy shim names (NAM_save, NAM_pop (frame),
+NAM_push, NAM_push_callcap, NAM_push_callcap_named, NAM_pop_one,
+NAM_mark, NAM_rollback_to) and per-slot legacy_dt.  Fold the DT_E
+thaw into name_commit_value (closes SN-20 *var-holds-DT_E gap,
+expected to fix expr_eval and Porter stemmer SN-17 as side-effects).
+Gate after: Smoke 7, Broker 48, expr_eval outputs 7/9/25.5/7/26,
+sm_min7.sno HIT fires both modes.
 
 Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` —
 canonical `for x in P.γ(): push; yield; pop` shape.  Our C γ/β/ω
