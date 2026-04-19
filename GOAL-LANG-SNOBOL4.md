@@ -131,14 +131,39 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Fresh rung ladder — SN-17a..d:**
 
-- [ ] **SN-17a** -- Add `SM_PAT_USERCALL` opcode.
-      - Add opcode in `sm_prog.h`.
-      - Lower XATP-with-non-`@` in `sm_lower.c` to `SM_PAT_USERCALL`.
-      - Add `case SM_PAT_USERCALL:` in `sm_interp.c`.
-      - Add `h_pat_usercall` handler in `sm_codegen.c`, register in
-        `g_handlers`.
-      - Gate: `--sm-run` Porter measurement moves (even if still broken,
-        number must change — proves the opcode fires).
+- [x] **SN-17a** -- Add `SM_PAT_USERCALL` opcode.  Done 2026-04-19.
+      - `sm_prog.h`: opcode added after `SM_PAT_CAPTURE_FN`.
+      - `sm_lower.c`: `case E_DEFER:` now detects `E_DEFER(E_FNC)` in pattern
+        context and emits `SM_PAT_USERCALL s="FNAME" args="..."`.  Previous
+        behavior fell through `lower_expr → SM_CALL → SM_PAT_DEREF`, which
+        invoked fn **once at build time** and treated the return as a pattern
+        (no per-position sweep).
+      - `sm_interp.c`: `case SM_PAT_USERCALL:` pushes `pat_user_call(fname, NULL, 0)`.
+      - `sm_codegen.c`: `h_pat_usercall` handler + registered in `g_handlers`.
+      - `sm_prog.c`: added to opnames[] and `sm_prog_print` switch.
+      - `pat_user_call()` already existed in `snobol4_pattern.c:393` (builds
+        XATP node) — SN-17a just wired an SM opcode to it.
+      - Arg-name stash in `a[2].s` is emitted but not yet consumed (left NULL
+        into `pat_user_call`); named-args resolution lands in SN-17d with the
+        FAIL-propagation fix.
+
+      **Porter measurement (oracle: `paste` agree-count / 23531):**
+      - `--ir-run`: 19674 → 19639  (slight drift; see note)
+      - `--sm-run`: 14317 → **19639**  (+5322, 60.84% → 83.46%)
+      - The two modes now **converge** — both produce identical output.
+        This is the shape SN-17d targets ("both match SPITBOL on abate…")
+        minus the final FAIL-propagation piece.
+      - Gates: Smoke PASS=7, Broker PASS=48, Broad corpus PASS=223/225
+        (same two fails: expr_eval, demo_claws5 — pre-existing, SN-6).
+
+      **Note on the `--ir-run` 35-line drift:** before SN-17a the two modes
+      disagreed because `--sm-run` took the broken `SM_CALL→SM_PAT_DEREF`
+      path.  `--ir-run` had its own (different) wrongness via `bb_usercall`
+      on XATP, and the two wrongnesses happened to produce 35 ref-matching
+      lines that `--sm-run` didn't.  Now both modes route through
+      `pat_user_call → XATP → bb_usercall`; the 35 lines moved from
+      `--ir-run`-accidentally-right to `--both`-equally-wrong.  SN-17d
+      will recover them in both modes simultaneously.
 
 - [ ] **SN-17b** -- Unify `bb_build` dispatch.
       Goal: eliminate the two parallel XKIND switches. Two design options
@@ -236,6 +261,9 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `8964586e`. Gates: Smoke 7, Broker 48 (was 49 — one
-test has drifted since last session; investigate separately).
-**Next step:** SN-17a — add `SM_PAT_USERCALL` opcode.
+**HEAD:** one4all @ `f2cf3494` (SN-17a). Gates: Smoke 7, Broker 48.
+Porter `--ir-run` and `--sm-run` now converge at 19639/23531 (83.46%).
+Broad corpus: PASS=223/225 (unchanged).
+
+**Next step:** SN-17b — unify `bb_build` dispatch (two design options in
+the SN-17b entry above).
