@@ -74,7 +74,8 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-6** -- Full corpus: PASS=223/225. IN PROGRESS.
+- [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run
+  (expr_eval IR side fixed session 14, SM side still open). IN PROGRESS.
 
 ```bash
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
@@ -129,14 +130,19 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-6 session 13, PASS=223/225)
+## Current state (2026-04-19 -- SN-6 session 14, PASS=223/225 default / ir-run 224/225)
 
-**HEAD:** one4all (session 13) -- interp.c: skip spurious upfront
-evaluation of E_FNC subject in execute_program top-level loop when
-has_eq && !pattern. Partial fix for expr_eval Bug #1 family --
-minimal reproducer now correct, expr_eval.sno itself still fails.
+**HEAD:** one4all (session 14) -- interp.c: apply the same E_FNC LHS
+guard in the user-function body statement loop (~L597) that session 13
+applied to the top-level execute_program loop (~L4142). Bug #1 IR side
+is now COMPLETE: expr_eval.sno passes --ir-run with diff=0 against its
+.ref. The broad-corpus script runs in default (--sm-run) mode, so the
+script still reports expr_eval FAIL because of the known separate SM
+bug documented below as item (2). Under --ir-run, expr_eval passes.
 
-**Gates:** Smoke PASS=7, broker PASS=49, broad 223/225 (no regression).
+**Gates:** Smoke PASS=7, broker PASS=49 (was 48, one test recovered
+with the body-loop fix -- doc value 49 was correct), broad 223/225
+default / 224/225 --ir-run. No regression.
 
 ### SN-6 remaining failures (2 of 225)
 
@@ -212,8 +218,9 @@ SPITBOL/CSNOBOL4: 2 CALLs, `slot1=hello slot2=world top=2`.
 Pre-session-13 --ir-run: 4 CALLs, `slot1= slot2=hello top=4`.
 Post-session-13 --ir-run: 2 CALLs, `slot1=hello slot2=world top=2`.
 
-**Next step for session 14:** apply analogous guard in the
-user-function body statement loop (second site). Same shape:
-find `interp_eval(s->subject)` around lines 558-740 of interp.c
-inside the function-body execution loop, guard with the same
-`E_FNC && has_eq && !pattern` predicate.
+**Next step for session 15:** Bug #1 IR side is done. Attack the
+SM-run side (`--sm-run expr_eval.sno < expr_eval.input` returns
+"Bad input, try again" for all inputs). Hypothesis from session 13:
+NAM rollback missing NAM_KIND_CALLCAP in sm_interp.c / stmt_exec.c
+commit-time `*fn()` dispatch. Porter stemmer SN-17 gap is expected
+to close as a side-effect of the same fix.
