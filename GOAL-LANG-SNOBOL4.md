@@ -1035,7 +1035,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=224/225
   (demo_claws5 only, out of scope), SN-7 gate PASS=51/51.
 
-- [ ] **SN-8** -- next rung on the SN-7..SN-9 Phase 2 path.  **Scoped 2026-04-19:**
+- [x] **SN-8** -- next rung on the SN-7..SN-9 Phase 2 path.  **Scoped 2026-04-19:**
       close the long-standing `. *fn(args)` / `$ *fn(args)` / bare `*fn(args)`
       args-are-NULL gap on the SM and JIT paths (tags-empty on `--sm-run`
       in the 7-line `rec` repro).
@@ -1082,48 +1082,82 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   `eval_node` into a `DESCR_t[]` and pass to `pat_assign_callcap` /
   `pat_user_call`.
 
-  **Planned fix (SN-8a) — not landed this session:**
+  **SN-8a (landed 2026-04-19):** args-on-stack SM opcodes for the
+  non-all-E_VAR fallback.  Two new opcodes added; handlers in interp
+  and JIT; lowering emits them when `sm_pat_capture_fn_arg_names`
+  returns NULL and the function has children.
 
-  - Introduce a new SM opcode `SM_PAT_CAPTURE_FN_ARGS` that, at match-
-    build time, pops `nargs` DESCR_t values from the value stack and
-    passes them to `pat_assign_callcap`.
-  - `sm_lower.c` E_CAPT_COND_ASGN / E_CAPT_IMMED_ASGN: try the existing
-    TL-2 name-stash path first (keeps oracle-semantic post-capture
-    resolution when all args are E_VAR).  On fallback, lower each arg
-    onto the value stack and emit the new `SM_PAT_CAPTURE_FN_ARGS` with
-    `a[0].s`=fname, `a[1].i`=kind (0=cond / 1=imm), `a[2].i`=nargs.
-  - Reuse `a[2]` as a union: `a[2].s` means name-stash (existing
-    `SM_PAT_CAPTURE_FN`), `a[2].i` means nargs (new
-    `SM_PAT_CAPTURE_FN_ARGS`).  A new opcode avoids union-discrimination
-    hazards at the handler.
-  - Parallel fix in `sm_interp.c` + `sm_codegen.c` (add
-    `h_pat_capture_fn_args` handler, register in `g_handlers[]`).
-  - Also extend `SM_PAT_USERCALL` for the bare `*fn(args)` form (same
-    pop-from-stack pattern; `a[1].i`=nargs).  The bare form is not
-    exercised by the current failing repro but has the same latent bug.
-  - Update `sm_prog.h` / `sm_prog.c` (opnames table + print switch).
+  **Landed changes:**
 
-  **Session 2026-04-19 state:** full diagnosis above; prototype patch
-  was written and partially applied in working tree but not rebuilt /
-  not tested / JIT handler missing.  Reverted to maintain clean build.
-  Reference files studied this session:
-  - `sm_lower.c:307-353`   (emit sites)
-  - `sm_lower.c:188-208`   (`sm_pat_capture_fn_arg_names` — returns NULL
-                             when any arg is not plain E_VAR)
-  - `sm_interp.c:493-543`  (handler sites)
-  - `sm_codegen.c:419-428` (JIT `h_pat_usercall`)
-  - `driver/interp.c:3091-3144` (reference --ir-run implementation)
-  - `snobol4_pattern.c:361-402`  (`pat_assign_callcap` / `pat_user_call`
-                                  signatures; both take `DESCR_t*, int`)
+  - `sm_prog.h`: added `SM_PAT_CAPTURE_FN_ARGS` (a[0].s=fname,
+    a[1].i=kind, a[2].i=nargs) and `SM_PAT_USERCALL_ARGS` (a[0].s=fname,
+    a[1].i=nargs).  Full doc comments.
+  - `sm_prog.c`: opnames table + `sm_prog_print` cases for both.
+  - `sm_lower.c`: `E_CAPT_COND_ASGN` / `E_CAPT_IMMED_ASGN` / `E_DEFER(E_FNC)`
+    branches — when `sm_pat_capture_fn_arg_names()` returns NULL and
+    `fnc->nchildren > 0`, lower each arg via `lower_expr` (pushing onto
+    the value stack in source order 0..nargs-1) and emit the new `_ARGS`
+    opcode variant.  All-E_VAR / zero-arg cases keep the TL-2 name-stash
+    path.
+  - `sm_interp.c`: `SM_PAT_CAPTURE_FN_ARGS` handler pops nargs values
+    (positions nargs-1..0 to reconstruct source order), pops the child
+    pattern, builds `pat_assign_callcap(child, fname, argv, nargs)`.
+    `SM_PAT_USERCALL_ARGS` handler pops nargs values (no child), builds
+    `pat_user_call(fname, argv, nargs)`.
+  - `sm_codegen.c`: JIT mirrors — `h_pat_capture_fn_args` /
+    `h_pat_usercall_args` registered in `g_handlers[]`.
 
-  **Repro file:** `/tmp/rec_repro.sno` (not committed; recreate from the
-  snippet above).  Current tree (HEAD `d70abcea` SN-7 gate): smoke 7,
-  broker 48 (env-dependent 48/49 drift, pre-existing), build clean.
+  **Design notes:**
 
-  **Gate after fix:** Smoke PASS=7, Broker PASS≥48, Broad corpus must
-  not regress (≥224/225), Porter both modes still 100%/100% / 23531,
-  and all three modes (ir/sm/jit) produce `MATCH count=a tags= A B` on
-  the 7-line `rec` repro.
+  - **Two new opcodes, not one** — follows the SN-8 scoping's
+    recommendation.  Avoids union-discrimination hazards on `a[2]`
+    (which holds `.s` for the existing name-stash path and `.i` for
+    the new nargs path).  The existing `SM_PAT_CAPTURE_FN` /
+    `SM_PAT_USERCALL` opcodes are untouched in semantics.
+  - **`kind` (cond vs imm) is carried by NM_CALL NameKind_t inside the
+    XCALLCAP node**, not by `pat_assign_callcap`'s args — same as the
+    existing `SM_PAT_CAPTURE_FN` path.  The new handler accepts
+    `a[1].i` and ignores it (documented with `(void)` cast).
+  - **Arg-order pop:** values pushed 0..nargs-1, popped into argv
+    positions nargs-1..0 to reconstruct original order for the callee.
+
+  **Gates (all green, no regressions):**
+  | Gate | Result | Target |
+  |------|--------|--------|
+  | Smoke | PASS=7 | PASS=7 ✓ |
+  | Broker | PASS=49 | PASS=49 ✓ |
+  | Broad corpus | PASS=224/225 | ≥224 ✓ |
+  | Porter `--ir-run` | 0-line diff | byte-identical ✓ |
+  | Porter `--sm-run` | 0-line diff | byte-identical ✓ |
+  | SN-7 beauty self-host | PASS=51 | PASS=51 ✓ |
+
+  **Repros (all four oracles converge — SPITBOL, `--ir-run`, `--sm-run`,
+  `--jit-run`):**
+
+  - `/tmp/rec_repro.sno` (`. *Push('A')` with E_QLIT arg) —
+    `MATCH count=a tags= A B` in all four (was `tags=  ` in SM/JIT
+    before fix).
+  - `/tmp/usercall_args.sno` (bare `*PushAndEps('A')` with E_QLIT arg) —
+    `MATCH count=3 tags= A A B` in all four (was `tags=  ` in SM/JIT
+    before fix).
+
+  **Still open (latent, non-blocking):**
+
+  - **Named-args path in `SM_PAT_USERCALL`** (the all-E_VAR case): the
+    lowering stashes names in `a[2].s`, but the handler still builds
+    `pat_user_call(fname, NULL, 0)` — the name list is emitted but
+    never consumed.  SN-17a's TL-2 comment still applies.  Not
+    exercised by the SN-8a repros (they use E_QLIT args, which take
+    the new `_ARGS` path).  Would show up as empty tags on a bare
+    `*fn(var)` pattern where `var` is referenced inside `fn`.
+    Defensible as a follow-up rung when / if a corpus program hits it.
+
+  - **SM-side XATP arg-name stash gap** (noted in SN-17a history /
+    SN-23d-follow-up): inside `pat_user_call`'s XATP node, the
+    all-E_VAR named-args resolution at match time is also not wired.
+    Same class of follow-up as the bullet above.
+
+  Both of the above are pre-existing and orthogonal to SN-8a's scope.
 
 ---
 
@@ -1156,36 +1190,32 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `a556167b` — SN-23e + SN-23f + SN-23h landed
-in one session.  The NAM API reduction goal of SN-22/SN-23 is now
-complete *and SIL-matching*: 13 entries at start of SN-22 → **5
-entries** at end of SN-23h.  Every remaining entry maps 1:1 to a
-SIL NMD primitive:
+**HEAD:** one4all @ `546fe13e` — SN-8a landed this session.  Two new
+SM opcodes (`SM_PAT_CAPTURE_FN_ARGS`, `SM_PAT_USERCALL_ARGS`) close the
+long-standing args-are-NULL gap on the SM and JIT paths for
+`. *fn(args)` / `$ *fn(args)` / bare `*fn(args)` when any arg is not a
+plain E_VAR.  All three execution modes (`--ir-run`, `--sm-run`,
+`--jit-run`) now converge with SPITBOL on both the SN-6c `rec` repro
+and the bare-usercall-args repro.
 
-    NAME_push       ↔ SIL: write at NBSPTR+NAMICL; INCRA NAMICL
-    NAME_pop        ↔ SIL: DECRA NAMICL (DNME backup procedure)
-    NAME_commit     ↔ SIL: NMD walk NHEDCL..NAMICL
-    NAME_ctx_enter  ↔ SIL: PUSH (NHEDCL); MOVD NHEDCL,NAMICL
-    NAME_ctx_leave  ↔ SIL: POP (NHEDCL)
-
-Gates (SN-23g fresh-clone run, 2026-04-19): Smoke **7**, Broker **49**,
+Gates (all green, no regressions): Smoke **7**, Broker **49**,
 Broad corpus **224/225** (only `demo_claws5` remaining — tracked under
-`GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), Porter `--ir-run`
-and `--sm-run` both byte-identical to SPITBOL ref.
+`GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), SN-7 beauty
+self-host **51/51**, Porter `--ir-run` and `--sm-run` both
+byte-identical to SPITBOL ref (0-line diff / 23531).
 
-**expr_eval closed** — all five inputs produce byte-identical output
-across SPITBOL, `--ir-run`, and `--sm-run`.  The SN-22/SN-23 NAM API
-collapse plus SN-23d-follow-up's `has_pending` reset at CAP_α
-apparently reached the layered EVAL/arithmetic bugs SN-6b/SN-6c had
-diagnosed as orthogonal — per-match NAM context isolation (SN-23b/c)
-was sufficient to repair EVAL-within-match corruption.
+**Next step:** **SN-9** — JIT/codegen rung on the Phase 3 path.  With
+SN-8a landed, all three modes (ir/sm/jit) are byte-identical on the
+Porter corpus and converge on the SN-6c / SN-8a repros.  Remaining
+latent follow-ups noted in SN-8a entry:
 
-**Next step:** **SN-8a** — land the `. *fn(args)` / `$ *fn(args)` /
-bare `*fn(args)` eager-eval args path on the SM and JIT sides.  Full
-diagnosis, file/line references, and planned opcode design in the
-SN-8 entry above.  Prototype was attempted 2026-04-19 but reverted
-(partial tree, missing JIT handler, untested).  Next session picks up
-from clean HEAD `d70abcea` with a known-good scoping of the fix.
+- Named-args path in `SM_PAT_USERCALL` (all-E_VAR stash never consumed
+  downstream — pat_user_call builds XATP with args=NULL).  Not
+  exercised by current corpus; defensible as SN-8b if a corpus
+  program hits it.
+- SM-side XATP arg-name stash gap (same class — named-args resolution
+  inside pat_user_call's XATP node never wired).  Pre-existing from
+  SN-17a history; orthogonal to SN-8a.
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
 - `NAME_push` still returns `void *` for source compatibility but
