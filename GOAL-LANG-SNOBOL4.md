@@ -959,9 +959,30 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     Option 1 is smallest and addresses the immediate SN-6c symptom.
     Option 2 is the "right" fix.  Next session to choose.
 
-  - [ ] **SN-23d-follow-up** -- Close SN-6c via has_pending reset at
-    CAP_α (option 1) or cache_get_fresh pristine template (option 2).
-    Verify with the 7-line repro: `MATCH count=2`.
+  - [x] **SN-23d-follow-up** -- Close SN-6c via has_pending reset at
+    CAP_α.  **Done 2026-04-19.**  one4all @ `d61a580e`.
+
+    One-line defensive fix: `ζ->has_pending = 0;` at the top of CAP_α.
+    Zeros the guard before α runs so β/ω's `if (!immediate &&
+    has_pending)` check reflects only THIS α's push, defeating
+    cache_get_fresh's poisoned-template propagation at the site.
+
+    **7-line SN-6c repro:**
+    - SPITBOL:  `PUSH A, PUSH B, MATCH count=2`
+    - --ir-run: `PUSH A, PUSH B, MATCH count=2`  ✓ byte-identical
+    - --sm-run: `PUSH (empty), PUSH (empty), MATCH count=2` — count
+      correct; tags empty is a separate SM-side XATP arg-name stash
+      gap (pre-existing, noted in SN-17a history; not in SN-23's scope).
+
+    **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
+
+    **Cache bug NOT closed.**  The underlying `cache_get_fresh` flaw
+    (template.ζ aliases the first match's live state) is still there
+    — any future box type that stores in-flight state scalars is
+    vulnerable to the same class of bug.  This patch makes bb_cap
+    self-healing at the site.  Option 2 (pristine template separate
+    from live ζ) remains a defensible larger cleanup for a future
+    rung if more boxes exhibit the symptom.
 
   - [ ] **SN-23e** -- Delete `NAME_save`, `NAME_discard`, `NAME_top`,
     `NAME_pop_above` from public header; delete definitions from
@@ -1021,32 +1042,19 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `c4fc4297` — SN-23d landed: `nam_handle`
-deleted, bare `NAME_pop_top()` introduced, bb_cap uses pure push/pop.
-Gates: Smoke **7**, Broker **48** (local-run baseline — same value
-pre-SN-23d at HEAD `2c518cef`), broad corpus not measured (no corpus
-cloned this session).  No regression.
+**HEAD:** one4all @ `d61a580e` — SN-23d + SN-23d-follow-up landed.
+`nam_handle` deleted, bare `NAME_pop_top()` in bb_cap, `has_pending`
+reset at CAP_α to defeat cache poisoning.  Gates: Smoke **7**, Broker
+**48** (local baseline), no regression.  7-line SN-6c recursion repro
+now byte-identical to SPITBOL under `--ir-run`; `--sm-run` count
+matches but tags empty (separate SM-side XATP arg-name gap).
 
-**SN-23d did NOT close SN-6c.**  The 7-line recursion repro still
-produces `PUSH #1 tag=B, MATCH count=1` vs SPITBOL's `PUSH A, PUSH B,
-count=2`.  Instrumented trace this session (reverted before commit)
-isolated the real mechanism: **the M-DYN-OPT cache in
-`cache_get_fresh` memcpys a DIRTY template** — `template.ζ` is the
-same pointer used for the first match's execution, so by cache-hit
-time `has_pending` (and every other state scalar) is poisoned.  The
-goal file's earlier "shared cap_t state" hypothesis was correct in
-shape but wrong in mechanism: instances ARE different allocations;
-corruption arrives via memcpy of the live template.
-
-SN-23d removed `nam_handle` (which used to carry this same poison)
-and is therefore a genuine API reduction — but the bug moved to
-`has_pending`, not fixed.
-
-**Next step:** **SN-23d-follow-up** — one-line defensive fix:
-`ζ->has_pending = 0;` at CAP_α top.  Verify SN-6c repro gives
-`MATCH count=2` in both modes.  If that lands, proceed to SN-23e
-(delete stale NAM_save/discard/top/pop_above).  Otherwise pivot to
-cache_get_fresh pristine-template rewrite.
+**Next step:** **SN-23e** — delete stale NAM API entries
+(`NAME_save`, `NAME_discard`, `NAME_top`, `NAME_pop_above`) and their
+definitions.  Per the SN-23 plan, callers are now either ctx-based
+(stmt_exec.c Phase 3, eval_code.c EXPVAL_fn) or LIFO-based (bb_cap
+via `NAME_pop_top`).  Any remaining callers of the bracket API are
+bugs to fix, not features to preserve.
 
 **Previous state preserved below:**
 
