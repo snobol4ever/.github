@@ -201,10 +201,19 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
          delegating to the new API.  Per-slot `legacy_dt` preserves
          DT_S / DT_K / DT_E dispatch via `NAM_commit`'s pre-pass.
          HEAD `fbad1a04`.  Smoke 7, Broker 48.
-  - [ ] **SN-21c** -- Port `bb_capture` to `bb_cap`: embed `NAME_t`,
+  - [x] **SN-21c** -- Port `bb_capture` to `bb_cap`: embed `NAME_t`,
          route immediate writes through `name_commit_value`, use the new
-         push/pop API.  Old `bb_callcap` still present but now also
-         uses the new API via shim.  Gate after: Smoke 7, Broker 48.
+         push/pop API.  `capture_t` → `cap_t`; struct's `{varname, var_ptr}`
+         pair replaced by the embedded `NAME_t`.  Constructor renamed
+         `bb_capture_new` → `bb_cap_new`; builds the `NAME_t` via
+         `name_init_as_ptr` / `name_init_as_var`.  Deferred (.) path now
+         calls `NAME_push(&name, σ, δ)` / `NAME_pop(handle)` directly
+         instead of going through the `NAM_push(var, ptr, DT_S, ...)`
+         shim.  Immediate ($) path now routes through
+         `name_commit_value` — single dispatch point for every
+         NameKind_t.  JIT trampolines in `bb_build.c` updated to
+         `bb_cap` / `bb_cap_new`.  Old `bb_callcap` still present but
+         untouched — collapsed in SN-21d.  Smoke 7, Broker 48.
   - [ ] **SN-21d** -- Collapse `bb_callcap` into `bb_cap` with
          `NAME_t { kind = NM_CALL }`.  `bb_build.c` nme + callcap
          emitters converge on `bb_cap_new`.  `bb_deferred_var` in
@@ -273,9 +282,9 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ---
 
-## Current state (2026-04-19 -- SN-21c CURRENT, HEAD=fbad1a04, Gates PASS=7/48)
+## Current state (2026-04-19 -- SN-21d CURRENT, Gates PASS=7/48)
 
-**HEAD:** one4all @ `fbad1a04`.
+**HEAD:** one4all @ `c634526f`.
 
 **Gates:** Smoke PASS=7, Broker PASS=48.
 
@@ -292,10 +301,22 @@ the new API (deleted in SN-21e).  Per-slot legacy_dt preserves
 DT_S / DT_K / DT_E dispatch.  Ad-hoc probe (capture / ARBNO /
 callcap) identical to pre-SN-21b in all three modes.
 
-SN-21c next: port bb_capture to bb_cap — embed NAME_t, route
-immediate ($) writes through name_commit_value, use NAME_push /
-NAME_pop for deferred (.) paths.  bb_callcap continues alongside
-until SN-21d collapses it.
+SN-21c: bb_capture → bb_cap in bb_boxes.c; capture_t → cap_t with
+embedded NAME_t replacing the {varname, var_ptr} pair.  Immediate
+($) writes route through name_commit_value; deferred (.) writes use
+NAME_push / NAME_pop directly (bypassing the NAM_push shim).
+Constructor bb_cap_new builds the NAME_t via name_init_as_ptr /
+name_init_as_var.  JIT trampolines in bb_build.c point at bb_cap.
+stmt_exec.c XNME / XFNME dispatchers use bb_cap_new.  bb_callcap
+still owns the NM_CALL case — collapsed in SN-21d.  Sanity probe
+($ / . / failure-rollback) identical across --ir-run, --sm-run,
+--jit-run; twopat=EDC (*var-DT_E thaw gap) remains as documented
+in SN-20 — expected closure at SN-21e.
+
+SN-21d next: collapse bb_callcap into bb_cap with NAME_t { kind =
+NM_CALL }.  bb_build.c nme + callcap emitters converge on bb_cap_new.
+bb_deferred_var in stmt_exec.c likewise.  Gate after: Smoke 7,
+Broker 48.
 
 Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` —
 canonical `for x in P.γ(): push; yield; pop` shape.  Our C γ/β/ω
