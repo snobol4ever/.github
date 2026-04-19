@@ -74,8 +74,8 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-21** -- **CURRENT.** Unified NAME (`NAME_t`) -- one lvalue concept
-  everywhere.
+- [ ] **SN-21** -- **CURRENT.** Unified NAME (`NAME_t`) + flat NAM stack --
+  one lvalue concept and one push/pop API everywhere.
 
   **Motivation.** The SNOBOL4 spec has exactly one concept for the RHS of
   `.` (conditional assignment) and `$` (immediate assignment): a NAME --
@@ -83,85 +83,118 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   addressable expression produces DT_N.  `*fn()` via NRETURN produces DT_N.
   `A[i,j]` produces DT_N.  They are all the same type.
 
-  The codebase today violates this by forking at `bb_build.c`:
-  - `E_VAR` / `E_IDX` RHS  -> `bb_nme_emit_binary` -> `bb_capture`  -> `NAM_KIND_CAPTURE`
-  - `E_FNC` RHS            -> `bb_callcap_emit_binary` -> `bb_callcap` -> `NAM_KIND_CALLCAP`
+  The codebase today violates this on two axes:
 
-  Two separate state machines, two separate NAM push kinds, separate
-  ownership rules -- root of every NAM rollback bug in sessions 15-18.
-  The `expr_eval` DT_E thaw bug (SN-20 remainder) and the Porter stemmer
-  gap (SN-17) both trace back here.
+  1. **Two box types for captures.** `bb_capture` handles variable/ptr
+     captures (NAM_KIND_CAPTURE), `bb_callcap` handles `pat . *fn()`
+     indirect-call captures (NAM_KIND_CALLCAP).  Two state machines,
+     two push functions.
+  2. **A two-level NAM stack** — a linked list of frames, each a linked
+     list of entries, with frame save/commit/discard/pop on top of entry
+     push/pop/mark/rollback.  The frame level exists only to isolate
+     EVAL-time captures from the outer match; at both call sites the
+     frame is entered, filled, then either committed or discarded in its
+     entirety.  There is never partial frame promotion.  A flat stack
+     with a saved top-index on entry has identical semantics.
 
-  **Design.**  New `src/runtime/x86/name_t.h` / `name_t.c`:
+  Both fractures are the root of NAM-rollback bugs in sessions 15-18,
+  the `expr_eval` DT_E thaw gap (SN-20 remainder), and the Porter
+  stemmer gap (SN-17).
+
+  **Design — NAME_t (DONE in SN-21a, `f04f64b2`).**
 
   ```c
-  typedef enum { NM_VAR, NM_PTR, NM_IDX, NM_CALL } NameKind;
+  typedef enum { NM_VAR, NM_PTR, NM_IDX, NM_CALL } NameKind_t;
 
   typedef struct {
-      NameKind     kind;
-      /* NM_VAR  */ const char  *var_name;        /* NV_SET by name          */
-      /* NM_PTR  */ DESCR_t     *var_ptr;          /* DT_N slen==1 raw cell   */
-      /* NM_IDX  */ EXPR_t      *idx_expr;         /* A[i,j] -- eval at commit*/
-      /* NM_CALL */ const char  *fnc_name;         /* *fn() NRETURN           */
-                   void         *fnc_args;
+      NameKind_t   kind;
+      /* NM_VAR  */ const char  *var_name;
+      /* NM_PTR  */ DESCR_t     *var_ptr;
+      /* NM_IDX  */ void        *idx_expr;        /* reserved (SN-21c+)      */
+      /* NM_CALL */ const char  *fnc_name;
+                   DESCR_t     *fnc_args;
                    int           fnc_nargs;
                    char        **fnc_arg_names;
                    int           fnc_n_arg_names;
   } NAME_t;
+
+  void name_commit_value(const NAME_t *nm, DESCR_t value);
+  void name_init_as_var (NAME_t *, const char *);
+  void name_init_as_ptr (NAME_t *, DESCR_t *);
+  void name_init_as_call(NAME_t *, const char *, DESCR_t *, int,
+                                    char **, int);
   ```
 
-  `NM_VAR` and `NM_PTR` are the two sub-cases already in `bb_capture`'s
-  `var_ptr` branch (session 12 word1 fix).  `NM_IDX` covers `.A[x,y]`
-  which currently falls through ad-hoc paths.  `NM_CALL` absorbs
-  `bb_callcap`.
+  **Design — flat NAM stack (SN-21b).**  Replace the frame-list
+  machinery in `snobol4_nmd.c` with a flat array of entries.  Each
+  entry holds a `NAME_t` + captured substring.  Two primary ops:
 
-  **Single box: `bb_cap`.** One gamma/beta/omega state machine replaces both
-  `bb_capture` and `bb_callcap`.  State struct `cap_t`:
+  ```c
+  int  NAME_push(const NAME_t *nm, const char *substr, int slen);
+       /* returns handle = the pushed slot index                            */
+
+  void NAME_pop(int handle);
+       /* drop that slot; box β/ω self-unwind                               */
+  ```
+
+  Plus two bookkeeping ops for statement / EVAL brackets:
+
+  ```c
+  int  NAME_mark(void);                /* read current top index            */
+  void NAME_commit_above(int mark);    /* fire entries [mark..top),
+                                          then top = mark                   */
+  void NAME_discard_above(int mark);   /* drop entries [mark..top);
+                                          top = mark                        */
+  ```
+
+  No `NamFrame_t`, no `NamEntry_t->next`, no `NAM_save/NAM_pop/NAM_discard/
+  NAM_mark/NAM_rollback_to`.  A pattern match brackets its captures by
+  `mark = NAME_mark()` at scan start and either `NAME_commit_above(mark)`
+  on success or `NAME_discard_above(mark)` on failure.  EVAL (DT_E thaw)
+  brackets identically and always discards.
+
+  **Single box: `bb_cap` (SN-21c).** One gamma/beta/omega replaces
+  `bb_capture` + `bb_callcap`.  State:
 
   ```c
   typedef struct {
       bb_box_fn  child_fn;
       void      *child_state;
       int        immediate;        /* $ vs . */
-      NAME_t     name;             /* unified lvalue descriptor */
-      void      *nam_handle;       /* NAM node returned by NAME_push */
+      NAME_t     name;             /* unified lvalue */
+      int        nam_handle;       /* slot returned by NAME_push; -1 = none */
   } cap_t;
   ```
 
-  gamma: push name into NAM via `NAME_push(&name)`, forward to child.
-  beta:  `NAME_pop_one(handle)`, re-push, forward to child again.
-  omega: `NAME_pop_one(handle)`, return fail.
-  commit: dispatch on `name.kind` via `name_write(&name, value)`:
-    NM_VAR -> NV_SET, NM_PTR -> direct write,
-    NM_IDX -> eval idx then write, NM_CALL -> call fn then write.
+  gamma: `nam_handle = NAME_push(&name, substr, slen)`, return match.
+  beta:  `NAME_pop(nam_handle); nam_handle = -1;` then retry child.
+  omega: `NAME_pop(nam_handle); nam_handle = -1;` return fail.
+  immediate ($): `name_commit_value(&name, val)` at γ; no push.
 
   **Migration path.**
-  1. New `src/runtime/x86/name_t.h` / `name_t.c`: define `NAME_t`,
-     `NameKind`, `name_write(NAME_t*, DESCR_t value)`.
-  2. `bb_boxes.c`: implement `bb_cap` (gamma/beta/omega), `bb_cap_new()`,
-     replacing `bb_capture` and `bb_capture_new`.
-  3. `bb_build.c`: `bb_nme_emit_binary` and `bb_callcap_emit_binary` both
-     call `bb_cap_new(child, &name, immediate)`.  Delete `bb_callcap_new`,
-     `bb_callcap_new_named`, `bb_callcap_exported`, `callcap_t_bin`.
-  4. `snobol4_nmd.c`: `NAM_push` takes `NAME_t*`, stores opaquely.  Delete
-     `NAM_push_callcap`, `NAM_KIND_CALLCAP`.  One kind: `NAM_KIND_CAP`.
-     `NAM_commit` calls `name_write`.
-  5. `stmt_exec.c`: delete `bb_callcap`.  `bb_deferred_var` calls
-     `bb_cap_new` with `NM_CALL`.  Confirm `g_callcap_list` / `g_cc_events`
-     already gone (session 18).
-  6. Gate: Smoke PASS=7, Broker PASS=49.  Then:
+  - [x] **SN-21a** -- Introduce `NAME_t` + `name_commit_value` (unused).
+         HEAD `f04f64b2`. Smoke 7, Broker 48.
+  - [ ] **SN-21b** -- Rewrite `snobol4_nmd.c`: flat `NAME_t[]` stack,
+         new API `NAME_push / NAME_pop / NAME_mark / NAME_commit_above /
+         NAME_discard_above`.  Keep old `NAM_*` names as thin shims
+         temporarily so stmt_exec.c / eval_code.c / bb_boxes.c compile.
+         Gate after: Smoke 7, Broker 48.
+  - [ ] **SN-21c** -- Port `bb_capture` to `bb_cap`: embed `NAME_t`,
+         route immediate writes through `name_commit_value`, use the new
+         push/pop API.  Old `bb_callcap` still present but now also
+         uses the new API via shim.  Gate after: Smoke 7, Broker 48.
+  - [ ] **SN-21d** -- Collapse `bb_callcap` into `bb_cap` with
+         `NAME_t { kind = NM_CALL }`.  `bb_build.c` nme + callcap
+         emitters converge on `bb_cap_new`.  `bb_deferred_var` in
+         `stmt_exec.c` likewise.  Gate after: Smoke 7, Broker 48.
+  - [ ] **SN-21e** -- Delete legacy: `bb_callcap`, `bb_callcap_new*`,
+         `capture_t`, `callcap_t`, `NAM_KIND_*`, shim names.  Update
+         all call sites to the `NAME_*` names directly.  Gate after:
+         Smoke 7, Broker 48 + `expr_eval` outputs 7/9/25.5/7/26,
+         `sm_min7.sno` HIT fires both modes.
 
-  ```bash
-  /home/claude/one4all/scrip --ir-run /tmp/sm_min7.sno   # HIT fired, OK
-  /home/claude/one4all/scrip --sm-run /tmp/sm_min7.sno   # HIT fired, OK
-  cat /home/claude/corpus/crosscheck/control/expr_eval.input \
-    | /home/claude/one4all/scrip --sm-run \
-        /home/claude/corpus/crosscheck/control/expr_eval.sno
-  # Expected: 7 / 9 / 25.5 / 7 / 26
-  ```
-
-  Side-effects expected: SN-20 DT_E thaw becomes a one-liner in
-  `name_write`; Porter stemmer gap (SN-17) closes.
+  Side-effects expected at SN-21e: SN-20 DT_E thaw becomes a one-liner
+  in `name_commit_value`; Porter stemmer gap (SN-17) closes.
 
 - [ ] **SN-20** -- NAM push/pop self-unwinding. Sessions 15-18 progressively
   implemented this; SN-21 completes it by making bb_capture/bb_callcap one
@@ -202,10 +235,10 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 | src/runtime/x86/sm_interp.c | SM interpreter |
 | src/runtime/x86/sm_codegen.c | x86 JIT |
 | src/runtime/x86/bb_boxes.c | SNOBOL4 pattern boxes |
-| src/runtime/x86/snobol4_nmd.c | NAM_push / NAM_commit / NAME_pop_one |
+| src/runtime/x86/snobol4_nmd.c | Flat NAM stack: NAME_push / NAME_pop / NAME_mark / NAME_commit_above / NAME_discard_above |
 | src/runtime/x86/stmt_exec.c | exec_stmt, bb_deferred_var |
-| src/runtime/x86/name_t.h | (SN-21) NAME_t, NameKind, name_write |
-| src/runtime/x86/name_t.c | (SN-21) name_write implementation |
+| src/runtime/x86/name_t.h | NAME_t, NameKind_t, name_commit_value |
+| src/runtime/x86/name_t.c | name_commit_value dispatch + name_init_as_* builders |
 | corpus/programs/snobol4/beauty/ | Beauty test suite |
 
 ---
@@ -213,17 +246,26 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ## Invariants
 
 - SPITBOL is the sole oracle. Fix the runtime, never the corpus source.
-- Gate = Smoke PASS=7, Broker PASS=49 after every commit.
+- Gate = Smoke PASS=7, Broker PASS=48 after every commit.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 ---
 
-## Current state (2026-04-19 -- SN-21 CURRENT, HEAD=0e8f698c, Gates PASS=7/49)
+## Current state (2026-04-19 -- SN-21b CURRENT, HEAD=f04f64b2, Gates PASS=7/48)
 
-**HEAD:** one4all @ `0e8f698c` (no code changed session 19).
+**HEAD:** one4all @ `f04f64b2`.
 
-**Gates:** Smoke PASS=7, Broker PASS=49.
+**Gates:** Smoke PASS=7, Broker PASS=48.
 
-Session 19: introduced SN-21 (NAME_t unified lvalue). Renamed Lval_t ->
-NAME_t, LvalKind -> NameKind, lval_* -> name_*. Cleaned goal file --
-all prior-state archaeology is in git history.
+SN-21a done (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
+name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
+Makefile.  No call site uses them yet — silent-introduction step.
+
+SN-21b next: rewrite `snobol4_nmd.c` as a flat `NAME_t[]` stack with
+`NAME_push` / `NAME_pop` as the two primary ops; frames replaced by a
+saved top-index (`NAME_mark`).  Old `NAM_*` names kept as thin shims
+for one step so existing callers still build.  Gate target unchanged.
+
+The prior PASS=49 figure in the goal file was a documentation drift
+from session 19 — actual broker count at HEAD `0e8f698c` was already
+48; not caused by SN-21a.
