@@ -127,31 +127,52 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Design — flat NAM stack (SN-21b).**  Replace the frame-list
   machinery in `snobol4_nmd.c` with a flat array of entries.  Each
-  entry holds a `NAME_t` + captured substring.  Two primary ops:
+  entry holds a `NAME_t` + captured substring.  The model is the
+  Python generator idiom made explicit: every box's γ path pushes
+  before returning its match, and every box's β/ω path pops before
+  returning — exactly mirroring `push; yield; pop` around a
+  `for x in child.γ()` loop.  Stack rolls and unrolls by itself
+  through the γ/β/ω cascade.  No frames, no commit/discard bureaucracy.
+
+  **Primary ops (used by every capture box):**
 
   ```c
   int  NAME_push(const NAME_t *nm, const char *substr, int slen);
-       /* returns handle = the pushed slot index                            */
+       /* called at box γ, just before γ-return; returns slot index   */
 
   void NAME_pop(int handle);
-       /* drop that slot; box β/ω self-unwind                               */
+       /* called at box β and box ω; drops that slot                  */
   ```
 
-  Plus two bookkeeping ops for statement / EVAL brackets:
+  **Combinator helper (used only by bb_alt next-arm + bb_arbno stop):**
+
+  A couple of combinators abandon a γ-succeeded child without β-asking
+  it to retry — bb_alt when the parent keeps rejecting until no arms
+  left, bb_arbno's zero-advance and body-ω escapes.  Those paths need
+  to truncate multiple entries at once (the abandoned child never
+  β-popped them itself).  Two tiny helpers:
 
   ```c
-  int  NAME_mark(void);                /* read current top index            */
-  void NAME_commit_above(int mark);    /* fire entries [mark..top),
-                                          then top = mark                   */
-  void NAME_discard_above(int mark);   /* drop entries [mark..top);
-                                          top = mark                        */
+  int  NAME_top(void);                /* current stack depth          */
+  void NAME_pop_above(int saved_top); /* drop [saved_top..top)        */
   ```
 
-  No `NamFrame_t`, no `NamEntry_t->next`, no `NAM_save/NAM_pop/NAM_discard/
-  NAM_mark/NAM_rollback_to`.  A pattern match brackets its captures by
-  `mark = NAME_mark()` at scan start and either `NAME_commit_above(mark)`
-  on success or `NAME_discard_above(mark)` on failure.  EVAL (DT_E thaw)
-  brackets identically and always discards.
+  **Statement-level bracketing (stmt_exec.c):**  On scan entry,
+  snapshot `saved_top = NAME_top()`.  On match success, walk entries
+  `[saved_top..top)` firing `name_commit_value` on each, then truncate.
+  On match failure, the box ω cascade has already drained the stack to
+  `saved_top`; just assert/continue.  No NAM_save, no NAM_commit, no
+  NAM_discard.
+
+  **EVAL-level bracketing (eval_code.c):**  Identical snapshot +
+  truncate; EVAL never commits — its captures are local to the
+  expression evaluation.
+
+  **What disappears:**  `NAM_save`, `NAM_commit`, `NAM_discard`,
+  `NAM_pop` (frame-level); `NAM_mark`, `NAM_rollback_to`
+  (subsumed by `NAME_top` / `NAME_pop_above`); `NAM_push_callcap*`
+  (subsumed by `NAME_push` with `kind=NM_CALL`); `NamFrame_t`,
+  `NamEntry_t->next`, the whole linked-list infrastructure.
 
   **Single box: `bb_cap` (SN-21c).** One gamma/beta/omega replaces
   `bb_capture` + `bb_callcap`.  State:
@@ -235,7 +256,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 | src/runtime/x86/sm_interp.c | SM interpreter |
 | src/runtime/x86/sm_codegen.c | x86 JIT |
 | src/runtime/x86/bb_boxes.c | SNOBOL4 pattern boxes |
-| src/runtime/x86/snobol4_nmd.c | Flat NAM stack: NAME_push / NAME_pop / NAME_mark / NAME_commit_above / NAME_discard_above |
+| src/runtime/x86/snobol4_nmd.c | Flat NAM stack: NAME_push / NAME_pop + helpers NAME_top / NAME_pop_above |
 | src/runtime/x86/stmt_exec.c | exec_stmt, bb_deferred_var |
 | src/runtime/x86/name_t.h | NAME_t, NameKind_t, name_commit_value |
 | src/runtime/x86/name_t.c | name_commit_value dispatch + name_init_as_* builders |
@@ -261,11 +282,20 @@ SN-21a done (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
 name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
 Makefile.  No call site uses them yet — silent-introduction step.
 
-SN-21b next: rewrite `snobol4_nmd.c` as a flat `NAME_t[]` stack with
-`NAME_push` / `NAME_pop` as the two primary ops; frames replaced by a
-saved top-index (`NAME_mark`).  Old `NAM_*` names kept as thin shims
-for one step so existing callers still build.  Gate target unchanged.
+SN-21b next: rewrite `snobol4_nmd.c` as a flat `NAME_t[]` stack.  Two
+primary ops — `NAME_push` at box γ, `NAME_pop` at box β/ω — mirror the
+Python `push; yield; pop` generator idiom exactly; the stack rolls and
+unrolls by itself through γ/β/ω cascade.  Two tiny helpers
+(`NAME_top` / `NAME_pop_above`) serve bb_alt next-arm and bb_arbno
+stop paths that abandon a γ-succeeded child without β-popping it.
+Statement and EVAL brackets are a one-line snapshot + truncate — no
+NAM_save/NAM_commit/NAM_discard/NAM_mark/NAM_rollback_to.
 
 The prior PASS=49 figure in the goal file was a documentation drift
 from session 19 — actual broker count at HEAD `0e8f698c` was already
 48; not caused by SN-21a.
+
+Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` — the
+`δ` and `Δ` classes show the canonical `for _1 in P.γ(): push; yield;
+pop` shape.  Our C box γ/β/ω cascade is that shape expanded into
+explicit continuation passing.
