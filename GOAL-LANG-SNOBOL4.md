@@ -74,97 +74,83 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-21** -- **CURRENT.** Unified lvalue (`Lval_t`) — one NAME concept
+- [ ] **SN-21** -- **CURRENT.** Unified NAME (`NAME_t`) -- one lvalue concept
   everywhere.
 
   **Motivation.** The SNOBOL4 spec has exactly one concept for the RHS of
-  `.` (conditional assignment) and `$` (immediate assignment): a **NAME** —
+  `.` (conditional assignment) and `$` (immediate assignment): a NAME --
   a writable storage location.  The unary `.` operator applied to any
   addressable expression produces DT_N.  `*fn()` via NRETURN produces DT_N.
   `A[i,j]` produces DT_N.  They are all the same type.
 
   The codebase today violates this by forking at `bb_build.c`:
-  - `E_VAR` / `E_IDX` RHS  → `bb_nme_emit_binary` → `bb_capture`  → `NAM_KIND_CAPTURE`
-  - `E_FNC` RHS            → `bb_callcap_emit_binary` → `bb_callcap` → `NAM_KIND_CALLCAP`
+  - `E_VAR` / `E_IDX` RHS  -> `bb_nme_emit_binary` -> `bb_capture`  -> `NAM_KIND_CAPTURE`
+  - `E_FNC` RHS            -> `bb_callcap_emit_binary` -> `bb_callcap` -> `NAM_KIND_CALLCAP`
 
   Two separate state machines, two separate NAM push kinds, separate
-  ownership rules — this is the root of every NAM rollback bug seen in
-  sessions 15–18.  The `expr_eval` DT_E thaw bug (SN-20 remainder) and
-  the Porter stemmer gap (SN-17) both trace back here.
+  ownership rules -- root of every NAM rollback bug in sessions 15-18.
+  The `expr_eval` DT_E thaw bug (SN-20 remainder) and the Porter stemmer
+  gap (SN-17) both trace back here.
 
-  **Design.**  Introduce `Lval_t` (in `bb_box.h` / new `lval.h`) with four
-  discriminants:
+  **Design.**  New `src/runtime/x86/name_t.h` / `name_t.c`:
 
   ```c
-  typedef enum { LV_VAR, LV_PTR, LV_IDX, LV_CALL } LvalKind;
+  typedef enum { NM_VAR, NM_PTR, NM_IDX, NM_CALL } NameKind;
 
   typedef struct {
-      LvalKind     kind;
-      /* LV_VAR  */ const char  *var_name;   /* NV_SET by name         */
-      /* LV_PTR  */ DESCR_t     *var_ptr;    /* DT_N slen==1 raw cell  */
-      /* LV_IDX  */ EXPR_t      *idx_expr;   /* A[i,j] — eval at commit*/
-      /* LV_CALL */ const char  *fnc_name;   /* *fn() NRETURN          */
+      NameKind     kind;
+      /* NM_VAR  */ const char  *var_name;        /* NV_SET by name          */
+      /* NM_PTR  */ DESCR_t     *var_ptr;          /* DT_N slen==1 raw cell   */
+      /* NM_IDX  */ EXPR_t      *idx_expr;         /* A[i,j] -- eval at commit*/
+      /* NM_CALL */ const char  *fnc_name;         /* *fn() NRETURN           */
                    void         *fnc_args;
                    int           fnc_nargs;
                    char        **fnc_arg_names;
                    int           fnc_n_arg_names;
-  } Lval_t;
+  } NAME_t;
   ```
 
-  `LV_VAR` and `LV_PTR` are the two sub-cases already present in
-  `bb_capture`'s `var_ptr` branch (session 12 word1 fix).  `LV_IDX` covers
-  `.A[x,y]` which currently falls through ad-hoc paths.  `LV_CALL` absorbs
+  `NM_VAR` and `NM_PTR` are the two sub-cases already in `bb_capture`'s
+  `var_ptr` branch (session 12 word1 fix).  `NM_IDX` covers `.A[x,y]`
+  which currently falls through ad-hoc paths.  `NM_CALL` absorbs
   `bb_callcap`.
 
-  **Single box: `bb_cap`.** One γ/β/ω state machine replaces both
-  `bb_capture` and `bb_callcap`.  State struct is `cap_t` (rename of
-  `capture_t`):
+  **Single box: `bb_cap`.** One gamma/beta/omega state machine replaces both
+  `bb_capture` and `bb_callcap`.  State struct `cap_t`:
 
   ```c
   typedef struct {
       bb_box_fn  child_fn;
       void      *child_state;
       int        immediate;        /* $ vs . */
-      Lval_t     lval;             /* unified lvalue descriptor */
-      void      *nam_handle;       /* NAM node returned by NAM_push */
+      NAME_t     name;             /* unified lvalue descriptor */
+      void      *nam_handle;       /* NAM node returned by NAME_push */
   } cap_t;
   ```
 
-  γ (first entry): build `cap_t`, push lval into NAM via `NAM_push(lval)`,
-  forward to child.
-  β (retry): `NAM_pop_one(handle)`, re-push fresh, forward to child again.
-  ω (child fail): `NAM_pop_one(handle)`, return fail.
-  commit: dispatch on `lval.kind` — `LV_VAR` → `NV_SET`, `LV_PTR` → direct
-  write, `LV_IDX` → eval idx then write, `LV_CALL` → call fn to get target
-  cell then write.
-
-  `NAM_push` takes `Lval_t*` and stores it opaquely; `NAM_commit` calls
-  `lval_write(lval, value)` — a new free function replacing the two
-  separate commit paths.
+  gamma: push name into NAM via `NAME_push(&name)`, forward to child.
+  beta:  `NAME_pop_one(handle)`, re-push, forward to child again.
+  omega: `NAME_pop_one(handle)`, return fail.
+  commit: dispatch on `name.kind` via `name_write(&name, value)`:
+    NM_VAR -> NV_SET, NM_PTR -> direct write,
+    NM_IDX -> eval idx then write, NM_CALL -> call fn then write.
 
   **Migration path.**
-  1. Define `Lval_t` and `lval_write()` in new `src/runtime/x86/lval.h` /
-     `lval.c`.
-  2. Implement `bb_cap` (γ/β/ω) in `bb_boxes.c`, replacing `bb_capture`.
-  3. Update `bb_build.c`: `bb_nme_emit_binary` and `bb_callcap_emit_binary`
-     both call `bb_cap_new(child, lval, immediate)`.  Delete
-     `bb_callcap_new`, `bb_callcap_new_named`, `bb_callcap_exported`,
-     `callcap_t_bin`.
-  4. Update `snobol4_nmd.c`: `NAM_push` / `NAM_pop_one` store `Lval_t*`
-     instead of separate `varname` / callcap fields.  Delete
+  1. New `src/runtime/x86/name_t.h` / `name_t.c`: define `NAME_t`,
+     `NameKind`, `name_write(NAME_t*, DESCR_t value)`.
+  2. `bb_boxes.c`: implement `bb_cap` (gamma/beta/omega), `bb_cap_new()`,
+     replacing `bb_capture` and `bb_capture_new`.
+  3. `bb_build.c`: `bb_nme_emit_binary` and `bb_callcap_emit_binary` both
+     call `bb_cap_new(child, &name, immediate)`.  Delete `bb_callcap_new`,
+     `bb_callcap_new_named`, `bb_callcap_exported`, `callcap_t_bin`.
+  4. `snobol4_nmd.c`: `NAM_push` takes `NAME_t*`, stores opaquely.  Delete
      `NAM_push_callcap`, `NAM_KIND_CALLCAP`.  One kind: `NAM_KIND_CAP`.
-  5. Update `stmt_exec.c`: `bb_callcap` deleted.  `bb_deferred_var` calls
-     `bb_cap_new` with `LV_CALL`.  Delete `callcap_t`, `g_callcap_list`,
-     `g_cc_events` (already deleted session 18 — confirm gone).
-  6. Update `NAM_commit` in `snobol4_nmd.c`: single dispatch via
-     `lval_write`.
-  7. Run smoke + broker gates.
+     `NAM_commit` calls `name_write`.
+  5. `stmt_exec.c`: delete `bb_callcap`.  `bb_deferred_var` calls
+     `bb_cap_new` with `NM_CALL`.  Confirm `g_callcap_list` / `g_cc_events`
+     already gone (session 18).
+  6. Gate: Smoke PASS=7, Broker PASS=49.  Then:
 
-  **Files touched:** `bb_boxes.c`, `bb_build.c`, `snobol4_nmd.c`,
-  `stmt_exec.c`, `bb_box.h`, `ir.h` (no new EKind needed — `Lval_t` is
-  runtime-only).  New files: `lval.h`, `lval.c`.
-
-  Gate: Smoke PASS=7, Broker PASS=49.  Then:
   ```bash
   /home/claude/one4all/scrip --ir-run /tmp/sm_min7.sno   # HIT fired, OK
   /home/claude/one4all/scrip --sm-run /tmp/sm_min7.sno   # HIT fired, OK
@@ -174,74 +160,29 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   # Expected: 7 / 9 / 25.5 / 7 / 26
   ```
 
-  Side-effects expected: SN-20 DT_E thaw fix becomes simpler once lval
-  dispatch is clean; Porter stemmer gap (SN-17) closes.
+  Side-effects expected: SN-20 DT_E thaw becomes a one-liner in
+  `name_write`; Porter stemmer gap (SN-17) closes.
 
-- [ ] **SN-20** -- NAM push/pop inside the BB block that owns
-  it (Python-style symmetry).  Per `snobol4python/_backend_pure.py`: the
-  box that pushes a side-effect is the same box that pops it on backtrack
-  -- push on α/γ, pop on β/ω, mirrored across the generator's yield.
+- [ ] **SN-20** -- NAM push/pop self-unwinding. Sessions 15-18 progressively
+  implemented this; SN-21 completes it by making bb_capture/bb_callcap one
+  box.  Remaining open sub-task: `*var-holds-DT_E` thaw. When a
+  pattern-context variable holds DT_E (e.g. `primary = *constant`),
+  `interp_eval_pat` must thaw DT_E at match time rather than stringify to
+  XCHR.  Fix lives in `interp_eval_pat` case `E_VAR`, or in `name_write`
+  after SN-21 lands.
+  Gate: `sm_min7.sno` HIT fired both modes; `expr_eval` outputs 7/9/25.5/7/26.
 
-  Current C scheme splits ownership: `bb_capture` / `bb_callcap` push, but
-  `bb_alt` / `bb_arbno` / `bb_deferred_var` are responsible for taking
-  `NAM_mark()` and `NAM_rollback_to()` around any child that might append
-  entries.  Every combinator must remember.  `bb_deferred_var` in SM mode
-  forgets -- the `/tmp/sm_min7.sno` failure (session 15 diagnosis) is a
-  direct consequence of that ownership split.
-
-  Fix: make push self-unwinding.
-
-  1. `NAM_push` / `NAM_push_callcap` return an opaque handle (pointer to
-     the appended node).
-  2. Add `NAM_undo(handle)` that pops exactly that node -- trivial since
-     entries are appended at tail; walk from head to find `prev`.
-  3. `bb_capture`: save handle on γ, call `NAM_undo(handle)` on β entry
-     (retry = "back out of prior success") and on ω (failure return path).
-  4. `bb_callcap`: same.
-  5. Delete `NAM_mark` / `NAM_rollback_to` from `nmd.c` and every call site
-     in `bb_alt` / `bb_arbno`.  These combinators lose all NAM awareness.
-  6. Delete the `g_callcap_list` / `g_cc_events` snapshot/restore dance in
-     `bb_deferred_var` (stmt_exec.c ~L1265-L1322). Every push that got in
-     during a recursive child match undoes itself on backtrack, just like
-     for any other box.
-
-  Gate: Smoke PASS=7, Broker PASS=49. Then:
+- [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run.
+  Remaining: `expr_eval` (NAME_t / DT_E), `demo_claws5` (GOAL-SNO-CLAWS5.md).
   ```bash
-  /home/claude/one4all/scrip --sm-run /tmp/sm_min7.sno   # HIT fired, OK
-  cat /home/claude/corpus/crosscheck/control/expr_eval.input \
-    | /home/claude/one4all/scrip --sm-run \
-        /home/claude/corpus/crosscheck/control/expr_eval.sno
+  bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
   ```
-  Expected: `7 / 9 / 25.5 / 7 / 26` matching SPITBOL.
 
-  Side-effect expected: Porter stemmer SN-17 gap closes (same root cause).
+- [ ] **SN-7** -- beauty.sno self-host: 6 drivers x 3 modes = 18 combos,
+  diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
 
-  Then return to SN-6 broad corpus PASS count; should advance toward
-  225/225.
-
-- [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run
-  (expr_eval IR side fixed session 14, SM side still open).
-
-```bash
-bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
-```
-
-- [ ] **SN-7** -- beauty.sno self-host bootstrap: all 6 drivers x 3 modes = 18 combos,
-  diff=0 vs SPITBOL oracle for each. Has never passed.
-  Gate: smoke PASS=7, broker PASS=49, all 18 combos diff=0.
-
-- [ ] **SN-17** -- Porter stemmer under one4all -- close the SPITBOL gap.
-
-  | Mode             | Accuracy |
-  |------------------|----------|
-  | SPITBOL (oracle) | 100.00%  |
-  | --ir-run         | 83.46%   |
-  | --sm-run         | 60.64%   |
-
-  Root cause: commit-time *fn() dispatch; NAM rollback missing NAM_KIND_CALLCAP.
-  Fix SN-6 Bug #1d first; Porter gap expected to close as a side-effect.
-
-  Gate:
+- [ ] **SN-17** -- Porter stemmer: --ir-run 83.46%, --sm-run 60.64% vs
+  SPITBOL 100%. Expected to close as side-effect of SN-21.
   ```bash
   cd /home/claude/corpus/programs/snobol4/demo
   /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
@@ -260,9 +201,11 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 | src/runtime/x86/sm_lower.c | IR -> SM |
 | src/runtime/x86/sm_interp.c | SM interpreter |
 | src/runtime/x86/sm_codegen.c | x86 JIT |
-| src/runtime/x86/bb_boxes.c | SNOBOL4 pattern boxes (canonical — bb_capture, bb_atp unified here SN-20 session 17) |
-| src/runtime/x86/snobol4_nmd.c | NAM_push / NAM_commit / NAM_discard |
-| src/runtime/x86/stmt_exec.c | exec_stmt, bb_callcap, bb_usercall, bb_deferred_var |
+| src/runtime/x86/bb_boxes.c | SNOBOL4 pattern boxes |
+| src/runtime/x86/snobol4_nmd.c | NAM_push / NAM_commit / NAME_pop_one |
+| src/runtime/x86/stmt_exec.c | exec_stmt, bb_deferred_var |
+| src/runtime/x86/name_t.h | (SN-21) NAME_t, NameKind, name_write |
+| src/runtime/x86/name_t.c | (SN-21) name_write implementation |
 | corpus/programs/snobol4/beauty/ | Beauty test suite |
 
 ---
@@ -275,368 +218,12 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-21 session 19, UNIFIED LVALUE STEP ADDED)
+## Current state (2026-04-19 -- SN-21 CURRENT, HEAD=0e8f698c, Gates PASS=7/49)
 
-**HEAD:** one4all @ `0e8f698c` (unchanged — no code written this session).
+**HEAD:** one4all @ `0e8f698c` (no code changed session 19).
 
 **Gates:** Smoke PASS=7, Broker PASS=49.
 
-### What session 19 changed
-
-Introduced new step SN-21 (Unified lvalue / `Lval_t`) as the current
-step, demoting SN-20.  Design rationale: SNOBOL4 has one NAME concept.
-The `.` and `$` RHS is always a writable location (DT_N).  `PAT . var`,
-`PAT . A[i,j]`, and `PAT . *fn()` are all the same thing.  The current
-fork into `bb_capture` / `bb_callcap` with two NAM push kinds is the root
-of every NAM rollback bug.  `Lval_t` unifies them under one `bb_cap` box
-and one `lval_write()` commit dispatch.
-
-SN-20's DT_E thaw fix (plain `E_VAR` holding DT_E in pattern context) is
-now a sub-task: once `Lval_t` / `bb_cap` land, the thaw logic lives in
-one place and the expr_eval fix is a one-liner in `lval_write`.
-
----
-
-## Prior state (2026-04-19 -- SN-20 session 18, LEGACY REGISTRY DELETED, *var-holds-DT_E OPEN)
-
-**HEAD:** one4all @ `0e8f698c` -- SN-20 session 18: deleted the legacy
-`g_callcap_list` / `g_cc_events` snapshot/restore dance in
-`bb_deferred_var`. Net diff: -59 +21 lines in one file.
-
-**Gates:** Smoke PASS=7, Broker **PASS=49** (recovered from 48 at session
-17 HEAD -- one test that the dance was breaking).
-
-### What session 18 changed
-
-Per GOAL step 6 directive: with `bb_callcap` CC_β and CC_ω already
-self-unwinding via `NAM_pop_one(handle)` since session 15, the legacy
-`g_callcap_list` / `g_cc_events` registry has no role in dispatch.
-`NAM_commit` walks the single NAM frame directly; the old registry is
-parallel bookkeeping that nothing reads at commit time. Snapshotting and
-restoring it around the child match in `bb_deferred_var` was both
-unnecessary AND actively harmful: zeroing outer `registered` flags during
-child execution interfered with the inner CC_α registration path.
-
-The dvar block collapses from ~60 lines of save/clear/run/restore/merge
-to 3 lines: forward α to child, return its result.
-
-Probe results confirmed: broker 48→49, smoke clean, no other regressions.
-
-### Same-box β symmetry (Lon's directive, session 18)
-
-`PAT . var` (XNME / `bb_capture`) and `PAT . *fn()` (XCALLCAP /
-`bb_callcap`) are the **same γ/β/ω state machine** with two different
-lvalue resolutions at commit time:
-
-  - LV_VAR  — named variable / cell pointer (write via NV_SET_fn or *var_ptr)
-  - LV_CALL — function call resolves the lvalue DT_N at flush time
-
-Both push into NAM on γ. Both self-unwind on β (retry) and ω (failure)
-via `NAM_pop_one`. NAM_commit already unifies dispatch via tagged
-`NAM_KIND_CAPTURE` vs `NAM_KIND_CALLCAP`.
-
-Two separate C functions (`bb_capture` in bb_boxes.c, `bb_callcap` in
-stmt_exec.c) are one duplication too many — session 15 exit note said
-exactly this. Proposed unification:
-
-```c
-typedef struct {
-    bb_box_fn    child_fn;
-    void        *child_state;
-    int          immediate;          /* $ vs . */
-    enum { LV_VAR, LV_CALL } lv_kind;
-    /* LV_VAR */
-    const char  *var_name;
-    DESCR_t     *var_ptr;
-    /* LV_CALL */
-    const char  *fnc_name;
-    DESCR_t     *fnc_args;
-    int          fnc_nargs;
-    char       **fnc_arg_names;
-    int          fnc_n_arg_names;
-    /* shared */
-    void        *nam_handle;
-} bb_cap_t;
-```
-
-One γ/β/ω body, two commit-time lvalue paths. Eliminates remaining drift
-risk and deletes `bb_callcap_new`, `bb_callcap_new_named`,
-`bb_callcap_exported`, the `callcap_t_bin` mirror in bb_build.c.
-
-Not done this session -- session 18 was scoped to the dvar cleanup only
-so the broker PASS=49 recovery could be verified in isolation.
-
-### Root cause of `*constant` / expr_eval -- isolated this session
-
-`expr_eval.sno` still fails identically to session 17 after the dvar
-cleanup (**this is expected**; the dvar dance and the remaining bug are
-independent). Minimal repro isolated:
-
-```snobol4
-         integer  =  SPAN('0123456789')
-         constant =  integer . *Push()
-         primary  =  *constant
-
-         line     POS(0) primary RPOS(0)  :F(bad)
-```
-
-This fails in BOTH IR and SM, succeeds in SPITBOL.
-
-`DATATYPE(primary)` is `expression` in **both** one4all AND SPITBOL --
-`primary = *constant` produces DT_E (frozen EXPRESSION) per spec. The
-question is what the match path does with a DT_E pattern element:
-
-  - SPITBOL thaws DT_E at match time: re-evaluates the frozen `*constant`
-    in pattern context, yielding the live `integer . *Push()` pattern.
-  - one4all's `interp.c` E_CAT (~L2626) starts in VALUE context with
-    `interp_eval(children[0])`. When a DT_P operand (`POS(0)`) arrives,
-    it switches to `interp_eval_pat` for subsequent children. But when
-    `interp_eval_pat` is called on `E_VAR("primary")` (NOT E_DEFER),
-    and `primary` holds DT_E, some path is stringifying or freezing it
-    to XCHR instead of thawing it back to a pattern.
-
-Evidence (from session 18 probes, since removed):
-- `bb_build` probe on `line POS(0) primary RPOS(0)`: observed kinds 19,
-  7, 0, 6 = XCAT, XRPSI, **XCHR (0)**, XPOSI. The `primary` child got
-  folded into XCHR -- a literal string, not a deferred or pattern node.
-- `bb_deferred_var` never entered for this test. `NAM_commit` never
-  reached (match fails before commit).
-
-### Next step for session 19
-
-Fix `interp_eval_pat` handling of plain `E_VAR` references when the
-referenced variable holds DT_E. Two candidate strategies:
-
-1. **Thaw on sight** -- in `interp_eval_pat` case `E_VAR`, if the
-   resolved value is DT_E, call EVAL-in-pattern-context on the frozen
-   EXPR_t* to recover the pattern.
-
-2. **Preserve as XDSAR** -- when a pattern-context var holds DT_E, build
-   an XDSAR node so the thaw happens at match time in `bb_deferred_var`
-   (which would then need DT_E branch in NV_GET result handling).
-
-Strategy 1 is simpler; strategy 2 matches the deferred spirit of the
-existing code. SPITBOL evidently does something like strategy 2
-(deferred re-evaluation at match time), but for the minimal repro
-strategy 1 is adequate.
-
-Gate: `test_smoke_snobol4.sh` PASS=7, `test_smoke_unified_broker.sh`
-PASS=49, then minimal `/tmp/sn20/mini_c.sno` (primary = *constant)
-passes under both --ir-run and --sm-run, then `expr_eval` passes.
-
-### SN-6 remaining failures (still 2 of 225)
-
-- `expr_eval` -- root cause diagnosed this session (see above). Blocks on
-  `interp_eval_pat` DT_E thaw fix.
-- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
-
-### Duplicate BB inventory -- PARTIAL
-
-Session 17 unified `bb_capture` and `bb_atp` (zero duplicates). Session
-18 deleted the legacy callcap registry. Remaining: unify `bb_capture`
-and `bb_callcap` into one `bb_cap` with LV_VAR / LV_CALL discriminant
-(per Lon's session 18 directive). Drops `bb_callcap`, `bb_callcap_new`,
-`bb_callcap_new_named`, `bb_callcap_exported`, `callcap_t_bin`.
-
----
-
-## Prior state (2026-04-19 -- SN-20 session 17, UNIFICATION DONE, expr_eval OPEN)
-
-**HEAD:** one4all @ `211f68fb` -- SN-20 session 17: unified bb_capture and
-bb_atp across all three modes. Zero duplication: every box has exactly one
-implementation in bb_boxes.c used by --ir-run, --sm-run, and --jit-run.
-
-**Gates:** Smoke PASS=7, Broker PASS=49. Clean.
-
-### What session 17 changed
-
-Following session 16's diagnosis, unified the two duplicate boxes:
-
-| Box        | Before (sess 16 HEAD)                     | After (sess 17 HEAD)             |
-|------------|-------------------------------------------|----------------------------------|
-| bb_capture | 2 copies (bb_boxes.c dead; stmt_exec.c live) | 1 copy in bb_boxes.c for all modes |
-| bb_atp     | 2 copies, IR/SM used stmt_exec, JIT used bb_boxes | 1 copy in bb_boxes.c for all modes |
-
-Implementation details:
-- `capture_t` full struct definition moved to `bb_box.h` (mirrors pattern
-  for other box state types already exposed there).
-- `bb_capture` in bb_boxes.c now carries full semantics: `var_ptr` branch
-  (session 12 word1 fix), `register_capture()` call on CAP_α when
-  `!immediate`, SN-20 self-unwinding NAM_pop_one on CAP_β and CAP_ω.
-- Capture registry (`g_capture_list`, `register_capture`,
-  `flush_pending_captures`, new `reset_capture_registry`, new
-  `clear_pending_flags`) moved to bb_boxes.c. MAX_CAPTURES raised 64 -> 256.
-- `bb_capture_new` moved to bb_boxes.c.
-- `stmt_exec.c`: all duplicates deleted. Inline `g_capture_count = 0` and
-  the `has_pending = 0` reset loop replaced with function calls to the
-  new helpers in bb_boxes.c.
-- `bb_build.c`: `bb_capture_exported` wrapper dropped; JIT emitter now
-  references `bb_capture` directly. `capture_t_bin` mirror struct removed.
-
-Net diff: -187 +175 lines across 4 files.
-
-### Probe results at session 17 HEAD
-
-| Test                 | SPITBOL                | IR-run                                     | SM-run                                 |
-|----------------------|------------------------|--------------------------------------------|----------------------------------------|
-| `sm_min7.sno`        | HIT fired + MATCH FAILED | HIT fired + OK (spurious match)          | MATCH FAILED (fails to match)          |
-| `expr_eval.sno`      | 7/9/25.5/7/26          | "Illegal data type" at stmt 23, then "Bad input" | "Bad input" on all 5 lines         |
-
-**Unification alone did NOT close expr_eval.** That test primarily uses
-`. *Push()` (callcap) not plain `.` (capture). `bb_callcap` in
-stmt_exec.c already had SN-20 self-unwind from session 15, so that code
-path is not affected by session 17's changes. The leak / algorithm bug
-is elsewhere.
-
-### Next step for session 18 -- diagnose expr_eval without the duplication fog
-
-Session 15's exit note suggested investigating the `g_callcap_list` /
-`g_cc_events` snapshot/restore in `bb_deferred_var` (stmt_exec.c
-~L1265-L1335 pre-session-17, shifted slightly after the deletion edit).
-That is the leading hypothesis.
-
-Session 17's IR-run result for expr_eval is distinctive: **"Illegal data
-type" at statement 23**. Statement 23 in expr_eval.sno is (counting):
-
-Look up what stmt 23 is in expr_eval (statement counter increments per
-syntactic statement, not per line; cross-reference the .sno source or
-enable --trace and observe).
-
-Hypotheses in priority order:
-
-1. `bb_deferred_var`'s `g_callcap_list` / `g_cc_events` save/restore at
-   pat_ref recursion points. If that block doesn't properly restore on
-   failed recursive `*expr` match, stale callcap entries fire at
-   NAM_commit and write wrong-type values into `stk[...]`.
-
-2. `bb_alt` and `bb_arbno` still call `NAM_rollback_to(mark)` which
-   session 15 neutered to a no-op. With session 17's unified
-   `bb_capture` self-unwind, alt-arm leaks from plain `.` captures are
-   now safe — but alt-arm leaks from `. *Push()` (which go through
-   `NAM_push_callcap`) depend entirely on `bb_callcap`'s SN-20
-   self-unwind firing at the right time. Verify bb_callcap CC_β fires
-   when bb_alt abandons an arm mid-flight.
-
-3. Add env-gated fprintf probes at CAP_α/γ/β/ω and CC_α/γ/β/ω, run
-   `/tmp/sm_min7.sno` under both IR and SM, diff the traces. The
-   spurious-OK under IR and MATCH-FAILED under SM from the SAME input
-   means the two modes are taking different paths through the box
-   graph — finding that divergence point localizes the bug.
-
-### SN-6 remaining failures (still 2 of 225)
-
-- `expr_eval` -- still failing in both modes; see above. Unification
-  removed the duplication ambiguity but not the underlying algorithm
-  bug.
-- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
-
-### Duplicate BB inventory -- DONE, zero duplicates
-
-| Box              | bb_boxes.c | stmt_exec.c  | IR        | SM        | JIT       |
-|------------------|:----------:|:------------:|-----------|-----------|-----------|
-| 23 simple boxes  | yes        | --           | bb_boxes  | bb_boxes  | bb_boxes  |
-| bb_capture       | yes        | --           | bb_boxes  | bb_boxes  | bb_boxes  |
-| bb_atp           | yes        | --           | bb_boxes  | bb_boxes  | bb_boxes  |
-| bb_callcap       | --         | yes (single) | stmt_exec | stmt_exec | stmt_exec |
-| bb_usercall      | --         | yes (single) | stmt_exec | stmt_exec | n/a       |
-| bb_deferred_var  | --         | yes (single) | stmt_exec | stmt_exec | stmt_exec |
-
-Zero rows with mismatched columns. Lon's directive from session 16
-satisfied: "three should be zero duplication; they are the same box."
-
----
-
-## Prior state (2026-04-19 -- SN-6 session 14, PASS=223/225 default / ir-run 224/225)
-
-**HEAD:** one4all (session 14) -- interp.c: apply the same E_FNC LHS
-guard in the user-function body statement loop (~L597) that session 13
-applied to the top-level execute_program loop (~L4142). Bug #1 IR side
-is now COMPLETE: expr_eval.sno passes --ir-run with diff=0 against its
-.ref. The broad-corpus script runs in default (--sm-run) mode, so the
-script still reports expr_eval FAIL because of the known separate SM
-bug documented below as item (2). Under --ir-run, expr_eval passes.
-
-**Gates:** Smoke PASS=7, broker PASS=49 (was 48, one test recovered
-with the body-loop fix -- doc value 49 was correct), broad 223/225
-default / 224/225 --ir-run. No regression.
-
-### SN-6 remaining failures (2 of 225)
-
-- `expr_eval` -- 1+2*3 -> 2 (ir); "Bad input, try again" (sm).
-  Partially diagnosed in session 13. See "expr_eval diagnosis" below.
-- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
-
-### word1 diagnosis -- RESOLVED (session 12, 2026-04-19)
-
-Probes on NAM_push / NAM_commit revealed --sm-run passed
-`varname=NULL, var_ptr=non-NULL` where --ir-run passed
-`varname="OUTPUT", var_ptr=NULL`. At the build site, `p->var.s`
-contained "OUTPUT" on BOTH paths; the difference was `p->var.v`
-(DT_S on ir-run vs DT_N on sm-run).
-
-The old XNME/XFNME construction in stmt_exec.c only read `.s` when
-`v==DT_S`, dropping the varname whenever `v==DT_N`. The commit then
-took the `*var_ptr = val` path, writing into a raw cell and bypassing
-NV_SET_fn's I/O hook -- OUTPUT writes vanished.
-
-Fix mirrors bb_build.c bb_nme_emit_binary / bb_fnme_emit_binary
-NAMEVAL-aware logic: DT_N with slen==0 carries name string in `.s`,
-DT_N with slen==1 carries raw pointer in `.ptr`. Both cases preserved.
-
-### Next: expr_eval (Bug #1 family) -- analogous fix needed in fn-body loop
-
-### expr_eval diagnosis -- PARTIAL (session 13, 2026-04-19)
-
-Isolated from the confounded "Bug #1 family" into two distinct bugs:
-
-1. **IR: spurious LHS-as-fn evaluation.** `Push() = 'hello'` fired
-   `Push` TWICE instead of once: once by `interp_eval(s->subject)` at
-   top of `execute_program` statement loop (~L4143), once by the
-   dedicated NRETURN-lvalue-assign branch (~L4287) that calls
-   `call_user_function` to get the write target.
-
-   Fix committed: add guard `s->subject->kind == E_FNC && s->has_eq
-   && !s->pattern` before the generic `interp_eval(s->subject)` in
-   `execute_program`, mirroring the existing E_VAR guard at L4119
-   (which carries a comment about the same spurious-call hazard).
-
-   Minimal repro `Push() = 'hello'` (see end of file for text) now
-   matches SPITBOL exactly: 1 call, top=1. `expr_eval.sno` itself
-   still fails identically -- the `Binary()` function body does
-   `Push() = EVAL(...)` inside `call_user_function`, and the
-   function-body statement loop (~L558-740 in interp.c) has the SAME
-   unguarded upfront `interp_eval(s->subject)` site that needs the
-   same fix. Without it, inside-a-body `fn() = expr` still doubles.
-
-2. **SM: total pattern-match failure.** `--sm-run` returns "Bad
-   input" for ALL inputs, not just `1+2*3`. This is a separate bug
-   downstream of the IR path and was NOT touched in session 13.
-   Still likely NAM_KIND_CALLCAP rollback-related per original
-   hypothesis, but isolate AFTER the IR side is clean.
-
-**Minimal IR reproducer** (paste into /tmp/func_assign.sno, run
-under `--ir-run` vs SPITBOL):
-
-```snobol4
-         DEFINE('Push(x)')
-         stk      =  TABLE()                     :(PushEnd)
-Push     stk[0]   =  stk[0] + 1
-         Push     =  .stk[stk[0]]
-         OUTPUT   =  'CALL Push arg="' x '"'     :(NRETURN)
-PushEnd
-         Push()   =  'hello'
-         Push()   =  'world'
-         OUTPUT   =  'slot1=' stk[1] ' slot2=' stk[2] ' top=' stk[0]
-END
-```
-
-SPITBOL/CSNOBOL4: 2 CALLs, `slot1=hello slot2=world top=2`.
-Pre-session-13 --ir-run: 4 CALLs, `slot1= slot2=hello top=4`.
-Post-session-13 --ir-run: 2 CALLs, `slot1=hello slot2=world top=2`.
-
-**Next step for session 15:** Bug #1 IR side is done. Attack the
-SM-run side (`--sm-run expr_eval.sno < expr_eval.input` returns
-"Bad input, try again" for all inputs). Hypothesis from session 13:
-NAM rollback missing NAM_KIND_CALLCAP in sm_interp.c / stmt_exec.c
-commit-time `*fn()` dispatch. Porter stemmer SN-17 gap is expected
-to close as a side-effect of the same fix.
+Session 19: introduced SN-21 (NAME_t unified lvalue). Renamed Lval_t ->
+NAME_t, LvalKind -> NameKind, lval_* -> name_*. Cleaned goal file --
+all prior-state archaeology is in git history.
