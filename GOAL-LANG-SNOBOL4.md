@@ -172,7 +172,150 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-20 session 17, UNIFICATION DONE, expr_eval OPEN)
+## Current state (2026-04-19 -- SN-20 session 18, LEGACY REGISTRY DELETED, *var-holds-DT_E OPEN)
+
+**HEAD:** one4all @ `0e8f698c` -- SN-20 session 18: deleted the legacy
+`g_callcap_list` / `g_cc_events` snapshot/restore dance in
+`bb_deferred_var`. Net diff: -59 +21 lines in one file.
+
+**Gates:** Smoke PASS=7, Broker **PASS=49** (recovered from 48 at session
+17 HEAD -- one test that the dance was breaking).
+
+### What session 18 changed
+
+Per GOAL step 6 directive: with `bb_callcap` CC_β and CC_ω already
+self-unwinding via `NAM_pop_one(handle)` since session 15, the legacy
+`g_callcap_list` / `g_cc_events` registry has no role in dispatch.
+`NAM_commit` walks the single NAM frame directly; the old registry is
+parallel bookkeeping that nothing reads at commit time. Snapshotting and
+restoring it around the child match in `bb_deferred_var` was both
+unnecessary AND actively harmful: zeroing outer `registered` flags during
+child execution interfered with the inner CC_α registration path.
+
+The dvar block collapses from ~60 lines of save/clear/run/restore/merge
+to 3 lines: forward α to child, return its result.
+
+Probe results confirmed: broker 48→49, smoke clean, no other regressions.
+
+### Same-box β symmetry (Lon's directive, session 18)
+
+`PAT . var` (XNME / `bb_capture`) and `PAT . *fn()` (XCALLCAP /
+`bb_callcap`) are the **same γ/β/ω state machine** with two different
+lvalue resolutions at commit time:
+
+  - LV_VAR  — named variable / cell pointer (write via NV_SET_fn or *var_ptr)
+  - LV_CALL — function call resolves the lvalue DT_N at flush time
+
+Both push into NAM on γ. Both self-unwind on β (retry) and ω (failure)
+via `NAM_pop_one`. NAM_commit already unifies dispatch via tagged
+`NAM_KIND_CAPTURE` vs `NAM_KIND_CALLCAP`.
+
+Two separate C functions (`bb_capture` in bb_boxes.c, `bb_callcap` in
+stmt_exec.c) are one duplication too many — session 15 exit note said
+exactly this. Proposed unification:
+
+```c
+typedef struct {
+    bb_box_fn    child_fn;
+    void        *child_state;
+    int          immediate;          /* $ vs . */
+    enum { LV_VAR, LV_CALL } lv_kind;
+    /* LV_VAR */
+    const char  *var_name;
+    DESCR_t     *var_ptr;
+    /* LV_CALL */
+    const char  *fnc_name;
+    DESCR_t     *fnc_args;
+    int          fnc_nargs;
+    char       **fnc_arg_names;
+    int          fnc_n_arg_names;
+    /* shared */
+    void        *nam_handle;
+} bb_cap_t;
+```
+
+One γ/β/ω body, two commit-time lvalue paths. Eliminates remaining drift
+risk and deletes `bb_callcap_new`, `bb_callcap_new_named`,
+`bb_callcap_exported`, the `callcap_t_bin` mirror in bb_build.c.
+
+Not done this session -- session 18 was scoped to the dvar cleanup only
+so the broker PASS=49 recovery could be verified in isolation.
+
+### Root cause of `*constant` / expr_eval -- isolated this session
+
+`expr_eval.sno` still fails identically to session 17 after the dvar
+cleanup (**this is expected**; the dvar dance and the remaining bug are
+independent). Minimal repro isolated:
+
+```snobol4
+         integer  =  SPAN('0123456789')
+         constant =  integer . *Push()
+         primary  =  *constant
+
+         line     POS(0) primary RPOS(0)  :F(bad)
+```
+
+This fails in BOTH IR and SM, succeeds in SPITBOL.
+
+`DATATYPE(primary)` is `expression` in **both** one4all AND SPITBOL --
+`primary = *constant` produces DT_E (frozen EXPRESSION) per spec. The
+question is what the match path does with a DT_E pattern element:
+
+  - SPITBOL thaws DT_E at match time: re-evaluates the frozen `*constant`
+    in pattern context, yielding the live `integer . *Push()` pattern.
+  - one4all's `interp.c` E_CAT (~L2626) starts in VALUE context with
+    `interp_eval(children[0])`. When a DT_P operand (`POS(0)`) arrives,
+    it switches to `interp_eval_pat` for subsequent children. But when
+    `interp_eval_pat` is called on `E_VAR("primary")` (NOT E_DEFER),
+    and `primary` holds DT_E, some path is stringifying or freezing it
+    to XCHR instead of thawing it back to a pattern.
+
+Evidence (from session 18 probes, since removed):
+- `bb_build` probe on `line POS(0) primary RPOS(0)`: observed kinds 19,
+  7, 0, 6 = XCAT, XRPSI, **XCHR (0)**, XPOSI. The `primary` child got
+  folded into XCHR -- a literal string, not a deferred or pattern node.
+- `bb_deferred_var` never entered for this test. `NAM_commit` never
+  reached (match fails before commit).
+
+### Next step for session 19
+
+Fix `interp_eval_pat` handling of plain `E_VAR` references when the
+referenced variable holds DT_E. Two candidate strategies:
+
+1. **Thaw on sight** -- in `interp_eval_pat` case `E_VAR`, if the
+   resolved value is DT_E, call EVAL-in-pattern-context on the frozen
+   EXPR_t* to recover the pattern.
+
+2. **Preserve as XDSAR** -- when a pattern-context var holds DT_E, build
+   an XDSAR node so the thaw happens at match time in `bb_deferred_var`
+   (which would then need DT_E branch in NV_GET result handling).
+
+Strategy 1 is simpler; strategy 2 matches the deferred spirit of the
+existing code. SPITBOL evidently does something like strategy 2
+(deferred re-evaluation at match time), but for the minimal repro
+strategy 1 is adequate.
+
+Gate: `test_smoke_snobol4.sh` PASS=7, `test_smoke_unified_broker.sh`
+PASS=49, then minimal `/tmp/sn20/mini_c.sno` (primary = *constant)
+passes under both --ir-run and --sm-run, then `expr_eval` passes.
+
+### SN-6 remaining failures (still 2 of 225)
+
+- `expr_eval` -- root cause diagnosed this session (see above). Blocks on
+  `interp_eval_pat` DT_E thaw fix.
+- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
+
+### Duplicate BB inventory -- PARTIAL
+
+Session 17 unified `bb_capture` and `bb_atp` (zero duplicates). Session
+18 deleted the legacy callcap registry. Remaining: unify `bb_capture`
+and `bb_callcap` into one `bb_cap` with LV_VAR / LV_CALL discriminant
+(per Lon's session 18 directive). Drops `bb_callcap`, `bb_callcap_new`,
+`bb_callcap_new_named`, `bb_callcap_exported`, `callcap_t_bin`.
+
+---
+
+## Prior state (2026-04-19 -- SN-20 session 17, UNIFICATION DONE, expr_eval OPEN)
 
 **HEAD:** one4all @ `211f68fb` -- SN-20 session 17: unified bb_capture and
 bb_atp across all three modes. Zero duplication: every box has exactly one
