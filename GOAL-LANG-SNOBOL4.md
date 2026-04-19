@@ -172,62 +172,155 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-20 session 15, NAM refactor IN PROGRESS)
+## Current state (2026-04-19 -- SN-20 session 16, DIAGNOSIS + UNIFICATION PLAN)
 
-**HEAD:** one4all (session 15) -- SN-20 refactor: box-owned self-unwinding
-NAM push/pop, modeled on snobol4python/_backend_pure.py. Every push to the
-NAM list is now symmetric with a matching pop: box pushes on γ/α, pops on
-β (retry) and ω (failure exit). No more combinator-level NAM_mark/rollback
-required -- NAM_rollback_to is now a no-op stub.
+**HEAD:** one4all @ `790e019f` (session 15) -- unchanged. Session 16 produced
+no commits; its output is this analysis, which corrects the session 15 exit
+note and redirects session 17.
 
-**Files changed (uncommitted to session 14 baseline):**
-- `src/runtime/x86/snobol4.h` -- NAM_push / NAM_push_callcap / NAM_push_callcap_named
-  signatures changed from `void` → `void *` (return entry handle). Added
-  `NAM_pop_one(handle)` declaration.
-- `src/runtime/x86/snobol4_nmd.c` -- implementations updated; added
-  NAM_pop_one; neutralized NAM_rollback_to to a no-op.
-- `src/runtime/x86/bb_boxes.c` -- `capture_t` gets `nam_handle` field;
-  `bb_capture` pops in CAP_β and CAP_ω.
-- `src/runtime/x86/stmt_exec.c` -- `usercall_t` and `callcap_t` gain
-  `nam_handle`; bb_usercall UC_ω pops; bb_callcap CC_β and CC_ω pop,
-  CC_γ_core (.path) captures the handle from NAM_push_callcap_named.
+**Gates at HEAD:** Smoke PASS=7, Broker PASS=49. Clean.
 
-**Gates:** Smoke PASS=7, broker PASS=49. No regression.
+### Key finding -- IR-run regressed; session 15's premise was wrong
 
-### SN-20 session 15 result -- refactor sound but insufficient
+Session 15 exit note said the SN-20 refactor was "sound but insufficient"
+-- that SM still failed `sm_min7.sno` while IR passed. Session 16
+verified this against HEAD and against session 14's parent commit
+`3420f768`:
 
-`/tmp/sm_min7.sno` (minimal SM-only repro from session 15 diagnosis):
-```snobol4
-expr = integer '+' *expr . *Hit() | integer
-'1+2' POS(0) expr RPOS(0) :F(fail)
-```
-IR and SPITBOL: `HIT fired` + `OK`.
-SM (still): `MATCH FAILED`.
+| Test                 | @ 3420f768 (sess 14)   | @ 790e019f (sess 15 HEAD)     |
+|----------------------|------------------------|-------------------------------|
+| `sm_min7.sno` IR     | `HIT fired` + `OK`     | `HIT fired` + `OK`            |
+| `sm_min7.sno` SM     | `MATCH FAILED`         | `MATCH FAILED`                |
+| `expr_eval.sno` IR   | `7/9/25.5/7/26` ✓      | **"Bad input" x5  REGRESSED** |
+| `expr_eval.sno` SM   | `Bad input`            | `Bad input`                   |
 
-The self-unwind refactor is clean and builds, but the SM match failure
-for the deferred-recursive pattern shape is not in the NAM layer after
-all. The NAM list is now correctly symmetric, but the match algorithm
-itself is failing before reaching any commit point.
+So session 15's SN-20 refactor **regressed IR-run on expr_eval** while
+claiming not to. The session-14 fix (spurious E_FNC LHS eval guard in
+the function-body loop) was left in place, but the refactor broke a
+different path.
 
-### Next step for session 16 -- diagnose the actual SM match failure
+### Root cause -- two bb_capture implementations, refactor only updated one
 
-Hypotheses to probe in order:
+`bb_capture` has **two live implementations** and always has:
 
-1. `bb_deferred_var`'s old `g_callcap_list` / `g_cc_events` save-restore
-   dance (stmt_exec.c ~L1265-L1335, still present) may be interfering
-   when `*expr` recurses. It is orthogonal to the NAM list but touches
-   the same callcap boxes. Try: comment it out, re-run. If that fixes
-   `/tmp/sm_min7.sno`, delete the whole snapshot block as dead code.
-2. `pat_ref` / `bb_deferred_var` recursion itself may not work in SM
-   mode the same way it does in IR mode. `grep -n XDSAR` paths.
-3. Add env-gated `fprintf` probes at CAP_α/γ/ω and CC_α/γ/β/ω, rerun
-   IR and SM on `/tmp/sm_min7.sno`, diff the traces.
+| File | Linkage | Runs in |
+|------|---------|---------|
+| `bb_boxes.c:508` | external `DESCR_t bb_capture` | JIT emitter takes address via `bb_capture_exported` wrapper -- but `_exported` lives in `stmt_exec.c` and forwards to **that file's static** -- so bb_boxes.c's version is **dead code in all modes** |
+| `stmt_exec.c:180` | `static DESCR_t bb_capture` | Dispatcher at `n.fn = bb_capture` (L997, L1019) binds to it in same TU; `bb_capture_exported` wrapper re-exposes for JIT |
 
-### SN-6 remaining failures (2 of 225)
+Session 15 updated **only `bb_boxes.c`'s dead-code version** with the
+self-unwinding NAM_pop_one on CAP_β/CAP_ω. The live version in
+`stmt_exec.c` was untouched. Simultaneously, session 15 neutered
+`NAM_rollback_to` to a no-op in `snobol4_nmd.c`.
 
-- `expr_eval` -- 1+2*3 -> 2 (ir); "Bad input, try again" (sm).
-  IR side fixed in session 14. SM side still open; SN-20 refactor (sessions
-  15) was necessary groundwork but did not close it.
+Net effect on the live path: `bb_alt` and `bb_arbno` in `bb_boxes.c`
+still call `NAM_rollback_to(ζ->nam_mark)` on failed arms / ARBNO
+trials, but the call is now a no-op. The live `bb_capture` (in
+stmt_exec.c) still calls `NAM_push` on XNME γ but has no
+`NAM_pop_one` on β/ω. Failed-arm NAM entries now leak.
+
+`expr_eval.sno` is saturated with alternation and `. *Push()` /
+`. *Binary()` callcaps. The grammar backtracks heavily. Leaked NAM
+entries from failed alt arms corrupt the eventual commit, producing
+the "Illegal data type" stderr and "Bad input" outputs.
+
+### Duplicate BB inventory (Lon's question, session 16)
+
+Rule: same box should have ONE implementation, used by all three modes.
+
+| Box              | `bb_boxes.c` | `stmt_exec.c` | --ir-run  | --sm-run  | --jit-run                 | Status |
+|------------------|:------------:|:-------------:|-----------|-----------|---------------------------|--------|
+| 23 simple boxes  | yes          | --            | bb_boxes  | bb_boxes  | bb_boxes (some inlined)   | OK     |
+| **bb_capture**   | yes          | **dup stat**  | stmt_exec | stmt_exec | stmt_exec (via _exported) | DUP    |
+| **bb_atp**       | yes          | **dup stat**  | stmt_exec | stmt_exec | **bb_boxes**              | DUP + divergence |
+| bb_callcap       | --           | single stat   | stmt_exec | stmt_exec | stmt_exec (via _exported) | OK     |
+| bb_usercall      | --           | single stat   | stmt_exec | stmt_exec | n/a (no emitter)          | OK     |
+| bb_deferred_var  | --           | single stat   | stmt_exec | stmt_exec | stmt_exec (via _exported) | OK     |
+
+**Two duplicates: `bb_capture` and `bb_atp`.** `bb_atp` is the worst:
+IR/SM go through stmt_exec.c's static; JIT takes the address of
+bb_boxes.c's external. Any fix to one is invisible to the other.
+
+### Session 17 plan -- unify, don't patch
+
+Do NOT just copy the SN-20 self-unwind into stmt_exec.c's bb_capture.
+That perpetuates the duplication. Unify instead.
+
+Steps (Lon's directive: "three should be zero duplication"):
+
+1. **Canonical home = `bb_boxes.c`** for every box.
+2. In `bb_boxes.c`:
+   - Expand `capture_t` to match stmt_exec.c's full struct: add
+     `DESCR_t *var_ptr` (DT_N NAME target, session 12 word1 fix) and
+     `int registered` (phase-5 registry idempotence).
+   - Expand `bb_capture`: add the `var_ptr` branch in CAP_γ_core, add
+     `register_capture(ζ)` call on CAP_α when `!immediate`. Keep
+     SN-20 self-unwind (already present).
+   - Move `g_capture_list`, `register_capture`, `flush_pending_captures`
+     (stmt_exec.c L1298-L1321) here. Export
+     `flush_pending_captures()` in a shared header.
+   - Move `bb_capture_new` here.
+   - `bb_atp` here is already complete and semantically equivalent to
+     stmt_exec.c's static -- no body changes needed.
+3. In `stmt_exec.c`:
+   - Delete `static DESCR_t bb_capture` (L180-L224), `bb_capture_exported`
+     (L227), `bb_capture_new` (L229-L240), `static DESCR_t bb_atp`
+     (L453-L469), `register_capture` + `flush_pending_captures` +
+     `g_capture_list` (L1298-L1321). All now live in bb_boxes.c.
+   - Dispatcher lines `n.fn = bb_capture` / `n.fn = bb_atp` now bind
+     to the external bb_boxes.c versions (no TU-local static to
+     shadow). Include the declarations from the shared header.
+4. In `bb_build.c`:
+   - Replace `bb_capture_exported` references with `bb_capture` directly
+     (L150, L868, L903). Delete the `_exported` wrapper need.
+   - `capture_t_bin` mirror struct (L152-L162) -- already has `var_ptr`
+     and `registered`; just confirm `nam_handle` slot present (yes in
+     bb_boxes.c's current struct).
+5. Shared header updates (`snobol4.h` or `bb_box.h`):
+   - Expose `capture_t`, `atp_t` typedefs (atp_t already in bb_box.h).
+   - Expose `bb_capture`, `bb_capture_new`, `flush_pending_captures`,
+     `bb_atp`, `bb_atp_new` as prototypes.
+6. Build. Run probes:
+   - `/tmp/sm_min7.sno` IR + SM
+   - `expr_eval.sno` IR + SM (should now pass IR cleanly; SM still
+     unknown -- may also fix, if alt-arm NAM leak was the whole issue)
+7. Gates: smoke PASS=7, broker PASS=49, broad corpus report.
+8. Commit per RULES.md handoff.
+
+### Session 16 WIP (stashed, not on disk)
+
+Partial edits to `bb_boxes.c` and `stmt_exec.c` implementing steps 2-3
+above were made in session 16 but not completed -- the unified
+`bb_capture` was moved into bb_boxes.c (with full semantics: var_ptr
+branch + register_capture + SN-20 self-unwind), and the duplicates were
+deleted from stmt_exec.c, but step 4 (bb_build.c) and step 5 (shared
+header decls) were not finished. Build at that point fails with:
+- `'bb_atp' undeclared` at stmt_exec.c:1055 (dispatcher; needs
+  header decl)
+- `'capture_t' unknown type` at stmt_exec.c:1299 (leftover
+  `g_capture_list`; must delete that block, it moved to bb_boxes.c)
+- miscellaneous references to `has_pending` from leftover registry
+  code
+
+WIP is `git stash`-ed in the session 16 container but not pushed to
+remote -- the container is ephemeral, consider WIP lost. The
+**analysis above is the real deliverable**; re-doing the edits in
+session 17 following the step list is cleaner than trying to recover
+the stash.
+
+### Probes to keep in mind
+
+- `sm_min7.sno` IR output at HEAD is `HIT fired` / `OK` -- but SPITBOL
+  says `HIT fired` / `MATCH FAILED`. So our IR gives an **extra
+  spurious success** on that shape (the recursion doesn't consume all
+  input, so RPOS(0) should fail and MATCH FAILED print). IR is wrong
+  here too, just in the other direction from SM. Keep this as a
+  secondary probe after the unification lands.
+
+### SN-6 remaining failures (still 2 of 225)
+
+- `expr_eval` -- now failing in BOTH modes after session 15 regression.
+  Unification should clear IR; SM status re-evaluate after.
 - `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
 
 ---
