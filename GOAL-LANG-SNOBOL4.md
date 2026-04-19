@@ -195,11 +195,12 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Migration path.**
   - [x] **SN-21a** -- Introduce `NAME_t` + `name_commit_value` (unused).
          HEAD `f04f64b2`. Smoke 7, Broker 48.
-  - [ ] **SN-21b** -- Rewrite `snobol4_nmd.c`: flat `NAME_t[]` stack,
-         new API `NAME_push / NAME_pop / NAME_mark / NAME_commit_above /
-         NAME_discard_above`.  Keep old `NAM_*` names as thin shims
-         temporarily so stmt_exec.c / eval_code.c / bb_boxes.c compile.
-         Gate after: Smoke 7, Broker 48.
+  - [x] **SN-21b** -- Flat `NAME_t[]` stack in `snobol4_nmd.c`.  Primary
+         ops `NAME_push` / `NAME_pop`; combinator helpers `NAME_top` /
+         `NAME_pop_above`.  All `NAM_*` legacy names kept as thin shims
+         delegating to the new API.  Per-slot `legacy_dt` preserves
+         DT_S / DT_K / DT_E dispatch via `NAM_commit`'s pre-pass.
+         HEAD `fbad1a04`.  Smoke 7, Broker 48.
   - [ ] **SN-21c** -- Port `bb_capture` to `bb_cap`: embed `NAME_t`,
          route immediate writes through `name_commit_value`, use the new
          push/pop API.  Old `bb_callcap` still present but now also
@@ -272,30 +273,30 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ---
 
-## Current state (2026-04-19 -- SN-21b CURRENT, HEAD=f04f64b2, Gates PASS=7/48)
+## Current state (2026-04-19 -- SN-21c CURRENT, HEAD=fbad1a04, Gates PASS=7/48)
 
-**HEAD:** one4all @ `f04f64b2`.
+**HEAD:** one4all @ `fbad1a04`.
 
 **Gates:** Smoke PASS=7, Broker PASS=48.
 
-SN-21a done (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
+SN-21a (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
 name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
-Makefile.  No call site uses them yet — silent-introduction step.
+Makefile.  No call site uses them yet.
 
-SN-21b next: rewrite `snobol4_nmd.c` as a flat `NAME_t[]` stack.  Two
-primary ops — `NAME_push` at box γ, `NAME_pop` at box β/ω — mirror the
-Python `push; yield; pop` generator idiom exactly; the stack rolls and
-unrolls by itself through γ/β/ω cascade.  Two tiny helpers
-(`NAME_top` / `NAME_pop_above`) serve bb_alt next-arm and bb_arbno
-stop paths that abandon a γ-succeeded child without β-popping it.
-Statement and EVAL brackets are a one-line snapshot + truncate — no
-NAM_save/NAM_commit/NAM_discard/NAM_mark/NAM_rollback_to.
+SN-21b (`1a756cd5` → `fbad1a04`): snobol4_nmd.c rewritten as flat
+NAM_entry_t[] stack.  Primary ops NAME_push / NAME_pop mirror the
+Python generator `push; yield; pop` idiom; combinator helpers
+NAME_top / NAME_pop_above serve bb_alt next-arm and bb_arbno escape
+paths.  All NAM_* legacy names remain as thin shims delegating to
+the new API (deleted in SN-21e).  Per-slot legacy_dt preserves
+DT_S / DT_K / DT_E dispatch.  Ad-hoc probe (capture / ARBNO /
+callcap) identical to pre-SN-21b in all three modes.
 
-The prior PASS=49 figure in the goal file was a documentation drift
-from session 19 — actual broker count at HEAD `0e8f698c` was already
-48; not caused by SN-21a.
+SN-21c next: port bb_capture to bb_cap — embed NAME_t, route
+immediate ($) writes through name_commit_value, use NAME_push /
+NAME_pop for deferred (.) paths.  bb_callcap continues alongside
+until SN-21d collapses it.
 
-Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` — the
-`δ` and `Δ` classes show the canonical `for _1 in P.γ(): push; yield;
-pop` shape.  Our C box γ/β/ω cascade is that shape expanded into
-explicit continuation passing.
+Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` —
+canonical `for x in P.γ(): push; yield; pop` shape.  Our C γ/β/ω
+cascade is that shape expanded into explicit continuation passing.
