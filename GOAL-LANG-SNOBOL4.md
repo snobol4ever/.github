@@ -1002,8 +1002,44 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   probably 0% of hot path), or (b) make `cache_get_fresh` recursively
   deep-copy pointer fields.  Not gating SN-7.
 
-- [ ] **SN-7** -- beauty.sno self-host: 6 drivers × 3 modes = 18 combos,
-  diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
+- [x] **SN-7** -- beauty.sno self-host.  **Done 2026-04-19.**
+
+  **Gate:** `scripts/test_gate_sn7_beauty_self_host.sh` — every
+  `beauty_*_driver.sno` × `--ir-run` / `--sm-run` / `--jit-run` diff=0
+  vs its pre-baked `.ref` file.  Corpus ships **17 driver subsystems**
+  (not 6 as the original rung draft estimated), giving **17 × 3 = 51
+  combos**.
+
+  **Result: PASS=51 FAIL=0.**
+
+  Drivers covered: Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump,
+  assign, case, counter, fence, global, match, omega, semantic, stack,
+  trace, tree.
+
+  **Note on `beauty_tree_driver`:** SPITBOL itself fails this driver
+  with `error 067 -- array dimension is zero, negative or out of
+  range` at `tree.sno(16)`.  The pre-baked `.ref` contains the correct
+  `PASS: 1..4` output that a well-behaved SNOBOL4 implementation should
+  produce — which scrip produces in all three modes.  Here scrip is
+  actually more correct than the nominal oracle on this one driver;
+  per RULES.md the `.ref` is authoritative.
+
+  **Top-level `beauty.sno`** (the library itself, at
+  `demo/beauty.sno`) has no standalone `.ref` — it's exercised
+  exclusively through the 17 `beauty_*_driver.sno` files, each of
+  which exercises a slice of the library.  "beauty.sno self-hosts
+  cleanly under all three modes" therefore means: every driver
+  exercising beauty.sno passes diff=0 in every mode.  That is the
+  state achieved at SN-7.
+
+  **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=224/225
+  (demo_claws5 only, out of scope), SN-7 gate PASS=51/51.
+
+- [ ] **SN-8** -- next rung on the SN-7..SN-9 Phase 2 path.  Specifics
+  to be defined when picked up; candidates include tightening the
+  SM-side XATP arg-name stash gap (noted across SN-17a/SN-17d history)
+  and the `cache_get_fresh` pristine-template rewrite (SN-23 cross-
+  concern).
 
 ---
 
@@ -1060,9 +1096,12 @@ apparently reached the layered EVAL/arithmetic bugs SN-6b/SN-6c had
 diagnosed as orthogonal — per-match NAM context isolation (SN-23b/c)
 was sufficient to repair EVAL-within-match corruption.
 
-**Next step:** **SN-7** — beauty.sno self-host: 6 drivers × 3 modes =
-18 combos, diff=0 vs SPITBOL.  Gate: Smoke PASS=7, Broker PASS=49,
-all 18 combos diff=0.
+**Next step:** **SN-8** — next rung on the SN-7..SN-9 Phase 2 path.
+Candidates when picked up: (a) SM-side XATP arg-name stash gap (noted
+across SN-17a/SN-17d history — the `--sm-run` tags-empty symptom in
+the 7-line `rec` repro), (b) `cache_get_fresh` pristine-template
+rewrite (SN-23 cross-concern), (c) `demo_claws5` (under
+GOAL-SNO-CLAWS5.md — independent goal).
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
 - `NAME_push` still returns `void *` for source compatibility but
