@@ -29,7 +29,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-17b (bb_build dispatch unification; SN-17a done: SM_PAT_USERCALL opcode, Porter `--sm-run` 60.84%→83.46%, converges with `--ir-run`) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-6 (SN-17 closed; Porter 100%/100%; SN-17b/c deferred as non-critical cleanup) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
