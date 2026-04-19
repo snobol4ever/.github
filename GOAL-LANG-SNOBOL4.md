@@ -74,8 +74,50 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
+- [ ] **SN-20** -- **CURRENT.** NAM push/pop inside the BB block that owns
+  it (Python-style symmetry).  Per `snobol4python/_backend_pure.py`: the
+  box that pushes a side-effect is the same box that pops it on backtrack
+  -- push on α/γ, pop on β/ω, mirrored across the generator's yield.
+
+  Current C scheme splits ownership: `bb_capture` / `bb_callcap` push, but
+  `bb_alt` / `bb_arbno` / `bb_deferred_var` are responsible for taking
+  `NAM_mark()` and `NAM_rollback_to()` around any child that might append
+  entries.  Every combinator must remember.  `bb_deferred_var` in SM mode
+  forgets -- the `/tmp/sm_min7.sno` failure (session 15 diagnosis) is a
+  direct consequence of that ownership split.
+
+  Fix: make push self-unwinding.
+
+  1. `NAM_push` / `NAM_push_callcap` return an opaque handle (pointer to
+     the appended node).
+  2. Add `NAM_undo(handle)` that pops exactly that node -- trivial since
+     entries are appended at tail; walk from head to find `prev`.
+  3. `bb_capture`: save handle on γ, call `NAM_undo(handle)` on β entry
+     (retry = "back out of prior success") and on ω (failure return path).
+  4. `bb_callcap`: same.
+  5. Delete `NAM_mark` / `NAM_rollback_to` from `nmd.c` and every call site
+     in `bb_alt` / `bb_arbno`.  These combinators lose all NAM awareness.
+  6. Delete the `g_callcap_list` / `g_cc_events` snapshot/restore dance in
+     `bb_deferred_var` (stmt_exec.c ~L1265-L1322). Every push that got in
+     during a recursive child match undoes itself on backtrack, just like
+     for any other box.
+
+  Gate: Smoke PASS=7, Broker PASS=49. Then:
+  ```bash
+  /home/claude/one4all/scrip --sm-run /tmp/sm_min7.sno   # HIT fired, OK
+  cat /home/claude/corpus/crosscheck/control/expr_eval.input \
+    | /home/claude/one4all/scrip --sm-run \
+        /home/claude/corpus/crosscheck/control/expr_eval.sno
+  ```
+  Expected: `7 / 9 / 25.5 / 7 / 26` matching SPITBOL.
+
+  Side-effect expected: Porter stemmer SN-17 gap closes (same root cause).
+
+  Then return to SN-6 broad corpus PASS count; should advance toward
+  225/225.
+
 - [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run
-  (expr_eval IR side fixed session 14, SM side still open). IN PROGRESS.
+  (expr_eval IR side fixed session 14, SM side still open).
 
 ```bash
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
@@ -130,7 +172,67 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-6 session 14, PASS=223/225 default / ir-run 224/225)
+## Current state (2026-04-19 -- SN-20 session 15, NAM refactor IN PROGRESS)
+
+**HEAD:** one4all (session 15) -- SN-20 refactor: box-owned self-unwinding
+NAM push/pop, modeled on snobol4python/_backend_pure.py. Every push to the
+NAM list is now symmetric with a matching pop: box pushes on γ/α, pops on
+β (retry) and ω (failure exit). No more combinator-level NAM_mark/rollback
+required -- NAM_rollback_to is now a no-op stub.
+
+**Files changed (uncommitted to session 14 baseline):**
+- `src/runtime/x86/snobol4.h` -- NAM_push / NAM_push_callcap / NAM_push_callcap_named
+  signatures changed from `void` → `void *` (return entry handle). Added
+  `NAM_pop_one(handle)` declaration.
+- `src/runtime/x86/snobol4_nmd.c` -- implementations updated; added
+  NAM_pop_one; neutralized NAM_rollback_to to a no-op.
+- `src/runtime/x86/bb_boxes.c` -- `capture_t` gets `nam_handle` field;
+  `bb_capture` pops in CAP_β and CAP_ω.
+- `src/runtime/x86/stmt_exec.c` -- `usercall_t` and `callcap_t` gain
+  `nam_handle`; bb_usercall UC_ω pops; bb_callcap CC_β and CC_ω pop,
+  CC_γ_core (.path) captures the handle from NAM_push_callcap_named.
+
+**Gates:** Smoke PASS=7, broker PASS=49. No regression.
+
+### SN-20 session 15 result -- refactor sound but insufficient
+
+`/tmp/sm_min7.sno` (minimal SM-only repro from session 15 diagnosis):
+```snobol4
+expr = integer '+' *expr . *Hit() | integer
+'1+2' POS(0) expr RPOS(0) :F(fail)
+```
+IR and SPITBOL: `HIT fired` + `OK`.
+SM (still): `MATCH FAILED`.
+
+The self-unwind refactor is clean and builds, but the SM match failure
+for the deferred-recursive pattern shape is not in the NAM layer after
+all. The NAM list is now correctly symmetric, but the match algorithm
+itself is failing before reaching any commit point.
+
+### Next step for session 16 -- diagnose the actual SM match failure
+
+Hypotheses to probe in order:
+
+1. `bb_deferred_var`'s old `g_callcap_list` / `g_cc_events` save-restore
+   dance (stmt_exec.c ~L1265-L1335, still present) may be interfering
+   when `*expr` recurses. It is orthogonal to the NAM list but touches
+   the same callcap boxes. Try: comment it out, re-run. If that fixes
+   `/tmp/sm_min7.sno`, delete the whole snapshot block as dead code.
+2. `pat_ref` / `bb_deferred_var` recursion itself may not work in SM
+   mode the same way it does in IR mode. `grep -n XDSAR` paths.
+3. Add env-gated `fprintf` probes at CAP_α/γ/ω and CC_α/γ/β/ω, rerun
+   IR and SM on `/tmp/sm_min7.sno`, diff the traces.
+
+### SN-6 remaining failures (2 of 225)
+
+- `expr_eval` -- 1+2*3 -> 2 (ir); "Bad input, try again" (sm).
+  IR side fixed in session 14. SM side still open; SN-20 refactor (sessions
+  15) was necessary groundwork but did not close it.
+- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
+
+---
+
+## Prior state (2026-04-19 -- SN-6 session 14, PASS=223/225 default / ir-run 224/225)
 
 **HEAD:** one4all (session 14) -- interp.c: apply the same E_FNC LHS
 guard in the user-function body statement loop (~L597) that session 13
