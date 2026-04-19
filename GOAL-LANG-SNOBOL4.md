@@ -1035,11 +1035,95 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=224/225
   (demo_claws5 only, out of scope), SN-7 gate PASS=51/51.
 
-- [ ] **SN-8** -- next rung on the SN-7..SN-9 Phase 2 path.  Specifics
-  to be defined when picked up; candidates include tightening the
-  SM-side XATP arg-name stash gap (noted across SN-17a/SN-17d history)
-  and the `cache_get_fresh` pristine-template rewrite (SN-23 cross-
-  concern).
+- [ ] **SN-8** -- next rung on the SN-7..SN-9 Phase 2 path.  **Scoped 2026-04-19:**
+      close the long-standing `. *fn(args)` / `$ *fn(args)` / bare `*fn(args)`
+      args-are-NULL gap on the SM and JIT paths (tags-empty on `--sm-run`
+      in the 7-line `rec` repro).
+
+  **Symptom (reproduced):**  `/tmp/rec_repro.sno`:
+  ```snobol4
+            &ANCHOR = 0
+            &FULLSCAN = 1
+            nPushes = 0
+            tags = ''
+            DEFINE('Push(t)')                  :(push_end)
+  Push      nPushes = nPushes + 1
+            tags = tags ' ' t
+            Push = .nPushes                    :(NRETURN)
+  push_end
+            rec = 'a' . *Push('A') *rec | 'a' . *Push('B')
+            'aa' POS(0) rec RPOS(0)            :F(no)S(yes)
+  no        OUTPUT = 'NO MATCH'                :(END)
+  yes       OUTPUT = 'MATCH count=' nPushes ' tags=' tags
+  END
+  ```
+  SPITBOL and `--ir-run`: `MATCH count=a tags= A B`.
+  `--sm-run` (and `--jit-run`): `MATCH count=a tags=  ` — args never reach
+  `Push`.  Count differs because capture fires but `t` arg is null.
+
+  **Root cause (pinpointed):** two opcodes in the SM path ignore args.
+
+  1. `sm_interp.c:541`  `SM_PAT_USERCALL` handler — bare `*fn(args)` —
+     hardcodes `pat_user_call(fname, NULL, 0)`.  The SN-17a comment at
+     :538-539 says args would be wired in SN-17d; SN-17d turned out to
+     be a different fix and this piece was never landed.
+  2. `sm_interp.c:525,527`  `SM_PAT_CAPTURE_FN` handler — `. *fn(args)`
+     and `$ *fn(args)` forms — hardcodes `pat_assign_callcap*(child,
+     fname, NULL, 0, ...)` on both the name-stash and legacy branches.
+     Name-stash covers only the all-E_VAR case; the eager-eval fallback
+     was never implemented.  **This is the failing repro's actual site**
+     — the `rec` pattern uses `. *Push('A')` (E_QLIT arg, not E_VAR, so
+     name-stash returns NULL, so handler hits the "args NULL/0" branch).
+
+  Reference path for the fix: `--ir-run`'s `driver/interp.c:3091-3144`
+  (E_CAPT_COND_ASGN) and `runtime/x86/stmt_exec.c:961-970` (E_DEFER(E_FNC)
+  DT_E thaw in `bb_deferred_var`) both do the right thing: when args are
+  not all E_VAR, eager-evaluate them at build time via `interp_eval` /
+  `eval_node` into a `DESCR_t[]` and pass to `pat_assign_callcap` /
+  `pat_user_call`.
+
+  **Planned fix (SN-8a) — not landed this session:**
+
+  - Introduce a new SM opcode `SM_PAT_CAPTURE_FN_ARGS` that, at match-
+    build time, pops `nargs` DESCR_t values from the value stack and
+    passes them to `pat_assign_callcap`.
+  - `sm_lower.c` E_CAPT_COND_ASGN / E_CAPT_IMMED_ASGN: try the existing
+    TL-2 name-stash path first (keeps oracle-semantic post-capture
+    resolution when all args are E_VAR).  On fallback, lower each arg
+    onto the value stack and emit the new `SM_PAT_CAPTURE_FN_ARGS` with
+    `a[0].s`=fname, `a[1].i`=kind (0=cond / 1=imm), `a[2].i`=nargs.
+  - Reuse `a[2]` as a union: `a[2].s` means name-stash (existing
+    `SM_PAT_CAPTURE_FN`), `a[2].i` means nargs (new
+    `SM_PAT_CAPTURE_FN_ARGS`).  A new opcode avoids union-discrimination
+    hazards at the handler.
+  - Parallel fix in `sm_interp.c` + `sm_codegen.c` (add
+    `h_pat_capture_fn_args` handler, register in `g_handlers[]`).
+  - Also extend `SM_PAT_USERCALL` for the bare `*fn(args)` form (same
+    pop-from-stack pattern; `a[1].i`=nargs).  The bare form is not
+    exercised by the current failing repro but has the same latent bug.
+  - Update `sm_prog.h` / `sm_prog.c` (opnames table + print switch).
+
+  **Session 2026-04-19 state:** full diagnosis above; prototype patch
+  was written and partially applied in working tree but not rebuilt /
+  not tested / JIT handler missing.  Reverted to maintain clean build.
+  Reference files studied this session:
+  - `sm_lower.c:307-353`   (emit sites)
+  - `sm_lower.c:188-208`   (`sm_pat_capture_fn_arg_names` — returns NULL
+                             when any arg is not plain E_VAR)
+  - `sm_interp.c:493-543`  (handler sites)
+  - `sm_codegen.c:419-428` (JIT `h_pat_usercall`)
+  - `driver/interp.c:3091-3144` (reference --ir-run implementation)
+  - `snobol4_pattern.c:361-402`  (`pat_assign_callcap` / `pat_user_call`
+                                  signatures; both take `DESCR_t*, int`)
+
+  **Repro file:** `/tmp/rec_repro.sno` (not committed; recreate from the
+  snippet above).  Current tree (HEAD `d70abcea` SN-7 gate): smoke 7,
+  broker 48 (env-dependent 48/49 drift, pre-existing), build clean.
+
+  **Gate after fix:** Smoke PASS=7, Broker PASS≥48, Broad corpus must
+  not regress (≥224/225), Porter both modes still 100%/100% / 23531,
+  and all three modes (ir/sm/jit) produce `MATCH count=a tags= A B` on
+  the 7-line `rec` repro.
 
 ---
 
@@ -1096,12 +1180,12 @@ apparently reached the layered EVAL/arithmetic bugs SN-6b/SN-6c had
 diagnosed as orthogonal — per-match NAM context isolation (SN-23b/c)
 was sufficient to repair EVAL-within-match corruption.
 
-**Next step:** **SN-8** — next rung on the SN-7..SN-9 Phase 2 path.
-Candidates when picked up: (a) SM-side XATP arg-name stash gap (noted
-across SN-17a/SN-17d history — the `--sm-run` tags-empty symptom in
-the 7-line `rec` repro), (b) `cache_get_fresh` pristine-template
-rewrite (SN-23 cross-concern), (c) `demo_claws5` (under
-GOAL-SNO-CLAWS5.md — independent goal).
+**Next step:** **SN-8a** — land the `. *fn(args)` / `$ *fn(args)` /
+bare `*fn(args)` eager-eval args path on the SM and JIT sides.  Full
+diagnosis, file/line references, and planned opcode design in the
+SN-8 entry above.  Prototype was attempted 2026-04-19 but reverted
+(partial tree, missing JIT handler, untested).  Next session picks up
+from clean HEAD `d70abcea` with a known-good scoping of the fix.
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
 - `NAME_push` still returns `void *` for source compatibility but
