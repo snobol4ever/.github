@@ -320,15 +320,35 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Plan:**
 
-  - [ ] **SN-22a** -- Delete `nam_mark`/`NAME_mark`/`NAME_rollback_to`
+  - [x] **SN-22a** -- Delete `nam_mark`/`NAME_mark`/`NAME_rollback_to`
     calls from `bb_alt` (`bb_boxes.c:78-110`).  Remove `nam_mark` field
     from `alt_t`.  The `bb_cap` self-unwind already handles failed arms
     correctly — every `.` entry pushed by a failing arm is popped by its
-    owning `bb_cap` on β / ω.
+    owning `bb_cap` on β / ω.  **Done 2026-04-19.**  Dead code as of
+    SN-20 (NAME_rollback_to was already a no-op); removing the calls
+    and the struct field is pure cleanup — no semantic change expected
+    or observed in `bb_alt` alone.
 
-  - [ ] **SN-22b** -- Same for `bb_arbno` (`bb_boxes.c:146-182`): delete
+  - [x] **SN-22b** -- Same for `bb_arbno` (`bb_boxes.c:146-182`): delete
     `nam_mark` from `arbno_frame_t`, delete `NAME_mark`/`NAME_rollback_to`
-    calls at `ARBNO_try`, `body_ω`, `ARBNO_γ_now`.
+    calls at `ARBNO_try`, `body_ω`, `ARBNO_γ_now`.  **Done 2026-04-19.**
+
+    **Gates after SN-22a+b (combined):**
+    - Smoke PASS=7 (unchanged)
+    - Broker PASS=**49** (+1 — was 48 at `cae6d125`; predicted broker
+      regression from SN-17d was actually the same class of NAM-corruption
+      bug, now fully cleared)
+    - Broad corpus PASS=223/225 (unchanged; `expr_eval` and `demo_claws5`
+      still the only fails)
+    - Porter still 100.00% / 100.00% both modes (byte-identical to ref)
+
+    **expr_eval status (SN-6b preview):** `--ir-run` still hits EVAL
+    parse-error path (4/5 inputs) and wrong arithmetic on the 2 that
+    parse (`(1+2)*3 → 3`, `-3+10 → 10`).  SN-22 hypothesis that the
+    recursive pattern corruption contributed to expr_eval has partly
+    played out (the +1 broker pass is evidence the NAM-corruption layer
+    existed), but `expr_eval` itself has layered bugs SN-22 cannot reach
+    — confirming the goal file's "bug is elsewhere" fallback.
 
   - [ ] **SN-22c** -- Reduce the public API in `snobol4.h` + `snobol4_nmd.c`
     to exactly three exported functions:
@@ -397,18 +417,17 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `cae6d125` (SN-6a). Gates: Smoke 7, Broker 49.
+**HEAD:** one4all @ `989bb2f3` (SN-22b). Gates: Smoke 7,
+Broker **49** (+1 vs pre-SN-22), Broad corpus 223/225 unchanged.
 Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
-byte-identical to SPITBOL ref.  Broad corpus: PASS=223/225
-(`expr_eval` and `demo_claws5` remain).
+byte-identical to SPITBOL ref.  `expr_eval` and `demo_claws5` remain
+the only broad-corpus fails.
 
-**Next step:** **SN-22** — NAM API reduction driven by the Python
-reference backend (`snobol4python/_backend_pure.py` Δ class).  The
-discovery: `NAME_rollback_to` is a no-op left over from SN-20, but
-`bb_alt` and `bb_arbno` still *call* `NAME_mark` / `NAME_rollback_to`.
-With box-owned self-unwind (SN-20), those calls are dead weight
-masking the simple invariant: **one stack per match attempt, push on
-γ, pop on β/ω, walk-and-fire on commit**.  Reduce the API to `push`,
-`pop`, and `commit`; delete `mark` / `rollback_to` / `save` / `discard`
-/ `top` / `pop_above`.  Expected to resolve SN-6b (`expr_eval`
-recursive-pattern corruption).
+**Next step:** **SN-22c** — Reduce public NAM API in `snobol4.h` /
+`snobol4_nmd.c` / `name_t.h` to exactly `NAME_push` / `NAME_pop` /
+`NAME_commit`.  Delete `NAME_mark`, `NAME_rollback_to`, `NAME_save`,
+`NAME_discard`, `NAME_top`, `NAME_pop_above`.  Inline the 3 save/discard
+call sites (1 in `eval_code.c:559,566`, 2 in `stmt_exec.c:1191,1192,1206`)
+to a direct stack-depth read.  Then SN-22d to re-check `expr_eval` —
+goal file already anticipates SN-22 cannot reach expr_eval's EVAL-parse
+and arithmetic-operator bugs; those will fall to a successor rung.
