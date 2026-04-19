@@ -799,13 +799,67 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     - Porter `--ir-run` and `--sm-run` both byte-identical to SPITBOL
       ref (0-line diff / 23531)
 
-  - [ ] **SN-23b** -- stmt_exec.c Phase 3: wrap the scan in
+  - [x] **SN-23b** -- stmt_exec.c Phase 3: wrap the scan in
     `NAME_ctx_enter/leave`.  `NAME_commit()` now walks `g_ctx_current`
     instead of `g_stack[cookie..top]`.  Update all `NAME_save()` →
     no-op, `NAME_discard()` → `NAME_ctx_leave` or remove.  Gate:
-    Smoke, Broker, Broad corpus must not regress.
+    Smoke, Broker, Broad corpus must not regress.  **Done 2026-04-19.**
 
-  - [ ] **SN-23c** -- eval_code.c: same rewiring for EVAL frame.
+    **Landed changes (stmt_exec.c):**
+    - Phase 3 scan bracket: `NAME_save()` / `NAME_commit(cookie)` pair
+      replaced with `NAME_ctx_enter(&scan_ctx)` / `NAME_ctx_leave()`.
+    - The three failure-return paths (BB_SCAN returning no match,
+      lvalue-missing :F, and Phase 4 gate) all leave the ctx before
+      returning 0.
+    - Success path: `NAME_commit(0)` walks the whole scan_ctx (cookie=0
+      because the child ctx starts empty), then `NAME_ctx_leave()`.
+      Phase 5's NV_SET_fn write to the subject variable happens after
+      leave — it doesn't touch NAM, so ordering is clean.
+
+    **Semantic upgrade:** nested exec_stmt (EVAL-inside-match) now
+    isolated by ctx nesting — the inner ctx sees only its own pushes,
+    and outer entries are unreachable until `NAME_ctx_leave` restores
+    the parent.  This is strictly cleaner than the cookie approach:
+    the outer never sees the inner's entries at all, even transiently.
+
+  - [x] **SN-23c** -- eval_code.c: same rewiring for EVAL frame.
+    **Done 2026-04-19.**
+
+    **Landed changes (eval_code.c):**
+    - `EXPVAL_fn` DT_E thaw path: `NAME_save()` / `NAME_discard(cookie)`
+      replaced with `NAME_ctx_enter(&eval_ctx)` / `NAME_ctx_leave()`.
+    - Captures inside an EVAL'd expression now die with the ctx on
+      leave — structurally local, same semantics as the old discard.
+
+    **Design tweak that landed with SN-23b+c (snobol4.h):**  The
+    SN-23a header declared `NAME_ctx_t` as a forward typedef, making
+    the struct opaque — but callers (stmt_exec.c, eval_code.c) need
+    to stack-allocate it.  Opaque-with-stack-alloc isn't a valid C
+    combo, so the struct is now exposed in `snobol4.h` with an opaque
+    `void *entries` field.  Callers see the full size (can stack-
+    allocate), but the slot type `NAME_entry_t` stays file-local to
+    `snobol4_nmd.c`.  Internal `ctx_entries(ctx)` accessor casts the
+    void* back to `NAME_entry_t*` at every use site.
+
+    **Gates after SN-23b+c:**
+    - Smoke PASS=7 (unchanged)
+    - Broker PASS=49 (unchanged)
+    - Broad corpus PASS=223/225 (unchanged — `expr_eval`, `demo_claws5`
+      remain the only fails)
+    - Porter `--ir-run` and `--sm-run` both byte-identical to SPITBOL
+      ref (0-line diff / 23531)
+
+    **SN-6c recursion repro measured (not fixed — SN-23d target):**
+    The 7-line `rec = 'a' . *Push('A') *rec | 'a' . *Push('B')` on
+    input `"aa"` still fails:
+    - SPITBOL:       `PUSH A, PUSH B, MATCH count=2`
+    - scrip --ir-run: `PUSH B, MATCH count=1`  (outer A lost)
+    - scrip --sm-run: `PUSH (empty), MATCH count=1`
+    Per-match ctx isolation alone does not fix this — within a single
+    match, the shared cap_t state (M-DYN-OPT cache) plus bb_cap's
+    per-instance `nam_handle` field collide under recursion.  SN-23d
+    rewires bb_cap to drop the `nam_handle` field entirely and use
+    bare `NAME_push` / `NAME_pop()` on the top of `g_ctx_current`.
 
   - [ ] **SN-23d** -- bb_cap: delete `nam_handle` field.  γ does bare
     `NAME_push`; β/ω do bare `NAME_pop()` (no arg).  Verify with the
@@ -869,32 +923,43 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `c1597a67` (SN-23a — per-ctx NAM stack layer).  Gates: Smoke 7, Broker
+**HEAD:** one4all @ `2c518cef` (SN-23b + SN-23c — Phase 3 scan and
+EVAL frame both use `NAME_ctx_enter/leave`).  Gates: Smoke 7, Broker
 **49**, Broad corpus 223/225 (unchanged — `expr_eval` and `demo_claws5`
 remain, as anticipated).  Porter `--ir-run` and `--sm-run` still both
 at **100.00%** / 23531.
 
-**What SN-23a delivered (2026-04-19):**
+**What SN-23b + SN-23c delivered (2026-04-19):**
 
-- Introduced `NAME_ctx_t` struct and `NAME_ctx_enter` / `NAME_ctx_leave`
-  in `snobol4_nmd.c`, declared in `snobol4.h`.
-- Refactored the five internal NAM ops (`NAME_push`, `NAME_pop`,
-  `NAME_top`, `NAME_pop_above`, `NAME_commit` walk) to operate on the
-  ctx pointed to by `g_ctx_current` rather than file-scope globals.
-- The legacy `g_stack` / `g_cap` / `g_top` triple was folded into a
-  statically-allocated `g_root_ctx`; `g_ctx_current` starts (and, for
-  now, stays) pointing at it.  No caller has been rewired to create
-  child ctxs yet — that's SN-23b / SN-23c.
-- All gates green, no regression.
+- stmt_exec.c Phase 3: `NAME_save()` / `NAME_commit(cookie)` pair
+  replaced with `NAME_ctx_enter(&scan_ctx)` / `NAME_ctx_leave()`.  All
+  three :F return paths leave the ctx before returning; success path
+  commits the whole ctx (cookie=0) then leaves.
+- eval_code.c EXPVAL_fn: `NAME_save()` / `NAME_discard()` replaced with
+  `NAME_ctx_enter(&eval_ctx)` / `NAME_ctx_leave()`.  Captures inside
+  an EVAL'd expression die with the ctx — structurally local.
+- snobol4.h: `NAME_ctx_t` struct exposed (not forward-declared) with
+  an opaque `void *entries` field so callers can stack-allocate without
+  pulling in `NAME_entry_t`.  Internal `ctx_entries()` accessor casts.
 
-**Next step:** **SN-23b** — stmt_exec.c Phase 3 wraps the scan in
-`NAME_ctx_enter/leave`.  `NAME_commit()` then walks `g_ctx_current`
-entries instead of using the cookie range.  Callers of `NAME_save()`
-in stmt_exec.c replace their cookie-based bracket with ctx
-enter/leave.  Gate: Smoke, Broker, Broad corpus must not regress.
+**Next step:** **SN-23d** — bb_cap: delete the `nam_handle` field.  γ
+does bare `NAME_push`; β/ω do bare `NAME_pop()` on the top of
+`g_ctx_current` (no handle arg).  This is the rung that closes the
+SN-6c recursion repro — within a single match, every γ push gets
+popped by its own β/ω via pure LIFO, and the cap_t's per-instance
+handle field (which collides under M-DYN-OPT cache sharing) is
+eliminated entirely.  Verify with the 7-line repro: MUST pass, MUST
+agree with SPITPOL `MATCH count=2`.
 
-**SN-6c diagnosis session (2026-04-19)** — no code committed; clean
-tree.  SN-6c is NOT an arithmetic bug:
+**Note on NAME_pop signature:** SN-23d's bare `NAME_pop()` requires
+either (a) a no-arg overload or (b) rewriting bb_cap's two call
+sites to use an internal stack-top-drop helper.  Goal file SN-23d
+notes "no arg" — landing that is a small API surface change that
+rolls with the bb_cap edit.  SN-23e then deletes the old handle-
+taking `NAME_pop(void*)` signature.
+
+**Previous SN-6c diagnosis session (2026-04-19)** — no code committed;
+clean tree.  SN-6c is NOT an arithmetic bug:
 
 1. Minimal 7-line repro isolated (see SN-6c body above) — a recursive
    pattern `rec = 'a' . *Push('A') *rec | 'a' . *Push('B')` on input
