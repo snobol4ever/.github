@@ -453,7 +453,110 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Gate:** Smoke PASS=7, Broker PASS=49, Broad corpus must not regress
   (≥223/225).  `expr_eval` expected to flip to PASS on SN-22d.
 
-- [ ] **SN-6b** -- expr_eval arithmetic path.  **Root cause identified
+- [~] **SN-6b** -- expr_eval arithmetic path.  **DT_E thaw gap closed
+  2026-04-19**; expr_eval still fails — additional layered bugs.
+
+  **What landed this session:**
+
+  Two independent DT_E bugs found and fixed together:
+
+  1. **DT_E descriptor union-aliasing bug** in four constructor sites.
+     The pattern:
+     ```c
+     d.v    = DT_E;
+     d.ptr  = child;    /* stores pointer */
+     d.slen = 0;
+     d.s    = NULL;     /* CLOBBERS .ptr — .s and .ptr share union */
+     ```
+     Every DT_E descriptor was being stored with `.ptr == NULL`.
+     `sm_interp.c:276` was the lone correct site (explicit "set ptr
+     last" comment).  Fixed in `driver/interp.c:3033` (E_DEFER eval),
+     `runtime/x86/eval_code.c` (E_DEFER + CONVE_fn), and
+     `runtime/x86/snobol4_pattern.c` (CONVE pattern path).
+
+  2. **Missing DT_E branch in `bb_deferred_var`** (stmt_exec.c:908).
+     On a live NV fetch that returns DT_E (variable holds frozen
+     expression), the α dispatch had three branches — DT_P, DT_S, else
+     (→ bb_eps).  DT_E fell into the else and silently matched epsilon,
+     dropping all nested `*fn()` side-effects.  Added a DT_E thaw
+     modelled on `pat_to_patnd` (snobol4_pattern.c:220-253):
+     - `E_FNC` child → `pat_user_call(fname, args, nargs)` → XATP
+     - `E_VAR` child → **direct `NV_GET_fn(frozen->sval)`**
+       (NOT `var_as_pattern`; see note below)
+     - else → `PATVAL_fn(val)` strict thaw
+
+     Included `ir/ir.h` and declared `extern DESCR_t eval_node(EXPR_t*)`
+     in the full-runtime block of stmt_exec.c.
+
+  **E_VAR branch — why NV_GET_fn and not var_as_pattern:**
+
+  `pat_to_patnd` uses `var_as_pattern(STRVAL(sval))` which builds an
+  XVAR node.  `bb_build` on XVAR creates a **fresh nested
+  bb_deferred_var** that looks up the same variable again.  Probing
+  showed the nested bb_deferred_var returned FAIL at α on the minimal
+  repro, while a direct outer bb_deferred_var on the same variable
+  succeeded.  Root cause of the extra-indirection failure was not
+  run to ground — *the simpler fix* is to recognise that
+  `bb_deferred_var` already IS the deferred re-resolve box, so
+  wrapping in XVAR adds a useless layer.  Direct `NV_GET_fn` returns
+  the variable's live DT_P, which the existing DT_P branch handles
+  correctly.  This is a narrower, surgical fix that avoids the XVAR
+  path entirely for the DT_E thaw case.
+
+  **Minimal repro now passes (was failing):**
+  ```snobol4
+           &ANCHOR = 0
+           &FULLSCAN = 1
+           nPushes = 0
+           DEFINE('PushC()')                :(push_end)
+  PushC    nPushes = nPushes + 1
+           PushC = .nPushes                 :(NRETURN)
+  push_end
+           integer  = SPAN('0123456789')
+           constant = integer . *PushC()
+           expr0    = *constant
+           '1' POS(0) *expr0 RPOS(0) :F(no)S(yes)
+  no       OUTPUT = 'NO MATCH'              :(END)
+  yes      OUTPUT = 'MATCH, pushes=' nPushes
+  END
+  ```
+  SPITBOL: `MATCH, pushes=1`.  scrip before fix: `NO MATCH`.
+  scrip after fix: `MATCH, pushes=1` (both `--ir-run` and `--sm-run`).
+
+  **expr_eval — NOT closed by this fix.**  DT_E thaw is necessary
+  but not sufficient.  expr_eval still shows:
+  - `(1+2)*3 → 3` (expected 9)
+  - `-3+10 → 10` (expected 7)
+  - 4/5 inputs return `snobol4:0: error: parse error: syntax error`
+
+  These are layered arithmetic/EVAL bugs orthogonal to the DT_E gap,
+  as the Goal file previously anticipated.  They are their own
+  sub-rung (call it SN-6c when next session picks them up).
+
+  **Gates after SN-6b:** Smoke PASS=7, Broker PASS=49, Broad corpus
+  PASS=223/225 (same two failures: expr_eval, demo_claws5 — **no
+  regression**).  Porter `--ir-run` and `--sm-run` both still at
+  100.00% / 23531.
+
+  **Files changed:**
+  - `src/driver/interp.c`: DT_E ordering at E_DEFER (line 3033)
+  - `src/runtime/x86/eval_code.c`: DT_E ordering at E_DEFER + CONVE_fn
+  - `src/runtime/x86/snobol4_pattern.c`: DT_E ordering at CONVE pattern
+  - `src/runtime/x86/stmt_exec.c`: `#include "../../ir/ir.h"`,
+    `extern DESCR_t eval_node(EXPR_t*)`, 40-line DT_E thaw block in
+    `bb_deferred_var`
+
+  **Still-open for SN-7 path (tracked as SN-6c):** expr_eval arithmetic
+  path.  Investigate the stack-underflow signal: Push on addop/mulop
+  is wired via `. *Push()` (pattern-context, fires on match success).
+  With DT_E now thawing correctly, count the Push calls on `1+2` —
+  if scrip now pushes 3 (matching SPITBOL), the parse-error path is
+  downstream of Push/Pop ordering.  If still under-pushing, there is
+  another dispatch gap.
+
+- [ ] **SN-6b-legacy-text** -- original diagnosis below retained for
+  context.  **DT_E thaw fixed as SN-6b above; arithmetic/EVAL bugs
+  remain as SN-6c.**
   2026-04-19** (diagnosis-only session, no code changes).  The symptoms
   — stderr parse errors, `(1+2)*3 → 3`, `-3+10 → 10` — all trace back
   to one missing branch in `bb_deferred_var` (stmt_exec.c:908).  Not
@@ -554,7 +657,43 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `4b70778d` (SN-22d — SN-22 complete).  Gates:
+**HEAD:** one4all @ `adf296eb` (SN-6b — DT_E thaw gap closed).  Gates:
+Smoke 7, Broker **49**, Broad corpus 223/225 (unchanged — `expr_eval`
+and `demo_claws5` remain, as anticipated).  Porter `--ir-run` and
+`--sm-run` still both at **100.00%** / 23531.
+
+**What SN-6b delivered:**
+- Fixed DT_E descriptor union-aliasing bug at 4 sites (`interp.c`
+  E_DEFER, `eval_code.c` E_DEFER + CONVE_fn, `snobol4_pattern.c`
+  CONVE pattern).  All now assign `.s = NULL` before `.ptr = child`
+  — union requires ptr stored last.  `sm_interp.c:276` was already
+  correct with an explicit "set ptr last" comment.
+- Added DT_E thaw block to `bb_deferred_var` in `stmt_exec.c`.
+  Mirrors `pat_to_patnd` trichotomy: E_FNC → `pat_user_call`,
+  E_VAR → direct `NV_GET_fn(frozen->sval)` (not `var_as_pattern`,
+  which adds XVAR indirection that FAILs at nested α), else →
+  `PATVAL_fn`.  Added `#include "../../ir/ir.h"` and
+  `extern DESCR_t eval_node(EXPR_t*)` in the full-runtime block.
+
+**Minimal DT_E repro now passes** (was `NO MATCH`, now `MATCH`
+matching SPITBOL in both `--ir-run` and `--sm-run`):
+```snobol4
+         integer  = SPAN('0123456789')
+         constant = integer . *PushC()
+         expr0    = *constant
+         '1' POS(0) *expr0 RPOS(0) :F(no)S(yes)
+```
+
+**expr_eval NOT closed.** DT_E thaw is necessary but not sufficient.
+Remaining symptoms: `(1+2)*3 → 3`, `-3+10 → 10`, and parse errors on
+4/5 inputs.  These are layered arithmetic/EVAL bugs, tracked as the
+new **SN-6c** sub-rung.  Investigation starting point: count Push
+calls on `1+2` — if scrip now pushes 3 (matching SPITBOL), the
+parse-error path is downstream of Push/Pop ordering.
+
+**Previous SN-22 state preserved below:**
+
+**HEAD (prior):** one4all @ `4b70778d` (SN-22d — SN-22 complete).  Gates:
 Smoke 7, Broker **49**, Broad corpus 223/225 (unchanged throughout
 SN-22).  Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
 byte-identical to SPITBOL ref.  `expr_eval` and `demo_claws5` remain.
@@ -596,10 +735,10 @@ per match attempt.  The cookie is an artifact of the shared-global
 optimization, not a semantic requirement.  A per-match local cstack
 would drop the cookie API entirely.
 
-**Next step:** **SN-7** — beauty.sno self-host (6 drivers × 3 modes =
-18 combos, diff=0 vs SPITBOL).  SN-6 (`expr_eval`, `demo_claws5`)
-remains as the blocker between here and SN-7 closure — layered bugs
-orthogonal to NAM machinery.
+**Next step:** **SN-6c** — expr_eval arithmetic/EVAL layered bugs
+(independent of the DT_E thaw now closed).  Then **SN-7** — beauty.sno
+self-host (6 drivers × 3 modes = 18 combos, diff=0 vs SPITBOL).
+`demo_claws5` continues under GOAL-SNO-CLAWS5.md.
 
 **Optional follow-ups noted during SN-22** (small, safe):
 - Delete `NAME_push_callcap` / `NAME_push_callcap_named` — zero real
