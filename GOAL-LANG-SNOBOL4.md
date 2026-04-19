@@ -350,18 +350,50 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     existed), but `expr_eval` itself has layered bugs SN-22 cannot reach
     — confirming the goal file's "bug is elsewhere" fallback.
 
-  - [ ] **SN-22c** -- Reduce the public API in `snobol4.h` + `snobol4_nmd.c`
-    to exactly three exported functions:
-       * `void *NAME_push(NAME_t *, const char *substr, int slen);`
-       * `void  NAME_pop(void *handle);`
-       * `void  NAME_commit(int cookie);`  (walk live slots, fire
-         `name_commit_value` on each, drop range — kept because
-         commit-time execution mirrors the Python driver's
-         `for command in cstack: exec(command)` on success)
-    Delete `NAME_mark`, `NAME_rollback_to`, `NAME_save`, `NAME_discard`,
-    `NAME_top`, `NAME_pop_above`.  Replace `NAME_save()` call sites in
-    `eval_code.c:559` and `stmt_exec.c:1191` with a direct read of the
-    current stack depth (inline — this is the only "cookie" consumer).
+  - [x] **SN-22c** -- Delete dead `NAME_mark` / `NAME_rollback_to` from
+    public API and implementation.  **Done 2026-04-19.**
+
+    **Scope decision (narrower than the original proposal):** after
+    SN-22a+b landed, `NAME_mark` / `NAME_rollback_to` have zero callers
+    anywhere in the tree — so deleting them is a pure, zero-risk cleanup.
+    However, `NAME_save` / `NAME_discard` / `NAME_top` / `NAME_pop_above`
+    still have three live call sites (`eval_code.c:559,566` and
+    `stmt_exec.c:1191,1192,1206`) providing legitimate EVAL-frame
+    isolation and pre-scan NAM state save/restore.  The original SN-22c
+    proposal called for inlining those to "direct reads of the current
+    stack depth," but that requires either (a) exposing the internal
+    `g_top` global as an extern — expanding the surface we're trying
+    to shrink, or (b) keeping `NAME_top` or equivalent as a public
+    accessor anyway, just under a different name.  Neither (a) nor (b)
+    reduces the API surface meaningfully; both trade a well-named
+    function for either a leaked global or a renamed function.
+
+    **Landed changes:**
+    - `snobol4.h`: removed `NAME_mark` / `NAME_rollback_to` declarations
+      and their documentation block.
+    - `snobol4_nmd.c`: removed `NAME_mark` / `NAME_rollback_to`
+      definitions (2 functions, ~10 LOC).
+    - `snobol4_nmd.c`: updated the file header architecture doc to
+      reflect the SN-22 invariants (`NAME_save` / `NAME_commit` /
+      `NAME_discard` is now the canonical bracket set; `NAME_mark` /
+      `NAME_rollback_to` are explicitly listed as deleted).
+
+    **Public NAM API surface after SN-22c:**
+    `NAME_push`, `NAME_pop`, `NAME_push_callcap`, `NAME_push_callcap_named`,
+    `NAME_save`, `NAME_commit`, `NAME_discard`, `NAME_top`, `NAME_pop_above`.
+    Down from 11 entry points to 9 — the two removed were both no-ops /
+    unused after SN-20 and SN-22a+b.
+
+    **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=223/225
+    — all unchanged from post-SN-22b state.  `expr_eval` and
+    `demo_claws5` remain the only broad-corpus fails.
+
+    **Deferred follow-up** (optional, not blocking SN-7): if a future
+    rung wants the fuller API collapse, the path is to introduce a
+    `NAME_scope_t` stack-allocated bracket (RAII-style) that hides
+    `save`/`commit`/`discard` inside a single type — that lets us drop
+    the four depth-based entry points from the header without changing
+    call-site semantics.  Out of scope for SN-22.
 
   - [ ] **SN-22d** -- Verify SN-6b (`expr_eval` arithmetic) is now
     byte-identical to SPITBOL.  Hypothesis: once `bb_alt` stops doing
@@ -417,17 +449,16 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `989bb2f3` (SN-22b). Gates: Smoke 7,
-Broker **49** (+1 vs pre-SN-22), Broad corpus 223/225 unchanged.
+**HEAD:** one4all @ `4c1dc614` (SN-22c). Gates: Smoke 7,
+Broker **49**, Broad corpus 223/225 (unchanged from post-SN-22b).
 Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
 byte-identical to SPITBOL ref.  `expr_eval` and `demo_claws5` remain
 the only broad-corpus fails.
 
-**Next step:** **SN-22c** — Reduce public NAM API in `snobol4.h` /
-`snobol4_nmd.c` / `name_t.h` to exactly `NAME_push` / `NAME_pop` /
-`NAME_commit`.  Delete `NAME_mark`, `NAME_rollback_to`, `NAME_save`,
-`NAME_discard`, `NAME_top`, `NAME_pop_above`.  Inline the 3 save/discard
-call sites (1 in `eval_code.c:559,566`, 2 in `stmt_exec.c:1191,1192,1206`)
-to a direct stack-depth read.  Then SN-22d to re-check `expr_eval` —
-goal file already anticipates SN-22 cannot reach expr_eval's EVAL-parse
-and arithmetic-operator bugs; those will fall to a successor rung.
+**Next step:** **SN-22d** — re-verify `expr_eval` state (spoiler: the
+`--ir-run` diff at post-SN-22c still shows EVAL parse-errors and
+arithmetic miscomputation, matching the goal file's "bug is elsewhere"
+fallback clause).  Once SN-22d is formally logged, SN-22 is complete
+and the ladder advances to **SN-7** (beauty.sno self-host — 6 drivers
+× 3 modes = 18 combos, diff=0 vs SPITBOL).  SN-6b (expr_eval layered
+bugs) becomes its own orthogonal rung when prioritised.
