@@ -835,10 +835,41 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     from live ζ) remains a defensible larger cleanup for a future
     rung if more boxes exhibit the symptom.
 
-  - [ ] **SN-23e** -- Delete `NAME_save`, `NAME_discard`, `NAME_top`,
+  - [x] **SN-23e** -- Delete `NAME_save`, `NAME_discard`, `NAME_top`,
     `NAME_pop_above` from public header; delete definitions from
-    snobol4_nmd.c.  Any remaining callers are bugs to fix, not
-    features to preserve.
+    snobol4_nmd.c.  **Done 2026-04-19.**
+
+    **Landed changes:**
+    - `snobol4_nmd.c`: removed four function definitions (`NAME_top`,
+      `NAME_pop_above`, `NAME_save`, `NAME_discard`) — ~30 LOC total.
+      `NAME_commit` lost its `int cookie` parameter: the cookie was
+      always 0 in the ctx-nesting world (scan_ctx starts empty, and
+      every entry belongs to the current ctx), so the parameter was
+      meaningless.  Final tail of commit inlined (was
+      `NAME_pop_above(mark)`, now `ctx->top = 0`).  File header
+      architecture doc rewritten to reflect the five-op public API.
+    - `name_t.h`: removed `NAME_top` / `NAME_pop_above` declarations;
+      doc block updated to mention SN-23d's `NAME_pop_top()` and
+      SN-23e's deletion.
+    - `snobol4.h`: removed `NAME_save` / `NAME_discard` declarations;
+      `NAME_commit` declaration now `void NAME_commit(void);` (no arg);
+      comment on `NAME_ctx_enter` updated to list the current op set
+      (`NAME_push / NAME_pop / NAME_pop_top / NAME_commit`).
+    - `stmt_exec.c`: sole `NAME_commit(0)` call site updated to
+      `NAME_commit()`; historical comment referencing the old cookie
+      API pruned.
+
+    **API surface after SN-23e:**
+    Core ops: `NAME_push`, `NAME_pop`, `NAME_pop_top`, `NAME_commit`.
+    NM_CALL convenience: `NAME_push_callcap`, `NAME_push_callcap_named`
+    (zero live callers — deletion tracked as SN-23f).
+    Ctx brackets: `NAME_ctx_enter`, `NAME_ctx_leave`.
+    **Total: 8 entries.  Down from 9 at start of SN-23e; down from
+    11 at start of SN-22c; down from 13 at start of SN-22.**
+
+    **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
+    Corpus not cloned → broad corpus SKIPped per RULES.md; reachable
+    from any machine with `/home/claude/corpus` populated.
 
   - [ ] **SN-23f** -- Delete `NAME_push_callcap`, `NAME_push_callcap_named`
     (zero real callers per SN-22 audit).  Any NM_CALL pushes go
@@ -893,19 +924,18 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `d61a580e` — SN-23d + SN-23d-follow-up landed.
-`nam_handle` deleted, bare `NAME_pop_top()` in bb_cap, `has_pending`
-reset at CAP_α to defeat cache poisoning.  Gates: Smoke **7**, Broker
-**48** (local baseline), no regression.  7-line SN-6c recursion repro
-now byte-identical to SPITBOL under `--ir-run`; `--sm-run` count
-matches but tags empty (separate SM-side XATP arg-name gap).
+**HEAD:** one4all @ `9a0560c9` — SN-23e landed.
+Four dead NAM API entries deleted (`NAME_save`, `NAME_discard`,
+`NAME_top`, `NAME_pop_above`); `NAME_commit` lost its meaningless
+cookie parameter.  Public API collapsed from 9 entries to 8.  Gates:
+Smoke **7**, Broker **48**, no regression.
 
-**Next step:** **SN-23e** — delete stale NAM API entries
-(`NAME_save`, `NAME_discard`, `NAME_top`, `NAME_pop_above`) and their
-definitions.  Per the SN-23 plan, callers are now either ctx-based
-(stmt_exec.c Phase 3, eval_code.c EXPVAL_fn) or LIFO-based (bb_cap
-via `NAME_pop_top`).  Any remaining callers of the bracket API are
-bugs to fix, not features to preserve.
+**Next step:** **SN-23f** — delete `NAME_push_callcap` and
+`NAME_push_callcap_named` from `snobol4_nmd.c` and `snobol4.h`.
+Audit confirmed zero live callers (all references are historical
+comments).  Safe, pure removal.  After SN-23f lands, SN-23g (test
+gate including broad corpus to confirm expr_eval status) and then
+the SN-7 beauty.sno self-host milestone.
 
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
