@@ -22,7 +22,7 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=47
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -30,10 +30,10 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=47
 ## Architecture reminder
 
 ```
-.sno → sno_parse() → Program* [LANG_SNO]
-    --ir-run  → execute_program() → interp_eval()   tree-walk
-    --sm-run  → sm_lower() → SM_Program → sm_interp_run()
-    --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
+.sno -> sno_parse() -> Program* [LANG_SNO]
+    --ir-run  -> execute_program() -> interp_eval()   tree-walk
+    --sm-run  -> sm_lower() -> SM_Program -> sm_interp_run()
+    --jit-run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
 ```
 
 Pattern matching uses BB_SCAN. Every pattern primitive is a bb_box_fn in bb_boxes.c.
@@ -43,25 +43,25 @@ Oracle: SPITBOL x64 at /home/claude/x64/bin/sbl.
 
 ## scrip-monitor Protocol
 
-⛔ Step 1 (`scrip-monitor --monitor`) runs EVERY iteration, unconditionally.
-⛔ Steps 2 and 3 only if Step 1 shows DIVERGE or IR vs CSN.
+Step 1 (--monitor) runs EVERY iteration, unconditionally.
+Steps 2 and 3 only if Step 1 shows DIVERGE or IR vs CSN.
 
 ```bash
 # Build once per session:
 bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
 make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 
-# Step 1 — ALWAYS:
+# Step 1 -- ALWAYS:
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
     $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
 
-# Step 2 — only if Step 1 shows problem: SPITBOL diff
+# Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
 SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
-# Step 3 — only if Step 1 shows problem: OUTPUT probe → fix → rebuild → repeat
+# Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
 # Rebuild: make scrip && make scrip-monitor CSN_A=...
 # Broker gate: bash scripts/test_smoke_unified_broker.sh
 ```
@@ -70,170 +70,37 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Rung ladder
 
-### Phase 1 — IR-run  ✅ DONE (SN-1..SN-5)
-### Phase 2 — SM-run  (SN-7..SN-9, gated on SN-6)
-### Phase 3 — JIT-run (SN-10..SN-12, gated on SN-9)
+### Phase 1 -- IR-run  DONE (SN-1..SN-5, SN-14, SN-15, SN-16, SN-19)
+### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
+### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [x] **SN-1** — beauty omega driver all three modes. DONE.
-- [x] **SN-2** — beauty gen driver all three modes. DONE.
-- [x] **SN-3** — beauty tdump driver all three modes. DONE.
-- [x] **SN-4** — beauty alpha/beta/gamma drivers all three modes. DONE.
-- [x] **SN-5** — beauty.sno self-hosts; all 18 driver×mode combos PASS. DONE.
-- [ ] **SN-6** — Full corpus: run test_interp_broad_corpus_and_beauty.sh. IN PROGRESS: PASS=218/225.
-
-- [ ] **SN-7** — beauty.sno self-host bootstrap: make beauty.sno parse and
-  pretty-print itself correctly for the FIRST TIME under scrip --ir-run.
-  This has never passed. Run beauty_${DRIVER}_driver.sno for all 6 drivers,
-  diff each against SPITBOL oracle, drive to diff=0 for all 18 combos.
-  Mirror of GOAL-NET-BEAUTY-SELF.md S-2 but for one4all x86 --ir-run.
-  Gate: smoke PASS=7, broker PASS=49, all 18 beauty self-host combos diff=0.
+- [ ] **SN-6** -- Full corpus: PASS=222/225. IN PROGRESS.
 
 ```bash
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 ```
 
-- [x] **SN-19** — **Case folding belongs in the lexer, not the runtime.** DONE.
+- [ ] **SN-7** -- beauty.sno self-host bootstrap: all 6 drivers x 3 modes = 18 combos,
+  diff=0 vs SPITBOL oracle for each. Has never passed.
+  Gate: smoke PASS=7, broker PASS=49, all 18 combos diff=0.
 
-  **Problem.** SNOBOL4's default mode is case-insensitive; case-sensitive is opt-in
-  (CSNOBOL4 `-f`). The correct architecture is: in case-insensitive mode the lexer
-  folds every identifier-ish token (variable names, function names, labels, keyword
-  names) to a single canonical case (uppercase by convention) before it enters the
-  token stream. Downstream — parser, IR, SM_Program, every runtime dispatch — sees
-  only the canonical form and uses plain `strcmp`. In case-sensitive mode the lexer
-  preserves spelling.
+- [ ] **SN-17** -- Porter stemmer under one4all -- close the SPITBOL gap.
 
-  **Current state is wrong.** The codebase carries mixed-case identifiers all the
-  way through to runtime dispatch, and then every lookup site does its own
-  `strcasecmp` / `toupper` band-aid. This is how the `differ(3+2,5)` vs `DIFFER(3+2,5)`
-  divergence — working under `--ir-run`, failing under `--sm-run` with "Error 5:
-  Undefined function or operation" — exists in the first place. Two dispatch paths,
-  each doing (or forgetting to do) its own case normalization independently, will
-  eventually disagree. The SN-18 broad-suite regression (218 → 172) is a symptom
-  of this, not a bug in the bb_usercall ABI fix. Bisecting the three-file diff is
-  the wrong response — the real fix is upstream.
+  | Mode             | Accuracy |
+  |------------------|----------|
+  | SPITBOL (oracle) | 100.00%  |
+  | --ir-run         | 83.46%   |
+  | --sm-run         | 60.64%   |
 
-  **Supersedes SN-18 bisect.** Do not bisect the SN-18 commit. Keep the SN-18 ABI fix
-  (bb_usercall spec_t→DESCR_t) — that work is correct and restores 83% Porter
-  accuracy. Fix SN-19 at the source, and expect the SN-18 regression to dissolve
-  along with a long tail of other latent case-sensitivity bugs.
+  Root cause: commit-time *fn() dispatch; NAM rollback missing NAM_KIND_CALLCAP.
+  Fix SN-6 Bug #1d first; Porter gap expected to close as a side-effect.
 
-  **Plan:**
-  1. Audit `src/frontend/snobol4/snobol4.l` — does it already have a fold branch?
-     If yes, is it consistently applied to every identifier-emitting rule? If no,
-     add `yytext` uppercase-fold for identifier tokens before building the token value.
-  2. Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4 `-f`).
-     Default = fold-to-upper (case-insensitive). Flag-on = preserve.
-  3. Audit every runtime site that does `strcasecmp` or runtime `toupper` on
-     identifier names — `snobol4.c` (APPLY_fn, _func_hash, fn_has_builtin, _ARG_
-     and others), `stmt_exec.c`, `sm_interp.c` `INVOKE_fn`, `interp.c` E_FNC
-     dispatch, label_lookup in `snobol4.c`. With folding done at lex time, these
-     must become plain `strcmp` / plain hash. Every removed `toupper` is one more
-     place the bug can never recur.
-  4. The `.sno` source in corpus has mixed-case identifiers (per SPITBOL convention
-     a program can write `Push()` and `push()` interchangeably in default mode).
-     That convention continues to work because the lexer is folding; no corpus
-     changes.
-  5. Regenerate parser/lexer via
-     `bash scripts/regenerate_parser_and_lexer_from_sources.sh` after any `.l` edit.
-     Commit `.l` source AND generated files together (per RULES.md).
-  6. Gate: smoke PASS=7, broker PASS=49, SN-6 broad suite back to 218+/228,
-     Porter --ir-run stays at 83.46%, Porter --sm-run improves (no longer
-     handicapped by bifurcated case handling), the minimal `differ(3+2,5)`
-     repro passes under all modes.
-  7. Case-sensitive mode validation: the double-function trick in RULES.md
-     (`push_list` vs `Push_list`) must still work under the case-sensitive flag.
-     Run a targeted test that uses the trick; it must behave correctly.
-
-  **Key files to read first:**
-  - `src/frontend/snobol4/snobol4.l` — lexer, the place to fix
-  - `src/frontend/snobol4/snobol4.y` — confirm token value plumbing
-  - `src/runtime/x86/snobol4.c` `_func_hash` / `APPLY_fn` / `fn_has_builtin`
-  - `src/runtime/x86/sm_interp.c` `INVOKE_fn` call at SM_CALL
-  - `src/driver/interp.c` E_FNC / E_VAR resolution
-
-  **Minimal repro (must pass all three modes after the fix):**
-  ```snobol4
-                 &ANCHOR   = 0
-                 &FULLSCAN = 1
-                 differ(3 + 2, 5)   :F(NEQ)
-                 OUTPUT    = 'equal'  :(END)
-  NEQ            OUTPUT    = 'differ'
-  END
-  ```
-  Expected output: `differ` under `--ir-run`, `--sm-run`, and `--jit-run`. Currently
-  `--sm-run` emits `** Error 5 in statement 3 / Undefined function or operation`
-  before the output because the lowercase `differ` reaches SM_CALL verbatim.
-
-- [x] **SN-14** — Pattern primitives as typed EKind nodes. DONE.
-- [x] **SN-15** — Verify all three modes still pass after SN-14. DONE.
-- [x] **SN-16** — Porter (1980) stemmer demo (`corpus/programs/snobol4/demo/porter.sno`).
-  Faithful translation of the CSCE-5200 Project 1 Python snobol4python PATTERN form; 95%+
-  line-for-line correspondence. Oracle: tartarus.org/martin/PorterStemmer voc.txt + output.txt.
-  Gate under SPITBOL: 23,531/23,531 = 100.0000% accuracy. DONE.
-
-```bash
-/home/claude/x64/bin/sbl -b /home/claude/corpus/programs/snobol4/demo/porter.sno \
-    < /home/claude/corpus/programs/snobol4/demo/porter.input \
-  | diff - /home/claude/corpus/programs/snobol4/demo/porter.ref | head
-```
-
-- [ ] **SN-17** — Porter stemmer under one4all — close the SPITBOL gap.
-
-  **Current state (measured this session on one4all HEAD 770172e4):**
-
-  | Mode             | Matches tartarus oracle | Accuracy |
-  |------------------|-------------------------|----------|
-  | SPITBOL `-b`     | 23,531 / 23,531         | 100.0000% |
-  | one4all `--ir-run` | 12,796 / 23,531       |  54.38%   |
-  | one4all `--sm-run` | 12,796 / 23,531       |  54.38%   |
-  | one4all `--jit-run`| 12,796 / 23,531 *     |  54.38%   |
-
-  `* --jit-run` additionally emits `sm_codegen: unimplemented opcode 11 (SM_PUSH_EXPR)`
-  at sm-pc 997 and 1698 — known SN-10..SN-12 gap, not on this step's critical path.
-
-  `--ir-run` and `--sm-run` produce byte-identical output to each other (`diff = 0`).
-
-  **Symptom:** Only step 1a (plural stripping via `(epsilon . *s_empty())` and friends)
-  appears to fire. Steps 1b, 1c, 2, 3, 4, 5a, 5b — all of which require a guard like
-  `*g_m_gt_0()` preceding the commit-time action — silently do nothing. Example:
-
-  ```
-  input       tartarus   one4all
-  abandoned   abandon    abandoned
-  abate       abat       abate
-  abbey       abbei      abbey          (step 1c: y->i fails to fire)
-  ```
-
-  **Root cause (already diagnosed in SN-6 Bug #1d):** one4all invokes `*fn()` at
-  match-time; SPITBOL defers to commit-time (manual p.133–134). The Porter rules
-  use the idiom `RTAB(n) $ stem 'suf' *guard() (epsilon . *action())` throughout.
-  When the guard evaluates at match-time, the stem immediate-assignment `$` has
-  fired, but on arms that later lose to another alt arm or fail outright, the
-  `$` side effect leaks. More critically, the `(epsilon . *action())` never fires
-  to set `target`, so the pipeline sees `target = 'UNSET'` and leaves the token
-  alone — silent no-op.
-
-  **Fix plan:** Resolve SN-6 Bug #1d (commit-time `*fn()` dispatch in NAM_commit,
-  per GOAL-LANG-SNOBOL4 "Remaining 1+2*3 → 2 case" fix strategy). Expected
-  outcome: porter accuracy under --ir-run and --sm-run jumps to match SPITBOL's
-  100%. If any gap remains, bisect on the failing words (they will cluster by
-  which Porter step the failing rule belongs to, which isolates the exact
-  primitive still misbehaving).
-
-  **Gate:**
+  Gate:
   ```bash
   cd /home/claude/corpus/programs/snobol4/demo
-  /home/claude/one4all/scrip --ir-run porter.sno < porter.input \
-    | diff - porter.ref | wc -l            # expect 0
-  /home/claude/one4all/scrip --sm-run porter.sno < porter.input \
-    | diff - porter.ref | wc -l            # expect 0
+  /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
+  /home/claude/one4all/scrip --sm-run porter.sno < porter.input | diff - porter.ref | wc -l
   ```
-
-  Expected numerics after fix: 23,531 / 23,531 under --ir-run and --sm-run.
-
-
-*(treebank-array, treebank-list, claws5 promoted to independent parallel goals:
-GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
@@ -241,241 +108,57 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 | File | Role |
 |------|------|
-| `src/frontend/snobol4/snobol4.y` | Bison grammar |
-| `src/frontend/snobol4/snobol4.l` | Flex lexer |
-| `src/driver/interp.c` | --ir-run tree-walk |
-| `src/runtime/x86/sm_lower.c` | IR → SM |
-| `src/runtime/x86/sm_interp.c` | SM interpreter |
-| `src/runtime/x86/sm_codegen.c` | x86 JIT |
-| `src/runtime/x86/bb_boxes.c` | SNOBOL4 pattern boxes |
-| `src/runtime/x86/snobol4_pattern.c` | subscript, OPSYN, array helpers |
-| `src/runtime/x86/snobol4.c` | ARRAY/TABLE/CONVERT builtins, array_get/set |
-| `corpus/programs/snobol4/beauty/` | Beauty test suite |
+| src/frontend/snobol4/snobol4.y | Bison grammar |
+| src/frontend/snobol4/snobol4.l | Flex lexer |
+| src/driver/interp.c | --ir-run tree-walk |
+| src/runtime/x86/sm_lower.c | IR -> SM |
+| src/runtime/x86/sm_interp.c | SM interpreter |
+| src/runtime/x86/sm_codegen.c | x86 JIT |
+| src/runtime/x86/bb_boxes.c | SNOBOL4 pattern boxes |
+| src/runtime/x86/snobol4_nmd.c | NAM_push / NAM_commit / NAM_discard |
+| src/runtime/x86/stmt_exec.c | exec_stmt, bb_capture, flush_pending |
+| corpus/programs/snobol4/beauty/ | Beauty test suite |
 
 ---
 
 ## Invariants
 
 - SPITBOL is the sole oracle. Fix the runtime, never the corpus source.
-- Gate = Smoke PASS=7, Broker PASS=47 after every commit.
+- Gate = Smoke PASS=7, Broker PASS=49 after every commit.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
-
 
 ---
 
-## Current state (2026-04-18 — SN-6 session 11, NAM_push bb_boxes.c latent fix)
+## Current state (2026-04-18 -- SN-6 session 11, PASS=222/225)
 
-**HEAD:** one4all `7847c1ed` — bb_boxes.c NAM_push in conditional capture path (--bb-live fix).
+**HEAD:** one4all 7847c1ed -- bb_boxes.c NAM_push in conditional capture path (--bb-live fix).
 
-**Gates this session:**
-- Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **222/225** — up from 221; two new passes: beauty_XDump_driver, 1113_table
-
-### SN-6 bugs fixed this session
-
-**Bug 1 — SM_PUSH_VAR never set last_ok.**
-`last_ok=0` from a failing EQ in one statement bled into the next loop iteration.
-When INPUT succeeded on the second pass, `last_ok` was still 0, so `:F(END)` fired
-and killed the loop. Fix: `SM_PUSH_VAR` now sets `last_ok = (val.v != DT_FAIL)`.
-
-**Bug 2 — SM_STORE_VAR left last_ok unchanged on success.**
-Same bleed: prior failure survived through the assignment into the next statement's
-branch selector. Fix: successful `SM_STORE_VAR` now sets `last_ok = 1`.
-
-**Bug 3 — DT_FAIL not propagated through arithmetic or SM_CALL arguments.**
-`CHARS + SIZE(INPUT) :F(DONE)` infinite-looped: INPUT EOF returned FAILDESCR,
-but `SIZE(FAILDESCR)` returned INTVAL(0) and SM_ADD proceeded normally.
-Fix: SM_ADD/SUB/MUL/DIV/EXP short-circuit to FAILDESCR if either operand is FAIL.
-SM_CALL short-circuits to FAILDESCR if any argument is FAIL.
-
-**Bonus — opnames[] table in sm_prog.c corrected.**
-Was missing SM_PAT_CAPTURE_FN, SM_BB_PUMP, SM_BB_ONCE — causing `--dump-sm`
-to print wrong opcode names for all opcodes from index 46 onward
-(SM_CALL printed as "SM_NRETURN", etc.). Diagnostic only, no runtime impact.
+**Gates:** Smoke PASS=7, broker PASS=49, broad 222/225.
 
 ### SN-6 remaining failures (3 of 225)
 
-- `word1` — `ARB . OUTPUT` immediate-assignment side-effect not firing in SM.
-  Same root cause as SN-17 Porter / NAM commit-time dispatch (expr_eval).
-- `expr_eval` — EVAL() / commit-time `*fn()` dispatch (unchanged)
-- `demo_claws5` — see GOAL-SNO-CLAWS5.md (separate goal)
+- `word1` -- --sm-run clean exit, NO output; --ir-run PASSES.
+  ARB . OUTPUT conditional-capture side-effect not firing under SM.
+- `expr_eval` -- 1+2*3 -> 2; commit-time *fn() dispatch (same root cause class).
+- `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
 
-**Fixed this session:**
-- `beauty_XDump_driver` — PROTOTYPE proto_bare fix + sm_lower undefined-label halt. PASS.
-- `1113_table` — also fixed by proto_bare (TABLE->ARRAY prototype was wrong). PASS.
+### word1 diagnosis -- next session starts here
 
-**Next session starts with:** `word1` / NAM_commit not writing OUTPUT under --sm-run.
+--sm-run uses BB_MODE_DRIVER (not BB_MODE_LIVE). XNME path:
+  bb_build -> bb_nme_emit_binary -> bb_capture_new -> bb_capture_exported
+  -> stmt_exec.c bb_capture, which DOES call NAM_push().
 
-**Diagnosis so far (session 11):**
-- `--sm-run` uses BB_MODE_DRIVER (not BB_MODE_LIVE). XNME path:
-  `bb_build → bb_nme_emit_binary → bb_capture_new → bb_capture_exported → stmt_exec.c bb_capture`
-  which DOES call `NAM_push()`. So NAM_push is in the active code path.
-- bb_boxes.c bb_capture (used only under --bb-live) was also missing NAM_push — fixed in 7847c1ed.
-- Minimal repro `S = "hello world" / S ? "hello" ARB . OUTPUT` also silent under --sm-run.
-- Next probe: add stderr trace to NAM_push + NAM_commit to confirm they are reached at all
-  under --sm-run. Suspect NV_SET_fn("OUTPUT",...) may not trigger stdout write when called
-  from NAM_commit context (different call stack than ir-run ASGN path).
+bb_boxes.c bb_capture (--bb-live only) was also missing NAM_push in the
+dot path -- fixed in 7847c1ed as a latent correctness fix.
 
-
-**HEAD:** one4all `607c4dfb` — SM arithmetic operands coerce DT_SNUL to
-INTVAL(0), matching SPITBOL and --ir-run.
-
-**Gates this session:**
-- Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **218/225** — unchanged; one latent bug fixed but the test
-  it affects (`wordcount`) still fails due to a separate bug.
-
-### SN-6 bug fix this session — DT_SNUL in SM arithmetic
-
-**Symptom.** Under `--sm-run`, `N = N + 1` where `N` is unset produced a
-REAL value (printed as `1.` with `&TRIM=1`) instead of integer `1`. Stable
-repro:
+Minimal repro also silent under --sm-run:
 ```snobol4
-         &TRIM = 1
-         N = N + 1
-         OUTPUT = N ' words'
+      S = "hello world"
+      S ? "hello" ARB . OUTPUT
+END
 ```
-Expected `1 words`, got `1. words`. `--ir-run` and SPITBOL both correct.
 
-**Root cause.** `sm_interp.c` SM_ADD/SUB/MUL/DIV/EXP dispatch coerced
-`DT_S` operands to integer but had no case for `DT_SNUL`. Unset descriptors
-fell through to `sm_arith`'s real-arithmetic fallback, which read garbage
-from the union as a double (0.0 because zero-initialised) and emitted a
-REAL result.
-
-**Fix.** Two lines at the dispatch site (sm_interp.c ~311): `if (l.v ==
-DT_SNUL) l = INTVAL(0); if (r.v == DT_SNUL) r = INTVAL(0);` — applied to
-all five arithmetic opcodes since they share the same pre-dispatch block.
-
-**Verified.** Minimal repro now prints `1 words`; smoke/broker/broad all
-hold green with zero regressions. The `wordcount` crosscheck test still
-fails because a **separate** pattern-match bug produces the wrong count
-(9 instead of 14), but with this fix the count field at least renders as
-an integer.
-
-### SN-19 stage-2 — completed this session
-
-Converted 20 `strcasecmp → strcmp` calls in `interp.c` on sites where the
-compared string is an AST token (sval, always uppercase from the lexer) or
-a value set exclusively by `strncpy` with an uppercase literal (kw_rtntype).
-Sites audited and converted: pnames/retname, kw_rtntype/NRETURN, subject->sval
-vs ITEM (two call paths), lv->sval vs ITEM, target vs END/RETURN/FRETURN/NRETURN
-(fn-body loop and top-level do_goto), subj/e->sval vs DEFINE (two functions),
-e->sval vs EVAL/CODE/IDENT/DIFFER, _usercall_hook name vs IDENT/DIFFER/DATA/ITEM/ITEM_SET.
-
-Left as strcasecmp (correct — cross-language or runtime-user strings):
-- ~196, ~3777: Icon init-table name comparisons
-- ~1836: DATA field lookup key from VARVAL_fn (may be user quoted string)
-- ~4692, ~4700: sc_dat_find_type/find_field (multi-language registry)
-- ~4756: _SET suffix on runtime-provided name
-
-### SN-19 — principle (sharpened this session)
-
-Case folding is a **frontend concern**, not a shared-runtime concern. Each
-language owns its own case policy:
-
-| Frontend | Case policy | Where enforced |
-|----------|-------------|----------------|
-| SNOBOL4  | Default fold-to-upper (CSNOBOL4 `-f` reserved for future) | Lexer `snobol4.l` via `sno_fold_name`; SNOBOL4-originated runtime ingest (`_builtin_DATA`, `_DATA_`) pre-folds spec before calling shared runtime |
-| Icon     | Case-sensitive | Verbatim — no folding anywhere |
-| Raku     | Case-sensitive | Verbatim — no folding anywhere |
-
-Shared runtime (`DEFDAT_fn`, `sc_dat_register`, `data_field_ptr`,
-`DATCON_fn`, name-table ops) is **case-policy-neutral**: stores names
-verbatim, compares with plain `strcmp`. Within a single language the ingest
-side and the lookup side use the same case convention by construction, so
-`strcmp` is correct for all three.
-
-The earlier "fold in `DEFDAT_fn`" approach (session 3) was wrong — it
-imposed SNOBOL4's fold-to-upper on Icon and Raku records, which only kept
-working because `data_field_ptr` used `strcasecmp` as a safety net. Removing
-that net exposed the architectural conflict (rk_class26 regression).
-
-### SN-19 — session 5 additions
-
-**Architectural correction (snobol4.c + interp.c):**
-
- 32. `DEFDAT_fn` (snobol4.c ~2018) — reverted session-3 `sno_fold_name` on
-     both typename (line 2032) and field name (line 2051). Now case-policy-
-     neutral: stores names exactly as given. Comment documents the invariant.
- 33. `sc_dat_register` (interp.c ~4644) — also case-policy-neutral (never
-     had a fold before session 5's experiment; the experiment was reverted
-     together with DEFDAT_fn's fold).
- 34. `_builtin_DATA` (interp.c ~4767) — new SNOBOL4 ingest pre-fold. The
-     `VARVAL_fn(args[0])` spec string is user-data crossing the SNOBOL4
-     boundary; `sno_fold_name` applied here before handing to shared runtime.
-     Matches the SN-19 principle's "lexer running again on deferred input".
- 35. `_DATA_` (snobol4.c ~1176) — same pre-fold at SNOBOL4's other runtime
-     DATA ingest point. Spec folded once before `DEFDAT_fn`; per-field
-     `sno_fold_name` calls at ~1198 (typename) and ~1209 (field) retained
-     because the typename drives `register_fn(uname, ...)` which itself
-     must agree with downstream lexer-folded identifier lookups.
- 36. `data_field_ptr` (interp.c ~417) — `strcasecmp` → `strcmp`. Now safe
-     because every ingest path (SNOBOL4 `_builtin_DATA`/`_DATA_` pre-folds,
-     Icon/Raku `E_RECORD` evaluation in `interp.c:3790` passes verbatim,
-     `sc_dat_register` passes verbatim) matches its corresponding lookup
-     path by construction.
-
-No broad-suite regressions (218/227 held); rk_class26 restored to PASS.
-
-### SN-19 — what's left (next session starts here)
-
-**Stage-2 cleanup — DONE (session 6, 2026-04-18).** 20 strcasecmp→strcmp
-conversions in interp.c. No regressions. See commit 83447fd2.
-
-**Case-sensitive mode validation still to do:**
-- Confirm/add a scrip CLI flag for case-sensitive mode (mirror of CSNOBOL4
-  `-f`). Default = fold-to-upper (case-insensitive). Flag-on = preserve.
-  With the architectural fix landed, the CLI flag only needs to toggle
-  `sno_fold_on` in the SNOBOL4 lexer and the two SNOBOL4 ingest pre-folds
-  (`_builtin_DATA`, `_DATA_`) — everything else is already neutral.
-- Double-function trick (`push_list` vs `Push_list`) must keep working
-  under the flag.
-
-**Gate for SN-19 completion:** smoke PASS=7, broker PASS=49, broad ≥218/227,
-`differ` minimal repro all three modes all pass ✅ **ALL MET THIS SESSION**
-plus the previously-blocking `data_field_ptr` band-aid resolved. Remaining
-work is incremental stage-2 cleanup + CLI-flag ergonomics, not blockers.
-
-### Porter accuracy — not remeasured this session
-
-| Mode          | Matches         | Accuracy |
-|---------------|-----------------|----------|
-| SPITBOL (oracle) | 23,531 / 23,531 | 100.00% |
-| scrip --ir-run  | 19,639 / 23,531 (pre-SN-19) | 83.46% |
-| scrip --sm-run  | 14,269 / 23,531 (pre-SN-19) | 60.64% |
-| scrip --jit-run | 12,796 / 23,531 (pre-SN-19) | 54.38% *(SM_PUSH_EXPR opcode unimplemented at pc 997/1698 — SN-10..SN-12 scope)* |
-
-**SN-18 ABI fix kept** — `bb_usercall` returns `DESCR_t` (was `spec_t`); all
-`extern spec_t bb_*` forward declarations across `stmt_exec.c` / `bb_build.c` /
-`bb_flat.c` corrected to `DESCR_t`. Drove Porter 54% → 83% under --ir-run.
-Do **not** revert.
-
-**Open issues tracked elsewhere:**
-- SN-6 remaining failures (session 7, 2026-04-18 triage — 218/225, down from
-  stale 218/227 after corpus commit `e087410` removed demo_wordcount /
-  demo_roman orphan `.ref` files):
-  - `fileinfo` — `--sm-run` INFINITE LOOP (exit 124); `--ir-run` PASSES.
-    INPUT in loop never signals EOF under SM.
-  - `word1` — `--sm-run` clean exit, NO output; `--ir-run` PASSES. `ARB . OUTPUT`
-    immediate-assignment side-effect not firing in SM.
-  - `triplet` — `--sm-run` prints only first line, exits 0; `--ir-run` PASSES.
-    Loop terminates after iteration 1 (possibly :F-on-INPUT firing prematurely
-    on non-empty subsequent lines, or `:(LOOP)` not re-executing).
-  - `wordcount` — `--sm-run` prints `9 words` instead of `14 words`;
-    `--ir-run` PASSES. Originally TWO bugs: (a) trailing `.` on bare integer
-    under `&TRIM=1` — **FIXED session 8** (DT_SNUL coercion in sm_arith);
-    (b) pattern-match loop counts 9 instead of 14 — still open, likely a
-    BREAK/SPAN boundary or line-advance issue under SM.
-  - `expr_eval` — `1+2*3 → 2` (match-time vs commit-time `*fn()` dispatch;
-    same root cause as SN-17 Porter gap)
-  - `beauty_XDump_driver` — not yet investigated
-  - `demo_claws5` — see GOAL-SNO-CLAWS5.md
-  **Pattern:** 4 of 7 real failures are `--sm-run`-only; `--ir-run` is clean
-  on those same programs. SM lowering / SM interpreter path has multiple
-  distinct bugs around I/O loops and pattern-match side effects.
-- SN-17 Porter --ir-run gap to 100% — cluster of `feed`-class leaks from failed
-  ALT arms; NAM rollback needs to cover NAM_KIND_CALLCAP entries
-- SN-17 Porter --sm-run gap (60.64% vs --ir-run 83.46%) — SM lowering has its
-  own issues around correctly-deferred usercall
-
+**Next probe:** add fprintf(stderr,...) to NAM_push and NAM_commit to confirm
+they are reached under --sm-run. Then confirm NV_SET_fn("OUTPUT", val) from
+inside NAM_commit triggers the stdout write (goes through _io_chan_find_by_var
++ fprintf -- should work, but call-stack context under SM may differ).
