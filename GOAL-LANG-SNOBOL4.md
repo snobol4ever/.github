@@ -395,13 +395,60 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     the four depth-based entry points from the header without changing
     call-site semantics.  Out of scope for SN-22.
 
-  - [ ] **SN-22d** -- Verify SN-6b (`expr_eval` arithmetic) is now
-    byte-identical to SPITBOL.  Hypothesis: once `bb_alt` stops doing
-    any NAM mark/rollback bookkeeping, the recursive
-    `expr = *term addop *expr . *Binary() | *term` grammar no longer
-    corrupts the cstack across alt arms under recursion.  If
-    `expr_eval` still fails after SN-22c, the bug is elsewhere
-    (token-order in Binary, not NAM machinery).
+  - [x] **SN-22d** -- Empirically verify box self-unwind completeness
+    at the exec_stmt Phase 3 boundary; delete the two vestigial
+    `NAME_discard(nam_cookie)` calls.  **Done 2026-04-19.**
+
+    **What this rung actually turned out to be about** (not `expr_eval`,
+    which is a separate layered bug that SN-22 was never going to
+    reach): Lon asked the sharp question — "why do you need to delete
+    at a depth?  Why doesn't unrolling leave the stack exactly where
+    you want it?  Are you processing all of the beta backtracks for
+    each box during backtracking?"  Walking the code (bb_seq.c
+    lines 57-61, bb_cap line 566, bb_alt lines 91-96, bb_arbno
+    lines 158-172) confirmed:
+
+    | Exit shape from a box | Responsibility |
+    |-----------------------|----------------|
+    | FAIL returned from α  | nothing pushed; nothing to pop |
+    | γ-then-β-then-FAIL    | β must pop its own γ push before escalating |
+
+    Every box in the combinator set honors this invariant.  bb_seq on
+    right-fail walks left β before returning SEQ_ω.  bb_cap's β entry
+    (line 541) pops its NAM handle before asking the child for β.
+    Inductively, a FAIL returned from the root box to BB_SCAN means
+    the entire tree has self-unwound — `g_top` is already at the
+    pre-scan depth.
+
+    **Consequence:** the two `NAME_discard(nam_cookie)` calls at
+    stmt_exec.c:1192 and :1206 were dead weight, analogous to the
+    `NAME_mark` / `NAME_rollback_to` deletions at SN-22a+b and SN-22c.
+    The first was literally `save` + `discard-to-save` (pure no-op);
+    the second was "on :F, truncate the stack that's already at the
+    truncation depth."  Both deleted.
+
+    **Kept:**
+    - `NAME_save()` at :1191 — captures pre-scan depth so `NAME_commit`
+      knows the lower bound for "entries pushed during this match".
+      Necessary for nested exec_stmt via EVAL-within-outer-match.
+    - `NAME_commit(nam_cookie)` at :1231 — the one genuine bracket
+      operation: walks [cookie..top), fires `name_commit_value` on
+      each, drops the range.
+
+    **Follow-ups noted for a future rung (not landed here):**
+    - `eval_code.c` `EXPVAL_fn` still calls `NAME_save`/`NAME_discard`
+      around `eval_node()`.  The same self-unwind reasoning probably
+      applies, but the EVAL path has DT_E thaw / nested-context edges
+      worth a focused pass before deletion.
+    - `NAME_push_callcap` / `NAME_push_callcap_named` have **zero real
+      callers** in the tree (`bb_cap` calls `NAME_push` directly at
+      line 559; the "callcap" wrappers are four-line sugar that nobody
+      uses anymore).  Stale since SN-21d.  Safe to delete.
+
+    **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=223/225
+    — all unchanged.  Porter `--ir-run` and `--sm-run` both 100.00%.
+    `expr_eval` and `demo_claws5` remain — both outside SN-22's reach
+    as the goal file always anticipated.
 
   **Gate:** Smoke PASS=7, Broker PASS=49, Broad corpus must not regress
   (≥223/225).  `expr_eval` expected to flip to PASS on SN-22d.
@@ -449,16 +496,60 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `4c1dc614` (SN-22c). Gates: Smoke 7,
-Broker **49**, Broad corpus 223/225 (unchanged from post-SN-22b).
-Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
-byte-identical to SPITBOL ref.  `expr_eval` and `demo_claws5` remain
-the only broad-corpus fails.
+**HEAD:** one4all @ `4b70778d` (SN-22d — SN-22 complete).  Gates:
+Smoke 7, Broker **49**, Broad corpus 223/225 (unchanged throughout
+SN-22).  Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
+byte-identical to SPITBOL ref.  `expr_eval` and `demo_claws5` remain.
 
-**Next step:** **SN-22d** — re-verify `expr_eval` state (spoiler: the
-`--ir-run` diff at post-SN-22c still shows EVAL parse-errors and
-arithmetic miscomputation, matching the goal file's "bug is elsewhere"
-fallback clause).  Once SN-22d is formally logged, SN-22 is complete
-and the ladder advances to **SN-7** (beauty.sno self-host — 6 drivers
-× 3 modes = 18 combos, diff=0 vs SPITBOL).  SN-6b (expr_eval layered
-bugs) becomes its own orthogonal rung when prioritised.
+**What SN-22 delivered:**
+- SN-22a (bb_alt) + SN-22b (bb_arbno): removed dead NAM mark/rollback
+  calls.  Broker jumped +1 (48 → 49) — pre-existing drift was the same
+  class of NAM-corruption bug.
+- SN-22c: deleted `NAME_mark` / `NAME_rollback_to` from public API.
+- SN-22d: walked the box backtrack protocol, deleted the two vestigial
+  `NAME_discard` calls in exec_stmt Phase 3, recorded the invariant
+  in a code comment.
+
+**Invariant established** (now recorded at stmt_exec.c:1189):
+  FAIL-from-α   ⇒ nothing pushed; nothing to pop.
+  γ-then-β-fail ⇒ β is responsible for popping its own γ push.
+By induction, FAIL returned from the root box to BB_SCAN means the
+entire tree has self-unwound — g_top is already at the pre-scan depth.
+
+**Python reference confirms the same invariant.** Lon's SN-22 session
+checked `snobol4python/_backend_pure.py` directly: every generator
+(Δ, Shift, nPush, Λ, λ, etc.) does `cstack.append(x); yield; cstack.pop()`
+in matched one-to-one pairs.  `SEARCH()` never truncates cstack — it
+only walks-and-fires on success.  **The Python driver has no "whack"
+operation.**  The C equivalent (NAME_push in bb_cap γ, NAME_pop in
+bb_cap β/ω, NAME_commit on success in exec_stmt) maps 1:1.
+
+**Three true primitives** (Python-verified):
+| Operation | Python | C |
+|-----------|--------|---|
+| push      | `cstack.append(cmd)` in generator | `NAME_push(&nm, σ, δ)` in bb_cap γ |
+| pop       | `cstack.pop()` in generator's post-yield | `NAME_pop(handle)` in bb_cap β/ω |
+| commit    | `for cmd in cstack: exec(cmd)` in SEARCH on success | `NAME_commit(cookie)` in exec_stmt Phase 5 |
+
+**Cookie note:** the C `NAME_commit(cookie)` parameter exists because
+the C port uses one shared `g_stack[]` across nested matches, where
+Python uses a fresh `SNOBOL()` object (and therefore a fresh cstack)
+per match attempt.  The cookie is an artifact of the shared-global
+optimization, not a semantic requirement.  A per-match local cstack
+would drop the cookie API entirely.
+
+**Next step:** **SN-7** — beauty.sno self-host (6 drivers × 3 modes =
+18 combos, diff=0 vs SPITBOL).  SN-6 (`expr_eval`, `demo_claws5`)
+remains as the blocker between here and SN-7 closure — layered bugs
+orthogonal to NAM machinery.
+
+**Optional follow-ups noted during SN-22** (small, safe):
+- Delete `NAME_push_callcap` / `NAME_push_callcap_named` — zero real
+  callers in the tree (bb_cap already uses `NAME_push` directly at
+  bb_boxes.c:559).  Stale sugar since SN-21d.
+- Audit `eval_code.c` `EXPVAL_fn` `NAME_save`/`NAME_discard` pair —
+  same self-unwind reasoning likely applies; EVAL path has DT_E thaw
+  edges worth focused review.
+- Bigger refactor: replace the global `g_stack[]` with a per-match
+  stack-allocated cstack (matching Python directly).  Drops the cookie
+  API entirely.  Worth its own goal.

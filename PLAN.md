@@ -29,7 +29,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-22d (log expr_eval re-verification — last SN-22 sub-rung; SN-22a/b/c all done, gates green, broker=49) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-7 (beauty.sno self-host 6 drivers × 3 modes; SN-22 complete — Python-verified push/pop/commit is all that's needed) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
