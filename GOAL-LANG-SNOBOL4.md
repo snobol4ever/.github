@@ -230,6 +230,47 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
   ```
 
+  **SN-6a — `--sm-run` self-recursive patterns.  Done 2026-04-19.**
+
+  New opcode `SM_PAT_REFNAME` added in `sm_prog.h`, wired across
+  `sm_prog.c` (opnames + sm_prog_print), `sm_lower.c` (E_DEFER(E_VAR)
+  branch emits SM_PAT_REFNAME with the bare name), `sm_interp.c`
+  (new case pushes `pat_ref(ins->a[0].s)`), and `sm_codegen.c`
+  (`h_pat_refname` + g_handlers registration).
+
+  **Root cause:** `sm_lower.c` E_DEFER previously fell through to
+  `lower_expr(ch)` + `SM_PAT_DEREF`, which for E_VAR emitted
+  `SM_PUSH_VAR "PRIMARY"` — eagerly fetching PRIMARY's CURRENT value
+  at pattern-build time.  For self-recursive patterns like
+  `primary = integer | '(' *primary ')'`, PRIMARY is still
+  in-progress at that moment (empty/FAIL), so the NAME was lost
+  before reaching XDSAR.  `--ir-run` already took the correct path
+  via `pat_ref(child->sval)` in `interp_eval_pat` E_DEFER.
+
+  **Minimal repro (was failing, now passes):**
+  ```snobol4
+             &ANCHOR    =  0
+             &FULLSCAN  =  1
+             integer  =  SPAN('0123456789')
+             primary  =  integer | '(' *primary ')'
+             '(42)' POS(0) primary . x RPOS(0)   :F(nomatch)
+             OUTPUT = 'match x=' x               :(END)
+  nomatch    OUTPUT = 'no match'
+  END
+  ```
+  SPITBOL: `match x=(42)`; `--ir-run`: `match x=(42)`;
+  `--sm-run` before fix: `no match`; **after fix: `match x=(42)`**.
+
+  **Post-fix expr_eval state:** `--sm-run` and `--ir-run` now produce
+  byte-identical output on expr_eval.  Both still mismatch SPITBOL
+  (stderr parse-error noise from bison callback + Binary/Unary
+  arithmetic path).  That's SN-6b — orthogonal to the recursion bug.
+
+  **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=223/225
+  (unchanged — `expr_eval` and `demo_claws5` remain; SN-6a did not
+  close expr_eval because the Binary/Unary arithmetic mismatch is
+  a separate layered bug).  Porter still 100.00%/100.00% both modes.
+
   **expr_eval diagnostic (measured at `8964586e`):**
   - `--ir-run`: 4/5 inputs → `snobol4:0: error: parse error: syntax error`.
     That is the SNOBOL4 *frontend parser*, not a pattern-match error —
@@ -237,12 +278,20 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     statements.  The 2 lines that do parse produce wrong values:
     `(1+2)*3` → `3` (expected 9), `-3+10` → `10` (expected 7).  Two
     layered bugs: EVAL call path + operator precedence / Pop() ordering.
-  - `--sm-run`: 5/5 → `Bad input, try again`.  The top-level
-    `POS(0) expr RPOS(0)` pattern fails for every input.  Recursive
-    `primary = constant | '(' *expr ')'` via bb_cap / NM_CALL is the
-    likely fault line.
+  - `--sm-run`: after SN-6a, byte-identical to `--ir-run` — same two
+    layered bugs exposed in both modes now.  (Before SN-6a, `--sm-run`
+    returned `Bad input, try again` on all 5 inputs due to the recursive
+    `primary = constant | '(' *expr ')'` pattern failing at build time.)
 
   Not DT_E (verified identical at pre-SN-21e).
+
+- [ ] **SN-6b** -- expr_eval arithmetic path.  Shared bug in `--ir-run`
+  and `--sm-run`: `(1+2)*3` → 3 (expected 9), `-3+10` → 10 (expected 7),
+  plus stderr noise when EVAL gets an unparseable string (bison callback
+  `snobol4_error` → `sno_error` writes to stderr unconditionally).
+  The stderr noise is cosmetic but visible in diff-based gates.  The
+  arithmetic issue is either EVAL argument-order / Pop() stack order
+  or operator precedence in the pushed token sequence.
 
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers × 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
@@ -278,12 +327,18 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `9d9d2dd3` (SN-17d). Gates: Smoke 7, Broker 49.
+**HEAD:** one4all @ `cae6d125` (SN-6a). Gates: Smoke 7, Broker 49.
 Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
-byte-identical to SPITBOL ref.  Broad corpus: PASS=223/225 (unchanged;
-SN-6 remaining).
+byte-identical to SPITBOL ref.  Broad corpus: PASS=223/225
+(`expr_eval` and `demo_claws5` remain).  SN-6a closed the `--sm-run`
+self-recursive pattern bug (`SM_PAT_REFNAME` opcode); `--sm-run` and
+`--ir-run` now produce byte-identical output on expr_eval, both still
+mismatch SPITBOL due to the separate Binary/Unary arithmetic path
+tracked as SN-6b.
 
-**Next step:** SN-6 — close the last two broad-corpus fails (expr_eval
-has two layered bugs; demo_claws5 tracked in GOAL-SNO-CLAWS5.md).  With
-SN-17 closed, beauty self-host (SN-7) is now the gating milestone for
-declaring the SNOBOL4 Frontend Ladder done.
+**Next step:** SN-6b — expr_eval Binary/Unary arithmetic path.  The
+recursion-mode regression is gone; remaining gap is a shared
+`--ir-run`/`--sm-run` bug in how pushed tokens are combined into the
+EVAL string and/or how Pop() orders them.  With SN-6a closed, beauty
+self-host (SN-7) remains the gating milestone for declaring the
+SNOBOL4 Frontend Ladder done.
