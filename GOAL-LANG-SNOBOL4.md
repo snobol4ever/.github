@@ -74,7 +74,110 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-20** -- **CURRENT.** NAM push/pop inside the BB block that owns
+- [ ] **SN-21** -- **CURRENT.** Unified lvalue (`Lval_t`) — one NAME concept
+  everywhere.
+
+  **Motivation.** The SNOBOL4 spec has exactly one concept for the RHS of
+  `.` (conditional assignment) and `$` (immediate assignment): a **NAME** —
+  a writable storage location.  The unary `.` operator applied to any
+  addressable expression produces DT_N.  `*fn()` via NRETURN produces DT_N.
+  `A[i,j]` produces DT_N.  They are all the same type.
+
+  The codebase today violates this by forking at `bb_build.c`:
+  - `E_VAR` / `E_IDX` RHS  → `bb_nme_emit_binary` → `bb_capture`  → `NAM_KIND_CAPTURE`
+  - `E_FNC` RHS            → `bb_callcap_emit_binary` → `bb_callcap` → `NAM_KIND_CALLCAP`
+
+  Two separate state machines, two separate NAM push kinds, separate
+  ownership rules — this is the root of every NAM rollback bug seen in
+  sessions 15–18.  The `expr_eval` DT_E thaw bug (SN-20 remainder) and
+  the Porter stemmer gap (SN-17) both trace back here.
+
+  **Design.**  Introduce `Lval_t` (in `bb_box.h` / new `lval.h`) with four
+  discriminants:
+
+  ```c
+  typedef enum { LV_VAR, LV_PTR, LV_IDX, LV_CALL } LvalKind;
+
+  typedef struct {
+      LvalKind     kind;
+      /* LV_VAR  */ const char  *var_name;   /* NV_SET by name         */
+      /* LV_PTR  */ DESCR_t     *var_ptr;    /* DT_N slen==1 raw cell  */
+      /* LV_IDX  */ EXPR_t      *idx_expr;   /* A[i,j] — eval at commit*/
+      /* LV_CALL */ const char  *fnc_name;   /* *fn() NRETURN          */
+                   void         *fnc_args;
+                   int           fnc_nargs;
+                   char        **fnc_arg_names;
+                   int           fnc_n_arg_names;
+  } Lval_t;
+  ```
+
+  `LV_VAR` and `LV_PTR` are the two sub-cases already present in
+  `bb_capture`'s `var_ptr` branch (session 12 word1 fix).  `LV_IDX` covers
+  `.A[x,y]` which currently falls through ad-hoc paths.  `LV_CALL` absorbs
+  `bb_callcap`.
+
+  **Single box: `bb_cap`.** One γ/β/ω state machine replaces both
+  `bb_capture` and `bb_callcap`.  State struct is `cap_t` (rename of
+  `capture_t`):
+
+  ```c
+  typedef struct {
+      bb_box_fn  child_fn;
+      void      *child_state;
+      int        immediate;        /* $ vs . */
+      Lval_t     lval;             /* unified lvalue descriptor */
+      void      *nam_handle;       /* NAM node returned by NAM_push */
+  } cap_t;
+  ```
+
+  γ (first entry): build `cap_t`, push lval into NAM via `NAM_push(lval)`,
+  forward to child.
+  β (retry): `NAM_pop_one(handle)`, re-push fresh, forward to child again.
+  ω (child fail): `NAM_pop_one(handle)`, return fail.
+  commit: dispatch on `lval.kind` — `LV_VAR` → `NV_SET`, `LV_PTR` → direct
+  write, `LV_IDX` → eval idx then write, `LV_CALL` → call fn to get target
+  cell then write.
+
+  `NAM_push` takes `Lval_t*` and stores it opaquely; `NAM_commit` calls
+  `lval_write(lval, value)` — a new free function replacing the two
+  separate commit paths.
+
+  **Migration path.**
+  1. Define `Lval_t` and `lval_write()` in new `src/runtime/x86/lval.h` /
+     `lval.c`.
+  2. Implement `bb_cap` (γ/β/ω) in `bb_boxes.c`, replacing `bb_capture`.
+  3. Update `bb_build.c`: `bb_nme_emit_binary` and `bb_callcap_emit_binary`
+     both call `bb_cap_new(child, lval, immediate)`.  Delete
+     `bb_callcap_new`, `bb_callcap_new_named`, `bb_callcap_exported`,
+     `callcap_t_bin`.
+  4. Update `snobol4_nmd.c`: `NAM_push` / `NAM_pop_one` store `Lval_t*`
+     instead of separate `varname` / callcap fields.  Delete
+     `NAM_push_callcap`, `NAM_KIND_CALLCAP`.  One kind: `NAM_KIND_CAP`.
+  5. Update `stmt_exec.c`: `bb_callcap` deleted.  `bb_deferred_var` calls
+     `bb_cap_new` with `LV_CALL`.  Delete `callcap_t`, `g_callcap_list`,
+     `g_cc_events` (already deleted session 18 — confirm gone).
+  6. Update `NAM_commit` in `snobol4_nmd.c`: single dispatch via
+     `lval_write`.
+  7. Run smoke + broker gates.
+
+  **Files touched:** `bb_boxes.c`, `bb_build.c`, `snobol4_nmd.c`,
+  `stmt_exec.c`, `bb_box.h`, `ir.h` (no new EKind needed — `Lval_t` is
+  runtime-only).  New files: `lval.h`, `lval.c`.
+
+  Gate: Smoke PASS=7, Broker PASS=49.  Then:
+  ```bash
+  /home/claude/one4all/scrip --ir-run /tmp/sm_min7.sno   # HIT fired, OK
+  /home/claude/one4all/scrip --sm-run /tmp/sm_min7.sno   # HIT fired, OK
+  cat /home/claude/corpus/crosscheck/control/expr_eval.input \
+    | /home/claude/one4all/scrip --sm-run \
+        /home/claude/corpus/crosscheck/control/expr_eval.sno
+  # Expected: 7 / 9 / 25.5 / 7 / 26
+  ```
+
+  Side-effects expected: SN-20 DT_E thaw fix becomes simpler once lval
+  dispatch is clean; Porter stemmer gap (SN-17) closes.
+
+- [ ] **SN-20** -- NAM push/pop inside the BB block that owns
   it (Python-style symmetry).  Per `snobol4python/_backend_pure.py`: the
   box that pushes a side-effect is the same box that pops it on backtrack
   -- push on α/γ, pop on β/ω, mirrored across the generator's yield.
@@ -172,7 +275,29 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-20 session 18, LEGACY REGISTRY DELETED, *var-holds-DT_E OPEN)
+## Current state (2026-04-19 -- SN-21 session 19, UNIFIED LVALUE STEP ADDED)
+
+**HEAD:** one4all @ `0e8f698c` (unchanged — no code written this session).
+
+**Gates:** Smoke PASS=7, Broker PASS=49.
+
+### What session 19 changed
+
+Introduced new step SN-21 (Unified lvalue / `Lval_t`) as the current
+step, demoting SN-20.  Design rationale: SNOBOL4 has one NAME concept.
+The `.` and `$` RHS is always a writable location (DT_N).  `PAT . var`,
+`PAT . A[i,j]`, and `PAT . *fn()` are all the same thing.  The current
+fork into `bb_capture` / `bb_callcap` with two NAM push kinds is the root
+of every NAM rollback bug.  `Lval_t` unifies them under one `bb_cap` box
+and one `lval_write()` commit dispatch.
+
+SN-20's DT_E thaw fix (plain `E_VAR` holding DT_E in pattern context) is
+now a sub-task: once `Lval_t` / `bb_cap` land, the thaw logic lives in
+one place and the expr_eval fix is a one-liner in `lval_write`.
+
+---
+
+## Prior state (2026-04-19 -- SN-20 session 18, LEGACY REGISTRY DELETED, *var-holds-DT_E OPEN)
 
 **HEAD:** one4all @ `0e8f698c` -- SN-20 session 18: deleted the legacy
 `g_callcap_list` / `g_cc_events` snapshot/restore dance in
