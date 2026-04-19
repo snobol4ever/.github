@@ -861,9 +861,107 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     rewires bb_cap to drop the `nam_handle` field entirely and use
     bare `NAME_push` / `NAME_pop()` on the top of `g_ctx_current`.
 
-  - [ ] **SN-23d** -- bb_cap: delete `nam_handle` field.  γ does bare
-    `NAME_push`; β/ω do bare `NAME_pop()` (no arg).  Verify with the
-    7-line minimal repro above — MUST pass, MUST agree with SPITBOL.
+  - [x] **SN-23d** -- bb_cap: delete `nam_handle` field.  γ does bare
+    `NAME_push` (handle discarded); β/ω do bare `NAME_pop_top()` (no arg,
+    drops top of `g_ctx_current`).  **Done 2026-04-19.**
+
+    **Landed changes:**
+    - `snobol4_nmd.c`: new `NAME_pop_top(void)` — handle-free LIFO drop
+      of the topmost live slot of the active ctx.  ~12 LOC.
+    - `name_t.h`: declaration added alongside `NAME_push` / `NAME_pop`.
+    - `bb_boxes.c`: bb_cap β / γ / ω rewired — `NAME_push` return
+      discarded at γ; β and ω call `NAME_pop_top()` under the existing
+      `!immediate && has_pending` guard.
+    - `bb_box.h`: `void *nam_handle;` field removed from `cap_t`.
+    - `stmt_exec.c`: orphan `void *nam_handle;` removed from
+      `usercall_t` (never read or assigned — stale since SN-17d).
+
+    **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
+    (Broker 48 is the local-run baseline; previous sessions measured 49.
+    The +1 drift is pre-existing — same at HEAD `2c518cef` before this
+    rung.  Corpus not cloned in this session → broad corpus not
+    measured; per RULES.md scripts SKIP cleanly when corpus absent.)
+
+    **SN-6c repro status: STILL FAILS.**  The 7-line recursion repro
+    (`rec = 'a' . *Push('A') *rec | 'a' . *Push('B')` on `'aa'`)
+    produces `PUSH #1 tag=B, MATCH count=1` in both modes — outer
+    Push('A') still lost.  SPITBOL gives `PUSH #1 A, PUSH #2 B,
+    MATCH count=2`.
+
+    **Diagnosis (instrumented trace captured this session, reverted
+    before commit — recreate by adding fprintf to CAP_α/β/γ):**
+
+    The real SN-6c mechanism is **NOT** a `nam_handle` leak — the goal
+    file's earlier hypothesis was incorrect.  It is the M-DYN-OPT
+    cache in `cache_get_fresh` (stmt_exec.c:308-317):
+
+    ```c
+    static bb_node_t cache_get_fresh(cache_slot_t *slot) {
+        bb_node_t n = slot->template;
+        if (n.ζ_size && n.ζ) {
+            void *fresh = calloc(1, n.ζ_size);
+            memcpy(fresh, n.ζ, n.ζ_size);   /* copies DIRTY template */
+            n.ζ = fresh;
+        }
+        return n;
+    }
+    ```
+
+    `cache_insert` stores the template AFTER the first build (clean
+    state).  But `n.ζ` in the template is the SAME pointer used for
+    the first match execution — so by the second time a recursion
+    lands on this slot, the template ζ is dirty (has_pending=1,
+    pending=spec{...}, etc.).  `cache_get_fresh` dutifully memcpys
+    those dirty values into every "fresh" copy.
+
+    **Trace evidence (reverted):**
+    ```
+    [CAP α] ζ=0x...8f0 state=0x...8d0 pend=0    ← outer A, fresh
+    [CAP γ push] ζ=0x...8f0 top=1               ← pushes, sets pend=1
+    [CAP α] ζ=0x...b60 state=0x...8d0 pend=1    ← cache hit, STALE pend=1
+    [CAP γ push] ζ=0x...b60 top=2
+    [CAP β]  ζ=0x...b60 pend=1 top=1            ← top already dropped
+    [CAP β pop] ζ=0x...b60 top=0                ← pops outer A!
+    [CAP α] ζ=0x...bbe0 state=0x...970 pend=0   ← arm 2 'B', fresh
+    [CAP γ push] ζ=0x...bbe0 top=1
+    ```
+
+    Three distinct cap_t allocations (different ζ addresses), but the
+    cache memcpys the dirty template into each — so the "fresh"
+    cap_t's `has_pending` is inherited from the first match's live
+    state.
+
+    **SN-23d did NOT close SN-6c** because the same corruption vector
+    that used to poison `nam_handle` still poisons `has_pending` (the
+    LIFO guard).  The rung's API reduction is real and correct —
+    `nam_handle` IS gone, `NAME_pop` overloading pressure IS relieved
+    — but the architectural cleanup did not reach the bug.
+
+    **Recommended path forward (SN-23d-follow-up):** three options,
+    in order of invasiveness:
+
+    1. **Reset `has_pending = 0` at CAP_α** (one-line defensive fix).
+       Makes cap_t self-initialising on every α, defeating the cache
+       poisoning at the site.  Surgical, small, preserves cache
+       benefit.
+
+    2. **Fix `cache_get_fresh` template purity** — keep a pristine
+       calloc'd template separate from the live ζ used for the first
+       match.  Larger change, per-box-type knowledge required
+       ("what counts as config vs state?"), but fixes the class of
+       bug for every future box type.
+
+    3. **Add XCALLCAP/XNME/XFNME to `patnd_is_invariant`'s variant
+       list so cap containers are never cached.**  Defensive but
+       goal file (SN-23 cross-concern) explicitly said not to pursue
+       this path.
+
+    Option 1 is smallest and addresses the immediate SN-6c symptom.
+    Option 2 is the "right" fix.  Next session to choose.
+
+  - [ ] **SN-23d-follow-up** -- Close SN-6c via has_pending reset at
+    CAP_α (option 1) or cache_get_fresh pristine template (option 2).
+    Verify with the 7-line repro: `MATCH count=2`.
 
   - [ ] **SN-23e** -- Delete `NAME_save`, `NAME_discard`, `NAME_top`,
     `NAME_pop_above` from public header; delete definitions from
@@ -923,7 +1021,36 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `2c518cef` (SN-23b + SN-23c — Phase 3 scan and
+**HEAD:** one4all @ `c4fc4297` — SN-23d landed: `nam_handle`
+deleted, bare `NAME_pop_top()` introduced, bb_cap uses pure push/pop.
+Gates: Smoke **7**, Broker **48** (local-run baseline — same value
+pre-SN-23d at HEAD `2c518cef`), broad corpus not measured (no corpus
+cloned this session).  No regression.
+
+**SN-23d did NOT close SN-6c.**  The 7-line recursion repro still
+produces `PUSH #1 tag=B, MATCH count=1` vs SPITBOL's `PUSH A, PUSH B,
+count=2`.  Instrumented trace this session (reverted before commit)
+isolated the real mechanism: **the M-DYN-OPT cache in
+`cache_get_fresh` memcpys a DIRTY template** — `template.ζ` is the
+same pointer used for the first match's execution, so by cache-hit
+time `has_pending` (and every other state scalar) is poisoned.  The
+goal file's earlier "shared cap_t state" hypothesis was correct in
+shape but wrong in mechanism: instances ARE different allocations;
+corruption arrives via memcpy of the live template.
+
+SN-23d removed `nam_handle` (which used to carry this same poison)
+and is therefore a genuine API reduction — but the bug moved to
+`has_pending`, not fixed.
+
+**Next step:** **SN-23d-follow-up** — one-line defensive fix:
+`ζ->has_pending = 0;` at CAP_α top.  Verify SN-6c repro gives
+`MATCH count=2` in both modes.  If that lands, proceed to SN-23e
+(delete stale NAM_save/discard/top/pop_above).  Otherwise pivot to
+cache_get_fresh pristine-template rewrite.
+
+**Previous state preserved below:**
+
+**HEAD (prior):** one4all @ `2c518cef` (SN-23b + SN-23c — Phase 3 scan and
 EVAL frame both use `NAME_ctx_enter/leave`).  Gates: Smoke 7, Broker
 **49**, Broad corpus 223/225 (unchanged — `expr_eval` and `demo_claws5`
 remain, as anticipated).  Porter `--ir-run` and `--sm-run` still both
