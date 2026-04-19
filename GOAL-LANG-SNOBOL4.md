@@ -623,6 +623,181 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Gates at diagnosis:** Smoke 7, Broker 49, Broad 223/225 (unchanged;
   no code changes landed this session).
 
+- [ ] **SN-6c** -- expr_eval arithmetic/EVAL.  **Diagnosed 2026-04-19**
+  (diagnosis-only session, no code changes).  The DT_E thaw from SN-6b
+  was necessary but not sufficient.  What remains is NOT an arithmetic
+  bug — it's NAM-stack interference between outer and inner invocations
+  of the same recursive pattern.
+
+  **Minimal repro (7 lines):**
+  ```snobol4
+           &ANCHOR = 0
+           &FULLSCAN = 1
+           DEFINE('Push(tag)')                     :(pushEnd)
+  Push     count = count + 1
+           OUTPUT = 'PUSH #' count ' tag=' tag
+           Push = .dummy                           :(NRETURN)
+  pushEnd  count = 0
+           rec = 'a' . *Push('A') *rec
+  +           |  'a' . *Push('B')
+           'aa' POS(0) rec RPOS(0)                 :S(yes)F(no)
+  yes      OUTPUT = 'MATCH count=' count           :(END)
+  no       OUTPUT = 'NO MATCH count=' count
+  END
+  ```
+  SPITBOL: pushes A, B — MATCH count=2.
+  scrip: pushes only B — MATCH count=1 (loses the outer Push A).
+
+  **CAP_TRACE output (added and reverted this session):**
+  ```
+  [CAP α ] ζ=0x...7870 state=0x...7850 handle_before=(nil)
+  [CAP γ ] ζ=0x...7870 state=0x...7850 pushed handle=0x1
+  [CAP α ] ζ=0x...7b00 state=0x...7850 handle_before=0x1   ← ★ bug
+  [CAP γ ] ζ=0x...7b00 state=0x...7850 pushed handle=0x2
+  [CAP α ] ζ=0x...7d10 state=0x...7850 handle_before=0x1   ← ★ bug
+  [CAP ω ] ζ=0x...7d10 state=0x...7850 handle=0x1           ← pops outer's slot!
+  ```
+  Three DIFFERENT cap_t instances (7870, 7b00, 7d10) share the SAME
+  `state` pointer (7850).  A cap_t entering α for the FIRST time
+  already has `handle_before=0x1` because it was inherited from the
+  shared state.  When that cap later hits ω, it pops slot 0x1 — which
+  belongs to a DIFFERENT (outer) cap_t.  The outer's capture is gone.
+
+  **Two bugs, one fix:**
+
+  1.  **M-DYN-OPT cache sharing:**  `cache_get_fresh` in stmt_exec.c:308
+      does a shallow memcpy of the top-level ζ.  If ζ contains pointers
+      to child state (which cap_t does via its `state` field), the
+      copies share those child pointers.  `patnd_is_invariant` correctly
+      excludes XNME / XFNME, but the CHILD of an XNME can still be
+      cacheable, and when caps are rebuilt for recursive `*rec`, they
+      end up wrapping the same cached child state.
+
+  2.  **Global NAM stack:**  Even if cache sharing were fixed, the
+      global `g_stack[]` in snobol4_nmd.c couples every cap_t's push to
+      the SAME linear stack.  `bb_cap`'s single `nam_handle` field
+      assumes one push-per-instance lifetime — violated by recursion
+      through shared or clone-shared cap_t instances.  The whole
+      "handle-based pop" protocol is fragile.
+
+  **Decision: skip (1), fix (2) properly.**  The cache bug is the
+  proximate symptom, but a 1-line patch to `patnd_is_invariant`
+  (returning 0 whenever a subtree contains XNME/XFNME anywhere below,
+  not just at its own kind) would mask the real fragility.  The
+  architectural problem is that NAM state is global.  Fixing it kills
+  the class.
+
+- [ ] **SN-23** -- Per-pattern NAM context: kill marks, go pure push/pop.
+
+  **Principle:** NAM stack belongs to a per-match context, not to a
+  global.  Every `exec_stmt` match attempt allocates its own `cstack`.
+  Every `bb_cap` γ appends one entry; every β/ω pops exactly one.
+  On outer match success, the entire cstack is walked oldest→newest
+  and each entry fired via `name_commit_value`.  No marks, no handles,
+  no rollback, no top/pop_above.  Python's `_backend_pure.py` reference.
+
+  **Reference (already quoted in SN-22 rationale):**
+  ```python
+  class Δ:
+      def γ(self):
+          for _1 in self.P.γ():
+              Ϣ[-1].cstack.append(f"{N} = ...")
+              yield _1
+              Ϣ[-1].cstack.pop()
+  ```
+  `append`, `pop`, and (at outer success) `for cmd in cstack: exec(cmd)`.
+  That is the complete protocol.
+
+  **API after SN-23 (3 operations, period):**
+  ```
+  void NAME_push(const NAME_t *nm, const char *substr, int slen);
+  void NAME_pop(void);                  /* drops the top; no handle */
+  void NAME_commit(void);               /* walk, fire, clear */
+  ```
+  Plus two context brackets:
+  ```
+  void NAME_ctx_enter(NAME_ctx_t *ctx); /* make ctx the current */
+  void NAME_ctx_leave(void);            /* restore parent; drop ctx */
+  ```
+
+  **Deleted in SN-23:**
+  - `NAME_save`, `NAME_discard` — no cookies; contexts nest instead.
+  - `NAME_top`, `NAME_pop_above` — no bulk drops; each box's own β/ω
+    pops exactly its own push.
+  - `NAME_push_callcap`, `NAME_push_callcap_named` — already zero real
+    callers (noted in SN-22 followups); `bb_cap_new_call` pushes
+    directly via `NAME_push` on the NM_CALL name.
+  - `nam_handle` field in `cap_t` — no handles anywhere.
+
+  **Call-site rewiring:**
+  | File | Line | Before | After |
+  |------|------|--------|-------|
+  | `bb_boxes.c` | 541, 559, 566 | `nam_handle = NAME_push(...)`, `NAME_pop(nam_handle)` | `NAME_push(...)`, `NAME_pop()` |
+  | `stmt_exec.c` | 1272 | `int cookie = NAME_save();` | `NAME_ctx_enter(&local_ctx);` |
+  | `stmt_exec.c` | 1304 | `NAME_commit(cookie);` | `NAME_commit();` |
+  | `stmt_exec.c` | (match fail return) | (implicit — no discard) | `NAME_ctx_leave();` before return 0 |
+  | `eval_code.c` | 559, 566 | `int cookie = NAME_save();` / `NAME_discard(cookie);` | `NAME_ctx_enter(&e_ctx);` / `NAME_ctx_leave();` |
+
+  **Data model (replaces g_stack/g_top globals in snobol4_nmd.c):**
+  ```c
+  typedef struct NAME_ctx_s {
+      NAME_entry_t *cstack;
+      int           top;
+      int           cap;
+      struct NAME_ctx_s *parent;
+  } NAME_ctx_t;
+  static NAME_ctx_t *g_ctx_current = NULL;   /* linked stack of ctxs  */
+  ```
+  `NAME_push` appends to `g_ctx_current`.  `NAME_pop` drops from
+  `g_ctx_current`.  Nested EVAL creates a fresh ctx linked to parent;
+  leaves restore parent.  Captures inside an EVAL'd expression are
+  LOCAL to that EVAL's ctx and never propagate out — exactly what
+  eval_code.c:559-566 intends with its current save/discard dance,
+  but cleaner.
+
+  **Ladder SN-23a..g:**
+
+  - [ ] **SN-23a** -- Introduce `NAME_ctx_t`, `NAME_ctx_enter`,
+    `NAME_ctx_leave` in snobol4_nmd.c.  Keep old API working alongside
+    (new ctx takes precedence if non-NULL; else falls through to
+    legacy g_stack).  Smoke+Broker green.
+
+  - [ ] **SN-23b** -- stmt_exec.c Phase 3: wrap the scan in
+    `NAME_ctx_enter/leave`.  `NAME_commit()` now walks `g_ctx_current`
+    instead of `g_stack[cookie..top]`.  Update all `NAME_save()` →
+    no-op, `NAME_discard()` → `NAME_ctx_leave` or remove.  Gate:
+    Smoke, Broker, Broad corpus must not regress.
+
+  - [ ] **SN-23c** -- eval_code.c: same rewiring for EVAL frame.
+
+  - [ ] **SN-23d** -- bb_cap: delete `nam_handle` field.  γ does bare
+    `NAME_push`; β/ω do bare `NAME_pop()` (no arg).  Verify with the
+    7-line minimal repro above — MUST pass, MUST agree with SPITBOL.
+
+  - [ ] **SN-23e** -- Delete `NAME_save`, `NAME_discard`, `NAME_top`,
+    `NAME_pop_above` from public header; delete definitions from
+    snobol4_nmd.c.  Any remaining callers are bugs to fix, not
+    features to preserve.
+
+  - [ ] **SN-23f** -- Delete `NAME_push_callcap`, `NAME_push_callcap_named`
+    (zero real callers per SN-22 audit).  Any NM_CALL pushes go
+    through bare `NAME_push` with a pre-built NM_CALL NAME_t.
+
+  - [ ] **SN-23g** -- Test gate:
+    - Smoke PASS=7
+    - Broker PASS=49
+    - Broad corpus: expr_eval should now PASS.  PASS=224/225 (only
+      `demo_claws5` remaining, tracked under GOAL-SNO-CLAWS5.md).
+    - Porter --ir-run AND --sm-run byte-identical to SPITBOL ref.
+    - The 7-line `rec` minimal repro above gives MATCH count=2.
+
+  **Cross-concern: M-DYN-OPT cache.**  Even after SN-23, the cache
+  sharing in `cache_get_fresh` is latent — any future box type that
+  stores in-flight state pointers could hit it.  Post-SN-23, file a
+  follow-up to either (a) drop the cache entirely (measure first —
+  probably 0% of hot path), or (b) make `cache_get_fresh` recursively
+  deep-copy pointer fields.  Not gating SN-7.
+
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers × 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
 
@@ -662,34 +837,39 @@ Smoke 7, Broker **49**, Broad corpus 223/225 (unchanged — `expr_eval`
 and `demo_claws5` remain, as anticipated).  Porter `--ir-run` and
 `--sm-run` still both at **100.00%** / 23531.
 
-**What SN-6b delivered:**
-- Fixed DT_E descriptor union-aliasing bug at 4 sites (`interp.c`
-  E_DEFER, `eval_code.c` E_DEFER + CONVE_fn, `snobol4_pattern.c`
-  CONVE pattern).  All now assign `.s = NULL` before `.ptr = child`
-  — union requires ptr stored last.  `sm_interp.c:276` was already
-  correct with an explicit "set ptr last" comment.
+**What SN-6c diagnosis session (2026-04-19) delivered** — no code
+committed; clean tree.  SN-6c is NOT an arithmetic bug:
+
+1. Minimal 7-line repro isolated (see SN-6c body above) — a recursive
+   pattern `rec = 'a' . *Push('A') *rec | 'a' . *Push('B')` on input
+   `"aa"` should fire A then B; scrip fires only B.  The outer Push
+   A is lost when recursion into `*rec` returns.
+
+2. CAP_TRACE added (reverted, not committed) shows three distinct
+   cap_t instances sharing the SAME `state` pointer.  A cap_t entering
+   α for the first time already has `handle_before=0x1` left over from
+   the shared state.
+
+3. Two layers:
+   - M-DYN-OPT cache in `stmt_exec.c:308` (`cache_get_fresh`) does a
+     shallow memcpy of cached templates.  Child-state pointers inside
+     cap_t leak across "fresh" copies.
+   - Global `g_stack[]` NAM stack couples every cap across recursion;
+     cap_t's single `nam_handle` field assumes one push per instance.
+
+**Decision — Lon 2026-04-19:** skip the cache patch, fix the NAM
+architecture.  Move NAM stack into per-pattern context, kill marks,
+go pure push/pop.  New rung **SN-23** (laid out above, a..g).
+
+**Python reference** (confirmed in SN-22): `cstack.append` + `cstack.pop`
+in a generator, and `for cmd in cstack: exec(cmd)` on outer success.
+That's the whole protocol.  SN-23 ports it directly.
+
+**What SN-6b delivered** (carrying forward):
+- Fixed DT_E descriptor union-aliasing bug at 4 sites.
 - Added DT_E thaw block to `bb_deferred_var` in `stmt_exec.c`.
-  Mirrors `pat_to_patnd` trichotomy: E_FNC → `pat_user_call`,
-  E_VAR → direct `NV_GET_fn(frozen->sval)` (not `var_as_pattern`,
-  which adds XVAR indirection that FAILs at nested α), else →
-  `PATVAL_fn`.  Added `#include "../../ir/ir.h"` and
-  `extern DESCR_t eval_node(EXPR_t*)` in the full-runtime block.
-
-**Minimal DT_E repro now passes** (was `NO MATCH`, now `MATCH`
-matching SPITBOL in both `--ir-run` and `--sm-run`):
-```snobol4
-         integer  = SPAN('0123456789')
-         constant = integer . *PushC()
-         expr0    = *constant
-         '1' POS(0) *expr0 RPOS(0) :F(no)S(yes)
-```
-
-**expr_eval NOT closed.** DT_E thaw is necessary but not sufficient.
-Remaining symptoms: `(1+2)*3 → 3`, `-3+10 → 10`, and parse errors on
-4/5 inputs.  These are layered arithmetic/EVAL bugs, tracked as the
-new **SN-6c** sub-rung.  Investigation starting point: count Push
-calls on `1+2` — if scrip now pushes 3 (matching SPITBOL), the
-parse-error path is downstream of Push/Pop ordering.
+- The DT_E-specific minimal repro (`expr0 = *constant`) now passes in
+  both `--ir-run` and `--sm-run`.
 
 **Previous SN-22 state preserved below:**
 
@@ -722,21 +902,21 @@ operation.**  The C equivalent (NAME_push in bb_cap γ, NAME_pop in
 bb_cap β/ω, NAME_commit on success in exec_stmt) maps 1:1.
 
 **Three true primitives** (Python-verified):
-| Operation | Python | C |
-|-----------|--------|---|
-| push      | `cstack.append(cmd)` in generator | `NAME_push(&nm, σ, δ)` in bb_cap γ |
-| pop       | `cstack.pop()` in generator's post-yield | `NAME_pop(handle)` in bb_cap β/ω |
-| commit    | `for cmd in cstack: exec(cmd)` in SEARCH on success | `NAME_commit(cookie)` in exec_stmt Phase 5 |
+| Operation | Python | C (today, pre-SN-23)                                | C (post-SN-23)                          |
+|-----------|--------|------------------------------------------------------|------------------------------------------|
+| push      | `cstack.append(cmd)` | `NAME_push(&nm, σ, δ)` returns handle      | `NAME_push(&nm, σ, δ)` — no handle      |
+| pop       | `cstack.pop()`       | `NAME_pop(handle)` from bb_cap β/ω         | `NAME_pop()` — drops top                |
+| commit    | `for cmd in cstack: exec(cmd)` | `NAME_commit(cookie)` in exec_stmt | `NAME_commit()` — walks current ctx    |
 
 **Cookie note:** the C `NAME_commit(cookie)` parameter exists because
 the C port uses one shared `g_stack[]` across nested matches, where
 Python uses a fresh `SNOBOL()` object (and therefore a fresh cstack)
-per match attempt.  The cookie is an artifact of the shared-global
-optimization, not a semantic requirement.  A per-match local cstack
-would drop the cookie API entirely.
+per match attempt.  **SN-23 closes that gap** — per-context cstack
+drops the cookie API entirely.
 
-**Next step:** **SN-6c** — expr_eval arithmetic/EVAL layered bugs
-(independent of the DT_E thaw now closed).  Then **SN-7** — beauty.sno
+**Next step:** **SN-23a** — introduce `NAME_ctx_t` and
+`NAME_ctx_enter/leave`, keeping old API alongside.  Smoke+Broker must
+stay green.  Then SN-23b..g incrementally.  Then **SN-7** — beauty.sno
 self-host (6 drivers × 3 modes = 18 combos, diff=0 vs SPITBOL).
 `demo_claws5` continues under GOAL-SNO-CLAWS5.md.
 
