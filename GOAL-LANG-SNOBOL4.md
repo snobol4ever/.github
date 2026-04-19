@@ -74,7 +74,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-6** -- Full corpus: PASS=222/225. IN PROGRESS.
+- [ ] **SN-6** -- Full corpus: PASS=223/225. IN PROGRESS.
 
 ```bash
 bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
@@ -129,36 +129,34 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-18 -- SN-6 session 11, PASS=222/225)
+## Current state (2026-04-19 -- SN-6 session 12, PASS=223/225)
 
-**HEAD:** one4all 7847c1ed -- bb_boxes.c NAM_push in conditional capture path (--bb-live fix).
+**HEAD:** one4all 2c8d4a79 -- stmt_exec.c XNME/XFNME NAMEVAL-aware varname
+extraction (Bug #1d fix). word1 now passes under --sm-run.
 
-**Gates:** Smoke PASS=7, broker PASS=49, broad 222/225.
+**Gates:** Smoke PASS=7, broker PASS=49, broad 223/225.
 
-### SN-6 remaining failures (3 of 225)
+### SN-6 remaining failures (2 of 225)
 
-- `word1` -- --sm-run clean exit, NO output; --ir-run PASSES.
-  ARB . OUTPUT conditional-capture side-effect not firing under SM.
-- `expr_eval` -- 1+2*3 -> 2; commit-time *fn() dispatch (same root cause class).
+- `expr_eval` -- 1+2*3 -> 2 (ir); "Bad input, try again" (sm).
+  Commit-time *fn() dispatch (Bug #1 family). Separate from word1.
 - `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
 
-### word1 diagnosis -- next session starts here
+### word1 diagnosis -- RESOLVED (session 12, 2026-04-19)
 
---sm-run uses BB_MODE_DRIVER (not BB_MODE_LIVE). XNME path:
-  bb_build -> bb_nme_emit_binary -> bb_capture_new -> bb_capture_exported
-  -> stmt_exec.c bb_capture, which DOES call NAM_push().
+Probes on NAM_push / NAM_commit revealed --sm-run passed
+`varname=NULL, var_ptr=non-NULL` where --ir-run passed
+`varname="OUTPUT", var_ptr=NULL`. At the build site, `p->var.s`
+contained "OUTPUT" on BOTH paths; the difference was `p->var.v`
+(DT_S on ir-run vs DT_N on sm-run).
 
-bb_boxes.c bb_capture (--bb-live only) was also missing NAM_push in the
-dot path -- fixed in 7847c1ed as a latent correctness fix.
+The old XNME/XFNME construction in stmt_exec.c only read `.s` when
+`v==DT_S`, dropping the varname whenever `v==DT_N`. The commit then
+took the `*var_ptr = val` path, writing into a raw cell and bypassing
+NV_SET_fn's I/O hook -- OUTPUT writes vanished.
 
-Minimal repro also silent under --sm-run:
-```snobol4
-      S = "hello world"
-      S ? "hello" ARB . OUTPUT
-END
-```
+Fix mirrors bb_build.c bb_nme_emit_binary / bb_fnme_emit_binary
+NAMEVAL-aware logic: DT_N with slen==0 carries name string in `.s`,
+DT_N with slen==1 carries raw pointer in `.ptr`. Both cases preserved.
 
-**Next probe:** add fprintf(stderr,...) to NAM_push and NAM_commit to confirm
-they are reached under --sm-run. Then confirm NV_SET_fn("OUTPUT", val) from
-inside NAM_commit triggers the stdout write (goes through _io_chan_find_by_var
-+ fprintf -- should work, but call-stack context under SM may differ).
+### Next: expr_eval (Bug #1 family, distinct root cause)
