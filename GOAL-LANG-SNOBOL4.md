@@ -453,14 +453,72 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Gate:** Smoke PASS=7, Broker PASS=49, Broad corpus must not regress
   (≥223/225).  `expr_eval` expected to flip to PASS on SN-22d.
 
-- [ ] **SN-6b** -- expr_eval arithmetic path.  Shared bug in `--ir-run`
-  and `--sm-run`: `(1+2)*3` → 3 (expected 9), `-3+10` → 10 (expected 7),
-  plus stderr noise when EVAL gets an unparseable string (bison callback
-  `snobol4_error` → `sno_error` writes to stderr unconditionally).
-  The stderr noise is cosmetic but visible in diff-based gates.  The
-  arithmetic issue is either EVAL argument-order / Pop() stack order
-  or operator precedence in the pushed token sequence.  **Likely
-  subsumed by SN-22** — retest after SN-22d.
+- [ ] **SN-6b** -- expr_eval arithmetic path.  **Root cause identified
+  2026-04-19** (diagnosis-only session, no code changes).  The symptoms
+  — stderr parse errors, `(1+2)*3 → 3`, `-3+10 → 10` — all trace back
+  to one missing branch in `bb_deferred_var` (stmt_exec.c:908).  Not
+  an arithmetic bug; it's a **pattern-value-type** bug that corrupts
+  the operand/operator stack push sequence, which is what then makes
+  EVAL receive garbage.
+
+  **Smoking gun** (trace added and reverted in session):
+  ```
+  [DVAR] name=EXPR0    val.v=11 ptr=(nil)          ← DT_E, silently → epsilon
+  [DVAR] name=CONSTANT val.v=3  ptr=0x7eea...      ← DT_P, works correctly
+  ```
+
+  `bb_deferred_var` has three branches for `NV_GET_fn(ζ->name)`:
+  - `DT_P` (compiled pattern) → rebuild child ✓
+  - `DT_S` (string) → literal pattern ✓
+  - **else → silently falls through to epsilon** ✗ (DT_E lands here)
+
+  When a variable's RHS is itself a deferred expression (e.g.
+  `expr0 = *constant`, or the recursive `expr = *constant addop *expr |
+  *constant`), the variable holds a **DT_E** (frozen expression), not
+  a DT_P.  `*expr0` then matches epsilon instead of invoking the
+  underlying pattern — silently dropping every nested `*fn()` side-effect.
+
+  **Minimal repro** (recreate if container resets):
+  ```snobol4
+           &ANCHOR = 0
+           &FULLSCAN = 1
+           integer  = SPAN('0123456789')
+           constant = integer . *PushC()
+           expr0    = *constant
+           '1' POS(0) *expr0 RPOS(0) :F(no)S(yes)
+           *  SPITBOL: match   scrip: NO MATCH
+  ```
+
+  **Effect on expr_eval:** every `*expr` / `*term` / `*factor` /
+  `*primary` self-reference in the recursive grammar silently matches
+  epsilon and drops sibling side-effects.  On input `1+2`, scrip makes
+  2 Push calls (SPITBOL makes 3 — `addop`'s `*PushO()` is the dropped
+  one because it sits between `*constant` and `*expr`).  The stack
+  then under-flows inside Binary(), producing `L=0 O=1 R=5` garbage
+  which EVAL reports as a parse error.  The `(1+2)*3 → 3` and
+  `-3+10 → 10` results are the specific forms that underflow leaves
+  behind.
+
+  **Fix template** (lift from `pat_to_patnd` in
+  `snobol4_pattern.c:220-253`):  Add a DT_E thaw block to
+  `bb_deferred_var` before the DT_P check.  Handle E_FNC child via
+  `pat_user_call`, E_VAR child via `var_as_pattern`, otherwise
+  `PATVAL_fn` — same trichotomy.  Result is a DT_P the existing
+  branch can consume.
+
+  **Confirmed not:** `SN-22` did NOT subsume this bug (as speculated
+  earlier in the goal file).  The NAM machinery is clean post-SN-22;
+  this is a separate type-coercion gap in pattern construction.
+
+  **Key files:**
+  - `src/runtime/x86/stmt_exec.c:887-1001` — `bb_deferred_var` (add
+    DT_E branch)
+  - `src/runtime/x86/snobol4_pattern.c:220-253` — `pat_to_patnd`
+    (template to copy)
+  - `src/runtime/x86/descr.h:36` — `DT_E = 11` (sanity reference)
+
+  **Gates at diagnosis:** Smoke 7, Broker 49, Broad 223/225 (unchanged;
+  no code changes landed this session).
 
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers × 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
