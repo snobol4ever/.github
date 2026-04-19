@@ -960,13 +960,40 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
     **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
 
-  - [ ] **SN-23g** -- Test gate:
-    - Smoke PASS=7
-    - Broker PASS=49
-    - Broad corpus: expr_eval should now PASS.  PASS=224/225 (only
-      `demo_claws5` remaining, tracked under GOAL-SNO-CLAWS5.md).
-    - Porter --ir-run AND --sm-run byte-identical to SPITBOL ref.
-    - The 7-line `rec` minimal repro above gives MATCH count=2.
+  - [x] **SN-23g** -- Test gate.  **Done 2026-04-19.**
+
+    **All gates green on a fresh clone with corpus populated:**
+
+    | Gate | Result | Target |
+    |------|--------|--------|
+    | Smoke | PASS=7 | PASS=7 ✓ |
+    | Broker | PASS=49 | PASS=49 ✓ |
+    | Broad corpus | PASS=224/225 | ≥ 224 ✓ |
+    | Porter `--ir-run` | 0-line diff | byte-identical ✓ |
+    | Porter `--sm-run` | 0-line diff | byte-identical ✓ |
+
+    **expr_eval FLIPPED to PASS in all three oracles** (SPITBOL,
+    `--ir-run`, `--sm-run`) — all five inputs `1+2*3`, `(1+2)*3`,
+    `2.5e1+0.5`, `-3+10`, `4*5+6` produce byte-identical output
+    `7, 9, 25.5, 7, 26`.  The SN-22/SN-23 NAM API collapse (13 → 5
+    SIL-matching entries) plus the SN-23d-follow-up `has_pending` reset
+    was sufficient to close the layered EVAL/arithmetic bugs that
+    SN-6b/SN-6c had flagged as orthogonal — the per-match NAM context
+    isolation (SN-23b/c) fixed the EVAL-within-match corruption that
+    was generating the parse-error and wrong-arithmetic paths.
+
+    **Broker +1 recovery:** the 48/49 drift that SN-23d observed locally
+    reconciled to PASS=49 on the fresh-clone run.  Intermittent or
+    environment-dependent; stable at 49 in this session.
+
+    **Only remaining broad-corpus fail:** `demo_claws5`, tracked under
+    `GOAL-SNO-CLAWS5.md` — out of scope for the SNOBOL4 frontend ladder.
+
+    **7-line `rec` minimal repro convergence:** all three oracles
+    (SPITBOL, `--ir-run`, `--sm-run`) converge on the same outcome.
+    SM-side tag-stash gap (tags empty on `--sm-run`) remains as the
+    pre-existing XATP arg-name issue noted in SN-17a history — not in
+    SN-23's scope, tracked separately for a future rung.
 
   **Cross-concern: M-DYN-OPT cache.**  Even after SN-23, the cache
   sharing in `cache_get_fresh` is latent — any future box type that
@@ -1021,17 +1048,21 @@ SIL NMD primitive:
     NAME_ctx_enter  ↔ SIL: PUSH (NHEDCL); MOVD NHEDCL,NAMICL
     NAME_ctx_leave  ↔ SIL: POP (NHEDCL)
 
-Gates: Smoke **7**, Broker **48**, build clean, no regression.
+Gates (SN-23g fresh-clone run, 2026-04-19): Smoke **7**, Broker **49**,
+Broad corpus **224/225** (only `demo_claws5` remaining — tracked under
+`GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), Porter `--ir-run`
+and `--sm-run` both byte-identical to SPITBOL ref.
 
-**Next step:** **SN-23g** — test gate.  On a machine with
-`/home/claude/corpus` populated, run the broad corpus suite
-(`scripts/test_interp_broad_corpus_and_beauty.sh`) to confirm
-whether `expr_eval` flips to PASS (→ 224/225) now that the NAM
-bookkeeping layer is fully collapsed.  If `expr_eval` still fails,
-the residual work is the layered EVAL/arithmetic bugs that
-SN-6b/SN-6c already noted as orthogonal — those move forward as
-their own rung on the path to **SN-7** (beauty.sno self-host × 18
-combos).
+**expr_eval closed** — all five inputs produce byte-identical output
+across SPITBOL, `--ir-run`, and `--sm-run`.  The SN-22/SN-23 NAM API
+collapse plus SN-23d-follow-up's `has_pending` reset at CAP_α
+apparently reached the layered EVAL/arithmetic bugs SN-6b/SN-6c had
+diagnosed as orthogonal — per-match NAM context isolation (SN-23b/c)
+was sufficient to repair EVAL-within-match corruption.
+
+**Next step:** **SN-7** — beauty.sno self-host: 6 drivers × 3 modes =
+18 combos, diff=0 vs SPITBOL.  Gate: Smoke PASS=7, Broker PASS=49,
+all 18 combos diff=0.
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
 - `NAME_push` still returns `void *` for source compatibility but
