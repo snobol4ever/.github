@@ -285,31 +285,28 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ---
 
-## Current state (2026-04-19 -- SN-21e CURRENT, Gates PASS=7/48)
+## Current state (2026-04-19 -- SN-21e IN PROGRESS, Gates PASS=7/48)
 
-**HEAD:** one4all @ `2f5cd02d`.
+**HEAD:** one4all @ `13fc94dd` (SN-21e partial). Previous: `2f5cd02d` (SN-21d complete).
 
-**Gates:** Smoke PASS=7, Broker PASS=48, broad corpus PASS=223/225.
+**Gates:** Smoke PASS=7, Broker PASS=48. Broad corpus not re-verified this session.
 
 SN-21a (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
 name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
 Makefile.  No call site uses them yet.
 
 SN-21b (`1a756cd5` → `fbad1a04`): snobol4_nmd.c rewritten as flat
-NAM_entry_t[] stack.  Primary ops NAME_push / NAME_pop mirror the
+NAME_entry_t[] stack.  Primary ops NAME_push / NAME_pop mirror the
 Python generator `push; yield; pop` idiom; combinator helpers
 NAME_top / NAME_pop_above serve bb_alt next-arm and bb_arbno escape
-paths.  All NAM_* legacy names remain as thin shims delegating to
-the new API (deleted in SN-21e).  Per-slot legacy_dt preserves
-DT_S / DT_K / DT_E dispatch.
+paths.
 
 SN-21c (`c634526f`): bb_capture → bb_cap in bb_boxes.c; capture_t →
 cap_t with embedded NAME_t replacing the {varname, var_ptr} pair.
 Immediate ($) writes route through name_commit_value; deferred (.)
-writes use NAME_push / NAME_pop directly (bypassing the NAM_push shim).
-bb_cap_new builds the NAME_t via name_init_as_ptr / name_init_as_var.
-JIT trampolines in bb_build.c point at bb_cap.  bb_callcap still owns
-the NM_CALL case.
+writes use NAME_push / NAME_pop directly.  bb_cap_new builds the
+NAME_t via name_init_as_ptr / name_init_as_var.  JIT trampolines in
+bb_build.c point at bb_cap.  bb_callcap still owns the NM_CALL case.
 
 SN-21d (`2f5cd02d`): XCALLCAP now lowers to bb_cap with NM_CALL.
 bb_cap_new_call constructor added (name_init_as_call).  stmt_exec.c
@@ -317,19 +314,48 @@ XCALLCAP + bb_build.c bb_callcap_emit_binary both route through
 bb_cap_new_call; neither touches the old bb_callcap path anymore.
 bb_callcap / bb_callcap_new* / bb_callcap_exported / callcap_t /
 cc_event_t / dedup_callcaps / flush_pending_callcaps all remain
-defined but unreached.  Dead-code finding: flush_pending_callcaps
-and dedup_callcaps had zero callers since SN-20 session 18; their
-functionality was already owned by NAM_commit → name_commit_value.
-Callcap sanity probes match SPITBOL byte-for-byte across three modes.
+defined but unreached.
 
-SN-21e next: delete everything listed in the SN-21d residue paragraph
-above, plus NAM_* legacy shim names (NAM_save, NAM_pop (frame),
-NAM_push, NAM_push_callcap, NAM_push_callcap_named, NAM_pop_one,
-NAM_mark, NAM_rollback_to) and per-slot legacy_dt.  Fold the DT_E
-thaw into name_commit_value (closes SN-20 *var-holds-DT_E gap,
-expected to fix expr_eval and Porter stemmer SN-17 as side-effects).
-Gate after: Smoke 7, Broker 48, expr_eval outputs 7/9/25.5/7/26,
-sm_min7.sno HIT fires both modes.
+**SN-21e PARTIAL (this session, emergency handoff -- step stays `- [ ]`):**
+Part 1 of SN-21e landed — the NAM_* → NAME_* rename and dead-shim deletion
+in snobol4_nmd.c + snobol4.h.  Specifically:
+
+- Bulk rename across 11 files: NAM_save, NAM_commit, NAM_discard,
+  NAM_mark, NAM_rollback_to, NAM_push_callcap, NAM_push_callcap_named,
+  NAM_pop_one → their NAME_* equivalents.  NAM_pop_one collapsed into
+  NAME_pop (they were aliases).
+- Deleted the NAM_pop(int cookie) no-op frame-popper and its two
+  call sites in stmt_exec.c:1415 and eval_code.c:567.
+- Deleted the 5-arg NAM_push(var, ptr, dt, s, len) legacy shim — zero
+  callers remained after SN-21d.
+- Renamed NAM_entry_t typedef → NAME_entry_t.
+- Removed legacy_dt field from NAME_entry_t.  Its only writer was the
+  deleted NAM_push shim; the DT_K/DT_E dispatch in NAME_commit pass-1
+  was therefore unreachable and has been deleted.  NAME_commit is now
+  a single-pass last-write-wins commit routing every entry through
+  name_commit_value.
+- Cleaned snobol4.h — all legacy NAM_* decls gone; only NAME_* API
+  declared (plus the SN-21 unified lvalue API from name_t.h).
+
+Build clean, gates PASS=7 / PASS=48.
+
+**SN-21e REMAINING (next session):**
+1. Delete callcap dead code from stmt_exec.c: bb_callcap, bb_callcap_exported,
+   bb_callcap_new, bb_callcap_new_named, callcap_t, cc_event_t,
+   dedup_callcaps, flush_pending_callcaps, g_cc_events / g_callcap_list
+   globals + their realloc scaffolding.
+2. Delete bb_callcap_emit_binary + callcap_t_bin + extern decls from bb_build.c.
+   (Replacement emitter uses bb_cap_new_call — already wired in SN-21d.)
+3. Fold DT_E thaw into name_commit_value: detect value.v == DT_E, call
+   EVAL_fn(value) before NV_SET_fn / interior-pointer write.  Closes
+   SN-20 *var-holds-DT_E gap.
+4. Sweep stale comments mentioning NAM_commit, NAM_push, NAM_pop_one,
+   NamEntry_t->next, etc.  Box struct fields nam_mark / nam_handle are
+   internal and can stay, but the doc-comments referencing old API
+   should be updated.
+5. Gate after: Smoke 7, Broker 48, broad corpus PASS=223/225 (or better
+   if expr_eval closes), expr_eval outputs 7/9/25.5/7/26, sm_min7.sno
+   HIT fires both modes.
 
 Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` —
 canonical `for x in P.γ(): push; yield; pop` shape.  Our C γ/β/ω
