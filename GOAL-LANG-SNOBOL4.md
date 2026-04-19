@@ -871,9 +871,35 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     Corpus not cloned → broad corpus SKIPped per RULES.md; reachable
     from any machine with `/home/claude/corpus` populated.
 
-  - [ ] **SN-23f** -- Delete `NAME_push_callcap`, `NAME_push_callcap_named`
+  - [x] **SN-23f** -- Delete `NAME_push_callcap`, `NAME_push_callcap_named`
     (zero real callers per SN-22 audit).  Any NM_CALL pushes go
     through bare `NAME_push` with a pre-built NM_CALL NAME_t.
+    **Done 2026-04-19.**
+
+    **Landed changes:**
+    - `snobol4_nmd.c`: deleted both function definitions (17 LOC) and
+      their header comment block.  HISTORY section updated with an
+      SN-23f entry noting the API surface: 8 → 6 entries.  SPRINT
+      tag bumped to SN-23f.
+    - `snobol4.h`: deleted both prototypes and the doc comments that
+      preceded them (14 lines).
+    - `stmt_exec.c`: one stale doc comment at line 417 corrected —
+      previously said "`.` / `$` capture forms still use NM_CALL via
+      bb_cap / NAME_push_callcap"; bb_cap has called NAME_push
+      directly since SN-21d.  Updated to reflect reality.
+
+    **Audit:** zero remaining C-code references to
+    `NAME_push_callcap` or `NAME_push_callcap_named`.  Two historical
+    narrative mentions remain in stmt_exec.c comments ("existed to
+    carry..."), both in past tense, describing prior behavior.
+    Reasonable to preserve as history.
+
+    **Public NAM API after SN-23f:**
+    Core ops: `NAME_push`, `NAME_pop`, `NAME_pop_top`, `NAME_commit`.
+    Ctx brackets: `NAME_ctx_enter`, `NAME_ctx_leave`.
+    **Total: 6 entries.  Down from 13 at start of SN-22.**
+
+    **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
 
   - [ ] **SN-23g** -- Test gate:
     - Smoke PASS=7
@@ -924,18 +950,31 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `9a0560c9` — SN-23e landed.
-Four dead NAM API entries deleted (`NAME_save`, `NAME_discard`,
-`NAME_top`, `NAME_pop_above`); `NAME_commit` lost its meaningless
-cookie parameter.  Public API collapsed from 9 entries to 8.  Gates:
-Smoke **7**, Broker **48**, no regression.
+**HEAD:** one4all @ `7888f4d2` — SN-23e + SN-23f landed
+back-to-back.  The NAM API reduction goal of SN-22/SN-23 is now
+complete: 13 entries at start of SN-22 → **6 entries** at end of
+SN-23f.  Surface: `NAME_push`, `NAME_pop`, `NAME_pop_top`,
+`NAME_commit`, `NAME_ctx_enter`, `NAME_ctx_leave`.  Gates: Smoke
+**7**, Broker **48**, no regression.
 
-**Next step:** **SN-23f** — delete `NAME_push_callcap` and
-`NAME_push_callcap_named` from `snobol4_nmd.c` and `snobol4.h`.
-Audit confirmed zero live callers (all references are historical
-comments).  Safe, pure removal.  After SN-23f lands, SN-23g (test
-gate including broad corpus to confirm expr_eval status) and then
-the SN-7 beauty.sno self-host milestone.
+**Next step:** **SN-23g** — test gate.  On a machine with
+`/home/claude/corpus` populated, run the broad corpus suite
+(`scripts/test_interp_broad_corpus_and_beauty.sh`) to confirm
+whether `expr_eval` flips to PASS (→ 224/225) now that the NAM
+bookkeeping layer is fully collapsed.  If `expr_eval` still fails,
+the residual work is the layered EVAL/arithmetic bugs that
+SN-6b/SN-6c already noted as orthogonal to SN-22/23 — those move
+forward as their own rung (SN-6d or similar) on the path to
+**SN-7** (beauty.sno self-host × 18 combos).
+
+**Useful follow-ups noted during SN-22/23** (small, safe, not gating):
+- Audit `eval_code.c` `EXPVAL_fn` `NAME_save`/`NAME_discard` pair —
+  already rewired to ctx_enter/leave at SN-23c.  Nothing further.
+- `cache_get_fresh` template purity — the real SN-6c root cause.
+  bb_cap is now self-healing at the site (SN-23d-follow-up) but any
+  other box type storing in-flight scalars is vulnerable to the same
+  class of bug.  Pristine-template rewrite is a defensible cleanup
+  if symptoms appear elsewhere.
 
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
