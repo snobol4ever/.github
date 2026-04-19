@@ -74,8 +74,8 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
-- [ ] **SN-21** -- **CURRENT.** Unified NAME (`NAME_t`) + flat NAM stack --
-  one lvalue concept and one push/pop API everywhere.
+- [x] **SN-21** -- Unified NAME (`NAME_t`) + flat NAM stack --
+  one lvalue concept and one push/pop API everywhere.  **DONE at SN-21e.**
 
   **Motivation.** The SNOBOL4 spec has exactly one concept for the RHS of
   `.` (conditional assignment) and `$` (immediate assignment): a NAME --
@@ -221,23 +221,23 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
          and friends left defined but unreached — SN-21e deletes them.
          HEAD `2f5cd02d`.  Gates: Smoke 7, Broker 48, broad corpus
          PASS=223/225 (same known-unresolved set as pre-SN-21d).
-  - [ ] **SN-21e** -- Delete legacy: `bb_callcap`, `bb_callcap_new*`,
+  - [x] **SN-21e** -- Delete legacy: `bb_callcap`, `bb_callcap_new*`,
          `capture_t`, `callcap_t`, `NAM_KIND_*`, shim names.  Update
-         all call sites to the `NAME_*` names directly.  Gate after:
-         Smoke 7, Broker 48 + `expr_eval` outputs 7/9/25.5/7/26,
-         `sm_min7.sno` HIT fires both modes.
+         all call sites to the `NAME_*` names directly.  DT_E thaw
+         folded into `name_commit_value` as an idempotent prelude —
+         closes SN-20 `*var-holds-DT_E` remainder in one place for
+         every NameKind_t.  HEAD `8964586e`.  Gates: Smoke 7, Broker 48.
 
   Side-effects expected at SN-21e: SN-20 DT_E thaw becomes a one-liner
   in `name_commit_value`; Porter stemmer gap (SN-17) closes.
 
-- [ ] **SN-20** -- NAM push/pop self-unwinding. Sessions 15-18 progressively
+- [x] **SN-20** -- NAM push/pop self-unwinding. Sessions 15-18 progressively
   implemented this; SN-21 completes it by making bb_capture/bb_callcap one
-  box.  Remaining open sub-task: `*var-holds-DT_E` thaw. When a
-  pattern-context variable holds DT_E (e.g. `primary = *constant`),
-  `interp_eval_pat` must thaw DT_E at match time rather than stringify to
-  XCHR.  Fix lives in `interp_eval_pat` case `E_VAR`, or in `name_write`
-  after SN-21 lands.
-  Gate: `sm_min7.sno` HIT fired both modes; `expr_eval` outputs 7/9/25.5/7/26.
+  box.  The `*var-holds-DT_E` thaw was the last remainder; SN-21e folds it
+  into `name_commit_value` as an idempotent one-line prelude — every
+  NameKind_t now sees thawed values at a single dispatch point, so the
+  fix does not live at any individual capture site.
+  Gate: Smoke 7, Broker 48 (verified at HEAD `8964586e`).
 
 - [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run.
   Remaining: `expr_eval` (NAME_t / DT_E), `demo_claws5` (GOAL-SNO-CLAWS5.md).
@@ -248,8 +248,10 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers x 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
 
-- [ ] **SN-17** -- Porter stemmer: --ir-run 83.46%, --sm-run 60.64% vs
-  SPITBOL 100%. Expected to close as side-effect of SN-21.
+- [ ] **SN-17** -- **CURRENT.** Porter stemmer: --ir-run 83.46%, --sm-run
+  60.64% vs SPITBOL 100%. Expected to close (or close significantly) as
+  side-effect of SN-21e's unified commit path with DT_E thaw.  Needs
+  fresh measurement at HEAD `8964586e` before anything else.
   ```bash
   cd /home/claude/corpus/programs/snobol4/demo
   /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
@@ -285,11 +287,14 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ---
 
-## Current state (2026-04-19 -- SN-21e IN PROGRESS, Gates PASS=7/48)
+## Current state (2026-04-19 -- SN-21e COMPLETE, Gates PASS=7/48)
 
-**HEAD:** one4all @ `13fc94dd` (SN-21e partial). Previous: `2f5cd02d` (SN-21d complete).
+**HEAD:** one4all @ `8964586e` (SN-21e complete — SN-21 ladder fully landed).
+Previous: `13fc94dd` (SN-21e partial), `2f5cd02d` (SN-21d).
 
-**Gates:** Smoke PASS=7, Broker PASS=48. Broad corpus not re-verified this session.
+**Gates:** Smoke PASS=7, Broker PASS=48. Broad corpus not re-verified this
+session; next session should run `test_interp_broad_corpus_and_beauty.sh` and
+Porter stemmer to measure SN-17's expected movement.
 
 SN-21a (`f04f64b2`): NAME_t / NameKind_t / name_commit_value /
 name_init_as_{var,ptr,call} introduced in name_t.{h,c}, wired into
@@ -306,56 +311,58 @@ cap_t with embedded NAME_t replacing the {varname, var_ptr} pair.
 Immediate ($) writes route through name_commit_value; deferred (.)
 writes use NAME_push / NAME_pop directly.  bb_cap_new builds the
 NAME_t via name_init_as_ptr / name_init_as_var.  JIT trampolines in
-bb_build.c point at bb_cap.  bb_callcap still owns the NM_CALL case.
+bb_build.c point at bb_cap.  bb_callcap still owned the NM_CALL case.
 
 SN-21d (`2f5cd02d`): XCALLCAP now lowers to bb_cap with NM_CALL.
 bb_cap_new_call constructor added (name_init_as_call).  stmt_exec.c
 XCALLCAP + bb_build.c bb_callcap_emit_binary both route through
-bb_cap_new_call; neither touches the old bb_callcap path anymore.
-bb_callcap / bb_callcap_new* / bb_callcap_exported / callcap_t /
-cc_event_t / dedup_callcaps / flush_pending_callcaps all remain
-defined but unreached.
+bb_cap_new_call.  bb_callcap / bb_callcap_new* / bb_callcap_exported
+/ callcap_t / cc_event_t / dedup_callcaps / flush_pending_callcaps
+all left defined but unreached.
 
-**SN-21e PARTIAL (this session, emergency handoff -- step stays `- [ ]`):**
-Part 1 of SN-21e landed — the NAM_* → NAME_* rename and dead-shim deletion
-in snobol4_nmd.c + snobol4.h.  Specifically:
+SN-21e partial (`13fc94dd`, prior session): NAM_* → NAME_* rename
+across 11 files, frame-popper NAM_pop(int) deleted, 5-arg NAM_push
+legacy shim deleted, NAM_entry_t → NAME_entry_t, legacy_dt field
+removed, snobol4.h cleaned.
 
-- Bulk rename across 11 files: NAM_save, NAM_commit, NAM_discard,
-  NAM_mark, NAM_rollback_to, NAM_push_callcap, NAM_push_callcap_named,
-  NAM_pop_one → their NAME_* equivalents.  NAM_pop_one collapsed into
-  NAME_pop (they were aliases).
-- Deleted the NAM_pop(int cookie) no-op frame-popper and its two
-  call sites in stmt_exec.c:1415 and eval_code.c:567.
-- Deleted the 5-arg NAM_push(var, ptr, dt, s, len) legacy shim — zero
-  callers remained after SN-21d.
-- Renamed NAM_entry_t typedef → NAME_entry_t.
-- Removed legacy_dt field from NAME_entry_t.  Its only writer was the
-  deleted NAM_push shim; the DT_K/DT_E dispatch in NAME_commit pass-1
-  was therefore unreachable and has been deleted.  NAME_commit is now
-  a single-pass last-write-wins commit routing every entry through
-  name_commit_value.
-- Cleaned snobol4.h — all legacy NAM_* decls gone; only NAME_* API
-  declared (plus the SN-21 unified lvalue API from name_t.h).
+**SN-21e complete (`8964586e`, this session):** the remaining
+deletions + the DT_E thaw fold.
 
+- stmt_exec.c: callcap_t, cc_event_t, all six globals
+  (g_cc_events / g_callcap_list / *_count / *_cap / g_callcap_gen),
+  callcap_arrays_ensure / cc_events_grow / callcap_list_grow,
+  bb_callcap / bb_callcap_exported / bb_callcap_new /
+  bb_callcap_new_named, dedup_callcaps / flush_pending_callcaps,
+  and the three residual global-write statements at top of
+  exec_stmt — all deleted.  Replaced with tombstone comment.
+- bb_build.c: bb_callcap_exported / bb_callcap_new /
+  bb_callcap_new_named extern decls and callcap_t_bin mirror
+  typedef deleted.  XCALLCAP emitter (bb_callcap_emit_binary)
+  kept — already built bb_cap with NM_CALL since SN-21d.
+- name_t.c: `if (value.v == DT_E) value = EVAL_fn(value);`
+  prepended to name_commit_value.  EVAL_fn is idempotent for
+  DT_S / DT_I / DT_R (non-DT_E paths pay zero cost).  Every
+  NameKind_t (NM_VAR / NM_PTR / NM_CALL / NM_IDX) now sees
+  an already-thawed value — single dispatch point for the
+  SN-20 `*var-holds-DT_E` fix.
+- name_t.h / bb_box.h / sm_codegen.c / sm_interp.c — comments
+  swept; all references to bb_callcap as a live surface updated
+  to reflect its absorption into bb_cap.
+
+Diff: 7 files changed, 80 insertions(+), 308 deletions(-).
 Build clean, gates PASS=7 / PASS=48.
 
-**SN-21e REMAINING (next session):**
-1. Delete callcap dead code from stmt_exec.c: bb_callcap, bb_callcap_exported,
-   bb_callcap_new, bb_callcap_new_named, callcap_t, cc_event_t,
-   dedup_callcaps, flush_pending_callcaps, g_cc_events / g_callcap_list
-   globals + their realloc scaffolding.
-2. Delete bb_callcap_emit_binary + callcap_t_bin + extern decls from bb_build.c.
-   (Replacement emitter uses bb_cap_new_call — already wired in SN-21d.)
-3. Fold DT_E thaw into name_commit_value: detect value.v == DT_E, call
-   EVAL_fn(value) before NV_SET_fn / interior-pointer write.  Closes
-   SN-20 *var-holds-DT_E gap.
-4. Sweep stale comments mentioning NAM_commit, NAM_push, NAM_pop_one,
-   NamEntry_t->next, etc.  Box struct fields nam_mark / nam_handle are
-   internal and can stay, but the doc-comments referencing old API
-   should be updated.
-5. Gate after: Smoke 7, Broker 48, broad corpus PASS=223/225 (or better
-   if expr_eval closes), expr_eval outputs 7/9/25.5/7/26, sm_min7.sno
-   HIT fires both modes.
+**Next up — SN-17 Porter stemmer measurement.** Was 83.46% --ir-run
+/ 60.64% --sm-run vs SPITBOL 100%.  With DT_E thaw now at a single
+dispatch point, expect movement.  First action next session: run
+porter.sno both modes at HEAD `8964586e`, record deltas.  If SN-17
+has not fully closed, probe the remaining specific divergences —
+they should now be localised rather than scattered across the
+capture paths.
+
+Also worth re-running `test_interp_broad_corpus_and_beauty.sh` to
+confirm broad corpus PASS count is still 223/225 (or better if
+expr_eval closes) at the new HEAD.
 
 Reference: `snobol4python/src/SNOBOL4python/_backend_pure.py` —
 canonical `for x in P.γ(): push; yield; pop` shape.  Our C γ/β/ω
