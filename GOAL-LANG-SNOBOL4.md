@@ -901,6 +901,65 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
     **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
 
+  - [x] **SN-23h** -- SIL-match: delete handle-based `NAME_pop`,
+    rename `NAME_pop_top` → `NAME_pop`.  **Done 2026-04-19.**
+    one4all @ `a556167b`.
+
+    **Motivation:** comparison of the landed SN-23f API (6 entries)
+    against the SIL's §NMD ground truth in `v311.sil` and `snobol4.c`
+    showed the SIL gets by with three core ops:
+    - `ENME`: write slot at `NBSPTR+NAMICL`; `INCRA NAMICL,DESCR+SPEC`
+    - `DNME` (backup): `DECRA NAMICL,DESCR+SPEC` — bare decrement
+    - `NMD` (commit): walk `NHEDCL..NAMICL`, fire each
+
+    Plus a nested-frame bracket via `PUSH/POP (NHEDCL)` in the trace
+    handler — which maps 1:1 to our `NAME_ctx_enter/leave`.
+
+    The SIL has no handle, no mark, no rollback — just "decrement
+    NAMICL."  Our `NAME_pop(handle)` was defensive engineering against
+    a case that doesn't arise: the SN-22d audit proved every box's β/ω
+    pops the top, and `bb_boxes.c:576`'s sole live `NAME_push` call
+    already discards the return via `(void)` cast.  The handle was
+    dead on arrival.
+
+    **Landed changes:**
+    - `snobol4_nmd.c`: deleted handle-based `NAME_pop(void *handle)`
+      (~13 LOC) and the now-unused `handle_to_idx()` helper (1 line).
+      Renamed `NAME_pop_top(void)` → `NAME_pop(void)`; comment rewritten
+      to reference the SIL DNME analogy directly.  File header
+      ARCHITECTURE block rewritten to describe the five-op surface and
+      its SIL equivalents.  HISTORY gained an SN-23h entry.  SPRINT
+      tag bumped to SN-23h.
+    - `name_t.h`: `NAME_pop_top` declaration deleted; `NAME_pop`
+      declaration changed to `void NAME_pop(void);`.  Doc comment
+      updated.
+    - `snobol4.h`: `NAME_pop` prototype changed to
+      `void NAME_pop(void);` with new doc comment explaining the SIL
+      analogy.  Updated `NAME_ctx_enter` doc to list the current op set.
+    - `bb_boxes.c`: two `NAME_pop_top()` call sites in `CAP_β` / `CAP_ω`
+      renamed to `NAME_pop()`.  One stale comment updated.
+
+    **Public NAM API after SN-23h (5 entries — minimum possible,
+    SIL-matching):**
+    ```
+    void *NAME_push(const NAME_t *nm, const char *s, int slen);  /* SIL: write + INCRA NAMICL */
+    void  NAME_pop(void);                                        /* SIL: DECRA NAMICL         */
+    void  NAME_commit(void);                                     /* SIL: NMD walk             */
+    void  NAME_ctx_enter(NAME_ctx_t *ctx);                       /* SIL: PUSH NHEDCL; MOVD    */
+    void  NAME_ctx_leave(void);                                  /* SIL: POP NHEDCL           */
+    ```
+
+    `NAME_push` still returns `void *` for source compatibility, but
+    every caller discards the result via explicit `(void)` cast.  A
+    future cleanup could change the return type to `void` — deferred
+    because it touches the prototype and only saves a line.
+
+    **Total API reduction across SN-22/SN-23 arc:**
+    13 entries at start of SN-22 → **5 entries after SN-23h.**  Every
+    remaining entry maps 1:1 to a SIL NMD primitive.
+
+    **Gates:** Smoke PASS=7, Broker PASS=48, build clean, no regression.
+
   - [ ] **SN-23g** -- Test gate:
     - Smoke PASS=7
     - Broker PASS=49
@@ -950,12 +1009,19 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `7888f4d2` — SN-23e + SN-23f landed
-back-to-back.  The NAM API reduction goal of SN-22/SN-23 is now
-complete: 13 entries at start of SN-22 → **6 entries** at end of
-SN-23f.  Surface: `NAME_push`, `NAME_pop`, `NAME_pop_top`,
-`NAME_commit`, `NAME_ctx_enter`, `NAME_ctx_leave`.  Gates: Smoke
-**7**, Broker **48**, no regression.
+**HEAD:** one4all @ `a556167b` — SN-23e + SN-23f + SN-23h landed
+in one session.  The NAM API reduction goal of SN-22/SN-23 is now
+complete *and SIL-matching*: 13 entries at start of SN-22 → **5
+entries** at end of SN-23h.  Every remaining entry maps 1:1 to a
+SIL NMD primitive:
+
+    NAME_push       ↔ SIL: write at NBSPTR+NAMICL; INCRA NAMICL
+    NAME_pop        ↔ SIL: DECRA NAMICL (DNME backup procedure)
+    NAME_commit     ↔ SIL: NMD walk NHEDCL..NAMICL
+    NAME_ctx_enter  ↔ SIL: PUSH (NHEDCL); MOVD NHEDCL,NAMICL
+    NAME_ctx_leave  ↔ SIL: POP (NHEDCL)
+
+Gates: Smoke **7**, Broker **48**, build clean, no regression.
 
 **Next step:** **SN-23g** — test gate.  On a machine with
 `/home/claude/corpus` populated, run the broad corpus suite
@@ -963,27 +1029,16 @@ SN-23f.  Surface: `NAME_push`, `NAME_pop`, `NAME_pop_top`,
 whether `expr_eval` flips to PASS (→ 224/225) now that the NAM
 bookkeeping layer is fully collapsed.  If `expr_eval` still fails,
 the residual work is the layered EVAL/arithmetic bugs that
-SN-6b/SN-6c already noted as orthogonal to SN-22/23 — those move
-forward as their own rung (SN-6d or similar) on the path to
-**SN-7** (beauty.sno self-host × 18 combos).
+SN-6b/SN-6c already noted as orthogonal — those move forward as
+their own rung on the path to **SN-7** (beauty.sno self-host × 18
+combos).
 
 **Useful follow-ups noted during SN-22/23** (small, safe, not gating):
-- Audit `eval_code.c` `EXPVAL_fn` `NAME_save`/`NAME_discard` pair —
-  already rewired to ctx_enter/leave at SN-23c.  Nothing further.
+- `NAME_push` still returns `void *` for source compatibility but
+  every caller discards it.  Change to `void` return is a defensible
+  one-line cleanup.
 - `cache_get_fresh` template purity — the real SN-6c root cause.
-  bb_cap is now self-healing at the site (SN-23d-follow-up) but any
-  other box type storing in-flight scalars is vulnerable to the same
-  class of bug.  Pristine-template rewrite is a defensible cleanup
-  if symptoms appear elsewhere.
-
-
-**Useful follow-ups noted during SN-22/23** (small, safe, not gating):
-- Delete `NAME_push_callcap` / `NAME_push_callcap_named` — zero real
-  callers since SN-21d (bb_cap uses `NAME_push` directly).
-- Audit `eval_code.c` `EXPVAL_fn` `NAME_save`/`NAME_discard` pair —
-  same self-unwind reasoning likely applies; candidate for SN-23e/f.
-- `cache_get_fresh` template purity — the real SN-6c root cause.
-  bb_cap is now self-healing at the site (SN-23d-follow-up) but any
+  bb_cap is self-healing at the site (SN-23d-follow-up) but any
   other box type storing in-flight scalars is vulnerable to the same
   class of bug.  Pristine-template rewrite is a defensible cleanup
   if symptoms appear elsewhere.
