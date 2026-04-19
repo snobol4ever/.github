@@ -240,18 +240,62 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   Gate: Smoke 7, Broker 48 (verified at HEAD `8964586e`).
 
 - [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run.
-  Remaining: `expr_eval` (NAME_t / DT_E), `demo_claws5` (GOAL-SNO-CLAWS5.md).
+  Remaining: `expr_eval` (see below), `demo_claws5` (GOAL-SNO-CLAWS5.md).
   ```bash
   bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
   ```
 
+  **expr_eval diagnostic (measured at `8964586e`, this session):**
+  Two distinct failure modes — not a single bug.
+  - `--ir-run`: 4 of 5 input lines → `snobol4:0: error: parse error:
+    syntax error`.  Suspicious: that is the SNOBOL4 **frontend
+    parser**, not a pattern-match failure.  EVAL(op arg) may be
+    compiling the evaluated string as SNOBOL4 statements and
+    tripping the parser.  The 2 lines that do parse produce wrong
+    values: `(1+2)*3` → `3` (should be 9), `-3+10` → `10` (should
+    be 7).  So two bugs layered: the EVAL call path, and operator
+    precedence / Pop() ordering.
+  - `--sm-run`: 5 of 5 → `Bad input, try again`.  The pattern
+    `POS(0) expr RPOS(0)` fails for every input.  The recursive
+    `primary = constant | '(' *expr ')'` is likely the fault
+    line — *expr self-reference via bb_cap / NM_CALL paths.
+
+  Not a DT_E issue (verified identical output at pre-SN-21e HEAD).
+
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers x 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
 
-- [ ] **SN-17** -- **CURRENT.** Porter stemmer: --ir-run 83.46%, --sm-run
-  60.64% vs SPITBOL 100%. Expected to close (or close significantly) as
-  side-effect of SN-21e's unified commit path with DT_E thaw.  Needs
-  fresh measurement at HEAD `8964586e` before anything else.
+- [ ] **SN-17** -- **CURRENT.** Porter stemmer gap; see measurement block below.
+
+  **Measured at HEAD `8964586e` (this session):**
+  - `--ir-run`: 19674 / 23531 matched = **83.60%** (baseline 83.46%)
+  - `--sm-run`: 14317 / 23531 matched = **60.84%** (baseline 60.64%)
+  - Broad corpus: PASS=223/225 (unchanged — `expr_eval`, `demo_claws5` open).
+
+  **The SN-20 side-effect prediction was wrong.**  Verified by
+  rebuilding at pre-SN-21e `13fc94dd` and measuring: Porter and
+  `expr_eval` produce byte-identical output at both HEADs.  The
+  DT_E thaw fold is live but no test in the gap reaches it.
+  Neither Porter nor expr_eval is a `*var-holds-DT_E` case.
+
+  **Porter gap shape** (from first divergences in diff):
+  ```
+  abate     → SPITBOL: abat    ours: ab
+  abated    → SPITBOL: abat    ours: ab
+  abatement → SPITBOL: abat    ours: (empty)
+  abates    → SPITBOL: abat    ours: (empty)
+  absence   → SPITBOL: absenc  ours: abs
+  ```
+  Consistent over-stripping.  Porter's measure tests (`m>0`, `m>1`)
+  count vowel/consonant sequences via patterns; when they mis-fire,
+  step-1c / step-5 aggressively strip suffixes that should be kept.
+  Not DT_E.  Probably how `bb_cap` interacts with ARBNO-wrapped
+  alternation and the measure-count pattern.
+
+  **Next action (next session):** instrument one failing word (e.g.
+  `abate`) through the measure-test path in both SPITBOL and scrip
+  `--ir-run`, compare each match attempt.
+
   ```bash
   cd /home/claude/corpus/programs/snobol4/demo
   /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
