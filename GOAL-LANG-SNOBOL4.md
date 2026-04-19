@@ -285,13 +285,83 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   Not DT_E (verified identical at pre-SN-21e).
 
+- [ ] **SN-22** -- NAM API reduction: **push + pop only, one stack per
+  match, no marks, no rollback, no save/discard, no top/pop_above**.
+
+  **Source of truth:** `snobol4python/_backend_pure.py` — `Δ` class (`P . N`
+  conditional assignment).  On every γ, it `cstack.append(command)` then
+  `yield`; on generator backtrack past the yield, it `cstack.pop()`.  One
+  `cstack` per `SNOBOL` instance (per SEARCH-cursor attempt at
+  `_backend_pure.py:818`).  At full-match commit the driver iterates
+  `cstack` in push order and executes each entry (`_backend_pure.py:861`).
+  That is the complete protocol.  **Two operations.  One stack.  No
+  bookkeeping.**
+
+  **What's wrong today:** SN-20 neutralised `NAME_rollback_to` to a no-op
+  and declared box-owned self-unwinding (every pusher owns its pop on β/ω
+  via `NAME_pop`).  But the `NAME_mark()` calls in `bb_alt` and `bb_arbno`
+  were never removed — they still snapshot, and the no-op `NAME_rollback_to`
+  calls remain scattered.  The API surface — `NAME_mark`, `NAME_rollback_to`,
+  `NAME_save`, `NAME_discard`, `NAME_top`, `NAME_pop_above`, `NAME_commit`
+  — has six redundant entry points for what should be push + pop + (at
+  commit) walk-and-fire.
+
+  **Reference invariant from Python backend:**
+  ```
+  class Δ:
+      def γ(self):
+          for _1 in self.P.γ():
+              Ϣ[-1].cstack.append(f"{N} = STRING(... {_1.start}:{_1.stop} ...)")
+              yield _1                             # match proceeds
+              Ϣ[-1].cstack.pop()                   # backtrack: auto-unwind
+  ```
+  `bb_cap` is already structured this way — NAME_push at γ, NAME_pop at
+  β / ω.  The rest of the engine must stop touching the NAM stack.
+
+  **Plan:**
+
+  - [ ] **SN-22a** -- Delete `nam_mark`/`NAME_mark`/`NAME_rollback_to`
+    calls from `bb_alt` (`bb_boxes.c:78-110`).  Remove `nam_mark` field
+    from `alt_t`.  The `bb_cap` self-unwind already handles failed arms
+    correctly — every `.` entry pushed by a failing arm is popped by its
+    owning `bb_cap` on β / ω.
+
+  - [ ] **SN-22b** -- Same for `bb_arbno` (`bb_boxes.c:146-182`): delete
+    `nam_mark` from `arbno_frame_t`, delete `NAME_mark`/`NAME_rollback_to`
+    calls at `ARBNO_try`, `body_ω`, `ARBNO_γ_now`.
+
+  - [ ] **SN-22c** -- Reduce the public API in `snobol4.h` + `snobol4_nmd.c`
+    to exactly three exported functions:
+       * `void *NAME_push(NAME_t *, const char *substr, int slen);`
+       * `void  NAME_pop(void *handle);`
+       * `void  NAME_commit(int cookie);`  (walk live slots, fire
+         `name_commit_value` on each, drop range — kept because
+         commit-time execution mirrors the Python driver's
+         `for command in cstack: exec(command)` on success)
+    Delete `NAME_mark`, `NAME_rollback_to`, `NAME_save`, `NAME_discard`,
+    `NAME_top`, `NAME_pop_above`.  Replace `NAME_save()` call sites in
+    `eval_code.c:559` and `stmt_exec.c:1191` with a direct read of the
+    current stack depth (inline — this is the only "cookie" consumer).
+
+  - [ ] **SN-22d** -- Verify SN-6b (`expr_eval` arithmetic) is now
+    byte-identical to SPITBOL.  Hypothesis: once `bb_alt` stops doing
+    any NAM mark/rollback bookkeeping, the recursive
+    `expr = *term addop *expr . *Binary() | *term` grammar no longer
+    corrupts the cstack across alt arms under recursion.  If
+    `expr_eval` still fails after SN-22c, the bug is elsewhere
+    (token-order in Binary, not NAM machinery).
+
+  **Gate:** Smoke PASS=7, Broker PASS=49, Broad corpus must not regress
+  (≥223/225).  `expr_eval` expected to flip to PASS on SN-22d.
+
 - [ ] **SN-6b** -- expr_eval arithmetic path.  Shared bug in `--ir-run`
   and `--sm-run`: `(1+2)*3` → 3 (expected 9), `-3+10` → 10 (expected 7),
   plus stderr noise when EVAL gets an unparseable string (bison callback
   `snobol4_error` → `sno_error` writes to stderr unconditionally).
   The stderr noise is cosmetic but visible in diff-based gates.  The
   arithmetic issue is either EVAL argument-order / Pop() stack order
-  or operator precedence in the pushed token sequence.
+  or operator precedence in the pushed token sequence.  **Likely
+  subsumed by SN-22** — retest after SN-22d.
 
 - [ ] **SN-7** -- beauty.sno self-host: 6 drivers × 3 modes = 18 combos,
   diff=0 vs SPITBOL. Gate: smoke PASS=7, broker PASS=49, all 18 diff=0.
@@ -330,15 +400,15 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 **HEAD:** one4all @ `cae6d125` (SN-6a). Gates: Smoke 7, Broker 49.
 Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
 byte-identical to SPITBOL ref.  Broad corpus: PASS=223/225
-(`expr_eval` and `demo_claws5` remain).  SN-6a closed the `--sm-run`
-self-recursive pattern bug (`SM_PAT_REFNAME` opcode); `--sm-run` and
-`--ir-run` now produce byte-identical output on expr_eval, both still
-mismatch SPITBOL due to the separate Binary/Unary arithmetic path
-tracked as SN-6b.
+(`expr_eval` and `demo_claws5` remain).
 
-**Next step:** SN-6b — expr_eval Binary/Unary arithmetic path.  The
-recursion-mode regression is gone; remaining gap is a shared
-`--ir-run`/`--sm-run` bug in how pushed tokens are combined into the
-EVAL string and/or how Pop() orders them.  With SN-6a closed, beauty
-self-host (SN-7) remains the gating milestone for declaring the
-SNOBOL4 Frontend Ladder done.
+**Next step:** **SN-22** — NAM API reduction driven by the Python
+reference backend (`snobol4python/_backend_pure.py` Δ class).  The
+discovery: `NAME_rollback_to` is a no-op left over from SN-20, but
+`bb_alt` and `bb_arbno` still *call* `NAME_mark` / `NAME_rollback_to`.
+With box-owned self-unwind (SN-20), those calls are dead weight
+masking the simple invariant: **one stack per match attempt, push on
+γ, pop on β/ω, walk-and-fire on commit**.  Reduce the API to `push`,
+`pop`, and `commit`; delete `mark` / `rollback_to` / `save` / `discard`
+/ `top` / `pop_above`.  Expected to resolve SN-6b (`expr_eval`
+recursive-pattern corruption).
