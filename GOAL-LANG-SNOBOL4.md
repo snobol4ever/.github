@@ -263,9 +263,9 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-6 session 10, PROTOTYPE proto_bare + sm_lower halt)
+## Current state (2026-04-18 — SN-6 session 11, NAM_push bb_boxes.c latent fix)
 
-**HEAD:** one4all `925f5b23` — PROTOTYPE proto_bare fix; sm_lower undefined-label halt.
+**HEAD:** one4all `7847c1ed` — bb_boxes.c NAM_push in conditional capture path (--bb-live fix).
 
 **Gates this session:**
 - Smoke PASS=7, broker PASS=49 — both green
@@ -304,7 +304,17 @@ to print wrong opcode names for all opcodes from index 46 onward
 - `beauty_XDump_driver` — PROTOTYPE proto_bare fix + sm_lower undefined-label halt. PASS.
 - `1113_table` — also fixed by proto_bare (TABLE->ARRAY prototype was wrong). PASS.
 
-**Next session starts with:** `word1` / NAM commit-time dispatch — `ARB . OUTPUT` immediate-assignment not firing in SM. Same root cause as `expr_eval` and SN-17 Porter gap.
+**Next session starts with:** `word1` / NAM_commit not writing OUTPUT under --sm-run.
+
+**Diagnosis so far (session 11):**
+- `--sm-run` uses BB_MODE_DRIVER (not BB_MODE_LIVE). XNME path:
+  `bb_build → bb_nme_emit_binary → bb_capture_new → bb_capture_exported → stmt_exec.c bb_capture`
+  which DOES call `NAM_push()`. So NAM_push is in the active code path.
+- bb_boxes.c bb_capture (used only under --bb-live) was also missing NAM_push — fixed in 7847c1ed.
+- Minimal repro `S = "hello world" / S ? "hello" ARB . OUTPUT` also silent under --sm-run.
+- Next probe: add stderr trace to NAM_push + NAM_commit to confirm they are reached at all
+  under --sm-run. Suspect NV_SET_fn("OUTPUT",...) may not trigger stdout write when called
+  from NAM_commit context (different call stack than ir-run ASGN path).
 
 
 **HEAD:** one4all `607c4dfb` — SM arithmetic operands coerce DT_SNUL to
