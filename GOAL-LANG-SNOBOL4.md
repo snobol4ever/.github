@@ -82,9 +82,19 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       Ladder SN-21a..e landed across multiple sessions; full design rationale
       in the SN-21a..e commit messages.  HEAD `8964586e` (SN-21e).
 
-- [ ] **SN-17** -- **CURRENT.** Porter stemmer gap — root cause isolated, pivoted to three-mode unification.
+- [x] **SN-17** -- Porter stemmer gap closed.  Done 2026-04-19.
+      `--ir-run` and `--sm-run` both at **100.00%** / 23531 on porter.sno.
+      Sub-rungs landed: SN-17a (SM_PAT_USERCALL opcode, commit `f2cf3494`)
+      and SN-17d (FAIL propagation in `bb_usercall`, commit `9d9d2dd3`).
+      SN-17b and SN-17c deferred — they were not required for the Porter
+      fix after SN-17a routed both modes through the same XATP /
+      `bb_usercall` path, making SN-17d a single-file fix that landed in
+      both modes simultaneously.
 
-  **Measured at HEAD `8964586e`:**
+  **History preserved below for the next session that encounters a
+  similar shared-path / parallel-switch question:**
+
+  **Measured at HEAD `8964586e` (pre-SN-17):**
   - `--ir-run`: 19674 / 23531 matched = **83.60%**
   - `--sm-run`: 14317 / 23531 matched = **60.84%**
   - Broad corpus: PASS=223/225 (unchanged).
@@ -165,35 +175,42 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       `--ir-run`-accidentally-right to `--both`-equally-wrong.  SN-17d
       will recover them in both modes simultaneously.
 
-- [ ] **SN-17b** -- Unify `bb_build` dispatch.
-      Goal: eliminate the two parallel XKIND switches. Two design options
-      to weigh at implementation time:
-      (i) Single shared `bb_build_dispatch(PATND_t*, bb_build_mode_t)` in a
-      new file; stmt_exec.c and bb_build.c both call it.
-      (ii) Table-driven: `bb_box_ctor_t g_ctors[XKIND_COUNT]` indexed by
-      XKIND; each entry is a function pointer.  Both files consult the
-      same table.
-      Gate: Smoke PASS=7, Broker PASS=49, no diff in Porter output.
+- [~] **SN-17b** -- Unify `bb_build` dispatch.  **DEFERRED**: inspection
+      at SN-17a found that stmt_exec.c's `bb_build` and bb_build.c's
+      `bb_build_binary_node` produce *different* artifacts (C closure
+      `bb_node_t` vs native x86 trampoline `bb_box_fn`), not parallel
+      dispatchers answering the same question.  They share the XKIND
+      switch skeleton but each case emits a fundamentally different
+      object.  Neither goal-file option fits cleanly: (i) with a mode
+      flag forces every case body to branch on mode, reducing clarity;
+      (ii) a single function-pointer table can't carry two return
+      types.  More importantly, SN-17d landed with a single-file fix
+      to `bb_usercall` — unification was not required to get the
+      Porter fix into both modes, because SN-17a had already routed
+      them through the same XATP / bb_usercall path.  Keep as optional
+      cleanup; not on the SN-7 critical path.
 
-- [ ] **SN-17c** -- Unify SM opcode handlers.
-      Extract each `case SM_*:` body from `sm_interp.c` into a named
-      function `sm_handle_<op>(SM_State *st, SM_Ins *ins)`.  `sm_interp.c`
-      switch body becomes `sm_handle_<op>(st, ins); break;`.  `sm_codegen.c`
-      handlers become one-line wrappers using the JIT globals.
-      Single source of truth per opcode.
-      Gate: Smoke PASS=7, Broker PASS=49, no diff in Porter/beauty output.
+- [~] **SN-17c** -- Unify SM opcode handlers.  **DEFERRED** for the
+      same reason as SN-17b: the duplication cost was paid once in
+      SN-17a (adding SM_PAT_USERCALL in sm_interp.c + sm_codegen.c)
+      and SN-17d didn't need it.  Still a defensible cleanup, but
+      not required for SN-7.
 
-- [ ] **SN-17d** -- Fix `*fn()` FAIL propagation **once**, lands in all
-      three modes via the unified dispatch from SN-17a..c.
-      The fix shape (sketch, needs real-shape verify):
-      ```c
-      DESCR_t r = g_user_call_hook(name, args, nargs);
-      if (IS_FAIL_fn(r))                             return FAILDESCR;
-      if (r.v == DT_P && r.p && r.p->kind == XFAIL)  return FAILDESCR;
-      /* else epsilon */
-      ```
-      Gate: Porter `--ir-run` and `--sm-run` both move upward and
-      converge.  Target: both match SPITBOL on `abate`/`absence`/etc.
+- [x] **SN-17d** -- Fix `*fn()` FAIL propagation.  Done 2026-04-19.
+      Single-file change to `bb_usercall` in `stmt_exec.c`: invoke
+      `g_user_call_hook` eagerly at α and propagate FAIL directly
+      (both `DT_FAIL` and `DT_P` wrapping `XFAIL` shapes handled).
+      No NAM push needed — nothing to defer for bare `*fn()`.  The
+      `. / $` capture forms still use NAME_push_callcap via bb_cap /
+      XCALLCAP (untouched).
+
+      **Porter measurement (paste-agree / 23531):**
+      - `--ir-run`: 19639 → **23531 (100.00%)**
+      - `--sm-run`: 19639 → **23531 (100.00%)**
+      - Mode agreement: 23531 / 23531 (both modes byte-identical).
+      - Gates: Smoke PASS=7, Broker PASS=49 (+1 — pre-existing 48/49
+        drift was the same bug; this fix repairs it), Broad corpus
+        PASS=223/225 (same two pre-existing fails).
 
   **Reproduction commands:**
   ```bash
@@ -261,9 +278,12 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `f2cf3494` (SN-17a). Gates: Smoke 7, Broker 48.
-Porter `--ir-run` and `--sm-run` now converge at 19639/23531 (83.46%).
-Broad corpus: PASS=223/225 (unchanged).
+**HEAD:** one4all @ `9d9d2dd3` (SN-17d). Gates: Smoke 7, Broker 49.
+Porter `--ir-run` and `--sm-run` both at **100.00%** / 23531,
+byte-identical to SPITBOL ref.  Broad corpus: PASS=223/225 (unchanged;
+SN-6 remaining).
 
-**Next step:** SN-17b — unify `bb_build` dispatch (two design options in
-the SN-17b entry above).
+**Next step:** SN-6 — close the last two broad-corpus fails (expr_eval
+has two layered bugs; demo_claws5 tracked in GOAL-SNO-CLAWS5.md).  With
+SN-17 closed, beauty self-host (SN-7) is now the gating milestone for
+declaring the SNOBOL4 Frontend Ladder done.
