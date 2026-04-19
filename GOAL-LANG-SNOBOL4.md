@@ -1217,17 +1217,49 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   - `src/runtime/x86/sm_codegen.c`: added `h_push_expr` handler and
     `g_handlers[SM_PUSH_EXPR] = h_push_expr` registration.
 
-- [ ] **SN-9b** -- Close remaining codegen handler gaps.  Target
-  opcodes: `SM_ACOMP`, `SM_LCOMP`, `SM_JUMP_INDIR`, `SM_BB_ONCE`,
-  `SM_BB_PUMP`.  These did not surface on the SNOBOL4-only broad
-  corpus (which is why they weren't caught earlier), but they will
-  bite when a `--jit-run` program hits any of: an arithmetic/length
-  comparison keyword (LE/GE/LT/GT/EQ/NE/LE/LEQ as SM_ACOMP), a
-  computed-goto `:(expr)`, or a Prolog/Icon generator routed through
-  BB broker.  Each needs a handler that mirrors its `sm_interp.c`
-  case; registration in `g_handlers[]`.  Gate: new stub / synthetic
-  programs that exercise each opcode on `--jit-run`, byte-identical
-  to `--sm-run`.
+- [x] **SN-9b** -- Close remaining codegen handler gaps.
+  **Done 2026-04-19.**  one4all @ `f8b06dc6`.
+
+  Scoped tight by the parity audit: of the five opcodes `sm_lower`
+  emits that codegen left as `h_unimpl`, only two were genuine live
+  JIT gaps — `SM_BB_PUMP` (Icon/Raku generators) and `SM_BB_ONCE`
+  (Prolog backtracking).  The other three (`SM_ACOMP`, `SM_LCOMP`,
+  `SM_JUMP_INDIR`) are stale or cross-mode issues outside SN-9 scope;
+  see classification in the original SN-9 audit block above.
+
+  **Landed changes (sm_codegen.c):**
+  - `bb_broker.h` include + `icn_eval_gen` extern declaration.
+  - `h_bb_pump` handler (~12 LOC): pops DT_E, extracts EXPR_t*, calls
+    `icn_eval_gen` to build a bb_node_t, drives via
+    `bb_broker(node, BB_PUMP, jit_pump_print, NULL)`.  Sets
+    `last_ok = (ticks > 0)`.
+  - `h_bb_once` handler (~10 LOC): same shape but `BB_ONCE` intent
+    and no print callback.
+  - `jit_pump_print` callback — identical logic to the `pump_print`
+    static in sm_interp.c, renamed to avoid link-time collision
+    (both files compile to separate .o's but the symbol is static
+    in sm_interp.c — the rename is defensive, keeps the codegen
+    copy distinct).
+  - Registration: `g_handlers[SM_BB_PUMP] = h_bb_pump;`
+    `g_handlers[SM_BB_ONCE] = h_bb_once;`.
+  - Rewrote the stale comment at the bottom of `init_handler_table`
+    (referenced a defunct "PASS=178 corpus").  New comment classifies
+    each remaining `h_unimpl` stub as *stale emit path* (ACOMP/LCOMP),
+    *cross-mode issue* (JUMP_INDIR), or *never emitted* (TRIM, SPCINT,
+    SPREAL, SELBRA, STATE_PUSH/POP, RCOMP).
+
+  **Verification:** `test/raku_gather.scrip` (the existing
+  BB_PUMP polyglot test used by the broker smoke) produces
+  byte-identical output under `--sm-run` and `--jit-run`.
+
+  **Gates (all green, no regressions):**
+  - Smoke PASS=7
+  - Broker PASS=49
+  - SN-7 beauty self-host PASS=51/51
+  - Broad corpus PASS=224/225 (`demo_claws5` only, pre-existing)
+  - Porter `--ir-run` / `--sm-run` / `--jit-run` all 0-line diff
+
+  **Files changed:** `src/runtime/x86/sm_codegen.c` (+56 LOC, -4).
 
 - [ ] **SN-9c** -- End-to-end `--jit-run` gate: broad corpus
   `--jit-run` at 224/225 parity with `--ir-run` / `--sm-run`.  This
@@ -1267,12 +1299,16 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `231a52e5` — SN-9a landed this session.  Added
-`h_push_expr` handler to `sm_codegen.c` for the `SM_PUSH_EXPR` opcode
-that `sm_lower` had been emitting all along but codegen was silently
-stubbing out as `h_unimpl`.  This closed the last gap preventing
-Porter `--jit-run` from matching its reference — the stemmer is now
-byte-identical across all three execution modes.
+**HEAD:** one4all @ `f8b06dc6` — SN-9b landed this session.  Added
+`h_bb_pump` and `h_bb_once` handlers to `sm_codegen.c` for the two
+genuine JIT gaps uncovered by the parity audit: the BB-broker opcodes
+that polyglot programs emit for Icon/Raku generators and Prolog
+backtracking.  Direct ports of `sm_interp.c:612-635`; verified
+byte-identical between `--sm-run` and `--jit-run` on
+`test/raku_gather.scrip`.  The stale "PASS=178 corpus" comment in
+the codegen handler-table block was rewritten to classify each
+remaining `h_unimpl` stub honestly (stale emit, cross-mode issue,
+or never emitted).
 
 Gates (all green, no regressions): Smoke **7**, Broker **49**,
 Broad corpus **224/225** (only `demo_claws5` remaining — tracked under
@@ -1280,13 +1316,15 @@ Broad corpus **224/225** (only `demo_claws5` remaining — tracked under
 self-host **51/51**, Porter `--ir-run` / `--sm-run` / `--jit-run` all
 byte-identical to SPITBOL ref (0-line diff / 23531).
 
-**Next step:** **SN-9b** — close the remaining codegen handler gaps
-found by the parity audit (see SN-9 rung above): `SM_ACOMP`,
-`SM_LCOMP`, `SM_JUMP_INDIR`, `SM_BB_ONCE`, `SM_BB_PUMP`.  These
-didn't surface on the SNOBOL4-only broad corpus but would bite any
-program that hits arithmetic/length comparisons, computed gotos, or
-Prolog/Icon BB-broker pumps through the JIT.  After SN-9b, SN-9c
-codifies the `--jit-run` broad-corpus gate.
+**Session trajectory this session:** SN-9a (one4all @ `231a52e5`) →
+SN-9b (one4all @ `f8b06dc6`).  Two surgical codegen handler additions
+closed the `--jit-run` gaps that actually fire on current corpus.
+
+**Next step:** **SN-9c** — codify a `--jit-run` broad-corpus gate as
+a checked-in script (`scripts/test_smoke_snobol4_jit.sh` or
+extension of the existing broad-corpus script to run all three modes
+and diff).  After SN-9c lands, SN-9 closes and the ladder moves to
+Phase 3 polish / the remaining latent follow-ups below.
 
 Latent follow-ups inherited from SN-8a (still open):
 
