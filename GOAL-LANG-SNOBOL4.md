@@ -129,17 +129,19 @@ bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
 
 ---
 
-## Current state (2026-04-19 -- SN-6 session 12, PASS=223/225)
+## Current state (2026-04-19 -- SN-6 session 13, PASS=223/225)
 
-**HEAD:** one4all 2c8d4a79 -- stmt_exec.c XNME/XFNME NAMEVAL-aware varname
-extraction (Bug #1d fix). word1 now passes under --sm-run.
+**HEAD:** one4all (session 13) -- interp.c: skip spurious upfront
+evaluation of E_FNC subject in execute_program top-level loop when
+has_eq && !pattern. Partial fix for expr_eval Bug #1 family --
+minimal reproducer now correct, expr_eval.sno itself still fails.
 
-**Gates:** Smoke PASS=7, broker PASS=49, broad 223/225.
+**Gates:** Smoke PASS=7, broker PASS=49, broad 223/225 (no regression).
 
 ### SN-6 remaining failures (2 of 225)
 
 - `expr_eval` -- 1+2*3 -> 2 (ir); "Bad input, try again" (sm).
-  Commit-time *fn() dispatch (Bug #1 family). Separate from word1.
+  Partially diagnosed in session 13. See "expr_eval diagnosis" below.
 - `demo_claws5` -- see GOAL-SNO-CLAWS5.md (separate goal).
 
 ### word1 diagnosis -- RESOLVED (session 12, 2026-04-19)
@@ -159,4 +161,59 @@ Fix mirrors bb_build.c bb_nme_emit_binary / bb_fnme_emit_binary
 NAMEVAL-aware logic: DT_N with slen==0 carries name string in `.s`,
 DT_N with slen==1 carries raw pointer in `.ptr`. Both cases preserved.
 
-### Next: expr_eval (Bug #1 family, distinct root cause)
+### Next: expr_eval (Bug #1 family) -- analogous fix needed in fn-body loop
+
+### expr_eval diagnosis -- PARTIAL (session 13, 2026-04-19)
+
+Isolated from the confounded "Bug #1 family" into two distinct bugs:
+
+1. **IR: spurious LHS-as-fn evaluation.** `Push() = 'hello'` fired
+   `Push` TWICE instead of once: once by `interp_eval(s->subject)` at
+   top of `execute_program` statement loop (~L4143), once by the
+   dedicated NRETURN-lvalue-assign branch (~L4287) that calls
+   `call_user_function` to get the write target.
+
+   Fix committed: add guard `s->subject->kind == E_FNC && s->has_eq
+   && !s->pattern` before the generic `interp_eval(s->subject)` in
+   `execute_program`, mirroring the existing E_VAR guard at L4119
+   (which carries a comment about the same spurious-call hazard).
+
+   Minimal repro `Push() = 'hello'` (see end of file for text) now
+   matches SPITBOL exactly: 1 call, top=1. `expr_eval.sno` itself
+   still fails identically -- the `Binary()` function body does
+   `Push() = EVAL(...)` inside `call_user_function`, and the
+   function-body statement loop (~L558-740 in interp.c) has the SAME
+   unguarded upfront `interp_eval(s->subject)` site that needs the
+   same fix. Without it, inside-a-body `fn() = expr` still doubles.
+
+2. **SM: total pattern-match failure.** `--sm-run` returns "Bad
+   input" for ALL inputs, not just `1+2*3`. This is a separate bug
+   downstream of the IR path and was NOT touched in session 13.
+   Still likely NAM_KIND_CALLCAP rollback-related per original
+   hypothesis, but isolate AFTER the IR side is clean.
+
+**Minimal IR reproducer** (paste into /tmp/func_assign.sno, run
+under `--ir-run` vs SPITBOL):
+
+```snobol4
+         DEFINE('Push(x)')
+         stk      =  TABLE()                     :(PushEnd)
+Push     stk[0]   =  stk[0] + 1
+         Push     =  .stk[stk[0]]
+         OUTPUT   =  'CALL Push arg="' x '"'     :(NRETURN)
+PushEnd
+         Push()   =  'hello'
+         Push()   =  'world'
+         OUTPUT   =  'slot1=' stk[1] ' slot2=' stk[2] ' top=' stk[0]
+END
+```
+
+SPITBOL/CSNOBOL4: 2 CALLs, `slot1=hello slot2=world top=2`.
+Pre-session-13 --ir-run: 4 CALLs, `slot1= slot2=hello top=4`.
+Post-session-13 --ir-run: 2 CALLs, `slot1=hello slot2=world top=2`.
+
+**Next step for session 14:** apply analogous guard in the
+user-function body statement loop (second site). Same shape:
+find `interp_eval(s->subject)` around lines 558-740 of interp.c
+inside the function-body execution loop, guard with the same
+`E_FNC && has_eq && !pattern` predicate.
