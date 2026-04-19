@@ -82,39 +82,104 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       Ladder SN-21a..e landed across multiple sessions; full design rationale
       in the SN-21a..e commit messages.  HEAD `8964586e` (SN-21e).
 
-- [ ] **SN-17** -- **CURRENT.** Porter stemmer gap.
+- [ ] **SN-17** -- **CURRENT.** Porter stemmer gap — root cause isolated, pivoted to three-mode unification.
 
   **Measured at HEAD `8964586e`:**
-  - `--ir-run`: 19674 / 23531 matched = **83.60%** (baseline 83.46%)
-  - `--sm-run`: 14317 / 23531 matched = **60.84%** (baseline 60.64%)
+  - `--ir-run`: 19674 / 23531 matched = **83.60%**
+  - `--sm-run`: 14317 / 23531 matched = **60.84%**
   - Broad corpus: PASS=223/225 (unchanged).
 
-  **SN-21e did not move Porter.**  Verified byte-identical output
-  at pre-SN-21e `13fc94dd` and post-SN-21e `8964586e`.  The DT_E
-  thaw fold is live but no test in the gap reaches it — Porter is
-  not a `*var-holds-DT_E` case.
-
-  **Gap shape** (first divergences, SPITBOL vs ours):
+  **Root cause** (isolated 2026-04-19): bare `*fn()` guard patterns do not
+  propagate FAIL.  Minimal repro (no `$`, no alternation needed):
+  ```snobol4
+                 DEFINE('g_fail()')
+  g_fail         g_fail = FAIL :(RETURN)
+                 'abate' RTAB(3) 'ate' *g_fail() RPOS(0) :F(no)S(yes)
   ```
-  abate     → abat   vs  ab
-  abated    → abat   vs  ab
-  abatement → abat   vs  (empty)
-  abates    → abat   vs  (empty)
-  absence   → absenc vs  abs
-  ```
-  Consistent over-stripping.  Porter's measure tests (`m>0`, `m>1`)
-  count vowel/consonant sequences via patterns; when they mis-fire,
-  step-1c / step-5 strips suffixes that should be kept.  Likely
-  `bb_cap` × ARBNO-wrapped alternation in the measure pattern.
+  SPITBOL: NO MATCH (sweeps positions, guard fails at each).
+  scrip `--ir-run`: spurious MATCH.
 
-  **Next action:** instrument `abate` through the measure-test path
-  in both SPITBOL and scrip `--ir-run`, compare each match attempt.
+  Porter's `*g_m_gt_0()`, `*g_vis()`, etc. always silently pass → every
+  rule fires → over-stripping (`abate → ab` vs SPITBOL's `abat`).
 
+  **First-pass fix attempt** (reverted, not committed): rewriting
+  `bb_usercall` in `stmt_exec.c` to eagerly invoke `g_user_call_hook` at
+  α caught the call but exposed a second layer — `g_fn = FAIL` returns
+  `DT_P` wrapping `XFAIL`, not `DT_FAIL`.  The check needs both.
+
+  **Pivot — three-mode audit, 2026-04-19:**
+
+  Bug is doubled across modes; no shared execution code means each mode
+  has its own version of the problem:
+
+  | Mode | State of bare `*fn()` | Path |
+  |------|----------------------|------|
+  | `--ir-run` | calls deferred to commit time via NM_CALL, return discarded | stmt_exec.c `bb_usercall` |
+  | `--sm-run` | no opcode — lowering drops the node entirely | sm_lower.c (missing) |
+  | `--jit-run` | inherits sm-run's hole | sm_codegen.c (missing) |
+
+  **Duplication found** (every site must be edited in lockstep):
+
+  1. `stmt_exec.c:bb_build` (35 XKIND cases) ↔ `bb_build.c:bb_build_binary_node`
+     (24 XKIND cases) — parallel dispatchers; bb_build.c returns NULL to
+     fall back to stmt_exec.c for unimplemented kinds.
+  2. `sm_interp.c` (63 SM opcode cases) ↔ `sm_codegen.c` (52 `h_*` handlers)
+     — pattern-construction handlers are line-for-line copies around the
+     shared `pat_*` constructors in `snobol4_pattern.c`.
+  3. `snobol4_pattern.c` `pat_*` constructors ARE shared — the unification
+     we have is at the node-construction level; dispatch is where it splits.
+
+  **Fresh rung ladder — SN-17a..d:**
+
+- [ ] **SN-17a** -- Add `SM_PAT_USERCALL` opcode.
+      - Add opcode in `sm_prog.h`.
+      - Lower XATP-with-non-`@` in `sm_lower.c` to `SM_PAT_USERCALL`.
+      - Add `case SM_PAT_USERCALL:` in `sm_interp.c`.
+      - Add `h_pat_usercall` handler in `sm_codegen.c`, register in
+        `g_handlers`.
+      - Gate: `--sm-run` Porter measurement moves (even if still broken,
+        number must change — proves the opcode fires).
+
+- [ ] **SN-17b** -- Unify `bb_build` dispatch.
+      Goal: eliminate the two parallel XKIND switches. Two design options
+      to weigh at implementation time:
+      (i) Single shared `bb_build_dispatch(PATND_t*, bb_build_mode_t)` in a
+      new file; stmt_exec.c and bb_build.c both call it.
+      (ii) Table-driven: `bb_box_ctor_t g_ctors[XKIND_COUNT]` indexed by
+      XKIND; each entry is a function pointer.  Both files consult the
+      same table.
+      Gate: Smoke PASS=7, Broker PASS=49, no diff in Porter output.
+
+- [ ] **SN-17c** -- Unify SM opcode handlers.
+      Extract each `case SM_*:` body from `sm_interp.c` into a named
+      function `sm_handle_<op>(SM_State *st, SM_Ins *ins)`.  `sm_interp.c`
+      switch body becomes `sm_handle_<op>(st, ins); break;`.  `sm_codegen.c`
+      handlers become one-line wrappers using the JIT globals.
+      Single source of truth per opcode.
+      Gate: Smoke PASS=7, Broker PASS=49, no diff in Porter/beauty output.
+
+- [ ] **SN-17d** -- Fix `*fn()` FAIL propagation **once**, lands in all
+      three modes via the unified dispatch from SN-17a..c.
+      The fix shape (sketch, needs real-shape verify):
+      ```c
+      DESCR_t r = g_user_call_hook(name, args, nargs);
+      if (IS_FAIL_fn(r))                             return FAILDESCR;
+      if (r.v == DT_P && r.p && r.p->kind == XFAIL)  return FAILDESCR;
+      /* else epsilon */
+      ```
+      Gate: Porter `--ir-run` and `--sm-run` both move upward and
+      converge.  Target: both match SPITBOL on `abate`/`absence`/etc.
+
+  **Reproduction commands:**
   ```bash
   cd /home/claude/corpus/programs/snobol4/demo
   /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
   /home/claude/one4all/scrip --sm-run porter.sno < porter.input | diff - porter.ref | wc -l
   ```
+
+  **Minimal repro stashed** at `/tmp/probe_plain.sno` (this session only
+  — not committed; recreate from the snippet above if the container
+  resets).  Side-probes: `/tmp/probe_nopattern.sno`, `/tmp/probe_guard2.sno`.
 
 - [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run.
   Remaining: `expr_eval` (two separate bugs — see below), `demo_claws5`
@@ -171,5 +236,6 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `8964586e`. Gates: Smoke 7, Broker 49.
-**Next step:** SN-17 Porter stemmer — trace `abate` through measure-test path.
+**HEAD:** one4all @ `8964586e`. Gates: Smoke 7, Broker 48 (was 49 — one
+test has drifted since last session; investigate separately).
+**Next step:** SN-17a — add `SM_PAT_USERCALL` opcode.
