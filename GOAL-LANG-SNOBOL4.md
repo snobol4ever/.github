@@ -263,14 +263,13 @@ GOAL-SNO-TREEBANK-ARRAY.md, GOAL-SNO-TREEBANK-LIST.md, GOAL-SNO-CLAWS5.md)*
 
 ---
 
-## Current state (2026-04-18 — SN-6 session 9, SM last_ok bleed + DT_FAIL propagation)
+## Current state (2026-04-18 — SN-6 session 10, PROTOTYPE proto_bare + sm_lower halt)
 
-**HEAD:** one4all `90a5e221` — SM last_ok bleed fixed; DT_FAIL propagates through
-arithmetic and SM_CALL args; opnames[] table corrected.
+**HEAD:** one4all `925f5b23` — PROTOTYPE proto_bare fix; sm_lower undefined-label halt.
 
 **Gates this session:**
 - Smoke PASS=7, broker PASS=49 — both green
-- Broad suite **221/225** — up from 218; three new passes: triplet, fileinfo, wordcount
+- Broad suite **222/225** — up from 221; two new passes: beauty_XDump_driver, 1113_table
 
 ### SN-6 bugs fixed this session
 
@@ -294,20 +293,18 @@ Was missing SM_PAT_CAPTURE_FN, SM_BB_PUMP, SM_BB_ONCE — causing `--dump-sm`
 to print wrong opcode names for all opcodes from index 46 onward
 (SM_CALL printed as "SM_NRETURN", etc.). Diagnostic only, no runtime impact.
 
-### SN-6 remaining failures (4 of 225)
+### SN-6 remaining failures (3 of 225)
 
 - `word1` — `ARB . OUTPUT` immediate-assignment side-effect not firing in SM.
-  Pattern `" the " ARB . OUTPUT (" of " | " a ")` produces no output under
-  `--sm-run`. The `.` capture fires at match time under `--ir-run` but not SM.
   Same root cause as SN-17 Porter / NAM commit-time dispatch (expr_eval).
 - `expr_eval` — EVAL() / commit-time `*fn()` dispatch (unchanged)
-- `beauty_XDump_driver` — `sm_lower: unresolved label 'ERROR'` (×4) +
-  ARRAY subscript formatting wrong (`'1'` vs `'1:1'`). Not yet investigated.
 - `demo_claws5` — see GOAL-SNO-CLAWS5.md (separate goal)
 
-**Next session starts with:** `beauty_XDump_driver` (unresolved ERROR label in
-sm_lower — likely a goto to a runtime error handler that has no corresponding
-SNOBOL4 label), then `word1` / NAM commit-time dispatch.
+**Fixed this session:**
+- `beauty_XDump_driver` — PROTOTYPE proto_bare fix + sm_lower undefined-label halt. PASS.
+- `1113_table` — also fixed by proto_bare (TABLE->ARRAY prototype was wrong). PASS.
+
+**Next session starts with:** `word1` / NAM commit-time dispatch — `ARB . OUTPUT` immediate-assignment not firing in SM. Same root cause as `expr_eval` and SN-17 Porter gap.
 
 
 **HEAD:** one4all `607c4dfb` — SM arithmetic operands coerce DT_SNUL to
