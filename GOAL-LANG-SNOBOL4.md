@@ -1687,6 +1687,21 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     ./bootsbl -bf /tmp/trivial2.sno   # FAIL, exit 1
     ```
 
+  - [ ] **SN-25.x32** -- TRY FIRST: test `spitbol/x32` for the same
+    bug.  SPITBOL also ships a 32-bit x86 variant at
+    github.com/spitbol/x32.  If its `-bf` works correctly on
+    `/tmp/trivial2.sno`, the `-f` path in x32's codegen is already
+    sound and we can use `sbl32` as the case-sensitive oracle
+    without touching `bootstrap/sbl.asm`.  Zero patching, zero risk,
+    ~5 minutes to clone+build+test.  Only pivot to SN-25b if x32
+    shows the same bug.
+    ```bash
+    cd /home/claude
+    git clone https://github.com/spitbol/x32
+    cd x32 && make  # or whatever x32's build target is
+    ./bin/sbl -bf /tmp/trivial2.sno   # hi, exit 0 would close SN-25
+    ```
+
   - [ ] **SN-25b** -- Patch `bootstrap/sbl.asm` `gnv10` to fold
     compared bytes when the current entry's svbit has `svlbl` set;
     rebuild via `make bootsbl`.  Verify the trivial repro now passes
@@ -1797,37 +1812,69 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   Per Lon's direction: the current fancy corpus beauty.sno (781
   lines, `ppArg*` / `--auto` / profiles) becomes `beautifier.sno`
-  (same directory).  The smaller clean form of `beauty.sno`
-  (stdin-read, no `-INCLUDE 'is.inc'` / `FENCE.inc` / `io.inc`,
-  otherwise identical to the `/home/claude/orig_test/beauty.sno`
-  staged this session) becomes the committed `beauty.sno` in
-  `corpus/programs/snobol4/demo/` and its 16 `.inc` subsystems
-  install alongside.  Do the rename+install as SN-26's first
-  sub-rung so the self-host test is running against the intended
-  source.
+  (same directory).
+
+  **Install a single self-contained `beautiful.sno` — no -INCLUDE
+  at all.**  Concatenate the 16 `.inc` files of the upstream bundle
+  (minus the 3 SNOBOL4-only compat shims `is.inc`/`FENCE.inc`/
+  `io.inc`) into a single flat file in the original inclusion order,
+  bracketing each with a banner comment.  One file + one input.
+  Hermetic test artefact.  Keep case sensitive (the whole zip is
+  written case-sensitive; Lon writes all SNOBOL4 that way).  Staged
+  this session at `/home/claude/orig_test/beautiful.sno` (1521
+  lines); sanity-check rebuild:
+  ```bash
+  BEAUTY=/home/claude/originals/SNOBOL4/sno/beauty.sno
+  INC=/home/claude/originals/SNOBOL4/inc
+  OUT=/home/claude/orig_test/beautiful.sno
+  first=$(grep -n '^-INCLUDE' $BEAUTY | head -1 | cut -d: -f1)
+  last=$(grep -n '^-INCLUDE' $BEAUTY | tail -1 | cut -d: -f1)
+  head -$((first-1)) $BEAUTY > $OUT
+  for f in global case assign match counter stack tree ShiftReduce \
+           TDump Gen Qize ReadWrite XDump semantic omega trace; do
+    printf '\n*%s\n*                 %s.inc\n*%s\n' \
+           "$(printf '=%.0s' {1..80})" "$f" "$(printf '=%.0s' {1..80})" >> $OUT
+    cat $INC/$f.inc >> $OUT
+  done
+  tail -n +$((last+1)) $BEAUTY >> $OUT
+  ```
+
+  **"Take the zip as-is with one or two minor fixes to get working.
+  It has run for decades."**  So: the program is trusted; any
+  behavior difference between `sbl -bf beautiful.sno < beautiful.sno`
+  and `scrip <mode> beautiful.sno < beautiful.sno` is a **scrip bug**.
+  SPITBOL is the oracle.
 
   - [ ] **SN-26a** -- Rename `demo/beauty.sno` → `demo/beautifier.sno`
-    in corpus.  Also move any referring doc strings that name
-    "beauty.sno" for the fancy behavior.
+    in corpus (the fancy --auto / ppArg* form).  Also move any doc
+    strings that name "beauty.sno" for that behavior.
 
-  - [ ] **SN-26b** -- Install clean `beauty.sno` + 16 `.inc` files
-    from `/home/claude/orig_test/` (or regenerate from
-    `/home/claude/originals/`) into `corpus/programs/snobol4/demo/`
-    (and/or `corpus/programs/snobol4/beauty/` as include location).
-    Verify `sbl -bf demo/beauty.sno < demo/beauty.sno` runs cleanly
-    (this is the SN-25 dependency).
+  - [ ] **SN-26b** -- Install `beautiful.sno` (the one-file zip
+    concatenation) at `corpus/programs/snobol4/demo/beautiful.sno`.
+    No subsystem `.inc` files alongside — it is self-contained.
+    Produce a reference artefact `beautiful.self.ref` by running
+    SPITBOL (`-bf` once SN-25 is closed, or `sbl32 -bf` if SN-25.x32
+    succeeds) on `beautiful.sno < beautiful.sno` and capturing
+    stdout.  Apply at most 1-2 minor source fixes if required
+    — everything else is a scrip bug to fix.
 
-  - [ ] **SN-26c** -- Self-host under the 4-way monitor.  Start
-    with the `UTF_Array='797163616:32490'` `--ir-run` divergence at
-    stmt 152.  Fix; rerun; walk the next DIVERGE.  Continue until
-    monitor reports all-agree.  Keep gates green at each step
-    (Smoke=7, Broker=49, Broad corpus=225/225, SN-7 driver 51/51).
+  - [ ] **SN-26c** -- Self-host under the 4-way monitor.  Run
+    `scrip-monitor --monitor beautiful.sno < beautiful.sno`.  Start
+    with the first DIVERGE and walk each in turn.  The corpus-era
+    run showed `UTF_Array='797163616:32490'` at stmt 152 label `G1`
+    (a descriptor-stringification class bug on `--ir-run`) — expect
+    similar shapes on the concatenated form, though stmt numbers
+    will shift.  Fix; rerun; walk the next DIVERGE.  Continue until
+    monitor reports all-agree across IR/SM/JIT/CSN.  Keep gates
+    green at each step (Smoke=7, Broker=49, Broad corpus=225/225,
+    SN-7 driver 51/51).
 
-  - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a
-    gate script that runs `scrip <mode> beauty.sno < beauty.sno`
-    in all three modes, diffs output against a pre-baked
-    `beauty.self.ref` (generated from SPITBOL `-bf` under SN-25),
-    PASS=3 FAIL=0.  Makes "beauty self-hosts" a standing gate.
+  - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a gate
+    script that runs `scrip <mode> beautiful.sno < beautiful.sno`
+    in all three modes, diffs output against pre-baked
+    `beautiful.self.ref` (generated from SPITBOL `-bf` under SN-25
+    or `sbl32 -bf` under SN-25.x32), PASS=3 FAIL=0.  Makes "beauty
+    self-hosts" a standing gate.
 
 
 ## Key files
