@@ -1261,20 +1261,33 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Files changed:** `src/runtime/x86/sm_codegen.c` (+56 LOC, -4).
 
-- [~] **SN-9c** -- End-to-end `--jit-run` gate: broad corpus
-  `--jit-run` at parity with `--ir-run` / `--sm-run`.  Codify as a
-  three-mode sweep script.  **Partial — 3 of 7 JIT-only gaps closed
-  this session; 4 remain.**
+- [x] **SN-9c** -- End-to-end `--jit-run` gate: broad corpus
+  `--jit-run` at parity with `--ir-run` / `--sm-run`.  Codified as a
+  three-mode sweep script.  **Done 2026-04-19.**
 
-  **Discovery (this session):** The assumption that `--jit-run`
+  **Closing summary.**  SN-9c opened as a gate-codification rung but
+  the initial three-mode sweep found **7 JIT-only failures** that
+  passed in the other two modes.  All 7 closed across SN-9c-a..e:
+  case-folding in `h_call` pseudo-calls (SN-9c-a) fixed the two
+  `_indirect_*` programs, a missing `NRETURN_ASGN` branch (SN-9c-b)
+  fixed `1013_func_nreturn`, `last_ok` parity in `h_push_var` /
+  `h_store_var` (SN-9c-c) fixed `word1`, DT_SNUL coercion + FAIL
+  propagation in `h_arith` (SN-9c-c-bis) fixed `wordcount` and
+  `triplet` as a bonus, and pre-call FAIL propagation in `h_call`
+  (SN-9c-d) fixed `fileinfo`.  The gate script `test_smoke_snobol4_jit.sh`
+  (SN-9c-e) now sweeps all crosscheck programs in all three modes
+  and fails if `--sm-run` or `--jit-run` regresses below `--ir-run`
+  PASS count.  Current state: 207/207/207 on crosscheck, 224/225
+  on broad corpus in each mode (same `demo_claws5` in all three).
+
+  **Discovery (at rung open):** The assumption that `--jit-run`
   already matched `--sm-run` on broad corpus was wrong.  A full
   three-mode sweep across the 225 broad-corpus programs surfaced
   **7 JIT-only failures** that pass in both `--ir-run` and
   `--sm-run`: `fileinfo`, `triplet`, `1013_func_nreturn`,
   `210_indirect_ref`, `211_indirect_assign`, `word1`, `wordcount`.
   So `--jit-run` was at 217/225 vs the 224/225 baseline the other
-  two modes hit.  SN-9c is no longer just gate codification — it
-  includes closing the genuine parity gaps the sweep exposed.
+  two modes hit.  SN-9c became parity work as well as gate work.
 
   - [x] **SN-9c-a** -- SN-19 case-folding in `h_call` pseudo-call
     handlers.  Done 2026-04-19.  Closed `210_indirect_ref` and
@@ -1482,14 +1495,100 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       return with FAILDESCR and `last_ok=0`) and DT_SNUL→INTVAL(0)
       coercion on both operands.
 
-  **Next steps (SN-9c-d..e):**
-  - SN-9c-d: root-cause `fileinfo` (infinite loop under `--jit-run`;
-    `CHARS + SIZE(INPUT) :F(DONE)` never flips to :F at EOF — either
-    `SIZE(INPUT)` at EOF returns 0 instead of FAIL on the JIT path,
-    or the FAIL gets swallowed between SIZE and the new FAIL-branch
-    in h_arith).  `triplet` already closed as bonus from SN-9c-c-bis.
-  - SN-9c-e: land `test_smoke_snobol4_jit.sh` gate script once
-    `fileinfo` closes.
+  - [x] **SN-9c-d** -- Close `fileinfo --jit-run` hang.  Done 2026-04-19.
+    Root-caused to missing pre-call FAIL-propagation in `h_call` at
+    `sm_codegen.c`.
+
+    **Root cause (pinpointed via opcode dump + minimal repro):**
+
+    The minimal repro was a 4-line program: `CHARS = CHARS + SIZE(INPUT)
+    :F(done)` fed empty stdin.  `--ir-run` / `--sm-run` correctly
+    branched to `done`; `--jit-run` fell through to the next
+    statement, meaning the `:F` branch never fired.
+
+    SM dump for the statement:
+    ```
+    SM_PUSH_VAR  "CHARS"
+    SM_PUSH_VAR  "INPUT"
+    SM_CALL      "SIZE" nargs=1
+    SM_ADD
+    SM_STORE_VAR "CHARS"
+    SM_JUMP_F    -> done
+    ```
+
+    Expected flow at EOF:
+    1. `h_push_var("INPUT")` → pushes FAILDESCR, `last_ok=0` ✓
+    2. `h_call("SIZE", 1)` → sees FAIL arg, should bail out with
+       FAIL / `last_ok=0`
+    3. `h_arith` → sees FAIL, propagates → `last_ok=0`
+    4. `h_store_var("CHARS")` → sees FAIL val, `last_ok=0`, returns
+    5. `h_jump_f` → `last_ok=0`, branches to `done` ✓
+
+    The gap was at step 2.  `sm_interp.c:799-810` has an explicit
+    pre-call FAIL check (SN-6 semantics — any arg == FAIL means the
+    function is not invoked, the whole statement fails):
+    ```c
+    for (int k = 0; k < nargs; k++) {
+        if (args[k].v == DT_FAIL) {
+            sm_push(st, FAILDESCR);
+            st->last_ok = 0;
+            goto sm_call_done;
+        }
+    }
+    ```
+    `h_call` in `sm_codegen.c` was missing this block.  So SIZE was
+    invoked on the FAIL argument, returned `INTVAL(0)` (swallowed
+    the FAIL), `last_ok` became 1, the `:F` branch didn't fire, and
+    the accumulator loop ran forever.
+
+    Same bug class as SN-9c-c and SN-9c-c-bis — pieces of SN-6
+    FAIL-propagation semantics that landed in `sm_interp.c` but
+    never got ported to `sm_codegen.c`.
+
+    **Fix:** verbatim port of `sm_interp.c:799-810` into
+    `h_call` at `sm_codegen.c`, right after the `args[]` pop loop.
+    Same early-return shape (PUSH FAILDESCR, set `last_ok=0`, return)
+    adapted to the JIT handler's control flow (uses `return` instead
+    of `goto sm_call_done`).
+
+    **Gates (all green, no regressions):**
+    - Smoke PASS=7
+    - **Broker PASS=49** (+1 from 48 baseline — same bug class
+      cleared another broker test; confirms the scope was broader
+      than just `fileinfo`, same pattern as SN-9c-c / SN-9c-c-bis
+      broker recoveries)
+    - SN-7 beauty self-host PASS=51/51
+    - Broad corpus PASS=224/225 in all three modes (`demo_claws5`
+      only — pre-existing, out of scope)
+    - SN-9c-e gate: 207/207/207 on crosscheck (PASS=three-mode parity)
+
+    **Files changed:**
+    - `src/runtime/x86/sm_codegen.c`: `h_call` gained the 11-line
+      pre-call FAIL-propagation loop after `args[]` is popped,
+      matching `sm_interp.c:799-810` semantics verbatim.
+
+  - [x] **SN-9c-e** -- Land `test_smoke_snobol4_jit.sh` three-mode
+    sweep gate.  Done 2026-04-19.
+
+    **Gate semantics:**
+    - Runs every `.sno` in `$CORPUS/crosscheck` under all three modes
+      (`--ir-run`, `--sm-run`, `--jit-run`).
+    - Compares output against the pre-baked `.ref` file using `[$got
+      = $exp]` string equality (same idiom as
+      `test_interp_broad_corpus_and_beauty.sh`).
+    - Uses `--ir-run` PASS count as the reference: `--sm-run` and
+      `--jit-run` must match it.  Shared failures (programs that fail
+      in all three modes) are reported as info only, not gate fails —
+      they're tracked as orthogonal bugs via their own goals.
+    - Runs in ~27s on a clean build.  Self-contained per RULES.md
+      (paths derived from `$0`; corpus-not-found / scrip-not-built
+      both SKIP cleanly).
+
+    **Current gate result:** 207/207/207 on crosscheck — full
+    three-mode parity.
+
+    **Files changed:**
+    - `scripts/test_smoke_snobol4_jit.sh` (new, 95 LOC, executable).
 
 
 
@@ -1523,63 +1622,55 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all — SN-9c-c-bis landed.  `h_arith` in `sm_codegen.c`
-gained full parity with `sm_interp.c:321-331`: FAIL propagation (early
-return with FAILDESCR and `last_ok=0` on either operand == DT_FAIL)
-and DT_SNUL→INTVAL(0) coercion on both operands.  These were the two
-pieces the JIT had been missing — DT_S coercion was already there, but
-DT_SNUL fell through to `jit_arith`'s REALVAL branch, silently
-converting integer accumulators to reals whenever they started unset.
+**HEAD:** one4all — SN-9c-d and SN-9c-e landed.  `h_call` in
+`sm_codegen.c` gained pre-call FAIL-propagation parity with
+`sm_interp.c:799-810` (any arg == DT_FAIL short-circuits the call with
+FAILDESCR / `last_ok=0`); this closed `fileinfo --jit-run`, which had
+been hanging in an infinite accumulator loop because `SIZE(INPUT)` at
+EOF was being invoked on a FAIL argument and returning `INTVAL(0)`
+instead of propagating the FAIL to the `:F` branch.
 
-**Broker +1 recovery — confirmed again.**  This session the Broker
-came up at 48 on the clean-clone baseline and flipped to **49** once
-the SN-9c-c-bis fix landed.  Same shape as SN-9c-c's broker recovery:
-the bug class was broader than the one corpus program that exposed it
-(wordcount) — at least one broker test accumulated arithmetic on an
-initially-unset var and silently got DT_R results whose formatting
-differed from the expected DT_I.
+**SN-9c CLOSED.**  All 7 JIT-only corpus failures identified at rung
+open (fileinfo, triplet, 1013_func_nreturn, 210_indirect_ref,
+211_indirect_assign, word1, wordcount) now pass across SN-9c-a..d.
+Gate script `test_smoke_snobol4_jit.sh` landed at SN-9c-e: three-mode
+sweep of every crosscheck program, currently 207/207/207.
 
-**`wordcount` CLOSED.**  `--jit-run` byte-identical to ref (0-line
-diff).  Root cause: `N = N + 1` with unset N left `l.v = DT_SNUL`,
-`jit_arith` fell through to REALVAL, result propagated as DT_R, and
-the DT_R formatter emitted `14.` (trailing dot, trailing zeros
-stripped).  Minimal repro and fix hunk documented in the SN-9c-c-bis
-block above.
-
-**`triplet` CLOSED as a bonus.**  Same DT_SNUL + arith class — no
-separate investigation needed.  After the SN-9c-c-bis rebuild,
-`triplet --jit-run` is 0-line diff vs ref.  Removed from SN-9c-d's
-worklist.
+**Broker +1 recovery — confirmed for the third time.**  This session
+the Broker came up at 48 on the clean-clone baseline and flipped to
+**49** once the SN-9c-d fix landed.  Same shape as SN-9c-c's and
+SN-9c-c-bis's broker recoveries: the bug class was broader than the
+single corpus program that exposed it — at least one broker test was
+calling a function on a FAIL-producing argument and the swallowed
+FAIL was generating a wrong-branch path.
 
 **Gates (all green, no regressions):**
 - Smoke **7**
-- Broker **49** (+1 from 48 baseline)
+- Broker **49** (+1 from 48 baseline — third consecutive SN-9c rung
+  where the broker recovered after a FAIL-propagation class fix)
 - SN-7 beauty self-host **51/51**
-- Broad corpus `--sm-run` **224/225** (`demo_claws5` only — pre-existing,
-  out of scope)
+- Broad corpus **224/225** in all three modes (`--ir-run`, `--sm-run`,
+  `--jit-run`) — same `demo_claws5` failure in all three
+- **SN-9c-e JIT parity gate: 207/207/207 on crosscheck**
 
-**Session trajectory this session:** clone HQ → clone
-one4all/x64/csnobol4/corpus → build scrip + oracles → reproduce
-`wordcount 14.` → narrow to 3-line minimal repro (unset N, two
-increments, `+N`) → confirm hypothesis (b) from SN-9c-c-bis isolation
-notes (DT_R where DT_I expected) but traced upstream to missing
-DT_SNUL coercion rather than to_int_jit mis-parsing → diff `h_arith`
-against `sm_interp.c:321-331` → land DT_SNUL + FAIL propagation fix
-→ verify `wordcount` + `triplet` byte-identical → all gates green,
-Broker recovers to 49 → handoff.
+**Session trajectory:** clone HQ + one4all + x64 + csnobol4 + corpus
+→ build scrip and oracles → reproduce `fileinfo --jit-run` hang →
+narrow to 4-line repro (`CHARS = CHARS + SIZE(INPUT) :F(done)` with
+empty stdin) → dump SM opcodes → trace expected flow through push_var
+/ call / arith / store_var / jump_f → diff `h_call` against
+`sm_interp.c:799-810` → spot missing pre-call FAIL loop → port the
+11-line block verbatim → rebuild → verify fileinfo 0-line diff, all
+gates green, Broker recovers to 49 → write `test_smoke_snobol4_jit.sh`
+→ verify 207/207/207 → handoff.
 
-**Next step:** **SN-9c-d** — root-cause `fileinfo --jit-run` infinite
-loop.  `fileinfo.sno` is a classic `CHARS = CHARS + SIZE(INPUT) :F(DONE)`
-accumulator loop that exits on `SIZE(INPUT)` returning FAIL at EOF.
-Under `--jit-run` it hangs (timeout exit=124, empty output) — the
-`:F(DONE)` branch never fires.  Hypothesis: `SIZE(INPUT)` on the JIT
-path either (a) returns INTVAL(0) instead of FAILDESCR at EOF, or
-(b) returns FAIL but something between SIZE and the arith h_arith
-swallows it.  SN-9c-c-bis added FAIL propagation in `h_arith` — if
-SIZE is emitting FAIL, the arith should now propagate it, so (a) is
-the more likely path.  Start by probing `INPUT` / `SIZE` at EOF under
-`--jit-run` vs `--sm-run`.  After `fileinfo` closes, SN-9c-e lands
-`test_smoke_snobol4_jit.sh` as a three-mode sweep gate.
+**Next step:** **SN-9** is the next visible parent rung without all
+children closed — Phase 3 JIT-run has its SN-9a, SN-9b, SN-9c all
+now complete and byte-identical to `--sm-run` on broad corpus and
+crosscheck, so SN-9 itself is closable.  After that, the only
+remaining `[ ]` in the SNOBOL4 ladder is **SN-6** — broad corpus
+PASS=225/225 — blocked on `demo_claws5`, which is tracked under its
+own goal file (`GOAL-SNO-CLAWS5.md`).  So the SNOBOL4 frontend ladder
+proper is within one goal-file step of done.
 
 Latent follow-ups inherited from SN-8a (still open):
 
@@ -1600,3 +1691,4 @@ Latent follow-ups inherited from SN-8a (still open):
   other box type storing in-flight scalars is vulnerable to the same
   class of bug.  Pristine-template rewrite is a defensible cleanup
   if symptoms appear elsewhere.
+
