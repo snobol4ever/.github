@@ -1622,6 +1622,15 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 
 - [ ] **SN-25** -- SPITBOL `-f` structural-keyword lookup fix.
+  **DEFERRED 2026-04-20** — not on SN-26's critical path.
+  CSNOBOL4 `-bf` handles case-sensitive labels correctly (through
+  the first 1073 statements of `beauty.sno < beauty.sno`; it SEGVs
+  at stmt 1074 `snoLine = INPUT` but that is a separate CSN bug,
+  not a `-f` bug).  The 4-way `scrip-monitor` uses CSN `-bf`
+  internally for its CSN lane, so SN-26 can proceed fully with
+  CSNOBOL4 as oracle.  Revisit SN-25 only if a corpus program
+  specifically needs SPITBOL `-f` with structural keywords.
+
   **Root cause pinpointed 2026-04-20, fix not yet landed.**
 
   **Symptom (verified on `/tmp/trivial2.sno` — a single
@@ -1849,31 +1858,111 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     in corpus (the fancy --auto / ppArg* form).  Also move any doc
     strings that name "beauty.sno" for that behavior.
 
-  - [ ] **SN-26b** -- Install `beautiful.sno` (the one-file zip
-    concatenation) at `corpus/programs/snobol4/demo/beautiful.sno`.
-    No subsystem `.inc` files alongside — it is self-contained.
-    Produce a reference artefact `beautiful.self.ref` by running
-    SPITBOL (`-bf` once SN-25 is closed, or `sbl32 -bf` if SN-25.x32
-    succeeds) on `beautiful.sno < beautiful.sno` and capturing
-    stdout.  Apply at most 1-2 minor source fixes if required
-    — everything else is a scrip bug to fix.
+  - [x] **SN-26b** -- Install `beauty.sno` + its minimal .inc set in
+    `corpus/programs/snobol4/demo/beauty/`.  **Done 2026-04-20.**
+    Lon provided the original SNOBOL4 bundle as an upload
+    (`SNOBOL4.zip`) containing `sno/beauty.sno` (630 lines) and a
+    large `inc/` directory.  Approach revised from the SN-26 opening
+    plan: **do NOT concatenate** into a single `beautiful.sno` —
+    keep `-INCLUDE` directives and place the minimal set of `.inc`
+    files alongside `beauty.sno` in one folder.  That is what Lon
+    directed this session.
+
+    **Landed at `corpus/programs/snobol4/demo/beauty/` (17 files):**
+    - `beauty.sno` (627 lines — 630 minus the 3 `-INCLUDE` lines for
+      the SNOBOL4-only compat shims `is.inc`, `FENCE.inc`, `io.inc`;
+      trailing lowercase `end` fixed to uppercase `END` per RULES.md).
+    - 16 minimal `.inc` files: `global.inc`, `case.inc`, `assign.inc`,
+      `match.inc`, `counter.inc`, `stack.inc`, `tree.inc`,
+      `ShiftReduce.inc`, `TDump.inc`, `Gen.inc`, `Qize.inc`,
+      `ReadWrite.inc`, `XDump.inc`, `semantic.inc`, `omega.inc`,
+      `trace.inc`.
+
+    **Reference form:** `beauty.sno` itself is the `.ref` — it is
+    already beautified, so `scrip <mode> beauty.sno < beauty.sno`
+    should reproduce `beauty.sno` byte-for-byte.
+
+    **Oracle for this work:** CSNOBOL4 (not SPITBOL).  The 4-way
+    `scrip-monitor` (IR / SM / JIT / CSN) is the arbiter.  SN-25
+    (SPITBOL `-f` bootstrap fix) **deferred** — it is not required
+    to make progress on self-host, because CSNOBOL4 `-bf` handles
+    the case-sensitive double-function-trick correctly through the
+    first 1073 statements of `beauty.sno < beauty.sno`.
+
+    **Corpus commit:** `d85fd7e` (pushed to origin/main).
 
   - [ ] **SN-26c** -- Self-host under the 4-way monitor.  Run
-    `scrip-monitor --monitor beautiful.sno < beautiful.sno`.  Start
-    with the first DIVERGE and walk each in turn.  The corpus-era
-    run showed `UTF_Array='797163616:32490'` at stmt 152 label `G1`
-    (a descriptor-stringification class bug on `--ir-run`) — expect
-    similar shapes on the concatenated form, though stmt numbers
-    will shift.  Fix; rerun; walk the next DIVERGE.  Continue until
-    monitor reports all-agree across IR/SM/JIT/CSN.  Keep gates
-    green at each step (Smoke=7, Broker=49, Broad corpus=225/225,
-    SN-7 driver 51/51).
+    `scrip-monitor --monitor beauty.sno < beauty.sno` (with
+    `SNO_LIB=/home/claude/corpus/programs/snobol4/demo/beauty` and
+    `cd` to that directory).  Start with the first DIVERGE and walk
+    each in turn.  Fix; rerun; walk the next DIVERGE.  Continue
+    until monitor reports all-agree across IR/SM/JIT/CSN.  Keep
+    gates green at each step (Smoke=7, Broker=49, Broad
+    corpus=225/225, SN-7 driver 51/51).
+
+    **Baseline measured 2026-04-20 at corpus `d85fd7e`:**
+
+    - **CSNOBOL4 `-bf`** on `beauty.sno < beauty.sno`: produces
+      33 lines of output (comment header echoes correctly) then
+      SEGVs at `beauty.sno:616 stmt 1074` (`snoLine = INPUT` in
+      main02).  **Memory CLI switches do NOT help** — tested
+      `-P 500k -S 100k -d 4m` with identical SEGV at same stmt.
+      This is a real CSN bug, not a memory limit.  Past the Goal
+      file's previously-recorded CSN error location (was stmt 1072
+      on the 781-line corpus/demo beauty.sno), so the 627-line form
+      gets 2 statements further before the same `snoLine = INPUT`
+      path trips.
+
+    - **CSNOBOL4 `-b`** (case-fold): fails with duplicate-label
+      errors on the double-function-trick pairs (`shift`/`Shift`,
+      `reduce`/`Reduce`, `pop`/`Pop`, `visit`/`Visit`).  Expected
+      — beauty.sno requires case-sensitive labels.
+
+    - **scrip `--ir-run`** on `beauty.sno < beauty.sno`: produces
+      **0 stdout lines**; stderr floods with cascading `Error 1`
+      (GE first argument is not numeric) starting at stmt 1063,
+      1069, 1071, 1083, 1085, 1097, 1098, 1224, ....  All three
+      modes (IR/SM/JIT) fail to even emit the comment-header echo.
+
+    - **4-way `scrip-monitor --monitor`** first divergence:
+      ```
+      scrip --monitor: DIVERGE at stmt 153
+        path: [START] -> [G1]
+        IR  last_ok=?    i=1       (outlier)
+        SM  last_ok=1    i=2
+        JIT last_ok=1    i=2
+      ```
+      IR is the outlier here — SM and JIT agree.  Start fix at
+      `driver/interp.c` path for whatever `global.inc` statement
+      lands at stmt 153 in the [START] -> [G1] arc.
+
+    - **Also seen in monitor stderr** (~40+ occurrences):
+      `sm_lower: unresolved label 'error'` and
+      `sm_lower: unresolved label 'err'`.  Forward-reference gap
+      in `sm_lower.c` for labels named `error` / `err` referenced
+      before their textual definition (a `global.inc` pattern).
+      Separate from the stmt 153 divergence; fix both.
+
+    **Useful follow-up (small):** the IR `last_ok=?` field on
+    DIVERGE is uncaptured at the snapshot boundary — see
+    `sync_monitor.c` IR snapshot code.  Fixing this (one line)
+    removes a class of reporting ambiguity while debugging SN-26.
+
+    **Possible scrip CLI switches (for future investigation):**
+    scrip currently lacks visible `--help` output.  CSNOBOL4's
+    memory switches (`-d`, `-P`, `-S`) were tried on the CSN
+    oracle and do not help; scrip's default arena / pattern stack
+    sizes may or may not be configurable — if scrip hits memory
+    limits during self-host runs, check for equivalents, or adjust
+    `arena_init` / default stack sizes in the runtime.  Not a
+    current blocker — the stmt 153 divergence fires well before
+    any memory pressure.
 
   - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a gate
-    script that runs `scrip <mode> beautiful.sno < beautiful.sno`
-    in all three modes, diffs output against pre-baked
-    `beautiful.self.ref` (generated from SPITBOL `-bf` under SN-25
-    or `sbl32 -bf` under SN-25.x32), PASS=3 FAIL=0.  Makes "beauty
+    script that runs `scrip <mode> beauty.sno < beauty.sno` in all
+    three modes from `corpus/programs/snobol4/demo/beauty/`, diffs
+    output against `beauty.sno` itself (the source IS the ref — it
+    is already beautified), PASS=3 FAIL=0.  Makes "beauty
     self-hosts" a standing gate.
 
 
@@ -1910,6 +1999,56 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 (`test_interp_broad_corpus_and_beauty.sh:67` now points `demo_claws5`
 at `claws5.input` instead of `CLAWS5inTASA.dat`; matches the
 demo-scale ref).  Broad corpus PASS=225/225 in all three modes.
+
+**corpus @ `d85fd7e`** — SN-26b landed: `programs/snobol4/demo/beauty/`
+now holds `beauty.sno` (627 lines) + 16 minimal `.inc` files for
+self-host work.  See SN-26b for details.
+
+**2026-04-20 session (second half).**  Lon redirected: drop SPITBOL
+(SN-25), use CSNOBOL4 as the oracle via 4-way `scrip-monitor`.
+Reference form of `beauty.sno` is the source itself (already
+beautified).  Lon uploaded the original SNOBOL4 bundle as
+`SNOBOL4.zip` containing `sno/beauty.sno` (630 lines) and an `inc/`
+directory.  Installed at `corpus/programs/snobol4/demo/beauty/` with
+the 3 compat-shim INCLUDEs removed (`is.inc`, `FENCE.inc`, `io.inc`),
+trailing `end` → `END`, and the 16 minimal .inc files alongside
+(no concatenation — kept as `-INCLUDE` directives resolved via
+`SNO_LIB`).  Committed and pushed as corpus `d85fd7e`.
+
+Baseline measured (see SN-26c for details):
+- CSN `-bf`: 33 lines then SEGV at stmt 1074 (memory switches don't help).
+- CSN `-b`: duplicate-label errors (case-fold collisions — expected).
+- scrip `--ir-run`: 0 stdout, cascading `Error 1` on stderr.
+- 4-way monitor: **first DIVERGE at stmt 153**, path `[START] → [G1]`:
+  IR `i=1` (outlier) vs SM/JIT `i=2`.  Plus `sm_lower: unresolved
+  label 'error' / 'err'` warnings (~40+ occurrences) — forward-ref
+  gap.
+
+**Gates (unchanged from prior session — not re-measured this half):**
+- Smoke **7**
+- Broker **49**
+- SN-7 subsystem drivers **51/51**
+- Broad corpus **225/225** in all three modes
+- SN-9c-e JIT parity gate **207/207/207** on crosscheck
+
+**Next step:** **SN-26c** — fix stmt 153 IR `i=1` vs SM/JIT `i=2`
+divergence first (IR is the outlier).  Then fix `sm_lower` forward-
+reference gap for `error` / `err` labels.  Then walk next DIVERGE
+with the monitor.
+
+**Reproduce the baseline:**
+```bash
+DEST=/home/claude/corpus/programs/snobol4/demo/beauty
+cd $DEST
+# CSN oracle (partial — SEGVs at stmt 1074):
+SNO_LIB=$DEST /home/claude/csnobol4/snobol4 -bf -P 500k -I$DEST beauty.sno < beauty.sno
+
+# 4-way monitor (first DIVERGE at stmt 153):
+SNO_LIB=$DEST /home/claude/one4all/scrip-monitor --monitor $DEST/beauty.sno < $DEST/beauty.sno 2>&1 | grep -A 10 DIVERGE
+
+# scrip (currently produces 0 stdout, cascading Error 1):
+SNO_LIB=$DEST /home/claude/one4all/scrip --ir-run $DEST/beauty.sno < $DEST/beauty.sno
+```
 
 **2026-04-20 session reassessment.**  SN-9 was ready to close and the
 session's first fix (SN-6) closed on a gate wiring error, not a
