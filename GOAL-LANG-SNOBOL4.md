@@ -1261,11 +1261,99 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   **Files changed:** `src/runtime/x86/sm_codegen.c` (+56 LOC, -4).
 
-- [ ] **SN-9c** -- End-to-end `--jit-run` gate: broad corpus
-  `--jit-run` at 224/225 parity with `--ir-run` / `--sm-run`.  This
-  may require a new gate script (`test_smoke_snobol4_jit.sh` or
-  extension of the existing gate to run each corpus program on all
-  three modes and diff).
+- [~] **SN-9c** -- End-to-end `--jit-run` gate: broad corpus
+  `--jit-run` at parity with `--ir-run` / `--sm-run`.  Codify as a
+  three-mode sweep script.  **Partial — 3 of 7 JIT-only gaps closed
+  this session; 4 remain.**
+
+  **Discovery (this session):** The assumption that `--jit-run`
+  already matched `--sm-run` on broad corpus was wrong.  A full
+  three-mode sweep across the 225 broad-corpus programs surfaced
+  **7 JIT-only failures** that pass in both `--ir-run` and
+  `--sm-run`: `fileinfo`, `triplet`, `1013_func_nreturn`,
+  `210_indirect_ref`, `211_indirect_assign`, `word1`, `wordcount`.
+  So `--jit-run` was at 217/225 vs the 224/225 baseline the other
+  two modes hit.  SN-9c is no longer just gate codification — it
+  includes closing the genuine parity gaps the sweep exposed.
+
+  - [x] **SN-9c-a** -- SN-19 case-folding in `h_call` pseudo-call
+    handlers.  Done 2026-04-19.  Closed `210_indirect_ref` and
+    `211_indirect_assign`.
+
+    **Root cause:** `sm_codegen.c`'s `INDIR_GET`, `NAME_PUSH`, and
+    `ASGN_INDIR` branches in `h_call` (lines 530-553) looked up /
+    stored variables using the raw descriptor string, skipping the
+    `GC_strdup(...); sno_fold_name(...)` pattern that
+    `sm_interp.c:644-702` uses.  Folding matters because parser-emitted
+    variable names are already uppercased (e.g. `bal = 'the real bal'`
+    stores to `BAL` per `SM_STORE_VAR s="BAL"` in the dump), but
+    `$'bal'` carries the literal lowercase `bal` on the stack — JIT's
+    `NV_GET_fn("bal")` missed the `BAL` key, while sm_interp's folded
+    version hit it.
+
+    **Fix:** port the three folds verbatim from `sm_interp.c:656,661,
+    678,691,696` to `sm_codegen.c`.  Six mechanical lines.
+
+  - [x] **SN-9c-b** -- Add missing `NRETURN_ASGN` handler in
+    `h_call`.  Done 2026-04-19.  Closed `1013_func_nreturn`.
+
+    **Root cause:** `sm_codegen.c`'s `h_call` had no `NRETURN_ASGN`
+    branch at all — the opcode fell through to the generic
+    `INVOKE_fn(name, argv, nargs)` path at the bottom of the
+    function.  That path reads `nargs` from `CUR_INS->a[1].i`, but
+    for `NRETURN_ASGN` the `sm_lower` encoding uses `a[1].s` (the
+    function name) — so `a[1].i` is garbage pointer bits, producing
+    `nargs = 139605120935872` and an immediate stack underflow /
+    abort.  Stack trace: `sm_interp: stack underflow; Aborted`.
+
+    **Fix:** port `sm_interp.c:704` verbatim into a new
+    `NRETURN_ASGN` branch in `h_call`.  Reads fname from `a[1].s`,
+    pops rhs, calls fn with zero args, writes through DT_N return
+    or falls back to `fname_SET` field-mutator convention.  Also
+    folds the NAMEVAL branch per SN-9c-a pattern.
+
+  **Gates after SN-9c-a+b (all green, no regressions):**
+  - Smoke PASS=7
+  - Broker PASS=49
+  - SN-7 beauty self-host PASS=51/51
+  - Broad corpus `--sm-run` PASS=224/225 (same `demo_claws5` only)
+
+  **Remaining JIT-only failures (4):**
+  `fileinfo`, `triplet`, `word1`, `wordcount`.
+
+  **`word1` diagnostic** (reproduces on `wordcount` too — both use
+  `LINE = INPUT :F(END)` loop):
+  - Input: 3 lines (2 contain noun phrases, 1 doesn't).
+  - SPITBOL / `--ir-run` / `--sm-run`: output `cat\nhouse` (2 lines).
+  - `--jit-run`: output `cat` only; exits cleanly (exit=0) after
+    the first match instead of continuing to the second input line.
+  - JIT is prematurely terminating the `LOOP LINE = INPUT :F(END) /
+    LINE ? PAT :(LOOP)` cycle.  Likely an `INPUT` built-in
+    short-circuit or a `:F(END)` branch mis-resolution in the JIT
+    dispatch for `SM_JUMP_F` on the `LINE = INPUT` statement.  Not
+    investigated to root cause this session — next-rung target.
+
+  `fileinfo` and `triplet` not investigated this session — start
+  with `triplet` (smaller; name suggests triple / 3-ary pattern)
+  to find the third gap class, then decide whether `fileinfo` shares
+  it.
+
+  **Files changed this session:**
+  `src/runtime/x86/sm_codegen.c` (~40 LOC added/modified in
+  `h_call`: six folding lines across 3 branches + ~25-line
+  `NRETURN_ASGN` branch).
+
+  **Gate script not yet landed.**  Once the remaining 4 failures
+  close (or are documented as deferred with expected-failure list),
+  write `scripts/test_smoke_snobol4_jit.sh` modelled on
+  `test_gate_sn7_beauty_self_host.sh`: three-mode × broad-corpus
+  sweep, diff=0 vs `.ref`, PASS=N FAIL=0 target.
+
+  **Next steps (SN-9c-c..e):**
+  - SN-9c-c: root-cause `word1` / `wordcount` (likely one fix for
+    both — INPUT loop / :F branch).
+  - SN-9c-d: root-cause `triplet` then `fileinfo`.
+  - SN-9c-e: land `test_smoke_snobol4_jit.sh` gate script.
 
 
 
@@ -1299,32 +1387,46 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `f8b06dc6` — SN-9b landed this session.  Added
-`h_bb_pump` and `h_bb_once` handlers to `sm_codegen.c` for the two
-genuine JIT gaps uncovered by the parity audit: the BB-broker opcodes
-that polyglot programs emit for Icon/Raku generators and Prolog
-backtracking.  Direct ports of `sm_interp.c:612-635`; verified
-byte-identical between `--sm-run` and `--jit-run` on
-`test/raku_gather.scrip`.  The stale "PASS=178 corpus" comment in
-the codegen handler-table block was rewritten to classify each
-remaining `h_unimpl` stub honestly (stale emit, cross-mode issue,
-or never emitted).
+**HEAD:** one4all @ `5fc3a68c` — SN-9c partial: two of seven
+`--jit-run`-only parity gaps closed.  Added SN-19 case-folding
+(`GC_strdup + sno_fold_name`) to `sm_codegen.c`'s `INDIR_GET`,
+`NAME_PUSH`, and `ASGN_INDIR` pseudo-call branches (SN-9c-a), and
+added a missing `NRETURN_ASGN` branch to `h_call` that was causing
+immediate stack underflow via fallthrough into the generic
+`INVOKE_fn` path with garbage `nargs` (SN-9c-b).  Both fixes are
+direct ports from `sm_interp.c` — the JIT handlers had structurally
+diverged from the interpreter over time, and this session's broad-
+corpus three-mode sweep exposed the divergences.
+
+The sweep itself is the important new information: a full three-
+mode run across 225 broad-corpus programs found **`--jit-run` at
+217/225**, seven programs behind `--sm-run` / `--ir-run`'s 224/225.
+SN-9c-a+b closed three (`210_indirect_ref`, `211_indirect_assign`,
+`1013_func_nreturn`).  Four remain: `fileinfo`, `triplet`, `word1`,
+`wordcount` — tracked as SN-9c-c..d with `word1` / `wordcount`
+sharing a likely common root cause in the `INPUT :F(END)` loop path.
 
 Gates (all green, no regressions): Smoke **7**, Broker **49**,
-Broad corpus **224/225** (only `demo_claws5` remaining — tracked under
-`GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), SN-7 beauty
-self-host **51/51**, Porter `--ir-run` / `--sm-run` / `--jit-run` all
-byte-identical to SPITBOL ref (0-line diff / 23531).
+Broad corpus **224/225** (only `demo_claws5` remaining — tracked
+under `GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), SN-7
+beauty self-host **51/51**, Porter `--ir-run` / `--sm-run` /
+`--jit-run` all byte-identical to SPITBOL ref (0-line diff / 23531).
 
-**Session trajectory this session:** SN-9a (one4all @ `231a52e5`) →
-SN-9b (one4all @ `f8b06dc6`).  Two surgical codegen handler additions
-closed the `--jit-run` gaps that actually fire on current corpus.
+**Session trajectory this session:** SN-9c-a (handler case-folding)
+→ SN-9c-b (NRETURN_ASGN branch).  Two surgical `sm_codegen.c` ports
+from `sm_interp.c` closed three JIT-only failures; four remain for
+next session.
 
-**Next step:** **SN-9c** — codify a `--jit-run` broad-corpus gate as
-a checked-in script (`scripts/test_smoke_snobol4_jit.sh` or
-extension of the existing broad-corpus script to run all three modes
-and diff).  After SN-9c lands, SN-9 closes and the ladder moves to
-Phase 3 polish / the remaining latent follow-ups below.
+**Next step:** **SN-9c-c** — root-cause the `word1` / `wordcount`
+shared symptom: JIT-only premature loop termination on
+`LINE = INPUT :F(END) / LINE ? PAT :(LOOP)`.  JIT outputs only the
+first successful match then exits cleanly (exit=0); `--ir-run` /
+`--sm-run` continue through all input lines.  Most likely location
+is either (a) the `INPUT` pseudo-call handler in `h_call` (parallel
+to INDIR_GET etc — is there a divergence from `sm_interp.c` similar
+to the ones SN-9c-a closed?), or (b) the `SM_JUMP_F` / success-flag
+path on the LINE = INPUT statement.  After SN-9c-c, take on
+SN-9c-d (`triplet`, then `fileinfo`), then SN-9c-e (gate script).
 
 Latent follow-ups inherited from SN-8a (still open):
 
