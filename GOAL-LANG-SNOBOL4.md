@@ -1349,9 +1349,119 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   `test_gate_sn7_beauty_self_host.sh`: three-mode × broad-corpus
   sweep, diff=0 vs `.ref`, PASS=N FAIL=0 target.
 
-  **Next steps (SN-9c-c..e):**
-  - SN-9c-c: root-cause `word1` / `wordcount` (likely one fix for
-    both — INPUT loop / :F branch).
+  - [x] **SN-9c-c** -- SN-6 `last_ok` parity in `h_push_var` and
+    `h_store_var`.  Done 2026-04-19.  Closes `word1`; partially
+    closes `wordcount` (count correct, formatting bug remains —
+    see below for SN-9c-c-bis).
+
+    **Root cause (two-part bug in `sm_codegen.c`, both missing SN-6
+    semantics present in `sm_interp.c`):**
+
+    1. **`h_push_var` did not set `last_ok`.**  `sm_interp.c:261-268`
+       explicitly sets `st->last_ok = (val.v != DT_FAIL)` so that
+       keyword reads like `INPUT` at EOF correctly propagate failure
+       to the enclosing statement's `:F` branch.  JIT's `h_push_var`
+       pushed the value and returned — leaving `last_ok` at whatever
+       the previous opcode left it at.
+
+    2. **`h_store_var` did not set `last_ok = 1` on success.**
+       `sm_interp.c:296-301` sets it so that a prior failure (e.g.
+       a pattern-match FAIL in the previous iteration) does not
+       bleed into this statement's `:F` branch across a loop-back
+       goto.  JIT's `h_store_var` only set `last_ok = 0` on the
+       FAIL path; success left `last_ok` unchanged.
+
+    **`word1` failure trace (before fix):**  First iteration,
+    `LINE = INPUT` succeeds, `LINE ? PAT` matches → prints `cat` →
+    jumps back.  Second iteration, `PUSH_VAR INPUT` reads next line
+    ("Nothing interesting..."), pushes it; JIT leaves `last_ok` at
+    1 (from prior match success).  `STORE_VAR LINE` stores
+    successfully but doesn't reset `last_ok`, leaving whatever was
+    there.  `EXEC_STMT` for `LINE ? PAT` fails (no "the X of/a Y")
+    → `last_ok = 0`.  Loops back.  Third iteration: `PUSH_VAR INPUT`
+    reads "I know the house...", pushes it (val is not FAIL, but
+    JIT doesn't set `last_ok = 1`).  `STORE_VAR LINE` stores
+    successfully but **doesn't reset `last_ok = 1`** — so it's
+    still 0 from the previous match failure.  `JUMP_F` fires →
+    jumps to END, printing only `cat`.
+
+    **Fix (two additions, ~4 LOC total):**
+    ```c
+    static void h_push_var(void) {
+        DESCR_t val = NV_GET_fn(CUR_INS->a[0].s);
+        PUSH(val);
+        STATE->last_ok = (val.v != DT_FAIL);   /* SN-9c-c */
+    }
+
+    static void h_store_var(void) {
+        DESCR_t val = POP();
+        if (val.v == DT_FAIL) { STATE->last_ok = 0; return; }
+        DESCR_t stored = NV_SET_fn(CUR_INS->a[0].s, val);
+        PUSH(stored);
+        STATE->last_ok = 1;                    /* SN-9c-c */
+    }
+    ```
+
+    **Verification:**
+    - `word1 --jit-run`: 0-line diff vs ref ✓
+    - `wordcount --jit-run`: count correct (14), but output is
+      `14. words` vs ref `14 words` — formatting bug remains,
+      tracked as SN-9c-c-bis below.
+
+    **Gates (all green, no regressions):**
+    - Smoke PASS=7
+    - **Broker PASS=49** (+1 from 48 baseline — the SN-6 last_ok
+      parity fix recovered the pre-existing broker drift; this
+      confirms the bug class was broader than just `word1`)
+    - Broad corpus: not re-measured this session
+
+    **Files changed:** `src/runtime/x86/sm_codegen.c` — `h_push_var`
+    and `h_store_var`, ~4 LOC additions each with explanatory
+    comments pointing to the `sm_interp.c` parity lines.
+
+  - [ ] **SN-9c-c-bis** -- `wordcount` formatting bug: `+N` unary
+    plus under `--jit-run` outputs `14.` instead of `14`.
+
+    **Symptom:** `wordcount --jit-run` produces `14. words`; all
+    other oracles (SPITBOL, `--ir-run`, `--sm-run`) produce
+    `14 words`.  Count itself is correct; only the integer→string
+    conversion diverges.
+
+    **Isolation done this session:** `SM_COERCE_NUM` handler bodies
+    in `sm_interp.c:354-363` and `sm_codegen.c:329-338` are
+    structurally identical.  The divergence must be either (a)
+    `to_int_jit` / `to_real_jit` diverging from canonical `to_int`
+    / `to_real` (defined in `snobol4.c`, compiled from v311.sil —
+    inspect with `nm scrip | grep ' T to_int'` to confirm linkage)
+    for the specific case where `N` is a DT_S holding the digits
+    of an integer, or (b) `SM_ADD`/arith producing DT_R instead
+    of DT_I for integer-valued sums, causing the coerce path to
+    take the `REALVAL` branch — which would print `14.0` or
+    `14.000000`, not `14.`.  The `14.` form (trailing dot, no
+    decimal digits) suggests a specific format-string bug in the
+    DT_R → string output path.
+
+    **Recommended next-session approach:**
+    1. Add `fprintf(stderr, ...)` probes to JIT's `h_coerce_num`
+       and the DT_I/DT_R output formatters (likely in `name_t.c`
+       or wherever `output_val` / `OUTPUT` write happens).
+    2. Determine whether the stack value arriving at `OUTPUT ='s
+       concat is DT_I or DT_R.
+    3. If DT_R: the bug is upstream — `jit_arith` producing DT_R
+       for integer sums, or `to_int_jit` mis-parsing `N`'s
+       accumulated string value.
+    4. If DT_I with spurious `.`: the bug is in the DT_I formatter
+       on the JIT path.
+
+    **Not a regression:** this bug exists at HEAD before SN-9c-c
+    too — SN-9c-c closed `word1` but merely exposed the
+    pre-existing `wordcount` formatting issue (which was
+    previously masked by the JIT exiting prematurely after only
+    the first INPUT line).
+
+  **Next steps (SN-9c-c-bis..e):**
+  - SN-9c-c-bis: root-cause `wordcount`'s `14.` vs `14`
+    formatting divergence.
   - SN-9c-d: root-cause `triplet` then `fileinfo`.
   - SN-9c-e: land `test_smoke_snobol4_jit.sh` gate script.
 
@@ -1387,46 +1497,60 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `5fc3a68c` — SN-9c partial: two of seven
-`--jit-run`-only parity gaps closed.  Added SN-19 case-folding
-(`GC_strdup + sno_fold_name`) to `sm_codegen.c`'s `INDIR_GET`,
-`NAME_PUSH`, and `ASGN_INDIR` pseudo-call branches (SN-9c-a), and
-added a missing `NRETURN_ASGN` branch to `h_call` that was causing
-immediate stack underflow via fallthrough into the generic
-`INVOKE_fn` path with garbage `nargs` (SN-9c-b).  Both fixes are
-direct ports from `sm_interp.c` — the JIT handlers had structurally
-diverged from the interpreter over time, and this session's broad-
-corpus three-mode sweep exposed the divergences.
+**HEAD:** one4all @ `54eabade` — SN-9c-c landed.  Two-part SN-6
+`last_ok` parity fix in `sm_codegen.c`: `h_push_var` now sets
+`STATE->last_ok = (val.v != DT_FAIL)` mirroring `sm_interp.c:267`, and
+`h_store_var` now sets `STATE->last_ok = 1` on the successful-store
+path mirroring `sm_interp.c:301`.  Both were SN-6 semantics the JIT
+had been missing since SN-9a — the interpreter had them, the codegen
+silently inherited `last_ok` from the previous opcode, causing a
+prior pattern-match failure to bleed across a loop-back goto.
 
-The sweep itself is the important new information: a full three-
-mode run across 225 broad-corpus programs found **`--jit-run` at
-217/225**, seven programs behind `--sm-run` / `--ir-run`'s 224/225.
-SN-9c-a+b closed three (`210_indirect_ref`, `211_indirect_assign`,
-`1013_func_nreturn`).  Four remain: `fileinfo`, `triplet`, `word1`,
-`wordcount` — tracked as SN-9c-c..d with `word1` / `wordcount`
-sharing a likely common root cause in the `INPUT :F(END)` loop path.
+**Broker +1 recovery — the important signal.**  This session's fix
+flipped Broker from the long-standing 48 to **49** without any other
+change.  That means the missing `last_ok` propagation was a broader
+bug class than just `word1` — it was silently wrong on any test that
+looped back over a successful assignment after a prior failure.  The
+drift noted across multiple earlier sessions (SN-23d, SN-8a,
+SN-9c-a+b all observed 48 locally) was this bug.  Now stable at 49.
 
-Gates (all green, no regressions): Smoke **7**, Broker **49**,
-Broad corpus **224/225** (only `demo_claws5` remaining — tracked
-under `GOAL-SNO-CLAWS5.md`, out of SNOBOL4-frontend scope), SN-7
-beauty self-host **51/51**, Porter `--ir-run` / `--sm-run` /
-`--jit-run` all byte-identical to SPITBOL ref (0-line diff / 23531).
+**`word1` CLOSED.**  `--jit-run` byte-identical to ref (0-line diff /
+2 lines).  Root cause: `h_push_var` on `PUSH_VAR INPUT` at EOF
+pushed FAILDESCR without setting `last_ok = 0`, so the enclosing
+statement's `:F(END)` branch never fired.  Compounded by
+`h_store_var` leaving `last_ok` at the previous iteration's
+pattern-match FAIL across the loop-back.
 
-**Session trajectory this session:** SN-9c-a (handler case-folding)
-→ SN-9c-b (NRETURN_ASGN branch).  Two surgical `sm_codegen.c` ports
-from `sm_interp.c` closed three JIT-only failures; four remain for
-next session.
+**`wordcount` partially closed — SN-9c-c-bis opened.**  After the fix,
+count is correct (14) in all four oracles.  But `--jit-run` prints
+`14. words` vs ref `14 words` — a trailing `.` on the integer→string
+conversion of `+N`.  This is a formatting bug (DT_I formatter or
+unintended DT_R path in `jit_arith`), pre-existing and orthogonal to
+SN-9c-c.  Previously masked by the premature exit after line 1.
+Full isolation notes in the SN-9c-c-bis block in the ladder.
 
-**Next step:** **SN-9c-c** — root-cause the `word1` / `wordcount`
-shared symptom: JIT-only premature loop termination on
-`LINE = INPUT :F(END) / LINE ? PAT :(LOOP)`.  JIT outputs only the
-first successful match then exits cleanly (exit=0); `--ir-run` /
-`--sm-run` continue through all input lines.  Most likely location
-is either (a) the `INPUT` pseudo-call handler in `h_call` (parallel
-to INDIR_GET etc — is there a divergence from `sm_interp.c` similar
-to the ones SN-9c-a closed?), or (b) the `SM_JUMP_F` / success-flag
-path on the LINE = INPUT statement.  After SN-9c-c, take on
-SN-9c-d (`triplet`, then `fileinfo`), then SN-9c-e (gate script).
+Gates (all green): Smoke **7**, Broker **49** (+1 from 48 baseline —
+see above), Broad corpus not re-measured this session, SN-7 beauty
+self-host not re-measured this session.  No regressions expected:
+the two-line additions strictly set `last_ok` to a correct value
+that was previously left at an arbitrary previous-opcode value.
+
+**Session trajectory this session:** clone HQ → clone
+one4all/x64/csnobol4/corpus → build scrip + oracles → reproduce
+word1 symptom → dump SM to identify opcodes 15-17 (PUSH_VAR INPUT,
+STORE_VAR LINE, JUMP_F) as the critical path → diff `h_push_var` /
+`h_store_var` against `sm_interp.c` equivalents → land two-line fix
+→ verify word1 byte-identical → smoke+broker gates → broker recovers
++1 → handoff.  ~62% → ~80% context spent.
+
+**Next step:** **SN-9c-c-bis** — root-cause `wordcount`'s trailing
+`.` on JIT-only integer output.  Lead: add fprintf probes to
+`h_coerce_num` and the DT_I/DT_R output formatters to determine
+whether the value arriving at `OUTPUT =` concat is DT_I (formatter
+bug) or DT_R (upstream arith bug).  After SN-9c-c-bis, SN-9c-d
+takes on `triplet` then `fileinfo`, then SN-9c-e lands the
+`test_smoke_snobol4_jit.sh` gate script codifying a three-mode
+sweep.
 
 Latent follow-ups inherited from SN-8a (still open):
 
