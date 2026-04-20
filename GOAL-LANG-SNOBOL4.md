@@ -1419,51 +1419,77 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     and `h_store_var`, ~4 LOC additions each with explanatory
     comments pointing to the `sm_interp.c` parity lines.
 
-  - [ ] **SN-9c-c-bis** -- `wordcount` formatting bug: `+N` unary
+  - [x] **SN-9c-c-bis** -- `wordcount` formatting bug: `+N` unary
     plus under `--jit-run` outputs `14.` instead of `14`.
+    **Done 2026-04-19.**  Also closes `triplet --jit-run` as a
+    bonus — same bug class.
 
-    **Symptom:** `wordcount --jit-run` produces `14. words`; all
-    other oracles (SPITBOL, `--ir-run`, `--sm-run`) produce
-    `14 words`.  Count itself is correct; only the integer→string
-    conversion diverges.
+    **Root cause (pinpointed by minimal repro):**
 
-    **Isolation done this session:** `SM_COERCE_NUM` handler bodies
-    in `sm_interp.c:354-363` and `sm_codegen.c:329-338` are
-    structurally identical.  The divergence must be either (a)
-    `to_int_jit` / `to_real_jit` diverging from canonical `to_int`
-    / `to_real` (defined in `snobol4.c`, compiled from v311.sil —
-    inspect with `nm scrip | grep ' T to_int'` to confirm linkage)
-    for the specific case where `N` is a DT_S holding the digits
-    of an integer, or (b) `SM_ADD`/arith producing DT_R instead
-    of DT_I for integer-valued sums, causing the coerce path to
-    take the `REALVAL` branch — which would print `14.0` or
-    `14.000000`, not `14.`.  The `14.` form (trailing dot, no
-    decimal digits) suggests a specific format-string bug in the
-    DT_R → string output path.
+    The hypothesis track (b) from the original SN-9c-c-bis block was
+    correct — `jit_arith` produced DT_R for sums that should have
+    been DT_I — but the upstream cause was not what I'd guessed.
+    It wasn't `to_int_jit` mis-parsing; it was **DT_SNUL never
+    getting coerced to INTVAL(0)** before `jit_arith` ran.
 
-    **Recommended next-session approach:**
-    1. Add `fprintf(stderr, ...)` probes to JIT's `h_coerce_num`
-       and the DT_I/DT_R output formatters (likely in `name_t.c`
-       or wherever `output_val` / `OUTPUT` write happens).
-    2. Determine whether the stack value arriving at `OUTPUT ='s
-       concat is DT_I or DT_R.
-    3. If DT_R: the bug is upstream — `jit_arith` producing DT_R
-       for integer sums, or `to_int_jit` mis-parsing `N`'s
-       accumulated string value.
-    4. If DT_I with spurious `.`: the bug is in the DT_I formatter
-       on the JIT path.
+    `sm_interp.c:321-331` has a four-step pre-arith dance:
+    ```c
+    if (l.v == DT_FAIL || r.v == DT_FAIL) { ... FAIL ... }
+    if (l.v == DT_S)    l = INTVAL(to_int(l));
+    if (r.v == DT_S)    r = INTVAL(to_int(r));
+    if (l.v == DT_SNUL) l = INTVAL(0);
+    if (r.v == DT_SNUL) r = INTVAL(0);
+    ```
+    JIT's `h_arith` only did the two DT_S lines.  No FAIL
+    propagation, no DT_SNUL coercion.
 
-    **Not a regression:** this bug exists at HEAD before SN-9c-c
-    too — SN-9c-c closed `word1` but merely exposed the
-    pre-existing `wordcount` formatting issue (which was
-    previously masked by the JIT exiting prematurely after only
-    the first INPUT line).
+    So for wordcount: `N` starts unset (DT_SNUL), `N + 1` leaves
+    `l.v = DT_SNUL`, `jit_arith` checks `l.v == DT_I && r.v == DT_I`
+    → false → falls through to the REALVAL branch → result is
+    DT_R(1.0).  Next iteration DT_R(1.0) + DT_I(1) → DT_R(2.0).
+    By end, `N` is DT_R(14.0).  The DT_R→string formatter on JIT
+    outputs `14.` (trailing dot with zero fractional digits stripped).
 
-  **Next steps (SN-9c-c-bis..e):**
-  - SN-9c-c-bis: root-cause `wordcount`'s `14.` vs `14`
-    formatting divergence.
-  - SN-9c-d: root-cause `triplet` then `fileinfo`.
-  - SN-9c-e: land `test_smoke_snobol4_jit.sh` gate script.
+    **Minimal repro (confirmed bug and confirmed fix):**
+    ```snobol4
+          N       = N + 1
+          N       = N + 1
+          OUTPUT  = +N ' words'
+    END
+    ```
+    Before fix: `--ir-run`/`--sm-run` → `2 words`; `--jit-run` → `2. words`.
+    After fix: all three modes → `2 words`.
+
+    **Fix:** one hunk in `sm_codegen.c` `h_arith` — added FAIL
+    propagation and DT_SNUL coercion, matching `sm_interp.c:321-331`
+    verbatim in semantics.  ~10 LOC.
+
+    **Gates (all green, no regressions):**
+    - Smoke PASS=7
+    - **Broker PASS=49** (+1 from 48 baseline — same bug class
+      cleared another broker test; confirms the scope was broader
+      than just `wordcount`)
+    - SN-7 beauty self-host PASS=51/51
+    - Broad corpus PASS=224/225 (`demo_claws5` only — pre-existing,
+      out of scope)
+
+    **Bonus: `triplet --jit-run` now 0-line diff vs ref.**  Same
+    DT_SNUL + arith class.  Removed from SN-9c-d's worklist.
+
+    **Files changed:**
+    - `src/runtime/x86/sm_codegen.c`: `h_arith` gained the four
+      missing sm_interp.c:321-331 lines — FAIL propagation (early
+      return with FAILDESCR and `last_ok=0`) and DT_SNUL→INTVAL(0)
+      coercion on both operands.
+
+  **Next steps (SN-9c-d..e):**
+  - SN-9c-d: root-cause `fileinfo` (infinite loop under `--jit-run`;
+    `CHARS + SIZE(INPUT) :F(DONE)` never flips to :F at EOF — either
+    `SIZE(INPUT)` at EOF returns 0 instead of FAIL on the JIT path,
+    or the FAIL gets swallowed between SIZE and the new FAIL-branch
+    in h_arith).  `triplet` already closed as bonus from SN-9c-c-bis.
+  - SN-9c-e: land `test_smoke_snobol4_jit.sh` gate script once
+    `fileinfo` closes.
 
 
 
@@ -1497,60 +1523,63 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all @ `54eabade` — SN-9c-c landed.  Two-part SN-6
-`last_ok` parity fix in `sm_codegen.c`: `h_push_var` now sets
-`STATE->last_ok = (val.v != DT_FAIL)` mirroring `sm_interp.c:267`, and
-`h_store_var` now sets `STATE->last_ok = 1` on the successful-store
-path mirroring `sm_interp.c:301`.  Both were SN-6 semantics the JIT
-had been missing since SN-9a — the interpreter had them, the codegen
-silently inherited `last_ok` from the previous opcode, causing a
-prior pattern-match failure to bleed across a loop-back goto.
+**HEAD:** one4all — SN-9c-c-bis landed.  `h_arith` in `sm_codegen.c`
+gained full parity with `sm_interp.c:321-331`: FAIL propagation (early
+return with FAILDESCR and `last_ok=0` on either operand == DT_FAIL)
+and DT_SNUL→INTVAL(0) coercion on both operands.  These were the two
+pieces the JIT had been missing — DT_S coercion was already there, but
+DT_SNUL fell through to `jit_arith`'s REALVAL branch, silently
+converting integer accumulators to reals whenever they started unset.
 
-**Broker +1 recovery — the important signal.**  This session's fix
-flipped Broker from the long-standing 48 to **49** without any other
-change.  That means the missing `last_ok` propagation was a broader
-bug class than just `word1` — it was silently wrong on any test that
-looped back over a successful assignment after a prior failure.  The
-drift noted across multiple earlier sessions (SN-23d, SN-8a,
-SN-9c-a+b all observed 48 locally) was this bug.  Now stable at 49.
+**Broker +1 recovery — confirmed again.**  This session the Broker
+came up at 48 on the clean-clone baseline and flipped to **49** once
+the SN-9c-c-bis fix landed.  Same shape as SN-9c-c's broker recovery:
+the bug class was broader than the one corpus program that exposed it
+(wordcount) — at least one broker test accumulated arithmetic on an
+initially-unset var and silently got DT_R results whose formatting
+differed from the expected DT_I.
 
-**`word1` CLOSED.**  `--jit-run` byte-identical to ref (0-line diff /
-2 lines).  Root cause: `h_push_var` on `PUSH_VAR INPUT` at EOF
-pushed FAILDESCR without setting `last_ok = 0`, so the enclosing
-statement's `:F(END)` branch never fired.  Compounded by
-`h_store_var` leaving `last_ok` at the previous iteration's
-pattern-match FAIL across the loop-back.
+**`wordcount` CLOSED.**  `--jit-run` byte-identical to ref (0-line
+diff).  Root cause: `N = N + 1` with unset N left `l.v = DT_SNUL`,
+`jit_arith` fell through to REALVAL, result propagated as DT_R, and
+the DT_R formatter emitted `14.` (trailing dot, trailing zeros
+stripped).  Minimal repro and fix hunk documented in the SN-9c-c-bis
+block above.
 
-**`wordcount` partially closed — SN-9c-c-bis opened.**  After the fix,
-count is correct (14) in all four oracles.  But `--jit-run` prints
-`14. words` vs ref `14 words` — a trailing `.` on the integer→string
-conversion of `+N`.  This is a formatting bug (DT_I formatter or
-unintended DT_R path in `jit_arith`), pre-existing and orthogonal to
-SN-9c-c.  Previously masked by the premature exit after line 1.
-Full isolation notes in the SN-9c-c-bis block in the ladder.
+**`triplet` CLOSED as a bonus.**  Same DT_SNUL + arith class — no
+separate investigation needed.  After the SN-9c-c-bis rebuild,
+`triplet --jit-run` is 0-line diff vs ref.  Removed from SN-9c-d's
+worklist.
 
-Gates (all green): Smoke **7**, Broker **49** (+1 from 48 baseline —
-see above), Broad corpus not re-measured this session, SN-7 beauty
-self-host not re-measured this session.  No regressions expected:
-the two-line additions strictly set `last_ok` to a correct value
-that was previously left at an arbitrary previous-opcode value.
+**Gates (all green, no regressions):**
+- Smoke **7**
+- Broker **49** (+1 from 48 baseline)
+- SN-7 beauty self-host **51/51**
+- Broad corpus `--sm-run` **224/225** (`demo_claws5` only — pre-existing,
+  out of scope)
 
 **Session trajectory this session:** clone HQ → clone
 one4all/x64/csnobol4/corpus → build scrip + oracles → reproduce
-word1 symptom → dump SM to identify opcodes 15-17 (PUSH_VAR INPUT,
-STORE_VAR LINE, JUMP_F) as the critical path → diff `h_push_var` /
-`h_store_var` against `sm_interp.c` equivalents → land two-line fix
-→ verify word1 byte-identical → smoke+broker gates → broker recovers
-+1 → handoff.  ~62% → ~80% context spent.
+`wordcount 14.` → narrow to 3-line minimal repro (unset N, two
+increments, `+N`) → confirm hypothesis (b) from SN-9c-c-bis isolation
+notes (DT_R where DT_I expected) but traced upstream to missing
+DT_SNUL coercion rather than to_int_jit mis-parsing → diff `h_arith`
+against `sm_interp.c:321-331` → land DT_SNUL + FAIL propagation fix
+→ verify `wordcount` + `triplet` byte-identical → all gates green,
+Broker recovers to 49 → handoff.
 
-**Next step:** **SN-9c-c-bis** — root-cause `wordcount`'s trailing
-`.` on JIT-only integer output.  Lead: add fprintf probes to
-`h_coerce_num` and the DT_I/DT_R output formatters to determine
-whether the value arriving at `OUTPUT =` concat is DT_I (formatter
-bug) or DT_R (upstream arith bug).  After SN-9c-c-bis, SN-9c-d
-takes on `triplet` then `fileinfo`, then SN-9c-e lands the
-`test_smoke_snobol4_jit.sh` gate script codifying a three-mode
-sweep.
+**Next step:** **SN-9c-d** — root-cause `fileinfo --jit-run` infinite
+loop.  `fileinfo.sno` is a classic `CHARS = CHARS + SIZE(INPUT) :F(DONE)`
+accumulator loop that exits on `SIZE(INPUT)` returning FAIL at EOF.
+Under `--jit-run` it hangs (timeout exit=124, empty output) — the
+`:F(DONE)` branch never fires.  Hypothesis: `SIZE(INPUT)` on the JIT
+path either (a) returns INTVAL(0) instead of FAILDESCR at EOF, or
+(b) returns FAIL but something between SIZE and the arith h_arith
+swallows it.  SN-9c-c-bis added FAIL propagation in `h_arith` — if
+SIZE is emitting FAIL, the arith should now propagate it, so (a) is
+the more likely path.  Start by probing `INPUT` / `SIZE` at EOF under
+`--jit-run` vs `--sm-run`.  After `fileinfo` closes, SN-9c-e lands
+`test_smoke_snobol4_jit.sh` as a three-mode sweep gate.
 
 Latent follow-ups inherited from SN-8a (still open):
 
