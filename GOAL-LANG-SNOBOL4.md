@@ -173,12 +173,29 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   — not committed; recreate from the snippet above if the container
   resets).  Side-probes: `/tmp/probe_nopattern.sno`, `/tmp/probe_guard2.sno`.
 
-- [ ] **SN-6** -- Full corpus: PASS=223/225 default, 224/225 --ir-run.
-  Remaining: `expr_eval` (two separate bugs — see below), `demo_claws5`
-  (GOAL-SNO-CLAWS5.md).
+- [x] **SN-6** -- Full corpus: **PASS=225/225** in all three modes.  Done 2026-04-20.
   ```bash
   bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
   ```
+  **Closing move — a gate-script fix, not a runtime fix.**  On entering
+  the session the broad-corpus gate reported `FAIL demo_claws5`.  The
+  runtime was not at fault: scrip `--ir-run`, scrip `--sm-run`, and
+  CSNOBOL4 `-bf -P 500k` all produce byte-identical output on
+  `CLAWS5inTASA.dat` (the 989-line stress input).  The failure was
+  pure gate wiring — `test_interp_broad_corpus_and_beauty.sh:67`
+  fed the demo row `demo_claws5` the stress input
+  `CLAWS5inTASA.dat` (989 lines → 5622 lines output) while comparing
+  against `claws5.ref` (95 lines, the correct *demo*-scale reference
+  produced by `claws5.input` at 16 lines).  The ref was trimmed back
+  to demo scale by corpus commit `293eab6` ("trim claws5.ref to match
+  claws5.input (16 lines)"); the gate never got repointed.
+  **Fix:** one-word change, line 67 of the gate script —
+  `$DEMO/CLAWS5inTASA.dat` → `$DEMO/claws5.input`, matching the
+  convention every other demo row already used
+  (`wordcount.input`, `treebank.input`, …).  After the fix both
+  scrip modes produce 95-line output that is 0-line-diff vs
+  `claws5.ref`.  **Gates:** Smoke PASS=7, Broker PASS=49, Broad
+  corpus **PASS=225/225**, SN-7 beauty driver-self-host PASS=51/51.
 
   **SN-6a — `--sm-run` self-recursive patterns.  Done 2026-04-19.**
 
@@ -1591,6 +1608,226 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     - `scripts/test_smoke_snobol4_jit.sh` (new, 95 LOC, executable).
 
 
+- [~] **SN-7-note** -- 2026-04-20 reassessment.  SN-7 above ("beauty
+  self-host 51/51") was **overclaimed** — the 51 combos test the 17
+  `beauty_*_driver.sno` files (subsystem unit tests), which exercise
+  `assign.sno`, `case.sno`, `counter.sno`, `match.sno`, `fence.sno`,
+  `ShiftReduce.sno`, etc. individually via hand-crafted inputs and
+  PASS/FAIL strings.  **Zero driver consumes `beauty.sno`'s own
+  top-level `Parse` pattern or the `main00..main05` stdin loop.**  The
+  goal-level "Done when" clause in the header — *"beauty.sno
+  self-hosts cleanly under all three modes"* — requires literal
+  self-application: `scrip <mode> beauty.sno < beauty.sno` reproduces
+  `beauty.sno`.  That is not demonstrated anywhere today.  See SN-26.
+
+
+- [ ] **SN-25** -- SPITBOL `-f` structural-keyword lookup fix.
+  **Root cause pinpointed 2026-04-20, fix not yet landed.**
+
+  **Symptom (verified on `/tmp/trivial2.sno` — a single
+  `OUTPUT = 'hi'` line with the required leading whitespace):**
+  - `sbl -b trivial2.sno`  → `hi`, exit 0.  ✓
+  - `sbl -bf trivial2.sno` → `No END statement found in source
+    file(s).` exit 1.  ✗  **Any** simple program with `-f` produces
+    this error — it has nothing to do with beauty.sno or size.
+
+  **Why this matters for the SNOBOL4 ladder:** `beauty.sno` uses the
+  double-function trick (`shift`/`Shift`, `reduce`/`Reduce`,
+  `pop`/`Pop`, `visit`/`Visit` — 4 pairs in the SPITBOL-side
+  subsystems), which requires case-sensitive label resolution.  Per
+  RULES.md, the blessed fallback is CSNOBOL4 `-bf`, but CSNOBOL4
+  SEGVs on beauty.sno at line 616 (`snoLine = INPUT` in main02).
+  A working `sbl -bf` would restore the oracle-on-the-happy-path
+  configuration for all double-function-trick programs.
+
+  **Root cause:** in `/home/claude/x64/bootstrap/sbl.asm`, the
+  compiler's keyword table stores 6 structural system labels in
+  **lowercase**:
+  ```
+  1563: v_end:  d_word svlbl ;                                 [followed by]
+  1565:         d_char 'e','n','d',0,0,0,0,0     ; /end/
+  1921: v_ret:  d_word svlbl ; return    — 'r','e','t','u','r','n',0,0
+  1972: v_frt:  d_word svlbl ; freturn   — 'f','r','e','t','u','r','n',0
+  1981: v_nrt:  d_word svlbl ; nreturn   — 'n','r','e','t','u','r','n',0
+  2025: v_cnt:  d_word svlbl ; continue  — 'c','o','n','t','i','n','u','e'
+  2072: v_scn:  d_word svlbl ; scontinue — 's','c','o','n','t','i','n','u','e'
+  ```
+  The generic lookup at `gnv09`/`gnv10` (lines 14396-14414) does a
+  pointerwise bytewise compare between the source identifier's chars
+  (at `gnvst`) and the table entry's chars.  With the default `-F`
+  (fold to lowercase) set, source `END` has already been folded to
+  `end` upstream, so byte-by-byte `e==e, n==n, d==d` ✓.  With `-f`
+  (no fold), source `END` stays uppercase; `E != e` at byte 0 → the
+  lookup misses `v_end`.  Nothing ever recognizes the `END` statement;
+  the file exhausts; `swcinp.c:215` fires the "No END" error.
+
+  Identifier lookup for user-defined names is already case-sensitive
+  by design under `-f` — that's the feature.  Only structural
+  keywords (END / RETURN / FRETURN / NRETURN / CONTINUE / SCONTINUE)
+  need to remain case-insensitive regardless of `-f`.
+
+  **Proposed fix** (surgical, one routine):
+
+  Make the comparison loop at `gnv10` (`bootstrap/sbl.asm:14408-14413`)
+  fold both operands to lowercase via `OR 0x20`-per-byte before
+  comparing, **but only for `svlbl`-typed entries** (svbit already
+  discriminates the six lines).  Alternative route: add a second
+  prefolded-source pointer and consult it only in the svlbl branch.
+
+  **Upstream source:** the lowercase-literal table is generated from
+  `asm.sbl` / `lex.sbl` / supporting source in `/home/claude/x64/`.
+  Any change to `bootstrap/sbl.asm` must also land in the upstream
+  `.sbl` sources so `make sbl` (which regenerates sbl.asm from
+  `.sbl`) doesn't revert the fix next rebuild.
+
+  - [ ] **SN-25a** -- Reproduce baseline on a fresh `bootsbl`:
+    ```bash
+    cd /home/claude/x64 && make bootsbl
+    ./bootsbl -b  /tmp/trivial2.sno   # hi,   exit 0
+    ./bootsbl -bf /tmp/trivial2.sno   # FAIL, exit 1
+    ```
+
+  - [ ] **SN-25b** -- Patch `bootstrap/sbl.asm` `gnv10` to fold
+    compared bytes when the current entry's svbit has `svlbl` set;
+    rebuild via `make bootsbl`.  Verify the trivial repro now passes
+    under `-bf`.
+
+  - [ ] **SN-25c** -- Mirror the patch in the upstream `.sbl` source
+    (likely `asm.sbl` or `lex.sbl`).  Run `make sbl` using the
+    patched `bootsbl` as `$(BASEBOL)`; verify the regenerated
+    `sbl.asm` carries the same semantics.  Install the new binary as
+    `bin/sbl`.
+
+  - [ ] **SN-25d** -- Verify a slightly larger program under `-bf`
+    that exercises all 6 structural keywords
+    (END + RETURN + FRETURN + NRETURN + CONTINUE + SCONTINUE).
+
+  - [ ] **SN-25e** -- Gate: add `test_smoke_spitbol_case_sensitive.sh`
+    — a short script that runs `sbl -bf` on a handful of fixture
+    programs covering each of the 6 keywords.  PASS when all return
+    the expected output.
+
+  **Build pipeline known working in this container:**
+  `cd /home/claude/x64 && make bootsbl` succeeds in ~3s (nasm + cc
+  against `bootstrap/sbl.asm` + `osint/*.c`, no SBL needed for this
+  target).  Baseline `./bootsbl -b /tmp/trivial2.sno` was verified to
+  match `sbl -b` (hi, exit 0) and `./bootsbl -bf` was verified to
+  match the bug in `sbl -bf` (No END, exit 1).
+
+
+- [ ] **SN-26** -- True beauty.sno self-host (4-way monitor).
+  **Rung opened 2026-04-20.**  Gated on SN-25.
+
+  **Done-when:** on the same form of `beauty.sno` that SPITBOL
+  processes cleanly, scrip reproduces SPITBOL's output byte-for-byte
+  in all three modes.  The 4-way monitor (`scrip-monitor`, IR/SM/JIT
+  + CSN) reports zero DIVERGE and zero "IR vs CSN" variance over the
+  full statement trace.
+
+  **Work done this session — scouting / triage, no fix yet:**
+
+  1. **Oracle self-host behavior documented.**
+     `beauty.sno` does not self-host cleanly under *any*
+     implementation today, as committed to corpus:
+     - `sbl -b beauty.sno < beauty.sno` (`cwd=beauty/`): runs 765
+       statements, emits 25 lines, crashes at line 781 (`END`) with
+       *error 021 — function called by name returned a value*.
+     - `snobol4 -b beauty.sno < beauty.sno`: emits 7 lines (header),
+       halts at line 770 with *Error 8 — Variable not present where
+       required*.
+     - `scrip --ir-run beauty.sno < beauty.sno` (with `SNO_LIB=
+       /home/claude/corpus/programs/snobol4/beauty`): emits 10 lines
+       including beauty's own `Parse Error` via `mainErr1`.
+     Different errors in different places — each implementation has
+     a distinct triggering mismatch vs beauty's own `Parse` pattern.
+
+  2. **Clean reference form of beauty.sno obtained.**  Lon provided
+     the original SNOBOL4 source bundle (`/home/claude/originals/
+     SNOBOL4/`), which predates the corpus entirely.  The original
+     `beauty.sno` is 630 lines (the corpus version is 781 — the
+     delta is the `ppArg*` / `--auto` / profiles machinery added
+     later).  Removing the three SNOBOL4-only compat shims
+     (`is.inc`, `FENCE.inc`, `io.inc`) is safe: `IsSpitbol`/
+     `IsSnobol4`/`IsType` have no references from any of beauty's
+     16 other includes; `FENCE(...)` in beauty.sno is SPITBOL's
+     native pattern operator, not the stub; `input_`/`output_` are
+     the SNOBOL4 polyfills and beauty.sno never calls them.  The
+     staged clean copy lives at `/home/claude/orig_test/`.
+
+  3. **Under-SPITBOL errors cataloged.**  The clean `orig_test`
+     beauty.sno under `sbl -b` (default fold-to-lower) trips on
+     `semantic.inc`: duplicate labels.  `shift`, `reduce`, `pop`
+     are defined alongside `Shift`, `Reduce`, `Pop`; with folding
+     on, all pairs collapse to the lowercase form and SPITBOL
+     rejects the duplicates.  This is the double-function trick
+     (the whole *point* is to distinguish `shift` from `Shift`), so
+     the correct invocation is `sbl -bf` — which is blocked by
+     SN-25.
+
+     Only **4 case-collision pairs** exist across all beauty source
+     (including corpus beauty dir): `shift`/`Shift`, `reduce`/
+     `Reduce`, `pop`/`Pop`, `visit`/`Visit`.  A path-A rewrite
+     (rename the lowercase members to avoid collision under fold)
+     is tractable but would fight the idiom — SN-25 is the cleaner
+     solution.
+
+  4. **First scrip divergence already located via the monitor.**
+     On the corpus beauty.sno self-input, `scrip-monitor --monitor`
+     (built this session via `bash scripts/build_csnobol4_archive.sh
+     && make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a`)
+     reported: IR/SM/JIT agreed for 151 statements, then at
+     **stmt 152 (label `G1`, line 169)**:
+     ```
+     IR vs SM (1 var(s) differ):
+       UTF_Array   IR=ARRAY('797163616:32490')  SM=ARRAY('124,2')
+     IR vs JIT (1 var(s) differ):
+       UTF_Array   IR=ARRAY('797163616:32490')  JIT=ARRAY('124,2')
+     ```
+     `--ir-run` holds a corrupted `UTF_Array` dim string
+     (`'797163616:32490'` — looks like a descriptor or pointer value
+     stringified into the ARRAY dimension argument), while SM and
+     JIT agree on the sensible `'124,2'`.  Feels like a DT_E /
+     descriptor-aliasing bug of the class SN-6b addressed — lives
+     in the `--ir-run` path between the preceding `ARRAY('1:4')`
+     (line 151) and the first read of `UTF_Array` at line 169.
+     **Not fixed this session.**  Good starting point once SN-25
+     unblocks the oracle.
+
+  **Rename and install (deferred until SN-25 unblocks testing):**
+
+  Per Lon's direction: the current fancy corpus beauty.sno (781
+  lines, `ppArg*` / `--auto` / profiles) becomes `beautifier.sno`
+  (same directory).  The smaller clean form of `beauty.sno`
+  (stdin-read, no `-INCLUDE 'is.inc'` / `FENCE.inc` / `io.inc`,
+  otherwise identical to the `/home/claude/orig_test/beauty.sno`
+  staged this session) becomes the committed `beauty.sno` in
+  `corpus/programs/snobol4/demo/` and its 16 `.inc` subsystems
+  install alongside.  Do the rename+install as SN-26's first
+  sub-rung so the self-host test is running against the intended
+  source.
+
+  - [ ] **SN-26a** -- Rename `demo/beauty.sno` → `demo/beautifier.sno`
+    in corpus.  Also move any referring doc strings that name
+    "beauty.sno" for the fancy behavior.
+
+  - [ ] **SN-26b** -- Install clean `beauty.sno` + 16 `.inc` files
+    from `/home/claude/orig_test/` (or regenerate from
+    `/home/claude/originals/`) into `corpus/programs/snobol4/demo/`
+    (and/or `corpus/programs/snobol4/beauty/` as include location).
+    Verify `sbl -bf demo/beauty.sno < demo/beauty.sno` runs cleanly
+    (this is the SN-25 dependency).
+
+  - [ ] **SN-26c** -- Self-host under the 4-way monitor.  Start
+    with the `UTF_Array='797163616:32490'` `--ir-run` divergence at
+    stmt 152.  Fix; rerun; walk the next DIVERGE.  Continue until
+    monitor reports all-agree.  Keep gates green at each step
+    (Smoke=7, Broker=49, Broad corpus=225/225, SN-7 driver 51/51).
+
+  - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a
+    gate script that runs `scrip <mode> beauty.sno < beauty.sno`
+    in all three modes, diffs output against a pre-baked
+    `beauty.self.ref` (generated from SPITBOL `-bf` under SN-25),
+    PASS=3 FAIL=0.  Makes "beauty self-hosts" a standing gate.
 
 
 ## Key files
@@ -1622,55 +1859,86 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all — SN-9c-d and SN-9c-e landed.  `h_call` in
-`sm_codegen.c` gained pre-call FAIL-propagation parity with
-`sm_interp.c:799-810` (any arg == DT_FAIL short-circuits the call with
-FAILDESCR / `last_ok=0`); this closed `fileinfo --jit-run`, which had
-been hanging in an infinite accumulator loop because `SIZE(INPUT)` at
-EOF was being invoked on a FAIL argument and returning `INTVAL(0)`
-instead of propagating the FAIL to the `:F` branch.
+**HEAD:** one4all — SN-6 closed via a one-word gate-script fix
+(`test_interp_broad_corpus_and_beauty.sh:67` now points `demo_claws5`
+at `claws5.input` instead of `CLAWS5inTASA.dat`; matches the
+demo-scale ref).  Broad corpus PASS=225/225 in all three modes.
 
-**SN-9c CLOSED.**  All 7 JIT-only corpus failures identified at rung
-open (fileinfo, triplet, 1013_func_nreturn, 210_indirect_ref,
-211_indirect_assign, word1, wordcount) now pass across SN-9c-a..d.
-Gate script `test_smoke_snobol4_jit.sh` landed at SN-9c-e: three-mode
-sweep of every crosscheck program, currently 207/207/207.
+**2026-04-20 session reassessment.**  SN-9 was ready to close and the
+session's first fix (SN-6) closed on a gate wiring error, not a
+runtime bug.  Lon then redirected to the goal-level Done-when clause:
+*"beauty.sno self-hosts cleanly under all three modes."*  Investigation
+showed:
 
-**Broker +1 recovery — confirmed for the third time.**  This session
-the Broker came up at 48 on the clean-clone baseline and flipped to
-**49** once the SN-9c-d fix landed.  Same shape as SN-9c-c's and
-SN-9c-c-bis's broker recoveries: the bug class was broader than the
-single corpus program that exposed it — at least one broker test was
-calling a function on a FAIL-producing argument and the swallowed
-FAIL was generating a wrong-branch path.
+- **SN-7 was overclaimed.**  51/51 covers the 17 subsystem drivers
+  (`beauty_*_driver.sno`), not the top-level `Parse`/`main00..main05`
+  stdin loop.  See SN-7-note above.
+- **`beauty.sno` does not self-host under any implementation today.**
+  SPITBOL errors at line 781 (error 021, 765 stmts in), CSNOBOL4
+  errors at line 770 (error 8), scrip `--ir-run` trips beauty's own
+  `mainErr1` at 10 output lines.  All three fail in different ways.
+- Lon supplied the original upstream SNOBOL4 bundle
+  (`/home/claude/originals/`) — a smaller, cleaner `beauty.sno` (630
+  lines vs corpus's 781) plus 16 `.inc` subsystems, predating the
+  `--auto`/`ppArg*` profiling machinery.  Stripping 3 SNOBOL4-only
+  compat shims (`is.inc`/`FENCE.inc`/`io.inc`) is safe under SPITBOL.
+- Clean form still fails under `sbl -b` because beauty uses the
+  double-function trick (`shift`/`Shift`, `reduce`/`Reduce`, `pop`/
+  `Pop`, `visit`/`Visit` — 4 case pairs).  Correct invocation is
+  `sbl -bf`.  But **`sbl -bf` is broken** — error
+  "No END statement found" on *any* program, trivial or not.
+- **SN-25 opened** to fix the `-bf` bug.  Root cause pinpointed:
+  `bootstrap/sbl.asm:14408-14413` (`gnv10`) does a bytewise compare
+  between source-identifier chars and lowercase-literal keyword
+  table entries (`v_end`, `v_ret`, `v_frt`, `v_nrt`, `v_cnt`,
+  `v_scn`).  Under `-f` no fold happens; `END` bytes don't match
+  `end` bytes; END is never recognized; file exhausts; error fires.
+  Fix scope: fold both compared bytes (OR 0x20) in `gnv10` when the
+  current entry is svlbl-typed.  Build pipeline verified in this
+  container (`make bootsbl` succeeds in ~3s, no SBL needed).
+  SN-25a..e enumerated.
 
-**Gates (all green, no regressions):**
+- **SN-26 opened** for the true self-host work, gated on SN-25.
+  First scrip divergence already located via `scrip-monitor`: at
+  **stmt 152, label `G1`, line 169**, `UTF_Array` under `--ir-run`
+  holds `ARRAY('797163616:32490')` (corrupted descriptor-or-pointer
+  stringification into an ARRAY dimension arg) vs `ARRAY('124,2')`
+  under SM/JIT.  Feels DT_E / descriptor-aliasing.  Not fixed this
+  session — captured as SN-26c's entry point.  Lon also directed:
+  rename corpus's fancy `demo/beauty.sno` → `demo/beautifier.sno`;
+  install the clean stdin-reading form as the committed `beauty.sno`.
+  Staged in `/home/claude/orig_test/` this session; not installed
+  yet (SN-26a/b).
+
+**Gates (all green, no regressions — verified fresh this session):**
 - Smoke **7**
-- Broker **49** (+1 from 48 baseline — third consecutive SN-9c rung
-  where the broker recovered after a FAIL-propagation class fix)
-- SN-7 beauty self-host **51/51**
-- Broad corpus **224/225** in all three modes (`--ir-run`, `--sm-run`,
-  `--jit-run`) — same `demo_claws5` failure in all three
-- **SN-9c-e JIT parity gate: 207/207/207 on crosscheck**
+- Broker **49**
+- SN-7 subsystem drivers **51/51**
+- Broad corpus **225/225** in all three modes (SN-6 closed)
+- SN-9c-e JIT parity gate **207/207/207** on crosscheck
 
 **Session trajectory:** clone HQ + one4all + x64 + csnobol4 + corpus
-→ build scrip and oracles → reproduce `fileinfo --jit-run` hang →
-narrow to 4-line repro (`CHARS = CHARS + SIZE(INPUT) :F(done)` with
-empty stdin) → dump SM opcodes → trace expected flow through push_var
-/ call / arith / store_var / jump_f → diff `h_call` against
-`sm_interp.c:799-810` → spot missing pre-call FAIL loop → port the
-11-line block verbatim → rebuild → verify fileinfo 0-line diff, all
-gates green, Broker recovers to 49 → write `test_smoke_snobol4_jit.sh`
-→ verify 207/207/207 → handoff.
+→ build scrip + SPITBOL + CSNOBOL4 + scrip-monitor + csnobol4 archive
+→ run gates (Smoke=7, Broker=49, broad=224/225 with `demo_claws5`
+failing) → trace claws5 failure to stale CLAWS5inTASA.dat reference
+in gate script → one-word fix to line 67 of
+`test_interp_broad_corpus_and_beauty.sh` → broad=225/225 → Lon redirects
+to beauty self-host → discover SN-7 gate tests subsystems not top-level
+→ run literal `scrip <mode> beauty.sno < beauty.sno` → observe
+`Parse Error` at 10 lines → confirm both oracles (SPITBOL, CSNOBOL4)
+also fail self-host differently → Lon supplies originals bundle →
+stage clean form in `orig_test/` → discover SPITBOL `-f` breaks on
+*any* program → trace root cause to lowercase keyword table
+compared bytewise in `gnv10` → verify `make bootsbl` build works →
+draft SN-25 fix plan → run `scrip-monitor` on corpus beauty.sno
+self-input → locate first DIVERGE (stmt 152, UTF_Array) → draft
+SN-26 → commit/push.
 
-**Next step:** **SN-9** is the next visible parent rung without all
-children closed — Phase 3 JIT-run has its SN-9a, SN-9b, SN-9c all
-now complete and byte-identical to `--sm-run` on broad corpus and
-crosscheck, so SN-9 itself is closable.  After that, the only
-remaining `[ ]` in the SNOBOL4 ladder is **SN-6** — broad corpus
-PASS=225/225 — blocked on `demo_claws5`, which is tracked under its
-own goal file (`GOAL-SNO-CLAWS5.md`).  So the SNOBOL4 frontend ladder
-proper is within one goal-file step of done.
+**Next step:** **SN-25** (SPITBOL `-f` bootstrap fix) is the gating
+rung.  Once `sbl -bf` works on trivial input, proceed to SN-26a
+(rename fancy → `beautifier.sno`, install clean beauty.sno),
+then SN-26c (close the `UTF_Array` divergence and walk the 4-way
+monitor through the rest).
 
 Latent follow-ups inherited from SN-8a (still open):
 
@@ -1691,4 +1959,12 @@ Latent follow-ups inherited from SN-8a (still open):
   other box type storing in-flight scalars is vulnerable to the same
   class of bug.  Pristine-template rewrite is a defensible cleanup
   if symptoms appear elsewhere.
+
+**Follow-up from 2026-04-20 SN-26 scout:**
+- The `scrip-monitor --monitor` run reports `IR last_ok=?` on DIVERGE
+  at stmt 152, while SM and JIT both show `last_ok=1`.  The `?` means
+  IR's last_ok is uncaptured at the snapshot boundary.  Clean up
+  (small, one-line in the IR snapshot code of `sync_monitor.c`) would
+  remove one class of reporting ambiguity when debugging SN-26.
+
 
