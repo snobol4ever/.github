@@ -469,6 +469,92 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
        should still work — the fold only affects `gnv10`.)
     If all 4 checks pass, advance to SN-25c.
 
+  - [~] **SN-25b (session 4, 2026-04-21)** — bootstrap patch built,
+    verified, **reverted per hand-off rule (do not patch generated
+    code)**.
+
+    **What worked:** byte-wise fold-both-sides compare at `gnv10`
+    in `bootstrap/sbl.asm` (r10/r11 scratch, wa pushed/popped as
+    per-word byte counter, rewind xl/xr on mismatch before jumping
+    to `gnv11`).  All 4 checklist items passed:
+    1. Trivial OUTPUT under `-b` and `-bf` — both print `hello`.
+    2. DEFINE/SIZE/OUTPUT/RETURN under `-bf` — prints
+       `hello, world` / `size=6`.
+    3. All 6 structural keywords under `-bf` — RETURN/FRETURN
+       exercised inline; NRETURN via `*f()` separately; END/CONTINUE
+       implicit (exit 0 no-error).
+    4. Double-function trick `shift`/`Shift` under `-bf` — both
+       functions distinct, both print their own output.  Under `-b`
+       the fold collapses them (expected, not a regression).
+    `-b` behavior unchanged on every test.
+
+    **Landed and reverted on x64:**
+    - `6530c15` — SN-25b bootstrap patch (forward)
+    - `5843f5d` — revert of the above (both pushed to origin/main)
+
+    **Why reverted:** `bootstrap/sbl.asm` is generated from
+    `sbl.min` via `make sbl`.  Patching the bootstrap works
+    immediately but any future `make sbl` → `make makeboot` cycle
+    reverts the fix.  Per Lon's mid-session direction, the proper
+    rung is SN-25c: patch the SIL source, regenerate, install.
+
+    **SIL source located:** `/home/claude/x64/sbl.min:23093-23096`
+    contains the gnv10 block:
+    ```
+    gnv10  cne  (xr),(xl),gnv11  jump if name mismatch
+           ica  xr               else bump new name pointer
+           ica  xl               bump svblk pointer
+           bct  wb,gnv10         else loop until all checked
+    ```
+    `cne (xr),(xl),lbl` is word-wise compare-not-equal (8 bytes at
+    once).  SIL has no built-in byte-wise fold-compare; the patch
+    must spell out a nested inner loop using `lch`/`blt`/`bgt`/`flc`/
+    `beq`/`bct` primitives, mirroring the `flstg` pattern at
+    `sbl.min:21501-21530`.
+
+    **SIL patch draft** (for SN-25c next session — refine
+    register-liveness before applying):
+    ```
+    gnv10  mov  -(xs),wa        save wa across byte loop
+           mov  wa,=cfp_c       8 bytes per word
+    gnv10a lch  wc,(xl)+        load table byte
+    *      NOTE: wc is LIVE (holds svbit from gnv09).  Must push wc
+    *      too, OR use a different temp register.  w0 is free;
+    *      consider `lch w0,(xl)+` + a second temp for the source
+    *      side.  Register pressure analysis pending.
+           blt  wc,=ch_ua,gnv10b
+           bgt  wc,=ch_uz,gnv10b
+           flc  wc
+    gnv10b lch  w0,(xr)+        load source byte
+           blt  w0,=ch_ua,gnv10c
+           bgt  w0,=ch_uz,gnv10c
+           flc  w0
+    gnv10c beq  wc,w0,gnv10d    match -> next byte
+           [rewind xl,xr by (cfp_c-wa); pop wa; pop wc; brn gnv11]
+    gnv10d bct  wa,gnv10a       8-byte inner loop
+           mov  wa,(xs)+        restore
+           bct  wb,gnv10        outer word loop
+           [fall through to existing success path]
+    ```
+
+    **Critical register-liveness constraint:** `wc` holds `svbit`
+    loaded at `gnv09` (sbl.min:23085) and read at `gnv11`→`gnv12`
+    (sbl.min:23108 `rsh wc,svnbt`).  Any temp use of `wc` in the
+    byte loop MUST save/restore it.  The draft above uses `wc` —
+    must be corrected, OR push `wc` at gnv10 entry and pop at both
+    exit paths.
+
+    **Build pipeline verified:**
+    - `make sbl` uses `$(BASEBOL)=./bin/sbl` (which exists) to process
+      `lex.sbl` → `sbl.lex`, `asm.sbl` → `sbl.asm`, `err.sbl` →
+      `err.asm`, then NASM + cc → `sbl` binary (sbl.min is input to
+      asm.sbl macro processing).
+    - `make makeboot` (after sanity-check) persists the regenerated
+      `sbl.asm`/`err.asm`/`sbl.lex` into `bootstrap/`.
+    - `flc` macro expands at `asm.sbl:2505` to
+      `cmp cl,'A'; jb t2; cmp cl,'Z'; ja t2; add cl,32; t2:` —
+      byte-level fold on low byte of target register.  Good.
+
   - [x] **SN-25.x32** -- Probe `spitbol/x32` `-bf`.  **Done 2026-04-21.**
     Confirmed the `-f` bug is shared with x64 — x32 is NOT a zero-patch
     alternative oracle.  Pivot to SN-25b (source fix) stands.
@@ -1408,20 +1494,31 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ `ddc681c`
-(2026-04-21 session 4: HQ compaction only — no code touched).
+**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ pending
+this commit · x64 @ `5843f5d` (2026-04-21 session 5: SN-25b bootstrap
+patch verified working then reverted; SN-25c SIL source fix next).
 
 **Gates (last verified 2026-04-20, not re-measured session 3):**
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
 
-**Current step: SN-26c.** Plan is oracle-gated — neither SPITBOL nor CSNOBOL4
-runs beauty self-host cleanly today:
+**Current step: SN-25c.** SN-25b verified (all 5 tests pass on bootstrap
+patch), reverted because bootstrap is generated. Next session applies the
+SIL patch to `sbl.min:23093` directly.
 
-- SPITBOL `-b`: duplicate-label errors (fold collapses double-function-trick
-  pairs). SPITBOL `-bf`: "No END statement found" on any program — SN-25.
-- CSNOBOL4 `-bf`: 33 lines then SEGV at `beauty.sno:616 stmt 1074`
-  (`snoLine = INPUT` in `main02`) — SN-26c-pre-CSN.
+**Order of work next session:**
+1. Apply SIL patch to `/home/claude/x64/sbl.min:23093-23096` (draft in
+   SN-25b session-4 block above — register-liveness for `wc` needs
+   fixing first).
+2. `cd /home/claude/x64 && make sbl` — regenerates `sbl.asm` via
+   `./bin/sbl` as `$(BASEBOL)`.
+3. Re-run the 5 verification tests against the newly-built `sbl` binary
+   (not `bootsbl`). Tests are preserved at `/tmp/sn25/trivial.sno`,
+   `test2.sno`, `test3.sno`, `test4b.sno`, `test5b.sno` — recreate from
+   the session-4 block if container reset.
+4. `make makeboot` to persist regenerated `sbl.asm` into `bootstrap/`.
+5. Commit + push. Under `LCherryholmes / lcherryh@yahoo.com`.
+6. Then return to SN-26c-pre-CSN or SN-26c step 3 per goal ladder.
 - scrip `--ir-run`: 0 stdout, cascading `Error 1` on stderr.
 - 4-way monitor first DIVERGE at stmt 153: IR `i=1` vs SM/JIT `i=2`.
   Plus ~40 `sm_lower: unresolved label 'error'/'err'` warnings.
