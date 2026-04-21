@@ -146,13 +146,16 @@ mode. Run with CSNOBOL4 `-bf`. Never with SPITBOL (broken `-f`).
 
 | Runtime | DATATYPE case | Notes |
 |---------|---------------|-------|
-| SPITBOL (primary oracle) | lowercase — `"integer"`, `"pattern"`, `"string"` | |
-| CSNOBOL4 (secondary oracle) | uppercase — `"INTEGER"`, `"PATTERN"`, `"STRING"` | |
-| one4all | uppercase — `"NAME"`, `"PATTERN"`, `"STRING"` | Intentional — SIL SNOBOL4 spec |
-| snobol4dotnet | lowercase — matches SPITBOL | User-defined DATA type names also lowercased via `ToLowerInvariant()` |
-| snobol4jvm | uppercase | |
+| SPITBOL x64 (primary oracle, `bin/sbl`) | lowercase — `"integer"`, `"pattern"`, `"string"` | **SN-27 will flip this to UPPERCASE** to match every other runtime below |
+| SPITBOL x32 (`snobol4ever/x32`) | **UPPERCASE** — `"INTEGER"`, `"PATTERN"`, `"STRING"` | Source: `s.min` lines 5250-5308 (`DTC /STRING/` etc.).  Discovered 2026-04-21 during SN-25.x32 probe. |
+| CSNOBOL4 (secondary oracle) | UPPERCASE — `"INTEGER"`, `"PATTERN"`, `"STRING"` | |
+| one4all | UPPERCASE — `"NAME"`, `"PATTERN"`, `"STRING"` | Intentional — SIL SNOBOL4 spec.  Archive D-002. |
+| snobol4dotnet | lowercase — matches x64 | User-defined DATA type names also lowercased via `ToLowerInvariant()`.  Open question SN-27f: flip to UPPERCASE too? |
+| snobol4jvm | UPPERCASE | |
 
-⛔ Do **not** modify any runtime's DATATYPE case behavior.
+⛔ Do **not** modify any runtime's DATATYPE case behavior without
+opening an explicit rung.  See SN-27 (`GOAL-LANG-SNOBOL4.md`) — the
+work to unify on UPPERCASE is tracked there.
 
 ### Portable tests only
 
