@@ -612,11 +612,94 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     rebuild via `make bootsbl`.  Verify the trivial repro now passes
     under `-bf`.
 
-  - [ ] **SN-25c** -- Mirror the patch in the upstream `.sbl` source
-    (likely `asm.sbl` or `lex.sbl`).  Run `make sbl` using the
-    patched `bootsbl` as `$(BASEBOL)`; verify the regenerated
-    `sbl.asm` carries the same semantics.  Install the new binary as
-    `bin/sbl`.
+  - [~] **SN-25c** -- **Session 6 (2026-04-21): SIL patch drafted and
+    compiles; architecturally redirected before landing.**
+
+    **What happened this session:**
+
+    1. Applied byte-wise fold-both-sides compare to `sbl.min:23093`
+       (gnv10 block).  First attempt used 6-character labels
+       (`gnv10a`..`gnv10z`) — rejected by the MINIMAL lexer because
+       `p.minlabel` at `lex.sbl:161` requires exactly 5 characters
+       (2 letters + 3 alphanumerics).  **Gotcha for future SIL
+       patches: all new labels must be 5 chars, first 2 letters.**
+
+    2. Renamed to `gn10a`..`gn10z`.  Lex pass and asm pass both
+       completed cleanly; build stopped only because `nasm` was not
+       installed in the container (`apt-get install -y nasm` is the
+       one-command fix; the SN-25a notes already document this).
+
+    3. **REDIRECTED BEFORE BUILD COMPLETED** per Lon's directive:
+       *"Ensure that casing happens only during lexical/parse and
+       user input strings used as names."*
+
+       Fold-both-sides at `gnv10` violates that principle.  `gnv10`
+       is the standard-variable-table lookup hot path — it runs for
+       **every** identifier resolution at compile time AND at run
+       time (via `gtnvr` from multiple sites).  Folding there:
+         - Pays the cost on every lookup, not just case-sensitive
+           lookups.  The canonical form should have already been
+           established at ingress.
+         - Imposes a policy ("fold structural keywords case-
+           insensitively") at the lookup layer instead of at the
+           layer that decides canonical form (lexer / CONVERT /
+           indirection).
+         - Couples two orthogonal concerns: "what is this
+           identifier's spelling?" (ingress decision) vs "does this
+           spelling match a table entry?" (pure lookup).
+
+       **Patch reverted.**  Working tree clean.  `sbl.min` restored
+       to upstream at lines 23093-23102.
+
+    **Revised approach — SN-25d (new rung, replaces old SN-25c):**
+
+    Folding must happen at one of these correct sites, NOT at gnv10:
+
+       (i) **Lexer (asm.sbl or lex.sbl)**: when the scanner
+           identifies a token as a structural keyword (END, RETURN,
+           FRETURN, NRETURN, CONTINUE, SCONTINUE), it can fold
+           that specific lexeme to lowercase before handing it to
+           `gtnvr` — regardless of `kvcas`.  User identifiers and
+           other labels continue to respect `kvcas` as today.  This
+           preserves case-sensitive user names while keeping
+           structural keywords uniformly recognized.
+
+      (ii) **`flstg` selective fold**: introduce `flkwd` (fold
+           keyword) — a fold routine that respects `kvcas` for
+           user content but always folds on the 6 structural-keyword
+           token classes.  Called from the same sites as `flstg`
+           but only for known-keyword-candidate positions.
+
+     (iii) **Keyword-recognition pre-pass**: before `gtnvr` enters
+           the hash chain, a dedicated 6-entry check against
+           uppercase-or-lowercase END/RETURN/.../SCONTINUE short-
+           circuits to the already-known svblk.  This is
+           architecturally similar to (i) but implemented at the
+           pre-lookup stage, not at the scan stage.
+
+    Lon to choose the correct level between (i)/(ii)/(iii).  Each
+    is smaller in scope than the gnv10 fold and none pollutes the
+    common lookup path.  The original SN-25 diagnosis remains
+    valid — only the proposed fix site changes.
+
+  - [ ] **SN-25e** -- Gate: add `test_smoke_spitbol_case_sensitive.sh`
+    — a short script that runs `sbl -bf` on a handful of fixture
+    programs covering each of the 6 keywords.  PASS when all return
+    the expected output.
+
+  - [ ] **SN-25f** -- SIL patching gotchas (captured 2026-04-21 s6
+    for future authors):
+      * MINIMAL labels are exactly 5 characters: 2 letters + 3
+        alphanumerics (`lex.sbl:161 p.minlabel`).  6-char labels
+        produce `source line syntax error`, one per offending line.
+      * `nasm` must be installed (`apt-get install -y nasm`) — not
+        persisted across container resets.
+      * Build flow: `make sbl` runs `./bin/sbl lex.sbl` →
+        `./bin/sbl -x asm.sbl` → `./bin/sbl -x err.sbl` →
+        `nasm *.asm` → `cc *.o`.  Errors in any stage halt the
+        pipeline with a numeric exit code.  Lex errors appear as
+        `* *???*` markers in `sbl.lex`; count via
+        `grep -c '\?\?\?' sbl.lex`.
 
   - [ ] **SN-25d** -- Verify a slightly larger program under `-bf`
     that exercises all 6 structural keywords
@@ -1495,30 +1578,32 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ## Current state
 
 **HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ pending
-this commit · x64 @ `5843f5d` (2026-04-21 session 5: SN-25b bootstrap
-patch verified working then reverted; SN-25c SIL source fix next).
+this commit · x64 @ `5843f5d` (unchanged — session 6 patch reverted
+before landing per Lon's casing-locality directive).
 
-**Gates (last verified 2026-04-20, not re-measured session 3):**
+**Gates (last verified 2026-04-20, not re-measured sessions 3-6):**
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
 
-**Current step: SN-25c.** SN-25b verified (all 5 tests pass on bootstrap
-patch), reverted because bootstrap is generated. Next session applies the
-SIL patch to `sbl.min:23093` directly.
+**Current step: SN-25d.** Session 6 drafted a byte-wise fold-both-sides
+patch at `sbl.min:23093` (gnv10), got it compiling cleanly through the
+SIL lex + asm passes (after fixing 5-char label constraint), and was
+about to build with nasm + cc.  Lon redirected: casing must happen at
+the lexical/parse layer or at user-input-used-as-name sites, NOT at
+the keyword-lookup hot path.  Patch reverted.  Next session picks up
+SN-25d (lexer-level selective fold for the 6 structural keywords).
 
 **Order of work next session:**
-1. Apply SIL patch to `/home/claude/x64/sbl.min:23093-23096` (draft in
-   SN-25b session-4 block above — register-liveness for `wc` needs
-   fixing first).
-2. `cd /home/claude/x64 && make sbl` — regenerates `sbl.asm` via
-   `./bin/sbl` as `$(BASEBOL)`.
-3. Re-run the 5 verification tests against the newly-built `sbl` binary
-   (not `bootsbl`). Tests are preserved at `/tmp/sn25/trivial.sno`,
-   `test2.sno`, `test3.sno`, `test4b.sno`, `test5b.sno` — recreate from
-   the session-4 block if container reset.
-4. `make makeboot` to persist regenerated `sbl.asm` into `bootstrap/`.
-5. Commit + push. Under `LCherryholmes / lcherryh@yahoo.com`.
-6. Then return to SN-26c-pre-CSN or SN-26c step 3 per goal ladder.
+1. Pick the fold-site between SN-25d options (i) lexer-level keyword
+   fold in `asm.sbl`/`lex.sbl`, (ii) `flkwd` selective fold routine,
+   (iii) pre-pass keyword recognition.  Ask Lon if ambiguous.
+2. Install nasm: `apt-get install -y nasm`.
+3. Apply chosen patch, `make sbl`, verify all 5 test cases (same
+   fixtures: `/tmp/sn25/trivial.sno`, `test2.sno`, `test3.sno`, plus
+   two user-label-collision cases to confirm user names still respect
+   `-f`).
+4. `make makeboot`, `cp sbl bin/sbl`, commit + push x64.
+5. Return to SN-26c-pre-CSN or SN-26c per ladder.
 - scrip `--ir-run`: 0 stdout, cascading `Error 1` on stderr.
 - 4-way monitor first DIVERGE at stmt 153: IR `i=1` vs SM/JIT `i=2`.
   Plus ~40 `sm_lower: unresolved label 'error'/'err'` warnings.
