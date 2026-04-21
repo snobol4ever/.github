@@ -49,9 +49,64 @@ at the top of the commit message and leave the incomplete step as `- [ ]`
 with a note below it. Still push everything — a broken push is better than
 no push.
 
+## Casing belongs at the ingress layer, not at lookup
+
+⛔ Do **not** apply case folding at identifier-lookup sites. Casing
+decisions belong at two boundaries only:
+
+1. **Lexical / parse layer** — when the scanner identifies a token
+   and decides what canonical form to hand downstream (`flstg`,
+   lexer-level keyword recognition).
+2. **User input strings used as names** — `CONVERT(x, 'NAME')`,
+   indirection via `$`, and `&` assignments that interpret a user-
+   supplied string as an identifier.
+
+Keyword-table lookup (`gnv10` in SPITBOL's `gtnvr`), hash-chain
+walks, variable resolution via already-parsed identifiers — these
+are **pure comparison sites**. The identifier's case must already
+be canonical by the time it reaches them. Folding at a lookup site
+pays cost on every call, couples policy ("keywords are case-
+insensitive") with mechanism ("how do I compare two byte strings"),
+and makes case behavior invisible to code reading the source.
+
+Session 6 (2026-04-21) drafted an SN-25c fold-both-sides patch at
+`sbl.min:23093 gnv10` and reverted it before landing for exactly
+this reason. The correct SN-25d site is `asm.sbl` / `lex.sbl`
+keyword recognition, or a `flkwd` companion to `flstg`, or a
+6-entry structural-keyword pre-pass before `gtnvr` enters the
+hash chain. See GOAL-LANG-SNOBOL4.md SN-25d for the options.
+
 ---
 
 ## No append-only huge files
+
+⛔ Do **not** create or maintain append-only accumulating files (e.g.
+`SESSIONS_ARCHIVE.md`). The git commit log is the permanent session record.
+HQ docs are state, not history.
+
+---
+
+## Project files — keep small; don't preload reference material
+
+⛔ Do **not** attach large reference files (PDFs, generated C, SIL
+dumps, manual scans) as project-file attachments. Project-file
+attachments are preloaded into every session's context window before
+the first message. Session 6 (2026-04-21) opened at ~70-80% consumed
+because `spitbol-manual-v3.7.pdf`, `green-book.pdf`, `v311.sil`,
+`snobol4.c`, and `syntax.tbl` were all project-file attached.
+
+The fix (user action in claude.ai UI):
+1. Remove all five files from the project's file attachments.
+2. If searchable reference is needed, add them as **project
+   knowledge** instead — these are retrieved on-demand via
+   `project_knowledge_search`, not preloaded.
+3. Cloned repos (`.github`, `one4all`, `x64`, `corpus`, `csnobol4`)
+   already contain the source Claude needs; the PDF manuals can be
+   re-fetched from the web or kept as knowledge-base entries.
+
+**Target:** session 7+ should open at < 20% context consumed, leaving
+full headroom for build + test + verify + commit cycles within a
+single session.
 
 ⛔ Do **not** create or maintain append-only accumulating files (e.g.
 `SESSIONS_ARCHIVE.md`). The git commit log is the permanent session record.
