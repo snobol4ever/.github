@@ -1696,20 +1696,57 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     ./bootsbl -bf /tmp/trivial2.sno   # FAIL, exit 1
     ```
 
-  - [ ] **SN-25.x32** -- TRY FIRST: test `spitbol/x32` for the same
-    bug.  SPITBOL also ships a 32-bit x86 variant at
-    github.com/spitbol/x32.  If its `-bf` works correctly on
-    `/tmp/trivial2.sno`, the `-f` path in x32's codegen is already
-    sound and we can use `sbl32` as the case-sensitive oracle
-    without touching `bootstrap/sbl.asm`.  Zero patching, zero risk,
-    ~5 minutes to clone+build+test.  Only pivot to SN-25b if x32
-    shows the same bug.
+  - [x] **SN-25.x32** -- Probe `spitbol/x32` `-bf`.  **Done 2026-04-21.**
+    Confirmed the `-f` bug is shared with x64 — x32 is NOT a zero-patch
+    alternative oracle.  Pivot to SN-25b (source fix) stands.
+
+    **But the session produced two useful deliverables:**
+
+    **(1) Working x32 runner recipe for this sandbox.**  gVisor
+    (runsc kernel 4.4.0) blocks native 32-bit execution even with
+    `libc6-i386` installed (`Exec format error`).  qemu-user-static
+    emulates fine, but SPITBOL's MINIMAL architecture `call`s into
+    its data segment (symbol `minimal:` at `0x080644aa` in the
+    pre-built binary) — the ELF marks segment 02 (`.data`/`.bss`)
+    `RW`, real Linux historically didn't enforce NX on such
+    segments; qemu-user does, so the first dispatch SEGVs.
+
+    One-byte ELF patch resolves it:
     ```bash
-    cd /home/claude
-    git clone https://github.com/spitbol/x32
-    cd x32 && make  # or whatever x32's build target is
-    ./bin/sbl -bf /tmp/trivial2.sno   # hi, exit 0 would close SN-25
+    apt-get install -y libc6-i386 qemu-user-static
+    cd /home/claude && git clone https://github.com/spitbol/x32
+    cp x32/bin/spitbol /home/claude/sbl32
+    # Segment 02 p_flags at ehdr+2*phent+24 = 116: 0x6 (RW) -> 0x7 (RWX)
+    python3 -c "
+    import struct
+    with open('/home/claude/sbl32','r+b') as f:
+      f.seek(52 + 2*32 + 24)
+      f.write(struct.pack('<I', 0x7))
+    "
+    qemu-i386-static /home/claude/sbl32 -b file.sno    # works
     ```
+    Probe result on a trivial program (just `output='hello' / end`):
+    - `sbl32 -b`  → `hello` exit 0 ✓
+    - `sbl32 -bf` → `No END statement found in source file(s).` exit 1 ✗
+    Same bug as x64.
+
+    **(2) x32 DATATYPE is UPPERCASE.**  x32 SPITBOL returns
+    `STRING`/`INTEGER`/`REAL`/`PATTERN`/`ARRAY`/`TABLE` — all upper.
+    Distinct from x64 (lowercase) and missing from the RULES.md
+    DATATYPE case table.  Source location in `s.min` lines 5250-5308
+    (symbols `SCARR`/`SCBUF`/`SCCOD`/`SCEXP`/`SCINT`/`SCNAM`/`SCNUM`/
+    `SCPAT`/`SCREA`/`SCSTR`/`SCTAB`).  This turns into the new
+    **SN-27** rung: port the upper-case to x64 to eliminate the
+    DATATYPE-compat problem.
+
+    **Follow-ups to land next session** (captured here; blocked only
+    on context, not on decisions):
+    - Commit this edit of the goal file.
+    - Add x32 row to RULES.md DATATYPE table (UPPERCASE).
+    - Land `scripts/build_spitbol_x32_runner.sh` (the install + patch
+      recipe above) for future sessions.  Self-contained per RULES.md
+      (paths from `$0`, SKIP cleanly if qemu-user-static absent).
+    - Commit + push under `LCherryholmes / lcherryh@yahoo.com`.
 
   - [ ] **SN-25b** -- Patch `bootstrap/sbl.asm` `gnv10` to fold
     compared bytes when the current entry's svbit has `svlbl` set;
@@ -1737,6 +1774,118 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   target).  Baseline `./bootsbl -b /tmp/trivial2.sno` was verified to
   match `sbl -b` (hi, exit 0) and `./bootsbl -bf` was verified to
   match the bug in `sbl -bf` (No END, exit 1).
+
+
+- [ ] **SN-27** -- UPPERCASE DATATYPE for SPITBOL x64.  **Opened
+  2026-04-21.**  Origin: session discovered x32 returns UPPERCASE
+  DATATYPE while x64 returns lowercase — a previously-unrecorded
+  fork.  Unifying on UPPERCASE (the same choice one4all, CSNOBOL4,
+  snobol4jvm, and now x32 already make) eliminates the DATATYPE-case
+  compat problem across the entire stack permanently.  Only
+  snobol4dotnet would remain lowercase, and its lowercase choice was
+  itself done to mimic x64 — so it follows x64 here.
+
+  **Done-when:** `sbl -b` on `output=datatype('')` prints `STRING`
+  (not `string`).  All builtin datatypes return uppercase:
+  `STRING`, `INTEGER`, `REAL`, `PATTERN`, `ARRAY`, `TABLE`, `NAME`,
+  `CODE`, `EXPRESSION`, `NUMERIC`, `EXTERNAL`, `BUFFER`, `FILE`,
+  `FRETURN`, `NRETURN`, `RETURN`.
+
+  **Why do this now:** the RULES.md DATATYPE table records SPITBOL
+  x64 as lowercase with that tagged as "authoritative, intentional
+  per runtime."  But that's a historical accident — SPITBOL x32
+  (the older, hardbol-lineage SPITBOL) returns UPPERCASE, and the
+  archive decision **D-002** (`archive/GENERAL-DECISIONS.md:32`)
+  explicitly chose UPPERCASE for one4all because:
+  *"The traditional SNOBOL4 spec uses uppercase datatype names.
+  PATTERN and CODE are canonical and widely documented in uppercase.
+  Changing to lowercase would break existing SNOBOL4 programs that
+  test `DATATYPE(x) = 'PATTERN'`."*  x64 is the outlier; every other
+  runtime we care about already agrees on uppercase.
+
+  **Source location (verified in x32):** `s.min` lines 5250-5308,
+  symbols `SCARR`/`SCBUF`/`SCCOD`/`SCEXP`/`SCEXT`/`SCINT`/`SCNAM`/
+  `SCNUM`/`SCPAT`/`SCREA`/`SCSTR`/`SCTAB`/`SCFIL` and the
+  return-type names `SCFRT`/`SCNRT`/`SCRTN`.  Each entry is:
+  ```
+  SCSTR  DAC  B_SCL            STRING
+         DAC  6
+         DTC  /STRING/
+  ```
+  The `DAC` count is the character length; the `DTC /.../` is the
+  literal.  In x64, the analogous file is presumably `s.min` in the
+  x64 repo — if not, locate via `grep -rn "DTC.*STRING\|DTC.*string"
+  /home/claude/x64/`.  x64 will have the literals lowercased
+  (`DTC  /string/`, DAC count = 6) in whichever source file builds
+  the runtime string table.
+
+  **Scope note:** this is a source-level change to the MINIMAL
+  runtime input, not to the compiler binary.  One `s.min`-style
+  file edit, rebuild via `make sbl` (not `make bootsbl` — the
+  bootstrap binary needs regenerating from the patched source using
+  itself as `$BASEBOL`), install, verify.  Effort is comparable to
+  SN-25b/c.
+
+  - [ ] **SN-27a** -- Locate the DATATYPE string table in the x64
+    source tree.  Search for `DTC  /string/` (and/or `DTC /string/`,
+    `DAC  B_SCL`) in `/home/claude/x64/`.  If the table lives only
+    in `bootstrap/sbl.asm` (pre-assembled), locate the upstream
+    `.min` or `.sbl` that generates those literals and patch there.
+
+  - [ ] **SN-27b** -- Patch 13 DTC literals (plus any `DAC` length
+    fields that change) to uppercase.  Keep the symbol names
+    (`SCSTR` etc.) unchanged.
+
+  - [ ] **SN-27c** -- Rebuild via `make sbl` using the current
+    `bin/sbl` as `$BASEBOL`.  Install as `bin/sbl`.  (If `make sbl`
+    can't be driven because the x64 build rules differ, fall back
+    to the `.sbl → .asm` regeneration path per SN-25c.)
+
+  - [ ] **SN-27d** -- Verify: `sbl -b /tmp/dt.sno` (with `dt.sno`
+    from this session: `output=datatype('')` etc.) prints `STRING`
+    not `string`.  All 13 categories correct.
+
+  - [ ] **SN-27e** -- Update RULES.md DATATYPE table: x64 row flips
+    from "lowercase" to "UPPERCASE"; add x32 row (UPPERCASE);
+    delete the "authoritative, intentional per runtime" language
+    (it's now uniform, not divergent).  Remove the portable-test
+    complexity from the same section — tests can now rely on
+    uppercase across every runtime we care about (snobol4dotnet
+    excluded as a noted exception; see below).
+
+  - [ ] **SN-27f** -- Decide what to do with snobol4dotnet.  Two
+    options:
+      (i) flip snobol4dotnet to UPPERCASE too, closing the whole
+          compat gap.  Requires changes in the .NET runtime
+          (dotnet uses `ToLowerInvariant()` per RULES.md).
+      (ii) leave snobol4dotnet as the lone lowercase runtime.  Its
+          users know the convention; portable tests can still
+          REPLACE-to-uppercase cheaply.
+    Lon to choose.  Either way, this rung is about x64, not .NET.
+
+  - [ ] **SN-27g** -- Corpus `.ref` file audit.  Any
+    `.ref` under `corpus/programs/snobol4/` that hardcodes lowercase
+    DATATYPE strings (`'string'`, `'pattern'` etc.) in expected
+    output will flip correctness when x64 is rebuilt.  Sweep,
+    identify, update.  Cross-reference with
+    `GOAL-DATATYPE-PORTABLE-TESTS.md` (S-1) — the two goals
+    converge on the same audit.
+
+  **Gate:** after SN-27c, all existing gates must stay green with
+  the new UPPERCASE x64.  Smoke PASS=7, Broker PASS=49, SN-7 beauty
+  self-host PASS=51/51, Broad corpus PASS=225/225.  Any regression
+  is a `.ref` file that hardcoded lowercase and needs updating
+  (SN-27g), not a scrip runtime bug.
+
+  **Risk:** LOW.  The change is mechanical; the tree already
+  defended against case differences via D-002/D-003 (ignore-point
+  in monitor, case-insensitive test comparisons).  The worst-case
+  failure mode is a set of `.ref` files that need regeneration,
+  which is exactly the kind of fix the portable-test goal already
+  targets.
+
+  **Dependencies:** none.  Orthogonal to SN-25 and SN-26.  Can be
+  worked in parallel with either.
 
 
 - [ ] **SN-26** -- True beauty.sno self-host (4-way monitor).
