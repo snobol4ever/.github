@@ -1958,6 +1958,127 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     current blocker — the stmt 153 divergence fires well before
     any memory pressure.
 
+    **2026-04-21 session — oracle prerequisite established.**
+
+    Lon's direction: *"Does both SPITBOL and CSNOBOL4 run the beauty
+    self-host?  That is the first two steps for this goal.  Then we
+    get ours working once we prove the code works spotless."*
+
+    Answer verified this session: **NO, neither oracle runs beauty
+    self-host cleanly today.**  Full matrix:
+
+    | Oracle | Mode | Result |
+    |--------|------|--------|
+    | SPITBOL | `-b` (fold) | `error 217 — syntax error: duplicate label` at beauty.sno(566) on the double-function-trick pairs.  Expected — beauty requires case-sensitive labels. |
+    | SPITBOL | `-bf` (case-sensitive) | `No END statement found in source file(s).`  SN-25 bug — `gnv10` lowercase keyword table in `bootstrap/sbl.asm`. |
+    | CSNOBOL4 | `-b` (fold) | Same class of failure as SPITBOL `-b` — duplicate labels. |
+    | CSNOBOL4 | `-bf` | 32 stdout lines (comment header echoes correctly), then SEGV at `beauty.sno:616 stmt 1074` (`snoLine = INPUT` in `main02`).  Deterministic regardless of `-P 500k -S 100k -d 4m` or `-P 2m -S 500k -d 10m` or bare. |
+    | scrip `--ir-run` | | 0 stdout lines; stderr cascading `Error 1 — GE first argument is not numeric` from stmt 1063 onward. |
+
+    **Implication for SN-26c's current plan:** the goal-file's stated
+    protocol — "use CSNOBOL4 as oracle via 4-way `scrip-monitor`, walk
+    DIVERGEs one at a time" — assumes CSN produces an authoritative
+    reference trace to diverge *from*.  With CSN SEGVing at stmt 1074,
+    the CSN lane of the 4-way monitor produces only 32 lines of
+    ground truth before going dark.  scrip divergences beyond that
+    point have no oracle to validate against.
+
+    **The first two steps must therefore be:**
+
+    1. **Close SN-25** (SPITBOL `-bf` bootstrap fix in
+       `bootstrap/sbl.asm` `gnv10`).  Root cause already pinpointed
+       in the SN-25 block below; fix plan SN-25a..e enumerated.
+    2. **Close CSNOBOL4 SEGV at stmt 1074** (`snoLine = INPUT`
+       in `main02` on line 616 of beauty.sno).  New sub-rung —
+       open as **SN-26c-pre-CSN** when next session picks it up.
+       Starting point: run CSN under gdb/valgrind on beauty.sno
+       self-input; capture the signal-11 site.  The statement is
+       `snoLine = INPUT :F(mainEnd)` — a bare file read driving the
+       main loop.  Possibly a CSN INPUT handler / file descriptor
+       / line-length issue on the specific content at line 616 of
+       its own self-input.
+
+    After both oracles produce clean self-host output, then (and only
+    then) does scrip's divergence become meaningful to debug.  The
+    `i=1` vs `i=2` at stmt 153 stays queued as SN-26c step 3.
+
+    **Verification done this session:**
+
+    - **Source integrity confirmed.**  All 16 `.inc` files in
+      `corpus/programs/snobol4/demo/beauty/` are **byte-identical**
+      to the original SNOBOL4 bundle ZIP Lon re-uploaded
+      (`Gen.inc`, `Qize.inc`, `ReadWrite.inc`, `ShiftReduce.inc`,
+      `TDump.inc`, `XDump.inc`, `assign.inc`, `case.inc`,
+      `counter.inc`, `global.inc`, `match.inc`, `omega.inc`,
+      `semantic.inc`, `stack.inc`, `trace.inc`, `tree.inc`).
+      `beauty.sno` is 627 lines vs the ZIP's 630 — delta is exactly
+      the 3 `-INCLUDE` lines for SNOBOL4-only compat shims
+      (`is.inc`, `FENCE.inc`, `io.inc`), intentionally dropped per
+      SN-26b.  Trailing `END` uppercase in both.  The zip "has run
+      for decades" (Lon's words) and the repo source is exactly
+      that code.  **Confirmed: divergences are scrip bugs, not
+      source corruption.**
+
+    - **Step-counter analysis for stmt 153 divergence (diagnostic,
+      not yet fixed).**  Traced `g_ir_steps_done` vs
+      `g_sm_steps_done` across the monitor's `sm_interp_run_steps`
+      repeated invocations.  Both counters increment once per
+      source statement by design:
+      - IR: `driver/interp.c:4069`, top of `while (s)` dispatch.
+      - SM: `sm_interp.c:218`, inside `SM_STNO` opcode handler.
+        `SM_STNO` is emitted exactly once per source statement by
+        `lower_stmt` (`sm_lower.c:920`).
+      At n=153, both should stop after executing stmt 153 (G1 =
+      `i = i + 1`).  IR's `i=1` matches that expectation; SM/JIT's
+      `i=2` does not.  The G1 backedge `:S(G1)` jumps to
+      `SM_LABEL` at position 1753, which is **after** the
+      `SM_STNO` at 1752 — so re-iterations via the backedge do
+      NOT re-tick the SM step counter.  This should make IR and
+      SM agree, but they don't.  **Smoking gun candidate
+      identified but not yet confirmed:** `sm_interp.c:214` has
+      `static int g_sm_stno = 0;` (file-scope, never reset between
+      monitor invocations).  Same at `sm_codegen.c:205` with
+      `g_sm_stno_jit`.  These statics accumulate across the
+      monitor's 153 repeated `sm_interp_run_steps` calls.
+      Whether this actually perturbs `g_sm_steps_done` (which IS
+      reset per call) requires reading `comm_stno`'s body in
+      `snobol4.c` and checking whether `comm_stno` has any
+      feedback into the step-limit path.  **Next session:**
+      confirm or refute this hypothesis; if confirmed, add
+      `g_sm_stno = 0` / `g_sm_stno_jit = 0` reset to
+      `sm_interp_run_steps` / `sm_jit_run_steps` entry.  If
+      refuted, the bug is elsewhere.
+
+      **Important caveat:** this diagnostic work becomes moot if
+      the stmt 153 divergence resolves as a side-effect of the
+      SN-25 / CSN-SEGV oracle fixes above, because the monitor
+      may well report a different first-DIVERGE once the CSN lane
+      produces meaningful output past stmt 32.  Do not invest
+      further in this diagnostic until the two oracle prereqs
+      close.
+
+  - [ ] **SN-26c-pre-CSN** -- CSNOBOL4 SEGV at `beauty.sno:616
+    stmt 1074` (`snoLine = INPUT` in `main02`).
+
+    **Opened 2026-04-21.**  Prerequisite for SN-26c's 4-way
+    monitor lane to produce authoritative ground truth beyond 32
+    lines of comment header.  CSNOBOL4 `-bf` is deterministic at
+    this site — `-P 500k -S 100k -d 4m` / `-P 2m -S 500k -d 10m`
+    / bare all SEGV identically.  Signal 11 at stmt 1074 points
+    to the INPUT read path on the specific content of beauty.sno
+    read at that iteration.  Repo: `snobol4ever/csnobol4`.
+
+    Entry point: `gdb /home/claude/csnobol4/snobol4 --args ./snobol4
+    -bf -I<beauty-dir> beauty.sno < beauty.sno` and look at the
+    INPUT / stream / `popen2` handling in `ptyio_obj.c` / `io.c` /
+    `stream.c`.  Lon prior session noted the corpus's 781-line
+    fancy `beauty.sno` also SEGV'd CSN at stmt 1072; the 627-line
+    form trips the same path two statements later.  Implication:
+    it's a function of the total statement history by time stmt
+    1074's INPUT fires, not the specific 627-vs-781 content
+    difference.  A bare repro (simple program, many iterations,
+    `X = INPUT :F(END)` loop) may or may not trigger; start there.
+
   - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a gate
     script that runs `scrip <mode> beauty.sno < beauty.sno` in all
     three modes from `corpus/programs/snobol4/demo/beauty/`, diffs
@@ -2031,10 +2152,36 @@ Baseline measured (see SN-26c for details):
 - Broad corpus **225/225** in all three modes
 - SN-9c-e JIT parity gate **207/207/207** on crosscheck
 
-**Next step:** **SN-26c** — fix stmt 153 IR `i=1` vs SM/JIT `i=2`
-divergence first (IR is the outlier).  Then fix `sm_lower` forward-
-reference gap for `error` / `err` labels.  Then walk next DIVERGE
-with the monitor.
+**Next step (revised 2026-04-21):** The SN-26c plan-of-action is
+**oracle-gated**.  Lon's direction this session: *"Does both SPITBOL
+and CSNOBOL4 run the beauty self-host?  That is the first two steps
+for this goal.  Then we get ours working once we prove the code works
+spotless."*  Verified this session: **neither oracle runs it.**
+SPITBOL `-b` fails on duplicate labels (fold collapses the
+double-function-trick pairs); `-bf` broken per SN-25.  CSNOBOL4 `-bf`
+SEGVs at `beauty.sno:616 stmt 1074` (`snoLine = INPUT` in `main02`)
+regardless of memory switches.  See the **2026-04-21 session** block
+inside SN-26c for the full matrix.
+
+Two oracle-side prereqs must close before scrip divergences are
+meaningful to chase:
+
+1. **SN-25** — SPITBOL `-bf` bootstrap fix (`gnv10` in
+   `bootstrap/sbl.asm`).  Root cause pinpointed; fix plan
+   SN-25a..e already enumerated below.  Start with **SN-25.x32**
+   (test `spitbol/x32` — if its `-bf` works, we have the
+   case-sensitive oracle with zero patching).
+2. **SN-26c-pre-CSN** — CSNOBOL4 SEGV at stmt 1074 of beauty
+   self-input.  New rung opened this session.  Repo
+   `snobol4ever/csnobol4`.
+
+After both oracles produce clean self-host output (which per SN-26
+should be `beauty.sno` itself, since the input is already beautified),
+the stmt 153 `i=1` vs `i=2` divergence and the `sm_lower` `error`/
+`err` forward-reference warnings become step 3 of SN-26c.  Some of
+those scrip-side symptoms may well resolve as side-effects of the
+oracle fixes above, since today's first-DIVERGE report has no
+meaningful CSN ground truth beyond stmt 32.
 
 **Reproduce the baseline:**
 ```bash
