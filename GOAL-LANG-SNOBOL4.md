@@ -1598,9 +1598,73 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     start-of-session.  No change committed.  Patch work continues
     next session.
 
-  - [ ] **SN-25b-retry** -- Re-attempt the patch using byte-wise
-    fold (the `flstg` reference pattern at `sbl.asm:8093`ff), not
-    full-word `OR 0x20`.  Verify:
+  - [~] **SN-25b-retry** -- **In progress 2026-04-21 (session 3).**
+    Patch applied to `/home/claude/x64/bootstrap/sbl.asm` at `gnv10`
+    using byte-wise fold-both-sides compare (the `flstg` reference
+    pattern at `sbl.asm:13318`ff, NOT line 8093 — that was a call
+    site; the routine itself is at 13318).  **Not committed, not
+    built, not verified.**  Next session picks up at the build step.
+
+    **Investigation done this session — compile-time path traced:**
+    `cmp11` at `sbl.asm:11614-11627` is the compiler's label-
+    recognition site.  It builds an scblk from the scanned label
+    text (`sbstr` at 11614) and calls `gtnvr` (14315).  `gtnvr`
+    calls `flstg` at line 14339, which is a no-op when `kvcas=0`
+    (i.e. under `-f`).  Execution then falls through `gnv02..gnv09`
+    to `gnv10` for the system-keyword table compare.  With upper-
+    case source and lowercase table, the word-wise compare at
+    `gnv10` misses.  `v_end` is never found at line 11627.  File
+    exhausts.  `swcinp.c:215` fires "No END statement found".
+
+    **Confirms:** the SN-25 root-cause hypothesis was correct.
+    `gnv10` is the right fix site, and it serves both compile-time
+    keyword recognition and runtime name lookups via the same path.
+
+    **Patch landed in `bootstrap/sbl.asm` (uncommitted, this
+    session's working copy only):** between the `gnv10:` label and
+    the `gnv11:` label, the word-cmp was replaced with a byte-wise
+    fold-both-sides compare.  Uses `r9` to save the outer word
+    counter, `wb` as inner per-word byte counter (8 at entry to
+    each word), `r10`/`r11` as byte scratch for the two folded
+    bytes, `w0`/`al` for the zero-extended byte loads.  Per-byte
+    range-check: `if ch>='A' && ch<='Z': ch+=32` on each side
+    independently, then `cmp r10,r11`.  Mismatch path rewinds `xl`
+    to the start of the current word (subtract bytes consumed)
+    then falls through to the existing `gnv11` cleanup, which
+    still works because `wb` has been restored from `r9` (the
+    outer word counter).  Match path jumps directly to the success
+    code (`xor wc,wc` etc).
+
+    **Why byte-wise (not full-word `OR 0x20`):** variant B in the
+    prior session folded whole 8-byte words via `OR 0x20`, which
+    turned NUL pad bytes (value 0) into space (0x20).  Two entries
+    whose name chars differ but whose pad bytes both become 0x20
+    would then match spuriously.  Byte-wise fold with explicit
+    range-check leaves NUL bytes (0 < 'A') untouched — the canonical
+    `flstg` pattern does exactly this at `sbl.asm:13335-13343`.
+
+    **Baseline confirmed this session before patching:**
+    `./bootsbl -b /tmp/sn25/trivial.sno` → `hello` exit 0 ✓
+    `./bootsbl -bf /tmp/sn25/trivial.sno` → "No END statement found"
+    exit 1 ✗ — same as all prior sessions.
+
+    **Next session pickup (exact commands):**
+    ```bash
+    # Restore baseline first if needed:
+    #   cp /tmp/sbl.asm.orig /home/claude/x64/bootstrap/sbl.asm
+    # (/tmp/sbl.asm.orig was saved but is lost with container;
+    #  re-clone x64 if reverting is needed.)
+    cd /home/claude/x64
+    make clean && make bootsbl     # force rebuild — .o's were stale
+    ./bootsbl -b  /tmp/sn25/trivial.sno   # expect: hello (baseline OK)
+    ./bootsbl -bf /tmp/sn25/trivial.sno   # expect: hello (SN-25b fix)
+    ```
+    Then run through all 4 verification items in the old
+    SN-25b-retry list (below).  On green, advance to SN-25c
+    (mirror into `asm.sbl`/`lex.sbl`, `make sbl`, install as
+    `bin/sbl`).
+
+    **Unfinished verification checklist** (still applies):
     1. Trivial `output='hi' / END` under both `-b` and `-bf`.
     2. Larger program exercising `DEFINE`, `OUTPUT`, `INPUT`,
        `SIZE`, `RETURN` under `-bf`.
@@ -1608,7 +1672,9 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
        CONTINUE/SCONTINUE) under `-bf`.
     4. A program with a user-defined label named like a system
        function (e.g., `output` as a user label) under `-bf` —
-       must NOT match the system entry.
+       must NOT match the system entry.  (User-vars go through
+       `gnv05` not `gnv10` per the hash-chain logic, so this
+       should still work — the fold only affects `gnv10`.)
     If all 4 checks pass, advance to SN-25c.
 
   - [x] **SN-25.x32** -- Probe `spitbol/x32` `-bf`.  **Done 2026-04-21.**
@@ -2552,12 +2618,22 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEAD:** one4all — SN-6 closed via a one-word gate-script fix
-(`test_interp_broad_corpus_and_beauty.sh:67` now points `demo_claws5`
-at `claws5.input` instead of `CLAWS5inTASA.dat`; matches the
-demo-scale ref).  Broad corpus PASS=225/225 in all three modes.
+**HEAD:** one4all @ `9c2246d6` — 2026-04-21 session 3 pushed script
+updates for corpus beauty rename.  Prior substantive work (SN-6)
+still valid: broad corpus PASS=225/225 in all three modes.
 
-**corpus @ `d85fd7e`** — SN-26b landed: `programs/snobol4/demo/beauty/`
+**corpus @ `88be074`** — 2026-04-21 session 3 renamed all 46 files
+in `programs/snobol4/beauty/` to drop the redundant `beauty_`
+prefix (directory itself scopes them).  `beauty_Gen_driver.sno` →
+`Gen_driver.sno`, etc.  Paired one4all commit `9c2246d6` updated 4
+scripts whose globs reference these paths
+(`test_gate_sn7_beauty_self_host.sh`,
+`test_interp_broad_corpus_and_beauty.sh`,
+`test_regression_full_corpus.sh`, `test_crosscheck_snobol4.sh`).
+Monitor tracepoint files take their `.conf` via explicit CLI arg
+so no monitor script needed changing.
+
+**corpus prior** — `d85fd7e` — SN-26b landed: `programs/snobol4/demo/beauty/`
 now holds `beauty.sno` (627 lines) + 16 minimal `.inc` files for
 self-host work.  See SN-26b for details.
 
