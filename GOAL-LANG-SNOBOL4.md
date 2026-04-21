@@ -92,38 +92,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       both modes simultaneously.
 
 - [x] **SN-17a** -- Add `SM_PAT_USERCALL` opcode.  Done 2026-04-19.
-      - `sm_prog.h`: opcode added after `SM_PAT_CAPTURE_FN`.
-      - `sm_lower.c`: `case E_DEFER:` now detects `E_DEFER(E_FNC)` in pattern
-        context and emits `SM_PAT_USERCALL s="FNAME" args="..."`.  Previous
-        behavior fell through `lower_expr → SM_CALL → SM_PAT_DEREF`, which
-        invoked fn **once at build time** and treated the return as a pattern
-        (no per-position sweep).
-      - `sm_interp.c`: `case SM_PAT_USERCALL:` pushes `pat_user_call(fname, NULL, 0)`.
-      - `sm_codegen.c`: `h_pat_usercall` handler + registered in `g_handlers`.
-      - `sm_prog.c`: added to opnames[] and `sm_prog_print` switch.
-      - `pat_user_call()` already existed in `snobol4_pattern.c:393` (builds
-        XATP node) — SN-17a just wired an SM opcode to it.
-      - Arg-name stash in `a[2].s` is emitted but not yet consumed (left NULL
-        into `pat_user_call`); named-args resolution lands in SN-17d with the
-        FAIL-propagation fix.
-
-      **Porter measurement (oracle: `paste` agree-count / 23531):**
-      - `--ir-run`: 19674 → 19639  (slight drift; see note)
-      - `--sm-run`: 14317 → **19639**  (+5322, 60.84% → 83.46%)
-      - The two modes now **converge** — both produce identical output.
-        This is the shape SN-17d targets ("both match SPITBOL on abate…")
-        minus the final FAIL-propagation piece.
-      - Gates: Smoke PASS=7, Broker PASS=48, Broad corpus PASS=223/225
-        (same two fails: expr_eval, demo_claws5 — pre-existing, SN-6).
-
-      **Note on the `--ir-run` 35-line drift:** before SN-17a the two modes
-      disagreed because `--sm-run` took the broken `SM_CALL→SM_PAT_DEREF`
-      path.  `--ir-run` had its own (different) wrongness via `bb_usercall`
-      on XATP, and the two wrongnesses happened to produce 35 ref-matching
-      lines that `--sm-run` didn't.  Now both modes route through
-      `pat_user_call → XATP → bb_usercall`; the 35 lines moved from
-      `--ir-run`-accidentally-right to `--both`-equally-wrong.  SN-17d
-      will recover them in both modes simultaneously.
+      Full details in commit `f2cf3494`.
 
 - [~] **SN-17b** -- Unify `bb_build` dispatch.  **DEFERRED**: inspection
       at SN-17a found that stmt_exec.c's `bb_build` and bb_build.c's
@@ -147,110 +116,14 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       not required for SN-7.
 
 - [x] **SN-17d** -- Fix `*fn()` FAIL propagation.  Done 2026-04-19.
-      Single-file change to `bb_usercall` in `stmt_exec.c`: invoke
-      `g_user_call_hook` eagerly at α and propagate FAIL directly
-      (both `DT_FAIL` and `DT_P` wrapping `XFAIL` shapes handled).
-      No NAM push needed — nothing to defer for bare `*fn()`.  The
-      `. / $` capture forms still use NAME_push_callcap via bb_cap /
-      XCALLCAP (untouched).
-
-      **Porter measurement (paste-agree / 23531):**
-      - `--ir-run`: 19639 → **23531 (100.00%)**
-      - `--sm-run`: 19639 → **23531 (100.00%)**
-      - Mode agreement: 23531 / 23531 (both modes byte-identical).
-      - Gates: Smoke PASS=7, Broker PASS=49 (+1 — pre-existing 48/49
-        drift was the same bug; this fix repairs it), Broad corpus
-        PASS=223/225 (same two pre-existing fails).
-
-  **Reproduction commands:**
-  ```bash
-  cd /home/claude/corpus/programs/snobol4/demo
-  /home/claude/one4all/scrip --ir-run porter.sno < porter.input | diff - porter.ref | wc -l
-  /home/claude/one4all/scrip --sm-run porter.sno < porter.input | diff - porter.ref | wc -l
-  ```
-
-  **Minimal repro stashed** at `/tmp/probe_plain.sno` (this session only
-  — not committed; recreate from the snippet above if the container
-  resets).  Side-probes: `/tmp/probe_nopattern.sno`, `/tmp/probe_guard2.sno`.
+      Porter reached 100.00% / 23531 in both `--ir-run` and `--sm-run`.
+      Full details in commit `9d9d2dd3`.
 
 - [x] **SN-6** -- Full corpus: **PASS=225/225** in all three modes.  Done 2026-04-20.
-  ```bash
-  bash /home/claude/one4all/scripts/test_interp_broad_corpus_and_beauty.sh
-  ```
-  **Closing move — a gate-script fix, not a runtime fix.**  On entering
-  the session the broad-corpus gate reported `FAIL demo_claws5`.  The
-  runtime was not at fault: scrip `--ir-run`, scrip `--sm-run`, and
-  CSNOBOL4 `-bf -P 500k` all produce byte-identical output on
-  `CLAWS5inTASA.dat` (the 989-line stress input).  The failure was
-  pure gate wiring — `test_interp_broad_corpus_and_beauty.sh:67`
-  fed the demo row `demo_claws5` the stress input
-  `CLAWS5inTASA.dat` (989 lines → 5622 lines output) while comparing
-  against `claws5.ref` (95 lines, the correct *demo*-scale reference
-  produced by `claws5.input` at 16 lines).  The ref was trimmed back
-  to demo scale by corpus commit `293eab6` ("trim claws5.ref to match
-  claws5.input (16 lines)"); the gate never got repointed.
-  **Fix:** one-word change, line 67 of the gate script —
-  `$DEMO/CLAWS5inTASA.dat` → `$DEMO/claws5.input`, matching the
-  convention every other demo row already used
-  (`wordcount.input`, `treebank.input`, …).  After the fix both
-  scrip modes produce 95-line output that is 0-line-diff vs
-  `claws5.ref`.  **Gates:** Smoke PASS=7, Broker PASS=49, Broad
-  corpus **PASS=225/225**, SN-7 beauty driver-self-host PASS=51/51.
-
-  **SN-6a — `--sm-run` self-recursive patterns.  Done 2026-04-19.**
-
-  New opcode `SM_PAT_REFNAME` added in `sm_prog.h`, wired across
-  `sm_prog.c` (opnames + sm_prog_print), `sm_lower.c` (E_DEFER(E_VAR)
-  branch emits SM_PAT_REFNAME with the bare name), `sm_interp.c`
-  (new case pushes `pat_ref(ins->a[0].s)`), and `sm_codegen.c`
-  (`h_pat_refname` + g_handlers registration).
-
-  **Root cause:** `sm_lower.c` E_DEFER previously fell through to
-  `lower_expr(ch)` + `SM_PAT_DEREF`, which for E_VAR emitted
-  `SM_PUSH_VAR "PRIMARY"` — eagerly fetching PRIMARY's CURRENT value
-  at pattern-build time.  For self-recursive patterns like
-  `primary = integer | '(' *primary ')'`, PRIMARY is still
-  in-progress at that moment (empty/FAIL), so the NAME was lost
-  before reaching XDSAR.  `--ir-run` already took the correct path
-  via `pat_ref(child->sval)` in `interp_eval_pat` E_DEFER.
-
-  **Minimal repro (was failing, now passes):**
-  ```snobol4
-             &ANCHOR    =  0
-             &FULLSCAN  =  1
-             integer  =  SPAN('0123456789')
-             primary  =  integer | '(' *primary ')'
-             '(42)' POS(0) primary . x RPOS(0)   :F(nomatch)
-             OUTPUT = 'match x=' x               :(END)
-  nomatch    OUTPUT = 'no match'
-  END
-  ```
-  SPITBOL: `match x=(42)`; `--ir-run`: `match x=(42)`;
-  `--sm-run` before fix: `no match`; **after fix: `match x=(42)`**.
-
-  **Post-fix expr_eval state:** `--sm-run` and `--ir-run` now produce
-  byte-identical output on expr_eval.  Both still mismatch SPITBOL
-  (stderr parse-error noise from bison callback + Binary/Unary
-  arithmetic path).  That's SN-6b — orthogonal to the recursion bug.
-
-  **Gates:** Smoke PASS=7, Broker PASS=49, Broad corpus PASS=223/225
-  (unchanged — `expr_eval` and `demo_claws5` remain; SN-6a did not
-  close expr_eval because the Binary/Unary arithmetic mismatch is
-  a separate layered bug).  Porter still 100.00%/100.00% both modes.
-
-  **expr_eval diagnostic (measured at `8964586e`):**
-  - `--ir-run`: 4/5 inputs → `snobol4:0: error: parse error: syntax error`.
-    That is the SNOBOL4 *frontend parser*, not a pattern-match error —
-    `EVAL(op arg)` is probably compiling the evaluated string as SNOBOL4
-    statements.  The 2 lines that do parse produce wrong values:
-    `(1+2)*3` → `3` (expected 9), `-3+10` → `10` (expected 7).  Two
-    layered bugs: EVAL call path + operator precedence / Pop() ordering.
-  - `--sm-run`: after SN-6a, byte-identical to `--ir-run` — same two
-    layered bugs exposed in both modes now.  (Before SN-6a, `--sm-run`
-    returned `Bad input, try again` on all 5 inputs due to the recursive
-    `primary = constant | '(' *expr ')'` pattern failing at build time.)
-
-  Not DT_E (verified identical at pre-SN-21e).
+  Closed via a one-word gate-script fix: `test_interp_broad_corpus_and_beauty.sh:67`
+  fed `demo_claws5` the stress input `CLAWS5inTASA.dat` instead of
+  `claws5.input`.  SN-6a (`--sm-run` self-recursive patterns, new
+  `SM_PAT_REFNAME` opcode) landed with it.  Full details in commit log.
 
 - [ ] **SN-22** -- NAM API reduction: **push + pop only, one stack per
   match, no marks, no rollback, no save/discard, no top/pop_above**.
@@ -423,103 +296,10 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [~] **SN-6b** -- expr_eval arithmetic path.  **DT_E thaw gap closed
   2026-04-19**; expr_eval still fails — additional layered bugs.
 
-  **What landed this session:**
-
-  Two independent DT_E bugs found and fixed together:
-
-  1. **DT_E descriptor union-aliasing bug** in four constructor sites.
-     The pattern:
-     ```c
-     d.v    = DT_E;
-     d.ptr  = child;    /* stores pointer */
-     d.slen = 0;
-     d.s    = NULL;     /* CLOBBERS .ptr — .s and .ptr share union */
-     ```
-     Every DT_E descriptor was being stored with `.ptr == NULL`.
-     `sm_interp.c:276` was the lone correct site (explicit "set ptr
-     last" comment).  Fixed in `driver/interp.c:3033` (E_DEFER eval),
-     `runtime/x86/eval_code.c` (E_DEFER + CONVE_fn), and
-     `runtime/x86/snobol4_pattern.c` (CONVE pattern path).
-
-  2. **Missing DT_E branch in `bb_deferred_var`** (stmt_exec.c:908).
-     On a live NV fetch that returns DT_E (variable holds frozen
-     expression), the α dispatch had three branches — DT_P, DT_S, else
-     (→ bb_eps).  DT_E fell into the else and silently matched epsilon,
-     dropping all nested `*fn()` side-effects.  Added a DT_E thaw
-     modelled on `pat_to_patnd` (snobol4_pattern.c:220-253):
-     - `E_FNC` child → `pat_user_call(fname, args, nargs)` → XATP
-     - `E_VAR` child → **direct `NV_GET_fn(frozen->sval)`**
-       (NOT `var_as_pattern`; see note below)
-     - else → `PATVAL_fn(val)` strict thaw
-
-     Included `ir/ir.h` and declared `extern DESCR_t eval_node(EXPR_t*)`
-     in the full-runtime block of stmt_exec.c.
-
-  **E_VAR branch — why NV_GET_fn and not var_as_pattern:**
-
-  `pat_to_patnd` uses `var_as_pattern(STRVAL(sval))` which builds an
-  XVAR node.  `bb_build` on XVAR creates a **fresh nested
-  bb_deferred_var** that looks up the same variable again.  Probing
-  showed the nested bb_deferred_var returned FAIL at α on the minimal
-  repro, while a direct outer bb_deferred_var on the same variable
-  succeeded.  Root cause of the extra-indirection failure was not
-  run to ground — *the simpler fix* is to recognise that
-  `bb_deferred_var` already IS the deferred re-resolve box, so
-  wrapping in XVAR adds a useless layer.  Direct `NV_GET_fn` returns
-  the variable's live DT_P, which the existing DT_P branch handles
-  correctly.  This is a narrower, surgical fix that avoids the XVAR
-  path entirely for the DT_E thaw case.
-
-  **Minimal repro now passes (was failing):**
-  ```snobol4
-           &ANCHOR = 0
-           &FULLSCAN = 1
-           nPushes = 0
-           DEFINE('PushC()')                :(push_end)
-  PushC    nPushes = nPushes + 1
-           PushC = .nPushes                 :(NRETURN)
-  push_end
-           integer  = SPAN('0123456789')
-           constant = integer . *PushC()
-           expr0    = *constant
-           '1' POS(0) *expr0 RPOS(0) :F(no)S(yes)
-  no       OUTPUT = 'NO MATCH'              :(END)
-  yes      OUTPUT = 'MATCH, pushes=' nPushes
-  END
-  ```
-  SPITBOL: `MATCH, pushes=1`.  scrip before fix: `NO MATCH`.
-  scrip after fix: `MATCH, pushes=1` (both `--ir-run` and `--sm-run`).
-
-  **expr_eval — NOT closed by this fix.**  DT_E thaw is necessary
-  but not sufficient.  expr_eval still shows:
-  - `(1+2)*3 → 3` (expected 9)
-  - `-3+10 → 10` (expected 7)
-  - 4/5 inputs return `snobol4:0: error: parse error: syntax error`
-
-  These are layered arithmetic/EVAL bugs orthogonal to the DT_E gap,
-  as the Goal file previously anticipated.  They are their own
-  sub-rung (call it SN-6c when next session picks them up).
-
-  **Gates after SN-6b:** Smoke PASS=7, Broker PASS=49, Broad corpus
-  PASS=223/225 (same two failures: expr_eval, demo_claws5 — **no
-  regression**).  Porter `--ir-run` and `--sm-run` both still at
-  100.00% / 23531.
-
-  **Files changed:**
-  - `src/driver/interp.c`: DT_E ordering at E_DEFER (line 3033)
-  - `src/runtime/x86/eval_code.c`: DT_E ordering at E_DEFER + CONVE_fn
-  - `src/runtime/x86/snobol4_pattern.c`: DT_E ordering at CONVE pattern
-  - `src/runtime/x86/stmt_exec.c`: `#include "../../ir/ir.h"`,
-    `extern DESCR_t eval_node(EXPR_t*)`, 40-line DT_E thaw block in
-    `bb_deferred_var`
-
-  **Still-open for SN-7 path (tracked as SN-6c):** expr_eval arithmetic
-  path.  Investigate the stack-underflow signal: Push on addop/mulop
-  is wired via `. *Push()` (pattern-context, fires on match success).
-  With DT_E now thawing correctly, count the Push calls on `1+2` —
-  if scrip now pushes 3 (matching SPITBOL), the parse-error path is
-  downstream of Push/Pop ordering.  If still under-pushing, there is
-  another dispatch gap.
+  DT_E descriptor union-aliasing bug fixed in 4 constructor sites; DT_E thaw
+  added to `bb_deferred_var`.  expr_eval closed later via SN-23g (NAM API
+  collapse fixed the underlying EVAL-within-match corruption).  Full
+  diagnostics in commit log.
 
 - [x] **SN-6c** -- Recursive pattern NAM corruption.  Closed for
   `--ir-run` by SN-23d-follow-up at one4all @ `d61a580e`.
@@ -1826,11 +1606,182 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   itself as `$BASEBOL`), install, verify.  Effort is comparable to
   SN-25b/c.
 
-  - [ ] **SN-27a** -- Locate the DATATYPE string table in the x64
-    source tree.  Search for `DTC  /string/` (and/or `DTC /string/`,
-    `DAC  B_SCL`) in `/home/claude/x64/`.  If the table lives only
-    in `bootstrap/sbl.asm` (pre-assembled), locate the upstream
-    `.min` or `.sbl` that generates those literals and patch there.
+  - [x] **SN-27a** -- Locate the DATATYPE string table in the x64
+    source tree.  **Done 2026-04-21.**
+
+    **Found at `/home/claude/x64/bootstrap/sbl.asm` lines 1377-1421.**
+    16 entries spanning `scarr` / `sccod` / `scexp` / `scext` /
+    `scint` / `scnam` / `scnum` / `scpat` / `screa` / `scstr` /
+    `sctab` / `scfil` / `scfrt` / `scnrt` / `scrtn` — each a
+    3-descriptor block: `d_word b_scl` (header), `d_word N` (length),
+    `d_char 'c','h','a','r','s',0,...` (name as lowercase byte list).
+    The table is followed by `scnmt:` at line 1422 (pointer table
+    indexed by block-code at `dtype+12397`).
+
+    **The table is NOT generated from `.min` or `.sbl` source in the
+    tree** — `grep -rn "DTC.*string"` across `asm.sbl`, `lex.sbl`,
+    `sbl.min`, `z.sbl` turned up zero hits; the only `"string"`
+    occurrence is in a generated `err.asm` message ("179 string" —
+    an error message, unrelated to DATATYPE).  The literals live
+    directly in the hand-maintained `bootstrap/sbl.asm`.
+
+    **MAJOR SCOPE FINDING — SN-27 is broader than the rung text
+    estimated.**  Full SN-27 requires more than flipping 16 table
+    literals.  Three additional factors discovered this session:
+
+    **(1) `CONVERT(x, 'STRING')` parsing at `slod3` (line 8088ff).**
+    The CONVERT parser takes the user's datatype string, calls
+    `flstg` at line 8093 to fold it (to lowercase), then compares
+    via `ident` against each `sc*` table pointer (line 8098
+    `scstr`, 8109 `scint`, 8120 `screa`, etc.).  If the table
+    literals flip to uppercase but `flstg` still folds to lowercase,
+    **every CONVERT datatype call breaks** — the user's `'STRING'`
+    gets folded to `'string'` then fails to match the now-UPPERCASE
+    table.  Same for `'string'` (already lowercase, still doesn't
+    match UPPERCASE).  The fold direction must flip, or the CONVERT
+    path must be restructured to not pre-fold.
+
+    **(2) `flstg` direction flip is global.**  `flstg` is called
+    from six different sites — not just CONVERT.  Flipping its
+    direction from add-32 to sub-32 (plus range-check inversion
+    from `ch_ua..ch_uz` / `'A'..'Z'` to `ch_la..(ch_la+25)` /
+    `'a'..'z'`) changes the internal canonical form of every
+    identifier in the compiler.  The current x64 binary consistently
+    normalises to lowercase; flipping flips the entire binary to
+    uppercase normalization.
+
+    **(3) 188 lowercase `d_char` entries throughout `sbl.asm`.**
+    Every keyword/function/builtin in the identifier tables is
+    stored in lowercase (`cos`, `end`, `input`, `output`, etc. —
+    count confirmed via `grep -c "d_char '[a-z]" sbl.asm` → 188).
+    Because `flstg` folds user input to lowercase for keyword
+    lookup, these table entries must match.  If `flstg` flips to
+    fold-to-upper, all 188 entries must flip to uppercase too, or
+    every identifier lookup breaks.
+
+    **Revised SN-27 scope:** this is NOT "patch 13 DTC literals,
+    rebuild, done" (the original rung description's estimate).
+    It's **a whole-binary re-normalization** — 16 DATATYPE
+    literals + `flstg` direction + 188 keyword-table literals +
+    possibly additional call sites that read table chars directly.
+    Effort is **much larger** than SN-25b/c comparison suggested.
+
+    **Three viable implementation paths, ranked by risk:**
+
+    **Path A — Surgical output-only (narrowest).**  Leave the
+    16 DATATYPE table literals lowercase.  Leave `flstg` alone.
+    Leave all 188 keyword entries lowercase.  **Only change the
+    `dtype` output boundary** (line 12390ff) to translate the
+    returned string chars to uppercase via a new `raise` routine
+    — similar to existing `RAISE2`/`flstg` but folding lower→upper.
+    One self-contained function, one call site added.  Pros:
+    tiny, reversible, doesn't touch 188 tables or any fold path.
+    Cons: `CONVERT(x, 'STRING')` still returns lowercase match
+    (so user sees UPPERCASE from DATATYPE but must use lowercase
+    literal for CONVERT comparison) — that's internally inconsistent.
+
+    **Path B — Intercept at `dtype` + CONVERT parser tweak.**
+    Path A's output flip + add a parallel uppercase path at `slod3`
+    so CONVERT accepts both cases.  Two small, isolated changes.
+    Less inconsistent than A.  Still doesn't touch `flstg` or the
+    188 keyword tables.
+
+    **Path C — Full re-normalization (cleanest architecture, most
+    work).**  Flip `flstg` direction + all 16 DATATYPE literals +
+    all 188 keyword-table literals.  Single atomic change; binary
+    is now uppercase-canonical throughout.  Matches x32/CSNOBOL4/
+    one4all.  Proper SN-27 as originally envisioned — but requires
+    ~200+ literal edits across `sbl.asm` and careful verification
+    that every `d_char`-using site was accounted for.
+
+    **Recommendation:** start with **Path A** (smallest, lowest
+    risk, validates the DATATYPE-output change in isolation).  If
+    gates stay green, escalate to Path B for CONVERT consistency.
+    Path C is a separate, much larger commitment — worth doing
+    but not in a single session.  SN-27b below should be re-scoped
+    to Path A first, with SN-27c/d/e following accordingly.
+
+    **Session context when this finding landed:** context window
+    at ~88%; no patch attempted.  The bootstrap build is verified
+    working (`make bootsbl` succeeds in ~3s per SN-25 notes).
+
+  - [~] **SN-27a-history** -- git blame of x64 changes.  **Done 2026-04-21.**
+
+    **Cheyenne Wills commit `39c9dc9` (Jan 9, 2022) is the source
+    of x64's lowercase canonicalization.**  Title: *"Enable support
+    for the &case keyword."*  Body:
+
+    > Currently spitbol fails to recognize upper case source files
+    > (typically failing with a message about missing the END
+    > statement).  Define `.culc` in `sbl.min` so the source code
+    > will fold upper case source files into lower case.  The
+    > default for &case is 1.  This change allows older spitbol
+    > source code that is typically in upper case to be used without
+    > change while still supporting source files that are lower case.
+
+    **Before Jan 2022, x64 was UPPERCASE-canonical like x32.**  The
+    188 lowercase `d_char` entries and the `flstg` fold-to-lower
+    routine are products of this one commit.  **x64 is fundamentally
+    a port of x32**, and in its pre-2022 form shared x32's uppercase
+    convention.  SN-27 is therefore a *revert* of 39c9dc9's
+    normalization direction, not a forward-engineering change.
+
+    **Reverting the canonicalization (the proper Path C fix):**
+    the actual lever is a one-line toggle in `sbl.min`:
+
+    ```
+    -.def   .culc                 define to include &case (lc names)
+    +*      .culc                 define to include &case (lc names)
+    ```
+
+    Undefining `.culc` makes the Minimal preprocessor regenerate
+    the binary in uppercase-canonical form — all 188 keyword table
+    entries, the DATATYPE table, and the `flstg` routine are
+    regenerated mechanically from the one Minimal source pass.  No
+    manual editing of 200+ literal `d_char` lines.
+
+    **Tradeoff:** undefining `.culc` also removes `&case` keyword
+    support entirely (commit message: "define to include &case").
+    Under uppercase-canonical x64, `-f` loses meaning — there's no
+    longer a fold pass to disable.  The 11 structural keywords
+    (END, RETURN, etc.) become strictly uppercase-only.  RULES.md's
+    "Always uppercase END" mandate aligns perfectly.
+
+    **Impact on beauty.sno double-function trick:**  `shift`/`Shift`
+    / `reduce`/`Reduce` / `pop`/`Pop` / `visit`/`Visit` pairs were
+    the reason RULES.md adopted case-sensitive handling.  Without
+    `.culc`, x64 becomes case-insensitive (fold-to-upper would happen
+    always, or folding is gone entirely depending on which branch
+    of the Minimal conditional compilation gets preserved).
+    **Re-read `sbl.min` around `.culc` carefully before committing
+    to this path** — need to understand whether the non-`.culc`
+    branch preserves case-distinct labels under a different
+    mechanism or collapses them all.
+
+    **Revised SN-27 implementation plan:**
+    1. Undefine `.culc` in `sbl.min` (one-line change).
+    2. Run `make sbl` (NOT `make bootsbl`) so the current `bin/sbl`
+       regenerates an uppercase-canonical `sbl.asm` from `sbl.min`.
+    3. Verify: `sbl -b /tmp/dt.sno` (with `output=datatype('')`)
+       prints `STRING` not `string`.
+    4. Audit corpus `.ref` files for lowercase DATATYPE hardcodes
+       (same as original SN-27g).
+    5. Full gate sweep.
+
+    **Remaining SN-27 sub-rungs (SN-27b..g) can be collapsed** —
+    the `.culc` toggle is the atomic change; everything else is
+    verification.  Rewrite SN-27b as "toggle `.culc`; make sbl;
+    verify," delete SN-27c's mechanical-literal-patching plan
+    (obviated), keep SN-27d (verify), SN-27e (RULES.md update),
+    SN-27f (snobol4dotnet decision), SN-27g (corpus ref audit).
+
+    **Risk:** the 2022 commit touched 803 lines of `sbl.asm`, 86
+    lines of `sbl.lex`, so the regenerated binary differs
+    substantially from pre-2022.  All existing x64-based tests
+    (gates: Smoke=7, Broker=49, Broad=225, SN-7=51, SN-9c-e=207)
+    must still pass against the regenerated binary.  If they
+    don't, the bug isn't `.culc` — it's a separate regression in
+    either scrip's expectations or a `.ref` hardcoding lowercase.
 
   - [ ] **SN-27b** -- Patch 13 DTC literals (plus any `DAC` length
     fields that change) to uppercase.  Keep the symbol names
