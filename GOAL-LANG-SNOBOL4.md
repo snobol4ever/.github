@@ -70,6 +70,16 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Rung ladder
 
+> **⚠ HQ bloat alert (2026-04-21).**  This file is 2700+ lines; reading
+> it at session start consumes ~30-40% of context.  Per RULES.md "HQ
+> docs are state, not history" — completed `[x]` rungs have accumulated
+> design rationale, post-mortems, and diagnostic traces that belong in
+> commit messages, not here.  Biggest offenders: SN-23 (463 lines),
+> SN-9c (329 lines), SN-22 (167 lines), SN-8 (123 lines).  Ideal
+> completed-rung form is 2-5 lines: what closed, HEAD hash, ref to
+> commit.  **Next session should compact all `[x]` rungs before any
+> substantive work.**  Active `[ ]` / `[~]` rungs are fine as-is.
+
 ### Phase 1 -- IR-run  DONE (SN-1..SN-5, SN-14, SN-15, SN-16, SN-19)
 ### Phase 2 -- SM-run  (SN-7..SN-9, gated on SN-6)
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
@@ -1469,12 +1479,137 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   `.sbl` sources so `make sbl` (which regenerates sbl.asm from
   `.sbl`) doesn't revert the fix next rebuild.
 
-  - [ ] **SN-25a** -- Reproduce baseline on a fresh `bootsbl`:
+  - [x] **SN-25a** -- Reproduce baseline on a fresh `bootsbl`.
+    **Done 2026-04-21 (session 2).**
     ```bash
-    cd /home/claude/x64 && make bootsbl
-    ./bootsbl -b  /tmp/trivial2.sno   # hi,   exit 0
-    ./bootsbl -bf /tmp/trivial2.sno   # FAIL, exit 1
+    apt-get install -y nasm
+    cd /home/claude/x64 && make bootsbl        # ~3s, no SBL needed
+    ./bootsbl -b  /tmp/trivial2.sno   # hi,  exit 0  ✓
+    ./bootsbl -bf /tmp/trivial2.sno   # FAIL "No END statement found", exit 1  ✓
     ```
+    Bug reproduces deterministically on fresh clone.
+
+  - [~] **SN-25b** -- Patch `bootstrap/sbl.asm` `gnv10`.  **Attempted
+    2026-04-21 (session 2), REVERTED — more work needed.**
+
+    **What was tried:** two variants of the `gnv10` fold patch
+    (see `/tmp/sbl.asm.orig` for upstream baseline):
+
+    **Variant A — conditional fold on `svlbl` bit only:**
+    ```asm
+    gnv10:
+            mov  w0,m_word [xl]             ; load table chars
+            test wc,svlbl                   ; svlbl-typed?
+            jz   gnv10a                     ; no: exact compare
+            mov  r10,m_word [xr]            ; load source
+            mov  r11,0x2020202020202020     ; ASCII fold mask
+            or   w0,r11                     ; fold table
+            or   r10,r11                    ; fold source
+            cmp  r10,w0                     ; compare folded
+            jmp  gnv10b
+    gnv10a: cmp  m_word [xr],w0             ; original exact compare
+    gnv10b: jnz  gnv11
+            ... rest unchanged
+    ```
+    **Result:** trivial `output='hi' / END` worked under both `-b`
+    and `-bf`.  But a larger test with `DEFINE('f()')` + `RETURN`
+    under `-bf` failed with `error 022 -- undefined function called`
+    on statement 1 — meaning `DEFINE` itself wasn't being recognized.
+    `DEFINE` is a system function (`svfnc` bit, not `svlbl`), so the
+    conditional fold didn't apply to it.
+
+    **Key discovery at this point:** the original rung's premise —
+    that only the 6 *structural* keywords (END/RETURN/FRETURN/
+    NRETURN/CONTINUE/SCONTINUE, marked `svlbl`) need case-insensitive
+    matching — is wrong.  **ALL system names need case-insensitive
+    matching** under `-bf`, because every entry in the compile-time
+    `vsrch` table (system functions like `DEFINE`, `SIZE`, `OUTPUT`,
+    `INPUT`; keywords like `ANCHOR`, `TRACE`; patterns like `LEN`,
+    `POS`, `RPOS`) is stored lowercase.  The `gnv10` lookup path is
+    reached ONLY for system entries (user vars go through the hash
+    chain `gnv03..gnv07`; `gnv08` is the entry point to the system-
+    var table after hash-miss — see `sbl.asm:14359,14389-14396`).
+    So `gnv10` needs unconditional fold, not svlbl-gated.
+
+    **Variant B — unconditional fold:**
+    ```asm
+    gnv10:
+            mov  w0,m_word [xl]             ; load table chars
+            mov  r10,m_word [xr]            ; load source chars
+            mov  r11,0x2020202020202020
+            or   w0,r11                     ; fold table (idempotent)
+            or   r10,r11                    ; fold source
+            cmp  r10,w0
+            jnz  gnv11
+            ... rest unchanged
+    ```
+    **Result: PRODUCED SILENT FAILURES.**  Trivial `output='hi' / END`
+    under `-b` (default) still worked, but under `-bf` produced
+    zero output and exit=0 — no error, but the OUTPUT statement
+    never fired.  A program with `OUTPUT = 'hi'` **at column 1**
+    (no leading whitespace) under `-bf` SEGV'd.  Under `-b`
+    everything behaved fine.
+
+    **Unresolved — next session starts here:**
+
+    The SEGV and silent-failure under `-bf` with Variant B means the
+    unconditional fold is causing a *false positive* match somewhere
+    — folding an uppercase source identifier causes it to match a
+    system-table entry it shouldn't have matched.  Specific
+    hypothesis not yet pinned down.  Candidates to probe:
+
+    1. **User-defined labels fall into `gnv08`.**  Re-examine
+       `sbl.asm:14359 jz gnv08` — I claimed user-vars never reach
+       `gnv10`, but that may be wrong for *labels* (which aren't
+       hashed the same way).  If a user label `OUTPUT` (some
+       program's own label) reaches `gnv10`, the fold would falsely
+       match it to the system OUTPUT function.
+
+    2. **Order of table entries.**  If two system entries at same
+       length differ only in case in the source but map to lowercase
+       in the table, one might match first under the fold and claim
+       a descriptor for the other.  Unlikely (all table entries are
+       unique-lowercase), but verify.
+
+    3. **Pad-byte interaction.**  `d_char 'o','u','t','p','u','t',0,0`
+       has NUL pad bytes; `OR 0x20` turns those into `0x20` (space).
+       If the source buffer has garbage or different padding in
+       bytes >= length, the fold-both-sides comparison could
+       spuriously match (both become 0x20 by coincidence) where
+       unfolded would have differed.  This is the leading hypothesis.
+
+    **Recommended fix (to try next session):** fold only the first
+    `wa` bytes (the actual name length), leaving pad bytes untouched.
+    But the current code compares entire 64-bit words at once —
+    rewriting to byte-at-a-time would be a larger change.  Alternative:
+    mask out bytes beyond position `wa` BEFORE folding.  Alternative:
+    ensure source buffer pad bytes are NUL-initialized and match
+    table pad bytes exactly (so fold idempotently preserves NUL — 
+    but OR 0x20 doesn't preserve NUL, that IS the issue).
+
+    **Simplest correct patch** (to try first): compute a byte-wise
+    fold mask that is 0x20 for ASCII letter positions and 0x00
+    elsewhere, by checking each byte against `ch_ua..ch_uz`.  That's
+    what the SIL macro `fold1` style does.  This is the path
+    `flstg` itself uses (see line 8093 in sbl.asm).  Look there for
+    the reference pattern.
+
+    **Current state:** `bootstrap/sbl.asm` REVERTED to upstream at
+    start-of-session.  No change committed.  Patch work continues
+    next session.
+
+  - [ ] **SN-25b-retry** -- Re-attempt the patch using byte-wise
+    fold (the `flstg` reference pattern at `sbl.asm:8093`ff), not
+    full-word `OR 0x20`.  Verify:
+    1. Trivial `output='hi' / END` under both `-b` and `-bf`.
+    2. Larger program exercising `DEFINE`, `OUTPUT`, `INPUT`,
+       `SIZE`, `RETURN` under `-bf`.
+    3. All 6 structural keywords (END/RETURN/FRETURN/NRETURN/
+       CONTINUE/SCONTINUE) under `-bf`.
+    4. A program with a user-defined label named like a system
+       function (e.g., `output` as a user label) under `-bf` —
+       must NOT match the system entry.
+    If all 4 checks pass, advance to SN-25c.
 
   - [x] **SN-25.x32** -- Probe `spitbol/x32` `-bf`.  **Done 2026-04-21.**
     Confirmed the `-f` bug is shared with x64 — x32 is NOT a zero-patch
@@ -2185,6 +2320,207 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     output against `beauty.sno` itself (the source IS the ref — it
     is already beautified), PASS=3 FAIL=0.  Makes "beauty
     self-hosts" a standing gate.
+
+
+- [ ] **SN-28** -- Compact DESCR_t: 16 → 8 bytes via arena aliasing,
+  dual-mode (32-bit offsets / 64-bit pointers).  **Opened 2026-04-21.**
+
+  **Motivation:** today's `DESCR_t` is 16 bytes:
+  ```c
+  typedef struct DESCR_t {
+      DTYPE_t  v;      /* 4 bytes — type tag  */
+      uint32_t slen;   /* 4 bytes — string len cache */
+      union {          /* 8 bytes — pointer/int/real */
+          char *s;  int64_t i;  double r;  void *ptr;
+          struct _PATND_t *p;  struct _ARBLK_t *arr;
+          struct _TBBLK_t *tbl;  struct _DATINST_t *u;
+      };
+  } DESCR_t;
+  ```
+  (verified: `sizeof(DESCR_t)=16`, align 8 at `descr.h:50`).
+
+  A SNOBOL4 workload holds hundreds to thousands of live `DESCR_t`
+  cells at steady state: the NV table (global variables), NAM stack
+  (per-match lvalue captures), argument stacks for user calls,
+  generator state for BB_PUMP, array/table slots, and per-statement
+  temporaries.  Halving cell size **directly halves** L1/L2 cache
+  footprint for variable access, NV table walks, and arg marshalling
+  — the three hot-path operations that dominate interpreter time on
+  large corpus (Porter, claws5, beauty).
+
+  **Reference model — Silly SNOBOL4 arena aliasing:**
+
+  Silly (`src/silly/types.h:61-68`) uses a faithful SIL DESCR: 9
+  bytes packed, with `a.i` holding an arena offset when the value
+  points to a block.  One flat 128 MB `mmap` slab at `arena_base`;
+  `A2P(off) → ptr` and `P2A(ptr) → off` translate the two views.
+  All string blocks, array blocks, pattern nodes live *inside* the
+  arena — so every "pointer" is a 32-bit offset, and the full DESCR
+  is effectively: tag (1 byte) + value-or-offset (4 bytes) + size
+  (4 bytes).  SIL's nine-byte cell shrinks further in our world
+  because we don't need the SIL `v` size field on every cell — we
+  keep it only on block titles.
+
+  **Target 8-byte DESCR_t (design sketch):**
+  ```c
+  typedef struct DESCR_t {
+      uint32_t tag_flags;   /* low 8: DTYPE_t; high 24: slen or flags */
+      uint32_t payload;     /* arena offset, small int, or float32 bits */
+  } DESCR_t;    /* exactly 8 bytes, align 4 */
+  ```
+  or (if `slen` needs >16 bits for long strings):
+  ```c
+  typedef struct DESCR_t {
+      uint8_t  tag;         /* DTYPE_t */
+      uint8_t  flags;       /* reserved / GC bits */
+      uint16_t slen;        /* string len, 0 = use strlen() */
+      uint32_t payload;     /* arena offset or small int */
+  } DESCR_t;
+  ```
+  Payload is either:
+  - **`DT_I` (small integer):** 32-bit value directly (int32_t).
+    Integers > 2³¹-1 need arena-boxed full int64_t (DT_I_LONG tag,
+    or payload points at an 8-byte int block).
+  - **`DT_R` (real):** either 32-bit float directly (loses double
+    precision vs today), or arena-boxed double.  Decide per
+    measurement.  SNOBOL4 programs rarely need double precision —
+    start with float32 inline.
+  - **`DT_S, DT_P, DT_A, DT_T, DT_DATA` (pointer types):** arena
+    offset (32-bit) into the arena slab.
+  - **`DT_SNUL, DT_FAIL`:** payload = 0.
+
+  **Dual-mode (Lon's requirement):**
+
+  Two compile-time modes, selected by a single `#define`:
+  ```
+  DESCR_MODE_64    — today's 16-byte DESCR_t, raw pointers (default)
+  DESCR_MODE_32    — 8-byte DESCR_t, arena offsets
+  ```
+  Every DESCR access that touches the payload goes through macros:
+  ```c
+  D_TAG(d)         → d.tag              (both modes)
+  D_INT(d)         → d.i  | A2P(d.payload) depending on mode
+  D_STR(d)         → d.s  | (char*)A2P(d.payload)
+  D_SET_STR(d, p)  → d.s = p | d.payload = P2A(p)
+  ```
+  Today's code touches `d.s`, `d.i`, `d.v`, `d.slen` directly in
+  ~hundreds of sites across `src/runtime/x86/`, `src/driver/interp.c`,
+  `src/frontend/*/`.  Step SN-28a is the rote translation to macros;
+  the 8-byte mode rides on top once macros are in place.
+
+  **Honest cost assessment:**
+
+  This is a **large** retrofit — not a one-session rung.  Scope:
+
+  1. **Arena infrastructure.**  one4all today uses Boehm GC
+     (`<gc/gc.h>`, `GC_strdup`, `GC_MALLOC`) with raw pointers.
+     Silly's arena is a single flat mmap with bump allocation plus
+     compacting GC (GC/GCM procedures).  Adopting the arena means
+     either (a) displacing Boehm with a new bump+compact allocator,
+     or (b) keeping Boehm but routing all DESCR-referenced blocks
+     through it so their offsets are stable.  Option (a) is cleaner;
+     option (b) is incremental but breaks if Boehm ever moves blocks
+     (it doesn't compact by default, so this is safer than it sounds).
+
+  2. **Macro-ize every DESCR field access.**  Today's `d.s`, `d.i`,
+     `d.v`, `d.slen` occur in ~hundreds of sites.  A mechanical sed
+     pass can do most; the rest need human review (union aliasing
+     cases — `d.slen = 0` before `d.ptr = ...` in DT_E construction).
+
+  3. **Integer overflow.**  `int64_t` payloads today cover full
+     SNOBOL4 integer range.  Compact mode forces arena-boxing for
+     values outside `[INT32_MIN, INT32_MAX]`.  Measure: probably
+     rare in typical workloads, but the boxing path must exist.
+
+  4. **Real precision.**  `double` → `float` in-line loses 23 bits
+     of mantissa.  Programs doing numerical work (rare in SNOBOL4,
+     but not zero) will see wrong answers unless we arena-box.  Same
+     decision as #3.
+
+  5. **Debugging & tooling.**  gdb pretty-printers, valgrind
+     interpretation of the arena, `.ref` file expectations — all
+     need review.
+
+  **Payoff:**
+
+  - **Cache footprint.**  Halved.  Measured Porter at ~2100 live
+     DESCRs at peak: 33 KB → 16 KB.  L2 fits easily in both cases,
+     but L1 (32 KB typical) goes from tight to comfortable.
+  - **NV table walk speed.**  Should measure 15-25% faster on
+     variable-heavy programs (beauty, claws5) from halved
+     cache-line pressure alone.
+  - **GC pause.**  Fewer bytes to scan.
+  - **Prepares the ground for `scrip` on 32-bit targets** (WASM,
+     embedded) where 64-bit pointers are dead weight.
+
+  **Ladder SN-28a..h:**
+
+  - [ ] **SN-28a** -- Macro-ize DESCR field access.  Introduce
+    `D_TAG(d)`, `D_STR(d)`, `D_SET_STR(d, p)`, `D_INT(d)`,
+    `D_SET_INT(d, v)`, `D_REAL(d)`, `D_PAT(d)`, `D_ARR(d)`,
+    `D_TBL(d)`, `D_DATA(d)` in `descr.h`.  Default implementations
+    expand to today's raw-pointer form (`d.s`, `d.i`, etc.) — no
+    behavior change.  Mechanically rewrite every direct field access
+    across `src/runtime/x86/`, `src/driver/`, `src/frontend/*/` to
+    go through the macros.  Gate: Smoke=7, Broker=49, Broad=225/225,
+    SN-7=51, JIT parity=207 — all unchanged, byte-identical.  **This
+    rung is pure refactoring; no semantic change.**  Likely
+    ~500-1000 lines touched mechanically, maybe a dozen human-review
+    sites.
+
+  - [ ] **SN-28b** -- Introduce arena infrastructure in one4all.
+    Port `arena_init`, `arena_alloc`, `A2P`, `P2A` from Silly
+    (`src/silly/arena.c`, `src/silly/arena.h`) to
+    `src/runtime/x86/one4all_arena.{c,h}` — **without** yet switching
+    DESCR_t.  Initialize the arena at `scrip` startup; keep using
+    Boehm for everything else.  Gate: unchanged.
+
+  - [ ] **SN-28c** -- Migrate string allocation through the arena.
+    `GC_strdup("foo")` → `arena_strdup("foo")`.  All string payloads
+    live in the arena; their raw pointers remain stable (arena is
+    non-compacting at this stage — just bump allocate).  DESCR_t
+    stays 16 bytes; we're staging.  Gate: unchanged.
+
+  - [ ] **SN-28d** -- Migrate PATND, ARBLK, TBBLK, DATINST allocation
+    through the arena.  Same pattern: arena pointers are stable, so
+    `d.p`, `d.arr`, `d.tbl`, `d.u` continue to work unchanged.
+    Gate: unchanged.
+
+  - [ ] **SN-28e** -- Introduce `DESCR_MODE_32` build flag.  New
+    8-byte `DESCR_t` layout behind the flag; `A2P/P2A` expansion of
+    the `D_*` macros when enabled.  Build both modes; verify
+    `DESCR_MODE_64` is byte-identical to pre-SN-28 behavior.  Gate:
+    both modes pass all existing gates.  This is the hard rung —
+    the int64→int32 boxing and float→arena-box for >32-bit ints
+    and doubles gets wired here.
+
+  - [ ] **SN-28f** -- Performance gate.  Measure Porter, claws5,
+    beauty self-host under both modes.  If 32-bit mode is not at
+    least 10% faster on `--sm-run` or `--jit-run`, investigate: the
+    retrofit is worth doing only if the cache savings materialize.
+
+  - [ ] **SN-28g** -- Documentation.  Update `RULES.md` with the
+    DESCR_MODE selection convention and the arena invariants.
+    Update this Goal file with measured numbers.
+
+  - [ ] **SN-28h** -- Decide default.  Based on SN-28f numbers and
+    the state of the retrofit, either:
+      (i)  flip default to `DESCR_MODE_32` and retire 64-bit mode;
+      (ii) keep 64-bit default, offer 32-bit as build option;
+      (iii) abandon 32-bit mode if the retrofit cost outweighs the
+           gain.
+    Lon to choose.
+
+  **Dependencies:** orthogonal to SN-25, SN-26, SN-27.  Can be worked
+  in parallel with any of them.  SN-28a (macro-ize) alone is a
+  defensible standalone cleanup — it improves code readability
+  regardless of whether SN-28b..h ever land.
+
+  **Risk:** MEDIUM-HIGH.  The retrofit touches every file that
+  handles values.  Gate discipline (byte-identical outputs through
+  SN-28a..d) is the only defense against silent corruption.  If any
+  rung breaks Porter or beauty `--ir-run`, abandon the rung and
+  restore prior HEAD.
 
 
 ## Key files
