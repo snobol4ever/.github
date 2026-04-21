@@ -1408,7 +1408,8 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` (2026-04-21 session 3).
+**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ `ddc681c`
+(2026-04-21 session 4: HQ compaction only — no code touched).
 
 **Gates (last verified 2026-04-20, not re-measured session 3):**
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
