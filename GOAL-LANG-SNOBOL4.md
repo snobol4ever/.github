@@ -921,6 +921,150 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
        in `v311.sil` that generated it
     4. Patch in `v311.sil`, `make -f Makefile2 xsnobol4`, re-test
 
+  - [~] **SN-26c-pre-CSN-a2** -- Session 8 (2026-04-22) findings.
+
+    **"gdb perturbation" mystery SOLVED — not a real bug.**  The
+    session 7 note speculated "ASLR / libc init / LD_PRELOAD"
+    changed CASECL under gdb.  Actual cause: in gdb, `run < file`
+    **replaces** previously-set args — gdb treats the argument
+    line starting at `run` as a fresh argv.  When session 7 did
+    `set args -b -f -I. beauty.sno; run < beauty.sno`, the program
+    received `argc=1` (no args), so `-f` never ran, CASECL stayed
+    at its default of 1, and the double-function pairs got folded
+    → spurious "Previously defined label" errors.
+
+    **Correct gdb incantation** (verified with minimal argv-dump
+    binary and with snobol4_dbg):
+    ```
+    file /home/claude/csnobol4/snobol4_dbg
+    handle SIGSEGV stop nopass
+    run -b -f -I. beauty.sno < beauty.sno
+    ```
+    Args directly on the `run` line; stdin redirect stays at end.
+
+    **SEGV backtrace captured cleanly:**
+    ```
+    #0  SCIN1         isnobol4.c:11459    D(LENFCL) = D(D_A(PDLPTR) + 3*DESCR)
+    #1-#10  SCIN / SCIN1 alternation, 5 levels of pattern-match recursion
+    #11 SCNR          isnobol4.c:12604
+    #12 SCAN          isnobol4.c:12674
+    #13 INVOKE        isnobol4.c:3177
+    #14 INTERP        isnobol4.c:3492
+    #15 BEGIN         isnobol4.c:14203
+    #16 snobol4_run   main.c:73
+    #17 main          main.c:97
+    ```
+
+    **SIL origin:** `v311.sil:3611` — `SALT1 GETDC LENFCL,PDLPTR,3*DESCR`
+    (scan-alt backtrack: pop length-failure history from PDL).
+
+    **Key memory state at SEGV** (from `gdb_full.cmd` dump):
+    | global  | .a.i value | interpretation |
+    |---------|------------|----------------|
+    | PDLPTR  | 192 (0xc0) | **tiny int; should be heap pointer** |
+    | PDLHED  | 96  (0x60) | **tiny int; should be heap pointer** |
+    | PDLEND  | 0x55d29f0bebf0 | correct heap pointer, intact |
+    | NAMICL  | 18 | |
+    | NHEDCL  | 18 | |
+    | MAXLEN  | 49 | |
+    | LENFCL  | 0x55d29f09fbe0 | real heap pointer |
+    | sizeof(struct descr) | 16 | |
+
+    The 256 bytes of PDL stack memory ending at PDLEND are **all
+    zeros** — nothing was written into the scan-history region
+    this execution.
+
+    **Bug characterization:**  PDLPTR and PDLHED hold small integers
+    where they should hold heap pointers.  PDLEND (real pointer) is
+    intact.  PDLPTR - PDLHED = 96 bytes = 6 descriptor slots = 2
+    scan frames (each is 3 descriptors per `INCRA PDLPTR,3*DESCR` at
+    `v311.sil:3551/3563/3588`).  Arithmetic is consistent with a
+    healthy SCAN PUSH sequence — so **the corruption happened
+    BEFORE this SCAN call fired**, not during it.  At SCAN entry
+    line 2716 (`MOVD PDLHED,PDLPTR`), PDLPTR was already the garbage
+    value 96; the MOVD faithfully propagated that to PDLHED.  Two
+    subsequent INCRA +48 each → 192.
+
+    **SIL inventory of PDLPTR writes:**  `MOVD` / `INCRA` / `DECRA`
+    only, plus bulk `PUSH`/`POP`.  No direct `SETAC` / `SETAV` /
+    `PUTAC` / `SPCINT` assignments to PDLPTR anywhere in `v311.sil`.
+    So the tiny values must have propagated through one of those
+    legitimate-looking ops from a corrupted source — most likely a
+    bad `POP` that restored a saved value from the interpreter
+    stack (which itself got smashed by pattern-match code indexing
+    past its frame).
+
+    **Debug binary built:**  `/home/claude/csnobol4/snobol4_dbg`
+    via `make -f Makefile2 OPT='-O0 -g' xsnobol4`.  Rebuild
+    procedure (post-top-level-clean accident on 2026-04-22):
+    ```
+    cd /home/claude/csnobol4
+    git restore . && git clean -fd
+    bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+    rm -f *.o xsnobol4
+    make -f Makefile2 OPT='-O0 -g' xsnobol4
+    cp xsnobol4 snobol4_dbg
+    ```
+
+    **⚠ Do NOT run top-level `make clean` in csnobol4** — it
+    wipes `Makefile2` (generated from `Makefile2.m4`) AND the
+    `snobol4` binary, creating a bootstrap chicken-and-egg
+    (Makefile2 regenerates data.c2 by running `snobol4 -b gendata.sno`
+    against v311.sil).  Recovery: `git restore .` then rerun
+    `build_csnobol4_oracle.sh`.
+
+    **csnobol4 catches SIGSEGV with its own handler** at
+    `lib/init.c:688` (`signal(SIGSEGV, err_catch)`).  `err_catch`
+    sets `D_A(SIGNCL)=sig` and calls `SYSCUT(NORET)` — longjumps
+    back to the interpreter main loop to print the error and exit
+    cleanly.  **No core dump is ever produced**, regardless of
+    `ulimit -c unlimited`.  The session 7 pickup note step 1
+    ("produce a core dump via ulimit -c unlimited") is therefore
+    obsolete — use gdb with `handle SIGSEGV stop` instead, which
+    catches the signal before `err_catch` runs.
+
+  - [ ] **SN-26c-pre-CSN-a3** -- Pin the exact PDLPTR-corruption
+    write site.
+
+    **Opened 2026-04-22.**  Single-probe plan:
+
+    ```
+    # gdb cmd file contents:
+    set pagination off
+    set confirm off
+    handle SIGSEGV stop nopass
+    cd /home/claude/corpus/programs/snobol4/demo/beauty
+    file /home/claude/csnobol4/snobol4_dbg
+    b main
+    run -b -f -I. beauty.sno < beauty.sno
+    # condition fires only when PDLPTR becomes a small non-zero value
+    watch *(long*)&res.pdlptr[0].a if *(long*)&res.pdlptr[0].a < 0x1000000 && *(long*)&res.pdlptr[0].a != 0
+    commands
+      bt 12
+      continue
+    end
+    continue
+    ```
+
+    First hit at the condition is the bug site.  Cross-reference
+    the generated-C file (isnobol4.c / snobol4.c) line back to
+    its SIL PROC in `v311.sil` via the `/* line NNN */` markers.
+    Fix in `v311.sil`, rebuild via
+    `make -f Makefile2 OPT='-O0 -g' xsnobol4`.
+
+    **Also watch PDLHED** in parallel — if PDLHED flips small
+    before PDLPTR does, the bug is in PDLHED management and
+    PDLPTR just tracks it via `MOVD PDLPTR,PDLHED`.
+
+    **Staged gdb scripts left in /home/claude** (next-session
+    scratch; not committed):
+    - `gdb_segv.cmd` — basic SEGV reproduction with args fix
+    - `gdb_pdl.cmd` — PDL bounds dump at SEGV
+    - `gdb_full.cmd` — full descriptor + memory dump at SEGV
+    - `gdb_watch.cmd` — first watchpoint attempt (unconditional;
+      did not catch small-value write, needs the conditional
+      form above)
+
   - [ ] **SN-26c-pre-CSN-b** -- Bare-minimum repro for the SEGV.
     Open after SN-26c-pre-CSN-a identifies the crashing frame.
     Goal: strip beauty.sno down to a ~20-line reproducer that still
@@ -1173,9 +1317,18 @@ won't-fix; no further x64 work planned).
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
 
-**Current step: SN-26c-pre-CSN-a.**  Session 7 closed SN-25 entirely
-per Lon's directive ("never going to worry about ingress for old
-products, just we'll use that technique for one4all").  SPITBOL and
+**Current step: SN-26c-pre-CSN-a3.**  Session 8 (2026-04-22) solved
+the "gdb perturbation" mystery (it was just `run < file` wiping
+`set args`), captured the clean SEGV backtrace, and characterized
+PDLPTR/PDLHED as small integers (192/96) while PDLEND remains a
+valid heap pointer.  The PDL corruption predates the crashing
+SCAN invocation.  Next action: conditional watchpoint
+(`watch if PDLPTR < 0x1000000 && != 0`) to pin the exact write
+site, then map back to `v311.sil` and patch.
+
+Session 7 closed SN-25 entirely per Lon's directive ("never going
+to worry about ingress for old products, just we'll use that
+technique for one4all").  SPITBOL and
 CSNOBOL4 fold inside `GTNVR` / `GENVUP` gated on `&case` / `CASECL` —
 that is the settled design and it stays.  The ingress-at-lex rule in
 RULES.md has been scoped to one4all only.
@@ -1194,14 +1347,18 @@ Session 7 characterized the CSNOBOL4 SEGV at beauty stmt 1074:
   and must never be patched directly
 
 **Order of work next session:**
-1. Produce a core dump: `cd beauty_dir; ulimit -c unlimited;
-   /home/claude/csnobol4/snobol4_dbg -b -f -I. beauty.sno < beauty.sno`
-2. `gdb /home/claude/csnobol4/snobol4_dbg core`, `bt 50`, identify
-   the crashing C frame
-3. Cross-reference the frame back to its SIL PROC in `v311.sil`
-4. Patch `v311.sil`, rebuild via `make -f Makefile2 xsnobol4`
-5. Re-verify: 32 lines → at least 33 lines (progress), ideally
-   `beauty.sno < beauty.sno` runs to completion with exit 0
+1. Reproduce SEGV via `gdb -batch -x /home/claude/gdb_segv.cmd`
+   (requires `snobol4_dbg` rebuilt — see SN-26c-pre-CSN-a2 for
+   the recovery-after-top-level-clean procedure)
+2. Set the conditional watchpoint from SN-26c-pre-CSN-a3 body to
+   catch the first small-value write to PDLPTR (and PDLHED in
+   parallel)
+3. Map the crashing frame's generated-C line to its `v311.sil`
+   PROC; patch in `v311.sil`
+4. Rebuild: `make -f Makefile2 OPT='-O0 -g' xsnobol4`
+5. Re-verify: the goal is stmt 1074 cleared — beauty self-host
+   runs past the 32-line comment-header point
+6. Gate sweep once the CSN SEGV closes
 
 **Reproduce the baseline:**
 ```bash
