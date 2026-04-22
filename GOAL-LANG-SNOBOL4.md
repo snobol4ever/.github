@@ -1023,47 +1023,166 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     obsolete — use gdb with `handle SIGSEGV stop` instead, which
     catches the signal before `err_catch` runs.
 
-  - [ ] **SN-26c-pre-CSN-a3** -- Pin the exact PDLPTR-corruption
+  - [~] **SN-26c-pre-CSN-a3** -- Pin the exact PDLPTR-corruption
     write site.
 
-    **Opened 2026-04-22.**  Single-probe plan:
+    **Opened 2026-04-22.  Session 9 (2026-04-22 continued):
+    hardware watchpoints do not function in this sandbox —
+    plan revised.**
 
-    ```
-    # gdb cmd file contents:
-    set pagination off
-    set confirm off
-    handle SIGSEGV stop nopass
+    **Session 9 findings:**
+
+    1. **SEGV reproduced identically to session 8.**  32 stdout
+       lines, exit 1, `beauty.sno:616: Caught signal 11 in
+       statement 1074 at level 0`.  Crash site `SCIN1` at
+       `isnobol4.c:11459` (`D(LENFCL) = D(D_A(PDLPTR) + 3*DESCR)`).
+
+    2. **Values at SEGV match session 8 exactly:**
+       `res.pdlptr[0].a.i = 0xc0 (192)` ·
+       `res.pdlhed[0].a.i = 0x60 (96)` ·
+       `res.pdlend[0].a.i = 0x5599e48efbf0` (valid heap ptr) ·
+       `res.lenfcl[0].a.i = 0x5599e48d0be0` (valid heap ptr).
+       PDLPTR and PDLHED are tiny integers where they should be
+       heap pointers; PDLEND/LENFCL intact.
+
+    3. **Hardware watchpoints silently fail in this environment.**
+       An *unconditional* `watch res.pdlptr[0].a.i` with the
+       unambiguous address `0x56119c238250` fires **zero** times
+       across the full run, yet PDLPTR transitions from `0x0`
+       (BSS zero-init at `main`) to `0xc0` (SEGV).  Verified
+       against a trivial standalone program (`long g; g=1; g=2;
+       g=3;`) — `watch g` under `gdb -batch` also fires zero
+       times while printing `g=3`.  **Cause:** container kernel
+       restricts `PTRACE_POKEUSER` / DR0-DR7 debug register
+       access; `warning: Error disabling address space
+       randomization: Invalid argument` is the corroborating
+       symptom in every gdb run.  `set can-use-hw-watchpoints 0`
+       (software watch) works correctly on the trivial test but
+       single-steps every instruction — intractable for the
+       million-instruction beauty.sno workload.
+
+    4. **Consequence:** the session-8 plan
+       (`watch ... if PDLPTR < 0x100000`) is unworkable in this
+       sandbox.  Two alternative strategies queued below.
+
+    **Strategy A — AddressSanitizer (recommended first).**  If
+    the root cause is a buffer overrun from an adjacent `res`
+    field clobbering `res.pdlptr[0]` (consistent with session-8's
+    finding that the PDL stack region near PDLEND is all zeros —
+    nothing was written via the legitimate `INCRA`/`DECRA` path),
+    ASan will name the write site directly.  ASan write-buffer-
+    overflow detection does not rely on hardware watchpoints.
+
+    ```bash
+    cd /home/claude/csnobol4
+    rm -f *.o xsnobol4
+    make -f Makefile2 \
+         OPT='-O0 -g -fsanitize=address -fno-omit-frame-pointer' \
+         LDOPT='-fsanitize=address' xsnobol4
+    cp xsnobol4 snobol4_asan
+
     cd /home/claude/corpus/programs/snobol4/demo/beauty
-    file /home/claude/csnobol4/snobol4_dbg
-    b main
-    run -b -f -I. beauty.sno < beauty.sno
-    # condition fires only when PDLPTR becomes a small non-zero value
-    watch *(long*)&res.pdlptr[0].a if *(long*)&res.pdlptr[0].a < 0x1000000 && *(long*)&res.pdlptr[0].a != 0
-    commands
-      bt 12
-      continue
-    end
-    continue
+    ASAN_OPTIONS=abort_on_error=1:halt_on_error=1 \
+        /home/claude/csnobol4/snobol4_asan -b -f -I. \
+        beauty.sno < beauty.sno
     ```
 
-    First hit at the condition is the bug site.  Cross-reference
-    the generated-C file (isnobol4.c / snobol4.c) line back to
-    its SIL PROC in `v311.sil` via the `/* line NNN */` markers.
-    Fix in `v311.sil`, rebuild via
-    `make -f Makefile2 OPT='-O0 -g' xsnobol4`.
+    CSNOBOL4's `Makefile2` may need the `LDOPT` flag added; if
+    it doesn't accept it, patch `Makefile2.m4` to pipe `$(OPT)`
+    through to the link line.  Some CSNOBOL4 globals are
+    intentionally aligned oddly; `ASAN_OPTIONS=detect_odr_violation=0`
+    may be needed.  Validate the ASan build runs a trivial
+    `output='ok'` program before attempting beauty self-host.
 
-    **Also watch PDLHED** in parallel — if PDLHED flips small
-    before PDLPTR does, the bug is in PDLHED management and
-    PDLPTR just tracks it via `MOVD PDLPTR,PDLHED`.
+    **Strategy B — Breakpoint sweep at the 31 known PDLPTR write
+    sites.**  Bounded volume, no hardware-watchpoint requirement.
+    Full inventory (verified session 9 from `grep -n "D_A(PDLPTR)
+    [+-]=\\|D(PDLPTR) =\\|PUSH(PDLPTR\\|POP(PDLPTR" isnobol4.c`):
+
+    ```
+    7667  PUSH(PDLPTR)            # cstack save
+    7718  POP(PDLPTR)             # cstack restore
+    11433 +=3*DESCR               # SCIN frame push
+    11463 -=3*DESCR               # SCIN frame pop
+    11590 +=3*DESCR
+    11698 +=3*DESCR
+    11707 +=3*DESCR
+    11734 -=3*DESCR
+    11937 -=6*DESCR
+    11972 -=3*DESCR
+    12006 PUSH(PDLPTR)
+    12026 POP(PDLPTR)
+    12075 -=3*DESCR
+    12153 +=3*DESCR
+    12236 +=3*DESCR
+    12250 PUSH(PDLPTR)
+    12256 +=3*DESCR
+    12270 POP(PDLPTR)
+    12276 D(PDLPTR) = D(PDLHED)   # full-struct copy from PDLHED
+    12281 POP(PDLPTR)
+    12289 +=3*DESCR
+    12300 D(PDLPTR) = D(PDLHED)
+    12305 +=3*DESCR
+    12343 +=DESCR+SPEC
+    12419 PUSH(PDLPTR)
+    12439 POP(PDLPTR)
+    12448 +=3*DESCR
+    12474 +=3*DESCR
+    12577 D(PDLPTR) = D(PDLHED)
+    12595 +=3*DESCR
+    12607 +=3*DESCR
+    ```
+
+    Gdb script pattern: break at each line with a `commands
+    {silent; printf PDLPTR/PDLHED; continue}` handler, redirect
+    log to a file, grep for the first "sane → tiny" transition.
+    Note the three `D(PDLPTR) = D(PDLHED)` sites (12276, 12300,
+    12577) specifically: if PDLHED is *already* corrupt at those
+    sites, PDLPTR inherits the bad value via legitimate
+    structure assignment.  Watch PDLHED at every breakpoint in
+    parallel — its corruption may predate PDLPTR's.
+
+    **PUSH/POP semantics** (from `include/macros.h:152-153`):
+    ```
+    #define PUSH(x)  D(cstack+1) = D(x); cstack++; OFCHK()
+    #define POP(x)   cstack--; UFCHK(); D(x) = D(cstack+1)
+    ```
+    Each is a full-descriptor copy, so POP writes 16 bytes into
+    the target descriptor — if `cstack+1` is corrupt, POP
+    propagates corruption without a direct `PDLPTR = <value>`
+    statement.
 
     **Staged gdb scripts left in /home/claude** (next-session
     scratch; not committed):
     - `gdb_segv.cmd` — basic SEGV reproduction with args fix
     - `gdb_pdl.cmd` — PDL bounds dump at SEGV
     - `gdb_full.cmd` — full descriptor + memory dump at SEGV
-    - `gdb_watch.cmd` — first watchpoint attempt (unconditional;
-      did not catch small-value write, needs the conditional
-      form above)
+    - `gdb_watch.cmd` — obsolete (hardware watch doesn't fire)
+    - `gdb_probe_segv.cmd` — session 9: prints
+      PDLPTR/PDLHED/PDLEND/LENFCL at SEGV (reproduces session 8
+      numbers exactly)
+    - `gdb_watch_pdlptr.cmd` — session 9: conditional hardware
+      watch attempt, fires zero times
+    - `gdb_watch_all.cmd` — session 9: unconditional hardware
+      watch attempt, also fires zero times (proves the hardware
+      watchpoint mechanism itself is broken, not a conditional-
+      expression issue)
+    - `gdb_addr_watch.cmd` — session 9: address-typed
+      (`*(long*)$addr`) hardware watch, also fires zero times
+    - `hw_test.c` / `hw_test` — session 9: trivial standalone
+      proof that hardware watchpoints fail on any program here
+
+    **Order of work for next session:**
+    1. Rebuild `snobol4_asan` with `-fsanitize=address`.  Validate
+       it runs a trivial program first.
+    2. Run the beauty self-host repro under ASan; capture the
+       named write site.
+    3. Map the C line back to its `v311.sil` PROC, patch source
+       of truth, rebuild via `make -f Makefile2 OPT='-O0 -g'
+       xsnobol4`.
+    4. If ASan reports nothing (legitimate-looking struct copy
+       from already-corrupt source), fall back to Strategy B:
+       the 31-site breakpoint sweep.
 
   - [ ] **SN-26c-pre-CSN-b** -- Bare-minimum repro for the SEGV.
     Open after SN-26c-pre-CSN-a identifies the crashing frame.
@@ -1317,14 +1436,24 @@ won't-fix; no further x64 work planned).
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
 
-**Current step: SN-26c-pre-CSN-a3.**  Session 8 (2026-04-22) solved
-the "gdb perturbation" mystery (it was just `run < file` wiping
-`set args`), captured the clean SEGV backtrace, and characterized
-PDLPTR/PDLHED as small integers (192/96) while PDLEND remains a
-valid heap pointer.  The PDL corruption predates the crashing
-SCAN invocation.  Next action: conditional watchpoint
-(`watch if PDLPTR < 0x1000000 && != 0`) to pin the exact write
-site, then map back to `v311.sil` and patch.
+**Current step: SN-26c-pre-CSN-a3.**  Session 9 (2026-04-22
+continued) reproduced session 8's SEGV exactly and discovered
+that **hardware watchpoints silently fail in this
+sandbox/container environment.**  Unconditional
+`watch res.pdlptr[0].a.i` fires zero times while PDLPTR
+transitions from `0x0` to `0xc0` — confirmed against a trivial
+standalone program, so the mechanism itself is broken, not the
+expression.  Software watchpoints work but single-step every
+instruction, intractable for beauty.sno's million-instruction
+workload.  Next session: switch to AddressSanitizer (Strategy A)
+or a 31-site breakpoint sweep (Strategy B).  Full inventory of
+PDLPTR write sites captured in the SN-26c-pre-CSN-a3 block.
+
+Session 8 (2026-04-22) solved the "gdb perturbation" mystery
+(just `run < file` wiping `set args`), captured the clean SEGV
+backtrace, and characterized PDLPTR/PDLHED as small integers
+(192/96) while PDLEND remains a valid heap pointer.  The PDL
+corruption predates the crashing SCAN invocation.
 
 Session 7 closed SN-25 entirely per Lon's directive ("never going
 to worry about ingress for old products, just we'll use that
@@ -1347,18 +1476,32 @@ Session 7 characterized the CSNOBOL4 SEGV at beauty stmt 1074:
   and must never be patched directly
 
 **Order of work next session:**
-1. Reproduce SEGV via `gdb -batch -x /home/claude/gdb_segv.cmd`
-   (requires `snobol4_dbg` rebuilt — see SN-26c-pre-CSN-a2 for
-   the recovery-after-top-level-clean procedure)
-2. Set the conditional watchpoint from SN-26c-pre-CSN-a3 body to
-   catch the first small-value write to PDLPTR (and PDLHED in
-   parallel)
-3. Map the crashing frame's generated-C line to its `v311.sil`
-   PROC; patch in `v311.sil`
-4. Rebuild: `make -f Makefile2 OPT='-O0 -g' xsnobol4`
-5. Re-verify: the goal is stmt 1074 cleared — beauty self-host
-   runs past the 32-line comment-header point
-6. Gate sweep once the CSN SEGV closes
+1. **Strategy A — AddressSanitizer rebuild** (recommended first):
+   ```bash
+   cd /home/claude/csnobol4
+   rm -f *.o xsnobol4
+   make -f Makefile2 \
+        OPT='-O0 -g -fsanitize=address -fno-omit-frame-pointer' \
+        LDOPT='-fsanitize=address' xsnobol4
+   cp xsnobol4 snobol4_asan
+   ```
+   If `Makefile2` doesn't accept `LDOPT`, patch `Makefile2.m4` to
+   pipe `$(OPT)` through to the link line.  Validate with a
+   trivial `output='ok'` program first.
+2. Run beauty self-host repro under ASan; capture the named
+   write site.
+3. Map the C line back to its `v311.sil` PROC via the
+   `/* line NNN */` markers; patch `v311.sil` (NOT the generated
+   C), rebuild via `make -f Makefile2 OPT='-O0 -g' xsnobol4`.
+4. If ASan is silent (corruption came in via a legitimate-
+   looking struct copy from already-bad source), fall back to
+   **Strategy B — 31-site breakpoint sweep** on the PDLPTR writes
+   enumerated in the SN-26c-pre-CSN-a3 block.  Watch PDLHED in
+   parallel; the three `D(PDLPTR) = D(PDLHED)` sites (lines
+   12276/12300/12577) may simply propagate a PDLHED that was
+   corrupted earlier.
+5. Re-verify beauty self-host past stmt 1074 once the patch lands.
+6. Gate sweep once the CSN SEGV closes.
 
 **Reproduce the baseline:**
 ```bash
