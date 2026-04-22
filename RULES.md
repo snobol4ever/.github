@@ -49,32 +49,50 @@ at the top of the commit message and leave the incomplete step as `- [ ]`
 with a note below it. Still push everything — a broken push is better than
 no push.
 
-## Casing belongs at the ingress layer, not at lookup
+## Casing belongs at the ingress layer, not at lookup — **one4all only**
 
-⛔ Do **not** apply case folding at identifier-lookup sites. Casing
-decisions belong at two boundaries only:
+⛔ In **one4all**, do not apply case folding at identifier-lookup
+sites. Casing decisions belong at two boundaries only:
 
 1. **Lexical / parse layer** — when the scanner identifies a token
-   and decides what canonical form to hand downstream (`flstg`,
-   lexer-level keyword recognition).
+   and decides what canonical form to hand downstream.
 2. **User input strings used as names** — `CONVERT(x, 'NAME')`,
    indirection via `$`, and `&` assignments that interpret a user-
    supplied string as an identifier.
 
-Keyword-table lookup (`gnv10` in SPITBOL's `gtnvr`), hash-chain
-walks, variable resolution via already-parsed identifiers — these
-are **pure comparison sites**. The identifier's case must already
-be canonical by the time it reaches them. Folding at a lookup site
-pays cost on every call, couples policy ("keywords are case-
-insensitive") with mechanism ("how do I compare two byte strings"),
-and makes case behavior invisible to code reading the source.
+Keyword-table lookup, hash-chain walks, variable resolution via
+already-parsed identifiers — these are **pure comparison sites** in
+one4all. The identifier's case must already be canonical by the
+time it reaches them. Folding at a lookup site pays cost on every
+call, couples policy ("keywords are case-insensitive") with
+mechanism ("how do I compare two byte strings"), and makes case
+behavior invisible to code reading the source.
 
-Session 6 (2026-04-21) drafted an SN-25c fold-both-sides patch at
-`sbl.min:23093 gnv10` and reverted it before landing for exactly
-this reason. The correct SN-25d site is `asm.sbl` / `lex.sbl`
-keyword recognition, or a `flkwd` companion to `flstg`, or a
-6-entry structural-keyword pre-pass before `gtnvr` enters the
-hash chain. See GOAL-LANG-SNOBOL4.md SN-25d for the options.
+### SPITBOL and CSNOBOL4 are exempt
+
+SPITBOL (x64, x32) and CSNOBOL4 fold inside `GTNVR` / `GENVUP`,
+gated on the `&case` / `CASECL` keyword. That is how they have
+always worked and how they will continue to work. We do **not**
+retrofit these legacy runtimes to the ingress-at-lex technique.
+Sessions 2-6 explored patching SPITBOL at `gnv10` and at the SIL
+level in `sbl.min:23093`; all of that work is deferred permanently.
+See SN-25 in `GOAL-LANG-SNOBOL4.md` for the history.
+
+### Source-of-truth if a legacy patch is ever justified
+
+If a future bug in SPITBOL or CSNOBOL4 ever warrants a patch,
+patch the source of truth, not the generated artifact:
+
+| Runtime | Source of truth | Never patch |
+|---------|----------------|-------------|
+| SPITBOL x64 | `sbl.min` (processed via `asm.sbl`, `lex.sbl`, `err.sbl`) | `bootstrap/sbl.asm` (generated) |
+| SPITBOL x32 | `s.min` | generated asm |
+| CSNOBOL4 | `v311.sil` (processed by `genc.sno`) | `snobol4.c`, `isnobol4.c` (generated) |
+
+Generated files carry a `/* generated from ... */` or `MACHINE
+GENERATED` header. Edit the source and regenerate — never edit a
+generated file even if the change would "stick" for one session,
+because the next regeneration silently reverts it.
 
 ---
 

@@ -203,17 +203,23 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   self-application: `scrip <mode> beauty.sno < beauty.sno` reproduces
   `beauty.sno`.  That is not demonstrated anywhere today.  See SN-26.
 
-- [ ] **SN-25** -- SPITBOL `-f` structural-keyword lookup fix.
-  **DEFERRED 2026-04-20** — not on SN-26's critical path.
-  CSNOBOL4 `-bf` handles case-sensitive labels correctly (through
-  the first 1073 statements of `beauty.sno < beauty.sno`; it SEGVs
-  at stmt 1074 `snoLine = INPUT` but that is a separate CSN bug,
-  not a `-f` bug).  The 4-way `scrip-monitor` uses CSN `-bf`
-  internally for its CSN lane, so SN-26 can proceed fully with
-  CSNOBOL4 as oracle.  Revisit SN-25 only if a corpus program
-  specifically needs SPITBOL `-f` with structural keywords.
+- [~] **SN-25** -- SPITBOL `-f` structural-keyword lookup fix.
+  **CLOSED 2026-04-21 (session 7) — won't fix.**  Per Lon's
+  directive: "belay my order to make enhancement to SPITBOL and/or
+  CSNOBOL4 to case on ingress. Just do as they have always done and
+  continue with fixes for crash and END recognition, etc."  Further:
+  "Never going to worry about ingress for old products, just we'll
+  use that technique for one4all."
 
-  **Root cause pinpointed 2026-04-20, fix not yet landed.**
+  SPITBOL and CSNOBOL4 fold inside `GTNVR` / `GENVUP` gated on
+  `&case` / `CASECL`.  That is the settled design; it stays.  The
+  ingress-at-lex principle applies to one4all only, going forward.
+
+  Historical work from sessions 2-6 below is preserved for the
+  record only.  Do not reopen SN-25 / SN-25a-f without a direct
+  directive from Lon.
+
+  **Historical record (do not pursue):**
 
   **Symptom (verified on `/tmp/trivial2.sno` — a single
   `OUTPUT = 'hi'` line with the required leading whitespace):**
@@ -1317,7 +1323,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       further in this diagnostic until the two oracle prereqs
       close.
 
-  - [ ] **SN-26c-pre-CSN** -- CSNOBOL4 SEGV at `beauty.sno:616
+  - [~] **SN-26c-pre-CSN** -- CSNOBOL4 SEGV at `beauty.sno:616
     stmt 1074` (`snoLine = INPUT` in `main02`).
 
     **Opened 2026-04-21.**  Prerequisite for SN-26c's 4-way
@@ -1338,6 +1344,82 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     1074's INPUT fires, not the specific 627-vs-781 content
     difference.  A bare repro (simple program, many iterations,
     `X = INPUT :F(END)` loop) may or may not trigger; start there.
+
+  - [~] **SN-26c-pre-CSN-a** -- Session 7 (2026-04-21) characterization.
+
+    **SEGV is deterministic across all optimization levels** (`-O0`,
+    `-O1`, `-O2`, `-O3`, `-O3 -g`, `-Og -g`).  All produce exactly
+    32 stdout lines (the comment header of `beauty.sno`), exit 1,
+    `beauty.sno:616: Caught signal 11 in statement 1074 at level 0`.
+    This rules out uninitialized-memory bugs sensitive to optimizer
+    layout.
+
+    **gdb perturbs the process — do not trust gdb-attached runs
+    as characterization of this bug.**  Running the same binary
+    with `set args -b -f -I. beauty.sno` / `run < beauty.sno`
+    under gdb produces *compile-time* "Previously defined label"
+    errors on the `shift`/`Shift` / `reduce`/`Reduce` / `pop`/`Pop`
+    / `VISIT` / `VISIT_1` / `VISITEND` pairs at `semantic.inc:16-18`
+    and in the generated pseudo-input — but the *same binary* run
+    outside gdb accepts the labels and reaches stmt 1074 before
+    SEGV.  Either gdb's `set args` tokenization, its handling of
+    `< beauty.sno` stdin redirection, or its `LD_PRELOAD` /
+    address-space setup changes `CASECL` effective state at compile
+    time.  **Use a core dump instead:** `ulimit -c unlimited`,
+    run outside gdb, `gdb snobol4_dbg core`.
+
+    **GENVUP is working correctly** — the duplicate-label mechanism
+    in `CMPILE` at `snobol4.c:958-962` correctly skips `CERR2`
+    ("Previously defined label") under `-f` because `GENVUP` at
+    `isnobol4.c:4474-4484` returns without folding when
+    `D_A(CASECL) == 0`.  Label pairs `shift`/`Shift` etc. are
+    compiled as distinct entries.  The compile-time behavior is
+    not the bug.
+
+    **The SEGV is a runtime bug, not a compile-time bug.**  32
+    lines of stdout proves the compiled program started executing.
+    `main02` reads INPUT repeatedly; after ~32 output lines
+    (roughly corresponding to the comment header echoing through
+    the parse/pretty-print path), something in statement-1074's
+    code path dereferences bad memory.
+
+    **Source-of-truth for any CSNOBOL4 patch:** `v311.sil`.  The
+    files `snobol4.c` and `isnobol4.c` carry the header
+    `/* generated from v311.sil by genc.sno on 04/12/2026 ... */`.
+    Do **not** patch the generated C.  All patches go in `v311.sil`
+    and are rebuilt via `make -f Makefile2 xsnobol4`.
+
+    **v311.sil landmarks already identified:**
+    - `GENVUP` at `v311.sil:1317-1323` — 6 SIL lines, generates the
+      11-line block at `isnobol4.c:4474-4484`.  Maps 1:1:
+      `AEQLC CASECL,0,,GENVAR` → `if (D_A(CASECL)==0) BRANCH(GENVAR)`,
+      `XRAISP SPECR1` → `RAISE1(SPECR1)`, etc.
+    - `CMPILE` (the outer label-scanner) generates the code at
+      `snobol4.c:922` (`static int CMPILE(...)`).  The `goto L_CERR2`
+      at line 962 corresponds to wherever CMPILE raises emsg2 in
+      the SIL.  Locate in `v311.sil` by searching for `EMSG2` or
+      `"Previously defined"` adjacency if needed.
+
+    **Debug artifacts left in place for next session:**
+    ```
+    /home/claude/csnobol4/snobol4        (release O3, no debug info)
+    /home/claude/csnobol4/snobol4_dbg    (O3 -g, debug + release behavior)
+    /home/claude/csnobol4/snobol4_O0     (O0 -g, same release behavior)
+    ```
+    All three reproduce the SEGV identically outside gdb.
+
+    **Next-session pickup:**
+    1. `ulimit -c unlimited && cd beauty_dir && /home/claude/csnobol4/snobol4_dbg -b -f -I. beauty.sno < beauty.sno` — produce core
+    2. `gdb /home/claude/csnobol4/snobol4_dbg core` — bt, identify the exact frame
+    3. From that frame, cross-reference back to the SIL PROC name
+       in `v311.sil` that generated it
+    4. Patch in `v311.sil`, `make -f Makefile2 xsnobol4`, re-test
+
+  - [ ] **SN-26c-pre-CSN-b** -- Bare-minimum repro for the SEGV.
+    Open after SN-26c-pre-CSN-a identifies the crashing frame.
+    Goal: strip beauty.sno down to a ~20-line reproducer that still
+    crashes CSN at an analogous statement.  Makes the bug filable
+    upstream (Phil Budne) without requiring the beauty corpus.
 
   - [ ] **SN-26d** -- Add `test_smoke_beauty_self_host.sh` — a gate
     script that runs `scrip <mode> beauty.sno < beauty.sno` in all
@@ -1578,50 +1660,56 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ## Current state
 
 **HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ pending
-this commit · x64 @ `5843f5d` (unchanged — session 6 patch reverted
-before landing per Lon's casing-locality directive).
+this commit · x64 @ `5843f5d` (untouched this session — SN-25 closed
+won't-fix; no further x64 work planned).
 
-**Gates (last verified 2026-04-20, not re-measured sessions 3-6):**
+**Gates (last verified 2026-04-20, not re-measured sessions 3-7):**
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
 
-**Current step: SN-25d.** Session 6 drafted a byte-wise fold-both-sides
-patch at `sbl.min:23093` (gnv10), got it compiling cleanly through the
-SIL lex + asm passes (after fixing 5-char label constraint), and was
-about to build with nasm + cc.  Lon redirected: casing must happen at
-the lexical/parse layer or at user-input-used-as-name sites, NOT at
-the keyword-lookup hot path.  Patch reverted.  Next session picks up
-SN-25d (lexer-level selective fold for the 6 structural keywords).
+**Current step: SN-26c-pre-CSN-a.**  Session 7 closed SN-25 entirely
+per Lon's directive ("never going to worry about ingress for old
+products, just we'll use that technique for one4all").  SPITBOL and
+CSNOBOL4 fold inside `GTNVR` / `GENVUP` gated on `&case` / `CASECL` —
+that is the settled design and it stays.  The ingress-at-lex rule in
+RULES.md has been scoped to one4all only.
+
+Session 7 characterized the CSNOBOL4 SEGV at beauty stmt 1074:
+- Deterministic across `-O0`..`-O3`, with and without debug info
+- gdb perturbs arg handling and produces misleading compile-time
+  errors (Previously defined label) that do not appear outside gdb
+- GENVUP at `isnobol4.c:4474-4484` / `v311.sil:1317-1323` is
+  working correctly — labels like `shift`/`Shift` are intentionally
+  distinct under `-f`
+- The SEGV is a runtime bug that fires ~32 stdout lines into
+  execution, not a compile-time issue
+- CSN source of truth is `v311.sil`; generated files
+  (`snobol4.c`, `isnobol4.c`) carry a header marking them generated
+  and must never be patched directly
 
 **Order of work next session:**
-1. Pick the fold-site between SN-25d options (i) lexer-level keyword
-   fold in `asm.sbl`/`lex.sbl`, (ii) `flkwd` selective fold routine,
-   (iii) pre-pass keyword recognition.  Ask Lon if ambiguous.
-2. Install nasm: `apt-get install -y nasm`.
-3. Apply chosen patch, `make sbl`, verify all 5 test cases (same
-   fixtures: `/tmp/sn25/trivial.sno`, `test2.sno`, `test3.sno`, plus
-   two user-label-collision cases to confirm user names still respect
-   `-f`).
-4. `make makeboot`, `cp sbl bin/sbl`, commit + push x64.
-5. Return to SN-26c-pre-CSN or SN-26c per ladder.
-- scrip `--ir-run`: 0 stdout, cascading `Error 1` on stderr.
-- 4-way monitor first DIVERGE at stmt 153: IR `i=1` vs SM/JIT `i=2`.
-  Plus ~40 `sm_lower: unresolved label 'error'/'err'` warnings.
-
-**Order of work:** close SN-25 (SPITBOL `-bf`) and SN-26c-pre-CSN (CSN SEGV)
-first, then return to SN-26c step 3 (walk the divergences).
+1. Produce a core dump: `cd beauty_dir; ulimit -c unlimited;
+   /home/claude/csnobol4/snobol4_dbg -b -f -I. beauty.sno < beauty.sno`
+2. `gdb /home/claude/csnobol4/snobol4_dbg core`, `bt 50`, identify
+   the crashing C frame
+3. Cross-reference the frame back to its SIL PROC in `v311.sil`
+4. Patch `v311.sil`, rebuild via `make -f Makefile2 xsnobol4`
+5. Re-verify: 32 lines → at least 33 lines (progress), ideally
+   `beauty.sno < beauty.sno` runs to completion with exit 0
 
 **Reproduce the baseline:**
 ```bash
 DEST=/home/claude/corpus/programs/snobol4/demo/beauty
 cd $DEST
-# CSN oracle (partial — SEGVs at stmt 1074):
-SNO_LIB=$DEST /home/claude/csnobol4/snobol4 -bf -P 500k -I$DEST beauty.sno < beauty.sno
-# 4-way monitor (first DIVERGE at stmt 153):
-SNO_LIB=$DEST /home/claude/one4all/scrip-monitor --monitor $DEST/beauty.sno < $DEST/beauty.sno 2>&1 | grep -A 10 DIVERGE
-# scrip (currently 0 stdout, cascading Error 1):
-SNO_LIB=$DEST /home/claude/one4all/scrip --ir-run $DEST/beauty.sno < $DEST/beauty.sno
+/home/claude/csnobol4/snobol4 -b -f -I. beauty.sno < beauty.sno
+# expect: 32 stdout lines, exit 1, "Caught signal 11 in statement 1074 at level 0"
 ```
+
+**After SN-26c-pre-CSN-a:** return to SN-26c step 3 — walk the
+4-way monitor divergences.  First known DIVERGE at stmt 153:
+IR `UTF_Array='797163616:32490'` vs SM/JIT `'124,2'` (see SN-26
+block).  Plus ~40 `sm_lower: unresolved label 'error'/'err'`
+warnings to clean up.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never
