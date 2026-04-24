@@ -180,12 +180,35 @@ CSNOBOL4's SIL source.
 
 `.ref` files are pre-baked in corpus. SPITBOL not required to run test gates.
 
-### SPITBOL `-f` is broken in v4.0f
+### SPITBOL `-f` — fixed in SN-30 (x64 @ `cc68516`)
 
-`-f` (case-sensitive, don't fold) causes "No END statement found" on all
-files. SPITBOL cannot be used case-sensitively with this build. For
-programs that need case-sensitive labels (double-function trick), use
-CSNOBOL4 `-bf` instead. Otherwise use SPITBOL `-b` (no `-f`).
+Historical note: pre-SN-30, `-f` (case-sensitive) on x64 caused "No END
+statement found" on all files.  Root cause was lowercase canonical
+keyword tables in `sbl.min` (not a bug in the fold logic).  SN-30
+flipped 173 DTC strings to UPPERCASE and inverted the FLC/FLSTG fold
+direction; x64 `sbl -bf` now accepts standard UPPERCASE SNOBOL4 source
+correctly.  Beauty self-host confirmed 2026-04-24: `sbl -bf beauty.sno
+< beauty.sno` with `SETL4PATH=".:<corpus/include>"` produces 649 lines,
+exit 0, byte-identical to CSNOBOL4 HEAD `b3aeb9f` output.
+
+The double-function trick still requires `-bf` (case-sensitive) on
+both oracles.  CSNOBOL4 `-bf` remains valid.
+
+### SPITBOL include-path env var — `SETL4PATH`
+
+SPITBOL's `-INCLUDE` directive searches `SETL4PATH`, not `SNOLIB` or
+`SPITLIB`.  Source of truth: `x64/osint/port.h:293` `#define
+SPITFILEPATH "SETL4PATH"`.  The `SNOLIB` name appears in code comments
+in `sysif.c` but is not the env var actually read.  Colon-separated
+paths supported (e.g. `SETL4PATH=".:/home/claude/corpus/programs/include"`).
+
+### scrip include-path env var — `SNO_LIB`
+
+scrip's SNOBOL4 frontend (`src/frontend/snobol4/snobol4.l`) searches
+`SNO_LIB` for `-INCLUDE` directives.  Single-path only (not
+colon-separated).  Also walks parent dirs of the input file looking
+for a `lib/` sibling.  The `scrip.c` argv handling does **not** accept
+a `-I` flag today; include resolution is env-driven only.
 
 ### Always uppercase `END`
 
