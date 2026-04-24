@@ -371,7 +371,173 @@ capture for that rung needs redoing under case-sensitive default.
 
 ---
 
-## Active rung — SN-26c-stmt153 (opened 2026-04-24, session cont.)
+## Active rung — SN-26c-stmt637 (opened 2026-04-24, session #3)
+
+### SN-26c-stmt153 — CLOSED 2026-04-24 (session #3)
+
+**Root cause:** `sm_lower.c lower_stmt` emitted `SM_STNO` **before** the
+`SM_LABEL` for labeled statements.  Branches (forward and backward)
+target the label, so they landed on `SM_LABEL` at index N+1 and
+**skipped the `SM_STNO` at index N**.  Consequences:
+
+- `&STCOUNT` / `&STNO` under-counted for every branch to a labeled stmt.
+- `g_sm_steps_done` under-counted, so `sm_interp_run_steps(prog, st, n)`
+  ran more *source* statements than IR did at the same step limit —
+  loop bodies re-executed one extra time before the limit tripped.
+
+At beauty's G1 loop (`i = 0 / G1: i = i + 1 / $UTF_Array[i,2]=... :S(G1)`):
+- IR step-limit check is at the top of `while (s)` — fires **before**
+  any statement executes, so stopping at step N means stmts 1..N-1 ran
+  and stmt N is about to run (with `i` reflecting N-1 executions).
+- SM `SM_JUMP_S -> G1_label` used to land AFTER `SM_STNO`, letting the
+  arithmetic `i = i + 1` opcodes run a second time before the step
+  limit caught up.  Now it lands BEFORE `SM_STNO`, firing the limit
+  on re-entry — matching IR.
+
+**Fix (pending commit in one4all):** swap emit order in `lower_stmt`:
+```c
+/* 0. Define label BEFORE SM_STNO ... */
+if (s->label && s->label[0]) {
+    int lbl_idx = sm_label(p);
+    lt_define(lt, s->label, lbl_idx);
+}
+/* 1. Statement counter tick */
+sm_emit(p, SM_STNO);
+```
+
+**Verification (session #3):**
+- Minimal probe (`i = 0 / G1: i = i+1 / LT(i,3) :S(G1)`) — monitor now
+  reports `all 7 statements agree across IR/SM/JIT`.  Pre-fix: DIVERGE
+  at stmt 5, `i` IR=1 vs SM=2.
+- Beauty monitor — stmts 1..636 now `IR=SM=JIT agree`.  stmt 153 is
+  clean.  New first DIVERGE at stmt 637 (see SN-26c-stmt637 below).
+- Gates: Smoke **PASS=7**, Broker **PASS=49** (summary line also now
+  reads 49 correctly; previously the counter itself was off-by-one).
+
+**Collateral correction:** The fix also corrects forward-goto step
+counting.  Every `DEFINE('…') :F(XEnd)` idiom in beauty was a forward
+branch that previously skipped the target's STNO.  Post-fix, both
+forward and backward branches to labeled statements correctly tick
+the step counter.  All beauty source programs use this idiom heavily
+(328 labeled statements total).
+
+### SN-26c-stmt637 — IR `doDebug=0` vs SM/JIT `doDebug=""` at stmt 637
+
+**Captured 2026-04-24 (session #3) under SN-26c-stmt153 fix:**
+```
+DIVERGE at stmt 637 [label: -, line 0]
+  IR   path: [START] → [G1] → ... → [TWEnd]
+  SM   path: [START] → [G1] → ... → [TWEnd]
+  JIT  path: [START] → [G1] → ... → [TWEnd]
+  IR vs SM (1 var(s) differ):
+    doDebug       IR=0                     SM=
+  IR vs JIT (1 var(s) differ):
+    doDebug       IR=0                     JIT=
+```
+
+Label paths agree (both end at `[TWEnd]`).  Only `doDebug` differs.
+IR shows integer `0`; SM/JIT show empty/unset.
+
+**Stmt 637 identification:**
+- Source stmt 637 in IR dump (`--dump-ir`) is:
+  `(STMT :subj (E_FNC DEFINE (E_QLIT "TX(lvl,pat,name)omega")) :go TXEnd)`
+  — a `DEFINE` call with unconditional `:go TXEnd`.
+- `doDebug = 0` is at `beauty.sno:610` — the very first statement of
+  the main program body after all DEFINE blocks.  In IR dump, this is
+  much later than stmt 637 (~stmt 1050+).
+
+**Interpretation:** IR has somehow reached and executed the
+`doDebug = 0` assignment (at ~stmt 1050+) by the time the monitor
+snapshots at `n=637`.  SM/JIT have NOT reached it yet.  This is the
+**opposite direction** of the old SN-26c-stmt153 divergence: there,
+SM over-ran IR; here, IR over-runs SM.
+
+**Hypothesis:** IR's step counter is still counting differently than
+SM's — possibly IR is NOT counting something that SM IS counting
+(reverse polarity of the stmt 153 fix).  Candidates:
+
+1. **Subroutine calls via `*fn()`**: SNOBOL4 function calls invoke
+   user-defined patterns.  The SM path may fire `SM_STNO` for each
+   statement inside the callee; IR may not tick `stno` for statements
+   inside `execute_program` recursion.  Beauty's G1 loop calls
+   `SORT` (builtin — no SNO stmts) but later code may hit user fn
+   calls before stmt 637.  Actually: G1 path in the monitor terminates
+   before any user fn calls because main program hasn't started.
+2. **Initial-block / DEFINE body statements**: When a `DEFINE` is
+   processed, the function body is parsed but not executed — it only
+   runs when the function is called.  But in beauty, no user fn has
+   been called by stmt 637 (we're still in DEFINE-block preamble).
+3. **END / HALT asymmetry**: If IR's step-limit check uses `>=` and
+   SM's uses `>=` but they tick at different moments relative to the
+   statement boundary, there could be a ±1 drift over many branches.
+4. **Label-only statements**: Empty labeled stmts like `TWEnd`,
+   `TXEnd`, `IsSpitbolEnd`, etc. — IR treats these as stmts with
+   label + empty subject.  SM emits SM_LABEL + SM_STNO for them.
+   Check: does IR `execute_program` tick `comm_stno` for label-only
+   stmts?  (Inspect `interp.c:4066 comm_stno(++stno)` — should fire
+   unconditionally.)
+
+**Next-session work order:**
+
+1. **Instrument IR step count.**  Add `fprintf(stderr, "IR @ step %d: stno=%d, stmt_line=...\n", g_ir_steps_done, stno)` near `interp.c:4066-4070`.  Rebuild scrip-monitor.
+2. **Instrument SM step count.**  Same in `sm_interp.c:218-219` and
+   `sm_codegen.c:205-208`.
+3. **Run beauty monitor at `n=637`** and compare the *source stmt
+   numbers* each executor reached.  The delta reveals which kind of
+   statement IR counts that SM doesn't (or vice versa).
+4. **Minimal probe** reproducing the divergence with just DEFINE
+   blocks (no loops, no main body) — e.g.:
+   ```
+          &FULLSCAN = 1
+          DEFINE('f()') :(f_end)
+   f      f = 1   :(RETURN)
+   f_end  x = 0
+          OUTPUT = x
+   END
+   ```
+   Monitor at step 3, 4, 5 — does `x` divergence appear?
+5. **Fix in `interp.c` or `sm_interp.c`/`sm_codegen.c`** depending on
+   which executor is miscounting.  Prefer keeping the IR semantics
+   (SPITBOL-compatible) and adjusting SM/JIT.
+6. **Gate sweep**: Smoke=7, Broker=49 after fix.
+
+**Setup to resume (fresh session):**
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+cd /home/claude/one4all
+# IMPORTANT: build_scrip.sh populates /tmp/si_objs; scrip-monitor needs that first
+bash scripts/build_scrip.sh
+make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+
+# Reproduce stmt 637:
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+SNO_LIB=/home/claude/corpus/programs/include \
+    timeout 180 /home/claude/one4all/scrip-monitor --monitor \
+    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno 2>/tmp/mon.err >/dev/null
+grep -v "sm_lower:" /tmp/mon.err | grep -A 15 "DIVERGE at stmt 637"
+```
+
+**Build-system latent issue** (from session #3): `scripts/build_scrip.sh`
+uses a different Makefile path (`src/Makefile`) that does NOT populate
+`/tmp/si_objs/`.  The top-level `Makefile`'s `scrip-monitor` target
+depends on `/tmp/si_objs/*.o`.  Workflow is: run `build_scrip.sh` first
+(populates si_objs as a side effect of that Makefile), then
+`make scrip-monitor`.  Both paths happen to coexist because
+`build_scrip.sh` invokes the top-level Makefile internally.  Not a bug;
+just a footgun — `make scrip-monitor` from a clean tree fails with
+undefined references until `build_scrip.sh` has run once.
+
+**Gate:** Smoke=7, Broker=49 after any fix for SN-26c-stmt637.
+
+**Dependencies:** SN-26c-stmt153 fix landed (pending commit).
+
+---
+
+## Closed historical detail — SN-26c-char-ir investigation
 
 ### SN-26c-char-ir — CLOSED 2026-04-24
 
@@ -400,65 +566,9 @@ entirely at the snapshot layer.
 **Result:** stmts 1–152 now cleanly `IR=SM=JIT agree`.  Broker
 recovered 48 → 49.  Smoke 7.  New first DIVERGE surfaces at stmt 153
 — exactly as the old notes predicted — but with a far cleaner
-signature (single variable `i`, integer, one-line diff).
-
-### SN-26c-stmt153 — IR `i=1` vs SM/JIT `i=2` at label `[G1]`
-
-**Captured 2026-04-24 under SN-26c-char-ir fix:**
-```
-DIVERGE at stmt 153 [label: -, line 0]
-  IR   path: [START] \n [G1]
-  SM   path: [START] \n [G1]
-  JIT  path: [START] \n [G1]
-  IR   last_ok=?
-  SM   last_ok=1
-  JIT  last_ok=1
-  IR vs SM (1 var(s) differ):
-    i             IR=1                     SM=2
-  IR vs JIT (1 var(s) differ):
-    i             IR=1                     JIT=2
-```
-
-**Hypothesis (unverified):** `i` is a loop counter.  IR appears to be
-one iteration behind SM/JIT at the snapshot boundary.  Could be:
-- Off-by-one in IR step counting (one iteration not executed vs SM/JIT)
-- Label resolution / jump-back issue specific to `[G1]`
-- STCOUNT/STNO tracking divergence affecting which stmt the loop
-  lands on
-
-**Next-session work order:**
-
-1. Identify the source location of stmt 153 — find label `G1` in the
-   beauty.sno `-INCLUDE` chain.  Grep `grep -rn "^G1\|^\s*G1" /home/claude/corpus/programs/snobol4/demo/beauty/ /home/claude/corpus/programs/include/`.
-2. Identify the definition of `i` and the loop that increments it.
-3. Write a minimal probe that reproduces the off-by-one in isolation:
-   a simple counted loop with a `. var` capture, comparing IR vs SM/JIT.
-4. If probe reproduces: bug is in IR stmt counting / loop control.
-   If probe does NOT reproduce: context-dependent — iterate.
-5. Fix in `src/driver/interp.c` (most likely location).
-6. Gate sweep: Smoke=7, Broker=49 after fix.
-
-**Setup to resume (assumes clean session):**
-
-```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
-cd /home/claude/one4all && make scrip && make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
-
-# Reproduce stmt 153:
-BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-SNO_LIB=/home/claude/corpus/programs/include \
-    timeout 180 /home/claude/one4all/scrip-monitor --monitor \
-    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno 2>/tmp/mon.err >/dev/null
-grep -v "sm_lower:" /tmp/mon.err | strings | grep -A 10 "DIVERGE at stmt 153"
-```
-
-**Gate:** Smoke=7, Broker=49 after any `interp.c` fix.
-
-**Dependencies:** SN-26c-char-ir fix landed (pending commit at handoff).
+signature (single variable `i`, integer, one-line diff).  Stmt 153
+closed in session #3 — see SN-26c-stmt153 section at top of file
+(root cause was `SM_LABEL` / `SM_STNO` emit order in `sm_lower.c`).
 
 ---
 
@@ -818,33 +928,43 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-24 session (cont.):**
-- one4all @ pending (SN-26c-char-ir fix: nv_snapshot GC_MALLOC)
+**HEADs after 2026-04-24 session #3:**
+- one4all @ pending (SN-26c-stmt153 fix: sm_lower SM_LABEL/SM_STNO order)
 - corpus @ `88be074` (unchanged)
-- .github @ pending (SN-26c-char-ir close, SN-26c-stmt153 open)
-- x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g)
+- .github @ pending (SN-26c-stmt153 close, SN-26c-stmt637 open)
+- x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g — deferred)
 - csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts)
 
-**Gates (verified 2026-04-24 session cont., after SN-26c-char-ir fix):**
-Smoke **7** · Broker **49** (recovered 48→49).  SN-7/Broad/SN-9c owed in a subsequent session.
+**Gates (verified 2026-04-24 session #3, after SN-26c-stmt153 fix):**
+Smoke **7** · Broker **49**.  SN-7/Broad/SN-9c owed in a subsequent
+session.
 
-**Session 2026-04-24 (cont. #2) deltas:**
-- **SN-26c-char-ir CLOSED.**  Root cause identified and fixed.
-  `nv_snapshot` was allocating its pairs array with `malloc`, making
-  Boehm GC blind to the DT_S pointers it held.  After `NV_CLEAR_fn`
-  removed the last GC root for captured strings, they got reclaimed
-  during SM/JIT re-runs, and `snap_diff` later dereferenced stale
-  pointers → the `\n~` trailing-garbage pattern.  One-line fix:
-  `malloc` → `GC_MALLOC` in `snobol4.c:2349`; paired `free()` removed
-  from `sync_monitor.c:166`.  The IR runtime itself was always correct
-  — bug was purely at the snapshot layer.
-- **SN-26c-stmt153 OPENED.**  With char-ir fixed, stmts 1–152 now
-  cleanly `IR=SM=JIT agree`.  New first DIVERGE at stmt 153, label
-  `[G1]`: single variable `i`, IR=1 vs SM=JIT=2.  Classic
-  off-by-one-looking counter divergence.  Active rung, next session.
+**Session 2026-04-24 (cont. #3) deltas:**
+- **SN-26c-stmt153 CLOSED.**  Root cause: `lower_stmt` in
+  `sm_lower.c` emitted `SM_STNO` **before** `SM_LABEL`.  Branches to
+  the label landed at index N+1, skipping the STNO at index N.  This
+  caused SM/JIT to under-count statement executions on every branch
+  to a labeled statement — under `--ir-run`/`--sm-run`/`--jit-run` step
+  limits, SM/JIT ran extra source statements before the limit fired,
+  showing up as `i=2` vs IR's correct `i=1` in the G1 loop.  Three-line
+  fix: swap the LABEL and STNO emit order.  Verified with minimal probe
+  (`/tmp/probe_mini.sno`, 7 stmts) — monitor now reports all agree.
+  Beauty self-host monitor advances to stmt 637 (new divergence, see
+  below).  Collateral correction: forward gotos to labeled statements
+  now also count — was under-counted before.
+- **SN-26c-stmt637 OPENED.**  Fresh beauty monitor reveals IR
+  `doDebug=0` vs SM/JIT `doDebug=""` at stmt 637.  Label paths agree.
+  Stmt 637 is a `DEFINE('TX(lvl,pat,name)omega') :go TXEnd` —
+  `doDebug = 0` is at `beauty.sno:610` which is much later in source
+  (~stmt 1050+).  This means IR has executed **further** into the
+  program than SM/JIT at step 637 — opposite polarity from stmt 153.
+  Suggests IR is still not counting something that SM counts, OR a
+  remaining SM-under-count instance the stmt 153 fix didn't reach.
+  Active rung, next session.
 
-**Current step: SN-26c-stmt153.**  Investigate why IR's loop counter
-`i` is one behind SM/JIT at the `[G1]` label.
+**Current step: SN-26c-stmt637.**  Determine which kind of statement
+IR counts differently from SM/JIT at this boundary.  Candidates: empty
+labeled statements, DEFINE body statements, END/HALT asymmetry.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
