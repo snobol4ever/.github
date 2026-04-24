@@ -371,9 +371,98 @@ capture for that rung needs redoing under case-sensitive default.
 
 ---
 
-## Active rung — SN-26c-char-ir (needs re-capture post-SN-31)
+## Active rung — SN-26c-stmt153 (opened 2026-04-24, session cont.)
 
-Full detail below.  This is where work resumes next session.
+### SN-26c-char-ir — CLOSED 2026-04-24
+
+**Root cause:** `nv_snapshot` in `src/runtime/x86/snobol4.c:2349` allocated
+its `pairs[]` array with plain `malloc`, making Boehm GC blind to the
+DT_S pointers it held.  Sequence:
+
+1. Monitor takes IR snapshot at stmt N (pointers into live NV table bytes).
+2. `exec_snapshot_restore(&baseline)` calls `NV_CLEAR_fn` — removes the
+   NV table's references to the captured strings.
+3. SM re-runs (fresh allocations trigger GC).  Unreachable bytes get
+   reclaimed; Boehm reuses the memory for SM temporaries.
+4. `snap_diff` later dereferences the stale DT_S pointers in
+   `ir_snap.nv_pairs` — reads whatever SM wrote there.
+5. Classic signature: shared `\n~` tail across many diverging vars.
+
+**The IR runtime itself was never wrong.**  `bb_cap` / `NAME_commit` /
+`dup_substr` already produce GC-tracked bytes correctly.  Bug was
+entirely at the snapshot layer.
+
+**Fix (one4all, pending commit):**
+- `src/runtime/x86/snobol4.c` `nv_snapshot`: `malloc` → `GC_MALLOC` (+ comment).
+- `src/driver/sync_monitor.c` `exec_snapshot_free`: removed
+  `free(s->nv_pairs)` (GC reclaims).
+
+**Result:** stmts 1–152 now cleanly `IR=SM=JIT agree`.  Broker
+recovered 48 → 49.  Smoke 7.  New first DIVERGE surfaces at stmt 153
+— exactly as the old notes predicted — but with a far cleaner
+signature (single variable `i`, integer, one-line diff).
+
+### SN-26c-stmt153 — IR `i=1` vs SM/JIT `i=2` at label `[G1]`
+
+**Captured 2026-04-24 under SN-26c-char-ir fix:**
+```
+DIVERGE at stmt 153 [label: -, line 0]
+  IR   path: [START] \n [G1]
+  SM   path: [START] \n [G1]
+  JIT  path: [START] \n [G1]
+  IR   last_ok=?
+  SM   last_ok=1
+  JIT  last_ok=1
+  IR vs SM (1 var(s) differ):
+    i             IR=1                     SM=2
+  IR vs JIT (1 var(s) differ):
+    i             IR=1                     JIT=2
+```
+
+**Hypothesis (unverified):** `i` is a loop counter.  IR appears to be
+one iteration behind SM/JIT at the snapshot boundary.  Could be:
+- Off-by-one in IR step counting (one iteration not executed vs SM/JIT)
+- Label resolution / jump-back issue specific to `[G1]`
+- STCOUNT/STNO tracking divergence affecting which stmt the loop
+  lands on
+
+**Next-session work order:**
+
+1. Identify the source location of stmt 153 — find label `G1` in the
+   beauty.sno `-INCLUDE` chain.  Grep `grep -rn "^G1\|^\s*G1" /home/claude/corpus/programs/snobol4/demo/beauty/ /home/claude/corpus/programs/include/`.
+2. Identify the definition of `i` and the loop that increments it.
+3. Write a minimal probe that reproduces the off-by-one in isolation:
+   a simple counted loop with a `. var` capture, comparing IR vs SM/JIT.
+4. If probe reproduces: bug is in IR stmt counting / loop control.
+   If probe does NOT reproduce: context-dependent — iterate.
+5. Fix in `src/driver/interp.c` (most likely location).
+6. Gate sweep: Smoke=7, Broker=49 after fix.
+
+**Setup to resume (assumes clean session):**
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+cd /home/claude/one4all && make scrip && make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+
+# Reproduce stmt 153:
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+SNO_LIB=/home/claude/corpus/programs/include \
+    timeout 180 /home/claude/one4all/scrip-monitor --monitor \
+    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno 2>/tmp/mon.err >/dev/null
+grep -v "sm_lower:" /tmp/mon.err | strings | grep -A 10 "DIVERGE at stmt 153"
+```
+
+**Gate:** Smoke=7, Broker=49 after any `interp.c` fix.
+
+**Dependencies:** SN-26c-char-ir fix landed (pending commit at handoff).
+
+---
+
+## Closed historical detail — SN-26c-char-ir investigation
 
 ### Parent goal: SN-26 — True beauty.sno self-host (4-way monitor)
 
@@ -729,52 +818,33 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-24 session:**
-- one4all @ `fcc66d13` (SN-31: scrip default case-sensitive)
+**HEADs after 2026-04-24 session (cont.):**
+- one4all @ pending (SN-26c-char-ir fix: nv_snapshot GC_MALLOC)
 - corpus @ `88be074` (unchanged)
-- .github @ pending (SN-31 close, SN-26c-char-ir needs re-capture)
+- .github @ pending (SN-26c-char-ir close, SN-26c-stmt153 open)
 - x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g)
 - csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts)
 
-**Gates (last verified 2026-04-20):**
-Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
-in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
-Not re-verified this session.  SN-30f sweep owed.
+**Gates (verified 2026-04-24 session cont., after SN-26c-char-ir fix):**
+Smoke **7** · Broker **49** (recovered 48→49).  SN-7/Broad/SN-9c owed in a subsequent session.
 
-**Session 2026-04-24 deltas:**
-- **SN-30 closed** (a/b/c/d/e/g done; f deferred to regression sweep).
-  x64 sbl rebuilt from `cc68516` UPPERCASE sources; beauty self-host
-  byte-identical to CSNOBOL4 output on both oracles.
-- **SN-26c-pre-CSN-a3 unreproducing** on CSNOBOL4 HEAD `b3aeb9f`.
-  Moved to closed/historical below.
-- **SN-26c-char-ir opened** — first real IR-vs-SM/JIT divergence at
-  stmt 18, 12 char-constant vars, IR produces `)N~`-family garbage
-  while SM=JIT correct.  Probable locus: IR `CHAR()` result buffer
-  not duplicated.  Active rung.
-- **Makefile build-path bug fixed** — `name_t.c` now compiled when
-  invoking `make scrip-monitor` from clean.
+**Session 2026-04-24 (cont. #2) deltas:**
+- **SN-26c-char-ir CLOSED.**  Root cause identified and fixed.
+  `nv_snapshot` was allocating its pairs array with `malloc`, making
+  Boehm GC blind to the DT_S pointers it held.  After `NV_CLEAR_fn`
+  removed the last GC root for captured strings, they got reclaimed
+  during SM/JIT re-runs, and `snap_diff` later dereferenced stale
+  pointers → the `\n~` trailing-garbage pattern.  One-line fix:
+  `malloc` → `GC_MALLOC` in `snobol4.c:2349`; paired `free()` removed
+  from `sync_monitor.c:166`.  The IR runtime itself was always correct
+  — bug was purely at the snapshot layer.
+- **SN-26c-stmt153 OPENED.**  With char-ir fixed, stmts 1–152 now
+  cleanly `IR=SM=JIT agree`.  New first DIVERGE at stmt 153, label
+  `[G1]`: single variable `i`, IR=1 vs SM=JIT=2.  Classic
+  off-by-one-looking counter divergence.  Active rung, next session.
 
-**Session 2026-04-24 (cont.) deltas:**
-- **SN-31 fully closed** — scrip default flipped to case-sensitive
-  (`snobol4.l:60 sno_fold_on = 0`, `scrip.c:137 opt_case_sensitive = 1`).
-  Lexer regenerated (`snobol4.lex.c`).  Gates: Smoke **PASS=7**,
-  Broker **PASS=49** on new default, no regressions.
-- **Goal-file hypothesis on SN-26c-char-ir disproven** in isolation —
-  `POS(n) LEN(1) . var` probe against `&ALPHABET` agrees IR=SM=JIT
-  on single-char extraction.  The `BSLASH/SEMICOLON/FF/HT` names in
-  the old monitor capture were folded forms of `bSlash/semicolon/ff/ht`
-  from `global.inc`, captured before case-sensitive default was in
-  force.  The real first-DIVERGE under correct case semantics has
-  not been captured yet.
-- **RULES.md** — "Case-sensitive name space" section added; oracle
-  invocation table reflects new scrip default.
-
-**Current step: SN-26c-char-ir (re-capture).**  Next session: build
-csnobol4 + spitbol oracles, build `scrip-monitor CSN_A=...`, run the
-4-way monitor on beauty self-host with the new case-sensitive scrip,
-capture the actual first DIVERGE (could well be somewhere entirely
-different from stmt 18), and form a new hypothesis from that evidence.
-The old notes about char-constant `)N~` garbage are superseded.
+**Current step: SN-26c-stmt153.**  Investigate why IR's loop counter
+`i` is one behind SM/JIT at the `[G1]` label.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
