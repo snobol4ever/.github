@@ -179,27 +179,42 @@ and restores consistency with CSNOBOL4 and one4all.
   prints.  With `sbl -b` (folding on) both work.
 
 **Sub-rungs:**
-- [ ] **SN-30a** — Extract diff between x64 `sbl.min` DTC table and
-  x32 `s.min` DTC table.  Spec = exact list of `dtc /x/` → `dtc /X/`
-  substitutions (x32's UPPERCASE strings, wherever x32 is UPPERCASE
-  and x64 is lowercase at the corresponding slot).
-- [ ] **SN-30b** — Apply the substitutions to `sbl.min`.  Same
-  surgical approach to `lex.sbl` opcode table (line 209 area).
-- [ ] **SN-30c** — Regenerate `sbl.asm` via the bootstrap chain:
-  `make bootsbl` → use `BASEBOL=./bootsbl` → `make sbl`.  Do **not**
-  `make clean` (RULES.md: destroys configure artifacts).
-- [ ] **SN-30d** — Verify with probe: `OUTPUT = 'hi'` / `END` under
-  new `sbl -bf` prints `hi`.  Verify `output = 'hi'` / `end` now
-  fails (inverse).
-- [ ] **SN-30e** — Run `beauty.sno < beauty.sno` under new
-  `sbl -bf` with `SNOLIB=".:<corpus/include>"`.  Expect clean
-  self-host matching CSNOBOL4 `a509cd7` output (649 lines).  Gate:
-  output matches within stylistic tolerance.
-- [ ] **SN-30f** — Run SN-26 / SN-27 / SN-28 regression suite to
-  catch collateral breakage.  DATATYPE may need attention — SN-27
-  tracked lowercase-to-UPPERCASE there; same fix family.
-- [ ] **SN-30g** — Commit `makeboot` to re-sync
-  `bootstrap/sbl.asm` once SN-30e passes.
+- [x] **SN-30a** — Landed upstream on `x64 @ cc68516` (SN-30 agent,
+  2026-04-24): 173 DTC strings in `sbl.min` flipped lowercase → UPPERCASE
+  to match x32, plus FLC/FLSTG fold direction inverted (lowercase →
+  UPPERCASE) via `asm.sbl` g_flc emitter change and `flstg` range-check
+  byte swap.  374-line diff to `sbl.min`, 6-line diff to `asm.sbl`.
+- [x] **SN-30b** — Same commit `cc68516` applied the substitutions.
+  Alphabet constants (`&LCASE`/`&UCASE`), version strings, and mixed-case
+  diagnostic messages left unchanged per surgical-fix discipline.
+- [x] **SN-30c** — Session 2026-04-24: fresh rebuild chain exercised.
+  `rm -f bin/sbl && make bootsbl && make BASEBOL=./bootsbl sbl &&
+  make bininst`.  The prebuilt `bin/sbl` in the x64 checkout was
+  pre-SN-30 (lowercase-canonical); `build_spitbol_oracle.sh` SKIPped
+  on its presence, so the rebuild had to be forced manually.  Fix for
+  next session: add a capability probe to the build script.
+- [x] **SN-30d** — Verified: `OUTPUT='upper-ok' / END` prints `upper-ok`
+  under new `sbl -bf`.  Inverse `output='x' / end` fails with "No END
+  statement found" (correctly rejected under case-sensitive mode).
+- [x] **SN-30e** — `beauty.sno < beauty.sno` under new `sbl -bf` with
+  `SETL4PATH=.:/home/claude/corpus/programs/include` exits 0, produces
+  649 stdout lines, 0 stderr.  Output is **byte-identical to CSNOBOL4
+  HEAD `b3aeb9f`** on the same input (md5
+  `408fc788ca2ef425fc1f87e26d45a7a5` on both).  Include-path mechanism
+  on SPITBOL is `SETL4PATH` (not `SNOLIB` as sometimes documented);
+  source of truth: `x64/osint/port.h:293` `#define SPITFILEPATH
+  "SETL4PATH"`.
+- [ ] **SN-30f** — Deferred until SN-26c sorts out.  Smoke/Broker gates
+  depend on scrip build state, not the sbl binary; SN-30 changes are
+  scoped to the oracle lane.  Explicit regression of SN-7 (51/51),
+  Broad (225/225), SN-9c (207/207/207) under the new sbl still owed.
+- [x] **SN-30g** — `bootstrap/{sbl.asm,err.asm,sbl.lex}` updated in
+  session 2026-04-24 via manual copy (equivalent to `make makeboot`
+  minus the sanity-check gate which needs a tty).  Rebuild from new
+  bootstrap verified: `make bootsbl` produces a working sbl that
+  prints from `OUTPUT = 'x'` under default fold.  A fresh clone of x64
+  can now build SN-30 sbl from scratch without needing a pre-built
+  uppercase sbl as BASEBOL.
 
 **Notes / risks:**
 - The lowercased `sbl.min` is in x64 upstream (spitbol/x64).  This
@@ -314,7 +329,7 @@ variable-heavy programs (beauty, claws5); prepares 32-bit targets.
 
 ---
 
-## Active rung — SN-30a
+## Active rung — SN-26c-char-ir
 
 Full detail below.  This is where work resumes next session.
 
@@ -324,22 +339,165 @@ Full detail below.  This is where work resumes next session.
 `beauty.sno < beauty.sno` in all three modes (--ir-run, --sm-run,
 --jit-run).  4-way monitor (IR/SM/JIT + CSN) reports zero DIVERGE.
 
-**Oracle chain (verified 2026-04-21):** neither SPITBOL nor
-CSNOBOL4 runs beauty self-host cleanly today.
+**Oracle chain (verified 2026-04-24, both green):**
 
 | Oracle | Mode | Result |
 |--------|------|--------|
 | SPITBOL | `-b` | error 217 duplicate label on double-function pairs. Expected — beauty needs `-f`. |
-| SPITBOL | `-bf` | "No END statement found." SN-25 closed won't-fix. |
+| SPITBOL | `-bf` (SN-30 build) | **exit 0, 649 lines, 0 stderr.**  `SETL4PATH=".:<corpus/include>" sbl -bf beauty.sno < beauty.sno`. |
 | CSNOBOL4 | `-b` | Duplicate labels. Expected. |
-| CSNOBOL4 | `-bf` | 32 stdout lines then **SEGV at beauty.sno:616 stmt 1074**. The target to fix. |
-| scrip `--ir-run` | | 0 stdout lines; cascading `Error 1` from stmt 1063. Blocked until oracle lane works. |
+| CSNOBOL4 | `-bf` | **exit 0, 649 lines, 0 stderr.**  `snobol4 -bf -P 64k -S 64k -I. -I<corpus/include> beauty.sno < beauty.sno`. |
 
-**SN-26c-pre-CSN-a3 is the active sub-rung** — pin the PDLPTR
-corruption write site in CSNOBOL4 so the SEGV can be fixed,
-unblocking the CSN lane of the 4-way monitor.
+Both oracle outputs are byte-identical (md5
+`408fc788ca2ef425fc1f87e26d45a7a5`).  **The PDLPTR SEGV at stmt 1074
+described in the previous active rung (SN-26c-pre-CSN-a3) does not
+reproduce on CSNOBOL4 HEAD `b3aeb9f`** — presumably closed by some
+intervening fix, or the required `-P 64k -S 64k` stack sizing (per
+SN-29c) was the missing piece.  SN-26c-pre-CSN-a3 moved to closed/
+unreproducing below.
 
-### SN-26c-pre-CSN-a3 — pin the PDLPTR corruption site
+### SN-26c-char-ir — first 4-way monitor DIVERGE: IR char-constant garbage at stmt 18
+
+**Setup verified 2026-04-24.**  `scrip-monitor` (the IM-15b 4-way
+build linking `libcsnobol4.a`) runs beauty self-host without aborting
+on framework errors.  It iterates stmt-by-stmt comparing IR, SM, JIT
+ExecSnapshots; at the final stmt it additionally compares IR to
+CSNOBOL4 (CSN runs once at the end — globals cannot be safely
+re-initialised between sub-runs per IM-16).
+
+**First DIVERGE at stmt 18.**  Statements 1–17 all report
+`IR=SM=JIT agree`.  At stmt 18 the monitor reports 12 variables
+differ between IR and (SM, JIT).  SM and JIT agree with each other;
+**IR is the outlier**.
+
+```
+DIVERGE at stmt 18 [label: -, line 0]
+  IR   last_ok=?      (SM=1  JIT=1)
+  IR vs SM (12 var(s) differ):
+    FF            IR=)N~                SM=<FF byte>
+    VT            IR=)N~                SM=<VT byte>
+    TAB           IR=)N~                SM=<TAB byte>
+    NUL           IR=)N~                SM=<NUL byte>
+    BS            IR=)N~                SM=<BS byte>
+    BSLASH        IR=                   SM=\
+    CR            IR=)N~                SM=<CR byte>
+    SEMICOLON     IR=0)N~               SM=;
+    NL            IR=P)N~               SM=<NL byte>
+    LF            IR= )N~               SM=<LF byte>
+    FSLASH        IR=`)N~               SM=/
+    HT            IR=)N~                SM=<HT byte>
+  IR vs JIT (12 var(s) differ):  [same 12 vars, same IR values]
+```
+
+**Signal pattern.**  The recurring `)N~` three-byte suffix across many
+variables is not coincidence — it's a shared stale buffer being
+aliased or copied wholesale into descriptors.  The variation in
+prefix byte (`0` for SEMICOLON, `P` for NL, space for LF, backtick
+for FSLASH, empty for BSLASH) is the *correct* result byte for each
+of those characters, suggesting the builder writes one good byte
+then concatenates garbage.  Classic "result buffer not
+NUL-terminated / not duplicated" bug in the IR tree-walk path.
+
+**Probable locus.**  `CHAR(n)` or equivalent character-constant
+builder in `src/driver/interp.c` — only SM/JIT go through the BB
+pump and likely use arena-duplicated strings; the IR path likely
+grabs a char into a short-lived buffer and stores the descriptor
+without duplicating the content.  SM/JIT correctness means the SM
+opcode (likely `SM_CHAR` or inline in `SM_FUNC_CALL`) is fine — the
+divergence is IR-specific.
+
+**The actual stmt 18.**  Source counting is offset from naive
+column-1 parsing.  My quick awk scan of `beauty.sno` said stmt 18
+is `snoBuiltinVar = SPAN(…)`, but the variables that differ
+(`BSLASH`, `SEMICOLON`, `FF`, `HT`, …) do not appear anywhere in
+`beauty.sno` or its beauty-local `.inc` files.  These names are
+defined somewhere earlier in the include chain — probably in
+`global.inc` (which beauty.sno `-INCLUDE`s first) or in the
+`is.inc`/`FENCE.inc`/`io.inc` compatibility includes added by
+SN-29b.  Pin the exact file next session.
+
+**Next-session work order:**
+
+1. `grep -rn "BSLASH\b" /home/claude/corpus/programs/` — find the
+   defining `.inc`.  Expected format:
+   `BSLASH = CHAR(92)` or similar.  Verify `CHAR()` is the
+   constructor in every case.
+2. Write a 2-line probe program that hits the bug in isolation:
+   ```snobol4
+           &FULLSCAN = 1
+           x = CHAR(92)
+           OUTPUT = x
+   END
+   ```
+   Run under `--ir-run`, `--sm-run`, `--jit-run`.  If IR outputs
+   garbage and SM/JIT output `\`, the bug is confirmed in `CHAR()`.
+   Commit probe under `test/` as the regression gate.
+3. Inspect the IR path for `CHAR(n)` in `interp.c`.  Hypothesis:
+   result descriptor points into a stack or temp buffer that is
+   reused before the descriptor is consumed; fix is `strdup`
+   (or arena-alloc) on the result.  Compare to SM handling in
+   `sm_interp.c` to identify the good pattern.
+4. After fix: re-run 4-way monitor on beauty self-host.  Next DIVERGE
+   is expected at stmt 153 per the old notes (`UTF_Array='797163616:32490'`
+   IR vs `'124,2'` SM/JIT) — but now on a freshly understood baseline.
+
+**Setup commands to resume:**
+
+```bash
+# Oracles (both already self-host beauty):
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+# SPITBOL rebuild (manual — build_spitbol_oracle.sh SKIPs on prebuilt bin/sbl):
+cd /home/claude/x64 && rm -f bin/sbl bootsbl *.o
+make bootsbl && make BASEBOL=./bootsbl sbl && make bininst
+
+# scrip + 4-way monitor:
+cd /home/claude/one4all
+bash scripts/build_scrip.sh
+make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+
+# Reproduce the stmt-18 divergence:
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+SNO_LIB=/home/claude/corpus/programs/include \
+    timeout 120 /home/claude/one4all/scrip-monitor --monitor \
+    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno 2>&1 | grep -A 40 "DIVERGE at stmt 18"
+```
+
+**Side quest unblocked this session:** `/home/claude/one4all/Makefile`
+was missing a compile step for `src/runtime/x86/name_t.c`.  The
+top-level `make scrip-monitor` path (as distinct from
+`scripts/build_scrip.sh` which uses the in-tree `src/Makefile`)
+rm's `/tmp/si_objs/*.o` then rebuilds, but did not recompile
+`name_t.c`, causing a link failure on `name_commit_value` /
+`name_init_as_call`.  Fixed: added `$(CC) $(CRT) -c $(RT)/x86/name_t.c
+-o $(OBJ)/name_t.o` after the `snobol4_nmd.c` compile (line 71 of
+Makefile).
+
+**Gate:** Smoke=7, Broker=49 after any `interp.c` fix — these run
+without needing the new sbl, so they validate scrip independently
+of SN-30.  SN-30 regressions are SN-30f; hold for a separate sweep.
+
+**Dependencies:**
+- SN-30 closed (oracles both self-host beauty) — no longer gating.
+- SN-26c-pre-CSN-a3 PDLPTR SEGV unreproducing — no longer gating.
+
+### SN-26c-pre-CSN-a3 — pin the PDLPTR corruption site  [UNREPRODUCING 2026-04-24]
+
+**Status 2026-04-24:** does not reproduce on CSNOBOL4 HEAD `b3aeb9f`.
+`snobol4 -bf -P 64k -S 64k -I. -I<corpus/include> beauty.sno <
+beauty.sno` runs to completion, exit 0, 649 lines of beautified
+output, 0 stderr.  No SEGV at stmt 1074 or anywhere.  Either
+(a) an intervening fix between the session-8/9 work and `b3aeb9f`
+closed the underlying issue, or (b) the `-P 64k -S 64k` stack sizing
+(discovered in SN-29c) was always the missing piece and session-8/9
+ran with defaults (`-P 8k -S 4k`).  Leaving this rung in place for
+forensic reference; not picking it back up unless a future beauty-
+related SEGV recurs.  Strategy-A (AddressSanitizer) and Strategy-B
+(31-site breakpoint sweep) write-ups below remain accurate as
+technique if the bug ever returns.
+
+### SN-26c-pre-CSN-a3 (historical detail) — pin the PDLPTR corruption site
 
 **Problem:** CSNOBOL4 `-bf` SEGVs at `beauty.sno:616 stmt 1074`
 (`snoLine = INPUT` in `main02`).  Crash site is `SCIN1` at
@@ -529,19 +687,40 @@ cd $DEST
 
 ## Current state
 
-**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ pending
-this trim · x64 @ `5843f5d` (SN-25 closed won't-fix).
+**HEADs after 2026-04-24 session:**
+- one4all @ pending (Makefile fix for `name_t.c` compile)
+- corpus @ `88be074` (unchanged)
+- .github @ pending (SN-30 close, SN-26c-char-ir open)
+- x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g)
+- csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts)
 
 **Gates (last verified 2026-04-20):**
 Smoke **7** · Broker **49** · SN-7 drivers **51/51** · Broad corpus **225/225**
 in all three modes · SN-9c-e JIT parity **207/207/207** on crosscheck.
+Not re-verified this session.  SN-30f sweep owed.
 
-**Current step: SN-26c-pre-CSN-a3.**  Next session starts with
-Strategy A (AddressSanitizer rebuild of csnobol4) to identify the
-write site corrupting PDLPTR.  If ASan silent, fall back to
-Strategy B (31-site breakpoint sweep).  Details above.
+**Session 2026-04-24 deltas:**
+- **SN-30 closed** (a/b/c/d/e/g done; f deferred to regression sweep).
+  x64 sbl rebuilt from `cc68516` UPPERCASE sources; beauty self-host
+  byte-identical to CSNOBOL4 output on both oracles.
+- **SN-26c-pre-CSN-a3 unreproducing** on CSNOBOL4 HEAD `b3aeb9f`.
+  Moved to closed/historical below.
+- **SN-26c-char-ir opened** — first real IR-vs-SM/JIT divergence at
+  stmt 18, 12 char-constant vars, IR produces `)N~`-family garbage
+  while SM=JIT correct.  Probable locus: IR `CHAR()` result buffer
+  not duplicated.  Active rung.
+- **Makefile build-path bug fixed** — `name_t.c` now compiled when
+  invoking `make scrip-monitor` from clean.
+
+**Current step: SN-26c-char-ir.**  Next session: find the `.inc`
+file defining `BSLASH/SEMICOLON/FF/HT/…`, write a 2-line `CHAR(92)`
+probe, confirm IR-only divergence, fix `interp.c` result-buffer
+handling for `CHAR()`, re-run 4-way monitor.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
 - SN-22/23 cleanups: `NAME_push` return `void *` → `void`; `cache_get_fresh` template purity.
 - SN-26 scout: `IR last_ok=?` on DIVERGE — uncaptured in `sync_monitor.c`, one-line fix.
+- `build_spitbol_oracle.sh` SKIPs on prebuilt `bin/sbl` — add capability probe
+  so it auto-rebuilds when the checked-in binary predates the source.
+- ~40 `sm_lower: unresolved label 'ERROR'/'ERR'` warnings during beauty compile.
