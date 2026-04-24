@@ -234,7 +234,52 @@ Push_list      Push_list      =  EVAL("epsilon . *push_list(" vs ")")  :(RETURN)
 push_list_end
 ```
 `push_list` and `Push_list` are distinct labels only under case-sensitive
-mode. Run with CSNOBOL4 `-bf`. Never with SPITBOL (broken `-f`).
+mode. Run with CSNOBOL4 `-bf` or SPITBOL x64 `-bf` (SN-30 fixed the
+lowercase-canonical keyword table; `-bf` now works on both oracles).
+
+---
+
+## Case-sensitive name space — always, for every .sno and .inc
+
+⛔ **Every SNOBOL4 source file (`.sno`, `.inc`) runs in a case-sensitive
+name space.** Mixed-case identifiers like `bSlash`, `fSlash`,
+`semicolon`, `snoLine`, `UTF_Array`, `Push_list` are preserved
+verbatim — they are **not** folded to `BSLASH`, `FSLASH`,
+`SEMICOLON`, etc.
+
+### How to invoke the oracles
+
+| Oracle | Invocation |
+|--------|------------|
+| SPITBOL x64 (SN-30 build) | `/home/claude/x64/bin/sbl -bf file.sno` |
+| CSNOBOL4 | `/home/claude/csnobol4/snobol4 -bf file.sno` |
+| scrip (one4all) | `/home/claude/one4all/scrip ...` — case-sensitive by default (SN-31) |
+
+`-b` suppresses the banner on the oracles; `-f` toggles folding OFF.
+scrip is case-sensitive by default as of SN-31
+(`snobol4.l:60 sno_fold_on = 0`).  `--case-sensitive` on scrip is a
+no-op kept for backward compatibility with test scripts — pass or
+omit, same result.  No flag today reverses to classic fold-to-upper;
+if that mode is ever needed, add `--fold-case` in `scrip.c` and call
+`sno_set_case_sensitive(0)`.
+
+### Monitor output reports identifiers verbatim
+
+Because the name space is case-sensitive, `scrip-monitor` DIVERGE
+reports print identifiers exactly as they appear in source. A monitor
+line like `BSLASH IR=)N~ SM=<BS byte>` means **a variable literally
+named `BSLASH` is diverging** — it is not `bSlash` that was folded.
+If a DIVERGE names `BSLASH` and the source defines `bSlash`, the
+corpus file is wrong (or the source isn't the file you think it is)
+— do not "fix" by case-folding in the runtime.
+
+### Invariant for all one4all runtime code
+
+No case folding on any .sno / .inc identifier path.  Ingress-at-lex
+preserves the byte sequence the user wrote.  Casing decisions in
+one4all happen only at the two boundaries already documented above
+("Casing belongs at the ingress layer") — and for `.sno`/`.inc`
+ingress, the canonical form **is** the source form.
 
 ---
 

@@ -329,7 +329,49 @@ variable-heavy programs (beauty, claws5); prepares 32-bit targets.
 
 ---
 
-## Active rung — SN-26c-char-ir
+### SN-31 — scrip default case-sensitive (opened & closed 2026-04-24)
+
+**Done-when:** scrip, run with no flag, treats `bSlash` and `BSLASH`
+as distinct variables.  `.sno`/`.inc` corpus parses without
+identifier collisions.
+
+**Why:** Lon clarified 2026-04-24 that we always run SNO and INC
+with case-sensitive name space.  Per ingress-at-lex rule, the canonical
+form for identifiers in `.sno`/`.inc` **is** the source form.  SN-19
+added `--case-sensitive` as opt-in; default remained fold-to-upper.
+That default caused the stale monitor capture in SN-26c-char-ir
+(variables reported as `BSLASH`, `SEMICOLON` from folded `bSlash`,
+`semicolon`) and obscured whatever the real bug is.
+
+**Sub-rungs:**
+- [x] **SN-31a** — Flip `sno_fold_on` default from 1 → 0 in
+  `src/frontend/snobol4/snobol4.l:60`.  Regenerated `.lex.c`
+  (generated file committed per RULES.md).
+- [x] **SN-31b** — Update `opt_case_sensitive` default in
+  `src/driver/scrip.c:137` to 1; `--case-sensitive` flag is now a
+  no-op kept for script compatibility.  Usage text updated.
+- [x] **SN-31c** — Probe verifies: `bSlash='lower-b' / BSLASH='upper-B'`
+  produces distinct values on default scrip (was same value under old
+  default).  `POS/LEN . var` pattern-match probe against `&ALPHABET`
+  agrees IR=SM=JIT on single-char extraction.
+- [x] **SN-31d** — Update RULES.md "Case-sensitive name space" section
+  and "How to invoke the oracles" table to reflect new default.
+- [x] **SN-31e** — Gate sweep under new default: Smoke **PASS=7**,
+  Broker **PASS=49** (2026-04-24, session cont.).  No regressions from
+  the default flip.  Broad/crosscheck/SN-7 sweeps owed in a subsequent
+  session; the two fast gates suffice for closure.
+- [~] **SN-31f** — No regressions, so no triage needed.  Closing as
+  not-required.
+
+**Gate:** `bash scripts/test_smoke_snobol4.sh` PASS=7 and
+`bash scripts/test_smoke_unified_broker.sh` PASS=49 on new default.
+
+**Dependencies:** none.  Precedes SN-26c-char-ir — the monitor
+capture for that rung needs redoing under case-sensitive default.
+
+---
+
+## Active rung — SN-26c-char-ir (needs re-capture post-SN-31)
 
 Full detail below.  This is where work resumes next session.
 
@@ -688,9 +730,9 @@ cd $DEST
 ## Current state
 
 **HEADs after 2026-04-24 session:**
-- one4all @ pending (Makefile fix for `name_t.c` compile)
+- one4all @ `fcc66d13` (SN-31: scrip default case-sensitive)
 - corpus @ `88be074` (unchanged)
-- .github @ pending (SN-30 close, SN-26c-char-ir open)
+- .github @ pending (SN-31 close, SN-26c-char-ir needs re-capture)
 - x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g)
 - csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts)
 
@@ -712,10 +754,27 @@ Not re-verified this session.  SN-30f sweep owed.
 - **Makefile build-path bug fixed** — `name_t.c` now compiled when
   invoking `make scrip-monitor` from clean.
 
-**Current step: SN-26c-char-ir.**  Next session: find the `.inc`
-file defining `BSLASH/SEMICOLON/FF/HT/…`, write a 2-line `CHAR(92)`
-probe, confirm IR-only divergence, fix `interp.c` result-buffer
-handling for `CHAR()`, re-run 4-way monitor.
+**Session 2026-04-24 (cont.) deltas:**
+- **SN-31 fully closed** — scrip default flipped to case-sensitive
+  (`snobol4.l:60 sno_fold_on = 0`, `scrip.c:137 opt_case_sensitive = 1`).
+  Lexer regenerated (`snobol4.lex.c`).  Gates: Smoke **PASS=7**,
+  Broker **PASS=49** on new default, no regressions.
+- **Goal-file hypothesis on SN-26c-char-ir disproven** in isolation —
+  `POS(n) LEN(1) . var` probe against `&ALPHABET` agrees IR=SM=JIT
+  on single-char extraction.  The `BSLASH/SEMICOLON/FF/HT` names in
+  the old monitor capture were folded forms of `bSlash/semicolon/ff/ht`
+  from `global.inc`, captured before case-sensitive default was in
+  force.  The real first-DIVERGE under correct case semantics has
+  not been captured yet.
+- **RULES.md** — "Case-sensitive name space" section added; oracle
+  invocation table reflects new scrip default.
+
+**Current step: SN-26c-char-ir (re-capture).**  Next session: build
+csnobol4 + spitbol oracles, build `scrip-monitor CSN_A=...`, run the
+4-way monitor on beauty self-host with the new case-sensitive scrip,
+capture the actual first DIVERGE (could well be somewhere entirely
+different from stmt 18), and form a new hypothesis from that evidence.
+The old notes about char-constant `)N~` garbage are superseded.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
