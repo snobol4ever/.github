@@ -145,6 +145,150 @@ paths (surgical output flip, full literal rewrite) in archive.
 **Gate:** Smoke=7, Broker=49, SN-7=51/51, Broad=225/225 all green against rebuilt x64.
 **Dependencies:** none.  Orthogonal to SN-26 and SN-28.
 
+### SN-30 — Align SPITBOL x64 keyword case with x32 (UPPERCASE canonical)  (opened 2026-04-24)
+
+**Done-when:** SPITBOL x64 `sbl -bf` accepts UPPERCASE keywords
+(`END`, `OUTPUT`, `INPUT`, `SPAN`, `BREAK`, etc.) instead of the
+current lowercase canonical form.  Source programs written in the
+common UPPERCASE SNOBOL4 convention (including `beauty.sno`) should
+then self-host under x64 `-bf`, just as they do under x32 `-bf` and
+CSNOBOL4 `-bf`.
+
+**Why:** the "SPITBOL `-f` is broken" problem noted in RULES.md and
+SN-25 is not actually broken — x64's canonical keyword form is
+lowercase, an artifact of Cheyenne Wills's 2022 lowercasing of the
+entire `sbl.min` source.  x32's `s.min` (derived from the same
+MINIMAL lineage) kept UPPERCASE.  Aligning x64 to x32 fixes beauty's
+self-host lane, unblocks portable `-bf` programs across all oracles,
+and restores consistency with CSNOBOL4 and one4all.
+
+**Diagnosis (from session 2026-04-24):**
+- x64 `lex.sbl:209` — opcode table `'else[else]end[none end]...'`
+  (lowercase).
+- x32 `lex.spt:308` — `'ELSE[ELSE]END[NONE END]...'` (UPPERCASE).
+- x64 `sbl.min` contains 171 lowercase `dtc /.../` directives; x32
+  `s.min` contains 169 UPPERCASE `DTC /.../` directives.
+- First 26 DTCs are keyword tokens that differ only in case
+  (`/doub/` vs `/DOUB/` etc.).  Starting at DTC #27 the strings are
+  **diagnostic messages** (`/Dump of Keyword Values/` on x32 vs
+  `/DUMP OF KEYWORD VALUES/` on x64) — these are not keyword
+  tokens; leave them alone.  Surgical fix, not blanket uppercasing.
+- Probe evidence: `OUTPUT = 'hello'` with x64 `sbl -bf` exits 0
+  silently — `OUTPUT` became a user variable because it didn't
+  match the lowercase keyword table.  With `output = 'hello'` it
+  prints.  With `sbl -b` (folding on) both work.
+
+**Sub-rungs:**
+- [ ] **SN-30a** — Extract diff between x64 `sbl.min` DTC table and
+  x32 `s.min` DTC table.  Spec = exact list of `dtc /x/` → `dtc /X/`
+  substitutions (x32's UPPERCASE strings, wherever x32 is UPPERCASE
+  and x64 is lowercase at the corresponding slot).
+- [ ] **SN-30b** — Apply the substitutions to `sbl.min`.  Same
+  surgical approach to `lex.sbl` opcode table (line 209 area).
+- [ ] **SN-30c** — Regenerate `sbl.asm` via the bootstrap chain:
+  `make bootsbl` → use `BASEBOL=./bootsbl` → `make sbl`.  Do **not**
+  `make clean` (RULES.md: destroys configure artifacts).
+- [ ] **SN-30d** — Verify with probe: `OUTPUT = 'hi'` / `END` under
+  new `sbl -bf` prints `hi`.  Verify `output = 'hi'` / `end` now
+  fails (inverse).
+- [ ] **SN-30e** — Run `beauty.sno < beauty.sno` under new
+  `sbl -bf` with `SNOLIB=".:<corpus/include>"`.  Expect clean
+  self-host matching CSNOBOL4 `a509cd7` output (649 lines).  Gate:
+  output matches within stylistic tolerance.
+- [ ] **SN-30f** — Run SN-26 / SN-27 / SN-28 regression suite to
+  catch collateral breakage.  DATATYPE may need attention — SN-27
+  tracked lowercase-to-UPPERCASE there; same fix family.
+- [ ] **SN-30g** — Commit `makeboot` to re-sync
+  `bootstrap/sbl.asm` once SN-30e passes.
+
+**Notes / risks:**
+- The lowercased `sbl.min` is in x64 upstream (spitbol/x64).  This
+  divergence from x32 wasn't documented as intentional — it reads
+  like a code-cleanliness pass that had side effects on user-facing
+  keyword case.  Fix is local to our fork.
+- String constants like `/abcdefghijklmnopqrstuvwxyz/` and
+  `/ABCDEFGHIJKLMNOPQRSTUVWXYZ/` (lines 6121, 6125 in sbl.min) are
+  the `&LCASE` / `&UCASE` keyword values and must remain their
+  current case.
+- Diagnostic messages (lines 27+ of DTC table) stay lowercased on
+  x64 — that's cosmetic and doesn't affect `-bf`.
+- Supersedes the "won't fix" closure on SN-25: SN-25's symptom
+  ("No END statement found under `-f`") is now understood as a
+  direct consequence of the lowercase canonical table.
+
+**Dependencies:** orthogonal to SN-26/28/29; may interact with
+SN-27 (DATATYPE case) — both are sequels of the same upstream
+lowercasing pass.  Investigate whether a single pass can address
+both.
+
+---
+
+### SN-29 — Beauty under original oracles  (opened 2026-04-23)
+
+**Done-when:** `beauty.sno < beauty.sno` runs to completion under the
+*pre-modification* oracles, using only existing corpus programs and
+existing `.inc` files (no new files created).
+
+**Why:** pins a known-good baseline.  Our modifications to the oracles
+(FENCE(P) for CSNOBOL4, LOAD/UNLOAD for SPITBOL x64) sit on top of an
+original that self-hosted beauty.  If self-host breaks on current HEAD,
+we can regression-diff against this baseline.
+
+**Approach:** beauty.sno was missing three compatibility `-INCLUDE`
+lines present in the older `beauty/expression.sno` and `portable.inc`
+usage pattern:
+```
+-INCLUDE 'is.inc'       # IsSnobol4() / IsSpitbol()
+-INCLUDE 'FENCE.inc'    # stub FENCE(p) on SNOBOL4 (pass-through)
+-INCLUDE 'io.inc'       # INPUT/OUTPUT OPSYN on SNOBOL4
+```
+Add these to `beauty.sno` in corpus (not duplicates — authoritative
+copies already live at `corpus/programs/include/`).
+
+**Sub-rungs:**
+- [x] **SN-29a** — Build original csnobol4 at `a509cd7` (Initial
+  import, pre-FENCE(P) work).  Makefile2 generation: `make Makefile2`
+  first, then `make -f Makefile2 xsnobol4`.  Do **not** run top-level
+  `make xsnobol4` — it tries to regen data.c2 via a bootstrap `snobol4`
+  in PATH and fails.  Committed generated files (data.c, equ.h, etc.)
+  are sufficient at this commit.
+- [x] **SN-29b** — Add three `-INCLUDE` lines to
+  `corpus/programs/snobol4/demo/beauty/beauty.sno` after
+  `global.inc`.  3-line addition, no other changes.
+- [x] **SN-29c** — Verify beauty self-hosts under original csnobol4
+  `a509cd7` with `-bf -P 64k -S 64k -I. -I<corpus/include>`.
+  **PASS** — 649 lines of beautified output, exit 0, no errors.
+  Pattern-stack default (8k) and interp-stack default (4k) are **not**
+  sufficient — `-P 64k -S 64k` is the minimum for beauty self-host.
+- [~] **SN-29d** — SPITBOL x64 4.0f cannot self-host beauty —
+  **upstream v4.0f `-f` bug.**  Without `-f`, duplicate-label errors
+  fire on the double-function trick (`shift`/`Shift`, `reduce`/`Reduce`,
+  `pop`/`Pop`, `visit`/`VISIT`).  This matches RULES.md's
+  "SPITBOL `-f` is broken in v4.0f" guidance and SN-25's won't-fix
+  closure.  **Consequence:** beauty's `.ref` for self-host lane comes
+  from CSNOBOL4 only, not from both oracles.
+- [ ] **SN-29e** — Idempotency scout: `beauty(beauty_output)` is **not**
+  byte-identical to `beauty(beauty.sno)`.  Running beauty on its own
+  beautified output emits "Parse Error".  Likely the emitted form
+  includes idioms the parser rejects — `;*` inline comments get split
+  onto their own lines which may or may not survive re-parse.
+  Non-blocking for SN-29 completion; capture as a defect to fix later.
+- [ ] **SN-29f** — Capture canonical `.ref` from csnobol4 a509cd7 run.
+  Location: adjacent to `beauty.sno` in corpus.  Blocked on Lon's call
+  whether this file belongs in corpus at all.
+
+**Gate:** csnobol4 a509cd7 run produces exit 0 and 649 stdout lines.
+Minimum invocation:
+```bash
+cd /home/claude/corpus/programs/snobol4/demo/beauty
+/home/claude/csnobol4_a509cd7/snobol4 -bf -P 64k -S 64k \
+    -I. -I/home/claude/corpus/programs/include \
+    beauty.sno < beauty.sno
+```
+**Dependencies:** orthogonal to SN-26, SN-27, SN-28.
+
+---
+
 ### SN-28 — Compact DESCR_t: 16 → 8 bytes (opened 2026-04-21)
 
 **Goal:** halve DESCR_t cell size via arena aliasing (32-bit offsets
@@ -170,7 +314,7 @@ variable-heavy programs (beauty, claws5); prepares 32-bit targets.
 
 ---
 
-## Active rung — SN-26c-pre-CSN-a3
+## Active rung — SN-30a
 
 Full detail below.  This is where work resumes next session.
 
